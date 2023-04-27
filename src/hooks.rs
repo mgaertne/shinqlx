@@ -1,0 +1,321 @@
+use crate::quake_common::{
+    cbufExec_t, clientState_t, client_t, gentity_t, qboolean, usercmd_t, AddCommand,
+    CbufExecuteText, Client, ClientConnect, ClientEnterWorld, ClientSpawn, ComPrintf,
+    ExecuteClientCommand, FindCVar, GameEntity, InitGame, QuakeLiveEngine, RunFrame,
+    SendServerCommand, SetConfigstring, SetModuleOffset, SpawnServer, SV_TAGS_PREFIX,
+};
+use crate::{initialize_cvars, initialize_static};
+use std::ffi::{c_char, c_int, c_void, CStr, CString};
+
+fn set_tag() {
+    let Some(sv_tags) = QuakeLiveEngine::find_cvar("sv_tags") else {
+        return;
+    };
+
+    let sv_tags_string = sv_tags.get_string();
+
+    if sv_tags_string.split(",").any(|x| x == SV_TAGS_PREFIX) {
+        return;
+    }
+
+    let new_tags = if sv_tags_string.len() > 2 {
+        format!("sv_tags \"{},{}\"", SV_TAGS_PREFIX, sv_tags_string)
+    } else {
+        format!("sv_tags \"{}\"", SV_TAGS_PREFIX)
+    };
+    QuakeLiveEngine::cbuf_execute_text(cbufExec_t::EXEC_INSERT, &new_tags);
+}
+
+extern "C" {
+    static mut common_initialized: c_int;
+    static cvars_initialized: c_int;
+}
+
+#[no_mangle]
+pub extern "C" fn ShiNQlx_Cmd_AddCommand(cmd: *const c_char, func: *const c_void) {
+    if unsafe { common_initialized == 0 } {
+        initialize_static();
+    }
+
+    QuakeLiveEngine::add_command_native(cmd, func);
+}
+
+extern "C" {
+    fn SearchVmFunctions();
+    fn HookVm();
+    fn InitializeVm();
+    fn patch_vm();
+}
+
+#[no_mangle]
+pub extern "C" fn ShiNQlx_Sys_SetModuleOffset(module_name: *const c_char, offset: *const c_void) {
+    QuakeLiveEngine::set_module_offset_native(module_name, offset);
+
+    unsafe {
+        if common_initialized == 0 {
+            return;
+        }
+        SearchVmFunctions();
+        HookVm();
+        InitializeVm();
+        patch_vm();
+    }
+}
+
+#[no_mangle]
+pub extern "C" fn ShiNQlx_G_InitGame(level_time: c_int, random_seed: c_int, restart: c_int) {
+    QuakeLiveEngine::init_game_native(level_time, random_seed, restart);
+
+    if unsafe { cvars_initialized } == 0 {
+        set_tag();
+    }
+
+    initialize_cvars();
+
+    if restart == 0 {
+        return;
+    }
+
+    unsafe { NewGameDispatcher(restart) };
+}
+
+extern "C" {
+    fn ClientCommandDispatcher(client_id: c_int, cmd: *const c_char) -> *const c_char;
+}
+
+#[no_mangle]
+pub extern "C" fn ShiNQlx_SV_ExecuteClientCommand(
+    client: *const client_t,
+    cmd: *const c_char,
+    client_ok: qboolean,
+) {
+    let safe_client: Option<Client> = client.try_into().ok();
+    let mut res = cmd;
+
+    if <qboolean as Into<bool>>::into(client_ok) && safe_client.is_some() {
+        let client_id = safe_client.as_ref().unwrap().get_client_id();
+        res = unsafe { ClientCommandDispatcher(client_id, cmd) };
+        if res.is_null() {
+            return;
+        }
+    }
+
+    QuakeLiveEngine::execute_client_command(safe_client.as_ref(), res, client_ok);
+}
+
+extern "C" {
+    fn ServerCommandDispatcher(client_id: c_int, command: *const c_char) -> *const c_char;
+}
+
+#[no_mangle]
+pub extern "C" fn ShiNQlx_SV_SendServerCommand(client: *const client_t, command: *const c_char) {
+    let client_id = match Client::try_from(client) {
+        Ok(safe_client) => safe_client.get_client_id(),
+        Err(_) => -1,
+    };
+    let res = unsafe { ServerCommandDispatcher(client_id, command) };
+
+    if res.is_null() {
+        return;
+    }
+
+    let result = unsafe { CStr::from_ptr(res).to_string_lossy() };
+    QuakeLiveEngine::send_server_command(Client::try_from(client).ok(), &result);
+}
+
+extern "C" {
+    fn ClientLoadedDispatcher(client_id: c_int);
+}
+
+#[no_mangle]
+pub extern "C" fn ShiNQlx_SV_ClientEnterWorld(client: *const client_t, cmd: *const usercmd_t) {
+    let Some(safe_client): Option<Client> = client.try_into().ok() else {
+        return;
+    };
+
+    let state = safe_client.get_state();
+    QuakeLiveEngine::client_enter_world(&safe_client, cmd);
+
+    if !safe_client.has_gentity() || state != clientState_t::CS_PRIMED {
+        return;
+    }
+    let client_id = safe_client.get_client_id();
+
+    unsafe {
+        ClientLoadedDispatcher(client_id);
+    }
+}
+
+extern "C" {
+    fn SetConfigstringDispatcher(index: c_int, value: *const c_char) -> *const c_char;
+}
+
+#[no_mangle]
+pub extern "C" fn ShiNQlx_SV_SetConfigstring(index: c_int, value: *const c_char) {
+    let safe_value = if value.is_null() {
+        ""
+    } else {
+        unsafe { CStr::from_ptr(value).to_str().unwrap() }
+    };
+
+    // Indices 16 and 66X are spammed a ton every frame for some reason,
+    // so we add some exceptions for those. I don't think we should have any
+    // use for those particular ones anyway. If we don't do this, we get
+    // like a 25% increase in CPU usage on an empty server.
+    if index == 16 || (index >= 662 && index < 670) {
+        QuakeLiveEngine::set_config_string_native(&index, safe_value);
+        return;
+    }
+    let value_cstring = CString::new(safe_value).unwrap();
+    let res = unsafe { SetConfigstringDispatcher(index, value_cstring.as_ptr()) };
+    if res.is_null() {
+        return;
+    }
+
+    let res_string = unsafe { CStr::from_ptr(res).to_str().unwrap() };
+    QuakeLiveEngine::set_config_string_native(&index, res_string);
+}
+
+extern "C" {
+    fn ClientDisconnectDispatcher(client_id: c_int, reason: *const c_char);
+}
+
+#[no_mangle]
+pub extern "C" fn ShiNQlx_SV_DropClient(client: *const client_t, reason: *const c_char) {
+    let Some(safe_client): Option<Client> = client.try_into().ok() else {
+        return;
+    };
+
+    unsafe {
+        ClientDisconnectDispatcher(safe_client.get_client_id(), reason);
+    };
+    if let Some(reason_str) = unsafe { CStr::from_ptr(reason).to_str().ok() } {
+        safe_client.disconnect(reason_str);
+    } else {
+        safe_client.disconnect("");
+    }
+}
+
+extern "C" {
+    fn ConsolePrintDispatcher(msg: *const c_char) -> *const c_char;
+}
+
+#[no_mangle]
+pub extern "C" fn ShiNQlx_Com_Printf(msg: *const c_char) {
+    let res = unsafe { ConsolePrintDispatcher(msg) };
+
+    if res.is_null() {
+        return;
+    }
+
+    if let Some(msg_str) = unsafe { CStr::from_ptr(msg).to_str().ok() } {
+        QuakeLiveEngine::com_printf(msg_str);
+    }
+}
+
+extern "C" {
+    fn NewGameDispatcher(restart: c_int);
+}
+
+#[no_mangle]
+pub extern "C" fn ShiNQlx_SV_SpawnServer(server: *const c_char, kill_bots: qboolean) {
+    let Some(server_str) = (unsafe { CStr::from_ptr(server).to_str().ok() }) else { return; };
+
+    QuakeLiveEngine::spawn_server(server_str, kill_bots.into());
+    unsafe {
+        NewGameDispatcher(qboolean::qfalse.into());
+    }
+}
+
+extern "C" {
+    fn FrameDispatcher();
+}
+
+#[no_mangle]
+pub extern "C" fn ShiNQlx_G_RunFrame(time: c_int) {
+    unsafe {
+        FrameDispatcher();
+    }
+    QuakeLiveEngine::run_frame(time);
+}
+
+extern "C" {
+    fn ClientConnectDispatcher(client_num: c_int, is_bot: qboolean) -> *const c_char;
+}
+
+#[no_mangle]
+pub extern "C" fn ShiNQlx_ClientConnect(
+    client_num: c_int,
+    first_time: qboolean,
+    is_bot: qboolean,
+) -> *const c_char {
+    if first_time.into() {
+        let res = unsafe { ClientConnectDispatcher(client_num, is_bot) };
+        if !res.is_null() && !<qboolean as Into<bool>>::into(is_bot) {
+            return res;
+        }
+    }
+
+    QuakeLiveEngine::client_connect(
+        client_num,
+        &<qboolean as Into<bool>>::into(first_time),
+        &<qboolean as Into<bool>>::into(is_bot),
+    )
+}
+
+extern "C" {
+    fn ClientSpawnDispatcher(ent: c_int);
+}
+
+#[no_mangle]
+pub extern "C" fn ShiNQlx_ClientSpawn(ent: *mut gentity_t) {
+    let Some(game_entity): Option<GameEntity> = ent.try_into().ok() else {
+        return;
+    };
+
+    QuakeLiveEngine::client_spawn(&game_entity);
+    let client_id = game_entity.get_client_id();
+    // Since we won't ever stop the real function from being called,
+    // we trigger the event after calling the real one. This will allow
+    // us to set weapons and such without it getting overriden later.
+    unsafe {
+        ClientSpawnDispatcher(client_id);
+    };
+}
+
+extern "C" {
+    fn KamikazeUseDispatcher(client_id: c_int);
+    fn KamikazeExplodeDispatcher(client_id: c_int, used_on_demand: c_int);
+}
+
+#[no_mangle]
+pub extern "C" fn ShiNQlx_G_StartKamikaze(ent: *mut gentity_t) {
+    let Some(game_entity): Option<GameEntity> = ent.try_into().ok() else {
+        return;
+    };
+
+    let client_id = if let Some(game_client) = game_entity.get_game_client() {
+        game_client.get_client_num()
+    } else if let Some(activator) = game_entity.get_activator() {
+        activator.get_owner_num()
+    } else {
+        -1
+    };
+
+    if let Some(mut game_client) = game_entity.get_game_client() {
+        game_client.activate_kamikaze();
+        unsafe {
+            KamikazeUseDispatcher(client_id);
+        }
+    }
+
+    game_entity.start_kamikaze();
+
+    if client_id == -1 {
+        return;
+    }
+
+    unsafe {
+        KamikazeExplodeDispatcher(client_id, game_entity.get_game_client().is_some() as c_int);
+    }
+}
