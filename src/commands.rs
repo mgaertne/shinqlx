@@ -1,8 +1,9 @@
 use crate::quake_common::entity_event_t::{EV_DEATH1, EV_GIB_PLAYER, EV_PAIN};
 use crate::quake_common::{
-    Client, CmdArgc, CmdArgs, CmdArgv, ComPrintf, FindCVar, GameAddEvent, GameEntity,
-    QuakeLiveEngine, SendServerCommand,
+    Client, CmdArgc, CmdArgs, CmdArgv, ComPrintf, GameAddEvent, GameEntity, QuakeLiveEngine,
+    SendServerCommand,
 };
+use crate::SV_MAXCLIENTS;
 use rand::Rng;
 use std::ffi::{c_char, CString};
 
@@ -42,26 +43,22 @@ pub extern "C" fn cmd_slap() {
         return;
     }
 
-    let Some(maxclients) = QuakeLiveEngine::find_cvar("sv_maxclients") else {
-        return;
-    };
     let Some(passed_client_id_str) = QuakeLiveEngine::cmd_argv(1) else {
         return;
     };
     let Some(client_id) = passed_client_id_str.parse::<i32>().ok() else {
         let usage_note = format!(
             "client_id must be a number between 0 and {}.\n",
-            maxclients.get_integer()
+            unsafe {SV_MAXCLIENTS}
         );
         QuakeLiveEngine::com_printf(usage_note.as_str());
         return;
     };
 
-    if client_id > maxclients.get_integer() {
-        let usage_note = format!(
-            "client_id must be a number between 0 and {}.\n",
-            maxclients.get_integer()
-        );
+    if client_id > unsafe { SV_MAXCLIENTS } {
+        let usage_note = format!("client_id must be a number between 0 and {}.\n", unsafe {
+            SV_MAXCLIENTS
+        });
         QuakeLiveEngine::com_printf(usage_note.as_str());
         return;
     }
@@ -132,26 +129,22 @@ pub extern "C" fn cmd_slay() {
         return;
     }
 
-    let Some(maxclients) = QuakeLiveEngine::find_cvar("sv_maxclients") else {
-        return;
-    };
     let Some(passed_client_id_str) = QuakeLiveEngine::cmd_argv(1) else {
         return;
     };
     let Some(client_id) = passed_client_id_str.parse::<i32>().ok() else {
         let usage_note = format!(
             "client_id must be a number between 0 and {}.\n",
-            maxclients.get_integer()
+            unsafe { SV_MAXCLIENTS }
         );
         QuakeLiveEngine::com_printf(usage_note.as_str());
         return;
     };
 
-    if client_id > maxclients.get_integer() {
-        let usage_note = format!(
-            "client_id must be a number between 0 and {}.\n",
-            maxclients.get_integer()
-        );
+    if client_id > unsafe { SV_MAXCLIENTS } {
+        let usage_note = format!("client_id must be a number between 0 and {}.\n", unsafe {
+            SV_MAXCLIENTS
+        });
         QuakeLiveEngine::com_printf(usage_note.as_str());
         return;
     }

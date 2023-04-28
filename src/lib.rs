@@ -36,6 +36,7 @@ pub enum PyMinqlx_InitStatus_t {
 
 static mut COMMON_INITIALIZED: bool = false;
 static mut CVARS_INITIALIZED: bool = false;
+static mut SV_MAXCLIENTS: i32 = 0;
 
 extern "C" {
     fn PyCommand();
@@ -78,6 +79,7 @@ fn initialize_cvars() {
     };
     unsafe {
         sv_maxclients = maxclients.get_cvar();
+        SV_MAXCLIENTS = maxclients.get_integer();
         CVARS_INITIALIZED = true;
     }
 }
