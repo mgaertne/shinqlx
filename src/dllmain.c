@@ -27,8 +27,6 @@ const char qagame_name[] = "qagamei386.so";
 #endif
 
 // Global variables.
-int common_initialized = 0;
-int cvars_initialized = 0;
 serverStatic_t* svs;
 
 Com_Printf_ptr Com_Printf;
@@ -184,13 +182,6 @@ void InitializeVm(void) {
     bg_itemlist = (gitem_t*)*(int32_t*)((*(int32_t*)OFFSET_RELP_BG_ITEMLIST + 0xCEFF4 + (pint)qagame));
 #endif
     for (bg_numItems = 1; bg_itemlist[ bg_numItems ].classname; bg_numItems++) {}
-}
-
-// Called after the game is initialized.
-void InitializeCvars(void) {
-    sv_maxclients = Cvar_FindVar("sv_maxclients");
-
-    cvars_initialized = 1;
 }
 
 // __attribute__((constructor))

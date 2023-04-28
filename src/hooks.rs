@@ -4,8 +4,8 @@ use crate::quake_common::{
     ExecuteClientCommand, FindCVar, GameEntity, InitGame, QuakeLiveEngine, RunFrame,
     SendServerCommand, SetConfigstring, SetModuleOffset, SpawnServer, SV_TAGS_PREFIX,
 };
-use crate::{initialize_cvars, initialize_static};
-use std::ffi::{c_char, c_int, c_void, CStr, CString};
+use crate::{initialize_cvars, initialize_static, COMMON_INITIALIZED, CVARS_INITIALIZED};
+use std::ffi::{c_char, c_int, CStr, CString};
 
 fn set_tag() {
     let Some(sv_tags) = QuakeLiveEngine::find_cvar("sv_tags") else {
@@ -14,7 +14,7 @@ fn set_tag() {
 
     let sv_tags_string = sv_tags.get_string();
 
-    if sv_tags_string.split(",").any(|x| x == SV_TAGS_PREFIX) {
+    if sv_tags_string.split(',').any(|x| x == SV_TAGS_PREFIX) {
         return;
     }
 
@@ -26,18 +26,14 @@ fn set_tag() {
     QuakeLiveEngine::cbuf_execute_text(cbufExec_t::EXEC_INSERT, &new_tags);
 }
 
-extern "C" {
-    static mut common_initialized: c_int;
-    static cvars_initialized: c_int;
-}
-
 #[no_mangle]
-pub extern "C" fn ShiNQlx_Cmd_AddCommand(cmd: *const c_char, func: *const c_void) {
-    if unsafe { common_initialized == 0 } {
+pub extern "C" fn ShiNQlx_Cmd_AddCommand(cmd: *const c_char, func: unsafe extern "C" fn()) {
+    if unsafe { !COMMON_INITIALIZED } {
         initialize_static();
     }
 
-    QuakeLiveEngine::add_command_native(cmd, func);
+    let command = unsafe { CStr::from_ptr(cmd).to_string_lossy() };
+    QuakeLiveEngine::add_command(command.as_ref(), func);
 }
 
 extern "C" {
@@ -48,11 +44,15 @@ extern "C" {
 }
 
 #[no_mangle]
-pub extern "C" fn ShiNQlx_Sys_SetModuleOffset(module_name: *const c_char, offset: *const c_void) {
-    QuakeLiveEngine::set_module_offset_native(module_name, offset);
+pub extern "C" fn ShiNQlx_Sys_SetModuleOffset(
+    module_name: *const c_char,
+    offset: unsafe extern "C" fn(),
+) {
+    let converted_module_name = unsafe { CStr::from_ptr(module_name).to_string_lossy() };
+    QuakeLiveEngine::set_module_offset(converted_module_name.as_ref(), offset);
 
     unsafe {
-        if common_initialized == 0 {
+        if !COMMON_INITIALIZED {
             return;
         }
         SearchVmFunctions();
@@ -64,9 +64,9 @@ pub extern "C" fn ShiNQlx_Sys_SetModuleOffset(module_name: *const c_char, offset
 
 #[no_mangle]
 pub extern "C" fn ShiNQlx_G_InitGame(level_time: c_int, random_seed: c_int, restart: c_int) {
-    QuakeLiveEngine::init_game_native(level_time, random_seed, restart);
+    QuakeLiveEngine::init_game(level_time, random_seed, restart);
 
-    if unsafe { cvars_initialized } == 0 {
+    if unsafe { !CVARS_INITIALIZED } {
         set_tag();
     }
 
@@ -99,8 +99,12 @@ pub extern "C" fn ShiNQlx_SV_ExecuteClientCommand(
             return;
         }
     }
-
-    QuakeLiveEngine::execute_client_command(safe_client.as_ref(), res, client_ok);
+    let follow_up_command = unsafe { CStr::from_ptr(res).to_string_lossy() };
+    QuakeLiveEngine::execute_client_command(
+        safe_client.as_ref(),
+        follow_up_command.as_ref(),
+        client_ok.into(),
+    );
 }
 
 extern "C" {
@@ -162,8 +166,8 @@ pub extern "C" fn ShiNQlx_SV_SetConfigstring(index: c_int, value: *const c_char)
     // so we add some exceptions for those. I don't think we should have any
     // use for those particular ones anyway. If we don't do this, we get
     // like a 25% increase in CPU usage on an empty server.
-    if index == 16 || (index >= 662 && index < 670) {
-        QuakeLiveEngine::set_config_string_native(&index, safe_value);
+    if index == 16 || (662..670).contains(&index) {
+        QuakeLiveEngine::set_config_string(&index, safe_value);
         return;
     }
     let value_cstring = CString::new(safe_value).unwrap();
@@ -173,7 +177,7 @@ pub extern "C" fn ShiNQlx_SV_SetConfigstring(index: c_int, value: *const c_char)
     }
 
     let res_string = unsafe { CStr::from_ptr(res).to_str().unwrap() };
-    QuakeLiveEngine::set_config_string_native(&index, res_string);
+    QuakeLiveEngine::set_config_string(&index, res_string);
 }
 
 extern "C" {
@@ -256,11 +260,14 @@ pub extern "C" fn ShiNQlx_ClientConnect(
         }
     }
 
-    QuakeLiveEngine::client_connect(
-        client_num,
-        &<qboolean as Into<bool>>::into(first_time),
-        &<qboolean as Into<bool>>::into(is_bot),
-    )
+    let client_connect_return =
+        QuakeLiveEngine::client_connect(client_num, first_time.into(), is_bot.into());
+
+    match client_connect_return {
+        None => std::ptr::null(),
+        #[allow(temporary_cstring_as_ptr)]
+        Some(message) => CString::new(message.as_ref()).unwrap().as_ptr(),
+    }
 }
 
 extern "C" {

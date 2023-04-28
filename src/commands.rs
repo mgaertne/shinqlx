@@ -57,7 +57,7 @@ pub extern "C" fn cmd_slap() {
         return;
     };
 
-    if client_id > maxclients.get_integer().into() {
+    if client_id > maxclients.get_integer() {
         let usage_note = format!(
             "client_id must be a number between 0 and {}.\n",
             maxclients.get_integer()
@@ -147,7 +147,7 @@ pub extern "C" fn cmd_slay() {
         return;
     };
 
-    if client_id > maxclients.get_integer().into() {
+    if client_id > maxclients.get_integer() {
         let usage_note = format!(
             "client_id must be a number between 0 and {}.\n",
             maxclients.get_integer()

@@ -20,7 +20,6 @@ use crate::commands::{
 use crate::quake_common::DEBUG_PRINT_PREFIX;
 use crate::quake_common::{cvar_t, AddCommand, FindCVar, QuakeLiveEngine};
 use ctor::ctor;
-use std::ffi::c_int;
 
 #[allow(non_camel_case_types)]
 #[allow(non_camel_case_types)]
@@ -35,8 +34,10 @@ pub enum PyMinqlx_InitStatus_t {
     PYM_NOT_INITIALIZED_ERROR,
 }
 
+static mut COMMON_INITIALIZED: bool = false;
+static mut CVARS_INITIALIZED: bool = false;
+
 extern "C" {
-    static mut common_initialized: c_int;
     fn PyCommand();
     fn RestartPython();
     fn PyMinqlx_Initialize() -> PyMinqlx_InitStatus_t;
@@ -62,13 +63,12 @@ fn initialize_static() {
     }
 
     unsafe {
-        common_initialized = 1;
+        COMMON_INITIALIZED = true;
     }
 }
 
 extern "C" {
     static mut sv_maxclients: *const cvar_t;
-    static mut cvars_initialized: c_int;
 }
 
 // Called after the game is initialized.
@@ -78,7 +78,7 @@ fn initialize_cvars() {
     };
     unsafe {
         sv_maxclients = maxclients.get_cvar();
-        cvars_initialized = 1;
+        CVARS_INITIALIZED = true;
     }
 }
 

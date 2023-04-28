@@ -384,7 +384,7 @@ struct clientSession_t {
 #[allow(dead_code)]
 #[repr(C)]
 pub enum privileges_t {
-    PRIV_BANNED = 0xFFFFFFFF,
+    PRIV_BANNED = -1,
     PRIV_NONE = 0x0,
     PRIV_MOD = 0x1,
     PRIV_ADMIN = 0x2,
@@ -535,7 +535,7 @@ struct gclient_t {
     queuedSpectatorClient: c_int,
 }
 
-pub struct GameClient {
+pub(crate) struct GameClient {
     game_client: &'static mut gclient_t,
 }
 
@@ -555,12 +555,12 @@ impl TryFrom<*mut gclient_t> for GameClient {
 }
 
 impl GameClient {
-    pub fn get_client_num(&self) -> c_int {
+    pub fn get_client_num(&self) -> i32 {
         self.game_client.ps.clientNum
     }
 
     pub fn activate_kamikaze(&mut self) {
-        (*self.game_client).ps.eFlags = self.game_client.ps.eFlags.bitand(!EF_KAMIKAZE);
+        self.game_client.ps.eFlags = self.game_client.ps.eFlags.bitand(!EF_KAMIKAZE);
     }
 
     pub fn set_velocity(&mut self, velocity: (f32, f32, f32)) {
@@ -655,7 +655,7 @@ pub struct gentity_t {
     pickupCount: c_int,
 }
 
-pub struct GameEntity {
+pub(crate) struct GameEntity {
     gentity_t: &'static mut gentity_t,
 }
 
@@ -695,8 +695,8 @@ extern "C" {
 }
 
 impl GameEntity {
-    pub fn get_client_id(&self) -> c_int {
-        unsafe { (self.gentity_t as *const gentity_t).offset_from(g_entities) as c_int }
+    pub fn get_client_id(&self) -> i32 {
+        unsafe { (self.gentity_t as *const gentity_t).offset_from(g_entities) as i32 }
     }
 
     pub fn start_kamikaze(&self) {
@@ -712,26 +712,23 @@ impl GameEntity {
     }
 
     pub fn get_health(&self) -> i32 {
-        match self.gentity_t.health.try_into() {
-            Err(_) => 0,
-            Ok(health) => health,
-        }
+        self.gentity_t.health
     }
 
     pub fn set_health(&mut self, new_health: i32) {
-        (*self.gentity_t).health = new_health as c_int;
+        self.gentity_t.health = new_health as c_int;
     }
 
     pub fn in_use(&self) -> bool {
-        <qboolean as Into<bool>>::into(self.gentity_t.inuse)
+        self.gentity_t.inuse.into()
     }
 
-    pub fn get_client_number(&self) -> c_int {
+    pub fn get_client_number(&self) -> i32 {
         self.gentity_t.s.clientNum
     }
 }
 
-pub struct Activator {
+pub(crate) struct Activator {
     activator: &'static gentity_t,
 }
 
@@ -749,7 +746,7 @@ impl TryFrom<*const gentity_t> for Activator {
 }
 
 impl Activator {
-    pub fn get_owner_num(&self) -> c_int {
+    pub fn get_owner_num(&self) -> i32 {
         self.activator.r.ownerNum
     }
 }
@@ -1039,7 +1036,7 @@ pub struct cvar_t {
     hashNext: *const cvar_t,
 }
 
-pub struct CVar {
+pub(crate) struct CVar {
     cvar: &'static cvar_t,
 }
 
@@ -1060,7 +1057,7 @@ impl CVar {
         unsafe { CStr::from_ptr(self.cvar.string).to_string_lossy() }
     }
 
-    pub(crate) fn get_integer(&self) -> c_int {
+    pub(crate) fn get_integer(&self) -> i32 {
         self.cvar.integer
     }
 
@@ -1160,7 +1157,7 @@ pub struct client_t {
     steam_id: u64,
 }
 
-pub struct Client {
+pub(crate) struct Client {
     client_t: &'static client_t,
 }
 
@@ -1202,14 +1199,16 @@ extern "C" {
 }
 
 impl Client {
-    pub(crate) fn get_client_id(&self) -> c_int {
-        if !self.client_t.gentity.is_null() {
-            unsafe { (*(self.client_t).gentity).s.clientNum }
-        } else {
-            unsafe {
-                (self.client_t as *const client_t).offset_from(svs.as_ref().unwrap().clients)
-                    as c_int
-            }
+    pub(crate) fn get_client_id(&self) -> i32 {
+        unsafe {
+            self.client_t
+                .gentity
+                .as_ref()
+                .map(|e| e.s.clientNum)
+                .unwrap_or_else(|| {
+                    (self.client_t as *const client_t).offset_from(svs.as_ref().unwrap().clients)
+                        as i32
+                })
         }
     }
 
@@ -1264,7 +1263,7 @@ struct serverStatic_t {
     authorizeAddress: netadr_t,                // for rcon return messages
 }
 
-pub struct QuakeLiveEngine {}
+pub(crate) struct QuakeLiveEngine {}
 
 extern "C" {
     static Cvar_FindVar: extern "C" fn(*const c_char) -> *const cvar_t;
@@ -1308,7 +1307,6 @@ extern "C" {
 
 pub(crate) trait AddCommand {
     fn add_command(cmd: &str, func: unsafe extern "C" fn());
-    fn add_command_native(cmd: *const c_char, func: *const c_void);
 }
 
 impl AddCommand for QuakeLiveEngine {
@@ -1318,10 +1316,6 @@ impl AddCommand for QuakeLiveEngine {
             Cmd_AddCommand(CString::new(cmd).unwrap().as_ptr(), func as *const c_void)
         }
     }
-
-    fn add_command_native(cmd: *const c_char, func: *const c_void) {
-        unsafe { Cmd_AddCommand(cmd, func) }
-    }
 }
 
 extern "C" {
@@ -1329,12 +1323,18 @@ extern "C" {
 }
 
 pub(crate) trait SetModuleOffset {
-    fn set_module_offset_native(module_name: *const c_char, offset: *const c_void);
+    fn set_module_offset(module_name: &str, offset: unsafe extern "C" fn());
 }
 
 impl SetModuleOffset for QuakeLiveEngine {
-    fn set_module_offset_native(module_name: *const c_char, offset: *const c_void) {
-        unsafe { Sys_SetModuleOffset(module_name, offset) }
+    fn set_module_offset(module_name: &str, offset: unsafe extern "C" fn()) {
+        #[allow(temporary_cstring_as_ptr)]
+        unsafe {
+            Sys_SetModuleOffset(
+                CString::new(module_name).unwrap().as_ptr(),
+                offset as *const c_void,
+            )
+        }
     }
 }
 
@@ -1343,11 +1343,11 @@ extern "C" {
 }
 
 pub(crate) trait InitGame {
-    fn init_game_native(level_time: c_int, random_seed: c_int, restart: c_int);
+    fn init_game(level_time: i32, random_seed: i32, restart: i32);
 }
 
 impl InitGame for QuakeLiveEngine {
-    fn init_game_native(level_time: c_int, random_seed: c_int, restart: c_int) {
+    fn init_game(level_time: i32, random_seed: i32, restart: i32) {
         unsafe { G_InitGame(level_time, random_seed, restart) }
     }
 }
@@ -1357,16 +1357,27 @@ extern "C" {
 }
 
 pub(crate) trait ExecuteClientCommand {
-    fn execute_client_command(client: Option<&Client>, cmd: *const c_char, client_ok: qboolean);
+    fn execute_client_command(client: Option<&Client>, cmd: &str, client_ok: bool);
 }
 
 impl ExecuteClientCommand for QuakeLiveEngine {
-    fn execute_client_command(client: Option<&Client>, cmd: *const c_char, client_ok: qboolean) {
+    fn execute_client_command(client: Option<&Client>, cmd: &str, client_ok: bool) {
+        #[allow(temporary_cstring_as_ptr)]
         match client {
             Some(safe_client) => unsafe {
-                SV_ExecuteClientCommand(safe_client.client_t, cmd, client_ok)
+                SV_ExecuteClientCommand(
+                    safe_client.client_t,
+                    CString::new(cmd).unwrap().as_ptr(),
+                    client_ok.into(),
+                )
             },
-            None => unsafe { SV_ExecuteClientCommand(std::ptr::null(), cmd, client_ok) },
+            None => unsafe {
+                SV_ExecuteClientCommand(
+                    std::ptr::null(),
+                    CString::new(cmd).unwrap().as_ptr(),
+                    client_ok.into(),
+                )
+            },
         }
     }
 }
@@ -1411,11 +1422,11 @@ extern "C" {
 }
 
 pub(crate) trait SetConfigstring {
-    fn set_config_string_native(index: &c_int, value: &str);
+    fn set_config_string(index: &i32, value: &str);
 }
 
 impl SetConfigstring for QuakeLiveEngine {
-    fn set_config_string_native(index: &c_int, value: &str) {
+    fn set_config_string(index: &i32, value: &str) {
         #[allow(temporary_cstring_as_ptr)]
         unsafe {
             SV_SetConfigstring(*index, CString::new(value).unwrap().as_ptr())
@@ -1462,11 +1473,11 @@ extern "C" {
 }
 
 pub(crate) trait RunFrame {
-    fn run_frame(time: c_int);
+    fn run_frame(time: i32);
 }
 
 impl RunFrame for QuakeLiveEngine {
-    fn run_frame(time: c_int) {
+    fn run_frame(time: i32) {
         unsafe {
             G_RunFrame(time);
         }
@@ -1478,17 +1489,22 @@ extern "C" {
 }
 
 pub(crate) trait ClientConnect {
-    fn client_connect(client_num: c_int, first_time: &bool, is_bot: &bool) -> *const c_char;
+    fn client_connect(client_num: i32, first_time: bool, is_bot: bool)
+        -> Option<Cow<'static, str>>;
 }
 
 impl ClientConnect for QuakeLiveEngine {
-    fn client_connect(client_num: c_int, first_time: &bool, is_bot: &bool) -> *const c_char {
+    fn client_connect(
+        client_num: i32,
+        first_time: bool,
+        is_bot: bool,
+    ) -> Option<Cow<'static, str>> {
         unsafe {
-            ClientConnect(
-                client_num,
-                <qboolean as From<bool>>::from(*first_time),
-                <qboolean as From<bool>>::from(*is_bot),
-            )
+            let c_return = ClientConnect(client_num, first_time.into(), is_bot.into());
+            match c_return.is_null() {
+                true => None,
+                false => Some(CStr::from_ptr(c_return).to_string_lossy()),
+            }
         }
     }
 }
@@ -1533,7 +1549,7 @@ pub(crate) trait CmdArgc {
 
 impl CmdArgc for QuakeLiveEngine {
     fn cmd_argc() -> i32 {
-        unsafe { Cmd_Argc().into() }
+        unsafe { Cmd_Argc() }
     }
 }
 
@@ -1560,11 +1576,11 @@ extern "C" {
 }
 
 pub(crate) trait GameAddEvent {
-    fn game_add_event(game_entity: &GameEntity, event: entity_event_t, event_param: c_int);
+    fn game_add_event(game_entity: &GameEntity, event: entity_event_t, event_param: i32);
 }
 
 impl GameAddEvent for QuakeLiveEngine {
-    fn game_add_event(game_entity: &GameEntity, event: entity_event_t, event_param: c_int) {
+    fn game_add_event(game_entity: &GameEntity, event: entity_event_t, event_param: i32) {
         unsafe {
             G_AddEvent(
                 game_entity.gentity_t as *const gentity_t,
