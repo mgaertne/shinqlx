@@ -1564,7 +1564,6 @@ extern void __cdecl ShiNQlx_SV_SpawnServer(char* server, qboolean killBots);
 // VM replacement functions for hooks.
 extern void __cdecl ShiNQlx_G_RunFrame(int time);
 extern void __cdecl ShiNQlx_G_InitGame(int levelTime, int randomSeed, int restart);
-void __cdecl My_G_InitGame(int levelTime, int randomSeed, int restart);
 extern char* __cdecl ShiNQlx_ClientConnect(int clientNum, qboolean firstTime, qboolean isBot);
 extern void __cdecl ShiNQlx_ClientSpawn(gentity_t* ent);
 

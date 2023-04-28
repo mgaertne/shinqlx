@@ -20,8 +20,6 @@
 void* qagame;
 void* qagame_dllentry;
 
-static void SetTag(void);
-
 void __cdecl My_Sys_SetModuleOffset(char* moduleName, void* offset) {
     // We should be getting qagame, but check just in case.
     if (!strcmp(moduleName, "qagame")) {
@@ -44,20 +42,6 @@ void __cdecl My_Sys_SetModuleOffset(char* moduleName, void* offset) {
     }
 
     ShiNQlx_Sys_SetModuleOffset(moduleName, offset);
-}
-
-void __cdecl My_G_InitGame(int levelTime, int randomSeed, int restart) {
-    G_InitGame(levelTime, randomSeed, restart);
-
-    if (!cvars_initialized) { // Only called once.
-        SetTag();
-    }
-    InitializeCvars();
-
-#ifndef NOPY
-    if (restart)
-	   NewGameDispatcher(restart);
-#endif
 }
 
 // USED FOR PYTHON
@@ -215,21 +199,4 @@ void HookVm(void) {
         exit(1);
     }
 #endif
-}
-
-/////////////
-// HELPERS //
-/////////////
-
-static void SetTag(void) {
-    // Add minqlx tag.
-    char tags[1024]; // Surely 1024 is enough?
-    cvar_t* sv_tags = Cvar_FindVar("sv_tags");
-    if (strlen(sv_tags->string) > 2) { // Does it already have tags?
-        snprintf(tags, sizeof(tags), "sv_tags \"" SV_TAGS_PREFIX ",%s\"", sv_tags->string);
-        Cbuf_ExecuteText(EXEC_INSERT, tags);
-    }
-    else {
-        Cbuf_ExecuteText(EXEC_INSERT, "sv_tags \"" SV_TAGS_PREFIX "\"");
-    }
 }
