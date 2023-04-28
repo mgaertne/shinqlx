@@ -7,17 +7,14 @@ fn main() {}
 #[cfg(target_os = "linux")]
 fn main() {
     let mut includes = vec![];
-    match Command::new("python3-config")
-        .args(&["--includes"])
-        .output()
-    {
+    match Command::new("python3-config").args(["--includes"]).output() {
         Err(_) => {
             println!("You need to install python3-config installed to compile");
             return;
         }
         Ok(python_includes_output) => {
             let includes_output = String::from_utf8(python_includes_output.stdout).unwrap();
-            for include in includes_output.split(" ") {
+            for include in includes_output.split(' ') {
                 includes.push(include.replace("-I", ""));
             }
         }
@@ -72,18 +69,18 @@ fn main() {
     println!("cargo:rerun-if-changed=src/HDE/hde32.c");
 
     if let Ok(libs) = Command::new("python3-config")
-        .args(&["--libs", "--embed"])
+        .args(["--libs", "--embed"])
         .output()
     {
         let libs_embed_output = String::from_utf8(libs.stdout).unwrap();
-        for lib in libs_embed_output.split(" ") {
+        for lib in libs_embed_output.split(' ') {
             if lib.replace("-l", "").trim() != "" {
                 println!("cargo:rustc-link-lib={}", lib.replace("-l", ""));
             }
         }
-    } else if let Ok(libs) = Command::new("python3-config").args(&["--libs"]).output() {
+    } else if let Ok(libs) = Command::new("python3-config").args(["--libs"]).output() {
         let libs_embed_output = String::from_utf8(libs.stdout).unwrap();
-        for lib in libs_embed_output.split(" ") {
+        for lib in libs_embed_output.split(' ') {
             if lib.replace("-l", "").trim() != "" {
                 println!("cargo:rustc-link-lib={}", lib.replace("-l", ""));
             }
