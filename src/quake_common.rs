@@ -1,3 +1,5 @@
+use crate::quake_common::clientConnected_t::CON_DISCONNECTED;
+use crate::quake_common::team_t::TEAM_SPECTATOR;
 use std::borrow::Cow;
 use std::ffi::{c_char, c_float, c_int, c_uchar, c_uint, c_ushort, c_void, CStr, CString};
 use std::ops::{BitAnd, Not};
@@ -567,6 +569,22 @@ impl GameClient {
         self.game_client.ps.velocity[0] = velocity.0 as c_float;
         self.game_client.ps.velocity[1] = velocity.1 as c_float;
         self.game_client.ps.velocity[2] = velocity.2 as c_float;
+    }
+
+    pub(crate) fn get_connection_state(&self) -> clientConnected_t {
+        self.game_client.pers.connected
+    }
+
+    pub(crate) fn get_team(&self) -> i32 {
+        self.game_client.sess.sessionTeam as i32
+    }
+
+    pub(crate) fn get_player_name(&self) -> Cow<'static, str> {
+        unsafe { CStr::from_ptr(self.game_client.pers.netname.as_ptr()).to_string_lossy() }
+    }
+
+    pub(crate) fn get_privileges(&self) -> i32 {
+        self.game_client.sess.privileges as i32
     }
 }
 
@@ -1173,9 +1191,8 @@ impl TryFrom<*const client_t> for Client {
         }
     }
 }
-
 extern "C" {
-    static svs: *const serverStatic_t;
+    static svs: &'static serverStatic_t;
 }
 
 impl TryFrom<i32> for Client {
@@ -1183,9 +1200,7 @@ impl TryFrom<i32> for Client {
 
     fn try_from(client_id: i32) -> Result<Self, Self::Error> {
         unsafe {
-            svs.as_ref()
-                .unwrap()
-                .clients
+            svs.clients
                 .offset(client_id as isize)
                 .as_ref()
                 .map(|client| Self { client_t: client })
@@ -1200,20 +1215,11 @@ extern "C" {
 
 impl Client {
     pub(crate) fn get_client_id(&self) -> i32 {
-        unsafe {
-            self.client_t
-                .gentity
-                .as_ref()
-                .map(|e| e.s.clientNum)
-                .unwrap_or_else(|| {
-                    (self.client_t as *const client_t).offset_from(svs.as_ref().unwrap().clients)
-                        as i32
-                })
-        }
+        unsafe { (self.client_t as *const client_t).offset_from(svs.clients) as i32 }
     }
 
-    pub(crate) fn get_state(&self) -> clientState_t {
-        self.client_t.state
+    pub(crate) fn get_state(&self) -> i32 {
+        self.client_t.state as i32
     }
 
     pub(crate) fn has_gentity(&self) -> bool {
@@ -1227,8 +1233,55 @@ impl Client {
         }
     }
 
-    pub(crate) fn get_name(&self) -> Cow<'_, str> {
+    pub(crate) fn get_name(&self) -> Cow<'static, str> {
         unsafe { CStr::from_ptr(self.client_t.name.as_ptr()).to_string_lossy() }
+    }
+
+    pub(crate) fn get_steam_id(&self) -> u64 {
+        self.client_t.steam_id
+    }
+
+    fn is_connected(&self) -> bool {
+        let Ok(game_entity) = GameEntity::try_from(self.get_client_id()) else {
+            return false;
+        };
+        let Some(game_client) = game_entity.get_game_client() else {
+            return false;
+        };
+        game_client.get_connection_state() == CON_DISCONNECTED
+    }
+
+    pub(crate) fn get_player_name(&self) -> Cow<'static, str> {
+        if !self.is_connected() {
+            return Cow::from("");
+        }
+        let game_entity = GameEntity::try_from(self.get_client_id()).unwrap();
+        let game_client = game_entity.get_game_client().unwrap();
+        game_client.get_player_name()
+    }
+
+    pub(crate) fn get_team(&self) -> i32 {
+        if !self.is_connected() {
+            return TEAM_SPECTATOR as i32;
+        }
+
+        let game_entity = GameEntity::try_from(self.get_client_id()).unwrap();
+        let game_client = game_entity.get_game_client().unwrap();
+        game_client.get_team()
+    }
+
+    pub(crate) fn get_privileges(&self) -> i32 {
+        if !self.is_connected() {
+            return -1;
+        }
+
+        let game_entity = GameEntity::try_from(self.get_client_id()).unwrap();
+        let game_client = game_entity.get_game_client().unwrap();
+        game_client.get_privileges()
+    }
+
+    pub(crate) fn get_user_info(&self) -> Cow<'static, str> {
+        unsafe { CStr::from_ptr(self.client_t.userinfo.as_ptr()).to_string_lossy() }
     }
 }
 
@@ -1253,7 +1306,7 @@ struct serverStatic_t {
     initialized: qboolean,                  // sv_init has completed
     time: c_int,                            // will be strictly increasing across level changes
     snapFlagServerBit: c_int,               // ^= SNAPFLAG_SERVERCOUNT every SV_SpawnServer()
-    clients: *const client_t,               // [sv_maxclients->integer];
+    clients: *mut client_t,                 // [sv_maxclients->integer];
     numSnapshotEntities: c_int, // sv_maxclients->integer*PACKET_BACKUP*MAX_PACKET_ENTITIES
     nextSnapshotEntities: c_int, // next snapshotEntities to use
     snapshotEntities: *const entityState_t, // [numSnapshotEntities]
@@ -1501,10 +1554,10 @@ impl ClientConnect for QuakeLiveEngine {
     ) -> Option<Cow<'static, str>> {
         unsafe {
             let c_return = ClientConnect(client_num, first_time.into(), is_bot.into());
-            match c_return.is_null() {
-                true => None,
-                false => Some(CStr::from_ptr(c_return).to_string_lossy()),
+            if c_return.is_null() {
+                return None;
             }
+            Some(CStr::from_ptr(c_return).to_string_lossy())
         }
     }
 }

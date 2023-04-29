@@ -92,7 +92,10 @@ pub extern "C" fn ShiNQlx_SV_ExecuteClientCommand(
     let safe_client: Option<Client> = client.try_into().ok();
     let mut res = cmd;
 
-    if <qboolean as Into<bool>>::into(client_ok) && safe_client.is_some() {
+    if <qboolean as Into<bool>>::into(client_ok)
+        && safe_client.is_some()
+        && safe_client.as_ref().unwrap().has_gentity()
+    {
         let client_id = safe_client.as_ref().unwrap().get_client_id();
         res = unsafe { ClientCommandDispatcher(client_id, cmd) };
         if res.is_null() {
@@ -140,7 +143,7 @@ pub extern "C" fn ShiNQlx_SV_ClientEnterWorld(client: *const client_t, cmd: *con
     let state = safe_client.get_state();
     QuakeLiveEngine::client_enter_world(&safe_client, cmd);
 
-    if !safe_client.has_gentity() || state != clientState_t::CS_PRIMED {
+    if !safe_client.has_gentity() || state != clientState_t::CS_PRIMED as i32 {
         return;
     }
     let client_id = safe_client.get_client_id();
