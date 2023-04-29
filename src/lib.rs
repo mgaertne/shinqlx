@@ -11,6 +11,7 @@ macro_rules! debug_println {
 
 mod commands;
 mod hooks;
+mod pyminqlx;
 mod quake_common;
 
 use crate::commands::{
