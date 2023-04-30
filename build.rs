@@ -37,12 +37,18 @@ fn main() {
         "src/HDE/hde32.c",
     ]);
     builder.includes(includes);
+    let shinqlx_version = format!(
+        "\"v{}-{}\"",
+        env!("CARGO_PKG_VERSION"),
+        env!("CARGO_PKG_NAME")
+    );
     builder
         .flag("-shared")
         .flag("-std=gnu11")
         .flag("-Wno-unused-variable")
         .flag("-Wno-unused-parameter")
-        .flag("-Wno-stringop-truncation");
+        .flag("-Wno-stringop-truncation")
+        .define("MINQLX_VERSION", shinqlx_version.as_str());
 
     #[cfg(debug_assertions)]
     builder
