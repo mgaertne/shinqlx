@@ -7,10 +7,15 @@ readme = "README.md"
 description = "ShiN0's QuakeLive extension in Rust"
 repository = "https://github.com/mgaertne/shinqlx"
 license-file = "LICENSE"
+include = ["run_server_shinqlx.sh"]
+publish = false
 
 [lib]
+name = "shinqlx"
 crate-type = ["cdylib"]
 path = "src/lib.rs"
+test = false
+bench = false
 
 [profile.release]
 opt-level = 3
