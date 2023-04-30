@@ -1,40 +1,44 @@
-use crate::quake_common::clientState_t::CS_FREE;
+use crate::hooks::{
+    shinqlx_com_printf, shinqlx_drop_client, shinqlx_execute_client_command,
+    shinqlx_send_server_command,
+};
+use crate::quake_common::clientState_t::{CS_ACTIVE, CS_FREE, CS_ZOMBIE};
 use crate::quake_common::team_t::TEAM_SPECTATOR;
-use crate::quake_common::Client;
+use crate::quake_common::{
+    Client, ConsoleCommand, FindCVar, GetConfigstring, QuakeLiveEngine, SetCVar, SetCVarForced,
+    SetCVarLimit, MAX_CONFIGSTRINGS,
+};
 use crate::SV_MAXCLIENTS;
 use pyo3::exceptions::PyValueError;
 use pyo3::prelude::*;
 use std::borrow::Cow;
+use std::ffi::c_int;
 
+/// Information about a player, such as Steam ID, name, client ID, and whatnot.
 #[pyclass]
 #[pyo3(name = "player_info")]
 #[allow(unused)]
 struct PlayerInfo {
+    /// The player's client ID.
     client_id: i32,
+    /// The player's name.
     name: Cow<'static, str>,
+    /// The player's connection state.
     connection_state: i32,
+    /// The player's userinfo.
     userinfo: Cow<'static, str>,
+    /// The player's 64-bit representation of the Steam ID.
     steam_id: u64,
+    /// The player's team.
     team: i32,
+    /// The player's privileges.
     privileges: i32,
 }
 
-#[pyfunction]
-#[pyo3(name = "player_info")]
-fn get_player_info(client_id: i32) -> PyResult<Option<PlayerInfo>> {
-    println!(
-        "get_player_info called although not yet configured properly! {}",
-        client_id
-    );
-    if client_id < 0 || client_id > unsafe { SV_MAXCLIENTS } {
-        return Err(PyValueError::new_err(format!(
-            "client_id needs to be a number from 0 to {}.",
-            unsafe { SV_MAXCLIENTS }
-        )));
-    }
+fn make_player_tuple(client_id: i32) -> Option<PlayerInfo> {
     let client_result = Client::try_from(client_id);
     match client_result {
-        Err(_) => Ok(Some(PlayerInfo {
+        Err(_) => Some(PlayerInfo {
             client_id,
             name: Default::default(),
             connection_state: 0,
@@ -42,33 +46,268 @@ fn get_player_info(client_id: i32) -> PyResult<Option<PlayerInfo>> {
             steam_id: 0,
             team: TEAM_SPECTATOR as i32,
             privileges: -1,
-        })),
-        Ok(client) => {
-            if client.get_state() == CS_FREE as i32 {
-                #[cfg(debug_assertions)]
-                println!(
-                    "WARNING: get_player_info called for CS_FREE client {}.",
-                    client_id
-                );
-                Ok(None)
-            } else {
-                Ok(Some(PlayerInfo {
-                    client_id,
-                    name: client.get_player_name(),
-                    connection_state: client.get_state(),
-                    userinfo: client.get_user_info(),
-                    steam_id: client.get_steam_id(),
-                    team: client.get_team(),
-                    privileges: client.get_privileges(),
-                }))
+        }),
+        Ok(client) => Some(PlayerInfo {
+            client_id,
+            name: client.get_player_name(),
+            connection_state: client.get_state(),
+            userinfo: client.get_user_info(),
+            steam_id: client.get_steam_id(),
+            team: client.get_team(),
+            privileges: client.get_privileges(),
+        }),
+    }
+}
+
+extern "C" {
+    static allow_free_client: c_int;
+}
+
+/// Returns a dictionary with information about a player by ID.
+#[pyfunction]
+#[pyo3(name = "player_info")]
+fn get_player_info(client_id: i32) -> PyResult<Option<PlayerInfo>> {
+    if client_id < 0 || client_id > unsafe { SV_MAXCLIENTS } {
+        return Err(PyValueError::new_err(format!(
+            "client_id needs to be a number from 0 to {}.",
+            unsafe { SV_MAXCLIENTS }
+        )));
+    }
+    if let Ok(client) = Client::try_from(client_id) {
+        if unsafe { allow_free_client } != client_id && client.get_state() == CS_FREE as i32 {
+            #[cfg(debug_assertions)]
+            println!(
+                "WARNING: get_player_info called for CS_FREE client {}.",
+                client_id
+            );
+            return Ok(None);
+        }
+    }
+
+    Ok(make_player_tuple(client_id))
+}
+
+/// Returns a list with dictionaries with information about all the players on the server.
+#[pyfunction]
+#[pyo3(name = "players_info")]
+fn get_players_info() -> PyResult<Vec<Option<PlayerInfo>>> {
+    let mut result = Vec::new();
+    for client_id in unsafe { 0..SV_MAXCLIENTS } {
+        match Client::try_from(client_id) {
+            Err(_) => result.push(None),
+            Ok(client) => {
+                if client.get_state() == CS_FREE as i32 {
+                    result.push(None)
+                } else {
+                    result.push(make_player_tuple(client_id))
+                }
             }
         }
     }
+    Ok(result)
+}
+
+/// Returns a string with a player's userinfo.
+#[pyfunction]
+#[pyo3(name = "get_userinfo")]
+fn get_userinfo(client_id: i32) -> PyResult<Option<Cow<'static, str>>> {
+    if client_id < 0 || client_id > unsafe { SV_MAXCLIENTS } {
+        return Err(PyValueError::new_err(format!(
+            "client_id needs to be a number from 0 to {}.",
+            unsafe { SV_MAXCLIENTS }
+        )));
+    }
+
+    match Client::try_from(client_id) {
+        Err(_) => Ok(None),
+        Ok(client) => {
+            if unsafe { allow_free_client } != client_id && client.get_state() == CS_FREE as i32 {
+                Ok(None)
+            } else {
+                Ok(Some(client.get_user_info()))
+            }
+        }
+    }
+}
+
+/// Sends a server command to either one specific client or all the clients.
+#[pyfunction]
+#[pyo3(name = "send_server_command")]
+#[pyo3(signature = (optional_client_id, cmd))]
+fn send_server_command(optional_client_id: Option<i32>, cmd: &str) -> PyResult<Option<bool>> {
+    match optional_client_id {
+        None => {
+            shinqlx_send_server_command(None, cmd);
+            Ok(Some(true))
+        }
+        Some(client_id) => {
+            if client_id < 0 || client_id > unsafe { SV_MAXCLIENTS } {
+                return Err(PyValueError::new_err(format!(
+                    "client_id needs to be a number from 0 to {}, or None.",
+                    unsafe { SV_MAXCLIENTS }
+                )));
+            }
+            match Client::try_from(client_id) {
+                Err(_) => Ok(Some(false)),
+                Ok(client) => {
+                    if client.get_state() != CS_ACTIVE as i32 {
+                        Ok(Some(false))
+                    } else {
+                        shinqlx_send_server_command(Some(client), cmd);
+                        Ok(Some(true))
+                    }
+                }
+            }
+        }
+    }
+}
+
+/// Tells the server to process a command from a specific client.
+#[pyfunction]
+#[pyo3(name = "client_command")]
+#[pyo3(signature = (optional_client_id, cmd))]
+fn client_command(optional_client_id: Option<i32>, cmd: &str) -> PyResult<Option<bool>> {
+    match optional_client_id {
+        None => {
+            shinqlx_execute_client_command(None, cmd, true);
+            Ok(Some(true))
+        }
+        Some(client_id) => {
+            if client_id < 0 || client_id > unsafe { SV_MAXCLIENTS } {
+                return Err(PyValueError::new_err(format!(
+                    "client_id needs to be a number from 0 to {}, or None.",
+                    unsafe { SV_MAXCLIENTS }
+                )));
+            }
+            match Client::try_from(client_id) {
+                Err(_) => Ok(Some(false)),
+                Ok(client) => {
+                    if [CS_FREE as i32, CS_ZOMBIE as i32].contains(&client.get_state()) {
+                        Ok(Some(false))
+                    } else {
+                        shinqlx_execute_client_command(Some(client), cmd, true);
+                        Ok(Some(true))
+                    }
+                }
+            }
+        }
+    }
+}
+
+/// Executes a command as if it was executed from the server console.
+#[pyfunction]
+#[pyo3(name = "console_command")]
+#[pyo3(signature = (cmd))]
+fn console_command(cmd: &str) {
+    QuakeLiveEngine::execute_console_command(cmd);
+}
+
+/// Gets a cvar.
+#[pyfunction]
+#[pyo3(name = "get_cvar")]
+#[pyo3(signature = (cvar))]
+fn get_cvar(cvar: &str) -> PyResult<Option<String>> {
+    match QuakeLiveEngine::find_cvar(cvar) {
+        None => Ok(None),
+        Some(cvar_result) => Ok(Some(cvar_result.get_string().to_string())),
+    }
+}
+
+/// Sets a cvar.
+#[pyfunction]
+#[pyo3(name = "set_cvar")]
+#[pyo3(signature = (cvar, value, flags=None))]
+fn set_cvar(cvar: &str, value: &str, flags: Option<i32>) -> PyResult<bool> {
+    match QuakeLiveEngine::find_cvar(cvar) {
+        None => {
+            QuakeLiveEngine::set_cvar(cvar, value, flags);
+            Ok(true)
+        }
+        Some(_) => {
+            if flags.is_none() {
+                QuakeLiveEngine::set_cvar_forced(cvar, value, true);
+            } else {
+                QuakeLiveEngine::set_cvar_forced(cvar, value, false);
+            }
+            Ok(false)
+        }
+    }
+}
+
+/// Sets a non-string cvar with a minimum and maximum value.
+#[pyfunction]
+#[pyo3(name = "set_cvar_limit")]
+#[pyo3(signature = (cvar, value, min, max, flags=None))]
+fn set_cvar_limit(cvar: &str, value: &str, min: &str, max: &str, flags: Option<i32>) {
+    QuakeLiveEngine::set_cvar_limit(cvar, value, min, max, flags);
+}
+
+/// Kick a player and allowing the admin to supply a reason for it.
+#[pyfunction]
+#[pyo3(name = "kick")]
+#[pyo3(signature = (client_id, reason=None))]
+fn kick(client_id: i32, reason: Option<&str>) -> PyResult<()> {
+    if client_id < 0 || client_id > unsafe { SV_MAXCLIENTS } {
+        return Err(PyValueError::new_err(format!(
+            "client_id needs to be a number from 0 to {}.",
+            unsafe { SV_MAXCLIENTS }
+        )));
+    }
+
+    match Client::try_from(client_id) {
+        Err(_) => Err(PyValueError::new_err(
+            "client_id must be None or the ID of an active player.",
+        )),
+        Ok(client) => {
+            if client.get_state() != CS_ACTIVE as i32 {
+                return Err(PyValueError::new_err(
+                    "client_id must be None or the ID of an active player.",
+                ));
+            }
+            shinqlx_drop_client(&client, reason.unwrap_or("was kicked."));
+            Ok(())
+        }
+    }
+}
+
+/// Prints text on the console. If used during an RCON command, it will be printed in the player's console.
+#[pyfunction]
+#[pyo3(name = "console_print")]
+#[pyo3(signature = (text))]
+fn console_print(text: &str) {
+    shinqlx_com_printf(text);
+}
+
+/// Get a configstring.
+#[pyfunction]
+#[pyo3(name = "get_configstring")]
+#[pyo3(signature = (config_id))]
+fn get_configstring(config_id: i32) -> PyResult<Cow<'static, str>> {
+    if config_id < 0 || config_id > MAX_CONFIGSTRINGS as i32 {
+        return Err(PyValueError::new_err(format!(
+            "client_id needs to be a number from 0 to {}.",
+            unsafe { SV_MAXCLIENTS }
+        )));
+    }
+    Ok(Cow::from(QuakeLiveEngine::get_configstring(config_id)))
 }
 
 #[pymodule]
 #[pyo3(name = "_minqlx")]
 fn pyminqlx_init_module(_py: Python<'_>, m: &PyModule) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(get_player_info, m)?)?;
+    m.add_function(wrap_pyfunction!(get_players_info, m)?)?;
+    m.add_function(wrap_pyfunction!(get_userinfo, m)?)?;
+    m.add_function(wrap_pyfunction!(send_server_command, m)?)?;
+    m.add_function(wrap_pyfunction!(client_command, m)?)?;
+    m.add_function(wrap_pyfunction!(console_command, m)?)?;
+    m.add_function(wrap_pyfunction!(get_cvar, m)?)?;
+    m.add_function(wrap_pyfunction!(set_cvar, m)?)?;
+    m.add_function(wrap_pyfunction!(set_cvar_limit, m)?)?;
+    m.add_function(wrap_pyfunction!(kick, m)?)?;
+    m.add_function(wrap_pyfunction!(console_print, m)?)?;
+    m.add_function(wrap_pyfunction!(get_configstring, m)?)?;
+
+    m.add_class::<PlayerInfo>()?;
     Ok(())
 }

@@ -2,26 +2,157 @@ use crate::quake_common::clientConnected_t::CON_DISCONNECTED;
 use crate::quake_common::team_t::TEAM_SPECTATOR;
 use std::borrow::Cow;
 use std::ffi::{c_char, c_float, c_int, c_uchar, c_uint, c_ushort, c_void, CStr, CString};
+use std::mem;
 use std::ops::{BitAnd, Not};
 
 #[allow(dead_code)]
-pub const DEBUG_PRINT_PREFIX: &str = "[shinqlx]";
+pub(crate) const DEBUG_PRINT_PREFIX: &str = "[shinqlx]";
 
-pub const SV_TAGS_PREFIX: &str = "shinqlx";
+pub(crate) const SV_TAGS_PREFIX: &str = "shinqlx";
 
-pub const MAX_CHALLENGES: usize = 1024;
-pub const MAX_MSGLEN: usize = 16384;
+#[allow(dead_code)]
+pub(crate) const CS_SCORES1: i32 = 6;
+#[allow(dead_code)]
+pub(crate) const CS_SCORES2: i32 = 7;
+#[allow(dead_code)]
+pub(crate) const CS_VOTE_TIME: i32 = 8;
+#[allow(dead_code)]
+pub(crate) const CS_VOTE_STRING: i32 = 9;
+#[allow(dead_code)]
+pub(crate) const CS_VOTE_YES: i32 = 10;
+#[allow(dead_code)]
+pub(crate) const CS_VOTE_NO: i32 = 11;
+#[allow(dead_code)]
+pub(crate) const CS_ITEMS: i32 = 15;
 
-pub const MAX_INFO_STRING: usize = 1024;
-pub const MAX_RELIABLE_COMMANDS: usize = 64;
-pub const MAX_STRING_CHARS: usize = 1024;
-pub const MAX_NAME_LENGTH: usize = 32;
-pub const MAX_QPATH: usize = 64;
-pub const MAX_DOWNLOAD_WINDOW: usize = 8;
-pub const PACKET_BACKUP: usize = 32;
-pub const MAX_MAP_AREA_BYTES: usize = 32;
+#[allow(dead_code)]
+pub(crate) const MAX_CLIENTS: isize = 64;
+pub(crate) const MAX_CHALLENGES: usize = 1024;
+pub(crate) const MAX_MSGLEN: usize = 16384;
+#[allow(dead_code)]
+pub(crate) const MAX_PS_EVENTS: usize = 2;
+pub(crate) const MAX_MAP_AREA_BYTES: usize = 32; // bit vector of area visibility
+pub(crate) const MAX_INFO_STRING: usize = 1024;
+pub(crate) const MAX_RELIABLE_COMMANDS: usize = 64; // max string commands buffered for restransmit
+pub(crate) const MAX_STRING_CHARS: usize = 1024; // max length of a string passed to Cmd_TokenizeString
+pub(crate) const MAX_NAME_LENGTH: usize = 32; // max length of a client name
+pub(crate) const MAX_QPATH: usize = 64; // max length of a quake game pathname
+pub(crate) const MAX_DOWNLOAD_WINDOW: usize = 8; // max of eight download frames
+#[allow(dead_code)]
+pub(crate) const MAX_NETNAME: usize = 36;
+pub(crate) const PACKET_BACKUP: usize = 32; // number of old messages that must be kept on client and
+                                            // server for delta comrpession and ping estimation
+#[allow(dead_code)]
+pub(crate) const PACKET_MASK: usize = PACKET_BACKUP - 1;
+#[allow(dead_code)]
+pub(crate) const MAX_ENT_CLUSTERS: usize = 16;
+#[allow(dead_code)]
+pub(crate) const MAX_MODELS: usize = 256; // these are sent over the net as 8 bits
+pub(crate) const MAX_CONFIGSTRINGS: usize = 1024;
+#[allow(dead_code)]
+pub(crate) const GENTITYNUM_BITS: usize = 10; // don't need to send any more
+#[allow(dead_code)]
+pub(crate) const MAX_GENTITIES: usize = 1 << GENTITYNUM_BITS;
+#[allow(dead_code)]
+pub(crate) const MAX_ITEM_MODELS: usize = 4;
+#[allow(dead_code)]
+pub(crate) const MAX_SPAWN_VARS: usize = 64;
+#[allow(dead_code)]
+pub(crate) const MAX_SPAWN_VARS_CHARS: usize = 4096;
+#[allow(dead_code)]
+pub(crate) const BODY_QUEUE_SIZE: usize = 8;
 
-pub const EF_KAMIKAZE: c_int = 0x00000200;
+// bit field limits
+#[allow(dead_code)]
+pub(crate) const MAX_STATS: usize = 16;
+#[allow(dead_code)]
+pub(crate) const MAX_PERSISTANT: usize = 16;
+#[allow(dead_code)]
+pub(crate) const MAX_POWERUPS: usize = 16;
+#[allow(dead_code)]
+pub(crate) const MAX_WEAPONS: usize = 16;
+
+// Button flags
+#[allow(dead_code)]
+pub(crate) const BUTTON_ATTACK: usize = 1;
+#[allow(dead_code)]
+pub(crate) const BUTTON_TALK: usize = 2; // displkays talk balloon and disables actions
+#[allow(dead_code)]
+pub(crate) const BUTTON_USE_HOLDABLE: usize = 4; // Mino +button2
+#[allow(dead_code)]
+pub(crate) const BUTTON_GESTURE: usize = 8; // Mino: +button3
+#[allow(dead_code)]
+pub(crate) const BUTTON_WALKING: usize = 16;
+// Block of unused button flags, or at least flags I couldn't trigger.
+// Q3 used them for bot commands, so probably unused in QL.
+#[allow(dead_code)]
+pub(crate) const BUTTON_UNUSED1: usize = 32;
+#[allow(dead_code)]
+pub(crate) const BUTTON_UNUSED2: usize = 64;
+#[allow(dead_code)]
+pub(crate) const BUTTON_UNUSED3: usize = 128;
+#[allow(dead_code)]
+pub(crate) const BUTTON_UNUSED4: usize = 256;
+#[allow(dead_code)]
+pub(crate) const BUTTON_UNUSED5: usize = 512;
+#[allow(dead_code)]
+pub(crate) const BUTTON_UNUSED6: usize = 1024;
+#[allow(dead_code)]
+pub(crate) const BUTTON_UPMOVE: usize = 2048; // Mino: Not in Q3. I'm guessing it's for cg_autohop.
+#[allow(dead_code)]
+pub(crate) const BUTTON_ANY: usize = 4096; // any key whatsoever
+#[allow(dead_code)]
+pub(crate) const BUTTON_IS_ACTIVE: usize = 65536; // Mino: No idea what it is, but it goes off after a while of being
+                                                  //       AFK, then goes on after being active for a while.
+
+// eflags
+#[allow(dead_code)]
+pub(crate) const EF_DEAD: c_int = 0x00000001; // don't draw a foe marker over players with EF_DEAD
+#[allow(dead_code)]
+pub(crate) const EF_TICKING: c_int = 0x00000002; // used to make players play the prox mine ticking sound
+#[allow(dead_code)]
+pub(crate) const EF_TELEPORT_BIT: c_int = 0x00000004; // toggled every time the origin abruptly changes
+#[allow(dead_code)]
+pub(crate) const EF_AWARD_EXCELLENT: c_int = 0x00000008; // draw an excellent sprite
+#[allow(dead_code)]
+pub(crate) const EF_PLAYER_EVENT: c_int = 0x00000010;
+#[allow(dead_code)]
+pub(crate) const EF_BOUNCE: c_int = 0x00000010; // for missiles
+#[allow(dead_code)]
+pub(crate) const EF_BOUNCE_HALF: c_int = 0x00000020; // for missiles
+#[allow(dead_code)]
+pub(crate) const EF_AWARD_GAUNTLET: c_int = 0x00000040; // draw a gauntlet sprite
+#[allow(dead_code)]
+pub(crate) const EF_NODRAW: c_int = 0x00000080; // may have an event, but no model (unspawned items)
+#[allow(dead_code)]
+pub(crate) const EF_FIRING: c_int = 0x00000100; // for lightning gun
+pub(crate) const EF_KAMIKAZE: c_int = 0x00000200;
+#[allow(dead_code)]
+pub(crate) const EF_MOVER_STOP: c_int = 0x0000400; // will push otherwise
+#[allow(dead_code)]
+pub(crate) const EF_AWARD_CAP: c_int = 0x00000800; // draw the capture sprite
+#[allow(dead_code)]
+pub(crate) const EF_TALK: c_int = 0x00001000; // draw a talk balloon
+#[allow(dead_code)]
+pub(crate) const EF_CONNECTION: c_int = 0x00002000; // draw a connection trouble sprite
+#[allow(dead_code)]
+pub(crate) const EF_VOTED: c_int = 0x00004000; // already cast a vote
+#[allow(dead_code)]
+pub(crate) const EF_AWARD_IMPRESSIVE: c_int = 0x00008000; // draw an impressive sprite
+#[allow(dead_code)]
+pub(crate) const EF_AWARD_DEFEND: c_int = 0x00010000; // draw a defend sprite
+#[allow(dead_code)]
+pub(crate) const EF_AWARD_ASSIST: c_int = 0x00020000; // draw a assist sprite
+#[allow(dead_code)]
+pub(crate) const EF_AWARD_DENIED: c_int = 0x00040000; // denied
+#[allow(dead_code)]
+pub(crate) const EF_TEAMVOTED: c_int = 0x00080000; // already cast a team vote
+
+#[allow(dead_code)]
+pub(crate) const FL_DROPPED_ITEM: c_int = 0x00001000;
+
+#[allow(dead_code)]
+pub(crate) const DAMAGE_NO_PROTECTION: c_int = 0x00000008;
 
 #[allow(non_camel_case_types)]
 pub type byte = u8;
@@ -714,7 +845,11 @@ extern "C" {
 
 impl GameEntity {
     pub fn get_client_id(&self) -> i32 {
-        unsafe { (self.gentity_t as *const gentity_t).offset_from(g_entities) as i32 }
+        // we really should be using .offset_from here, but rust's optimizations above level 0 led to some mis-calculations, so we mimic the raw C-calculation.
+        unsafe {
+            (((self.gentity_t as *const gentity_t as usize) - (g_entities as usize))
+                / mem::size_of::<gentity_t>()) as i32
+        }
     }
 
     pub fn start_kamikaze(&self) {
@@ -1192,7 +1327,7 @@ impl TryFrom<*const client_t> for Client {
     }
 }
 extern "C" {
-    static svs: &'static serverStatic_t;
+    static svs: *const serverStatic_t;
 }
 
 impl TryFrom<i32> for Client {
@@ -1200,7 +1335,8 @@ impl TryFrom<i32> for Client {
 
     fn try_from(client_id: i32) -> Result<Self, Self::Error> {
         unsafe {
-            svs.clients
+            (*svs)
+                .clients
                 .offset(client_id as isize)
                 .as_ref()
                 .map(|client| Self { client_t: client })
@@ -1215,7 +1351,11 @@ extern "C" {
 
 impl Client {
     pub(crate) fn get_client_id(&self) -> i32 {
-        unsafe { (self.client_t as *const client_t).offset_from(svs.clients) as i32 }
+        // we really should be using .offset_from here, but rust's optimizations above level 0 led to some mis-calculations, so we mimic the raw C-calculation.
+        unsafe {
+            (((self.client_t as *const client_t as usize) - ((*svs).clients as usize))
+                / mem::size_of::<client_t>()) as i32
+        }
     }
 
     pub(crate) fn get_state(&self) -> i32 {
@@ -1227,9 +1367,9 @@ impl Client {
     }
 
     pub(crate) fn disconnect(&self, reason: &str) {
+        let c_reason = CString::new(reason).unwrap().into_raw();
         unsafe {
-            #[allow(temporary_cstring_as_ptr)]
-            SV_DropClient(self.client_t, CString::new(reason).unwrap().as_ptr());
+            SV_DropClient(self.client_t, c_reason);
         }
     }
 
@@ -1328,12 +1468,8 @@ pub(crate) trait FindCVar {
 
 impl FindCVar for QuakeLiveEngine {
     fn find_cvar(name: &str) -> Option<CVar> {
-        unsafe {
-            #[allow(temporary_cstring_as_ptr)]
-            Cvar_FindVar(CString::new(name).unwrap().as_ptr())
-                .try_into()
-                .ok()
-        }
+        let c_name = CString::new(name).unwrap().into_raw();
+        unsafe { CVar::try_from(Cvar_FindVar(c_name)).ok() }
     }
 }
 
@@ -1347,10 +1483,8 @@ pub(crate) trait CbufExecuteText {
 
 impl CbufExecuteText for QuakeLiveEngine {
     fn cbuf_execute_text(exec_t: cbufExec_t, new_tags: &str) {
-        unsafe {
-            #[allow(temporary_cstring_as_ptr)]
-            Cbuf_ExecuteText(exec_t, CString::new(new_tags).unwrap().as_ptr())
-        }
+        let c_tags = CString::new(new_tags).unwrap().into_raw();
+        unsafe { Cbuf_ExecuteText(exec_t, c_tags) }
     }
 }
 
@@ -1364,10 +1498,8 @@ pub(crate) trait AddCommand {
 
 impl AddCommand for QuakeLiveEngine {
     fn add_command(cmd: &str, func: unsafe extern "C" fn()) {
-        unsafe {
-            #[allow(temporary_cstring_as_ptr)]
-            Cmd_AddCommand(CString::new(cmd).unwrap().as_ptr(), func as *const c_void)
-        }
+        let c_cmd = CString::new(cmd).unwrap().into_raw();
+        unsafe { Cmd_AddCommand(c_cmd, func as *const c_void) }
     }
 }
 
@@ -1381,13 +1513,8 @@ pub(crate) trait SetModuleOffset {
 
 impl SetModuleOffset for QuakeLiveEngine {
     fn set_module_offset(module_name: &str, offset: unsafe extern "C" fn()) {
-        #[allow(temporary_cstring_as_ptr)]
-        unsafe {
-            Sys_SetModuleOffset(
-                CString::new(module_name).unwrap().as_ptr(),
-                offset as *const c_void,
-            )
-        }
+        let c_module_name = CString::new(module_name).unwrap().into_raw();
+        unsafe { Sys_SetModuleOffset(c_module_name, offset as *const c_void) }
     }
 }
 
@@ -1415,21 +1542,13 @@ pub(crate) trait ExecuteClientCommand {
 
 impl ExecuteClientCommand for QuakeLiveEngine {
     fn execute_client_command(client: Option<&Client>, cmd: &str, client_ok: bool) {
-        #[allow(temporary_cstring_as_ptr)]
+        let command_native = CString::new(cmd).unwrap().into_raw();
         match client {
             Some(safe_client) => unsafe {
-                SV_ExecuteClientCommand(
-                    safe_client.client_t,
-                    CString::new(cmd).unwrap().as_ptr(),
-                    client_ok.into(),
-                )
+                SV_ExecuteClientCommand(safe_client.client_t, command_native, client_ok.into())
             },
             None => unsafe {
-                SV_ExecuteClientCommand(
-                    std::ptr::null(),
-                    CString::new(cmd).unwrap().as_ptr(),
-                    client_ok.into(),
-                )
+                SV_ExecuteClientCommand(std::ptr::null(), command_native, client_ok.into())
             },
         }
     }
@@ -1445,13 +1564,12 @@ pub(crate) trait SendServerCommand {
 
 impl SendServerCommand for QuakeLiveEngine {
     fn send_server_command(client: Option<Client>, command: &str) {
-        #[allow(temporary_cstring_as_ptr)]
-        let command_native = CString::new(command).unwrap();
+        let command_native = CString::new(command).unwrap().into_raw();
         match client {
             Some(safe_client) => unsafe {
-                SV_SendServerCommand(safe_client.client_t, command_native.as_ptr())
+                SV_SendServerCommand(safe_client.client_t, command_native)
             },
-            None => unsafe { SV_SendServerCommand(std::ptr::null(), command_native.as_ptr()) },
+            None => unsafe { SV_SendServerCommand(std::ptr::null(), command_native) },
         }
     }
 }
@@ -1480,10 +1598,8 @@ pub(crate) trait SetConfigstring {
 
 impl SetConfigstring for QuakeLiveEngine {
     fn set_config_string(index: &i32, value: &str) {
-        #[allow(temporary_cstring_as_ptr)]
-        unsafe {
-            SV_SetConfigstring(*index, CString::new(value).unwrap().as_ptr())
-        }
+        let c_value = CString::new(value).unwrap().into_raw();
+        unsafe { SV_SetConfigstring(*index, c_value) }
     }
 }
 
@@ -1497,10 +1613,8 @@ pub(crate) trait ComPrintf {
 
 impl ComPrintf for QuakeLiveEngine {
     fn com_printf(msg: &str) {
-        #[allow(temporary_cstring_as_ptr)]
-        unsafe {
-            Com_Printf(CString::new(msg).unwrap().as_ptr())
-        }
+        let c_msg = CString::new(msg).unwrap().into_raw();
+        unsafe { Com_Printf(c_msg) }
     }
 }
 
@@ -1514,10 +1628,8 @@ pub(crate) trait SpawnServer {
 
 impl SpawnServer for QuakeLiveEngine {
     fn spawn_server(server: &str, kill_bots: bool) {
-        #[allow(temporary_cstring_as_ptr)]
-        unsafe {
-            SV_SpawnServer(CString::new(server).unwrap().as_ptr(), kill_bots.into())
-        }
+        let c_server = CString::new(server).unwrap().into_raw();
+        unsafe { SV_SpawnServer(c_server, kill_bots.into()) }
     }
 }
 
@@ -1641,5 +1753,112 @@ impl GameAddEvent for QuakeLiveEngine {
                 event_param,
             )
         }
+    }
+}
+
+extern "C" {
+    static Cmd_ExecuteString: extern "C" fn(*const c_char);
+}
+
+pub(crate) trait ConsoleCommand {
+    fn execute_console_command(cmd: &str);
+}
+
+impl ConsoleCommand for QuakeLiveEngine {
+    fn execute_console_command(cmd: &str) {
+        let c_cmd = CString::new(cmd).unwrap().into_raw();
+        unsafe { Cmd_ExecuteString(c_cmd) }
+    }
+}
+
+extern "C" {
+    static Cvar_Get: extern "C" fn(*const c_char, *const c_char, c_int) -> *const cvar_t;
+}
+
+pub(crate) trait SetCVar {
+    fn set_cvar(name: &str, value: &str, flags: Option<i32>) -> Option<CVar>;
+}
+
+impl SetCVar for QuakeLiveEngine {
+    fn set_cvar(name: &str, value: &str, flags: Option<i32>) -> Option<CVar> {
+        let c_name = CString::new(name).unwrap().into_raw();
+        let c_value = CString::new(value).unwrap().into_raw();
+        let flags_value = flags.unwrap_or_default();
+        unsafe { CVar::try_from(Cvar_Get(c_name, c_value, flags_value)).ok() }
+    }
+}
+
+extern "C" {
+    static Cvar_Set2: extern "C" fn(*const c_char, *const c_char, qboolean) -> *const cvar_t;
+}
+
+pub(crate) trait SetCVarForced {
+    fn set_cvar_forced(name: &str, value: &str, forced: bool) -> Option<CVar>;
+}
+
+impl SetCVarForced for QuakeLiveEngine {
+    fn set_cvar_forced(name: &str, value: &str, forced: bool) -> Option<CVar> {
+        let c_name = CString::new(name).unwrap().into_raw();
+        let c_value = CString::new(value).unwrap().into_raw();
+        unsafe { CVar::try_from(Cvar_Set2(c_name, c_value, forced.into())).ok() }
+    }
+}
+
+extern "C" {
+    static Cvar_GetLimit: extern "C" fn(
+        *const c_char,
+        *const c_char,
+        *const c_char,
+        *const c_char,
+        c_int,
+    ) -> *const cvar_t;
+}
+
+pub(crate) trait SetCVarLimit {
+    fn set_cvar_limit(
+        name: &str,
+        value: &str,
+        min: &str,
+        max: &str,
+        flags: Option<i32>,
+    ) -> Option<CVar>;
+}
+
+impl SetCVarLimit for QuakeLiveEngine {
+    fn set_cvar_limit(
+        name: &str,
+        value: &str,
+        min: &str,
+        max: &str,
+        flags: Option<i32>,
+    ) -> Option<CVar> {
+        let c_name = CString::new(name).unwrap().into_raw();
+        let c_value = CString::new(value).unwrap().into_raw();
+        let c_min = CString::new(min).unwrap().into_raw();
+        let c_max = CString::new(max).unwrap().into_raw();
+        let flags_value = flags.unwrap_or_default();
+        unsafe { CVar::try_from(Cvar_GetLimit(c_name, c_value, c_min, c_max, flags_value)).ok() }
+    }
+}
+
+extern "C" {
+    static SV_GetConfigstring: extern "C" fn(c_int, *mut c_char, c_int);
+}
+
+pub(crate) trait GetConfigstring {
+    fn get_configstring(index: i32) -> String;
+}
+
+impl GetConfigstring for QuakeLiveEngine {
+    fn get_configstring(index: i32) -> String {
+        let mut buffer: [u8; 4096] = [0; 4096];
+        unsafe {
+            SV_GetConfigstring(
+                index,
+                buffer.as_mut_ptr() as *mut c_char,
+                buffer.len() as c_int,
+            );
+        }
+        String::from_utf8_lossy(&buffer).to_string()
     }
 }
