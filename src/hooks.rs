@@ -89,25 +89,27 @@ pub extern "C" fn ShiNQlx_SV_ExecuteClientCommand(
     cmd: *const c_char,
     client_ok: qboolean,
 ) {
-    let safe_client: Option<Client> = client.try_into().ok();
-    let mut res = cmd;
+    let rust_cmd = unsafe { CStr::from_ptr(cmd).to_string_lossy() };
 
-    if <qboolean as Into<bool>>::into(client_ok)
-        && safe_client.is_some()
-        && safe_client.as_ref().unwrap().has_gentity()
-    {
-        let client_id = safe_client.as_ref().unwrap().get_client_id();
-        res = unsafe { ClientCommandDispatcher(client_id, cmd) };
-        if res.is_null() {
-            return;
+    shinqlx_execute_client_command(client.try_into().ok(), rust_cmd.as_ref(), client_ok.into());
+}
+
+pub(crate) fn shinqlx_execute_client_command(client: Option<Client>, cmd: &str, client_ok: bool) {
+    let res: *const c_char;
+    let mut passed_on_cmd: *const c_char = CString::new(cmd).unwrap().into_raw();
+    if let Some(safe_client) = &client {
+        if client_ok && safe_client.has_gentity() {
+            let client_id = safe_client.get_client_id();
+            res = unsafe { ClientCommandDispatcher(client_id, passed_on_cmd) };
+            if res.is_null() {
+                return;
+            }
+            passed_on_cmd = res;
         }
     }
-    let follow_up_command = unsafe { CStr::from_ptr(res).to_string_lossy() };
-    QuakeLiveEngine::execute_client_command(
-        safe_client.as_ref(),
-        follow_up_command.as_ref(),
-        client_ok.into(),
-    );
+
+    let passed_on_cmd_str = unsafe { CStr::from_ptr(passed_on_cmd).to_string_lossy() };
+    QuakeLiveEngine::execute_client_command(client.as_ref(), passed_on_cmd_str.as_ref(), client_ok);
 }
 
 extern "C" {
@@ -116,18 +118,26 @@ extern "C" {
 
 #[no_mangle]
 pub extern "C" fn ShiNQlx_SV_SendServerCommand(client: *const client_t, command: *const c_char) {
-    let client_id = match Client::try_from(client) {
-        Ok(safe_client) => safe_client.get_client_id(),
-        Err(_) => -1,
+    let safe_client = client.try_into().ok();
+    let cmd = unsafe { CStr::from_ptr(command).to_string_lossy() };
+    shinqlx_send_server_command(safe_client, cmd.as_ref());
+}
+
+pub(crate) fn shinqlx_send_server_command(client: Option<Client>, cmd: &str) {
+    let client_id = match &client {
+        Some(safe_client) => safe_client.get_client_id(),
+        None => -1,
     };
-    let res = unsafe { ServerCommandDispatcher(client_id, command) };
+
+    let c_cmd = CString::new(cmd).unwrap().into_raw();
+    let res = unsafe { ServerCommandDispatcher(client_id, c_cmd) };
 
     if res.is_null() {
         return;
     }
 
     let result = unsafe { CStr::from_ptr(res).to_string_lossy() };
-    QuakeLiveEngine::send_server_command(Client::try_from(client).ok(), &result);
+    QuakeLiveEngine::send_server_command(client, result.as_ref());
 }
 
 extern "C" {
@@ -162,7 +172,7 @@ pub extern "C" fn ShiNQlx_SV_SetConfigstring(index: c_int, value: *const c_char)
     let safe_value = if value.is_null() {
         ""
     } else {
-        unsafe { CStr::from_ptr(value).to_str().unwrap() }
+        unsafe { CStr::from_ptr(value).to_str().unwrap_or("") }
     };
 
     // Indices 16 and 66X are spammed a ton every frame for some reason,
@@ -173,14 +183,14 @@ pub extern "C" fn ShiNQlx_SV_SetConfigstring(index: c_int, value: *const c_char)
         QuakeLiveEngine::set_config_string(&index, safe_value);
         return;
     }
-    let value_cstring = CString::new(safe_value).unwrap();
-    let res = unsafe { SetConfigstringDispatcher(index, value_cstring.as_ptr()) };
+    let value_cstring = CString::new(safe_value).unwrap().into_raw();
+    let res = unsafe { SetConfigstringDispatcher(index, value_cstring) };
     if res.is_null() {
         return;
     }
 
-    let res_string = unsafe { CStr::from_ptr(res).to_str().unwrap() };
-    QuakeLiveEngine::set_config_string(&index, res_string);
+    let res_string = unsafe { CStr::from_ptr(res).to_string_lossy() };
+    QuakeLiveEngine::set_config_string(&index, res_string.as_ref());
 }
 
 extern "C" {
@@ -193,14 +203,17 @@ pub extern "C" fn ShiNQlx_SV_DropClient(client: *const client_t, reason: *const 
         return;
     };
 
+    shinqlx_drop_client(&safe_client, unsafe {
+        CStr::from_ptr(reason).to_str().unwrap_or("")
+    });
+}
+
+pub(crate) fn shinqlx_drop_client(client: &Client, reason: &str) {
+    let c_reason = CString::new(reason).unwrap().into_raw();
     unsafe {
-        ClientDisconnectDispatcher(safe_client.get_client_id(), reason);
-    };
-    if let Some(reason_str) = unsafe { CStr::from_ptr(reason).to_str().ok() } {
-        safe_client.disconnect(reason_str);
-    } else {
-        safe_client.disconnect("");
+        ClientDisconnectDispatcher(client.get_client_id(), c_reason);
     }
+    client.disconnect(reason);
 }
 
 extern "C" {
@@ -209,15 +222,18 @@ extern "C" {
 
 #[no_mangle]
 pub extern "C" fn ShiNQlx_Com_Printf(msg: *const c_char) {
-    let res = unsafe { ConsolePrintDispatcher(msg) };
+    let rust_msg = unsafe { CStr::from_ptr(msg).to_string_lossy() };
+    shinqlx_com_printf(rust_msg.as_ref());
+}
 
+pub(crate) fn shinqlx_com_printf(msg: &str) {
+    let text = CString::new(msg).unwrap().into_raw();
+    let res = unsafe { ConsolePrintDispatcher(text) };
     if res.is_null() {
         return;
     }
 
-    if let Some(msg_str) = unsafe { CStr::from_ptr(msg).to_str().ok() } {
-        QuakeLiveEngine::com_printf(msg_str);
-    }
+    QuakeLiveEngine::com_printf(msg);
 }
 
 extern "C" {
@@ -268,8 +284,7 @@ pub extern "C" fn ShiNQlx_ClientConnect(
 
     match client_connect_return {
         None => std::ptr::null(),
-        #[allow(temporary_cstring_as_ptr)]
-        Some(message) => CString::new(message.as_ref()).unwrap().as_ptr(),
+        Some(message) => CString::new(message.as_ref()).unwrap().into_raw(),
     }
 }
 

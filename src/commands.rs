@@ -184,8 +184,5 @@ extern "C" {
 pub extern "C" fn cmd_py_rcon() {
     let Some(commands) = QuakeLiveEngine::cmd_args() else { return;
     };
-    #[allow(temporary_cstring_as_ptr)]
-    unsafe {
-        RconDispatcher(CString::new(commands).unwrap().as_ptr())
-    }
+    unsafe { RconDispatcher(CString::new(commands).unwrap().into_raw()) }
 }
