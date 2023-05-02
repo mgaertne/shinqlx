@@ -1,6 +1,18 @@
 use crate::quake_common::clientConnected_t::CON_DISCONNECTED;
+use crate::quake_common::powerup_t::{
+    PW_BATTLESUIT, PW_HASTE, PW_INVIS, PW_INVULNERABILITY, PW_QUAD, PW_REGEN,
+};
+use crate::quake_common::statIndex_t::{
+    STAT_ARMOR, STAT_CUR_FLIGHT_FUEL, STAT_FLIGHT_REFUEL, STAT_FLIGHT_THRUST, STAT_HOLDABLE_ITEM,
+    STAT_MAX_FLIGHT_FUEL, STAT_WEAPONS,
+};
 use crate::quake_common::team_t::TEAM_SPECTATOR;
+use crate::quake_common::voteState_t::{VOTE_NO, VOTE_YES};
+use crate::quake_common::Holdable::{
+    Flight, Invulnerability, Kamikaze, MedKit, Portal, Teleporter, Unknown,
+};
 use std::borrow::Cow;
+use std::collections::HashMap;
 use std::ffi::{c_char, c_float, c_int, c_uchar, c_uint, c_ushort, c_void, CStr, CString};
 use std::mem;
 use std::ops::{BitAnd, Not};
@@ -228,6 +240,45 @@ pub enum clientState_t {
     CS_ACTIVE,    // client is fully in game
 }
 
+#[allow(non_camel_case_types)]
+#[allow(clippy::upper_case_acronyms)]
+#[derive(PartialEq, Debug, Clone, Copy)]
+#[allow(dead_code)]
+#[repr(C)]
+pub enum roundStateState_t {
+    PREGAME = 0x0,
+    ROUND_WARMUP = 0x1,
+    ROUND_SHUFFLE = 0x2,
+    ROUND_BEGUN = 0x3,
+    ROUND_OVER = 0x4,
+    POSTGAME = 0x5,
+}
+
+#[allow(non_camel_case_types)]
+#[derive(PartialEq, Debug, Clone, Copy)]
+#[allow(dead_code)]
+#[repr(C)]
+pub enum statIndex_t {
+    STAT_HEALTH,
+    STAT_HOLDABLE_ITEM,
+    STAT_RUNE,
+    STAT_WEAPONS,
+    STAT_ARMOR,
+    STAT_BSKILL,
+    STAT_CLIENTS_READY,
+    STAT_MAX_HEALTH,
+    STAT_SPINUP,
+    STAT_FLIGHT_THRUST,
+    STAT_MAX_FLIGHT_FUEL,
+    STAT_CUR_FLIGHT_FUEL,
+    STAT_FLIGHT_REFUEL,
+    STAT_QUADKILLS,
+    STAT_ARMORTYPE,
+    STAT_KEY,
+    STAT_OTHER_HEALTH,
+    STAT_OTHER_ARMOR,
+}
+
 // movers are things like doors, plats, buttons, etc
 #[allow(non_camel_case_types)]
 #[derive(PartialEq, Debug, Clone, Copy)]
@@ -364,6 +415,44 @@ pub enum itemType_t {
     // EFX: rotate + bob
     IT_PERSISTANT_POWERUP,
     IT_TEAM,
+}
+
+//noinspection ALL
+#[allow(non_camel_case_types)]
+#[derive(PartialEq, Debug, Clone, Copy)]
+#[allow(dead_code)]
+#[repr(C)]
+pub enum powerup_t {
+    PW_NONE = 0x0,
+    //PW_SPAWNARMOR = 0x0,
+    PW_REDFLAG = 0x1,
+    PW_BLUEFLAG = 0x2,
+    PW_NEUTRALFLAG = 0x3,
+    PW_QUAD = 0x4,
+    PW_BATTLESUIT = 0x5,
+    PW_HASTE = 0x6,
+    PW_INVIS = 0x7,
+    PW_REGEN = 0x8,
+    PW_FLIGHT = 0x9,
+    PW_INVULNERABILITY = 0xA,
+    NOTPW_SCOUT = 0xB,
+    NOTPW_GUARD = 0xC,
+    NOTPW_DOUBLER = 0xD,
+    NOTPW_ARMORREGEN = 0xE,
+    PW_FREEZE = 0xF,
+    PW_NUM_POWERUPS = 0x10,
+}
+
+#[derive(PartialEq, Debug, Clone, Copy)]
+pub(crate) enum Holdable {
+    None,
+    Teleporter,
+    MedKit,
+    Kamikaze,
+    Portal,
+    Invulnerability,
+    Flight,
+    Unknown,
 }
 
 #[allow(non_snake_case)]
@@ -716,6 +805,107 @@ impl GameClient {
 
     pub(crate) fn get_privileges(&self) -> i32 {
         self.game_client.sess.privileges as i32
+    }
+
+    pub(crate) fn is_alive(&self) -> bool {
+        self.game_client.ps.pm_type == 0
+    }
+
+    pub(crate) fn get_position(&self) -> (f32, f32, f32) {
+        (
+            self.game_client.ps.origin[0],
+            self.game_client.ps.origin[1],
+            self.game_client.ps.origin[2],
+        )
+    }
+
+    pub(crate) fn get_velocity(&self) -> (f32, f32, f32) {
+        (
+            self.game_client.ps.velocity[0],
+            self.game_client.ps.velocity[1],
+            self.game_client.ps.velocity[2],
+        )
+    }
+
+    pub(crate) fn get_armor(&self) -> i32 {
+        self.game_client.ps.stats[STAT_ARMOR as usize]
+    }
+
+    pub(crate) fn get_noclip(&self) -> bool {
+        self.game_client.noclip.into()
+    }
+
+    pub(crate) fn get_weapon(&self) -> i32 {
+        self.game_client.ps.weapon
+    }
+
+    pub(crate) fn get_weapons(&self) -> [bool; 15] {
+        let mut returned = [false; 15];
+        let weapon_stats = self.game_client.ps.stats[STAT_WEAPONS as usize];
+        for (i, item) in returned.iter_mut().enumerate() {
+            *item = weapon_stats.bitand(1 << (i + 1)) != 0;
+        }
+        returned
+    }
+
+    pub(crate) fn get_ammo(&self) -> [i32; 15] {
+        let mut returned = [0; 15];
+        let ammos = self.game_client.ps.ammo;
+        for (i, item) in returned.iter_mut().enumerate() {
+            *item = ammos[i + 1];
+        }
+        returned
+    }
+
+    pub(crate) fn get_powerups(&self) -> [i32; 6] {
+        let mut returned = [0; 6];
+        let powerup_index_lookup = HashMap::from([
+            (0, PW_QUAD as usize),
+            (1, PW_BATTLESUIT as usize),
+            (2, PW_HASTE as usize),
+            (3, PW_INVIS as usize),
+            (4, PW_REGEN as usize),
+            (5, PW_INVULNERABILITY as usize),
+        ]);
+        let current_level = CurrentLevel::default();
+        for (powerup, item) in returned.iter_mut().enumerate() {
+            let powerup_index = powerup_index_lookup.get(&(powerup as i32)).unwrap();
+            *item = self.game_client.ps.powerups[*powerup_index] - current_level.get_leveltime();
+        }
+        returned
+    }
+
+    pub(crate) fn get_holdable(&self) -> Holdable {
+        match self.game_client.ps.stats[STAT_HOLDABLE_ITEM as usize] {
+            0 => Holdable::None,
+            27 => Teleporter,
+            28 => MedKit,
+            34 => Flight,
+            37 => Kamikaze,
+            38 => Portal,
+            39 => Invulnerability,
+            _ => Unknown,
+        }
+    }
+
+    pub(crate) fn get_current_flight_fuel(&self) -> i32 {
+        self.game_client.ps.stats[STAT_CUR_FLIGHT_FUEL as usize]
+    }
+
+    pub(crate) fn get_max_flight_fuel(&self) -> i32 {
+        self.game_client.ps.stats[STAT_MAX_FLIGHT_FUEL as usize]
+    }
+
+    pub(crate) fn get_flight_thrust(&self) -> i32 {
+        self.game_client.ps.stats[STAT_FLIGHT_THRUST as usize]
+    }
+
+    pub(crate) fn get_flight_refuel(&self) -> i32 {
+        self.game_client.ps.stats[STAT_FLIGHT_REFUEL as usize]
+    }
+
+    pub(crate) fn is_frozen(&self) -> bool {
+        self.game_client.ps.pm_type == 4
     }
 }
 
@@ -1423,6 +1613,15 @@ impl Client {
     pub(crate) fn get_user_info(&self) -> Cow<'static, str> {
         unsafe { CStr::from_ptr(self.client_t.userinfo.as_ptr()).to_string_lossy() }
     }
+
+    pub(crate) fn set_vote(&self, yes_or_no: bool) {
+        if let Ok(game_entity) = GameEntity::try_from(self.get_client_id()) {
+            unsafe {
+                (*game_entity.gentity_t.client).pers.voteState =
+                    if yes_or_no { VOTE_YES } else { VOTE_NO };
+            }
+        };
+    }
 }
 
 #[allow(non_snake_case)]
@@ -1436,6 +1635,178 @@ struct challenge_t {
     pingTime: c_int,  // time the challenge response was sent to client
     firstTime: c_int, // time the adr was first used, for authorize timeout checks
     connected: qboolean,
+}
+
+#[allow(non_snake_case)]
+#[allow(non_camel_case_types)]
+#[allow(dead_code)]
+#[repr(C)]
+struct roundState_t {
+    eCurrent: roundStateState_t,
+    eNext: roundStateState_t,
+    tNext: c_int,
+    startTime: c_int,
+    turn: c_int,
+    round: c_int,
+    prevRoundWinningTeam: team_t,
+    touch: qboolean,
+    capture: qboolean,
+}
+
+#[allow(non_snake_case)]
+#[allow(non_camel_case_types)]
+#[allow(dead_code)]
+#[repr(C, align(8))]
+struct level_locals_t {
+    clients: *const gclient_t,
+    gentities: *const gentity_t,
+    gentitySize: c_int,
+    num_entities: c_int,
+    warmupTime: c_int,
+    logFile: fileHandle_t,
+    maxclients: c_int,
+    time: c_int,
+    frametime: c_int,
+    startTime: c_int,
+    teamScores: [c_int; 4],
+    nextTeamInfoTime: c_int,
+    newSession: qboolean,
+    restarted: qboolean,
+    shufflePending: qboolean,
+    shuffleReadyTime: c_int,
+    numConnectedClients: c_int,
+    numNonSpectatorClients: c_int,
+    numPlayingClients: c_int,
+    numReadyClients: c_int,
+    numReadyHumans: c_int,
+    numStandardClients: c_int,
+    sortedClients: [c_int; 64],
+    follow1: c_int,
+    follow2: c_int,
+    snd_fry: c_int,
+    warmupModificationCount: c_int,
+    voteString: [c_char; 1024],
+    voteDisplayString: [c_char; 1024],
+    voteExecuteTime: c_int,
+    voteTime: c_int,
+    voteYes: c_int,
+    voteNo: c_int,
+    pendingVoteCaller: c_int,
+    spawning: qboolean,
+    numSpawnVars: c_int,
+    spawnVars: [[*const c_char; 2]; 64],
+    numSpawnVarChars: c_int,
+    spawnVarChars: [c_char; 4096],
+    intermissionQueued: c_int,
+    intermissionTime: c_int,
+    readyToExit: qboolean,
+    votingEnded: qboolean,
+    exitTime: c_int,
+    intermission_origin: vec3_t,
+    intermission_angle: vec3_t,
+    locationLinked: qboolean,
+    locationHead: *const gentity_t,
+    timePauseBegin: c_int,
+    timeOvertime: c_int,
+    timeInitialPowerupSpawn: c_int,
+    bodyQueIndex: c_int,
+    bodyQue: [*const gentity_t; 8],
+    portalSequence: c_int,
+    gameStatsReported: qboolean,
+    mapIsTrainingMap: qboolean,
+    clientNum1stPlayer: c_int,
+    clientNum2ndPlayer: c_int,
+    scoreboardArchive1: [c_char; 1024],
+    scoreboardArchive2: [c_char; 1024],
+    firstScorer: [c_char; 40],
+    lastScorer: [c_char; 40],
+    lastTeamScorer: [c_char; 40],
+    firstFrag: [c_char; 40],
+    red_flag_origin: vec3_t,
+    blue_flag_origin: vec3_t,
+    spawnCount: [c_int; 4],
+    runeSpawns: [c_int; 5],
+    itemCount: [c_int; 60],
+    suddenDeathRespawnDelay: c_int,
+    suddenDeathRespawnDelayLastAnnounced: c_int,
+    numRedArmorPickups: [c_int; 4],
+    numYellowArmorPickups: [c_int; 4],
+    numGreenArmorPickups: [c_int; 4],
+    numMegaHealthPickups: [c_int; 4],
+    numQuadDamagePickups: [c_int; 4],
+    numBattleSuitPickups: [c_int; 4],
+    numRegenerationPickups: [c_int; 4],
+    numHastePickups: [c_int; 4],
+    numInvisibilityPickups: [c_int; 4],
+    quadDamagePossessionTime: [c_int; 4],
+    battleSuitPossessionTime: [c_int; 4],
+    regenerationPossessionTime: [c_int; 4],
+    hastePossessionTime: [c_int; 4],
+    invisibilityPossessionTime: [c_int; 4],
+    numFlagPickups: [c_int; 4],
+    numMedkitPickups: [c_int; 4],
+    flagPossessionTime: [c_int; 4],
+    dominationPoints: [*const gentity_t; 5],
+    dominationPointCount: c_int,
+    dominationPointsTallied: c_int,
+    racePointCount: c_int,
+    disableDropWeapon: qboolean,
+    teamShuffleActive: qboolean,
+    lastTeamScores: [c_int; 4],
+    lastTeamRoundScores: [c_int; 4],
+    attackingTeam: team_t,
+    roundState: roundState_t,
+    lastTeamCountSent: c_int,
+    infectedConscript: c_int,
+    lastZombieSurvivor: c_int,
+    zombieScoreTime: c_int,
+    lastInfectionTime: c_int,
+    intermissionMapNames: [[c_char; 1024]; 3],
+    intermissionMapTitles: [[c_char; 1024]; 3],
+    intermissionMapConfigs: [[c_char; 1024]; 3],
+    intermissionMapVotes: [c_int; 3],
+    matchForfeited: qboolean,
+    allReadyTime: c_int,
+    notifyCvarChange: qboolean,
+    notifyCvarChangeTime: c_int,
+    lastLeadChangeTime: c_int,
+    lastLeadChangeClient: c_int,
+}
+
+extern "C" {
+    static level: *mut level_locals_t;
+}
+
+pub(crate) struct CurrentLevel {
+    level: &'static mut level_locals_t,
+}
+
+impl Default for CurrentLevel {
+    fn default() -> Self {
+        unsafe {
+            Self {
+                level: level.as_mut().unwrap(),
+            }
+        }
+    }
+}
+
+impl CurrentLevel {
+    pub(crate) fn get_vote_time(&self) -> Option<i32> {
+        if self.level.voteTime <= 0 {
+            None
+        } else {
+            Some(self.level.voteTime)
+        }
+    }
+
+    pub(crate) fn set_vote_time(&mut self, new_vote_time: i32) {
+        self.level.voteTime = new_vote_time as c_int;
+    }
+
+    pub(crate) fn get_leveltime(&self) -> i32 {
+        self.level.time
+    }
 }
 
 #[allow(non_snake_case)]
@@ -1593,11 +1964,11 @@ extern "C" {
 }
 
 pub(crate) trait SetConfigstring {
-    fn set_config_string(index: &i32, value: &str);
+    fn set_configstring(index: &i32, value: &str);
 }
 
 impl SetConfigstring for QuakeLiveEngine {
-    fn set_config_string(index: &i32, value: &str) {
+    fn set_configstring(index: &i32, value: &str) {
         let c_value = CString::new(value).unwrap().into_raw();
         unsafe { SV_SetConfigstring(*index, c_value) }
     }

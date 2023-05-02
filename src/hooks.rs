@@ -28,7 +28,7 @@ fn set_tag() {
 
 #[no_mangle]
 pub extern "C" fn ShiNQlx_Cmd_AddCommand(cmd: *const c_char, func: unsafe extern "C" fn()) {
-    if unsafe { !COMMON_INITIALIZED } {
+    if !*COMMON_INITIALIZED.lock().unwrap() {
         initialize_static();
     }
 
@@ -51,10 +51,10 @@ pub extern "C" fn ShiNQlx_Sys_SetModuleOffset(
     let converted_module_name = unsafe { CStr::from_ptr(module_name).to_string_lossy() };
     QuakeLiveEngine::set_module_offset(converted_module_name.as_ref(), offset);
 
+    if !*COMMON_INITIALIZED.lock().unwrap() {
+        return;
+    }
     unsafe {
-        if !COMMON_INITIALIZED {
-            return;
-        }
         SearchVmFunctions();
         HookVm();
         InitializeVm();
@@ -66,7 +66,7 @@ pub extern "C" fn ShiNQlx_Sys_SetModuleOffset(
 pub extern "C" fn ShiNQlx_G_InitGame(level_time: c_int, random_seed: c_int, restart: c_int) {
     QuakeLiveEngine::init_game(level_time, random_seed, restart);
 
-    if unsafe { !CVARS_INITIALIZED } {
+    if *CVARS_INITIALIZED.lock().unwrap() {
         set_tag();
     }
 
@@ -175,22 +175,26 @@ pub extern "C" fn ShiNQlx_SV_SetConfigstring(index: c_int, value: *const c_char)
         unsafe { CStr::from_ptr(value).to_str().unwrap_or("") }
     };
 
+    shinqlx_set_configstring(index, safe_value);
+}
+
+pub(crate) fn shinqlx_set_configstring(index: i32, value: &str) {
     // Indices 16 and 66X are spammed a ton every frame for some reason,
     // so we add some exceptions for those. I don't think we should have any
     // use for those particular ones anyway. If we don't do this, we get
     // like a 25% increase in CPU usage on an empty server.
     if index == 16 || (662..670).contains(&index) {
-        QuakeLiveEngine::set_config_string(&index, safe_value);
+        QuakeLiveEngine::set_configstring(&index, value);
         return;
     }
-    let value_cstring = CString::new(safe_value).unwrap().into_raw();
+    let value_cstring = CString::new(value).unwrap().into_raw();
     let res = unsafe { SetConfigstringDispatcher(index, value_cstring) };
     if res.is_null() {
         return;
     }
 
     let res_string = unsafe { CStr::from_ptr(res).to_string_lossy() };
-    QuakeLiveEngine::set_config_string(&index, res_string.as_ref());
+    QuakeLiveEngine::set_configstring(&index, res_string.as_ref());
 }
 
 extern "C" {
