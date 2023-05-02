@@ -1,4 +1,5 @@
 use crate::quake_common::clientConnected_t::CON_DISCONNECTED;
+use crate::quake_common::persistantFields_t::PERS_ROUND_SCORE;
 use crate::quake_common::powerup_t::{
     PW_BATTLESUIT, PW_HASTE, PW_INVIS, PW_INVULNERABILITY, PW_QUAD, PW_REGEN,
 };
@@ -289,6 +290,24 @@ pub enum moverState_t {
     MOVER_POS2,
     MOVER_1TO2,
     MOVER_2TO1,
+}
+
+#[allow(non_camel_case_types)]
+#[derive(PartialEq, Debug, Clone, Copy)]
+#[allow(dead_code)]
+#[repr(C)]
+pub(crate) enum persistantFields_t {
+    PERS_ROUND_SCORE = 0x0,
+    PERS_COMBOKILL_COUNT = 0x1,
+    PERS_RAMPAGE_COUNT = 0x2,
+    PERS_MIDAIR_COUNT = 0x3,
+    PERS_REVENGE_COUNT = 0x4,
+    PERS_PERFORATED_COUNT = 0x5,
+    PERS_HEADSHOT_COUNT = 0x6,
+    PERS_ACCURACY_COUNT = 0x7,
+    PERS_QUADGOD_COUNT = 0x8,
+    PERS_FIRSTFRAG_COUNT = 0x9,
+    PERS_PERFECT_COUNT = 0xA,
 }
 
 #[allow(non_camel_case_types)]
@@ -906,6 +925,38 @@ impl GameClient {
 
     pub(crate) fn is_frozen(&self) -> bool {
         self.game_client.ps.pm_type == 4
+    }
+
+    pub(crate) fn get_score(&self) -> i32 {
+        if self.game_client.sess.sessionTeam == TEAM_SPECTATOR {
+            0
+        } else {
+            self.game_client.ps.persistant[PERS_ROUND_SCORE as usize]
+        }
+    }
+
+    pub(crate) fn get_kills(&self) -> i32 {
+        self.game_client.expandedStats.numKills
+    }
+
+    pub(crate) fn get_deaths(&self) -> i32 {
+        self.game_client.expandedStats.numDeaths
+    }
+
+    pub(crate) fn get_damage_dealt(&self) -> i32 {
+        self.game_client.expandedStats.totalDamageDealt
+    }
+
+    pub(crate) fn get_damage_taken(&self) -> i32 {
+        self.game_client.expandedStats.totalDamageTaken
+    }
+
+    pub(crate) fn get_time_on_team(&self) -> i32 {
+        CurrentLevel::default().level.time - self.game_client.pers.enterTime
+    }
+
+    pub(crate) fn get_ping(&self) -> i32 {
+        self.game_client.ps.ping
     }
 }
 

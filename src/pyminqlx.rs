@@ -6,8 +6,9 @@ use crate::hooks::{
 use crate::quake_common::clientState_t::{CS_ACTIVE, CS_FREE, CS_ZOMBIE};
 use crate::quake_common::team_t::TEAM_SPECTATOR;
 use crate::quake_common::{
-    AddCommand, Client, ConsoleCommand, CurrentLevel, FindCVar, GameEntity, GetConfigstring,
-    Holdable, QuakeLiveEngine, SetCVar, SetCVarForced, SetCVarLimit, MAX_CONFIGSTRINGS,
+    AddCommand, Client, ConsoleCommand, CurrentLevel, FindCVar, GameClient, GameEntity,
+    GetConfigstring, Holdable, QuakeLiveEngine, SetCVar, SetCVarForced, SetCVarLimit,
+    MAX_CONFIGSTRINGS,
 };
 use crate::SV_MAXCLIENTS;
 use lazy_static::lazy_static;
@@ -650,12 +651,38 @@ struct PlayerStats {
     ping: i32,
 }
 
+impl From<GameClient> for PlayerStats {
+    fn from(game_client: GameClient) -> Self {
+        Self {
+            score: game_client.get_score(),
+            kills: game_client.get_kills(),
+            deaths: game_client.get_deaths(),
+            damage_dealt: game_client.get_damage_dealt(),
+            damage_taken: game_client.get_damage_taken(),
+            time: game_client.get_time_on_team(),
+            ping: game_client.get_ping(),
+        }
+    }
+}
+
 /// Get some player stats.
 #[pyfunction]
 #[pyo3(name = "player_stats")]
-#[pyo3(signature = (_client_id))]
-fn player_stats(_client_id: i32) -> PyResult<()> {
-    Ok(())
+#[pyo3(signature = (client_id))]
+fn player_stats(client_id: i32) -> PyResult<Option<PlayerStats>> {
+    if client_id < 0 || client_id > *SV_MAXCLIENTS.lock().unwrap() {
+        return Err(PyValueError::new_err(format!(
+            "client_id needs to be a number from 0 to {}.",
+            *SV_MAXCLIENTS.lock().unwrap()
+        )));
+    }
+
+    match GameEntity::try_from(client_id) {
+        Err(_) => Ok(None),
+        Ok(game_entity) => Ok(Some(PlayerStats::from(
+            game_entity.get_game_client().unwrap(),
+        ))),
+    }
 }
 
 #[pymodule]
