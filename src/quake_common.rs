@@ -12,6 +12,7 @@ use crate::quake_common::voteState_t::{VOTE_NO, VOTE_YES};
 use crate::quake_common::Holdable::{
     Flight, Invulnerability, Kamikaze, MedKit, Portal, Teleporter, Unknown,
 };
+use lazy_static::lazy_static;
 use std::borrow::Cow;
 use std::collections::HashMap;
 use std::ffi::{c_char, c_float, c_int, c_uchar, c_uint, c_ushort, c_void, CStr, CString};
@@ -795,6 +796,17 @@ impl TryFrom<*mut gclient_t> for GameClient {
     }
 }
 
+lazy_static! {
+    static ref POWERUP_INDEX_LOOKUP: HashMap<i32, usize> = HashMap::from([
+        (0, PW_QUAD as usize),
+        (1, PW_BATTLESUIT as usize),
+        (2, PW_HASTE as usize),
+        (3, PW_INVIS as usize),
+        (4, PW_REGEN as usize),
+        (5, PW_INVULNERABILITY as usize),
+    ]);
+}
+
 impl GameClient {
     pub(crate) fn get_client_num(&self) -> i32 {
         self.game_client.ps.clientNum
@@ -912,20 +924,26 @@ impl GameClient {
 
     pub(crate) fn get_powerups(&self) -> [i32; 6] {
         let mut returned = [0; 6];
-        let powerup_index_lookup = HashMap::from([
-            (0, PW_QUAD as usize),
-            (1, PW_BATTLESUIT as usize),
-            (2, PW_HASTE as usize),
-            (3, PW_INVIS as usize),
-            (4, PW_REGEN as usize),
-            (5, PW_INVULNERABILITY as usize),
-        ]);
         let current_level = CurrentLevel::default();
         for (powerup, item) in returned.iter_mut().enumerate() {
-            let powerup_index = powerup_index_lookup.get(&(powerup as i32)).unwrap();
-            *item = self.game_client.ps.powerups[*powerup_index] - current_level.get_leveltime();
+            let powerup_index = *POWERUP_INDEX_LOOKUP.get(&(powerup as i32)).unwrap();
+            *item = self.game_client.ps.powerups[powerup_index] - current_level.get_leveltime();
         }
         returned
+    }
+
+    pub(crate) fn set_powerups(&mut self, powerups: [i32; 6]) {
+        let current_level = CurrentLevel::default();
+        for (powerup, &item) in powerups.iter().enumerate() {
+            let powerup_index = *POWERUP_INDEX_LOOKUP.get(&(powerup as i32)).unwrap();
+            if item == 0 {
+                self.game_client.ps.powerups[powerup_index] = 0;
+            } else {
+                let level_time = current_level.get_leveltime();
+                self.game_client.ps.powerups[powerup_index] =
+                    level_time - (level_time % 1000) + item;
+            }
+        }
     }
 
     pub(crate) fn get_holdable(&self) -> Holdable {
