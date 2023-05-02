@@ -17,7 +17,7 @@ use std::borrow::Cow;
 use std::collections::HashMap;
 use std::ffi::{c_char, c_float, c_int, c_uchar, c_uint, c_ushort, c_void, CStr, CString};
 use std::mem;
-use std::ops::{BitAnd, BitOrAssign, Not};
+use std::ops::{BitAnd, BitAndAssign, BitOrAssign, Not};
 
 #[allow(dead_code)]
 pub(crate) const DEBUG_PRINT_PREFIX: &str = "[shinqlx]";
@@ -465,14 +465,29 @@ pub enum powerup_t {
 
 #[derive(PartialEq, Debug, Clone, Copy)]
 pub(crate) enum Holdable {
-    None,
-    Teleporter,
-    MedKit,
-    Kamikaze,
-    Portal,
-    Invulnerability,
-    Flight,
-    Unknown,
+    None = 0,
+    Teleporter = 27,
+    MedKit = 28,
+    Kamikaze = 37,
+    Portal = 38,
+    Invulnerability = 39,
+    Flight = 34,
+    Unknown = 666,
+}
+
+impl From<i32> for Holdable {
+    fn from(value: i32) -> Self {
+        match value {
+            0 => Holdable::None,
+            27 => Teleporter,
+            28 => MedKit,
+            34 => Flight,
+            37 => Kamikaze,
+            38 => Portal,
+            39 => Invulnerability,
+            _ => Unknown,
+        }
+    }
 }
 
 #[allow(non_snake_case)]
@@ -813,7 +828,7 @@ impl GameClient {
     }
 
     pub(crate) fn activate_kamikaze(&mut self) {
-        self.game_client.ps.eFlags = self.game_client.ps.eFlags.bitand(!EF_KAMIKAZE);
+        self.game_client.ps.eFlags.bitand_assign(!EF_KAMIKAZE);
     }
 
     pub(crate) fn get_connection_state(&self) -> clientConnected_t {
@@ -947,16 +962,16 @@ impl GameClient {
     }
 
     pub(crate) fn get_holdable(&self) -> Holdable {
-        match self.game_client.ps.stats[STAT_HOLDABLE_ITEM as usize] {
-            0 => Holdable::None,
-            27 => Teleporter,
-            28 => MedKit,
-            34 => Flight,
-            37 => Kamikaze,
-            38 => Portal,
-            39 => Invulnerability,
-            _ => Unknown,
+        self.game_client.ps.stats[STAT_HOLDABLE_ITEM as usize].into()
+    }
+
+    pub(crate) fn set_holdable(&mut self, holdable: Holdable) {
+        if holdable == Kamikaze {
+            self.game_client.ps.eFlags.bitor_assign(EF_KAMIKAZE);
+        } else {
+            self.activate_kamikaze();
         }
+        self.game_client.ps.stats[STAT_HOLDABLE_ITEM as usize] = holdable as c_int;
     }
 
     pub(crate) fn get_current_flight_fuel(&self) -> i32 {
