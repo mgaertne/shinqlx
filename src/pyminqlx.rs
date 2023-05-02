@@ -73,10 +73,10 @@ extern "C" {
 #[pyfunction]
 #[pyo3(name = "player_info")]
 fn get_player_info(client_id: i32) -> PyResult<Option<PlayerInfo>> {
-    if client_id < 0 || client_id > *SV_MAXCLIENTS.lock().unwrap() {
+    if !(0..*SV_MAXCLIENTS.lock().unwrap()).contains(&client_id) {
         return Err(PyValueError::new_err(format!(
             "client_id needs to be a number from 0 to {}.",
-            *SV_MAXCLIENTS.lock().unwrap()
+            *SV_MAXCLIENTS.lock().unwrap() - 1
         )));
     }
     if let Ok(client) = Client::try_from(client_id) {
@@ -117,10 +117,11 @@ fn get_players_info() -> PyResult<Vec<Option<PlayerInfo>>> {
 #[pyfunction]
 #[pyo3(name = "get_userinfo")]
 fn get_userinfo(client_id: i32) -> PyResult<Option<Cow<'static, str>>> {
-    if client_id < 0 || client_id > *SV_MAXCLIENTS.lock().unwrap() {
+    let maxclients = *SV_MAXCLIENTS.lock().unwrap();
+    if !(0..maxclients).contains(&client_id) {
         return Err(PyValueError::new_err(format!(
             "client_id needs to be a number from 0 to {}.",
-            *SV_MAXCLIENTS.lock().unwrap()
+            maxclients - 1
         )));
     }
 
@@ -147,10 +148,11 @@ fn send_server_command(optional_client_id: Option<i32>, cmd: &str) -> PyResult<O
             Ok(Some(true))
         }
         Some(client_id) => {
-            if client_id < 0 || client_id > *SV_MAXCLIENTS.lock().unwrap() {
+            let maxclients = *SV_MAXCLIENTS.lock().unwrap();
+            if !(0..maxclients).contains(&client_id) {
                 return Err(PyValueError::new_err(format!(
                     "client_id needs to be a number from 0 to {}, or None.",
-                    *SV_MAXCLIENTS.lock().unwrap()
+                    maxclients - 1
                 )));
             }
             match Client::try_from(client_id) {
@@ -179,10 +181,11 @@ fn client_command(optional_client_id: Option<i32>, cmd: &str) -> PyResult<Option
             Ok(Some(true))
         }
         Some(client_id) => {
-            if client_id < 0 || client_id > *SV_MAXCLIENTS.lock().unwrap() {
+            let maxclients = *SV_MAXCLIENTS.lock().unwrap();
+            if !(0..maxclients).contains(&client_id) {
                 return Err(PyValueError::new_err(format!(
                     "client_id needs to be a number from 0 to {}, or None.",
-                    *SV_MAXCLIENTS.lock().unwrap()
+                    maxclients - 1
                 )));
             }
             match Client::try_from(client_id) {
@@ -253,10 +256,11 @@ fn set_cvar_limit(cvar: &str, value: &str, min: &str, max: &str, flags: Option<i
 #[pyo3(name = "kick")]
 #[pyo3(signature = (client_id, reason=None))]
 fn kick(client_id: i32, reason: Option<&str>) -> PyResult<()> {
-    if client_id < 0 || client_id > *SV_MAXCLIENTS.lock().unwrap() {
+    let maxclients = *SV_MAXCLIENTS.lock().unwrap();
+    if !(0..maxclients).contains(&client_id) {
         return Err(PyValueError::new_err(format!(
             "client_id needs to be a number from 0 to {}.",
-            *SV_MAXCLIENTS.lock().unwrap()
+            maxclients - 1
         )));
     }
 
@@ -289,10 +293,10 @@ fn console_print(text: &str) {
 #[pyo3(name = "get_configstring")]
 #[pyo3(signature = (config_id))]
 fn get_configstring(config_id: i32) -> PyResult<Cow<'static, str>> {
-    if config_id < 0 || config_id > MAX_CONFIGSTRINGS as i32 {
+    if !(0..MAX_CONFIGSTRINGS as i32).contains(&config_id) {
         return Err(PyValueError::new_err(format!(
             "index needs to be a number from 0 to {}.",
-            MAX_CONFIGSTRINGS
+            MAX_CONFIGSTRINGS - 1
         )));
     }
     Ok(Cow::from(QuakeLiveEngine::get_configstring(config_id)))
@@ -303,10 +307,10 @@ fn get_configstring(config_id: i32) -> PyResult<Cow<'static, str>> {
 #[pyo3(name = "set_configstring")]
 #[pyo3(signature = (config_id, value))]
 fn set_configstring(config_id: i32, value: &str) -> PyResult<()> {
-    if config_id < 0 || config_id > MAX_CONFIGSTRINGS as i32 {
+    if !(0..MAX_CONFIGSTRINGS as i32).contains(&config_id) {
         return Err(PyValueError::new_err(format!(
             "index needs to be a number from 0 to {}.",
-            MAX_CONFIGSTRINGS
+            MAX_CONFIGSTRINGS - 1
         )));
     }
     shinqlx_set_configstring(config_id, value);
@@ -639,10 +643,11 @@ fn holdable_from(holdable: Holdable) -> Option<Cow<'static, str>> {
 #[pyo3(name = "player_state")]
 #[pyo3(signature = (client_id))]
 fn player_state(client_id: i32) -> PyResult<Option<PlayerState>> {
-    if client_id < 0 || client_id > *SV_MAXCLIENTS.lock().unwrap() {
+    let maxclients = *SV_MAXCLIENTS.lock().unwrap();
+    if !(0..maxclients).contains(&client_id) {
         return Err(PyValueError::new_err(format!(
             "client_id needs to be a number from 0 to {}.",
-            *SV_MAXCLIENTS.lock().unwrap()
+            maxclients - 1
         )));
     }
 
@@ -692,10 +697,11 @@ impl From<GameClient> for PlayerStats {
 #[pyo3(name = "player_stats")]
 #[pyo3(signature = (client_id))]
 fn player_stats(client_id: i32) -> PyResult<Option<PlayerStats>> {
-    if client_id < 0 || client_id > *SV_MAXCLIENTS.lock().unwrap() {
+    let maxclients = *SV_MAXCLIENTS.lock().unwrap();
+    if !(0..maxclients).contains(&client_id) {
         return Err(PyValueError::new_err(format!(
             "client_id needs to be a number from 0 to {}.",
-            *SV_MAXCLIENTS.lock().unwrap()
+            maxclients - 1
         )));
     }
 
@@ -712,10 +718,11 @@ fn player_stats(client_id: i32) -> PyResult<Option<PlayerStats>> {
 #[pyo3(name = "set_position")]
 #[pyo3(signature = (client_id, position))]
 fn set_position(client_id: i32, position: Vector3) -> PyResult<bool> {
-    if client_id < 0 || client_id > *SV_MAXCLIENTS.lock().unwrap() {
+    let maxclients = *SV_MAXCLIENTS.lock().unwrap();
+    if !(0..maxclients).contains(&client_id) {
         return Err(PyValueError::new_err(format!(
             "client_id needs to be a number from 0 to {}.",
-            *SV_MAXCLIENTS.lock().unwrap()
+            maxclients - 1
         )));
     }
 
@@ -734,10 +741,11 @@ fn set_position(client_id: i32, position: Vector3) -> PyResult<bool> {
 #[pyo3(name = "set_velocity")]
 #[pyo3(signature = (client_id, velocity))]
 fn set_velocity(client_id: i32, velocity: Vector3) -> PyResult<bool> {
-    if client_id < 0 || client_id > *SV_MAXCLIENTS.lock().unwrap() {
+    let maxclients = *SV_MAXCLIENTS.lock().unwrap();
+    if !(0..maxclients).contains(&client_id) {
         return Err(PyValueError::new_err(format!(
             "client_id needs to be a number from 0 to {}.",
-            *SV_MAXCLIENTS.lock().unwrap()
+            maxclients - 1
         )));
     }
 
@@ -756,10 +764,11 @@ fn set_velocity(client_id: i32, velocity: Vector3) -> PyResult<bool> {
 #[pyo3(name = "noclip")]
 #[pyo3(signature = (client_id, activate))]
 fn noclip(client_id: i32, activate: bool) -> PyResult<bool> {
-    if client_id < 0 || client_id > *SV_MAXCLIENTS.lock().unwrap() {
+    let maxclients = *SV_MAXCLIENTS.lock().unwrap();
+    if !(0..maxclients).contains(&client_id) {
         return Err(PyValueError::new_err(format!(
             "client_id needs to be a number from 0 to {}.",
-            *SV_MAXCLIENTS.lock().unwrap()
+            maxclients - 1
         )));
     }
 
@@ -782,10 +791,11 @@ fn noclip(client_id: i32, activate: bool) -> PyResult<bool> {
 #[pyo3(name = "set_health")]
 #[pyo3(signature = (client_id, health))]
 fn set_health(client_id: i32, health: i32) -> PyResult<bool> {
-    if client_id < 0 || client_id > *SV_MAXCLIENTS.lock().unwrap() {
+    let maxclients = *SV_MAXCLIENTS.lock().unwrap();
+    if !(0..maxclients).contains(&client_id) {
         return Err(PyValueError::new_err(format!(
             "client_id needs to be a number from 0 to {}.",
-            *SV_MAXCLIENTS.lock().unwrap()
+            maxclients - 1
         )));
     }
 
@@ -804,10 +814,11 @@ fn set_health(client_id: i32, health: i32) -> PyResult<bool> {
 #[pyo3(name = "set_armor")]
 #[pyo3(signature = (client_id, armor))]
 fn set_armor(client_id: i32, armor: i32) -> PyResult<bool> {
-    if client_id < 0 || client_id > *SV_MAXCLIENTS.lock().unwrap() {
+    let maxclients = *SV_MAXCLIENTS.lock().unwrap();
+    if !(0..maxclients).contains(&client_id) {
         return Err(PyValueError::new_err(format!(
             "client_id needs to be a number from 0 to {}.",
-            *SV_MAXCLIENTS.lock().unwrap()
+            maxclients - 1
         )));
     }
 
@@ -826,10 +837,11 @@ fn set_armor(client_id: i32, armor: i32) -> PyResult<bool> {
 #[pyo3(name = "set_weapons")]
 #[pyo3(signature = (client_id, weapons))]
 fn set_weapons(client_id: i32, weapons: Weapons) -> PyResult<bool> {
-    if client_id < 0 || client_id > *SV_MAXCLIENTS.lock().unwrap() {
+    let maxclients = *SV_MAXCLIENTS.lock().unwrap();
+    if !(0..maxclients).contains(&client_id) {
         return Err(PyValueError::new_err(format!(
             "client_id needs to be a number from 0 to {}.",
-            *SV_MAXCLIENTS.lock().unwrap()
+            maxclients - 1
         )));
     }
 
@@ -838,6 +850,35 @@ fn set_weapons(client_id: i32, weapons: Weapons) -> PyResult<bool> {
         Ok(game_entity) => {
             let mut game_client = game_entity.get_game_client().unwrap();
             game_client.set_weapons(weapons.into());
+            Ok(true)
+        }
+    }
+}
+
+/// Sets a player's current weapon.
+#[pyfunction]
+#[pyo3(name = "set_weapon")]
+#[pyo3(signature = (client_id, weapon))]
+fn set_weapon(client_id: i32, weapon: i32) -> PyResult<bool> {
+    let maxclients = *SV_MAXCLIENTS.lock().unwrap();
+    if !(0..maxclients).contains(&client_id) {
+        return Err(PyValueError::new_err(format!(
+            "client_id needs to be a number from 0 to {}.",
+            maxclients - 1
+        )));
+    }
+
+    if !(0..16).contains(&weapon) {
+        return Err(PyValueError::new_err(
+            "Weapon must be a number from 0 to 15.",
+        ));
+    }
+
+    match GameEntity::try_from(client_id) {
+        Err(_) => Ok(false),
+        Ok(game_entity) => {
+            let mut game_client = game_entity.get_game_client().unwrap();
+            game_client.set_weapon(weapon);
             Ok(true)
         }
     }
@@ -870,6 +911,7 @@ fn pyminqlx_init_module(_py: Python<'_>, m: &PyModule) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(set_health, m)?)?;
     m.add_function(wrap_pyfunction!(set_armor, m)?)?;
     m.add_function(wrap_pyfunction!(set_weapons, m)?)?;
+    m.add_function(wrap_pyfunction!(set_weapon, m)?)?;
 
     m.add_class::<PlayerInfo>()?;
     m.add_class::<PlayerState>()?;
