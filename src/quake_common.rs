@@ -872,6 +872,10 @@ impl GameClient {
         self.game_client.ps.weapon
     }
 
+    pub(crate) fn set_weapon(&mut self, weapon: i32) {
+        self.game_client.ps.weapon = weapon;
+    }
+
     pub(crate) fn get_weapons(&self) -> [bool; 15] {
         let mut returned = [false; 15];
         let weapon_stats = self.game_client.ps.stats[STAT_WEAPONS as usize];
