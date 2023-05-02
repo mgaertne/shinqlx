@@ -552,7 +552,7 @@ impl From<Ammo> for [i32; 15] {
 /// A struct sequence containing all the powerups in the game.
 #[pyclass]
 #[pyo3(name = "Powerups")]
-#[allow(unused)]
+#[derive(PartialEq, Debug, Clone, Copy)]
 struct Powerups {
     quad: i32,
     battlesuit: i32,
@@ -572,6 +572,19 @@ impl From<[i32; 6]> for Powerups {
             regeneration: value[4],
             invulnerability: value[5],
         }
+    }
+}
+
+impl From<Powerups> for [i32; 6] {
+    fn from(value: Powerups) -> Self {
+        [
+            value.quad,
+            value.battlesuit,
+            value.haste,
+            value.invisibility,
+            value.regeneration,
+            value.invulnerability,
+        ]
     }
 }
 
@@ -929,6 +942,29 @@ fn set_ammo(client_id: i32, ammos: Ammo) -> PyResult<bool> {
     }
 }
 
+/// Sets a player's powerups.
+#[pyfunction]
+#[pyo3(name = "set_powerups")]
+#[pyo3(signature = (client_id, powerups))]
+fn set_powerups(client_id: i32, powerups: Powerups) -> PyResult<bool> {
+    let maxclients = *SV_MAXCLIENTS.lock().unwrap();
+    if !(0..maxclients).contains(&client_id) {
+        return Err(PyValueError::new_err(format!(
+            "client_id needs to be a number from 0 to {}.",
+            maxclients - 1
+        )));
+    }
+
+    match GameEntity::try_from(client_id) {
+        Err(_) => Ok(false),
+        Ok(game_entity) => {
+            let mut game_client = game_entity.get_game_client().unwrap();
+            game_client.set_powerups(powerups.into());
+            Ok(true)
+        }
+    }
+}
+
 #[pymodule]
 #[pyo3(name = "_minqlx")]
 fn pyminqlx_init_module(_py: Python<'_>, m: &PyModule) -> PyResult<()> {
@@ -958,6 +994,7 @@ fn pyminqlx_init_module(_py: Python<'_>, m: &PyModule) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(set_weapons, m)?)?;
     m.add_function(wrap_pyfunction!(set_weapon, m)?)?;
     m.add_function(wrap_pyfunction!(set_ammo, m)?)?;
+    m.add_function(wrap_pyfunction!(set_powerups, m)?)?;
 
     m.add_class::<PlayerInfo>()?;
     m.add_class::<PlayerState>()?;
