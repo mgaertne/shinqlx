@@ -396,7 +396,7 @@ fn register_handler(py: Python<'_>, event: &str, handler: Option<Py<PyAny>>) -> 
 /// A three-dimensional vector.
 #[pyclass]
 #[pyo3(name = "Vector3")]
-#[allow(unused)]
+#[derive(PartialEq, Debug, Clone, Copy)]
 struct Vector3 {
     x: i32,
     y: i32,
@@ -685,6 +685,50 @@ fn player_stats(client_id: i32) -> PyResult<Option<PlayerStats>> {
     }
 }
 
+/// Sets a player's position vector.
+#[pyfunction]
+#[pyo3(name = "set_position")]
+#[pyo3(signature = (client_id, position))]
+fn set_position(client_id: i32, position: Vector3) -> PyResult<bool> {
+    if client_id < 0 || client_id > *SV_MAXCLIENTS.lock().unwrap() {
+        return Err(PyValueError::new_err(format!(
+            "client_id needs to be a number from 0 to {}.",
+            *SV_MAXCLIENTS.lock().unwrap()
+        )));
+    }
+
+    match GameEntity::try_from(client_id) {
+        Err(_) => Ok(false),
+        Ok(game_entity) => {
+            let mut mutable_client = game_entity.get_game_client().unwrap();
+            mutable_client.set_position((position.x as f32, position.y as f32, position.z as f32));
+            Ok(true)
+        }
+    }
+}
+
+/// Sets a player's velocity vector.
+#[pyfunction]
+#[pyo3(name = "set_velocity")]
+#[pyo3(signature = (client_id, velocity))]
+fn set_velocity(client_id: i32, velocity: Vector3) -> PyResult<bool> {
+    if client_id < 0 || client_id > *SV_MAXCLIENTS.lock().unwrap() {
+        return Err(PyValueError::new_err(format!(
+            "client_id needs to be a number from 0 to {}.",
+            *SV_MAXCLIENTS.lock().unwrap()
+        )));
+    }
+
+    match GameEntity::try_from(client_id) {
+        Err(_) => Ok(false),
+        Ok(game_entity) => {
+            let mut mutable_client = game_entity.get_game_client().unwrap();
+            mutable_client.set_velocity((velocity.x as f32, velocity.y as f32, velocity.z as f32));
+            Ok(true)
+        }
+    }
+}
+
 #[pymodule]
 #[pyo3(name = "_minqlx")]
 fn pyminqlx_init_module(_py: Python<'_>, m: &PyModule) -> PyResult<()> {
@@ -706,6 +750,8 @@ fn pyminqlx_init_module(_py: Python<'_>, m: &PyModule) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(register_handler, m)?)?;
     m.add_function(wrap_pyfunction!(player_state, m)?)?;
     m.add_function(wrap_pyfunction!(player_stats, m)?)?;
+    m.add_function(wrap_pyfunction!(set_position, m)?)?;
+    m.add_function(wrap_pyfunction!(set_velocity, m)?)?;
 
     m.add_class::<PlayerInfo>()?;
     m.add_class::<PlayerState>()?;

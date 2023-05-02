@@ -796,18 +796,12 @@ impl TryFrom<*mut gclient_t> for GameClient {
 }
 
 impl GameClient {
-    pub fn get_client_num(&self) -> i32 {
+    pub(crate) fn get_client_num(&self) -> i32 {
         self.game_client.ps.clientNum
     }
 
-    pub fn activate_kamikaze(&mut self) {
+    pub(crate) fn activate_kamikaze(&mut self) {
         self.game_client.ps.eFlags = self.game_client.ps.eFlags.bitand(!EF_KAMIKAZE);
-    }
-
-    pub fn set_velocity(&mut self, velocity: (f32, f32, f32)) {
-        self.game_client.ps.velocity[0] = velocity.0 as c_float;
-        self.game_client.ps.velocity[1] = velocity.1 as c_float;
-        self.game_client.ps.velocity[2] = velocity.2 as c_float;
     }
 
     pub(crate) fn get_connection_state(&self) -> clientConnected_t {
@@ -838,12 +832,24 @@ impl GameClient {
         )
     }
 
+    pub(crate) fn set_position(&mut self, position: (f32, f32, f32)) {
+        self.game_client.ps.origin[0] = position.0;
+        self.game_client.ps.origin[1] = position.1;
+        self.game_client.ps.origin[2] = position.2;
+    }
+
     pub(crate) fn get_velocity(&self) -> (f32, f32, f32) {
         (
             self.game_client.ps.velocity[0],
             self.game_client.ps.velocity[1],
             self.game_client.ps.velocity[2],
         )
+    }
+
+    pub(crate) fn set_velocity(&mut self, velocity: (f32, f32, f32)) {
+        self.game_client.ps.velocity[0] = velocity.0 as c_float;
+        self.game_client.ps.velocity[1] = velocity.1 as c_float;
+        self.game_client.ps.velocity[2] = velocity.2 as c_float;
     }
 
     pub(crate) fn get_armor(&self) -> i32 {
