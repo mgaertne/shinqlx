@@ -821,7 +821,7 @@ fn set_armor(client_id: i32, armor: i32) -> PyResult<bool> {
     }
 }
 
-/// Sets a player's armor.
+/// Sets a player's weapons.
 #[pyfunction]
 #[pyo3(name = "set_weapons")]
 #[pyo3(signature = (client_id, weapons))]
