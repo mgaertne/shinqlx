@@ -860,6 +860,10 @@ impl GameClient {
         self.game_client.noclip.into()
     }
 
+    pub(crate) fn set_noclip(&mut self, activate: bool) {
+        self.game_client.noclip = activate.into();
+    }
+
     pub(crate) fn get_weapon(&self) -> i32 {
         self.game_client.ps.weapon
     }
