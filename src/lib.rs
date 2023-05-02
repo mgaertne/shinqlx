@@ -15,8 +15,8 @@ mod pyminqlx;
 mod quake_common;
 
 use crate::commands::{
-    cmd_center_print, cmd_py_command, cmd_py_rcon, cmd_regular_print, cmd_send_server_command,
-    cmd_slap, cmd_slay,
+    cmd_center_print, cmd_py_command, cmd_py_rcon, cmd_regular_print, cmd_restart_python,
+    cmd_send_server_command, cmd_slap, cmd_slay,
 };
 #[cfg(debug_assertions)]
 use crate::quake_common::DEBUG_PRINT_PREFIX;
@@ -42,8 +42,6 @@ static CVARS_INITIALIZED: Mutex<bool> = Mutex::new(false);
 static SV_MAXCLIENTS: Mutex<i32> = Mutex::new(0);
 
 extern "C" {
-    fn PyCommand();
-    fn RestartPython();
     fn PyMinqlx_Initialize() -> PyMinqlx_InitStatus_t;
 }
 
@@ -59,7 +57,7 @@ fn initialize_static() {
     QuakeLiveEngine::add_command("slay", cmd_slay);
     QuakeLiveEngine::add_command("qlx", cmd_py_rcon);
     QuakeLiveEngine::add_command("pycmd", cmd_py_command);
-    QuakeLiveEngine::add_command("pyrestart", RestartPython);
+    QuakeLiveEngine::add_command("pyrestart", cmd_restart_python);
     let res = unsafe { PyMinqlx_Initialize() };
     if res != PyMinqlx_InitStatus_t::PYM_SUCCESS {
         debug_println!("Python initialization failed: {}", res);

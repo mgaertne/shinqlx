@@ -23,7 +23,6 @@ fn main() {
     builder.files([
         "src/dllmain.c",
         "src/hooks.c",
-        "src/commands.c",
         "src/python_embed.c",
         "src/python_dispatchers.c",
         "src/simple_hook.c",
@@ -60,7 +59,6 @@ fn main() {
     builder.compile("minqlx");
 
     println!("cargo:rerun-if-changed=src/dllmain.c");
-    println!("cargo:rerun-if-changes=src/commands.c");
     println!("cargo:rerun-if-changed=src/python_embed.c");
     println!("cargo:rerun-if-changed=src/python_dispatchers.c");
     println!("cargo:rerun-if-changed=src/simple_hook.c");

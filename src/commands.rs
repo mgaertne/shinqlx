@@ -4,10 +4,10 @@ use crate::quake_common::{
     Client, CmdArgc, CmdArgs, CmdArgv, ComPrintf, GameAddEvent, GameEntity, QuakeLiveEngine,
     SendServerCommand,
 };
-use crate::SV_MAXCLIENTS;
+use crate::{PyMinqlx_InitStatus_t, SV_MAXCLIENTS};
 use pyo3::Python;
 use rand::Rng;
-use std::ffi::{c_char, CString};
+use std::ffi::{c_char, c_int, CString};
 
 #[no_mangle]
 pub extern "C" fn cmd_send_server_command() {
@@ -206,4 +206,24 @@ pub extern "C" fn cmd_py_command() {
             }
         });
     };
+}
+
+extern "C" {
+    fn PyMinqlx_IsInitiailized() -> c_int;
+    fn PyMinqlx_Finalze() -> PyMinqlx_InitStatus_t;
+    fn PyMinqlx_Initialize() -> PyMinqlx_InitStatus_t;
+    fn NewGameDispatcher(restart: c_int);
+}
+
+#[no_mangle]
+pub extern "C" fn cmd_restart_python() {
+    QuakeLiveEngine::com_printf("Restarting Python...\n");
+    if unsafe { PyMinqlx_IsInitiailized() != 0 } {
+        unsafe { PyMinqlx_Finalze() };
+    }
+    unsafe { PyMinqlx_Initialize() };
+
+    // minqlx initializes after the first new game starts, but since the game already
+    // start, we manually trigger the event to make it initialize properly.
+    unsafe { NewGameDispatcher(0) };
 }

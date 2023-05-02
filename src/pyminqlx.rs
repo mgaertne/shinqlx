@@ -1,3 +1,4 @@
+use crate::commands::cmd_py_command;
 use crate::hooks::{
     shinqlx_com_printf, shinqlx_drop_client, shinqlx_execute_client_command,
     shinqlx_send_server_command, shinqlx_set_configstring,
@@ -8,7 +9,7 @@ use crate::quake_common::{
     AddCommand, Client, ConsoleCommand, CurrentLevel, FindCVar, GameEntity, GetConfigstring,
     Holdable, QuakeLiveEngine, SetCVar, SetCVarForced, SetCVarLimit, MAX_CONFIGSTRINGS,
 };
-use crate::{PyCommand, SV_MAXCLIENTS};
+use crate::SV_MAXCLIENTS;
 use lazy_static::lazy_static;
 use pyo3::exceptions::{PyTypeError, PyValueError};
 use pyo3::prelude::*;
@@ -342,7 +343,7 @@ fn force_vote(pass: bool) -> bool {
 #[pyo3(name = "add_console_command")]
 #[pyo3(signature = (command))]
 fn add_console_command(command: &str) {
-    QuakeLiveEngine::add_command(command, PyCommand);
+    QuakeLiveEngine::add_command(command, cmd_py_command);
 }
 
 lazy_static! {
