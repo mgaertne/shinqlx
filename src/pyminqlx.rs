@@ -486,7 +486,7 @@ impl From<Weapons> for [bool; 15] {
 /// A struct sequence containing all the different ammo types for the weapons in the game.
 #[pyclass]
 #[pyo3(name = "Ammo")]
-#[allow(unused)]
+#[derive(PartialEq, Debug, Clone, Copy)]
 struct Ammo {
     g: i32,
     mg: i32,
@@ -524,6 +524,28 @@ impl From<[i32; 15]> for Ammo {
             hmg: value[13],
             hands: value[14],
         }
+    }
+}
+
+impl From<Ammo> for [i32; 15] {
+    fn from(value: Ammo) -> Self {
+        [
+            value.g,
+            value.mg,
+            value.sg,
+            value.gl,
+            value.rl,
+            value.lg,
+            value.rg,
+            value.pg,
+            value.bfg,
+            value.gh,
+            value.ng,
+            value.pl,
+            value.cg,
+            value.hmg,
+            value.hands,
+        ]
     }
 }
 
@@ -884,6 +906,29 @@ fn set_weapon(client_id: i32, weapon: i32) -> PyResult<bool> {
     }
 }
 
+/// Sets a player's ammo.
+#[pyfunction]
+#[pyo3(name = "set_ammo")]
+#[pyo3(signature = (client_id, ammos))]
+fn set_ammo(client_id: i32, ammos: Ammo) -> PyResult<bool> {
+    let maxclients = *SV_MAXCLIENTS.lock().unwrap();
+    if !(0..maxclients).contains(&client_id) {
+        return Err(PyValueError::new_err(format!(
+            "client_id needs to be a number from 0 to {}.",
+            maxclients - 1
+        )));
+    }
+
+    match GameEntity::try_from(client_id) {
+        Err(_) => Ok(false),
+        Ok(game_entity) => {
+            let mut game_client = game_entity.get_game_client().unwrap();
+            game_client.set_ammos(ammos.into());
+            Ok(true)
+        }
+    }
+}
+
 #[pymodule]
 #[pyo3(name = "_minqlx")]
 fn pyminqlx_init_module(_py: Python<'_>, m: &PyModule) -> PyResult<()> {
@@ -912,6 +957,7 @@ fn pyminqlx_init_module(_py: Python<'_>, m: &PyModule) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(set_armor, m)?)?;
     m.add_function(wrap_pyfunction!(set_weapons, m)?)?;
     m.add_function(wrap_pyfunction!(set_weapon, m)?)?;
+    m.add_function(wrap_pyfunction!(set_ammo, m)?)?;
 
     m.add_class::<PlayerInfo>()?;
     m.add_class::<PlayerState>()?;

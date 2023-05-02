@@ -887,8 +887,8 @@ impl GameClient {
 
     pub(crate) fn set_weapons(&mut self, weapons: [bool; 15]) {
         let mut weapon_flags = 0;
-        for (i, item) in weapons.iter().enumerate() {
-            let modifier = if *item { 1 << (i + 1) } else { 0 };
+        for (i, &item) in weapons.iter().enumerate() {
+            let modifier = if item { 1 << (i + 1) } else { 0 };
             weapon_flags.bitor_assign(modifier);
         }
 
@@ -902,6 +902,12 @@ impl GameClient {
             *item = ammos[i + 1];
         }
         returned
+    }
+
+    pub(crate) fn set_ammos(&mut self, ammos: [i32; 15]) {
+        for (i, &item) in ammos.iter().enumerate() {
+            self.game_client.ps.ammo[i + 1] = item;
+        }
     }
 
     pub(crate) fn get_powerups(&self) -> [i32; 6] {
