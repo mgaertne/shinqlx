@@ -416,7 +416,7 @@ impl From<(f32, f32, f32)> for Vector3 {
 /// A struct sequence containing all the weapons in the game.
 #[pyclass]
 #[pyo3(name = "Weapons")]
-#[allow(unused)]
+#[derive(PartialEq, Debug, Clone, Copy)]
 struct Weapons {
     g: bool,
     mg: bool,
@@ -454,6 +454,28 @@ impl From<[bool; 15]> for Weapons {
             hmg: value[13],
             hands: value[14],
         }
+    }
+}
+
+impl From<Weapons> for [bool; 15] {
+    fn from(value: Weapons) -> Self {
+        [
+            value.g,
+            value.mg,
+            value.sg,
+            value.gl,
+            value.rl,
+            value.lg,
+            value.rg,
+            value.pg,
+            value.bfg,
+            value.gh,
+            value.ng,
+            value.pl,
+            value.cg,
+            value.hmg,
+            value.hands,
+        ]
     }
 }
 
@@ -777,6 +799,50 @@ fn set_health(client_id: i32, health: i32) -> PyResult<bool> {
     }
 }
 
+/// Sets a player's armor.
+#[pyfunction]
+#[pyo3(name = "set_armor")]
+#[pyo3(signature = (client_id, armor))]
+fn set_armor(client_id: i32, armor: i32) -> PyResult<bool> {
+    if client_id < 0 || client_id > *SV_MAXCLIENTS.lock().unwrap() {
+        return Err(PyValueError::new_err(format!(
+            "client_id needs to be a number from 0 to {}.",
+            *SV_MAXCLIENTS.lock().unwrap()
+        )));
+    }
+
+    match GameEntity::try_from(client_id) {
+        Err(_) => Ok(false),
+        Ok(game_entity) => {
+            let mut game_client = game_entity.get_game_client().unwrap();
+            game_client.set_armor(armor);
+            Ok(true)
+        }
+    }
+}
+
+/// Sets a player's armor.
+#[pyfunction]
+#[pyo3(name = "set_weapons")]
+#[pyo3(signature = (client_id, weapons))]
+fn set_weapons(client_id: i32, weapons: Weapons) -> PyResult<bool> {
+    if client_id < 0 || client_id > *SV_MAXCLIENTS.lock().unwrap() {
+        return Err(PyValueError::new_err(format!(
+            "client_id needs to be a number from 0 to {}.",
+            *SV_MAXCLIENTS.lock().unwrap()
+        )));
+    }
+
+    match GameEntity::try_from(client_id) {
+        Err(_) => Ok(false),
+        Ok(game_entity) => {
+            let mut game_client = game_entity.get_game_client().unwrap();
+            game_client.set_weapons(weapons.into());
+            Ok(true)
+        }
+    }
+}
+
 #[pymodule]
 #[pyo3(name = "_minqlx")]
 fn pyminqlx_init_module(_py: Python<'_>, m: &PyModule) -> PyResult<()> {
@@ -802,6 +868,8 @@ fn pyminqlx_init_module(_py: Python<'_>, m: &PyModule) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(set_velocity, m)?)?;
     m.add_function(wrap_pyfunction!(noclip, m)?)?;
     m.add_function(wrap_pyfunction!(set_health, m)?)?;
+    m.add_function(wrap_pyfunction!(set_armor, m)?)?;
+    m.add_function(wrap_pyfunction!(set_weapons, m)?)?;
 
     m.add_class::<PlayerInfo>()?;
     m.add_class::<PlayerState>()?;

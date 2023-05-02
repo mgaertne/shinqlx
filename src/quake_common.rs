@@ -16,7 +16,7 @@ use std::borrow::Cow;
 use std::collections::HashMap;
 use std::ffi::{c_char, c_float, c_int, c_uchar, c_uint, c_ushort, c_void, CStr, CString};
 use std::mem;
-use std::ops::{BitAnd, Not};
+use std::ops::{BitAnd, BitOrAssign, Not};
 
 #[allow(dead_code)]
 pub(crate) const DEBUG_PRINT_PREFIX: &str = "[shinqlx]";
@@ -856,6 +856,10 @@ impl GameClient {
         self.game_client.ps.stats[STAT_ARMOR as usize]
     }
 
+    pub(crate) fn set_armor(&mut self, armor: i32) {
+        self.game_client.ps.stats[STAT_ARMOR as usize] = armor;
+    }
+
     pub(crate) fn get_noclip(&self) -> bool {
         self.game_client.noclip.into()
     }
@@ -875,6 +879,16 @@ impl GameClient {
             *item = weapon_stats.bitand(1 << (i + 1)) != 0;
         }
         returned
+    }
+
+    pub(crate) fn set_weapons(&mut self, weapons: [bool; 15]) {
+        let mut weapon_flags = 0;
+        for (i, item) in weapons.iter().enumerate() {
+            let modifier = if *item { 1 << (i + 1) } else { 0 };
+            weapon_flags.bitor_assign(modifier);
+        }
+
+        self.game_client.ps.stats[STAT_WEAPONS as usize] = weapon_flags;
     }
 
     pub(crate) fn get_ammo(&self) -> [i32; 15] {
