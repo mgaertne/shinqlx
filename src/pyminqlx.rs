@@ -729,6 +729,32 @@ fn set_velocity(client_id: i32, velocity: Vector3) -> PyResult<bool> {
     }
 }
 
+/// Sets noclip for a player.
+#[pyfunction]
+#[pyo3(name = "noclip")]
+#[pyo3(signature = (client_id, activate))]
+fn noclip(client_id: i32, activate: bool) -> PyResult<bool> {
+    if client_id < 0 || client_id > *SV_MAXCLIENTS.lock().unwrap() {
+        return Err(PyValueError::new_err(format!(
+            "client_id needs to be a number from 0 to {}.",
+            *SV_MAXCLIENTS.lock().unwrap()
+        )));
+    }
+
+    match GameEntity::try_from(client_id) {
+        Err(_) => Ok(false),
+        Ok(game_entity) => {
+            let mut game_client = game_entity.get_game_client().unwrap();
+            if game_client.get_noclip() == activate {
+                Ok(false)
+            } else {
+                game_client.set_noclip(activate);
+                Ok(true)
+            }
+        }
+    }
+}
+
 #[pymodule]
 #[pyo3(name = "_minqlx")]
 fn pyminqlx_init_module(_py: Python<'_>, m: &PyModule) -> PyResult<()> {
@@ -752,6 +778,7 @@ fn pyminqlx_init_module(_py: Python<'_>, m: &PyModule) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(player_stats, m)?)?;
     m.add_function(wrap_pyfunction!(set_position, m)?)?;
     m.add_function(wrap_pyfunction!(set_velocity, m)?)?;
+    m.add_function(wrap_pyfunction!(noclip, m)?)?;
 
     m.add_class::<PlayerInfo>()?;
     m.add_class::<PlayerState>()?;
