@@ -15,12 +15,14 @@ mod pyminqlx;
 mod quake_common;
 
 use crate::commands::{
-    cmd_center_print, cmd_py_rcon, cmd_regular_print, cmd_send_server_command, cmd_slap, cmd_slay,
+    cmd_center_print, cmd_py_command, cmd_py_rcon, cmd_regular_print, cmd_send_server_command,
+    cmd_slap, cmd_slay,
 };
 #[cfg(debug_assertions)]
 use crate::quake_common::DEBUG_PRINT_PREFIX;
 use crate::quake_common::{cvar_t, AddCommand, FindCVar, QuakeLiveEngine};
 use ctor::ctor;
+use std::sync::Mutex;
 
 #[allow(non_camel_case_types)]
 #[allow(non_camel_case_types)]
@@ -35,9 +37,9 @@ pub enum PyMinqlx_InitStatus_t {
     PYM_NOT_INITIALIZED_ERROR,
 }
 
-static mut COMMON_INITIALIZED: bool = false;
-static mut CVARS_INITIALIZED: bool = false;
-static mut SV_MAXCLIENTS: i32 = 0;
+static COMMON_INITIALIZED: Mutex<bool> = Mutex::new(false);
+static CVARS_INITIALIZED: Mutex<bool> = Mutex::new(false);
+static SV_MAXCLIENTS: Mutex<i32> = Mutex::new(0);
 
 extern "C" {
     fn PyCommand();
@@ -56,7 +58,7 @@ fn initialize_static() {
     QuakeLiveEngine::add_command("slap", cmd_slap);
     QuakeLiveEngine::add_command("slay", cmd_slay);
     QuakeLiveEngine::add_command("qlx", cmd_py_rcon);
-    QuakeLiveEngine::add_command("pycmd", PyCommand);
+    QuakeLiveEngine::add_command("pycmd", cmd_py_command);
     QuakeLiveEngine::add_command("pyrestart", RestartPython);
     let res = unsafe { PyMinqlx_Initialize() };
     if res != PyMinqlx_InitStatus_t::PYM_SUCCESS {
@@ -64,9 +66,7 @@ fn initialize_static() {
         panic!("Python initialization failed.");
     }
 
-    unsafe {
-        COMMON_INITIALIZED = true;
-    }
+    *COMMON_INITIALIZED.lock().unwrap() = true;
 }
 
 extern "C" {
@@ -80,9 +80,9 @@ fn initialize_cvars() {
     };
     unsafe {
         sv_maxclients = maxclients.get_cvar();
-        SV_MAXCLIENTS = maxclients.get_integer();
-        CVARS_INITIALIZED = true;
     }
+    *SV_MAXCLIENTS.lock().unwrap() = maxclients.get_integer();
+    *CVARS_INITIALIZED.lock().unwrap() = true;
 }
 
 extern "C" {

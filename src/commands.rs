@@ -1,9 +1,11 @@
+use crate::pyminqlx::HANDLERS;
 use crate::quake_common::entity_event_t::{EV_DEATH1, EV_GIB_PLAYER, EV_PAIN};
 use crate::quake_common::{
     Client, CmdArgc, CmdArgs, CmdArgv, ComPrintf, GameAddEvent, GameEntity, QuakeLiveEngine,
     SendServerCommand,
 };
 use crate::SV_MAXCLIENTS;
+use pyo3::Python;
 use rand::Rng;
 use std::ffi::{c_char, CString};
 
@@ -49,16 +51,17 @@ pub extern "C" fn cmd_slap() {
     let Some(client_id) = passed_client_id_str.parse::<i32>().ok() else {
         let usage_note = format!(
             "client_id must be a number between 0 and {}.\n",
-            unsafe {SV_MAXCLIENTS}
+            *SV_MAXCLIENTS.lock().unwrap()
         );
         QuakeLiveEngine::com_printf(usage_note.as_str());
         return;
     };
 
-    if client_id > unsafe { SV_MAXCLIENTS } {
-        let usage_note = format!("client_id must be a number between 0 and {}.\n", unsafe {
-            SV_MAXCLIENTS
-        });
+    if client_id > *SV_MAXCLIENTS.lock().unwrap() {
+        let usage_note = format!(
+            "client_id must be a number between 0 and {}.\n",
+            *SV_MAXCLIENTS.lock().unwrap()
+        );
         QuakeLiveEngine::com_printf(usage_note.as_str());
         return;
     }
@@ -135,16 +138,17 @@ pub extern "C" fn cmd_slay() {
     let Some(client_id) = passed_client_id_str.parse::<i32>().ok() else {
         let usage_note = format!(
             "client_id must be a number between 0 and {}.\n",
-            unsafe { SV_MAXCLIENTS }
+            *SV_MAXCLIENTS.lock().unwrap()
         );
         QuakeLiveEngine::com_printf(usage_note.as_str());
         return;
     };
 
-    if client_id > unsafe { SV_MAXCLIENTS } {
-        let usage_note = format!("client_id must be a number between 0 and {}.\n", unsafe {
-            SV_MAXCLIENTS
-        });
+    if client_id > *SV_MAXCLIENTS.lock().unwrap() {
+        let usage_note = format!(
+            "client_id must be a number between 0 and {}.\n",
+            *SV_MAXCLIENTS.lock().unwrap()
+        );
         QuakeLiveEngine::com_printf(usage_note.as_str());
         return;
     }
@@ -185,4 +189,21 @@ pub extern "C" fn cmd_py_rcon() {
     let Some(commands) = QuakeLiveEngine::cmd_args() else { return;
     };
     unsafe { RconDispatcher(CString::new(commands).unwrap().into_raw()) }
+}
+
+#[no_mangle]
+pub extern "C" fn cmd_py_command() {
+    if let Some(python_function) = HANDLERS.lock().unwrap().get("custom_command") {
+        Python::with_gil(|py| {
+            let result = match QuakeLiveEngine::cmd_args() {
+                None => python_function.call0(py),
+                Some(args) => python_function.call1(py, (args,)),
+            };
+            if result.is_err() || !result.unwrap().is_true(py).unwrap() {
+                QuakeLiveEngine::com_printf(
+                    "The command failed to be executed. pyshinqlx found no handler.\n",
+                );
+            }
+        });
+    };
 }
