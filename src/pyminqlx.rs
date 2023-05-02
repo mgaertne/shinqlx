@@ -755,6 +755,28 @@ fn noclip(client_id: i32, activate: bool) -> PyResult<bool> {
     }
 }
 
+/// Sets a player's health.
+#[pyfunction]
+#[pyo3(name = "set_health")]
+#[pyo3(signature = (client_id, health))]
+fn set_health(client_id: i32, health: i32) -> PyResult<bool> {
+    if client_id < 0 || client_id > *SV_MAXCLIENTS.lock().unwrap() {
+        return Err(PyValueError::new_err(format!(
+            "client_id needs to be a number from 0 to {}.",
+            *SV_MAXCLIENTS.lock().unwrap()
+        )));
+    }
+
+    match GameEntity::try_from(client_id) {
+        Err(_) => Ok(false),
+        Ok(game_entity) => {
+            let mut game_entity = game_entity;
+            game_entity.set_health(health);
+            Ok(true)
+        }
+    }
+}
+
 #[pymodule]
 #[pyo3(name = "_minqlx")]
 fn pyminqlx_init_module(_py: Python<'_>, m: &PyModule) -> PyResult<()> {
@@ -779,6 +801,7 @@ fn pyminqlx_init_module(_py: Python<'_>, m: &PyModule) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(set_position, m)?)?;
     m.add_function(wrap_pyfunction!(set_velocity, m)?)?;
     m.add_function(wrap_pyfunction!(noclip, m)?)?;
+    m.add_function(wrap_pyfunction!(set_health, m)?)?;
 
     m.add_class::<PlayerInfo>()?;
     m.add_class::<PlayerState>()?;
