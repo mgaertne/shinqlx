@@ -1,5 +1,6 @@
 use crate::hooks::shinqlx_set_configstring;
 use crate::quake_common::clientConnected_t::CON_DISCONNECTED;
+use crate::quake_common::entity_event_t::EV_ITEM_RESPAWN;
 use crate::quake_common::persistantFields_t::PERS_ROUND_SCORE;
 use crate::quake_common::pmtype_t::PM_NORMAL;
 use crate::quake_common::powerup_t::{
@@ -1102,7 +1103,7 @@ pub struct gentity_t {
     speed: c_float,
     movedir: vec3_t,
     nextthink: c_int,
-    think: extern "C" fn(*mut gentity_t),
+    think: *const c_void,
     framethink: extern "C" fn(*const gentity_t) -> c_void,
     reached: extern "C" fn(*const gentity_t) -> c_void,
     blocked: extern "C" fn(*const gentity_t, *const gentity_t) -> c_void,
@@ -1203,7 +1204,7 @@ pub extern "C" fn ShiNQlx_Touch_Item(
 pub extern "C" fn ShiNQlx_Switch_Touch_Item(ent: *mut gentity_t) {
     unsafe {
         (*ent).touch = Touch_Item;
-        (*ent).think = G_FreeEntity;
+        (*ent).think = G_FreeEntity as *const c_void;
         (*ent).nextthink = CurrentLevel::default().get_leveltime() + 29000;
     }
 }
@@ -1259,7 +1260,7 @@ impl GameEntity {
             .cast_mut();
             (*entity).touch = ShiNQlx_Touch_Item;
             (*entity).parent = self.gentity_t;
-            (*entity).think = ShiNQlx_Switch_Touch_Item;
+            (*entity).think = ShiNQlx_Switch_Touch_Item as *const c_void;
             let current_level = CurrentLevel::default();
             (*entity).nextthink = current_level.get_leveltime() + 1000;
             (*entity).s.pos.trTime = current_level.get_leveltime() - 500;
@@ -1278,6 +1279,24 @@ impl GameEntity {
     pub(crate) fn free_entity(&mut self) {
         unsafe {
             G_FreeEntity(self.gentity_t);
+        }
+    }
+
+    pub(crate) fn spawn_item(item_id: i32, origin: (i32, i32, i32)) {
+        let origin_vec = [
+            origin.0 as c_float,
+            origin.1 as c_float,
+            origin.2 as c_float,
+        ];
+        let velocity = [0.0, 0.0, 0.9];
+
+        #[allow(clippy::zero_ptr)]
+        unsafe {
+            let ent = LaunchItem(bg_itemList.offset(item_id as isize), origin_vec, velocity)
+                as *mut gentity_t;
+            (*ent).nextthink = 0;
+            (*ent).think = 0 as *const c_void;
+            G_AddEvent(ent, EV_ITEM_RESPAWN, 0); // make item be scaled up
         }
     }
 }
