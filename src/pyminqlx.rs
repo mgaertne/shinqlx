@@ -1185,7 +1185,7 @@ fn set_privileges(client_id: i32, privileges: i32) -> PyResult<bool> {
     }
 }
 
-/// Sets a player's privileges. Does not persist.
+/// Removes all current kamikaze timers.
 #[pyfunction]
 #[pyo3(name = "destroy_kamikaze_timers")]
 fn destroy_kamikaze_timers() -> PyResult<bool> {
@@ -1202,6 +1202,27 @@ fn destroy_kamikaze_timers() -> PyResult<bool> {
             }
         }
     }
+    Ok(true)
+}
+
+extern "C" {
+    static bg_numItems: c_int;
+}
+
+/// Spawns item with specified coordinates.
+#[pyfunction]
+#[pyo3(name = "spawn_item")]
+#[pyo3(signature = (item_id, x, y, z))]
+fn spawn_item(item_id: i32, x: i32, y: i32, z: i32) -> PyResult<bool> {
+    let max_items: i32 = unsafe { bg_numItems };
+    if !(0..max_items).contains(&item_id) {
+        return Err(PyValueError::new_err(format!(
+            "item_id needs to be a number from 1 to {}.",
+            max_items - 1
+        )));
+    }
+
+    GameEntity::spawn_item(item_id, (x, y, z));
     Ok(true)
 }
 
@@ -1245,6 +1266,7 @@ fn pyminqlx_init_module(_py: Python<'_>, m: &PyModule) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(player_spawn, m)?)?;
     m.add_function(wrap_pyfunction!(set_privileges, m)?)?;
     m.add_function(wrap_pyfunction!(destroy_kamikaze_timers, m)?)?;
+    m.add_function(wrap_pyfunction!(spawn_item, m)?)?;
 
     m.add_class::<PlayerInfo>()?;
     m.add_class::<PlayerState>()?;
