@@ -302,6 +302,10 @@ pub extern "C" fn ShiNQlx_ClientSpawn(ent: *mut gentity_t) {
         return;
     };
 
+    shinqlx_client_spawn(game_entity)
+}
+
+pub(crate) fn shinqlx_client_spawn(game_entity: GameEntity) {
     QuakeLiveEngine::client_spawn(&game_entity);
     let client_id = game_entity.get_client_id();
     // Since we won't ever stop the real function from being called,
