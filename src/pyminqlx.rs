@@ -1119,6 +1119,15 @@ fn set_score(client_id: i32, score: i32) -> PyResult<bool> {
     }
 }
 
+/// Makes player invulnerable for limited time.
+#[pyfunction]
+#[pyo3(name = "callvote")]
+#[pyo3(signature = (vote, vote_disp))]
+fn callvote(vote: &str, vote_disp: &str) {
+    let mut current_level = CurrentLevel::default();
+    current_level.callvote(vote, vote_disp);
+}
+
 #[pymodule]
 #[pyo3(name = "_minqlx")]
 fn pyminqlx_init_module(_py: Python<'_>, m: &PyModule) -> PyResult<()> {
@@ -1154,6 +1163,7 @@ fn pyminqlx_init_module(_py: Python<'_>, m: &PyModule) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(set_flight, m)?)?;
     m.add_function(wrap_pyfunction!(set_invulnerability, m)?)?;
     m.add_function(wrap_pyfunction!(set_score, m)?)?;
+    m.add_function(wrap_pyfunction!(callvote, m)?)?;
 
     m.add_class::<PlayerInfo>()?;
     m.add_class::<PlayerState>()?;

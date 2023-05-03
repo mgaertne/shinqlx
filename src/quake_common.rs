@@ -1,3 +1,4 @@
+use crate::hooks::shinqlx_set_configstring;
 use crate::quake_common::clientConnected_t::CON_DISCONNECTED;
 use crate::quake_common::persistantFields_t::PERS_ROUND_SCORE;
 use crate::quake_common::powerup_t::{
@@ -8,7 +9,8 @@ use crate::quake_common::statIndex_t::{
     STAT_MAX_FLIGHT_FUEL, STAT_WEAPONS,
 };
 use crate::quake_common::team_t::TEAM_SPECTATOR;
-use crate::quake_common::voteState_t::{VOTE_NO, VOTE_YES};
+use crate::quake_common::voteState_t::{VOTE_NO, VOTE_PENDING, VOTE_YES};
+use crate::SV_MAXCLIENTS;
 use lazy_static::lazy_static;
 use std::borrow::Cow;
 use std::collections::HashMap;
@@ -1012,6 +1014,10 @@ impl GameClient {
     pub(crate) fn get_ping(&self) -> i32 {
         self.game_client.ps.ping
     }
+
+    pub(crate) fn set_vote_pending(&mut self) {
+        self.game_client.pers.voteState = VOTE_PENDING;
+    }
 }
 
 #[allow(non_snake_case)]
@@ -1987,6 +1993,42 @@ impl CurrentLevel {
 
     pub(crate) fn get_leveltime(&self) -> i32 {
         self.level.time
+    }
+
+    pub(crate) fn callvote(&mut self, vote: &str, vote_disp: &str) {
+        let vote_time = 30;
+        for (dest, src) in self
+            .level
+            .voteString
+            .iter_mut()
+            .zip(CString::new(vote).unwrap().as_bytes_with_nul().iter())
+        {
+            *dest = *src as _;
+        }
+        for (dest, src) in self
+            .level
+            .voteDisplayString
+            .iter_mut()
+            .zip(CString::new(vote_disp).unwrap().as_bytes_with_nul().iter())
+        {
+            *dest = *src as _;
+        }
+        self.level.voteTime = self.level.time - 30000 + vote_time * 1000;
+        self.level.voteYes = 0;
+        self.level.voteNo = 0;
+
+        let maxclients = *SV_MAXCLIENTS.lock().unwrap();
+        for client_id in 0..maxclients {
+            if let Ok(game_entity) = GameEntity::try_from(client_id) {
+                let mut game_client = game_entity.get_game_client().unwrap();
+                game_client.set_vote_pending();
+            }
+        }
+
+        shinqlx_set_configstring(CS_VOTE_STRING, vote_disp);
+        shinqlx_set_configstring(CS_VOTE_TIME, format!("{}", self.level.voteTime).as_str());
+        shinqlx_set_configstring(CS_VOTE_YES, "0");
+        shinqlx_set_configstring(CS_VOTE_NO, "0");
     }
 }
 
