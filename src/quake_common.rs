@@ -985,6 +985,10 @@ impl GameClient {
         }
     }
 
+    pub(crate) fn set_score(&mut self, score: i32) {
+        self.game_client.ps.persistant[PERS_ROUND_SCORE as usize] = score;
+    }
+
     pub(crate) fn get_kills(&self) -> i32 {
         self.game_client.expandedStats.numKills
     }
