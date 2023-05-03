@@ -1,6 +1,7 @@
 use crate::hooks::shinqlx_set_configstring;
 use crate::quake_common::clientConnected_t::CON_DISCONNECTED;
 use crate::quake_common::entity_event_t::EV_ITEM_RESPAWN;
+use crate::quake_common::meansOfDeath_t::MOD_KAMIKAZE;
 use crate::quake_common::persistantFields_t::PERS_ROUND_SCORE;
 use crate::quake_common::pmtype_t::PM_NORMAL;
 use crate::quake_common::powerup_t::{
@@ -558,6 +559,47 @@ pub enum team_t {
     TEAM_SPECTATOR,
 
     TEAM_NUM_TEAMS,
+}
+
+#[allow(non_camel_case_types)]
+#[derive(PartialEq, Debug, Clone, Copy)]
+#[allow(dead_code)]
+#[repr(C)]
+enum meansOfDeath_t {
+    MOD_UNKNOWN,
+    MOD_SHOTGUN,
+    MOD_GAUNTLET,
+    MOD_MACHINEGUN,
+    MOD_GRENADE,
+    MOD_GRENADE_SPLASH,
+    MOD_ROCKET,
+    MOD_ROCKET_SPLASH,
+    MOD_PLASMA,
+    MOD_PLASMA_SPLASH,
+    MOD_RAILGUN,
+    MOD_LIGHTNING,
+    MOD_BFG,
+    MOD_BFG_SPLASH,
+    MOD_WATER,
+    MOD_SLIME,
+    MOD_LAVA,
+    MOD_CRUSH,
+    MOD_TELEFRAG,
+    MOD_FALLING,
+    MOD_SUICIDE,
+    MOD_TARGET_LASER,
+    MOD_TRIGGER_HURT,
+    MOD_NAIL,
+    MOD_CHAINGUN,
+    MOD_PROXIMITY_MINE,
+    MOD_KAMIKAZE,
+    MOD_JUICED,
+    MOD_GRAPPLE,
+    MOD_SWITCH_TEAMS,
+    MOD_THAW,
+    MOD_LIGHTNING_DISCHARGE,
+    MOD_HMG,
+    MOD_RAILGUN_HEADSHOT,
 }
 
 #[allow(non_camel_case_types)]
@@ -1182,6 +1224,16 @@ extern "C" {
     static G_FreeEntity: extern "C" fn(*mut gentity_t);
     static bg_itemList: *const gitem_t;
     static LaunchItem: extern "C" fn(*const gitem_t, vec3_t, vec3_t) -> *const gentity_t;
+    static G_Damage: extern "C" fn(
+        *const gentity_t,
+        *const gentity_t,
+        *const gentity_t,
+        *const c_float, // oritinal: vec3_t
+        *const c_float, // original: vec3_t
+        c_int,
+        c_int,
+        c_int,
+    );
 }
 
 #[allow(non_snake_case)]
@@ -1238,8 +1290,35 @@ impl GameEntity {
         self.gentity_t.health = new_health as c_int;
     }
 
+    pub(crate) fn slay_with_mod(&mut self, mean_of_death: i32) {
+        let damage = self.get_health()
+            + if mean_of_death == MOD_KAMIKAZE as i32 {
+                100000
+            } else {
+                0
+            };
+
+        self.get_game_client().unwrap().set_armor(0);
+        unsafe {
+            G_Damage(
+                self.gentity_t,
+                self.gentity_t,
+                self.gentity_t,
+                std::ptr::null(),
+                std::ptr::null(),
+                damage * 2,
+                DAMAGE_NO_PROTECTION,
+                mean_of_death,
+            );
+        }
+    }
+
     pub fn in_use(&self) -> bool {
         self.gentity_t.inuse.into()
+    }
+
+    pub fn is_dropped_item(&self) -> bool {
+        self.gentity_t.flags.bitand(FL_DROPPED_ITEM) == 1
     }
 
     pub fn get_client_number(&self) -> i32 {

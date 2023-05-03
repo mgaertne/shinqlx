@@ -1226,6 +1226,46 @@ fn spawn_item(item_id: i32, x: i32, y: i32, z: i32) -> PyResult<bool> {
     Ok(true)
 }
 
+/// Removes all dropped items.
+#[pyfunction]
+#[pyo3(name = "remove_dropped_items")]
+fn remove_dropped_items() -> PyResult<bool> {
+    for i in 0..MAX_GENTITIES {
+        if let Ok(game_entity) = GameEntity::try_from(i as i32) {
+            if game_entity.in_use() && game_entity.is_dropped_item() {
+                let mut mut_entity = game_entity;
+                mut_entity.free_entity();
+            }
+        }
+    }
+    Ok(true)
+}
+
+/// Slay player with mean of death.
+#[pyfunction]
+#[pyo3(name = "slay_with_mod")]
+#[pyo3(signature = (client_id, mean_of_death))]
+fn slay_with_mod(client_id: i32, mean_of_death: i32) -> PyResult<bool> {
+    let maxclients = *SV_MAXCLIENTS.lock().unwrap();
+    if !(0..maxclients).contains(&client_id) {
+        return Err(PyValueError::new_err(format!(
+            "client_id needs to be a number from 0 to {}.",
+            maxclients - 1
+        )));
+    }
+
+    match GameEntity::try_from(client_id) {
+        Err(_) => Ok(false),
+        Ok(game_entity) => {
+            if game_entity.get_health() > 0 {
+                let mut mut_entity = game_entity;
+                mut_entity.slay_with_mod(mean_of_death);
+            }
+            Ok(true)
+        }
+    }
+}
+
 #[pymodule]
 #[pyo3(name = "_minqlx")]
 fn pyminqlx_init_module(_py: Python<'_>, m: &PyModule) -> PyResult<()> {
@@ -1267,6 +1307,8 @@ fn pyminqlx_init_module(_py: Python<'_>, m: &PyModule) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(set_privileges, m)?)?;
     m.add_function(wrap_pyfunction!(destroy_kamikaze_timers, m)?)?;
     m.add_function(wrap_pyfunction!(spawn_item, m)?)?;
+    m.add_function(wrap_pyfunction!(remove_dropped_items, m)?)?;
+    m.add_function(wrap_pyfunction!(slay_with_mod, m)?)?;
 
     m.add_class::<PlayerInfo>()?;
     m.add_class::<PlayerState>()?;
