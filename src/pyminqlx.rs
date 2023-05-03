@@ -1266,6 +1266,29 @@ fn slay_with_mod(client_id: i32, mean_of_death: i32) -> PyResult<bool> {
     }
 }
 
+/// Slay player with mean of death.
+#[pyfunction]
+#[pyo3(name = "force_weapon_respawn_time")]
+#[pyo3(signature = (respawn_time))]
+fn force_weapon_respawn_time(respawn_time: i32) -> PyResult<bool> {
+    if respawn_time < 0 {
+        return Err(PyValueError::new_err(
+            "respawn time needs to be an integer 0 or greater",
+        ));
+    }
+
+    for i in 0..MAX_GENTITIES {
+        if let Ok(game_entity) = GameEntity::try_from(i as i32) {
+            if game_entity.in_use() && game_entity.is_respawning_weapon() {
+                let mut mut_entity = game_entity;
+                mut_entity.set_respawn_time(respawn_time);
+            }
+        }
+    }
+
+    Ok(true)
+}
+
 #[pymodule]
 #[pyo3(name = "_minqlx")]
 fn pyminqlx_init_module(_py: Python<'_>, m: &PyModule) -> PyResult<()> {
@@ -1309,6 +1332,7 @@ fn pyminqlx_init_module(_py: Python<'_>, m: &PyModule) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(spawn_item, m)?)?;
     m.add_function(wrap_pyfunction!(remove_dropped_items, m)?)?;
     m.add_function(wrap_pyfunction!(slay_with_mod, m)?)?;
+    m.add_function(wrap_pyfunction!(force_weapon_respawn_time, m)?)?;
 
     m.add_class::<PlayerInfo>()?;
     m.add_class::<PlayerState>()?;

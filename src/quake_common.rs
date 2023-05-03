@@ -1,6 +1,8 @@
 use crate::hooks::shinqlx_set_configstring;
 use crate::quake_common::clientConnected_t::CON_DISCONNECTED;
+use crate::quake_common::entityType_t::ET_ITEM;
 use crate::quake_common::entity_event_t::EV_ITEM_RESPAWN;
+use crate::quake_common::itemType_t::IT_WEAPON;
 use crate::quake_common::meansOfDeath_t::MOD_KAMIKAZE;
 use crate::quake_common::persistantFields_t::PERS_ROUND_SCORE;
 use crate::quake_common::pmtype_t::PM_NORMAL;
@@ -496,6 +498,30 @@ struct gitem_t {
     itemTimer: qboolean,
     maskGametypeRenderSkip: c_uint,
     maskGametypeForceSpawn: c_uint,
+}
+
+#[allow(non_camel_case_types)]
+#[derive(PartialEq, Debug, Clone, Copy)]
+#[allow(dead_code)]
+#[repr(C)]
+enum entityType_t {
+    ET_GENERAL,
+    ET_PLAYER,
+    ET_ITEM,
+    ET_MISSILE,
+    ET_MOVER,
+    ET_BEAM,
+    ET_PORTAL,
+    ET_SPEAKER,
+    ET_PUSH_TRIGGER,
+    ET_TELEPORT_TRIGGER,
+    ET_INVISIBLE,
+    ET_GRAPPLE, // grapple hooked on wall
+    ET_TEAM,
+
+    ET_EVENTS, // any of the EV_* events can be added freestanding
+               // by setting eType to ET_EVENTS + eventNum
+               // this avoids having to set eFlags and eventNum
 }
 
 #[allow(non_camel_case_types)]
@@ -1315,6 +1341,18 @@ impl GameEntity {
 
     pub fn in_use(&self) -> bool {
         self.gentity_t.inuse.into()
+    }
+
+    pub(crate) fn is_respawning_weapon(&self) -> bool {
+        unsafe {
+            self.gentity_t.s.eType == ET_ITEM as i32
+                && !self.gentity_t.item.is_null()
+                && (*self.gentity_t.item).giType == IT_WEAPON
+        }
+    }
+
+    pub(crate) fn set_respawn_time(&mut self, respawn_time: i32) {
+        self.gentity_t.wait = respawn_time as c_float;
     }
 
     pub fn is_dropped_item(&self) -> bool {
