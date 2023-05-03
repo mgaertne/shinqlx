@@ -962,6 +962,13 @@ impl GameClient {
         self.game_client.ps.stats[STAT_FLIGHT_REFUEL as usize]
     }
 
+    pub(crate) fn set_flight(&mut self, flight_params: (i32, i32, i32, i32)) {
+        self.game_client.ps.stats[STAT_CUR_FLIGHT_FUEL as usize] = flight_params.0;
+        self.game_client.ps.stats[STAT_MAX_FLIGHT_FUEL as usize] = flight_params.1;
+        self.game_client.ps.stats[STAT_FLIGHT_THRUST as usize] = flight_params.2;
+        self.game_client.ps.stats[STAT_FLIGHT_REFUEL as usize] = flight_params.3;
+    }
+
     pub(crate) fn is_frozen(&self) -> bool {
         self.game_client.ps.pm_type == 4
     }
