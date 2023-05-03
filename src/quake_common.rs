@@ -969,6 +969,10 @@ impl GameClient {
         self.game_client.ps.stats[STAT_FLIGHT_REFUEL as usize] = flight_params.3;
     }
 
+    pub(crate) fn set_invulnerability(&mut self, time: i32) {
+        self.game_client.invulnerabilityTime = CurrentLevel::default().get_leveltime() + time;
+    }
+
     pub(crate) fn is_frozen(&self) -> bool {
         self.game_client.ps.pm_type == 4
     }
