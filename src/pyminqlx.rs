@@ -8,6 +8,7 @@ use crate::quake_common::team_t::TEAM_SPECTATOR;
 use crate::quake_common::{
     AddCommand, Client, ConsoleCommand, CurrentLevel, FindCVar, GameClient, GameEntity,
     GetConfigstring, QuakeLiveEngine, SetCVar, SetCVarForced, SetCVarLimit, MAX_CONFIGSTRINGS,
+    MAX_GENTITIES,
 };
 use crate::SV_MAXCLIENTS;
 use lazy_static::lazy_static;
@@ -1184,6 +1185,26 @@ fn set_privileges(client_id: i32, privileges: i32) -> PyResult<bool> {
     }
 }
 
+/// Sets a player's privileges. Does not persist.
+#[pyfunction]
+#[pyo3(name = "destroy_kamikaze_timers")]
+fn destroy_kamikaze_timers() -> PyResult<bool> {
+    for i in 0..MAX_GENTITIES {
+        if let Ok(game_entity) = GameEntity::try_from(i as i32) {
+            if game_entity.get_health() <= 0 {
+                let mut game_client = game_entity.get_game_client().unwrap();
+                game_client.remove_kamikaze_flag();
+            }
+
+            if game_entity.is_kamikaze_timer() {
+                let mut mut_entity = game_entity;
+                mut_entity.free_entity();
+            }
+        }
+    }
+    Ok(true)
+}
+
 #[pymodule]
 #[pyo3(name = "_minqlx")]
 fn pyminqlx_init_module(_py: Python<'_>, m: &PyModule) -> PyResult<()> {
@@ -1223,6 +1244,7 @@ fn pyminqlx_init_module(_py: Python<'_>, m: &PyModule) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(allow_single_player, m)?)?;
     m.add_function(wrap_pyfunction!(player_spawn, m)?)?;
     m.add_function(wrap_pyfunction!(set_privileges, m)?)?;
+    m.add_function(wrap_pyfunction!(destroy_kamikaze_timers, m)?)?;
 
     m.add_class::<PlayerInfo>()?;
     m.add_class::<PlayerState>()?;

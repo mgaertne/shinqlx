@@ -1267,6 +1267,19 @@ impl GameEntity {
             (*self.gentity_t.client).ps.stats[STAT_HOLDABLE_ITEM as usize] = 0;
         }
     }
+
+    pub(crate) fn is_kamikaze_timer(&self) -> bool {
+        unsafe {
+            CStr::from_ptr(self.gentity_t.classname)
+                == CString::new("kamikaze timer").unwrap().as_c_str()
+        }
+    }
+
+    pub(crate) fn free_entity(&mut self) {
+        unsafe {
+            G_FreeEntity(self.gentity_t);
+        }
+    }
 }
 
 pub(crate) struct Activator {
