@@ -7,8 +7,7 @@ use crate::quake_common::clientState_t::{CS_ACTIVE, CS_FREE, CS_ZOMBIE};
 use crate::quake_common::team_t::TEAM_SPECTATOR;
 use crate::quake_common::{
     AddCommand, Client, ConsoleCommand, CurrentLevel, FindCVar, GameClient, GameEntity,
-    GetConfigstring, Holdable, QuakeLiveEngine, SetCVar, SetCVarForced, SetCVarLimit,
-    MAX_CONFIGSTRINGS,
+    GetConfigstring, QuakeLiveEngine, SetCVar, SetCVarForced, SetCVarLimit, MAX_CONFIGSTRINGS,
 };
 use crate::SV_MAXCLIENTS;
 use lazy_static::lazy_static;
@@ -588,6 +587,35 @@ impl From<Powerups> for [i32; 6] {
     }
 }
 
+#[pyclass]
+#[pyo3(name = "Holdable")]
+#[derive(PartialEq, Debug, Clone, Copy)]
+enum Holdable {
+    None = 0,
+    Teleporter = 27,
+    MedKit = 28,
+    Kamikaze = 37,
+    Portal = 38,
+    Invulnerability = 39,
+    Flight = 34,
+    Unknown = 666,
+}
+
+impl From<i32> for Holdable {
+    fn from(value: i32) -> Self {
+        match value {
+            0 => Holdable::None,
+            27 => Holdable::Teleporter,
+            28 => Holdable::MedKit,
+            34 => Holdable::Flight,
+            37 => Holdable::Kamikaze,
+            38 => Holdable::Portal,
+            39 => Holdable::Invulnerability,
+            _ => Holdable::Unknown,
+        }
+    }
+}
+
 /// A struct sequence containing parameters for the flight holdable item.
 #[pyclass]
 #[pyo3(name = "Flight")]
@@ -648,7 +676,7 @@ impl From<GameEntity> for PlayerState {
             weapons: Weapons::from(game_client.get_weapons()),
             ammo: Ammo::from(game_client.get_ammo()),
             powerups: Powerups::from(game_client.get_powerups()),
-            holdable: holdable_from(game_client.get_holdable()),
+            holdable: holdable_from(game_client.get_holdable().into()),
             flight: Flight {
                 fuel: game_client.get_current_flight_fuel(),
                 max_fuel: game_client.get_max_flight_fuel(),
@@ -969,7 +997,7 @@ fn set_powerups(client_id: i32, powerups: Powerups) -> PyResult<bool> {
 #[pyfunction]
 #[pyo3(name = "set_holdable")]
 #[pyo3(signature = (client_id, holdable))]
-fn set_holdable(client_id: i32, holdable: i32) -> PyResult<bool> {
+fn set_holdable(client_id: i32, holdable: Holdable) -> PyResult<bool> {
     let maxclients = *SV_MAXCLIENTS.lock().unwrap();
     if !(0..maxclients).contains(&client_id) {
         return Err(PyValueError::new_err(format!(
@@ -982,7 +1010,35 @@ fn set_holdable(client_id: i32, holdable: i32) -> PyResult<bool> {
         Err(_) => Ok(false),
         Ok(game_entity) => {
             let mut game_client = game_entity.get_game_client().unwrap();
-            game_client.set_holdable(holdable.into());
+            game_client.set_holdable(holdable as i32);
+            Ok(true)
+        }
+    }
+}
+
+/// Drops player's holdable item.
+#[pyfunction]
+#[pyo3(name = "drop_holdable")]
+#[pyo3(signature = (client_id))]
+fn drop_holdable(client_id: i32) -> PyResult<bool> {
+    let maxclients = *SV_MAXCLIENTS.lock().unwrap();
+    if !(0..maxclients).contains(&client_id) {
+        return Err(PyValueError::new_err(format!(
+            "client_id needs to be a number from 0 to {}.",
+            maxclients - 1
+        )));
+    }
+
+    match GameEntity::try_from(client_id) {
+        Err(_) => Ok(false),
+        Ok(game_entity) => {
+            let mut game_entity = game_entity;
+            let mut game_client = game_entity.get_game_client().unwrap();
+            game_client.remove_kamikaze_flag();
+            if Holdable::from(game_client.get_holdable()) == Holdable::None {
+                return Ok(false);
+            }
+            game_entity.drop_holdable();
             Ok(true)
         }
     }
@@ -1019,6 +1075,7 @@ fn pyminqlx_init_module(_py: Python<'_>, m: &PyModule) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(set_ammo, m)?)?;
     m.add_function(wrap_pyfunction!(set_powerups, m)?)?;
     m.add_function(wrap_pyfunction!(set_holdable, m)?)?;
+    m.add_function(wrap_pyfunction!(drop_holdable, m)?)?;
 
     m.add_class::<PlayerInfo>()?;
     m.add_class::<PlayerState>()?;

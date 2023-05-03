@@ -9,12 +9,10 @@ use crate::quake_common::statIndex_t::{
 };
 use crate::quake_common::team_t::TEAM_SPECTATOR;
 use crate::quake_common::voteState_t::{VOTE_NO, VOTE_YES};
-use crate::quake_common::Holdable::{
-    Flight, Invulnerability, Kamikaze, MedKit, Portal, Teleporter, Unknown,
-};
 use lazy_static::lazy_static;
 use std::borrow::Cow;
 use std::collections::HashMap;
+use std::f32::consts::PI;
 use std::ffi::{c_char, c_float, c_int, c_uchar, c_uint, c_ushort, c_void, CStr, CString};
 use std::mem;
 use std::ops::{BitAnd, BitAndAssign, BitOrAssign, Not};
@@ -463,33 +461,6 @@ pub enum powerup_t {
     PW_NUM_POWERUPS = 0x10,
 }
 
-#[derive(PartialEq, Debug, Clone, Copy)]
-pub(crate) enum Holdable {
-    None = 0,
-    Teleporter = 27,
-    MedKit = 28,
-    Kamikaze = 37,
-    Portal = 38,
-    Invulnerability = 39,
-    Flight = 34,
-    Unknown = 666,
-}
-
-impl From<i32> for Holdable {
-    fn from(value: i32) -> Self {
-        match value {
-            0 => Holdable::None,
-            27 => Teleporter,
-            28 => MedKit,
-            34 => Flight,
-            37 => Kamikaze,
-            38 => Portal,
-            39 => Invulnerability,
-            _ => Unknown,
-        }
-    }
-}
-
 #[allow(non_snake_case)]
 #[allow(non_camel_case_types)]
 #[repr(C)]
@@ -827,7 +798,7 @@ impl GameClient {
         self.game_client.ps.clientNum
     }
 
-    pub(crate) fn activate_kamikaze(&mut self) {
+    pub(crate) fn remove_kamikaze_flag(&mut self) {
         self.game_client.ps.eFlags.bitand_assign(!EF_KAMIKAZE);
     }
 
@@ -961,17 +932,18 @@ impl GameClient {
         }
     }
 
-    pub(crate) fn get_holdable(&self) -> Holdable {
-        self.game_client.ps.stats[STAT_HOLDABLE_ITEM as usize].into()
+    pub(crate) fn get_holdable(&self) -> i32 {
+        self.game_client.ps.stats[STAT_HOLDABLE_ITEM as usize]
     }
 
-    pub(crate) fn set_holdable(&mut self, holdable: Holdable) {
-        if holdable == Kamikaze {
+    pub(crate) fn set_holdable(&mut self, holdable: i32) {
+        // 37 - kamikaze
+        if holdable == 37 {
             self.game_client.ps.eFlags.bitor_assign(EF_KAMIKAZE);
         } else {
-            self.activate_kamikaze();
+            self.remove_kamikaze_flag();
         }
-        self.game_client.ps.stats[STAT_HOLDABLE_ITEM as usize] = holdable as c_int;
+        self.game_client.ps.stats[STAT_HOLDABLE_ITEM as usize] = holdable;
     }
 
     pub(crate) fn get_current_flight_fuel(&self) -> i32 {
@@ -1074,11 +1046,11 @@ pub struct gentity_t {
     speed: c_float,
     movedir: vec3_t,
     nextthink: c_int,
-    think: extern "C" fn(*const gentity_t) -> c_void,
+    think: extern "C" fn(*mut gentity_t),
     framethink: extern "C" fn(*const gentity_t) -> c_void,
     reached: extern "C" fn(*const gentity_t) -> c_void,
     blocked: extern "C" fn(*const gentity_t, *const gentity_t) -> c_void,
-    touch: extern "C" fn(*const gentity_t, *const gentity_t) -> c_void,
+    touch: extern "C" fn(*mut gentity_t, *mut gentity_t, *mut trace_t),
     _use: extern "C" fn(*const gentity_t, *const gentity_t, *const gentity_t) -> c_void,
     pain: extern "C" fn(*const gentity_t, c_int) -> c_void,
     die:
@@ -1149,6 +1121,35 @@ impl TryFrom<i32> for GameEntity {
 
 extern "C" {
     static G_StartKamikaze: extern "C" fn(*const gentity_t);
+    static Touch_Item: extern "C" fn(*mut gentity_t, *mut gentity_t, *mut trace_t);
+    static G_FreeEntity: extern "C" fn(*mut gentity_t);
+    static bg_itemList: *const gitem_t;
+    static LaunchItem: extern "C" fn(*const gitem_t, vec3_t, vec3_t) -> *const gentity_t;
+}
+
+#[allow(non_snake_case)]
+#[no_mangle]
+pub extern "C" fn ShiNQlx_Touch_Item(
+    ent: *mut gentity_t,
+    other: *mut gentity_t,
+    trace: *mut trace_t,
+) {
+    unsafe {
+        if (*ent).parent == other {
+            return;
+        }
+        Touch_Item(ent, other, trace);
+    }
+}
+
+#[allow(non_snake_case)]
+#[no_mangle]
+pub extern "C" fn ShiNQlx_Switch_Touch_Item(ent: *mut gentity_t) {
+    unsafe {
+        (*ent).touch = Touch_Item;
+        (*ent).think = G_FreeEntity;
+        (*ent).nextthink = CurrentLevel::default().get_leveltime() + 29000;
+    }
 }
 
 impl GameEntity {
@@ -1186,6 +1187,29 @@ impl GameEntity {
 
     pub fn get_client_number(&self) -> i32 {
         self.gentity_t.s.clientNum
+    }
+
+    pub(crate) fn drop_holdable(&mut self) {
+        let angle = self.gentity_t.s.apos.trBase[1] * (PI * 2.0 / 360.0);
+        let velocity = [150.0 * angle.cos(), 150.0 * angle.sin(), 250.0];
+        unsafe {
+            let mut entity = LaunchItem(
+                bg_itemList.offset(
+                    (*self.gentity_t.client).ps.stats[STAT_HOLDABLE_ITEM as usize] as isize,
+                ),
+                self.gentity_t.s.pos.trBase,
+                velocity,
+            )
+            .cast_mut();
+            (*entity).touch = ShiNQlx_Touch_Item;
+            (*entity).parent = self.gentity_t;
+            (*entity).think = ShiNQlx_Switch_Touch_Item;
+            let current_level = CurrentLevel::default();
+            (*entity).nextthink = current_level.get_leveltime() + 1000;
+            (*entity).s.pos.trTime = current_level.get_leveltime() - 500;
+
+            (*self.gentity_t.client).ps.stats[STAT_HOLDABLE_ITEM as usize] = 0;
+        }
     }
 }
 
@@ -1323,6 +1347,30 @@ type fileHandle_t = c_int;
 
 #[allow(non_camel_case_types)]
 type vec3_t = [c_float; 3];
+
+#[allow(non_camel_case_types)]
+#[repr(C)]
+struct cplane_t {
+    normal: vec3_t,
+    dist: c_float,
+    ctype: byte,
+    signbits: byte,
+    pad: [byte; 2],
+}
+
+#[allow(non_snake_case)]
+#[allow(non_camel_case_types)]
+#[repr(C)]
+pub struct trace_t {
+    allsolid: qboolean,
+    startsolid: qboolean,
+    fraction: c_float,
+    endpos: vec3_t,
+    plane: cplane_t,
+    surfaceFlags: c_int,
+    contents: c_int,
+    entityNum: c_int,
+}
 
 // playerState_t is a full superset of entityState_t as it is used by players,
 // so if a playerState_t is transmitted, the entityState_t can be fully derived
