@@ -332,7 +332,7 @@ pub extern "C" fn ShiNQlx_G_StartKamikaze(ent: *mut gentity_t) {
     };
 
     if let Some(mut game_client) = game_entity.get_game_client() {
-        game_client.activate_kamikaze();
+        game_client.remove_kamikaze_flag();
         unsafe {
             KamikazeUseDispatcher(client_id);
         }
