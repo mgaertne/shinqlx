@@ -1073,6 +1073,29 @@ fn set_flight(client_id: i32, flight: Flight) -> PyResult<bool> {
     }
 }
 
+/// Sets a player's flight parameters, such as current fuel, max fuel and, so on.
+#[pyfunction]
+#[pyo3(name = "set_invulnerability")]
+#[pyo3(signature = (client_id, time))]
+fn set_invulnerability(client_id: i32, time: i32) -> PyResult<bool> {
+    let maxclients = *SV_MAXCLIENTS.lock().unwrap();
+    if !(0..maxclients).contains(&client_id) {
+        return Err(PyValueError::new_err(format!(
+            "client_id needs to be a number from 0 to {}.",
+            maxclients - 1
+        )));
+    }
+
+    match GameEntity::try_from(client_id) {
+        Err(_) => Ok(false),
+        Ok(game_entity) => {
+            let mut game_client = game_entity.get_game_client().unwrap();
+            game_client.set_invulnerability(time);
+            Ok(true)
+        }
+    }
+}
+
 #[pymodule]
 #[pyo3(name = "_minqlx")]
 fn pyminqlx_init_module(_py: Python<'_>, m: &PyModule) -> PyResult<()> {
@@ -1106,6 +1129,7 @@ fn pyminqlx_init_module(_py: Python<'_>, m: &PyModule) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(set_holdable, m)?)?;
     m.add_function(wrap_pyfunction!(drop_holdable, m)?)?;
     m.add_function(wrap_pyfunction!(set_flight, m)?)?;
+    m.add_function(wrap_pyfunction!(set_invulnerability, m)?)?;
 
     m.add_class::<PlayerInfo>()?;
     m.add_class::<PlayerState>()?;
