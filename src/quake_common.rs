@@ -2030,6 +2030,10 @@ impl CurrentLevel {
         shinqlx_set_configstring(CS_VOTE_YES, "0");
         shinqlx_set_configstring(CS_VOTE_NO, "0");
     }
+
+    pub(crate) fn set_training_map(&mut self, is_training_map: bool) {
+        self.level.mapIsTrainingMap = is_training_map.into();
+    }
 }
 
 #[allow(non_snake_case)]

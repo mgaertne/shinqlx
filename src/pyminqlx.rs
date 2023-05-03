@@ -1119,13 +1119,22 @@ fn set_score(client_id: i32, score: i32) -> PyResult<bool> {
     }
 }
 
-/// Makes player invulnerable for limited time.
+/// Calls a vote as if started by the server and not a player.
 #[pyfunction]
 #[pyo3(name = "callvote")]
 #[pyo3(signature = (vote, vote_disp))]
 fn callvote(vote: &str, vote_disp: &str) {
     let mut current_level = CurrentLevel::default();
     current_level.callvote(vote, vote_disp);
+}
+
+/// Allows or disallows a game with only a single player in it to go on without forfeiting. Useful for race.
+#[pyfunction]
+#[pyo3(name = "allow_single_player")]
+#[pyo3(signature = (allow))]
+fn allow_single_player(allow: bool) {
+    let mut current_level = CurrentLevel::default();
+    current_level.set_training_map(allow);
 }
 
 #[pymodule]
@@ -1164,6 +1173,7 @@ fn pyminqlx_init_module(_py: Python<'_>, m: &PyModule) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(set_invulnerability, m)?)?;
     m.add_function(wrap_pyfunction!(set_score, m)?)?;
     m.add_function(wrap_pyfunction!(callvote, m)?)?;
+    m.add_function(wrap_pyfunction!(allow_single_player, m)?)?;
 
     m.add_class::<PlayerInfo>()?;
     m.add_class::<PlayerState>()?;
