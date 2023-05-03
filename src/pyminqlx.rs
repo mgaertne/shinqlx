@@ -619,12 +619,18 @@ impl From<i32> for Holdable {
 /// A struct sequence containing parameters for the flight holdable item.
 #[pyclass]
 #[pyo3(name = "Flight")]
-#[allow(unused)]
+#[derive(PartialEq, Debug, Clone, Copy)]
 struct Flight {
     fuel: i32,
     max_fuel: i32,
     thrust: i32,
     refuel: i32,
+}
+
+impl From<Flight> for (i32, i32, i32, i32) {
+    fn from(flight: Flight) -> Self {
+        (flight.fuel, flight.max_fuel, flight.thrust, flight.refuel)
+    }
 }
 
 /// Information about a player's state in the game.
@@ -1044,6 +1050,29 @@ fn drop_holdable(client_id: i32) -> PyResult<bool> {
     }
 }
 
+/// Sets a player's flight parameters, such as current fuel, max fuel and, so on.
+#[pyfunction]
+#[pyo3(name = "set_flight")]
+#[pyo3(signature = (client_id, flight))]
+fn set_flight(client_id: i32, flight: Flight) -> PyResult<bool> {
+    let maxclients = *SV_MAXCLIENTS.lock().unwrap();
+    if !(0..maxclients).contains(&client_id) {
+        return Err(PyValueError::new_err(format!(
+            "client_id needs to be a number from 0 to {}.",
+            maxclients - 1
+        )));
+    }
+
+    match GameEntity::try_from(client_id) {
+        Err(_) => Ok(false),
+        Ok(game_entity) => {
+            let mut game_client = game_entity.get_game_client().unwrap();
+            game_client.set_flight(flight.into());
+            Ok(true)
+        }
+    }
+}
+
 #[pymodule]
 #[pyo3(name = "_minqlx")]
 fn pyminqlx_init_module(_py: Python<'_>, m: &PyModule) -> PyResult<()> {
@@ -1076,6 +1105,7 @@ fn pyminqlx_init_module(_py: Python<'_>, m: &PyModule) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(set_powerups, m)?)?;
     m.add_function(wrap_pyfunction!(set_holdable, m)?)?;
     m.add_function(wrap_pyfunction!(drop_holdable, m)?)?;
+    m.add_function(wrap_pyfunction!(set_flight, m)?)?;
 
     m.add_class::<PlayerInfo>()?;
     m.add_class::<PlayerState>()?;
