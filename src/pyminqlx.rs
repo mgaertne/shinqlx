@@ -1,6 +1,6 @@
 use crate::commands::cmd_py_command;
 use crate::hooks::{
-    shinqlx_com_printf, shinqlx_drop_client, shinqlx_execute_client_command,
+    shinqlx_client_spawn, shinqlx_com_printf, shinqlx_drop_client, shinqlx_execute_client_command,
     shinqlx_send_server_command, shinqlx_set_configstring,
 };
 use crate::quake_common::clientState_t::{CS_ACTIVE, CS_FREE, CS_ZOMBIE};
@@ -1137,6 +1137,53 @@ fn allow_single_player(allow: bool) {
     current_level.set_training_map(allow);
 }
 
+/// Spawns a player.
+#[pyfunction]
+#[pyo3(name = "player_spawn")]
+#[pyo3(signature = (client_id))]
+fn player_spawn(client_id: i32) -> PyResult<bool> {
+    let maxclients = *SV_MAXCLIENTS.lock().unwrap();
+    if !(0..maxclients).contains(&client_id) {
+        return Err(PyValueError::new_err(format!(
+            "client_id needs to be a number from 0 to {}.",
+            maxclients - 1
+        )));
+    }
+
+    match GameEntity::try_from(client_id) {
+        Err(_) => Ok(false),
+        Ok(game_entity) => {
+            let mut game_client = game_entity.get_game_client().unwrap();
+            game_client.spawn();
+            shinqlx_client_spawn(game_entity);
+            Ok(true)
+        }
+    }
+}
+
+/// Sets a player's privileges. Does not persist.
+#[pyfunction]
+#[pyo3(name = "set_privileges")]
+#[pyo3(signature = (client_id, privileges))]
+fn set_privileges(client_id: i32, privileges: i32) -> PyResult<bool> {
+    let maxclients = *SV_MAXCLIENTS.lock().unwrap();
+    if !(0..maxclients).contains(&client_id) {
+        return Err(PyValueError::new_err(format!(
+            "client_id needs to be a number from 0 to {}.",
+            maxclients - 1
+        )));
+    }
+
+    match GameEntity::try_from(client_id) {
+        Err(_) => Ok(false),
+        Ok(game_entity) => {
+            let mut game_client = game_entity.get_game_client().unwrap();
+            game_client.set_privileges(privileges);
+            Ok(true)
+        }
+    }
+}
+
 #[pymodule]
 #[pyo3(name = "_minqlx")]
 fn pyminqlx_init_module(_py: Python<'_>, m: &PyModule) -> PyResult<()> {
@@ -1174,6 +1221,8 @@ fn pyminqlx_init_module(_py: Python<'_>, m: &PyModule) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(set_score, m)?)?;
     m.add_function(wrap_pyfunction!(callvote, m)?)?;
     m.add_function(wrap_pyfunction!(allow_single_player, m)?)?;
+    m.add_function(wrap_pyfunction!(player_spawn, m)?)?;
+    m.add_function(wrap_pyfunction!(set_privileges, m)?)?;
 
     m.add_class::<PlayerInfo>()?;
     m.add_class::<PlayerState>()?;

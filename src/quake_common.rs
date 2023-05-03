@@ -1,9 +1,11 @@
 use crate::hooks::shinqlx_set_configstring;
 use crate::quake_common::clientConnected_t::CON_DISCONNECTED;
 use crate::quake_common::persistantFields_t::PERS_ROUND_SCORE;
+use crate::quake_common::pmtype_t::PM_NORMAL;
 use crate::quake_common::powerup_t::{
     PW_BATTLESUIT, PW_HASTE, PW_INVIS, PW_INVULNERABILITY, PW_QUAD, PW_REGEN,
 };
+use crate::quake_common::privileges_t::{PRIV_ADMIN, PRIV_BANNED, PRIV_MOD, PRIV_NONE, PRIV_ROOT};
 use crate::quake_common::statIndex_t::{
     STAT_ARMOR, STAT_CUR_FLIGHT_FUEL, STAT_FLIGHT_REFUEL, STAT_FLIGHT_THRUST, STAT_HOLDABLE_ITEM,
     STAT_MAX_FLIGHT_FUEL, STAT_WEAPONS,
@@ -309,6 +311,19 @@ pub(crate) enum persistantFields_t {
     PERS_QUADGOD_COUNT = 0x8,
     PERS_FIRSTFRAG_COUNT = 0x9,
     PERS_PERFECT_COUNT = 0xA,
+}
+
+#[allow(non_camel_case_types)]
+#[allow(dead_code)]
+#[repr(C)]
+pub enum pmtype_t {
+    PM_NORMAL = 0x0,
+    PM_NOCLIP = 0x1,
+    PM_SPECTATOR = 0x2,
+    PM_DEAD = 0x3,
+    PM_FREEZE = 0x4,
+    PM_INTERMISSION = 0x5,
+    PM_TUTORIAL = 0x6,
 }
 
 #[allow(non_camel_case_types)]
@@ -621,6 +636,18 @@ pub enum privileges_t {
     PRIV_ROOT = 0x3,
 }
 
+impl From<i32> for privileges_t {
+    fn from(value: i32) -> Self {
+        match value {
+            -1 => PRIV_BANNED,
+            0x1 => PRIV_MOD,
+            0x2 => PRIV_ADMIN,
+            0x3 => PRIV_ROOT,
+            _ => PRIV_NONE,
+        }
+    }
+}
+
 #[allow(non_snake_case)]
 #[allow(non_camel_case_types)]
 #[repr(C)]
@@ -820,6 +847,10 @@ impl GameClient {
         self.game_client.sess.privileges as i32
     }
 
+    pub(crate) fn set_privileges(&mut self, privileges: i32) {
+        self.game_client.sess.privileges = privileges_t::from(privileges);
+    }
+
     pub(crate) fn is_alive(&self) -> bool {
         self.game_client.ps.pm_type == 0
     }
@@ -1017,6 +1048,10 @@ impl GameClient {
 
     pub(crate) fn set_vote_pending(&mut self) {
         self.game_client.pers.voteState = VOTE_PENDING;
+    }
+
+    pub(crate) fn spawn(&mut self) {
+        self.game_client.ps.pm_type = PM_NORMAL as c_int;
     }
 }
 
