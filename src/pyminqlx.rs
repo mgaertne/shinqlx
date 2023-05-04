@@ -3,8 +3,25 @@ use crate::hooks::{
     shinqlx_client_spawn, shinqlx_com_printf, shinqlx_drop_client, shinqlx_execute_client_command,
     shinqlx_send_server_command, shinqlx_set_configstring,
 };
-use crate::quake_common::clientState_t::{CS_ACTIVE, CS_FREE, CS_ZOMBIE};
-use crate::quake_common::team_t::TEAM_SPECTATOR;
+use crate::pyminqlx::cvar_flags::{
+    CVAR_ARCHIVE, CVAR_CHEAT, CVAR_INIT, CVAR_LATCH, CVAR_NORESTART, CVAR_ROM, CVAR_SERVERINFO,
+    CVAR_SYSTEMINFO, CVAR_TEMP, CVAR_USERINFO, CVAR_USER_CREATED,
+};
+use crate::pyminqlx::PythonPriorities::{PRI_HIGH, PRI_HIGHEST, PRI_LOW, PRI_LOWEST, PRI_NORMAL};
+use crate::pyminqlx::PythonReturnCodes::{
+    RET_NONE, RET_STOP, RET_STOP_ALL, RET_STOP_EVENT, RET_USAGE,
+};
+use crate::quake_common::clientState_t::{CS_ACTIVE, CS_CONNECTED, CS_FREE, CS_PRIMED, CS_ZOMBIE};
+use crate::quake_common::meansOfDeath_t::{
+    MOD_BFG, MOD_BFG_SPLASH, MOD_CHAINGUN, MOD_CRUSH, MOD_FALLING, MOD_GAUNTLET, MOD_GRAPPLE,
+    MOD_GRENADE, MOD_GRENADE_SPLASH, MOD_HMG, MOD_JUICED, MOD_KAMIKAZE, MOD_LAVA, MOD_LIGHTNING,
+    MOD_LIGHTNING_DISCHARGE, MOD_MACHINEGUN, MOD_NAIL, MOD_PLASMA, MOD_PLASMA_SPLASH,
+    MOD_PROXIMITY_MINE, MOD_RAILGUN, MOD_RAILGUN_HEADSHOT, MOD_ROCKET, MOD_ROCKET_SPLASH,
+    MOD_SHOTGUN, MOD_SLIME, MOD_SUICIDE, MOD_SWITCH_TEAMS, MOD_TARGET_LASER, MOD_TELEFRAG,
+    MOD_THAW, MOD_TRIGGER_HURT, MOD_UNKNOWN, MOD_WATER,
+};
+use crate::quake_common::privileges_t::{PRIV_ADMIN, PRIV_BANNED, PRIV_MOD, PRIV_NONE, PRIV_ROOT};
+use crate::quake_common::team_t::{TEAM_BLUE, TEAM_FREE, TEAM_RED, TEAM_SPECTATOR};
 use crate::quake_common::{
     AddCommand, Client, ConsoleCommand, CurrentLevel, FindCVar, GameClient, GameEntity,
     GetConfigstring, QuakeLiveEngine, SetCVar, SetCVarForced, SetCVarLimit, MAX_CONFIGSTRINGS,
@@ -1289,6 +1306,50 @@ fn force_weapon_respawn_time(respawn_time: i32) -> PyResult<bool> {
     Ok(true)
 }
 
+// Used primarily in Python, but defined here and added using PyModule_AddIntMacro().
+#[allow(non_camel_case_types)]
+enum PythonReturnCodes {
+    RET_NONE,
+    RET_STOP,       // Stop execution of event handlers within Python.
+    RET_STOP_EVENT, // Only stop the event, but let other handlers process it.
+    RET_STOP_ALL,   // Stop execution at an engine level. SCARY STUFF!
+    RET_USAGE,      // Used for commands. Replies to the channel with a command's usage.
+}
+
+#[allow(non_camel_case_types)]
+enum PythonPriorities {
+    PRI_HIGHEST,
+    PRI_HIGH,
+    PRI_NORMAL,
+    PRI_LOW,
+    PRI_LOWEST,
+}
+
+#[allow(non_camel_case_types, dead_code)]
+enum cvar_flags {
+    CVAR_ARCHIVE = 1,
+    CVAR_USERINFO = 2,
+    CVAR_SERVERINFO = 4,
+    CVAR_SYSTEMINFO = 8,
+    CVAR_INIT = 16,
+    CVAR_LATCH = 32,
+    CVAR_ROM = 64,
+    CVAR_USER_CREATED = 128,
+    CVAR_TEMP = 256,
+    CVAR_CHEAT = 512,
+    CVAR_NORESTART = 1024,
+    CVAR_UNKOWN1 = 2048,
+    CVAR_UNKOWN2 = 4096,
+    CVAR_UNKOWN3 = 8192,
+    CVAR_UNKOWN4 = 16384,
+    CVAR_UNKOWN5 = 32768,
+    CVAR_UNKOWN6 = 65536,
+    CVAR_UNKOWN7 = 131072,
+    CVAR_UNKOWN8 = 262144,
+    CVAR_UNKOWN9 = 524288,
+    CVAR_UNKOWN10 = 1048576,
+}
+
 #[pymodule]
 #[pyo3(name = "_minqlx")]
 fn pyminqlx_init_module(_py: Python<'_>, m: &PyModule) -> PyResult<()> {
@@ -1334,6 +1395,96 @@ fn pyminqlx_init_module(_py: Python<'_>, m: &PyModule) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(slay_with_mod, m)?)?;
     m.add_function(wrap_pyfunction!(force_weapon_respawn_time, m)?)?;
 
+    let shinqlx_version = format!(
+        "\"v{}-{}\"",
+        env!("CARGO_PKG_VERSION"),
+        env!("CARGO_PKG_NAME")
+    );
+    m.add("__version__", shinqlx_version.as_str())?;
+    m.add("DEBUG", cfg!(debug_assertions))?;
+
+    // Set a bunch of constants. We set them here because if you define functions in Python that use module
+    // constants as keyword defaults, we have to always make sure they're exported first, and fuck that.
+    m.add("RET_NONE", RET_NONE as i32)?;
+    m.add("RET_STOP", RET_STOP as i32)?;
+    m.add("RET_STOP_EVENT", RET_STOP_EVENT as i32)?;
+    m.add("RET_STOP_ALL", RET_STOP_ALL as i32)?;
+    m.add("RET_USAGE", RET_USAGE as i32)?;
+    m.add("PRI_HIGHEST", PRI_HIGHEST as i32)?;
+    m.add("PRI_HIGH", PRI_HIGH as i32)?;
+    m.add("PRI_NORMAL", PRI_NORMAL as i32)?;
+    m.add("PRI_LOW", PRI_LOW as i32)?;
+    m.add("PRI_LOWEST", PRI_LOWEST as i32)?;
+
+    // Cvar flags.
+    m.add("CVAR_ARCHIVE", CVAR_ARCHIVE as i32)?;
+    m.add("CVAR_USERINFO", CVAR_USERINFO as i32)?;
+    m.add("CVAR_SERVERINFO", CVAR_SERVERINFO as i32)?;
+    m.add("CVAR_SYSTEMINFO", CVAR_SYSTEMINFO as i32)?;
+    m.add("CVAR_INIT", CVAR_INIT as i32)?;
+    m.add("CVAR_LATCH", CVAR_LATCH as i32)?;
+    m.add("CVAR_ROM", CVAR_ROM as i32)?;
+    m.add("CVAR_USER_CREATED", CVAR_USER_CREATED as i32)?;
+    m.add("CVAR_TEMP", CVAR_TEMP as i32)?;
+    m.add("CVAR_CHEAT", CVAR_CHEAT as i32)?;
+    m.add("CVAR_NORESTART", CVAR_NORESTART as i32)?;
+
+    // Privileges.
+    m.add("PRIV_NONE", PRIV_NONE as i32)?;
+    m.add("PRIV_MOD", PRIV_MOD as i32)?;
+    m.add("PRIV_ADMIN", PRIV_ADMIN as i32)?;
+    m.add("PRIV_ROOT", PRIV_ROOT as i32)?;
+    m.add("PRIV_BANNED", PRIV_BANNED as i32)?;
+
+    // Connection states.
+    m.add("CS_FREE", CS_FREE as i32)?;
+    m.add("CS_ZOMBIE", CS_ZOMBIE as i32)?;
+    m.add("CS_CONNECTED", CS_CONNECTED as i32)?;
+    m.add("CS_PRIMED", CS_PRIMED as i32)?;
+    m.add("CS_ACTIVE", CS_ACTIVE as i32)?;
+
+    // Teams.
+    m.add("TEAM_FREE", TEAM_FREE as i32)?;
+    m.add("TEAM_RED", TEAM_RED as i32)?;
+    m.add("TEAM_BLUE", TEAM_BLUE as i32)?;
+    m.add("TEAM_SPECTATOR", TEAM_SPECTATOR as i32)?;
+
+    // Means of death.
+    m.add("MOD_UNKNOWN", MOD_UNKNOWN as i32)?;
+    m.add("MOD_SHOTGUN", MOD_SHOTGUN as i32)?;
+    m.add("MOD_GAUNTLET", MOD_GAUNTLET as i32)?;
+    m.add("MOD_MACHINEGUN", MOD_MACHINEGUN as i32)?;
+    m.add("MOD_GRENADE", MOD_GRENADE as i32)?;
+    m.add("MOD_GRENADE_SPLASH", MOD_GRENADE_SPLASH as i32)?;
+    m.add("MOD_ROCKET", MOD_ROCKET as i32)?;
+    m.add("MOD_ROCKET_SPLASH", MOD_ROCKET_SPLASH as i32)?;
+    m.add("MOD_PLASMA", MOD_PLASMA as i32)?;
+    m.add("MOD_PLASMA_SPLASH", MOD_PLASMA_SPLASH as i32)?;
+    m.add("MOD_RAILGUN", MOD_RAILGUN as i32)?;
+    m.add("MOD_LIGHTNING", MOD_LIGHTNING as i32)?;
+    m.add("MOD_BFG", MOD_BFG as i32)?;
+    m.add("MOD_BFG_SPLASH", MOD_BFG_SPLASH as i32)?;
+    m.add("MOD_WATER", MOD_WATER as i32)?;
+    m.add("MOD_SLIME", MOD_SLIME as i32)?;
+    m.add("MOD_LAVA", MOD_LAVA as i32)?;
+    m.add("MOD_CRUSH", MOD_CRUSH as i32)?;
+    m.add("MOD_TELEFRAG", MOD_TELEFRAG as i32)?;
+    m.add("MOD_FALLING", MOD_FALLING as i32)?;
+    m.add("MOD_SUICIDE", MOD_SUICIDE as i32)?;
+    m.add("MOD_TARGET_LASER", MOD_TARGET_LASER as i32)?;
+    m.add("MOD_TRIGGER_HURT", MOD_TRIGGER_HURT as i32)?;
+    m.add("MOD_NAIL", MOD_NAIL as i32)?;
+    m.add("MOD_CHAINGUN", MOD_CHAINGUN as i32)?;
+    m.add("MOD_PROXIMITY_MINE", MOD_PROXIMITY_MINE as i32)?;
+    m.add("MOD_KAMIKAZE", MOD_KAMIKAZE as i32)?;
+    m.add("MOD_JUICED", MOD_JUICED as i32)?;
+    m.add("MOD_GRAPPLE", MOD_GRAPPLE as i32)?;
+    m.add("MOD_SWITCH_TEAMS", MOD_SWITCH_TEAMS as i32)?;
+    m.add("MOD_THAW", MOD_THAW as i32)?;
+    m.add("MOD_LIGHTNING_DISCHARGE", MOD_LIGHTNING_DISCHARGE as i32)?;
+    m.add("MOD_HMG", MOD_HMG as i32)?;
+    m.add("MOD_RAILGUN_HEADSHOT", MOD_RAILGUN_HEADSHOT as i32)?;
+
     m.add_class::<PlayerInfo>()?;
     m.add_class::<PlayerState>()?;
     m.add_class::<PlayerStats>()?;
@@ -1341,5 +1492,6 @@ fn pyminqlx_init_module(_py: Python<'_>, m: &PyModule) -> PyResult<()> {
     m.add_class::<Weapons>()?;
     m.add_class::<Powerups>()?;
     m.add_class::<Flight>()?;
+
     Ok(())
 }
