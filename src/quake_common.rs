@@ -591,7 +591,7 @@ pub enum team_t {
 #[derive(PartialEq, Debug, Clone, Copy)]
 #[allow(dead_code)]
 #[repr(C)]
-enum meansOfDeath_t {
+pub(crate) enum meansOfDeath_t {
     MOD_UNKNOWN,
     MOD_SHOTGUN,
     MOD_GAUNTLET,
