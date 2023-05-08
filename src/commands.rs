@@ -1,12 +1,20 @@
-use crate::pyminqlx::HANDLERS;
+use crate::pyminqlx::get_minqlx_handler;
+use crate::pyminqlx::pyminqlx_is_initialized;
+#[cfg(not(feature = "cdispatchers"))]
+use crate::pyminqlx::{new_game_dispatcher, rcon_dispatcher};
+#[cfg(not(feature = "cembed"))]
+use crate::pyminqlx::{pyminqlx_finalize, pyminqlx_initialize};
 use crate::quake_common::entity_event_t::{EV_DEATH1, EV_GIB_PLAYER, EV_PAIN};
 use crate::quake_common::{
     Client, CmdArgc, CmdArgs, CmdArgv, ComPrintf, GameAddEvent, GameEntity, QuakeLiveEngine,
     SendServerCommand,
 };
-use crate::{PyMinqlx_InitStatus_t, SV_MAXCLIENTS};
+#[cfg(feature = "cembed")]
+use crate::PyMinqlx_InitStatus_t;
+use crate::SV_MAXCLIENTS;
 use pyo3::Python;
 use rand::Rng;
+#[cfg(feature = "cdispatchers")]
 use std::ffi::{c_char, c_int, CString};
 
 #[no_mangle]
@@ -48,19 +56,20 @@ pub extern "C" fn cmd_slap() {
     let Some(passed_client_id_str) = QuakeLiveEngine::cmd_argv(1) else {
         return;
     };
+    let maxclients = unsafe { SV_MAXCLIENTS };
     let Some(client_id) = passed_client_id_str.parse::<i32>().ok() else {
         let usage_note = format!(
             "client_id must be a number between 0 and {}.\n",
-            *SV_MAXCLIENTS.lock().unwrap()
+            maxclients-1
         );
         QuakeLiveEngine::com_printf(usage_note.as_str());
         return;
     };
 
-    if client_id > *SV_MAXCLIENTS.lock().unwrap() {
+    if client_id >= maxclients {
         let usage_note = format!(
             "client_id must be a number between 0 and {}.\n",
-            *SV_MAXCLIENTS.lock().unwrap()
+            maxclients - 1
         );
         QuakeLiveEngine::com_printf(usage_note.as_str());
         return;
@@ -135,19 +144,20 @@ pub extern "C" fn cmd_slay() {
     let Some(passed_client_id_str) = QuakeLiveEngine::cmd_argv(1) else {
         return;
     };
+    let maxclients = unsafe { SV_MAXCLIENTS };
     let Some(client_id) = passed_client_id_str.parse::<i32>().ok() else {
         let usage_note = format!(
             "client_id must be a number between 0 and {}.\n",
-            *SV_MAXCLIENTS.lock().unwrap()
+            maxclients-1
         );
         QuakeLiveEngine::com_printf(usage_note.as_str());
         return;
     };
 
-    if client_id > *SV_MAXCLIENTS.lock().unwrap() {
+    if client_id >= maxclients {
         let usage_note = format!(
             "client_id must be a number between 0 and {}.\n",
-            *SV_MAXCLIENTS.lock().unwrap()
+            maxclients - 1
         );
         QuakeLiveEngine::com_printf(usage_note.as_str());
         return;
@@ -178,6 +188,7 @@ pub extern "C" fn cmd_slay() {
     );
 }
 
+#[cfg(feature = "cdispatchers")]
 extern "C" {
     fn RconDispatcher(cmd: *const c_char);
 }
@@ -188,42 +199,65 @@ extern "C" {
 pub extern "C" fn cmd_py_rcon() {
     let Some(commands) = QuakeLiveEngine::cmd_args() else { return;
     };
-    unsafe { RconDispatcher(CString::new(commands).unwrap().into_raw()) }
+    #[cfg(not(feature = "cdispatchers"))]
+    rcon_dispatcher(commands);
+    #[cfg(feature = "cdispatchers")]
+    unsafe {
+        RconDispatcher(CString::new(commands).unwrap().into_raw())
+    }
 }
 
 #[no_mangle]
 pub extern "C" fn cmd_py_command() {
-    if let Some(python_function) = HANDLERS.lock().unwrap().get("custom_command") {
-        Python::with_gil(|py| {
-            let result = match QuakeLiveEngine::cmd_args() {
-                None => python_function.call0(py),
-                Some(args) => python_function.call1(py, (args,)),
-            };
-            if result.is_err() || !result.unwrap().is_true(py).unwrap() {
-                QuakeLiveEngine::com_printf(
-                    "The command failed to be executed. pyshinqlx found no handler.\n",
-                );
-            }
-        });
-    };
+    Python::with_gil(|py| {
+        let Some(custom_command_handler) = get_minqlx_handler(&py, "handle_custom_command") else { return; };
+        let result = match QuakeLiveEngine::cmd_args() {
+            None => custom_command_handler.call0(),
+            Some(args) => custom_command_handler.call1((args,)),
+        };
+        if result.is_err() || !result.unwrap().is_true().unwrap() {
+            QuakeLiveEngine::com_printf(
+                "The command failed to be executed. pyshinqlx found no handler.\n",
+            );
+        }
+    });
 }
 
+#[cfg(feature = "cembed")]
 extern "C" {
-    fn PyMinqlx_IsInitiailized() -> c_int;
-    fn PyMinqlx_Finalze() -> PyMinqlx_InitStatus_t;
+    fn PyMinqlx_Finalize() -> PyMinqlx_InitStatus_t;
     fn PyMinqlx_Initialize() -> PyMinqlx_InitStatus_t;
+}
+
+#[cfg(feature = "cdispatchers")]
+extern "C" {
     fn NewGameDispatcher(restart: c_int);
 }
 
 #[no_mangle]
 pub extern "C" fn cmd_restart_python() {
     QuakeLiveEngine::com_printf("Restarting Python...\n");
-    if unsafe { PyMinqlx_IsInitiailized() != 0 } {
-        unsafe { PyMinqlx_Finalze() };
+    if pyminqlx_is_initialized() {
+        #[cfg(feature = "cembed")]
+        unsafe {
+            PyMinqlx_Finalize()
+        };
+        #[cfg(not(feature = "cembed"))]
+        pyminqlx_finalize();
     }
-    unsafe { PyMinqlx_Initialize() };
+    #[cfg(feature = "cembed")]
+    unsafe {
+        PyMinqlx_Initialize()
+    };
+    #[cfg(not(feature = "cembed"))]
+    pyminqlx_initialize();
 
     // minqlx initializes after the first new game starts, but since the game already
     // start, we manually trigger the event to make it initialize properly.
-    unsafe { NewGameDispatcher(0) };
+    #[cfg(feature = "cdispatchers")]
+    unsafe {
+        NewGameDispatcher(0)
+    };
+    #[cfg(not(feature = "cdispatchers"))]
+    new_game_dispatcher(false);
 }

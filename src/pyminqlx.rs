@@ -27,29 +27,360 @@ use crate::quake_common::{
     GetConfigstring, QuakeLiveEngine, SetCVar, SetCVarForced, SetCVarLimit, MAX_CONFIGSTRINGS,
     MAX_GENTITIES,
 };
-use crate::SV_MAXCLIENTS;
-use lazy_static::lazy_static;
+#[cfg(not(feature = "cembed"))]
+use crate::PyMinqlx_InitStatus_t;
+
+#[cfg(not(feature = "cembed"))]
+use crate::PyMinqlx_InitStatus_t::{
+    PYM_ALREADY_INITIALIZED, PYM_MAIN_SCRIPT_ERROR, PYM_NOT_INITIALIZED_ERROR, PYM_SUCCESS,
+};
+use crate::{ALLOW_FREE_CLIENT, SV_MAXCLIENTS};
 use pyo3::exceptions::{PyTypeError, PyValueError};
+#[cfg(not(feature = "cembed"))]
+use pyo3::ffi::Py_Finalize;
 use pyo3::prelude::*;
+#[cfg(not(feature = "cembed"))]
+use pyo3::types::PyList;
+#[cfg(not(feature = "cembed"))]
+use pyo3::{append_to_inittab, prepare_freethreaded_python};
 use std::borrow::Cow;
-use std::collections::HashMap;
 use std::ffi::c_int;
 use std::string::ToString;
-use std::sync::Mutex;
+
+#[cfg(not(feature = "cembed"))]
+const CORE_MODULE: &str = "minqlx.zip";
+
+pub(crate) fn get_minqlx_handler<'py>(py: &'py Python, handler: &str) -> Option<&'py PyAny> {
+    let Ok(minqlx_module) = py.import("minqlx") else { return None; };
+    minqlx_module.call_method0("initialize").ok();
+    let Ok(handler) = minqlx_module.getattr(handler) else { return None; };
+    Some(handler)
+}
+
+#[cfg(not(feature = "cdispatchers"))]
+pub(crate) fn client_command_dispatcher(client_id: i32, cmd: &str) -> Option<String> {
+    if !pyminqlx_is_initialized() {
+        return Some(cmd.into());
+    }
+    Python::with_gil(|py| {
+        let Some(client_command_handler) = get_minqlx_handler(&py, "handle_client_command") else { 
+            return Some(cmd.into()); };
+        match client_command_handler.call1((client_id, cmd)) {
+            Err(_) => {
+                dbg!("client_command_handler returned an error.\n");
+                Some(cmd.into())
+            }
+            Ok(returned) => {
+                if let Ok(type_str) = returned.get_type().name() {
+                    if type_str == "bool" {
+                        let extracted_bool: PyResult<bool> = returned.extract();
+                        if let Ok(returned_value) = extracted_bool {
+                            if !returned_value {
+                                return None;
+                            }
+                        }
+                    }
+                    if type_str == "str" {
+                        let extracted_value: PyResult<String> = returned.extract();
+                        if let Ok(returned_value) = extracted_value {
+                            return Some(returned_value);
+                        }
+                    }
+                }
+                Some(cmd.into())
+            }
+        }
+    })
+}
+
+#[cfg(not(feature = "cdispatchers"))]
+pub(crate) fn server_command_dispatcher(client_id: i32, cmd: &str) -> Option<String> {
+    if !pyminqlx_is_initialized() {
+        return Some(cmd.into());
+    }
+    Python::with_gil(|py| {
+        let Some(server_command_handler) = get_minqlx_handler(&py, "handle_server_command") else { 
+            return Some(cmd.into()); };
+        match server_command_handler.call1((client_id, cmd)) {
+            Err(_) => {
+                dbg!("server_command_handler returned an error.\n");
+                Some(cmd.into())
+            }
+            Ok(returned) => {
+                if let Ok(type_str) = returned.get_type().name() {
+                    if type_str == "bool" {
+                        let extracted_bool: PyResult<bool> = returned.extract();
+                        if let Ok(returned_value) = extracted_bool {
+                            if !returned_value {
+                                return None;
+                            }
+                        }
+                    }
+                    if type_str == "str" {
+                        let extracted_value: PyResult<String> = returned.extract();
+                        if let Ok(returned_value) = extracted_value {
+                            return Some(returned_value);
+                        }
+                    }
+                }
+                Some(cmd.into())
+            }
+        }
+    })
+}
+
+#[cfg(not(feature = "cdispatchers"))]
+pub(crate) fn frame_dispatcher() {
+    if !pyminqlx_is_initialized() {
+        return;
+    }
+    Python::with_gil(|py| {
+        let Some(frame_handler) = get_minqlx_handler(&py, "handle_frame") else { return; };
+        frame_handler.call0().unwrap();
+    });
+}
+
+#[cfg(not(feature = "cdispatchers"))]
+pub(crate) fn client_connect_dispatcher(client_id: i32, is_bot: bool) -> Option<String> {
+    if !pyminqlx_is_initialized() {
+        return None;
+    }
+    unsafe {
+        *ALLOW_FREE_CLIENT.lock().unwrap() = client_id;
+    }
+    let result: Option<String> = Python::with_gil(|py| {
+        let Some(client_connect_handler) = get_minqlx_handler(&py, "handle_player_connect") else { return None; };
+        match client_connect_handler.call1((client_id, is_bot)) {
+            Err(_) => None,
+            Ok(returned) => {
+                if let Ok(type_str) = returned.get_type().name() {
+                    if type_str == "bool" {
+                        let extracted_bool: PyResult<bool> = returned.extract();
+                        if let Ok(returned_value) = extracted_bool {
+                            if !returned_value {
+                                return Some("You are banned from this server.".into());
+                            }
+                        }
+                    }
+                    if type_str == "str" {
+                        let extracted_value: PyResult<String> = returned.extract();
+                        if let Ok(returned_value) = extracted_value {
+                            return Some(returned_value);
+                        }
+                    }
+                }
+                None
+            }
+        }
+    });
+    unsafe {
+        *ALLOW_FREE_CLIENT.lock().unwrap() = -1;
+    }
+    result
+}
+
+#[cfg(not(feature = "cdispatchers"))]
+pub(crate) fn client_disconnect_dispatcher(client_id: i32, reason: &str) {
+    if !pyminqlx_is_initialized() {
+        return;
+    }
+    Python::with_gil(|py| {
+        let Some(client_disconnect_handler) = get_minqlx_handler(&py, "handle_player_disconnect") else { return; };
+        unsafe {
+            *ALLOW_FREE_CLIENT.lock().unwrap() = client_id;
+        }
+        let result = client_disconnect_handler.call1((client_id, reason));
+        if result.is_err() {
+            dbg!("client_disconnect_handler returned an error.\n");
+        }
+        unsafe {
+            *ALLOW_FREE_CLIENT.lock().unwrap() = -1;
+        }
+    });
+}
+
+#[cfg(not(feature = "cdispatchers"))]
+pub(crate) fn client_loaded_dispatcher(client_id: i32) -> Option<i32> {
+    if !pyminqlx_is_initialized() {
+        return Some(1);
+    }
+    Python::with_gil(|py| {
+        let Some(client_loaded_handler) = get_minqlx_handler(&py, "handle_player_loaded") else { return Some(1) };
+        match client_loaded_handler.call1((client_id,)) {
+            Err(_) => {
+                dbg!("client_loaded_handler returned an error.\n");
+                Some(1)
+            }
+            Ok(result) => {
+                if let Ok(type_str) = result.get_type().name() {
+                    if type_str == "bool" {
+                        let extracted_bool: PyResult<bool> = result.extract();
+                        if let Ok(bool_value) = extracted_bool {
+                            if !bool_value {
+                                return Some(1);
+                            }
+                        }
+                    }
+                }
+                Some(1)
+            }
+        }
+    })
+}
+
+#[cfg(not(feature = "cdispatchers"))]
+pub(crate) fn new_game_dispatcher(restart: bool) {
+    if !pyminqlx_is_initialized() {
+        return;
+    }
+    Python::with_gil(|py| {
+        let Some(new_game_handler) = get_minqlx_handler(&py, "handle_new_game") else { return; };
+        let result = new_game_handler.call1((restart,));
+        if result.is_err() {
+            dbg!("new_game_handler returned an error.\n");
+        }
+    });
+}
+
+#[cfg(not(feature = "cdispatchers"))]
+pub(crate) fn set_configstring_dispatcher(index: i32, value: &str) -> Option<String> {
+    if !pyminqlx_is_initialized() {
+        return Some(value.into());
+    }
+    Python::with_gil(|py| {
+        let Some(set_configstring_handler) = get_minqlx_handler(&py, "handle_set_configstring") else { return Some(value.into()) };
+        match set_configstring_handler.call1((index, value)) {
+            Err(_) => {
+                dbg!("set_configstring_handler returned an error.\n");
+                Some(value.into())
+            }
+            Ok(returned) => {
+                if let Ok(type_str) = returned.get_type().name() {
+                    if type_str == "bool" {
+                        let extracted_bool: PyResult<bool> = returned.extract();
+                        if let Ok(returned_value) = extracted_bool {
+                            if !returned_value {
+                                return None;
+                            }
+                        }
+                    }
+                    if type_str == "str" {
+                        let extracted_value: PyResult<String> = returned.extract();
+                        if let Ok(returned_value) = extracted_value {
+                            return Some(returned_value);
+                        }
+                    }
+                }
+                Some(value.into())
+            }
+        }
+    })
+}
+
+#[cfg(not(feature = "cdispatchers"))]
+pub(crate) fn rcon_dispatcher(cmd: &str) {
+    if !pyminqlx_is_initialized() {
+        return;
+    }
+    Python::with_gil(|py| {
+        let Some(rcon_handler) = get_minqlx_handler(&py, "handle_rcon") else { return; };
+        let result = rcon_handler.call1((cmd,));
+        if result.is_err() {
+            dbg!("rcond_handler returned an error.\n");
+        }
+    });
+}
+
+#[cfg(not(feature = "cdispatchers"))]
+pub(crate) fn console_print_dispatcher(text: &str) -> Option<String> {
+    if !pyminqlx_is_initialized() {
+        return Some(text.into());
+    }
+    Python::with_gil(|py| {
+        let Some(console_print_handler) = get_minqlx_handler(&py, "handle_console_print") else { return Some(text.into()); };
+        match console_print_handler.call1((text,)) {
+            Err(_) => {
+                dbg!("console_print_handler returned an error.\n");
+                Some(text.into())
+            }
+            Ok(returned) => {
+                if let Ok(type_str) = returned.get_type().name() {
+                    if type_str == "bool" {
+                        let extracted_bool: PyResult<bool> = returned.extract();
+                        if let Ok(returned_value) = extracted_bool {
+                            if !returned_value {
+                                return None;
+                            }
+                        }
+                    }
+                    if type_str == "str" {
+                        let extracted_value: PyResult<String> = returned.extract();
+                        if let Ok(returned_value) = extracted_value {
+                            return Some(returned_value);
+                        }
+                    }
+                }
+                Some(text.into())
+            }
+        }
+    })
+}
+
+#[cfg(not(feature = "cdispatchers"))]
+pub(crate) fn client_spawn_dispatcher(client_id: i32) {
+    if !pyminqlx_is_initialized() {
+        return;
+    }
+    Python::with_gil(|py| {
+        let Some(client_spawn_handler) = get_minqlx_handler(&py, "handle_player_spawn") else { return; };
+        let result = client_spawn_handler.call1((client_id,));
+        if result.is_err() {
+            dbg!("client_spawn_handler returned an error.\n");
+        }
+    });
+}
+
+#[cfg(not(feature = "cdispatchers"))]
+pub(crate) fn kamikaze_use_dispatcher(client_id: i32) {
+    if !pyminqlx_is_initialized() {
+        return;
+    }
+    Python::with_gil(|py| {
+        let Some(kamikaze_use_handler)  = get_minqlx_handler(&py, "handle_kamikaze_use") else { return; };
+        let result = kamikaze_use_handler.call1((client_id,));
+        if result.is_err() {
+            dbg!("kamikaze_use_handler returned an error.\n");
+        }
+    });
+}
+
+#[cfg(not(feature = "cdispatchers"))]
+pub(crate) fn kamikaze_explode_dispatcher(client_id: i32, is_used_on_demand: bool) {
+    if !pyminqlx_is_initialized() {
+        return;
+    }
+    Python::with_gil(|py| {
+        let Some(kamikaze_explode_handler) = get_minqlx_handler(&py, "handle_kamikaze_explode") else { return; };
+        let result = kamikaze_explode_handler.call1((client_id, is_used_on_demand));
+        if result.is_err() {
+            dbg!("kamikaze_explode_handler returned an error.\n");
+        }
+    });
+}
 
 /// Information about a player, such as Steam ID, name, client ID, and whatnot.
-#[pyclass]
-#[pyo3(name = "PlayerInfo")]
+#[pyclass(module = "minqlx", name = "PlayerInfo", get_all)]
+#[derive(Debug)]
 #[allow(unused)]
 struct PlayerInfo {
     /// The player's client ID.
     client_id: i32,
     /// The player's name.
-    name: Cow<'static, str>,
+    name: String,
     /// The player's connection state.
     connection_state: i32,
     /// The player's userinfo.
-    userinfo: Cow<'static, str>,
+    userinfo: String,
     /// The player's 64-bit representation of the Steam ID.
     steam_id: u64,
     /// The player's team.
@@ -59,8 +390,19 @@ struct PlayerInfo {
 }
 
 fn make_player_tuple(client_id: i32) -> Option<PlayerInfo> {
-    let client_result = Client::try_from(client_id);
-    match client_result {
+    let game_entity_result = GameEntity::try_from(client_id);
+    let Ok(client) = Client::try_from(client_id) else {
+        return Some(PlayerInfo {
+            client_id,
+            name: Default::default(),
+            connection_state: 0,
+            userinfo: Default::default(),
+            steam_id: 0,
+            team: TEAM_SPECTATOR as i32,
+            privileges: -1,
+        });
+    };
+    match game_entity_result {
         Err(_) => Some(PlayerInfo {
             client_id,
             name: Default::default(),
@@ -70,34 +412,31 @@ fn make_player_tuple(client_id: i32) -> Option<PlayerInfo> {
             team: TEAM_SPECTATOR as i32,
             privileges: -1,
         }),
-        Ok(client) => Some(PlayerInfo {
+        Ok(game_entity) => Some(PlayerInfo {
             client_id,
-            name: client.get_player_name(),
+            name: game_entity.get_player_name(),
             connection_state: client.get_state(),
             userinfo: client.get_user_info(),
-            steam_id: client.get_steam_id(),
-            team: client.get_team(),
-            privileges: client.get_privileges(),
+            steam_id: game_entity.get_steam_id(),
+            team: game_entity.get_team(),
+            privileges: game_entity.get_privileges(),
         }),
     }
 }
 
-extern "C" {
-    static allow_free_client: c_int;
-}
-
 /// Returns a dictionary with information about a player by ID.
-#[pyfunction]
-#[pyo3(name = "player_info")]
+#[pyfunction(name = "player_info")]
 fn get_player_info(client_id: i32) -> PyResult<Option<PlayerInfo>> {
-    if !(0..*SV_MAXCLIENTS.lock().unwrap()).contains(&client_id) {
+    let maxclients = unsafe { SV_MAXCLIENTS };
+    if !(0..maxclients).contains(&client_id) {
         return Err(PyValueError::new_err(format!(
             "client_id needs to be a number from 0 to {}.",
-            *SV_MAXCLIENTS.lock().unwrap() - 1
+            maxclients - 1
         )));
     }
     if let Ok(client) = Client::try_from(client_id) {
-        if unsafe { allow_free_client } != client_id && client.get_state() == CS_FREE as i32 {
+        let allowed_free_client_id = unsafe { *ALLOW_FREE_CLIENT.lock().unwrap() };
+        if allowed_free_client_id != client_id && client.get_state() == CS_FREE as i32 {
             #[cfg(debug_assertions)]
             println!(
                 "WARNING: get_player_info called for CS_FREE client {}.",
@@ -111,11 +450,11 @@ fn get_player_info(client_id: i32) -> PyResult<Option<PlayerInfo>> {
 }
 
 /// Returns a list with dictionaries with information about all the players on the server.
-#[pyfunction]
-#[pyo3(name = "players_info")]
+#[pyfunction(name = "players_info")]
 fn get_players_info() -> PyResult<Vec<Option<PlayerInfo>>> {
     let mut result = Vec::new();
-    for client_id in 0..*SV_MAXCLIENTS.lock().unwrap() {
+    let maxclients = unsafe { SV_MAXCLIENTS };
+    for client_id in 0..maxclients {
         match Client::try_from(client_id) {
             Err(_) => result.push(None),
             Ok(client) => {
@@ -131,10 +470,9 @@ fn get_players_info() -> PyResult<Vec<Option<PlayerInfo>>> {
 }
 
 /// Returns a string with a player's userinfo.
-#[pyfunction]
-#[pyo3(name = "get_userinfo")]
-fn get_userinfo(client_id: i32) -> PyResult<Option<Cow<'static, str>>> {
-    let maxclients = *SV_MAXCLIENTS.lock().unwrap();
+#[pyfunction(name = "get_userinfo")]
+fn get_userinfo(client_id: i32) -> PyResult<Option<String>> {
+    let maxclients = unsafe { SV_MAXCLIENTS };
     if !(0..maxclients).contains(&client_id) {
         return Err(PyValueError::new_err(format!(
             "client_id needs to be a number from 0 to {}.",
@@ -145,7 +483,8 @@ fn get_userinfo(client_id: i32) -> PyResult<Option<Cow<'static, str>>> {
     match Client::try_from(client_id) {
         Err(_) => Ok(None),
         Ok(client) => {
-            if unsafe { allow_free_client } != client_id && client.get_state() == CS_FREE as i32 {
+            let allowed_free_client_id = unsafe { *ALLOW_FREE_CLIENT.lock().unwrap() };
+            if allowed_free_client_id != client_id && client.get_state() == CS_FREE as i32 {
                 Ok(None)
             } else {
                 Ok(Some(client.get_user_info()))
@@ -155,17 +494,15 @@ fn get_userinfo(client_id: i32) -> PyResult<Option<Cow<'static, str>>> {
 }
 
 /// Sends a server command to either one specific client or all the clients.
-#[pyfunction]
-#[pyo3(name = "send_server_command")]
-#[pyo3(signature = (optional_client_id, cmd))]
-fn send_server_command(optional_client_id: Option<i32>, cmd: &str) -> PyResult<Option<bool>> {
-    match optional_client_id {
+#[pyfunction(name = "send_server_command", signature = (client_id, cmd))]
+fn send_server_command(client_id: Option<i32>, cmd: &str) -> PyResult<bool> {
+    match client_id {
         None => {
             shinqlx_send_server_command(None, cmd);
-            Ok(Some(true))
+            Ok(true)
         }
         Some(client_id) => {
-            let maxclients = *SV_MAXCLIENTS.lock().unwrap();
+            let maxclients = unsafe { SV_MAXCLIENTS };
             if !(0..maxclients).contains(&client_id) {
                 return Err(PyValueError::new_err(format!(
                     "client_id needs to be a number from 0 to {}, or None.",
@@ -173,13 +510,13 @@ fn send_server_command(optional_client_id: Option<i32>, cmd: &str) -> PyResult<O
                 )));
             }
             match Client::try_from(client_id) {
-                Err(_) => Ok(Some(false)),
+                Err(_) => Ok(false),
                 Ok(client) => {
                     if client.get_state() != CS_ACTIVE as i32 {
-                        Ok(Some(false))
+                        Ok(false)
                     } else {
                         shinqlx_send_server_command(Some(client), cmd);
-                        Ok(Some(true))
+                        Ok(true)
                     }
                 }
             }
@@ -188,50 +525,36 @@ fn send_server_command(optional_client_id: Option<i32>, cmd: &str) -> PyResult<O
 }
 
 /// Tells the server to process a command from a specific client.
-#[pyfunction]
-#[pyo3(name = "client_command")]
-#[pyo3(signature = (optional_client_id, cmd))]
-fn client_command(optional_client_id: Option<i32>, cmd: &str) -> PyResult<Option<bool>> {
-    match optional_client_id {
-        None => {
-            shinqlx_execute_client_command(None, cmd, true);
-            Ok(Some(true))
-        }
-        Some(client_id) => {
-            let maxclients = *SV_MAXCLIENTS.lock().unwrap();
-            if !(0..maxclients).contains(&client_id) {
-                return Err(PyValueError::new_err(format!(
-                    "client_id needs to be a number from 0 to {}, or None.",
-                    maxclients - 1
-                )));
-            }
-            match Client::try_from(client_id) {
-                Err(_) => Ok(Some(false)),
-                Ok(client) => {
-                    if [CS_FREE as i32, CS_ZOMBIE as i32].contains(&client.get_state()) {
-                        Ok(Some(false))
-                    } else {
-                        shinqlx_execute_client_command(Some(client), cmd, true);
-                        Ok(Some(true))
-                    }
-                }
+#[pyfunction(name = "client_command", signature = (client_id, cmd))]
+fn client_command(client_id: i32, cmd: &str) -> PyResult<bool> {
+    let maxclients = unsafe { SV_MAXCLIENTS };
+    if !(0..maxclients).contains(&client_id) {
+        return Err(PyValueError::new_err(format!(
+            "client_id needs to be a number from 0 to {}, or None.",
+            maxclients - 1
+        )));
+    }
+    match Client::try_from(client_id) {
+        Err(_) => Ok(false),
+        Ok(client) => {
+            if [CS_FREE as i32, CS_ZOMBIE as i32].contains(&client.get_state()) {
+                Ok(false)
+            } else {
+                shinqlx_execute_client_command(Some(client), cmd, true);
+                Ok(true)
             }
         }
     }
 }
 
 /// Executes a command as if it was executed from the server console.
-#[pyfunction]
-#[pyo3(name = "console_command")]
-#[pyo3(signature = (cmd))]
+#[pyfunction(name = "console_command", signature = (cmd))]
 fn console_command(cmd: &str) {
     QuakeLiveEngine::execute_console_command(cmd);
 }
 
 /// Gets a cvar.
-#[pyfunction]
-#[pyo3(name = "get_cvar")]
-#[pyo3(signature = (cvar))]
+#[pyfunction(name = "get_cvar", signature = (cvar))]
 fn get_cvar(cvar: &str) -> PyResult<Option<String>> {
     match QuakeLiveEngine::find_cvar(cvar) {
         None => Ok(None),
@@ -250,33 +573,25 @@ fn set_cvar(cvar: &str, value: &str, flags: Option<i32>) -> PyResult<bool> {
             Ok(true)
         }
         Some(_) => {
-            if flags.is_none() {
-                QuakeLiveEngine::set_cvar_forced(cvar, value, true);
-            } else {
-                QuakeLiveEngine::set_cvar_forced(cvar, value, false);
-            }
+            QuakeLiveEngine::set_cvar_forced(cvar, value, flags.is_none() || flags.unwrap() == -1);
             Ok(false)
         }
     }
 }
 
 /// Sets a non-string cvar with a minimum and maximum value.
-#[pyfunction]
-#[pyo3(name = "set_cvar_limit")]
-#[pyo3(signature = (cvar, value, min, max, flags=None))]
+#[pyfunction(name = "set_cvar_limit", signature = (cvar, value, min, max, flags=None))]
 fn set_cvar_limit(cvar: &str, value: &str, min: &str, max: &str, flags: Option<i32>) {
     QuakeLiveEngine::set_cvar_limit(cvar, value, min, max, flags);
 }
 
 /// Kick a player and allowing the admin to supply a reason for it.
-#[pyfunction]
-#[pyo3(name = "kick")]
-#[pyo3(signature = (client_id, reason=None))]
+#[pyfunction(name = "kick", signature = (client_id, reason=None))]
 fn kick(client_id: i32, reason: Option<&str>) -> PyResult<()> {
-    let maxclients = *SV_MAXCLIENTS.lock().unwrap();
+    let maxclients = unsafe { SV_MAXCLIENTS };
     if !(0..maxclients).contains(&client_id) {
         return Err(PyValueError::new_err(format!(
-            "client_id needs to be a number from 0 to {}.",
+            "client_id needs to be a number from 0 to {}, or None.",
             maxclients - 1
         )));
     }
@@ -298,31 +613,26 @@ fn kick(client_id: i32, reason: Option<&str>) -> PyResult<()> {
 }
 
 /// Prints text on the console. If used during an RCON command, it will be printed in the player's console.
-#[pyfunction]
-#[pyo3(name = "console_print")]
-#[pyo3(signature = (text))]
+#[pyfunction(name = "console_print", signature = (text))]
 fn console_print(text: &str) {
-    shinqlx_com_printf(text);
+    let formatted_string = format!("{}\n", text);
+    shinqlx_com_printf(&formatted_string);
 }
 
 /// Get a configstring.
-#[pyfunction]
-#[pyo3(name = "get_configstring")]
-#[pyo3(signature = (config_id))]
-fn get_configstring(config_id: i32) -> PyResult<Cow<'static, str>> {
+#[pyfunction(name = "get_configstring", signature = (config_id))]
+fn get_configstring(config_id: i32) -> PyResult<String> {
     if !(0..MAX_CONFIGSTRINGS as i32).contains(&config_id) {
         return Err(PyValueError::new_err(format!(
             "index needs to be a number from 0 to {}.",
             MAX_CONFIGSTRINGS - 1
         )));
     }
-    Ok(Cow::from(QuakeLiveEngine::get_configstring(config_id)))
+    Ok(QuakeLiveEngine::get_configstring(config_id))
 }
 
 /// Sets a configstring and sends it to all the players on the server.
-#[pyfunction]
-#[pyo3(name = "set_configstring")]
-#[pyo3(signature = (config_id, value))]
+#[pyfunction(name = "set_configstring", signature = (config_id, value))]
 fn set_configstring(config_id: i32, value: &str) -> PyResult<()> {
     if !(0..MAX_CONFIGSTRINGS as i32).contains(&config_id) {
         return Err(PyValueError::new_err(format!(
@@ -335,63 +645,50 @@ fn set_configstring(config_id: i32, value: &str) -> PyResult<()> {
 }
 
 /// Forces the current vote to either fail or pass.
-#[pyfunction]
-#[pyo3(name = "force_vote")]
-#[pyo3(signature = (pass))]
+#[pyfunction(name = "force_vote", signature = (pass))]
 fn force_vote(pass: bool) -> bool {
-    let mut current_level = CurrentLevel::default();
+    let current_level = CurrentLevel::default();
     let vote_time = current_level.get_vote_time();
     if vote_time.is_none() {
         return false;
     }
 
-    if !pass {
-        current_level.set_vote_time(-1);
-    } else {
-        for i in 0..*SV_MAXCLIENTS.lock().unwrap() {
-            if let Ok(client) = Client::try_from(i) {
-                if client.get_state() == CS_ACTIVE as i32 {
-                    client.set_vote(true);
-                }
+    let maxclients = unsafe { SV_MAXCLIENTS };
+    for i in 0..maxclients {
+        if let Ok(client) = Client::try_from(i) {
+            if client.get_state() == CS_ACTIVE as i32 {
+                client.set_vote(pass);
             }
         }
     }
-
     true
 }
 
 /// Adds a console command that will be handled by Python code.
-#[pyfunction]
-#[pyo3(name = "add_console_command")]
-#[pyo3(signature = (command))]
+#[pyfunction(name = "add_console_command", signature = (command))]
 fn add_console_command(command: &str) {
     QuakeLiveEngine::add_command(command, cmd_py_command);
 }
 
-lazy_static! {
-    pub(crate) static ref HANDLERS: Mutex<HashMap<String, Py<PyAny>>> = Mutex::new(HashMap::new());
-    pub(crate) static ref SUPPORTED_HANDLERS: Vec<&'static str> = Vec::from([
-        "client_command",
-        "server_command",
-        "frame",
-        "player_connect",
-        "player_loaded",
-        "player_disconnect",
-        "custom_command",
-        "new_game",
-        "set_configstring",
-        "rcon",
-        "console_print",
-        "player_spawn",
-        "kamikaze_use",
-        "kamikaze_explode",
-    ]);
-}
+static SUPPORTED_HANDLERS: [&str; 14] = [
+    "client_command",
+    "server_command",
+    "frame",
+    "player_connect",
+    "player_loaded",
+    "player_disconnect",
+    "custom_command",
+    "new_game",
+    "set_configstring",
+    "rcon",
+    "console_print",
+    "player_spawn",
+    "kamikaze_use",
+    "kamikaze_explode",
+];
 
 /// Register an event handler. Can be called more than once per event, but only the last one will work.
-#[pyfunction]
-#[pyo3(name = "register_handler")]
-#[pyo3(signature = (event, handler=None))]
+#[pyfunction(name = "register_handler", signature = (event, handler=None))]
 fn register_handler(py: Python<'_>, event: &str, handler: Option<Py<PyAny>>) -> PyResult<()> {
     if let Some(handler_function) = &handler {
         if !handler_function.as_ref(py).is_callable() {
@@ -403,20 +700,11 @@ fn register_handler(py: Python<'_>, event: &str, handler: Option<Py<PyAny>>) -> 
         return Err(PyValueError::new_err("Unsupported event."));
     }
 
-    match handler {
-        None => HANDLERS.lock().unwrap().remove(event),
-        Some(python_handler) => HANDLERS
-            .lock()
-            .unwrap()
-            .insert(event.to_string(), python_handler),
-    };
-
     Ok(())
 }
 
 /// A three-dimensional vector.
-#[pyclass]
-#[pyo3(name = "Vector3")]
+#[pyclass(module = "minqlx", name = "Vector3", get_all)]
 #[derive(PartialEq, Debug, Clone, Copy)]
 struct Vector3 {
     x: i32,
@@ -435,8 +723,7 @@ impl From<(f32, f32, f32)> for Vector3 {
 }
 
 /// A struct sequence containing all the weapons in the game.
-#[pyclass]
-#[pyo3(name = "Weapons")]
+#[pyclass(module = "minqlx", name = "Weapons", get_all)]
 #[derive(PartialEq, Debug, Clone, Copy)]
 struct Weapons {
     g: bool,
@@ -501,8 +788,7 @@ impl From<Weapons> for [bool; 15] {
 }
 
 /// A struct sequence containing all the different ammo types for the weapons in the game.
-#[pyclass]
-#[pyo3(name = "Ammo")]
+#[pyclass(module = "minqlx", name = "Ammo", get_all)]
 #[derive(PartialEq, Debug, Clone, Copy)]
 struct Ammo {
     g: i32,
@@ -567,8 +853,7 @@ impl From<Ammo> for [i32; 15] {
 }
 
 /// A struct sequence containing all the powerups in the game.
-#[pyclass]
-#[pyo3(name = "Powerups")]
+#[pyclass(module = "minqlx", name = "Powerups", get_all)]
 #[derive(PartialEq, Debug, Clone, Copy)]
 struct Powerups {
     quad: i32,
@@ -605,8 +890,7 @@ impl From<Powerups> for [i32; 6] {
     }
 }
 
-#[pyclass]
-#[pyo3(name = "Holdable")]
+#[pyclass(module = "minqlx", name = "Holdable", get_all)]
 #[derive(PartialEq, Debug, Clone, Copy)]
 enum Holdable {
     None = 0,
@@ -635,8 +919,7 @@ impl From<i32> for Holdable {
 }
 
 /// A struct sequence containing parameters for the flight holdable item.
-#[pyclass]
-#[pyo3(name = "Flight")]
+#[pyclass(module = "minqlx", name = "Flight", get_all)]
 #[derive(PartialEq, Debug, Clone, Copy)]
 struct Flight {
     fuel: i32,
@@ -652,8 +935,7 @@ impl From<Flight> for (i32, i32, i32, i32) {
 }
 
 /// Information about a player's state in the game.
-#[pyclass]
-#[pyo3(name = "PlayerState")]
+#[pyclass(module = "minqlx", name = "PlayerState", get_all)]
 #[allow(unused)]
 struct PlayerState {
     /// Whether the player's alive or not.
@@ -726,11 +1008,9 @@ fn holdable_from(holdable: Holdable) -> Option<Cow<'static, str>> {
 }
 
 /// Get information about the player's state in the game.
-#[pyfunction]
-#[pyo3(name = "player_state")]
-#[pyo3(signature = (client_id))]
+#[pyfunction(name = "player_state", signature = (client_id))]
 fn player_state(client_id: i32) -> PyResult<Option<PlayerState>> {
-    let maxclients = *SV_MAXCLIENTS.lock().unwrap();
+    let maxclients = unsafe { SV_MAXCLIENTS };
     if !(0..maxclients).contains(&client_id) {
         return Err(PyValueError::new_err(format!(
             "client_id needs to be a number from 0 to {}.",
@@ -740,13 +1020,17 @@ fn player_state(client_id: i32) -> PyResult<Option<PlayerState>> {
 
     match GameEntity::try_from(client_id) {
         Err(_) => Ok(None),
-        Ok(game_entity) => Ok(Some(PlayerState::from(game_entity))),
+        Ok(game_entity) => {
+            if game_entity.get_game_client().is_none() {
+                return Ok(None);
+            }
+            Ok(Some(PlayerState::from(game_entity)))
+        }
     }
 }
 
 /// A player's score and some basic stats.
-#[pyclass]
-#[pyo3(name = "PlayerStats")]
+#[pyclass(module = "minqlx", name = "PlayerStats", get_all)]
 #[allow(unused)]
 struct PlayerStats {
     /// The player's primary score.
@@ -780,11 +1064,9 @@ impl From<GameClient> for PlayerStats {
 }
 
 /// Get some player stats.
-#[pyfunction]
-#[pyo3(name = "player_stats")]
-#[pyo3(signature = (client_id))]
+#[pyfunction(name = "player_stats", signature = (client_id))]
 fn player_stats(client_id: i32) -> PyResult<Option<PlayerStats>> {
-    let maxclients = *SV_MAXCLIENTS.lock().unwrap();
+    let maxclients = unsafe { SV_MAXCLIENTS };
     if !(0..maxclients).contains(&client_id) {
         return Err(PyValueError::new_err(format!(
             "client_id needs to be a number from 0 to {}.",
@@ -801,11 +1083,9 @@ fn player_stats(client_id: i32) -> PyResult<Option<PlayerStats>> {
 }
 
 /// Sets a player's position vector.
-#[pyfunction]
-#[pyo3(name = "set_position")]
-#[pyo3(signature = (client_id, position))]
+#[pyfunction(name = "set_position", signature = (client_id, position))]
 fn set_position(client_id: i32, position: Vector3) -> PyResult<bool> {
-    let maxclients = *SV_MAXCLIENTS.lock().unwrap();
+    let maxclients = unsafe { SV_MAXCLIENTS };
     if !(0..maxclients).contains(&client_id) {
         return Err(PyValueError::new_err(format!(
             "client_id needs to be a number from 0 to {}.",
@@ -824,11 +1104,9 @@ fn set_position(client_id: i32, position: Vector3) -> PyResult<bool> {
 }
 
 /// Sets a player's velocity vector.
-#[pyfunction]
-#[pyo3(name = "set_velocity")]
-#[pyo3(signature = (client_id, velocity))]
+#[pyfunction(name = "set_velocity", signature = (client_id, velocity))]
 fn set_velocity(client_id: i32, velocity: Vector3) -> PyResult<bool> {
-    let maxclients = *SV_MAXCLIENTS.lock().unwrap();
+    let maxclients = unsafe { SV_MAXCLIENTS };
     if !(0..maxclients).contains(&client_id) {
         return Err(PyValueError::new_err(format!(
             "client_id needs to be a number from 0 to {}.",
@@ -847,11 +1125,9 @@ fn set_velocity(client_id: i32, velocity: Vector3) -> PyResult<bool> {
 }
 
 /// Sets noclip for a player.
-#[pyfunction]
-#[pyo3(name = "noclip")]
-#[pyo3(signature = (client_id, activate))]
+#[pyfunction(name = "noclip", signature = (client_id, activate))]
 fn noclip(client_id: i32, activate: bool) -> PyResult<bool> {
-    let maxclients = *SV_MAXCLIENTS.lock().unwrap();
+    let maxclients = unsafe { SV_MAXCLIENTS };
     if !(0..maxclients).contains(&client_id) {
         return Err(PyValueError::new_err(format!(
             "client_id needs to be a number from 0 to {}.",
@@ -874,11 +1150,9 @@ fn noclip(client_id: i32, activate: bool) -> PyResult<bool> {
 }
 
 /// Sets a player's health.
-#[pyfunction]
-#[pyo3(name = "set_health")]
-#[pyo3(signature = (client_id, health))]
+#[pyfunction(name = "set_health", signature = (client_id, health))]
 fn set_health(client_id: i32, health: i32) -> PyResult<bool> {
-    let maxclients = *SV_MAXCLIENTS.lock().unwrap();
+    let maxclients = unsafe { SV_MAXCLIENTS };
     if !(0..maxclients).contains(&client_id) {
         return Err(PyValueError::new_err(format!(
             "client_id needs to be a number from 0 to {}.",
@@ -897,11 +1171,9 @@ fn set_health(client_id: i32, health: i32) -> PyResult<bool> {
 }
 
 /// Sets a player's armor.
-#[pyfunction]
-#[pyo3(name = "set_armor")]
-#[pyo3(signature = (client_id, armor))]
+#[pyfunction(name = "set_armor", signature = (client_id, armor))]
 fn set_armor(client_id: i32, armor: i32) -> PyResult<bool> {
-    let maxclients = *SV_MAXCLIENTS.lock().unwrap();
+    let maxclients = unsafe { SV_MAXCLIENTS };
     if !(0..maxclients).contains(&client_id) {
         return Err(PyValueError::new_err(format!(
             "client_id needs to be a number from 0 to {}.",
@@ -920,11 +1192,9 @@ fn set_armor(client_id: i32, armor: i32) -> PyResult<bool> {
 }
 
 /// Sets a player's weapons.
-#[pyfunction]
-#[pyo3(name = "set_weapons")]
-#[pyo3(signature = (client_id, weapons))]
+#[pyfunction(name = "set_weapons", signature = (client_id, weapons))]
 fn set_weapons(client_id: i32, weapons: Weapons) -> PyResult<bool> {
-    let maxclients = *SV_MAXCLIENTS.lock().unwrap();
+    let maxclients = unsafe { SV_MAXCLIENTS };
     if !(0..maxclients).contains(&client_id) {
         return Err(PyValueError::new_err(format!(
             "client_id needs to be a number from 0 to {}.",
@@ -943,11 +1213,9 @@ fn set_weapons(client_id: i32, weapons: Weapons) -> PyResult<bool> {
 }
 
 /// Sets a player's current weapon.
-#[pyfunction]
-#[pyo3(name = "set_weapon")]
-#[pyo3(signature = (client_id, weapon))]
+#[pyfunction(name = "set_weapon", signature = (client_id, weapon))]
 fn set_weapon(client_id: i32, weapon: i32) -> PyResult<bool> {
-    let maxclients = *SV_MAXCLIENTS.lock().unwrap();
+    let maxclients = unsafe { SV_MAXCLIENTS };
     if !(0..maxclients).contains(&client_id) {
         return Err(PyValueError::new_err(format!(
             "client_id needs to be a number from 0 to {}.",
@@ -972,11 +1240,9 @@ fn set_weapon(client_id: i32, weapon: i32) -> PyResult<bool> {
 }
 
 /// Sets a player's ammo.
-#[pyfunction]
-#[pyo3(name = "set_ammo")]
-#[pyo3(signature = (client_id, ammos))]
+#[pyfunction(name = "set_ammo", signature = (client_id, ammos))]
 fn set_ammo(client_id: i32, ammos: Ammo) -> PyResult<bool> {
-    let maxclients = *SV_MAXCLIENTS.lock().unwrap();
+    let maxclients = unsafe { SV_MAXCLIENTS };
     if !(0..maxclients).contains(&client_id) {
         return Err(PyValueError::new_err(format!(
             "client_id needs to be a number from 0 to {}.",
@@ -995,11 +1261,9 @@ fn set_ammo(client_id: i32, ammos: Ammo) -> PyResult<bool> {
 }
 
 /// Sets a player's powerups.
-#[pyfunction]
-#[pyo3(name = "set_powerups")]
-#[pyo3(signature = (client_id, powerups))]
+#[pyfunction(name = "set_powerups", signature = (client_id, powerups))]
 fn set_powerups(client_id: i32, powerups: Powerups) -> PyResult<bool> {
-    let maxclients = *SV_MAXCLIENTS.lock().unwrap();
+    let maxclients = unsafe { SV_MAXCLIENTS };
     if !(0..maxclients).contains(&client_id) {
         return Err(PyValueError::new_err(format!(
             "client_id needs to be a number from 0 to {}.",
@@ -1018,11 +1282,9 @@ fn set_powerups(client_id: i32, powerups: Powerups) -> PyResult<bool> {
 }
 
 /// Sets a player's holdable item.
-#[pyfunction]
-#[pyo3(name = "set_holdable")]
-#[pyo3(signature = (client_id, holdable))]
+#[pyfunction(name = "set_holdable", signature = (client_id, holdable))]
 fn set_holdable(client_id: i32, holdable: Holdable) -> PyResult<bool> {
-    let maxclients = *SV_MAXCLIENTS.lock().unwrap();
+    let maxclients = unsafe { SV_MAXCLIENTS };
     if !(0..maxclients).contains(&client_id) {
         return Err(PyValueError::new_err(format!(
             "client_id needs to be a number from 0 to {}.",
@@ -1041,11 +1303,9 @@ fn set_holdable(client_id: i32, holdable: Holdable) -> PyResult<bool> {
 }
 
 /// Drops player's holdable item.
-#[pyfunction]
-#[pyo3(name = "drop_holdable")]
-#[pyo3(signature = (client_id))]
+#[pyfunction(name = "drop_holdable", signature = (client_id))]
 fn drop_holdable(client_id: i32) -> PyResult<bool> {
-    let maxclients = *SV_MAXCLIENTS.lock().unwrap();
+    let maxclients = unsafe { SV_MAXCLIENTS };
     if !(0..maxclients).contains(&client_id) {
         return Err(PyValueError::new_err(format!(
             "client_id needs to be a number from 0 to {}.",
@@ -1069,11 +1329,9 @@ fn drop_holdable(client_id: i32) -> PyResult<bool> {
 }
 
 /// Sets a player's flight parameters, such as current fuel, max fuel and, so on.
-#[pyfunction]
-#[pyo3(name = "set_flight")]
-#[pyo3(signature = (client_id, flight))]
+#[pyfunction(name = "set_flight", signature = (client_id, flight))]
 fn set_flight(client_id: i32, flight: Flight) -> PyResult<bool> {
-    let maxclients = *SV_MAXCLIENTS.lock().unwrap();
+    let maxclients = unsafe { SV_MAXCLIENTS };
     if !(0..maxclients).contains(&client_id) {
         return Err(PyValueError::new_err(format!(
             "client_id needs to be a number from 0 to {}.",
@@ -1092,11 +1350,9 @@ fn set_flight(client_id: i32, flight: Flight) -> PyResult<bool> {
 }
 
 /// Sets a player's flight parameters, such as current fuel, max fuel and, so on.
-#[pyfunction]
-#[pyo3(name = "set_invulnerability")]
-#[pyo3(signature = (client_id, time))]
+#[pyfunction(name = "set_invulnerability", signature = (client_id, time))]
 fn set_invulnerability(client_id: i32, time: i32) -> PyResult<bool> {
-    let maxclients = *SV_MAXCLIENTS.lock().unwrap();
+    let maxclients = unsafe { SV_MAXCLIENTS };
     if !(0..maxclients).contains(&client_id) {
         return Err(PyValueError::new_err(format!(
             "client_id needs to be a number from 0 to {}.",
@@ -1115,11 +1371,9 @@ fn set_invulnerability(client_id: i32, time: i32) -> PyResult<bool> {
 }
 
 /// Makes player invulnerable for limited time.
-#[pyfunction]
-#[pyo3(name = "set_score")]
-#[pyo3(signature = (client_id, score))]
+#[pyfunction(name = "set_score", signature = (client_id, score))]
 fn set_score(client_id: i32, score: i32) -> PyResult<bool> {
-    let maxclients = *SV_MAXCLIENTS.lock().unwrap();
+    let maxclients = unsafe { SV_MAXCLIENTS };
     if !(0..maxclients).contains(&client_id) {
         return Err(PyValueError::new_err(format!(
             "client_id needs to be a number from 0 to {}.",
@@ -1138,29 +1392,23 @@ fn set_score(client_id: i32, score: i32) -> PyResult<bool> {
 }
 
 /// Calls a vote as if started by the server and not a player.
-#[pyfunction]
-#[pyo3(name = "callvote")]
-#[pyo3(signature = (vote, vote_disp))]
+#[pyfunction(name = "callvote", signature = (vote, vote_disp))]
 fn callvote(vote: &str, vote_disp: &str) {
     let mut current_level = CurrentLevel::default();
     current_level.callvote(vote, vote_disp);
 }
 
 /// Allows or disallows a game with only a single player in it to go on without forfeiting. Useful for race.
-#[pyfunction]
-#[pyo3(name = "allow_single_player")]
-#[pyo3(signature = (allow))]
+#[pyfunction(name = "allow_single_player", signature = (allow))]
 fn allow_single_player(allow: bool) {
     let mut current_level = CurrentLevel::default();
     current_level.set_training_map(allow);
 }
 
 /// Spawns a player.
-#[pyfunction]
-#[pyo3(name = "player_spawn")]
-#[pyo3(signature = (client_id))]
+#[pyfunction(name = "player_spawn", signature = (client_id))]
 fn player_spawn(client_id: i32) -> PyResult<bool> {
-    let maxclients = *SV_MAXCLIENTS.lock().unwrap();
+    let maxclients = unsafe { SV_MAXCLIENTS };
     if !(0..maxclients).contains(&client_id) {
         return Err(PyValueError::new_err(format!(
             "client_id needs to be a number from 0 to {}.",
@@ -1180,11 +1428,9 @@ fn player_spawn(client_id: i32) -> PyResult<bool> {
 }
 
 /// Sets a player's privileges. Does not persist.
-#[pyfunction]
-#[pyo3(name = "set_privileges")]
-#[pyo3(signature = (client_id, privileges))]
+#[pyfunction(name = "set_privileges", signature = (client_id, privileges))]
 fn set_privileges(client_id: i32, privileges: i32) -> PyResult<bool> {
-    let maxclients = *SV_MAXCLIENTS.lock().unwrap();
+    let maxclients = unsafe { SV_MAXCLIENTS };
     if !(0..maxclients).contains(&client_id) {
         return Err(PyValueError::new_err(format!(
             "client_id needs to be a number from 0 to {}.",
@@ -1203,8 +1449,7 @@ fn set_privileges(client_id: i32, privileges: i32) -> PyResult<bool> {
 }
 
 /// Removes all current kamikaze timers.
-#[pyfunction]
-#[pyo3(name = "destroy_kamikaze_timers")]
+#[pyfunction(name = "destroy_kamikaze_timers")]
 fn destroy_kamikaze_timers() -> PyResult<bool> {
     for i in 0..MAX_GENTITIES {
         if let Ok(game_entity) = GameEntity::try_from(i as i32) {
@@ -1227,9 +1472,7 @@ extern "C" {
 }
 
 /// Spawns item with specified coordinates.
-#[pyfunction]
-#[pyo3(name = "spawn_item")]
-#[pyo3(signature = (item_id, x, y, z))]
+#[pyfunction(name = "spawn_item", signature = (item_id, x, y, z))]
 fn spawn_item(item_id: i32, x: i32, y: i32, z: i32) -> PyResult<bool> {
     let max_items: i32 = unsafe { bg_numItems };
     if !(0..max_items).contains(&item_id) {
@@ -1244,8 +1487,7 @@ fn spawn_item(item_id: i32, x: i32, y: i32, z: i32) -> PyResult<bool> {
 }
 
 /// Removes all dropped items.
-#[pyfunction]
-#[pyo3(name = "remove_dropped_items")]
+#[pyfunction(name = "remove_dropped_items")]
 fn remove_dropped_items() -> PyResult<bool> {
     for i in 0..MAX_GENTITIES {
         if let Ok(game_entity) = GameEntity::try_from(i as i32) {
@@ -1259,11 +1501,9 @@ fn remove_dropped_items() -> PyResult<bool> {
 }
 
 /// Slay player with mean of death.
-#[pyfunction]
-#[pyo3(name = "slay_with_mod")]
-#[pyo3(signature = (client_id, mean_of_death))]
+#[pyfunction(name = "slay_with_mod", signature = (client_id, mean_of_death))]
 fn slay_with_mod(client_id: i32, mean_of_death: i32) -> PyResult<bool> {
-    let maxclients = *SV_MAXCLIENTS.lock().unwrap();
+    let maxclients = unsafe { SV_MAXCLIENTS };
     if !(0..maxclients).contains(&client_id) {
         return Err(PyValueError::new_err(format!(
             "client_id needs to be a number from 0 to {}.",
@@ -1283,10 +1523,19 @@ fn slay_with_mod(client_id: i32, mean_of_death: i32) -> PyResult<bool> {
     }
 }
 
+/// Replaces target entity's item with specified one.
+#[allow(unused_variables)]
+#[pyfunction(name = "replace_items", signature = (item1, item2))]
+fn replace_items(item1: i32, item2: i32) -> PyResult<()> {
+    Ok(())
+}
+
+/// Prints all items and entity numbers to server console.
+#[pyfunction(name = "dev_print_items")]
+fn dev_print_items() {}
+
 /// Slay player with mean of death.
-#[pyfunction]
-#[pyo3(name = "force_weapon_respawn_time")]
-#[pyo3(signature = (respawn_time))]
+#[pyfunction(name = "force_weapon_respawn_time", signature = (respawn_time))]
 fn force_weapon_respawn_time(respawn_time: i32) -> PyResult<bool> {
     if respawn_time < 0 {
         return Err(PyValueError::new_err(
@@ -1393,6 +1642,8 @@ fn pyminqlx_init_module(_py: Python<'_>, m: &PyModule) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(spawn_item, m)?)?;
     m.add_function(wrap_pyfunction!(remove_dropped_items, m)?)?;
     m.add_function(wrap_pyfunction!(slay_with_mod, m)?)?;
+    m.add_function(wrap_pyfunction!(replace_items, m)?)?;
+    m.add_function(wrap_pyfunction!(dev_print_items, m)?)?;
     m.add_function(wrap_pyfunction!(force_weapon_respawn_time, m)?)?;
 
     let shinqlx_version = format!(
@@ -1494,4 +1745,81 @@ fn pyminqlx_init_module(_py: Python<'_>, m: &PyModule) -> PyResult<()> {
     m.add_class::<Flight>()?;
 
     Ok(())
+}
+
+#[cfg(not(feature = "cembed"))]
+pub(crate) static mut PYMINQLX_INITIALIZED: bool = false;
+
+#[cfg(feature = "cembed")]
+extern "C" {
+    fn PyMinqlx_IsInitialized() -> c_int;
+}
+
+pub(crate) fn pyminqlx_is_initialized() -> bool {
+    #[cfg(not(feature = "cembed"))]
+    unsafe {
+        PYMINQLX_INITIALIZED
+    }
+    #[cfg(feature = "cembed")]
+    unsafe {
+        PyMinqlx_IsInitialized() != 0
+    }
+}
+
+#[cfg(not(feature = "cembed"))]
+pub(crate) fn pyminqlx_initialize() -> PyMinqlx_InitStatus_t {
+    if pyminqlx_is_initialized() {
+        #[cfg(debug_assertions)]
+        println!("pyminqlx_initialize was called while already initialized");
+        return PYM_ALREADY_INITIALIZED;
+    }
+
+    #[cfg(debug_assertions)]
+    println!("Initializing Python...");
+    append_to_inittab!(pyminqlx_init_module);
+    prepare_freethreaded_python();
+
+    Python::with_gil(|py| {
+        py.import("__main__").unwrap();
+        let syspath: &PyList = py
+            .import("sys")
+            .unwrap()
+            .getattr("path")
+            .unwrap()
+            .downcast()
+            .unwrap();
+        syspath.append(CORE_MODULE).unwrap();
+        syspath.append(".").unwrap();
+        let minqlx_module = py.import("minqlx").unwrap();
+        let result = minqlx_module.call_method0("initialize");
+        if result.is_err() {
+            #[cfg(debug_assertions)]
+            println!("minqlx.initialize() returned an error. Did you modify the loader?");
+            return PYM_MAIN_SCRIPT_ERROR;
+        }
+
+        unsafe {
+            PYMINQLX_INITIALIZED = true;
+        }
+        #[cfg(debug_assertions)]
+        println!("Python initialized!");
+        PYM_SUCCESS
+    })
+}
+
+#[cfg(not(feature = "cembed"))]
+pub(crate) fn pyminqlx_finalize() -> PyMinqlx_InitStatus_t {
+    if !pyminqlx_is_initialized() {
+        #[cfg(debug_assertions)]
+        println!("pyminqlx_finalize was called before being initialized");
+        return PYM_NOT_INITIALIZED_ERROR;
+    }
+
+    unsafe {
+        Py_Finalize();
+    }
+    unsafe {
+        PYMINQLX_INITIALIZED = false;
+    }
+    PYM_SUCCESS
 }

@@ -1576,7 +1576,6 @@ extern void __cdecl ShiNQlx_G_StartKamikaze(gentity_t* ent);
 // using Python. This means it can serve as the handler for a bunch of commands,
 // and it'll take care of redirecting it to Python.
 void __cdecl PyCommand(void);
-void __cdecl RestartPython(void); // "pyrestart"
 #endif
 
 #endif /* QUAKE_COMMON_H */

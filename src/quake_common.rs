@@ -23,7 +23,7 @@ use std::collections::HashMap;
 use std::f32::consts::PI;
 use std::ffi::{c_char, c_float, c_int, c_uchar, c_uint, c_ushort, c_void, CStr, CString};
 use std::mem;
-use std::ops::{BitAnd, BitAndAssign, BitOrAssign, Not};
+use std::ops::{BitAnd, BitAndAssign, BitOrAssign, IndexMut, Not};
 
 #[allow(dead_code)]
 pub(crate) const DEBUG_PRINT_PREFIX: &str = "[shinqlx]";
@@ -189,17 +189,14 @@ impl From<qboolean> for c_int {
     fn from(value: qboolean) -> Self {
         match value {
             qboolean::qtrue => 1,
-            qboolean::qfalse => 0,
+            _ => 0,
         }
     }
 }
 
 impl From<qboolean> for bool {
     fn from(value: qboolean) -> Self {
-        match value {
-            qboolean::qtrue => true,
-            qboolean::qfalse => false,
-        }
+        matches!(value, qboolean::qtrue)
     }
 }
 
@@ -207,7 +204,7 @@ impl From<bool> for qboolean {
     fn from(value: bool) -> Self {
         match value {
             true => qboolean::qtrue,
-            false => qboolean::qfalse,
+            _ => qboolean::qfalse,
         }
     }
 }
@@ -218,7 +215,7 @@ impl Not for qboolean {
     fn not(self) -> Self::Output {
         match self {
             qboolean::qtrue => qboolean::qfalse,
-            qboolean::qfalse => qboolean::qtrue,
+            _ => qboolean::qtrue,
         }
     }
 }
@@ -900,22 +897,6 @@ impl GameClient {
         self.game_client.ps.eFlags.bitand_assign(!EF_KAMIKAZE);
     }
 
-    pub(crate) fn get_connection_state(&self) -> clientConnected_t {
-        self.game_client.pers.connected
-    }
-
-    pub(crate) fn get_team(&self) -> i32 {
-        self.game_client.sess.sessionTeam as i32
-    }
-
-    pub(crate) fn get_player_name(&self) -> Cow<'static, str> {
-        unsafe { CStr::from_ptr(self.game_client.pers.netname.as_ptr()).to_string_lossy() }
-    }
-
-    pub(crate) fn get_privileges(&self) -> i32 {
-        self.game_client.sess.privileges as i32
-    }
-
     pub(crate) fn set_privileges(&mut self, privileges: i32) {
         self.game_client.sess.privileges = privileges_t::from(privileges);
     }
@@ -1234,13 +1215,9 @@ impl TryFrom<i32> for GameEntity {
     type Error = &'static str;
 
     fn try_from(client_id: i32) -> Result<Self, Self::Error> {
-        unsafe {
-            g_entities
-                .offset(client_id as isize)
-                .as_mut()
-                .map(|gentity| Self { gentity_t: gentity })
-                .ok_or("client not found")
-        }
+        let slice = unsafe { core::slice::from_raw_parts_mut(g_entities, MAX_GENTITIES) };
+        let gentity: &mut gentity_t = slice.index_mut(client_id as usize);
+        Ok(Self { gentity_t: gentity })
     }
 }
 
@@ -1248,7 +1225,7 @@ extern "C" {
     static G_StartKamikaze: extern "C" fn(*const gentity_t);
     static Touch_Item: extern "C" fn(*mut gentity_t, *mut gentity_t, *mut trace_t);
     static G_FreeEntity: extern "C" fn(*mut gentity_t);
-    static bg_itemList: *const gitem_t;
+    static bg_itemlist: *const gitem_t;
     static LaunchItem: extern "C" fn(*const gitem_t, vec3_t, vec3_t) -> *const gentity_t;
     static G_Damage: extern "C" fn(
         *const gentity_t,
@@ -1298,6 +1275,49 @@ impl GameEntity {
 
     pub fn start_kamikaze(&self) {
         unsafe { G_StartKamikaze(self.gentity_t as *const gentity_t) }
+    }
+
+    pub(crate) fn get_player_name(&self) -> String {
+        if self.gentity_t.client.is_null() {
+            return "".into();
+        }
+        if unsafe { (*self.gentity_t.client).pers.connected } == CON_DISCONNECTED {
+            return "".into();
+        }
+        unsafe {
+            CStr::from_ptr(&(*self.gentity_t.client).pers.netname as *const c_char)
+                .to_string_lossy()
+                .to_string()
+        }
+    }
+
+    pub(crate) fn get_steam_id(&self) -> u64 {
+        if self.gentity_t.client.is_null() {
+            return 0;
+        }
+        if unsafe { (*self.gentity_t.client).pers.connected } == CON_DISCONNECTED {
+            return 0;
+        }
+        unsafe { (*self.gentity_t.client).pers.steamId }
+    }
+
+    pub(crate) fn get_team(&self) -> i32 {
+        if self.gentity_t.client.is_null() {
+            return TEAM_SPECTATOR as i32;
+        }
+        if unsafe { (*self.gentity_t.client).pers.connected } == CON_DISCONNECTED {
+            return TEAM_SPECTATOR as i32;
+        }
+
+        unsafe { (*self.gentity_t.client).sess.sessionTeam as i32 }
+    }
+
+    pub(crate) fn get_privileges(&self) -> i32 {
+        if self.gentity_t.client.is_null() {
+            return -1;
+        }
+
+        unsafe { (*self.gentity_t.client).sess.privileges as i32 }
     }
 
     pub fn get_game_client(&self) -> Option<GameClient> {
@@ -1367,8 +1387,8 @@ impl GameEntity {
         let angle = self.gentity_t.s.apos.trBase[1] * (PI * 2.0 / 360.0);
         let velocity = [150.0 * angle.cos(), 150.0 * angle.sin(), 250.0];
         unsafe {
-            let mut entity = LaunchItem(
-                bg_itemList.offset(
+            let entity = LaunchItem(
+                bg_itemlist.offset(
                     (*self.gentity_t.client).ps.stats[STAT_HOLDABLE_ITEM as usize] as isize,
                 ),
                 self.gentity_t.s.pos.trBase,
@@ -1409,7 +1429,7 @@ impl GameEntity {
 
         #[allow(clippy::zero_ptr)]
         unsafe {
-            let ent = LaunchItem(bg_itemList.offset(item_id as isize), origin_vec, velocity)
+            let ent = LaunchItem(bg_itemlist.offset(item_id as isize), origin_vec, velocity)
                 as *mut gentity_t;
             (*ent).nextthink = 0;
             (*ent).think = 0 as *const c_void;
@@ -1775,6 +1795,7 @@ impl CVar {
         self.cvar.integer
     }
 
+    #[cfg(feature = "cembed")]
     pub(crate) fn get_cvar(&self) -> &cvar_t {
         self.cvar
     }
@@ -1895,14 +1916,10 @@ impl TryFrom<i32> for Client {
     type Error = &'static str;
 
     fn try_from(client_id: i32) -> Result<Self, Self::Error> {
-        unsafe {
-            (*svs)
-                .clients
-                .offset(client_id as isize)
-                .as_ref()
-                .map(|client| Self { client_t: client })
-                .ok_or("client not found")
-        }
+        let slice = unsafe { core::slice::from_raw_parts((*svs).clients, SV_MAXCLIENTS as usize) };
+        Ok(Self {
+            client_t: &slice[client_id as usize],
+        })
     }
 }
 
@@ -1935,54 +1952,15 @@ impl Client {
     }
 
     pub(crate) fn get_name(&self) -> Cow<'static, str> {
-        unsafe { CStr::from_ptr(self.client_t.name.as_ptr()).to_string_lossy() }
+        unsafe { CStr::from_ptr(&self.client_t.name as *const c_char).to_string_lossy() }
     }
 
-    pub(crate) fn get_steam_id(&self) -> u64 {
-        self.client_t.steam_id
-    }
-
-    fn is_connected(&self) -> bool {
-        let Ok(game_entity) = GameEntity::try_from(self.get_client_id()) else {
-            return false;
-        };
-        let Some(game_client) = game_entity.get_game_client() else {
-            return false;
-        };
-        game_client.get_connection_state() == CON_DISCONNECTED
-    }
-
-    pub(crate) fn get_player_name(&self) -> Cow<'static, str> {
-        if !self.is_connected() {
-            return Cow::from("");
-        }
-        let game_entity = GameEntity::try_from(self.get_client_id()).unwrap();
-        let game_client = game_entity.get_game_client().unwrap();
-        game_client.get_player_name()
-    }
-
-    pub(crate) fn get_team(&self) -> i32 {
-        if !self.is_connected() {
-            return TEAM_SPECTATOR as i32;
-        }
-
-        let game_entity = GameEntity::try_from(self.get_client_id()).unwrap();
-        let game_client = game_entity.get_game_client().unwrap();
-        game_client.get_team()
-    }
-
-    pub(crate) fn get_privileges(&self) -> i32 {
-        if !self.is_connected() {
-            return -1;
-        }
-
-        let game_entity = GameEntity::try_from(self.get_client_id()).unwrap();
-        let game_client = game_entity.get_game_client().unwrap();
-        game_client.get_privileges()
-    }
-
-    pub(crate) fn get_user_info(&self) -> Cow<'static, str> {
-        unsafe { CStr::from_ptr(self.client_t.userinfo.as_ptr()).to_string_lossy() }
+    pub(crate) fn get_user_info(&self) -> String {
+        let userinfo_bytes = self.client_t.userinfo.map(|char| char as u8);
+        CStr::from_bytes_until_nul(&userinfo_bytes)
+            .unwrap()
+            .to_string_lossy()
+            .into()
     }
 
     pub(crate) fn set_vote(&self, yes_or_no: bool) {
@@ -2171,10 +2149,6 @@ impl CurrentLevel {
         }
     }
 
-    pub(crate) fn set_vote_time(&mut self, new_vote_time: i32) {
-        self.level.voteTime = new_vote_time as c_int;
-    }
-
     pub(crate) fn get_leveltime(&self) -> i32 {
         self.level.time
     }
@@ -2201,7 +2175,7 @@ impl CurrentLevel {
         self.level.voteYes = 0;
         self.level.voteNo = 0;
 
-        let maxclients = *SV_MAXCLIENTS.lock().unwrap();
+        let maxclients = unsafe { SV_MAXCLIENTS };
         for client_id in 0..maxclients {
             if let Ok(game_entity) = GameEntity::try_from(client_id) {
                 let mut game_client = game_entity.get_game_client().unwrap();
@@ -2380,8 +2354,9 @@ pub(crate) trait SetConfigstring {
 
 impl SetConfigstring for QuakeLiveEngine {
     fn set_configstring(index: &i32, value: &str) {
-        let c_value = CString::new(value).unwrap().into_raw();
-        unsafe { SV_SetConfigstring(*index, c_value) }
+        if let Ok(c_value) = CString::new(value) {
+            unsafe { SV_SetConfigstring(*index, c_value.into_raw()) }
+        }
     }
 }
 
@@ -2641,6 +2616,9 @@ impl GetConfigstring for QuakeLiveEngine {
                 buffer.len() as c_int,
             );
         }
-        String::from_utf8_lossy(&buffer).to_string()
+        CStr::from_bytes_until_nul(&buffer)
+            .unwrap()
+            .to_string_lossy()
+            .to_string()
     }
 }
