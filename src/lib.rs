@@ -1,3 +1,4 @@
+#![feature(arbitrary_self_types)]
 extern crate alloc;
 macro_rules! debug_println {
     () => {
@@ -25,10 +26,9 @@ use crate::pyminqlx::pyminqlx_initialize;
 use crate::quake_common::cvar_t;
 #[cfg(debug_assertions)]
 use crate::quake_common::DEBUG_PRINT_PREFIX;
-use crate::quake_common::{AddCommand, FindCVar, QuakeLiveEngine};
+use crate::quake_common::{client_t, AddCommand, FindCVar, QuakeLiveEngine};
 use crate::PyMinqlx_InitStatus_t::PYM_SUCCESS;
 use ctor::ctor;
-use std::sync::Mutex;
 
 #[allow(non_camel_case_types)]
 #[allow(non_camel_case_types)]
@@ -46,7 +46,7 @@ pub enum PyMinqlx_InitStatus_t {
 pub(crate) static mut COMMON_INITIALIZED: bool = false;
 pub(crate) static mut CVARS_INITIALIZED: bool = false;
 pub(crate) static mut SV_MAXCLIENTS: i32 = 0;
-pub(crate) static mut ALLOW_FREE_CLIENT: Mutex<i32> = Mutex::new(-1);
+pub(crate) static mut ALLOW_FREE_CLIENT: i32 = -1;
 
 #[cfg(feature = "cembed")]
 extern "C" {
@@ -103,5 +103,6 @@ extern "C" {
 
 #[ctor]
 fn initialize() {
+    dbg!(std::mem::size_of::<client_t>());
     unsafe { EntryPoint() };
 }
