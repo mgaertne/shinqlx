@@ -1,3 +1,6 @@
+#![allow(non_camel_case_types)]
+#![allow(non_camel_case_types)]
+
 use crate::hooks::shinqlx_set_configstring;
 use crate::quake_common::clientConnected_t::CON_DISCONNECTED;
 use crate::quake_common::entityType_t::ET_ITEM;
@@ -23,7 +26,7 @@ use std::collections::HashMap;
 use std::f32::consts::PI;
 use std::ffi::{c_char, c_float, c_int, c_uchar, c_uint, c_ushort, c_void, CStr, CString};
 use std::mem;
-use std::ops::{BitAnd, BitAndAssign, BitOrAssign, IndexMut, Not};
+use std::ops::{BitAnd, BitAndAssign, BitOrAssign, Not};
 
 #[allow(dead_code)]
 pub(crate) const DEBUG_PRINT_PREFIX: &str = "[shinqlx]";
@@ -31,158 +34,164 @@ pub(crate) const DEBUG_PRINT_PREFIX: &str = "[shinqlx]";
 pub(crate) const SV_TAGS_PREFIX: &str = "shinqlx";
 
 #[allow(dead_code)]
-pub(crate) const CS_SCORES1: i32 = 6;
+pub const CS_SCORES1: u32 = 6;
 #[allow(dead_code)]
-pub(crate) const CS_SCORES2: i32 = 7;
+pub const CS_SCORES2: u32 = 7;
 #[allow(dead_code)]
-pub(crate) const CS_VOTE_TIME: i32 = 8;
+pub const CS_VOTE_TIME: u32 = 8;
 #[allow(dead_code)]
-pub(crate) const CS_VOTE_STRING: i32 = 9;
+pub const CS_VOTE_STRING: u32 = 9;
 #[allow(dead_code)]
-pub(crate) const CS_VOTE_YES: i32 = 10;
+pub const CS_VOTE_YES: u32 = 10;
 #[allow(dead_code)]
-pub(crate) const CS_VOTE_NO: i32 = 11;
+pub const CS_VOTE_NO: u32 = 11;
 #[allow(dead_code)]
-pub(crate) const CS_ITEMS: i32 = 15;
+pub const CS_ITEMS: u32 = 15;
 
 #[allow(dead_code)]
-pub(crate) const MAX_CLIENTS: isize = 64;
-pub(crate) const MAX_CHALLENGES: usize = 1024;
-pub(crate) const MAX_MSGLEN: usize = 16384;
+pub const MAX_CLIENTS: u32 = 64;
 #[allow(dead_code)]
-pub(crate) const MAX_PS_EVENTS: usize = 2;
-pub(crate) const MAX_MAP_AREA_BYTES: usize = 32; // bit vector of area visibility
-pub(crate) const MAX_INFO_STRING: usize = 1024;
-pub(crate) const MAX_RELIABLE_COMMANDS: usize = 64; // max string commands buffered for restransmit
-pub(crate) const MAX_STRING_CHARS: usize = 1024; // max length of a string passed to Cmd_TokenizeString
-pub(crate) const MAX_NAME_LENGTH: usize = 32; // max length of a client name
-pub(crate) const MAX_QPATH: usize = 64; // max length of a quake game pathname
-pub(crate) const MAX_DOWNLOAD_WINDOW: usize = 8; // max of eight download frames
+pub const MAX_CHALLENGES: u32 = 1024;
 #[allow(dead_code)]
-pub(crate) const MAX_NETNAME: usize = 36;
-pub(crate) const PACKET_BACKUP: usize = 32; // number of old messages that must be kept on client and
-                                            // server for delta comrpession and ping estimation
+pub const MAX_MSGLEN: u32 = 16384;
 #[allow(dead_code)]
-pub(crate) const PACKET_MASK: usize = PACKET_BACKUP - 1;
+pub const MAX_PS_EVENTS: u32 = 2;
 #[allow(dead_code)]
-pub(crate) const MAX_ENT_CLUSTERS: usize = 16;
+pub const MAX_MAP_AREA_BYTES: u32 = 32; // bit vector of area visibility
 #[allow(dead_code)]
-pub(crate) const MAX_MODELS: usize = 256; // these are sent over the net as 8 bits
-pub(crate) const MAX_CONFIGSTRINGS: usize = 1024;
+pub const MAX_INFO_STRING: u32 = 1024;
 #[allow(dead_code)]
-pub(crate) const GENTITYNUM_BITS: usize = 10; // don't need to send any more
+pub const MAX_RELIABLE_COMMANDS: u32 = 64; // max string commands buffered for restransmit
 #[allow(dead_code)]
-pub(crate) const MAX_GENTITIES: usize = 1 << GENTITYNUM_BITS;
+pub const MAX_STRING_CHARS: u32 = 1024; // max length of a string passed to Cmd_TokenizeString
 #[allow(dead_code)]
-pub(crate) const MAX_ITEM_MODELS: usize = 4;
+pub const MAX_NAME_LENGTH: u32 = 32; // max length of a client name
 #[allow(dead_code)]
-pub(crate) const MAX_SPAWN_VARS: usize = 64;
+pub const MAX_QPATH: u32 = 64; // max length of a quake game pathname
 #[allow(dead_code)]
-pub(crate) const MAX_SPAWN_VARS_CHARS: usize = 4096;
+pub const MAX_DOWNLOAD_WINDOW: u32 = 8; // max of eight download frames
 #[allow(dead_code)]
-pub(crate) const BODY_QUEUE_SIZE: usize = 8;
+pub const MAX_NETNAME: u32 = 36;
+pub const PACKET_BACKUP: u32 = 32; // number of old messages that must be kept on client and
+                                   // server for delta comrpession and ping estimation
+#[allow(dead_code)]
+pub(crate) const PACKET_MASK: u32 = PACKET_BACKUP - 1;
+#[allow(dead_code)]
+pub const MAX_ENT_CLUSTERS: u32 = 16;
+#[allow(dead_code)]
+pub const MAX_MODELS: u32 = 256; // these are sent over the net as 8 bits
+pub const MAX_CONFIGSTRINGS: u32 = 1024;
+#[allow(dead_code)]
+pub const GENTITYNUM_BITS: u32 = 10; // don't need to send any more
+#[allow(dead_code)]
+pub const MAX_GENTITIES: u32 = 1 << GENTITYNUM_BITS;
+#[allow(dead_code)]
+pub const MAX_ITEM_MODELS: u32 = 4;
+#[allow(dead_code)]
+pub const MAX_SPAWN_VARS: u32 = 64;
+#[allow(dead_code)]
+pub const MAX_SPAWN_VARS_CHARS: u32 = 4096;
+#[allow(dead_code)]
+pub const BODY_QUEUE_SIZE: u32 = 8;
 
 // bit field limits
 #[allow(dead_code)]
-pub(crate) const MAX_STATS: usize = 16;
+pub const MAX_STATS: u32 = 16;
 #[allow(dead_code)]
-pub(crate) const MAX_PERSISTANT: usize = 16;
+pub const MAX_PERSISTANT: u32 = 16;
 #[allow(dead_code)]
-pub(crate) const MAX_POWERUPS: usize = 16;
+pub const MAX_POWERUPS: u32 = 16;
 #[allow(dead_code)]
-pub(crate) const MAX_WEAPONS: usize = 16;
+pub const MAX_WEAPONS: u32 = 16;
 
 // Button flags
 #[allow(dead_code)]
-pub(crate) const BUTTON_ATTACK: usize = 1;
+pub const BUTTON_ATTACK: u32 = 1;
 #[allow(dead_code)]
-pub(crate) const BUTTON_TALK: usize = 2; // displkays talk balloon and disables actions
+pub const BUTTON_TALK: u32 = 2; // displkays talk balloon and disables actions
 #[allow(dead_code)]
-pub(crate) const BUTTON_USE_HOLDABLE: usize = 4; // Mino +button2
+pub const BUTTON_USE_HOLDABLE: u32 = 4; // Mino +button2
 #[allow(dead_code)]
-pub(crate) const BUTTON_GESTURE: usize = 8; // Mino: +button3
+pub const BUTTON_GESTURE: u32 = 8; // Mino: +button3
 #[allow(dead_code)]
-pub(crate) const BUTTON_WALKING: usize = 16;
+pub const BUTTON_WALKING: u32 = 16;
 // Block of unused button flags, or at least flags I couldn't trigger.
 // Q3 used them for bot commands, so probably unused in QL.
 #[allow(dead_code)]
-pub(crate) const BUTTON_UNUSED1: usize = 32;
+pub const BUTTON_UNUSED1: u32 = 32;
 #[allow(dead_code)]
-pub(crate) const BUTTON_UNUSED2: usize = 64;
+pub const BUTTON_UNUSED2: u32 = 64;
 #[allow(dead_code)]
-pub(crate) const BUTTON_UNUSED3: usize = 128;
+pub const BUTTON_UNUSED3: u32 = 128;
 #[allow(dead_code)]
-pub(crate) const BUTTON_UNUSED4: usize = 256;
+pub const BUTTON_UNUSED4: u32 = 256;
 #[allow(dead_code)]
-pub(crate) const BUTTON_UNUSED5: usize = 512;
+pub const BUTTON_UNUSED5: u32 = 512;
 #[allow(dead_code)]
-pub(crate) const BUTTON_UNUSED6: usize = 1024;
+pub const BUTTON_UNUSED6: u32 = 1024;
 #[allow(dead_code)]
-pub(crate) const BUTTON_UPMOVE: usize = 2048; // Mino: Not in Q3. I'm guessing it's for cg_autohop.
+pub const BUTTON_UPMOVE: u32 = 2048; // Mino: Not in Q3. I'm guessing it's for cg_autohop.
 #[allow(dead_code)]
-pub(crate) const BUTTON_ANY: usize = 4096; // any key whatsoever
+pub const BUTTON_ANY: u32 = 4096; // any key whatsoever
 #[allow(dead_code)]
-pub(crate) const BUTTON_IS_ACTIVE: usize = 65536; // Mino: No idea what it is, but it goes off after a while of being
-                                                  //       AFK, then goes on after being active for a while.
+pub const BUTTON_IS_ACTIVE: u32 = 65536; // Mino: No idea what it is, but it goes off after a while of being
+                                         //       AFK, then goes on after being active for a while.
 
 // eflags
 #[allow(dead_code)]
-pub(crate) const EF_DEAD: c_int = 0x00000001; // don't draw a foe marker over players with EF_DEAD
+pub const EF_DEAD: u32 = 1; // don't draw a foe marker over players with EF_DEAD
 #[allow(dead_code)]
-pub(crate) const EF_TICKING: c_int = 0x00000002; // used to make players play the prox mine ticking sound
+pub const EF_TICKING: u32 = 2; // used to make players play the prox mine ticking sound
 #[allow(dead_code)]
-pub(crate) const EF_TELEPORT_BIT: c_int = 0x00000004; // toggled every time the origin abruptly changes
+pub const EF_TELEPORT_BIT: u32 = 4; // toggled every time the origin abruptly changes
 #[allow(dead_code)]
-pub(crate) const EF_AWARD_EXCELLENT: c_int = 0x00000008; // draw an excellent sprite
+pub const EF_AWARD_EXCELLENT: u32 = 8; // draw an excellent sprite
 #[allow(dead_code)]
-pub(crate) const EF_PLAYER_EVENT: c_int = 0x00000010;
+pub const EF_PLAYER_EVENT: u32 = 16;
 #[allow(dead_code)]
-pub(crate) const EF_BOUNCE: c_int = 0x00000010; // for missiles
+pub const EF_BOUNCE: u32 = 16; // for missiles
 #[allow(dead_code)]
-pub(crate) const EF_BOUNCE_HALF: c_int = 0x00000020; // for missiles
+pub const EF_BOUNCE_HALF: u32 = 32; // for missiles
 #[allow(dead_code)]
-pub(crate) const EF_AWARD_GAUNTLET: c_int = 0x00000040; // draw a gauntlet sprite
+pub const EF_AWARD_GAUNTLET: u32 = 64; // draw a gauntlet sprite
 #[allow(dead_code)]
-pub(crate) const EF_NODRAW: c_int = 0x00000080; // may have an event, but no model (unspawned items)
+pub const EF_NODRAW: u32 = 128; // may have an event, but no model (unspawned items)
 #[allow(dead_code)]
-pub(crate) const EF_FIRING: c_int = 0x00000100; // for lightning gun
-pub(crate) const EF_KAMIKAZE: c_int = 0x00000200;
+pub const EF_FIRING: u32 = 256; // for lightning gun
+pub const EF_KAMIKAZE: u32 = 512;
 #[allow(dead_code)]
-pub(crate) const EF_MOVER_STOP: c_int = 0x0000400; // will push otherwise
+pub const EF_MOVER_STOP: u32 = 1024; // will push otherwise
 #[allow(dead_code)]
-pub(crate) const EF_AWARD_CAP: c_int = 0x00000800; // draw the capture sprite
+pub const EF_AWARD_CAP: u32 = 2048; // draw the capture sprite
 #[allow(dead_code)]
-pub(crate) const EF_TALK: c_int = 0x00001000; // draw a talk balloon
+pub const EF_TALK: u32 = 4096; // draw a talk balloon
 #[allow(dead_code)]
-pub(crate) const EF_CONNECTION: c_int = 0x00002000; // draw a connection trouble sprite
+pub const EF_CONNECTION: u32 = 8192; // draw a connection trouble sprite
 #[allow(dead_code)]
-pub(crate) const EF_VOTED: c_int = 0x00004000; // already cast a vote
+pub const EF_VOTED: u32 = 16384; // already cast a vote
 #[allow(dead_code)]
-pub(crate) const EF_AWARD_IMPRESSIVE: c_int = 0x00008000; // draw an impressive sprite
+pub const EF_AWARD_IMPRESSIVE: u32 = 32768; // draw an impressive sprite
 #[allow(dead_code)]
-pub(crate) const EF_AWARD_DEFEND: c_int = 0x00010000; // draw a defend sprite
+pub const EF_AWARD_DEFEND: u32 = 65536; // draw a defend sprite
 #[allow(dead_code)]
-pub(crate) const EF_AWARD_ASSIST: c_int = 0x00020000; // draw a assist sprite
+pub const EF_AWARD_ASSIST: u32 = 131072; // draw a assist sprite
 #[allow(dead_code)]
-pub(crate) const EF_AWARD_DENIED: c_int = 0x00040000; // denied
+pub const EF_AWARD_DENIED: u32 = 262144; // denied
 #[allow(dead_code)]
-pub(crate) const EF_TEAMVOTED: c_int = 0x00080000; // already cast a team vote
+pub const EF_TEAMVOTED: u32 = 524288; // already cast a team vote
 
 #[allow(dead_code)]
-pub(crate) const FL_DROPPED_ITEM: c_int = 0x00001000;
+pub const FL_DROPPED_ITEM: u32 = 4096;
 
 #[allow(dead_code)]
-pub(crate) const DAMAGE_NO_PROTECTION: c_int = 0x00000008;
-
-#[allow(non_camel_case_types)]
-pub type byte = u8;
+pub const DAMAGE_NO_PROTECTION: u32 = 8;
 
 #[allow(non_camel_case_types)]
-#[derive(PartialEq, Debug, Clone, Copy)]
-#[repr(C)]
+#[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
+#[repr(u32)]
 pub enum qboolean {
-    qfalse,
-    qtrue,
+    qfalse = 0,
+    qtrue = 1,
 }
 
 impl From<qboolean> for c_int {
@@ -220,486 +229,23 @@ impl Not for qboolean {
     }
 }
 
-// paramters for command buffer stuffing
-#[allow(non_camel_case_types)]
-#[derive(PartialEq, Clone, Copy)]
+pub type byte = c_uchar;
+pub type gentity_t = gentity_s;
 #[allow(dead_code)]
-#[repr(C)]
-pub enum cbufExec_t {
-    EXEC_NOW, // don't return until completed, a VM should NEVER use this,
-    // because some commands might cause the VM to be unloaded...
-    EXEC_INSERT, // insert at current position, but don't run yet
-    EXEC_APPEND, // add to end of the command buffer (normal case)
-}
+pub type gclient_t = gclient_s;
+pub type vec_t = f32;
+type vec3_t = [c_float; 3];
+pub type fileHandle_t = c_int;
 
 #[allow(non_camel_case_types)]
-#[derive(PartialEq, Debug, Clone, Copy)]
-#[allow(dead_code)]
-#[repr(C)]
-pub enum clientState_t {
-    CS_FREE,   // can be reused for a new connection
-    CS_ZOMBIE, // client has been disconnected, but don't reuse
-    // connection for a couple seconds
-    CS_CONNECTED, // has been assigned to a client_t, but no gamestate yet
-    CS_PRIMED,    // gamestate has been sent, but client hasn't sent a usercmd
-    CS_ACTIVE,    // client is fully in game
-}
-
-#[allow(non_camel_case_types)]
-#[allow(clippy::upper_case_acronyms)]
-#[derive(PartialEq, Debug, Clone, Copy)]
-#[allow(dead_code)]
-#[repr(C)]
-pub enum roundStateState_t {
-    PREGAME = 0x0,
-    ROUND_WARMUP = 0x1,
-    ROUND_SHUFFLE = 0x2,
-    ROUND_BEGUN = 0x3,
-    ROUND_OVER = 0x4,
-    POSTGAME = 0x5,
-}
-
-#[allow(non_camel_case_types)]
-#[derive(PartialEq, Debug, Clone, Copy)]
-#[allow(dead_code)]
-#[repr(C)]
-pub enum statIndex_t {
-    STAT_HEALTH,
-    STAT_HOLDABLE_ITEM,
-    STAT_RUNE,
-    STAT_WEAPONS,
-    STAT_ARMOR,
-    STAT_BSKILL,
-    STAT_CLIENTS_READY,
-    STAT_MAX_HEALTH,
-    STAT_SPINUP,
-    STAT_FLIGHT_THRUST,
-    STAT_MAX_FLIGHT_FUEL,
-    STAT_CUR_FLIGHT_FUEL,
-    STAT_FLIGHT_REFUEL,
-    STAT_QUADKILLS,
-    STAT_ARMORTYPE,
-    STAT_KEY,
-    STAT_OTHER_HEALTH,
-    STAT_OTHER_ARMOR,
-}
-
-// movers are things like doors, plats, buttons, etc
-#[allow(non_camel_case_types)]
-#[derive(PartialEq, Debug, Clone, Copy)]
-#[allow(dead_code)]
-#[repr(C)]
-pub enum moverState_t {
-    MOVER_POS1,
-    MOVER_POS2,
-    MOVER_1TO2,
-    MOVER_2TO1,
-}
-
-#[allow(non_camel_case_types)]
-#[derive(PartialEq, Debug, Clone, Copy)]
-#[allow(dead_code)]
-#[repr(C)]
-pub(crate) enum persistantFields_t {
-    PERS_ROUND_SCORE = 0x0,
-    PERS_COMBOKILL_COUNT = 0x1,
-    PERS_RAMPAGE_COUNT = 0x2,
-    PERS_MIDAIR_COUNT = 0x3,
-    PERS_REVENGE_COUNT = 0x4,
-    PERS_PERFORATED_COUNT = 0x5,
-    PERS_HEADSHOT_COUNT = 0x6,
-    PERS_ACCURACY_COUNT = 0x7,
-    PERS_QUADGOD_COUNT = 0x8,
-    PERS_FIRSTFRAG_COUNT = 0x9,
-    PERS_PERFECT_COUNT = 0xA,
-}
-
-#[allow(non_camel_case_types)]
-#[allow(dead_code)]
-#[repr(C)]
-pub enum pmtype_t {
-    PM_NORMAL = 0x0,
-    PM_NOCLIP = 0x1,
-    PM_SPECTATOR = 0x2,
-    PM_DEAD = 0x3,
-    PM_FREEZE = 0x4,
-    PM_INTERMISSION = 0x5,
-    PM_TUTORIAL = 0x6,
-}
-
-#[allow(non_camel_case_types)]
-#[derive(PartialEq, Debug, Clone, Copy)]
-#[allow(dead_code)]
-#[repr(C)]
-pub enum entity_event_t {
-    EV_NONE = 0x0,
-    EV_FOOTSTEP = 0x1,
-    EV_FOOTSTEP_METAL = 0x2,
-    EV_FOOTSPLASH = 0x3,
-    EV_FOOTWADE = 0x4,
-    EV_SWIM = 0x5,
-    EV_FALL_SHORT = 0x6,
-    EV_FALL_MEDIUM = 0x7,
-    EV_FALL_FAR = 0x8,
-    EV_JUMP_PAD = 0x9,
-    EV_JUMP = 0xA,
-    EV_WATER_TOUCH = 0xB,
-    EV_WATER_LEAVE = 0xC,
-    EV_WATER_UNDER = 0xD,
-    EV_WATER_CLEAR = 0xE,
-    EV_ITEM_PICKUP = 0xF,
-    EV_GLOBAL_ITEM_PICKUP = 0x10,
-    EV_NOAMMO = 0x11,
-    EV_CHANGE_WEAPON = 0x12,
-    EV_DROP_WEAPON = 0x13,
-    EV_FIRE_WEAPON = 0x14,
-    EV_USE_ITEM0 = 0x15,
-    EV_USE_ITEM1 = 0x16,
-    EV_USE_ITEM2 = 0x17,
-    EV_USE_ITEM3 = 0x18,
-    EV_USE_ITEM4 = 0x19,
-    EV_USE_ITEM5 = 0x1A,
-    EV_USE_ITEM6 = 0x1B,
-    EV_USE_ITEM7 = 0x1C,
-    EV_USE_ITEM8 = 0x1D,
-    EV_USE_ITEM9 = 0x1E,
-    EV_USE_ITEM10 = 0x1F,
-    EV_USE_ITEM11 = 0x20,
-    EV_USE_ITEM12 = 0x21,
-    EV_USE_ITEM13 = 0x22,
-    EV_USE_ITEM14 = 0x23,
-    EV_USE_ITEM15 = 0x24,
-    EV_ITEM_RESPAWN = 0x25,
-    EV_ITEM_POP = 0x26,
-    EV_PLAYER_TELEPORT_IN = 0x27,
-    EV_PLAYER_TELEPORT_OUT = 0x28,
-    EV_GRENADE_BOUNCE = 0x29,
-    EV_GENERAL_SOUND = 0x2A,
-    EV_GLOBAL_SOUND = 0x2B,
-    EV_GLOBAL_TEAM_SOUND = 0x2C,
-    EV_BULLET_HIT_FLESH = 0x2D,
-    EV_BULLET_HIT_WALL = 0x2E,
-    EV_MISSILE_HIT = 0x2F,
-    EV_MISSILE_MISS = 0x30,
-    EV_MISSILE_MISS_METAL = 0x31,
-    EV_RAILTRAIL = 0x32,
-    EV_SHOTGUN = 0x33,
-    EV_BULLET = 0x34,
-    EV_PAIN = 0x35,
-    EV_DEATH1 = 0x36,
-    EV_DEATH2 = 0x37,
-    EV_DEATH3 = 0x38,
-    EV_DROWN = 0x39,
-    EV_OBITUARY = 0x3A,
-    EV_POWERUP_QUAD = 0x3B,
-    EV_POWERUP_BATTLESUIT = 0x3C,
-    EV_POWERUP_REGEN = 0x3D,
-    EV_POWERUP_ARMORREGEN = 0x3E,
-    EV_GIB_PLAYER = 0x3F,
-    EV_SCOREPLUM = 0x40,
-    EV_PROXIMITY_MINE_STICK = 0x41,
-    EV_PROXIMITY_MINE_TRIGGER = 0x42,
-    EV_KAMIKAZE = 0x43,
-    EV_OBELISKEXPLODE = 0x44,
-    EV_OBELISKPAIN = 0x45,
-    EV_INVUL_IMPACT = 0x46,
-    EV_JUICED = 0x47,
-    EV_LIGHTNINGBOLT = 0x48,
-    EV_DEBUG_LINE = 0x49,
-    EV_TAUNT = 0x4A,
-    EV_TAUNT_YES = 0x4B,
-    EV_TAUNT_NO = 0x4C,
-    EV_TAUNT_FOLLOWME = 0x4D,
-    EV_TAUNT_GETFLAG = 0x4E,
-    EV_TAUNT_GUARDBASE = 0x4F,
-    EV_TAUNT_PATROL = 0x50,
-    EV_FOOTSTEP_SNOW = 0x51,
-    EV_FOOTSTEP_WOOD = 0x52,
-    EV_ITEM_PICKUP_SPEC = 0x53,
-    EV_OVERTIME = 0x54,
-    EV_GAMEOVER = 0x55,
-    EV_MISSILE_MISS_DMGTHROUGH = 0x56,
-    EV_THAW_PLAYER = 0x57,
-    EV_THAW_TICK = 0x58,
-    EV_SHOTGUN_KILL = 0x59,
-    EV_POI = 0x5A,
-    EV_DEBUG_HITBOX = 0x5B,
-    EV_LIGHTNING_DISCHARGE = 0x5C,
-    EV_RACE_START = 0x5D,
-    EV_RACE_CHECKPOINT = 0x5E,
-    EV_RACE_FINISH = 0x5F,
-    EV_DAMAGEPLUM = 0x60,
-    EV_AWARD = 0x61,
-    EV_INFECTED = 0x62,
-    EV_NEW_HIGH_SCORE = 0x63,
-    EV_NUM_ETYPES = 0x64,
-}
-
-#[allow(non_camel_case_types)]
-#[derive(PartialEq, Debug, Clone, Copy)]
-#[allow(dead_code)]
-#[repr(C)]
-pub enum itemType_t {
-    IT_BAD,
-    IT_WEAPON,  // EFX: rotate + upscale + minlight
-    IT_AMMO,    // EFX: rotate
-    IT_ARMOR,   // EFX: rotate + minlight
-    IT_HEALTH,  // EFX: static external sphere + rotating internal
-    IT_POWERUP, // instant on, timer based
-    // EFX: rotate + external ring that rotates
-    IT_HOLDABLE, // single use, holdable item
-    // EFX: rotate + bob
-    IT_PERSISTANT_POWERUP,
-    IT_TEAM,
-}
-
-//noinspection ALL
-#[allow(non_camel_case_types)]
-#[derive(PartialEq, Debug, Clone, Copy)]
-#[allow(dead_code)]
-#[repr(C)]
-pub enum powerup_t {
-    PW_NONE = 0x0,
-    //PW_SPAWNARMOR = 0x0,
-    PW_REDFLAG = 0x1,
-    PW_BLUEFLAG = 0x2,
-    PW_NEUTRALFLAG = 0x3,
-    PW_QUAD = 0x4,
-    PW_BATTLESUIT = 0x5,
-    PW_HASTE = 0x6,
-    PW_INVIS = 0x7,
-    PW_REGEN = 0x8,
-    PW_FLIGHT = 0x9,
-    PW_INVULNERABILITY = 0xA,
-    NOTPW_SCOUT = 0xB,
-    NOTPW_GUARD = 0xC,
-    NOTPW_DOUBLER = 0xD,
-    NOTPW_ARMORREGEN = 0xE,
-    PW_FREEZE = 0xF,
-    PW_NUM_POWERUPS = 0x10,
-}
-
-#[allow(non_snake_case)]
-#[allow(non_camel_case_types)]
-#[repr(C)]
-struct gitem_t {
-    classname: *const c_char,
-    pickup_sound: *const c_char,
-    world_model: [*const c_char; 4],
-    premium_model: [*const c_char; 4],
-    icon: *const c_char,
-    pickup_name: *const c_char,
-    quantity: c_int,
-    giType: itemType_t,
-    giTag: c_int,
-    itemTimer: qboolean,
-    maskGametypeRenderSkip: c_uint,
-    maskGametypeForceSpawn: c_uint,
-}
-
-#[allow(non_camel_case_types)]
-#[derive(PartialEq, Debug, Clone, Copy)]
-#[allow(dead_code)]
-#[repr(C)]
-enum entityType_t {
-    ET_GENERAL,
-    ET_PLAYER,
-    ET_ITEM,
-    ET_MISSILE,
-    ET_MOVER,
-    ET_BEAM,
-    ET_PORTAL,
-    ET_SPEAKER,
-    ET_PUSH_TRIGGER,
-    ET_TELEPORT_TRIGGER,
-    ET_INVISIBLE,
-    ET_GRAPPLE, // grapple hooked on wall
-    ET_TEAM,
-
-    ET_EVENTS, // any of the EV_* events can be added freestanding
-               // by setting eType to ET_EVENTS + eventNum
-               // this avoids having to set eFlags and eventNum
-}
-
-#[allow(non_camel_case_types)]
-#[derive(PartialEq, Debug, Clone, Copy)]
-#[allow(dead_code)]
-#[repr(C)]
-pub enum clientConnected_t {
-    CON_DISCONNECTED,
-    CON_CONNECTING,
-    CON_CONNECTED,
-}
-
-#[allow(non_camel_case_types)]
-#[derive(PartialEq, Debug, Clone, Copy)]
-#[allow(dead_code)]
-#[repr(C)]
-pub enum voteState_t {
-    VOTE_NONE,
-    VOTE_PENDING,
-    VOTE_YES,
-    VOTE_NO,
-    VOTE_FORCE_PASS,
-    VOTE_FORCE_FAIL,
-    VOTE_EXPIRED,
-}
-
-#[allow(non_camel_case_types)]
-#[derive(PartialEq, Debug, Clone, Copy)]
-#[allow(dead_code)]
-#[repr(C)]
-pub enum playerTeamStateState_t {
-    TEAM_BEGIN,  // Beginning a team game, spawn at base
-    TEAM_ACTIVE, // Now actively playing
-}
-
-#[allow(non_camel_case_types)]
-#[repr(C)]
-struct playerTeamState_t {
-    state: playerTeamStateState_t,
-    captures: c_int,
-    basedefense: c_int,
-    carrierdefense: c_int,
-    flagrecovery: c_int,
-    fragcarrier: c_int,
-    assists: c_int,
-    flagruntime: c_int,
-    flagrunrelays: c_int,
-    lasthurtcarrier: c_int,
-    lastreturnedflag: c_int,
-    lastfraggedcarrier: c_int,
-}
-
-#[allow(non_camel_case_types)]
-#[derive(PartialEq, Debug, Clone, Copy)]
-#[allow(dead_code)]
-#[repr(C)]
-pub enum team_t {
-    TEAM_FREE,
-    TEAM_RED,
-    TEAM_BLUE,
-    TEAM_SPECTATOR,
-
-    TEAM_NUM_TEAMS,
-}
-
-#[allow(non_camel_case_types)]
-#[derive(PartialEq, Debug, Clone, Copy)]
-#[allow(dead_code)]
-#[repr(C)]
-pub(crate) enum meansOfDeath_t {
-    MOD_UNKNOWN,
-    MOD_SHOTGUN,
-    MOD_GAUNTLET,
-    MOD_MACHINEGUN,
-    MOD_GRENADE,
-    MOD_GRENADE_SPLASH,
-    MOD_ROCKET,
-    MOD_ROCKET_SPLASH,
-    MOD_PLASMA,
-    MOD_PLASMA_SPLASH,
-    MOD_RAILGUN,
-    MOD_LIGHTNING,
-    MOD_BFG,
-    MOD_BFG_SPLASH,
-    MOD_WATER,
-    MOD_SLIME,
-    MOD_LAVA,
-    MOD_CRUSH,
-    MOD_TELEFRAG,
-    MOD_FALLING,
-    MOD_SUICIDE,
-    MOD_TARGET_LASER,
-    MOD_TRIGGER_HURT,
-    MOD_NAIL,
-    MOD_CHAINGUN,
-    MOD_PROXIMITY_MINE,
-    MOD_KAMIKAZE,
-    MOD_JUICED,
-    MOD_GRAPPLE,
-    MOD_SWITCH_TEAMS,
-    MOD_THAW,
-    MOD_LIGHTNING_DISCHARGE,
-    MOD_HMG,
-    MOD_RAILGUN_HEADSHOT,
-}
-
-#[allow(non_camel_case_types)]
-#[derive(PartialEq, Debug, Clone, Copy)]
-#[allow(dead_code)]
-#[repr(C)]
-pub enum spectatorState_t {
-    SPECTATOR_NOT,
-    SPECTATOR_FREE,
-    SPECTATOR_FOLLOW,
-    SPECTATOR_SCOREBOARD,
-}
-
-#[allow(non_snake_case)]
-#[allow(non_camel_case_types)]
-#[repr(C, align(8))]
-struct clientPersistant_t {
-    connected: clientConnected_t,
-    cmd: usercmd_t,
-    localClient: qboolean,
-    initialSpawn: qboolean,
-    predictItemPickup: qboolean,
-    netname: [c_char; 40],
-    country: [c_char; 24],
-    steamId: u64,
-    maxHealth: c_int,
-    voteCount: c_int,
-    voteState: voteState_t,
-    complaints: c_int,
-    complaintClient: c_int,
-    complaintEndTime: c_int,
-    damageFromTeammates: c_int,
-    damageToTeammates: c_int,
-    ready: qboolean,
-    autoaction: c_int,
-    timeouts: c_int,
-    enterTime: c_int,
-    teamState: playerTeamState_t,
-    damageResidual: c_int,
-    inactivityTime: c_int,
-    inactivityWarning: c_int,
-    lastUserinfoUpdate: c_int,
-    userInfoFloodInfractions: c_int,
-    lastMapVoteTime: c_int,
-    lastMapVoteIndex: c_int,
-}
-
-#[allow(non_snake_case)]
-#[allow(non_camel_case_types)]
-#[repr(C)]
-struct clientSession_t {
-    sessionTeam: team_t,
-    spectatorTime: c_int,
-    spectatorState: spectatorState_t,
-    spectatorClient: c_int,
-    weaponPrimary: c_int,
-    wins: c_int,
-    losses: c_int,
-    teamLeader: qboolean,
-    privileges: privileges_t,
-    specOnly: c_int,
-    playQueue: c_int,
-    updatePlayQueue: qboolean,
-    muted: c_int,
-    prevScore: c_int,
-}
-
-#[allow(non_camel_case_types)]
-#[derive(PartialEq, Debug, Clone, Copy)]
-#[allow(dead_code)]
-#[repr(C)]
+#[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
+#[repr(u32)]
 pub enum privileges_t {
-    PRIV_BANNED = -1,
-    PRIV_NONE = 0x0,
-    PRIV_MOD = 0x1,
-    PRIV_ADMIN = 0x2,
-    PRIV_ROOT = 0x3,
+    PRIV_BANNED = 4294967295,
+    PRIV_NONE = 0,
+    PRIV_MOD = 1,
+    PRIV_ADMIN = 2,
+    PRIV_ROOT = 3,
 }
 
 impl From<i32> for privileges_t {
@@ -714,148 +260,1553 @@ impl From<i32> for privileges_t {
     }
 }
 
+#[repr(u32)]
+#[allow(non_camel_case_types)]
+#[allow(dead_code)]
+#[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
+pub enum voteState_t {
+    VOTE_NONE = 0,
+    VOTE_PENDING = 1,
+    VOTE_YES = 2,
+    VOTE_NO = 3,
+    VOTE_FORCE_PASS = 4,
+    VOTE_FORCE_FAIL = 5,
+    VOTE_EXPIRED = 6,
+}
+
+#[allow(non_camel_case_types)]
+#[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
+#[allow(dead_code)]
+#[repr(u32)]
+pub enum clientState_t {
+    CS_FREE = 0,   // can be reused for a new connection
+    CS_ZOMBIE = 1, // client has been disconnected, but don't reuse
+    // connection for a couple seconds
+    CS_CONNECTED = 2, // has been assigned to a client_t, but no gamestate yet
+    CS_PRIMED = 3,    // gamestate has been sent, but client hasn't sent a usercmd
+    CS_ACTIVE = 4,    // client is fully in game
+}
+
+#[allow(non_camel_case_types)]
+#[allow(clippy::upper_case_acronyms)]
+#[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
+#[allow(dead_code)]
+#[repr(u32)]
+pub enum roundStateState_t {
+    PREGAME = 0,
+    ROUND_WARMUP = 1,
+    ROUND_SHUFFLE = 2,
+    ROUND_BEGUN = 3,
+    ROUND_OVER = 4,
+    POSTGAME = 5,
+}
+
+#[allow(non_camel_case_types)]
+#[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
+#[allow(dead_code)]
+#[repr(u32)]
+pub enum statIndex_t {
+    STAT_HEALTH = 0,
+    STAT_HOLDABLE_ITEM = 1,
+    STAT_RUNE = 2,
+    STAT_WEAPONS = 3,
+    STAT_ARMOR = 4,
+    STAT_BSKILL = 5,
+    STAT_CLIENTS_READY = 6,
+    STAT_MAX_HEALTH = 7,
+    STAT_SPINUP = 8,
+    STAT_FLIGHT_THRUST = 9,
+    STAT_MAX_FLIGHT_FUEL = 10,
+    STAT_CUR_FLIGHT_FUEL = 11,
+    STAT_FLIGHT_REFUEL = 12,
+    STAT_QUADKILLS = 13,
+    STAT_ARMORTYPE = 14,
+    STAT_KEY = 15,
+    STAT_OTHER_HEALTH = 16,
+    STAT_OTHER_ARMOR = 17,
+}
+
+#[allow(non_camel_case_types)]
+#[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
+#[allow(dead_code)]
+#[repr(u32)]
+pub enum gameExport_t {
+    GAME_INIT = 0, // ( int levelTime, int randomSeed, int restart );
+    // init and shutdown will be called every single level
+    // The game should call G_GET_ENTITY_TOKEN to parse through all the
+    // entity configuration text and spawn gentities.
+    GAME_SHUTDOWN = 1,       // (void);
+    GAME_CLIENT_CONNECT = 2, // ( int clientNum, qboolean firstTime, qboolean isBot );
+    // return NULL if the client is allowed to connect, otherwise return
+    // a text string with the reason for denial
+    GAME_CLIENT_BEGIN = 3,            // ( int clientNum );
+    GAME_CLIENT_USERINFO_CHANGED = 4, // ( int clientNum );
+    GAME_CLIENT_DISCONNECT = 5,       // ( int clientNum );
+    GAME_CLIENT_COMMAND = 6,          // ( int clientNum );
+    GAME_CLIENT_THINK = 7,            // ( int clientNum );
+    GAME_RUN_FRAME = 8,               // ( int clientNum );
+    GAME_CONSOLE_COMMAND = 9,         // ( void );
+    // ConsoleCommand will be called when a command has been issued
+    // that is not recognized as a builtin function.
+    // The game can issue trap_argc() / trap_argv() commands to get the command
+    // and parameters.  Return qfalse if the game doesn't recognize it as a command.
+    BOTAI_START_FRAME = 10, // ( int time );
+}
+
+#[allow(non_camel_case_types)]
+#[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
+#[allow(dead_code)]
+#[repr(u32)]
+pub enum pmtype_t {
+    PM_NORMAL = 0,
+    PM_NOCLIP = 1,
+    PM_SPECTATOR = 2,
+    PM_DEAD = 3,
+    PM_FREEZE = 4,
+    PM_INTERMISSION = 5,
+    PM_TUTORIAL = 6,
+}
+
+#[allow(non_camel_case_types)]
+#[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
+#[allow(dead_code)]
+#[repr(u32)]
+pub enum entity_event_t {
+    EV_NONE = 0,
+    EV_FOOTSTEP = 1,
+    EV_FOOTSTEP_METAL = 2,
+    EV_FOOTSPLASH = 3,
+    EV_FOOTWADE = 4,
+    EV_SWIM = 5,
+    EV_FALL_SHORT = 6,
+    EV_FALL_MEDIUM = 7,
+    EV_FALL_FAR = 8,
+    EV_JUMP_PAD = 9,
+    EV_JUMP = 10,
+    EV_WATER_TOUCH = 11,
+    EV_WATER_LEAVE = 12,
+    EV_WATER_UNDER = 13,
+    EV_WATER_CLEAR = 14,
+    EV_ITEM_PICKUP = 15,
+    EV_GLOBAL_ITEM_PICKUP = 16,
+    EV_NOAMMO = 17,
+    EV_CHANGE_WEAPON = 18,
+    EV_DROP_WEAPON = 19,
+    EV_FIRE_WEAPON = 20,
+    EV_USE_ITEM0 = 21,
+    EV_USE_ITEM1 = 22,
+    EV_USE_ITEM2 = 23,
+    EV_USE_ITEM3 = 24,
+    EV_USE_ITEM4 = 25,
+    EV_USE_ITEM5 = 26,
+    EV_USE_ITEM6 = 27,
+    EV_USE_ITEM7 = 28,
+    EV_USE_ITEM8 = 29,
+    EV_USE_ITEM9 = 30,
+    EV_USE_ITEM10 = 31,
+    EV_USE_ITEM11 = 32,
+    EV_USE_ITEM12 = 33,
+    EV_USE_ITEM13 = 34,
+    EV_USE_ITEM14 = 35,
+    EV_USE_ITEM15 = 36,
+    EV_ITEM_RESPAWN = 37,
+    EV_ITEM_POP = 38,
+    EV_PLAYER_TELEPORT_IN = 39,
+    EV_PLAYER_TELEPORT_OUT = 40,
+    EV_GRENADE_BOUNCE = 41,
+    EV_GENERAL_SOUND = 42,
+    EV_GLOBAL_SOUND = 43,
+    EV_GLOBAL_TEAM_SOUND = 44,
+    EV_BULLET_HIT_FLESH = 45,
+    EV_BULLET_HIT_WALL = 46,
+    EV_MISSILE_HIT = 47,
+    EV_MISSILE_MISS = 48,
+    EV_MISSILE_MISS_METAL = 49,
+    EV_RAILTRAIL = 50,
+    EV_SHOTGUN = 51,
+    EV_BULLET = 52,
+    EV_PAIN = 53,
+    EV_DEATH1 = 54,
+    EV_DEATH2 = 55,
+    EV_DEATH3 = 56,
+    EV_DROWN = 57,
+    EV_OBITUARY = 58,
+    EV_POWERUP_QUAD = 59,
+    EV_POWERUP_BATTLESUIT = 60,
+    EV_POWERUP_REGEN = 61,
+    EV_POWERUP_ARMORREGEN = 62,
+    EV_GIB_PLAYER = 63,
+    EV_SCOREPLUM = 64,
+    EV_PROXIMITY_MINE_STICK = 65,
+    EV_PROXIMITY_MINE_TRIGGER = 66,
+    EV_KAMIKAZE = 67,
+    EV_OBELISKEXPLODE = 68,
+    EV_OBELISKPAIN = 69,
+    EV_INVUL_IMPACT = 70,
+    EV_JUICED = 71,
+    EV_LIGHTNINGBOLT = 72,
+    EV_DEBUG_LINE = 73,
+    EV_TAUNT = 74,
+    EV_TAUNT_YES = 75,
+    EV_TAUNT_NO = 76,
+    EV_TAUNT_FOLLOWME = 77,
+    EV_TAUNT_GETFLAG = 78,
+    EV_TAUNT_GUARDBASE = 79,
+    EV_TAUNT_PATROL = 80,
+    EV_FOOTSTEP_SNOW = 81,
+    EV_FOOTSTEP_WOOD = 82,
+    EV_ITEM_PICKUP_SPEC = 83,
+    EV_OVERTIME = 84,
+    EV_GAMEOVER = 85,
+    EV_MISSILE_MISS_DMGTHROUGH = 86,
+    EV_THAW_PLAYER = 87,
+    EV_THAW_TICK = 88,
+    EV_SHOTGUN_KILL = 89,
+    EV_POI = 90,
+    EV_DEBUG_HITBOX = 91,
+    EV_LIGHTNING_DISCHARGE = 92,
+    EV_RACE_START = 93,
+    EV_RACE_CHECKPOINT = 94,
+    EV_RACE_FINISH = 95,
+    EV_DAMAGEPLUM = 96,
+    EV_AWARD = 97,
+    EV_INFECTED = 98,
+    EV_NEW_HIGH_SCORE = 99,
+    EV_NUM_ETYPES = 100,
+}
+
+#[allow(non_camel_case_types)]
+#[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
+#[allow(dead_code)]
+#[repr(u32)]
+pub enum itemType_t {
+    IT_BAD = 0,
+    IT_WEAPON = 1,  // EFX: rotate + upscale + minlight
+    IT_AMMO = 2,    // EFX: rotate
+    IT_ARMOR = 3,   // EFX: rotate + minlight
+    IT_HEALTH = 4,  // EFX: static external sphere + rotating internal
+    IT_POWERUP = 5, // instant on, timer based
+    // EFX: rotate + external ring that rotates
+    IT_HOLDABLE = 6, // single use, holdable item
+    // EFX: rotate + bob
+    IT_PERSISTANT_POWERUP = 7,
+    IT_TEAM = 8,
+}
+
+#[allow(dead_code)]
+impl powerup_t {
+    pub const PW_SPAWNARMOR: powerup_t = powerup_t::PW_NONE;
+}
+
+#[allow(non_camel_case_types)]
+#[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
+#[allow(dead_code)]
+#[repr(u32)]
+pub enum powerup_t {
+    PW_NONE = 0,
+    PW_REDFLAG = 1,
+    PW_BLUEFLAG = 2,
+    PW_NEUTRALFLAG = 3,
+    PW_QUAD = 4,
+    PW_BATTLESUIT = 5,
+    PW_HASTE = 6,
+    PW_INVIS = 7,
+    PW_REGEN = 8,
+    PW_FLIGHT = 9,
+    PW_INVULNERABILITY = 10,
+    NOTPW_SCOUT = 11,
+    NOTPW_GUARD = 12,
+    NOTPW_DOUBLER = 13,
+    NOTPW_ARMORREGEN = 14,
+    PW_FREEZE = 15,
+    PW_NUM_POWERUPS = 16,
+}
+
+#[allow(non_camel_case_types)]
+#[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
+#[allow(dead_code)]
+#[repr(u32)]
+pub enum holdable_t {
+    HI_NONE = 0,
+    HI_TELEPORTER = 1,
+    HI_MEDKIT = 2,
+    HI_KAMIKAZE = 3,
+    HI_PORTAL = 4,
+    HI_INVULNERABILITY = 5,
+    HI_FLIGHT = 6,
+    HI_NUM_HOLDABLE = 7,
+}
+
+#[allow(non_camel_case_types)]
+#[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
+#[allow(dead_code)]
+#[repr(u32)]
+pub enum weapon_t {
+    WP_NONE = 0,
+    WP_GAUNTLET = 1,
+    WP_MACHINEGUN = 2,
+    WP_SHOTGUN = 3,
+    WP_GRENADE_LAUNCHER = 4,
+    WP_ROCKET_LAUNCHER = 5,
+    WP_LIGHTNING = 6,
+    WP_RAILGUN = 7,
+    WP_PLASMAGUN = 8,
+    WP_BFG = 9,
+    WP_GRAPPLING_HOOK = 10,
+    WP_NAILGUN = 11,
+    WP_PROX_LAUNCHER = 12,
+    WP_CHAINGUN = 13,
+    WP_HMG = 14,
+    WP_HANDS = 15,
+    WP_NUM_WEAPONS = 16,
+}
+
+#[allow(non_camel_case_types)]
+#[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
+#[allow(dead_code)]
+#[repr(u32)]
+pub enum weaponstate_t {
+    WEAPON_READY = 0,
+    WEAPON_RAISING = 1,
+    WEAPON_DROPPING = 2,
+    WEAPON_FIRING = 3,
+}
+
+#[allow(non_camel_case_types)]
+#[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
+#[allow(dead_code)]
+#[repr(u32)]
+pub enum rune_t {
+    RUNE_NONE = 0,
+    RUNE_SCOUT = 1,
+    RUNE_GUARD = 2,
+    RUNE_DAMAGE = 3,
+    RUNE_ARMORREGEN = 4,
+    RUNE_MAX = 5,
+}
+
+#[allow(non_camel_case_types)]
+#[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
+#[allow(dead_code)]
+#[repr(u32)]
+pub enum playerTeamStateState_t {
+    TEAM_BEGIN = 0,  // Beginning a team game, spawn at base
+    TEAM_ACTIVE = 1, // Now actively playing
+}
+
+#[allow(non_camel_case_types)]
+#[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
+#[allow(dead_code)]
+#[repr(u32)]
+pub enum team_t {
+    TEAM_FREE = 0,
+    TEAM_RED = 1,
+    TEAM_BLUE = 2,
+    TEAM_SPECTATOR = 3,
+    TEAM_NUM_TEAMS = 4,
+}
+
+#[allow(non_camel_case_types)]
+#[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
+#[allow(dead_code)]
+#[repr(u32)]
+pub enum meansOfDeath_t {
+    MOD_UNKNOWN = 0,
+    MOD_SHOTGUN = 1,
+    MOD_GAUNTLET = 2,
+    MOD_MACHINEGUN = 3,
+    MOD_GRENADE = 4,
+    MOD_GRENADE_SPLASH = 5,
+    MOD_ROCKET = 6,
+    MOD_ROCKET_SPLASH = 7,
+    MOD_PLASMA = 8,
+    MOD_PLASMA_SPLASH = 9,
+    MOD_RAILGUN = 10,
+    MOD_LIGHTNING = 11,
+    MOD_BFG = 12,
+    MOD_BFG_SPLASH = 13,
+    MOD_WATER = 14,
+    MOD_SLIME = 15,
+    MOD_LAVA = 16,
+    MOD_CRUSH = 17,
+    MOD_TELEFRAG = 18,
+    MOD_FALLING = 19,
+    MOD_SUICIDE = 20,
+    MOD_TARGET_LASER = 21,
+    MOD_TRIGGER_HURT = 22,
+    MOD_NAIL = 23,
+    MOD_CHAINGUN = 24,
+    MOD_PROXIMITY_MINE = 25,
+    MOD_KAMIKAZE = 26,
+    MOD_JUICED = 27,
+    MOD_GRAPPLE = 28,
+    MOD_SWITCH_TEAMS = 29,
+    MOD_THAW = 30,
+    MOD_LIGHTNING_DISCHARGE = 31,
+    MOD_HMG = 32,
+    MOD_RAILGUN_HEADSHOT = 33,
+}
+
+#[allow(non_camel_case_types)]
+#[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
+#[allow(dead_code)]
+#[repr(u32)]
+pub enum spectatorState_t {
+    SPECTATOR_NOT = 0,
+    SPECTATOR_FREE = 1,
+    SPECTATOR_FOLLOW = 2,
+    SPECTATOR_SCOREBOARD = 3,
+}
+
+#[allow(non_camel_case_types)]
+#[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
+#[allow(dead_code)]
+#[repr(u32)]
+pub enum clientConnected_t {
+    CON_DISCONNECTED = 0,
+    CON_CONNECTING = 1,
+    CON_CONNECTED = 2,
+}
+
+// movers are things like doors, plats, buttons, etc
+#[allow(non_camel_case_types)]
+#[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
+#[allow(dead_code)]
+#[repr(u32)]
+pub enum moverState_t {
+    MOVER_POS1 = 0,
+    MOVER_POS2 = 1,
+    MOVER_1TO2 = 2,
+    MOVER_2TO1 = 3,
+}
+
+#[allow(non_camel_case_types)]
+#[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
+#[allow(dead_code)]
+#[repr(u32)]
+pub(crate) enum persistantFields_t {
+    PERS_ROUND_SCORE = 0,
+    PERS_COMBOKILL_COUNT = 1,
+    PERS_RAMPAGE_COUNT = 2,
+    PERS_MIDAIR_COUNT = 3,
+    PERS_REVENGE_COUNT = 4,
+    PERS_PERFORATED_COUNT = 5,
+    PERS_HEADSHOT_COUNT = 6,
+    PERS_ACCURACY_COUNT = 7,
+    PERS_QUADGOD_COUNT = 8,
+    PERS_FIRSTFRAG_COUNT = 9,
+    PERS_PERFECT_COUNT = 10,
+}
+
 #[allow(non_snake_case)]
 #[allow(non_camel_case_types)]
-#[repr(C)]
-struct expandedStatObj_t {
-    statId: c_uint,
-    lastThinkTime: c_int,
-    teamJoinTime: c_int,
-    totalPlayTime: c_int,
-    serverRank: c_int,
-    serverRankIsTied: qboolean,
-    teamRank: c_int,
-    teamRankIsTied: qboolean,
-    numKills: c_int,
-    numDeaths: c_int,
-    numSuicides: c_int,
-    numTeamKills: c_int,
-    numTeamKilled: c_int,
-    numWeaponKills: [c_int; 16],
-    numWeaponDeaths: [c_int; 16],
-    shotsFired: [c_int; 16],
-    shotsHit: [c_int; 16],
-    damageDealt: [c_int; 16],
-    damageTaken: [c_int; 16],
-    powerups: [c_int; 16],
-    holdablePickups: [c_int; 7],
-    weaponPickups: [c_int; 16],
-    weaponUsageTime: [c_int; 16],
-    numCaptures: c_int,
-    numAssists: c_int,
-    numDefends: c_int,
-    numHolyShits: c_int,
-    totalDamageDealt: c_int,
-    totalDamageTaken: c_int,
-    previousHealth: c_int,
-    previousArmor: c_int,
-    numAmmoPickups: c_int,
-    numFirstMegaHealthPickups: c_int,
-    numMegaHealthPickups: c_int,
-    megaHealthPickupTime: c_int,
-    numHealthPickups: c_int,
-    numFirstRedArmorPickups: c_int,
-    numRedArmorPickups: c_int,
-    redArmorPickupTime: c_int,
-    numFirstYellowArmorPickups: c_int,
-    numYellowArmorPickups: c_int,
-    yellowArmorPickupTime: c_int,
-    numFirstGreenArmorPickups: c_int,
-    numGreenArmorPickups: c_int,
-    greenArmorPickupTime: c_int,
-    numQuadDamagePickups: c_int,
-    numQuadDamageKills: c_int,
-    numBattleSuitPickups: c_int,
-    numRegenerationPickups: c_int,
-    numHastePickups: c_int,
-    numInvisibilityPickups: c_int,
-    numRedFlagPickups: c_int,
-    numBlueFlagPickups: c_int,
-    numNeutralFlagPickups: c_int,
-    numMedkitPickups: c_int,
-    numArmorPickups: c_int,
-    numDenials: c_int,
-    killStreak: c_int,
-    maxKillStreak: c_int,
-    xp: c_int,
-    domThreeFlagsTime: c_int,
-    numMidairShotgunKills: c_int,
+#[allow(dead_code)]
+#[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
+#[repr(u32)]
+pub enum cvar_flags {
+    CVAR_ARCHIVE = 1,
+    CVAR_USERINFO = 2,
+    CVAR_SERVERINFO = 4,
+    CVAR_SYSTEMINFO = 8,
+    CVAR_INIT = 16,
+    CVAR_LATCH = 32,
+    CVAR_ROM = 64,
+    CVAR_USER_CREATED = 128,
+    CVAR_TEMP = 256,
+    CVAR_CHEAT = 512,
+    CVAR_NORESTART = 1024,
+    CVAR_UNKOWN1 = 2048,
+    CVAR_UNKOWN2 = 4096,
+    CVAR_UNKOWN3 = 8192,
+    CVAR_UNKOWN4 = 16384,
+    CVAR_UNKOWN5 = 32768,
+    CVAR_UNKOWN6 = 65536,
+    CVAR_UNKOWN7 = 131072,
+    CVAR_UNKOWN8 = 262144,
+    CVAR_UNKOWN9 = 524288,
+    CVAR_UNKOWN10 = 1048576,
+}
+
+// paramters for command buffer stuffing
+#[allow(non_snake_case)]
+#[allow(non_camel_case_types)]
+#[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
+#[allow(dead_code)]
+#[repr(u32)]
+pub enum cbufExec_t {
+    EXEC_NOW = 0, // don't return until completed, a VM should NEVER use this,
+    // because some commands might cause the VM to be unloaded...
+    EXEC_INSERT = 1, // insert at current position, but don't run yet
+    EXEC_APPEND = 2, // add to end of the command buffer (normal case)
 }
 
 #[allow(non_snake_case)]
 #[allow(non_camel_case_types)]
 #[repr(C)]
-struct raceInfo_t {
-    racingActive: qboolean,
-    startTime: c_int,
-    lastTime: c_int,
-    best_race: [c_int; 64],
-    current_race: [c_int; 64],
-    currentCheckPoint: c_int,
-    weaponUsed: qboolean,
-    nextRacePoint: *const gentity_t,
-    nextRacePoint2: *const gentity_t,
+#[derive(Debug, PartialEq)]
+pub struct cvar_s {
+    pub name: *mut c_char,
+    pub string: *mut c_char,
+    pub resetString: *mut c_char, // cvar_restart will reset to this value
+    pub latchedString: *mut c_char, // for CVAR_LATCH vars
+    pub defaultString: *mut c_char,
+    pub minimumString: *mut c_char,
+    pub maximumString: *mut c_char,
+    pub flags: c_int,
+    pub modified: qboolean,
+    pub _unknown2: [u8; 4usize],
+    pub modificationCount: c_int, // incremented each time the cvar is changed
+    pub value: f32,               // atof( string )
+    pub integer: c_int,           // atof( string )
+    pub _unknown3: [u8; 8usize],
+    pub next: *mut cvar_s,
+    pub hashNext: *mut cvar_s,
+}
+
+#[allow(non_camel_case_types)]
+pub type cvar_t = cvar_s;
+
+#[allow(non_camel_case_types)]
+#[repr(C)]
+#[derive(Debug, PartialEq)]
+pub struct msg_t {
+    pub allowoverflow: qboolean, // if false, do a Com_Error
+    pub overflowed: qboolean,    // set to true if the buffer size failed (with allowoverflow set)
+    pub oob: qboolean,           // set to true if the buffer size failed (with allowoverflow set)
+    pub data: *mut byte,
+    pub maxsize: c_int,
+    pub cursize: c_int,
+    pub readcount: c_int,
+    pub bit: c_int, // for bitwise reads and writes
 }
 
 #[allow(non_snake_case)]
 #[allow(non_camel_case_types)]
+#[repr(C)]
+#[derive(Debug, PartialEq)]
+pub struct usercmd_s {
+    pub serverTime: c_int,
+    pub angles: [c_int; 3usize],
+    pub buttons: c_int,
+    pub weapon: byte,
+    pub weaponPrimary: byte,
+    pub fov: byte,
+    pub forwardmove: c_char,
+    pub rightmove: c_char,
+    pub upmove: c_char,
+}
+
+#[allow(non_camel_case_types)]
+pub type usercmd_t = usercmd_s;
+
+#[allow(non_snake_case)]
+#[allow(non_camel_case_types)]
+#[allow(dead_code)]
+#[repr(u32)]
+#[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
+pub enum netsrc_t {
+    NS_CLIENT = 0,
+    NS_SERVER = 1,
+}
+
+#[allow(non_snake_case)]
+#[allow(non_camel_case_types)]
+#[repr(u32)]
+#[allow(dead_code)]
+#[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
+pub enum netadrtype_t {
+    NA_BOT = 0,
+    NA_BAD = 1, // an address lookup failed
+    NA_LOOPBACK = 2,
+    NA_BROADCAST = 3,
+    NA_IP = 4,
+    NA_IPX = 5,
+    NA_BROADCAST_IPX = 6,
+}
+
+#[allow(non_camel_case_types)]
+#[repr(u32)]
+#[allow(dead_code)]
+#[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
+pub enum trType_t {
+    TR_STATIONARY = 0,
+    TR_INTERPOLATE = 1, // non-parametric, but interpolate between snapshots
+    TR_LINEAR = 2,
+    TR_LINEAR_STOP = 3,
+    TR_SINE = 4, // value = base + sin( time / duration ) * delta
+    TR_GRAVITY = 5,
+}
+
+#[allow(non_camel_case_types)]
+#[repr(C)]
+#[derive(Debug, PartialEq)]
+pub struct netadr_t {
+    pub type_: netadrtype_t,
+    pub ip: [byte; 4usize],
+    pub ipx: [byte; 10usize],
+    pub port: c_ushort,
+}
+
+#[allow(non_camel_case_types)]
+#[allow(non_snake_case)]
+#[repr(C)]
+pub struct netchan_t {
+    pub sock: netsrc_t,
+    pub dropped: c_int, // between last packet and previous
+    pub remoteAddress: netadr_t,
+    pub qport: c_int, // qport value to write when transmitting
+    // sequencing variables
+    pub incomingSequence: c_int,
+    pub outgoingSequence: c_int,
+    // incoming fragment assembly buffer
+    pub fragmentSequence: c_int,
+    pub fragmentLength: c_int,
+    pub fragmentBuffer: [byte; 16384usize],
+    // outgoing fragment buffer
+    // we need to space out the sending of large fragmented messages
+    pub unsentFragments: qboolean,
+    pub unsentFragmentStart: c_int,
+    pub unsentLength: c_int,
+    pub unsentBuffer: [byte; 16384usize],
+}
+
+#[allow(non_camel_case_types)]
+#[repr(C)]
+#[derive(Debug, PartialEq)]
+pub struct cplane_s {
+    pub normal: vec3_t,
+    pub dist: f32,
+    pub type_: byte,
+    pub signbits: byte,
+    pub pad: [byte; 2usize],
+}
+
+#[allow(non_camel_case_types)]
+pub type cplane_t = cplane_s;
+
+#[allow(non_camel_case_types)]
+#[allow(non_snake_case)]
+#[repr(C)]
+#[derive(Debug, PartialEq)]
+pub struct trace_t {
+    pub allsolid: qboolean,
+    pub startsolid: qboolean,
+    pub fraction: f32,
+    pub endpos: vec3_t,
+    pub plane: cplane_t,
+    pub surfaceFlags: c_int,
+    pub contents: c_int,
+    pub entityNum: c_int,
+}
+
+// playerState_t is a full superset of entityState_t as it is used by players,
+// so if a playerState_t is transmitted, the entityState_t can be fully derived
+// from it.
+#[allow(non_camel_case_types)]
+#[allow(non_snake_case)]
+#[repr(C)]
+#[derive(Debug, PartialEq)]
+pub struct playerState_s {
+    pub commandTime: c_int,
+    pub pm_type: c_int,
+    pub bobCycle: c_int,
+    pub pm_flags: c_int,
+    pub pm_time: c_int,
+    pub origin: vec3_t,
+    pub velocity: vec3_t,
+    pub weaponTime: c_int,
+    pub gravity: c_int,
+    pub speed: c_int,
+    pub delta_angles: [c_int; 3usize],
+    pub groundEntityNum: c_int,
+    pub legsTimer: c_int,
+    pub legsAnim: c_int,
+    pub torsoTimer: c_int,
+    pub torsoAnim: c_int,
+    pub movementDir: c_int,
+    pub grapplePoint: vec3_t,
+    pub eFlags: c_int,
+    pub eventSequence: c_int,
+    pub events: [c_int; 2usize],
+    pub eventParms: [c_int; 2usize],
+    pub externalEvent: c_int,
+    pub externalEventParm: c_int,
+    pub clientNum: c_int,
+    pub location: c_int,
+    pub weapon: c_int,
+    pub weaponPrimary: c_int,
+    pub weaponstate: c_int,
+    pub fov: c_int,
+    pub viewangles: vec3_t,
+    pub viewheight: c_int,
+    pub damageEvent: c_int,
+    pub damageYaw: c_int,
+    pub damagePitch: c_int,
+    pub damageCount: c_int,
+    pub stats: [c_int; 16usize],
+    pub persistant: [c_int; 16usize],
+    pub powerups: [c_int; 16usize],
+    pub ammo: [c_int; 16usize],
+    pub generic1: c_int,
+    pub loopSound: c_int,
+    pub jumppad_ent: c_int,
+    pub jumpTime: c_int,
+    pub doubleJumped: c_int,
+    pub crouchTime: c_int,
+    pub crouchSlideTime: c_int,
+    pub forwardmove: c_char,
+    pub rightmove: c_char,
+    pub upmove: c_char,
+    pub ping: c_int,
+    pub pmove_framecount: c_int,
+    pub jumppad_frame: c_int,
+    pub entityEventSequence: c_int,
+    pub freezetime: c_int,
+    pub thawtime: c_int,
+    pub thawClientNum_valid: c_int,
+    pub thawClientNum: c_int,
+    pub respawnTime: c_int,
+    pub localPersistant: [c_int; 16usize],
+    pub roundDamage: c_int,
+    pub roundShots: c_int,
+    pub roundHits: c_int,
+}
+
+#[allow(non_camel_case_types)]
+pub type playerState_t = playerState_s;
+
+#[allow(non_camel_case_types)]
+#[allow(non_snake_case)]
+#[repr(C)]
+#[derive(Debug, PartialEq)]
+pub struct pmove_t {
+    pub ps: *mut playerState_t,
+    pub cmd: usercmd_t,
+    pub tracemask: c_int,
+    pub debugLevel: c_int,
+    pub noFootsteps: c_int,
+    pub gauntletHit: qboolean,
+    pub numtouch: c_int,
+    pub touchents: [c_int; 32usize],
+    pub mins: vec3_t,
+    pub maxs: vec3_t,
+    pub watertype: c_int,
+    pub waterlevel: c_int,
+    pub xyspeed: f32,
+    pub stepHeight: f32,
+    pub stepTime: c_int,
+    pub trace: Option<
+        unsafe extern "C" fn(
+            arg1: *mut trace_t,
+            arg2: *const vec_t,
+            arg3: *const vec_t,
+            arg4: *const vec_t,
+            arg5: *const vec_t,
+            arg6: c_int,
+            arg7: c_int,
+        ),
+    >,
+    pub pointcontents: Option<unsafe extern "C" fn(arg1: *const vec_t, arg2: c_int) -> c_int>,
+    pub hookEnemy: qboolean,
+}
+
+#[allow(non_camel_case_types)]
+#[allow(non_snake_case)]
+#[repr(C)]
+#[derive(Debug, PartialEq)]
+pub struct clientSnapshot_t {
+    pub areabytes: c_int,
+    pub areabits: [byte; 32usize], // portalarea visibility bits
+    pub ps: playerState_t,
+    pub num_entities: c_int,
+    pub first_entity: c_int, // into the circular sv_packet_entities[]
+    // the entities MUST be in increasing state number
+    // order, otherwise the delta compression will fail
+    pub messageSent: c_int,  // time the message was transmitted
+    pub messageAcked: c_int, // time the message was acked
+    pub messageSize: c_int,  // used to rate drop packets
+}
+
+#[allow(non_camel_case_types)]
+#[allow(non_snake_case)]
+#[repr(C)]
+pub struct netchan_buffer_s {
+    pub msg: msg_t,
+    pub msgBuffer: [byte; 16384usize],
+    pub next: *mut netchan_buffer_s,
+}
+
+#[allow(non_camel_case_types)]
+pub type netchan_buffer_t = netchan_buffer_s;
+
+#[allow(non_camel_case_types)]
+#[allow(non_snake_case)]
+#[repr(C)]
+#[derive(Debug, PartialEq)]
+pub struct trajectory_t {
+    pub trType: trType_t,
+    pub trTime: c_int,
+    pub trDuration: c_int,
+    pub trBase: vec3_t,
+    pub trDelta: vec3_t,
+    pub gravity: f32,
+}
+
+#[allow(non_camel_case_types)]
+#[allow(non_snake_case)]
+#[repr(C)]
+#[derive(Debug, PartialEq)]
+pub struct entityState_s {
+    pub number: c_int,
+    pub eType: c_int,
+    pub eFlags: c_int,
+    pub pos: trajectory_t,
+    pub apos: trajectory_t,
+    pub time: c_int,
+    pub time2: c_int,
+    pub origin: vec3_t,
+    pub origin2: vec3_t,
+    pub angles: vec3_t,
+    pub angles2: vec3_t,
+    pub otherEntityNum: c_int,
+    pub otherEntityNum2: c_int,
+    pub groundEntityNum: c_int,
+    pub constantLight: c_int,
+    pub loopSound: c_int,
+    pub modelindex: c_int,
+    pub modelindex2: c_int,
+    pub clientNum: c_int,
+    pub frame: c_int,
+    pub solid: c_int,
+    pub event: c_int,
+    pub eventParm: c_int,
+    pub powerups: c_int,
+    pub health: c_int,
+    pub armor: c_int,
+    pub weapon: c_int,
+    pub location: c_int,
+    pub legsAnim: c_int,
+    pub torsoAnim: c_int,
+    pub generic1: c_int,
+    pub jumpTime: c_int,
+    pub doubleJumped: c_int,
+}
+
+#[allow(non_camel_case_types)]
+pub type entityState_t = entityState_s;
+
+#[allow(non_camel_case_types)]
+#[allow(non_snake_case)]
+#[repr(C)]
+#[derive(Debug, PartialEq)]
+pub struct entityShared_t {
+    pub s: entityState_t,
+    pub linked: qboolean,
+    pub linkcount: c_int,
+    pub svFlags: c_int,
+    pub singleClient: c_int,
+    pub bmodel: qboolean,
+    pub mins: vec3_t,
+    pub maxs: vec3_t,
+    pub contents: c_int,
+    pub absmin: vec3_t,
+    pub absmax: vec3_t,
+    pub currentOrigin: vec3_t,
+    pub currentAngles: vec3_t,
+    pub ownerNum: c_int,
+}
+
+#[allow(non_camel_case_types)]
+#[repr(C)]
+#[derive(Debug, PartialEq)]
+pub struct sharedEntity_t {
+    pub s: entityState_t,  // communicated by server to clients
+    pub r: entityShared_t, // shared by both the server system and game
+}
+
+#[allow(non_camel_case_types)]
+#[allow(non_snake_case)]
+#[repr(C)]
+pub struct client_s {
+    pub state: clientState_t,
+    pub userinfo: [c_char; 1024usize], // name, etc
+    pub reliableCommands: [[c_char; 1024usize]; 64usize],
+    pub reliableSequence: c_int, // last added reliable message, not necesarily sent or acknowledged yet
+    pub reliableAcknowledge: c_int, // last acknowledged reliable message
+    pub reliableSent: c_int,     // last sent reliable message, not necesarily acknowledged yet
+    pub messageAcknowledge: c_int,
+    pub gamestateMessageNum: c_int, // netchan->outgoingSequence of gamestate
+    pub challenge: c_int,
+    pub lastUsercmd: usercmd_t,
+    pub lastMessageNum: c_int,    // for delta compression
+    pub lastClientCommand: c_int, // reliable client message sequence
+    pub lastClientCommandString: [c_char; 1024usize],
+    pub gentity: *mut sharedEntity_t, // SV_GentityNum(clientnum)
+    pub name: [c_char; 32usize],      // extracted from userinfo, high bits masked
+
+    // Mino: I think everything above this is correct. Below is a mess.
+
+    // downloading
+    pub downloadName: [c_char; 64usize], // if not empty string, we are downloading
+    pub download: fileHandle_t,          // file being downloaded
+    pub downloadSize: c_int,             // total bytes (can't use EOF because of paks)
+    pub downloadCount: c_int,            // bytes sent
+    pub downloadClientBlock: c_int,      // last block we sent to the client, awaiting ack
+    pub downloadCurrentBlock: c_int,     // current block number
+    pub downloadXmitBlock: c_int,        // last block we xmited
+    pub downloadBlocks: [*mut c_uchar; 8usize], // the buffers for the download blocks
+    pub downloadBlockSize: [c_int; 8usize],
+    pub downloadEOF: qboolean,               // We have sent the EOF block
+    pub downloadSendTime: c_int,             // time we last got an ack from the client
+    pub deltaMessage: c_int,                 // frame last client usercmd message
+    pub nextReliableTime: c_int, // svs.time when another reliable command will be allowed
+    pub lastPacketTime: c_int,   // svs.time when packet was last received
+    pub lastConnectTime: c_int,  // svs.time when connection started
+    pub nextSnapshotTime: c_int, // send another snapshot when svs.time >= nextSnapshotTime
+    pub rateDelayed: qboolean, // true if nextSnapshotTime was set based on rate instead of snapshotMsec
+    pub timeoutCount: c_int,   // must timeout a few frames in a row so debugging doesn't break
+    pub frames: [clientSnapshot_t; 32usize], // updates can be delta'd from here
+    pub ping: c_int,
+    pub rate: c_int,         // bytes / second
+    pub snapshotMsec: c_int, // requests a snapshot every snapshotMsec unless rate choked
+    pub pureAuthentic: c_int,
+    pub gotCP: qboolean, // TTimo - additional flag to distinguish between a bad pure checksum, and no cp command at all
+    pub netchan: netchan_t,
+    pub netchan_start_queue: *mut netchan_buffer_t,
+    pub netchan_end_queue: *mut *mut netchan_buffer_t,
+    // Mino: Holy crap. A bunch of data was added. I have no idea where it actually goes,
+    // but this will at least correct sizeof(client_t).
+    #[cfg(target_pointer_width = "64")]
+    pub _unknown2: [u8; 36808usize],
+    #[cfg(target_pointer_width = "32")]
+    _unknown2: [u8; 36836usize], // TODO: Outdated.
+    // Mino: Woohoo! How nice of them to put the SteamID last.
+    pub steam_id: u64,
+}
+
+#[allow(non_camel_case_types)]
+pub type client_t = client_s;
+
+#[allow(non_camel_case_types)]
+#[allow(non_snake_case)]
+#[repr(C)]
+#[derive(Debug, PartialEq)]
+pub struct challenge_t {
+    pub adr: netadr_t,
+    pub challenge: c_int,
+    pub time: c_int,      // time the last packet was sent to the autherize server
+    pub pingTime: c_int,  // time the challenge response was sent to client
+    pub firstTime: c_int, // time the adr was first used, for authorize timeout checks
+    pub connected: qboolean,
+}
+
+#[allow(non_camel_case_types)]
+#[allow(non_snake_case)]
+#[repr(C)]
+pub struct serverStatic_t {
+    pub initialized: qboolean,                // sv_init has completed
+    pub time: c_int,                          // will be strictly increasing across level changes
+    pub snapFlagServerBit: c_int,             // ^= SNAPFLAG_SERVERCOUNT every SV_SpawnServer()
+    pub clients: *mut client_t,               // [sv_maxclients->integer];
+    pub numSnapshotEntities: c_int, // sv_maxclients->integer*PACKET_BACKUP*MAX_PACKET_ENTITIES
+    pub nextSnapshotEntities: c_int, // next snapshotEntities to use
+    pub snapshotEntities: *mut entityState_t, // [numSnapshotEntities]
+    pub nextHeartbeatTime: c_int,
+    pub challenges: [challenge_t; 1024usize], // to prevent invalid IPs from connecting
+    pub redirectAddress: netadr_t,            // for rcon return messages
+    pub authorizeAddress: netadr_t,           // for rcon return messages
+}
+
+#[allow(non_camel_case_types)]
+#[allow(non_snake_case)]
+#[repr(C)]
+#[derive(Debug, PartialEq)]
+pub struct svEntity_s {
+    pub worldSector: *mut worldSector_s,
+    pub nextEntityInWorldSector: *mut svEntity_s,
+    pub baseline: entityState_t, // for delta compression of initial sighting
+    pub numClusters: c_int,      // if -1, use headnode instead
+    pub clusternums: [c_int; 16usize],
+    pub lastCluster: c_int, // if all the clusters don't fit in clusternums
+    pub areanum: c_int,
+    pub areanum2: c_int,
+    pub snapshotCounter: c_int, // used to prevent double adding from portal views
+}
+
+#[allow(non_camel_case_types)]
+pub type svEntity_t = svEntity_s;
+
+#[allow(non_camel_case_types)]
+#[repr(C)]
+#[derive(Debug, PartialEq)]
+pub struct worldSector_s {
+    pub axis: c_int, // -1 = leaf node
+    pub dist: f32,
+    pub children: [*mut worldSector_s; 2usize],
+    pub entities: *mut svEntity_t,
+}
+
+#[allow(dead_code)]
+#[allow(non_camel_case_types)]
+pub type worldSector_t = worldSector_s;
+
+#[repr(u32)]
+#[allow(dead_code)]
+#[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
+pub enum serverState_t {
+    SS_DEAD = 0,    // no map loaded
+    SS_LOADING = 1, // spawning level entities
+    SS_GAME = 2,    // actively running
+}
+
+#[allow(non_snake_case)]
+#[allow(dead_code)]
+#[repr(C)]
+pub struct server_t {
+    pub state: serverState_t,
+    pub restarting: qboolean,
+    pub serverId: c_int,
+    pub restartedServerId: c_int,
+    pub checksumFeed: c_int,
+    pub checksumFeedServerId: c_int,
+    pub snapshotCounter: c_int,
+    pub timeResidual: c_int,
+    pub nextFrameTime: c_int,
+    pub models: [*mut cmodel_s; 256usize],
+    pub configstrings: [*mut c_char; 1024usize],
+    pub svEntities: [svEntity_t; 1024usize],
+    pub entityParsePoint: *mut c_char,
+    pub gentities: *mut sharedEntity_t,
+    pub gentitySize: c_int,
+    pub num_entities: c_int,
+    pub gameClients: *mut playerState_t,
+    pub gameClientSize: c_int,
+    pub restartTime: c_int,
+}
+
+#[repr(C)]
+#[derive(Debug, PartialEq)]
+pub struct playerTeamState_t {
+    pub state: playerTeamStateState_t,
+    pub captures: c_int,
+    pub basedefense: c_int,
+    pub carrierdefense: c_int,
+    pub flagrecovery: c_int,
+    pub fragcarrier: c_int,
+    pub assists: c_int,
+    pub flagruntime: c_int,
+    pub flagrunrelays: c_int,
+    pub lasthurtcarrier: c_int,
+    pub lastreturnedflag: c_int,
+    pub lastfraggedcarrier: c_int,
+}
+
+#[allow(non_snake_case)]
+#[repr(C)]
+#[derive(Debug, PartialEq)]
+pub struct expandedStatObj_t {
+    pub statId: c_uint,
+    pub lastThinkTime: c_int,
+    pub teamJoinTime: c_int,
+    pub totalPlayTime: c_int,
+    pub serverRank: c_int,
+    pub serverRankIsTied: qboolean,
+    pub teamRank: c_int,
+    pub teamRankIsTied: qboolean,
+    pub numKills: c_int,
+    pub numDeaths: c_int,
+    pub numSuicides: c_int,
+    pub numTeamKills: c_int,
+    pub numTeamKilled: c_int,
+    pub numWeaponKills: [c_int; 16usize],
+    pub numWeaponDeaths: [c_int; 16usize],
+    pub shotsFired: [c_int; 16usize],
+    pub shotsHit: [c_int; 16usize],
+    pub damageDealt: [c_int; 16usize],
+    pub damageTaken: [c_int; 16usize],
+    pub powerups: [c_int; 16usize],
+    pub holdablePickups: [c_int; 7usize],
+    pub weaponPickups: [c_int; 16usize],
+    pub weaponUsageTime: [c_int; 16usize],
+    pub numCaptures: c_int,
+    pub numAssists: c_int,
+    pub numDefends: c_int,
+    pub numHolyShits: c_int,
+    pub totalDamageDealt: c_int,
+    pub totalDamageTaken: c_int,
+    pub previousHealth: c_int,
+    pub previousArmor: c_int,
+    pub numAmmoPickups: c_int,
+    pub numFirstMegaHealthPickups: c_int,
+    pub numMegaHealthPickups: c_int,
+    pub megaHealthPickupTime: c_int,
+    pub numHealthPickups: c_int,
+    pub numFirstRedArmorPickups: c_int,
+    pub numRedArmorPickups: c_int,
+    pub redArmorPickupTime: c_int,
+    pub numFirstYellowArmorPickups: c_int,
+    pub numYellowArmorPickups: c_int,
+    pub yellowArmorPickupTime: c_int,
+    pub numFirstGreenArmorPickups: c_int,
+    pub numGreenArmorPickups: c_int,
+    pub greenArmorPickupTime: c_int,
+    pub numQuadDamagePickups: c_int,
+    pub numQuadDamageKills: c_int,
+    pub numBattleSuitPickups: c_int,
+    pub numRegenerationPickups: c_int,
+    pub numHastePickups: c_int,
+    pub numInvisibilityPickups: c_int,
+    pub numRedFlagPickups: c_int,
+    pub numBlueFlagPickups: c_int,
+    pub numNeutralFlagPickups: c_int,
+    pub numMedkitPickups: c_int,
+    pub numArmorPickups: c_int,
+    pub numDenials: c_int,
+    pub killStreak: c_int,
+    pub maxKillStreak: c_int,
+    pub xp: c_int,
+    pub domThreeFlagsTime: c_int,
+    pub numMidairShotgunKills: c_int,
+}
+
+// client data that stays across multiple respawns, but is cleared
+// on each level change or team change at ClientBegin()
+#[allow(non_snake_case)]
 #[repr(C, align(8))]
-struct gclient_t {
-    ps: playerState_t,
-    pers: clientPersistant_t,
-    sess: clientSession_t,
-    noclip: qboolean,
-    lastCmdTime: c_int,
-    buttons: c_int,
-    oldbuttons: c_int,
-    damage_armor: c_int,
-    damage_blood: c_int,
-    damage_from: vec3_t,
-    damage_fromWorld: qboolean,
-    impressiveCount: c_int,
-    accuracyCount: c_int,
-    accuracy_shots: c_int,
-    accuracy_hits: c_int,
-    lastClientKilled: c_int,
-    lastKilledClient: c_int,
-    lastHurtClient: [c_int; 2],
-    lastHurtMod: [c_int; 2],
-    lastHurtTime: [c_int; 2],
-    lastKillTime: c_int,
-    lastGibTime: c_int,
-    rampageCounter: c_int,
-    revengeCounter: [c_int; 64],
-    respawnTime: c_int,
-    rewardTime: c_int,
-    airOutTime: c_int,
-    fireHeld: qboolean,
-    hook: *const gentity_t,
-    switchTeamTime: c_int,
-    timeResidual: c_int,
-    timeResidualScout: c_int,
-    timeResidualArmor: c_int,
-    timeResidualHealth: c_int,
-    timeResidualPingPOI: c_int,
-    timeResidualSpecInfo: c_int,
-    healthRegenActive: qboolean,
-    armorRegenActive: qboolean,
-    persistantPowerup: *const gentity_t,
-    portalID: c_int,
-    ammoTimes: [c_int; 16],
-    invulnerabilityTime: c_int,
-    expandedStats: expandedStatObj_t,
-    ignoreChatsTime: c_int,
-    lastUserCmdTime: c_int,
-    freezePlayer: qboolean,
-    deferredSpawnTime: c_int,
-    deferredSpawnCount: c_int,
-    race: raceInfo_t,
-    shotgunDmg: [c_int; 64],
-    round_shots: c_int,
-    round_hits: c_int,
-    round_damage: c_int,
-    queuedSpectatorFollow: qboolean,
-    queuedSpectatorClient: c_int,
+pub struct clientPersistant_t {
+    pub connected: clientConnected_t,
+    pub cmd: usercmd_t,
+    pub localClient: qboolean,
+    pub initialSpawn: qboolean,
+    pub predictItemPickup: qboolean,
+    pub netname: [c_char; 40usize],
+    pub country: [c_char; 24usize],
+    pub steamId: u64,
+    pub maxHealth: c_int,
+    pub voteCount: c_int,
+    pub voteState: voteState_t,
+    pub complaints: c_int,
+    pub complaintClient: c_int,
+    pub complaintEndTime: c_int,
+    pub damageFromTeammates: c_int,
+    pub damageToTeammates: c_int,
+    pub ready: qboolean,
+    pub autoaction: c_int,
+    pub timeouts: c_int,
+    pub enterTime: c_int,
+    pub teamState: playerTeamState_t,
+    pub damageResidual: c_int,
+    pub inactivityTime: c_int,
+    pub inactivityWarning: c_int,
+    pub lastUserinfoUpdate: c_int,
+    pub userInfoFloodInfractions: c_int,
+    pub lastMapVoteTime: c_int,
+    pub lastMapVoteIndex: c_int,
+}
+
+// client data that stays across multiple levels or tournament restarts
+// this is achieved by writing all the data to cvar strings at game shutdown
+// time and reading them back at connection time.  Anything added here
+// MUST be dealt with in G_InitSessionData() / G_ReadSessionData() / G_WriteSessionData()
+#[allow(non_snake_case)]
+#[repr(C)]
+#[derive(Debug, PartialEq)]
+pub struct clientSession_t {
+    pub sessionTeam: team_t,
+    pub spectatorTime: c_int,
+    pub spectatorState: spectatorState_t,
+    pub spectatorClient: c_int,
+    pub weaponPrimary: c_int,
+    pub wins: c_int,
+    pub losses: c_int,
+    pub teamLeader: qboolean,
+    pub privileges: privileges_t,
+    pub specOnly: c_int,
+    pub playQueue: c_int,
+    pub updatePlayQueue: qboolean,
+    pub muted: c_int,
+    pub prevScore: c_int,
+}
+
+#[allow(non_snake_case)]
+#[repr(C)]
+#[derive(Debug, PartialEq)]
+pub struct gitem_s {
+    pub classname: *mut c_char,
+    pub pickup_sound: *const c_char,
+    pub world_model: [*const c_char; 4usize],
+    pub premium_model: [*const c_char; 4usize],
+    pub icon: *const c_char,
+    pub pickup_name: *const c_char,
+    pub quantity: c_int,
+    pub giType: itemType_t,
+    pub giTag: c_int,
+    pub itemTimer: qboolean,
+    pub maskGametypeRenderSkip: c_uint,
+    pub maskGametypeForceSpawn: c_uint,
+}
+
+pub type gitem_t = gitem_s;
+
+#[repr(u32)]
+#[allow(dead_code)]
+#[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
+pub enum entityType_t {
+    ET_GENERAL = 0,
+    ET_PLAYER = 1,
+    ET_ITEM = 2,
+    ET_MISSILE = 3,
+    ET_MOVER = 4,
+    ET_BEAM = 5,
+    ET_PORTAL = 6,
+    ET_SPEAKER = 7,
+    ET_PUSH_TRIGGER = 8,
+    ET_TELEPORT_TRIGGER = 9,
+    ET_INVISIBLE = 10,
+    ET_GRAPPLE = 11, // grapple hooked on wall
+    ET_TEAM = 12,
+    ET_EVENTS = 13, // any of the EV_* events can be added freestanding
+                    // by setting eType to ET_EVENTS + eventNum
+                    // this avoids having to set eFlags and eventNum
+}
+
+#[allow(non_snake_case)]
+#[repr(C)]
+#[derive(Debug, PartialEq)]
+pub struct gentity_s {
+    pub s: entityState_t,
+    pub r: entityShared_t,
+    pub client: *mut gclient_s,
+    pub inuse: qboolean,
+    pub classname: *mut c_char,
+    pub spawnflags: c_int,
+    pub neverFree: qboolean,
+    pub flags: c_int,
+    pub model: *mut c_char,
+    pub model2: *mut c_char,
+    pub freetime: c_int,
+    pub eventTime: c_int,
+    pub freeAfterEvent: qboolean,
+    pub unlinkAfterEvent: qboolean,
+    pub physicsObject: qboolean,
+    pub physicsBounce: f32,
+    pub clipmask: c_int,
+    pub moverState: moverState_t,
+    pub soundPos1: c_int,
+    pub sound1to2: c_int,
+    pub sound2to1: c_int,
+    pub soundPos2: c_int,
+    pub soundLoop: c_int,
+    pub parent: *mut gentity_t,
+    pub nextTrain: *mut gentity_t,
+    pub prevTrain: *mut gentity_t,
+    pub pos1: vec3_t,
+    pub pos2: vec3_t,
+    pub message: *mut c_char,
+    pub cvar: *mut c_char,
+    pub tourPointTarget: *mut c_char,
+    pub tourPointTargetName: *mut c_char,
+    pub noise: *mut c_char,
+    pub timestamp: c_int,
+    pub angle: f32,
+    pub target: *mut c_char,
+    pub targetname: *mut c_char,
+    pub targetShaderName: *mut c_char,
+    pub targetShaderNewName: *mut c_char,
+    pub target_ent: *mut gentity_t,
+    pub speed: f32,
+    pub movedir: vec3_t,
+    pub nextthink: c_int,
+    pub think: Option<unsafe extern "C" fn(arg1: *mut gentity_t)>,
+    pub framethink: Option<unsafe extern "C" fn(arg1: *mut gentity_t)>,
+    pub reached: Option<unsafe extern "C" fn(arg1: *mut gentity_t)>,
+    pub blocked: Option<unsafe extern "C" fn(arg1: *mut gentity_t, arg2: *mut gentity_t)>,
+    pub touch: Option<
+        unsafe extern "C" fn(arg1: *mut gentity_t, arg2: *mut gentity_t, arg3: *mut trace_t),
+    >,
+    pub use_: Option<
+        unsafe extern "C" fn(arg1: *mut gentity_t, arg2: *mut gentity_t, arg3: *mut gentity_t),
+    >,
+    pub pain: Option<unsafe extern "C" fn(arg1: *mut gentity_t, arg2: *mut gentity_t, arg3: c_int)>,
+    pub die: Option<
+        unsafe extern "C" fn(
+            arg1: *mut gentity_t,
+            arg2: *mut gentity_t,
+            arg3: *mut gentity_t,
+            arg4: c_int,
+            arg5: c_int,
+        ),
+    >,
+    pub pain_debounce_time: c_int,
+    pub fly_sound_debounce_time: c_int,
+    pub health: c_int,
+    pub takedamage: qboolean,
+    pub damage: c_int,
+    pub damageFactor: c_int,
+    pub splashDamage: c_int,
+    pub splashRadius: c_int,
+    pub methodOfDeath: c_int,
+    pub splashMethodOfDeath: c_int,
+    pub count: c_int,
+    pub enemy: *mut gentity_t,
+    pub activator: *mut gentity_t,
+    pub team: *const c_char,
+    pub teammaster: *mut gentity_t,
+    pub teamchain: *mut gentity_t,
+    pub kamikazeTime: c_int,
+    pub kamikazeShockTime: c_int,
+    pub watertype: c_int,
+    pub waterlevel: c_int,
+    pub noise_index: c_int,
+    pub bouncecount: c_int,
+    pub wait: f32,
+    pub random: f32,
+    pub spawnTime: c_int,
+    pub item: *const gitem_t,
+    pub pickupCount: c_int,
+}
+
+#[allow(non_snake_case)]
+#[repr(C)]
+pub struct raceInfo_t {
+    pub racingActive: qboolean,
+    pub startTime: c_int,
+    pub lastTime: c_int,
+    pub best_race: [c_int; 64usize],
+    pub current_race: [c_int; 64usize],
+    pub currentCheckPoint: c_int,
+    pub weaponUsed: qboolean,
+    pub nextRacePoint: *mut gentity_t,
+    pub nextRacePoint2: *mut gentity_t,
+}
+
+// this structure is cleared on each ClientSpawn(),
+// except for 'client->pers' and 'client->sess'
+#[allow(non_snake_case)]
+#[repr(C, align(8))]
+pub struct gclient_s {
+    pub ps: playerState_t,
+    pub pers: clientPersistant_t,
+    pub sess: clientSession_t,
+    pub noclip: qboolean,
+    pub lastCmdTime: c_int,
+    pub buttons: c_int,
+    pub oldbuttons: c_int,
+    pub damage_armor: c_int,
+    pub damage_blood: c_int,
+    pub damage_from: vec3_t,
+    pub damage_fromWorld: qboolean,
+    pub impressiveCount: c_int,
+    pub accuracyCount: c_int,
+    pub accuracy_shots: c_int,
+    pub accuracy_hits: c_int,
+    pub lastClientKilled: c_int,
+    pub lastKilledClient: c_int,
+    pub lastHurtClient: [c_int; 2usize],
+    pub lastHurtMod: [c_int; 2usize],
+    pub lastHurtTime: [c_int; 2usize],
+    pub lastKillTime: c_int,
+    pub lastGibTime: c_int,
+    pub rampageCounter: c_int,
+    pub revengeCounter: [c_int; 64usize],
+    pub respawnTime: c_int,
+    pub rewardTime: c_int,
+    pub airOutTime: c_int,
+    pub fireHeld: qboolean,
+    pub hook: *mut gentity_t,
+    pub switchTeamTime: c_int,
+    pub timeResidual: c_int,
+    pub timeResidualScout: c_int,
+    pub timeResidualArmor: c_int,
+    pub timeResidualHealth: c_int,
+    pub timeResidualPingPOI: c_int,
+    pub timeResidualSpecInfo: c_int,
+    pub healthRegenActive: qboolean,
+    pub armorRegenActive: qboolean,
+    pub persistantPowerup: *mut gentity_t,
+    pub portalID: c_int,
+    pub ammoTimes: [c_int; 16usize],
+    pub invulnerabilityTime: c_int,
+    pub expandedStats: expandedStatObj_t,
+    pub ignoreChatsTime: c_int,
+    pub lastUserCmdTime: c_int,
+    pub freezePlayer: qboolean,
+    pub deferredSpawnTime: c_int,
+    pub deferredSpawnCount: c_int,
+    pub race: raceInfo_t,
+    pub shotgunDmg: [c_int; 64usize],
+    pub round_shots: c_int,
+    pub round_hits: c_int,
+    pub round_damage: c_int,
+    pub queuedSpectatorFollow: qboolean,
+    pub queuedSpectatorClient: c_int,
+}
+
+#[allow(non_snake_case)]
+#[repr(C)]
+#[derive(Debug, PartialEq)]
+pub struct roundState_t {
+    pub eCurrent: roundStateState_t,
+    pub eNext: roundStateState_t,
+    pub tNext: c_int,
+    pub startTime: c_int,
+    pub turn: c_int,
+    pub round: c_int,
+    pub prevRoundWinningTeam: team_t,
+    pub touch: qboolean,
+    pub capture: qboolean,
+}
+
+#[allow(non_snake_case)]
+#[repr(C)]
+pub struct level_locals_t {
+    pub clients: *mut gclient_s,
+    pub gentities: *mut gentity_s,
+    pub gentitySize: c_int,
+    pub num_entities: c_int,
+    pub warmupTime: c_int,
+    pub logFile: fileHandle_t,
+    pub maxclients: c_int,
+    pub time: c_int,
+    pub frametime: c_int,
+    pub startTime: c_int,
+    pub teamScores: [c_int; 4usize],
+    pub nextTeamInfoTime: c_int,
+    pub newSession: qboolean,
+    pub restarted: qboolean,
+    pub shufflePending: qboolean,
+    pub shuffleReadyTime: c_int,
+    pub numConnectedClients: c_int,
+    pub numNonSpectatorClients: c_int,
+    pub numPlayingClients: c_int,
+    pub numReadyClients: c_int,
+    pub numReadyHumans: c_int,
+    pub numStandardClients: c_int,
+    pub sortedClients: [c_int; 64usize],
+    pub follow1: c_int,
+    pub follow2: c_int,
+    pub snd_fry: c_int,
+    pub warmupModificationCount: c_int,
+    pub voteString: [c_char; 1024usize],
+    pub voteDisplayString: [c_char; 1024usize],
+    pub voteExecuteTime: c_int,
+    pub voteTime: c_int,
+    pub voteYes: c_int,
+    pub voteNo: c_int,
+    pub pendingVoteCaller: c_int,
+    pub spawning: qboolean,
+    pub numSpawnVars: c_int,
+    pub spawnVars: [[*mut c_char; 2usize]; 64usize],
+    pub numSpawnVarChars: c_int,
+    pub spawnVarChars: [c_char; 4096usize],
+    pub intermissionQueued: c_int,
+    pub intermissionTime: c_int,
+    pub readyToExit: qboolean,
+    pub votingEnded: qboolean,
+    pub exitTime: c_int,
+    pub intermission_origin: vec3_t,
+    pub intermission_angle: vec3_t,
+    pub locationLinked: qboolean,
+    pub locationHead: *mut gentity_t,
+    pub timePauseBegin: c_int,
+    pub timeOvertime: c_int,
+    pub timeInitialPowerupSpawn: c_int,
+    pub bodyQueIndex: c_int,
+    pub bodyQue: [*mut gentity_t; 8usize],
+    pub portalSequence: c_int,
+    pub gameStatsReported: qboolean,
+    pub mapIsTrainingMap: qboolean,
+    pub clientNum1stPlayer: c_int,
+    pub clientNum2ndPlayer: c_int,
+    pub scoreboardArchive1: [c_char; 1024usize],
+    pub scoreboardArchive2: [c_char; 1024usize],
+    pub firstScorer: [c_char; 40usize],
+    pub lastScorer: [c_char; 40usize],
+    pub lastTeamScorer: [c_char; 40usize],
+    pub firstFrag: [c_char; 40usize],
+    pub red_flag_origin: vec3_t,
+    pub blue_flag_origin: vec3_t,
+    pub spawnCount: [c_int; 4usize],
+    pub runeSpawns: [c_int; 5usize],
+    pub itemCount: [c_int; 60usize],
+    pub suddenDeathRespawnDelay: c_int,
+    pub suddenDeathRespawnDelayLastAnnounced: c_int,
+    pub numRedArmorPickups: [c_int; 4usize],
+    pub numYellowArmorPickups: [c_int; 4usize],
+    pub numGreenArmorPickups: [c_int; 4usize],
+    pub numMegaHealthPickups: [c_int; 4usize],
+    pub numQuadDamagePickups: [c_int; 4usize],
+    pub numBattleSuitPickups: [c_int; 4usize],
+    pub numRegenerationPickups: [c_int; 4usize],
+    pub numHastePickups: [c_int; 4usize],
+    pub numInvisibilityPickups: [c_int; 4usize],
+    pub quadDamagePossessionTime: [c_int; 4usize],
+    pub battleSuitPossessionTime: [c_int; 4usize],
+    pub regenerationPossessionTime: [c_int; 4usize],
+    pub hastePossessionTime: [c_int; 4usize],
+    pub invisibilityPossessionTime: [c_int; 4usize],
+    pub numFlagPickups: [c_int; 4usize],
+    pub numMedkitPickups: [c_int; 4usize],
+    pub flagPossessionTime: [c_int; 4usize],
+    pub dominationPoints: [*mut gentity_t; 5usize],
+    pub dominationPointCount: c_int,
+    pub dominationPointsTallied: c_int,
+    pub racePointCount: c_int,
+    pub disableDropWeapon: qboolean,
+    pub teamShuffleActive: qboolean,
+    pub lastTeamScores: [c_int; 4usize],
+    pub lastTeamRoundScores: [c_int; 4usize],
+    pub attackingTeam: team_t,
+    pub roundState: roundState_t,
+    pub lastTeamCountSent: c_int,
+    pub infectedConscript: c_int,
+    pub lastZombieSurvivor: c_int,
+    pub zombieScoreTime: c_int,
+    pub lastInfectionTime: c_int,
+    pub intermissionMapNames: [[c_char; 1024usize]; 3usize],
+    pub intermissionMapTitles: [[c_char; 1024usize]; 3usize],
+    pub intermissionMapConfigs: [[c_char; 1024usize]; 3usize],
+    pub intermissionMapVotes: [c_int; 3usize],
+    pub matchForfeited: qboolean,
+    pub allReadyTime: c_int,
+    pub notifyCvarChange: qboolean,
+    pub notifyCvarChangeTime: c_int,
+    pub lastLeadChangeTime: c_int,
+    pub lastLeadChangeClient: c_int,
+}
+
+// Some extra stuff that's not in the Q3 source. These are the commands you
+// get when you type ? in the console. The array has a sentinel struct, so
+// check "cmd" == NULL.
+#[repr(C)]
+#[derive(Debug, PartialEq)]
+pub struct adminCmd_t {
+    pub needed_privileges: privileges_t,
+    pub unknown1: c_int,
+    pub cmd: *mut c_char, // The command name, e.g. "tempban".
+    pub admin_func: Option<unsafe extern "C" fn(ent: *mut gentity_t)>,
+    pub unknown2: c_int,
+    pub unknown3: c_int,
+    pub description: *mut c_char, // Command description that gets printed when you do "?".
+}
+
+#[repr(C)]
+#[derive(Debug, PartialEq)]
+pub struct cmodel_s {
+    pub _address: u8,
+}
+
+#[allow(non_camel_case_types)]
+#[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
+#[allow(dead_code)]
+#[repr(C)]
+pub enum healthPickup_t {
+    H_NONE = 0,
+    H_MEGA = 1,
+    H_LARGE = 2,
+    H_MEDIUM = 3,
+    H_SMALL = 4,
+    H_NUM_HEALTHS = 5,
 }
 
 pub(crate) struct GameClient {
@@ -894,7 +1845,10 @@ impl GameClient {
     }
 
     pub(crate) fn remove_kamikaze_flag(&mut self) {
-        self.game_client.ps.eFlags.bitand_assign(!EF_KAMIKAZE);
+        self.game_client
+            .ps
+            .eFlags
+            .bitand_assign(!EF_KAMIKAZE as i32);
     }
 
     pub(crate) fn set_privileges(&mut self, privileges: i32) {
@@ -1022,7 +1976,7 @@ impl GameClient {
     pub(crate) fn set_holdable(&mut self, holdable: i32) {
         // 37 - kamikaze
         if holdable == 37 {
-            self.game_client.ps.eFlags.bitor_assign(EF_KAMIKAZE);
+            self.game_client.ps.eFlags.bitor_assign(EF_KAMIKAZE as i32);
         } else {
             self.remove_kamikaze_flag();
         }
@@ -1105,91 +2059,6 @@ impl GameClient {
     }
 }
 
-#[allow(non_snake_case)]
-#[allow(non_camel_case_types)]
-#[repr(C)]
-pub struct gentity_t {
-    s: entityState_t,
-    r: entityShared_t,
-    client: *mut gclient_t,
-    inuse: qboolean,
-    classname: *const c_char,
-    spawnflags: c_int,
-    neverFree: qboolean,
-    flags: c_int,
-    model: *const c_char,
-    model2: *const c_char,
-    freetime: c_int,
-    eventTime: c_int,
-    freeAfterEvent: qboolean,
-    unlinkAfterEvent: qboolean,
-    physicsObject: qboolean,
-    physicsBounce: c_float,
-    clipmask: c_int,
-    moverState: moverState_t,
-    soundPos1: c_int,
-    sound1to2: c_int,
-    sound2to1: c_int,
-    soundPos2: c_int,
-    soundLoop: c_int,
-    parent: *const gentity_t,
-    nextTrain: *const gentity_t,
-    prevTrain: *const gentity_t,
-    pos1: vec3_t,
-    pos2: vec3_t,
-    message: *const c_char,
-    cvar: *const c_char,
-    tourPointTarget: *const c_char,
-    tourPointTargetName: *const c_char,
-    noise: *const c_char,
-    timestamp: c_int,
-    angle: c_float,
-    target: *const c_char,
-    targetname: *const c_char,
-    targetShaderName: *const c_char,
-    targetShaderNewName: *const c_char,
-    target_ent: *const gentity_t,
-    speed: c_float,
-    movedir: vec3_t,
-    nextthink: c_int,
-    think: *const c_void,
-    framethink: extern "C" fn(*const gentity_t) -> c_void,
-    reached: extern "C" fn(*const gentity_t) -> c_void,
-    blocked: extern "C" fn(*const gentity_t, *const gentity_t) -> c_void,
-    touch: extern "C" fn(*mut gentity_t, *mut gentity_t, *mut trace_t),
-    _use: extern "C" fn(*const gentity_t, *const gentity_t, *const gentity_t) -> c_void,
-    pain: extern "C" fn(*const gentity_t, c_int) -> c_void,
-    die:
-        extern "C" fn(*const gentity_t, *const gentity_t, *const gentity_t, c_int, c_int) -> c_void,
-    pain_debounce_time: c_int,
-    fly_sound_debounce_time: c_int,
-    health: c_int,
-    takedamage: qboolean,
-    damage: c_int,
-    damageFactor: c_int,
-    splashDamage: c_int,
-    splashRadius: c_int,
-    methodOfDeath: c_int,
-    splashMethodOfDeath: c_int,
-    count: c_int,
-    enemy: *const gentity_t,
-    activator: *const gentity_t,
-    team: *const c_char,
-    teammaster: *const gentity_t,
-    teamchain: *const gentity_t,
-    kamikazeTime: c_int,
-    kamikazeShockTime: c_int,
-    watertype: c_int,
-    waterlevel: c_int,
-    noise_index: c_int,
-    bouncecount: c_int,
-    wait: c_float,
-    random: c_float,
-    spawnTime: c_int,
-    item: *const gitem_t,
-    pickupCount: c_int,
-}
-
 pub(crate) struct GameEntity {
     gentity_t: &'static mut gentity_t,
 }
@@ -1215,9 +2084,16 @@ impl TryFrom<i32> for GameEntity {
     type Error = &'static str;
 
     fn try_from(client_id: i32) -> Result<Self, Self::Error> {
-        let slice = unsafe { core::slice::from_raw_parts_mut(g_entities, MAX_GENTITIES) };
-        let gentity: &mut gentity_t = slice.index_mut(client_id as usize);
-        Ok(Self { gentity_t: gentity })
+        if client_id < 0 {
+            return Err("invalid client_id");
+        }
+        unsafe {
+            g_entities
+                .offset(client_id as isize)
+                .as_mut()
+                .map(|gentity| Self { gentity_t: gentity })
+                .ok_or("client not found")
+        }
     }
 }
 
@@ -1247,7 +2123,7 @@ pub extern "C" fn ShiNQlx_Touch_Item(
     trace: *mut trace_t,
 ) {
     unsafe {
-        if (*ent).parent == other {
+        if ent.as_ref().unwrap().parent == other {
             return;
         }
         Touch_Item(ent, other, trace);
@@ -1258,9 +2134,10 @@ pub extern "C" fn ShiNQlx_Touch_Item(
 #[no_mangle]
 pub extern "C" fn ShiNQlx_Switch_Touch_Item(ent: *mut gentity_t) {
     unsafe {
-        (*ent).touch = Touch_Item;
-        (*ent).think = G_FreeEntity as *const c_void;
-        (*ent).nextthink = CurrentLevel::default().get_leveltime() + 29000;
+        let ref_mut_ent = ent.as_mut().unwrap();
+        ref_mut_ent.touch = Some(Touch_Item);
+        ref_mut_ent.think = Some(G_FreeEntity);
+        ref_mut_ent.nextthink = CurrentLevel::default().get_leveltime() + 29000;
     }
 }
 
@@ -1284,21 +2161,20 @@ impl GameEntity {
         if unsafe { (*self.gentity_t.client).pers.connected } == CON_DISCONNECTED {
             return "".into();
         }
-        unsafe {
-            CStr::from_ptr(&(*self.gentity_t.client).pers.netname as *const c_char)
-                .to_string_lossy()
-                .to_string()
-        }
-    }
 
-    pub(crate) fn get_steam_id(&self) -> u64 {
-        if self.gentity_t.client.is_null() {
-            return 0;
+        unsafe {
+            CStr::from_ptr(
+                self.gentity_t
+                    .client
+                    .as_ref()
+                    .unwrap()
+                    .pers
+                    .netname
+                    .as_ptr(),
+            )
+            .to_string_lossy()
+            .to_string()
         }
-        if unsafe { (*self.gentity_t.client).pers.connected } == CON_DISCONNECTED {
-            return 0;
-        }
-        unsafe { (*self.gentity_t.client).pers.steamId }
     }
 
     pub(crate) fn get_team(&self) -> i32 {
@@ -1309,7 +2185,7 @@ impl GameEntity {
             return TEAM_SPECTATOR as i32;
         }
 
-        unsafe { (*self.gentity_t.client).sess.sessionTeam as i32 }
+        unsafe { self.gentity_t.client.as_ref().unwrap().sess.sessionTeam as i32 }
     }
 
     pub(crate) fn get_privileges(&self) -> i32 {
@@ -1317,7 +2193,7 @@ impl GameEntity {
             return -1;
         }
 
-        unsafe { (*self.gentity_t.client).sess.privileges as i32 }
+        unsafe { self.gentity_t.client.as_ref().unwrap().sess.privileges as i32 }
     }
 
     pub fn get_game_client(&self) -> Option<GameClient> {
@@ -1353,7 +2229,7 @@ impl GameEntity {
                 std::ptr::null(),
                 std::ptr::null(),
                 damage * 2,
-                DAMAGE_NO_PROTECTION,
+                DAMAGE_NO_PROTECTION as c_int,
                 mean_of_death,
             );
         }
@@ -1367,7 +2243,7 @@ impl GameEntity {
         unsafe {
             self.gentity_t.s.eType == ET_ITEM as i32
                 && !self.gentity_t.item.is_null()
-                && (*self.gentity_t.item).giType == IT_WEAPON
+                && self.gentity_t.item.as_ref().unwrap().giType == IT_WEAPON
         }
     }
 
@@ -1376,7 +2252,7 @@ impl GameEntity {
     }
 
     pub fn is_dropped_item(&self) -> bool {
-        self.gentity_t.flags.bitand(FL_DROPPED_ITEM) == 1
+        self.gentity_t.flags.bitand(FL_DROPPED_ITEM as i32) == 1
     }
 
     pub fn get_client_number(&self) -> i32 {
@@ -1389,20 +2265,22 @@ impl GameEntity {
         unsafe {
             let entity = LaunchItem(
                 bg_itemlist.offset(
-                    (*self.gentity_t.client).ps.stats[STAT_HOLDABLE_ITEM as usize] as isize,
+                    self.gentity_t.client.as_ref().unwrap().ps.stats[STAT_HOLDABLE_ITEM as usize]
+                        as isize,
                 ),
                 self.gentity_t.s.pos.trBase,
                 velocity,
             )
             .cast_mut();
-            (*entity).touch = ShiNQlx_Touch_Item;
-            (*entity).parent = self.gentity_t;
-            (*entity).think = ShiNQlx_Switch_Touch_Item as *const c_void;
+            let mut_ref_entity = entity.as_mut().unwrap();
+            mut_ref_entity.touch = Some(ShiNQlx_Touch_Item);
+            mut_ref_entity.parent = self.gentity_t;
+            mut_ref_entity.think = Some(ShiNQlx_Switch_Touch_Item);
             let current_level = CurrentLevel::default();
-            (*entity).nextthink = current_level.get_leveltime() + 1000;
-            (*entity).s.pos.trTime = current_level.get_leveltime() - 500;
+            mut_ref_entity.nextthink = current_level.get_leveltime() + 1000;
+            mut_ref_entity.s.pos.trTime = current_level.get_leveltime() - 500;
 
-            (*self.gentity_t.client).ps.stats[STAT_HOLDABLE_ITEM as usize] = 0;
+            self.gentity_t.client.as_mut().unwrap().ps.stats[STAT_HOLDABLE_ITEM as usize] = 0;
         }
     }
 
@@ -1431,8 +2309,9 @@ impl GameEntity {
         unsafe {
             let ent = LaunchItem(bg_itemlist.offset(item_id as isize), origin_vec, velocity)
                 as *mut gentity_t;
-            (*ent).nextthink = 0;
-            (*ent).think = 0 as *const c_void;
+            let mut_ref_ent = ent.as_mut().unwrap();
+            mut_ref_ent.nextthink = 0;
+            mut_ref_ent.think = None;
             G_AddEvent(ent, EV_ITEM_RESPAWN, 0); // make item be scaled up
         }
     }
@@ -1442,10 +2321,10 @@ pub(crate) struct Activator {
     activator: &'static gentity_t,
 }
 
-impl TryFrom<*const gentity_t> for Activator {
+impl TryFrom<*mut gentity_t> for Activator {
     type Error = &'static str;
 
-    fn try_from(game_entity: *const gentity_t) -> Result<Self, Self::Error> {
+    fn try_from(game_entity: *mut gentity_t) -> Result<Self, Self::Error> {
         unsafe {
             game_entity
                 .as_ref()
@@ -1459,315 +2338,6 @@ impl Activator {
     pub fn get_owner_num(&self) -> i32 {
         self.activator.r.ownerNum
     }
-}
-
-#[allow(non_snake_case)]
-#[allow(non_camel_case_types)]
-#[repr(C, align(4))]
-pub struct usercmd_t {
-    serverTime: c_int,
-    angles: [c_int; 3],
-    buttons: c_int,
-    weapon: byte,
-    weaponPrimary: byte,
-    fov: byte,
-    forwardmove: byte,
-    rightmove: byte,
-    upmove: byte,
-}
-
-#[allow(non_camel_case_types)]
-#[derive(PartialEq, Debug, Clone, Copy)]
-#[allow(dead_code)]
-#[repr(C)]
-pub enum trType_t {
-    TR_STATIONARY,
-    TR_INTERPOLATE, // non-parametric, but interpolate between snapshots
-    TR_LINEAR,
-    TR_LINEAR_STOP,
-    TR_SINE, // value = base + sin( time / duration ) * delta
-    TR_GRAVITY,
-}
-
-#[allow(non_snake_case)]
-#[allow(non_camel_case_types)]
-#[repr(C)]
-struct trajectory_t {
-    trType: trType_t,
-    trTime: c_int,
-    trDuration: c_int,
-    trBase: vec3_t,
-    trDelta: vec3_t,
-    gravity: c_float,
-}
-
-#[allow(non_snake_case)]
-#[allow(non_camel_case_types)]
-#[repr(C)]
-struct entityState_t {
-    number: c_int,
-    eType: c_int,
-    eFlags: c_int,
-    pos: trajectory_t,
-    apos: trajectory_t,
-    time: c_int,
-    time2: c_int,
-    origin: vec3_t,
-    origin2: vec3_t,
-    angles: vec3_t,
-    angles2: vec3_t,
-    otherEntityNum: c_int,
-    otherEntityNum2: c_int,
-    groundEntityNum: c_int,
-    constantLight: c_int,
-    loopSound: c_int,
-    modelindex: c_int,
-    modelindex2: c_int,
-    clientNum: c_int,
-    frame: c_int,
-    solid: c_int,
-    event: c_int,
-    eventParm: c_int,
-    powerups: c_int,
-    health: c_int,
-    armor: c_int,
-    weapon: c_int,
-    location: c_int,
-    legsAnim: c_int,
-    torsoAnim: c_int,
-    generic1: c_int,
-    jumpTime: c_int,
-    doubleJumped: c_int,
-}
-
-#[allow(non_snake_case)]
-#[allow(non_camel_case_types)]
-#[repr(C)]
-struct entityShared_t {
-    s: entityState_t,
-    linked: qboolean,
-    linkcount: c_int,
-    svFlags: c_int,
-    singleClient: c_int,
-    bmodel: qboolean,
-    mins: vec3_t,
-    maxs: vec3_t,
-    contents: c_int,
-    absmin: vec3_t,
-    absmax: vec3_t,
-    currentOrigin: vec3_t,
-    currentAngles: vec3_t,
-    ownerNum: c_int,
-}
-
-#[allow(non_camel_case_types)]
-#[repr(C)]
-struct sharedEntity_t {
-    s: entityState_t,  // communicated by server to clients
-    r: entityShared_t, // shared by both the server system and game
-}
-
-#[allow(non_camel_case_types)]
-type fileHandle_t = c_int;
-
-#[allow(non_camel_case_types)]
-type vec3_t = [c_float; 3];
-
-#[allow(non_camel_case_types)]
-#[repr(C)]
-struct cplane_t {
-    normal: vec3_t,
-    dist: c_float,
-    ctype: byte,
-    signbits: byte,
-    pad: [byte; 2],
-}
-
-#[allow(non_snake_case)]
-#[allow(non_camel_case_types)]
-#[repr(C)]
-pub struct trace_t {
-    allsolid: qboolean,
-    startsolid: qboolean,
-    fraction: c_float,
-    endpos: vec3_t,
-    plane: cplane_t,
-    surfaceFlags: c_int,
-    contents: c_int,
-    entityNum: c_int,
-}
-
-// playerState_t is a full superset of entityState_t as it is used by players,
-// so if a playerState_t is transmitted, the entityState_t can be fully derived
-// from it.
-#[allow(non_snake_case)]
-#[allow(non_camel_case_types)]
-#[repr(C)]
-struct playerState_t {
-    commandTime: c_int,
-    pm_type: c_int,
-    bobCycle: c_int,
-    pm_flags: c_int,
-    pm_time: c_int,
-    origin: vec3_t,
-    velocity: vec3_t,
-    weaponTime: c_int,
-    gravity: c_int,
-    speed: c_int,
-    delta_angles: [c_int; 3],
-    groundEntityNum: c_int,
-    legsTimer: c_int,
-    legsAnim: c_int,
-    torsoTimer: c_int,
-    torsoAnim: c_int,
-    movementDir: c_int,
-    grapplePoint: vec3_t,
-    eFlags: c_int,
-    eventSequence: c_int,
-    events: [c_int; 2],
-    eventParms: [c_int; 2],
-    externalEvent: c_int,
-    externalEventParm: c_int,
-    clientNum: c_int,
-    location: c_int,
-    weapon: c_int,
-    weaponPrimary: c_int,
-    weaponstate: c_int,
-    fov: c_int,
-    viewangles: vec3_t,
-    viewheight: c_int,
-    damageEvent: c_int,
-    damageYaw: c_int,
-    damagePitch: c_int,
-    damageCount: c_int,
-    stats: [c_int; 16],
-    persistant: [c_int; 16],
-    powerups: [c_int; 16],
-    ammo: [c_int; 16],
-    generic1: c_int,
-    loopSound: c_int,
-    jumppad_ent: c_int,
-    jumpTime: c_int,
-    doubleJumped: c_int,
-    crouchTime: c_int,
-    crouchSlideTime: c_int,
-    forwardmove: c_char,
-    rightmove: c_char,
-    upmove: c_char,
-    ping: c_int,
-    pmove_framecount: c_int,
-    jumppad_frame: c_int,
-    entityEventSequence: c_int,
-    freezetime: c_int,
-    thawtime: c_int,
-    thawClientNum_valid: c_int,
-    thawClientNum: c_int,
-    respawnTime: c_int,
-    localPersistant: [c_int; 16],
-    roundDamage: c_int,
-    roundShots: c_int,
-    roundHits: c_int,
-}
-
-#[allow(non_snake_case)]
-#[allow(non_camel_case_types)]
-#[repr(C)]
-struct clientSnapshot_t {
-    areabytes: c_int,
-    areabits: [byte; MAX_MAP_AREA_BYTES], // portalarea visibility bits
-    ps: playerState_t,
-    num_entities: c_int,
-    first_entity: c_int, // into the circular sv_packet_entities[]
-    // the entities MUST be in increasing state number
-    // order, otherwise the delta compression will fail
-    messageSent: c_int,  // time the message was transmitted
-    messageAcked: c_int, // time the message was acked
-    messageSize: c_int,  // used to rate drop packets
-}
-
-#[allow(non_camel_case_types)]
-#[derive(PartialEq, Debug, Clone, Copy)]
-#[allow(dead_code)]
-#[repr(C)]
-enum netsrc_t {
-    NS_CLIENT,
-    NS_SERVER,
-}
-
-#[allow(non_camel_case_types)]
-#[derive(PartialEq, Debug, Clone, Copy)]
-#[allow(dead_code)]
-#[repr(C)]
-enum netadrtype_t {
-    NA_BOT,
-    NA_BAD, // an address lookup failed
-    NA_LOOPBACK,
-    NA_BROADCAST,
-    NA_IP,
-    NA_IPX,
-    NA_BROADCAST_IPX,
-}
-#[allow(non_snake_case)]
-#[allow(non_camel_case_types)]
-#[repr(C)]
-struct netadr_t {
-    pub adrtype: netadrtype_t,
-
-    pub ip: [byte; 4],
-    pub ipx: [byte; 10],
-
-    pub port: c_ushort,
-}
-
-#[allow(non_snake_case)]
-#[allow(non_camel_case_types)]
-#[repr(C)]
-struct netchan_t {
-    sock: netsrc_t,
-
-    dropped: c_int, // between last packet and previous
-
-    remoteAddress: netadr_t,
-    qport: c_int, // qport value to write when transmitting
-
-    // sequencing variables
-    incomingSequence: c_int,
-    outgoingSequence: c_int,
-
-    // incoming fragment assembly buffer
-    fragmentSequence: c_int,
-    fragmentLength: c_int,
-    fragmentBuffer: [byte; MAX_MSGLEN],
-
-    // outgoing fragment buffer
-    // we need to space out the sending of large fragmented messages
-    unsentFragments: qboolean,
-    unsentFragmentStart: c_int,
-    unsentLength: c_int,
-    unsentBuffer: [byte; MAX_MSGLEN],
-}
-
-#[allow(non_snake_case)]
-#[allow(non_camel_case_types)]
-#[derive(Debug)]
-#[repr(C)]
-pub struct cvar_t {
-    name: *const c_char,
-    string: *const c_char,
-    resetString: *const c_char,   // cvar_restart will reset to this value
-    latchedString: *const c_char, // for CVAR_LATCH vars
-    defaultString: *const c_char,
-    minimumString: *const c_char,
-    maximumString: *const c_char,
-    flags: c_int,
-    modified: qboolean,
-    _unknown2: [u8; 4],
-    modificationCount: c_int, // incremented each time the cvar is changed
-    value: c_float,           // atof( string )
-    integer: c_int,           // atoi( string )
-    _unknown3: [u8; 8],
-    next: *const cvar_t,
-    hashNext: *const cvar_t,
 }
 
 pub(crate) struct CVar {
@@ -1801,97 +2371,6 @@ impl CVar {
     }
 }
 
-#[allow(non_camel_case_types)]
-#[repr(C)]
-struct msg_t {
-    allowoverflow: qboolean,
-    // if false, do a Com_Error
-    overflowed: qboolean,
-    // set to true if the buffer size failed (with allowoverflow set)
-    oob: qboolean,
-    // set to true if the buffer size failed (with allowoverflow set)
-    data: *const byte,
-    maxsize: c_int,
-    cursize: c_int,
-    readcount: c_int,
-    bit: c_int, // for bitwise reads and writes
-}
-
-#[allow(non_snake_case)]
-#[allow(non_camel_case_types)]
-#[repr(C)]
-struct netchan_buffer_t {
-    msg: msg_t,
-    msgBuffer: [byte; MAX_MSGLEN],
-    next: *const netchan_buffer_t,
-}
-
-#[allow(non_snake_case)]
-#[allow(non_camel_case_types)]
-#[repr(C)]
-pub struct client_t {
-    state: clientState_t,
-    userinfo: [c_char; MAX_INFO_STRING], // name, etc
-
-    reliableCommands: [[c_char; MAX_STRING_CHARS]; MAX_RELIABLE_COMMANDS],
-    reliableSequence: c_int, // last added reliable message, not necesarily sent or acknowledged yet
-    reliableAcknowledge: c_int, // last acknowledged reliable message
-    reliableSent: c_int,     // last sent reliable message, not necesarily acknowledged yet
-    messageAcknowledge: c_int,
-
-    gamestateMessageNum: c_int, // netchan->outgoingSequence of gamestate
-    challenge: c_int,
-
-    lastUsercmd: usercmd_t,
-    lastMessageNum: c_int,    // for delta compression
-    lastClientCommand: c_int, // reliable client message sequence
-    lastClientCommandString: [c_char; MAX_STRING_CHARS],
-    gentity: *const sharedEntity_t,  // SV_GentityNum(clientnum)
-    name: [c_char; MAX_NAME_LENGTH], // extracted from userinfo, high bits masked
-
-    // Mino: I think everything above this is correct. Below is a mess.
-
-    // downloading
-    downloadName: [c_char; MAX_QPATH], // if not empty string, we are downloading
-    download: fileHandle_t,            // file being downloaded
-    downloadSize: c_int,               // total bytes (can't use EOF because of paks)
-    downloadCount: c_int,              // bytes sent
-    downloadClientBlock: c_int,        // last block we sent to the client, awaiting ack
-    downloadCurrentBlock: c_int,       // current block number
-    downloadXmitBlock: c_int,          // last block we xmited
-    downloadBlocks: *const [c_uchar; MAX_DOWNLOAD_WINDOW], // the buffers for the download blocks
-    downloadBlockSize: [c_int; MAX_DOWNLOAD_WINDOW],
-    downloadEOF: qboolean,   // We have sent the EOF block
-    downloadSendTime: c_int, // time we last got an ack from the client
-
-    deltaMessage: c_int,     // frame last client usercmd message
-    nextReliableTime: c_int, // svs.time when another reliable command will be allowed
-    lastPacketTime: c_int,   // svs.time when packet was last received
-    lastConnectTime: c_int,  // svs.time when connection started
-    nextSnapshotTime: c_int, // send another snapshot when svs.time >= nextSnapshotTime
-    rateDelayed: qboolean, // true if nextSnapshotTime was set based on rate instead of snapshotMsec
-    timeoutCount: c_int,   // must timeout a few frames in a row so debugging doesn't break
-    frames: [clientSnapshot_t; PACKET_BACKUP], // updates can be delta'd from here
-    ping: c_int,
-    rate: c_int,         // bytes / second
-    snapshotMsec: c_int, // requests a snapshot every snapshotMsec unless rate choked
-    pureAuthentic: c_int,
-    gotCP: qboolean, // TTimo - additional flag to distinguish between a bad pure checksum, and no cp command at all
-    netchan: netchan_t,
-    netchan_start_queue: *const netchan_buffer_t,
-    netchan_end_queue: *const *const netchan_buffer_t,
-
-    // Mino: Holy crap. A bunch of data was added. I have no idea where it actually goes,
-    // but this will at least correct sizeof(client_t).
-    #[cfg(target_pointer_width = "64")]
-    _unknown2: [u8; 36808],
-    #[cfg(target_pointer_width = "32")]
-    _unknown2: [u8; 36836], // TODO: Outdated.
-
-    // Mino: Woohoo! How nice of them to put the SteamID last.
-    steam_id: u64,
-}
-
 pub(crate) struct Client {
     client_t: &'static client_t,
 }
@@ -1908,18 +2387,27 @@ impl TryFrom<*const client_t> for Client {
         }
     }
 }
+
 extern "C" {
-    static svs: *const serverStatic_t;
+    static svs: *mut serverStatic_t;
 }
 
 impl TryFrom<i32> for Client {
     type Error = &'static str;
 
     fn try_from(client_id: i32) -> Result<Self, Self::Error> {
-        let slice = unsafe { core::slice::from_raw_parts((*svs).clients, SV_MAXCLIENTS as usize) };
-        Ok(Self {
-            client_t: &slice[client_id as usize],
-        })
+        if client_id < 0 {
+            return Err("invalid client_id");
+        }
+        unsafe {
+            svs.as_ref()
+                .unwrap()
+                .clients
+                .offset(client_id as isize)
+                .as_ref()
+                .map(|client| Self { client_t: client })
+                .ok_or("client not found")
+        }
     }
 }
 
@@ -1929,10 +2417,8 @@ extern "C" {
 
 impl Client {
     pub(crate) fn get_client_id(&self) -> i32 {
-        // we really should be using .offset_from here, but rust's optimizations above level 0 led to some mis-calculations, so we mimic the raw C-calculation.
         unsafe {
-            (((self.client_t as *const client_t as usize) - ((*svs).clients as usize))
-                / mem::size_of::<client_t>()) as i32
+            (self.client_t as *const client_t).offset_from(svs.as_ref().unwrap().clients) as i32
         }
     }
 
@@ -1955,171 +2441,27 @@ impl Client {
         unsafe { CStr::from_ptr(&self.client_t.name as *const c_char).to_string_lossy() }
     }
 
-    pub(crate) fn get_user_info(&self) -> String {
-        let userinfo_bytes = self.client_t.userinfo.map(|char| char as u8);
-        CStr::from_bytes_until_nul(&userinfo_bytes)
-            .unwrap()
-            .to_string_lossy()
-            .into()
+    pub(crate) fn get_user_info(&self) -> Cow<str> {
+        unsafe { CStr::from_ptr(self.client_t.userinfo.as_ptr()).to_string_lossy() }
+    }
+
+    pub(crate) fn get_steam_id(&self) -> u64 {
+        self.client_t.steam_id
     }
 
     pub(crate) fn set_vote(&self, yes_or_no: bool) {
         if let Ok(game_entity) = GameEntity::try_from(self.get_client_id()) {
             unsafe {
-                (*game_entity.gentity_t.client).pers.voteState =
-                    if yes_or_no { VOTE_YES } else { VOTE_NO };
+                game_entity
+                    .gentity_t
+                    .client
+                    .as_mut()
+                    .unwrap()
+                    .pers
+                    .voteState = if yes_or_no { VOTE_YES } else { VOTE_NO };
             }
         };
     }
-}
-
-#[allow(non_snake_case)]
-#[allow(non_camel_case_types)]
-#[allow(dead_code)]
-#[repr(C)]
-struct challenge_t {
-    adr: netadr_t,
-    challenge: c_int,
-    time: c_int,      // time the last packet was sent to the autherize server
-    pingTime: c_int,  // time the challenge response was sent to client
-    firstTime: c_int, // time the adr was first used, for authorize timeout checks
-    connected: qboolean,
-}
-
-#[allow(non_snake_case)]
-#[allow(non_camel_case_types)]
-#[allow(dead_code)]
-#[repr(C)]
-struct roundState_t {
-    eCurrent: roundStateState_t,
-    eNext: roundStateState_t,
-    tNext: c_int,
-    startTime: c_int,
-    turn: c_int,
-    round: c_int,
-    prevRoundWinningTeam: team_t,
-    touch: qboolean,
-    capture: qboolean,
-}
-
-#[allow(non_snake_case)]
-#[allow(non_camel_case_types)]
-#[allow(dead_code)]
-#[repr(C, align(8))]
-struct level_locals_t {
-    clients: *const gclient_t,
-    gentities: *const gentity_t,
-    gentitySize: c_int,
-    num_entities: c_int,
-    warmupTime: c_int,
-    logFile: fileHandle_t,
-    maxclients: c_int,
-    time: c_int,
-    frametime: c_int,
-    startTime: c_int,
-    teamScores: [c_int; 4],
-    nextTeamInfoTime: c_int,
-    newSession: qboolean,
-    restarted: qboolean,
-    shufflePending: qboolean,
-    shuffleReadyTime: c_int,
-    numConnectedClients: c_int,
-    numNonSpectatorClients: c_int,
-    numPlayingClients: c_int,
-    numReadyClients: c_int,
-    numReadyHumans: c_int,
-    numStandardClients: c_int,
-    sortedClients: [c_int; 64],
-    follow1: c_int,
-    follow2: c_int,
-    snd_fry: c_int,
-    warmupModificationCount: c_int,
-    voteString: [c_char; 1024],
-    voteDisplayString: [c_char; 1024],
-    voteExecuteTime: c_int,
-    voteTime: c_int,
-    voteYes: c_int,
-    voteNo: c_int,
-    pendingVoteCaller: c_int,
-    spawning: qboolean,
-    numSpawnVars: c_int,
-    spawnVars: [[*const c_char; 2]; 64],
-    numSpawnVarChars: c_int,
-    spawnVarChars: [c_char; 4096],
-    intermissionQueued: c_int,
-    intermissionTime: c_int,
-    readyToExit: qboolean,
-    votingEnded: qboolean,
-    exitTime: c_int,
-    intermission_origin: vec3_t,
-    intermission_angle: vec3_t,
-    locationLinked: qboolean,
-    locationHead: *const gentity_t,
-    timePauseBegin: c_int,
-    timeOvertime: c_int,
-    timeInitialPowerupSpawn: c_int,
-    bodyQueIndex: c_int,
-    bodyQue: [*const gentity_t; 8],
-    portalSequence: c_int,
-    gameStatsReported: qboolean,
-    mapIsTrainingMap: qboolean,
-    clientNum1stPlayer: c_int,
-    clientNum2ndPlayer: c_int,
-    scoreboardArchive1: [c_char; 1024],
-    scoreboardArchive2: [c_char; 1024],
-    firstScorer: [c_char; 40],
-    lastScorer: [c_char; 40],
-    lastTeamScorer: [c_char; 40],
-    firstFrag: [c_char; 40],
-    red_flag_origin: vec3_t,
-    blue_flag_origin: vec3_t,
-    spawnCount: [c_int; 4],
-    runeSpawns: [c_int; 5],
-    itemCount: [c_int; 60],
-    suddenDeathRespawnDelay: c_int,
-    suddenDeathRespawnDelayLastAnnounced: c_int,
-    numRedArmorPickups: [c_int; 4],
-    numYellowArmorPickups: [c_int; 4],
-    numGreenArmorPickups: [c_int; 4],
-    numMegaHealthPickups: [c_int; 4],
-    numQuadDamagePickups: [c_int; 4],
-    numBattleSuitPickups: [c_int; 4],
-    numRegenerationPickups: [c_int; 4],
-    numHastePickups: [c_int; 4],
-    numInvisibilityPickups: [c_int; 4],
-    quadDamagePossessionTime: [c_int; 4],
-    battleSuitPossessionTime: [c_int; 4],
-    regenerationPossessionTime: [c_int; 4],
-    hastePossessionTime: [c_int; 4],
-    invisibilityPossessionTime: [c_int; 4],
-    numFlagPickups: [c_int; 4],
-    numMedkitPickups: [c_int; 4],
-    flagPossessionTime: [c_int; 4],
-    dominationPoints: [*const gentity_t; 5],
-    dominationPointCount: c_int,
-    dominationPointsTallied: c_int,
-    racePointCount: c_int,
-    disableDropWeapon: qboolean,
-    teamShuffleActive: qboolean,
-    lastTeamScores: [c_int; 4],
-    lastTeamRoundScores: [c_int; 4],
-    attackingTeam: team_t,
-    roundState: roundState_t,
-    lastTeamCountSent: c_int,
-    infectedConscript: c_int,
-    lastZombieSurvivor: c_int,
-    zombieScoreTime: c_int,
-    lastInfectionTime: c_int,
-    intermissionMapNames: [[c_char; 1024]; 3],
-    intermissionMapTitles: [[c_char; 1024]; 3],
-    intermissionMapConfigs: [[c_char; 1024]; 3],
-    intermissionMapVotes: [c_int; 3],
-    matchForfeited: qboolean,
-    allReadyTime: c_int,
-    notifyCvarChange: qboolean,
-    notifyCvarChangeTime: c_int,
-    lastLeadChangeTime: c_int,
-    lastLeadChangeClient: c_int,
 }
 
 extern "C" {
@@ -2183,33 +2525,18 @@ impl CurrentLevel {
             }
         }
 
-        shinqlx_set_configstring(CS_VOTE_STRING, vote_disp);
-        shinqlx_set_configstring(CS_VOTE_TIME, format!("{}", self.level.voteTime).as_str());
-        shinqlx_set_configstring(CS_VOTE_YES, "0");
-        shinqlx_set_configstring(CS_VOTE_NO, "0");
+        shinqlx_set_configstring(CS_VOTE_STRING as i32, vote_disp);
+        shinqlx_set_configstring(
+            CS_VOTE_TIME as i32,
+            format!("{}", self.level.voteTime).as_str(),
+        );
+        shinqlx_set_configstring(CS_VOTE_YES as i32, "0");
+        shinqlx_set_configstring(CS_VOTE_NO as i32, "0");
     }
 
     pub(crate) fn set_training_map(&mut self, is_training_map: bool) {
         self.level.mapIsTrainingMap = is_training_map.into();
     }
-}
-
-#[allow(non_snake_case)]
-#[allow(non_camel_case_types)]
-#[allow(dead_code)]
-#[repr(C)]
-struct serverStatic_t {
-    initialized: qboolean,                  // sv_init has completed
-    time: c_int,                            // will be strictly increasing across level changes
-    snapFlagServerBit: c_int,               // ^= SNAPFLAG_SERVERCOUNT every SV_SpawnServer()
-    clients: *mut client_t,                 // [sv_maxclients->integer];
-    numSnapshotEntities: c_int, // sv_maxclients->integer*PACKET_BACKUP*MAX_PACKET_ENTITIES
-    nextSnapshotEntities: c_int, // next snapshotEntities to use
-    snapshotEntities: *const entityState_t, // [numSnapshotEntities]
-    nextHeartbeatTime: c_int,
-    challenges: [challenge_t; MAX_CHALLENGES], // to prevent invalid IPs from connecting
-    redirectAddress: netadr_t,                 // for rcon return messages
-    authorizeAddress: netadr_t,                // for rcon return messages
 }
 
 pub(crate) struct QuakeLiveEngine {}
@@ -2355,7 +2682,7 @@ pub(crate) trait SetConfigstring {
 impl SetConfigstring for QuakeLiveEngine {
     fn set_configstring(index: &i32, value: &str) {
         if let Ok(c_value) = CString::new(value) {
-            unsafe { SV_SetConfigstring(*index, c_value.into_raw()) }
+            unsafe { SV_SetConfigstring(index.to_owned(), c_value.into_raw()) }
         }
     }
 }
@@ -2411,22 +2738,17 @@ extern "C" {
 }
 
 pub(crate) trait ClientConnect {
-    fn client_connect(client_num: i32, first_time: bool, is_bot: bool)
-        -> Option<Cow<'static, str>>;
+    fn client_connect(client_num: i32, first_time: bool, is_bot: bool) -> Option<String>;
 }
 
 impl ClientConnect for QuakeLiveEngine {
-    fn client_connect(
-        client_num: i32,
-        first_time: bool,
-        is_bot: bool,
-    ) -> Option<Cow<'static, str>> {
+    fn client_connect(client_num: i32, first_time: bool, is_bot: bool) -> Option<String> {
         unsafe {
             let c_return = ClientConnect(client_num, first_time.into(), is_bot.into());
             if c_return.is_null() {
                 return None;
             }
-            Some(CStr::from_ptr(c_return).to_string_lossy())
+            Some(CStr::from_ptr(c_return).to_string_lossy().to_string())
         }
     }
 }

@@ -1,5 +1,5 @@
-use crate::pyminqlx::get_minqlx_handler;
 use crate::pyminqlx::pyminqlx_is_initialized;
+use crate::pyminqlx::CUSTOM_COMMAND_HANDLER;
 #[cfg(not(feature = "cdispatchers"))]
 use crate::pyminqlx::{new_game_dispatcher, rcon_dispatcher};
 #[cfg(not(feature = "cembed"))]
@@ -209,13 +209,13 @@ pub extern "C" fn cmd_py_rcon() {
 
 #[no_mangle]
 pub extern "C" fn cmd_py_command() {
+    let Some(custom_command_handler) = (unsafe { CUSTOM_COMMAND_HANDLER.as_ref() }) else { return; };
     Python::with_gil(|py| {
-        let Some(custom_command_handler) = get_minqlx_handler(&py, "handle_custom_command") else { return; };
         let result = match QuakeLiveEngine::cmd_args() {
-            None => custom_command_handler.call0(),
-            Some(args) => custom_command_handler.call1((args,)),
+            None => custom_command_handler.call0(py),
+            Some(args) => custom_command_handler.call1(py, (args,)),
         };
-        if result.is_err() || !result.unwrap().is_true().unwrap() {
+        if result.is_err() || !result.unwrap().is_true(py).unwrap() {
             QuakeLiveEngine::com_printf(
                 "The command failed to be executed. pyshinqlx found no handler.\n",
             );

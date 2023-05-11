@@ -5,11 +5,12 @@ use crate::pyminqlx::{
     kamikaze_explode_dispatcher, kamikaze_use_dispatcher, new_game_dispatcher,
     server_command_dispatcher, set_configstring_dispatcher,
 };
+use crate::quake_common::clientState_t::CS_PRIMED;
 use crate::quake_common::{
-    cbufExec_t, clientState_t, client_t, gentity_t, qboolean, usercmd_t, AddCommand,
-    CbufExecuteText, Client, ClientConnect, ClientEnterWorld, ClientSpawn, ComPrintf,
-    ExecuteClientCommand, FindCVar, GameEntity, InitGame, QuakeLiveEngine, RunFrame,
-    SendServerCommand, SetConfigstring, SetModuleOffset, SpawnServer, SV_TAGS_PREFIX,
+    cbufExec_t, client_t, gentity_t, qboolean, usercmd_t, AddCommand, CbufExecuteText, Client,
+    ClientConnect, ClientEnterWorld, ClientSpawn, ComPrintf, ExecuteClientCommand, FindCVar,
+    GameEntity, InitGame, QuakeLiveEngine, RunFrame, SendServerCommand, SetConfigstring,
+    SetModuleOffset, SpawnServer, SV_TAGS_PREFIX,
 };
 use crate::{initialize_cvars, initialize_static, COMMON_INITIALIZED, CVARS_INITIALIZED};
 use std::ffi::{c_char, c_int, CStr, CString};
@@ -136,7 +137,6 @@ pub(crate) fn shinqlx_execute_client_command(client: Option<Client>, cmd: &str, 
                     passed_on_cmd.as_str(),
                     client_ok,
                 );
-                return;
             };
         }
     }
@@ -150,9 +150,6 @@ pub(crate) fn shinqlx_execute_client_command(client: Option<Client>, cmd: &str, 
             client_ok,
         );
     }
-
-    #[cfg(not(feature = "cdispatchers"))]
-    QuakeLiveEngine::execute_client_command(client.as_ref(), cmd, client_ok);
 }
 
 #[cfg(feature = "cdispatchers")]
@@ -163,19 +160,18 @@ extern "C" {
 #[no_mangle]
 pub extern "C" fn ShiNQlx_SV_SendServerCommand(client: *const client_t, command: *const c_char) {
     let cmd = unsafe { CStr::from_ptr(command).to_string_lossy() };
-    shinqlx_send_server_command(client.try_into().ok(), cmd.as_ref());
+    shinqlx_send_server_command(Client::try_from(client).ok(), cmd.as_ref());
 }
 
 pub(crate) fn shinqlx_send_server_command(client: Option<Client>, cmd: &str) {
-    let client_id = match &client {
-        Some(safe_client) => safe_client.get_client_id(),
+    let client_id = match client {
+        Some(ref safe_client) => safe_client.get_client_id(),
         None => -1,
     };
-
     #[cfg(feature = "cdispatchers")]
     {
         let c_cmd = CString::new(cmd).unwrap().into_raw();
-        let res = unsafe { ServerCommandDispatcher(client_id, c_cmd) };
+        let res = unsafe { ServerCommandDispatcher(client_id as c_int, c_cmd) };
 
         if res.is_null() {
             return;
@@ -186,7 +182,7 @@ pub(crate) fn shinqlx_send_server_command(client: Option<Client>, cmd: &str) {
     }
 
     #[cfg(not(feature = "cdispatchers"))]
-    if let Some(res) = server_command_dispatcher(client_id, cmd) {
+    if let Some(res) = server_command_dispatcher(Some(client_id), cmd) {
         QuakeLiveEngine::send_server_command(client, res.as_str());
     }
 }
@@ -208,15 +204,13 @@ pub extern "C" fn ShiNQlx_SV_ClientEnterWorld(client: *const client_t, cmd: *con
     // gentity is NULL if map changed.
     // state is CS_PRIMED only if it's the first time they connect to the server,
     // otherwise the dispatcher would also go off when a game starts and such.
-    {
-        if safe_client.has_gentity() && state == clientState_t::CS_PRIMED as i32 {
-            #[cfg(feature = "cdispatchers")]
-            unsafe {
-                ClientLoadedDispatcher(safe_client.get_client_id());
-            }
-            #[cfg(not(feature = "cdispatchers"))]
-            client_loaded_dispatcher(safe_client.get_client_id());
+    if safe_client.has_gentity() && state == CS_PRIMED as i32 {
+        #[cfg(feature = "cdispatchers")]
+        unsafe {
+            ClientLoadedDispatcher(safe_client.get_client_id());
         }
+        #[cfg(not(feature = "cdispatchers"))]
+        client_loaded_dispatcher(safe_client.get_client_id());
     }
 }
 
@@ -374,9 +368,6 @@ pub extern "C" fn ShiNQlx_ClientConnect(
         }
     }
 
-    let client_connect_result =
-        QuakeLiveEngine::client_connect(client_num, first_time.into(), is_bot.into());
-
     #[cfg(not(feature = "cdispatchers"))]
     if first_time.into() {
         if let Some(res) = client_connect_dispatcher(client_num, is_bot.into()) {
@@ -386,9 +377,12 @@ pub extern "C" fn ShiNQlx_ClientConnect(
         }
     }
 
-    match client_connect_result {
+    match QuakeLiveEngine::client_connect(client_num, first_time.into(), is_bot.into()) {
         None => std::ptr::null(),
-        Some(message) => CString::new(message.as_ref()).unwrap().into_raw(),
+        Some(message) => {
+            dbg!(&message);
+            CString::new(message).unwrap().into_raw()
+        }
     }
 }
 
@@ -408,6 +402,7 @@ pub extern "C" fn ShiNQlx_ClientSpawn(ent: *mut gentity_t) {
 
 pub(crate) fn shinqlx_client_spawn(game_entity: GameEntity) {
     QuakeLiveEngine::client_spawn(&game_entity);
+
     // Since we won't ever stop the real function from being called,
     // we trigger the event after calling the real one. This will allow
     // us to set weapons and such without it getting overriden later.
