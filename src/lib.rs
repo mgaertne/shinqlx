@@ -26,7 +26,7 @@ use crate::pyminqlx::pyminqlx_initialize;
 use crate::quake_common::cvar_t;
 #[cfg(debug_assertions)]
 use crate::quake_common::DEBUG_PRINT_PREFIX;
-use crate::quake_common::{client_t, AddCommand, FindCVar, QuakeLiveEngine};
+use crate::quake_common::{AddCommand, FindCVar, QuakeLiveEngine};
 use crate::PyMinqlx_InitStatus_t::PYM_SUCCESS;
 use ctor::ctor;
 
@@ -58,14 +58,14 @@ extern "C" {
 // point, since functions like Cmd_AddCommand need initialization first.
 fn initialize_static() {
     debug_println!("Initializing...");
-    QuakeLiveEngine::add_command("cmd", cmd_send_server_command);
-    QuakeLiveEngine::add_command("cp", cmd_center_print);
-    QuakeLiveEngine::add_command("print", cmd_regular_print);
-    QuakeLiveEngine::add_command("slap", cmd_slap);
-    QuakeLiveEngine::add_command("slay", cmd_slay);
-    QuakeLiveEngine::add_command("qlx", cmd_py_rcon);
-    QuakeLiveEngine::add_command("pycmd", cmd_py_command);
-    QuakeLiveEngine::add_command("pyrestart", cmd_restart_python);
+    QuakeLiveEngine::default().add_command("cmd", cmd_send_server_command);
+    QuakeLiveEngine::default().add_command("cp", cmd_center_print);
+    QuakeLiveEngine::default().add_command("print", cmd_regular_print);
+    QuakeLiveEngine::default().add_command("slap", cmd_slap);
+    QuakeLiveEngine::default().add_command("slay", cmd_slay);
+    QuakeLiveEngine::default().add_command("qlx", cmd_py_rcon);
+    QuakeLiveEngine::default().add_command("pycmd", cmd_py_command);
+    QuakeLiveEngine::default().add_command("pyrestart", cmd_restart_python);
 
     #[cfg(feature = "cembed")]
     let res = unsafe { PyMinqlx_Initialize() };
@@ -86,7 +86,7 @@ extern "C" {
 
 // Called after the game is initialized.
 fn initialize_cvars() {
-    let Some(maxclients) = QuakeLiveEngine::find_cvar("sv_maxclients") else {
+    let Some(maxclients) = QuakeLiveEngine::default().find_cvar("sv_maxclients") else {
         return;
     };
     #[cfg(feature = "cembed")]
@@ -103,6 +103,5 @@ extern "C" {
 
 #[ctor]
 fn initialize() {
-    dbg!(std::mem::size_of::<client_t>());
     unsafe { EntryPoint() };
 }

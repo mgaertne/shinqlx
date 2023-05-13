@@ -16,7 +16,7 @@ use crate::{initialize_cvars, initialize_static, COMMON_INITIALIZED, CVARS_INITI
 use std::ffi::{c_char, c_int, CStr, CString};
 
 fn set_tag() {
-    let Some(sv_tags) = QuakeLiveEngine::find_cvar("sv_tags") else {
+    let Some(sv_tags) = QuakeLiveEngine::default().find_cvar("sv_tags") else {
         return;
     };
 
@@ -31,7 +31,7 @@ fn set_tag() {
     } else {
         format!("sv_tags \"{}\"", SV_TAGS_PREFIX)
     };
-    QuakeLiveEngine::cbuf_execute_text(cbufExec_t::EXEC_INSERT, &new_tags);
+    QuakeLiveEngine::default().cbuf_execute_text(cbufExec_t::EXEC_INSERT, &new_tags);
 }
 
 #[no_mangle]
@@ -40,8 +40,8 @@ pub extern "C" fn ShiNQlx_Cmd_AddCommand(cmd: *const c_char, func: unsafe extern
         initialize_static();
     }
 
-    let command = unsafe { CStr::from_ptr(cmd).to_string_lossy() };
-    QuakeLiveEngine::add_command(command.as_ref(), func);
+    let command = unsafe { CStr::from_ptr(cmd).to_str().unwrap_or("") };
+    QuakeLiveEngine::default().add_command(command, func);
 }
 
 extern "C" {
@@ -56,8 +56,8 @@ pub extern "C" fn ShiNQlx_Sys_SetModuleOffset(
     module_name: *const c_char,
     offset: unsafe extern "C" fn(),
 ) {
-    let converted_module_name = unsafe { CStr::from_ptr(module_name).to_string_lossy() };
-    QuakeLiveEngine::set_module_offset(converted_module_name.as_ref(), offset);
+    let converted_module_name = unsafe { CStr::from_ptr(module_name).to_str().unwrap_or("") };
+    QuakeLiveEngine::default().set_module_offset(converted_module_name, offset);
 
     if unsafe { !COMMON_INITIALIZED } {
         return;
@@ -77,7 +77,7 @@ extern "C" {
 
 #[no_mangle]
 pub extern "C" fn ShiNQlx_G_InitGame(level_time: c_int, random_seed: c_int, restart: c_int) {
-    QuakeLiveEngine::init_game(level_time, random_seed, restart);
+    QuakeLiveEngine::default().init_game(level_time, random_seed, restart);
 
     if unsafe { !CVARS_INITIALIZED } {
         set_tag();
@@ -106,50 +106,48 @@ pub extern "C" fn ShiNQlx_SV_ExecuteClientCommand(
     cmd: *const c_char,
     client_ok: qboolean,
 ) {
-    let rust_cmd = unsafe { CStr::from_ptr(cmd).to_string_lossy() };
+    let rust_cmd = unsafe { CStr::from_ptr(cmd).to_str().unwrap_or("") };
 
-    shinqlx_execute_client_command(client.try_into().ok(), rust_cmd.as_ref(), client_ok.into());
+    shinqlx_execute_client_command(client.try_into().ok(), rust_cmd, client_ok.into());
 }
 
 pub(crate) fn shinqlx_execute_client_command(client: Option<Client>, cmd: &str, client_ok: bool) {
     #[cfg(feature = "cdispatchers")]
     let res: *const c_char;
-    #[cfg(feature = "cdispatchers")]
-    let mut passed_on_cmd: *const c_char = CString::new(cmd).unwrap().into_raw();
-
+    let mut passed_on_cmd_str = cmd.to_string();
     if let Some(safe_client) = &client {
         if client_ok && safe_client.has_gentity() {
             #[cfg(feature = "cdispatchers")]
             {
+                let passed_on_cmd: *const c_char = CString::new(cmd).unwrap().into_raw();
                 res =
                     unsafe { ClientCommandDispatcher(safe_client.get_client_id(), passed_on_cmd) };
                 if res.is_null() {
                     return;
                 }
-                passed_on_cmd = res;
+                passed_on_cmd_str =
+                    unsafe { CStr::from_ptr(res).to_str().unwrap_or("").to_string() };
             }
 
             #[cfg(not(feature = "cdispatchers"))]
-            if let Some(passed_on_cmd) = client_command_dispatcher(safe_client.get_client_id(), cmd)
             {
-                QuakeLiveEngine::execute_client_command(
-                    client.as_ref(),
-                    passed_on_cmd.as_str(),
-                    client_ok,
-                );
-            };
+                match client_command_dispatcher(safe_client.get_client_id(), cmd) {
+                    None => {
+                        return;
+                    }
+                    Some(dispatcher_result) => {
+                        passed_on_cmd_str = dispatcher_result;
+                    }
+                }
+            }
         }
     }
 
-    #[cfg(feature = "cdispatchers")]
-    {
-        let passed_on_cmd_str = unsafe { CStr::from_ptr(passed_on_cmd).to_string_lossy() };
-        QuakeLiveEngine::execute_client_command(
-            client.as_ref(),
-            passed_on_cmd_str.as_ref(),
-            client_ok,
-        );
-    }
+    QuakeLiveEngine::default().execute_client_command(
+        client.as_ref(),
+        passed_on_cmd_str.as_str(),
+        client_ok,
+    );
 }
 
 #[cfg(feature = "cdispatchers")]
@@ -159,8 +157,8 @@ extern "C" {
 
 #[no_mangle]
 pub extern "C" fn ShiNQlx_SV_SendServerCommand(client: *const client_t, command: *const c_char) {
-    let cmd = unsafe { CStr::from_ptr(command).to_string_lossy() };
-    shinqlx_send_server_command(Client::try_from(client).ok(), cmd.as_ref());
+    let cmd = unsafe { CStr::from_ptr(command).to_str().unwrap_or("") };
+    shinqlx_send_server_command(Client::try_from(client).ok(), cmd);
 }
 
 pub(crate) fn shinqlx_send_server_command(client: Option<Client>, cmd: &str) {
@@ -177,13 +175,13 @@ pub(crate) fn shinqlx_send_server_command(client: Option<Client>, cmd: &str) {
             return;
         }
 
-        let result = unsafe { CStr::from_ptr(res).to_string_lossy() };
-        QuakeLiveEngine::send_server_command(client, result.as_ref());
+        let result = unsafe { CStr::from_ptr(res).to_str().unwrap_or("") };
+        QuakeLiveEngine::default().send_server_command(client, result);
     }
 
     #[cfg(not(feature = "cdispatchers"))]
     if let Some(res) = server_command_dispatcher(Some(client_id), cmd) {
-        QuakeLiveEngine::send_server_command(client, res.as_str());
+        QuakeLiveEngine::default().send_server_command(client, res.as_str());
     }
 }
 
@@ -199,7 +197,7 @@ pub extern "C" fn ShiNQlx_SV_ClientEnterWorld(client: *const client_t, cmd: *con
     };
 
     let state = safe_client.get_state();
-    QuakeLiveEngine::client_enter_world(&safe_client, cmd);
+    QuakeLiveEngine::default().client_enter_world(&safe_client, cmd);
 
     // gentity is NULL if map changed.
     // state is CS_PRIMED only if it's the first time they connect to the server,
@@ -209,6 +207,7 @@ pub extern "C" fn ShiNQlx_SV_ClientEnterWorld(client: *const client_t, cmd: *con
         unsafe {
             ClientLoadedDispatcher(safe_client.get_client_id());
         }
+
         #[cfg(not(feature = "cdispatchers"))]
         client_loaded_dispatcher(safe_client.get_client_id());
     }
@@ -236,7 +235,7 @@ pub(crate) fn shinqlx_set_configstring(index: i32, value: &str) {
     // use for those particular ones anyway. If we don't do this, we get
     // like a 25% increase in CPU usage on an empty server.
     if index == 16 || (662..670).contains(&index) {
-        QuakeLiveEngine::set_configstring(&index, value);
+        QuakeLiveEngine::default().set_configstring(&index, value);
         return;
     }
 
@@ -248,13 +247,13 @@ pub(crate) fn shinqlx_set_configstring(index: i32, value: &str) {
             return;
         }
 
-        let res_string = unsafe { CStr::from_ptr(res).to_string_lossy() };
-        QuakeLiveEngine::set_configstring(&index, res_string.as_ref());
+        let res_string = unsafe { CStr::from_ptr(res).to_str().unwrap_or("") };
+        QuakeLiveEngine::default().set_configstring(&index, res_string);
     }
 
     #[cfg(not(feature = "cdispatchers"))]
     if let Some(res) = set_configstring_dispatcher(index, value) {
-        QuakeLiveEngine::set_configstring(&index, res.as_str());
+        QuakeLiveEngine::default().set_configstring(&index, res.as_str());
     }
 }
 
@@ -294,8 +293,8 @@ extern "C" {
 
 #[no_mangle]
 pub extern "C" fn ShiNQlx_Com_Printf(msg: *const c_char) {
-    let rust_msg = unsafe { CStr::from_ptr(msg).to_string_lossy() };
-    shinqlx_com_printf(&rust_msg);
+    let rust_msg = unsafe { CStr::from_ptr(msg).to_str().unwrap_or("") };
+    shinqlx_com_printf(rust_msg);
 }
 
 pub(crate) fn shinqlx_com_printf(msg: &str) {
@@ -307,28 +306,27 @@ pub(crate) fn shinqlx_com_printf(msg: &str) {
             return;
         }
 
-        QuakeLiveEngine::com_printf(msg);
+        QuakeLiveEngine::default().com_printf(msg);
     }
 
     #[cfg(not(feature = "cdispatchers"))]
     if let Some(_res) = console_print_dispatcher(msg) {
-        QuakeLiveEngine::com_printf(msg);
+        QuakeLiveEngine::default().com_printf(msg);
     }
 }
 
 #[no_mangle]
 pub extern "C" fn ShiNQlx_SV_SpawnServer(server: *const c_char, kill_bots: qboolean) {
-    if let Ok(server_str) = unsafe { CStr::from_ptr(server).to_str() } {
-        QuakeLiveEngine::spawn_server(server_str, kill_bots.into());
+    let server_str = unsafe { CStr::from_ptr(server).to_str().unwrap_or("") };
+    QuakeLiveEngine::default().spawn_server(server_str, kill_bots.into());
 
-        #[cfg(feature = "cdispatchers")]
-        unsafe {
-            NewGameDispatcher(qboolean::qfalse.into());
-        }
-
-        #[cfg(not(feature = "cdispatchers"))]
-        new_game_dispatcher(false);
+    #[cfg(feature = "cdispatchers")]
+    unsafe {
+        NewGameDispatcher(qboolean::qfalse.into());
     }
+
+    #[cfg(not(feature = "cdispatchers"))]
+    new_game_dispatcher(false);
 }
 
 #[cfg(feature = "cdispatchers")]
@@ -346,7 +344,7 @@ pub extern "C" fn ShiNQlx_G_RunFrame(time: c_int) {
     #[cfg(not(feature = "cdispatchers"))]
     frame_dispatcher();
 
-    QuakeLiveEngine::run_frame(time);
+    QuakeLiveEngine::default().run_frame(time);
 }
 
 #[cfg(feature = "cdispatchers")]
@@ -377,12 +375,9 @@ pub extern "C" fn ShiNQlx_ClientConnect(
         }
     }
 
-    match QuakeLiveEngine::client_connect(client_num, first_time.into(), is_bot.into()) {
-        None => std::ptr::null(),
-        Some(message) => {
-            dbg!(&message);
-            CString::new(message).unwrap().into_raw()
-        }
+    match QuakeLiveEngine::default().client_connect(client_num, first_time.into(), is_bot.into()) {
+        None => std::ptr::null_mut(),
+        Some(message) => CString::new(message).unwrap().into_raw(),
     }
 }
 
@@ -401,7 +396,7 @@ pub extern "C" fn ShiNQlx_ClientSpawn(ent: *mut gentity_t) {
 }
 
 pub(crate) fn shinqlx_client_spawn(game_entity: GameEntity) {
-    QuakeLiveEngine::client_spawn(&game_entity);
+    QuakeLiveEngine::default().client_spawn(&game_entity);
 
     // Since we won't ever stop the real function from being called,
     // we trigger the event after calling the real one. This will allow
