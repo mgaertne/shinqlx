@@ -45,6 +45,7 @@ use pyo3::ffi::{
     Py_XDECREF, Py_file_input,
 };
 use pyo3::prelude::*;
+use pyo3::types::PyTuple;
 use std::borrow::Cow;
 use std::ffi::c_int;
 #[cfg(not(feature = "cembed"))]
@@ -782,16 +783,22 @@ impl From<(f32, f32, f32)> for Vector3 {
     }
 }
 
-#[test]
-fn vector3_tuple_test() {
-    append_to_inittab!(pyminqlx_module);
-    pyo3::prepare_freethreaded_python();
-    Python::with_gil(|py| {
-        let minqlx_module = py.import("_minqlx").unwrap();
-        let vector3 = minqlx_module.getattr("Vector3").unwrap();
-        let tuple = py.import("builtins").unwrap().getattr("tuple").unwrap();
-        assert_eq!(vector3.is_instance(tuple.get_type()).unwrap(), true);
-    });
+#[cfg(test)]
+pub(crate) mod vector3_tests {
+    use super::*;
+    use pyo3::append_to_inittab;
+
+    #[test]
+    pub(crate) fn vector3_tuple_test() {
+        append_to_inittab!(pyminqlx_module);
+        pyo3::prepare_freethreaded_python();
+        Python::with_gil(|py| {
+            let minqlx_module = py.import("_minqlx").unwrap();
+            let vector3 = minqlx_module.getattr("Vector3").unwrap();
+            let tuple = py.import("builtins").unwrap().getattr("tuple").unwrap();
+            assert_eq!(vector3.is_instance(tuple.get_type()).unwrap(), true);
+        });
+    }
 }
 
 /// A struct sequence containing all the weapons in the game.
@@ -799,46 +806,6 @@ fn vector3_tuple_test() {
 #[pyo3(module = "minqlx", name = "Weapons", get_all)]
 #[derive(PartialEq, Debug, Clone, Copy)]
 struct Weapons(
-    #[pyo3(name = "g")] bool,
-    #[pyo3(name = "mg")] bool,
-    #[pyo3(name = "sg")] bool,
-    #[pyo3(name = "gl")] bool,
-    #[pyo3(name = "rl")] bool,
-    #[pyo3(name = "lg")] bool,
-    #[pyo3(name = "rg")] bool,
-    #[pyo3(name = "pg")] bool,
-    #[pyo3(name = "bfg")] bool,
-    #[pyo3(name = "gh")] bool,
-    #[pyo3(name = "ng")] bool,
-    #[pyo3(name = "pl")] bool,
-    #[pyo3(name = "cg")] bool,
-    #[pyo3(name = "hmg")] bool,
-    #[pyo3(name = "hands")] bool,
-);
-
-impl From<[bool; 15]> for Weapons {
-    fn from(value: [bool; 15]) -> Self {
-        Self(
-            value[0], value[1], value[2], value[3], value[4], value[5], value[6], value[7],
-            value[8], value[9], value[10], value[11], value[12], value[13], value[14],
-        )
-    }
-}
-
-impl From<Weapons> for [bool; 15] {
-    fn from(value: Weapons) -> Self {
-        [
-            value.0, value.1, value.2, value.3, value.4, value.5, value.6, value.7, value.8,
-            value.9, value.10, value.11, value.12, value.13, value.14,
-        ]
-    }
-}
-
-/// A struct sequence containing all the different ammo types for the weapons in the game.
-#[pyclass]
-#[pyo3(module = "minqlx", name = "Ammo", get_all)]
-#[derive(PartialEq, Debug, Clone, Copy)]
-struct Ammo(
     #[pyo3(name = "g")] i32,
     #[pyo3(name = "mg")] i32,
     #[pyo3(name = "sg")] i32,
@@ -856,7 +823,7 @@ struct Ammo(
     #[pyo3(name = "hands")] i32,
 );
 
-impl From<[i32; 15]> for Ammo {
+impl From<[i32; 15]> for Weapons {
     fn from(value: [i32; 15]) -> Self {
         Self(
             value[0], value[1], value[2], value[3], value[4], value[5], value[6], value[7],
@@ -865,12 +832,93 @@ impl From<[i32; 15]> for Ammo {
     }
 }
 
-impl From<Ammo> for [i32; 15] {
-    fn from(value: Ammo) -> Self {
+impl From<Weapons> for [i32; 15] {
+    fn from(value: Weapons) -> Self {
         [
             value.0, value.1, value.2, value.3, value.4, value.5, value.6, value.7, value.8,
             value.9, value.10, value.11, value.12, value.13, value.14,
         ]
+    }
+}
+
+#[pymethods]
+impl Weapons {
+    #[new]
+    fn py_new(values: &PyTuple) -> PyResult<Self> {
+        if values.len() < 15 {
+            return Err(PyValueError::new_err(
+                "tuple did not provide values for all 15 weapons",
+            ));
+        }
+
+        if values.len() > 15 {
+            return Err(PyValueError::new_err(
+                "tuple did provide values for more than 15 weapons",
+            ));
+        }
+
+        let mut results: [i32; 15] = [0; 15];
+        for (item, result) in results.iter_mut().enumerate() {
+            let extracted_value: PyResult<i32> = values.get_item(item).unwrap().extract();
+            match extracted_value {
+                Err(_) => return Err(PyValueError::new_err("Weapons values need to be boolean")),
+                Ok(extracted_int) => *result = extracted_int,
+            }
+        }
+
+        Ok(Weapons::from(results))
+    }
+}
+
+#[cfg(test)]
+pub(crate) mod weapons_tests {
+    use super::*;
+    use pyo3::append_to_inittab;
+
+    #[test]
+    pub(crate) fn weapons_can_be_created_from_python() {
+        append_to_inittab!(pyminqlx_module);
+        pyo3::prepare_freethreaded_python();
+        Python::with_gil(|py| {
+            let weapons_constructor =py.run(r#"
+import _minqlx
+weapons = _minqlx.Weapons((False, False, False, False, False, False, False, False, False, False, False, False, False, False, False))
+            "#, None, None);
+            assert_eq!(
+                weapons_constructor.is_ok(),
+                true,
+                "{}",
+                weapons_constructor.err().unwrap()
+            );
+        });
+    }
+}
+
+#[cfg(test)]
+pub(crate) mod ammo_tests {
+    use super::*;
+    use pyo3::append_to_inittab;
+
+    #[test]
+    pub(crate) fn ammo_can_be_created_from_python() {
+        append_to_inittab!(pyminqlx_module);
+        pyo3::prepare_freethreaded_python();
+        Python::with_gil(|py| {
+            let ammo_constructor = py.run(
+                r#"
+import _minqlx
+weapons = _minqlx.Weapons((0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14))
+            "#,
+                None,
+                None,
+            );
+            assert_eq!(
+                ammo_constructor.is_ok(),
+                true,
+                "{}",
+                ammo_constructor.err().unwrap()
+            );
+        });
     }
 }
 
@@ -967,7 +1015,7 @@ struct PlayerState {
     /// The player's weapons.
     weapons: Weapons,
     /// The player's weapon ammo.
-    ammo: Ammo,
+    ammo: Weapons,
     ///The player's powerups.
     powerups: Powerups,
     /// The player's holdable item.
@@ -992,7 +1040,7 @@ impl From<GameEntity> for PlayerState {
             noclip: game_client.get_noclip(),
             weapon: game_client.get_weapon(),
             weapons: Weapons::from(game_client.get_weapons()),
-            ammo: Ammo::from(game_client.get_ammo()),
+            ammo: Weapons::from(game_client.get_ammo()),
             powerups: Powerups::from(game_client.get_powerups()),
             holdable: holdable_from(game_client.get_holdable().into()),
             flight: Flight(
@@ -1264,7 +1312,7 @@ fn set_weapon(client_id: i32, weapon: i32) -> PyResult<bool> {
 /// Sets a player's ammo.
 #[pyfunction]
 #[pyo3(name = "set_ammo")]
-fn set_ammo(client_id: i32, ammos: Ammo) -> PyResult<bool> {
+fn set_ammo(client_id: i32, ammos: Weapons) -> PyResult<bool> {
     let maxclients = unsafe { SV_MAXCLIENTS };
     if !(0..maxclients).contains(&client_id) {
         return Err(PyValueError::new_err(format!(

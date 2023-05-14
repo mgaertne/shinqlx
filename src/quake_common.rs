@@ -1899,19 +1899,22 @@ impl GameClient {
         self.game_client.ps.weapon = weapon;
     }
 
-    pub(crate) fn get_weapons(&self) -> [bool; 15] {
-        let mut returned = [false; 15];
+    pub(crate) fn get_weapons(&self) -> [i32; 15] {
+        let mut returned = [0; 15];
         let weapon_stats = self.game_client.ps.stats[STAT_WEAPONS as usize];
         for (i, item) in returned.iter_mut().enumerate() {
-            *item = weapon_stats.bitand(1 << (i + 1)) != 0;
+            *item = match weapon_stats.bitand(1 << (i + 1)) != 0 {
+                true => 1,
+                false => 0,
+            };
         }
         returned
     }
 
-    pub(crate) fn set_weapons(&mut self, weapons: [bool; 15]) {
+    pub(crate) fn set_weapons(&mut self, weapons: [i32; 15]) {
         let mut weapon_flags = 0;
         for (i, &item) in weapons.iter().enumerate() {
-            let modifier = if item { 1 << (i + 1) } else { 0 };
+            let modifier = if item > 0 { 1 << (i + 1) } else { 0 };
             weapon_flags.bitor_assign(modifier);
         }
 
