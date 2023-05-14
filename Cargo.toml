@@ -18,7 +18,10 @@ test = false
 bench = false
 
 [profile.release]
-opt-level = 3
+strip = true
+lto = true
+codegen-units = 1
+opt-level = "z"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
