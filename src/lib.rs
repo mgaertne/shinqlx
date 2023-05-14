@@ -1,5 +1,8 @@
 #![feature(arbitrary_self_types)]
-extern crate alloc;
+#[cfg(test)]
+#[macro_use]
+extern crate hamcrest;
+
 macro_rules! debug_println {
     () => {
         #[cfg(debug_assertions)]

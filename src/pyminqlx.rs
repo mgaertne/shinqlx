@@ -786,6 +786,7 @@ impl From<(f32, f32, f32)> for Vector3 {
 #[cfg(test)]
 pub(crate) mod vector3_tests {
     use super::*;
+    use hamcrest::prelude::*;
     use pyo3::append_to_inittab;
 
     #[test]
@@ -796,7 +797,7 @@ pub(crate) mod vector3_tests {
             let minqlx_module = py.import("_minqlx").unwrap();
             let vector3 = minqlx_module.getattr("Vector3").unwrap();
             let tuple = py.import("builtins").unwrap().getattr("tuple").unwrap();
-            assert_eq!(vector3.is_instance(tuple.get_type()).unwrap(), true);
+            assert_that!(vector3.is_instance(tuple.get_type()).unwrap(), is(true));
         });
     }
 }
