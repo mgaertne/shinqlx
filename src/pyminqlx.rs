@@ -948,6 +948,63 @@ impl From<Powerups> for [i32; 6] {
     }
 }
 
+#[pymethods]
+impl Powerups {
+    #[new]
+    fn py_new(values: &PyTuple) -> PyResult<Self> {
+        if values.len() < 6 {
+            return Err(PyValueError::new_err(
+                "tuple did not provide values for all 6 powerups",
+            ));
+        }
+
+        if values.len() > 6 {
+            return Err(PyValueError::new_err(
+                "tuple did provide values for more than 6 powerups",
+            ));
+        }
+
+        let mut results: [i32; 6] = [0; 6];
+        for (item, result) in results.iter_mut().enumerate() {
+            let extracted_value: PyResult<i32> = values.get_item(item).unwrap().extract();
+            match extracted_value {
+                Err(_) => return Err(PyValueError::new_err("Weapons values need to be boolean")),
+                Ok(extracted_int) => *result = extracted_int,
+            }
+        }
+
+        Ok(Self::from(results))
+    }
+}
+
+#[cfg(test)]
+pub(crate) mod powerups_tests {
+    use super::*;
+    use pyo3::append_to_inittab;
+
+    #[test]
+    pub(crate) fn powerups_can_be_created_from_python() {
+        append_to_inittab!(pyminqlx_module);
+        pyo3::prepare_freethreaded_python();
+        Python::with_gil(|py| {
+            let powerups_constructor = py.run(
+                r#"
+import _minqlx
+weapons = _minqlx.Powerups((0, 1, 2, 3, 4, 5))
+            "#,
+                None,
+                None,
+            );
+            assert_eq!(
+                powerups_constructor.is_ok(),
+                true,
+                "{}",
+                powerups_constructor.err().unwrap()
+            );
+        });
+    }
+}
+
 #[pyclass]
 #[pyo3(module = "minqlx", name = "Holdable")]
 #[derive(PartialEq, Debug, Clone, Copy)]
@@ -991,6 +1048,63 @@ struct Flight(
 impl From<Flight> for (i32, i32, i32, i32) {
     fn from(flight: Flight) -> Self {
         (flight.0, flight.1, flight.2, flight.3)
+    }
+}
+
+#[pymethods]
+impl Flight {
+    #[new]
+    fn py_new(values: &PyTuple) -> PyResult<Self> {
+        if values.len() < 4 {
+            return Err(PyValueError::new_err(
+                "tuple did not provide values for all 4 flight parameters",
+            ));
+        }
+
+        if values.len() > 4 {
+            return Err(PyValueError::new_err(
+                "tuple did provide values for more than 4 flight parameters",
+            ));
+        }
+
+        let mut results: [i32; 4] = [0; 4];
+        for (item, result) in results.iter_mut().enumerate() {
+            let extracted_value: PyResult<i32> = values.get_item(item).unwrap().extract();
+            match extracted_value {
+                Err(_) => return Err(PyValueError::new_err("Weapons values need to be boolean")),
+                Ok(extracted_int) => *result = extracted_int,
+            }
+        }
+
+        Ok(Self(results[0], results[1], results[2], results[3]))
+    }
+}
+
+#[cfg(test)]
+pub(crate) mod flight_tests {
+    use super::*;
+    use pyo3::append_to_inittab;
+
+    #[test]
+    pub(crate) fn flight_can_be_created_from_python() {
+        append_to_inittab!(pyminqlx_module);
+        pyo3::prepare_freethreaded_python();
+        Python::with_gil(|py| {
+            let flight_constructor = py.run(
+                r#"
+import _minqlx
+weapons = _minqlx.Flight((0, 1, 2, 3))
+            "#,
+                None,
+                None,
+            );
+            assert_eq!(
+                flight_constructor.is_ok(),
+                true,
+                "{}",
+                flight_constructor.err().unwrap()
+            );
+        });
     }
 }
 
