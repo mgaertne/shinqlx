@@ -788,11 +788,20 @@ pub(crate) mod vector3_tests {
     use super::*;
     use hamcrest::prelude::*;
     use pyo3::append_to_inittab;
+    use pyo3::ffi::Py_IsInitialized;
+    use rstest::{fixture, rstest};
 
-    #[test]
-    pub(crate) fn vector3_tuple_test() {
-        append_to_inittab!(pyminqlx_module);
-        pyo3::prepare_freethreaded_python();
+    #[fixture]
+    #[once]
+    fn py_setup() {
+        if unsafe { Py_IsInitialized() } == 0 {
+            append_to_inittab!(pyminqlx_module);
+            pyo3::prepare_freethreaded_python();
+        }
+    }
+
+    #[rstest]
+    pub(crate) fn vector3_tuple_test(_py_setup: ()) {
         Python::with_gil(|py| {
             let minqlx_module = py.import("_minqlx").unwrap();
             let vector3 = minqlx_module.getattr("Vector3").unwrap();
@@ -875,11 +884,20 @@ impl Weapons {
 pub(crate) mod weapons_tests {
     use super::*;
     use pyo3::append_to_inittab;
+    use pyo3::ffi::Py_IsInitialized;
+    use rstest::{fixture, rstest};
 
-    #[test]
-    pub(crate) fn weapons_can_be_created_from_python() {
-        append_to_inittab!(pyminqlx_module);
-        pyo3::prepare_freethreaded_python();
+    #[fixture]
+    #[once]
+    fn py_setup() {
+        if unsafe { Py_IsInitialized() } == 0 {
+            append_to_inittab!(pyminqlx_module);
+            pyo3::prepare_freethreaded_python();
+        }
+    }
+
+    #[rstest]
+    pub(crate) fn weapons_can_be_created_from_python(_py_setup: ()) {
         Python::with_gil(|py| {
             let weapons_constructor =py.run(r#"
 import _minqlx
@@ -899,11 +917,20 @@ weapons = _minqlx.Weapons((False, False, False, False, False, False, False, Fals
 pub(crate) mod ammo_tests {
     use super::*;
     use pyo3::append_to_inittab;
+    use pyo3::ffi::Py_IsInitialized;
+    use rstest::{fixture, rstest};
 
-    #[test]
-    pub(crate) fn ammo_can_be_created_from_python() {
-        append_to_inittab!(pyminqlx_module);
-        pyo3::prepare_freethreaded_python();
+    #[fixture]
+    #[once]
+    fn py_setup() {
+        if unsafe { Py_IsInitialized() } == 0 {
+            append_to_inittab!(pyminqlx_module);
+            pyo3::prepare_freethreaded_python();
+        }
+    }
+
+    #[rstest]
+    pub(crate) fn ammo_can_be_created_from_python(_py_setup: ()) {
         Python::with_gil(|py| {
             let ammo_constructor = py.run(
                 r#"
@@ -981,11 +1008,20 @@ impl Powerups {
 pub(crate) mod powerups_tests {
     use super::*;
     use pyo3::append_to_inittab;
+    use pyo3::ffi::Py_IsInitialized;
+    use rstest::{fixture, rstest};
 
-    #[test]
-    pub(crate) fn powerups_can_be_created_from_python() {
-        append_to_inittab!(pyminqlx_module);
-        pyo3::prepare_freethreaded_python();
+    #[fixture]
+    #[once]
+    fn py_setup() {
+        if unsafe { Py_IsInitialized() } == 0 {
+            append_to_inittab!(pyminqlx_module);
+            pyo3::prepare_freethreaded_python();
+        }
+    }
+
+    #[rstest]
+    pub(crate) fn powerups_can_be_created_from_python(_py_setup: ()) {
         Python::with_gil(|py| {
             let powerups_constructor = py.run(
                 r#"
@@ -1084,11 +1120,20 @@ impl Flight {
 pub(crate) mod flight_tests {
     use super::*;
     use pyo3::append_to_inittab;
+    use pyo3::ffi::Py_IsInitialized;
+    use rstest::{fixture, rstest};
 
-    #[test]
-    pub(crate) fn flight_can_be_created_from_python() {
-        append_to_inittab!(pyminqlx_module);
-        pyo3::prepare_freethreaded_python();
+    #[fixture]
+    #[once]
+    fn py_setup() {
+        if unsafe { Py_IsInitialized() } == 0 {
+            append_to_inittab!(pyminqlx_module);
+            pyo3::prepare_freethreaded_python();
+        }
+    }
+
+    #[rstest]
+    pub(crate) fn flight_can_be_created_from_python(_py_setup: ()) {
         Python::with_gil(|py| {
             let flight_constructor = py.run(
                 r#"

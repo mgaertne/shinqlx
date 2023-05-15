@@ -39,6 +39,8 @@ cc = "1.0"
 
 [dev-dependencies]
 hamcrest = "*"
+pretty_assertions = "1"
+rstest = "0.17.0"
 
 [features]
 default = ["stable"]
