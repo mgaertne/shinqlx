@@ -39,17 +39,11 @@ use crate::{ALLOW_FREE_CLIENT, SV_MAXCLIENTS};
 use pyo3::append_to_inittab;
 use pyo3::exceptions::{PyTypeError, PyValueError};
 #[cfg(not(feature = "cembed"))]
-use pyo3::ffi::{
-    PyDict_GetItemString, PyEval_RestoreThread, PyEval_SaveThread, PyImport_AddModule,
-    PyModule_GetDict, PyRun_String, PyThreadState, Py_DECREF, Py_Finalize, Py_Initialize, Py_True,
-    Py_XDECREF, Py_file_input,
-};
 use pyo3::prelude::*;
-use pyo3::types::PyTuple;
+use pyo3::prepare_freethreaded_python;
+use pyo3::types::{PyList, PyTuple};
 use std::borrow::Cow;
 use std::ffi::c_int;
-#[cfg(not(feature = "cembed"))]
-use std::ffi::CString;
 
 #[allow(dead_code)]
 fn py_type_check(value: &PyAny, type_name: &str) -> bool {
@@ -796,7 +790,7 @@ pub(crate) mod vector3_tests {
     fn py_setup() {
         if unsafe { Py_IsInitialized() } == 0 {
             append_to_inittab!(pyminqlx_module);
-            pyo3::prepare_freethreaded_python();
+            prepare_freethreaded_python();
         }
     }
 
@@ -892,7 +886,7 @@ pub(crate) mod weapons_tests {
     fn py_setup() {
         if unsafe { Py_IsInitialized() } == 0 {
             append_to_inittab!(pyminqlx_module);
-            pyo3::prepare_freethreaded_python();
+            prepare_freethreaded_python();
         }
     }
 
@@ -925,7 +919,7 @@ pub(crate) mod ammo_tests {
     fn py_setup() {
         if unsafe { Py_IsInitialized() } == 0 {
             append_to_inittab!(pyminqlx_module);
-            pyo3::prepare_freethreaded_python();
+            prepare_freethreaded_python();
         }
     }
 
@@ -1016,7 +1010,7 @@ pub(crate) mod powerups_tests {
     fn py_setup() {
         if unsafe { Py_IsInitialized() } == 0 {
             append_to_inittab!(pyminqlx_module);
-            pyo3::prepare_freethreaded_python();
+            prepare_freethreaded_python();
         }
     }
 
@@ -1128,7 +1122,7 @@ pub(crate) mod flight_tests {
     fn py_setup() {
         if unsafe { Py_IsInitialized() } == 0 {
             append_to_inittab!(pyminqlx_module);
-            pyo3::prepare_freethreaded_python();
+            prepare_freethreaded_python();
         }
     }
 
@@ -2029,24 +2023,6 @@ pub(crate) fn pyminqlx_is_initialized() -> bool {
 }
 
 #[cfg(not(feature = "cembed"))]
-const MINQLX_LOADER: &str = r#"
-import traceback
-try:
-  import sys
-  sys.path.append('minqlx.zip')
-  sys.path.append('.')
-  import minqlx
-  minqlx.initialize()
-  ret = True
-except Exception as e:
-  e = traceback.format_exc().rstrip('\\n')
-  for line in e.split('\\n'): print(line)
-  ret = False
-"#;
-#[cfg(not(feature = "cembed"))]
-static mut MAIN_STATE: *mut PyThreadState = std::ptr::null_mut();
-
-#[cfg(not(feature = "cembed"))]
 pub(crate) fn pyminqlx_initialize() -> PyMinqlx_InitStatus_t {
     if pyminqlx_is_initialized() {
         #[cfg(debug_assertions)]
@@ -2057,45 +2033,33 @@ pub(crate) fn pyminqlx_initialize() -> PyMinqlx_InitStatus_t {
     #[cfg(debug_assertions)]
     println!("Initializing Python...");
     append_to_inittab!(pyminqlx_module);
-    unsafe {
-        Py_Initialize();
-        let main_module_cstr = CString::new("__main__").unwrap();
-        let main_module = PyImport_AddModule(main_module_cstr.as_ptr());
-        let main_dict = PyModule_GetDict(main_module);
-        let minqlx_loader_cstr = CString::new(MINQLX_LOADER).unwrap();
-        let res = PyRun_String(
-            minqlx_loader_cstr.as_ptr(),
-            Py_file_input,
-            main_dict,
-            main_dict,
-        );
-        if res.is_null() {
+    prepare_freethreaded_python();
+    match Python::with_gil(|py| {
+        let sys_module = py.import("sys")?;
+        let path_attr = sys_module.getattr("path")?;
+        let path_list: &PyList = path_attr.extract()?;
+        path_list.append("minqlx.zip")?;
+        path_list.append(".")?;
+        let minqlx_module = py.import("minqlx")?;
+        minqlx_module.call_method0("initialize")?;
+        Ok::<(), PyErr>(())
+    }) {
+        Err(_) => {
             #[cfg(debug_assertions)]
-            println!("PyRun_String() returned NULL. Did you modify the loader?");
-            return PYM_MAIN_SCRIPT_ERROR;
+            println!("loader sequence returned an error. Did you modify the loader?");
+            PYM_MAIN_SCRIPT_ERROR
         }
-        let ret_cstr = CString::new("ret").unwrap();
-        let ret = PyDict_GetItemString(main_dict, ret_cstr.as_ptr());
-        Py_XDECREF(ret);
-        Py_DECREF(res);
-        if ret.is_null() {
+        Ok(_) => {
+            unsafe { PYMINQLX_INITIALIZED = true };
             #[cfg(debug_assertions)]
-            println!("The loader script return value doesn't exist?");
-            return PYM_MAIN_SCRIPT_ERROR;
+            println!("Python initialized!");
+            PYM_SUCCESS
         }
-        if ret != Py_True() {
-            return PYM_MAIN_SCRIPT_ERROR;
-        }
-        MAIN_STATE = PyEval_SaveThread();
-        PYMINQLX_INITIALIZED = true;
     }
-    #[cfg(debug_assertions)]
-    println!("Python initialized!");
-    PYM_SUCCESS
 }
 
 #[cfg(not(feature = "cembed"))]
-pub(crate) fn pyminqlx_finalize() -> PyMinqlx_InitStatus_t {
+pub(crate) fn pyminqlx_reload() -> PyMinqlx_InitStatus_t {
     if !pyminqlx_is_initialized() {
         #[cfg(debug_assertions)]
         println!("pyminqlx_finalize was called before being initialized");
@@ -2119,11 +2083,24 @@ pub(crate) fn pyminqlx_finalize() -> PyMinqlx_InitStatus_t {
         KAMIKAZE_EXPLODE_HANDLER = None;
     }
 
-    unsafe {
-        PyEval_RestoreThread(MAIN_STATE);
-        Py_Finalize();
-        PYMINQLX_INITIALIZED = false;
+    match Python::with_gil(|py| {
+        let importlib_module = py.import("importlib")?;
+        let minqlx_module = py.import("minqlx")?;
+        let new_minqlx_module = importlib_module.call_method1("reload", (minqlx_module,))?;
+        new_minqlx_module.call_method0("initialize")?;
+        Ok::<(), PyErr>(())
+    }) {
+        Err(_) => {
+            unsafe {
+                PYMINQLX_INITIALIZED = false;
+            }
+            PYM_MAIN_SCRIPT_ERROR
+        }
+        Ok(()) => {
+            unsafe {
+                PYMINQLX_INITIALIZED = true;
+            }
+            PYM_SUCCESS
+        }
     }
-
-    PYM_SUCCESS
 }
