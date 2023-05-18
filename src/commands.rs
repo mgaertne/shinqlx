@@ -1,9 +1,9 @@
-use crate::pyminqlx::pyminqlx_is_initialized;
+#[cfg(not(feature = "cembed"))]
+use crate::pyminqlx::pyminqlx_initialize;
 use crate::pyminqlx::CUSTOM_COMMAND_HANDLER;
 #[cfg(not(feature = "cdispatchers"))]
 use crate::pyminqlx::{new_game_dispatcher, rcon_dispatcher};
-#[cfg(not(feature = "cembed"))]
-use crate::pyminqlx::{pyminqlx_finalize, pyminqlx_initialize};
+use crate::pyminqlx::{pyminqlx_is_initialized, pyminqlx_reload};
 use crate::quake_common::entity_event_t::{EV_DEATH1, EV_GIB_PLAYER, EV_PAIN};
 use crate::quake_common::{
     Client, CmdArgc, CmdArgs, CmdArgv, ComPrintf, GameAddEvent, GameEntity, QuakeLiveEngine,
@@ -242,7 +242,18 @@ pub extern "C" fn cmd_restart_python() {
             PyMinqlx_Finalize()
         };
         #[cfg(not(feature = "cembed"))]
-        pyminqlx_finalize();
+        {
+            pyminqlx_reload();
+            // minqlx initializes after the first new game starts, but since the game already
+            // start, we manually trigger the event to make it initialize properly.
+            #[cfg(feature = "cdispatchers")]
+            unsafe {
+                NewGameDispatcher(0)
+            };
+            #[cfg(not(feature = "cdispatchers"))]
+            new_game_dispatcher(false);
+            return;
+        }
     }
     #[cfg(feature = "cembed")]
     unsafe {
