@@ -343,7 +343,7 @@ static PyObject* PyMinqlx_SendServerCommand(PyObject* self, PyObject* args) {
         return NULL;
 
     if (client_id == Py_None) {
-        My_SV_SendServerCommand(NULL, "%s\n", cmd); // Send to all.
+        ShiNQlx_SV_SendServerCommand(NULL, "%s\n", cmd); // Send to all.
         Py_RETURN_TRUE;
     } else if (PyLong_Check(client_id)) {
         i = PyLong_AsLong(client_id);
@@ -351,7 +351,7 @@ static PyObject* PyMinqlx_SendServerCommand(PyObject* self, PyObject* args) {
             if (svs->clients[i].state != CS_ACTIVE) {
                 Py_RETURN_FALSE;
             } else {
-                My_SV_SendServerCommand(&svs->clients[i], "%s\n", cmd);
+                ShiNQlx_SV_SendServerCommand(&svs->clients[i], "%s\n", cmd);
                 Py_RETURN_TRUE;
             }
         }
@@ -511,7 +511,7 @@ static PyObject* PyMinqlx_ConsolePrint(PyObject* self, PyObject* args) {
     if (!PyArg_ParseTuple(args, "s:console_print", &text))
         return NULL;
 
-    My_Com_Printf("%s\n", text);
+    ShiNQlx_Com_Printf("%s\n", text);
 
     Py_RETURN_NONE;
 }

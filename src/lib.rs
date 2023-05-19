@@ -1,3 +1,4 @@
+#![cfg_attr(not(test), no_main)]
 #![feature(arbitrary_self_types)]
 #![feature(c_variadic)]
 #[cfg(test)]
