@@ -1553,13 +1553,11 @@ extern void __cdecl ShiNQlx_Sys_SetModuleOffset(char* moduleName, void* offset);
 void __cdecl My_Sys_SetModuleOffset(char* moduleName, void* offset);
 #ifndef NOPY
 extern void __cdecl ShiNQlx_SV_ExecuteClientCommand(client_t *cl, char *s, qboolean clientOK);
-extern void __cdecl ShiNQlx_SV_SendServerCommand(client_t* cl, char* cmd);
-void __cdecl My_SV_SendServerCommand(client_t* cl, char* fmt, ...);
+extern void __cdecl ShiNQlx_SV_SendServerCommand(client_t* cl, char* fmt, ...);
 extern void __cdecl ShiNQlx_SV_ClientEnterWorld(client_t* client, usercmd_t* cmd);
 extern void __cdecl ShiNQlx_SV_SetConfigstring(int index, char* value);
 extern void __cdecl ShiNQlx_SV_DropClient(client_t* drop, const char* reason);
 extern void __cdecl ShiNQlx_Com_Printf(char* fmt, ...);
-void __cdecl My_Com_Printf(char* fmt, ...);
 extern void __cdecl ShiNQlx_SV_SpawnServer(char* server, qboolean killBots);
 // VM replacement functions for hooks.
 extern void __cdecl ShiNQlx_G_RunFrame(int time);

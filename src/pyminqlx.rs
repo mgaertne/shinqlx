@@ -38,10 +38,11 @@ use crate::{ALLOW_FREE_CLIENT, SV_MAXCLIENTS};
 #[cfg(not(feature = "cembed"))]
 use pyo3::append_to_inittab;
 use pyo3::exceptions::{PyTypeError, PyValueError};
-#[cfg(not(feature = "cembed"))]
 use pyo3::prelude::*;
 use pyo3::prepare_freethreaded_python;
-use pyo3::types::{PyList, PyTuple};
+#[cfg(not(feature = "cembed"))]
+use pyo3::types::PyList;
+use pyo3::types::PyTuple;
 use std::borrow::Cow;
 use std::ffi::c_int;
 
@@ -777,6 +778,7 @@ impl From<(f32, f32, f32)> for Vector3 {
     }
 }
 
+#[cfg(not(features = "cembed"))]
 #[cfg(test)]
 pub(crate) mod vector3_tests {
     use super::*;
@@ -874,6 +876,7 @@ impl Weapons {
     }
 }
 
+#[cfg(not(features = "cembed"))]
 #[cfg(test)]
 pub(crate) mod weapons_tests {
     use super::*;
@@ -907,6 +910,7 @@ weapons = _minqlx.Weapons((False, False, False, False, False, False, False, Fals
     }
 }
 
+#[cfg(not(features = "cembed"))]
 #[cfg(test)]
 pub(crate) mod ammo_tests {
     use super::*;
@@ -998,6 +1002,7 @@ impl Powerups {
     }
 }
 
+#[cfg(not(features = "cembed"))]
 #[cfg(test)]
 pub(crate) mod powerups_tests {
     use super::*;
@@ -1110,6 +1115,7 @@ impl Flight {
     }
 }
 
+#[cfg(not(features = "cembed"))]
 #[cfg(test)]
 pub(crate) mod flight_tests {
     use super::*;

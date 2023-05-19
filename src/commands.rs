@@ -1,9 +1,11 @@
 #[cfg(not(feature = "cembed"))]
 use crate::pyminqlx::pyminqlx_initialize;
+use crate::pyminqlx::pyminqlx_is_initialized;
+#[cfg(not(feature = "cembed"))]
+use crate::pyminqlx::pyminqlx_reload;
 use crate::pyminqlx::CUSTOM_COMMAND_HANDLER;
 #[cfg(not(feature = "cdispatchers"))]
 use crate::pyminqlx::{new_game_dispatcher, rcon_dispatcher};
-use crate::pyminqlx::{pyminqlx_is_initialized, pyminqlx_reload};
 use crate::quake_common::entity_event_t::{EV_DEATH1, EV_GIB_PLAYER, EV_PAIN};
 use crate::quake_common::{
     Client, CmdArgc, CmdArgs, CmdArgv, ComPrintf, GameAddEvent, GameEntity, QuakeLiveEngine,
