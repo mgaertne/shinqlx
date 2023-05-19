@@ -10,10 +10,10 @@ use crate::quake_common::{
     cbufExec_t, client_t, gentity_t, qboolean, usercmd_t, AddCommand, CbufExecuteText, Client,
     ClientConnect, ClientEnterWorld, ClientSpawn, ComPrintf, ExecuteClientCommand, FindCVar,
     GameEntity, InitGame, QuakeLiveEngine, RunFrame, SendServerCommand, SetConfigstring,
-    SetModuleOffset, SpawnServer, SV_TAGS_PREFIX,
+    SetModuleOffset, SpawnServer, MAX_MSGLEN, SV_TAGS_PREFIX,
 };
 use crate::{initialize_cvars, initialize_static, COMMON_INITIALIZED, CVARS_INITIALIZED};
-use std::ffi::{c_char, c_int, CStr, CString};
+use std::ffi::{c_char, c_int, CStr, CString, VaList, VaListImpl};
 
 fn set_tag() {
     let Some(sv_tags) = QuakeLiveEngine::default().find_cvar("sv_tags") else {
@@ -155,9 +155,32 @@ extern "C" {
     fn ServerCommandDispatcher(client_id: c_int, command: *const c_char) -> *const c_char;
 }
 
+extern "C" {
+    fn vsnprintf(s: *mut c_char, n: usize, format: *const c_char, arg: VaList) -> c_int;
+}
+
 #[no_mangle]
-pub extern "C" fn ShiNQlx_SV_SendServerCommand(client: *const client_t, command: *const c_char) {
-    let cmd = unsafe { CStr::from_ptr(command).to_str().unwrap_or("") };
+pub unsafe extern "C" fn ShiNQlx_SV_SendServerCommand(
+    client: *const client_t,
+    fmt: *const c_char,
+    fmt_args: ...
+) {
+    let mut va_args: VaListImpl = fmt_args.clone();
+    let mut buffer: [u8; MAX_MSGLEN as usize] = [0; MAX_MSGLEN as usize];
+    let result = vsnprintf(
+        buffer.as_mut_ptr() as *mut c_char,
+        buffer.len(),
+        fmt,
+        va_args.as_va_list(),
+    );
+    if result < 0 {
+        dbg!("some formatting problem occurred");
+    }
+
+    let cmd = CStr::from_bytes_until_nul(&buffer)
+        .unwrap()
+        .to_str()
+        .unwrap_or("");
     shinqlx_send_server_command(Client::try_from(client).ok(), cmd);
 }
 
@@ -292,8 +315,23 @@ extern "C" {
 }
 
 #[no_mangle]
-pub extern "C" fn ShiNQlx_Com_Printf(msg: *const c_char) {
-    let rust_msg = unsafe { CStr::from_ptr(msg).to_str().unwrap_or("") };
+pub unsafe extern "C" fn ShiNQlx_Com_Printf(fmt: *const c_char, fmt_args: ...) {
+    let mut va_args: VaListImpl = fmt_args.clone();
+    let mut buffer: [u8; MAX_MSGLEN as usize] = [0; MAX_MSGLEN as usize];
+    let result = vsnprintf(
+        buffer.as_mut_ptr() as *mut c_char,
+        buffer.len(),
+        fmt,
+        va_args.as_va_list(),
+    );
+    if result < 0 {
+        dbg!("some formatting problem occurred");
+    }
+
+    let rust_msg = CStr::from_bytes_until_nul(&buffer)
+        .unwrap()
+        .to_str()
+        .unwrap_or("");
     shinqlx_com_printf(rust_msg);
 }
 

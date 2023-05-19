@@ -1,4 +1,5 @@
 #![feature(arbitrary_self_types)]
+#![feature(c_variadic)]
 #[cfg(test)]
 #[macro_use]
 extern crate hamcrest;

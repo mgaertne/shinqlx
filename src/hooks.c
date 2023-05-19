@@ -44,32 +44,6 @@ void __cdecl My_Sys_SetModuleOffset(char* moduleName, void* offset) {
     ShiNQlx_Sys_SetModuleOffset(moduleName, offset);
 }
 
-// USED FOR PYTHON
-
-#ifndef NOPY
-void __cdecl My_SV_SendServerCommand(client_t* cl, char* fmt, ...) {
-    va_list argptr;
-    char buffer[MAX_MSGLEN];
-
-    va_start(argptr, fmt);
-    vsnprintf((char *)buffer, sizeof(buffer), fmt, argptr);
-    va_end(argptr);
-
-    ShiNQlx_SV_SendServerCommand(cl, buffer);
-}
-
-void __cdecl My_Com_Printf(char* fmt, ...) {
-    char buf[4096];
-    va_list args;
-    va_start(args, fmt);
-    vsnprintf(buf, sizeof(buf), fmt, args);
-    va_end(args);
-
-    ShiNQlx_Com_Printf(buf);
-}
-
-#endif
-
 // Hook static functions. Can be done before program even runs.
 void HookStatic(void) {
     int res, failed = 0;
@@ -102,7 +76,7 @@ void HookStatic(void) {
         failed = 1;
     }
 
-    res = Hook((void*)SV_SendServerCommand, My_SV_SendServerCommand, (void*)&SV_SendServerCommand);
+    res = Hook((void*)SV_SendServerCommand,ShiNQlx_SV_SendServerCommand, (void*)&SV_SendServerCommand);
     if (res) {
         DebugPrint("ERROR: Failed to hook SV_SendServerCommand: %d\n", res);
         failed = 1;
@@ -120,7 +94,7 @@ void HookStatic(void) {
         failed = 1;
     }
 
-    res = Hook((void*)Com_Printf, My_Com_Printf, (void*)&Com_Printf);
+    res = Hook((void*)Com_Printf, ShiNQlx_Com_Printf, (void*)&Com_Printf);
     if (res) {
         DebugPrint("ERROR: Failed to hook Com_Printf: %d\n", res);
         failed = 1;
