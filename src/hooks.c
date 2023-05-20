@@ -10,7 +10,6 @@
 #include "common.h"
 #include "quake_common.h"
 #include "simple_hook.h"
-#include "patches.h"
 
 #ifndef NOPY
 #include "pyminqlx.h"
@@ -19,30 +18,6 @@
 // qagame module.
 void* qagame;
 void* qagame_dllentry;
-
-void __cdecl My_Sys_SetModuleOffset(char* moduleName, void* offset) {
-    // We should be getting qagame, but check just in case.
-    if (!strcmp(moduleName, "qagame")) {
-        // Despite the name, it's not the actual module, but vmMain.
-        // We use dlinfo to get the base of the module so we can properly
-        // initialize all the pointers relative to the base.
-        qagame_dllentry = offset;
-
-        Dl_info dlinfo;
-        int res = dladdr(offset, &dlinfo);
-        if (!res) {
-            DebugError("dladdr() failed.\n", __FILE__, __LINE__, __func__);
-            qagame = NULL;
-        } else {
-            qagame = dlinfo.dli_fbase;
-        }
-        DebugPrint("Got qagame: %#010x\n", qagame);
-    } else {
-        DebugPrint("Unknown module: %s\n", moduleName);
-    }
-
-    ShiNQlx_Sys_SetModuleOffset(moduleName, offset);
-}
 
 // Hook static functions. Can be done before program even runs.
 void HookStatic(void) {
@@ -54,7 +29,7 @@ void HookStatic(void) {
         failed = 1;
     }
 
-    res = Hook((void*)Sys_SetModuleOffset, My_Sys_SetModuleOffset, (void*)&Sys_SetModuleOffset);
+    res = Hook((void*)Sys_SetModuleOffset, ShiNQlx_Sys_SetModuleOffset, (void*)&Sys_SetModuleOffset);
     if (res) {
         DebugPrint("ERROR: Failed to hook Sys_SetModuleOffset: %d\n", res);
         failed = 1;

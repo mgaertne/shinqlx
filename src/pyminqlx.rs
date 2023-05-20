@@ -39,6 +39,7 @@ use crate::{ALLOW_FREE_CLIENT, SV_MAXCLIENTS};
 use pyo3::append_to_inittab;
 use pyo3::exceptions::{PyTypeError, PyValueError};
 use pyo3::prelude::*;
+#[cfg(not(feature = "cembed"))]
 use pyo3::prepare_freethreaded_python;
 #[cfg(not(feature = "cembed"))]
 use pyo3::types::PyList;
@@ -783,8 +784,8 @@ impl From<(f32, f32, f32)> for Vector3 {
 pub(crate) mod vector3_tests {
     use super::*;
     use hamcrest::prelude::*;
-    use pyo3::append_to_inittab;
     use pyo3::ffi::Py_IsInitialized;
+    use pyo3::{append_to_inittab, prepare_freethreaded_python};
     use rstest::{fixture, rstest};
 
     #[fixture]
@@ -880,8 +881,8 @@ impl Weapons {
 #[cfg(test)]
 pub(crate) mod weapons_tests {
     use super::*;
-    use pyo3::append_to_inittab;
     use pyo3::ffi::Py_IsInitialized;
+    use pyo3::{append_to_inittab, prepare_freethreaded_python};
     use rstest::{fixture, rstest};
 
     #[fixture]
@@ -900,9 +901,8 @@ pub(crate) mod weapons_tests {
 import _minqlx
 weapons = _minqlx.Weapons((False, False, False, False, False, False, False, False, False, False, False, False, False, False, False))
             "#, None, None);
-            assert_eq!(
+            assert!(
                 weapons_constructor.is_ok(),
-                true,
                 "{}",
                 weapons_constructor.err().unwrap()
             );
@@ -914,8 +914,8 @@ weapons = _minqlx.Weapons((False, False, False, False, False, False, False, Fals
 #[cfg(test)]
 pub(crate) mod ammo_tests {
     use super::*;
-    use pyo3::append_to_inittab;
     use pyo3::ffi::Py_IsInitialized;
+    use pyo3::{append_to_inittab, prepare_freethreaded_python};
     use rstest::{fixture, rstest};
 
     #[fixture]
@@ -938,9 +938,8 @@ weapons = _minqlx.Weapons((0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14))
                 None,
                 None,
             );
-            assert_eq!(
+            assert!(
                 ammo_constructor.is_ok(),
-                true,
                 "{}",
                 ammo_constructor.err().unwrap()
             );
@@ -1006,8 +1005,8 @@ impl Powerups {
 #[cfg(test)]
 pub(crate) mod powerups_tests {
     use super::*;
-    use pyo3::append_to_inittab;
     use pyo3::ffi::Py_IsInitialized;
+    use pyo3::{append_to_inittab, prepare_freethreaded_python};
     use rstest::{fixture, rstest};
 
     #[fixture]
@@ -1030,11 +1029,10 @@ weapons = _minqlx.Powerups((0, 1, 2, 3, 4, 5))
                 None,
                 None,
             );
-            assert_eq!(
+            assert!(
                 powerups_constructor.is_ok(),
-                true,
                 "{}",
-                powerups_constructor.err().unwrap()
+                powerups_constructor.err().unwrap(),
             );
         });
     }
@@ -1119,8 +1117,8 @@ impl Flight {
 #[cfg(test)]
 pub(crate) mod flight_tests {
     use super::*;
-    use pyo3::append_to_inittab;
     use pyo3::ffi::Py_IsInitialized;
+    use pyo3::{append_to_inittab, prepare_freethreaded_python};
     use rstest::{fixture, rstest};
 
     #[fixture]
@@ -1143,9 +1141,8 @@ weapons = _minqlx.Flight((0, 1, 2, 3))
                 None,
                 None,
             );
-            assert_eq!(
+            assert!(
                 flight_constructor.is_ok(),
-                true,
                 "{}",
                 flight_constructor.err().unwrap()
             );

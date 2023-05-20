@@ -1550,7 +1550,6 @@ extern G_FreeEntity_ptr G_FreeEntity;
 // Server replacement functions for hooks.
 extern void __cdecl ShiNQlx_Cmd_AddCommand(char* cmd, void* func);
 extern void __cdecl ShiNQlx_Sys_SetModuleOffset(char* moduleName, void* offset);
-void __cdecl My_Sys_SetModuleOffset(char* moduleName, void* offset);
 #ifndef NOPY
 extern void __cdecl ShiNQlx_SV_ExecuteClientCommand(client_t *cl, char *s, qboolean clientOK);
 extern void __cdecl ShiNQlx_SV_SendServerCommand(client_t* cl, char* fmt, ...);

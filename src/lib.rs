@@ -7,12 +7,10 @@ extern crate hamcrest;
 
 macro_rules! debug_println {
     () => {
-        #[cfg(debug_assertions)]
-        println!("{}", DEBUG_PRINT_PREFIX)
+        println!("{}", crate::quake_common::DEBUG_PRINT_PREFIX)
     };
     ($($arg:tt)*) => {
-        #[cfg(debug_assertions)]
-        println!("{} {}", DEBUG_PRINT_PREFIX, $($arg)*)
+        println!("{} {}", crate::quake_common::DEBUG_PRINT_PREFIX, $($arg)*)
     };
 }
 
@@ -29,11 +27,10 @@ use crate::commands::{
 use crate::pyminqlx::pyminqlx_initialize;
 #[cfg(feature = "cembed")]
 use crate::quake_common::cvar_t;
-#[cfg(debug_assertions)]
-use crate::quake_common::DEBUG_PRINT_PREFIX;
 use crate::quake_common::{AddCommand, FindCVar, QuakeLiveEngine};
 use crate::PyMinqlx_InitStatus_t::PYM_SUCCESS;
 use ctor::ctor;
+use std::env::args;
 
 #[allow(non_camel_case_types)]
 #[allow(non_camel_case_types)]
@@ -103,10 +100,27 @@ fn initialize_cvars() {
 }
 
 extern "C" {
-    fn EntryPoint();
+    fn SearchFunctions();
+    fn InitializeStatic();
+    fn HookStatic();
 }
+
+#[cfg(target_pointer_width = "64")]
+const QZERODED: &str = "qzeroded.x64";
+#[cfg(target_pointer_width = "32")]
+const QZERODED: &str = "qzeroded.x86";
 
 #[ctor]
 fn initialize() {
-    unsafe { EntryPoint() };
+    let progname = args().next().unwrap();
+    if !progname.ends_with(QZERODED) {
+        return;
+    }
+
+    unsafe { SearchFunctions() };
+
+    unsafe { InitializeStatic() };
+
+    debug_println!("Shared library loaded");
+    unsafe { HookStatic() };
 }

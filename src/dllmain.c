@@ -95,7 +95,7 @@ void DebugError(const char* fmt, const char* file, int line, const char* func, .
 
 #define STATIC_SEARCH(x, p, m) x = (x ## _ptr) PatternSearchModule(&module, p, m); if (x == NULL) { DebugPrint("ERROR: Unable to find " #x ".\n"); failed = 1;} else DebugPrint(#x ": %p\n", x)
 
-static void SearchFunctions(void) {
+void SearchFunctions(void) {
     int failed = 0;
     module_info_t module;
     strcpy(module.name, qzeroded);
@@ -184,13 +184,7 @@ void InitializeVm(void) {
     for (bg_numItems = 1; bg_itemlist[ bg_numItems ].classname; bg_numItems++) {}
 }
 
-// __attribute__((constructor))
-void EntryPoint(void) {
-    if (strcmp(__progname, qzeroded))
-        return;
-
-    SearchFunctions();
-
+void InitializeStatic(void) {
     // Initialize some key structure pointers before hooking, since we
     // might use some of the functions that could be hooked later to
     // get the pointer, such as SV_SetConfigstring.
@@ -200,12 +194,4 @@ void EntryPoint(void) {
 #elif defined(__i386) || defined(_M_IX86)
     svs = *(serverStatic_t**)OFFSET_PP_SVS;
 #endif
-
-    // TODO: Write script to automatically set version based on git output
-    //       when building and then make it print it here.
-    DebugPrint("Shared library loaded!\n");
-    HookStatic();
-
-    // Set the seed for our RNG.
-    srand(time(NULL));
 }

@@ -34,16 +34,6 @@ void SetPendingPlayer(uint64_t* players, int client_id) {
     *players |= 1LL << client_id;
 }
 
-// (0.0f, 1.0f)
-float RandomFloat(void) {
-    return (float)rand()/(float)RAND_MAX;
-}
-
-// (-1.0f, 1.0f)
-float RandomFloatWithNegative(void) {
-    return (float)rand()/(float)(RAND_MAX/2) - 1;
-}
-
 void* PatternSearch(void* address, size_t length, const char* pattern, const char* mask) {
     for (size_t i = 0; i < length; i++) {
         for (size_t j = 0; mask[j]; j++) {
