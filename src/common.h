@@ -33,9 +33,11 @@ typedef int32_t sint;
 #define __cdecl __attribute__((__cdecl__))
 #endif
 
-void InitializeVm(void);
-void SearchVmFunctions(void); // Needs to be called every time the VM is loaded.
+void SearchFunctions(void);
+void InitializeStatic(void);
 void HookStatic(void);
+void SearchVmFunctions(void); // Needs to be called every time the VM is loaded.
+void InitializeVm(void);
 void HookVm(void);
 void DebugPrint(const char* fmt, ...);
 void DebugError(const char* fmt, const char* file, int line, const char* func, ...);
@@ -43,8 +45,6 @@ void DebugError(const char* fmt, const char* file, int line, const char* func, .
 // Misc.
 int GetPendingPlayer(uint64_t* players);
 void SetPendingPlayer(uint64_t* players, int client_id);
-float RandomFloat(void);
-float RandomFloatWithNegative(void);
 void* PatternSearch(void* address, size_t length, const char* pattern, const char* mask);
 void* PatternSearchModule(module_info_t* module, const char* pattern, const char* mask);
 

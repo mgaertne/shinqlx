@@ -13,7 +13,7 @@ use crate::quake_common::{
     SetModuleOffset, SpawnServer, MAX_MSGLEN, SV_TAGS_PREFIX,
 };
 use crate::{initialize_cvars, initialize_static, COMMON_INITIALIZED, CVARS_INITIALIZED};
-use std::ffi::{c_char, c_int, CStr, CString, VaList, VaListImpl};
+use std::ffi::{c_char, c_int, c_void, CStr, CString, VaList, VaListImpl};
 
 fn set_tag() {
     let Some(sv_tags) = QuakeLiveEngine::default().find_cvar("sv_tags") else {
@@ -44,11 +44,22 @@ pub extern "C" fn ShiNQlx_Cmd_AddCommand(cmd: *const c_char, func: unsafe extern
     QuakeLiveEngine::default().add_command(command, func);
 }
 
+#[repr(C)]
+pub struct DlInfo {
+    pub dli_fname: *const c_char,
+    pub dli_fbase: *mut c_void,
+    pub dli_sname: *const c_char,
+    pub dli_saddr: *mut c_void,
+}
+
 extern "C" {
+    static mut qagame_dllentry: *mut c_void;
+    static mut qagame: *mut c_void;
     fn SearchVmFunctions();
     fn HookVm();
     fn InitializeVm();
     fn patch_vm();
+    fn dladdr(addr: *const c_void, into: *mut DlInfo) -> c_int;
 }
 
 #[no_mangle]
@@ -57,6 +68,31 @@ pub extern "C" fn ShiNQlx_Sys_SetModuleOffset(
     offset: unsafe extern "C" fn(),
 ) {
     let converted_module_name = unsafe { CStr::from_ptr(module_name).to_str().unwrap_or("") };
+
+    // We should be getting qagame, but check just in case.
+    match converted_module_name {
+        "qagame" => {
+            // Despite the name, it's not the actual module, but vmMain.
+            // We use dlinfo to get the base of the module so we can properly
+            // initialize all the pointers relative to the base.
+            unsafe { qagame_dllentry = offset as *mut c_void };
+            let mut dlinfo: DlInfo = DlInfo {
+                dli_fname: std::ptr::null_mut(),
+                dli_fbase: std::ptr::null_mut(),
+                dli_sname: std::ptr::null_mut(),
+                dli_saddr: std::ptr::null_mut(),
+            };
+            let res = unsafe { dladdr(offset as *const c_void, &mut dlinfo as *mut DlInfo) };
+            if res != 0 {
+                unsafe { qagame = dlinfo.dli_fbase };
+            } else {
+                debug_println!("dladdr() failed.");
+                unsafe { qagame = std::ptr::null_mut() };
+            }
+        }
+        _ => debug_println!(format!("Unknown module: {}", converted_module_name)),
+    }
+
     QuakeLiveEngine::default().set_module_offset(converted_module_name, offset);
 
     if unsafe { !COMMON_INITIALIZED } {
