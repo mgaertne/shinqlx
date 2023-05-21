@@ -19,9 +19,9 @@ use crate::quake_common::meansOfDeath_t::{
 use crate::quake_common::privileges_t::{PRIV_ADMIN, PRIV_BANNED, PRIV_MOD, PRIV_NONE, PRIV_ROOT};
 use crate::quake_common::team_t::{TEAM_BLUE, TEAM_FREE, TEAM_RED, TEAM_SPECTATOR};
 use crate::quake_common::{
-    AddCommand, Client, ConsoleCommand, CurrentLevel, FindCVar, GameClient, GameEntity, GetCVar,
-    GetConfigstring, QuakeLiveEngine, SetCVarForced, SetCVarLimit, MAX_CONFIGSTRINGS,
-    MAX_GENTITIES,
+    AddCommand, Client, ComPrintf, ConsoleCommand, CurrentLevel, FindCVar, GameClient, GameEntity,
+    GetCVar, GetConfigstring, QuakeLiveEngine, SendServerCommand, SetCVarForced, SetCVarLimit,
+    MAX_CONFIGSTRINGS, MAX_GENTITIES,
 };
 #[cfg(not(feature = "cembed"))]
 use crate::PyMinqlx_InitStatus_t;
@@ -30,6 +30,7 @@ use crate::quake_common::cvar_flags::{
     CVAR_ARCHIVE, CVAR_CHEAT, CVAR_INIT, CVAR_LATCH, CVAR_NORESTART, CVAR_ROM, CVAR_SERVERINFO,
     CVAR_SYSTEMINFO, CVAR_TEMP, CVAR_USERINFO, CVAR_USER_CREATED,
 };
+use crate::quake_common::entityType_t::ET_ITEM;
 #[cfg(not(feature = "cembed"))]
 use crate::PyMinqlx_InitStatus_t::{
     PYM_ALREADY_INITIALIZED, PYM_MAIN_SCRIPT_ERROR, PYM_NOT_INITIALIZED_ERROR, PYM_SUCCESS,
@@ -44,7 +45,6 @@ use pyo3::prepare_freethreaded_python;
 #[cfg(not(feature = "cembed"))]
 use pyo3::types::PyList;
 use pyo3::types::PyTuple;
-use std::borrow::Cow;
 use std::ffi::c_int;
 
 #[allow(dead_code)]
@@ -385,21 +385,38 @@ struct PlayerInfo {
     privileges: i32,
 }
 
-fn make_player_tuple(client_id: i32) -> Option<PlayerInfo> {
-    let game_entity_result = GameEntity::try_from(client_id);
-    match game_entity_result {
-        Err(_) => Some(PlayerInfo {
-            client_id,
-            name: Default::default(),
-            connection_state: 0,
-            userinfo: Default::default(),
-            steam_id: 0,
-            team: TEAM_SPECTATOR as i32,
-            privileges: -1,
-        }),
-        Ok(game_entity) => {
-            let Ok(client) = Client::try_from(client_id) else {
-                return Some(PlayerInfo {
+#[pymethods]
+impl PlayerInfo {
+    fn __str__(&self) -> String {
+        format!("PlayerInfo(client_id={}, name={}, connection_state={}, userinfo={}, steam_id={}, team={}, privileges={})",
+                self.client_id,
+                self.name,
+                self.connection_state,
+                self.userinfo,
+                self.steam_id,
+                self.team,
+                self.privileges)
+    }
+}
+
+impl TryFrom<i32> for PlayerInfo {
+    type Error = &'static str;
+
+    fn try_from(client_id: i32) -> Result<Self, Self::Error> {
+        let game_entity_result = GameEntity::try_from(client_id);
+        match game_entity_result {
+            Err(_) => Ok(PlayerInfo {
+                client_id,
+                name: Default::default(),
+                connection_state: 0,
+                userinfo: Default::default(),
+                steam_id: 0,
+                team: TEAM_SPECTATOR as i32,
+                privileges: -1,
+            }),
+            Ok(game_entity) => {
+                let Ok(client) = Client::try_from(client_id) else {
+                return Ok(PlayerInfo {
                     client_id,
                     name: game_entity.get_player_name(),
                     connection_state: 0,
@@ -409,15 +426,16 @@ fn make_player_tuple(client_id: i32) -> Option<PlayerInfo> {
                     privileges: game_entity.get_privileges(),
                 });
             };
-            Some(PlayerInfo {
-                client_id,
-                name: game_entity.get_player_name(),
-                connection_state: client.get_state(),
-                userinfo: client.get_user_info(),
-                steam_id: client.get_steam_id(),
-                team: game_entity.get_team(),
-                privileges: game_entity.get_privileges(),
-            })
+                Ok(PlayerInfo {
+                    client_id,
+                    name: game_entity.get_player_name(),
+                    connection_state: client.get_state(),
+                    userinfo: client.get_user_info(),
+                    steam_id: client.get_steam_id(),
+                    team: game_entity.get_team(),
+                    privileges: game_entity.get_privileges(),
+                })
+            }
         }
     }
 }
@@ -443,7 +461,7 @@ fn get_player_info(client_id: i32) -> PyResult<Option<PlayerInfo>> {
             return Ok(None);
         }
     }
-    Ok(make_player_tuple(client_id))
+    Ok(PlayerInfo::try_from(client_id).ok())
 }
 
 /// Returns a list with dictionaries with information about all the players on the server.
@@ -458,7 +476,7 @@ fn get_players_info() -> PyResult<Vec<Option<PlayerInfo>>> {
                 if client.get_state() == CS_FREE as i32 {
                     result.push(None)
                 } else {
-                    result.push(make_player_tuple(client_id))
+                    result.push(PlayerInfo::try_from(client_id).ok())
                 }
             }
         }
@@ -569,17 +587,14 @@ fn get_cvar(cvar: &str) -> PyResult<Option<String>> {
 #[pyo3(name = "set_cvar")]
 #[pyo3(signature = (cvar, value, flags=None))]
 fn set_cvar(cvar: &str, value: &str, flags: Option<i32>) -> PyResult<bool> {
-    match QuakeLiveEngine::default().find_cvar(cvar) {
+    let quake_live_engine = QuakeLiveEngine::default();
+    match quake_live_engine.find_cvar(cvar) {
         None => {
-            QuakeLiveEngine::default().get_cvar(cvar, value, flags);
+            quake_live_engine.get_cvar(cvar, value, flags);
             Ok(true)
         }
         Some(_) => {
-            QuakeLiveEngine::default().set_cvar_forced(
-                cvar,
-                value,
-                flags.is_some() && flags.unwrap() == -1,
-            );
+            quake_live_engine.set_cvar_forced(cvar, value, flags.is_some() && flags.unwrap() == -1);
             Ok(false)
         }
     }
@@ -764,6 +779,36 @@ struct Vector3(
 
 #[pymethods]
 impl Vector3 {
+    #[new]
+    fn py_new(values: &PyTuple) -> PyResult<Self> {
+        if values.len() < 3 {
+            return Err(PyValueError::new_err(
+                "tuple did not provide values for all three dimensions",
+            ));
+        }
+
+        if values.len() > 3 {
+            return Err(PyValueError::new_err(
+                "tuple did provide values for more than three dimensions",
+            ));
+        }
+
+        let mut results: [i32; 3] = [0; 3];
+        for (item, result) in results.iter_mut().enumerate() {
+            let extracted_value: PyResult<i32> = values.get_item(item).unwrap().extract();
+            match extracted_value {
+                Err(_) => return Err(PyValueError::new_err("Weapons values need to be boolean")),
+                Ok(extracted_int) => *result = extracted_int,
+            }
+        }
+
+        Ok(Vector3(results[0], results[1], results[2]))
+    }
+
+    fn __str__(&self) -> String {
+        format!("Vector3(x={}, y={}, z={})", self.0, self.1, self.2)
+    }
+
     fn __iter__(slf: PyRef<'_, Self>) -> PyResult<Py<Vector3Iter>> {
         let iter_vec = vec![slf.0, slf.1, slf.2];
         let iter = Vector3Iter {
@@ -874,6 +919,11 @@ impl Weapons {
         }
 
         Ok(Weapons::from(results))
+    }
+
+    fn __str__(&self) -> String {
+        format!("Weapons(g={}, mg={}, sg={}, gl={}, rl={}, lg={}, rg={}, pg={}, bfg={}, gh={}, ng={}, pl={}, cg={}, hmg={}, hands={})",
+        self.0, self.1, self.2, self.3, self.4, self.5, self.5, self.7, self.8, self.9, self.10, self.11, self.12, self.13, self.14)
     }
 }
 
@@ -999,6 +1049,11 @@ impl Powerups {
 
         Ok(Self::from(results))
     }
+
+    fn __str__(&self) -> String {
+        format!("Powerups(quad={}, battlesuit={}, haste={}, invisibility={}, regeneration={}, invulnerability={})",
+            self.0, self.1, self.2, self.3, self.4, self.5)
+    }
 }
 
 #[cfg(not(features = "cembed"))]
@@ -1111,6 +1166,13 @@ impl Flight {
 
         Ok(Self(results[0], results[1], results[2], results[3]))
     }
+
+    fn __str__(&self) -> String {
+        format!(
+            "Flight(fuel={}, max_fuel={}, thrust={}, refuel={})",
+            self.0, self.1, self.2, self.3
+        )
+    }
 }
 
 #[cfg(not(features = "cembed"))]
@@ -1176,11 +1238,34 @@ struct PlayerState {
     ///The player's powerups.
     powerups: Powerups,
     /// The player's holdable item.
-    holdable: Option<Cow<'static, str>>,
+    holdable: Option<String>,
     /// A struct sequence with flight parameters.
     flight: Flight,
     /// Whether the player is frozen(freezetag).
     is_frozen: bool,
+}
+
+#[pymethods]
+impl PlayerState {
+    fn __str__(&self) -> String {
+        format!("PlayerState(is_alive={}, position={}, veclocity={}, health={}, armor={}, noclip={}, weapon={}, weapons={}, ammo={}, powerups={}, holdable={}, flight={}, is_frozen={})",
+            self.is_alive,
+            self.position.__str__(),
+            self.velocity.__str__(),
+            self.health,
+            self.armor,
+            self.noclip,
+            self.weapon,
+            self.weapons.__str__(),
+            self.ammo.__str__(),
+            self.powerups.__str__(),
+            match self.holdable.as_ref() {
+                Some(value) => value,
+                None => "None",
+            },
+            self.flight.__str__(),
+            self.is_frozen)
+    }
 }
 
 impl From<GameEntity> for PlayerState {
@@ -1211,7 +1296,7 @@ impl From<GameEntity> for PlayerState {
     }
 }
 
-fn holdable_from(holdable: Holdable) -> Option<Cow<'static, str>> {
+fn holdable_from(holdable: Holdable) -> Option<String> {
     match holdable {
         Holdable::None => None,
         Holdable::Teleporter => Some("teleporter".into()),
@@ -1266,6 +1351,14 @@ struct PlayerStats {
     time: i32,
     /// The player's ping.
     ping: i32,
+}
+
+#[pymethods]
+impl PlayerStats {
+    fn __str__(&self) -> String {
+        format!("PlayerStats(score={}, kills={}, deaths={}, damage_dealt={}, damage_taken={}, time={}, ping={})",
+            self.score, self.kills, self.deaths, self.damage_dealt, self.damage_taken, self.time, self.ping)
+    }
 }
 
 impl From<GameClient> for PlayerStats {
@@ -1790,7 +1883,51 @@ fn replace_items(item1: i32, item2: i32) -> PyResult<bool> {
 /// Prints all items and entity numbers to server console.
 #[pyfunction]
 #[pyo3(name = "dev_print_items")]
-fn dev_print_items() {}
+fn dev_print_items() {
+    let mut formatted_items: Vec<String> = Vec::new();
+    for i in 0..MAX_GENTITIES {
+        match GameEntity::try_from(i as i32) {
+            Err(_) => continue,
+            Ok(game_entity) => {
+                if !game_entity.in_use() {
+                    continue;
+                }
+                if !game_entity.is_game_item(ET_ITEM as i32) {
+                    continue;
+                }
+                formatted_items.push(format!("{} {}", i, game_entity.get_classname()));
+            }
+        }
+    }
+    let mut str_length = 0;
+    let printed_items: Vec<String> = formatted_items
+        .iter()
+        .take_while(|item| {
+            str_length += item.len();
+            str_length < 1024
+        })
+        .map(|item| item.to_string())
+        .collect();
+    let quake_live_engine = QuakeLiveEngine::default();
+    quake_live_engine.send_server_command(
+        None,
+        format!("print \"{}\n\"", printed_items.join("\n")).as_str(),
+    );
+
+    let remaining_items: Vec<String> = formatted_items
+        .iter()
+        .skip(printed_items.len())
+        .map(|item| item.to_string())
+        .collect();
+
+    if !remaining_items.is_empty() {
+        quake_live_engine
+            .send_server_command(None, "print \"Check server console for other items\n\"\n");
+        for item in remaining_items {
+            quake_live_engine.com_printf(item.as_str());
+        }
+    }
+}
 
 /// Slay player with mean of death.
 #[pyfunction]

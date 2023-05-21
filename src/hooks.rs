@@ -16,7 +16,8 @@ use crate::{initialize_cvars, initialize_static, COMMON_INITIALIZED, CVARS_INITI
 use std::ffi::{c_char, c_int, c_void, CStr, CString, VaList, VaListImpl};
 
 fn set_tag() {
-    let Some(sv_tags) = QuakeLiveEngine::default().find_cvar("sv_tags") else {
+    let quake_live_engine = QuakeLiveEngine::default();
+    let Some(sv_tags) = quake_live_engine.find_cvar("sv_tags") else {
         return;
     };
 
@@ -31,7 +32,7 @@ fn set_tag() {
     } else {
         format!("sv_tags \"{}\"", SV_TAGS_PREFIX)
     };
-    QuakeLiveEngine::default().cbuf_execute_text(cbufExec_t::EXEC_INSERT, &new_tags);
+    quake_live_engine.cbuf_execute_text(cbufExec_t::EXEC_INSERT, &new_tags);
 }
 
 #[no_mangle]

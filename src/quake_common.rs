@@ -1941,7 +1941,10 @@ impl GameClient {
         let current_level = CurrentLevel::default();
         for (powerup, item) in returned.iter_mut().enumerate() {
             let powerup_index = *POWERUP_INDEX_LOOKUP.get(&(powerup as i32)).unwrap();
-            *item = self.game_client.ps.powerups[powerup_index] - current_level.get_leveltime();
+            *item = self.game_client.ps.powerups[powerup_index];
+            if *item != 0 {
+                *item -= current_level.get_leveltime();
+            }
         }
         returned
     }
@@ -2074,16 +2077,16 @@ extern "C" {
 impl TryFrom<i32> for GameEntity {
     type Error = &'static str;
 
-    fn try_from(client_id: i32) -> Result<Self, Self::Error> {
-        if client_id < 0 {
-            return Err("invalid client_id");
+    fn try_from(entity_id: i32) -> Result<Self, Self::Error> {
+        if entity_id < 0 {
+            return Err("invalid entity_id");
         }
         unsafe {
             g_entities
-                .offset(client_id as isize)
+                .offset(entity_id as isize)
                 .as_mut()
                 .map(|gentity| Self { gentity_t: gentity })
-                .ok_or("client not found")
+                .ok_or("entity not found")
         }
     }
 }
@@ -2228,9 +2231,22 @@ impl GameEntity {
         self.gentity_t.inuse.into()
     }
 
+    pub(crate) fn get_classname(&self) -> String {
+        unsafe {
+            CStr::from_ptr(self.gentity_t.classname)
+                .to_str()
+                .unwrap_or("")
+                .into()
+        }
+    }
+
+    pub(crate) fn is_game_item(&self, item_type: i32) -> bool {
+        self.gentity_t.s.eType == item_type
+    }
+
     pub(crate) fn is_respawning_weapon(&self) -> bool {
         unsafe {
-            self.gentity_t.s.eType == ET_ITEM as i32
+            self.is_game_item(ET_ITEM as i32)
                 && !self.gentity_t.item.is_null()
                 && self.gentity_t.item.as_ref().unwrap().giType == IT_WEAPON
         }
@@ -2658,7 +2674,7 @@ impl ExecuteClientCommand for QuakeLiveEngine {
 }
 
 extern "C" {
-    static SV_SendServerCommand: extern "C" fn(*const client_t, *const c_char);
+    static SV_SendServerCommand: extern "C" fn(*const client_t, *const c_char, ...);
 }
 
 pub(crate) trait SendServerCommand {
