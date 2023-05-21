@@ -60,14 +60,15 @@ extern "C" {
 // point, since functions like Cmd_AddCommand need initialization first.
 fn initialize_static() {
     debug_println!("Initializing...");
-    QuakeLiveEngine::default().add_command("cmd", cmd_send_server_command);
-    QuakeLiveEngine::default().add_command("cp", cmd_center_print);
-    QuakeLiveEngine::default().add_command("print", cmd_regular_print);
-    QuakeLiveEngine::default().add_command("slap", cmd_slap);
-    QuakeLiveEngine::default().add_command("slay", cmd_slay);
-    QuakeLiveEngine::default().add_command("qlx", cmd_py_rcon);
-    QuakeLiveEngine::default().add_command("pycmd", cmd_py_command);
-    QuakeLiveEngine::default().add_command("pyrestart", cmd_restart_python);
+    let quake_live_engine = QuakeLiveEngine::default();
+    quake_live_engine.add_command("cmd", cmd_send_server_command);
+    quake_live_engine.add_command("cp", cmd_center_print);
+    quake_live_engine.add_command("print", cmd_regular_print);
+    quake_live_engine.add_command("slap", cmd_slap);
+    quake_live_engine.add_command("slay", cmd_slay);
+    quake_live_engine.add_command("qlx", cmd_py_rcon);
+    quake_live_engine.add_command("pycmd", cmd_py_command);
+    quake_live_engine.add_command("pyrestart", cmd_restart_python);
 
     #[cfg(feature = "cembed")]
     let res = unsafe { PyMinqlx_Initialize() };
