@@ -19,9 +19,9 @@ use crate::quake_common::meansOfDeath_t::{
 use crate::quake_common::privileges_t::{PRIV_ADMIN, PRIV_BANNED, PRIV_MOD, PRIV_NONE, PRIV_ROOT};
 use crate::quake_common::team_t::{TEAM_BLUE, TEAM_FREE, TEAM_RED, TEAM_SPECTATOR};
 use crate::quake_common::{
-    AddCommand, Client, ComPrintf, ConsoleCommand, CurrentLevel, FindCVar, GameClient, GameEntity,
-    GetCVar, GetConfigstring, QuakeLiveEngine, SendServerCommand, SetCVarForced, SetCVarLimit,
-    MAX_CONFIGSTRINGS, MAX_GENTITIES,
+    gitem_t, AddCommand, Client, ComPrintf, ConsoleCommand, CurrentLevel, FindCVar, GameClient,
+    GameEntity, GetCVar, GetConfigstring, QuakeLiveEngine, SendServerCommand, SetCVarForced,
+    SetCVarLimit, MAX_CONFIGSTRINGS, MAX_GENTITIES,
 };
 #[cfg(not(feature = "cembed"))]
 use crate::PyMinqlx_InitStatus_t;
@@ -45,7 +45,7 @@ use pyo3::prepare_freethreaded_python;
 #[cfg(not(feature = "cembed"))]
 use pyo3::types::PyList;
 use pyo3::types::PyTuple;
-use std::ffi::c_int;
+use std::ffi::{c_int, CStr};
 
 #[allow(dead_code)]
 fn py_type_check(value: &PyAny, type_name: &str) -> bool {
@@ -73,10 +73,23 @@ fn py_extract_str_value(value: &PyAny) -> Option<String> {
     if !py_type_check(value, "str") {
         None
     } else {
-        let extracted_bool: PyResult<String> = value.extract();
-        match extracted_bool {
+        let extracted_string: PyResult<String> = value.extract();
+        match extracted_string {
             Err(_) => None,
-            Ok(extracted_string) => Some(extracted_string),
+            Ok(string) => Some(string),
+        }
+    }
+}
+
+#[cfg(not(feature = "cdispatchers"))]
+fn py_extract_int_value(value: &PyAny) -> Option<i32> {
+    if !py_type_check(value, "int") {
+        None
+    } else {
+        let extracted_int: PyResult<i32> = value.extract();
+        match extracted_int {
+            Err(_) => None,
+            Ok(int) => Some(int),
         }
     }
 }
@@ -1891,12 +1904,108 @@ fn slay_with_mod(client_id: i32, mean_of_death: i32) -> PyResult<bool> {
     }
 }
 
+extern "C" {
+    static bg_itemlist: *const gitem_t;
+}
+
+fn determine_item_id(item: &PyAny) -> PyResult<i32> {
+    if let Some(item_id) = py_extract_int_value(item) {
+        if item_id < 0 || item_id >= unsafe { bg_numItems } {
+            return Err(PyValueError::new_err(format!(
+                "item_id needs to be between 0 and {}.",
+                unsafe { bg_numItems - 1 }
+            )));
+        }
+        return Ok(item_id);
+    }
+
+    if let Some(item_classname) = py_extract_str_value(item) {
+        for i in 1..unsafe { bg_numItems } {
+            if let Some(bg_item) = unsafe { bg_itemlist.offset(i as isize).as_ref() } {
+                let game_item_classname =
+                    unsafe { CStr::from_ptr(bg_item.classname).to_str().unwrap_or("") };
+                if game_item_classname == item_classname {
+                    return Ok(i);
+                }
+            }
+        }
+        return Err(PyValueError::new_err(format!(
+            "invalid item classname: {}",
+            item_classname
+        )));
+    }
+
+    Err(PyValueError::new_err(
+        "item needs to be type of int or string.",
+    ))
+}
+
 /// Replaces target entity's item with specified one.
 #[allow(unused_variables)]
 #[pyfunction]
 #[pyo3(name = "replace_items")]
-fn replace_items(item1: i32, item2: i32) -> PyResult<bool> {
-    Ok(false)
+#[pyo3(signature = (item1, item2))]
+fn replace_items(py: Python<'_>, item1: Py<PyAny>, item2: Py<PyAny>) -> PyResult<bool> {
+    let item2_id_result = determine_item_id(item2.as_ref(py));
+    if item2_id_result.is_err() {
+        return Err(item2_id_result.err().unwrap());
+    }
+    // Note: if item_id == 0 and item_classname == NULL, then item will be removed
+    let item2_id = item2_id_result.unwrap();
+
+    if let Some(item1_id) = py_extract_int_value(item1.as_ref(py)) {
+        // replacing item by entity_id
+
+        // entity_id checking
+        if item1_id < 0 || item1_id >= MAX_GENTITIES as i32 {
+            return Err(PyValueError::new_err(format!(
+                "entity_id need to be between 0 and {}.",
+                MAX_GENTITIES - 1
+            )));
+        }
+
+        match GameEntity::try_from(item1_id) {
+            Err(_) => return Err(PyValueError::new_err("game entity does not exist")),
+            Ok(game_entity) => {
+                if !game_entity.in_use() {
+                    return Err(PyValueError::new_err(format!(
+                        "entity #{} is not in use.",
+                        item1_id
+                    )));
+                }
+                if !game_entity.is_game_item(ET_ITEM as i32) {
+                    return Err(PyValueError::new_err(format!(
+                        "entity #{} is not item. Cannot replace it",
+                        item1_id
+                    )));
+                }
+                let mut mut_game_entity = game_entity;
+                mut_game_entity.replace_item(item2_id);
+            }
+        }
+        return Ok(true);
+    }
+
+    if let Some(item1_classname) = py_extract_str_value(item1.as_ref(py)) {
+        let mut is_entity_found = false;
+        for i in 0..MAX_GENTITIES {
+            if let Ok(game_entity) = GameEntity::try_from(i as i32) {
+                if game_entity.in_use()
+                    && game_entity.is_game_item(ET_ITEM as i32)
+                    && game_entity.get_classname() == item1_classname
+                {
+                    is_entity_found = true;
+                    let mut mut_game_entity = game_entity;
+                    mut_game_entity.replace_item(item2_id);
+                }
+            }
+        }
+        return Ok(is_entity_found);
+    }
+
+    Err(PyValueError::new_err(
+        "entity needs to be type of int or string.",
+    ))
 }
 
 /// Prints all items and entity numbers to server console.
@@ -1928,6 +2037,10 @@ fn dev_print_items() {
         .map(|item| item.to_string())
         .collect();
     let quake_live_engine = QuakeLiveEngine::default();
+    if printed_items.len() == 0 {
+        quake_live_engine.send_server_command(None, "print \"No items found in the map\n\"");
+        return;
+    }
     quake_live_engine.send_server_command(
         None,
         format!("print \"{}\n\"", printed_items.join("\n")).as_str(),
