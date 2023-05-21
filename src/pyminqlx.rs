@@ -851,6 +851,25 @@ pub(crate) mod vector3_tests {
             assert_that!(vector3.is_instance(tuple.get_type()).unwrap(), is(true));
         });
     }
+
+    #[rstest]
+    pub(crate) fn vector3_can_be_created_from_python(_py_setup: ()) {
+        Python::with_gil(|py| {
+            let vector3_constructor = py.run(
+                r#"
+import _minqlx
+weapons = _minqlx.Vector3((0, 42, 666))
+            "#,
+                None,
+                None,
+            );
+            assert!(
+                vector3_constructor.is_ok(),
+                "{}",
+                vector3_constructor.err().unwrap()
+            );
+        });
+    }
 }
 
 /// A struct sequence containing all the weapons in the game.
