@@ -1,7 +1,7 @@
 #![allow(non_camel_case_types)]
 #![allow(non_camel_case_types)]
 
-use crate::hooks::shinqlx_set_configstring;
+use crate::hooks::{shinqlx_set_configstring, ShiNQlx_SV_SetConfigstring};
 use crate::quake_common::clientConnected_t::CON_DISCONNECTED;
 use crate::quake_common::entityType_t::ET_ITEM;
 use crate::quake_common::entity_event_t::EV_ITEM_RESPAWN;
@@ -2323,6 +2323,32 @@ impl GameEntity {
             mut_ref_ent.nextthink = 0;
             mut_ref_ent.think = None;
             G_AddEvent(ent, EV_ITEM_RESPAWN, 0); // make item be scaled up
+        }
+    }
+
+    pub(crate) fn replace_item(&mut self, item_id: i32) {
+        unsafe {
+            Com_Printf(self.gentity_t.classname);
+        }
+        if item_id != 0 {
+            let item = unsafe { bg_itemlist.offset(item_id as isize).as_ref().unwrap() };
+            self.gentity_t.s.modelindex = item_id;
+            self.gentity_t.classname = item.classname;
+            self.gentity_t.item = item;
+
+            // this forces client to load new item
+            let mut csbuffer: [c_char; 4096] = [0; 4096];
+            unsafe {
+                SV_GetConfigstring(
+                    CS_ITEMS as c_int,
+                    csbuffer.as_mut_ptr(),
+                    csbuffer.len() as c_int,
+                );
+            }
+            csbuffer[item_id as usize] = '1' as c_char;
+            ShiNQlx_SV_SetConfigstring(CS_ITEMS as c_int, csbuffer.as_ptr());
+        } else {
+            unsafe { G_FreeEntity(self.gentity_t) };
         }
     }
 }
