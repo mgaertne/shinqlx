@@ -1,6 +1,7 @@
 #![cfg_attr(not(test), no_main)]
 #![feature(arbitrary_self_types)]
 #![feature(c_variadic)]
+
 #[cfg(test)]
 #[macro_use]
 extern crate hamcrest;
@@ -18,6 +19,7 @@ mod commands;
 mod hooks;
 mod pyminqlx;
 mod quake_common;
+mod quake_live_engine;
 
 use crate::commands::{
     cmd_center_print, cmd_py_command, cmd_py_rcon, cmd_regular_print, cmd_restart_python,
@@ -27,7 +29,7 @@ use crate::commands::{
 use crate::pyminqlx::pyminqlx_initialize;
 #[cfg(feature = "cembed")]
 use crate::quake_common::cvar_t;
-use crate::quake_common::{AddCommand, FindCVar, QuakeLiveEngine};
+use crate::quake_live_engine::{AddCommand, FindCVar, QuakeLiveEngine};
 use crate::PyMinqlx_InitStatus_t::PYM_SUCCESS;
 use ctor::ctor;
 use std::env::args;

@@ -1,4 +1,5 @@
-#[allow(unused_imports)]
+#![allow(unused_imports)]
+
 use std::process::Command;
 
 #[cfg(not(target_os = "linux"))]

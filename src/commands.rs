@@ -7,7 +7,7 @@ use crate::pyminqlx::CUSTOM_COMMAND_HANDLER;
 #[cfg(not(feature = "cdispatchers"))]
 use crate::pyminqlx::{new_game_dispatcher, rcon_dispatcher};
 use crate::quake_common::entity_event_t::{EV_DEATH1, EV_GIB_PLAYER, EV_PAIN};
-use crate::quake_common::{
+use crate::quake_live_engine::{
     Client, CmdArgc, CmdArgs, CmdArgv, ComPrintf, GameAddEvent, GameEntity, QuakeLiveEngine,
     SendServerCommand,
 };

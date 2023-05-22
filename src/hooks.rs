@@ -7,10 +7,12 @@ use crate::pyminqlx::{
 };
 use crate::quake_common::clientState_t::CS_PRIMED;
 use crate::quake_common::{
-    cbufExec_t, client_t, gentity_t, qboolean, usercmd_t, AddCommand, CbufExecuteText, Client,
-    ClientConnect, ClientEnterWorld, ClientSpawn, ComPrintf, ExecuteClientCommand, FindCVar,
-    GameEntity, InitGame, QuakeLiveEngine, RunFrame, SendServerCommand, SetConfigstring,
-    SetModuleOffset, SpawnServer, MAX_MSGLEN, SV_TAGS_PREFIX,
+    cbufExec_t, client_t, gentity_t, qboolean, usercmd_t, MAX_MSGLEN, SV_TAGS_PREFIX,
+};
+use crate::quake_live_engine::{
+    AddCommand, CbufExecuteText, Client, ClientConnect, ClientEnterWorld, ClientSpawn, ComPrintf,
+    ExecuteClientCommand, FindCVar, GameEntity, InitGame, QuakeLiveEngine, RunFrame,
+    SendServerCommand, SetConfigstring, SetModuleOffset, SpawnServer,
 };
 use crate::{initialize_cvars, initialize_static, COMMON_INITIALIZED, CVARS_INITIALIZED};
 use std::ffi::{c_char, c_int, c_void, CStr, CString, VaList, VaListImpl};
