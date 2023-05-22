@@ -156,9 +156,10 @@ pub(crate) fn shinqlx_execute_client_command(client: Option<Client>, cmd: &str, 
         if client_ok && safe_client.has_gentity() {
             #[cfg(feature = "cdispatchers")]
             {
-                let passed_on_cmd: *const c_char = CString::new(cmd).unwrap().into_raw();
-                res =
-                    unsafe { ClientCommandDispatcher(safe_client.get_client_id(), passed_on_cmd) };
+                let passed_on_cmd = CString::new(cmd).unwrap();
+                res = unsafe {
+                    ClientCommandDispatcher(safe_client.get_client_id(), passed_on_cmd.as_ptr())
+                };
                 if res.is_null() {
                     return;
                 }
@@ -228,8 +229,8 @@ pub(crate) fn shinqlx_send_server_command(client: Option<Client>, cmd: &str) {
     };
     #[cfg(feature = "cdispatchers")]
     {
-        let c_cmd = CString::new(cmd).unwrap().into_raw();
-        let res = unsafe { ServerCommandDispatcher(client_id as c_int, c_cmd) };
+        let c_cmd = CString::new(cmd).unwrap();
+        let res = unsafe { ServerCommandDispatcher(client_id as c_int, c_cmd.as_ptr()) };
 
         if res.is_null() {
             return;
@@ -301,8 +302,8 @@ pub(crate) fn shinqlx_set_configstring(index: i32, value: &str) {
 
     #[cfg(feature = "cdispatchers")]
     {
-        let value_cstring = CString::new(value).unwrap().into_raw();
-        let res = unsafe { SetConfigstringDispatcher(index, value_cstring) };
+        let value_cstring = CString::new(value).unwrap();
+        let res = unsafe { SetConfigstringDispatcher(index, value_cstring.as_ptr()) };
         if res.is_null() {
             return;
         }
@@ -334,9 +335,9 @@ pub extern "C" fn ShiNQlx_SV_DropClient(client: *const client_t, reason: *const 
 pub(crate) fn shinqlx_drop_client(client: &Client, reason: &str) {
     #[cfg(feature = "cdispatchers")]
     {
-        let c_reason = CString::new(reason).unwrap().into_raw();
+        let c_reason = CString::new(reason).unwrap();
         unsafe {
-            ClientDisconnectDispatcher(client.get_client_id(), c_reason);
+            ClientDisconnectDispatcher(client.get_client_id(), c_reason.as_ptr());
         }
     }
 
@@ -375,8 +376,8 @@ pub unsafe extern "C" fn ShiNQlx_Com_Printf(fmt: *const c_char, fmt_args: ...) {
 pub(crate) fn shinqlx_com_printf(msg: &str) {
     #[cfg(feature = "cdispatchers")]
     {
-        let text = CString::new(msg).unwrap().into_raw();
-        let res = unsafe { ConsolePrintDispatcher(text) };
+        let text = CString::new(msg).unwrap();
+        let res = unsafe { ConsolePrintDispatcher(text.as_ptr()) };
         if res.is_null() {
             return;
         }

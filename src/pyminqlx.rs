@@ -68,7 +68,6 @@ fn py_extract_bool_value(value: &PyAny) -> Option<bool> {
     }
 }
 
-#[cfg(not(feature = "cdispatchers"))]
 fn py_extract_str_value(value: &PyAny) -> Option<String> {
     if !py_type_check(value, "str") {
         None
@@ -81,7 +80,6 @@ fn py_extract_str_value(value: &PyAny) -> Option<String> {
     }
 }
 
-#[cfg(not(feature = "cdispatchers"))]
 fn py_extract_int_value(value: &PyAny) -> Option<i32> {
     if !py_type_check(value, "int") {
         None
@@ -2037,7 +2035,7 @@ fn dev_print_items() {
         .map(|item| item.to_string())
         .collect();
     let quake_live_engine = QuakeLiveEngine::default();
-    if printed_items.len() == 0 {
+    if printed_items.is_empty() {
         quake_live_engine.send_server_command(None, "print \"No items found in the map\n\"");
         return;
     }

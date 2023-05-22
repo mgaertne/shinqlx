@@ -26,7 +26,6 @@ use std::f32::consts::PI;
 use std::ffi::{c_char, c_float, c_int, c_uchar, c_uint, c_ushort, c_void, CStr, CString};
 use std::ops::{BitAnd, BitAndAssign, BitOrAssign, Not};
 
-#[allow(dead_code)]
 pub(crate) const DEBUG_PRINT_PREFIX: &str = "[shinqlx]";
 
 pub(crate) const SV_TAGS_PREFIX: &str = "shinqlx";
@@ -35,15 +34,10 @@ pub(crate) const SV_TAGS_PREFIX: &str = "shinqlx";
 pub const CS_SCORES1: u32 = 6;
 #[allow(dead_code)]
 pub const CS_SCORES2: u32 = 7;
-#[allow(dead_code)]
 pub const CS_VOTE_TIME: u32 = 8;
-#[allow(dead_code)]
 pub const CS_VOTE_STRING: u32 = 9;
-#[allow(dead_code)]
 pub const CS_VOTE_YES: u32 = 10;
-#[allow(dead_code)]
 pub const CS_VOTE_NO: u32 = 11;
-#[allow(dead_code)]
 pub const CS_ITEMS: u32 = 15;
 
 #[allow(dead_code)]
@@ -64,11 +58,11 @@ pub const MAX_NETNAME: u32 = 36;
 pub const PACKET_BACKUP: u32 = 32; // number of old messages that must be kept on client and
                                    // server for delta comrpession and ping estimation
 #[allow(dead_code)]
-pub(crate) const PACKET_MASK: u32 = PACKET_BACKUP - 1;
+pub const PACKET_MASK: u32 = PACKET_BACKUP - 1;
 pub const MAX_ENT_CLUSTERS: u32 = 16;
+#[allow(dead_code)]
 pub const MAX_MODELS: u32 = 256; // these are sent over the net as 8 bits
 pub const MAX_CONFIGSTRINGS: u32 = 1024;
-#[allow(dead_code)]
 pub const GENTITYNUM_BITS: u32 = 10; // don't need to send any more
 pub const MAX_GENTITIES: u32 = 1 << GENTITYNUM_BITS;
 #[allow(dead_code)]
@@ -166,10 +160,8 @@ pub const EF_AWARD_DENIED: u32 = 262144; // denied
 #[allow(dead_code)]
 pub const EF_TEAMVOTED: u32 = 524288; // already cast a team vote
 
-#[allow(dead_code)]
 pub const FL_DROPPED_ITEM: u32 = 4096;
 
-#[allow(dead_code)]
 pub const DAMAGE_NO_PROTECTION: u32 = 8;
 
 #[allow(non_camel_case_types)]
@@ -217,10 +209,9 @@ impl Not for qboolean {
 
 pub type byte = c_uchar;
 pub type gentity_t = gentity_s;
-#[allow(dead_code)]
 pub type gclient_t = gclient_s;
 pub type vec_t = f32;
-type vec3_t = [c_float; 3];
+pub type vec3_t = [c_float; 3];
 pub type fileHandle_t = c_int;
 
 #[allow(non_camel_case_types)]
@@ -248,7 +239,6 @@ impl From<i32> for privileges_t {
 
 #[repr(u32)]
 #[allow(non_camel_case_types)]
-#[allow(dead_code)]
 #[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
 pub enum voteState_t {
     VOTE_NONE = 0,
@@ -262,7 +252,6 @@ pub enum voteState_t {
 
 #[allow(non_camel_case_types)]
 #[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
-#[allow(dead_code)]
 #[repr(u32)]
 pub enum clientState_t {
     CS_FREE = 0,   // can be reused for a new connection
@@ -275,8 +264,8 @@ pub enum clientState_t {
 
 #[allow(non_camel_case_types)]
 #[allow(clippy::upper_case_acronyms)]
-#[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
 #[allow(dead_code)]
+#[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
 #[repr(u32)]
 pub enum roundStateState_t {
     PREGAME = 0,
@@ -288,8 +277,8 @@ pub enum roundStateState_t {
 }
 
 #[allow(non_camel_case_types)]
-#[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
 #[allow(dead_code)]
+#[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
 #[repr(u32)]
 pub enum statIndex_t {
     STAT_HEALTH = 0,
@@ -313,8 +302,8 @@ pub enum statIndex_t {
 }
 
 #[allow(non_camel_case_types)]
-#[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
 #[allow(dead_code)]
+#[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
 #[repr(u32)]
 pub enum gameExport_t {
     GAME_INIT = 0, // ( int levelTime, int randomSeed, int restart );
@@ -340,8 +329,8 @@ pub enum gameExport_t {
 }
 
 #[allow(non_camel_case_types)]
-#[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
 #[allow(dead_code)]
+#[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
 #[repr(u32)]
 pub enum pmtype_t {
     PM_NORMAL = 0,
@@ -354,8 +343,8 @@ pub enum pmtype_t {
 }
 
 #[allow(non_camel_case_types)]
-#[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
 #[allow(dead_code)]
+#[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
 #[repr(u32)]
 pub enum entity_event_t {
     EV_NONE = 0,
@@ -463,7 +452,6 @@ pub enum entity_event_t {
 
 #[allow(non_camel_case_types)]
 #[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
-#[allow(dead_code)]
 #[repr(u32)]
 pub enum itemType_t {
     IT_BAD = 0,
@@ -479,14 +467,14 @@ pub enum itemType_t {
     IT_TEAM = 8,
 }
 
-#[allow(dead_code)]
 impl powerup_t {
+    #[allow(dead_code)]
     pub const PW_SPAWNARMOR: powerup_t = powerup_t::PW_NONE;
 }
 
 #[allow(non_camel_case_types)]
-#[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
 #[allow(dead_code)]
+#[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
 #[repr(u32)]
 pub enum powerup_t {
     PW_NONE = 0,
@@ -509,8 +497,8 @@ pub enum powerup_t {
 }
 
 #[allow(non_camel_case_types)]
-#[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
 #[allow(dead_code)]
+#[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
 #[repr(u32)]
 pub enum holdable_t {
     HI_NONE = 0,
@@ -524,8 +512,8 @@ pub enum holdable_t {
 }
 
 #[allow(non_camel_case_types)]
-#[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
 #[allow(dead_code)]
+#[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
 #[repr(u32)]
 pub enum weapon_t {
     WP_NONE = 0,
@@ -548,8 +536,8 @@ pub enum weapon_t {
 }
 
 #[allow(non_camel_case_types)]
-#[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
 #[allow(dead_code)]
+#[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
 #[repr(u32)]
 pub enum weaponstate_t {
     WEAPON_READY = 0,
@@ -559,8 +547,8 @@ pub enum weaponstate_t {
 }
 
 #[allow(non_camel_case_types)]
-#[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
 #[allow(dead_code)]
+#[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
 #[repr(u32)]
 pub enum rune_t {
     RUNE_NONE = 0,
@@ -573,7 +561,6 @@ pub enum rune_t {
 
 #[allow(non_camel_case_types)]
 #[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
-#[allow(dead_code)]
 #[repr(u32)]
 pub enum playerTeamStateState_t {
     TEAM_BEGIN = 0,  // Beginning a team game, spawn at base
@@ -582,7 +569,6 @@ pub enum playerTeamStateState_t {
 
 #[allow(non_camel_case_types)]
 #[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
-#[allow(dead_code)]
 #[repr(u32)]
 pub enum team_t {
     TEAM_FREE = 0,
@@ -596,7 +582,6 @@ pub enum team_t {
 // means of death
 #[allow(non_camel_case_types)]
 #[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
-#[allow(dead_code)]
 #[repr(u32)]
 pub enum meansOfDeath_t {
     MOD_UNKNOWN = 0,
@@ -637,7 +622,6 @@ pub enum meansOfDeath_t {
 
 #[allow(non_camel_case_types)]
 #[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
-#[allow(dead_code)]
 #[repr(u32)]
 pub enum spectatorState_t {
     SPECTATOR_NOT = 0,
@@ -648,7 +632,6 @@ pub enum spectatorState_t {
 
 #[allow(non_camel_case_types)]
 #[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
-#[allow(dead_code)]
 #[repr(u32)]
 pub enum clientConnected_t {
     CON_DISCONNECTED = 0,
@@ -659,7 +642,6 @@ pub enum clientConnected_t {
 // movers are things like doors, plats, buttons, etc
 #[allow(non_camel_case_types)]
 #[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
-#[allow(dead_code)]
 #[repr(u32)]
 pub enum moverState_t {
     MOVER_POS1 = 0,
@@ -669,10 +651,10 @@ pub enum moverState_t {
 }
 
 #[allow(non_camel_case_types)]
-#[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
 #[allow(dead_code)]
+#[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
 #[repr(u32)]
-pub(crate) enum persistantFields_t {
+pub enum persistantFields_t {
     PERS_ROUND_SCORE = 0,
     PERS_COMBOKILL_COUNT = 1,
     PERS_RAMPAGE_COUNT = 2,
@@ -686,8 +668,6 @@ pub(crate) enum persistantFields_t {
     PERS_PERFECT_COUNT = 10,
 }
 
-#[allow(non_snake_case)]
-#[allow(non_camel_case_types)]
 #[allow(dead_code)]
 #[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
 #[repr(u32)]
@@ -718,8 +698,8 @@ pub enum cvar_flags {
 // paramters for command buffer stuffing
 #[allow(non_snake_case)]
 #[allow(non_camel_case_types)]
-#[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
 #[allow(dead_code)]
+#[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
 #[repr(u32)]
 pub enum cbufExec_t {
     EXEC_NOW = 0, // don't return until completed, a VM should NEVER use this,
@@ -799,8 +779,8 @@ pub enum netsrc_t {
 
 #[allow(non_snake_case)]
 #[allow(non_camel_case_types)]
-#[repr(u32)]
 #[allow(dead_code)]
+#[repr(u32)]
 #[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
 pub enum netadrtype_t {
     NA_BOT = 0,
@@ -814,7 +794,6 @@ pub enum netadrtype_t {
 
 #[allow(non_camel_case_types)]
 #[repr(u32)]
-#[allow(dead_code)]
 #[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
 pub enum trType_t {
     TR_STATIONARY = 0,
@@ -1167,7 +1146,7 @@ pub struct client_s {
     #[cfg(target_pointer_width = "64")]
     pub _unknown2: [u8; 36808usize],
     #[cfg(target_pointer_width = "32")]
-    _unknown2: [u8; 36836usize], // TODO: Outdated.
+    pub _unknown2: [u8; 36836usize], // TODO: Outdated.
     // Mino: Woohoo! How nice of them to put the SteamID last.
     pub steam_id: u64,
 }
@@ -1234,8 +1213,8 @@ pub struct worldSector_s {
     pub entities: *mut svEntity_t,
 }
 
-#[allow(dead_code)]
 #[allow(non_camel_case_types)]
+#[allow(dead_code)]
 pub type worldSector_t = worldSector_s;
 
 #[repr(u32)]
@@ -1785,8 +1764,8 @@ pub struct cmodel_s {
 }
 
 #[allow(non_camel_case_types)]
-#[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
 #[allow(dead_code)]
+#[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
 #[repr(C)]
 pub enum healthPickup_t {
     H_NONE = 0,
@@ -2111,7 +2090,7 @@ extern "C" {
 
 #[allow(non_snake_case)]
 #[no_mangle]
-pub extern "C" fn ShiNQlx_Touch_Item(
+pub(crate) extern "C" fn ShiNQlx_Touch_Item(
     ent: *mut gentity_t,
     other: *mut gentity_t,
     trace: *mut trace_t,
@@ -2126,7 +2105,7 @@ pub extern "C" fn ShiNQlx_Touch_Item(
 
 #[allow(non_snake_case)]
 #[no_mangle]
-pub extern "C" fn ShiNQlx_Switch_Touch_Item(ent: *mut gentity_t) {
+pub(crate) extern "C" fn ShiNQlx_Switch_Touch_Item(ent: *mut gentity_t) {
     unsafe {
         let ref_mut_ent = ent.as_mut().unwrap();
         ref_mut_ent.touch = Some(Touch_Item);
@@ -2136,11 +2115,11 @@ pub extern "C" fn ShiNQlx_Switch_Touch_Item(ent: *mut gentity_t) {
 }
 
 impl GameEntity {
-    pub fn get_client_id(&self) -> i32 {
+    pub(crate) fn get_client_id(&self) -> i32 {
         unsafe { (self.gentity_t as *const gentity_t).offset_from(g_entities) as i32 }
     }
 
-    pub fn start_kamikaze(&self) {
+    pub(crate) fn start_kamikaze(&self) {
         unsafe { G_StartKamikaze(self.gentity_t as *const gentity_t) }
     }
 
@@ -2187,19 +2166,19 @@ impl GameEntity {
         unsafe { self.gentity_t.client.as_ref().unwrap().sess.privileges as i32 }
     }
 
-    pub fn get_game_client(&self) -> Option<GameClient> {
+    pub(crate) fn get_game_client(&self) -> Option<GameClient> {
         GameClient::try_from(self.gentity_t.client).ok()
     }
 
-    pub fn get_activator(&self) -> Option<Activator> {
+    pub(crate) fn get_activator(&self) -> Option<Activator> {
         self.gentity_t.activator.try_into().ok()
     }
 
-    pub fn get_health(&self) -> i32 {
+    pub(crate) fn get_health(&self) -> i32 {
         self.gentity_t.health
     }
 
-    pub fn set_health(&mut self, new_health: i32) {
+    pub(crate) fn set_health(&mut self, new_health: i32) {
         self.gentity_t.health = new_health as c_int;
     }
 
@@ -2227,7 +2206,7 @@ impl GameEntity {
         }
     }
 
-    pub fn in_use(&self) -> bool {
+    pub(crate) fn in_use(&self) -> bool {
         self.gentity_t.inuse.into()
     }
 
@@ -2260,11 +2239,11 @@ impl GameEntity {
         self.gentity_t.flags != 0
     }
 
-    pub fn is_dropped_item(&self) -> bool {
+    pub(crate) fn is_dropped_item(&self) -> bool {
         self.gentity_t.flags.bitand(FL_DROPPED_ITEM as i32) == 1
     }
 
-    pub fn get_client_number(&self) -> i32 {
+    pub(crate) fn get_client_number(&self) -> i32 {
         self.gentity_t.s.clientNum
     }
 
@@ -2371,7 +2350,7 @@ impl TryFrom<*mut gentity_t> for Activator {
 }
 
 impl Activator {
-    pub fn get_owner_num(&self) -> i32 {
+    pub(crate) fn get_owner_num(&self) -> i32 {
         self.activator.r.ownerNum
     }
 }
@@ -2474,7 +2453,7 @@ impl Client {
     pub(crate) fn disconnect(&self, reason: &str) {
         let c_reason = CString::new(reason)
             .unwrap_or(CString::new("").unwrap())
-            .into_raw();
+            .as_ptr();
         unsafe {
             SV_DropClient(self.client_t, c_reason);
         }
@@ -2613,8 +2592,8 @@ pub(crate) trait FindCVar {
 
 impl FindCVar for QuakeLiveEngine {
     fn find_cvar(&self, name: &str) -> Option<CVar> {
-        let c_name = CString::new(name).unwrap().into_raw();
-        unsafe { CVar::try_from(Cvar_FindVar(c_name)).ok() }
+        let c_name = CString::new(name).unwrap();
+        unsafe { CVar::try_from(Cvar_FindVar(c_name.as_ptr())).ok() }
     }
 }
 
@@ -2628,8 +2607,8 @@ pub(crate) trait CbufExecuteText {
 
 impl CbufExecuteText for QuakeLiveEngine {
     fn cbuf_execute_text(&self, exec_t: cbufExec_t, new_tags: &str) {
-        let c_tags = CString::new(new_tags).unwrap().into_raw();
-        unsafe { Cbuf_ExecuteText(exec_t, c_tags) }
+        let c_tags = CString::new(new_tags).unwrap();
+        unsafe { Cbuf_ExecuteText(exec_t, c_tags.as_ptr()) }
     }
 }
 
@@ -2643,8 +2622,8 @@ pub(crate) trait AddCommand {
 
 impl AddCommand for QuakeLiveEngine {
     fn add_command(&self, cmd: &str, func: unsafe extern "C" fn()) {
-        let c_cmd = CString::new(cmd).unwrap().into_raw();
-        unsafe { Cmd_AddCommand(c_cmd, func as *const c_void) }
+        let c_cmd = CString::new(cmd).unwrap();
+        unsafe { Cmd_AddCommand(c_cmd.as_ptr(), func as *const c_void) }
     }
 }
 
@@ -2658,8 +2637,8 @@ pub(crate) trait SetModuleOffset {
 
 impl SetModuleOffset for QuakeLiveEngine {
     fn set_module_offset(&self, module_name: &str, offset: unsafe extern "C" fn()) {
-        let c_module_name = CString::new(module_name).unwrap().into_raw();
-        unsafe { Sys_SetModuleOffset(c_module_name, offset as *const c_void) }
+        let c_module_name = CString::new(module_name).unwrap();
+        unsafe { Sys_SetModuleOffset(c_module_name.as_ptr(), offset as *const c_void) }
     }
 }
 
@@ -2687,13 +2666,17 @@ pub(crate) trait ExecuteClientCommand {
 
 impl ExecuteClientCommand for QuakeLiveEngine {
     fn execute_client_command(&self, client: Option<&Client>, cmd: &str, client_ok: bool) {
-        let command_native = CString::new(cmd).unwrap().into_raw();
+        let command_native = CString::new(cmd).unwrap();
         match client {
             Some(safe_client) => unsafe {
-                SV_ExecuteClientCommand(safe_client.client_t, command_native, client_ok.into())
+                SV_ExecuteClientCommand(
+                    safe_client.client_t,
+                    command_native.as_ptr(),
+                    client_ok.into(),
+                )
             },
             None => unsafe {
-                SV_ExecuteClientCommand(std::ptr::null(), command_native, client_ok.into())
+                SV_ExecuteClientCommand(std::ptr::null(), command_native.as_ptr(), client_ok.into())
             },
         }
     }
@@ -2709,12 +2692,12 @@ pub(crate) trait SendServerCommand {
 
 impl SendServerCommand for QuakeLiveEngine {
     fn send_server_command(&self, client: Option<Client>, command: &str) {
-        let command_native = CString::new(command).unwrap().into_raw();
+        let command_native = CString::new(command).unwrap();
         match client {
             Some(safe_client) => unsafe {
-                SV_SendServerCommand(safe_client.client_t, command_native)
+                SV_SendServerCommand(safe_client.client_t, command_native.as_ptr())
             },
-            None => unsafe { SV_SendServerCommand(std::ptr::null(), command_native) },
+            None => unsafe { SV_SendServerCommand(std::ptr::null(), command_native.as_ptr()) },
         }
     }
 }
@@ -2744,7 +2727,7 @@ pub(crate) trait SetConfigstring {
 impl SetConfigstring for QuakeLiveEngine {
     fn set_configstring(&self, index: &i32, value: &str) {
         if let Ok(c_value) = CString::new(value) {
-            unsafe { SV_SetConfigstring(index.to_owned(), c_value.into_raw()) }
+            unsafe { SV_SetConfigstring(index.to_owned(), c_value.as_ptr()) }
         }
     }
 }
@@ -2759,8 +2742,8 @@ pub(crate) trait ComPrintf {
 
 impl ComPrintf for QuakeLiveEngine {
     fn com_printf(&self, msg: &str) {
-        let c_msg = CString::new(msg).unwrap().into_raw();
-        unsafe { Com_Printf(c_msg) }
+        let c_msg = CString::new(msg).unwrap();
+        unsafe { Com_Printf(c_msg.as_ptr()) }
     }
 }
 
@@ -2774,8 +2757,8 @@ pub(crate) trait SpawnServer {
 
 impl SpawnServer for QuakeLiveEngine {
     fn spawn_server(&self, server: &str, kill_bots: bool) {
-        let c_server = CString::new(server).unwrap().into_raw();
-        unsafe { SV_SpawnServer(c_server, kill_bots.into()) }
+        let c_server = CString::new(server).unwrap();
+        unsafe { SV_SpawnServer(c_server.as_ptr(), kill_bots.into()) }
     }
 }
 
@@ -2917,8 +2900,8 @@ pub(crate) trait ConsoleCommand {
 
 impl ConsoleCommand for QuakeLiveEngine {
     fn execute_console_command(&self, cmd: &str) {
-        let c_cmd = CString::new(cmd).unwrap().into_raw();
-        unsafe { Cmd_ExecuteString(c_cmd) }
+        let c_cmd = CString::new(cmd).unwrap();
+        unsafe { Cmd_ExecuteString(c_cmd.as_ptr()) }
     }
 }
 
@@ -2949,9 +2932,9 @@ pub(crate) trait SetCVarForced {
 
 impl SetCVarForced for QuakeLiveEngine {
     fn set_cvar_forced(&self, name: &str, value: &str, forced: bool) -> Option<CVar> {
-        let c_name = CString::new(name).unwrap().into_raw();
-        let c_value = CString::new(value).unwrap().into_raw();
-        unsafe { CVar::try_from(Cvar_Set2(c_name, c_value, forced.into())).ok() }
+        let c_name = CString::new(name).unwrap();
+        let c_value = CString::new(value).unwrap();
+        unsafe { CVar::try_from(Cvar_Set2(c_name.as_ptr(), c_value.as_ptr(), forced.into())).ok() }
     }
 }
 
@@ -2985,12 +2968,21 @@ impl SetCVarLimit for QuakeLiveEngine {
         max: &str,
         flags: Option<i32>,
     ) -> Option<CVar> {
-        let c_name = CString::new(name).unwrap().into_raw();
-        let c_value = CString::new(value).unwrap().into_raw();
-        let c_min = CString::new(min).unwrap().into_raw();
-        let c_max = CString::new(max).unwrap().into_raw();
+        let c_name = CString::new(name).unwrap();
+        let c_value = CString::new(value).unwrap();
+        let c_min = CString::new(min).unwrap();
+        let c_max = CString::new(max).unwrap();
         let flags_value = flags.unwrap_or_default();
-        unsafe { CVar::try_from(Cvar_GetLimit(c_name, c_value, c_min, c_max, flags_value)).ok() }
+        unsafe {
+            CVar::try_from(Cvar_GetLimit(
+                c_name.as_ptr(),
+                c_value.as_ptr(),
+                c_min.as_ptr(),
+                c_max.as_ptr(),
+                flags_value,
+            ))
+            .ok()
+        }
     }
 }
 
