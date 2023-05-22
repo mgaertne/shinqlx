@@ -446,14 +446,18 @@ pub extern "C" fn ShiNQlx_ClientConnect(
     if first_time.into() {
         if let Some(res) = client_connect_dispatcher(client_num, is_bot.into()) {
             if !<qboolean as Into<bool>>::into(is_bot) {
-                return CString::new(res).unwrap().into_raw();
+                let result = CString::new(res).unwrap();
+                return result.as_ptr();
             }
         }
     }
 
     match QuakeLiveEngine::default().client_connect(client_num, first_time.into(), is_bot.into()) {
         None => std::ptr::null_mut(),
-        Some(message) => CString::new(message).unwrap().into_raw(),
+        Some(message) => {
+            let result = CString::new(message).unwrap();
+            result.as_ptr()
+        }
     }
 }
 
