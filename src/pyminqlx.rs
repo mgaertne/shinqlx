@@ -18,11 +18,7 @@ use crate::quake_common::meansOfDeath_t::{
 };
 use crate::quake_common::privileges_t::{PRIV_ADMIN, PRIV_BANNED, PRIV_MOD, PRIV_NONE, PRIV_ROOT};
 use crate::quake_common::team_t::{TEAM_BLUE, TEAM_FREE, TEAM_RED, TEAM_SPECTATOR};
-use crate::quake_common::{
-    gitem_t, AddCommand, Client, ComPrintf, ConsoleCommand, CurrentLevel, FindCVar, GameClient,
-    GameEntity, GetCVar, GetConfigstring, QuakeLiveEngine, SendServerCommand, SetCVarForced,
-    SetCVarLimit, MAX_CONFIGSTRINGS, MAX_GENTITIES,
-};
+use crate::quake_common::{gitem_t, MAX_CONFIGSTRINGS, MAX_GENTITIES};
 #[cfg(not(feature = "cembed"))]
 use crate::PyMinqlx_InitStatus_t;
 
@@ -31,6 +27,10 @@ use crate::quake_common::cvar_flags::{
     CVAR_SYSTEMINFO, CVAR_TEMP, CVAR_USERINFO, CVAR_USER_CREATED,
 };
 use crate::quake_common::entityType_t::ET_ITEM;
+use crate::quake_live_engine::{
+    AddCommand, Client, ComPrintf, ConsoleCommand, CurrentLevel, FindCVar, GameClient, GameEntity,
+    GetCVar, GetConfigstring, QuakeLiveEngine, SendServerCommand, SetCVarForced, SetCVarLimit,
+};
 #[cfg(not(feature = "cembed"))]
 use crate::PyMinqlx_InitStatus_t::{
     PYM_ALREADY_INITIALIZED, PYM_MAIN_SCRIPT_ERROR, PYM_NOT_INITIALIZED_ERROR, PYM_SUCCESS,
