@@ -539,7 +539,7 @@ impl GameEntity {
     }
 
     pub(crate) fn is_dropped_item(&self) -> bool {
-        self.gentity_t.flags.bitand(FL_DROPPED_ITEM as i32) == 1
+        self.gentity_t.flags.bitand(FL_DROPPED_ITEM as i32) != 0
     }
 
     pub(crate) fn get_client_number(&self) -> i32 {
@@ -750,11 +750,9 @@ impl Client {
     }
 
     pub(crate) fn disconnect(&self, reason: &str) {
-        let c_reason = CString::new(reason)
-            .unwrap_or(CString::new("").unwrap())
-            .as_ptr();
+        let c_reason = CString::new(reason).unwrap_or(CString::new("").unwrap());
         unsafe {
-            SV_DropClient(self.client_t, c_reason);
+            SV_DropClient(self.client_t, c_reason.into_raw());
         }
     }
 
@@ -892,7 +890,7 @@ pub(crate) trait FindCVar {
 impl FindCVar for QuakeLiveEngine {
     fn find_cvar(&self, name: &str) -> Option<CVar> {
         let c_name = CString::new(name).unwrap();
-        unsafe { CVar::try_from(Cvar_FindVar(c_name.as_ptr())).ok() }
+        unsafe { CVar::try_from(Cvar_FindVar(c_name.into_raw())).ok() }
     }
 }
 
@@ -907,7 +905,7 @@ pub(crate) trait CbufExecuteText {
 impl CbufExecuteText for QuakeLiveEngine {
     fn cbuf_execute_text(&self, exec_t: cbufExec_t, new_tags: &str) {
         let c_tags = CString::new(new_tags).unwrap();
-        unsafe { Cbuf_ExecuteText(exec_t, c_tags.as_ptr()) }
+        unsafe { Cbuf_ExecuteText(exec_t, c_tags.into_raw()) }
     }
 }
 
@@ -922,7 +920,7 @@ pub(crate) trait AddCommand {
 impl AddCommand for QuakeLiveEngine {
     fn add_command(&self, cmd: &str, func: unsafe extern "C" fn()) {
         let c_cmd = CString::new(cmd).unwrap();
-        unsafe { Cmd_AddCommand(c_cmd.as_ptr(), func as *const c_void) }
+        unsafe { Cmd_AddCommand(c_cmd.into_raw(), func as *const c_void) }
     }
 }
 
@@ -937,7 +935,7 @@ pub(crate) trait SetModuleOffset {
 impl SetModuleOffset for QuakeLiveEngine {
     fn set_module_offset(&self, module_name: &str, offset: unsafe extern "C" fn()) {
         let c_module_name = CString::new(module_name).unwrap();
-        unsafe { Sys_SetModuleOffset(c_module_name.as_ptr(), offset as *const c_void) }
+        unsafe { Sys_SetModuleOffset(c_module_name.into_raw(), offset as *const c_void) }
     }
 }
 
@@ -970,7 +968,7 @@ impl ExecuteClientCommand for QuakeLiveEngine {
             Some(safe_client) => unsafe {
                 SV_ExecuteClientCommand(
                     safe_client.client_t,
-                    command_native.as_ptr(),
+                    command_native.into_raw(),
                     client_ok.into(),
                 )
             },
@@ -994,7 +992,7 @@ impl SendServerCommand for QuakeLiveEngine {
         let command_native = CString::new(command).unwrap();
         match client {
             Some(safe_client) => unsafe {
-                SV_SendServerCommand(safe_client.client_t, command_native.as_ptr())
+                SV_SendServerCommand(safe_client.client_t, command_native.into_raw())
             },
             None => unsafe { SV_SendServerCommand(std::ptr::null(), command_native.as_ptr()) },
         }
@@ -1026,7 +1024,7 @@ pub(crate) trait SetConfigstring {
 impl SetConfigstring for QuakeLiveEngine {
     fn set_configstring(&self, index: &i32, value: &str) {
         if let Ok(c_value) = CString::new(value) {
-            unsafe { SV_SetConfigstring(index.to_owned(), c_value.as_ptr()) }
+            unsafe { SV_SetConfigstring(index.to_owned(), c_value.into_raw()) }
         }
     }
 }
@@ -1042,7 +1040,7 @@ pub(crate) trait ComPrintf {
 impl ComPrintf for QuakeLiveEngine {
     fn com_printf(&self, msg: &str) {
         let c_msg = CString::new(msg).unwrap();
-        unsafe { Com_Printf(c_msg.as_ptr()) }
+        unsafe { Com_Printf(c_msg.into_raw()) }
     }
 }
 
@@ -1057,7 +1055,7 @@ pub(crate) trait SpawnServer {
 impl SpawnServer for QuakeLiveEngine {
     fn spawn_server(&self, server: &str, kill_bots: bool) {
         let c_server = CString::new(server).unwrap();
-        unsafe { SV_SpawnServer(c_server.as_ptr(), kill_bots.into()) }
+        unsafe { SV_SpawnServer(c_server.into_raw(), kill_bots.into()) }
     }
 }
 
@@ -1200,7 +1198,7 @@ pub(crate) trait ConsoleCommand {
 impl ConsoleCommand for QuakeLiveEngine {
     fn execute_console_command(&self, cmd: &str) {
         let c_cmd = CString::new(cmd).unwrap();
-        unsafe { Cmd_ExecuteString(c_cmd.as_ptr()) }
+        unsafe { Cmd_ExecuteString(c_cmd.into_raw()) }
     }
 }
 
@@ -1217,7 +1215,7 @@ impl GetCVar for QuakeLiveEngine {
         let c_name = CString::new(name).unwrap();
         let c_value = CString::new(value).unwrap();
         let flags_value = flags.unwrap_or_default();
-        unsafe { CVar::try_from(Cvar_Get(c_name.as_ptr(), c_value.as_ptr(), flags_value)).ok() }
+        unsafe { CVar::try_from(Cvar_Get(c_name.into_raw(), c_value.into_raw(), flags_value)).ok() }
     }
 }
 
@@ -1233,7 +1231,14 @@ impl SetCVarForced for QuakeLiveEngine {
     fn set_cvar_forced(&self, name: &str, value: &str, forced: bool) -> Option<CVar> {
         let c_name = CString::new(name).unwrap();
         let c_value = CString::new(value).unwrap();
-        unsafe { CVar::try_from(Cvar_Set2(c_name.as_ptr(), c_value.as_ptr(), forced.into())).ok() }
+        unsafe {
+            CVar::try_from(Cvar_Set2(
+                c_name.into_raw(),
+                c_value.into_raw(),
+                forced.into(),
+            ))
+            .ok()
+        }
     }
 }
 
@@ -1274,10 +1279,10 @@ impl SetCVarLimit for QuakeLiveEngine {
         let flags_value = flags.unwrap_or_default();
         unsafe {
             CVar::try_from(Cvar_GetLimit(
-                c_name.as_ptr(),
-                c_value.as_ptr(),
-                c_min.as_ptr(),
-                c_max.as_ptr(),
+                c_name.into_raw(),
+                c_value.into_raw(),
+                c_min.into_raw(),
+                c_max.into_raw(),
                 flags_value,
             ))
             .ok()

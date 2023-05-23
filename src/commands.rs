@@ -211,7 +211,7 @@ pub extern "C" fn cmd_py_rcon() {
     #[cfg(feature = "cdispatchers")]
     {
         let c_cmd = CString::new(commands).unwrap();
-        unsafe { RconDispatcher(c_cmd.as_ptr()) }
+        unsafe { RconDispatcher(c_cmd.into_raw()) }
     }
 }
 

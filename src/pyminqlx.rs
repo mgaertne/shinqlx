@@ -1401,6 +1401,7 @@ impl From<GameClient> for PlayerStats {
             damage_taken: game_client.get_damage_taken(),
             time: game_client.get_time_on_team(),
             ping: game_client.get_ping(),
+            round_damage: game_client.get_round_damage(),
         }
     }
 }
