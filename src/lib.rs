@@ -5,6 +5,7 @@
 #[cfg(test)]
 #[macro_use]
 extern crate hamcrest;
+extern crate alloc;
 
 macro_rules! debug_println {
     () => {
@@ -52,11 +53,6 @@ pub(crate) static mut CVARS_INITIALIZED: bool = false;
 pub(crate) static mut SV_MAXCLIENTS: i32 = 0;
 pub(crate) static mut ALLOW_FREE_CLIENT: i32 = -1;
 
-#[cfg(feature = "cembed")]
-extern "C" {
-    fn PyMinqlx_Initialize() -> PyMinqlx_InitStatus_t;
-}
-
 // Currently called by My_Cmd_AddCommand(), since it's called at a point where we
 // can safely do whatever we do below. It'll segfault if we do it at the entry
 // point, since functions like Cmd_AddCommand need initialization first.
@@ -73,9 +69,16 @@ fn initialize_static() {
     quake_live_engine.add_command("pyrestart", cmd_restart_python);
 
     #[cfg(feature = "cembed")]
+    extern "C" {
+        fn PyMinqlx_Initialize() -> PyMinqlx_InitStatus_t;
+    }
+
+    #[cfg(feature = "cembed")]
     let res = unsafe { PyMinqlx_Initialize() };
+
     #[cfg(not(feature = "cembed"))]
     let res = pyminqlx_initialize();
+
     if res != PYM_SUCCESS {
         debug_println!("Python initialization failed.");
         panic!("Python initialization failed.");
@@ -84,28 +87,23 @@ fn initialize_static() {
     unsafe { COMMON_INITIALIZED = true };
 }
 
-#[cfg(feature = "cembed")]
-extern "C" {
-    static mut sv_maxclients: *const cvar_t;
-}
-
 // Called after the game is initialized.
 fn initialize_cvars() {
     let Some(maxclients) = QuakeLiveEngine::default().find_cvar("sv_maxclients") else {
         return;
     };
+
     #[cfg(feature = "cembed")]
-    unsafe {
-        sv_maxclients = maxclients.get_cvar();
+    {
+        extern "C" {
+            static mut sv_maxclients: *const cvar_t;
+        }
+
+        unsafe { sv_maxclients = maxclients.get_cvar() };
     }
+
     unsafe { SV_MAXCLIENTS = maxclients.get_integer() };
     unsafe { CVARS_INITIALIZED = true };
-}
-
-extern "C" {
-    fn SearchFunctions();
-    fn InitializeStatic();
-    fn HookStatic();
 }
 
 #[cfg(target_pointer_width = "64")]
@@ -115,6 +113,12 @@ const QZERODED: &str = "qzeroded.x86";
 
 #[ctor]
 fn initialize() {
+    extern "C" {
+        fn SearchFunctions();
+        fn InitializeStatic();
+        fn HookStatic();
+    }
+
     let progname = args().next().unwrap();
     if !progname.ends_with(QZERODED) {
         return;

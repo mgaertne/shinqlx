@@ -47,6 +47,6 @@ rstest = "0.17.0"
 
 [features]
 default = ["stable"]
-stable = ["cembed", "cdispatchers"]
+stable = []
 cdispatchers = []
 cembed = []

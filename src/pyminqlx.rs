@@ -18,7 +18,10 @@ use crate::quake_common::meansOfDeath_t::{
 };
 use crate::quake_common::privileges_t::{PRIV_ADMIN, PRIV_BANNED, PRIV_MOD, PRIV_NONE, PRIV_ROOT};
 use crate::quake_common::team_t::{TEAM_BLUE, TEAM_FREE, TEAM_RED, TEAM_SPECTATOR};
-use crate::quake_common::{gitem_t, MAX_CONFIGSTRINGS, MAX_GENTITIES};
+use crate::quake_common::{
+    gitem_t, DAMAGE_NO_ARMOR, DAMAGE_NO_KNOCKBACK, DAMAGE_NO_PROTECTION, DAMAGE_NO_TEAM_PROTECTION,
+    DAMAGE_RADIUS, MAX_CONFIGSTRINGS, MAX_GENTITIES,
+};
 #[cfg(not(feature = "cembed"))]
 use crate::PyMinqlx_InitStatus_t;
 
@@ -369,6 +372,37 @@ pub(crate) fn kamikaze_explode_dispatcher(client_id: i32, is_used_on_demand: boo
             let result = kamikaze_explode_handler.call1(py, (client_id, is_used_on_demand));
             if result.is_err() {
                 dbg!("kamikaze_explode_handler returned an error.\n");
+            }
+        });
+    }
+}
+
+#[cfg(not(feature = "cdispatchers"))]
+pub(crate) fn damage_dispatcher(
+    target_client_id: i32,
+    attacker_client_id: Option<i32>,
+    damage: i32,
+    dflags: i32,
+    means_of_death: i32,
+) {
+    if !pyminqlx_is_initialized() {
+        return;
+    }
+
+    if let Some(damage_handler) = unsafe { DAMAGE_HANDLER.as_ref() } {
+        Python::with_gil(|py| {
+            let returned_value = damage_handler.call1(
+                py,
+                (
+                    target_client_id,
+                    attacker_client_id,
+                    damage,
+                    dflags,
+                    means_of_death,
+                ),
+            );
+            if returned_value.is_err() {
+                dbg!("damage_handler returned an error.\n");
             }
         });
     }
@@ -730,12 +764,14 @@ static mut CONSOLE_PRINT_HANDLER: Option<Py<PyAny>> = None;
 static mut PLAYER_SPAWN_HANDLER: Option<Py<PyAny>> = None;
 static mut KAMIKAZE_USE_HANDLER: Option<Py<PyAny>> = None;
 static mut KAMIKAZE_EXPLODE_HANDLER: Option<Py<PyAny>> = None;
+static mut DAMAGE_HANDLER: Option<Py<PyAny>> = None;
 
 /// Register an event handler. Can be called more than once per event, but only the last one will work.
 #[pyfunction]
 #[pyo3(name = "register_handler")]
 #[pyo3(signature = (event, handler=None))]
 fn register_handler(py: Python, event: &str, handler: Option<Py<PyAny>>) -> PyResult<()> {
+    dbg!(event);
     if let Some(ref handler_function) = handler {
         if !handler_function.as_ref(py).is_callable() {
             return Err(PyTypeError::new_err("The handler must be callable."));
@@ -757,6 +793,7 @@ fn register_handler(py: Python, event: &str, handler: Option<Py<PyAny>>) -> PyRe
         "player_spawn" => unsafe { PLAYER_SPAWN_HANDLER = handler },
         "kamikaze_use" => unsafe { KAMIKAZE_USE_HANDLER = handler },
         "kamikaze_explode" => unsafe { KAMIKAZE_EXPLODE_HANDLER = handler },
+        "damage" => unsafe { DAMAGE_HANDLER = handler },
         _ => return Err(PyValueError::new_err("Unsupported event.")),
     };
 
@@ -1839,15 +1876,15 @@ fn destroy_kamikaze_timers() -> PyResult<bool> {
     Ok(true)
 }
 
-extern "C" {
-    static bg_numItems: c_int;
-}
-
 /// Spawns item with specified coordinates.
 #[pyfunction]
 #[pyo3(name = "spawn_item")]
 #[pyo3(signature = (item_id, x, y, z))]
 fn spawn_item(item_id: i32, x: i32, y: i32, z: i32) -> PyResult<bool> {
+    extern "C" {
+        static bg_numItems: c_int;
+    }
+
     let max_items: i32 = unsafe { bg_numItems };
     if !(1..max_items).contains(&item_id) {
         return Err(PyValueError::new_err(format!(
@@ -1902,11 +1939,12 @@ fn slay_with_mod(client_id: i32, mean_of_death: i32) -> PyResult<bool> {
     }
 }
 
-extern "C" {
-    static bg_itemlist: *const gitem_t;
-}
-
 fn determine_item_id(item: &PyAny) -> PyResult<i32> {
+    extern "C" {
+        static bg_numItems: c_int;
+        static bg_itemlist: *const gitem_t;
+    }
+
     if let Some(item_id) = py_extract_int_value(item) {
         if item_id < 0 || item_id >= unsafe { bg_numItems } {
             return Err(PyValueError::new_err(format!(
@@ -2262,6 +2300,12 @@ fn pyminqlx_module(_py: Python<'_>, m: &PyModule) -> PyResult<()> {
     m.add("MOD_HMG", MOD_HMG as i32)?;
     m.add("MOD_RAILGUN_HEADSHOT", MOD_RAILGUN_HEADSHOT as i32)?;
 
+    m.add("DAMAGE_RADIUS", DAMAGE_RADIUS as i32)?;
+    m.add("DAMAGE_RADIUS", DAMAGE_NO_ARMOR as i32)?;
+    m.add("DAMAGE_RADIUS", DAMAGE_NO_KNOCKBACK as i32)?;
+    m.add("DAMAGE_RADIUS", DAMAGE_NO_PROTECTION as i32)?;
+    m.add("DAMAGE_RADIUS", DAMAGE_NO_TEAM_PROTECTION as i32)?;
+
     m.add_class::<PlayerInfo>()?;
     m.add_class::<PlayerState>()?;
     m.add_class::<PlayerStats>()?;
@@ -2276,19 +2320,18 @@ fn pyminqlx_module(_py: Python<'_>, m: &PyModule) -> PyResult<()> {
 #[cfg(not(feature = "cembed"))]
 pub(crate) static mut PYMINQLX_INITIALIZED: bool = false;
 
-#[cfg(feature = "cembed")]
-extern "C" {
-    fn PyMinqlx_IsInitialized() -> c_int;
-}
-
 pub(crate) fn pyminqlx_is_initialized() -> bool {
     #[cfg(not(feature = "cembed"))]
     unsafe {
         PYMINQLX_INITIALIZED
     }
     #[cfg(feature = "cembed")]
-    unsafe {
-        PyMinqlx_IsInitialized() != 0
+    {
+        extern "C" {
+            fn PyMinqlx_IsInitialized() -> c_int;
+        }
+
+        unsafe { PyMinqlx_IsInitialized() != 0 }
     }
 }
 
@@ -2351,6 +2394,7 @@ pub(crate) fn pyminqlx_reload() -> PyMinqlx_InitStatus_t {
         PLAYER_SPAWN_HANDLER = None;
         KAMIKAZE_USE_HANDLER = None;
         KAMIKAZE_EXPLODE_HANDLER = None;
+        DAMAGE_HANDLER = None;
     }
 
     match Python::with_gil(|py| {

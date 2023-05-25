@@ -89,9 +89,22 @@ pub const EF_AWARD_ASSIST: u32 = 131072; // draw a assist sprite
 pub const EF_AWARD_DENIED: u32 = 262144; // denied
 pub const EF_TEAMVOTED: u32 = 524288; // already cast a team vote
 
+// gentity->flags
+pub const FL_GODMODE: u32 = 16;
+pub const FL_NOTARGET: u32 = 32;
+pub const FL_TEAMSLAVE: u32 = 1024; // not the first on the team
+pub const FL_NO_KNOCKBACK: u32 = 2048;
 pub const FL_DROPPED_ITEM: u32 = 4096;
+pub const FL_NO_BOTS: u32 = 8192; // spawn point not for bot use
+pub const FL_NO_HUMANS: u32 = 16384; // spawn point just for bots
+pub const FL_FORCE_GESTURE: u32 = 32768; // force gesture on client
 
-pub const DAMAGE_NO_PROTECTION: u32 = 8;
+// damage flags
+pub const DAMAGE_RADIUS: u32 = 1; // damage was indirect
+pub const DAMAGE_NO_ARMOR: u32 = 2; // armor does not protect from this damage
+pub const DAMAGE_NO_KNOCKBACK: u32 = 4; // do not affect velocity, just view angles
+pub const DAMAGE_NO_PROTECTION: u32 = 8; // armor, shields, invulnerability, and godmode have no effect
+pub const DAMAGE_NO_TEAM_PROTECTION: u32 = 16; // armor, shields, invulnerability, and godmode have no effect
 
 #[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
 #[repr(u32)]

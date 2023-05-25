@@ -1,8 +1,8 @@
 #[cfg(not(feature = "cdispatchers"))]
 use crate::pyminqlx::{
     client_command_dispatcher, client_connect_dispatcher, client_disconnect_dispatcher,
-    client_loaded_dispatcher, client_spawn_dispatcher, console_print_dispatcher, frame_dispatcher,
-    kamikaze_explode_dispatcher, kamikaze_use_dispatcher, new_game_dispatcher,
+    client_loaded_dispatcher, client_spawn_dispatcher, console_print_dispatcher, damage_dispatcher,
+    frame_dispatcher, kamikaze_explode_dispatcher, kamikaze_use_dispatcher, new_game_dispatcher,
     server_command_dispatcher, set_configstring_dispatcher,
 };
 use crate::quake_common::clientState_t::CS_PRIMED;
@@ -11,11 +11,11 @@ use crate::quake_common::{
 };
 use crate::quake_live_engine::{
     AddCommand, CbufExecuteText, Client, ClientConnect, ClientEnterWorld, ClientSpawn, ComPrintf,
-    ExecuteClientCommand, FindCVar, GameEntity, InitGame, QuakeLiveEngine, RunFrame,
-    SendServerCommand, SetConfigstring, SetModuleOffset, SpawnServer,
+    ExecuteClientCommand, FindCVar, GameEntity, InitGame, QuakeLiveEngine, RegisterDamage,
+    RunFrame, SendServerCommand, SetConfigstring, SetModuleOffset, SpawnServer,
 };
 use crate::{initialize_cvars, initialize_static, COMMON_INITIALIZED, CVARS_INITIALIZED};
-use std::ffi::{c_char, c_int, c_void, CStr, CString, VaList, VaListImpl};
+use std::ffi::{c_char, c_float, c_int, c_void, CStr, CString, VaList, VaListImpl};
 
 fn set_tag() {
     let quake_live_engine = QuakeLiveEngine::default();
@@ -57,21 +57,21 @@ pub struct DlInfo {
     pub dli_saddr: *mut c_void,
 }
 
-extern "C" {
-    static mut qagame_dllentry: *mut c_void;
-    static mut qagame: *mut c_void;
-    fn SearchVmFunctions();
-    fn HookVm();
-    fn InitializeVm();
-    fn patch_vm();
-    fn dladdr(addr: *const c_void, into: *mut DlInfo) -> c_int;
-}
-
 #[no_mangle]
 pub extern "C" fn ShiNQlx_Sys_SetModuleOffset(
     module_name: *const c_char,
     offset: unsafe extern "C" fn(),
 ) {
+    extern "C" {
+        static mut qagame_dllentry: *mut c_void;
+        static mut qagame: *mut c_void;
+        fn SearchVmFunctions();
+        fn HookVm();
+        fn InitializeVm();
+        fn patch_vm();
+        fn dladdr(addr: *const c_void, into: *mut DlInfo) -> c_int;
+    }
+
     let converted_module_name = unsafe { CStr::from_ptr(module_name).to_str().unwrap_or("") };
 
     // We should be getting qagame, but check just in case.
@@ -103,17 +103,13 @@ pub extern "C" fn ShiNQlx_Sys_SetModuleOffset(
     if unsafe { !COMMON_INITIALIZED } {
         return;
     }
+
     unsafe {
         SearchVmFunctions();
         HookVm();
         InitializeVm();
         patch_vm();
     }
-}
-
-#[cfg(feature = "cdispatchers")]
-extern "C" {
-    fn NewGameDispatcher(restart: c_int);
 }
 
 #[no_mangle]
@@ -129,16 +125,15 @@ pub extern "C" fn ShiNQlx_G_InitGame(level_time: c_int, random_seed: c_int, rest
     if restart != 0 {
         #[cfg(not(feature = "cdispatchers"))]
         new_game_dispatcher(true);
-        #[cfg(feature = "cdispatchers")]
-        unsafe {
-            NewGameDispatcher(restart)
-        };
-    }
-}
 
-#[cfg(feature = "cdispatchers")]
-extern "C" {
-    fn ClientCommandDispatcher(client_id: c_int, cmd: *const c_char) -> *const c_char;
+        #[cfg(feature = "cdispatchers")]
+        {
+            extern "C" {
+                fn NewGameDispatcher(restart: c_int);
+            }
+            unsafe { NewGameDispatcher(restart) };
+        }
+    }
 }
 
 #[no_mangle]
@@ -161,6 +156,13 @@ pub(crate) fn shinqlx_execute_client_command(client: Option<Client>, cmd: &str, 
         if client_ok && safe_client.has_gentity() {
             #[cfg(feature = "cdispatchers")]
             {
+                extern "C" {
+                    fn ClientCommandDispatcher(
+                        client_id: c_int,
+                        cmd: *const c_char,
+                    ) -> *const c_char;
+                }
+
                 let passed_on_cmd = CString::new(cmd).unwrap();
                 res = unsafe {
                     ClientCommandDispatcher(safe_client.get_client_id(), passed_on_cmd.into_raw())
@@ -195,21 +197,16 @@ pub(crate) fn shinqlx_execute_client_command(client: Option<Client>, cmd: &str, 
     }
 }
 
-#[cfg(feature = "cdispatchers")]
-extern "C" {
-    fn ServerCommandDispatcher(client_id: c_int, command: *const c_char) -> *const c_char;
-}
-
-extern "C" {
-    fn vsnprintf(s: *mut c_char, n: usize, format: *const c_char, arg: VaList) -> c_int;
-}
-
 #[no_mangle]
 pub unsafe extern "C" fn ShiNQlx_SV_SendServerCommand(
     client: *const client_t,
     fmt: *const c_char,
     fmt_args: ...
 ) {
+    extern "C" {
+        fn vsnprintf(s: *mut c_char, n: usize, format: *const c_char, arg: VaList) -> c_int;
+    }
+
     let mut va_args: VaListImpl = fmt_args.clone();
     let mut buffer: [u8; MAX_MSGLEN as usize] = [0; MAX_MSGLEN as usize];
     let result = vsnprintf(
@@ -238,6 +235,10 @@ pub(crate) fn shinqlx_send_server_command(client: Option<Client>, cmd: &str) {
     };
     #[cfg(feature = "cdispatchers")]
     {
+        extern "C" {
+            fn ServerCommandDispatcher(client_id: c_int, command: *const c_char) -> *const c_char;
+        }
+
         let c_cmd = CString::new(cmd).unwrap();
         let res = unsafe { ServerCommandDispatcher(client_id as c_int, c_cmd.into_raw()) };
 
@@ -257,11 +258,6 @@ pub(crate) fn shinqlx_send_server_command(client: Option<Client>, cmd: &str) {
     }
 }
 
-#[cfg(feature = "cdispatchers")]
-extern "C" {
-    fn ClientLoadedDispatcher(client_id: c_int);
-}
-
 #[no_mangle]
 pub extern "C" fn ShiNQlx_SV_ClientEnterWorld(client: *const client_t, cmd: *const usercmd_t) {
     let Some(safe_client): Option<Client> = client.try_into().ok() else {
@@ -276,18 +272,17 @@ pub extern "C" fn ShiNQlx_SV_ClientEnterWorld(client: *const client_t, cmd: *con
     // otherwise the dispatcher would also go off when a game starts and such.
     if safe_client.has_gentity() && state == CS_PRIMED as i32 {
         #[cfg(feature = "cdispatchers")]
-        unsafe {
-            ClientLoadedDispatcher(safe_client.get_client_id());
+        {
+            extern "C" {
+                fn ClientLoadedDispatcher(client_id: c_int);
+            }
+
+            unsafe { ClientLoadedDispatcher(safe_client.get_client_id()) };
         }
 
         #[cfg(not(feature = "cdispatchers"))]
         client_loaded_dispatcher(safe_client.get_client_id());
     }
-}
-
-#[cfg(feature = "cdispatchers")]
-extern "C" {
-    fn SetConfigstringDispatcher(index: c_int, value: *const c_char) -> *const c_char;
 }
 
 #[no_mangle]
@@ -313,6 +308,10 @@ pub(crate) fn shinqlx_set_configstring(index: i32, value: &str) {
 
     #[cfg(feature = "cdispatchers")]
     {
+        extern "C" {
+            fn SetConfigstringDispatcher(index: c_int, value: *const c_char) -> *const c_char;
+        }
+
         let value_cstring = CString::new(value).unwrap();
         let res = unsafe { SetConfigstringDispatcher(index, value_cstring.into_raw()) };
         if res.is_null() {
@@ -329,11 +328,6 @@ pub(crate) fn shinqlx_set_configstring(index: i32, value: &str) {
     }
 }
 
-#[cfg(feature = "cdispatchers")]
-extern "C" {
-    fn ClientDisconnectDispatcher(client_id: c_int, reason: *const c_char);
-}
-
 #[no_mangle]
 pub extern "C" fn ShiNQlx_SV_DropClient(client: *const client_t, reason: *const c_char) {
     if let Ok(safe_client) = Client::try_from(client) {
@@ -346,10 +340,12 @@ pub extern "C" fn ShiNQlx_SV_DropClient(client: *const client_t, reason: *const 
 pub(crate) fn shinqlx_drop_client(client: &Client, reason: &str) {
     #[cfg(feature = "cdispatchers")]
     {
-        let c_reason = CString::new(reason).unwrap();
-        unsafe {
-            ClientDisconnectDispatcher(client.get_client_id(), c_reason.into_raw());
+        extern "C" {
+            fn ClientDisconnectDispatcher(client_id: c_int, reason: *const c_char);
         }
+
+        let c_reason = CString::new(reason).unwrap();
+        unsafe { ClientDisconnectDispatcher(client.get_client_id(), c_reason.into_raw()) };
     }
 
     #[cfg(not(feature = "cdispatchers"))]
@@ -358,13 +354,12 @@ pub(crate) fn shinqlx_drop_client(client: &Client, reason: &str) {
     client.disconnect(reason);
 }
 
-#[cfg(feature = "cdispatchers")]
-extern "C" {
-    fn ConsolePrintDispatcher(msg: *const c_char) -> *const c_char;
-}
-
 #[no_mangle]
 pub unsafe extern "C" fn ShiNQlx_Com_Printf(fmt: *const c_char, fmt_args: ...) {
+    extern "C" {
+        fn vsnprintf(s: *mut c_char, n: usize, format: *const c_char, arg: VaList) -> c_int;
+    }
+
     let mut va_args: VaListImpl = fmt_args.clone();
     let mut buffer: [u8; MAX_MSGLEN as usize] = [0; MAX_MSGLEN as usize];
     let result = vsnprintf(
@@ -389,6 +384,10 @@ pub unsafe extern "C" fn ShiNQlx_Com_Printf(fmt: *const c_char, fmt_args: ...) {
 pub(crate) fn shinqlx_com_printf(msg: &str) {
     #[cfg(feature = "cdispatchers")]
     {
+        extern "C" {
+            fn ConsolePrintDispatcher(msg: *const c_char) -> *const c_char;
+        }
+
         let text = CString::new(msg).unwrap();
         let res = unsafe { ConsolePrintDispatcher(text.into_raw()) };
         if res.is_null() {
@@ -413,35 +412,33 @@ pub extern "C" fn ShiNQlx_SV_SpawnServer(server: *const c_char, kill_bots: qbool
     QuakeLiveEngine::default().spawn_server(server_str, kill_bots.into());
 
     #[cfg(feature = "cdispatchers")]
-    unsafe {
-        NewGameDispatcher(qboolean::qfalse.into());
+    {
+        extern "C" {
+            fn NewGameDispatcher(restart: c_int);
+        }
+
+        unsafe { NewGameDispatcher(qboolean::qfalse.into()) };
     }
 
     #[cfg(not(feature = "cdispatchers"))]
     new_game_dispatcher(false);
 }
 
-#[cfg(feature = "cdispatchers")]
-extern "C" {
-    fn FrameDispatcher();
-}
-
 #[no_mangle]
 pub extern "C" fn ShiNQlx_G_RunFrame(time: c_int) {
     #[cfg(feature = "cdispatchers")]
-    unsafe {
-        FrameDispatcher();
+    {
+        extern "C" {
+            fn FrameDispatcher();
+        }
+
+        unsafe { FrameDispatcher() };
     }
 
     #[cfg(not(feature = "cdispatchers"))]
     frame_dispatcher();
 
     QuakeLiveEngine::default().run_frame(time);
-}
-
-#[cfg(feature = "cdispatchers")]
-extern "C" {
-    fn ClientConnectDispatcher(client_num: c_int, is_bot: qboolean) -> *const c_char;
 }
 
 #[no_mangle]
@@ -451,10 +448,16 @@ pub extern "C" fn ShiNQlx_ClientConnect(
     is_bot: qboolean,
 ) -> *const c_char {
     #[cfg(feature = "cdispatchers")]
-    if first_time.into() {
-        let res = unsafe { ClientConnectDispatcher(client_num, is_bot) };
-        if !res.is_null() && !<qboolean as Into<bool>>::into(is_bot) {
-            return res;
+    {
+        extern "C" {
+            fn ClientConnectDispatcher(client_num: c_int, is_bot: qboolean) -> *const c_char;
+        }
+
+        if first_time.into() {
+            let res = unsafe { ClientConnectDispatcher(client_num, is_bot) };
+            if !res.is_null() && !<qboolean as Into<bool>>::into(is_bot) {
+                return res;
+            }
         }
     }
 
@@ -477,11 +480,6 @@ pub extern "C" fn ShiNQlx_ClientConnect(
     }
 }
 
-#[cfg(feature = "cdispatchers")]
-extern "C" {
-    fn ClientSpawnDispatcher(ent: c_int);
-}
-
 #[no_mangle]
 pub extern "C" fn ShiNQlx_ClientSpawn(ent: *mut gentity_t) {
     let Some(game_entity): Option<GameEntity> = ent.try_into().ok() else {
@@ -498,18 +496,18 @@ pub(crate) fn shinqlx_client_spawn(game_entity: GameEntity) {
     // we trigger the event after calling the real one. This will allow
     // us to set weapons and such without it getting overriden later.
     #[cfg(feature = "cdispatchers")]
-    unsafe {
-        ClientSpawnDispatcher(game_entity.get_client_id());
-    };
+    {
+        extern "C" {
+            fn ClientSpawnDispatcher(ent: c_int);
+        }
+
+        unsafe {
+            ClientSpawnDispatcher(game_entity.get_client_id());
+        };
+    }
 
     #[cfg(not(feature = "cdispatchers"))]
     client_spawn_dispatcher(game_entity.get_client_id());
-}
-
-#[cfg(feature = "cdispatchers")]
-extern "C" {
-    fn KamikazeUseDispatcher(client_id: c_int);
-    fn KamikazeExplodeDispatcher(client_id: c_int, used_on_demand: c_int);
 }
 
 #[no_mangle]
@@ -529,8 +527,12 @@ pub extern "C" fn ShiNQlx_G_StartKamikaze(ent: *mut gentity_t) {
     if let Some(mut game_client) = game_entity.get_game_client() {
         game_client.remove_kamikaze_flag();
         #[cfg(feature = "cdispatchers")]
-        unsafe {
-            KamikazeUseDispatcher(client_id);
+        {
+            extern "C" {
+                fn KamikazeUseDispatcher(client_id: c_int);
+            }
+
+            unsafe { KamikazeUseDispatcher(client_id) };
         }
 
         #[cfg(not(feature = "cdispatchers"))]
@@ -544,10 +546,80 @@ pub extern "C" fn ShiNQlx_G_StartKamikaze(ent: *mut gentity_t) {
     }
 
     #[cfg(feature = "cdispatchers")]
-    unsafe {
-        KamikazeExplodeDispatcher(client_id, game_entity.get_game_client().is_some() as c_int);
+    {
+        extern "C" {
+            fn KamikazeExplodeDispatcher(client_id: c_int, used_on_demand: c_int);
+        }
+
+        unsafe {
+            KamikazeExplodeDispatcher(client_id, game_entity.get_game_client().is_some() as c_int)
+        };
     }
 
     #[cfg(not(feature = "cdispatchers"))]
     kamikaze_explode_dispatcher(client_id, game_entity.get_game_client().is_some())
+}
+
+#[no_mangle]
+extern "C" fn ShiNQlx_G_Damage(
+    target: *mut gentity_t,    // entity that is being damaged
+    inflictor: *mut gentity_t, // entity that is causing the damage
+    attacker: *mut gentity_t,  // entity that caused the inflictor to damage targ
+    dir: *const c_float,       // direction of the attack for knockback
+    pos: *const c_float,       // point at which the damage is being inflicted, used for headshots
+    damage: c_int,             // amount of damage being inflicted
+    dflags: c_int,             // these flags are used to control how T_Damage works
+    // DAMAGE_RADIUS			damage was indirect (from a nearby explosion)
+    // DAMAGE_NO_ARMOR			armor does not protect from this damage
+    // DAMAGE_NO_KNOCKBACK		do not affect velocity, just view angles
+    // DAMAGE_NO_PROTECTION	kills godmode, armor, everything
+    // DAMAGE_NO_TEAM_PROTECTION	kills team mates
+    means_of_death: c_int, // means_of_death indicator
+) {
+    QuakeLiveEngine::default().register_damage(
+        target,
+        inflictor,
+        attacker,
+        dir,
+        pos,
+        damage,
+        dflags,
+        means_of_death,
+    );
+
+    #[cfg(not(feature = "cdispatchers"))]
+    {
+        if let Ok(target_entity) = GameEntity::try_from(target) {
+            if attacker.is_null() || unsafe { (*attacker).client.is_null() } {
+                damage_dispatcher(
+                    target_entity.get_client_id(),
+                    None,
+                    damage,
+                    dflags,
+                    means_of_death,
+                );
+                return;
+            }
+            match GameEntity::try_from(attacker) {
+                Err(_) => {
+                    damage_dispatcher(
+                        target_entity.get_client_id(),
+                        None,
+                        damage,
+                        dflags,
+                        means_of_death,
+                    );
+                }
+                Ok(attacker_entity) => {
+                    damage_dispatcher(
+                        target_entity.get_client_id(),
+                        Some(attacker_entity.get_client_id()),
+                        damage,
+                        dflags,
+                        means_of_death,
+                    );
+                }
+            }
+        }
+    }
 }
