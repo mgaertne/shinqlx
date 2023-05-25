@@ -348,14 +348,14 @@ impl TryFrom<*mut gentity_t> for GameEntity {
     }
 }
 
-extern "C" {
-    static g_entities: *mut gentity_t;
-}
-
 impl TryFrom<i32> for GameEntity {
     type Error = &'static str;
 
     fn try_from(entity_id: i32) -> Result<Self, Self::Error> {
+        extern "C" {
+            static g_entities: *mut gentity_t;
+        }
+
         if entity_id < 0 {
             return Err("invalid entity_id");
         }
@@ -369,24 +369,6 @@ impl TryFrom<i32> for GameEntity {
     }
 }
 
-extern "C" {
-    static G_StartKamikaze: extern "C" fn(*const gentity_t);
-    static Touch_Item: extern "C" fn(*mut gentity_t, *mut gentity_t, *mut trace_t);
-    static G_FreeEntity: extern "C" fn(*mut gentity_t);
-    static bg_itemlist: *const gitem_t;
-    static LaunchItem: extern "C" fn(*const gitem_t, vec3_t, vec3_t) -> *const gentity_t;
-    static G_Damage: extern "C" fn(
-        *const gentity_t,
-        *const gentity_t,
-        *const gentity_t,
-        *const c_float, // oritinal: vec3_t
-        *const c_float, // original: vec3_t
-        c_int,
-        c_int,
-        c_int,
-    );
-}
-
 #[allow(non_snake_case)]
 #[no_mangle]
 pub(crate) extern "C" fn ShiNQlx_Touch_Item(
@@ -394,6 +376,10 @@ pub(crate) extern "C" fn ShiNQlx_Touch_Item(
     other: *mut gentity_t,
     trace: *mut trace_t,
 ) {
+    extern "C" {
+        static Touch_Item: extern "C" fn(*mut gentity_t, *mut gentity_t, *mut trace_t);
+    }
+
     unsafe {
         if ent.as_ref().unwrap().parent == other {
             return;
@@ -405,6 +391,11 @@ pub(crate) extern "C" fn ShiNQlx_Touch_Item(
 #[allow(non_snake_case)]
 #[no_mangle]
 pub(crate) extern "C" fn ShiNQlx_Switch_Touch_Item(ent: *mut gentity_t) {
+    extern "C" {
+        static Touch_Item: extern "C" fn(*mut gentity_t, *mut gentity_t, *mut trace_t);
+        static G_FreeEntity: extern "C" fn(*mut gentity_t);
+    }
+
     unsafe {
         let ref_mut_ent = ent.as_mut().unwrap();
         ref_mut_ent.touch = Some(Touch_Item);
@@ -415,10 +406,18 @@ pub(crate) extern "C" fn ShiNQlx_Switch_Touch_Item(ent: *mut gentity_t) {
 
 impl GameEntity {
     pub(crate) fn get_client_id(&self) -> i32 {
+        extern "C" {
+            static g_entities: *mut gentity_t;
+        }
+
         unsafe { (self.gentity_t as *const gentity_t).offset_from(g_entities) as i32 }
     }
 
     pub(crate) fn start_kamikaze(&self) {
+        extern "C" {
+            static G_StartKamikaze: extern "C" fn(*const gentity_t);
+        }
+
         unsafe { G_StartKamikaze(self.gentity_t as *const gentity_t) }
     }
 
@@ -482,6 +481,19 @@ impl GameEntity {
     }
 
     pub(crate) fn slay_with_mod(&mut self, mean_of_death: i32) {
+        extern "C" {
+            static G_Damage: extern "C" fn(
+                *const gentity_t,
+                *const gentity_t,
+                *const gentity_t,
+                *const c_float, // oritinal: vec3_t
+                *const c_float, // original: vec3_t
+                c_int,
+                c_int,
+                c_int,
+            );
+        }
+
         let damage = self.get_health()
             + if mean_of_death == MOD_KAMIKAZE as i32 {
                 100000
@@ -547,6 +559,11 @@ impl GameEntity {
     }
 
     pub(crate) fn drop_holdable(&mut self) {
+        extern "C" {
+            static bg_itemlist: *const gitem_t;
+            static LaunchItem: extern "C" fn(*const gitem_t, vec3_t, vec3_t) -> *const gentity_t;
+        }
+
         let angle = self.gentity_t.s.apos.trBase[1] * (PI * 2.0 / 360.0);
         let velocity = [150.0 * angle.cos(), 150.0 * angle.sin(), 250.0];
         unsafe {
@@ -581,12 +598,20 @@ impl GameEntity {
     }
 
     pub(crate) fn free_entity(&mut self) {
-        unsafe {
-            G_FreeEntity(self.gentity_t);
+        extern "C" {
+            static G_FreeEntity: extern "C" fn(*mut gentity_t);
         }
+
+        unsafe { G_FreeEntity(self.gentity_t) };
     }
 
     pub(crate) fn spawn_item(item_id: i32, origin: (i32, i32, i32)) {
+        extern "C" {
+            static bg_itemlist: *const gitem_t;
+            static LaunchItem: extern "C" fn(*const gitem_t, vec3_t, vec3_t) -> *const gentity_t;
+            static G_AddEvent: extern "C" fn(*const gentity_t, entity_event_t, c_int);
+        }
+
         let origin_vec = [
             origin.0 as c_float,
             origin.1 as c_float,
@@ -605,9 +630,14 @@ impl GameEntity {
     }
 
     pub(crate) fn replace_item(&mut self, item_id: i32) {
-        unsafe {
-            Com_Printf(self.gentity_t.classname);
+        extern "C" {
+            static Com_Printf: extern "C" fn(*const c_char);
+            static bg_itemlist: *const gitem_t;
+            static SV_GetConfigstring: extern "C" fn(c_int, *mut c_char, c_int);
+            static G_FreeEntity: extern "C" fn(*mut gentity_t);
         }
+
+        unsafe { Com_Printf(self.gentity_t.classname) };
         if item_id != 0 {
             let item = unsafe { bg_itemlist.offset(item_id as isize).as_ref().unwrap() };
             self.gentity_t.s.modelindex = item_id;
@@ -707,14 +737,14 @@ impl TryFrom<*const client_t> for Client {
     }
 }
 
-extern "C" {
-    static svs: *mut serverStatic_t;
-}
-
 impl TryFrom<i32> for Client {
     type Error = &'static str;
 
     fn try_from(client_id: i32) -> Result<Self, Self::Error> {
+        extern "C" {
+            static svs: *mut serverStatic_t;
+        }
+
         if client_id < 0 {
             return Err("invalid client_id");
         }
@@ -730,12 +760,12 @@ impl TryFrom<i32> for Client {
     }
 }
 
-extern "C" {
-    static SV_DropClient: extern "C" fn(*const client_t, *const c_char);
-}
-
 impl Client {
     pub(crate) fn get_client_id(&self) -> i32 {
+        extern "C" {
+            static svs: *mut serverStatic_t;
+        }
+
         unsafe {
             (self.client_t as *const client_t).offset_from(svs.as_ref().unwrap().clients) as i32
         }
@@ -750,6 +780,10 @@ impl Client {
     }
 
     pub(crate) fn disconnect(&self, reason: &str) {
+        extern "C" {
+            static SV_DropClient: extern "C" fn(*const client_t, *const c_char);
+        }
+
         let c_reason = CString::new(reason).unwrap_or(CString::new("").unwrap());
         unsafe {
             SV_DropClient(self.client_t, c_reason.into_raw());
@@ -801,16 +835,16 @@ impl Client {
     }
 }
 
-extern "C" {
-    static level: *mut level_locals_t;
-}
-
 pub(crate) struct CurrentLevel {
     level: &'static mut level_locals_t,
 }
 
 impl Default for CurrentLevel {
     fn default() -> Self {
+        extern "C" {
+            static level: *mut level_locals_t;
+        }
+
         unsafe {
             Self {
                 level: level.as_mut().unwrap(),
@@ -879,23 +913,19 @@ impl CurrentLevel {
 #[derive(Default)]
 pub(crate) struct QuakeLiveEngine {}
 
-extern "C" {
-    static Cvar_FindVar: extern "C" fn(*const c_char) -> *const cvar_t;
-}
-
 pub(crate) trait FindCVar {
     fn find_cvar(&self, name: &str) -> Option<CVar>;
 }
 
 impl FindCVar for QuakeLiveEngine {
     fn find_cvar(&self, name: &str) -> Option<CVar> {
+        extern "C" {
+            static Cvar_FindVar: extern "C" fn(*const c_char) -> *const cvar_t;
+        }
+
         let c_name = CString::new(name).unwrap();
         unsafe { CVar::try_from(Cvar_FindVar(c_name.into_raw())).ok() }
     }
-}
-
-extern "C" {
-    static Cbuf_ExecuteText: extern "C" fn(cbufExec_t, *const c_char);
 }
 
 pub(crate) trait CbufExecuteText {
@@ -904,13 +934,13 @@ pub(crate) trait CbufExecuteText {
 
 impl CbufExecuteText for QuakeLiveEngine {
     fn cbuf_execute_text(&self, exec_t: cbufExec_t, new_tags: &str) {
+        extern "C" {
+            static Cbuf_ExecuteText: extern "C" fn(cbufExec_t, *const c_char);
+        }
+
         let c_tags = CString::new(new_tags).unwrap();
         unsafe { Cbuf_ExecuteText(exec_t, c_tags.into_raw()) }
     }
-}
-
-extern "C" {
-    static Cmd_AddCommand: extern "C" fn(*const c_char, *const c_void);
 }
 
 pub(crate) trait AddCommand {
@@ -919,13 +949,13 @@ pub(crate) trait AddCommand {
 
 impl AddCommand for QuakeLiveEngine {
     fn add_command(&self, cmd: &str, func: unsafe extern "C" fn()) {
+        extern "C" {
+            static Cmd_AddCommand: extern "C" fn(*const c_char, *const c_void);
+        }
+
         let c_cmd = CString::new(cmd).unwrap();
         unsafe { Cmd_AddCommand(c_cmd.into_raw(), func as *const c_void) }
     }
-}
-
-extern "C" {
-    static Sys_SetModuleOffset: extern "C" fn(*const c_char, *const c_void);
 }
 
 pub(crate) trait SetModuleOffset {
@@ -934,13 +964,13 @@ pub(crate) trait SetModuleOffset {
 
 impl SetModuleOffset for QuakeLiveEngine {
     fn set_module_offset(&self, module_name: &str, offset: unsafe extern "C" fn()) {
+        extern "C" {
+            static Sys_SetModuleOffset: extern "C" fn(*const c_char, *const c_void);
+        }
+
         let c_module_name = CString::new(module_name).unwrap();
         unsafe { Sys_SetModuleOffset(c_module_name.into_raw(), offset as *const c_void) }
     }
-}
-
-extern "C" {
-    static G_InitGame: extern "C" fn(c_int, c_int, c_int);
 }
 
 pub(crate) trait InitGame {
@@ -949,12 +979,12 @@ pub(crate) trait InitGame {
 
 impl InitGame for QuakeLiveEngine {
     fn init_game(&self, level_time: i32, random_seed: i32, restart: i32) {
+        extern "C" {
+            static G_InitGame: extern "C" fn(c_int, c_int, c_int);
+        }
+
         unsafe { G_InitGame(level_time, random_seed, restart) }
     }
-}
-
-extern "C" {
-    static SV_ExecuteClientCommand: extern "C" fn(*const client_t, *const c_char, qboolean);
 }
 
 pub(crate) trait ExecuteClientCommand {
@@ -963,6 +993,10 @@ pub(crate) trait ExecuteClientCommand {
 
 impl ExecuteClientCommand for QuakeLiveEngine {
     fn execute_client_command(&self, client: Option<&Client>, cmd: &str, client_ok: bool) {
+        extern "C" {
+            static SV_ExecuteClientCommand: extern "C" fn(*const client_t, *const c_char, qboolean);
+        }
+
         let command_native = CString::new(cmd).unwrap();
         match client {
             Some(safe_client) => unsafe {
@@ -979,16 +1013,16 @@ impl ExecuteClientCommand for QuakeLiveEngine {
     }
 }
 
-extern "C" {
-    static SV_SendServerCommand: extern "C" fn(*const client_t, *const c_char, ...);
-}
-
 pub(crate) trait SendServerCommand {
     fn send_server_command(&self, client: Option<Client>, command: &str);
 }
 
 impl SendServerCommand for QuakeLiveEngine {
     fn send_server_command(&self, client: Option<Client>, command: &str) {
+        extern "C" {
+            static SV_SendServerCommand: extern "C" fn(*const client_t, *const c_char, ...);
+        }
+
         let command_native = CString::new(command).unwrap();
         match client {
             Some(safe_client) => unsafe {
@@ -999,22 +1033,18 @@ impl SendServerCommand for QuakeLiveEngine {
     }
 }
 
-extern "C" {
-    static SV_ClientEnterWorld: extern "C" fn(*const client_t, *const usercmd_t);
-}
-
 pub(crate) trait ClientEnterWorld {
     fn client_enter_world(&self, client: &Client, cmd: *const usercmd_t);
 }
 
 impl ClientEnterWorld for QuakeLiveEngine {
     fn client_enter_world(&self, client: &Client, cmd: *const usercmd_t) {
+        extern "C" {
+            static SV_ClientEnterWorld: extern "C" fn(*const client_t, *const usercmd_t);
+        }
+
         unsafe { SV_ClientEnterWorld(client.client_t, cmd) }
     }
-}
-
-extern "C" {
-    static SV_SetConfigstring: extern "C" fn(c_int, *const c_char);
 }
 
 pub(crate) trait SetConfigstring {
@@ -1023,14 +1053,14 @@ pub(crate) trait SetConfigstring {
 
 impl SetConfigstring for QuakeLiveEngine {
     fn set_configstring(&self, index: &i32, value: &str) {
+        extern "C" {
+            static SV_SetConfigstring: extern "C" fn(c_int, *const c_char);
+        }
+
         if let Ok(c_value) = CString::new(value) {
             unsafe { SV_SetConfigstring(index.to_owned(), c_value.into_raw()) }
         }
     }
-}
-
-extern "C" {
-    static Com_Printf: extern "C" fn(*const c_char);
 }
 
 pub(crate) trait ComPrintf {
@@ -1039,13 +1069,13 @@ pub(crate) trait ComPrintf {
 
 impl ComPrintf for QuakeLiveEngine {
     fn com_printf(&self, msg: &str) {
+        extern "C" {
+            static Com_Printf: extern "C" fn(*const c_char);
+        }
+
         let c_msg = CString::new(msg).unwrap();
         unsafe { Com_Printf(c_msg.into_raw()) }
     }
-}
-
-extern "C" {
-    static SV_SpawnServer: extern "C" fn(*const c_char, qboolean);
 }
 
 pub(crate) trait SpawnServer {
@@ -1054,13 +1084,13 @@ pub(crate) trait SpawnServer {
 
 impl SpawnServer for QuakeLiveEngine {
     fn spawn_server(&self, server: &str, kill_bots: bool) {
+        extern "C" {
+            static SV_SpawnServer: extern "C" fn(*const c_char, qboolean);
+        }
+
         let c_server = CString::new(server).unwrap();
         unsafe { SV_SpawnServer(c_server.into_raw(), kill_bots.into()) }
     }
-}
-
-extern "C" {
-    static G_RunFrame: extern "C" fn(c_int);
 }
 
 pub(crate) trait RunFrame {
@@ -1069,14 +1099,12 @@ pub(crate) trait RunFrame {
 
 impl RunFrame for QuakeLiveEngine {
     fn run_frame(&self, time: i32) {
-        unsafe {
-            G_RunFrame(time);
+        extern "C" {
+            static G_RunFrame: extern "C" fn(c_int);
         }
-    }
-}
 
-extern "C" {
-    static ClientConnect: extern "C" fn(c_int, qboolean, qboolean) -> *const c_char;
+        unsafe { G_RunFrame(time) };
+    }
 }
 
 pub(crate) trait ClientConnect {
@@ -1085,6 +1113,10 @@ pub(crate) trait ClientConnect {
 
 impl ClientConnect for QuakeLiveEngine {
     fn client_connect(&self, client_num: i32, first_time: bool, is_bot: bool) -> Option<String> {
+        extern "C" {
+            static ClientConnect: extern "C" fn(c_int, qboolean, qboolean) -> *const c_char;
+        }
+
         unsafe {
             let c_return = ClientConnect(client_num, first_time.into(), is_bot.into());
             if c_return.is_null() {
@@ -1095,24 +1127,18 @@ impl ClientConnect for QuakeLiveEngine {
     }
 }
 
-extern "C" {
-    static ClientSpawn: extern "C" fn(*const gentity_t);
-}
-
 pub(crate) trait ClientSpawn {
     fn client_spawn(&self, ent: &GameEntity);
 }
 
 impl ClientSpawn for QuakeLiveEngine {
     fn client_spawn(&self, ent: &GameEntity) {
-        unsafe {
-            ClientSpawn(ent.gentity_t);
+        extern "C" {
+            static ClientSpawn: extern "C" fn(*const gentity_t);
         }
-    }
-}
 
-extern "C" {
-    static Cmd_Args: extern "C" fn() -> *const c_char;
+        unsafe { ClientSpawn(ent.gentity_t) };
+    }
 }
 
 pub(crate) trait CmdArgs {
@@ -1121,6 +1147,10 @@ pub(crate) trait CmdArgs {
 
 impl CmdArgs for QuakeLiveEngine {
     fn cmd_args(&self) -> Option<&'static str> {
+        extern "C" {
+            static Cmd_Args: extern "C" fn() -> *const c_char;
+        }
+
         let cmd_args = unsafe { Cmd_Args() };
         if cmd_args.is_null() {
             None
@@ -1130,22 +1160,18 @@ impl CmdArgs for QuakeLiveEngine {
     }
 }
 
-extern "C" {
-    static Cmd_Argc: extern "C" fn() -> c_int;
-}
-
 pub(crate) trait CmdArgc {
     fn cmd_argc(&self) -> i32;
 }
 
 impl CmdArgc for QuakeLiveEngine {
     fn cmd_argc(&self) -> i32 {
+        extern "C" {
+            static Cmd_Argc: extern "C" fn() -> c_int;
+        }
+
         unsafe { Cmd_Argc() }
     }
-}
-
-extern "C" {
-    static Cmd_Argv: extern "C" fn(c_int) -> *const c_char;
 }
 
 pub(crate) trait CmdArgv {
@@ -1154,6 +1180,10 @@ pub(crate) trait CmdArgv {
 
 impl CmdArgv for QuakeLiveEngine {
     fn cmd_argv(&self, argno: i32) -> Option<&'static str> {
+        extern "C" {
+            static Cmd_Argv: extern "C" fn(c_int) -> *const c_char;
+        }
+
         if argno < 0 {
             None
         } else {
@@ -1167,16 +1197,16 @@ impl CmdArgv for QuakeLiveEngine {
     }
 }
 
-extern "C" {
-    static G_AddEvent: extern "C" fn(*const gentity_t, entity_event_t, c_int);
-}
-
 pub(crate) trait GameAddEvent {
     fn game_add_event(&self, game_entity: &GameEntity, event: entity_event_t, event_param: i32);
 }
 
 impl GameAddEvent for QuakeLiveEngine {
     fn game_add_event(&self, game_entity: &GameEntity, event: entity_event_t, event_param: i32) {
+        extern "C" {
+            static G_AddEvent: extern "C" fn(*const gentity_t, entity_event_t, c_int);
+        }
+
         unsafe {
             G_AddEvent(
                 game_entity.gentity_t as *const gentity_t,
@@ -1187,23 +1217,19 @@ impl GameAddEvent for QuakeLiveEngine {
     }
 }
 
-extern "C" {
-    static Cmd_ExecuteString: extern "C" fn(*const c_char);
-}
-
 pub(crate) trait ConsoleCommand {
     fn execute_console_command(&self, cmd: &str);
 }
 
 impl ConsoleCommand for QuakeLiveEngine {
     fn execute_console_command(&self, cmd: &str) {
+        extern "C" {
+            static Cmd_ExecuteString: extern "C" fn(*const c_char);
+        }
+
         let c_cmd = CString::new(cmd).unwrap();
         unsafe { Cmd_ExecuteString(c_cmd.into_raw()) }
     }
-}
-
-extern "C" {
-    static Cvar_Get: extern "C" fn(*const c_char, *const c_char, c_int) -> *const cvar_t;
 }
 
 pub(crate) trait GetCVar {
@@ -1212,15 +1238,15 @@ pub(crate) trait GetCVar {
 
 impl GetCVar for QuakeLiveEngine {
     fn get_cvar(&self, name: &str, value: &str, flags: Option<i32>) -> Option<CVar> {
+        extern "C" {
+            static Cvar_Get: extern "C" fn(*const c_char, *const c_char, c_int) -> *const cvar_t;
+        }
+
         let c_name = CString::new(name).unwrap();
         let c_value = CString::new(value).unwrap();
         let flags_value = flags.unwrap_or_default();
         unsafe { CVar::try_from(Cvar_Get(c_name.into_raw(), c_value.into_raw(), flags_value)).ok() }
     }
-}
-
-extern "C" {
-    static Cvar_Set2: extern "C" fn(*const c_char, *const c_char, qboolean) -> *const cvar_t;
 }
 
 pub(crate) trait SetCVarForced {
@@ -1229,6 +1255,11 @@ pub(crate) trait SetCVarForced {
 
 impl SetCVarForced for QuakeLiveEngine {
     fn set_cvar_forced(&self, name: &str, value: &str, forced: bool) -> Option<CVar> {
+        extern "C" {
+            static Cvar_Set2:
+                extern "C" fn(*const c_char, *const c_char, qboolean) -> *const cvar_t;
+        }
+
         let c_name = CString::new(name).unwrap();
         let c_value = CString::new(value).unwrap();
         unsafe {
@@ -1240,16 +1271,6 @@ impl SetCVarForced for QuakeLiveEngine {
             .ok()
         }
     }
-}
-
-extern "C" {
-    static Cvar_GetLimit: extern "C" fn(
-        *const c_char,
-        *const c_char,
-        *const c_char,
-        *const c_char,
-        c_int,
-    ) -> *const cvar_t;
 }
 
 pub(crate) trait SetCVarLimit {
@@ -1272,6 +1293,16 @@ impl SetCVarLimit for QuakeLiveEngine {
         max: &str,
         flags: Option<i32>,
     ) -> Option<CVar> {
+        extern "C" {
+            static Cvar_GetLimit: extern "C" fn(
+                *const c_char,
+                *const c_char,
+                *const c_char,
+                *const c_char,
+                c_int,
+            ) -> *const cvar_t;
+        }
+
         let c_name = CString::new(name).unwrap();
         let c_value = CString::new(value).unwrap();
         let c_min = CString::new(min).unwrap();
@@ -1290,16 +1321,16 @@ impl SetCVarLimit for QuakeLiveEngine {
     }
 }
 
-extern "C" {
-    static SV_GetConfigstring: extern "C" fn(c_int, *mut c_char, c_int);
-}
-
 pub(crate) trait GetConfigstring {
     fn get_configstring(&self, index: i32) -> String;
 }
 
 impl GetConfigstring for QuakeLiveEngine {
     fn get_configstring(&self, index: i32) -> String {
+        extern "C" {
+            static SV_GetConfigstring: extern "C" fn(c_int, *mut c_char, c_int);
+        }
+
         let mut buffer: [u8; 4096] = [0; 4096];
         unsafe {
             SV_GetConfigstring(
@@ -1307,11 +1338,66 @@ impl GetConfigstring for QuakeLiveEngine {
                 buffer.as_mut_ptr() as *mut c_char,
                 buffer.len() as c_int,
             );
-        }
+        };
         CStr::from_bytes_until_nul(&buffer)
             .unwrap()
             .to_str()
             .unwrap_or("")
             .into()
+    }
+}
+
+pub(crate) trait RegisterDamage {
+    #[allow(clippy::too_many_arguments)]
+    fn register_damage(
+        &self,
+        target: *const gentity_t,
+        inflictor: *const gentity_t,
+        attacker: *const gentity_t,
+        dir: *const c_float,
+        pos: *const c_float,
+        damage: c_int,
+        dflags: c_int,
+        means_of_death: c_int,
+    );
+}
+
+impl RegisterDamage for QuakeLiveEngine {
+    fn register_damage(
+        &self,
+        target: *const gentity_t,
+        inflictor: *const gentity_t,
+        attacker: *const gentity_t,
+        dir: *const c_float,
+        pos: *const c_float,
+        damage: c_int,
+        dflags: c_int,
+        means_of_death: c_int,
+    ) {
+        extern "C" {
+            static G_Damage: extern "C" fn(
+                *const gentity_t,
+                *const gentity_t,
+                *const gentity_t,
+                *const c_float, // oritinal: vec3_t
+                *const c_float, // original: vec3_t
+                c_int,
+                c_int,
+                c_int,
+            );
+        }
+
+        unsafe {
+            G_Damage(
+                target,
+                inflictor,
+                attacker,
+                dir,
+                pos,
+                damage,
+                dflags,
+                means_of_death,
+            );
+        }
     }
 }

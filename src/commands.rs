@@ -195,11 +195,6 @@ pub extern "C" fn cmd_slay() {
     );
 }
 
-#[cfg(feature = "cdispatchers")]
-extern "C" {
-    fn RconDispatcher(cmd: *const c_char);
-}
-
 #[no_mangle]
 // Execute a pyminqlx command as if it were the owner executing it.
 // Output will appear in the console.
@@ -210,8 +205,12 @@ pub extern "C" fn cmd_py_rcon() {
     rcon_dispatcher(commands);
     #[cfg(feature = "cdispatchers")]
     {
+        extern "C" {
+            fn RconDispatcher(cmd: *const c_char);
+        }
+
         let c_cmd = CString::new(commands).unwrap();
-        unsafe { RconDispatcher(c_cmd.into_raw()) }
+        unsafe { RconDispatcher(c_cmd.into_raw()) };
     }
 }
 
@@ -231,25 +230,23 @@ pub extern "C" fn cmd_py_command() {
     });
 }
 
-#[cfg(feature = "cembed")]
-extern "C" {
-    fn PyMinqlx_Finalize() -> PyMinqlx_InitStatus_t;
-    fn PyMinqlx_Initialize() -> PyMinqlx_InitStatus_t;
-}
-
-#[cfg(feature = "cdispatchers")]
-extern "C" {
-    fn NewGameDispatcher(restart: c_int);
-}
-
 #[no_mangle]
 pub extern "C" fn cmd_restart_python() {
+    #[cfg(feature = "cdispatchers")]
+    extern "C" {
+        fn NewGameDispatcher(restart: c_int);
+    }
+
     QuakeLiveEngine::default().com_printf("Restarting Python...\n");
     if pyminqlx_is_initialized() {
         #[cfg(feature = "cembed")]
-        unsafe {
-            PyMinqlx_Finalize()
-        };
+        {
+            extern "C" {
+                fn PyMinqlx_Finalize() -> PyMinqlx_InitStatus_t;
+            }
+
+            unsafe { PyMinqlx_Finalize() };
+        }
         #[cfg(not(feature = "cembed"))]
         {
             pyminqlx_reload();
@@ -265,9 +262,13 @@ pub extern "C" fn cmd_restart_python() {
         }
     }
     #[cfg(feature = "cembed")]
-    unsafe {
-        PyMinqlx_Initialize()
-    };
+    {
+        extern "C" {
+            fn PyMinqlx_Initialize() -> PyMinqlx_InitStatus_t;
+        }
+
+        unsafe { PyMinqlx_Initialize() };
+    }
     #[cfg(not(feature = "cembed"))]
     pyminqlx_initialize();
 

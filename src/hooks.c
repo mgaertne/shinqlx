@@ -122,7 +122,7 @@ void HookVm(void) {
         DebugPrint("ERROR: Failed to hook ClientConnect: %d\n", res);
         failed = 1;
     }
-  count++;
+    count++;
 
     res = Hook((void*)G_StartKamikaze, ShiNQlx_G_StartKamikaze, (void*)&G_StartKamikaze);
     if (res) {
@@ -134,6 +134,13 @@ void HookVm(void) {
     res = Hook((void*)ClientSpawn, ShiNQlx_ClientSpawn, (void*)&ClientSpawn);
     if (res) {
         DebugPrint("ERROR: Failed to hook ClientSpawn: %d\n", res);
+        failed = 1;
+    }
+    count++;
+
+    res = Hook((void*)G_Damage, ShiNQlx_G_Damage, (void*)&G_Damage);
+    if (res) {
+        DebugPrint("ERROR: Failed to hook G_Damage: %d\n", res);
         failed = 1;
     }
     count++;

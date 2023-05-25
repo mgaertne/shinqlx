@@ -112,9 +112,22 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #define EF_AWARD_DENIED     0x00040000      // denied
 #define EF_TEAMVOTED        0x00080000      // already cast a team vote
 
-#define FL_DROPPED_ITEM 0x00001000
+// gentity->flags
+#define	FL_GODMODE				0x00000010
+#define	FL_NOTARGET				0x00000020
+#define	FL_TEAMSLAVE			0x00000400	// not the first on the team
+#define FL_NO_KNOCKBACK			0x00000800
+#define FL_DROPPED_ITEM			0x00001000
+#define FL_NO_BOTS				0x00002000	// spawn point not for bot use
+#define FL_NO_HUMANS			0x00004000	// spawn point just for bots
+#define FL_FORCE_GESTURE		0x00008000	// force gesture on client
 
-#define DAMAGE_NO_PROTECTION 0x00000008
+// damage flags
+#define DAMAGE_RADIUS				0x00000001	// damage was indirect
+#define DAMAGE_NO_ARMOR				0x00000002	// armour does not protect from this damage
+#define DAMAGE_NO_KNOCKBACK			0x00000004	// do not affect velocity, just view angles
+#define DAMAGE_NO_PROTECTION		0x00000008  // armor, shields, invulnerability, and godmode have no effect
+#define DAMAGE_NO_TEAM_PROTECTION	0x00000010  // armor, shields, invulnerability, and godmode have no effect
 
 typedef enum {qfalse, qtrue} qboolean;
 typedef unsigned char byte;
@@ -1565,6 +1578,7 @@ extern char* __cdecl ShiNQlx_ClientConnect(int clientNum, qboolean firstTime, qb
 extern void __cdecl ShiNQlx_ClientSpawn(gentity_t* ent);
 
 extern void __cdecl ShiNQlx_G_StartKamikaze(gentity_t* ent);
+extern void __cdecl ShiNQlx_G_Damage(gentity_t* target, gentity_t* inflictor, gentity_t* attacker, vec3_t dir, vec3_t point, int damage, int dflags, int mod);
 #endif
 
 // Custom commands added using Cmd_AddCommand during initialization.
