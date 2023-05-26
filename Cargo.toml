@@ -1,6 +1,6 @@
 [package]
 name = "shinqlx"
-version = "0.0.1"
+version = "0.5.4"
 authors = ["ShiN0"]
 edition = "2021"
 readme = "README.md"
