@@ -19,7 +19,8 @@ use crate::quake_common::voteState_t::{VOTE_NO, VOTE_PENDING, VOTE_YES};
 use crate::quake_common::{
     cbufExec_t, client_t, cvar_t, entity_event_t, gclient_t, gentity_t, gitem_t, level_locals_t,
     privileges_t, qboolean, serverStatic_t, trace_t, usercmd_t, vec3_t, CS_ITEMS, CS_VOTE_NO,
-    CS_VOTE_STRING, CS_VOTE_TIME, CS_VOTE_YES, DAMAGE_NO_PROTECTION, EF_KAMIKAZE, FL_DROPPED_ITEM,
+    CS_VOTE_STRING, CS_VOTE_TIME, CS_VOTE_YES, DAMAGE_NO_PROTECTION, EF_KAMIKAZE, EF_TALK,
+    FL_DROPPED_ITEM,
 };
 use crate::SV_MAXCLIENTS;
 use lazy_static::lazy_static;
@@ -280,6 +281,10 @@ impl GameClient {
 
     pub(crate) fn set_invulnerability(&mut self, time: i32) {
         self.game_client.invulnerabilityTime = CurrentLevel::default().get_leveltime() + time;
+    }
+
+    pub(crate) fn is_chatting(&self) -> bool {
+        self.game_client.ps.eFlags.bitand(EF_TALK as c_int) != 0
     }
 
     pub(crate) fn is_frozen(&self) -> bool {

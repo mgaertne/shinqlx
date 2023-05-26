@@ -1308,6 +1308,8 @@ struct PlayerState {
     holdable: Option<String>,
     /// A struct sequence with flight parameters.
     flight: Flight,
+    /// Whether the player is currently chatting.
+    is_chatting: bool,
     /// Whether the player is frozen(freezetag).
     is_frozen: bool,
 }
@@ -1315,7 +1317,7 @@ struct PlayerState {
 #[pymethods]
 impl PlayerState {
     fn __str__(&self) -> String {
-        format!("PlayerState(is_alive={}, position={}, veclocity={}, health={}, armor={}, noclip={}, weapon={}, weapons={}, ammo={}, powerups={}, holdable={}, flight={}, is_frozen={})",
+        format!("PlayerState(is_alive={}, position={}, veclocity={}, health={}, armor={}, noclip={}, weapon={}, weapons={}, ammo={}, powerups={}, holdable={}, flight={}, is_chatting={}, is_frozen={})",
             self.is_alive,
             self.position.__str__(),
             self.velocity.__str__(),
@@ -1331,6 +1333,7 @@ impl PlayerState {
                 None => "None",
             },
             self.flight.__str__(),
+            self.is_chatting,
             self.is_frozen)
     }
 }
@@ -1358,6 +1361,7 @@ impl From<GameEntity> for PlayerState {
                 game_client.get_flight_thrust(),
                 game_client.get_flight_refuel(),
             ),
+            is_chatting: game_client.is_chatting(),
             is_frozen: game_client.is_frozen(),
         }
     }
