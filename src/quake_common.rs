@@ -8,15 +8,54 @@ pub(crate) const DEBUG_PRINT_PREFIX: &str = "[shinqlx]";
 
 pub(crate) const SV_TAGS_PREFIX: &str = "shinqlx";
 
+// these are the only configstrings that the system reserves, all the
+// other ones are strictly for servergame to clientgame communication
+pub const CS_SERVERINFO: u32 = 0; // an info string with all the serverinfo cvars
+pub const CS_SYSTEMINFO: u32 = 1; // an info string for server system to client system configuration (timescale, etc)
+pub const CS_MUSIC: u32 = 2;
+pub const CS_MESSAGE: u32 = 3; // from the map worldspawn's message field
+pub const CS_MOTD: u32 = 4; // g_motd string for server message of the day
+pub const CS_WARMUP: u32 = 5; // server time when the match will be restarted
 pub const CS_SCORES1: u32 = 6;
 pub const CS_SCORES2: u32 = 7;
 pub const CS_VOTE_TIME: u32 = 8;
 pub const CS_VOTE_STRING: u32 = 9;
 pub const CS_VOTE_YES: u32 = 10;
 pub const CS_VOTE_NO: u32 = 11;
-pub const CS_ITEMS: u32 = 15;
+pub const CS_GAME_VERSION: u32 = 12;
+pub const CS_LEVEL_START_TIME: u32 = 13; // so the timer only shows the current level
+pub const CS_INTERMISSION: u32 = 14; // when 1, fraglimit/timelimit has been hit and intermissionwill start in a second or two
+pub const CS_ITEMS: u32 = 15; // string of 0's and 1's that tell which items are present
+pub const CS_MODELS: u32 = 17; // same as CS_SOUNDS where it is being indexed from 1 so 17 is empty and first model is 18
+pub const CS_SOUNDS: u32 = CS_MODELS + MAX_MODELS;
+pub const CS_PLAYERS: u32 = CS_SOUNDS + MAX_SOUNDS;
+pub const CS_LOCATIONS: u32 = CS_PLAYERS + MAX_CLIENTS;
+pub const CS_PARTICLES: u32 = CS_LOCATIONS + MAX_LOCATIONS;
+
+pub const CS_FLAGSTATUS: u32 = 658; // string indicating flag status in CTF
+
+pub const CS_FIRSTPLACE: u32 = 659;
+pub const CS_SECONDPLACE: u32 = 660;
+
+pub const CS_ROUND_STATUS: u32 = 661; // also used for freezetag
+pub const CS_ROUND_TIME: u32 = 662; // when -1 round is over, also used for freezetag
+
+pub const CS_SHADERSTATS: u32 = 665;
+
+pub const CS_TIMEOUT_BEGIN_TIME: u32 = 669;
+pub const CS_TIMEOUT_END_TIME: u32 = 670;
+pub const CS_RED_TEAM_TIMEOUT_LEFT: u32 = 671;
+pub const CS_BLUE_TEAM_TIMEOUT_LEFT: u32 = 672;
+
+pub const CS_MAP_CREATOR: u32 = 678;
+pub const CS_ORIGINAL_MAP_CREATOR: u32 = 679;
+
+pub const CS_PMOVE_SETTING: u32 = 681;
+pub const CS_ARMOR_TIERED: u32 = 682;
+pub const CS_WEAPON_SETTINGS: u32 = 683;
 
 pub const MAX_CLIENTS: u32 = 64;
+pub const MAX_LOCATIONS: u32 = 64;
 pub const MAX_CHALLENGES: u32 = 1024;
 pub const MAX_MSGLEN: u32 = 16384;
 pub const MAX_PS_EVENTS: u32 = 2;
@@ -33,6 +72,7 @@ pub const PACKET_BACKUP: u32 = 32; // number of old messages that must be kept o
 pub const PACKET_MASK: u32 = PACKET_BACKUP - 1;
 pub const MAX_ENT_CLUSTERS: u32 = 16;
 pub const MAX_MODELS: u32 = 256; // these are sent over the net as 8 bits
+pub const MAX_SOUNDS: u32 = 256; // so they cannot be blindly increased
 pub const MAX_CONFIGSTRINGS: u32 = 1024;
 pub const GENTITYNUM_BITS: u32 = 10; // don't need to send any more
 pub const MAX_GENTITIES: u32 = 1 << GENTITYNUM_BITS;

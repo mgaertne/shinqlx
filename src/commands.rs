@@ -25,7 +25,7 @@ pub extern "C" fn cmd_send_server_command() {
     let Some(cmd_args) = quake_live_engine.cmd_args() else { return; };
 
     let server_command = format!("{}\n", cmd_args);
-    quake_live_engine.send_server_command(None, &server_command);
+    quake_live_engine.send_server_command(None, server_command.into());
 }
 
 #[no_mangle]
@@ -34,7 +34,7 @@ pub extern "C" fn cmd_center_print() {
     let Some(cmd_args) = quake_live_engine.cmd_args() else { return; };
 
     let server_command = format!("cp \"{}\"\n", cmd_args);
-    quake_live_engine.send_server_command(None, &server_command);
+    quake_live_engine.send_server_command(None, server_command.into());
 }
 
 #[no_mangle]
@@ -43,7 +43,7 @@ pub extern "C" fn cmd_regular_print() {
     let Some(cmd_args) = quake_live_engine.cmd_args() else { return; };
 
     let server_command = format!("print \"{}\n\"\n", cmd_args);
-    quake_live_engine.send_server_command(None, &server_command);
+    quake_live_engine.send_server_command(None, server_command.into());
 }
 
 #[no_mangle]
@@ -55,7 +55,7 @@ pub extern "C" fn cmd_slap() {
         let Some(command_name) = quake_live_engine.cmd_argv(0) else {return; };
         let usage_note = format!("Usage: {} <client_id> [damage]\n", command_name);
 
-        quake_live_engine.com_printf(usage_note.as_str());
+        quake_live_engine.com_printf(usage_note.into());
         return;
     }
 
@@ -68,7 +68,7 @@ pub extern "C" fn cmd_slap() {
             "client_id must be a number between 0 and {}.\n",
             maxclients-1
         );
-        quake_live_engine.com_printf(usage_note.as_str());
+        quake_live_engine.com_printf(usage_note.into());
         return;
     };
 
@@ -77,7 +77,7 @@ pub extern "C" fn cmd_slap() {
             "client_id must be a number between 0 and {}.\n",
             maxclients - 1
         );
-        quake_live_engine.com_printf(usage_note.as_str());
+        quake_live_engine.com_printf(usage_note.into());
         return;
     }
 
@@ -92,11 +92,11 @@ pub extern "C" fn cmd_slap() {
         return;
     };
     if !client_entity.in_use() || client_entity.get_health() <= 0 {
-        quake_live_engine.com_printf("The player is currently not active.\n");
+        quake_live_engine.com_printf("The player is currently not active.\n".into());
         return;
     }
 
-    quake_live_engine.com_printf("Slapping...\n");
+    quake_live_engine.com_printf("Slapping...\n".into());
 
     let Some(client) = Client::try_from(client_id).ok() else { return; };
     let message = if dmg != 0 {
@@ -109,7 +109,7 @@ pub extern "C" fn cmd_slap() {
         format!("print \"{}^7 was slapped\n\"\n", client.get_name())
     };
 
-    quake_live_engine.send_server_command(None, &message);
+    quake_live_engine.send_server_command(None, message.into());
 
     let mut rng = rand::thread_rng();
     let Some(client) = client_entity.get_game_client() else {
@@ -144,7 +144,7 @@ pub extern "C" fn cmd_slay() {
         let Some(command_name) = quake_live_engine.cmd_argv(0) else { return; };
         let usage_note = format!("Usage: {} <client_id> [damage]\n", command_name);
 
-        quake_live_engine.com_printf(usage_note.as_str());
+        quake_live_engine.com_printf(usage_note.into());
         return;
     }
 
@@ -157,7 +157,7 @@ pub extern "C" fn cmd_slay() {
             "client_id must be a number between 0 and {}.\n",
             maxclients-1
         );
-        quake_live_engine.com_printf(usage_note.as_str());
+        quake_live_engine.com_printf(usage_note.into());
         return;
     };
 
@@ -166,7 +166,7 @@ pub extern "C" fn cmd_slay() {
             "client_id must be a number between 0 and {}.\n",
             maxclients - 1
         );
-        quake_live_engine.com_printf(usage_note.as_str());
+        quake_live_engine.com_printf(usage_note.into());
         return;
     }
 
@@ -174,17 +174,17 @@ pub extern "C" fn cmd_slay() {
         return;
     };
     if !client_entity.in_use() || client_entity.get_health() <= 0 {
-        quake_live_engine.com_printf("The player is currently not active.\n");
+        quake_live_engine.com_printf("The player is currently not active.\n".into());
         return;
     }
 
-    quake_live_engine.com_printf("Slaying player...\n");
+    quake_live_engine.com_printf("Slaying player...\n".into());
 
     let Some(client) = Client::try_from(client_id).ok() else { return; };
 
     let message = format!("print \"{}^7 was slain!\n\"\n", client.get_name());
 
-    quake_live_engine.send_server_command(None, &message);
+    quake_live_engine.send_server_command(None, message.into());
 
     let mut mutable_client_entity = client_entity;
     mutable_client_entity.set_health(-40);
@@ -199,7 +199,8 @@ pub extern "C" fn cmd_slay() {
 // Execute a pyminqlx command as if it were the owner executing it.
 // Output will appear in the console.
 pub extern "C" fn cmd_py_rcon() {
-    let Some(commands) = QuakeLiveEngine::default().cmd_args() else { return;
+    let quake_live_engine = QuakeLiveEngine::default();
+    let Some(commands) = quake_live_engine.cmd_args() else { return;
     };
     #[cfg(not(feature = "cdispatchers"))]
     rcon_dispatcher(commands);
@@ -209,7 +210,7 @@ pub extern "C" fn cmd_py_rcon() {
             fn RconDispatcher(cmd: *const c_char);
         }
 
-        let c_cmd = CString::new(commands).unwrap();
+        let c_cmd = CString::new(commands.as_ref()).unwrap();
         unsafe { RconDispatcher(c_cmd.into_raw()) };
     }
 }
@@ -224,8 +225,9 @@ pub extern "C" fn cmd_py_command() {
             Some(args) => custom_command_handler.call1(py, (args,)),
         };
         if result.is_err() || !result.unwrap().is_true(py).unwrap() {
-            quake_live_engine
-                .com_printf("The command failed to be executed. pyshinqlx found no handler.\n");
+            quake_live_engine.com_printf(
+                "The command failed to be executed. pyshinqlx found no handler.\n".into(),
+            );
         }
     });
 }
@@ -237,7 +239,7 @@ pub extern "C" fn cmd_restart_python() {
         fn NewGameDispatcher(restart: c_int);
     }
 
-    QuakeLiveEngine::default().com_printf("Restarting Python...\n");
+    QuakeLiveEngine::default().com_printf("Restarting Python...\n".into());
     if pyminqlx_is_initialized() {
         #[cfg(feature = "cembed")]
         {
