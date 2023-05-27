@@ -23,7 +23,6 @@ use crate::quake_common::{
     FL_DROPPED_ITEM,
 };
 use crate::SV_MAXCLIENTS;
-use alloc::borrow::Cow;
 use lazy_static::lazy_static;
 use std::collections::HashMap;
 use std::f32::consts::PI;
@@ -773,12 +772,12 @@ impl Client {
         !self.client_t.gentity.is_null()
     }
 
-    pub(crate) fn disconnect(&self, reason: Cow<'_, str>) {
+    pub(crate) fn disconnect(&self, reason: &str) {
         extern "C" {
             static SV_DropClient: extern "C" fn(*const client_t, *const c_char);
         }
 
-        let c_reason = CString::new(reason.as_ref()).unwrap_or(CString::new("").unwrap());
+        let c_reason = CString::new(reason).unwrap_or(CString::new("").unwrap());
         unsafe {
             SV_DropClient(self.client_t, c_reason.into_raw());
         }
@@ -888,13 +887,13 @@ impl CurrentLevel {
             }
         }
 
-        shinqlx_set_configstring(CS_VOTE_STRING as i32, vote_disp.into());
+        shinqlx_set_configstring(CS_VOTE_STRING as i32, vote_disp);
         shinqlx_set_configstring(
             CS_VOTE_TIME as i32,
-            format!("{}", self.level.voteTime).as_str().into(),
+            format!("{}", self.level.voteTime).as_str(),
         );
-        shinqlx_set_configstring(CS_VOTE_YES as i32, "0".into());
-        shinqlx_set_configstring(CS_VOTE_NO as i32, "0".into());
+        shinqlx_set_configstring(CS_VOTE_YES as i32, "0");
+        shinqlx_set_configstring(CS_VOTE_NO as i32, "0");
     }
 
     pub(crate) fn set_training_map(&mut self, is_training_map: bool) {
@@ -936,31 +935,31 @@ impl CbufExecuteText for QuakeLiveEngine {
 }
 
 pub(crate) trait AddCommand {
-    fn add_command(&self, cmd: Cow<'_, str>, func: unsafe extern "C" fn());
+    fn add_command(&self, cmd: &str, func: unsafe extern "C" fn());
 }
 
 impl AddCommand for QuakeLiveEngine {
-    fn add_command(&self, cmd: Cow<'_, str>, func: unsafe extern "C" fn()) {
+    fn add_command(&self, cmd: &str, func: unsafe extern "C" fn()) {
         extern "C" {
             static Cmd_AddCommand: extern "C" fn(*const c_char, *const c_void);
         }
 
-        let c_cmd = CString::new(cmd.as_ref()).unwrap();
+        let c_cmd = CString::new(cmd).unwrap();
         unsafe { Cmd_AddCommand(c_cmd.into_raw(), func as *const c_void) }
     }
 }
 
 pub(crate) trait SetModuleOffset {
-    fn set_module_offset(&self, module_name: Cow<'_, str>, offset: unsafe extern "C" fn());
+    fn set_module_offset(&self, module_name: &str, offset: unsafe extern "C" fn());
 }
 
 impl SetModuleOffset for QuakeLiveEngine {
-    fn set_module_offset(&self, module_name: Cow<'_, str>, offset: unsafe extern "C" fn()) {
+    fn set_module_offset(&self, module_name: &str, offset: unsafe extern "C" fn()) {
         extern "C" {
             static Sys_SetModuleOffset: extern "C" fn(*const c_char, *const c_void);
         }
 
-        let c_module_name = CString::new(module_name.as_ref()).unwrap();
+        let c_module_name = CString::new(module_name).unwrap();
         unsafe { Sys_SetModuleOffset(c_module_name.into_raw(), offset as *const c_void) }
     }
 }
@@ -980,16 +979,16 @@ impl InitGame for QuakeLiveEngine {
 }
 
 pub(crate) trait ExecuteClientCommand {
-    fn execute_client_command(&self, client: Option<&Client>, cmd: Cow<'_, str>, client_ok: bool);
+    fn execute_client_command(&self, client: Option<&Client>, cmd: &str, client_ok: bool);
 }
 
 impl ExecuteClientCommand for QuakeLiveEngine {
-    fn execute_client_command(&self, client: Option<&Client>, cmd: Cow<'_, str>, client_ok: bool) {
+    fn execute_client_command(&self, client: Option<&Client>, cmd: &str, client_ok: bool) {
         extern "C" {
             static SV_ExecuteClientCommand: extern "C" fn(*const client_t, *const c_char, qboolean);
         }
 
-        let command_native = CString::new(cmd.as_ref()).unwrap();
+        let command_native = CString::new(cmd).unwrap();
         match client {
             Some(safe_client) => unsafe {
                 SV_ExecuteClientCommand(
@@ -1006,16 +1005,16 @@ impl ExecuteClientCommand for QuakeLiveEngine {
 }
 
 pub(crate) trait SendServerCommand {
-    fn send_server_command(&self, client: Option<Client>, command: Cow<'_, str>);
+    fn send_server_command(&self, client: Option<Client>, command: &str);
 }
 
 impl SendServerCommand for QuakeLiveEngine {
-    fn send_server_command(&self, client: Option<Client>, command: Cow<'_, str>) {
+    fn send_server_command(&self, client: Option<Client>, command: &str) {
         extern "C" {
             static SV_SendServerCommand: extern "C" fn(*const client_t, *const c_char, ...);
         }
 
-        let command_native = CString::new(command.as_ref()).unwrap();
+        let command_native = CString::new(command).unwrap();
         match client {
             Some(safe_client) => unsafe {
                 SV_SendServerCommand(safe_client.client_t, command_native.into_raw())
@@ -1040,47 +1039,47 @@ impl ClientEnterWorld for QuakeLiveEngine {
 }
 
 pub(crate) trait SetConfigstring {
-    fn set_configstring(&self, index: &i32, value: Cow<'_, str>);
+    fn set_configstring(&self, index: &i32, value: &str);
 }
 
 impl SetConfigstring for QuakeLiveEngine {
-    fn set_configstring(&self, index: &i32, value: Cow<'_, str>) {
+    fn set_configstring(&self, index: &i32, value: &str) {
         extern "C" {
             static SV_SetConfigstring: extern "C" fn(c_int, *const c_char);
         }
 
-        if let Ok(c_value) = CString::new(value.into_owned()) {
+        if let Ok(c_value) = CString::new(value) {
             unsafe { SV_SetConfigstring(index.to_owned(), c_value.into_raw()) }
         }
     }
 }
 
 pub(crate) trait ComPrintf {
-    fn com_printf(&self, msg: Cow<'_, str>);
+    fn com_printf(&self, msg: &str);
 }
 
 impl ComPrintf for QuakeLiveEngine {
-    fn com_printf(&self, msg: Cow<'_, str>) {
+    fn com_printf(&self, msg: &str) {
         extern "C" {
             static Com_Printf: extern "C" fn(*const c_char);
         }
 
-        let c_msg = CString::new(msg.as_ref()).unwrap();
+        let c_msg = CString::new(msg).unwrap();
         unsafe { Com_Printf(c_msg.into_raw()) }
     }
 }
 
 pub(crate) trait SpawnServer {
-    fn spawn_server(&self, server: Cow<'_, str>, kill_bots: bool);
+    fn spawn_server(&self, server: &str, kill_bots: bool);
 }
 
 impl SpawnServer for QuakeLiveEngine {
-    fn spawn_server(&self, server: Cow<'_, str>, kill_bots: bool) {
+    fn spawn_server(&self, server: &str, kill_bots: bool) {
         extern "C" {
             static SV_SpawnServer: extern "C" fn(*const c_char, qboolean);
         }
 
-        let c_server = CString::new(server.as_ref()).unwrap();
+        let c_server = CString::new(server).unwrap();
         unsafe { SV_SpawnServer(c_server.into_raw(), kill_bots.into()) }
     }
 }
@@ -1134,11 +1133,11 @@ impl ClientSpawn for QuakeLiveEngine {
 }
 
 pub(crate) trait CmdArgs {
-    fn cmd_args(&self) -> Option<Cow<'_, str>>;
+    fn cmd_args(&self) -> Option<String>;
 }
 
 impl CmdArgs for QuakeLiveEngine {
-    fn cmd_args(&self) -> Option<Cow<'_, str>> {
+    fn cmd_args(&self) -> Option<String> {
         extern "C" {
             static Cmd_Args: extern "C" fn() -> *const c_char;
         }
@@ -1147,7 +1146,8 @@ impl CmdArgs for QuakeLiveEngine {
         if cmd_args.is_null() {
             None
         } else {
-            Some(unsafe { CStr::from_ptr(cmd_args) }.to_string_lossy())
+            let cmd_args = unsafe { CStr::from_ptr(cmd_args) }.to_string_lossy();
+            Some(cmd_args.to_string())
         }
     }
 }
