@@ -59,14 +59,14 @@ pub(crate) static mut ALLOW_FREE_CLIENT: i32 = -1;
 fn initialize_static() {
     debug_println!("Initializing...");
     let quake_live_engine = QuakeLiveEngine::default();
-    quake_live_engine.add_command("cmd".into(), cmd_send_server_command);
-    quake_live_engine.add_command("cp".into(), cmd_center_print);
-    quake_live_engine.add_command("print".into(), cmd_regular_print);
-    quake_live_engine.add_command("slap".into(), cmd_slap);
-    quake_live_engine.add_command("slay".into(), cmd_slay);
-    quake_live_engine.add_command("qlx".into(), cmd_py_rcon);
-    quake_live_engine.add_command("pycmd".into(), cmd_py_command);
-    quake_live_engine.add_command("pyrestart".into(), cmd_restart_python);
+    quake_live_engine.add_command("cmd", cmd_send_server_command);
+    quake_live_engine.add_command("cp", cmd_center_print);
+    quake_live_engine.add_command("print", cmd_regular_print);
+    quake_live_engine.add_command("slap", cmd_slap);
+    quake_live_engine.add_command("slay", cmd_slay);
+    quake_live_engine.add_command("qlx", cmd_py_rcon);
+    quake_live_engine.add_command("pycmd", cmd_py_command);
+    quake_live_engine.add_command("pyrestart", cmd_restart_python);
 
     #[cfg(feature = "cembed")]
     extern "C" {
