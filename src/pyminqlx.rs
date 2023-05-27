@@ -104,7 +104,8 @@ pub(crate) fn client_command_dispatcher(client_id: i32, cmd: Cow<'_, str>) -> Op
     }
 
     let Some(client_command_handler) = (unsafe { CLIENT_COMMAND_HANDLER.as_ref() }) else {
-            return Some(cmd.into()); };
+        return Some(cmd.into());
+    };
 
     Python::with_gil(
         |py| match client_command_handler.call1(py, (client_id, cmd.as_ref())) {
@@ -113,10 +114,10 @@ pub(crate) fn client_command_dispatcher(client_id: i32, cmd: Cow<'_, str>) -> Op
                 Some(cmd.into())
             }
             Ok(returned) => {
-                if let Some(extracted_bool) = py_extract_bool_value(returned.as_ref(py)) {
-                    if !extracted_bool {
-                        return None;
-                    }
+                if py_extract_bool_value(returned.as_ref(py))
+                    .is_some_and(|extracted_bool| !extracted_bool)
+                {
+                    return None;
                 }
                 if let Some(extracted_string) = py_extract_str_value(returned.as_ref(py)) {
                     return Some(extracted_string);
@@ -137,7 +138,8 @@ pub(crate) fn server_command_dispatcher(
     }
 
     let Some(server_command_handler) = (unsafe { SERVER_COMMAND_HANDLER.as_ref() }) else {
-            return Some(cmd.into()); };
+        return Some(cmd.into());
+    };
 
     Python::with_gil(|py| {
         match server_command_handler.call1(py, (client_id.unwrap_or(-1), cmd.as_ref())) {
@@ -146,10 +148,10 @@ pub(crate) fn server_command_dispatcher(
                 Some(cmd.into())
             }
             Ok(returned) => {
-                if let Some(extracted_bool) = py_extract_bool_value(returned.as_ref(py)) {
-                    if !extracted_bool {
-                        return None;
-                    }
+                if py_extract_bool_value(returned.as_ref(py))
+                    .is_some_and(|extracted_bool| !extracted_bool)
+                {
+                    return None;
                 }
                 if let Some(extracted_string) = py_extract_str_value(returned.as_ref(py)) {
                     return Some(extracted_string);
@@ -183,8 +185,8 @@ pub(crate) fn client_connect_dispatcher(client_id: i32, is_bot: bool) -> Option<
     }
 
     let Some(client_connect_handler) = (unsafe { PLAYER_CONNECT_HANDLER.as_ref() }) else {
-            return None;
-        };
+        return None;
+    };
 
     unsafe {
         ALLOW_FREE_CLIENT = client_id;
@@ -195,10 +197,10 @@ pub(crate) fn client_connect_dispatcher(client_id: i32, is_bot: bool) -> Option<
             |py| match client_connect_handler.call1(py, (client_id, is_bot)) {
                 Err(_) => None,
                 Ok(returned) => {
-                    if let Some(extracted_bool) = py_extract_bool_value(returned.as_ref(py)) {
-                        if !extracted_bool {
-                            return Some("You are banned from this server.".into());
-                        }
+                    if py_extract_bool_value(returned.as_ref(py))
+                        .is_some_and(|extracted_bool| !extracted_bool)
+                    {
+                        return Some("You are banned from this server.".into());
                     }
                     if let Some(extracted_string) = py_extract_str_value(returned.as_ref(py)) {
                         return Some(extracted_string);
@@ -275,7 +277,8 @@ pub(crate) fn set_configstring_dispatcher(index: i32, value: Cow<'_, str>) -> Op
     }
 
     let Some(set_configstring_handler) = (unsafe { SET_CONFIGSTRING_HANDLER.as_ref() }) else {
-        return Some(value.into()) };
+        return Some(value.into())
+    };
     Python::with_gil(
         |py| match set_configstring_handler.call1(py, (index, value.as_ref())) {
             Err(_) => {
@@ -283,10 +286,10 @@ pub(crate) fn set_configstring_dispatcher(index: i32, value: Cow<'_, str>) -> Op
                 Some(value.into())
             }
             Ok(returned) => {
-                if let Some(extracted_bool) = py_extract_bool_value(returned.as_ref(py)) {
-                    if !extracted_bool {
-                        return None;
-                    }
+                if py_extract_bool_value(returned.as_ref(py))
+                    .is_some_and(|extracted_bool| !extracted_bool)
+                {
+                    return None;
                 }
                 if let Some(extracted_string) = py_extract_str_value(returned.as_ref(py)) {
                     return Some(extracted_string);
@@ -326,10 +329,10 @@ pub(crate) fn console_print_dispatcher(text: Cow<'_, str>) -> Option<String> {
                 Some(text.into())
             }
             Ok(returned) => {
-                if let Some(extracted_bool) = py_extract_bool_value(returned.as_ref(py)) {
-                    if !extracted_bool {
-                        return None;
-                    }
+                if py_extract_bool_value(returned.as_ref(py))
+                    .is_some_and(|extracted_bool| !extracted_bool)
+                {
+                    return None;
                 }
                 if let Some(extracted_string) = py_extract_str_value(returned.as_ref(py)) {
                     return Some(extracted_string);
@@ -647,7 +650,11 @@ fn set_cvar(cvar: &str, value: &str, flags: Option<i32>) -> PyResult<bool> {
             Ok(true)
         }
         Some(_) => {
-            quake_live_engine.set_cvar_forced(cvar, value, flags.is_some() && flags.unwrap() == -1);
+            quake_live_engine.set_cvar_forced(
+                cvar,
+                value,
+                flags.is_some_and(|unwrapped_flags| unwrapped_flags == -1),
+            );
             Ok(false)
         }
     }
@@ -780,10 +787,11 @@ static mut DAMAGE_HANDLER: Option<Py<PyAny>> = None;
 #[pyo3(signature = (event, handler=None))]
 fn register_handler(py: Python, event: &str, handler: Option<Py<PyAny>>) -> PyResult<()> {
     dbg!(event);
-    if let Some(ref handler_function) = handler {
-        if !handler_function.as_ref(py).is_callable() {
-            return Err(PyTypeError::new_err("The handler must be callable."));
-        }
+    if handler
+        .as_ref()
+        .is_some_and(|handler_function| !handler_function.as_ref(py).is_callable())
+    {
+        return Err(PyTypeError::new_err("The handler must be callable."));
     }
 
     match event {
