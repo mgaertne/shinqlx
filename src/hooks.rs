@@ -227,7 +227,12 @@ pub unsafe extern "C" fn ShiNQlx_SV_SendServerCommand(
         .unwrap()
         .to_string_lossy();
     if !cmd.is_empty() {
-        shinqlx_send_server_command(Client::try_from(client).ok(), cmd);
+        let client_result = Client::try_from(client);
+        if client.is_null()
+            || client_result.is_ok() && client_result.as_ref().unwrap().has_gentity()
+        {
+            shinqlx_send_server_command(client_result.ok(), cmd);
+        }
     }
 }
 
