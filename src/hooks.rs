@@ -157,38 +157,33 @@ pub(crate) fn shinqlx_execute_client_command(
     #[cfg(feature = "cdispatchers")]
     let res: *const c_char;
     let mut passed_on_cmd_str = cmd;
-    if let Some(safe_client) = &client {
-        if client_ok && safe_client.has_gentity() {
-            #[cfg(feature = "cdispatchers")]
-            {
-                extern "C" {
-                    fn ClientCommandDispatcher(
-                        client_id: c_int,
-                        cmd: *const c_char,
-                    ) -> *const c_char;
-                }
-
-                let passed_on_cmd = CString::new(passed_on_cmd_str.as_ref()).unwrap();
-                res = unsafe {
-                    ClientCommandDispatcher(safe_client.get_client_id(), passed_on_cmd.into_raw())
-                };
-                if res.is_null() {
-                    return;
-                }
-                passed_on_cmd_str = unsafe { CStr::from_ptr(res) }.to_string_lossy();
+    if client
+        .as_ref()
+        .is_some_and(|safe_client| safe_client.has_gentity())
+    {
+        let client_id = client
+            .as_ref()
+            .map(|safe_client| safe_client.get_client_id())
+            .unwrap();
+        #[cfg(feature = "cdispatchers")]
+        {
+            extern "C" {
+                fn ClientCommandDispatcher(client_id: c_int, cmd: *const c_char) -> *const c_char;
             }
 
-            #[cfg(not(feature = "cdispatchers"))]
-            {
-                match client_command_dispatcher(safe_client.get_client_id(), passed_on_cmd_str) {
-                    None => {
-                        return;
-                    }
-                    Some(dispatcher_result) => {
-                        passed_on_cmd_str = dispatcher_result.into();
-                    }
-                }
+            let passed_on_cmd = CString::new(passed_on_cmd_str.as_ref()).unwrap();
+            res = unsafe { ClientCommandDispatcher(client_id, passed_on_cmd.into_raw()) };
+            if res.is_null() {
+                return;
             }
+            passed_on_cmd_str = unsafe { CStr::from_ptr(res) }.to_string_lossy();
+        }
+
+        #[cfg(not(feature = "cdispatchers"))]
+        if let Some(dispatcher_result) =
+            client_command_dispatcher(client_id, passed_on_cmd_str.as_ref().into())
+        {
+            passed_on_cmd_str = dispatcher_result.into();
         }
     }
 
@@ -227,44 +222,61 @@ pub unsafe extern "C" fn ShiNQlx_SV_SendServerCommand(
         .unwrap()
         .to_string_lossy();
     if !cmd.is_empty() {
-        let client_result = Client::try_from(client);
-        if client.is_null()
-            || client_result.is_ok() && client_result.as_ref().unwrap().has_gentity()
-        {
-            shinqlx_send_server_command(client_result.ok(), cmd);
-        }
+        shinqlx_send_server_command(Client::try_from(client).ok(), cmd);
     }
 }
 
 pub(crate) fn shinqlx_send_server_command(client: Option<Client>, cmd: Cow<'_, str>) {
-    let client_id = match client {
-        Some(ref safe_client) => safe_client.get_client_id(),
-        None => -1,
-    };
-    #[cfg(feature = "cdispatchers")]
+    let mut passed_on_cmd_str = cmd;
+
+    if client
+        .as_ref()
+        .is_some_and(|safe_client| safe_client.has_gentity())
     {
-        extern "C" {
-            fn ServerCommandDispatcher(client_id: c_int, command: *const c_char) -> *const c_char;
+        let client_id = client
+            .as_ref()
+            .map(|safe_client| safe_client.get_client_id())
+            .unwrap();
+        #[cfg(feature = "cdispatchers")]
+        {
+            extern "C" {
+                fn ServerCommandDispatcher(
+                    client_id: c_int,
+                    command: *const c_char,
+                ) -> *const c_char;
+            }
+
+            let c_cmd = CString::new(passed_on_cmd_str.as_ref()).unwrap();
+            let res = unsafe { ServerCommandDispatcher(client_id, c_cmd.into_raw()) };
+            passed_on_cmd_str = unsafe { CStr::from_ptr(res) }.to_string_lossy();
         }
-
-        let c_cmd = CString::new(cmd.as_ref()).unwrap();
-        let res = unsafe { ServerCommandDispatcher(client_id as c_int, c_cmd.into_raw()) };
-
-        if res.is_null() {
-            return;
+        #[cfg(not(feature = "cdispatchers"))]
+        if let Some(res) =
+            server_command_dispatcher(Some(client_id), passed_on_cmd_str.as_ref().into())
+        {
+            passed_on_cmd_str = res.into();
         }
-
-        let result = unsafe { CStr::from_ptr(res) }.to_string_lossy();
-        if !result.is_empty() {
-            QuakeLiveEngine::default().send_server_command(client, result);
+    } else if client.as_ref().is_none() {
+        #[cfg(feature = "cdispatchers")]
+        {
+            extern "C" {
+                fn ServerCommandDispatcher(
+                    client_id: c_int,
+                    command: *const c_char,
+                ) -> *const c_char;
+            }
+            let c_cmd = CString::new(passed_on_cmd_str.as_ref()).unwrap();
+            let res = unsafe { ServerCommandDispatcher(-1, c_cmd.into_raw()) };
+            passed_on_cmd_str = unsafe { CStr::from_ptr(res) }.to_string_lossy();
+        }
+        #[cfg(not(feature = "cdispatchers"))]
+        if let Some(res) = server_command_dispatcher(None, passed_on_cmd_str.as_ref().into()) {
+            passed_on_cmd_str = res.into();
         }
     }
 
-    #[cfg(not(feature = "cdispatchers"))]
-    if let Some(res) = server_command_dispatcher(Some(client_id), cmd) {
-        if !res.is_empty() {
-            QuakeLiveEngine::default().send_server_command(client, res.into());
-        }
+    if !passed_on_cmd_str.is_empty() {
+        QuakeLiveEngine::default().send_server_command(client, passed_on_cmd_str);
     }
 }
 
