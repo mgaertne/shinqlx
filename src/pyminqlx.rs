@@ -24,6 +24,8 @@ use crate::quake_common::{
 };
 #[cfg(not(feature = "cembed"))]
 use crate::PyMinqlx_InitStatus_t;
+#[cfg(not(feature = "cdispatchers"))]
+use alloc::borrow::Cow;
 
 use crate::quake_common::cvar_flags::{
     CVAR_ARCHIVE, CVAR_CHEAT, CVAR_INIT, CVAR_LATCH, CVAR_NORESTART, CVAR_ROM, CVAR_SERVERINFO,
@@ -96,7 +98,7 @@ fn py_extract_int_value(value: &PyAny) -> Option<i32> {
 }
 
 #[cfg(not(feature = "cdispatchers"))]
-pub(crate) fn client_command_dispatcher(client_id: i32, cmd: &str) -> Option<String> {
+pub(crate) fn client_command_dispatcher(client_id: i32, cmd: Cow<'_, str>) -> Option<String> {
     if !pyminqlx_is_initialized() {
         return Some(cmd.into());
     }
@@ -105,7 +107,7 @@ pub(crate) fn client_command_dispatcher(client_id: i32, cmd: &str) -> Option<Str
             return Some(cmd.into()); };
 
     Python::with_gil(
-        |py| match client_command_handler.call1(py, (client_id, cmd)) {
+        |py| match client_command_handler.call1(py, (client_id, cmd.as_ref())) {
             Err(_) => {
                 dbg!("client_command_handler returned an error.\n");
                 Some(cmd.into())
@@ -126,7 +128,10 @@ pub(crate) fn client_command_dispatcher(client_id: i32, cmd: &str) -> Option<Str
 }
 
 #[cfg(not(feature = "cdispatchers"))]
-pub(crate) fn server_command_dispatcher(client_id: Option<i32>, cmd: &str) -> Option<String> {
+pub(crate) fn server_command_dispatcher(
+    client_id: Option<i32>,
+    cmd: Cow<'_, str>,
+) -> Option<String> {
     if !pyminqlx_is_initialized() {
         return Some(cmd.into());
     }
@@ -134,8 +139,8 @@ pub(crate) fn server_command_dispatcher(client_id: Option<i32>, cmd: &str) -> Op
     let Some(server_command_handler) = (unsafe { SERVER_COMMAND_HANDLER.as_ref() }) else {
             return Some(cmd.into()); };
 
-    Python::with_gil(
-        |py| match server_command_handler.call1(py, (client_id.unwrap_or(-1), cmd)) {
+    Python::with_gil(|py| {
+        match server_command_handler.call1(py, (client_id.unwrap_or(-1), cmd.as_ref())) {
             Err(_) => {
                 dbg!("server_command_handler returned an error.\n");
                 Some(cmd.into())
@@ -151,8 +156,8 @@ pub(crate) fn server_command_dispatcher(client_id: Option<i32>, cmd: &str) -> Op
                 }
                 Some(cmd.into())
             }
-        },
-    )
+        }
+    })
 }
 
 #[cfg(not(feature = "cdispatchers"))]
@@ -211,7 +216,7 @@ pub(crate) fn client_connect_dispatcher(client_id: i32, is_bot: bool) -> Option<
 }
 
 #[cfg(not(feature = "cdispatchers"))]
-pub(crate) fn client_disconnect_dispatcher(client_id: i32, reason: &str) {
+pub(crate) fn client_disconnect_dispatcher(client_id: i32, reason: Cow<'_, str>) {
     if !pyminqlx_is_initialized() {
         return;
     }
@@ -221,7 +226,7 @@ pub(crate) fn client_disconnect_dispatcher(client_id: i32, reason: &str) {
         ALLOW_FREE_CLIENT = client_id;
     }
     Python::with_gil(|py| {
-        let result = client_disconnect_handler.call1(py, (client_id, reason));
+        let result = client_disconnect_handler.call1(py, (client_id, reason.as_ref()));
         if result.is_err() {
             dbg!("client_disconnect_handler returned an error.\n");
         }
@@ -264,14 +269,15 @@ pub(crate) fn new_game_dispatcher(restart: bool) {
 }
 
 #[cfg(not(feature = "cdispatchers"))]
-pub(crate) fn set_configstring_dispatcher(index: i32, value: &str) -> Option<String> {
+pub(crate) fn set_configstring_dispatcher(index: i32, value: Cow<'_, str>) -> Option<String> {
     if !pyminqlx_is_initialized() {
         return Some(value.into());
     }
+
     let Some(set_configstring_handler) = (unsafe { SET_CONFIGSTRING_HANDLER.as_ref() }) else {
         return Some(value.into()) };
     Python::with_gil(
-        |py| match set_configstring_handler.call1(py, (index, value)) {
+        |py| match set_configstring_handler.call1(py, (index, value.as_ref())) {
             Err(_) => {
                 dbg!("set_configstring_handler returned an error.\n");
                 Some(value.into())
@@ -292,14 +298,14 @@ pub(crate) fn set_configstring_dispatcher(index: i32, value: &str) -> Option<Str
 }
 
 #[cfg(not(feature = "cdispatchers"))]
-pub(crate) fn rcon_dispatcher(cmd: &str) {
+pub(crate) fn rcon_dispatcher(cmd: Cow<'_, str>) {
     if !pyminqlx_is_initialized() {
         return;
     }
 
     if let Some(rcon_handler) = unsafe { RCON_HANDLER.as_ref() } {
         Python::with_gil(|py| {
-            let result = rcon_handler.call1(py, (cmd,));
+            let result = rcon_handler.call1(py, (cmd.as_ref(),));
             if result.is_err() {
                 dbg!("rcon_handler returned an error.\n");
             }
@@ -308,28 +314,30 @@ pub(crate) fn rcon_dispatcher(cmd: &str) {
 }
 
 #[cfg(not(feature = "cdispatchers"))]
-pub(crate) fn console_print_dispatcher(text: &str) -> Option<String> {
+pub(crate) fn console_print_dispatcher(text: Cow<'_, str>) -> Option<String> {
     if !pyminqlx_is_initialized() {
         return Some(text.into());
     }
     let Some(console_print_handler) = (unsafe { CONSOLE_PRINT_HANDLER.as_ref() }) else { return Some(text.into()); };
-    Python::with_gil(|py| match console_print_handler.call1(py, (text,)) {
-        Err(_) => {
-            dbg!("console_print_handler returned an error.\n");
-            Some(text.into())
-        }
-        Ok(returned) => {
-            if let Some(extracted_bool) = py_extract_bool_value(returned.as_ref(py)) {
-                if !extracted_bool {
-                    return None;
+    Python::with_gil(
+        |py| match console_print_handler.call1(py, (text.as_ref(),)) {
+            Err(_) => {
+                dbg!("console_print_handler returned an error.\n");
+                Some(text.into())
+            }
+            Ok(returned) => {
+                if let Some(extracted_bool) = py_extract_bool_value(returned.as_ref(py)) {
+                    if !extracted_bool {
+                        return None;
+                    }
                 }
+                if let Some(extracted_string) = py_extract_str_value(returned.as_ref(py)) {
+                    return Some(extracted_string);
+                }
+                Some(text.into())
             }
-            if let Some(extracted_string) = py_extract_str_value(returned.as_ref(py)) {
-                return Some(extracted_string);
-            }
-            Some(text.into())
-        }
-    })
+        },
+    )
 }
 
 #[cfg(not(feature = "cdispatchers"))]
@@ -560,7 +568,7 @@ fn get_userinfo(client_id: i32) -> PyResult<Option<String>> {
 fn send_server_command(client_id: Option<i32>, cmd: &str) -> PyResult<bool> {
     match client_id {
         None => {
-            shinqlx_send_server_command(None, cmd);
+            shinqlx_send_server_command(None, cmd.into());
             Ok(true)
         }
         Some(actual_client_id) => {
@@ -577,7 +585,7 @@ fn send_server_command(client_id: Option<i32>, cmd: &str) -> PyResult<bool> {
                     if client.get_state() != CS_ACTIVE as i32 {
                         Ok(false)
                     } else {
-                        shinqlx_send_server_command(Some(client), cmd);
+                        shinqlx_send_server_command(Some(client), cmd.into());
                         Ok(true)
                     }
                 }
@@ -603,7 +611,7 @@ fn client_command(client_id: i32, cmd: &str) -> PyResult<bool> {
             if [CS_FREE as i32, CS_ZOMBIE as i32].contains(&client.get_state()) {
                 Ok(false)
             } else {
-                shinqlx_execute_client_command(Some(client), cmd, true);
+                shinqlx_execute_client_command(Some(client), cmd.into(), true);
                 Ok(true)
             }
         }
@@ -681,7 +689,7 @@ fn kick(client_id: i32, reason: Option<&str>) -> PyResult<()> {
             } else {
                 reason.unwrap_or("was kicked.")
             };
-            shinqlx_drop_client(&client, reason_str);
+            shinqlx_drop_client(&client, reason_str.into());
             Ok(())
         }
     }
@@ -692,7 +700,7 @@ fn kick(client_id: i32, reason: Option<&str>) -> PyResult<()> {
 #[pyo3(name = "console_print")]
 fn console_print(text: &str) {
     let formatted_string = format!("{}\n", text);
-    shinqlx_com_printf(&formatted_string);
+    shinqlx_com_printf(formatted_string.into());
 }
 
 /// Get a configstring.
@@ -718,7 +726,7 @@ fn set_configstring(config_id: i32, value: &str) -> PyResult<()> {
             MAX_CONFIGSTRINGS - 1
         )));
     }
-    shinqlx_set_configstring(config_id, value);
+    shinqlx_set_configstring(config_id, value.into());
     Ok(())
 }
 
@@ -747,7 +755,7 @@ fn force_vote(pass: bool) -> bool {
 #[pyfunction]
 #[pyo3(name = "add_console_command")]
 fn add_console_command(command: &str) {
-    QuakeLiveEngine::default().add_command(command, cmd_py_command);
+    QuakeLiveEngine::default().add_command(command.into(), cmd_py_command);
 }
 
 static mut CLIENT_COMMAND_HANDLER: Option<Py<PyAny>> = None;
@@ -2078,12 +2086,12 @@ fn dev_print_items() {
         .collect();
     let quake_live_engine = QuakeLiveEngine::default();
     if printed_items.is_empty() {
-        quake_live_engine.send_server_command(None, "print \"No items found in the map\n\"");
+        quake_live_engine.send_server_command(None, "print \"No items found in the map\n\"".into());
         return;
     }
     quake_live_engine.send_server_command(
         None,
-        format!("print \"{}\n\"", printed_items.join("\n")).as_str(),
+        format!("print \"{}\n\"", printed_items.join("\n")).into(),
     );
 
     let remaining_items: Vec<String> = formatted_items
@@ -2093,10 +2101,12 @@ fn dev_print_items() {
         .collect();
 
     if !remaining_items.is_empty() {
-        quake_live_engine
-            .send_server_command(None, "print \"Check server console for other items\n\"\n");
+        quake_live_engine.send_server_command(
+            None,
+            "print \"Check server console for other items\n\"\n".into(),
+        );
         for item in remaining_items {
-            quake_live_engine.com_printf(item.as_str());
+            quake_live_engine.com_printf(item.into());
         }
     }
 }
