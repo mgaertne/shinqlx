@@ -10,9 +10,6 @@
 #include "quake_common.h"
 #include "patterns.h"
 #include "maps_parser.h"
-#ifndef NOPY
-#include "pyminqlx.h"
-#endif
 
 // For comparison with the dedi's executable name to avoid segfaulting
 // bash and the likes if we run this through a script.

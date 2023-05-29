@@ -11,10 +11,6 @@
 #include "quake_common.h"
 #include "simple_hook.h"
 
-#ifndef NOPY
-#include "pyminqlx.h"
-#endif
-
 // qagame module.
 void* qagame;
 void* qagame_dllentry;

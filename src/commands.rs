@@ -1,23 +1,15 @@
-#[cfg(not(feature = "cembed"))]
-use crate::pyminqlx::pyminqlx_initialize;
-use crate::pyminqlx::pyminqlx_is_initialized;
-#[cfg(not(feature = "cembed"))]
-use crate::pyminqlx::pyminqlx_reload;
-use crate::pyminqlx::CUSTOM_COMMAND_HANDLER;
-#[cfg(not(feature = "cdispatchers"))]
-use crate::pyminqlx::{new_game_dispatcher, rcon_dispatcher};
-use crate::quake_common::entity_event_t::{EV_DEATH1, EV_GIB_PLAYER, EV_PAIN};
+use crate::pyminqlx::{
+    new_game_dispatcher, pyminqlx_initialize, pyminqlx_is_initialized, pyminqlx_reload,
+    rcon_dispatcher, CUSTOM_COMMAND_HANDLER,
+};
 use crate::quake_live_engine::{
     Client, CmdArgc, CmdArgs, CmdArgv, ComPrintf, GameAddEvent, GameEntity, QuakeLiveEngine,
     SendServerCommand,
 };
-#[cfg(feature = "cembed")]
-use crate::PyMinqlx_InitStatus_t;
+use crate::quake_types::entity_event_t::{EV_DEATH1, EV_GIB_PLAYER, EV_PAIN};
 use crate::SV_MAXCLIENTS;
 use pyo3::Python;
 use rand::Rng;
-#[cfg(feature = "cdispatchers")]
-use std::ffi::{c_char, c_int, CString};
 
 #[no_mangle]
 pub extern "C" fn cmd_send_server_command() {
@@ -202,17 +194,7 @@ pub extern "C" fn cmd_py_rcon() {
     let quake_live_engine = QuakeLiveEngine::default();
     let Some(commands) = quake_live_engine.cmd_args() else { return;
     };
-    #[cfg(not(feature = "cdispatchers"))]
     rcon_dispatcher(commands.as_str());
-    #[cfg(feature = "cdispatchers")]
-    {
-        extern "C" {
-            fn RconDispatcher(cmd: *const c_char);
-        }
-
-        let c_cmd = CString::new(commands).unwrap();
-        unsafe { RconDispatcher(c_cmd.into_raw()) };
-    }
 }
 
 #[no_mangle]
@@ -233,52 +215,17 @@ pub extern "C" fn cmd_py_command() {
 
 #[no_mangle]
 pub extern "C" fn cmd_restart_python() {
-    #[cfg(feature = "cdispatchers")]
-    extern "C" {
-        fn NewGameDispatcher(restart: c_int);
-    }
-
     QuakeLiveEngine::default().com_printf("Restarting Python...\n");
     if pyminqlx_is_initialized() {
-        #[cfg(feature = "cembed")]
-        {
-            extern "C" {
-                fn PyMinqlx_Finalize() -> PyMinqlx_InitStatus_t;
-            }
-
-            unsafe { PyMinqlx_Finalize() };
-        }
-        #[cfg(not(feature = "cembed"))]
-        {
-            pyminqlx_reload();
-            // minqlx initializes after the first new game starts, but since the game already
-            // start, we manually trigger the event to make it initialize properly.
-            #[cfg(feature = "cdispatchers")]
-            unsafe {
-                NewGameDispatcher(0)
-            };
-            #[cfg(not(feature = "cdispatchers"))]
-            new_game_dispatcher(false);
-            return;
-        }
+        pyminqlx_reload();
+        // minqlx initializes after the first new game starts, but since the game already
+        // start, we manually trigger the event to make it initialize properly.
+        new_game_dispatcher(false);
+        return;
     }
-    #[cfg(feature = "cembed")]
-    {
-        extern "C" {
-            fn PyMinqlx_Initialize() -> PyMinqlx_InitStatus_t;
-        }
-
-        unsafe { PyMinqlx_Initialize() };
-    }
-    #[cfg(not(feature = "cembed"))]
     pyminqlx_initialize();
 
     // minqlx initializes after the first new game starts, but since the game already
     // start, we manually trigger the event to make it initialize properly.
-    #[cfg(feature = "cdispatchers")]
-    unsafe {
-        NewGameDispatcher(0)
-    };
-    #[cfg(not(feature = "cdispatchers"))]
     new_game_dispatcher(false);
 }

@@ -5,35 +5,35 @@
 #[cfg(test)]
 #[macro_use]
 extern crate hamcrest;
-extern crate alloc;
 
 macro_rules! debug_println {
     () => {
-        println!("{}", crate::quake_common::DEBUG_PRINT_PREFIX)
+        println!("{}", crate::DEBUG_PRINT_PREFIX)
     };
     ($($arg:tt)*) => {
-        println!("{} {}", crate::quake_common::DEBUG_PRINT_PREFIX, $($arg)*)
+        println!("{} {}", crate::DEBUG_PRINT_PREFIX, $($arg)*)
     };
 }
 
 mod commands;
 mod hooks;
 mod pyminqlx;
-mod quake_common;
 mod quake_live_engine;
+mod quake_types;
 
 use crate::commands::{
     cmd_center_print, cmd_py_command, cmd_py_rcon, cmd_regular_print, cmd_restart_python,
     cmd_send_server_command, cmd_slap, cmd_slay,
 };
-#[cfg(not(feature = "cembed"))]
 use crate::pyminqlx::pyminqlx_initialize;
-#[cfg(feature = "cembed")]
-use crate::quake_common::cvar_t;
 use crate::quake_live_engine::{AddCommand, FindCVar, QuakeLiveEngine};
 use crate::PyMinqlx_InitStatus_t::PYM_SUCCESS;
 use ctor::ctor;
 use std::env::args;
+
+pub(crate) const DEBUG_PRINT_PREFIX: &str = "[shinqlx]";
+
+pub(crate) const SV_TAGS_PREFIX: &str = "shinqlx";
 
 #[allow(non_camel_case_types)]
 #[allow(non_camel_case_types)]
@@ -68,15 +68,6 @@ fn initialize_static() {
     quake_live_engine.add_command("pycmd", cmd_py_command);
     quake_live_engine.add_command("pyrestart", cmd_restart_python);
 
-    #[cfg(feature = "cembed")]
-    extern "C" {
-        fn PyMinqlx_Initialize() -> PyMinqlx_InitStatus_t;
-    }
-
-    #[cfg(feature = "cembed")]
-    let res = unsafe { PyMinqlx_Initialize() };
-
-    #[cfg(not(feature = "cembed"))]
     let res = pyminqlx_initialize();
 
     if res != PYM_SUCCESS {
@@ -92,15 +83,6 @@ fn initialize_cvars() {
     let Some(maxclients) = QuakeLiveEngine::default().find_cvar("sv_maxclients") else {
         return;
     };
-
-    #[cfg(feature = "cembed")]
-    {
-        extern "C" {
-            static mut sv_maxclients: *const cvar_t;
-        }
-
-        unsafe { sv_maxclients = maxclients.get_cvar() };
-    }
 
     unsafe { SV_MAXCLIENTS = maxclients.get_integer() };
     unsafe { CVARS_INITIALIZED = true };
