@@ -7,7 +7,7 @@ use crate::pyminqlx::{
 };
 use crate::quake_common::clientState_t::CS_PRIMED;
 use crate::quake_common::{
-    cbufExec_t, client_t, gentity_t, qboolean, usercmd_t, MAX_MSGLEN, SV_TAGS_PREFIX,
+    cbufExec_t, client_t, gentity_t, qboolean, usercmd_t, MAX_CLIENTS, MAX_MSGLEN, SV_TAGS_PREFIX,
 };
 use crate::quake_live_engine::{
     AddCommand, CbufExecuteText, Client, ClientConnect, ClientEnterWorld, ClientSpawn, ComPrintf,
@@ -149,10 +149,10 @@ pub extern "C" fn ShiNQlx_SV_ExecuteClientCommand(
 }
 
 pub(crate) fn shinqlx_execute_client_command(client: Option<Client>, cmd: &str, client_ok: bool) {
-    let mut passed_on_cmd_str = cmd.to_string();
-    if client
-        .as_ref()
-        .is_some_and(|safe_client| safe_client.has_gentity())
+    let passed_on_cmd_str = if client_ok
+        && client
+            .as_ref()
+            .is_some_and(|safe_client| safe_client.has_gentity())
     {
         let client_id = client
             .as_ref()
@@ -169,16 +169,18 @@ pub(crate) fn shinqlx_execute_client_command(client: Option<Client>, cmd: &str, 
             if res.is_null() {
                 return;
             }
-            passed_on_cmd_str = unsafe { CStr::from_ptr(res) }.to_string_lossy().to_string();
+            unsafe { CStr::from_ptr(res) }.to_string_lossy().to_string()
         }
 
         #[cfg(not(feature = "cdispatchers"))]
-        if let Some(dispatcher_result) =
-            client_command_dispatcher(client_id, passed_on_cmd_str.as_ref())
-        {
-            passed_on_cmd_str = dispatcher_result;
+        if let Some(dispatcher_result) = client_command_dispatcher(client_id, cmd) {
+            dispatcher_result
+        } else {
+            return;
         }
-    }
+    } else {
+        cmd.into()
+    };
 
     if !passed_on_cmd_str.is_empty() {
         QuakeLiveEngine::default().execute_client_command(
@@ -612,6 +614,9 @@ extern "C" fn ShiNQlx_G_Damage(
     #[cfg(not(feature = "cdispatchers"))]
     {
         if let Ok(target_entity) = GameEntity::try_from(target) {
+            if !(0..MAX_CLIENTS).contains(&(target_entity.get_client_id() as u32)) {
+                return;
+            }
             if attacker.is_null() || unsafe { (*attacker).client.is_null() } {
                 damage_dispatcher(
                     target_entity.get_client_id(),
@@ -633,13 +638,15 @@ extern "C" fn ShiNQlx_G_Damage(
                     );
                 }
                 Ok(attacker_entity) => {
-                    damage_dispatcher(
-                        target_entity.get_client_id(),
-                        Some(attacker_entity.get_client_id()),
-                        damage,
-                        dflags,
-                        means_of_death,
-                    );
+                    if (0..MAX_CLIENTS).contains(&(attacker_entity.get_client_id() as u32)) {
+                        damage_dispatcher(
+                            target_entity.get_client_id(),
+                            Some(attacker_entity.get_client_id()),
+                            damage,
+                            dflags,
+                            means_of_death,
+                        );
+                    }
                 }
             }
         }
