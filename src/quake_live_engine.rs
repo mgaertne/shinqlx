@@ -1,22 +1,22 @@
 use crate::hooks::{shinqlx_set_configstring, ShiNQlx_SV_SetConfigstring};
-use crate::quake_common::clientConnected_t::CON_DISCONNECTED;
-use crate::quake_common::entityType_t::ET_ITEM;
-use crate::quake_common::entity_event_t::EV_ITEM_RESPAWN;
-use crate::quake_common::itemType_t::IT_WEAPON;
-use crate::quake_common::meansOfDeath_t::MOD_KAMIKAZE;
-use crate::quake_common::persistantFields_t::PERS_ROUND_SCORE;
-use crate::quake_common::pmtype_t::PM_NORMAL;
-use crate::quake_common::powerup_t::{
+use crate::quake_types::clientConnected_t::CON_DISCONNECTED;
+use crate::quake_types::entityType_t::ET_ITEM;
+use crate::quake_types::entity_event_t::EV_ITEM_RESPAWN;
+use crate::quake_types::itemType_t::IT_WEAPON;
+use crate::quake_types::meansOfDeath_t::MOD_KAMIKAZE;
+use crate::quake_types::persistantFields_t::PERS_ROUND_SCORE;
+use crate::quake_types::pmtype_t::PM_NORMAL;
+use crate::quake_types::powerup_t::{
     PW_BATTLESUIT, PW_HASTE, PW_INVIS, PW_INVULNERABILITY, PW_QUAD, PW_REGEN,
 };
-use crate::quake_common::privileges_t::{PRIV_ADMIN, PRIV_BANNED, PRIV_MOD, PRIV_NONE, PRIV_ROOT};
-use crate::quake_common::statIndex_t::{
+use crate::quake_types::privileges_t::{PRIV_ADMIN, PRIV_BANNED, PRIV_MOD, PRIV_NONE, PRIV_ROOT};
+use crate::quake_types::statIndex_t::{
     STAT_ARMOR, STAT_CUR_FLIGHT_FUEL, STAT_FLIGHT_REFUEL, STAT_FLIGHT_THRUST, STAT_HOLDABLE_ITEM,
     STAT_MAX_FLIGHT_FUEL, STAT_WEAPONS,
 };
-use crate::quake_common::team_t::TEAM_SPECTATOR;
-use crate::quake_common::voteState_t::{VOTE_NO, VOTE_PENDING, VOTE_YES};
-use crate::quake_common::{
+use crate::quake_types::team_t::TEAM_SPECTATOR;
+use crate::quake_types::voteState_t::{VOTE_NO, VOTE_PENDING, VOTE_YES};
+use crate::quake_types::{
     cbufExec_t, client_t, cvar_t, entity_event_t, gclient_t, gentity_t, gitem_t, level_locals_t,
     privileges_t, qboolean, serverStatic_t, trace_t, usercmd_t, vec3_t, CS_ITEMS, CS_VOTE_NO,
     CS_VOTE_STRING, CS_VOTE_TIME, CS_VOTE_YES, DAMAGE_NO_PROTECTION, EF_KAMIKAZE, EF_TALK,
@@ -705,11 +705,6 @@ impl CVar {
 
     pub(crate) fn get_integer(&self) -> i32 {
         self.cvar.integer
-    }
-
-    #[cfg(feature = "cembed")]
-    pub(crate) fn get_cvar(&self) -> &cvar_t {
-        self.cvar
     }
 }
 

@@ -7,8 +7,8 @@ use crate::pyminqlx::PythonPriorities::{PRI_HIGH, PRI_HIGHEST, PRI_LOW, PRI_LOWE
 use crate::pyminqlx::PythonReturnCodes::{
     RET_NONE, RET_STOP, RET_STOP_ALL, RET_STOP_EVENT, RET_USAGE,
 };
-use crate::quake_common::clientState_t::{CS_ACTIVE, CS_CONNECTED, CS_FREE, CS_PRIMED, CS_ZOMBIE};
-use crate::quake_common::meansOfDeath_t::{
+use crate::quake_types::clientState_t::{CS_ACTIVE, CS_CONNECTED, CS_FREE, CS_PRIMED, CS_ZOMBIE};
+use crate::quake_types::meansOfDeath_t::{
     MOD_BFG, MOD_BFG_SPLASH, MOD_CHAINGUN, MOD_CRUSH, MOD_FALLING, MOD_GAUNTLET, MOD_GRAPPLE,
     MOD_GRENADE, MOD_GRENADE_SPLASH, MOD_HMG, MOD_JUICED, MOD_KAMIKAZE, MOD_LAVA, MOD_LIGHTNING,
     MOD_LIGHTNING_DISCHARGE, MOD_MACHINEGUN, MOD_NAIL, MOD_PLASMA, MOD_PLASMA_SPLASH,
@@ -16,36 +16,31 @@ use crate::quake_common::meansOfDeath_t::{
     MOD_SHOTGUN, MOD_SLIME, MOD_SUICIDE, MOD_SWITCH_TEAMS, MOD_TARGET_LASER, MOD_TELEFRAG,
     MOD_THAW, MOD_TRIGGER_HURT, MOD_UNKNOWN, MOD_WATER,
 };
-use crate::quake_common::privileges_t::{PRIV_ADMIN, PRIV_BANNED, PRIV_MOD, PRIV_NONE, PRIV_ROOT};
-use crate::quake_common::team_t::{TEAM_BLUE, TEAM_FREE, TEAM_RED, TEAM_SPECTATOR};
-use crate::quake_common::{
+use crate::quake_types::privileges_t::{PRIV_ADMIN, PRIV_BANNED, PRIV_MOD, PRIV_NONE, PRIV_ROOT};
+use crate::quake_types::team_t::{TEAM_BLUE, TEAM_FREE, TEAM_RED, TEAM_SPECTATOR};
+use crate::quake_types::{
     gitem_t, DAMAGE_NO_ARMOR, DAMAGE_NO_KNOCKBACK, DAMAGE_NO_PROTECTION, DAMAGE_NO_TEAM_PROTECTION,
     DAMAGE_RADIUS, MAX_CONFIGSTRINGS, MAX_GENTITIES,
 };
-#[cfg(not(feature = "cembed"))]
 use crate::PyMinqlx_InitStatus_t;
 
-use crate::quake_common::cvar_flags::{
-    CVAR_ARCHIVE, CVAR_CHEAT, CVAR_INIT, CVAR_LATCH, CVAR_NORESTART, CVAR_ROM, CVAR_SERVERINFO,
-    CVAR_SYSTEMINFO, CVAR_TEMP, CVAR_USERINFO, CVAR_USER_CREATED,
-};
-use crate::quake_common::entityType_t::ET_ITEM;
 use crate::quake_live_engine::{
     AddCommand, Client, ComPrintf, ConsoleCommand, CurrentLevel, FindCVar, GameClient, GameEntity,
     GetCVar, GetConfigstring, QuakeLiveEngine, SendServerCommand, SetCVarForced, SetCVarLimit,
 };
-#[cfg(not(feature = "cembed"))]
+use crate::quake_types::cvar_flags::{
+    CVAR_ARCHIVE, CVAR_CHEAT, CVAR_INIT, CVAR_LATCH, CVAR_NORESTART, CVAR_ROM, CVAR_SERVERINFO,
+    CVAR_SYSTEMINFO, CVAR_TEMP, CVAR_USERINFO, CVAR_USER_CREATED,
+};
+use crate::quake_types::entityType_t::ET_ITEM;
 use crate::PyMinqlx_InitStatus_t::{
     PYM_ALREADY_INITIALIZED, PYM_MAIN_SCRIPT_ERROR, PYM_NOT_INITIALIZED_ERROR, PYM_SUCCESS,
 };
 use crate::{ALLOW_FREE_CLIENT, SV_MAXCLIENTS};
-#[cfg(not(feature = "cembed"))]
 use pyo3::append_to_inittab;
 use pyo3::exceptions::{PyTypeError, PyValueError};
 use pyo3::prelude::*;
-#[cfg(not(feature = "cembed"))]
 use pyo3::prepare_freethreaded_python;
-#[cfg(not(feature = "cembed"))]
 use pyo3::types::PyList;
 use pyo3::types::PyTuple;
 use std::ffi::{c_int, CStr};
@@ -95,7 +90,6 @@ fn py_extract_int_value(value: &PyAny) -> Option<i32> {
     }
 }
 
-#[cfg(not(feature = "cdispatchers"))]
 pub(crate) fn client_command_dispatcher(client_id: i32, cmd: &str) -> Option<String> {
     if !pyminqlx_is_initialized() {
         return Some(cmd.into());
@@ -126,7 +120,6 @@ pub(crate) fn client_command_dispatcher(client_id: i32, cmd: &str) -> Option<Str
     )
 }
 
-#[cfg(not(feature = "cdispatchers"))]
 pub(crate) fn server_command_dispatcher(client_id: Option<i32>, cmd: &str) -> Option<String> {
     if !pyminqlx_is_initialized() {
         return Some(cmd.into());
@@ -157,7 +150,6 @@ pub(crate) fn server_command_dispatcher(client_id: Option<i32>, cmd: &str) -> Op
     )
 }
 
-#[cfg(not(feature = "cdispatchers"))]
 pub(crate) fn frame_dispatcher() {
     if !pyminqlx_is_initialized() {
         return;
@@ -173,7 +165,6 @@ pub(crate) fn frame_dispatcher() {
     }
 }
 
-#[cfg(not(feature = "cdispatchers"))]
 pub(crate) fn client_connect_dispatcher(client_id: i32, is_bot: bool) -> Option<String> {
     if !pyminqlx_is_initialized() {
         return None;
@@ -210,7 +201,6 @@ pub(crate) fn client_connect_dispatcher(client_id: i32, is_bot: bool) -> Option<
     result
 }
 
-#[cfg(not(feature = "cdispatchers"))]
 pub(crate) fn client_disconnect_dispatcher(client_id: i32, reason: &str) {
     if !pyminqlx_is_initialized() {
         return;
@@ -231,7 +221,6 @@ pub(crate) fn client_disconnect_dispatcher(client_id: i32, reason: &str) {
     }
 }
 
-#[cfg(not(feature = "cdispatchers"))]
 pub(crate) fn client_loaded_dispatcher(client_id: i32) {
     if !pyminqlx_is_initialized() {
         return;
@@ -247,7 +236,6 @@ pub(crate) fn client_loaded_dispatcher(client_id: i32) {
     }
 }
 
-#[cfg(not(feature = "cdispatchers"))]
 pub(crate) fn new_game_dispatcher(restart: bool) {
     if !pyminqlx_is_initialized() {
         return;
@@ -263,7 +251,6 @@ pub(crate) fn new_game_dispatcher(restart: bool) {
     };
 }
 
-#[cfg(not(feature = "cdispatchers"))]
 pub(crate) fn set_configstring_dispatcher(index: i32, value: &str) -> Option<String> {
     if !pyminqlx_is_initialized() {
         return Some(value.into());
@@ -293,7 +280,6 @@ pub(crate) fn set_configstring_dispatcher(index: i32, value: &str) -> Option<Str
     )
 }
 
-#[cfg(not(feature = "cdispatchers"))]
 pub(crate) fn rcon_dispatcher(cmd: &str) {
     if !pyminqlx_is_initialized() {
         return;
@@ -309,7 +295,6 @@ pub(crate) fn rcon_dispatcher(cmd: &str) {
     }
 }
 
-#[cfg(not(feature = "cdispatchers"))]
 pub(crate) fn console_print_dispatcher(text: &str) -> Option<String> {
     if !pyminqlx_is_initialized() {
         return Some(text.into());
@@ -334,7 +319,6 @@ pub(crate) fn console_print_dispatcher(text: &str) -> Option<String> {
     })
 }
 
-#[cfg(not(feature = "cdispatchers"))]
 pub(crate) fn client_spawn_dispatcher(client_id: i32) {
     if !pyminqlx_is_initialized() {
         return;
@@ -349,7 +333,6 @@ pub(crate) fn client_spawn_dispatcher(client_id: i32) {
     }
 }
 
-#[cfg(not(feature = "cdispatchers"))]
 pub(crate) fn kamikaze_use_dispatcher(client_id: i32) {
     if !pyminqlx_is_initialized() {
         return;
@@ -364,7 +347,6 @@ pub(crate) fn kamikaze_use_dispatcher(client_id: i32) {
     }
 }
 
-#[cfg(not(feature = "cdispatchers"))]
 pub(crate) fn kamikaze_explode_dispatcher(client_id: i32, is_used_on_demand: bool) {
     if !pyminqlx_is_initialized() {
         return;
@@ -379,7 +361,6 @@ pub(crate) fn kamikaze_explode_dispatcher(client_id: i32, is_used_on_demand: boo
     }
 }
 
-#[cfg(not(feature = "cdispatchers"))]
 pub(crate) fn damage_dispatcher(
     target_client_id: i32,
     attacker_client_id: Option<i32>,
@@ -883,7 +864,6 @@ impl From<(f32, f32, f32)> for Vector3 {
     }
 }
 
-#[cfg(not(features = "cembed"))]
 #[cfg(test)]
 pub(crate) mod vector3_tests {
     use super::*;
@@ -1005,7 +985,6 @@ impl Weapons {
     }
 }
 
-#[cfg(not(features = "cembed"))]
 #[cfg(test)]
 pub(crate) mod weapons_tests {
     use super::*;
@@ -1038,7 +1017,6 @@ weapons = _minqlx.Weapons((False, False, False, False, False, False, False, Fals
     }
 }
 
-#[cfg(not(features = "cembed"))]
 #[cfg(test)]
 pub(crate) mod ammo_tests {
     use super::*;
@@ -1134,7 +1112,6 @@ impl Powerups {
     }
 }
 
-#[cfg(not(features = "cembed"))]
 #[cfg(test)]
 pub(crate) mod powerups_tests {
     use super::*;
@@ -1253,7 +1230,6 @@ impl Flight {
     }
 }
 
-#[cfg(not(features = "cembed"))]
 #[cfg(test)]
 pub(crate) mod flight_tests {
     use super::*;
@@ -2332,25 +2308,12 @@ fn pyminqlx_module(_py: Python<'_>, m: &PyModule) -> PyResult<()> {
     Ok(())
 }
 
-#[cfg(not(feature = "cembed"))]
 pub(crate) static mut PYMINQLX_INITIALIZED: bool = false;
 
 pub(crate) fn pyminqlx_is_initialized() -> bool {
-    #[cfg(not(feature = "cembed"))]
-    unsafe {
-        PYMINQLX_INITIALIZED
-    }
-    #[cfg(feature = "cembed")]
-    {
-        extern "C" {
-            fn PyMinqlx_IsInitialized() -> c_int;
-        }
-
-        unsafe { PyMinqlx_IsInitialized() != 0 }
-    }
+    unsafe { PYMINQLX_INITIALIZED }
 }
 
-#[cfg(not(feature = "cembed"))]
 pub(crate) fn pyminqlx_initialize() -> PyMinqlx_InitStatus_t {
     if pyminqlx_is_initialized() {
         #[cfg(debug_assertions)]
@@ -2386,7 +2349,6 @@ pub(crate) fn pyminqlx_initialize() -> PyMinqlx_InitStatus_t {
     }
 }
 
-#[cfg(not(feature = "cembed"))]
 pub(crate) fn pyminqlx_reload() -> PyMinqlx_InitStatus_t {
     if !pyminqlx_is_initialized() {
         #[cfg(debug_assertions)]

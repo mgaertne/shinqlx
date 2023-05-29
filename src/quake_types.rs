@@ -4,10 +4,6 @@
 #![allow(non_snake_case)]
 use std::ffi::{c_char, c_float, c_int, c_uchar, c_uint, c_ushort};
 
-pub(crate) const DEBUG_PRINT_PREFIX: &str = "[shinqlx]";
-
-pub(crate) const SV_TAGS_PREFIX: &str = "shinqlx";
-
 // these are the only configstrings that the system reserves, all the
 // other ones are strictly for servergame to clientgame communication
 pub const CS_SERVERINFO: u32 = 0; // an info string with all the serverinfo cvars

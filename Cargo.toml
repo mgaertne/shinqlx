@@ -32,13 +32,11 @@ codegen-units = 1
 ctor = "0.2.0"
 rand = "0.8.5"
 lazy_static = "1.4.0"
-
-[dependencies.pyo3]
-version = "0.18.3"
-features = ["pyo3-macros", "extension-module"]
+pyo3 = { version = "0.18.3", features = ["pyo3-macros", "extension-module"]}
 
 [build-dependencies]
 cc = "1.0"
+pyo3-build-config = { version = "0.18.3", features = ["resolve-config"] }
 
 [dev-dependencies]
 hamcrest = "*"
@@ -48,5 +46,3 @@ rstest = "0.17.0"
 [features]
 default = ["stable"]
 stable = []
-cdispatchers = []
-cembed = []
