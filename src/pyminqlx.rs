@@ -60,38 +60,38 @@ fn py_type_check(value: &PyAny, type_name: &str) -> bool {
 
 #[allow(dead_code)]
 fn py_extract_bool_value(value: &PyAny) -> Option<bool> {
-    if !py_type_check(value, "bool") {
-        None
-    } else {
+    if py_type_check(value, "bool") {
         let extracted_bool: PyResult<bool> = value.extract();
         match extracted_bool {
             Err(_) => None,
             Ok(bool) => Some(bool),
         }
+    } else {
+        None
     }
 }
 
 fn py_extract_str_value(value: &PyAny) -> Option<String> {
-    if !py_type_check(value, "str") {
-        None
-    } else {
+    if py_type_check(value, "str") {
         let extracted_string: PyResult<String> = value.extract();
         match extracted_string {
             Err(_) => None,
             Ok(string) => Some(string),
         }
+    } else {
+        None
     }
 }
 
 fn py_extract_int_value(value: &PyAny) -> Option<i32> {
-    if !py_type_check(value, "int") {
-        None
-    } else {
+    if py_type_check(value, "int") {
         let extracted_int: PyResult<i32> = value.extract();
         match extracted_int {
             Err(_) => None,
             Ok(int) => Some(int),
         }
+    } else {
+        None
     }
 }
 
@@ -115,12 +115,12 @@ pub(crate) fn client_command_dispatcher(client_id: i32, cmd: &str) -> Option<Str
                 if py_extract_bool_value(returned.as_ref(py))
                     .is_some_and(|extracted_bool| !extracted_bool)
                 {
-                    return None;
+                    None
+                } else if let Some(extracted_string) = py_extract_str_value(returned.as_ref(py)) {
+                    Some(extracted_string)
+                } else {
+                    Some(cmd.into())
                 }
-                if let Some(extracted_string) = py_extract_str_value(returned.as_ref(py)) {
-                    return Some(extracted_string);
-                }
-                Some(cmd.into())
             }
         },
     )
@@ -146,12 +146,12 @@ pub(crate) fn server_command_dispatcher(client_id: Option<i32>, cmd: &str) -> Op
                 if py_extract_bool_value(returned.as_ref(py))
                     .is_some_and(|extracted_bool| !extracted_bool)
                 {
-                    return None;
+                    None
+                } else if let Some(extracted_string) = py_extract_str_value(returned.as_ref(py)) {
+                    Some(extracted_string)
+                } else {
+                    Some(cmd.into())
                 }
-                if let Some(extracted_string) = py_extract_str_value(returned.as_ref(py)) {
-                    return Some(extracted_string);
-                }
-                Some(cmd.into())
             }
         },
     )
@@ -195,12 +195,10 @@ pub(crate) fn client_connect_dispatcher(client_id: i32, is_bot: bool) -> Option<
                     if py_extract_bool_value(returned.as_ref(py))
                         .is_some_and(|extracted_bool| !extracted_bool)
                     {
-                        return Some("You are banned from this server.".into());
+                        Some("You are banned from this server.".into())
+                    } else {
+                        py_extract_str_value(returned.as_ref(py))
                     }
-                    if let Some(extracted_string) = py_extract_str_value(returned.as_ref(py)) {
-                        return Some(extracted_string);
-                    }
-                    None
                 }
             },
         );
@@ -284,12 +282,12 @@ pub(crate) fn set_configstring_dispatcher(index: i32, value: &str) -> Option<Str
                 if py_extract_bool_value(returned.as_ref(py))
                     .is_some_and(|extracted_bool| !extracted_bool)
                 {
-                    return None;
+                    None
+                } else if let Some(extracted_string) = py_extract_str_value(returned.as_ref(py)) {
+                    Some(extracted_string)
+                } else {
+                    Some(value.into())
                 }
-                if let Some(extracted_string) = py_extract_str_value(returned.as_ref(py)) {
-                    return Some(extracted_string);
-                }
-                Some(value.into())
             }
         },
     )
@@ -326,12 +324,12 @@ pub(crate) fn console_print_dispatcher(text: &str) -> Option<String> {
             if py_extract_bool_value(returned.as_ref(py))
                 .is_some_and(|extracted_bool| !extracted_bool)
             {
-                return None;
+                None
+            } else if let Some(extracted_string) = py_extract_str_value(returned.as_ref(py)) {
+                Some(extracted_string)
+            } else {
+                Some(text.into())
             }
-            if let Some(extracted_string) = py_extract_str_value(returned.as_ref(py)) {
-                return Some(extracted_string);
-            }
-            Some(text.into())
         }
     })
 }
@@ -409,6 +407,8 @@ pub(crate) fn damage_dispatcher(
                 dbg!("damage_handler returned an error.\n");
                 if let Err(error) = returned_value {
                     dbg!(error);
+                    dbg!(target_client_id);
+                    dbg!(attacker_client_id);
                 }
             }
         });
@@ -782,7 +782,6 @@ static mut DAMAGE_HANDLER: Option<Py<PyAny>> = None;
 #[pyo3(name = "register_handler")]
 #[pyo3(signature = (event, handler=None))]
 fn register_handler(py: Python, event: &str, handler: Option<Py<PyAny>>) -> PyResult<()> {
-    dbg!(event);
     if handler
         .as_ref()
         .is_some_and(|handler_function| !handler_function.as_ref(py).is_callable())
