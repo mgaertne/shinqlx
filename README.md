@@ -1,7 +1,7 @@
 # shinqlx
 ![python](https://img.shields.io/badge/python-3.8%7C3.9%7C3.10%7C3.11-blue.svg)
 ![Tests](https://github.com/mgaertne/shinqlx/actions/workflows/test.yml/badge.svg)
-[![codecov](https://codecov.io/gh/mgaertne/shinqlx/branch/main/graph/badge.svg?token=4Lfg3k3LJ0)](https://codecov.io/gh/mgaertne/shinqlx)
+[![codecov](https://codecov.io/gh/mgaertne/shinqlx/branch/main/graph/badge.svg?token=VK9QI52BZX)](https://codecov.io/gh/mgaertne/shinqlx)
 
 ShiN0's Quake Live eXtension, implemented in Rust. Most functionality from [minqlx](https://raw.githubusercontent.com/MinoMino/minqlx) should work, if you provide the python files from minqlx in its minqlx.zip file. Support for Python 3.7 and above should work out of the box.
 
