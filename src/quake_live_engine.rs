@@ -1,7 +1,4 @@
-use crate::hooks::{
-    shinqlx_set_configstring, shinqlx_sv_setconfigstring, CLIENTCONNECT_DETOUR, CLIENTSPAWN_DETOUR,
-    G_STARTKAMIKAZE_DETOUR,
-};
+use crate::hooks::{shinqlx_set_configstring, shinqlx_sv_setconfigstring};
 use crate::hooks::{
     CMD_ADDCOMMAND_DETOUR, SV_CLIENTENTERWORLD_DETOUR, SV_DROPCLIENT_DETOUR,
     SV_EXECUTECLIENTCOMMAND_DETOUR, SV_SETCONFGISTRING_DETOUR, SV_SPAWNSERVER_DETOUR,
@@ -427,7 +424,11 @@ impl GameEntity {
     }
 
     pub(crate) fn start_kamikaze(&mut self) {
-        unsafe { G_STARTKAMIKAZE_DETOUR.call(self.gentity_t as *mut gentity_t) }
+        extern "C" {
+            static G_StartKamikaze: extern "C" fn(*const gentity_t);
+        }
+
+        unsafe { G_StartKamikaze(self.gentity_t as *const gentity_t) }
     }
 
     pub(crate) fn get_player_name(&self) -> String {
@@ -1096,12 +1097,17 @@ pub(crate) trait ClientConnect {
 
 impl ClientConnect for QuakeLiveEngine {
     fn client_connect(&self, client_num: i32, first_time: bool, is_bot: bool) -> Option<String> {
+        extern "C" {
+            static ClientConnect: extern "C" fn(c_int, qboolean, qboolean) -> *const c_char;
+        }
+
         unsafe {
-            let c_return = CLIENTCONNECT_DETOUR.call(client_num, first_time.into(), is_bot.into());
+            let c_return = ClientConnect(client_num, first_time.into(), is_bot.into());
             if c_return.is_null() {
-                return None;
+                None
+            } else {
+                Some(CStr::from_ptr(c_return).to_string_lossy().into())
             }
-            Some(CStr::from_ptr(c_return).to_string_lossy().into())
         }
     }
 }
@@ -1112,7 +1118,11 @@ pub(crate) trait ClientSpawn {
 
 impl ClientSpawn for QuakeLiveEngine {
     fn client_spawn(&self, ent: &mut GameEntity) {
-        unsafe { CLIENTSPAWN_DETOUR.call(ent.gentity_t as *mut gentity_t) };
+        extern "C" {
+            static ClientSpawn: extern "C" fn(*const gentity_t);
+        }
+
+        unsafe { ClientSpawn(ent.gentity_t) };
     }
 }
 

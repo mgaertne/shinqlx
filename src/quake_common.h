@@ -129,6 +129,11 @@ extern void __cdecl ShiNQlx_Com_Printf(char* fmt, ...);
 // VM replacement functions for hooks.
 extern void __cdecl ShiNQlx_G_RunFrame(int time);
 extern void __cdecl ShiNQlx_G_InitGame(int levelTime, int randomSeed, int restart);
+extern char* __cdecl ShiNQlx_ClientConnect(int clientNum, qboolean firstTime, qboolean isBot);
+extern void __cdecl ShiNQlx_ClientSpawn(gentity_t* ent);
+
+extern void __cdecl ShiNQlx_G_StartKamikaze(gentity_t* ent);
+extern void __cdecl ShiNQlx_G_Damage(gentity_t* target, gentity_t* inflictor, gentity_t* attacker, vec3_t dir, vec3_t point, int damage, int dflags, int mod);
 #endif
 
 // Custom commands added using Cmd_AddCommand during initialization.

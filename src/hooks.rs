@@ -64,6 +64,7 @@ fn shinqlx_sys_setmoduleoffset(module_name: *const c_char, offset: unsafe extern
         static mut qagame_dllentry: *mut c_void;
         static mut qagame: *mut c_void;
         fn SearchVmFunctions();
+        fn HookVm();
         fn InitializeVm();
         fn patch_vm();
         fn dladdr(addr: *const c_void, into: *mut DlInfo) -> c_int;
@@ -103,13 +104,7 @@ fn shinqlx_sys_setmoduleoffset(module_name: *const c_char, offset: unsafe extern
 
     unsafe {
         SearchVmFunctions();
-    }
-
-    if let Err(res) = hook_vm() {
-        debug_println!(format!("ERROR: failed to hook vm methods: {}", res));
-        debug_println!("Exiting.");
-    };
-    unsafe {
+        HookVm();
         InitializeVm();
         patch_vm();
     }
@@ -337,7 +332,8 @@ pub extern "C" fn ShiNQlx_G_RunFrame(time: c_int) {
     QuakeLiveEngine::default().run_frame(time);
 }
 
-pub(crate) fn shinqlx_clientconnect(
+#[no_mangle]
+pub extern "C" fn ShiNQlx_ClientConnect(
     client_num: c_int,
     first_time: qboolean,
     is_bot: qboolean,
@@ -366,7 +362,8 @@ pub(crate) fn shinqlx_clientconnect(
     }
 }
 
-fn shinqlx_clientspawn(ent: *mut gentity_t) {
+#[no_mangle]
+pub extern "C" fn ShiNQlx_ClientSpawn(ent: *mut gentity_t) {
     let Some(game_entity): Option<GameEntity> = ent.try_into().ok() else {
         return;
     };
@@ -383,7 +380,8 @@ pub(crate) fn shinqlx_client_spawn(mut game_entity: GameEntity) {
     client_spawn_dispatcher(game_entity.get_client_id());
 }
 
-fn shinqlx_g_startkamikaze(ent: *mut gentity_t) {
+#[no_mangle]
+pub extern "C" fn ShiNQlx_G_StartKamikaze(ent: *mut gentity_t) {
     let Some(game_entity): Option<GameEntity> = ent.try_into().ok() else {
         return;
     };
@@ -410,8 +408,8 @@ fn shinqlx_g_startkamikaze(ent: *mut gentity_t) {
     kamikaze_explode_dispatcher(client_id, mut_game_entity.get_game_client().is_some())
 }
 
-#[allow(clippy::too_many_arguments)]
-fn shinqlx_g_damage(
+#[no_mangle]
+pub extern "C" fn ShiNQlx_G_Damage(
     target: *mut gentity_t,    // entity that is being damaged
     inflictor: *mut gentity_t, // entity that is causing the damage
     attacker: *mut gentity_t,  // entity that caused the inflictor to damage targ
@@ -550,73 +548,6 @@ pub(crate) fn hook_static() -> Result<(), Box<dyn Error>> {
         fn HookStatic();
     }
     unsafe { HookStatic() };
-
-    Ok(())
-}
-
-static_detour! {
-    pub(crate) static CLIENTCONNECT_DETOUR: unsafe extern "C" fn(c_int, qboolean, qboolean) -> *const c_char;
-    pub(crate) static G_STARTKAMIKAZE_DETOUR: unsafe extern "C" fn(*mut gentity_t);
-    pub(crate) static CLIENTSPAWN_DETOUR: unsafe extern "C" fn(*mut gentity_t);
-    pub(crate) static G_DAMAGE_DETOUR: unsafe extern "C" fn(
-        *mut gentity_t,
-        *mut gentity_t,
-        *mut gentity_t,
-        *const c_float,
-        *const c_float,
-        c_int,
-        c_int,
-        c_int
-    );
-}
-
-pub(crate) fn hook_vm() -> Result<(), Box<dyn Error>> {
-    debug_println!("Hooking VM functions...");
-    extern "C" {
-        fn HookVm();
-    }
-    unsafe { HookVm() };
-
-    extern "C" {
-        static ClientConnect: unsafe extern "C" fn(c_int, qboolean, qboolean) -> *const c_char;
-    }
-    unsafe {
-        CLIENTCONNECT_DETOUR.initialize(ClientConnect, shinqlx_clientconnect)?;
-        CLIENTCONNECT_DETOUR.enable()?;
-    }
-
-    extern "C" {
-        static G_StartKamikaze: unsafe extern "C" fn(*mut gentity_t);
-    }
-    unsafe {
-        G_STARTKAMIKAZE_DETOUR.initialize(G_StartKamikaze, shinqlx_g_startkamikaze)?;
-        G_STARTKAMIKAZE_DETOUR.enable()?;
-    }
-
-    extern "C" {
-        static ClientSpawn: unsafe extern "C" fn(*mut gentity_t);
-    }
-    unsafe {
-        CLIENTSPAWN_DETOUR.initialize(ClientSpawn, shinqlx_clientspawn)?;
-        CLIENTSPAWN_DETOUR.enable()?;
-    }
-
-    extern "C" {
-        static G_Damage: unsafe extern "C" fn(
-            *mut gentity_t,
-            *mut gentity_t,
-            *mut gentity_t,
-            *const c_float,
-            *const c_float,
-            c_int,
-            c_int,
-            c_int,
-        );
-    }
-    unsafe {
-        G_DAMAGE_DETOUR.initialize(G_Damage, shinqlx_g_damage)?;
-        G_DAMAGE_DETOUR.enable()?;
-    }
 
     Ok(())
 }
