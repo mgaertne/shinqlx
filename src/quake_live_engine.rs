@@ -774,7 +774,7 @@ impl Client {
 
         let c_reason = CString::new(reason).unwrap_or(CString::new("").unwrap());
         unsafe {
-            SV_DropClient(self.client_t, c_reason.into_raw());
+            SV_DropClient(self.client_t, c_reason.as_ptr());
         }
     }
 
@@ -909,8 +909,14 @@ impl FindCVar for QuakeLiveEngine {
             static Cvar_FindVar: extern "C" fn(*const c_char) -> *const cvar_t;
         }
 
-        let c_name = CString::new(name).unwrap();
-        unsafe { CVar::try_from(Cvar_FindVar(c_name.into_raw())).ok() }
+        if let Ok(c_name) = CString::new(name) {
+            unsafe {
+                let cvar = Cvar_FindVar(c_name.as_ptr());
+                CVar::try_from(cvar).ok()
+            }
+        } else {
+            None
+        }
     }
 }
 
@@ -924,8 +930,11 @@ impl CbufExecuteText for QuakeLiveEngine {
             static Cbuf_ExecuteText: extern "C" fn(cbufExec_t, *const c_char);
         }
 
-        let c_tags = CString::new(new_tags).unwrap();
-        unsafe { Cbuf_ExecuteText(exec_t, c_tags.into_raw()) }
+        if let Ok(c_tags) = CString::new(new_tags) {
+            unsafe {
+                Cbuf_ExecuteText(exec_t, c_tags.as_ptr());
+            }
+        }
     }
 }
 
@@ -939,8 +948,11 @@ impl AddCommand for QuakeLiveEngine {
             static Cmd_AddCommand: extern "C" fn(*const c_char, *const c_void);
         }
 
-        let c_cmd = CString::new(cmd).unwrap();
-        unsafe { Cmd_AddCommand(c_cmd.into_raw(), func as *const c_void) }
+        if let Ok(c_cmd) = CString::new(cmd) {
+            unsafe {
+                Cmd_AddCommand(c_cmd.as_ptr(), func as *const c_void);
+            }
+        }
     }
 }
 
@@ -954,8 +966,11 @@ impl SetModuleOffset for QuakeLiveEngine {
             static Sys_SetModuleOffset: extern "C" fn(*const c_char, *const c_void);
         }
 
-        let c_module_name = CString::new(module_name).unwrap();
-        unsafe { Sys_SetModuleOffset(c_module_name.into_raw(), offset as *const c_void) }
+        if let Ok(c_module_name) = CString::new(module_name) {
+            unsafe {
+                Sys_SetModuleOffset(c_module_name.as_ptr(), offset as *const c_void);
+            }
+        }
     }
 }
 
@@ -983,18 +998,19 @@ impl ExecuteClientCommand for QuakeLiveEngine {
             static SV_ExecuteClientCommand: extern "C" fn(*const client_t, *const c_char, qboolean);
         }
 
-        let command_native = CString::new(cmd).unwrap();
-        match client {
-            Some(safe_client) => unsafe {
-                SV_ExecuteClientCommand(
-                    safe_client.client_t,
-                    command_native.into_raw(),
-                    client_ok.into(),
-                )
-            },
-            None => unsafe {
-                SV_ExecuteClientCommand(std::ptr::null(), command_native.as_ptr(), client_ok.into())
-            },
+        if let Ok(c_command) = CString::new(cmd) {
+            match client {
+                Some(safe_client) => unsafe {
+                    SV_ExecuteClientCommand(
+                        safe_client.client_t,
+                        c_command.as_ptr(),
+                        client_ok.into(),
+                    );
+                },
+                None => unsafe {
+                    SV_ExecuteClientCommand(std::ptr::null(), c_command.as_ptr(), client_ok.into());
+                },
+            }
         }
     }
 }
@@ -1009,12 +1025,15 @@ impl SendServerCommand for QuakeLiveEngine {
             static SV_SendServerCommand: extern "C" fn(*const client_t, *const c_char, ...);
         }
 
-        let command_native = CString::new(command).unwrap();
-        match client {
-            Some(safe_client) => unsafe {
-                SV_SendServerCommand(safe_client.client_t, command_native.into_raw())
-            },
-            None => unsafe { SV_SendServerCommand(std::ptr::null(), command_native.as_ptr()) },
+        if let Ok(c_command) = CString::new(command) {
+            match client {
+                Some(safe_client) => unsafe {
+                    SV_SendServerCommand(safe_client.client_t, c_command.as_ptr());
+                },
+                None => unsafe {
+                    SV_SendServerCommand(std::ptr::null(), c_command.as_ptr());
+                },
+            }
         }
     }
 }
@@ -1044,7 +1063,9 @@ impl SetConfigstring for QuakeLiveEngine {
         }
 
         if let Ok(c_value) = CString::new(value) {
-            unsafe { SV_SetConfigstring(index.to_owned(), c_value.into_raw()) }
+            unsafe {
+                SV_SetConfigstring(index.to_owned(), c_value.as_ptr());
+            }
         }
     }
 }
@@ -1059,8 +1080,11 @@ impl ComPrintf for QuakeLiveEngine {
             static Com_Printf: extern "C" fn(*const c_char);
         }
 
-        let c_msg = CString::new(msg).unwrap();
-        unsafe { Com_Printf(c_msg.into_raw()) }
+        if let Ok(c_msg) = CString::new(msg) {
+            unsafe {
+                Com_Printf(c_msg.as_ptr());
+            }
+        }
     }
 }
 
@@ -1074,8 +1098,11 @@ impl SpawnServer for QuakeLiveEngine {
             static SV_SpawnServer: extern "C" fn(*const c_char, qboolean);
         }
 
-        let c_server = CString::new(server).unwrap();
-        unsafe { SV_SpawnServer(c_server.into_raw(), kill_bots.into()) }
+        if let Ok(c_server) = CString::new(server) {
+            unsafe {
+                SV_SpawnServer(c_server.as_ptr(), kill_bots.into());
+            }
+        }
     }
 }
 
@@ -1214,8 +1241,11 @@ impl ConsoleCommand for QuakeLiveEngine {
             static Cmd_ExecuteString: extern "C" fn(*const c_char);
         }
 
-        let c_cmd = CString::new(cmd).unwrap();
-        unsafe { Cmd_ExecuteString(c_cmd.into_raw()) }
+        if let Ok(c_cmd) = CString::new(cmd) {
+            unsafe {
+                Cmd_ExecuteString(c_cmd.as_ptr());
+            }
+        }
     }
 }
 
@@ -1232,7 +1262,10 @@ impl GetCVar for QuakeLiveEngine {
         let c_name = CString::new(name).unwrap();
         let c_value = CString::new(value).unwrap();
         let flags_value = flags.unwrap_or_default();
-        unsafe { CVar::try_from(Cvar_Get(c_name.into_raw(), c_value.into_raw(), flags_value)).ok() }
+        unsafe {
+            let cvar = Cvar_Get(c_name.as_ptr(), c_value.as_ptr(), flags_value);
+            CVar::try_from(cvar).ok()
+        }
     }
 }
 
@@ -1250,12 +1283,8 @@ impl SetCVarForced for QuakeLiveEngine {
         let c_name = CString::new(name).unwrap();
         let c_value = CString::new(value).unwrap();
         unsafe {
-            CVar::try_from(Cvar_Set2(
-                c_name.into_raw(),
-                c_value.into_raw(),
-                forced.into(),
-            ))
-            .ok()
+            let cvar = Cvar_Set2(c_name.as_ptr(), c_value.as_ptr(), forced.into());
+            CVar::try_from(cvar).ok()
         }
     }
 }
@@ -1296,14 +1325,14 @@ impl SetCVarLimit for QuakeLiveEngine {
         let c_max = CString::new(max).unwrap();
         let flags_value = flags.unwrap_or_default();
         unsafe {
-            CVar::try_from(Cvar_GetLimit(
-                c_name.into_raw(),
-                c_value.into_raw(),
-                c_min.into_raw(),
-                c_max.into_raw(),
+            let cvar = Cvar_GetLimit(
+                c_name.as_ptr(),
+                c_value.as_ptr(),
+                c_min.as_ptr(),
+                c_max.as_ptr(),
                 flags_value,
-            ))
-            .ok()
+            );
+            CVar::try_from(cvar).ok()
         }
     }
 }
