@@ -1,4 +1,12 @@
-use crate::hooks::{shinqlx_set_configstring, ShiNQlx_SV_SetConfigstring};
+use crate::hooks::{
+    shinqlx_set_configstring, shinqlx_sv_setconfigstring, CLIENTCONNECT_DETOUR, CLIENTSPAWN_DETOUR,
+    G_STARTKAMIKAZE_DETOUR,
+};
+use crate::hooks::{
+    CMD_ADDCOMMAND_DETOUR, SV_CLIENTENTERWORLD_DETOUR, SV_DROPCLIENT_DETOUR,
+    SV_EXECUTECLIENTCOMMAND_DETOUR, SV_SETCONFGISTRING_DETOUR, SV_SPAWNSERVER_DETOUR,
+    SYS_SETMODULEOFFSET_DETOUR,
+};
 use crate::quake_types::clientConnected_t::CON_DISCONNECTED;
 use crate::quake_types::entityType_t::ET_ITEM;
 use crate::quake_types::entity_event_t::EV_ITEM_RESPAWN;
@@ -26,7 +34,7 @@ use crate::SV_MAXCLIENTS;
 use lazy_static::lazy_static;
 use std::collections::HashMap;
 use std::f32::consts::PI;
-use std::ffi::{c_char, c_float, c_int, c_void, CStr, CString};
+use std::ffi::{c_char, c_float, c_int, CStr, CString};
 use std::ops::{BitAnd, BitAndAssign, BitOrAssign, Not};
 
 impl From<qboolean> for c_int {
@@ -418,12 +426,8 @@ impl GameEntity {
         unsafe { (self.gentity_t as *const gentity_t).offset_from(g_entities) as i32 }
     }
 
-    pub(crate) fn start_kamikaze(&self) {
-        extern "C" {
-            static G_StartKamikaze: extern "C" fn(*const gentity_t);
-        }
-
-        unsafe { G_StartKamikaze(self.gentity_t as *const gentity_t) }
+    pub(crate) fn start_kamikaze(&mut self) {
+        unsafe { G_STARTKAMIKAZE_DETOUR.call(self.gentity_t as *mut gentity_t) }
     }
 
     pub(crate) fn get_player_name(&self) -> String {
@@ -652,7 +656,7 @@ impl GameEntity {
                 );
             }
             csbuffer[item_id as usize] = '1' as c_char;
-            ShiNQlx_SV_SetConfigstring(CS_ITEMS as c_int, csbuffer.as_ptr());
+            shinqlx_sv_setconfigstring(CS_ITEMS as c_int, csbuffer.as_ptr());
         } else {
             unsafe { G_FreeEntity(self.gentity_t) };
         }
@@ -768,14 +772,8 @@ impl Client {
     }
 
     pub(crate) fn disconnect(&self, reason: &str) {
-        extern "C" {
-            static SV_DropClient: extern "C" fn(*const client_t, *const c_char);
-        }
-
         let c_reason = CString::new(reason).unwrap_or(CString::new("").unwrap());
-        unsafe {
-            SV_DropClient(self.client_t, c_reason.as_ptr());
-        }
+        unsafe { SV_DROPCLIENT_DETOUR.call(self.client_t, c_reason.as_ptr()) };
     }
 
     pub(crate) fn get_name(&self) -> String {
@@ -944,14 +942,8 @@ pub(crate) trait AddCommand {
 
 impl AddCommand for QuakeLiveEngine {
     fn add_command(&self, cmd: &str, func: unsafe extern "C" fn()) {
-        extern "C" {
-            static Cmd_AddCommand: extern "C" fn(*const c_char, *const c_void);
-        }
-
         if let Ok(c_cmd) = CString::new(cmd) {
-            unsafe {
-                Cmd_AddCommand(c_cmd.as_ptr(), func as *const c_void);
-            }
+            unsafe { CMD_ADDCOMMAND_DETOUR.call(c_cmd.as_ptr(), func) };
         }
     }
 }
@@ -962,14 +954,8 @@ pub(crate) trait SetModuleOffset {
 
 impl SetModuleOffset for QuakeLiveEngine {
     fn set_module_offset(&self, module_name: &str, offset: unsafe extern "C" fn()) {
-        extern "C" {
-            static Sys_SetModuleOffset: extern "C" fn(*const c_char, *const c_void);
-        }
-
         if let Ok(c_module_name) = CString::new(module_name) {
-            unsafe {
-                Sys_SetModuleOffset(c_module_name.as_ptr(), offset as *const c_void);
-            }
+            unsafe { SYS_SETMODULEOFFSET_DETOUR.call(c_module_name.as_ptr(), offset) };
         }
     }
 }
@@ -994,21 +980,21 @@ pub(crate) trait ExecuteClientCommand {
 
 impl ExecuteClientCommand for QuakeLiveEngine {
     fn execute_client_command(&self, client: Option<&Client>, cmd: &str, client_ok: bool) {
-        extern "C" {
-            static SV_ExecuteClientCommand: extern "C" fn(*const client_t, *const c_char, qboolean);
-        }
-
         if let Ok(c_command) = CString::new(cmd) {
             match client {
                 Some(safe_client) => unsafe {
-                    SV_ExecuteClientCommand(
+                    SV_EXECUTECLIENTCOMMAND_DETOUR.call(
                         safe_client.client_t,
                         c_command.as_ptr(),
                         client_ok.into(),
-                    );
+                    )
                 },
                 None => unsafe {
-                    SV_ExecuteClientCommand(std::ptr::null(), c_command.as_ptr(), client_ok.into());
+                    SV_EXECUTECLIENTCOMMAND_DETOUR.call(
+                        std::ptr::null(),
+                        c_command.as_ptr(),
+                        client_ok.into(),
+                    )
                 },
             }
         }
@@ -1044,11 +1030,7 @@ pub(crate) trait ClientEnterWorld {
 
 impl ClientEnterWorld for QuakeLiveEngine {
     fn client_enter_world(&self, client: &Client, cmd: *const usercmd_t) {
-        extern "C" {
-            static SV_ClientEnterWorld: extern "C" fn(*const client_t, *const usercmd_t);
-        }
-
-        unsafe { SV_ClientEnterWorld(client.client_t, cmd) }
+        unsafe { SV_CLIENTENTERWORLD_DETOUR.call(client.client_t, cmd) };
     }
 }
 
@@ -1058,14 +1040,8 @@ pub(crate) trait SetConfigstring {
 
 impl SetConfigstring for QuakeLiveEngine {
     fn set_configstring(&self, index: &i32, value: &str) {
-        extern "C" {
-            static SV_SetConfigstring: extern "C" fn(c_int, *const c_char);
-        }
-
         if let Ok(c_value) = CString::new(value) {
-            unsafe {
-                SV_SetConfigstring(index.to_owned(), c_value.as_ptr());
-            }
+            unsafe { SV_SETCONFGISTRING_DETOUR.call(index.to_owned(), c_value.as_ptr()) };
         }
     }
 }
@@ -1077,7 +1053,7 @@ pub(crate) trait ComPrintf {
 impl ComPrintf for QuakeLiveEngine {
     fn com_printf(&self, msg: &str) {
         extern "C" {
-            static Com_Printf: extern "C" fn(*const c_char);
+            static Com_Printf: extern "C" fn(*const c_char, ...);
         }
 
         if let Ok(c_msg) = CString::new(msg) {
@@ -1094,14 +1070,8 @@ pub(crate) trait SpawnServer {
 
 impl SpawnServer for QuakeLiveEngine {
     fn spawn_server(&self, server: &str, kill_bots: bool) {
-        extern "C" {
-            static SV_SpawnServer: extern "C" fn(*const c_char, qboolean);
-        }
-
         if let Ok(c_server) = CString::new(server) {
-            unsafe {
-                SV_SpawnServer(c_server.as_ptr(), kill_bots.into());
-            }
+            unsafe { SV_SPAWNSERVER_DETOUR.call(c_server.as_ptr(), kill_bots.into()) };
         }
     }
 }
@@ -1126,12 +1096,8 @@ pub(crate) trait ClientConnect {
 
 impl ClientConnect for QuakeLiveEngine {
     fn client_connect(&self, client_num: i32, first_time: bool, is_bot: bool) -> Option<String> {
-        extern "C" {
-            static ClientConnect: extern "C" fn(c_int, qboolean, qboolean) -> *const c_char;
-        }
-
         unsafe {
-            let c_return = ClientConnect(client_num, first_time.into(), is_bot.into());
+            let c_return = CLIENTCONNECT_DETOUR.call(client_num, first_time.into(), is_bot.into());
             if c_return.is_null() {
                 return None;
             }
@@ -1141,16 +1107,12 @@ impl ClientConnect for QuakeLiveEngine {
 }
 
 pub(crate) trait ClientSpawn {
-    fn client_spawn(&self, ent: &GameEntity);
+    fn client_spawn(&self, ent: &mut GameEntity);
 }
 
 impl ClientSpawn for QuakeLiveEngine {
-    fn client_spawn(&self, ent: &GameEntity) {
-        extern "C" {
-            static ClientSpawn: extern "C" fn(*const gentity_t);
-        }
-
-        unsafe { ClientSpawn(ent.gentity_t) };
+    fn client_spawn(&self, ent: &mut GameEntity) {
+        unsafe { CLIENTSPAWN_DETOUR.call(ent.gentity_t as *mut gentity_t) };
     }
 }
 

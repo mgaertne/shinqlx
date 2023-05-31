@@ -25,6 +25,7 @@ use crate::commands::{
     cmd_center_print, cmd_py_command, cmd_py_rcon, cmd_regular_print, cmd_restart_python,
     cmd_send_server_command, cmd_slap, cmd_slay,
 };
+use crate::hooks::hook_static;
 use crate::pyminqlx::pyminqlx_initialize;
 use crate::quake_live_engine::{AddCommand, FindCVar, QuakeLiveEngine};
 use crate::PyMinqlx_InitStatus_t::PYM_SUCCESS;
@@ -98,7 +99,6 @@ fn initialize() {
     extern "C" {
         fn SearchFunctions();
         fn InitializeStatic();
-        fn HookStatic();
     }
 
     let progname = args().next().unwrap();
@@ -111,5 +111,8 @@ fn initialize() {
     unsafe { InitializeStatic() };
 
     debug_println!("Shared library loaded");
-    unsafe { HookStatic() };
+    if let Err(res) = hook_static() {
+        debug_println!(format!("ERROR: failed to hook static methods: {}", res));
+        debug_println!("Exiting.");
+    };
 }
