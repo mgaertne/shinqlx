@@ -53,6 +53,8 @@ void HookStatic(void) {
  * PROTIP: If you can, ALWAYS use VM_Call table hooks instead of using Hook().
 */
 void HookVm(void) {
+    DebugPrint("Hooking VM functions...\n");
+
 #if defined(__x86_64__) || defined(_M_X64)
     pint vm_call_table = *(int32_t*)OFFSET_RELP_VM_CALL_TABLE + OFFSET_RELP_VM_CALL_TABLE + 4;
 #elif defined(__i386) || defined(_M_IX86)
@@ -66,5 +68,44 @@ void HookVm(void) {
 
 #ifndef NOPY
     *(void**)(vm_call_table + RELOFFSET_VM_CALL_RUNFRAME) = ShiNQlx_G_RunFrame;
+
+    int res, failed = 0, count = 0;
+    res = Hook((void*)ClientConnect, ShiNQlx_ClientConnect, (void*)&ClientConnect);
+    if (res) {
+        DebugPrint("ERROR: Failed to hook ClientConnect: %d\n", res);
+        failed = 1;
+    }
+    count++;
+
+    res = Hook((void*)G_StartKamikaze, ShiNQlx_G_StartKamikaze, (void*)&G_StartKamikaze);
+    if (res) {
+        DebugPrint("ERROR: Failed to hook G_StartKamikaze: %d\n", res);
+        failed = 1;
+    }
+    count++;
+
+    res = Hook((void*)ClientSpawn, ShiNQlx_ClientSpawn, (void*)&ClientSpawn);
+    if (res) {
+        DebugPrint("ERROR: Failed to hook ClientSpawn: %d\n", res);
+        failed = 1;
+    }
+    count++;
+
+    res = Hook((void*)G_Damage, ShiNQlx_G_Damage, (void*)&G_Damage);
+    if (res) {
+        DebugPrint("ERROR: Failed to hook G_Damage: %d\n", res);
+        failed = 1;
+    }
+    count++;
+
+    if (failed) {
+        DebugPrint("Exiting.\n");
+        exit(1);
+    }
+
+    if ( !seek_hook_slot(-count) ) {
+        DebugPrint("ERROR: Failed to rewind hook slot\nExiting.\n");
+        exit(1);
+    }
 #endif
 }
