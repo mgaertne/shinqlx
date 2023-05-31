@@ -123,24 +123,12 @@ extern G_StartKamikaze_ptr G_StartKamikaze;
 extern G_FreeEntity_ptr G_FreeEntity;
 
 // Server replacement functions for hooks.
-extern void __cdecl ShiNQlx_Cmd_AddCommand(char* cmd, void* func);
-extern void __cdecl ShiNQlx_Sys_SetModuleOffset(char* moduleName, void* offset);
 #ifndef NOPY
-extern void __cdecl ShiNQlx_SV_ExecuteClientCommand(client_t *cl, char *s, qboolean clientOK);
 extern void __cdecl ShiNQlx_SV_SendServerCommand(client_t* cl, char* fmt, ...);
-extern void __cdecl ShiNQlx_SV_ClientEnterWorld(client_t* client, usercmd_t* cmd);
-extern void __cdecl ShiNQlx_SV_SetConfigstring(int index, char* value);
-extern void __cdecl ShiNQlx_SV_DropClient(client_t* drop, const char* reason);
 extern void __cdecl ShiNQlx_Com_Printf(char* fmt, ...);
-extern void __cdecl ShiNQlx_SV_SpawnServer(char* server, qboolean killBots);
 // VM replacement functions for hooks.
 extern void __cdecl ShiNQlx_G_RunFrame(int time);
 extern void __cdecl ShiNQlx_G_InitGame(int levelTime, int randomSeed, int restart);
-extern char* __cdecl ShiNQlx_ClientConnect(int clientNum, qboolean firstTime, qboolean isBot);
-extern void __cdecl ShiNQlx_ClientSpawn(gentity_t* ent);
-
-extern void __cdecl ShiNQlx_G_StartKamikaze(gentity_t* ent);
-extern void __cdecl ShiNQlx_G_Damage(gentity_t* target, gentity_t* inflictor, gentity_t* attacker, vec3_t dir, vec3_t point, int damage, int dflags, int mod);
 #endif
 
 // Custom commands added using Cmd_AddCommand during initialization.

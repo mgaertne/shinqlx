@@ -16,6 +16,8 @@ use crate::quake_types::{
 use crate::{
     initialize_cvars, initialize_static, COMMON_INITIALIZED, CVARS_INITIALIZED, SV_TAGS_PREFIX,
 };
+use retour::static_detour;
+use std::error::Error;
 use std::ffi::{c_char, c_float, c_int, c_void, CStr, CString, VaList, VaListImpl};
 
 fn set_tag() {
@@ -38,8 +40,7 @@ fn set_tag() {
     quake_live_engine.cbuf_execute_text(cbufExec_t::EXEC_INSERT, &new_tags);
 }
 
-#[no_mangle]
-pub extern "C" fn ShiNQlx_Cmd_AddCommand(cmd: *const c_char, func: unsafe extern "C" fn()) {
+fn shinqlx_cmd_addcommand(cmd: *const c_char, func: unsafe extern "C" fn()) {
     if unsafe { !COMMON_INITIALIZED } {
         initialize_static();
     }
@@ -58,16 +59,11 @@ pub struct DlInfo {
     pub dli_saddr: *mut c_void,
 }
 
-#[no_mangle]
-pub extern "C" fn ShiNQlx_Sys_SetModuleOffset(
-    module_name: *const c_char,
-    offset: unsafe extern "C" fn(),
-) {
+fn shinqlx_sys_setmoduleoffset(module_name: *const c_char, offset: unsafe extern "C" fn()) {
     extern "C" {
         static mut qagame_dllentry: *mut c_void;
         static mut qagame: *mut c_void;
         fn SearchVmFunctions();
-        fn HookVm();
         fn InitializeVm();
         fn patch_vm();
         fn dladdr(addr: *const c_void, into: *mut DlInfo) -> c_int;
@@ -107,7 +103,13 @@ pub extern "C" fn ShiNQlx_Sys_SetModuleOffset(
 
     unsafe {
         SearchVmFunctions();
-        HookVm();
+    }
+
+    if let Err(res) = hook_vm() {
+        debug_println!(format!("ERROR: failed to hook vm methods: {}", res));
+        debug_println!("Exiting.");
+    };
+    unsafe {
         InitializeVm();
         patch_vm();
     }
@@ -128,8 +130,7 @@ pub extern "C" fn ShiNQlx_G_InitGame(level_time: c_int, random_seed: c_int, rest
     }
 }
 
-#[no_mangle]
-pub extern "C" fn ShiNQlx_SV_ExecuteClientCommand(
+fn shinqlx_sv_executeclientcommand(
     client: *const client_t,
     cmd: *const c_char,
     client_ok: qboolean,
@@ -231,8 +232,7 @@ pub(crate) fn shinqlx_send_server_command(client: Option<Client>, cmd: &str) {
     }
 }
 
-#[no_mangle]
-pub extern "C" fn ShiNQlx_SV_ClientEnterWorld(client: *const client_t, cmd: *const usercmd_t) {
+fn shinqlx_sv_cliententerworld(client: *const client_t, cmd: *const usercmd_t) {
     let Some(safe_client): Option<Client> = client.try_into().ok() else {
         return;
     };
@@ -248,8 +248,7 @@ pub extern "C" fn ShiNQlx_SV_ClientEnterWorld(client: *const client_t, cmd: *con
     }
 }
 
-#[no_mangle]
-pub extern "C" fn ShiNQlx_SV_SetConfigstring(index: c_int, value: *const c_char) {
+pub(crate) fn shinqlx_sv_setconfigstring(index: c_int, value: *const c_char) {
     let safe_value = if !value.is_null() {
         unsafe { CStr::from_ptr(value) }.to_string_lossy()
     } else {
@@ -274,8 +273,7 @@ pub(crate) fn shinqlx_set_configstring(index: i32, value: &str) {
     }
 }
 
-#[no_mangle]
-pub extern "C" fn ShiNQlx_SV_DropClient(client: *const client_t, reason: *const c_char) {
+fn shinqlx_sv_dropclient(client: *const client_t, reason: *const c_char) {
     if let Ok(safe_client) = Client::try_from(client) {
         shinqlx_drop_client(
             &safe_client,
@@ -322,8 +320,7 @@ pub(crate) fn shinqlx_com_printf(msg: &str) {
     }
 }
 
-#[no_mangle]
-pub extern "C" fn ShiNQlx_SV_SpawnServer(server: *const c_char, kill_bots: qboolean) {
+fn shinqlx_sv_spawnserver(server: *const c_char, kill_bots: qboolean) {
     let server_str = unsafe { CStr::from_ptr(server) }.to_string_lossy();
     if server_str.is_empty() {
         return;
@@ -340,8 +337,7 @@ pub extern "C" fn ShiNQlx_G_RunFrame(time: c_int) {
     QuakeLiveEngine::default().run_frame(time);
 }
 
-#[no_mangle]
-pub extern "C" fn ShiNQlx_ClientConnect(
+pub(crate) fn shinqlx_clientconnect(
     client_num: c_int,
     first_time: qboolean,
     is_bot: qboolean,
@@ -370,8 +366,7 @@ pub extern "C" fn ShiNQlx_ClientConnect(
     }
 }
 
-#[no_mangle]
-pub extern "C" fn ShiNQlx_ClientSpawn(ent: *mut gentity_t) {
+fn shinqlx_clientspawn(ent: *mut gentity_t) {
     let Some(game_entity): Option<GameEntity> = ent.try_into().ok() else {
         return;
     };
@@ -379,8 +374,8 @@ pub extern "C" fn ShiNQlx_ClientSpawn(ent: *mut gentity_t) {
     shinqlx_client_spawn(game_entity)
 }
 
-pub(crate) fn shinqlx_client_spawn(game_entity: GameEntity) {
-    QuakeLiveEngine::default().client_spawn(&game_entity);
+pub(crate) fn shinqlx_client_spawn(mut game_entity: GameEntity) {
+    QuakeLiveEngine::default().client_spawn(&mut game_entity);
 
     // Since we won't ever stop the real function from being called,
     // we trigger the event after calling the real one. This will allow
@@ -388,8 +383,7 @@ pub(crate) fn shinqlx_client_spawn(game_entity: GameEntity) {
     client_spawn_dispatcher(game_entity.get_client_id());
 }
 
-#[no_mangle]
-pub extern "C" fn ShiNQlx_G_StartKamikaze(ent: *mut gentity_t) {
+fn shinqlx_g_startkamikaze(ent: *mut gentity_t) {
     let Some(game_entity): Option<GameEntity> = ent.try_into().ok() else {
         return;
     };
@@ -406,18 +400,18 @@ pub extern "C" fn ShiNQlx_G_StartKamikaze(ent: *mut gentity_t) {
         game_client.remove_kamikaze_flag();
         kamikaze_use_dispatcher(client_id);
     }
-
-    game_entity.start_kamikaze();
+    let mut mut_game_entity = game_entity;
+    mut_game_entity.start_kamikaze();
 
     if client_id == -1 {
         return;
     }
 
-    kamikaze_explode_dispatcher(client_id, game_entity.get_game_client().is_some())
+    kamikaze_explode_dispatcher(client_id, mut_game_entity.get_game_client().is_some())
 }
 
-#[no_mangle]
-extern "C" fn ShiNQlx_G_Damage(
+#[allow(clippy::too_many_arguments)]
+fn shinqlx_g_damage(
     target: *mut gentity_t,    // entity that is being damaged
     inflictor: *mut gentity_t, // entity that is causing the damage
     attacker: *mut gentity_t,  // entity that caused the inflictor to damage targ
@@ -480,4 +474,149 @@ extern "C" fn ShiNQlx_G_Damage(
             }
         }
     }
+}
+
+static_detour! {
+    pub(crate) static CMD_ADDCOMMAND_DETOUR: unsafe extern "C" fn(*const c_char, unsafe extern "C" fn());
+    pub(crate) static SYS_SETMODULEOFFSET_DETOUR: unsafe extern "C" fn(*const c_char, unsafe extern "C" fn());
+    pub(crate) static SV_EXECUTECLIENTCOMMAND_DETOUR: unsafe extern "C" fn(*const client_t, *const c_char, qboolean);
+    pub(crate) static SV_CLIENTENTERWORLD_DETOUR: unsafe extern "C" fn(*const client_t, *const usercmd_t);
+    pub(crate) static SV_SETCONFGISTRING_DETOUR: unsafe extern "C" fn(c_int, *const c_char);
+    pub(crate) static SV_DROPCLIENT_DETOUR: unsafe extern "C" fn(*const client_t, *const c_char);
+    pub(crate) static SV_SPAWNSERVER_DETOUR: unsafe extern "C" fn(*const c_char, qboolean);
+}
+
+pub(crate) fn hook_static() -> Result<(), Box<dyn Error>> {
+    debug_println!("Hooking...");
+
+    extern "C" {
+        static Cmd_AddCommand: unsafe extern "C" fn(*const c_char, unsafe extern "C" fn());
+    }
+    unsafe {
+        CMD_ADDCOMMAND_DETOUR.initialize(Cmd_AddCommand, shinqlx_cmd_addcommand)?;
+        CMD_ADDCOMMAND_DETOUR.enable()?;
+    }
+
+    extern "C" {
+        static Sys_SetModuleOffset: unsafe extern "C" fn(*const c_char, unsafe extern "C" fn());
+    }
+    unsafe {
+        SYS_SETMODULEOFFSET_DETOUR.initialize(Sys_SetModuleOffset, shinqlx_sys_setmoduleoffset)?;
+        SYS_SETMODULEOFFSET_DETOUR.enable()?;
+    }
+
+    extern "C" {
+        static SV_ExecuteClientCommand:
+            unsafe extern "C" fn(*const client_t, *const c_char, qboolean);
+    }
+    unsafe {
+        SV_EXECUTECLIENTCOMMAND_DETOUR
+            .initialize(SV_ExecuteClientCommand, shinqlx_sv_executeclientcommand)?;
+        SV_EXECUTECLIENTCOMMAND_DETOUR.enable()?;
+    }
+    extern "C" {
+        static SV_ClientEnterWorld: unsafe extern "C" fn(*const client_t, *const usercmd_t);
+    }
+    unsafe {
+        SV_CLIENTENTERWORLD_DETOUR.initialize(SV_ClientEnterWorld, shinqlx_sv_cliententerworld)?;
+        SV_CLIENTENTERWORLD_DETOUR.enable()?;
+    }
+
+    extern "C" {
+        static SV_SetConfigstring: unsafe extern "C" fn(c_int, *const c_char);
+    }
+    unsafe {
+        SV_SETCONFGISTRING_DETOUR.initialize(SV_SetConfigstring, shinqlx_sv_setconfigstring)?;
+        SV_SETCONFGISTRING_DETOUR.enable()?;
+    }
+
+    extern "C" {
+        static SV_DropClient: unsafe extern "C" fn(*const client_t, *const c_char);
+    }
+    unsafe {
+        SV_DROPCLIENT_DETOUR.initialize(SV_DropClient, shinqlx_sv_dropclient)?;
+        SV_DROPCLIENT_DETOUR.enable()?;
+    }
+
+    extern "C" {
+        static SV_SpawnServer: unsafe extern "C" fn(*const c_char, qboolean);
+    }
+    unsafe {
+        SV_SPAWNSERVER_DETOUR.initialize(SV_SpawnServer, shinqlx_sv_spawnserver)?;
+        SV_SPAWNSERVER_DETOUR.enable()?;
+    }
+
+    extern "C" {
+        fn HookStatic();
+    }
+    unsafe { HookStatic() };
+
+    Ok(())
+}
+
+static_detour! {
+    pub(crate) static CLIENTCONNECT_DETOUR: unsafe extern "C" fn(c_int, qboolean, qboolean) -> *const c_char;
+    pub(crate) static G_STARTKAMIKAZE_DETOUR: unsafe extern "C" fn(*mut gentity_t);
+    pub(crate) static CLIENTSPAWN_DETOUR: unsafe extern "C" fn(*mut gentity_t);
+    pub(crate) static G_DAMAGE_DETOUR: unsafe extern "C" fn(
+        *mut gentity_t,
+        *mut gentity_t,
+        *mut gentity_t,
+        *const c_float,
+        *const c_float,
+        c_int,
+        c_int,
+        c_int
+    );
+}
+
+pub(crate) fn hook_vm() -> Result<(), Box<dyn Error>> {
+    debug_println!("Hooking VM functions...");
+    extern "C" {
+        fn HookVm();
+    }
+    unsafe { HookVm() };
+
+    extern "C" {
+        static ClientConnect: unsafe extern "C" fn(c_int, qboolean, qboolean) -> *const c_char;
+    }
+    unsafe {
+        CLIENTCONNECT_DETOUR.initialize(ClientConnect, shinqlx_clientconnect)?;
+        CLIENTCONNECT_DETOUR.enable()?;
+    }
+
+    extern "C" {
+        static G_StartKamikaze: unsafe extern "C" fn(*mut gentity_t);
+    }
+    unsafe {
+        G_STARTKAMIKAZE_DETOUR.initialize(G_StartKamikaze, shinqlx_g_startkamikaze)?;
+        G_STARTKAMIKAZE_DETOUR.enable()?;
+    }
+
+    extern "C" {
+        static ClientSpawn: unsafe extern "C" fn(*mut gentity_t);
+    }
+    unsafe {
+        CLIENTSPAWN_DETOUR.initialize(ClientSpawn, shinqlx_clientspawn)?;
+        CLIENTSPAWN_DETOUR.enable()?;
+    }
+
+    extern "C" {
+        static G_Damage: unsafe extern "C" fn(
+            *mut gentity_t,
+            *mut gentity_t,
+            *mut gentity_t,
+            *const c_float,
+            *const c_float,
+            c_int,
+            c_int,
+            c_int,
+        );
+    }
+    unsafe {
+        G_DAMAGE_DETOUR.initialize(G_Damage, shinqlx_g_damage)?;
+        G_DAMAGE_DETOUR.enable()?;
+    }
+
+    Ok(())
 }

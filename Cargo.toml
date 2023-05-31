@@ -33,6 +33,7 @@ ctor = "0.2.0"
 rand = "0.8.5"
 lazy_static = "1.4.0"
 pyo3 = { version = "0.18.3", features = ["pyo3-macros", "extension-module"]}
+retour = "0.1.0"
 
 [build-dependencies]
 cc = "1.0"
