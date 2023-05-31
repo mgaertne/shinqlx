@@ -349,8 +349,9 @@ pub extern "C" fn ShiNQlx_ClientConnect(
     if first_time.into() {
         if let Some(res) = client_connect_dispatcher(client_num, is_bot.into()) {
             if !<qboolean as Into<bool>>::into(is_bot) {
-                let result = CString::new(res).unwrap();
-                return result.into_raw();
+                if let Ok(result) = CString::new(res) {
+                    return result.into_raw();
+                }
             }
         }
     }
@@ -358,8 +359,13 @@ pub extern "C" fn ShiNQlx_ClientConnect(
     match QuakeLiveEngine::default().client_connect(client_num, first_time.into(), is_bot.into()) {
         None => std::ptr::null_mut(),
         Some(message) => {
-            let result = CString::new(message).unwrap();
-            result.into_raw()
+            if let Ok(result) = CString::new(message) {
+                result.into_raw()
+            } else {
+                CString::new("You are banned from this server.")
+                    .unwrap()
+                    .into_raw()
+            }
         }
     }
 }
