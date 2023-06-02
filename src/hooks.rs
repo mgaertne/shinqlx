@@ -436,9 +436,6 @@ pub extern "C" fn ShiNQlx_G_Damage(
     );
 
     if let Ok(target_entity) = GameEntity::try_from(target) {
-        if !(0..MAX_CLIENTS).contains(&(target_entity.get_client_id() as u32)) {
-            return;
-        }
         if attacker.is_null() || unsafe { (*attacker).client.is_null() } {
             damage_dispatcher(
                 target_entity.get_client_id(),
