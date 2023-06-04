@@ -1089,7 +1089,7 @@ pub struct server_t {
 }
 
 #[repr(C)]
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Eq)]
 pub struct playerTeamState_t {
     pub state: playerTeamStateState_t,
     pub captures: c_int,
@@ -1174,6 +1174,7 @@ pub struct expandedStatObj_t {
 
 // client data that stays across multiple respawns, but is cleared
 // on each level change or team change at ClientBegin()
+#[derive(Debug, PartialEq)]
 #[repr(C, align(8))]
 pub struct clientPersistant_t {
     pub connected: clientConnected_t,
@@ -1364,6 +1365,7 @@ pub struct gentity_s {
     pub pickupCount: c_int,
 }
 
+#[derive(Debug, PartialEq)]
 #[repr(C)]
 pub struct raceInfo_t {
     pub racingActive: qboolean,
@@ -1379,6 +1381,7 @@ pub struct raceInfo_t {
 
 // this structure is cleared on each ClientSpawn(),
 // except for 'client->pers' and 'client->sess'
+#[derive(Debug, PartialEq)]
 #[repr(C, align(8))]
 pub struct gclient_s {
     pub ps: playerState_t,

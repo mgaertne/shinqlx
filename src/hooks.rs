@@ -132,7 +132,11 @@ fn shinqlx_sv_executeclientcommand(
 ) {
     let rust_cmd = unsafe { CStr::from_ptr(cmd) }.to_string_lossy();
     if !rust_cmd.is_empty() {
-        shinqlx_execute_client_command(client.try_into().ok(), rust_cmd.as_ref(), client_ok.into());
+        shinqlx_execute_client_command(
+            Client::try_from(client).ok(),
+            rust_cmd.as_ref(),
+            client_ok.into(),
+        );
     }
 }
 
