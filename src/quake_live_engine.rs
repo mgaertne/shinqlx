@@ -4,6 +4,9 @@ use crate::hooks::{
     SV_EXECUTECLIENTCOMMAND_DETOUR, SV_SETCONFGISTRING_DETOUR, SV_SPAWNSERVER_DETOUR,
     SYS_SETMODULEOFFSET_DETOUR,
 };
+use crate::quake_live_engine::QuakeLiveEngineError::{
+    ClientNotFound, EntityNotFound, InvalidId, NullPointerPassed,
+};
 use crate::quake_types::clientConnected_t::CON_DISCONNECTED;
 use crate::quake_types::entityType_t::ET_ITEM;
 use crate::quake_types::entity_event_t::EV_ITEM_RESPAWN;
@@ -23,13 +26,11 @@ use crate::quake_types::team_t::TEAM_SPECTATOR;
 use crate::quake_types::voteState_t::{VOTE_NO, VOTE_PENDING, VOTE_YES};
 use crate::quake_types::{
     cbufExec_t, client_t, cvar_t, entity_event_t, gclient_t, gentity_t, gitem_t, level_locals_t,
-    privileges_t, qboolean, serverStatic_t, trace_t, usercmd_t, vec3_t, CS_ITEMS, CS_VOTE_NO,
-    CS_VOTE_STRING, CS_VOTE_TIME, CS_VOTE_YES, DAMAGE_NO_PROTECTION, EF_KAMIKAZE, EF_TALK,
-    FL_DROPPED_ITEM,
+    powerup_t, privileges_t, qboolean, serverStatic_t, trace_t, usercmd_t, vec3_t, CS_ITEMS,
+    CS_VOTE_NO, CS_VOTE_STRING, CS_VOTE_TIME, CS_VOTE_YES, DAMAGE_NO_PROTECTION, EF_KAMIKAZE,
+    EF_TALK, FL_DROPPED_ITEM, MAX_CLIENTS, MAX_GENTITIES,
 };
 use crate::SV_MAXCLIENTS;
-use lazy_static::lazy_static;
-use std::collections::HashMap;
 use std::f32::consts::PI;
 use std::ffi::{c_char, c_float, c_int, CStr, CString};
 use std::ops::Not;
@@ -69,6 +70,35 @@ impl Not for qboolean {
     }
 }
 
+#[cfg(test)]
+pub(crate) mod qboolean_tests {
+    use super::*;
+
+    #[test]
+    pub(crate) fn qboolean_as_c_int() {
+        assert_eq!(qboolean::qtrue as c_int, 1);
+        assert_eq!(qboolean::qfalse as c_int, 0);
+    }
+
+    #[test]
+    pub(crate) fn qboolean_as_bool() {
+        assert!(bool::from(qboolean::qtrue));
+        assert!(!bool::from(qboolean::qfalse));
+    }
+
+    #[test]
+    pub(crate) fn qboolean_from_bool() {
+        assert_eq!(qboolean::from(true), qboolean::qtrue);
+        assert_eq!(qboolean::from(false), qboolean::qfalse);
+    }
+
+    #[test]
+    pub(crate) fn qboolean_negation() {
+        assert_eq!(!qboolean::qtrue, qboolean::qfalse);
+        assert_eq!(!qboolean::qfalse, qboolean::qtrue);
+    }
+}
+
 impl From<i32> for privileges_t {
     fn from(value: i32) -> Self {
         match value {
@@ -81,12 +111,72 @@ impl From<i32> for privileges_t {
     }
 }
 
+#[cfg(test)]
+pub(crate) mod privileges_tests {
+    use super::*;
+
+    #[test]
+    pub(crate) fn privileges_from_integer() {
+        assert_eq!(privileges_t::from(-1), PRIV_BANNED);
+        assert_eq!(privileges_t::from(1), PRIV_MOD);
+        assert_eq!(privileges_t::from(2), PRIV_ADMIN);
+        assert_eq!(privileges_t::from(3), PRIV_ROOT);
+        assert_eq!(privileges_t::from(0), PRIV_NONE);
+        assert_eq!(privileges_t::from(666), PRIV_NONE);
+    }
+}
+
+impl TryFrom<i32> for powerup_t {
+    type Error = String;
+
+    fn try_from(value: i32) -> Result<Self, Self::Error> {
+        match value {
+            0 => Ok(PW_QUAD),
+            1 => Ok(PW_BATTLESUIT),
+            2 => Ok(PW_HASTE),
+            3 => Ok(PW_INVIS),
+            4 => Ok(PW_REGEN),
+            5 => Ok(PW_INVULNERABILITY),
+            _ => Err("invalid power up".into()),
+        }
+    }
+}
+
+#[cfg(test)]
+pub(crate) mod powerup_t_tests {
+    use super::*;
+
+    #[test]
+    pub(crate) fn powerup_t_from_integer() {
+        assert_eq!(powerup_t::try_from(0), Ok(PW_QUAD));
+        assert_eq!(powerup_t::try_from(1), Ok(PW_BATTLESUIT));
+        assert_eq!(powerup_t::try_from(2), Ok(PW_HASTE));
+        assert_eq!(powerup_t::try_from(3), Ok(PW_INVIS));
+        assert_eq!(powerup_t::try_from(4), Ok(PW_REGEN));
+        assert_eq!(powerup_t::try_from(5), Ok(PW_INVULNERABILITY));
+        assert_eq!(powerup_t::try_from(-1), Err("invalid power up".to_string()));
+        assert_eq!(
+            powerup_t::try_from(666),
+            Err("invalid power up".to_string())
+        );
+    }
+}
+
+#[derive(Debug, PartialEq)]
 pub(crate) struct GameClient {
     game_client: &'static mut gclient_t,
 }
 
+#[derive(Debug, PartialEq, Eq)]
+pub enum QuakeLiveEngineError {
+    NullPointerPassed(String),
+    EntityNotFound(String),
+    InvalidId(i32),
+    ClientNotFound(String),
+}
+
 impl TryFrom<*mut gclient_t> for GameClient {
-    type Error = &'static str;
+    type Error = QuakeLiveEngineError;
 
     fn try_from(game_client: *mut gclient_t) -> Result<Self, Self::Error> {
         unsafe {
@@ -95,20 +185,9 @@ impl TryFrom<*mut gclient_t> for GameClient {
                 .map(|gclient_t| Self {
                     game_client: gclient_t,
                 })
-                .ok_or("null pointer passed")
+                .ok_or(NullPointerPassed("null pointer passed".into()))
         }
     }
-}
-
-lazy_static! {
-    static ref POWERUP_INDEX_LOOKUP: HashMap<i32, usize> = HashMap::from([
-        (0, PW_QUAD as usize),
-        (1, PW_BATTLESUIT as usize),
-        (2, PW_HASTE as usize),
-        (3, PW_INVIS as usize),
-        (4, PW_REGEN as usize),
-        (5, PW_INVULNERABILITY as usize),
-    ]);
 }
 
 impl GameClient {
@@ -221,8 +300,8 @@ impl GameClient {
         let mut returned = [0; 6];
         let current_level = CurrentLevel::default();
         for (powerup, item) in returned.iter_mut().enumerate() {
-            let powerup_index = *POWERUP_INDEX_LOOKUP.get(&(powerup as i32)).unwrap();
-            *item = self.game_client.ps.powerups[powerup_index];
+            let powerup_index = powerup_t::try_from(powerup as i32).unwrap();
+            *item = self.game_client.ps.powerups[powerup_index as usize];
             if *item != 0 {
                 *item -= current_level.get_leveltime();
             }
@@ -233,12 +312,12 @@ impl GameClient {
     pub(crate) fn set_powerups(&mut self, powerups: [i32; 6]) {
         let current_level = CurrentLevel::default();
         for (powerup, &item) in powerups.iter().enumerate() {
-            let powerup_index = *POWERUP_INDEX_LOOKUP.get(&(powerup as i32)).unwrap();
+            let powerup_index = powerup_t::try_from(powerup as i32).unwrap();
             if item == 0 {
-                self.game_client.ps.powerups[powerup_index] = 0;
+                self.game_client.ps.powerups[powerup_index as usize] = 0;
             } else {
                 let level_time = current_level.get_leveltime();
-                self.game_client.ps.powerups[powerup_index] =
+                self.game_client.ps.powerups[powerup_index as usize] =
                     level_time - (level_time % 1000) + item;
             }
         }
@@ -338,40 +417,53 @@ impl GameClient {
     }
 }
 
+#[cfg(test)]
+pub(crate) mod game_client_tests {
+    use super::*;
+
+    #[test]
+    pub(crate) fn game_client_try_from_null_results_in_error() {
+        assert_eq!(
+            GameClient::try_from(std::ptr::null_mut() as *mut gclient_t),
+            Err(NullPointerPassed("null pointer passed".into()))
+        );
+    }
+}
+
 pub(crate) struct GameEntity {
     gentity_t: &'static mut gentity_t,
 }
 
 impl TryFrom<*mut gentity_t> for GameEntity {
-    type Error = &'static str;
+    type Error = QuakeLiveEngineError;
 
     fn try_from(game_entity: *mut gentity_t) -> Result<Self, Self::Error> {
         unsafe {
             game_entity
                 .as_mut()
                 .map(|gentity| Self { gentity_t: gentity })
-                .ok_or("null pointer passed")
+                .ok_or(NullPointerPassed("null pointer passed".into()))
         }
     }
 }
 
 impl TryFrom<i32> for GameEntity {
-    type Error = &'static str;
+    type Error = QuakeLiveEngineError;
 
     fn try_from(entity_id: i32) -> Result<Self, Self::Error> {
         extern "C" {
             static g_entities: *mut gentity_t;
         }
 
-        if entity_id < 0 {
-            return Err("invalid entity_id");
+        if entity_id < 0 || entity_id >= MAX_GENTITIES as i32 {
+            return Err(InvalidId(entity_id));
         }
         unsafe {
             g_entities
                 .offset(entity_id as isize)
                 .as_mut()
                 .map(|gentity| Self { gentity_t: gentity })
-                .ok_or("entity not found")
+                .ok_or(EntityNotFound("entity not found".into()))
         }
     }
 }
@@ -666,14 +758,14 @@ pub(crate) struct Activator {
 }
 
 impl TryFrom<*mut gentity_t> for Activator {
-    type Error = &'static str;
+    type Error = QuakeLiveEngineError;
 
     fn try_from(game_entity: *mut gentity_t) -> Result<Self, Self::Error> {
         unsafe {
             game_entity
                 .as_ref()
                 .map(|gentity| Self { activator: gentity })
-                .ok_or("null pointer passed")
+                .ok_or(NullPointerPassed("null pointer passed".into()))
         }
     }
 }
@@ -689,13 +781,13 @@ pub(crate) struct CVar {
 }
 
 impl TryFrom<*const cvar_t> for CVar {
-    type Error = &'static str;
+    type Error = QuakeLiveEngineError;
 
     fn try_from(cvar: *const cvar_t) -> Result<Self, Self::Error> {
         unsafe {
             cvar.as_ref()
                 .map(|cvar| Self { cvar })
-                .ok_or("null pointer passed")
+                .ok_or(NullPointerPassed("null pointer passed".into()))
         }
     }
 }
@@ -715,28 +807,28 @@ pub(crate) struct Client {
 }
 
 impl TryFrom<*const client_t> for Client {
-    type Error = &'static str;
+    type Error = QuakeLiveEngineError;
 
     fn try_from(client: *const client_t) -> Result<Self, Self::Error> {
         unsafe {
             client
                 .as_ref()
                 .map(|client_t| Self { client_t })
-                .ok_or("null pointer passed")
+                .ok_or(NullPointerPassed("null pointer passed".into()))
         }
     }
 }
 
 impl TryFrom<i32> for Client {
-    type Error = &'static str;
+    type Error = QuakeLiveEngineError;
 
     fn try_from(client_id: i32) -> Result<Self, Self::Error> {
         extern "C" {
             static svs: *mut serverStatic_t;
         }
 
-        if client_id < 0 {
-            return Err("invalid client_id");
+        if client_id < 0 || client_id >= MAX_CLIENTS as i32 {
+            return Err(InvalidId(client_id));
         }
         unsafe {
             svs.as_ref()
@@ -745,7 +837,7 @@ impl TryFrom<i32> for Client {
                 .offset(client_id as isize)
                 .as_ref()
                 .map(|client| Self { client_t: client })
-                .ok_or("client not found")
+                .ok_or(ClientNotFound("client not found".into()))
         }
     }
 }
