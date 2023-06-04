@@ -32,7 +32,7 @@ use lazy_static::lazy_static;
 use std::collections::HashMap;
 use std::f32::consts::PI;
 use std::ffi::{c_char, c_float, c_int, CStr, CString};
-use std::ops::{BitAnd, BitAndAssign, BitOrAssign, Not};
+use std::ops::Not;
 
 impl From<qboolean> for c_int {
     fn from(value: qboolean) -> Self {
@@ -117,10 +117,7 @@ impl GameClient {
     }
 
     pub(crate) fn remove_kamikaze_flag(&mut self) {
-        self.game_client
-            .ps
-            .eFlags
-            .bitand_assign(!EF_KAMIKAZE as i32);
+        self.game_client.ps.eFlags &= !EF_KAMIKAZE as i32;
     }
 
     pub(crate) fn set_privileges(&mut self, privileges: i32) {
@@ -187,7 +184,7 @@ impl GameClient {
         let mut returned = [0; 15];
         let weapon_stats = self.game_client.ps.stats[STAT_WEAPONS as usize];
         for (i, item) in returned.iter_mut().enumerate() {
-            *item = match weapon_stats.bitand(1 << (i + 1)) != 0 {
+            *item = match weapon_stats & (1 << (i + 1)) != 0 {
                 true => 1,
                 false => 0,
             };
@@ -199,7 +196,7 @@ impl GameClient {
         let mut weapon_flags = 0;
         for (i, &item) in weapons.iter().enumerate() {
             let modifier = if item > 0 { 1 << (i + 1) } else { 0 };
-            weapon_flags.bitor_assign(modifier);
+            weapon_flags |= modifier;
         }
 
         self.game_client.ps.stats[STAT_WEAPONS as usize] = weapon_flags;
@@ -254,7 +251,7 @@ impl GameClient {
     pub(crate) fn set_holdable(&mut self, holdable: i32) {
         // 37 - kamikaze
         if holdable == 37 {
-            self.game_client.ps.eFlags.bitor_assign(EF_KAMIKAZE as i32);
+            self.game_client.ps.eFlags |= EF_KAMIKAZE as i32;
         } else {
             self.remove_kamikaze_flag();
         }
@@ -289,7 +286,7 @@ impl GameClient {
     }
 
     pub(crate) fn is_chatting(&self) -> bool {
-        self.game_client.ps.eFlags.bitand(EF_TALK as c_int) != 0
+        self.game_client.ps.eFlags & (EF_TALK as c_int) != 0
     }
 
     pub(crate) fn is_frozen(&self) -> bool {
@@ -559,7 +556,7 @@ impl GameEntity {
     }
 
     pub(crate) fn is_dropped_item(&self) -> bool {
-        self.gentity_t.flags.bitand(FL_DROPPED_ITEM as i32) != 0
+        self.gentity_t.flags & (FL_DROPPED_ITEM as i32) != 0
     }
 
     pub(crate) fn get_client_number(&self) -> i32 {
