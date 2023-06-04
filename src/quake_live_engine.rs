@@ -76,8 +76,8 @@ pub(crate) mod qboolean_tests {
 
     #[test]
     pub(crate) fn qboolean_as_c_int() {
-        assert_eq!(qboolean::qtrue as c_int, 1);
-        assert_eq!(qboolean::qfalse as c_int, 0);
+        assert_eq!(c_int::from(qboolean::qtrue), 1);
+        assert_eq!(c_int::from(qboolean::qfalse), 0);
     }
 
     #[test]
