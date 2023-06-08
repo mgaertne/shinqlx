@@ -692,6 +692,7 @@ pub struct netadr_t {
 }
 
 #[repr(C)]
+#[derive(Debug, PartialEq)]
 pub struct netchan_t {
     pub sock: netsrc_t,
     pub dropped: c_int, // between last packet and previous
@@ -945,6 +946,7 @@ pub struct sharedEntity_t {
 }
 
 #[repr(C)]
+#[derive(Debug, PartialEq)]
 pub struct client_s {
     pub state: clientState_t,
     pub userinfo: [c_char; MAX_INFO_STRING as usize], // name, etc

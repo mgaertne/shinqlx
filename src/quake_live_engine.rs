@@ -430,6 +430,7 @@ pub(crate) mod game_client_tests {
     }
 }
 
+#[derive(Debug, PartialEq)]
 pub(crate) struct GameEntity {
     gentity_t: &'static mut gentity_t,
 }
@@ -753,6 +754,20 @@ impl GameEntity {
     }
 }
 
+#[cfg(test)]
+pub(crate) mod game_entity_tests {
+    use super::*;
+
+    #[test]
+    pub(crate) fn game_entity_try_from_null_results_in_error() {
+        assert_eq!(
+            GameEntity::try_from(std::ptr::null_mut() as *mut gentity_t),
+            Err(NullPointerPassed("null pointer passed".into()))
+        );
+    }
+}
+
+#[derive(Debug, PartialEq)]
 pub(crate) struct Activator {
     activator: &'static gentity_t,
 }
@@ -776,6 +791,20 @@ impl Activator {
     }
 }
 
+#[cfg(test)]
+pub(crate) mod activator_tests {
+    use super::*;
+
+    #[test]
+    pub(crate) fn activator_try_from_null_results_in_error() {
+        assert_eq!(
+            Activator::try_from(std::ptr::null_mut() as *mut gentity_t),
+            Err(NullPointerPassed("null pointer passed".into()))
+        );
+    }
+}
+
+#[derive(Debug, PartialEq)]
 pub(crate) struct CVar {
     cvar: &'static cvar_t,
 }
@@ -802,6 +831,20 @@ impl CVar {
     }
 }
 
+#[cfg(test)]
+pub(crate) mod cvar_tests {
+    use super::*;
+
+    #[test]
+    pub(crate) fn cvar_try_from_null_results_in_error() {
+        assert_eq!(
+            CVar::try_from(std::ptr::null_mut() as *const cvar_t),
+            Err(NullPointerPassed("null pointer passed".into()))
+        );
+    }
+}
+
+#[derive(Debug, PartialEq)]
 pub(crate) struct Client {
     client_t: &'static client_t,
 }
@@ -906,6 +949,19 @@ impl Client {
                     .voteState = if yes_or_no { VOTE_YES } else { VOTE_NO };
             }
         };
+    }
+}
+
+#[cfg(test)]
+pub(crate) mod client_tests {
+    use super::*;
+
+    #[test]
+    pub(crate) fn client_try_from_null_results_in_error() {
+        assert_eq!(
+            Client::try_from(std::ptr::null_mut() as *const client_t),
+            Err(NullPointerPassed("null pointer passed".into()))
+        );
     }
 }
 
