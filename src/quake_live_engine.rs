@@ -313,6 +313,7 @@ pub(crate) mod meansofdeath_t_tests {
 }
 
 #[derive(Debug, PartialEq)]
+#[repr(transparent)]
 pub(crate) struct GameClient {
     game_client: &'static mut gclient_t,
 }
@@ -581,6 +582,7 @@ pub(crate) mod game_client_tests {
 }
 
 #[derive(Debug, PartialEq)]
+#[repr(transparent)]
 pub(crate) struct GameEntity {
     gentity_t: &'static mut gentity_t,
 }
@@ -941,6 +943,7 @@ pub(crate) mod game_entity_tests {
 }
 
 #[derive(Debug, PartialEq)]
+#[repr(transparent)]
 pub(crate) struct Activator {
     activator: &'static gentity_t,
 }
@@ -978,6 +981,7 @@ pub(crate) mod activator_tests {
 }
 
 #[derive(Debug, PartialEq)]
+#[repr(transparent)]
 pub(crate) struct CVar {
     cvar: &'static cvar_t,
 }
@@ -1018,6 +1022,7 @@ pub(crate) mod cvar_tests {
 }
 
 #[derive(Debug, PartialEq)]
+#[repr(transparent)]
 pub(crate) struct Client {
     client_t: &'static client_t,
 }
@@ -1141,6 +1146,7 @@ pub(crate) mod client_tests {
     }
 }
 
+#[repr(transparent)]
 pub(crate) struct CurrentLevel {
     level: &'static mut level_locals_t,
 }
