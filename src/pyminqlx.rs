@@ -251,7 +251,7 @@ pub(crate) fn new_game_dispatcher(restart: bool) {
     };
 }
 
-pub(crate) fn set_configstring_dispatcher(index: i32, value: &str) -> Option<String> {
+pub(crate) fn set_configstring_dispatcher(index: u32, value: &str) -> Option<String> {
     if !pyminqlx_is_initialized() {
         return Some(value.into());
     }
@@ -441,10 +441,10 @@ impl TryFrom<i32> for PlayerInfo {
             Err(_) => Ok(PlayerInfo {
                 client_id,
                 name: Default::default(),
-                connection_state: 0,
+                connection_state: CS_FREE.into(),
                 userinfo: Default::default(),
                 steam_id: 0,
-                team: TEAM_SPECTATOR as i32,
+                team: TEAM_SPECTATOR.into(),
                 privileges: -1,
             }),
             Ok(game_entity) => {
@@ -452,21 +452,21 @@ impl TryFrom<i32> for PlayerInfo {
                 return Ok(PlayerInfo {
                     client_id,
                     name: game_entity.get_player_name(),
-                    connection_state: 0,
+                    connection_state: CS_FREE.into(),
                     userinfo: Default::default(),
                     steam_id: 0,
-                    team: game_entity.get_team(),
-                    privileges: game_entity.get_privileges(),
+                    team: game_entity.get_team().into(),
+                    privileges: game_entity.get_privileges().into(),
                 });
             };
                 Ok(PlayerInfo {
                     client_id,
                     name: game_entity.get_player_name(),
-                    connection_state: client.get_state(),
+                    connection_state: client.get_state().into(),
                     userinfo: client.get_user_info(),
                     steam_id: client.get_steam_id(),
-                    team: game_entity.get_team(),
-                    privileges: game_entity.get_privileges(),
+                    team: game_entity.get_team().into(),
+                    privileges: game_entity.get_privileges().into(),
                 })
             }
         }
@@ -485,7 +485,7 @@ fn get_player_info(client_id: i32) -> PyResult<Option<PlayerInfo>> {
     }
     if let Ok(client) = Client::try_from(client_id) {
         let allowed_free_client_id = unsafe { ALLOW_FREE_CLIENT };
-        if allowed_free_client_id != client_id && client.get_state() == CS_FREE as i32 {
+        if allowed_free_client_id != client_id && client.get_state() == CS_FREE {
             #[cfg(debug_assertions)]
             println!(
                 "WARNING: get_player_info called for CS_FREE client {}.",
@@ -506,7 +506,7 @@ fn get_players_info() -> PyResult<Vec<Option<PlayerInfo>>> {
         match Client::try_from(client_id) {
             Err(_) => result.push(None),
             Ok(client) => {
-                if client.get_state() == CS_FREE as i32 {
+                if client.get_state() == CS_FREE {
                     result.push(None)
                 } else {
                     result.push(PlayerInfo::try_from(client_id).ok())
@@ -532,7 +532,7 @@ fn get_userinfo(client_id: i32) -> PyResult<Option<String>> {
         Err(_) => Ok(None),
         Ok(client) => {
             let allowed_free_client_id = unsafe { ALLOW_FREE_CLIENT };
-            if allowed_free_client_id != client_id && client.get_state() == CS_FREE as i32 {
+            if allowed_free_client_id != client_id && client.get_state() == CS_FREE {
                 Ok(None)
             } else {
                 Ok(Some(client.get_user_info()))
@@ -562,7 +562,7 @@ fn send_server_command(client_id: Option<i32>, cmd: &str) -> PyResult<bool> {
             match Client::try_from(actual_client_id) {
                 Err(_) => Ok(false),
                 Ok(client) => {
-                    if client.get_state() != CS_ACTIVE as i32 {
+                    if client.get_state() != CS_ACTIVE {
                         Ok(false)
                     } else {
                         shinqlx_send_server_command(Some(client), cmd);
@@ -588,7 +588,7 @@ fn client_command(client_id: i32, cmd: &str) -> PyResult<bool> {
     match Client::try_from(client_id) {
         Err(_) => Ok(false),
         Ok(client) => {
-            if [CS_FREE as i32, CS_ZOMBIE as i32].contains(&client.get_state()) {
+            if [CS_FREE, CS_ZOMBIE].contains(&client.get_state()) {
                 Ok(false)
             } else {
                 shinqlx_execute_client_command(Some(client), cmd, true);
@@ -663,7 +663,7 @@ fn kick(client_id: i32, reason: Option<&str>) -> PyResult<()> {
             "client_id must be None or the ID of an active player.",
         )),
         Ok(client) => {
-            if client.get_state() != CS_ACTIVE as i32 {
+            if client.get_state() != CS_ACTIVE {
                 return Err(PyValueError::new_err(
                     "client_id must be None or the ID of an active player.",
                 ));
@@ -690,8 +690,8 @@ fn console_print(text: &str) {
 /// Get a configstring.
 #[pyfunction]
 #[pyo3(name = "get_configstring")]
-fn get_configstring(config_id: i32) -> PyResult<String> {
-    if !(0..MAX_CONFIGSTRINGS as i32).contains(&config_id) {
+fn get_configstring(config_id: u32) -> PyResult<String> {
+    if !(0..MAX_CONFIGSTRINGS).contains(&config_id) {
         return Err(PyValueError::new_err(format!(
             "index needs to be a number from 0 to {}.",
             MAX_CONFIGSTRINGS - 1
@@ -703,8 +703,8 @@ fn get_configstring(config_id: i32) -> PyResult<String> {
 /// Sets a configstring and sends it to all the players on the server.
 #[pyfunction]
 #[pyo3(name = "set_configstring")]
-fn set_configstring(config_id: i32, value: &str) -> PyResult<()> {
-    if !(0..MAX_CONFIGSTRINGS as i32).contains(&config_id) {
+fn set_configstring(config_id: u32, value: &str) -> PyResult<()> {
+    if !(0..MAX_CONFIGSTRINGS).contains(&config_id) {
         return Err(PyValueError::new_err(format!(
             "index needs to be a number from 0 to {}.",
             MAX_CONFIGSTRINGS - 1
@@ -727,7 +727,7 @@ fn force_vote(pass: bool) -> bool {
     let maxclients = unsafe { SV_MAXCLIENTS };
     for i in 0..maxclients {
         if let Ok(client) = Client::try_from(i) {
-            if client.get_state() == CS_ACTIVE as i32 {
+            if client.get_state() == CS_ACTIVE {
                 client.set_vote(pass);
             }
         }
@@ -1848,7 +1848,7 @@ fn set_privileges(client_id: i32, privileges: i32) -> PyResult<bool> {
 #[pyo3(name = "destroy_kamikaze_timers")]
 fn destroy_kamikaze_timers() -> PyResult<bool> {
     for i in 0..MAX_GENTITIES {
-        if let Ok(game_entity) = GameEntity::try_from(i as i32) {
+        if let Ok(game_entity) = GameEntity::try_from(i) {
             if game_entity.in_use() {
                 if game_entity.get_health() <= 0 {
                     if let Some(game_client) = game_entity.get_game_client() {
@@ -1893,7 +1893,7 @@ fn spawn_item(item_id: i32, x: i32, y: i32, z: i32) -> PyResult<bool> {
 #[pyo3(name = "remove_dropped_items")]
 fn remove_dropped_items() -> PyResult<bool> {
     for i in 0..MAX_GENTITIES {
-        if let Ok(game_entity) = GameEntity::try_from(i as i32) {
+        if let Ok(game_entity) = GameEntity::try_from(i) {
             if game_entity.in_use() && game_entity.has_flags() && game_entity.is_dropped_item() {
                 let mut mut_entity = game_entity;
                 mut_entity.free_entity();
@@ -1922,7 +1922,7 @@ fn slay_with_mod(client_id: i32, mean_of_death: i32) -> PyResult<bool> {
             Some(_) => {
                 if game_entity.get_health() > 0 {
                     let mut mut_entity = game_entity;
-                    mut_entity.slay_with_mod(mean_of_death);
+                    mut_entity.slay_with_mod(mean_of_death.try_into().unwrap());
                 }
                 Ok(true)
             }

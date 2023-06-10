@@ -242,7 +242,7 @@ fn shinqlx_sv_cliententerworld(client: *const client_t, cmd: *const usercmd_t) {
     // gentity is NULL if map changed.
     // state is CS_PRIMED only if it's the first time they connect to the server,
     // otherwise the dispatcher would also go off when a game starts and such.
-    if safe_client.has_gentity() && state == CS_PRIMED as i32 {
+    if safe_client.has_gentity() && state == CS_PRIMED {
         client_loaded_dispatcher(safe_client.get_client_id());
     }
 }
@@ -254,10 +254,10 @@ pub(crate) fn shinqlx_sv_setconfigstring(index: c_int, value: *const c_char) {
         "".into()
     };
 
-    shinqlx_set_configstring(index, safe_value.as_ref());
+    shinqlx_set_configstring(index.try_into().unwrap(), safe_value.as_ref());
 }
 
-pub(crate) fn shinqlx_set_configstring(index: i32, value: &str) {
+pub(crate) fn shinqlx_set_configstring(index: u32, value: &str) {
     // Indices 16 and 66X are spammed a ton every frame for some reason,
     // so we add some exceptions for those. I don't think we should have any
     // use for those particular ones anyway. If we don't do this, we get
