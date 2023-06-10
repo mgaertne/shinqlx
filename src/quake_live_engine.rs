@@ -11,7 +11,14 @@ use crate::quake_types::clientConnected_t::CON_DISCONNECTED;
 use crate::quake_types::entityType_t::ET_ITEM;
 use crate::quake_types::entity_event_t::EV_ITEM_RESPAWN;
 use crate::quake_types::itemType_t::IT_WEAPON;
-use crate::quake_types::meansOfDeath_t::MOD_KAMIKAZE;
+use crate::quake_types::meansOfDeath_t::{
+    MOD_BFG, MOD_BFG_SPLASH, MOD_CHAINGUN, MOD_CRUSH, MOD_FALLING, MOD_GAUNTLET, MOD_GRAPPLE,
+    MOD_GRENADE, MOD_GRENADE_SPLASH, MOD_HMG, MOD_JUICED, MOD_KAMIKAZE, MOD_LAVA, MOD_LIGHTNING,
+    MOD_LIGHTNING_DISCHARGE, MOD_MACHINEGUN, MOD_NAIL, MOD_PLASMA, MOD_PLASMA_SPLASH,
+    MOD_PROXIMITY_MINE, MOD_RAILGUN, MOD_RAILGUN_HEADSHOT, MOD_ROCKET, MOD_ROCKET_SPLASH,
+    MOD_SHOTGUN, MOD_SLIME, MOD_SUICIDE, MOD_SWITCH_TEAMS, MOD_TARGET_LASER, MOD_TELEFRAG,
+    MOD_THAW, MOD_TRIGGER_HURT, MOD_UNKNOWN, MOD_WATER,
+};
 use crate::quake_types::persistantFields_t::PERS_ROUND_SCORE;
 use crate::quake_types::pmtype_t::PM_NORMAL;
 use crate::quake_types::powerup_t::{
@@ -25,10 +32,10 @@ use crate::quake_types::statIndex_t::{
 use crate::quake_types::team_t::TEAM_SPECTATOR;
 use crate::quake_types::voteState_t::{VOTE_NO, VOTE_PENDING, VOTE_YES};
 use crate::quake_types::{
-    cbufExec_t, client_t, cvar_t, entity_event_t, gclient_t, gentity_t, gitem_t, level_locals_t,
-    powerup_t, privileges_t, qboolean, serverStatic_t, trace_t, usercmd_t, vec3_t, CS_ITEMS,
-    CS_VOTE_NO, CS_VOTE_STRING, CS_VOTE_TIME, CS_VOTE_YES, DAMAGE_NO_PROTECTION, EF_KAMIKAZE,
-    EF_TALK, FL_DROPPED_ITEM, MAX_CLIENTS, MAX_GENTITIES,
+    cbufExec_t, clientState_t, client_t, cvar_t, entity_event_t, gclient_t, gentity_t, gitem_t,
+    level_locals_t, meansOfDeath_t, powerup_t, privileges_t, qboolean, serverStatic_t, team_t,
+    trace_t, usercmd_t, vec3_t, CS_ITEMS, CS_VOTE_NO, CS_VOTE_STRING, CS_VOTE_TIME, CS_VOTE_YES,
+    DAMAGE_NO_PROTECTION, EF_KAMIKAZE, EF_TALK, FL_DROPPED_ITEM, MAX_CLIENTS, MAX_GENTITIES,
 };
 use crate::SV_MAXCLIENTS;
 use std::f32::consts::PI;
@@ -111,6 +118,12 @@ impl From<i32> for privileges_t {
     }
 }
 
+impl From<privileges_t> for i32 {
+    fn from(value: privileges_t) -> Self {
+        value as i32
+    }
+}
+
 #[cfg(test)]
 pub(crate) mod privileges_tests {
     use super::*;
@@ -126,10 +139,32 @@ pub(crate) mod privileges_tests {
     }
 }
 
+impl From<clientState_t> for i32 {
+    fn from(value: clientState_t) -> Self {
+        value as i32
+    }
+}
+
 impl TryFrom<i32> for powerup_t {
     type Error = String;
 
     fn try_from(value: i32) -> Result<Self, Self::Error> {
+        match value {
+            0 => Ok(PW_QUAD),
+            1 => Ok(PW_BATTLESUIT),
+            2 => Ok(PW_HASTE),
+            3 => Ok(PW_INVIS),
+            4 => Ok(PW_REGEN),
+            5 => Ok(PW_INVULNERABILITY),
+            _ => Err("invalid power up".into()),
+        }
+    }
+}
+
+impl TryFrom<usize> for powerup_t {
+    type Error = String;
+
+    fn try_from(value: usize) -> Result<Self, Self::Error> {
         match value {
             0 => Ok(PW_QUAD),
             1 => Ok(PW_BATTLESUIT),
@@ -158,6 +193,121 @@ pub(crate) mod powerup_t_tests {
         assert_eq!(
             powerup_t::try_from(666),
             Err("invalid power up".to_string())
+        );
+    }
+
+    #[test]
+    pub(crate) fn powerup_t_from_usize() {
+        assert_eq!(powerup_t::try_from(0usize), Ok(PW_QUAD));
+        assert_eq!(powerup_t::try_from(1usize), Ok(PW_BATTLESUIT));
+        assert_eq!(powerup_t::try_from(2usize), Ok(PW_HASTE));
+        assert_eq!(powerup_t::try_from(3usize), Ok(PW_INVIS));
+        assert_eq!(powerup_t::try_from(4usize), Ok(PW_REGEN));
+        assert_eq!(powerup_t::try_from(5usize), Ok(PW_INVULNERABILITY));
+        assert_eq!(
+            powerup_t::try_from(666usize),
+            Err("invalid power up".to_string())
+        );
+    }
+}
+
+impl From<team_t> for i32 {
+    fn from(value: team_t) -> Self {
+        value as i32
+    }
+}
+
+impl TryFrom<i32> for meansOfDeath_t {
+    type Error = String;
+
+    fn try_from(value: i32) -> Result<Self, Self::Error> {
+        match value {
+            0 => Ok(MOD_UNKNOWN),
+            1 => Ok(MOD_SHOTGUN),
+            2 => Ok(MOD_GAUNTLET),
+            3 => Ok(MOD_MACHINEGUN),
+            4 => Ok(MOD_GRENADE),
+            5 => Ok(MOD_GRENADE_SPLASH),
+            6 => Ok(MOD_ROCKET),
+            7 => Ok(MOD_ROCKET_SPLASH),
+            8 => Ok(MOD_PLASMA),
+            9 => Ok(MOD_PLASMA_SPLASH),
+            10 => Ok(MOD_RAILGUN),
+            11 => Ok(MOD_LIGHTNING),
+            12 => Ok(MOD_BFG),
+            13 => Ok(MOD_BFG_SPLASH),
+            14 => Ok(MOD_WATER),
+            15 => Ok(MOD_SLIME),
+            16 => Ok(MOD_LAVA),
+            17 => Ok(MOD_CRUSH),
+            18 => Ok(MOD_TELEFRAG),
+            19 => Ok(MOD_FALLING),
+            20 => Ok(MOD_SUICIDE),
+            21 => Ok(MOD_TARGET_LASER),
+            22 => Ok(MOD_TRIGGER_HURT),
+            23 => Ok(MOD_NAIL),
+            24 => Ok(MOD_CHAINGUN),
+            25 => Ok(MOD_PROXIMITY_MINE),
+            26 => Ok(MOD_KAMIKAZE),
+            27 => Ok(MOD_JUICED),
+            28 => Ok(MOD_GRAPPLE),
+            29 => Ok(MOD_SWITCH_TEAMS),
+            30 => Ok(MOD_THAW),
+            31 => Ok(MOD_LIGHTNING_DISCHARGE),
+            32 => Ok(MOD_HMG),
+            33 => Ok(MOD_RAILGUN_HEADSHOT),
+            _ => Err("invalid means of death".into()),
+        }
+    }
+}
+
+#[cfg(test)]
+pub(crate) mod meansofdeath_t_tests {
+    use super::*;
+
+    #[test]
+    pub(crate) fn meansofdeath_t_from_integer() {
+        assert_eq!(meansOfDeath_t::try_from(0), Ok(MOD_UNKNOWN));
+        assert_eq!(meansOfDeath_t::try_from(1), Ok(MOD_SHOTGUN));
+        assert_eq!(meansOfDeath_t::try_from(2), Ok(MOD_GAUNTLET));
+        assert_eq!(meansOfDeath_t::try_from(3), Ok(MOD_MACHINEGUN));
+        assert_eq!(meansOfDeath_t::try_from(4), Ok(MOD_GRENADE));
+        assert_eq!(meansOfDeath_t::try_from(5), Ok(MOD_GRENADE_SPLASH));
+        assert_eq!(meansOfDeath_t::try_from(6), Ok(MOD_ROCKET));
+        assert_eq!(meansOfDeath_t::try_from(7), Ok(MOD_ROCKET_SPLASH));
+        assert_eq!(meansOfDeath_t::try_from(8), Ok(MOD_PLASMA));
+        assert_eq!(meansOfDeath_t::try_from(9), Ok(MOD_PLASMA_SPLASH));
+        assert_eq!(meansOfDeath_t::try_from(10), Ok(MOD_RAILGUN));
+        assert_eq!(meansOfDeath_t::try_from(11), Ok(MOD_LIGHTNING));
+        assert_eq!(meansOfDeath_t::try_from(12), Ok(MOD_BFG));
+        assert_eq!(meansOfDeath_t::try_from(13), Ok(MOD_BFG_SPLASH));
+        assert_eq!(meansOfDeath_t::try_from(14), Ok(MOD_WATER));
+        assert_eq!(meansOfDeath_t::try_from(15), Ok(MOD_SLIME));
+        assert_eq!(meansOfDeath_t::try_from(16), Ok(MOD_LAVA));
+        assert_eq!(meansOfDeath_t::try_from(17), Ok(MOD_CRUSH));
+        assert_eq!(meansOfDeath_t::try_from(18), Ok(MOD_TELEFRAG));
+        assert_eq!(meansOfDeath_t::try_from(19), Ok(MOD_FALLING));
+        assert_eq!(meansOfDeath_t::try_from(20), Ok(MOD_SUICIDE));
+        assert_eq!(meansOfDeath_t::try_from(21), Ok(MOD_TARGET_LASER));
+        assert_eq!(meansOfDeath_t::try_from(22), Ok(MOD_TRIGGER_HURT));
+        assert_eq!(meansOfDeath_t::try_from(23), Ok(MOD_NAIL));
+        assert_eq!(meansOfDeath_t::try_from(24), Ok(MOD_CHAINGUN));
+        assert_eq!(meansOfDeath_t::try_from(25), Ok(MOD_PROXIMITY_MINE));
+        assert_eq!(meansOfDeath_t::try_from(26), Ok(MOD_KAMIKAZE));
+        assert_eq!(meansOfDeath_t::try_from(27), Ok(MOD_JUICED));
+        assert_eq!(meansOfDeath_t::try_from(28), Ok(MOD_GRAPPLE));
+        assert_eq!(meansOfDeath_t::try_from(29), Ok(MOD_SWITCH_TEAMS));
+        assert_eq!(meansOfDeath_t::try_from(30), Ok(MOD_THAW));
+        assert_eq!(meansOfDeath_t::try_from(31), Ok(MOD_LIGHTNING_DISCHARGE));
+        assert_eq!(meansOfDeath_t::try_from(32), Ok(MOD_HMG));
+        assert_eq!(meansOfDeath_t::try_from(33), Ok(MOD_RAILGUN_HEADSHOT));
+        assert_eq!(
+            meansOfDeath_t::try_from(-1),
+            Err("invalid means of death".to_string())
+        );
+        assert_eq!(
+            meansOfDeath_t::try_from(666),
+            Err("invalid means of death".to_string())
         );
     }
 }
@@ -196,7 +346,7 @@ impl GameClient {
     }
 
     pub(crate) fn remove_kamikaze_flag(&mut self) {
-        self.game_client.ps.eFlags &= !EF_KAMIKAZE as i32;
+        self.game_client.ps.eFlags &= !i32::try_from(EF_KAMIKAZE).unwrap();
     }
 
     pub(crate) fn set_privileges(&mut self, privileges: i32) {
@@ -230,9 +380,9 @@ impl GameClient {
     }
 
     pub(crate) fn set_velocity(&mut self, velocity: (f32, f32, f32)) {
-        self.game_client.ps.velocity[0] = velocity.0 as c_float;
-        self.game_client.ps.velocity[1] = velocity.1 as c_float;
-        self.game_client.ps.velocity[2] = velocity.2 as c_float;
+        self.game_client.ps.velocity[0] = velocity.0;
+        self.game_client.ps.velocity[1] = velocity.1;
+        self.game_client.ps.velocity[2] = velocity.2;
     }
 
     pub(crate) fn get_armor(&self) -> i32 {
@@ -300,7 +450,7 @@ impl GameClient {
         let mut returned = [0; 6];
         let current_level = CurrentLevel::default();
         for (powerup, item) in returned.iter_mut().enumerate() {
-            let powerup_index = powerup_t::try_from(powerup as i32).unwrap();
+            let powerup_index = powerup_t::try_from(powerup).unwrap();
             *item = self.game_client.ps.powerups[powerup_index as usize];
             if *item != 0 {
                 *item -= current_level.get_leveltime();
@@ -312,7 +462,7 @@ impl GameClient {
     pub(crate) fn set_powerups(&mut self, powerups: [i32; 6]) {
         let current_level = CurrentLevel::default();
         for (powerup, &item) in powerups.iter().enumerate() {
-            let powerup_index = powerup_t::try_from(powerup as i32).unwrap();
+            let powerup_index = powerup_t::try_from(powerup).unwrap();
             if item == 0 {
                 self.game_client.ps.powerups[powerup_index as usize] = 0;
             } else {
@@ -330,7 +480,7 @@ impl GameClient {
     pub(crate) fn set_holdable(&mut self, holdable: i32) {
         // 37 - kamikaze
         if holdable == 37 {
-            self.game_client.ps.eFlags |= EF_KAMIKAZE as i32;
+            self.game_client.ps.eFlags |= i32::try_from(EF_KAMIKAZE).unwrap();
         } else {
             self.remove_kamikaze_flag();
         }
@@ -456,8 +606,29 @@ impl TryFrom<i32> for GameEntity {
             static g_entities: *mut gentity_t;
         }
 
-        if entity_id < 0 || entity_id >= MAX_GENTITIES as i32 {
+        if entity_id < 0 || entity_id >= i32::try_from(MAX_GENTITIES).unwrap() {
             return Err(InvalidId(entity_id));
+        }
+        unsafe {
+            g_entities
+                .offset(entity_id as isize)
+                .as_mut()
+                .map(|gentity| Self { gentity_t: gentity })
+                .ok_or(EntityNotFound("entity not found".into()))
+        }
+    }
+}
+
+impl TryFrom<u32> for GameEntity {
+    type Error = QuakeLiveEngineError;
+
+    fn try_from(entity_id: u32) -> Result<Self, Self::Error> {
+        extern "C" {
+            static g_entities: *mut gentity_t;
+        }
+
+        if entity_id >= MAX_GENTITIES {
+            return Err(InvalidId(entity_id as i32));
         }
         unsafe {
             g_entities
@@ -510,7 +681,9 @@ impl GameEntity {
             static g_entities: *mut gentity_t;
         }
 
-        unsafe { (self.gentity_t as *const gentity_t).offset_from(g_entities) as i32 }
+        unsafe {
+            i32::try_from((self.gentity_t as *const gentity_t).offset_from(g_entities)).unwrap()
+        }
     }
 
     pub(crate) fn start_kamikaze(&mut self) {
@@ -544,23 +717,23 @@ impl GameEntity {
         }
     }
 
-    pub(crate) fn get_team(&self) -> i32 {
+    pub(crate) fn get_team(&self) -> team_t {
         if self.gentity_t.client.is_null() {
-            return TEAM_SPECTATOR as i32;
+            return TEAM_SPECTATOR;
         }
         if unsafe { self.gentity_t.client.as_ref().unwrap().pers.connected } == CON_DISCONNECTED {
-            return TEAM_SPECTATOR as i32;
+            return TEAM_SPECTATOR;
         }
 
-        unsafe { self.gentity_t.client.as_ref().unwrap().sess.sessionTeam as i32 }
+        unsafe { self.gentity_t.client.as_ref().unwrap().sess.sessionTeam }
     }
 
-    pub(crate) fn get_privileges(&self) -> i32 {
+    pub(crate) fn get_privileges(&self) -> privileges_t {
         if self.gentity_t.client.is_null() {
-            return -1;
+            return privileges_t::from(-1);
         }
 
-        unsafe { self.gentity_t.client.as_ref().unwrap().sess.privileges as i32 }
+        unsafe { self.gentity_t.client.as_ref().unwrap().sess.privileges }
     }
 
     pub(crate) fn get_game_client(&self) -> Option<GameClient> {
@@ -579,7 +752,7 @@ impl GameEntity {
         self.gentity_t.health = new_health as c_int;
     }
 
-    pub(crate) fn slay_with_mod(&mut self, mean_of_death: i32) {
+    pub(crate) fn slay_with_mod(&mut self, mean_of_death: meansOfDeath_t) {
         extern "C" {
             static G_Damage: extern "C" fn(
                 *const gentity_t,
@@ -594,7 +767,7 @@ impl GameEntity {
         }
 
         let damage = self.get_health()
-            + if mean_of_death == MOD_KAMIKAZE as i32 {
+            + if mean_of_death == MOD_KAMIKAZE {
                 100000
             } else {
                 0
@@ -611,7 +784,7 @@ impl GameEntity {
                 std::ptr::null(),
                 damage * 2,
                 DAMAGE_NO_PROTECTION as c_int,
-                mean_of_death,
+                mean_of_death as c_int,
             );
         }
     }
@@ -870,7 +1043,7 @@ impl TryFrom<i32> for Client {
             static svs: *mut serverStatic_t;
         }
 
-        if client_id < 0 || client_id >= MAX_CLIENTS as i32 {
+        if client_id < 0 || client_id >= i32::try_from(MAX_CLIENTS).unwrap() {
             return Err(InvalidId(client_id));
         }
         unsafe {
@@ -892,12 +1065,15 @@ impl Client {
         }
 
         unsafe {
-            (self.client_t as *const client_t).offset_from(svs.as_ref().unwrap().clients) as i32
+            i32::try_from(
+                (self.client_t as *const client_t).offset_from(svs.as_ref().unwrap().clients),
+            )
+            .unwrap()
         }
     }
 
-    pub(crate) fn get_state(&self) -> i32 {
-        self.client_t.state as i32
+    pub(crate) fn get_state(&self) -> clientState_t {
+        self.client_t.state
     }
 
     pub(crate) fn has_gentity(&self) -> bool {
@@ -1026,13 +1202,10 @@ impl CurrentLevel {
             }
         }
 
-        shinqlx_set_configstring(CS_VOTE_STRING as i32, vote_disp);
-        shinqlx_set_configstring(
-            CS_VOTE_TIME as i32,
-            format!("{}", self.level.voteTime).as_str(),
-        );
-        shinqlx_set_configstring(CS_VOTE_YES as i32, "0");
-        shinqlx_set_configstring(CS_VOTE_NO as i32, "0");
+        shinqlx_set_configstring(CS_VOTE_STRING, vote_disp);
+        shinqlx_set_configstring(CS_VOTE_TIME, format!("{}", self.level.voteTime).as_str());
+        shinqlx_set_configstring(CS_VOTE_YES, "0");
+        shinqlx_set_configstring(CS_VOTE_NO, "0");
     }
 
     pub(crate) fn set_training_map(&mut self, is_training_map: bool) {
@@ -1181,13 +1354,16 @@ impl ClientEnterWorld for QuakeLiveEngine {
 }
 
 pub(crate) trait SetConfigstring {
-    fn set_configstring(&self, index: &i32, value: &str);
+    fn set_configstring(&self, index: &u32, value: &str);
 }
 
 impl SetConfigstring for QuakeLiveEngine {
-    fn set_configstring(&self, index: &i32, value: &str) {
+    fn set_configstring(&self, index: &u32, value: &str) {
         if let Ok(c_value) = CString::new(value) {
-            unsafe { SV_SETCONFGISTRING_DETOUR.call(index.to_owned(), c_value.as_ptr()) };
+            unsafe {
+                SV_SETCONFGISTRING_DETOUR
+                    .call(index.to_owned().try_into().unwrap(), c_value.as_ptr())
+            };
         }
     }
 }
@@ -1455,11 +1631,11 @@ impl SetCVarLimit for QuakeLiveEngine {
 }
 
 pub(crate) trait GetConfigstring {
-    fn get_configstring(&self, index: i32) -> String;
+    fn get_configstring(&self, index: u32) -> String;
 }
 
 impl GetConfigstring for QuakeLiveEngine {
-    fn get_configstring(&self, index: i32) -> String {
+    fn get_configstring(&self, index: u32) -> String {
         extern "C" {
             static SV_GetConfigstring: extern "C" fn(c_int, *mut c_char, c_int);
         }
@@ -1467,7 +1643,7 @@ impl GetConfigstring for QuakeLiveEngine {
         let mut buffer: [u8; 4096] = [0; 4096];
         unsafe {
             SV_GetConfigstring(
-                index,
+                index as c_int,
                 buffer.as_mut_ptr() as *mut c_char,
                 buffer.len() as c_int,
             );
