@@ -2,6 +2,7 @@
 #![allow(clippy::upper_case_acronyms)]
 #![allow(non_camel_case_types)]
 #![allow(non_snake_case)]
+use derive_builder::Builder;
 use std::ffi::{c_char, c_float, c_int, c_uchar, c_uint, c_ushort};
 
 // these are the only configstrings that the system reserves, all the
@@ -637,16 +638,26 @@ pub struct msg_t {
 }
 
 #[repr(C)]
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Clone, Builder)]
+#[builder(name = "UserCmdBuilder")]
 pub struct usercmd_s {
+    #[builder(default)]
     pub serverTime: c_int,
+    #[builder(default)]
     pub angles: [c_int; 3usize],
+    #[builder(default)]
     pub buttons: c_int,
+    #[builder(default)]
     pub weapon: byte,
+    #[builder(default)]
     pub weaponPrimary: byte,
+    #[builder(default)]
     pub fov: byte,
+    #[builder(default)]
     pub forwardmove: c_char,
+    #[builder(default)]
     pub rightmove: c_char,
+    #[builder(default)]
     pub upmove: c_char,
 }
 
@@ -742,70 +753,134 @@ pub struct trace_t {
 // so if a playerState_t is transmitted, the entityState_t can be fully derived
 // from it.
 #[repr(C)]
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Clone, Builder)]
+#[builder(name = "PlayerStateBuilder")]
 pub struct playerState_s {
+    #[builder(default)]
     pub commandTime: c_int,
+    #[builder(default)]
     pub pm_type: c_int,
+    #[builder(default)]
     pub bobCycle: c_int,
+    #[builder(default)]
     pub pm_flags: c_int,
+    #[builder(default)]
     pub pm_time: c_int,
+    #[builder(default)]
     pub origin: vec3_t,
+    #[builder(default)]
     pub velocity: vec3_t,
+    #[builder(default)]
     pub weaponTime: c_int,
+    #[builder(default)]
     pub gravity: c_int,
+    #[builder(default)]
     pub speed: c_int,
+    #[builder(default)]
     pub delta_angles: [c_int; 3usize],
+    #[builder(default)]
     pub groundEntityNum: c_int,
+    #[builder(default)]
     pub legsTimer: c_int,
+    #[builder(default)]
     pub legsAnim: c_int,
+    #[builder(default)]
     pub torsoTimer: c_int,
+    #[builder(default)]
     pub torsoAnim: c_int,
+    #[builder(default)]
     pub movementDir: c_int,
+    #[builder(default)]
     pub grapplePoint: vec3_t,
+    #[builder(default)]
     pub eFlags: c_int,
+    #[builder(default)]
     pub eventSequence: c_int,
+    #[builder(default)]
     pub events: [c_int; 2usize],
+    #[builder(default)]
     pub eventParms: [c_int; 2usize],
+    #[builder(default)]
     pub externalEvent: c_int,
+    #[builder(default)]
     pub externalEventParm: c_int,
+    #[builder(default)]
     pub clientNum: c_int,
+    #[builder(default)]
     pub location: c_int,
+    #[builder(default)]
     pub weapon: c_int,
+    #[builder(default)]
     pub weaponPrimary: c_int,
+    #[builder(default)]
     pub weaponstate: c_int,
+    #[builder(default)]
     pub fov: c_int,
+    #[builder(default)]
     pub viewangles: vec3_t,
+    #[builder(default)]
     pub viewheight: c_int,
+    #[builder(default)]
     pub damageEvent: c_int,
+    #[builder(default)]
     pub damageYaw: c_int,
+    #[builder(default)]
     pub damagePitch: c_int,
+    #[builder(default)]
     pub damageCount: c_int,
+    #[builder(default)]
     pub stats: [c_int; 16usize],
+    #[builder(default)]
     pub persistant: [c_int; 16usize],
+    #[builder(default)]
     pub powerups: [c_int; 16usize],
+    #[builder(default)]
     pub ammo: [c_int; 16usize],
+    #[builder(default)]
     pub generic1: c_int,
+    #[builder(default)]
     pub loopSound: c_int,
+    #[builder(default)]
     pub jumppad_ent: c_int,
+    #[builder(default)]
     pub jumpTime: c_int,
+    #[builder(default)]
     pub doubleJumped: c_int,
+    #[builder(default)]
     pub crouchTime: c_int,
+    #[builder(default)]
     pub crouchSlideTime: c_int,
+    #[builder(default)]
     pub forwardmove: c_char,
+    #[builder(default)]
     pub rightmove: c_char,
+    #[builder(default)]
     pub upmove: c_char,
+    #[builder(default)]
     pub ping: c_int,
+    #[builder(default)]
     pub pmove_framecount: c_int,
+    #[builder(default)]
     pub jumppad_frame: c_int,
+    #[builder(default)]
     pub entityEventSequence: c_int,
+    #[builder(default)]
     pub freezetime: c_int,
+    #[builder(default)]
     pub thawtime: c_int,
+    #[builder(default)]
     pub thawClientNum_valid: c_int,
+    #[builder(default)]
     pub thawClientNum: c_int,
+    #[builder(default)]
     pub respawnTime: c_int,
+    #[builder(default)]
     pub localPersistant: [c_int; 16usize],
+    #[builder(default)]
     pub roundDamage: c_int,
+    #[builder(default)]
     pub roundShots: c_int,
+    #[builder(default)]
     pub roundHits: c_int,
 }
 
@@ -1091,121 +1166,226 @@ pub struct server_t {
 }
 
 #[repr(C)]
-#[derive(Debug, PartialEq, Eq)]
+#[derive(Debug, PartialEq, Eq, Clone, Builder)]
+#[builder(name = "PlayerTeamStateBuilder")]
 pub struct playerTeamState_t {
+    #[builder(default = "playerTeamStateState_t::TEAM_ACTIVE")]
     pub state: playerTeamStateState_t,
+    #[builder(default)]
     pub captures: c_int,
+    #[builder(default)]
     pub basedefense: c_int,
+    #[builder(default)]
     pub carrierdefense: c_int,
+    #[builder(default)]
     pub flagrecovery: c_int,
+    #[builder(default)]
     pub fragcarrier: c_int,
+    #[builder(default)]
     pub assists: c_int,
+    #[builder(default)]
     pub flagruntime: c_int,
+    #[builder(default)]
     pub flagrunrelays: c_int,
+    #[builder(default)]
     pub lasthurtcarrier: c_int,
+    #[builder(default)]
     pub lastreturnedflag: c_int,
+    #[builder(default)]
     pub lastfraggedcarrier: c_int,
 }
 
 #[repr(C)]
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Clone, Builder)]
+#[builder(name = "ExpandedStatsBuilder")]
 pub struct expandedStatObj_t {
+    #[builder(default)]
     pub statId: c_uint,
+    #[builder(default)]
     pub lastThinkTime: c_int,
+    #[builder(default)]
     pub teamJoinTime: c_int,
+    #[builder(default)]
     pub totalPlayTime: c_int,
+    #[builder(default)]
     pub serverRank: c_int,
+    #[builder(default = "qboolean::qfalse")]
     pub serverRankIsTied: qboolean,
+    #[builder(default)]
     pub teamRank: c_int,
+    #[builder(default = "qboolean::qfalse")]
     pub teamRankIsTied: qboolean,
+    #[builder(default)]
     pub numKills: c_int,
+    #[builder(default)]
     pub numDeaths: c_int,
+    #[builder(default)]
     pub numSuicides: c_int,
+    #[builder(default)]
     pub numTeamKills: c_int,
+    #[builder(default)]
     pub numTeamKilled: c_int,
+    #[builder(default)]
     pub numWeaponKills: [c_int; 16usize],
+    #[builder(default)]
     pub numWeaponDeaths: [c_int; 16usize],
+    #[builder(default)]
     pub shotsFired: [c_int; 16usize],
+    #[builder(default)]
     pub shotsHit: [c_int; 16usize],
+    #[builder(default)]
     pub damageDealt: [c_int; 16usize],
+    #[builder(default)]
     pub damageTaken: [c_int; 16usize],
+    #[builder(default)]
     pub powerups: [c_int; 16usize],
+    #[builder(default)]
     pub holdablePickups: [c_int; 7usize],
+    #[builder(default)]
     pub weaponPickups: [c_int; 16usize],
+    #[builder(default)]
     pub weaponUsageTime: [c_int; 16usize],
+    #[builder(default)]
     pub numCaptures: c_int,
+    #[builder(default)]
     pub numAssists: c_int,
+    #[builder(default)]
     pub numDefends: c_int,
+    #[builder(default)]
     pub numHolyShits: c_int,
+    #[builder(default)]
     pub totalDamageDealt: c_int,
+    #[builder(default)]
     pub totalDamageTaken: c_int,
+    #[builder(default)]
     pub previousHealth: c_int,
+    #[builder(default)]
     pub previousArmor: c_int,
+    #[builder(default)]
     pub numAmmoPickups: c_int,
+    #[builder(default)]
     pub numFirstMegaHealthPickups: c_int,
+    #[builder(default)]
     pub numMegaHealthPickups: c_int,
+    #[builder(default)]
     pub megaHealthPickupTime: c_int,
+    #[builder(default)]
     pub numHealthPickups: c_int,
+    #[builder(default)]
     pub numFirstRedArmorPickups: c_int,
+    #[builder(default)]
     pub numRedArmorPickups: c_int,
+    #[builder(default)]
     pub redArmorPickupTime: c_int,
+    #[builder(default)]
     pub numFirstYellowArmorPickups: c_int,
+    #[builder(default)]
     pub numYellowArmorPickups: c_int,
+    #[builder(default)]
     pub yellowArmorPickupTime: c_int,
+    #[builder(default)]
     pub numFirstGreenArmorPickups: c_int,
+    #[builder(default)]
     pub numGreenArmorPickups: c_int,
+    #[builder(default)]
     pub greenArmorPickupTime: c_int,
+    #[builder(default)]
     pub numQuadDamagePickups: c_int,
+    #[builder(default)]
     pub numQuadDamageKills: c_int,
+    #[builder(default)]
     pub numBattleSuitPickups: c_int,
+    #[builder(default)]
     pub numRegenerationPickups: c_int,
+    #[builder(default)]
     pub numHastePickups: c_int,
+    #[builder(default)]
     pub numInvisibilityPickups: c_int,
+    #[builder(default)]
     pub numRedFlagPickups: c_int,
+    #[builder(default)]
     pub numBlueFlagPickups: c_int,
+    #[builder(default)]
     pub numNeutralFlagPickups: c_int,
+    #[builder(default)]
     pub numMedkitPickups: c_int,
+    #[builder(default)]
     pub numArmorPickups: c_int,
+    #[builder(default)]
     pub numDenials: c_int,
+    #[builder(default)]
     pub killStreak: c_int,
+    #[builder(default)]
     pub maxKillStreak: c_int,
+    #[builder(default)]
     pub xp: c_int,
+    #[builder(default)]
     pub domThreeFlagsTime: c_int,
+    #[builder(default)]
     pub numMidairShotgunKills: c_int,
 }
 
 // client data that stays across multiple respawns, but is cleared
 // on each level change or team change at ClientBegin()
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Clone, Builder)]
+#[builder(name = "ClientPersistantBuilder")]
 #[repr(C, align(8))]
 pub struct clientPersistant_t {
+    #[builder(default = "clientConnected_t::CON_CONNECTED")]
     pub connected: clientConnected_t,
     pub cmd: usercmd_t,
+    #[builder(default = "qboolean::qfalse")]
     pub localClient: qboolean,
+    #[builder(default = "qboolean::qfalse")]
     pub initialSpawn: qboolean,
+    #[builder(default = "qboolean::qfalse")]
     pub predictItemPickup: qboolean,
+    #[builder(
+        default = "[0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]"
+    )]
     pub netname: [c_char; 40usize],
+    #[builder(default)]
     pub country: [c_char; 24usize],
+    #[builder(default)]
     pub steamId: u64,
+    #[builder(default)]
     pub maxHealth: c_int,
+    #[builder(default)]
     pub voteCount: c_int,
+    #[builder(default = "voteState_t::VOTE_NONE")]
     pub voteState: voteState_t,
+    #[builder(default)]
     pub complaints: c_int,
+    #[builder(default)]
     pub complaintClient: c_int,
+    #[builder(default)]
     pub complaintEndTime: c_int,
+    #[builder(default)]
     pub damageFromTeammates: c_int,
+    #[builder(default)]
     pub damageToTeammates: c_int,
+    #[builder(default = "qboolean::qfalse")]
     pub ready: qboolean,
+    #[builder(default)]
     pub autoaction: c_int,
+    #[builder(default)]
     pub timeouts: c_int,
+    #[builder(default)]
     pub enterTime: c_int,
     pub teamState: playerTeamState_t,
+    #[builder(default)]
     pub damageResidual: c_int,
+    #[builder(default)]
     pub inactivityTime: c_int,
+    #[builder(default)]
     pub inactivityWarning: c_int,
+    #[builder(default)]
     pub lastUserinfoUpdate: c_int,
+    #[builder(default)]
     pub userInfoFloodInfractions: c_int,
+    #[builder(default)]
     pub lastMapVoteTime: c_int,
+    #[builder(default)]
     pub lastMapVoteIndex: c_int,
 }
 
@@ -1214,21 +1394,36 @@ pub struct clientPersistant_t {
 // time and reading them back at connection time.  Anything added here
 // MUST be dealt with in G_InitSessionData() / G_ReadSessionData() / G_WriteSessionData()
 #[repr(C)]
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Clone, Builder)]
+#[builder(name = "ClientSessionBuilder")]
 pub struct clientSession_t {
+    #[builder(default = "team_t::TEAM_SPECTATOR")]
     pub sessionTeam: team_t,
+    #[builder(default)]
     pub spectatorTime: c_int,
+    #[builder(default = "spectatorState_t::SPECTATOR_FREE")]
     pub spectatorState: spectatorState_t,
+    #[builder(default)]
     pub spectatorClient: c_int,
+    #[builder(default)]
     pub weaponPrimary: c_int,
+    #[builder(default)]
     pub wins: c_int,
+    #[builder(default)]
     pub losses: c_int,
+    #[builder(default = "qboolean::qfalse")]
     pub teamLeader: qboolean,
+    #[builder(default = "privileges_t::PRIV_NONE")]
     pub privileges: privileges_t,
+    #[builder(default)]
     pub specOnly: c_int,
+    #[builder(default)]
     pub playQueue: c_int,
+    #[builder(default = "qboolean::qfalse")]
     pub updatePlayQueue: qboolean,
+    #[builder(default)]
     pub muted: c_int,
+    #[builder(default)]
     pub prevScore: c_int,
 }
 
@@ -1367,79 +1562,148 @@ pub struct gentity_s {
     pub pickupCount: c_int,
 }
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Clone, Builder)]
+#[builder(name = "RaceInfoBuilder")]
 #[repr(C)]
 pub struct raceInfo_t {
+    #[builder(default = "qboolean::qfalse")]
     pub racingActive: qboolean,
+    #[builder(default)]
     pub startTime: c_int,
+    #[builder(default)]
     pub lastTime: c_int,
+    #[builder(
+        default = "[0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]"
+    )]
     pub best_race: [c_int; 64usize],
+    #[builder(
+        default = "[0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]"
+    )]
     pub current_race: [c_int; 64usize],
+    #[builder(default)]
     pub currentCheckPoint: c_int,
+    #[builder(default = "qboolean::qfalse")]
     pub weaponUsed: qboolean,
+    #[builder(default = "std::ptr::null_mut()")]
     pub nextRacePoint: *mut gentity_t,
+    #[builder(default = "std::ptr::null_mut()")]
     pub nextRacePoint2: *mut gentity_t,
 }
 
 // this structure is cleared on each ClientSpawn(),
 // except for 'client->pers' and 'client->sess'
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Builder)]
+#[builder(name = "GClientBuilder")]
 #[repr(C, align(8))]
 pub struct gclient_s {
     pub ps: playerState_t,
     pub pers: clientPersistant_t,
     pub sess: clientSession_t,
+    #[builder(default = "qboolean::qfalse")]
     pub noclip: qboolean,
+    #[builder(default)]
     pub lastCmdTime: c_int,
+    #[builder(default)]
     pub buttons: c_int,
+    #[builder(default)]
     pub oldbuttons: c_int,
+    #[builder(default)]
     pub damage_armor: c_int,
+    #[builder(default)]
     pub damage_blood: c_int,
+    #[builder(default)]
     pub damage_from: vec3_t,
+    #[builder(default = "qboolean::qfalse")]
     pub damage_fromWorld: qboolean,
+    #[builder(default)]
     pub impressiveCount: c_int,
+    #[builder(default)]
     pub accuracyCount: c_int,
+    #[builder(default)]
     pub accuracy_shots: c_int,
+    #[builder(default)]
     pub accuracy_hits: c_int,
+    #[builder(default)]
     pub lastClientKilled: c_int,
+    #[builder(default)]
     pub lastKilledClient: c_int,
+    #[builder(default)]
     pub lastHurtClient: [c_int; 2usize],
+    #[builder(default)]
     pub lastHurtMod: [c_int; 2usize],
+    #[builder(default)]
     pub lastHurtTime: [c_int; 2usize],
+    #[builder(default)]
     pub lastKillTime: c_int,
+    #[builder(default)]
     pub lastGibTime: c_int,
+    #[builder(default)]
     pub rampageCounter: c_int,
+    #[builder(
+        default = "[0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]"
+    )]
     pub revengeCounter: [c_int; 64usize],
+    #[builder(default)]
     pub respawnTime: c_int,
+    #[builder(default)]
     pub rewardTime: c_int,
+    #[builder(default)]
     pub airOutTime: c_int,
+    #[builder(default = "qboolean::qfalse")]
     pub fireHeld: qboolean,
+    #[builder(default = "std::ptr::null_mut()")]
     pub hook: *mut gentity_t,
+    #[builder(default)]
     pub switchTeamTime: c_int,
+    #[builder(default)]
     pub timeResidual: c_int,
+    #[builder(default)]
     pub timeResidualScout: c_int,
+    #[builder(default)]
     pub timeResidualArmor: c_int,
+    #[builder(default)]
     pub timeResidualHealth: c_int,
+    #[builder(default)]
     pub timeResidualPingPOI: c_int,
+    #[builder(default)]
     pub timeResidualSpecInfo: c_int,
+    #[builder(default = "qboolean::qfalse")]
     pub healthRegenActive: qboolean,
+    #[builder(default = "qboolean::qfalse")]
     pub armorRegenActive: qboolean,
+    #[builder(default = "std::ptr::null_mut()")]
     pub persistantPowerup: *mut gentity_t,
+    #[builder(default)]
     pub portalID: c_int,
+    #[builder(default)]
     pub ammoTimes: [c_int; 16usize],
+    #[builder(default)]
     pub invulnerabilityTime: c_int,
     pub expandedStats: expandedStatObj_t,
+    #[builder(default)]
     pub ignoreChatsTime: c_int,
+    #[builder(default)]
     pub lastUserCmdTime: c_int,
+    #[builder(default = "qboolean::qfalse")]
     pub freezePlayer: qboolean,
+    #[builder(default)]
     pub deferredSpawnTime: c_int,
+    #[builder(default)]
     pub deferredSpawnCount: c_int,
     pub race: raceInfo_t,
+    #[builder(
+        default = "[0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]"
+    )]
     pub shotgunDmg: [c_int; 64usize],
+    #[builder(default)]
     pub round_shots: c_int,
+    #[builder(default)]
     pub round_hits: c_int,
+    #[builder(default)]
     pub round_damage: c_int,
+    #[builder(default = "qboolean::qfalse")]
     pub queuedSpectatorFollow: qboolean,
+    #[builder(default)]
     pub queuedSpectatorClient: c_int,
 }
 
