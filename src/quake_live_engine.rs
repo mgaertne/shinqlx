@@ -350,8 +350,11 @@ impl GameClient {
         self.game_client.ps.eFlags &= !i32::try_from(EF_KAMIKAZE).unwrap();
     }
 
-    pub(crate) fn set_privileges(&mut self, privileges: i32) {
-        self.game_client.sess.privileges = privileges_t::from(privileges);
+    pub(crate) fn set_privileges<T>(&mut self, privileges: T)
+    where
+        T: Into<privileges_t>,
+    {
+        self.game_client.sess.privileges = privileges.into();
     }
 
     pub(crate) fn is_alive(&self) -> bool {
@@ -661,6 +664,37 @@ pub(crate) mod game_client_tests {
         raw_client.ps.clientNum = 42;
         let game_client = GameClient::try_from(&mut raw_client as *mut gclient_t).unwrap();
         assert_eq!(game_client.get_client_num(), 42);
+    }
+
+    #[rstest]
+    pub(crate) fn game_client_remove_kamikaze_flag_with_no_flag_set(gclient: gclient_t) {
+        let mut raw_client = gclient;
+        raw_client.ps.eFlags = 0;
+        let mut game_client = GameClient::try_from(&mut raw_client as *mut gclient_t).unwrap();
+        game_client.remove_kamikaze_flag();
+        assert_eq!(raw_client.ps.eFlags, 0);
+    }
+
+    #[rstest]
+    pub(crate) fn game_client_remove_kamikaze_flag_removes_kamikaze_flag(gclient: gclient_t) {
+        let mut raw_client = gclient;
+        raw_client.ps.eFlags = 513;
+        let mut game_client = GameClient::try_from(&mut raw_client as *mut gclient_t).unwrap();
+        game_client.remove_kamikaze_flag();
+        assert_eq!(raw_client.ps.eFlags, 1);
+    }
+
+    #[rstest]
+    #[case(PRIV_NONE)]
+    #[case(PRIV_ADMIN)]
+    #[case(PRIV_ROOT)]
+    #[case(PRIV_MOD)]
+    #[case(PRIV_BANNED)]
+    pub(crate) fn game_client_set_privileges(#[case] privilege: privileges_t, gclient: gclient_t) {
+        let mut raw_client = gclient;
+        let mut game_client = GameClient::try_from(&mut raw_client as *mut gclient_t).unwrap();
+        game_client.set_privileges(privilege);
+        assert_eq!(raw_client.sess.privileges, privilege);
     }
 }
 
