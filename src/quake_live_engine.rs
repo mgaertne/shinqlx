@@ -571,6 +571,73 @@ impl GameClient {
 #[cfg(test)]
 pub(crate) mod game_client_tests {
     use super::*;
+    use crate::quake_types::{
+        clientPersistant_t, clientSession_t, expandedStatObj_t, playerState_t, playerTeamState_t,
+        raceInfo_t, ClientPersistantBuilder, ClientSessionBuilder, ExpandedStatsBuilder,
+        GClientBuilder, PlayerStateBuilder, PlayerTeamStateBuilder, RaceInfoBuilder,
+        UserCmdBuilder,
+    };
+    use rstest::*;
+
+    #[fixture]
+    pub(crate) fn player_state() -> playerState_t {
+        PlayerStateBuilder::default().build().unwrap()
+    }
+
+    #[fixture]
+    pub(crate) fn user_cmd() -> usercmd_t {
+        UserCmdBuilder::default().build().unwrap()
+    }
+
+    #[fixture]
+    pub(crate) fn player_team_state() -> playerTeamState_t {
+        PlayerTeamStateBuilder::default().build().unwrap()
+    }
+
+    #[fixture]
+    pub(crate) fn client_persistant(
+        user_cmd: usercmd_t,
+        player_team_state: playerTeamState_t,
+    ) -> clientPersistant_t {
+        ClientPersistantBuilder::default()
+            .cmd(user_cmd)
+            .teamState(player_team_state)
+            .build()
+            .unwrap()
+    }
+
+    #[fixture]
+    pub(crate) fn client_session() -> clientSession_t {
+        ClientSessionBuilder::default().build().unwrap()
+    }
+
+    #[fixture]
+    pub(crate) fn expanded_stats() -> expandedStatObj_t {
+        ExpandedStatsBuilder::default().build().unwrap()
+    }
+
+    #[fixture]
+    pub(crate) fn race_info() -> raceInfo_t {
+        RaceInfoBuilder::default().build().unwrap()
+    }
+
+    #[fixture]
+    pub(crate) fn gclient(
+        player_state: playerState_t,
+        client_persistant: clientPersistant_t,
+        client_session: clientSession_t,
+        expanded_stats: expandedStatObj_t,
+        race_info: raceInfo_t,
+    ) -> gclient_t {
+        GClientBuilder::default()
+            .ps(player_state)
+            .pers(client_persistant)
+            .sess(client_session)
+            .expandedStats(expanded_stats)
+            .race(race_info)
+            .build()
+            .unwrap()
+    }
 
     #[test]
     pub(crate) fn game_client_try_from_null_results_in_error() {
@@ -578,6 +645,22 @@ pub(crate) mod game_client_tests {
             GameClient::try_from(std::ptr::null_mut() as *mut gclient_t),
             Err(NullPointerPassed("null pointer passed".into()))
         );
+    }
+
+    #[rstest]
+    pub(crate) fn game_client_try_from_valid_value_result(gclient: gclient_t) {
+        let mut mut_gclient = gclient;
+        let game_client = GameClient::try_from(&mut mut_gclient as *mut gclient_t);
+
+        assert!(game_client.is_ok());
+    }
+
+    #[rstest]
+    pub(crate) fn game_client_get_client_num(gclient: gclient_t) {
+        let mut raw_client = gclient;
+        raw_client.ps.clientNum = 42;
+        let game_client = GameClient::try_from(&mut raw_client as *mut gclient_t).unwrap();
+        assert_eq!(game_client.get_client_num(), 42);
     }
 }
 
