@@ -18,6 +18,8 @@ jobs:
     - name: Install Rust nightly toolchain
       run:
         rustup update nightly
+    - name: Add rust-src component
+      run:
         rustup component add rust-src
     - name: Install cargo-llvm-cov
       uses: taiki-e/install-action@cargo-llvm-cov
