@@ -1304,7 +1304,7 @@ impl From<GameEntity> for PlayerState {
             health: game_entity.get_health(),
             armor: game_client.get_armor(),
             noclip: game_client.get_noclip(),
-            weapon: game_client.get_weapon(),
+            weapon: game_client.get_weapon().into(),
             weapons: Weapons::from(game_client.get_weapons()),
             ammo: Weapons::from(game_client.get_ammo()),
             powerups: Powerups::from(game_client.get_powerups()),
