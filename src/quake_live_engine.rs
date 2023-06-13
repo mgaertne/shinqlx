@@ -38,10 +38,10 @@ use crate::quake_types::weapon_t::{
 };
 use crate::quake_types::{
     cbufExec_t, clientState_t, client_t, cvar_t, entity_event_t, gclient_t, gentity_t, gitem_t,
-    level_locals_t, meansOfDeath_t, powerup_t, privileges_t, qboolean, serverStatic_t, team_t,
-    trace_t, usercmd_t, vec3_t, weapon_t, CS_ITEMS, CS_VOTE_NO, CS_VOTE_STRING, CS_VOTE_TIME,
-    CS_VOTE_YES, DAMAGE_NO_PROTECTION, EF_KAMIKAZE, EF_TALK, FL_DROPPED_ITEM, MAX_CLIENTS,
-    MAX_GENTITIES,
+    holdable_t, level_locals_t, meansOfDeath_t, powerup_t, privileges_t, qboolean, serverStatic_t,
+    team_t, trace_t, usercmd_t, vec3_t, weapon_t, CS_ITEMS, CS_VOTE_NO, CS_VOTE_STRING,
+    CS_VOTE_TIME, CS_VOTE_YES, DAMAGE_NO_PROTECTION, EF_KAMIKAZE, EF_TALK, FL_DROPPED_ITEM,
+    MAX_CLIENTS, MAX_GENTITIES,
 };
 use crate::SV_MAXCLIENTS;
 use std::f32::consts::PI;
@@ -542,7 +542,7 @@ impl GameClient {
         self.game_client.ps.stats[STAT_WEAPONS as usize] = weapon_flags;
     }
 
-    pub(crate) fn get_ammo(&self) -> [i32; 15] {
+    pub(crate) fn get_ammos(&self) -> [i32; 15] {
         let mut returned = [0; 15];
         let ammos = self.game_client.ps.ammo;
         for (i, item) in returned.iter_mut().enumerate() {
@@ -924,6 +924,28 @@ pub(crate) mod game_client_tests {
         let mut game_client = GameClient::try_from(&mut raw_client as *mut gclient_t).unwrap();
         game_client.set_weapon(weapon);
         assert_eq!(game_client.get_weapon(), weapon);
+    }
+
+    #[rstest]
+    pub(crate) fn game_client_set_weapons(gclient: gclient_t) {
+        let mut raw_client = gclient;
+        let mut game_client = GameClient::try_from(&mut raw_client as *mut gclient_t).unwrap();
+        game_client.set_weapons([0, 0, 1, 0, 1, 1, 0, 0, 0, 0, 1, 0, 1, 1, 0]);
+        assert_eq!(
+            game_client.get_weapons(),
+            [0, 0, 1, 0, 1, 1, 0, 0, 0, 0, 1, 0, 1, 1, 0]
+        );
+    }
+
+    #[rstest]
+    pub(crate) fn game_client_set_ammos(gclient: gclient_t) {
+        let mut raw_client = gclient;
+        let mut game_client = GameClient::try_from(&mut raw_client as *mut gclient_t).unwrap();
+        game_client.set_ammos([10, 20, 31, 40, 51, 61, 70, 80, 90, 42, 69, -1, 1, 1, -1]);
+        assert_eq!(
+            game_client.get_ammos(),
+            [10, 20, 31, 40, 51, 61, 70, 80, 90, 42, 69, -1, 1, 1, -1]
+        );
     }
 }
 
