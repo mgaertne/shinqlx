@@ -381,46 +381,46 @@ impl GameClient {
     }
 
     pub(crate) fn get_position(&self) -> (f32, f32, f32) {
-        (
-            self.game_client.ps.origin[0],
-            self.game_client.ps.origin[1],
-            self.game_client.ps.origin[2],
-        )
+        self.game_client.ps.origin.into()
     }
 
-    pub(crate) fn set_position(&mut self, position: (f32, f32, f32)) {
-        self.game_client.ps.origin[0] = position.0;
-        self.game_client.ps.origin[1] = position.1;
-        self.game_client.ps.origin[2] = position.2;
+    pub(crate) fn set_position<T>(&mut self, position: T)
+    where
+        T: Into<[f32; 3]>,
+    {
+        self.game_client.ps.origin = position.into();
     }
 
     pub(crate) fn get_velocity(&self) -> (f32, f32, f32) {
-        (
-            self.game_client.ps.velocity[0],
-            self.game_client.ps.velocity[1],
-            self.game_client.ps.velocity[2],
-        )
+        self.game_client.ps.velocity.into()
     }
 
-    pub(crate) fn set_velocity(&mut self, velocity: (f32, f32, f32)) {
-        self.game_client.ps.velocity[0] = velocity.0;
-        self.game_client.ps.velocity[1] = velocity.1;
-        self.game_client.ps.velocity[2] = velocity.2;
+    pub(crate) fn set_velocity<T>(&mut self, velocity: T)
+    where
+        T: Into<[f32; 3]>,
+    {
+        self.game_client.ps.velocity = velocity.into();
     }
 
     pub(crate) fn get_armor(&self) -> i32 {
         self.game_client.ps.stats[STAT_ARMOR as usize]
     }
 
-    pub(crate) fn set_armor(&mut self, armor: i32) {
-        self.game_client.ps.stats[STAT_ARMOR as usize] = armor;
+    pub(crate) fn set_armor<T>(&mut self, armor: T)
+    where
+        T: Into<i32>,
+    {
+        self.game_client.ps.stats[STAT_ARMOR as usize] = armor.into();
     }
 
     pub(crate) fn get_noclip(&self) -> bool {
         self.game_client.noclip.into()
     }
 
-    pub(crate) fn set_noclip(&mut self, activate: bool) {
+    pub(crate) fn set_noclip<T>(&mut self, activate: T)
+    where
+        T: Into<qboolean>,
+    {
         self.game_client.noclip = activate.into();
     }
 
@@ -669,7 +669,8 @@ pub(crate) mod game_client_tests {
     use crate::quake_types::privileges_t::{
         PRIV_ADMIN, PRIV_BANNED, PRIV_MOD, PRIV_NONE, PRIV_ROOT,
     };
-    use crate::quake_types::{gclient_t, privileges_t};
+    use crate::quake_types::statIndex_t::STAT_ARMOR;
+    use crate::quake_types::{gclient_t, privileges_t, qboolean};
     use pretty_assertions::assert_eq;
     use rstest::*;
 
@@ -726,6 +727,86 @@ pub(crate) mod game_client_tests {
         let mut game_client = GameClient::try_from(&mut raw_client as *mut gclient_t).unwrap();
         game_client.set_privileges(privilege);
         assert_eq!(raw_client.sess.privileges, privilege);
+    }
+
+    #[rstest]
+    pub(crate) fn game_client_is_alive(gclient: gclient_t) {
+        let mut raw_client = gclient;
+        raw_client.ps.pm_type = 0;
+        let game_client = GameClient::try_from(&mut raw_client as *mut gclient_t).unwrap();
+        assert!(game_client.is_alive());
+    }
+
+    #[rstest]
+    pub(crate) fn game_client_is_dead(gclient: gclient_t) {
+        let mut raw_client = gclient;
+        raw_client.ps.pm_type = 1;
+        let game_client = GameClient::try_from(&mut raw_client as *mut gclient_t).unwrap();
+        assert!(!game_client.is_alive());
+    }
+
+    #[rstest]
+    pub(crate) fn game_client_get_position(gclient: gclient_t) {
+        let mut raw_client = gclient;
+        raw_client.ps.origin = [21.0, 42.0, 11.0];
+        let game_client = GameClient::try_from(&mut raw_client as *mut gclient_t).unwrap();
+        assert_eq!(game_client.get_position(), (21.0, 42.0, 11.0));
+    }
+
+    #[rstest]
+    pub(crate) fn game_client_set_position(gclient: gclient_t) {
+        let mut raw_client = gclient;
+        let mut game_client = GameClient::try_from(&mut raw_client as *mut gclient_t).unwrap();
+        game_client.set_position((21.0, 42.0, 11.0));
+        assert_eq!(game_client.get_position(), (21.0, 42.0, 11.0));
+    }
+
+    #[rstest]
+    pub(crate) fn game_client_get_velocity(gclient: gclient_t) {
+        let mut raw_client = gclient;
+        raw_client.ps.velocity = [21.0, 42.0, 11.0];
+        let game_client = GameClient::try_from(&mut raw_client as *mut gclient_t).unwrap();
+        assert_eq!(game_client.get_velocity(), (21.0, 42.0, 11.0));
+    }
+
+    #[rstest]
+    pub(crate) fn game_client_set_velocity(gclient: gclient_t) {
+        let mut raw_client = gclient;
+        let mut game_client = GameClient::try_from(&mut raw_client as *mut gclient_t).unwrap();
+        game_client.set_velocity((21.0, 42.0, 11.0));
+        assert_eq!(game_client.get_velocity(), (21.0, 42.0, 11.0));
+    }
+
+    #[rstest]
+    pub(crate) fn game_client_get_armor(gclient: gclient_t) {
+        let mut raw_client = gclient;
+        raw_client.ps.stats[STAT_ARMOR as usize] = 69;
+        let game_client = GameClient::try_from(&mut raw_client as *mut gclient_t).unwrap();
+        assert_eq!(game_client.get_armor(), 69);
+    }
+
+    #[rstest]
+    pub(crate) fn game_client_set_armor(gclient: gclient_t) {
+        let mut raw_client = gclient;
+        let mut game_client = GameClient::try_from(&mut raw_client as *mut gclient_t).unwrap();
+        game_client.set_armor(42);
+        assert_eq!(game_client.get_armor(), 42);
+    }
+
+    #[rstest]
+    pub(crate) fn game_client_get_noclip(gclient: gclient_t) {
+        let mut raw_client = gclient;
+        raw_client.noclip = qboolean::qfalse;
+        let game_client = GameClient::try_from(&mut raw_client as *mut gclient_t).unwrap();
+        assert_eq!(game_client.get_noclip(), false);
+    }
+
+    #[rstest]
+    pub(crate) fn game_client_set_noclip(gclient: gclient_t) {
+        let mut raw_client = gclient;
+        let mut game_client = GameClient::try_from(&mut raw_client as *mut gclient_t).unwrap();
+        game_client.set_noclip(true);
+        assert_eq!(game_client.get_noclip(), true);
     }
 }
 
