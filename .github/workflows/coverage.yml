@@ -18,9 +18,9 @@ jobs:
     - name: Install Rust nightly toolchain
       run:
         rustup update nightly
-    - name: Add rust-src component
+    - name: Add llvm component
       run:
-        rustup component add --toolchain nightly rust-src
+        rustup component add --toolchain nightly llvm-tools-preview
     - name: Install cargo-llvm-cov
       uses: taiki-e/install-action@cargo-llvm-cov
     - name: Set up Python 3.11

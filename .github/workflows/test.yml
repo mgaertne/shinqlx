@@ -22,9 +22,6 @@ jobs:
     - name: Install Rust nightly toolchain
       run:
         rustup update nightly
-    - name: Add rust-src component
-      run:
-        rustup component add --toolchain nightly rust-src
     - name: Set up Python ${{ matrix.python-version }}
       uses: actions/setup-python@v4
       with:
