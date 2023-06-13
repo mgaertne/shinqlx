@@ -39,7 +39,7 @@ sudo apt-get -y install redis-server git build-essential
 ```
 git clone https://github.com/mgaertne/shinqlx.git
 cd shinqlx
-cargo +nightly build --release
+cargo +nightly -Z build-std=std build --release
 ```
 
 - Copy libshinqlx.so from `target/x86_64-unknown-linux-gnu/release` and the convenience script `run_server_shinqlx.sh` into `~/qlds`, or whatever other directory you might have installed the quake live dedicated server files in.
