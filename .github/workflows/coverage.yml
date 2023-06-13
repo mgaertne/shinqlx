@@ -20,7 +20,7 @@ jobs:
         rustup update nightly
     - name: Add rust-src component
       run:
-        rustup component add rust-src
+        rustup component add --toolchain nightly rust-src
     - name: Install cargo-llvm-cov
       uses: taiki-e/install-action@cargo-llvm-cov
     - name: Set up Python 3.11
