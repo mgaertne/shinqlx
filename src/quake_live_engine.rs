@@ -79,7 +79,9 @@ impl Not for qboolean {
 
 #[cfg(test)]
 pub(crate) mod qboolean_tests {
-    use super::*;
+    use crate::quake_types::qboolean;
+    use pretty_assertions::assert_eq;
+    use std::ffi::c_int;
 
     #[test]
     pub(crate) fn qboolean_as_c_int() {
@@ -126,7 +128,11 @@ impl From<privileges_t> for i32 {
 
 #[cfg(test)]
 pub(crate) mod privileges_tests {
-    use super::*;
+    use crate::quake_types::privileges_t;
+    use crate::quake_types::privileges_t::{
+        PRIV_ADMIN, PRIV_BANNED, PRIV_MOD, PRIV_NONE, PRIV_ROOT,
+    };
+    use pretty_assertions::assert_eq;
 
     #[test]
     pub(crate) fn privileges_from_integer() {
@@ -179,7 +185,11 @@ impl TryFrom<usize> for powerup_t {
 
 #[cfg(test)]
 pub(crate) mod powerup_t_tests {
-    use super::*;
+    use crate::quake_types::powerup_t;
+    use crate::quake_types::powerup_t::{
+        PW_BATTLESUIT, PW_HASTE, PW_INVIS, PW_INVULNERABILITY, PW_QUAD, PW_REGEN,
+    };
+    use pretty_assertions::assert_eq;
 
     #[test]
     pub(crate) fn powerup_t_from_integer() {
@@ -263,7 +273,16 @@ impl TryFrom<i32> for meansOfDeath_t {
 
 #[cfg(test)]
 pub(crate) mod meansofdeath_t_tests {
-    use super::*;
+    use crate::quake_types::meansOfDeath_t;
+    use crate::quake_types::meansOfDeath_t::{
+        MOD_BFG, MOD_BFG_SPLASH, MOD_CHAINGUN, MOD_CRUSH, MOD_FALLING, MOD_GAUNTLET, MOD_GRAPPLE,
+        MOD_GRENADE, MOD_GRENADE_SPLASH, MOD_HMG, MOD_JUICED, MOD_KAMIKAZE, MOD_LAVA,
+        MOD_LIGHTNING, MOD_LIGHTNING_DISCHARGE, MOD_MACHINEGUN, MOD_NAIL, MOD_PLASMA,
+        MOD_PLASMA_SPLASH, MOD_PROXIMITY_MINE, MOD_RAILGUN, MOD_RAILGUN_HEADSHOT, MOD_ROCKET,
+        MOD_ROCKET_SPLASH, MOD_SHOTGUN, MOD_SLIME, MOD_SUICIDE, MOD_SWITCH_TEAMS, MOD_TARGET_LASER,
+        MOD_TELEFRAG, MOD_THAW, MOD_TRIGGER_HURT, MOD_UNKNOWN, MOD_WATER,
+    };
+    use pretty_assertions::assert_eq;
 
     #[test]
     pub(crate) fn meansofdeath_t_from_integer() {
@@ -572,13 +591,12 @@ impl GameClient {
 }
 
 #[cfg(test)]
-pub(crate) mod game_client_tests {
-    use super::*;
+pub(crate) mod quake_live_fixtures {
     use crate::quake_types::{
-        clientPersistant_t, clientSession_t, expandedStatObj_t, playerState_t, playerTeamState_t,
-        raceInfo_t, ClientPersistantBuilder, ClientSessionBuilder, ExpandedStatsBuilder,
-        GClientBuilder, PlayerStateBuilder, PlayerTeamStateBuilder, RaceInfoBuilder,
-        UserCmdBuilder,
+        clientPersistant_t, clientSession_t, expandedStatObj_t, gclient_t, playerState_t,
+        playerTeamState_t, raceInfo_t, usercmd_t, ClientPersistantBuilder, ClientSessionBuilder,
+        ExpandedStatsBuilder, GClientBuilder, PlayerStateBuilder, PlayerTeamStateBuilder,
+        RaceInfoBuilder, UserCmdBuilder,
     };
     use rstest::*;
 
@@ -641,6 +659,19 @@ pub(crate) mod game_client_tests {
             .build()
             .unwrap()
     }
+}
+
+#[cfg(test)]
+pub(crate) mod game_client_tests {
+    use crate::quake_live_engine::quake_live_fixtures::*;
+    use crate::quake_live_engine::GameClient;
+    use crate::quake_live_engine::QuakeLiveEngineError::NullPointerPassed;
+    use crate::quake_types::privileges_t::{
+        PRIV_ADMIN, PRIV_BANNED, PRIV_MOD, PRIV_NONE, PRIV_ROOT,
+    };
+    use crate::quake_types::{gclient_t, privileges_t};
+    use pretty_assertions::assert_eq;
+    use rstest::*;
 
     #[test]
     pub(crate) fn game_client_try_from_null_results_in_error() {
@@ -1048,7 +1079,10 @@ impl GameEntity {
 
 #[cfg(test)]
 pub(crate) mod game_entity_tests {
-    use super::*;
+    use crate::quake_live_engine::GameEntity;
+    use crate::quake_live_engine::QuakeLiveEngineError::NullPointerPassed;
+    use crate::quake_types::gentity_t;
+    use pretty_assertions::assert_eq;
 
     #[test]
     pub(crate) fn game_entity_try_from_null_results_in_error() {
@@ -1086,7 +1120,10 @@ impl Activator {
 
 #[cfg(test)]
 pub(crate) mod activator_tests {
-    use super::*;
+    use crate::quake_live_engine::Activator;
+    use crate::quake_live_engine::QuakeLiveEngineError::NullPointerPassed;
+    use crate::quake_types::gentity_t;
+    use pretty_assertions::assert_eq;
 
     #[test]
     pub(crate) fn activator_try_from_null_results_in_error() {
@@ -1127,7 +1164,10 @@ impl CVar {
 
 #[cfg(test)]
 pub(crate) mod cvar_tests {
-    use super::*;
+    use crate::quake_live_engine::CVar;
+    use crate::quake_live_engine::QuakeLiveEngineError::NullPointerPassed;
+    use crate::quake_types::cvar_t;
+    use pretty_assertions::assert_eq;
 
     #[test]
     pub(crate) fn cvar_try_from_null_results_in_error() {
@@ -1252,7 +1292,10 @@ impl Client {
 
 #[cfg(test)]
 pub(crate) mod client_tests {
-    use super::*;
+    use crate::quake_live_engine::Client;
+    use crate::quake_live_engine::QuakeLiveEngineError::NullPointerPassed;
+    use crate::quake_types::client_t;
+    use pretty_assertions::assert_eq;
 
     #[test]
     pub(crate) fn client_try_from_null_results_in_error() {
