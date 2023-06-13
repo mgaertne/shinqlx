@@ -1306,7 +1306,7 @@ impl From<GameEntity> for PlayerState {
             noclip: game_client.get_noclip(),
             weapon: game_client.get_weapon().into(),
             weapons: Weapons::from(game_client.get_weapons()),
-            ammo: Weapons::from(game_client.get_ammo()),
+            ammo: Weapons::from(game_client.get_ammos()),
             powerups: Powerups::from(game_client.get_powerups()),
             holdable: holdable_from(game_client.get_holdable().into()),
             flight: Flight(
