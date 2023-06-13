@@ -38,10 +38,10 @@ use crate::quake_types::weapon_t::{
 };
 use crate::quake_types::{
     cbufExec_t, clientState_t, client_t, cvar_t, entity_event_t, gclient_t, gentity_t, gitem_t,
-    holdable_t, level_locals_t, meansOfDeath_t, powerup_t, privileges_t, qboolean, serverStatic_t,
-    team_t, trace_t, usercmd_t, vec3_t, weapon_t, CS_ITEMS, CS_VOTE_NO, CS_VOTE_STRING,
-    CS_VOTE_TIME, CS_VOTE_YES, DAMAGE_NO_PROTECTION, EF_KAMIKAZE, EF_TALK, FL_DROPPED_ITEM,
-    MAX_CLIENTS, MAX_GENTITIES,
+    level_locals_t, meansOfDeath_t, powerup_t, privileges_t, qboolean, serverStatic_t, team_t,
+    trace_t, usercmd_t, vec3_t, weapon_t, CS_ITEMS, CS_VOTE_NO, CS_VOTE_STRING, CS_VOTE_TIME,
+    CS_VOTE_YES, DAMAGE_NO_PROTECTION, EF_KAMIKAZE, EF_TALK, FL_DROPPED_ITEM, MAX_CLIENTS,
+    MAX_GENTITIES,
 };
 use crate::SV_MAXCLIENTS;
 use std::f32::consts::PI;
