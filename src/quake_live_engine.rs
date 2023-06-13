@@ -31,11 +31,17 @@ use crate::quake_types::statIndex_t::{
 };
 use crate::quake_types::team_t::TEAM_SPECTATOR;
 use crate::quake_types::voteState_t::{VOTE_NO, VOTE_PENDING, VOTE_YES};
+use crate::quake_types::weapon_t::{
+    WP_BFG, WP_CHAINGUN, WP_GAUNTLET, WP_GRAPPLING_HOOK, WP_GRENADE_LAUNCHER, WP_HANDS, WP_HMG,
+    WP_LIGHTNING, WP_MACHINEGUN, WP_NAILGUN, WP_NONE, WP_NUM_WEAPONS, WP_PLASMAGUN,
+    WP_PROX_LAUNCHER, WP_RAILGUN, WP_ROCKET_LAUNCHER, WP_SHOTGUN,
+};
 use crate::quake_types::{
     cbufExec_t, clientState_t, client_t, cvar_t, entity_event_t, gclient_t, gentity_t, gitem_t,
     level_locals_t, meansOfDeath_t, powerup_t, privileges_t, qboolean, serverStatic_t, team_t,
-    trace_t, usercmd_t, vec3_t, CS_ITEMS, CS_VOTE_NO, CS_VOTE_STRING, CS_VOTE_TIME, CS_VOTE_YES,
-    DAMAGE_NO_PROTECTION, EF_KAMIKAZE, EF_TALK, FL_DROPPED_ITEM, MAX_CLIENTS, MAX_GENTITIES,
+    trace_t, usercmd_t, vec3_t, weapon_t, CS_ITEMS, CS_VOTE_NO, CS_VOTE_STRING, CS_VOTE_TIME,
+    CS_VOTE_YES, DAMAGE_NO_PROTECTION, EF_KAMIKAZE, EF_TALK, FL_DROPPED_ITEM, MAX_CLIENTS,
+    MAX_GENTITIES,
 };
 use crate::SV_MAXCLIENTS;
 use std::f32::consts::PI;
@@ -151,22 +157,6 @@ impl From<clientState_t> for i32 {
     }
 }
 
-impl TryFrom<i32> for powerup_t {
-    type Error = String;
-
-    fn try_from(value: i32) -> Result<Self, Self::Error> {
-        match value {
-            0 => Ok(PW_QUAD),
-            1 => Ok(PW_BATTLESUIT),
-            2 => Ok(PW_HASTE),
-            3 => Ok(PW_INVIS),
-            4 => Ok(PW_REGEN),
-            5 => Ok(PW_INVULNERABILITY),
-            _ => Err("invalid power up".into()),
-        }
-    }
-}
-
 impl TryFrom<usize> for powerup_t {
     type Error = String;
 
@@ -199,7 +189,6 @@ pub(crate) mod powerup_t_tests {
         assert_eq!(powerup_t::try_from(3), Ok(PW_INVIS));
         assert_eq!(powerup_t::try_from(4), Ok(PW_REGEN));
         assert_eq!(powerup_t::try_from(5), Ok(PW_INVULNERABILITY));
-        assert_eq!(powerup_t::try_from(-1), Err("invalid power up".to_string()));
         assert_eq!(
             powerup_t::try_from(666),
             Err("invalid power up".to_string())
@@ -221,8 +210,104 @@ pub(crate) mod powerup_t_tests {
     }
 }
 
+impl From<weapon_t> for i32 {
+    fn from(value: weapon_t) -> Self {
+        match value {
+            WP_NUM_WEAPONS => 0,
+            _ => value as i32,
+        }
+    }
+}
+
+impl TryFrom<i32> for weapon_t {
+    type Error = String;
+
+    fn try_from(value: i32) -> Result<Self, Self::Error> {
+        match value {
+            0 => Ok(WP_NONE),
+            1 => Ok(WP_GAUNTLET),
+            2 => Ok(WP_MACHINEGUN),
+            3 => Ok(WP_SHOTGUN),
+            4 => Ok(WP_GRENADE_LAUNCHER),
+            5 => Ok(WP_ROCKET_LAUNCHER),
+            6 => Ok(WP_LIGHTNING),
+            7 => Ok(WP_RAILGUN),
+            8 => Ok(WP_PLASMAGUN),
+            9 => Ok(WP_BFG),
+            10 => Ok(WP_GRAPPLING_HOOK),
+            11 => Ok(WP_NAILGUN),
+            12 => Ok(WP_PROX_LAUNCHER),
+            13 => Ok(WP_CHAINGUN),
+            14 => Ok(WP_HMG),
+            15 => Ok(WP_HANDS),
+            _ => Err("invalid weapon".into()),
+        }
+    }
+}
+
+#[cfg(test)]
+pub(crate) mod weapon_t_tests {
+    use crate::quake_types::weapon_t;
+    use crate::quake_types::weapon_t::{
+        WP_BFG, WP_CHAINGUN, WP_GAUNTLET, WP_GRAPPLING_HOOK, WP_GRENADE_LAUNCHER, WP_HANDS, WP_HMG,
+        WP_LIGHTNING, WP_MACHINEGUN, WP_NAILGUN, WP_NONE, WP_NUM_WEAPONS, WP_PLASMAGUN,
+        WP_PROX_LAUNCHER, WP_RAILGUN, WP_ROCKET_LAUNCHER, WP_SHOTGUN,
+    };
+    use pretty_assertions::assert_eq;
+
+    #[test]
+    pub(crate) fn integer_from_weapon_t() {
+        assert_eq!(i32::from(WP_NONE), 0);
+        assert_eq!(i32::from(WP_GAUNTLET), 1);
+        assert_eq!(i32::from(WP_MACHINEGUN), 2);
+        assert_eq!(i32::from(WP_SHOTGUN), 3);
+        assert_eq!(i32::from(WP_GRENADE_LAUNCHER), 4);
+        assert_eq!(i32::from(WP_ROCKET_LAUNCHER), 5);
+        assert_eq!(i32::from(WP_LIGHTNING), 6);
+        assert_eq!(i32::from(WP_RAILGUN), 7);
+        assert_eq!(i32::from(WP_PLASMAGUN), 8);
+        assert_eq!(i32::from(WP_BFG), 9);
+        assert_eq!(i32::from(WP_GRAPPLING_HOOK), 10);
+        assert_eq!(i32::from(WP_NAILGUN), 11);
+        assert_eq!(i32::from(WP_PROX_LAUNCHER), 12);
+        assert_eq!(i32::from(WP_CHAINGUN), 13);
+        assert_eq!(i32::from(WP_HMG), 14);
+        assert_eq!(i32::from(WP_HANDS), 15);
+        assert_eq!(i32::from(WP_NUM_WEAPONS), 0);
+    }
+
+    #[test]
+    pub(crate) fn weapon_t_from_integer() {
+        assert_eq!(weapon_t::try_from(0), Ok(WP_NONE));
+        assert_eq!(weapon_t::try_from(1), Ok(WP_GAUNTLET));
+        assert_eq!(weapon_t::try_from(2), Ok(WP_MACHINEGUN));
+        assert_eq!(weapon_t::try_from(3), Ok(WP_SHOTGUN));
+        assert_eq!(weapon_t::try_from(4), Ok(WP_GRENADE_LAUNCHER));
+        assert_eq!(weapon_t::try_from(5), Ok(WP_ROCKET_LAUNCHER));
+        assert_eq!(weapon_t::try_from(6), Ok(WP_LIGHTNING));
+        assert_eq!(weapon_t::try_from(7), Ok(WP_RAILGUN));
+        assert_eq!(weapon_t::try_from(8), Ok(WP_PLASMAGUN));
+        assert_eq!(weapon_t::try_from(9), Ok(WP_BFG));
+        assert_eq!(weapon_t::try_from(10), Ok(WP_GRAPPLING_HOOK));
+        assert_eq!(weapon_t::try_from(11), Ok(WP_NAILGUN));
+        assert_eq!(weapon_t::try_from(12), Ok(WP_PROX_LAUNCHER));
+        assert_eq!(weapon_t::try_from(13), Ok(WP_CHAINGUN));
+        assert_eq!(weapon_t::try_from(14), Ok(WP_HMG));
+        assert_eq!(weapon_t::try_from(15), Ok(WP_HANDS));
+        assert_eq!(weapon_t::try_from(16), Err("invalid weapon".to_string()));
+        assert_eq!(weapon_t::try_from(-1), Err("invalid weapon".to_string()));
+        assert_eq!(weapon_t::try_from(666), Err("invalid weapon".to_string()));
+    }
+}
+
 impl From<team_t> for i32 {
     fn from(value: team_t) -> Self {
+        value as i32
+    }
+}
+
+impl From<meansOfDeath_t> for i32 {
+    fn from(value: meansOfDeath_t) -> Self {
         value as i32
     }
 }
@@ -424,12 +509,15 @@ impl GameClient {
         self.game_client.noclip = activate.into();
     }
 
-    pub(crate) fn get_weapon(&self) -> i32 {
-        self.game_client.ps.weapon
+    pub(crate) fn get_weapon(&self) -> weapon_t {
+        self.game_client.ps.weapon.try_into().unwrap()
     }
 
-    pub(crate) fn set_weapon(&mut self, weapon: i32) {
-        self.game_client.ps.weapon = weapon;
+    pub(crate) fn set_weapon<T>(&mut self, weapon: T)
+    where
+        T: Into<c_int>,
+    {
+        self.game_client.ps.weapon = weapon.into();
     }
 
     pub(crate) fn get_weapons(&self) -> [i32; 15] {
@@ -670,7 +758,12 @@ pub(crate) mod game_client_tests {
         PRIV_ADMIN, PRIV_BANNED, PRIV_MOD, PRIV_NONE, PRIV_ROOT,
     };
     use crate::quake_types::statIndex_t::STAT_ARMOR;
-    use crate::quake_types::{gclient_t, privileges_t, qboolean};
+    use crate::quake_types::weapon_t::{
+        WP_BFG, WP_CHAINGUN, WP_GAUNTLET, WP_GRAPPLING_HOOK, WP_GRENADE_LAUNCHER, WP_HANDS, WP_HMG,
+        WP_LIGHTNING, WP_MACHINEGUN, WP_NAILGUN, WP_NONE, WP_PLASMAGUN, WP_PROX_LAUNCHER,
+        WP_RAILGUN, WP_ROCKET_LAUNCHER, WP_SHOTGUN,
+    };
+    use crate::quake_types::{gclient_t, privileges_t, qboolean, weapon_t};
     use pretty_assertions::assert_eq;
     use rstest::*;
 
@@ -807,6 +900,30 @@ pub(crate) mod game_client_tests {
         let mut game_client = GameClient::try_from(&mut raw_client as *mut gclient_t).unwrap();
         game_client.set_noclip(true);
         assert_eq!(game_client.get_noclip(), true);
+    }
+
+    #[rstest]
+    #[case(WP_NONE)]
+    #[case(WP_GAUNTLET)]
+    #[case(WP_MACHINEGUN)]
+    #[case(WP_SHOTGUN)]
+    #[case(WP_GRENADE_LAUNCHER)]
+    #[case(WP_ROCKET_LAUNCHER)]
+    #[case(WP_PLASMAGUN)]
+    #[case(WP_RAILGUN)]
+    #[case(WP_LIGHTNING)]
+    #[case(WP_BFG)]
+    #[case(WP_GRAPPLING_HOOK)]
+    #[case(WP_CHAINGUN)]
+    #[case(WP_NAILGUN)]
+    #[case(WP_PROX_LAUNCHER)]
+    #[case(WP_HMG)]
+    #[case(WP_HANDS)]
+    pub(crate) fn game_client_set_weapon(#[case] weapon: weapon_t, gclient: gclient_t) {
+        let mut raw_client = gclient;
+        let mut game_client = GameClient::try_from(&mut raw_client as *mut gclient_t).unwrap();
+        game_client.set_weapon(weapon);
+        assert_eq!(game_client.get_weapon(), weapon);
     }
 }
 
@@ -1015,7 +1132,7 @@ impl GameEntity {
                 std::ptr::null(),
                 damage * 2,
                 DAMAGE_NO_PROTECTION as c_int,
-                mean_of_death as c_int,
+                mean_of_death.into(),
             );
         }
     }
