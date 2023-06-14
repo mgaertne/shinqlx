@@ -41,7 +41,7 @@ use crate::quake_types::{
     level_locals_t, meansOfDeath_t, powerup_t, privileges_t, qboolean, serverStatic_t, team_t,
     trace_t, usercmd_t, vec3_t, weapon_t, CS_ITEMS, CS_VOTE_NO, CS_VOTE_STRING, CS_VOTE_TIME,
     CS_VOTE_YES, DAMAGE_NO_PROTECTION, EF_KAMIKAZE, EF_TALK, FL_DROPPED_ITEM, MAX_CLIENTS,
-    MAX_GENTITIES,
+    MAX_GENTITIES, MODELINDEX_KAMIKAZE,
 };
 use crate::SV_MAXCLIENTS;
 use std::f32::consts::PI;
@@ -588,14 +588,17 @@ impl GameClient {
         self.game_client.ps.stats[STAT_HOLDABLE_ITEM as usize]
     }
 
-    pub(crate) fn set_holdable(&mut self, holdable: i32) {
-        // 37 - kamikaze
-        if holdable == 37 {
+    pub(crate) fn set_holdable<T>(&mut self, holdable: T)
+    where
+        T: Into<i32>,
+    {
+        let holdable_index: i32 = holdable.into();
+        if holdable_index == MODELINDEX_KAMIKAZE as i32 {
             self.game_client.ps.eFlags |= i32::try_from(EF_KAMIKAZE).unwrap();
         } else {
             self.remove_kamikaze_flag();
         }
-        self.game_client.ps.stats[STAT_HOLDABLE_ITEM as usize] = holdable;
+        self.game_client.ps.stats[STAT_HOLDABLE_ITEM as usize] = holdable_index;
     }
 
     pub(crate) fn get_current_flight_fuel(&self) -> i32 {
@@ -757,13 +760,15 @@ pub(crate) mod game_client_tests {
     use crate::quake_types::privileges_t::{
         PRIV_ADMIN, PRIV_BANNED, PRIV_MOD, PRIV_NONE, PRIV_ROOT,
     };
-    use crate::quake_types::statIndex_t::STAT_ARMOR;
+    use crate::quake_types::statIndex_t::{STAT_ARMOR, STAT_HOLDABLE_ITEM};
     use crate::quake_types::weapon_t::{
         WP_BFG, WP_CHAINGUN, WP_GAUNTLET, WP_GRAPPLING_HOOK, WP_GRENADE_LAUNCHER, WP_HANDS, WP_HMG,
         WP_LIGHTNING, WP_MACHINEGUN, WP_NAILGUN, WP_NONE, WP_PLASMAGUN, WP_PROX_LAUNCHER,
         WP_RAILGUN, WP_ROCKET_LAUNCHER, WP_SHOTGUN,
     };
-    use crate::quake_types::{gclient_t, privileges_t, qboolean, weapon_t};
+    use crate::quake_types::{
+        gclient_t, privileges_t, qboolean, weapon_t, MODELINDEX_KAMIKAZE, MODELINDEX_TELEPORTER,
+    };
     use pretty_assertions::assert_eq;
     use rstest::*;
 
@@ -946,6 +951,33 @@ pub(crate) mod game_client_tests {
             game_client.get_ammos(),
             [10, 20, 31, 40, 51, 61, 70, 80, 90, 42, 69, -1, 1, 1, -1]
         );
+    }
+
+    #[rstest]
+    pub(crate) fn game_client_get_holdable(gclient: gclient_t) {
+        let mut raw_client = gclient;
+        raw_client.ps.stats[STAT_HOLDABLE_ITEM as usize] = MODELINDEX_KAMIKAZE as i32;
+        let game_client = GameClient::try_from(&mut raw_client as *mut gclient_t).unwrap();
+        assert_eq!(game_client.get_holdable(), MODELINDEX_KAMIKAZE as i32);
+    }
+
+    #[rstest]
+    pub(crate) fn game_client_set_holdable(gclient: gclient_t) {
+        let mut raw_client = gclient;
+        let mut game_client = GameClient::try_from(&mut raw_client as *mut gclient_t).unwrap();
+        game_client.set_holdable(MODELINDEX_KAMIKAZE as i32);
+        assert_eq!(game_client.get_holdable(), MODELINDEX_KAMIKAZE as i32);
+        assert_eq!(raw_client.ps.eFlags, 512);
+    }
+
+    #[rstest]
+    pub(crate) fn game_client_set_holdable_removes_kamikaze_flag(gclient: gclient_t) {
+        let mut raw_client = gclient;
+        raw_client.ps.eFlags = 513;
+        let mut game_client = GameClient::try_from(&mut raw_client as *mut gclient_t).unwrap();
+        game_client.set_holdable(MODELINDEX_TELEPORTER as i32);
+        assert_eq!(game_client.get_holdable(), MODELINDEX_TELEPORTER as i32);
+        assert_eq!(raw_client.ps.eFlags, 1);
     }
 }
 
