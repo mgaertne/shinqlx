@@ -20,7 +20,7 @@ use crate::quake_types::meansOfDeath_t::{
     MOD_THAW, MOD_TRIGGER_HURT, MOD_UNKNOWN, MOD_WATER,
 };
 use crate::quake_types::persistantFields_t::PERS_ROUND_SCORE;
-use crate::quake_types::pmtype_t::PM_NORMAL;
+use crate::quake_types::pmtype_t::{PM_FREEZE, PM_NORMAL};
 use crate::quake_types::powerup_t::{
     PW_BATTLESUIT, PW_HASTE, PW_INVIS, PW_INVULNERABILITY, PW_QUAD, PW_REGEN,
 };
@@ -38,10 +38,10 @@ use crate::quake_types::weapon_t::{
 };
 use crate::quake_types::{
     cbufExec_t, clientState_t, client_t, cvar_t, entity_event_t, gclient_t, gentity_t, gitem_t,
-    level_locals_t, meansOfDeath_t, powerup_t, privileges_t, qboolean, serverStatic_t, team_t,
-    trace_t, usercmd_t, vec3_t, weapon_t, CS_ITEMS, CS_VOTE_NO, CS_VOTE_STRING, CS_VOTE_TIME,
-    CS_VOTE_YES, DAMAGE_NO_PROTECTION, EF_KAMIKAZE, EF_TALK, FL_DROPPED_ITEM, MAX_CLIENTS,
-    MAX_GENTITIES, MODELINDEX_KAMIKAZE,
+    level_locals_t, meansOfDeath_t, pmtype_t, powerup_t, privileges_t, qboolean, serverStatic_t,
+    team_t, trace_t, usercmd_t, vec3_t, weapon_t, CS_ITEMS, CS_VOTE_NO, CS_VOTE_STRING,
+    CS_VOTE_TIME, CS_VOTE_YES, DAMAGE_NO_PROTECTION, EF_KAMIKAZE, EF_TALK, FL_DROPPED_ITEM,
+    MAX_CLIENTS, MAX_GENTITIES, MODELINDEX_KAMIKAZE,
 };
 use crate::SV_MAXCLIENTS;
 use std::f32::consts::PI;
@@ -148,6 +148,12 @@ pub(crate) mod privileges_tests {
         assert_eq!(privileges_t::from(3), PRIV_ROOT);
         assert_eq!(privileges_t::from(0), PRIV_NONE);
         assert_eq!(privileges_t::from(666), PRIV_NONE);
+    }
+}
+
+impl From<pmtype_t> for i32 {
+    fn from(value: pmtype_t) -> Self {
+        value as i32
     }
 }
 
@@ -637,7 +643,7 @@ impl GameClient {
     }
 
     pub(crate) fn is_frozen(&self) -> bool {
-        self.game_client.ps.pm_type == 4
+        self.game_client.ps.pm_type == PM_FREEZE.into()
     }
 
     pub(crate) fn get_score(&self) -> i32 {
@@ -761,6 +767,7 @@ pub(crate) mod game_client_tests {
     use crate::quake_live_engine::quake_live_fixtures::*;
     use crate::quake_live_engine::GameClient;
     use crate::quake_live_engine::QuakeLiveEngineError::NullPointerPassed;
+    use crate::quake_types::pmtype_t::{PM_FREEZE, PM_NORMAL};
     use crate::quake_types::privileges_t::{
         PRIV_ADMIN, PRIV_BANNED, PRIV_MOD, PRIV_NONE, PRIV_ROOT,
     };
@@ -1010,6 +1017,22 @@ pub(crate) mod game_client_tests {
         mut_client.ps.eFlags = 0;
         let game_client = GameClient::try_from(&mut mut_client as *mut gclient_t).unwrap();
         assert!(!game_client.is_chatting());
+    }
+
+    #[rstest]
+    pub(crate) fn game_client_is_frozen(gclient: gclient_t) {
+        let mut mut_client = gclient;
+        mut_client.ps.pm_type = PM_FREEZE as i32;
+        let game_client = GameClient::try_from(&mut mut_client as *mut gclient_t).unwrap();
+        assert!(game_client.is_frozen());
+    }
+
+    #[rstest]
+    pub(crate) fn game_client_is_not_frozen(gclient: gclient_t) {
+        let mut mut_client = gclient;
+        mut_client.ps.pm_type = PM_NORMAL as i32;
+        let game_client = GameClient::try_from(&mut mut_client as *mut gclient_t).unwrap();
+        assert!(!game_client.is_frozen());
     }
 }
 
