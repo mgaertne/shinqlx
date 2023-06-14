@@ -617,11 +617,15 @@ impl GameClient {
         self.game_client.ps.stats[STAT_FLIGHT_REFUEL as usize]
     }
 
-    pub(crate) fn set_flight(&mut self, flight_params: (i32, i32, i32, i32)) {
-        self.game_client.ps.stats[STAT_CUR_FLIGHT_FUEL as usize] = flight_params.0;
-        self.game_client.ps.stats[STAT_MAX_FLIGHT_FUEL as usize] = flight_params.1;
-        self.game_client.ps.stats[STAT_FLIGHT_THRUST as usize] = flight_params.2;
-        self.game_client.ps.stats[STAT_FLIGHT_REFUEL as usize] = flight_params.3;
+    pub(crate) fn set_flight<T>(&mut self, flight_params: T)
+    where
+        T: Into<[i32; 4]>,
+    {
+        let flight_params_array: [i32; 4] = flight_params.into();
+        self.game_client.ps.stats[STAT_CUR_FLIGHT_FUEL as usize] = flight_params_array[0];
+        self.game_client.ps.stats[STAT_MAX_FLIGHT_FUEL as usize] = flight_params_array[1];
+        self.game_client.ps.stats[STAT_FLIGHT_THRUST as usize] = flight_params_array[2];
+        self.game_client.ps.stats[STAT_FLIGHT_REFUEL as usize] = flight_params_array[3];
     }
 
     pub(crate) fn set_invulnerability(&mut self, time: i32) {
@@ -767,7 +771,8 @@ pub(crate) mod game_client_tests {
         WP_RAILGUN, WP_ROCKET_LAUNCHER, WP_SHOTGUN,
     };
     use crate::quake_types::{
-        gclient_t, privileges_t, qboolean, weapon_t, MODELINDEX_KAMIKAZE, MODELINDEX_TELEPORTER,
+        gclient_t, privileges_t, qboolean, weapon_t, EF_TALK, MODELINDEX_KAMIKAZE,
+        MODELINDEX_TELEPORTER,
     };
     use pretty_assertions::assert_eq;
     use rstest::*;
@@ -978,6 +983,33 @@ pub(crate) mod game_client_tests {
         game_client.set_holdable(MODELINDEX_TELEPORTER as i32);
         assert_eq!(game_client.get_holdable(), MODELINDEX_TELEPORTER as i32);
         assert_eq!(raw_client.ps.eFlags, 1);
+    }
+
+    #[rstest]
+    pub(crate) fn game_client_set_flight_values(gclient: gclient_t) {
+        let mut mut_client = gclient;
+        let mut game_client = GameClient::try_from(&mut mut_client as *mut gclient_t).unwrap();
+        game_client.set_flight((1, 2, 3, 4));
+        assert_eq!(game_client.get_current_flight_fuel(), 1);
+        assert_eq!(game_client.get_max_flight_fuel(), 2);
+        assert_eq!(game_client.get_flight_thrust(), 3);
+        assert_eq!(game_client.get_flight_refuel(), 4);
+    }
+
+    #[rstest]
+    pub(crate) fn game_client_is_chatting(gclient: gclient_t) {
+        let mut mut_client = gclient;
+        mut_client.ps.eFlags = EF_TALK as i32;
+        let game_client = GameClient::try_from(&mut mut_client as *mut gclient_t).unwrap();
+        assert!(game_client.is_chatting());
+    }
+
+    #[rstest]
+    pub(crate) fn game_client_is_not_chatting(gclient: gclient_t) {
+        let mut mut_client = gclient;
+        mut_client.ps.eFlags = 0;
+        let game_client = GameClient::try_from(&mut mut_client as *mut gclient_t).unwrap();
+        assert!(!game_client.is_chatting());
     }
 }
 
