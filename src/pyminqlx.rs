@@ -1165,9 +1165,9 @@ struct Flight(
     #[pyo3(name = "refuel")] i32,
 );
 
-impl From<Flight> for (i32, i32, i32, i32) {
+impl From<Flight> for [i32; 4] {
     fn from(flight: Flight) -> Self {
-        (flight.0, flight.1, flight.2, flight.3)
+        [flight.0, flight.1, flight.2, flight.3]
     }
 }
 
@@ -1693,7 +1693,7 @@ fn set_flight(client_id: i32, flight: Flight) -> PyResult<bool> {
         Err(_) => Ok(false),
         Ok(game_entity) => {
             let mut game_client = game_entity.get_game_client().unwrap();
-            game_client.set_flight(flight.into());
+            game_client.set_flight::<[i32; 4]>(flight.into());
             Ok(true)
         }
     }
