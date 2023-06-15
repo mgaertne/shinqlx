@@ -996,72 +996,125 @@ pub struct netchan_buffer_s {
 pub type netchan_buffer_t = netchan_buffer_s;
 
 #[repr(C)]
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Clone, Builder)]
+#[builder(name = "TrajectoryBuilder")]
 pub struct trajectory_t {
+    #[builder(default = "trType_t::TR_STATIONARY")]
     pub trType: trType_t,
+    #[builder(default = "0")]
     pub trTime: c_int,
+    #[builder(default = "0")]
     pub trDuration: c_int,
+    #[builder(default = "[0.0; 3]")]
     pub trBase: vec3_t,
+    #[builder(default = "[0.0; 3]")]
     pub trDelta: vec3_t,
+    #[builder(default = "0.0")]
     pub gravity: f32,
 }
 
 #[repr(C)]
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Clone, Builder)]
+#[builder(name = "EntityStateBuilder")]
 pub struct entityState_s {
+    #[builder(default = "0")]
     pub number: c_int,
+    #[builder(default = "0")]
     pub eType: c_int,
+    #[builder(default = "0")]
     pub eFlags: c_int,
     pub pos: trajectory_t,
     pub apos: trajectory_t,
+    #[builder(default = "0")]
     pub time: c_int,
+    #[builder(default = "0")]
     pub time2: c_int,
+    #[builder(default = "[0.0; 3]")]
     pub origin: vec3_t,
+    #[builder(default = "[0.0; 3]")]
     pub origin2: vec3_t,
+    #[builder(default = "[0.0; 3]")]
     pub angles: vec3_t,
+    #[builder(default = "[0.0; 3]")]
     pub angles2: vec3_t,
+    #[builder(default = "0")]
     pub otherEntityNum: c_int,
+    #[builder(default = "0")]
     pub otherEntityNum2: c_int,
+    #[builder(default = "0")]
     pub groundEntityNum: c_int,
+    #[builder(default = "0")]
     pub constantLight: c_int,
+    #[builder(default = "0")]
     pub loopSound: c_int,
+    #[builder(default = "0")]
     pub modelindex: c_int,
+    #[builder(default = "0")]
     pub modelindex2: c_int,
+    #[builder(default = "0")]
     pub clientNum: c_int,
+    #[builder(default = "0")]
     pub frame: c_int,
+    #[builder(default = "0")]
     pub solid: c_int,
+    #[builder(default = "0")]
     pub event: c_int,
+    #[builder(default = "0")]
     pub eventParm: c_int,
+    #[builder(default = "0")]
     pub powerups: c_int,
+    #[builder(default = "0")]
     pub health: c_int,
+    #[builder(default = "0")]
     pub armor: c_int,
+    #[builder(default = "0")]
     pub weapon: c_int,
+    #[builder(default = "0")]
     pub location: c_int,
+    #[builder(default = "0")]
     pub legsAnim: c_int,
+    #[builder(default = "0")]
     pub torsoAnim: c_int,
+    #[builder(default = "0")]
     pub generic1: c_int,
+    #[builder(default = "0")]
     pub jumpTime: c_int,
+    #[builder(default = "0")]
     pub doubleJumped: c_int,
 }
 
 pub type entityState_t = entityState_s;
 
 #[repr(C)]
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Clone, Builder)]
+#[builder(name = "EntitySharedbuilder")]
 pub struct entityShared_t {
     pub s: entityState_t,
+    #[builder(default = "qboolean::qfalse")]
     pub linked: qboolean,
+    #[builder(default = "0")]
     pub linkcount: c_int,
+    #[builder(default = "0")]
     pub svFlags: c_int,
+    #[builder(default = "0")]
     pub singleClient: c_int,
+    #[builder(default = "qboolean::qfalse")]
     pub bmodel: qboolean,
+    #[builder(default = "[0.0; 3]")]
     pub mins: vec3_t,
+    #[builder(default = "[0.0; 3]")]
     pub maxs: vec3_t,
+    #[builder(default = "0")]
     pub contents: c_int,
+    #[builder(default = "[0.0; 3]")]
     pub absmin: vec3_t,
+    #[builder(default = "[0.0; 3]")]
     pub absmax: vec3_t,
+    #[builder(default = "[0.0; 3]")]
     pub currentOrigin: vec3_t,
+    #[builder(default = "[0.0; 3]")]
     pub currentAngles: vec3_t,
+    #[builder(default = "0")]
     pub ownerNum: c_int,
 }
 
@@ -1520,62 +1573,112 @@ pub enum entityType_t {
 }
 
 #[repr(C)]
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Builder)]
+#[builder(name = "GEntityBuilder")]
 pub struct gentity_s {
     pub s: entityState_t,
     pub r: entityShared_t,
+    #[builder(default = "std::ptr::null_mut()")]
     pub client: *mut gclient_s,
+    #[builder(default = "qboolean::qtrue")]
     pub inuse: qboolean,
+    #[builder(default = "std::ptr::null_mut()")]
     pub classname: *mut c_char,
+    #[builder(default = "0")]
     pub spawnflags: c_int,
+    #[builder(default = "qboolean::qfalse")]
     pub neverFree: qboolean,
+    #[builder(default = "0")]
     pub flags: c_int,
+    #[builder(default = "std::ptr::null_mut()")]
     pub model: *mut c_char,
+    #[builder(default = "std::ptr::null_mut()")]
     pub model2: *mut c_char,
+    #[builder(default = "0")]
     pub freetime: c_int,
+    #[builder(default = "0")]
     pub eventTime: c_int,
+    #[builder(default = "qboolean::qfalse")]
     pub freeAfterEvent: qboolean,
+    #[builder(default = "qboolean::qfalse")]
     pub unlinkAfterEvent: qboolean,
+    #[builder(default = "qboolean::qfalse")]
     pub physicsObject: qboolean,
+    #[builder(default = "0.0")]
     pub physicsBounce: f32,
+    #[builder(default = "0")]
     pub clipmask: c_int,
+    #[builder(default = "moverState_t::MOVER_POS1")]
     pub moverState: moverState_t,
+    #[builder(default = "0")]
     pub soundPos1: c_int,
+    #[builder(default = "0")]
     pub sound1to2: c_int,
+    #[builder(default = "0")]
     pub sound2to1: c_int,
+    #[builder(default = "0")]
     pub soundPos2: c_int,
+    #[builder(default = "0")]
     pub soundLoop: c_int,
+    #[builder(default = "std::ptr::null_mut()")]
     pub parent: *mut gentity_t,
+    #[builder(default = "std::ptr::null_mut()")]
     pub nextTrain: *mut gentity_t,
+    #[builder(default = "std::ptr::null_mut()")]
     pub prevTrain: *mut gentity_t,
+    #[builder(default = "[0.0; 3]")]
     pub pos1: vec3_t,
+    #[builder(default = "[0.0; 3]")]
     pub pos2: vec3_t,
+    #[builder(default = "std::ptr::null_mut()")]
     pub message: *mut c_char,
+    #[builder(default = "std::ptr::null_mut()")]
     pub cvar: *mut c_char,
+    #[builder(default = "std::ptr::null_mut()")]
     pub tourPointTarget: *mut c_char,
+    #[builder(default = "std::ptr::null_mut()")]
     pub tourPointTargetName: *mut c_char,
+    #[builder(default = "std::ptr::null_mut()")]
     pub noise: *mut c_char,
+    #[builder(default = "0")]
     pub timestamp: c_int,
+    #[builder(default = "0.0")]
     pub angle: f32,
+    #[builder(default = "std::ptr::null_mut()")]
     pub target: *mut c_char,
+    #[builder(default = "std::ptr::null_mut()")]
     pub targetname: *mut c_char,
+    #[builder(default = "std::ptr::null_mut()")]
     pub targetShaderName: *mut c_char,
+    #[builder(default = "std::ptr::null_mut()")]
     pub targetShaderNewName: *mut c_char,
+    #[builder(default = "std::ptr::null_mut()")]
     pub target_ent: *mut gentity_t,
+    #[builder(default = "0.0")]
     pub speed: f32,
+    #[builder(default = "[0.0; 3]")]
     pub movedir: vec3_t,
+    #[builder(default = "0")]
     pub nextthink: c_int,
+    #[builder(default = "None")]
     pub think: Option<unsafe extern "C" fn(arg1: *mut gentity_t)>,
+    #[builder(default = "None")]
     pub framethink: Option<unsafe extern "C" fn(arg1: *mut gentity_t)>,
+    #[builder(default = "None")]
     pub reached: Option<unsafe extern "C" fn(arg1: *mut gentity_t)>,
+    #[builder(default = "None")]
     pub blocked: Option<unsafe extern "C" fn(arg1: *mut gentity_t, arg2: *mut gentity_t)>,
+    #[builder(default = "None")]
     pub touch: Option<
         unsafe extern "C" fn(arg1: *mut gentity_t, arg2: *mut gentity_t, arg3: *mut trace_t),
     >,
+    #[builder(default = "None")]
     pub use_: Option<
         unsafe extern "C" fn(arg1: *mut gentity_t, arg2: *mut gentity_t, arg3: *mut gentity_t),
     >,
+    #[builder(default = "None")]
     pub pain: Option<unsafe extern "C" fn(arg1: *mut gentity_t, arg2: *mut gentity_t, arg3: c_int)>,
+    #[builder(default = "None")]
     pub die: Option<
         unsafe extern "C" fn(
             arg1: *mut gentity_t,
@@ -1585,32 +1688,59 @@ pub struct gentity_s {
             arg5: c_int,
         ),
     >,
+    #[builder(default = "0")]
     pub pain_debounce_time: c_int,
+    #[builder(default = "0")]
     pub fly_sound_debounce_time: c_int,
+    #[builder(default = "0")]
     pub health: c_int,
+    #[builder(default = "qboolean::qtrue")]
     pub takedamage: qboolean,
+    #[builder(default = "0")]
     pub damage: c_int,
+    #[builder(default = "0")]
     pub damageFactor: c_int,
+    #[builder(default = "0")]
     pub splashDamage: c_int,
+    #[builder(default = "0")]
     pub splashRadius: c_int,
+    #[builder(default = "0")]
     pub methodOfDeath: c_int,
+    #[builder(default = "0")]
     pub splashMethodOfDeath: c_int,
+    #[builder(default = "0")]
     pub count: c_int,
+    #[builder(default = "std::ptr::null_mut() as *mut gentity_t")]
     pub enemy: *mut gentity_t,
+    #[builder(default = "std::ptr::null_mut() as *mut gentity_t")]
     pub activator: *mut gentity_t,
+    #[builder(default = "std::ptr::null()")]
     pub team: *const c_char,
+    #[builder(default = "std::ptr::null_mut() as *mut gentity_t")]
     pub teammaster: *mut gentity_t,
+    #[builder(default = "std::ptr::null_mut() as *mut gentity_t")]
     pub teamchain: *mut gentity_t,
+    #[builder(default = "0")]
     pub kamikazeTime: c_int,
+    #[builder(default = "0")]
     pub kamikazeShockTime: c_int,
+    #[builder(default = "0")]
     pub watertype: c_int,
+    #[builder(default = "0")]
     pub waterlevel: c_int,
+    #[builder(default = "0")]
     pub noise_index: c_int,
+    #[builder(default = "0")]
     pub bouncecount: c_int,
+    #[builder(default = "0.0")]
     pub wait: f32,
+    #[builder(default = "0.0")]
     pub random: f32,
+    #[builder(default = "0")]
     pub spawnTime: c_int,
+    #[builder(default = "std::ptr::null()")]
     pub item: *const gitem_t,
+    #[builder(default = "0")]
     pub pickupCount: c_int,
 }
 

@@ -664,10 +664,12 @@ impl GameClient {
 #[cfg(test)]
 pub(crate) mod quake_live_fixtures {
     use crate::quake_types::{
-        clientPersistant_t, clientSession_t, expandedStatObj_t, gclient_t, playerState_t,
-        playerTeamState_t, raceInfo_t, usercmd_t, ClientPersistantBuilder, ClientSessionBuilder,
-        ExpandedStatsBuilder, GClientBuilder, PlayerStateBuilder, PlayerTeamStateBuilder,
-        RaceInfoBuilder, UserCmdBuilder,
+        clientPersistant_t, clientSession_t, entityShared_t, entityState_t, expandedStatObj_t,
+        gclient_t, gentity_t, playerState_t, playerTeamState_t, raceInfo_t, trajectory_t,
+        usercmd_t, ClientPersistantBuilder, ClientSessionBuilder, EntitySharedbuilder,
+        EntityStateBuilder, ExpandedStatsBuilder, GClientBuilder, GEntityBuilder,
+        PlayerStateBuilder, PlayerTeamStateBuilder, RaceInfoBuilder, TrajectoryBuilder,
+        UserCmdBuilder,
     };
     use rstest::*;
 
@@ -727,6 +729,37 @@ pub(crate) mod quake_live_fixtures {
             .sess(client_session)
             .expandedStats(expanded_stats)
             .race(race_info)
+            .build()
+            .unwrap()
+    }
+
+    #[fixture]
+    pub(crate) fn trajectory() -> trajectory_t {
+        TrajectoryBuilder::default().build().unwrap()
+    }
+
+    #[fixture]
+    pub(crate) fn entity_state(trajectory: trajectory_t) -> entityState_t {
+        EntityStateBuilder::default()
+            .pos(trajectory.clone())
+            .apos(trajectory)
+            .build()
+            .unwrap()
+    }
+
+    #[fixture]
+    pub(crate) fn entity_shared(entity_state: entityState_t) -> entityShared_t {
+        EntitySharedbuilder::default()
+            .s(entity_state)
+            .build()
+            .unwrap()
+    }
+
+    #[fixture]
+    pub(crate) fn gentity(entity_state: entityState_t, entity_shared: entityShared_t) -> gentity_t {
+        GEntityBuilder::default()
+            .s(entity_state)
+            .r(entity_shared)
             .build()
             .unwrap()
     }
@@ -1444,10 +1477,12 @@ impl GameEntity {
 
 #[cfg(test)]
 pub(crate) mod game_entity_tests {
+    use crate::quake_live_engine::quake_live_fixtures::*;
     use crate::quake_live_engine::GameEntity;
     use crate::quake_live_engine::QuakeLiveEngineError::NullPointerPassed;
     use crate::quake_types::gentity_t;
     use pretty_assertions::assert_eq;
+    use rstest::*;
 
     #[test]
     pub(crate) fn game_entity_try_from_null_results_in_error() {
@@ -1455,6 +1490,12 @@ pub(crate) mod game_entity_tests {
             GameEntity::try_from(std::ptr::null_mut() as *mut gentity_t),
             Err(NullPointerPassed("null pointer passed".into()))
         );
+    }
+
+    #[rstest]
+    pub(crate) fn game_entity_try_from_valid_gentity(gentity: gentity_t) {
+        let mut mut_gentity = gentity;
+        assert!(GameEntity::try_from(&mut mut_gentity as *mut gentity_t).is_ok());
     }
 }
 
