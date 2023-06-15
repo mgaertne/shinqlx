@@ -687,7 +687,7 @@ impl GameClient {
     }
 
     pub(crate) fn spawn(&mut self) {
-        self.game_client.ps.pm_type = PM_NORMAL as c_int;
+        self.game_client.ps.pm_type = PM_NORMAL.into();
     }
 }
 
@@ -767,11 +767,14 @@ pub(crate) mod game_client_tests {
     use crate::quake_live_engine::quake_live_fixtures::*;
     use crate::quake_live_engine::GameClient;
     use crate::quake_live_engine::QuakeLiveEngineError::NullPointerPassed;
-    use crate::quake_types::pmtype_t::{PM_FREEZE, PM_NORMAL};
+    use crate::quake_types::persistantFields_t::PERS_ROUND_SCORE;
+    use crate::quake_types::pmtype_t::{PM_DEAD, PM_FREEZE, PM_NORMAL};
     use crate::quake_types::privileges_t::{
         PRIV_ADMIN, PRIV_BANNED, PRIV_MOD, PRIV_NONE, PRIV_ROOT,
     };
     use crate::quake_types::statIndex_t::{STAT_ARMOR, STAT_HOLDABLE_ITEM};
+    use crate::quake_types::team_t::{TEAM_BLUE, TEAM_RED, TEAM_SPECTATOR};
+    use crate::quake_types::voteState_t::{VOTE_PENDING, VOTE_YES};
     use crate::quake_types::weapon_t::{
         WP_BFG, WP_CHAINGUN, WP_GAUNTLET, WP_GRAPPLING_HOOK, WP_GRENADE_LAUNCHER, WP_HANDS, WP_HMG,
         WP_LIGHTNING, WP_MACHINEGUN, WP_NAILGUN, WP_NONE, WP_PLASMAGUN, WP_PROX_LAUNCHER,
@@ -1033,6 +1036,91 @@ pub(crate) mod game_client_tests {
         mut_client.ps.pm_type = PM_NORMAL as i32;
         let game_client = GameClient::try_from(&mut mut_client as *mut gclient_t).unwrap();
         assert!(!game_client.is_frozen());
+    }
+
+    #[rstest]
+    pub(crate) fn game_client_get_score(gclient: gclient_t) {
+        let mut mut_client = gclient;
+        mut_client.sess.sessionTeam = TEAM_RED;
+        mut_client.ps.persistant[PERS_ROUND_SCORE as usize] = 42;
+        let game_client = GameClient::try_from(&mut mut_client as *mut gclient_t).unwrap();
+        assert_eq!(game_client.get_score(), 42);
+    }
+
+    #[rstest]
+    pub(crate) fn game_client_get_score_of_spectator(gclient: gclient_t) {
+        let mut mut_client = gclient;
+        mut_client.sess.sessionTeam = TEAM_SPECTATOR;
+        mut_client.ps.persistant[PERS_ROUND_SCORE as usize] = 42;
+        let game_client = GameClient::try_from(&mut mut_client as *mut gclient_t).unwrap();
+        assert_eq!(game_client.get_score(), 0);
+    }
+
+    #[rstest]
+    pub(crate) fn game_client_set_score(gclient: gclient_t) {
+        let mut mut_client = gclient;
+        mut_client.sess.sessionTeam = TEAM_BLUE;
+        let mut game_client = GameClient::try_from(&mut mut_client as *mut gclient_t).unwrap();
+        game_client.set_score(21);
+        assert_eq!(game_client.get_score(), 21);
+    }
+
+    #[rstest]
+    pub(crate) fn game_client_get_kills(gclient: gclient_t) {
+        let mut mut_client = gclient;
+        mut_client.expandedStats.numKills = 5;
+        let game_client = GameClient::try_from(&mut mut_client as *mut gclient_t).unwrap();
+        assert_eq!(game_client.get_kills(), 5);
+    }
+
+    #[rstest]
+    pub(crate) fn game_client_get_deaths(gclient: gclient_t) {
+        let mut mut_client = gclient;
+        mut_client.expandedStats.numDeaths = 69;
+        let game_client = GameClient::try_from(&mut mut_client as *mut gclient_t).unwrap();
+        assert_eq!(game_client.get_deaths(), 69);
+    }
+
+    #[rstest]
+    pub(crate) fn game_client_get_damage_dealt(gclient: gclient_t) {
+        let mut mut_client = gclient;
+        mut_client.expandedStats.totalDamageDealt = 666;
+        let game_client = GameClient::try_from(&mut mut_client as *mut gclient_t).unwrap();
+        assert_eq!(game_client.get_damage_dealt(), 666);
+    }
+
+    #[rstest]
+    pub(crate) fn game_client_get_damage_taken(gclient: gclient_t) {
+        let mut mut_client = gclient;
+        mut_client.expandedStats.totalDamageTaken = 1234;
+        let game_client = GameClient::try_from(&mut mut_client as *mut gclient_t).unwrap();
+        assert_eq!(game_client.get_damage_taken(), 1234);
+    }
+
+    #[rstest]
+    pub(crate) fn game_client_get_ping(gclient: gclient_t) {
+        let mut mut_client = gclient;
+        mut_client.ps.ping = 1;
+        let game_client = GameClient::try_from(&mut mut_client as *mut gclient_t).unwrap();
+        assert_eq!(game_client.get_ping(), 1);
+    }
+
+    #[rstest]
+    pub(crate) fn game_client_set_vote_pending(gclient: gclient_t) {
+        let mut mut_client = gclient;
+        mut_client.pers.voteState = VOTE_YES;
+        let mut game_client = GameClient::try_from(&mut mut_client as *mut gclient_t).unwrap();
+        game_client.set_vote_pending();
+        assert_eq!(mut_client.pers.voteState, VOTE_PENDING);
+    }
+
+    #[rstest]
+    pub(crate) fn game_client_spawn(gclient: gclient_t) {
+        let mut mut_client = gclient;
+        mut_client.ps.pm_type = PM_DEAD.into();
+        let mut game_client = GameClient::try_from(&mut mut_client as *mut gclient_t).unwrap();
+        game_client.spawn();
+        assert_eq!(mut_client.ps.pm_type, PM_NORMAL.into());
     }
 }
 
