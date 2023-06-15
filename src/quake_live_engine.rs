@@ -1480,9 +1480,13 @@ pub(crate) mod game_entity_tests {
     use crate::quake_live_engine::quake_live_fixtures::*;
     use crate::quake_live_engine::GameEntity;
     use crate::quake_live_engine::QuakeLiveEngineError::NullPointerPassed;
-    use crate::quake_types::gentity_t;
+    use crate::quake_types::clientConnected_t::{CON_CONNECTED, CON_DISCONNECTED};
+    use crate::quake_types::privileges_t::{PRIV_BANNED, PRIV_ROOT};
+    use crate::quake_types::team_t::{TEAM_RED, TEAM_SPECTATOR};
+    use crate::quake_types::{gclient_t, gentity_t};
     use pretty_assertions::assert_eq;
     use rstest::*;
+    use std::ffi::c_char;
 
     #[test]
     pub(crate) fn game_entity_try_from_null_results_in_error() {
@@ -1496,6 +1500,101 @@ pub(crate) mod game_entity_tests {
     pub(crate) fn game_entity_try_from_valid_gentity(gentity: gentity_t) {
         let mut mut_gentity = gentity;
         assert!(GameEntity::try_from(&mut mut_gentity as *mut gentity_t).is_ok());
+    }
+
+    #[rstest]
+    pub(crate) fn game_entity_get_player_name_from_null_client(gentity: gentity_t) {
+        let mut mut_gentity = gentity;
+        mut_gentity.client = std::ptr::null_mut() as *mut gclient_t;
+        let game_entity = GameEntity::try_from(&mut mut_gentity as *mut gentity_t).unwrap();
+        assert_eq!(game_entity.get_player_name(), "");
+    }
+
+    #[rstest]
+    pub(crate) fn game_entity_get_player_name_from_disconnected_game_client(
+        gentity: gentity_t,
+        gclient: gclient_t,
+    ) {
+        let mut mut_gclient = gclient;
+        mut_gclient.pers.connected = CON_DISCONNECTED;
+        let mut mut_gentity = gentity;
+        mut_gentity.client = &mut mut_gclient;
+        let game_entity = GameEntity::try_from(&mut mut_gentity as *mut gentity_t).unwrap();
+        assert_eq!(game_entity.get_player_name(), "");
+    }
+
+    #[rstest]
+    pub(crate) fn game_entity_get_player_name_from_connected_game_client(
+        gentity: gentity_t,
+        gclient: gclient_t,
+    ) {
+        let mut mut_gclient = gclient;
+        mut_gclient.pers.connected = CON_CONNECTED;
+        let mut player_name: [c_char; 40] = [0; 40];
+        for (index, char) in "UnknownPlayer".chars().enumerate() {
+            player_name[index] = char.to_owned() as c_char;
+        }
+        mut_gclient.pers.netname = player_name;
+        let mut mut_gentity = gentity;
+        mut_gentity.client = &mut mut_gclient;
+        let game_entity = GameEntity::try_from(&mut mut_gentity as *mut gentity_t).unwrap();
+        assert_eq!(game_entity.get_player_name(), "UnknownPlayer");
+    }
+
+    #[rstest]
+    pub(crate) fn game_entity_get_team_from_null_client(gentity: gentity_t) {
+        let mut mut_gentity = gentity;
+        mut_gentity.client = std::ptr::null_mut() as *mut gclient_t;
+        let game_entity = GameEntity::try_from(&mut mut_gentity as *mut gentity_t).unwrap();
+        assert_eq!(game_entity.get_team(), TEAM_SPECTATOR);
+    }
+
+    #[rstest]
+    pub(crate) fn game_entity_get_team_from_disconnected_game_client(
+        gentity: gentity_t,
+        gclient: gclient_t,
+    ) {
+        let mut mut_gclient = gclient;
+        mut_gclient.pers.connected = CON_DISCONNECTED;
+        let mut mut_gentity = gentity;
+        mut_gentity.client = &mut mut_gclient;
+        let game_entity = GameEntity::try_from(&mut mut_gentity as *mut gentity_t).unwrap();
+        assert_eq!(game_entity.get_team(), TEAM_SPECTATOR);
+    }
+
+    #[rstest]
+    pub(crate) fn game_entity_get_team_from_connected_game_client(
+        gentity: gentity_t,
+        gclient: gclient_t,
+    ) {
+        let mut mut_gclient = gclient;
+        mut_gclient.pers.connected = CON_CONNECTED;
+        mut_gclient.sess.sessionTeam = TEAM_RED;
+        let mut mut_gentity = gentity;
+        mut_gentity.client = &mut mut_gclient;
+        let game_entity = GameEntity::try_from(&mut mut_gentity as *mut gentity_t).unwrap();
+        assert_eq!(game_entity.get_team(), TEAM_RED);
+    }
+
+    #[rstest]
+    pub(crate) fn game_entity_get_privileges_from_null_client(gentity: gentity_t) {
+        let mut mut_gentity = gentity;
+        mut_gentity.client = std::ptr::null_mut() as *mut gclient_t;
+        let game_entity = GameEntity::try_from(&mut mut_gentity as *mut gentity_t).unwrap();
+        assert_eq!(game_entity.get_privileges(), PRIV_BANNED);
+    }
+
+    #[rstest]
+    pub(crate) fn game_entity_get_privileges_from_connected_game_client(
+        gentity: gentity_t,
+        gclient: gclient_t,
+    ) {
+        let mut mut_gclient = gclient;
+        mut_gclient.sess.privileges = PRIV_ROOT;
+        let mut mut_gentity = gentity;
+        mut_gentity.client = &mut mut_gclient;
+        let game_entity = GameEntity::try_from(&mut mut_gentity as *mut gentity_t).unwrap();
+        assert_eq!(game_entity.get_privileges(), PRIV_ROOT);
     }
 }
 
