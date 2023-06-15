@@ -38,10 +38,10 @@ use crate::quake_types::weapon_t::{
 };
 use crate::quake_types::{
     cbufExec_t, clientState_t, client_t, cvar_t, entity_event_t, gclient_t, gentity_t, gitem_t,
-    level_locals_t, meansOfDeath_t, pmtype_t, powerup_t, privileges_t, qboolean, serverStatic_t,
-    team_t, trace_t, usercmd_t, vec3_t, weapon_t, CS_ITEMS, CS_VOTE_NO, CS_VOTE_STRING,
-    CS_VOTE_TIME, CS_VOTE_YES, DAMAGE_NO_PROTECTION, EF_KAMIKAZE, EF_TALK, FL_DROPPED_ITEM,
-    MAX_CLIENTS, MAX_GENTITIES, MODELINDEX_KAMIKAZE,
+    level_locals_t, meansOfDeath_t, powerup_t, privileges_t, qboolean, serverStatic_t, team_t,
+    trace_t, usercmd_t, vec3_t, weapon_t, CS_ITEMS, CS_VOTE_NO, CS_VOTE_STRING, CS_VOTE_TIME,
+    CS_VOTE_YES, DAMAGE_NO_PROTECTION, EF_KAMIKAZE, EF_TALK, FL_DROPPED_ITEM, MAX_CLIENTS,
+    MAX_GENTITIES, MODELINDEX_KAMIKAZE,
 };
 use crate::SV_MAXCLIENTS;
 use std::f32::consts::PI;
@@ -126,12 +126,6 @@ impl From<i32> for privileges_t {
     }
 }
 
-impl From<privileges_t> for i32 {
-    fn from(value: privileges_t) -> Self {
-        value as i32
-    }
-}
-
 #[cfg(test)]
 pub(crate) mod privileges_tests {
     use crate::quake_types::privileges_t;
@@ -148,18 +142,6 @@ pub(crate) mod privileges_tests {
         assert_eq!(privileges_t::from(3), PRIV_ROOT);
         assert_eq!(privileges_t::from(0), PRIV_NONE);
         assert_eq!(privileges_t::from(666), PRIV_NONE);
-    }
-}
-
-impl From<pmtype_t> for i32 {
-    fn from(value: pmtype_t) -> Self {
-        value as i32
-    }
-}
-
-impl From<clientState_t> for i32 {
-    fn from(value: clientState_t) -> Self {
-        value as i32
     }
 }
 
@@ -303,18 +285,6 @@ pub(crate) mod weapon_t_tests {
         assert_eq!(weapon_t::try_from(16), Err("invalid weapon".to_string()));
         assert_eq!(weapon_t::try_from(-1), Err("invalid weapon".to_string()));
         assert_eq!(weapon_t::try_from(666), Err("invalid weapon".to_string()));
-    }
-}
-
-impl From<team_t> for i32 {
-    fn from(value: team_t) -> Self {
-        value as i32
-    }
-}
-
-impl From<meansOfDeath_t> for i32 {
-    fn from(value: meansOfDeath_t) -> Self {
-        value as i32
     }
 }
 
@@ -1329,7 +1299,7 @@ impl GameEntity {
                 std::ptr::null(),
                 damage * 2,
                 DAMAGE_NO_PROTECTION as c_int,
-                mean_of_death.into(),
+                mean_of_death as c_int,
             );
         }
     }
