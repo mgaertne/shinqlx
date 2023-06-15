@@ -441,10 +441,10 @@ impl TryFrom<i32> for PlayerInfo {
             Err(_) => Ok(PlayerInfo {
                 client_id,
                 name: Default::default(),
-                connection_state: CS_FREE.into(),
+                connection_state: CS_FREE as i32,
                 userinfo: Default::default(),
                 steam_id: 0,
-                team: TEAM_SPECTATOR.into(),
+                team: TEAM_SPECTATOR as i32,
                 privileges: -1,
             }),
             Ok(game_entity) => {
@@ -452,21 +452,21 @@ impl TryFrom<i32> for PlayerInfo {
                 return Ok(PlayerInfo {
                     client_id,
                     name: game_entity.get_player_name(),
-                    connection_state: CS_FREE.into(),
+                    connection_state: CS_FREE as i32,
                     userinfo: Default::default(),
                     steam_id: 0,
-                    team: game_entity.get_team().into(),
-                    privileges: game_entity.get_privileges().into(),
+                    team: game_entity.get_team() as i32,
+                    privileges: game_entity.get_privileges() as i32,
                 });
             };
                 Ok(PlayerInfo {
                     client_id,
                     name: game_entity.get_player_name(),
-                    connection_state: client.get_state().into(),
+                    connection_state: client.get_state() as i32,
                     userinfo: client.get_user_info(),
                     steam_id: client.get_steam_id(),
-                    team: game_entity.get_team().into(),
-                    privileges: game_entity.get_privileges().into(),
+                    team: game_entity.get_team() as i32,
+                    privileges: game_entity.get_privileges() as i32,
                 })
             }
         }
