@@ -468,7 +468,7 @@ impl GameClient {
     }
 
     pub(crate) fn is_alive(&self) -> bool {
-        self.game_client.ps.pm_type == 0
+        self.game_client.ps.pm_type == PM_NORMAL
     }
 
     pub(crate) fn get_position(&self) -> (f32, f32, f32) {
@@ -643,7 +643,7 @@ impl GameClient {
     }
 
     pub(crate) fn is_frozen(&self) -> bool {
-        self.game_client.ps.pm_type == PM_FREEZE.into()
+        self.game_client.ps.pm_type == PM_FREEZE
     }
 
     pub(crate) fn get_score(&self) -> i32 {
@@ -687,7 +687,7 @@ impl GameClient {
     }
 
     pub(crate) fn spawn(&mut self) {
-        self.game_client.ps.pm_type = PM_NORMAL.into();
+        self.game_client.ps.pm_type = PM_NORMAL;
     }
 }
 
@@ -845,7 +845,7 @@ pub(crate) mod game_client_tests {
     #[rstest]
     pub(crate) fn game_client_is_alive(gclient: gclient_t) {
         let mut raw_client = gclient;
-        raw_client.ps.pm_type = 0;
+        raw_client.ps.pm_type = PM_NORMAL;
         let game_client = GameClient::try_from(&mut raw_client as *mut gclient_t).unwrap();
         assert!(game_client.is_alive());
     }
@@ -853,7 +853,7 @@ pub(crate) mod game_client_tests {
     #[rstest]
     pub(crate) fn game_client_is_dead(gclient: gclient_t) {
         let mut raw_client = gclient;
-        raw_client.ps.pm_type = 1;
+        raw_client.ps.pm_type = PM_DEAD;
         let game_client = GameClient::try_from(&mut raw_client as *mut gclient_t).unwrap();
         assert!(!game_client.is_alive());
     }
@@ -1025,7 +1025,7 @@ pub(crate) mod game_client_tests {
     #[rstest]
     pub(crate) fn game_client_is_frozen(gclient: gclient_t) {
         let mut mut_client = gclient;
-        mut_client.ps.pm_type = PM_FREEZE as i32;
+        mut_client.ps.pm_type = PM_FREEZE;
         let game_client = GameClient::try_from(&mut mut_client as *mut gclient_t).unwrap();
         assert!(game_client.is_frozen());
     }
@@ -1033,7 +1033,7 @@ pub(crate) mod game_client_tests {
     #[rstest]
     pub(crate) fn game_client_is_not_frozen(gclient: gclient_t) {
         let mut mut_client = gclient;
-        mut_client.ps.pm_type = PM_NORMAL as i32;
+        mut_client.ps.pm_type = PM_NORMAL;
         let game_client = GameClient::try_from(&mut mut_client as *mut gclient_t).unwrap();
         assert!(!game_client.is_frozen());
     }
@@ -1117,10 +1117,10 @@ pub(crate) mod game_client_tests {
     #[rstest]
     pub(crate) fn game_client_spawn(gclient: gclient_t) {
         let mut mut_client = gclient;
-        mut_client.ps.pm_type = PM_DEAD.into();
+        mut_client.ps.pm_type = PM_DEAD;
         let mut game_client = GameClient::try_from(&mut mut_client as *mut gclient_t).unwrap();
         game_client.spawn();
-        assert_eq!(mut_client.ps.pm_type, PM_NORMAL.into());
+        assert_eq!(mut_client.ps.pm_type, PM_NORMAL);
     }
 }
 

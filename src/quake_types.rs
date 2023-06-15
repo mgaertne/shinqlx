@@ -810,8 +810,8 @@ pub struct trace_t {
 pub struct playerState_s {
     #[builder(default)]
     pub commandTime: c_int,
-    #[builder(default)]
-    pub pm_type: c_int,
+    #[builder(default = "pmtype_t::PM_NORMAL")]
+    pub pm_type: pmtype_t,
     #[builder(default)]
     pub bobCycle: c_int,
     #[builder(default)]
