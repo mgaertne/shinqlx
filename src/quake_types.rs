@@ -654,23 +654,40 @@ pub enum cbufExec_t {
 }
 
 #[repr(C)]
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Clone, Builder)]
+#[builder(name = "CVarBuilder")]
 pub struct cvar_s {
+    #[builder(default = "std::ptr::null_mut() as *mut c_char")]
     pub name: *mut c_char,
+    #[builder(default = "std::ptr::null_mut() as *mut c_char")]
     pub string: *mut c_char,
+    #[builder(default = "std::ptr::null_mut() as *mut c_char")]
     pub resetString: *mut c_char, // cvar_restart will reset to this value
+    #[builder(default = "std::ptr::null_mut() as *mut c_char")]
     pub latchedString: *mut c_char, // for CVAR_LATCH vars
+    #[builder(default = "std::ptr::null_mut() as *mut c_char")]
     pub defaultString: *mut c_char,
+    #[builder(default = "std::ptr::null_mut() as *mut c_char")]
     pub minimumString: *mut c_char,
+    #[builder(default = "std::ptr::null_mut() as *mut c_char")]
     pub maximumString: *mut c_char,
+    #[builder(default)]
     pub flags: c_int,
+    #[builder(default = "qboolean::qfalse")]
     pub modified: qboolean,
+    #[builder(default = "[0; 4]")]
     pub _unknown2: [u8; 4usize],
+    #[builder(default)]
     pub modificationCount: c_int, // incremented each time the cvar is changed
-    pub value: f32,               // atof( string )
-    pub integer: c_int,           // atof( string )
+    #[builder(default)]
+    pub value: f32, // atof( string )
+    #[builder(default)]
+    pub integer: c_int, // atof( string )
+    #[builder(default = "[0; 8]")]
     pub _unknown3: [u8; 8usize],
+    #[builder(default = "std::ptr::null_mut() as *mut cvar_s")]
     pub next: *mut cvar_s,
+    #[builder(default = "std::ptr::null_mut() as *mut cvar_s")]
     pub hashNext: *mut cvar_s,
 }
 
@@ -746,33 +763,52 @@ pub enum trType_t {
 }
 
 #[repr(C)]
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Clone, Builder)]
+#[builder(name = "NetadrBuilder")]
 pub struct netadr_t {
+    #[builder(default = "netadrtype_t::NA_BOT")]
     pub type_: netadrtype_t,
+    #[builder(default = "[0; 4]")]
     pub ip: [byte; 4usize],
+    #[builder(default = "[0; 10]")]
     pub ipx: [byte; 10usize],
+    #[builder(default)]
     pub port: c_ushort,
 }
 
 #[repr(C)]
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Clone, Builder)]
+#[builder(name = "NetchanBuilder")]
 pub struct netchan_t {
+    #[builder(default = "netsrc_t::NS_CLIENT")]
     pub sock: netsrc_t,
+    #[builder(default)]
     pub dropped: c_int, // between last packet and previous
+    #[builder(default = "NetadrBuilder::default().build().unwrap()")]
     pub remoteAddress: netadr_t,
+    #[builder(default)]
     pub qport: c_int, // qport value to write when transmitting
     // sequencing variables
+    #[builder(default)]
     pub incomingSequence: c_int,
+    #[builder(default)]
     pub outgoingSequence: c_int,
     // incoming fragment assembly buffer
+    #[builder(default)]
     pub fragmentSequence: c_int,
+    #[builder(default)]
     pub fragmentLength: c_int,
+    #[builder(default = "[0; MAX_MSGLEN as usize]")]
     pub fragmentBuffer: [byte; MAX_MSGLEN as usize],
     // outgoing fragment buffer
     // we need to space out the sending of large fragmented messages
+    #[builder(default = "qboolean::qfalse")]
     pub unsentFragments: qboolean,
+    #[builder(default)]
     pub unsentFragmentStart: c_int,
+    #[builder(default)]
     pub unsentLength: c_int,
+    #[builder(default = "[0; MAX_MSGLEN as usize]")]
     pub unsentBuffer: [byte; MAX_MSGLEN as usize],
 }
 
@@ -972,18 +1008,27 @@ pub struct pmove_t {
 }
 
 #[repr(C)]
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Clone, Builder)]
+#[builder(name = "ClientSnapshotBuilder")]
 pub struct clientSnapshot_t {
+    #[builder(default)]
     pub areabytes: c_int,
+    #[builder(default = "[0; MAX_MAP_AREA_BYTES as usize]")]
     pub areabits: [byte; MAX_MAP_AREA_BYTES as usize], // portalarea visibility bits
+    #[builder(default = "PlayerStateBuilder::default().build().unwrap()")]
     pub ps: playerState_t,
+    #[builder(default)]
     pub num_entities: c_int,
+    #[builder(default)]
     pub first_entity: c_int, // into the circular sv_packet_entities[]
     // the entities MUST be in increasing state number
     // order, otherwise the delta compression will fail
-    pub messageSent: c_int,  // time the message was transmitted
+    #[builder(default)]
+    pub messageSent: c_int, // time the message was transmitted
+    #[builder(default)]
     pub messageAcked: c_int, // time the message was acked
-    pub messageSize: c_int,  // used to rate drop packets
+    #[builder(default)]
+    pub messageSize: c_int, // used to rate drop packets
 }
 
 #[repr(C)]
@@ -1001,15 +1046,15 @@ pub type netchan_buffer_t = netchan_buffer_s;
 pub struct trajectory_t {
     #[builder(default = "trType_t::TR_STATIONARY")]
     pub trType: trType_t,
-    #[builder(default = "0")]
+    #[builder(default)]
     pub trTime: c_int,
-    #[builder(default = "0")]
+    #[builder(default)]
     pub trDuration: c_int,
     #[builder(default = "[0.0; 3]")]
     pub trBase: vec3_t,
     #[builder(default = "[0.0; 3]")]
     pub trDelta: vec3_t,
-    #[builder(default = "0.0")]
+    #[builder(default)]
     pub gravity: f32,
 }
 
@@ -1017,17 +1062,19 @@ pub struct trajectory_t {
 #[derive(Debug, PartialEq, Clone, Builder)]
 #[builder(name = "EntityStateBuilder")]
 pub struct entityState_s {
-    #[builder(default = "0")]
+    #[builder(default)]
     pub number: c_int,
-    #[builder(default = "0")]
+    #[builder(default)]
     pub eType: c_int,
-    #[builder(default = "0")]
+    #[builder(default)]
     pub eFlags: c_int,
+    #[builder(default = "TrajectoryBuilder::default().build().unwrap()")]
     pub pos: trajectory_t,
+    #[builder(default = "TrajectoryBuilder::default().build().unwrap()")]
     pub apos: trajectory_t,
-    #[builder(default = "0")]
+    #[builder(default)]
     pub time: c_int,
-    #[builder(default = "0")]
+    #[builder(default)]
     pub time2: c_int,
     #[builder(default = "[0.0; 3]")]
     pub origin: vec3_t,
@@ -1037,49 +1084,49 @@ pub struct entityState_s {
     pub angles: vec3_t,
     #[builder(default = "[0.0; 3]")]
     pub angles2: vec3_t,
-    #[builder(default = "0")]
+    #[builder(default)]
     pub otherEntityNum: c_int,
-    #[builder(default = "0")]
+    #[builder(default)]
     pub otherEntityNum2: c_int,
-    #[builder(default = "0")]
+    #[builder(default)]
     pub groundEntityNum: c_int,
-    #[builder(default = "0")]
+    #[builder(default)]
     pub constantLight: c_int,
-    #[builder(default = "0")]
+    #[builder(default)]
     pub loopSound: c_int,
-    #[builder(default = "0")]
+    #[builder(default)]
     pub modelindex: c_int,
-    #[builder(default = "0")]
+    #[builder(default)]
     pub modelindex2: c_int,
-    #[builder(default = "0")]
+    #[builder(default)]
     pub clientNum: c_int,
-    #[builder(default = "0")]
+    #[builder(default)]
     pub frame: c_int,
-    #[builder(default = "0")]
+    #[builder(default)]
     pub solid: c_int,
-    #[builder(default = "0")]
+    #[builder(default)]
     pub event: c_int,
-    #[builder(default = "0")]
+    #[builder(default)]
     pub eventParm: c_int,
-    #[builder(default = "0")]
+    #[builder(default)]
     pub powerups: c_int,
-    #[builder(default = "0")]
+    #[builder(default)]
     pub health: c_int,
-    #[builder(default = "0")]
+    #[builder(default)]
     pub armor: c_int,
-    #[builder(default = "0")]
+    #[builder(default)]
     pub weapon: c_int,
-    #[builder(default = "0")]
+    #[builder(default)]
     pub location: c_int,
-    #[builder(default = "0")]
+    #[builder(default)]
     pub legsAnim: c_int,
-    #[builder(default = "0")]
+    #[builder(default)]
     pub torsoAnim: c_int,
-    #[builder(default = "0")]
+    #[builder(default)]
     pub generic1: c_int,
-    #[builder(default = "0")]
+    #[builder(default)]
     pub jumpTime: c_int,
-    #[builder(default = "0")]
+    #[builder(default)]
     pub doubleJumped: c_int,
 }
 
@@ -1089,14 +1136,15 @@ pub type entityState_t = entityState_s;
 #[derive(Debug, PartialEq, Clone, Builder)]
 #[builder(name = "EntitySharedbuilder")]
 pub struct entityShared_t {
+    #[builder(default = "EntityStateBuilder::default().build().unwrap()")]
     pub s: entityState_t,
     #[builder(default = "qboolean::qfalse")]
     pub linked: qboolean,
-    #[builder(default = "0")]
+    #[builder(default)]
     pub linkcount: c_int,
-    #[builder(default = "0")]
+    #[builder(default)]
     pub svFlags: c_int,
-    #[builder(default = "0")]
+    #[builder(default)]
     pub singleClient: c_int,
     #[builder(default = "qboolean::qfalse")]
     pub bmodel: qboolean,
@@ -1104,7 +1152,7 @@ pub struct entityShared_t {
     pub mins: vec3_t,
     #[builder(default = "[0.0; 3]")]
     pub maxs: vec3_t,
-    #[builder(default = "0")]
+    #[builder(default)]
     pub contents: c_int,
     #[builder(default = "[0.0; 3]")]
     pub absmin: vec3_t,
@@ -1114,7 +1162,7 @@ pub struct entityShared_t {
     pub currentOrigin: vec3_t,
     #[builder(default = "[0.0; 3]")]
     pub currentAngles: vec3_t,
-    #[builder(default = "0")]
+    #[builder(default)]
     pub ownerNum: c_int,
 }
 
@@ -1126,61 +1174,124 @@ pub struct sharedEntity_t {
 }
 
 #[repr(C)]
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Clone, Builder)]
+#[builder(name = "ClientBuilder")]
 pub struct client_s {
+    #[builder(default = "clientState_t::CS_CONNECTED")]
     pub state: clientState_t,
+    #[builder(default = "[0; MAX_INFO_STRING as usize]")]
     pub userinfo: [c_char; MAX_INFO_STRING as usize], // name, etc
+    #[builder(default = "[[0; MAX_STRING_CHARS as usize]; MAX_RELIABLE_COMMANDS as usize]")]
     pub reliableCommands: [[c_char; MAX_STRING_CHARS as usize]; MAX_RELIABLE_COMMANDS as usize],
+    #[builder(default)]
     pub reliableSequence: c_int, // last added reliable message, not necesarily sent or acknowledged yet
+    #[builder(default)]
     pub reliableAcknowledge: c_int, // last acknowledged reliable message
-    pub reliableSent: c_int,     // last sent reliable message, not necesarily acknowledged yet
+    #[builder(default)]
+    pub reliableSent: c_int, // last sent reliable message, not necesarily acknowledged yet
+    #[builder(default)]
     pub messageAcknowledge: c_int,
+    #[builder(default)]
     pub gamestateMessageNum: c_int, // netchan->outgoingSequence of gamestate
+    #[builder(default)]
     pub challenge: c_int,
+    #[builder(default = "UserCmdBuilder::default().build().unwrap()")]
     pub lastUsercmd: usercmd_t,
-    pub lastMessageNum: c_int,    // for delta compression
+    #[builder(default)]
+    pub lastMessageNum: c_int, // for delta compression
+    #[builder(default)]
     pub lastClientCommand: c_int, // reliable client message sequence
+    #[builder(default = "[0; MAX_STRING_CHARS as usize]")]
     pub lastClientCommandString: [c_char; MAX_STRING_CHARS as usize],
+    #[builder(default = "std::ptr::null_mut() as *mut sharedEntity_t")]
     pub gentity: *mut sharedEntity_t, // SV_GentityNum(clientnum)
+    #[builder(default = "[0; MAX_NAME_LENGTH as usize]")]
     pub name: [c_char; MAX_NAME_LENGTH as usize], // extracted from userinfo, high bits masked
 
     // Mino: I think everything above this is correct. Below is a mess.
 
     // downloading
+    #[builder(default = "[0; MAX_QPATH as usize]")]
     pub downloadName: [c_char; MAX_QPATH as usize], // if not empty string, we are downloading
-    pub download: fileHandle_t,                     // file being downloaded
-    pub downloadSize: c_int,                        // total bytes (can't use EOF because of paks)
-    pub downloadCount: c_int,                       // bytes sent
+    #[builder(default)]
+    pub download: fileHandle_t, // file being downloaded
+    #[builder(default)]
+    pub downloadSize: c_int, // total bytes (can't use EOF because of paks)
+    #[builder(default)]
+    pub downloadCount: c_int, // bytes sent
+    #[builder(default)]
     pub downloadClientBlock: c_int, // last block we sent to the client, awaiting ack
+    #[builder(default)]
     pub downloadCurrentBlock: c_int, // current block number
-    pub downloadXmitBlock: c_int,   // last block we xmited
+    #[builder(default)]
+    pub downloadXmitBlock: c_int, // last block we xmited
+    #[builder(default = "[std::ptr::null_mut() as *mut c_uchar; MAX_DOWNLOAD_WINDOW as usize]")]
     pub downloadBlocks: [*mut c_uchar; MAX_DOWNLOAD_WINDOW as usize], // the buffers for the download blocks
+    #[builder(default = "[0; MAX_DOWNLOAD_WINDOW as usize]")]
     pub downloadBlockSize: [c_int; MAX_DOWNLOAD_WINDOW as usize],
-    pub downloadEOF: qboolean,   // We have sent the EOF block
+    #[builder(default = "qboolean::qfalse")]
+    pub downloadEOF: qboolean, // We have sent the EOF block
+    #[builder(default)]
     pub downloadSendTime: c_int, // time we last got an ack from the client
-    pub deltaMessage: c_int,     // frame last client usercmd message
+    #[builder(default)]
+    pub deltaMessage: c_int, // frame last client usercmd message
+    #[builder(default)]
     pub nextReliableTime: c_int, // svs.time when another reliable command will be allowed
-    pub lastPacketTime: c_int,   // svs.time when packet was last received
-    pub lastConnectTime: c_int,  // svs.time when connection started
+    #[builder(default)]
+    pub lastPacketTime: c_int, // svs.time when packet was last received
+    #[builder(default)]
+    pub lastConnectTime: c_int, // svs.time when connection started
+    #[builder(default)]
     pub nextSnapshotTime: c_int, // send another snapshot when svs.time >= nextSnapshotTime
+    #[builder(default = "qboolean::qfalse")]
     pub rateDelayed: qboolean, // true if nextSnapshotTime was set based on rate instead of snapshotMsec
-    pub timeoutCount: c_int,   // must timeout a few frames in a row so debugging doesn't break
+    #[builder(default)]
+    pub timeoutCount: c_int, // must timeout a few frames in a row so debugging doesn't break
+    #[builder(
+        default = "[ClientSnapshotBuilder::default().build().unwrap(), ClientSnapshotBuilder::default().build().unwrap(),\
+        ClientSnapshotBuilder::default().build().unwrap(), ClientSnapshotBuilder::default().build().unwrap(),\
+        ClientSnapshotBuilder::default().build().unwrap(), ClientSnapshotBuilder::default().build().unwrap(),\
+        ClientSnapshotBuilder::default().build().unwrap(), ClientSnapshotBuilder::default().build().unwrap(),\
+        ClientSnapshotBuilder::default().build().unwrap(), ClientSnapshotBuilder::default().build().unwrap(),\
+        ClientSnapshotBuilder::default().build().unwrap(), ClientSnapshotBuilder::default().build().unwrap(),\
+        ClientSnapshotBuilder::default().build().unwrap(), ClientSnapshotBuilder::default().build().unwrap(),\
+        ClientSnapshotBuilder::default().build().unwrap(), ClientSnapshotBuilder::default().build().unwrap(),\
+        ClientSnapshotBuilder::default().build().unwrap(), ClientSnapshotBuilder::default().build().unwrap(),\
+        ClientSnapshotBuilder::default().build().unwrap(), ClientSnapshotBuilder::default().build().unwrap(),\
+        ClientSnapshotBuilder::default().build().unwrap(), ClientSnapshotBuilder::default().build().unwrap(),\
+        ClientSnapshotBuilder::default().build().unwrap(), ClientSnapshotBuilder::default().build().unwrap(),\
+        ClientSnapshotBuilder::default().build().unwrap(), ClientSnapshotBuilder::default().build().unwrap(),\
+        ClientSnapshotBuilder::default().build().unwrap(), ClientSnapshotBuilder::default().build().unwrap(),\
+        ClientSnapshotBuilder::default().build().unwrap(), ClientSnapshotBuilder::default().build().unwrap(),\
+        ClientSnapshotBuilder::default().build().unwrap(), ClientSnapshotBuilder::default().build().unwrap()]"
+    )]
     pub frames: [clientSnapshot_t; PACKET_BACKUP as usize], // updates can be delta'd from here
+    #[builder(default)]
     pub ping: c_int,
-    pub rate: c_int,         // bytes / second
+    #[builder(default)]
+    pub rate: c_int, // bytes / second
+    #[builder(default)]
     pub snapshotMsec: c_int, // requests a snapshot every snapshotMsec unless rate choked
+    #[builder(default)]
     pub pureAuthentic: c_int,
+    #[builder(default = "qboolean::qfalse")]
     pub gotCP: qboolean, // TTimo - additional flag to distinguish between a bad pure checksum, and no cp command at all
+    #[builder(default = "NetchanBuilder::default().build().unwrap()")]
     pub netchan: netchan_t,
+    #[builder(default = "std::ptr::null_mut() as *mut netchan_buffer_t")]
     pub netchan_start_queue: *mut netchan_buffer_t,
+    #[builder(default = "std::ptr::null_mut() as *mut *mut netchan_buffer_t")]
     pub netchan_end_queue: *mut *mut netchan_buffer_t,
     // Mino: Holy crap. A bunch of data was added. I have no idea where it actually goes,
     // but this will at least correct sizeof(client_t).
     #[cfg(target_pointer_width = "64")]
+    #[builder(default = "[0; 36808usize]")]
     pub _unknown2: [u8; 36808usize],
     #[cfg(target_pointer_width = "32")]
+    #[builder(default = "[0; 36836usize]")]
     pub _unknown2: [u8; 36836usize], // TODO: Outdated.
     // Mino: Woohoo! How nice of them to put the SteamID last.
+    #[builder(default)]
     pub steam_id: u64,
 }
 
@@ -1438,6 +1549,7 @@ pub struct expandedStatObj_t {
 pub struct clientPersistant_t {
     #[builder(default = "clientConnected_t::CON_CONNECTED")]
     pub connected: clientConnected_t,
+    #[builder(default = "UserCmdBuilder::default().build().unwrap()")]
     pub cmd: usercmd_t,
     #[builder(default = "qboolean::qfalse")]
     pub localClient: qboolean,
@@ -1477,6 +1589,7 @@ pub struct clientPersistant_t {
     pub timeouts: c_int,
     #[builder(default)]
     pub enterTime: c_int,
+    #[builder(default = "PlayerTeamStateBuilder::default().build().unwrap()")]
     pub teamState: playerTeamState_t,
     #[builder(default)]
     pub damageResidual: c_int,
@@ -1540,23 +1653,25 @@ pub struct gitem_s {
     pub classname: *mut c_char,
     #[builder(default = "std::ptr::null()")]
     pub pickup_sound: *const c_char,
+    #[builder(default = "[std::ptr::null() as *const c_char; 4]")]
     pub world_model: [*const c_char; 4usize],
+    #[builder(default = "[std::ptr::null() as *const c_char; 4]")]
     pub premium_model: [*const c_char; 4usize],
     #[builder(default = "std::ptr::null()")]
     pub icon: *const c_char,
     #[builder(default = "std::ptr::null()")]
     pub pickup_name: *const c_char,
-    #[builder(default = "0")]
+    #[builder(default)]
     pub quantity: c_int,
     #[builder(default = "itemType_t::IT_BAD")]
     pub giType: itemType_t,
-    #[builder(default = "0")]
+    #[builder(default)]
     pub giTag: c_int,
     #[builder(default = "qboolean::qfalse")]
     pub itemTimer: qboolean,
-    #[builder(default = "0")]
+    #[builder(default)]
     pub maskGametypeRenderSkip: c_uint,
-    #[builder(default = "0")]
+    #[builder(default)]
     pub maskGametypeForceSpawn: c_uint,
 }
 
@@ -1587,7 +1702,9 @@ pub enum entityType_t {
 #[derive(Debug, PartialEq, Clone, Builder)]
 #[builder(name = "GEntityBuilder")]
 pub struct gentity_s {
+    #[builder(default = "EntityStateBuilder::default().build().unwrap()")]
     pub s: entityState_t,
+    #[builder(default = "EntitySharedbuilder::default().build().unwrap()")]
     pub r: entityShared_t,
     #[builder(default = "std::ptr::null_mut()")]
     pub client: *mut gclient_s,
@@ -1595,19 +1712,19 @@ pub struct gentity_s {
     pub inuse: qboolean,
     #[builder(default = "std::ptr::null_mut()")]
     pub classname: *const c_char,
-    #[builder(default = "0")]
+    #[builder(default)]
     pub spawnflags: c_int,
     #[builder(default = "qboolean::qfalse")]
     pub neverFree: qboolean,
-    #[builder(default = "0")]
+    #[builder(default)]
     pub flags: c_int,
     #[builder(default = "std::ptr::null_mut()")]
     pub model: *mut c_char,
     #[builder(default = "std::ptr::null_mut()")]
     pub model2: *mut c_char,
-    #[builder(default = "0")]
+    #[builder(default)]
     pub freetime: c_int,
-    #[builder(default = "0")]
+    #[builder(default)]
     pub eventTime: c_int,
     #[builder(default = "qboolean::qfalse")]
     pub freeAfterEvent: qboolean,
@@ -1615,21 +1732,21 @@ pub struct gentity_s {
     pub unlinkAfterEvent: qboolean,
     #[builder(default = "qboolean::qfalse")]
     pub physicsObject: qboolean,
-    #[builder(default = "0.0")]
+    #[builder(default)]
     pub physicsBounce: f32,
-    #[builder(default = "0")]
+    #[builder(default)]
     pub clipmask: c_int,
     #[builder(default = "moverState_t::MOVER_POS1")]
     pub moverState: moverState_t,
-    #[builder(default = "0")]
+    #[builder(default)]
     pub soundPos1: c_int,
-    #[builder(default = "0")]
+    #[builder(default)]
     pub sound1to2: c_int,
-    #[builder(default = "0")]
+    #[builder(default)]
     pub sound2to1: c_int,
-    #[builder(default = "0")]
+    #[builder(default)]
     pub soundPos2: c_int,
-    #[builder(default = "0")]
+    #[builder(default)]
     pub soundLoop: c_int,
     #[builder(default = "std::ptr::null_mut()")]
     pub parent: *mut gentity_t,
@@ -1651,9 +1768,9 @@ pub struct gentity_s {
     pub tourPointTargetName: *mut c_char,
     #[builder(default = "std::ptr::null_mut()")]
     pub noise: *mut c_char,
-    #[builder(default = "0")]
+    #[builder(default)]
     pub timestamp: c_int,
-    #[builder(default = "0.0")]
+    #[builder(default)]
     pub angle: f32,
     #[builder(default = "std::ptr::null_mut()")]
     pub target: *mut c_char,
@@ -1665,11 +1782,11 @@ pub struct gentity_s {
     pub targetShaderNewName: *mut c_char,
     #[builder(default = "std::ptr::null_mut()")]
     pub target_ent: *mut gentity_t,
-    #[builder(default = "0.0")]
+    #[builder(default)]
     pub speed: f32,
     #[builder(default = "[0.0; 3]")]
     pub movedir: vec3_t,
-    #[builder(default = "0")]
+    #[builder(default)]
     pub nextthink: c_int,
     #[builder(default = "None")]
     pub think: Option<unsafe extern "C" fn(arg1: *mut gentity_t)>,
@@ -1699,27 +1816,27 @@ pub struct gentity_s {
             arg5: c_int,
         ),
     >,
-    #[builder(default = "0")]
+    #[builder(default)]
     pub pain_debounce_time: c_int,
-    #[builder(default = "0")]
+    #[builder(default)]
     pub fly_sound_debounce_time: c_int,
-    #[builder(default = "0")]
+    #[builder(default)]
     pub health: c_int,
     #[builder(default = "qboolean::qtrue")]
     pub takedamage: qboolean,
-    #[builder(default = "0")]
+    #[builder(default)]
     pub damage: c_int,
-    #[builder(default = "0")]
+    #[builder(default)]
     pub damageFactor: c_int,
-    #[builder(default = "0")]
+    #[builder(default)]
     pub splashDamage: c_int,
-    #[builder(default = "0")]
+    #[builder(default)]
     pub splashRadius: c_int,
-    #[builder(default = "0")]
+    #[builder(default)]
     pub methodOfDeath: c_int,
-    #[builder(default = "0")]
+    #[builder(default)]
     pub splashMethodOfDeath: c_int,
-    #[builder(default = "0")]
+    #[builder(default)]
     pub count: c_int,
     #[builder(default = "std::ptr::null_mut() as *mut gentity_t")]
     pub enemy: *mut gentity_t,
@@ -1731,27 +1848,27 @@ pub struct gentity_s {
     pub teammaster: *mut gentity_t,
     #[builder(default = "std::ptr::null_mut() as *mut gentity_t")]
     pub teamchain: *mut gentity_t,
-    #[builder(default = "0")]
+    #[builder(default)]
     pub kamikazeTime: c_int,
-    #[builder(default = "0")]
+    #[builder(default)]
     pub kamikazeShockTime: c_int,
-    #[builder(default = "0")]
+    #[builder(default)]
     pub watertype: c_int,
-    #[builder(default = "0")]
+    #[builder(default)]
     pub waterlevel: c_int,
-    #[builder(default = "0")]
+    #[builder(default)]
     pub noise_index: c_int,
-    #[builder(default = "0")]
+    #[builder(default)]
     pub bouncecount: c_int,
-    #[builder(default = "0.0")]
+    #[builder(default)]
     pub wait: f32,
-    #[builder(default = "0.0")]
+    #[builder(default)]
     pub random: f32,
-    #[builder(default = "0")]
+    #[builder(default)]
     pub spawnTime: c_int,
     #[builder(default = "std::ptr::null()")]
     pub item: *const gitem_t,
-    #[builder(default = "0")]
+    #[builder(default)]
     pub pickupCount: c_int,
 }
 
@@ -1789,8 +1906,11 @@ pub struct raceInfo_t {
 #[builder(name = "GClientBuilder")]
 #[repr(C, align(8))]
 pub struct gclient_s {
+    #[builder(default = "PlayerStateBuilder::default().build().unwrap()")]
     pub ps: playerState_t,
+    #[builder(default = "ClientPersistantBuilder::default().build().unwrap()")]
     pub pers: clientPersistant_t,
+    #[builder(default = "ClientSessionBuilder::default().build().unwrap()")]
     pub sess: clientSession_t,
     #[builder(default = "qboolean::qfalse")]
     pub noclip: qboolean,
@@ -1872,6 +1992,7 @@ pub struct gclient_s {
     pub ammoTimes: [c_int; 16usize],
     #[builder(default)]
     pub invulnerabilityTime: c_int,
+    #[builder(default = "ExpandedStatsBuilder::default().build().unwrap()")]
     pub expandedStats: expandedStatObj_t,
     #[builder(default)]
     pub ignoreChatsTime: c_int,
@@ -1883,6 +2004,7 @@ pub struct gclient_s {
     pub deferredSpawnTime: c_int,
     #[builder(default)]
     pub deferredSpawnCount: c_int,
+    #[builder(default = "RaceInfoBuilder::default().build().unwrap()")]
     pub race: raceInfo_t,
     #[builder(
         default = "[0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]"
