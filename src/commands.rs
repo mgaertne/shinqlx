@@ -104,7 +104,7 @@ pub extern "C" fn cmd_slap() {
     quake_live_engine.send_server_command(None, message.as_str());
 
     let mut rng = rand::thread_rng();
-    let Some(client) = client_entity.get_game_client() else {
+    let Ok(client) = client_entity.get_game_client() else {
         return;
     };
     let mut mutable_client = client;

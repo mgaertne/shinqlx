@@ -1573,7 +1573,7 @@ pub enum entityType_t {
 }
 
 #[repr(C)]
-#[derive(Debug, PartialEq, Builder)]
+#[derive(Debug, PartialEq, Clone, Builder)]
 #[builder(name = "GEntityBuilder")]
 pub struct gentity_s {
     pub s: entityState_t,
