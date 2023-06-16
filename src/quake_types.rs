@@ -1533,19 +1533,30 @@ pub struct clientSession_t {
 }
 
 #[repr(C)]
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Clone, Builder)]
+#[builder(name = "GItemBuilder")]
 pub struct gitem_s {
+    #[builder(default = "std::ptr::null_mut()")]
     pub classname: *mut c_char,
+    #[builder(default = "std::ptr::null()")]
     pub pickup_sound: *const c_char,
     pub world_model: [*const c_char; 4usize],
     pub premium_model: [*const c_char; 4usize],
+    #[builder(default = "std::ptr::null()")]
     pub icon: *const c_char,
+    #[builder(default = "std::ptr::null()")]
     pub pickup_name: *const c_char,
+    #[builder(default = "0")]
     pub quantity: c_int,
+    #[builder(default = "itemType_t::IT_BAD")]
     pub giType: itemType_t,
+    #[builder(default = "0")]
     pub giTag: c_int,
+    #[builder(default = "qboolean::qfalse")]
     pub itemTimer: qboolean,
+    #[builder(default = "0")]
     pub maskGametypeRenderSkip: c_uint,
+    #[builder(default = "0")]
     pub maskGametypeForceSpawn: c_uint,
 }
 
@@ -1583,7 +1594,7 @@ pub struct gentity_s {
     #[builder(default = "qboolean::qtrue")]
     pub inuse: qboolean,
     #[builder(default = "std::ptr::null_mut()")]
-    pub classname: *mut c_char,
+    pub classname: *const c_char,
     #[builder(default = "0")]
     pub spawnflags: c_int,
     #[builder(default = "qboolean::qfalse")]
