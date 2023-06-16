@@ -1967,7 +1967,7 @@ fn replace_items(py: Python<'_>, item1: Py<PyAny>, item2: Py<PyAny>) -> PyResult
                         item1_id
                     )));
                 }
-                if !game_entity.is_game_item(ET_ITEM as i32) {
+                if !game_entity.is_game_item(ET_ITEM) {
                     return Err(PyValueError::new_err(format!(
                         "entity #{} is not item. Cannot replace it",
                         item1_id
@@ -1985,7 +1985,7 @@ fn replace_items(py: Python<'_>, item1: Py<PyAny>, item2: Py<PyAny>) -> PyResult
         for i in 0..MAX_GENTITIES {
             if let Ok(game_entity) = GameEntity::try_from(i as i32) {
                 if game_entity.in_use()
-                    && game_entity.is_game_item(ET_ITEM as i32)
+                    && game_entity.is_game_item(ET_ITEM)
                     && game_entity.get_classname() == item1_classname
                 {
                     is_entity_found = true;
@@ -2014,7 +2014,7 @@ fn dev_print_items() {
                 if !game_entity.in_use() {
                     continue;
                 }
-                if !game_entity.is_game_item(ET_ITEM as i32) {
+                if !game_entity.is_game_item(ET_ITEM) {
                     continue;
                 }
                 formatted_items.push(format!("{} {}", i, game_entity.get_classname()));

@@ -37,11 +37,11 @@ use crate::quake_types::weapon_t::{
     WP_PROX_LAUNCHER, WP_RAILGUN, WP_ROCKET_LAUNCHER, WP_SHOTGUN,
 };
 use crate::quake_types::{
-    cbufExec_t, clientState_t, client_t, cvar_t, entity_event_t, gclient_t, gentity_t, gitem_t,
-    level_locals_t, meansOfDeath_t, powerup_t, privileges_t, qboolean, serverStatic_t, team_t,
-    trace_t, usercmd_t, vec3_t, weapon_t, CS_ITEMS, CS_VOTE_NO, CS_VOTE_STRING, CS_VOTE_TIME,
-    CS_VOTE_YES, DAMAGE_NO_PROTECTION, EF_KAMIKAZE, EF_TALK, FL_DROPPED_ITEM, MAX_CLIENTS,
-    MAX_GENTITIES, MODELINDEX_KAMIKAZE,
+    cbufExec_t, clientState_t, client_t, cvar_t, entityType_t, entity_event_t, gclient_t,
+    gentity_t, gitem_t, level_locals_t, meansOfDeath_t, powerup_t, privileges_t, qboolean,
+    serverStatic_t, team_t, trace_t, usercmd_t, vec3_t, weapon_t, CS_ITEMS, CS_VOTE_NO,
+    CS_VOTE_STRING, CS_VOTE_TIME, CS_VOTE_YES, DAMAGE_NO_PROTECTION, EF_KAMIKAZE, EF_TALK,
+    FL_DROPPED_ITEM, MAX_CLIENTS, MAX_GENTITIES, MODELINDEX_KAMIKAZE,
 };
 use crate::SV_MAXCLIENTS;
 use std::f32::consts::PI;
@@ -665,13 +665,14 @@ impl GameClient {
 pub(crate) mod quake_live_fixtures {
     use crate::quake_types::{
         clientPersistant_t, clientSession_t, entityShared_t, entityState_t, expandedStatObj_t,
-        gclient_t, gentity_t, playerState_t, playerTeamState_t, raceInfo_t, trajectory_t,
+        gclient_t, gentity_t, gitem_t, playerState_t, playerTeamState_t, raceInfo_t, trajectory_t,
         usercmd_t, ClientPersistantBuilder, ClientSessionBuilder, EntitySharedbuilder,
-        EntityStateBuilder, ExpandedStatsBuilder, GClientBuilder, GEntityBuilder,
+        EntityStateBuilder, ExpandedStatsBuilder, GClientBuilder, GEntityBuilder, GItemBuilder,
         PlayerStateBuilder, PlayerTeamStateBuilder, RaceInfoBuilder, TrajectoryBuilder,
         UserCmdBuilder,
     };
     use rstest::*;
+    use std::ffi::c_char;
 
     #[fixture]
     pub(crate) fn player_state() -> playerState_t {
@@ -760,6 +761,15 @@ pub(crate) mod quake_live_fixtures {
         GEntityBuilder::default()
             .s(entity_state)
             .r(entity_shared)
+            .build()
+            .unwrap()
+    }
+
+    #[fixture]
+    pub(crate) fn gitem() -> gitem_t {
+        GItemBuilder::default()
+            .world_model([std::ptr::null() as *const c_char; 4])
+            .premium_model([std::ptr::null() as *const c_char; 4])
             .build()
             .unwrap()
     }
@@ -1343,13 +1353,13 @@ impl GameEntity {
         }
     }
 
-    pub(crate) fn is_game_item(&self, item_type: i32) -> bool {
-        self.gentity_t.s.eType == item_type
+    pub(crate) fn is_game_item(&self, item_type: entityType_t) -> bool {
+        self.gentity_t.s.eType == item_type as i32
     }
 
     pub(crate) fn is_respawning_weapon(&self) -> bool {
         unsafe {
-            self.is_game_item(ET_ITEM as i32)
+            self.is_game_item(ET_ITEM)
                 && !self.gentity_t.item.is_null()
                 && self.gentity_t.item.as_ref().unwrap().giType == IT_WEAPON
         }
@@ -1402,7 +1412,7 @@ impl GameEntity {
     }
 
     pub(crate) fn is_kamikaze_timer(&self) -> bool {
-        unsafe { CStr::from_ptr(self.gentity_t.classname).to_string_lossy() == "kamikaze timer" }
+        self.get_classname() == "kamikaze timer"
     }
 
     pub(crate) fn free_entity(&mut self) {
@@ -1475,12 +1485,16 @@ pub(crate) mod game_entity_tests {
     use crate::quake_live_engine::GameEntity;
     use crate::quake_live_engine::QuakeLiveEngineError::NullPointerPassed;
     use crate::quake_types::clientConnected_t::{CON_CONNECTED, CON_DISCONNECTED};
+    use crate::quake_types::entityType_t::{ET_ITEM, ET_PLAYER};
+    use crate::quake_types::itemType_t::{IT_AMMO, IT_WEAPON};
     use crate::quake_types::privileges_t::{PRIV_BANNED, PRIV_ROOT};
     use crate::quake_types::team_t::{TEAM_RED, TEAM_SPECTATOR};
-    use crate::quake_types::{gclient_t, gentity_t};
+    use crate::quake_types::{
+        gclient_t, gentity_t, gitem_t, qboolean, FL_DROPPED_ITEM, FL_FORCE_GESTURE,
+    };
     use pretty_assertions::assert_eq;
     use rstest::*;
-    use std::ffi::c_char;
+    use std::ffi::{c_char, CString};
 
     #[test]
     pub(crate) fn game_entity_try_from_null_results_in_error() {
@@ -1636,6 +1650,143 @@ pub(crate) mod game_entity_tests {
         let mut game_entity = GameEntity::try_from(&mut mut_gentity as *mut gentity_t).unwrap();
         game_entity.set_health(666);
         assert_eq!(game_entity.get_health(), 666);
+    }
+
+    #[rstest]
+    pub(crate) fn game_entity_in_use(gentity: gentity_t) {
+        let mut mut_gentity = gentity;
+        mut_gentity.inuse = qboolean::qtrue;
+        let game_entity = GameEntity::try_from(&mut mut_gentity as *mut gentity_t).unwrap();
+        assert!(game_entity.in_use());
+    }
+
+    #[rstest]
+    pub(crate) fn game_entity_get_classname(gentity: gentity_t) {
+        let mut mut_gentity = gentity;
+        let classname = CString::new("entity classname").unwrap();
+        mut_gentity.classname = classname.as_ptr();
+        let game_entity = GameEntity::try_from(&mut mut_gentity as *mut gentity_t).unwrap();
+        assert_eq!(game_entity.get_classname(), "entity classname");
+    }
+
+    #[rstest]
+    pub(crate) fn game_entity_is_game_item(gentity: gentity_t) {
+        let mut mut_gentity = gentity;
+        mut_gentity.s.eType = ET_ITEM as i32;
+        let game_entity = GameEntity::try_from(&mut mut_gentity as *mut gentity_t).unwrap();
+        assert!(game_entity.is_game_item(ET_ITEM));
+        assert!(!game_entity.is_game_item(ET_PLAYER));
+    }
+
+    #[rstest]
+    pub(crate) fn game_entity_is_respawning_weapon_for_player_entity(gentity: gentity_t) {
+        let mut mut_gentity = gentity;
+        mut_gentity.s.eType = ET_PLAYER as i32;
+        let game_entity = GameEntity::try_from(&mut mut_gentity as *mut gentity_t).unwrap();
+        assert!(!game_entity.is_respawning_weapon());
+    }
+
+    #[rstest]
+    pub(crate) fn game_entity_is_respawning_weapon_for_null_item(gentity: gentity_t) {
+        let mut mut_gentity = gentity;
+        mut_gentity.s.eType = ET_ITEM as i32;
+        mut_gentity.item = std::ptr::null() as *const gitem_t;
+        let game_entity = GameEntity::try_from(&mut mut_gentity as *mut gentity_t).unwrap();
+        assert!(!game_entity.is_respawning_weapon());
+    }
+
+    #[rstest]
+    pub(crate) fn game_entity_is_respawning_weapon_for_non_weapon(
+        gentity: gentity_t,
+        gitem: gitem_t,
+    ) {
+        let mut mut_gitem = gitem;
+        mut_gitem.giType = IT_AMMO;
+        let mut mut_gentity = gentity;
+        mut_gentity.s.eType = ET_ITEM as i32;
+        mut_gentity.item = &mut_gitem as *const gitem_t;
+        let game_entity = GameEntity::try_from(&mut mut_gentity as *mut gentity_t).unwrap();
+        assert!(!game_entity.is_respawning_weapon());
+    }
+
+    #[rstest]
+    pub(crate) fn game_entity_is_respawning_weapon_for_an_actual_weapon(
+        gentity: gentity_t,
+        gitem: gitem_t,
+    ) {
+        let mut mut_gitem = gitem;
+        mut_gitem.giType = IT_WEAPON;
+        let mut mut_gentity = gentity;
+        mut_gentity.s.eType = ET_ITEM as i32;
+        mut_gentity.item = &mut_gitem as *const gitem_t;
+        let game_entity = GameEntity::try_from(&mut mut_gentity as *mut gentity_t).unwrap();
+        assert!(game_entity.is_respawning_weapon());
+    }
+
+    #[rstest]
+    pub(crate) fn game_entity_set_respawn_time(gentity: gentity_t) {
+        let mut mut_gentity = gentity;
+        let mut game_entity = GameEntity::try_from(&mut mut_gentity as *mut gentity_t).unwrap();
+        game_entity.set_respawn_time(42);
+        assert_eq!(mut_gentity.wait, 42.0);
+    }
+
+    #[rstest]
+    pub(crate) fn game_entity_has_flags_with_no_flags(gentity: gentity_t) {
+        let mut mut_gentity = gentity;
+        mut_gentity.flags = 0;
+        let game_entity = GameEntity::try_from(&mut mut_gentity as *mut gentity_t).unwrap();
+        assert!(!game_entity.has_flags());
+    }
+
+    #[rstest]
+    pub(crate) fn game_entity_has_flags_with_flags_set(gentity: gentity_t) {
+        let mut mut_gentity = gentity;
+        mut_gentity.flags = 42;
+        let game_entity = GameEntity::try_from(&mut mut_gentity as *mut gentity_t).unwrap();
+        assert!(game_entity.has_flags());
+    }
+
+    #[rstest]
+    pub(crate) fn game_entity_is_dropped_item_for_non_dropped_item(gentity: gentity_t) {
+        let mut mut_gentity = gentity;
+        mut_gentity.flags = FL_FORCE_GESTURE as i32;
+        let game_entity = GameEntity::try_from(&mut mut_gentity as *mut gentity_t).unwrap();
+        assert!(!game_entity.is_dropped_item());
+    }
+
+    #[rstest]
+    pub(crate) fn game_entity_is_dropped_item_for_dropped_item(gentity: gentity_t) {
+        let mut mut_gentity = gentity;
+        mut_gentity.flags = FL_DROPPED_ITEM as i32;
+        let game_entity = GameEntity::try_from(&mut mut_gentity as *mut gentity_t).unwrap();
+        assert!(game_entity.is_dropped_item());
+    }
+
+    #[rstest]
+    pub(crate) fn game_entity_get_client_number(gentity: gentity_t) {
+        let mut mut_gentity = gentity;
+        mut_gentity.s.clientNum = 42;
+        let game_entity = GameEntity::try_from(&mut mut_gentity as *mut gentity_t).unwrap();
+        assert_eq!(game_entity.get_client_number(), 42);
+    }
+
+    #[rstest]
+    pub(crate) fn game_entity_is_kamikaze_timer_for_non_kamikaze_timer(gentity: gentity_t) {
+        let mut mut_gentity = gentity;
+        let classname = CString::new("no kamikaze timer").unwrap();
+        mut_gentity.classname = classname.as_ptr();
+        let game_entity = GameEntity::try_from(&mut mut_gentity as *mut gentity_t).unwrap();
+        assert!(!game_entity.is_kamikaze_timer());
+    }
+
+    #[rstest]
+    pub(crate) fn game_entity_is_kamikaze_timer_for_kamikaze_timer(gentity: gentity_t) {
+        let mut mut_gentity = gentity;
+        let classname = CString::new("kamikaze timer").unwrap();
+        mut_gentity.classname = classname.as_ptr();
+        let game_entity = GameEntity::try_from(&mut mut_gentity as *mut gentity_t).unwrap();
+        assert!(game_entity.is_kamikaze_timer());
     }
 }
 
