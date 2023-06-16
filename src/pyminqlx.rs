@@ -1349,7 +1349,7 @@ fn player_state(client_id: i32) -> PyResult<Option<PlayerState>> {
     match GameEntity::try_from(client_id) {
         Err(_) => Ok(None),
         Ok(game_entity) => {
-            if game_entity.get_game_client().is_none() {
+            if game_entity.get_game_client().is_err() {
                 return Ok(None);
             }
             Ok(Some(PlayerState::from(game_entity)))
@@ -1774,8 +1774,8 @@ fn player_spawn(client_id: i32) -> PyResult<bool> {
     match GameEntity::try_from(client_id) {
         Err(_) => Ok(false),
         Ok(game_entity) => match game_entity.get_game_client() {
-            None => Ok(false),
-            Some(game_client) => {
+            Err(_) => Ok(false),
+            Ok(game_client) => {
                 let mut game_client = game_client;
                 game_client.spawn();
                 shinqlx_client_spawn(game_entity);
@@ -1800,8 +1800,8 @@ fn set_privileges(client_id: i32, privileges: i32) -> PyResult<bool> {
     match GameEntity::try_from(client_id) {
         Err(_) => Ok(false),
         Ok(game_entity) => match game_entity.get_game_client() {
-            None => Ok(false),
-            Some(game_client) => {
+            Err(_) => Ok(false),
+            Ok(game_client) => {
                 let mut game_client = game_client;
                 game_client.set_privileges(privileges);
                 Ok(true)
@@ -1818,7 +1818,7 @@ fn destroy_kamikaze_timers() -> PyResult<bool> {
         if let Ok(game_entity) = GameEntity::try_from(i) {
             if game_entity.in_use() {
                 if game_entity.get_health() <= 0 {
-                    if let Some(game_client) = game_entity.get_game_client() {
+                    if let Ok(game_client) = game_entity.get_game_client() {
                         let mut mut_game_client = game_client;
                         mut_game_client.remove_kamikaze_flag();
                     }
@@ -1885,8 +1885,8 @@ fn slay_with_mod(client_id: i32, mean_of_death: i32) -> PyResult<bool> {
     match GameEntity::try_from(client_id) {
         Err(_) => Ok(false),
         Ok(game_entity) => match game_entity.get_game_client() {
-            None => Ok(false),
-            Some(_) => {
+            Err(_) => Ok(false),
+            Ok(_) => {
                 if game_entity.get_health() > 0 {
                     let mut mut_entity = game_entity;
                     mut_entity.slay_with_mod(mean_of_death.try_into().unwrap());

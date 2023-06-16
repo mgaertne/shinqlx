@@ -390,15 +390,15 @@ pub extern "C" fn ShiNQlx_G_StartKamikaze(ent: *mut gentity_t) {
         return;
     };
 
-    let client_id = if let Some(game_client) = game_entity.get_game_client() {
+    let client_id = if let Ok(game_client) = game_entity.get_game_client() {
         game_client.get_client_num()
-    } else if let Some(activator) = game_entity.get_activator() {
+    } else if let Ok(activator) = game_entity.get_activator() {
         activator.get_owner_num()
     } else {
         -1
     };
 
-    if let Some(mut game_client) = game_entity.get_game_client() {
+    if let Ok(mut game_client) = game_entity.get_game_client() {
         game_client.remove_kamikaze_flag();
         kamikaze_use_dispatcher(client_id);
     }
@@ -409,7 +409,7 @@ pub extern "C" fn ShiNQlx_G_StartKamikaze(ent: *mut gentity_t) {
         return;
     }
 
-    kamikaze_explode_dispatcher(client_id, mut_game_entity.get_game_client().is_some())
+    kamikaze_explode_dispatcher(client_id, mut_game_entity.get_game_client().is_ok())
 }
 
 #[no_mangle]

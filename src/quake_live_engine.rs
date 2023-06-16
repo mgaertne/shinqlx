@@ -1158,11 +1158,8 @@ impl TryFrom<i32> for GameEntity {
             return Err(InvalidId(entity_id));
         }
         unsafe {
-            g_entities
-                .offset(entity_id as isize)
-                .as_mut()
-                .map(|gentity| Self { gentity_t: gentity })
-                .ok_or(EntityNotFound("entity not found".into()))
+            Self::try_from(g_entities.offset(entity_id as isize))
+                .map_err(|_| EntityNotFound("entity not found".into()))
         }
     }
 }
@@ -1179,11 +1176,8 @@ impl TryFrom<u32> for GameEntity {
             return Err(InvalidId(entity_id as i32));
         }
         unsafe {
-            g_entities
-                .offset(entity_id as isize)
-                .as_mut()
-                .map(|gentity| Self { gentity_t: gentity })
-                .ok_or(EntityNotFound("entity not found".into()))
+            Self::try_from(g_entities.offset(entity_id as isize))
+                .map_err(|_| EntityNotFound("entity not found".into()))
         }
     }
 }
@@ -1239,7 +1233,7 @@ impl GameEntity {
             static G_StartKamikaze: extern "C" fn(*const gentity_t);
         }
 
-        unsafe { G_StartKamikaze(self.gentity_t as *const gentity_t) }
+        unsafe { G_StartKamikaze(self.gentity_t as *const gentity_t) };
     }
 
     pub(crate) fn get_player_name(&self) -> String {
@@ -1284,12 +1278,12 @@ impl GameEntity {
         unsafe { self.gentity_t.client.as_ref().unwrap().sess.privileges }
     }
 
-    pub(crate) fn get_game_client(&self) -> Option<GameClient> {
-        GameClient::try_from(self.gentity_t.client).ok()
+    pub(crate) fn get_game_client(&self) -> Result<GameClient, QuakeLiveEngineError> {
+        self.gentity_t.client.try_into()
     }
 
-    pub(crate) fn get_activator(&self) -> Option<Activator> {
-        self.gentity_t.activator.try_into().ok()
+    pub(crate) fn get_activator(&self) -> Result<Activator, QuakeLiveEngineError> {
+        self.gentity_t.activator.try_into()
     }
 
     pub(crate) fn get_health(&self) -> i32 {
@@ -1595,6 +1589,53 @@ pub(crate) mod game_entity_tests {
         mut_gentity.client = &mut mut_gclient;
         let game_entity = GameEntity::try_from(&mut mut_gentity as *mut gentity_t).unwrap();
         assert_eq!(game_entity.get_privileges(), PRIV_ROOT);
+    }
+
+    #[rstest]
+    pub(crate) fn game_entity_get_game_client_when_none_is_set(gentity: gentity_t) {
+        let mut mut_gentity = gentity;
+        mut_gentity.client = std::ptr::null_mut() as *mut gclient_t;
+        let game_entity = GameEntity::try_from(&mut mut_gentity as *mut gentity_t).unwrap();
+        assert!(game_entity.get_game_client().is_err());
+    }
+
+    #[rstest]
+    pub(crate) fn game_entity_get_game_client_with_valid_gclient(
+        gentity: gentity_t,
+        gclient: gclient_t,
+    ) {
+        let mut mut_gentity = gentity;
+        let mut mut_gclient = gclient;
+        mut_gentity.client = &mut mut_gclient as *mut gclient_t;
+        let game_entity = GameEntity::try_from(&mut mut_gentity as *mut gentity_t).unwrap();
+        assert!(game_entity.get_game_client().is_ok());
+    }
+
+    #[rstest]
+    pub(crate) fn game_entity_get_activator_when_none_is_set(gentity: gentity_t) {
+        let mut mut_gentity = gentity;
+        mut_gentity.activator = std::ptr::null_mut() as *mut gentity_t;
+        let game_entity = GameEntity::try_from(&mut mut_gentity as *mut gentity_t).unwrap();
+        assert!(game_entity.get_activator().is_err());
+    }
+
+    #[rstest]
+    pub(crate) fn game_entity_get_activator_with_valid_activator(gentity: gentity_t) {
+        let mut mut_activator = gentity.clone();
+        let mut mut_gentity = gentity;
+        mut_gentity.activator = &mut mut_activator as *mut gentity_t;
+        let game_entity = GameEntity::try_from(&mut mut_gentity as *mut gentity_t).unwrap();
+        assert!(game_entity.get_activator().is_ok());
+    }
+
+    #[rstest]
+    pub(crate) fn game_entity_set_health(gentity: gentity_t, gclient: gclient_t) {
+        let mut mut_gclient = gclient;
+        let mut mut_gentity = gentity;
+        mut_gentity.client = &mut mut_gclient;
+        let mut game_entity = GameEntity::try_from(&mut mut_gentity as *mut gentity_t).unwrap();
+        game_entity.set_health(666);
+        assert_eq!(game_entity.get_health(), 666);
     }
 }
 
