@@ -37,9 +37,9 @@ use crate::quake_types::weapon_t::{
     WP_PROX_LAUNCHER, WP_RAILGUN, WP_ROCKET_LAUNCHER, WP_SHOTGUN,
 };
 use crate::quake_types::{
-    cbufExec_t, clientState_t, client_t, cvar_t, entityType_t, entity_event_t, gclient_t,
-    gentity_t, gitem_t, level_locals_t, meansOfDeath_t, powerup_t, privileges_t, qboolean,
-    serverStatic_t, team_t, trace_t, usercmd_t, vec3_t, weapon_t, CS_ITEMS, CS_VOTE_NO,
+    cbufExec_t, clientConnected_t, clientState_t, client_t, cvar_t, entityType_t, entity_event_t,
+    gclient_t, gentity_t, gitem_t, level_locals_t, meansOfDeath_t, powerup_t, privileges_t,
+    qboolean, serverStatic_t, team_t, trace_t, usercmd_t, vec3_t, weapon_t, CS_ITEMS, CS_VOTE_NO,
     CS_VOTE_STRING, CS_VOTE_TIME, CS_VOTE_YES, DAMAGE_NO_PROTECTION, EF_KAMIKAZE, EF_TALK,
     FL_DROPPED_ITEM, MAX_CLIENTS, MAX_GENTITIES, MODELINDEX_KAMIKAZE,
 };
@@ -426,6 +426,26 @@ impl GameClient {
         self.game_client.ps.clientNum
     }
 
+    pub(crate) fn get_connection_state(&self) -> clientConnected_t {
+        self.game_client.pers.connected
+    }
+
+    pub(crate) fn get_player_name(&self) -> String {
+        unsafe {
+            CStr::from_ptr(self.game_client.pers.netname.as_ptr())
+                .to_string_lossy()
+                .into()
+        }
+    }
+
+    pub(crate) fn get_team(&self) -> team_t {
+        self.game_client.sess.sessionTeam
+    }
+
+    pub(crate) fn get_privileges(&self) -> privileges_t {
+        self.game_client.sess.privileges
+    }
+
     pub(crate) fn remove_kamikaze_flag(&mut self) {
         self.game_client.ps.eFlags &= !i32::try_from(EF_KAMIKAZE).unwrap();
     }
@@ -656,6 +676,10 @@ impl GameClient {
         self.game_client.pers.voteState = VOTE_PENDING;
     }
 
+    pub(crate) fn set_vote_state(&mut self, yes_or_no: bool) {
+        self.game_client.pers.voteState = if yes_or_no { VOTE_YES } else { VOTE_NO };
+    }
+
     pub(crate) fn spawn(&mut self) {
         self.game_client.ps.pm_type = PM_NORMAL;
     }
@@ -672,7 +696,7 @@ pub(crate) mod game_client_tests {
     };
     use crate::quake_types::statIndex_t::{STAT_ARMOR, STAT_HOLDABLE_ITEM};
     use crate::quake_types::team_t::{TEAM_BLUE, TEAM_RED, TEAM_SPECTATOR};
-    use crate::quake_types::voteState_t::{VOTE_PENDING, VOTE_YES};
+    use crate::quake_types::voteState_t::{VOTE_NO, VOTE_PENDING, VOTE_YES};
     use crate::quake_types::weapon_t::{
         WP_BFG, WP_CHAINGUN, WP_GAUNTLET, WP_GRAPPLING_HOOK, WP_GRENADE_LAUNCHER, WP_HANDS, WP_HMG,
         WP_LIGHTNING, WP_MACHINEGUN, WP_NAILGUN, WP_NONE, WP_PLASMAGUN, WP_PROX_LAUNCHER,
@@ -1087,6 +1111,36 @@ pub(crate) mod game_client_tests {
         assert_eq!(gclient.pers.voteState, VOTE_PENDING);
     }
 
+    #[rstest]
+    pub(crate) fn game_client_set_vote_state_to_no() {
+        let client_persistant = ClientPersistantBuilder::default()
+            .voteState(VOTE_PENDING)
+            .build()
+            .unwrap();
+        let mut gclient = GClientBuilder::default()
+            .pers(client_persistant)
+            .build()
+            .unwrap();
+        let mut game_client = GameClient::try_from(&mut gclient as *mut gclient_t).unwrap();
+        game_client.set_vote_state(false);
+        assert_eq!(gclient.pers.voteState, VOTE_NO);
+    }
+
+    #[rstest]
+    pub(crate) fn game_client_set_vote_state_to_yes() {
+        let client_persistant = ClientPersistantBuilder::default()
+            .voteState(VOTE_PENDING)
+            .build()
+            .unwrap();
+        let mut gclient = GClientBuilder::default()
+            .pers(client_persistant)
+            .build()
+            .unwrap();
+        let mut game_client = GameClient::try_from(&mut gclient as *mut gclient_t).unwrap();
+        game_client.set_vote_state(true);
+        assert_eq!(gclient.pers.voteState, VOTE_YES);
+    }
+
     #[test]
     pub(crate) fn game_client_spawn() {
         let player_state = PlayerStateBuilder::default()
@@ -1168,10 +1222,9 @@ pub(crate) extern "C" fn ShiNQlx_Touch_Item(
     }
 
     unsafe {
-        if ent.as_ref().unwrap().parent == other {
-            return;
+        if ent.as_ref().unwrap().parent != other {
+            Touch_Item(ent, other, trace);
         }
-        Touch_Item(ent, other, trace);
     }
 }
 
@@ -1211,45 +1264,36 @@ impl GameEntity {
     }
 
     pub(crate) fn get_player_name(&self) -> String {
-        if self.gentity_t.client.is_null() {
-            return "".into();
-        }
-        if unsafe { self.gentity_t.client.as_ref().unwrap().pers.connected } == CON_DISCONNECTED {
-            return "".into();
-        }
-
-        unsafe {
-            CStr::from_ptr(
-                self.gentity_t
-                    .client
-                    .as_ref()
-                    .unwrap()
-                    .pers
-                    .netname
-                    .as_ptr(),
-            )
-            .to_string_lossy()
-            .into()
+        match self.get_game_client() {
+            Err(_) => "".into(),
+            Ok(game_client) => {
+                if game_client.get_connection_state() == CON_DISCONNECTED {
+                    "".into()
+                } else {
+                    game_client.get_player_name()
+                }
+            }
         }
     }
 
     pub(crate) fn get_team(&self) -> team_t {
-        if self.gentity_t.client.is_null() {
-            return TEAM_SPECTATOR;
+        match self.get_game_client() {
+            Err(_) => TEAM_SPECTATOR,
+            Ok(game_client) => {
+                if game_client.get_connection_state() == CON_DISCONNECTED {
+                    TEAM_SPECTATOR
+                } else {
+                    game_client.get_team()
+                }
+            }
         }
-        if unsafe { self.gentity_t.client.as_ref().unwrap().pers.connected } == CON_DISCONNECTED {
-            return TEAM_SPECTATOR;
-        }
-
-        unsafe { self.gentity_t.client.as_ref().unwrap().sess.sessionTeam }
     }
 
     pub(crate) fn get_privileges(&self) -> privileges_t {
-        if self.gentity_t.client.is_null() {
-            return privileges_t::from(-1);
+        match self.get_game_client() {
+            Err(_) => privileges_t::from(-1),
+            Ok(game_client) => game_client.get_privileges(),
         }
-
-        unsafe { self.gentity_t.client.as_ref().unwrap().sess.privileges }
     }
 
     pub(crate) fn get_game_client(&self) -> Result<GameClient, QuakeLiveEngineError> {
@@ -1342,10 +1386,7 @@ impl GameEntity {
         let velocity = [150.0 * angle.cos(), 150.0 * angle.sin(), 250.0];
         unsafe {
             let entity = LaunchItem(
-                bg_itemlist.offset(
-                    self.gentity_t.client.as_ref().unwrap().ps.stats[STAT_HOLDABLE_ITEM as usize]
-                        as isize,
-                ),
+                bg_itemlist.offset(self.get_game_client().unwrap().get_holdable() as isize),
                 self.gentity_t.s.pos.trBase,
                 velocity,
             )
@@ -1357,8 +1398,9 @@ impl GameEntity {
             let current_level = CurrentLevel::default();
             mut_ref_entity.nextthink = current_level.get_leveltime() + 1000;
             mut_ref_entity.s.pos.trTime = current_level.get_leveltime() - 500;
-
-            self.gentity_t.client.as_mut().unwrap().ps.stats[STAT_HOLDABLE_ITEM as usize] = 0;
+        }
+        if let Ok(mut game_client) = self.get_game_client() {
+            game_client.set_holdable(0);
         }
     }
 
@@ -1367,19 +1409,16 @@ impl GameEntity {
     }
 
     pub(crate) fn free_entity(&mut self) {
-        extern "C" {
-            static G_FreeEntity: extern "C" fn(*mut gentity_t);
-        }
-
-        unsafe { G_FreeEntity(self.gentity_t) };
+        QuakeLiveEngine::default().free_entity(self.gentity_t);
     }
 
     pub(crate) fn spawn_item(item_id: i32, origin: (i32, i32, i32)) {
         extern "C" {
             static bg_itemlist: *const gitem_t;
             static LaunchItem: extern "C" fn(*const gitem_t, vec3_t, vec3_t) -> *const gentity_t;
-            static G_AddEvent: extern "C" fn(*const gentity_t, entity_event_t, c_int);
         }
+
+        let quake_live_engine = QuakeLiveEngine::default();
 
         let origin_vec = [
             origin.0 as c_float,
@@ -1394,7 +1433,9 @@ impl GameEntity {
             let mut_ref_ent = ent.as_mut().unwrap();
             mut_ref_ent.nextthink = 0;
             mut_ref_ent.think = None;
-            G_AddEvent(ent, EV_ITEM_RESPAWN, 0); // make item be scaled up
+            let game_entity = GameEntity::try_from(mut_ref_ent as *mut gentity_t).unwrap();
+            // make item be scaled up
+            quake_live_engine.game_add_event(&game_entity, EV_ITEM_RESPAWN, 0);
         }
     }
 
@@ -2022,20 +2063,6 @@ impl Client {
     pub(crate) fn get_steam_id(&self) -> u64 {
         self.client_t.steam_id
     }
-
-    pub(crate) fn set_vote(&self, yes_or_no: bool) {
-        if let Ok(game_entity) = GameEntity::try_from(self.get_client_id()) {
-            unsafe {
-                game_entity
-                    .gentity_t
-                    .client
-                    .as_mut()
-                    .unwrap()
-                    .pers
-                    .voteState = if yes_or_no { VOTE_YES } else { VOTE_NO };
-            }
-        };
-    }
 }
 
 #[cfg(test)]
@@ -2250,9 +2277,7 @@ impl CbufExecuteText for QuakeLiveEngine {
         }
 
         if let Ok(c_tags) = CString::new(new_tags) {
-            unsafe {
-                Cbuf_ExecuteText(exec_t, c_tags.as_ptr());
-            }
+            unsafe { Cbuf_ExecuteText(exec_t, c_tags.as_ptr()) };
         }
     }
 }
@@ -2381,9 +2406,7 @@ impl ComPrintf for QuakeLiveEngine {
         }
 
         if let Ok(c_msg) = CString::new(msg) {
-            unsafe {
-                Com_Printf(c_msg.as_ptr());
-            }
+            unsafe { Com_Printf(c_msg.as_ptr()) };
         }
     }
 }
@@ -2424,13 +2447,11 @@ impl ClientConnect for QuakeLiveEngine {
             static ClientConnect: extern "C" fn(c_int, qboolean, qboolean) -> *const c_char;
         }
 
-        unsafe {
-            let c_return = ClientConnect(client_num, first_time.into(), is_bot.into());
-            if c_return.is_null() {
-                None
-            } else {
-                Some(CStr::from_ptr(c_return).to_string_lossy().into())
-            }
+        let c_return = unsafe { ClientConnect(client_num, first_time.into(), is_bot.into()) };
+        if c_return.is_null() {
+            None
+        } else {
+            Some(unsafe { CStr::from_ptr(c_return).to_string_lossy().into() })
         }
     }
 }
@@ -2537,9 +2558,7 @@ impl ConsoleCommand for QuakeLiveEngine {
         }
 
         if let Ok(c_cmd) = CString::new(cmd) {
-            unsafe {
-                Cmd_ExecuteString(c_cmd.as_ptr());
-            }
+            unsafe { Cmd_ExecuteString(c_cmd.as_ptr()) };
         }
     }
 }
@@ -2557,10 +2576,8 @@ impl GetCVar for QuakeLiveEngine {
         let c_name = CString::new(name).unwrap();
         let c_value = CString::new(value).unwrap();
         let flags_value = flags.unwrap_or_default();
-        unsafe {
-            let cvar = Cvar_Get(c_name.as_ptr(), c_value.as_ptr(), flags_value);
-            CVar::try_from(cvar).ok()
-        }
+        let cvar = unsafe { Cvar_Get(c_name.as_ptr(), c_value.as_ptr(), flags_value) };
+        CVar::try_from(cvar).ok()
     }
 }
 
@@ -2577,10 +2594,8 @@ impl SetCVarForced for QuakeLiveEngine {
 
         let c_name = CString::new(name).unwrap();
         let c_value = CString::new(value).unwrap();
-        unsafe {
-            let cvar = Cvar_Set2(c_name.as_ptr(), c_value.as_ptr(), forced.into());
-            CVar::try_from(cvar).ok()
-        }
+        let cvar = unsafe { Cvar_Set2(c_name.as_ptr(), c_value.as_ptr(), forced.into()) };
+        CVar::try_from(cvar).ok()
     }
 }
 
@@ -2619,16 +2634,16 @@ impl SetCVarLimit for QuakeLiveEngine {
         let c_min = CString::new(min).unwrap();
         let c_max = CString::new(max).unwrap();
         let flags_value = flags.unwrap_or_default();
-        unsafe {
-            let cvar = Cvar_GetLimit(
+        let cvar = unsafe {
+            Cvar_GetLimit(
                 c_name.as_ptr(),
                 c_value.as_ptr(),
                 c_min.as_ptr(),
                 c_max.as_ptr(),
                 flags_value,
-            );
-            CVar::try_from(cvar).ok()
-        }
+            )
+        };
+        CVar::try_from(cvar).ok()
     }
 }
 
@@ -2648,7 +2663,7 @@ impl GetConfigstring for QuakeLiveEngine {
                 index as c_int,
                 buffer.as_mut_ptr() as *mut c_char,
                 buffer.len() as c_int,
-            );
+            )
         };
         CStr::from_bytes_until_nul(&buffer)
             .unwrap()
@@ -2709,5 +2724,19 @@ impl RegisterDamage for QuakeLiveEngine {
                 means_of_death,
             );
         }
+    }
+}
+
+pub(crate) trait FreeEntity {
+    fn free_entity(&self, gentity: *mut gentity_t);
+}
+
+impl FreeEntity for QuakeLiveEngine {
+    fn free_entity(&self, gentity: *mut gentity_t) {
+        extern "C" {
+            static G_FreeEntity: extern "C" fn(*mut gentity_t);
+        }
+
+        unsafe { G_FreeEntity(gentity) };
     }
 }

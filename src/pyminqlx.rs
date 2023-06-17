@@ -728,7 +728,11 @@ fn force_vote(pass: bool) -> bool {
     for i in 0..maxclients {
         if let Ok(client) = Client::try_from(i) {
             if client.get_state() == CS_ACTIVE {
-                client.set_vote(pass);
+                if let Ok(game_entity) = GameEntity::try_from(i) {
+                    if let Ok(mut game_client) = game_entity.get_game_client() {
+                        game_client.set_vote_state(pass);
+                    }
+                }
             }
         }
     }
