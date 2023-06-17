@@ -1269,19 +1269,6 @@ impl GameEntity {
     }
 
     pub(crate) fn slay_with_mod(&mut self, mean_of_death: meansOfDeath_t) {
-        extern "C" {
-            static G_Damage: extern "C" fn(
-                *const gentity_t,
-                *const gentity_t,
-                *const gentity_t,
-                *const c_float, // oritinal: vec3_t
-                *const c_float, // original: vec3_t
-                c_int,
-                c_int,
-                c_int,
-            );
-        }
-
         let damage = self.get_health()
             + if mean_of_death == MOD_KAMIKAZE {
                 100000
@@ -1289,20 +1276,20 @@ impl GameEntity {
                 0
             };
 
-        self.get_game_client().unwrap().set_armor(0);
-        // self damage = half damage, so multiplaying by 2
-        unsafe {
-            G_Damage(
-                self.gentity_t,
-                self.gentity_t,
-                self.gentity_t,
-                std::ptr::null(),
-                std::ptr::null(),
-                damage * 2,
-                DAMAGE_NO_PROTECTION as c_int,
-                mean_of_death as c_int,
-            );
+        if let Ok(mut game_client) = self.get_game_client() {
+            game_client.set_armor(0);
         }
+        // self damage = half damage, so multiplaying by 2
+        QuakeLiveEngine::default().register_damage(
+            self.gentity_t,
+            self.gentity_t,
+            self.gentity_t,
+            std::ptr::null(),
+            std::ptr::null(),
+            damage * 2,
+            DAMAGE_NO_PROTECTION as c_int,
+            mean_of_death as c_int,
+        );
     }
 
     pub(crate) fn in_use(&self) -> bool {
