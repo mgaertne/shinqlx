@@ -1,4 +1,4 @@
-use crate::hooks::{shinqlx_set_configstring, shinqlx_sv_setconfigstring};
+use crate::hooks::shinqlx_set_configstring;
 use crate::hooks::{
     CMD_ADDCOMMAND_DETOUR, SV_CLIENTENTERWORLD_DETOUR, SV_DROPCLIENT_DETOUR,
     SV_EXECUTECLIENTCOMMAND_DETOUR, SV_SETCONFGISTRING_DETOUR, SV_SPAWNSERVER_DETOUR,
@@ -1400,13 +1400,13 @@ impl GameEntity {
 
     pub(crate) fn replace_item(&mut self, item_id: i32) {
         extern "C" {
-            static Com_Printf: extern "C" fn(*const c_char);
             static bg_itemlist: *const gitem_t;
-            static SV_GetConfigstring: extern "C" fn(c_int, *mut c_char, c_int);
-            static G_FreeEntity: extern "C" fn(*mut gentity_t);
         }
 
-        unsafe { Com_Printf(self.gentity_t.classname) };
+        let quake_live_engine = QuakeLiveEngine::default();
+
+        let class_name = unsafe { CStr::from_ptr(self.gentity_t.classname) };
+        quake_live_engine.com_printf(class_name.to_string_lossy().as_ref());
         if item_id != 0 {
             let item = unsafe { bg_itemlist.offset(item_id as isize).as_ref().unwrap() };
             self.gentity_t.s.modelindex = item_id;
@@ -1414,18 +1414,11 @@ impl GameEntity {
             self.gentity_t.item = item;
 
             // this forces client to load new item
-            let mut csbuffer: [c_char; 4096] = [0; 4096];
-            unsafe {
-                SV_GetConfigstring(
-                    CS_ITEMS as c_int,
-                    csbuffer.as_mut_ptr(),
-                    csbuffer.len() as c_int,
-                );
-            }
-            csbuffer[item_id as usize] = '1' as c_char;
-            shinqlx_sv_setconfigstring(CS_ITEMS as c_int, csbuffer.as_ptr());
+            let mut items = quake_live_engine.get_configstring(CS_ITEMS);
+            items.replace_range(item_id as usize..=item_id as usize, "1");
+            shinqlx_set_configstring(item_id as u32, items.as_str());
         } else {
-            unsafe { G_FreeEntity(self.gentity_t) };
+            self.free_entity();
         }
     }
 }
