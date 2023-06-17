@@ -1134,7 +1134,7 @@ pub type entityState_t = entityState_s;
 
 #[repr(C)]
 #[derive(Debug, PartialEq, Clone, Builder)]
-#[builder(name = "EntitySharedbuilder")]
+#[builder(name = "EntitySharedBuilder")]
 pub struct entityShared_t {
     #[builder(default = "EntityStateBuilder::default().build().unwrap()")]
     pub s: entityState_t,
@@ -1167,9 +1167,12 @@ pub struct entityShared_t {
 }
 
 #[repr(C)]
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Clone, Builder)]
+#[builder(name = "SharedEntityBuilder")]
 pub struct sharedEntity_t {
-    pub s: entityState_t,  // communicated by server to clients
+    #[builder(default = "EntityStateBuilder::default().build().unwrap()")]
+    pub s: entityState_t, // communicated by server to clients
+    #[builder(default = "EntitySharedBuilder::default().build().unwrap()")]
     pub r: entityShared_t, // shared by both the server system and game
 }
 
@@ -1704,7 +1707,7 @@ pub enum entityType_t {
 pub struct gentity_s {
     #[builder(default = "EntityStateBuilder::default().build().unwrap()")]
     pub s: entityState_t,
-    #[builder(default = "EntitySharedbuilder::default().build().unwrap()")]
+    #[builder(default = "EntitySharedBuilder::default().build().unwrap()")]
     pub r: entityShared_t,
     #[builder(default = "std::ptr::null_mut()")]
     pub client: *mut gclient_s,
