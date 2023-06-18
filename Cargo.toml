@@ -44,6 +44,7 @@ pyo3-build-config = { version = "0.18.3", features = ["resolve-config"] }
 hamcrest = "*"
 pretty_assertions = "1"
 rstest = "0.17.0"
+mockall = "0.11.4"
 
 [features]
 default = ["stable"]
