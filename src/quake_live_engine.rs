@@ -44,6 +44,8 @@ use crate::quake_types::{
     FL_DROPPED_ITEM, MAX_CLIENTS, MAX_GENTITIES, MODELINDEX_KAMIKAZE,
 };
 use crate::SV_MAXCLIENTS;
+#[cfg(test)]
+use mockall::*;
 use std::f32::consts::PI;
 use std::ffi::{c_char, c_float, c_int, CStr, CString};
 use std::ops::Not;
@@ -635,10 +637,10 @@ impl GameClient {
     }
 
     pub(crate) fn set_invulnerability(&mut self, time: i32) {
-        self.set_invulnerability_internal(time, CurrentLevel::default());
+        self.set_invulnerability_internal(time, &CurrentLevel::default());
     }
 
-    pub(crate) fn set_invulnerability_internal(&mut self, time: i32, current_level: CurrentLevel) {
+    pub(crate) fn set_invulnerability_internal(&mut self, time: i32, current_level: &CurrentLevel) {
         self.game_client.invulnerabilityTime = current_level.get_leveltime() + time;
     }
 
@@ -679,10 +681,10 @@ impl GameClient {
     }
 
     pub(crate) fn get_time_on_team(&self) -> i32 {
-        self.get_time_on_team_internal(CurrentLevel::default())
+        self.get_time_on_team_internal(&CurrentLevel::default())
     }
 
-    pub(crate) fn get_time_on_team_internal(&self, current_level: CurrentLevel) -> i32 {
+    pub(crate) fn get_time_on_team_internal(&self, current_level: &CurrentLevel) -> i32 {
         current_level.get_leveltime() - self.game_client.pers.enterTime
     }
 
@@ -1033,6 +1035,17 @@ pub(crate) mod game_client_tests {
     }
 
     #[test]
+    pub(crate) fn game_client_set_invulnerability() {
+        let mut level_locals = LevelLocalsBuilder::default().time(1234).build().unwrap();
+        let current_level =
+            CurrentLevel::try_from(&mut level_locals as *mut level_locals_t).unwrap();
+        let mut gclient = GClientBuilder::default().build().unwrap();
+        let mut game_client = GameClient::try_from(&mut gclient as *mut gclient_t).unwrap();
+        game_client.set_invulnerability_internal(10, &current_level);
+        assert_eq!(gclient.invulnerabilityTime, 1244);
+    }
+
+    #[test]
     pub(crate) fn game_client_is_chatting() {
         let player_state = PlayerStateBuilder::default()
             .eFlags(EF_TALK as i32)
@@ -1176,6 +1189,23 @@ pub(crate) mod game_client_tests {
     }
 
     #[test]
+    pub(crate) fn game_client_get_time_on_team() {
+        let mut level_locals = LevelLocalsBuilder::default().time(1234).build().unwrap();
+        let current_level =
+            CurrentLevel::try_from(&mut level_locals as *mut level_locals_t).unwrap();
+        let client_persistant = ClientPersistantBuilder::default()
+            .enterTime(1192)
+            .build()
+            .unwrap();
+        let mut gclient = GClientBuilder::default()
+            .pers(client_persistant)
+            .build()
+            .unwrap();
+        let game_client = GameClient::try_from(&mut gclient as *mut gclient_t).unwrap();
+        assert_eq!(game_client.get_time_on_team_internal(&current_level), 42);
+    }
+
+    #[test]
     pub(crate) fn game_client_get_ping() {
         let player_state = PlayerStateBuilder::default().ping(1).build().unwrap();
         let mut gclient = GClientBuilder::default().ps(player_state).build().unwrap();
@@ -1298,8 +1328,14 @@ impl GameItem {
     }
 
     pub(crate) fn spawn(&self, origin: (i32, i32, i32)) {
-        let quake_live_engine = QuakeLiveEngine::default();
+        self.spawn_internal(origin, &QuakeLiveEngine::default());
+    }
 
+    pub(crate) fn spawn_internal(
+        &self,
+        origin: (i32, i32, i32),
+        quake_live_engine: &(impl LaunchItem + GameAddEvent),
+    ) {
         let origin_vec = [
             origin.0 as c_float,
             origin.1 as c_float,
@@ -1312,6 +1348,78 @@ impl GameItem {
         gentity.gentity_t.think = None;
         // make item be scaled up
         quake_live_engine.game_add_event(&gentity, EV_ITEM_RESPAWN, 0);
+    }
+}
+
+#[cfg(test)]
+pub(crate) mod game_item_tests {
+    use crate::quake_live_engine::QuakeLiveEngineError::NullPointerPassed;
+    use crate::quake_live_engine::{GameAddEvent, GameEntity, GameItem, LaunchItem};
+    use crate::quake_types::entity_event_t::EV_ITEM_RESPAWN;
+    use crate::quake_types::{
+        entity_event_t, gentity_t, gitem_t, vec3_t, GEntityBuilder, GItemBuilder,
+    };
+    use mockall::predicate::*;
+    use mockall::*;
+    use std::ffi::{c_char, CString};
+
+    #[test]
+    pub(crate) fn game_item_from_null_pointer() {
+        assert_eq!(
+            GameItem::try_from(std::ptr::null() as *const gitem_t),
+            Err(NullPointerPassed("null pointer passed".into()))
+        );
+    }
+
+    #[test]
+    pub(crate) fn game_item_from_valid_item() {
+        let gitem = GItemBuilder::default().build().unwrap();
+        assert!(GameItem::try_from(&gitem as *const gitem_t).is_ok());
+    }
+
+    #[test]
+    pub(crate) fn game_item_get_classname() {
+        let classname = CString::new("item classname").unwrap();
+        let gitem = GItemBuilder::default()
+            .classname(classname.as_ptr() as *mut c_char)
+            .build()
+            .unwrap();
+        let game_item = GameItem::try_from(&gitem as *const gitem_t).unwrap();
+        assert_eq!(game_item.get_classname(), "item classname")
+    }
+
+    #[test]
+    pub(crate) fn game_item_spawn() {
+        mock! {
+            QuakeEngine {}
+            impl LaunchItem for QuakeEngine {
+                fn launch_item(&self, gitem: &GameItem, origin: vec3_t, velocity: vec3_t) -> GameEntity;
+            }
+
+            impl GameAddEvent for QuakeEngine {
+                fn game_add_event(&self, game_entity: &GameEntity, event: entity_event_t, event_param: i32);
+            }
+        }
+
+        let mut mock = MockQuakeEngine::new();
+        let mut gentity = GEntityBuilder::default().build().unwrap();
+        let game_entity = GameEntity::try_from(&mut gentity as *mut gentity_t).unwrap();
+        let gitem = GItemBuilder::default().build().unwrap();
+        let game_item = GameItem::try_from(&gitem as *const gitem_t).unwrap();
+        mock.expect_launch_item()
+            .withf_st(|_, origin, velocity| {
+                origin == &[1.0, 2.0, 3.0] && velocity == &[0.0, 0.0, 0.9]
+            })
+            .return_once_st(|_, _, _| game_entity);
+        mock.expect_game_add_event()
+            .withf_st(|entity, event, param| {
+                entity.gentity_t.nextthink == 0
+                    && entity.gentity_t.think.is_none()
+                    && event == &EV_ITEM_RESPAWN
+                    && param == &0
+            })
+            .return_const(());
+        game_item.spawn_internal((1, 2, 3), &mock);
     }
 }
 
@@ -1535,10 +1643,10 @@ impl GameEntity {
     }
 
     pub(crate) fn drop_holdable(&mut self) {
-        self.drop_holdable_internal(CurrentLevel::default());
+        self.drop_holdable_internal(&CurrentLevel::default());
     }
 
-    pub(crate) fn drop_holdable_internal(&mut self, current_level: CurrentLevel) {
+    pub(crate) fn drop_holdable_internal(&mut self, current_level: &CurrentLevel) {
         let angle = self.gentity_t.s.apos.trBase[1] * (PI * 2.0 / 360.0);
         let velocity = [150.0 * angle.cos(), 150.0 * angle.sin(), 250.0];
         let gitem = GameItem::try_from(self.get_game_client().unwrap().get_holdable()).unwrap();
@@ -2373,6 +2481,7 @@ impl CurrentLevel {
 #[derive(Default)]
 pub(crate) struct QuakeLiveEngine {}
 
+#[cfg_attr(test, automock)]
 pub(crate) trait FindCVar {
     fn find_cvar(&self, name: &str) -> Option<CVar>;
 }
@@ -2394,6 +2503,7 @@ impl FindCVar for QuakeLiveEngine {
     }
 }
 
+#[cfg_attr(test, automock)]
 pub(crate) trait CbufExecuteText {
     fn cbuf_execute_text(&self, exec_t: cbufExec_t, new_tags: &str);
 }
@@ -2410,6 +2520,7 @@ impl CbufExecuteText for QuakeLiveEngine {
     }
 }
 
+#[cfg_attr(test, automock)]
 pub(crate) trait AddCommand {
     fn add_command(&self, cmd: &str, func: unsafe extern "C" fn());
 }
@@ -2422,6 +2533,7 @@ impl AddCommand for QuakeLiveEngine {
     }
 }
 
+#[cfg_attr(test, automock)]
 pub(crate) trait SetModuleOffset {
     fn set_module_offset(&self, module_name: &str, offset: unsafe extern "C" fn());
 }
@@ -2434,6 +2546,7 @@ impl SetModuleOffset for QuakeLiveEngine {
     }
 }
 
+#[cfg_attr(test, automock)]
 pub(crate) trait InitGame {
     fn init_game(&self, level_time: i32, random_seed: i32, restart: i32);
 }
@@ -2448,8 +2561,10 @@ impl InitGame for QuakeLiveEngine {
     }
 }
 
+#[cfg_attr(test, automock)]
 pub(crate) trait ExecuteClientCommand {
-    fn execute_client_command(&self, client: Option<&Client>, cmd: &str, client_ok: bool);
+    #[allow(clippy::needless_lifetimes)]
+    fn execute_client_command<'a>(&self, client: Option<&'a Client>, cmd: &str, client_ok: bool);
 }
 
 impl ExecuteClientCommand for QuakeLiveEngine {
@@ -2475,6 +2590,7 @@ impl ExecuteClientCommand for QuakeLiveEngine {
     }
 }
 
+#[cfg_attr(test, automock)]
 pub(crate) trait SendServerCommand {
     fn send_server_command(&self, client: Option<Client>, command: &str);
 }
@@ -2498,6 +2614,7 @@ impl SendServerCommand for QuakeLiveEngine {
     }
 }
 
+#[cfg_attr(test, automock)]
 pub(crate) trait ClientEnterWorld {
     fn client_enter_world(&self, client: &Client, cmd: *const usercmd_t);
 }
@@ -2508,6 +2625,7 @@ impl ClientEnterWorld for QuakeLiveEngine {
     }
 }
 
+#[cfg_attr(test, automock)]
 pub(crate) trait SetConfigstring {
     fn set_configstring(&self, index: &u32, value: &str);
 }
@@ -2523,6 +2641,7 @@ impl SetConfigstring for QuakeLiveEngine {
     }
 }
 
+#[cfg_attr(test, automock)]
 pub(crate) trait ComPrintf {
     fn com_printf(&self, msg: &str);
 }
@@ -2539,6 +2658,7 @@ impl ComPrintf for QuakeLiveEngine {
     }
 }
 
+#[cfg_attr(test, automock)]
 pub(crate) trait SpawnServer {
     fn spawn_server(&self, server: &str, kill_bots: bool);
 }
@@ -2551,6 +2671,7 @@ impl SpawnServer for QuakeLiveEngine {
     }
 }
 
+#[cfg_attr(test, automock)]
 pub(crate) trait RunFrame {
     fn run_frame(&self, time: i32);
 }
@@ -2565,6 +2686,7 @@ impl RunFrame for QuakeLiveEngine {
     }
 }
 
+#[cfg_attr(test, automock)]
 pub(crate) trait ClientConnect {
     fn client_connect(&self, client_num: i32, first_time: bool, is_bot: bool) -> Option<String>;
 }
@@ -2584,6 +2706,7 @@ impl ClientConnect for QuakeLiveEngine {
     }
 }
 
+#[cfg_attr(test, automock)]
 pub(crate) trait ClientSpawn {
     fn client_spawn(&self, ent: &mut GameEntity);
 }
@@ -2598,6 +2721,7 @@ impl ClientSpawn for QuakeLiveEngine {
     }
 }
 
+#[cfg_attr(test, automock)]
 pub(crate) trait CmdArgs {
     fn cmd_args(&self) -> Option<String>;
 }
@@ -2618,6 +2742,7 @@ impl CmdArgs for QuakeLiveEngine {
     }
 }
 
+#[cfg_attr(test, automock)]
 pub(crate) trait CmdArgc {
     fn cmd_argc(&self) -> i32;
 }
@@ -2632,6 +2757,7 @@ impl CmdArgc for QuakeLiveEngine {
     }
 }
 
+#[cfg_attr(test, automock)]
 pub(crate) trait CmdArgv {
     fn cmd_argv(&self, argno: i32) -> Option<&'static str>;
 }
@@ -2655,6 +2781,7 @@ impl CmdArgv for QuakeLiveEngine {
     }
 }
 
+#[cfg_attr(test, automock)]
 pub(crate) trait GameAddEvent {
     fn game_add_event(&self, game_entity: &GameEntity, event: entity_event_t, event_param: i32);
 }
@@ -2675,6 +2802,7 @@ impl GameAddEvent for QuakeLiveEngine {
     }
 }
 
+#[cfg_attr(test, automock)]
 pub(crate) trait ConsoleCommand {
     fn execute_console_command(&self, cmd: &str);
 }
@@ -2691,6 +2819,7 @@ impl ConsoleCommand for QuakeLiveEngine {
     }
 }
 
+#[cfg_attr(test, automock)]
 pub(crate) trait GetCVar {
     fn get_cvar(&self, name: &str, value: &str, flags: Option<i32>) -> Option<CVar>;
 }
@@ -2709,6 +2838,7 @@ impl GetCVar for QuakeLiveEngine {
     }
 }
 
+#[cfg_attr(test, automock)]
 pub(crate) trait SetCVarForced {
     fn set_cvar_forced(&self, name: &str, value: &str, forced: bool) -> Option<CVar>;
 }
@@ -2727,6 +2857,7 @@ impl SetCVarForced for QuakeLiveEngine {
     }
 }
 
+#[cfg_attr(test, automock)]
 pub(crate) trait SetCVarLimit {
     fn set_cvar_limit(
         &self,
@@ -2775,6 +2906,7 @@ impl SetCVarLimit for QuakeLiveEngine {
     }
 }
 
+#[cfg_attr(test, automock)]
 pub(crate) trait GetConfigstring {
     fn get_configstring(&self, index: u32) -> String;
 }
@@ -2800,6 +2932,7 @@ impl GetConfigstring for QuakeLiveEngine {
     }
 }
 
+#[cfg_attr(test, automock)]
 pub(crate) trait RegisterDamage {
     #[allow(clippy::too_many_arguments)]
     fn register_damage(
@@ -2855,6 +2988,7 @@ impl RegisterDamage for QuakeLiveEngine {
     }
 }
 
+#[cfg_attr(test, automock)]
 pub(crate) trait FreeEntity {
     fn free_entity(&self, gentity: *mut gentity_t);
 }
@@ -2869,6 +3003,7 @@ impl FreeEntity for QuakeLiveEngine {
     }
 }
 
+#[cfg_attr(test, automock)]
 pub(crate) trait LaunchItem {
     fn launch_item(&self, gitem: &GameItem, origin: vec3_t, velocity: vec3_t) -> GameEntity;
 }
