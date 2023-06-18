@@ -15,7 +15,14 @@ macro_rules! debug_println {
     };
 }
 
+mod activator;
+mod client;
 mod commands;
+mod current_level;
+mod cvar;
+mod game_client;
+mod game_entity;
+mod game_item;
 mod hooks;
 mod pyminqlx;
 mod quake_live_engine;

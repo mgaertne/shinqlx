@@ -1,3 +1,5 @@
+use crate::client::Client;
+use crate::game_entity::GameEntity;
 use crate::pyminqlx::{
     client_command_dispatcher, client_connect_dispatcher, client_disconnect_dispatcher,
     client_loaded_dispatcher, client_spawn_dispatcher, console_print_dispatcher, damage_dispatcher,
@@ -5,9 +7,9 @@ use crate::pyminqlx::{
     server_command_dispatcher, set_configstring_dispatcher,
 };
 use crate::quake_live_engine::{
-    AddCommand, CbufExecuteText, Client, ClientConnect, ClientEnterWorld, ClientSpawn, ComPrintf,
-    ExecuteClientCommand, FindCVar, GameEntity, InitGame, QuakeLiveEngine, RegisterDamage,
-    RunFrame, SendServerCommand, SetConfigstring, SetModuleOffset, SpawnServer,
+    AddCommand, CbufExecuteText, ClientConnect, ClientEnterWorld, ClientSpawn, ComPrintf,
+    ExecuteClientCommand, FindCVar, InitGame, QuakeLiveEngine, RegisterDamage, RunFrame,
+    SendServerCommand, SetConfigstring, SetModuleOffset, SpawnServer,
 };
 use crate::quake_types::clientState_t::CS_PRIMED;
 use crate::quake_types::{

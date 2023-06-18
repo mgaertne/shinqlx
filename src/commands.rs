@@ -1,10 +1,11 @@
+use crate::client::Client;
+use crate::game_entity::GameEntity;
 use crate::pyminqlx::{
     new_game_dispatcher, pyminqlx_initialize, pyminqlx_is_initialized, pyminqlx_reload,
     rcon_dispatcher, CUSTOM_COMMAND_HANDLER,
 };
 use crate::quake_live_engine::{
-    Client, CmdArgc, CmdArgs, CmdArgv, ComPrintf, GameAddEvent, GameEntity, QuakeLiveEngine,
-    SendServerCommand,
+    CmdArgc, CmdArgs, CmdArgv, ComPrintf, GameAddEvent, QuakeLiveEngine, SendServerCommand,
 };
 use crate::quake_types::entity_event_t::{EV_DEATH1, EV_GIB_PLAYER, EV_PAIN};
 use crate::SV_MAXCLIENTS;
