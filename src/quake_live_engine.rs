@@ -1157,6 +1157,79 @@ pub(crate) mod game_client_tests {
 
 #[derive(Debug, PartialEq)]
 #[repr(transparent)]
+pub(crate) struct GameItem {
+    gitem_t: &'static gitem_t,
+}
+
+impl TryFrom<*const gitem_t> for GameItem {
+    type Error = QuakeLiveEngineError;
+
+    fn try_from(game_item: *const gitem_t) -> Result<Self, Self::Error> {
+        unsafe {
+            game_item
+                .as_ref()
+                .map(|gitem| Self { gitem_t: gitem })
+                .ok_or(NullPointerPassed("null pointer passed".into()))
+        }
+    }
+}
+
+impl TryFrom<i32> for GameItem {
+    type Error = QuakeLiveEngineError;
+
+    fn try_from(item_id: i32) -> Result<Self, Self::Error> {
+        extern "C" {
+            static bg_itemlist: *const gitem_t;
+            static bg_numItems: c_int;
+        }
+        if item_id < 0 || item_id >= unsafe { bg_numItems } {
+            return Err(InvalidId(item_id));
+        }
+        unsafe {
+            Self::try_from(bg_itemlist.offset(item_id as isize))
+                .map_err(|_| EntityNotFound("entity not found".into()))
+        }
+    }
+}
+
+impl GameItem {
+    #[allow(unused)]
+    pub(crate) fn get_item_id(&self) -> i32 {
+        extern "C" {
+            static bg_itemlist: *const gitem_t;
+        }
+
+        i32::try_from(unsafe { (self.gitem_t as *const gitem_t).offset_from(bg_itemlist) }).unwrap()
+    }
+
+    pub(crate) fn get_classname(&self) -> String {
+        unsafe {
+            CStr::from_ptr(self.gitem_t.classname)
+                .to_string_lossy()
+                .into()
+        }
+    }
+
+    pub(crate) fn spawn(&self, origin: (i32, i32, i32)) {
+        let quake_live_engine = QuakeLiveEngine::default();
+
+        let origin_vec = [
+            origin.0 as c_float,
+            origin.1 as c_float,
+            origin.2 as c_float,
+        ];
+        let velocity = [0.0, 0.0, 0.9];
+
+        let gentity = quake_live_engine.launch_item(self, origin_vec, velocity);
+        gentity.gentity_t.nextthink = 0;
+        gentity.gentity_t.think = None;
+        // make item be scaled up
+        quake_live_engine.game_add_event(&gentity, EV_ITEM_RESPAWN, 0);
+    }
+}
+
+#[derive(Debug, PartialEq)]
+#[repr(transparent)]
 pub(crate) struct GameEntity {
     gentity_t: &'static mut gentity_t,
 }
@@ -1377,28 +1450,17 @@ impl GameEntity {
     }
 
     pub(crate) fn drop_holdable(&mut self) {
-        extern "C" {
-            static bg_itemlist: *const gitem_t;
-            static LaunchItem: extern "C" fn(*const gitem_t, vec3_t, vec3_t) -> *const gentity_t;
-        }
-
         let angle = self.gentity_t.s.apos.trBase[1] * (PI * 2.0 / 360.0);
         let velocity = [150.0 * angle.cos(), 150.0 * angle.sin(), 250.0];
-        unsafe {
-            let entity = LaunchItem(
-                bg_itemlist.offset(self.get_game_client().unwrap().get_holdable() as isize),
-                self.gentity_t.s.pos.trBase,
-                velocity,
-            )
-            .cast_mut();
-            let mut_ref_entity = entity.as_mut().unwrap();
-            mut_ref_entity.touch = Some(ShiNQlx_Touch_Item);
-            mut_ref_entity.parent = self.gentity_t;
-            mut_ref_entity.think = Some(ShiNQlx_Switch_Touch_Item);
-            let current_level = CurrentLevel::default();
-            mut_ref_entity.nextthink = current_level.get_leveltime() + 1000;
-            mut_ref_entity.s.pos.trTime = current_level.get_leveltime() - 500;
-        }
+        let gitem = GameItem::try_from(self.get_game_client().unwrap().get_holdable()).unwrap();
+        let entity =
+            QuakeLiveEngine::default().launch_item(&gitem, self.gentity_t.s.pos.trBase, velocity);
+        entity.gentity_t.touch = Some(ShiNQlx_Touch_Item);
+        entity.gentity_t.parent = self.gentity_t;
+        entity.gentity_t.think = Some(ShiNQlx_Switch_Touch_Item);
+        let current_level = CurrentLevel::default();
+        entity.gentity_t.nextthink = current_level.get_leveltime() + 1000;
+        entity.gentity_t.s.pos.trTime = current_level.get_leveltime() - 500;
         if let Ok(mut game_client) = self.get_game_client() {
             game_client.set_holdable(0);
         }
@@ -1412,47 +1474,16 @@ impl GameEntity {
         QuakeLiveEngine::default().free_entity(self.gentity_t);
     }
 
-    pub(crate) fn spawn_item(item_id: i32, origin: (i32, i32, i32)) {
-        extern "C" {
-            static bg_itemlist: *const gitem_t;
-            static LaunchItem: extern "C" fn(*const gitem_t, vec3_t, vec3_t) -> *const gentity_t;
-        }
-
-        let quake_live_engine = QuakeLiveEngine::default();
-
-        let origin_vec = [
-            origin.0 as c_float,
-            origin.1 as c_float,
-            origin.2 as c_float,
-        ];
-        let velocity = [0.0, 0.0, 0.9];
-
-        unsafe {
-            let ent = LaunchItem(bg_itemlist.offset(item_id as isize), origin_vec, velocity)
-                as *mut gentity_t;
-            let mut_ref_ent = ent.as_mut().unwrap();
-            mut_ref_ent.nextthink = 0;
-            mut_ref_ent.think = None;
-            let game_entity = GameEntity::try_from(mut_ref_ent as *mut gentity_t).unwrap();
-            // make item be scaled up
-            quake_live_engine.game_add_event(&game_entity, EV_ITEM_RESPAWN, 0);
-        }
-    }
-
     pub(crate) fn replace_item(&mut self, item_id: i32) {
-        extern "C" {
-            static bg_itemlist: *const gitem_t;
-        }
-
         let quake_live_engine = QuakeLiveEngine::default();
 
         let class_name = unsafe { CStr::from_ptr(self.gentity_t.classname) };
         quake_live_engine.com_printf(class_name.to_string_lossy().as_ref());
         if item_id != 0 {
-            let item = unsafe { bg_itemlist.offset(item_id as isize).as_ref().unwrap() };
+            let gitem = GameItem::try_from(item_id).unwrap();
             self.gentity_t.s.modelindex = item_id;
-            self.gentity_t.classname = item.classname;
-            self.gentity_t.item = item;
+            self.gentity_t.classname = gitem.get_classname().as_ptr() as *const c_char;
+            self.gentity_t.item = gitem.gitem_t;
 
             // this forces client to load new item
             let mut items = quake_live_engine.get_configstring(CS_ITEMS);
@@ -2738,5 +2769,19 @@ impl FreeEntity for QuakeLiveEngine {
         }
 
         unsafe { G_FreeEntity(gentity) };
+    }
+}
+
+pub(crate) trait LaunchItem {
+    fn launch_item(&self, gitem: &GameItem, origin: vec3_t, velocity: vec3_t) -> GameEntity;
+}
+
+impl LaunchItem for QuakeLiveEngine {
+    fn launch_item(&self, gitem: &GameItem, origin: vec3_t, velocity: vec3_t) -> GameEntity {
+        extern "C" {
+            static LaunchItem: extern "C" fn(*const gitem_t, vec3_t, vec3_t) -> *mut gentity_t;
+        }
+
+        GameEntity::try_from(unsafe { LaunchItem(gitem.gitem_t, origin, velocity) }).unwrap()
     }
 }

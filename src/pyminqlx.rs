@@ -26,7 +26,8 @@ use crate::PyMinqlx_InitStatus_t;
 
 use crate::quake_live_engine::{
     AddCommand, Client, ComPrintf, ConsoleCommand, CurrentLevel, FindCVar, GameClient, GameEntity,
-    GetCVar, GetConfigstring, QuakeLiveEngine, SendServerCommand, SetCVarForced, SetCVarLimit,
+    GameItem, GetCVar, GetConfigstring, QuakeLiveEngine, SendServerCommand, SetCVarForced,
+    SetCVarLimit,
 };
 use crate::quake_types::cvar_flags::{
     CVAR_ARCHIVE, CVAR_CHEAT, CVAR_INIT, CVAR_LATCH, CVAR_NORESTART, CVAR_ROM, CVAR_SERVERINFO,
@@ -1855,7 +1856,8 @@ fn spawn_item(item_id: i32, x: i32, y: i32, z: i32) -> PyResult<bool> {
         )));
     }
 
-    GameEntity::spawn_item(item_id, (x, y, z));
+    let gitem = GameItem::try_from(item_id).unwrap();
+    gitem.spawn((x, y, z));
     Ok(true)
 }
 
