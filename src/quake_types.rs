@@ -2026,133 +2026,258 @@ pub struct gclient_s {
 }
 
 #[repr(C)]
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Clone, Builder)]
+#[builder(name = "RoundStateBuilder")]
 pub struct roundState_t {
+    #[builder(default = "roundStateState_t::PREGAME")]
     pub eCurrent: roundStateState_t,
+    #[builder(default = "roundStateState_t::ROUND_WARMUP")]
     pub eNext: roundStateState_t,
+    #[builder(default)]
     pub tNext: c_int,
+    #[builder(default)]
     pub startTime: c_int,
+    #[builder(default)]
     pub turn: c_int,
+    #[builder(default)]
     pub round: c_int,
+    #[builder(default = "team_t::TEAM_FREE")]
     pub prevRoundWinningTeam: team_t,
+    #[builder(default = "qboolean::qfalse")]
     pub touch: qboolean,
+    #[builder(default = "qboolean::qfalse")]
     pub capture: qboolean,
 }
 
 #[repr(C)]
+#[derive(Debug, PartialEq, Clone, Builder)]
+#[builder(name = "LevelLocalsBuilder")]
 pub struct level_locals_t {
+    #[builder(default = "std::ptr::null_mut() as *mut gclient_t")]
     pub clients: *mut gclient_s,
+    #[builder(default = "std::ptr::null_mut() as *mut gentity_t")]
     pub gentities: *mut gentity_s,
+    #[builder(default)]
     pub gentitySize: c_int,
+    #[builder(default)]
     pub num_entities: c_int,
+    #[builder(default)]
     pub warmupTime: c_int,
+    #[builder(default)]
     pub logFile: fileHandle_t,
+    #[builder(default)]
     pub maxclients: c_int,
+    #[builder(default)]
     pub time: c_int,
+    #[builder(default)]
     pub frametime: c_int,
+    #[builder(default)]
     pub startTime: c_int,
+    #[builder(default = "[0; 4]")]
     pub teamScores: [c_int; 4usize],
+    #[builder(default)]
     pub nextTeamInfoTime: c_int,
+    #[builder(default = "qboolean::qfalse")]
     pub newSession: qboolean,
+    #[builder(default = "qboolean::qfalse")]
     pub restarted: qboolean,
+    #[builder(default = "qboolean::qfalse")]
     pub shufflePending: qboolean,
+    #[builder(default)]
     pub shuffleReadyTime: c_int,
+    #[builder(default)]
     pub numConnectedClients: c_int,
+    #[builder(default)]
     pub numNonSpectatorClients: c_int,
+    #[builder(default)]
     pub numPlayingClients: c_int,
+    #[builder(default)]
     pub numReadyClients: c_int,
+    #[builder(default)]
     pub numReadyHumans: c_int,
+    #[builder(default)]
     pub numStandardClients: c_int,
+    #[builder(default = "[0; 64]")]
     pub sortedClients: [c_int; 64usize],
+    #[builder(default)]
     pub follow1: c_int,
+    #[builder(default)]
     pub follow2: c_int,
+    #[builder(default)]
     pub snd_fry: c_int,
+    #[builder(default)]
     pub warmupModificationCount: c_int,
+    #[builder(default = "[0; 1024]")]
     pub voteString: [c_char; 1024usize],
+    #[builder(default = "[0; 1024]")]
     pub voteDisplayString: [c_char; 1024usize],
+    #[builder(default)]
     pub voteExecuteTime: c_int,
+    #[builder(default)]
     pub voteTime: c_int,
+    #[builder(default)]
     pub voteYes: c_int,
+    #[builder(default)]
     pub voteNo: c_int,
+    #[builder(default)]
     pub pendingVoteCaller: c_int,
+    #[builder(default = "qboolean::qfalse")]
     pub spawning: qboolean,
+    #[builder(default)]
     pub numSpawnVars: c_int,
+    #[builder(default = "[[std::ptr::null_mut(); 2]; 64]")]
     pub spawnVars: [[*mut c_char; 2usize]; 64usize],
+    #[builder(default)]
     pub numSpawnVarChars: c_int,
+    #[builder(default = "[0; 4096]")]
     pub spawnVarChars: [c_char; 4096usize],
+    #[builder(default)]
     pub intermissionQueued: c_int,
+    #[builder(default)]
     pub intermissionTime: c_int,
+    #[builder(default = "qboolean::qfalse")]
     pub readyToExit: qboolean,
+    #[builder(default = "qboolean::qfalse")]
     pub votingEnded: qboolean,
+    #[builder(default)]
     pub exitTime: c_int,
+    #[builder(default = "[0.0; 3]")]
     pub intermission_origin: vec3_t,
+    #[builder(default = "[0.0; 3]")]
     pub intermission_angle: vec3_t,
+    #[builder(default = "qboolean::qfalse")]
     pub locationLinked: qboolean,
+    #[builder(default = "std::ptr::null_mut() as *mut gentity_t")]
     pub locationHead: *mut gentity_t,
+    #[builder(default)]
     pub timePauseBegin: c_int,
+    #[builder(default)]
     pub timeOvertime: c_int,
+    #[builder(default)]
     pub timeInitialPowerupSpawn: c_int,
+    #[builder(default)]
     pub bodyQueIndex: c_int,
+    #[builder(default = "[std::ptr::null_mut() as *mut gentity_t; 8]")]
     pub bodyQue: [*mut gentity_t; 8usize],
+    #[builder(default)]
     pub portalSequence: c_int,
+    #[builder(default = "qboolean::qfalse")]
     pub gameStatsReported: qboolean,
+    #[builder(default = "qboolean::qfalse")]
     pub mapIsTrainingMap: qboolean,
+    #[builder(default)]
     pub clientNum1stPlayer: c_int,
+    #[builder(default)]
     pub clientNum2ndPlayer: c_int,
+    #[builder(default = "[0; 1024]")]
     pub scoreboardArchive1: [c_char; 1024usize],
+    #[builder(default = "[0; 1024]")]
     pub scoreboardArchive2: [c_char; 1024usize],
+    #[builder(default = "[0; 40]")]
     pub firstScorer: [c_char; 40usize],
+    #[builder(default = "[0; 40]")]
     pub lastScorer: [c_char; 40usize],
+    #[builder(default = "[0; 40]")]
     pub lastTeamScorer: [c_char; 40usize],
+    #[builder(default = "[0; 40]")]
     pub firstFrag: [c_char; 40usize],
+    #[builder(default = "[0.0; 3]")]
     pub red_flag_origin: vec3_t,
+    #[builder(default = "[0.0; 3]")]
     pub blue_flag_origin: vec3_t,
+    #[builder(default = "[0; 4]")]
     pub spawnCount: [c_int; 4usize],
+    #[builder(default = "[0; 5]")]
     pub runeSpawns: [c_int; 5usize],
+    #[builder(default = "[0; 60]")]
     pub itemCount: [c_int; 60usize],
+    #[builder(default)]
     pub suddenDeathRespawnDelay: c_int,
+    #[builder(default)]
     pub suddenDeathRespawnDelayLastAnnounced: c_int,
+    #[builder(default = "[0; 4]")]
     pub numRedArmorPickups: [c_int; 4usize],
+    #[builder(default = "[0; 4]")]
     pub numYellowArmorPickups: [c_int; 4usize],
+    #[builder(default = "[0; 4]")]
     pub numGreenArmorPickups: [c_int; 4usize],
+    #[builder(default = "[0; 4]")]
     pub numMegaHealthPickups: [c_int; 4usize],
+    #[builder(default = "[0; 4]")]
     pub numQuadDamagePickups: [c_int; 4usize],
+    #[builder(default = "[0; 4]")]
     pub numBattleSuitPickups: [c_int; 4usize],
+    #[builder(default = "[0; 4]")]
     pub numRegenerationPickups: [c_int; 4usize],
+    #[builder(default = "[0; 4]")]
     pub numHastePickups: [c_int; 4usize],
+    #[builder(default = "[0; 4]")]
     pub numInvisibilityPickups: [c_int; 4usize],
+    #[builder(default = "[0; 4]")]
     pub quadDamagePossessionTime: [c_int; 4usize],
+    #[builder(default = "[0; 4]")]
     pub battleSuitPossessionTime: [c_int; 4usize],
+    #[builder(default = "[0; 4]")]
     pub regenerationPossessionTime: [c_int; 4usize],
+    #[builder(default = "[0; 4]")]
     pub hastePossessionTime: [c_int; 4usize],
+    #[builder(default = "[0; 4]")]
     pub invisibilityPossessionTime: [c_int; 4usize],
+    #[builder(default = "[0; 4]")]
     pub numFlagPickups: [c_int; 4usize],
+    #[builder(default = "[0; 4]")]
     pub numMedkitPickups: [c_int; 4usize],
+    #[builder(default = "[0; 4]")]
     pub flagPossessionTime: [c_int; 4usize],
+    #[builder(default = "[std::ptr::null_mut() as *mut gentity_t; 5]")]
     pub dominationPoints: [*mut gentity_t; 5usize],
+    #[builder(default)]
     pub dominationPointCount: c_int,
+    #[builder(default)]
     pub dominationPointsTallied: c_int,
+    #[builder(default)]
     pub racePointCount: c_int,
+    #[builder(default = "qboolean::qfalse")]
     pub disableDropWeapon: qboolean,
+    #[builder(default = "qboolean::qfalse")]
     pub teamShuffleActive: qboolean,
+    #[builder(default = "[0; 4]")]
     pub lastTeamScores: [c_int; 4usize],
+    #[builder(default = "[0; 4]")]
     pub lastTeamRoundScores: [c_int; 4usize],
+    #[builder(default = "team_t::TEAM_FREE")]
     pub attackingTeam: team_t,
+    #[builder(default = "RoundStateBuilder::default().build().unwrap()")]
     pub roundState: roundState_t,
+    #[builder(default)]
     pub lastTeamCountSent: c_int,
+    #[builder(default)]
     pub infectedConscript: c_int,
+    #[builder(default)]
     pub lastZombieSurvivor: c_int,
+    #[builder(default)]
     pub zombieScoreTime: c_int,
+    #[builder(default)]
     pub lastInfectionTime: c_int,
+    #[builder(default = "[[0; 1024]; 3]")]
     pub intermissionMapNames: [[c_char; 1024usize]; 3usize],
+    #[builder(default = "[[0; 1024]; 3]")]
     pub intermissionMapTitles: [[c_char; 1024usize]; 3usize],
+    #[builder(default = "[[0; 1024]; 3]")]
     pub intermissionMapConfigs: [[c_char; 1024usize]; 3usize],
+    #[builder(default = "[0; 3]")]
     pub intermissionMapVotes: [c_int; 3usize],
+    #[builder(default = "qboolean::qfalse")]
     pub matchForfeited: qboolean,
+    #[builder(default)]
     pub allReadyTime: c_int,
+    #[builder(default = "qboolean::qfalse")]
     pub notifyCvarChange: qboolean,
+    #[builder(default)]
     pub notifyCvarChangeTime: c_int,
+    #[builder(default)]
     pub lastLeadChangeTime: c_int,
+    #[builder(default)]
     pub lastLeadChangeClient: c_int,
 }
 
