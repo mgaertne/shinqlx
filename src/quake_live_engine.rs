@@ -554,8 +554,11 @@ impl GameClient {
     }
 
     pub(crate) fn get_powerups(&self) -> [i32; 6] {
+        self.get_powerups_internal(&CurrentLevel::default())
+    }
+
+    pub(crate) fn get_powerups_internal(&self, current_level: &CurrentLevel) -> [i32; 6] {
         let mut returned = [0; 6];
-        let current_level = CurrentLevel::default();
         for (powerup, item) in returned.iter_mut().enumerate() {
             let powerup_index = powerup_t::try_from(powerup).unwrap();
             *item = self.game_client.ps.powerups[powerup_index as usize];
@@ -567,7 +570,14 @@ impl GameClient {
     }
 
     pub(crate) fn set_powerups(&mut self, powerups: [i32; 6]) {
-        let current_level = CurrentLevel::default();
+        self.set_powerups_internal(powerups, &CurrentLevel::default());
+    }
+
+    pub(crate) fn set_powerups_internal(
+        &mut self,
+        powerups: [i32; 6],
+        current_level: &CurrentLevel,
+    ) {
         for (powerup, &item) in powerups.iter().enumerate() {
             let powerup_index = powerup_t::try_from(powerup).unwrap();
             if item == 0 {
@@ -625,7 +635,11 @@ impl GameClient {
     }
 
     pub(crate) fn set_invulnerability(&mut self, time: i32) {
-        self.game_client.invulnerabilityTime = CurrentLevel::default().get_leveltime() + time;
+        self.set_invulnerability_internal(time, CurrentLevel::default());
+    }
+
+    pub(crate) fn set_invulnerability_internal(&mut self, time: i32, current_level: CurrentLevel) {
+        self.game_client.invulnerabilityTime = current_level.get_leveltime() + time;
     }
 
     pub(crate) fn is_chatting(&self) -> bool {
@@ -665,7 +679,11 @@ impl GameClient {
     }
 
     pub(crate) fn get_time_on_team(&self) -> i32 {
-        CurrentLevel::default().level.time - self.game_client.pers.enterTime
+        self.get_time_on_team_internal(CurrentLevel::default())
+    }
+
+    pub(crate) fn get_time_on_team_internal(&self, current_level: CurrentLevel) -> i32 {
+        current_level.get_leveltime() - self.game_client.pers.enterTime
     }
 
     pub(crate) fn get_ping(&self) -> i32 {
@@ -687,10 +705,13 @@ impl GameClient {
 
 #[cfg(test)]
 pub(crate) mod game_client_tests {
-    use crate::quake_live_engine::GameClient;
     use crate::quake_live_engine::QuakeLiveEngineError::NullPointerPassed;
+    use crate::quake_live_engine::{CurrentLevel, GameClient};
     use crate::quake_types::persistantFields_t::PERS_ROUND_SCORE;
     use crate::quake_types::pmtype_t::{PM_DEAD, PM_FREEZE, PM_NORMAL};
+    use crate::quake_types::powerup_t::{
+        PW_BATTLESUIT, PW_HASTE, PW_INVIS, PW_INVULNERABILITY, PW_QUAD, PW_REGEN,
+    };
     use crate::quake_types::privileges_t::{
         PRIV_ADMIN, PRIV_BANNED, PRIV_MOD, PRIV_NONE, PRIV_ROOT,
     };
@@ -703,9 +724,10 @@ pub(crate) mod game_client_tests {
         WP_RAILGUN, WP_ROCKET_LAUNCHER, WP_SHOTGUN,
     };
     use crate::quake_types::{
-        gclient_t, privileges_t, qboolean, weapon_t, ClientPersistantBuilder, ClientSessionBuilder,
-        ExpandedStatsBuilder, GClientBuilder, PlayerStateBuilder, EF_DEAD, EF_KAMIKAZE, EF_TALK,
-        MODELINDEX_KAMIKAZE, MODELINDEX_TELEPORTER,
+        gclient_t, level_locals_t, privileges_t, qboolean, weapon_t, ClientPersistantBuilder,
+        ClientSessionBuilder, ExpandedStatsBuilder, GClientBuilder, LevelLocalsBuilder,
+        PlayerStateBuilder, EF_DEAD, EF_KAMIKAZE, EF_TALK, MODELINDEX_KAMIKAZE,
+        MODELINDEX_TELEPORTER,
     };
     use pretty_assertions::assert_eq;
     use rstest::*;
@@ -903,6 +925,71 @@ pub(crate) mod game_client_tests {
         assert_eq!(
             game_client.get_ammos(),
             [10, 20, 31, 40, 51, 61, 70, 80, 90, 42, 69, -1, 1, 1, -1]
+        );
+    }
+
+    #[test]
+    pub(crate) fn game_client_get_powerups_with_no_powerups() {
+        let mut level_locals = LevelLocalsBuilder::default().time(1234).build().unwrap();
+        let current_level =
+            CurrentLevel::try_from(&mut level_locals as *mut level_locals_t).unwrap();
+        let mut gclient = GClientBuilder::default().build().unwrap();
+        let game_client = GameClient::try_from(&mut gclient as *mut gclient_t).unwrap();
+        assert_eq!(game_client.get_powerups_internal(&current_level), [0; 6]);
+    }
+
+    #[test]
+    pub(crate) fn game_client_get_powerups_with_all_powerups_set() {
+        let mut level_locals = LevelLocalsBuilder::default().time(1234).build().unwrap();
+        let current_level =
+            CurrentLevel::try_from(&mut level_locals as *mut level_locals_t).unwrap();
+        let mut player_state = PlayerStateBuilder::default().build().unwrap();
+        player_state.powerups[PW_QUAD as usize] = 1235;
+        player_state.powerups[PW_BATTLESUIT as usize] = 1236;
+        player_state.powerups[PW_HASTE as usize] = 1237;
+        player_state.powerups[PW_INVIS as usize] = 1238;
+        player_state.powerups[PW_REGEN as usize] = 1239;
+        player_state.powerups[PW_INVULNERABILITY as usize] = 1240;
+        let mut gclient = GClientBuilder::default().ps(player_state).build().unwrap();
+        let game_client = GameClient::try_from(&mut gclient as *mut gclient_t).unwrap();
+        assert_eq!(
+            game_client.get_powerups_internal(&current_level),
+            [1, 2, 3, 4, 5, 6]
+        );
+    }
+
+    #[test]
+    pub(crate) fn game_client_set_powerups() {
+        let mut level_locals = LevelLocalsBuilder::default().time(1000).build().unwrap();
+        let current_level =
+            CurrentLevel::try_from(&mut level_locals as *mut level_locals_t).unwrap();
+        let mut gclient = GClientBuilder::default().build().unwrap();
+        let mut game_client = GameClient::try_from(&mut gclient as *mut gclient_t).unwrap();
+        game_client.set_powerups_internal([11, 12, 13, 14, 15, 16], &current_level);
+        assert_eq!(
+            game_client.get_powerups_internal(&current_level),
+            [11, 12, 13, 14, 15, 16]
+        );
+    }
+
+    #[test]
+    pub(crate) fn game_client_set_powerups_deleting_all_powerups() {
+        let mut level_locals = LevelLocalsBuilder::default().time(1000).build().unwrap();
+        let current_level =
+            CurrentLevel::try_from(&mut level_locals as *mut level_locals_t).unwrap();
+        let mut player_state = PlayerStateBuilder::default().build().unwrap();
+        player_state.powerups[PW_QUAD as usize] = 1235;
+        player_state.powerups[PW_BATTLESUIT as usize] = 1236;
+        player_state.powerups[PW_HASTE as usize] = 1237;
+        player_state.powerups[PW_INVIS as usize] = 1238;
+        player_state.powerups[PW_REGEN as usize] = 1239;
+        player_state.powerups[PW_INVULNERABILITY as usize] = 1240;
+        let mut gclient = GClientBuilder::default().ps(player_state).build().unwrap();
+        let mut game_client = GameClient::try_from(&mut gclient as *mut gclient_t).unwrap();
+        game_client.set_powerups_internal([0, 0, 0, 0, 0, 0], &current_level);
+        assert_eq!(
+            game_client.get_powerups_internal(&current_level),
+            [0, 0, 0, 0, 0, 0]
         );
     }
 
@@ -1309,12 +1396,10 @@ pub(crate) extern "C" fn ShiNQlx_Switch_Touch_Item(ent: *mut gentity_t) {
         static G_FreeEntity: extern "C" fn(*mut gentity_t);
     }
 
-    unsafe {
-        let ref_mut_ent = ent.as_mut().unwrap();
-        ref_mut_ent.touch = Some(Touch_Item);
-        ref_mut_ent.think = Some(G_FreeEntity);
-        ref_mut_ent.nextthink = CurrentLevel::default().get_leveltime() + 29000;
-    }
+    let ref_mut_ent = unsafe { ent.as_mut() }.unwrap();
+    ref_mut_ent.touch = Some(unsafe { Touch_Item });
+    ref_mut_ent.think = Some(unsafe { G_FreeEntity });
+    ref_mut_ent.nextthink = CurrentLevel::default().get_leveltime() + 29000;
 }
 
 impl GameEntity {
@@ -1450,6 +1535,10 @@ impl GameEntity {
     }
 
     pub(crate) fn drop_holdable(&mut self) {
+        self.drop_holdable_internal(CurrentLevel::default());
+    }
+
+    pub(crate) fn drop_holdable_internal(&mut self, current_level: CurrentLevel) {
         let angle = self.gentity_t.s.apos.trBase[1] * (PI * 2.0 / 360.0);
         let velocity = [150.0 * angle.cos(), 150.0 * angle.sin(), 250.0];
         let gitem = GameItem::try_from(self.get_game_client().unwrap().get_holdable()).unwrap();
@@ -1458,7 +1547,6 @@ impl GameEntity {
         entity.gentity_t.touch = Some(ShiNQlx_Touch_Item);
         entity.gentity_t.parent = self.gentity_t;
         entity.gentity_t.think = Some(ShiNQlx_Switch_Touch_Item);
-        let current_level = CurrentLevel::default();
         entity.gentity_t.nextthink = current_level.get_leveltime() + 1000;
         entity.gentity_t.s.pos.trTime = current_level.get_leveltime() - 500;
         if let Ok(mut game_client) = self.get_game_client() {
@@ -2205,17 +2293,26 @@ pub(crate) struct CurrentLevel {
     level: &'static mut level_locals_t,
 }
 
+impl TryFrom<*mut level_locals_t> for CurrentLevel {
+    type Error = QuakeLiveEngineError;
+
+    fn try_from(level_locals: *mut level_locals_t) -> Result<Self, Self::Error> {
+        unsafe {
+            level_locals
+                .as_mut()
+                .map(|level| Self { level })
+                .ok_or(NullPointerPassed("null pointer passed".into()))
+        }
+    }
+}
+
 impl Default for CurrentLevel {
     fn default() -> Self {
         extern "C" {
             static level: *mut level_locals_t;
         }
 
-        unsafe {
-            Self {
-                level: level.as_mut().unwrap(),
-            }
-        }
+        unsafe { Self::try_from(level).unwrap() }
     }
 }
 
