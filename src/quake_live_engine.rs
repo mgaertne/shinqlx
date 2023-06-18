@@ -99,8 +99,8 @@ pub(crate) mod qboolean_tests {
 
     #[test]
     pub(crate) fn qboolean_as_bool() {
-        assert!(bool::from(qboolean::qtrue));
-        assert!(!bool::from(qboolean::qfalse));
+        assert_eq!(bool::from(qboolean::qtrue), true);
+        assert_eq!(bool::from(qboolean::qfalse), false);
     }
 
     #[test]
@@ -1447,7 +1447,8 @@ pub(crate) mod game_item_tests {
     #[test]
     pub(crate) fn game_item_from_valid_item() {
         let gitem = GItemBuilder::default().build().unwrap();
-        assert!(GameItem::try_from(&gitem as *const gitem_t).is_ok());
+        let game_item = GameItem::try_from(&gitem as *const gitem_t);
+        assert!(game_item.is_ok());
     }
 
     #[test]
@@ -1595,11 +1596,11 @@ impl GameEntity {
     }
 
     pub(crate) fn start_kamikaze(&mut self) {
-        extern "C" {
-            static G_StartKamikaze: extern "C" fn(*const gentity_t);
-        }
+        self.start_kamikaze_intern(QuakeLiveEngine::default());
+    }
 
-        unsafe { G_StartKamikaze(self.gentity_t as *const gentity_t) };
+    pub(crate) fn start_kamikaze_intern(&mut self, kamikaze_starter: impl StartKamikaze) {
+        kamikaze_starter.start_kamikaze(self);
     }
 
     pub(crate) fn get_player_name(&self) -> String {
@@ -1652,6 +1653,14 @@ impl GameEntity {
     }
 
     pub(crate) fn slay_with_mod(&mut self, mean_of_death: meansOfDeath_t) {
+        self.slay_with_mod_intern(mean_of_death, QuakeLiveEngine::default());
+    }
+
+    pub(crate) fn slay_with_mod_intern(
+        &mut self,
+        mean_of_death: meansOfDeath_t,
+        quake_live_engine: impl RegisterDamage,
+    ) {
         let damage = self.get_health()
             + if mean_of_death == MOD_KAMIKAZE {
                 100000
@@ -1663,7 +1672,7 @@ impl GameEntity {
             game_client.set_armor(0);
         }
         // self damage = half damage, so multiplaying by 2
-        QuakeLiveEngine::default().register_damage(
+        quake_live_engine.register_damage(
             self.gentity_t,
             self.gentity_t,
             self.gentity_t,
@@ -1766,20 +1775,22 @@ impl GameEntity {
 
 #[cfg(test)]
 pub(crate) mod game_entity_tests {
-    use crate::quake_live_engine::GameEntity;
     use crate::quake_live_engine::QuakeLiveEngineError::NullPointerPassed;
+    use crate::quake_live_engine::{GameEntity, MockRegisterDamage, MockStartKamikaze};
     use crate::quake_types::clientConnected_t::{CON_CONNECTED, CON_DISCONNECTED};
     use crate::quake_types::entityType_t::{ET_ITEM, ET_PLAYER};
     use crate::quake_types::itemType_t::{IT_AMMO, IT_WEAPON};
+    use crate::quake_types::meansOfDeath_t::{MOD_CRUSH, MOD_KAMIKAZE};
     use crate::quake_types::privileges_t::{PRIV_BANNED, PRIV_ROOT};
+    use crate::quake_types::statIndex_t::STAT_ARMOR;
     use crate::quake_types::team_t::{TEAM_RED, TEAM_SPECTATOR};
     use crate::quake_types::{
         gclient_t, gentity_t, gitem_t, qboolean, ClientPersistantBuilder, ClientSessionBuilder,
-        EntityStateBuilder, GClientBuilder, GEntityBuilder, GItemBuilder, FL_DROPPED_ITEM,
-        FL_FORCE_GESTURE,
+        EntityStateBuilder, GClientBuilder, GEntityBuilder, GItemBuilder, PlayerStateBuilder,
+        DAMAGE_NO_PROTECTION, FL_DROPPED_ITEM, FL_FORCE_GESTURE,
     };
     use pretty_assertions::assert_eq;
-    use std::ffi::{c_char, CString};
+    use std::ffi::{c_char, c_int, CString};
 
     #[test]
     pub(crate) fn game_entity_try_from_null_results_in_error() {
@@ -1792,7 +1803,19 @@ pub(crate) mod game_entity_tests {
     #[test]
     pub(crate) fn game_entity_try_from_valid_gentity() {
         let mut gentity = GEntityBuilder::default().build().unwrap();
-        assert!(GameEntity::try_from(&mut gentity as *mut gentity_t).is_ok());
+        assert_eq!(
+            GameEntity::try_from(&mut gentity as *mut gentity_t).is_ok(),
+            true
+        );
+    }
+
+    #[test]
+    pub(crate) fn game_entity_start_kamikaze() {
+        let mut mock = MockStartKamikaze::new();
+        let mut gentity = GEntityBuilder::default().build().unwrap();
+        let mut game_entity = GameEntity::try_from(&mut gentity as *mut gentity_t).unwrap();
+        mock.expect_start_kamikaze().return_const(());
+        game_entity.start_kamikaze_intern(mock);
     }
 
     #[test]
@@ -1977,6 +2000,52 @@ pub(crate) mod game_entity_tests {
         let mut game_entity = GameEntity::try_from(&mut gentity as *mut gentity_t).unwrap();
         game_entity.set_health(666);
         assert_eq!(game_entity.get_health(), 666);
+    }
+
+    #[test]
+    pub(crate) fn game_entity_slay_with_mod() {
+        let mut player_state = PlayerStateBuilder::default().build().unwrap();
+        player_state.stats[STAT_ARMOR as usize] = 69;
+        let mut gclient = GClientBuilder::default().ps(player_state).build().unwrap();
+        let mut gentity = GEntityBuilder::default()
+            .client(&mut gclient as *mut gclient_t)
+            .health(42)
+            .build()
+            .unwrap();
+        let mut game_entity = GameEntity::try_from(&mut gentity as *mut gentity_t).unwrap();
+
+        let mut mock = MockRegisterDamage::new();
+        mock.expect_register_damage()
+            .withf_st(|_, _, _, _, _, damage, dmg_flags, mean_of_death| {
+                *damage == 84
+                    && *dmg_flags == DAMAGE_NO_PROTECTION as c_int
+                    && *mean_of_death == MOD_CRUSH as c_int
+            })
+            .return_const(());
+        game_entity.slay_with_mod_intern(MOD_CRUSH, mock);
+        assert_eq!(gclient.ps.stats[STAT_ARMOR as usize], 0);
+    }
+
+    #[test]
+    pub(crate) fn game_entity_slay_with_kamikaze() {
+        let mut gclient = GClientBuilder::default().build().unwrap();
+        let mut gentity = GEntityBuilder::default()
+            .client(&mut gclient as *mut gclient_t)
+            .health(123)
+            .build()
+            .unwrap();
+        let mut game_entity = GameEntity::try_from(&mut gentity as *mut gentity_t).unwrap();
+
+        let mut mock = MockRegisterDamage::new();
+        mock.expect_register_damage()
+            .withf_st(|_, _, _, _, _, damage, dmg_flags, mean_of_death| {
+                *damage == 200246
+                    && *dmg_flags == DAMAGE_NO_PROTECTION as c_int
+                    && *mean_of_death == MOD_KAMIKAZE as c_int
+            })
+            .return_const(());
+        game_entity.slay_with_mod_intern(MOD_KAMIKAZE, mock);
+        assert_eq!(gclient.ps.stats[STAT_ARMOR as usize], 0);
     }
 
     #[test]
@@ -3088,5 +3157,20 @@ impl LaunchItem for QuakeLiveEngine {
         }
 
         GameEntity::try_from(unsafe { LaunchItem(gitem.gitem_t, origin, velocity) }).unwrap()
+    }
+}
+
+#[cfg_attr(test, automock)]
+pub(crate) trait StartKamikaze {
+    fn start_kamikaze(&self, gentity: &GameEntity);
+}
+
+impl StartKamikaze for QuakeLiveEngine {
+    fn start_kamikaze(&self, gentity: &GameEntity) {
+        extern "C" {
+            static G_StartKamikaze: extern "C" fn(*const gentity_t);
+        }
+
+        unsafe { G_StartKamikaze(gentity.gentity_t as *const gentity_t) };
     }
 }
