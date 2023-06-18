@@ -1725,22 +1725,27 @@ impl GameEntity {
     }
 
     pub(crate) fn drop_holdable(&mut self) {
-        self.drop_holdable_internal(&CurrentLevel::default());
+        self.drop_holdable_internal(&CurrentLevel::default(), QuakeLiveEngine::default());
     }
 
-    pub(crate) fn drop_holdable_internal(&mut self, current_level: &CurrentLevel) {
-        let angle = self.gentity_t.s.apos.trBase[1] * (PI * 2.0 / 360.0);
-        let velocity = [150.0 * angle.cos(), 150.0 * angle.sin(), 250.0];
-        let gitem = GameItem::try_from(self.get_game_client().unwrap().get_holdable()).unwrap();
-        let entity =
-            QuakeLiveEngine::default().launch_item(&gitem, self.gentity_t.s.pos.trBase, velocity);
-        entity.gentity_t.touch = Some(ShiNQlx_Touch_Item);
-        entity.gentity_t.parent = self.gentity_t;
-        entity.gentity_t.think = Some(ShiNQlx_Switch_Touch_Item);
-        entity.gentity_t.nextthink = current_level.get_leveltime() + 1000;
-        entity.gentity_t.s.pos.trTime = current_level.get_leveltime() - 500;
+    pub(crate) fn drop_holdable_internal(
+        &mut self,
+        current_level: &CurrentLevel,
+        quake_live_engine: impl LaunchItem,
+    ) {
         if let Ok(mut game_client) = self.get_game_client() {
-            game_client.set_holdable(0);
+            if let Ok(gitem) = GameItem::try_from(game_client.get_holdable()) {
+                let angle = self.gentity_t.s.apos.trBase[1] * (PI * 2.0 / 360.0);
+                let velocity = [150.0 * angle.cos(), 150.0 * angle.sin(), 250.0];
+                let entity =
+                    quake_live_engine.launch_item(&gitem, self.gentity_t.s.pos.trBase, velocity);
+                entity.gentity_t.touch = Some(ShiNQlx_Touch_Item);
+                entity.gentity_t.parent = self.gentity_t;
+                entity.gentity_t.think = Some(ShiNQlx_Switch_Touch_Item);
+                entity.gentity_t.nextthink = current_level.get_leveltime() + 1000;
+                entity.gentity_t.s.pos.trTime = current_level.get_leveltime() - 500;
+                game_client.set_holdable(0);
+            }
         }
     }
 
@@ -1749,7 +1754,11 @@ impl GameEntity {
     }
 
     pub(crate) fn free_entity(&mut self) {
-        QuakeLiveEngine::default().free_entity(self.gentity_t);
+        self.free_entity_internal(QuakeLiveEngine::default());
+    }
+
+    pub(crate) fn free_entity_internal(&mut self, quake_live_engine: impl FreeEntity) {
+        quake_live_engine.free_entity(self.gentity_t);
     }
 
     pub(crate) fn replace_item(&mut self, item_id: i32) {
@@ -1776,18 +1785,23 @@ impl GameEntity {
 #[cfg(test)]
 pub(crate) mod game_entity_tests {
     use crate::quake_live_engine::QuakeLiveEngineError::NullPointerPassed;
-    use crate::quake_live_engine::{GameEntity, MockRegisterDamage, MockStartKamikaze};
+    use crate::quake_live_engine::{
+        CurrentLevel, GameEntity, MockFreeEntity, MockLaunchItem, MockRegisterDamage,
+        MockStartKamikaze,
+    };
     use crate::quake_types::clientConnected_t::{CON_CONNECTED, CON_DISCONNECTED};
     use crate::quake_types::entityType_t::{ET_ITEM, ET_PLAYER};
+    use crate::quake_types::holdable_t::HI_TELEPORTER;
     use crate::quake_types::itemType_t::{IT_AMMO, IT_WEAPON};
     use crate::quake_types::meansOfDeath_t::{MOD_CRUSH, MOD_KAMIKAZE};
     use crate::quake_types::privileges_t::{PRIV_BANNED, PRIV_ROOT};
-    use crate::quake_types::statIndex_t::STAT_ARMOR;
+    use crate::quake_types::statIndex_t::{STAT_ARMOR, STAT_HOLDABLE_ITEM};
     use crate::quake_types::team_t::{TEAM_RED, TEAM_SPECTATOR};
     use crate::quake_types::{
-        gclient_t, gentity_t, gitem_t, qboolean, ClientPersistantBuilder, ClientSessionBuilder,
-        EntityStateBuilder, GClientBuilder, GEntityBuilder, GItemBuilder, PlayerStateBuilder,
-        DAMAGE_NO_PROTECTION, FL_DROPPED_ITEM, FL_FORCE_GESTURE,
+        gclient_t, gentity_t, gitem_t, level_locals_t, qboolean, ClientPersistantBuilder,
+        ClientSessionBuilder, EntityStateBuilder, GClientBuilder, GEntityBuilder, GItemBuilder,
+        LevelLocalsBuilder, PlayerStateBuilder, DAMAGE_NO_PROTECTION, FL_DROPPED_ITEM,
+        FL_FORCE_GESTURE,
     };
     use pretty_assertions::assert_eq;
     use std::ffi::{c_char, c_int, CString};
@@ -2189,6 +2203,37 @@ pub(crate) mod game_entity_tests {
         assert_eq!(game_entity.get_client_number(), 42);
     }
 
+    #[allow(unused)]
+    pub(crate) fn game_entity_drop_holdable() {
+        let mut level = LevelLocalsBuilder::default().time(2468).build().unwrap();
+        let current_level = CurrentLevel::try_from(&mut level as *mut level_locals_t).unwrap();
+
+        let mut entity_state = EntityStateBuilder::default().build().unwrap();
+        entity_state.apos.trBase[1] = 0.5;
+        let mut player_state = PlayerStateBuilder::default().build().unwrap();
+        player_state.stats[STAT_HOLDABLE_ITEM as usize] = HI_TELEPORTER as i32;
+        let mut game_client = GClientBuilder::default().ps(player_state).build().unwrap();
+        let mut gentity = GEntityBuilder::default()
+            .s(entity_state)
+            .client(&mut game_client as *mut gclient_t)
+            .build()
+            .unwrap();
+        let mut game_entity = GameEntity::try_from(&mut gentity as *mut gentity_t).unwrap();
+
+        let mut launched_gentity = GEntityBuilder::default().build().unwrap();
+        let launched_entity =
+            GameEntity::try_from(&mut launched_gentity as *mut gentity_t).unwrap();
+        let mut mock = MockLaunchItem::new();
+        mock.expect_launch_item()
+            .return_once_st(|_, _, _| launched_entity);
+
+        game_entity.drop_holdable_internal(&current_level, mock);
+        assert_eq!(launched_gentity.parent, &mut gentity as *mut gentity_t);
+        assert_eq!(launched_gentity.nextthink, 3468);
+        assert_eq!(launched_gentity.s.pos.trTime, 1968);
+        assert_eq!(game_entity.get_game_client().unwrap().get_holdable(), 0);
+    }
+
     #[test]
     pub(crate) fn game_entity_is_kamikaze_timer_for_non_kamikaze_timer() {
         let classname = CString::new("no kamikaze timer").unwrap();
@@ -2209,6 +2254,17 @@ pub(crate) mod game_entity_tests {
             .unwrap();
         let game_entity = GameEntity::try_from(&mut gentity as *mut gentity_t).unwrap();
         assert_eq!(game_entity.is_kamikaze_timer(), true);
+    }
+
+    #[test]
+    pub(crate) fn game_entity_free_entity() {
+        let mut gentity = GEntityBuilder::default().build().unwrap();
+        let mut game_entity = GameEntity::try_from(&mut gentity as *mut gentity_t).unwrap();
+
+        let mut mock = MockFreeEntity::new();
+        mock.expect_free_entity().return_const(());
+
+        game_entity.free_entity_internal(mock);
     }
 }
 
