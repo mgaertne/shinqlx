@@ -2594,6 +2594,7 @@ pub(crate) mod client_tests {
     }
 }
 
+#[derive(Debug, PartialEq)]
 #[repr(transparent)]
 pub(crate) struct CurrentLevel {
     level: &'static mut level_locals_t,
@@ -2673,6 +2674,70 @@ impl CurrentLevel {
 
     pub(crate) fn set_training_map(&mut self, is_training_map: bool) {
         self.level.mapIsTrainingMap = is_training_map.into();
+    }
+}
+
+#[cfg(test)]
+pub(crate) mod current_level_tests {
+    use crate::quake_live_engine::CurrentLevel;
+    use crate::quake_live_engine::QuakeLiveEngineError::NullPointerPassed;
+    use crate::quake_types::{level_locals_t, qboolean, LevelLocalsBuilder};
+
+    #[test]
+    pub(crate) fn current_level_from_null() {
+        assert_eq!(
+            CurrentLevel::try_from(std::ptr::null_mut() as *mut level_locals_t),
+            Err(NullPointerPassed("null pointer passed".into())),
+        );
+    }
+
+    #[test]
+    pub(crate) fn current_level_from_valid_level_locals() {
+        let mut level = LevelLocalsBuilder::default().build().unwrap();
+        assert!(CurrentLevel::try_from(&mut level as *mut level_locals_t).is_ok())
+    }
+
+    #[test]
+    pub(crate) fn current_level_get_vote_time_no_vote_running() {
+        let mut level = LevelLocalsBuilder::default().voteTime(0).build().unwrap();
+        let current_level = CurrentLevel::try_from(&mut level as *mut level_locals_t).unwrap();
+        assert!(current_level.get_vote_time().is_none());
+    }
+
+    #[test]
+    pub(crate) fn current_level_get_vote_time_vote_running() {
+        let mut level = LevelLocalsBuilder::default().voteTime(60).build().unwrap();
+        let current_level = CurrentLevel::try_from(&mut level as *mut level_locals_t).unwrap();
+        assert_eq!(current_level.get_vote_time(), Some(60));
+    }
+
+    #[test]
+    pub(crate) fn current_level_get_time() {
+        let mut level = LevelLocalsBuilder::default().time(1234).build().unwrap();
+        let current_level = CurrentLevel::try_from(&mut level as *mut level_locals_t).unwrap();
+        assert_eq!(current_level.get_leveltime(), 1234);
+    }
+
+    #[test]
+    pub(crate) fn current_level_set_training_map() {
+        let mut level = LevelLocalsBuilder::default()
+            .mapIsTrainingMap(qboolean::qfalse)
+            .build()
+            .unwrap();
+        let mut current_level = CurrentLevel::try_from(&mut level as *mut level_locals_t).unwrap();
+        current_level.set_training_map(true);
+        assert_eq!(level.mapIsTrainingMap, qboolean::qtrue);
+    }
+
+    #[test]
+    pub(crate) fn current_level_unset_training_map() {
+        let mut level = LevelLocalsBuilder::default()
+            .mapIsTrainingMap(qboolean::qtrue)
+            .build()
+            .unwrap();
+        let mut current_level = CurrentLevel::try_from(&mut level as *mut level_locals_t).unwrap();
+        current_level.set_training_map(false);
+        assert_eq!(level.mapIsTrainingMap, qboolean::qfalse);
     }
 }
 
