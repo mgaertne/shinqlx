@@ -709,6 +709,7 @@ impl GameClient {
 pub(crate) mod game_client_tests {
     use crate::quake_live_engine::QuakeLiveEngineError::NullPointerPassed;
     use crate::quake_live_engine::{CurrentLevel, GameClient};
+    use crate::quake_types::clientConnected_t::CON_CONNECTING;
     use crate::quake_types::persistantFields_t::PERS_ROUND_SCORE;
     use crate::quake_types::pmtype_t::{PM_DEAD, PM_FREEZE, PM_NORMAL};
     use crate::quake_types::powerup_t::{
@@ -733,6 +734,7 @@ pub(crate) mod game_client_tests {
     };
     use pretty_assertions::assert_eq;
     use rstest::*;
+    use std::ffi::c_char;
 
     #[test]
     pub(crate) fn game_client_try_from_null_results_in_error() {
@@ -756,6 +758,66 @@ pub(crate) mod game_client_tests {
         let mut gclient = GClientBuilder::default().ps(player_state).build().unwrap();
         let game_client = GameClient::try_from(&mut gclient as *mut gclient_t).unwrap();
         assert_eq!(game_client.get_client_num(), 42);
+    }
+
+    #[test]
+    pub(crate) fn game_client_get_connection_state() {
+        let client_persistant = ClientPersistantBuilder::default()
+            .connected(CON_CONNECTING)
+            .build()
+            .unwrap();
+        let mut gclient = GClientBuilder::default()
+            .pers(client_persistant)
+            .build()
+            .unwrap();
+        let game_client = GameClient::try_from(&mut gclient as *mut gclient_t).unwrap();
+        assert_eq!(game_client.get_connection_state(), CON_CONNECTING);
+    }
+
+    #[test]
+    pub(crate) fn game_client_get_player_name() {
+        let mut player_name: [c_char; 40] = [0; 40];
+        for (index, char) in "awesome player".chars().enumerate() {
+            player_name[index] = char.to_owned() as c_char;
+        }
+        let client_persistant = ClientPersistantBuilder::default()
+            .netname(player_name)
+            .build()
+            .unwrap();
+        let mut gclient = GClientBuilder::default()
+            .pers(client_persistant)
+            .build()
+            .unwrap();
+        let game_client = GameClient::try_from(&mut gclient as *mut gclient_t).unwrap();
+        assert_eq!(game_client.get_player_name(), "awesome player");
+    }
+
+    #[test]
+    pub(crate) fn game_client_get_team() {
+        let client_sessions = ClientSessionBuilder::default()
+            .sessionTeam(TEAM_BLUE)
+            .build()
+            .unwrap();
+        let mut gclient = GClientBuilder::default()
+            .sess(client_sessions)
+            .build()
+            .unwrap();
+        let game_client = GameClient::try_from(&mut gclient as *mut gclient_t).unwrap();
+        assert_eq!(game_client.get_team(), TEAM_BLUE);
+    }
+
+    #[test]
+    pub(crate) fn game_client_get_privileges() {
+        let client_sessions = ClientSessionBuilder::default()
+            .privileges(PRIV_MOD)
+            .build()
+            .unwrap();
+        let mut gclient = GClientBuilder::default()
+            .sess(client_sessions)
+            .build()
+            .unwrap();
+        let game_client = GameClient::try_from(&mut gclient as *mut gclient_t).unwrap();
+        assert_eq!(game_client.get_privileges(), PRIV_MOD);
     }
 
     #[test]
@@ -786,7 +848,7 @@ pub(crate) mod game_client_tests {
         let mut gclient = GClientBuilder::default().build().unwrap();
         let mut game_client = GameClient::try_from(&mut gclient as *mut gclient_t).unwrap();
         game_client.set_privileges(privilege);
-        assert_eq!(gclient.sess.privileges, privilege);
+        assert_eq!(game_client.get_privileges(), privilege);
     }
 
     #[test]
@@ -882,6 +944,17 @@ pub(crate) mod game_client_tests {
         let mut game_client = GameClient::try_from(&mut gclient as *mut gclient_t).unwrap();
         game_client.set_noclip(true);
         assert_eq!(game_client.get_noclip(), true);
+    }
+
+    #[test]
+    pub(crate) fn game_client_disable_noclip() {
+        let mut gclient = GClientBuilder::default()
+            .noclip(qboolean::qtrue)
+            .build()
+            .unwrap();
+        let mut game_client = GameClient::try_from(&mut gclient as *mut gclient_t).unwrap();
+        game_client.set_noclip(false);
+        assert_eq!(game_client.get_noclip(), false);
     }
 
     #[rstest]
