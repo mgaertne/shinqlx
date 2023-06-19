@@ -94,6 +94,7 @@ pub(crate) mod current_level_tests {
     use crate::current_level::CurrentLevel;
     use crate::quake_live_engine::QuakeLiveEngineError::NullPointerPassed;
     use crate::quake_types::{level_locals_t, qboolean, LevelLocalsBuilder};
+    use pretty_assertions::assert_eq;
 
     #[test]
     pub(crate) fn current_level_from_null() {

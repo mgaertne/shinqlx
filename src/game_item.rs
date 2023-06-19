@@ -97,6 +97,7 @@ pub(crate) mod game_item_tests {
     };
     use mockall::predicate::*;
     use mockall::*;
+    use pretty_assertions::assert_eq;
     use std::ffi::{c_char, CString};
 
     #[test]
