@@ -46,7 +46,6 @@ use pyo3::append_to_inittab;
 use pyo3::exceptions::{PyTypeError, PyValueError};
 use pyo3::prelude::*;
 use pyo3::prepare_freethreaded_python;
-use pyo3::types::PyList;
 use pyo3::types::PyTuple;
 use std::ffi::{c_int, CStr};
 
@@ -2269,10 +2268,13 @@ fn pyminqlx_module(_py: Python<'_>, m: &PyModule) -> PyResult<()> {
     m.add("MOD_RAILGUN_HEADSHOT", MOD_RAILGUN_HEADSHOT as i32)?;
 
     m.add("DAMAGE_RADIUS", DAMAGE_RADIUS as i32)?;
-    m.add("DAMAGE_RADIUS", DAMAGE_NO_ARMOR as i32)?;
-    m.add("DAMAGE_RADIUS", DAMAGE_NO_KNOCKBACK as i32)?;
-    m.add("DAMAGE_RADIUS", DAMAGE_NO_PROTECTION as i32)?;
-    m.add("DAMAGE_RADIUS", DAMAGE_NO_TEAM_PROTECTION as i32)?;
+    m.add("DAMAGE_NO_ARMOR", DAMAGE_NO_ARMOR as i32)?;
+    m.add("DAMAGE_NO_KNOCKBACK", DAMAGE_NO_KNOCKBACK as i32)?;
+    m.add("DAMAGE_NO_PROTECTION", DAMAGE_NO_PROTECTION as i32)?;
+    m.add(
+        "DAMAGE_NO_TEAM_PROTECTION",
+        DAMAGE_NO_TEAM_PROTECTION as i32,
+    )?;
 
     m.add_class::<PlayerInfo>()?;
     m.add_class::<PlayerState>()?;
@@ -2303,16 +2305,12 @@ pub(crate) fn pyminqlx_initialize() -> PyMinqlx_InitStatus_t {
     append_to_inittab!(pyminqlx_module);
     prepare_freethreaded_python();
     match Python::with_gil(|py| {
-        let sys_module = py.import("sys")?;
-        let path_attr = sys_module.getattr("path")?;
-        let path_list: &PyList = path_attr.extract()?;
-        path_list.append("minqlx.zip")?;
-        path_list.append(".")?;
         let minqlx_module = py.import("minqlx")?;
         minqlx_module.call_method0("initialize")?;
         Ok::<(), PyErr>(())
     }) {
-        Err(_) => {
+        Err(e) => {
+            debug_println!(e);
             #[cfg(debug_assertions)]
             println!("loader sequence returned an error. Did you modify the loader?");
             PYM_MAIN_SCRIPT_ERROR
