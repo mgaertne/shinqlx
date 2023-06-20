@@ -27,7 +27,8 @@ license-files = ["LICENSE"]
 include-package-data = false
 
 [tool.maturin]
-python-source = "python"
 bindings = "pyo3"
+python-source = "python"
 python-packages = ["minqlx"]
+strip = true
 compatibility = "linux"
