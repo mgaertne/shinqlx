@@ -59,7 +59,7 @@ maturin -Z build-std=std build --release
 ```shell
 pip install target/wheels/shinqlx*.whl
 ```
-- 
+
 - Copy the convenience script `run_server_shinqlx.sh` into `~/qlds`, or whatever other directory you might have installed the quake live dedicated server files in. (Note: The remaining sections assume you installed the dedicated server into ~/qlds)
 ```shell
 cp run_server_shinqlx.sh ~/qlds/
