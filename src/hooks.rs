@@ -256,7 +256,9 @@ pub(crate) fn shinqlx_sv_setconfigstring(index: c_int, value: *const c_char) {
         "".into()
     };
 
-    shinqlx_set_configstring(index.try_into().unwrap(), safe_value.as_ref());
+    if let Ok(ql_index) = u32::try_from(index) {
+        shinqlx_set_configstring(ql_index, safe_value.as_ref());
+    }
 }
 
 pub(crate) fn shinqlx_set_configstring(index: u32, value: &str) {

@@ -3,12 +3,14 @@ use crate::quake_live_engine::QuakeLiveEngineError;
 use crate::quake_live_engine::QuakeLiveEngineError::NullPointerPassed;
 use crate::quake_types::persistantFields_t::PERS_ROUND_SCORE;
 use crate::quake_types::pmtype_t::{PM_FREEZE, PM_NORMAL};
+use crate::quake_types::powerup_t::PW_NONE;
 use crate::quake_types::statIndex_t::{
     STAT_ARMOR, STAT_CUR_FLIGHT_FUEL, STAT_FLIGHT_REFUEL, STAT_FLIGHT_THRUST, STAT_HOLDABLE_ITEM,
     STAT_MAX_FLIGHT_FUEL, STAT_WEAPONS,
 };
 use crate::quake_types::team_t::TEAM_SPECTATOR;
 use crate::quake_types::voteState_t::{VOTE_NO, VOTE_PENDING, VOTE_YES};
+use crate::quake_types::weapon_t::WP_NONE;
 use crate::quake_types::{
     clientConnected_t, gclient_t, powerup_t, privileges_t, qboolean, team_t, weapon_t, EF_KAMIKAZE,
     EF_TALK, MODELINDEX_KAMIKAZE,
@@ -121,7 +123,7 @@ impl GameClient {
     }
 
     pub(crate) fn get_weapon(&self) -> weapon_t {
-        self.game_client.ps.weapon.try_into().unwrap()
+        self.game_client.ps.weapon.try_into().unwrap_or(WP_NONE)
     }
 
     pub(crate) fn set_weapon<T>(&mut self, weapon: T)
@@ -175,7 +177,7 @@ impl GameClient {
     pub(crate) fn get_powerups_internal(&self, current_level: &CurrentLevel) -> [i32; 6] {
         let mut returned = [0; 6];
         for (powerup, item) in returned.iter_mut().enumerate() {
-            let powerup_index = powerup_t::try_from(powerup).unwrap();
+            let powerup_index = powerup_t::try_from(powerup).unwrap_or(PW_NONE);
             *item = self.game_client.ps.powerups[powerup_index as usize];
             if *item != 0 {
                 *item -= current_level.get_leveltime();
@@ -194,7 +196,7 @@ impl GameClient {
         current_level: &CurrentLevel,
     ) {
         for (powerup, &item) in powerups.iter().enumerate() {
-            let powerup_index = powerup_t::try_from(powerup).unwrap();
+            let powerup_index = powerup_t::try_from(powerup).unwrap_or(PW_NONE);
             if item == 0 {
                 self.game_client.ps.powerups[powerup_index as usize] = 0;
             } else {

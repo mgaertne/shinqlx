@@ -539,10 +539,9 @@ pub(crate) trait SetConfigstring {
 impl SetConfigstring for QuakeLiveEngine {
     fn set_configstring(&self, index: &u32, value: &str) {
         if let Ok(c_value) = CString::new(value) {
-            unsafe {
-                SV_SETCONFGISTRING_DETOUR
-                    .call(index.to_owned().try_into().unwrap(), c_value.as_ptr())
-            };
+            if let Ok(c_index) = c_int::try_from(index.to_owned()) {
+                unsafe { SV_SETCONFGISTRING_DETOUR.call(c_index, c_value.as_ptr()) };
+            }
         }
     }
 }
@@ -736,11 +735,17 @@ impl GetCVar for QuakeLiveEngine {
             static Cvar_Get: extern "C" fn(*const c_char, *const c_char, c_int) -> *const cvar_t;
         }
 
-        let c_name = CString::new(name).unwrap();
-        let c_value = CString::new(value).unwrap();
-        let flags_value = flags.unwrap_or_default();
-        let cvar = unsafe { Cvar_Get(c_name.as_ptr(), c_value.as_ptr(), flags_value) };
-        CVar::try_from(cvar).ok()
+        if let Ok(c_name) = CString::new(name) {
+            if let Ok(c_value) = CString::new(value) {
+                let flags_value = flags.unwrap_or_default();
+                let cvar = unsafe { Cvar_Get(c_name.as_ptr(), c_value.as_ptr(), flags_value) };
+                CVar::try_from(cvar).ok()
+            } else {
+                None
+            }
+        } else {
+            None
+        }
     }
 }
 
@@ -756,10 +761,16 @@ impl SetCVarForced for QuakeLiveEngine {
                 extern "C" fn(*const c_char, *const c_char, qboolean) -> *const cvar_t;
         }
 
-        let c_name = CString::new(name).unwrap();
-        let c_value = CString::new(value).unwrap();
-        let cvar = unsafe { Cvar_Set2(c_name.as_ptr(), c_value.as_ptr(), forced.into()) };
-        CVar::try_from(cvar).ok()
+        if let Ok(c_name) = CString::new(name) {
+            if let Ok(c_value) = CString::new(value) {
+                let cvar = unsafe { Cvar_Set2(c_name.as_ptr(), c_value.as_ptr(), forced.into()) };
+                CVar::try_from(cvar).ok()
+            } else {
+                None
+            }
+        } else {
+            None
+        }
     }
 }
 
@@ -794,21 +805,33 @@ impl SetCVarLimit for QuakeLiveEngine {
             ) -> *const cvar_t;
         }
 
-        let c_name = CString::new(name).unwrap();
-        let c_value = CString::new(value).unwrap();
-        let c_min = CString::new(min).unwrap();
-        let c_max = CString::new(max).unwrap();
-        let flags_value = flags.unwrap_or_default();
-        let cvar = unsafe {
-            Cvar_GetLimit(
-                c_name.as_ptr(),
-                c_value.as_ptr(),
-                c_min.as_ptr(),
-                c_max.as_ptr(),
-                flags_value,
-            )
-        };
-        CVar::try_from(cvar).ok()
+        if let Ok(c_name) = CString::new(name) {
+            if let Ok(c_value) = CString::new(value) {
+                if let Ok(c_min) = CString::new(min) {
+                    if let Ok(c_max) = CString::new(max) {
+                        let flags_value = flags.unwrap_or_default();
+                        let cvar = unsafe {
+                            Cvar_GetLimit(
+                                c_name.as_ptr(),
+                                c_value.as_ptr(),
+                                c_min.as_ptr(),
+                                c_max.as_ptr(),
+                                flags_value,
+                            )
+                        };
+                        CVar::try_from(cvar).ok()
+                    } else {
+                        None
+                    }
+                } else {
+                    None
+                }
+            } else {
+                None
+            }
+        } else {
+            None
+        }
     }
 }
 
@@ -831,10 +854,11 @@ impl GetConfigstring for QuakeLiveEngine {
                 buffer.len() as c_int,
             )
         };
-        CStr::from_bytes_until_nul(&buffer)
-            .unwrap()
-            .to_string_lossy()
-            .into()
+        if let Ok(result) = CStr::from_bytes_until_nul(&buffer) {
+            result.to_string_lossy().into()
+        } else {
+            "".into()
+        }
     }
 }
 

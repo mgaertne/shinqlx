@@ -33,14 +33,23 @@ impl TryFrom<i32> for Client {
             static svs: *mut serverStatic_t;
         }
 
-        if client_id < 0 || client_id >= i32::try_from(MAX_CLIENTS).unwrap() {
+        if let Ok(max_clients) = i32::try_from(MAX_CLIENTS) {
+            if client_id >= max_clients {
+                return Err(InvalidId(client_id));
+            }
+        }
+
+        if client_id < 0 {
             return Err(InvalidId(client_id));
         }
+
         unsafe {
-            Self::try_from(
-                svs.as_ref().unwrap().clients.offset(client_id as isize) as *const client_t
-            )
-            .map_err(|_| ClientNotFound("client not found".into()))
+            if let Some(server_static) = svs.as_ref() {
+                Self::try_from(server_static.clients.offset(client_id as isize) as *const client_t)
+                    .map_err(|_| ClientNotFound("client not found".into()))
+            } else {
+                Err(ClientNotFound("client not found".into()))
+            }
         }
     }
 }
@@ -52,10 +61,14 @@ impl Client {
         }
 
         unsafe {
-            i32::try_from(
-                (self.client_t as *const client_t).offset_from(svs.as_ref().unwrap().clients),
-            )
-            .unwrap()
+            if let Some(server_static) = svs.as_ref() {
+                (self.client_t as *const client_t)
+                    .offset_from(server_static.clients)
+                    .try_into()
+                    .unwrap_or(-1)
+            } else {
+                -1
+            }
         }
     }
 

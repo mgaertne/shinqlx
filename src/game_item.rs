@@ -50,7 +50,8 @@ impl GameItem {
             static bg_itemlist: *const gitem_t;
         }
 
-        i32::try_from(unsafe { (self.gitem_t as *const gitem_t).offset_from(bg_itemlist) }).unwrap()
+        i32::try_from(unsafe { (self.gitem_t as *const gitem_t).offset_from(bg_itemlist) })
+            .unwrap_or(-1)
     }
 
     pub(crate) fn get_classname(&self) -> String {
