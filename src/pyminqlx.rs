@@ -2150,6 +2150,12 @@ enum cvar_flags {
 }
 
 #[pymodule]
+#[pyo3(name = "shinqlx")]
+fn pyshinqlx_module(_py: Python<'_>, _m: &PyModule) -> PyResult<()> {
+    Ok(())
+}
+
+#[pymodule]
 #[pyo3(name = "_minqlx")]
 fn pyminqlx_module(_py: Python<'_>, m: &PyModule) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(get_player_info, m)?)?;
