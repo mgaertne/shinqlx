@@ -218,8 +218,8 @@ class PlayerItemsTossDispatcher(EventDispatcher):
 class DamageDispatcher(EventDispatcher):
     def dispatch(
         self,
-        target: Player | None,
-        attacker: Player | None,
+        target: Player | int | None,
+        attacker: Player | int | None,
         damage: int,
         dflags: int,
         means_of_death: int,

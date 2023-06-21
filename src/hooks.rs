@@ -12,9 +12,7 @@ use crate::quake_live_engine::{
     SendServerCommand, SetConfigstring, SetModuleOffset, SpawnServer,
 };
 use crate::quake_types::clientState_t::CS_PRIMED;
-use crate::quake_types::{
-    cbufExec_t, client_t, gentity_t, qboolean, usercmd_t, MAX_CLIENTS, MAX_MSGLEN,
-};
+use crate::quake_types::{cbufExec_t, client_t, gentity_t, qboolean, usercmd_t, MAX_MSGLEN};
 use crate::{
     initialize_cvars, initialize_static, COMMON_INITIALIZED, CVARS_INITIALIZED, SV_TAGS_PREFIX,
 };
@@ -420,7 +418,7 @@ pub extern "C" fn ShiNQlx_G_StartKamikaze(ent: *mut gentity_t) {
 pub extern "C" fn ShiNQlx_G_Damage(
     target: *mut gentity_t,    // entity that is being damaged
     inflictor: *mut gentity_t, // entity that is causing the damage
-    attacker: *mut gentity_t,  // entity that caused the inflictor to damage targ
+    attacker: *mut gentity_t,  // entity that caused the inflictor to damage target
     dir: *const c_float,       // direction of the attack for knockback
     pos: *const c_float,       // point at which the damage is being inflicted, used for headshots
     damage: c_int,             // amount of damage being inflicted
@@ -444,7 +442,7 @@ pub extern "C" fn ShiNQlx_G_Damage(
     );
 
     if let Ok(target_entity) = GameEntity::try_from(target) {
-        if attacker.is_null() || unsafe { (*attacker).client.is_null() } {
+        if attacker.is_null() {
             damage_dispatcher(
                 target_entity.get_client_id(),
                 None,
@@ -465,15 +463,13 @@ pub extern "C" fn ShiNQlx_G_Damage(
                 );
             }
             Ok(attacker_entity) => {
-                if (0..MAX_CLIENTS).contains(&(attacker_entity.get_client_id() as u32)) {
-                    damage_dispatcher(
-                        target_entity.get_client_id(),
-                        Some(attacker_entity.get_client_id()),
-                        damage,
-                        dflags,
-                        means_of_death,
-                    );
-                }
+                damage_dispatcher(
+                    target_entity.get_client_id(),
+                    Some(attacker_entity.get_client_id()),
+                    damage,
+                    dflags,
+                    means_of_death,
+                );
             }
         }
     }

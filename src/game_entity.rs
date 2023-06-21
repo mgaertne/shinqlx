@@ -236,9 +236,7 @@ impl GameEntity {
     }
 
     pub(crate) fn is_respawning_weapon(&self) -> bool {
-        if !self.is_game_item(ET_ITEM) {
-            false
-        } else if self.gentity_t.item.is_null() {
+        if !self.is_game_item(ET_ITEM) || self.gentity_t.item.is_null() {
             false
         } else if let Some(item) = unsafe { self.gentity_t.item.as_ref() } {
             item.giType == IT_WEAPON
@@ -318,6 +316,31 @@ impl GameEntity {
             }
         } else {
             self.free_entity();
+        }
+    }
+
+    pub(crate) fn get_targetting_entity_ids(&self) -> Vec<u32> {
+        if self.gentity_t.targetname.is_null() {
+            vec![]
+        } else {
+            let mut result = vec![];
+
+            let my_targetname =
+                unsafe { CStr::from_ptr(self.gentity_t.targetname) }.to_string_lossy();
+
+            for i in 1..MAX_GENTITIES {
+                if let Ok(other_ent) = GameEntity::try_from(i) {
+                    if other_ent.gentity_t.target.is_null() {
+                        continue;
+                    }
+                    let other_target =
+                        unsafe { CStr::from_ptr(other_ent.gentity_t.target) }.to_string_lossy();
+                    if my_targetname == other_target {
+                        result.push(i);
+                    }
+                }
+            }
+            result
         }
     }
 }

@@ -2086,6 +2086,25 @@ fn force_weapon_respawn_time(respawn_time: i32) -> PyResult<bool> {
     Ok(true)
 }
 
+/// get a list of entities that target a given entity
+#[pyfunction]
+#[pyo3(name = "get_targetting_entities")]
+fn get_entity_targets(entity_id: i32) -> PyResult<Vec<u32>> {
+    // entity_id checking
+    if entity_id < 0 || entity_id >= MAX_GENTITIES as i32 {
+        return Err(PyValueError::new_err(format!(
+            "entity_id need to be between 0 and {}.",
+            MAX_GENTITIES - 1
+        )));
+    }
+
+    if let Ok(entity) = GameEntity::try_from(entity_id) {
+        Ok(entity.get_targetting_entity_ids())
+    } else {
+        Ok(vec![])
+    }
+}
+
 // Used primarily in Python, but defined here and added using PyModule_AddIntMacro().
 #[allow(non_camel_case_types)]
 enum PythonReturnCodes {
@@ -2176,6 +2195,7 @@ fn pyminqlx_module(_py: Python<'_>, m: &PyModule) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(replace_items, m)?)?;
     m.add_function(wrap_pyfunction!(dev_print_items, m)?)?;
     m.add_function(wrap_pyfunction!(force_weapon_respawn_time, m)?)?;
+    m.add_function(wrap_pyfunction!(get_entity_targets, m)?)?;
 
     let shinqlx_version = format!(
         "\"v{}-{}\"",

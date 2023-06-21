@@ -858,7 +858,7 @@ class Plugin:
         self,
         event: Literal["damage"],
         handler: Callable[
-            [Player | None, Player | None, int, int, int], UncancellableEventReturn
+            [Player | int | None, Player | int | None, int, int, int], UncancellableEventReturn
         ],
         priority: int = ...,
     ) -> None: ...
@@ -1108,7 +1108,7 @@ class Plugin:
         self,
         event: Literal["damage"],
         handler: Callable[
-            [Player | None, Player | None, int, int, int], UncancellableEventReturn
+            [Player | int | None, Player | int | None, int, int, int], UncancellableEventReturn
         ],
         priority: int = ...,
     ) -> None: ...
