@@ -119,6 +119,7 @@ from ._minqlx import (
     dev_print_items,
     force_weapon_respawn_time,
     register_handler,
+    get_targetting_entities
 )
 from ._core import (
     PluginLoadError,
@@ -410,6 +411,7 @@ __all__ = [
     "dev_print_items",
     "force_weapon_respawn_time",
     "register_handler",
+    "get_targetting_entities",
     # _core
     "PluginLoadError",
     "PluginUnloadError",

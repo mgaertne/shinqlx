@@ -131,6 +131,7 @@ try:
         dev_print_items,
         force_weapon_respawn_time,
         register_handler,
+        get_targetting_entities,
     )
 except ModuleNotFoundError:
     _minqlx = importlib.import_module(name="._minqlx", package="minqlx")
@@ -526,6 +527,7 @@ __all__ = [
     "dev_print_items",
     "force_weapon_respawn_time",
     "register_handler",
+    "get_targetting_entities",
     # _core
     "PluginLoadError",
     "PluginUnloadError",
