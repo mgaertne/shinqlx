@@ -75,7 +75,7 @@ pub extern "C" fn cmd_slap() {
     }
 
     let dmg = if argc > 2 {
-        let passed_dmg = quake_live_engine.cmd_argv(2).unwrap();
+        let passed_dmg = quake_live_engine.cmd_argv(2).unwrap_or("0");
         passed_dmg.parse::<i32>().unwrap_or(0)
     } else {
         0

@@ -49,9 +49,15 @@ impl TryFrom<i32> for GameEntity {
             static g_entities: *mut gentity_t;
         }
 
-        if entity_id < 0 || entity_id >= i32::try_from(MAX_GENTITIES).unwrap() {
+        if let Ok(max_gentities) = i32::try_from(MAX_GENTITIES) {
+            if entity_id >= max_gentities {
+                return Err(InvalidId(entity_id));
+            }
+        }
+        if entity_id < 0 {
             return Err(InvalidId(entity_id));
         }
+
         unsafe {
             Self::try_from(g_entities.offset(entity_id as isize))
                 .map_err(|_| EntityNotFound("entity not found".into()))
@@ -89,8 +95,10 @@ pub(crate) extern "C" fn ShiNQlx_Touch_Item(
     }
 
     unsafe {
-        if ent.as_ref().unwrap().parent != other {
-            Touch_Item(ent, other, trace);
+        if let Some(entity) = ent.as_ref() {
+            if entity.parent != other {
+                Touch_Item(ent, other, trace);
+            }
         }
     }
 }
@@ -103,10 +111,11 @@ pub(crate) extern "C" fn ShiNQlx_Switch_Touch_Item(ent: *mut gentity_t) {
         static G_FreeEntity: extern "C" fn(*mut gentity_t);
     }
 
-    let ref_mut_ent = unsafe { ent.as_mut() }.unwrap();
-    ref_mut_ent.touch = Some(unsafe { Touch_Item });
-    ref_mut_ent.think = Some(unsafe { G_FreeEntity });
-    ref_mut_ent.nextthink = CurrentLevel::default().get_leveltime() + 29000;
+    if let Some(mut_ent) = unsafe { ent.as_mut() } {
+        mut_ent.touch = Some(unsafe { Touch_Item });
+        mut_ent.think = Some(unsafe { G_FreeEntity });
+        mut_ent.nextthink = CurrentLevel::default().get_leveltime() + 29000;
+    }
 }
 
 impl GameEntity {
@@ -116,7 +125,8 @@ impl GameEntity {
         }
 
         unsafe {
-            i32::try_from((self.gentity_t as *const gentity_t).offset_from(g_entities)).unwrap()
+            i32::try_from((self.gentity_t as *const gentity_t).offset_from(g_entities))
+                .unwrap_or(-1)
         }
     }
 
@@ -226,10 +236,14 @@ impl GameEntity {
     }
 
     pub(crate) fn is_respawning_weapon(&self) -> bool {
-        unsafe {
-            self.is_game_item(ET_ITEM)
-                && !self.gentity_t.item.is_null()
-                && self.gentity_t.item.as_ref().unwrap().giType == IT_WEAPON
+        if !self.is_game_item(ET_ITEM) {
+            false
+        } else if self.gentity_t.item.is_null() {
+            false
+        } else if let Some(item) = unsafe { self.gentity_t.item.as_ref() } {
+            item.giType == IT_WEAPON
+        } else {
+            false
         }
     }
 
@@ -292,15 +306,16 @@ impl GameEntity {
         let class_name = unsafe { CStr::from_ptr(self.gentity_t.classname) };
         quake_live_engine.com_printf(class_name.to_string_lossy().as_ref());
         if item_id != 0 {
-            let gitem = GameItem::try_from(item_id).unwrap();
-            self.gentity_t.s.modelindex = item_id;
-            self.gentity_t.classname = gitem.get_classname().as_ptr() as *const c_char;
-            self.gentity_t.item = gitem.gitem_t;
+            if let Ok(gitem) = GameItem::try_from(item_id) {
+                self.gentity_t.s.modelindex = item_id;
+                self.gentity_t.classname = gitem.get_classname().as_ptr() as *const c_char;
+                self.gentity_t.item = gitem.gitem_t;
 
-            // this forces client to load new item
-            let mut items = quake_live_engine.get_configstring(CS_ITEMS);
-            items.replace_range(item_id as usize..=item_id as usize, "1");
-            shinqlx_set_configstring(item_id as u32, items.as_str());
+                // this forces client to load new item
+                let mut items = quake_live_engine.get_configstring(CS_ITEMS);
+                items.replace_range(item_id as usize..=item_id as usize, "1");
+                shinqlx_set_configstring(item_id as u32, items.as_str());
+            }
         } else {
             self.free_entity();
         }

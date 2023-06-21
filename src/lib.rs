@@ -108,8 +108,11 @@ fn initialize() {
         fn InitializeStatic();
     }
 
-    let progname = args().next().unwrap();
-    if !progname.ends_with(QZERODED) {
+    if let Some(progname) = args().next() {
+        if !progname.ends_with(QZERODED) {
+            return;
+        }
+    } else {
         return;
     }
 

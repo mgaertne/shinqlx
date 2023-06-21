@@ -50,20 +50,20 @@ impl CurrentLevel {
 
     pub(crate) fn callvote(&mut self, vote: &str, vote_disp: &str, vote_time: Option<i32>) {
         let actual_vote_time = vote_time.unwrap_or(30);
-        for (dest, src) in self
-            .level
-            .voteString
-            .iter_mut()
-            .zip(CString::new(vote).unwrap().as_bytes_with_nul().iter())
-        {
+        for (dest, src) in self.level.voteString.iter_mut().zip(
+            CString::new(vote)
+                .unwrap_or(CString::new("").unwrap())
+                .as_bytes_with_nul()
+                .iter(),
+        ) {
             *dest = *src as _;
         }
-        for (dest, src) in self
-            .level
-            .voteDisplayString
-            .iter_mut()
-            .zip(CString::new(vote_disp).unwrap().as_bytes_with_nul().iter())
-        {
+        for (dest, src) in self.level.voteDisplayString.iter_mut().zip(
+            CString::new(vote_disp)
+                .unwrap_or(CString::new("").unwrap())
+                .as_bytes_with_nul()
+                .iter(),
+        ) {
             *dest = *src as _;
         }
         self.level.voteTime = self.level.time - 30000 + actual_vote_time * 1000;
@@ -73,8 +73,9 @@ impl CurrentLevel {
         let maxclients = unsafe { SV_MAXCLIENTS };
         for client_id in 0..maxclients {
             if let Ok(game_entity) = GameEntity::try_from(client_id) {
-                let mut game_client = game_entity.get_game_client().unwrap();
-                game_client.set_vote_pending();
+                if let Ok(mut game_client) = game_entity.get_game_client() {
+                    game_client.set_vote_pending();
+                }
             }
         }
 
