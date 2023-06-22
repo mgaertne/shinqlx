@@ -12,13 +12,15 @@ use crate::quake_live_engine::{
     SendServerCommand, SetConfigstring, SetModuleOffset, SpawnServer,
 };
 use crate::quake_types::clientState_t::CS_PRIMED;
-use crate::quake_types::{cbufExec_t, client_t, gentity_t, qboolean, usercmd_t, MAX_MSGLEN};
+use crate::quake_types::{
+    cbufExec_t, client_t, gentity_t, qboolean, usercmd_t, MAX_MSGLEN, MAX_STRING_CHARS,
+};
 use crate::{
     initialize_cvars, initialize_static, COMMON_INITIALIZED, CVARS_INITIALIZED, SV_TAGS_PREFIX,
 };
 use retour::static_detour;
 use std::error::Error;
-use std::ffi::{c_char, c_float, c_int, c_void, CStr, CString, VaList, VaListImpl};
+use std::ffi::{c_char, c_float, c_int, c_void, CStr, VaList, VaListImpl};
 
 fn set_tag() {
     let quake_live_engine = QuakeLiveEngine::default();
@@ -338,6 +340,25 @@ pub extern "C" fn ShiNQlx_G_RunFrame(time: c_int) {
     QuakeLiveEngine::default().run_frame(time);
 }
 
+static mut CLIENT_CONNECT_BUFFER: [c_char; MAX_STRING_CHARS as usize] =
+    [0; MAX_STRING_CHARS as usize];
+
+pub(crate) unsafe fn to_return_string(input: String) -> *const c_char {
+    let bytes = input.as_bytes();
+    let len = bytes.len();
+    std::ptr::copy(
+        [0; MAX_STRING_CHARS as usize].as_ptr(),
+        CLIENT_CONNECT_BUFFER.as_mut_ptr(),
+        len,
+    );
+    std::ptr::copy(
+        input.as_bytes().as_ptr().cast(),
+        CLIENT_CONNECT_BUFFER.as_mut_ptr(),
+        len,
+    );
+    &CLIENT_CONNECT_BUFFER as *const c_char
+}
+
 #[no_mangle]
 pub extern "C" fn ShiNQlx_ClientConnect(
     client_num: c_int,
@@ -347,25 +368,12 @@ pub extern "C" fn ShiNQlx_ClientConnect(
     if first_time.into() {
         if let Some(res) = client_connect_dispatcher(client_num, is_bot.into()) {
             if !<qboolean as Into<bool>>::into(is_bot) {
-                if let Ok(result) = CString::new(res) {
-                    return result.into_raw();
-                }
+                return unsafe { to_return_string(res) };
             }
         }
     }
 
-    match QuakeLiveEngine::default().client_connect(client_num, first_time.into(), is_bot.into()) {
-        None => std::ptr::null_mut(),
-        Some(message) => {
-            if let Ok(result) = CString::new(message) {
-                result.into_raw()
-            } else {
-                CString::new("You are banned from this server.")
-                    .unwrap()
-                    .into_raw()
-            }
-        }
-    }
+    QuakeLiveEngine::default().client_connect(client_num, first_time.into(), is_bot.into())
 }
 
 #[no_mangle]
