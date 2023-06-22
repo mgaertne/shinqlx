@@ -25,7 +25,7 @@ use crate::quake_types::weapon_t::{
 };
 use crate::quake_types::{
     cbufExec_t, client_t, cvar_t, entity_event_t, gentity_t, gitem_t, meansOfDeath_t, powerup_t,
-    privileges_t, qboolean, usercmd_t, vec3_t, weapon_t,
+    privileges_t, qboolean, usercmd_t, vec3_t, weapon_t, MAX_STRING_CHARS,
 };
 #[cfg(test)]
 use mockall::*;
@@ -593,21 +593,16 @@ impl RunFrame for QuakeLiveEngine {
 
 #[cfg_attr(test, automock)]
 pub(crate) trait ClientConnect {
-    fn client_connect(&self, client_num: i32, first_time: bool, is_bot: bool) -> Option<String>;
+    fn client_connect(&self, client_num: i32, first_time: bool, is_bot: bool) -> *const c_char;
 }
 
 impl ClientConnect for QuakeLiveEngine {
-    fn client_connect(&self, client_num: i32, first_time: bool, is_bot: bool) -> Option<String> {
+    fn client_connect(&self, client_num: i32, first_time: bool, is_bot: bool) -> *const c_char {
         extern "C" {
             static ClientConnect: extern "C" fn(c_int, qboolean, qboolean) -> *const c_char;
         }
 
-        let c_return = unsafe { ClientConnect(client_num, first_time.into(), is_bot.into()) };
-        if c_return.is_null() {
-            None
-        } else {
-            Some(unsafe { CStr::from_ptr(c_return).to_string_lossy().into() })
-        }
+        unsafe { ClientConnect(client_num, first_time.into(), is_bot.into()) }
     }
 }
 
@@ -846,7 +841,7 @@ impl GetConfigstring for QuakeLiveEngine {
             static SV_GetConfigstring: extern "C" fn(c_int, *mut c_char, c_int);
         }
 
-        let mut buffer: [u8; 4096] = [0; 4096];
+        let mut buffer: [u8; MAX_STRING_CHARS as usize] = [0; MAX_STRING_CHARS as usize];
         unsafe {
             SV_GetConfigstring(
                 index as c_int,
