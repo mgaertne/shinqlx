@@ -4,6 +4,7 @@ use crate::quake_live_engine::QuakeLiveEngineError::{
     ClientNotFound, InvalidId, NullPointerPassed,
 };
 use crate::quake_types::{clientState_t, client_t, serverStatic_t, MAX_CLIENTS};
+use crate::{QuakeLiveFunction, STATIC_FUNCTION_MAP};
 use std::ffi::{c_char, CStr, CString};
 
 #[derive(Debug, PartialEq)]
@@ -29,10 +30,6 @@ impl TryFrom<i32> for Client {
     type Error = QuakeLiveEngineError;
 
     fn try_from(client_id: i32) -> Result<Self, Self::Error> {
-        extern "C" {
-            static svs: *mut serverStatic_t;
-        }
-
         if let Ok(max_clients) = i32::try_from(MAX_CLIENTS) {
             if client_id >= max_clients {
                 return Err(InvalidId(client_id));
@@ -44,7 +41,7 @@ impl TryFrom<i32> for Client {
         }
 
         unsafe {
-            if let Some(server_static) = svs.as_ref() {
+            if let Some(server_static) = Self::get_server_static() {
                 Self::try_from(server_static.clients.offset(client_id as isize) as *const client_t)
                     .map_err(|_| ClientNotFound("client not found".into()))
             } else {
@@ -55,13 +52,21 @@ impl TryFrom<i32> for Client {
 }
 
 impl Client {
-    pub(crate) fn get_client_id(&self) -> i32 {
-        extern "C" {
-            static svs: *mut serverStatic_t;
+    fn get_server_static() -> Option<&'static serverStatic_t> {
+        if let Some(func_pointer) =
+            unsafe { STATIC_FUNCTION_MAP.get(&QuakeLiveFunction::SV_Shutdown) }
+        {
+            let svs_ptr_ptr = func_pointer + 0xAC;
+            let svs_ptr: u32 = unsafe { std::ptr::read(svs_ptr_ptr as *const u32) };
+            unsafe { (svs_ptr as *mut serverStatic_t).as_ref() }
+        } else {
+            None
         }
+    }
 
+    pub(crate) fn get_client_id(&self) -> i32 {
         unsafe {
-            if let Some(server_static) = svs.as_ref() {
+            if let Some(server_static) = Self::get_server_static() {
                 (self.client_t as *const client_t)
                     .offset_from(server_static.clients)
                     .try_into()
