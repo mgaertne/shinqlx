@@ -16,7 +16,8 @@ use crate::quake_types::{
     cbufExec_t, client_t, gentity_t, qboolean, usercmd_t, MAX_MSGLEN, MAX_STRING_CHARS,
 };
 use crate::{
-    initialize_cvars, initialize_static, COMMON_INITIALIZED, CVARS_INITIALIZED, SV_TAGS_PREFIX,
+    initialize_cvars, initialize_static, QuakeLiveFunction, COMMON_INITIALIZED, CVARS_INITIALIZED,
+    STATIC_FUNCTION_MAP, SV_TAGS_PREFIX,
 };
 use retour::static_detour;
 use std::error::Error;
@@ -495,62 +496,66 @@ static_detour! {
 
 pub(crate) fn hook_static() -> Result<(), Box<dyn Error>> {
     debug_println!("Hooking...");
-
-    extern "C" {
-        static Cmd_AddCommand: unsafe extern "C" fn(*const c_char, unsafe extern "C" fn());
-    }
     unsafe {
-        CMD_ADDCOMMAND_DETOUR.initialize(Cmd_AddCommand, shinqlx_cmd_addcommand)?;
-        CMD_ADDCOMMAND_DETOUR.enable()?;
-    }
-
-    extern "C" {
-        static Sys_SetModuleOffset: unsafe extern "C" fn(*const c_char, unsafe extern "C" fn());
-    }
-    unsafe {
-        SYS_SETMODULEOFFSET_DETOUR.initialize(Sys_SetModuleOffset, shinqlx_sys_setmoduleoffset)?;
-        SYS_SETMODULEOFFSET_DETOUR.enable()?;
+        if let Some(func_pointer) = STATIC_FUNCTION_MAP.get(&QuakeLiveFunction::Cmd_AddCommand) {
+            let original_func = std::mem::transmute(*func_pointer);
+            CMD_ADDCOMMAND_DETOUR.initialize(original_func, shinqlx_cmd_addcommand)?;
+            CMD_ADDCOMMAND_DETOUR.enable()?;
+        }
     }
 
-    extern "C" {
-        static SV_ExecuteClientCommand:
-            unsafe extern "C" fn(*const client_t, *const c_char, qboolean);
-    }
     unsafe {
-        SV_EXECUTECLIENTCOMMAND_DETOUR
-            .initialize(SV_ExecuteClientCommand, shinqlx_sv_executeclientcommand)?;
-        SV_EXECUTECLIENTCOMMAND_DETOUR.enable()?;
-    }
-    extern "C" {
-        static SV_ClientEnterWorld: unsafe extern "C" fn(*const client_t, *const usercmd_t);
-    }
-    unsafe {
-        SV_CLIENTENTERWORLD_DETOUR.initialize(SV_ClientEnterWorld, shinqlx_sv_cliententerworld)?;
-        SV_CLIENTENTERWORLD_DETOUR.enable()?;
+        if let Some(func_pointer) = STATIC_FUNCTION_MAP.get(&QuakeLiveFunction::Sys_SetModuleOffset)
+        {
+            let original_func = std::mem::transmute(*func_pointer);
+            SYS_SETMODULEOFFSET_DETOUR.initialize(original_func, shinqlx_sys_setmoduleoffset)?;
+            SYS_SETMODULEOFFSET_DETOUR.enable()?;
+        }
     }
 
-    extern "C" {
-        static SV_SetConfigstring: unsafe extern "C" fn(c_int, *const c_char);
-    }
     unsafe {
-        SV_SETCONFGISTRING_DETOUR.initialize(SV_SetConfigstring, shinqlx_sv_setconfigstring)?;
-        SV_SETCONFGISTRING_DETOUR.enable()?;
+        if let Some(func_pointer) =
+            STATIC_FUNCTION_MAP.get(&QuakeLiveFunction::SV_ExecuteClientCommand)
+        {
+            let original_func = std::mem::transmute(*func_pointer);
+            SV_EXECUTECLIENTCOMMAND_DETOUR
+                .initialize(original_func, shinqlx_sv_executeclientcommand)?;
+            SV_EXECUTECLIENTCOMMAND_DETOUR.enable()?;
+        }
     }
 
-    extern "C" {
-        static SV_DropClient: unsafe extern "C" fn(*const client_t, *const c_char);
-    }
     unsafe {
-        SV_DROPCLIENT_DETOUR.initialize(SV_DropClient, shinqlx_sv_dropclient)?;
-        SV_DROPCLIENT_DETOUR.enable()?;
+        if let Some(func_pointer) = STATIC_FUNCTION_MAP.get(&QuakeLiveFunction::SV_ClientEnterWorld)
+        {
+            let original_func = std::mem::transmute(*func_pointer);
+            SV_CLIENTENTERWORLD_DETOUR.initialize(original_func, shinqlx_sv_cliententerworld)?;
+            SV_CLIENTENTERWORLD_DETOUR.enable()?;
+        }
     }
 
-    extern "C" {
-        static SV_SpawnServer: unsafe extern "C" fn(*const c_char, qboolean);
-    }
     unsafe {
-        SV_SPAWNSERVER_DETOUR.initialize(SV_SpawnServer, shinqlx_sv_spawnserver)?;
-        SV_SPAWNSERVER_DETOUR.enable()?;
+        if let Some(func_pointer) = STATIC_FUNCTION_MAP.get(&QuakeLiveFunction::SV_SetConfigstring)
+        {
+            let original_func = std::mem::transmute(*func_pointer);
+            SV_SETCONFGISTRING_DETOUR.initialize(original_func, shinqlx_sv_setconfigstring)?;
+            SV_SETCONFGISTRING_DETOUR.enable()?;
+        }
+    }
+
+    unsafe {
+        if let Some(func_pointer) = STATIC_FUNCTION_MAP.get(&QuakeLiveFunction::SV_DropClient) {
+            let original_func = std::mem::transmute(*func_pointer);
+            SV_DROPCLIENT_DETOUR.initialize(original_func, shinqlx_sv_dropclient)?;
+            SV_DROPCLIENT_DETOUR.enable()?;
+        }
+    }
+
+    unsafe {
+        if let Some(func_pointer) = STATIC_FUNCTION_MAP.get(&QuakeLiveFunction::SV_SpawnServer) {
+            let original_func = std::mem::transmute(*func_pointer);
+            SV_SPAWNSERVER_DETOUR.initialize(original_func, shinqlx_sv_spawnserver)?;
+            SV_SPAWNSERVER_DETOUR.enable()?;
+        }
     }
 
     extern "C" {

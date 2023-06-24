@@ -11,10 +11,6 @@
 #include "patterns.h"
 #include "maps_parser.h"
 
-// For comparison with the dedi's executable name to avoid segfaulting
-// bash and the likes if we run this through a script.
-extern char* __progname;
-
 #if defined(__x86_64__) || defined(_M_X64)
 const char qzeroded[] = "qzeroded.x64";
 const char qagame_name[] = "qagamex64.so";
@@ -24,30 +20,8 @@ const char qagame_name[] = "qagamei386.so";
 #endif
 
 // Global variables.
-serverStatic_t* svs;
-
 Com_Printf_ptr Com_Printf;
-Cmd_AddCommand_ptr Cmd_AddCommand;
-Cmd_Args_ptr Cmd_Args;
-Cmd_Argv_ptr Cmd_Argv;
-Cmd_Argc_ptr Cmd_Argc;
-Cmd_TokenizeString_ptr Cmd_TokenizeString;
-Cbuf_ExecuteText_ptr Cbuf_ExecuteText;
-Cvar_FindVar_ptr Cvar_FindVar;
-Cvar_Get_ptr Cvar_Get;
-Cvar_GetLimit_ptr Cvar_GetLimit;
-Cvar_Set2_ptr Cvar_Set2;
 SV_SendServerCommand_ptr SV_SendServerCommand;
-SV_ExecuteClientCommand_ptr SV_ExecuteClientCommand;
-SV_ClientEnterWorld_ptr SV_ClientEnterWorld;
-SV_Shutdown_ptr SV_Shutdown;
-SV_Map_f_ptr SV_Map_f;
-SV_SetConfigstring_ptr SV_SetConfigstring;
-SV_GetConfigstring_ptr SV_GetConfigstring;
-SV_DropClient_ptr SV_DropClient;
-Sys_SetModuleOffset_ptr Sys_SetModuleOffset;
-SV_SpawnServer_ptr SV_SpawnServer;
-Cmd_ExecuteString_ptr Cmd_ExecuteString;
 
 // VM functions
 G_RunFrame_ptr G_RunFrame;
@@ -92,7 +66,7 @@ void DebugError(const char* fmt, const char* file, int line, const char* func, .
 
 #define STATIC_SEARCH(x, p, m) x = (x ## _ptr) PatternSearchModule(&module, p, m); if (x == NULL) { DebugPrint("ERROR: Unable to find " #x ".\n"); failed = 1;} else DebugPrint(#x ": %p\n", x)
 
-void SearchFunctions(void) {
+int SearchFunctions(void) {
     int failed = 0;
     module_info_t module;
     strcpy(module.name, qzeroded);
@@ -102,40 +76,10 @@ void SearchFunctions(void) {
         failed = 1;
     }
 
-    DebugPrint("Searching for necessary functions...\n");
-
     STATIC_SEARCH(Com_Printf, PTRN_COM_PRINTF, MASK_COM_PRINTF);
-    STATIC_SEARCH(Cmd_AddCommand, PTRN_CMD_ADDCOMMAND, MASK_CMD_ADDCOMMAND);
-    STATIC_SEARCH(Cmd_Args, PTRN_CMD_ARGS, MASK_CMD_ARGS);
-    STATIC_SEARCH(Cmd_Argv, PTRN_CMD_ARGV, MASK_CMD_ARGV);
-    STATIC_SEARCH(Cmd_TokenizeString, PTRN_CMD_TOKENIZESTRING, MASK_CMD_TOKENIZESTRING);
-    STATIC_SEARCH(Cbuf_ExecuteText, PTRN_CBUF_EXECUTETEXT, MASK_CBUF_EXECUTETEXT);
-    STATIC_SEARCH(Cvar_FindVar, PTRN_CVAR_FINDVAR, MASK_CVAR_FINDVAR);
-    STATIC_SEARCH(Cvar_Get, PTRN_CVAR_GET, MASK_CVAR_GET);
-    STATIC_SEARCH(Cvar_GetLimit, PTRN_CVAR_GETLIMIT, MASK_CVAR_GETLIMIT);
-    STATIC_SEARCH(Cvar_Set2, PTRN_CVAR_SET2, MASK_CVAR_SET2);
     STATIC_SEARCH(SV_SendServerCommand, PTRN_SV_SENDSERVERCOMMAND, MASK_SV_SENDSERVERCOMMAND);
-    STATIC_SEARCH(SV_ExecuteClientCommand, PTRN_SV_EXECUTECLIENTCOMMAND, MASK_SV_EXECUTECLIENTCOMMAND);
-    STATIC_SEARCH(SV_Shutdown, PTRN_SV_SHUTDOWN, MASK_SV_SHUTDOWN);
-    STATIC_SEARCH(SV_Map_f, PTRN_SV_MAP_F, MASK_SV_MAP_F);
-    STATIC_SEARCH(SV_ClientEnterWorld, PTRN_SV_CLIENTENTERWORLD, MASK_SV_CLIENTENTERWORLD);
-    STATIC_SEARCH(SV_SetConfigstring, PTRN_SV_SETCONFIGSTRING, MASK_SV_SETCONFIGSTRING);
-    STATIC_SEARCH(SV_GetConfigstring, PTRN_SV_GETCONFIGSTRING, MASK_SV_GETCONFIGSTRING);
-    STATIC_SEARCH(SV_DropClient, PTRN_SV_DROPCLIENT, MASK_SV_DROPCLIENT);
-    STATIC_SEARCH(Sys_SetModuleOffset, PTRN_SYS_SETMODULEOFFSET, MASK_SYS_SETMODULEOFFSET);
-    STATIC_SEARCH(SV_SpawnServer, PTRN_SV_SPAWNSERVER, MASK_SV_SPAWNSERVER);
-    STATIC_SEARCH(Cmd_ExecuteString, PTRN_CMD_EXECUTESTRING, MASK_CMD_EXECUTESTRING);
 
-    // Cmd_Argc is really small, making it hard to search for, so we use a reference to it instead.
-    if (SV_Map_f != NULL) {
-        Cmd_Argc = (Cmd_Argc_ptr)(*(int32_t*)OFFSET_RELP_CMD_ARGC + OFFSET_RELP_CMD_ARGC + 4);
-        DebugPrint("Cmd_Argc: %p\n", Cmd_Argc);
-    }
-
-    if (failed) {
-        DebugPrint("Exiting.\n");
-        exit(1);
-    }
+    return failed;
 }
 
 #define VM_SEARCH(x, p, m) x = (x ## _ptr) PatternSearch((void*)((pint)qagame + 0xB000), 0xB0000, p, m); if (x == NULL) { DebugPrint("ERROR: Unable to find " #x ".\n"); failed = 1;} else DebugPrint(#x ": %p\n", x)
@@ -179,16 +123,4 @@ void InitializeVm(void) {
     bg_itemlist = (gitem_t*)*(int32_t*)((*(int32_t*)OFFSET_RELP_BG_ITEMLIST + 0xCEFF4 + (pint)qagame));
 #endif
     for (bg_numItems = 1; bg_itemlist[ bg_numItems ].classname; bg_numItems++) {}
-}
-
-void InitializeStatic(void) {
-    // Initialize some key structure pointers before hooking, since we
-    // might use some of the functions that could be hooked later to
-    // get the pointer, such as SV_SetConfigstring.
-#if defined(__x86_64__) || defined(_M_X64)
-    // 32-bit pointer. intptr_t added to suppress warning about the casting.
-    svs = (serverStatic_t*)(intptr_t)(*(uint32_t*)OFFSET_PP_SVS);
-#elif defined(__i386) || defined(_M_IX86)
-    svs = *(serverStatic_t**)OFFSET_PP_SVS;
-#endif
 }
