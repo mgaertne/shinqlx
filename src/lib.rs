@@ -124,6 +124,7 @@ fn initialize() {
     };
 }
 
+#[allow(clippy::redundant_closure)]
 static mut STATIC_FUNCTION_MAP: Lazy<HashMap<QuakeLiveFunction, u64>> =
     Lazy::new(|| HashMap::new());
 
@@ -218,7 +219,7 @@ pub(crate) fn pattern_search_module(
         {
             continue;
         }
-        let result = pattern_search(memory_map.address.0, memory_map.address.1, &ql_func);
+        let result = pattern_search(memory_map.address.0, memory_map.address.1, ql_func);
         if result.is_some() {
             return result;
         }
