@@ -475,8 +475,7 @@ impl InitGame for QuakeLiveEngine {
 
 #[cfg_attr(test, automock)]
 pub(crate) trait ExecuteClientCommand {
-    #[allow(clippy::needless_lifetimes)]
-    fn execute_client_command<'a>(&self, client: Option<&'a Client>, cmd: &str, client_ok: bool);
+    fn execute_client_command(&self, client: Option<&Client>, cmd: &str, client_ok: bool);
 }
 
 impl ExecuteClientCommand for QuakeLiveEngine {
