@@ -29,11 +29,6 @@ void HookStatic(void) {
         failed = 1;
     }
 
-    res = Hook((void*)Com_Printf, ShiNQlx_Com_Printf, (void*)&Com_Printf);
-    if (res) {
-        DebugPrint("ERROR: Failed to hook Com_Printf: %d\n", res);
-        failed = 1;
-    }
 #endif
 
     if (failed) {
@@ -42,7 +37,18 @@ void HookStatic(void) {
     }
 }
 
-/* 
+void* HookVariadic(void* target, void* replacement) {
+    void* returned = NULL;
+    int hook_result = 0;
+    hook_result = Hook(target, replacement, (void*)&returned);
+    if (hook_result) {
+        return NULL;
+    }
+
+    return returned;
+}
+
+/*
  * Hooks VM calls. Not all use Hook, since the VM calls are stored in a table of
  * pointers. We simply set our function pointer to the current pointer in the table and
  * then replace the it with our replacement function. Just like hooking a VMT.
