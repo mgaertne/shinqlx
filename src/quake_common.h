@@ -41,6 +41,7 @@ extern gitem_t* bg_itemlist;
 extern int bg_numItems;
 
 // Internal QL function pointer types.
+typedef void (__cdecl *Com_Printf_ptr)(char* fmt, ...);
 typedef void (__cdecl *SV_SendServerCommand_ptr)(client_t* cl, const char* fmt, ...);
 // VM functions.
 typedef void (__cdecl *G_RunFrame_ptr)(int time);
@@ -58,6 +59,7 @@ typedef void (__cdecl *G_StartKamikaze_ptr)(gentity_t *ent);
 typedef void (__cdecl *G_FreeEntity_ptr)(gentity_t *ed);
 
 // Some of them are initialized by Initialize(), but not all of them necessarily.
+extern Com_Printf_ptr Com_Printf;
 extern SV_SendServerCommand_ptr SV_SendServerCommand;
 // VM functions.
 extern G_RunFrame_ptr G_RunFrame;
@@ -77,6 +79,7 @@ extern G_FreeEntity_ptr G_FreeEntity;
 // Server replacement functions for hooks.
 #ifndef NOPY
 extern void __cdecl ShiNQlx_SV_SendServerCommand(client_t* cl, char* fmt, ...);
+extern void __cdecl ShiNQlx_Com_Printf(char* fmt, ...);
 // VM replacement functions for hooks.
 extern void __cdecl ShiNQlx_G_RunFrame(int time);
 extern void __cdecl ShiNQlx_G_InitGame(int levelTime, int randomSeed, int restart);

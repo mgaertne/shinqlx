@@ -3,9 +3,8 @@ use crate::cvar::CVar;
 use crate::game_entity::GameEntity;
 use crate::game_item::GameItem;
 use crate::hooks::{
-    CMD_ADDCOMMAND_DETOUR, COM_PRINTF_TRAMPOLINE, SV_CLIENTENTERWORLD_DETOUR,
-    SV_EXECUTECLIENTCOMMAND_DETOUR, SV_SETCONFGISTRING_DETOUR, SV_SPAWNSERVER_DETOUR,
-    SYS_SETMODULEOFFSET_DETOUR,
+    CMD_ADDCOMMAND_DETOUR, SV_CLIENTENTERWORLD_DETOUR, SV_EXECUTECLIENTCOMMAND_DETOUR,
+    SV_SETCONFGISTRING_DETOUR, SV_SPAWNSERVER_DETOUR, SYS_SETMODULEOFFSET_DETOUR,
 };
 use crate::quake_types::meansOfDeath_t::{
     MOD_BFG, MOD_BFG_SPLASH, MOD_CHAINGUN, MOD_CRUSH, MOD_FALLING, MOD_GAUNTLET, MOD_GRAPPLE,
@@ -475,7 +474,8 @@ impl InitGame for QuakeLiveEngine {
 
 #[cfg_attr(test, automock)]
 pub(crate) trait ExecuteClientCommand {
-    fn execute_client_command(&self, client: Option<&Client>, cmd: &str, client_ok: bool);
+    #[allow(clippy::needless_lifetimes)]
+    fn execute_client_command<'a>(&self, client: Option<&'a Client>, cmd: &str, client_ok: bool);
 }
 
 impl ExecuteClientCommand for QuakeLiveEngine {
@@ -558,12 +558,12 @@ pub(crate) trait ComPrintf {
 
 impl ComPrintf for QuakeLiveEngine {
     fn com_printf(&self, msg: &str) {
-        if let Some(func_pointer) = unsafe { COM_PRINTF_TRAMPOLINE.as_ref() } {
-            if let Ok(c_msg) = CString::new(msg) {
-                let trampoline_func: extern "C" fn(fmt: *const c_char, ...) =
-                    unsafe { std::mem::transmute(*func_pointer) };
-                trampoline_func(c_msg.as_ptr());
-            }
+        extern "C" {
+            static Com_Printf: extern "C" fn(*const c_char, ...);
+        }
+
+        if let Ok(c_msg) = CString::new(msg) {
+            unsafe { Com_Printf(c_msg.as_ptr()) };
         }
     }
 }

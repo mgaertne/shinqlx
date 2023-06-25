@@ -8,6 +8,14 @@
 #define DEBUG_PRINT_PREFIX "[ShiNQlx] "
 #define DEBUG_ERROR_FORMAT "[ShiNQlx] ERROR @ %s:%d in %s:\n" DEBUG_PRINT_PREFIX
 
+#ifndef NOPY
+#define SV_TAGS_PREFIX "ShiNQlx"
+#else
+#define SV_TAGS_PREFIX "ShiNQlx-nopy"
+#endif
+
+// TODO: Add minqlx version to serverinfo.
+
 #include <stdint.h>
 
 #include "maps_parser.h"
@@ -27,7 +35,6 @@ typedef int32_t sint;
 
 int SearchFunctions(void);
 void HookStatic(void);
-void* HookVariadic(void* target, void* replacement);
 void SearchVmFunctions(void); // Needs to be called every time the VM is loaded.
 void InitializeVm(void);
 void HookVm(void);
