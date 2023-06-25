@@ -19,7 +19,6 @@ use crate::{
     initialize_cvars, initialize_static, QuakeLiveFunction, COMMON_INITIALIZED, CVARS_INITIALIZED,
     STATIC_FUNCTION_MAP, SV_TAGS_PREFIX,
 };
-use once_cell::sync::Lazy;
 use retour::static_detour;
 use std::error::Error;
 use std::ffi::{c_char, c_float, c_int, c_void, CStr, VaList, VaListImpl};
@@ -495,13 +494,7 @@ static_detour! {
     pub(crate) static SV_SPAWNSERVER_DETOUR: unsafe extern "C" fn(*const c_char, qboolean);
 }
 
-pub(crate) static mut COM_PRINTF_TRAMPOLINE: Lazy<Option<u64>> = Lazy::new(|| None);
-
 pub(crate) fn hook_static() -> Result<(), Box<dyn Error>> {
-    extern "C" {
-        fn HookVariadic(target: *const c_void, replacement: *const c_void) -> *const c_void;
-    }
-
     debug_println!("Hooking...");
     unsafe {
         if let Some(func_pointer) = STATIC_FUNCTION_MAP.get(&QuakeLiveFunction::Cmd_AddCommand) {
@@ -555,23 +548,6 @@ pub(crate) fn hook_static() -> Result<(), Box<dyn Error>> {
             SV_DROPCLIENT_DETOUR.initialize(original_func, shinqlx_sv_dropclient)?;
             SV_DROPCLIENT_DETOUR.enable()?;
         }
-    }
-
-    unsafe {
-        COM_PRINTF_TRAMPOLINE = Lazy::new(|| {
-            if let Some(func_pointer) = STATIC_FUNCTION_MAP.get(&QuakeLiveFunction::Com_Printf) {
-                let original_func: *const c_void = std::mem::transmute(*func_pointer);
-                let trampoline_func =
-                    HookVariadic(original_func, ShiNQlx_Com_Printf as *const c_void);
-                if trampoline_func.is_null() {
-                    None
-                } else {
-                    Some(trampoline_func as u64)
-                }
-            } else {
-                None
-            }
-        });
     }
 
     unsafe {

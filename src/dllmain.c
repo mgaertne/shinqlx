@@ -20,6 +20,7 @@ const char qagame_name[] = "qagamei386.so";
 #endif
 
 // Global variables.
+Com_Printf_ptr Com_Printf;
 SV_SendServerCommand_ptr SV_SendServerCommand;
 
 // VM functions
@@ -75,6 +76,7 @@ int SearchFunctions(void) {
         failed = 1;
     }
 
+    STATIC_SEARCH(Com_Printf, PTRN_COM_PRINTF, MASK_COM_PRINTF);
     STATIC_SEARCH(SV_SendServerCommand, PTRN_SV_SENDSERVERCOMMAND, MASK_SV_SENDSERVERCOMMAND);
 
     return failed;
