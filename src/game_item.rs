@@ -29,27 +29,33 @@ impl TryFrom<i32> for GameItem {
     type Error = QuakeLiveEngineError;
 
     fn try_from(item_id: i32) -> Result<Self, Self::Error> {
-        extern "C" {
-            static bg_itemlist: *mut gitem_t;
-            static bg_numItems: c_int;
-        }
-        if item_id < 0 || item_id >= unsafe { bg_numItems } {
+        if item_id < 0 || item_id >= GameItem::get_num_items() {
             return Err(InvalidId(item_id));
         }
-        unsafe {
-            Self::try_from(bg_itemlist.offset(item_id as isize))
-                .map_err(|_| EntityNotFound("entity not found".into()))
-        }
+        let bg_itemlist = GameItem::get_item_list();
+        Self::try_from(unsafe { bg_itemlist.offset(item_id as isize) })
+            .map_err(|_| EntityNotFound("entity not found".into()))
     }
 }
 
 impl GameItem {
+    pub(crate) fn get_num_items() -> i32 {
+        extern "C" {
+            static bg_numItems: c_int;
+        }
+        unsafe { bg_numItems }
+    }
+
+    fn get_item_list() -> *mut gitem_t {
+        extern "C" {
+            static bg_itemlist: *mut gitem_t;
+        }
+        unsafe { bg_itemlist }
+    }
+
     #[allow(unused)]
     pub(crate) fn get_item_id(&self) -> i32 {
-        extern "C" {
-            static bg_itemlist: *const gitem_t;
-        }
-
+        let bg_itemlist = Self::get_item_list();
         i32::try_from(unsafe { (self.gitem_t as *const gitem_t).offset_from(bg_itemlist) })
             .unwrap_or(-1)
     }

@@ -572,15 +572,10 @@ pub(crate) fn hook_static() -> Result<(), Box<dyn Error>> {
         SV_SENDSERVERCOMMAND_TRAMPOLINE = if let Some(func_pointer) =
             STATIC_FUNCTION_MAP.get(&QuakeLiveFunction::SV_SendServerCommand)
         {
-            let original_func: *const c_void = std::mem::transmute(*func_pointer);
-            debug_println!(format!(
-                "original: {:p}, replacement: {:p}",
-                original_func, ShiNQlx_SV_SendServerCommand as *const c_void
-            ));
-            let trampoline_func =
-                HookVariadic(original_func, ShiNQlx_SV_SendServerCommand as *const c_void);
-            debug_println!(format!("result: {:p}", trampoline_func));
-            debug_println!(format!("result: {:#X}", trampoline_func as u64));
+            let trampoline_func = HookVariadic(
+                *func_pointer as *const c_void,
+                ShiNQlx_SV_SendServerCommand as *const c_void,
+            );
             if trampoline_func.is_null() {
                 None
             } else {
@@ -592,25 +587,20 @@ pub(crate) fn hook_static() -> Result<(), Box<dyn Error>> {
     }
 
     unsafe {
-        COM_PRINTF_TRAMPOLINE = if let Some(func_pointer) =
-            STATIC_FUNCTION_MAP.get(&QuakeLiveFunction::Com_Printf)
-        {
-            let original_func: *const c_void = std::mem::transmute(*func_pointer);
-            debug_println!(format!(
-                "original: {:p}, replacement: {:p}",
-                original_func, ShiNQlx_Com_Printf as *const c_void
-            ));
-            let trampoline_func = HookVariadic(original_func, ShiNQlx_Com_Printf as *const c_void);
-            debug_println!(format!("result: {:p}", trampoline_func));
-            debug_println!(format!("result: {:#X}", trampoline_func as u64));
-            if trampoline_func.is_null() {
-                None
+        COM_PRINTF_TRAMPOLINE =
+            if let Some(func_pointer) = STATIC_FUNCTION_MAP.get(&QuakeLiveFunction::Com_Printf) {
+                let trampoline_func = HookVariadic(
+                    *func_pointer as *const c_void,
+                    ShiNQlx_Com_Printf as *const c_void,
+                );
+                if trampoline_func.is_null() {
+                    None
+                } else {
+                    Some(trampoline_func as u64)
+                }
             } else {
-                Some(trampoline_func as u64)
-            }
-        } else {
-            None
-        };
+                None
+            };
     }
 
     Ok(())
