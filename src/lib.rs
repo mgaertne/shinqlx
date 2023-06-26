@@ -40,7 +40,7 @@ use ctor::ctor;
 use once_cell::sync::Lazy;
 use std::collections::HashMap;
 use std::env::args;
-use std::ffi::{c_int, OsStr};
+use std::ffi::OsStr;
 use std::fmt::{Display, Formatter};
 
 pub(crate) const DEBUG_PRINT_PREFIX: &str = "[shinqlx]";
@@ -197,14 +197,6 @@ pub(crate) fn search_static_functions() {
             cmd_argc_ptr
         ));
         unsafe { STATIC_FUNCTION_MAP.insert(QuakeLiveFunction::Cmd_Argc, cmd_argc_ptr as u64) };
-    }
-
-    extern "C" {
-        fn SearchFunctions() -> c_int;
-    }
-    let search_functions = unsafe { SearchFunctions() };
-    if search_functions != 0 {
-        panic!("Exiting.");
     }
 }
 

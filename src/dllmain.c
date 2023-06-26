@@ -19,10 +19,6 @@ const char qzeroded[] = "qzeroded.x86";
 const char qagame_name[] = "qagamei386.so";
 #endif
 
-// Global variables.
-Com_Printf_ptr Com_Printf;
-SV_SendServerCommand_ptr SV_SendServerCommand;
-
 // VM functions
 G_RunFrame_ptr G_RunFrame;
 G_AddEvent_ptr G_AddEvent;
@@ -62,24 +58,6 @@ void DebugError(const char* fmt, const char* file, int line, const char* func, .
     fprintf(stderr, DEBUG_ERROR_FORMAT, file, line, func);
     vfprintf(stderr, fmt, args);
     va_end(args);
-}
-
-#define STATIC_SEARCH(x, p, m) x = (x ## _ptr) PatternSearchModule(&module, p, m); if (x == NULL) { DebugPrint("ERROR: Unable to find " #x ".\n"); failed = 1;} else DebugPrint(#x ": %p\n", x)
-
-int SearchFunctions(void) {
-    int failed = 0;
-    module_info_t module;
-    strcpy(module.name, qzeroded);
-    int res = GetModuleInfo(&module);
-    if (res <= 0) {
-        DebugError("GetModuleInfo() returned %d.\n", __FILE__, __LINE__, __func__, res);
-        failed = 1;
-    }
-
-    STATIC_SEARCH(Com_Printf, PTRN_COM_PRINTF, MASK_COM_PRINTF);
-    STATIC_SEARCH(SV_SendServerCommand, PTRN_SV_SENDSERVERCOMMAND, MASK_SV_SENDSERVERCOMMAND);
-
-    return failed;
 }
 
 #define VM_SEARCH(x, p, m) x = (x ## _ptr) PatternSearch((void*)((pint)qagame + 0xB000), 0xB0000, p, m); if (x == NULL) { DebugPrint("ERROR: Unable to find " #x ".\n"); failed = 1;} else DebugPrint(#x ": %p\n", x)
