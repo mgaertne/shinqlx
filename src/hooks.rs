@@ -128,11 +128,7 @@ pub extern "C" fn ShiNQlx_G_InitGame(level_time: c_int, random_seed: c_int, rest
     }
 }
 
-fn shinqlx_sv_executeclientcommand(
-    client: *const client_t,
-    cmd: *const c_char,
-    client_ok: qboolean,
-) {
+fn shinqlx_sv_executeclientcommand(client: *mut client_t, cmd: *const c_char, client_ok: qboolean) {
     let rust_cmd = unsafe { CStr::from_ptr(cmd) }.to_string_lossy();
     if !rust_cmd.is_empty() {
         shinqlx_execute_client_command(
@@ -143,7 +139,11 @@ fn shinqlx_sv_executeclientcommand(
     }
 }
 
-pub(crate) fn shinqlx_execute_client_command(client: Option<Client>, cmd: &str, client_ok: bool) {
+pub(crate) fn shinqlx_execute_client_command(
+    mut client: Option<Client>,
+    cmd: &str,
+    client_ok: bool,
+) {
     let passed_on_cmd_str = if client_ok
         && client
             .as_ref()
@@ -153,18 +153,17 @@ pub(crate) fn shinqlx_execute_client_command(client: Option<Client>, cmd: &str, 
             .as_ref()
             .map(|safe_client| safe_client.get_client_id())
             .unwrap();
-        if let Some(dispatcher_result) = client_command_dispatcher(client_id, cmd) {
-            dispatcher_result
-        } else {
+        let Some(dispatcher_result) = client_command_dispatcher(client_id, cmd) else {
             return;
-        }
+        };
+        dispatcher_result
     } else {
         cmd.into()
     };
 
     if !passed_on_cmd_str.is_empty() {
         QuakeLiveEngine::default().execute_client_command(
-            client.as_ref(),
+            client.as_mut(),
             passed_on_cmd_str.as_str(),
             client_ok,
         );
@@ -173,7 +172,7 @@ pub(crate) fn shinqlx_execute_client_command(client: Option<Client>, cmd: &str, 
 
 #[no_mangle]
 pub unsafe extern "C" fn ShiNQlx_SV_SendServerCommand(
-    client: *const client_t,
+    client: *mut client_t,
     fmt: *const c_char,
     fmt_args: ...
 ) {
@@ -234,13 +233,13 @@ pub(crate) fn shinqlx_send_server_command(client: Option<Client>, cmd: &str) {
     }
 }
 
-fn shinqlx_sv_cliententerworld(client: *const client_t, cmd: *const usercmd_t) {
-    let Some(safe_client): Option<Client> = client.try_into().ok() else {
+fn shinqlx_sv_cliententerworld(client: *mut client_t, cmd: *const usercmd_t) {
+    let Some(mut safe_client): Option<Client> = client.try_into().ok() else {
         return;
     };
 
     let state = safe_client.get_state();
-    QuakeLiveEngine::default().client_enter_world(&safe_client, cmd);
+    QuakeLiveEngine::default().client_enter_world(&mut safe_client, cmd);
 
     // gentity is NULL if map changed.
     // state is CS_PRIMED only if it's the first time they connect to the server,
@@ -257,9 +256,10 @@ pub(crate) fn shinqlx_sv_setconfigstring(index: c_int, value: *const c_char) {
         "".into()
     };
 
-    if let Ok(ql_index) = u32::try_from(index) {
-        shinqlx_set_configstring(ql_index, safe_value.as_ref());
-    }
+    let Ok(ql_index) = u32::try_from(index) else {
+        return;
+    };
+    shinqlx_set_configstring(ql_index, safe_value.as_ref());
 }
 
 pub(crate) fn shinqlx_set_configstring(index: u32, value: &str) {
@@ -272,21 +272,23 @@ pub(crate) fn shinqlx_set_configstring(index: u32, value: &str) {
         return;
     }
 
-    if let Some(res) = set_configstring_dispatcher(index, value) {
-        QuakeLiveEngine::default().set_configstring(&index, res.as_str());
-    }
+    let Some(res) = set_configstring_dispatcher(index, value) else {
+        return;
+    };
+    QuakeLiveEngine::default().set_configstring(&index, res.as_str());
 }
 
-fn shinqlx_sv_dropclient(client: *const client_t, reason: *const c_char) {
-    if let Ok(safe_client) = Client::try_from(client) {
-        shinqlx_drop_client(
-            &safe_client,
-            unsafe { CStr::from_ptr(reason) }.to_string_lossy().as_ref(),
-        );
-    }
+fn shinqlx_sv_dropclient(client: *mut client_t, reason: *const c_char) {
+    let Ok(mut safe_client) = Client::try_from(client) else {
+        return;
+    };
+    shinqlx_drop_client(
+        &mut safe_client,
+        unsafe { CStr::from_ptr(reason) }.to_string_lossy().as_ref(),
+    );
 }
 
-pub(crate) fn shinqlx_drop_client(client: &Client, reason: &str) {
+pub(crate) fn shinqlx_drop_client(client: &mut Client, reason: &str) {
     client_disconnect_dispatcher(client.get_client_id(), reason);
 
     client.disconnect(reason);
@@ -319,9 +321,10 @@ pub unsafe extern "C" fn ShiNQlx_Com_Printf(fmt: *const c_char, fmt_args: ...) {
 }
 
 pub(crate) fn shinqlx_com_printf(msg: &str) {
-    if let Some(_res) = console_print_dispatcher(msg) {
-        QuakeLiveEngine::default().com_printf(msg);
-    }
+    let Some(_res) = console_print_dispatcher(msg) else {
+        return;
+    };
+    QuakeLiveEngine::default().com_printf(msg);
 }
 
 fn shinqlx_sv_spawnserver(server: *const c_char, kill_bots: qboolean) {
@@ -450,8 +453,21 @@ pub extern "C" fn ShiNQlx_G_Damage(
         means_of_death,
     );
 
-    if let Ok(target_entity) = GameEntity::try_from(target) {
-        if attacker.is_null() {
+    let Ok(target_entity) = GameEntity::try_from(target) else {
+        return;
+    };
+    if attacker.is_null() {
+        damage_dispatcher(
+            target_entity.get_client_id(),
+            None,
+            damage,
+            dflags,
+            means_of_death,
+        );
+        return;
+    }
+    match GameEntity::try_from(attacker) {
+        Err(_) => {
             damage_dispatcher(
                 target_entity.get_client_id(),
                 None,
@@ -459,27 +475,15 @@ pub extern "C" fn ShiNQlx_G_Damage(
                 dflags,
                 means_of_death,
             );
-            return;
         }
-        match GameEntity::try_from(attacker) {
-            Err(_) => {
-                damage_dispatcher(
-                    target_entity.get_client_id(),
-                    None,
-                    damage,
-                    dflags,
-                    means_of_death,
-                );
-            }
-            Ok(attacker_entity) => {
-                damage_dispatcher(
-                    target_entity.get_client_id(),
-                    Some(attacker_entity.get_client_id()),
-                    damage,
-                    dflags,
-                    means_of_death,
-                );
-            }
+        Ok(attacker_entity) => {
+            damage_dispatcher(
+                target_entity.get_client_id(),
+                Some(attacker_entity.get_client_id()),
+                damage,
+                dflags,
+                means_of_death,
+            );
         }
     }
 }
@@ -487,10 +491,10 @@ pub extern "C" fn ShiNQlx_G_Damage(
 static_detour! {
     pub(crate) static CMD_ADDCOMMAND_DETOUR: unsafe extern "C" fn(*const c_char, unsafe extern "C" fn());
     pub(crate) static SYS_SETMODULEOFFSET_DETOUR: unsafe extern "C" fn(*const c_char, unsafe extern "C" fn());
-    pub(crate) static SV_EXECUTECLIENTCOMMAND_DETOUR: unsafe extern "C" fn(*const client_t, *const c_char, qboolean);
-    pub(crate) static SV_CLIENTENTERWORLD_DETOUR: unsafe extern "C" fn(*const client_t, *const usercmd_t);
+    pub(crate) static SV_EXECUTECLIENTCOMMAND_DETOUR: unsafe extern "C" fn(*mut client_t, *const c_char, qboolean);
+    pub(crate) static SV_CLIENTENTERWORLD_DETOUR: unsafe extern "C" fn(*mut client_t, *const usercmd_t);
     pub(crate) static SV_SETCONFGISTRING_DETOUR: unsafe extern "C" fn(c_int, *const c_char);
-    pub(crate) static SV_DROPCLIENT_DETOUR: unsafe extern "C" fn(*const client_t, *const c_char);
+    pub(crate) static SV_DROPCLIENT_DETOUR: unsafe extern "C" fn(*mut client_t, *const c_char);
     pub(crate) static SV_SPAWNSERVER_DETOUR: unsafe extern "C" fn(*const c_char, qboolean);
 }
 
