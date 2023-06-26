@@ -19,7 +19,7 @@ use crate::quake_types::meansOfDeath_t::{
 use crate::quake_types::privileges_t::{PRIV_ADMIN, PRIV_BANNED, PRIV_MOD, PRIV_NONE, PRIV_ROOT};
 use crate::quake_types::team_t::{TEAM_BLUE, TEAM_FREE, TEAM_RED, TEAM_SPECTATOR};
 use crate::quake_types::{
-    gitem_t, DAMAGE_NO_ARMOR, DAMAGE_NO_KNOCKBACK, DAMAGE_NO_PROTECTION, DAMAGE_NO_TEAM_PROTECTION,
+    DAMAGE_NO_ARMOR, DAMAGE_NO_KNOCKBACK, DAMAGE_NO_PROTECTION, DAMAGE_NO_TEAM_PROTECTION,
     DAMAGE_RADIUS, MAX_CONFIGSTRINGS, MAX_GENTITIES,
 };
 use crate::PyMinqlx_InitStatus_t;
@@ -47,7 +47,6 @@ use pyo3::exceptions::{PyTypeError, PyValueError};
 use pyo3::prelude::*;
 use pyo3::prepare_freethreaded_python;
 use pyo3::types::PyTuple;
-use std::ffi::{c_int, CStr};
 
 #[allow(dead_code)]
 fn py_type_check(value: &PyAny, type_name: &str) -> bool {
@@ -1847,11 +1846,7 @@ fn destroy_kamikaze_timers() -> PyResult<bool> {
 #[pyo3(name = "spawn_item")]
 #[pyo3(signature = (item_id, x, y, z))]
 fn spawn_item(item_id: i32, x: i32, y: i32, z: i32) -> PyResult<bool> {
-    extern "C" {
-        static bg_numItems: c_int;
-    }
-
-    let max_items: i32 = unsafe { bg_numItems };
+    let max_items: i32 = GameItem::get_num_items();
     if !(1..max_items).contains(&item_id) {
         return Err(PyValueError::new_err(format!(
             "item_id needs to be a number from 1 to {}.",
@@ -1907,27 +1902,20 @@ fn slay_with_mod(client_id: i32, mean_of_death: i32) -> PyResult<bool> {
 }
 
 fn determine_item_id(item: &PyAny) -> PyResult<i32> {
-    extern "C" {
-        static bg_numItems: c_int;
-        static bg_itemlist: *const gitem_t;
-    }
-
     if let Some(item_id) = py_extract_int_value(item) {
-        if item_id < 0 || item_id >= unsafe { bg_numItems } {
+        if item_id < 0 || item_id >= GameItem::get_num_items() {
             return Err(PyValueError::new_err(format!(
                 "item_id needs to be between 0 and {}.",
-                unsafe { bg_numItems - 1 }
+                GameItem::get_num_items() - 1
             )));
         }
         return Ok(item_id);
     }
 
     if let Some(item_classname) = py_extract_str_value(item) {
-        for i in 1..unsafe { bg_numItems } {
-            if let Some(bg_item) = unsafe { bg_itemlist.offset(i as isize).as_ref() } {
-                let game_item_classname =
-                    unsafe { CStr::from_ptr(bg_item.classname).to_str().unwrap_or("") };
-                if game_item_classname == item_classname {
+        for i in 1..GameItem::get_num_items() {
+            if let Ok(game_item) = GameItem::try_from(i) {
+                if game_item.get_classname() == item_classname {
                     return Ok(i);
                 }
             }

@@ -1312,6 +1312,7 @@ pub struct challenge_t {
 }
 
 #[repr(C)]
+#[derive(Debug, PartialEq)]
 pub struct serverStatic_t {
     pub initialized: qboolean,                // sv_init has completed
     pub time: c_int,                          // will be strictly increasing across level changes

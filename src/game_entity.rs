@@ -45,10 +45,6 @@ impl TryFrom<i32> for GameEntity {
     type Error = QuakeLiveEngineError;
 
     fn try_from(entity_id: i32) -> Result<Self, Self::Error> {
-        extern "C" {
-            static g_entities: *mut gentity_t;
-        }
-
         if let Ok(max_gentities) = i32::try_from(MAX_GENTITIES) {
             if entity_id >= max_gentities {
                 return Err(InvalidId(entity_id));
@@ -58,10 +54,9 @@ impl TryFrom<i32> for GameEntity {
             return Err(InvalidId(entity_id));
         }
 
-        unsafe {
-            Self::try_from(g_entities.offset(entity_id as isize))
-                .map_err(|_| EntityNotFound("entity not found".into()))
-        }
+        let g_entities = GameEntity::get_entities_list();
+        Self::try_from(unsafe { g_entities.offset(entity_id as isize) })
+            .map_err(|_| EntityNotFound("entity not found".into()))
     }
 }
 
@@ -69,17 +64,13 @@ impl TryFrom<u32> for GameEntity {
     type Error = QuakeLiveEngineError;
 
     fn try_from(entity_id: u32) -> Result<Self, Self::Error> {
-        extern "C" {
-            static g_entities: *mut gentity_t;
-        }
-
         if entity_id >= MAX_GENTITIES {
             return Err(InvalidId(entity_id as i32));
         }
-        unsafe {
-            Self::try_from(g_entities.offset(entity_id as isize))
-                .map_err(|_| EntityNotFound("entity not found".into()))
-        }
+        let g_entities = GameEntity::get_entities_list();
+
+        Self::try_from(unsafe { g_entities.offset(entity_id as isize) })
+            .map_err(|_| EntityNotFound("entity not found".into()))
     }
 }
 
@@ -119,15 +110,19 @@ pub(crate) extern "C" fn ShiNQlx_Switch_Touch_Item(ent: *mut gentity_t) {
 }
 
 impl GameEntity {
-    pub(crate) fn get_client_id(&self) -> i32 {
+    fn get_entities_list() -> *mut gentity_t {
         extern "C" {
             static g_entities: *mut gentity_t;
         }
 
-        unsafe {
-            i32::try_from((self.gentity_t as *const gentity_t).offset_from(g_entities))
-                .unwrap_or(-1)
-        }
+        unsafe { g_entities }
+    }
+
+    pub(crate) fn get_client_id(&self) -> i32 {
+        let g_entities = Self::get_entities_list();
+
+        i32::try_from(unsafe { (self.gentity_t as *const gentity_t).offset_from(g_entities) })
+            .unwrap_or(-1)
     }
 
     pub(crate) fn start_kamikaze(&mut self) {

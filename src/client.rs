@@ -3,8 +3,8 @@ use crate::quake_live_engine::QuakeLiveEngineError;
 use crate::quake_live_engine::QuakeLiveEngineError::{
     ClientNotFound, InvalidId, NullPointerPassed,
 };
-use crate::quake_types::{clientState_t, client_t, serverStatic_t, MAX_CLIENTS};
-use crate::{QuakeLiveFunction, STATIC_FUNCTION_MAP};
+use crate::quake_types::{clientState_t, client_t, MAX_CLIENTS};
+use crate::server_static::ServerStatic;
 use std::ffi::{c_char, CStr, CString};
 
 #[derive(Debug, PartialEq)]
@@ -17,12 +17,9 @@ impl TryFrom<*mut client_t> for Client {
     type Error = QuakeLiveEngineError;
 
     fn try_from(client: *mut client_t) -> Result<Self, Self::Error> {
-        unsafe {
-            client
-                .as_mut()
-                .map(|client_t| Self { client_t })
-                .ok_or(NullPointerPassed("null pointer passed".into()))
-        }
+        unsafe { client.as_mut() }
+            .map(|client_t| Self { client_t })
+            .ok_or(NullPointerPassed("null pointer passed".into()))
     }
 }
 
@@ -40,41 +37,25 @@ impl TryFrom<i32> for Client {
             return Err(InvalidId(client_id));
         }
 
-        unsafe {
-            if let Some(server_static) = Self::get_server_static() {
-                Self::try_from(server_static.clients.offset(client_id as isize) as *mut client_t)
-                    .map_err(|_| ClientNotFound("client not found".into()))
-            } else {
-                Err(ClientNotFound("client not found".into()))
-            }
-        }
+        let server_static = ServerStatic::default();
+        Self::try_from(unsafe {
+            server_static
+                .serverStatic_t
+                .clients
+                .offset(client_id as isize)
+        } as *mut client_t)
+        .map_err(|_| ClientNotFound("client not found".into()))
     }
 }
 
 impl Client {
-    fn get_server_static() -> Option<&'static mut serverStatic_t> {
-        if let Some(func_pointer) =
-            unsafe { STATIC_FUNCTION_MAP.get(&QuakeLiveFunction::SV_Shutdown) }
-        {
-            let svs_ptr_ptr = func_pointer + 0xAC;
-            let svs_ptr: u32 = unsafe { std::ptr::read(svs_ptr_ptr as *const u32) };
-            unsafe { (svs_ptr as *mut serverStatic_t).as_mut() }
-        } else {
-            None
-        }
-    }
-
     pub(crate) fn get_client_id(&self) -> i32 {
+        let server_static = ServerStatic::default();
         unsafe {
-            if let Some(server_static) = Self::get_server_static() {
-                (self.client_t as *const client_t)
-                    .offset_from(server_static.clients)
-                    .try_into()
-                    .unwrap_or(-1)
-            } else {
-                -1
-            }
+            (self.client_t as *const client_t).offset_from(server_static.serverStatic_t.clients)
         }
+        .try_into()
+        .unwrap_or(-1)
     }
 
     pub(crate) fn get_state(&self) -> clientState_t {
@@ -92,26 +73,20 @@ impl Client {
 
     pub(crate) fn get_name(&self) -> String {
         if self.client_t.name.as_ptr().is_null() {
-            "".into()
-        } else {
-            unsafe {
-                CStr::from_ptr(&self.client_t.name as *const c_char)
-                    .to_string_lossy()
-                    .into()
-            }
+            return "".into();
         }
+        unsafe { CStr::from_ptr(&self.client_t.name as *const c_char) }
+            .to_string_lossy()
+            .into()
     }
 
     pub(crate) fn get_user_info(&self) -> String {
         if self.client_t.userinfo.as_ptr().is_null() {
-            "".into()
-        } else {
-            unsafe {
-                CStr::from_ptr(self.client_t.userinfo.as_ptr())
-                    .to_string_lossy()
-                    .into()
-            }
-        }
+            return "".into();
+        };
+        unsafe { CStr::from_ptr(self.client_t.userinfo.as_ptr()) }
+            .to_string_lossy()
+            .into()
     }
 
     pub(crate) fn get_steam_id(&self) -> u64 {

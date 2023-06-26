@@ -27,6 +27,7 @@ mod hooks;
 mod pyminqlx;
 mod quake_live_engine;
 mod quake_types;
+mod server_static;
 
 use crate::commands::{
     cmd_center_print, cmd_py_command, cmd_py_rcon, cmd_regular_print, cmd_restart_python,
