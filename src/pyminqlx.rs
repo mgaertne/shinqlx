@@ -666,7 +666,7 @@ fn kick(client_id: i32, reason: Option<&str>) -> PyResult<()> {
         Err(_) => Err(PyValueError::new_err(
             "client_id must be None or the ID of an active player.",
         )),
-        Ok(client) => {
+        Ok(mut client) => {
             if client.get_state() != CS_ACTIVE {
                 return Err(PyValueError::new_err(
                     "client_id must be None or the ID of an active player.",
@@ -677,7 +677,7 @@ fn kick(client_id: i32, reason: Option<&str>) -> PyResult<()> {
             } else {
                 reason.unwrap_or("was kicked.")
             };
-            shinqlx_drop_client(&client, reason_str);
+            shinqlx_drop_client(&mut client, reason_str);
             Ok(())
         }
     }
@@ -1859,7 +1859,7 @@ fn spawn_item(item_id: i32, x: i32, y: i32, z: i32) -> PyResult<bool> {
         )));
     }
 
-    let gitem = GameItem::try_from(item_id).unwrap();
+    let mut gitem = GameItem::try_from(item_id).unwrap();
     gitem.spawn((x, y, z));
     Ok(true)
 }

@@ -9,16 +9,16 @@ use std::ffi::{c_float, c_int, CStr};
 #[derive(Debug, PartialEq)]
 #[repr(transparent)]
 pub(crate) struct GameItem {
-    pub(crate) gitem_t: &'static gitem_t,
+    pub(crate) gitem_t: &'static mut gitem_t,
 }
 
-impl TryFrom<*const gitem_t> for GameItem {
+impl TryFrom<*mut gitem_t> for GameItem {
     type Error = QuakeLiveEngineError;
 
-    fn try_from(game_item: *const gitem_t) -> Result<Self, Self::Error> {
+    fn try_from(game_item: *mut gitem_t) -> Result<Self, Self::Error> {
         unsafe {
             game_item
-                .as_ref()
+                .as_mut()
                 .map(|gitem| Self { gitem_t: gitem })
                 .ok_or(NullPointerPassed("null pointer passed".into()))
         }
@@ -30,7 +30,7 @@ impl TryFrom<i32> for GameItem {
 
     fn try_from(item_id: i32) -> Result<Self, Self::Error> {
         extern "C" {
-            static bg_itemlist: *const gitem_t;
+            static bg_itemlist: *mut gitem_t;
             static bg_numItems: c_int;
         }
         if item_id < 0 || item_id >= unsafe { bg_numItems } {
@@ -62,12 +62,12 @@ impl GameItem {
         }
     }
 
-    pub(crate) fn spawn(&self, origin: (i32, i32, i32)) {
+    pub(crate) fn spawn(&mut self, origin: (i32, i32, i32)) {
         self.spawn_internal(origin, &QuakeLiveEngine::default());
     }
 
     pub(crate) fn spawn_internal(
-        &self,
+        &mut self,
         origin: (i32, i32, i32),
         quake_live_engine: &(impl LaunchItem + GameAddEvent),
     ) {
@@ -104,26 +104,26 @@ pub(crate) mod game_item_tests {
     #[test]
     pub(crate) fn game_item_from_null_pointer() {
         assert_eq!(
-            GameItem::try_from(std::ptr::null() as *const gitem_t),
+            GameItem::try_from(std::ptr::null_mut() as *mut gitem_t),
             Err(NullPointerPassed("null pointer passed".into()))
         );
     }
 
     #[test]
     pub(crate) fn game_item_from_valid_item() {
-        let gitem = GItemBuilder::default().build().unwrap();
-        let game_item = GameItem::try_from(&gitem as *const gitem_t);
+        let mut gitem = GItemBuilder::default().build().unwrap();
+        let game_item = GameItem::try_from(&mut gitem as *mut gitem_t);
         assert!(game_item.is_ok());
     }
 
     #[test]
     pub(crate) fn game_item_get_classname() {
         let classname = CString::new("item classname").unwrap();
-        let gitem = GItemBuilder::default()
+        let mut gitem = GItemBuilder::default()
             .classname(classname.as_ptr() as *mut c_char)
             .build()
             .unwrap();
-        let game_item = GameItem::try_from(&gitem as *const gitem_t).unwrap();
+        let game_item = GameItem::try_from(&mut gitem as *mut gitem_t).unwrap();
         assert_eq!(game_item.get_classname(), "item classname")
     }
 
@@ -143,8 +143,8 @@ pub(crate) mod game_item_tests {
         let mut mock = MockQuakeEngine::new();
         let mut gentity = GEntityBuilder::default().build().unwrap();
         let game_entity = GameEntity::try_from(&mut gentity as *mut gentity_t).unwrap();
-        let gitem = GItemBuilder::default().build().unwrap();
-        let game_item = GameItem::try_from(&gitem as *const gitem_t).unwrap();
+        let mut gitem = GItemBuilder::default().build().unwrap();
+        let mut game_item = GameItem::try_from(&mut gitem as *mut gitem_t).unwrap();
         mock.expect_launch_item()
             .withf_st(|_, origin, velocity| {
                 origin == &[1.0, 2.0, 3.0] && velocity == &[0.0, 0.0, 0.9]
