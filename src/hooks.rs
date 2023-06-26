@@ -295,18 +295,17 @@ pub(crate) fn shinqlx_drop_client(client: &mut Client, reason: &str) {
 }
 
 #[no_mangle]
-pub unsafe extern "C" fn ShiNQlx_Com_Printf(fmt: *const c_char, fmt_args: ...) {
+pub unsafe extern "C" fn ShiNQlx_Com_Printf(fmt: *const c_char, mut fmt_args: ...) {
     extern "C" {
         fn vsnprintf(s: *mut c_char, n: usize, format: *const c_char, arg: VaList) -> c_int;
     }
 
-    let mut va_args: VaListImpl = fmt_args.clone();
     let mut buffer: [u8; MAX_MSGLEN as usize] = [0; MAX_MSGLEN as usize];
     let result = vsnprintf(
         buffer.as_mut_ptr() as *mut c_char,
         buffer.len(),
         fmt,
-        va_args.as_va_list(),
+        fmt_args.as_va_list(),
     );
     if result < 0 {
         dbg!("some formatting problem occurred");
@@ -498,6 +497,9 @@ static_detour! {
     pub(crate) static SV_SPAWNSERVER_DETOUR: unsafe extern "C" fn(*const c_char, qboolean);
 }
 
+pub(crate) static mut SV_SENDSERVERCOMMAND_TRAMPOLINE: Option<u64> = None;
+pub(crate) static mut COM_PRINTF_TRAMPOLINE: Option<u64> = None;
+
 pub(crate) fn hook_static() -> Result<(), Box<dyn Error>> {
     debug_println!("Hooking...");
     unsafe {
@@ -563,9 +565,53 @@ pub(crate) fn hook_static() -> Result<(), Box<dyn Error>> {
     }
 
     extern "C" {
-        fn HookStatic();
+        fn HookVariadic(target: *const c_void, replacement: *const c_void) -> *const c_void;
     }
-    unsafe { HookStatic() };
+
+    unsafe {
+        SV_SENDSERVERCOMMAND_TRAMPOLINE = if let Some(func_pointer) =
+            STATIC_FUNCTION_MAP.get(&QuakeLiveFunction::SV_SendServerCommand)
+        {
+            let original_func: *const c_void = std::mem::transmute(*func_pointer);
+            debug_println!(format!(
+                "original: {:p}, replacement: {:p}",
+                original_func, ShiNQlx_SV_SendServerCommand as *const c_void
+            ));
+            let trampoline_func =
+                HookVariadic(original_func, ShiNQlx_SV_SendServerCommand as *const c_void);
+            debug_println!(format!("result: {:p}", trampoline_func));
+            debug_println!(format!("result: {:#X}", trampoline_func as u64));
+            if trampoline_func.is_null() {
+                None
+            } else {
+                Some(trampoline_func as u64)
+            }
+        } else {
+            None
+        };
+    }
+
+    unsafe {
+        COM_PRINTF_TRAMPOLINE = if let Some(func_pointer) =
+            STATIC_FUNCTION_MAP.get(&QuakeLiveFunction::Com_Printf)
+        {
+            let original_func: *const c_void = std::mem::transmute(*func_pointer);
+            debug_println!(format!(
+                "original: {:p}, replacement: {:p}",
+                original_func, ShiNQlx_Com_Printf as *const c_void
+            ));
+            let trampoline_func = HookVariadic(original_func, ShiNQlx_Com_Printf as *const c_void);
+            debug_println!(format!("result: {:p}", trampoline_func));
+            debug_println!(format!("result: {:#X}", trampoline_func as u64));
+            if trampoline_func.is_null() {
+                None
+            } else {
+                Some(trampoline_func as u64)
+            }
+        } else {
+            None
+        };
+    }
 
     Ok(())
 }

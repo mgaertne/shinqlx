@@ -15,34 +15,21 @@
 void* qagame;
 void* qagame_dllentry;
 
-// Hook static functions. Can be done before program even runs.
-void HookStatic(void) {
-    int res, failed = 0;
+void* HookVariadic(void* target, void* replacement) {
+    void* returned = NULL;
+    int hook_result = 0;
 
-    // ==============================
-    //    ONLY NEEDED FOR PYTHON
-    // ==============================
-#ifndef NOPY
-    res = Hook((void*)SV_SendServerCommand,ShiNQlx_SV_SendServerCommand, (void*)&SV_SendServerCommand);
-    if (res) {
-        DebugPrint("ERROR: Failed to hook SV_SendServerCommand: %d\n", res);
-        failed = 1;
+    DebugPrint("target: %p, replacement: %p\n", target, replacement);
+    hook_result = Hook(target, replacement, (void*)&returned);
+    if (hook_result) {
+        return NULL;
     }
 
-    res = Hook((void*)Com_Printf, ShiNQlx_Com_Printf, (void*)&Com_Printf);
-    if (res) {
-        DebugPrint("ERROR: Failed to hook Com_Printf: %d\n", res);
-        failed = 1;
-    }
-#endif
-
-    if (failed) {
-        DebugPrint("Exiting.\n");
-        exit(1);
-    }
+    DebugPrint("returned: %p\n", returned);
+    return returned;
 }
 
-/* 
+/*
  * Hooks VM calls. Not all use Hook, since the VM calls are stored in a table of
  * pointers. We simply set our function pointer to the current pointer in the table and
  * then replace the it with our replacement function. Just like hooking a VMT.

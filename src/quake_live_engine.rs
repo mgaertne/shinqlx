@@ -3,8 +3,9 @@ use crate::cvar::CVar;
 use crate::game_entity::GameEntity;
 use crate::game_item::GameItem;
 use crate::hooks::{
-    CMD_ADDCOMMAND_DETOUR, SV_CLIENTENTERWORLD_DETOUR, SV_EXECUTECLIENTCOMMAND_DETOUR,
-    SV_SETCONFGISTRING_DETOUR, SV_SPAWNSERVER_DETOUR, SYS_SETMODULEOFFSET_DETOUR,
+    CMD_ADDCOMMAND_DETOUR, COM_PRINTF_TRAMPOLINE, SV_CLIENTENTERWORLD_DETOUR,
+    SV_EXECUTECLIENTCOMMAND_DETOUR, SV_SENDSERVERCOMMAND_TRAMPOLINE, SV_SETCONFGISTRING_DETOUR,
+    SV_SPAWNSERVER_DETOUR, SYS_SETMODULEOFFSET_DETOUR,
 };
 use crate::quake_types::meansOfDeath_t::{
     MOD_BFG, MOD_BFG_SPLASH, MOD_CHAINGUN, MOD_CRUSH, MOD_FALLING, MOD_GAUNTLET, MOD_GRAPPLE,
@@ -516,20 +517,18 @@ pub(crate) trait SendServerCommand {
 
 impl SendServerCommand for QuakeLiveEngine {
     fn send_server_command(&self, client: Option<Client>, command: &str) {
-        extern "C" {
-            static SV_SendServerCommand: extern "C" fn(*const client_t, *const c_char, ...);
-        }
+        let Some(func_pointer) = (unsafe { SV_SENDSERVERCOMMAND_TRAMPOLINE.as_ref() }) else {
+            return;
+        };
+        let trampoline_func: extern "C" fn(*const client_t, *const c_char, ...) =
+            unsafe { std::mem::transmute(*func_pointer) };
 
         let Ok(c_command) = CString::new(command) else {
             return;
         };
         match client {
-            Some(safe_client) => unsafe {
-                SV_SendServerCommand(safe_client.client_t, c_command.as_ptr());
-            },
-            None => unsafe {
-                SV_SendServerCommand(std::ptr::null(), c_command.as_ptr());
-            },
+            Some(safe_client) => trampoline_func(safe_client.client_t, c_command.as_ptr()),
+            None => trampoline_func(std::ptr::null(), c_command.as_ptr()),
         }
     }
 }
@@ -569,14 +568,15 @@ pub(crate) trait ComPrintf {
 
 impl ComPrintf for QuakeLiveEngine {
     fn com_printf(&self, msg: &str) {
-        extern "C" {
-            static Com_Printf: extern "C" fn(*const c_char, ...);
-        }
-
-        let Ok(c_msg) = CString::new(msg) else {
+        let Some(func_pointer) = (unsafe { COM_PRINTF_TRAMPOLINE.as_ref() }) else {
             return;
         };
-        unsafe { Com_Printf(c_msg.as_ptr()) };
+        let Ok(c_msg) = CString::new(msg) else {
+                return;
+            };
+        let trampoline_func: extern "C" fn(fmt: *const c_char, ...) =
+            unsafe { std::mem::transmute(*func_pointer) };
+        trampoline_func(c_msg.as_ptr());
     }
 }
 
