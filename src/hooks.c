@@ -19,13 +19,11 @@ void* HookVariadic(void* target, void* replacement) {
     void* returned = NULL;
     int hook_result = 0;
 
-    DebugPrint("target: %p, replacement: %p\n", target, replacement);
     hook_result = Hook(target, replacement, (void*)&returned);
     if (hook_result) {
         return NULL;
     }
 
-    DebugPrint("returned: %p\n", returned);
     return returned;
 }
 
