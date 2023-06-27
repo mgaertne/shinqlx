@@ -52,7 +52,7 @@ impl GameItem {
                 return i as i32;
             }
         }
-        return -1;
+        0
     }
 
     fn get_item_list() -> *mut gitem_t {
