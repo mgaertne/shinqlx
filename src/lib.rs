@@ -84,7 +84,6 @@ fn initialize_static() {
     let res = pyminqlx_initialize();
 
     if res != PYM_SUCCESS {
-        debug_println!("Python initialization failed.");
         panic!("Python initialization failed.");
     }
 
