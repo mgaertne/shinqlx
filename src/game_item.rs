@@ -61,8 +61,7 @@ impl GameItem {
         };
         let base_address = unsafe { std::ptr::read_unaligned((func_pointer + 0x2A) as *const i32) };
         let bg_itemlist_ptr_ptr = base_address as u64 + func_pointer + 0x2A + 4;
-        let bg_itemlist_ptr =
-            unsafe { std::ptr::read_unaligned(bg_itemlist_ptr_ptr as *const u64) };
+        let bg_itemlist_ptr = unsafe { std::ptr::read(bg_itemlist_ptr_ptr as *const u64) };
         bg_itemlist_ptr as *mut gitem_t
     }
 
