@@ -19,6 +19,7 @@ use crate::quake_types::{
     entityType_t, gentity_t, meansOfDeath_t, privileges_t, team_t, trace_t, CS_ITEMS,
     DAMAGE_NO_PROTECTION, FL_DROPPED_ITEM, MAX_GENTITIES,
 };
+use crate::{QuakeLiveFunction, STATIC_FUNCTION_MAP};
 use std::f32::consts::PI;
 use std::ffi::{c_char, c_float, c_int, CStr};
 
@@ -81,15 +82,17 @@ pub(crate) extern "C" fn ShiNQlx_Touch_Item(
     other: *mut gentity_t,
     trace: *mut trace_t,
 ) {
-    extern "C" {
-        static Touch_Item: extern "C" fn(*mut gentity_t, *mut gentity_t, *mut trace_t);
-    }
+    let Some(func_pointer) =
+        (unsafe { STATIC_FUNCTION_MAP.get(&QuakeLiveFunction::Touch_Item) }) else {
+        return;
+        };
 
-    unsafe {
-        if let Some(entity) = ent.as_ref() {
-            if entity.parent != other {
-                Touch_Item(ent, other, trace);
-            }
+    let original_func: extern "C" fn(*mut gentity_t, *mut gentity_t, *mut trace_t) =
+        unsafe { std::mem::transmute(*func_pointer) };
+
+    if let Some(entity) = unsafe { ent.as_ref() } {
+        if entity.parent != other {
+            original_func(ent, other, trace);
         }
     }
 }
@@ -97,25 +100,38 @@ pub(crate) extern "C" fn ShiNQlx_Touch_Item(
 #[allow(non_snake_case)]
 #[no_mangle]
 pub(crate) extern "C" fn ShiNQlx_Switch_Touch_Item(ent: *mut gentity_t) {
-    extern "C" {
-        static Touch_Item: extern "C" fn(*mut gentity_t, *mut gentity_t, *mut trace_t);
-        static G_FreeEntity: extern "C" fn(*mut gentity_t);
-    }
+    let Some(touch_item_pointer) =
+        (unsafe { STATIC_FUNCTION_MAP.get(&QuakeLiveFunction::Touch_Item) }) else {
+        return;
+    };
+
+    let touch_item_func: extern "C" fn(*mut gentity_t, *mut gentity_t, *mut trace_t) =
+        unsafe { std::mem::transmute(*touch_item_pointer) };
+
+    let Some(g_free_entity_pointer) =
+        (unsafe { STATIC_FUNCTION_MAP.get(&QuakeLiveFunction::G_FreeEntity) }) else {
+        return;
+    };
+
+    let free_entity_func: extern "C" fn(*mut gentity_t) =
+        unsafe { std::mem::transmute(*g_free_entity_pointer) };
 
     if let Some(mut_ent) = unsafe { ent.as_mut() } {
-        mut_ent.touch = Some(unsafe { Touch_Item });
-        mut_ent.think = Some(unsafe { G_FreeEntity });
+        mut_ent.touch = Some(touch_item_func);
+        mut_ent.think = Some(free_entity_func);
         mut_ent.nextthink = CurrentLevel::default().get_leveltime() + 29000;
     }
 }
 
 impl GameEntity {
     fn get_entities_list() -> *mut gentity_t {
-        extern "C" {
-            static g_entities: *mut gentity_t;
-        }
-
-        unsafe { g_entities }
+        let Some(func_pointer) = (unsafe { STATIC_FUNCTION_MAP.get(&QuakeLiveFunction::G_RunFrame) }) else {
+            panic!("G_RunFrame not initialized.");
+        };
+        let base_address =
+            unsafe { std::ptr::read_unaligned((func_pointer + 0x11B) as *const i32) };
+        let gentities_ptr = base_address as u64 + func_pointer + 0x11B + 4;
+        gentities_ptr as *mut gentity_t
     }
 
     pub(crate) fn get_client_id(&self) -> i32 {

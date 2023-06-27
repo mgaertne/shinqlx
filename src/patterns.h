@@ -93,7 +93,6 @@
 // qagame structs and global varaibles.
 #define OFFSET_RELP_VM_CALL_TABLE       ((pint)qagame_dllentry + 0x3)
 #define OFFSET_RELP_G_ENTITIES          ((pint)G_RunFrame + 0x11B)
-#define OFFSET_RELP_ADMINCOMMANDS       ((pint)CheckPrivileges + 0x56)
 #define OFFSET_RELP_LEVEL               ((pint)G_InitGame + 0x4A1)
 #define OFFSET_RELP_BG_ITEMLIST         ((pint)LaunchItem + 0x2A)
 
