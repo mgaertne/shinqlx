@@ -688,7 +688,7 @@ impl CmdArgv for QuakeLiveEngine {
             return None;
         }
         let Some(func_pointer) =
-            (unsafe { STATIC_FUNCTION_MAP.get(&QuakeLiveFunction::Cmd_Argc) }) else {
+            (unsafe { STATIC_FUNCTION_MAP.get(&QuakeLiveFunction::Cmd_Argv) }) else {
             return None;
         };
         let original_func: extern "C" fn(c_int) -> *const c_char =
