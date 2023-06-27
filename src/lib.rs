@@ -228,7 +228,6 @@ pub(crate) fn search_vm_functions() {
         QuakeLiveFunction::G_AddEvent,
         QuakeLiveFunction::CheckPrivileges,
         QuakeLiveFunction::ClientConnect,
-        QuakeLiveFunction::ClientConnect,
         QuakeLiveFunction::ClientSpawn,
         QuakeLiveFunction::G_Damage,
         QuakeLiveFunction::Touch_Item,
