@@ -5,6 +5,7 @@ use crate::quake_live_engine::QuakeLiveEngineError::NullPointerPassed;
 use crate::quake_types::{level_locals_t, CS_VOTE_NO, CS_VOTE_STRING, CS_VOTE_TIME, CS_VOTE_YES};
 use crate::{QuakeLiveFunction, STATIC_FUNCTION_MAP, SV_MAXCLIENTS};
 use std::ffi::CString;
+use std::sync::atomic::Ordering;
 
 #[derive(Debug, PartialEq)]
 #[repr(transparent)]
@@ -72,7 +73,7 @@ impl CurrentLevel {
         self.level.voteYes = 0;
         self.level.voteNo = 0;
 
-        let maxclients = unsafe { SV_MAXCLIENTS };
+        let maxclients = SV_MAXCLIENTS.load(Ordering::Relaxed);
         for client_id in 0..maxclients {
             if let Ok(game_entity) = GameEntity::try_from(client_id) {
                 if let Ok(mut game_client) = game_entity.get_game_client() {

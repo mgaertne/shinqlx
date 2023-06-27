@@ -19,9 +19,11 @@ use crate::{
     initialize_cvars, initialize_static, search_vm_functions, QuakeLiveFunction,
     COMMON_INITIALIZED, CVARS_INITIALIZED, STATIC_FUNCTION_MAP, SV_TAGS_PREFIX,
 };
+use once_cell::sync::OnceCell;
 use retour::static_detour;
 use std::error::Error;
 use std::ffi::{c_char, c_float, c_int, c_void, CStr, VaList, VaListImpl};
+use std::sync::atomic::Ordering;
 
 fn set_tag() {
     let quake_live_engine = QuakeLiveEngine::default();
@@ -44,7 +46,7 @@ fn set_tag() {
 }
 
 fn shinqlx_cmd_addcommand(cmd: *const c_char, func: unsafe extern "C" fn()) {
-    if unsafe { !COMMON_INITIALIZED } {
+    if COMMON_INITIALIZED.get().is_none() {
         initialize_static();
     }
 
@@ -98,7 +100,7 @@ fn shinqlx_sys_setmoduleoffset(module_name: *const c_char, offset: unsafe extern
 
     QuakeLiveEngine::default().set_module_offset(converted_module_name.as_ref(), offset);
 
-    if unsafe { !COMMON_INITIALIZED } {
+    if COMMON_INITIALIZED.get().is_none() {
         return;
     }
 
@@ -116,7 +118,7 @@ fn shinqlx_sys_setmoduleoffset(module_name: *const c_char, offset: unsafe extern
 pub extern "C" fn ShiNQlx_G_InitGame(level_time: c_int, random_seed: c_int, restart: c_int) {
     QuakeLiveEngine::default().init_game(level_time, random_seed, restart);
 
-    if unsafe { !CVARS_INITIALIZED } {
+    if !CVARS_INITIALIZED.load(Ordering::Relaxed) {
         set_tag();
     }
 
@@ -497,10 +499,11 @@ static_detour! {
     pub(crate) static SV_SPAWNSERVER_DETOUR: unsafe extern "C" fn(*const c_char, qboolean);
 }
 
-pub(crate) static mut SV_SENDSERVERCOMMAND_TRAMPOLINE: Option<
+pub(crate) static SV_SENDSERVERCOMMAND_TRAMPOLINE: OnceCell<
     extern "C" fn(*const client_t, *const c_char, ...),
-> = None;
-pub(crate) static mut COM_PRINTF_TRAMPOLINE: Option<extern "C" fn(*const c_char, ...)> = None;
+> = OnceCell::new();
+pub(crate) static COM_PRINTF_TRAMPOLINE: OnceCell<extern "C" fn(*const c_char, ...)> =
+    OnceCell::new();
 
 pub(crate) fn hook_static() -> Result<(), Box<dyn Error>> {
     debug_println!("Hooking...");
@@ -570,41 +573,34 @@ pub(crate) fn hook_static() -> Result<(), Box<dyn Error>> {
         fn HookRaw(target: *const c_void, replacement: *const c_void) -> *const c_void;
     }
 
-    unsafe {
-        SV_SENDSERVERCOMMAND_TRAMPOLINE = if let Some(func_pointer) =
-            STATIC_FUNCTION_MAP.get(&QuakeLiveFunction::SV_SendServerCommand)
-        {
-            let trampoline_func_ptr = HookRaw(
+    if let Some(func_pointer) =
+        unsafe { STATIC_FUNCTION_MAP.get(&QuakeLiveFunction::SV_SendServerCommand) }
+    {
+        let trampoline_func_ptr = unsafe {
+            HookRaw(
                 *func_pointer as *const c_void,
                 ShiNQlx_SV_SendServerCommand as *const c_void,
-            );
-            if trampoline_func_ptr.is_null() {
-                None
-            } else {
-                let trampoline_func = std::mem::transmute(trampoline_func_ptr as u64);
-                Some(trampoline_func)
-            }
-        } else {
-            None
+            )
         };
+        if !trampoline_func_ptr.is_null() {
+            let trampoline_func = unsafe { std::mem::transmute(trampoline_func_ptr as u64) };
+            SV_SENDSERVERCOMMAND_TRAMPOLINE
+                .set(trampoline_func)
+                .unwrap();
+        }
     }
 
-    unsafe {
-        COM_PRINTF_TRAMPOLINE =
-            if let Some(func_pointer) = STATIC_FUNCTION_MAP.get(&QuakeLiveFunction::Com_Printf) {
-                let trampoline_func_ptr = HookRaw(
-                    *func_pointer as *const c_void,
-                    ShiNQlx_Com_Printf as *const c_void,
-                );
-                if trampoline_func_ptr.is_null() {
-                    None
-                } else {
-                    let trampoline_func = std::mem::transmute(trampoline_func_ptr as u64);
-                    Some(trampoline_func)
-                }
-            } else {
-                None
-            };
+    if let Some(func_pointer) = unsafe { STATIC_FUNCTION_MAP.get(&QuakeLiveFunction::Com_Printf) } {
+        let trampoline_func_ptr = unsafe {
+            HookRaw(
+                *func_pointer as *const c_void,
+                ShiNQlx_Com_Printf as *const c_void,
+            )
+        };
+        if !trampoline_func_ptr.is_null() {
+            let trampoline_func = unsafe { std::mem::transmute(trampoline_func_ptr as u64) };
+            COM_PRINTF_TRAMPOLINE.set(trampoline_func).unwrap();
+        }
     }
 
     Ok(())

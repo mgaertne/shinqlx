@@ -11,6 +11,7 @@ use crate::quake_types::entity_event_t::{EV_DEATH1, EV_GIB_PLAYER, EV_PAIN};
 use crate::SV_MAXCLIENTS;
 use pyo3::Python;
 use rand::Rng;
+use std::sync::atomic::Ordering;
 
 #[no_mangle]
 pub extern "C" fn cmd_send_server_command() {
@@ -55,7 +56,7 @@ pub extern "C" fn cmd_slap() {
     let Some(passed_client_id_str) = quake_live_engine.cmd_argv(1) else {
         return;
     };
-    let maxclients = unsafe { SV_MAXCLIENTS };
+    let maxclients = SV_MAXCLIENTS.load(Ordering::Relaxed);
     let Some(client_id) = passed_client_id_str.parse::<i32>().ok() else {
         let usage_note = format!(
             "client_id must be a number between 0 and {}.\n",
@@ -144,7 +145,7 @@ pub extern "C" fn cmd_slay() {
     let Some(passed_client_id_str) = quake_live_engine.cmd_argv(1) else {
         return;
     };
-    let maxclients = unsafe { SV_MAXCLIENTS };
+    let maxclients = SV_MAXCLIENTS.load(Ordering::Relaxed);
     let Some(client_id) = passed_client_id_str.parse::<i32>().ok() else {
         let usage_note = format!(
             "client_id must be a number between 0 and {}.\n",
