@@ -33,10 +33,7 @@ typedef int32_t sint;
 #define __cdecl __attribute__((__cdecl__))
 #endif
 
-void* HookVariadic(void* target, void* replacement);
-void SearchVmFunctions(void); // Needs to be called every time the VM is loaded.
-void InitializeVm(void);
-void HookVm(void);
+void* HookRaw(void* target, void* replacement);
 void DebugPrint(const char* fmt, ...);
 void DebugError(const char* fmt, const char* file, int line, const char* func, ...);
 

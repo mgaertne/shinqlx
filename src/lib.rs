@@ -189,8 +189,7 @@ pub(crate) fn search_static_functions() {
 
     // Cmd_Argc is really small, making it hard to search for, so we use a reference to it instead.
     if let Some(sv_map_f_ptr) = unsafe { STATIC_FUNCTION_MAP.get(&QuakeLiveFunction::SV_Map_f) } {
-        let base_address: i32 =
-            unsafe { std::ptr::read_unaligned((sv_map_f_ptr + 0x81) as *const i32) };
+        let base_address = unsafe { std::ptr::read_unaligned((sv_map_f_ptr + 0x81) as *const i32) };
         let cmd_argc_ptr = base_address + *sv_map_f_ptr as i32 + 0x81 + 4;
         debug_println!(format!(
             "{}: {:#X}",
@@ -198,6 +197,52 @@ pub(crate) fn search_static_functions() {
             cmd_argc_ptr
         ));
         unsafe { STATIC_FUNCTION_MAP.insert(QuakeLiveFunction::Cmd_Argc, cmd_argc_ptr as u64) };
+    }
+}
+
+pub(crate) fn search_vm_functions() {
+    let qagame_os_str = OsStr::new("qagamex64.so");
+    let myself_module = procfs::process::Process::myself().unwrap();
+    let myself_maps = myself_module.maps().unwrap();
+    let qagame_maps: Vec<&procfs::process::MemoryMap> = myself_maps
+        .memory_maps
+        .iter()
+        .filter(|mmap| {
+            if let procfs::process::MMapPath::Path(path) = &mmap.pathname {
+                path.file_name() == Some(qagame_os_str)
+            } else {
+                false
+            }
+        })
+        .collect();
+
+    if qagame_maps.is_empty() {
+        debug_println!("no memory mapping information for qagamex64.so found");
+        panic!("no memory mapping information found\n");
+    }
+
+    debug_println!("Searching for necessary VM functions...");
+
+    for ql_func in [
+        QuakeLiveFunction::G_AddEvent,
+        QuakeLiveFunction::CheckPrivileges,
+        QuakeLiveFunction::ClientConnect,
+        QuakeLiveFunction::ClientConnect,
+        QuakeLiveFunction::ClientSpawn,
+        QuakeLiveFunction::G_Damage,
+        QuakeLiveFunction::Touch_Item,
+        QuakeLiveFunction::LaunchItem,
+        QuakeLiveFunction::Drop_Item,
+        QuakeLiveFunction::G_StartKamikaze,
+        QuakeLiveFunction::G_FreeEntity,
+    ] {
+        if let Some(result) = pattern_search_module(&qagame_maps, &ql_func) {
+            debug_println!(format!("{}: {:#X}", &ql_func, result));
+            unsafe { STATIC_FUNCTION_MAP.insert(ql_func, result) };
+        } else {
+            debug_println!(format!("VM function {} not found", ql_func));
+            panic!("VM function not found. Exiting.");
+        }
     }
 }
 
@@ -264,6 +309,18 @@ pub(crate) enum QuakeLiveFunction {
     Sys_SetModuleOffset,
     SV_SpawnServer,
     Cmd_ExecuteString,
+    G_InitGame,
+    G_RunFrame,
+    ClientConnect,
+    G_StartKamikaze,
+    ClientSpawn,
+    G_Damage,
+    G_AddEvent,
+    CheckPrivileges,
+    Touch_Item,
+    LaunchItem,
+    Drop_Item,
+    G_FreeEntity,
 }
 
 impl Display for QuakeLiveFunction {
@@ -291,6 +348,18 @@ impl Display for QuakeLiveFunction {
             QuakeLiveFunction::Sys_SetModuleOffset => f.write_str("Sys_SetModuleOffset"),
             QuakeLiveFunction::SV_SpawnServer => f.write_str("SV_SpawnServer"),
             QuakeLiveFunction::Cmd_ExecuteString => f.write_str("Cmd_ExecuteString"),
+            QuakeLiveFunction::G_InitGame => f.write_str("G_InitGame"),
+            QuakeLiveFunction::G_RunFrame => f.write_str("G_RunFrame"),
+            QuakeLiveFunction::ClientConnect => f.write_str("ClientConnect"),
+            QuakeLiveFunction::G_StartKamikaze => f.write_str("G_StartKamikaze"),
+            QuakeLiveFunction::ClientSpawn => f.write_str("ClientSpawn"),
+            QuakeLiveFunction::G_Damage => f.write_str("G_Damage"),
+            QuakeLiveFunction::G_AddEvent => f.write_str("G_AddEvent"),
+            QuakeLiveFunction::CheckPrivileges => f.write_str("CheckPrivileges"),
+            QuakeLiveFunction::Touch_Item => f.write_str("Touch_Item"),
+            QuakeLiveFunction::LaunchItem => f.write_str("LaunchItem"),
+            QuakeLiveFunction::Drop_Item => f.write_str("Drop_Item"),
+            QuakeLiveFunction::G_FreeEntity => f.write_str("G_FreeEntity"),
         }
     }
 }
@@ -319,6 +388,18 @@ impl QuakeLiveFunction {
             QuakeLiveFunction::Sys_SetModuleOffset => b"\x55\x48\x89\xf2\x31\xc0\x48\x89\xf5\x48\x89\xfe\x53\x48\x89\xfb\xbf\x00\x00\x00\x00\x48\x83\xec\x00\xe8\x00\x00\x00\x00\xbf\x00\x00\x00\x00\xb9\x00\x00\x00\x00\x48\x89\xde\xf3\xa6\x74\x00",
             QuakeLiveFunction::SV_SpawnServer => b"\x41\x55\x41\x54\x41\x89\xf4\x55\x48\x89\xfd\x53\x48\x81\xec\x00\x00\x00\x00\x64\x48\x8b\x04\x25\x00\x00\x00\x00\x48\x89\x84\x24\x00\x00\x00\x00\x31\xc0\xe8\x00\x00\x00\x00\x31\xc0\xbf\x00\x00\x00\x00",
             QuakeLiveFunction::Cmd_ExecuteString => b"\x41\x54\x49\x89\xfc\x55\x53\xe8\x00\x00\x00\x00\x44\x8b\x0d\x00\x00\x00\x00\x45\x85\xc9\x0f\x84\x00\x00\x00\x00\x48\x8b\x1d\x00\x00\x00\x00\xbd\x00\x00\x00\x00\x48\x85\xdb\x75\x00\xeb\x00\x90",
+            QuakeLiveFunction::G_InitGame => b"\x41\x54\x55\x53\x48\x81\xec\x00\x00\x00\x00\x84\xc0\x48\x89\xb4\x24\x00\x00\x00\x00\x48\x89\x94\x24\x00\x00\x00\x00\x48\x89\x8c\x24\x00\x00\x00\x00\x4c\x89\x84\x24\x00\x00\x00\x00",
+            QuakeLiveFunction::G_RunFrame => b"\x8b\x05\x00\x00\x00\x00\x85\xc0\x74\x00\xf3\xc3",
+            QuakeLiveFunction::ClientConnect => b"\x41\x57\x4c\x63\xff\x41\x56\x41\x89\xf6\x41\x55\x41\x54\x55\x4c\x89\xfd\x48\xc1\xe5\x00\x53\x89\xfb\x48\x81\xec\x00\x00\x00\x00\x4c\x8b\x2d\x00\x00\x00\x00\x64\x48\x8b\x04\x25\x00\x00\x00\x00",
+            QuakeLiveFunction::G_StartKamikaze => b"\x41\x55\x31\xc0\x41\x54\x55\x48\x89\xfd\x53\x48\x83\xec\x00\xe8\x00\x00\x00\x00\x4c\x8b\x25\x00\x00\x00\x00\xc7\x40\x04\x00\x00\x00\x00\x48\x89\xc3\x41\x8b\x44\x00\x24\x89\x83\x00\x00\x00\x00",
+            QuakeLiveFunction::ClientSpawn => b"\x41\x57\x41\x56\x49\x89\xfe\x41\x55\x41\x54\x55\x53\x48\x81\xec\x00\x00\x00\x00\x4c\x8b\xbf\x00\x00\x00\x00\x64\x48\x8b\x04\x25\x00\x00\x00\x00\x48\x89\x84\x24\x00\x00\x00\x00\x31\xc0",
+            QuakeLiveFunction::G_Damage => b"\x41\x57\x41\x56\x41\x55\x41\x54\x55\x53\x48\x89\xfb\x48\x81\xec\x00\x00\x00\x00\x44\x8b\x97\x00\x00\x00\x00\x48\x8b\xaf\x00\x00\x00\x00\x64\x48\x8b\x04\x25\x00\x00\x00\x00",
+            QuakeLiveFunction::G_AddEvent => b"\x85\xf6\x74\x00\x48\x8b\x8f\x00\x00\x00\x00\x48\x85\xc9\x74\x00\x8b\x81\x00\x00\x00\x00\x25\x00\x00\x00\x00\x05\x00\x00\x00\x00\x25\x00\x00\x00\x00\x09\xf0\x89\x81\x00\x00\x00\x00",
+            QuakeLiveFunction::CheckPrivileges => b"\x41\x56\x89\x15\x00\x00\x00\x00\x49\x89\xfe\x48\x8d\x3d\x00\x00\x00\x00\x41\x55\x41\x89\xd5\x41\x54\x49\x89\xf4\x55\x31\xed\x53\x48\x8d\x1d\x00\x00\x00\x00\xeb\x00\x0f\x1f\x80\x00\x00\x00\x00",
+            QuakeLiveFunction::Touch_Item => b"\x41\x57\x41\x56\x41\x55\x41\x54\x55\x53\x48\x89\xf3\x48\x81\xec\x00\x00\x00\x00\x4c\x8b\x86\x00\x00\x00\x00\x4d\x85\xc0\x74\x00\x8b\x96\x00\x00\x00\x00\x85\xd2\x7e\x00\x4c\x8b\x35\x00\x00\x00\x00",
+            QuakeLiveFunction::LaunchItem => b"\x41\x55\x31\xc0\x49\x89\xf5\x41\x54\x49\x89\xd4\x55\x48\x89\xfd\x53\x48\x83\xec\x00\xe8\x00\x00\x00\x00\xc7\x40\x04\x00\x00\x00\x00\x48\x89\xc3\x48\x89\xe8\x48\x2b\x05\x00\x00\x00\x00",
+            QuakeLiveFunction::Drop_Item => b"\x41\x54\x31\xc9\x31\xd2\x49\x89\xf4\x55\x53\x48\x89\xfb\x48\x83\xec\x00\xf3\x0f\x10\x4f\x00\x48\x8d\x6c\x24\x00\xc7\x44\x24\x20\x00\x00\x00\x00\xf3\x0f\x58\xc8\xf3\x0f\x10\x57\x00\x48\x8d\x7c\x24\x00",
+            QuakeLiveFunction::G_FreeEntity => b"\x48\x8b\x05\x00\x00\x00\x00\x53\x48\x89\xfb\x48\x8b\x00\xff\x90\x00\x00\x00\x00\x8b\x83\x00\x00\x00\x00\x85\xc0\x74\x00\x5b\xc3",
         }
     }
 
@@ -368,6 +449,22 @@ impl QuakeLiveFunction {
             QuakeLiveFunction::Cmd_ExecuteString => {
                 b"XXXXXXXX----XXX----XXXXX----XXX----X----XXXX-X-X"
             }
+            QuakeLiveFunction::G_InitGame => b"XXXXXXX----XXXXXX----XXXX----XXXX----XXXX----",
+            QuakeLiveFunction::G_RunFrame => b"XX----XXX-XX",
+            QuakeLiveFunction::ClientConnect => b"XXXXXXXXXXXXXXXXXXXXX-XXXXXX----XXX----XXXXX----",
+            QuakeLiveFunction::G_StartKamikaze => {
+                b"XXXXXXXXXXXXXX-X----XXX----XXX----XXXXXX-XXX----"
+            }
+            QuakeLiveFunction::ClientSpawn => b"XXXXXXXXXXXXXXXX----XXX----XXXXX----XXXX----XX",
+            QuakeLiveFunction::G_Damage => b"XXXXXXXXXXXXXXXX----XXX----XXX----XXXXX----",
+            QuakeLiveFunction::G_AddEvent => b"XXX-XXX----XXXX-XX----X----X----X----XXXX----",
+            QuakeLiveFunction::CheckPrivileges => {
+                b"XXXX----XXXXXX----XXXXXXXXXXXXXXXXX----X-XXX----"
+            }
+            QuakeLiveFunction::Touch_Item => b"XXXXXXXXXXXXXXXX----XXX----XXXX-XX----XXX-XXX----",
+            QuakeLiveFunction::LaunchItem => b"XXXXXXXXXXXXXXXXXXXX-X----XXX----XXXXXXXXX----",
+            QuakeLiveFunction::Drop_Item => b"XXXXXXXXXXXXXXXXX-XXXX-XXXX-XXXX----XXXXXXXX-XXXX-",
+            QuakeLiveFunction::G_FreeEntity => b"XXX----XXXXXXXXX----XX----XXX-XX",
         }
     }
 }

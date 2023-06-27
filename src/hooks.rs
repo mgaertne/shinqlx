@@ -16,8 +16,8 @@ use crate::quake_types::{
     cbufExec_t, client_t, gentity_t, qboolean, usercmd_t, MAX_MSGLEN, MAX_STRING_CHARS,
 };
 use crate::{
-    initialize_cvars, initialize_static, QuakeLiveFunction, COMMON_INITIALIZED, CVARS_INITIALIZED,
-    STATIC_FUNCTION_MAP, SV_TAGS_PREFIX,
+    initialize_cvars, initialize_static, search_vm_functions, QuakeLiveFunction,
+    COMMON_INITIALIZED, CVARS_INITIALIZED, STATIC_FUNCTION_MAP, SV_TAGS_PREFIX,
 };
 use retour::static_detour;
 use std::error::Error;
@@ -66,9 +66,6 @@ fn shinqlx_sys_setmoduleoffset(module_name: *const c_char, offset: unsafe extern
     extern "C" {
         static mut qagame_dllentry: *mut c_void;
         static mut qagame: *mut c_void;
-        fn SearchVmFunctions();
-        fn HookVm();
-        fn InitializeVm();
         fn patch_vm();
         fn dladdr(addr: *const c_void, into: *mut DlInfo) -> c_int;
     }
@@ -105,10 +102,12 @@ fn shinqlx_sys_setmoduleoffset(module_name: *const c_char, offset: unsafe extern
         return;
     }
 
+    search_vm_functions();
+
+    #[allow(clippy::fn_to_numeric_cast)]
+    hook_vm(offset as u64).unwrap();
+
     unsafe {
-        SearchVmFunctions();
-        HookVm();
-        InitializeVm();
         patch_vm();
     }
 }
@@ -294,6 +293,7 @@ pub(crate) fn shinqlx_drop_client(client: &mut Client, reason: &str) {
     client.disconnect(reason);
 }
 
+#[allow(unused_mut)]
 #[no_mangle]
 pub unsafe extern "C" fn ShiNQlx_Com_Printf(fmt: *const c_char, mut fmt_args: ...) {
     extern "C" {
@@ -497,8 +497,10 @@ static_detour! {
     pub(crate) static SV_SPAWNSERVER_DETOUR: unsafe extern "C" fn(*const c_char, qboolean);
 }
 
-pub(crate) static mut SV_SENDSERVERCOMMAND_TRAMPOLINE: Option<u64> = None;
-pub(crate) static mut COM_PRINTF_TRAMPOLINE: Option<u64> = None;
+pub(crate) static mut SV_SENDSERVERCOMMAND_TRAMPOLINE: Option<
+    extern "C" fn(*const client_t, *const c_char, ...),
+> = None;
+pub(crate) static mut COM_PRINTF_TRAMPOLINE: Option<extern "C" fn(*const c_char, ...)> = None;
 
 pub(crate) fn hook_static() -> Result<(), Box<dyn Error>> {
     debug_println!("Hooking...");
@@ -565,21 +567,22 @@ pub(crate) fn hook_static() -> Result<(), Box<dyn Error>> {
     }
 
     extern "C" {
-        fn HookVariadic(target: *const c_void, replacement: *const c_void) -> *const c_void;
+        fn HookRaw(target: *const c_void, replacement: *const c_void) -> *const c_void;
     }
 
     unsafe {
         SV_SENDSERVERCOMMAND_TRAMPOLINE = if let Some(func_pointer) =
             STATIC_FUNCTION_MAP.get(&QuakeLiveFunction::SV_SendServerCommand)
         {
-            let trampoline_func = HookVariadic(
+            let trampoline_func_ptr = HookRaw(
                 *func_pointer as *const c_void,
                 ShiNQlx_SV_SendServerCommand as *const c_void,
             );
-            if trampoline_func.is_null() {
+            if trampoline_func_ptr.is_null() {
                 None
             } else {
-                Some(trampoline_func as u64)
+                let trampoline_func = std::mem::transmute(trampoline_func_ptr as u64);
+                Some(trampoline_func)
             }
         } else {
             None
@@ -589,14 +592,154 @@ pub(crate) fn hook_static() -> Result<(), Box<dyn Error>> {
     unsafe {
         COM_PRINTF_TRAMPOLINE =
             if let Some(func_pointer) = STATIC_FUNCTION_MAP.get(&QuakeLiveFunction::Com_Printf) {
-                let trampoline_func = HookVariadic(
+                let trampoline_func_ptr = HookRaw(
                     *func_pointer as *const c_void,
                     ShiNQlx_Com_Printf as *const c_void,
                 );
-                if trampoline_func.is_null() {
+                if trampoline_func_ptr.is_null() {
                     None
                 } else {
-                    Some(trampoline_func as u64)
+                    let trampoline_func = std::mem::transmute(trampoline_func_ptr as u64);
+                    Some(trampoline_func)
+                }
+            } else {
+                None
+            };
+    }
+
+    Ok(())
+}
+
+pub(crate) static mut CLIENT_CONNECT_TRAMPOLINE: Option<
+    extern "C" fn(c_int, qboolean, qboolean) -> *const c_char,
+> = None;
+pub(crate) static mut CLIENT_SPAWN_TRAMPOLINE: Option<extern "C" fn(*mut gentity_t)> = None;
+pub(crate) static mut G_START_KAMIKAZE_TRAMPOLINE: Option<extern "C" fn(*const gentity_t)> = None;
+pub(crate) static mut G_DAMAGE_TRAMPOLINE: Option<
+    extern "C" fn(
+        *const gentity_t,
+        *const gentity_t,
+        *const gentity_t,
+        *const c_float,
+        *const c_float,
+        c_int,
+        c_int,
+        c_int,
+    ),
+> = None;
+
+/*
+ * Hooks VM calls. Not all use Hook, since the VM calls are stored in a table of
+ * pointers. We simply set our function pointer to the current pointer in the table and
+ * then replace the it with our replacement function. Just like hooking a VMT.
+ *
+ * This must be called AFTER Sys_SetModuleOffset, since Sys_SetModuleOffset is called after
+ * the VM DLL has been loaded, meaning the pointer we use has been set.
+ *
+ * PROTIP: If you can, ALWAYS use VM_Call table hooks instead of using Hook().
+*/
+pub(crate) fn hook_vm(qagame_dllentry: u64) -> Result<(), Box<dyn Error>> {
+    extern "C" {
+        fn HookRaw(target: *const c_void, replacement: *const c_void) -> *const c_void;
+    }
+
+    let base_address = unsafe { std::ptr::read_unaligned((qagame_dllentry + 0x3) as *const i32) };
+    let vm_call_table = base_address as u64 + qagame_dllentry + 0x3 + 4;
+
+    let g_initgame_ptr = unsafe { std::ptr::read((vm_call_table + 0x18) as *const u64) };
+    unsafe {
+        STATIC_FUNCTION_MAP.insert(QuakeLiveFunction::G_InitGame, g_initgame_ptr);
+    }
+    debug_println!(format!("G_InitGame: {:#X}", &g_initgame_ptr));
+
+    let g_runframe_ptr = unsafe { std::ptr::read((vm_call_table + 0x8) as *const u64) };
+    unsafe {
+        STATIC_FUNCTION_MAP.insert(QuakeLiveFunction::G_RunFrame, g_runframe_ptr);
+    }
+    debug_println!(format!("G_RunFrame: {:#X}", &g_runframe_ptr));
+
+    debug_println!("Hooking VM functions...");
+    #[allow(clippy::fn_to_numeric_cast)]
+    unsafe {
+        std::ptr::write(
+            (vm_call_table + 0x18) as *mut u64,
+            ShiNQlx_G_InitGame as u64,
+        );
+    }
+
+    #[allow(clippy::fn_to_numeric_cast)]
+    unsafe {
+        std::ptr::write((vm_call_table + 0x8) as *mut u64, ShiNQlx_G_RunFrame as u64);
+    }
+
+    unsafe {
+        CLIENT_CONNECT_TRAMPOLINE = if let Some(func_pointer) =
+            STATIC_FUNCTION_MAP.get(&QuakeLiveFunction::ClientConnect)
+        {
+            let trampoline_func_ptr = HookRaw(
+                *func_pointer as *const c_void,
+                ShiNQlx_ClientConnect as *const c_void,
+            );
+            if trampoline_func_ptr.is_null() {
+                None
+            } else {
+                let trampoline_func = std::mem::transmute(trampoline_func_ptr as u64);
+                Some(trampoline_func)
+            }
+        } else {
+            None
+        };
+    }
+
+    unsafe {
+        G_START_KAMIKAZE_TRAMPOLINE = if let Some(func_pointer) =
+            STATIC_FUNCTION_MAP.get(&QuakeLiveFunction::G_StartKamikaze)
+        {
+            let trampoline_func_ptr = HookRaw(
+                *func_pointer as *const c_void,
+                ShiNQlx_G_StartKamikaze as *const c_void,
+            );
+            if trampoline_func_ptr.is_null() {
+                None
+            } else {
+                let trampoline_func = std::mem::transmute(trampoline_func_ptr as u64);
+                Some(trampoline_func)
+            }
+        } else {
+            None
+        };
+    }
+
+    unsafe {
+        CLIENT_SPAWN_TRAMPOLINE =
+            if let Some(func_pointer) = STATIC_FUNCTION_MAP.get(&QuakeLiveFunction::ClientSpawn) {
+                let trampoline_func_ptr = HookRaw(
+                    *func_pointer as *const c_void,
+                    ShiNQlx_ClientSpawn as *const c_void,
+                );
+                if trampoline_func_ptr.is_null() {
+                    None
+                } else {
+                    let trampoline_func = std::mem::transmute(trampoline_func_ptr as u64);
+                    Some(trampoline_func)
+                }
+            } else {
+                None
+            };
+    }
+
+    unsafe {
+        G_DAMAGE_TRAMPOLINE =
+            if let Some(func_pointer) = STATIC_FUNCTION_MAP.get(&QuakeLiveFunction::G_Damage) {
+                let trampoline_func_ptr = HookRaw(
+                    *func_pointer as *const c_void,
+                    ShiNQlx_G_Damage as *const c_void,
+                );
+                if trampoline_func_ptr.is_null() {
+                    None
+                } else {
+                    let trampoline_func = std::mem::transmute(trampoline_func_ptr as u64);
+                    Some(trampoline_func)
                 }
             } else {
                 None

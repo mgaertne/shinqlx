@@ -4,7 +4,8 @@ use crate::quake_live_engine::QuakeLiveEngineError::{
 use crate::quake_live_engine::{GameAddEvent, LaunchItem, QuakeLiveEngine, QuakeLiveEngineError};
 use crate::quake_types::entity_event_t::EV_ITEM_RESPAWN;
 use crate::quake_types::gitem_t;
-use std::ffi::{c_float, c_int, CStr};
+use crate::{QuakeLiveFunction, STATIC_FUNCTION_MAP};
+use std::ffi::{c_float, CStr};
 
 #[derive(Debug, PartialEq)]
 #[repr(transparent)]
@@ -40,17 +41,29 @@ impl TryFrom<i32> for GameItem {
 
 impl GameItem {
     pub(crate) fn get_num_items() -> i32 {
-        extern "C" {
-            static bg_numItems: c_int;
+        let bg_itemlist = Self::get_item_list();
+        if bg_itemlist.is_null() {
+            return 0;
         }
-        unsafe { bg_numItems }
+
+        for i in 1..=4096 {
+            let item = unsafe { bg_itemlist.offset(i) };
+            if item.is_null() || unsafe { item.as_ref() }.unwrap().classname.is_null() {
+                return i as i32;
+            }
+        }
+        return -1;
     }
 
     fn get_item_list() -> *mut gitem_t {
-        extern "C" {
-            static bg_itemlist: *mut gitem_t;
-        }
-        unsafe { bg_itemlist }
+        let Some(func_pointer) = (unsafe { STATIC_FUNCTION_MAP.get(&QuakeLiveFunction::LaunchItem) }) else {
+            return std::ptr::null_mut();
+        };
+        let base_address = unsafe { std::ptr::read_unaligned((func_pointer + 0x2A) as *const i32) };
+        let bg_itemlist_ptr_ptr = base_address as u64 + func_pointer + 0x2A + 4;
+        let bg_itemlist_ptr =
+            unsafe { std::ptr::read_unaligned(bg_itemlist_ptr_ptr as *const u64) };
+        bg_itemlist_ptr as *mut gitem_t
     }
 
     #[allow(unused)]

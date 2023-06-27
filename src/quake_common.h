@@ -34,54 +34,12 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 extern void* qagame;
 extern void* qagame_dllentry;
 
-// Additional key struct pointers.
-extern gentity_t* g_entities;
-extern level_locals_t* level;
-extern gitem_t* bg_itemlist;
-extern int bg_numItems;
-
 // Internal QL function pointer types.
 // VM functions.
-typedef void (__cdecl *G_RunFrame_ptr)(int time);
-typedef void (__cdecl *G_AddEvent_ptr)(gentity_t* ent, int event, int eventParm);
-typedef void (__cdecl *G_InitGame_ptr)(int levelTime, int randomSeed, int restart);
-typedef int (__cdecl *CheckPrivileges_ptr)(gentity_t* ent, char* cmd);
-typedef char* (__cdecl *ClientConnect_ptr)(int clientNum, qboolean firstTime, qboolean isBot);
-typedef void (__cdecl *ClientSpawn_ptr)(gentity_t* ent);
 typedef void (__cdecl *Cmd_CallVote_f_ptr)(gentity_t *ent);
-typedef void (__cdecl *G_Damage_ptr)(gentity_t *targ, gentity_t *inflictor, gentity_t *attacker, vec3_t dir, vec3_t point, int damage, int dflags, int mod);
-typedef void (__cdecl *Touch_Item_ptr)(gentity_t *ent, gentity_t *other, trace_t *trace);
-typedef gentity_t* (__cdecl *LaunchItem_ptr)(gitem_t *item, vec3_t origin, vec3_t velocity);
-typedef gentity_t* (__cdecl *Drop_Item_ptr)(gentity_t *ent, gitem_t *item, float angle);
-typedef void (__cdecl *G_StartKamikaze_ptr)(gentity_t *ent);
-typedef void (__cdecl *G_FreeEntity_ptr)(gentity_t *ed);
 
 // Some of them are initialized by Initialize(), but not all of them necessarily.
 // VM functions.
-extern G_RunFrame_ptr G_RunFrame;
-extern G_AddEvent_ptr G_AddEvent;
-extern G_InitGame_ptr G_InitGame;
-extern CheckPrivileges_ptr CheckPrivileges;
-extern ClientConnect_ptr ClientConnect;
-extern ClientSpawn_ptr ClientSpawn;
 extern Cmd_CallVote_f_ptr Cmd_CallVote_f;
-extern G_Damage_ptr G_Damage;
-extern Touch_Item_ptr Touch_Item;
-extern LaunchItem_ptr LaunchItem;
-extern Drop_Item_ptr Drop_Item;
-extern G_StartKamikaze_ptr G_StartKamikaze;
-extern G_FreeEntity_ptr G_FreeEntity;
-
-// Server replacement functions for hooks.
-#ifndef NOPY
-// VM replacement functions for hooks.
-extern void __cdecl ShiNQlx_G_RunFrame(int time);
-extern void __cdecl ShiNQlx_G_InitGame(int levelTime, int randomSeed, int restart);
-extern char* __cdecl ShiNQlx_ClientConnect(int clientNum, qboolean firstTime, qboolean isBot);
-extern void __cdecl ShiNQlx_ClientSpawn(gentity_t* ent);
-
-extern void __cdecl ShiNQlx_G_StartKamikaze(gentity_t* ent);
-extern void __cdecl ShiNQlx_G_Damage(gentity_t* target, gentity_t* inflictor, gentity_t* attacker, vec3_t dir, vec3_t point, int damage, int dflags, int mod);
-#endif
 
 #endif /* QUAKE_COMMON_H */
