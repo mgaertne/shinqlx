@@ -38,11 +38,13 @@ use crate::pyminqlx::pyminqlx_initialize;
 use crate::quake_live_engine::{AddCommand, FindCVar, QuakeLiveEngine};
 use crate::PyMinqlx_InitStatus_t::PYM_SUCCESS;
 use ctor::ctor;
+use once_cell::race::OnceBool;
 use once_cell::sync::Lazy;
 use std::collections::HashMap;
 use std::env::args;
 use std::ffi::OsStr;
 use std::fmt::{Display, Formatter};
+use std::sync::atomic::{AtomicBool, AtomicI32, Ordering};
 
 pub(crate) const DEBUG_PRINT_PREFIX: &str = "[shinqlx]";
 
@@ -61,10 +63,10 @@ pub enum PyMinqlx_InitStatus_t {
     PYM_NOT_INITIALIZED_ERROR,
 }
 
-pub(crate) static mut COMMON_INITIALIZED: bool = false;
-pub(crate) static mut CVARS_INITIALIZED: bool = false;
-pub(crate) static mut SV_MAXCLIENTS: i32 = 0;
-pub(crate) static mut ALLOW_FREE_CLIENT: i32 = -1;
+pub(crate) static COMMON_INITIALIZED: OnceBool = OnceBool::new();
+pub(crate) static CVARS_INITIALIZED: AtomicBool = AtomicBool::new(false);
+pub(crate) static SV_MAXCLIENTS: AtomicI32 = AtomicI32::new(0);
+pub(crate) static ALLOW_FREE_CLIENT: AtomicI32 = AtomicI32::new(-1);
 
 // Currently called by My_Cmd_AddCommand(), since it's called at a point where we
 // can safely do whatever we do below. It'll segfault if we do it at the entry
@@ -87,7 +89,7 @@ fn initialize_static() {
         panic!("Python initialization failed.");
     }
 
-    unsafe { COMMON_INITIALIZED = true };
+    COMMON_INITIALIZED.set(true).unwrap();
 }
 
 // Called after the game is initialized.
@@ -96,8 +98,8 @@ fn initialize_cvars() {
         return;
     };
 
-    unsafe { SV_MAXCLIENTS = maxclients.get_integer() };
-    unsafe { CVARS_INITIALIZED = true };
+    SV_MAXCLIENTS.store(maxclients.get_integer(), Ordering::Relaxed);
+    CVARS_INITIALIZED.store(true, Ordering::Relaxed);
 }
 
 #[cfg(target_pointer_width = "64")]

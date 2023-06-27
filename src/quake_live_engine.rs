@@ -521,7 +521,7 @@ pub(crate) trait SendServerCommand {
 
 impl SendServerCommand for QuakeLiveEngine {
     fn send_server_command(&self, client: Option<Client>, command: &str) {
-        let Some(trampoline_func) = (unsafe { SV_SENDSERVERCOMMAND_TRAMPOLINE.as_ref() }) else {
+        let Some(trampoline_func) = SV_SENDSERVERCOMMAND_TRAMPOLINE.get() else {
             return;
         };
 
@@ -570,12 +570,12 @@ pub(crate) trait ComPrintf {
 
 impl ComPrintf for QuakeLiveEngine {
     fn com_printf(&self, msg: &str) {
-        let Some(trampoline_func) = (unsafe { COM_PRINTF_TRAMPOLINE.as_ref() }) else {
+        let Some(trampoline_func) = COM_PRINTF_TRAMPOLINE.get() else {
             return;
         };
         let Ok(c_msg) = CString::new(msg) else {
-                return;
-            };
+            return;
+        };
         trampoline_func(c_msg.as_ptr());
     }
 }

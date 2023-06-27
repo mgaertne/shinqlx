@@ -23,6 +23,7 @@ use crate::quake_types::{
     DAMAGE_RADIUS, MAX_CONFIGSTRINGS, MAX_GENTITIES,
 };
 use crate::PyMinqlx_InitStatus_t;
+use std::sync::atomic::Ordering;
 
 use crate::client::Client;
 use crate::current_level::CurrentLevel;
@@ -177,9 +178,7 @@ pub(crate) fn client_connect_dispatcher(client_id: i32, is_bot: bool) -> Option<
         return None;
     };
 
-    unsafe {
-        ALLOW_FREE_CLIENT = client_id;
-    }
+    ALLOW_FREE_CLIENT.store(client_id, Ordering::Relaxed);
 
     let result: Option<String> =
         Python::with_gil(
@@ -197,9 +196,7 @@ pub(crate) fn client_connect_dispatcher(client_id: i32, is_bot: bool) -> Option<
             },
         );
 
-    unsafe {
-        ALLOW_FREE_CLIENT = -1;
-    }
+    ALLOW_FREE_CLIENT.store(-1, Ordering::Relaxed);
 
     result
 }
@@ -210,18 +207,14 @@ pub(crate) fn client_disconnect_dispatcher(client_id: i32, reason: &str) {
     }
 
     let Some(client_disconnect_handler) = (unsafe { PLAYER_DISCONNECT_HANDLER.as_ref() }) else { return; };
-    unsafe {
-        ALLOW_FREE_CLIENT = client_id;
-    }
+    ALLOW_FREE_CLIENT.store(client_id, Ordering::Relaxed);
     Python::with_gil(|py| {
         let result = client_disconnect_handler.call1(py, (client_id, reason));
         if result.is_err() {
             dbg!("client_disconnect_handler returned an error.\n");
         }
     });
-    unsafe {
-        ALLOW_FREE_CLIENT = -1;
-    }
+    ALLOW_FREE_CLIENT.store(-1, Ordering::Relaxed);
 }
 
 pub(crate) fn client_loaded_dispatcher(client_id: i32) {
@@ -479,7 +472,7 @@ impl TryFrom<i32> for PlayerInfo {
 /// Returns a dictionary with information about a player by ID.
 #[pyfunction(name = "player_info")]
 fn get_player_info(client_id: i32) -> PyResult<Option<PlayerInfo>> {
-    let maxclients = unsafe { SV_MAXCLIENTS };
+    let maxclients = SV_MAXCLIENTS.load(Ordering::Relaxed);
     if !(0..maxclients).contains(&client_id) {
         return Err(PyValueError::new_err(format!(
             "client_id needs to be a number from 0 to {}.",
@@ -487,7 +480,7 @@ fn get_player_info(client_id: i32) -> PyResult<Option<PlayerInfo>> {
         )));
     }
     if let Ok(client) = Client::try_from(client_id) {
-        let allowed_free_client_id = unsafe { ALLOW_FREE_CLIENT };
+        let allowed_free_client_id = ALLOW_FREE_CLIENT.load(Ordering::Relaxed);
         if allowed_free_client_id != client_id && client.get_state() == CS_FREE {
             #[cfg(debug_assertions)]
             println!(
@@ -504,7 +497,7 @@ fn get_player_info(client_id: i32) -> PyResult<Option<PlayerInfo>> {
 #[pyfunction(name = "players_info")]
 fn get_players_info() -> PyResult<Vec<Option<PlayerInfo>>> {
     let mut result = Vec::new();
-    let maxclients = unsafe { SV_MAXCLIENTS };
+    let maxclients = SV_MAXCLIENTS.load(Ordering::Relaxed);
     for client_id in 0..maxclients {
         match Client::try_from(client_id) {
             Err(_) => result.push(None),
@@ -523,7 +516,7 @@ fn get_players_info() -> PyResult<Vec<Option<PlayerInfo>>> {
 /// Returns a string with a player's userinfo.
 #[pyfunction(name = "get_userinfo")]
 fn get_userinfo(client_id: i32) -> PyResult<Option<String>> {
-    let maxclients = unsafe { SV_MAXCLIENTS };
+    let maxclients = SV_MAXCLIENTS.load(Ordering::Relaxed);
     if !(0..maxclients).contains(&client_id) {
         return Err(PyValueError::new_err(format!(
             "client_id needs to be a number from 0 to {}.",
@@ -534,7 +527,7 @@ fn get_userinfo(client_id: i32) -> PyResult<Option<String>> {
     match Client::try_from(client_id) {
         Err(_) => Ok(None),
         Ok(client) => {
-            let allowed_free_client_id = unsafe { ALLOW_FREE_CLIENT };
+            let allowed_free_client_id = ALLOW_FREE_CLIENT.load(Ordering::Relaxed);
             if allowed_free_client_id != client_id && client.get_state() == CS_FREE {
                 Ok(None)
             } else {
@@ -555,7 +548,7 @@ fn send_server_command(client_id: Option<i32>, cmd: &str) -> PyResult<bool> {
             Ok(true)
         }
         Some(actual_client_id) => {
-            let maxclients = unsafe { SV_MAXCLIENTS };
+            let maxclients = SV_MAXCLIENTS.load(Ordering::Relaxed);
             if !(0..maxclients).contains(&actual_client_id) {
                 return Err(PyValueError::new_err(format!(
                     "client_id needs to be a number from 0 to {}, or None.",
@@ -581,7 +574,7 @@ fn send_server_command(client_id: Option<i32>, cmd: &str) -> PyResult<bool> {
 #[pyfunction]
 #[pyo3(name = "client_command")]
 fn client_command(client_id: i32, cmd: &str) -> PyResult<bool> {
-    let maxclients = unsafe { SV_MAXCLIENTS };
+    let maxclients = SV_MAXCLIENTS.load(Ordering::Relaxed);
     if !(0..maxclients).contains(&client_id) {
         return Err(PyValueError::new_err(format!(
             "client_id needs to be a number from 0 to {}, or None.",
@@ -653,7 +646,7 @@ fn set_cvar_limit(cvar: &str, value: &str, min: &str, max: &str, flags: Option<i
 #[pyo3(name = "kick")]
 #[pyo3(signature = (client_id, reason=None))]
 fn kick(client_id: i32, reason: Option<&str>) -> PyResult<()> {
-    let maxclients = unsafe { SV_MAXCLIENTS };
+    let maxclients = SV_MAXCLIENTS.load(Ordering::Relaxed);
     if !(0..maxclients).contains(&client_id) {
         return Err(PyValueError::new_err(format!(
             "client_id needs to be a number from 0 to {}, or None.",
@@ -727,7 +720,7 @@ fn force_vote(pass: bool) -> bool {
         return false;
     }
 
-    let maxclients = unsafe { SV_MAXCLIENTS };
+    let maxclients = SV_MAXCLIENTS.load(Ordering::Relaxed);
     for i in 0..maxclients {
         if let Ok(client) = Client::try_from(i) {
             if client.get_state() == CS_ACTIVE {
@@ -1345,7 +1338,7 @@ fn holdable_from(holdable: Holdable) -> Option<String> {
 #[pyfunction]
 #[pyo3(name = "player_state")]
 fn player_state(client_id: i32) -> PyResult<Option<PlayerState>> {
-    let maxclients = unsafe { SV_MAXCLIENTS };
+    let maxclients = SV_MAXCLIENTS.load(Ordering::Relaxed);
     if !(0..maxclients).contains(&client_id) {
         return Err(PyValueError::new_err(format!(
             "client_id needs to be a number from 0 to {}.",
@@ -1411,7 +1404,7 @@ impl From<GameClient> for PlayerStats {
 #[pyfunction]
 #[pyo3(name = "player_stats")]
 fn player_stats(client_id: i32) -> PyResult<Option<PlayerStats>> {
-    let maxclients = unsafe { SV_MAXCLIENTS };
+    let maxclients = SV_MAXCLIENTS.load(Ordering::Relaxed);
     if !(0..maxclients).contains(&client_id) {
         return Err(PyValueError::new_err(format!(
             "client_id needs to be a number from 0 to {}.",
@@ -1431,7 +1424,7 @@ fn player_stats(client_id: i32) -> PyResult<Option<PlayerStats>> {
 #[pyfunction]
 #[pyo3(name = "set_position")]
 fn set_position(client_id: i32, position: Vector3) -> PyResult<bool> {
-    let maxclients = unsafe { SV_MAXCLIENTS };
+    let maxclients = SV_MAXCLIENTS.load(Ordering::Relaxed);
     if !(0..maxclients).contains(&client_id) {
         return Err(PyValueError::new_err(format!(
             "client_id needs to be a number from 0 to {}.",
@@ -1453,7 +1446,7 @@ fn set_position(client_id: i32, position: Vector3) -> PyResult<bool> {
 #[pyfunction]
 #[pyo3(name = "set_velocity")]
 fn set_velocity(client_id: i32, velocity: Vector3) -> PyResult<bool> {
-    let maxclients = unsafe { SV_MAXCLIENTS };
+    let maxclients = SV_MAXCLIENTS.load(Ordering::Relaxed);
     if !(0..maxclients).contains(&client_id) {
         return Err(PyValueError::new_err(format!(
             "client_id needs to be a number from 0 to {}.",
@@ -1475,7 +1468,7 @@ fn set_velocity(client_id: i32, velocity: Vector3) -> PyResult<bool> {
 #[pyfunction]
 #[pyo3(name = "noclip")]
 fn noclip(client_id: i32, activate: bool) -> PyResult<bool> {
-    let maxclients = unsafe { SV_MAXCLIENTS };
+    let maxclients = SV_MAXCLIENTS.load(Ordering::Relaxed);
     if !(0..maxclients).contains(&client_id) {
         return Err(PyValueError::new_err(format!(
             "client_id needs to be a number from 0 to {}.",
@@ -1501,7 +1494,7 @@ fn noclip(client_id: i32, activate: bool) -> PyResult<bool> {
 #[pyfunction]
 #[pyo3(name = "set_health")]
 fn set_health(client_id: i32, health: i32) -> PyResult<bool> {
-    let maxclients = unsafe { SV_MAXCLIENTS };
+    let maxclients = SV_MAXCLIENTS.load(Ordering::Relaxed);
     if !(0..maxclients).contains(&client_id) {
         return Err(PyValueError::new_err(format!(
             "client_id needs to be a number from 0 to {}.",
@@ -1523,7 +1516,7 @@ fn set_health(client_id: i32, health: i32) -> PyResult<bool> {
 #[pyfunction]
 #[pyo3(name = "set_armor")]
 fn set_armor(client_id: i32, armor: i32) -> PyResult<bool> {
-    let maxclients = unsafe { SV_MAXCLIENTS };
+    let maxclients = SV_MAXCLIENTS.load(Ordering::Relaxed);
     if !(0..maxclients).contains(&client_id) {
         return Err(PyValueError::new_err(format!(
             "client_id needs to be a number from 0 to {}.",
@@ -1545,7 +1538,7 @@ fn set_armor(client_id: i32, armor: i32) -> PyResult<bool> {
 #[pyfunction]
 #[pyo3(name = "set_weapons")]
 fn set_weapons(client_id: i32, weapons: Weapons) -> PyResult<bool> {
-    let maxclients = unsafe { SV_MAXCLIENTS };
+    let maxclients = SV_MAXCLIENTS.load(Ordering::Relaxed);
     if !(0..maxclients).contains(&client_id) {
         return Err(PyValueError::new_err(format!(
             "client_id needs to be a number from 0 to {}.",
@@ -1567,7 +1560,7 @@ fn set_weapons(client_id: i32, weapons: Weapons) -> PyResult<bool> {
 #[pyfunction]
 #[pyo3(name = "set_weapon")]
 fn set_weapon(client_id: i32, weapon: i32) -> PyResult<bool> {
-    let maxclients = unsafe { SV_MAXCLIENTS };
+    let maxclients = SV_MAXCLIENTS.load(Ordering::Relaxed);
     if !(0..maxclients).contains(&client_id) {
         return Err(PyValueError::new_err(format!(
             "client_id needs to be a number from 0 to {}.",
@@ -1595,7 +1588,7 @@ fn set_weapon(client_id: i32, weapon: i32) -> PyResult<bool> {
 #[pyfunction]
 #[pyo3(name = "set_ammo")]
 fn set_ammo(client_id: i32, ammos: Weapons) -> PyResult<bool> {
-    let maxclients = unsafe { SV_MAXCLIENTS };
+    let maxclients = SV_MAXCLIENTS.load(Ordering::Relaxed);
     if !(0..maxclients).contains(&client_id) {
         return Err(PyValueError::new_err(format!(
             "client_id needs to be a number from 0 to {}.",
@@ -1617,7 +1610,7 @@ fn set_ammo(client_id: i32, ammos: Weapons) -> PyResult<bool> {
 #[pyfunction]
 #[pyo3(name = "set_powerups")]
 fn set_powerups(client_id: i32, powerups: Powerups) -> PyResult<bool> {
-    let maxclients = unsafe { SV_MAXCLIENTS };
+    let maxclients = SV_MAXCLIENTS.load(Ordering::Relaxed);
     if !(0..maxclients).contains(&client_id) {
         return Err(PyValueError::new_err(format!(
             "client_id needs to be a number from 0 to {}.",
@@ -1639,7 +1632,7 @@ fn set_powerups(client_id: i32, powerups: Powerups) -> PyResult<bool> {
 #[pyfunction]
 #[pyo3(name = "set_holdable")]
 fn set_holdable(client_id: i32, holdable: Holdable) -> PyResult<bool> {
-    let maxclients = unsafe { SV_MAXCLIENTS };
+    let maxclients = SV_MAXCLIENTS.load(Ordering::Relaxed);
     if !(0..maxclients).contains(&client_id) {
         return Err(PyValueError::new_err(format!(
             "client_id needs to be a number from 0 to {}.",
@@ -1661,7 +1654,7 @@ fn set_holdable(client_id: i32, holdable: Holdable) -> PyResult<bool> {
 #[pyfunction]
 #[pyo3(name = "drop_holdable")]
 fn drop_holdable(client_id: i32) -> PyResult<bool> {
-    let maxclients = unsafe { SV_MAXCLIENTS };
+    let maxclients = SV_MAXCLIENTS.load(Ordering::Relaxed);
     if !(0..maxclients).contains(&client_id) {
         return Err(PyValueError::new_err(format!(
             "client_id needs to be a number from 0 to {}.",
@@ -1688,7 +1681,7 @@ fn drop_holdable(client_id: i32) -> PyResult<bool> {
 #[pyfunction]
 #[pyo3(name = "set_flight")]
 fn set_flight(client_id: i32, flight: Flight) -> PyResult<bool> {
-    let maxclients = unsafe { SV_MAXCLIENTS };
+    let maxclients = SV_MAXCLIENTS.load(Ordering::Relaxed);
     if !(0..maxclients).contains(&client_id) {
         return Err(PyValueError::new_err(format!(
             "client_id needs to be a number from 0 to {}.",
@@ -1710,7 +1703,7 @@ fn set_flight(client_id: i32, flight: Flight) -> PyResult<bool> {
 #[pyfunction]
 #[pyo3(name = "set_invulnerability")]
 fn set_invulnerability(client_id: i32, time: i32) -> PyResult<bool> {
-    let maxclients = unsafe { SV_MAXCLIENTS };
+    let maxclients = SV_MAXCLIENTS.load(Ordering::Relaxed);
     if !(0..maxclients).contains(&client_id) {
         return Err(PyValueError::new_err(format!(
             "client_id needs to be a number from 0 to {}.",
@@ -1732,7 +1725,7 @@ fn set_invulnerability(client_id: i32, time: i32) -> PyResult<bool> {
 #[pyfunction]
 #[pyo3(name = "set_score")]
 fn set_score(client_id: i32, score: i32) -> PyResult<bool> {
-    let maxclients = unsafe { SV_MAXCLIENTS };
+    let maxclients = SV_MAXCLIENTS.load(Ordering::Relaxed);
     if !(0..maxclients).contains(&client_id) {
         return Err(PyValueError::new_err(format!(
             "client_id needs to be a number from 0 to {}.",
@@ -1770,7 +1763,7 @@ fn allow_single_player(allow: bool) {
 #[pyfunction]
 #[pyo3(name = "player_spawn")]
 fn player_spawn(client_id: i32) -> PyResult<bool> {
-    let maxclients = unsafe { SV_MAXCLIENTS };
+    let maxclients = SV_MAXCLIENTS.load(Ordering::Relaxed);
     if !(0..maxclients).contains(&client_id) {
         return Err(PyValueError::new_err(format!(
             "client_id needs to be a number from 0 to {}.",
@@ -1796,7 +1789,7 @@ fn player_spawn(client_id: i32) -> PyResult<bool> {
 #[pyfunction]
 #[pyo3(name = "set_privileges")]
 fn set_privileges(client_id: i32, privileges: i32) -> PyResult<bool> {
-    let maxclients = unsafe { SV_MAXCLIENTS };
+    let maxclients = SV_MAXCLIENTS.load(Ordering::Relaxed);
     if !(0..maxclients).contains(&client_id) {
         return Err(PyValueError::new_err(format!(
             "client_id needs to be a number from 0 to {}.",
@@ -1878,7 +1871,7 @@ fn remove_dropped_items() -> PyResult<bool> {
 #[pyfunction]
 #[pyo3(name = "slay_with_mod")]
 fn slay_with_mod(client_id: i32, mean_of_death: i32) -> PyResult<bool> {
-    let maxclients = unsafe { SV_MAXCLIENTS };
+    let maxclients = SV_MAXCLIENTS.load(Ordering::Relaxed);
     if !(0..maxclients).contains(&client_id) {
         return Err(PyValueError::new_err(format!(
             "client_id needs to be a number from 0 to {}.",
