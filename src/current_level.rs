@@ -3,7 +3,7 @@ use crate::hooks::shinqlx_set_configstring;
 use crate::quake_live_engine::QuakeLiveEngineError;
 use crate::quake_live_engine::QuakeLiveEngineError::NullPointerPassed;
 use crate::quake_types::{level_locals_t, CS_VOTE_NO, CS_VOTE_STRING, CS_VOTE_TIME, CS_VOTE_YES};
-use crate::{QuakeLiveFunction, STATIC_FUNCTION_MAP, SV_MAXCLIENTS};
+use crate::{G_INIT_GAME_ORIG_PTR, SV_MAXCLIENTS};
 use std::ffi::CString;
 use std::sync::atomic::Ordering;
 
@@ -28,9 +28,10 @@ impl TryFrom<*mut level_locals_t> for CurrentLevel {
 
 impl Default for CurrentLevel {
     fn default() -> Self {
-        let Some(func_pointer) = (unsafe { STATIC_FUNCTION_MAP.get(&QuakeLiveFunction::G_InitGame) }) else {
+        let func_pointer = G_INIT_GAME_ORIG_PTR.load(Ordering::Relaxed);
+        if func_pointer == 0 {
             panic!("G_InitGame not initialized.");
-        };
+        }
         let base_address =
             unsafe { std::ptr::read_unaligned((func_pointer + 0x4A1) as *const i32) };
         let level_ptr = base_address as u64 + func_pointer + 0x4A1 + 4;
