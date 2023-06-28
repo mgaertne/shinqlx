@@ -26,7 +26,6 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #ifndef QUAKE_COMMON_H
 #define QUAKE_COMMON_H
 
-#include "patterns.h"
 #include "common.h"
 #include "quake_types.h"
 

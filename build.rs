@@ -17,7 +17,6 @@ fn main() {
             "src/hooks.c",
             "src/simple_hook.c",
             "src/misc.c",
-            "src/maps_parser.c",
             "src/trampoline.c",
             "src/patches.c",
             #[cfg(target_pointer_width = "64")]

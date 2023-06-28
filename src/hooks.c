@@ -6,9 +6,6 @@
 #include <stdio.h>
 #include <dlfcn.h>
 
-#include "patterns.h"
-#include "common.h"
-#include "quake_common.h"
 #include "simple_hook.h"
 
 // qagame module.
