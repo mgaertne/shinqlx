@@ -8,8 +8,6 @@
 
 #include "common.h"
 #include "quake_common.h"
-#include "patterns.h"
-#include "maps_parser.h"
 
 #if defined(__x86_64__) || defined(_M_X64)
 const char qzeroded[] = "qzeroded.x64";
