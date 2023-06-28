@@ -697,7 +697,7 @@ pub(crate) trait GameAddEvent {
 
 impl GameAddEvent for QuakeLiveEngine {
     fn game_add_event(&self, game_entity: &GameEntity, event: entity_event_t, event_param: i32) {
-        let Some(func_pointer) = (unsafe { STATIC_FUNCTION_MAP.get(&QuakeLiveFunction::G_RunFrame) }) else {
+        let Some(func_pointer) = (unsafe { STATIC_FUNCTION_MAP.get(&QuakeLiveFunction::G_AddEvent) }) else {
             return;
         };
 

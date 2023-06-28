@@ -66,7 +66,7 @@ pub extern "C" fn cmd_slap() {
         return;
     };
 
-    if client_id >= maxclients {
+    if client_id < 0 || client_id >= maxclients {
         let usage_note = format!(
             "client_id must be a number between 0 and {}.\n",
             maxclients - 1
@@ -82,7 +82,7 @@ pub extern "C" fn cmd_slap() {
         0
     };
 
-    let Some(client_entity) = GameEntity::try_from(client_id).ok() else {
+    let Some(mut client_entity) = GameEntity::try_from(client_id).ok() else {
         return;
     };
     if !client_entity.in_use() || client_entity.get_health() <= 0 {
@@ -106,27 +106,25 @@ pub extern "C" fn cmd_slap() {
     quake_live_engine.send_server_command(None, message.as_str());
 
     let mut rng = rand::thread_rng();
-    let Ok(client) = client_entity.get_game_client() else {
+    let Ok(mut game_client) = client_entity.get_game_client() else {
         return;
     };
-    let mut mutable_client = client;
-    mutable_client.set_velocity((
+    game_client.set_velocity((
         (rng.gen_range(-1.0..=1.0) * 200.0),
         (rng.gen_range(-1.0..=1.0) * 200.0),
         300.0,
     ));
     let old_health = client_entity.get_health();
-    let mut mutable_client_entity = client_entity;
-    mutable_client_entity.set_health(old_health - dmg);
+    client_entity.set_health(old_health - dmg);
     if old_health - dmg <= 0 {
         quake_live_engine.game_add_event(
-            &mutable_client_entity,
+            &client_entity,
             EV_DEATH1,
-            mutable_client_entity.get_client_number(),
+            client_entity.get_client_number(),
         );
         return;
     }
-    quake_live_engine.game_add_event(&mutable_client_entity, EV_PAIN, 99);
+    quake_live_engine.game_add_event(&client_entity, EV_PAIN, 99);
 }
 
 #[no_mangle]

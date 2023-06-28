@@ -630,18 +630,22 @@ pub(crate) fn hook_vm(qagame_dllentry: u64) -> Result<(), Box<dyn Error>> {
 
     let base_address = unsafe { std::ptr::read_unaligned((qagame_dllentry + 0x3) as *const i32) };
     let vm_call_table = base_address as u64 + qagame_dllentry + 0x3 + 4;
+    debug_println!(format!("vm_call_table: {:#X}", vm_call_table));
 
-    let g_initgame_ptr = unsafe { std::ptr::read((vm_call_table + 0x18) as *const u64) };
+    let g_initgame_ptr = unsafe {
+        std::ptr::read((vm_call_table + 0x18) as *const *const extern "C" fn(c_int, c_int, c_int))
+    };
     unsafe {
-        STATIC_FUNCTION_MAP.insert(QuakeLiveFunction::G_InitGame, g_initgame_ptr);
+        STATIC_FUNCTION_MAP.insert(QuakeLiveFunction::G_InitGame, g_initgame_ptr as u64);
     }
-    debug_println!(format!("G_InitGame: {:#X}", &g_initgame_ptr));
+    debug_println!(format!("G_InitGame: {:#X}", g_initgame_ptr as u64));
 
-    let g_runframe_ptr = unsafe { std::ptr::read((vm_call_table + 0x8) as *const u64) };
+    let g_runframe_ptr =
+        unsafe { std::ptr::read((vm_call_table + 0x8) as *const *const extern "C" fn(c_int)) };
     unsafe {
-        STATIC_FUNCTION_MAP.insert(QuakeLiveFunction::G_RunFrame, g_runframe_ptr);
+        STATIC_FUNCTION_MAP.insert(QuakeLiveFunction::G_RunFrame, g_runframe_ptr as u64);
     }
-    debug_println!(format!("G_RunFrame: {:#X}", &g_runframe_ptr));
+    debug_println!(format!("G_RunFrame: {:#X}", g_runframe_ptr as u64));
 
     debug_println!("Hooking VM functions...");
     #[allow(clippy::fn_to_numeric_cast)]
