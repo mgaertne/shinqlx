@@ -1,7 +1,7 @@
 use crate::quake_live_engine::QuakeLiveEngineError;
 use crate::quake_live_engine::QuakeLiveEngineError::NullPointerPassed;
 use crate::quake_types::serverStatic_t;
-use crate::{QuakeLiveFunction, STATIC_FUNCTION_MAP};
+use crate::SV_SHUTDOWN_ORIG_PTR;
 
 #[derive(Debug, PartialEq)]
 #[allow(non_snake_case)]
@@ -28,11 +28,11 @@ impl TryFrom<*mut serverStatic_t> for ServerStatic {
 impl Default for ServerStatic {
     fn default() -> Self {
         let Some(func_pointer) =
-            (unsafe { STATIC_FUNCTION_MAP.get(&QuakeLiveFunction::SV_Shutdown) }) else
+            SV_SHUTDOWN_ORIG_PTR.get() else
         {
             panic!("necessary offset function not found");
         };
-        let svs_ptr_ptr = func_pointer + 0xAC;
+        let svs_ptr_ptr = *func_pointer as u64 + 0xAC;
         let svs_ptr: u32 = unsafe { std::ptr::read(svs_ptr_ptr as *const u32) };
         Self::try_from(svs_ptr as *mut serverStatic_t).unwrap()
     }
