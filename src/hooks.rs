@@ -354,17 +354,10 @@ static mut CLIENT_CONNECT_BUFFER: [c_char; MAX_STRING_CHARS as usize] =
 
 pub(crate) unsafe fn to_return_string(input: String) -> *const c_char {
     let bytes = input.as_bytes();
+    let mut bytes_iter = bytes.iter();
     let len = bytes.len();
-    std::ptr::copy(
-        [0; MAX_STRING_CHARS as usize].as_ptr(),
-        CLIENT_CONNECT_BUFFER.as_mut_ptr(),
-        len,
-    );
-    std::ptr::copy(
-        input.as_bytes().as_ptr().cast(),
-        CLIENT_CONNECT_BUFFER.as_mut_ptr(),
-        len,
-    );
+    CLIENT_CONNECT_BUFFER[0..len].fill_with(|| *bytes_iter.next().unwrap() as c_char);
+    CLIENT_CONNECT_BUFFER[len..].fill(0);
     &CLIENT_CONNECT_BUFFER as *const c_char
 }
 
