@@ -16,9 +16,10 @@ use crate::quake_types::{
     cbufExec_t, client_t, gentity_t, qboolean, usercmd_t, MAX_MSGLEN, MAX_STRING_CHARS,
 };
 use crate::{
-    initialize_cvars, initialize_static, search_vm_functions, QuakeLiveFunction,
-    CMD_ADDCOMMAND_ORIG_PTR, COMMON_INITIALIZED, COM_PRINTF_ORIG_PTR, CVARS_INITIALIZED,
-    STATIC_FUNCTION_MAP, SV_CLIENTENTERWORLD_ORIG_PTR, SV_DROPCLIENT_ORIG_PTR,
+    initialize_cvars, initialize_static, search_vm_functions, CLIENT_CONNECT_ORIG_PTR,
+    CLIENT_SPAWN_ORIG_PTR, CMD_ADDCOMMAND_ORIG_PTR, COMMON_INITIALIZED, COM_PRINTF_ORIG_PTR,
+    CVARS_INITIALIZED, G_DAMAGE_ORIG_PTR, G_INIT_GAME_ORIG_PTR, G_RUN_FRAME_ORIG_PTR,
+    G_START_KAMIKAZE_ORIG_PTR, SV_CLIENTENTERWORLD_ORIG_PTR, SV_DROPCLIENT_ORIG_PTR,
     SV_EXECUTECLIENTCOMMAND_ORIG_PTR, SV_SENDSERVERCOMMAND_ORIG_PTR, SV_SETCONFIGSTRING_ORIG_PTR,
     SV_SPAWNSERVER_ORIG_PTR, SV_TAGS_PREFIX, SYS_SETMODULEOFFSET_ORIG_PTR,
 };
@@ -26,7 +27,7 @@ use once_cell::sync::OnceCell;
 use retour::static_detour;
 use std::error::Error;
 use std::ffi::{c_char, c_float, c_int, c_void, CStr, VaList, VaListImpl};
-use std::sync::atomic::Ordering;
+use std::sync::atomic::{AtomicU64, Ordering};
 
 fn set_tag() {
     let quake_live_engine = QuakeLiveEngine::default();
@@ -595,23 +596,10 @@ pub(crate) fn hook_static() -> Result<(), Box<dyn Error>> {
     Ok(())
 }
 
-pub(crate) static mut CLIENT_CONNECT_TRAMPOLINE: Option<
-    extern "C" fn(c_int, qboolean, qboolean) -> *const c_char,
-> = None;
-pub(crate) static mut CLIENT_SPAWN_TRAMPOLINE: Option<extern "C" fn(*mut gentity_t)> = None;
-pub(crate) static mut G_START_KAMIKAZE_TRAMPOLINE: Option<extern "C" fn(*const gentity_t)> = None;
-pub(crate) static mut G_DAMAGE_TRAMPOLINE: Option<
-    extern "C" fn(
-        *const gentity_t,
-        *const gentity_t,
-        *const gentity_t,
-        *const c_float,
-        *const c_float,
-        c_int,
-        c_int,
-        c_int,
-    ),
-> = None;
+pub(crate) static CLIENT_CONNECT_TRAMPOLINE: AtomicU64 = AtomicU64::new(0);
+pub(crate) static CLIENT_SPAWN_TRAMPOLINE: AtomicU64 = AtomicU64::new(0);
+pub(crate) static G_START_KAMIKAZE_TRAMPOLINE: AtomicU64 = AtomicU64::new(0);
+pub(crate) static G_DAMAGE_TRAMPOLINE: AtomicU64 = AtomicU64::new(0);
 
 /*
  * Hooks VM calls. Not all use Hook, since the VM calls are stored in a table of
@@ -635,16 +623,12 @@ pub(crate) fn hook_vm(qagame_dllentry: u64) -> Result<(), Box<dyn Error>> {
     let g_initgame_ptr = unsafe {
         std::ptr::read((vm_call_table + 0x18) as *const *const extern "C" fn(c_int, c_int, c_int))
     };
-    unsafe {
-        STATIC_FUNCTION_MAP.insert(QuakeLiveFunction::G_InitGame, g_initgame_ptr as u64);
-    }
+    G_INIT_GAME_ORIG_PTR.store(g_initgame_ptr as u64, Ordering::Relaxed);
     debug_println!(format!("G_InitGame: {:#X}", g_initgame_ptr as u64));
 
     let g_runframe_ptr =
         unsafe { std::ptr::read((vm_call_table + 0x8) as *const *const extern "C" fn(c_int)) };
-    unsafe {
-        STATIC_FUNCTION_MAP.insert(QuakeLiveFunction::G_RunFrame, g_runframe_ptr as u64);
-    }
+    G_RUN_FRAME_ORIG_PTR.store(g_runframe_ptr as u64, Ordering::Relaxed);
     debug_println!(format!("G_RunFrame: {:#X}", g_runframe_ptr as u64));
 
     debug_println!("Hooking VM functions...");
@@ -661,78 +645,72 @@ pub(crate) fn hook_vm(qagame_dllentry: u64) -> Result<(), Box<dyn Error>> {
         std::ptr::write((vm_call_table + 0x8) as *mut u64, ShiNQlx_G_RunFrame as u64);
     }
 
-    unsafe {
-        CLIENT_CONNECT_TRAMPOLINE = if let Some(func_pointer) =
-            STATIC_FUNCTION_MAP.get(&QuakeLiveFunction::ClientConnect)
-        {
-            let trampoline_func_ptr = HookRaw(
-                *func_pointer as *const c_void,
+    let func_pointer = CLIENT_CONNECT_ORIG_PTR.load(Ordering::Relaxed);
+    if func_pointer == 0 {
+        CLIENT_CONNECT_TRAMPOLINE.store(0, Ordering::Relaxed);
+    } else {
+        let trampoline_func_ptr = unsafe {
+            HookRaw(
+                func_pointer as *const c_void,
                 ShiNQlx_ClientConnect as *const c_void,
-            );
-            if trampoline_func_ptr.is_null() {
-                None
-            } else {
-                let trampoline_func = std::mem::transmute(trampoline_func_ptr as u64);
-                Some(trampoline_func)
-            }
-        } else {
-            None
+            )
         };
+        if trampoline_func_ptr.is_null() {
+            CLIENT_CONNECT_TRAMPOLINE.store(0, Ordering::Relaxed);
+        } else {
+            CLIENT_CONNECT_TRAMPOLINE.store(trampoline_func_ptr as u64, Ordering::Relaxed);
+        }
     }
 
-    unsafe {
-        G_START_KAMIKAZE_TRAMPOLINE = if let Some(func_pointer) =
-            STATIC_FUNCTION_MAP.get(&QuakeLiveFunction::G_StartKamikaze)
-        {
-            let trampoline_func_ptr = HookRaw(
-                *func_pointer as *const c_void,
+    let func_pointer = G_START_KAMIKAZE_ORIG_PTR.load(Ordering::Relaxed);
+    if func_pointer == 0 {
+        G_START_KAMIKAZE_TRAMPOLINE.store(0, Ordering::Relaxed);
+    } else {
+        let trampoline_func_ptr = unsafe {
+            HookRaw(
+                func_pointer as *const c_void,
                 ShiNQlx_G_StartKamikaze as *const c_void,
-            );
-            if trampoline_func_ptr.is_null() {
-                None
-            } else {
-                let trampoline_func = std::mem::transmute(trampoline_func_ptr as u64);
-                Some(trampoline_func)
-            }
-        } else {
-            None
+            )
         };
+        if trampoline_func_ptr.is_null() {
+            G_START_KAMIKAZE_TRAMPOLINE.store(0, Ordering::Relaxed);
+        } else {
+            G_START_KAMIKAZE_TRAMPOLINE.store(trampoline_func_ptr as u64, Ordering::Relaxed);
+        }
     }
 
-    unsafe {
-        CLIENT_SPAWN_TRAMPOLINE =
-            if let Some(func_pointer) = STATIC_FUNCTION_MAP.get(&QuakeLiveFunction::ClientSpawn) {
-                let trampoline_func_ptr = HookRaw(
-                    *func_pointer as *const c_void,
-                    ShiNQlx_ClientSpawn as *const c_void,
-                );
-                if trampoline_func_ptr.is_null() {
-                    None
-                } else {
-                    let trampoline_func = std::mem::transmute(trampoline_func_ptr as u64);
-                    Some(trampoline_func)
-                }
-            } else {
-                None
-            };
+    let func_pointer = CLIENT_SPAWN_ORIG_PTR.load(Ordering::Relaxed);
+    if func_pointer == 0 {
+        CLIENT_SPAWN_TRAMPOLINE.store(0, Ordering::Relaxed);
+    } else {
+        let trampoline_func_ptr = unsafe {
+            HookRaw(
+                func_pointer as *const c_void,
+                ShiNQlx_ClientSpawn as *const c_void,
+            )
+        };
+        if trampoline_func_ptr.is_null() {
+            CLIENT_SPAWN_TRAMPOLINE.store(0, Ordering::Relaxed);
+        } else {
+            CLIENT_SPAWN_TRAMPOLINE.store(trampoline_func_ptr as u64, Ordering::Relaxed);
+        }
     }
 
-    unsafe {
-        G_DAMAGE_TRAMPOLINE =
-            if let Some(func_pointer) = STATIC_FUNCTION_MAP.get(&QuakeLiveFunction::G_Damage) {
-                let trampoline_func_ptr = HookRaw(
-                    *func_pointer as *const c_void,
-                    ShiNQlx_G_Damage as *const c_void,
-                );
-                if trampoline_func_ptr.is_null() {
-                    None
-                } else {
-                    let trampoline_func = std::mem::transmute(trampoline_func_ptr as u64);
-                    Some(trampoline_func)
-                }
-            } else {
-                None
-            };
+    let func_pointer = G_DAMAGE_ORIG_PTR.load(Ordering::Relaxed);
+    if func_pointer == 0 {
+        G_DAMAGE_TRAMPOLINE.store(0, Ordering::Relaxed);
+    } else {
+        let trampoline_func_ptr = unsafe {
+            HookRaw(
+                func_pointer as *const c_void,
+                ShiNQlx_G_Damage as *const c_void,
+            )
+        };
+        if trampoline_func_ptr.is_null() {
+            G_DAMAGE_TRAMPOLINE.store(0, Ordering::Relaxed);
+        } else {
+            G_DAMAGE_TRAMPOLINE.store(trampoline_func_ptr as u64, Ordering::Relaxed);
+        }
     }
 
     Ok(())

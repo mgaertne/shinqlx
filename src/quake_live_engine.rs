@@ -30,14 +30,16 @@ use crate::quake_types::{
     qboolean, usercmd_t, vec3_t, weapon_t, MAX_STRING_CHARS,
 };
 use crate::{
-    QuakeLiveFunction, CBUF_EXECUTETEXT_ORIG_PTR, CMD_ARGC_ORIG_PTR, CMD_ARGS_ORIG_PTR,
-    CMD_ARGV_ORIG_PTR, CMD_EXECUTESTRING_ORIG_PTR, CVAR_FINDVAR_ORIG_PTR, CVAR_GETLIMIT_ORIG_PTR,
-    CVAR_GET_ORIG_PTR, CVAR_SET2_ORIG_PTR, STATIC_FUNCTION_MAP, SV_GETCONFIGSTRING_ORIG_PTR,
+    CBUF_EXECUTETEXT_ORIG_PTR, CMD_ARGC_ORIG_PTR, CMD_ARGS_ORIG_PTR, CMD_ARGV_ORIG_PTR,
+    CMD_EXECUTESTRING_ORIG_PTR, CVAR_FINDVAR_ORIG_PTR, CVAR_GETLIMIT_ORIG_PTR, CVAR_GET_ORIG_PTR,
+    CVAR_SET2_ORIG_PTR, G_ADDEVENT_ORIG_PTR, G_FREE_ENTITY_ORIG_PTR, G_INIT_GAME_ORIG_PTR,
+    G_RUN_FRAME_ORIG_PTR, LAUNCH_ITEM_ORIG_PTR, SV_GETCONFIGSTRING_ORIG_PTR,
 };
 #[cfg(test)]
 use mockall::*;
 use std::ffi::{c_char, c_float, c_int, CStr, CString};
 use std::ops::Not;
+use std::sync::atomic::Ordering;
 
 impl From<qboolean> for c_int {
     fn from(value: qboolean) -> Self {
@@ -464,12 +466,13 @@ pub(crate) trait InitGame {
 
 impl InitGame for QuakeLiveEngine {
     fn init_game(&self, level_time: i32, random_seed: i32, restart: i32) {
-        let Some(func_pointer) = (unsafe { STATIC_FUNCTION_MAP.get(&QuakeLiveFunction::G_InitGame) }) else {
+        let func_pointer = G_INIT_GAME_ORIG_PTR.load(Ordering::Relaxed);
+        if func_pointer == 0 {
             return;
-        };
+        }
 
         let original_func: extern "C" fn(c_int, c_int, c_int) =
-            unsafe { std::mem::transmute(*func_pointer) };
+            unsafe { std::mem::transmute(func_pointer) };
 
         original_func(level_time, random_seed, restart);
     }
@@ -597,11 +600,12 @@ pub(crate) trait RunFrame {
 
 impl RunFrame for QuakeLiveEngine {
     fn run_frame(&self, time: i32) {
-        let Some(func_pointer) = (unsafe { STATIC_FUNCTION_MAP.get(&QuakeLiveFunction::G_RunFrame) }) else {
+        let func_pointer = G_RUN_FRAME_ORIG_PTR.load(Ordering::Relaxed);
+        if func_pointer == 0 {
             return;
-        };
+        }
 
-        let original_func: extern "C" fn(c_int) = unsafe { std::mem::transmute(*func_pointer) };
+        let original_func: extern "C" fn(c_int) = unsafe { std::mem::transmute(func_pointer) };
 
         original_func(time);
     }
@@ -614,9 +618,13 @@ pub(crate) trait ClientConnect {
 
 impl ClientConnect for QuakeLiveEngine {
     fn client_connect(&self, client_num: i32, first_time: bool, is_bot: bool) -> *const c_char {
-        let Some(trampoline_func) = (unsafe { CLIENT_CONNECT_TRAMPOLINE.as_ref() }) else {
+        let trampoline_func_ptr = CLIENT_CONNECT_TRAMPOLINE.load(Ordering::Relaxed);
+        if trampoline_func_ptr == 0 {
             return std::ptr::null_mut();
-        };
+        }
+
+        let trampoline_func: extern "C" fn(c_int, qboolean, qboolean) -> *const c_char =
+            unsafe { std::mem::transmute(trampoline_func_ptr) };
         trampoline_func(client_num, first_time.into(), is_bot.into())
     }
 }
@@ -628,9 +636,13 @@ pub(crate) trait ClientSpawn {
 
 impl ClientSpawn for QuakeLiveEngine {
     fn client_spawn(&self, ent: &mut GameEntity) {
-        let Some(trampoline_func) = (unsafe { CLIENT_SPAWN_TRAMPOLINE.as_ref() }) else {
+        let trampoline_func_ptr = CLIENT_SPAWN_TRAMPOLINE.load(Ordering::Relaxed);
+        if trampoline_func_ptr == 0 {
             return;
-        };
+        }
+
+        let trampoline_func: extern "C" fn(*mut gentity_t) =
+            unsafe { std::mem::transmute(trampoline_func_ptr) };
         trampoline_func(ent.gentity_t);
     }
 }
@@ -697,12 +709,13 @@ pub(crate) trait GameAddEvent {
 
 impl GameAddEvent for QuakeLiveEngine {
     fn game_add_event(&self, game_entity: &GameEntity, event: entity_event_t, event_param: i32) {
-        let Some(func_pointer) = (unsafe { STATIC_FUNCTION_MAP.get(&QuakeLiveFunction::G_AddEvent) }) else {
+        let func_pointer = G_ADDEVENT_ORIG_PTR.load(Ordering::Relaxed);
+        if func_pointer == 0 {
             return;
         };
 
         let original_func: extern "C" fn(*const gentity_t, entity_event_t, c_int) =
-            unsafe { std::mem::transmute(*func_pointer) };
+            unsafe { std::mem::transmute(func_pointer) };
 
         original_func(
             game_entity.gentity_t as *const gentity_t,
@@ -877,9 +890,21 @@ impl RegisterDamage for QuakeLiveEngine {
         dflags: c_int,
         means_of_death: c_int,
     ) {
-        let Some(trampoline_func) = (unsafe { G_DAMAGE_TRAMPOLINE.as_ref() }) else {
+        let trampoline_func_ptr = G_DAMAGE_TRAMPOLINE.load(Ordering::Relaxed);
+        if trampoline_func_ptr == 0 {
             return;
-        };
+        }
+
+        let trampoline_func: extern "C" fn(
+            *const gentity_t,
+            *const gentity_t,
+            *const gentity_t,
+            *const c_float,
+            *const c_float,
+            c_int,
+            c_int,
+            c_int,
+        ) = unsafe { std::mem::transmute(trampoline_func_ptr) };
         trampoline_func(
             target,
             inflictor,
@@ -900,12 +925,13 @@ pub(crate) trait FreeEntity {
 
 impl FreeEntity for QuakeLiveEngine {
     fn free_entity(&self, gentity: *mut gentity_t) {
-        let Some(func_pointer) = (unsafe { STATIC_FUNCTION_MAP.get(&QuakeLiveFunction::G_FreeEntity) }) else {
+        let func_pointer = G_FREE_ENTITY_ORIG_PTR.load(Ordering::Relaxed);
+        if func_pointer == 0 {
             return;
         };
 
         let original_func: extern "C" fn(*mut gentity_t) =
-            unsafe { std::mem::transmute(*func_pointer) };
+            unsafe { std::mem::transmute(func_pointer) };
 
         original_func(gentity);
     }
@@ -918,13 +944,13 @@ pub(crate) trait LaunchItem {
 
 impl LaunchItem for QuakeLiveEngine {
     fn launch_item(&self, gitem: &GameItem, origin: vec3_t, velocity: vec3_t) -> GameEntity {
-        let Some(func_pointer) =
-            (unsafe { STATIC_FUNCTION_MAP.get(&QuakeLiveFunction::LaunchItem) }) else {
-            panic!("LaunchItem not found!");   
+        let func_pointer = LAUNCH_ITEM_ORIG_PTR.load(Ordering::Relaxed);
+        if func_pointer == 0 {
+            panic!("LaunchItem not found!");
         };
 
         let original_func: extern "C" fn(*const gitem_t, vec3_t, vec3_t) -> *mut gentity_t =
-            unsafe { std::mem::transmute(*func_pointer) };
+            unsafe { std::mem::transmute(func_pointer) };
 
         GameEntity::try_from(original_func(gitem.gitem_t, origin, velocity)).unwrap()
     }
@@ -937,9 +963,13 @@ pub(crate) trait StartKamikaze {
 
 impl StartKamikaze for QuakeLiveEngine {
     fn start_kamikaze(&self, gentity: &GameEntity) {
-        let Some(trampoline_func) = (unsafe { G_START_KAMIKAZE_TRAMPOLINE.as_ref() }) else {
+        let trampoline_func_ptr = G_START_KAMIKAZE_TRAMPOLINE.load(Ordering::Relaxed);
+        if trampoline_func_ptr == 0 {
             return;
-        };
+        }
+
+        let trampoline_func: extern "C" fn(*const gentity_t) =
+            unsafe { std::mem::transmute(trampoline_func_ptr) };
         trampoline_func(gentity.gentity_t as *const gentity_t);
     }
 }

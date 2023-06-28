@@ -4,8 +4,9 @@ use crate::quake_live_engine::QuakeLiveEngineError::{
 use crate::quake_live_engine::{GameAddEvent, LaunchItem, QuakeLiveEngine, QuakeLiveEngineError};
 use crate::quake_types::entity_event_t::EV_ITEM_RESPAWN;
 use crate::quake_types::gitem_t;
-use crate::{QuakeLiveFunction, STATIC_FUNCTION_MAP};
+use crate::LAUNCH_ITEM_ORIG_PTR;
 use std::ffi::{c_float, CStr};
+use std::sync::atomic::Ordering;
 
 #[derive(Debug, PartialEq)]
 #[repr(transparent)]
@@ -56,7 +57,8 @@ impl GameItem {
     }
 
     fn get_item_list() -> *mut gitem_t {
-        let Some(func_pointer) = (unsafe { STATIC_FUNCTION_MAP.get(&QuakeLiveFunction::LaunchItem) }) else {
+        let func_pointer = LAUNCH_ITEM_ORIG_PTR.load(Ordering::Relaxed);
+        if func_pointer == 0 {
             return std::ptr::null_mut();
         };
         let base_address = unsafe { std::ptr::read_unaligned((func_pointer + 0x2A) as *const i32) };

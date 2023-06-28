@@ -32,7 +32,7 @@ impl Default for ServerStatic {
         {
             panic!("necessary offset function not found");
         };
-        let svs_ptr_ptr = *func_pointer as u64 + 0xAC;
+        let svs_ptr_ptr = *func_pointer as usize + 0xAC;
         let svs_ptr: u32 = unsafe { std::ptr::read(svs_ptr_ptr as *const u32) };
         Self::try_from(svs_ptr as *mut serverStatic_t).unwrap()
     }

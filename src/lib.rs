@@ -40,12 +40,11 @@ use crate::quake_types::{cbufExec_t, client_t, cvar_t, qboolean, usercmd_t};
 use crate::PyMinqlx_InitStatus_t::PYM_SUCCESS;
 use ctor::ctor;
 use once_cell::race::OnceBool;
-use once_cell::sync::{Lazy, OnceCell};
-use std::collections::HashMap;
+use once_cell::sync::OnceCell;
 use std::env::args;
 use std::ffi::{c_char, c_int, OsStr};
 use std::fmt::{Display, Formatter};
-use std::sync::atomic::{AtomicBool, AtomicI32, Ordering};
+use std::sync::atomic::{AtomicBool, AtomicI32, AtomicU64, Ordering};
 
 pub(crate) const DEBUG_PRINT_PREFIX: &str = "[shinqlx]";
 
@@ -126,10 +125,6 @@ fn initialize() {
         debug_println!("Exiting.");
     };
 }
-
-#[allow(clippy::redundant_closure)]
-static mut STATIC_FUNCTION_MAP: Lazy<HashMap<QuakeLiveFunction, u64>> =
-    Lazy::new(|| HashMap::new());
 
 pub(crate) static COM_PRINTF_ORIG_PTR: OnceCell<extern "C" fn(*const c_char, ...)> =
     OnceCell::new();
@@ -530,7 +525,8 @@ pub(crate) fn search_static_functions() {
     // Cmd_Argc is really small, making it hard to search for, so we use a reference to it instead.
     if let Some(sv_map_f_ptr) = SV_MAP_F_ORIG_PTR.get() {
         let base_address =
-            unsafe { std::ptr::read_unaligned((*sv_map_f_ptr as u64 + 0x81) as *const i32) };
+            unsafe { std::ptr::read_unaligned((*sv_map_f_ptr as usize + 0x81) as *const i32) };
+        #[allow(clippy::fn_to_numeric_cast_with_truncation)]
         let cmd_argc_ptr = base_address + *sv_map_f_ptr as i32 + 0x81 + 4;
         debug_println!(format!(
             "{}: {:#X}",
@@ -541,6 +537,19 @@ pub(crate) fn search_static_functions() {
         CMD_ARGC_ORIG_PTR.set(original_func).unwrap();
     }
 }
+
+pub(crate) static G_ADDEVENT_ORIG_PTR: AtomicU64 = AtomicU64::new(0);
+pub(crate) static CHECK_PRIVILEGES_ORIG_PTR: AtomicU64 = AtomicU64::new(0);
+pub(crate) static CLIENT_CONNECT_ORIG_PTR: AtomicU64 = AtomicU64::new(0);
+pub(crate) static CLIENT_SPAWN_ORIG_PTR: AtomicU64 = AtomicU64::new(0);
+pub(crate) static G_DAMAGE_ORIG_PTR: AtomicU64 = AtomicU64::new(0);
+pub(crate) static TOUCH_ITEM_ORIG_PTR: AtomicU64 = AtomicU64::new(0);
+pub(crate) static LAUNCH_ITEM_ORIG_PTR: AtomicU64 = AtomicU64::new(0);
+pub(crate) static DROP_ITEM_ORIG_PTR: AtomicU64 = AtomicU64::new(0);
+pub(crate) static G_START_KAMIKAZE_ORIG_PTR: AtomicU64 = AtomicU64::new(0);
+pub(crate) static G_FREE_ENTITY_ORIG_PTR: AtomicU64 = AtomicU64::new(0);
+pub(crate) static G_INIT_GAME_ORIG_PTR: AtomicU64 = AtomicU64::new(0);
+pub(crate) static G_RUN_FRAME_ORIG_PTR: AtomicU64 = AtomicU64::new(0);
 
 pub(crate) fn search_vm_functions() {
     let qagame_os_str = OsStr::new("qagamex64.so");
@@ -565,21 +574,27 @@ pub(crate) fn search_vm_functions() {
 
     debug_println!("Searching for necessary VM functions...");
 
-    for ql_func in [
-        QuakeLiveFunction::G_AddEvent,
-        QuakeLiveFunction::CheckPrivileges,
-        QuakeLiveFunction::ClientConnect,
-        QuakeLiveFunction::ClientSpawn,
-        QuakeLiveFunction::G_Damage,
-        QuakeLiveFunction::Touch_Item,
-        QuakeLiveFunction::LaunchItem,
-        QuakeLiveFunction::Drop_Item,
-        QuakeLiveFunction::G_StartKamikaze,
-        QuakeLiveFunction::G_FreeEntity,
+    for (ql_func, orig_ptr) in [
+        (QuakeLiveFunction::G_AddEvent, &G_ADDEVENT_ORIG_PTR),
+        (
+            QuakeLiveFunction::CheckPrivileges,
+            &CHECK_PRIVILEGES_ORIG_PTR,
+        ),
+        (QuakeLiveFunction::ClientConnect, &CLIENT_CONNECT_ORIG_PTR),
+        (QuakeLiveFunction::ClientSpawn, &CLIENT_SPAWN_ORIG_PTR),
+        (QuakeLiveFunction::G_Damage, &G_DAMAGE_ORIG_PTR),
+        (QuakeLiveFunction::Touch_Item, &TOUCH_ITEM_ORIG_PTR),
+        (QuakeLiveFunction::LaunchItem, &LAUNCH_ITEM_ORIG_PTR),
+        (QuakeLiveFunction::Drop_Item, &DROP_ITEM_ORIG_PTR),
+        (
+            QuakeLiveFunction::G_StartKamikaze,
+            &G_START_KAMIKAZE_ORIG_PTR,
+        ),
+        (QuakeLiveFunction::G_FreeEntity, &G_FREE_ENTITY_ORIG_PTR),
     ] {
         if let Some(result) = pattern_search_module(&qagame_maps, &ql_func) {
-            debug_println!(format!("{}: {:#X}", &ql_func, result));
-            unsafe { STATIC_FUNCTION_MAP.insert(ql_func, result) };
+            debug_println!(format!("{}: {:#X}", ql_func, result));
+            orig_ptr.store(result, Ordering::Relaxed);
         } else {
             debug_println!(format!("VM function {} not found", ql_func));
             panic!("VM function not found. Exiting.");
@@ -626,6 +641,7 @@ fn pattern_search(start: u64, end: u64, ql_func: &QuakeLiveFunction) -> Option<u
 }
 
 #[derive(Clone, Debug, Eq, PartialEq, Hash)]
+#[allow(dead_code)]
 #[allow(non_camel_case_types)]
 pub(crate) enum QuakeLiveFunction {
     Com_Printf,
