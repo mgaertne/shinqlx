@@ -26,10 +26,14 @@ use crate::quake_types::weapon_t::{
     WP_PROX_LAUNCHER, WP_RAILGUN, WP_ROCKET_LAUNCHER, WP_SHOTGUN,
 };
 use crate::quake_types::{
-    cbufExec_t, cvar_t, entity_event_t, gentity_t, gitem_t, meansOfDeath_t, powerup_t,
-    privileges_t, qboolean, usercmd_t, vec3_t, weapon_t, MAX_STRING_CHARS,
+    cbufExec_t, entity_event_t, gentity_t, gitem_t, meansOfDeath_t, powerup_t, privileges_t,
+    qboolean, usercmd_t, vec3_t, weapon_t, MAX_STRING_CHARS,
 };
-use crate::{QuakeLiveFunction, STATIC_FUNCTION_MAP};
+use crate::{
+    QuakeLiveFunction, CBUF_EXECUTETEXT_ORIG_PTR, CMD_ARGC_ORIG_PTR, CMD_ARGS_ORIG_PTR,
+    CMD_ARGV_ORIG_PTR, CMD_EXECUTESTRING_ORIG_PTR, CVAR_FINDVAR_ORIG_PTR, CVAR_GETLIMIT_ORIG_PTR,
+    CVAR_GET_ORIG_PTR, CVAR_SET2_ORIG_PTR, STATIC_FUNCTION_MAP, SV_GETCONFIGSTRING_ORIG_PTR,
+};
 #[cfg(test)]
 use mockall::*;
 use std::ffi::{c_char, c_float, c_int, CStr, CString};
@@ -397,13 +401,9 @@ pub(crate) trait FindCVar {
 
 impl FindCVar for QuakeLiveEngine {
     fn find_cvar(&self, name: &str) -> Option<CVar> {
-        let Some(func_pointer) =
-            (unsafe { STATIC_FUNCTION_MAP.get(&QuakeLiveFunction::Cvar_FindVar) }) else
-        {
+        let Some(original_func) = CVAR_FINDVAR_ORIG_PTR.get() else {
             return None;
         };
-        let original_func: extern "C" fn(*const c_char) -> *const cvar_t =
-            unsafe { std::mem::transmute(*func_pointer) };
         let Ok(c_name) = CString::new(name) else {
             return None;
         };
@@ -419,13 +419,9 @@ pub(crate) trait CbufExecuteText {
 
 impl CbufExecuteText for QuakeLiveEngine {
     fn cbuf_execute_text(&self, exec_t: cbufExec_t, new_tags: &str) {
-        let Some(func_pointer) =
-            (unsafe { STATIC_FUNCTION_MAP.get(&QuakeLiveFunction::Cbuf_ExecuteText) }) else
-        {
+        let Some(original_func) = CBUF_EXECUTETEXT_ORIG_PTR.get() else {
             return;
         };
-        let original_func: extern "C" fn(cbufExec_t, *const c_char) =
-            unsafe { std::mem::transmute(*func_pointer) };
         let Ok(c_tags) = CString::new(new_tags) else {
             return;
         };
@@ -646,12 +642,9 @@ pub(crate) trait CmdArgs {
 
 impl CmdArgs for QuakeLiveEngine {
     fn cmd_args(&self) -> Option<String> {
-        let Some(func_pointer) = (unsafe { STATIC_FUNCTION_MAP.get(&QuakeLiveFunction::Cmd_Args) }) else {
+        let Some(original_func) = CMD_ARGS_ORIG_PTR.get() else {
             return None;
         };
-        let original_func: extern "C" fn() -> *const c_char =
-            unsafe { std::mem::transmute(*func_pointer) };
-
         let cmd_args = original_func();
         if cmd_args.is_null() {
             return None;
@@ -668,11 +661,10 @@ pub(crate) trait CmdArgc {
 
 impl CmdArgc for QuakeLiveEngine {
     fn cmd_argc(&self) -> i32 {
-        let Some(func_pointer) = (unsafe { STATIC_FUNCTION_MAP.get(&QuakeLiveFunction::Cmd_Argc) }) else
+        let Some(original_func) = CMD_ARGC_ORIG_PTR.get() else
         {
             return 0;
         };
-        let original_func: extern "C" fn() -> c_int = unsafe { std::mem::transmute(*func_pointer) };
         original_func()
     }
 }
@@ -687,13 +679,9 @@ impl CmdArgv for QuakeLiveEngine {
         if argno < 0 {
             return None;
         }
-        let Some(func_pointer) =
-            (unsafe { STATIC_FUNCTION_MAP.get(&QuakeLiveFunction::Cmd_Argv) }) else {
+        let Some(original_func) = CMD_ARGV_ORIG_PTR.get() else {
             return None;
         };
-        let original_func: extern "C" fn(c_int) -> *const c_char =
-            unsafe { std::mem::transmute(*func_pointer) };
-
         let cmd_argv = original_func(argno);
         if cmd_argv.is_null() {
             return None;
@@ -731,13 +719,10 @@ pub(crate) trait ConsoleCommand {
 
 impl ConsoleCommand for QuakeLiveEngine {
     fn execute_console_command(&self, cmd: &str) {
-        let Some(func_pointer) =
-            (unsafe { STATIC_FUNCTION_MAP.get(&QuakeLiveFunction::Cmd_ExecuteString) }) else {
+        let Some(original_func) =
+            CMD_EXECUTESTRING_ORIG_PTR.get() else {
             return;
         };
-        let original_func: extern "C" fn(*const c_char) =
-            unsafe { std::mem::transmute(*func_pointer) };
-
         let Ok(c_cmd) = CString::new(cmd) else {
             return;
         };
@@ -752,12 +737,9 @@ pub(crate) trait GetCVar {
 
 impl GetCVar for QuakeLiveEngine {
     fn get_cvar(&self, name: &str, value: &str, flags: Option<i32>) -> Option<CVar> {
-        let Some(func_pointer) = (unsafe { STATIC_FUNCTION_MAP.get(&QuakeLiveFunction::Cvar_Get) }) else {
+        let Some(original_func) = CVAR_GET_ORIG_PTR.get() else {
             return None;
         };
-        let original_func: extern "C" fn(*const c_char, *const c_char, c_int) -> *const cvar_t =
-            unsafe { std::mem::transmute(*func_pointer) };
-
         let Ok(c_name) = CString::new(name) else {
             return None;
         };
@@ -777,13 +759,11 @@ pub(crate) trait SetCVarForced {
 
 impl SetCVarForced for QuakeLiveEngine {
     fn set_cvar_forced(&self, name: &str, value: &str, forced: bool) -> Option<CVar> {
-        let Some(func_pointer) =
-            (unsafe { STATIC_FUNCTION_MAP.get(&QuakeLiveFunction::Cvar_Set2) }) else
+        let Some(original_func) =
+            CVAR_SET2_ORIG_PTR.get() else
         {
             return None;
         };
-        let original_func: extern "C" fn(*const c_char, *const c_char, qboolean) -> *const cvar_t =
-            unsafe { std::mem::transmute(*func_pointer) };
         let Ok(c_name) = CString::new(name) else {
                 return None;
         };
@@ -816,18 +796,9 @@ impl SetCVarLimit for QuakeLiveEngine {
         max: &str,
         flags: Option<i32>,
     ) -> Option<CVar> {
-        let Some(func_pointer) =
-            (unsafe { STATIC_FUNCTION_MAP.get(&QuakeLiveFunction::Cvar_GetLimit) }) else {
+        let Some(original_func) = CVAR_GETLIMIT_ORIG_PTR.get() else {
             return None;
         };
-        let original_func: extern "C" fn(
-            *const c_char,
-            *const c_char,
-            *const c_char,
-            *const c_char,
-            c_int,
-        ) -> *const cvar_t = unsafe { std::mem::transmute(*func_pointer) };
-
         let Ok(c_name) = CString::new(name) else {
             return None;
         };
@@ -859,13 +830,11 @@ pub(crate) trait GetConfigstring {
 
 impl GetConfigstring for QuakeLiveEngine {
     fn get_configstring(&self, index: u32) -> String {
-        let Some(func_pointer) =
-            (unsafe { STATIC_FUNCTION_MAP.get(&QuakeLiveFunction::SV_GetConfigstring) }) else
+        let Some(original_func) =
+            SV_GETCONFIGSTRING_ORIG_PTR.get() else
         {
             return "".into();
         };
-        let original_func: extern "C" fn(c_int, *mut c_char, c_int) =
-            unsafe { std::mem::transmute(*func_pointer) };
 
         let mut buffer: [u8; MAX_STRING_CHARS as usize] = [0; MAX_STRING_CHARS as usize];
         original_func(

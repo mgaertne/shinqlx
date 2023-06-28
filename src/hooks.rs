@@ -17,7 +17,10 @@ use crate::quake_types::{
 };
 use crate::{
     initialize_cvars, initialize_static, search_vm_functions, QuakeLiveFunction,
-    COMMON_INITIALIZED, CVARS_INITIALIZED, STATIC_FUNCTION_MAP, SV_TAGS_PREFIX,
+    CMD_ADDCOMMAND_ORIG_PTR, COMMON_INITIALIZED, COM_PRINTF_ORIG_PTR, CVARS_INITIALIZED,
+    STATIC_FUNCTION_MAP, SV_CLIENTENTERWORLD_ORIG_PTR, SV_DROPCLIENT_ORIG_PTR,
+    SV_EXECUTECLIENTCOMMAND_ORIG_PTR, SV_SENDSERVERCOMMAND_ORIG_PTR, SV_SETCONFIGSTRING_ORIG_PTR,
+    SV_SPAWNSERVER_ORIG_PTR, SV_TAGS_PREFIX, SYS_SETMODULEOFFSET_ORIG_PTR,
 };
 use once_cell::sync::OnceCell;
 use retour::static_detour;
@@ -507,64 +510,52 @@ pub(crate) static COM_PRINTF_TRAMPOLINE: OnceCell<extern "C" fn(*const c_char, .
 
 pub(crate) fn hook_static() -> Result<(), Box<dyn Error>> {
     debug_println!("Hooking...");
-    unsafe {
-        if let Some(func_pointer) = STATIC_FUNCTION_MAP.get(&QuakeLiveFunction::Cmd_AddCommand) {
-            let original_func = std::mem::transmute(*func_pointer);
-            CMD_ADDCOMMAND_DETOUR.initialize(original_func, shinqlx_cmd_addcommand)?;
+    if let Some(original_func) = CMD_ADDCOMMAND_ORIG_PTR.get() {
+        unsafe {
+            CMD_ADDCOMMAND_DETOUR.initialize(*original_func, shinqlx_cmd_addcommand)?;
             CMD_ADDCOMMAND_DETOUR.enable()?;
         }
     }
 
-    unsafe {
-        if let Some(func_pointer) = STATIC_FUNCTION_MAP.get(&QuakeLiveFunction::Sys_SetModuleOffset)
-        {
-            let original_func = std::mem::transmute(*func_pointer);
-            SYS_SETMODULEOFFSET_DETOUR.initialize(original_func, shinqlx_sys_setmoduleoffset)?;
+    if let Some(original_func) = SYS_SETMODULEOFFSET_ORIG_PTR.get() {
+        unsafe {
+            SYS_SETMODULEOFFSET_DETOUR.initialize(*original_func, shinqlx_sys_setmoduleoffset)?;
             SYS_SETMODULEOFFSET_DETOUR.enable()?;
         }
     }
 
-    unsafe {
-        if let Some(func_pointer) =
-            STATIC_FUNCTION_MAP.get(&QuakeLiveFunction::SV_ExecuteClientCommand)
-        {
-            let original_func = std::mem::transmute(*func_pointer);
+    if let Some(original_func) = SV_EXECUTECLIENTCOMMAND_ORIG_PTR.get() {
+        unsafe {
             SV_EXECUTECLIENTCOMMAND_DETOUR
-                .initialize(original_func, shinqlx_sv_executeclientcommand)?;
+                .initialize(*original_func, shinqlx_sv_executeclientcommand)?;
             SV_EXECUTECLIENTCOMMAND_DETOUR.enable()?;
         }
     }
 
-    unsafe {
-        if let Some(func_pointer) = STATIC_FUNCTION_MAP.get(&QuakeLiveFunction::SV_ClientEnterWorld)
-        {
-            let original_func = std::mem::transmute(*func_pointer);
-            SV_CLIENTENTERWORLD_DETOUR.initialize(original_func, shinqlx_sv_cliententerworld)?;
+    if let Some(original_func) = SV_CLIENTENTERWORLD_ORIG_PTR.get() {
+        unsafe {
+            SV_CLIENTENTERWORLD_DETOUR.initialize(*original_func, shinqlx_sv_cliententerworld)?;
             SV_CLIENTENTERWORLD_DETOUR.enable()?;
         }
     }
 
-    unsafe {
-        if let Some(func_pointer) = STATIC_FUNCTION_MAP.get(&QuakeLiveFunction::SV_SetConfigstring)
-        {
-            let original_func = std::mem::transmute(*func_pointer);
-            SV_SETCONFGISTRING_DETOUR.initialize(original_func, shinqlx_sv_setconfigstring)?;
+    if let Some(original_func) = SV_SETCONFIGSTRING_ORIG_PTR.get() {
+        unsafe {
+            SV_SETCONFGISTRING_DETOUR.initialize(*original_func, shinqlx_sv_setconfigstring)?;
             SV_SETCONFGISTRING_DETOUR.enable()?;
         }
     }
 
-    unsafe {
-        if let Some(func_pointer) = STATIC_FUNCTION_MAP.get(&QuakeLiveFunction::SV_DropClient) {
-            let original_func = std::mem::transmute(*func_pointer);
-            SV_DROPCLIENT_DETOUR.initialize(original_func, shinqlx_sv_dropclient)?;
+    if let Some(original_func) = SV_DROPCLIENT_ORIG_PTR.get() {
+        unsafe {
+            SV_DROPCLIENT_DETOUR.initialize(*original_func, shinqlx_sv_dropclient)?;
             SV_DROPCLIENT_DETOUR.enable()?;
         }
     }
 
-    unsafe {
-        if let Some(func_pointer) = STATIC_FUNCTION_MAP.get(&QuakeLiveFunction::SV_SpawnServer) {
-            let original_func = std::mem::transmute(*func_pointer);
-            SV_SPAWNSERVER_DETOUR.initialize(original_func, shinqlx_sv_spawnserver)?;
+    if let Some(original_func) = SV_SPAWNSERVER_ORIG_PTR.get() {
+        unsafe {
+            SV_SPAWNSERVER_DETOUR.initialize(*original_func, shinqlx_sv_spawnserver)?;
             SV_SPAWNSERVER_DETOUR.enable()?;
         }
     }
@@ -573,9 +564,7 @@ pub(crate) fn hook_static() -> Result<(), Box<dyn Error>> {
         fn HookRaw(target: *const c_void, replacement: *const c_void) -> *const c_void;
     }
 
-    if let Some(func_pointer) =
-        unsafe { STATIC_FUNCTION_MAP.get(&QuakeLiveFunction::SV_SendServerCommand) }
-    {
+    if let Some(func_pointer) = SV_SENDSERVERCOMMAND_ORIG_PTR.get() {
         let trampoline_func_ptr = unsafe {
             HookRaw(
                 *func_pointer as *const c_void,
@@ -590,7 +579,7 @@ pub(crate) fn hook_static() -> Result<(), Box<dyn Error>> {
         }
     }
 
-    if let Some(func_pointer) = unsafe { STATIC_FUNCTION_MAP.get(&QuakeLiveFunction::Com_Printf) } {
+    if let Some(func_pointer) = COM_PRINTF_ORIG_PTR.get() {
         let trampoline_func_ptr = unsafe {
             HookRaw(
                 *func_pointer as *const c_void,
