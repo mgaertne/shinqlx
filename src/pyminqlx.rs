@@ -1154,6 +1154,21 @@ impl From<i32> for Holdable {
     }
 }
 
+impl From<Holdable> for i32 {
+    fn from(value: Holdable) -> Self {
+        match value {
+            Holdable::None => 0,
+            Holdable::Teleporter => 27,
+            Holdable::MedKit => 28,
+            Holdable::Flight => 24,
+            Holdable::Kamikaze => 37,
+            Holdable::Portal => 38,
+            Holdable::Invulnerability => 39,
+            Holdable::Unknown => 0,
+        }
+    }
+}
+
 /// A struct sequence containing parameters for the flight holdable item.
 #[pyclass]
 #[pyo3(module = "minqlx", name = "Flight", get_all)]
