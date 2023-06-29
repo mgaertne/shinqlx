@@ -14,7 +14,6 @@ fn main() {
         let mut builder = cc::Build::new();
         builder.files([
             "src/dllmain.c",
-            "src/hooks.c",
             "src/simple_hook.c",
             "src/misc.c",
             "src/trampoline.c",

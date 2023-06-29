@@ -31,7 +31,6 @@ typedef int32_t sint;
 #define __cdecl __attribute__((__cdecl__))
 #endif
 
-void* HookRaw(void* target, void* replacement);
 void DebugPrint(const char* fmt, ...);
 void DebugError(const char* fmt, const char* file, int line, const char* func, ...);
 
