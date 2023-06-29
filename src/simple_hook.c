@@ -29,6 +29,18 @@ static void initializeTrampolines(void) {
                 PROT_READ | PROT_WRITE | PROT_EXEC, MAP_ANONYMOUS | MAP_PRIVATE, -1, 0);
 }
 
+void* HookRaw(void* target, void* replacement) {
+    void* returned = NULL;
+    int hook_result = 0;
+
+    hook_result = Hook(target, replacement, (void*)&returned);
+    if (hook_result) {
+        return NULL;
+    }
+
+    return returned;
+}
+
 int Hook(void* target, void* replacement, void** func_ptr) {
     TRAMPOLINE ct;
     int res, page_size;
