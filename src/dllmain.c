@@ -17,6 +17,10 @@ const char qzeroded[] = "qzeroded.x86";
 const char qagame_name[] = "qagamei386.so";
 #endif
 
+// qagame module.
+void* qagame;
+void* qagame_dllentry;
+
 // TODO: Make it output everything to a file too.
 void DebugPrint(const char* fmt, ...) {
     va_list args;
