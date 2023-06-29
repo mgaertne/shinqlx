@@ -52,10 +52,8 @@ pub(crate) const DEBUG_PRINT_PREFIX: &str = "[shinqlx]";
 pub(crate) const SV_TAGS_PREFIX: &str = "shinqlx";
 
 #[allow(non_camel_case_types)]
-#[allow(non_camel_case_types)]
 #[derive(PartialEq, Debug, Clone, Copy)]
 #[allow(dead_code)]
-#[repr(C)]
 pub enum PyMinqlx_InitStatus_t {
     PYM_SUCCESS,
     PYM_PY_INIT_ERROR,
