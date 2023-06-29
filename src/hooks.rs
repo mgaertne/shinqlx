@@ -1,5 +1,6 @@
 use crate::client::Client;
 use crate::game_entity::GameEntity;
+use crate::patches::patch_vm;
 use crate::pyminqlx::{
     client_command_dispatcher, client_connect_dispatcher, client_disconnect_dispatcher,
     client_loaded_dispatcher, client_spawn_dispatcher, console_print_dispatcher, damage_dispatcher,
@@ -60,46 +61,12 @@ fn shinqlx_cmd_addcommand(cmd: *const c_char, func: unsafe extern "C" fn()) {
     }
 }
 
-#[repr(C)]
-pub struct DlInfo {
-    pub dli_fname: *const c_char,
-    pub dli_fbase: *mut c_void,
-    pub dli_sname: *const c_char,
-    pub dli_saddr: *mut c_void,
-}
-
 fn shinqlx_sys_setmoduleoffset(module_name: *const c_char, offset: unsafe extern "C" fn()) {
-    extern "C" {
-        static mut qagame_dllentry: *mut c_void;
-        static mut qagame: *mut c_void;
-        fn patch_vm();
-        fn dladdr(addr: *const c_void, into: *mut DlInfo) -> c_int;
-    }
-
     let converted_module_name = unsafe { CStr::from_ptr(module_name) }.to_string_lossy();
 
     // We should be getting qagame, but check just in case.
-    match converted_module_name.as_ref() {
-        "qagame" => {
-            // Despite the name, it's not the actual module, but vmMain.
-            // We use dlinfo to get the base of the module so we can properly
-            // initialize all the pointers relative to the base.
-            unsafe { qagame_dllentry = offset as *mut c_void };
-            let mut dlinfo: DlInfo = DlInfo {
-                dli_fname: std::ptr::null_mut(),
-                dli_fbase: std::ptr::null_mut(),
-                dli_sname: std::ptr::null_mut(),
-                dli_saddr: std::ptr::null_mut(),
-            };
-            let res = unsafe { dladdr(offset as *const c_void, &mut dlinfo as *mut DlInfo) };
-            if res != 0 {
-                unsafe { qagame = dlinfo.dli_fbase };
-            } else {
-                debug_println!("dladdr() failed.");
-                unsafe { qagame = std::ptr::null_mut() };
-            }
-        }
-        _ => debug_println!(format!("Unknown module: {}", converted_module_name)),
+    if converted_module_name.as_ref() != "qagame" {
+        debug_println!(format!("Unknown module: {}", converted_module_name));
     }
 
     QuakeLiveEngine::default().set_module_offset(converted_module_name.as_ref(), offset);
@@ -113,9 +80,7 @@ fn shinqlx_sys_setmoduleoffset(module_name: *const c_char, offset: unsafe extern
     #[allow(clippy::fn_to_numeric_cast)]
     hook_vm(offset as u64).unwrap();
 
-    unsafe {
-        patch_vm();
-    }
+    patch_vm();
 }
 
 #[no_mangle]

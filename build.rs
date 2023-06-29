@@ -13,11 +13,8 @@ fn main() {
     {
         let mut builder = cc::Build::new();
         builder.files([
-            "src/dllmain.c",
             "src/simple_hook.c",
-            "src/misc.c",
             "src/trampoline.c",
-            "src/patches.c",
             #[cfg(target_pointer_width = "64")]
             "src/HDE/hde64.c",
             #[cfg(target_pointer_width = "32")]
@@ -45,14 +42,8 @@ fn main() {
 
         builder.compile("minqlx");
 
-        println!("cargo:rerun-if-changed=src/dllmain.c");
-        println!("cargo:rerun-if-changed=src/commands.c");
         println!("cargo:rerun-if-changed=src/simple_hook.c");
-        println!("cargo:rerun-if-changed=src/hooks.c");
-        println!("cargo:rerun-if-changed=src/misc.c");
-        println!("cargo:rerun-if-changed=src/maps_parser.c");
         println!("cargo:rerun-if-changed=src/trampoline.c");
-        println!("cargo:rerun-if-changed=src/patches.c");
         #[cfg(target_pointer_width = "64")]
         println!("cargo:rerun-if-changed=src/HDE/hde64.c");
         #[cfg(target_pointer_width = "32")]
