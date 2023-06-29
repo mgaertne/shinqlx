@@ -25,8 +25,8 @@ mod game_entity;
 mod game_item;
 mod hooks;
 mod pyminqlx;
-mod qlfunc_patterns;
 mod quake_live_engine;
+mod quake_live_functions;
 mod quake_types;
 mod server_static;
 
@@ -37,12 +37,14 @@ use crate::commands::{
 use crate::hooks::hook_static;
 use crate::pyminqlx::pyminqlx_initialize;
 use crate::quake_live_engine::{AddCommand, FindCVar, QuakeLiveEngine};
+use crate::quake_live_functions::pattern_search_module;
 use crate::quake_types::{cbufExec_t, client_t, cvar_t, qboolean, usercmd_t};
 use crate::PyMinqlx_InitStatus_t::PYM_SUCCESS;
 use ctor::ctor;
 use once_cell::race::OnceBool;
 use once_cell::sync::OnceCell;
-use qlfunc_patterns::QuakeLiveFunction;
+use procfs::process::{MMapPath, MemoryMap, Process};
+use quake_live_functions::QuakeLiveFunction;
 use std::env::args;
 use std::ffi::{c_char, c_int, OsStr};
 use std::sync::atomic::{AtomicBool, AtomicI32, AtomicU64, Ordering};
@@ -185,13 +187,17 @@ pub(crate) static CMD_ARGC_ORIG_PTR: OnceCell<extern "C" fn() -> c_int> = OnceCe
 
 pub(crate) fn search_static_functions() {
     let qzeroded_os_str = OsStr::new(QZERODED);
-    let myself_module = procfs::process::Process::myself().unwrap();
-    let myself_maps = myself_module.maps().unwrap();
-    let qzeroded_maps: Vec<&procfs::process::MemoryMap> = myself_maps
+    let Ok(myself_process) = Process::myself() else {
+        panic!("could not find my own process\n");
+    };
+    let Ok(myself_maps) = myself_process.maps() else {
+        panic!("no memory mapping information found\n");
+    };
+    let qzeroded_maps: Vec<&MemoryMap> = myself_maps
         .memory_maps
         .iter()
         .filter(|mmap| {
-            if let procfs::process::MMapPath::Path(path) = &mmap.pathname {
+            if let MMapPath::Path(path) = &mmap.pathname {
                 path.file_name() == Some(qzeroded_os_str)
             } else {
                 false
@@ -208,7 +214,7 @@ pub(crate) fn search_static_functions() {
     }
 
     debug_println!("Searching for necessary functions...");
-    let Some(result) = qlfunc_patterns::pattern_search_module(&qzeroded_maps, &QuakeLiveFunction::Com_Printf) else
+    let Some(result) = pattern_search_module(&qzeroded_maps, &QuakeLiveFunction::Com_Printf) else
     {
         debug_println!(format!(
             "Function {} not found",
@@ -220,7 +226,7 @@ pub(crate) fn search_static_functions() {
     let original_func = unsafe { std::mem::transmute(result) };
     COM_PRINTF_ORIG_PTR.set(original_func).unwrap();
 
-    let Some(result) = qlfunc_patterns::pattern_search_module(&qzeroded_maps, &QuakeLiveFunction::Cmd_AddCommand) else
+    let Some(result) = pattern_search_module(&qzeroded_maps, &QuakeLiveFunction::Cmd_AddCommand) else
     {
         debug_println!(format!(
             "Function {} not found",
@@ -236,7 +242,7 @@ pub(crate) fn search_static_functions() {
     let original_func = unsafe { std::mem::transmute(result) };
     CMD_ADDCOMMAND_ORIG_PTR.set(original_func).unwrap();
 
-    let Some(result) = qlfunc_patterns::pattern_search_module(&qzeroded_maps, &QuakeLiveFunction::Cmd_Args) else
+    let Some(result) = pattern_search_module(&qzeroded_maps, &QuakeLiveFunction::Cmd_Args) else
     {
         debug_println!(format!(
             "Function {} not found",
@@ -248,7 +254,7 @@ pub(crate) fn search_static_functions() {
     let original_func = unsafe { std::mem::transmute(result) };
     CMD_ARGS_ORIG_PTR.set(original_func).unwrap();
 
-    let Some(result) = qlfunc_patterns::pattern_search_module(&qzeroded_maps, &QuakeLiveFunction::Cmd_Argv) else
+    let Some(result) = pattern_search_module(&qzeroded_maps, &QuakeLiveFunction::Cmd_Argv) else
     {
         debug_println!(format!(
             "Function {} not found",
@@ -260,7 +266,7 @@ pub(crate) fn search_static_functions() {
     let original_func = unsafe { std::mem::transmute(result) };
     CMD_ARGV_ORIG_PTR.set(original_func).unwrap();
 
-    let Some(result) = qlfunc_patterns::pattern_search_module(&qzeroded_maps, &QuakeLiveFunction::Cmd_Tokenizestring) else
+    let Some(result) = pattern_search_module(&qzeroded_maps, &QuakeLiveFunction::Cmd_Tokenizestring) else
     {
         debug_println!(format!(
             "Function {} not found",
@@ -276,7 +282,7 @@ pub(crate) fn search_static_functions() {
     let original_func = unsafe { std::mem::transmute(result) };
     CMD_TOKENIZESTRING_ORIG_PTR.set(original_func).unwrap();
 
-    let Some(result) = qlfunc_patterns::pattern_search_module(&qzeroded_maps, &QuakeLiveFunction::Cbuf_ExecuteText) else
+    let Some(result) = pattern_search_module(&qzeroded_maps, &QuakeLiveFunction::Cbuf_ExecuteText) else
     {
         debug_println!(format!(
             "Function {} not found",
@@ -292,7 +298,7 @@ pub(crate) fn search_static_functions() {
     let original_func = unsafe { std::mem::transmute(result) };
     CBUF_EXECUTETEXT_ORIG_PTR.set(original_func).unwrap();
 
-    let Some(result) = qlfunc_patterns::pattern_search_module(&qzeroded_maps, &QuakeLiveFunction::Cvar_FindVar) else
+    let Some(result) = pattern_search_module(&qzeroded_maps, &QuakeLiveFunction::Cvar_FindVar) else
     {
         debug_println!(format!(
             "Function {} not found",
@@ -308,7 +314,7 @@ pub(crate) fn search_static_functions() {
     let original_func = unsafe { std::mem::transmute(result) };
     CVAR_FINDVAR_ORIG_PTR.set(original_func).unwrap();
 
-    let Some(result) = qlfunc_patterns::pattern_search_module(&qzeroded_maps, &QuakeLiveFunction::Cvar_Get) else
+    let Some(result) = pattern_search_module(&qzeroded_maps, &QuakeLiveFunction::Cvar_Get) else
     {
         debug_println!(format!(
             "Function {} not found",
@@ -320,7 +326,7 @@ pub(crate) fn search_static_functions() {
     let original_func = unsafe { std::mem::transmute(result) };
     CVAR_GET_ORIG_PTR.set(original_func).unwrap();
 
-    let Some(result) = qlfunc_patterns::pattern_search_module(&qzeroded_maps, &QuakeLiveFunction::Cvar_GetLimit) else
+    let Some(result) = pattern_search_module(&qzeroded_maps, &QuakeLiveFunction::Cvar_GetLimit) else
     {
         debug_println!(format!(
             "Function {} not found",
@@ -336,7 +342,7 @@ pub(crate) fn search_static_functions() {
     let original_func = unsafe { std::mem::transmute(result) };
     CVAR_GETLIMIT_ORIG_PTR.set(original_func).unwrap();
 
-    let Some(result) = qlfunc_patterns::pattern_search_module(&qzeroded_maps, &QuakeLiveFunction::Cvar_Set2) else
+    let Some(result) = pattern_search_module(&qzeroded_maps, &QuakeLiveFunction::Cvar_Set2) else
     {
         debug_println!(format!(
             "Function {} not found",
@@ -348,7 +354,7 @@ pub(crate) fn search_static_functions() {
     let original_func = unsafe { std::mem::transmute(result) };
     CVAR_SET2_ORIG_PTR.set(original_func).unwrap();
 
-    let Some(result) = qlfunc_patterns::pattern_search_module(&qzeroded_maps, &QuakeLiveFunction::SV_SendServerCommand) else
+    let Some(result) = pattern_search_module(&qzeroded_maps, &QuakeLiveFunction::SV_SendServerCommand) else
     {
         debug_println!(format!(
             "Function {} not found",
@@ -364,7 +370,7 @@ pub(crate) fn search_static_functions() {
     let original_func = unsafe { std::mem::transmute(result) };
     SV_SENDSERVERCOMMAND_ORIG_PTR.set(original_func).unwrap();
 
-    let Some(result) = qlfunc_patterns::pattern_search_module(&qzeroded_maps, &QuakeLiveFunction::SV_ExecuteClientCommand) else
+    let Some(result) = pattern_search_module(&qzeroded_maps, &QuakeLiveFunction::SV_ExecuteClientCommand) else
     {
         debug_println!(format!(
             "Function {} not found",
@@ -380,7 +386,7 @@ pub(crate) fn search_static_functions() {
     let original_func = unsafe { std::mem::transmute(result) };
     SV_EXECUTECLIENTCOMMAND_ORIG_PTR.set(original_func).unwrap();
 
-    let Some(result) = qlfunc_patterns::pattern_search_module(&qzeroded_maps, &QuakeLiveFunction::SV_Shutdown) else
+    let Some(result) = pattern_search_module(&qzeroded_maps, &QuakeLiveFunction::SV_Shutdown) else
     {
         debug_println!(format!(
             "Function {} not found",
@@ -396,7 +402,7 @@ pub(crate) fn search_static_functions() {
     let original_func = unsafe { std::mem::transmute(result) };
     SV_SHUTDOWN_ORIG_PTR.set(original_func).unwrap();
 
-    let Some(result) = qlfunc_patterns::pattern_search_module(&qzeroded_maps, &QuakeLiveFunction::SV_Map_f) else
+    let Some(result) = pattern_search_module(&qzeroded_maps, &QuakeLiveFunction::SV_Map_f) else
     {
         debug_println!(format!(
             "Function {} not found",
@@ -408,7 +414,7 @@ pub(crate) fn search_static_functions() {
     let original_func = unsafe { std::mem::transmute(result) };
     SV_MAP_F_ORIG_PTR.set(original_func).unwrap();
 
-    let Some(result) = qlfunc_patterns::pattern_search_module(&qzeroded_maps, &QuakeLiveFunction::SV_ClientEnterWorld) else
+    let Some(result) = pattern_search_module(&qzeroded_maps, &QuakeLiveFunction::SV_ClientEnterWorld) else
     {
         debug_println!(format!(
             "Function {} not found",
@@ -424,7 +430,7 @@ pub(crate) fn search_static_functions() {
     let original_func = unsafe { std::mem::transmute(result) };
     SV_CLIENTENTERWORLD_ORIG_PTR.set(original_func).unwrap();
 
-    let Some(result) = qlfunc_patterns::pattern_search_module(&qzeroded_maps, &QuakeLiveFunction::SV_SetConfigstring) else
+    let Some(result) = pattern_search_module(&qzeroded_maps, &QuakeLiveFunction::SV_SetConfigstring) else
     {
         debug_println!(format!(
             "Function {} not found",
@@ -440,7 +446,7 @@ pub(crate) fn search_static_functions() {
     let original_func = unsafe { std::mem::transmute(result) };
     SV_SETCONFIGSTRING_ORIG_PTR.set(original_func).unwrap();
 
-    let Some(result) = qlfunc_patterns::pattern_search_module(&qzeroded_maps, &QuakeLiveFunction::SV_GetConfigstring) else
+    let Some(result) = pattern_search_module(&qzeroded_maps, &QuakeLiveFunction::SV_GetConfigstring) else
     {
         debug_println!(format!(
             "Function {} not found",
@@ -456,7 +462,7 @@ pub(crate) fn search_static_functions() {
     let original_func = unsafe { std::mem::transmute(result) };
     SV_GETCONFIGSTRING_ORIG_PTR.set(original_func).unwrap();
 
-    let Some(result) = qlfunc_patterns::pattern_search_module(&qzeroded_maps, &QuakeLiveFunction::SV_DropClient) else
+    let Some(result) = pattern_search_module(&qzeroded_maps, &QuakeLiveFunction::SV_DropClient) else
     {
         debug_println!(format!(
             "Function {} not found",
@@ -472,7 +478,7 @@ pub(crate) fn search_static_functions() {
     let original_func = unsafe { std::mem::transmute(result) };
     SV_DROPCLIENT_ORIG_PTR.set(original_func).unwrap();
 
-    let Some(result) = qlfunc_patterns::pattern_search_module(&qzeroded_maps, &QuakeLiveFunction::Sys_SetModuleOffset) else
+    let Some(result) = pattern_search_module(&qzeroded_maps, &QuakeLiveFunction::Sys_SetModuleOffset) else
     {
         debug_println!(format!(
             "Function {} not found",
@@ -488,7 +494,7 @@ pub(crate) fn search_static_functions() {
     let original_func = unsafe { std::mem::transmute(result) };
     SYS_SETMODULEOFFSET_ORIG_PTR.set(original_func).unwrap();
 
-    let Some(result) = qlfunc_patterns::pattern_search_module(&qzeroded_maps, &QuakeLiveFunction::SV_SpawnServer) else
+    let Some(result) = pattern_search_module(&qzeroded_maps, &QuakeLiveFunction::SV_SpawnServer) else
     {
         debug_println!(format!(
             "Function {} not found",
@@ -505,7 +511,7 @@ pub(crate) fn search_static_functions() {
     SV_SPAWNSERVER_ORIG_PTR.set(original_func).unwrap();
 
     let Some(result) =
-            qlfunc_patterns::pattern_search_module(&qzeroded_maps, &QuakeLiveFunction::Cmd_ExecuteString) else
+            pattern_search_module(&qzeroded_maps, &QuakeLiveFunction::Cmd_ExecuteString) else
         {
             debug_println!(format!(
                 "Function {} not found",
@@ -549,16 +555,21 @@ pub(crate) static G_START_KAMIKAZE_ORIG_PTR: AtomicU64 = AtomicU64::new(0);
 pub(crate) static G_FREE_ENTITY_ORIG_PTR: AtomicU64 = AtomicU64::new(0);
 pub(crate) static G_INIT_GAME_ORIG_PTR: AtomicU64 = AtomicU64::new(0);
 pub(crate) static G_RUN_FRAME_ORIG_PTR: AtomicU64 = AtomicU64::new(0);
+pub(crate) static CMD_CALLVOTE_F_ORIG_PTR: AtomicU64 = AtomicU64::new(0);
 
 pub(crate) fn search_vm_functions() {
     let qagame_os_str = OsStr::new("qagamex64.so");
-    let myself_module = procfs::process::Process::myself().unwrap();
-    let myself_maps = myself_module.maps().unwrap();
-    let qagame_maps: Vec<&procfs::process::MemoryMap> = myself_maps
+    let Ok(myself_process) = Process::myself() else {
+        panic!("could not find my own process\n");
+    };
+    let Ok(myself_maps) = myself_process.maps() else {
+        panic!("no memory mapping information found\n");
+    };
+    let qagame_maps: Vec<&MemoryMap> = myself_maps
         .memory_maps
         .iter()
         .filter(|mmap| {
-            if let procfs::process::MMapPath::Path(path) = &mmap.pathname {
+            if let MMapPath::Path(path) = &mmap.pathname {
                 path.file_name() == Some(qagame_os_str)
             } else {
                 false
@@ -590,8 +601,9 @@ pub(crate) fn search_vm_functions() {
             &G_START_KAMIKAZE_ORIG_PTR,
         ),
         (QuakeLiveFunction::G_FreeEntity, &G_FREE_ENTITY_ORIG_PTR),
+        (QuakeLiveFunction::Cmd_Callvote_f, &CMD_CALLVOTE_F_ORIG_PTR),
     ] {
-        if let Some(result) = qlfunc_patterns::pattern_search_module(&qagame_maps, &ql_func) {
+        if let Some(result) = pattern_search_module(&qagame_maps, &ql_func) {
             debug_println!(format!("{}: {:#X}", ql_func, result));
             orig_ptr.store(result, Ordering::Relaxed);
         } else {
