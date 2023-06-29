@@ -45,7 +45,6 @@ use once_cell::sync::OnceCell;
 use qlfunc_patterns::QuakeLiveFunction;
 use std::env::args;
 use std::ffi::{c_char, c_int, OsStr};
-use std::fmt::{Display, Formatter};
 use std::sync::atomic::{AtomicBool, AtomicI32, AtomicU64, Ordering};
 
 pub(crate) const DEBUG_PRINT_PREFIX: &str = "[shinqlx]";
