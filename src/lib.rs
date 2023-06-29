@@ -24,6 +24,7 @@ mod game_client;
 mod game_entity;
 mod game_item;
 mod hooks;
+mod patches;
 mod pyminqlx;
 mod quake_live_engine;
 mod quake_live_functions;
