@@ -1631,7 +1631,7 @@ fn set_powerups(client_id: i32, powerups: Powerups) -> PyResult<bool> {
 /// Sets a player's holdable item.
 #[pyfunction]
 #[pyo3(name = "set_holdable")]
-fn set_holdable(client_id: i32, holdable: Holdable) -> PyResult<bool> {
+fn set_holdable(client_id: i32, holdable: i32) -> PyResult<bool> {
     let maxclients = SV_MAXCLIENTS.load(Ordering::Relaxed);
     if !(0..maxclients).contains(&client_id) {
         return Err(PyValueError::new_err(format!(
@@ -1644,7 +1644,8 @@ fn set_holdable(client_id: i32, holdable: Holdable) -> PyResult<bool> {
         Err(_) => Ok(false),
         Ok(game_entity) => {
             let mut game_client = game_entity.get_game_client().unwrap();
-            game_client.set_holdable(holdable as i32);
+            let ql_holdable = Holdable::from(holdable);
+            game_client.set_holdable(ql_holdable);
             Ok(true)
         }
     }
