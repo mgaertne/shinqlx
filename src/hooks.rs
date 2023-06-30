@@ -26,7 +26,7 @@ use crate::{
     SYS_SETMODULEOFFSET_ORIG_PTR,
 };
 use once_cell::sync::OnceCell;
-use retour::{GenericDetour, RawDetour};
+use retour::{static_detour, RawDetour};
 use std::error::Error;
 use std::ffi::{c_char, c_int, c_void, CStr, VaList, VaListImpl};
 use std::sync::atomic::{AtomicU64, Ordering};
@@ -142,11 +142,7 @@ pub extern "C" fn ShiNQlx_G_ShutdownGame(restart: c_int) {
     QuakeLiveEngine::default().shutdown_game(restart);
 }
 
-fn shinqlx_sv_executeclientcommand(
-    client: *const client_t,
-    cmd: *const c_char,
-    client_ok: qboolean,
-) {
+fn shinqlx_sv_executeclientcommand(client: *mut client_t, cmd: *const c_char, client_ok: qboolean) {
     let rust_cmd = unsafe { CStr::from_ptr(cmd) }.to_string_lossy();
     if !rust_cmd.is_empty() {
         shinqlx_execute_client_command(
@@ -251,7 +247,7 @@ pub(crate) fn shinqlx_send_server_command(client: Option<Client>, cmd: &str) {
     }
 }
 
-fn shinqlx_sv_cliententerworld(client: *const client_t, cmd: *const usercmd_t) {
+fn shinqlx_sv_cliententerworld(client: *mut client_t, cmd: *mut usercmd_t) {
     let Some(mut safe_client): Option<Client> = client.try_into().ok() else {
         return;
     };
@@ -296,7 +292,7 @@ pub(crate) fn shinqlx_set_configstring(index: u32, value: &str) {
     QuakeLiveEngine::default().set_configstring(&index, res.as_str());
 }
 
-fn shinqlx_sv_dropclient(client: *const client_t, reason: *const c_char) {
+fn shinqlx_sv_dropclient(client: *mut client_t, reason: *const c_char) {
     let Ok(mut safe_client) = Client::try_from(client) else {
         return;
     };
@@ -498,55 +494,46 @@ pub extern "C" fn ShiNQlx_G_Damage(
     }
 }
 
-type SvExecuteClientCommandType = fn(*const client_t, *const c_char, qboolean);
-type SvClientEnterWorldType = fn(*const client_t, *const usercmd_t);
-type SetConfigstringType = fn(c_int, *const c_char);
-type SvDropClientType = fn(*const client_t, *const c_char);
-type SvSpawnServerType = fn(*const c_char, qboolean);
+static_detour! {
+    pub(crate) static CMD_ADDCOMMAND_DETOUR: fn(*const c_char, unsafe extern "C" fn());
+    pub(crate) static SYS_SETMODULEOFFSET_DETOUR: fn(*const c_char, unsafe extern "C" fn());
+    pub(crate) static SV_EXECUTECLIENTCOMMAND_DETOUR: fn(*mut client_t, *const c_char, qboolean);
+    pub(crate) static SV_CLIENTENTERWORLD_DETOUR: fn(*mut client_t, *mut usercmd_t);
+    pub(crate) static SV_SETCONFGISTRING_DETOUR: fn(c_int, *const c_char);
+    pub(crate) static SV_DROPCLIENT_DETOUR: fn(*mut client_t, *const c_char);
+    pub(crate) static SV_SPAWNSERVER_DETOUR: fn(*const c_char, qboolean);
+}
 
-pub(crate) static CMD_ADDCOMMAND_DETOUR: OnceCell<
-    GenericDetour<fn(*const c_char, unsafe extern "C" fn())>,
-> = OnceCell::new();
-pub(crate) static SYS_SETMODULEOFFSET_DETOUR: OnceCell<
-    GenericDetour<fn(*const c_char, unsafe extern "C" fn())>,
-> = OnceCell::new();
-pub(crate) static SV_EXECUTECLIENTCOMMAND_DETOUR: OnceCell<
-    GenericDetour<SvExecuteClientCommandType>,
-> = OnceCell::new();
-pub(crate) static SV_CLIENTENTERWORLD_DETOUR: OnceCell<GenericDetour<SvClientEnterWorldType>> =
-    OnceCell::new();
 pub(crate) static SV_SENDSERVERCOMMAND_DETOUR: OnceCell<RawDetour> = OnceCell::new();
-pub(crate) static SV_SETCONFGISTRING_DETOUR: OnceCell<GenericDetour<SetConfigstringType>> =
-    OnceCell::new();
-pub(crate) static SV_DROPCLIENT_DETOUR: OnceCell<GenericDetour<SvDropClientType>> = OnceCell::new();
 pub(crate) static COM_PRINTF_DETOUR: OnceCell<RawDetour> = OnceCell::new();
-pub(crate) static SV_SPAWNSERVER_DETOUR: OnceCell<GenericDetour<SvSpawnServerType>> =
-    OnceCell::new();
 
 pub(crate) fn hook_static() -> Result<(), Box<dyn Error>> {
     debug_println!("Hooking...");
     if let Some(original_func) = CMD_ADDCOMMAND_ORIG_PTR.get() {
-        let hook = unsafe { GenericDetour::new(*original_func, shinqlx_cmd_addcommand)? };
-        unsafe { hook.enable() }?;
-        CMD_ADDCOMMAND_DETOUR.set(hook).unwrap();
+        unsafe { CMD_ADDCOMMAND_DETOUR.initialize(*original_func, shinqlx_cmd_addcommand) }?;
+        unsafe { CMD_ADDCOMMAND_DETOUR.enable() }?;
     }
 
     if let Some(original_func) = SYS_SETMODULEOFFSET_ORIG_PTR.get() {
-        let hook = unsafe { GenericDetour::new(*original_func, shinqlx_sys_setmoduleoffset)? };
-        unsafe { hook.enable() }?;
-        SYS_SETMODULEOFFSET_DETOUR.set(hook).unwrap();
+        unsafe {
+            SYS_SETMODULEOFFSET_DETOUR.initialize(*original_func, shinqlx_sys_setmoduleoffset)
+        }?;
+        unsafe { SYS_SETMODULEOFFSET_DETOUR.enable() }?;
     }
 
     if let Some(original_func) = SV_EXECUTECLIENTCOMMAND_ORIG_PTR.get() {
-        let hook = unsafe { GenericDetour::new(*original_func, shinqlx_sv_executeclientcommand)? };
-        unsafe { hook.enable() }?;
-        SV_EXECUTECLIENTCOMMAND_DETOUR.set(hook).unwrap();
+        unsafe {
+            SV_EXECUTECLIENTCOMMAND_DETOUR
+                .initialize(*original_func, shinqlx_sv_executeclientcommand)
+        }?;
+        unsafe { SV_EXECUTECLIENTCOMMAND_DETOUR.enable() }?;
     }
 
     if let Some(original_func) = SV_CLIENTENTERWORLD_ORIG_PTR.get() {
-        let hook = unsafe { GenericDetour::new(*original_func, shinqlx_sv_cliententerworld)? };
-        unsafe { hook.enable() }?;
-        SV_CLIENTENTERWORLD_DETOUR.set(hook).unwrap();
+        unsafe {
+            SV_CLIENTENTERWORLD_DETOUR.initialize(*original_func, shinqlx_sv_cliententerworld)
+        }?;
+        unsafe { SV_CLIENTENTERWORLD_DETOUR.enable() }?;
     }
 
     if let Some(func_pointer) = SV_SENDSERVERCOMMAND_ORIG_PTR.get() {
@@ -561,15 +548,15 @@ pub(crate) fn hook_static() -> Result<(), Box<dyn Error>> {
     }
 
     if let Some(original_func) = SV_SETCONFIGSTRING_ORIG_PTR.get() {
-        let hook = unsafe { GenericDetour::new(*original_func, shinqlx_sv_setconfigstring)? };
-        unsafe { hook.enable() }?;
-        SV_SETCONFGISTRING_DETOUR.set(hook).unwrap();
+        unsafe {
+            SV_SETCONFGISTRING_DETOUR.initialize(*original_func, shinqlx_sv_setconfigstring)
+        }?;
+        unsafe { SV_SETCONFGISTRING_DETOUR.enable() }?;
     }
 
     if let Some(original_func) = SV_DROPCLIENT_ORIG_PTR.get() {
-        let hook = unsafe { GenericDetour::new(*original_func, shinqlx_sv_dropclient)? };
-        unsafe { hook.enable() }?;
-        SV_DROPCLIENT_DETOUR.set(hook).unwrap();
+        unsafe { SV_DROPCLIENT_DETOUR.initialize(*original_func, shinqlx_sv_dropclient) }?;
+        unsafe { SV_DROPCLIENT_DETOUR.enable() }?;
     }
 
     if let Some(func_pointer) = COM_PRINTF_ORIG_PTR.get() {
@@ -580,9 +567,8 @@ pub(crate) fn hook_static() -> Result<(), Box<dyn Error>> {
     }
 
     if let Some(original_func) = SV_SPAWNSERVER_ORIG_PTR.get() {
-        let hook = unsafe { GenericDetour::new(*original_func, shinqlx_sv_spawnserver)? };
-        unsafe { hook.enable() }?;
-        SV_SPAWNSERVER_DETOUR.set(hook).unwrap();
+        unsafe { SV_SPAWNSERVER_DETOUR.initialize(*original_func, shinqlx_sv_spawnserver) }?;
+        unsafe { SV_SPAWNSERVER_DETOUR.enable() }?;
     }
 
     Ok(())

@@ -17,7 +17,15 @@ impl TryFrom<*const client_t> for Client {
     type Error = QuakeLiveEngineError;
 
     fn try_from(client: *const client_t) -> Result<Self, Self::Error> {
-        unsafe { client.cast_mut().as_mut() }
+        Self::try_from(client.cast_mut())
+    }
+}
+
+impl TryFrom<*mut client_t> for Client {
+    type Error = QuakeLiveEngineError;
+
+    fn try_from(client: *mut client_t) -> Result<Self, Self::Error> {
+        unsafe { client.as_mut() }
             .map(|client_t| Self { client_t })
             .ok_or(NullPointerPassed("null pointer passed".into()))
     }
@@ -68,11 +76,7 @@ impl Client {
 
     pub(crate) fn disconnect(&mut self, reason: &str) {
         let c_reason = CString::new(reason).unwrap_or(CString::new("").unwrap());
-        let Some(detour) = SV_DROPCLIENT_DETOUR.get() else {
-            return;
-        };
-
-        detour.call(self.client_t, c_reason.as_ptr());
+        SV_DROPCLIENT_DETOUR.call(self.client_t, c_reason.as_ptr());
     }
 
     pub(crate) fn get_name(&self) -> String {
