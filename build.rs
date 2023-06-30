@@ -44,7 +44,6 @@ fn main() {
         builder.compile("minqlx");
 
         println!("cargo:rerun-if-changed=src/quake_types.h");
-        println!("cargo:rerun-if-changed=src/hooks.c");
         println!("cargo:rerun-if-changed=src/simple_hook.c");
         println!("cargo:rerun-if-changed=src/simple_hook.h");
         println!("cargo:rerun-if-changed=src/trampoline.c");
