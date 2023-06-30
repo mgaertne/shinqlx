@@ -113,7 +113,7 @@ fn shinqlx_sys_setmoduleoffset(module_name: *const c_char, offset: unsafe extern
     }
 
     #[allow(clippy::fn_to_numeric_cast)]
-    search_vm_functions(qagame as u64, offset as u64);
+    search_vm_functions(qagame as u64);
 
     #[allow(clippy::fn_to_numeric_cast)]
     hook_vm(offset as u64).unwrap();
@@ -138,7 +138,15 @@ pub extern "C" fn ShiNQlx_G_InitGame(level_time: c_int, random_seed: c_int, rest
 
 #[no_mangle]
 pub extern "C" fn ShiNQlx_G_ShutdownGame(restart: c_int) {
-    debug_println!("I was here");
+    extern "C" {
+        fn seek_hook_slot(offset: c_int) -> c_int;
+    }
+
+    let rewind_result = unsafe { seek_hook_slot(-4) };
+    if rewind_result == 0 {
+        panic!("failed to rewind hook slot. Exiting.");
+    }
+
     QuakeLiveEngine::default().shutdown_game(restart);
 }
 
@@ -629,6 +637,11 @@ pub(crate) fn hook_vm(qagame_dllentry: u64) -> Result<(), Box<dyn Error>> {
     #[allow(clippy::fn_to_numeric_cast)]
     unsafe {
         std::ptr::write((vm_call_table + 0x8) as *mut u64, ShiNQlx_G_RunFrame as u64);
+    }
+
+    #[allow(clippy::fn_to_numeric_cast)]
+    unsafe {
+        std::ptr::write(vm_call_table as *mut u64, ShiNQlx_G_ShutdownGame as u64);
     }
 
     let func_pointer = CLIENT_CONNECT_ORIG_PTR.load(Ordering::Relaxed);

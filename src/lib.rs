@@ -47,7 +47,7 @@ use once_cell::sync::OnceCell;
 use procfs::process::{MMapPath, MemoryMap, Process};
 use quake_live_functions::QuakeLiveFunction;
 use std::env::args;
-use std::ffi::{c_char, c_int, c_void, OsStr};
+use std::ffi::{c_char, c_int, OsStr};
 use std::sync::atomic::{AtomicBool, AtomicI32, AtomicU64, Ordering};
 
 pub(crate) const DEBUG_PRINT_PREFIX: &str = "[shinqlx]";
@@ -544,16 +544,7 @@ pub(crate) static G_SHUTDOWN_GAME_ORIG_PTR: AtomicU64 = AtomicU64::new(0);
 pub(crate) static G_RUN_FRAME_ORIG_PTR: AtomicU64 = AtomicU64::new(0);
 pub(crate) static CMD_CALLVOTE_F_ORIG_PTR: AtomicU64 = AtomicU64::new(0);
 
-pub(crate) fn search_vm_functions(qagame: u64, qagame_dllentry: u64) {
-    extern "C" {
-        fn SearchVmFunctions(qagame: *const c_void, qagame_dllentry: *const c_void) -> c_int;
-    }
-
-    let c_result =
-        unsafe { SearchVmFunctions(qagame as *const c_void, qagame_dllentry as *const c_void) };
-    if c_result != 0 {
-        debug_println!("Something went wrong on the C side...");
-    }
+pub(crate) fn search_vm_functions(qagame: u64) {
     debug_println!("Searching for necessary VM functions...");
 
     for (ql_func, orig_ptr) in [
