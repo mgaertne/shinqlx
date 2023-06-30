@@ -150,19 +150,19 @@ pub(crate) static CVAR_SET2_ORIG_PTR: OnceCell<
     fn(*const c_char, *const c_char, qboolean) -> *const cvar_t,
 > = OnceCell::new();
 pub(crate) static SV_SENDSERVERCOMMAND_ORIG_PTR: OnceCell<
-    extern "C" fn(*const client_t, *const c_char, ...),
+    extern "C" fn(*mut client_t, *const c_char, ...),
 > = OnceCell::new();
 pub(crate) static SV_EXECUTECLIENTCOMMAND_ORIG_PTR: OnceCell<
-    fn(*const client_t, *const c_char, qboolean),
+    fn(*mut client_t, *const c_char, qboolean),
 > = OnceCell::new();
 pub(crate) static SV_SHUTDOWN_ORIG_PTR: OnceCell<fn(*const c_char)> = OnceCell::new();
 pub(crate) static SV_MAP_F_ORIG_PTR: OnceCell<fn()> = OnceCell::new();
-pub(crate) static SV_CLIENTENTERWORLD_ORIG_PTR: OnceCell<fn(*const client_t, *const usercmd_t)> =
+pub(crate) static SV_CLIENTENTERWORLD_ORIG_PTR: OnceCell<fn(*mut client_t, *mut usercmd_t)> =
     OnceCell::new();
 pub(crate) static SV_SETCONFIGSTRING_ORIG_PTR: OnceCell<fn(c_int, *const c_char)> = OnceCell::new();
 pub(crate) static SV_GETCONFIGSTRING_ORIG_PTR: OnceCell<fn(c_int, *const c_char, c_int)> =
     OnceCell::new();
-pub(crate) static SV_DROPCLIENT_ORIG_PTR: OnceCell<fn(*const client_t, *const c_char)> =
+pub(crate) static SV_DROPCLIENT_ORIG_PTR: OnceCell<fn(*mut client_t, *const c_char)> =
     OnceCell::new();
 pub(crate) static SYS_SETMODULEOFFSET_ORIG_PTR: OnceCell<
     fn(*const c_char, unsafe extern "C" fn()),

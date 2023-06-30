@@ -439,14 +439,10 @@ pub(crate) trait AddCommand {
 
 impl AddCommand for QuakeLiveEngine {
     fn add_command(&self, cmd: &str, func: unsafe extern "C" fn()) {
-        let Some(detour) = CMD_ADDCOMMAND_DETOUR.get() else {
-            return;
-        };
-
         let Ok(c_cmd) = CString::new(cmd) else {
             return;
         };
-        detour.call(c_cmd.as_ptr(), func);
+        CMD_ADDCOMMAND_DETOUR.call(c_cmd.as_ptr(), func);
     }
 }
 
@@ -457,14 +453,10 @@ pub(crate) trait SetModuleOffset {
 
 impl SetModuleOffset for QuakeLiveEngine {
     fn set_module_offset(&self, module_name: &str, offset: unsafe extern "C" fn()) {
-        let Some(detour) = SYS_SETMODULEOFFSET_DETOUR.get() else {
-            return;
-        };
-
         let Ok(c_module_name) = CString::new(module_name) else {
             return;
         };
-        detour.call(c_module_name.as_ptr(), offset);
+        SYS_SETMODULEOFFSET_DETOUR.call(c_module_name.as_ptr(), offset);
     }
 }
 
@@ -517,18 +509,20 @@ pub(crate) trait ExecuteClientCommand {
 
 impl ExecuteClientCommand for QuakeLiveEngine {
     fn execute_client_command(&self, client: Option<&mut Client>, cmd: &str, client_ok: bool) {
-        let Some(detour) = SV_EXECUTECLIENTCOMMAND_DETOUR.get() else {
-            return;
-        };
-
         let Ok(c_command) = CString::new(cmd) else {
             return;
         };
         match client {
-            Some(safe_client) => {
-                detour.call(safe_client.client_t, c_command.as_ptr(), client_ok.into())
-            }
-            None => detour.call(std::ptr::null_mut(), c_command.as_ptr(), client_ok.into()),
+            Some(safe_client) => SV_EXECUTECLIENTCOMMAND_DETOUR.call(
+                safe_client.client_t,
+                c_command.as_ptr(),
+                client_ok.into(),
+            ),
+            None => SV_EXECUTECLIENTCOMMAND_DETOUR.call(
+                std::ptr::null_mut(),
+                c_command.as_ptr(),
+                client_ok.into(),
+            ),
         }
     }
 }
@@ -558,15 +552,12 @@ impl SendServerCommand for QuakeLiveEngine {
 
 #[cfg_attr(test, automock)]
 pub(crate) trait ClientEnterWorld {
-    fn client_enter_world(&self, client: &mut Client, cmd: *const usercmd_t);
+    fn client_enter_world(&self, client: &mut Client, cmd: *mut usercmd_t);
 }
 
 impl ClientEnterWorld for QuakeLiveEngine {
-    fn client_enter_world(&self, client: &mut Client, cmd: *const usercmd_t) {
-        let Some(detour) = SV_CLIENTENTERWORLD_DETOUR.get() else {
-            return;
-        };
-        detour.call(client.client_t, cmd);
+    fn client_enter_world(&self, client: &mut Client, cmd: *mut usercmd_t) {
+        SV_CLIENTENTERWORLD_DETOUR.call(client.client_t, cmd);
     }
 }
 
@@ -577,16 +568,13 @@ pub(crate) trait SetConfigstring {
 
 impl SetConfigstring for QuakeLiveEngine {
     fn set_configstring(&self, index: &u32, value: &str) {
-        let Some(detour) = SV_SETCONFGISTRING_DETOUR.get() else {
-            return;
-        };
         let Ok(c_value) = CString::new(value) else {
             return;
         };
         let Ok(c_index) = c_int::try_from(index.to_owned()) else {
             return;
         };
-        detour.call(c_index, c_value.as_ptr());
+        SV_SETCONFGISTRING_DETOUR.call(c_index, c_value.as_ptr());
     }
 }
 
@@ -617,14 +605,10 @@ pub(crate) trait SpawnServer {
 
 impl SpawnServer for QuakeLiveEngine {
     fn spawn_server(&self, server: &str, kill_bots: bool) {
-        let Some(detour) = SV_SPAWNSERVER_DETOUR.get() else {
-            return;
-        };
-
         let Ok(c_server) = CString::new(server) else {
             return;
         };
-        detour.call(c_server.as_ptr(), kill_bots.into());
+        SV_SPAWNSERVER_DETOUR.call(c_server.as_ptr(), kill_bots.into());
     }
 }
 
