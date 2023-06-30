@@ -13,11 +13,11 @@ pub(crate) struct Client {
     pub(crate) client_t: &'static mut client_t,
 }
 
-impl TryFrom<*mut client_t> for Client {
+impl TryFrom<*const client_t> for Client {
     type Error = QuakeLiveEngineError;
 
-    fn try_from(client: *mut client_t) -> Result<Self, Self::Error> {
-        unsafe { client.as_mut() }
+    fn try_from(client: *const client_t) -> Result<Self, Self::Error> {
+        unsafe { client.cast_mut().as_mut() }
             .map(|client_t| Self { client_t })
             .ok_or(NullPointerPassed("null pointer passed".into()))
     }
@@ -43,7 +43,7 @@ impl TryFrom<i32> for Client {
                 .serverStatic_t
                 .clients
                 .offset(client_id as isize)
-        } as *mut client_t)
+        } as *const client_t)
         .map_err(|_| ClientNotFound("client not found".into()))
     }
 }
@@ -68,7 +68,11 @@ impl Client {
 
     pub(crate) fn disconnect(&mut self, reason: &str) {
         let c_reason = CString::new(reason).unwrap_or(CString::new("").unwrap());
-        unsafe { SV_DROPCLIENT_DETOUR.call(self.client_t, c_reason.as_ptr()) };
+        let Some(detour) = SV_DROPCLIENT_DETOUR.get() else {
+            return;
+        };
+
+        detour.call(self.client_t, c_reason.as_ptr());
     }
 
     pub(crate) fn get_name(&self) -> String {
@@ -109,52 +113,52 @@ pub(crate) mod client_tests {
     #[test]
     pub(crate) fn client_try_from_null_results_in_error() {
         assert_eq!(
-            Client::try_from(std::ptr::null_mut() as *mut client_t),
+            Client::try_from(std::ptr::null() as *const client_t),
             Err(NullPointerPassed("null pointer passed".into()))
         );
     }
 
     #[test]
     pub(crate) fn client_try_from_valid_client() {
-        let mut client = ClientBuilder::default().build().unwrap();
-        assert_eq!(Client::try_from(&mut client as *mut client_t).is_ok(), true);
+        let client = ClientBuilder::default().build().unwrap();
+        assert_eq!(Client::try_from(&client as *const client_t).is_ok(), true);
     }
 
     #[test]
     pub(crate) fn client_get_state() {
-        let mut client = ClientBuilder::default().state(CS_ZOMBIE).build().unwrap();
-        let rust_client = Client::try_from(&mut client as *mut client_t).unwrap();
+        let client = ClientBuilder::default().state(CS_ZOMBIE).build().unwrap();
+        let rust_client = Client::try_from(&client as *const client_t).unwrap();
         assert_eq!(rust_client.get_state(), CS_ZOMBIE);
     }
 
     #[test]
     pub(crate) fn client_has_gentity_with_no_shared_entity() {
-        let mut client = ClientBuilder::default()
+        let client = ClientBuilder::default()
             .gentity(std::ptr::null_mut() as *mut sharedEntity_t)
             .build()
             .unwrap();
-        let rust_client = Client::try_from(&mut client as *mut client_t).unwrap();
+        let rust_client = Client::try_from(&client as *const client_t).unwrap();
         assert_eq!(rust_client.has_gentity(), false);
     }
 
     #[test]
     pub(crate) fn client_has_gentity_with_valid_shared_entity() {
         let mut shared_entity = SharedEntityBuilder::default().build().unwrap();
-        let mut client = ClientBuilder::default()
+        let client = ClientBuilder::default()
             .gentity(&mut shared_entity as *mut sharedEntity_t)
             .build()
             .unwrap();
-        let rust_client = Client::try_from(&mut client as *mut client_t).unwrap();
+        let rust_client = Client::try_from(&client as *const client_t).unwrap();
         assert_eq!(rust_client.has_gentity(), true);
     }
 
     #[test]
     pub(crate) fn client_get_name_from_null() {
-        let mut client = ClientBuilder::default()
+        let client = ClientBuilder::default()
             .name([0; MAX_NAME_LENGTH as usize])
             .build()
             .unwrap();
-        let rust_client = Client::try_from(&mut client as *mut client_t).unwrap();
+        let rust_client = Client::try_from(&client as *const client_t).unwrap();
         assert_eq!(rust_client.get_name(), "");
     }
 
@@ -164,18 +168,18 @@ pub(crate) mod client_tests {
         for (index, char) in "UnknownPlayer".chars().enumerate() {
             player_name[index] = char.to_owned() as c_char;
         }
-        let mut client = ClientBuilder::default().name(player_name).build().unwrap();
-        let rust_client = Client::try_from(&mut client as *mut client_t).unwrap();
+        let client = ClientBuilder::default().name(player_name).build().unwrap();
+        let rust_client = Client::try_from(&client as *const client_t).unwrap();
         assert_eq!(rust_client.get_name(), "UnknownPlayer");
     }
 
     #[test]
     pub(crate) fn client_get_userinfo_from_null() {
-        let mut client = ClientBuilder::default()
+        let client = ClientBuilder::default()
             .userinfo([0; MAX_INFO_STRING as usize])
             .build()
             .unwrap();
-        let rust_client = Client::try_from(&mut client as *mut client_t).unwrap();
+        let rust_client = Client::try_from(&client as *const client_t).unwrap();
         assert_eq!(rust_client.get_user_info(), "");
     }
 
@@ -185,15 +189,15 @@ pub(crate) mod client_tests {
         for (index, char) in "some user info".chars().enumerate() {
             userinfo[index] = char.to_owned() as c_char;
         }
-        let mut client = ClientBuilder::default().userinfo(userinfo).build().unwrap();
-        let rust_client = Client::try_from(&mut client as *mut client_t).unwrap();
+        let client = ClientBuilder::default().userinfo(userinfo).build().unwrap();
+        let rust_client = Client::try_from(&client as *const client_t).unwrap();
         assert_eq!(rust_client.get_user_info(), "some user info");
     }
 
     #[test]
     pub(crate) fn client_get_steam_id() {
-        let mut client = ClientBuilder::default().steam_id(1234).build().unwrap();
-        let rust_client = Client::try_from(&mut client as *mut client_t).unwrap();
+        let client = ClientBuilder::default().steam_id(1234).build().unwrap();
+        let rust_client = Client::try_from(&client as *const client_t).unwrap();
         assert_eq!(rust_client.get_steam_id(), 1234);
     }
 }

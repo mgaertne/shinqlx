@@ -10,24 +10,25 @@ use crate::pyminqlx::{
 use crate::quake_live_engine::{
     AddCommand, CbufExecuteText, ClientConnect, ClientEnterWorld, ClientSpawn, ComPrintf,
     ExecuteClientCommand, FindCVar, InitGame, QuakeLiveEngine, RegisterDamage, RunFrame,
-    SendServerCommand, SetConfigstring, SetModuleOffset, SpawnServer,
+    SendServerCommand, SetConfigstring, SetModuleOffset, ShutdownGame, SpawnServer,
 };
 use crate::quake_types::clientState_t::CS_PRIMED;
 use crate::quake_types::{
-    cbufExec_t, client_t, gentity_t, qboolean, usercmd_t, MAX_MSGLEN, MAX_STRING_CHARS,
+    cbufExec_t, client_t, gentity_t, qboolean, usercmd_t, vec3_t, MAX_MSGLEN, MAX_STRING_CHARS,
 };
 use crate::{
     initialize_cvars, initialize_static, search_vm_functions, CLIENT_CONNECT_ORIG_PTR,
     CLIENT_SPAWN_ORIG_PTR, CMD_ADDCOMMAND_ORIG_PTR, COMMON_INITIALIZED, COM_PRINTF_ORIG_PTR,
     CVARS_INITIALIZED, G_DAMAGE_ORIG_PTR, G_INIT_GAME_ORIG_PTR, G_RUN_FRAME_ORIG_PTR,
-    G_START_KAMIKAZE_ORIG_PTR, SV_CLIENTENTERWORLD_ORIG_PTR, SV_DROPCLIENT_ORIG_PTR,
-    SV_EXECUTECLIENTCOMMAND_ORIG_PTR, SV_SENDSERVERCOMMAND_ORIG_PTR, SV_SETCONFIGSTRING_ORIG_PTR,
-    SV_SPAWNSERVER_ORIG_PTR, SV_TAGS_PREFIX, SYS_SETMODULEOFFSET_ORIG_PTR,
+    G_SHUTDOWN_GAME_ORIG_PTR, G_START_KAMIKAZE_ORIG_PTR, SV_CLIENTENTERWORLD_ORIG_PTR,
+    SV_DROPCLIENT_ORIG_PTR, SV_EXECUTECLIENTCOMMAND_ORIG_PTR, SV_SENDSERVERCOMMAND_ORIG_PTR,
+    SV_SETCONFIGSTRING_ORIG_PTR, SV_SPAWNSERVER_ORIG_PTR, SV_TAGS_PREFIX,
+    SYS_SETMODULEOFFSET_ORIG_PTR,
 };
 use once_cell::sync::OnceCell;
-use retour::static_detour;
+use retour::{GenericDetour, RawDetour};
 use std::error::Error;
-use std::ffi::{c_char, c_float, c_int, c_void, CStr, VaList, VaListImpl};
+use std::ffi::{c_char, c_int, c_void, CStr, VaList, VaListImpl};
 use std::sync::atomic::{AtomicU64, Ordering};
 
 fn set_tag() {
@@ -61,8 +62,44 @@ fn shinqlx_cmd_addcommand(cmd: *const c_char, func: unsafe extern "C" fn()) {
     }
 }
 
+#[repr(C)]
+pub struct DlInfo {
+    pub dli_fname: *const c_char,
+    pub dli_fbase: *mut c_void,
+    pub dli_sname: *const c_char,
+    pub dli_saddr: *mut c_void,
+}
+
 fn shinqlx_sys_setmoduleoffset(module_name: *const c_char, offset: unsafe extern "C" fn()) {
+    extern "C" {
+        fn dladdr(addr: *const c_void, into: *mut DlInfo) -> c_int;
+    }
+
     let converted_module_name = unsafe { CStr::from_ptr(module_name) }.to_string_lossy();
+
+    let qagame =
+    // We should be getting qagame, but check just in case.
+    match converted_module_name.as_ref() {
+        "qagame" => {
+            // Despite the name, it's not the actual module, but vmMain.
+            // We use dlinfo to get the base of the module so we can properly
+            // initialize all the pointers relative to the base.
+            let mut dlinfo: DlInfo = DlInfo {
+                dli_fname: std::ptr::null_mut(),
+                dli_fbase: std::ptr::null_mut(),
+                dli_sname: std::ptr::null_mut(),
+                dli_saddr: std::ptr::null_mut(),
+            };
+            let res = unsafe { dladdr(offset as *const c_void, &mut dlinfo as *mut DlInfo) };
+            if res != 0 {
+                dlinfo.dli_fbase
+            } else {
+                debug_println!("dladdr() failed.");
+                std::ptr::null_mut()
+            }
+        }
+        _ => std::ptr::null_mut()
+    };
 
     // We should be getting qagame, but check just in case.
     if converted_module_name.as_ref() != "qagame" {
@@ -75,7 +112,8 @@ fn shinqlx_sys_setmoduleoffset(module_name: *const c_char, offset: unsafe extern
         return;
     }
 
-    search_vm_functions();
+    #[allow(clippy::fn_to_numeric_cast)]
+    search_vm_functions(qagame as u64, offset as u64);
 
     #[allow(clippy::fn_to_numeric_cast)]
     hook_vm(offset as u64).unwrap();
@@ -98,7 +136,17 @@ pub extern "C" fn ShiNQlx_G_InitGame(level_time: c_int, random_seed: c_int, rest
     }
 }
 
-fn shinqlx_sv_executeclientcommand(client: *mut client_t, cmd: *const c_char, client_ok: qboolean) {
+#[no_mangle]
+pub extern "C" fn ShiNQlx_G_ShutdownGame(restart: c_int) {
+    debug_println!("I was here");
+    QuakeLiveEngine::default().shutdown_game(restart);
+}
+
+fn shinqlx_sv_executeclientcommand(
+    client: *const client_t,
+    cmd: *const c_char,
+    client_ok: qboolean,
+) {
     let rust_cmd = unsafe { CStr::from_ptr(cmd) }.to_string_lossy();
     if !rust_cmd.is_empty() {
         shinqlx_execute_client_command(
@@ -142,7 +190,7 @@ pub(crate) fn shinqlx_execute_client_command(
 
 #[no_mangle]
 pub unsafe extern "C" fn ShiNQlx_SV_SendServerCommand(
-    client: *mut client_t,
+    client: *const client_t,
     fmt: *const c_char,
     fmt_args: ...
 ) {
@@ -203,7 +251,7 @@ pub(crate) fn shinqlx_send_server_command(client: Option<Client>, cmd: &str) {
     }
 }
 
-fn shinqlx_sv_cliententerworld(client: *mut client_t, cmd: *const usercmd_t) {
+fn shinqlx_sv_cliententerworld(client: *const client_t, cmd: *const usercmd_t) {
     let Some(mut safe_client): Option<Client> = client.try_into().ok() else {
         return;
     };
@@ -248,7 +296,7 @@ pub(crate) fn shinqlx_set_configstring(index: u32, value: &str) {
     QuakeLiveEngine::default().set_configstring(&index, res.as_str());
 }
 
-fn shinqlx_sv_dropclient(client: *mut client_t, reason: *const c_char) {
+fn shinqlx_sv_dropclient(client: *const client_t, reason: *const c_char) {
     let Ok(mut safe_client) = Client::try_from(client) else {
         return;
     };
@@ -363,7 +411,7 @@ pub(crate) fn shinqlx_client_spawn(mut game_entity: GameEntity) {
 
 #[no_mangle]
 pub extern "C" fn ShiNQlx_G_StartKamikaze(ent: *mut gentity_t) {
-    let Some(game_entity): Option<GameEntity> = ent.try_into().ok() else {
+    let Some(mut game_entity): Option<GameEntity> = ent.try_into().ok() else {
         return;
     };
 
@@ -379,14 +427,13 @@ pub extern "C" fn ShiNQlx_G_StartKamikaze(ent: *mut gentity_t) {
         game_client.remove_kamikaze_flag();
         kamikaze_use_dispatcher(client_id);
     }
-    let mut mut_game_entity = game_entity;
-    mut_game_entity.start_kamikaze();
+    game_entity.start_kamikaze();
 
     if client_id == -1 {
         return;
     }
 
-    kamikaze_explode_dispatcher(client_id, mut_game_entity.get_game_client().is_ok())
+    kamikaze_explode_dispatcher(client_id, game_entity.get_game_client().is_ok())
 }
 
 #[no_mangle]
@@ -394,8 +441,8 @@ pub extern "C" fn ShiNQlx_G_Damage(
     target: *mut gentity_t,    // entity that is being damaged
     inflictor: *mut gentity_t, // entity that is causing the damage
     attacker: *mut gentity_t,  // entity that caused the inflictor to damage target
-    dir: *const c_float,       // direction of the attack for knockback
-    pos: *const c_float,       // point at which the damage is being inflicted, used for headshots
+    dir: &mut vec3_t,          // direction of the attack for knockback
+    pos: &mut vec3_t,          // point at which the damage is being inflicted, used for headshots
     damage: c_int,             // amount of damage being inflicted
     dflags: c_int,             // these flags are used to control how T_Damage works
     // DAMAGE_RADIUS			damage was indirect (from a nearby explosion)
@@ -451,104 +498,91 @@ pub extern "C" fn ShiNQlx_G_Damage(
     }
 }
 
-static_detour! {
-    pub(crate) static CMD_ADDCOMMAND_DETOUR: unsafe extern "C" fn(*const c_char, unsafe extern "C" fn());
-    pub(crate) static SYS_SETMODULEOFFSET_DETOUR: unsafe extern "C" fn(*const c_char, unsafe extern "C" fn());
-    pub(crate) static SV_EXECUTECLIENTCOMMAND_DETOUR: unsafe extern "C" fn(*mut client_t, *const c_char, qboolean);
-    pub(crate) static SV_CLIENTENTERWORLD_DETOUR: unsafe extern "C" fn(*mut client_t, *const usercmd_t);
-    pub(crate) static SV_SETCONFGISTRING_DETOUR: unsafe extern "C" fn(c_int, *const c_char);
-    pub(crate) static SV_DROPCLIENT_DETOUR: unsafe extern "C" fn(*mut client_t, *const c_char);
-    pub(crate) static SV_SPAWNSERVER_DETOUR: unsafe extern "C" fn(*const c_char, qboolean);
-}
+type SvExecuteClientCommandType = fn(*const client_t, *const c_char, qboolean);
+type SvClientEnterWorldType = fn(*const client_t, *const usercmd_t);
+type SetConfigstringType = fn(c_int, *const c_char);
+type SvDropClientType = fn(*const client_t, *const c_char);
+type SvSpawnServerType = fn(*const c_char, qboolean);
 
-pub(crate) static SV_SENDSERVERCOMMAND_TRAMPOLINE: OnceCell<
-    extern "C" fn(*const client_t, *const c_char, ...),
+pub(crate) static CMD_ADDCOMMAND_DETOUR: OnceCell<
+    GenericDetour<fn(*const c_char, unsafe extern "C" fn())>,
 > = OnceCell::new();
-pub(crate) static COM_PRINTF_TRAMPOLINE: OnceCell<extern "C" fn(*const c_char, ...)> =
+pub(crate) static SYS_SETMODULEOFFSET_DETOUR: OnceCell<
+    GenericDetour<fn(*const c_char, unsafe extern "C" fn())>,
+> = OnceCell::new();
+pub(crate) static SV_EXECUTECLIENTCOMMAND_DETOUR: OnceCell<
+    GenericDetour<SvExecuteClientCommandType>,
+> = OnceCell::new();
+pub(crate) static SV_CLIENTENTERWORLD_DETOUR: OnceCell<GenericDetour<SvClientEnterWorldType>> =
+    OnceCell::new();
+pub(crate) static SV_SENDSERVERCOMMAND_DETOUR: OnceCell<RawDetour> = OnceCell::new();
+pub(crate) static SV_SETCONFGISTRING_DETOUR: OnceCell<GenericDetour<SetConfigstringType>> =
+    OnceCell::new();
+pub(crate) static SV_DROPCLIENT_DETOUR: OnceCell<GenericDetour<SvDropClientType>> = OnceCell::new();
+pub(crate) static COM_PRINTF_DETOUR: OnceCell<RawDetour> = OnceCell::new();
+pub(crate) static SV_SPAWNSERVER_DETOUR: OnceCell<GenericDetour<SvSpawnServerType>> =
     OnceCell::new();
 
 pub(crate) fn hook_static() -> Result<(), Box<dyn Error>> {
     debug_println!("Hooking...");
     if let Some(original_func) = CMD_ADDCOMMAND_ORIG_PTR.get() {
-        unsafe {
-            CMD_ADDCOMMAND_DETOUR.initialize(*original_func, shinqlx_cmd_addcommand)?;
-            CMD_ADDCOMMAND_DETOUR.enable()?;
-        }
+        let hook = unsafe { GenericDetour::new(*original_func, shinqlx_cmd_addcommand)? };
+        unsafe { hook.enable() }?;
+        CMD_ADDCOMMAND_DETOUR.set(hook).unwrap();
     }
 
     if let Some(original_func) = SYS_SETMODULEOFFSET_ORIG_PTR.get() {
-        unsafe {
-            SYS_SETMODULEOFFSET_DETOUR.initialize(*original_func, shinqlx_sys_setmoduleoffset)?;
-            SYS_SETMODULEOFFSET_DETOUR.enable()?;
-        }
+        let hook = unsafe { GenericDetour::new(*original_func, shinqlx_sys_setmoduleoffset)? };
+        unsafe { hook.enable() }?;
+        SYS_SETMODULEOFFSET_DETOUR.set(hook).unwrap();
     }
 
     if let Some(original_func) = SV_EXECUTECLIENTCOMMAND_ORIG_PTR.get() {
-        unsafe {
-            SV_EXECUTECLIENTCOMMAND_DETOUR
-                .initialize(*original_func, shinqlx_sv_executeclientcommand)?;
-            SV_EXECUTECLIENTCOMMAND_DETOUR.enable()?;
-        }
+        let hook = unsafe { GenericDetour::new(*original_func, shinqlx_sv_executeclientcommand)? };
+        unsafe { hook.enable() }?;
+        SV_EXECUTECLIENTCOMMAND_DETOUR.set(hook).unwrap();
     }
 
     if let Some(original_func) = SV_CLIENTENTERWORLD_ORIG_PTR.get() {
-        unsafe {
-            SV_CLIENTENTERWORLD_DETOUR.initialize(*original_func, shinqlx_sv_cliententerworld)?;
-            SV_CLIENTENTERWORLD_DETOUR.enable()?;
-        }
-    }
-
-    if let Some(original_func) = SV_SETCONFIGSTRING_ORIG_PTR.get() {
-        unsafe {
-            SV_SETCONFGISTRING_DETOUR.initialize(*original_func, shinqlx_sv_setconfigstring)?;
-            SV_SETCONFGISTRING_DETOUR.enable()?;
-        }
-    }
-
-    if let Some(original_func) = SV_DROPCLIENT_ORIG_PTR.get() {
-        unsafe {
-            SV_DROPCLIENT_DETOUR.initialize(*original_func, shinqlx_sv_dropclient)?;
-            SV_DROPCLIENT_DETOUR.enable()?;
-        }
-    }
-
-    if let Some(original_func) = SV_SPAWNSERVER_ORIG_PTR.get() {
-        unsafe {
-            SV_SPAWNSERVER_DETOUR.initialize(*original_func, shinqlx_sv_spawnserver)?;
-            SV_SPAWNSERVER_DETOUR.enable()?;
-        }
-    }
-
-    extern "C" {
-        fn HookRaw(target: *const c_void, replacement: *const c_void) -> *const c_void;
+        let hook = unsafe { GenericDetour::new(*original_func, shinqlx_sv_cliententerworld)? };
+        unsafe { hook.enable() }?;
+        SV_CLIENTENTERWORLD_DETOUR.set(hook).unwrap();
     }
 
     if let Some(func_pointer) = SV_SENDSERVERCOMMAND_ORIG_PTR.get() {
-        let trampoline_func_ptr = unsafe {
-            HookRaw(
-                *func_pointer as *const c_void,
-                ShiNQlx_SV_SendServerCommand as *const c_void,
+        let hook = unsafe {
+            RawDetour::new(
+                *func_pointer as *const (),
+                ShiNQlx_SV_SendServerCommand as *const (),
             )
-        };
-        if !trampoline_func_ptr.is_null() {
-            let trampoline_func = unsafe { std::mem::transmute(trampoline_func_ptr as u64) };
-            SV_SENDSERVERCOMMAND_TRAMPOLINE
-                .set(trampoline_func)
-                .unwrap();
-        }
+        }?;
+        unsafe { hook.enable() }?;
+        SV_SENDSERVERCOMMAND_DETOUR.set(hook).unwrap();
+    }
+
+    if let Some(original_func) = SV_SETCONFIGSTRING_ORIG_PTR.get() {
+        let hook = unsafe { GenericDetour::new(*original_func, shinqlx_sv_setconfigstring)? };
+        unsafe { hook.enable() }?;
+        SV_SETCONFGISTRING_DETOUR.set(hook).unwrap();
+    }
+
+    if let Some(original_func) = SV_DROPCLIENT_ORIG_PTR.get() {
+        let hook = unsafe { GenericDetour::new(*original_func, shinqlx_sv_dropclient)? };
+        unsafe { hook.enable() }?;
+        SV_DROPCLIENT_DETOUR.set(hook).unwrap();
     }
 
     if let Some(func_pointer) = COM_PRINTF_ORIG_PTR.get() {
-        let trampoline_func_ptr = unsafe {
-            HookRaw(
-                *func_pointer as *const c_void,
-                ShiNQlx_Com_Printf as *const c_void,
-            )
-        };
-        if !trampoline_func_ptr.is_null() {
-            let trampoline_func = unsafe { std::mem::transmute(trampoline_func_ptr as u64) };
-            COM_PRINTF_TRAMPOLINE.set(trampoline_func).unwrap();
-        }
+        let hook =
+            unsafe { RawDetour::new(*func_pointer as *const (), ShiNQlx_Com_Printf as *const ()) }?;
+        unsafe { hook.enable() }?;
+        COM_PRINTF_DETOUR.set(hook).unwrap();
+    }
+
+    if let Some(original_func) = SV_SPAWNSERVER_ORIG_PTR.get() {
+        let hook = unsafe { GenericDetour::new(*original_func, shinqlx_sv_spawnserver)? };
+        unsafe { hook.enable() }?;
+        SV_SPAWNSERVER_DETOUR.set(hook).unwrap();
     }
 
     Ok(())
@@ -583,6 +617,14 @@ pub(crate) fn hook_vm(qagame_dllentry: u64) -> Result<(), Box<dyn Error>> {
     };
     G_INIT_GAME_ORIG_PTR.store(g_initgame_ptr as u64, Ordering::Relaxed);
     debug_println!(format!("G_InitGame: {:#X}", g_initgame_ptr as u64));
+
+    let g_shutdowngame_ptr =
+        unsafe { std::ptr::read_unaligned(vm_call_table as *const *const fn(c_int)) };
+    G_SHUTDOWN_GAME_ORIG_PTR.store(g_shutdowngame_ptr as u64, Ordering::Relaxed);
+    debug_println!(format!(
+        "G_ShutdownGame: {:#X}",
+        g_shutdowngame_ptr.wrapping_sub(0) as u64
+    ));
 
     let g_runframe_ptr =
         unsafe { std::ptr::read((vm_call_table + 0x8) as *const *const extern "C" fn(c_int)) };

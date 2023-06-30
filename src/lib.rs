@@ -38,7 +38,7 @@ use crate::commands::{
 use crate::hooks::hook_static;
 use crate::pyminqlx::pyminqlx_initialize;
 use crate::quake_live_engine::{AddCommand, FindCVar, QuakeLiveEngine};
-use crate::quake_live_functions::pattern_search_module;
+use crate::quake_live_functions::{pattern_search, pattern_search_module};
 use crate::quake_types::{cbufExec_t, client_t, cvar_t, qboolean, usercmd_t};
 use crate::PyMinqlx_InitStatus_t::PYM_SUCCESS;
 use ctor::ctor;
@@ -47,7 +47,7 @@ use once_cell::sync::OnceCell;
 use procfs::process::{MMapPath, MemoryMap, Process};
 use quake_live_functions::QuakeLiveFunction;
 use std::env::args;
-use std::ffi::{c_char, c_int, OsStr};
+use std::ffi::{c_char, c_int, c_void, OsStr};
 use std::sync::atomic::{AtomicBool, AtomicI32, AtomicU64, Ordering};
 
 pub(crate) const DEBUG_PRINT_PREFIX: &str = "[shinqlx]";
@@ -128,63 +128,48 @@ fn initialize() {
     };
 }
 
+type CvarGetLimitType =
+    fn(*const c_char, *const c_char, *const c_char, *const c_char, c_int) -> *const cvar_t;
+
 pub(crate) static COM_PRINTF_ORIG_PTR: OnceCell<extern "C" fn(*const c_char, ...)> =
     OnceCell::new();
-pub(crate) static CMD_ADDCOMMAND_ORIG_PTR: OnceCell<
-    unsafe extern "C" fn(*const c_char, unsafe extern "C" fn()),
-> = OnceCell::new();
-pub(crate) static CMD_ARGS_ORIG_PTR: OnceCell<extern "C" fn() -> *const c_char> = OnceCell::new();
-pub(crate) static CMD_ARGV_ORIG_PTR: OnceCell<extern "C" fn(c_int) -> *const c_char> =
+pub(crate) static CMD_ADDCOMMAND_ORIG_PTR: OnceCell<fn(*const c_char, unsafe extern "C" fn())> =
     OnceCell::new();
-pub(crate) static CMD_TOKENIZESTRING_ORIG_PTR: OnceCell<extern "C" fn(*const c_char)> =
+pub(crate) static CMD_ARGS_ORIG_PTR: OnceCell<fn() -> *const c_char> = OnceCell::new();
+pub(crate) static CMD_ARGV_ORIG_PTR: OnceCell<fn(c_int) -> *const c_char> = OnceCell::new();
+pub(crate) static CMD_TOKENIZESTRING_ORIG_PTR: OnceCell<fn(*const c_char)> = OnceCell::new();
+pub(crate) static CBUF_EXECUTETEXT_ORIG_PTR: OnceCell<fn(cbufExec_t, *const c_char)> =
     OnceCell::new();
-pub(crate) static CBUF_EXECUTETEXT_ORIG_PTR: OnceCell<extern "C" fn(cbufExec_t, *const c_char)> =
-    OnceCell::new();
-pub(crate) static CVAR_FINDVAR_ORIG_PTR: OnceCell<extern "C" fn(*const c_char) -> *const cvar_t> =
+pub(crate) static CVAR_FINDVAR_ORIG_PTR: OnceCell<fn(*const c_char) -> *const cvar_t> =
     OnceCell::new();
 pub(crate) static CVAR_GET_ORIG_PTR: OnceCell<
-    extern "C" fn(*const c_char, *const c_char, c_int) -> *const cvar_t,
+    fn(*const c_char, *const c_char, c_int) -> *const cvar_t,
 > = OnceCell::new();
-pub(crate) static CVAR_GETLIMIT_ORIG_PTR: OnceCell<
-    extern "C" fn(
-        *const c_char,
-        *const c_char,
-        *const c_char,
-        *const c_char,
-        c_int,
-    ) -> *const cvar_t,
-> = OnceCell::new();
+pub(crate) static CVAR_GETLIMIT_ORIG_PTR: OnceCell<CvarGetLimitType> = OnceCell::new();
 pub(crate) static CVAR_SET2_ORIG_PTR: OnceCell<
-    extern "C" fn(*const c_char, *const c_char, qboolean) -> *const cvar_t,
+    fn(*const c_char, *const c_char, qboolean) -> *const cvar_t,
 > = OnceCell::new();
 pub(crate) static SV_SENDSERVERCOMMAND_ORIG_PTR: OnceCell<
     extern "C" fn(*const client_t, *const c_char, ...),
 > = OnceCell::new();
 pub(crate) static SV_EXECUTECLIENTCOMMAND_ORIG_PTR: OnceCell<
-    unsafe extern "C" fn(*mut client_t, *const c_char, qboolean),
+    fn(*const client_t, *const c_char, qboolean),
 > = OnceCell::new();
-pub(crate) static SV_SHUTDOWN_ORIG_PTR: OnceCell<unsafe extern "C" fn(*const c_char)> =
+pub(crate) static SV_SHUTDOWN_ORIG_PTR: OnceCell<fn(*const c_char)> = OnceCell::new();
+pub(crate) static SV_MAP_F_ORIG_PTR: OnceCell<fn()> = OnceCell::new();
+pub(crate) static SV_CLIENTENTERWORLD_ORIG_PTR: OnceCell<fn(*const client_t, *const usercmd_t)> =
     OnceCell::new();
-pub(crate) static SV_MAP_F_ORIG_PTR: OnceCell<unsafe extern "C" fn()> = OnceCell::new();
-pub(crate) static SV_CLIENTENTERWORLD_ORIG_PTR: OnceCell<
-    unsafe extern "C" fn(*mut client_t, *const usercmd_t),
-> = OnceCell::new();
-pub(crate) static SV_SETCONFIGSTRING_ORIG_PTR: OnceCell<
-    unsafe extern "C" fn(c_int, *const c_char),
-> = OnceCell::new();
-pub(crate) static SV_GETCONFIGSTRING_ORIG_PTR: OnceCell<extern "C" fn(c_int, *mut c_char, c_int)> =
+pub(crate) static SV_SETCONFIGSTRING_ORIG_PTR: OnceCell<fn(c_int, *const c_char)> = OnceCell::new();
+pub(crate) static SV_GETCONFIGSTRING_ORIG_PTR: OnceCell<fn(c_int, *const c_char, c_int)> =
     OnceCell::new();
-pub(crate) static SV_DROPCLIENT_ORIG_PTR: OnceCell<
-    unsafe extern "C" fn(*mut client_t, *const c_char),
-> = OnceCell::new();
+pub(crate) static SV_DROPCLIENT_ORIG_PTR: OnceCell<fn(*const client_t, *const c_char)> =
+    OnceCell::new();
 pub(crate) static SYS_SETMODULEOFFSET_ORIG_PTR: OnceCell<
-    unsafe extern "C" fn(*const c_char, unsafe extern "C" fn()),
+    fn(*const c_char, unsafe extern "C" fn()),
 > = OnceCell::new();
-pub(crate) static SV_SPAWNSERVER_ORIG_PTR: OnceCell<unsafe extern "C" fn(*const c_char, qboolean)> =
-    OnceCell::new();
-pub(crate) static CMD_EXECUTESTRING_ORIG_PTR: OnceCell<extern "C" fn(*const c_char)> =
-    OnceCell::new();
-pub(crate) static CMD_ARGC_ORIG_PTR: OnceCell<extern "C" fn() -> c_int> = OnceCell::new();
+pub(crate) static SV_SPAWNSERVER_ORIG_PTR: OnceCell<fn(*const c_char, qboolean)> = OnceCell::new();
+pub(crate) static CMD_EXECUTESTRING_ORIG_PTR: OnceCell<fn(*const c_char)> = OnceCell::new();
+pub(crate) static CMD_ARGC_ORIG_PTR: OnceCell<fn() -> c_int> = OnceCell::new();
 
 pub(crate) fn search_static_functions() {
     let qzeroded_os_str = OsStr::new(QZERODED);
@@ -555,34 +540,20 @@ pub(crate) static DROP_ITEM_ORIG_PTR: AtomicU64 = AtomicU64::new(0);
 pub(crate) static G_START_KAMIKAZE_ORIG_PTR: AtomicU64 = AtomicU64::new(0);
 pub(crate) static G_FREE_ENTITY_ORIG_PTR: AtomicU64 = AtomicU64::new(0);
 pub(crate) static G_INIT_GAME_ORIG_PTR: AtomicU64 = AtomicU64::new(0);
+pub(crate) static G_SHUTDOWN_GAME_ORIG_PTR: AtomicU64 = AtomicU64::new(0);
 pub(crate) static G_RUN_FRAME_ORIG_PTR: AtomicU64 = AtomicU64::new(0);
 pub(crate) static CMD_CALLVOTE_F_ORIG_PTR: AtomicU64 = AtomicU64::new(0);
 
-pub(crate) fn search_vm_functions() {
-    let qagame_os_str = OsStr::new("qagamex64.so");
-    let Ok(myself_process) = Process::myself() else {
-        panic!("could not find my own process\n");
-    };
-    let Ok(myself_maps) = myself_process.maps() else {
-        panic!("no memory mapping information found\n");
-    };
-    let qagame_maps: Vec<&MemoryMap> = myself_maps
-        .memory_maps
-        .iter()
-        .filter(|mmap| {
-            if let MMapPath::Path(path) = &mmap.pathname {
-                path.file_name() == Some(qagame_os_str)
-            } else {
-                false
-            }
-        })
-        .collect();
-
-    if qagame_maps.is_empty() {
-        debug_println!("no memory mapping information for qagamex64.so found");
-        panic!("no memory mapping information found\n");
+pub(crate) fn search_vm_functions(qagame: u64, qagame_dllentry: u64) {
+    extern "C" {
+        fn SearchVmFunctions(qagame: *const c_void, qagame_dllentry: *const c_void) -> c_int;
     }
 
+    let c_result =
+        unsafe { SearchVmFunctions(qagame as *const c_void, qagame_dllentry as *const c_void) };
+    if c_result != 0 {
+        debug_println!("Something went wrong on the C side...");
+    }
     debug_println!("Searching for necessary VM functions...");
 
     for (ql_func, orig_ptr) in [
@@ -604,7 +575,7 @@ pub(crate) fn search_vm_functions() {
         (QuakeLiveFunction::G_FreeEntity, &G_FREE_ENTITY_ORIG_PTR),
         (QuakeLiveFunction::Cmd_Callvote_f, &CMD_CALLVOTE_F_ORIG_PTR),
     ] {
-        if let Some(result) = pattern_search_module(&qagame_maps, &ql_func) {
+        if let Some(result) = pattern_search(qagame + 0xB000, qagame + 0xB000 + 0xB0000, &ql_func) {
             debug_println!(format!("{}: {:#X}", ql_func, result));
             orig_ptr.store(result, Ordering::Relaxed);
         } else {
