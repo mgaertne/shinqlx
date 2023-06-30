@@ -3,10 +3,10 @@ use crate::cvar::CVar;
 use crate::game_entity::GameEntity;
 use crate::game_item::GameItem;
 use crate::hooks::{
-    CLIENT_CONNECT_TRAMPOLINE, CLIENT_SPAWN_TRAMPOLINE, CMD_ADDCOMMAND_DETOUR,
-    COM_PRINTF_TRAMPOLINE, G_DAMAGE_TRAMPOLINE, G_START_KAMIKAZE_TRAMPOLINE,
-    SV_CLIENTENTERWORLD_DETOUR, SV_EXECUTECLIENTCOMMAND_DETOUR, SV_SENDSERVERCOMMAND_TRAMPOLINE,
-    SV_SETCONFGISTRING_DETOUR, SV_SPAWNSERVER_DETOUR, SYS_SETMODULEOFFSET_DETOUR,
+    CLIENT_CONNECT_TRAMPOLINE, CLIENT_SPAWN_TRAMPOLINE, CMD_ADDCOMMAND_DETOUR, COM_PRINTF_DETOUR,
+    G_DAMAGE_TRAMPOLINE, G_START_KAMIKAZE_TRAMPOLINE, SV_CLIENTENTERWORLD_DETOUR,
+    SV_EXECUTECLIENTCOMMAND_DETOUR, SV_SENDSERVERCOMMAND_DETOUR, SV_SETCONFGISTRING_DETOUR,
+    SV_SPAWNSERVER_DETOUR, SYS_SETMODULEOFFSET_DETOUR,
 };
 use crate::quake_types::meansOfDeath_t::{
     MOD_BFG, MOD_BFG_SPLASH, MOD_CHAINGUN, MOD_CRUSH, MOD_FALLING, MOD_GAUNTLET, MOD_GRAPPLE,
@@ -26,18 +26,19 @@ use crate::quake_types::weapon_t::{
     WP_PROX_LAUNCHER, WP_RAILGUN, WP_ROCKET_LAUNCHER, WP_SHOTGUN,
 };
 use crate::quake_types::{
-    cbufExec_t, entity_event_t, gentity_t, gitem_t, meansOfDeath_t, powerup_t, privileges_t,
-    qboolean, usercmd_t, vec3_t, weapon_t, MAX_STRING_CHARS,
+    cbufExec_t, client_t, entity_event_t, gentity_t, gitem_t, meansOfDeath_t, powerup_t,
+    privileges_t, qboolean, usercmd_t, vec3_t, weapon_t, MAX_STRING_CHARS,
 };
 use crate::{
     CBUF_EXECUTETEXT_ORIG_PTR, CMD_ARGC_ORIG_PTR, CMD_ARGS_ORIG_PTR, CMD_ARGV_ORIG_PTR,
     CMD_EXECUTESTRING_ORIG_PTR, CVAR_FINDVAR_ORIG_PTR, CVAR_GETLIMIT_ORIG_PTR, CVAR_GET_ORIG_PTR,
     CVAR_SET2_ORIG_PTR, G_ADDEVENT_ORIG_PTR, G_FREE_ENTITY_ORIG_PTR, G_INIT_GAME_ORIG_PTR,
-    G_RUN_FRAME_ORIG_PTR, LAUNCH_ITEM_ORIG_PTR, SV_GETCONFIGSTRING_ORIG_PTR,
+    G_RUN_FRAME_ORIG_PTR, G_SHUTDOWN_GAME_ORIG_PTR, LAUNCH_ITEM_ORIG_PTR,
+    SV_GETCONFIGSTRING_ORIG_PTR,
 };
 #[cfg(test)]
 use mockall::*;
-use std::ffi::{c_char, c_float, c_int, CStr, CString};
+use std::ffi::{c_char, c_int, CStr, CString};
 use std::ops::Not;
 use std::sync::atomic::Ordering;
 
@@ -438,10 +439,14 @@ pub(crate) trait AddCommand {
 
 impl AddCommand for QuakeLiveEngine {
     fn add_command(&self, cmd: &str, func: unsafe extern "C" fn()) {
+        let Some(detour) = CMD_ADDCOMMAND_DETOUR.get() else {
+            return;
+        };
+
         let Ok(c_cmd) = CString::new(cmd) else {
             return;
         };
-        unsafe { CMD_ADDCOMMAND_DETOUR.call(c_cmd.as_ptr(), func) };
+        detour.call(c_cmd.as_ptr(), func);
     }
 }
 
@@ -452,10 +457,14 @@ pub(crate) trait SetModuleOffset {
 
 impl SetModuleOffset for QuakeLiveEngine {
     fn set_module_offset(&self, module_name: &str, offset: unsafe extern "C" fn()) {
+        let Some(detour) = SYS_SETMODULEOFFSET_DETOUR.get() else {
+            return;
+        };
+
         let Ok(c_module_name) = CString::new(module_name) else {
             return;
         };
-        unsafe { SYS_SETMODULEOFFSET_DETOUR.call(c_module_name.as_ptr(), offset) };
+        detour.call(c_module_name.as_ptr(), offset);
     }
 }
 
@@ -479,6 +488,23 @@ impl InitGame for QuakeLiveEngine {
 }
 
 #[cfg_attr(test, automock)]
+pub(crate) trait ShutdownGame {
+    fn shutdown_game(&self, restart: i32);
+}
+
+impl ShutdownGame for QuakeLiveEngine {
+    fn shutdown_game(&self, restart: i32) {
+        let func_pointer = G_SHUTDOWN_GAME_ORIG_PTR.load(Ordering::Relaxed);
+        if func_pointer == 0 {
+            return;
+        }
+
+        let original_func: extern "C" fn(c_int) = unsafe { std::mem::transmute(func_pointer) };
+        original_func(restart);
+    }
+}
+
+#[cfg_attr(test, automock)]
 pub(crate) trait ExecuteClientCommand {
     #[allow(clippy::needless_lifetimes)]
     fn execute_client_command<'a>(
@@ -491,24 +517,18 @@ pub(crate) trait ExecuteClientCommand {
 
 impl ExecuteClientCommand for QuakeLiveEngine {
     fn execute_client_command(&self, client: Option<&mut Client>, cmd: &str, client_ok: bool) {
+        let Some(detour) = SV_EXECUTECLIENTCOMMAND_DETOUR.get() else {
+            return;
+        };
+
         let Ok(c_command) = CString::new(cmd) else {
             return;
         };
         match client {
-            Some(safe_client) => unsafe {
-                SV_EXECUTECLIENTCOMMAND_DETOUR.call(
-                    safe_client.client_t,
-                    c_command.as_ptr(),
-                    client_ok.into(),
-                )
-            },
-            None => unsafe {
-                SV_EXECUTECLIENTCOMMAND_DETOUR.call(
-                    std::ptr::null_mut(),
-                    c_command.as_ptr(),
-                    client_ok.into(),
-                )
-            },
+            Some(safe_client) => {
+                detour.call(safe_client.client_t, c_command.as_ptr(), client_ok.into())
+            }
+            None => detour.call(std::ptr::null_mut(), c_command.as_ptr(), client_ok.into()),
         }
     }
 }
@@ -520,16 +540,18 @@ pub(crate) trait SendServerCommand {
 
 impl SendServerCommand for QuakeLiveEngine {
     fn send_server_command(&self, client: Option<Client>, command: &str) {
-        let Some(trampoline_func) = SV_SENDSERVERCOMMAND_TRAMPOLINE.get() else {
+        let Some(detour) = SV_SENDSERVERCOMMAND_DETOUR.get() else {
             return;
         };
+        let original_func: extern "C" fn(*const client_t, *const c_char, ...) =
+            unsafe { std::mem::transmute(detour.trampoline()) };
 
         let Ok(c_command) = CString::new(command) else {
             return;
         };
         match client {
-            Some(safe_client) => trampoline_func(safe_client.client_t, c_command.as_ptr()),
-            None => trampoline_func(std::ptr::null(), c_command.as_ptr()),
+            Some(safe_client) => original_func(safe_client.client_t, c_command.as_ptr()),
+            None => original_func(std::ptr::null(), c_command.as_ptr()),
         }
     }
 }
@@ -541,7 +563,10 @@ pub(crate) trait ClientEnterWorld {
 
 impl ClientEnterWorld for QuakeLiveEngine {
     fn client_enter_world(&self, client: &mut Client, cmd: *const usercmd_t) {
-        unsafe { SV_CLIENTENTERWORLD_DETOUR.call(client.client_t, cmd) };
+        let Some(detour) = SV_CLIENTENTERWORLD_DETOUR.get() else {
+            return;
+        };
+        detour.call(client.client_t, cmd);
     }
 }
 
@@ -552,13 +577,16 @@ pub(crate) trait SetConfigstring {
 
 impl SetConfigstring for QuakeLiveEngine {
     fn set_configstring(&self, index: &u32, value: &str) {
+        let Some(detour) = SV_SETCONFGISTRING_DETOUR.get() else {
+            return;
+        };
         let Ok(c_value) = CString::new(value) else {
             return;
         };
         let Ok(c_index) = c_int::try_from(index.to_owned()) else {
             return;
         };
-        unsafe { SV_SETCONFGISTRING_DETOUR.call(c_index, c_value.as_ptr()) };
+        detour.call(c_index, c_value.as_ptr());
     }
 }
 
@@ -569,13 +597,16 @@ pub(crate) trait ComPrintf {
 
 impl ComPrintf for QuakeLiveEngine {
     fn com_printf(&self, msg: &str) {
-        let Some(trampoline_func) = COM_PRINTF_TRAMPOLINE.get() else {
+        let Some(detour) = COM_PRINTF_DETOUR.get() else {
             return;
         };
+        let original_func: extern "C" fn(*const c_char, ...) =
+            unsafe { std::mem::transmute(detour.trampoline()) };
+
         let Ok(c_msg) = CString::new(msg) else {
             return;
         };
-        trampoline_func(c_msg.as_ptr());
+        original_func(c_msg.as_ptr());
     }
 }
 
@@ -586,10 +617,14 @@ pub(crate) trait SpawnServer {
 
 impl SpawnServer for QuakeLiveEngine {
     fn spawn_server(&self, server: &str, kill_bots: bool) {
+        let Some(detour) = SV_SPAWNSERVER_DETOUR.get() else {
+            return;
+        };
+
         let Ok(c_server) = CString::new(server) else {
             return;
         };
-        unsafe { SV_SPAWNSERVER_DETOUR.call(c_server.as_ptr(), kill_bots.into()) };
+        detour.call(c_server.as_ptr(), kill_bots.into());
     }
 }
 
@@ -704,24 +739,25 @@ impl CmdArgv for QuakeLiveEngine {
 
 #[cfg_attr(test, automock)]
 pub(crate) trait GameAddEvent {
-    fn game_add_event(&self, game_entity: &GameEntity, event: entity_event_t, event_param: i32);
+    fn game_add_event(&self, game_entity: &mut GameEntity, event: entity_event_t, event_param: i32);
 }
 
 impl GameAddEvent for QuakeLiveEngine {
-    fn game_add_event(&self, game_entity: &GameEntity, event: entity_event_t, event_param: i32) {
+    fn game_add_event(
+        &self,
+        game_entity: &mut GameEntity,
+        event: entity_event_t,
+        event_param: i32,
+    ) {
         let func_pointer = G_ADDEVENT_ORIG_PTR.load(Ordering::Relaxed);
         if func_pointer == 0 {
             return;
         };
 
-        let original_func: extern "C" fn(*const gentity_t, entity_event_t, c_int) =
+        let original_func: extern "C" fn(*mut gentity_t, entity_event_t, c_int) =
             unsafe { std::mem::transmute(func_pointer) };
 
-        original_func(
-            game_entity.gentity_t as *const gentity_t,
-            event,
-            event_param,
-        );
+        original_func(game_entity.gentity_t as *mut gentity_t, event, event_param);
     }
 }
 
@@ -867,11 +903,11 @@ pub(crate) trait RegisterDamage {
     #[allow(clippy::too_many_arguments)]
     fn register_damage(
         &self,
-        target: *const gentity_t,
-        inflictor: *const gentity_t,
-        attacker: *const gentity_t,
-        dir: *const c_float,
-        pos: *const c_float,
+        target: *mut gentity_t,
+        inflictor: *mut gentity_t,
+        attacker: *mut gentity_t,
+        dir: &mut vec3_t,
+        pos: &mut vec3_t,
         damage: c_int,
         dflags: c_int,
         means_of_death: c_int,
@@ -881,11 +917,11 @@ pub(crate) trait RegisterDamage {
 impl RegisterDamage for QuakeLiveEngine {
     fn register_damage(
         &self,
-        target: *const gentity_t,
-        inflictor: *const gentity_t,
-        attacker: *const gentity_t,
-        dir: *const c_float,
-        pos: *const c_float,
+        target: *mut gentity_t,
+        inflictor: *mut gentity_t,
+        attacker: *mut gentity_t,
+        dir: &mut vec3_t,
+        pos: &mut vec3_t,
         damage: c_int,
         dflags: c_int,
         means_of_death: c_int,
@@ -896,11 +932,11 @@ impl RegisterDamage for QuakeLiveEngine {
         }
 
         let trampoline_func: extern "C" fn(
-            *const gentity_t,
-            *const gentity_t,
-            *const gentity_t,
-            *const c_float,
-            *const c_float,
+            *mut gentity_t,
+            *mut gentity_t,
+            *mut gentity_t,
+            &mut vec3_t,
+            &mut vec3_t,
             c_int,
             c_int,
             c_int,
@@ -920,17 +956,17 @@ impl RegisterDamage for QuakeLiveEngine {
 
 #[cfg_attr(test, automock)]
 pub(crate) trait FreeEntity {
-    fn free_entity(&self, gentity: *mut gentity_t);
+    fn free_entity(&self, gentity: *const gentity_t);
 }
 
 impl FreeEntity for QuakeLiveEngine {
-    fn free_entity(&self, gentity: *mut gentity_t) {
+    fn free_entity(&self, gentity: *const gentity_t) {
         let func_pointer = G_FREE_ENTITY_ORIG_PTR.load(Ordering::Relaxed);
         if func_pointer == 0 {
             return;
         };
 
-        let original_func: extern "C" fn(*mut gentity_t) =
+        let original_func: extern "C" fn(*const gentity_t) =
             unsafe { std::mem::transmute(func_pointer) };
 
         original_func(gentity);
@@ -939,17 +975,31 @@ impl FreeEntity for QuakeLiveEngine {
 
 #[cfg_attr(test, automock)]
 pub(crate) trait LaunchItem {
-    fn launch_item(&self, gitem: &GameItem, origin: vec3_t, velocity: vec3_t) -> GameEntity;
+    fn launch_item(
+        &self,
+        gitem: &mut GameItem,
+        origin: &mut vec3_t,
+        velocity: &mut vec3_t,
+    ) -> GameEntity;
 }
 
 impl LaunchItem for QuakeLiveEngine {
-    fn launch_item(&self, gitem: &GameItem, origin: vec3_t, velocity: vec3_t) -> GameEntity {
+    fn launch_item(
+        &self,
+        gitem: &mut GameItem,
+        origin: &mut vec3_t,
+        velocity: &mut vec3_t,
+    ) -> GameEntity {
         let func_pointer = LAUNCH_ITEM_ORIG_PTR.load(Ordering::Relaxed);
+        debug_println!(format!(
+            "LaunchItem func ptr: {}, {:#X}",
+            func_pointer, func_pointer
+        ));
         if func_pointer == 0 {
             panic!("LaunchItem not found!");
         };
 
-        let original_func: extern "C" fn(*const gitem_t, vec3_t, vec3_t) -> *mut gentity_t =
+        let original_func: extern "C" fn(*mut gitem_t, &mut vec3_t, &mut vec3_t) -> *mut gentity_t =
             unsafe { std::mem::transmute(func_pointer) };
 
         GameEntity::try_from(original_func(gitem.gitem_t, origin, velocity)).unwrap()
@@ -958,18 +1008,18 @@ impl LaunchItem for QuakeLiveEngine {
 
 #[cfg_attr(test, automock)]
 pub(crate) trait StartKamikaze {
-    fn start_kamikaze(&self, gentity: &GameEntity);
+    fn start_kamikaze(&self, gentity: &mut GameEntity);
 }
 
 impl StartKamikaze for QuakeLiveEngine {
-    fn start_kamikaze(&self, gentity: &GameEntity) {
+    fn start_kamikaze(&self, gentity: &mut GameEntity) {
         let trampoline_func_ptr = G_START_KAMIKAZE_TRAMPOLINE.load(Ordering::Relaxed);
         if trampoline_func_ptr == 0 {
             return;
         }
 
-        let trampoline_func: extern "C" fn(*const gentity_t) =
+        let trampoline_func: extern "C" fn(*mut gentity_t) =
             unsafe { std::mem::transmute(trampoline_func_ptr) };
-        trampoline_func(gentity.gentity_t as *const gentity_t);
+        trampoline_func(gentity.gentity_t as *mut gentity_t);
     }
 }

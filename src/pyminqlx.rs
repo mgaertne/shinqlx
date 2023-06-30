@@ -1680,8 +1680,7 @@ fn drop_holdable(client_id: i32) -> PyResult<bool> {
 
     match GameEntity::try_from(client_id) {
         Err(_) => Ok(false),
-        Ok(game_entity) => {
-            let mut game_entity = game_entity;
+        Ok(mut game_entity) => {
             let mut game_client = game_entity.get_game_client().unwrap();
             game_client.remove_kamikaze_flag();
             if Holdable::from(game_client.get_holdable()) == Holdable::None {

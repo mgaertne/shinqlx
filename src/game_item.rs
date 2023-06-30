@@ -35,7 +35,7 @@ impl TryFrom<i32> for GameItem {
             return Err(InvalidId(item_id));
         }
         let bg_itemlist = GameItem::get_item_list();
-        Self::try_from(unsafe { bg_itemlist.offset(item_id as isize) })
+        Self::try_from(unsafe { bg_itemlist.offset(item_id as isize) as *mut gitem_t })
             .map_err(|_| EntityNotFound("entity not found".into()))
     }
 }
@@ -68,9 +68,9 @@ impl GameItem {
     }
 
     #[allow(unused)]
-    pub(crate) fn get_item_id(&self) -> i32 {
+    pub(crate) fn get_item_id(&mut self) -> i32 {
         let bg_itemlist = Self::get_item_list();
-        i32::try_from(unsafe { (self.gitem_t as *const gitem_t).offset_from(bg_itemlist) })
+        i32::try_from(unsafe { (self.gitem_t as *mut gitem_t).offset_from(bg_itemlist) })
             .unwrap_or(-1)
     }
 
@@ -91,18 +91,18 @@ impl GameItem {
         origin: (i32, i32, i32),
         quake_live_engine: &(impl LaunchItem + GameAddEvent),
     ) {
-        let origin_vec = [
+        let mut origin_vec = [
             origin.0 as c_float,
             origin.1 as c_float,
             origin.2 as c_float,
         ];
-        let velocity = [0.0, 0.0, 0.9];
+        let mut velocity = [0.0, 0.0, 0.9];
 
-        let gentity = quake_live_engine.launch_item(self, origin_vec, velocity);
+        let mut gentity = quake_live_engine.launch_item(self, &mut origin_vec, &mut velocity);
         gentity.gentity_t.nextthink = 0;
         gentity.gentity_t.think = None;
         // make item be scaled up
-        quake_live_engine.game_add_event(&gentity, EV_ITEM_RESPAWN, 0);
+        quake_live_engine.game_add_event(&mut gentity, EV_ITEM_RESPAWN, 0);
     }
 }
 
@@ -152,11 +152,11 @@ pub(crate) mod game_item_tests {
         mock! {
             QuakeEngine {}
             impl LaunchItem for QuakeEngine {
-                fn launch_item(&self, gitem: &GameItem, origin: vec3_t, velocity: vec3_t) -> GameEntity;
+                fn launch_item(&self, gitem: &mut GameItem, origin: &mut vec3_t, velocity: &mut vec3_t) -> GameEntity;
             }
 
             impl GameAddEvent for QuakeEngine {
-                fn game_add_event(&self, game_entity: &GameEntity, event: entity_event_t, event_param: i32);
+                fn game_add_event(&self, game_entity: &mut GameEntity, event: entity_event_t, event_param: i32);
             }
         }
 

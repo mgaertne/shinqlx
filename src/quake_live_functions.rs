@@ -19,7 +19,7 @@ pub(crate) fn pattern_search_module(
     None
 }
 
-fn pattern_search(start: u64, end: u64, ql_func: &QuakeLiveFunction) -> Option<u64> {
+pub(crate) fn pattern_search(start: u64, end: u64, ql_func: &QuakeLiveFunction) -> Option<u64> {
     let pattern = ql_func.pattern();
     let mask = ql_func.mask();
     for i in start..end {

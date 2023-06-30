@@ -117,14 +117,11 @@ pub extern "C" fn cmd_slap() {
     let old_health = client_entity.get_health();
     client_entity.set_health(old_health - dmg);
     if old_health - dmg <= 0 {
-        quake_live_engine.game_add_event(
-            &client_entity,
-            EV_DEATH1,
-            client_entity.get_client_number(),
-        );
+        let client_number = client_entity.get_client_number();
+        quake_live_engine.game_add_event(&mut client_entity, EV_DEATH1, client_number);
         return;
     }
-    quake_live_engine.game_add_event(&client_entity, EV_PAIN, 99);
+    quake_live_engine.game_add_event(&mut client_entity, EV_PAIN, 99);
 }
 
 #[no_mangle]
@@ -162,7 +159,7 @@ pub extern "C" fn cmd_slay() {
         return;
     }
 
-    let Some(client_entity) = GameEntity::try_from(client_id).ok() else {
+    let Some(mut client_entity) = GameEntity::try_from(client_id).ok() else {
         return;
     };
     if !client_entity.in_use() || client_entity.get_health() <= 0 {
@@ -178,13 +175,9 @@ pub extern "C" fn cmd_slay() {
 
     quake_live_engine.send_server_command(None, message.as_str());
 
-    let mut mutable_client_entity = client_entity;
-    mutable_client_entity.set_health(-40);
-    quake_live_engine.game_add_event(
-        &mutable_client_entity,
-        EV_GIB_PLAYER,
-        mutable_client_entity.get_client_number(),
-    );
+    client_entity.set_health(-40);
+    let client_number = client_entity.get_client_number();
+    quake_live_engine.game_add_event(&mut client_entity, EV_GIB_PLAYER, client_number);
 }
 
 #[no_mangle]

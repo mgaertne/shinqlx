@@ -223,8 +223,8 @@ impl GameEntity {
             self.gentity_t,
             self.gentity_t,
             self.gentity_t,
-            std::ptr::null(),
-            std::ptr::null(),
+            &mut [0.0, 0.0, 0.0],
+            &mut [0.0, 0.0, 0.0],
             damage * 2,
             DAMAGE_NO_PROTECTION as c_int,
             mean_of_death as c_int,
@@ -283,11 +283,15 @@ impl GameEntity {
         quake_live_engine: impl LaunchItem,
     ) {
         if let Ok(mut game_client) = self.get_game_client() {
-            if let Ok(gitem) = GameItem::try_from(game_client.get_holdable()) {
+            if let Ok(mut gitem) = GameItem::try_from(game_client.get_holdable()) {
                 let angle = self.gentity_t.s.apos.trBase[1] * (PI * 2.0 / 360.0);
-                let velocity = [150.0 * angle.cos(), 150.0 * angle.sin(), 250.0];
-                let entity =
-                    quake_live_engine.launch_item(&gitem, self.gentity_t.s.pos.trBase, velocity);
+                let mut velocity = [150.0 * angle.cos(), 150.0 * angle.sin(), 250.0];
+                debug_println!("About to launch item...");
+                let entity = quake_live_engine.launch_item(
+                    &mut gitem,
+                    &mut self.gentity_t.s.pos.trBase,
+                    &mut velocity,
+                );
                 entity.gentity_t.touch = Some(ShiNQlx_Touch_Item);
                 entity.gentity_t.parent = self.gentity_t;
                 entity.gentity_t.think = Some(ShiNQlx_Switch_Touch_Item);

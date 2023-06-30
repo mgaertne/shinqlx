@@ -13,6 +13,7 @@ fn main() {
     {
         let mut builder = cc::Build::new();
         builder.files([
+            "src/hooks.c",
             "src/simple_hook.c",
             "src/trampoline.c",
             #[cfg(target_pointer_width = "64")]
@@ -42,11 +43,19 @@ fn main() {
 
         builder.compile("minqlx");
 
+        println!("cargo:rerun-if-changed=src/quake_types.h");
+        println!("cargo:rerun-if-changed=src/hooks.c");
         println!("cargo:rerun-if-changed=src/simple_hook.c");
+        println!("cargo:rerun-if-changed=src/simple_hook.h");
         println!("cargo:rerun-if-changed=src/trampoline.c");
+        println!("cargo:rerun-if-changed=src/trampoline.h");
         #[cfg(target_pointer_width = "64")]
         println!("cargo:rerun-if-changed=src/HDE/hde64.c");
+        println!("cargo:rerun-if-changed=src/HDE/hde64.h");
+        println!("cargo:rerun-if-changed=src/HDE/table64.h");
         #[cfg(target_pointer_width = "32")]
         println!("cargo:rerun-if-changed=src/HDE/hde32.c");
+        println!("cargo:rerun-if-changed=src/HDE/hde32.h");
+        println!("cargo:rerun-if-changed=src/HDE/table32.h");
     }
 }
