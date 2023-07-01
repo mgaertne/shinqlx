@@ -48,7 +48,7 @@ use procfs::process::{MMapPath, MemoryMap, Process};
 use quake_live_functions::QuakeLiveFunction;
 use std::env::args;
 use std::ffi::{c_char, c_int, OsStr};
-use std::sync::atomic::{AtomicBool, AtomicI32, AtomicU64, Ordering};
+use std::sync::atomic::{AtomicI32, AtomicU64, Ordering};
 
 pub(crate) const DEBUG_PRINT_PREFIX: &str = "[shinqlx]";
 
@@ -66,7 +66,6 @@ pub enum PyMinqlx_InitStatus_t {
 }
 
 pub(crate) static COMMON_INITIALIZED: OnceBool = OnceBool::new();
-pub(crate) static CVARS_INITIALIZED: AtomicBool = AtomicBool::new(false);
 pub(crate) static SV_MAXCLIENTS: AtomicI32 = AtomicI32::new(0);
 pub(crate) static ALLOW_FREE_CLIENT: AtomicI32 = AtomicI32::new(-1);
 
@@ -101,7 +100,6 @@ fn initialize_cvars() {
     };
 
     SV_MAXCLIENTS.store(maxclients.get_integer(), Ordering::Relaxed);
-    CVARS_INITIALIZED.store(true, Ordering::Relaxed);
 }
 
 #[cfg(target_pointer_width = "64")]
@@ -129,7 +127,7 @@ fn initialize() {
 }
 
 type CvarGetLimitType =
-    fn(*const c_char, *const c_char, *const c_char, *const c_char, c_int) -> *const cvar_t;
+    fn(*const c_char, *const c_char, *const c_char, *const c_char, c_int) -> *mut cvar_t;
 
 pub(crate) static COM_PRINTF_ORIG_PTR: OnceCell<extern "C" fn(*const c_char, ...)> =
     OnceCell::new();
@@ -140,14 +138,14 @@ pub(crate) static CMD_ARGV_ORIG_PTR: OnceCell<fn(c_int) -> *const c_char> = Once
 pub(crate) static CMD_TOKENIZESTRING_ORIG_PTR: OnceCell<fn(*const c_char)> = OnceCell::new();
 pub(crate) static CBUF_EXECUTETEXT_ORIG_PTR: OnceCell<fn(cbufExec_t, *const c_char)> =
     OnceCell::new();
-pub(crate) static CVAR_FINDVAR_ORIG_PTR: OnceCell<fn(*const c_char) -> *const cvar_t> =
+pub(crate) static CVAR_FINDVAR_ORIG_PTR: OnceCell<fn(*const c_char) -> *mut cvar_t> =
     OnceCell::new();
 pub(crate) static CVAR_GET_ORIG_PTR: OnceCell<
-    fn(*const c_char, *const c_char, c_int) -> *const cvar_t,
+    fn(*const c_char, *const c_char, c_int) -> *mut cvar_t,
 > = OnceCell::new();
 pub(crate) static CVAR_GETLIMIT_ORIG_PTR: OnceCell<CvarGetLimitType> = OnceCell::new();
 pub(crate) static CVAR_SET2_ORIG_PTR: OnceCell<
-    fn(*const c_char, *const c_char, qboolean) -> *const cvar_t,
+    fn(*const c_char, *const c_char, qboolean) -> *mut cvar_t,
 > = OnceCell::new();
 pub(crate) static SV_SENDSERVERCOMMAND_ORIG_PTR: OnceCell<
     extern "C" fn(*mut client_t, *const c_char, ...),
