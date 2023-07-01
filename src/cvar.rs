@@ -6,15 +6,23 @@ use std::ffi::CStr;
 #[derive(Debug, PartialEq)]
 #[repr(transparent)]
 pub(crate) struct CVar {
-    cvar: &'static cvar_t,
+    cvar: &'static mut cvar_t,
 }
 
 impl TryFrom<*const cvar_t> for CVar {
     type Error = QuakeLiveEngineError;
 
     fn try_from(cvar: *const cvar_t) -> Result<Self, Self::Error> {
+        Self::try_from(cvar.cast_mut())
+    }
+}
+
+impl TryFrom<*mut cvar_t> for CVar {
+    type Error = QuakeLiveEngineError;
+
+    fn try_from(cvar: *mut cvar_t) -> Result<Self, Self::Error> {
         unsafe {
-            cvar.as_ref()
+            cvar.as_mut()
                 .map(|cvar| Self { cvar })
                 .ok_or(NullPointerPassed("null pointer passed".into()))
         }

@@ -8,25 +8,24 @@ use crate::pyminqlx::{
     server_command_dispatcher, set_configstring_dispatcher,
 };
 use crate::quake_live_engine::{
-    AddCommand, CbufExecuteText, ClientConnect, ClientEnterWorld, ClientSpawn, ComPrintf,
-    ExecuteClientCommand, FindCVar, InitGame, QuakeLiveEngine, RegisterDamage, RunFrame,
-    SendServerCommand, SetConfigstring, SetModuleOffset, ShutdownGame, SpawnServer,
+    AddCommand, ClientConnect, ClientEnterWorld, ClientSpawn, ComPrintf, ExecuteClientCommand,
+    FindCVar, InitGame, QuakeLiveEngine, RegisterDamage, RunFrame, SendServerCommand,
+    SetCVarForced, SetConfigstring, SetModuleOffset, ShutdownGame, SpawnServer,
 };
 use crate::quake_types::clientState_t::CS_PRIMED;
 use crate::quake_types::{
-    cbufExec_t, client_t, gentity_t, qboolean, usercmd_t, vec3_t, MAX_MSGLEN, MAX_STRING_CHARS,
+    client_t, gentity_t, qboolean, usercmd_t, vec3_t, MAX_MSGLEN, MAX_STRING_CHARS,
 };
 use crate::{
     initialize_cvars, initialize_static, search_vm_functions, CLIENT_CONNECT_ORIG_PTR,
     CLIENT_SPAWN_ORIG_PTR, CMD_ADDCOMMAND_ORIG_PTR, COMMON_INITIALIZED, COM_PRINTF_ORIG_PTR,
-    CVARS_INITIALIZED, G_DAMAGE_ORIG_PTR, G_INIT_GAME_ORIG_PTR, G_RUN_FRAME_ORIG_PTR,
-    G_SHUTDOWN_GAME_ORIG_PTR, G_START_KAMIKAZE_ORIG_PTR, SV_CLIENTENTERWORLD_ORIG_PTR,
-    SV_DROPCLIENT_ORIG_PTR, SV_EXECUTECLIENTCOMMAND_ORIG_PTR, SV_SENDSERVERCOMMAND_ORIG_PTR,
-    SV_SETCONFIGSTRING_ORIG_PTR, SV_SPAWNSERVER_ORIG_PTR, SV_TAGS_PREFIX,
-    SYS_SETMODULEOFFSET_ORIG_PTR,
+    G_DAMAGE_ORIG_PTR, G_INIT_GAME_ORIG_PTR, G_RUN_FRAME_ORIG_PTR, G_SHUTDOWN_GAME_ORIG_PTR,
+    G_START_KAMIKAZE_ORIG_PTR, SV_CLIENTENTERWORLD_ORIG_PTR, SV_DROPCLIENT_ORIG_PTR,
+    SV_EXECUTECLIENTCOMMAND_ORIG_PTR, SV_SENDSERVERCOMMAND_ORIG_PTR, SV_SETCONFIGSTRING_ORIG_PTR,
+    SV_SPAWNSERVER_ORIG_PTR, SV_TAGS_PREFIX, SYS_SETMODULEOFFSET_ORIG_PTR,
 };
 use once_cell::sync::OnceCell;
-use retour::{static_detour, RawDetour};
+use retour::{static_detour, GenericDetour, RawDetour};
 use std::error::Error;
 use std::ffi::{c_char, c_int, c_void, CStr, VaList, VaListImpl};
 use std::sync::atomic::{AtomicU64, Ordering};
@@ -44,11 +43,11 @@ fn set_tag() {
     }
 
     let new_tags = if sv_tags_string.len() > 2 {
-        format!("sv_tags \"{},{}\"", SV_TAGS_PREFIX, sv_tags_string)
+        format!("{},{}", SV_TAGS_PREFIX, sv_tags_string)
     } else {
-        format!("sv_tags \"{}\"", SV_TAGS_PREFIX)
+        format!("{}", SV_TAGS_PREFIX)
     };
-    quake_live_engine.cbuf_execute_text(cbufExec_t::EXEC_INSERT, &new_tags);
+    quake_live_engine.set_cvar_forced("sv_tags", new_tags.as_str(), false);
 }
 
 fn shinqlx_cmd_addcommand(cmd: *const c_char, func: unsafe extern "C" fn()) {
@@ -108,10 +107,6 @@ fn shinqlx_sys_setmoduleoffset(module_name: *const c_char, offset: unsafe extern
 
     QuakeLiveEngine::default().set_module_offset(converted_module_name.as_ref(), offset);
 
-    if COMMON_INITIALIZED.get().is_none() {
-        return;
-    }
-
     #[allow(clippy::fn_to_numeric_cast)]
     search_vm_functions(qagame as u64);
 
@@ -125,10 +120,7 @@ fn shinqlx_sys_setmoduleoffset(module_name: *const c_char, offset: unsafe extern
 pub extern "C" fn ShiNQlx_G_InitGame(level_time: c_int, random_seed: c_int, restart: c_int) {
     QuakeLiveEngine::default().init_game(level_time, random_seed, restart);
 
-    if !CVARS_INITIALIZED.load(Ordering::Relaxed) {
-        set_tag();
-    }
-
+    set_tag();
     initialize_cvars();
 
     if restart != 0 {
@@ -142,9 +134,14 @@ pub extern "C" fn ShiNQlx_G_ShutdownGame(restart: c_int) {
         fn seek_hook_slot(offset: c_int) -> c_int;
     }
 
-    let rewind_result = unsafe { seek_hook_slot(-4) };
+    let rewind_result = unsafe { seek_hook_slot(-3) };
     if rewind_result == 0 {
         panic!("failed to rewind hook slot. Exiting.");
+    }
+
+    if let Some(client_spawn_detour) = unsafe { CLIENT_SPAWN_DETOUR.as_ref() } {
+        unsafe { client_spawn_detour.disable() }.unwrap();
+        unsafe { CLIENT_SPAWN_DETOUR = None };
     }
 
     QuakeLiveEngine::default().shutdown_game(restart);
@@ -384,6 +381,7 @@ pub extern "C" fn ShiNQlx_ClientConnect(
     first_time: qboolean,
     is_bot: qboolean,
 ) -> *const c_char {
+    debug_println!("I was in ClientConnect!");
     if first_time.into() {
         if let Some(res) = client_connect_dispatcher(client_num, is_bot.into()) {
             if !<qboolean as Into<bool>>::into(is_bot) {
@@ -395,8 +393,9 @@ pub extern "C" fn ShiNQlx_ClientConnect(
     QuakeLiveEngine::default().client_connect(client_num, first_time.into(), is_bot.into())
 }
 
-#[no_mangle]
-pub extern "C" fn ShiNQlx_ClientSpawn(ent: *mut gentity_t) {
+#[allow(non_snake_case)]
+fn ShiNQlx_ClientSpawn(ent: *mut gentity_t) {
+    debug_println!("I was in ClientSpawn!");
     let Some(game_entity): Option<GameEntity> = ent.try_into().ok() else {
         return;
     };
@@ -415,6 +414,7 @@ pub(crate) fn shinqlx_client_spawn(mut game_entity: GameEntity) {
 
 #[no_mangle]
 pub extern "C" fn ShiNQlx_G_StartKamikaze(ent: *mut gentity_t) {
+    debug_println!("I was in G_StartKamikaze");
     let Some(mut game_entity): Option<GameEntity> = ent.try_into().ok() else {
         return;
     };
@@ -456,6 +456,7 @@ pub extern "C" fn ShiNQlx_G_Damage(
     // DAMAGE_NO_TEAM_PROTECTION	kills team mates
     means_of_death: c_int, // means_of_death indicator
 ) {
+    debug_println!("I was in G_Damage!");
     QuakeLiveEngine::default().register_damage(
         target,
         inflictor,
@@ -582,8 +583,9 @@ pub(crate) fn hook_static() -> Result<(), Box<dyn Error>> {
     Ok(())
 }
 
+pub(crate) static mut CLIENT_SPAWN_DETOUR: Option<GenericDetour<fn(*mut gentity_t)>> = None;
+
 pub(crate) static CLIENT_CONNECT_TRAMPOLINE: AtomicU64 = AtomicU64::new(0);
-pub(crate) static CLIENT_SPAWN_TRAMPOLINE: AtomicU64 = AtomicU64::new(0);
 pub(crate) static G_START_KAMIKAZE_TRAMPOLINE: AtomicU64 = AtomicU64::new(0);
 pub(crate) static G_DAMAGE_TRAMPOLINE: AtomicU64 = AtomicU64::new(0);
 
@@ -680,19 +682,14 @@ pub(crate) fn hook_vm(qagame_dllentry: u64) -> Result<(), Box<dyn Error>> {
 
     let func_pointer = CLIENT_SPAWN_ORIG_PTR.load(Ordering::Relaxed);
     if func_pointer == 0 {
-        CLIENT_SPAWN_TRAMPOLINE.store(0, Ordering::Relaxed);
+        unsafe { CLIENT_SPAWN_DETOUR = None };
     } else {
-        let trampoline_func_ptr = unsafe {
-            HookRaw(
-                func_pointer as *const c_void,
-                ShiNQlx_ClientSpawn as *const c_void,
-            )
-        };
-        if trampoline_func_ptr.is_null() {
-            CLIENT_SPAWN_TRAMPOLINE.store(0, Ordering::Relaxed);
-        } else {
-            CLIENT_SPAWN_TRAMPOLINE.store(trampoline_func_ptr as u64, Ordering::Relaxed);
-        }
+        let original_func = unsafe { std::mem::transmute(func_pointer) };
+        let detour =
+            unsafe { GenericDetour::<fn(*mut gentity_t)>::new(original_func, ShiNQlx_ClientSpawn) }
+                .unwrap();
+        unsafe { detour.enable() }.unwrap();
+        unsafe { CLIENT_SPAWN_DETOUR = Some(detour) };
     }
 
     let func_pointer = G_DAMAGE_ORIG_PTR.load(Ordering::Relaxed);

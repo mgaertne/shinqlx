@@ -3,7 +3,7 @@ use crate::cvar::CVar;
 use crate::game_entity::GameEntity;
 use crate::game_item::GameItem;
 use crate::hooks::{
-    CLIENT_CONNECT_TRAMPOLINE, CLIENT_SPAWN_TRAMPOLINE, CMD_ADDCOMMAND_DETOUR, COM_PRINTF_DETOUR,
+    CLIENT_CONNECT_TRAMPOLINE, CLIENT_SPAWN_DETOUR, CMD_ADDCOMMAND_DETOUR, COM_PRINTF_DETOUR,
     G_DAMAGE_TRAMPOLINE, G_START_KAMIKAZE_TRAMPOLINE, SV_CLIENTENTERWORLD_DETOUR,
     SV_EXECUTECLIENTCOMMAND_DETOUR, SV_SENDSERVERCOMMAND_DETOUR, SV_SETCONFGISTRING_DETOUR,
     SV_SPAWNSERVER_DETOUR, SYS_SETMODULEOFFSET_DETOUR,
@@ -26,15 +26,14 @@ use crate::quake_types::weapon_t::{
     WP_PROX_LAUNCHER, WP_RAILGUN, WP_ROCKET_LAUNCHER, WP_SHOTGUN,
 };
 use crate::quake_types::{
-    cbufExec_t, client_t, entity_event_t, gentity_t, gitem_t, meansOfDeath_t, powerup_t,
-    privileges_t, qboolean, usercmd_t, vec3_t, weapon_t, MAX_STRING_CHARS,
+    client_t, entity_event_t, gentity_t, gitem_t, meansOfDeath_t, powerup_t, privileges_t,
+    qboolean, usercmd_t, vec3_t, weapon_t, MAX_STRING_CHARS,
 };
 use crate::{
-    CBUF_EXECUTETEXT_ORIG_PTR, CMD_ARGC_ORIG_PTR, CMD_ARGS_ORIG_PTR, CMD_ARGV_ORIG_PTR,
-    CMD_EXECUTESTRING_ORIG_PTR, CVAR_FINDVAR_ORIG_PTR, CVAR_GETLIMIT_ORIG_PTR, CVAR_GET_ORIG_PTR,
-    CVAR_SET2_ORIG_PTR, G_ADDEVENT_ORIG_PTR, G_FREE_ENTITY_ORIG_PTR, G_INIT_GAME_ORIG_PTR,
-    G_RUN_FRAME_ORIG_PTR, G_SHUTDOWN_GAME_ORIG_PTR, LAUNCH_ITEM_ORIG_PTR,
-    SV_GETCONFIGSTRING_ORIG_PTR,
+    CMD_ARGC_ORIG_PTR, CMD_ARGS_ORIG_PTR, CMD_ARGV_ORIG_PTR, CMD_EXECUTESTRING_ORIG_PTR,
+    CVAR_FINDVAR_ORIG_PTR, CVAR_GETLIMIT_ORIG_PTR, CVAR_GET_ORIG_PTR, CVAR_SET2_ORIG_PTR,
+    G_ADDEVENT_ORIG_PTR, G_FREE_ENTITY_ORIG_PTR, G_INIT_GAME_ORIG_PTR, G_RUN_FRAME_ORIG_PTR,
+    G_SHUTDOWN_GAME_ORIG_PTR, LAUNCH_ITEM_ORIG_PTR, SV_GETCONFIGSTRING_ORIG_PTR,
 };
 #[cfg(test)]
 use mockall::*;
@@ -416,23 +415,6 @@ impl FindCVar for QuakeLiveEngine {
 }
 
 #[cfg_attr(test, automock)]
-pub(crate) trait CbufExecuteText {
-    fn cbuf_execute_text(&self, exec_t: cbufExec_t, new_tags: &str);
-}
-
-impl CbufExecuteText for QuakeLiveEngine {
-    fn cbuf_execute_text(&self, exec_t: cbufExec_t, new_tags: &str) {
-        let Some(original_func) = CBUF_EXECUTETEXT_ORIG_PTR.get() else {
-            return;
-        };
-        let Ok(c_tags) = CString::new(new_tags) else {
-            return;
-        };
-        original_func(exec_t, c_tags.as_ptr());
-    }
-}
-
-#[cfg_attr(test, automock)]
 pub(crate) trait AddCommand {
     fn add_command(&self, cmd: &str, func: unsafe extern "C" fn());
 }
@@ -639,7 +621,7 @@ impl ClientConnect for QuakeLiveEngine {
     fn client_connect(&self, client_num: i32, first_time: bool, is_bot: bool) -> *const c_char {
         let trampoline_func_ptr = CLIENT_CONNECT_TRAMPOLINE.load(Ordering::Relaxed);
         if trampoline_func_ptr == 0 {
-            return std::ptr::null_mut();
+            return std::ptr::null();
         }
 
         let trampoline_func: extern "C" fn(c_int, qboolean, qboolean) -> *const c_char =
@@ -655,14 +637,10 @@ pub(crate) trait ClientSpawn {
 
 impl ClientSpawn for QuakeLiveEngine {
     fn client_spawn(&self, ent: &mut GameEntity) {
-        let trampoline_func_ptr = CLIENT_SPAWN_TRAMPOLINE.load(Ordering::Relaxed);
-        if trampoline_func_ptr == 0 {
+        let Some(detour) = (unsafe { CLIENT_SPAWN_DETOUR.as_ref()}) else {
             return;
-        }
-
-        let trampoline_func: extern "C" fn(*mut gentity_t) =
-            unsafe { std::mem::transmute(trampoline_func_ptr) };
-        trampoline_func(ent.gentity_t);
+        };
+        detour.call(ent.gentity_t);
     }
 }
 
@@ -940,17 +918,17 @@ impl RegisterDamage for QuakeLiveEngine {
 
 #[cfg_attr(test, automock)]
 pub(crate) trait FreeEntity {
-    fn free_entity(&self, gentity: *const gentity_t);
+    fn free_entity(&self, gentity: *mut gentity_t);
 }
 
 impl FreeEntity for QuakeLiveEngine {
-    fn free_entity(&self, gentity: *const gentity_t) {
+    fn free_entity(&self, gentity: *mut gentity_t) {
         let func_pointer = G_FREE_ENTITY_ORIG_PTR.load(Ordering::Relaxed);
         if func_pointer == 0 {
             return;
         };
 
-        let original_func: extern "C" fn(*const gentity_t) =
+        let original_func: extern "C" fn(*mut gentity_t) =
             unsafe { std::mem::transmute(func_pointer) };
 
         original_func(gentity);
