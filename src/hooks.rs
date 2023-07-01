@@ -141,8 +141,8 @@ pub extern "C" fn ShiNQlx_G_ShutdownGame(restart: c_int) {
 
     if let Some(client_spawn_detour) = unsafe { CLIENT_SPAWN_DETOUR.as_ref() } {
         unsafe { client_spawn_detour.disable() }.unwrap();
-        unsafe { CLIENT_SPAWN_DETOUR = None };
     }
+    unsafe { CLIENT_SPAWN_DETOUR = None };
 
     QuakeLiveEngine::default().shutdown_game(restart);
 }
