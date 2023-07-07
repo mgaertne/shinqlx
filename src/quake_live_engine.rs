@@ -773,7 +773,7 @@ impl QuakeLiveEngine {
         let new_tags = if sv_tags_string.len() > 2 {
             format!("{},{}", SV_TAGS_PREFIX, sv_tags_string)
         } else {
-            format!("{}", SV_TAGS_PREFIX)
+            SV_TAGS_PREFIX.into()
         };
         self.set_cvar_forced("sv_tags", new_tags.as_str(), false);
     }
