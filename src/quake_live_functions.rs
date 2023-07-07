@@ -3,7 +3,7 @@ use std::fmt::{Display, Formatter};
 pub(crate) fn pattern_search_module(
     module_info: &Vec<&procfs::process::MemoryMap>,
     ql_func: &QuakeLiveFunction,
-) -> Option<u64> {
+) -> Option<usize> {
     for memory_map in module_info {
         if !memory_map
             .perms
@@ -11,7 +11,11 @@ pub(crate) fn pattern_search_module(
         {
             continue;
         }
-        let result = pattern_search(memory_map.address.0, memory_map.address.1, ql_func);
+        let result = pattern_search(
+            memory_map.address.0 as usize,
+            memory_map.address.1 as usize,
+            ql_func,
+        );
         if result.is_some() {
             return result;
         }
@@ -19,12 +23,12 @@ pub(crate) fn pattern_search_module(
     None
 }
 
-pub(crate) fn pattern_search(start: u64, end: u64, ql_func: &QuakeLiveFunction) -> Option<u64> {
+fn pattern_search(start: usize, end: usize, ql_func: &QuakeLiveFunction) -> Option<usize> {
     let pattern = ql_func.pattern();
     let mask = ql_func.mask();
     for i in start..end {
         for j in 0..pattern.len() {
-            let char: u8 = unsafe { std::ptr::read((i as usize + j) as *const u8) };
+            let char: u8 = unsafe { std::ptr::read((i + j) as *const u8) };
             let pattern_char: u8 = pattern[j];
             let mask_char: u8 = mask[j];
             if mask_char == b'X' && pattern_char != char {
@@ -41,7 +45,7 @@ pub(crate) fn pattern_search(start: u64, end: u64, ql_func: &QuakeLiveFunction) 
 #[derive(Clone, Debug, Eq, PartialEq, Hash)]
 #[allow(dead_code)]
 #[allow(non_camel_case_types)]
-pub(crate) enum QuakeLiveFunction {
+pub enum QuakeLiveFunction {
     Com_Printf,
     Cmd_AddCommand,
     Cmd_Args,
@@ -65,6 +69,7 @@ pub(crate) enum QuakeLiveFunction {
     SV_SpawnServer,
     Cmd_ExecuteString,
     G_InitGame,
+    G_ShutdownGame,
     G_RunFrame,
     ClientConnect,
     G_StartKamikaze,
@@ -105,6 +110,7 @@ impl Display for QuakeLiveFunction {
             QuakeLiveFunction::SV_SpawnServer => f.write_str("SV_SpawnServer"),
             QuakeLiveFunction::Cmd_ExecuteString => f.write_str("Cmd_ExecuteString"),
             QuakeLiveFunction::G_InitGame => f.write_str("G_InitGame"),
+            QuakeLiveFunction::G_ShutdownGame => f.write_str("G_ShutdownGame"),
             QuakeLiveFunction::G_RunFrame => f.write_str("G_RunFrame"),
             QuakeLiveFunction::ClientConnect => f.write_str("ClientConnect"),
             QuakeLiveFunction::G_StartKamikaze => f.write_str("G_StartKamikaze"),
@@ -147,6 +153,7 @@ impl QuakeLiveFunction {
             QuakeLiveFunction::SV_SpawnServer => b"\x41\x55\x41\x54\x41\x89\xf4\x55\x48\x89\xfd\x53\x48\x81\xec\x00\x00\x00\x00\x64\x48\x8b\x04\x25\x00\x00\x00\x00\x48\x89\x84\x24\x00\x00\x00\x00\x31\xc0\xe8\x00\x00\x00\x00\x31\xc0\xbf\x00\x00\x00\x00",
             QuakeLiveFunction::Cmd_ExecuteString => b"\x41\x54\x49\x89\xfc\x55\x53\xe8\x00\x00\x00\x00\x44\x8b\x0d\x00\x00\x00\x00\x45\x85\xc9\x0f\x84\x00\x00\x00\x00\x48\x8b\x1d\x00\x00\x00\x00\xbd\x00\x00\x00\x00\x48\x85\xdb\x75\x00\xeb\x00\x90",
             QuakeLiveFunction::G_InitGame => b"\x41\x54\x55\x53\x48\x81\xec\x00\x00\x00\x00\x84\xc0\x48\x89\xb4\x24\x00\x00\x00\x00\x48\x89\x94\x24\x00\x00\x00\x00\x48\x89\x8c\x24\x00\x00\x00\x00\x4c\x89\x84\x24\x00\x00\x00\x00",
+            QuakeLiveFunction::G_ShutdownGame => b"",
             QuakeLiveFunction::G_RunFrame => b"\x8b\x05\x00\x00\x00\x00\x85\xc0\x74\x00\xf3\xc3",
             QuakeLiveFunction::ClientConnect => b"\x41\x57\x4c\x63\xff\x41\x56\x41\x89\xf6\x41\x55\x41\x54\x55\x4c\x89\xfd\x48\xc1\xe5\x00\x53\x89\xfb\x48\x81\xec\x00\x00\x00\x00\x4c\x8b\x2d\x00\x00\x00\x00\x64\x48\x8b\x04\x25\x00\x00\x00\x00",
             QuakeLiveFunction::G_StartKamikaze => b"\x41\x55\x31\xc0\x41\x54\x55\x48\x89\xfd\x53\x48\x83\xec\x00\xe8\x00\x00\x00\x00\x4c\x8b\x25\x00\x00\x00\x00\xc7\x40\x04\x00\x00\x00\x00\x48\x89\xc3\x41\x8b\x44\x00\x24\x89\x83\x00\x00\x00\x00",
@@ -209,6 +216,7 @@ impl QuakeLiveFunction {
                 b"XXXXXXXX----XXX----XXXXX----XXX----X----XXXX-X-X"
             }
             QuakeLiveFunction::G_InitGame => b"XXXXXXX----XXXXXX----XXXX----XXXX----XXXX----",
+            QuakeLiveFunction::G_ShutdownGame => b"",
             QuakeLiveFunction::G_RunFrame => b"XX----XXX-XX",
             QuakeLiveFunction::ClientConnect => b"XXXXXXXXXXXXXXXXXXXXX-XXXXXX----XXX----XXXXX----",
             QuakeLiveFunction::G_StartKamikaze => {

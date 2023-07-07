@@ -7,8 +7,8 @@ use crate::quake_live_engine::QuakeLiveEngineError::{
     EntityNotFound, InvalidId, NullPointerPassed,
 };
 use crate::quake_live_engine::{
-    ComPrintf, FreeEntity, GetConfigstring, LaunchItem, QuakeLiveEngine, QuakeLiveEngineError,
-    RegisterDamage, StartKamikaze,
+    ComPrintf, FreeEntity, GetConfigstring, LaunchItem, QuakeLiveEngineError, RegisterDamage,
+    StartKamikaze,
 };
 use crate::quake_types::clientConnected_t::CON_DISCONNECTED;
 use crate::quake_types::entityType_t::ET_ITEM;
@@ -19,10 +19,9 @@ use crate::quake_types::{
     entityType_t, gentity_t, meansOfDeath_t, privileges_t, team_t, trace_t, CS_ITEMS,
     DAMAGE_NO_PROTECTION, FL_DROPPED_ITEM, MAX_GENTITIES,
 };
-use crate::{G_FREE_ENTITY_ORIG_PTR, G_RUN_FRAME_ORIG_PTR, TOUCH_ITEM_ORIG_PTR};
+use crate::MAIN_ENGINE;
 use std::f32::consts::PI;
 use std::ffi::{c_char, c_float, c_int, CStr};
-use std::sync::atomic::Ordering;
 
 #[derive(Debug, PartialEq)]
 #[repr(transparent)]
@@ -57,6 +56,10 @@ impl TryFrom<i32> for GameEntity {
         }
 
         let g_entities = GameEntity::get_entities_list();
+        if g_entities.is_null() {
+            return Err(EntityNotFound("g_entities not initialized".into()));
+        }
+
         Self::try_from(unsafe { g_entities.offset(entity_id as isize) })
             .map_err(|_| EntityNotFound("entity not found".into()))
     }
@@ -70,6 +73,9 @@ impl TryFrom<u32> for GameEntity {
             return Err(InvalidId(entity_id as i32));
         }
         let g_entities = GameEntity::get_entities_list();
+        if g_entities.is_null() {
+            return Err(EntityNotFound("g_entities not initialized".into()));
+        }
 
         Self::try_from(unsafe { g_entities.offset(entity_id as isize) })
             .map_err(|_| EntityNotFound("entity not found".into()))
@@ -83,17 +89,18 @@ pub(crate) extern "C" fn ShiNQlx_Touch_Item(
     other: *mut gentity_t,
     trace: *mut trace_t,
 ) {
-    let func_pointer = TOUCH_ITEM_ORIG_PTR.load(Ordering::Relaxed);
-    if func_pointer == 0 {
+    let Some(main_engine) = MAIN_ENGINE.get() else {
         return;
-    }
+    };
 
-    let original_func: extern "C" fn(*mut gentity_t, *mut gentity_t, *mut trace_t) =
-        unsafe { std::mem::transmute(func_pointer) };
+    let Ok(original_func) = main_engine.touch_item_orig() else {
+        return;
+    };
 
     let Some(entity) = (unsafe { ent.as_ref() }) else {
         return;
     };
+
     if entity.parent != other {
         original_func(ent, other, trace);
     }
@@ -102,19 +109,17 @@ pub(crate) extern "C" fn ShiNQlx_Touch_Item(
 #[allow(non_snake_case)]
 #[no_mangle]
 pub(crate) extern "C" fn ShiNQlx_Switch_Touch_Item(ent: *mut gentity_t) {
-    let touch_item_pointer = TOUCH_ITEM_ORIG_PTR.load(Ordering::Relaxed);
-    if touch_item_pointer == 0 {
+    let Some(main_engine) = MAIN_ENGINE.get() else {
         return;
-    }
-    let touch_item_func: extern "C" fn(*mut gentity_t, *mut gentity_t, *mut trace_t) =
-        unsafe { std::mem::transmute(touch_item_pointer) };
+    };
 
-    let g_free_entity_pointer = G_FREE_ENTITY_ORIG_PTR.load(Ordering::Relaxed);
-    if g_free_entity_pointer == 0 {
+    let Ok(touch_item_func) = main_engine.touch_item_orig() else {
         return;
-    }
-    let free_entity_func: extern "C" fn(*mut gentity_t) =
-        unsafe { std::mem::transmute(g_free_entity_pointer) };
+    };
+
+    let Ok(free_entity_func) = main_engine.g_free_entity_orig() else {
+        return;
+    };
 
     if let Some(mut_ent) = unsafe { ent.as_mut() } {
         mut_ent.touch = Some(touch_item_func);
@@ -125,28 +130,37 @@ pub(crate) extern "C" fn ShiNQlx_Switch_Touch_Item(ent: *mut gentity_t) {
 
 impl GameEntity {
     fn get_entities_list() -> *mut gentity_t {
-        let func_pointer = G_RUN_FRAME_ORIG_PTR.load(Ordering::Relaxed);
-        if func_pointer == 0 {
-            panic!("G_RunFrame not initialized.");
-        }
+        let Some(main_engine) = MAIN_ENGINE.get() else {
+            return std::ptr::null_mut();
+        };
+
+        let Ok(func_pointer) = main_engine.g_run_frame_orig() else {
+            return std::ptr::null_mut();
+        };
         let base_address =
-            unsafe { std::ptr::read_unaligned((func_pointer + 0x11B) as *const i32) };
-        let gentities_ptr = base_address as u64 + func_pointer + 0x11B + 4;
+            unsafe { std::ptr::read_unaligned((func_pointer as usize + 0x11B) as *const i32) };
+        let gentities_ptr = base_address as usize + func_pointer as usize + 0x11B + 4;
         gentities_ptr as *mut gentity_t
     }
 
     pub(crate) fn get_client_id(&self) -> i32 {
         let g_entities = Self::get_entities_list();
+        if g_entities.is_null() {
+            return -1;
+        }
 
         i32::try_from(unsafe { (self.gentity_t as *const gentity_t).offset_from(g_entities) })
             .unwrap_or(-1)
     }
 
     pub(crate) fn start_kamikaze(&mut self) {
-        self.start_kamikaze_intern(QuakeLiveEngine::default());
+        let Some(quake_live_engine) = MAIN_ENGINE.get() else {
+            return;
+        };
+        self.start_kamikaze_intern(quake_live_engine);
     }
 
-    pub(crate) fn start_kamikaze_intern(&mut self, kamikaze_starter: impl StartKamikaze) {
+    pub(crate) fn start_kamikaze_intern(&mut self, kamikaze_starter: &impl StartKamikaze) {
         kamikaze_starter.start_kamikaze(self);
     }
 
@@ -200,13 +214,16 @@ impl GameEntity {
     }
 
     pub(crate) fn slay_with_mod(&mut self, mean_of_death: meansOfDeath_t) {
-        self.slay_with_mod_intern(mean_of_death, QuakeLiveEngine::default());
+        let Some(quake_live_engine) = MAIN_ENGINE.get() else {
+            return;
+        };
+        self.slay_with_mod_intern(mean_of_death, quake_live_engine);
     }
 
     pub(crate) fn slay_with_mod_intern(
         &mut self,
         mean_of_death: meansOfDeath_t,
-        quake_live_engine: impl RegisterDamage,
+        quake_live_engine: &impl RegisterDamage,
     ) {
         let damage = self.get_health()
             + if mean_of_death == MOD_KAMIKAZE {
@@ -274,19 +291,21 @@ impl GameEntity {
     }
 
     pub(crate) fn drop_holdable(&mut self) {
-        self.drop_holdable_internal(&CurrentLevel::default(), QuakeLiveEngine::default());
+        let Some(quake_live_engine) = MAIN_ENGINE.get() else {
+            return;
+        };
+        self.drop_holdable_internal(&CurrentLevel::default(), quake_live_engine);
     }
 
     pub(crate) fn drop_holdable_internal(
         &mut self,
         current_level: &CurrentLevel,
-        quake_live_engine: impl LaunchItem,
+        quake_live_engine: &impl LaunchItem,
     ) {
         if let Ok(mut game_client) = self.get_game_client() {
             if let Ok(mut gitem) = GameItem::try_from(game_client.get_holdable()) {
                 let angle = self.gentity_t.s.apos.trBase[1] * (PI * 2.0 / 360.0);
                 let mut velocity = [150.0 * angle.cos(), 150.0 * angle.sin(), 250.0];
-                debug_println!("About to launch item...");
                 let entity = quake_live_engine.launch_item(
                     &mut gitem,
                     &mut self.gentity_t.s.pos.trBase,
@@ -307,15 +326,20 @@ impl GameEntity {
     }
 
     pub(crate) fn free_entity(&mut self) {
-        self.free_entity_internal(QuakeLiveEngine::default());
+        let Some(quake_live_engine) = MAIN_ENGINE.get() else {
+            return;
+        };
+        self.free_entity_internal(quake_live_engine);
     }
 
-    pub(crate) fn free_entity_internal(&mut self, quake_live_engine: impl FreeEntity) {
+    pub(crate) fn free_entity_internal(&mut self, quake_live_engine: &impl FreeEntity) {
         quake_live_engine.free_entity(self.gentity_t);
     }
 
     pub(crate) fn replace_item(&mut self, item_id: i32) {
-        let quake_live_engine = QuakeLiveEngine::default();
+        let Some(quake_live_engine) = MAIN_ENGINE.get() else {
+            return;
+        };
 
         let class_name = unsafe { CStr::from_ptr(self.gentity_t.classname) };
         quake_live_engine.com_printf(class_name.to_string_lossy().as_ref());
@@ -409,7 +433,7 @@ pub(crate) mod game_entity_tests {
         let mut gentity = GEntityBuilder::default().build().unwrap();
         let mut game_entity = GameEntity::try_from(&mut gentity as *mut gentity_t).unwrap();
         mock.expect_start_kamikaze().return_const(());
-        game_entity.start_kamikaze_intern(mock);
+        game_entity.start_kamikaze_intern(&mock);
     }
 
     #[test]
@@ -616,7 +640,7 @@ pub(crate) mod game_entity_tests {
                     && *mean_of_death == MOD_CRUSH as c_int
             })
             .return_const(());
-        game_entity.slay_with_mod_intern(MOD_CRUSH, mock);
+        game_entity.slay_with_mod_intern(MOD_CRUSH, &mock);
         assert_eq!(gclient.ps.stats[STAT_ARMOR as usize], 0);
     }
 
@@ -638,7 +662,7 @@ pub(crate) mod game_entity_tests {
                     && *mean_of_death == MOD_KAMIKAZE as c_int
             })
             .return_const(());
-        game_entity.slay_with_mod_intern(MOD_KAMIKAZE, mock);
+        game_entity.slay_with_mod_intern(MOD_KAMIKAZE, &mock);
         assert_eq!(gclient.ps.stats[STAT_ARMOR as usize], 0);
     }
 
@@ -807,7 +831,7 @@ pub(crate) mod game_entity_tests {
         mock.expect_launch_item()
             .return_once_st(|_, _, _| launched_entity);
 
-        game_entity.drop_holdable_internal(&current_level, mock);
+        game_entity.drop_holdable_internal(&current_level, &mock);
         assert_eq!(launched_gentity.parent, &mut gentity as *mut gentity_t);
         assert_eq!(launched_gentity.nextthink, 3468);
         assert_eq!(launched_gentity.s.pos.trTime, 1968);
@@ -844,6 +868,6 @@ pub(crate) mod game_entity_tests {
         let mut mock = MockFreeEntity::new();
         mock.expect_free_entity().return_const(());
 
-        game_entity.free_entity_internal(mock);
+        game_entity.free_entity_internal(&mock);
     }
 }

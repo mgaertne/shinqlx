@@ -64,7 +64,6 @@ impl GameClient {
     }
 
     pub(crate) fn remove_kamikaze_flag(&mut self) {
-        debug_println!("removing kaimkaze flag...");
         self.game_client.ps.eFlags &= !i32::try_from(EF_KAMIKAZE).unwrap();
     }
 
