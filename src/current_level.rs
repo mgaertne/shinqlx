@@ -3,9 +3,8 @@ use crate::hooks::shinqlx_set_configstring;
 use crate::quake_live_engine::QuakeLiveEngineError;
 use crate::quake_live_engine::QuakeLiveEngineError::NullPointerPassed;
 use crate::quake_types::{level_locals_t, CS_VOTE_NO, CS_VOTE_STRING, CS_VOTE_TIME, CS_VOTE_YES};
-use crate::{G_INIT_GAME_ORIG_PTR, SV_MAXCLIENTS};
+use crate::MAIN_ENGINE;
 use std::ffi::CString;
-use std::sync::atomic::Ordering;
 
 #[derive(Debug, PartialEq)]
 #[repr(transparent)]
@@ -28,13 +27,20 @@ impl TryFrom<*mut level_locals_t> for CurrentLevel {
 
 impl Default for CurrentLevel {
     fn default() -> Self {
-        let func_pointer = G_INIT_GAME_ORIG_PTR.load(Ordering::Relaxed);
-        if func_pointer == 0 {
+        let Some(main_engine) = MAIN_ENGINE.get() else {
+          debug_println!("main quake live engine not initialized.");  
+          panic!("main quake live engine not initialized.");  
+        };
+
+        let Ok(func_pointer) = main_engine.g_init_game_orig() else {
+            debug_println!("G_InitGame not initialized.");
             panic!("G_InitGame not initialized.");
-        }
+        };
+        #[allow(clippy::fn_to_numeric_cast)]
         let base_address =
-            unsafe { std::ptr::read_unaligned((func_pointer + 0x4A1) as *const i32) };
-        let level_ptr = base_address as u64 + func_pointer + 0x4A1 + 4;
+            unsafe { std::ptr::read_unaligned((func_pointer as u64 + 0x4A1) as *const i32) };
+        #[allow(clippy::fn_to_numeric_cast)]
+        let level_ptr = base_address as u64 + func_pointer as u64 + 0x4A1 + 4;
         Self::try_from(level_ptr as *mut level_locals_t).unwrap()
     }
 }
@@ -74,7 +80,10 @@ impl CurrentLevel {
         self.level.voteYes = 0;
         self.level.voteNo = 0;
 
-        let maxclients = SV_MAXCLIENTS.load(Ordering::Relaxed);
+        let Some(quake_live_engine) = MAIN_ENGINE.get() else {
+            return;
+        };
+        let maxclients = quake_live_engine.get_max_clients();
         for client_id in 0..maxclients {
             if let Ok(game_entity) = GameEntity::try_from(client_id) {
                 if let Ok(mut game_client) = game_entity.get_game_client() {

@@ -5,17 +5,18 @@ use crate::pyminqlx::{
     rcon_dispatcher, CUSTOM_COMMAND_HANDLER,
 };
 use crate::quake_live_engine::{
-    CmdArgc, CmdArgs, CmdArgv, ComPrintf, GameAddEvent, QuakeLiveEngine, SendServerCommand,
+    CmdArgc, CmdArgs, CmdArgv, ComPrintf, GameAddEvent, SendServerCommand,
 };
 use crate::quake_types::entity_event_t::{EV_DEATH1, EV_GIB_PLAYER, EV_PAIN};
-use crate::SV_MAXCLIENTS;
+use crate::MAIN_ENGINE;
 use pyo3::Python;
 use rand::Rng;
-use std::sync::atomic::Ordering;
 
 #[no_mangle]
 pub extern "C" fn cmd_send_server_command() {
-    let quake_live_engine = QuakeLiveEngine::default();
+    let Some(quake_live_engine) = MAIN_ENGINE.get() else {
+        return;
+    };
     let Some(cmd_args) = quake_live_engine.cmd_args() else { return; };
 
     let server_command = format!("{}\n", cmd_args);
@@ -24,7 +25,9 @@ pub extern "C" fn cmd_send_server_command() {
 
 #[no_mangle]
 pub extern "C" fn cmd_center_print() {
-    let quake_live_engine = QuakeLiveEngine::default();
+    let Some(quake_live_engine) = MAIN_ENGINE.get() else {
+        return;
+    };
     let Some(cmd_args) = quake_live_engine.cmd_args() else { return; };
 
     let server_command = format!("cp \"{}\"\n", cmd_args);
@@ -33,7 +36,9 @@ pub extern "C" fn cmd_center_print() {
 
 #[no_mangle]
 pub extern "C" fn cmd_regular_print() {
-    let quake_live_engine = QuakeLiveEngine::default();
+    let Some(quake_live_engine) = MAIN_ENGINE.get() else {
+        return;
+    };
     let Some(cmd_args) = quake_live_engine.cmd_args() else { return; };
 
     let server_command = format!("print \"{}\n\"\n", cmd_args);
@@ -42,7 +47,9 @@ pub extern "C" fn cmd_regular_print() {
 
 #[no_mangle]
 pub extern "C" fn cmd_slap() {
-    let quake_live_engine = QuakeLiveEngine::default();
+    let Some(quake_live_engine) = MAIN_ENGINE.get() else {
+        return;
+    };
     let argc = quake_live_engine.cmd_argc();
 
     if argc < 2 {
@@ -56,7 +63,7 @@ pub extern "C" fn cmd_slap() {
     let Some(passed_client_id_str) = quake_live_engine.cmd_argv(1) else {
         return;
     };
-    let maxclients = SV_MAXCLIENTS.load(Ordering::Relaxed);
+    let maxclients = quake_live_engine.get_max_clients();
     let Some(client_id) = passed_client_id_str.parse::<i32>().ok() else {
         let usage_note = format!(
             "client_id must be a number between 0 and {}.\n",
@@ -126,7 +133,9 @@ pub extern "C" fn cmd_slap() {
 
 #[no_mangle]
 pub extern "C" fn cmd_slay() {
-    let quake_live_engine = QuakeLiveEngine::default();
+    let Some(quake_live_engine) = MAIN_ENGINE.get() else {
+        return;
+    };
     let argc = quake_live_engine.cmd_argc();
 
     if argc < 2 {
@@ -140,7 +149,7 @@ pub extern "C" fn cmd_slay() {
     let Some(passed_client_id_str) = quake_live_engine.cmd_argv(1) else {
         return;
     };
-    let maxclients = SV_MAXCLIENTS.load(Ordering::Relaxed);
+    let maxclients = quake_live_engine.get_max_clients();
     let Some(client_id) = passed_client_id_str.parse::<i32>().ok() else {
         let usage_note = format!(
             "client_id must be a number between 0 and {}.\n",
@@ -184,7 +193,9 @@ pub extern "C" fn cmd_slay() {
 // Execute a pyminqlx command as if it were the owner executing it.
 // Output will appear in the console.
 pub extern "C" fn cmd_py_rcon() {
-    let quake_live_engine = QuakeLiveEngine::default();
+    let Some(quake_live_engine) = MAIN_ENGINE.get() else {
+        return;
+    };
     let Some(commands) = quake_live_engine.cmd_args() else { return;
     };
     rcon_dispatcher(commands.as_str());
@@ -194,7 +205,9 @@ pub extern "C" fn cmd_py_rcon() {
 pub extern "C" fn cmd_py_command() {
     let Some(custom_command_handler) = (unsafe { CUSTOM_COMMAND_HANDLER.as_ref() }) else { return; };
     Python::with_gil(|py| {
-        let quake_live_engine = QuakeLiveEngine::default();
+        let Some(quake_live_engine) = MAIN_ENGINE.get() else {
+            return;
+        };
         let result = match quake_live_engine.cmd_args() {
             None => custom_command_handler.call0(py),
             Some(args) => custom_command_handler.call1(py, (args,)),
@@ -208,7 +221,11 @@ pub extern "C" fn cmd_py_command() {
 
 #[no_mangle]
 pub extern "C" fn cmd_restart_python() {
-    QuakeLiveEngine::default().com_printf("Restarting Python...\n");
+    let Some(quake_live_engine) = MAIN_ENGINE.get() else {
+        return;
+    };
+    quake_live_engine.com_printf("Restarting Python...\n");
+
     if pyminqlx_is_initialized() {
         pyminqlx_reload();
         // minqlx initializes after the first new game starts, but since the game already

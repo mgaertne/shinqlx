@@ -1,10 +1,10 @@
-use crate::hooks::SV_DROPCLIENT_DETOUR;
 use crate::quake_live_engine::QuakeLiveEngineError;
 use crate::quake_live_engine::QuakeLiveEngineError::{
     ClientNotFound, InvalidId, NullPointerPassed,
 };
 use crate::quake_types::{clientState_t, client_t, MAX_CLIENTS};
 use crate::server_static::ServerStatic;
+use crate::MAIN_ENGINE;
 use std::ffi::{c_char, CStr, CString};
 
 #[derive(Debug, PartialEq)]
@@ -76,7 +76,13 @@ impl Client {
 
     pub(crate) fn disconnect(&mut self, reason: &str) {
         let c_reason = CString::new(reason).unwrap_or(CString::new("").unwrap());
-        SV_DROPCLIENT_DETOUR.call(self.client_t, c_reason.as_ptr());
+        let Some(main_engine) = MAIN_ENGINE.get() else {
+            return;
+        };
+        let Ok(detour) = main_engine.sv_dropclient_detour() else {
+            return;
+        };
+        detour.call(self.client_t, c_reason.as_ptr());
     }
 
     pub(crate) fn get_name(&self) -> String {

@@ -1,389 +1,37 @@
 use crate::client::Client;
+use crate::commands::{
+    cmd_center_print, cmd_py_command, cmd_py_rcon, cmd_regular_print, cmd_restart_python,
+    cmd_send_server_command, cmd_slap, cmd_slay,
+};
 use crate::cvar::CVar;
 use crate::game_entity::GameEntity;
 use crate::game_item::GameItem;
 use crate::hooks::{
-    CLIENT_CONNECT_TRAMPOLINE, CLIENT_SPAWN_DETOUR, CMD_ADDCOMMAND_DETOUR, COM_PRINTF_DETOUR,
-    G_DAMAGE_TRAMPOLINE, G_START_KAMIKAZE_TRAMPOLINE, SV_CLIENTENTERWORLD_DETOUR,
-    SV_EXECUTECLIENTCOMMAND_DETOUR, SV_SENDSERVERCOMMAND_DETOUR, SV_SETCONFGISTRING_DETOUR,
-    SV_SPAWNSERVER_DETOUR, SYS_SETMODULEOFFSET_DETOUR,
+    shinqlx_cmd_addcommand, shinqlx_sv_cliententerworld, shinqlx_sv_dropclient,
+    shinqlx_sv_executeclientcommand, shinqlx_sv_setconfigstring, shinqlx_sv_spawnserver,
+    shinqlx_sys_setmoduleoffset, ShiNQlx_ClientConnect, ShiNQlx_ClientSpawn, ShiNQlx_Com_Printf,
+    ShiNQlx_G_Damage, ShiNQlx_G_InitGame, ShiNQlx_G_RunFrame, ShiNQlx_G_ShutdownGame,
+    ShiNQlx_G_StartKamikaze, ShiNQlx_SV_SendServerCommand,
 };
-use crate::quake_types::meansOfDeath_t::{
-    MOD_BFG, MOD_BFG_SPLASH, MOD_CHAINGUN, MOD_CRUSH, MOD_FALLING, MOD_GAUNTLET, MOD_GRAPPLE,
-    MOD_GRENADE, MOD_GRENADE_SPLASH, MOD_HMG, MOD_JUICED, MOD_KAMIKAZE, MOD_LAVA, MOD_LIGHTNING,
-    MOD_LIGHTNING_DISCHARGE, MOD_MACHINEGUN, MOD_NAIL, MOD_PLASMA, MOD_PLASMA_SPLASH,
-    MOD_PROXIMITY_MINE, MOD_RAILGUN, MOD_RAILGUN_HEADSHOT, MOD_ROCKET, MOD_ROCKET_SPLASH,
-    MOD_SHOTGUN, MOD_SLIME, MOD_SUICIDE, MOD_SWITCH_TEAMS, MOD_TARGET_LASER, MOD_TELEFRAG,
-    MOD_THAW, MOD_TRIGGER_HURT, MOD_UNKNOWN, MOD_WATER,
-};
-use crate::quake_types::powerup_t::{
-    PW_BATTLESUIT, PW_HASTE, PW_INVIS, PW_INVULNERABILITY, PW_QUAD, PW_REGEN,
-};
-use crate::quake_types::privileges_t::{PRIV_ADMIN, PRIV_BANNED, PRIV_MOD, PRIV_NONE, PRIV_ROOT};
-use crate::quake_types::weapon_t::{
-    WP_BFG, WP_CHAINGUN, WP_GAUNTLET, WP_GRAPPLING_HOOK, WP_GRENADE_LAUNCHER, WP_HANDS, WP_HMG,
-    WP_LIGHTNING, WP_MACHINEGUN, WP_NAILGUN, WP_NONE, WP_NUM_WEAPONS, WP_PLASMAGUN,
-    WP_PROX_LAUNCHER, WP_RAILGUN, WP_ROCKET_LAUNCHER, WP_SHOTGUN,
-};
+use crate::patches::patch_callvote_f;
+use crate::pyminqlx::pyminqlx_initialize;
+use crate::quake_live_functions::{pattern_search_module, QuakeLiveFunction};
 use crate::quake_types::{
-    client_t, entity_event_t, gentity_t, gitem_t, meansOfDeath_t, powerup_t, privileges_t,
-    qboolean, usercmd_t, vec3_t, weapon_t, MAX_STRING_CHARS,
+    cbufExec_t, client_t, cvar_t, entity_event_t, gentity_t, gitem_t, qboolean, trace_t, usercmd_t,
+    vec3_t, MAX_STRING_CHARS,
 };
-use crate::{
-    CMD_ARGC_ORIG_PTR, CMD_ARGS_ORIG_PTR, CMD_ARGV_ORIG_PTR, CMD_EXECUTESTRING_ORIG_PTR,
-    CVAR_FINDVAR_ORIG_PTR, CVAR_GETLIMIT_ORIG_PTR, CVAR_GET_ORIG_PTR, CVAR_SET2_ORIG_PTR,
-    G_ADDEVENT_ORIG_PTR, G_FREE_ENTITY_ORIG_PTR, G_INIT_GAME_ORIG_PTR, G_RUN_FRAME_ORIG_PTR,
-    G_SHUTDOWN_GAME_ORIG_PTR, LAUNCH_ITEM_ORIG_PTR, SV_GETCONFIGSTRING_ORIG_PTR,
-};
+use crate::PyMinqlx_InitStatus_t::PYM_SUCCESS;
+use crate::{QAGAME, QZERODED, SV_TAGS_PREFIX};
 #[cfg(test)]
 use mockall::*;
-use std::ffi::{c_char, c_int, CStr, CString};
-use std::ops::Not;
-use std::sync::atomic::Ordering;
-
-impl From<qboolean> for c_int {
-    fn from(value: qboolean) -> Self {
-        match value {
-            qboolean::qtrue => 1,
-            _ => 0,
-        }
-    }
-}
-
-impl From<qboolean> for bool {
-    fn from(value: qboolean) -> Self {
-        matches!(value, qboolean::qtrue)
-    }
-}
-
-impl From<bool> for qboolean {
-    fn from(value: bool) -> Self {
-        match value {
-            true => qboolean::qtrue,
-            _ => qboolean::qfalse,
-        }
-    }
-}
-
-impl Not for qboolean {
-    type Output = qboolean;
-
-    fn not(self) -> Self::Output {
-        match self {
-            qboolean::qtrue => qboolean::qfalse,
-            _ => qboolean::qtrue,
-        }
-    }
-}
-
-#[cfg(test)]
-pub(crate) mod qboolean_tests {
-    use crate::quake_types::qboolean;
-    use pretty_assertions::assert_eq;
-    use std::ffi::c_int;
-
-    #[test]
-    pub(crate) fn qboolean_as_c_int() {
-        assert_eq!(c_int::from(qboolean::qtrue), 1);
-        assert_eq!(c_int::from(qboolean::qfalse), 0);
-    }
-
-    #[test]
-    pub(crate) fn qboolean_as_bool() {
-        assert_eq!(bool::from(qboolean::qtrue), true);
-        assert_eq!(bool::from(qboolean::qfalse), false);
-    }
-
-    #[test]
-    pub(crate) fn qboolean_from_bool() {
-        assert_eq!(qboolean::from(true), qboolean::qtrue);
-        assert_eq!(qboolean::from(false), qboolean::qfalse);
-    }
-
-    #[test]
-    pub(crate) fn qboolean_negation() {
-        assert_eq!(!qboolean::qtrue, qboolean::qfalse);
-        assert_eq!(!qboolean::qfalse, qboolean::qtrue);
-    }
-}
-
-impl From<i32> for privileges_t {
-    fn from(value: i32) -> Self {
-        match value {
-            -1 => PRIV_BANNED,
-            0x1 => PRIV_MOD,
-            0x2 => PRIV_ADMIN,
-            0x3 => PRIV_ROOT,
-            _ => PRIV_NONE,
-        }
-    }
-}
-
-#[cfg(test)]
-pub(crate) mod privileges_tests {
-    use crate::quake_types::privileges_t;
-    use crate::quake_types::privileges_t::{
-        PRIV_ADMIN, PRIV_BANNED, PRIV_MOD, PRIV_NONE, PRIV_ROOT,
-    };
-    use pretty_assertions::assert_eq;
-
-    #[test]
-    pub(crate) fn privileges_from_integer() {
-        assert_eq!(privileges_t::from(-1), PRIV_BANNED);
-        assert_eq!(privileges_t::from(1), PRIV_MOD);
-        assert_eq!(privileges_t::from(2), PRIV_ADMIN);
-        assert_eq!(privileges_t::from(3), PRIV_ROOT);
-        assert_eq!(privileges_t::from(0), PRIV_NONE);
-        assert_eq!(privileges_t::from(666), PRIV_NONE);
-    }
-}
-
-impl TryFrom<usize> for powerup_t {
-    type Error = String;
-
-    fn try_from(value: usize) -> Result<Self, Self::Error> {
-        match value {
-            0 => Ok(PW_QUAD),
-            1 => Ok(PW_BATTLESUIT),
-            2 => Ok(PW_HASTE),
-            3 => Ok(PW_INVIS),
-            4 => Ok(PW_REGEN),
-            5 => Ok(PW_INVULNERABILITY),
-            _ => Err("invalid power up".into()),
-        }
-    }
-}
-
-#[cfg(test)]
-pub(crate) mod powerup_t_tests {
-    use crate::quake_types::powerup_t;
-    use crate::quake_types::powerup_t::{
-        PW_BATTLESUIT, PW_HASTE, PW_INVIS, PW_INVULNERABILITY, PW_QUAD, PW_REGEN,
-    };
-    use pretty_assertions::assert_eq;
-
-    #[test]
-    pub(crate) fn powerup_t_from_integer() {
-        assert_eq!(powerup_t::try_from(0), Ok(PW_QUAD));
-        assert_eq!(powerup_t::try_from(1), Ok(PW_BATTLESUIT));
-        assert_eq!(powerup_t::try_from(2), Ok(PW_HASTE));
-        assert_eq!(powerup_t::try_from(3), Ok(PW_INVIS));
-        assert_eq!(powerup_t::try_from(4), Ok(PW_REGEN));
-        assert_eq!(powerup_t::try_from(5), Ok(PW_INVULNERABILITY));
-        assert_eq!(
-            powerup_t::try_from(666),
-            Err("invalid power up".to_string())
-        );
-    }
-
-    #[test]
-    pub(crate) fn powerup_t_from_usize() {
-        assert_eq!(powerup_t::try_from(0usize), Ok(PW_QUAD));
-        assert_eq!(powerup_t::try_from(1usize), Ok(PW_BATTLESUIT));
-        assert_eq!(powerup_t::try_from(2usize), Ok(PW_HASTE));
-        assert_eq!(powerup_t::try_from(3usize), Ok(PW_INVIS));
-        assert_eq!(powerup_t::try_from(4usize), Ok(PW_REGEN));
-        assert_eq!(powerup_t::try_from(5usize), Ok(PW_INVULNERABILITY));
-        assert_eq!(
-            powerup_t::try_from(666usize),
-            Err("invalid power up".to_string())
-        );
-    }
-}
-
-impl From<weapon_t> for i32 {
-    fn from(value: weapon_t) -> Self {
-        match value {
-            WP_NUM_WEAPONS => 0,
-            _ => value as i32,
-        }
-    }
-}
-
-impl TryFrom<i32> for weapon_t {
-    type Error = String;
-
-    fn try_from(value: i32) -> Result<Self, Self::Error> {
-        match value {
-            0 => Ok(WP_NONE),
-            1 => Ok(WP_GAUNTLET),
-            2 => Ok(WP_MACHINEGUN),
-            3 => Ok(WP_SHOTGUN),
-            4 => Ok(WP_GRENADE_LAUNCHER),
-            5 => Ok(WP_ROCKET_LAUNCHER),
-            6 => Ok(WP_LIGHTNING),
-            7 => Ok(WP_RAILGUN),
-            8 => Ok(WP_PLASMAGUN),
-            9 => Ok(WP_BFG),
-            10 => Ok(WP_GRAPPLING_HOOK),
-            11 => Ok(WP_NAILGUN),
-            12 => Ok(WP_PROX_LAUNCHER),
-            13 => Ok(WP_CHAINGUN),
-            14 => Ok(WP_HMG),
-            15 => Ok(WP_HANDS),
-            _ => Err("invalid weapon".into()),
-        }
-    }
-}
-
-#[cfg(test)]
-pub(crate) mod weapon_t_tests {
-    use crate::quake_types::weapon_t;
-    use crate::quake_types::weapon_t::{
-        WP_BFG, WP_CHAINGUN, WP_GAUNTLET, WP_GRAPPLING_HOOK, WP_GRENADE_LAUNCHER, WP_HANDS, WP_HMG,
-        WP_LIGHTNING, WP_MACHINEGUN, WP_NAILGUN, WP_NONE, WP_NUM_WEAPONS, WP_PLASMAGUN,
-        WP_PROX_LAUNCHER, WP_RAILGUN, WP_ROCKET_LAUNCHER, WP_SHOTGUN,
-    };
-    use pretty_assertions::assert_eq;
-
-    #[test]
-    pub(crate) fn integer_from_weapon_t() {
-        assert_eq!(i32::from(WP_NONE), 0);
-        assert_eq!(i32::from(WP_GAUNTLET), 1);
-        assert_eq!(i32::from(WP_MACHINEGUN), 2);
-        assert_eq!(i32::from(WP_SHOTGUN), 3);
-        assert_eq!(i32::from(WP_GRENADE_LAUNCHER), 4);
-        assert_eq!(i32::from(WP_ROCKET_LAUNCHER), 5);
-        assert_eq!(i32::from(WP_LIGHTNING), 6);
-        assert_eq!(i32::from(WP_RAILGUN), 7);
-        assert_eq!(i32::from(WP_PLASMAGUN), 8);
-        assert_eq!(i32::from(WP_BFG), 9);
-        assert_eq!(i32::from(WP_GRAPPLING_HOOK), 10);
-        assert_eq!(i32::from(WP_NAILGUN), 11);
-        assert_eq!(i32::from(WP_PROX_LAUNCHER), 12);
-        assert_eq!(i32::from(WP_CHAINGUN), 13);
-        assert_eq!(i32::from(WP_HMG), 14);
-        assert_eq!(i32::from(WP_HANDS), 15);
-        assert_eq!(i32::from(WP_NUM_WEAPONS), 0);
-    }
-
-    #[test]
-    pub(crate) fn weapon_t_from_integer() {
-        assert_eq!(weapon_t::try_from(0), Ok(WP_NONE));
-        assert_eq!(weapon_t::try_from(1), Ok(WP_GAUNTLET));
-        assert_eq!(weapon_t::try_from(2), Ok(WP_MACHINEGUN));
-        assert_eq!(weapon_t::try_from(3), Ok(WP_SHOTGUN));
-        assert_eq!(weapon_t::try_from(4), Ok(WP_GRENADE_LAUNCHER));
-        assert_eq!(weapon_t::try_from(5), Ok(WP_ROCKET_LAUNCHER));
-        assert_eq!(weapon_t::try_from(6), Ok(WP_LIGHTNING));
-        assert_eq!(weapon_t::try_from(7), Ok(WP_RAILGUN));
-        assert_eq!(weapon_t::try_from(8), Ok(WP_PLASMAGUN));
-        assert_eq!(weapon_t::try_from(9), Ok(WP_BFG));
-        assert_eq!(weapon_t::try_from(10), Ok(WP_GRAPPLING_HOOK));
-        assert_eq!(weapon_t::try_from(11), Ok(WP_NAILGUN));
-        assert_eq!(weapon_t::try_from(12), Ok(WP_PROX_LAUNCHER));
-        assert_eq!(weapon_t::try_from(13), Ok(WP_CHAINGUN));
-        assert_eq!(weapon_t::try_from(14), Ok(WP_HMG));
-        assert_eq!(weapon_t::try_from(15), Ok(WP_HANDS));
-        assert_eq!(weapon_t::try_from(16), Err("invalid weapon".to_string()));
-        assert_eq!(weapon_t::try_from(-1), Err("invalid weapon".to_string()));
-        assert_eq!(weapon_t::try_from(666), Err("invalid weapon".to_string()));
-    }
-}
-
-impl TryFrom<i32> for meansOfDeath_t {
-    type Error = String;
-
-    fn try_from(value: i32) -> Result<Self, Self::Error> {
-        match value {
-            0 => Ok(MOD_UNKNOWN),
-            1 => Ok(MOD_SHOTGUN),
-            2 => Ok(MOD_GAUNTLET),
-            3 => Ok(MOD_MACHINEGUN),
-            4 => Ok(MOD_GRENADE),
-            5 => Ok(MOD_GRENADE_SPLASH),
-            6 => Ok(MOD_ROCKET),
-            7 => Ok(MOD_ROCKET_SPLASH),
-            8 => Ok(MOD_PLASMA),
-            9 => Ok(MOD_PLASMA_SPLASH),
-            10 => Ok(MOD_RAILGUN),
-            11 => Ok(MOD_LIGHTNING),
-            12 => Ok(MOD_BFG),
-            13 => Ok(MOD_BFG_SPLASH),
-            14 => Ok(MOD_WATER),
-            15 => Ok(MOD_SLIME),
-            16 => Ok(MOD_LAVA),
-            17 => Ok(MOD_CRUSH),
-            18 => Ok(MOD_TELEFRAG),
-            19 => Ok(MOD_FALLING),
-            20 => Ok(MOD_SUICIDE),
-            21 => Ok(MOD_TARGET_LASER),
-            22 => Ok(MOD_TRIGGER_HURT),
-            23 => Ok(MOD_NAIL),
-            24 => Ok(MOD_CHAINGUN),
-            25 => Ok(MOD_PROXIMITY_MINE),
-            26 => Ok(MOD_KAMIKAZE),
-            27 => Ok(MOD_JUICED),
-            28 => Ok(MOD_GRAPPLE),
-            29 => Ok(MOD_SWITCH_TEAMS),
-            30 => Ok(MOD_THAW),
-            31 => Ok(MOD_LIGHTNING_DISCHARGE),
-            32 => Ok(MOD_HMG),
-            33 => Ok(MOD_RAILGUN_HEADSHOT),
-            _ => Err("invalid means of death".into()),
-        }
-    }
-}
-
-#[cfg(test)]
-pub(crate) mod meansofdeath_t_tests {
-    use crate::quake_types::meansOfDeath_t;
-    use crate::quake_types::meansOfDeath_t::{
-        MOD_BFG, MOD_BFG_SPLASH, MOD_CHAINGUN, MOD_CRUSH, MOD_FALLING, MOD_GAUNTLET, MOD_GRAPPLE,
-        MOD_GRENADE, MOD_GRENADE_SPLASH, MOD_HMG, MOD_JUICED, MOD_KAMIKAZE, MOD_LAVA,
-        MOD_LIGHTNING, MOD_LIGHTNING_DISCHARGE, MOD_MACHINEGUN, MOD_NAIL, MOD_PLASMA,
-        MOD_PLASMA_SPLASH, MOD_PROXIMITY_MINE, MOD_RAILGUN, MOD_RAILGUN_HEADSHOT, MOD_ROCKET,
-        MOD_ROCKET_SPLASH, MOD_SHOTGUN, MOD_SLIME, MOD_SUICIDE, MOD_SWITCH_TEAMS, MOD_TARGET_LASER,
-        MOD_TELEFRAG, MOD_THAW, MOD_TRIGGER_HURT, MOD_UNKNOWN, MOD_WATER,
-    };
-    use pretty_assertions::assert_eq;
-
-    #[test]
-    pub(crate) fn meansofdeath_t_from_integer() {
-        assert_eq!(meansOfDeath_t::try_from(0), Ok(MOD_UNKNOWN));
-        assert_eq!(meansOfDeath_t::try_from(1), Ok(MOD_SHOTGUN));
-        assert_eq!(meansOfDeath_t::try_from(2), Ok(MOD_GAUNTLET));
-        assert_eq!(meansOfDeath_t::try_from(3), Ok(MOD_MACHINEGUN));
-        assert_eq!(meansOfDeath_t::try_from(4), Ok(MOD_GRENADE));
-        assert_eq!(meansOfDeath_t::try_from(5), Ok(MOD_GRENADE_SPLASH));
-        assert_eq!(meansOfDeath_t::try_from(6), Ok(MOD_ROCKET));
-        assert_eq!(meansOfDeath_t::try_from(7), Ok(MOD_ROCKET_SPLASH));
-        assert_eq!(meansOfDeath_t::try_from(8), Ok(MOD_PLASMA));
-        assert_eq!(meansOfDeath_t::try_from(9), Ok(MOD_PLASMA_SPLASH));
-        assert_eq!(meansOfDeath_t::try_from(10), Ok(MOD_RAILGUN));
-        assert_eq!(meansOfDeath_t::try_from(11), Ok(MOD_LIGHTNING));
-        assert_eq!(meansOfDeath_t::try_from(12), Ok(MOD_BFG));
-        assert_eq!(meansOfDeath_t::try_from(13), Ok(MOD_BFG_SPLASH));
-        assert_eq!(meansOfDeath_t::try_from(14), Ok(MOD_WATER));
-        assert_eq!(meansOfDeath_t::try_from(15), Ok(MOD_SLIME));
-        assert_eq!(meansOfDeath_t::try_from(16), Ok(MOD_LAVA));
-        assert_eq!(meansOfDeath_t::try_from(17), Ok(MOD_CRUSH));
-        assert_eq!(meansOfDeath_t::try_from(18), Ok(MOD_TELEFRAG));
-        assert_eq!(meansOfDeath_t::try_from(19), Ok(MOD_FALLING));
-        assert_eq!(meansOfDeath_t::try_from(20), Ok(MOD_SUICIDE));
-        assert_eq!(meansOfDeath_t::try_from(21), Ok(MOD_TARGET_LASER));
-        assert_eq!(meansOfDeath_t::try_from(22), Ok(MOD_TRIGGER_HURT));
-        assert_eq!(meansOfDeath_t::try_from(23), Ok(MOD_NAIL));
-        assert_eq!(meansOfDeath_t::try_from(24), Ok(MOD_CHAINGUN));
-        assert_eq!(meansOfDeath_t::try_from(25), Ok(MOD_PROXIMITY_MINE));
-        assert_eq!(meansOfDeath_t::try_from(26), Ok(MOD_KAMIKAZE));
-        assert_eq!(meansOfDeath_t::try_from(27), Ok(MOD_JUICED));
-        assert_eq!(meansOfDeath_t::try_from(28), Ok(MOD_GRAPPLE));
-        assert_eq!(meansOfDeath_t::try_from(29), Ok(MOD_SWITCH_TEAMS));
-        assert_eq!(meansOfDeath_t::try_from(30), Ok(MOD_THAW));
-        assert_eq!(meansOfDeath_t::try_from(31), Ok(MOD_LIGHTNING_DISCHARGE));
-        assert_eq!(meansOfDeath_t::try_from(32), Ok(MOD_HMG));
-        assert_eq!(meansOfDeath_t::try_from(33), Ok(MOD_RAILGUN_HEADSHOT));
-        assert_eq!(
-            meansOfDeath_t::try_from(-1),
-            Err("invalid means of death".to_string())
-        );
-        assert_eq!(
-            meansOfDeath_t::try_from(666),
-            Err("invalid means of death".to_string())
-        );
-    }
-}
+use once_cell::race::OnceBool;
+use once_cell::sync::OnceCell;
+use procfs::process::{MMapPath, MemoryMap, Process};
+use retour::{GenericDetour, RawDetour};
+use std::collections::VecDeque;
+use std::ffi::{c_char, c_int, CStr, CString, OsStr};
+use std::sync::atomic::{AtomicI32, AtomicUsize, Ordering};
+use std::sync::RwLock;
 
 #[derive(Debug, PartialEq, Eq)]
 pub enum QuakeLiveEngineError {
@@ -391,10 +39,1688 @@ pub enum QuakeLiveEngineError {
     EntityNotFound(String),
     InvalidId(i32),
     ClientNotFound(String),
+    ProcessNotFound(String),
+    NoMemoryMappingInformationFound(String),
+    StaticFunctionNotFound(QuakeLiveFunction),
+    StaticDetourCouldNotBeCreated(QuakeLiveFunction),
+    StaticDetourCouldNotBeEnabled(QuakeLiveFunction),
+    StaticDetourNotFound(QuakeLiveFunction),
+    VmFunctionNotFound(QuakeLiveFunction),
+    VmNotInitialized(usize),
+    VmDetourCouldNotBeCreated(QuakeLiveFunction),
+    VmDetourCouldNotBeEnabled(QuakeLiveFunction),
 }
 
-#[derive(Default)]
-pub(crate) struct QuakeLiveEngine {}
+#[derive(Debug)]
+struct StaticFunctions {
+    com_printf_orig: extern "C" fn(*const c_char, ...),
+    cmd_addcommand_orig: fn(*const c_char, unsafe extern "C" fn()),
+    cmd_args_orig: fn() -> *const c_char,
+    cmd_argv_orig: fn(c_int) -> *const c_char,
+    #[allow(dead_code)]
+    cmd_tokenizestring_orig: fn(*const c_char),
+    #[allow(dead_code)]
+    cbuf_executetext_orig: fn(cbufExec_t, *const c_char),
+    cvar_findvar_orig: fn(*const c_char) -> *mut cvar_t,
+    cvar_get_orig: fn(*const c_char, *const c_char, c_int) -> *mut cvar_t,
+    #[allow(clippy::type_complexity)]
+    cvar_getlimit_orig:
+        fn(*const c_char, *const c_char, *const c_char, *const c_char, c_int) -> *mut cvar_t,
+    cvar_set2_orig: fn(*const c_char, *const c_char, qboolean) -> *mut cvar_t,
+    sv_sendservercommand_orig: extern "C" fn(*mut client_t, *const c_char, ...),
+    sv_executeclientcommand_orig: fn(*mut client_t, *const c_char, qboolean),
+    sv_shutdown_orig: fn(*const c_char),
+    sv_map_f_orig: fn(),
+    sv_cliententerworld_orig: fn(*mut client_t, *mut usercmd_t),
+    sv_setconfigstring_orig: fn(c_int, *const c_char),
+    sv_getconfigstring_orig: fn(c_int, *const c_char, c_int),
+    sv_dropclient_orig: fn(*mut client_t, *const c_char),
+    sys_setmoduleoffset_orig: fn(*const c_char, unsafe extern "C" fn()),
+    sv_spawnserver_orig: fn(*const c_char, qboolean),
+    cmd_executestring_orig: fn(*const c_char),
+    cmd_argc_orig: fn() -> c_int,
+}
+
+#[derive(Debug)]
+struct StaticDetours {
+    cmd_addcommand_detour: GenericDetour<fn(*const c_char, unsafe extern "C" fn())>,
+    sys_setmoduleoffset_detour: GenericDetour<fn(*const c_char, unsafe extern "C" fn())>,
+    sv_executeclientcommand_detour: GenericDetour<fn(*mut client_t, *const c_char, qboolean)>,
+    sv_cliententerworld_detour: GenericDetour<fn(*mut client_t, *mut usercmd_t)>,
+    sv_setconfgistring_detour: GenericDetour<fn(c_int, *const c_char)>,
+    sv_dropclient_detour: GenericDetour<fn(*mut client_t, *const c_char)>,
+    sv_spawnserver_detour: GenericDetour<fn(*const c_char, qboolean)>,
+    sv_sendservercommand_detour: RawDetour,
+    com_printf_detour: RawDetour,
+}
+
+type ClientSpawnDetourType = GenericDetour<extern "C" fn(*mut gentity_t)>;
+type ClientConnectDetourType =
+    GenericDetour<extern "C" fn(c_int, qboolean, qboolean) -> *const c_char>;
+type GStartKamikazeDetourType = GenericDetour<extern "C" fn(*mut gentity_t)>;
+type GDamageDetourType = RawDetour;
+
+struct VmFunctions {
+    vm_call_table: AtomicUsize,
+
+    g_addevent_orig: AtomicUsize,
+    #[allow(dead_code)]
+    check_privileges_orig: AtomicUsize,
+    client_connect_orig: AtomicUsize,
+    client_spawn_orig: AtomicUsize,
+    g_damage_orig: AtomicUsize,
+    touch_item_orig: AtomicUsize,
+    launch_item_orig: AtomicUsize,
+    #[allow(dead_code)]
+    drop_item_orig: AtomicUsize,
+    g_start_kamikaze_orig: AtomicUsize,
+    g_free_entity_orig: AtomicUsize,
+    g_init_game_orig: AtomicUsize,
+    g_shutdown_game_orig: AtomicUsize,
+    g_run_frame_orig: AtomicUsize,
+    cmd_callvote_f_orig: AtomicUsize,
+
+    client_spawn_detour: RwLock<Option<ClientSpawnDetourType>>,
+    client_connect_detour: RwLock<Option<ClientConnectDetourType>>,
+    g_start_kamikaze_detour: RwLock<Option<GStartKamikazeDetourType>>,
+    g_damage_detour: RwLock<Option<GDamageDetourType>>,
+}
+
+pub(crate) struct QuakeLiveEngine {
+    static_functions: OnceCell<StaticFunctions>,
+    static_detours: OnceCell<StaticDetours>,
+
+    sv_maxclients: AtomicI32,
+    common_initialized: OnceBool,
+
+    vm_functions: VmFunctions,
+    current_vm: AtomicUsize,
+
+    pending_client_spawn_detours: RwLock<VecDeque<ClientSpawnDetourType>>,
+    pending_client_connect_detour: RwLock<VecDeque<ClientConnectDetourType>>,
+    pending_g_start_kamikaze_detour: RwLock<VecDeque<GStartKamikazeDetourType>>,
+    pending_g_damage_detour: RwLock<VecDeque<GDamageDetourType>>,
+}
+
+impl QuakeLiveEngine {
+    pub(crate) fn new() -> Self {
+        Self {
+            static_functions: OnceCell::new(),
+            static_detours: OnceCell::new(),
+
+            sv_maxclients: AtomicI32::new(0),
+            common_initialized: OnceBool::new(),
+
+            vm_functions: VmFunctions {
+                vm_call_table: Default::default(),
+                g_addevent_orig: Default::default(),
+                check_privileges_orig: Default::default(),
+                client_connect_orig: Default::default(),
+                client_spawn_orig: Default::default(),
+                g_damage_orig: Default::default(),
+                touch_item_orig: Default::default(),
+                launch_item_orig: Default::default(),
+                drop_item_orig: Default::default(),
+                g_start_kamikaze_orig: Default::default(),
+                g_free_entity_orig: Default::default(),
+                g_init_game_orig: Default::default(),
+                g_shutdown_game_orig: Default::default(),
+                g_run_frame_orig: Default::default(),
+                cmd_callvote_f_orig: Default::default(),
+                client_spawn_detour: Default::default(),
+                client_connect_detour: Default::default(),
+                g_start_kamikaze_detour: Default::default(),
+                g_damage_detour: Default::default(),
+            },
+            current_vm: AtomicUsize::new(0),
+
+            pending_client_connect_detour: RwLock::new(VecDeque::with_capacity(3)),
+            pending_client_spawn_detours: RwLock::new(VecDeque::with_capacity(3)),
+            pending_g_start_kamikaze_detour: RwLock::new(VecDeque::with_capacity(4096)),
+            pending_g_damage_detour: RwLock::new(VecDeque::with_capacity(3)),
+        }
+    }
+
+    pub(crate) fn search_static_functions(&self) -> Result<(), QuakeLiveEngineError> {
+        let qzeroded_os_str = OsStr::new(QZERODED);
+        let Ok(myself_process) = Process::myself() else {
+            return Err(QuakeLiveEngineError::ProcessNotFound("could not find my own process\n".into()));
+        };
+        let Ok(myself_maps) = myself_process.maps() else {
+            return Err(QuakeLiveEngineError::NoMemoryMappingInformationFound("no memory mapping information found\n".into()));
+        };
+        let qzeroded_maps: Vec<&MemoryMap> = myself_maps
+            .memory_maps
+            .iter()
+            .filter(|mmap| {
+                if let MMapPath::Path(path) = &mmap.pathname {
+                    path.file_name() == Some(qzeroded_os_str)
+                } else {
+                    false
+                }
+            })
+            .collect();
+
+        if qzeroded_maps.is_empty() {
+            debug_println!(format!(
+                "no memory mapping information for {} found",
+                QZERODED
+            ));
+            return Err(QuakeLiveEngineError::NoMemoryMappingInformationFound(
+                "no memory mapping information found\n".into(),
+            ));
+        }
+
+        debug_println!("Searching for necessary functions...");
+        let Some(result) = pattern_search_module(&qzeroded_maps, &QuakeLiveFunction::Com_Printf) else {
+            debug_println!(format!(
+                "Function {} not found",
+                &QuakeLiveFunction::Com_Printf
+            ));
+            return Err(QuakeLiveEngineError::StaticFunctionNotFound(QuakeLiveFunction::Com_Printf));
+        };
+        debug_println!(format!("{}: {:#X}", &QuakeLiveFunction::Com_Printf, result));
+        let com_printf_orig = unsafe { std::mem::transmute(result) };
+
+        let Some(result) = pattern_search_module(&qzeroded_maps, &QuakeLiveFunction::Cmd_AddCommand)
+        else {
+            debug_println!(format!(
+                "Function {} not found",
+                &QuakeLiveFunction::Cmd_AddCommand
+            ));
+            return Err(QuakeLiveEngineError::StaticFunctionNotFound(QuakeLiveFunction::Cmd_AddCommand));
+        };
+        debug_println!(format!(
+            "{}: {:#X}",
+            &QuakeLiveFunction::Cmd_AddCommand,
+            result
+        ));
+        let cmd_addcommand_orig = unsafe { std::mem::transmute(result) };
+
+        let Some(result) = pattern_search_module(&qzeroded_maps, &QuakeLiveFunction::Cmd_Args) else {
+            debug_println!(format!(
+                "Function {} not found",
+                &QuakeLiveFunction::Cmd_Args
+            ));
+            return Err(QuakeLiveEngineError::StaticFunctionNotFound(QuakeLiveFunction::Cmd_Args));
+        };
+        debug_println!(format!("{}: {:#X}", &QuakeLiveFunction::Cmd_Args, result));
+        let cmd_args_orig = unsafe { std::mem::transmute(result) };
+
+        let Some(result) = pattern_search_module(&qzeroded_maps, &QuakeLiveFunction::Cmd_Argv) else {
+            debug_println!(format!(
+                "Function {} not found",
+                &QuakeLiveFunction::Cmd_Argv
+            ));
+            return Err(QuakeLiveEngineError::StaticFunctionNotFound(QuakeLiveFunction::Cmd_Argv));
+        };
+        debug_println!(format!("{}: {:#X}", &QuakeLiveFunction::Cmd_Argv, result));
+        let cmd_argv_orig = unsafe { std::mem::transmute(result) };
+
+        let Some(result) =
+            pattern_search_module(&qzeroded_maps, &QuakeLiveFunction::Cmd_Tokenizestring)
+        else {
+            debug_println!(format!(
+                "Function {} not found",
+                &QuakeLiveFunction::Cmd_Tokenizestring
+            ));
+            return Err(QuakeLiveEngineError::StaticFunctionNotFound(QuakeLiveFunction::Cmd_Tokenizestring));
+        };
+        debug_println!(format!(
+            "{}: {:#X}",
+            &QuakeLiveFunction::Cmd_Tokenizestring,
+            result
+        ));
+        let cmd_tokenizestring_orig = unsafe { std::mem::transmute(result) };
+
+        let Some(result) = pattern_search_module(&qzeroded_maps, &QuakeLiveFunction::Cbuf_ExecuteText)
+        else {
+            debug_println!(format!(
+                "Function {} not found",
+                &QuakeLiveFunction::Cbuf_ExecuteText
+            ));
+            return Err(QuakeLiveEngineError::StaticFunctionNotFound(QuakeLiveFunction::Cbuf_ExecuteText));
+        };
+        debug_println!(format!(
+            "{}: {:#X}",
+            &QuakeLiveFunction::Cbuf_ExecuteText,
+            result
+        ));
+        let cbuf_executetext_orig = unsafe { std::mem::transmute(result) };
+
+        let Some(result) = pattern_search_module(&qzeroded_maps, &QuakeLiveFunction::Cvar_FindVar)
+        else {
+            debug_println!(format!(
+                "Function {} not found",
+                &QuakeLiveFunction::Cvar_FindVar
+            ));
+            return Err(QuakeLiveEngineError::StaticFunctionNotFound(QuakeLiveFunction::Cvar_FindVar));
+        };
+        debug_println!(format!(
+            "{}: {:#X}",
+            &QuakeLiveFunction::Cvar_FindVar,
+            result
+        ));
+        let cvar_findvar_orig = unsafe { std::mem::transmute(result) };
+
+        let Some(result) = pattern_search_module(&qzeroded_maps, &QuakeLiveFunction::Cvar_Get) else {
+            debug_println!(format!(
+                "Function {} not found",
+                &QuakeLiveFunction::Cvar_Get
+            ));
+            return Err(QuakeLiveEngineError::StaticFunctionNotFound(QuakeLiveFunction::Cvar_Get));
+        };
+        debug_println!(format!("{}: {:#X}", &QuakeLiveFunction::Cvar_Get, result));
+        let cvar_get_orig = unsafe { std::mem::transmute(result) };
+
+        let Some(result) = pattern_search_module(&qzeroded_maps, &QuakeLiveFunction::Cvar_GetLimit)
+        else {
+            debug_println!(format!(
+                "Function {} not found",
+                &QuakeLiveFunction::Cvar_GetLimit
+            ));
+            return Err(QuakeLiveEngineError::StaticFunctionNotFound(QuakeLiveFunction::Cvar_GetLimit));
+        };
+        debug_println!(format!(
+            "{}: {:#X}",
+            &QuakeLiveFunction::Cvar_GetLimit,
+            result
+        ));
+        let cvar_getlimit_orig = unsafe { std::mem::transmute(result) };
+
+        let Some(result) = pattern_search_module(&qzeroded_maps, &QuakeLiveFunction::Cvar_Set2) else {
+            debug_println!(format!(
+                "Function {} not found",
+                &QuakeLiveFunction::Cvar_Set2
+            ));
+            return Err(QuakeLiveEngineError::StaticFunctionNotFound(QuakeLiveFunction::Cvar_Set2));
+        };
+        debug_println!(format!("{}: {:#X}", &QuakeLiveFunction::Cvar_Set2, result));
+        let cvar_set2_orig = unsafe { std::mem::transmute(result) };
+
+        let Some(result) =
+            pattern_search_module(&qzeroded_maps, &QuakeLiveFunction::SV_SendServerCommand)
+        else {
+            debug_println!(format!(
+                "Function {} not found",
+                &QuakeLiveFunction::SV_SendServerCommand
+            ));
+            return Err(QuakeLiveEngineError::StaticFunctionNotFound(QuakeLiveFunction::SV_SendServerCommand));
+        };
+        debug_println!(format!(
+            "{}: {:#X}",
+            &QuakeLiveFunction::SV_SendServerCommand,
+            result
+        ));
+        let sv_sendservercommand_orig = unsafe { std::mem::transmute(result) };
+
+        let Some(result) =
+            pattern_search_module(&qzeroded_maps, &QuakeLiveFunction::SV_ExecuteClientCommand)
+        else {
+            debug_println!(format!(
+                "Function {} not found",
+                &QuakeLiveFunction::SV_ExecuteClientCommand
+            ));
+            return Err(QuakeLiveEngineError::StaticFunctionNotFound(QuakeLiveFunction::SV_ExecuteClientCommand));
+        };
+        debug_println!(format!(
+            "{}: {:#X}",
+            &QuakeLiveFunction::SV_ExecuteClientCommand,
+            result
+        ));
+        let sv_executeclientcommand_orig = unsafe { std::mem::transmute(result) };
+
+        let Some(result) = pattern_search_module(&qzeroded_maps, &QuakeLiveFunction::SV_Shutdown)
+        else {
+            debug_println!(format!(
+                "Function {} not found",
+                &QuakeLiveFunction::SV_Shutdown
+            ));
+            return Err(QuakeLiveEngineError::StaticFunctionNotFound(QuakeLiveFunction::SV_Shutdown));
+        };
+        debug_println!(format!(
+            "{}: {:#X}",
+            &QuakeLiveFunction::SV_Shutdown,
+            result
+        ));
+        let sv_shutdown_orig = unsafe { std::mem::transmute(result) };
+
+        let Some(result) = pattern_search_module(&qzeroded_maps, &QuakeLiveFunction::SV_Map_f) else {
+            debug_println!(format!(
+                "Function {} not found",
+                &QuakeLiveFunction::SV_Map_f
+            ));
+            return Err(QuakeLiveEngineError::StaticFunctionNotFound(QuakeLiveFunction::SV_Map_f));
+        };
+        debug_println!(format!("{}: {:#X}", &QuakeLiveFunction::SV_Map_f, result));
+        let sv_map_f_orig = unsafe { std::mem::transmute(result) };
+
+        let Some(result) =
+            pattern_search_module(&qzeroded_maps, &QuakeLiveFunction::SV_ClientEnterWorld)
+        else {
+            debug_println!(format!(
+                "Function {} not found",
+                &QuakeLiveFunction::SV_ClientEnterWorld
+            ));
+            return Err(QuakeLiveEngineError::StaticFunctionNotFound(QuakeLiveFunction::SV_ClientEnterWorld));
+        };
+        debug_println!(format!(
+            "{}: {:#X}",
+            &QuakeLiveFunction::SV_ClientEnterWorld,
+            result
+        ));
+        let sv_cliententerworld_orig = unsafe { std::mem::transmute(result) };
+
+        let Some(result) =
+            pattern_search_module(&qzeroded_maps, &QuakeLiveFunction::SV_SetConfigstring)
+            else {
+            debug_println!(format!(
+                "Function {} not found",
+                &QuakeLiveFunction::SV_SetConfigstring
+            ));
+            return Err(QuakeLiveEngineError::StaticFunctionNotFound(QuakeLiveFunction::SV_SetConfigstring));
+        };
+        debug_println!(format!(
+            "{}: {:#X}",
+            &QuakeLiveFunction::SV_SetConfigstring,
+            result
+        ));
+        let sv_setconfigstring_orig = unsafe { std::mem::transmute(result) };
+
+        let Some(result) =
+            pattern_search_module(&qzeroded_maps, &QuakeLiveFunction::SV_GetConfigstring)
+        else {
+            debug_println!(format!(
+                "Function {} not found",
+                &QuakeLiveFunction::SV_GetConfigstring
+            ));
+            return Err(QuakeLiveEngineError::StaticFunctionNotFound(QuakeLiveFunction::SV_GetConfigstring));
+        };
+        debug_println!(format!(
+            "{}: {:#X}",
+            &QuakeLiveFunction::SV_GetConfigstring,
+            result
+        ));
+        let sv_getconfigstring_orig = unsafe { std::mem::transmute(result) };
+
+        let Some(result) = pattern_search_module(&qzeroded_maps, &QuakeLiveFunction::SV_DropClient)
+        else {
+            debug_println!(format!(
+                "Function {} not found",
+                &QuakeLiveFunction::SV_DropClient
+            ));
+            return Err(QuakeLiveEngineError::StaticFunctionNotFound(QuakeLiveFunction::SV_DropClient));
+        };
+        debug_println!(format!(
+            "{}: {:#X}",
+            &QuakeLiveFunction::SV_DropClient,
+            result
+        ));
+        let sv_dropclient_orig = unsafe { std::mem::transmute(result) };
+
+        let Some(result) =
+            pattern_search_module(&qzeroded_maps, &QuakeLiveFunction::Sys_SetModuleOffset)
+        else {
+            debug_println!(format!(
+                "Function {} not found",
+                &QuakeLiveFunction::Sys_SetModuleOffset
+            ));
+            return Err(QuakeLiveEngineError::StaticFunctionNotFound(QuakeLiveFunction::Sys_SetModuleOffset));
+        };
+        debug_println!(format!(
+            "{}: {:#X}",
+            &QuakeLiveFunction::Sys_SetModuleOffset,
+            result
+        ));
+        let sys_setmoduleoffset_orig = unsafe { std::mem::transmute(result) };
+
+        let Some(result) = pattern_search_module(&qzeroded_maps, &QuakeLiveFunction::SV_SpawnServer)
+        else {
+            debug_println!(format!(
+                "Function {} not found",
+                &QuakeLiveFunction::SV_SpawnServer
+            ));
+            return Err(QuakeLiveEngineError::StaticFunctionNotFound(QuakeLiveFunction::SV_SpawnServer));
+        };
+        debug_println!(format!(
+            "{}: {:#X}",
+            &QuakeLiveFunction::SV_SpawnServer,
+            result
+        ));
+        let sv_spawnserver_orig = unsafe { std::mem::transmute(result) };
+
+        let Some(result) = pattern_search_module(&qzeroded_maps, &QuakeLiveFunction::Cmd_ExecuteString)
+        else {
+            debug_println!(format!(
+                "Function {} not found",
+                &QuakeLiveFunction::Cmd_ExecuteString
+            ));
+            return Err(QuakeLiveEngineError::StaticFunctionNotFound(QuakeLiveFunction::Cmd_ExecuteString));
+        };
+        debug_println!(format!(
+            "{}: {:#X}",
+            &QuakeLiveFunction::Cmd_ExecuteString,
+            result
+        ));
+        let cmd_executestring_orig = unsafe { std::mem::transmute(result) };
+
+        // Cmd_Argc is really small, making it hard to search for, so we use a reference to it instead.
+        let base_address =
+            unsafe { std::ptr::read_unaligned((sv_map_f_orig as usize + 0x81) as *const i32) };
+        #[allow(clippy::fn_to_numeric_cast_with_truncation)]
+        let cmd_argc_ptr = base_address + sv_map_f_orig as i32 + 0x81 + 4;
+        debug_println!(format!(
+            "{}: {:#X}",
+            QuakeLiveFunction::Cmd_Argc,
+            cmd_argc_ptr
+        ));
+        let cmd_argc_orig = unsafe { std::mem::transmute(cmd_argc_ptr as u64) };
+
+        self.static_functions
+            .set(StaticFunctions {
+                com_printf_orig,
+                cmd_addcommand_orig,
+                cmd_args_orig,
+                cmd_argv_orig,
+                cmd_tokenizestring_orig,
+                cbuf_executetext_orig,
+                cvar_findvar_orig,
+                cvar_get_orig,
+                cvar_getlimit_orig,
+                cvar_set2_orig,
+                sv_sendservercommand_orig,
+                sv_executeclientcommand_orig,
+                sv_shutdown_orig,
+                sv_map_f_orig,
+                sv_cliententerworld_orig,
+                sv_setconfigstring_orig,
+                sv_getconfigstring_orig,
+                sv_dropclient_orig,
+                sys_setmoduleoffset_orig,
+                sv_spawnserver_orig,
+                cmd_executestring_orig,
+                cmd_argc_orig,
+            })
+            .unwrap();
+
+        Ok(())
+    }
+
+    pub(crate) fn hook_static(&self) -> Result<(), QuakeLiveEngineError> {
+        debug_println!("Hooking...");
+        let Ok(cmd_addcommand_orig) = self.cmd_addcommand_orig() else {
+            return Err(QuakeLiveEngineError::StaticFunctionNotFound(
+                QuakeLiveFunction::Cmd_AddCommand,
+            ));
+        };
+        let cmd_addcommand_detour = unsafe {
+            GenericDetour::new(cmd_addcommand_orig, shinqlx_cmd_addcommand).map_err(|_| {
+                QuakeLiveEngineError::StaticDetourCouldNotBeCreated(
+                    QuakeLiveFunction::Cmd_AddCommand,
+                )
+            })?
+        };
+        unsafe {
+            cmd_addcommand_detour.enable().map_err(|_| {
+                QuakeLiveEngineError::StaticDetourCouldNotBeEnabled(
+                    QuakeLiveFunction::Cmd_AddCommand,
+                )
+            })?
+        };
+
+        let Ok(sys_setmoduleoffset_orig) = self.sys_setmoduleoffset_orig() else {
+            return Err(QuakeLiveEngineError::StaticFunctionNotFound(
+                QuakeLiveFunction::Sys_SetModuleOffset,
+            ));
+        };
+        let sys_setmoduleoffset_detour = unsafe {
+            GenericDetour::new(sys_setmoduleoffset_orig, shinqlx_sys_setmoduleoffset).map_err(
+                |_| {
+                    QuakeLiveEngineError::StaticDetourCouldNotBeCreated(
+                        QuakeLiveFunction::Sys_SetModuleOffset,
+                    )
+                },
+            )?
+        };
+        unsafe {
+            sys_setmoduleoffset_detour.enable().map_err(|_| {
+                QuakeLiveEngineError::StaticDetourCouldNotBeEnabled(
+                    QuakeLiveFunction::Cmd_AddCommand,
+                )
+            })?
+        };
+
+        let Ok(sv_executeclientcommand_orig) = self.sv_executeclientcommand_orig() else {
+            return Err(QuakeLiveEngineError::StaticFunctionNotFound(
+                QuakeLiveFunction::SV_ExecuteClientCommand,
+            ));
+        };
+        let sv_executeclientcommand_detour = unsafe {
+            GenericDetour::new(
+                sv_executeclientcommand_orig,
+                shinqlx_sv_executeclientcommand,
+            )
+            .map_err(|_| {
+                QuakeLiveEngineError::StaticDetourCouldNotBeCreated(
+                    QuakeLiveFunction::SV_ExecuteClientCommand,
+                )
+            })?
+        };
+        unsafe {
+            sv_executeclientcommand_detour.enable().map_err(|_| {
+                QuakeLiveEngineError::StaticDetourCouldNotBeEnabled(
+                    QuakeLiveFunction::SV_ExecuteClientCommand,
+                )
+            })?
+        };
+
+        let Ok(sv_cliententerworld_orig) = self.sv_cliententerworld_orig() else {
+            return Err(QuakeLiveEngineError::StaticFunctionNotFound(
+                QuakeLiveFunction::SV_ClientEnterWorld,
+            ));
+        };
+        let sv_cliententerworld_detour = unsafe {
+            GenericDetour::new(sv_cliententerworld_orig, shinqlx_sv_cliententerworld).map_err(
+                |_| {
+                    QuakeLiveEngineError::StaticDetourCouldNotBeCreated(
+                        QuakeLiveFunction::SV_ClientEnterWorld,
+                    )
+                },
+            )?
+        };
+        unsafe {
+            sv_cliententerworld_detour.enable().map_err(|_| {
+                QuakeLiveEngineError::StaticDetourCouldNotBeEnabled(
+                    QuakeLiveFunction::SV_ClientEnterWorld,
+                )
+            })?
+        };
+
+        let Ok(sv_sendservercommand_orig) = self.sv_sendservercommand_orig() else {
+            return Err(QuakeLiveEngineError::StaticFunctionNotFound(
+                QuakeLiveFunction::SV_SendServerCommand,
+            ));
+        };
+        let sv_sendservercommand_detour = unsafe {
+            RawDetour::new(
+                sv_sendservercommand_orig as *const (),
+                ShiNQlx_SV_SendServerCommand as *const (),
+            )
+            .map_err(|_| {
+                QuakeLiveEngineError::StaticDetourCouldNotBeCreated(
+                    QuakeLiveFunction::SV_SendServerCommand,
+                )
+            })?
+        };
+        unsafe {
+            sv_sendservercommand_detour.enable().map_err(|_| {
+                QuakeLiveEngineError::StaticDetourCouldNotBeEnabled(
+                    QuakeLiveFunction::SV_SendServerCommand,
+                )
+            })?
+        };
+
+        let Ok(sv_setconfigstring_orig) = self.sv_setconfigstring_orig() else {
+            return Err(QuakeLiveEngineError::StaticFunctionNotFound(
+                QuakeLiveFunction::SV_SetConfigstring,
+            ));
+        };
+        let sv_setconfgistring_detour = unsafe {
+            GenericDetour::new(sv_setconfigstring_orig, shinqlx_sv_setconfigstring).map_err(
+                |_| {
+                    QuakeLiveEngineError::StaticDetourCouldNotBeCreated(
+                        QuakeLiveFunction::SV_SetConfigstring,
+                    )
+                },
+            )?
+        };
+        unsafe {
+            sv_setconfgistring_detour.enable().map_err(|_| {
+                QuakeLiveEngineError::StaticDetourCouldNotBeEnabled(
+                    QuakeLiveFunction::SV_SetConfigstring,
+                )
+            })?
+        };
+
+        let Ok(sv_dropclient_orig) = self.sv_dropclient_orig() else {
+            return Err(QuakeLiveEngineError::StaticFunctionNotFound(
+                QuakeLiveFunction::SV_SetConfigstring,
+            ));
+        };
+        let sv_dropclient_detour = unsafe {
+            GenericDetour::new(sv_dropclient_orig, shinqlx_sv_dropclient).map_err(|_| {
+                QuakeLiveEngineError::StaticDetourCouldNotBeCreated(
+                    QuakeLiveFunction::SV_DropClient,
+                )
+            })?
+        };
+        unsafe {
+            sv_dropclient_detour.enable().map_err(|_| {
+                QuakeLiveEngineError::StaticDetourCouldNotBeEnabled(
+                    QuakeLiveFunction::SV_DropClient,
+                )
+            })?
+        };
+
+        let Ok(com_printf_orig) = self.com_printf_orig() else {
+            return Err(QuakeLiveEngineError::StaticFunctionNotFound(
+                QuakeLiveFunction::Com_Printf,
+            ));
+        };
+        let com_printf_detour = unsafe {
+            RawDetour::new(
+                com_printf_orig as *const (),
+                ShiNQlx_Com_Printf as *const (),
+            )
+            .map_err(|_| {
+                QuakeLiveEngineError::StaticDetourCouldNotBeCreated(QuakeLiveFunction::Com_Printf)
+            })?
+        };
+        unsafe {
+            com_printf_detour.enable().map_err(|_| {
+                QuakeLiveEngineError::StaticDetourCouldNotBeEnabled(QuakeLiveFunction::Com_Printf)
+            })?
+        };
+
+        let Ok(original_func) = self.sv_spawnserver_orig() else {
+            return Err(QuakeLiveEngineError::StaticFunctionNotFound(
+                QuakeLiveFunction::SV_SpawnServer,
+            ));
+        };
+        let sv_spawnserver_detour = unsafe {
+            GenericDetour::new(original_func, shinqlx_sv_spawnserver).map_err(|_| {
+                QuakeLiveEngineError::StaticDetourCouldNotBeCreated(
+                    QuakeLiveFunction::SV_SpawnServer,
+                )
+            })?
+        };
+        unsafe {
+            sv_spawnserver_detour.enable().map_err(|_| {
+                QuakeLiveEngineError::StaticDetourCouldNotBeEnabled(
+                    QuakeLiveFunction::SV_SpawnServer,
+                )
+            })?
+        };
+
+        self.static_detours
+            .set(StaticDetours {
+                cmd_addcommand_detour,
+                sys_setmoduleoffset_detour,
+                sv_executeclientcommand_detour,
+                sv_cliententerworld_detour,
+                sv_setconfgistring_detour,
+                sv_dropclient_detour,
+                sv_spawnserver_detour,
+                sv_sendservercommand_detour,
+                com_printf_detour,
+            })
+            .unwrap();
+
+        Ok(())
+    }
+
+    pub(crate) fn set_tag(&self) {
+        let Some(sv_tags) = self.find_cvar("sv_tags") else {
+            return;
+        };
+
+        let sv_tags_string = sv_tags.get_string();
+
+        if sv_tags_string.split(',').any(|x| x == SV_TAGS_PREFIX) {
+            return;
+        }
+
+        let new_tags = if sv_tags_string.len() > 2 {
+            format!("{},{}", SV_TAGS_PREFIX, sv_tags_string)
+        } else {
+            format!("{}", SV_TAGS_PREFIX)
+        };
+        self.set_cvar_forced("sv_tags", new_tags.as_str(), false);
+    }
+
+    // Called after the game is initialized.
+    pub(crate) fn initialize_cvars(&self) {
+        let Some(maxclients) = self.find_cvar("sv_maxclients") else {
+            return;
+        };
+
+        self.sv_maxclients
+            .store(maxclients.get_integer(), Ordering::Relaxed);
+    }
+
+    pub(crate) fn get_max_clients(&self) -> i32 {
+        self.sv_maxclients.load(Ordering::Relaxed)
+    }
+
+    // Currently called by My_Cmd_AddCommand(), since it's called at a point where we
+    // can safely do whatever we do below. It'll segfault if we do it at the entry
+    // point, since functions like Cmd_AddCommand need initialization first.
+    pub(crate) fn initialize_static(&self) {
+        debug_println!("Initializing...");
+        self.add_command("cmd", cmd_send_server_command);
+        self.add_command("cp", cmd_center_print);
+        self.add_command("print", cmd_regular_print);
+        self.add_command("slap", cmd_slap);
+        self.add_command("slay", cmd_slay);
+        self.add_command("qlx", cmd_py_rcon);
+        self.add_command("pycmd", cmd_py_command);
+        self.add_command("pyrestart", cmd_restart_python);
+
+        let res = pyminqlx_initialize();
+
+        if res != PYM_SUCCESS {
+            debug_println!("Python initialization failed.");
+            panic!("Python initialization failed.");
+        }
+
+        self.common_initialized.set(true).unwrap();
+    }
+
+    pub(crate) fn is_common_initialized(&self) -> bool {
+        self.common_initialized
+            .get()
+            .is_some_and(|is_initialized| is_initialized)
+    }
+
+    pub(crate) fn initialize_vm(&self, module_offset: usize) -> Result<(), QuakeLiveEngineError> {
+        self.search_vm_functions(module_offset)?;
+        self.current_vm.store(module_offset, Ordering::SeqCst);
+
+        self.hook_vm()?;
+        self.patch_vm();
+
+        self.clean_up_pending_detours();
+        Ok(())
+    }
+
+    fn search_vm_functions(&self, module_offset: usize) -> Result<(), QuakeLiveEngineError> {
+        let qagame_os_str = OsStr::new(QAGAME);
+        let Ok(myself_process) = Process::myself() else {
+            return Err(QuakeLiveEngineError::ProcessNotFound("could not find my own process\n".into()));
+        };
+        let Ok(myself_maps) = myself_process.maps() else {
+            return Err(QuakeLiveEngineError::NoMemoryMappingInformationFound("no memory mapping information found\n".into()));
+        };
+        let qagame_maps: Vec<&MemoryMap> = myself_maps
+            .memory_maps
+            .iter()
+            .filter(|mmap| {
+                if let MMapPath::Path(path) = &mmap.pathname {
+                    path.file_name() == Some(qagame_os_str)
+                } else {
+                    false
+                }
+            })
+            .collect();
+
+        debug_println!("Searching for necessary VM functions...");
+        for (ql_func, field) in [
+            (
+                QuakeLiveFunction::G_AddEvent,
+                &self.vm_functions.g_addevent_orig,
+            ),
+            (
+                QuakeLiveFunction::CheckPrivileges,
+                &self.vm_functions.check_privileges_orig,
+            ),
+            (
+                QuakeLiveFunction::ClientConnect,
+                &self.vm_functions.client_connect_orig,
+            ),
+            (
+                QuakeLiveFunction::ClientSpawn,
+                &self.vm_functions.client_spawn_orig,
+            ),
+            (
+                QuakeLiveFunction::G_Damage,
+                &self.vm_functions.g_damage_orig,
+            ),
+            (
+                QuakeLiveFunction::Touch_Item,
+                &self.vm_functions.touch_item_orig,
+            ),
+            (
+                QuakeLiveFunction::LaunchItem,
+                &self.vm_functions.launch_item_orig,
+            ),
+            (
+                QuakeLiveFunction::Drop_Item,
+                &self.vm_functions.drop_item_orig,
+            ),
+            (
+                QuakeLiveFunction::G_StartKamikaze,
+                &self.vm_functions.g_start_kamikaze_orig,
+            ),
+            (
+                QuakeLiveFunction::G_FreeEntity,
+                &self.vm_functions.g_free_entity_orig,
+            ),
+            (
+                QuakeLiveFunction::Cmd_Callvote_f,
+                &self.vm_functions.cmd_callvote_f_orig,
+            ),
+        ] {
+            let Some(orig_func) =
+                pattern_search_module(&qagame_maps, &ql_func)
+            else {
+                return Err(QuakeLiveEngineError::VmFunctionNotFound(ql_func))
+        };
+            debug_println!(format!("{}: {:#X}", &ql_func, orig_func));
+            field.store(orig_func, Ordering::SeqCst);
+        }
+
+        let base_address =
+            unsafe { std::ptr::read_unaligned((module_offset as u64 + 0x3) as *const i32) };
+        let vm_call_table = base_address as usize + module_offset + 0x3 + 4;
+        self.vm_functions
+            .vm_call_table
+            .store(vm_call_table, Ordering::SeqCst);
+
+        let g_initgame_orig = unsafe {
+            std::ptr::read(
+                (vm_call_table + 0x18) as *const *const extern "C" fn(c_int, c_int, c_int),
+            )
+        };
+        debug_println!(format!("G_InitGame: {:#X}", g_initgame_orig as usize));
+        self.vm_functions
+            .g_init_game_orig
+            .store(g_initgame_orig as usize, Ordering::SeqCst);
+
+        let g_shutdowngame_orig = unsafe {
+            std::ptr::read_unaligned(vm_call_table as *const *const extern "C" fn(c_int))
+        };
+        debug_println!(format!(
+            "G_ShutdownGame: {:#X}",
+            g_shutdowngame_orig as usize
+        ));
+        self.vm_functions
+            .g_shutdown_game_orig
+            .store(g_shutdowngame_orig as usize, Ordering::SeqCst);
+
+        let g_runframe_orig =
+            unsafe { std::ptr::read((vm_call_table + 0x8) as *const *const extern "C" fn(c_int)) };
+        debug_println!(format!("G_RunFrame: {:#X}", g_runframe_orig as usize));
+        self.vm_functions
+            .g_run_frame_orig
+            .store(g_runframe_orig as usize, Ordering::SeqCst);
+
+        Ok(())
+    }
+
+    fn clean_up_pending_detours(&self) {
+        {
+            let Ok(mut pending_client_connect_lock) = self.pending_client_connect_detour.write() else {
+                debug_println!("pending ClientConnect detour poisoned. Exiting.");
+                return;
+            };
+
+            while (*pending_client_connect_lock).len()
+                >= (*pending_client_connect_lock).capacity() - 2
+            {
+                let Some(detour) = (*pending_client_connect_lock).pop_front() else {
+                    continue;
+                };
+                #[cfg(debug_assertions)]
+                debug_println!("Trying to drop pending ClientConnect detour");
+                std::mem::drop(detour);
+                #[cfg(debug_assertions)]
+                debug_println!("Detour dropped sucessfully");
+            }
+        }
+
+        {
+            let Ok(mut pending_client_spawn_lock) = self.pending_client_spawn_detours.write() else {
+                debug_println!("pending ClientSpawn detour poisoned. Exiting.");
+                return;
+            };
+
+            while (*pending_client_spawn_lock).len() >= (*pending_client_spawn_lock).capacity() - 2
+            {
+                let Some(detour) = (*pending_client_spawn_lock).pop_front() else {
+                    continue;
+                };
+                #[cfg(debug_assertions)]
+                debug_println!("Trying to drop pending ClientSpawn detour");
+                std::mem::drop(detour);
+                #[cfg(debug_assertions)]
+                debug_println!("Detour dropped sucessfully");
+            }
+        }
+
+        {
+            let Ok(mut pending_g_damage_lock) = self.pending_g_damage_detour.write() else {
+                debug_println!("pending G_Damage detour poisoned. Exiting.");
+                return;
+            };
+
+            while (*pending_g_damage_lock).len() >= (*pending_g_damage_lock).capacity() - 2 {
+                let Some(detour) = (*pending_g_damage_lock).pop_front() else {
+                    continue;
+                };
+                #[cfg(debug_assertions)]
+                debug_println!("Trying to drop pending G_Damage detour");
+                std::mem::drop(detour);
+                #[cfg(debug_assertions)]
+                debug_println!("Detour dropped sucessfully");
+            }
+        }
+
+        #[cfg(debug_assertions)]
+        {
+            let Ok(mut pending_g_start_kamikaze_lock) = self.pending_g_start_kamikaze_detour.write() else {
+                debug_println!("pending G_STartKamikaze detour poisoned. Exiting.");
+                return;
+            };
+
+            while (*pending_g_start_kamikaze_lock).len()
+                >= (*pending_g_start_kamikaze_lock).capacity() - 2
+            {
+                let Some(detour) = (*pending_g_start_kamikaze_lock).pop_front() else {
+                    continue;
+                };
+                #[cfg(debug_assertions)]
+                debug_println!("Trying to drop pending G_StartKamikaze detour");
+                std::mem::drop(detour);
+                #[cfg(debug_assertions)]
+                debug_println!("Detour dropped sucessfully");
+            }
+        }
+    }
+
+    pub(crate) fn unhook_vm(&self) {
+        if self.vm_functions.client_connect_detour.is_poisoned() {
+            debug_println!("ClientConnect detour poisoned. Exiting.");
+            return;
+        }
+
+        if self.vm_functions.g_start_kamikaze_detour.is_poisoned() {
+            debug_println!("G_StartKamikaze detour poisoned. Exiting.");
+            return;
+        }
+
+        if self.vm_functions.client_spawn_detour.is_poisoned() {
+            debug_println!("ClientSpawn detour poisoned. Exiting.");
+            return;
+        }
+
+        if self.vm_functions.g_damage_detour.is_poisoned() {
+            debug_println!("G_Damage detour poisoned. Exiting.");
+            return;
+        }
+
+        {
+            if let Ok(mut client_connect_lock) = self.vm_functions.client_connect_detour.write() {
+                if let Some(client_connect_detour) = (*client_connect_lock).take() {
+                    if client_connect_detour.is_enabled() {
+                        if let Err(e) = unsafe { client_connect_detour.disable() } {
+                            debug_println!(format!(
+                                "error when disabling ClientConnect detour: {}",
+                                e
+                            ));
+                        }
+                    }
+                    if let Ok(mut pending_client_connect_lock) =
+                        self.pending_client_connect_detour.write()
+                    {
+                        (*pending_client_connect_lock).push_back(client_connect_detour);
+                    }
+                }
+            }
+        }
+
+        {
+            if let Ok(mut client_spawn_lock) = self.vm_functions.client_spawn_detour.write() {
+                if let Some(client_spawn_detour) = (*client_spawn_lock).take() {
+                    if client_spawn_detour.is_enabled() {
+                        if let Err(e) = unsafe { client_spawn_detour.disable() } {
+                            debug_println!(format!(
+                                "error when disabling ClientSpawn detour: {}",
+                                e
+                            ));
+                        }
+                    }
+                    if let Ok(mut pending_client_spawn_lock) =
+                        self.pending_client_spawn_detours.write()
+                    {
+                        (*pending_client_spawn_lock).push_back(client_spawn_detour);
+                    }
+                }
+            }
+        }
+
+        {
+            if let Ok(mut g_start_kamikaze_lock) = self.vm_functions.g_start_kamikaze_detour.write()
+            {
+                if let Some(g_start_kamikaze_detour) = (*g_start_kamikaze_lock).take() {
+                    if g_start_kamikaze_detour.is_enabled() {
+                        if let Err(e) = unsafe { g_start_kamikaze_detour.disable() } {
+                            debug_println!(format!(
+                                "error when disabling G_StartKamikaze detour: {}",
+                                e
+                            ));
+                        }
+                    }
+                    if let Ok(mut pending_g_start_kamikaze_lock) =
+                        self.pending_g_start_kamikaze_detour.write()
+                    {
+                        (*pending_g_start_kamikaze_lock).push_back(g_start_kamikaze_detour);
+                    }
+                }
+            }
+        }
+
+        {
+            if let Ok(mut g_damage_lock) = self.vm_functions.g_damage_detour.write() {
+                if let Some(g_damage_detour) = (*g_damage_lock).take() {
+                    if g_damage_detour.is_enabled() {
+                        if let Err(e) = unsafe { g_damage_detour.disable() } {
+                            debug_println!(format!("error when disabling G_Damage detour: {}", e));
+                        }
+                    }
+                    if let Ok(mut pending_g_danage_lock) = self.pending_g_damage_detour.write() {
+                        (*pending_g_danage_lock).push_back(g_damage_detour);
+                    }
+                }
+            }
+        }
+    }
+
+    /*
+     * Hooks VM calls. Not all use Hook, since the VM calls are stored in a table of
+     * pointers. We simply set our function pointer to the current pointer in the table and
+     * then replace the it with our replacement function. Just like hooking a VMT.
+     *
+     * This must be called AFTER Sys_SetModuleOffset, since Sys_SetModuleOffset is called after
+     * the VM DLL has been loaded, meaning the pointer we use has been set.
+     *
+     * PROTIP: If you can, ALWAYS use VM_Call table hooks instead of using Hook().
+     */
+    fn hook_vm(&self) -> Result<(), QuakeLiveEngineError> {
+        let current_offset = self.current_vm.load(Ordering::SeqCst);
+        if current_offset == 0 {
+            return Err(QuakeLiveEngineError::VmNotInitialized(current_offset));
+        }
+
+        let vm_call_table = self.vm_functions.vm_call_table.load(Ordering::SeqCst);
+
+        debug_println!("Hooking VM functions...");
+        unsafe {
+            std::ptr::write(
+                (vm_call_table + 0x18) as *mut usize,
+                ShiNQlx_G_InitGame as usize,
+            );
+        }
+
+        unsafe {
+            std::ptr::write(
+                (vm_call_table + 0x8) as *mut usize,
+                ShiNQlx_G_RunFrame as usize,
+            );
+        }
+
+        unsafe {
+            std::ptr::write(vm_call_table as *mut usize, ShiNQlx_G_ShutdownGame as usize);
+        }
+
+        let client_connect_orig = self.vm_functions.client_connect_orig.load(Ordering::SeqCst);
+        let client_connect_func = unsafe { std::mem::transmute(client_connect_orig) };
+        {
+            let Ok(mut guard) = self.vm_functions.client_connect_detour.write() else {
+                debug_println!("ClientConnect detour was poisoned. Exiting.");
+                panic!("ClientConnect detour was poisoned. Exiting.");
+            };
+            if let Some(existing_client_connect_detour) = (*guard).take() {
+                if existing_client_connect_detour.is_enabled() {
+                    if let Err(e) = unsafe { existing_client_connect_detour.disable() } {
+                        debug_println!(format!("error when disabling ClientConnect detour: {}", e));
+                    }
+                }
+                if let Ok(mut pending_client_connect_lock) =
+                    self.pending_client_connect_detour.write()
+                {
+                    (*pending_client_connect_lock).push_back(existing_client_connect_detour);
+                }
+            }
+            let Ok(client_connect_detour) = (unsafe {
+                ClientConnectDetourType::new(
+                    client_connect_func,
+                    ShiNQlx_ClientConnect,
+                )
+            }) else {
+                debug_println!("Error hooking into ClientConnect");
+                return Err(QuakeLiveEngineError::VmDetourCouldNotBeCreated(
+                    QuakeLiveFunction::ClientConnect,
+                ));
+            };
+            if unsafe { client_connect_detour.enable() }.is_err() {
+                debug_println!("Error enabling ClientConnect hook");
+                return Err(QuakeLiveEngineError::VmDetourCouldNotBeEnabled(
+                    QuakeLiveFunction::ClientConnect,
+                ));
+            }
+            *guard = Some(client_connect_detour);
+        }
+        let g_start_kamikaze_orig = self
+            .vm_functions
+            .g_start_kamikaze_orig
+            .load(Ordering::SeqCst);
+        {
+            let Ok(mut guard) = self.vm_functions.g_start_kamikaze_detour.write() else {
+                debug_println!("G_StartKamikaze detour was poisoned. Exiting.");
+                panic!("G_StartKamikaze detour was poisoned. Exiting.");
+            };
+            if let Some(existing_g_start_kamikaze_detour) = (*guard).take() {
+                if existing_g_start_kamikaze_detour.is_enabled() {
+                    if let Err(e) = unsafe { existing_g_start_kamikaze_detour.disable() } {
+                        debug_println!(format!(
+                            "error when disabling G_StartKamikaze detour: {}",
+                            e
+                        ));
+                    }
+                }
+                if let Ok(mut pending_g_start_kamikaze_lock) =
+                    self.pending_g_start_kamikaze_detour.write()
+                {
+                    (*pending_g_start_kamikaze_lock).push_back(existing_g_start_kamikaze_detour);
+                }
+            }
+            let g_start_kamikaze_func = unsafe { std::mem::transmute(g_start_kamikaze_orig) };
+            let Ok(g_start_kamikaze_detour) =
+                (unsafe { GStartKamikazeDetourType::new(g_start_kamikaze_func, ShiNQlx_G_StartKamikaze) }) else {
+                debug_println!("Error hooking into G_StartKamize");
+                return Err(QuakeLiveEngineError::VmDetourCouldNotBeCreated(
+                    QuakeLiveFunction::G_StartKamikaze,
+                ));
+            };
+            if unsafe { g_start_kamikaze_detour.enable() }.is_err() {
+                debug_println!("Error enabling G_StartKamikaze hook");
+                return Err(QuakeLiveEngineError::VmDetourCouldNotBeEnabled(
+                    QuakeLiveFunction::G_StartKamikaze,
+                ));
+            };
+            *guard = Some(g_start_kamikaze_detour);
+        }
+
+        let client_spawn_orig = self.vm_functions.client_spawn_orig.load(Ordering::SeqCst);
+        let client_spawn_func = unsafe { std::mem::transmute(client_spawn_orig) };
+        {
+            let Ok(mut guard) = self.vm_functions.client_spawn_detour.write() else {
+                debug_println!("ClientSpawn detour was poisoned. Exiting.");
+                panic!("ClientSpawn detour was poisoned. Exiting.");
+            };
+            if let Some(existing_client_spawn_detour) = (*guard).take() {
+                if existing_client_spawn_detour.is_enabled() {
+                    if let Err(e) = unsafe { existing_client_spawn_detour.disable() } {
+                        debug_println!(format!("error when disabling ClientSpawn detour: {}", e));
+                    }
+                }
+                if let Ok(mut pending_client_spawn_lock) = self.pending_client_spawn_detours.write()
+                {
+                    (*pending_client_spawn_lock).push_back(existing_client_spawn_detour);
+                }
+            }
+            let Ok(client_spawn_detour) = (
+            unsafe { ClientSpawnDetourType::new(client_spawn_func, ShiNQlx_ClientSpawn) }) else {
+                debug_println!("Error hooking into ClientSpawn");
+                return Err(QuakeLiveEngineError::VmDetourCouldNotBeCreated(
+                    QuakeLiveFunction::ClientSpawn,
+                ));
+            };
+            if unsafe { client_spawn_detour.enable() }.is_err() {
+                debug_println!("Error enabling ClientSpawn hook");
+                return Err(QuakeLiveEngineError::VmDetourCouldNotBeEnabled(
+                    QuakeLiveFunction::ClientSpawn,
+                ));
+            }
+            *guard = Some(client_spawn_detour);
+        }
+
+        let g_damage_orig = self.vm_functions.g_damage_orig.load(Ordering::SeqCst);
+        {
+            let Ok(mut guard) = self.vm_functions.g_damage_detour.write() else {
+                debug_println!("G_Damage detour was posioned. Exiting.");
+                panic!("G_Damage detour was posioned. Exiting.");
+            };
+            if let Some(existing_g_damage_detour) = (*guard).take() {
+                if existing_g_damage_detour.is_enabled() {
+                    if let Err(e) = unsafe { existing_g_damage_detour.disable() } {
+                        debug_println!(format!("error when disabling G_Damage detour: {}", e));
+                    }
+                }
+                if let Ok(mut pending_g_damage_lock) = self.pending_g_damage_detour.write() {
+                    (*pending_g_damage_lock).push_back(existing_g_damage_detour);
+                }
+            }
+            let Ok(g_damage_detour) =
+            (unsafe { GDamageDetourType::new(g_damage_orig as *const (), ShiNQlx_G_Damage as *const ()) }) else {
+                debug_println!("Error hooking into G_Damage");
+                return Err(QuakeLiveEngineError::VmDetourCouldNotBeCreated(
+                    QuakeLiveFunction::G_Damage,
+                ));
+            };
+            if unsafe { g_damage_detour.enable() }.is_err() {
+                debug_println!("Error enabling G_Damage hook");
+                return Err(QuakeLiveEngineError::VmDetourCouldNotBeEnabled(
+                    QuakeLiveFunction::G_Damage,
+                ));
+            }
+            *guard = Some(g_damage_detour);
+        }
+
+        #[cfg(debug_assertions)]
+        self.print_pending_detour_sizes();
+
+        Ok(())
+    }
+
+    fn print_pending_detour_sizes(&self) {
+        if let Ok(pending_client_connect) = self.pending_client_connect_detour.read() {
+            debug_println!(format!(
+                "pending ClientConnect detours: {}",
+                (*pending_client_connect).len()
+            ));
+        }
+
+        if let Ok(pending_client_spawn) = self.pending_client_spawn_detours.read() {
+            debug_println!(format!(
+                "pending ClientSpawn detours: {}",
+                (*pending_client_spawn).len()
+            ));
+        }
+
+        if let Ok(pending_g_start_kamikaze) = self.pending_g_start_kamikaze_detour.read() {
+            debug_println!(format!(
+                "pending G_StartKamikaze detours: {}",
+                (*pending_g_start_kamikaze).len()
+            ));
+        }
+
+        if let Ok(pending_g_damage) = self.pending_g_damage_detour.read() {
+            debug_println!(format!(
+                "pending G_Damage detours: {}",
+                (*pending_g_damage).len()
+            ));
+        }
+    }
+
+    fn patch_vm(&self) {
+        let cmd_callvote_f_orig = self.vm_functions.cmd_callvote_f_orig.load(Ordering::SeqCst);
+        if cmd_callvote_f_orig == 0 {
+            return;
+        }
+
+        patch_callvote_f(cmd_callvote_f_orig);
+    }
+
+    fn com_printf_orig(&self) -> Result<extern "C" fn(*const c_char, ...), QuakeLiveEngineError> {
+        let Some(static_functions) = self.static_functions.get() else {
+            return Err(QuakeLiveEngineError::StaticFunctionNotFound(QuakeLiveFunction::Com_Printf));
+        };
+        Ok(static_functions.com_printf_orig)
+    }
+
+    fn cmd_addcommand_orig(
+        &self,
+    ) -> Result<fn(*const c_char, unsafe extern "C" fn()), QuakeLiveEngineError> {
+        let Some(static_functions) = self.static_functions.get() else {
+            return Err(QuakeLiveEngineError::StaticFunctionNotFound(QuakeLiveFunction::Cmd_AddCommand));
+        };
+        Ok(static_functions.cmd_addcommand_orig)
+    }
+
+    fn cmd_args_orig(&self) -> Result<fn() -> *const c_char, QuakeLiveEngineError> {
+        let Some(static_functions) = self.static_functions.get() else {
+            return Err(QuakeLiveEngineError::StaticFunctionNotFound(QuakeLiveFunction::Cmd_Args));
+        };
+        Ok(static_functions.cmd_args_orig)
+    }
+
+    fn cmd_argv_orig(&self) -> Result<fn(c_int) -> *const c_char, QuakeLiveEngineError> {
+        let Some(static_functions) = self.static_functions.get() else {
+            return Err(QuakeLiveEngineError::StaticFunctionNotFound(QuakeLiveFunction::Cmd_Argv));
+        };
+        Ok(static_functions.cmd_argv_orig)
+    }
+
+    #[allow(dead_code)]
+    fn cmd_tokenizestring_orig(&self) -> Result<fn(*const c_char), QuakeLiveEngineError> {
+        let Some(static_functions) = self.static_functions.get() else {
+            return Err(QuakeLiveEngineError::StaticFunctionNotFound(QuakeLiveFunction::Cmd_Tokenizestring));
+        };
+        Ok(static_functions.cmd_tokenizestring_orig)
+    }
+
+    #[allow(dead_code)]
+    fn cbuf_executetext_orig(&self) -> Result<fn(cbufExec_t, *const c_char), QuakeLiveEngineError> {
+        let Some(static_functions) = self.static_functions.get() else {
+            return Err(QuakeLiveEngineError::StaticFunctionNotFound(QuakeLiveFunction::Cbuf_ExecuteText));
+        };
+        Ok(static_functions.cbuf_executetext_orig)
+    }
+
+    fn cvar_findvar_orig(&self) -> Result<fn(*const c_char) -> *mut cvar_t, QuakeLiveEngineError> {
+        let Some(static_functions) = self.static_functions.get() else {
+            return Err(QuakeLiveEngineError::StaticFunctionNotFound(QuakeLiveFunction::Cvar_FindVar));
+        };
+        Ok(static_functions.cvar_findvar_orig)
+    }
+
+    #[allow(clippy::type_complexity)]
+    fn cvar_get_orig(
+        &self,
+    ) -> Result<fn(*const c_char, *const c_char, c_int) -> *mut cvar_t, QuakeLiveEngineError> {
+        let Some(static_functions) = self.static_functions.get() else {
+            return Err(QuakeLiveEngineError::StaticFunctionNotFound(QuakeLiveFunction::Cvar_Get));
+        };
+        Ok(static_functions.cvar_get_orig)
+    }
+
+    #[allow(clippy::type_complexity)]
+    fn cvar_getlimit_orig(
+        &self,
+    ) -> Result<
+        fn(*const c_char, *const c_char, *const c_char, *const c_char, c_int) -> *mut cvar_t,
+        QuakeLiveEngineError,
+    > {
+        let Some(static_functions) = self.static_functions.get() else {
+            return Err(QuakeLiveEngineError::StaticFunctionNotFound(QuakeLiveFunction::Cvar_GetLimit));
+        };
+        Ok(static_functions.cvar_getlimit_orig)
+    }
+
+    #[allow(clippy::type_complexity)]
+    fn cvar_set2_orig(
+        &self,
+    ) -> Result<fn(*const c_char, *const c_char, qboolean) -> *mut cvar_t, QuakeLiveEngineError>
+    {
+        let Some(static_functions) = self.static_functions.get() else {
+            return Err(QuakeLiveEngineError::StaticFunctionNotFound(QuakeLiveFunction::Cvar_Set2));
+        };
+        Ok(static_functions.cvar_set2_orig)
+    }
+
+    fn sv_sendservercommand_orig(
+        &self,
+    ) -> Result<extern "C" fn(*mut client_t, *const c_char, ...), QuakeLiveEngineError> {
+        let Some(static_functions) = self.static_functions.get() else {
+            return Err(QuakeLiveEngineError::StaticFunctionNotFound(QuakeLiveFunction::SV_SendServerCommand));
+        };
+        Ok(static_functions.sv_sendservercommand_orig)
+    }
+
+    fn sv_executeclientcommand_orig(
+        &self,
+    ) -> Result<fn(*mut client_t, *const c_char, qboolean), QuakeLiveEngineError> {
+        let Some(static_functions) = self.static_functions.get() else {
+            return Err(QuakeLiveEngineError::StaticFunctionNotFound(QuakeLiveFunction::SV_ExecuteClientCommand));
+        };
+        Ok(static_functions.sv_executeclientcommand_orig)
+    }
+
+    pub(crate) fn sv_shutdown_orig(&self) -> Result<fn(*const c_char), QuakeLiveEngineError> {
+        let Some(static_functions) = self.static_functions.get() else {
+            return Err(QuakeLiveEngineError::StaticFunctionNotFound(QuakeLiveFunction::Cmd_Tokenizestring));
+        };
+        Ok(static_functions.sv_shutdown_orig)
+    }
+
+    #[allow(dead_code)]
+    fn sv_map_f_orig(&self) -> Result<fn(), QuakeLiveEngineError> {
+        let Some(static_functions) = self.static_functions.get() else {
+            return Err(QuakeLiveEngineError::StaticFunctionNotFound(QuakeLiveFunction::SV_Map_f));
+        };
+        Ok(static_functions.sv_map_f_orig)
+    }
+
+    fn sv_cliententerworld_orig(
+        &self,
+    ) -> Result<fn(*mut client_t, *mut usercmd_t), QuakeLiveEngineError> {
+        let Some(static_functions) = self.static_functions.get() else {
+            return Err(QuakeLiveEngineError::StaticFunctionNotFound(QuakeLiveFunction::SV_ClientEnterWorld));
+        };
+        Ok(static_functions.sv_cliententerworld_orig)
+    }
+
+    fn sv_setconfigstring_orig(&self) -> Result<fn(c_int, *const c_char), QuakeLiveEngineError> {
+        let Some(static_functions) = self.static_functions.get() else {
+            return Err(QuakeLiveEngineError::StaticFunctionNotFound(QuakeLiveFunction::SV_SetConfigstring));
+        };
+        Ok(static_functions.sv_setconfigstring_orig)
+    }
+
+    fn sv_getconfigstring_orig(
+        &self,
+    ) -> Result<fn(c_int, *const c_char, c_int), QuakeLiveEngineError> {
+        let Some(static_functions) = self.static_functions.get() else {
+            return Err(QuakeLiveEngineError::StaticFunctionNotFound(QuakeLiveFunction::SV_GetConfigstring));
+        };
+        Ok(static_functions.sv_getconfigstring_orig)
+    }
+
+    fn sv_dropclient_orig(&self) -> Result<fn(*mut client_t, *const c_char), QuakeLiveEngineError> {
+        let Some(static_functions) = self.static_functions.get() else {
+            return Err(QuakeLiveEngineError::StaticFunctionNotFound(QuakeLiveFunction::SV_DropClient));
+        };
+        Ok(static_functions.sv_dropclient_orig)
+    }
+
+    fn sys_setmoduleoffset_orig(
+        &self,
+    ) -> Result<fn(*const c_char, unsafe extern "C" fn()), QuakeLiveEngineError> {
+        let Some(static_functions) = self.static_functions.get() else {
+            return Err(QuakeLiveEngineError::StaticFunctionNotFound(QuakeLiveFunction::Sys_SetModuleOffset));
+        };
+        Ok(static_functions.sys_setmoduleoffset_orig)
+    }
+
+    fn sv_spawnserver_orig(&self) -> Result<fn(*const c_char, qboolean), QuakeLiveEngineError> {
+        let Some(static_functions) = self.static_functions.get() else {
+            return Err(QuakeLiveEngineError::StaticFunctionNotFound(QuakeLiveFunction::SV_SpawnServer));
+        };
+        Ok(static_functions.sv_spawnserver_orig)
+    }
+
+    fn cmd_executestring_orig(&self) -> Result<fn(*const c_char), QuakeLiveEngineError> {
+        let Some(static_functions) = self.static_functions.get() else {
+            return Err(QuakeLiveEngineError::StaticFunctionNotFound(QuakeLiveFunction::Cmd_ExecuteString));
+        };
+        Ok(static_functions.cmd_executestring_orig)
+    }
+
+    fn cmd_argc_orig(&self) -> Result<fn() -> c_int, QuakeLiveEngineError> {
+        let Some(static_functions) = self.static_functions.get() else {
+            return Err(QuakeLiveEngineError::StaticFunctionNotFound(QuakeLiveFunction::Cmd_Argc));
+        };
+        Ok(static_functions.cmd_argc_orig)
+    }
+
+    fn cmd_addcommand_detour(
+        &self,
+    ) -> Result<&GenericDetour<fn(*const c_char, unsafe extern "C" fn())>, QuakeLiveEngineError>
+    {
+        let Some(static_detours) = self.static_detours.get() else {
+            return Err(QuakeLiveEngineError::StaticDetourNotFound(QuakeLiveFunction::Cmd_AddCommand));
+        };
+        Ok(&static_detours.cmd_addcommand_detour)
+    }
+
+    fn sys_setmoduleoffset_detour(
+        &self,
+    ) -> Result<&GenericDetour<fn(*const c_char, unsafe extern "C" fn())>, QuakeLiveEngineError>
+    {
+        let Some(static_detours) = self.static_detours.get() else {
+            return Err(QuakeLiveEngineError::StaticDetourNotFound(QuakeLiveFunction::Sys_SetModuleOffset));
+        };
+        Ok(&static_detours.sys_setmoduleoffset_detour)
+    }
+
+    #[allow(clippy::type_complexity)]
+    fn sv_executeclientcommand_detour(
+        &self,
+    ) -> Result<&GenericDetour<fn(*mut client_t, *const c_char, qboolean)>, QuakeLiveEngineError>
+    {
+        let Some(static_detours) = self.static_detours.get() else {
+            return Err(QuakeLiveEngineError::StaticDetourNotFound(QuakeLiveFunction::SV_ExecuteClientCommand));
+        };
+        Ok(&static_detours.sv_executeclientcommand_detour)
+    }
+
+    #[allow(clippy::type_complexity)]
+    fn sv_cliententerworld_detour(
+        &self,
+    ) -> Result<&GenericDetour<fn(*mut client_t, *mut usercmd_t)>, QuakeLiveEngineError> {
+        let Some(static_detours) = self.static_detours.get() else {
+            return Err(QuakeLiveEngineError::StaticDetourNotFound(QuakeLiveFunction::SV_ClientEnterWorld));
+        };
+        Ok(&static_detours.sv_cliententerworld_detour)
+    }
+
+    #[allow(clippy::type_complexity)]
+    fn sv_setconfgistring_detour(
+        &self,
+    ) -> Result<&GenericDetour<fn(c_int, *const c_char)>, QuakeLiveEngineError> {
+        let Some(static_detours) = self.static_detours.get() else {
+            return Err(QuakeLiveEngineError::StaticDetourNotFound(QuakeLiveFunction::SV_SetConfigstring));
+        };
+        Ok(&static_detours.sv_setconfgistring_detour)
+    }
+
+    #[allow(clippy::type_complexity)]
+    pub(crate) fn sv_dropclient_detour(
+        &self,
+    ) -> Result<&GenericDetour<fn(*mut client_t, *const c_char)>, QuakeLiveEngineError> {
+        let Some(static_detours) = self.static_detours.get() else {
+            return Err(QuakeLiveEngineError::StaticDetourNotFound(QuakeLiveFunction::SV_DropClient));
+        };
+        Ok(&static_detours.sv_dropclient_detour)
+    }
+
+    #[allow(clippy::type_complexity)]
+    fn sv_spawnserver_detour(
+        &self,
+    ) -> Result<&GenericDetour<fn(*const c_char, qboolean)>, QuakeLiveEngineError> {
+        let Some(static_detours) = self.static_detours.get() else {
+            return Err(QuakeLiveEngineError::StaticDetourNotFound(QuakeLiveFunction::SV_SpawnServer));
+        };
+        Ok(&static_detours.sv_spawnserver_detour)
+    }
+
+    fn sv_sendservercommand_detour(&self) -> Result<&RawDetour, QuakeLiveEngineError> {
+        let Some(static_detours) = self.static_detours.get() else {
+            return Err(QuakeLiveEngineError::StaticDetourNotFound(QuakeLiveFunction::SV_SendServerCommand));
+        };
+        Ok(&static_detours.sv_sendservercommand_detour)
+    }
+
+    fn com_printf_detour(&self) -> Result<&RawDetour, QuakeLiveEngineError> {
+        let Some(static_detours) = self.static_detours.get() else {
+            return Err(QuakeLiveEngineError::StaticDetourNotFound(QuakeLiveFunction::Com_Printf));
+        };
+        Ok(&static_detours.com_printf_detour)
+    }
+
+    pub(crate) fn g_init_game_orig(
+        &self,
+    ) -> Result<extern "C" fn(c_int, c_int, c_int), QuakeLiveEngineError> {
+        let g_init_game_orig = self.vm_functions.g_init_game_orig.load(Ordering::SeqCst);
+        if g_init_game_orig == 0 {
+            return Err(QuakeLiveEngineError::VmFunctionNotFound(
+                QuakeLiveFunction::G_InitGame,
+            ));
+        }
+
+        let g_init_game_func = unsafe { std::mem::transmute(g_init_game_orig) };
+        Ok(g_init_game_func)
+    }
+
+    fn g_shutdown_game_orig(&self) -> Result<extern "C" fn(c_int), QuakeLiveEngineError> {
+        let g_shutdown_game_orig = self
+            .vm_functions
+            .g_shutdown_game_orig
+            .load(Ordering::SeqCst);
+        if g_shutdown_game_orig == 0 {
+            return Err(QuakeLiveEngineError::VmFunctionNotFound(
+                QuakeLiveFunction::G_ShutdownGame,
+            ));
+        }
+
+        let g_shutdown_game_func = unsafe { std::mem::transmute(g_shutdown_game_orig) };
+        Ok(g_shutdown_game_func)
+    }
+
+    pub(crate) fn g_run_frame_orig(&self) -> Result<extern "C" fn(c_int), QuakeLiveEngineError> {
+        let g_run_frame_orig = self.vm_functions.g_run_frame_orig.load(Ordering::SeqCst);
+        if g_run_frame_orig == 0 {
+            return Err(QuakeLiveEngineError::VmFunctionNotFound(
+                QuakeLiveFunction::G_RunFrame,
+            ));
+        }
+
+        let g_run_frame_func = unsafe { std::mem::transmute(g_run_frame_orig) };
+        Ok(g_run_frame_func)
+    }
+
+    fn g_addevent_orig(
+        &self,
+    ) -> Result<extern "C" fn(*mut gentity_t, entity_event_t, c_int), QuakeLiveEngineError> {
+        let g_addevent_orig = self.vm_functions.g_addevent_orig.load(Ordering::SeqCst);
+        if g_addevent_orig == 0 {
+            return Err(QuakeLiveEngineError::VmFunctionNotFound(
+                QuakeLiveFunction::G_AddEvent,
+            ));
+        }
+
+        let g_addevent_func = unsafe { std::mem::transmute(g_addevent_orig) };
+        Ok(g_addevent_func)
+    }
+
+    pub(crate) fn g_free_entity_orig(
+        &self,
+    ) -> Result<extern "C" fn(*mut gentity_t), QuakeLiveEngineError> {
+        let g_free_entity_orig = self.vm_functions.g_free_entity_orig.load(Ordering::SeqCst);
+        if g_free_entity_orig == 0 {
+            return Err(QuakeLiveEngineError::VmFunctionNotFound(
+                QuakeLiveFunction::G_FreeEntity,
+            ));
+        }
+
+        let g_free_entity_func = unsafe { std::mem::transmute(g_free_entity_orig) };
+        Ok(g_free_entity_func)
+    }
+
+    #[allow(clippy::type_complexity)]
+    pub(crate) fn launch_item_orig(
+        &self,
+    ) -> Result<
+        extern "C" fn(*mut gitem_t, &mut vec3_t, &mut vec3_t) -> *mut gentity_t,
+        QuakeLiveEngineError,
+    > {
+        let launch_item_orig = self.vm_functions.launch_item_orig.load(Ordering::SeqCst);
+        if launch_item_orig == 0 {
+            return Err(QuakeLiveEngineError::VmFunctionNotFound(
+                QuakeLiveFunction::LaunchItem,
+            ));
+        }
+
+        let launch_item_func = unsafe { std::mem::transmute(launch_item_orig) };
+        Ok(launch_item_func)
+    }
+
+    pub(crate) fn touch_item_orig(
+        &self,
+    ) -> Result<extern "C" fn(*mut gentity_t, *mut gentity_t, *mut trace_t), QuakeLiveEngineError>
+    {
+        let touch_item_orig = self.vm_functions.touch_item_orig.load(Ordering::SeqCst);
+        if touch_item_orig == 0 {
+            return Err(QuakeLiveEngineError::VmFunctionNotFound(
+                QuakeLiveFunction::Touch_Item,
+            ));
+        }
+
+        let touch_item_func = unsafe { std::mem::transmute(touch_item_orig) };
+        Ok(touch_item_func)
+    }
+}
 
 #[cfg_attr(test, automock)]
 pub(crate) trait FindCVar {
@@ -403,7 +1729,7 @@ pub(crate) trait FindCVar {
 
 impl FindCVar for QuakeLiveEngine {
     fn find_cvar(&self, name: &str) -> Option<CVar> {
-        let Some(original_func) = CVAR_FINDVAR_ORIG_PTR.get() else {
+        let Ok(original_func) = self.cvar_findvar_orig() else {
             return None;
         };
         let Ok(c_name) = CString::new(name) else {
@@ -424,7 +1750,11 @@ impl AddCommand for QuakeLiveEngine {
         let Ok(c_cmd) = CString::new(cmd) else {
             return;
         };
-        CMD_ADDCOMMAND_DETOUR.call(c_cmd.as_ptr(), func);
+        let Ok(detour) = self.cmd_addcommand_detour() else {
+            return;
+        };
+
+        detour.call(c_cmd.as_ptr(), func);
     }
 }
 
@@ -438,7 +1768,11 @@ impl SetModuleOffset for QuakeLiveEngine {
         let Ok(c_module_name) = CString::new(module_name) else {
             return;
         };
-        SYS_SETMODULEOFFSET_DETOUR.call(c_module_name.as_ptr(), offset);
+        let Ok(detour) = self.sys_setmoduleoffset_detour() else {
+            return;
+        };
+
+        detour.call(c_module_name.as_ptr(), offset);
     }
 }
 
@@ -449,14 +1783,9 @@ pub(crate) trait InitGame {
 
 impl InitGame for QuakeLiveEngine {
     fn init_game(&self, level_time: i32, random_seed: i32, restart: i32) {
-        let func_pointer = G_INIT_GAME_ORIG_PTR.load(Ordering::Relaxed);
-        if func_pointer == 0 {
+        let Ok(original_func) = self.g_init_game_orig() else {
             return;
-        }
-
-        let original_func: extern "C" fn(c_int, c_int, c_int) =
-            unsafe { std::mem::transmute(func_pointer) };
-
+        };
         original_func(level_time, random_seed, restart);
     }
 }
@@ -468,12 +1797,9 @@ pub(crate) trait ShutdownGame {
 
 impl ShutdownGame for QuakeLiveEngine {
     fn shutdown_game(&self, restart: i32) {
-        let func_pointer = G_SHUTDOWN_GAME_ORIG_PTR.load(Ordering::Relaxed);
-        if func_pointer == 0 {
+        let Ok(original_func) = self.g_shutdown_game_orig() else {
             return;
-        }
-
-        let original_func: extern "C" fn(c_int) = unsafe { std::mem::transmute(func_pointer) };
+        };
         original_func(restart);
     }
 }
@@ -491,20 +1817,18 @@ pub(crate) trait ExecuteClientCommand {
 
 impl ExecuteClientCommand for QuakeLiveEngine {
     fn execute_client_command(&self, client: Option<&mut Client>, cmd: &str, client_ok: bool) {
+        let Ok(detour) = self.sv_executeclientcommand_detour() else {
+            return;
+        };
+
         let Ok(c_command) = CString::new(cmd) else {
             return;
         };
         match client {
-            Some(safe_client) => SV_EXECUTECLIENTCOMMAND_DETOUR.call(
-                safe_client.client_t,
-                c_command.as_ptr(),
-                client_ok.into(),
-            ),
-            None => SV_EXECUTECLIENTCOMMAND_DETOUR.call(
-                std::ptr::null_mut(),
-                c_command.as_ptr(),
-                client_ok.into(),
-            ),
+            Some(safe_client) => {
+                detour.call(safe_client.client_t, c_command.as_ptr(), client_ok.into())
+            }
+            None => detour.call(std::ptr::null_mut(), c_command.as_ptr(), client_ok.into()),
         }
     }
 }
@@ -516,7 +1840,7 @@ pub(crate) trait SendServerCommand {
 
 impl SendServerCommand for QuakeLiveEngine {
     fn send_server_command(&self, client: Option<Client>, command: &str) {
-        let Some(detour) = SV_SENDSERVERCOMMAND_DETOUR.get() else {
+        let Ok(detour) = self.sv_sendservercommand_detour() else {
             return;
         };
         let original_func: extern "C" fn(*const client_t, *const c_char, ...) =
@@ -539,7 +1863,11 @@ pub(crate) trait ClientEnterWorld {
 
 impl ClientEnterWorld for QuakeLiveEngine {
     fn client_enter_world(&self, client: &mut Client, cmd: *mut usercmd_t) {
-        SV_CLIENTENTERWORLD_DETOUR.call(client.client_t, cmd);
+        let Ok(detour) = self.sv_cliententerworld_detour() else {
+            return;
+        };
+
+        detour.call(client.client_t, cmd);
     }
 }
 
@@ -556,7 +1884,11 @@ impl SetConfigstring for QuakeLiveEngine {
         let Ok(c_index) = c_int::try_from(index.to_owned()) else {
             return;
         };
-        SV_SETCONFGISTRING_DETOUR.call(c_index, c_value.as_ptr());
+        let Ok(detour) = self.sv_setconfgistring_detour() else {
+            return;
+        };
+
+        detour.call(c_index, c_value.as_ptr());
     }
 }
 
@@ -567,7 +1899,7 @@ pub(crate) trait ComPrintf {
 
 impl ComPrintf for QuakeLiveEngine {
     fn com_printf(&self, msg: &str) {
-        let Some(detour) = COM_PRINTF_DETOUR.get() else {
+        let Ok(detour) = self.com_printf_detour() else {
             return;
         };
         let original_func: extern "C" fn(*const c_char, ...) =
@@ -590,7 +1922,11 @@ impl SpawnServer for QuakeLiveEngine {
         let Ok(c_server) = CString::new(server) else {
             return;
         };
-        SV_SPAWNSERVER_DETOUR.call(c_server.as_ptr(), kill_bots.into());
+        let Ok(detour) = self.sv_spawnserver_detour() else {
+            return;
+        };
+
+        detour.call(c_server.as_ptr(), kill_bots.into());
     }
 }
 
@@ -601,13 +1937,9 @@ pub(crate) trait RunFrame {
 
 impl RunFrame for QuakeLiveEngine {
     fn run_frame(&self, time: i32) {
-        let func_pointer = G_RUN_FRAME_ORIG_PTR.load(Ordering::Relaxed);
-        if func_pointer == 0 {
+        let Ok(original_func) = self.g_run_frame_orig() else {
             return;
-        }
-
-        let original_func: extern "C" fn(c_int) = unsafe { std::mem::transmute(func_pointer) };
-
+        };
         original_func(time);
     }
 }
@@ -619,14 +1951,15 @@ pub(crate) trait ClientConnect {
 
 impl ClientConnect for QuakeLiveEngine {
     fn client_connect(&self, client_num: i32, first_time: bool, is_bot: bool) -> *const c_char {
-        let trampoline_func_ptr = CLIENT_CONNECT_TRAMPOLINE.load(Ordering::Relaxed);
-        if trampoline_func_ptr == 0 {
+        let Ok(detour_guard) = self.vm_functions.client_connect_detour.read() else {
             return std::ptr::null();
-        }
+        };
 
-        let trampoline_func: extern "C" fn(c_int, qboolean, qboolean) -> *const c_char =
-            unsafe { std::mem::transmute(trampoline_func_ptr) };
-        trampoline_func(client_num, first_time.into(), is_bot.into())
+        let Some(ref detour) = *detour_guard else {
+            return std::ptr::null();
+        };
+
+        detour.call(client_num, first_time.into(), is_bot.into())
     }
 }
 
@@ -637,9 +1970,14 @@ pub(crate) trait ClientSpawn {
 
 impl ClientSpawn for QuakeLiveEngine {
     fn client_spawn(&self, ent: &mut GameEntity) {
-        let Some(detour) = (unsafe { CLIENT_SPAWN_DETOUR.as_ref()}) else {
+        let Ok(detour_guard) = self.vm_functions.client_spawn_detour.read() else {
             return;
         };
+
+        let Some(ref detour) = *detour_guard else {
+            return;
+        };
+
         detour.call(ent.gentity_t);
     }
 }
@@ -651,7 +1989,7 @@ pub(crate) trait CmdArgs {
 
 impl CmdArgs for QuakeLiveEngine {
     fn cmd_args(&self) -> Option<String> {
-        let Some(original_func) = CMD_ARGS_ORIG_PTR.get() else {
+        let Ok(original_func) = self.cmd_args_orig() else {
             return None;
         };
         let cmd_args = original_func();
@@ -670,8 +2008,7 @@ pub(crate) trait CmdArgc {
 
 impl CmdArgc for QuakeLiveEngine {
     fn cmd_argc(&self) -> i32 {
-        let Some(original_func) = CMD_ARGC_ORIG_PTR.get() else
-        {
+        let Ok(original_func) = self.cmd_argc_orig() else {
             return 0;
         };
         original_func()
@@ -688,7 +2025,7 @@ impl CmdArgv for QuakeLiveEngine {
         if argno < 0 {
             return None;
         }
-        let Some(original_func) = CMD_ARGV_ORIG_PTR.get() else {
+        let Ok(original_func) = self.cmd_argv_orig() else {
             return None;
         };
         let cmd_argv = original_func(argno);
@@ -711,14 +2048,9 @@ impl GameAddEvent for QuakeLiveEngine {
         event: entity_event_t,
         event_param: i32,
     ) {
-        let func_pointer = G_ADDEVENT_ORIG_PTR.load(Ordering::Relaxed);
-        if func_pointer == 0 {
+        let Ok(original_func) = self.g_addevent_orig() else {
             return;
         };
-
-        let original_func: extern "C" fn(*mut gentity_t, entity_event_t, c_int) =
-            unsafe { std::mem::transmute(func_pointer) };
-
         original_func(game_entity.gentity_t as *mut gentity_t, event, event_param);
     }
 }
@@ -730,8 +2062,7 @@ pub(crate) trait ConsoleCommand {
 
 impl ConsoleCommand for QuakeLiveEngine {
     fn execute_console_command(&self, cmd: &str) {
-        let Some(original_func) =
-            CMD_EXECUTESTRING_ORIG_PTR.get() else {
+        let Ok(original_func) = self.cmd_executestring_orig() else {
             return;
         };
         let Ok(c_cmd) = CString::new(cmd) else {
@@ -748,7 +2079,7 @@ pub(crate) trait GetCVar {
 
 impl GetCVar for QuakeLiveEngine {
     fn get_cvar(&self, name: &str, value: &str, flags: Option<i32>) -> Option<CVar> {
-        let Some(original_func) = CVAR_GET_ORIG_PTR.get() else {
+        let Ok(original_func) = self.cvar_get_orig() else {
             return None;
         };
         let Ok(c_name) = CString::new(name) else {
@@ -770,13 +2101,11 @@ pub(crate) trait SetCVarForced {
 
 impl SetCVarForced for QuakeLiveEngine {
     fn set_cvar_forced(&self, name: &str, value: &str, forced: bool) -> Option<CVar> {
-        let Some(original_func) =
-            CVAR_SET2_ORIG_PTR.get() else
-        {
+        let Ok(original_func) = self.cvar_set2_orig() else {
             return None;
         };
         let Ok(c_name) = CString::new(name) else {
-                return None;
+            return None;
         };
         let Ok(c_value) = CString::new(value) else {
             return None;
@@ -807,7 +2136,7 @@ impl SetCVarLimit for QuakeLiveEngine {
         max: &str,
         flags: Option<i32>,
     ) -> Option<CVar> {
-        let Some(original_func) = CVAR_GETLIMIT_ORIG_PTR.get() else {
+        let Ok(original_func) = self.cvar_getlimit_orig() else {
             return None;
         };
         let Ok(c_name) = CString::new(name) else {
@@ -841,9 +2170,7 @@ pub(crate) trait GetConfigstring {
 
 impl GetConfigstring for QuakeLiveEngine {
     fn get_configstring(&self, index: u32) -> String {
-        let Some(original_func) =
-            SV_GETCONFIGSTRING_ORIG_PTR.get() else
-        {
+        let Ok(original_func) = self.sv_getconfigstring_orig() else {
             return "".into();
         };
 
@@ -888,10 +2215,13 @@ impl RegisterDamage for QuakeLiveEngine {
         dflags: c_int,
         means_of_death: c_int,
     ) {
-        let trampoline_func_ptr = G_DAMAGE_TRAMPOLINE.load(Ordering::Relaxed);
-        if trampoline_func_ptr == 0 {
-            return;
-        }
+        let Ok(detour_guard) = self.vm_functions.g_damage_detour.read() else {
+                return;
+            };
+
+        let Some(ref detour) = *detour_guard else {
+                return;
+            };
 
         let trampoline_func: extern "C" fn(
             *mut gentity_t,
@@ -902,7 +2232,7 @@ impl RegisterDamage for QuakeLiveEngine {
             c_int,
             c_int,
             c_int,
-        ) = unsafe { std::mem::transmute(trampoline_func_ptr) };
+        ) = unsafe { std::mem::transmute(detour.trampoline()) };
         trampoline_func(
             target,
             inflictor,
@@ -923,14 +2253,9 @@ pub(crate) trait FreeEntity {
 
 impl FreeEntity for QuakeLiveEngine {
     fn free_entity(&self, gentity: *mut gentity_t) {
-        let func_pointer = G_FREE_ENTITY_ORIG_PTR.load(Ordering::Relaxed);
-        if func_pointer == 0 {
+        let Ok(original_func) = self.g_free_entity_orig() else {
             return;
         };
-
-        let original_func: extern "C" fn(*mut gentity_t) =
-            unsafe { std::mem::transmute(func_pointer) };
-
         original_func(gentity);
     }
 }
@@ -952,18 +2277,10 @@ impl LaunchItem for QuakeLiveEngine {
         origin: &mut vec3_t,
         velocity: &mut vec3_t,
     ) -> GameEntity {
-        let func_pointer = LAUNCH_ITEM_ORIG_PTR.load(Ordering::Relaxed);
-        debug_println!(format!(
-            "LaunchItem func ptr: {}, {:#X}",
-            func_pointer, func_pointer
-        ));
-        if func_pointer == 0 {
+        let Ok(original_func) = self.launch_item_orig() else {
+            debug_println!("LaunchItem not found!");
             panic!("LaunchItem not found!");
         };
-
-        let original_func: extern "C" fn(*mut gitem_t, &mut vec3_t, &mut vec3_t) -> *mut gentity_t =
-            unsafe { std::mem::transmute(func_pointer) };
-
         GameEntity::try_from(original_func(gitem.gitem_t, origin, velocity)).unwrap()
     }
 }
@@ -975,13 +2292,14 @@ pub(crate) trait StartKamikaze {
 
 impl StartKamikaze for QuakeLiveEngine {
     fn start_kamikaze(&self, gentity: &mut GameEntity) {
-        let trampoline_func_ptr = G_START_KAMIKAZE_TRAMPOLINE.load(Ordering::Relaxed);
-        if trampoline_func_ptr == 0 {
+        let Ok(detour_guard) = self.vm_functions.g_start_kamikaze_detour.try_read() else {
             return;
-        }
+        };
 
-        let trampoline_func: extern "C" fn(*mut gentity_t) =
-            unsafe { std::mem::transmute(trampoline_func_ptr) };
-        trampoline_func(gentity.gentity_t as *mut gentity_t);
+        let Some(ref detour) = *detour_guard else {
+            return;
+        };
+
+        detour.call(gentity.gentity_t as *mut gentity_t);
     }
 }

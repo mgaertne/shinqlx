@@ -1,12 +1,11 @@
 use crate::quake_live_engine::QuakeLiveEngineError::{
     EntityNotFound, InvalidId, NullPointerPassed,
 };
-use crate::quake_live_engine::{GameAddEvent, LaunchItem, QuakeLiveEngine, QuakeLiveEngineError};
+use crate::quake_live_engine::{GameAddEvent, LaunchItem, QuakeLiveEngineError};
 use crate::quake_types::entity_event_t::EV_ITEM_RESPAWN;
 use crate::quake_types::gitem_t;
-use crate::LAUNCH_ITEM_ORIG_PTR;
+use crate::MAIN_ENGINE;
 use std::ffi::{c_float, CStr};
-use std::sync::atomic::Ordering;
 
 #[derive(Debug, PartialEq)]
 #[repr(transparent)]
@@ -57,12 +56,17 @@ impl GameItem {
     }
 
     fn get_item_list() -> *mut gitem_t {
-        let func_pointer = LAUNCH_ITEM_ORIG_PTR.load(Ordering::Relaxed);
-        if func_pointer == 0 {
+        let Some(main_engine) = MAIN_ENGINE.get() else {
             return std::ptr::null_mut();
         };
-        let base_address = unsafe { std::ptr::read_unaligned((func_pointer + 0x2A) as *const i32) };
-        let bg_itemlist_ptr_ptr = base_address as u64 + func_pointer + 0x2A + 4;
+        let Ok(launch_item_orig) = main_engine.launch_item_orig() else {
+            return std::ptr::null_mut();
+        };
+        #[allow(clippy::fn_to_numeric_cast)]
+        let base_address =
+            unsafe { std::ptr::read_unaligned((launch_item_orig as u64 + 0x2A) as *const i32) };
+        #[allow(clippy::fn_to_numeric_cast)]
+        let bg_itemlist_ptr_ptr = base_address as u64 + launch_item_orig as u64 + 0x2A + 4;
         let bg_itemlist_ptr = unsafe { std::ptr::read(bg_itemlist_ptr_ptr as *const u64) };
         bg_itemlist_ptr as *mut gitem_t
     }
@@ -83,7 +87,10 @@ impl GameItem {
     }
 
     pub(crate) fn spawn(&mut self, origin: (i32, i32, i32)) {
-        self.spawn_internal(origin, &QuakeLiveEngine::default());
+        let Some(quake_live_engine) = MAIN_ENGINE.get() else {
+            return;
+        };
+        self.spawn_internal(origin, quake_live_engine);
     }
 
     pub(crate) fn spawn_internal(
