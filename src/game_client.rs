@@ -27,14 +27,11 @@ impl TryFrom<*mut gclient_t> for GameClient {
     type Error = QuakeLiveEngineError;
 
     fn try_from(game_client: *mut gclient_t) -> Result<Self, Self::Error> {
-        unsafe {
-            game_client
-                .as_mut()
-                .map(|gclient_t| Self {
-                    game_client: gclient_t,
-                })
-                .ok_or(NullPointerPassed("null pointer passed".into()))
-        }
+        unsafe { game_client.as_mut() }
+            .map(|gclient_t| Self {
+                game_client: gclient_t,
+            })
+            .ok_or(NullPointerPassed("null pointer passed".into()))
     }
 }
 
@@ -48,11 +45,9 @@ impl GameClient {
     }
 
     pub(crate) fn get_player_name(&self) -> String {
-        unsafe {
-            CStr::from_ptr(self.game_client.pers.netname.as_ptr())
-                .to_string_lossy()
-                .into()
-        }
+        unsafe { CStr::from_ptr(self.game_client.pers.netname.as_ptr()) }
+            .to_string_lossy()
+            .into()
     }
 
     pub(crate) fn get_team(&self) -> team_t {
