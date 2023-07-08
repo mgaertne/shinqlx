@@ -77,7 +77,7 @@ pub extern "C" fn ShiNQlx_G_ShutdownGame(restart: c_int) {
         return;
     };
 
-    quake_live_engine.unhook_vm();
+    quake_live_engine.unhook_vm().unwrap();
     quake_live_engine.shutdown_game(restart);
 }
 
