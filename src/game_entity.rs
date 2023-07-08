@@ -33,12 +33,9 @@ impl TryFrom<*mut gentity_t> for GameEntity {
     type Error = QuakeLiveEngineError;
 
     fn try_from(game_entity: *mut gentity_t) -> Result<Self, Self::Error> {
-        unsafe {
-            game_entity
-                .as_mut()
-                .map(|gentity| Self { gentity_t: gentity })
-                .ok_or(NullPointerPassed("null pointer passed".into()))
-        }
+        unsafe { game_entity.as_mut() }
+            .map(|gentity| Self { gentity_t: gentity })
+            .ok_or(NullPointerPassed("null pointer passed".into()))
     }
 }
 
@@ -253,11 +250,9 @@ impl GameEntity {
     }
 
     pub(crate) fn get_classname(&self) -> String {
-        unsafe {
-            CStr::from_ptr(self.gentity_t.classname)
-                .to_string_lossy()
-                .into()
-        }
+        unsafe { CStr::from_ptr(self.gentity_t.classname) }
+            .to_string_lossy()
+            .into()
     }
 
     pub(crate) fn is_game_item(&self, item_type: entityType_t) -> bool {

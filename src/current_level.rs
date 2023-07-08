@@ -16,12 +16,9 @@ impl TryFrom<*mut level_locals_t> for CurrentLevel {
     type Error = QuakeLiveEngineError;
 
     fn try_from(level_locals: *mut level_locals_t) -> Result<Self, Self::Error> {
-        unsafe {
-            level_locals
-                .as_mut()
-                .map(|level| Self { level })
-                .ok_or(NullPointerPassed("null pointer passed".into()))
-        }
+        unsafe { level_locals.as_mut() }
+            .map(|level| Self { level })
+            .ok_or(NullPointerPassed("null pointer passed".into()))
     }
 }
 
@@ -36,11 +33,9 @@ impl Default for CurrentLevel {
             debug_println!("G_InitGame not initialized.");
             panic!("G_InitGame not initialized.");
         };
-        #[allow(clippy::fn_to_numeric_cast)]
         let base_address =
-            unsafe { std::ptr::read_unaligned((func_pointer as u64 + 0x4A1) as *const i32) };
-        #[allow(clippy::fn_to_numeric_cast)]
-        let level_ptr = base_address as u64 + func_pointer as u64 + 0x4A1 + 4;
+            unsafe { std::ptr::read_unaligned((func_pointer as usize + 0x4A1) as *const i32) };
+        let level_ptr = base_address as usize + func_pointer as usize + 0x4A1 + 4;
         Self::try_from(level_ptr as *mut level_locals_t).unwrap()
     }
 }

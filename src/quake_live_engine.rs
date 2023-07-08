@@ -88,7 +88,6 @@ struct StaticFunctions {
     cbuf_executetext_orig: fn(cbufExec_t, *const c_char),
     cvar_findvar_orig: fn(*const c_char) -> *mut cvar_t,
     cvar_get_orig: fn(*const c_char, *const c_char, c_int) -> *mut cvar_t,
-    #[allow(clippy::type_complexity)]
     cvar_getlimit_orig:
         fn(*const c_char, *const c_char, *const c_char, *const c_char, c_int) -> *mut cvar_t,
     cvar_set2_orig: fn(*const c_char, *const c_char, qboolean) -> *mut cvar_t,

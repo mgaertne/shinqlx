@@ -17,12 +17,9 @@ impl TryFrom<*mut gitem_t> for GameItem {
     type Error = QuakeLiveEngineError;
 
     fn try_from(game_item: *mut gitem_t) -> Result<Self, Self::Error> {
-        unsafe {
-            game_item
-                .as_mut()
-                .map(|gitem| Self { gitem_t: gitem })
-                .ok_or(NullPointerPassed("null pointer passed".into()))
-        }
+        unsafe { game_item.as_mut() }
+            .map(|gitem| Self { gitem_t: gitem })
+            .ok_or(NullPointerPassed("null pointer passed".into()))
     }
 }
 
@@ -62,11 +59,9 @@ impl GameItem {
         let Ok(launch_item_orig) = main_engine.launch_item_orig() else {
             return std::ptr::null_mut();
         };
-        #[allow(clippy::fn_to_numeric_cast)]
         let base_address =
-            unsafe { std::ptr::read_unaligned((launch_item_orig as u64 + 0x2A) as *const i32) };
-        #[allow(clippy::fn_to_numeric_cast)]
-        let bg_itemlist_ptr_ptr = base_address as u64 + launch_item_orig as u64 + 0x2A + 4;
+            unsafe { std::ptr::read_unaligned((launch_item_orig as usize + 0x2A) as *const i32) };
+        let bg_itemlist_ptr_ptr = base_address as usize + launch_item_orig as usize + 0x2A + 4;
         let bg_itemlist_ptr = unsafe { std::ptr::read(bg_itemlist_ptr_ptr as *const u64) };
         bg_itemlist_ptr as *mut gitem_t
     }
@@ -79,11 +74,9 @@ impl GameItem {
     }
 
     pub(crate) fn get_classname(&self) -> String {
-        unsafe {
-            CStr::from_ptr(self.gitem_t.classname)
-                .to_string_lossy()
-                .into()
-        }
+        unsafe { CStr::from_ptr(self.gitem_t.classname) }
+            .to_string_lossy()
+            .into()
     }
 
     pub(crate) fn spawn(&mut self, origin: (i32, i32, i32)) {

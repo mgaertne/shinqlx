@@ -23,7 +23,7 @@ use crate::quake_types::{
     DAMAGE_RADIUS, MAX_CONFIGSTRINGS, MAX_GENTITIES,
 };
 use crate::{PyMinqlx_InitStatus_t, MAIN_ENGINE};
-use std::sync::atomic::Ordering;
+use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::RwLock;
 
 use crate::client::Client;
@@ -2488,10 +2488,10 @@ fn pyminqlx_module(_py: Python<'_>, m: &PyModule) -> PyResult<()> {
     Ok(())
 }
 
-pub(crate) static mut PYMINQLX_INITIALIZED: bool = false;
+pub(crate) static PYMINQLX_INITIALIZED: AtomicBool = AtomicBool::new(false);
 
 pub(crate) fn pyminqlx_is_initialized() -> bool {
-    unsafe { PYMINQLX_INITIALIZED }
+    PYMINQLX_INITIALIZED.load(Ordering::SeqCst)
 }
 
 pub(crate) fn pyminqlx_initialize() -> PyMinqlx_InitStatus_t {
@@ -2517,7 +2517,7 @@ pub(crate) fn pyminqlx_initialize() -> PyMinqlx_InitStatus_t {
             PYM_MAIN_SCRIPT_ERROR
         }
         Ok(_) => {
-            unsafe { PYMINQLX_INITIALIZED = true };
+            PYMINQLX_INITIALIZED.store(true, Ordering::SeqCst);
             #[cfg(debug_assertions)]
             println!("Python initialized!");
             PYM_SUCCESS
@@ -2563,15 +2563,11 @@ pub(crate) fn pyminqlx_reload() -> PyMinqlx_InitStatus_t {
         Ok::<(), PyErr>(())
     }) {
         Err(_) => {
-            unsafe {
-                PYMINQLX_INITIALIZED = false;
-            }
+            PYMINQLX_INITIALIZED.store(false, Ordering::SeqCst);
             PYM_MAIN_SCRIPT_ERROR
         }
         Ok(()) => {
-            unsafe {
-                PYMINQLX_INITIALIZED = true;
-            }
+            PYMINQLX_INITIALIZED.store(true, Ordering::SeqCst);
             PYM_SUCCESS
         }
     }

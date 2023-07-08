@@ -21,11 +21,9 @@ impl TryFrom<*mut cvar_t> for CVar {
     type Error = QuakeLiveEngineError;
 
     fn try_from(cvar: *mut cvar_t) -> Result<Self, Self::Error> {
-        unsafe {
-            cvar.as_mut()
-                .map(|cvar| Self { cvar })
-                .ok_or(NullPointerPassed("null pointer passed".into()))
-        }
+        unsafe { cvar.as_mut() }
+            .map(|cvar| Self { cvar })
+            .ok_or(NullPointerPassed("null pointer passed".into()))
     }
 }
 

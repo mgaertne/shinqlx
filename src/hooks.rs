@@ -13,7 +13,7 @@ use crate::quake_live_engine::{
 };
 use crate::quake_types::clientState_t::CS_PRIMED;
 use crate::quake_types::{
-    client_t, gentity_t, qboolean, usercmd_t, vec3_t, MAX_MSGLEN, MAX_STRING_CHARS,
+    client_t, gentity_t, qboolean, usercmd_t, vec3_t, MAX_CLIENTS, MAX_MSGLEN, MAX_STRING_CHARS,
 };
 use crate::MAIN_ENGINE;
 use std::ffi::{c_char, c_int, CStr, VaList, VaListImpl};
@@ -48,7 +48,6 @@ pub(crate) fn shinqlx_sys_setmoduleoffset(
     };
     quake_live_engine.set_module_offset(converted_module_name.as_ref(), offset);
 
-    #[allow(clippy::fn_to_numeric_cast)]
     if let Err(err) = quake_live_engine.initialize_vm(offset as usize) {
         debug_println!(format!("{:?}", err));
         debug_println!("VM could not be initializied. Exiting.");
@@ -322,16 +321,17 @@ pub extern "C" fn ShiNQlx_G_RunFrame(time: c_int) {
     quake_live_engine.run_frame(time);
 }
 
-static mut CLIENT_CONNECT_BUFFER: [c_char; MAX_STRING_CHARS as usize] =
-    [0; MAX_STRING_CHARS as usize];
+static mut CLIENT_CONNECT_BUFFER: [[c_char; MAX_STRING_CHARS as usize]; MAX_CLIENTS as usize] =
+    [[0; MAX_STRING_CHARS as usize]; MAX_CLIENTS as usize];
 
-unsafe fn to_return_string(input: String) -> *const c_char {
+unsafe fn to_return_string(client_id: i32, input: String) -> *const c_char {
     let bytes = input.as_bytes();
     let mut bytes_iter = bytes.iter();
     let len = bytes.len();
-    CLIENT_CONNECT_BUFFER[0..len].fill_with(|| *bytes_iter.next().unwrap() as c_char);
-    CLIENT_CONNECT_BUFFER[len..].fill(0);
-    &CLIENT_CONNECT_BUFFER as *const c_char
+    CLIENT_CONNECT_BUFFER[client_id as usize][0..len]
+        .fill_with(|| *bytes_iter.next().unwrap() as c_char);
+    CLIENT_CONNECT_BUFFER[client_id as usize][len..].fill(0);
+    &CLIENT_CONNECT_BUFFER[client_id as usize] as *const c_char
 }
 
 #[allow(non_snake_case)]
@@ -343,7 +343,7 @@ pub extern "C" fn ShiNQlx_ClientConnect(
     if first_time.into() {
         if let Some(res) = client_connect_dispatcher(client_num, is_bot.into()) {
             if !<qboolean as Into<bool>>::into(is_bot) {
-                return unsafe { to_return_string(res) };
+                return unsafe { to_return_string(client_num, res) };
             }
         }
     }

@@ -12,12 +12,9 @@ impl TryFrom<*mut gentity_t> for Activator {
     type Error = QuakeLiveEngineError;
 
     fn try_from(game_entity: *mut gentity_t) -> Result<Self, Self::Error> {
-        unsafe {
-            game_entity
-                .as_ref()
-                .map(|gentity| Self { activator: gentity })
-                .ok_or(NullPointerPassed("null pointer passed".into()))
-        }
+        unsafe { game_entity.as_ref() }
+            .map(|gentity| Self { activator: gentity })
+            .ok_or(NullPointerPassed("null pointer passed".into()))
     }
 }
 

@@ -14,14 +14,11 @@ impl TryFrom<*mut serverStatic_t> for ServerStatic {
     type Error = QuakeLiveEngineError;
 
     fn try_from(server_static: *mut serverStatic_t) -> Result<Self, Self::Error> {
-        unsafe {
-            server_static
-                .as_mut()
-                .map(|svs| Self {
-                    serverStatic_t: svs,
-                })
-                .ok_or(NullPointerPassed("null pointer passed".into()))
-        }
+        unsafe { server_static.as_mut() }
+            .map(|svs| Self {
+                serverStatic_t: svs,
+            })
+            .ok_or(NullPointerPassed("null pointer passed".into()))
     }
 }
 
