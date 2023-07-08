@@ -2286,7 +2286,7 @@ pub(crate) trait StartKamikaze {
 
 impl StartKamikaze for QuakeLiveEngine {
     fn start_kamikaze(&self, gentity: &mut GameEntity) {
-        let Ok(detour_guard) = self.vm_functions.g_start_kamikaze_detour.try_read() else {
+        let Ok(detour_guard) = self.vm_functions.g_start_kamikaze_detour.read() else {
             return;
         };
 
