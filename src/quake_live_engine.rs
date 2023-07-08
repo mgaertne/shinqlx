@@ -123,7 +123,18 @@ type ClientSpawnDetourType = GenericDetour<extern "C" fn(*mut gentity_t)>;
 type ClientConnectDetourType =
     GenericDetour<extern "C" fn(c_int, qboolean, qboolean) -> *const c_char>;
 type GStartKamikazeDetourType = GenericDetour<extern "C" fn(*mut gentity_t)>;
-type GDamageDetourType = RawDetour;
+type GDamageDetourType = GenericDetour<
+    extern "C" fn(
+        *mut gentity_t,
+        *mut gentity_t,
+        *mut gentity_t,
+        *mut vec3_t,
+        *mut vec3_t,
+        c_int,
+        c_int,
+        c_int,
+    ),
+>;
 type VmHooksResultType = (
     Option<ClientConnectDetourType>,
     Option<GStartKamikazeDetourType>,
@@ -361,21 +372,14 @@ impl VmFunctions {
         }
 
         let g_damage_orig = self.g_damage_orig.load(Ordering::SeqCst);
+        let g_damage_func = unsafe { std::mem::transmute(g_damage_orig) };
         {
-            let Ok(mut guard) = self.g_damage_detour.write() else {
-                debug_println!("G_Damage detour was posioned. Exiting.");
-                return Err(QuakeLiveEngineError::VmDetourPoisoned(QuakeLiveFunction::G_Damage));
-            };
-            result.3 = (*guard).take();
+            result.3 = extract_detour(&self.g_damage_detour).take();
             if let Some(existing_g_damage_detour) = &result.3 {
-                if existing_g_damage_detour.is_enabled() {
-                    if let Err(e) = unsafe { existing_g_damage_detour.disable() } {
-                        debug_println!(format!("error when disabling G_Damage detour: {}", e));
-                    }
-                }
+                try_disable(existing_g_damage_detour);
             }
             let Ok(g_damage_detour) =
-            (unsafe { GDamageDetourType::new(g_damage_orig as *const (), ShiNQlx_G_Damage as *const ()) }) else {
+            (unsafe { GDamageDetourType::new(g_damage_func, ShiNQlx_G_Damage) }) else {
                 debug_println!("Error hooking into G_Damage");
                 return Err(QuakeLiveEngineError::VmDetourCouldNotBeCreated(
                     QuakeLiveFunction::G_Damage,
@@ -387,6 +391,10 @@ impl VmFunctions {
                     QuakeLiveFunction::G_Damage,
                 ));
             }
+            let Ok(mut guard) = self.g_damage_detour.write() else {
+                debug_println!("G_Damage detour was poisoned. Exiting.");
+                return Err(QuakeLiveEngineError::VmDetourPoisoned(QuakeLiveFunction::G_Damage));
+            };
             *guard = Some(g_damage_detour);
         }
 
@@ -427,15 +435,9 @@ impl VmFunctions {
         }
 
         {
-            if let Ok(mut g_damage_lock) = self.g_damage_detour.write() {
-                result.3 = (*g_damage_lock).take();
-            }
+            result.3 = extract_detour(&self.g_damage_detour).take();
             if let Some(g_damage_detour) = &result.3 {
-                if g_damage_detour.is_enabled() {
-                    if let Err(e) = unsafe { g_damage_detour.disable() } {
-                        debug_println!(format!("error when disabling G_Damage detour: {}", e));
-                    }
-                }
+                try_disable(g_damage_detour);
             }
         }
 
@@ -1222,6 +1224,27 @@ impl QuakeLiveEngine {
             }
         }
 
+        #[cfg(debug_assertions)]
+        {
+            let Ok(mut pending_g_start_kamikaze_lock) = self.pending_g_start_kamikaze_detours.write() else {
+                debug_println!("pending G_STartKamikaze detour poisoned. Exiting.");
+                return;
+            };
+
+            while (*pending_g_start_kamikaze_lock).len()
+                >= (*pending_g_start_kamikaze_lock).capacity() - 2
+            {
+                let Some(detour) = (*pending_g_start_kamikaze_lock).pop_front() else {
+                    continue;
+                };
+                #[cfg(debug_assertions)]
+                debug_println!("Trying to drop pending G_StartKamikaze detour");
+                std::mem::drop(detour);
+                #[cfg(debug_assertions)]
+                debug_println!("Detour dropped sucessfully");
+            }
+        }
+
         {
             let Ok(mut pending_client_spawn_lock) = self.pending_client_spawn_detours.write() else {
                 debug_println!("pending ClientSpawn detour poisoned. Exiting.");
@@ -1253,27 +1276,6 @@ impl QuakeLiveEngine {
                 };
                 #[cfg(debug_assertions)]
                 debug_println!("Trying to drop pending G_Damage detour");
-                std::mem::drop(detour);
-                #[cfg(debug_assertions)]
-                debug_println!("Detour dropped sucessfully");
-            }
-        }
-
-        #[cfg(debug_assertions)]
-        {
-            let Ok(mut pending_g_start_kamikaze_lock) = self.pending_g_start_kamikaze_detours.write() else {
-                debug_println!("pending G_STartKamikaze detour poisoned. Exiting.");
-                return;
-            };
-
-            while (*pending_g_start_kamikaze_lock).len()
-                >= (*pending_g_start_kamikaze_lock).capacity() - 2
-            {
-                let Some(detour) = (*pending_g_start_kamikaze_lock).pop_front() else {
-                    continue;
-                };
-                #[cfg(debug_assertions)]
-                debug_println!("Trying to drop pending G_StartKamikaze detour");
                 std::mem::drop(detour);
                 #[cfg(debug_assertions)]
                 debug_println!("Detour dropped sucessfully");
@@ -2189,8 +2191,8 @@ pub(crate) trait RegisterDamage {
         target: *mut gentity_t,
         inflictor: *mut gentity_t,
         attacker: *mut gentity_t,
-        dir: &mut vec3_t,
-        pos: &mut vec3_t,
+        dir: *mut vec3_t,
+        pos: *mut vec3_t,
         damage: c_int,
         dflags: c_int,
         means_of_death: c_int,
@@ -2203,8 +2205,8 @@ impl RegisterDamage for QuakeLiveEngine {
         target: *mut gentity_t,
         inflictor: *mut gentity_t,
         attacker: *mut gentity_t,
-        dir: &mut vec3_t,
-        pos: &mut vec3_t,
+        dir: *mut vec3_t,
+        pos: *mut vec3_t,
         damage: c_int,
         dflags: c_int,
         means_of_death: c_int,
@@ -2217,17 +2219,7 @@ impl RegisterDamage for QuakeLiveEngine {
                 return;
             };
 
-        let trampoline_func: extern "C" fn(
-            *mut gentity_t,
-            *mut gentity_t,
-            *mut gentity_t,
-            &mut vec3_t,
-            &mut vec3_t,
-            c_int,
-            c_int,
-            c_int,
-        ) = unsafe { std::mem::transmute(detour.trampoline()) };
-        trampoline_func(
+        detour.call(
             target,
             inflictor,
             attacker,
