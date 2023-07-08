@@ -408,8 +408,8 @@ pub extern "C" fn ShiNQlx_G_Damage(
     target: *mut gentity_t,    // entity that is being damaged
     inflictor: *mut gentity_t, // entity that is causing the damage
     attacker: *mut gentity_t,  // entity that caused the inflictor to damage target
-    dir: &mut vec3_t,          // direction of the attack for knockback
-    pos: &mut vec3_t,          // point at which the damage is being inflicted, used for headshots
+    dir: *mut vec3_t,          // direction of the attack for knockback
+    pos: *mut vec3_t,          // point at which the damage is being inflicted, used for headshots
     damage: c_int,             // amount of damage being inflicted
     dflags: c_int,             // these flags are used to control how T_Damage works
     // DAMAGE_RADIUS			damage was indirect (from a nearby explosion)
