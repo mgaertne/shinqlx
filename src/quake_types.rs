@@ -1125,7 +1125,7 @@ pub enum trType_t {
 }
 
 #[repr(C)]
-#[derive(Debug, PartialEq, Clone, Builder)]
+#[derive(Debug, PartialEq, Clone, Copy, Builder)]
 #[builder(name = "NetadrBuilder")]
 pub struct netadr_t {
     #[builder(default = "netadrtype_t::NA_BOT")]
@@ -1663,30 +1663,49 @@ pub struct client_s {
 pub type client_t = client_s;
 
 #[repr(C)]
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Clone, Copy, Builder)]
+#[builder(name = "ChallengeBuilder")]
 pub struct challenge_t {
+    #[builder(default = "NetadrBuilder::default().build().unwrap()")]
     pub adr: netadr_t,
+    #[builder(default)]
     pub challenge: c_int,
-    pub time: c_int,      // time the last packet was sent to the autherize server
-    pub pingTime: c_int,  // time the challenge response was sent to client
+    #[builder(default)]
+    pub time: c_int, // time the last packet was sent to the autherize server
+    #[builder(default)]
+    pub pingTime: c_int, // time the challenge response was sent to client
+    #[builder(default)]
     pub firstTime: c_int, // time the adr was first used, for authorize timeout checks
+    #[builder(default = "qboolean::qfalse")]
     pub connected: qboolean,
 }
 
 #[repr(C)]
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Builder)]
+#[builder(name = "ServerStaticBuilder")]
 pub struct serverStatic_t {
-    pub initialized: qboolean,                // sv_init has completed
-    pub time: c_int,                          // will be strictly increasing across level changes
-    pub snapFlagServerBit: c_int,             // ^= SNAPFLAG_SERVERCOUNT every SV_SpawnServer()
-    pub clients: *mut client_t,               // [sv_maxclients->integer];
+    #[builder(default = "qboolean::qfalse")]
+    pub initialized: qboolean, // sv_init has completed
+    #[builder(default)]
+    pub time: c_int, // will be strictly increasing across level changes
+    #[builder(default)]
+    pub snapFlagServerBit: c_int, // ^= SNAPFLAG_SERVERCOUNT every SV_SpawnServer()
+    #[builder(default = "std::ptr::null_mut()")]
+    pub clients: *mut client_t, // [sv_maxclients->integer];
+    #[builder(default)]
     pub numSnapshotEntities: c_int, // sv_maxclients->integer*PACKET_BACKUP*MAX_PACKET_ENTITIES
+    #[builder(default)]
     pub nextSnapshotEntities: c_int, // next snapshotEntities to use
+    #[builder(default = "std::ptr::null_mut()")]
     pub snapshotEntities: *mut entityState_t, // [numSnapshotEntities]
+    #[builder(default)]
     pub nextHeartbeatTime: c_int,
+    #[builder(default = "[ChallengeBuilder::default().build().unwrap(); MAX_CHALLENGES as usize]")]
     pub challenges: [challenge_t; MAX_CHALLENGES as usize], // to prevent invalid IPs from connecting
-    pub redirectAddress: netadr_t,                          // for rcon return messages
-    pub authorizeAddress: netadr_t,                         // for rcon return messages
+    #[builder(default = "NetadrBuilder::default().build().unwrap()")]
+    pub redirectAddress: netadr_t, // for rcon return messages
+    #[builder(default = "NetadrBuilder::default().build().unwrap()")]
+    pub authorizeAddress: netadr_t, // for rcon return messages
 }
 
 #[repr(C)]
