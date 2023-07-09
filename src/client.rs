@@ -111,7 +111,7 @@ impl Client {
 #[cfg(test)]
 pub(crate) mod client_tests {
     use crate::client::Client;
-    use crate::quake_live_engine::QuakeLiveEngineError::NullPointerPassed;
+    use crate::quake_live_engine::QuakeLiveEngineError::{InvalidId, NullPointerPassed};
     use crate::quake_types::clientState_t::CS_ZOMBIE;
     use crate::quake_types::{
         client_t, sharedEntity_t, ClientBuilder, SharedEntityBuilder, MAX_INFO_STRING,
@@ -132,6 +132,16 @@ pub(crate) mod client_tests {
     pub(crate) fn client_try_from_valid_client() {
         let client = ClientBuilder::default().build().unwrap();
         assert_eq!(Client::try_from(&client as *const client_t).is_ok(), true);
+    }
+
+    #[test]
+    pub(crate) fn client_try_from_negative_client_id() {
+        assert_eq!(Client::try_from(-1), Err(InvalidId(-1)));
+    }
+
+    #[test]
+    pub(crate) fn client_try_from_too_large_client_id() {
+        assert_eq!(Client::try_from(32384), Err(InvalidId(32384)));
     }
 
     #[test]
