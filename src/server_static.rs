@@ -24,9 +24,7 @@ impl TryFrom<*mut serverStatic_t> for ServerStatic {
 
 impl Default for ServerStatic {
     fn default() -> Self {
-        let Some(main_engine) =
-            MAIN_ENGINE.get() else
-        {
+        let Some(main_engine) = MAIN_ENGINE.get() else {
             debug_println!("Main Engine not found");
             panic!("Main Engine not found");
         };
@@ -37,5 +35,36 @@ impl Default for ServerStatic {
         let svs_ptr_ptr = func_pointer as usize + 0xAC;
         let svs_ptr: u32 = unsafe { std::ptr::read(svs_ptr_ptr as *const u32) };
         Self::try_from(svs_ptr as *mut serverStatic_t).unwrap()
+    }
+}
+
+#[cfg(test)]
+pub(crate) mod server_static_tests {
+    use crate::quake_live_engine::QuakeLiveEngineError::NullPointerPassed;
+    use crate::quake_types::{serverStatic_t, ServerStaticBuilder};
+    use crate::server_static::ServerStatic;
+    use pretty_assertions::assert_eq;
+
+    #[test]
+    pub(crate) fn server_static_try_from_null_results_in_error() {
+        assert_eq!(
+            ServerStatic::try_from(std::ptr::null_mut() as *mut serverStatic_t),
+            Err(NullPointerPassed("null pointer passed".into()))
+        );
+    }
+
+    #[test]
+    pub(crate) fn server_static_try_from_valid_server_static() {
+        let mut server_static = ServerStaticBuilder::default().build().unwrap();
+        assert_eq!(
+            ServerStatic::try_from(&mut server_static as *mut serverStatic_t).is_ok(),
+            true
+        );
+    }
+
+    #[test]
+    #[should_panic(expected = "Main Engine not found")]
+    pub(crate) fn server_static_default_panics_when_no_main_engine_found() {
+        ServerStatic::default();
     }
 }
