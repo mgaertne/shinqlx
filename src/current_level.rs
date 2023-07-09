@@ -25,8 +25,8 @@ impl TryFrom<*mut level_locals_t> for CurrentLevel {
 impl Default for CurrentLevel {
     fn default() -> Self {
         let Some(main_engine) = MAIN_ENGINE.get() else {
-          debug_println!("main quake live engine not initialized.");  
-          panic!("main quake live engine not initialized.");  
+            debug_println!("main quake live engine not initialized.");
+            panic!("main quake live engine not initialized.");
         };
 
         let Ok(func_pointer) = main_engine.g_init_game_orig() else {
@@ -104,6 +104,12 @@ pub(crate) mod current_level_tests {
     use crate::quake_live_engine::QuakeLiveEngineError::NullPointerPassed;
     use crate::quake_types::{level_locals_t, qboolean, LevelLocalsBuilder};
     use pretty_assertions::assert_eq;
+
+    #[test]
+    #[should_panic(expected = "main quake live engine not initialized")]
+    pub(crate) fn current_level_default_panics_when_no_main_engine_found() {
+        CurrentLevel::default();
+    }
 
     #[test]
     pub(crate) fn current_level_from_null() {
