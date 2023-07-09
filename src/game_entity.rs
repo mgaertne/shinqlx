@@ -384,7 +384,7 @@ impl GameEntity {
 pub(crate) mod game_entity_tests {
     use crate::current_level::CurrentLevel;
     use crate::game_entity::GameEntity;
-    use crate::quake_live_engine::QuakeLiveEngineError::NullPointerPassed;
+    use crate::quake_live_engine::QuakeLiveEngineError::{InvalidId, NullPointerPassed};
     use crate::quake_live_engine::{
         MockFreeEntity, MockLaunchItem, MockRegisterDamage, MockStartKamikaze,
     };
@@ -420,6 +420,21 @@ pub(crate) mod game_entity_tests {
             GameEntity::try_from(&mut gentity as *mut gentity_t).is_ok(),
             true
         );
+    }
+
+    #[test]
+    pub(crate) fn game_entity_try_from_negative_entity_id() {
+        assert_eq!(GameEntity::try_from(-1), Err(InvalidId(-1)));
+    }
+
+    #[test]
+    pub(crate) fn game_entity_try_from_too_large_i32_entity_id() {
+        assert_eq!(GameEntity::try_from(65536 as i32), Err(InvalidId(65536)));
+    }
+
+    #[test]
+    pub(crate) fn game_entity_try_from_too_large_u32_entity_id() {
+        assert_eq!(GameEntity::try_from(65536 as u32), Err(InvalidId(65536)));
     }
 
     #[test]
