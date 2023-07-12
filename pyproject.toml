@@ -30,5 +30,4 @@ include-package-data = false
 bindings = "pyo3"
 python-source = "python"
 python-packages = ["minqlx"]
-strip = true
 compatibility = "linux"
