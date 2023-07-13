@@ -42,6 +42,9 @@ region = "3.0.0"
 [target."cfg(target_os=\"linux\")".dependencies]
 procfs = "0.15.1"
 
+[patch.crates-io]
+slice-pool = {git = "https://github.com/Gh0u1L5/slice-pool-rs", rev = "12460e7"}
+
 [build-dependencies]
 pyo3-build-config = { version = "0.18.3", features = ["resolve-config"] }
 
