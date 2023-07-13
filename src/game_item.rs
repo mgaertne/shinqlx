@@ -36,6 +36,8 @@ impl TryFrom<i32> for GameItem {
     }
 }
 
+const OFFSET_BG_ITEMLIST: usize = 0x2A;
+
 impl GameItem {
     pub(crate) fn get_num_items() -> i32 {
         let bg_itemlist = Self::get_item_list();
@@ -59,9 +61,11 @@ impl GameItem {
         let Ok(launch_item_orig) = main_engine.launch_item_orig() else {
             return std::ptr::null_mut();
         };
-        let base_address =
-            unsafe { std::ptr::read_unaligned((launch_item_orig as usize + 0x2A) as *const i32) };
-        let bg_itemlist_ptr_ptr = base_address as usize + launch_item_orig as usize + 0x2A + 4;
+        let base_address = unsafe {
+            std::ptr::read_unaligned((launch_item_orig as usize + OFFSET_BG_ITEMLIST) as *const i32)
+        };
+        let bg_itemlist_ptr_ptr =
+            base_address as usize + launch_item_orig as usize + OFFSET_BG_ITEMLIST + 4;
         let bg_itemlist_ptr = unsafe { std::ptr::read(bg_itemlist_ptr_ptr as *const u64) };
         bg_itemlist_ptr as *mut gitem_t
     }

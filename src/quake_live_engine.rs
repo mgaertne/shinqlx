@@ -15,21 +15,28 @@ use crate::hooks::{
 };
 use crate::patches::patch_callvote_f;
 use crate::pyminqlx::pyminqlx_initialize;
-use crate::quake_live_functions::{pattern_search_module, QuakeLiveFunction};
+#[cfg(target_os = "linux")]
+use crate::quake_live_functions::pattern_search_module;
+use crate::quake_live_functions::QuakeLiveFunction;
 use crate::quake_types::{
     cbufExec_t, client_t, cvar_t, entity_event_t, gentity_t, gitem_t, qboolean, trace_t, usercmd_t,
     vec3_t, MAX_STRING_CHARS,
 };
 use crate::PyMinqlx_InitStatus_t::PYM_SUCCESS;
-use crate::{QAGAME, QZERODED, SV_TAGS_PREFIX};
+use crate::SV_TAGS_PREFIX;
+#[cfg(target_os = "linux")]
+use crate::{QAGAME, QZERODED};
 #[cfg(test)]
 use mockall::*;
 use once_cell::race::OnceBool;
 use once_cell::sync::OnceCell;
+#[cfg(target_os = "linux")]
 use procfs::process::{MMapPath, MemoryMap, Process};
 use retour::{GenericDetour, RawDetour};
 use std::collections::VecDeque;
-use std::ffi::{c_char, c_int, CStr, CString, OsStr};
+#[cfg(target_os = "linux")]
+use std::ffi::OsStr;
+use std::ffi::{c_char, c_int, CStr, CString};
 use std::sync::atomic::{AtomicI32, AtomicUsize, Ordering};
 use std::sync::RwLock;
 
@@ -65,6 +72,7 @@ pub enum QuakeLiveEngineError {
     InvalidId(i32),
     ClientNotFound(String),
     ProcessNotFound(String),
+    #[allow(dead_code)]
     NoMemoryMappingInformationFound(String),
     StaticFunctionNotFound(QuakeLiveFunction),
     StaticDetourCouldNotBeCreated(QuakeLiveFunction),
@@ -168,92 +176,113 @@ struct VmFunctions {
     g_damage_detour: RwLock<Option<GDamageDetourType>>,
 }
 
+#[allow(dead_code)]
+const OFFSET_VM_CALL_TABLE: usize = 0x3;
+#[allow(dead_code)]
+const OFFSET_INITGAME: usize = 0x18;
+#[allow(dead_code)]
+const OFFSET_RUNFRAME: usize = 0x8;
+
 impl VmFunctions {
     pub(crate) fn try_initialize_from(
         &self,
-        module_offset: usize,
+        #[allow(unused_variables)] module_offset: usize,
     ) -> Result<(), QuakeLiveEngineError> {
-        let qagame_os_str = OsStr::new(QAGAME);
-        let Ok(myself_process) = Process::myself() else {
-            return Err(QuakeLiveEngineError::ProcessNotFound(
-                "could not find my own process\n".into(),
-            ));
-        };
-        let Ok(myself_maps) = myself_process.maps() else {
-            return Err(QuakeLiveEngineError::NoMemoryMappingInformationFound(
-                "no memory mapping information found\n".into(),
-            ));
-        };
-        let qagame_maps: Vec<&MemoryMap> = myself_maps
-            .memory_maps
-            .iter()
-            .filter(|mmap| {
-                if let MMapPath::Path(path) = &mmap.pathname {
-                    path.file_name() == Some(qagame_os_str)
-                } else {
-                    false
-                }
-            })
-            .collect();
-
-        debug_println!("Searching for necessary VM functions...");
-        for (ql_func, field) in [
-            (QuakeLiveFunction::G_AddEvent, &self.g_addevent_orig),
-            (
-                QuakeLiveFunction::CheckPrivileges,
-                &self.check_privileges_orig,
-            ),
-            (QuakeLiveFunction::ClientConnect, &self.client_connect_orig),
-            (QuakeLiveFunction::ClientSpawn, &self.client_spawn_orig),
-            (QuakeLiveFunction::G_Damage, &self.g_damage_orig),
-            (QuakeLiveFunction::Touch_Item, &self.touch_item_orig),
-            (QuakeLiveFunction::LaunchItem, &self.launch_item_orig),
-            (QuakeLiveFunction::Drop_Item, &self.drop_item_orig),
-            (
-                QuakeLiveFunction::G_StartKamikaze,
-                &self.g_start_kamikaze_orig,
-            ),
-            (QuakeLiveFunction::G_FreeEntity, &self.g_free_entity_orig),
-            (QuakeLiveFunction::Cmd_Callvote_f, &self.cmd_callvote_f_orig),
-        ] {
-            let Some(orig_func) = pattern_search_module(&qagame_maps, &ql_func) else {
-                return Err(QuakeLiveEngineError::VmFunctionNotFound(ql_func));
-            };
-            debug_println!(format!("{}: {:#X}", &ql_func, orig_func));
-            field.store(orig_func, Ordering::SeqCst);
-        }
-
-        let base_address =
-            unsafe { std::ptr::read_unaligned((module_offset as u64 + 0x3) as *const i32) };
-        let vm_call_table = base_address as usize + module_offset + 0x3 + 4;
-        self.vm_call_table.store(vm_call_table, Ordering::SeqCst);
-
-        let g_initgame_orig = unsafe {
-            std::ptr::read(
-                (vm_call_table + 0x18) as *const *const extern "C" fn(c_int, c_int, c_int),
-            )
-        };
-        debug_println!(format!("G_InitGame: {:#X}", g_initgame_orig as usize));
-        self.g_init_game_orig
-            .store(g_initgame_orig as usize, Ordering::SeqCst);
-
-        let g_shutdowngame_orig = unsafe {
-            std::ptr::read_unaligned(vm_call_table as *const *const extern "C" fn(c_int))
-        };
-        debug_println!(format!(
-            "G_ShutdownGame: {:#X}",
-            g_shutdowngame_orig as usize
+        #[cfg(not(target_os = "linux"))]
+        return Err(QuakeLiveEngineError::ProcessNotFound(
+            "could not find my own process\n".into(),
         ));
-        self.g_shutdown_game_orig
-            .store(g_shutdowngame_orig as usize, Ordering::SeqCst);
+        #[cfg(target_os = "linux")]
+        {
+            let qagame_os_str = OsStr::new(QAGAME);
+            let Ok(myself_process) = Process::myself() else {
+                return Err(QuakeLiveEngineError::ProcessNotFound(
+                    "could not find my own process\n".into(),
+                ));
+            };
+            let Ok(myself_maps) = myself_process.maps() else {
+                return Err(QuakeLiveEngineError::NoMemoryMappingInformationFound(
+                    "no memory mapping information found\n".into(),
+                ));
+            };
+            let qagame_maps: Vec<&MemoryMap> = myself_maps
+                .memory_maps
+                .iter()
+                .filter(|mmap| {
+                    if let MMapPath::Path(path) = &mmap.pathname {
+                        path.file_name() == Some(qagame_os_str)
+                    } else {
+                        false
+                    }
+                })
+                .collect();
 
-        let g_runframe_orig =
-            unsafe { std::ptr::read((vm_call_table + 0x8) as *const *const extern "C" fn(c_int)) };
-        debug_println!(format!("G_RunFrame: {:#X}", g_runframe_orig as usize));
-        self.g_run_frame_orig
-            .store(g_runframe_orig as usize, Ordering::SeqCst);
+            debug_println!("Searching for necessary VM functions...");
+            for (ql_func, field) in [
+                (QuakeLiveFunction::G_AddEvent, &self.g_addevent_orig),
+                (
+                    QuakeLiveFunction::CheckPrivileges,
+                    &self.check_privileges_orig,
+                ),
+                (QuakeLiveFunction::ClientConnect, &self.client_connect_orig),
+                (QuakeLiveFunction::ClientSpawn, &self.client_spawn_orig),
+                (QuakeLiveFunction::G_Damage, &self.g_damage_orig),
+                (QuakeLiveFunction::Touch_Item, &self.touch_item_orig),
+                (QuakeLiveFunction::LaunchItem, &self.launch_item_orig),
+                (QuakeLiveFunction::Drop_Item, &self.drop_item_orig),
+                (
+                    QuakeLiveFunction::G_StartKamikaze,
+                    &self.g_start_kamikaze_orig,
+                ),
+                (QuakeLiveFunction::G_FreeEntity, &self.g_free_entity_orig),
+                (QuakeLiveFunction::Cmd_Callvote_f, &self.cmd_callvote_f_orig),
+            ] {
+                let Some(orig_func) = pattern_search_module(&qagame_maps, &ql_func) else {
+                    return Err(QuakeLiveEngineError::VmFunctionNotFound(ql_func));
+                };
+                debug_println!(format!("{}: {:#X}", &ql_func, orig_func));
+                field.store(orig_func, Ordering::SeqCst);
+            }
 
-        Ok(())
+            let base_address = unsafe {
+                std::ptr::read_unaligned(
+                    (module_offset as u64 + OFFSET_VM_CALL_TABLE as u64) as *const i32,
+                )
+            };
+            let vm_call_table = base_address as usize + module_offset + OFFSET_VM_CALL_TABLE + 4;
+            self.vm_call_table.store(vm_call_table, Ordering::SeqCst);
+
+            let g_initgame_orig = unsafe {
+                std::ptr::read(
+                    (vm_call_table + OFFSET_INITGAME)
+                        as *const *const extern "C" fn(c_int, c_int, c_int),
+                )
+            };
+            debug_println!(format!("G_InitGame: {:#X}", g_initgame_orig as usize));
+            self.g_init_game_orig
+                .store(g_initgame_orig as usize, Ordering::SeqCst);
+
+            let g_shutdowngame_orig = unsafe {
+                std::ptr::read_unaligned(vm_call_table as *const *const extern "C" fn(c_int))
+            };
+            debug_println!(format!(
+                "G_ShutdownGame: {:#X}",
+                g_shutdowngame_orig as usize
+            ));
+            self.g_shutdown_game_orig
+                .store(g_shutdowngame_orig as usize, Ordering::SeqCst);
+
+            let g_runframe_orig = unsafe {
+                std::ptr::read(
+                    (vm_call_table + OFFSET_RUNFRAME) as *const *const extern "C" fn(c_int),
+                )
+            };
+            debug_println!(format!("G_RunFrame: {:#X}", g_runframe_orig as usize));
+            self.g_run_frame_orig
+                .store(g_runframe_orig as usize, Ordering::SeqCst);
+
+            Ok(())
+        }
     }
 
     /*
@@ -472,6 +501,9 @@ pub(crate) struct QuakeLiveEngine {
     pending_g_damage_detours: RwLock<VecDeque<GDamageDetourType>>,
 }
 
+#[allow(dead_code)]
+const OFFSET_CMD_ARGC: i32 = 0x81;
+
 impl QuakeLiveEngine {
     pub(crate) fn new() -> Self {
         Self {
@@ -512,424 +544,439 @@ impl QuakeLiveEngine {
     }
 
     pub(crate) fn search_static_functions(&self) -> Result<(), QuakeLiveEngineError> {
-        let qzeroded_os_str = OsStr::new(QZERODED);
-        let Ok(myself_process) = Process::myself() else {
-            return Err(QuakeLiveEngineError::ProcessNotFound(
-                "could not find my own process\n".into(),
-            ));
-        };
-        let Ok(myself_maps) = myself_process.maps() else {
-            return Err(QuakeLiveEngineError::NoMemoryMappingInformationFound(
-                "no memory mapping information found\n".into(),
-            ));
-        };
-        let qzeroded_maps: Vec<&MemoryMap> = myself_maps
-            .memory_maps
-            .iter()
-            .filter(|mmap| {
-                if let MMapPath::Path(path) = &mmap.pathname {
-                    path.file_name() == Some(qzeroded_os_str)
-                } else {
-                    false
-                }
-            })
-            .collect();
+        #[cfg(not(target_os = "linux"))]
+        return Err(QuakeLiveEngineError::ProcessNotFound(
+            "could not find my own process\n".into(),
+        ));
+        #[cfg(target_os = "linux")]
+        {
+            let qzeroded_os_str = OsStr::new(QZERODED);
+            let Ok(myself_process) = Process::myself() else {
+                return Err(QuakeLiveEngineError::ProcessNotFound(
+                    "could not find my own process\n".into(),
+                ));
+            };
+            let Ok(myself_maps) = myself_process.maps() else {
+                return Err(QuakeLiveEngineError::NoMemoryMappingInformationFound(
+                    "no memory mapping information found\n".into(),
+                ));
+            };
+            let qzeroded_maps: Vec<&MemoryMap> = myself_maps
+                .memory_maps
+                .iter()
+                .filter(|mmap| {
+                    if let MMapPath::Path(path) = &mmap.pathname {
+                        path.file_name() == Some(qzeroded_os_str)
+                    } else {
+                        false
+                    }
+                })
+                .collect();
 
-        if qzeroded_maps.is_empty() {
+            if qzeroded_maps.is_empty() {
+                debug_println!(format!(
+                    "no memory mapping information for {} found",
+                    QZERODED
+                ));
+                return Err(QuakeLiveEngineError::NoMemoryMappingInformationFound(
+                    "no memory mapping information found\n".into(),
+                ));
+            }
+
+            debug_println!("Searching for necessary functions...");
+            let Some(result) =
+                pattern_search_module(&qzeroded_maps, &QuakeLiveFunction::Com_Printf)
+            else {
+                debug_println!(format!(
+                    "Function {} not found",
+                    &QuakeLiveFunction::Com_Printf
+                ));
+                return Err(QuakeLiveEngineError::StaticFunctionNotFound(
+                    QuakeLiveFunction::Com_Printf,
+                ));
+            };
+            debug_println!(format!("{}: {:#X}", &QuakeLiveFunction::Com_Printf, result));
+            let com_printf_orig = unsafe { std::mem::transmute(result) };
+
+            let Some(result) =
+                pattern_search_module(&qzeroded_maps, &QuakeLiveFunction::Cmd_AddCommand)
+            else {
+                debug_println!(format!(
+                    "Function {} not found",
+                    &QuakeLiveFunction::Cmd_AddCommand
+                ));
+                return Err(QuakeLiveEngineError::StaticFunctionNotFound(
+                    QuakeLiveFunction::Cmd_AddCommand,
+                ));
+            };
             debug_println!(format!(
-                "no memory mapping information for {} found",
-                QZERODED
+                "{}: {:#X}",
+                &QuakeLiveFunction::Cmd_AddCommand,
+                result
             ));
-            return Err(QuakeLiveEngineError::NoMemoryMappingInformationFound(
-                "no memory mapping information found\n".into(),
+            let cmd_addcommand_orig = unsafe { std::mem::transmute(result) };
+
+            let Some(result) = pattern_search_module(&qzeroded_maps, &QuakeLiveFunction::Cmd_Args)
+            else {
+                debug_println!(format!(
+                    "Function {} not found",
+                    &QuakeLiveFunction::Cmd_Args
+                ));
+                return Err(QuakeLiveEngineError::StaticFunctionNotFound(
+                    QuakeLiveFunction::Cmd_Args,
+                ));
+            };
+            debug_println!(format!("{}: {:#X}", &QuakeLiveFunction::Cmd_Args, result));
+            let cmd_args_orig = unsafe { std::mem::transmute(result) };
+
+            let Some(result) = pattern_search_module(&qzeroded_maps, &QuakeLiveFunction::Cmd_Argv)
+            else {
+                debug_println!(format!(
+                    "Function {} not found",
+                    &QuakeLiveFunction::Cmd_Argv
+                ));
+                return Err(QuakeLiveEngineError::StaticFunctionNotFound(
+                    QuakeLiveFunction::Cmd_Argv,
+                ));
+            };
+            debug_println!(format!("{}: {:#X}", &QuakeLiveFunction::Cmd_Argv, result));
+            let cmd_argv_orig = unsafe { std::mem::transmute(result) };
+
+            let Some(result) =
+                pattern_search_module(&qzeroded_maps, &QuakeLiveFunction::Cmd_Tokenizestring)
+            else {
+                debug_println!(format!(
+                    "Function {} not found",
+                    &QuakeLiveFunction::Cmd_Tokenizestring
+                ));
+                return Err(QuakeLiveEngineError::StaticFunctionNotFound(
+                    QuakeLiveFunction::Cmd_Tokenizestring,
+                ));
+            };
+            debug_println!(format!(
+                "{}: {:#X}",
+                &QuakeLiveFunction::Cmd_Tokenizestring,
+                result
             ));
+            let cmd_tokenizestring_orig = unsafe { std::mem::transmute(result) };
+
+            let Some(result) =
+                pattern_search_module(&qzeroded_maps, &QuakeLiveFunction::Cbuf_ExecuteText)
+            else {
+                debug_println!(format!(
+                    "Function {} not found",
+                    &QuakeLiveFunction::Cbuf_ExecuteText
+                ));
+                return Err(QuakeLiveEngineError::StaticFunctionNotFound(
+                    QuakeLiveFunction::Cbuf_ExecuteText,
+                ));
+            };
+            debug_println!(format!(
+                "{}: {:#X}",
+                &QuakeLiveFunction::Cbuf_ExecuteText,
+                result
+            ));
+            let cbuf_executetext_orig = unsafe { std::mem::transmute(result) };
+
+            let Some(result) =
+                pattern_search_module(&qzeroded_maps, &QuakeLiveFunction::Cvar_FindVar)
+            else {
+                debug_println!(format!(
+                    "Function {} not found",
+                    &QuakeLiveFunction::Cvar_FindVar
+                ));
+                return Err(QuakeLiveEngineError::StaticFunctionNotFound(
+                    QuakeLiveFunction::Cvar_FindVar,
+                ));
+            };
+            debug_println!(format!(
+                "{}: {:#X}",
+                &QuakeLiveFunction::Cvar_FindVar,
+                result
+            ));
+            let cvar_findvar_orig = unsafe { std::mem::transmute(result) };
+
+            let Some(result) = pattern_search_module(&qzeroded_maps, &QuakeLiveFunction::Cvar_Get)
+            else {
+                debug_println!(format!(
+                    "Function {} not found",
+                    &QuakeLiveFunction::Cvar_Get
+                ));
+                return Err(QuakeLiveEngineError::StaticFunctionNotFound(
+                    QuakeLiveFunction::Cvar_Get,
+                ));
+            };
+            debug_println!(format!("{}: {:#X}", &QuakeLiveFunction::Cvar_Get, result));
+            let cvar_get_orig = unsafe { std::mem::transmute(result) };
+
+            let Some(result) =
+                pattern_search_module(&qzeroded_maps, &QuakeLiveFunction::Cvar_GetLimit)
+            else {
+                debug_println!(format!(
+                    "Function {} not found",
+                    &QuakeLiveFunction::Cvar_GetLimit
+                ));
+                return Err(QuakeLiveEngineError::StaticFunctionNotFound(
+                    QuakeLiveFunction::Cvar_GetLimit,
+                ));
+            };
+            debug_println!(format!(
+                "{}: {:#X}",
+                &QuakeLiveFunction::Cvar_GetLimit,
+                result
+            ));
+            let cvar_getlimit_orig = unsafe { std::mem::transmute(result) };
+
+            let Some(result) = pattern_search_module(&qzeroded_maps, &QuakeLiveFunction::Cvar_Set2)
+            else {
+                debug_println!(format!(
+                    "Function {} not found",
+                    &QuakeLiveFunction::Cvar_Set2
+                ));
+                return Err(QuakeLiveEngineError::StaticFunctionNotFound(
+                    QuakeLiveFunction::Cvar_Set2,
+                ));
+            };
+            debug_println!(format!("{}: {:#X}", &QuakeLiveFunction::Cvar_Set2, result));
+            let cvar_set2_orig = unsafe { std::mem::transmute(result) };
+
+            let Some(result) =
+                pattern_search_module(&qzeroded_maps, &QuakeLiveFunction::SV_SendServerCommand)
+            else {
+                debug_println!(format!(
+                    "Function {} not found",
+                    &QuakeLiveFunction::SV_SendServerCommand
+                ));
+                return Err(QuakeLiveEngineError::StaticFunctionNotFound(
+                    QuakeLiveFunction::SV_SendServerCommand,
+                ));
+            };
+            debug_println!(format!(
+                "{}: {:#X}",
+                &QuakeLiveFunction::SV_SendServerCommand,
+                result
+            ));
+            let sv_sendservercommand_orig = unsafe { std::mem::transmute(result) };
+
+            let Some(result) =
+                pattern_search_module(&qzeroded_maps, &QuakeLiveFunction::SV_ExecuteClientCommand)
+            else {
+                debug_println!(format!(
+                    "Function {} not found",
+                    &QuakeLiveFunction::SV_ExecuteClientCommand
+                ));
+                return Err(QuakeLiveEngineError::StaticFunctionNotFound(
+                    QuakeLiveFunction::SV_ExecuteClientCommand,
+                ));
+            };
+            debug_println!(format!(
+                "{}: {:#X}",
+                &QuakeLiveFunction::SV_ExecuteClientCommand,
+                result
+            ));
+            let sv_executeclientcommand_orig = unsafe { std::mem::transmute(result) };
+
+            let Some(result) =
+                pattern_search_module(&qzeroded_maps, &QuakeLiveFunction::SV_Shutdown)
+            else {
+                debug_println!(format!(
+                    "Function {} not found",
+                    &QuakeLiveFunction::SV_Shutdown
+                ));
+                return Err(QuakeLiveEngineError::StaticFunctionNotFound(
+                    QuakeLiveFunction::SV_Shutdown,
+                ));
+            };
+            debug_println!(format!(
+                "{}: {:#X}",
+                &QuakeLiveFunction::SV_Shutdown,
+                result
+            ));
+            let sv_shutdown_orig = unsafe { std::mem::transmute(result) };
+
+            let Some(result) = pattern_search_module(&qzeroded_maps, &QuakeLiveFunction::SV_Map_f)
+            else {
+                debug_println!(format!(
+                    "Function {} not found",
+                    &QuakeLiveFunction::SV_Map_f
+                ));
+                return Err(QuakeLiveEngineError::StaticFunctionNotFound(
+                    QuakeLiveFunction::SV_Map_f,
+                ));
+            };
+            debug_println!(format!("{}: {:#X}", &QuakeLiveFunction::SV_Map_f, result));
+            let sv_map_f_orig = unsafe { std::mem::transmute(result) };
+
+            let Some(result) =
+                pattern_search_module(&qzeroded_maps, &QuakeLiveFunction::SV_ClientEnterWorld)
+            else {
+                debug_println!(format!(
+                    "Function {} not found",
+                    &QuakeLiveFunction::SV_ClientEnterWorld
+                ));
+                return Err(QuakeLiveEngineError::StaticFunctionNotFound(
+                    QuakeLiveFunction::SV_ClientEnterWorld,
+                ));
+            };
+            debug_println!(format!(
+                "{}: {:#X}",
+                &QuakeLiveFunction::SV_ClientEnterWorld,
+                result
+            ));
+            let sv_cliententerworld_orig = unsafe { std::mem::transmute(result) };
+
+            let Some(result) =
+                pattern_search_module(&qzeroded_maps, &QuakeLiveFunction::SV_SetConfigstring)
+            else {
+                debug_println!(format!(
+                    "Function {} not found",
+                    &QuakeLiveFunction::SV_SetConfigstring
+                ));
+                return Err(QuakeLiveEngineError::StaticFunctionNotFound(
+                    QuakeLiveFunction::SV_SetConfigstring,
+                ));
+            };
+            debug_println!(format!(
+                "{}: {:#X}",
+                &QuakeLiveFunction::SV_SetConfigstring,
+                result
+            ));
+            let sv_setconfigstring_orig = unsafe { std::mem::transmute(result) };
+
+            let Some(result) =
+                pattern_search_module(&qzeroded_maps, &QuakeLiveFunction::SV_GetConfigstring)
+            else {
+                debug_println!(format!(
+                    "Function {} not found",
+                    &QuakeLiveFunction::SV_GetConfigstring
+                ));
+                return Err(QuakeLiveEngineError::StaticFunctionNotFound(
+                    QuakeLiveFunction::SV_GetConfigstring,
+                ));
+            };
+            debug_println!(format!(
+                "{}: {:#X}",
+                &QuakeLiveFunction::SV_GetConfigstring,
+                result
+            ));
+            let sv_getconfigstring_orig = unsafe { std::mem::transmute(result) };
+
+            let Some(result) =
+                pattern_search_module(&qzeroded_maps, &QuakeLiveFunction::SV_DropClient)
+            else {
+                debug_println!(format!(
+                    "Function {} not found",
+                    &QuakeLiveFunction::SV_DropClient
+                ));
+                return Err(QuakeLiveEngineError::StaticFunctionNotFound(
+                    QuakeLiveFunction::SV_DropClient,
+                ));
+            };
+            debug_println!(format!(
+                "{}: {:#X}",
+                &QuakeLiveFunction::SV_DropClient,
+                result
+            ));
+            let sv_dropclient_orig = unsafe { std::mem::transmute(result) };
+
+            let Some(result) =
+                pattern_search_module(&qzeroded_maps, &QuakeLiveFunction::Sys_SetModuleOffset)
+            else {
+                debug_println!(format!(
+                    "Function {} not found",
+                    &QuakeLiveFunction::Sys_SetModuleOffset
+                ));
+                return Err(QuakeLiveEngineError::StaticFunctionNotFound(
+                    QuakeLiveFunction::Sys_SetModuleOffset,
+                ));
+            };
+            debug_println!(format!(
+                "{}: {:#X}",
+                &QuakeLiveFunction::Sys_SetModuleOffset,
+                result
+            ));
+            let sys_setmoduleoffset_orig = unsafe { std::mem::transmute(result) };
+
+            let Some(result) =
+                pattern_search_module(&qzeroded_maps, &QuakeLiveFunction::SV_SpawnServer)
+            else {
+                debug_println!(format!(
+                    "Function {} not found",
+                    &QuakeLiveFunction::SV_SpawnServer
+                ));
+                return Err(QuakeLiveEngineError::StaticFunctionNotFound(
+                    QuakeLiveFunction::SV_SpawnServer,
+                ));
+            };
+            debug_println!(format!(
+                "{}: {:#X}",
+                &QuakeLiveFunction::SV_SpawnServer,
+                result
+            ));
+            let sv_spawnserver_orig = unsafe { std::mem::transmute(result) };
+
+            let Some(result) =
+                pattern_search_module(&qzeroded_maps, &QuakeLiveFunction::Cmd_ExecuteString)
+            else {
+                debug_println!(format!(
+                    "Function {} not found",
+                    &QuakeLiveFunction::Cmd_ExecuteString
+                ));
+                return Err(QuakeLiveEngineError::StaticFunctionNotFound(
+                    QuakeLiveFunction::Cmd_ExecuteString,
+                ));
+            };
+            debug_println!(format!(
+                "{}: {:#X}",
+                &QuakeLiveFunction::Cmd_ExecuteString,
+                result
+            ));
+            let cmd_executestring_orig = unsafe { std::mem::transmute(result) };
+
+            // Cmd_Argc is really small, making it hard to search for, so we use a reference to it instead.
+            let base_address = unsafe {
+                std::ptr::read_unaligned(
+                    (sv_map_f_orig as usize + OFFSET_CMD_ARGC as usize) as *const i32,
+                )
+            };
+            #[allow(clippy::fn_to_numeric_cast_with_truncation)]
+            let cmd_argc_ptr = base_address + sv_map_f_orig as i32 + OFFSET_CMD_ARGC + 4;
+            debug_println!(format!(
+                "{}: {:#X}",
+                QuakeLiveFunction::Cmd_Argc,
+                cmd_argc_ptr
+            ));
+            let cmd_argc_orig = unsafe { std::mem::transmute(cmd_argc_ptr as u64) };
+
+            self.static_functions
+                .set(StaticFunctions {
+                    com_printf_orig,
+                    cmd_addcommand_orig,
+                    cmd_args_orig,
+                    cmd_argv_orig,
+                    cmd_tokenizestring_orig,
+                    cbuf_executetext_orig,
+                    cvar_findvar_orig,
+                    cvar_get_orig,
+                    cvar_getlimit_orig,
+                    cvar_set2_orig,
+                    sv_sendservercommand_orig,
+                    sv_executeclientcommand_orig,
+                    sv_shutdown_orig,
+                    sv_map_f_orig,
+                    sv_cliententerworld_orig,
+                    sv_setconfigstring_orig,
+                    sv_getconfigstring_orig,
+                    sv_dropclient_orig,
+                    sys_setmoduleoffset_orig,
+                    sv_spawnserver_orig,
+                    cmd_executestring_orig,
+                    cmd_argc_orig,
+                })
+                .unwrap();
+
+            Ok(())
         }
-
-        debug_println!("Searching for necessary functions...");
-        let Some(result) = pattern_search_module(&qzeroded_maps, &QuakeLiveFunction::Com_Printf)
-        else {
-            debug_println!(format!(
-                "Function {} not found",
-                &QuakeLiveFunction::Com_Printf
-            ));
-            return Err(QuakeLiveEngineError::StaticFunctionNotFound(
-                QuakeLiveFunction::Com_Printf,
-            ));
-        };
-        debug_println!(format!("{}: {:#X}", &QuakeLiveFunction::Com_Printf, result));
-        let com_printf_orig = unsafe { std::mem::transmute(result) };
-
-        let Some(result) =
-            pattern_search_module(&qzeroded_maps, &QuakeLiveFunction::Cmd_AddCommand)
-        else {
-            debug_println!(format!(
-                "Function {} not found",
-                &QuakeLiveFunction::Cmd_AddCommand
-            ));
-            return Err(QuakeLiveEngineError::StaticFunctionNotFound(
-                QuakeLiveFunction::Cmd_AddCommand,
-            ));
-        };
-        debug_println!(format!(
-            "{}: {:#X}",
-            &QuakeLiveFunction::Cmd_AddCommand,
-            result
-        ));
-        let cmd_addcommand_orig = unsafe { std::mem::transmute(result) };
-
-        let Some(result) = pattern_search_module(&qzeroded_maps, &QuakeLiveFunction::Cmd_Args)
-        else {
-            debug_println!(format!(
-                "Function {} not found",
-                &QuakeLiveFunction::Cmd_Args
-            ));
-            return Err(QuakeLiveEngineError::StaticFunctionNotFound(
-                QuakeLiveFunction::Cmd_Args,
-            ));
-        };
-        debug_println!(format!("{}: {:#X}", &QuakeLiveFunction::Cmd_Args, result));
-        let cmd_args_orig = unsafe { std::mem::transmute(result) };
-
-        let Some(result) = pattern_search_module(&qzeroded_maps, &QuakeLiveFunction::Cmd_Argv)
-        else {
-            debug_println!(format!(
-                "Function {} not found",
-                &QuakeLiveFunction::Cmd_Argv
-            ));
-            return Err(QuakeLiveEngineError::StaticFunctionNotFound(
-                QuakeLiveFunction::Cmd_Argv,
-            ));
-        };
-        debug_println!(format!("{}: {:#X}", &QuakeLiveFunction::Cmd_Argv, result));
-        let cmd_argv_orig = unsafe { std::mem::transmute(result) };
-
-        let Some(result) =
-            pattern_search_module(&qzeroded_maps, &QuakeLiveFunction::Cmd_Tokenizestring)
-        else {
-            debug_println!(format!(
-                "Function {} not found",
-                &QuakeLiveFunction::Cmd_Tokenizestring
-            ));
-            return Err(QuakeLiveEngineError::StaticFunctionNotFound(
-                QuakeLiveFunction::Cmd_Tokenizestring,
-            ));
-        };
-        debug_println!(format!(
-            "{}: {:#X}",
-            &QuakeLiveFunction::Cmd_Tokenizestring,
-            result
-        ));
-        let cmd_tokenizestring_orig = unsafe { std::mem::transmute(result) };
-
-        let Some(result) =
-            pattern_search_module(&qzeroded_maps, &QuakeLiveFunction::Cbuf_ExecuteText)
-        else {
-            debug_println!(format!(
-                "Function {} not found",
-                &QuakeLiveFunction::Cbuf_ExecuteText
-            ));
-            return Err(QuakeLiveEngineError::StaticFunctionNotFound(
-                QuakeLiveFunction::Cbuf_ExecuteText,
-            ));
-        };
-        debug_println!(format!(
-            "{}: {:#X}",
-            &QuakeLiveFunction::Cbuf_ExecuteText,
-            result
-        ));
-        let cbuf_executetext_orig = unsafe { std::mem::transmute(result) };
-
-        let Some(result) = pattern_search_module(&qzeroded_maps, &QuakeLiveFunction::Cvar_FindVar)
-        else {
-            debug_println!(format!(
-                "Function {} not found",
-                &QuakeLiveFunction::Cvar_FindVar
-            ));
-            return Err(QuakeLiveEngineError::StaticFunctionNotFound(
-                QuakeLiveFunction::Cvar_FindVar,
-            ));
-        };
-        debug_println!(format!(
-            "{}: {:#X}",
-            &QuakeLiveFunction::Cvar_FindVar,
-            result
-        ));
-        let cvar_findvar_orig = unsafe { std::mem::transmute(result) };
-
-        let Some(result) = pattern_search_module(&qzeroded_maps, &QuakeLiveFunction::Cvar_Get)
-        else {
-            debug_println!(format!(
-                "Function {} not found",
-                &QuakeLiveFunction::Cvar_Get
-            ));
-            return Err(QuakeLiveEngineError::StaticFunctionNotFound(
-                QuakeLiveFunction::Cvar_Get,
-            ));
-        };
-        debug_println!(format!("{}: {:#X}", &QuakeLiveFunction::Cvar_Get, result));
-        let cvar_get_orig = unsafe { std::mem::transmute(result) };
-
-        let Some(result) = pattern_search_module(&qzeroded_maps, &QuakeLiveFunction::Cvar_GetLimit)
-        else {
-            debug_println!(format!(
-                "Function {} not found",
-                &QuakeLiveFunction::Cvar_GetLimit
-            ));
-            return Err(QuakeLiveEngineError::StaticFunctionNotFound(
-                QuakeLiveFunction::Cvar_GetLimit,
-            ));
-        };
-        debug_println!(format!(
-            "{}: {:#X}",
-            &QuakeLiveFunction::Cvar_GetLimit,
-            result
-        ));
-        let cvar_getlimit_orig = unsafe { std::mem::transmute(result) };
-
-        let Some(result) = pattern_search_module(&qzeroded_maps, &QuakeLiveFunction::Cvar_Set2)
-        else {
-            debug_println!(format!(
-                "Function {} not found",
-                &QuakeLiveFunction::Cvar_Set2
-            ));
-            return Err(QuakeLiveEngineError::StaticFunctionNotFound(
-                QuakeLiveFunction::Cvar_Set2,
-            ));
-        };
-        debug_println!(format!("{}: {:#X}", &QuakeLiveFunction::Cvar_Set2, result));
-        let cvar_set2_orig = unsafe { std::mem::transmute(result) };
-
-        let Some(result) =
-            pattern_search_module(&qzeroded_maps, &QuakeLiveFunction::SV_SendServerCommand)
-        else {
-            debug_println!(format!(
-                "Function {} not found",
-                &QuakeLiveFunction::SV_SendServerCommand
-            ));
-            return Err(QuakeLiveEngineError::StaticFunctionNotFound(
-                QuakeLiveFunction::SV_SendServerCommand,
-            ));
-        };
-        debug_println!(format!(
-            "{}: {:#X}",
-            &QuakeLiveFunction::SV_SendServerCommand,
-            result
-        ));
-        let sv_sendservercommand_orig = unsafe { std::mem::transmute(result) };
-
-        let Some(result) =
-            pattern_search_module(&qzeroded_maps, &QuakeLiveFunction::SV_ExecuteClientCommand)
-        else {
-            debug_println!(format!(
-                "Function {} not found",
-                &QuakeLiveFunction::SV_ExecuteClientCommand
-            ));
-            return Err(QuakeLiveEngineError::StaticFunctionNotFound(
-                QuakeLiveFunction::SV_ExecuteClientCommand,
-            ));
-        };
-        debug_println!(format!(
-            "{}: {:#X}",
-            &QuakeLiveFunction::SV_ExecuteClientCommand,
-            result
-        ));
-        let sv_executeclientcommand_orig = unsafe { std::mem::transmute(result) };
-
-        let Some(result) = pattern_search_module(&qzeroded_maps, &QuakeLiveFunction::SV_Shutdown)
-        else {
-            debug_println!(format!(
-                "Function {} not found",
-                &QuakeLiveFunction::SV_Shutdown
-            ));
-            return Err(QuakeLiveEngineError::StaticFunctionNotFound(
-                QuakeLiveFunction::SV_Shutdown,
-            ));
-        };
-        debug_println!(format!(
-            "{}: {:#X}",
-            &QuakeLiveFunction::SV_Shutdown,
-            result
-        ));
-        let sv_shutdown_orig = unsafe { std::mem::transmute(result) };
-
-        let Some(result) = pattern_search_module(&qzeroded_maps, &QuakeLiveFunction::SV_Map_f)
-        else {
-            debug_println!(format!(
-                "Function {} not found",
-                &QuakeLiveFunction::SV_Map_f
-            ));
-            return Err(QuakeLiveEngineError::StaticFunctionNotFound(
-                QuakeLiveFunction::SV_Map_f,
-            ));
-        };
-        debug_println!(format!("{}: {:#X}", &QuakeLiveFunction::SV_Map_f, result));
-        let sv_map_f_orig = unsafe { std::mem::transmute(result) };
-
-        let Some(result) =
-            pattern_search_module(&qzeroded_maps, &QuakeLiveFunction::SV_ClientEnterWorld)
-        else {
-            debug_println!(format!(
-                "Function {} not found",
-                &QuakeLiveFunction::SV_ClientEnterWorld
-            ));
-            return Err(QuakeLiveEngineError::StaticFunctionNotFound(
-                QuakeLiveFunction::SV_ClientEnterWorld,
-            ));
-        };
-        debug_println!(format!(
-            "{}: {:#X}",
-            &QuakeLiveFunction::SV_ClientEnterWorld,
-            result
-        ));
-        let sv_cliententerworld_orig = unsafe { std::mem::transmute(result) };
-
-        let Some(result) =
-            pattern_search_module(&qzeroded_maps, &QuakeLiveFunction::SV_SetConfigstring)
-        else {
-            debug_println!(format!(
-                "Function {} not found",
-                &QuakeLiveFunction::SV_SetConfigstring
-            ));
-            return Err(QuakeLiveEngineError::StaticFunctionNotFound(
-                QuakeLiveFunction::SV_SetConfigstring,
-            ));
-        };
-        debug_println!(format!(
-            "{}: {:#X}",
-            &QuakeLiveFunction::SV_SetConfigstring,
-            result
-        ));
-        let sv_setconfigstring_orig = unsafe { std::mem::transmute(result) };
-
-        let Some(result) =
-            pattern_search_module(&qzeroded_maps, &QuakeLiveFunction::SV_GetConfigstring)
-        else {
-            debug_println!(format!(
-                "Function {} not found",
-                &QuakeLiveFunction::SV_GetConfigstring
-            ));
-            return Err(QuakeLiveEngineError::StaticFunctionNotFound(
-                QuakeLiveFunction::SV_GetConfigstring,
-            ));
-        };
-        debug_println!(format!(
-            "{}: {:#X}",
-            &QuakeLiveFunction::SV_GetConfigstring,
-            result
-        ));
-        let sv_getconfigstring_orig = unsafe { std::mem::transmute(result) };
-
-        let Some(result) = pattern_search_module(&qzeroded_maps, &QuakeLiveFunction::SV_DropClient)
-        else {
-            debug_println!(format!(
-                "Function {} not found",
-                &QuakeLiveFunction::SV_DropClient
-            ));
-            return Err(QuakeLiveEngineError::StaticFunctionNotFound(
-                QuakeLiveFunction::SV_DropClient,
-            ));
-        };
-        debug_println!(format!(
-            "{}: {:#X}",
-            &QuakeLiveFunction::SV_DropClient,
-            result
-        ));
-        let sv_dropclient_orig = unsafe { std::mem::transmute(result) };
-
-        let Some(result) =
-            pattern_search_module(&qzeroded_maps, &QuakeLiveFunction::Sys_SetModuleOffset)
-        else {
-            debug_println!(format!(
-                "Function {} not found",
-                &QuakeLiveFunction::Sys_SetModuleOffset
-            ));
-            return Err(QuakeLiveEngineError::StaticFunctionNotFound(
-                QuakeLiveFunction::Sys_SetModuleOffset,
-            ));
-        };
-        debug_println!(format!(
-            "{}: {:#X}",
-            &QuakeLiveFunction::Sys_SetModuleOffset,
-            result
-        ));
-        let sys_setmoduleoffset_orig = unsafe { std::mem::transmute(result) };
-
-        let Some(result) =
-            pattern_search_module(&qzeroded_maps, &QuakeLiveFunction::SV_SpawnServer)
-        else {
-            debug_println!(format!(
-                "Function {} not found",
-                &QuakeLiveFunction::SV_SpawnServer
-            ));
-            return Err(QuakeLiveEngineError::StaticFunctionNotFound(
-                QuakeLiveFunction::SV_SpawnServer,
-            ));
-        };
-        debug_println!(format!(
-            "{}: {:#X}",
-            &QuakeLiveFunction::SV_SpawnServer,
-            result
-        ));
-        let sv_spawnserver_orig = unsafe { std::mem::transmute(result) };
-
-        let Some(result) =
-            pattern_search_module(&qzeroded_maps, &QuakeLiveFunction::Cmd_ExecuteString)
-        else {
-            debug_println!(format!(
-                "Function {} not found",
-                &QuakeLiveFunction::Cmd_ExecuteString
-            ));
-            return Err(QuakeLiveEngineError::StaticFunctionNotFound(
-                QuakeLiveFunction::Cmd_ExecuteString,
-            ));
-        };
-        debug_println!(format!(
-            "{}: {:#X}",
-            &QuakeLiveFunction::Cmd_ExecuteString,
-            result
-        ));
-        let cmd_executestring_orig = unsafe { std::mem::transmute(result) };
-
-        // Cmd_Argc is really small, making it hard to search for, so we use a reference to it instead.
-        let base_address =
-            unsafe { std::ptr::read_unaligned((sv_map_f_orig as usize + 0x81) as *const i32) };
-        #[allow(clippy::fn_to_numeric_cast_with_truncation)]
-        let cmd_argc_ptr = base_address + sv_map_f_orig as i32 + 0x81 + 4;
-        debug_println!(format!(
-            "{}: {:#X}",
-            QuakeLiveFunction::Cmd_Argc,
-            cmd_argc_ptr
-        ));
-        let cmd_argc_orig = unsafe { std::mem::transmute(cmd_argc_ptr as u64) };
-
-        self.static_functions
-            .set(StaticFunctions {
-                com_printf_orig,
-                cmd_addcommand_orig,
-                cmd_args_orig,
-                cmd_argv_orig,
-                cmd_tokenizestring_orig,
-                cbuf_executetext_orig,
-                cvar_findvar_orig,
-                cvar_get_orig,
-                cvar_getlimit_orig,
-                cvar_set2_orig,
-                sv_sendservercommand_orig,
-                sv_executeclientcommand_orig,
-                sv_shutdown_orig,
-                sv_map_f_orig,
-                sv_cliententerworld_orig,
-                sv_setconfigstring_orig,
-                sv_getconfigstring_orig,
-                sv_dropclient_orig,
-                sys_setmoduleoffset_orig,
-                sv_spawnserver_orig,
-                cmd_executestring_orig,
-                cmd_argc_orig,
-            })
-            .unwrap();
-
-        Ok(())
     }
 
     pub(crate) fn hook_static(&self) -> Result<(), QuakeLiveEngineError> {
