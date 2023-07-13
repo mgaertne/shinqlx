@@ -116,7 +116,6 @@ pub(crate) mod game_item_tests {
     use crate::quake_types::{
         entity_event_t, gentity_t, gitem_t, vec3_t, GEntityBuilder, GItemBuilder,
     };
-    use mockall::predicate::*;
     use mockall::*;
     use pretty_assertions::assert_eq;
     use std::ffi::{c_char, CString};
