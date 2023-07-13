@@ -54,13 +54,17 @@ pub enum PyMinqlx_InitStatus_t {
 
 pub(crate) static ALLOW_FREE_CLIENT: AtomicI32 = AtomicI32::new(-1);
 
+#[allow(dead_code)]
 #[cfg(target_pointer_width = "64")]
 pub(crate) const QZERODED: &str = "qzeroded.x64";
+#[allow(dead_code)]
 #[cfg(target_pointer_width = "32")]
 pub(crate) const QZERODED: &str = "qzeroded.x86";
 
+#[allow(dead_code)]
 #[cfg(target_pointer_width = "64")]
 pub(crate) const QAGAME: &str = "qagamex64.so";
+#[allow(dead_code)]
 #[cfg(target_pointer_width = "32")]
 pub(crate) const QAGAME: &str = "qagamei386.so";
 

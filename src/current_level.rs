@@ -22,6 +22,8 @@ impl TryFrom<*mut level_locals_t> for CurrentLevel {
     }
 }
 
+const OFFSET_LEVEL: usize = 0x4A1;
+
 impl Default for CurrentLevel {
     fn default() -> Self {
         let Some(main_engine) = MAIN_ENGINE.get() else {
@@ -33,9 +35,10 @@ impl Default for CurrentLevel {
             debug_println!("G_InitGame not initialized.");
             panic!("G_InitGame not initialized.");
         };
-        let base_address =
-            unsafe { std::ptr::read_unaligned((func_pointer as usize + 0x4A1) as *const i32) };
-        let level_ptr = base_address as usize + func_pointer as usize + 0x4A1 + 4;
+        let base_address = unsafe {
+            std::ptr::read_unaligned((func_pointer as usize + OFFSET_LEVEL) as *const i32)
+        };
+        let level_ptr = base_address as usize + func_pointer as usize + OFFSET_LEVEL + 4;
         Self::try_from(level_ptr as *mut level_locals_t).unwrap()
     }
 }

@@ -125,6 +125,8 @@ pub(crate) extern "C" fn ShiNQlx_Switch_Touch_Item(ent: *mut gentity_t) {
     }
 }
 
+const OFFSET_G_ENTITIES: usize = 0x11B;
+
 impl GameEntity {
     fn get_entities_list() -> *mut gentity_t {
         let Some(main_engine) = MAIN_ENGINE.get() else {
@@ -134,9 +136,10 @@ impl GameEntity {
         let Ok(func_pointer) = main_engine.g_run_frame_orig() else {
             return std::ptr::null_mut();
         };
-        let base_address =
-            unsafe { std::ptr::read_unaligned((func_pointer as usize + 0x11B) as *const i32) };
-        let gentities_ptr = base_address as usize + func_pointer as usize + 0x11B + 4;
+        let base_address = unsafe {
+            std::ptr::read_unaligned((func_pointer as usize + OFFSET_G_ENTITIES) as *const i32)
+        };
+        let gentities_ptr = base_address as usize + func_pointer as usize + OFFSET_G_ENTITIES + 4;
         gentities_ptr as *mut gentity_t
     }
 
