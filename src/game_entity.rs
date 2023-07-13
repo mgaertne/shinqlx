@@ -429,12 +429,12 @@ pub(crate) mod game_entity_tests {
 
     #[test]
     pub(crate) fn game_entity_try_from_too_large_i32_entity_id() {
-        assert_eq!(GameEntity::try_from(65536 as i32), Err(InvalidId(65536)));
+        assert_eq!(GameEntity::try_from(65536i32), Err(InvalidId(65536)));
     }
 
     #[test]
     pub(crate) fn game_entity_try_from_too_large_u32_entity_id() {
-        assert_eq!(GameEntity::try_from(65536 as u32), Err(InvalidId(65536)));
+        assert_eq!(GameEntity::try_from(65536u32), Err(InvalidId(65536)));
     }
 
     #[test]
