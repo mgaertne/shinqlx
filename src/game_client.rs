@@ -129,40 +129,43 @@ impl GameClient {
     }
 
     pub(crate) fn get_weapons(&self) -> [i32; 15] {
-        let mut returned = [0; 15];
         let weapon_stats = self.game_client.ps.stats[STAT_WEAPONS as usize];
-        for (i, item) in returned.iter_mut().enumerate() {
-            *item = match weapon_stats & (1 << (i + 1)) != 0 {
-                true => 1,
-                false => 0,
-            };
-        }
-        returned
+        (0..15)
+            .map(|i| weapon_stats & (1 << (i + 1)))
+            .map(|weapon| match weapon {
+                0 => 0,
+                _ => 1,
+            })
+            .collect::<Vec<i32>>()
+            .try_into()
+            .unwrap()
     }
 
     pub(crate) fn set_weapons(&mut self, weapons: [i32; 15]) {
-        let mut weapon_flags = 0;
-        for (i, &item) in weapons.iter().enumerate() {
-            let modifier = if item > 0 { 1 << (i + 1) } else { 0 };
-            weapon_flags |= modifier;
-        }
-
+        let weapon_flags = weapons
+            .iter()
+            .enumerate()
+            .filter(|(_, &item)| item > 0)
+            .map(|(i, _)| 1 << (i + 1))
+            .sum();
         self.game_client.ps.stats[STAT_WEAPONS as usize] = weapon_flags;
     }
 
     pub(crate) fn get_ammos(&self) -> [i32; 15] {
-        let mut returned = [0; 15];
         let ammos = self.game_client.ps.ammo;
-        for (i, item) in returned.iter_mut().enumerate() {
-            *item = ammos[i + 1];
-        }
-        returned
+        ammos
+            .into_iter()
+            .skip(1)
+            .collect::<Vec<i32>>()
+            .try_into()
+            .unwrap()
     }
 
     pub(crate) fn set_ammos(&mut self, ammos: [i32; 15]) {
-        for (i, &item) in ammos.iter().enumerate() {
-            self.game_client.ps.ammo[i + 1] = item;
-        }
+        ammos
+            .iter()
+            .enumerate()
+            .for_each(|(i, &item)| self.game_client.ps.ammo[i + 1] = item);
     }
 
     pub(crate) fn get_powerups(&self) -> [i32; 6] {
@@ -170,15 +173,16 @@ impl GameClient {
     }
 
     pub(crate) fn get_powerups_internal(&self, current_level: &CurrentLevel) -> [i32; 6] {
-        let mut returned = [0; 6];
-        for (powerup, item) in returned.iter_mut().enumerate() {
-            let powerup_index = powerup_t::try_from(powerup).unwrap_or(PW_NONE);
-            *item = self.game_client.ps.powerups[powerup_index as usize];
-            if *item != 0 {
-                *item -= current_level.get_leveltime();
-            }
-        }
-        returned
+        (0..6)
+            .map(|powerup| powerup_t::try_from(powerup).unwrap_or(PW_NONE))
+            .map(|powerup_index| self.game_client.ps.powerups[powerup_index as usize])
+            .map(|powerup_time| match powerup_time {
+                0 => 0,
+                _ => powerup_time - current_level.get_leveltime(),
+            })
+            .collect::<Vec<i32>>()
+            .try_into()
+            .unwrap()
     }
 
     pub(crate) fn set_powerups(&mut self, powerups: [i32; 6]) {
@@ -190,16 +194,18 @@ impl GameClient {
         powerups: [i32; 6],
         current_level: &CurrentLevel,
     ) {
-        for (powerup, &item) in powerups.iter().enumerate() {
-            let powerup_index = powerup_t::try_from(powerup).unwrap_or(PW_NONE);
-            if item == 0 {
-                self.game_client.ps.powerups[powerup_index as usize] = 0;
-            } else {
-                let level_time = current_level.get_leveltime();
-                self.game_client.ps.powerups[powerup_index as usize] =
-                    level_time - (level_time % 1000) + item;
-            }
-        }
+        powerups
+            .iter()
+            .enumerate()
+            .map(|(powerup, &item)| (powerup_t::try_from(powerup).unwrap_or(PW_NONE), item))
+            .for_each(|(powerup_index, item)| {
+                self.game_client.ps.powerups[powerup_index as usize] = if item == 0 {
+                    0
+                } else {
+                    let level_time = current_level.get_leveltime();
+                    level_time - (level_time % 1000) + item
+                }
+            });
     }
 
     pub(crate) fn get_holdable(&self) -> i32 {
@@ -387,10 +393,10 @@ pub(crate) mod game_client_tests {
 
     #[test]
     pub(crate) fn game_client_get_player_name() {
-        let mut player_name: [c_char; 40] = [0; 40];
-        for (index, char) in "awesome player".chars().enumerate() {
-            player_name[index] = char.to_owned() as c_char;
-        }
+        let player_name_str = "awesome player";
+        let mut bytes_iter = player_name_str.bytes().into_iter();
+        let mut player_name: [c_char; 40usize] = [0; 40usize];
+        player_name[0..player_name_str.len()].fill_with(|| bytes_iter.next().unwrap() as c_char);
         let client_persistant = ClientPersistantBuilder::default()
             .netname(player_name)
             .build()

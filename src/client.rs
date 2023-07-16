@@ -184,10 +184,10 @@ pub(crate) mod client_tests {
 
     #[test]
     pub(crate) fn client_get_name_from_valid_name() {
+        let player_name_str = "UnknownPlayer";
+        let mut bytes_iter = player_name_str.bytes().into_iter();
         let mut player_name: [c_char; MAX_NAME_LENGTH as usize] = [0; MAX_NAME_LENGTH as usize];
-        for (index, char) in "UnknownPlayer".chars().enumerate() {
-            player_name[index] = char.to_owned() as c_char;
-        }
+        player_name[0..player_name_str.len()].fill_with(|| bytes_iter.next().unwrap() as c_char);
         let client = ClientBuilder::default().name(player_name).build().unwrap();
         let rust_client = Client::try_from(&client as *const client_t).unwrap();
         assert_eq!(rust_client.get_name(), "UnknownPlayer");
@@ -205,10 +205,10 @@ pub(crate) mod client_tests {
 
     #[test]
     pub(crate) fn client_get_userinfo_from_valid_userinfo() {
+        let user_info_str = "some user info";
+        let mut bytes_iter = user_info_str.bytes().into_iter();
         let mut userinfo: [c_char; MAX_INFO_STRING as usize] = [0; MAX_INFO_STRING as usize];
-        for (index, char) in "some user info".chars().enumerate() {
-            userinfo[index] = char.to_owned() as c_char;
-        }
+        userinfo[0..user_info_str.len()].fill_with(|| bytes_iter.next().unwrap() as c_char);
         let client = ClientBuilder::default().userinfo(userinfo).build().unwrap();
         let rust_client = Client::try_from(&client as *const client_t).unwrap();
         assert_eq!(rust_client.get_user_info(), "some user info");

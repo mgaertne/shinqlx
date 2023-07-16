@@ -361,24 +361,20 @@ impl GameEntity {
         if self.gentity_t.targetname.is_null() {
             vec![]
         } else {
-            let mut result = vec![];
-
             let my_targetname =
                 unsafe { CStr::from_ptr(self.gentity_t.targetname) }.to_string_lossy();
 
-            for i in 1..MAX_GENTITIES {
-                if let Ok(other_ent) = GameEntity::try_from(i) {
-                    if other_ent.gentity_t.target.is_null() {
-                        continue;
+            (1..MAX_GENTITIES)
+                .filter(|entity_id| match GameEntity::try_from(*entity_id) {
+                    Ok(other_ent) => {
+                        !other_ent.gentity_t.target.is_null()
+                            && my_targetname
+                                == unsafe { CStr::from_ptr(other_ent.gentity_t.target) }
+                                    .to_string_lossy()
                     }
-                    let other_target =
-                        unsafe { CStr::from_ptr(other_ent.gentity_t.target) }.to_string_lossy();
-                    if my_targetname == other_target {
-                        result.push(i);
-                    }
-                }
-            }
-            result
+                    Err(_) => false,
+                })
+                .collect()
         }
     }
 }
@@ -479,10 +475,10 @@ pub(crate) mod game_entity_tests {
 
     #[test]
     pub(crate) fn game_entity_get_player_name_from_connected_game_client() {
-        let mut player_name: [c_char; 40] = [0; 40];
-        for (index, char) in "UnknownPlayer".chars().enumerate() {
-            player_name[index] = char.to_owned() as c_char;
-        }
+        let player_name_str = "UnknownPlayer";
+        let mut bytes_iter = player_name_str.bytes().into_iter();
+        let mut player_name: [c_char; 40usize] = [0; 40usize];
+        player_name[0..player_name_str.len()].fill_with(|| bytes_iter.next().unwrap() as c_char);
         let client_persistant = ClientPersistantBuilder::default()
             .connected(CON_CONNECTED)
             .netname(player_name)

@@ -12,12 +12,11 @@ pub(crate) fn patch_by_mask(orig_addr: usize, offset: usize, pattern: &[u8], mas
     match unsafe { region::protect_with_handle(offset, page_size, Protection::READ_WRITE_EXECUTE) }
     {
         Ok(_protect_guard) => {
-            for i in 0..mask.len() {
-                if mask[i] != b'X' {
-                    continue;
-                }
-                unsafe { std::ptr::write_unaligned(offset.wrapping_add(i), pattern[i]) };
-            }
+            (0..mask.len())
+                .filter(|i| mask[*i] == b'X')
+                .for_each(|i| unsafe {
+                    std::ptr::write_unaligned(offset.wrapping_add(i), pattern[i])
+                });
         }
         Err(error) => {
             debug_println!(format!("{}", error));

@@ -252,7 +252,7 @@ pub(crate) fn set_configstring_dispatcher(index: u32, value: &str) -> Option<Str
     };
 
     let Some(ref set_configstring_handler) = *set_configstring_lock else {
-        return Some(value.into())
+        return Some(value.into());
     };
 
     Python::with_gil(
@@ -306,7 +306,9 @@ pub(crate) fn console_print_dispatcher(text: &str) -> Option<String> {
         return Some(text.into());
     };
 
-    let Some(ref console_print_handler) = *console_print_lock else { return Some(text.into()); };
+    let Some(ref console_print_handler) = *console_print_lock else {
+        return Some(text.into());
+    };
 
     Python::with_gil(|py| match console_print_handler.call1(py, (text,)) {
         Err(_) => {
@@ -473,16 +475,16 @@ impl TryFrom<i32> for PlayerInfo {
             }),
             Ok(game_entity) => {
                 let Ok(client) = Client::try_from(client_id) else {
-                return Ok(PlayerInfo {
-                    client_id,
-                    name: game_entity.get_player_name(),
-                    connection_state: CS_FREE as i32,
-                    userinfo: Default::default(),
-                    steam_id: 0,
-                    team: game_entity.get_team() as i32,
-                    privileges: game_entity.get_privileges() as i32,
-                });
-            };
+                    return Ok(PlayerInfo {
+                        client_id,
+                        name: game_entity.get_player_name(),
+                        connection_state: CS_FREE as i32,
+                        userinfo: Default::default(),
+                        steam_id: 0,
+                        team: game_entity.get_team() as i32,
+                        privileges: game_entity.get_privileges() as i32,
+                    });
+                };
                 Ok(PlayerInfo {
                     client_id,
                     name: game_entity.get_player_name(),
@@ -501,8 +503,10 @@ impl TryFrom<i32> for PlayerInfo {
 #[pyfunction(name = "player_info")]
 fn get_player_info(client_id: i32) -> PyResult<Option<PlayerInfo>> {
     let Some(quake_live_engine) = MAIN_ENGINE.get() else {
-            return Err(PyEnvironmentError::new_err("main quake live engine not set"));
-        };
+        return Err(PyEnvironmentError::new_err(
+            "main quake live engine not set",
+        ));
+    };
     let maxclients = quake_live_engine.get_max_clients();
     if !(0..maxclients).contains(&client_id) {
         return Err(PyValueError::new_err(format!(
@@ -529,8 +533,10 @@ fn get_player_info(client_id: i32) -> PyResult<Option<PlayerInfo>> {
 fn get_players_info() -> PyResult<Vec<Option<PlayerInfo>>> {
     let mut result = Vec::new();
     let Some(quake_live_engine) = MAIN_ENGINE.get() else {
-            return Err(PyEnvironmentError::new_err("main quake live engine not set"));
-        };
+        return Err(PyEnvironmentError::new_err(
+            "main quake live engine not set",
+        ));
+    };
     let maxclients = quake_live_engine.get_max_clients();
     for client_id in 0..maxclients {
         match Client::try_from(client_id) {
@@ -551,8 +557,10 @@ fn get_players_info() -> PyResult<Vec<Option<PlayerInfo>>> {
 #[pyfunction(name = "get_userinfo")]
 fn get_userinfo(client_id: i32) -> PyResult<Option<String>> {
     let Some(quake_live_engine) = MAIN_ENGINE.get() else {
-            return Err(PyEnvironmentError::new_err("main quake live engine not set"));
-        };
+        return Err(PyEnvironmentError::new_err(
+            "main quake live engine not set",
+        ));
+    };
     let maxclients = quake_live_engine.get_max_clients();
     if !(0..maxclients).contains(&client_id) {
         return Err(PyValueError::new_err(format!(
@@ -586,8 +594,10 @@ fn send_server_command(client_id: Option<i32>, cmd: &str) -> PyResult<bool> {
         }
         Some(actual_client_id) => {
             let Some(quake_live_engine) = MAIN_ENGINE.get() else {
-                    return Err(PyEnvironmentError::new_err("main quake live engine not set"));
-                };
+                return Err(PyEnvironmentError::new_err(
+                    "main quake live engine not set",
+                ));
+            };
             let maxclients = quake_live_engine.get_max_clients();
             if !(0..maxclients).contains(&actual_client_id) {
                 return Err(PyValueError::new_err(format!(
@@ -615,8 +625,10 @@ fn send_server_command(client_id: Option<i32>, cmd: &str) -> PyResult<bool> {
 #[pyo3(name = "client_command")]
 fn client_command(py: Python<'_>, client_id: i32, cmd: &str) -> PyResult<bool> {
     let Some(quake_live_engine) = MAIN_ENGINE.get() else {
-            return Err(PyEnvironmentError::new_err("main quake live engine not set"));
-        };
+        return Err(PyEnvironmentError::new_err(
+            "main quake live engine not set",
+        ));
+    };
     let maxclients = quake_live_engine.get_max_clients();
     if !(0..maxclients).contains(&client_id) {
         return Err(PyValueError::new_err(format!(
@@ -642,7 +654,9 @@ fn client_command(py: Python<'_>, client_id: i32, cmd: &str) -> PyResult<bool> {
 #[pyo3(name = "console_command")]
 fn console_command(py: Python<'_>, cmd: &str) -> PyResult<()> {
     let Some(quake_live_engine) = MAIN_ENGINE.get() else {
-        return Err(PyEnvironmentError::new_err("main quake live engine not set"));
+        return Err(PyEnvironmentError::new_err(
+            "main quake live engine not set",
+        ));
     };
 
     py.allow_threads(|| {
@@ -657,7 +671,9 @@ fn console_command(py: Python<'_>, cmd: &str) -> PyResult<()> {
 #[pyo3(name = "get_cvar")]
 fn get_cvar(py: Python<'_>, cvar: &str) -> PyResult<Option<String>> {
     let Some(quake_live_engine) = MAIN_ENGINE.get() else {
-        return Err(PyEnvironmentError::new_err("main quake live engine not set"));
+        return Err(PyEnvironmentError::new_err(
+            "main quake live engine not set",
+        ));
     };
 
     py.allow_threads(|| match quake_live_engine.find_cvar(cvar) {
@@ -672,8 +688,10 @@ fn get_cvar(py: Python<'_>, cvar: &str) -> PyResult<Option<String>> {
 #[pyo3(signature = (cvar, value, flags=None))]
 fn set_cvar(py: Python<'_>, cvar: &str, value: &str, flags: Option<i32>) -> PyResult<bool> {
     let Some(quake_live_engine) = MAIN_ENGINE.get() else {
-            return Err(PyEnvironmentError::new_err("main quake live engine not set"));
-        };
+        return Err(PyEnvironmentError::new_err(
+            "main quake live engine not set",
+        ));
+    };
     py.allow_threads(|| match quake_live_engine.find_cvar(cvar) {
         None => {
             quake_live_engine.get_cvar(cvar, value, flags);
@@ -703,7 +721,9 @@ fn set_cvar_limit(
     flags: Option<i32>,
 ) -> PyResult<()> {
     let Some(quake_live_engine) = MAIN_ENGINE.get() else {
-        return Err(PyEnvironmentError::new_err("main quake live engine not set"));
+        return Err(PyEnvironmentError::new_err(
+            "main quake live engine not set",
+        ));
     };
     py.allow_threads(|| {
         quake_live_engine.set_cvar_limit(cvar, value, min, max, flags);
@@ -718,8 +738,10 @@ fn set_cvar_limit(
 #[pyo3(signature = (client_id, reason=None))]
 fn kick(py: Python<'_>, client_id: i32, reason: Option<&str>) -> PyResult<()> {
     let Some(quake_live_engine) = MAIN_ENGINE.get() else {
-            return Err(PyEnvironmentError::new_err("main quake live engine not set"));
-        };
+        return Err(PyEnvironmentError::new_err(
+            "main quake live engine not set",
+        ));
+    };
     let maxclients = quake_live_engine.get_max_clients();
     if !(0..maxclients).contains(&client_id) {
         return Err(PyValueError::new_err(format!(
@@ -770,8 +792,10 @@ fn get_configstring(py: Python<'_>, config_id: u32) -> PyResult<String> {
         )));
     }
     let Some(quake_live_engine) = MAIN_ENGINE.get() else {
-            return Err(PyEnvironmentError::new_err("main quake live engine not set"));
-        };
+        return Err(PyEnvironmentError::new_err(
+            "main quake live engine not set",
+        ));
+    };
     py.allow_threads(|| Ok(quake_live_engine.get_configstring(config_id)))
 }
 
@@ -802,8 +826,10 @@ fn force_vote(py: Python<'_>, pass: bool) -> PyResult<bool> {
     }
 
     let Some(quake_live_engine) = MAIN_ENGINE.get() else {
-            return Err(PyEnvironmentError::new_err("main quake live engine not set"));
-        };
+        return Err(PyEnvironmentError::new_err(
+            "main quake live engine not set",
+        ));
+    };
     let maxclients = quake_live_engine.get_max_clients();
     py.allow_threads(|| {
         for i in 0..maxclients {
@@ -827,7 +853,9 @@ fn force_vote(py: Python<'_>, pass: bool) -> PyResult<bool> {
 #[pyo3(name = "add_console_command")]
 fn add_console_command(py: Python<'_>, command: &str) -> PyResult<()> {
     let Some(quake_live_engine) = MAIN_ENGINE.get() else {
-        return Err(PyEnvironmentError::new_err("main quake live engine not set"));
+        return Err(PyEnvironmentError::new_err(
+            "main quake live engine not set",
+        ));
     };
 
     py.allow_threads(|| {
@@ -1455,8 +1483,10 @@ fn holdable_from(holdable: Holdable) -> Option<String> {
 #[pyo3(name = "player_state")]
 fn player_state(py: Python<'_>, client_id: i32) -> PyResult<Option<PlayerState>> {
     let Some(quake_live_engine) = MAIN_ENGINE.get() else {
-            return Err(PyEnvironmentError::new_err("main quake live engine not set"));
-        };
+        return Err(PyEnvironmentError::new_err(
+            "main quake live engine not set",
+        ));
+    };
     let maxclients = quake_live_engine.get_max_clients();
     if !(0..maxclients).contains(&client_id) {
         return Err(PyValueError::new_err(format!(
@@ -1524,8 +1554,10 @@ impl From<GameClient> for PlayerStats {
 #[pyo3(name = "player_stats")]
 fn player_stats(py: Python<'_>, client_id: i32) -> PyResult<Option<PlayerStats>> {
     let Some(quake_live_engine) = MAIN_ENGINE.get() else {
-            return Err(PyEnvironmentError::new_err("main quake live engine not set"));
-        };
+        return Err(PyEnvironmentError::new_err(
+            "main quake live engine not set",
+        ));
+    };
     let maxclients = quake_live_engine.get_max_clients();
     if !(0..maxclients).contains(&client_id) {
         return Err(PyValueError::new_err(format!(
@@ -1547,8 +1579,10 @@ fn player_stats(py: Python<'_>, client_id: i32) -> PyResult<Option<PlayerStats>>
 #[pyo3(name = "set_position")]
 fn set_position(py: Python<'_>, client_id: i32, position: Vector3) -> PyResult<bool> {
     let Some(quake_live_engine) = MAIN_ENGINE.get() else {
-            return Err(PyEnvironmentError::new_err("main quake live engine not set"));
-        };
+        return Err(PyEnvironmentError::new_err(
+            "main quake live engine not set",
+        ));
+    };
     let maxclients = quake_live_engine.get_max_clients();
     if !(0..maxclients).contains(&client_id) {
         return Err(PyValueError::new_err(format!(
@@ -1572,8 +1606,10 @@ fn set_position(py: Python<'_>, client_id: i32, position: Vector3) -> PyResult<b
 #[pyo3(name = "set_velocity")]
 fn set_velocity(py: Python<'_>, client_id: i32, velocity: Vector3) -> PyResult<bool> {
     let Some(quake_live_engine) = MAIN_ENGINE.get() else {
-            return Err(PyEnvironmentError::new_err("main quake live engine not set"));
-        };
+        return Err(PyEnvironmentError::new_err(
+            "main quake live engine not set",
+        ));
+    };
     let maxclients = quake_live_engine.get_max_clients();
     if !(0..maxclients).contains(&client_id) {
         return Err(PyValueError::new_err(format!(
@@ -1597,8 +1633,10 @@ fn set_velocity(py: Python<'_>, client_id: i32, velocity: Vector3) -> PyResult<b
 #[pyo3(name = "noclip")]
 fn noclip(py: Python<'_>, client_id: i32, activate: bool) -> PyResult<bool> {
     let Some(quake_live_engine) = MAIN_ENGINE.get() else {
-            return Err(PyEnvironmentError::new_err("main quake live engine not set"));
-        };
+        return Err(PyEnvironmentError::new_err(
+            "main quake live engine not set",
+        ));
+    };
     let maxclients = quake_live_engine.get_max_clients();
     if !(0..maxclients).contains(&client_id) {
         return Err(PyValueError::new_err(format!(
@@ -1626,8 +1664,10 @@ fn noclip(py: Python<'_>, client_id: i32, activate: bool) -> PyResult<bool> {
 #[pyo3(name = "set_health")]
 fn set_health(py: Python<'_>, client_id: i32, health: i32) -> PyResult<bool> {
     let Some(quake_live_engine) = MAIN_ENGINE.get() else {
-            return Err(PyEnvironmentError::new_err("main quake live engine not set"));
-        };
+        return Err(PyEnvironmentError::new_err(
+            "main quake live engine not set",
+        ));
+    };
     let maxclients = quake_live_engine.get_max_clients();
     if !(0..maxclients).contains(&client_id) {
         return Err(PyValueError::new_err(format!(
@@ -1651,8 +1691,10 @@ fn set_health(py: Python<'_>, client_id: i32, health: i32) -> PyResult<bool> {
 #[pyo3(name = "set_armor")]
 fn set_armor(py: Python<'_>, client_id: i32, armor: i32) -> PyResult<bool> {
     let Some(quake_live_engine) = MAIN_ENGINE.get() else {
-            return Err(PyEnvironmentError::new_err("main quake live engine not set"));
-        };
+        return Err(PyEnvironmentError::new_err(
+            "main quake live engine not set",
+        ));
+    };
     let maxclients = quake_live_engine.get_max_clients();
     if !(0..maxclients).contains(&client_id) {
         return Err(PyValueError::new_err(format!(
@@ -1676,8 +1718,10 @@ fn set_armor(py: Python<'_>, client_id: i32, armor: i32) -> PyResult<bool> {
 #[pyo3(name = "set_weapons")]
 fn set_weapons(py: Python<'_>, client_id: i32, weapons: Weapons) -> PyResult<bool> {
     let Some(quake_live_engine) = MAIN_ENGINE.get() else {
-            return Err(PyEnvironmentError::new_err("main quake live engine not set"));
-        };
+        return Err(PyEnvironmentError::new_err(
+            "main quake live engine not set",
+        ));
+    };
     let maxclients = quake_live_engine.get_max_clients();
     if !(0..maxclients).contains(&client_id) {
         return Err(PyValueError::new_err(format!(
@@ -1701,8 +1745,10 @@ fn set_weapons(py: Python<'_>, client_id: i32, weapons: Weapons) -> PyResult<boo
 #[pyo3(name = "set_weapon")]
 fn set_weapon(py: Python<'_>, client_id: i32, weapon: i32) -> PyResult<bool> {
     let Some(quake_live_engine) = MAIN_ENGINE.get() else {
-            return Err(PyEnvironmentError::new_err("main quake live engine not set"));
-        };
+        return Err(PyEnvironmentError::new_err(
+            "main quake live engine not set",
+        ));
+    };
     let maxclients = quake_live_engine.get_max_clients();
     if !(0..maxclients).contains(&client_id) {
         return Err(PyValueError::new_err(format!(
@@ -1732,8 +1778,10 @@ fn set_weapon(py: Python<'_>, client_id: i32, weapon: i32) -> PyResult<bool> {
 #[pyo3(name = "set_ammo")]
 fn set_ammo(py: Python<'_>, client_id: i32, ammos: Weapons) -> PyResult<bool> {
     let Some(quake_live_engine) = MAIN_ENGINE.get() else {
-            return Err(PyEnvironmentError::new_err("main quake live engine not set"));
-        };
+        return Err(PyEnvironmentError::new_err(
+            "main quake live engine not set",
+        ));
+    };
     let maxclients = quake_live_engine.get_max_clients();
     if !(0..maxclients).contains(&client_id) {
         return Err(PyValueError::new_err(format!(
@@ -1757,8 +1805,10 @@ fn set_ammo(py: Python<'_>, client_id: i32, ammos: Weapons) -> PyResult<bool> {
 #[pyo3(name = "set_powerups")]
 fn set_powerups(py: Python<'_>, client_id: i32, powerups: Powerups) -> PyResult<bool> {
     let Some(quake_live_engine) = MAIN_ENGINE.get() else {
-            return Err(PyEnvironmentError::new_err("main quake live engine not set"));
-        };
+        return Err(PyEnvironmentError::new_err(
+            "main quake live engine not set",
+        ));
+    };
     let maxclients = quake_live_engine.get_max_clients();
     if !(0..maxclients).contains(&client_id) {
         return Err(PyValueError::new_err(format!(
@@ -1782,8 +1832,10 @@ fn set_powerups(py: Python<'_>, client_id: i32, powerups: Powerups) -> PyResult<
 #[pyo3(name = "set_holdable")]
 fn set_holdable(py: Python<'_>, client_id: i32, holdable: i32) -> PyResult<bool> {
     let Some(quake_live_engine) = MAIN_ENGINE.get() else {
-            return Err(PyEnvironmentError::new_err("main quake live engine not set"));
-        };
+        return Err(PyEnvironmentError::new_err(
+            "main quake live engine not set",
+        ));
+    };
     let maxclients = quake_live_engine.get_max_clients();
     if !(0..maxclients).contains(&client_id) {
         return Err(PyValueError::new_err(format!(
@@ -1808,8 +1860,10 @@ fn set_holdable(py: Python<'_>, client_id: i32, holdable: i32) -> PyResult<bool>
 #[pyo3(name = "drop_holdable")]
 fn drop_holdable(py: Python<'_>, client_id: i32) -> PyResult<bool> {
     let Some(quake_live_engine) = MAIN_ENGINE.get() else {
-            return Err(PyEnvironmentError::new_err("main quake live engine not set"));
-        };
+        return Err(PyEnvironmentError::new_err(
+            "main quake live engine not set",
+        ));
+    };
     let maxclients = quake_live_engine.get_max_clients();
     if !(0..maxclients).contains(&client_id) {
         return Err(PyValueError::new_err(format!(
@@ -1837,8 +1891,10 @@ fn drop_holdable(py: Python<'_>, client_id: i32) -> PyResult<bool> {
 #[pyo3(name = "set_flight")]
 fn set_flight(py: Python<'_>, client_id: i32, flight: Flight) -> PyResult<bool> {
     let Some(quake_live_engine) = MAIN_ENGINE.get() else {
-            return Err(PyEnvironmentError::new_err("main quake live engine not set"));
-        };
+        return Err(PyEnvironmentError::new_err(
+            "main quake live engine not set",
+        ));
+    };
     let maxclients = quake_live_engine.get_max_clients();
     if !(0..maxclients).contains(&client_id) {
         return Err(PyValueError::new_err(format!(
@@ -1862,8 +1918,10 @@ fn set_flight(py: Python<'_>, client_id: i32, flight: Flight) -> PyResult<bool> 
 #[pyo3(name = "set_invulnerability")]
 fn set_invulnerability(py: Python<'_>, client_id: i32, time: i32) -> PyResult<bool> {
     let Some(quake_live_engine) = MAIN_ENGINE.get() else {
-            return Err(PyEnvironmentError::new_err("main quake live engine not set"));
-        };
+        return Err(PyEnvironmentError::new_err(
+            "main quake live engine not set",
+        ));
+    };
     let maxclients = quake_live_engine.get_max_clients();
     if !(0..maxclients).contains(&client_id) {
         return Err(PyValueError::new_err(format!(
@@ -1887,8 +1945,10 @@ fn set_invulnerability(py: Python<'_>, client_id: i32, time: i32) -> PyResult<bo
 #[pyo3(name = "set_score")]
 fn set_score(py: Python<'_>, client_id: i32, score: i32) -> PyResult<bool> {
     let Some(quake_live_engine) = MAIN_ENGINE.get() else {
-            return Err(PyEnvironmentError::new_err("main quake live engine not set"));
-        };
+        return Err(PyEnvironmentError::new_err(
+            "main quake live engine not set",
+        ));
+    };
     let maxclients = quake_live_engine.get_max_clients();
     if !(0..maxclients).contains(&client_id) {
         return Err(PyValueError::new_err(format!(
@@ -1932,8 +1992,10 @@ fn allow_single_player(py: Python<'_>, allow: bool) {
 #[pyo3(name = "player_spawn")]
 fn player_spawn(py: Python<'_>, client_id: i32) -> PyResult<bool> {
     let Some(quake_live_engine) = MAIN_ENGINE.get() else {
-            return Err(PyEnvironmentError::new_err("main quake live engine not set"));
-        };
+        return Err(PyEnvironmentError::new_err(
+            "main quake live engine not set",
+        ));
+    };
     let maxclients = quake_live_engine.get_max_clients();
     if !(0..maxclients).contains(&client_id) {
         return Err(PyValueError::new_err(format!(
@@ -1961,8 +2023,10 @@ fn player_spawn(py: Python<'_>, client_id: i32) -> PyResult<bool> {
 #[pyo3(name = "set_privileges")]
 fn set_privileges(py: Python<'_>, client_id: i32, privileges: i32) -> PyResult<bool> {
     let Some(quake_live_engine) = MAIN_ENGINE.get() else {
-            return Err(PyEnvironmentError::new_err("main quake live engine not set"));
-        };
+        return Err(PyEnvironmentError::new_err(
+            "main quake live engine not set",
+        ));
+    };
     let maxclients = quake_live_engine.get_max_clients();
     if !(0..maxclients).contains(&client_id) {
         return Err(PyValueError::new_err(format!(
@@ -2054,8 +2118,10 @@ fn remove_dropped_items(py: Python<'_>) -> PyResult<bool> {
 #[pyo3(name = "slay_with_mod")]
 fn slay_with_mod(py: Python<'_>, client_id: i32, mean_of_death: i32) -> PyResult<bool> {
     let Some(quake_live_engine) = MAIN_ENGINE.get() else {
-            return Err(PyEnvironmentError::new_err("main quake live engine not set"));
-        };
+        return Err(PyEnvironmentError::new_err(
+            "main quake live engine not set",
+        ));
+    };
     let maxclients = quake_live_engine.get_max_clients();
     if !(0..maxclients).contains(&client_id) {
         return Err(PyValueError::new_err(format!(
@@ -2207,7 +2273,9 @@ fn dev_print_items(py: Python<'_>) -> PyResult<()> {
             .map(|item| item.to_string())
             .collect();
         let Some(quake_live_engine) = MAIN_ENGINE.get() else {
-            return Err(PyEnvironmentError::new_err("main quake live engine not set"));
+            return Err(PyEnvironmentError::new_err(
+                "main quake live engine not set",
+            ));
         };
         if printed_items.is_empty() {
             quake_live_engine.send_server_command(None, "print \"No items found in the map\n\"");
@@ -2550,7 +2618,7 @@ pub(crate) fn pyminqlx_reload() -> PyMinqlx_InitStatus_t {
         &DAMAGE_HANDLER,
     ] {
         let Ok(mut guard) = handler_lock.write() else {
-          return PYM_PY_INIT_ERROR;
+            return PYM_PY_INIT_ERROR;
         };
         *guard = None;
     }
