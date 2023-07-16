@@ -45,13 +45,16 @@ impl GameItem {
             return 0;
         }
 
-        for i in 1..=4096 {
-            let item = unsafe { bg_itemlist.offset(i) };
-            if item.is_null() || unsafe { item.as_ref() }.unwrap().classname.is_null() {
-                return i as i32;
-            }
-        }
-        0
+        (1..=4096)
+            .filter(|index| {
+                let Some(item) = (unsafe { bg_itemlist.offset((*index) as isize).as_ref() }) else {
+                    return false;
+                };
+                !item.classname.is_null()
+            })
+            .max()
+            .unwrap_or(0)
+            + 1
     }
 
     fn get_item_list() -> *mut gitem_t {

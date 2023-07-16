@@ -4,7 +4,7 @@ use crate::quake_live_engine::QuakeLiveEngineError;
 use crate::quake_live_engine::QuakeLiveEngineError::NullPointerPassed;
 use crate::quake_types::{level_locals_t, CS_VOTE_NO, CS_VOTE_STRING, CS_VOTE_TIME, CS_VOTE_YES};
 use crate::MAIN_ENGINE;
-use std::ffi::CString;
+use std::ffi::c_char;
 
 #[derive(Debug, PartialEq)]
 #[repr(transparent)]
@@ -58,22 +58,17 @@ impl CurrentLevel {
 
     pub(crate) fn callvote(&mut self, vote: &str, vote_disp: &str, vote_time: Option<i32>) {
         let actual_vote_time = vote_time.unwrap_or(30);
-        for (dest, src) in self.level.voteString.iter_mut().zip(
-            CString::new(vote)
-                .unwrap_or(CString::new("").unwrap())
-                .as_bytes_with_nul()
-                .iter(),
-        ) {
-            *dest = *src as _;
-        }
-        for (dest, src) in self.level.voteDisplayString.iter_mut().zip(
-            CString::new(vote_disp)
-                .unwrap_or(CString::new("").unwrap())
-                .as_bytes_with_nul()
-                .iter(),
-        ) {
-            *dest = *src as _;
-        }
+
+        let mut vote_bytes_iter = vote.bytes();
+        self.level.voteString[0..vote.len()]
+            .fill_with(|| vote_bytes_iter.next().unwrap() as c_char);
+        self.level.voteString[vote.len()..].fill(0 as c_char);
+
+        let mut vote_disp_bytes_iter = vote_disp.bytes();
+        self.level.voteDisplayString[0..vote_disp.len()]
+            .fill_with(|| vote_disp_bytes_iter.next().unwrap() as c_char);
+        self.level.voteDisplayString[vote_disp.len()..].fill(0 as c_char);
+
         self.level.voteTime = self.level.time - 30000 + actual_vote_time * 1000;
         self.level.voteYes = 0;
         self.level.voteNo = 0;
@@ -82,13 +77,10 @@ impl CurrentLevel {
             return;
         };
         let maxclients = quake_live_engine.get_max_clients();
-        for client_id in 0..maxclients {
-            if let Ok(game_entity) = GameEntity::try_from(client_id) {
-                if let Ok(mut game_client) = game_entity.get_game_client() {
-                    game_client.set_vote_pending();
-                }
-            }
-        }
+        (0..maxclients)
+            .filter_map(|client_id| GameEntity::try_from(client_id).ok())
+            .filter_map(|game_entity| game_entity.get_game_client().ok())
+            .for_each(|mut game_client| game_client.set_vote_pending());
 
         shinqlx_set_configstring(CS_VOTE_STRING, vote_disp);
         shinqlx_set_configstring(CS_VOTE_TIME, format!("{}", self.level.voteTime).as_str());

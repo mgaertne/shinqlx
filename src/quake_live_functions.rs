@@ -2,46 +2,39 @@ use std::fmt::{Display, Formatter};
 
 #[cfg(target_os = "linux")]
 pub(crate) fn pattern_search_module(
-    module_info: &Vec<&procfs::process::MemoryMap>,
+    module_info: &[&procfs::process::MemoryMap],
     ql_func: &QuakeLiveFunction,
 ) -> Option<usize> {
-    for memory_map in module_info {
-        if !memory_map
-            .perms
-            .contains(procfs::process::MMPermissions::READ)
-        {
-            continue;
-        }
-        let result = pattern_search(
-            memory_map.address.0 as usize,
-            memory_map.address.1 as usize,
-            ql_func,
-        );
-        if result.is_some() {
-            return result;
-        }
-    }
-    None
+    module_info
+        .iter()
+        .filter(|memory_map| {
+            memory_map
+                .perms
+                .contains(procfs::process::MMPermissions::READ)
+        })
+        .filter_map(|memory_map| {
+            pattern_search(
+                memory_map.address.0 as usize,
+                memory_map.address.1 as usize,
+                ql_func,
+            )
+        })
+        .take(1)
+        .next()
 }
 
 #[allow(dead_code)]
 fn pattern_search(start: usize, end: usize, ql_func: &QuakeLiveFunction) -> Option<usize> {
     let pattern = ql_func.pattern();
     let mask = ql_func.mask();
-    for i in start..end {
-        for j in 0..pattern.len() {
-            let char: u8 = unsafe { std::ptr::read((i + j) as *const u8) };
-            let pattern_char: u8 = pattern[j];
-            let mask_char: u8 = mask[j];
-            if mask_char == b'X' && pattern_char != char {
-                break;
-            } else if j + 1 < mask.len() {
-                continue;
-            }
-            return Some(i);
-        }
-    }
-    None
+    (start..end)
+        .filter(|i| {
+            (0..pattern.len())
+                .filter(|j| mask[*j] == b'X')
+                .all(|j| pattern[j] == unsafe { std::ptr::read((*i + j) as *const u8) })
+        })
+        .take(1)
+        .next()
 }
 
 #[derive(Clone, Debug, Eq, PartialEq, Hash)]
