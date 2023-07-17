@@ -37,7 +37,7 @@ fn pattern_search(start: usize, end: usize, ql_func: &QuakeLiveFunction) -> Opti
         .next()
 }
 
-#[derive(Clone, Debug, Eq, PartialEq, Hash)]
+#[derive(Clone, Copy, Debug, Eq, PartialEq, Hash)]
 #[allow(dead_code)]
 #[allow(non_camel_case_types)]
 pub enum QuakeLiveFunction {
