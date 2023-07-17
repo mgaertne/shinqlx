@@ -549,7 +549,7 @@ impl QuakeLiveEngine {
 
             pending_client_connect_detours: RwLock::new(VecDeque::with_capacity(3)),
             pending_client_spawn_detours: RwLock::new(VecDeque::with_capacity(3)),
-            pending_g_start_kamikaze_detours: RwLock::new(VecDeque::with_capacity(65536)),
+            pending_g_start_kamikaze_detours: RwLock::new(VecDeque::with_capacity(3)),
             pending_g_damage_detours: RwLock::new(VecDeque::with_capacity(3)),
         }
     }
@@ -1350,7 +1350,6 @@ impl QuakeLiveEngine {
             }
         }
 
-        #[cfg(debug_assertions)]
         {
             let Ok(mut pending_g_start_kamikaze_lock) =
                 self.pending_g_start_kamikaze_detours.write()
