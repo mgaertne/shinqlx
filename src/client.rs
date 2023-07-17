@@ -118,14 +118,55 @@ impl Client {
 #[cfg(test)]
 pub(crate) mod client_tests {
     use crate::client::Client;
+    use crate::quake_live_engine::QuakeLiveEngine;
     use crate::quake_live_engine::QuakeLiveEngineError::{InvalidId, NullPointerPassed};
     use crate::quake_types::clientState_t::CS_ZOMBIE;
     use crate::quake_types::{
         client_t, sharedEntity_t, ClientBuilder, SharedEntityBuilder, MAX_INFO_STRING,
         MAX_NAME_LENGTH,
     };
+    use crate::MAIN_ENGINE;
     use pretty_assertions::assert_eq;
     use std::ffi::c_char;
+    use test_context::{test_context, TestContext};
+
+    struct QuakeLiveEngineContext;
+
+    impl TestContext for QuakeLiveEngineContext {
+        fn setup() -> Self {
+            let main_engine = QuakeLiveEngine::new();
+
+            let Ok(mut guard) = MAIN_ENGINE.write() else {
+                assert!(false, "could not write MAIN_ENGINE");
+                panic!("could not write MAIN_ENGINE");
+            };
+            *guard = Some(main_engine);
+
+            Self {}
+        }
+
+        fn teardown(self) {
+            let Ok(mut guard) = MAIN_ENGINE.write() else {
+                assert!(false, "could not write MAIN_ENGINE");
+                return;
+            };
+            *guard = None;
+        }
+    }
+
+    struct NoQuakeLiveEngineContext;
+
+    impl TestContext for NoQuakeLiveEngineContext {
+        fn setup() -> Self {
+            let Ok(mut guard) = MAIN_ENGINE.write() else {
+                assert!(false, "could not write MAIN_ENGINE");
+                panic!("could not write MAIN_ENGINE");
+            };
+            *guard = None;
+
+            Self {}
+        }
+    }
 
     #[test]
     pub(crate) fn client_try_from_null_results_in_error() {
@@ -177,6 +218,24 @@ pub(crate) mod client_tests {
             .unwrap();
         let rust_client = Client::try_from(&client as *const client_t).unwrap();
         assert_eq!(rust_client.has_gentity(), true);
+    }
+
+    #[test_context(NoQuakeLiveEngineContext)]
+    #[test]
+    pub(crate) fn client_disconnect_with_no_main_engine(_ctx: &mut NoQuakeLiveEngineContext) {
+        let client = ClientBuilder::default().build().unwrap();
+        let mut rust_client = Client::try_from(&client as *const client_t).unwrap();
+        rust_client.disconnect("disconnected");
+        assert!(true);
+    }
+
+    #[test_context(QuakeLiveEngineContext)]
+    #[test]
+    pub(crate) fn client_disconnect_with_no_detour_setup(_ctx: &mut QuakeLiveEngineContext) {
+        let client = ClientBuilder::default().build().unwrap();
+        let mut rust_client = Client::try_from(&client as *const client_t).unwrap();
+        rust_client.disconnect("disconnected");
+        assert!(true);
     }
 
     #[test]
