@@ -143,7 +143,7 @@ impl GameEntity {
         gentities_ptr as *mut gentity_t
     }
 
-    pub(crate) fn get_client_id(&self) -> i32 {
+    pub(crate) fn get_entity_id(&self) -> i32 {
         let g_entities = Self::get_entities_list();
         if g_entities.is_null() {
             return -1;

@@ -531,25 +531,23 @@ fn get_player_info(client_id: i32) -> PyResult<Option<PlayerInfo>> {
 /// Returns a list with dictionaries with information about all the players on the server.
 #[pyfunction(name = "players_info")]
 fn get_players_info() -> PyResult<Vec<Option<PlayerInfo>>> {
-    let mut result = Vec::new();
     let Some(quake_live_engine) = MAIN_ENGINE.get() else {
         return Err(PyEnvironmentError::new_err(
             "main quake live engine not set",
         ));
     };
     let maxclients = quake_live_engine.get_max_clients();
-    for client_id in 0..maxclients {
-        match Client::try_from(client_id) {
-            Err(_) => result.push(None),
-            Ok(client) => {
-                if client.get_state() == CS_FREE {
-                    result.push(None)
-                } else {
-                    result.push(PlayerInfo::try_from(client_id).ok())
-                }
-            }
-        }
-    }
+    let result: Vec<Option<PlayerInfo>> = (0..maxclients)
+        .filter_map(|client_id| {
+            Client::try_from(client_id).map_or_else(
+                |_| None,
+                |client| match client.get_state() {
+                    CS_FREE => None,
+                    _ => Some(PlayerInfo::try_from(client_id).ok()),
+                },
+            )
+        })
+        .collect();
     Ok(result)
 }
 
@@ -832,17 +830,11 @@ fn force_vote(py: Python<'_>, pass: bool) -> PyResult<bool> {
     };
     let maxclients = quake_live_engine.get_max_clients();
     py.allow_threads(|| {
-        for i in 0..maxclients {
-            if let Ok(client) = Client::try_from(i) {
-                if client.get_state() == CS_ACTIVE {
-                    if let Ok(game_entity) = GameEntity::try_from(i) {
-                        if let Ok(mut game_client) = game_entity.get_game_client() {
-                            game_client.set_vote_state(pass);
-                        }
-                    }
-                }
-            }
-        }
+        (0..maxclients)
+            .filter(|i| Client::try_from(*i).is_ok_and(|client| client.get_state() == CS_ACTIVE))
+            .filter_map(|client_id| GameEntity::try_from(client_id).ok())
+            .filter_map(|game_entity| game_entity.get_game_client().ok())
+            .for_each(|mut game_client| game_client.set_vote_state(pass));
     });
 
     Ok(true)
@@ -962,16 +954,20 @@ impl Vector3 {
             ));
         }
 
-        let mut results: [i32; 3] = [0; 3];
-        for (item, result) in results.iter_mut().enumerate() {
-            let extracted_value: PyResult<i32> = values.get_item(item).unwrap().extract();
-            match extracted_value {
-                Err(_) => return Err(PyValueError::new_err("Weapons values need to be boolean")),
-                Ok(extracted_int) => *result = extracted_int,
-            }
+        let results = values
+            .iter()
+            .map(|item| item.extract::<i32>().ok())
+            .collect::<Vec<Option<i32>>>();
+
+        if results.iter().any(|item| item.is_none()) {
+            return Err(PyValueError::new_err("Vector3 values need to be integer"));
         }
 
-        Ok(Vector3(results[0], results[1], results[2]))
+        Ok(Self(
+            results[0].unwrap(),
+            results[1].unwrap(),
+            results[2].unwrap(),
+        ))
     }
 
     fn __str__(&self) -> String {
@@ -1103,16 +1099,24 @@ impl Weapons {
             ));
         }
 
-        let mut results: [i32; 15] = [0; 15];
-        for (item, result) in results.iter_mut().enumerate() {
-            let extracted_value: PyResult<i32> = values.get_item(item).unwrap().extract();
-            match extracted_value {
-                Err(_) => return Err(PyValueError::new_err("Weapons values need to be boolean")),
-                Ok(extracted_int) => *result = extracted_int,
-            }
+        let results = values
+            .iter()
+            .map(|item| item.extract::<i32>().ok())
+            .collect::<Vec<Option<i32>>>();
+
+        if results.iter().any(|item| item.is_none()) {
+            return Err(PyValueError::new_err("Weapons values need to be boolean"));
         }
 
-        Ok(Weapons::from(results))
+        Ok(Self::from(
+            <Vec<i32> as TryInto<[i32; 15]>>::try_into(
+                results
+                    .into_iter()
+                    .map(|value| value.unwrap_or(0))
+                    .collect::<Vec<i32>>(),
+            )
+            .unwrap(),
+        ))
     }
 
     fn __str__(&self) -> String {
@@ -1210,16 +1214,24 @@ impl Powerups {
             ));
         }
 
-        let mut results: [i32; 6] = [0; 6];
-        for (item, result) in results.iter_mut().enumerate() {
-            let extracted_value: PyResult<i32> = values.get_item(item).unwrap().extract();
-            match extracted_value {
-                Err(_) => return Err(PyValueError::new_err("Weapons values need to be boolean")),
-                Ok(extracted_int) => *result = extracted_int,
-            }
+        let results = values
+            .iter()
+            .map(|item| item.extract::<i32>().ok())
+            .collect::<Vec<Option<i32>>>();
+
+        if results.iter().any(|item| item.is_none()) {
+            return Err(PyValueError::new_err("Powerups values need to be integer"));
         }
 
-        Ok(Self::from(results))
+        Ok(Self::from(
+            <Vec<i32> as TryInto<[i32; 6]>>::try_into(
+                results
+                    .into_iter()
+                    .map(|value| value.unwrap_or(0))
+                    .collect::<Vec<i32>>(),
+            )
+            .unwrap(),
+        ))
     }
 
     fn __str__(&self) -> String {
@@ -1331,16 +1343,21 @@ impl Flight {
             ));
         }
 
-        let mut results: [i32; 4] = [0; 4];
-        for (item, result) in results.iter_mut().enumerate() {
-            let extracted_value: PyResult<i32> = values.get_item(item).unwrap().extract();
-            match extracted_value {
-                Err(_) => return Err(PyValueError::new_err("Weapons values need to be boolean")),
-                Ok(extracted_int) => *result = extracted_int,
-            }
+        let results = values
+            .iter()
+            .map(|item| item.extract::<i32>().ok())
+            .collect::<Vec<Option<i32>>>();
+
+        if results.iter().any(|item| item.is_none()) {
+            return Err(PyValueError::new_err("Flight values need to be integer"));
         }
 
-        Ok(Self(results[0], results[1], results[2], results[3]))
+        Ok(Self(
+            results[0].unwrap(),
+            results[1].unwrap(),
+            results[2].unwrap(),
+            results[3].unwrap(),
+        ))
     }
 
     fn __str__(&self) -> String {
@@ -2053,23 +2070,21 @@ fn set_privileges(py: Python<'_>, client_id: i32, privileges: i32) -> PyResult<b
 #[pyo3(name = "destroy_kamikaze_timers")]
 fn destroy_kamikaze_timers(py: Python<'_>) -> PyResult<bool> {
     py.allow_threads(|| {
-        for i in 0..MAX_GENTITIES {
-            if let Ok(game_entity) = GameEntity::try_from(i) {
-                if game_entity.in_use() {
-                    if game_entity.get_health() <= 0 {
-                        if let Ok(game_client) = game_entity.get_game_client() {
-                            let mut mut_game_client = game_client;
-                            mut_game_client.remove_kamikaze_flag();
-                        }
-                    }
+        let mut in_use_entities: Vec<GameEntity> = (0..MAX_GENTITIES)
+            .filter_map(|i| GameEntity::try_from(i).ok())
+            .filter(|game_entity| game_entity.in_use())
+            .collect();
 
-                    if game_entity.is_kamikaze_timer() {
-                        let mut mut_entity = game_entity;
-                        mut_entity.free_entity();
-                    }
-                }
-            }
-        }
+        in_use_entities
+            .iter()
+            .filter(|&game_entity| game_entity.get_health() <= 0)
+            .filter_map(|game_entity| game_entity.get_game_client().ok())
+            .for_each(|mut game_client| game_client.remove_kamikaze_flag());
+
+        in_use_entities
+            .iter_mut()
+            .filter(|game_entity| game_entity.is_kamikaze_timer())
+            .for_each(|game_entity| game_entity.free_entity());
     });
     Ok(true)
 }
@@ -2099,15 +2114,12 @@ fn spawn_item(py: Python<'_>, item_id: i32, x: i32, y: i32, z: i32) -> PyResult<
 #[pyo3(name = "remove_dropped_items")]
 fn remove_dropped_items(py: Python<'_>) -> PyResult<bool> {
     py.allow_threads(|| {
-        for i in 0..MAX_GENTITIES {
-            if let Ok(game_entity) = GameEntity::try_from(i) {
-                if game_entity.in_use() && game_entity.has_flags() && game_entity.is_dropped_item()
-                {
-                    let mut mut_entity = game_entity;
-                    mut_entity.free_entity();
-                }
-            }
-        }
+        (0..MAX_GENTITIES)
+            .filter_map(|i| GameEntity::try_from(i).ok())
+            .filter(|game_entity| {
+                game_entity.in_use() && game_entity.has_flags() && game_entity.is_dropped_item()
+            })
+            .for_each(|mut game_entity| game_entity.free_entity());
     });
 
     Ok(true)
@@ -2157,17 +2169,17 @@ fn determine_item_id(item: &PyAny) -> PyResult<i32> {
     }
 
     if let Ok(item_classname) = item.extract::<String>() {
-        for i in 1..GameItem::get_num_items() {
-            if let Ok(game_item) = GameItem::try_from(i) {
-                if game_item.get_classname() == item_classname {
-                    return Ok(i);
-                }
-            }
-        }
-        return Err(PyValueError::new_err(format!(
-            "invalid item classname: {}",
-            item_classname
-        )));
+        return (1..GameItem::get_num_items())
+            .filter(|i| {
+                let game_item = GameItem::try_from(*i);
+                game_item.is_ok() && game_item.unwrap().get_classname() == item_classname
+            })
+            .take(1)
+            .next()
+            .ok_or(PyValueError::new_err(format!(
+                "invalid item classname: {}",
+                item_classname
+            )));
     }
 
     Err(PyValueError::new_err(
@@ -2222,20 +2234,19 @@ fn replace_items(py: Python<'_>, item1: Py<PyAny>, item2: Py<PyAny>) -> PyResult
     }
 
     if let Ok(item1_classname) = item1.extract::<String>(py) {
-        let mut is_entity_found = false;
-        for i in 0..MAX_GENTITIES {
-            if let Ok(game_entity) = GameEntity::try_from(i as i32) {
-                if game_entity.in_use()
+        let matching_item1_entities: Vec<GameEntity> = (0..MAX_GENTITIES)
+            .filter_map(|i| GameEntity::try_from(i as i32).ok())
+            .filter(|game_entity| {
+                game_entity.in_use()
                     && game_entity.is_game_item(ET_ITEM)
                     && game_entity.get_classname() == item1_classname
-                {
-                    is_entity_found = true;
-                    let mut mut_game_entity = game_entity;
-                    mut_game_entity.replace_item(item2_id);
-                }
-            }
-        }
-        return Ok(is_entity_found);
+            })
+            .collect();
+        let item_found = !matching_item1_entities.is_empty();
+        matching_item1_entities
+            .into_iter()
+            .for_each(|mut game_entity| game_entity.replace_item(item2_id));
+        return Ok(item_found);
     }
 
     Err(PyValueError::new_err(
@@ -2248,25 +2259,21 @@ fn replace_items(py: Python<'_>, item1: Py<PyAny>, item2: Py<PyAny>) -> PyResult
 #[pyo3(name = "dev_print_items")]
 fn dev_print_items(py: Python<'_>) -> PyResult<()> {
     py.allow_threads(|| {
-        let mut formatted_items: Vec<String> = Vec::new();
-        for i in 0..MAX_GENTITIES {
-            match GameEntity::try_from(i as i32) {
-                Err(_) => continue,
-                Ok(game_entity) => {
-                    if !game_entity.in_use() {
-                        continue;
-                    }
-                    if !game_entity.is_game_item(ET_ITEM) {
-                        continue;
-                    }
-                    formatted_items.push(format!("{} {}", i, game_entity.get_classname()));
-                }
-            }
-        }
+        let formatted_items: Vec<String> = (0..MAX_GENTITIES)
+            .filter_map(|i| GameEntity::try_from(i as i32).ok())
+            .filter(|game_entity| game_entity.in_use() && game_entity.is_game_item(ET_ITEM))
+            .map(|game_entity| {
+                format!(
+                    "{} {}",
+                    game_entity.get_entity_id(),
+                    game_entity.get_classname()
+                )
+            })
+            .collect();
         let mut str_length = 0;
         let printed_items: Vec<String> = formatted_items
             .iter()
-            .take_while(|item| {
+            .take_while(|&item| {
                 str_length += item.len();
                 str_length < 1024
             })
@@ -2295,9 +2302,9 @@ fn dev_print_items(py: Python<'_>) -> PyResult<()> {
         if !remaining_items.is_empty() {
             quake_live_engine
                 .send_server_command(None, "print \"Check server console for other items\n\"\n");
-            for item in remaining_items {
-                quake_live_engine.com_printf(item.as_str());
-            }
+            remaining_items
+                .into_iter()
+                .for_each(|item| quake_live_engine.com_printf(item.as_str()));
         }
 
         Ok(())
@@ -2315,14 +2322,10 @@ fn force_weapon_respawn_time(py: Python<'_>, respawn_time: i32) -> PyResult<bool
     }
 
     py.allow_threads(|| {
-        for i in 0..MAX_GENTITIES {
-            if let Ok(game_entity) = GameEntity::try_from(i as i32) {
-                if game_entity.in_use() && game_entity.is_respawning_weapon() {
-                    let mut mut_entity = game_entity;
-                    mut_entity.set_respawn_time(respawn_time);
-                }
-            }
-        }
+        (0..MAX_GENTITIES)
+            .filter_map(|i| GameEntity::try_from(i as i32).ok())
+            .filter(|game_entity| game_entity.in_use() && game_entity.is_respawning_weapon())
+            .for_each(|mut game_entity| game_entity.set_respawn_time(respawn_time));
     });
 
     Ok(true)
@@ -2600,7 +2603,8 @@ pub(crate) fn pyminqlx_reload() -> PyMinqlx_InitStatus_t {
         return PYM_NOT_INITIALIZED_ERROR;
     }
 
-    for handler_lock in [
+    let mut failures = 0;
+    [
         &CLIENT_COMMAND_HANDLER,
         &SERVER_COMMAND_HANDLER,
         &FRAME_HANDLER,
@@ -2616,11 +2620,17 @@ pub(crate) fn pyminqlx_reload() -> PyMinqlx_InitStatus_t {
         &KAMIKAZE_USE_HANDLER,
         &KAMIKAZE_EXPLODE_HANDLER,
         &DAMAGE_HANDLER,
-    ] {
-        let Ok(mut guard) = handler_lock.write() else {
-            return PYM_PY_INIT_ERROR;
+    ]
+    .into_iter()
+    .for_each(|handler_lock| {
+        match handler_lock.write() {
+            Err(_) => failures += 1,
+            Ok(mut guard) => *guard = None,
         };
-        *guard = None;
+    });
+
+    if failures != 0 {
+        return PYM_PY_INIT_ERROR;
     }
 
     match Python::with_gil(|py| {

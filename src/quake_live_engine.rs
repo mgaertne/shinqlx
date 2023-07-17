@@ -218,7 +218,8 @@ impl VmFunctions {
                 .collect();
 
             debug_println!("Searching for necessary VM functions...");
-            for (ql_func, field) in [
+            let mut failed_functions: Vec<QuakeLiveFunction> = Vec::new();
+            [
                 (QuakeLiveFunction::G_AddEvent, &self.g_addevent_orig),
                 (
                     QuakeLiveFunction::CheckPrivileges,
@@ -236,12 +237,22 @@ impl VmFunctions {
                 ),
                 (QuakeLiveFunction::G_FreeEntity, &self.g_free_entity_orig),
                 (QuakeLiveFunction::Cmd_Callvote_f, &self.cmd_callvote_f_orig),
-            ] {
-                let Some(orig_func) = pattern_search_module(&qagame_maps, &ql_func) else {
-                    return Err(QuakeLiveEngineError::VmFunctionNotFound(ql_func));
-                };
-                debug_println!(format!("{}: {:#X}", &ql_func, orig_func));
-                field.store(orig_func, Ordering::SeqCst);
+            ]
+            .into_iter()
+            .for_each(|(ql_func, field)| {
+                match pattern_search_module(&qagame_maps, &ql_func) {
+                    None => failed_functions.push(ql_func),
+                    Some(orig_func) => {
+                        debug_println!(format!("{}: {:#X}", &ql_func, orig_func));
+                        field.store(orig_func, Ordering::SeqCst);
+                    }
+                }
+            });
+
+            if !failed_functions.is_empty() {
+                return Err(QuakeLiveEngineError::VmFunctionNotFound(
+                    failed_functions[0],
+                ));
             }
 
             let base_address = unsafe {

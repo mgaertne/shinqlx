@@ -202,8 +202,8 @@ pub(crate) fn shinqlx_sv_cliententerworld(client: *mut client_t, cmd: *mut userc
 
     let state = safe_client.get_state();
     let Some(quake_live_engine) = MAIN_ENGINE.get() else {
-            return;
-        };
+        return;
+    };
     quake_live_engine.client_enter_world(&mut safe_client, cmd);
 
     // gentity is NULL if map changed.
@@ -233,8 +233,8 @@ pub(crate) fn shinqlx_set_configstring(index: u32, value: &str) {
     // use for those particular ones anyway. If we don't do this, we get
     // like a 25% increase in CPU usage on an empty server.
     let Some(quake_live_engine) = MAIN_ENGINE.get() else {
-            return;
-        };
+        return;
+    };
     if index == 16 || (662..670).contains(&index) {
         quake_live_engine.set_configstring(&index, value);
         return;
@@ -293,7 +293,7 @@ pub(crate) fn shinqlx_com_printf(msg: &str) {
         return;
     };
     let Some(quake_live_engine) = MAIN_ENGINE.get() else {
-            return;
+        return;
     };
     quake_live_engine.com_printf(msg);
 }
@@ -372,7 +372,7 @@ pub(crate) fn shinqlx_client_spawn(mut game_entity: GameEntity) {
     // Since we won't ever stop the real function from being called,
     // we trigger the event after calling the real one. This will allow
     // us to set weapons and such without it getting overriden later.
-    client_spawn_dispatcher(game_entity.get_client_id());
+    client_spawn_dispatcher(game_entity.get_entity_id());
 }
 
 #[allow(non_snake_case)]
@@ -438,7 +438,7 @@ pub extern "C" fn ShiNQlx_G_Damage(
     };
     if attacker.is_null() {
         damage_dispatcher(
-            target_entity.get_client_id(),
+            target_entity.get_entity_id(),
             None,
             damage,
             dflags,
@@ -449,7 +449,7 @@ pub extern "C" fn ShiNQlx_G_Damage(
     match GameEntity::try_from(attacker) {
         Err(_) => {
             damage_dispatcher(
-                target_entity.get_client_id(),
+                target_entity.get_entity_id(),
                 None,
                 damage,
                 dflags,
@@ -458,8 +458,8 @@ pub extern "C" fn ShiNQlx_G_Damage(
         }
         Ok(attacker_entity) => {
             damage_dispatcher(
-                target_entity.get_client_id(),
-                Some(attacker_entity.get_client_id()),
+                target_entity.get_entity_id(),
+                Some(attacker_entity.get_entity_id()),
                 damage,
                 dflags,
                 means_of_death,
