@@ -19,16 +19,21 @@ use crate::MAIN_ENGINE;
 use std::ffi::{c_char, c_int, CStr, VaList, VaListImpl};
 
 pub(crate) fn shinqlx_cmd_addcommand(cmd: *const c_char, func: unsafe extern "C" fn()) {
-    let Some(quake_live_engine) = MAIN_ENGINE.get() else {
+    let Ok(main_engine_guard) = MAIN_ENGINE.try_read() else {
         return;
     };
-    if !quake_live_engine.is_common_initialized() {
-        quake_live_engine.initialize_static();
+
+    let Some(ref main_engine) = *main_engine_guard else {
+        return;
+    };
+
+    if !main_engine.is_common_initialized() {
+        main_engine.initialize_static();
     }
 
     let command = unsafe { CStr::from_ptr(cmd) }.to_string_lossy();
     if !command.is_empty() {
-        quake_live_engine.add_command(command.as_ref(), func);
+        main_engine.add_command(command.as_ref(), func);
     }
 }
 
@@ -43,12 +48,17 @@ pub(crate) fn shinqlx_sys_setmoduleoffset(
         debug_println!(format!("Unknown module: {}", converted_module_name));
     }
 
-    let Some(quake_live_engine) = MAIN_ENGINE.get() else {
+    let Ok(main_engine_guard) = MAIN_ENGINE.try_read() else {
         return;
     };
-    quake_live_engine.set_module_offset(converted_module_name.as_ref(), offset);
 
-    if let Err(err) = quake_live_engine.initialize_vm(offset as usize) {
+    let Some(ref main_engine) = *main_engine_guard else {
+        return;
+    };
+
+    main_engine.set_module_offset(converted_module_name.as_ref(), offset);
+
+    if let Err(err) = main_engine.initialize_vm(offset as usize) {
         debug_println!(format!("{:?}", err));
         debug_println!("VM could not be initializied. Exiting.");
         panic!("VM could not be initializied. Exiting.");
@@ -57,13 +67,18 @@ pub(crate) fn shinqlx_sys_setmoduleoffset(
 
 #[no_mangle]
 pub extern "C" fn ShiNQlx_G_InitGame(level_time: c_int, random_seed: c_int, restart: c_int) {
-    let Some(quake_live_engine) = MAIN_ENGINE.get() else {
+    let Ok(main_engine_guard) = MAIN_ENGINE.try_read() else {
         return;
     };
-    quake_live_engine.init_game(level_time, random_seed, restart);
 
-    quake_live_engine.set_tag();
-    quake_live_engine.initialize_cvars();
+    let Some(ref main_engine) = *main_engine_guard else {
+        return;
+    };
+
+    main_engine.init_game(level_time, random_seed, restart);
+
+    main_engine.set_tag();
+    main_engine.initialize_cvars();
 
     if restart != 0 {
         new_game_dispatcher(true);
@@ -72,12 +87,16 @@ pub extern "C" fn ShiNQlx_G_InitGame(level_time: c_int, random_seed: c_int, rest
 
 #[no_mangle]
 pub extern "C" fn ShiNQlx_G_ShutdownGame(restart: c_int) {
-    let Some(quake_live_engine) = MAIN_ENGINE.get() else {
+    let Ok(main_engine_guard) = MAIN_ENGINE.try_read() else {
         return;
     };
 
-    quake_live_engine.unhook_vm().unwrap();
-    quake_live_engine.shutdown_game(restart);
+    let Some(ref main_engine) = *main_engine_guard else {
+        return;
+    };
+
+    main_engine.unhook_vm().unwrap();
+    main_engine.shutdown_game(restart);
 }
 
 pub(crate) fn shinqlx_sv_executeclientcommand(
@@ -118,14 +137,15 @@ pub(crate) fn shinqlx_execute_client_command(
     };
 
     if !passed_on_cmd_str.is_empty() {
-        let Some(quake_live_engine) = MAIN_ENGINE.get() else {
+        let Ok(main_engine_guard) = MAIN_ENGINE.try_read() else {
             return;
         };
-        quake_live_engine.execute_client_command(
-            client.as_mut(),
-            passed_on_cmd_str.as_str(),
-            client_ok,
-        );
+
+        let Some(ref main_engine) = *main_engine_guard else {
+            return;
+        };
+
+        main_engine.execute_client_command(client.as_mut(), passed_on_cmd_str.as_str(), client_ok);
     }
 }
 
@@ -188,10 +208,15 @@ pub(crate) fn shinqlx_send_server_command(client: Option<Client>, cmd: &str) {
     }
 
     if !passed_on_cmd_str.is_empty() {
-        let Some(quake_live_engine) = MAIN_ENGINE.get() else {
+        let Ok(main_engine_guard) = MAIN_ENGINE.try_read() else {
             return;
         };
-        quake_live_engine.send_server_command(client, passed_on_cmd_str.as_str());
+
+        let Some(ref main_engine) = *main_engine_guard else {
+            return;
+        };
+
+        main_engine.send_server_command(client, passed_on_cmd_str.as_str());
     }
 }
 
@@ -201,10 +226,16 @@ pub(crate) fn shinqlx_sv_cliententerworld(client: *mut client_t, cmd: *mut userc
     };
 
     let state = safe_client.get_state();
-    let Some(quake_live_engine) = MAIN_ENGINE.get() else {
+
+    let Ok(main_engine_guard) = MAIN_ENGINE.try_read() else {
         return;
     };
-    quake_live_engine.client_enter_world(&mut safe_client, cmd);
+
+    let Some(ref main_engine) = *main_engine_guard else {
+        return;
+    };
+
+    main_engine.client_enter_world(&mut safe_client, cmd);
 
     // gentity is NULL if map changed.
     // state is CS_PRIMED only if it's the first time they connect to the server,
@@ -232,18 +263,23 @@ pub(crate) fn shinqlx_set_configstring(index: u32, value: &str) {
     // so we add some exceptions for those. I don't think we should have any
     // use for those particular ones anyway. If we don't do this, we get
     // like a 25% increase in CPU usage on an empty server.
-    let Some(quake_live_engine) = MAIN_ENGINE.get() else {
+    let Ok(main_engine_guard) = MAIN_ENGINE.try_read() else {
         return;
     };
+
+    let Some(ref main_engine) = *main_engine_guard else {
+        return;
+    };
+
     if index == 16 || (662..670).contains(&index) {
-        quake_live_engine.set_configstring(&index, value);
+        main_engine.set_configstring(&index, value);
         return;
     }
 
     let Some(res) = set_configstring_dispatcher(index, value) else {
         return;
     };
-    quake_live_engine.set_configstring(&index, res.as_str());
+    main_engine.set_configstring(&index, res.as_str());
 }
 
 pub(crate) fn shinqlx_sv_dropclient(client: *mut client_t, reason: *const c_char) {
@@ -292,10 +328,16 @@ pub(crate) fn shinqlx_com_printf(msg: &str) {
     let Some(_res) = console_print_dispatcher(msg) else {
         return;
     };
-    let Some(quake_live_engine) = MAIN_ENGINE.get() else {
+
+    let Ok(main_engine_guard) = MAIN_ENGINE.try_read() else {
         return;
     };
-    quake_live_engine.com_printf(msg);
+
+    let Some(ref main_engine) = *main_engine_guard else {
+        return;
+    };
+
+    main_engine.com_printf(msg);
 }
 
 pub(crate) fn shinqlx_sv_spawnserver(server: *const c_char, kill_bots: qboolean) {
@@ -303,10 +345,16 @@ pub(crate) fn shinqlx_sv_spawnserver(server: *const c_char, kill_bots: qboolean)
     if server_str.is_empty() {
         return;
     }
-    let Some(quake_live_engine) = MAIN_ENGINE.get() else {
+
+    let Ok(main_engine_guard) = MAIN_ENGINE.try_read() else {
         return;
     };
-    quake_live_engine.spawn_server(server_str.as_ref(), kill_bots.into());
+
+    let Some(ref main_engine) = *main_engine_guard else {
+        return;
+    };
+
+    main_engine.spawn_server(server_str.as_ref(), kill_bots.into());
 
     new_game_dispatcher(false);
 }
@@ -315,10 +363,15 @@ pub(crate) fn shinqlx_sv_spawnserver(server: *const c_char, kill_bots: qboolean)
 pub extern "C" fn ShiNQlx_G_RunFrame(time: c_int) {
     frame_dispatcher();
 
-    let Some(quake_live_engine) = MAIN_ENGINE.get() else {
+    let Ok(main_engine_guard) = MAIN_ENGINE.try_read() else {
         return;
     };
-    quake_live_engine.run_frame(time);
+
+    let Some(ref main_engine) = *main_engine_guard else {
+        return;
+    };
+
+    main_engine.run_frame(time);
 }
 
 static mut CLIENT_CONNECT_BUFFER: [[c_char; MAX_STRING_CHARS as usize]; MAX_CLIENTS as usize] =
@@ -348,10 +401,15 @@ pub extern "C" fn ShiNQlx_ClientConnect(
         }
     }
 
-    let Some(quake_live_engine) = MAIN_ENGINE.get() else {
+    let Ok(main_engine_guard) = MAIN_ENGINE.try_read() else {
         return std::ptr::null();
     };
-    quake_live_engine.client_connect(client_num, first_time.into(), is_bot.into())
+
+    let Some(ref main_engine) = *main_engine_guard else {
+        return std::ptr::null();
+    };
+
+    main_engine.client_connect(client_num, first_time.into(), is_bot.into())
 }
 
 #[allow(non_snake_case)]
@@ -364,10 +422,15 @@ pub extern "C" fn ShiNQlx_ClientSpawn(ent: *mut gentity_t) {
 }
 
 pub(crate) fn shinqlx_client_spawn(mut game_entity: GameEntity) {
-    let Some(quake_live_engine) = MAIN_ENGINE.get() else {
+    let Ok(main_engine_guard) = MAIN_ENGINE.try_read() else {
         return;
     };
-    quake_live_engine.client_spawn(&mut game_entity);
+
+    let Some(ref main_engine) = *main_engine_guard else {
+        return;
+    };
+
+    main_engine.client_spawn(&mut game_entity);
 
     // Since we won't ever stop the real function from being called,
     // we trigger the event after calling the real one. This will allow
@@ -419,10 +482,15 @@ pub extern "C" fn ShiNQlx_G_Damage(
     // DAMAGE_NO_TEAM_PROTECTION	kills team mates
     means_of_death: c_int, // means_of_death indicator
 ) {
-    let Some(quake_live_engine) = MAIN_ENGINE.get() else {
+    let Ok(main_engine_guard) = MAIN_ENGINE.try_read() else {
         return;
     };
-    quake_live_engine.register_damage(
+
+    let Some(ref main_engine) = *main_engine_guard else {
+        return;
+    };
+
+    main_engine.register_damage(
         target,
         inflictor,
         attacker,
@@ -436,6 +504,7 @@ pub extern "C" fn ShiNQlx_G_Damage(
     let Ok(target_entity) = GameEntity::try_from(target) else {
         return;
     };
+
     if attacker.is_null() {
         damage_dispatcher(
             target_entity.get_entity_id(),
@@ -446,6 +515,7 @@ pub extern "C" fn ShiNQlx_G_Damage(
         );
         return;
     }
+
     match GameEntity::try_from(attacker) {
         Err(_) => {
             damage_dispatcher(

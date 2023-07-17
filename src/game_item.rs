@@ -58,17 +58,25 @@ impl GameItem {
     }
 
     fn get_item_list() -> *mut gitem_t {
-        let Some(main_engine) = MAIN_ENGINE.get() else {
+        let Ok(main_engine_guard) = MAIN_ENGINE.try_read() else {
             return std::ptr::null_mut();
         };
+
+        let Some(ref main_engine) = *main_engine_guard else {
+            return std::ptr::null_mut();
+        };
+
         let Ok(launch_item_orig) = main_engine.launch_item_orig() else {
             return std::ptr::null_mut();
         };
+
         let base_address = unsafe {
             std::ptr::read_unaligned((launch_item_orig as usize + OFFSET_BG_ITEMLIST) as *const i32)
         };
+
         let bg_itemlist_ptr_ptr =
             base_address as usize + launch_item_orig as usize + OFFSET_BG_ITEMLIST + 4;
+
         let bg_itemlist_ptr = unsafe { std::ptr::read(bg_itemlist_ptr_ptr as *const u64) };
         bg_itemlist_ptr as *mut gitem_t
     }
@@ -87,10 +95,15 @@ impl GameItem {
     }
 
     pub(crate) fn spawn(&mut self, origin: (i32, i32, i32)) {
-        let Some(quake_live_engine) = MAIN_ENGINE.get() else {
+        let Ok(main_engine_guard) = MAIN_ENGINE.try_read() else {
             return;
         };
-        self.spawn_internal(origin, quake_live_engine);
+
+        let Some(ref main_engine) = *main_engine_guard else {
+            return;
+        };
+
+        self.spawn_internal(origin, main_engine);
     }
 
     pub(crate) fn spawn_internal(

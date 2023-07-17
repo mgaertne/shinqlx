@@ -76,12 +76,19 @@ impl Client {
 
     pub(crate) fn disconnect(&mut self, reason: &str) {
         let c_reason = CString::new(reason).unwrap_or(CString::new("").unwrap());
-        let Some(main_engine) = MAIN_ENGINE.get() else {
+
+        let Ok(main_engine_guard) = MAIN_ENGINE.try_read() else {
             return;
         };
+
+        let Some(ref main_engine) = *main_engine_guard else {
+            return;
+        };
+
         let Ok(detour) = main_engine.sv_dropclient_detour() else {
             return;
         };
+
         detour.call(self.client_t, c_reason.as_ptr());
     }
 
