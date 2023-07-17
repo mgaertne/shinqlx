@@ -25,18 +25,18 @@ impl TryFrom<*mut serverStatic_t> for ServerStatic {
 impl Default for ServerStatic {
     fn default() -> Self {
         let Ok(main_engine_guard) = MAIN_ENGINE.try_read() else {
-            debug_println!("Main Engine not readable");
-            panic!("Main Engine not readable");
+            debug_println!("main quake live engine not accessible.");
+            panic!("main quake live engine not accessible.");
         };
 
         let Some(ref main_engine) = *main_engine_guard else {
-            debug_println!("Main Engine not found");
-            panic!("Main Engine not found");
+            debug_println!("main quake live engine not initialized.");
+            panic!("main quake live engine not initialized.");
         };
 
         let Ok(func_pointer) = main_engine.sv_shutdown_orig() else {
-            debug_println!("necessary offset function not found");
-            panic!("necessary offset function not found");
+            debug_println!("SV_Shutdown function not initialized.");
+            panic!("SV_Shutdown function not initialized.");
         };
 
         let svs_ptr_ptr = func_pointer as usize + 0xAC;
@@ -47,10 +47,51 @@ impl Default for ServerStatic {
 
 #[cfg(test)]
 pub(crate) mod server_static_tests {
+    use crate::quake_live_engine::QuakeLiveEngine;
     use crate::quake_live_engine::QuakeLiveEngineError::NullPointerPassed;
     use crate::quake_types::{serverStatic_t, ServerStaticBuilder};
     use crate::server_static::ServerStatic;
+    use crate::MAIN_ENGINE;
     use pretty_assertions::assert_eq;
+    use test_context::{test_context, TestContext};
+
+    struct QuakeLiveEngineContext;
+
+    impl TestContext for QuakeLiveEngineContext {
+        fn setup() -> Self {
+            let main_engine = QuakeLiveEngine::new();
+
+            let Ok(mut guard) = MAIN_ENGINE.write() else {
+                assert!(false, "could not write MAIN_ENGINE");
+                panic!("could not write MAIN_ENGINE");
+            };
+            *guard = Some(main_engine);
+
+            Self {}
+        }
+
+        fn teardown(self) {
+            let Ok(mut guard) = MAIN_ENGINE.write() else {
+                assert!(false, "could not write MAIN_ENGINE");
+                return;
+            };
+            *guard = None;
+        }
+    }
+
+    struct NoQuakeLiveEngineContext;
+
+    impl TestContext for NoQuakeLiveEngineContext {
+        fn setup() -> Self {
+            let Ok(mut guard) = MAIN_ENGINE.write() else {
+                assert!(false, "could not write MAIN_ENGINE");
+                panic!("could not write MAIN_ENGINE");
+            };
+            *guard = None;
+
+            Self {}
+        }
+    }
 
     #[test]
     pub(crate) fn server_static_try_from_null_results_in_error() {
@@ -69,9 +110,21 @@ pub(crate) mod server_static_tests {
         );
     }
 
+    #[test_context(NoQuakeLiveEngineContext)]
     #[test]
-    #[should_panic(expected = "Main Engine not found")]
-    pub(crate) fn server_static_default_panics_when_no_main_engine_found() {
+    #[should_panic(expected = "main quake live engine not initialized.")]
+    pub(crate) fn server_static_default_panics_when_no_main_engine_found(
+        _ctx: &mut NoQuakeLiveEngineContext,
+    ) {
+        ServerStatic::default();
+    }
+
+    #[test_context(QuakeLiveEngineContext)]
+    #[test]
+    #[should_panic(expected = "SV_Shutdown function not initialized")]
+    pub(crate) fn server_static_default_panics_when_offset_function_not_initialized(
+        _ctx: &mut QuakeLiveEngineContext,
+    ) {
         ServerStatic::default();
     }
 }
