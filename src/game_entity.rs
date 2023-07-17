@@ -86,7 +86,11 @@ pub(crate) extern "C" fn ShiNQlx_Touch_Item(
     other: *mut gentity_t,
     trace: *mut trace_t,
 ) {
-    let Some(main_engine) = MAIN_ENGINE.get() else {
+    let Ok(main_engine_guard) = MAIN_ENGINE.try_read() else {
+        return;
+    };
+
+    let Some(ref main_engine) = *main_engine_guard else {
         return;
     };
 
@@ -106,7 +110,11 @@ pub(crate) extern "C" fn ShiNQlx_Touch_Item(
 #[allow(non_snake_case)]
 #[no_mangle]
 pub(crate) extern "C" fn ShiNQlx_Switch_Touch_Item(ent: *mut gentity_t) {
-    let Some(main_engine) = MAIN_ENGINE.get() else {
+    let Ok(main_engine_guard) = MAIN_ENGINE.try_read() else {
+        return;
+    };
+
+    let Some(ref main_engine) = *main_engine_guard else {
         return;
     };
 
@@ -129,7 +137,11 @@ const OFFSET_G_ENTITIES: usize = 0x11B;
 
 impl GameEntity {
     fn get_entities_list() -> *mut gentity_t {
-        let Some(main_engine) = MAIN_ENGINE.get() else {
+        let Ok(main_engine_guard) = MAIN_ENGINE.try_read() else {
+            return std::ptr::null_mut();
+        };
+
+        let Some(ref main_engine) = *main_engine_guard else {
             return std::ptr::null_mut();
         };
 
@@ -154,10 +166,15 @@ impl GameEntity {
     }
 
     pub(crate) fn start_kamikaze(&mut self) {
-        let Some(quake_live_engine) = MAIN_ENGINE.get() else {
+        let Ok(main_engine_guard) = MAIN_ENGINE.try_read() else {
             return;
         };
-        self.start_kamikaze_intern(quake_live_engine);
+
+        let Some(ref main_engine) = *main_engine_guard else {
+            return;
+        };
+
+        self.start_kamikaze_intern(main_engine);
     }
 
     pub(crate) fn start_kamikaze_intern(&mut self, kamikaze_starter: &impl StartKamikaze) {
@@ -214,10 +231,15 @@ impl GameEntity {
     }
 
     pub(crate) fn slay_with_mod(&mut self, mean_of_death: meansOfDeath_t) {
-        let Some(quake_live_engine) = MAIN_ENGINE.get() else {
+        let Ok(main_engine_guard) = MAIN_ENGINE.try_read() else {
             return;
         };
-        self.slay_with_mod_intern(mean_of_death, quake_live_engine);
+
+        let Some(ref main_engine) = *main_engine_guard else {
+            return;
+        };
+
+        self.slay_with_mod_intern(mean_of_death, main_engine);
     }
 
     pub(crate) fn slay_with_mod_intern(
@@ -289,10 +311,15 @@ impl GameEntity {
     }
 
     pub(crate) fn drop_holdable(&mut self) {
-        let Some(quake_live_engine) = MAIN_ENGINE.get() else {
+        let Ok(main_engine_guard) = MAIN_ENGINE.try_read() else {
             return;
         };
-        self.drop_holdable_internal(&CurrentLevel::default(), quake_live_engine);
+
+        let Some(ref main_engine) = *main_engine_guard else {
+            return;
+        };
+
+        self.drop_holdable_internal(&CurrentLevel::default(), main_engine);
     }
 
     pub(crate) fn drop_holdable_internal(
@@ -324,10 +351,15 @@ impl GameEntity {
     }
 
     pub(crate) fn free_entity(&mut self) {
-        let Some(quake_live_engine) = MAIN_ENGINE.get() else {
+        let Ok(main_engine_guard) = MAIN_ENGINE.try_read() else {
             return;
         };
-        self.free_entity_internal(quake_live_engine);
+
+        let Some(ref main_engine) = *main_engine_guard else {
+            return;
+        };
+
+        self.free_entity_internal(main_engine);
     }
 
     pub(crate) fn free_entity_internal(&mut self, quake_live_engine: &impl FreeEntity) {
@@ -335,12 +367,16 @@ impl GameEntity {
     }
 
     pub(crate) fn replace_item(&mut self, item_id: i32) {
-        let Some(quake_live_engine) = MAIN_ENGINE.get() else {
+        let Ok(main_engine_guard) = MAIN_ENGINE.try_read() else {
+            return;
+        };
+
+        let Some(ref main_engine) = *main_engine_guard else {
             return;
         };
 
         let class_name = unsafe { CStr::from_ptr(self.gentity_t.classname) };
-        quake_live_engine.com_printf(class_name.to_string_lossy().as_ref());
+        main_engine.com_printf(class_name.to_string_lossy().as_ref());
         if item_id != 0 {
             if let Ok(gitem) = GameItem::try_from(item_id) {
                 self.gentity_t.s.modelindex = item_id;
@@ -348,7 +384,7 @@ impl GameEntity {
                 self.gentity_t.item = gitem.gitem_t;
 
                 // this forces client to load new item
-                let mut items = quake_live_engine.get_configstring(CS_ITEMS);
+                let mut items = main_engine.get_configstring(CS_ITEMS);
                 items.replace_range(item_id as usize..=item_id as usize, "1");
                 shinqlx_set_configstring(item_id as u32, items.as_str());
             }

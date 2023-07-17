@@ -26,7 +26,12 @@ const OFFSET_LEVEL: usize = 0x4A1;
 
 impl Default for CurrentLevel {
     fn default() -> Self {
-        let Some(main_engine) = MAIN_ENGINE.get() else {
+        let Ok(main_engine_guard) = MAIN_ENGINE.try_read() else {
+            debug_println!("main quake live engine not readable.");
+            panic!("main quake live engine not readable.");
+        };
+
+        let Some(ref main_engine) = *main_engine_guard else {
             debug_println!("main quake live engine not initialized.");
             panic!("main quake live engine not initialized.");
         };
@@ -57,6 +62,14 @@ impl CurrentLevel {
     }
 
     pub(crate) fn callvote(&mut self, vote: &str, vote_disp: &str, vote_time: Option<i32>) {
+        let Ok(main_engine_guard) = MAIN_ENGINE.try_read() else {
+            return;
+        };
+
+        let Some(ref main_engine) = *main_engine_guard else {
+            return;
+        };
+
         let actual_vote_time = vote_time.unwrap_or(30);
 
         let mut vote_bytes_iter = vote.bytes();
@@ -73,10 +86,8 @@ impl CurrentLevel {
         self.level.voteYes = 0;
         self.level.voteNo = 0;
 
-        let Some(quake_live_engine) = MAIN_ENGINE.get() else {
-            return;
-        };
-        let maxclients = quake_live_engine.get_max_clients();
+        let maxclients = main_engine.get_max_clients();
+
         (0..maxclients)
             .filter_map(|client_id| GameEntity::try_from(client_id).ok())
             .filter_map(|game_entity| game_entity.get_game_client().ok())
@@ -96,13 +107,69 @@ impl CurrentLevel {
 #[cfg(test)]
 pub(crate) mod current_level_tests {
     use crate::current_level::CurrentLevel;
+    use crate::quake_live_engine::QuakeLiveEngine;
     use crate::quake_live_engine::QuakeLiveEngineError::NullPointerPassed;
     use crate::quake_types::{level_locals_t, qboolean, LevelLocalsBuilder};
+    use crate::MAIN_ENGINE;
     use pretty_assertions::assert_eq;
+    use std::ffi::CStr;
+    use std::sync::atomic::Ordering;
+    use test_context::{test_context, TestContext};
 
+    struct QuakeLiveEngineContext;
+
+    impl TestContext for QuakeLiveEngineContext {
+        fn setup() -> Self {
+            let main_engine = QuakeLiveEngine::new();
+            main_engine.sv_maxclients.store(8, Ordering::Relaxed);
+
+            let Ok(mut guard) = MAIN_ENGINE.write() else {
+                assert!(false, "could not write MAIN_ENGINE");
+                panic!("could not write MAIN_ENGINE");
+            };
+            *guard = Some(main_engine);
+
+            Self {}
+        }
+
+        fn teardown(self) {
+            let Ok(mut guard) = MAIN_ENGINE.write() else {
+                assert!(false, "could not write MAIN_ENGINE");
+                return;
+            };
+            *guard = None;
+        }
+    }
+
+    struct NoQuakeLiveEngineContext;
+
+    impl TestContext for NoQuakeLiveEngineContext {
+        fn setup() -> Self {
+            let Ok(mut guard) = MAIN_ENGINE.write() else {
+                assert!(false, "could not write MAIN_ENGINE");
+                panic!("could not write MAIN_ENGINE");
+            };
+            *guard = None;
+
+            Self {}
+        }
+    }
+
+    #[test_context(NoQuakeLiveEngineContext)]
     #[test]
     #[should_panic(expected = "main quake live engine not initialized")]
-    pub(crate) fn current_level_default_panics_when_no_main_engine_found() {
+    pub(crate) fn current_level_default_panics_when_no_main_engine_found(
+        _ctx: &mut NoQuakeLiveEngineContext,
+    ) {
+        CurrentLevel::default();
+    }
+
+    #[test_context(QuakeLiveEngineContext)]
+    #[test]
+    #[should_panic(expected = "G_InitGame not initialized.")]
+    pub(crate) fn current_level_default_panics_when_g_init_game_not_set(
+        _ctx: &mut QuakeLiveEngineContext,
+    ) {
         CurrentLevel::default();
     }
 
@@ -161,5 +228,34 @@ pub(crate) mod current_level_tests {
         let mut current_level = CurrentLevel::try_from(&mut level as *mut level_locals_t).unwrap();
         current_level.set_training_map(false);
         assert_eq!(level.mapIsTrainingMap, qboolean::qfalse);
+    }
+
+    #[test_context(NoQuakeLiveEngineContext)]
+    #[test]
+    pub(crate) fn current_level_callvote_with_no_main_engine(_ctx: &mut NoQuakeLiveEngineContext) {
+        let mut level = LevelLocalsBuilder::default().build().unwrap();
+        let mut current_level = CurrentLevel::try_from(&mut level as *mut level_locals_t).unwrap();
+        current_level.callvote("map thunderstruck", "map thunderstruck", None);
+        assert!(level.voteString.iter().all(|c| *c == 0));
+    }
+
+    #[test_context(QuakeLiveEngineContext)]
+    #[test]
+    pub(crate) fn current_level_callvote_with_main_engine_set(_ctx: &mut QuakeLiveEngineContext) {
+        let mut level = LevelLocalsBuilder::default().build().unwrap();
+        let mut current_level = CurrentLevel::try_from(&mut level as *mut level_locals_t).unwrap();
+        current_level.callvote("map thunderstruck", "map thunderstruck", None);
+        assert_eq!(
+            CStr::from_bytes_until_nul(
+                &level
+                    .voteString
+                    .iter()
+                    .map(|c| *c as u8)
+                    .collect::<Vec<u8>>()
+            )
+            .unwrap()
+            .to_string_lossy(),
+            "map thunderstruck"
+        );
     }
 }

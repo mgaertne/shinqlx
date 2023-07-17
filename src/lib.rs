@@ -35,7 +35,7 @@ mod server_static;
 use crate::quake_live_engine::QuakeLiveEngine;
 use core::sync::atomic::AtomicI32;
 use ctor::ctor;
-use once_cell::sync::OnceCell;
+use std::sync::RwLock;
 
 pub(crate) const DEBUG_PRINT_PREFIX: &str = "[shinqlx]";
 
@@ -43,8 +43,7 @@ pub(crate) const SV_TAGS_PREFIX: &str = "shinqlx";
 
 #[allow(non_camel_case_types)]
 #[derive(PartialEq, Debug, Clone, Copy)]
-#[allow(dead_code)]
-pub enum PyMinqlx_InitStatus_t {
+pub(crate) enum PyMinqlx_InitStatus_t {
     PYM_SUCCESS,
     PYM_PY_INIT_ERROR,
     PYM_MAIN_SCRIPT_ERROR,
@@ -68,7 +67,7 @@ pub(crate) const QAGAME: &str = "qagamex64.so";
 #[cfg(target_pointer_width = "32")]
 pub(crate) const QAGAME: &str = "qagamei386.so";
 
-pub(crate) static MAIN_ENGINE: OnceCell<QuakeLiveEngine> = OnceCell::new();
+pub(crate) static MAIN_ENGINE: RwLock<Option<QuakeLiveEngine>> = RwLock::new(None);
 
 #[ctor]
 fn initialize() {
@@ -94,8 +93,11 @@ fn initialize() {
         panic!("Failed to hook static methods. Exiting.");
     }
 
-    if MAIN_ENGINE.set(main_engine).is_err() {
-        debug_println!("Something went wrong during initialization. Exiting.");
-        panic!("Something went wrong during initialization. Exiting.");
+    match MAIN_ENGINE.write() {
+        Err(_) => {
+            debug_println!("Something went wrong during initialization. Exiting.");
+            panic!("Something went wrong during initialization. Exiting.");
+        }
+        Ok(mut guard) => *guard = Some(main_engine),
     }
 }

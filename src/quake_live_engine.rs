@@ -500,7 +500,7 @@ pub(crate) struct QuakeLiveEngine {
     static_functions: OnceCell<StaticFunctions>,
     static_detours: OnceCell<StaticDetours>,
 
-    sv_maxclients: AtomicI32,
+    pub(crate) sv_maxclients: AtomicI32,
     common_initialized: OnceBool,
 
     vm_functions: VmFunctions,
