@@ -1274,10 +1274,8 @@ impl QuakeLiveEngine {
         self.store_pending_detours(hook_result);
         self.vm_functions.patch();
 
-        #[cfg(debug_assertions)]
-        self.print_pending_detour_sizes();
-
         self.clean_up_pending_detours();
+
         Ok(())
     }
 
@@ -1342,11 +1340,7 @@ impl QuakeLiveEngine {
                 let Some(detour) = (*pending_client_connect_lock).pop_front() else {
                     continue;
                 };
-                #[cfg(debug_assertions)]
-                debug_println!("Trying to drop pending ClientConnect detour");
                 std::mem::drop(detour);
-                #[cfg(debug_assertions)]
-                debug_println!("Detour dropped sucessfully");
             }
         }
 
@@ -1364,11 +1358,7 @@ impl QuakeLiveEngine {
                 let Some(detour) = (*pending_g_start_kamikaze_lock).pop_front() else {
                     continue;
                 };
-                #[cfg(debug_assertions)]
-                debug_println!("Trying to drop pending G_StartKamikaze detour");
                 std::mem::drop(detour);
-                #[cfg(debug_assertions)]
-                debug_println!("Detour dropped sucessfully");
             }
         }
 
@@ -1384,11 +1374,7 @@ impl QuakeLiveEngine {
                 let Some(detour) = (*pending_client_spawn_lock).pop_front() else {
                     continue;
                 };
-                #[cfg(debug_assertions)]
-                debug_println!("Trying to drop pending ClientSpawn detour");
                 std::mem::drop(detour);
-                #[cfg(debug_assertions)]
-                debug_println!("Detour dropped sucessfully");
             }
         }
 
@@ -1402,11 +1388,7 @@ impl QuakeLiveEngine {
                 let Some(detour) = (*pending_g_damage_lock).pop_front() else {
                     continue;
                 };
-                #[cfg(debug_assertions)]
-                debug_println!("Trying to drop pending G_Damage detour");
                 std::mem::drop(detour);
-                #[cfg(debug_assertions)]
-                debug_println!("Detour dropped sucessfully");
             }
         }
     }
@@ -1443,37 +1425,6 @@ impl QuakeLiveEngine {
         let vm_unhook_result = self.vm_functions.unhook()?;
         self.store_pending_detours(vm_unhook_result);
         Ok(())
-    }
-
-    #[cfg(debug_assertions)]
-    fn print_pending_detour_sizes(&self) {
-        if let Ok(pending_client_connect) = self.pending_client_connect_detours.read() {
-            debug_println!(format!(
-                "pending ClientConnect detours: {}",
-                (*pending_client_connect).len()
-            ));
-        }
-
-        if let Ok(pending_client_spawn) = self.pending_client_spawn_detours.read() {
-            debug_println!(format!(
-                "pending ClientSpawn detours: {}",
-                (*pending_client_spawn).len()
-            ));
-        }
-
-        if let Ok(pending_g_start_kamikaze) = self.pending_g_start_kamikaze_detours.read() {
-            debug_println!(format!(
-                "pending G_StartKamikaze detours: {}",
-                (*pending_g_start_kamikaze).len()
-            ));
-        }
-
-        if let Ok(pending_g_damage) = self.pending_g_damage_detours.read() {
-            debug_println!(format!(
-                "pending G_Damage detours: {}",
-                (*pending_g_damage).len()
-            ));
-        }
     }
 
     fn com_printf_orig(&self) -> Result<extern "C" fn(*const c_char, ...), QuakeLiveEngineError> {
