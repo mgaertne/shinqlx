@@ -1,3 +1,5 @@
+use crate::quake_live_engine::QuakeLiveEngineError;
+use retour::{Function, GenericDetour, HookableWith};
 use std::fmt::{Display, Formatter};
 
 #[cfg(target_os = "linux")]
@@ -123,6 +125,28 @@ impl Display for QuakeLiveFunction {
 }
 
 impl QuakeLiveFunction {
+    pub(crate) fn create_and_enable_generic_detour<T, D>(
+        &self,
+        function: T,
+        replacement: D,
+    ) -> Result<GenericDetour<T>, QuakeLiveEngineError>
+    where
+        T: HookableWith<D>,
+        D: Function,
+    {
+        let detour = unsafe {
+            GenericDetour::new(function, replacement)
+                .map_err(|_| QuakeLiveEngineError::DetourCouldNotBeCreated(*self))?
+        };
+        unsafe {
+            detour
+                .enable()
+                .map_err(|_| QuakeLiveEngineError::DetourCouldNotBeEnabled(*self))?
+        };
+
+        Ok(detour)
+    }
+
     pub(crate) fn pattern(&self) -> &[u8] {
         #[cfg(target_pointer_width = "64")]
         match self {
