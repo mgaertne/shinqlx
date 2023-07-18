@@ -1194,7 +1194,7 @@ impl QuakeLiveEngine {
                 let Some(detour) = (*pending_client_connect_lock).pop_front() else {
                     continue;
                 };
-                std::mem::drop(detour);
+                drop(detour);
             }
         }
 
@@ -1212,7 +1212,7 @@ impl QuakeLiveEngine {
                 let Some(detour) = (*pending_g_start_kamikaze_lock).pop_front() else {
                     continue;
                 };
-                std::mem::drop(detour);
+                drop(detour);
             }
         }
 
@@ -1228,7 +1228,7 @@ impl QuakeLiveEngine {
                 let Some(detour) = (*pending_client_spawn_lock).pop_front() else {
                     continue;
                 };
-                std::mem::drop(detour);
+                drop(detour);
             }
         }
 
@@ -1242,7 +1242,7 @@ impl QuakeLiveEngine {
                 let Some(detour) = (*pending_g_damage_lock).pop_front() else {
                     continue;
                 };
-                std::mem::drop(detour);
+                drop(detour);
             }
         }
     }
