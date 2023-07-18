@@ -29,28 +29,24 @@ codegen-units = 1
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-ctor = "0.2.0"
-rand = "0.8.5"
-lazy_static = "1.4.0"
-pyo3 = { version = "0.18.3", features = ["pyo3-macros", "extension-module"]}
-retour = {version = "0.3.0", features = ["static-detour"]}
-derive_builder = "0.12.0"
-maturin = { version = "1.1.0", default-features = false, features = []}
-once_cell = "1.17.1"
-region = "3.0.0"
+ctor = "~0"
+rand = "~0"
+pyo3 = { version = "~0", features = ["pyo3-macros", "extension-module"]}
+retour = "~0.3.1"
+derive_builder = "~0"
+maturin = { version = "~1", default-features = false, features = []}
+once_cell = "~1"
+region = "~3"
 
 [target."cfg(target_os=\"linux\")".dependencies]
-procfs = "0.15.1"
-
-[patch.crates-io]
-slice-pool = {git = "https://github.com/Gh0u1L5/slice-pool-rs", rev = "12460e7"}
+procfs = "~0"
 
 [build-dependencies]
-pyo3-build-config = { version = "0.18.3", features = ["resolve-config"] }
+pyo3-build-config = { version = "~0", features = ["resolve-config"] }
 
 [dev-dependencies]
-hamcrest = "*"
-pretty_assertions = "1.3.0"
-rstest = "0.17.0"
-mockall = "0.11.4"
-test-context = "0.1.4"
+hamcrest = "~0"
+pretty_assertions = "~1"
+rstest = "~0"
+mockall = "~0"
+test-context = "~0"
