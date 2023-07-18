@@ -32,7 +32,7 @@ use once_cell::race::OnceBool;
 use once_cell::sync::OnceCell;
 #[cfg(target_os = "linux")]
 use procfs::process::{MMapPath, MemoryMap, Process};
-use retour::{GenericDetour, RawDetour};
+use retour::{Function, GenericDetour, RawDetour};
 use std::collections::VecDeque;
 #[cfg(target_os = "linux")]
 use std::ffi::OsStr;
@@ -40,7 +40,7 @@ use std::ffi::{c_char, c_int, CStr, CString};
 use std::sync::atomic::{AtomicI32, AtomicUsize, Ordering};
 use std::sync::RwLock;
 
-fn try_disable<T: retour::Function>(detour: &GenericDetour<T>) {
+fn try_disable<T: Function>(detour: &GenericDetour<T>) {
     if detour.is_enabled() {
         if let Err(e) = unsafe { detour.disable() } {
             debug_println!(format!("error when disabling detour: {}", e));
@@ -48,7 +48,7 @@ fn try_disable<T: retour::Function>(detour: &GenericDetour<T>) {
     }
 }
 
-fn extract_detour<T: retour::Function>(
+fn extract_detour<T: Function>(
     lock: &RwLock<Option<GenericDetour<T>>>,
 ) -> Option<GenericDetour<T>> {
     if lock.is_poisoned() {
@@ -75,12 +75,10 @@ pub enum QuakeLiveEngineError {
     #[allow(dead_code)]
     NoMemoryMappingInformationFound(String),
     StaticFunctionNotFound(QuakeLiveFunction),
-    StaticDetourCouldNotBeCreated(QuakeLiveFunction),
-    StaticDetourCouldNotBeEnabled(QuakeLiveFunction),
+    DetourCouldNotBeCreated(QuakeLiveFunction),
+    DetourCouldNotBeEnabled(QuakeLiveFunction),
     StaticDetourNotFound(QuakeLiveFunction),
     VmFunctionNotFound(QuakeLiveFunction),
-    VmDetourCouldNotBeCreated(QuakeLiveFunction),
-    VmDetourCouldNotBeEnabled(QuakeLiveFunction),
     VmDetourPoisoned(QuakeLiveFunction),
 }
 
@@ -307,7 +305,6 @@ impl VmFunctions {
      * PROTIP: If you can, ALWAYS use VM_Call table hooks instead of using Hook().
      */
     pub(crate) fn hook(&self) -> Result<VmHooksResultType, QuakeLiveEngineError> {
-        let mut result = (None, None, None, None);
         let vm_call_table = self.vm_call_table.load(Ordering::SeqCst);
 
         debug_println!("Hooking VM functions...");
@@ -329,126 +326,104 @@ impl VmFunctions {
             std::ptr::write(vm_call_table as *mut usize, ShiNQlx_G_ShutdownGame as usize);
         }
 
+        let pending_client_connect_detour = extract_detour(&self.client_connect_detour).take();
+        if let Some(existing_client_connect_detour) = &pending_client_connect_detour {
+            try_disable(existing_client_connect_detour);
+        }
+
         let client_connect_orig = self.client_connect_orig.load(Ordering::SeqCst);
         let client_connect_func = unsafe { std::mem::transmute(client_connect_orig) };
+        let client_connect_detour =
+            unsafe { ClientConnectDetourType::new(client_connect_func, ShiNQlx_ClientConnect) }
+                .map_err(|_| {
+                    QuakeLiveEngineError::DetourCouldNotBeCreated(QuakeLiveFunction::ClientConnect)
+                })?;
+        unsafe { client_connect_detour.enable() }.map_err(|_| {
+            QuakeLiveEngineError::DetourCouldNotBeEnabled(QuakeLiveFunction::ClientConnect)
+        })?;
+
         {
-            result.0 = extract_detour(&self.client_connect_detour).take();
-            if let Some(existing_client_connect_detour) = &result.0 {
-                try_disable(existing_client_connect_detour);
-            }
-            let Ok(client_connect_detour) = (unsafe {
-                ClientConnectDetourType::new(client_connect_func, ShiNQlx_ClientConnect)
-            }) else {
-                debug_println!("Error hooking into ClientConnect");
-                return Err(QuakeLiveEngineError::VmDetourCouldNotBeCreated(
-                    QuakeLiveFunction::ClientConnect,
-                ));
-            };
-            if unsafe { client_connect_detour.enable() }.is_err() {
-                debug_println!("Error enabling ClientConnect hook");
-                return Err(QuakeLiveEngineError::VmDetourCouldNotBeEnabled(
-                    QuakeLiveFunction::ClientConnect,
-                ));
-            }
-            let Ok(mut guard) = self.client_connect_detour.write() else {
-                debug_println!("ClientConnect detour was poisoned. Exiting.");
-                return Err(QuakeLiveEngineError::VmDetourPoisoned(
-                    QuakeLiveFunction::ClientConnect,
-                ));
-            };
+            let mut guard = self.client_connect_detour.write().map_err(|_| {
+                QuakeLiveEngineError::VmDetourPoisoned(QuakeLiveFunction::ClientConnect)
+            })?;
             *guard = Some(client_connect_detour);
         }
+
+        let pending_g_start_kamikaze_detour = extract_detour(&self.g_start_kamikaze_detour).take();
+        if let Some(existing_g_start_kamikaze_detour) = &pending_g_start_kamikaze_detour {
+            try_disable(existing_g_start_kamikaze_detour);
+        }
+
         let g_start_kamikaze_orig = self.g_start_kamikaze_orig.load(Ordering::SeqCst);
+        let g_start_kamikaze_func = unsafe { std::mem::transmute(g_start_kamikaze_orig) };
+        let g_start_kamikaze_detour = unsafe {
+            GStartKamikazeDetourType::new(g_start_kamikaze_func, ShiNQlx_G_StartKamikaze)
+        }
+        .map_err(|_| {
+            QuakeLiveEngineError::DetourCouldNotBeCreated(QuakeLiveFunction::G_StartKamikaze)
+        })?;
+        unsafe { g_start_kamikaze_detour.enable() }.map_err(|_| {
+            QuakeLiveEngineError::DetourCouldNotBeEnabled(QuakeLiveFunction::G_StartKamikaze)
+        })?;
+
         {
-            result.1 = extract_detour(&self.g_start_kamikaze_detour).take();
-            if let Some(existing_g_start_kamikaze_detour) = &result.1 {
-                try_disable(existing_g_start_kamikaze_detour);
-            }
-            let g_start_kamikaze_func = unsafe { std::mem::transmute(g_start_kamikaze_orig) };
-            let Ok(g_start_kamikaze_detour) = (unsafe {
-                GStartKamikazeDetourType::new(g_start_kamikaze_func, ShiNQlx_G_StartKamikaze)
-            }) else {
-                debug_println!("Error hooking into G_StartKamize");
-                return Err(QuakeLiveEngineError::VmDetourCouldNotBeCreated(
-                    QuakeLiveFunction::G_StartKamikaze,
-                ));
-            };
-            if unsafe { g_start_kamikaze_detour.enable() }.is_err() {
-                debug_println!("Error enabling G_StartKamikaze hook");
-                return Err(QuakeLiveEngineError::VmDetourCouldNotBeEnabled(
-                    QuakeLiveFunction::G_StartKamikaze,
-                ));
-            };
-            let Ok(mut guard) = self.g_start_kamikaze_detour.write() else {
-                debug_println!("G_StartKamikaze detour was poisoned. Exiting.");
-                return Err(QuakeLiveEngineError::VmDetourPoisoned(
-                    QuakeLiveFunction::G_StartKamikaze,
-                ));
-            };
+            let mut guard = self.g_start_kamikaze_detour.write().map_err(|_| {
+                QuakeLiveEngineError::VmDetourPoisoned(QuakeLiveFunction::G_StartKamikaze)
+            })?;
             *guard = Some(g_start_kamikaze_detour);
+        }
+
+        let pending_client_spawn_detour = extract_detour(&self.client_spawn_detour).take();
+        if let Some(existing_client_spawn_detour) = &pending_client_spawn_detour {
+            try_disable(existing_client_spawn_detour);
         }
 
         let client_spawn_orig = self.client_spawn_orig.load(Ordering::SeqCst);
         let client_spawn_func = unsafe { std::mem::transmute(client_spawn_orig) };
+        let client_spawn_detour =
+            unsafe { ClientSpawnDetourType::new(client_spawn_func, ShiNQlx_ClientSpawn) }.map_err(
+                |_| QuakeLiveEngineError::DetourCouldNotBeCreated(QuakeLiveFunction::ClientSpawn),
+            )?;
+        unsafe { client_spawn_detour.enable() }.map_err(|_| {
+            QuakeLiveEngineError::DetourCouldNotBeEnabled(QuakeLiveFunction::ClientSpawn)
+        })?;
+
         {
-            result.2 = extract_detour(&self.client_spawn_detour).take();
-            if let Some(existing_client_spawn_detour) = &result.2 {
-                try_disable(existing_client_spawn_detour);
-            }
-            let Ok(client_spawn_detour) =
-                (unsafe { ClientSpawnDetourType::new(client_spawn_func, ShiNQlx_ClientSpawn) })
-            else {
-                debug_println!("Error hooking into ClientSpawn");
-                return Err(QuakeLiveEngineError::VmDetourCouldNotBeCreated(
-                    QuakeLiveFunction::ClientSpawn,
-                ));
-            };
-            if unsafe { client_spawn_detour.enable() }.is_err() {
-                debug_println!("Error enabling ClientSpawn hook");
-                return Err(QuakeLiveEngineError::VmDetourCouldNotBeEnabled(
-                    QuakeLiveFunction::ClientSpawn,
-                ));
-            }
-            let Ok(mut guard) = self.client_spawn_detour.write() else {
-                debug_println!("ClientSpawn detour was poisoned. Exiting.");
-                return Err(QuakeLiveEngineError::VmDetourPoisoned(
-                    QuakeLiveFunction::ClientSpawn,
-                ));
-            };
+            let mut guard = self.client_spawn_detour.write().map_err(|_| {
+                QuakeLiveEngineError::VmDetourPoisoned(QuakeLiveFunction::ClientSpawn)
+            })?;
             *guard = Some(client_spawn_detour);
+        }
+
+        let pending_g_damage_detour = extract_detour(&self.g_damage_detour).take();
+        if let Some(existing_g_damage_detour) = &pending_g_damage_detour {
+            try_disable(existing_g_damage_detour);
         }
 
         let g_damage_orig = self.g_damage_orig.load(Ordering::SeqCst);
         let g_damage_func = unsafe { std::mem::transmute(g_damage_orig) };
+        let g_damage_detour = unsafe { GDamageDetourType::new(g_damage_func, ShiNQlx_G_Damage) }
+            .map_err(|_| {
+                QuakeLiveEngineError::DetourCouldNotBeCreated(QuakeLiveFunction::G_Damage)
+            })?;
+        unsafe { g_damage_detour.enable() }.map_err(|_| {
+            QuakeLiveEngineError::DetourCouldNotBeEnabled(QuakeLiveFunction::G_Damage)
+        })?;
+
         {
-            result.3 = extract_detour(&self.g_damage_detour).take();
-            if let Some(existing_g_damage_detour) = &result.3 {
-                try_disable(existing_g_damage_detour);
-            }
-            let Ok(g_damage_detour) =
-                (unsafe { GDamageDetourType::new(g_damage_func, ShiNQlx_G_Damage) })
-            else {
-                debug_println!("Error hooking into G_Damage");
-                return Err(QuakeLiveEngineError::VmDetourCouldNotBeCreated(
-                    QuakeLiveFunction::G_Damage,
-                ));
-            };
-            if unsafe { g_damage_detour.enable() }.is_err() {
-                debug_println!("Error enabling G_Damage hook");
-                return Err(QuakeLiveEngineError::VmDetourCouldNotBeEnabled(
-                    QuakeLiveFunction::G_Damage,
-                ));
-            }
-            let Ok(mut guard) = self.g_damage_detour.write() else {
-                debug_println!("G_Damage detour was poisoned. Exiting.");
-                return Err(QuakeLiveEngineError::VmDetourPoisoned(
-                    QuakeLiveFunction::G_Damage,
-                ));
-            };
+            let mut guard = self
+                .g_damage_detour
+                .write()
+                .map_err(|_| QuakeLiveEngineError::VmDetourPoisoned(QuakeLiveFunction::G_Damage))?;
             *guard = Some(g_damage_detour);
         }
 
-        Ok(result)
+        Ok((
+            pending_client_connect_detour,
+            pending_g_start_kamikaze_detour,
+            pending_client_spawn_detour,
+            pending_g_damage_detour,
+        ))
     }
 
     pub(crate) fn patch(&self) {
@@ -992,199 +967,78 @@ impl QuakeLiveEngine {
 
     pub(crate) fn hook_static(&self) -> Result<(), QuakeLiveEngineError> {
         debug_println!("Hooking...");
-        let Ok(cmd_addcommand_orig) = self.cmd_addcommand_orig() else {
-            return Err(QuakeLiveEngineError::StaticFunctionNotFound(
-                QuakeLiveFunction::Cmd_AddCommand,
-            ));
-        };
-        let cmd_addcommand_detour = unsafe {
-            GenericDetour::new(cmd_addcommand_orig, shinqlx_cmd_addcommand).map_err(|_| {
-                QuakeLiveEngineError::StaticDetourCouldNotBeCreated(
-                    QuakeLiveFunction::Cmd_AddCommand,
-                )
-            })?
-        };
-        unsafe {
-            cmd_addcommand_detour.enable().map_err(|_| {
-                QuakeLiveEngineError::StaticDetourCouldNotBeEnabled(
-                    QuakeLiveFunction::Cmd_AddCommand,
-                )
-            })?
-        };
+        let cmd_addcommand_detour = QuakeLiveFunction::Cmd_AddCommand
+            .create_and_enable_generic_detour(
+                self.cmd_addcommand_orig()?,
+                shinqlx_cmd_addcommand,
+            )?;
 
-        let Ok(sys_setmoduleoffset_orig) = self.sys_setmoduleoffset_orig() else {
-            return Err(QuakeLiveEngineError::StaticFunctionNotFound(
-                QuakeLiveFunction::Sys_SetModuleOffset,
-            ));
-        };
-        let sys_setmoduleoffset_detour = unsafe {
-            GenericDetour::new(sys_setmoduleoffset_orig, shinqlx_sys_setmoduleoffset).map_err(
-                |_| {
-                    QuakeLiveEngineError::StaticDetourCouldNotBeCreated(
-                        QuakeLiveFunction::Sys_SetModuleOffset,
-                    )
-                },
-            )?
-        };
-        unsafe {
-            sys_setmoduleoffset_detour.enable().map_err(|_| {
-                QuakeLiveEngineError::StaticDetourCouldNotBeEnabled(
-                    QuakeLiveFunction::Cmd_AddCommand,
-                )
-            })?
-        };
+        let sys_setmoduleoffset_detour = QuakeLiveFunction::Sys_SetModuleOffset
+            .create_and_enable_generic_detour(
+                self.sys_setmoduleoffset_orig()?,
+                shinqlx_sys_setmoduleoffset,
+            )?;
 
-        let Ok(sv_executeclientcommand_orig) = self.sv_executeclientcommand_orig() else {
-            return Err(QuakeLiveEngineError::StaticFunctionNotFound(
-                QuakeLiveFunction::SV_ExecuteClientCommand,
-            ));
-        };
-        let sv_executeclientcommand_detour = unsafe {
-            GenericDetour::new(
-                sv_executeclientcommand_orig,
+        let sv_executeclientcommand_detour = QuakeLiveFunction::SV_ExecuteClientCommand
+            .create_and_enable_generic_detour(
+                self.sv_executeclientcommand_orig()?,
                 shinqlx_sv_executeclientcommand,
-            )
-            .map_err(|_| {
-                QuakeLiveEngineError::StaticDetourCouldNotBeCreated(
-                    QuakeLiveFunction::SV_ExecuteClientCommand,
-                )
-            })?
-        };
-        unsafe {
-            sv_executeclientcommand_detour.enable().map_err(|_| {
-                QuakeLiveEngineError::StaticDetourCouldNotBeEnabled(
-                    QuakeLiveFunction::SV_ExecuteClientCommand,
-                )
-            })?
-        };
+            )?;
 
-        let Ok(sv_cliententerworld_orig) = self.sv_cliententerworld_orig() else {
-            return Err(QuakeLiveEngineError::StaticFunctionNotFound(
-                QuakeLiveFunction::SV_ClientEnterWorld,
-            ));
-        };
-        let sv_cliententerworld_detour = unsafe {
-            GenericDetour::new(sv_cliententerworld_orig, shinqlx_sv_cliententerworld).map_err(
-                |_| {
-                    QuakeLiveEngineError::StaticDetourCouldNotBeCreated(
-                        QuakeLiveFunction::SV_ClientEnterWorld,
-                    )
-                },
-            )?
-        };
-        unsafe {
-            sv_cliententerworld_detour.enable().map_err(|_| {
-                QuakeLiveEngineError::StaticDetourCouldNotBeEnabled(
-                    QuakeLiveFunction::SV_ClientEnterWorld,
-                )
-            })?
-        };
+        let sv_cliententerworld_detour = QuakeLiveFunction::SV_ClientEnterWorld
+            .create_and_enable_generic_detour(
+                self.sv_cliententerworld_orig()?,
+                shinqlx_sv_cliententerworld,
+            )?;
 
-        let Ok(sv_sendservercommand_orig) = self.sv_sendservercommand_orig() else {
-            return Err(QuakeLiveEngineError::StaticFunctionNotFound(
-                QuakeLiveFunction::SV_SendServerCommand,
-            ));
-        };
         let sv_sendservercommand_detour = unsafe {
             RawDetour::new(
-                sv_sendservercommand_orig as *const (),
+                self.sv_sendservercommand_orig()? as *const (),
                 ShiNQlx_SV_SendServerCommand as *const (),
             )
             .map_err(|_| {
-                QuakeLiveEngineError::StaticDetourCouldNotBeCreated(
+                QuakeLiveEngineError::DetourCouldNotBeCreated(
                     QuakeLiveFunction::SV_SendServerCommand,
                 )
             })?
         };
         unsafe {
             sv_sendservercommand_detour.enable().map_err(|_| {
-                QuakeLiveEngineError::StaticDetourCouldNotBeEnabled(
+                QuakeLiveEngineError::DetourCouldNotBeEnabled(
                     QuakeLiveFunction::SV_SendServerCommand,
                 )
             })?
         };
 
-        let Ok(sv_setconfigstring_orig) = self.sv_setconfigstring_orig() else {
-            return Err(QuakeLiveEngineError::StaticFunctionNotFound(
-                QuakeLiveFunction::SV_SetConfigstring,
-            ));
-        };
-        let sv_setconfgistring_detour = unsafe {
-            GenericDetour::new(sv_setconfigstring_orig, shinqlx_sv_setconfigstring).map_err(
-                |_| {
-                    QuakeLiveEngineError::StaticDetourCouldNotBeCreated(
-                        QuakeLiveFunction::SV_SetConfigstring,
-                    )
-                },
-            )?
-        };
-        unsafe {
-            sv_setconfgistring_detour.enable().map_err(|_| {
-                QuakeLiveEngineError::StaticDetourCouldNotBeEnabled(
-                    QuakeLiveFunction::SV_SetConfigstring,
-                )
-            })?
-        };
+        let sv_setconfgistring_detour = QuakeLiveFunction::SV_SetConfigstring
+            .create_and_enable_generic_detour(
+                self.sv_setconfigstring_orig()?,
+                shinqlx_sv_setconfigstring,
+            )?;
 
-        let Ok(sv_dropclient_orig) = self.sv_dropclient_orig() else {
-            return Err(QuakeLiveEngineError::StaticFunctionNotFound(
-                QuakeLiveFunction::SV_SetConfigstring,
-            ));
-        };
-        let sv_dropclient_detour = unsafe {
-            GenericDetour::new(sv_dropclient_orig, shinqlx_sv_dropclient).map_err(|_| {
-                QuakeLiveEngineError::StaticDetourCouldNotBeCreated(
-                    QuakeLiveFunction::SV_DropClient,
-                )
-            })?
-        };
-        unsafe {
-            sv_dropclient_detour.enable().map_err(|_| {
-                QuakeLiveEngineError::StaticDetourCouldNotBeEnabled(
-                    QuakeLiveFunction::SV_DropClient,
-                )
-            })?
-        };
+        let sv_dropclient_detour = QuakeLiveFunction::SV_DropClient
+            .create_and_enable_generic_detour(self.sv_dropclient_orig()?, shinqlx_sv_dropclient)?;
 
-        let Ok(com_printf_orig) = self.com_printf_orig() else {
-            return Err(QuakeLiveEngineError::StaticFunctionNotFound(
-                QuakeLiveFunction::Com_Printf,
-            ));
-        };
         let com_printf_detour = unsafe {
             RawDetour::new(
-                com_printf_orig as *const (),
+                self.com_printf_orig()? as *const (),
                 ShiNQlx_Com_Printf as *const (),
             )
             .map_err(|_| {
-                QuakeLiveEngineError::StaticDetourCouldNotBeCreated(QuakeLiveFunction::Com_Printf)
+                QuakeLiveEngineError::DetourCouldNotBeCreated(QuakeLiveFunction::Com_Printf)
             })?
         };
         unsafe {
             com_printf_detour.enable().map_err(|_| {
-                QuakeLiveEngineError::StaticDetourCouldNotBeEnabled(QuakeLiveFunction::Com_Printf)
+                QuakeLiveEngineError::DetourCouldNotBeEnabled(QuakeLiveFunction::Com_Printf)
             })?
         };
 
-        let Ok(original_func) = self.sv_spawnserver_orig() else {
-            return Err(QuakeLiveEngineError::StaticFunctionNotFound(
-                QuakeLiveFunction::SV_SpawnServer,
-            ));
-        };
-        let sv_spawnserver_detour = unsafe {
-            GenericDetour::new(original_func, shinqlx_sv_spawnserver).map_err(|_| {
-                QuakeLiveEngineError::StaticDetourCouldNotBeCreated(
-                    QuakeLiveFunction::SV_SpawnServer,
-                )
-            })?
-        };
-        unsafe {
-            sv_spawnserver_detour.enable().map_err(|_| {
-                QuakeLiveEngineError::StaticDetourCouldNotBeEnabled(
-                    QuakeLiveFunction::SV_SpawnServer,
-                )
-            })?
-        };
+        let sv_spawnserver_detour = QuakeLiveFunction::SV_SpawnServer
+            .create_and_enable_generic_detour(
+                self.sv_spawnserver_orig()?,
+                shinqlx_sv_spawnserver,
+            )?;
 
         self.static_detours
             .set(StaticDetours {
