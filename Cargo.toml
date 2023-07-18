@@ -31,7 +31,7 @@ codegen-units = 1
 [dependencies]
 ctor = "~0"
 rand = "~0"
-pyo3 = { version = "~0", features = ["pyo3-macros", "extension-module"]}
+pyo3 = { version = "~0", features = ["pyo3-macros", "extension-module", "nightly"]}
 retour = "~0.3.1"
 derive_builder = "~0"
 maturin = { version = "~1", default-features = false, features = []}

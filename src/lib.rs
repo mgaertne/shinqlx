@@ -1,7 +1,5 @@
 #![cfg_attr(not(test), no_main)]
-#![feature(arbitrary_self_types)]
-#![feature(c_variadic)]
-#![feature(mutex_unpoison)]
+#![feature(arbitrary_self_types, c_variadic, auto_traits, negative_impls)]
 
 #[cfg(test)]
 #[macro_use]
