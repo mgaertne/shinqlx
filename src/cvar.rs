@@ -9,14 +9,6 @@ pub(crate) struct CVar {
     cvar: &'static mut cvar_t,
 }
 
-impl TryFrom<*const cvar_t> for CVar {
-    type Error = QuakeLiveEngineError;
-
-    fn try_from(cvar: *const cvar_t) -> Result<Self, Self::Error> {
-        Self::try_from(cvar.cast_mut())
-    }
-}
-
 impl TryFrom<*mut cvar_t> for CVar {
     type Error = QuakeLiveEngineError;
 
@@ -48,32 +40,32 @@ pub(crate) mod cvar_tests {
     #[test]
     pub(crate) fn cvar_try_from_null_results_in_error() {
         assert_eq!(
-            CVar::try_from(std::ptr::null_mut() as *const cvar_t),
+            CVar::try_from(std::ptr::null_mut() as *mut cvar_t),
             Err(NullPointerPassed("null pointer passed".into()))
         );
     }
 
     #[test]
     pub(crate) fn cvar_try_from_valid_cvar() {
-        let cvar = CVarBuilder::default().build().unwrap();
-        assert_eq!(CVar::try_from(&cvar as *const cvar_t).is_ok(), true);
+        let mut cvar = CVarBuilder::default().build().unwrap();
+        assert_eq!(CVar::try_from(&mut cvar as *mut cvar_t).is_ok(), true);
     }
 
     #[test]
     pub(crate) fn cvar_try_get_string() {
         let cvar_string = CString::new("some cvar value").unwrap();
-        let cvar = CVarBuilder::default()
+        let mut cvar = CVarBuilder::default()
             .string(cvar_string.as_ptr() as *mut c_char)
             .build()
             .unwrap();
-        let cvar_rust = CVar::try_from(&cvar as *const cvar_t).unwrap();
+        let cvar_rust = CVar::try_from(&mut cvar as *mut cvar_t).unwrap();
         assert_eq!(cvar_rust.get_string(), "some cvar value");
     }
 
     #[test]
     pub(crate) fn cvar_try_get_integer() {
-        let cvar = CVarBuilder::default().integer(42).build().unwrap();
-        let cvar_rust = CVar::try_from(&cvar as *const cvar_t).unwrap();
+        let mut cvar = CVarBuilder::default().integer(42).build().unwrap();
+        let cvar_rust = CVar::try_from(&mut cvar as *mut cvar_t).unwrap();
         assert_eq!(cvar_rust.get_integer(), 42);
     }
 }

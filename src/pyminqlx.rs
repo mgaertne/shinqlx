@@ -1096,6 +1096,7 @@ impl From<(f32, f32, f32)> for Vector3 {
 }
 
 #[cfg(test)]
+#[cfg(not(miri))]
 pub(crate) mod pyminqlx_setup_fixture {
     use crate::pyminqlx::pyminqlx_module;
     use pyo3::ffi::Py_IsInitialized;
@@ -1113,6 +1114,7 @@ pub(crate) mod pyminqlx_setup_fixture {
 }
 
 #[cfg(test)]
+#[cfg(not(miri))]
 pub(crate) mod vector3_tests {
     use crate::pyminqlx::pyminqlx_setup_fixture::*;
     use hamcrest::prelude::*;
@@ -1232,6 +1234,7 @@ impl Weapons {
 }
 
 #[cfg(test)]
+#[cfg(not(miri))]
 pub(crate) mod weapons_tests {
     use crate::pyminqlx::pyminqlx_setup_fixture::*;
     use pyo3::Python;
@@ -1254,6 +1257,7 @@ weapons = _minqlx.Weapons((False, False, False, False, False, False, False, Fals
 }
 
 #[cfg(test)]
+#[cfg(not(miri))]
 pub(crate) mod ammo_tests {
     use crate::pyminqlx::pyminqlx_setup_fixture::*;
     use pyo3::Python;
@@ -1347,6 +1351,7 @@ impl Powerups {
 }
 
 #[cfg(test)]
+#[cfg(not(miri))]
 pub(crate) mod powerups_tests {
     use crate::pyminqlx::pyminqlx_setup_fixture::*;
     use pyo3::Python;
@@ -1475,6 +1480,7 @@ impl Flight {
 }
 
 #[cfg(test)]
+#[cfg(not(miri))]
 pub(crate) mod flight_tests {
     use crate::pyminqlx::pyminqlx_setup_fixture::*;
     use pyo3::Python;
