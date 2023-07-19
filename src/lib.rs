@@ -2,6 +2,7 @@
 #![feature(arbitrary_self_types, c_variadic, auto_traits, negative_impls)]
 
 #[cfg(test)]
+#[cfg(not(miri))]
 #[macro_use]
 extern crate hamcrest;
 

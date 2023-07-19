@@ -107,17 +107,24 @@ impl CurrentLevel {
 #[cfg(test)]
 pub(crate) mod current_level_tests {
     use crate::current_level::CurrentLevel;
+    #[cfg(not(miri))]
     use crate::quake_live_engine::QuakeLiveEngine;
     use crate::quake_live_engine::QuakeLiveEngineError::NullPointerPassed;
     use crate::quake_types::{level_locals_t, qboolean, LevelLocalsBuilder};
+    #[cfg(not(miri))]
     use crate::MAIN_ENGINE;
     use pretty_assertions::assert_eq;
+    #[cfg(not(miri))]
     use std::ffi::CStr;
+    #[cfg(not(miri))]
     use std::sync::atomic::Ordering;
+    #[cfg(not(miri))]
     use test_context::{test_context, TestContext};
 
+    #[cfg(not(miri))]
     struct QuakeLiveEngineContext;
 
+    #[cfg(not(miri))]
     impl TestContext for QuakeLiveEngineContext {
         fn setup() -> Self {
             let main_engine = QuakeLiveEngine::new();
@@ -141,8 +148,10 @@ pub(crate) mod current_level_tests {
         }
     }
 
+    #[cfg(not(miri))]
     struct NoQuakeLiveEngineContext;
 
+    #[cfg(not(miri))]
     impl TestContext for NoQuakeLiveEngineContext {
         fn setup() -> Self {
             let Ok(mut guard) = MAIN_ENGINE.write() else {
@@ -155,6 +164,7 @@ pub(crate) mod current_level_tests {
         }
     }
 
+    #[cfg(not(miri))]
     #[test_context(NoQuakeLiveEngineContext)]
     #[test]
     #[should_panic(expected = "main quake live engine not initialized")]
@@ -164,6 +174,7 @@ pub(crate) mod current_level_tests {
         CurrentLevel::default();
     }
 
+    #[cfg(not(miri))]
     #[test_context(QuakeLiveEngineContext)]
     #[test]
     #[should_panic(expected = "G_InitGame not initialized.")]
@@ -230,6 +241,7 @@ pub(crate) mod current_level_tests {
         assert_eq!(level.mapIsTrainingMap, qboolean::qfalse);
     }
 
+    #[cfg(not(miri))]
     #[test_context(NoQuakeLiveEngineContext)]
     #[test]
     pub(crate) fn current_level_callvote_with_no_main_engine(_ctx: &mut NoQuakeLiveEngineContext) {
@@ -239,6 +251,7 @@ pub(crate) mod current_level_tests {
         assert!(level.voteString.iter().all(|c| *c == 0));
     }
 
+    #[cfg(not(miri))]
     #[test_context(QuakeLiveEngineContext)]
     #[test]
     pub(crate) fn current_level_callvote_with_main_engine_set(_ctx: &mut QuakeLiveEngineContext) {

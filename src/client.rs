@@ -51,7 +51,7 @@ impl TryFrom<i32> for Client {
                 .serverStatic_t
                 .clients
                 .offset(client_id as isize)
-        } as *const client_t)
+        } as *mut client_t)
         .map_err(|_| ClientNotFound("client not found".into()))
     }
 }
@@ -118,6 +118,7 @@ impl Client {
 #[cfg(test)]
 pub(crate) mod client_tests {
     use crate::client::Client;
+    #[cfg(not(miri))]
     use crate::quake_live_engine::QuakeLiveEngine;
     use crate::quake_live_engine::QuakeLiveEngineError::{InvalidId, NullPointerPassed};
     use crate::quake_types::clientState_t::CS_ZOMBIE;
@@ -125,13 +126,17 @@ pub(crate) mod client_tests {
         client_t, sharedEntity_t, ClientBuilder, SharedEntityBuilder, MAX_INFO_STRING,
         MAX_NAME_LENGTH,
     };
+    #[cfg(not(miri))]
     use crate::MAIN_ENGINE;
     use pretty_assertions::assert_eq;
     use std::ffi::c_char;
+    #[cfg(not(miri))]
     use test_context::{test_context, TestContext};
 
+    #[cfg(not(miri))]
     struct QuakeLiveEngineContext;
 
+    #[cfg(not(miri))]
     impl TestContext for QuakeLiveEngineContext {
         fn setup() -> Self {
             let main_engine = QuakeLiveEngine::new();
@@ -154,8 +159,10 @@ pub(crate) mod client_tests {
         }
     }
 
+    #[cfg(not(miri))]
     struct NoQuakeLiveEngineContext;
 
+    #[cfg(not(miri))]
     impl TestContext for NoQuakeLiveEngineContext {
         fn setup() -> Self {
             let Ok(mut guard) = MAIN_ENGINE.write() else {
@@ -178,8 +185,8 @@ pub(crate) mod client_tests {
 
     #[test]
     pub(crate) fn client_try_from_valid_client() {
-        let client = ClientBuilder::default().build().unwrap();
-        assert_eq!(Client::try_from(&client as *const client_t).is_ok(), true);
+        let mut client = ClientBuilder::default().build().unwrap();
+        assert_eq!(Client::try_from(&mut client as *mut client_t).is_ok(), true);
     }
 
     #[test]
@@ -194,57 +201,59 @@ pub(crate) mod client_tests {
 
     #[test]
     pub(crate) fn client_get_state() {
-        let client = ClientBuilder::default().state(CS_ZOMBIE).build().unwrap();
-        let rust_client = Client::try_from(&client as *const client_t).unwrap();
+        let mut client = ClientBuilder::default().state(CS_ZOMBIE).build().unwrap();
+        let rust_client = Client::try_from(&mut client as *mut client_t).unwrap();
         assert_eq!(rust_client.get_state(), CS_ZOMBIE);
     }
 
     #[test]
     pub(crate) fn client_has_gentity_with_no_shared_entity() {
-        let client = ClientBuilder::default()
+        let mut client = ClientBuilder::default()
             .gentity(std::ptr::null_mut() as *mut sharedEntity_t)
             .build()
             .unwrap();
-        let rust_client = Client::try_from(&client as *const client_t).unwrap();
+        let rust_client = Client::try_from(&mut client as *mut client_t).unwrap();
         assert_eq!(rust_client.has_gentity(), false);
     }
 
     #[test]
     pub(crate) fn client_has_gentity_with_valid_shared_entity() {
         let mut shared_entity = SharedEntityBuilder::default().build().unwrap();
-        let client = ClientBuilder::default()
+        let mut client = ClientBuilder::default()
             .gentity(&mut shared_entity as *mut sharedEntity_t)
             .build()
             .unwrap();
-        let rust_client = Client::try_from(&client as *const client_t).unwrap();
+        let rust_client = Client::try_from(&mut client as *mut client_t).unwrap();
         assert_eq!(rust_client.has_gentity(), true);
     }
 
+    #[cfg(not(miri))]
     #[test_context(NoQuakeLiveEngineContext)]
     #[test]
     pub(crate) fn client_disconnect_with_no_main_engine(_ctx: &mut NoQuakeLiveEngineContext) {
-        let client = ClientBuilder::default().build().unwrap();
-        let mut rust_client = Client::try_from(&client as *const client_t).unwrap();
+        let mut client = ClientBuilder::default().build().unwrap();
+        let mut rust_client = Client::try_from(&mut client as *mut client_t).unwrap();
         rust_client.disconnect("disconnected");
         assert!(true);
     }
 
+    #[cfg(not(miri))]
     #[test_context(QuakeLiveEngineContext)]
     #[test]
     pub(crate) fn client_disconnect_with_no_detour_setup(_ctx: &mut QuakeLiveEngineContext) {
-        let client = ClientBuilder::default().build().unwrap();
-        let mut rust_client = Client::try_from(&client as *const client_t).unwrap();
+        let mut client = ClientBuilder::default().build().unwrap();
+        let mut rust_client = Client::try_from(&mut client as *mut client_t).unwrap();
         rust_client.disconnect("disconnected");
         assert!(true);
     }
 
     #[test]
     pub(crate) fn client_get_name_from_null() {
-        let client = ClientBuilder::default()
+        let mut client = ClientBuilder::default()
             .name([0; MAX_NAME_LENGTH as usize])
             .build()
             .unwrap();
-        let rust_client = Client::try_from(&client as *const client_t).unwrap();
+        let rust_client = Client::try_from(&mut client as *mut client_t).unwrap();
         assert_eq!(rust_client.get_name(), "");
     }
 
@@ -254,18 +263,18 @@ pub(crate) mod client_tests {
         let mut bytes_iter = player_name_str.bytes().into_iter();
         let mut player_name: [c_char; MAX_NAME_LENGTH as usize] = [0; MAX_NAME_LENGTH as usize];
         player_name[0..player_name_str.len()].fill_with(|| bytes_iter.next().unwrap() as c_char);
-        let client = ClientBuilder::default().name(player_name).build().unwrap();
-        let rust_client = Client::try_from(&client as *const client_t).unwrap();
+        let mut client = ClientBuilder::default().name(player_name).build().unwrap();
+        let rust_client = Client::try_from(&mut client as *mut client_t).unwrap();
         assert_eq!(rust_client.get_name(), "UnknownPlayer");
     }
 
     #[test]
     pub(crate) fn client_get_userinfo_from_null() {
-        let client = ClientBuilder::default()
+        let mut client = ClientBuilder::default()
             .userinfo([0; MAX_INFO_STRING as usize])
             .build()
             .unwrap();
-        let rust_client = Client::try_from(&client as *const client_t).unwrap();
+        let rust_client = Client::try_from(&mut client as *mut client_t).unwrap();
         assert_eq!(rust_client.get_user_info(), "");
     }
 
@@ -275,15 +284,15 @@ pub(crate) mod client_tests {
         let mut bytes_iter = user_info_str.bytes().into_iter();
         let mut userinfo: [c_char; MAX_INFO_STRING as usize] = [0; MAX_INFO_STRING as usize];
         userinfo[0..user_info_str.len()].fill_with(|| bytes_iter.next().unwrap() as c_char);
-        let client = ClientBuilder::default().userinfo(userinfo).build().unwrap();
-        let rust_client = Client::try_from(&client as *const client_t).unwrap();
+        let mut client = ClientBuilder::default().userinfo(userinfo).build().unwrap();
+        let rust_client = Client::try_from(&mut client as *mut client_t).unwrap();
         assert_eq!(rust_client.get_user_info(), "some user info");
     }
 
     #[test]
     pub(crate) fn client_get_steam_id() {
-        let client = ClientBuilder::default().steam_id(1234).build().unwrap();
-        let rust_client = Client::try_from(&client as *const client_t).unwrap();
+        let mut client = ClientBuilder::default().steam_id(1234).build().unwrap();
+        let rust_client = Client::try_from(&mut client as *mut client_t).unwrap();
         assert_eq!(rust_client.get_steam_id(), 1234);
     }
 }

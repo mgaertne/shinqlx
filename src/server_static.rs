@@ -47,16 +47,21 @@ impl Default for ServerStatic {
 
 #[cfg(test)]
 pub(crate) mod server_static_tests {
+    #[cfg(not(miri))]
     use crate::quake_live_engine::QuakeLiveEngine;
     use crate::quake_live_engine::QuakeLiveEngineError::NullPointerPassed;
     use crate::quake_types::{serverStatic_t, ServerStaticBuilder};
     use crate::server_static::ServerStatic;
+    #[cfg(not(miri))]
     use crate::MAIN_ENGINE;
     use pretty_assertions::assert_eq;
+    #[cfg(not(miri))]
     use test_context::{test_context, TestContext};
 
+    #[cfg(not(miri))]
     struct QuakeLiveEngineContext;
 
+    #[cfg(not(miri))]
     impl TestContext for QuakeLiveEngineContext {
         fn setup() -> Self {
             let main_engine = QuakeLiveEngine::new();
@@ -79,8 +84,10 @@ pub(crate) mod server_static_tests {
         }
     }
 
+    #[cfg(not(miri))]
     struct NoQuakeLiveEngineContext;
 
+    #[cfg(not(miri))]
     impl TestContext for NoQuakeLiveEngineContext {
         fn setup() -> Self {
             let Ok(mut guard) = MAIN_ENGINE.write() else {
@@ -110,6 +117,7 @@ pub(crate) mod server_static_tests {
         );
     }
 
+    #[cfg(not(miri))]
     #[test_context(NoQuakeLiveEngineContext)]
     #[test]
     #[should_panic(expected = "main quake live engine not initialized.")]
@@ -119,6 +127,7 @@ pub(crate) mod server_static_tests {
         ServerStatic::default();
     }
 
+    #[cfg(not(miri))]
     #[test_context(QuakeLiveEngineContext)]
     #[test]
     #[should_panic(expected = "SV_Shutdown function not initialized")]
