@@ -429,7 +429,7 @@ pub(crate) fn damage_dispatcher(
 #[allow(unused)]
 struct PlayerInfo {
     /// The player's client ID.
-    client_id: i32,
+    id: i32,
     /// The player's name.
     name: String,
     /// The player's connection state.
@@ -447,8 +447,8 @@ struct PlayerInfo {
 #[pymethods]
 impl PlayerInfo {
     fn __str__(&self) -> String {
-        format!("PlayerInfo(client_id={}, name={}, connection_state={}, userinfo={}, steam_id={}, team={}, privileges={})",
-                self.client_id,
+        format!("PlayerInfo(id={}, name={}, connection_state={}, userinfo={}, steam_id={}, team={}, privileges={})",
+                self.id,
                 self.name,
                 self.connection_state,
                 self.userinfo,
@@ -465,7 +465,7 @@ impl TryFrom<i32> for PlayerInfo {
         let game_entity_result = GameEntity::try_from(client_id);
         match game_entity_result {
             Err(_) => Ok(PlayerInfo {
-                client_id,
+                id: client_id,
                 name: Default::default(),
                 connection_state: CS_FREE as i32,
                 userinfo: Default::default(),
@@ -476,7 +476,7 @@ impl TryFrom<i32> for PlayerInfo {
             Ok(game_entity) => {
                 let Ok(client) = Client::try_from(client_id) else {
                     return Ok(PlayerInfo {
-                        client_id,
+                        id: client_id,
                         name: game_entity.get_player_name(),
                         connection_state: CS_FREE as i32,
                         userinfo: Default::default(),
@@ -486,7 +486,7 @@ impl TryFrom<i32> for PlayerInfo {
                     });
                 };
                 Ok(PlayerInfo {
-                    client_id,
+                    id: client_id,
                     name: game_entity.get_player_name(),
                     connection_state: client.get_state() as i32,
                     userinfo: client.get_user_info(),
@@ -555,16 +555,17 @@ fn get_players_info(py: Python<'_>) -> PyResult<Vec<Option<PlayerInfo>>> {
 
         let maxclients = main_engine.get_max_clients();
         let result: Vec<Option<PlayerInfo>> = (0..maxclients)
-            .filter_map(|client_id| {
+            .map(|client_id| {
                 Client::try_from(client_id).map_or_else(
                     |_| None,
                     |client| match client.get_state() {
                         CS_FREE => None,
-                        _ => Some(PlayerInfo::try_from(client_id).ok()),
+                        _ => PlayerInfo::try_from(client_id).ok(),
                     },
                 )
             })
             .collect();
+
         Ok(result)
     })
 }
@@ -612,6 +613,8 @@ fn get_userinfo(py: Python<'_>, client_id: i32) -> PyResult<Option<String>> {
 #[pyo3(name = "send_server_command")]
 #[pyo3(signature = (client_id, cmd))]
 fn send_server_command(client_id: Option<i32>, cmd: &str) -> PyResult<bool> {
+    dbg!(cmd);
+    dbg!(client_id);
     match client_id {
         None => {
             shinqlx_send_server_command(None, cmd);
