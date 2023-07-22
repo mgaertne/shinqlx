@@ -552,12 +552,12 @@ fn get_players_info(_py: Python<'_>) -> PyResult<Vec<Option<PlayerInfo>>> {
 
     let maxclients = main_engine.get_max_clients();
     let result: Vec<Option<PlayerInfo>> = (0..maxclients)
-        .map(|client_id| {
+        .filter_map(|client_id| {
             Client::try_from(client_id).map_or_else(
                 |_| None,
                 |client| match client.get_state() {
                     CS_FREE => None,
-                    _ => PlayerInfo::try_from(client_id).ok(),
+                    _ => Some(PlayerInfo::try_from(client_id).ok()),
                 },
             )
         })
