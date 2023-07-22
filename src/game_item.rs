@@ -58,7 +58,7 @@ impl GameItem {
     }
 
     fn get_item_list() -> *mut gitem_t {
-        let Ok(main_engine_guard) = MAIN_ENGINE.try_read() else {
+        let Ok(main_engine_guard) = MAIN_ENGINE.read() else {
             return std::ptr::null_mut();
         };
 
@@ -95,7 +95,7 @@ impl GameItem {
     }
 
     pub(crate) fn spawn(&mut self, origin: (i32, i32, i32)) {
-        let Ok(main_engine_guard) = MAIN_ENGINE.try_read() else {
+        let Ok(main_engine_guard) = MAIN_ENGINE.read() else {
             return;
         };
 
