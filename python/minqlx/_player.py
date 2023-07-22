@@ -639,7 +639,7 @@ class Player:
     @classmethod
     def all_players(cls):
         return [
-            cls(i, info=info) for i, info in enumerate(minqlx.players_info()) if info
+            cls(info.client_id, info=info) for info in minqlx.players_info() if info
         ]
 
 
