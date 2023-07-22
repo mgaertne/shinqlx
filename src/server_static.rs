@@ -24,7 +24,7 @@ impl TryFrom<*mut serverStatic_t> for ServerStatic {
 
 impl Default for ServerStatic {
     fn default() -> Self {
-        let Ok(main_engine_guard) = MAIN_ENGINE.try_read() else {
+        let Ok(main_engine_guard) = MAIN_ENGINE.read() else {
             debug_println!("main quake live engine not accessible.");
             panic!("main quake live engine not accessible.");
         };
