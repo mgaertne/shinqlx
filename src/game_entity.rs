@@ -512,7 +512,7 @@ pub(crate) mod game_entity_tests {
     #[test]
     pub(crate) fn game_entity_get_player_name_from_connected_game_client() {
         let player_name_str = "UnknownPlayer";
-        let mut bytes_iter = player_name_str.bytes().into_iter();
+        let mut bytes_iter = player_name_str.bytes();
         let mut player_name: [c_char; 40usize] = [0; 40usize];
         player_name[0..player_name_str.len()].fill_with(|| bytes_iter.next().unwrap() as c_char);
         let client_persistant = ClientPersistantBuilder::default()

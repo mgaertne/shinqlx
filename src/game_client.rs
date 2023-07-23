@@ -394,7 +394,7 @@ pub(crate) mod game_client_tests {
     #[test]
     pub(crate) fn game_client_get_player_name() {
         let player_name_str = "awesome player";
-        let mut bytes_iter = player_name_str.bytes().into_iter();
+        let mut bytes_iter = player_name_str.bytes();
         let mut player_name: [c_char; 40usize] = [0; 40usize];
         player_name[0..player_name_str.len()].fill_with(|| bytes_iter.next().unwrap() as c_char);
         let client_persistant = ClientPersistantBuilder::default()

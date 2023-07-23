@@ -67,7 +67,6 @@ pub(crate) mod server_static_tests {
             let main_engine = QuakeLiveEngine::new();
 
             let Ok(mut guard) = MAIN_ENGINE.write() else {
-                assert!(false, "could not write MAIN_ENGINE");
                 panic!("could not write MAIN_ENGINE");
             };
             *guard = Some(main_engine);
@@ -77,8 +76,7 @@ pub(crate) mod server_static_tests {
 
         fn teardown(self) {
             let Ok(mut guard) = MAIN_ENGINE.write() else {
-                assert!(false, "could not write MAIN_ENGINE");
-                return;
+                panic!("could not write MAIN_ENGINE");
             };
             *guard = None;
         }
@@ -91,7 +89,6 @@ pub(crate) mod server_static_tests {
     impl TestContext for NoQuakeLiveEngineContext {
         fn setup() -> Self {
             let Ok(mut guard) = MAIN_ENGINE.write() else {
-                assert!(false, "could not write MAIN_ENGINE");
                 panic!("could not write MAIN_ENGINE");
             };
             *guard = None;
@@ -103,7 +100,7 @@ pub(crate) mod server_static_tests {
     #[test]
     pub(crate) fn server_static_try_from_null_results_in_error() {
         assert_eq!(
-            ServerStatic::try_from(std::ptr::null_mut() as *mut serverStatic_t),
+            ServerStatic::try_from(std::ptr::null_mut()),
             Err(NullPointerPassed("null pointer passed".into()))
         );
     }

@@ -131,7 +131,6 @@ pub(crate) mod current_level_tests {
             main_engine.sv_maxclients.store(8, Ordering::Relaxed);
 
             let Ok(mut guard) = MAIN_ENGINE.write() else {
-                assert!(false, "could not write MAIN_ENGINE");
                 panic!("could not write MAIN_ENGINE");
             };
             *guard = Some(main_engine);
@@ -141,8 +140,7 @@ pub(crate) mod current_level_tests {
 
         fn teardown(self) {
             let Ok(mut guard) = MAIN_ENGINE.write() else {
-                assert!(false, "could not write MAIN_ENGINE");
-                return;
+                panic!("could not write MAIN_ENGINE");
             };
             *guard = None;
         }
@@ -155,7 +153,6 @@ pub(crate) mod current_level_tests {
     impl TestContext for NoQuakeLiveEngineContext {
         fn setup() -> Self {
             let Ok(mut guard) = MAIN_ENGINE.write() else {
-                assert!(false, "could not write MAIN_ENGINE");
                 panic!("could not write MAIN_ENGINE");
             };
             *guard = None;
@@ -187,7 +184,7 @@ pub(crate) mod current_level_tests {
     #[test]
     pub(crate) fn current_level_from_null() {
         assert_eq!(
-            CurrentLevel::try_from(std::ptr::null_mut() as *mut level_locals_t),
+            CurrentLevel::try_from(std::ptr::null_mut()),
             Err(NullPointerPassed("null pointer passed".into())),
         );
     }
