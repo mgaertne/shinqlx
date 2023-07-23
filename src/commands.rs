@@ -249,7 +249,7 @@ pub extern "C" fn cmd_py_rcon() {
 
 #[no_mangle]
 pub extern "C" fn cmd_py_command() {
-    let Ok(custom_command_lock) = CUSTOM_COMMAND_HANDLER.read() else {
+    let Ok(custom_command_lock) = CUSTOM_COMMAND_HANDLER.try_read() else {
         return;
     };
 

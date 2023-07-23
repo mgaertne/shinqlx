@@ -56,7 +56,7 @@ pub(crate) fn client_command_dispatcher(client_id: i32, cmd: &str) -> Option<Str
         return Some(cmd.into());
     }
 
-    let Ok(client_command_lock) = CLIENT_COMMAND_HANDLER.read() else {
+    let Ok(client_command_lock) = CLIENT_COMMAND_HANDLER.try_read() else {
         return Some(cmd.into());
     };
 
@@ -92,7 +92,7 @@ pub(crate) fn server_command_dispatcher(client_id: Option<i32>, cmd: &str) -> Op
         return Some(cmd.into());
     }
 
-    let Ok(server_command_lock) = SERVER_COMMAND_HANDLER.read() else {
+    let Ok(server_command_lock) = SERVER_COMMAND_HANDLER.try_read() else {
         return Some(cmd.into());
     };
     let Some(ref server_command_handler) = *server_command_lock else {
@@ -127,7 +127,7 @@ pub(crate) fn frame_dispatcher() {
         return;
     }
 
-    let Ok(frame_handler_lock) = FRAME_HANDLER.read() else {
+    let Ok(frame_handler_lock) = FRAME_HANDLER.try_read() else {
         return;
     };
 
@@ -146,7 +146,7 @@ pub(crate) fn client_connect_dispatcher(client_id: i32, is_bot: bool) -> Option<
         return None;
     }
 
-    let Ok(client_connect_lock) = PLAYER_CONNECT_HANDLER.read() else {
+    let Ok(client_connect_lock) = PLAYER_CONNECT_HANDLER.try_read() else {
         return None;
     };
 
@@ -186,7 +186,7 @@ pub(crate) fn client_disconnect_dispatcher(client_id: i32, reason: &str) {
         return;
     }
 
-    let Ok(client_disconnect_lock) = PLAYER_DISCONNECT_HANDLER.read() else {
+    let Ok(client_disconnect_lock) = PLAYER_DISCONNECT_HANDLER.try_read() else {
         return;
     };
 
@@ -209,7 +209,7 @@ pub(crate) fn client_loaded_dispatcher(client_id: i32) {
         return;
     }
 
-    let Ok(client_loaded_lock) = PLAYER_LOADED_HANDLER.read() else {
+    let Ok(client_loaded_lock) = PLAYER_LOADED_HANDLER.try_read() else {
         return;
     };
 
@@ -228,7 +228,7 @@ pub(crate) fn new_game_dispatcher(restart: bool) {
         return;
     }
 
-    let Ok(new_game_lock) = NEW_GAME_HANDLER.read() else {
+    let Ok(new_game_lock) = NEW_GAME_HANDLER.try_read() else {
         return;
     };
 
@@ -247,7 +247,7 @@ pub(crate) fn set_configstring_dispatcher(index: u32, value: &str) -> Option<Str
         return Some(value.into());
     }
 
-    let Ok(set_configstring_lock) = SET_CONFIGSTRING_HANDLER.read() else {
+    let Ok(set_configstring_lock) = SET_CONFIGSTRING_HANDLER.try_read() else {
         return Some(value.into());
     };
 
@@ -283,7 +283,7 @@ pub(crate) fn rcon_dispatcher(cmd: &str) {
         return;
     }
 
-    let Ok(rcon_lock) = RCON_HANDLER.read() else {
+    let Ok(rcon_lock) = RCON_HANDLER.try_read() else {
         return;
     };
 
@@ -302,7 +302,7 @@ pub(crate) fn console_print_dispatcher(text: &str) -> Option<String> {
         return Some(text.into());
     }
 
-    let Ok(console_print_lock) = CONSOLE_PRINT_HANDLER.read() else {
+    let Ok(console_print_lock) = CONSOLE_PRINT_HANDLER.try_read() else {
         return Some(text.into());
     };
 
@@ -336,7 +336,7 @@ pub(crate) fn client_spawn_dispatcher(client_id: i32) {
         return;
     }
 
-    let Ok(client_spawn_lock) = PLAYER_SPAWN_HANDLER.read() else {
+    let Ok(client_spawn_lock) = PLAYER_SPAWN_HANDLER.try_read() else {
         return;
     };
 
@@ -355,7 +355,7 @@ pub(crate) fn kamikaze_use_dispatcher(client_id: i32) {
         return;
     }
 
-    let Ok(kamikaze_use_lock) = KAMIKAZE_USE_HANDLER.read() else {
+    let Ok(kamikaze_use_lock) = KAMIKAZE_USE_HANDLER.try_read() else {
         return;
     };
 
@@ -374,7 +374,7 @@ pub(crate) fn kamikaze_explode_dispatcher(client_id: i32, is_used_on_demand: boo
         return;
     }
 
-    let Ok(kamikaze_explode_lock) = KAMIKAZE_EXPLODE_HANDLER.read() else {
+    let Ok(kamikaze_explode_lock) = KAMIKAZE_EXPLODE_HANDLER.try_read() else {
         return;
     };
 
@@ -399,7 +399,7 @@ pub(crate) fn damage_dispatcher(
         return;
     }
 
-    let Ok(damage_lock) = DAMAGE_HANDLER.read() else {
+    let Ok(damage_lock) = DAMAGE_HANDLER.try_read() else {
         return;
     };
 
