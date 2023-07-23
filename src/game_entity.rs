@@ -86,7 +86,7 @@ pub(crate) extern "C" fn ShiNQlx_Touch_Item(
     other: *mut gentity_t,
     trace: *mut trace_t,
 ) {
-    let Ok(main_engine_guard) = MAIN_ENGINE.read() else {
+    let Ok(main_engine_guard) = MAIN_ENGINE.try_read() else {
         return;
     };
 
@@ -110,7 +110,7 @@ pub(crate) extern "C" fn ShiNQlx_Touch_Item(
 #[allow(non_snake_case)]
 #[no_mangle]
 pub(crate) extern "C" fn ShiNQlx_Switch_Touch_Item(ent: *mut gentity_t) {
-    let Ok(main_engine_guard) = MAIN_ENGINE.read() else {
+    let Ok(main_engine_guard) = MAIN_ENGINE.try_read() else {
         return;
     };
 
@@ -137,7 +137,7 @@ const OFFSET_G_ENTITIES: usize = 0x11B;
 
 impl GameEntity {
     fn get_entities_list() -> *mut gentity_t {
-        let Ok(main_engine_guard) = MAIN_ENGINE.read() else {
+        let Ok(main_engine_guard) = MAIN_ENGINE.try_read() else {
             return std::ptr::null_mut();
         };
 
@@ -166,7 +166,7 @@ impl GameEntity {
     }
 
     pub(crate) fn start_kamikaze(&mut self) {
-        let Ok(main_engine_guard) = MAIN_ENGINE.read() else {
+        let Ok(main_engine_guard) = MAIN_ENGINE.try_read() else {
             return;
         };
 
@@ -231,7 +231,7 @@ impl GameEntity {
     }
 
     pub(crate) fn slay_with_mod(&mut self, mean_of_death: meansOfDeath_t) {
-        let Ok(main_engine_guard) = MAIN_ENGINE.read() else {
+        let Ok(main_engine_guard) = MAIN_ENGINE.try_read() else {
             return;
         };
 
@@ -311,7 +311,7 @@ impl GameEntity {
     }
 
     pub(crate) fn drop_holdable(&mut self) {
-        let Ok(main_engine_guard) = MAIN_ENGINE.read() else {
+        let Ok(main_engine_guard) = MAIN_ENGINE.try_read() else {
             return;
         };
 
@@ -351,7 +351,7 @@ impl GameEntity {
     }
 
     pub(crate) fn free_entity(&mut self) {
-        let Ok(main_engine_guard) = MAIN_ENGINE.read() else {
+        let Ok(main_engine_guard) = MAIN_ENGINE.try_read() else {
             return;
         };
 
@@ -367,7 +367,7 @@ impl GameEntity {
     }
 
     pub(crate) fn replace_item(&mut self, item_id: i32) {
-        let Ok(main_engine_guard) = MAIN_ENGINE.read() else {
+        let Ok(main_engine_guard) = MAIN_ENGINE.try_read() else {
             return;
         };
 

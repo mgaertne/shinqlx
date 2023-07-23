@@ -26,7 +26,7 @@ const OFFSET_LEVEL: usize = 0x4A1;
 
 impl Default for CurrentLevel {
     fn default() -> Self {
-        let Ok(main_engine_guard) = MAIN_ENGINE.read() else {
+        let Ok(main_engine_guard) = MAIN_ENGINE.try_read() else {
             debug_println!("main quake live engine not readable.");
             panic!("main quake live engine not readable.");
         };
@@ -62,7 +62,7 @@ impl CurrentLevel {
     }
 
     pub(crate) fn callvote(&mut self, vote: &str, vote_disp: &str, vote_time: Option<i32>) {
-        let Ok(main_engine_guard) = MAIN_ENGINE.read() else {
+        let Ok(main_engine_guard) = MAIN_ENGINE.try_read() else {
             return;
         };
 

@@ -77,7 +77,7 @@ impl Client {
     pub(crate) fn disconnect(&mut self, reason: &str) {
         let c_reason = CString::new(reason).unwrap_or(CString::new("").unwrap());
 
-        let Ok(main_engine_guard) = MAIN_ENGINE.read() else {
+        let Ok(main_engine_guard) = MAIN_ENGINE.try_read() else {
             return;
         };
 
