@@ -220,7 +220,7 @@ pub(crate) fn shinqlx_send_server_command(client: Option<Client>, cmd: &str) {
     }
 }
 
-pub(crate) fn shinqlx_sv_cliententerworld(client: *mut client_t, cmd: *mut usercmd_t) {
+pub(crate) fn shinqlx_sv_cliententerworld(client: *const client_t, cmd: *mut usercmd_t) {
     let Some(mut safe_client): Option<Client> = client.try_into().ok() else {
         return;
     };

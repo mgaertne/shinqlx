@@ -101,7 +101,7 @@ struct StaticFunctions {
     sv_executeclientcommand_orig: fn(*mut client_t, *const c_char, qboolean),
     sv_shutdown_orig: fn(*const c_char),
     sv_map_f_orig: fn(),
-    sv_cliententerworld_orig: fn(*mut client_t, *mut usercmd_t),
+    sv_cliententerworld_orig: fn(*const client_t, *mut usercmd_t),
     sv_setconfigstring_orig: fn(c_int, *const c_char),
     sv_getconfigstring_orig: fn(c_int, *const c_char, c_int),
     sv_dropclient_orig: fn(*mut client_t, *const c_char),
@@ -116,7 +116,7 @@ struct StaticDetours {
     cmd_addcommand_detour: GenericDetour<fn(*const c_char, unsafe extern "C" fn())>,
     sys_setmoduleoffset_detour: GenericDetour<fn(*const c_char, unsafe extern "C" fn())>,
     sv_executeclientcommand_detour: GenericDetour<fn(*mut client_t, *const c_char, qboolean)>,
-    sv_cliententerworld_detour: GenericDetour<fn(*mut client_t, *mut usercmd_t)>,
+    sv_cliententerworld_detour: GenericDetour<fn(*const client_t, *mut usercmd_t)>,
     sv_setconfgistring_detour: GenericDetour<fn(c_int, *const c_char)>,
     sv_dropclient_detour: GenericDetour<fn(*mut client_t, *const c_char)>,
     sv_spawnserver_detour: GenericDetour<fn(*const c_char, qboolean)>,
@@ -1431,7 +1431,7 @@ impl QuakeLiveEngine {
 
     fn sv_cliententerworld_orig(
         &self,
-    ) -> Result<fn(*mut client_t, *mut usercmd_t), QuakeLiveEngineError> {
+    ) -> Result<fn(*const client_t, *mut usercmd_t), QuakeLiveEngineError> {
         let Some(static_functions) = self.static_functions.get() else {
             return Err(QuakeLiveEngineError::StaticFunctionNotFound(
                 QuakeLiveFunction::SV_ClientEnterWorld,
@@ -1547,7 +1547,7 @@ impl QuakeLiveEngine {
     #[allow(clippy::type_complexity)]
     fn sv_cliententerworld_detour(
         &self,
-    ) -> Result<&GenericDetour<fn(*mut client_t, *mut usercmd_t)>, QuakeLiveEngineError> {
+    ) -> Result<&GenericDetour<fn(*const client_t, *mut usercmd_t)>, QuakeLiveEngineError> {
         let Some(static_detours) = self.static_detours.get() else {
             return Err(QuakeLiveEngineError::StaticDetourNotFound(
                 QuakeLiveFunction::SV_ClientEnterWorld,
@@ -1942,7 +1942,7 @@ pub(crate) trait ClientConnect {
 
 impl ClientConnect for QuakeLiveEngine {
     fn client_connect(&self, client_num: i32, first_time: bool, is_bot: bool) -> *const c_char {
-        let Ok(detour_guard) = self.vm_functions.client_connect_detour.read() else {
+        let Ok(detour_guard) = self.vm_functions.client_connect_detour.try_read() else {
             return std::ptr::null();
         };
 
@@ -1961,7 +1961,7 @@ pub(crate) trait ClientSpawn {
 
 impl ClientSpawn for QuakeLiveEngine {
     fn client_spawn(&self, ent: &mut GameEntity) {
-        let Ok(detour_guard) = self.vm_functions.client_spawn_detour.read() else {
+        let Ok(detour_guard) = self.vm_functions.client_spawn_detour.try_read() else {
             return;
         };
 
@@ -2206,7 +2206,7 @@ impl RegisterDamage for QuakeLiveEngine {
         dflags: c_int,
         means_of_death: c_int,
     ) {
-        let Ok(detour_guard) = self.vm_functions.g_damage_detour.read() else {
+        let Ok(detour_guard) = self.vm_functions.g_damage_detour.try_read() else {
             return;
         };
 
@@ -2273,7 +2273,7 @@ pub(crate) trait StartKamikaze {
 
 impl StartKamikaze for QuakeLiveEngine {
     fn start_kamikaze(&self, gentity: &mut GameEntity) {
-        let Ok(detour_guard) = self.vm_functions.g_start_kamikaze_detour.read() else {
+        let Ok(detour_guard) = self.vm_functions.g_start_kamikaze_detour.try_read() else {
             return;
         };
 
