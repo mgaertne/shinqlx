@@ -14,7 +14,7 @@ use rand::Rng;
 
 #[no_mangle]
 pub extern "C" fn cmd_send_server_command() {
-    let Ok(main_engine_guard) = MAIN_ENGINE.read() else {
+    let Ok(main_engine_guard) = MAIN_ENGINE.try_read() else {
         return;
     };
 
@@ -32,7 +32,7 @@ pub extern "C" fn cmd_send_server_command() {
 
 #[no_mangle]
 pub extern "C" fn cmd_center_print() {
-    let Ok(main_engine_guard) = MAIN_ENGINE.read() else {
+    let Ok(main_engine_guard) = MAIN_ENGINE.try_read() else {
         return;
     };
 
@@ -50,7 +50,7 @@ pub extern "C" fn cmd_center_print() {
 
 #[no_mangle]
 pub extern "C" fn cmd_regular_print() {
-    let Ok(main_engine_guard) = MAIN_ENGINE.read() else {
+    let Ok(main_engine_guard) = MAIN_ENGINE.try_read() else {
         return;
     };
 
@@ -68,7 +68,7 @@ pub extern "C" fn cmd_regular_print() {
 
 #[no_mangle]
 pub extern "C" fn cmd_slap() {
-    let Ok(main_engine_guard) = MAIN_ENGINE.read() else {
+    let Ok(main_engine_guard) = MAIN_ENGINE.try_read() else {
         return;
     };
 
@@ -163,7 +163,7 @@ pub extern "C" fn cmd_slap() {
 
 #[no_mangle]
 pub extern "C" fn cmd_slay() {
-    let Ok(main_engine_guard) = MAIN_ENGINE.read() else {
+    let Ok(main_engine_guard) = MAIN_ENGINE.try_read() else {
         return;
     };
 
@@ -232,7 +232,7 @@ pub extern "C" fn cmd_slay() {
 // Execute a pyminqlx command as if it were the owner executing it.
 // Output will appear in the console.
 pub extern "C" fn cmd_py_rcon() {
-    let Ok(main_engine_guard) = MAIN_ENGINE.read() else {
+    let Ok(main_engine_guard) = MAIN_ENGINE.try_read() else {
         return;
     };
 
@@ -258,7 +258,7 @@ pub extern "C" fn cmd_py_command() {
     };
 
     Python::with_gil(|py| {
-        let Ok(main_engine_guard) = MAIN_ENGINE.read() else {
+        let Ok(main_engine_guard) = MAIN_ENGINE.try_read() else {
             return;
         };
 
@@ -280,7 +280,7 @@ pub extern "C" fn cmd_py_command() {
 
 #[no_mangle]
 pub extern "C" fn cmd_restart_python() {
-    let Ok(main_engine_guard) = MAIN_ENGINE.read() else {
+    let Ok(main_engine_guard) = MAIN_ENGINE.try_read() else {
         return;
     };
 
