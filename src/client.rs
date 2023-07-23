@@ -142,7 +142,6 @@ pub(crate) mod client_tests {
             let main_engine = QuakeLiveEngine::new();
 
             let Ok(mut guard) = MAIN_ENGINE.write() else {
-                assert!(false, "could not write MAIN_ENGINE");
                 panic!("could not write MAIN_ENGINE");
             };
             *guard = Some(main_engine);
@@ -152,8 +151,7 @@ pub(crate) mod client_tests {
 
         fn teardown(self) {
             let Ok(mut guard) = MAIN_ENGINE.write() else {
-                assert!(false, "could not write MAIN_ENGINE");
-                return;
+                panic!("could not write MAIN_ENGINE");
             };
             *guard = None;
         }
@@ -166,7 +164,6 @@ pub(crate) mod client_tests {
     impl TestContext for NoQuakeLiveEngineContext {
         fn setup() -> Self {
             let Ok(mut guard) = MAIN_ENGINE.write() else {
-                assert!(false, "could not write MAIN_ENGINE");
                 panic!("could not write MAIN_ENGINE");
             };
             *guard = None;
@@ -209,7 +206,7 @@ pub(crate) mod client_tests {
     #[test]
     pub(crate) fn client_has_gentity_with_no_shared_entity() {
         let mut client = ClientBuilder::default()
-            .gentity(std::ptr::null_mut() as *mut sharedEntity_t)
+            .gentity(std::ptr::null_mut())
             .build()
             .unwrap();
         let rust_client = Client::try_from(&mut client as *mut client_t).unwrap();
@@ -234,7 +231,6 @@ pub(crate) mod client_tests {
         let mut client = ClientBuilder::default().build().unwrap();
         let mut rust_client = Client::try_from(&mut client as *mut client_t).unwrap();
         rust_client.disconnect("disconnected");
-        assert!(true);
     }
 
     #[cfg(not(miri))]
@@ -244,7 +240,6 @@ pub(crate) mod client_tests {
         let mut client = ClientBuilder::default().build().unwrap();
         let mut rust_client = Client::try_from(&mut client as *mut client_t).unwrap();
         rust_client.disconnect("disconnected");
-        assert!(true);
     }
 
     #[test]
@@ -260,7 +255,7 @@ pub(crate) mod client_tests {
     #[test]
     pub(crate) fn client_get_name_from_valid_name() {
         let player_name_str = "UnknownPlayer";
-        let mut bytes_iter = player_name_str.bytes().into_iter();
+        let mut bytes_iter = player_name_str.bytes();
         let mut player_name: [c_char; MAX_NAME_LENGTH as usize] = [0; MAX_NAME_LENGTH as usize];
         player_name[0..player_name_str.len()].fill_with(|| bytes_iter.next().unwrap() as c_char);
         let mut client = ClientBuilder::default().name(player_name).build().unwrap();
@@ -281,7 +276,7 @@ pub(crate) mod client_tests {
     #[test]
     pub(crate) fn client_get_userinfo_from_valid_userinfo() {
         let user_info_str = "some user info";
-        let mut bytes_iter = user_info_str.bytes().into_iter();
+        let mut bytes_iter = user_info_str.bytes();
         let mut userinfo: [c_char; MAX_INFO_STRING as usize] = [0; MAX_INFO_STRING as usize];
         userinfo[0..user_info_str.len()].fill_with(|| bytes_iter.next().unwrap() as c_char);
         let mut client = ClientBuilder::default().userinfo(userinfo).build().unwrap();
