@@ -43,6 +43,7 @@ procfs = "~0"
 
 [build-dependencies]
 pyo3-build-config = { version = "~0", features = ["resolve-config"] }
+git2 = "~0.17"
 
 [dev-dependencies]
 hamcrest = "~0"

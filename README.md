@@ -32,7 +32,7 @@ python3 --version
 
 - Now you should get Redis, Git and build utils which will be used by minqlx's plugins and for compiling shinqlx:
 ```shell
-sudo apt-get -y install redis-server git build-essential
+sudo apt-get -y install redis-server pkg-config libssl-dev git build-essential
 ```
 
 - To avoid interference with operating system packages (and future adaptions from Debian v12 onwards for example), I recommend installing a python virtual environment to install the packges that shinqlx/minqlx or your plugins need:
