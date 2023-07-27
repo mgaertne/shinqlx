@@ -2791,12 +2791,7 @@ fn pyminqlx_module(_py: Python<'_>, m: &PyModule) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(force_weapon_respawn_time, m)?)?;
     m.add_function(wrap_pyfunction!(get_entity_targets, m)?)?;
 
-    let shinqlx_version = format!(
-        "\"v{}-{}\"",
-        env!("CARGO_PKG_VERSION"),
-        env!("CARGO_PKG_NAME")
-    );
-    m.add("__version__", shinqlx_version.as_str())?;
+    m.add("__version__", env!("SHINQLX_VERSION"))?;
     m.add("DEBUG", cfg!(debug_assertions))?;
 
     // Set a bunch of constants. We set them here because if you define functions in Python that use module
