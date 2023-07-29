@@ -19,7 +19,7 @@ use crate::MAIN_ENGINE;
 use std::ffi::{c_char, c_int, CStr, VaList, VaListImpl};
 
 pub(crate) fn shinqlx_cmd_addcommand(cmd: *const c_char, func: unsafe extern "C" fn()) {
-    let Ok(main_engine_guard) = MAIN_ENGINE.try_read() else {
+    let Some(main_engine_guard) = MAIN_ENGINE.try_read() else {
         return;
     };
 
@@ -48,7 +48,7 @@ pub(crate) fn shinqlx_sys_setmoduleoffset(
         debug_println!(format!("Unknown module: {}", converted_module_name));
     }
 
-    let Ok(main_engine_guard) = MAIN_ENGINE.try_read() else {
+    let Some(main_engine_guard) = MAIN_ENGINE.try_read() else {
         return;
     };
 
@@ -67,7 +67,7 @@ pub(crate) fn shinqlx_sys_setmoduleoffset(
 
 #[no_mangle]
 pub extern "C" fn ShiNQlx_G_InitGame(level_time: c_int, random_seed: c_int, restart: c_int) {
-    let Ok(main_engine_guard) = MAIN_ENGINE.try_read() else {
+    let Some(main_engine_guard) = MAIN_ENGINE.try_read() else {
         return;
     };
 
@@ -87,7 +87,7 @@ pub extern "C" fn ShiNQlx_G_InitGame(level_time: c_int, random_seed: c_int, rest
 
 #[no_mangle]
 pub extern "C" fn ShiNQlx_G_ShutdownGame(restart: c_int) {
-    let Ok(main_engine_guard) = MAIN_ENGINE.try_read() else {
+    let Some(main_engine_guard) = MAIN_ENGINE.try_read() else {
         return;
     };
 
@@ -137,7 +137,7 @@ pub(crate) fn shinqlx_execute_client_command(
     };
 
     if !passed_on_cmd_str.is_empty() {
-        let Ok(main_engine_guard) = MAIN_ENGINE.try_read() else {
+        let Some(main_engine_guard) = MAIN_ENGINE.try_read() else {
             return;
         };
 
@@ -208,7 +208,7 @@ pub(crate) fn shinqlx_send_server_command(client: Option<Client>, cmd: &str) {
     }
 
     if !passed_on_cmd_str.is_empty() {
-        let Ok(main_engine_guard) = MAIN_ENGINE.try_read() else {
+        let Some(main_engine_guard) = MAIN_ENGINE.try_read() else {
             return;
         };
 
@@ -227,7 +227,7 @@ pub(crate) fn shinqlx_sv_cliententerworld(client: *mut client_t, cmd: *mut userc
 
     let state = safe_client.get_state();
 
-    let Ok(main_engine_guard) = MAIN_ENGINE.try_read() else {
+    let Some(main_engine_guard) = MAIN_ENGINE.try_read() else {
         return;
     };
 
@@ -263,7 +263,7 @@ pub(crate) fn shinqlx_set_configstring(index: u32, value: &str) {
     // so we add some exceptions for those. I don't think we should have any
     // use for those particular ones anyway. If we don't do this, we get
     // like a 25% increase in CPU usage on an empty server.
-    let Ok(main_engine_guard) = MAIN_ENGINE.try_read() else {
+    let Some(main_engine_guard) = MAIN_ENGINE.try_read() else {
         return;
     };
 
@@ -329,7 +329,7 @@ pub(crate) fn shinqlx_com_printf(msg: &str) {
         return;
     };
 
-    let Ok(main_engine_guard) = MAIN_ENGINE.try_read() else {
+    let Some(main_engine_guard) = MAIN_ENGINE.try_read() else {
         return;
     };
 
@@ -346,7 +346,7 @@ pub(crate) fn shinqlx_sv_spawnserver(server: *const c_char, kill_bots: qboolean)
         return;
     }
 
-    let Ok(main_engine_guard) = MAIN_ENGINE.try_read() else {
+    let Some(main_engine_guard) = MAIN_ENGINE.try_read() else {
         return;
     };
 
@@ -363,7 +363,7 @@ pub(crate) fn shinqlx_sv_spawnserver(server: *const c_char, kill_bots: qboolean)
 pub extern "C" fn ShiNQlx_G_RunFrame(time: c_int) {
     frame_dispatcher();
 
-    let Ok(main_engine_guard) = MAIN_ENGINE.try_read() else {
+    let Some(main_engine_guard) = MAIN_ENGINE.try_read() else {
         return;
     };
 
@@ -401,7 +401,7 @@ pub extern "C" fn ShiNQlx_ClientConnect(
         }
     }
 
-    let Ok(main_engine_guard) = MAIN_ENGINE.try_read() else {
+    let Some(main_engine_guard) = MAIN_ENGINE.try_read() else {
         return std::ptr::null();
     };
 
@@ -422,7 +422,7 @@ pub extern "C" fn ShiNQlx_ClientSpawn(ent: *mut gentity_t) {
 }
 
 pub(crate) fn shinqlx_client_spawn(mut game_entity: GameEntity) {
-    let Ok(main_engine_guard) = MAIN_ENGINE.try_read() else {
+    let Some(main_engine_guard) = MAIN_ENGINE.try_read() else {
         return;
     };
 
@@ -482,7 +482,7 @@ pub extern "C" fn ShiNQlx_G_Damage(
     // DAMAGE_NO_TEAM_PROTECTION	kills team mates
     means_of_death: c_int, // means_of_death indicator
 ) {
-    let Ok(main_engine_guard) = MAIN_ENGINE.try_read() else {
+    let Some(main_engine_guard) = MAIN_ENGINE.try_read() else {
         return;
     };
 
