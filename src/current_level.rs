@@ -26,7 +26,7 @@ const OFFSET_LEVEL: usize = 0x4A1;
 
 impl Default for CurrentLevel {
     fn default() -> Self {
-        let Ok(main_engine_guard) = MAIN_ENGINE.try_read() else {
+        let Some(main_engine_guard) = MAIN_ENGINE.try_read() else {
             debug_println!("main quake live engine not readable.");
             panic!("main quake live engine not readable.");
         };
@@ -62,7 +62,7 @@ impl CurrentLevel {
     }
 
     pub(crate) fn callvote(&mut self, vote: &str, vote_disp: &str, vote_time: Option<i32>) {
-        let Ok(main_engine_guard) = MAIN_ENGINE.try_read() else {
+        let Some(main_engine_guard) = MAIN_ENGINE.try_read() else {
             return;
         };
 
@@ -107,78 +107,47 @@ impl CurrentLevel {
 #[cfg(test)]
 pub(crate) mod current_level_tests {
     use crate::current_level::CurrentLevel;
-    #[cfg(not(miri))]
     use crate::quake_live_engine::QuakeLiveEngine;
     use crate::quake_live_engine::QuakeLiveEngineError::NullPointerPassed;
     use crate::quake_types::{level_locals_t, qboolean, LevelLocalsBuilder};
-    #[cfg(not(miri))]
     use crate::MAIN_ENGINE;
     use pretty_assertions::assert_eq;
-    #[cfg(not(miri))]
+    use serial_test::serial;
     use std::ffi::CStr;
-    #[cfg(not(miri))]
+    use std::panic;
     use std::sync::atomic::Ordering;
-    #[cfg(not(miri))]
-    use test_context::{test_context, TestContext};
 
-    #[cfg(not(miri))]
-    struct QuakeLiveEngineContext;
-
-    #[cfg(not(miri))]
-    impl TestContext for QuakeLiveEngineContext {
-        fn setup() -> Self {
-            let main_engine = QuakeLiveEngine::new();
-            main_engine.sv_maxclients.store(8, Ordering::Relaxed);
-
-            let Ok(mut guard) = MAIN_ENGINE.write() else {
-                panic!("could not write MAIN_ENGINE");
-            };
-            *guard = Some(main_engine);
-
-            Self {}
-        }
-
-        fn teardown(self) {
-            let Ok(mut guard) = MAIN_ENGINE.write() else {
-                panic!("could not write MAIN_ENGINE");
-            };
-            *guard = None;
-        }
-    }
-
-    #[cfg(not(miri))]
-    struct NoQuakeLiveEngineContext;
-
-    #[cfg(not(miri))]
-    impl TestContext for NoQuakeLiveEngineContext {
-        fn setup() -> Self {
-            let Ok(mut guard) = MAIN_ENGINE.write() else {
-                panic!("could not write MAIN_ENGINE");
-            };
-            *guard = None;
-
-            Self {}
-        }
-    }
-
-    #[cfg(not(miri))]
-    #[test_context(NoQuakeLiveEngineContext)]
     #[test]
     #[should_panic(expected = "main quake live engine not initialized")]
-    pub(crate) fn current_level_default_panics_when_no_main_engine_found(
-        _ctx: &mut NoQuakeLiveEngineContext,
-    ) {
+    #[serial]
+    pub(crate) fn current_level_default_panics_when_no_main_engine_found() {
+        {
+            let mut guard = MAIN_ENGINE.write();
+            *guard = None;
+        }
         CurrentLevel::default();
     }
 
-    #[cfg(not(miri))]
-    #[test_context(QuakeLiveEngineContext)]
     #[test]
-    #[should_panic(expected = "G_InitGame not initialized.")]
-    pub(crate) fn current_level_default_panics_when_g_init_game_not_set(
-        _ctx: &mut QuakeLiveEngineContext,
-    ) {
-        CurrentLevel::default();
+    #[serial]
+    pub(crate) fn current_level_default_panics_when_g_init_game_not_set() {
+        {
+            let mut guard = MAIN_ENGINE.write();
+            *guard = Some(QuakeLiveEngine::new());
+        }
+
+        let result = panic::catch_unwind(|| {
+            CurrentLevel::default();
+        });
+
+        {
+            let mut guard = MAIN_ENGINE.write();
+            *guard = None;
+        }
+
+        let error = result.err().unwrap();
+        let error_string: &str = error.downcast_ref::<&str>().unwrap();
+        assert_eq!(error_string, "G_InitGame not initialized.");
     }
 
     #[test]
@@ -238,20 +207,13 @@ pub(crate) mod current_level_tests {
         assert_eq!(level.mapIsTrainingMap, qboolean::qfalse);
     }
 
-    #[cfg(not(miri))]
-    #[test_context(NoQuakeLiveEngineContext)]
     #[test]
-    pub(crate) fn current_level_callvote_with_no_main_engine(_ctx: &mut NoQuakeLiveEngineContext) {
-        let mut level = LevelLocalsBuilder::default().build().unwrap();
-        let mut current_level = CurrentLevel::try_from(&mut level as *mut level_locals_t).unwrap();
-        current_level.callvote("map thunderstruck", "map thunderstruck", None);
-        assert!(level.voteString.iter().all(|c| *c == 0));
-    }
-
-    #[cfg(not(miri))]
-    #[test_context(QuakeLiveEngineContext)]
-    #[test]
-    pub(crate) fn current_level_callvote_with_main_engine_set(_ctx: &mut QuakeLiveEngineContext) {
+    #[serial]
+    pub(crate) fn current_level_callvote_with_no_main_engine() {
+        {
+            let mut guard = MAIN_ENGINE.write();
+            *guard = None;
+        }
         let mut level = LevelLocalsBuilder::default().build().unwrap();
         let mut current_level = CurrentLevel::try_from(&mut level as *mut level_locals_t).unwrap();
         current_level.callvote("map thunderstruck", "map thunderstruck", None);
@@ -265,7 +227,45 @@ pub(crate) mod current_level_tests {
             )
             .unwrap()
             .to_string_lossy(),
-            "map thunderstruck"
+            ""
         );
+    }
+
+    #[test]
+    #[serial]
+    pub(crate) fn current_level_callvote_with_main_engine_set() {
+        let main_engine = QuakeLiveEngine::new();
+        main_engine.sv_maxclients.store(8, Ordering::SeqCst);
+
+        {
+            let mut guard = MAIN_ENGINE.write();
+            *guard = Some(main_engine);
+        }
+
+        let result = panic::catch_unwind(|| {
+            let mut level = LevelLocalsBuilder::default().build().unwrap();
+            let mut current_level =
+                CurrentLevel::try_from(&mut level as *mut level_locals_t).unwrap();
+            current_level.callvote("map thunderstruck", "map thunderstruck", None);
+            assert_eq!(
+                CStr::from_bytes_until_nul(
+                    &level
+                        .voteString
+                        .iter()
+                        .map(|c| *c as u8)
+                        .collect::<Vec<u8>>()
+                )
+                .unwrap()
+                .to_string_lossy(),
+                "map thunderstruck"
+            );
+        });
+
+        {
+            let mut guard = MAIN_ENGINE.write();
+            *guard = None;
+        }
+
+        assert!(result.is_ok());
     }
 }

@@ -37,17 +37,18 @@ derive_builder = "~0"
 maturin = { version = "~1", default-features = false, features = []}
 once_cell = "~1"
 region = "~3"
+parking_lot = "~0"
 
 [target."cfg(target_os=\"linux\")".dependencies]
 procfs = "~0"
 
 [build-dependencies]
 pyo3-build-config = { version = "~0", features = ["resolve-config"] }
-git2 = "~0.17"
+git2 = "~0"
 
 [dev-dependencies]
 hamcrest = "~0"
 pretty_assertions = "~1"
 rstest = "~0"
 mockall = "~0"
-test-context = "~0"
+serial_test = "~2"

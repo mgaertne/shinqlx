@@ -34,7 +34,7 @@ mod server_static;
 use crate::quake_live_engine::QuakeLiveEngine;
 use core::sync::atomic::AtomicI32;
 use ctor::ctor;
-use std::sync::RwLock;
+use parking_lot::RwLock;
 
 pub(crate) const DEBUG_PRINT_PREFIX: &str = "[shinqlx]";
 
@@ -44,7 +44,6 @@ pub(crate) const SV_TAGS_PREFIX: &str = "shinqlx";
 #[derive(PartialEq, Debug, Clone, Copy)]
 pub(crate) enum PyMinqlx_InitStatus_t {
     PYM_SUCCESS,
-    PYM_PY_INIT_ERROR,
     PYM_MAIN_SCRIPT_ERROR,
     PYM_ALREADY_INITIALIZED,
     PYM_NOT_INITIALIZED_ERROR,
@@ -92,11 +91,6 @@ fn initialize() {
         panic!("Failed to hook static methods. Exiting.");
     }
 
-    match MAIN_ENGINE.write() {
-        Err(_) => {
-            debug_println!("Something went wrong during initialization. Exiting.");
-            panic!("Something went wrong during initialization. Exiting.");
-        }
-        Ok(mut guard) => *guard = Some(main_engine),
-    }
+    let mut guard = MAIN_ENGINE.write();
+    *guard = Some(main_engine);
 }
