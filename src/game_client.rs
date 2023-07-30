@@ -169,16 +169,20 @@ impl GameClient {
     }
 
     pub(crate) fn get_powerups(&self) -> [i32; 6] {
-        self.get_powerups_internal(&CurrentLevel::default())
+        let level_time = CurrentLevel::try_get()
+            .ok()
+            .map(|current_level| current_level.get_leveltime())
+            .unwrap_or_default();
+        self.get_powerups_internal(level_time)
     }
 
-    pub(crate) fn get_powerups_internal(&self, current_level: &CurrentLevel) -> [i32; 6] {
+    pub(crate) fn get_powerups_internal(&self, level_time: i32) -> [i32; 6] {
         (0..6)
             .map(|powerup| powerup_t::try_from(powerup).unwrap_or(PW_NONE))
             .map(|powerup_index| self.game_client.ps.powerups[powerup_index as usize])
             .map(|powerup_time| match powerup_time {
                 0 => 0,
-                _ => powerup_time - current_level.get_leveltime(),
+                _ => powerup_time - level_time,
             })
             .collect::<Vec<i32>>()
             .try_into()
@@ -186,14 +190,14 @@ impl GameClient {
     }
 
     pub(crate) fn set_powerups(&mut self, powerups: [i32; 6]) {
-        self.set_powerups_internal(powerups, &CurrentLevel::default());
+        let level_time = CurrentLevel::try_get()
+            .ok()
+            .map(|current_level| current_level.get_leveltime())
+            .unwrap_or_default();
+        self.set_powerups_internal(powerups, level_time);
     }
 
-    pub(crate) fn set_powerups_internal(
-        &mut self,
-        powerups: [i32; 6],
-        current_level: &CurrentLevel,
-    ) {
+    pub(crate) fn set_powerups_internal(&mut self, powerups: [i32; 6], level_time: i32) {
         powerups
             .iter()
             .enumerate()
@@ -202,7 +206,7 @@ impl GameClient {
                 self.game_client.ps.powerups[powerup_index as usize] = if item == 0 {
                     0
                 } else {
-                    let level_time = current_level.get_leveltime();
+                    let level_time = level_time;
                     level_time - (level_time % 1000) + item
                 }
             });
@@ -253,11 +257,15 @@ impl GameClient {
     }
 
     pub(crate) fn set_invulnerability(&mut self, time: i32) {
-        self.set_invulnerability_internal(time, &CurrentLevel::default());
+        let level_time = CurrentLevel::try_get()
+            .ok()
+            .map(|current_level| current_level.get_leveltime())
+            .unwrap_or_default();
+        self.set_invulnerability_internal(time, level_time);
     }
 
-    pub(crate) fn set_invulnerability_internal(&mut self, time: i32, current_level: &CurrentLevel) {
-        self.game_client.invulnerabilityTime = current_level.get_leveltime() + time;
+    pub(crate) fn set_invulnerability_internal(&mut self, time: i32, level_time: i32) {
+        self.game_client.invulnerabilityTime = level_time + time;
     }
 
     pub(crate) fn is_chatting(&self) -> bool {
@@ -297,11 +305,15 @@ impl GameClient {
     }
 
     pub(crate) fn get_time_on_team(&self) -> i32 {
-        self.get_time_on_team_internal(&CurrentLevel::default())
+        let level_time = CurrentLevel::try_get()
+            .ok()
+            .map(|current_level| current_level.get_leveltime())
+            .unwrap_or_default();
+        self.get_time_on_team_internal(level_time)
     }
 
-    pub(crate) fn get_time_on_team_internal(&self, current_level: &CurrentLevel) -> i32 {
-        current_level.get_leveltime() - self.game_client.pers.enterTime
+    pub(crate) fn get_time_on_team_internal(&self, level_time: i32) -> i32 {
+        level_time - self.game_client.pers.enterTime
     }
 
     pub(crate) fn get_ping(&self) -> i32 {
@@ -323,7 +335,6 @@ impl GameClient {
 
 #[cfg(test)]
 pub(crate) mod game_client_tests {
-    use crate::current_level::CurrentLevel;
     use crate::game_client::GameClient;
     use crate::quake_live_engine::QuakeLiveEngineError::NullPointerPassed;
     use crate::quake_types::clientConnected_t::CON_CONNECTING;
@@ -344,10 +355,9 @@ pub(crate) mod game_client_tests {
         WP_RAILGUN, WP_ROCKET_LAUNCHER, WP_SHOTGUN,
     };
     use crate::quake_types::{
-        gclient_t, level_locals_t, privileges_t, qboolean, weapon_t, ClientPersistantBuilder,
-        ClientSessionBuilder, ExpandedStatsBuilder, GClientBuilder, LevelLocalsBuilder,
-        PlayerStateBuilder, EF_DEAD, EF_KAMIKAZE, EF_TALK, MODELINDEX_KAMIKAZE,
-        MODELINDEX_TELEPORTER,
+        gclient_t, privileges_t, qboolean, weapon_t, ClientPersistantBuilder, ClientSessionBuilder,
+        ExpandedStatsBuilder, GClientBuilder, PlayerStateBuilder, EF_DEAD, EF_KAMIKAZE, EF_TALK,
+        MODELINDEX_KAMIKAZE, MODELINDEX_TELEPORTER,
     };
     use pretty_assertions::assert_eq;
     use rstest::*;
@@ -622,19 +632,13 @@ pub(crate) mod game_client_tests {
 
     #[test]
     pub(crate) fn game_client_get_powerups_with_no_powerups() {
-        let mut level_locals = LevelLocalsBuilder::default().time(1234).build().unwrap();
-        let current_level =
-            CurrentLevel::try_from(&mut level_locals as *mut level_locals_t).unwrap();
         let mut gclient = GClientBuilder::default().build().unwrap();
         let game_client = GameClient::try_from(&mut gclient as *mut gclient_t).unwrap();
-        assert_eq!(game_client.get_powerups_internal(&current_level), [0; 6]);
+        assert_eq!(game_client.get_powerups_internal(1234), [0; 6]);
     }
 
     #[test]
     pub(crate) fn game_client_get_powerups_with_all_powerups_set() {
-        let mut level_locals = LevelLocalsBuilder::default().time(1234).build().unwrap();
-        let current_level =
-            CurrentLevel::try_from(&mut level_locals as *mut level_locals_t).unwrap();
         let mut player_state = PlayerStateBuilder::default().build().unwrap();
         player_state.powerups[PW_QUAD as usize] = 1235;
         player_state.powerups[PW_BATTLESUIT as usize] = 1236;
@@ -644,31 +648,22 @@ pub(crate) mod game_client_tests {
         player_state.powerups[PW_INVULNERABILITY as usize] = 1240;
         let mut gclient = GClientBuilder::default().ps(player_state).build().unwrap();
         let game_client = GameClient::try_from(&mut gclient as *mut gclient_t).unwrap();
-        assert_eq!(
-            game_client.get_powerups_internal(&current_level),
-            [1, 2, 3, 4, 5, 6]
-        );
+        assert_eq!(game_client.get_powerups_internal(1234), [1, 2, 3, 4, 5, 6]);
     }
 
     #[test]
     pub(crate) fn game_client_set_powerups() {
-        let mut level_locals = LevelLocalsBuilder::default().time(1000).build().unwrap();
-        let current_level =
-            CurrentLevel::try_from(&mut level_locals as *mut level_locals_t).unwrap();
         let mut gclient = GClientBuilder::default().build().unwrap();
         let mut game_client = GameClient::try_from(&mut gclient as *mut gclient_t).unwrap();
-        game_client.set_powerups_internal([11, 12, 13, 14, 15, 16], &current_level);
+        game_client.set_powerups_internal([11, 12, 13, 14, 15, 16], 1000);
         assert_eq!(
-            game_client.get_powerups_internal(&current_level),
+            game_client.get_powerups_internal(1000),
             [11, 12, 13, 14, 15, 16]
         );
     }
 
     #[test]
     pub(crate) fn game_client_set_powerups_deleting_all_powerups() {
-        let mut level_locals = LevelLocalsBuilder::default().time(1000).build().unwrap();
-        let current_level =
-            CurrentLevel::try_from(&mut level_locals as *mut level_locals_t).unwrap();
         let mut player_state = PlayerStateBuilder::default().build().unwrap();
         player_state.powerups[PW_QUAD as usize] = 1235;
         player_state.powerups[PW_BATTLESUIT as usize] = 1236;
@@ -678,11 +673,8 @@ pub(crate) mod game_client_tests {
         player_state.powerups[PW_INVULNERABILITY as usize] = 1240;
         let mut gclient = GClientBuilder::default().ps(player_state).build().unwrap();
         let mut game_client = GameClient::try_from(&mut gclient as *mut gclient_t).unwrap();
-        game_client.set_powerups_internal([0, 0, 0, 0, 0, 0], &current_level);
-        assert_eq!(
-            game_client.get_powerups_internal(&current_level),
-            [0, 0, 0, 0, 0, 0]
-        );
+        game_client.set_powerups_internal([0, 0, 0, 0, 0, 0], 1000);
+        assert_eq!(game_client.get_powerups_internal(1000), [0, 0, 0, 0, 0, 0]);
     }
 
     #[test]
@@ -726,12 +718,9 @@ pub(crate) mod game_client_tests {
 
     #[test]
     pub(crate) fn game_client_set_invulnerability() {
-        let mut level_locals = LevelLocalsBuilder::default().time(1234).build().unwrap();
-        let current_level =
-            CurrentLevel::try_from(&mut level_locals as *mut level_locals_t).unwrap();
         let mut gclient = GClientBuilder::default().build().unwrap();
         let mut game_client = GameClient::try_from(&mut gclient as *mut gclient_t).unwrap();
-        game_client.set_invulnerability_internal(10, &current_level);
+        game_client.set_invulnerability_internal(10, 1234);
         assert_eq!(gclient.invulnerabilityTime, 1244);
     }
 
@@ -880,9 +869,6 @@ pub(crate) mod game_client_tests {
 
     #[test]
     pub(crate) fn game_client_get_time_on_team() {
-        let mut level_locals = LevelLocalsBuilder::default().time(1234).build().unwrap();
-        let current_level =
-            CurrentLevel::try_from(&mut level_locals as *mut level_locals_t).unwrap();
         let client_persistant = ClientPersistantBuilder::default()
             .enterTime(1192)
             .build()
@@ -892,7 +878,7 @@ pub(crate) mod game_client_tests {
             .build()
             .unwrap();
         let game_client = GameClient::try_from(&mut gclient as *mut gclient_t).unwrap();
-        assert_eq!(game_client.get_time_on_team_internal(&current_level), 42);
+        assert_eq!(game_client.get_time_on_team_internal(1234), 42);
     }
 
     #[test]

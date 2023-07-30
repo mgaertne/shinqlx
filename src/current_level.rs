@@ -1,7 +1,9 @@
 use crate::game_entity::GameEntity;
 use crate::hooks::shinqlx_set_configstring;
 use crate::quake_live_engine::QuakeLiveEngineError;
-use crate::quake_live_engine::QuakeLiveEngineError::NullPointerPassed;
+use crate::quake_live_engine::QuakeLiveEngineError::{
+    MainEngineNotInitialized, MainEngineUnreadable, NullPointerPassed,
+};
 use crate::quake_types::{level_locals_t, CS_VOTE_NO, CS_VOTE_STRING, CS_VOTE_TIME, CS_VOTE_YES};
 use crate::MAIN_ENGINE;
 use std::ffi::c_char;
@@ -24,31 +26,24 @@ impl TryFrom<*mut level_locals_t> for CurrentLevel {
 
 const OFFSET_LEVEL: usize = 0x4A1;
 
-impl Default for CurrentLevel {
-    fn default() -> Self {
+impl CurrentLevel {
+    pub(crate) fn try_get() -> Result<Self, QuakeLiveEngineError> {
         let Some(main_engine_guard) = MAIN_ENGINE.try_read() else {
-            debug_println!("main quake live engine not readable.");
-            panic!("main quake live engine not readable.");
+            return Err(MainEngineUnreadable);
         };
 
         let Some(ref main_engine) = *main_engine_guard else {
-            debug_println!("main quake live engine not initialized.");
-            panic!("main quake live engine not initialized.");
+            return Err(MainEngineNotInitialized);
         };
 
-        let Ok(func_pointer) = main_engine.g_init_game_orig() else {
-            debug_println!("G_InitGame not initialized.");
-            panic!("G_InitGame not initialized.");
-        };
+        let func_pointer = main_engine.g_init_game_orig()?;
         let base_address = unsafe {
             std::ptr::read_unaligned((func_pointer as usize + OFFSET_LEVEL) as *const i32)
         };
         let level_ptr = base_address as usize + func_pointer as usize + OFFSET_LEVEL + 4;
-        Self::try_from(level_ptr as *mut level_locals_t).unwrap()
+        Self::try_from(level_ptr as *mut level_locals_t)
     }
-}
 
-impl CurrentLevel {
     pub(crate) fn get_vote_time(&self) -> Option<i32> {
         if self.level.voteTime <= 0 {
             None
@@ -108,7 +103,10 @@ impl CurrentLevel {
 pub(crate) mod current_level_tests {
     use crate::current_level::CurrentLevel;
     use crate::quake_live_engine::QuakeLiveEngine;
-    use crate::quake_live_engine::QuakeLiveEngineError::NullPointerPassed;
+    use crate::quake_live_engine::QuakeLiveEngineError::{
+        MainEngineNotInitialized, NullPointerPassed, VmFunctionNotFound,
+    };
+    use crate::quake_live_functions::QuakeLiveFunction::G_InitGame;
     use crate::quake_types::{level_locals_t, qboolean, LevelLocalsBuilder};
     use crate::MAIN_ENGINE;
     use pretty_assertions::assert_eq;
@@ -118,14 +116,16 @@ pub(crate) mod current_level_tests {
     use std::sync::atomic::Ordering;
 
     #[test]
-    #[should_panic(expected = "main quake live engine not initialized")]
     #[serial]
     pub(crate) fn current_level_default_panics_when_no_main_engine_found() {
         {
             let mut guard = MAIN_ENGINE.write();
             *guard = None;
         }
-        CurrentLevel::default();
+        let result = CurrentLevel::try_get();
+
+        assert!(result.is_err());
+        assert_eq!(result.err().unwrap(), MainEngineNotInitialized);
     }
 
     #[test]
@@ -136,18 +136,15 @@ pub(crate) mod current_level_tests {
             *guard = Some(QuakeLiveEngine::new());
         }
 
-        let result = panic::catch_unwind(|| {
-            CurrentLevel::default();
-        });
+        let result = CurrentLevel::try_get();
 
         {
             let mut guard = MAIN_ENGINE.write();
             *guard = None;
         }
 
-        let error = result.err().unwrap();
-        let error_string: &str = error.downcast_ref::<&str>().unwrap();
-        assert_eq!(error_string, "G_InitGame not initialized.");
+        assert!(result.is_err());
+        assert_eq!(result.err().unwrap(), VmFunctionNotFound(G_InitGame));
     }
 
     #[test]
