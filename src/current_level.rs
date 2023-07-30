@@ -56,7 +56,11 @@ impl CurrentLevel {
         self.level.time
     }
 
-    pub(crate) fn callvote(&mut self, vote: &str, vote_disp: &str, vote_time: Option<i32>) {
+    pub(crate) fn callvote<T, U>(&mut self, vote: T, vote_disp: U, vote_time: Option<i32>)
+    where
+        T: AsRef<str>,
+        U: AsRef<str>,
+    {
         let Some(main_engine_guard) = MAIN_ENGINE.try_read() else {
             return;
         };
@@ -67,15 +71,15 @@ impl CurrentLevel {
 
         let actual_vote_time = vote_time.unwrap_or(30);
 
-        let mut vote_bytes_iter = vote.bytes();
-        self.level.voteString[0..vote.len()]
+        let mut vote_bytes_iter = vote.as_ref().bytes();
+        self.level.voteString[0..vote.as_ref().len()]
             .fill_with(|| vote_bytes_iter.next().unwrap() as c_char);
-        self.level.voteString[vote.len()..].fill(0 as c_char);
+        self.level.voteString[vote.as_ref().len()..].fill(0 as c_char);
 
-        let mut vote_disp_bytes_iter = vote_disp.bytes();
-        self.level.voteDisplayString[0..vote_disp.len()]
+        let mut vote_disp_bytes_iter = vote_disp.as_ref().bytes();
+        self.level.voteDisplayString[0..vote_disp.as_ref().len()]
             .fill_with(|| vote_disp_bytes_iter.next().unwrap() as c_char);
-        self.level.voteDisplayString[vote_disp.len()..].fill(0 as c_char);
+        self.level.voteDisplayString[vote_disp.as_ref().len()..].fill(0 as c_char);
 
         self.level.voteTime = self.level.time - 30000 + actual_vote_time * 1000;
         self.level.voteYes = 0;

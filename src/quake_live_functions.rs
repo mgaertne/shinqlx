@@ -1,12 +1,19 @@
 use crate::quake_live_engine::QuakeLiveEngineError;
+use crate::quake_live_engine::QuakeLiveEngineError::{
+    DetourCouldNotBeCreated, DetourCouldNotBeEnabled,
+};
 use retour::{Function, GenericDetour, HookableWith};
+use std::borrow::Borrow;
 use std::fmt::{Display, Formatter};
 
 #[cfg(target_os = "linux")]
-pub(crate) fn pattern_search_module(
+pub(crate) fn pattern_search_module<T>(
     module_info: &[&procfs::process::MemoryMap],
-    ql_func: &QuakeLiveFunction,
-) -> Option<usize> {
+    ql_func: T,
+) -> Option<usize>
+where
+    T: Borrow<QuakeLiveFunction>,
+{
     module_info
         .iter()
         .filter(|memory_map| {
@@ -18,7 +25,7 @@ pub(crate) fn pattern_search_module(
             pattern_search(
                 memory_map.address.0 as usize,
                 memory_map.address.1 as usize,
-                ql_func,
+                ql_func.borrow(),
             )
         })
         .take(1)
@@ -26,9 +33,12 @@ pub(crate) fn pattern_search_module(
 }
 
 #[allow(dead_code)]
-fn pattern_search(start: usize, end: usize, ql_func: &QuakeLiveFunction) -> Option<usize> {
-    let pattern = ql_func.pattern();
-    let mask = ql_func.mask();
+fn pattern_search<T>(start: usize, end: usize, ql_func: T) -> Option<usize>
+where
+    T: Borrow<QuakeLiveFunction>,
+{
+    let pattern = ql_func.borrow().pattern();
+    let mask = ql_func.borrow().mask();
     (start..end)
         .filter(|i| {
             (0..pattern.len())
@@ -135,13 +145,12 @@ impl QuakeLiveFunction {
         D: Function,
     {
         let detour = unsafe {
-            GenericDetour::new(function, replacement)
-                .map_err(|_| QuakeLiveEngineError::DetourCouldNotBeCreated(*self))?
+            GenericDetour::new(function, replacement).map_err(|_| DetourCouldNotBeCreated(*self))?
         };
         unsafe {
             detour
                 .enable()
-                .map_err(|_| QuakeLiveEngineError::DetourCouldNotBeEnabled(*self))?
+                .map_err(|_| DetourCouldNotBeEnabled(*self))?
         };
 
         Ok(detour)

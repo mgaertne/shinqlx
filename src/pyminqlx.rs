@@ -50,33 +50,36 @@ use pyo3::prelude::*;
 use pyo3::prepare_freethreaded_python;
 use pyo3::types::PyTuple;
 
-pub(crate) fn client_command_dispatcher(client_id: i32, cmd: &str) -> Option<String> {
+pub(crate) fn client_command_dispatcher<T>(client_id: i32, cmd: T) -> Option<String>
+where
+    T: AsRef<str>,
+{
     if !pyminqlx_is_initialized() {
-        return Some(cmd.into());
+        return Some(cmd.as_ref().into());
     }
 
     let Some(client_command_lock) = CLIENT_COMMAND_HANDLER.try_read() else {
-        return Some(cmd.into());
+        return Some(cmd.as_ref().into());
     };
 
     let Some(ref client_command_handler) = *client_command_lock else {
-        return Some(cmd.into());
+        return Some(cmd.as_ref().into());
     };
 
     Python::with_gil(
-        |py| match client_command_handler.call1(py, (client_id, cmd)) {
+        |py| match client_command_handler.call1(py, (client_id, cmd.as_ref())) {
             Err(_) => {
                 dbg!("client_command_handler returned an error.\n");
-                Some(cmd.into())
+                Some(cmd.as_ref().into())
             }
             Ok(returned) => match returned.extract::<String>(py) {
                 Err(_) => match returned.extract::<bool>(py) {
-                    Err(_) => Some(cmd.into()),
+                    Err(_) => Some(cmd.as_ref().into()),
                     Ok(result_bool) => {
                         if !result_bool {
                             None
                         } else {
-                            Some(cmd.into())
+                            Some(cmd.as_ref().into())
                         }
                     }
                 },
@@ -86,39 +89,42 @@ pub(crate) fn client_command_dispatcher(client_id: i32, cmd: &str) -> Option<Str
     )
 }
 
-pub(crate) fn server_command_dispatcher(client_id: Option<i32>, cmd: &str) -> Option<String> {
+pub(crate) fn server_command_dispatcher<T>(client_id: Option<i32>, cmd: T) -> Option<String>
+where
+    T: AsRef<str>,
+{
     if !pyminqlx_is_initialized() {
-        return Some(cmd.into());
+        return Some(cmd.as_ref().into());
     }
 
     let Some(server_command_lock) = SERVER_COMMAND_HANDLER.try_read() else {
-        return Some(cmd.into());
+        return Some(cmd.as_ref().into());
     };
     let Some(ref server_command_handler) = *server_command_lock else {
-        return Some(cmd.into());
+        return Some(cmd.as_ref().into());
     };
 
-    Python::with_gil(
-        |py| match server_command_handler.call1(py, (client_id.unwrap_or(-1), cmd)) {
+    Python::with_gil(|py| {
+        match server_command_handler.call1(py, (client_id.unwrap_or(-1), cmd.as_ref())) {
             Err(_) => {
                 dbg!("server_command_handler returned an error.\n");
-                Some(cmd.into())
+                Some(cmd.as_ref().into())
             }
             Ok(returned) => match returned.extract::<String>(py) {
                 Err(_) => match returned.extract::<bool>(py) {
-                    Err(_) => Some(cmd.into()),
+                    Err(_) => Some(cmd.as_ref().into()),
                     Ok(result_bool) => {
                         if !result_bool {
                             None
                         } else {
-                            Some(cmd.into())
+                            Some(cmd.as_ref().into())
                         }
                     }
                 },
                 Ok(result_string) => Some(result_string),
             },
-        },
-    )
+        }
+    })
 }
 
 pub(crate) fn frame_dispatcher() {
@@ -180,7 +186,10 @@ pub(crate) fn client_connect_dispatcher(client_id: i32, is_bot: bool) -> Option<
     result
 }
 
-pub(crate) fn client_disconnect_dispatcher(client_id: i32, reason: &str) {
+pub(crate) fn client_disconnect_dispatcher<T>(client_id: i32, reason: T)
+where
+    T: AsRef<str>,
+{
     if !pyminqlx_is_initialized() {
         return;
     }
@@ -195,7 +204,7 @@ pub(crate) fn client_disconnect_dispatcher(client_id: i32, reason: &str) {
 
     ALLOW_FREE_CLIENT.store(client_id, Ordering::Relaxed);
     Python::with_gil(|py| {
-        let result = client_disconnect_handler.call1(py, (client_id, reason));
+        let result = client_disconnect_handler.call1(py, (client_id, reason.as_ref()));
         if result.is_err() {
             dbg!("client_disconnect_handler returned an error.\n");
         }
@@ -241,33 +250,36 @@ pub(crate) fn new_game_dispatcher(restart: bool) {
     };
 }
 
-pub(crate) fn set_configstring_dispatcher(index: u32, value: &str) -> Option<String> {
+pub(crate) fn set_configstring_dispatcher<T>(index: u32, value: T) -> Option<String>
+where
+    T: AsRef<str>,
+{
     if !pyminqlx_is_initialized() {
-        return Some(value.into());
+        return Some(value.as_ref().into());
     }
 
     let Some(set_configstring_lock) = SET_CONFIGSTRING_HANDLER.try_read() else {
-        return Some(value.into());
+        return Some(value.as_ref().into());
     };
 
     let Some(ref set_configstring_handler) = *set_configstring_lock else {
-        return Some(value.into());
+        return Some(value.as_ref().into());
     };
 
     Python::with_gil(
-        |py| match set_configstring_handler.call1(py, (index, value)) {
+        |py| match set_configstring_handler.call1(py, (index, value.as_ref())) {
             Err(_) => {
                 dbg!("set_configstring_handler returned an error.\n");
-                Some(value.into())
+                Some(value.as_ref().into())
             }
             Ok(returned) => match returned.extract::<String>(py) {
                 Err(_) => match returned.extract::<bool>(py) {
-                    Err(_) => Some(value.into()),
+                    Err(_) => Some(value.as_ref().into()),
                     Ok(result_bool) => {
                         if !result_bool {
                             None
                         } else {
-                            Some(value.into())
+                            Some(value.as_ref().into())
                         }
                     }
                 },
@@ -277,7 +289,10 @@ pub(crate) fn set_configstring_dispatcher(index: u32, value: &str) -> Option<Str
     )
 }
 
-pub(crate) fn rcon_dispatcher(cmd: &str) {
+pub(crate) fn rcon_dispatcher<T>(cmd: T)
+where
+    T: AsRef<str>,
+{
     if !pyminqlx_is_initialized() {
         return;
     }
@@ -288,7 +303,7 @@ pub(crate) fn rcon_dispatcher(cmd: &str) {
 
     if let Some(ref rcon_handler) = *rcon_lock {
         Python::with_gil(|py| {
-            let result = rcon_handler.call1(py, (cmd,));
+            let result = rcon_handler.call1(py, (cmd.as_ref(),));
             if result.is_err() {
                 dbg!("rcon_handler returned an error.\n");
             }
@@ -296,38 +311,43 @@ pub(crate) fn rcon_dispatcher(cmd: &str) {
     }
 }
 
-pub(crate) fn console_print_dispatcher(text: &str) -> Option<String> {
+pub(crate) fn console_print_dispatcher<T>(text: T) -> Option<String>
+where
+    T: AsRef<str>,
+{
     if !pyminqlx_is_initialized() {
-        return Some(text.into());
+        return Some(text.as_ref().into());
     }
 
     let Some(console_print_lock) = CONSOLE_PRINT_HANDLER.try_read() else {
-        return Some(text.into());
+        return Some(text.as_ref().into());
     };
 
     let Some(ref console_print_handler) = *console_print_lock else {
-        return Some(text.into());
+        return Some(text.as_ref().into());
     };
 
-    Python::with_gil(|py| match console_print_handler.call1(py, (text,)) {
-        Err(_) => {
-            dbg!("console_print_handler returned an error.\n");
-            Some(text.into())
-        }
-        Ok(returned) => match returned.extract::<String>(py) {
-            Err(_) => match returned.extract::<bool>(py) {
-                Err(_) => Some(text.into()),
-                Ok(result_bool) => {
-                    if !result_bool {
-                        None
-                    } else {
-                        Some(text.into())
+    Python::with_gil(
+        |py| match console_print_handler.call1(py, (text.as_ref(),)) {
+            Err(_) => {
+                dbg!("console_print_handler returned an error.\n");
+                Some(text.as_ref().into())
+            }
+            Ok(returned) => match returned.extract::<String>(py) {
+                Err(_) => match returned.extract::<bool>(py) {
+                    Err(_) => Some(text.as_ref().into()),
+                    Ok(result_bool) => {
+                        if !result_bool {
+                            None
+                        } else {
+                            Some(text.as_ref().into())
+                        }
                     }
-                }
+                },
+                Ok(result_string) => Some(result_string),
             },
-            Ok(result_string) => Some(result_string),
         },
-    })
+    )
 }
 
 pub(crate) fn client_spawn_dispatcher(client_id: i32) {

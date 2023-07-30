@@ -244,7 +244,7 @@ pub extern "C" fn cmd_py_rcon() {
         return;
     };
 
-    rcon_dispatcher(commands.as_str());
+    rcon_dispatcher(commands);
 }
 
 #[no_mangle]
