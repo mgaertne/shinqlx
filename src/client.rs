@@ -77,8 +77,11 @@ impl Client {
         !self.client_t.gentity.is_null()
     }
 
-    pub(crate) fn disconnect(&mut self, reason: &str) {
-        let c_reason = CString::new(reason).unwrap_or(CString::new("").unwrap());
+    pub(crate) fn disconnect<T>(&mut self, reason: T)
+    where
+        T: AsRef<str>,
+    {
+        let c_reason = CString::new(reason.as_ref()).unwrap_or(CString::new("").unwrap());
 
         let Some(main_engine_guard) = MAIN_ENGINE.try_read() else {
             return;

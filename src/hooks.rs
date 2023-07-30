@@ -110,19 +110,14 @@ pub(crate) fn shinqlx_sv_executeclientcommand(
 ) {
     let rust_cmd = unsafe { CStr::from_ptr(cmd) }.to_string_lossy();
     if !rust_cmd.is_empty() {
-        shinqlx_execute_client_command(
-            Client::try_from(client).ok(),
-            rust_cmd.as_ref(),
-            client_ok.into(),
-        );
+        shinqlx_execute_client_command(Client::try_from(client).ok(), rust_cmd, client_ok.into());
     }
 }
 
-pub(crate) fn shinqlx_execute_client_command(
-    mut client: Option<Client>,
-    cmd: &str,
-    client_ok: bool,
-) {
+pub(crate) fn shinqlx_execute_client_command<T>(mut client: Option<Client>, cmd: T, client_ok: bool)
+where
+    T: AsRef<str>,
+{
     let passed_on_cmd_str = if client_ok
         && client
             .as_ref()
@@ -137,7 +132,7 @@ pub(crate) fn shinqlx_execute_client_command(
         };
         dispatcher_result
     } else {
-        cmd.into()
+        cmd.as_ref().into()
     };
 
     if !passed_on_cmd_str.is_empty() {
@@ -180,32 +175,33 @@ pub unsafe extern "C" fn ShiNQlx_SV_SendServerCommand(
         .to_string_lossy();
     if !cmd.is_empty() {
         if client.is_null() {
-            shinqlx_send_server_command(None, cmd.as_ref());
+            shinqlx_send_server_command(None, cmd);
         } else {
             let safe_client = Client::try_from(client);
             if safe_client.is_ok() {
-                shinqlx_send_server_command(safe_client.ok(), cmd.as_ref());
+                shinqlx_send_server_command(safe_client.ok(), cmd);
             }
         }
     }
 }
 
-pub(crate) fn shinqlx_send_server_command(client: Option<Client>, cmd: &str) {
-    let mut passed_on_cmd_str = cmd.to_string();
+pub(crate) fn shinqlx_send_server_command<T>(client: Option<Client>, cmd: T)
+where
+    T: AsRef<str>,
+{
+    let mut passed_on_cmd_str = cmd.as_ref().to_string();
 
     match client.as_ref() {
         Some(safe_client) => {
             if safe_client.has_gentity() {
                 let client_id = safe_client.get_client_id();
-                if let Some(res) =
-                    server_command_dispatcher(Some(client_id), passed_on_cmd_str.as_str())
-                {
+                if let Some(res) = server_command_dispatcher(Some(client_id), &passed_on_cmd_str) {
                     passed_on_cmd_str = res;
                 }
             }
         }
         None => {
-            if let Some(res) = server_command_dispatcher(None, passed_on_cmd_str.as_str()) {
+            if let Some(res) = server_command_dispatcher(None, &passed_on_cmd_str) {
                 passed_on_cmd_str = res;
             }
         }
@@ -259,10 +255,13 @@ pub(crate) fn shinqlx_sv_setconfigstring(index: c_int, value: *const c_char) {
     let Ok(ql_index) = u32::try_from(index) else {
         return;
     };
-    shinqlx_set_configstring(ql_index, safe_value.as_ref());
+    shinqlx_set_configstring(ql_index, safe_value);
 }
 
-pub(crate) fn shinqlx_set_configstring(index: u32, value: &str) {
+pub(crate) fn shinqlx_set_configstring<T>(index: u32, value: T)
+where
+    T: AsRef<str>,
+{
     // Indices 16 and 66X are spammed a ton every frame for some reason,
     // so we add some exceptions for those. I don't think we should have any
     // use for those particular ones anyway. If we don't do this, we get
@@ -276,7 +275,7 @@ pub(crate) fn shinqlx_set_configstring(index: u32, value: &str) {
     };
 
     if index == 16 || (662..670).contains(&index) {
-        main_engine.set_configstring(&index, value);
+        main_engine.set_configstring(&index, value.as_ref());
         return;
     }
 
@@ -292,12 +291,15 @@ pub(crate) fn shinqlx_sv_dropclient(client: *mut client_t, reason: *const c_char
     };
     shinqlx_drop_client(
         &mut safe_client,
-        unsafe { CStr::from_ptr(reason) }.to_string_lossy().as_ref(),
+        unsafe { CStr::from_ptr(reason) }.to_string_lossy(),
     );
 }
 
-pub(crate) fn shinqlx_drop_client(client: &mut Client, reason: &str) {
-    client_disconnect_dispatcher(client.get_client_id(), reason);
+pub(crate) fn shinqlx_drop_client<T>(client: &mut Client, reason: T)
+where
+    T: AsRef<str>,
+{
+    client_disconnect_dispatcher(client.get_client_id(), &reason);
 
     client.disconnect(reason);
 }
@@ -324,12 +326,15 @@ pub unsafe extern "C" fn ShiNQlx_Com_Printf(fmt: *const c_char, mut fmt_args: ..
         .unwrap()
         .to_string_lossy();
     if !rust_msg.is_empty() {
-        shinqlx_com_printf(rust_msg.as_ref());
+        shinqlx_com_printf(rust_msg);
     }
 }
 
-pub(crate) fn shinqlx_com_printf(msg: &str) {
-    let Some(_res) = console_print_dispatcher(msg) else {
+pub(crate) fn shinqlx_com_printf<T>(msg: T)
+where
+    T: AsRef<str>,
+{
+    let Some(_res) = console_print_dispatcher(&msg) else {
         return;
     };
 
@@ -341,7 +346,7 @@ pub(crate) fn shinqlx_com_printf(msg: &str) {
         return;
     };
 
-    main_engine.com_printf(msg);
+    main_engine.com_printf(msg.as_ref());
 }
 
 pub(crate) fn shinqlx_sv_spawnserver(server: *const c_char, kill_bots: qboolean) {
