@@ -45,7 +45,7 @@ impl TryFrom<i32> for Client {
             return Err(InvalidId(client_id));
         }
 
-        let server_static = ServerStatic::default();
+        let server_static = ServerStatic::try_get()?;
         Self::try_from(unsafe {
             server_static
                 .serverStatic_t
@@ -58,7 +58,10 @@ impl TryFrom<i32> for Client {
 
 impl Client {
     pub(crate) fn get_client_id(&self) -> i32 {
-        let server_static = ServerStatic::default();
+        let Ok(server_static) = ServerStatic::try_get() else {
+            return -1;
+        };
+
         unsafe {
             (self.client_t as *const client_t).offset_from(server_static.serverStatic_t.clients)
         }

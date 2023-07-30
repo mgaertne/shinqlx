@@ -930,8 +930,9 @@ fn set_configstring(py: Python<'_>, config_id: u32, value: &str) -> PyResult<()>
 #[pyo3(name = "force_vote")]
 fn force_vote(py: Python<'_>, pass: bool) -> PyResult<bool> {
     let vote_time = py.allow_threads(|| {
-        let current_level = CurrentLevel::default();
-        current_level.get_vote_time()
+        CurrentLevel::try_get()
+            .ok()
+            .and_then(|current_level| current_level.get_vote_time())
     });
     if vote_time.is_none() {
         return Ok(false);
@@ -2284,7 +2285,9 @@ fn set_score(py: Python<'_>, client_id: i32, score: i32) -> PyResult<bool> {
 #[pyo3(name = "callvote")]
 fn callvote(py: Python<'_>, vote: &str, vote_disp: &str, vote_time: Option<i32>) {
     py.allow_threads(move || {
-        let mut current_level = CurrentLevel::default();
+        let Ok(mut current_level) = CurrentLevel::try_get() else {
+            return;
+        };
         current_level.callvote(vote, vote_disp, vote_time);
     })
 }
@@ -2294,7 +2297,9 @@ fn callvote(py: Python<'_>, vote: &str, vote_disp: &str, vote_time: Option<i32>)
 #[pyo3(name = "allow_single_player")]
 fn allow_single_player(py: Python<'_>, allow: bool) {
     py.allow_threads(move || {
-        let mut current_level = CurrentLevel::default();
+        let Ok(mut current_level) = CurrentLevel::try_get() else {
+            return;
+        };
         current_level.set_training_map(allow);
     })
 }

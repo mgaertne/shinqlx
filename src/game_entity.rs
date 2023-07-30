@@ -126,11 +126,18 @@ pub(crate) extern "C" fn ShiNQlx_Switch_Touch_Item(ent: *mut gentity_t) {
         return;
     };
 
-    if let Some(mut_ent) = unsafe { ent.as_mut() } {
-        mut_ent.touch = Some(touch_item_func);
-        mut_ent.think = Some(free_entity_func);
-        mut_ent.nextthink = CurrentLevel::default().get_leveltime() + 29000;
-    }
+    let Some(mut_ent) = (unsafe { ent.as_mut() }) else {
+        return;
+    };
+
+    let level_time = CurrentLevel::try_get()
+        .ok()
+        .map(|current_level| current_level.get_leveltime())
+        .unwrap_or_default();
+
+    mut_ent.touch = Some(touch_item_func);
+    mut_ent.think = Some(free_entity_func);
+    mut_ent.nextthink = level_time + 29000;
 }
 
 const OFFSET_G_ENTITIES: usize = 0x11B;
@@ -319,12 +326,16 @@ impl GameEntity {
             return;
         };
 
-        self.drop_holdable_internal(&CurrentLevel::default(), main_engine);
+        let level_time = CurrentLevel::try_get()
+            .ok()
+            .map(|current_level| current_level.get_leveltime())
+            .unwrap_or_default();
+        self.drop_holdable_internal(level_time, main_engine);
     }
 
     pub(crate) fn drop_holdable_internal(
         &mut self,
-        current_level: &CurrentLevel,
+        level_time: i32,
         quake_live_engine: &impl TryLaunchItem,
     ) {
         if let Ok(mut game_client) = self.get_game_client() {
@@ -337,8 +348,8 @@ impl GameEntity {
                 entity.gentity_t.touch = Some(ShiNQlx_Touch_Item);
                 entity.gentity_t.parent = self.gentity_t;
                 entity.gentity_t.think = Some(ShiNQlx_Switch_Touch_Item);
-                entity.gentity_t.nextthink = current_level.get_leveltime() + 1000;
-                entity.gentity_t.s.pos.trTime = current_level.get_leveltime() - 500;
+                entity.gentity_t.nextthink = level_time + 1000;
+                entity.gentity_t.s.pos.trTime = level_time - 500;
                 game_client.set_holdable(0);
             }
         }
@@ -415,7 +426,6 @@ impl GameEntity {
 
 #[cfg(test)]
 pub(crate) mod game_entity_tests {
-    use crate::current_level::CurrentLevel;
     use crate::game_entity::GameEntity;
     use crate::quake_live_engine::QuakeLiveEngineError::{InvalidId, NullPointerPassed};
     use crate::quake_live_engine::{
@@ -430,10 +440,9 @@ pub(crate) mod game_entity_tests {
     use crate::quake_types::statIndex_t::{STAT_ARMOR, STAT_HOLDABLE_ITEM};
     use crate::quake_types::team_t::{TEAM_RED, TEAM_SPECTATOR};
     use crate::quake_types::{
-        gclient_t, gentity_t, gitem_t, level_locals_t, qboolean, ClientPersistantBuilder,
-        ClientSessionBuilder, EntityStateBuilder, GClientBuilder, GEntityBuilder, GItemBuilder,
-        LevelLocalsBuilder, PlayerStateBuilder, DAMAGE_NO_PROTECTION, FL_DROPPED_ITEM,
-        FL_FORCE_GESTURE,
+        gclient_t, gentity_t, gitem_t, qboolean, ClientPersistantBuilder, ClientSessionBuilder,
+        EntityStateBuilder, GClientBuilder, GEntityBuilder, GItemBuilder, PlayerStateBuilder,
+        DAMAGE_NO_PROTECTION, FL_DROPPED_ITEM, FL_FORCE_GESTURE,
     };
     use pretty_assertions::assert_eq;
     use std::ffi::{c_char, c_int, CString};
@@ -852,9 +861,6 @@ pub(crate) mod game_entity_tests {
 
     #[allow(unused)]
     pub(crate) fn game_entity_drop_holdable() {
-        let mut level = LevelLocalsBuilder::default().time(2468).build().unwrap();
-        let current_level = CurrentLevel::try_from(&mut level as *mut level_locals_t).unwrap();
-
         let mut entity_state = EntityStateBuilder::default().build().unwrap();
         entity_state.apos.trBase[1] = 0.5;
         let mut player_state = PlayerStateBuilder::default().build().unwrap();
@@ -874,7 +880,7 @@ pub(crate) mod game_entity_tests {
         mock.expect_try_launch_item()
             .return_once_st(|_, _, _| Ok(launched_entity));
 
-        game_entity.drop_holdable_internal(&current_level, &mock);
+        game_entity.drop_holdable_internal(2468, &mock);
         assert_eq!(launched_gentity.parent, &mut gentity as *mut gentity_t);
         assert_eq!(launched_gentity.nextthink, 3468);
         assert_eq!(launched_gentity.s.pos.trTime, 1968);

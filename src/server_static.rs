@@ -1,5 +1,7 @@
 use crate::quake_live_engine::QuakeLiveEngineError;
-use crate::quake_live_engine::QuakeLiveEngineError::NullPointerPassed;
+use crate::quake_live_engine::QuakeLiveEngineError::{
+    MainEngineNotInitialized, MainEngineUnreadable, NullPointerPassed,
+};
 use crate::quake_types::serverStatic_t;
 use crate::MAIN_ENGINE;
 
@@ -22,39 +24,36 @@ impl TryFrom<*mut serverStatic_t> for ServerStatic {
     }
 }
 
-impl Default for ServerStatic {
-    fn default() -> Self {
+impl ServerStatic {
+    pub(crate) fn try_get() -> Result<Self, QuakeLiveEngineError> {
         let Some(main_engine_guard) = MAIN_ENGINE.try_read() else {
-            debug_println!("main quake live engine not accessible.");
-            panic!("main quake live engine not accessible.");
+            return Err(MainEngineUnreadable);
         };
 
         let Some(ref main_engine) = *main_engine_guard else {
-            debug_println!("main quake live engine not initialized.");
-            panic!("main quake live engine not initialized.");
+            return Err(MainEngineNotInitialized);
         };
 
-        let Ok(func_pointer) = main_engine.sv_shutdown_orig() else {
-            debug_println!("SV_Shutdown function not initialized.");
-            panic!("SV_Shutdown function not initialized.");
-        };
+        let func_pointer = main_engine.sv_shutdown_orig()?;
 
         let svs_ptr_ptr = func_pointer as usize + 0xAC;
         let svs_ptr: u32 = unsafe { std::ptr::read(svs_ptr_ptr as *const u32) };
-        Self::try_from(svs_ptr as *mut serverStatic_t).unwrap()
+        Self::try_from(svs_ptr as *mut serverStatic_t)
     }
 }
 
 #[cfg(test)]
 pub(crate) mod server_static_tests {
     use crate::quake_live_engine::QuakeLiveEngine;
-    use crate::quake_live_engine::QuakeLiveEngineError::NullPointerPassed;
+    use crate::quake_live_engine::QuakeLiveEngineError::{
+        MainEngineNotInitialized, NullPointerPassed, StaticFunctionNotFound,
+    };
+    use crate::quake_live_functions::QuakeLiveFunction::SV_Shutdown;
     use crate::quake_types::{serverStatic_t, ServerStaticBuilder};
     use crate::server_static::ServerStatic;
     use crate::MAIN_ENGINE;
     use pretty_assertions::assert_eq;
     use serial_test::serial;
-    use std::panic;
 
     #[test]
     pub(crate) fn server_static_try_from_null_results_in_error() {
@@ -75,14 +74,16 @@ pub(crate) mod server_static_tests {
 
     #[test]
     #[serial]
-    #[should_panic(expected = "main quake live engine not initialized.")]
     pub(crate) fn server_static_default_panics_when_no_main_engine_found() {
         {
             let mut guard = MAIN_ENGINE.write();
             *guard = None;
         }
 
-        ServerStatic::default();
+        let result = ServerStatic::try_get();
+
+        assert!(result.is_err());
+        assert_eq!(result.err().unwrap(), MainEngineNotInitialized);
     }
 
     #[test]
@@ -93,17 +94,14 @@ pub(crate) mod server_static_tests {
             *guard = Some(QuakeLiveEngine::new());
         }
 
-        let result = panic::catch_unwind(|| {
-            ServerStatic::default();
-        });
+        let result = ServerStatic::try_get();
 
         {
             let mut guard = MAIN_ENGINE.write();
             *guard = None;
         }
 
-        let error = result.err().unwrap();
-        let error_string: &str = error.downcast_ref::<&str>().unwrap();
-        assert_eq!(error_string, "SV_Shutdown function not initialized.");
+        assert!(result.is_err());
+        assert_eq!(result.err().unwrap(), StaticFunctionNotFound(SV_Shutdown));
     }
 }
