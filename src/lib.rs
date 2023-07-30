@@ -40,15 +40,6 @@ pub(crate) const DEBUG_PRINT_PREFIX: &str = "[shinqlx]";
 
 pub(crate) const SV_TAGS_PREFIX: &str = "shinqlx";
 
-#[allow(non_camel_case_types)]
-#[derive(PartialEq, Debug, Clone, Copy)]
-pub(crate) enum PyMinqlx_InitStatus_t {
-    PYM_SUCCESS,
-    PYM_MAIN_SCRIPT_ERROR,
-    PYM_ALREADY_INITIALIZED,
-    PYM_NOT_INITIALIZED_ERROR,
-}
-
 pub(crate) static ALLOW_FREE_CLIENT: AtomicI32 = AtomicI32::new(-1);
 
 #[allow(dead_code)]

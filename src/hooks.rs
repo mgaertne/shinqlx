@@ -28,7 +28,11 @@ pub(crate) fn shinqlx_cmd_addcommand(cmd: *const c_char, func: unsafe extern "C"
     };
 
     if !main_engine.is_common_initialized() {
-        main_engine.initialize_static();
+        if let Err(err) = main_engine.initialize_static() {
+            debug_println!(format!("{:?}", err));
+            debug_println!("Static initialization failed. Exiting.");
+            panic!("Static initialization failed. Exiting.");
+        }
     }
 
     let command = unsafe { CStr::from_ptr(cmd) }.to_string_lossy();
