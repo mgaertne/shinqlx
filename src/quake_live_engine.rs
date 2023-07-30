@@ -14,7 +14,8 @@ use crate::hooks::{
     ShiNQlx_G_StartKamikaze, ShiNQlx_SV_SendServerCommand,
 };
 use crate::patches::patch_callvote_f;
-use crate::pyminqlx::pyminqlx_initialize;
+use crate::pyminqlx::{pyminqlx_initialize, PythonInitializationError};
+use crate::quake_live_engine::QuakeLiveEngineError::PythonInitializationFailed;
 #[cfg(target_os = "linux")]
 use crate::quake_live_functions::pattern_search_module;
 use crate::quake_live_functions::QuakeLiveFunction;
@@ -22,7 +23,6 @@ use crate::quake_types::{
     cbufExec_t, client_t, cvar_t, entity_event_t, gentity_t, gitem_t, qboolean, trace_t, usercmd_t,
     vec3_t, MAX_STRING_CHARS,
 };
-use crate::PyMinqlx_InitStatus_t::PYM_SUCCESS;
 use crate::SV_TAGS_PREFIX;
 #[cfg(target_os = "linux")]
 use crate::{QAGAME, QZERODED};
@@ -60,7 +60,7 @@ fn extract_detour<T: Function>(
 }
 
 #[derive(Debug, PartialEq, Eq)]
-pub enum QuakeLiveEngineError {
+pub(crate) enum QuakeLiveEngineError {
     NullPointerPassed(String),
     EntityNotFound(String),
     InvalidId(i32),
@@ -69,6 +69,7 @@ pub enum QuakeLiveEngineError {
     #[allow(dead_code)]
     NoMemoryMappingInformationFound(String),
     StaticFunctionNotFound(QuakeLiveFunction),
+    PythonInitializationFailed(PythonInitializationError),
     DetourCouldNotBeCreated(QuakeLiveFunction),
     DetourCouldNotBeEnabled(QuakeLiveFunction),
     StaticDetourNotFound(QuakeLiveFunction),
@@ -1077,7 +1078,7 @@ impl QuakeLiveEngine {
     // Currently called by My_Cmd_AddCommand(), since it's called at a point where we
     // can safely do whatever we do below. It'll segfault if we do it at the entry
     // point, since functions like Cmd_AddCommand need initialization first.
-    pub(crate) fn initialize_static(&self) {
+    pub(crate) fn initialize_static(&self) -> Result<(), QuakeLiveEngineError> {
         debug_println!("Initializing...");
         self.add_command("cmd", cmd_send_server_command);
         self.add_command("cp", cmd_center_print);
@@ -1088,14 +1089,13 @@ impl QuakeLiveEngine {
         self.add_command("pycmd", cmd_py_command);
         self.add_command("pyrestart", cmd_restart_python);
 
-        let res = pyminqlx_initialize();
-
-        if res != PYM_SUCCESS {
+        if let Err(err) = pyminqlx_initialize() {
             debug_println!("Python initialization failed.");
-            panic!("Python initialization failed.");
-        }
+            return Err(PythonInitializationFailed(err));
+        };
 
         self.common_initialized.set(true).unwrap();
+        Ok(())
     }
 
     pub(crate) fn is_common_initialized(&self) -> bool {
@@ -2173,27 +2173,24 @@ impl FreeEntity for QuakeLiveEngine {
 }
 
 #[cfg_attr(test, automock)]
-pub(crate) trait LaunchItem {
-    fn launch_item(
+pub(crate) trait TryLaunchItem {
+    fn try_launch_item(
         &self,
         gitem: &mut GameItem,
         origin: &mut vec3_t,
         velocity: &mut vec3_t,
-    ) -> GameEntity;
+    ) -> Result<GameEntity, QuakeLiveEngineError>;
 }
 
-impl LaunchItem for QuakeLiveEngine {
-    fn launch_item(
+impl TryLaunchItem for QuakeLiveEngine {
+    fn try_launch_item(
         &self,
         gitem: &mut GameItem,
         origin: &mut vec3_t,
         velocity: &mut vec3_t,
-    ) -> GameEntity {
-        let Ok(original_func) = self.launch_item_orig() else {
-            debug_println!("LaunchItem not found!");
-            panic!("LaunchItem not found!");
-        };
-        GameEntity::try_from(original_func(gitem.gitem_t, origin, velocity)).unwrap()
+    ) -> Result<GameEntity, QuakeLiveEngineError> {
+        let original_func = self.launch_item_orig()?;
+        GameEntity::try_from(original_func(gitem.gitem_t, origin, velocity))
     }
 }
 

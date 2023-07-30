@@ -1,7 +1,7 @@
 use crate::quake_live_engine::QuakeLiveEngineError::{
     EntityNotFound, InvalidId, NullPointerPassed,
 };
-use crate::quake_live_engine::{GameAddEvent, LaunchItem, QuakeLiveEngineError};
+use crate::quake_live_engine::{GameAddEvent, QuakeLiveEngineError, TryLaunchItem};
 use crate::quake_types::entity_event_t::EV_ITEM_RESPAWN;
 use crate::quake_types::gitem_t;
 use crate::MAIN_ENGINE;
@@ -109,7 +109,7 @@ impl GameItem {
     pub(crate) fn spawn_internal(
         &mut self,
         origin: (i32, i32, i32),
-        quake_live_engine: &(impl LaunchItem + GameAddEvent),
+        quake_live_engine: &(impl TryLaunchItem + GameAddEvent),
     ) {
         let mut origin_vec = [
             origin.0 as c_float,
@@ -118,11 +118,14 @@ impl GameItem {
         ];
         let mut velocity = [0.0, 0.0, 0.9];
 
-        let mut gentity = quake_live_engine.launch_item(self, &mut origin_vec, &mut velocity);
-        gentity.gentity_t.nextthink = 0;
-        gentity.gentity_t.think = None;
-        // make item be scaled up
-        quake_live_engine.game_add_event(&mut gentity, EV_ITEM_RESPAWN, 0);
+        if let Ok(mut gentity) =
+            quake_live_engine.try_launch_item(self, &mut origin_vec, &mut velocity)
+        {
+            gentity.gentity_t.nextthink = 0;
+            gentity.gentity_t.think = None;
+            // make item be scaled up
+            quake_live_engine.game_add_event(&mut gentity, EV_ITEM_RESPAWN, 0);
+        }
     }
 }
 
@@ -130,8 +133,9 @@ impl GameItem {
 pub(crate) mod game_item_tests {
     use crate::game_entity::GameEntity;
     use crate::game_item::GameItem;
+    use crate::quake_live_engine::QuakeLiveEngineError;
     use crate::quake_live_engine::QuakeLiveEngineError::NullPointerPassed;
-    use crate::quake_live_engine::{GameAddEvent, LaunchItem};
+    use crate::quake_live_engine::{GameAddEvent, TryLaunchItem};
     use crate::quake_types::entity_event_t::EV_ITEM_RESPAWN;
     use crate::quake_types::{
         entity_event_t, gentity_t, gitem_t, vec3_t, GEntityBuilder, GItemBuilder,
@@ -170,8 +174,8 @@ pub(crate) mod game_item_tests {
     pub(crate) fn game_item_spawn() {
         mock! {
             QuakeEngine {}
-            impl LaunchItem for QuakeEngine {
-                fn launch_item(&self, gitem: &mut GameItem, origin: &mut vec3_t, velocity: &mut vec3_t) -> GameEntity;
+            impl TryLaunchItem for QuakeEngine {
+                fn try_launch_item(&self, gitem: &mut GameItem, origin: &mut vec3_t, velocity: &mut vec3_t) -> Result<GameEntity, QuakeLiveEngineError>;
             }
 
             impl GameAddEvent for QuakeEngine {
@@ -184,11 +188,11 @@ pub(crate) mod game_item_tests {
         let game_entity = GameEntity::try_from(&mut gentity as *mut gentity_t).unwrap();
         let mut gitem = GItemBuilder::default().build().unwrap();
         let mut game_item = GameItem::try_from(&mut gitem as *mut gitem_t).unwrap();
-        mock.expect_launch_item()
+        mock.expect_try_launch_item()
             .withf_st(|_, origin, velocity| {
                 origin == &[1.0, 2.0, 3.0] && velocity == &[0.0, 0.0, 0.9]
             })
-            .return_once_st(|_, _, _| game_entity);
+            .return_once_st(|_, _, _| Ok(game_entity));
         mock.expect_game_add_event()
             .withf_st(|entity, event, param| {
                 entity.gentity_t.nextthink == 0

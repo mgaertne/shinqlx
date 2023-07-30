@@ -22,7 +22,7 @@ use crate::quake_types::{
     DAMAGE_NO_ARMOR, DAMAGE_NO_KNOCKBACK, DAMAGE_NO_PROTECTION, DAMAGE_NO_TEAM_PROTECTION,
     DAMAGE_RADIUS, MAX_CONFIGSTRINGS, MAX_GENTITIES,
 };
-use crate::{PyMinqlx_InitStatus_t, MAIN_ENGINE};
+use crate::MAIN_ENGINE;
 use parking_lot::RwLock;
 use std::sync::atomic::{AtomicBool, Ordering};
 
@@ -31,6 +31,9 @@ use crate::current_level::CurrentLevel;
 use crate::game_client::GameClient;
 use crate::game_entity::GameEntity;
 use crate::game_item::GameItem;
+use crate::pyminqlx::PythonInitializationError::{
+    AlreadyInitialized, MainScriptError, NotInitializedError,
+};
 use crate::quake_live_engine::{
     AddCommand, ComPrintf, ConsoleCommand, FindCVar, GetCVar, GetConfigstring, SendServerCommand,
     SetCVarForced, SetCVarLimit,
@@ -40,9 +43,6 @@ use crate::quake_types::cvar_flags::{
     CVAR_SYSTEMINFO, CVAR_TEMP, CVAR_USERINFO, CVAR_USER_CREATED,
 };
 use crate::quake_types::entityType_t::ET_ITEM;
-use crate::PyMinqlx_InitStatus_t::{
-    PYM_ALREADY_INITIALIZED, PYM_MAIN_SCRIPT_ERROR, PYM_NOT_INITIALIZED_ERROR, PYM_SUCCESS,
-};
 use crate::ALLOW_FREE_CLIENT;
 use pyo3::append_to_inittab;
 use pyo3::exceptions::{PyEnvironmentError, PyTypeError, PyValueError};
@@ -2898,11 +2898,18 @@ pub(crate) fn pyminqlx_is_initialized() -> bool {
     PYMINQLX_INITIALIZED.load(Ordering::SeqCst)
 }
 
-pub(crate) fn pyminqlx_initialize() -> PyMinqlx_InitStatus_t {
+#[derive(PartialEq, Eq, Debug, Clone, Copy)]
+pub(crate) enum PythonInitializationError {
+    MainScriptError,
+    AlreadyInitialized,
+    NotInitializedError,
+}
+
+pub(crate) fn pyminqlx_initialize() -> Result<(), PythonInitializationError> {
     if pyminqlx_is_initialized() {
         #[cfg(debug_assertions)]
         println!("pyminqlx_initialize was called while already initialized");
-        return PYM_ALREADY_INITIALIZED;
+        return Err(AlreadyInitialized);
     }
 
     #[cfg(debug_assertions)]
@@ -2918,22 +2925,22 @@ pub(crate) fn pyminqlx_initialize() -> PyMinqlx_InitStatus_t {
             debug_println!(e);
             #[cfg(debug_assertions)]
             println!("loader sequence returned an error. Did you modify the loader?");
-            PYM_MAIN_SCRIPT_ERROR
+            Err(MainScriptError)
         }
         Ok(_) => {
             PYMINQLX_INITIALIZED.store(true, Ordering::SeqCst);
             #[cfg(debug_assertions)]
             println!("Python initialized!");
-            PYM_SUCCESS
+            Ok(())
         }
     }
 }
 
-pub(crate) fn pyminqlx_reload() -> PyMinqlx_InitStatus_t {
+pub(crate) fn pyminqlx_reload() -> Result<(), PythonInitializationError> {
     if !pyminqlx_is_initialized() {
         #[cfg(debug_assertions)]
         println!("pyminqlx_finalize was called before being initialized");
-        return PYM_NOT_INITIALIZED_ERROR;
+        return Err(NotInitializedError);
     }
 
     [
@@ -2968,11 +2975,11 @@ pub(crate) fn pyminqlx_reload() -> PyMinqlx_InitStatus_t {
     }) {
         Err(_) => {
             PYMINQLX_INITIALIZED.store(false, Ordering::SeqCst);
-            PYM_MAIN_SCRIPT_ERROR
+            Err(MainScriptError)
         }
         Ok(()) => {
             PYMINQLX_INITIALIZED.store(true, Ordering::SeqCst);
-            PYM_SUCCESS
+            Ok(())
         }
     }
 }

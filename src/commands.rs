@@ -291,13 +291,18 @@ pub extern "C" fn cmd_restart_python() {
     main_engine.com_printf("Restarting Python...\n");
 
     if pyminqlx_is_initialized() {
-        pyminqlx_reload();
+        if pyminqlx_reload().is_err() {
+            return;
+        };
         // minqlx initializes after the first new game starts, but since the game already
         // start, we manually trigger the event to make it initialize properly.
         new_game_dispatcher(false);
         return;
     }
-    pyminqlx_initialize();
+
+    if pyminqlx_initialize().is_err() {
+        return;
+    };
 
     // minqlx initializes after the first new game starts, but since the game already
     // start, we manually trigger the event to make it initialize properly.

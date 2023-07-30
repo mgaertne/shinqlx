@@ -7,8 +7,8 @@ use crate::quake_live_engine::QuakeLiveEngineError::{
     EntityNotFound, InvalidId, NullPointerPassed,
 };
 use crate::quake_live_engine::{
-    ComPrintf, FreeEntity, GetConfigstring, LaunchItem, QuakeLiveEngineError, RegisterDamage,
-    StartKamikaze,
+    ComPrintf, FreeEntity, GetConfigstring, QuakeLiveEngineError, RegisterDamage, StartKamikaze,
+    TryLaunchItem,
 };
 use crate::quake_types::clientConnected_t::CON_DISCONNECTED;
 use crate::quake_types::entityType_t::ET_ITEM;
@@ -325,17 +325,15 @@ impl GameEntity {
     pub(crate) fn drop_holdable_internal(
         &mut self,
         current_level: &CurrentLevel,
-        quake_live_engine: &impl LaunchItem,
+        quake_live_engine: &impl TryLaunchItem,
     ) {
         if let Ok(mut game_client) = self.get_game_client() {
             if let Ok(mut gitem) = GameItem::try_from(game_client.get_holdable()) {
                 let angle = self.gentity_t.s.apos.trBase[1] * (PI * 2.0 / 360.0);
                 let mut velocity = [150.0 * angle.cos(), 150.0 * angle.sin(), 250.0];
-                let entity = quake_live_engine.launch_item(
-                    &mut gitem,
-                    &mut self.gentity_t.s.pos.trBase,
-                    &mut velocity,
-                );
+                let entity = quake_live_engine
+                    .try_launch_item(&mut gitem, &mut self.gentity_t.s.pos.trBase, &mut velocity)
+                    .unwrap();
                 entity.gentity_t.touch = Some(ShiNQlx_Touch_Item);
                 entity.gentity_t.parent = self.gentity_t;
                 entity.gentity_t.think = Some(ShiNQlx_Switch_Touch_Item);
@@ -421,7 +419,7 @@ pub(crate) mod game_entity_tests {
     use crate::game_entity::GameEntity;
     use crate::quake_live_engine::QuakeLiveEngineError::{InvalidId, NullPointerPassed};
     use crate::quake_live_engine::{
-        MockFreeEntity, MockLaunchItem, MockRegisterDamage, MockStartKamikaze,
+        MockFreeEntity, MockRegisterDamage, MockStartKamikaze, MockTryLaunchItem,
     };
     use crate::quake_types::clientConnected_t::{CON_CONNECTED, CON_DISCONNECTED};
     use crate::quake_types::entityType_t::{ET_ITEM, ET_PLAYER};
@@ -872,9 +870,9 @@ pub(crate) mod game_entity_tests {
         let mut launched_gentity = GEntityBuilder::default().build().unwrap();
         let launched_entity =
             GameEntity::try_from(&mut launched_gentity as *mut gentity_t).unwrap();
-        let mut mock = MockLaunchItem::new();
-        mock.expect_launch_item()
-            .return_once_st(|_, _, _| launched_entity);
+        let mut mock = MockTryLaunchItem::new();
+        mock.expect_try_launch_item()
+            .return_once_st(|_, _, _| Ok(launched_entity));
 
         game_entity.drop_holdable_internal(&current_level, &mock);
         assert_eq!(launched_gentity.parent, &mut gentity as *mut gentity_t);
