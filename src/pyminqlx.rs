@@ -1161,7 +1161,7 @@ pub(crate) mod pyminqlx_setup_fixture {
 #[cfg(not(miri))]
 pub(crate) mod vector3_tests {
     use crate::pyminqlx::pyminqlx_setup_fixture::*;
-    use hamcrest::prelude::*;
+    use hamcrest2::prelude::*;
     use pyo3::Python;
     use rstest::rstest;
 

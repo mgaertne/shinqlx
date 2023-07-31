@@ -29,26 +29,29 @@ codegen-units = 1
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-ctor = "~0"
-rand = "~0"
-pyo3 = { version = "~0", features = ["pyo3-macros", "extension-module", "nightly"]}
-retour = "~0.3.1"
-derive_builder = "~0"
-maturin = { version = "~1", default-features = false, features = []}
-once_cell = "~1"
-region = "~3"
-parking_lot = "~0"
+ctor = "^0.2"
+rand = "^0.8"
+pyo3 = { version = "^0.19", features = ["pyo3-macros", "extension-module", "nightly"]}
+retour = "^0.3.1"
+derive_builder = "^0.12"
+maturin = { version = "^1.1", default-features = false, features = []}
+once_cell = "^1.18"
+region = "^3.0"
+parking_lot = "^0.12"
 
 [target."cfg(target_os=\"linux\")".dependencies]
-procfs = "~0"
+procfs = "^0.15"
 
 [build-dependencies]
-pyo3-build-config = { version = "~0", features = ["resolve-config"] }
-git2 = "~0"
+pyo3-build-config = { version = "^0.19", features = ["resolve-config"] }
+git2 = "^0.17"
 
 [dev-dependencies]
-hamcrest = "~0"
-pretty_assertions = "~1"
-rstest = "~0"
-mockall = "~0"
-serial_test = "~2"
+hamcrest2 = "^0.3"
+pretty_assertions = "^1.4"
+rstest = "^0.18"
+mockall = "^0.11"
+serial_test = "^2.0"
+
+[package.metadata.cargo-udeps.ignore]
+normal = ["maturin"]
