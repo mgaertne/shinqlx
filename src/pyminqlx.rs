@@ -1161,7 +1161,6 @@ pub(crate) mod pyminqlx_setup_fixture {
 #[cfg(not(miri))]
 pub(crate) mod vector3_tests {
     use crate::pyminqlx::pyminqlx_setup_fixture::*;
-    use hamcrest2::prelude::*;
     use pyo3::Python;
     use rstest::rstest;
 
@@ -1171,7 +1170,7 @@ pub(crate) mod vector3_tests {
             let minqlx_module = py.import("_minqlx").unwrap();
             let vector3 = minqlx_module.getattr("Vector3").unwrap();
             let tuple = py.import("builtins").unwrap().getattr("tuple").unwrap();
-            assert_that!(vector3.is_instance(tuple.get_type()).unwrap(), is(true));
+            assert!(vector3.is_instance(tuple.get_type()).unwrap());
         });
     }
 

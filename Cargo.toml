@@ -47,7 +47,6 @@ pyo3-build-config = { version = "^0.19", features = ["resolve-config"] }
 git2 = "^0.17"
 
 [dev-dependencies]
-hamcrest2 = "^0.3"
 pretty_assertions = "^1.4"
 rstest = "^0.18"
 mockall = "^0.11"
