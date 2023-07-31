@@ -1,11 +1,6 @@
 #![cfg_attr(not(test), no_main)]
 #![feature(arbitrary_self_types, c_variadic, auto_traits, negative_impls)]
 
-#[cfg(test)]
-#[cfg(not(miri))]
-#[macro_use]
-extern crate hamcrest;
-
 macro_rules! debug_println {
     () => {
         println!("{}", crate::DEBUG_PRINT_PREFIX)
