@@ -38,7 +38,6 @@ use crate::quake_types::{
     cbufExec_t, client_t, cvar_t, entity_event_t, gentity_t, gitem_t, qboolean, trace_t, usercmd_t,
     vec3_t, MAX_STRING_CHARS,
 };
-use crate::SV_TAGS_PREFIX;
 #[cfg(target_os = "linux")]
 use crate::{QAGAME, QZERODED};
 #[cfg(test)]
@@ -814,6 +813,8 @@ impl QuakeLiveEngine {
     }
 
     pub(crate) fn set_tag(&self) {
+        const SV_TAGS_PREFIX: &str = "shinqlx";
+
         let Some(sv_tags) = self.find_cvar("sv_tags") else {
             return;
         };
