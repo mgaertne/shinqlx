@@ -206,7 +206,6 @@ impl GameClient {
                 self.game_client.ps.powerups[powerup_index as usize] = if item == 0 {
                     0
                 } else {
-                    let level_time = level_time;
                     level_time - (level_time % 1000) + item
                 }
             });
