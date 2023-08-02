@@ -1,12 +1,18 @@
+//! ShiN0's Quake Live eXtension, implemented in Rust. Most functionality from
+//! [minqlx](https://raw.githubusercontent.com/MinoMino/minqlx) should work.
+//! Support for Python 3.8 and above should work out of the box.
+
 #![cfg_attr(not(test), no_main)]
 #![feature(arbitrary_self_types, c_variadic, auto_traits, negative_impls)]
+#![deny(rustdoc::broken_intra_doc_links)]
+#![warn(missing_docs)]
 
 macro_rules! debug_println {
     () => {
-        println!("{}", crate::DEBUG_PRINT_PREFIX)
+        println!("{}", "[shinqlx]")
     };
     ($($arg:tt)*) => {
-        println!("{} {}", crate::DEBUG_PRINT_PREFIX, $($arg)*)
+        println!("{} {}", "[shinqlx]", $($arg)*)
     };
 }
 
@@ -30,10 +36,6 @@ use crate::quake_live_engine::QuakeLiveEngine;
 use core::sync::atomic::AtomicI32;
 use ctor::ctor;
 use parking_lot::RwLock;
-
-pub(crate) const DEBUG_PRINT_PREFIX: &str = "[shinqlx]";
-
-pub(crate) const SV_TAGS_PREFIX: &str = "shinqlx";
 
 pub(crate) static ALLOW_FREE_CLIENT: AtomicI32 = AtomicI32::new(-1);
 
