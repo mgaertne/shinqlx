@@ -46,6 +46,7 @@ procfs = "^0.15"
 [build-dependencies]
 pyo3-build-config = { version = "^0.19", features = ["resolve-config"] }
 git2 = "^0.17"
+libgit2-sys = "^0.15.2+1.6.4"
 
 [dev-dependencies]
 pretty_assertions = "^1.4"
