@@ -1,12 +1,9 @@
 use crate::game_entity::GameEntity;
 use crate::hooks::shinqlx_set_configstring;
-use crate::quake_live_engine::QuakeLiveEngineError;
-use crate::quake_live_engine::QuakeLiveEngineError::{
-    MainEngineNotInitialized, MainEngineUnreadable, NullPointerPassed,
-};
-use crate::quake_types::{level_locals_t, CS_VOTE_NO, CS_VOTE_STRING, CS_VOTE_TIME, CS_VOTE_YES};
+use crate::prelude::*;
 use crate::MAIN_ENGINE;
-use std::ffi::c_char;
+use alloc::format;
+use core::ffi::c_char;
 
 #[derive(Debug, PartialEq)]
 #[repr(transparent)]
@@ -20,7 +17,9 @@ impl TryFrom<*mut level_locals_t> for CurrentLevel {
     fn try_from(level_locals: *mut level_locals_t) -> Result<Self, Self::Error> {
         unsafe { level_locals.as_mut() }
             .map(|level| Self { level })
-            .ok_or(NullPointerPassed("null pointer passed".into()))
+            .ok_or(QuakeLiveEngineError::NullPointerPassed(
+                "null pointer passed".into(),
+            ))
     }
 }
 
@@ -29,16 +28,16 @@ const OFFSET_LEVEL: usize = 0x4A1;
 impl CurrentLevel {
     pub(crate) fn try_get() -> Result<Self, QuakeLiveEngineError> {
         let Some(main_engine_guard) = MAIN_ENGINE.try_read() else {
-            return Err(MainEngineUnreadable);
+            return Err(QuakeLiveEngineError::MainEngineUnreadable);
         };
 
         let Some(ref main_engine) = *main_engine_guard else {
-            return Err(MainEngineNotInitialized);
+            return Err(QuakeLiveEngineError::MainEngineNotInitialized);
         };
 
         let func_pointer = main_engine.g_init_game_orig()?;
         let base_address = unsafe {
-            std::ptr::read_unaligned((func_pointer as usize + OFFSET_LEVEL) as *const i32)
+            core::ptr::read_unaligned((func_pointer as usize + OFFSET_LEVEL) as *const i32)
         };
         let level_ptr = base_address as usize + func_pointer as usize + OFFSET_LEVEL + 4;
         Self::try_from(level_ptr as *mut level_locals_t)
@@ -106,18 +105,15 @@ impl CurrentLevel {
 #[cfg(test)]
 pub(crate) mod current_level_tests {
     use crate::current_level::CurrentLevel;
-    use crate::quake_live_engine::QuakeLiveEngine;
-    use crate::quake_live_engine::QuakeLiveEngineError::{
-        MainEngineNotInitialized, NullPointerPassed, VmFunctionNotFound,
-    };
+    use crate::prelude::*;
     use crate::quake_live_functions::QuakeLiveFunction::G_InitGame;
-    use crate::quake_types::{level_locals_t, qboolean, LevelLocalsBuilder};
     use crate::MAIN_ENGINE;
+    use alloc::vec::Vec;
+    use core::ffi::CStr;
+    use core::sync::atomic::Ordering;
     use pretty_assertions::assert_eq;
     use serial_test::serial;
-    use std::ffi::CStr;
-    use std::panic;
-    use std::sync::atomic::Ordering;
+    use std::panic::catch_unwind;
 
     #[test]
     #[serial]
@@ -129,7 +125,10 @@ pub(crate) mod current_level_tests {
         let result = CurrentLevel::try_get();
 
         assert!(result.is_err());
-        assert_eq!(result.err().unwrap(), MainEngineNotInitialized);
+        assert_eq!(
+            result.err().unwrap(),
+            QuakeLiveEngineError::MainEngineNotInitialized
+        );
     }
 
     #[test]
@@ -148,14 +147,19 @@ pub(crate) mod current_level_tests {
         }
 
         assert!(result.is_err());
-        assert_eq!(result.err().unwrap(), VmFunctionNotFound(G_InitGame));
+        assert_eq!(
+            result.err().unwrap(),
+            QuakeLiveEngineError::VmFunctionNotFound(G_InitGame)
+        );
     }
 
     #[test]
     pub(crate) fn current_level_from_null() {
         assert_eq!(
-            CurrentLevel::try_from(std::ptr::null_mut()),
-            Err(NullPointerPassed("null pointer passed".into())),
+            CurrentLevel::try_from(core::ptr::null_mut()),
+            Err(QuakeLiveEngineError::NullPointerPassed(
+                "null pointer passed".into()
+            )),
         );
     }
 
@@ -243,7 +247,7 @@ pub(crate) mod current_level_tests {
             *guard = Some(main_engine);
         }
 
-        let result = panic::catch_unwind(|| {
+        let result = catch_unwind(|| {
             let mut level = LevelLocalsBuilder::default().build().unwrap();
             let mut current_level =
                 CurrentLevel::try_from(&mut level as *mut level_locals_t).unwrap();

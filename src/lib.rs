@@ -7,6 +7,8 @@
 #![deny(rustdoc::broken_intra_doc_links)]
 #![warn(missing_docs)]
 
+extern crate alloc;
+
 macro_rules! debug_println {
     () => {
         println!("{}", "[shinqlx]")
@@ -32,12 +34,15 @@ mod quake_live_functions;
 mod quake_types;
 mod server_static;
 
-use crate::quake_live_engine::QuakeLiveEngine;
-use core::sync::atomic::AtomicI32;
+pub(crate) mod prelude {
+    pub(crate) use crate::quake_live_engine::{QuakeLiveEngine, QuakeLiveEngineError};
+    pub(crate) use crate::quake_types::*;
+}
+
+use crate::prelude::*;
+
 use ctor::ctor;
 use parking_lot::RwLock;
-
-pub(crate) static ALLOW_FREE_CLIENT: AtomicI32 = AtomicI32::new(-1);
 
 #[allow(dead_code)]
 #[cfg(target_pointer_width = "64")]
@@ -45,13 +50,6 @@ pub(crate) const QZERODED: &str = "qzeroded.x64";
 #[allow(dead_code)]
 #[cfg(target_pointer_width = "32")]
 pub(crate) const QZERODED: &str = "qzeroded.x86";
-
-#[allow(dead_code)]
-#[cfg(target_pointer_width = "64")]
-pub(crate) const QAGAME: &str = "qagamex64.so";
-#[allow(dead_code)]
-#[cfg(target_pointer_width = "32")]
-pub(crate) const QAGAME: &str = "qagamei386.so";
 
 pub(crate) static MAIN_ENGINE: RwLock<Option<QuakeLiveEngine>> = RwLock::new(None);
 

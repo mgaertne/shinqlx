@@ -1,6 +1,4 @@
-use crate::quake_live_engine::QuakeLiveEngineError;
-use crate::quake_live_engine::QuakeLiveEngineError::NullPointerPassed;
-use crate::quake_types::gentity_t;
+use crate::prelude::*;
 
 #[derive(Debug, PartialEq)]
 #[repr(transparent)]
@@ -14,7 +12,9 @@ impl TryFrom<*mut gentity_t> for Activator {
     fn try_from(game_entity: *mut gentity_t) -> Result<Self, Self::Error> {
         unsafe { game_entity.as_ref() }
             .map(|gentity| Self { activator: gentity })
-            .ok_or(NullPointerPassed("null pointer passed".into()))
+            .ok_or(QuakeLiveEngineError::NullPointerPassed(
+                "null pointer passed".into(),
+            ))
     }
 }
 
@@ -27,15 +27,16 @@ impl Activator {
 #[cfg(test)]
 pub(crate) mod activator_tests {
     use crate::activator::Activator;
-    use crate::quake_live_engine::QuakeLiveEngineError::NullPointerPassed;
-    use crate::quake_types::{gentity_t, EntitySharedBuilder, GEntityBuilder};
+    use crate::prelude::*;
     use pretty_assertions::assert_eq;
 
     #[test]
     pub(crate) fn activator_try_from_null_results_in_error() {
         assert_eq!(
-            Activator::try_from(std::ptr::null_mut() as *mut gentity_t),
-            Err(NullPointerPassed("null pointer passed".into()))
+            Activator::try_from(core::ptr::null_mut() as *mut gentity_t),
+            Err(QuakeLiveEngineError::NullPointerPassed(
+                "null pointer passed".into()
+            ))
         );
     }
 

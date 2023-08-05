@@ -1,5 +1,6 @@
 use crate::client::Client;
 use crate::game_entity::GameEntity;
+use crate::prelude::*;
 use crate::pyminqlx::{
     client_command_dispatcher, client_connect_dispatcher, client_disconnect_dispatcher,
     client_loaded_dispatcher, client_spawn_dispatcher, console_print_dispatcher, damage_dispatcher,
@@ -11,12 +12,9 @@ use crate::quake_live_engine::{
     InitGame, RegisterDamage, RunFrame, SendServerCommand, SetConfigstring, SetModuleOffset,
     ShutdownGame, SpawnServer,
 };
-use crate::quake_types::clientState_t::CS_PRIMED;
-use crate::quake_types::{
-    client_t, gentity_t, qboolean, usercmd_t, vec3_t, MAX_CLIENTS, MAX_MSGLEN, MAX_STRING_CHARS,
-};
 use crate::MAIN_ENGINE;
-use std::ffi::{c_char, c_int, CStr, VaList, VaListImpl};
+use alloc::string::String;
+use core::ffi::{c_char, c_int, CStr, VaList, VaListImpl};
 
 pub(crate) fn shinqlx_cmd_addcommand(cmd: *const c_char, func: unsafe extern "C" fn()) {
     let Some(main_engine_guard) = MAIN_ENGINE.try_read() else {
@@ -189,7 +187,7 @@ pub(crate) fn shinqlx_send_server_command<T>(client: Option<Client>, cmd: T)
 where
     T: AsRef<str>,
 {
-    let mut passed_on_cmd_str = cmd.as_ref().to_string();
+    let mut passed_on_cmd_str = cmd.as_ref().into();
 
     match client.as_ref() {
         Some(safe_client) => {
@@ -240,7 +238,7 @@ pub(crate) fn shinqlx_sv_cliententerworld(client: *mut client_t, cmd: *mut userc
     // gentity is NULL if map changed.
     // state is CS_PRIMED only if it's the first time they connect to the server,
     // otherwise the dispatcher would also go off when a game starts and such.
-    if safe_client.has_gentity() && state == CS_PRIMED {
+    if safe_client.has_gentity() && state == clientState_t::CS_PRIMED {
         client_loaded_dispatcher(safe_client.get_client_id());
     }
 }
@@ -411,11 +409,11 @@ pub extern "C" fn ShiNQlx_ClientConnect(
     }
 
     let Some(main_engine_guard) = MAIN_ENGINE.try_read() else {
-        return std::ptr::null();
+        return core::ptr::null();
     };
 
     let Some(ref main_engine) = *main_engine_guard else {
-        return std::ptr::null();
+        return core::ptr::null();
     };
 
     main_engine.client_connect(client_num, first_time.into(), is_bot.into())

@@ -1,11 +1,9 @@
-use crate::quake_live_engine::QuakeLiveEngineError;
-use crate::quake_live_engine::QuakeLiveEngineError::{
-    ClientNotFound, InvalidId, NullPointerPassed,
-};
-use crate::quake_types::{clientState_t, client_t, MAX_CLIENTS};
+use crate::prelude::*;
 use crate::server_static::ServerStatic;
 use crate::MAIN_ENGINE;
-use std::ffi::{c_char, CStr, CString};
+use alloc::ffi::CString;
+use alloc::string::String;
+use core::ffi::{c_char, CStr};
 
 #[derive(Debug, PartialEq)]
 #[repr(transparent)]
@@ -27,7 +25,9 @@ impl TryFrom<*mut client_t> for Client {
     fn try_from(client: *mut client_t) -> Result<Self, Self::Error> {
         unsafe { client.as_mut() }
             .map(|client_t| Self { client_t })
-            .ok_or(NullPointerPassed("null pointer passed".into()))
+            .ok_or(QuakeLiveEngineError::NullPointerPassed(
+                "null pointer passed".into(),
+            ))
     }
 }
 
@@ -37,12 +37,12 @@ impl TryFrom<i32> for Client {
     fn try_from(client_id: i32) -> Result<Self, Self::Error> {
         if let Ok(max_clients) = i32::try_from(MAX_CLIENTS) {
             if client_id >= max_clients {
-                return Err(InvalidId(client_id));
+                return Err(QuakeLiveEngineError::InvalidId(client_id));
             }
         }
 
         if client_id < 0 {
-            return Err(InvalidId(client_id));
+            return Err(QuakeLiveEngineError::InvalidId(client_id));
         }
 
         let server_static = ServerStatic::try_get()?;
@@ -52,7 +52,7 @@ impl TryFrom<i32> for Client {
                 .clients
                 .offset(client_id as isize)
         } as *mut client_t)
-        .map_err(|_| ClientNotFound("client not found".into()))
+        .map_err(|_| QuakeLiveEngineError::ClientNotFound("client not found".into()))
     }
 }
 
@@ -124,23 +124,19 @@ impl Client {
 #[cfg(test)]
 pub(crate) mod client_tests {
     use crate::client::Client;
-    use crate::quake_live_engine::QuakeLiveEngine;
-    use crate::quake_live_engine::QuakeLiveEngineError::{InvalidId, NullPointerPassed};
-    use crate::quake_types::clientState_t::CS_ZOMBIE;
-    use crate::quake_types::{
-        client_t, sharedEntity_t, ClientBuilder, SharedEntityBuilder, MAX_INFO_STRING,
-        MAX_NAME_LENGTH,
-    };
+    use crate::prelude::*;
     use crate::MAIN_ENGINE;
+    use core::ffi::c_char;
     use pretty_assertions::assert_eq;
     use serial_test::serial;
-    use std::ffi::c_char;
 
     #[test]
     pub(crate) fn client_try_from_null_results_in_error() {
         assert_eq!(
-            Client::try_from(std::ptr::null() as *const client_t),
-            Err(NullPointerPassed("null pointer passed".into()))
+            Client::try_from(core::ptr::null() as *const client_t),
+            Err(QuakeLiveEngineError::NullPointerPassed(
+                "null pointer passed".into()
+            ))
         );
     }
 
@@ -152,25 +148,34 @@ pub(crate) mod client_tests {
 
     #[test]
     pub(crate) fn client_try_from_negative_client_id() {
-        assert_eq!(Client::try_from(-1), Err(InvalidId(-1)));
+        assert_eq!(
+            Client::try_from(-1),
+            Err(QuakeLiveEngineError::InvalidId(-1))
+        );
     }
 
     #[test]
     pub(crate) fn client_try_from_too_large_client_id() {
-        assert_eq!(Client::try_from(32384), Err(InvalidId(32384)));
+        assert_eq!(
+            Client::try_from(32384),
+            Err(QuakeLiveEngineError::InvalidId(32384))
+        );
     }
 
     #[test]
     pub(crate) fn client_get_state() {
-        let mut client = ClientBuilder::default().state(CS_ZOMBIE).build().unwrap();
+        let mut client = ClientBuilder::default()
+            .state(clientState_t::CS_ZOMBIE)
+            .build()
+            .unwrap();
         let rust_client = Client::try_from(&mut client as *mut client_t).unwrap();
-        assert_eq!(rust_client.get_state(), CS_ZOMBIE);
+        assert_eq!(rust_client.get_state(), clientState_t::CS_ZOMBIE);
     }
 
     #[test]
     pub(crate) fn client_has_gentity_with_no_shared_entity() {
         let mut client = ClientBuilder::default()
-            .gentity(std::ptr::null_mut())
+            .gentity(core::ptr::null_mut())
             .build()
             .unwrap();
         let rust_client = Client::try_from(&mut client as *mut client_t).unwrap();

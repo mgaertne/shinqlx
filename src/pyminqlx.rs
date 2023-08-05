@@ -1,54 +1,34 @@
+use crate::prelude::*;
+use alloc::string::String;
+use alloc::vec::Vec;
+use alloc::{format, vec};
+
 use crate::commands::cmd_py_command;
 use crate::hooks::{
     shinqlx_client_spawn, shinqlx_com_printf, shinqlx_drop_client, shinqlx_execute_client_command,
     shinqlx_send_server_command, shinqlx_set_configstring,
 };
-use crate::pyminqlx::PythonPriorities::{PRI_HIGH, PRI_HIGHEST, PRI_LOW, PRI_LOWEST, PRI_NORMAL};
-use crate::pyminqlx::PythonReturnCodes::{
-    RET_NONE, RET_STOP, RET_STOP_ALL, RET_STOP_EVENT, RET_USAGE,
-};
-use crate::quake_types::clientState_t::{CS_ACTIVE, CS_CONNECTED, CS_FREE, CS_PRIMED, CS_ZOMBIE};
-use crate::quake_types::meansOfDeath_t::{
-    MOD_BFG, MOD_BFG_SPLASH, MOD_CHAINGUN, MOD_CRUSH, MOD_FALLING, MOD_GAUNTLET, MOD_GRAPPLE,
-    MOD_GRENADE, MOD_GRENADE_SPLASH, MOD_HMG, MOD_JUICED, MOD_KAMIKAZE, MOD_LAVA, MOD_LIGHTNING,
-    MOD_LIGHTNING_DISCHARGE, MOD_MACHINEGUN, MOD_NAIL, MOD_PLASMA, MOD_PLASMA_SPLASH,
-    MOD_PROXIMITY_MINE, MOD_RAILGUN, MOD_RAILGUN_HEADSHOT, MOD_ROCKET, MOD_ROCKET_SPLASH,
-    MOD_SHOTGUN, MOD_SLIME, MOD_SUICIDE, MOD_SWITCH_TEAMS, MOD_TARGET_LASER, MOD_TELEFRAG,
-    MOD_THAW, MOD_TRIGGER_HURT, MOD_UNKNOWN, MOD_WATER,
-};
-use crate::quake_types::privileges_t::{PRIV_ADMIN, PRIV_BANNED, PRIV_MOD, PRIV_NONE, PRIV_ROOT};
-use crate::quake_types::team_t::{TEAM_BLUE, TEAM_FREE, TEAM_RED, TEAM_SPECTATOR};
-use crate::quake_types::{
-    DAMAGE_NO_ARMOR, DAMAGE_NO_KNOCKBACK, DAMAGE_NO_PROTECTION, DAMAGE_NO_TEAM_PROTECTION,
-    DAMAGE_RADIUS, MAX_CONFIGSTRINGS, MAX_GENTITIES,
-};
 use crate::MAIN_ENGINE;
+use core::sync::atomic::AtomicI32;
+use core::sync::atomic::{AtomicBool, Ordering};
 use parking_lot::RwLock;
-use std::sync::atomic::{AtomicBool, Ordering};
 
 use crate::client::Client;
 use crate::current_level::CurrentLevel;
 use crate::game_client::GameClient;
 use crate::game_entity::GameEntity;
 use crate::game_item::GameItem;
-use crate::pyminqlx::PythonInitializationError::{
-    AlreadyInitialized, MainScriptError, NotInitializedError,
-};
 use crate::quake_live_engine::{
     AddCommand, ComPrintf, ConsoleCommand, FindCVar, GetCVar, GetConfigstring, SendServerCommand,
     SetCVarForced, SetCVarLimit,
 };
-use crate::quake_types::cvar_flags::{
-    CVAR_ARCHIVE, CVAR_CHEAT, CVAR_INIT, CVAR_LATCH, CVAR_NORESTART, CVAR_ROM, CVAR_SERVERINFO,
-    CVAR_SYSTEMINFO, CVAR_TEMP, CVAR_USERINFO, CVAR_USER_CREATED,
-};
-use crate::quake_types::entityType_t::ET_ITEM;
-use crate::ALLOW_FREE_CLIENT;
 use pyo3::append_to_inittab;
 use pyo3::exceptions::{PyEnvironmentError, PyTypeError, PyValueError};
 use pyo3::prelude::*;
 use pyo3::prepare_freethreaded_python;
 use pyo3::types::PyTuple;
+
+static ALLOW_FREE_CLIENT: AtomicI32 = AtomicI32::new(-1);
 
 pub(crate) fn client_command_dispatcher<T>(client_id: i32, cmd: T) -> Option<String>
 where
@@ -486,10 +466,10 @@ impl TryFrom<i32> for PlayerInfo {
             Err(_) => Ok(PlayerInfo {
                 client_id,
                 name: Default::default(),
-                connection_state: CS_FREE as i32,
+                connection_state: clientState_t::CS_FREE as i32,
                 userinfo: Default::default(),
                 steam_id: 0,
-                team: TEAM_SPECTATOR as i32,
+                team: team_t::TEAM_SPECTATOR as i32,
                 privileges: -1,
             }),
             Ok(game_entity) => {
@@ -497,7 +477,7 @@ impl TryFrom<i32> for PlayerInfo {
                     return Ok(PlayerInfo {
                         client_id,
                         name: game_entity.get_player_name(),
-                        connection_state: CS_FREE as i32,
+                        connection_state: clientState_t::CS_FREE as i32,
                         userinfo: Default::default(),
                         steam_id: 0,
                         team: game_entity.get_team() as i32,
@@ -547,7 +527,7 @@ fn get_player_info(py: Python<'_>, client_id: i32) -> PyResult<Option<PlayerInfo
     py.allow_threads(move || {
         if let Ok(client) = Client::try_from(client_id) {
             let allowed_free_client_id = ALLOW_FREE_CLIENT.load(Ordering::Relaxed);
-            if allowed_free_client_id != client_id && client.get_state() == CS_FREE {
+            if allowed_free_client_id != client_id && client.get_state() == clientState_t::CS_FREE {
                 #[cfg(debug_assertions)]
                 println!(
                     "WARNING: get_player_info called for CS_FREE client {}.",
@@ -586,7 +566,7 @@ fn get_players_info(py: Python<'_>) -> PyResult<Vec<Option<PlayerInfo>>> {
                 Client::try_from(client_id).map_or_else(
                     |_| None,
                     |client| match client.get_state() {
-                        CS_FREE => None,
+                        clientState_t::CS_FREE => None,
                         _ => Some(PlayerInfo::try_from(client_id).ok()),
                     },
                 )
@@ -627,7 +607,7 @@ fn get_userinfo(py: Python<'_>, client_id: i32) -> PyResult<Option<String>> {
         Err(_) => Ok(None),
         Ok(client) => {
             let allowed_free_client_id = ALLOW_FREE_CLIENT.load(Ordering::Relaxed);
-            if allowed_free_client_id != client_id && client.get_state() == CS_FREE {
+            if allowed_free_client_id != client_id && client.get_state() == clientState_t::CS_FREE {
                 Ok(None)
             } else {
                 Ok(Some(client.get_user_info()))
@@ -675,7 +655,7 @@ fn send_server_command(py: Python<'_>, client_id: Option<i32>, cmd: &str) -> PyR
             py.allow_threads(move || match Client::try_from(actual_client_id) {
                 Err(_) => Ok(false),
                 Ok(client) => {
-                    if client.get_state() != CS_ACTIVE {
+                    if client.get_state() != clientState_t::CS_ACTIVE {
                         Ok(false)
                     } else {
                         shinqlx_send_server_command(Some(client), cmd);
@@ -717,7 +697,7 @@ fn client_command(py: Python<'_>, client_id: i32, cmd: &str) -> PyResult<bool> {
     py.allow_threads(move || match Client::try_from(client_id) {
         Err(_) => Ok(false),
         Ok(client) => {
-            if [CS_FREE, CS_ZOMBIE].contains(&client.get_state()) {
+            if [clientState_t::CS_FREE, clientState_t::CS_ZOMBIE].contains(&client.get_state()) {
                 Ok(false)
             } else {
                 shinqlx_execute_client_command(Some(client), cmd, true);
@@ -873,7 +853,7 @@ fn kick(py: Python<'_>, client_id: i32, reason: Option<&str>) -> PyResult<()> {
             "client_id must be None or the ID of an active player.",
         )),
         Ok(mut client) => {
-            if client.get_state() != CS_ACTIVE {
+            if client.get_state() != clientState_t::CS_ACTIVE {
                 return Err(PyValueError::new_err(
                     "client_id must be None or the ID of an active player.",
                 ));
@@ -976,7 +956,10 @@ fn force_vote(py: Python<'_>, pass: bool) -> PyResult<bool> {
 
     py.allow_threads(move || {
         (0..maxclients)
-            .filter(|i| Client::try_from(*i).is_ok_and(|client| client.get_state() == CS_ACTIVE))
+            .filter(|i| {
+                Client::try_from(*i)
+                    .is_ok_and(|client| client.get_state() == clientState_t::CS_ACTIVE)
+            })
             .filter_map(|client_id| GameEntity::try_from(client_id).ok())
             .filter_map(|game_entity| game_entity.get_game_client().ok())
             .for_each(|mut game_client| game_client.set_vote_state(pass));
@@ -1065,7 +1048,7 @@ fn register_handler(py: Python<'_>, event: &str, handler: Option<Py<PyAny>>) -> 
 
 #[pyclass]
 struct Vector3Iter {
-    iter: std::vec::IntoIter<i32>,
+    iter: vec::IntoIter<i32>,
 }
 
 #[pymethods]
@@ -2568,7 +2551,7 @@ fn replace_items(py: Python<'_>, item1: Py<PyAny>, item2: Py<PyAny>) -> PyResult
                             item1_id
                         )));
                     }
-                    if !game_entity.is_game_item(ET_ITEM) {
+                    if !game_entity.is_game_item(entityType_t::ET_ITEM) {
                         return Err(PyValueError::new_err(format!(
                             "entity #{} is not item. Cannot replace it",
                             item1_id
@@ -2588,7 +2571,7 @@ fn replace_items(py: Python<'_>, item1: Py<PyAny>, item2: Py<PyAny>) -> PyResult
                 .filter_map(|i| GameEntity::try_from(i as i32).ok())
                 .filter(|game_entity| {
                     game_entity.in_use()
-                        && game_entity.is_game_item(ET_ITEM)
+                        && game_entity.is_game_item(entityType_t::ET_ITEM)
                         && game_entity.get_classname() == item1_classname
                 })
                 .collect();
@@ -2613,7 +2596,9 @@ fn dev_print_items(py: Python<'_>) -> PyResult<()> {
     let formatted_items: Vec<String> = py.allow_threads(|| {
         (0..MAX_GENTITIES)
             .filter_map(|i| GameEntity::try_from(i as i32).ok())
-            .filter(|game_entity| game_entity.in_use() && game_entity.is_game_item(ET_ITEM))
+            .filter(|game_entity| {
+                game_entity.in_use() && game_entity.is_game_item(entityType_t::ET_ITEM)
+            })
             .map(|game_entity| {
                 format!(
                     "{} {}",
@@ -2630,7 +2615,7 @@ fn dev_print_items(py: Python<'_>) -> PyResult<()> {
             str_length += item.len();
             str_length < 1024
         })
-        .map(|item| item.to_string())
+        .map(|item| item.into())
         .collect();
 
     py.allow_threads(move || {
@@ -2658,7 +2643,7 @@ fn dev_print_items(py: Python<'_>) -> PyResult<()> {
         let remaining_items: Vec<String> = formatted_items
             .iter()
             .skip(printed_items.len())
-            .map(|item| item.to_string())
+            .map(|item| item.into())
             .collect();
 
         if !remaining_items.is_empty() {
@@ -2816,85 +2801,103 @@ fn pyminqlx_module(_py: Python<'_>, m: &PyModule) -> PyResult<()> {
 
     // Set a bunch of constants. We set them here because if you define functions in Python that use module
     // constants as keyword defaults, we have to always make sure they're exported first, and fuck that.
-    m.add("RET_NONE", RET_NONE as i32)?;
-    m.add("RET_STOP", RET_STOP as i32)?;
-    m.add("RET_STOP_EVENT", RET_STOP_EVENT as i32)?;
-    m.add("RET_STOP_ALL", RET_STOP_ALL as i32)?;
-    m.add("RET_USAGE", RET_USAGE as i32)?;
-    m.add("PRI_HIGHEST", PRI_HIGHEST as i32)?;
-    m.add("PRI_HIGH", PRI_HIGH as i32)?;
-    m.add("PRI_NORMAL", PRI_NORMAL as i32)?;
-    m.add("PRI_LOW", PRI_LOW as i32)?;
-    m.add("PRI_LOWEST", PRI_LOWEST as i32)?;
+    m.add("RET_NONE", PythonReturnCodes::RET_NONE as i32)?;
+    m.add("RET_STOP", PythonReturnCodes::RET_STOP as i32)?;
+    m.add("RET_STOP_EVENT", PythonReturnCodes::RET_STOP_EVENT as i32)?;
+    m.add("RET_STOP_ALL", PythonReturnCodes::RET_STOP_ALL as i32)?;
+    m.add("RET_USAGE", PythonReturnCodes::RET_USAGE as i32)?;
+    m.add("PRI_HIGHEST", PythonPriorities::PRI_HIGHEST as i32)?;
+    m.add("PRI_HIGH", PythonPriorities::PRI_HIGH as i32)?;
+    m.add("PRI_NORMAL", PythonPriorities::PRI_NORMAL as i32)?;
+    m.add("PRI_LOW", PythonPriorities::PRI_LOW as i32)?;
+    m.add("PRI_LOWEST", PythonPriorities::PRI_LOWEST as i32)?;
 
     // Cvar flags.
-    m.add("CVAR_ARCHIVE", CVAR_ARCHIVE as i32)?;
-    m.add("CVAR_USERINFO", CVAR_USERINFO as i32)?;
-    m.add("CVAR_SERVERINFO", CVAR_SERVERINFO as i32)?;
-    m.add("CVAR_SYSTEMINFO", CVAR_SYSTEMINFO as i32)?;
-    m.add("CVAR_INIT", CVAR_INIT as i32)?;
-    m.add("CVAR_LATCH", CVAR_LATCH as i32)?;
-    m.add("CVAR_ROM", CVAR_ROM as i32)?;
-    m.add("CVAR_USER_CREATED", CVAR_USER_CREATED as i32)?;
-    m.add("CVAR_TEMP", CVAR_TEMP as i32)?;
-    m.add("CVAR_CHEAT", CVAR_CHEAT as i32)?;
-    m.add("CVAR_NORESTART", CVAR_NORESTART as i32)?;
+    m.add("CVAR_ARCHIVE", cvar_flags::CVAR_ARCHIVE as i32)?;
+    m.add("CVAR_USERINFO", cvar_flags::CVAR_USERINFO as i32)?;
+    m.add("CVAR_SERVERINFO", cvar_flags::CVAR_SERVERINFO as i32)?;
+    m.add("CVAR_SYSTEMINFO", cvar_flags::CVAR_SYSTEMINFO as i32)?;
+    m.add("CVAR_INIT", cvar_flags::CVAR_INIT as i32)?;
+    m.add("CVAR_LATCH", cvar_flags::CVAR_LATCH as i32)?;
+    m.add("CVAR_ROM", cvar_flags::CVAR_ROM as i32)?;
+    m.add("CVAR_USER_CREATED", cvar_flags::CVAR_USER_CREATED as i32)?;
+    m.add("CVAR_TEMP", cvar_flags::CVAR_TEMP as i32)?;
+    m.add("CVAR_CHEAT", cvar_flags::CVAR_CHEAT as i32)?;
+    m.add("CVAR_NORESTART", cvar_flags::CVAR_NORESTART as i32)?;
 
     // Privileges.
-    m.add("PRIV_NONE", PRIV_NONE as i32)?;
-    m.add("PRIV_MOD", PRIV_MOD as i32)?;
-    m.add("PRIV_ADMIN", PRIV_ADMIN as i32)?;
-    m.add("PRIV_ROOT", PRIV_ROOT as i32)?;
-    m.add("PRIV_BANNED", PRIV_BANNED as i32)?;
+    m.add("PRIV_NONE", privileges_t::PRIV_NONE as i32)?;
+    m.add("PRIV_MOD", privileges_t::PRIV_MOD as i32)?;
+    m.add("PRIV_ADMIN", privileges_t::PRIV_ADMIN as i32)?;
+    m.add("PRIV_ROOT", privileges_t::PRIV_ROOT as i32)?;
+    m.add("PRIV_BANNED", privileges_t::PRIV_BANNED as i32)?;
 
     // Connection states.
-    m.add("CS_FREE", CS_FREE as i32)?;
-    m.add("CS_ZOMBIE", CS_ZOMBIE as i32)?;
-    m.add("CS_CONNECTED", CS_CONNECTED as i32)?;
-    m.add("CS_PRIMED", CS_PRIMED as i32)?;
-    m.add("CS_ACTIVE", CS_ACTIVE as i32)?;
+    m.add("CS_FREE", clientState_t::CS_FREE as i32)?;
+    m.add("CS_ZOMBIE", clientState_t::CS_ZOMBIE as i32)?;
+    m.add("CS_CONNECTED", clientState_t::CS_CONNECTED as i32)?;
+    m.add("CS_PRIMED", clientState_t::CS_PRIMED as i32)?;
+    m.add("CS_ACTIVE", clientState_t::CS_ACTIVE as i32)?;
 
     // Teams.
-    m.add("TEAM_FREE", TEAM_FREE as i32)?;
-    m.add("TEAM_RED", TEAM_RED as i32)?;
-    m.add("TEAM_BLUE", TEAM_BLUE as i32)?;
-    m.add("TEAM_SPECTATOR", TEAM_SPECTATOR as i32)?;
+    m.add("TEAM_FREE", team_t::TEAM_FREE as i32)?;
+    m.add("TEAM_RED", team_t::TEAM_RED as i32)?;
+    m.add("TEAM_BLUE", team_t::TEAM_BLUE as i32)?;
+    m.add("TEAM_SPECTATOR", team_t::TEAM_SPECTATOR as i32)?;
 
     // Means of death.
-    m.add("MOD_UNKNOWN", MOD_UNKNOWN as i32)?;
-    m.add("MOD_SHOTGUN", MOD_SHOTGUN as i32)?;
-    m.add("MOD_GAUNTLET", MOD_GAUNTLET as i32)?;
-    m.add("MOD_MACHINEGUN", MOD_MACHINEGUN as i32)?;
-    m.add("MOD_GRENADE", MOD_GRENADE as i32)?;
-    m.add("MOD_GRENADE_SPLASH", MOD_GRENADE_SPLASH as i32)?;
-    m.add("MOD_ROCKET", MOD_ROCKET as i32)?;
-    m.add("MOD_ROCKET_SPLASH", MOD_ROCKET_SPLASH as i32)?;
-    m.add("MOD_PLASMA", MOD_PLASMA as i32)?;
-    m.add("MOD_PLASMA_SPLASH", MOD_PLASMA_SPLASH as i32)?;
-    m.add("MOD_RAILGUN", MOD_RAILGUN as i32)?;
-    m.add("MOD_LIGHTNING", MOD_LIGHTNING as i32)?;
-    m.add("MOD_BFG", MOD_BFG as i32)?;
-    m.add("MOD_BFG_SPLASH", MOD_BFG_SPLASH as i32)?;
-    m.add("MOD_WATER", MOD_WATER as i32)?;
-    m.add("MOD_SLIME", MOD_SLIME as i32)?;
-    m.add("MOD_LAVA", MOD_LAVA as i32)?;
-    m.add("MOD_CRUSH", MOD_CRUSH as i32)?;
-    m.add("MOD_TELEFRAG", MOD_TELEFRAG as i32)?;
-    m.add("MOD_FALLING", MOD_FALLING as i32)?;
-    m.add("MOD_SUICIDE", MOD_SUICIDE as i32)?;
-    m.add("MOD_TARGET_LASER", MOD_TARGET_LASER as i32)?;
-    m.add("MOD_TRIGGER_HURT", MOD_TRIGGER_HURT as i32)?;
-    m.add("MOD_NAIL", MOD_NAIL as i32)?;
-    m.add("MOD_CHAINGUN", MOD_CHAINGUN as i32)?;
-    m.add("MOD_PROXIMITY_MINE", MOD_PROXIMITY_MINE as i32)?;
-    m.add("MOD_KAMIKAZE", MOD_KAMIKAZE as i32)?;
-    m.add("MOD_JUICED", MOD_JUICED as i32)?;
-    m.add("MOD_GRAPPLE", MOD_GRAPPLE as i32)?;
-    m.add("MOD_SWITCH_TEAMS", MOD_SWITCH_TEAMS as i32)?;
-    m.add("MOD_THAW", MOD_THAW as i32)?;
-    m.add("MOD_LIGHTNING_DISCHARGE", MOD_LIGHTNING_DISCHARGE as i32)?;
-    m.add("MOD_HMG", MOD_HMG as i32)?;
-    m.add("MOD_RAILGUN_HEADSHOT", MOD_RAILGUN_HEADSHOT as i32)?;
+    m.add("MOD_UNKNOWN", meansOfDeath_t::MOD_UNKNOWN as i32)?;
+    m.add("MOD_SHOTGUN", meansOfDeath_t::MOD_SHOTGUN as i32)?;
+    m.add("MOD_GAUNTLET", meansOfDeath_t::MOD_GAUNTLET as i32)?;
+    m.add("MOD_MACHINEGUN", meansOfDeath_t::MOD_MACHINEGUN as i32)?;
+    m.add("MOD_GRENADE", meansOfDeath_t::MOD_GRENADE as i32)?;
+    m.add(
+        "MOD_GRENADE_SPLASH",
+        meansOfDeath_t::MOD_GRENADE_SPLASH as i32,
+    )?;
+    m.add("MOD_ROCKET", meansOfDeath_t::MOD_ROCKET as i32)?;
+    m.add(
+        "MOD_ROCKET_SPLASH",
+        meansOfDeath_t::MOD_ROCKET_SPLASH as i32,
+    )?;
+    m.add("MOD_PLASMA", meansOfDeath_t::MOD_PLASMA as i32)?;
+    m.add(
+        "MOD_PLASMA_SPLASH",
+        meansOfDeath_t::MOD_PLASMA_SPLASH as i32,
+    )?;
+    m.add("MOD_RAILGUN", meansOfDeath_t::MOD_RAILGUN as i32)?;
+    m.add("MOD_LIGHTNING", meansOfDeath_t::MOD_LIGHTNING as i32)?;
+    m.add("MOD_BFG", meansOfDeath_t::MOD_BFG as i32)?;
+    m.add("MOD_BFG_SPLASH", meansOfDeath_t::MOD_BFG_SPLASH as i32)?;
+    m.add("MOD_WATER", meansOfDeath_t::MOD_WATER as i32)?;
+    m.add("MOD_SLIME", meansOfDeath_t::MOD_SLIME as i32)?;
+    m.add("MOD_LAVA", meansOfDeath_t::MOD_LAVA as i32)?;
+    m.add("MOD_CRUSH", meansOfDeath_t::MOD_CRUSH as i32)?;
+    m.add("MOD_TELEFRAG", meansOfDeath_t::MOD_TELEFRAG as i32)?;
+    m.add("MOD_FALLING", meansOfDeath_t::MOD_FALLING as i32)?;
+    m.add("MOD_SUICIDE", meansOfDeath_t::MOD_SUICIDE as i32)?;
+    m.add("MOD_TARGET_LASER", meansOfDeath_t::MOD_TARGET_LASER as i32)?;
+    m.add("MOD_TRIGGER_HURT", meansOfDeath_t::MOD_TRIGGER_HURT as i32)?;
+    m.add("MOD_NAIL", meansOfDeath_t::MOD_NAIL as i32)?;
+    m.add("MOD_CHAINGUN", meansOfDeath_t::MOD_CHAINGUN as i32)?;
+    m.add(
+        "MOD_PROXIMITY_MINE",
+        meansOfDeath_t::MOD_PROXIMITY_MINE as i32,
+    )?;
+    m.add("MOD_KAMIKAZE", meansOfDeath_t::MOD_KAMIKAZE as i32)?;
+    m.add("MOD_JUICED", meansOfDeath_t::MOD_JUICED as i32)?;
+    m.add("MOD_GRAPPLE", meansOfDeath_t::MOD_GRAPPLE as i32)?;
+    m.add("MOD_SWITCH_TEAMS", meansOfDeath_t::MOD_SWITCH_TEAMS as i32)?;
+    m.add("MOD_THAW", meansOfDeath_t::MOD_THAW as i32)?;
+    m.add(
+        "MOD_LIGHTNING_DISCHARGE",
+        meansOfDeath_t::MOD_LIGHTNING_DISCHARGE as i32,
+    )?;
+    m.add("MOD_HMG", meansOfDeath_t::MOD_HMG as i32)?;
+    m.add(
+        "MOD_RAILGUN_HEADSHOT",
+        meansOfDeath_t::MOD_RAILGUN_HEADSHOT as i32,
+    )?;
 
     m.add("DAMAGE_RADIUS", DAMAGE_RADIUS as i32)?;
     m.add("DAMAGE_NO_ARMOR", DAMAGE_NO_ARMOR as i32)?;
@@ -2933,7 +2936,7 @@ pub(crate) fn pyminqlx_initialize() -> Result<(), PythonInitializationError> {
     if pyminqlx_is_initialized() {
         #[cfg(debug_assertions)]
         println!("pyminqlx_initialize was called while already initialized");
-        return Err(AlreadyInitialized);
+        return Err(PythonInitializationError::AlreadyInitialized);
     }
 
     #[cfg(debug_assertions)]
@@ -2949,7 +2952,7 @@ pub(crate) fn pyminqlx_initialize() -> Result<(), PythonInitializationError> {
             debug_println!(e);
             #[cfg(debug_assertions)]
             println!("loader sequence returned an error. Did you modify the loader?");
-            Err(MainScriptError)
+            Err(PythonInitializationError::MainScriptError)
         }
         Ok(_) => {
             PYMINQLX_INITIALIZED.store(true, Ordering::SeqCst);
@@ -2964,7 +2967,7 @@ pub(crate) fn pyminqlx_reload() -> Result<(), PythonInitializationError> {
     if !pyminqlx_is_initialized() {
         #[cfg(debug_assertions)]
         println!("pyminqlx_finalize was called before being initialized");
-        return Err(NotInitializedError);
+        return Err(PythonInitializationError::NotInitializedError);
     }
 
     [
@@ -2999,7 +3002,7 @@ pub(crate) fn pyminqlx_reload() -> Result<(), PythonInitializationError> {
     }) {
         Err(_) => {
             PYMINQLX_INITIALIZED.store(false, Ordering::SeqCst);
-            Err(MainScriptError)
+            Err(PythonInitializationError::MainScriptError)
         }
         Ok(()) => {
             PYMINQLX_INITIALIZED.store(true, Ordering::SeqCst);
