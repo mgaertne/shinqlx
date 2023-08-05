@@ -2,26 +2,11 @@
 #![allow(clippy::upper_case_acronyms)]
 #![allow(non_camel_case_types)]
 #![allow(non_snake_case)]
-use crate::quake_types::meansOfDeath_t::{
-    MOD_BFG, MOD_BFG_SPLASH, MOD_CHAINGUN, MOD_CRUSH, MOD_FALLING, MOD_GAUNTLET, MOD_GRAPPLE,
-    MOD_GRENADE, MOD_GRENADE_SPLASH, MOD_HMG, MOD_JUICED, MOD_KAMIKAZE, MOD_LAVA, MOD_LIGHTNING,
-    MOD_LIGHTNING_DISCHARGE, MOD_MACHINEGUN, MOD_NAIL, MOD_PLASMA, MOD_PLASMA_SPLASH,
-    MOD_PROXIMITY_MINE, MOD_RAILGUN, MOD_RAILGUN_HEADSHOT, MOD_ROCKET, MOD_ROCKET_SPLASH,
-    MOD_SHOTGUN, MOD_SLIME, MOD_SUICIDE, MOD_SWITCH_TEAMS, MOD_TARGET_LASER, MOD_TELEFRAG,
-    MOD_THAW, MOD_TRIGGER_HURT, MOD_UNKNOWN, MOD_WATER,
-};
-use crate::quake_types::powerup_t::{
-    PW_BATTLESUIT, PW_HASTE, PW_INVIS, PW_INVULNERABILITY, PW_QUAD, PW_REGEN,
-};
-use crate::quake_types::privileges_t::{PRIV_ADMIN, PRIV_BANNED, PRIV_MOD, PRIV_NONE, PRIV_ROOT};
-use crate::quake_types::weapon_t::{
-    WP_BFG, WP_CHAINGUN, WP_GAUNTLET, WP_GRAPPLING_HOOK, WP_GRENADE_LAUNCHER, WP_HANDS, WP_HMG,
-    WP_LIGHTNING, WP_MACHINEGUN, WP_NAILGUN, WP_NONE, WP_NUM_WEAPONS, WP_PLASMAGUN,
-    WP_PROX_LAUNCHER, WP_RAILGUN, WP_ROCKET_LAUNCHER, WP_SHOTGUN,
-};
+
+use alloc::string::String;
+use core::ffi::{c_char, c_float, c_int, c_uchar, c_uint, c_ushort};
+use core::ops::Not;
 use derive_builder::Builder;
-use std::ffi::{c_char, c_float, c_int, c_uchar, c_uint, c_ushort};
-use std::ops::Not;
 
 // these are the only configstrings that the system reserves, all the
 // other ones are strictly for servergame to clientgame communication
@@ -257,9 +242,9 @@ impl Not for qboolean {
 
 #[cfg(test)]
 pub(crate) mod qboolean_tests {
-    use crate::quake_types::qboolean;
+    use crate::prelude::*;
+    use core::ffi::c_int;
     use pretty_assertions::assert_eq;
-    use std::ffi::c_int;
 
     #[test]
     pub(crate) fn qboolean_as_c_int() {
@@ -306,31 +291,28 @@ pub enum privileges_t {
 impl From<i32> for privileges_t {
     fn from(value: i32) -> Self {
         match value {
-            -1 => PRIV_BANNED,
-            0x1 => PRIV_MOD,
-            0x2 => PRIV_ADMIN,
-            0x3 => PRIV_ROOT,
-            _ => PRIV_NONE,
+            -1 => privileges_t::PRIV_BANNED,
+            0x1 => privileges_t::PRIV_MOD,
+            0x2 => privileges_t::PRIV_ADMIN,
+            0x3 => privileges_t::PRIV_ROOT,
+            _ => privileges_t::PRIV_NONE,
         }
     }
 }
 
 #[cfg(test)]
 pub(crate) mod privileges_tests {
-    use crate::quake_types::privileges_t;
-    use crate::quake_types::privileges_t::{
-        PRIV_ADMIN, PRIV_BANNED, PRIV_MOD, PRIV_NONE, PRIV_ROOT,
-    };
+    use crate::prelude::*;
     use pretty_assertions::assert_eq;
 
     #[test]
     pub(crate) fn privileges_from_integer() {
-        assert_eq!(privileges_t::from(-1), PRIV_BANNED);
-        assert_eq!(privileges_t::from(1), PRIV_MOD);
-        assert_eq!(privileges_t::from(2), PRIV_ADMIN);
-        assert_eq!(privileges_t::from(3), PRIV_ROOT);
-        assert_eq!(privileges_t::from(0), PRIV_NONE);
-        assert_eq!(privileges_t::from(666), PRIV_NONE);
+        assert_eq!(privileges_t::from(-1), privileges_t::PRIV_BANNED);
+        assert_eq!(privileges_t::from(1), privileges_t::PRIV_MOD);
+        assert_eq!(privileges_t::from(2), privileges_t::PRIV_ADMIN);
+        assert_eq!(privileges_t::from(3), privileges_t::PRIV_ROOT);
+        assert_eq!(privileges_t::from(0), privileges_t::PRIV_NONE);
+        assert_eq!(privileges_t::from(666), privileges_t::PRIV_NONE);
     }
 }
 
@@ -581,12 +563,12 @@ impl TryFrom<usize> for powerup_t {
 
     fn try_from(value: usize) -> Result<Self, Self::Error> {
         match value {
-            0 => Ok(PW_QUAD),
-            1 => Ok(PW_BATTLESUIT),
-            2 => Ok(PW_HASTE),
-            3 => Ok(PW_INVIS),
-            4 => Ok(PW_REGEN),
-            5 => Ok(PW_INVULNERABILITY),
+            0 => Ok(powerup_t::PW_QUAD),
+            1 => Ok(powerup_t::PW_BATTLESUIT),
+            2 => Ok(powerup_t::PW_HASTE),
+            3 => Ok(powerup_t::PW_INVIS),
+            4 => Ok(powerup_t::PW_REGEN),
+            5 => Ok(powerup_t::PW_INVULNERABILITY),
             _ => Err("invalid power up".into()),
         }
     }
@@ -594,37 +576,34 @@ impl TryFrom<usize> for powerup_t {
 
 #[cfg(test)]
 pub(crate) mod powerup_t_tests {
-    use crate::quake_types::powerup_t;
-    use crate::quake_types::powerup_t::{
-        PW_BATTLESUIT, PW_HASTE, PW_INVIS, PW_INVULNERABILITY, PW_QUAD, PW_REGEN,
-    };
+    use crate::prelude::*;
     use pretty_assertions::assert_eq;
 
     #[test]
     pub(crate) fn powerup_t_from_integer() {
-        assert_eq!(powerup_t::try_from(0), Ok(PW_QUAD));
-        assert_eq!(powerup_t::try_from(1), Ok(PW_BATTLESUIT));
-        assert_eq!(powerup_t::try_from(2), Ok(PW_HASTE));
-        assert_eq!(powerup_t::try_from(3), Ok(PW_INVIS));
-        assert_eq!(powerup_t::try_from(4), Ok(PW_REGEN));
-        assert_eq!(powerup_t::try_from(5), Ok(PW_INVULNERABILITY));
-        assert_eq!(
-            powerup_t::try_from(666),
-            Err("invalid power up".to_string())
-        );
+        assert_eq!(powerup_t::try_from(0), Ok(powerup_t::PW_QUAD));
+        assert_eq!(powerup_t::try_from(1), Ok(powerup_t::PW_BATTLESUIT));
+        assert_eq!(powerup_t::try_from(2), Ok(powerup_t::PW_HASTE));
+        assert_eq!(powerup_t::try_from(3), Ok(powerup_t::PW_INVIS));
+        assert_eq!(powerup_t::try_from(4), Ok(powerup_t::PW_REGEN));
+        assert_eq!(powerup_t::try_from(5), Ok(powerup_t::PW_INVULNERABILITY));
+        assert_eq!(powerup_t::try_from(666), Err("invalid power up".into()));
     }
 
     #[test]
     pub(crate) fn powerup_t_from_usize() {
-        assert_eq!(powerup_t::try_from(0usize), Ok(PW_QUAD));
-        assert_eq!(powerup_t::try_from(1usize), Ok(PW_BATTLESUIT));
-        assert_eq!(powerup_t::try_from(2usize), Ok(PW_HASTE));
-        assert_eq!(powerup_t::try_from(3usize), Ok(PW_INVIS));
-        assert_eq!(powerup_t::try_from(4usize), Ok(PW_REGEN));
-        assert_eq!(powerup_t::try_from(5usize), Ok(PW_INVULNERABILITY));
+        assert_eq!(powerup_t::try_from(0usize), Ok(powerup_t::PW_QUAD));
+        assert_eq!(powerup_t::try_from(1usize), Ok(powerup_t::PW_BATTLESUIT));
+        assert_eq!(powerup_t::try_from(2usize), Ok(powerup_t::PW_HASTE));
+        assert_eq!(powerup_t::try_from(3usize), Ok(powerup_t::PW_INVIS));
+        assert_eq!(powerup_t::try_from(4usize), Ok(powerup_t::PW_REGEN));
+        assert_eq!(
+            powerup_t::try_from(5usize),
+            Ok(powerup_t::PW_INVULNERABILITY)
+        );
         assert_eq!(
             powerup_t::try_from(666usize),
-            Err("invalid power up".to_string())
+            Err("invalid power up".into())
         );
     }
 }
@@ -667,7 +646,7 @@ pub enum weapon_t {
 impl From<weapon_t> for i32 {
     fn from(value: weapon_t) -> Self {
         match value {
-            WP_NUM_WEAPONS => 0,
+            weapon_t::WP_NUM_WEAPONS => 0,
             _ => value as i32,
         }
     }
@@ -678,22 +657,22 @@ impl TryFrom<i32> for weapon_t {
 
     fn try_from(value: i32) -> Result<Self, Self::Error> {
         match value {
-            0 => Ok(WP_NONE),
-            1 => Ok(WP_GAUNTLET),
-            2 => Ok(WP_MACHINEGUN),
-            3 => Ok(WP_SHOTGUN),
-            4 => Ok(WP_GRENADE_LAUNCHER),
-            5 => Ok(WP_ROCKET_LAUNCHER),
-            6 => Ok(WP_LIGHTNING),
-            7 => Ok(WP_RAILGUN),
-            8 => Ok(WP_PLASMAGUN),
-            9 => Ok(WP_BFG),
-            10 => Ok(WP_GRAPPLING_HOOK),
-            11 => Ok(WP_NAILGUN),
-            12 => Ok(WP_PROX_LAUNCHER),
-            13 => Ok(WP_CHAINGUN),
-            14 => Ok(WP_HMG),
-            15 => Ok(WP_HANDS),
+            0 => Ok(weapon_t::WP_NONE),
+            1 => Ok(weapon_t::WP_GAUNTLET),
+            2 => Ok(weapon_t::WP_MACHINEGUN),
+            3 => Ok(weapon_t::WP_SHOTGUN),
+            4 => Ok(weapon_t::WP_GRENADE_LAUNCHER),
+            5 => Ok(weapon_t::WP_ROCKET_LAUNCHER),
+            6 => Ok(weapon_t::WP_LIGHTNING),
+            7 => Ok(weapon_t::WP_RAILGUN),
+            8 => Ok(weapon_t::WP_PLASMAGUN),
+            9 => Ok(weapon_t::WP_BFG),
+            10 => Ok(weapon_t::WP_GRAPPLING_HOOK),
+            11 => Ok(weapon_t::WP_NAILGUN),
+            12 => Ok(weapon_t::WP_PROX_LAUNCHER),
+            13 => Ok(weapon_t::WP_CHAINGUN),
+            14 => Ok(weapon_t::WP_HMG),
+            15 => Ok(weapon_t::WP_HANDS),
             _ => Err("invalid weapon".into()),
         }
     }
@@ -701,56 +680,51 @@ impl TryFrom<i32> for weapon_t {
 
 #[cfg(test)]
 pub(crate) mod weapon_t_tests {
-    use crate::quake_types::weapon_t;
-    use crate::quake_types::weapon_t::{
-        WP_BFG, WP_CHAINGUN, WP_GAUNTLET, WP_GRAPPLING_HOOK, WP_GRENADE_LAUNCHER, WP_HANDS, WP_HMG,
-        WP_LIGHTNING, WP_MACHINEGUN, WP_NAILGUN, WP_NONE, WP_NUM_WEAPONS, WP_PLASMAGUN,
-        WP_PROX_LAUNCHER, WP_RAILGUN, WP_ROCKET_LAUNCHER, WP_SHOTGUN,
-    };
+    use crate::prelude::*;
     use pretty_assertions::assert_eq;
 
     #[test]
     pub(crate) fn integer_from_weapon_t() {
-        assert_eq!(i32::from(WP_NONE), 0);
-        assert_eq!(i32::from(WP_GAUNTLET), 1);
-        assert_eq!(i32::from(WP_MACHINEGUN), 2);
-        assert_eq!(i32::from(WP_SHOTGUN), 3);
-        assert_eq!(i32::from(WP_GRENADE_LAUNCHER), 4);
-        assert_eq!(i32::from(WP_ROCKET_LAUNCHER), 5);
-        assert_eq!(i32::from(WP_LIGHTNING), 6);
-        assert_eq!(i32::from(WP_RAILGUN), 7);
-        assert_eq!(i32::from(WP_PLASMAGUN), 8);
-        assert_eq!(i32::from(WP_BFG), 9);
-        assert_eq!(i32::from(WP_GRAPPLING_HOOK), 10);
-        assert_eq!(i32::from(WP_NAILGUN), 11);
-        assert_eq!(i32::from(WP_PROX_LAUNCHER), 12);
-        assert_eq!(i32::from(WP_CHAINGUN), 13);
-        assert_eq!(i32::from(WP_HMG), 14);
-        assert_eq!(i32::from(WP_HANDS), 15);
-        assert_eq!(i32::from(WP_NUM_WEAPONS), 0);
+        assert_eq!(i32::from(weapon_t::WP_NONE), 0);
+        assert_eq!(i32::from(weapon_t::WP_GAUNTLET), 1);
+        assert_eq!(i32::from(weapon_t::WP_MACHINEGUN), 2);
+        assert_eq!(i32::from(weapon_t::WP_SHOTGUN), 3);
+        assert_eq!(i32::from(weapon_t::WP_GRENADE_LAUNCHER), 4);
+        assert_eq!(i32::from(weapon_t::WP_ROCKET_LAUNCHER), 5);
+        assert_eq!(i32::from(weapon_t::WP_LIGHTNING), 6);
+        assert_eq!(i32::from(weapon_t::WP_RAILGUN), 7);
+        assert_eq!(i32::from(weapon_t::WP_PLASMAGUN), 8);
+        assert_eq!(i32::from(weapon_t::WP_BFG), 9);
+        assert_eq!(i32::from(weapon_t::WP_GRAPPLING_HOOK), 10);
+        assert_eq!(i32::from(weapon_t::WP_NAILGUN), 11);
+        assert_eq!(i32::from(weapon_t::WP_PROX_LAUNCHER), 12);
+        assert_eq!(i32::from(weapon_t::WP_CHAINGUN), 13);
+        assert_eq!(i32::from(weapon_t::WP_HMG), 14);
+        assert_eq!(i32::from(weapon_t::WP_HANDS), 15);
+        assert_eq!(i32::from(weapon_t::WP_NUM_WEAPONS), 0);
     }
 
     #[test]
     pub(crate) fn weapon_t_from_integer() {
-        assert_eq!(weapon_t::try_from(0), Ok(WP_NONE));
-        assert_eq!(weapon_t::try_from(1), Ok(WP_GAUNTLET));
-        assert_eq!(weapon_t::try_from(2), Ok(WP_MACHINEGUN));
-        assert_eq!(weapon_t::try_from(3), Ok(WP_SHOTGUN));
-        assert_eq!(weapon_t::try_from(4), Ok(WP_GRENADE_LAUNCHER));
-        assert_eq!(weapon_t::try_from(5), Ok(WP_ROCKET_LAUNCHER));
-        assert_eq!(weapon_t::try_from(6), Ok(WP_LIGHTNING));
-        assert_eq!(weapon_t::try_from(7), Ok(WP_RAILGUN));
-        assert_eq!(weapon_t::try_from(8), Ok(WP_PLASMAGUN));
-        assert_eq!(weapon_t::try_from(9), Ok(WP_BFG));
-        assert_eq!(weapon_t::try_from(10), Ok(WP_GRAPPLING_HOOK));
-        assert_eq!(weapon_t::try_from(11), Ok(WP_NAILGUN));
-        assert_eq!(weapon_t::try_from(12), Ok(WP_PROX_LAUNCHER));
-        assert_eq!(weapon_t::try_from(13), Ok(WP_CHAINGUN));
-        assert_eq!(weapon_t::try_from(14), Ok(WP_HMG));
-        assert_eq!(weapon_t::try_from(15), Ok(WP_HANDS));
-        assert_eq!(weapon_t::try_from(16), Err("invalid weapon".to_string()));
-        assert_eq!(weapon_t::try_from(-1), Err("invalid weapon".to_string()));
-        assert_eq!(weapon_t::try_from(666), Err("invalid weapon".to_string()));
+        assert_eq!(weapon_t::try_from(0), Ok(weapon_t::WP_NONE));
+        assert_eq!(weapon_t::try_from(1), Ok(weapon_t::WP_GAUNTLET));
+        assert_eq!(weapon_t::try_from(2), Ok(weapon_t::WP_MACHINEGUN));
+        assert_eq!(weapon_t::try_from(3), Ok(weapon_t::WP_SHOTGUN));
+        assert_eq!(weapon_t::try_from(4), Ok(weapon_t::WP_GRENADE_LAUNCHER));
+        assert_eq!(weapon_t::try_from(5), Ok(weapon_t::WP_ROCKET_LAUNCHER));
+        assert_eq!(weapon_t::try_from(6), Ok(weapon_t::WP_LIGHTNING));
+        assert_eq!(weapon_t::try_from(7), Ok(weapon_t::WP_RAILGUN));
+        assert_eq!(weapon_t::try_from(8), Ok(weapon_t::WP_PLASMAGUN));
+        assert_eq!(weapon_t::try_from(9), Ok(weapon_t::WP_BFG));
+        assert_eq!(weapon_t::try_from(10), Ok(weapon_t::WP_GRAPPLING_HOOK));
+        assert_eq!(weapon_t::try_from(11), Ok(weapon_t::WP_NAILGUN));
+        assert_eq!(weapon_t::try_from(12), Ok(weapon_t::WP_PROX_LAUNCHER));
+        assert_eq!(weapon_t::try_from(13), Ok(weapon_t::WP_CHAINGUN));
+        assert_eq!(weapon_t::try_from(14), Ok(weapon_t::WP_HMG));
+        assert_eq!(weapon_t::try_from(15), Ok(weapon_t::WP_HANDS));
+        assert_eq!(weapon_t::try_from(16), Err("invalid weapon".into()));
+        assert_eq!(weapon_t::try_from(-1), Err("invalid weapon".into()));
+        assert_eq!(weapon_t::try_from(666), Err("invalid weapon".into()));
     }
 }
 
@@ -837,40 +811,40 @@ impl TryFrom<i32> for meansOfDeath_t {
 
     fn try_from(value: i32) -> Result<Self, Self::Error> {
         match value {
-            0 => Ok(MOD_UNKNOWN),
-            1 => Ok(MOD_SHOTGUN),
-            2 => Ok(MOD_GAUNTLET),
-            3 => Ok(MOD_MACHINEGUN),
-            4 => Ok(MOD_GRENADE),
-            5 => Ok(MOD_GRENADE_SPLASH),
-            6 => Ok(MOD_ROCKET),
-            7 => Ok(MOD_ROCKET_SPLASH),
-            8 => Ok(MOD_PLASMA),
-            9 => Ok(MOD_PLASMA_SPLASH),
-            10 => Ok(MOD_RAILGUN),
-            11 => Ok(MOD_LIGHTNING),
-            12 => Ok(MOD_BFG),
-            13 => Ok(MOD_BFG_SPLASH),
-            14 => Ok(MOD_WATER),
-            15 => Ok(MOD_SLIME),
-            16 => Ok(MOD_LAVA),
-            17 => Ok(MOD_CRUSH),
-            18 => Ok(MOD_TELEFRAG),
-            19 => Ok(MOD_FALLING),
-            20 => Ok(MOD_SUICIDE),
-            21 => Ok(MOD_TARGET_LASER),
-            22 => Ok(MOD_TRIGGER_HURT),
-            23 => Ok(MOD_NAIL),
-            24 => Ok(MOD_CHAINGUN),
-            25 => Ok(MOD_PROXIMITY_MINE),
-            26 => Ok(MOD_KAMIKAZE),
-            27 => Ok(MOD_JUICED),
-            28 => Ok(MOD_GRAPPLE),
-            29 => Ok(MOD_SWITCH_TEAMS),
-            30 => Ok(MOD_THAW),
-            31 => Ok(MOD_LIGHTNING_DISCHARGE),
-            32 => Ok(MOD_HMG),
-            33 => Ok(MOD_RAILGUN_HEADSHOT),
+            0 => Ok(meansOfDeath_t::MOD_UNKNOWN),
+            1 => Ok(meansOfDeath_t::MOD_SHOTGUN),
+            2 => Ok(meansOfDeath_t::MOD_GAUNTLET),
+            3 => Ok(meansOfDeath_t::MOD_MACHINEGUN),
+            4 => Ok(meansOfDeath_t::MOD_GRENADE),
+            5 => Ok(meansOfDeath_t::MOD_GRENADE_SPLASH),
+            6 => Ok(meansOfDeath_t::MOD_ROCKET),
+            7 => Ok(meansOfDeath_t::MOD_ROCKET_SPLASH),
+            8 => Ok(meansOfDeath_t::MOD_PLASMA),
+            9 => Ok(meansOfDeath_t::MOD_PLASMA_SPLASH),
+            10 => Ok(meansOfDeath_t::MOD_RAILGUN),
+            11 => Ok(meansOfDeath_t::MOD_LIGHTNING),
+            12 => Ok(meansOfDeath_t::MOD_BFG),
+            13 => Ok(meansOfDeath_t::MOD_BFG_SPLASH),
+            14 => Ok(meansOfDeath_t::MOD_WATER),
+            15 => Ok(meansOfDeath_t::MOD_SLIME),
+            16 => Ok(meansOfDeath_t::MOD_LAVA),
+            17 => Ok(meansOfDeath_t::MOD_CRUSH),
+            18 => Ok(meansOfDeath_t::MOD_TELEFRAG),
+            19 => Ok(meansOfDeath_t::MOD_FALLING),
+            20 => Ok(meansOfDeath_t::MOD_SUICIDE),
+            21 => Ok(meansOfDeath_t::MOD_TARGET_LASER),
+            22 => Ok(meansOfDeath_t::MOD_TRIGGER_HURT),
+            23 => Ok(meansOfDeath_t::MOD_NAIL),
+            24 => Ok(meansOfDeath_t::MOD_CHAINGUN),
+            25 => Ok(meansOfDeath_t::MOD_PROXIMITY_MINE),
+            26 => Ok(meansOfDeath_t::MOD_KAMIKAZE),
+            27 => Ok(meansOfDeath_t::MOD_JUICED),
+            28 => Ok(meansOfDeath_t::MOD_GRAPPLE),
+            29 => Ok(meansOfDeath_t::MOD_SWITCH_TEAMS),
+            30 => Ok(meansOfDeath_t::MOD_THAW),
+            31 => Ok(meansOfDeath_t::MOD_LIGHTNING_DISCHARGE),
+            32 => Ok(meansOfDeath_t::MOD_HMG),
+            33 => Ok(meansOfDeath_t::MOD_RAILGUN_HEADSHOT),
             _ => Err("invalid means of death".into()),
         }
     }
@@ -878,60 +852,112 @@ impl TryFrom<i32> for meansOfDeath_t {
 
 #[cfg(test)]
 pub(crate) mod meansofdeath_t_tests {
-    use crate::quake_types::meansOfDeath_t;
-    use crate::quake_types::meansOfDeath_t::{
-        MOD_BFG, MOD_BFG_SPLASH, MOD_CHAINGUN, MOD_CRUSH, MOD_FALLING, MOD_GAUNTLET, MOD_GRAPPLE,
-        MOD_GRENADE, MOD_GRENADE_SPLASH, MOD_HMG, MOD_JUICED, MOD_KAMIKAZE, MOD_LAVA,
-        MOD_LIGHTNING, MOD_LIGHTNING_DISCHARGE, MOD_MACHINEGUN, MOD_NAIL, MOD_PLASMA,
-        MOD_PLASMA_SPLASH, MOD_PROXIMITY_MINE, MOD_RAILGUN, MOD_RAILGUN_HEADSHOT, MOD_ROCKET,
-        MOD_ROCKET_SPLASH, MOD_SHOTGUN, MOD_SLIME, MOD_SUICIDE, MOD_SWITCH_TEAMS, MOD_TARGET_LASER,
-        MOD_TELEFRAG, MOD_THAW, MOD_TRIGGER_HURT, MOD_UNKNOWN, MOD_WATER,
-    };
+    use crate::prelude::*;
     use pretty_assertions::assert_eq;
 
     #[test]
     pub(crate) fn meansofdeath_t_from_integer() {
-        assert_eq!(meansOfDeath_t::try_from(0), Ok(MOD_UNKNOWN));
-        assert_eq!(meansOfDeath_t::try_from(1), Ok(MOD_SHOTGUN));
-        assert_eq!(meansOfDeath_t::try_from(2), Ok(MOD_GAUNTLET));
-        assert_eq!(meansOfDeath_t::try_from(3), Ok(MOD_MACHINEGUN));
-        assert_eq!(meansOfDeath_t::try_from(4), Ok(MOD_GRENADE));
-        assert_eq!(meansOfDeath_t::try_from(5), Ok(MOD_GRENADE_SPLASH));
-        assert_eq!(meansOfDeath_t::try_from(6), Ok(MOD_ROCKET));
-        assert_eq!(meansOfDeath_t::try_from(7), Ok(MOD_ROCKET_SPLASH));
-        assert_eq!(meansOfDeath_t::try_from(8), Ok(MOD_PLASMA));
-        assert_eq!(meansOfDeath_t::try_from(9), Ok(MOD_PLASMA_SPLASH));
-        assert_eq!(meansOfDeath_t::try_from(10), Ok(MOD_RAILGUN));
-        assert_eq!(meansOfDeath_t::try_from(11), Ok(MOD_LIGHTNING));
-        assert_eq!(meansOfDeath_t::try_from(12), Ok(MOD_BFG));
-        assert_eq!(meansOfDeath_t::try_from(13), Ok(MOD_BFG_SPLASH));
-        assert_eq!(meansOfDeath_t::try_from(14), Ok(MOD_WATER));
-        assert_eq!(meansOfDeath_t::try_from(15), Ok(MOD_SLIME));
-        assert_eq!(meansOfDeath_t::try_from(16), Ok(MOD_LAVA));
-        assert_eq!(meansOfDeath_t::try_from(17), Ok(MOD_CRUSH));
-        assert_eq!(meansOfDeath_t::try_from(18), Ok(MOD_TELEFRAG));
-        assert_eq!(meansOfDeath_t::try_from(19), Ok(MOD_FALLING));
-        assert_eq!(meansOfDeath_t::try_from(20), Ok(MOD_SUICIDE));
-        assert_eq!(meansOfDeath_t::try_from(21), Ok(MOD_TARGET_LASER));
-        assert_eq!(meansOfDeath_t::try_from(22), Ok(MOD_TRIGGER_HURT));
-        assert_eq!(meansOfDeath_t::try_from(23), Ok(MOD_NAIL));
-        assert_eq!(meansOfDeath_t::try_from(24), Ok(MOD_CHAINGUN));
-        assert_eq!(meansOfDeath_t::try_from(25), Ok(MOD_PROXIMITY_MINE));
-        assert_eq!(meansOfDeath_t::try_from(26), Ok(MOD_KAMIKAZE));
-        assert_eq!(meansOfDeath_t::try_from(27), Ok(MOD_JUICED));
-        assert_eq!(meansOfDeath_t::try_from(28), Ok(MOD_GRAPPLE));
-        assert_eq!(meansOfDeath_t::try_from(29), Ok(MOD_SWITCH_TEAMS));
-        assert_eq!(meansOfDeath_t::try_from(30), Ok(MOD_THAW));
-        assert_eq!(meansOfDeath_t::try_from(31), Ok(MOD_LIGHTNING_DISCHARGE));
-        assert_eq!(meansOfDeath_t::try_from(32), Ok(MOD_HMG));
-        assert_eq!(meansOfDeath_t::try_from(33), Ok(MOD_RAILGUN_HEADSHOT));
+        assert_eq!(meansOfDeath_t::try_from(0), Ok(meansOfDeath_t::MOD_UNKNOWN));
+        assert_eq!(meansOfDeath_t::try_from(1), Ok(meansOfDeath_t::MOD_SHOTGUN));
+        assert_eq!(
+            meansOfDeath_t::try_from(2),
+            Ok(meansOfDeath_t::MOD_GAUNTLET)
+        );
+        assert_eq!(
+            meansOfDeath_t::try_from(3),
+            Ok(meansOfDeath_t::MOD_MACHINEGUN)
+        );
+        assert_eq!(meansOfDeath_t::try_from(4), Ok(meansOfDeath_t::MOD_GRENADE));
+        assert_eq!(
+            meansOfDeath_t::try_from(5),
+            Ok(meansOfDeath_t::MOD_GRENADE_SPLASH)
+        );
+        assert_eq!(meansOfDeath_t::try_from(6), Ok(meansOfDeath_t::MOD_ROCKET));
+        assert_eq!(
+            meansOfDeath_t::try_from(7),
+            Ok(meansOfDeath_t::MOD_ROCKET_SPLASH)
+        );
+        assert_eq!(meansOfDeath_t::try_from(8), Ok(meansOfDeath_t::MOD_PLASMA));
+        assert_eq!(
+            meansOfDeath_t::try_from(9),
+            Ok(meansOfDeath_t::MOD_PLASMA_SPLASH)
+        );
+        assert_eq!(
+            meansOfDeath_t::try_from(10),
+            Ok(meansOfDeath_t::MOD_RAILGUN)
+        );
+        assert_eq!(
+            meansOfDeath_t::try_from(11),
+            Ok(meansOfDeath_t::MOD_LIGHTNING)
+        );
+        assert_eq!(meansOfDeath_t::try_from(12), Ok(meansOfDeath_t::MOD_BFG));
+        assert_eq!(
+            meansOfDeath_t::try_from(13),
+            Ok(meansOfDeath_t::MOD_BFG_SPLASH)
+        );
+        assert_eq!(meansOfDeath_t::try_from(14), Ok(meansOfDeath_t::MOD_WATER));
+        assert_eq!(meansOfDeath_t::try_from(15), Ok(meansOfDeath_t::MOD_SLIME));
+        assert_eq!(meansOfDeath_t::try_from(16), Ok(meansOfDeath_t::MOD_LAVA));
+        assert_eq!(meansOfDeath_t::try_from(17), Ok(meansOfDeath_t::MOD_CRUSH));
+        assert_eq!(
+            meansOfDeath_t::try_from(18),
+            Ok(meansOfDeath_t::MOD_TELEFRAG)
+        );
+        assert_eq!(
+            meansOfDeath_t::try_from(19),
+            Ok(meansOfDeath_t::MOD_FALLING)
+        );
+        assert_eq!(
+            meansOfDeath_t::try_from(20),
+            Ok(meansOfDeath_t::MOD_SUICIDE)
+        );
+        assert_eq!(
+            meansOfDeath_t::try_from(21),
+            Ok(meansOfDeath_t::MOD_TARGET_LASER)
+        );
+        assert_eq!(
+            meansOfDeath_t::try_from(22),
+            Ok(meansOfDeath_t::MOD_TRIGGER_HURT)
+        );
+        assert_eq!(meansOfDeath_t::try_from(23), Ok(meansOfDeath_t::MOD_NAIL));
+        assert_eq!(
+            meansOfDeath_t::try_from(24),
+            Ok(meansOfDeath_t::MOD_CHAINGUN)
+        );
+        assert_eq!(
+            meansOfDeath_t::try_from(25),
+            Ok(meansOfDeath_t::MOD_PROXIMITY_MINE)
+        );
+        assert_eq!(
+            meansOfDeath_t::try_from(26),
+            Ok(meansOfDeath_t::MOD_KAMIKAZE)
+        );
+        assert_eq!(meansOfDeath_t::try_from(27), Ok(meansOfDeath_t::MOD_JUICED));
+        assert_eq!(
+            meansOfDeath_t::try_from(28),
+            Ok(meansOfDeath_t::MOD_GRAPPLE)
+        );
+        assert_eq!(
+            meansOfDeath_t::try_from(29),
+            Ok(meansOfDeath_t::MOD_SWITCH_TEAMS)
+        );
+        assert_eq!(meansOfDeath_t::try_from(30), Ok(meansOfDeath_t::MOD_THAW));
+        assert_eq!(
+            meansOfDeath_t::try_from(31),
+            Ok(meansOfDeath_t::MOD_LIGHTNING_DISCHARGE)
+        );
+        assert_eq!(meansOfDeath_t::try_from(32), Ok(meansOfDeath_t::MOD_HMG));
+        assert_eq!(
+            meansOfDeath_t::try_from(33),
+            Ok(meansOfDeath_t::MOD_RAILGUN_HEADSHOT)
+        );
         assert_eq!(
             meansOfDeath_t::try_from(-1),
-            Err("invalid means of death".to_string())
+            Err("invalid means of death".into())
         );
         assert_eq!(
             meansOfDeath_t::try_from(666),
-            Err("invalid means of death".to_string())
+            Err("invalid means of death".into())
         );
     }
 }
@@ -1017,21 +1043,21 @@ pub enum cbufExec_t {
 
 #[repr(C)]
 #[derive(Debug, PartialEq, Clone, Builder)]
-#[builder(name = "CVarBuilder")]
+#[builder(name = "CVarBuilder", no_std)]
 pub struct cvar_s {
-    #[builder(default = "std::ptr::null_mut() as *mut c_char")]
+    #[builder(default = "core::ptr::null_mut() as *mut c_char")]
     pub name: *mut c_char,
-    #[builder(default = "std::ptr::null_mut() as *mut c_char")]
+    #[builder(default = "core::ptr::null_mut() as *mut c_char")]
     pub string: *mut c_char,
-    #[builder(default = "std::ptr::null_mut() as *mut c_char")]
+    #[builder(default = "core::ptr::null_mut() as *mut c_char")]
     pub resetString: *mut c_char, // cvar_restart will reset to this value
-    #[builder(default = "std::ptr::null_mut() as *mut c_char")]
+    #[builder(default = "core::ptr::null_mut() as *mut c_char")]
     pub latchedString: *mut c_char, // for CVAR_LATCH vars
-    #[builder(default = "std::ptr::null_mut() as *mut c_char")]
+    #[builder(default = "core::ptr::null_mut() as *mut c_char")]
     pub defaultString: *mut c_char,
-    #[builder(default = "std::ptr::null_mut() as *mut c_char")]
+    #[builder(default = "core::ptr::null_mut() as *mut c_char")]
     pub minimumString: *mut c_char,
-    #[builder(default = "std::ptr::null_mut() as *mut c_char")]
+    #[builder(default = "core::ptr::null_mut() as *mut c_char")]
     pub maximumString: *mut c_char,
     #[builder(default)]
     pub flags: c_int,
@@ -1047,9 +1073,9 @@ pub struct cvar_s {
     pub integer: c_int, // atof( string )
     #[builder(default = "[0; 8]")]
     pub _unknown3: [u8; 8usize],
-    #[builder(default = "std::ptr::null_mut() as *mut cvar_s")]
+    #[builder(default = "core::ptr::null_mut() as *mut cvar_s")]
     pub next: *mut cvar_s,
-    #[builder(default = "std::ptr::null_mut() as *mut cvar_s")]
+    #[builder(default = "core::ptr::null_mut() as *mut cvar_s")]
     pub hashNext: *mut cvar_s,
 }
 
@@ -1070,7 +1096,7 @@ pub struct msg_t {
 
 #[repr(C)]
 #[derive(Debug, PartialEq, Clone, Builder)]
-#[builder(name = "UserCmdBuilder")]
+#[builder(name = "UserCmdBuilder", no_std)]
 pub struct usercmd_s {
     #[builder(default)]
     pub serverTime: c_int,
@@ -1126,7 +1152,7 @@ pub enum trType_t {
 
 #[repr(C)]
 #[derive(Debug, PartialEq, Clone, Copy, Builder)]
-#[builder(name = "NetadrBuilder")]
+#[builder(name = "NetadrBuilder", no_std)]
 pub struct netadr_t {
     #[builder(default = "netadrtype_t::NA_BOT")]
     pub type_: netadrtype_t,
@@ -1140,7 +1166,7 @@ pub struct netadr_t {
 
 #[repr(C)]
 #[derive(Debug, PartialEq, Clone, Builder)]
-#[builder(name = "NetchanBuilder")]
+#[builder(name = "NetchanBuilder", no_std)]
 pub struct netchan_t {
     #[builder(default = "netsrc_t::NS_CLIENT")]
     pub sock: netsrc_t,
@@ -1204,7 +1230,7 @@ pub struct trace_t {
 // from it.
 #[repr(C)]
 #[derive(Debug, PartialEq, Clone, Builder)]
-#[builder(name = "PlayerStateBuilder")]
+#[builder(name = "PlayerStateBuilder", no_std)]
 pub struct playerState_s {
     #[builder(default)]
     pub commandTime: c_int,
@@ -1371,7 +1397,7 @@ pub struct pmove_t {
 
 #[repr(C)]
 #[derive(Debug, PartialEq, Clone, Builder)]
-#[builder(name = "ClientSnapshotBuilder")]
+#[builder(name = "ClientSnapshotBuilder", no_std)]
 pub struct clientSnapshot_t {
     #[builder(default)]
     pub areabytes: c_int,
@@ -1404,7 +1430,7 @@ pub type netchan_buffer_t = netchan_buffer_s;
 
 #[repr(C)]
 #[derive(Debug, PartialEq, Clone, Builder)]
-#[builder(name = "TrajectoryBuilder")]
+#[builder(name = "TrajectoryBuilder", no_std)]
 pub struct trajectory_t {
     #[builder(default = "trType_t::TR_STATIONARY")]
     pub trType: trType_t,
@@ -1422,7 +1448,7 @@ pub struct trajectory_t {
 
 #[repr(C)]
 #[derive(Debug, PartialEq, Clone, Builder)]
-#[builder(name = "EntityStateBuilder")]
+#[builder(name = "EntityStateBuilder", no_std)]
 pub struct entityState_s {
     #[builder(default)]
     pub number: c_int,
@@ -1496,7 +1522,7 @@ pub type entityState_t = entityState_s;
 
 #[repr(C)]
 #[derive(Debug, PartialEq, Clone, Builder)]
-#[builder(name = "EntitySharedBuilder")]
+#[builder(name = "EntitySharedBuilder", no_std)]
 pub struct entityShared_t {
     #[builder(default = "EntityStateBuilder::default().build().unwrap()")]
     pub s: entityState_t,
@@ -1530,7 +1556,7 @@ pub struct entityShared_t {
 
 #[repr(C)]
 #[derive(Debug, PartialEq, Clone, Builder)]
-#[builder(name = "SharedEntityBuilder")]
+#[builder(name = "SharedEntityBuilder", no_std)]
 pub struct sharedEntity_t {
     #[builder(default = "EntityStateBuilder::default().build().unwrap()")]
     pub s: entityState_t, // communicated by server to clients
@@ -1540,7 +1566,7 @@ pub struct sharedEntity_t {
 
 #[repr(C)]
 #[derive(Debug, PartialEq, Clone, Builder)]
-#[builder(name = "ClientBuilder")]
+#[builder(name = "ClientBuilder", no_std)]
 pub struct client_s {
     #[builder(default = "clientState_t::CS_CONNECTED")]
     pub state: clientState_t,
@@ -1568,7 +1594,7 @@ pub struct client_s {
     pub lastClientCommand: c_int, // reliable client message sequence
     #[builder(default = "[0; MAX_STRING_CHARS as usize]")]
     pub lastClientCommandString: [c_char; MAX_STRING_CHARS as usize],
-    #[builder(default = "std::ptr::null_mut() as *mut sharedEntity_t")]
+    #[builder(default = "core::ptr::null_mut() as *mut sharedEntity_t")]
     pub gentity: *mut sharedEntity_t, // SV_GentityNum(clientnum)
     #[builder(default = "[0; MAX_NAME_LENGTH as usize]")]
     pub name: [c_char; MAX_NAME_LENGTH as usize], // extracted from userinfo, high bits masked
@@ -1590,7 +1616,7 @@ pub struct client_s {
     pub downloadCurrentBlock: c_int, // current block number
     #[builder(default)]
     pub downloadXmitBlock: c_int, // last block we xmited
-    #[builder(default = "[std::ptr::null_mut() as *mut c_uchar; MAX_DOWNLOAD_WINDOW as usize]")]
+    #[builder(default = "[core::ptr::null_mut() as *mut c_uchar; MAX_DOWNLOAD_WINDOW as usize]")]
     pub downloadBlocks: [*mut c_uchar; MAX_DOWNLOAD_WINDOW as usize], // the buffers for the download blocks
     #[builder(default = "[0; MAX_DOWNLOAD_WINDOW as usize]")]
     pub downloadBlockSize: [c_int; MAX_DOWNLOAD_WINDOW as usize],
@@ -1643,9 +1669,9 @@ pub struct client_s {
     pub gotCP: qboolean, // TTimo - additional flag to distinguish between a bad pure checksum, and no cp command at all
     #[builder(default = "NetchanBuilder::default().build().unwrap()")]
     pub netchan: netchan_t,
-    #[builder(default = "std::ptr::null_mut() as *mut netchan_buffer_t")]
+    #[builder(default = "core::ptr::null_mut() as *mut netchan_buffer_t")]
     pub netchan_start_queue: *mut netchan_buffer_t,
-    #[builder(default = "std::ptr::null_mut() as *mut *mut netchan_buffer_t")]
+    #[builder(default = "core::ptr::null_mut() as *mut *mut netchan_buffer_t")]
     pub netchan_end_queue: *mut *mut netchan_buffer_t,
     // Mino: Holy crap. A bunch of data was added. I have no idea where it actually goes,
     // but this will at least correct sizeof(client_t).
@@ -1664,7 +1690,7 @@ pub type client_t = client_s;
 
 #[repr(C)]
 #[derive(Debug, PartialEq, Clone, Copy, Builder)]
-#[builder(name = "ChallengeBuilder")]
+#[builder(name = "ChallengeBuilder", no_std)]
 pub struct challenge_t {
     #[builder(default = "NetadrBuilder::default().build().unwrap()")]
     pub adr: netadr_t,
@@ -1682,7 +1708,7 @@ pub struct challenge_t {
 
 #[repr(C)]
 #[derive(Debug, PartialEq, Builder)]
-#[builder(name = "ServerStaticBuilder")]
+#[builder(name = "ServerStaticBuilder", no_std)]
 pub struct serverStatic_t {
     #[builder(default = "qboolean::qfalse")]
     pub initialized: qboolean, // sv_init has completed
@@ -1690,13 +1716,13 @@ pub struct serverStatic_t {
     pub time: c_int, // will be strictly increasing across level changes
     #[builder(default)]
     pub snapFlagServerBit: c_int, // ^= SNAPFLAG_SERVERCOUNT every SV_SpawnServer()
-    #[builder(default = "std::ptr::null_mut()")]
+    #[builder(default = "core::ptr::null_mut()")]
     pub clients: *mut client_t, // [sv_maxclients->integer];
     #[builder(default)]
     pub numSnapshotEntities: c_int, // sv_maxclients->integer*PACKET_BACKUP*MAX_PACKET_ENTITIES
     #[builder(default)]
     pub nextSnapshotEntities: c_int, // next snapshotEntities to use
-    #[builder(default = "std::ptr::null_mut()")]
+    #[builder(default = "core::ptr::null_mut()")]
     pub snapshotEntities: *mut entityState_t, // [numSnapshotEntities]
     #[builder(default)]
     pub nextHeartbeatTime: c_int,
@@ -1768,7 +1794,7 @@ pub struct server_t {
 
 #[repr(C)]
 #[derive(Debug, PartialEq, Eq, Clone, Builder)]
-#[builder(name = "PlayerTeamStateBuilder")]
+#[builder(name = "PlayerTeamStateBuilder", no_std)]
 pub struct playerTeamState_t {
     #[builder(default = "playerTeamStateState_t::TEAM_ACTIVE")]
     pub state: playerTeamStateState_t,
@@ -1798,7 +1824,7 @@ pub struct playerTeamState_t {
 
 #[repr(C)]
 #[derive(Debug, PartialEq, Clone, Builder)]
-#[builder(name = "ExpandedStatsBuilder")]
+#[builder(name = "ExpandedStatsBuilder", no_std)]
 pub struct expandedStatObj_t {
     #[builder(default)]
     pub statId: c_uint,
@@ -1929,7 +1955,7 @@ pub struct expandedStatObj_t {
 // client data that stays across multiple respawns, but is cleared
 // on each level change or team change at ClientBegin()
 #[derive(Debug, PartialEq, Clone, Builder)]
-#[builder(name = "ClientPersistantBuilder")]
+#[builder(name = "ClientPersistantBuilder", no_std)]
 #[repr(C, align(8))]
 pub struct clientPersistant_t {
     #[builder(default = "clientConnected_t::CON_CONNECTED")]
@@ -1998,7 +2024,7 @@ pub struct clientPersistant_t {
 // MUST be dealt with in G_InitSessionData() / G_ReadSessionData() / G_WriteSessionData()
 #[repr(C)]
 #[derive(Debug, PartialEq, Clone, Builder)]
-#[builder(name = "ClientSessionBuilder")]
+#[builder(name = "ClientSessionBuilder", no_std)]
 pub struct clientSession_t {
     #[builder(default = "team_t::TEAM_SPECTATOR")]
     pub sessionTeam: team_t,
@@ -2032,19 +2058,19 @@ pub struct clientSession_t {
 
 #[repr(C)]
 #[derive(Debug, PartialEq, Clone, Builder)]
-#[builder(name = "GItemBuilder")]
+#[builder(name = "GItemBuilder", no_std)]
 pub struct gitem_s {
-    #[builder(default = "std::ptr::null_mut()")]
+    #[builder(default = "core::ptr::null_mut()")]
     pub classname: *mut c_char,
-    #[builder(default = "std::ptr::null()")]
+    #[builder(default = "core::ptr::null()")]
     pub pickup_sound: *const c_char,
-    #[builder(default = "[std::ptr::null() as *const c_char; 4]")]
+    #[builder(default = "[core::ptr::null() as *const c_char; 4]")]
     pub world_model: [*const c_char; 4usize],
-    #[builder(default = "[std::ptr::null() as *const c_char; 4]")]
+    #[builder(default = "[core::ptr::null() as *const c_char; 4]")]
     pub premium_model: [*const c_char; 4usize],
-    #[builder(default = "std::ptr::null()")]
+    #[builder(default = "core::ptr::null()")]
     pub icon: *const c_char,
-    #[builder(default = "std::ptr::null()")]
+    #[builder(default = "core::ptr::null()")]
     pub pickup_name: *const c_char,
     #[builder(default)]
     pub quantity: c_int,
@@ -2085,17 +2111,17 @@ pub enum entityType_t {
 
 #[repr(C)]
 #[derive(Debug, PartialEq, Clone, Builder)]
-#[builder(name = "GEntityBuilder")]
+#[builder(name = "GEntityBuilder", no_std)]
 pub struct gentity_s {
     #[builder(default = "EntityStateBuilder::default().build().unwrap()")]
     pub s: entityState_t,
     #[builder(default = "EntitySharedBuilder::default().build().unwrap()")]
     pub r: entityShared_t,
-    #[builder(default = "std::ptr::null_mut()")]
+    #[builder(default = "core::ptr::null_mut()")]
     pub client: *mut gclient_s,
     #[builder(default = "qboolean::qtrue")]
     pub inuse: qboolean,
-    #[builder(default = "std::ptr::null_mut()")]
+    #[builder(default = "core::ptr::null_mut()")]
     pub classname: *const c_char,
     #[builder(default)]
     pub spawnflags: c_int,
@@ -2103,9 +2129,9 @@ pub struct gentity_s {
     pub neverFree: qboolean,
     #[builder(default)]
     pub flags: c_int,
-    #[builder(default = "std::ptr::null_mut()")]
+    #[builder(default = "core::ptr::null_mut()")]
     pub model: *mut c_char,
-    #[builder(default = "std::ptr::null_mut()")]
+    #[builder(default = "core::ptr::null_mut()")]
     pub model2: *mut c_char,
     #[builder(default)]
     pub freetime: c_int,
@@ -2133,39 +2159,39 @@ pub struct gentity_s {
     pub soundPos2: c_int,
     #[builder(default)]
     pub soundLoop: c_int,
-    #[builder(default = "std::ptr::null_mut()")]
+    #[builder(default = "core::ptr::null_mut()")]
     pub parent: *mut gentity_t,
-    #[builder(default = "std::ptr::null_mut()")]
+    #[builder(default = "core::ptr::null_mut()")]
     pub nextTrain: *mut gentity_t,
-    #[builder(default = "std::ptr::null_mut()")]
+    #[builder(default = "core::ptr::null_mut()")]
     pub prevTrain: *mut gentity_t,
     #[builder(default = "[0.0; 3]")]
     pub pos1: vec3_t,
     #[builder(default = "[0.0; 3]")]
     pub pos2: vec3_t,
-    #[builder(default = "std::ptr::null_mut()")]
+    #[builder(default = "core::ptr::null_mut()")]
     pub message: *mut c_char,
-    #[builder(default = "std::ptr::null_mut()")]
+    #[builder(default = "core::ptr::null_mut()")]
     pub cvar: *mut c_char,
-    #[builder(default = "std::ptr::null_mut()")]
+    #[builder(default = "core::ptr::null_mut()")]
     pub tourPointTarget: *mut c_char,
-    #[builder(default = "std::ptr::null_mut()")]
+    #[builder(default = "core::ptr::null_mut()")]
     pub tourPointTargetName: *mut c_char,
-    #[builder(default = "std::ptr::null_mut()")]
+    #[builder(default = "core::ptr::null_mut()")]
     pub noise: *mut c_char,
     #[builder(default)]
     pub timestamp: c_int,
     #[builder(default)]
     pub angle: f32,
-    #[builder(default = "std::ptr::null_mut()")]
+    #[builder(default = "core::ptr::null_mut()")]
     pub target: *mut c_char,
-    #[builder(default = "std::ptr::null_mut()")]
+    #[builder(default = "core::ptr::null_mut()")]
     pub targetname: *mut c_char,
-    #[builder(default = "std::ptr::null_mut()")]
+    #[builder(default = "core::ptr::null_mut()")]
     pub targetShaderName: *mut c_char,
-    #[builder(default = "std::ptr::null_mut()")]
+    #[builder(default = "core::ptr::null_mut()")]
     pub targetShaderNewName: *mut c_char,
-    #[builder(default = "std::ptr::null_mut()")]
+    #[builder(default = "core::ptr::null_mut()")]
     pub target_ent: *mut gentity_t,
     #[builder(default)]
     pub speed: f32,
@@ -2223,15 +2249,15 @@ pub struct gentity_s {
     pub splashMethodOfDeath: c_int,
     #[builder(default)]
     pub count: c_int,
-    #[builder(default = "std::ptr::null_mut() as *mut gentity_t")]
+    #[builder(default = "core::ptr::null_mut() as *mut gentity_t")]
     pub enemy: *mut gentity_t,
-    #[builder(default = "std::ptr::null_mut() as *mut gentity_t")]
+    #[builder(default = "core::ptr::null_mut() as *mut gentity_t")]
     pub activator: *mut gentity_t,
-    #[builder(default = "std::ptr::null()")]
+    #[builder(default = "core::ptr::null()")]
     pub team: *const c_char,
-    #[builder(default = "std::ptr::null_mut() as *mut gentity_t")]
+    #[builder(default = "core::ptr::null_mut() as *mut gentity_t")]
     pub teammaster: *mut gentity_t,
-    #[builder(default = "std::ptr::null_mut() as *mut gentity_t")]
+    #[builder(default = "core::ptr::null_mut() as *mut gentity_t")]
     pub teamchain: *mut gentity_t,
     #[builder(default)]
     pub kamikazeTime: c_int,
@@ -2251,14 +2277,14 @@ pub struct gentity_s {
     pub random: f32,
     #[builder(default)]
     pub spawnTime: c_int,
-    #[builder(default = "std::ptr::null()")]
+    #[builder(default = "core::ptr::null()")]
     pub item: *const gitem_t,
     #[builder(default)]
     pub pickupCount: c_int,
 }
 
 #[derive(Debug, PartialEq, Clone, Builder)]
-#[builder(name = "RaceInfoBuilder")]
+#[builder(name = "RaceInfoBuilder", no_std)]
 #[repr(C)]
 pub struct raceInfo_t {
     #[builder(default = "qboolean::qfalse")]
@@ -2279,16 +2305,16 @@ pub struct raceInfo_t {
     pub currentCheckPoint: c_int,
     #[builder(default = "qboolean::qfalse")]
     pub weaponUsed: qboolean,
-    #[builder(default = "std::ptr::null_mut()")]
+    #[builder(default = "core::ptr::null_mut()")]
     pub nextRacePoint: *mut gentity_t,
-    #[builder(default = "std::ptr::null_mut()")]
+    #[builder(default = "core::ptr::null_mut()")]
     pub nextRacePoint2: *mut gentity_t,
 }
 
 // this structure is cleared on each ClientSpawn(),
 // except for 'client->pers' and 'client->sess'
 #[derive(Debug, PartialEq, Builder)]
-#[builder(name = "GClientBuilder")]
+#[builder(name = "GClientBuilder", no_std)]
 #[repr(C, align(8))]
 pub struct gclient_s {
     #[builder(default = "PlayerStateBuilder::default().build().unwrap()")]
@@ -2349,7 +2375,7 @@ pub struct gclient_s {
     pub airOutTime: c_int,
     #[builder(default = "qboolean::qfalse")]
     pub fireHeld: qboolean,
-    #[builder(default = "std::ptr::null_mut()")]
+    #[builder(default = "core::ptr::null_mut()")]
     pub hook: *mut gentity_t,
     #[builder(default)]
     pub switchTeamTime: c_int,
@@ -2369,7 +2395,7 @@ pub struct gclient_s {
     pub healthRegenActive: qboolean,
     #[builder(default = "qboolean::qfalse")]
     pub armorRegenActive: qboolean,
-    #[builder(default = "std::ptr::null_mut()")]
+    #[builder(default = "core::ptr::null_mut()")]
     pub persistantPowerup: *mut gentity_t,
     #[builder(default)]
     pub portalID: c_int,
@@ -2409,7 +2435,7 @@ pub struct gclient_s {
 
 #[repr(C)]
 #[derive(Debug, PartialEq, Clone, Builder)]
-#[builder(name = "RoundStateBuilder")]
+#[builder(name = "RoundStateBuilder", no_std)]
 pub struct roundState_t {
     #[builder(default = "roundStateState_t::PREGAME")]
     pub eCurrent: roundStateState_t,
@@ -2433,11 +2459,11 @@ pub struct roundState_t {
 
 #[repr(C)]
 #[derive(Debug, PartialEq, Clone, Builder)]
-#[builder(name = "LevelLocalsBuilder")]
+#[builder(name = "LevelLocalsBuilder", no_std)]
 pub struct level_locals_t {
-    #[builder(default = "std::ptr::null_mut() as *mut gclient_t")]
+    #[builder(default = "core::ptr::null_mut() as *mut gclient_t")]
     pub clients: *mut gclient_s,
-    #[builder(default = "std::ptr::null_mut() as *mut gentity_t")]
+    #[builder(default = "core::ptr::null_mut() as *mut gentity_t")]
     pub gentities: *mut gentity_s,
     #[builder(default)]
     pub gentitySize: c_int,
@@ -2507,7 +2533,7 @@ pub struct level_locals_t {
     pub spawning: qboolean,
     #[builder(default)]
     pub numSpawnVars: c_int,
-    #[builder(default = "[[std::ptr::null_mut(); 2]; 64]")]
+    #[builder(default = "[[core::ptr::null_mut(); 2]; 64]")]
     pub spawnVars: [[*mut c_char; 2usize]; 64usize],
     #[builder(default)]
     pub numSpawnVarChars: c_int,
@@ -2529,7 +2555,7 @@ pub struct level_locals_t {
     pub intermission_angle: vec3_t,
     #[builder(default = "qboolean::qfalse")]
     pub locationLinked: qboolean,
-    #[builder(default = "std::ptr::null_mut() as *mut gentity_t")]
+    #[builder(default = "core::ptr::null_mut() as *mut gentity_t")]
     pub locationHead: *mut gentity_t,
     #[builder(default)]
     pub timePauseBegin: c_int,
@@ -2539,7 +2565,7 @@ pub struct level_locals_t {
     pub timeInitialPowerupSpawn: c_int,
     #[builder(default)]
     pub bodyQueIndex: c_int,
-    #[builder(default = "[std::ptr::null_mut() as *mut gentity_t; 8]")]
+    #[builder(default = "[core::ptr::null_mut() as *mut gentity_t; 8]")]
     pub bodyQue: [*mut gentity_t; 8usize],
     #[builder(default)]
     pub portalSequence: c_int,
@@ -2611,7 +2637,7 @@ pub struct level_locals_t {
     pub numMedkitPickups: [c_int; 4usize],
     #[builder(default = "[0; 4]")]
     pub flagPossessionTime: [c_int; 4usize],
-    #[builder(default = "[std::ptr::null_mut() as *mut gentity_t; 5]")]
+    #[builder(default = "[core::ptr::null_mut() as *mut gentity_t; 5]")]
     pub dominationPoints: [*mut gentity_t; 5usize],
     #[builder(default)]
     pub dominationPointCount: c_int,

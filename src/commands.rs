@@ -1,5 +1,6 @@
 use crate::client::Client;
 use crate::game_entity::GameEntity;
+use crate::prelude::*;
 use crate::pyminqlx::{
     new_game_dispatcher, pyminqlx_initialize, pyminqlx_is_initialized, pyminqlx_reload,
     rcon_dispatcher, CUSTOM_COMMAND_HANDLER,
@@ -7,8 +8,8 @@ use crate::pyminqlx::{
 use crate::quake_live_engine::{
     CmdArgc, CmdArgs, CmdArgv, ComPrintf, GameAddEvent, SendServerCommand,
 };
-use crate::quake_types::entity_event_t::{EV_DEATH1, EV_GIB_PLAYER, EV_PAIN};
 use crate::MAIN_ENGINE;
+use alloc::format;
 use pyo3::Python;
 use rand::Rng;
 
@@ -155,10 +156,10 @@ pub extern "C" fn cmd_slap() {
     client_entity.set_health(old_health - dmg);
     if old_health - dmg <= 0 {
         let client_number = client_entity.get_client_number();
-        main_engine.game_add_event(&mut client_entity, EV_DEATH1, client_number);
+        main_engine.game_add_event(&mut client_entity, entity_event_t::EV_DEATH1, client_number);
         return;
     }
-    main_engine.game_add_event(&mut client_entity, EV_PAIN, 99);
+    main_engine.game_add_event(&mut client_entity, entity_event_t::EV_PAIN, 99);
 }
 
 #[no_mangle]
@@ -225,7 +226,11 @@ pub extern "C" fn cmd_slay() {
 
     client_entity.set_health(-40);
     let client_number = client_entity.get_client_number();
-    main_engine.game_add_event(&mut client_entity, EV_GIB_PLAYER, client_number);
+    main_engine.game_add_event(
+        &mut client_entity,
+        entity_event_t::EV_GIB_PLAYER,
+        client_number,
+    );
 }
 
 #[no_mangle]

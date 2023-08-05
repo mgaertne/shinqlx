@@ -1,10 +1,7 @@
-use crate::quake_live_engine::QuakeLiveEngineError;
-use crate::quake_live_engine::QuakeLiveEngineError::{
-    DetourCouldNotBeCreated, DetourCouldNotBeEnabled,
-};
+use crate::prelude::*;
+use core::borrow::Borrow;
+use core::fmt::{Display, Formatter};
 use retour::{Function, GenericDetour, HookableWith};
-use std::borrow::Borrow;
-use std::fmt::{Display, Formatter};
 
 #[cfg(target_os = "linux")]
 pub(crate) fn pattern_search_module<T>(
@@ -43,7 +40,7 @@ where
         .filter(|i| {
             (0..pattern.len())
                 .filter(|j| mask[*j] == b'X')
-                .all(|j| pattern[j] == unsafe { std::ptr::read((*i + j) as *const u8) })
+                .all(|j| pattern[j] == unsafe { core::ptr::read((*i + j) as *const u8) })
         })
         .take(1)
         .next()
@@ -92,7 +89,7 @@ pub enum QuakeLiveFunction {
 }
 
 impl Display for QuakeLiveFunction {
-    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+    fn fmt(&self, f: &mut Formatter<'_>) -> core::fmt::Result {
         match self {
             QuakeLiveFunction::Com_Printf => f.write_str("Com_Printf"),
             QuakeLiveFunction::Cmd_AddCommand => f.write_str("Cmd_AddCommand"),
@@ -145,12 +142,13 @@ impl QuakeLiveFunction {
         D: Function,
     {
         let detour = unsafe {
-            GenericDetour::new(function, replacement).map_err(|_| DetourCouldNotBeCreated(*self))?
+            GenericDetour::new(function, replacement)
+                .map_err(|_| QuakeLiveEngineError::DetourCouldNotBeCreated(*self))?
         };
         unsafe {
             detour
                 .enable()
-                .map_err(|_| DetourCouldNotBeEnabled(*self))?
+                .map_err(|_| QuakeLiveEngineError::DetourCouldNotBeEnabled(*self))?
         };
 
         Ok(detour)

@@ -1,21 +1,8 @@
 use crate::current_level::CurrentLevel;
-use crate::quake_live_engine::QuakeLiveEngineError;
-use crate::quake_live_engine::QuakeLiveEngineError::NullPointerPassed;
-use crate::quake_types::persistantFields_t::PERS_ROUND_SCORE;
-use crate::quake_types::pmtype_t::{PM_FREEZE, PM_NORMAL};
-use crate::quake_types::powerup_t::PW_NONE;
-use crate::quake_types::statIndex_t::{
-    STAT_ARMOR, STAT_CUR_FLIGHT_FUEL, STAT_FLIGHT_REFUEL, STAT_FLIGHT_THRUST, STAT_HOLDABLE_ITEM,
-    STAT_MAX_FLIGHT_FUEL, STAT_WEAPONS,
-};
-use crate::quake_types::team_t::TEAM_SPECTATOR;
-use crate::quake_types::voteState_t::{VOTE_NO, VOTE_PENDING, VOTE_YES};
-use crate::quake_types::weapon_t::WP_NONE;
-use crate::quake_types::{
-    clientConnected_t, gclient_t, powerup_t, privileges_t, qboolean, team_t, weapon_t, EF_KAMIKAZE,
-    EF_TALK, MODELINDEX_KAMIKAZE,
-};
-use std::ffi::{c_int, CStr};
+use crate::prelude::*;
+use alloc::string::String;
+use alloc::vec::Vec;
+use core::ffi::{c_int, CStr};
 
 #[derive(Debug, PartialEq)]
 #[repr(transparent)]
@@ -31,7 +18,9 @@ impl TryFrom<*mut gclient_t> for GameClient {
             .map(|gclient_t| Self {
                 game_client: gclient_t,
             })
-            .ok_or(NullPointerPassed("null pointer passed".into()))
+            .ok_or(QuakeLiveEngineError::NullPointerPassed(
+                "null pointer passed".into(),
+            ))
     }
 }
 
@@ -70,7 +59,7 @@ impl GameClient {
     }
 
     pub(crate) fn is_alive(&self) -> bool {
-        self.game_client.ps.pm_type == PM_NORMAL
+        self.game_client.ps.pm_type == pmtype_t::PM_NORMAL
     }
 
     pub(crate) fn get_position(&self) -> (f32, f32, f32) {
@@ -96,14 +85,14 @@ impl GameClient {
     }
 
     pub(crate) fn get_armor(&self) -> i32 {
-        self.game_client.ps.stats[STAT_ARMOR as usize]
+        self.game_client.ps.stats[statIndex_t::STAT_ARMOR as usize]
     }
 
     pub(crate) fn set_armor<T>(&mut self, armor: T)
     where
         T: Into<i32>,
     {
-        self.game_client.ps.stats[STAT_ARMOR as usize] = armor.into();
+        self.game_client.ps.stats[statIndex_t::STAT_ARMOR as usize] = armor.into();
     }
 
     pub(crate) fn get_noclip(&self) -> bool {
@@ -118,7 +107,11 @@ impl GameClient {
     }
 
     pub(crate) fn get_weapon(&self) -> weapon_t {
-        self.game_client.ps.weapon.try_into().unwrap_or(WP_NONE)
+        self.game_client
+            .ps
+            .weapon
+            .try_into()
+            .unwrap_or(weapon_t::WP_NONE)
     }
 
     pub(crate) fn set_weapon<T>(&mut self, weapon: T)
@@ -129,7 +122,7 @@ impl GameClient {
     }
 
     pub(crate) fn get_weapons(&self) -> [i32; 15] {
-        let weapon_stats = self.game_client.ps.stats[STAT_WEAPONS as usize];
+        let weapon_stats = self.game_client.ps.stats[statIndex_t::STAT_WEAPONS as usize];
         (0..15)
             .map(|i| weapon_stats & (1 << (i + 1)))
             .map(|weapon| match weapon {
@@ -148,7 +141,7 @@ impl GameClient {
             .filter(|(_, &item)| item > 0)
             .map(|(i, _)| 1 << (i + 1))
             .sum();
-        self.game_client.ps.stats[STAT_WEAPONS as usize] = weapon_flags;
+        self.game_client.ps.stats[statIndex_t::STAT_WEAPONS as usize] = weapon_flags;
     }
 
     pub(crate) fn get_ammos(&self) -> [i32; 15] {
@@ -178,7 +171,7 @@ impl GameClient {
 
     pub(crate) fn get_powerups_internal(&self, level_time: i32) -> [i32; 6] {
         (0..6)
-            .map(|powerup| powerup_t::try_from(powerup).unwrap_or(PW_NONE))
+            .map(|powerup| powerup_t::try_from(powerup).unwrap_or(powerup_t::PW_NONE))
             .map(|powerup_index| self.game_client.ps.powerups[powerup_index as usize])
             .map(|powerup_time| match powerup_time {
                 0 => 0,
@@ -201,7 +194,12 @@ impl GameClient {
         powerups
             .iter()
             .enumerate()
-            .map(|(powerup, &item)| (powerup_t::try_from(powerup).unwrap_or(PW_NONE), item))
+            .map(|(powerup, &item)| {
+                (
+                    powerup_t::try_from(powerup).unwrap_or(powerup_t::PW_NONE),
+                    item,
+                )
+            })
             .for_each(|(powerup_index, item)| {
                 self.game_client.ps.powerups[powerup_index as usize] = if item == 0 {
                     0
@@ -212,7 +210,7 @@ impl GameClient {
     }
 
     pub(crate) fn get_holdable(&self) -> i32 {
-        self.game_client.ps.stats[STAT_HOLDABLE_ITEM as usize]
+        self.game_client.ps.stats[statIndex_t::STAT_HOLDABLE_ITEM as usize]
     }
 
     pub(crate) fn set_holdable<T>(&mut self, holdable: T)
@@ -225,23 +223,23 @@ impl GameClient {
         } else {
             self.remove_kamikaze_flag();
         }
-        self.game_client.ps.stats[STAT_HOLDABLE_ITEM as usize] = holdable_index;
+        self.game_client.ps.stats[statIndex_t::STAT_HOLDABLE_ITEM as usize] = holdable_index;
     }
 
     pub(crate) fn get_current_flight_fuel(&self) -> i32 {
-        self.game_client.ps.stats[STAT_CUR_FLIGHT_FUEL as usize]
+        self.game_client.ps.stats[statIndex_t::STAT_CUR_FLIGHT_FUEL as usize]
     }
 
     pub(crate) fn get_max_flight_fuel(&self) -> i32 {
-        self.game_client.ps.stats[STAT_MAX_FLIGHT_FUEL as usize]
+        self.game_client.ps.stats[statIndex_t::STAT_MAX_FLIGHT_FUEL as usize]
     }
 
     pub(crate) fn get_flight_thrust(&self) -> i32 {
-        self.game_client.ps.stats[STAT_FLIGHT_THRUST as usize]
+        self.game_client.ps.stats[statIndex_t::STAT_FLIGHT_THRUST as usize]
     }
 
     pub(crate) fn get_flight_refuel(&self) -> i32 {
-        self.game_client.ps.stats[STAT_FLIGHT_REFUEL as usize]
+        self.game_client.ps.stats[statIndex_t::STAT_FLIGHT_REFUEL as usize]
     }
 
     pub(crate) fn set_flight<T>(&mut self, flight_params: T)
@@ -249,10 +247,14 @@ impl GameClient {
         T: Into<[i32; 4]>,
     {
         let flight_params_array: [i32; 4] = flight_params.into();
-        self.game_client.ps.stats[STAT_CUR_FLIGHT_FUEL as usize] = flight_params_array[0];
-        self.game_client.ps.stats[STAT_MAX_FLIGHT_FUEL as usize] = flight_params_array[1];
-        self.game_client.ps.stats[STAT_FLIGHT_THRUST as usize] = flight_params_array[2];
-        self.game_client.ps.stats[STAT_FLIGHT_REFUEL as usize] = flight_params_array[3];
+        self.game_client.ps.stats[statIndex_t::STAT_CUR_FLIGHT_FUEL as usize] =
+            flight_params_array[0];
+        self.game_client.ps.stats[statIndex_t::STAT_MAX_FLIGHT_FUEL as usize] =
+            flight_params_array[1];
+        self.game_client.ps.stats[statIndex_t::STAT_FLIGHT_THRUST as usize] =
+            flight_params_array[2];
+        self.game_client.ps.stats[statIndex_t::STAT_FLIGHT_REFUEL as usize] =
+            flight_params_array[3];
     }
 
     pub(crate) fn set_invulnerability(&mut self, time: i32) {
@@ -272,19 +274,19 @@ impl GameClient {
     }
 
     pub(crate) fn is_frozen(&self) -> bool {
-        self.game_client.ps.pm_type == PM_FREEZE
+        self.game_client.ps.pm_type == pmtype_t::PM_FREEZE
     }
 
     pub(crate) fn get_score(&self) -> i32 {
-        if self.game_client.sess.sessionTeam == TEAM_SPECTATOR {
+        if self.game_client.sess.sessionTeam == team_t::TEAM_SPECTATOR {
             0
         } else {
-            self.game_client.ps.persistant[PERS_ROUND_SCORE as usize]
+            self.game_client.ps.persistant[persistantFields_t::PERS_ROUND_SCORE as usize]
         }
     }
 
     pub(crate) fn set_score(&mut self, score: i32) {
-        self.game_client.ps.persistant[PERS_ROUND_SCORE as usize] = score;
+        self.game_client.ps.persistant[persistantFields_t::PERS_ROUND_SCORE as usize] = score;
     }
 
     pub(crate) fn get_kills(&self) -> i32 {
@@ -320,53 +322,37 @@ impl GameClient {
     }
 
     pub(crate) fn set_vote_pending(&mut self) {
-        self.game_client.pers.voteState = VOTE_PENDING;
+        self.game_client.pers.voteState = voteState_t::VOTE_PENDING;
     }
 
     pub(crate) fn set_vote_state(&mut self, yes_or_no: bool) {
-        self.game_client.pers.voteState = if yes_or_no { VOTE_YES } else { VOTE_NO };
+        self.game_client.pers.voteState = if yes_or_no {
+            voteState_t::VOTE_YES
+        } else {
+            voteState_t::VOTE_NO
+        };
     }
 
     pub(crate) fn spawn(&mut self) {
-        self.game_client.ps.pm_type = PM_NORMAL;
+        self.game_client.ps.pm_type = pmtype_t::PM_NORMAL;
     }
 }
 
 #[cfg(test)]
 pub(crate) mod game_client_tests {
     use crate::game_client::GameClient;
-    use crate::quake_live_engine::QuakeLiveEngineError::NullPointerPassed;
-    use crate::quake_types::clientConnected_t::CON_CONNECTING;
-    use crate::quake_types::persistantFields_t::PERS_ROUND_SCORE;
-    use crate::quake_types::pmtype_t::{PM_DEAD, PM_FREEZE, PM_NORMAL};
-    use crate::quake_types::powerup_t::{
-        PW_BATTLESUIT, PW_HASTE, PW_INVIS, PW_INVULNERABILITY, PW_QUAD, PW_REGEN,
-    };
-    use crate::quake_types::privileges_t::{
-        PRIV_ADMIN, PRIV_BANNED, PRIV_MOD, PRIV_NONE, PRIV_ROOT,
-    };
-    use crate::quake_types::statIndex_t::{STAT_ARMOR, STAT_HOLDABLE_ITEM};
-    use crate::quake_types::team_t::{TEAM_BLUE, TEAM_RED, TEAM_SPECTATOR};
-    use crate::quake_types::voteState_t::{VOTE_NO, VOTE_PENDING, VOTE_YES};
-    use crate::quake_types::weapon_t::{
-        WP_BFG, WP_CHAINGUN, WP_GAUNTLET, WP_GRAPPLING_HOOK, WP_GRENADE_LAUNCHER, WP_HANDS, WP_HMG,
-        WP_LIGHTNING, WP_MACHINEGUN, WP_NAILGUN, WP_NONE, WP_PLASMAGUN, WP_PROX_LAUNCHER,
-        WP_RAILGUN, WP_ROCKET_LAUNCHER, WP_SHOTGUN,
-    };
-    use crate::quake_types::{
-        gclient_t, privileges_t, qboolean, weapon_t, ClientPersistantBuilder, ClientSessionBuilder,
-        ExpandedStatsBuilder, GClientBuilder, PlayerStateBuilder, EF_DEAD, EF_KAMIKAZE, EF_TALK,
-        MODELINDEX_KAMIKAZE, MODELINDEX_TELEPORTER,
-    };
+    use crate::prelude::*;
+    use core::ffi::c_char;
     use pretty_assertions::assert_eq;
     use rstest::*;
-    use std::ffi::c_char;
 
     #[test]
     pub(crate) fn game_client_try_from_null_results_in_error() {
         assert_eq!(
-            GameClient::try_from(std::ptr::null_mut() as *mut gclient_t),
-            Err(NullPointerPassed("null pointer passed".into()))
+            GameClient::try_from(core::ptr::null_mut() as *mut gclient_t),
+            Err(QuakeLiveEngineError::NullPointerPassed(
+                "null pointer passed".into()
+            ))
         );
     }
 
@@ -389,7 +375,7 @@ pub(crate) mod game_client_tests {
     #[test]
     pub(crate) fn game_client_get_connection_state() {
         let client_persistant = ClientPersistantBuilder::default()
-            .connected(CON_CONNECTING)
+            .connected(clientConnected_t::CON_CONNECTING)
             .build()
             .unwrap();
         let mut gclient = GClientBuilder::default()
@@ -397,7 +383,10 @@ pub(crate) mod game_client_tests {
             .build()
             .unwrap();
         let game_client = GameClient::try_from(&mut gclient as *mut gclient_t).unwrap();
-        assert_eq!(game_client.get_connection_state(), CON_CONNECTING);
+        assert_eq!(
+            game_client.get_connection_state(),
+            clientConnected_t::CON_CONNECTING
+        );
     }
 
     #[test]
@@ -421,7 +410,7 @@ pub(crate) mod game_client_tests {
     #[test]
     pub(crate) fn game_client_get_team() {
         let client_sessions = ClientSessionBuilder::default()
-            .sessionTeam(TEAM_BLUE)
+            .sessionTeam(team_t::TEAM_BLUE)
             .build()
             .unwrap();
         let mut gclient = GClientBuilder::default()
@@ -429,13 +418,13 @@ pub(crate) mod game_client_tests {
             .build()
             .unwrap();
         let game_client = GameClient::try_from(&mut gclient as *mut gclient_t).unwrap();
-        assert_eq!(game_client.get_team(), TEAM_BLUE);
+        assert_eq!(game_client.get_team(), team_t::TEAM_BLUE);
     }
 
     #[test]
     pub(crate) fn game_client_get_privileges() {
         let client_sessions = ClientSessionBuilder::default()
-            .privileges(PRIV_MOD)
+            .privileges(privileges_t::PRIV_MOD)
             .build()
             .unwrap();
         let mut gclient = GClientBuilder::default()
@@ -443,7 +432,7 @@ pub(crate) mod game_client_tests {
             .build()
             .unwrap();
         let game_client = GameClient::try_from(&mut gclient as *mut gclient_t).unwrap();
-        assert_eq!(game_client.get_privileges(), PRIV_MOD);
+        assert_eq!(game_client.get_privileges(), privileges_t::PRIV_MOD);
     }
 
     #[test]
@@ -465,11 +454,11 @@ pub(crate) mod game_client_tests {
     }
 
     #[rstest]
-    #[case(PRIV_NONE)]
-    #[case(PRIV_ADMIN)]
-    #[case(PRIV_ROOT)]
-    #[case(PRIV_MOD)]
-    #[case(PRIV_BANNED)]
+    #[case(privileges_t::PRIV_NONE)]
+    #[case(privileges_t::PRIV_ADMIN)]
+    #[case(privileges_t::PRIV_ROOT)]
+    #[case(privileges_t::PRIV_MOD)]
+    #[case(privileges_t::PRIV_BANNED)]
     pub(crate) fn game_client_set_privileges(#[case] privilege: privileges_t) {
         let mut gclient = GClientBuilder::default().build().unwrap();
         let mut game_client = GameClient::try_from(&mut gclient as *mut gclient_t).unwrap();
@@ -480,7 +469,7 @@ pub(crate) mod game_client_tests {
     #[test]
     pub(crate) fn game_client_is_alive() {
         let player_state = PlayerStateBuilder::default()
-            .pm_type(PM_NORMAL)
+            .pm_type(pmtype_t::PM_NORMAL)
             .build()
             .unwrap();
         let mut gclient = GClientBuilder::default().ps(player_state).build().unwrap();
@@ -491,7 +480,7 @@ pub(crate) mod game_client_tests {
     #[test]
     pub(crate) fn game_client_is_dead() {
         let player_state = PlayerStateBuilder::default()
-            .pm_type(PM_DEAD)
+            .pm_type(pmtype_t::PM_DEAD)
             .build()
             .unwrap();
         let mut gclient = GClientBuilder::default().ps(player_state).build().unwrap();
@@ -540,7 +529,7 @@ pub(crate) mod game_client_tests {
     #[test]
     pub(crate) fn game_client_get_armor() {
         let mut player_state = PlayerStateBuilder::default().build().unwrap();
-        player_state.stats[STAT_ARMOR as usize] = 69;
+        player_state.stats[statIndex_t::STAT_ARMOR as usize] = 69;
         let mut gclient = GClientBuilder::default().ps(player_state).build().unwrap();
         let game_client = GameClient::try_from(&mut gclient as *mut gclient_t).unwrap();
         assert_eq!(game_client.get_armor(), 69);
@@ -584,22 +573,22 @@ pub(crate) mod game_client_tests {
     }
 
     #[rstest]
-    #[case(WP_NONE)]
-    #[case(WP_GAUNTLET)]
-    #[case(WP_MACHINEGUN)]
-    #[case(WP_SHOTGUN)]
-    #[case(WP_GRENADE_LAUNCHER)]
-    #[case(WP_ROCKET_LAUNCHER)]
-    #[case(WP_PLASMAGUN)]
-    #[case(WP_RAILGUN)]
-    #[case(WP_LIGHTNING)]
-    #[case(WP_BFG)]
-    #[case(WP_GRAPPLING_HOOK)]
-    #[case(WP_CHAINGUN)]
-    #[case(WP_NAILGUN)]
-    #[case(WP_PROX_LAUNCHER)]
-    #[case(WP_HMG)]
-    #[case(WP_HANDS)]
+    #[case(weapon_t::WP_NONE)]
+    #[case(weapon_t::WP_GAUNTLET)]
+    #[case(weapon_t::WP_MACHINEGUN)]
+    #[case(weapon_t::WP_SHOTGUN)]
+    #[case(weapon_t::WP_GRENADE_LAUNCHER)]
+    #[case(weapon_t::WP_ROCKET_LAUNCHER)]
+    #[case(weapon_t::WP_PLASMAGUN)]
+    #[case(weapon_t::WP_RAILGUN)]
+    #[case(weapon_t::WP_LIGHTNING)]
+    #[case(weapon_t::WP_BFG)]
+    #[case(weapon_t::WP_GRAPPLING_HOOK)]
+    #[case(weapon_t::WP_CHAINGUN)]
+    #[case(weapon_t::WP_NAILGUN)]
+    #[case(weapon_t::WP_PROX_LAUNCHER)]
+    #[case(weapon_t::WP_HMG)]
+    #[case(weapon_t::WP_HANDS)]
     pub(crate) fn game_client_set_weapon(#[case] weapon: weapon_t) {
         let mut gclient = GClientBuilder::default().build().unwrap();
         let mut game_client = GameClient::try_from(&mut gclient as *mut gclient_t).unwrap();
@@ -639,12 +628,12 @@ pub(crate) mod game_client_tests {
     #[test]
     pub(crate) fn game_client_get_powerups_with_all_powerups_set() {
         let mut player_state = PlayerStateBuilder::default().build().unwrap();
-        player_state.powerups[PW_QUAD as usize] = 1235;
-        player_state.powerups[PW_BATTLESUIT as usize] = 1236;
-        player_state.powerups[PW_HASTE as usize] = 1237;
-        player_state.powerups[PW_INVIS as usize] = 1238;
-        player_state.powerups[PW_REGEN as usize] = 1239;
-        player_state.powerups[PW_INVULNERABILITY as usize] = 1240;
+        player_state.powerups[powerup_t::PW_QUAD as usize] = 1235;
+        player_state.powerups[powerup_t::PW_BATTLESUIT as usize] = 1236;
+        player_state.powerups[powerup_t::PW_HASTE as usize] = 1237;
+        player_state.powerups[powerup_t::PW_INVIS as usize] = 1238;
+        player_state.powerups[powerup_t::PW_REGEN as usize] = 1239;
+        player_state.powerups[powerup_t::PW_INVULNERABILITY as usize] = 1240;
         let mut gclient = GClientBuilder::default().ps(player_state).build().unwrap();
         let game_client = GameClient::try_from(&mut gclient as *mut gclient_t).unwrap();
         assert_eq!(game_client.get_powerups_internal(1234), [1, 2, 3, 4, 5, 6]);
@@ -664,12 +653,12 @@ pub(crate) mod game_client_tests {
     #[test]
     pub(crate) fn game_client_set_powerups_deleting_all_powerups() {
         let mut player_state = PlayerStateBuilder::default().build().unwrap();
-        player_state.powerups[PW_QUAD as usize] = 1235;
-        player_state.powerups[PW_BATTLESUIT as usize] = 1236;
-        player_state.powerups[PW_HASTE as usize] = 1237;
-        player_state.powerups[PW_INVIS as usize] = 1238;
-        player_state.powerups[PW_REGEN as usize] = 1239;
-        player_state.powerups[PW_INVULNERABILITY as usize] = 1240;
+        player_state.powerups[powerup_t::PW_QUAD as usize] = 1235;
+        player_state.powerups[powerup_t::PW_BATTLESUIT as usize] = 1236;
+        player_state.powerups[powerup_t::PW_HASTE as usize] = 1237;
+        player_state.powerups[powerup_t::PW_INVIS as usize] = 1238;
+        player_state.powerups[powerup_t::PW_REGEN as usize] = 1239;
+        player_state.powerups[powerup_t::PW_INVULNERABILITY as usize] = 1240;
         let mut gclient = GClientBuilder::default().ps(player_state).build().unwrap();
         let mut game_client = GameClient::try_from(&mut gclient as *mut gclient_t).unwrap();
         game_client.set_powerups_internal([0, 0, 0, 0, 0, 0], 1000);
@@ -679,7 +668,7 @@ pub(crate) mod game_client_tests {
     #[test]
     pub(crate) fn game_client_get_holdable() {
         let mut player_state = PlayerStateBuilder::default().build().unwrap();
-        player_state.stats[STAT_HOLDABLE_ITEM as usize] = MODELINDEX_KAMIKAZE as i32;
+        player_state.stats[statIndex_t::STAT_HOLDABLE_ITEM as usize] = MODELINDEX_KAMIKAZE as i32;
         let mut gclient = GClientBuilder::default().ps(player_state).build().unwrap();
         let game_client = GameClient::try_from(&mut gclient as *mut gclient_t).unwrap();
         assert_eq!(game_client.get_holdable(), MODELINDEX_KAMIKAZE as i32);
@@ -745,7 +734,7 @@ pub(crate) mod game_client_tests {
     #[test]
     pub(crate) fn game_client_is_frozen() {
         let player_state = PlayerStateBuilder::default()
-            .pm_type(PM_FREEZE)
+            .pm_type(pmtype_t::PM_FREEZE)
             .build()
             .unwrap();
         let mut gclient = GClientBuilder::default().ps(player_state).build().unwrap();
@@ -756,7 +745,7 @@ pub(crate) mod game_client_tests {
     #[test]
     pub(crate) fn game_client_is_not_frozen() {
         let player_state = PlayerStateBuilder::default()
-            .pm_type(PM_NORMAL)
+            .pm_type(pmtype_t::PM_NORMAL)
             .build()
             .unwrap();
         let mut gclient = GClientBuilder::default().ps(player_state).build().unwrap();
@@ -767,9 +756,9 @@ pub(crate) mod game_client_tests {
     #[test]
     pub(crate) fn game_client_get_score() {
         let mut player_state = PlayerStateBuilder::default().build().unwrap();
-        player_state.persistant[PERS_ROUND_SCORE as usize] = 42;
+        player_state.persistant[persistantFields_t::PERS_ROUND_SCORE as usize] = 42;
         let client_session = ClientSessionBuilder::default()
-            .sessionTeam(TEAM_RED)
+            .sessionTeam(team_t::TEAM_RED)
             .build()
             .unwrap();
         let mut gclient = GClientBuilder::default()
@@ -784,9 +773,9 @@ pub(crate) mod game_client_tests {
     #[test]
     pub(crate) fn game_client_get_score_of_spectator() {
         let mut player_state = PlayerStateBuilder::default().build().unwrap();
-        player_state.persistant[PERS_ROUND_SCORE as usize] = 42;
+        player_state.persistant[persistantFields_t::PERS_ROUND_SCORE as usize] = 42;
         let client_session = ClientSessionBuilder::default()
-            .sessionTeam(TEAM_SPECTATOR)
+            .sessionTeam(team_t::TEAM_SPECTATOR)
             .build()
             .unwrap();
         let mut gclient = GClientBuilder::default()
@@ -801,7 +790,7 @@ pub(crate) mod game_client_tests {
     #[test]
     pub(crate) fn game_client_set_score() {
         let client_session = ClientSessionBuilder::default()
-            .sessionTeam(TEAM_BLUE)
+            .sessionTeam(team_t::TEAM_BLUE)
             .build()
             .unwrap();
         let mut gclient = GClientBuilder::default()
@@ -891,7 +880,7 @@ pub(crate) mod game_client_tests {
     #[rstest]
     pub(crate) fn game_client_set_vote_pending() {
         let client_persistant = ClientPersistantBuilder::default()
-            .voteState(VOTE_YES)
+            .voteState(voteState_t::VOTE_YES)
             .build()
             .unwrap();
         let mut gclient = GClientBuilder::default()
@@ -900,13 +889,13 @@ pub(crate) mod game_client_tests {
             .unwrap();
         let mut game_client = GameClient::try_from(&mut gclient as *mut gclient_t).unwrap();
         game_client.set_vote_pending();
-        assert_eq!(gclient.pers.voteState, VOTE_PENDING);
+        assert_eq!(gclient.pers.voteState, voteState_t::VOTE_PENDING);
     }
 
     #[rstest]
     pub(crate) fn game_client_set_vote_state_to_no() {
         let client_persistant = ClientPersistantBuilder::default()
-            .voteState(VOTE_PENDING)
+            .voteState(voteState_t::VOTE_PENDING)
             .build()
             .unwrap();
         let mut gclient = GClientBuilder::default()
@@ -915,13 +904,13 @@ pub(crate) mod game_client_tests {
             .unwrap();
         let mut game_client = GameClient::try_from(&mut gclient as *mut gclient_t).unwrap();
         game_client.set_vote_state(false);
-        assert_eq!(gclient.pers.voteState, VOTE_NO);
+        assert_eq!(gclient.pers.voteState, voteState_t::VOTE_NO);
     }
 
     #[rstest]
     pub(crate) fn game_client_set_vote_state_to_yes() {
         let client_persistant = ClientPersistantBuilder::default()
-            .voteState(VOTE_PENDING)
+            .voteState(voteState_t::VOTE_PENDING)
             .build()
             .unwrap();
         let mut gclient = GClientBuilder::default()
@@ -930,19 +919,19 @@ pub(crate) mod game_client_tests {
             .unwrap();
         let mut game_client = GameClient::try_from(&mut gclient as *mut gclient_t).unwrap();
         game_client.set_vote_state(true);
-        assert_eq!(gclient.pers.voteState, VOTE_YES);
+        assert_eq!(gclient.pers.voteState, voteState_t::VOTE_YES);
     }
 
     #[test]
     pub(crate) fn game_client_spawn() {
         let player_state = PlayerStateBuilder::default()
             .ping(1)
-            .pm_type(PM_DEAD)
+            .pm_type(pmtype_t::PM_DEAD)
             .build()
             .unwrap();
         let mut gclient = GClientBuilder::default().ps(player_state).build().unwrap();
         let mut game_client = GameClient::try_from(&mut gclient as *mut gclient_t).unwrap();
         game_client.spawn();
-        assert_eq!(gclient.ps.pm_type, PM_NORMAL);
+        assert_eq!(gclient.ps.pm_type, pmtype_t::PM_NORMAL);
     }
 }

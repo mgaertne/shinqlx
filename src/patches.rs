@@ -15,11 +15,11 @@ pub(crate) fn patch_by_mask(orig_addr: usize, offset: usize, pattern: &[u8], mas
             (0..mask.len())
                 .filter(|i| mask[*i] == b'X')
                 .for_each(|i| unsafe {
-                    std::ptr::write_unaligned(offset.wrapping_add(i), pattern[i])
+                    core::ptr::write_unaligned(offset.wrapping_add(i), pattern[i])
                 });
         }
         Err(error) => {
-            debug_println!(format!("{}", error));
+            debug_println!(error);
         }
     }
 }

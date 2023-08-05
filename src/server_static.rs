@@ -1,8 +1,4 @@
-use crate::quake_live_engine::QuakeLiveEngineError;
-use crate::quake_live_engine::QuakeLiveEngineError::{
-    MainEngineNotInitialized, MainEngineUnreadable, NullPointerPassed,
-};
-use crate::quake_types::serverStatic_t;
+use crate::prelude::*;
 use crate::MAIN_ENGINE;
 
 #[derive(Debug, PartialEq)]
@@ -20,36 +16,34 @@ impl TryFrom<*mut serverStatic_t> for ServerStatic {
             .map(|svs| Self {
                 serverStatic_t: svs,
             })
-            .ok_or(NullPointerPassed("null pointer passed".into()))
+            .ok_or(QuakeLiveEngineError::NullPointerPassed(
+                "null pointer passed".into(),
+            ))
     }
 }
 
 impl ServerStatic {
     pub(crate) fn try_get() -> Result<Self, QuakeLiveEngineError> {
         let Some(main_engine_guard) = MAIN_ENGINE.try_read() else {
-            return Err(MainEngineUnreadable);
+            return Err(QuakeLiveEngineError::MainEngineUnreadable);
         };
 
         let Some(ref main_engine) = *main_engine_guard else {
-            return Err(MainEngineNotInitialized);
+            return Err(QuakeLiveEngineError::MainEngineNotInitialized);
         };
 
         let func_pointer = main_engine.sv_shutdown_orig()?;
 
         let svs_ptr_ptr = func_pointer as usize + 0xAC;
-        let svs_ptr: u32 = unsafe { std::ptr::read(svs_ptr_ptr as *const u32) };
+        let svs_ptr: u32 = unsafe { core::ptr::read(svs_ptr_ptr as *const u32) };
         Self::try_from(svs_ptr as *mut serverStatic_t)
     }
 }
 
 #[cfg(test)]
 pub(crate) mod server_static_tests {
-    use crate::quake_live_engine::QuakeLiveEngine;
-    use crate::quake_live_engine::QuakeLiveEngineError::{
-        MainEngineNotInitialized, NullPointerPassed, StaticFunctionNotFound,
-    };
+    use crate::prelude::*;
     use crate::quake_live_functions::QuakeLiveFunction::SV_Shutdown;
-    use crate::quake_types::{serverStatic_t, ServerStaticBuilder};
     use crate::server_static::ServerStatic;
     use crate::MAIN_ENGINE;
     use pretty_assertions::assert_eq;
@@ -58,8 +52,10 @@ pub(crate) mod server_static_tests {
     #[test]
     pub(crate) fn server_static_try_from_null_results_in_error() {
         assert_eq!(
-            ServerStatic::try_from(std::ptr::null_mut()),
-            Err(NullPointerPassed("null pointer passed".into()))
+            ServerStatic::try_from(core::ptr::null_mut()),
+            Err(QuakeLiveEngineError::NullPointerPassed(
+                "null pointer passed".into()
+            ))
         );
     }
 
@@ -83,7 +79,10 @@ pub(crate) mod server_static_tests {
         let result = ServerStatic::try_get();
 
         assert!(result.is_err());
-        assert_eq!(result.err().unwrap(), MainEngineNotInitialized);
+        assert_eq!(
+            result.err().unwrap(),
+            QuakeLiveEngineError::MainEngineNotInitialized
+        );
     }
 
     #[test]
@@ -102,6 +101,9 @@ pub(crate) mod server_static_tests {
         }
 
         assert!(result.is_err());
-        assert_eq!(result.err().unwrap(), StaticFunctionNotFound(SV_Shutdown));
+        assert_eq!(
+            result.err().unwrap(),
+            QuakeLiveEngineError::StaticFunctionNotFound(SV_Shutdown)
+        );
     }
 }

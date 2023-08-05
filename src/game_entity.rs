@@ -3,25 +3,17 @@ use crate::current_level::CurrentLevel;
 use crate::game_client::GameClient;
 use crate::game_item::GameItem;
 use crate::hooks::shinqlx_set_configstring;
-use crate::quake_live_engine::QuakeLiveEngineError::{
-    EntityNotFound, InvalidId, NullPointerPassed,
-};
+use crate::prelude::*;
 use crate::quake_live_engine::{
     ComPrintf, FreeEntity, GetConfigstring, QuakeLiveEngineError, RegisterDamage, StartKamikaze,
     TryLaunchItem,
 };
-use crate::quake_types::clientConnected_t::CON_DISCONNECTED;
-use crate::quake_types::entityType_t::ET_ITEM;
-use crate::quake_types::itemType_t::IT_WEAPON;
-use crate::quake_types::meansOfDeath_t::MOD_KAMIKAZE;
-use crate::quake_types::team_t::TEAM_SPECTATOR;
-use crate::quake_types::{
-    entityType_t, gentity_t, meansOfDeath_t, privileges_t, team_t, trace_t, CS_ITEMS,
-    DAMAGE_NO_PROTECTION, FL_DROPPED_ITEM, MAX_GENTITIES,
-};
 use crate::MAIN_ENGINE;
-use std::f32::consts::PI;
-use std::ffi::{c_char, c_float, c_int, CStr};
+use alloc::string::String;
+use alloc::vec;
+use alloc::vec::Vec;
+use core::f32::consts::PI;
+use core::ffi::{c_char, c_float, c_int, CStr};
 
 #[derive(Debug, PartialEq)]
 #[repr(transparent)]
@@ -35,7 +27,9 @@ impl TryFrom<*mut gentity_t> for GameEntity {
     fn try_from(game_entity: *mut gentity_t) -> Result<Self, Self::Error> {
         unsafe { game_entity.as_mut() }
             .map(|gentity| Self { gentity_t: gentity })
-            .ok_or(NullPointerPassed("null pointer passed".into()))
+            .ok_or(QuakeLiveEngineError::NullPointerPassed(
+                "null pointer passed".into(),
+            ))
     }
 }
 
@@ -45,20 +39,22 @@ impl TryFrom<i32> for GameEntity {
     fn try_from(entity_id: i32) -> Result<Self, Self::Error> {
         if let Ok(max_gentities) = i32::try_from(MAX_GENTITIES) {
             if entity_id >= max_gentities {
-                return Err(InvalidId(entity_id));
+                return Err(QuakeLiveEngineError::InvalidId(entity_id));
             }
         }
         if entity_id < 0 {
-            return Err(InvalidId(entity_id));
+            return Err(QuakeLiveEngineError::InvalidId(entity_id));
         }
 
         let g_entities = GameEntity::get_entities_list();
         if g_entities.is_null() {
-            return Err(EntityNotFound("g_entities not initialized".into()));
+            return Err(QuakeLiveEngineError::EntityNotFound(
+                "g_entities not initialized".into(),
+            ));
         }
 
         Self::try_from(unsafe { g_entities.offset(entity_id as isize) })
-            .map_err(|_| EntityNotFound("entity not found".into()))
+            .map_err(|_| QuakeLiveEngineError::EntityNotFound("entity not found".into()))
     }
 }
 
@@ -67,15 +63,17 @@ impl TryFrom<u32> for GameEntity {
 
     fn try_from(entity_id: u32) -> Result<Self, Self::Error> {
         if entity_id >= MAX_GENTITIES {
-            return Err(InvalidId(entity_id as i32));
+            return Err(QuakeLiveEngineError::InvalidId(entity_id as i32));
         }
         let g_entities = GameEntity::get_entities_list();
         if g_entities.is_null() {
-            return Err(EntityNotFound("g_entities not initialized".into()));
+            return Err(QuakeLiveEngineError::EntityNotFound(
+                "g_entities not initialized".into(),
+            ));
         }
 
         Self::try_from(unsafe { g_entities.offset(entity_id as isize) })
-            .map_err(|_| EntityNotFound("entity not found".into()))
+            .map_err(|_| QuakeLiveEngineError::EntityNotFound("entity not found".into()))
     }
 }
 
@@ -145,18 +143,18 @@ const OFFSET_G_ENTITIES: usize = 0x11B;
 impl GameEntity {
     fn get_entities_list() -> *mut gentity_t {
         let Some(main_engine_guard) = MAIN_ENGINE.try_read() else {
-            return std::ptr::null_mut();
+            return core::ptr::null_mut();
         };
 
         let Some(ref main_engine) = *main_engine_guard else {
-            return std::ptr::null_mut();
+            return core::ptr::null_mut();
         };
 
         let Ok(func_pointer) = main_engine.g_run_frame_orig() else {
-            return std::ptr::null_mut();
+            return core::ptr::null_mut();
         };
         let base_address = unsafe {
-            std::ptr::read_unaligned((func_pointer as usize + OFFSET_G_ENTITIES) as *const i32)
+            core::ptr::read_unaligned((func_pointer as usize + OFFSET_G_ENTITIES) as *const i32)
         };
         let gentities_ptr = base_address as usize + func_pointer as usize + OFFSET_G_ENTITIES + 4;
         gentities_ptr as *mut gentity_t
@@ -192,7 +190,7 @@ impl GameEntity {
         match self.get_game_client() {
             Err(_) => "".into(),
             Ok(game_client) => {
-                if game_client.get_connection_state() == CON_DISCONNECTED {
+                if game_client.get_connection_state() == clientConnected_t::CON_DISCONNECTED {
                     "".into()
                 } else {
                     game_client.get_player_name()
@@ -203,10 +201,10 @@ impl GameEntity {
 
     pub(crate) fn get_team(&self) -> team_t {
         match self.get_game_client() {
-            Err(_) => TEAM_SPECTATOR,
+            Err(_) => team_t::TEAM_SPECTATOR,
             Ok(game_client) => {
-                if game_client.get_connection_state() == CON_DISCONNECTED {
-                    TEAM_SPECTATOR
+                if game_client.get_connection_state() == clientConnected_t::CON_DISCONNECTED {
+                    team_t::TEAM_SPECTATOR
                 } else {
                     game_client.get_team()
                 }
@@ -255,7 +253,7 @@ impl GameEntity {
         quake_live_engine: &impl RegisterDamage,
     ) {
         let damage = self.get_health()
-            + if mean_of_death == MOD_KAMIKAZE {
+            + if mean_of_death == meansOfDeath_t::MOD_KAMIKAZE {
                 100000
             } else {
                 0
@@ -292,10 +290,10 @@ impl GameEntity {
     }
 
     pub(crate) fn is_respawning_weapon(&self) -> bool {
-        if !self.is_game_item(ET_ITEM) || self.gentity_t.item.is_null() {
+        if !self.is_game_item(entityType_t::ET_ITEM) || self.gentity_t.item.is_null() {
             false
         } else if let Some(item) = unsafe { self.gentity_t.item.as_ref() } {
-            item.giType == IT_WEAPON
+            item.giType == itemType_t::IT_WEAPON
         } else {
             false
         }
@@ -427,31 +425,21 @@ impl GameEntity {
 #[cfg(test)]
 pub(crate) mod game_entity_tests {
     use crate::game_entity::GameEntity;
-    use crate::quake_live_engine::QuakeLiveEngineError::{InvalidId, NullPointerPassed};
+    use crate::prelude::*;
     use crate::quake_live_engine::{
         MockFreeEntity, MockRegisterDamage, MockStartKamikaze, MockTryLaunchItem,
     };
-    use crate::quake_types::clientConnected_t::{CON_CONNECTED, CON_DISCONNECTED};
-    use crate::quake_types::entityType_t::{ET_ITEM, ET_PLAYER};
-    use crate::quake_types::holdable_t::HI_TELEPORTER;
-    use crate::quake_types::itemType_t::{IT_AMMO, IT_WEAPON};
-    use crate::quake_types::meansOfDeath_t::{MOD_CRUSH, MOD_KAMIKAZE};
-    use crate::quake_types::privileges_t::{PRIV_BANNED, PRIV_ROOT};
-    use crate::quake_types::statIndex_t::{STAT_ARMOR, STAT_HOLDABLE_ITEM};
-    use crate::quake_types::team_t::{TEAM_RED, TEAM_SPECTATOR};
-    use crate::quake_types::{
-        gclient_t, gentity_t, gitem_t, qboolean, ClientPersistantBuilder, ClientSessionBuilder,
-        EntityStateBuilder, GClientBuilder, GEntityBuilder, GItemBuilder, PlayerStateBuilder,
-        DAMAGE_NO_PROTECTION, FL_DROPPED_ITEM, FL_FORCE_GESTURE,
-    };
+    use alloc::ffi::CString;
+    use core::ffi::{c_char, c_int};
     use pretty_assertions::assert_eq;
-    use std::ffi::{c_char, c_int, CString};
 
     #[test]
     pub(crate) fn game_entity_try_from_null_results_in_error() {
         assert_eq!(
-            GameEntity::try_from(std::ptr::null_mut() as *mut gentity_t),
-            Err(NullPointerPassed("null pointer passed".into()))
+            GameEntity::try_from(core::ptr::null_mut() as *mut gentity_t),
+            Err(QuakeLiveEngineError::NullPointerPassed(
+                "null pointer passed".into()
+            ))
         );
     }
 
@@ -466,17 +454,26 @@ pub(crate) mod game_entity_tests {
 
     #[test]
     pub(crate) fn game_entity_try_from_negative_entity_id() {
-        assert_eq!(GameEntity::try_from(-1), Err(InvalidId(-1)));
+        assert_eq!(
+            GameEntity::try_from(-1),
+            Err(QuakeLiveEngineError::InvalidId(-1))
+        );
     }
 
     #[test]
     pub(crate) fn game_entity_try_from_too_large_i32_entity_id() {
-        assert_eq!(GameEntity::try_from(65536i32), Err(InvalidId(65536)));
+        assert_eq!(
+            GameEntity::try_from(65536i32),
+            Err(QuakeLiveEngineError::InvalidId(65536))
+        );
     }
 
     #[test]
     pub(crate) fn game_entity_try_from_too_large_u32_entity_id() {
-        assert_eq!(GameEntity::try_from(65536u32), Err(InvalidId(65536)));
+        assert_eq!(
+            GameEntity::try_from(65536u32),
+            Err(QuakeLiveEngineError::InvalidId(65536))
+        );
     }
 
     #[test]
@@ -491,7 +488,7 @@ pub(crate) mod game_entity_tests {
     #[test]
     pub(crate) fn game_entity_get_player_name_from_null_client() {
         let mut gentity = GEntityBuilder::default()
-            .client(std::ptr::null_mut() as *mut gclient_t)
+            .client(core::ptr::null_mut() as *mut gclient_t)
             .build()
             .unwrap();
         let game_entity = GameEntity::try_from(&mut gentity as *mut gentity_t).unwrap();
@@ -501,7 +498,7 @@ pub(crate) mod game_entity_tests {
     #[test]
     pub(crate) fn game_entity_get_player_name_from_disconnected_game_client() {
         let client_persistant = ClientPersistantBuilder::default()
-            .connected(CON_DISCONNECTED)
+            .connected(clientConnected_t::CON_DISCONNECTED)
             .build()
             .unwrap();
         let mut gclient = GClientBuilder::default()
@@ -523,7 +520,7 @@ pub(crate) mod game_entity_tests {
         let mut player_name: [c_char; 40usize] = [0; 40usize];
         player_name[0..player_name_str.len()].fill_with(|| bytes_iter.next().unwrap() as c_char);
         let client_persistant = ClientPersistantBuilder::default()
-            .connected(CON_CONNECTED)
+            .connected(clientConnected_t::CON_CONNECTED)
             .netname(player_name)
             .build()
             .unwrap();
@@ -542,17 +539,17 @@ pub(crate) mod game_entity_tests {
     #[test]
     pub(crate) fn game_entity_get_team_from_null_client() {
         let mut gentity = GEntityBuilder::default()
-            .client(std::ptr::null_mut() as *mut gclient_t)
+            .client(core::ptr::null_mut() as *mut gclient_t)
             .build()
             .unwrap();
         let game_entity = GameEntity::try_from(&mut gentity as *mut gentity_t).unwrap();
-        assert_eq!(game_entity.get_team(), TEAM_SPECTATOR);
+        assert_eq!(game_entity.get_team(), team_t::TEAM_SPECTATOR);
     }
 
     #[test]
     pub(crate) fn game_entity_get_team_from_disconnected_game_client() {
         let client_persistant = ClientPersistantBuilder::default()
-            .connected(CON_DISCONNECTED)
+            .connected(clientConnected_t::CON_DISCONNECTED)
             .build()
             .unwrap();
         let mut gclient = GClientBuilder::default()
@@ -564,17 +561,17 @@ pub(crate) mod game_entity_tests {
             .build()
             .unwrap();
         let game_entity = GameEntity::try_from(&mut gentity as *mut gentity_t).unwrap();
-        assert_eq!(game_entity.get_team(), TEAM_SPECTATOR);
+        assert_eq!(game_entity.get_team(), team_t::TEAM_SPECTATOR);
     }
 
     #[test]
     pub(crate) fn game_entity_get_team_from_connected_game_client() {
         let client_session = ClientSessionBuilder::default()
-            .sessionTeam(TEAM_RED)
+            .sessionTeam(team_t::TEAM_RED)
             .build()
             .unwrap();
         let client_persistant = ClientPersistantBuilder::default()
-            .connected(CON_CONNECTED)
+            .connected(clientConnected_t::CON_CONNECTED)
             .build()
             .unwrap();
         let mut gclient = GClientBuilder::default()
@@ -587,23 +584,23 @@ pub(crate) mod game_entity_tests {
             .build()
             .unwrap();
         let game_entity = GameEntity::try_from(&mut gentity as *mut gentity_t).unwrap();
-        assert_eq!(game_entity.get_team(), TEAM_RED);
+        assert_eq!(game_entity.get_team(), team_t::TEAM_RED);
     }
 
     #[test]
     pub(crate) fn game_entity_get_privileges_from_null_client() {
         let mut gentity = GEntityBuilder::default()
-            .client(std::ptr::null_mut() as *mut gclient_t)
+            .client(core::ptr::null_mut() as *mut gclient_t)
             .build()
             .unwrap();
         let game_entity = GameEntity::try_from(&mut gentity as *mut gentity_t).unwrap();
-        assert_eq!(game_entity.get_privileges(), PRIV_BANNED);
+        assert_eq!(game_entity.get_privileges(), privileges_t::PRIV_BANNED);
     }
 
     #[test]
     pub(crate) fn game_entity_get_privileges_from_connected_game_client() {
         let client_session = ClientSessionBuilder::default()
-            .privileges(PRIV_ROOT)
+            .privileges(privileges_t::PRIV_ROOT)
             .build()
             .unwrap();
         let mut gclient = GClientBuilder::default()
@@ -615,13 +612,13 @@ pub(crate) mod game_entity_tests {
             .build()
             .unwrap();
         let game_entity = GameEntity::try_from(&mut gentity as *mut gentity_t).unwrap();
-        assert_eq!(game_entity.get_privileges(), PRIV_ROOT);
+        assert_eq!(game_entity.get_privileges(), privileges_t::PRIV_ROOT);
     }
 
     #[test]
     pub(crate) fn game_entity_get_game_client_when_none_is_set() {
         let mut gentity = GEntityBuilder::default()
-            .client(std::ptr::null_mut() as *mut gclient_t)
+            .client(core::ptr::null_mut() as *mut gclient_t)
             .build()
             .unwrap();
         let game_entity = GameEntity::try_from(&mut gentity as *mut gentity_t).unwrap();
@@ -642,7 +639,7 @@ pub(crate) mod game_entity_tests {
     #[test]
     pub(crate) fn game_entity_get_activator_when_none_is_set() {
         let mut gentity = GEntityBuilder::default()
-            .activator(std::ptr::null_mut() as *mut gentity_t)
+            .activator(core::ptr::null_mut() as *mut gentity_t)
             .build()
             .unwrap();
         let game_entity = GameEntity::try_from(&mut gentity as *mut gentity_t).unwrap();
@@ -675,7 +672,7 @@ pub(crate) mod game_entity_tests {
     #[test]
     pub(crate) fn game_entity_slay_with_mod() {
         let mut player_state = PlayerStateBuilder::default().build().unwrap();
-        player_state.stats[STAT_ARMOR as usize] = 69;
+        player_state.stats[statIndex_t::STAT_ARMOR as usize] = 69;
         let mut gclient = GClientBuilder::default().ps(player_state).build().unwrap();
         let mut gentity = GEntityBuilder::default()
             .client(&mut gclient as *mut gclient_t)
@@ -689,11 +686,11 @@ pub(crate) mod game_entity_tests {
             .withf_st(|_, _, _, _, _, damage, dmg_flags, mean_of_death| {
                 *damage == 84
                     && *dmg_flags == DAMAGE_NO_PROTECTION as c_int
-                    && *mean_of_death == MOD_CRUSH as c_int
+                    && *mean_of_death == meansOfDeath_t::MOD_CRUSH as c_int
             })
             .return_const(());
-        game_entity.slay_with_mod_intern(MOD_CRUSH, &mock);
-        assert_eq!(gclient.ps.stats[STAT_ARMOR as usize], 0);
+        game_entity.slay_with_mod_intern(meansOfDeath_t::MOD_CRUSH, &mock);
+        assert_eq!(gclient.ps.stats[statIndex_t::STAT_ARMOR as usize], 0);
     }
 
     #[test]
@@ -711,11 +708,11 @@ pub(crate) mod game_entity_tests {
             .withf_st(|_, _, _, _, _, damage, dmg_flags, mean_of_death| {
                 *damage == 200246
                     && *dmg_flags == DAMAGE_NO_PROTECTION as c_int
-                    && *mean_of_death == MOD_KAMIKAZE as c_int
+                    && *mean_of_death == meansOfDeath_t::MOD_KAMIKAZE as c_int
             })
             .return_const(());
-        game_entity.slay_with_mod_intern(MOD_KAMIKAZE, &mock);
-        assert_eq!(gclient.ps.stats[STAT_ARMOR as usize], 0);
+        game_entity.slay_with_mod_intern(meansOfDeath_t::MOD_KAMIKAZE, &mock);
+        assert_eq!(gclient.ps.stats[statIndex_t::STAT_ARMOR as usize], 0);
     }
 
     #[test]
@@ -742,19 +739,19 @@ pub(crate) mod game_entity_tests {
     #[test]
     pub(crate) fn game_entity_is_game_item() {
         let entity_state = EntityStateBuilder::default()
-            .eType(ET_ITEM as i32)
+            .eType(entityType_t::ET_ITEM as i32)
             .build()
             .unwrap();
         let mut gentity = GEntityBuilder::default().s(entity_state).build().unwrap();
         let game_entity = GameEntity::try_from(&mut gentity as *mut gentity_t).unwrap();
-        assert_eq!(game_entity.is_game_item(ET_ITEM), true);
-        assert_eq!(game_entity.is_game_item(ET_PLAYER), false);
+        assert_eq!(game_entity.is_game_item(entityType_t::ET_ITEM), true);
+        assert_eq!(game_entity.is_game_item(entityType_t::ET_PLAYER), false);
     }
 
     #[test]
     pub(crate) fn game_entity_is_respawning_weapon_for_player_entity() {
         let entity_state = EntityStateBuilder::default()
-            .eType(ET_PLAYER as i32)
+            .eType(entityType_t::ET_PLAYER as i32)
             .build()
             .unwrap();
         let mut gentity = GEntityBuilder::default().s(entity_state).build().unwrap();
@@ -765,12 +762,12 @@ pub(crate) mod game_entity_tests {
     #[test]
     pub(crate) fn game_entity_is_respawning_weapon_for_null_item() {
         let entity_state = EntityStateBuilder::default()
-            .eType(ET_PLAYER as i32)
+            .eType(entityType_t::ET_PLAYER as i32)
             .build()
             .unwrap();
         let mut gentity = GEntityBuilder::default()
             .s(entity_state)
-            .item(std::ptr::null() as *const gitem_t)
+            .item(core::ptr::null() as *const gitem_t)
             .build()
             .unwrap();
         let game_entity = GameEntity::try_from(&mut gentity as *mut gentity_t).unwrap();
@@ -779,9 +776,12 @@ pub(crate) mod game_entity_tests {
 
     #[test]
     pub(crate) fn game_entity_is_respawning_weapon_for_non_weapon() {
-        let gitem = GItemBuilder::default().giType(IT_AMMO).build().unwrap();
+        let gitem = GItemBuilder::default()
+            .giType(itemType_t::IT_AMMO)
+            .build()
+            .unwrap();
         let entity_state = EntityStateBuilder::default()
-            .eType(ET_ITEM as i32)
+            .eType(entityType_t::ET_ITEM as i32)
             .build()
             .unwrap();
         let mut gentity = GEntityBuilder::default()
@@ -795,9 +795,12 @@ pub(crate) mod game_entity_tests {
 
     #[test]
     pub(crate) fn game_entity_is_respawning_weapon_for_an_actual_weapon() {
-        let gitem = GItemBuilder::default().giType(IT_WEAPON).build().unwrap();
+        let gitem = GItemBuilder::default()
+            .giType(itemType_t::IT_WEAPON)
+            .build()
+            .unwrap();
         let entity_state = EntityStateBuilder::default()
-            .eType(ET_ITEM as i32)
+            .eType(entityType_t::ET_ITEM as i32)
             .build()
             .unwrap();
         let mut gentity = GEntityBuilder::default()
@@ -864,7 +867,8 @@ pub(crate) mod game_entity_tests {
         let mut entity_state = EntityStateBuilder::default().build().unwrap();
         entity_state.apos.trBase[1] = 0.5;
         let mut player_state = PlayerStateBuilder::default().build().unwrap();
-        player_state.stats[STAT_HOLDABLE_ITEM as usize] = HI_TELEPORTER as i32;
+        player_state.stats[statIndex_t::STAT_HOLDABLE_ITEM as usize] =
+            holdable_t::HI_TELEPORTER as i32;
         let mut game_client = GClientBuilder::default().ps(player_state).build().unwrap();
         let mut gentity = GEntityBuilder::default()
             .s(entity_state)

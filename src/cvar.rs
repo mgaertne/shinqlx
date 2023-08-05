@@ -1,7 +1,6 @@
-use crate::quake_live_engine::QuakeLiveEngineError;
-use crate::quake_live_engine::QuakeLiveEngineError::NullPointerPassed;
-use crate::quake_types::cvar_t;
-use std::ffi::CStr;
+use crate::prelude::*;
+use alloc::string::String;
+use core::ffi::CStr;
 
 #[derive(Debug, PartialEq)]
 #[repr(transparent)]
@@ -13,9 +12,9 @@ impl TryFrom<*mut cvar_t> for CVar {
     type Error = QuakeLiveEngineError;
 
     fn try_from(cvar: *mut cvar_t) -> Result<Self, Self::Error> {
-        unsafe { cvar.as_mut() }
-            .map(|cvar| Self { cvar })
-            .ok_or(NullPointerPassed("null pointer passed".into()))
+        unsafe { cvar.as_mut() }.map(|cvar| Self { cvar }).ok_or(
+            QuakeLiveEngineError::NullPointerPassed("null pointer passed".into()),
+        )
     }
 }
 
@@ -32,16 +31,18 @@ impl CVar {
 #[cfg(test)]
 pub(crate) mod cvar_tests {
     use crate::cvar::CVar;
-    use crate::quake_live_engine::QuakeLiveEngineError::NullPointerPassed;
-    use crate::quake_types::{cvar_t, CVarBuilder};
+    use crate::prelude::*;
+    use alloc::ffi::CString;
+    use core::ffi::c_char;
     use pretty_assertions::assert_eq;
-    use std::ffi::{c_char, CString};
 
     #[test]
     pub(crate) fn cvar_try_from_null_results_in_error() {
         assert_eq!(
-            CVar::try_from(std::ptr::null_mut() as *mut cvar_t),
-            Err(NullPointerPassed("null pointer passed".into()))
+            CVar::try_from(core::ptr::null_mut() as *mut cvar_t),
+            Err(QuakeLiveEngineError::NullPointerPassed(
+                "null pointer passed".into()
+            ))
         );
     }
 
