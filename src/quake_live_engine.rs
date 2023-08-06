@@ -24,7 +24,6 @@ use crate::QZERODED;
 use alloc::borrow::ToOwned;
 use alloc::collections::VecDeque;
 use alloc::ffi::CString;
-use alloc::format;
 use alloc::string::String;
 use core::ffi::{c_char, c_int, CStr};
 use core::sync::atomic::{AtomicI32, AtomicUsize, Ordering};

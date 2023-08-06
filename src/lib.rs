@@ -11,10 +11,10 @@ extern crate alloc;
 
 macro_rules! debug_println {
     () => {
-        println!("{}", "[shinqlx]")
+        libc_println!("{}", "[shinqlx]")
     };
     ($($arg:tt)*) => {
-        println!("{} {}", "[shinqlx]", $($arg)*)
+        libc_println!("{} {}", "[shinqlx]", $($arg)*)
     };
 }
 
@@ -37,6 +37,8 @@ mod server_static;
 pub(crate) mod prelude {
     pub(crate) use crate::quake_live_engine::{QuakeLiveEngine, QuakeLiveEngineError};
     pub(crate) use crate::quake_types::*;
+    pub(crate) use alloc::format;
+    pub(crate) use libc_print::{libc_dbg, libc_println};
 }
 
 use crate::prelude::*;

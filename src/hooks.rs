@@ -165,7 +165,7 @@ pub unsafe extern "C" fn ShiNQlx_SV_SendServerCommand(
         va_args.as_va_list(),
     );
     if result < 0 {
-        dbg!("some formatting problem occurred");
+        libc_dbg!("some formatting problem occurred");
     }
 
     let cmd = CStr::from_bytes_until_nul(&buffer)
@@ -317,7 +317,7 @@ pub unsafe extern "C" fn ShiNQlx_Com_Printf(fmt: *const c_char, mut fmt_args: ..
         fmt_args.as_va_list(),
     );
     if result < 0 {
-        dbg!("some formatting problem occurred");
+        libc_dbg!("some formatting problem occurred");
     }
 
     let rust_msg = CStr::from_bytes_until_nul(&buffer)
