@@ -2,7 +2,6 @@ use crate::game_entity::GameEntity;
 use crate::hooks::shinqlx_set_configstring;
 use crate::prelude::*;
 use crate::MAIN_ENGINE;
-use alloc::format;
 use core::ffi::c_char;
 
 #[derive(Debug, PartialEq)]

@@ -9,7 +9,6 @@ use crate::quake_live_engine::{
     CmdArgc, CmdArgs, CmdArgv, ComPrintf, GameAddEvent, SendServerCommand,
 };
 use crate::MAIN_ENGINE;
-use alloc::format;
 use pyo3::Python;
 use rand::Rng;
 
