@@ -1,4 +1,4 @@
-use libc_print::libc_println;
+use log::error;
 use region::Protection;
 
 const OFFSET_VOTE_CLIENTKICK_FIX: usize = 0x11C8;
@@ -20,7 +20,7 @@ pub(crate) fn patch_by_mask(orig_addr: usize, offset: usize, pattern: &[u8], mas
                 });
         }
         Err(error) => {
-            debug_println!(error);
+            error!("{:?}", error);
         }
     }
 }

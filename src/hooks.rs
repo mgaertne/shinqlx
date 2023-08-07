@@ -27,8 +27,8 @@ pub(crate) fn shinqlx_cmd_addcommand(cmd: *const c_char, func: unsafe extern "C"
 
     if !main_engine.is_common_initialized() {
         if let Err(err) = main_engine.initialize_static() {
-            debug_println!(format!("{:?}", err));
-            debug_println!("Static initialization failed. Exiting.");
+            error!("{:?}", err);
+            error!("Static initialization failed. Exiting.");
             panic!("Static initialization failed. Exiting.");
         }
     }
@@ -47,7 +47,7 @@ pub(crate) fn shinqlx_sys_setmoduleoffset(
 
     // We should be getting qagame, but check just in case.
     if converted_module_name.as_ref() != "qagame" {
-        debug_println!(format!("Unknown module: {}", converted_module_name));
+        error!("Unknown module: {}", converted_module_name);
     }
 
     let Some(main_engine_guard) = MAIN_ENGINE.try_read() else {
@@ -61,8 +61,8 @@ pub(crate) fn shinqlx_sys_setmoduleoffset(
     main_engine.set_module_offset(converted_module_name.as_ref(), offset);
 
     if let Err(err) = main_engine.initialize_vm(offset as usize) {
-        debug_println!(format!("{:?}", err));
-        debug_println!("VM could not be initializied. Exiting.");
+        error!("{:?}", err);
+        error!("VM could not be initializied. Exiting.");
         panic!("VM could not be initializied. Exiting.");
     }
 }
@@ -165,7 +165,7 @@ pub unsafe extern "C" fn ShiNQlx_SV_SendServerCommand(
         va_args.as_va_list(),
     );
     if result < 0 {
-        libc_dbg!("some formatting problem occurred");
+        debug!("some formatting problem occurred");
     }
 
     let cmd = CStr::from_bytes_until_nul(&buffer)
@@ -317,7 +317,7 @@ pub unsafe extern "C" fn ShiNQlx_Com_Printf(fmt: *const c_char, mut fmt_args: ..
         fmt_args.as_va_list(),
     );
     if result < 0 {
-        libc_dbg!("some formatting problem occurred");
+        debug!("some formatting problem occurred");
     }
 
     let rust_msg = CStr::from_bytes_until_nul(&buffer)
