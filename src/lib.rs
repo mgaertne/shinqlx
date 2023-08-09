@@ -56,7 +56,7 @@ pub(crate) static MAIN_ENGINE: RwLock<Option<QuakeLiveEngine>> = RwLock::new(Non
 fn initialize_logging() {
     let stdout = ConsoleAppender::builder()
         .encoder(Box::new(PatternEncoder::new(
-            "{([{t}]):<32.32} {({l}:):<6.6} {m}{n}",
+            "{([{t}]):<9.9} {({l}:):<6.6} {m}{n}",
         )))
         .build();
 
@@ -88,15 +88,15 @@ fn initialize() {
     initialize_logging();
     let main_engine = QuakeLiveEngine::new();
     if let Err(err) = main_engine.search_static_functions() {
-        error!("{:?}", err);
-        error!("Static functions could not be initializied. Exiting.");
+        error!(target: "shinqlx", "{:?}", err);
+        error!(target: "shinqlx", "Static functions could not be initializied. Exiting.");
         panic!("Static functions could not be initializied. Exiting.");
     }
 
-    debug!("Shared library loaded");
+    debug!(target: "shinqlx", "Shared library loaded");
     if let Err(err) = main_engine.hook_static() {
-        error!("{:?}", err);
-        error!("Failed to hook static methods. Exiting.");
+        error!(target: "shinqlx", "{:?}", err);
+        error!(target: "shinqlx", "Failed to hook static methods. Exiting.");
         panic!("Failed to hook static methods. Exiting.");
     }
 

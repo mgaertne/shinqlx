@@ -49,7 +49,7 @@ where
     Python::with_gil(
         |py| match client_command_handler.call1(py, (client_id, cmd.as_ref())) {
             Err(_) => {
-                error!("client_command_handler returned an error.");
+                error!(target: "shinqlx", "client_command_handler returned an error.");
                 Some(cmd.as_ref().into())
             }
             Ok(returned) => match returned.extract::<String>(py) {
@@ -87,7 +87,7 @@ where
     Python::with_gil(|py| {
         match server_command_handler.call1(py, (client_id.unwrap_or(-1), cmd.as_ref())) {
             Err(_) => {
-                error!("server_command_handler returned an error.");
+                error!(target: "shinqlx", "server_command_handler returned an error.");
                 Some(cmd.as_ref().into())
             }
             Ok(returned) => match returned.extract::<String>(py) {
@@ -120,7 +120,7 @@ pub(crate) fn frame_dispatcher() {
         Python::with_gil(|py| {
             let result = frame_handler.call0(py);
             if result.is_err() {
-                error!("frame_handler returned an error.");
+                error!(target: "shinqlx", "frame_handler returned an error.");
             }
         });
     }
@@ -186,7 +186,7 @@ where
     Python::with_gil(|py| {
         let result = client_disconnect_handler.call1(py, (client_id, reason.as_ref()));
         if result.is_err() {
-            error!("client_disconnect_handler returned an error.");
+            error!(target: "shinqlx", "client_disconnect_handler returned an error.");
         }
     });
     ALLOW_FREE_CLIENT.store(-1, Ordering::Relaxed);
@@ -205,7 +205,7 @@ pub(crate) fn client_loaded_dispatcher(client_id: i32) {
         Python::with_gil(|py| {
             let returned_value = client_loaded_handler.call1(py, (client_id,));
             if returned_value.is_err() {
-                error!("client_loaded_handler returned an error.");
+                error!(target: "shinqlx", "client_loaded_handler returned an error.");
             }
         });
     }
@@ -224,7 +224,7 @@ pub(crate) fn new_game_dispatcher(restart: bool) {
         Python::with_gil(|py| {
             let result = new_game_handler.call1(py, (restart,));
             if result.is_err() {
-                error!("new_game_handler returned an error.");
+                error!(target: "shinqlx", "new_game_handler returned an error.");
             }
         });
     };
@@ -249,7 +249,7 @@ where
     Python::with_gil(
         |py| match set_configstring_handler.call1(py, (index, value.as_ref())) {
             Err(_) => {
-                error!("set_configstring_handler returned an error.");
+                error!(target: "shinqlx", "set_configstring_handler returned an error.");
                 Some(value.as_ref().into())
             }
             Ok(returned) => match returned.extract::<String>(py) {
@@ -285,7 +285,7 @@ where
         Python::with_gil(|py| {
             let result = rcon_handler.call1(py, (cmd.as_ref(),));
             if result.is_err() {
-                error!("rcon_handler returned an error.");
+                error!(target: "shinqlx", "rcon_handler returned an error.");
             }
         });
     }
@@ -310,7 +310,7 @@ where
     Python::with_gil(
         |py| match console_print_handler.call1(py, (text.as_ref(),)) {
             Err(_) => {
-                error!("console_print_handler returned an error.");
+                error!(target: "shinqlx", "console_print_handler returned an error.");
                 Some(text.as_ref().into())
             }
             Ok(returned) => match returned.extract::<String>(py) {
@@ -343,7 +343,7 @@ pub(crate) fn client_spawn_dispatcher(client_id: i32) {
         Python::with_gil(|py| {
             let result = client_spawn_handler.call1(py, (client_id,));
             if result.is_err() {
-                error!("client_spawn_handler returned an error.");
+                error!(target: "shinqlx", "client_spawn_handler returned an error.");
             }
         });
     }
@@ -362,7 +362,7 @@ pub(crate) fn kamikaze_use_dispatcher(client_id: i32) {
         Python::with_gil(|py| {
             let result = kamikaze_use_handler.call1(py, (client_id,));
             if result.is_err() {
-                error!("kamikaze_use_handler returned an error.");
+                error!(target: "shinqlx", "kamikaze_use_handler returned an error.");
             }
         });
     }
@@ -381,7 +381,7 @@ pub(crate) fn kamikaze_explode_dispatcher(client_id: i32, is_used_on_demand: boo
         Python::with_gil(|py| {
             let result = kamikaze_explode_handler.call1(py, (client_id, is_used_on_demand));
             if result.is_err() {
-                error!("kamikaze_explode_handler returned an error.");
+                error!(target: "shinqlx", "kamikaze_explode_handler returned an error.");
             }
         });
     }
@@ -415,7 +415,7 @@ pub(crate) fn damage_dispatcher(
                 ),
             );
             if returned_value.is_err() {
-                error!("damage_handler returned an error.");
+                error!(target: "shinqlx", "damage_handler returned an error.");
             }
         });
     }
@@ -529,6 +529,7 @@ fn get_player_info(py: Python<'_>, client_id: i32) -> PyResult<Option<PlayerInfo
             let allowed_free_client_id = ALLOW_FREE_CLIENT.load(Ordering::Relaxed);
             if allowed_free_client_id != client_id && client.get_state() == clientState_t::CS_FREE {
                 warn!(
+                    target: "shinqlx",
                     "WARNING: get_player_info called for CS_FREE client {}.",
                     client_id
                 );
@@ -622,9 +623,7 @@ fn get_userinfo(py: Python<'_>, client_id: i32) -> PyResult<Option<String>> {
 fn send_server_command(py: Python<'_>, client_id: Option<i32>, cmd: &str) -> PyResult<bool> {
     match client_id {
         None => {
-            py.allow_threads(move || {
-                shinqlx_send_server_command(None, cmd);
-            });
+            shinqlx_send_server_command(None, cmd);
             Ok(true)
         }
         Some(actual_client_id) => {
@@ -651,7 +650,7 @@ fn send_server_command(py: Python<'_>, client_id: Option<i32>, cmd: &str) -> PyR
                 )));
             }
 
-            py.allow_threads(move || match Client::try_from(actual_client_id) {
+            match Client::try_from(actual_client_id) {
                 Err(_) => Ok(false),
                 Ok(client) => {
                     if client.get_state() != clientState_t::CS_ACTIVE {
@@ -661,7 +660,7 @@ fn send_server_command(py: Python<'_>, client_id: Option<i32>, cmd: &str) -> PyR
                         Ok(true)
                     }
                 }
-            })
+            }
         }
     }
 }
@@ -693,7 +692,7 @@ fn client_command(py: Python<'_>, client_id: i32, cmd: &str) -> PyResult<bool> {
         )));
     }
 
-    py.allow_threads(move || match Client::try_from(client_id) {
+    match Client::try_from(client_id) {
         Err(_) => Ok(false),
         Ok(client) => {
             if [clientState_t::CS_FREE, clientState_t::CS_ZOMBIE].contains(&client.get_state()) {
@@ -703,7 +702,7 @@ fn client_command(py: Python<'_>, client_id: i32, cmd: &str) -> PyResult<bool> {
                 Ok(true)
             }
         }
-    })
+    }
 }
 
 /// Executes a command as if it was executed from the server console.
@@ -2933,11 +2932,11 @@ pub(crate) enum PythonInitializationError {
 
 pub(crate) fn pyminqlx_initialize() -> Result<(), PythonInitializationError> {
     if pyminqlx_is_initialized() {
-        error!("pyminqlx_initialize was called while already initialized");
+        error!(target: "shinqlx", "pyminqlx_initialize was called while already initialized");
         return Err(PythonInitializationError::AlreadyInitialized);
     }
 
-    debug!("Initializing Python...");
+    debug!(target: "shinqlx", "Initializing Python...");
     append_to_inittab!(pyminqlx_module);
     prepare_freethreaded_python();
     match Python::with_gil(|py| {
@@ -2946,13 +2945,13 @@ pub(crate) fn pyminqlx_initialize() -> Result<(), PythonInitializationError> {
         Ok::<(), PyErr>(())
     }) {
         Err(e) => {
-            error!("{:?}", e);
-            error!("loader sequence returned an error. Did you modify the loader?");
+            error!(target: "shinqlx", "{:?}", e);
+            error!(target: "shinqlx", "loader sequence returned an error. Did you modify the loader?");
             Err(PythonInitializationError::MainScriptError)
         }
         Ok(_) => {
             PYMINQLX_INITIALIZED.store(true, Ordering::SeqCst);
-            debug!("Python initialized!");
+            debug!(target: "shinqlx", "Python initialized!");
             Ok(())
         }
     }
@@ -2960,7 +2959,7 @@ pub(crate) fn pyminqlx_initialize() -> Result<(), PythonInitializationError> {
 
 pub(crate) fn pyminqlx_reload() -> Result<(), PythonInitializationError> {
     if !pyminqlx_is_initialized() {
-        error!("pyminqlx_finalize was called before being initialized");
+        error!(target: "shinqlx", "pyminqlx_finalize was called before being initialized");
         return Err(PythonInitializationError::NotInitializedError);
     }
 
