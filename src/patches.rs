@@ -20,7 +20,7 @@ pub(crate) fn patch_by_mask(orig_addr: usize, offset: usize, pattern: &[u8], mas
                 });
         }
         Err(error) => {
-            error!("{:?}", error);
+            error!(target: "shinqlx", "{:?}", error);
         }
     }
 }
