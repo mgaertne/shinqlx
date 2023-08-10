@@ -339,10 +339,7 @@ def handle_set_configstring(index, value):
                 elif old_state == "PRE_GAME" and new_state == "COUNT_DOWN":
                     _ad_round_number = 1
                     minqlx.EVENT_DISPATCHERS["game_countdown"].dispatch()
-                elif (
-                    old_state == "COUNT_DOWN"  # noqa: SIM114
-                    and new_state == "IN_PROGRESS"
-                ) or (
+                elif (old_state == "COUNT_DOWN" and new_state == "IN_PROGRESS") or (
                     new_state == "PRE_GAME"
                     and old_state
                     in [
