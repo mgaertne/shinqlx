@@ -30,6 +30,8 @@ import os.path
 import logging
 import shlex
 import sys
+from contextlib import suppress
+from functools import wraps
 
 from logging.handlers import RotatingFileHandler
 
@@ -348,8 +350,9 @@ def set_map_subtitles() -> None:
 #                              DECORATORS
 # ====================================================================
 def next_frame(func):
+    @wraps(func)
     def f(*args, **kwargs):
-        minqlx.next_frame_tasks.append((func, args, kwargs))
+        minqlx.next_frame_tasks.put((func, args, kwargs), block=False)
 
     return f
 
@@ -370,8 +373,9 @@ def delay(time):
     """
 
     def wrap(func):
+        @wraps(func)
         def f(*args, **kwargs):
-            minqlx.frame_tasks.enter(time, 0, func, args, kwargs)
+            minqlx.frame_tasks.enter(time, 1, func, args, kwargs)
 
         return f
 
@@ -395,6 +399,7 @@ def thread(func, force=False):
 
     """
 
+    @wraps(func)
     def f(*args, **kwargs):
         if not force and threading.current_thread().name.endswith(_thread_name):
             func(*args, **kwargs)
@@ -450,14 +455,14 @@ def load_preset_plugins():
     plugins_path = os.path.abspath(plugins_path_cvar)
     plugins_dir = os.path.basename(plugins_path)
 
-    if os.path.isdir(plugins_path):
-        plugins = [p for p in plugins if f"{plugins_dir}.{p}"]
-        for p in plugins:
-            load_plugin(p)
-    else:
+    if not os.path.isdir(plugins_path):
         raise PluginLoadError(
             f"Cannot find the plugins directory '{os.path.abspath(plugins_path)}'."
         )
+
+    plugins = [p for p in plugins if f"{plugins_dir}.{p}"]
+    for p in plugins:
+        load_plugin(p)
 
 
 def load_plugin(plugin):
@@ -488,12 +493,11 @@ def load_plugin(plugin):
             )
 
         plugin_class = getattr(module, plugin)
-        if issubclass(plugin_class, minqlx.Plugin):
-            plugins[plugin] = plugin_class()
-        else:
+        if not issubclass(plugin_class, minqlx.Plugin):
             raise PluginLoadError(
                 "Attempted to load a plugin that is not a subclass of 'minqlx.Plugin'."
             )
+        plugins[plugin] = plugin_class()
     except:
         log_exception(plugin)
         raise
@@ -504,31 +508,29 @@ def unload_plugin(plugin):
     logger.info("Unloading plugin '%s'...", plugin)
     # noinspection PyProtectedMember
     plugins = minqlx.Plugin._loaded_plugins
-    if plugin in plugins:
-        try:
-            minqlx.EVENT_DISPATCHERS["unload"].dispatch(plugin)
-
-            # Unhook its hooks.
-            for hook in plugins[plugin].hooks:
-                plugins[plugin].remove_hook(*hook)
-
-            # Unregister commands.
-            for cmd in plugins[plugin].commands:
-                plugins[plugin].remove_command(cmd.name, cmd.handler)
-
-            del plugins[plugin]
-        except:
-            log_exception(plugin)
-            raise
-    else:
+    if plugin not in plugins:
         raise PluginUnloadError("Attempted to unload a plugin that is not loaded.")
+
+    try:
+        minqlx.EVENT_DISPATCHERS["unload"].dispatch(plugin)
+
+        # Unhook its hooks.
+        for hook in plugins[plugin].hooks:
+            plugins[plugin].remove_hook(*hook)
+
+        # Unregister commands.
+        for cmd in plugins[plugin].commands:
+            plugins[plugin].remove_command(cmd.name, cmd.handler)
+
+        del plugins[plugin]
+    except:
+        log_exception(plugin)
+        raise
 
 
 def reload_plugin(plugin):
-    try:  # noqa: SIM105
+    with suppress(PluginUnloadError):
         unload_plugin(plugin)
-    except PluginUnloadError:
-        pass
 
     try:
         if plugin in _modules:  # Unloaded previously?

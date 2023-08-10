@@ -2,8 +2,8 @@ from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
     from typing import Pattern, Type
-    from collections import deque
     from sched import scheduler
+    from queue import Queue
     from types import TracebackType
 
     from minqlx import AbstractChannel
@@ -17,7 +17,7 @@ _re_vote_ended: Pattern
 _re_userinfo: Pattern
 
 frame_tasks: scheduler
-next_frame_tasks: deque
+next_frame_tasks: Queue
 
 _zmq_warning_issued: bool
 _first_game: bool
@@ -38,7 +38,9 @@ def handle_player_disconnect(client_id: int, reason: str | None) -> bool | None:
 def handle_player_spawn(client_id: int) -> bool | None: ...
 def handle_kamikaze_use(client_id: int) -> bool | None: ...
 def handle_kamikaze_explode(client_id: int, is_used_on_demand: bool) -> bool | None: ...
-def handle_damage(target_id: int, attacker_id: int | None, damage: int, dflags: int, mod: int) -> bool | None: ...
+def handle_damage(
+    target_id: int, attacker_id: int | None, damage: int, dflags: int, mod: int
+) -> bool | None: ...
 def handle_console_print(text: str | None) -> bool | str | None: ...
 def redirect_print(channel: AbstractChannel) -> PrintRedirector: ...
 def register_handlers() -> None: ...
