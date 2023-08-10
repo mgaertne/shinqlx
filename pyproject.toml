@@ -31,3 +31,46 @@ bindings = "pyo3"
 python-source = "python"
 python-packages = ["minqlx"]
 compatibility = "linux"
+
+[tool.ruff]
+select = ["C40", "E", "F", "SIM", "TCH"]
+ignore = []
+
+fixable = ["A", "B", "C", "D", "E", "F"]
+unfixable = []
+
+exclude = [
+    ".eggs",
+    ".git",
+    ".mypy_cache",
+    ".ruff_cache",
+    ".tox",
+    ".venv",
+    "__pypackages__",
+    "build",
+    "dist",
+    "venv",
+]
+per-file-ignores = {}
+
+line-length = 120
+
+dummy-variable-rgx = "^(_+|(_+[a-zA-Z0-9_]*[a-zA-Z0-9]+?))$"
+
+target-version = "py39"
+
+[tool.ruff.mccabe]
+max-complexity = 10
+
+[tool.mypy]
+packages = ["python/minqlx"]
+check_untyped_defs = true
+ignore_missing_imports = true
+no_implicit_optional = true
+show_error_codes = true
+strict_equality = true
+warn_redundant_casts = true
+warn_unused_configs = true
+no_implicit_reexport = true
+disallow_untyped_defs = true
+disallow_incomplete_defs = true
