@@ -39,6 +39,8 @@ region = ">=3.0"
 parking_lot = ">=0.12"
 log = ">=0.4"
 log4rs = { version = ">=1.2", default-features = false, features = ["console_appender", "pattern_encoder"] }
+signal-hook = ">=0.3.1"
+signal-hook-registry = ">=1.4.1"
 lock_api = ">=0.4.10"
 proc-macro2 = ">=1.0.63"
 pkg-config = ">=0.3.27"
