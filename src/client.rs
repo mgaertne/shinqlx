@@ -102,18 +102,12 @@ impl Client {
     }
 
     pub(crate) fn get_name(&self) -> String {
-        if self.client_t.name.as_ptr().is_null() {
-            return "".into();
-        }
         unsafe { CStr::from_ptr(&self.client_t.name as *const c_char) }
             .to_string_lossy()
             .into()
     }
 
     pub(crate) fn get_user_info(&self) -> String {
-        if self.client_t.userinfo.as_ptr().is_null() {
-            return "".into();
-        };
         unsafe { CStr::from_ptr(self.client_t.userinfo.as_ptr()) }
             .to_string_lossy()
             .into()
