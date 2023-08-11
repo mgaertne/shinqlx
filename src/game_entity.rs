@@ -495,6 +495,7 @@ pub(crate) mod game_entity_tests {
     }
 
     #[test]
+    #[cfg_attr(miri, ignore)]
     pub(crate) fn game_entity_get_entity_internal_gets_offset() {
         let mut gentities = vec![
             GEntityBuilder::default().build().unwrap(),
@@ -504,10 +505,7 @@ pub(crate) mod game_entity_tests {
             GEntityBuilder::default().build().unwrap(),
         ];
         let game_entity = GameEntity::try_from(&mut gentities[3] as *mut gentity_t).unwrap();
-        assert_eq!(
-            game_entity._get_entity_id_internal(&mut gentities[0] as *mut gentity_t),
-            3
-        );
+        assert_eq!(game_entity._get_entity_id_internal(&mut gentities[0]), 3);
     }
 
     #[test]
