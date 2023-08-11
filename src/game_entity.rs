@@ -165,7 +165,10 @@ impl GameEntity {
         if g_entities.is_null() {
             return -1;
         }
+        self._get_entity_id_internal(g_entities)
+    }
 
+    fn _get_entity_id_internal(&self, g_entities: *mut gentity_t) -> i32 {
         i32::try_from(unsafe { (self.gentity_t as *const gentity_t).offset_from(g_entities) })
             .unwrap_or(-1)
     }
@@ -259,9 +262,10 @@ impl GameEntity {
                 0
             };
 
-        if let Ok(mut game_client) = self.get_game_client() {
-            game_client.set_armor(0);
-        }
+        let _ = self
+            .get_game_client()
+            .map(|mut game_client| game_client.set_armor(0));
+
         // self damage = half damage, so multiplaying by 2
         quake_live_engine.register_damage(
             self.gentity_t,
@@ -290,13 +294,19 @@ impl GameEntity {
     }
 
     pub(crate) fn is_respawning_weapon(&self) -> bool {
-        if !self.is_game_item(entityType_t::ET_ITEM) || self.gentity_t.item.is_null() {
-            false
-        } else if let Some(item) = unsafe { self.gentity_t.item.as_ref() } {
-            item.giType == itemType_t::IT_WEAPON
-        } else {
-            false
+        if !self.is_game_item(entityType_t::ET_ITEM) {
+            return false;
         }
+
+        if self.gentity_t.item.is_null() {
+            return false;
+        }
+
+        let Some(item) = (unsafe { self.gentity_t.item.as_ref() }) else {
+            return false;
+        };
+
+        item.giType == itemType_t::IT_WEAPON
     }
 
     pub(crate) fn set_respawn_time(&mut self, respawn_time: i32) {
@@ -336,21 +346,24 @@ impl GameEntity {
         level_time: i32,
         quake_live_engine: &impl TryLaunchItem,
     ) {
-        if let Ok(mut game_client) = self.get_game_client() {
-            if let Ok(mut gitem) = GameItem::try_from(game_client.get_holdable()) {
-                let angle = self.gentity_t.s.apos.trBase[1] * (PI * 2.0 / 360.0);
-                let mut velocity = [150.0 * angle.cos(), 150.0 * angle.sin(), 250.0];
-                let entity = quake_live_engine
-                    .try_launch_item(&mut gitem, &mut self.gentity_t.s.pos.trBase, &mut velocity)
-                    .unwrap();
-                entity.gentity_t.touch = Some(ShiNQlx_Touch_Item);
-                entity.gentity_t.parent = self.gentity_t;
-                entity.gentity_t.think = Some(ShiNQlx_Switch_Touch_Item);
-                entity.gentity_t.nextthink = level_time + 1000;
-                entity.gentity_t.s.pos.trTime = level_time - 500;
-                game_client.set_holdable(0);
-            }
-        }
+        let Ok(mut game_client) = self.get_game_client() else {
+            return;
+        };
+        let Ok(mut gitem) = GameItem::try_from(game_client.get_holdable()) else {
+            return;
+        };
+
+        let angle = self.gentity_t.s.apos.trBase[1] * (PI * 2.0 / 360.0);
+        let mut velocity = [150.0 * angle.cos(), 150.0 * angle.sin(), 250.0];
+        let entity = quake_live_engine
+            .try_launch_item(&mut gitem, &mut self.gentity_t.s.pos.trBase, &mut velocity)
+            .unwrap();
+        entity.gentity_t.touch = Some(ShiNQlx_Touch_Item);
+        entity.gentity_t.parent = self.gentity_t;
+        entity.gentity_t.think = Some(ShiNQlx_Switch_Touch_Item);
+        entity.gentity_t.nextthink = level_time + 1000;
+        entity.gentity_t.s.pos.trTime = level_time - 500;
+        game_client.set_holdable(0);
     }
 
     pub(crate) fn is_kamikaze_timer(&self) -> bool {
@@ -385,16 +398,17 @@ impl GameEntity {
         let class_name = unsafe { CStr::from_ptr(self.gentity_t.classname) };
         main_engine.com_printf(class_name.to_string_lossy().as_ref());
         if item_id != 0 {
-            if let Ok(gitem) = GameItem::try_from(item_id) {
-                self.gentity_t.s.modelindex = item_id;
-                self.gentity_t.classname = gitem.get_classname().as_ptr() as *const c_char;
-                self.gentity_t.item = gitem.gitem_t;
+            let Ok(gitem) = GameItem::try_from(item_id) else {
+                return;
+            };
+            self.gentity_t.s.modelindex = item_id;
+            self.gentity_t.classname = gitem.get_classname().as_ptr() as *const c_char;
+            self.gentity_t.item = gitem.gitem_t;
 
-                // this forces client to load new item
-                let mut items = main_engine.get_configstring(CS_ITEMS);
-                items.replace_range(item_id as usize..=item_id as usize, "1");
-                shinqlx_set_configstring(item_id as u32, items.as_str());
-            }
+            // this forces client to load new item
+            let mut items = main_engine.get_configstring(CS_ITEMS);
+            items.replace_range(item_id as usize..=item_id as usize, "1");
+            shinqlx_set_configstring(item_id as u32, items.as_str());
         } else {
             self.free_entity();
         }
@@ -402,23 +416,22 @@ impl GameEntity {
 
     pub(crate) fn get_targetting_entity_ids(&self) -> Vec<u32> {
         if self.gentity_t.targetname.is_null() {
-            vec![]
-        } else {
-            let my_targetname =
-                unsafe { CStr::from_ptr(self.gentity_t.targetname) }.to_string_lossy();
-
-            (1..MAX_GENTITIES)
-                .filter(|entity_id| match GameEntity::try_from(*entity_id) {
-                    Ok(other_ent) => {
-                        !other_ent.gentity_t.target.is_null()
-                            && my_targetname
-                                == unsafe { CStr::from_ptr(other_ent.gentity_t.target) }
-                                    .to_string_lossy()
-                    }
-                    Err(_) => false,
-                })
-                .collect()
+            return vec![];
         }
+
+        let my_targetname = unsafe { CStr::from_ptr(self.gentity_t.targetname) }.to_string_lossy();
+
+        (1..MAX_GENTITIES)
+            .filter(|entity_id| match GameEntity::try_from(*entity_id) {
+                Ok(other_ent) => {
+                    !other_ent.gentity_t.target.is_null()
+                        && my_targetname
+                            == unsafe { CStr::from_ptr(other_ent.gentity_t.target) }
+                                .to_string_lossy()
+                }
+                Err(_) => false,
+            })
+            .collect()
     }
 }
 
@@ -426,9 +439,7 @@ impl GameEntity {
 pub(crate) mod game_entity_tests {
     use crate::game_entity::GameEntity;
     use crate::prelude::*;
-    use crate::quake_live_engine::{
-        MockFreeEntity, MockRegisterDamage, MockStartKamikaze, MockTryLaunchItem,
-    };
+    use crate::quake_live_engine::{MockFreeEntity, MockRegisterDamage, MockStartKamikaze};
     use alloc::ffi::CString;
     use core::ffi::{c_char, c_int};
     use pretty_assertions::assert_eq;
@@ -473,6 +484,29 @@ pub(crate) mod game_entity_tests {
         assert_eq!(
             GameEntity::try_from(65536u32),
             Err(QuakeLiveEngineError::InvalidId(65536))
+        );
+    }
+
+    #[test]
+    pub(crate) fn game_entity_get_entity_with_no_entities_list() {
+        let mut gentity = GEntityBuilder::default().build().unwrap();
+        let game_entity = GameEntity::try_from(&mut gentity as *mut gentity_t).unwrap();
+        assert_eq!(game_entity.get_entity_id(), -1);
+    }
+
+    #[test]
+    pub(crate) fn game_entity_get_entity_internal_gets_offset() {
+        let mut gentities = vec![
+            GEntityBuilder::default().build().unwrap(),
+            GEntityBuilder::default().build().unwrap(),
+            GEntityBuilder::default().build().unwrap(),
+            GEntityBuilder::default().build().unwrap(),
+            GEntityBuilder::default().build().unwrap(),
+        ];
+        let game_entity = GameEntity::try_from(&mut gentities[3] as *mut gentity_t).unwrap();
+        assert_eq!(
+            game_entity._get_entity_id_internal(&mut gentities[0] as *mut gentity_t),
+            3
         );
     }
 
@@ -860,35 +894,6 @@ pub(crate) mod game_entity_tests {
         let mut gentity = GEntityBuilder::default().s(entity_state).build().unwrap();
         let game_entity = GameEntity::try_from(&mut gentity as *mut gentity_t).unwrap();
         assert_eq!(game_entity.get_client_number(), 42);
-    }
-
-    #[allow(unused)]
-    pub(crate) fn game_entity_drop_holdable() {
-        let mut entity_state = EntityStateBuilder::default().build().unwrap();
-        entity_state.apos.trBase[1] = 0.5;
-        let mut player_state = PlayerStateBuilder::default().build().unwrap();
-        player_state.stats[statIndex_t::STAT_HOLDABLE_ITEM as usize] =
-            holdable_t::HI_TELEPORTER as i32;
-        let mut game_client = GClientBuilder::default().ps(player_state).build().unwrap();
-        let mut gentity = GEntityBuilder::default()
-            .s(entity_state)
-            .client(&mut game_client as *mut gclient_t)
-            .build()
-            .unwrap();
-        let mut game_entity = GameEntity::try_from(&mut gentity as *mut gentity_t).unwrap();
-
-        let mut launched_gentity = GEntityBuilder::default().build().unwrap();
-        let launched_entity =
-            GameEntity::try_from(&mut launched_gentity as *mut gentity_t).unwrap();
-        let mut mock = MockTryLaunchItem::new();
-        mock.expect_try_launch_item()
-            .return_once_st(|_, _, _| Ok(launched_entity));
-
-        game_entity.drop_holdable_internal(2468, &mock);
-        assert_eq!(launched_gentity.parent, &mut gentity as *mut gentity_t);
-        assert_eq!(launched_gentity.nextthink, 3468);
-        assert_eq!(launched_gentity.s.pos.trTime, 1968);
-        assert_eq!(game_entity.get_game_client().unwrap().get_holdable(), 0);
     }
 
     #[test]
