@@ -126,14 +126,16 @@ impl GameItem {
         ];
         let mut velocity = [0.0, 0.0, 0.9];
 
-        if let Ok(mut gentity) =
+        let Ok(mut gentity) =
             quake_live_engine.try_launch_item(self, &mut origin_vec, &mut velocity)
-        {
-            gentity.gentity_t.nextthink = 0;
-            gentity.gentity_t.think = None;
-            // make item be scaled up
-            quake_live_engine.game_add_event(&mut gentity, entity_event_t::EV_ITEM_RESPAWN, 0);
-        }
+        else {
+            return;
+        };
+
+        gentity.gentity_t.nextthink = 0;
+        gentity.gentity_t.think = None;
+        // make item be scaled up
+        quake_live_engine.game_add_event(&mut gentity, entity_event_t::EV_ITEM_RESPAWN, 0);
     }
 }
 
