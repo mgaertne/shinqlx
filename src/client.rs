@@ -187,6 +187,23 @@ pub(crate) mod client_tests {
     }
 
     #[test]
+    pub(crate) fn client_get_client_id_interal_from_server_static_not_first_position() {
+        let mut clients = vec![
+            ClientBuilder::default().build().unwrap(),
+            ClientBuilder::default().build().unwrap(),
+            ClientBuilder::default().build().unwrap(),
+        ];
+        let mut server_static = ServerStaticBuilder::default()
+            .clients(&mut clients[0])
+            .build()
+            .unwrap();
+        let rust_server_static =
+            ServerStatic::try_from(&mut server_static as *mut serverStatic_t).unwrap();
+        let rust_client = Client::try_from(&mut clients[2] as *mut client_t).unwrap();
+        assert_eq!(rust_client._get_client_id_internal(rust_server_static), 2);
+    }
+
+    #[test]
     pub(crate) fn client_get_state() {
         let mut client = ClientBuilder::default()
             .state(clientState_t::CS_ZOMBIE)
