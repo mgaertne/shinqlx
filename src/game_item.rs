@@ -83,9 +83,16 @@ impl GameItem {
     }
 
     #[allow(unused)]
-    pub(crate) fn get_item_id(&mut self) -> i32 {
+    pub(crate) fn get_item_id(&self) -> i32 {
         let bg_itemlist = Self::get_item_list();
-        i32::try_from(unsafe { (self.gitem_t as *mut gitem_t).offset_from(bg_itemlist) })
+        if bg_itemlist.is_null() {
+            return -1;
+        }
+        self._get_item_id_internal(bg_itemlist)
+    }
+
+    fn _get_item_id_internal(&self, bg_itemlist: *mut gitem_t) -> i32 {
+        i32::try_from(unsafe { (self.gitem_t as *const gitem_t).offset_from(bg_itemlist) })
             .unwrap_or(-1)
     }
 
@@ -136,10 +143,12 @@ pub(crate) mod game_item_tests {
     use crate::game_item::GameItem;
     use crate::prelude::*;
     use crate::quake_live_engine::{GameAddEvent, TryLaunchItem};
+    use crate::MAIN_ENGINE;
     use alloc::ffi::CString;
     use core::ffi::c_char;
     use mockall::*;
     use pretty_assertions::assert_eq;
+    use serial_test::serial;
 
     #[test]
     pub(crate) fn game_item_from_null_pointer() {
@@ -156,6 +165,70 @@ pub(crate) mod game_item_tests {
         let mut gitem = GItemBuilder::default().build().unwrap();
         let game_item = GameItem::try_from(&mut gitem as *mut gitem_t);
         assert!(game_item.is_ok());
+    }
+
+    #[test]
+    pub(crate) fn game_item_try_get_from_negative_item_id() {
+        assert_eq!(
+            GameItem::try_from(-1),
+            Err(QuakeLiveEngineError::InvalidId(-1))
+        );
+    }
+
+    #[test]
+    pub(crate) fn game_item_try_get_with_no_items_available() {
+        assert_eq!(
+            GameItem::try_from(42),
+            Err(QuakeLiveEngineError::InvalidId(42))
+        );
+    }
+
+    #[test]
+    pub(crate) fn get_num_items_from_non_existing_item_list() {
+        assert_eq!(GameItem::get_num_items(), 0);
+    }
+
+    #[test]
+    pub(crate) fn get_item_list_with_no_main_engine() {
+        assert!(GameItem::get_item_list().is_null());
+    }
+
+    #[test]
+    #[serial]
+    pub(crate) fn get_item_list_with_offset_function_not_defined_in_main_engine() {
+        {
+            let mut guard = MAIN_ENGINE.write();
+            *guard = Some(QuakeLiveEngine::new());
+        }
+
+        let result = GameItem::get_item_list();
+
+        {
+            let mut guard = MAIN_ENGINE.write();
+            *guard = None;
+        }
+
+        assert!(result.is_null());
+    }
+
+    #[test]
+    pub(crate) fn game_item_get_item_id_with_no_itemlist() {
+        let mut gitem = GItemBuilder::default().build().unwrap();
+        let game_item = GameItem::try_from(&mut gitem as *mut gitem_t).unwrap();
+        assert_eq!(game_item.get_item_id(), -1);
+    }
+
+    #[test]
+    #[cfg_attr(miri, ignore)]
+    pub(crate) fn game_item_get_item_id_internal_gets_offset() {
+        let mut itemlist = vec![
+            GItemBuilder::default().build().unwrap(),
+            GItemBuilder::default().build().unwrap(),
+            GItemBuilder::default().build().unwrap(),
+            GItemBuilder::default().build().unwrap(),
+        ];
+        let game_item = GameItem::try_from(&mut itemlist[1] as *mut gitem_t).unwrap();
+        assert_eq!(game_item._get_item_id_internal(&mut itemlist[0]), 1);
     }
 
     #[test]
