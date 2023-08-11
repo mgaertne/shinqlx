@@ -42,6 +42,7 @@ use log4rs::config::{Appender, Root};
 use log4rs::encode::pattern::PatternEncoder;
 use log4rs::{Config, Handle};
 use parking_lot::RwLock;
+use signal_hook::consts::SIGSEGV;
 
 #[allow(dead_code)]
 #[cfg(target_pointer_width = "64")]
@@ -77,13 +78,20 @@ fn initialize_logging() {
 
 #[ctor]
 fn initialize() {
-    if let Some(progname) = std::env::args().next() {
-        if !progname.ends_with(QZERODED) {
-            return;
-        }
-    } else {
+    let Some(progname) = std::env::args().next() else {
+        return;
+    };
+
+    if !progname.ends_with(QZERODED) {
         return;
     }
+
+    unsafe {
+        signal_hook_registry::register_signal_unchecked(SIGSEGV, move || {
+            signal_hook::low_level::exit(1);
+        })
+        .unwrap()
+    };
 
     initialize_logging();
     let main_engine = QuakeLiveEngine::new();
