@@ -61,7 +61,10 @@ impl Client {
         let Ok(server_static) = ServerStatic::try_get() else {
             return -1;
         };
+        self._get_client_id_internal(server_static)
+    }
 
+    fn _get_client_id_internal(&self, server_static: ServerStatic) -> i32 {
         unsafe {
             (self.client_t as *const client_t).offset_from(server_static.serverStatic_t.clients)
         }
@@ -125,6 +128,7 @@ impl Client {
 pub(crate) mod client_tests {
     use crate::client::Client;
     use crate::prelude::*;
+    use crate::server_static::ServerStatic;
     use crate::MAIN_ENGINE;
     use core::ffi::c_char;
     use pretty_assertions::assert_eq;
@@ -160,6 +164,26 @@ pub(crate) mod client_tests {
             Client::try_from(32384),
             Err(QuakeLiveEngineError::InvalidId(32384))
         );
+    }
+
+    #[test]
+    pub(crate) fn client_get_client_id_when_no_serverstatic_found() {
+        let mut client = ClientBuilder::default().build().unwrap();
+        let rust_client = Client::try_from(&mut client as *mut client_t).unwrap();
+        assert_eq!(rust_client.get_client_id(), -1);
+    }
+
+    #[test]
+    pub(crate) fn client_get_client_id_interal_from_server_static() {
+        let mut client = ClientBuilder::default().build().unwrap();
+        let mut server_static = ServerStaticBuilder::default()
+            .clients(&mut client as *mut client_t)
+            .build()
+            .unwrap();
+        let rust_server_static =
+            ServerStatic::try_from(&mut server_static as *mut serverStatic_t).unwrap();
+        let rust_client = Client::try_from(&mut client as *mut client_t).unwrap();
+        assert_eq!(rust_client._get_client_id_internal(rust_server_static), 0);
     }
 
     #[test]
@@ -225,7 +249,7 @@ pub(crate) mod client_tests {
     }
 
     #[test]
-    pub(crate) fn client_get_name_from_null() {
+    pub(crate) fn client_get_name_from_empty_name() {
         let mut client = ClientBuilder::default()
             .name([0; MAX_NAME_LENGTH as usize])
             .build()
