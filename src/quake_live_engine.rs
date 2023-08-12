@@ -1054,11 +1054,7 @@ impl QuakeLiveEngine {
 
         {
             if let Some(g_damage_detour) = vm_hook_result.3.take() {
-                if g_damage_detour.is_enabled() {
-                    if let Err(e) = unsafe { g_damage_detour.disable() } {
-                        error!(target: "shinqlx", "error when disabling G_Damage detour: {}", e);
-                    }
-                }
+                try_disable(&g_damage_detour);
                 let mut pending_g_danage_lock = self.pending_g_damage_detours.write();
                 (*pending_g_danage_lock).push_back(g_damage_detour);
             }
