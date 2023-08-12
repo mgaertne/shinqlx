@@ -98,7 +98,7 @@ impl GameItem {
         self.get_item_id_intern(bg_itemlist)
     }
 
-    #[inline]
+    #[cfg_attr(not(test), inline)]
     fn get_item_id_intern(&self, bg_itemlist: *mut gitem_t) -> i32 {
         i32::try_from(unsafe { (self.gitem_t as *const gitem_t).offset_from(bg_itemlist) })
             .unwrap_or(-1)
@@ -122,7 +122,7 @@ impl GameItem {
         self.spawn_intern(origin, main_engine);
     }
 
-    #[inline]
+    #[cfg_attr(not(test), inline)]
     fn spawn_intern<'a>(
         &'a mut self,
         origin: (i32, i32, i32),

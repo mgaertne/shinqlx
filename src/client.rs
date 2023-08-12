@@ -76,7 +76,7 @@ impl Client {
         self.get_client_id_intern(server_static)
     }
 
-    #[inline]
+    #[cfg_attr(not(test), inline)]
     fn get_client_id_intern(&self, server_static: ServerStatic) -> i32 {
         unsafe {
             (self.client_t as *const client_t).offset_from(server_static.serverStatic_t.clients)
