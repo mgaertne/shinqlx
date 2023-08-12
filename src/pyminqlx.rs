@@ -920,7 +920,7 @@ fn get_configstring(py: Python<'_>, config_id: u32) -> PyResult<String> {
             ));
         };
 
-        Ok(main_engine.get_configstring(config_id))
+        Ok(main_engine.get_configstring(config_id as i16))
     })
 }
 
