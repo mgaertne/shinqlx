@@ -169,7 +169,7 @@ impl GameClient {
         self.get_powerups_intern(level_time)
     }
 
-    #[inline]
+    #[cfg_attr(not(test), inline)]
     fn get_powerups_intern(&self, level_time: i32) -> [i32; 6] {
         (0..6)
             .map(|powerup| powerup_t::try_from(powerup).unwrap_or(powerup_t::PW_NONE))
@@ -191,7 +191,7 @@ impl GameClient {
         self.set_powerups_intern(powerups, level_time);
     }
 
-    #[inline]
+    #[cfg_attr(not(test), inline)]
     fn set_powerups_intern(&mut self, powerups: [i32; 6], level_time: i32) {
         powerups
             .iter()
@@ -267,7 +267,7 @@ impl GameClient {
         self.set_invulnerability_intern(time, level_time);
     }
 
-    #[inline]
+    #[cfg_attr(not(test), inline)]
     fn set_invulnerability_intern(&mut self, time: i32, level_time: i32) {
         self.game_client.invulnerabilityTime = level_time + time;
     }
@@ -316,7 +316,7 @@ impl GameClient {
         self.get_time_on_team_intern(level_time)
     }
 
-    #[inline]
+    #[cfg_attr(not(test), inline)]
     fn get_time_on_team_intern(&self, level_time: i32) -> i32 {
         level_time - self.game_client.pers.enterTime
     }

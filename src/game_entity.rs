@@ -191,7 +191,7 @@ impl GameEntity {
         self.start_kamikaze_intern(main_engine);
     }
 
-    #[inline]
+    #[cfg_attr(not(test), inline)]
     fn start_kamikaze_intern<'a>(
         &'a mut self,
         kamikaze_starter: &impl StartKamikaze<&'a mut GameEntity>,
@@ -260,7 +260,7 @@ impl GameEntity {
         self.slay_with_mod_intern(mean_of_death, main_engine);
     }
 
-    #[inline]
+    #[cfg_attr(not(test), inline)]
     fn slay_with_mod_intern(
         &mut self,
         mean_of_death: meansOfDeath_t,
@@ -352,7 +352,7 @@ impl GameEntity {
         self.drop_holdable_intern(level_time, main_engine);
     }
 
-    #[inline]
+    #[cfg_attr(not(test), inline)]
     fn drop_holdable_intern(
         &mut self,
         level_time: i32,
@@ -394,7 +394,7 @@ impl GameEntity {
         self.free_entity_intern(main_engine);
     }
 
-    #[inline]
+    #[cfg_attr(not(test), inline)]
     fn free_entity_intern<'a>(
         &'a mut self,
         quake_live_engine: &impl FreeEntity<&'a mut GameEntity>,
