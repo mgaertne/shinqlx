@@ -61,10 +61,11 @@ impl Client {
         let Ok(server_static) = ServerStatic::try_get() else {
             return -1;
         };
-        self._get_client_id_internal(server_static)
+        self.get_client_id_intern(server_static)
     }
 
-    fn _get_client_id_internal(&self, server_static: ServerStatic) -> i32 {
+    #[inline]
+    fn get_client_id_intern(&self, server_static: ServerStatic) -> i32 {
         unsafe {
             (self.client_t as *const client_t).offset_from(server_static.serverStatic_t.clients)
         }
@@ -177,7 +178,7 @@ pub(crate) mod client_tests {
         let rust_server_static =
             ServerStatic::try_from(&mut server_static as *mut serverStatic_t).unwrap();
         let rust_client = Client::try_from(&mut client as *mut client_t).unwrap();
-        assert_eq!(rust_client._get_client_id_internal(rust_server_static), 0);
+        assert_eq!(rust_client.get_client_id_intern(rust_server_static), 0);
     }
 
     #[test]
@@ -194,7 +195,7 @@ pub(crate) mod client_tests {
         let rust_server_static =
             ServerStatic::try_from(&mut server_static as *mut serverStatic_t).unwrap();
         let rust_client = Client::try_from(&mut clients[2] as *mut client_t).unwrap();
-        assert_eq!(rust_client._get_client_id_internal(rust_server_static), 2);
+        assert_eq!(rust_client.get_client_id_intern(rust_server_static), 2);
     }
 
     #[test]
