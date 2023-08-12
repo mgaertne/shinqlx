@@ -88,10 +88,11 @@ impl GameItem {
         if bg_itemlist.is_null() {
             return -1;
         }
-        self._get_item_id_internal(bg_itemlist)
+        self.get_item_id_intern(bg_itemlist)
     }
 
-    fn _get_item_id_internal(&self, bg_itemlist: *mut gitem_t) -> i32 {
+    #[inline]
+    fn get_item_id_intern(&self, bg_itemlist: *mut gitem_t) -> i32 {
         i32::try_from(unsafe { (self.gitem_t as *const gitem_t).offset_from(bg_itemlist) })
             .unwrap_or(-1)
     }
@@ -111,10 +112,11 @@ impl GameItem {
             return;
         };
 
-        self.spawn_internal(origin, main_engine);
+        self.spawn_intern(origin, main_engine);
     }
 
-    pub(crate) fn spawn_internal(
+    #[inline]
+    fn spawn_intern(
         &mut self,
         origin: (i32, i32, i32),
         quake_live_engine: &(impl TryLaunchItem + GameAddEvent),
@@ -230,7 +232,7 @@ pub(crate) mod game_item_tests {
             GItemBuilder::default().build().unwrap(),
         ];
         let game_item = GameItem::try_from(&mut itemlist[1] as *mut gitem_t).unwrap();
-        assert_eq!(game_item._get_item_id_internal(&mut itemlist[0]), 1);
+        assert_eq!(game_item.get_item_id_intern(&mut itemlist[0]), 1);
     }
 
     #[test]
@@ -275,6 +277,6 @@ pub(crate) mod game_item_tests {
                     && param == &0
             })
             .return_const(());
-        game_item.spawn_internal((1, 2, 3), &mock);
+        game_item.spawn_intern((1, 2, 3), &mock);
     }
 }

@@ -165,10 +165,10 @@ impl GameEntity {
         if g_entities.is_null() {
             return -1;
         }
-        self._get_entity_id_internal(g_entities)
+        self.get_entity_id_inter(g_entities)
     }
 
-    fn _get_entity_id_internal(&self, g_entities: *mut gentity_t) -> i32 {
+    fn get_entity_id_inter(&self, g_entities: *mut gentity_t) -> i32 {
         i32::try_from(unsafe { (self.gentity_t as *const gentity_t).offset_from(g_entities) })
             .unwrap_or(-1)
     }
@@ -185,7 +185,8 @@ impl GameEntity {
         self.start_kamikaze_intern(main_engine);
     }
 
-    pub(crate) fn start_kamikaze_intern(&mut self, kamikaze_starter: &impl StartKamikaze) {
+    #[inline]
+    fn start_kamikaze_intern(&mut self, kamikaze_starter: &impl StartKamikaze) {
         kamikaze_starter.start_kamikaze(self);
     }
 
@@ -250,7 +251,8 @@ impl GameEntity {
         self.slay_with_mod_intern(mean_of_death, main_engine);
     }
 
-    pub(crate) fn slay_with_mod_intern(
+    #[inline]
+    fn slay_with_mod_intern(
         &mut self,
         mean_of_death: meansOfDeath_t,
         quake_live_engine: &impl RegisterDamage,
@@ -338,14 +340,11 @@ impl GameEntity {
             .ok()
             .map(|current_level| current_level.get_leveltime())
             .unwrap_or_default();
-        self.drop_holdable_internal(level_time, main_engine);
+        self.drop_holdable_intern(level_time, main_engine);
     }
 
-    pub(crate) fn drop_holdable_internal(
-        &mut self,
-        level_time: i32,
-        quake_live_engine: &impl TryLaunchItem,
-    ) {
+    #[inline]
+    fn drop_holdable_intern(&mut self, level_time: i32, quake_live_engine: &impl TryLaunchItem) {
         let Ok(mut game_client) = self.get_game_client() else {
             return;
         };
@@ -379,10 +378,11 @@ impl GameEntity {
             return;
         };
 
-        self.free_entity_internal(main_engine);
+        self.free_entity_intern(main_engine);
     }
 
-    pub(crate) fn free_entity_internal(&mut self, quake_live_engine: &impl FreeEntity) {
+    #[inline]
+    fn free_entity_intern(&mut self, quake_live_engine: &impl FreeEntity) {
         quake_live_engine.free_entity(self.gentity_t);
     }
 
@@ -480,11 +480,36 @@ pub(crate) mod game_entity_tests {
     }
 
     #[test]
+    pub(crate) fn game_entity_try_from_valid_i32_gentities_not_initialized() {
+        assert_eq!(
+            GameEntity::try_from(42i32),
+            Err(QuakeLiveEngineError::EntityNotFound(
+                "g_entities not initialized".into()
+            ))
+        );
+    }
+
+    #[test]
     pub(crate) fn game_entity_try_from_too_large_u32_entity_id() {
         assert_eq!(
             GameEntity::try_from(65536u32),
             Err(QuakeLiveEngineError::InvalidId(65536))
         );
+    }
+
+    #[test]
+    pub(crate) fn game_entity_try_from_valid_u32_gentities_not_initialized() {
+        assert_eq!(
+            GameEntity::try_from(42u32),
+            Err(QuakeLiveEngineError::EntityNotFound(
+                "g_entities not initialized".into()
+            ))
+        );
+    }
+
+    #[test]
+    pub(crate) fn game_entity_get_entities_list_with_no_main_engine() {
+        assert!(GameEntity::get_entities_list().is_null());
     }
 
     #[test]
@@ -496,7 +521,7 @@ pub(crate) mod game_entity_tests {
 
     #[test]
     #[cfg_attr(miri, ignore)]
-    pub(crate) fn game_entity_get_entity_internal_gets_offset() {
+    pub(crate) fn game_entity_get_entity_intern_gets_offset() {
         let mut gentities = vec![
             GEntityBuilder::default().build().unwrap(),
             GEntityBuilder::default().build().unwrap(),
@@ -505,7 +530,7 @@ pub(crate) mod game_entity_tests {
             GEntityBuilder::default().build().unwrap(),
         ];
         let game_entity = GameEntity::try_from(&mut gentities[3] as *mut gentity_t).unwrap();
-        assert_eq!(game_entity._get_entity_id_internal(&mut gentities[0]), 3);
+        assert_eq!(game_entity.get_entity_id_inter(&mut gentities[0]), 3);
     }
 
     #[test]
@@ -924,6 +949,6 @@ pub(crate) mod game_entity_tests {
         let mut mock = MockFreeEntity::new();
         mock.expect_free_entity().return_const(());
 
-        game_entity.free_entity_internal(&mock);
+        game_entity.free_entity_intern(&mock);
     }
 }
