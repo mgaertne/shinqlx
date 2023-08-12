@@ -4,7 +4,6 @@ use crate::commands::{
 };
 use crate::cvar::CVar;
 use crate::game_entity::GameEntity;
-use crate::game_item::GameItem;
 use crate::hooks::{
     shinqlx_cmd_addcommand, shinqlx_sv_cliententerworld, shinqlx_sv_dropclient,
     shinqlx_sv_executeclientcommand, shinqlx_sv_setconfigstring, shinqlx_sv_spawnserver,
@@ -1930,40 +1929,34 @@ impl<T: AsRef<str>, U: AsRef<str>, V: Into<qboolean>> SetCVarForced<T, U, V> for
     }
 }
 
-#[cfg_attr(test, automock)]
-pub(crate) trait SetCVarLimit {
-    fn set_cvar_limit(
-        &self,
-        name: &str,
-        value: &str,
-        min: &str,
-        max: &str,
-        flags: Option<i32>,
-    ) -> Option<CVar>;
+pub(crate) trait SetCVarLimit<
+    T: AsRef<str>,
+    U: AsRef<str>,
+    V: AsRef<str>,
+    W: AsRef<str>,
+    X: Into<c_int>,
+>
+{
+    fn set_cvar_limit(&self, name: T, value: U, min: V, max: W, flags: Option<X>) -> Option<CVar>;
 }
 
-impl SetCVarLimit for QuakeLiveEngine {
-    fn set_cvar_limit(
-        &self,
-        name: &str,
-        value: &str,
-        min: &str,
-        max: &str,
-        flags: Option<i32>,
-    ) -> Option<CVar> {
+impl<T: AsRef<str>, U: AsRef<str>, V: AsRef<str>, W: AsRef<str>, X: Into<c_int> + Default>
+    SetCVarLimit<T, U, V, W, X> for QuakeLiveEngine
+{
+    fn set_cvar_limit(&self, name: T, value: U, min: V, max: W, flags: Option<X>) -> Option<CVar> {
         let Ok(original_func) = self.cvar_getlimit_orig() else {
             return None;
         };
-        let Ok(c_name) = CString::new(name) else {
+        let Ok(c_name) = CString::new(name.as_ref()) else {
             return None;
         };
-        let Ok(c_value) = CString::new(value) else {
+        let Ok(c_value) = CString::new(value.as_ref()) else {
             return None;
         };
-        let Ok(c_min) = CString::new(min) else {
+        let Ok(c_min) = CString::new(min.as_ref()) else {
             return None;
         };
-        let Ok(c_max) = CString::new(max) else {
+        let Ok(c_max) = CString::new(max.as_ref()) else {
             return None;
         };
         let flags_value = flags.unwrap_or_default();
@@ -1972,26 +1965,26 @@ impl SetCVarLimit for QuakeLiveEngine {
             c_value.as_ptr(),
             c_min.as_ptr(),
             c_max.as_ptr(),
-            flags_value,
+            flags_value.into(),
         );
         CVar::try_from(cvar).ok()
     }
 }
 
 #[cfg_attr(test, automock)]
-pub(crate) trait GetConfigstring {
-    fn get_configstring(&self, index: u32) -> String;
+pub(crate) trait GetConfigstring<T: Into<c_int>> {
+    fn get_configstring(&self, index: T) -> String;
 }
 
-impl GetConfigstring for QuakeLiveEngine {
-    fn get_configstring(&self, index: u32) -> String {
+impl<T: Into<c_int>> GetConfigstring<T> for QuakeLiveEngine {
+    fn get_configstring(&self, index: T) -> String {
         let Ok(original_func) = self.sv_getconfigstring_orig() else {
             return "".into();
         };
 
         let mut buffer: [u8; MAX_STRING_CHARS as usize] = [0; MAX_STRING_CHARS as usize];
         original_func(
-            index as c_int,
+            index.into(),
             buffer.as_mut_ptr() as *mut c_char,
             buffer.len() as c_int,
         );
@@ -2002,8 +1995,7 @@ impl GetConfigstring for QuakeLiveEngine {
     }
 }
 
-#[cfg_attr(test, automock)]
-pub(crate) trait RegisterDamage {
+pub(crate) trait RegisterDamage<T: Into<c_int>, U: Into<c_int>, V: Into<c_int>> {
     #[allow(clippy::too_many_arguments)]
     fn register_damage(
         &self,
@@ -2012,13 +2004,13 @@ pub(crate) trait RegisterDamage {
         attacker: *mut gentity_t,
         dir: *mut vec3_t,
         pos: *mut vec3_t,
-        damage: c_int,
-        dflags: c_int,
-        means_of_death: c_int,
+        damage: T,
+        dflags: U,
+        means_of_death: V,
     );
 }
 
-impl RegisterDamage for QuakeLiveEngine {
+impl<T: Into<c_int>, U: Into<c_int>, V: Into<c_int>> RegisterDamage<T, U, V> for QuakeLiveEngine {
     fn register_damage(
         &self,
         target: *mut gentity_t,
@@ -2026,9 +2018,9 @@ impl RegisterDamage for QuakeLiveEngine {
         attacker: *mut gentity_t,
         dir: *mut vec3_t,
         pos: *mut vec3_t,
-        damage: c_int,
-        dflags: c_int,
-        means_of_death: c_int,
+        damage: T,
+        dflags: U,
+        means_of_death: V,
     ) {
         let Some(detour_guard) = self.vm_functions.g_damage_detour.try_read() else {
             return;
@@ -2044,56 +2036,53 @@ impl RegisterDamage for QuakeLiveEngine {
             attacker,
             dir,
             pos,
-            damage,
-            dflags,
-            means_of_death,
+            damage.into(),
+            dflags.into(),
+            means_of_death.into(),
         );
     }
 }
 
-#[cfg_attr(test, automock)]
-pub(crate) trait FreeEntity {
-    fn free_entity(&self, gentity: *mut gentity_t);
+pub(crate) trait FreeEntity<T: AsMut<gentity_t>> {
+    fn free_entity(&self, gentity: T);
 }
 
-impl FreeEntity for QuakeLiveEngine {
-    fn free_entity(&self, gentity: *mut gentity_t) {
+impl<T: AsMut<gentity_t>> FreeEntity<T> for QuakeLiveEngine {
+    fn free_entity(&self, mut gentity: T) {
         let Ok(original_func) = self.g_free_entity_orig() else {
             return;
         };
-        original_func(gentity);
+        original_func(gentity.as_mut());
     }
 }
 
-#[cfg_attr(test, automock)]
-pub(crate) trait TryLaunchItem {
+pub(crate) trait TryLaunchItem<T: AsMut<gitem_t>> {
     fn try_launch_item(
         &self,
-        gitem: &mut GameItem,
+        gitem: T,
         origin: &mut vec3_t,
         velocity: &mut vec3_t,
     ) -> Result<GameEntity, QuakeLiveEngineError>;
 }
 
-impl TryLaunchItem for QuakeLiveEngine {
+impl<T: AsMut<gitem_t>> TryLaunchItem<T> for QuakeLiveEngine {
     fn try_launch_item(
         &self,
-        gitem: &mut GameItem,
+        mut gitem: T,
         origin: &mut vec3_t,
         velocity: &mut vec3_t,
     ) -> Result<GameEntity, QuakeLiveEngineError> {
         let original_func = self.launch_item_orig()?;
-        GameEntity::try_from(original_func(gitem.gitem_t, origin, velocity))
+        GameEntity::try_from(original_func(gitem.as_mut(), origin, velocity))
     }
 }
 
-#[cfg_attr(test, automock)]
-pub(crate) trait StartKamikaze {
-    fn start_kamikaze(&self, gentity: &mut GameEntity);
+pub(crate) trait StartKamikaze<T: AsMut<gentity_t>> {
+    fn start_kamikaze(&self, gentity: T);
 }
 
-impl StartKamikaze for QuakeLiveEngine {
-    fn start_kamikaze(&self, gentity: &mut GameEntity) {
+impl<T: AsMut<gentity_t>> StartKamikaze<T> for QuakeLiveEngine {
+    fn start_kamikaze(&self, mut gentity: T) {
         let Some(detour_guard) = self.vm_functions.g_start_kamikaze_detour.try_read() else {
             return;
         };
@@ -2102,6 +2091,6 @@ impl StartKamikaze for QuakeLiveEngine {
             return;
         };
 
-        detour.call(gentity.gentity_t as *mut gentity_t);
+        detour.call(gentity.as_mut());
     }
 }

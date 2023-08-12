@@ -11,6 +11,12 @@ pub(crate) struct GameItem {
     pub(crate) gitem_t: &'static mut gitem_t,
 }
 
+impl AsMut<gitem_t> for GameItem {
+    fn as_mut(&mut self) -> &mut gitem_t {
+        self.gitem_t
+    }
+}
+
 impl TryFrom<*mut gitem_t> for GameItem {
     type Error = QuakeLiveEngineError;
 
@@ -117,10 +123,10 @@ impl GameItem {
     }
 
     #[inline]
-    fn spawn_intern(
-        &mut self,
+    fn spawn_intern<'a>(
+        &'a mut self,
         origin: (i32, i32, i32),
-        quake_live_engine: &(impl TryLaunchItem + GameAddEvent<GameEntity, i32>),
+        quake_live_engine: &(impl TryLaunchItem<&'a mut GameItem> + GameAddEvent<GameEntity, i32>),
     ) {
         let mut origin_vec = [
             origin.0 as c_float,
@@ -250,8 +256,8 @@ pub(crate) mod game_item_tests {
     pub(crate) fn game_item_spawn() {
         mock! {
             QuakeEngine {}
-            impl TryLaunchItem for QuakeEngine {
-                fn try_launch_item(&self, gitem: &mut GameItem, origin: &mut vec3_t, velocity: &mut vec3_t) -> Result<GameEntity, QuakeLiveEngineError>;
+            impl TryLaunchItem<&mut GameItem> for QuakeEngine {
+                fn try_launch_item<'a>(&self, gitem: &'a mut GameItem, origin: &mut vec3_t, velocity: &mut vec3_t) -> Result<GameEntity, QuakeLiveEngineError>;
             }
 
             impl GameAddEvent<GameEntity, i32> for QuakeEngine {
