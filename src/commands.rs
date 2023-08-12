@@ -26,8 +26,7 @@ pub extern "C" fn cmd_send_server_command() {
         return;
     };
 
-    let server_command = format!("{}\n", cmd_args);
-    main_engine.send_server_command(None, server_command.as_str());
+    main_engine.send_server_command(None::<Client>, format!("{}\n", cmd_args));
 }
 
 #[no_mangle]
@@ -44,8 +43,7 @@ pub extern "C" fn cmd_center_print() {
         return;
     };
 
-    let server_command = format!("cp \"{}\"\n", cmd_args);
-    main_engine.send_server_command(None, server_command.as_str());
+    main_engine.send_server_command(None::<Client>, format!("cp \"{}\"\n", cmd_args));
 }
 
 #[no_mangle]
@@ -62,8 +60,7 @@ pub extern "C" fn cmd_regular_print() {
         return;
     };
 
-    let server_command = format!("print \"{}\n\"\n", cmd_args);
-    main_engine.send_server_command(None, server_command.as_str());
+    main_engine.send_server_command(None::<Client>, format!("print \"{}\n\"\n", cmd_args));
 }
 
 #[no_mangle]
@@ -82,9 +79,8 @@ pub extern "C" fn cmd_slap() {
         let Some(command_name) = main_engine.cmd_argv(0) else {
             return;
         };
-        let usage_note = format!("Usage: {} <client_id> [damage]\n", command_name);
 
-        main_engine.com_printf(usage_note.as_str());
+        main_engine.com_printf(format!("Usage: {} <client_id> [damage]\n", command_name));
         return;
     }
 
@@ -93,20 +89,18 @@ pub extern "C" fn cmd_slap() {
     };
     let maxclients = main_engine.get_max_clients();
     let Some(client_id) = passed_client_id_str.parse::<i32>().ok() else {
-        let usage_note = format!(
+        main_engine.com_printf(format!(
             "client_id must be a number between 0 and {}.\n",
             maxclients - 1
-        );
-        main_engine.com_printf(usage_note.as_str());
+        ));
         return;
     };
 
     if client_id < 0 || client_id >= maxclients {
-        let usage_note = format!(
+        main_engine.com_printf(format!(
             "client_id must be a number between 0 and {}.\n",
             maxclients - 1
-        );
-        main_engine.com_printf(usage_note.as_str());
+        ));
         return;
     }
 
@@ -140,7 +134,7 @@ pub extern "C" fn cmd_slap() {
         format!("print \"{}^7 was slapped\n\"\n", client.get_name())
     };
 
-    main_engine.send_server_command(None, message.as_str());
+    main_engine.send_server_command(None::<Client>, message);
 
     let mut rng = rand::thread_rng();
     let Ok(mut game_client) = client_entity.get_game_client() else {
@@ -177,9 +171,8 @@ pub extern "C" fn cmd_slay() {
         let Some(command_name) = main_engine.cmd_argv(0) else {
             return;
         };
-        let usage_note = format!("Usage: {} <client_id> [damage]\n", command_name);
 
-        main_engine.com_printf(usage_note.as_str());
+        main_engine.com_printf(format!("Usage: {} <client_id> [damage]\n", command_name));
         return;
     }
 
@@ -188,20 +181,18 @@ pub extern "C" fn cmd_slay() {
     };
     let maxclients = main_engine.get_max_clients();
     let Some(client_id) = passed_client_id_str.parse::<i32>().ok() else {
-        let usage_note = format!(
+        main_engine.com_printf(format!(
             "client_id must be a number between 0 and {}.\n",
             maxclients - 1
-        );
-        main_engine.com_printf(usage_note.as_str());
+        ));
         return;
     };
 
     if client_id >= maxclients {
-        let usage_note = format!(
+        main_engine.com_printf(format!(
             "client_id must be a number between 0 and {}.\n",
             maxclients - 1
-        );
-        main_engine.com_printf(usage_note.as_str());
+        ));
         return;
     }
 
@@ -219,9 +210,10 @@ pub extern "C" fn cmd_slay() {
         return;
     };
 
-    let message = format!("print \"{}^7 was slain!\n\"\n", client.get_name());
-
-    main_engine.send_server_command(None, message.as_str());
+    main_engine.send_server_command(
+        None::<Client>,
+        format!("print \"{}^7 was slain!\n\"\n", client.get_name()),
+    );
 
     client_entity.set_health(-40);
     let client_number = client_entity.get_client_number();

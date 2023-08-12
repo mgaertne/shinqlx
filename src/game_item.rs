@@ -1,3 +1,4 @@
+use crate::game_entity::GameEntity;
 use crate::prelude::*;
 use crate::quake_live_engine::{GameAddEvent, QuakeLiveEngineError, TryLaunchItem};
 use crate::MAIN_ENGINE;
@@ -119,7 +120,7 @@ impl GameItem {
     fn spawn_intern(
         &mut self,
         origin: (i32, i32, i32),
-        quake_live_engine: &(impl TryLaunchItem + GameAddEvent),
+        quake_live_engine: &(impl TryLaunchItem + GameAddEvent<GameEntity, i32>),
     ) {
         let mut origin_vec = [
             origin.0 as c_float,
@@ -128,8 +129,7 @@ impl GameItem {
         ];
         let mut velocity = [0.0, 0.0, 0.9];
 
-        let Ok(mut gentity) =
-            quake_live_engine.try_launch_item(self, &mut origin_vec, &mut velocity)
+        let Ok(gentity) = quake_live_engine.try_launch_item(self, &mut origin_vec, &mut velocity)
         else {
             return;
         };
@@ -137,7 +137,7 @@ impl GameItem {
         gentity.gentity_t.nextthink = 0;
         gentity.gentity_t.think = None;
         // make item be scaled up
-        quake_live_engine.game_add_event(&mut gentity, entity_event_t::EV_ITEM_RESPAWN, 0);
+        quake_live_engine.game_add_event(gentity, entity_event_t::EV_ITEM_RESPAWN, 0);
     }
 }
 
@@ -254,8 +254,8 @@ pub(crate) mod game_item_tests {
                 fn try_launch_item(&self, gitem: &mut GameItem, origin: &mut vec3_t, velocity: &mut vec3_t) -> Result<GameEntity, QuakeLiveEngineError>;
             }
 
-            impl GameAddEvent for QuakeEngine {
-                fn game_add_event(&self, game_entity: &mut GameEntity, event: entity_event_t, event_param: i32);
+            impl GameAddEvent<GameEntity, i32> for QuakeEngine {
+                fn game_add_event(&self, game_entity: GameEntity, event: entity_event_t, event_param: i32);
             }
         }
 

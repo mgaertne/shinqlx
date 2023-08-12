@@ -236,9 +236,10 @@ pub(crate) fn new_game_dispatcher(restart: bool) {
     });
 }
 
-pub(crate) fn set_configstring_dispatcher<T>(index: u32, value: T) -> Option<String>
+pub(crate) fn set_configstring_dispatcher<T, U>(index: T, value: U) -> Option<String>
 where
-    T: AsRef<str>,
+    T: Into<u32>,
+    U: AsRef<str>,
 {
     if !pyminqlx_is_initialized() {
         return Some(value.as_ref().into());
@@ -252,8 +253,8 @@ where
         return Some(value.as_ref().into());
     };
 
-    Python::with_gil(
-        |py| match set_configstring_handler.call1(py, (index, value.as_ref())) {
+    Python::with_gil(|py| {
+        match set_configstring_handler.call1(py, (index.into(), value.as_ref())) {
             Err(_) => {
                 error!(target: "shinqlx", "set_configstring_handler returned an error.");
                 Some(value.as_ref().into())
@@ -271,8 +272,8 @@ where
                 },
                 Ok(result_string) => Some(result_string),
             },
-        },
-    )
+        }
+    })
 }
 
 pub(crate) fn rcon_dispatcher<T>(cmd: T)
@@ -2648,12 +2649,13 @@ fn dev_print_items(py: Python<'_>) -> PyResult<()> {
         };
 
         if printed_items.is_empty() {
-            main_engine.send_server_command(None, "print \"No items found in the map\n\"");
+            main_engine
+                .send_server_command(None::<Client>, "print \"No items found in the map\n\"");
             return Ok(());
         }
         main_engine.send_server_command(
-            None,
-            format!("print \"{}\n\"", printed_items.join("\n")).as_str(),
+            None::<Client>,
+            format!("print \"{}\n\"", printed_items.join("\n")),
         );
 
         let remaining_items: Vec<String> = formatted_items
@@ -2663,11 +2665,13 @@ fn dev_print_items(py: Python<'_>) -> PyResult<()> {
             .collect();
 
         if !remaining_items.is_empty() {
-            main_engine
-                .send_server_command(None, "print \"Check server console for other items\n\"\n");
+            main_engine.send_server_command(
+                None::<Client>,
+                "print \"Check server console for other items\n\"\n",
+            );
             remaining_items
                 .into_iter()
-                .for_each(|item| main_engine.com_printf(item.as_str()));
+                .for_each(|item| main_engine.com_printf(item));
         }
 
         Ok(())

@@ -56,6 +56,18 @@ impl TryFrom<i32> for Client {
     }
 }
 
+impl AsMut<client_t> for Client {
+    fn as_mut(&mut self) -> &mut client_t {
+        self.client_t
+    }
+}
+
+impl AsRef<client_t> for Client {
+    fn as_ref(&self) -> &client_t {
+        self.client_t
+    }
+}
+
 impl Client {
     pub(crate) fn get_client_id(&self) -> i32 {
         let Ok(server_static) = ServerStatic::try_get() else {

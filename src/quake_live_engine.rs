@@ -1,4 +1,3 @@
-use crate::client::Client;
 use crate::commands::{
     cmd_center_print, cmd_py_command, cmd_py_rcon, cmd_regular_print, cmd_restart_python,
     cmd_send_server_command, cmd_slap, cmd_slay,
@@ -21,7 +20,6 @@ use crate::quake_live_functions::pattern_search_module;
 use crate::quake_live_functions::QuakeLiveFunction;
 #[cfg(target_os = "linux")]
 use crate::QZERODED;
-use alloc::borrow::ToOwned;
 use alloc::collections::VecDeque;
 use alloc::ffi::CString;
 use alloc::string::String;
@@ -968,7 +966,7 @@ impl QuakeLiveEngine {
         } else {
             SV_TAGS_PREFIX.into()
         };
-        self.set_cvar_forced("sv_tags", new_tags.as_str(), false);
+        self.set_cvar_forced("sv_tags", new_tags, false);
     }
 
     // Called after the game is initialized.
@@ -1551,16 +1549,16 @@ impl QuakeLiveEngine {
 }
 
 #[cfg_attr(test, automock)]
-pub(crate) trait FindCVar {
-    fn find_cvar(&self, name: &str) -> Option<CVar>;
+pub(crate) trait FindCVar<T: AsRef<str>> {
+    fn find_cvar(&self, name: T) -> Option<CVar>;
 }
 
-impl FindCVar for QuakeLiveEngine {
-    fn find_cvar(&self, name: &str) -> Option<CVar> {
+impl<T: AsRef<str>> FindCVar<T> for QuakeLiveEngine {
+    fn find_cvar(&self, name: T) -> Option<CVar> {
         let Ok(original_func) = self.cvar_findvar_orig() else {
             return None;
         };
-        let Ok(c_name) = CString::new(name) else {
+        let Ok(c_name) = CString::new(name.as_ref()) else {
             return None;
         };
         let cvar = original_func(c_name.as_ptr());
@@ -1568,14 +1566,13 @@ impl FindCVar for QuakeLiveEngine {
     }
 }
 
-#[cfg_attr(test, automock)]
-pub(crate) trait AddCommand {
-    fn add_command(&self, cmd: &str, func: unsafe extern "C" fn());
+pub(crate) trait AddCommand<T: AsRef<str>> {
+    fn add_command(&self, cmd: T, func: unsafe extern "C" fn());
 }
 
-impl AddCommand for QuakeLiveEngine {
-    fn add_command(&self, cmd: &str, func: unsafe extern "C" fn()) {
-        let Ok(c_cmd) = CString::new(cmd) else {
+impl<T: AsRef<str>> AddCommand<T> for QuakeLiveEngine {
+    fn add_command(&self, cmd: T, func: unsafe extern "C" fn()) {
+        let Ok(c_cmd) = CString::new(cmd.as_ref()) else {
             return;
         };
         let Ok(detour) = self.cmd_addcommand_detour() else {
@@ -1586,14 +1583,13 @@ impl AddCommand for QuakeLiveEngine {
     }
 }
 
-#[cfg_attr(test, automock)]
-pub(crate) trait SetModuleOffset {
-    fn set_module_offset(&self, module_name: &str, offset: unsafe extern "C" fn());
+pub(crate) trait SetModuleOffset<T: AsRef<str>> {
+    fn set_module_offset(&self, module_name: T, offset: unsafe extern "C" fn());
 }
 
-impl SetModuleOffset for QuakeLiveEngine {
-    fn set_module_offset(&self, module_name: &str, offset: unsafe extern "C" fn()) {
-        let Ok(c_module_name) = CString::new(module_name) else {
+impl<T: AsRef<str>> SetModuleOffset<T> for QuakeLiveEngine {
+    fn set_module_offset(&self, module_name: T, offset: unsafe extern "C" fn()) {
+        let Ok(c_module_name) = CString::new(module_name.as_ref()) else {
             return;
         };
         let Ok(detour) = self.sys_setmoduleoffset_detour() else {
@@ -1605,56 +1601,53 @@ impl SetModuleOffset for QuakeLiveEngine {
 }
 
 #[cfg_attr(test, automock)]
-pub(crate) trait InitGame {
-    fn init_game(&self, level_time: i32, random_seed: i32, restart: i32);
+pub(crate) trait InitGame<T: Into<c_int>, U: Into<c_int>, V: Into<c_int>> {
+    fn init_game(&self, level_time: T, random_seed: U, restart: V);
 }
 
-impl InitGame for QuakeLiveEngine {
-    fn init_game(&self, level_time: i32, random_seed: i32, restart: i32) {
+impl<T: Into<c_int>, U: Into<c_int>, V: Into<c_int>> InitGame<T, U, V> for QuakeLiveEngine {
+    fn init_game(&self, level_time: T, random_seed: U, restart: V) {
         let Ok(original_func) = self.g_init_game_orig() else {
             return;
         };
-        original_func(level_time, random_seed, restart);
+        original_func(level_time.into(), random_seed.into(), restart.into());
     }
 }
 
 #[cfg_attr(test, automock)]
-pub(crate) trait ShutdownGame {
-    fn shutdown_game(&self, restart: i32);
+pub(crate) trait ShutdownGame<T: Into<c_int>> {
+    fn shutdown_game(&self, restart: T);
 }
 
-impl ShutdownGame for QuakeLiveEngine {
-    fn shutdown_game(&self, restart: i32) {
+impl<T: Into<c_int>> ShutdownGame<T> for QuakeLiveEngine {
+    fn shutdown_game(&self, restart: T) {
         let Ok(original_func) = self.g_shutdown_game_orig() else {
             return;
         };
-        original_func(restart);
+        original_func(restart.into());
     }
 }
 
 #[cfg_attr(test, automock)]
-pub(crate) trait ExecuteClientCommand {
+pub(crate) trait ExecuteClientCommand<T: AsMut<client_t>, U: AsRef<str>, V: Into<qboolean>> {
     #[allow(clippy::needless_lifetimes)]
-    fn execute_client_command<'a>(
-        &self,
-        client: Option<&'a mut Client>,
-        cmd: &str,
-        client_ok: bool,
-    );
+    fn execute_client_command(&self, client: Option<T>, cmd: U, client_ok: V);
 }
 
-impl ExecuteClientCommand for QuakeLiveEngine {
-    fn execute_client_command(&self, client: Option<&mut Client>, cmd: &str, client_ok: bool) {
+impl<T: AsMut<client_t>, U: AsRef<str>, V: Into<qboolean>> ExecuteClientCommand<T, U, V>
+    for QuakeLiveEngine
+{
+    fn execute_client_command(&self, client: Option<T>, cmd: U, client_ok: V) {
         let Ok(detour) = self.sv_executeclientcommand_detour() else {
             return;
         };
 
-        let Ok(c_command) = CString::new(cmd) else {
+        let Ok(c_command) = CString::new(cmd.as_ref()) else {
             return;
         };
         match client {
-            Some(safe_client) => {
-                detour.call(safe_client.client_t, c_command.as_ptr(), client_ok.into())
+            Some(mut safe_client) => {
+                detour.call(safe_client.as_mut(), c_command.as_ptr(), client_ok.into())
             }
             None => detour.call(core::ptr::null_mut(), c_command.as_ptr(), client_ok.into()),
         }
@@ -1662,78 +1655,75 @@ impl ExecuteClientCommand for QuakeLiveEngine {
 }
 
 #[cfg_attr(test, automock)]
-pub(crate) trait SendServerCommand {
-    fn send_server_command(&self, client: Option<Client>, command: &str);
+pub(crate) trait SendServerCommand<T: AsRef<client_t>, U: AsRef<str>> {
+    fn send_server_command(&self, client: Option<T>, command: U);
 }
 
-impl SendServerCommand for QuakeLiveEngine {
-    fn send_server_command(&self, client: Option<Client>, command: &str) {
+impl<T: AsRef<client_t>, U: AsRef<str>> SendServerCommand<T, U> for QuakeLiveEngine {
+    fn send_server_command(&self, client: Option<T>, command: U) {
         let Ok(detour) = self.sv_sendservercommand_detour() else {
             return;
         };
         let original_func: extern "C" fn(*const client_t, *const c_char, ...) =
             unsafe { core::mem::transmute(detour.trampoline()) };
 
-        let Ok(c_command) = CString::new(command) else {
+        let Ok(c_command) = CString::new(command.as_ref()) else {
             return;
         };
         match client {
-            Some(safe_client) => original_func(safe_client.client_t, c_command.as_ptr()),
+            Some(safe_client) => original_func(safe_client.as_ref(), c_command.as_ptr()),
             None => original_func(core::ptr::null(), c_command.as_ptr()),
         }
     }
 }
 
 #[cfg_attr(test, automock)]
-pub(crate) trait ClientEnterWorld {
-    fn client_enter_world(&self, client: &mut Client, cmd: *mut usercmd_t);
+pub(crate) trait ClientEnterWorld<T: AsMut<client_t>> {
+    fn client_enter_world(&self, client: T, cmd: *mut usercmd_t);
 }
 
-impl ClientEnterWorld for QuakeLiveEngine {
-    fn client_enter_world(&self, client: &mut Client, cmd: *mut usercmd_t) {
+impl<T: AsMut<client_t>> ClientEnterWorld<T> for QuakeLiveEngine {
+    fn client_enter_world(&self, mut client: T, cmd: *mut usercmd_t) {
         let Ok(detour) = self.sv_cliententerworld_detour() else {
             return;
         };
 
-        detour.call(client.client_t, cmd);
+        detour.call(client.as_mut(), cmd);
     }
 }
 
 #[cfg_attr(test, automock)]
-pub(crate) trait SetConfigstring {
-    fn set_configstring(&self, index: &u32, value: &str);
+pub(crate) trait SetConfigstring<T: Into<c_int>, U: AsRef<str>> {
+    fn set_configstring(&self, index: T, value: U);
 }
 
-impl SetConfigstring for QuakeLiveEngine {
-    fn set_configstring(&self, index: &u32, value: &str) {
-        let Ok(c_value) = CString::new(value) else {
-            return;
-        };
-        let Ok(c_index) = c_int::try_from(index.to_owned()) else {
+impl<T: Into<c_int>, U: AsRef<str>> SetConfigstring<T, U> for QuakeLiveEngine {
+    fn set_configstring(&self, index: T, value: U) {
+        let Ok(c_value) = CString::new(value.as_ref()) else {
             return;
         };
         let Ok(detour) = self.sv_setconfgistring_detour() else {
             return;
         };
 
-        detour.call(c_index, c_value.as_ptr());
+        detour.call(index.into(), c_value.as_ptr());
     }
 }
 
 #[cfg_attr(test, automock)]
-pub(crate) trait ComPrintf {
-    fn com_printf(&self, msg: &str);
+pub(crate) trait ComPrintf<T: AsRef<str>> {
+    fn com_printf(&self, msg: T);
 }
 
-impl ComPrintf for QuakeLiveEngine {
-    fn com_printf(&self, msg: &str) {
+impl<T: AsRef<str>> ComPrintf<T> for QuakeLiveEngine {
+    fn com_printf(&self, msg: T) {
         let Ok(detour) = self.com_printf_detour() else {
             return;
         };
         let original_func: extern "C" fn(*const c_char, ...) =
             unsafe { core::mem::transmute(detour.trampoline()) };
 
-        let Ok(c_msg) = CString::new(msg) else {
+        let Ok(c_msg) = CString::new(msg.as_ref()) else {
             return;
         };
         original_func(c_msg.as_ptr());
@@ -1741,13 +1731,13 @@ impl ComPrintf for QuakeLiveEngine {
 }
 
 #[cfg_attr(test, automock)]
-pub(crate) trait SpawnServer {
-    fn spawn_server(&self, server: &str, kill_bots: bool);
+pub(crate) trait SpawnServer<T: AsRef<str>, U: Into<qboolean>> {
+    fn spawn_server(&self, server: T, kill_bots: U);
 }
 
-impl SpawnServer for QuakeLiveEngine {
-    fn spawn_server(&self, server: &str, kill_bots: bool) {
-        let Ok(c_server) = CString::new(server) else {
+impl<T: AsRef<str>, U: Into<qboolean>> SpawnServer<T, U> for QuakeLiveEngine {
+    fn spawn_server(&self, server: T, kill_bots: U) {
+        let Ok(c_server) = CString::new(server.as_ref()) else {
             return;
         };
         let Ok(detour) = self.sv_spawnserver_detour() else {
@@ -1759,26 +1749,28 @@ impl SpawnServer for QuakeLiveEngine {
 }
 
 #[cfg_attr(test, automock)]
-pub(crate) trait RunFrame {
-    fn run_frame(&self, time: i32);
+pub(crate) trait RunFrame<T: Into<c_int>> {
+    fn run_frame(&self, time: T);
 }
 
-impl RunFrame for QuakeLiveEngine {
-    fn run_frame(&self, time: i32) {
+impl<T: Into<c_int>> RunFrame<T> for QuakeLiveEngine {
+    fn run_frame(&self, time: T) {
         let Ok(original_func) = self.g_run_frame_orig() else {
             return;
         };
-        original_func(time);
+        original_func(time.into());
     }
 }
 
 #[cfg_attr(test, automock)]
-pub(crate) trait ClientConnect {
-    fn client_connect(&self, client_num: i32, first_time: bool, is_bot: bool) -> *const c_char;
+pub(crate) trait ClientConnect<T: Into<c_int>, U: Into<qboolean>, V: Into<qboolean>> {
+    fn client_connect(&self, client_num: T, first_time: U, is_bot: V) -> *const c_char;
 }
 
-impl ClientConnect for QuakeLiveEngine {
-    fn client_connect(&self, client_num: i32, first_time: bool, is_bot: bool) -> *const c_char {
+impl<T: Into<c_int>, U: Into<qboolean>, V: Into<qboolean>> ClientConnect<T, U, V>
+    for QuakeLiveEngine
+{
+    fn client_connect(&self, client_num: T, first_time: U, is_bot: V) -> *const c_char {
         let Some(detour_guard) = self.vm_functions.client_connect_detour.try_read() else {
             return core::ptr::null();
         };
@@ -1787,17 +1779,17 @@ impl ClientConnect for QuakeLiveEngine {
             return core::ptr::null();
         };
 
-        detour.call(client_num, first_time.into(), is_bot.into())
+        detour.call(client_num.into(), first_time.into(), is_bot.into())
     }
 }
 
 #[cfg_attr(test, automock)]
-pub(crate) trait ClientSpawn {
-    fn client_spawn(&self, ent: &mut GameEntity);
+pub(crate) trait ClientSpawn<T: AsMut<gentity_t>> {
+    fn client_spawn(&self, ent: T);
 }
 
-impl ClientSpawn for QuakeLiveEngine {
-    fn client_spawn(&self, ent: &mut GameEntity) {
+impl<T: AsMut<gentity_t>> ClientSpawn<T> for QuakeLiveEngine {
+    fn client_spawn(&self, mut ent: T) {
         let Some(detour_guard) = self.vm_functions.client_spawn_detour.try_read() else {
             return;
         };
@@ -1806,7 +1798,7 @@ impl ClientSpawn for QuakeLiveEngine {
             return;
         };
 
-        detour.call(ent.gentity_t);
+        detour.call(ent.as_mut());
     }
 }
 
@@ -1844,19 +1836,19 @@ impl CmdArgc for QuakeLiveEngine {
 }
 
 #[cfg_attr(test, automock)]
-pub(crate) trait CmdArgv {
-    fn cmd_argv(&self, argno: i32) -> Option<&'static str>;
+pub(crate) trait CmdArgv<T: Into<c_int>> {
+    fn cmd_argv(&self, argno: T) -> Option<&'static str>;
 }
 
-impl CmdArgv for QuakeLiveEngine {
-    fn cmd_argv(&self, argno: i32) -> Option<&'static str> {
+impl<T: Into<c_int> + PartialOrd<c_int>> CmdArgv<T> for QuakeLiveEngine {
+    fn cmd_argv(&self, argno: T) -> Option<&'static str> {
         if argno < 0 {
             return None;
         }
         let Ok(original_func) = self.cmd_argv_orig() else {
             return None;
         };
-        let cmd_argv = original_func(argno);
+        let cmd_argv = original_func(argno.into());
         if cmd_argv.is_null() {
             return None;
         }
@@ -1865,35 +1857,30 @@ impl CmdArgv for QuakeLiveEngine {
 }
 
 #[cfg_attr(test, automock)]
-pub(crate) trait GameAddEvent {
-    fn game_add_event(&self, game_entity: &mut GameEntity, event: entity_event_t, event_param: i32);
+pub(crate) trait GameAddEvent<T: AsMut<gentity_t>, U: Into<c_int>> {
+    fn game_add_event(&self, game_entity: T, event: entity_event_t, event_param: U);
 }
 
-impl GameAddEvent for QuakeLiveEngine {
-    fn game_add_event(
-        &self,
-        game_entity: &mut GameEntity,
-        event: entity_event_t,
-        event_param: i32,
-    ) {
+impl<T: AsMut<gentity_t>, U: Into<c_int>> GameAddEvent<T, U> for QuakeLiveEngine {
+    fn game_add_event(&self, mut game_entity: T, event: entity_event_t, event_param: U) {
         let Ok(original_func) = self.g_addevent_orig() else {
             return;
         };
-        original_func(game_entity.gentity_t as *mut gentity_t, event, event_param);
+        original_func(game_entity.as_mut(), event, event_param.into());
     }
 }
 
 #[cfg_attr(test, automock)]
-pub(crate) trait ConsoleCommand {
-    fn execute_console_command(&self, cmd: &str);
+pub(crate) trait ConsoleCommand<T: AsRef<str>> {
+    fn execute_console_command(&self, cmd: T);
 }
 
-impl ConsoleCommand for QuakeLiveEngine {
-    fn execute_console_command(&self, cmd: &str) {
+impl<T: AsRef<str>> ConsoleCommand<T> for QuakeLiveEngine {
+    fn execute_console_command(&self, cmd: T) {
         let Ok(original_func) = self.cmd_executestring_orig() else {
             return;
         };
-        let Ok(c_cmd) = CString::new(cmd) else {
+        let Ok(c_cmd) = CString::new(cmd.as_ref()) else {
             return;
         };
         original_func(c_cmd.as_ptr());
@@ -1901,41 +1888,41 @@ impl ConsoleCommand for QuakeLiveEngine {
 }
 
 #[cfg_attr(test, automock)]
-pub(crate) trait GetCVar {
-    fn get_cvar(&self, name: &str, value: &str, flags: Option<i32>) -> Option<CVar>;
+pub(crate) trait GetCVar<T: AsRef<str>, U: AsRef<str>, V: Into<c_int>> {
+    fn get_cvar(&self, name: T, value: U, flags: Option<V>) -> Option<CVar>;
 }
 
-impl GetCVar for QuakeLiveEngine {
-    fn get_cvar(&self, name: &str, value: &str, flags: Option<i32>) -> Option<CVar> {
+impl<T: AsRef<str>, U: AsRef<str>, V: Into<c_int> + Default> GetCVar<T, U, V> for QuakeLiveEngine {
+    fn get_cvar(&self, name: T, value: U, flags: Option<V>) -> Option<CVar> {
         let Ok(original_func) = self.cvar_get_orig() else {
             return None;
         };
-        let Ok(c_name) = CString::new(name) else {
+        let Ok(c_name) = CString::new(name.as_ref()) else {
             return None;
         };
-        let Ok(c_value) = CString::new(value) else {
+        let Ok(c_value) = CString::new(value.as_ref()) else {
             return None;
         };
         let flags_value = flags.unwrap_or_default();
-        let cvar = original_func(c_name.as_ptr(), c_value.as_ptr(), flags_value);
+        let cvar = original_func(c_name.as_ptr(), c_value.as_ptr(), flags_value.into());
         CVar::try_from(cvar).ok()
     }
 }
 
 #[cfg_attr(test, automock)]
-pub(crate) trait SetCVarForced {
-    fn set_cvar_forced(&self, name: &str, value: &str, forced: bool) -> Option<CVar>;
+pub(crate) trait SetCVarForced<T: AsRef<str>, U: AsRef<str>, V: Into<qboolean>> {
+    fn set_cvar_forced(&self, name: T, value: U, forced: V) -> Option<CVar>;
 }
 
-impl SetCVarForced for QuakeLiveEngine {
-    fn set_cvar_forced(&self, name: &str, value: &str, forced: bool) -> Option<CVar> {
+impl<T: AsRef<str>, U: AsRef<str>, V: Into<qboolean>> SetCVarForced<T, U, V> for QuakeLiveEngine {
+    fn set_cvar_forced(&self, name: T, value: U, forced: V) -> Option<CVar> {
         let Ok(original_func) = self.cvar_set2_orig() else {
             return None;
         };
-        let Ok(c_name) = CString::new(name) else {
+        let Ok(c_name) = CString::new(name.as_ref()) else {
             return None;
         };
-        let Ok(c_value) = CString::new(value) else {
+        let Ok(c_value) = CString::new(value.as_ref()) else {
             return None;
         };
         let cvar = original_func(c_name.as_ptr(), c_value.as_ptr(), forced.into());
