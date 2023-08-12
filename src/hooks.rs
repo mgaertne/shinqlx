@@ -35,7 +35,7 @@ pub(crate) fn shinqlx_cmd_addcommand(cmd: *const c_char, func: unsafe extern "C"
 
     let command = unsafe { CStr::from_ptr(cmd) }.to_string_lossy();
     if !command.is_empty() {
-        main_engine.add_command(command.as_ref(), func);
+        main_engine.add_command(command, func);
     }
 }
 
@@ -58,7 +58,7 @@ pub(crate) fn shinqlx_sys_setmoduleoffset(
         return;
     };
 
-    main_engine.set_module_offset(converted_module_name.as_ref(), offset);
+    main_engine.set_module_offset(converted_module_name, offset);
 
     if let Err(err) = main_engine.initialize_vm(offset as usize) {
         error!(target: "shinqlx", "{:?}", err);
@@ -112,7 +112,7 @@ pub(crate) fn shinqlx_sv_executeclientcommand(
     }
 }
 
-pub(crate) fn shinqlx_execute_client_command<T>(mut client: Option<Client>, cmd: T, client_ok: bool)
+pub(crate) fn shinqlx_execute_client_command<T>(client: Option<Client>, cmd: T, client_ok: bool)
 where
     T: AsRef<str>,
 {
@@ -142,7 +142,7 @@ where
             return;
         };
 
-        main_engine.execute_client_command(client.as_mut(), passed_on_cmd_str.as_str(), client_ok);
+        main_engine.execute_client_command(client, passed_on_cmd_str, client_ok);
     }
 }
 
@@ -214,7 +214,7 @@ where
             return;
         };
 
-        main_engine.send_server_command(client, passed_on_cmd_str.as_str());
+        main_engine.send_server_command(client, passed_on_cmd_str);
     }
 }
 
@@ -253,12 +253,14 @@ pub(crate) fn shinqlx_sv_setconfigstring(index: c_int, value: *const c_char) {
     let Ok(ql_index) = u32::try_from(index) else {
         return;
     };
+
     shinqlx_set_configstring(ql_index, safe_value);
 }
 
-pub(crate) fn shinqlx_set_configstring<T>(index: u32, value: T)
+pub(crate) fn shinqlx_set_configstring<T, U>(index: T, value: U)
 where
-    T: AsRef<str>,
+    T: TryInto<c_int> + Into<u32> + Copy,
+    U: AsRef<str>,
 {
     // Indices 16 and 66X are spammed a ton every frame for some reason,
     // so we add some exceptions for those. I don't think we should have any
@@ -272,15 +274,19 @@ where
         return;
     };
 
-    if index == 16 || (662..670).contains(&index) {
-        main_engine.set_configstring(&index, value.as_ref());
+    let Ok(c_index) = index.try_into() else {
+        return;
+    };
+
+    if c_index == 16 || (662..670).contains(&c_index) {
+        main_engine.set_configstring(c_index, value);
         return;
     }
 
     let Some(res) = set_configstring_dispatcher(index, value) else {
         return;
     };
-    main_engine.set_configstring(&index, res.as_str());
+    main_engine.set_configstring(c_index, res);
 }
 
 pub(crate) fn shinqlx_sv_dropclient(client: *mut client_t, reason: *const c_char) {
@@ -344,7 +350,7 @@ where
         return;
     };
 
-    main_engine.com_printf(msg.as_ref());
+    main_engine.com_printf(msg);
 }
 
 pub(crate) fn shinqlx_sv_spawnserver(server: *const c_char, kill_bots: qboolean) {
@@ -361,7 +367,7 @@ pub(crate) fn shinqlx_sv_spawnserver(server: *const c_char, kill_bots: qboolean)
         return;
     };
 
-    main_engine.spawn_server(server_str.as_ref(), kill_bots.into());
+    main_engine.spawn_server(server_str, kill_bots);
 
     new_game_dispatcher(false);
 }
@@ -416,7 +422,7 @@ pub extern "C" fn ShiNQlx_ClientConnect(
         return core::ptr::null();
     };
 
-    main_engine.client_connect(client_num, first_time.into(), is_bot.into())
+    main_engine.client_connect(client_num, first_time, is_bot)
 }
 
 #[allow(non_snake_case)]

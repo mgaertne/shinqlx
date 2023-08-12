@@ -21,6 +21,12 @@ pub(crate) struct GameEntity {
     pub(crate) gentity_t: &'static mut gentity_t,
 }
 
+impl AsMut<gentity_t> for GameEntity {
+    fn as_mut(&mut self) -> &mut gentity_t {
+        self.gentity_t
+    }
+}
+
 impl TryFrom<*mut gentity_t> for GameEntity {
     type Error = QuakeLiveEngineError;
 
@@ -396,7 +402,7 @@ impl GameEntity {
         };
 
         let class_name = unsafe { CStr::from_ptr(self.gentity_t.classname) };
-        main_engine.com_printf(class_name.to_string_lossy().as_ref());
+        main_engine.com_printf(class_name.to_string_lossy());
         if item_id != 0 {
             let Ok(gitem) = GameItem::try_from(item_id) else {
                 return;
