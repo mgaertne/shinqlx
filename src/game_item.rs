@@ -123,11 +123,10 @@ impl GameItem {
     }
 
     #[cfg_attr(not(test), inline)]
-    fn spawn_intern<'a>(
-        &'a mut self,
-        origin: (i32, i32, i32),
-        quake_live_engine: &(impl TryLaunchItem<&'a mut GameItem> + GameAddEvent<GameEntity, i32>),
-    ) {
+    fn spawn_intern<'a, T>(&'a mut self, origin: (i32, i32, i32), quake_live_engine: &'a T)
+    where
+        T: TryLaunchItem<&'a mut GameItem> + GameAddEvent<GameEntity, i32>,
+    {
         let mut origin_vec = [
             origin.0 as c_float,
             origin.1 as c_float,

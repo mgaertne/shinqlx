@@ -22,6 +22,14 @@ pub extern "C" fn cmd_send_server_command() {
         return;
     };
 
+    cmd_send_server_command_intern(main_engine);
+}
+
+#[cfg_attr(not(test), inline)]
+fn cmd_send_server_command_intern<T>(main_engine: &T)
+where
+    T: CmdArgs + SendServerCommand<Client, String>,
+{
     let Some(cmd_args) = main_engine.cmd_args() else {
         return;
     };
@@ -39,6 +47,14 @@ pub extern "C" fn cmd_center_print() {
         return;
     };
 
+    cmd_center_print_intern(main_engine);
+}
+
+#[cfg_attr(not(test), inline)]
+fn cmd_center_print_intern<T>(main_engine: &T)
+where
+    T: CmdArgs + SendServerCommand<Client, String>,
+{
     let Some(cmd_args) = main_engine.cmd_args() else {
         return;
     };
@@ -56,6 +72,14 @@ pub extern "C" fn cmd_regular_print() {
         return;
     };
 
+    cmd_regular_print_intern(main_engine);
+}
+
+#[cfg_attr(not(test), inline)]
+fn cmd_regular_print_intern<T>(main_engine: &T)
+where
+    T: CmdArgs + SendServerCommand<Client, String>,
+{
     let Some(cmd_args) = main_engine.cmd_args() else {
         return;
     };
@@ -73,6 +97,21 @@ pub extern "C" fn cmd_slap() {
         return;
     };
 
+    let maxclients = main_engine.get_max_clients();
+
+    cmd_slap_intern(maxclients, main_engine);
+}
+
+#[cfg_attr(not(test), inline)]
+fn cmd_slap_intern<T>(maxclients: i32, main_engine: &T)
+where
+    T: CmdArgc
+        + CmdArgv<i32>
+        + ComPrintf<String>
+        + for<'a> ComPrintf<&'a str>
+        + for<'b> GameAddEvent<&'b mut GameEntity, i32>
+        + SendServerCommand<Client, String>,
+{
     let argc = main_engine.cmd_argc();
 
     if argc < 2 {
@@ -87,7 +126,7 @@ pub extern "C" fn cmd_slap() {
     let Some(passed_client_id_str) = main_engine.cmd_argv(1) else {
         return;
     };
-    let maxclients = main_engine.get_max_clients();
+
     let Some(client_id) = passed_client_id_str.parse::<i32>().ok() else {
         main_engine.com_printf(format!(
             "client_id must be a number between 0 and {}.\n",
@@ -165,6 +204,21 @@ pub extern "C" fn cmd_slay() {
         return;
     };
 
+    let maxclients = main_engine.get_max_clients();
+
+    cmd_slay_intern(maxclients, main_engine);
+}
+
+#[cfg_attr(not(test), inline)]
+fn cmd_slay_intern<T>(maxclients: i32, main_engine: &T)
+where
+    T: CmdArgc
+        + CmdArgv<i32>
+        + ComPrintf<String>
+        + for<'a> ComPrintf<&'a str>
+        + for<'b> GameAddEvent<&'b mut GameEntity, i32>
+        + SendServerCommand<Client, String>,
+{
     let argc = main_engine.cmd_argc();
 
     if argc < 2 {
@@ -179,7 +233,7 @@ pub extern "C" fn cmd_slay() {
     let Some(passed_client_id_str) = main_engine.cmd_argv(1) else {
         return;
     };
-    let maxclients = main_engine.get_max_clients();
+
     let Some(client_id) = passed_client_id_str.parse::<i32>().ok() else {
         main_engine.com_printf(format!(
             "client_id must be a number between 0 and {}.\n",
