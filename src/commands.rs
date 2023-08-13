@@ -216,7 +216,6 @@ where
     U: CmdArgc
         + CmdArgv<i32>
         + ComPrintf<String>
-        + for<'a> ComPrintf<&'a str>
         + for<'b> GameAddEvent<&'b mut GameEntity, i32>
         + SendServerCommand<Client, String>,
 {
@@ -255,11 +254,11 @@ where
         return;
     };
     if !client_entity.in_use() || client_entity.get_health() <= 0 {
-        main_engine.com_printf("The player is currently not active.\n");
+        main_engine.com_printf("The player is currently not active.\n".into());
         return;
     }
 
-    main_engine.com_printf("Slaying player...\n");
+    main_engine.com_printf("Slaying player...\n".into());
 
     let Some(client) = Client::try_from(client_id).ok() else {
         return;
@@ -365,7 +364,7 @@ pub(crate) mod commands_tests {
     use crate::client::Client;
     use crate::commands::{
         cmd_center_print_intern, cmd_regular_print_intern, cmd_send_server_command_intern,
-        cmd_slap_intern,
+        cmd_slap_intern, cmd_slay_intern,
     };
     use crate::game_entity::GameEntity;
     use crate::quake_live_engine::{
@@ -628,5 +627,137 @@ pub(crate) mod commands_tests {
             .return_const(());
 
         cmd_slap_intern(16, &mock);
+    }
+
+    #[test]
+    fn cmd_slay_with_too_few_args() {
+        mock! {
+            QuakeEngine {}
+            impl CmdArgc for QuakeEngine {
+                fn cmd_argc(&self) -> i32;
+            }
+            impl CmdArgv<i32> for QuakeEngine {
+                fn cmd_argv(&self, argno: i32) -> Option<&'static str>;
+            }
+            impl ComPrintf<String> for QuakeEngine {
+                fn com_printf(&self, msg: String);
+            }
+            impl GameAddEvent<&mut GameEntity, i32> for QuakeEngine {
+                fn game_add_event(&self, game_entity: &mut GameEntity, event: entity_event_t, event_param: i32);
+            }
+            impl SendServerCommand<Client, String> for QuakeEngine {
+                fn send_server_command(&self, client: Option<Client>, command: String);
+            }
+        }
+
+        let mut mock = MockQuakeEngine::new();
+        mock.expect_cmd_argc().return_once_st(|| 1);
+        mock.expect_cmd_argv()
+            .with(eq(0))
+            .return_once_st(|_| Some("!slap"));
+        mock.expect_com_printf()
+            .withf_st(|text| text == "Usage: !slap <client_id> [damage]\n")
+            .return_const(());
+
+        cmd_slay_intern(16, &mock);
+    }
+
+    #[test]
+    fn cmd_slay_with_unparseable_client_id() {
+        mock! {
+            QuakeEngine {}
+            impl CmdArgc for QuakeEngine {
+                fn cmd_argc(&self) -> i32;
+            }
+            impl CmdArgv<i32> for QuakeEngine {
+                fn cmd_argv(&self, argno: i32) -> Option<&'static str>;
+            }
+            impl ComPrintf<String> for QuakeEngine {
+                fn com_printf(&self, msg: String);
+            }
+            impl GameAddEvent<&mut GameEntity, i32> for QuakeEngine {
+                fn game_add_event(&self, game_entity: &mut GameEntity, event: entity_event_t, event_param: i32);
+            }
+            impl SendServerCommand<Client, String> for QuakeEngine {
+                fn send_server_command(&self, client: Option<Client>, command: String);
+            }
+        }
+
+        let mut mock = MockQuakeEngine::new();
+        mock.expect_cmd_argc().return_once_st(|| 2);
+        mock.expect_cmd_argv()
+            .with(eq(1))
+            .return_once_st(|_| Some("2147483648"));
+        mock.expect_com_printf()
+            .withf_st(|text| text == "client_id must be a number between 0 and 15.\n")
+            .return_const(());
+
+        cmd_slay_intern(16, &mock);
+    }
+
+    #[test]
+    fn cmd_slay_with_too_small_client_id() {
+        mock! {
+            QuakeEngine {}
+            impl CmdArgc for QuakeEngine {
+                fn cmd_argc(&self) -> i32;
+            }
+            impl CmdArgv<i32> for QuakeEngine {
+                fn cmd_argv(&self, argno: i32) -> Option<&'static str>;
+            }
+            impl ComPrintf<String> for QuakeEngine {
+                fn com_printf(&self, msg: String);
+            }
+            impl GameAddEvent<&mut GameEntity, i32> for QuakeEngine {
+                fn game_add_event(&self, game_entity: &mut GameEntity, event: entity_event_t, event_param: i32);
+            }
+            impl SendServerCommand<Client, String> for QuakeEngine {
+                fn send_server_command(&self, client: Option<Client>, command: String);
+            }
+        }
+
+        let mut mock = MockQuakeEngine::new();
+        mock.expect_cmd_argc().return_once_st(|| 2);
+        mock.expect_cmd_argv()
+            .with(eq(1))
+            .return_once_st(|_| Some("-1"));
+        mock.expect_com_printf()
+            .withf_st(|text| text == "client_id must be a number between 0 and 15.\n")
+            .return_const(());
+
+        cmd_slay_intern(16, &mock);
+    }
+
+    #[test]
+    fn cmd_slay_with_too_large_client_id() {
+        mock! {
+            QuakeEngine {}
+            impl CmdArgc for QuakeEngine {
+                fn cmd_argc(&self) -> i32;
+            }
+            impl CmdArgv<i32> for QuakeEngine {
+                fn cmd_argv(&self, argno: i32) -> Option<&'static str>;
+            }
+            impl ComPrintf<String> for QuakeEngine {
+                fn com_printf(&self, msg: String);
+            }
+            impl GameAddEvent<&mut GameEntity, i32> for QuakeEngine {
+                fn game_add_event(&self, game_entity: &mut GameEntity, event: entity_event_t, event_param: i32);
+            }
+            impl SendServerCommand<Client, String> for QuakeEngine {
+                fn send_server_command(&self, client: Option<Client>, command: String);
+            }
+        }
+
+        let mut mock = MockQuakeEngine::new();
+        mock.expect_cmd_argc().return_once_st(|| 2);
+        mock.expect_cmd_argv()
+            .with(eq(1))
+            .return_once_st(|_| Some("42"));
+        mock.expect_com_printf()
+            .withf_st(|text| text == "client_id must be a number between 0 and 15.\n")
+            .return_const(());
+
+        cmd_slay_intern(16, &mock);
     }
 }
