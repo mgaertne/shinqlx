@@ -192,10 +192,10 @@ impl GameEntity {
     }
 
     #[cfg_attr(not(test), inline)]
-    fn start_kamikaze_intern<'a>(
-        &'a mut self,
-        kamikaze_starter: &impl StartKamikaze<&'a mut GameEntity>,
-    ) {
+    fn start_kamikaze_intern<'a, T>(&'a mut self, kamikaze_starter: &'a T)
+    where
+        T: StartKamikaze<&'a mut GameEntity>,
+    {
         kamikaze_starter.start_kamikaze(self);
     }
 
@@ -261,11 +261,13 @@ impl GameEntity {
     }
 
     #[cfg_attr(not(test), inline)]
-    fn slay_with_mod_intern(
-        &mut self,
+    fn slay_with_mod_intern<'a, T>(
+        &'a mut self,
         mean_of_death: meansOfDeath_t,
-        quake_live_engine: &impl RegisterDamage<c_int, c_int, c_int>,
-    ) {
+        quake_live_engine: &'a T,
+    ) where
+        T: RegisterDamage<c_int, c_int, c_int>,
+    {
         let damage = self.get_health()
             + if mean_of_death == meansOfDeath_t::MOD_KAMIKAZE {
                 100000
@@ -353,11 +355,10 @@ impl GameEntity {
     }
 
     #[cfg_attr(not(test), inline)]
-    fn drop_holdable_intern(
-        &mut self,
-        level_time: i32,
-        quake_live_engine: &impl TryLaunchItem<GameItem>,
-    ) {
+    fn drop_holdable_intern<'a, T>(&'a mut self, level_time: i32, quake_live_engine: &'a T)
+    where
+        T: TryLaunchItem<GameItem>,
+    {
         let Ok(mut game_client) = self.get_game_client() else {
             return;
         };
@@ -395,10 +396,10 @@ impl GameEntity {
     }
 
     #[cfg_attr(not(test), inline)]
-    fn free_entity_intern<'a>(
-        &'a mut self,
-        quake_live_engine: &impl FreeEntity<&'a mut GameEntity>,
-    ) {
+    fn free_entity_intern<'a, T>(&'a mut self, quake_live_engine: &'a T)
+    where
+        T: FreeEntity<&'a mut GameEntity>,
+    {
         quake_live_engine.free_entity(self);
     }
 

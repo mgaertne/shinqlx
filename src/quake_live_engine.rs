@@ -24,8 +24,6 @@ use alloc::ffi::CString;
 use alloc::string::String;
 use core::ffi::{c_char, c_int, CStr};
 use core::sync::atomic::{AtomicI32, AtomicUsize, Ordering};
-#[cfg(test)]
-use mockall::*;
 use once_cell::race::OnceBool;
 use once_cell::sync::OnceCell;
 use parking_lot::RwLock;
@@ -1547,7 +1545,6 @@ impl QuakeLiveEngine {
     }
 }
 
-#[cfg_attr(test, automock)]
 pub(crate) trait FindCVar<T: AsRef<str>> {
     fn find_cvar(&self, name: T) -> Option<CVar>;
 }
@@ -1599,7 +1596,6 @@ impl<T: AsRef<str>> SetModuleOffset<T> for QuakeLiveEngine {
     }
 }
 
-#[cfg_attr(test, automock)]
 pub(crate) trait InitGame<T: Into<c_int>, U: Into<c_int>, V: Into<c_int>> {
     fn init_game(&self, level_time: T, random_seed: U, restart: V);
 }
@@ -1613,7 +1609,6 @@ impl<T: Into<c_int>, U: Into<c_int>, V: Into<c_int>> InitGame<T, U, V> for Quake
     }
 }
 
-#[cfg_attr(test, automock)]
 pub(crate) trait ShutdownGame<T: Into<c_int>> {
     fn shutdown_game(&self, restart: T);
 }
@@ -1627,7 +1622,6 @@ impl<T: Into<c_int>> ShutdownGame<T> for QuakeLiveEngine {
     }
 }
 
-#[cfg_attr(test, automock)]
 pub(crate) trait ExecuteClientCommand<T: AsMut<client_t>, U: AsRef<str>, V: Into<qboolean>> {
     #[allow(clippy::needless_lifetimes)]
     fn execute_client_command(&self, client: Option<T>, cmd: U, client_ok: V);
@@ -1653,7 +1647,6 @@ impl<T: AsMut<client_t>, U: AsRef<str>, V: Into<qboolean>> ExecuteClientCommand<
     }
 }
 
-#[cfg_attr(test, automock)]
 pub(crate) trait SendServerCommand<T: AsRef<client_t>, U: AsRef<str>> {
     fn send_server_command(&self, client: Option<T>, command: U);
 }
@@ -1676,7 +1669,6 @@ impl<T: AsRef<client_t>, U: AsRef<str>> SendServerCommand<T, U> for QuakeLiveEng
     }
 }
 
-#[cfg_attr(test, automock)]
 pub(crate) trait ClientEnterWorld<T: AsMut<client_t>> {
     fn client_enter_world(&self, client: T, cmd: *mut usercmd_t);
 }
@@ -1691,7 +1683,6 @@ impl<T: AsMut<client_t>> ClientEnterWorld<T> for QuakeLiveEngine {
     }
 }
 
-#[cfg_attr(test, automock)]
 pub(crate) trait SetConfigstring<T: Into<c_int>, U: AsRef<str>> {
     fn set_configstring(&self, index: T, value: U);
 }
@@ -1709,7 +1700,6 @@ impl<T: Into<c_int>, U: AsRef<str>> SetConfigstring<T, U> for QuakeLiveEngine {
     }
 }
 
-#[cfg_attr(test, automock)]
 pub(crate) trait ComPrintf<T: AsRef<str>> {
     fn com_printf(&self, msg: T);
 }
@@ -1729,7 +1719,6 @@ impl<T: AsRef<str>> ComPrintf<T> for QuakeLiveEngine {
     }
 }
 
-#[cfg_attr(test, automock)]
 pub(crate) trait SpawnServer<T: AsRef<str>, U: Into<qboolean>> {
     fn spawn_server(&self, server: T, kill_bots: U);
 }
@@ -1747,7 +1736,6 @@ impl<T: AsRef<str>, U: Into<qboolean>> SpawnServer<T, U> for QuakeLiveEngine {
     }
 }
 
-#[cfg_attr(test, automock)]
 pub(crate) trait RunFrame<T: Into<c_int>> {
     fn run_frame(&self, time: T);
 }
@@ -1761,7 +1749,6 @@ impl<T: Into<c_int>> RunFrame<T> for QuakeLiveEngine {
     }
 }
 
-#[cfg_attr(test, automock)]
 pub(crate) trait ClientConnect<T: Into<c_int>, U: Into<qboolean>, V: Into<qboolean>> {
     fn client_connect(&self, client_num: T, first_time: U, is_bot: V) -> *const c_char;
 }
@@ -1782,7 +1769,6 @@ impl<T: Into<c_int>, U: Into<qboolean>, V: Into<qboolean>> ClientConnect<T, U, V
     }
 }
 
-#[cfg_attr(test, automock)]
 pub(crate) trait ClientSpawn<T: AsMut<gentity_t>> {
     fn client_spawn(&self, ent: T);
 }
@@ -1801,7 +1787,6 @@ impl<T: AsMut<gentity_t>> ClientSpawn<T> for QuakeLiveEngine {
     }
 }
 
-#[cfg_attr(test, automock)]
 pub(crate) trait CmdArgs {
     fn cmd_args(&self) -> Option<String>;
 }
@@ -1820,7 +1805,6 @@ impl CmdArgs for QuakeLiveEngine {
     }
 }
 
-#[cfg_attr(test, automock)]
 pub(crate) trait CmdArgc {
     fn cmd_argc(&self) -> i32;
 }
@@ -1834,7 +1818,6 @@ impl CmdArgc for QuakeLiveEngine {
     }
 }
 
-#[cfg_attr(test, automock)]
 pub(crate) trait CmdArgv<T: Into<c_int>> {
     fn cmd_argv(&self, argno: T) -> Option<&'static str>;
 }
@@ -1855,7 +1838,6 @@ impl<T: Into<c_int> + PartialOrd<c_int>> CmdArgv<T> for QuakeLiveEngine {
     }
 }
 
-#[cfg_attr(test, automock)]
 pub(crate) trait GameAddEvent<T: AsMut<gentity_t>, U: Into<c_int>> {
     fn game_add_event(&self, game_entity: T, event: entity_event_t, event_param: U);
 }
@@ -1869,7 +1851,6 @@ impl<T: AsMut<gentity_t>, U: Into<c_int>> GameAddEvent<T, U> for QuakeLiveEngine
     }
 }
 
-#[cfg_attr(test, automock)]
 pub(crate) trait ConsoleCommand<T: AsRef<str>> {
     fn execute_console_command(&self, cmd: T);
 }
@@ -1886,7 +1867,6 @@ impl<T: AsRef<str>> ConsoleCommand<T> for QuakeLiveEngine {
     }
 }
 
-#[cfg_attr(test, automock)]
 pub(crate) trait GetCVar<T: AsRef<str>, U: AsRef<str>, V: Into<c_int>> {
     fn get_cvar(&self, name: T, value: U, flags: Option<V>) -> Option<CVar>;
 }
@@ -1908,7 +1888,6 @@ impl<T: AsRef<str>, U: AsRef<str>, V: Into<c_int> + Default> GetCVar<T, U, V> fo
     }
 }
 
-#[cfg_attr(test, automock)]
 pub(crate) trait SetCVarForced<T: AsRef<str>, U: AsRef<str>, V: Into<qboolean>> {
     fn set_cvar_forced(&self, name: T, value: U, forced: V) -> Option<CVar>;
 }
@@ -1971,7 +1950,6 @@ impl<T: AsRef<str>, U: AsRef<str>, V: AsRef<str>, W: AsRef<str>, X: Into<c_int> 
     }
 }
 
-#[cfg_attr(test, automock)]
 pub(crate) trait GetConfigstring<T: Into<c_int>> {
     fn get_configstring(&self, index: T) -> String;
 }
@@ -2077,7 +2055,7 @@ impl<T: AsMut<gitem_t>> TryLaunchItem<T> for QuakeLiveEngine {
     }
 }
 
-pub(crate) trait StartKamikaze<T: AsMut<gentity_t>> {
+pub(crate) trait StartKamikaze<T: AsMut<gentity_t> + ?Sized> {
     fn start_kamikaze(&self, gentity: T);
 }
 
