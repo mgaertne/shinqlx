@@ -154,11 +154,11 @@ where
         return;
     };
     if !client_entity.in_use() || client_entity.get_health() <= 0 {
-        main_engine.com_printf("The player is currently not active.\n".to_string());
+        main_engine.com_printf("The player is currently not active.\n".into());
         return;
     }
 
-    main_engine.com_printf("Slapping...\n".to_string());
+    main_engine.com_printf("Slapping...\n".into());
 
     let Some(client) = Client::try_from(client_id).ok() else {
         return;
