@@ -9,7 +9,7 @@ updates:
     directory: "/" # Location of package manifests
     schedule:
       interval: "daily"
-    versioning-strategy: widen
+    versioning-strategy: auto
     commit-message:
       prefix: "cargo"
       prefix-development: "cargo dev"
@@ -18,7 +18,7 @@ updates:
     directory: "/" # Location of package manifests
     schedule:
       interval: "daily"
-    versioning-strategy: widen
+    versioning-strategy: auto
     commit-message:
       prefix: "pip prod"
       prefix-development: "pip dev"
