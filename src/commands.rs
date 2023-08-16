@@ -1,5 +1,7 @@
 use crate::client::Client;
-#[cfg_attr(test, double)]
+#[cfg(test)]
+use crate::commands::commands_tests::MockGameEntity as GameEntity;
+#[cfg(not(test))]
 use crate::game_entity::GameEntity;
 use crate::prelude::*;
 use crate::pyminqlx::{
@@ -10,8 +12,6 @@ use crate::quake_live_engine::{
     CmdArgc, CmdArgs, CmdArgv, ComPrintf, GameAddEvent, SendServerCommand,
 };
 use crate::MAIN_ENGINE;
-#[cfg(test)]
-use mockall_double::double;
 use pyo3::Python;
 use rand::Rng;
 
@@ -370,27 +370,59 @@ pub(crate) mod commands_tests {
         cmd_center_print_intern, cmd_regular_print_intern, cmd_send_server_command_intern,
         cmd_slap_intern, cmd_slay_intern,
     };
-    use crate::game_entity::MockGameEntity;
+    use crate::game_client::GameClient;
     use crate::quake_live_engine::{
-        CmdArgc, CmdArgs, CmdArgv, ComPrintf, GameAddEvent, SendServerCommand,
+        CmdArgc, CmdArgs, CmdArgv, ComPrintf, GameAddEvent, QuakeLiveEngineError, SendServerCommand,
     };
-    use crate::quake_types::entity_event_t;
+    use crate::quake_types::{entity_event_t, gentity_t};
     use mockall::predicate::eq;
     use mockall::*;
     use serial_test::serial;
 
-    #[test]
-    fn cmd_send_server_command_with_no_args() {
-        mock! {
-            QuakeEngine {}
-            impl CmdArgs for QuakeEngine {
-                fn cmd_args(&self) -> Option<String>;
-            }
-            impl SendServerCommand<Client, String> for QuakeEngine {
-                fn send_server_command(&self, client: Option<Client>, command: String);
-            }
+    mock! {
+        QuakeEngine {}
+        impl CmdArgs for QuakeEngine {
+            fn cmd_args(&self) -> Option<String>;
+        }
+        impl CmdArgc for QuakeEngine {
+            fn cmd_argc(&self) -> i32;
+        }
+        impl CmdArgv<i32> for QuakeEngine {
+            fn cmd_argv(&self, argno: i32) -> Option<&'static str>;
+        }
+        impl ComPrintf<String> for QuakeEngine {
+            fn com_printf(&self, msg: String);
+        }
+        impl GameAddEvent<&mut GameEntity, i32> for QuakeEngine {
+            fn game_add_event(&self, game_entity: &mut GameEntity, event: entity_event_t, event_param: i32);
+        }
+        impl SendServerCommand<Client, String> for QuakeEngine {
+            fn send_server_command(&self, client: Option<Client>, command: String);
+        }
+    }
+
+    #[cfg(test)]
+    mock! {
+        pub(crate) GameEntity {
+            pub(crate) fn get_game_client(&self) -> Result<GameClient, QuakeLiveEngineError>;
+            pub(crate) fn in_use(&self) -> bool;
+            pub(crate) fn get_health(&self) -> i32;
+            pub(crate) fn set_health(&mut self, new_health: i32);
+            pub(crate) fn get_client_number(&self) -> i32;
         }
 
+        impl AsMut<gentity_t> for GameEntity {
+            fn as_mut(&mut self) -> &mut gentity_t;
+        }
+
+        impl TryFrom<i32> for GameEntity {
+            type Error = QuakeLiveEngineError;
+            fn try_from(entity_id: i32) -> Result<Self, QuakeLiveEngineError>;
+        }
+    }
+
+    #[test]
+    fn cmd_send_server_command_with_no_args() {
         let mut mock = MockQuakeEngine::new();
         mock.expect_cmd_args().return_once_st(|| None);
         mock.expect_send_server_command().times(0);
@@ -400,16 +432,6 @@ pub(crate) mod commands_tests {
 
     #[test]
     fn cmd_send_server_command_with_server_command() {
-        mock! {
-            QuakeEngine {}
-            impl CmdArgs for QuakeEngine {
-                fn cmd_args(&self) -> Option<String>;
-            }
-            impl SendServerCommand<Client, String> for QuakeEngine {
-                fn send_server_command(&self, client: Option<Client>, command: String);
-            }
-        }
-
         let mut mock = MockQuakeEngine::new();
         mock.expect_cmd_args()
             .return_once_st(|| Some("asdf".to_string()));
@@ -422,16 +444,6 @@ pub(crate) mod commands_tests {
 
     #[test]
     fn cmd_center_print_with_no_args() {
-        mock! {
-            QuakeEngine {}
-            impl CmdArgs for QuakeEngine {
-                fn cmd_args(&self) -> Option<String>;
-            }
-            impl SendServerCommand<Client, String> for QuakeEngine {
-                fn send_server_command(&self, client: Option<Client>, command: String);
-            }
-        }
-
         let mut mock = MockQuakeEngine::new();
         mock.expect_cmd_args().return_once_st(|| None);
         mock.expect_send_server_command().times(0);
@@ -441,16 +453,6 @@ pub(crate) mod commands_tests {
 
     #[test]
     fn cmd_center_print_with_server_command() {
-        mock! {
-            QuakeEngine {}
-            impl CmdArgs for QuakeEngine {
-                fn cmd_args(&self) -> Option<String>;
-            }
-            impl SendServerCommand<Client, String> for QuakeEngine {
-                fn send_server_command(&self, client: Option<Client>, command: String);
-            }
-        }
-
         let mut mock = MockQuakeEngine::new();
         mock.expect_cmd_args()
             .return_once_st(|| Some("asdf".to_string()));
@@ -463,16 +465,6 @@ pub(crate) mod commands_tests {
 
     #[test]
     fn cmd_regular_print_with_no_args() {
-        mock! {
-            QuakeEngine {}
-            impl CmdArgs for QuakeEngine {
-                fn cmd_args(&self) -> Option<String>;
-            }
-            impl SendServerCommand<Client, String> for QuakeEngine {
-                fn send_server_command(&self, client: Option<Client>, command: String);
-            }
-        }
-
         let mut mock = MockQuakeEngine::new();
         mock.expect_cmd_args().return_once_st(|| None);
         mock.expect_send_server_command().times(0);
@@ -482,16 +474,6 @@ pub(crate) mod commands_tests {
 
     #[test]
     fn cmd_regular_print_with_server_command() {
-        mock! {
-            QuakeEngine {}
-            impl CmdArgs for QuakeEngine {
-                fn cmd_args(&self) -> Option<String>;
-            }
-            impl SendServerCommand<Client, String> for QuakeEngine {
-                fn send_server_command(&self, client: Option<Client>, command: String);
-            }
-        }
-
         let mut mock = MockQuakeEngine::new();
         mock.expect_cmd_args()
             .return_once_st(|| Some("asdf".to_string()));
@@ -504,25 +486,6 @@ pub(crate) mod commands_tests {
 
     #[test]
     fn cmd_slap_with_too_few_args() {
-        mock! {
-            QuakeEngine {}
-            impl CmdArgc for QuakeEngine {
-                fn cmd_argc(&self) -> i32;
-            }
-            impl CmdArgv<i32> for QuakeEngine {
-                fn cmd_argv(&self, argno: i32) -> Option<&'static str>;
-            }
-            impl ComPrintf<String> for QuakeEngine {
-                fn com_printf(&self, msg: String);
-            }
-            impl GameAddEvent<&mut GameEntity, i32> for QuakeEngine {
-                fn game_add_event(&self, game_entity: &mut GameEntity, event: entity_event_t, event_param: i32);
-            }
-            impl SendServerCommand<Client, String> for QuakeEngine {
-                fn send_server_command(&self, client: Option<Client>, command: String);
-            }
-        }
-
         let mut mock = MockQuakeEngine::new();
         mock.expect_cmd_argc().return_once_st(|| 1);
         mock.expect_cmd_argv()
@@ -537,25 +500,6 @@ pub(crate) mod commands_tests {
 
     #[test]
     fn cmd_slap_with_unparseable_client_id() {
-        mock! {
-            QuakeEngine {}
-            impl CmdArgc for QuakeEngine {
-                fn cmd_argc(&self) -> i32;
-            }
-            impl CmdArgv<i32> for QuakeEngine {
-                fn cmd_argv(&self, argno: i32) -> Option<&'static str>;
-            }
-            impl ComPrintf<String> for QuakeEngine {
-                fn com_printf(&self, msg: String);
-            }
-            impl GameAddEvent<&mut GameEntity, i32> for QuakeEngine {
-                fn game_add_event(&self, game_entity: &mut GameEntity, event: entity_event_t, event_param: i32);
-            }
-            impl SendServerCommand<Client, String> for QuakeEngine {
-                fn send_server_command(&self, client: Option<Client>, command: String);
-            }
-        }
-
         let mut mock = MockQuakeEngine::new();
         mock.expect_cmd_argc().return_once_st(|| 2);
         mock.expect_cmd_argv()
@@ -570,25 +514,6 @@ pub(crate) mod commands_tests {
 
     #[test]
     fn cmd_slap_with_too_small_client_id() {
-        mock! {
-            QuakeEngine {}
-            impl CmdArgc for QuakeEngine {
-                fn cmd_argc(&self) -> i32;
-            }
-            impl CmdArgv<i32> for QuakeEngine {
-                fn cmd_argv(&self, argno: i32) -> Option<&'static str>;
-            }
-            impl ComPrintf<String> for QuakeEngine {
-                fn com_printf(&self, msg: String);
-            }
-            impl GameAddEvent<&mut GameEntity, i32> for QuakeEngine {
-                fn game_add_event(&self, game_entity: &mut GameEntity, event: entity_event_t, event_param: i32);
-            }
-            impl SendServerCommand<Client, String> for QuakeEngine {
-                fn send_server_command(&self, client: Option<Client>, command: String);
-            }
-        }
-
         let mut mock = MockQuakeEngine::new();
         mock.expect_cmd_argc().return_once_st(|| 2);
         mock.expect_cmd_argv()
@@ -603,25 +528,6 @@ pub(crate) mod commands_tests {
 
     #[test]
     fn cmd_slap_with_too_large_client_id() {
-        mock! {
-            QuakeEngine {}
-            impl CmdArgc for QuakeEngine {
-                fn cmd_argc(&self) -> i32;
-            }
-            impl CmdArgv<i32> for QuakeEngine {
-                fn cmd_argv(&self, argno: i32) -> Option<&'static str>;
-            }
-            impl ComPrintf<String> for QuakeEngine {
-                fn com_printf(&self, msg: String);
-            }
-            impl GameAddEvent<&mut GameEntity, i32> for QuakeEngine {
-                fn game_add_event(&self, game_entity: &mut GameEntity, event: entity_event_t, event_param: i32);
-            }
-            impl SendServerCommand<Client, String> for QuakeEngine {
-                fn send_server_command(&self, client: Option<Client>, command: String);
-            }
-        }
-
         let mut mock = MockQuakeEngine::new();
         mock.expect_cmd_argc().return_once_st(|| 2);
         mock.expect_cmd_argv()
@@ -637,25 +543,6 @@ pub(crate) mod commands_tests {
     #[test]
     #[serial]
     fn cmd_slap_with_game_entity_not_in_use() {
-        mock! {
-            QuakeEngine {}
-            impl CmdArgc for QuakeEngine {
-                fn cmd_argc(&self) -> i32;
-            }
-            impl CmdArgv<i32> for QuakeEngine {
-                fn cmd_argv(&self, argno: i32) -> Option<&'static str>;
-            }
-            impl ComPrintf<String> for QuakeEngine {
-                fn com_printf(&self, msg: String);
-            }
-            impl GameAddEvent<&mut GameEntity, i32> for QuakeEngine {
-                fn game_add_event(&self, game_entity: &mut GameEntity, event: entity_event_t, event_param: i32);
-            }
-            impl SendServerCommand<Client, String> for QuakeEngine {
-                fn send_server_command(&self, client: Option<Client>, command: String);
-            }
-        }
-
         let mut mock = MockQuakeEngine::new();
         mock.expect_cmd_argc().return_once_st(|| 2);
         mock.expect_cmd_argv()
@@ -680,25 +567,6 @@ pub(crate) mod commands_tests {
     #[test]
     #[serial]
     fn cmd_slap_with_game_entity_no_health() {
-        mock! {
-            QuakeEngine {}
-            impl CmdArgc for QuakeEngine {
-                fn cmd_argc(&self) -> i32;
-            }
-            impl CmdArgv<i32> for QuakeEngine {
-                fn cmd_argv(&self, argno: i32) -> Option<&'static str>;
-            }
-            impl ComPrintf<String> for QuakeEngine {
-                fn com_printf(&self, msg: String);
-            }
-            impl GameAddEvent<&mut GameEntity, i32> for QuakeEngine {
-                fn game_add_event(&self, game_entity: &mut GameEntity, event: entity_event_t, event_param: i32);
-            }
-            impl SendServerCommand<Client, String> for QuakeEngine {
-                fn send_server_command(&self, client: Option<Client>, command: String);
-            }
-        }
-
         let mut mock = MockQuakeEngine::new();
         mock.expect_cmd_argc().return_once_st(|| 2);
         mock.expect_cmd_argv()
@@ -723,25 +591,6 @@ pub(crate) mod commands_tests {
 
     #[test]
     fn cmd_slay_with_too_few_args() {
-        mock! {
-            QuakeEngine {}
-            impl CmdArgc for QuakeEngine {
-                fn cmd_argc(&self) -> i32;
-            }
-            impl CmdArgv<i32> for QuakeEngine {
-                fn cmd_argv(&self, argno: i32) -> Option<&'static str>;
-            }
-            impl ComPrintf<String> for QuakeEngine {
-                fn com_printf(&self, msg: String);
-            }
-            impl GameAddEvent<&mut GameEntity, i32> for QuakeEngine {
-                fn game_add_event(&self, game_entity: &mut GameEntity, event: entity_event_t, event_param: i32);
-            }
-            impl SendServerCommand<Client, String> for QuakeEngine {
-                fn send_server_command(&self, client: Option<Client>, command: String);
-            }
-        }
-
         let mut mock = MockQuakeEngine::new();
         mock.expect_cmd_argc().return_once_st(|| 1);
         mock.expect_cmd_argv()
@@ -756,25 +605,6 @@ pub(crate) mod commands_tests {
 
     #[test]
     fn cmd_slay_with_unparseable_client_id() {
-        mock! {
-            QuakeEngine {}
-            impl CmdArgc for QuakeEngine {
-                fn cmd_argc(&self) -> i32;
-            }
-            impl CmdArgv<i32> for QuakeEngine {
-                fn cmd_argv(&self, argno: i32) -> Option<&'static str>;
-            }
-            impl ComPrintf<String> for QuakeEngine {
-                fn com_printf(&self, msg: String);
-            }
-            impl GameAddEvent<&mut GameEntity, i32> for QuakeEngine {
-                fn game_add_event(&self, game_entity: &mut GameEntity, event: entity_event_t, event_param: i32);
-            }
-            impl SendServerCommand<Client, String> for QuakeEngine {
-                fn send_server_command(&self, client: Option<Client>, command: String);
-            }
-        }
-
         let mut mock = MockQuakeEngine::new();
         mock.expect_cmd_argc().return_once_st(|| 2);
         mock.expect_cmd_argv()
@@ -789,25 +619,6 @@ pub(crate) mod commands_tests {
 
     #[test]
     fn cmd_slay_with_too_small_client_id() {
-        mock! {
-            QuakeEngine {}
-            impl CmdArgc for QuakeEngine {
-                fn cmd_argc(&self) -> i32;
-            }
-            impl CmdArgv<i32> for QuakeEngine {
-                fn cmd_argv(&self, argno: i32) -> Option<&'static str>;
-            }
-            impl ComPrintf<String> for QuakeEngine {
-                fn com_printf(&self, msg: String);
-            }
-            impl GameAddEvent<&mut GameEntity, i32> for QuakeEngine {
-                fn game_add_event(&self, game_entity: &mut GameEntity, event: entity_event_t, event_param: i32);
-            }
-            impl SendServerCommand<Client, String> for QuakeEngine {
-                fn send_server_command(&self, client: Option<Client>, command: String);
-            }
-        }
-
         let mut mock = MockQuakeEngine::new();
         mock.expect_cmd_argc().return_once_st(|| 2);
         mock.expect_cmd_argv()
@@ -822,25 +633,6 @@ pub(crate) mod commands_tests {
 
     #[test]
     fn cmd_slay_with_too_large_client_id() {
-        mock! {
-            QuakeEngine {}
-            impl CmdArgc for QuakeEngine {
-                fn cmd_argc(&self) -> i32;
-            }
-            impl CmdArgv<i32> for QuakeEngine {
-                fn cmd_argv(&self, argno: i32) -> Option<&'static str>;
-            }
-            impl ComPrintf<String> for QuakeEngine {
-                fn com_printf(&self, msg: String);
-            }
-            impl GameAddEvent<&mut GameEntity, i32> for QuakeEngine {
-                fn game_add_event(&self, game_entity: &mut GameEntity, event: entity_event_t, event_param: i32);
-            }
-            impl SendServerCommand<Client, String> for QuakeEngine {
-                fn send_server_command(&self, client: Option<Client>, command: String);
-            }
-        }
-
         let mut mock = MockQuakeEngine::new();
 
         mock.expect_cmd_argc().return_once_st(|| 2);
@@ -857,25 +649,6 @@ pub(crate) mod commands_tests {
     #[test]
     #[serial]
     fn cmd_slay_with_game_entity_not_in_use() {
-        mock! {
-            QuakeEngine {}
-            impl CmdArgc for QuakeEngine {
-                fn cmd_argc(&self) -> i32;
-            }
-            impl CmdArgv<i32> for QuakeEngine {
-                fn cmd_argv(&self, argno: i32) -> Option<&'static str>;
-            }
-            impl ComPrintf<String> for QuakeEngine {
-                fn com_printf(&self, msg: String);
-            }
-            impl GameAddEvent<&mut GameEntity, i32> for QuakeEngine {
-                fn game_add_event(&self, game_entity: &mut GameEntity, event: entity_event_t, event_param: i32);
-            }
-            impl SendServerCommand<Client, String> for QuakeEngine {
-                fn send_server_command(&self, client: Option<Client>, command: String);
-            }
-        }
-
         let mut mock = MockQuakeEngine::new();
         mock.expect_cmd_argc().return_once_st(|| 2);
         mock.expect_cmd_argv()
@@ -900,25 +673,6 @@ pub(crate) mod commands_tests {
     #[test]
     #[serial]
     fn cmd_slay_with_game_entity_no_health() {
-        mock! {
-            QuakeEngine {}
-            impl CmdArgc for QuakeEngine {
-                fn cmd_argc(&self) -> i32;
-            }
-            impl CmdArgv<i32> for QuakeEngine {
-                fn cmd_argv(&self, argno: i32) -> Option<&'static str>;
-            }
-            impl ComPrintf<String> for QuakeEngine {
-                fn com_printf(&self, msg: String);
-            }
-            impl GameAddEvent<&mut GameEntity, i32> for QuakeEngine {
-                fn game_add_event(&self, game_entity: &mut GameEntity, event: entity_event_t, event_param: i32);
-            }
-            impl SendServerCommand<Client, String> for QuakeEngine {
-                fn send_server_command(&self, client: Option<Client>, command: String);
-            }
-        }
-
         let mut mock = MockQuakeEngine::new();
         mock.expect_cmd_argc().return_once_st(|| 2);
         mock.expect_cmd_argv()

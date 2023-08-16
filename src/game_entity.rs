@@ -14,8 +14,6 @@ use alloc::vec;
 use alloc::vec::Vec;
 use core::f32::consts::PI;
 use core::ffi::{c_char, c_float, c_int, CStr};
-#[cfg(test)]
-use mockall::{automock, mock};
 
 #[derive(Debug, PartialEq)]
 #[repr(transparent)]
@@ -1020,35 +1018,4 @@ pub(crate) mod game_entity_tests {
 
         game_entity.free_entity_intern(&mock);
     }
-}
-
-#[cfg(test)]
-#[automock]
-pub(crate) trait CmdSlapSlay {
-    fn get_game_client(&self) -> Result<GameClient, QuakeLiveEngineError>;
-    fn in_use(&self) -> bool;
-    fn get_health(&self) -> i32;
-    fn set_health(&mut self, new_health: i32);
-    fn get_client_number(&self) -> i32;
-}
-
-#[cfg(test)]
-mock! {
-    pub(crate) GameEntity {
-        pub(crate) fn get_game_client(&self) -> Result<GameClient, QuakeLiveEngineError>;
-        pub(crate) fn in_use(&self) -> bool;
-        pub(crate) fn get_health(&self) -> i32;
-        pub(crate) fn set_health(&mut self, new_health: i32);
-        pub(crate) fn get_client_number(&self) -> i32;
-    }
-
-    impl AsMut<gentity_t> for GameEntity {
-        fn as_mut(&mut self) -> &mut gentity_t;
-    }
-
-    impl TryFrom<i32> for GameEntity {
-        type Error = QuakeLiveEngineError;
-        fn try_from(entity_id: i32) -> Result<Self, QuakeLiveEngineError>;
-    }
-
 }
