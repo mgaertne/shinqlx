@@ -1,4 +1,7 @@
+#[cfg(not(test))]
 use crate::client::Client;
+#[cfg(test)]
+use crate::commands::commands_tests::MockClient as Client;
 #[cfg(test)]
 use crate::commands::commands_tests::MockGameEntity as GameEntity;
 #[cfg(not(test))]
@@ -364,17 +367,15 @@ pub extern "C" fn cmd_restart_python() {
 
 #[cfg(test)]
 pub(crate) mod commands_tests {
-    use super::GameEntity;
-    use crate::client::Client;
+    use super::{Client, GameEntity};
     use crate::commands::{
         cmd_center_print_intern, cmd_regular_print_intern, cmd_send_server_command_intern,
         cmd_slap_intern, cmd_slay_intern,
     };
-    use crate::game_client::GameClient;
     use crate::quake_live_engine::{
         CmdArgc, CmdArgs, CmdArgv, ComPrintf, GameAddEvent, QuakeLiveEngineError, SendServerCommand,
     };
-    use crate::quake_types::{entity_event_t, gentity_t};
+    use crate::quake_types::{client_t, entity_event_t, gentity_t};
     use mockall::predicate::eq;
     use mockall::*;
     use serial_test::serial;
@@ -401,10 +402,17 @@ pub(crate) mod commands_tests {
         }
     }
 
-    #[cfg(test)]
+    mock! {
+        pub(crate) GameClient {
+            pub(crate) fn set_velocity<T>(&mut self, velocity: T)
+            where
+                T: Into<[f32; 3]> + 'static;
+        }
+    }
+
     mock! {
         pub(crate) GameEntity {
-            pub(crate) fn get_game_client(&self) -> Result<GameClient, QuakeLiveEngineError>;
+            pub(crate) fn get_game_client(&self) -> Result<MockGameClient, QuakeLiveEngineError>;
             pub(crate) fn in_use(&self) -> bool;
             pub(crate) fn get_health(&self) -> i32;
             pub(crate) fn set_health(&mut self, new_health: i32);
@@ -418,6 +426,21 @@ pub(crate) mod commands_tests {
         impl TryFrom<i32> for GameEntity {
             type Error = QuakeLiveEngineError;
             fn try_from(entity_id: i32) -> Result<Self, QuakeLiveEngineError>;
+        }
+    }
+
+    mock! {
+        pub(crate) Client {
+            pub(crate) fn get_name(&self) -> String;
+        }
+
+        impl TryFrom<i32> for Client {
+            type Error = QuakeLiveEngineError;
+            fn try_from(entity_id: i32) -> Result<Self, QuakeLiveEngineError>;
+        }
+
+        impl AsRef<client_t> for Client {
+            fn as_ref(&self) -> &client_t;
         }
     }
 
@@ -556,10 +579,10 @@ pub(crate) mod commands_tests {
         game_client_try_from_ctx
             .expect()
             .withf_st(|&client_id| client_id == 2)
-            .returning_st(move |_| {
-                let mut game_client_mock = MockGameEntity::default();
-                game_client_mock.expect_in_use().returning_st(|| false);
-                Ok(game_client_mock)
+            .returning_st(|_| {
+                let mut game_entity_mock = MockGameEntity::default();
+                game_entity_mock.expect_in_use().returning_st(|| false);
+                Ok(game_entity_mock)
             });
         cmd_slap_intern(16, &mock);
     }
@@ -580,11 +603,65 @@ pub(crate) mod commands_tests {
         game_client_try_from_ctx
             .expect()
             .withf_st(|&client_id| client_id == 2)
-            .returning_st(move |_| {
-                let mut game_client_mock = MockGameEntity::default();
-                game_client_mock.expect_in_use().returning_st(|| true);
-                game_client_mock.expect_get_health().returning_st(|| 0);
-                Ok(game_client_mock)
+            .returning_st(|_| {
+                let mut game_entity_mock = MockGameEntity::default();
+                game_entity_mock.expect_in_use().returning_st(|| true);
+                game_entity_mock.expect_get_health().returning_st(|| 0);
+                Ok(game_entity_mock)
+            });
+        cmd_slap_intern(16, &mock);
+    }
+
+    #[test]
+    #[serial]
+    fn cmd_slap_with_no_damage_provided_slaps() {
+        let mut mock = MockQuakeEngine::new();
+        mock.expect_cmd_argc().return_once_st(|| 2);
+        mock.expect_cmd_argv()
+            .with(eq(1))
+            .return_once_st(|_| Some("2"));
+        mock.expect_com_printf()
+            .withf_st(|text| text == "Slapping...\n")
+            .return_const(());
+        mock.expect_send_server_command()
+            .withf_st(|client, cmd| {
+                client.is_none() && cmd == "print \"Slapped Player^7 was slapped\n\"\n"
+            })
+            .return_const(());
+        mock.expect_game_add_event()
+            .withf_st(|_, &entity_event, &event_param| {
+                entity_event == entity_event_t::EV_PAIN && event_param == 99
+            })
+            .return_const(());
+
+        let game_client_try_from_ctx = MockGameEntity::try_from_context();
+        game_client_try_from_ctx
+            .expect()
+            .withf_st(|&client_id| client_id == 2)
+            .returning_st(|_| {
+                let mut game_entity_mock = MockGameEntity::default();
+                game_entity_mock.expect_in_use().returning_st(|| true);
+                game_entity_mock.expect_get_health().returning_st(|| 200);
+                game_entity_mock.expect_set_health().return_const(());
+                game_entity_mock.expect_get_game_client().returning_st(|| {
+                    let mut game_client_mock = MockGameClient::default();
+                    game_client_mock
+                        .expect_set_velocity::<(f32, f32, f32)>()
+                        .return_const(());
+                    Ok(game_client_mock)
+                });
+                Ok(game_entity_mock)
+            });
+        let client_try_from_ctx = Client::try_from_context();
+        client_try_from_ctx
+            .expect()
+            .withf_st(|&client_id| client_id == 2)
+            .returning_st(|_| {
+                let mut client_mock = MockClient::default();
+                client_mock
+                    .expect_get_name()
+                    .returning_st(|| "Slapped Player".into());
+                Ok(client_mock)
             });
         cmd_slap_intern(16, &mock);
     }
@@ -662,10 +739,10 @@ pub(crate) mod commands_tests {
         game_client_try_from_ctx
             .expect()
             .withf_st(|&client_id| client_id == 2)
-            .returning_st(move |_| {
-                let mut game_client_mock = MockGameEntity::default();
-                game_client_mock.expect_in_use().returning_st(|| false);
-                Ok(game_client_mock)
+            .returning_st(|_| {
+                let mut game_entity_mock = MockGameEntity::default();
+                game_entity_mock.expect_in_use().returning_st(|| false);
+                Ok(game_entity_mock)
             });
         cmd_slay_intern(16, &mock);
     }
@@ -686,11 +763,11 @@ pub(crate) mod commands_tests {
         game_client_try_from_ctx
             .expect()
             .withf_st(|&client_id| client_id == 2)
-            .returning_st(move |_| {
-                let mut game_client_mock = MockGameEntity::default();
-                game_client_mock.expect_in_use().returning_st(|| true);
-                game_client_mock.expect_get_health().returning_st(|| 0);
-                Ok(game_client_mock)
+            .returning_st(|_| {
+                let mut game_entity_mock = MockGameEntity::default();
+                game_entity_mock.expect_in_use().returning_st(|| true);
+                game_entity_mock.expect_get_health().returning_st(|| 0);
+                Ok(game_entity_mock)
             });
         cmd_slay_intern(16, &mock);
     }
