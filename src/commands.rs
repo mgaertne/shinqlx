@@ -190,12 +190,18 @@ where
         (rng.gen_range(-1.0..=1.0) * 200.0),
         300.0,
     ));
-    let old_health = client_entity.get_health();
-    client_entity.set_health(old_health - dmg);
-    if old_health - dmg <= 0 {
-        let client_number = client_entity.get_client_number();
-        main_engine.game_add_event(&mut client_entity, entity_event_t::EV_DEATH1, client_number);
-        return;
+    if dmg > 0 {
+        let old_health = client_entity.get_health();
+        client_entity.set_health(old_health - dmg);
+        if old_health - dmg <= 0 {
+            let client_number = client_entity.get_client_number();
+            main_engine.game_add_event(
+                &mut client_entity,
+                entity_event_t::EV_DEATH1,
+                client_number,
+            );
+            return;
+        }
     }
     main_engine.game_add_event(&mut client_entity, entity_event_t::EV_PAIN, 99);
 }
