@@ -853,4 +853,91 @@ pub(crate) mod commands_tests {
 
         cmd_slay_intern(16, &mock);
     }
+
+    #[test]
+    #[serial]
+    fn cmd_slay_with_game_entity_not_in_use() {
+        mock! {
+            QuakeEngine {}
+            impl CmdArgc for QuakeEngine {
+                fn cmd_argc(&self) -> i32;
+            }
+            impl CmdArgv<i32> for QuakeEngine {
+                fn cmd_argv(&self, argno: i32) -> Option<&'static str>;
+            }
+            impl ComPrintf<String> for QuakeEngine {
+                fn com_printf(&self, msg: String);
+            }
+            impl GameAddEvent<&mut GameEntity, i32> for QuakeEngine {
+                fn game_add_event(&self, game_entity: &mut GameEntity, event: entity_event_t, event_param: i32);
+            }
+            impl SendServerCommand<Client, String> for QuakeEngine {
+                fn send_server_command(&self, client: Option<Client>, command: String);
+            }
+        }
+
+        let mut mock = MockQuakeEngine::new();
+        mock.expect_cmd_argc().return_once_st(|| 2);
+        mock.expect_cmd_argv()
+            .with(eq(1))
+            .return_once_st(|_| Some("2"));
+        mock.expect_com_printf()
+            .withf_st(|text| text == "The player is currently not active.\n")
+            .return_const(());
+
+        let game_client_try_from_ctx = MockGameEntity::try_from_context();
+        game_client_try_from_ctx
+            .expect()
+            .withf_st(|&client_id| client_id == 2)
+            .returning_st(move |_| {
+                let mut game_client_mock = MockGameEntity::default();
+                game_client_mock.expect_in_use().returning_st(|| false);
+                Ok(game_client_mock)
+            });
+        cmd_slay_intern(16, &mock);
+    }
+
+    #[test]
+    #[serial]
+    fn cmd_slay_with_game_entity_no_health() {
+        mock! {
+            QuakeEngine {}
+            impl CmdArgc for QuakeEngine {
+                fn cmd_argc(&self) -> i32;
+            }
+            impl CmdArgv<i32> for QuakeEngine {
+                fn cmd_argv(&self, argno: i32) -> Option<&'static str>;
+            }
+            impl ComPrintf<String> for QuakeEngine {
+                fn com_printf(&self, msg: String);
+            }
+            impl GameAddEvent<&mut GameEntity, i32> for QuakeEngine {
+                fn game_add_event(&self, game_entity: &mut GameEntity, event: entity_event_t, event_param: i32);
+            }
+            impl SendServerCommand<Client, String> for QuakeEngine {
+                fn send_server_command(&self, client: Option<Client>, command: String);
+            }
+        }
+
+        let mut mock = MockQuakeEngine::new();
+        mock.expect_cmd_argc().return_once_st(|| 2);
+        mock.expect_cmd_argv()
+            .with(eq(1))
+            .return_once_st(|_| Some("2"));
+        mock.expect_com_printf()
+            .withf_st(|text| text == "The player is currently not active.\n")
+            .return_const(());
+
+        let game_client_try_from_ctx = MockGameEntity::try_from_context();
+        game_client_try_from_ctx
+            .expect()
+            .withf_st(|&client_id| client_id == 2)
+            .returning_st(move |_| {
+                let mut game_client_mock = MockGameEntity::default();
+                game_client_mock.expect_in_use().returning_st(|| true);
+                game_client_mock.expect_get_health().returning_st(|| 0);
+                Ok(game_client_mock)
+            });
+        cmd_slay_intern(16, &mock);
+    }
 }
