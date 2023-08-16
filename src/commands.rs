@@ -1,4 +1,5 @@
 use crate::client::Client;
+#[cfg_attr(test, double)]
 use crate::game_entity::GameEntity;
 use crate::prelude::*;
 use crate::pyminqlx::{
@@ -9,6 +10,8 @@ use crate::quake_live_engine::{
     CmdArgc, CmdArgs, CmdArgv, ComPrintf, GameAddEvent, SendServerCommand,
 };
 use crate::MAIN_ENGINE;
+#[cfg(test)]
+use mockall_double::double;
 use pyo3::Python;
 use rand::Rng;
 
@@ -109,7 +112,7 @@ where
     U: CmdArgc
         + CmdArgv<i32>
         + ComPrintf<String>
-        + for<'b> GameAddEvent<&'b mut GameEntity, i32>
+        + for<'a> GameAddEvent<&'a mut GameEntity, i32>
         + SendServerCommand<Client, String>,
 {
     let argc = main_engine.cmd_argc();
@@ -216,7 +219,7 @@ where
     U: CmdArgc
         + CmdArgv<i32>
         + ComPrintf<String>
-        + for<'b> GameAddEvent<&'b mut GameEntity, i32>
+        + for<'a> GameAddEvent<&'a mut GameEntity, i32>
         + SendServerCommand<Client, String>,
 {
     let argc = main_engine.cmd_argc();
@@ -242,7 +245,7 @@ where
         return;
     };
 
-    if client_id >= maxclients.into() {
+    if client_id < 0 || client_id >= maxclients.into() {
         main_engine.com_printf(format!(
             "client_id must be a number between 0 and {}.\n",
             maxclients.into() - 1
@@ -361,18 +364,20 @@ pub extern "C" fn cmd_restart_python() {
 
 #[cfg(test)]
 pub(crate) mod commands_tests {
+    use super::GameEntity;
     use crate::client::Client;
     use crate::commands::{
         cmd_center_print_intern, cmd_regular_print_intern, cmd_send_server_command_intern,
         cmd_slap_intern, cmd_slay_intern,
     };
-    use crate::game_entity::GameEntity;
+    use crate::game_entity::MockGameEntity;
     use crate::quake_live_engine::{
         CmdArgc, CmdArgs, CmdArgv, ComPrintf, GameAddEvent, SendServerCommand,
     };
     use crate::quake_types::entity_event_t;
     use mockall::predicate::eq;
     use mockall::*;
+    use serial_test::serial;
 
     #[test]
     fn cmd_send_server_command_with_no_args() {
@@ -630,6 +635,93 @@ pub(crate) mod commands_tests {
     }
 
     #[test]
+    #[serial]
+    fn cmd_slap_with_game_entity_not_in_use() {
+        mock! {
+            QuakeEngine {}
+            impl CmdArgc for QuakeEngine {
+                fn cmd_argc(&self) -> i32;
+            }
+            impl CmdArgv<i32> for QuakeEngine {
+                fn cmd_argv(&self, argno: i32) -> Option<&'static str>;
+            }
+            impl ComPrintf<String> for QuakeEngine {
+                fn com_printf(&self, msg: String);
+            }
+            impl GameAddEvent<&mut GameEntity, i32> for QuakeEngine {
+                fn game_add_event(&self, game_entity: &mut GameEntity, event: entity_event_t, event_param: i32);
+            }
+            impl SendServerCommand<Client, String> for QuakeEngine {
+                fn send_server_command(&self, client: Option<Client>, command: String);
+            }
+        }
+
+        let mut mock = MockQuakeEngine::new();
+        mock.expect_cmd_argc().return_once_st(|| 2);
+        mock.expect_cmd_argv()
+            .with(eq(1))
+            .return_once_st(|_| Some("2"));
+        mock.expect_com_printf()
+            .withf_st(|text| text == "The player is currently not active.\n")
+            .return_const(());
+
+        let game_client_try_from_ctx = MockGameEntity::try_from_context();
+        game_client_try_from_ctx
+            .expect()
+            .withf_st(|&client_id| client_id == 2)
+            .returning_st(move |_| {
+                let mut game_client_mock = MockGameEntity::default();
+                game_client_mock.expect_in_use().returning_st(|| false);
+                Ok(game_client_mock)
+            });
+        cmd_slap_intern(16, &mock);
+    }
+
+    #[test]
+    #[serial]
+    fn cmd_slap_with_game_entity_no_health() {
+        mock! {
+            QuakeEngine {}
+            impl CmdArgc for QuakeEngine {
+                fn cmd_argc(&self) -> i32;
+            }
+            impl CmdArgv<i32> for QuakeEngine {
+                fn cmd_argv(&self, argno: i32) -> Option<&'static str>;
+            }
+            impl ComPrintf<String> for QuakeEngine {
+                fn com_printf(&self, msg: String);
+            }
+            impl GameAddEvent<&mut GameEntity, i32> for QuakeEngine {
+                fn game_add_event(&self, game_entity: &mut GameEntity, event: entity_event_t, event_param: i32);
+            }
+            impl SendServerCommand<Client, String> for QuakeEngine {
+                fn send_server_command(&self, client: Option<Client>, command: String);
+            }
+        }
+
+        let mut mock = MockQuakeEngine::new();
+        mock.expect_cmd_argc().return_once_st(|| 2);
+        mock.expect_cmd_argv()
+            .with(eq(1))
+            .return_once_st(|_| Some("2"));
+        mock.expect_com_printf()
+            .withf_st(|text| text == "The player is currently not active.\n")
+            .return_const(());
+
+        let game_client_try_from_ctx = MockGameEntity::try_from_context();
+        game_client_try_from_ctx
+            .expect()
+            .withf_st(|&client_id| client_id == 2)
+            .returning_st(move |_| {
+                let mut game_client_mock = MockGameEntity::default();
+                game_client_mock.expect_in_use().returning_st(|| true);
+                game_client_mock.expect_get_health().returning_st(|| 0);
+                Ok(game_client_mock)
+            });
+        cmd_slap_intern(16, &mock);
+    }
+
+    #[test]
     fn cmd_slay_with_too_few_args() {
         mock! {
             QuakeEngine {}
@@ -750,6 +842,7 @@ pub(crate) mod commands_tests {
         }
 
         let mut mock = MockQuakeEngine::new();
+
         mock.expect_cmd_argc().return_once_st(|| 2);
         mock.expect_cmd_argv()
             .with(eq(1))
