@@ -667,6 +667,129 @@ pub(crate) mod commands_tests {
     }
 
     #[test]
+    #[serial]
+    fn cmd_slap_with_provided_damage_provided_slaps() {
+        let mut mock = MockQuakeEngine::new();
+        mock.expect_cmd_argc().return_once_st(|| 3);
+        mock.expect_cmd_argv()
+            .with(eq(1))
+            .return_once_st(|_| Some("2"));
+        mock.expect_cmd_argv()
+            .with(eq(2))
+            .return_once_st(|_| Some("1"));
+        mock.expect_com_printf()
+            .withf_st(|text| text == "Slapping...\n")
+            .return_const(());
+        mock.expect_send_server_command()
+            .withf_st(|client, cmd| {
+                client.is_none()
+                    && cmd == "print \"Slapped Player^7 was slapped for 1 damage!\n\"\n"
+            })
+            .return_const(());
+        mock.expect_game_add_event()
+            .withf_st(|_, &entity_event, &event_param| {
+                entity_event == entity_event_t::EV_PAIN && event_param == 99
+            })
+            .return_const(());
+
+        let game_client_try_from_ctx = MockGameEntity::try_from_context();
+        game_client_try_from_ctx
+            .expect()
+            .withf_st(|&client_id| client_id == 2)
+            .returning_st(|_| {
+                let mut game_entity_mock = MockGameEntity::default();
+                game_entity_mock.expect_in_use().returning_st(|| true);
+                game_entity_mock.expect_get_health().returning_st(|| 200);
+                game_entity_mock
+                    .expect_set_health()
+                    .with(eq(199))
+                    .return_const(());
+                game_entity_mock.expect_get_game_client().returning_st(|| {
+                    let mut game_client_mock = MockGameClient::default();
+                    game_client_mock
+                        .expect_set_velocity::<(f32, f32, f32)>()
+                        .return_const(());
+                    Ok(game_client_mock)
+                });
+                Ok(game_entity_mock)
+            });
+        let client_try_from_ctx = Client::try_from_context();
+        client_try_from_ctx
+            .expect()
+            .withf_st(|&client_id| client_id == 2)
+            .returning_st(|_| {
+                let mut client_mock = MockClient::default();
+                client_mock
+                    .expect_get_name()
+                    .returning_st(|| "Slapped Player".into());
+                Ok(client_mock)
+            });
+        cmd_slap_intern(16, &mock);
+    }
+
+    #[test]
+    #[serial]
+    fn cmd_slap_with_provided_damage_provided_slaps_and_kills() {
+        let mut mock = MockQuakeEngine::new();
+        mock.expect_cmd_argc().return_once_st(|| 3);
+        mock.expect_cmd_argv()
+            .with(eq(1))
+            .return_once_st(|_| Some("2"));
+        mock.expect_cmd_argv()
+            .with(eq(2))
+            .return_once_st(|_| Some("666"));
+        mock.expect_com_printf()
+            .withf_st(|text| text == "Slapping...\n")
+            .return_const(());
+        mock.expect_send_server_command()
+            .withf_st(|client, cmd| {
+                client.is_none()
+                    && cmd == "print \"Slapped Player^7 was slapped for 666 damage!\n\"\n"
+            })
+            .return_const(());
+        mock.expect_game_add_event()
+            .withf_st(|_, &entity_event, &event_param| {
+                entity_event == entity_event_t::EV_DEATH1 && event_param == 42
+            })
+            .return_const(());
+
+        let game_client_try_from_ctx = MockGameEntity::try_from_context();
+        game_client_try_from_ctx
+            .expect()
+            .withf_st(|&client_id| client_id == 2)
+            .returning_st(|_| {
+                let mut game_entity_mock = MockGameEntity::default();
+                game_entity_mock.expect_in_use().returning_st(|| true);
+                game_entity_mock.expect_get_health().returning_st(|| 200);
+                game_entity_mock
+                    .expect_set_health()
+                    .with(eq(-466))
+                    .return_const(());
+                game_entity_mock.expect_get_game_client().returning_st(|| {
+                    let mut game_client_mock = MockGameClient::default();
+                    game_client_mock
+                        .expect_set_velocity::<(f32, f32, f32)>()
+                        .return_const(());
+                    Ok(game_client_mock)
+                });
+                game_entity_mock.expect_get_client_number().return_const(42);
+                Ok(game_entity_mock)
+            });
+        let client_try_from_ctx = Client::try_from_context();
+        client_try_from_ctx
+            .expect()
+            .withf_st(|&client_id| client_id == 2)
+            .returning_st(|_| {
+                let mut client_mock = MockClient::default();
+                client_mock
+                    .expect_get_name()
+                    .returning_st(|| "Slapped Player".into());
+                Ok(client_mock)
+            });
+        cmd_slap_intern(16, &mock);
+    }
+
+    #[test]
     fn cmd_slay_with_too_few_args() {
         let mut mock = MockQuakeEngine::new();
         mock.expect_cmd_argc().return_once_st(|| 1);
