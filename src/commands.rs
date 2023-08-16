@@ -133,7 +133,7 @@ where
         return;
     };
 
-    let Some(client_id) = passed_client_id_str.parse::<i32>().ok() else {
+    let Ok(client_id) = passed_client_id_str.parse::<i32>() else {
         main_engine.com_printf(format!(
             "client_id must be a number between 0 and {}.\n",
             maxclients.into() - 1
@@ -156,7 +156,7 @@ where
         0
     };
 
-    let Some(mut client_entity) = GameEntity::try_from(client_id).ok() else {
+    let Ok(mut client_entity) = GameEntity::try_from(client_id) else {
         return;
     };
     if !client_entity.in_use() || client_entity.get_health() <= 0 {
@@ -166,7 +166,7 @@ where
 
     main_engine.com_printf("Slapping...\n".into());
 
-    let Some(client) = Client::try_from(client_id).ok() else {
+    let Ok(client) = Client::try_from(client_id) else {
         return;
     };
     let message = if dmg != 0 {
@@ -246,7 +246,7 @@ where
         return;
     };
 
-    let Some(client_id) = passed_client_id_str.parse::<i32>().ok() else {
+    let Ok(client_id) = passed_client_id_str.parse::<i32>() else {
         main_engine.com_printf(format!(
             "client_id must be a number between 0 and {}.\n",
             maxclients.into() - 1
@@ -262,7 +262,7 @@ where
         return;
     }
 
-    let Some(mut client_entity) = GameEntity::try_from(client_id).ok() else {
+    let Ok(mut client_entity) = GameEntity::try_from(client_id) else {
         return;
     };
     if !client_entity.in_use() || client_entity.get_health() <= 0 {
@@ -272,7 +272,7 @@ where
 
     main_engine.com_printf("Slaying player...\n".into());
 
-    let Some(client) = Client::try_from(client_id).ok() else {
+    let Ok(client) = Client::try_from(client_id) else {
         return;
     };
 
