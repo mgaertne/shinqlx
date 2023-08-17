@@ -1081,7 +1081,7 @@ impl Vector3Iter {
 
 /// A three-dimensional vector.
 #[pyclass(name = "Vector3", module = "minqlx", get_all)]
-#[derive(PartialEq, Debug, Clone, Copy, Default)]
+#[derive(PartialEq, Eq, Debug, Clone, Copy, Default)]
 struct Vector3(
     #[pyo3(name = "x")] i32,
     #[pyo3(name = "y")] i32,
@@ -1121,6 +1121,10 @@ impl Vector3 {
     }
 
     fn __str__(&self) -> String {
+        format!("Vector3(x={}, y={}, z={})", self.0, self.1, self.2)
+    }
+
+    fn __repr__(&self) -> String {
         format!("Vector3(x={}, y={}, z={})", self.0, self.1, self.2)
     }
 
