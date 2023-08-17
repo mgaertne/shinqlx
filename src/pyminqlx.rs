@@ -23,6 +23,7 @@ use crate::quake_live_engine::{
     SetCVarForced, SetCVarLimit,
 };
 use pyo3::append_to_inittab;
+use pyo3::basic::CompareOp;
 use pyo3::exceptions::{PyEnvironmentError, PyTypeError, PyValueError};
 use pyo3::prelude::*;
 use pyo3::prepare_freethreaded_python;
@@ -1118,6 +1119,14 @@ impl Vector3 {
             results[1].unwrap(),
             results[2].unwrap(),
         ))
+    }
+
+    fn __richcmp__(&self, other: &Self, op: CompareOp, py: Python<'_>) -> PyObject {
+        match op {
+            CompareOp::Eq => (self == other).into_py(py),
+            CompareOp::Ne => (self != other).into_py(py),
+            _ => py.NotImplemented(),
+        }
     }
 
     fn __str__(&self) -> String {
