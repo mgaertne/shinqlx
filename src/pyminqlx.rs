@@ -473,6 +473,17 @@ impl PlayerInfo {
                 self.team,
                 self.privileges)
     }
+
+    fn __repr__(&self) -> String {
+        format!("PlayerInfo(client_id={}, name={}, connection_state={}, userinfo={}, steam_id={}, team={}, privileges={})",
+                self.client_id,
+                self.name,
+                self.connection_state,
+                self.userinfo,
+                self.steam_id,
+                self.team,
+                self.privileges)
+    }
 }
 
 impl TryFrom<i32> for PlayerInfo {
@@ -1210,7 +1221,7 @@ weapons = _minqlx.Vector3((0, 42, 666))
 /// A struct sequence containing all the weapons in the game.
 #[pyclass]
 #[pyo3(module = "minqlx", name = "Weapons", get_all)]
-#[derive(PartialEq, Debug, Clone, Copy)]
+#[derive(PartialEq, Eq, Debug, Clone, Copy)]
 struct Weapons(
     #[pyo3(name = "g")] i32,
     #[pyo3(name = "mg")] i32,
@@ -1283,7 +1294,20 @@ impl Weapons {
         ))
     }
 
+    fn __richcmp__(&self, other: &Self, op: CompareOp, py: Python<'_>) -> PyObject {
+        match op {
+            CompareOp::Eq => (self == other).into_py(py),
+            CompareOp::Ne => (self != other).into_py(py),
+            _ => py.NotImplemented(),
+        }
+    }
+
     fn __str__(&self) -> String {
+        format!("Weapons(g={}, mg={}, sg={}, gl={}, rl={}, lg={}, rg={}, pg={}, bfg={}, gh={}, ng={}, pl={}, cg={}, hmg={}, hands={})",
+        self.0, self.1, self.2, self.3, self.4, self.5, self.5, self.7, self.8, self.9, self.10, self.11, self.12, self.13, self.14)
+    }
+
+    fn __repr__(&self) -> String {
         format!("Weapons(g={}, mg={}, sg={}, gl={}, rl={}, lg={}, rg={}, pg={}, bfg={}, gh={}, ng={}, pl={}, cg={}, hmg={}, hands={})",
         self.0, self.1, self.2, self.3, self.4, self.5, self.5, self.7, self.8, self.9, self.10, self.11, self.12, self.13, self.14)
     }
@@ -1342,7 +1366,7 @@ weapons = _minqlx.Weapons((0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14))
 /// A struct sequence containing all the powerups in the game.
 #[pyclass]
 #[pyo3(module = "minqlx", name = "Powerups", get_all)]
-#[derive(PartialEq, Debug, Clone, Copy)]
+#[derive(PartialEq, Eq, Debug, Clone, Copy)]
 struct Powerups(
     #[pyo3(name = "quad")] i32,
     #[pyo3(name = "battlesuit")] i32,
@@ -1400,7 +1424,20 @@ impl Powerups {
         ))
     }
 
+    fn __richcmp__(&self, other: &Self, op: CompareOp, py: Python<'_>) -> PyObject {
+        match op {
+            CompareOp::Eq => (self == other).into_py(py),
+            CompareOp::Ne => (self != other).into_py(py),
+            _ => py.NotImplemented(),
+        }
+    }
+
     fn __str__(&self) -> String {
+        format!("Powerups(quad={}, battlesuit={}, haste={}, invisibility={}, regeneration={}, invulnerability={})",
+            self.0, self.1, self.2, self.3, self.4, self.5)
+    }
+
+    fn __repr__(&self) -> String {
         format!("Powerups(quad={}, battlesuit={}, haste={}, invisibility={}, regeneration={}, invulnerability={})",
             self.0, self.1, self.2, self.3, self.4, self.5)
     }
@@ -1480,7 +1517,7 @@ impl From<Holdable> for i32 {
 /// A struct sequence containing parameters for the flight holdable item.
 #[pyclass]
 #[pyo3(module = "minqlx", name = "Flight", get_all)]
-#[derive(PartialEq, Debug, Clone, Copy)]
+#[derive(PartialEq, Eq, Debug, Clone, Copy)]
 struct Flight(
     #[pyo3(name = "fuel")] i32,
     #[pyo3(name = "max_fuel")] i32,
@@ -1527,7 +1564,22 @@ impl Flight {
         ))
     }
 
+    fn __richcmp__(&self, other: &Self, op: CompareOp, py: Python<'_>) -> PyObject {
+        match op {
+            CompareOp::Eq => (self == other).into_py(py),
+            CompareOp::Ne => (self != other).into_py(py),
+            _ => py.NotImplemented(),
+        }
+    }
+
     fn __str__(&self) -> String {
+        format!(
+            "Flight(fuel={}, max_fuel={}, thrust={}, refuel={})",
+            self.0, self.1, self.2, self.3
+        )
+    }
+
+    fn __repr__(&self) -> String {
         format!(
             "Flight(fuel={}, max_fuel={}, thrust={}, refuel={})",
             self.0, self.1, self.2, self.3
@@ -1600,6 +1652,27 @@ struct PlayerState {
 #[pymethods]
 impl PlayerState {
     fn __str__(&self) -> String {
+        format!("PlayerState(is_alive={}, position={}, veclocity={}, health={}, armor={}, noclip={}, weapon={}, weapons={}, ammo={}, powerups={}, holdable={}, flight={}, is_chatting={}, is_frozen={})",
+            self.is_alive,
+            self.position.__str__(),
+            self.velocity.__str__(),
+            self.health,
+            self.armor,
+            self.noclip,
+            self.weapon,
+            self.weapons.__str__(),
+            self.ammo.__str__(),
+            self.powerups.__str__(),
+            match self.holdable.as_ref() {
+                Some(value) => value,
+                None => "None",
+            },
+            self.flight.__str__(),
+            self.is_chatting,
+            self.is_frozen)
+    }
+
+    fn __repr__(&self) -> String {
         format!("PlayerState(is_alive={}, position={}, veclocity={}, health={}, armor={}, noclip={}, weapon={}, weapons={}, ammo={}, powerups={}, holdable={}, flight={}, is_chatting={}, is_frozen={})",
             self.is_alive,
             self.position.__str__(),
@@ -1725,6 +1798,11 @@ struct PlayerStats {
 #[pymethods]
 impl PlayerStats {
     fn __str__(&self) -> String {
+        format!("PlayerStats(score={}, kills={}, deaths={}, damage_dealt={}, damage_taken={}, time={}, ping={})",
+            self.score, self.kills, self.deaths, self.damage_dealt, self.damage_taken, self.time, self.ping)
+    }
+
+    fn __repr__(&self) -> String {
         format!("PlayerStats(score={}, kills={}, deaths={}, damage_dealt={}, damage_taken={}, time={}, ping={})",
             self.score, self.kills, self.deaths, self.damage_dealt, self.damage_taken, self.time, self.ping)
     }
