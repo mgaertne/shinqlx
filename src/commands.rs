@@ -1,20 +1,29 @@
 #[cfg(not(test))]
 use crate::client::Client;
 #[cfg(test)]
-use crate::commands::commands_tests::MockClient as Client;
+use crate::commands::python::{
+    new_game_dispatcher, pyminqlx_initialize, pyminqlx_is_initialized, pyminqlx_reload,
+    rcon_dispatcher,
+};
 #[cfg(test)]
-use crate::commands::commands_tests::MockGameEntity as GameEntity;
+use crate::commands::MockClient as Client;
+#[cfg(test)]
+use crate::commands::MockGameEntity as GameEntity;
 #[cfg(not(test))]
 use crate::game_entity::GameEntity;
 use crate::prelude::*;
+use crate::pyminqlx::CUSTOM_COMMAND_HANDLER;
+#[cfg(not(test))]
 use crate::pyminqlx::{
     new_game_dispatcher, pyminqlx_initialize, pyminqlx_is_initialized, pyminqlx_reload,
-    rcon_dispatcher, CUSTOM_COMMAND_HANDLER,
+    rcon_dispatcher,
 };
 use crate::quake_live_engine::{
     CmdArgc, CmdArgs, CmdArgv, ComPrintf, GameAddEvent, SendServerCommand,
 };
 use crate::MAIN_ENGINE;
+#[cfg(test)]
+use mockall::{automock, mock};
 use pyo3::Python;
 use rand::Rng;
 
@@ -302,6 +311,14 @@ pub extern "C" fn cmd_py_rcon() {
         return;
     };
 
+    cmd_py_rcon_intern(main_engine);
+}
+
+#[cfg_attr(not(test), inline)]
+fn cmd_py_rcon_intern<T>(main_engine: &T)
+where
+    T: CmdArgs,
+{
     let Some(commands) = main_engine.cmd_args() else {
         return;
     };
@@ -319,16 +336,18 @@ pub extern "C" fn cmd_py_command() {
         return;
     };
 
+    let Some(main_engine_guard) = MAIN_ENGINE.try_read() else {
+        return;
+    };
+
+    let Some(ref main_engine) = *main_engine_guard else {
+        return;
+    };
+
+    let cmd_args = main_engine.cmd_args();
+
     Python::with_gil(|py| {
-        let Some(main_engine_guard) = MAIN_ENGINE.try_read() else {
-            return;
-        };
-
-        let Some(ref main_engine) = *main_engine_guard else {
-            return;
-        };
-
-        let result = match main_engine.cmd_args() {
+        let result = match cmd_args {
             None => custom_command_handler.call0(py),
             Some(args) => custom_command_handler.call1(py, (args,)),
         };
@@ -350,7 +369,15 @@ pub extern "C" fn cmd_restart_python() {
         return;
     };
 
-    main_engine.com_printf("Restarting Python...\n");
+    cmd_restart_python_intern(main_engine);
+}
+
+#[cfg_attr(not(test), inline)]
+fn cmd_restart_python_intern<T>(main_engine: &T)
+where
+    T: ComPrintf<String>,
+{
+    main_engine.com_printf("Restarting Python...\n".into());
 
     if pyminqlx_is_initialized() {
         if pyminqlx_reload().is_err() {
@@ -372,83 +399,115 @@ pub extern "C" fn cmd_restart_python() {
 }
 
 #[cfg(test)]
+#[cfg_attr(test, automock)]
+mod python {
+    use crate::pyminqlx::PythonInitializationError;
+
+    pub(crate) fn rcon_dispatcher<T>(_cmd: T)
+    where
+        T: AsRef<str> + 'static,
+    {
+    }
+
+    pub(crate) fn new_game_dispatcher(_restart: bool) {}
+
+    pub(crate) fn pyminqlx_is_initialized() -> bool {
+        false
+    }
+
+    pub(crate) fn pyminqlx_initialize() -> Result<(), PythonInitializationError> {
+        Ok(())
+    }
+
+    pub(crate) fn pyminqlx_reload() -> Result<(), PythonInitializationError> {
+        Ok(())
+    }
+}
+
+#[cfg(test)]
+mock! {
+    QuakeEngine {}
+    impl CmdArgs for QuakeEngine {
+        fn cmd_args(&self) -> Option<String>;
+    }
+    impl CmdArgc for QuakeEngine {
+        fn cmd_argc(&self) -> i32;
+    }
+    impl CmdArgv<i32> for QuakeEngine {
+        fn cmd_argv(&self, argno: i32) -> Option<&'static str>;
+    }
+    impl ComPrintf<String> for QuakeEngine {
+        fn com_printf(&self, msg: String);
+    }
+    impl GameAddEvent<&mut GameEntity, i32> for QuakeEngine {
+        fn game_add_event(&self, game_entity: &mut GameEntity, event: entity_event_t, event_param: i32);
+    }
+    impl SendServerCommand<Client, String> for QuakeEngine {
+        fn send_server_command(&self, client: Option<Client>, command: String);
+    }
+}
+
+#[cfg(test)]
+mock! {
+    pub(crate) GameClient {
+        pub(crate) fn set_velocity<T>(&mut self, velocity: T)
+        where
+            T: Into<[f32; 3]> + 'static;
+    }
+}
+
+#[cfg(test)]
+mock! {
+    pub(crate) GameEntity {
+        pub(crate) fn get_game_client(&self) -> Result<MockGameClient, QuakeLiveEngineError>;
+        pub(crate) fn in_use(&self) -> bool;
+        pub(crate) fn get_health(&self) -> i32;
+        pub(crate) fn set_health(&mut self, new_health: i32);
+        pub(crate) fn get_client_number(&self) -> i32;
+    }
+
+    impl AsMut<gentity_t> for GameEntity {
+        fn as_mut(&mut self) -> &mut gentity_t;
+    }
+
+    impl TryFrom<i32> for GameEntity {
+        type Error = QuakeLiveEngineError;
+        fn try_from(entity_id: i32) -> Result<Self, QuakeLiveEngineError>;
+    }
+}
+
+#[cfg(test)]
+mock! {
+    pub(crate) Client {
+        pub(crate) fn get_name(&self) -> String;
+    }
+
+    impl TryFrom<i32> for Client {
+        type Error = QuakeLiveEngineError;
+        fn try_from(entity_id: i32) -> Result<Self, QuakeLiveEngineError>;
+    }
+
+    impl AsRef<client_t> for Client {
+        fn as_ref(&self) -> &client_t;
+    }
+}
+
+#[cfg(test)]
 pub(crate) mod commands_tests {
-    use super::{Client, GameEntity};
+    use super::Client;
+    use crate::commands::mock_python::{
+        new_game_dispatcher_context, pyminqlx_initialize_context, pyminqlx_is_initialized_context,
+        pyminqlx_reload_context, rcon_dispatcher_context,
+    };
     use crate::commands::{
-        cmd_center_print_intern, cmd_regular_print_intern, cmd_send_server_command_intern,
-        cmd_slap_intern, cmd_slay_intern,
+        cmd_center_print_intern, cmd_py_rcon_intern, cmd_regular_print_intern,
+        cmd_restart_python_intern, cmd_send_server_command_intern, cmd_slap_intern,
+        cmd_slay_intern, MockClient, MockGameClient, MockGameEntity, MockQuakeEngine,
     };
-    use crate::quake_live_engine::{
-        CmdArgc, CmdArgs, CmdArgv, ComPrintf, GameAddEvent, QuakeLiveEngineError, SendServerCommand,
-    };
-    use crate::quake_types::{client_t, entity_event_t, gentity_t};
+    use crate::pyminqlx::PythonInitializationError;
+    use crate::quake_types::entity_event_t;
     use mockall::predicate::eq;
-    use mockall::*;
     use serial_test::serial;
-
-    mock! {
-        QuakeEngine {}
-        impl CmdArgs for QuakeEngine {
-            fn cmd_args(&self) -> Option<String>;
-        }
-        impl CmdArgc for QuakeEngine {
-            fn cmd_argc(&self) -> i32;
-        }
-        impl CmdArgv<i32> for QuakeEngine {
-            fn cmd_argv(&self, argno: i32) -> Option<&'static str>;
-        }
-        impl ComPrintf<String> for QuakeEngine {
-            fn com_printf(&self, msg: String);
-        }
-        impl GameAddEvent<&mut GameEntity, i32> for QuakeEngine {
-            fn game_add_event(&self, game_entity: &mut GameEntity, event: entity_event_t, event_param: i32);
-        }
-        impl SendServerCommand<Client, String> for QuakeEngine {
-            fn send_server_command(&self, client: Option<Client>, command: String);
-        }
-    }
-
-    mock! {
-        pub(crate) GameClient {
-            pub(crate) fn set_velocity<T>(&mut self, velocity: T)
-            where
-                T: Into<[f32; 3]> + 'static;
-        }
-    }
-
-    mock! {
-        pub(crate) GameEntity {
-            pub(crate) fn get_game_client(&self) -> Result<MockGameClient, QuakeLiveEngineError>;
-            pub(crate) fn in_use(&self) -> bool;
-            pub(crate) fn get_health(&self) -> i32;
-            pub(crate) fn set_health(&mut self, new_health: i32);
-            pub(crate) fn get_client_number(&self) -> i32;
-        }
-
-        impl AsMut<gentity_t> for GameEntity {
-            fn as_mut(&mut self) -> &mut gentity_t;
-        }
-
-        impl TryFrom<i32> for GameEntity {
-            type Error = QuakeLiveEngineError;
-            fn try_from(entity_id: i32) -> Result<Self, QuakeLiveEngineError>;
-        }
-    }
-
-    mock! {
-        pub(crate) Client {
-            pub(crate) fn get_name(&self) -> String;
-        }
-
-        impl TryFrom<i32> for Client {
-            type Error = QuakeLiveEngineError;
-            fn try_from(entity_id: i32) -> Result<Self, QuakeLiveEngineError>;
-        }
-
-        impl AsRef<client_t> for Client {
-            fn as_ref(&self) -> &client_t;
-        }
-    }
 
     #[test]
     fn cmd_send_server_command_with_no_args() {
@@ -1008,5 +1067,108 @@ pub(crate) mod commands_tests {
                 Ok(client_mock)
             });
         cmd_slay_intern(16, &mock);
+    }
+
+    #[test]
+    #[serial]
+    fn cmd_py_rcon_with_no_args() {
+        let mut mock = MockQuakeEngine::new();
+        mock.expect_cmd_args().return_once_st(|| None);
+
+        let rcon_dispatcher_ctx = rcon_dispatcher_context();
+        rcon_dispatcher_ctx.expect::<&str>().times(0);
+
+        cmd_py_rcon_intern(&mock);
+    }
+
+    #[test]
+    #[serial]
+    fn cmd_py_rcon_forwards_args() {
+        let mut mock = MockQuakeEngine::new();
+        mock.expect_cmd_args()
+            .return_once_st(|| Some("!version".into()));
+
+        let rcon_dispatcher_ctx = rcon_dispatcher_context();
+        rcon_dispatcher_ctx
+            .expect::<&str>()
+            .withf_st(|&cmd| cmd == "!version");
+
+        cmd_py_rcon_intern(&mock);
+    }
+
+    #[test]
+    #[serial]
+    fn cmd_restart_python_already_initialized() {
+        let mut mock = MockQuakeEngine::new();
+        mock.expect_com_printf()
+            .withf_st(|text| text == "Restarting Python...\n")
+            .return_const(());
+
+        let pyminqlx_is_initialized_ctx = pyminqlx_is_initialized_context();
+        pyminqlx_is_initialized_ctx.expect().return_const(true);
+        let pyminqlx_reload_ctx = pyminqlx_reload_context();
+        pyminqlx_reload_ctx.expect().return_const(Ok(()));
+        let new_game_dispatcher_ctx = new_game_dispatcher_context();
+        new_game_dispatcher_ctx.expect().with(eq(false));
+
+        cmd_restart_python_intern(&mock);
+    }
+
+    #[test]
+    #[serial]
+    fn cmd_restart_python_already_initialized_reload_fails() {
+        let mut mock = MockQuakeEngine::new();
+        mock.expect_com_printf()
+            .withf_st(|text| text == "Restarting Python...\n")
+            .return_const(());
+
+        let pyminqlx_is_initialized_ctx = pyminqlx_is_initialized_context();
+        pyminqlx_is_initialized_ctx.expect().return_const(true);
+        let pyminqlx_reload_ctx = pyminqlx_reload_context();
+        pyminqlx_reload_ctx
+            .expect()
+            .return_const(Err(PythonInitializationError::MainScriptError));
+        let new_game_dispatcher_ctx = new_game_dispatcher_context();
+        new_game_dispatcher_ctx.expect().times(0);
+
+        cmd_restart_python_intern(&mock);
+    }
+
+    #[test]
+    #[serial]
+    fn cmd_restart_python_not_previously_initialized() {
+        let mut mock = MockQuakeEngine::new();
+        mock.expect_com_printf()
+            .withf_st(|text| text == "Restarting Python...\n")
+            .return_const(());
+
+        let pyminqlx_is_initialized_ctx = pyminqlx_is_initialized_context();
+        pyminqlx_is_initialized_ctx.expect().return_const(false);
+        let pyminqlx_initialize_ctx = pyminqlx_initialize_context();
+        pyminqlx_initialize_ctx.expect().return_const(Ok(()));
+        let new_game_dispatcher_ctx = new_game_dispatcher_context();
+        new_game_dispatcher_ctx.expect().with(eq(false));
+
+        cmd_restart_python_intern(&mock);
+    }
+
+    #[test]
+    #[serial]
+    fn cmd_restart_python_not_previously_initialized_initialize_fails() {
+        let mut mock = MockQuakeEngine::new();
+        mock.expect_com_printf()
+            .withf_st(|text| text == "Restarting Python...\n")
+            .return_const(());
+
+        let pyminqlx_is_initialized_ctx = pyminqlx_is_initialized_context();
+        pyminqlx_is_initialized_ctx.expect().return_const(false);
+        let pyminqlx_initialize_ctx = pyminqlx_initialize_context();
+        pyminqlx_initialize_ctx
+            .expect()
+            .return_const(Err(PythonInitializationError::NotInitializedError));
+        let new_game_dispatcher_ctx = new_game_dispatcher_context();
+        new_game_dispatcher_ctx.expect().times(0);
+
+        cmd_restart_python_intern(&mock);
     }
 }

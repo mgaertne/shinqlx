@@ -277,6 +277,7 @@ where
     })
 }
 
+#[cfg_attr(test, allow(dead_code))]
 pub(crate) fn rcon_dispatcher<T>(cmd: T)
 where
     T: AsRef<str>,
@@ -3069,6 +3070,7 @@ pub(crate) fn pyminqlx_initialize() -> Result<(), PythonInitializationError> {
     }
 }
 
+#[cfg_attr(test, allow(dead_code))]
 pub(crate) fn pyminqlx_reload() -> Result<(), PythonInitializationError> {
     if !pyminqlx_is_initialized() {
         error!(target: "shinqlx", "pyminqlx_finalize was called before being initialized");
