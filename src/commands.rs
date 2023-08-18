@@ -1127,7 +1127,7 @@ pub(crate) mod commands_tests {
         let pyminqlx_reload_ctx = pyminqlx_reload_context();
         pyminqlx_reload_ctx
             .expect()
-            .return_const(Err(PythonInitializationError::MainScriptError));
+            .return_const(Err(PythonInitializationError::NotInitializedError));
         let new_game_dispatcher_ctx = new_game_dispatcher_context();
         new_game_dispatcher_ctx.expect().times(0);
 
@@ -1165,7 +1165,7 @@ pub(crate) mod commands_tests {
         let pyminqlx_initialize_ctx = pyminqlx_initialize_context();
         pyminqlx_initialize_ctx
             .expect()
-            .return_const(Err(PythonInitializationError::NotInitializedError));
+            .return_const(Err(PythonInitializationError::MainScriptError));
         let new_game_dispatcher_ctx = new_game_dispatcher_context();
         new_game_dispatcher_ctx.expect().times(0);
 
