@@ -24,7 +24,7 @@ use crate::quake_live_engine::{
 use crate::MAIN_ENGINE;
 #[cfg(test)]
 use mockall::{automock, mock};
-use pyo3::Python;
+use pyo3::{Py, PyAny, Python};
 use rand::Rng;
 
 #[no_mangle]
@@ -344,6 +344,14 @@ pub extern "C" fn cmd_py_command() {
         return;
     };
 
+    cmd_py_command_intern(custom_command_handler, main_engine);
+}
+
+#[cfg_attr(not(test), inline)]
+fn cmd_py_command_intern<T>(custom_command_handler: &Py<PyAny>, main_engine: &T)
+where
+    T: CmdArgs + ComPrintf<String>,
+{
     let cmd_args = main_engine.cmd_args();
 
     Python::with_gil(|py| {
@@ -353,8 +361,9 @@ pub extern "C" fn cmd_py_command() {
         };
 
         if result.is_err() || !result.unwrap().is_true(py).unwrap() {
-            main_engine
-                .com_printf("The command failed to be executed. pyshinqlx found no handler.\n");
+            main_engine.com_printf(
+                "The command failed to be executed. pyshinqlx found no handler.\n".into(),
+            );
         }
     });
 }
@@ -500,13 +509,20 @@ pub(crate) mod commands_tests {
         pyminqlx_reload_context, rcon_dispatcher_context,
     };
     use crate::commands::{
-        cmd_center_print_intern, cmd_py_rcon_intern, cmd_regular_print_intern,
-        cmd_restart_python_intern, cmd_send_server_command_intern, cmd_slap_intern,
-        cmd_slay_intern, MockClient, MockGameClient, MockGameEntity, MockQuakeEngine,
+        cmd_center_print_intern, cmd_py_command_intern, cmd_py_rcon_intern,
+        cmd_regular_print_intern, cmd_restart_python_intern, cmd_send_server_command_intern,
+        cmd_slap_intern, cmd_slay_intern, MockClient, MockGameClient, MockGameEntity,
+        MockQuakeEngine,
     };
+    #[cfg(not(miri))]
+    use crate::pyminqlx::pyminqlx_setup_fixture::*;
     use crate::pyminqlx::PythonInitializationError;
     use crate::quake_types::entity_event_t;
     use mockall::predicate::eq;
+    use pyo3::types::PyModule;
+    use pyo3::{IntoPy, Py, Python};
+    #[cfg(not(miri))]
+    use rstest::rstest;
     use serial_test::serial;
 
     #[test]
@@ -1094,6 +1110,119 @@ pub(crate) mod commands_tests {
             .withf_st(|&cmd| cmd == "!version");
 
         cmd_py_rcon_intern(&mock);
+    }
+
+    #[cfg_attr(not(miri), rstest)]
+    #[serial]
+    fn cmd_py_command_with_arguments(_pyminqlx_setup: ()) {
+        let mut mock = MockQuakeEngine::new();
+        mock.expect_cmd_args()
+            .return_once_st(|| Some("custom parameter".into()));
+        mock.expect_com_printf().times(0);
+
+        let pymodule: Py<PyModule> = Python::with_gil(|py| {
+            PyModule::from_code(
+                py,
+                r#"
+def handler(params):
+    return (params == "custom parameter")
+"#,
+                "",
+                "",
+            )
+            .unwrap()
+            .into_py(py)
+        });
+        let custom_command_handler =
+            Python::with_gil(|py| pymodule.getattr(py, "handler").unwrap().into_py(py));
+
+        cmd_py_command_intern(&custom_command_handler, &mock);
+    }
+
+    #[cfg_attr(not(miri), rstest)]
+    #[serial]
+    fn cmd_py_command_with_no_args(_pyminqlx_setup: ()) {
+        let mut mock = MockQuakeEngine::new();
+        mock.expect_cmd_args().return_once_st(|| None);
+        mock.expect_com_printf().times(0);
+
+        let pymodule: Py<PyModule> = Python::with_gil(|py| {
+            PyModule::from_code(
+                py,
+                r#"
+def handler():
+    return True
+"#,
+                "",
+                "",
+            )
+            .unwrap()
+            .into_py(py)
+        });
+        let custom_command_handler =
+            Python::with_gil(|py| pymodule.getattr(py, "handler").unwrap().into_py(py));
+
+        cmd_py_command_intern(&custom_command_handler, &mock);
+    }
+
+    #[cfg_attr(not(miri), rstest)]
+    #[serial]
+    fn cmd_py_command_returns_error(_pyminqlx_setup: ()) {
+        let mut mock = MockQuakeEngine::new();
+        mock.expect_cmd_args().return_once_st(|| None);
+        mock.expect_com_printf()
+            .withf_st(|text| {
+                text == "The command failed to be executed. pyshinqlx found no handler.\n"
+            })
+            .return_const(());
+
+        let pymodule: Py<PyModule> = Python::with_gil(|py| {
+            PyModule::from_code(
+                py,
+                r#"
+def handler():
+    raise Exception 
+"#,
+                "",
+                "",
+            )
+            .unwrap()
+            .into_py(py)
+        });
+        let custom_command_handler =
+            Python::with_gil(|py| pymodule.getattr(py, "handler").unwrap().into_py(py));
+
+        cmd_py_command_intern(&custom_command_handler, &mock);
+    }
+
+    #[cfg_attr(not(miri), rstest)]
+    #[serial]
+    fn cmd_py_command_returns_false(_pyminqlx_setup: ()) {
+        let mut mock = MockQuakeEngine::new();
+        mock.expect_cmd_args().return_once_st(|| None);
+        mock.expect_com_printf()
+            .withf_st(|text| {
+                text == "The command failed to be executed. pyshinqlx found no handler.\n"
+            })
+            .return_const(());
+
+        let pymodule: Py<PyModule> = Python::with_gil(|py| {
+            PyModule::from_code(
+                py,
+                r#"
+def handler():
+    return False 
+"#,
+                "",
+                "",
+            )
+            .unwrap()
+            .into_py(py)
+        });
+        let custom_command_handler =
+            Python::with_gil(|py| pymodule.getattr(py, "handler").unwrap().into_py(py));
+
+        cmd_py_command_intern(&custom_command_handler, &mock);
     }
 
     #[test]
