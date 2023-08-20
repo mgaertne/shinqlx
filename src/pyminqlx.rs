@@ -31,6 +31,7 @@ use pyo3::types::PyTuple;
 
 static ALLOW_FREE_CLIENT: AtomicI32 = AtomicI32::new(-1);
 
+#[cfg_attr(test, allow(dead_code))]
 pub(crate) fn client_command_dispatcher<T>(client_id: i32, cmd: T) -> Option<String>
 where
     T: AsRef<str>,
