@@ -52,7 +52,7 @@ pip install maturin
 ```shell
 git clone https://github.com/mgaertne/shinqlx.git
 cd shinqlx
-maturin -Z build-std=std build --release
+maturin build -Z build-std=std --release
 ```
 
 - Install the generated python wheel into the virtual python environment:
