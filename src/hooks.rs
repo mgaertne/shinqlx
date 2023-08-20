@@ -1,10 +1,14 @@
 use crate::client::Client;
 use crate::game_entity::GameEntity;
+#[cfg(test)]
+use crate::hooks::mock_python::client_command_dispatcher;
 use crate::prelude::*;
+#[cfg(not(test))]
+use crate::pyminqlx::client_command_dispatcher;
 use crate::pyminqlx::{
-    client_command_dispatcher, client_connect_dispatcher, client_disconnect_dispatcher,
-    client_loaded_dispatcher, client_spawn_dispatcher, console_print_dispatcher, damage_dispatcher,
-    frame_dispatcher, kamikaze_explode_dispatcher, kamikaze_use_dispatcher, new_game_dispatcher,
+    client_connect_dispatcher, client_disconnect_dispatcher, client_loaded_dispatcher,
+    client_spawn_dispatcher, console_print_dispatcher, damage_dispatcher, frame_dispatcher,
+    kamikaze_explode_dispatcher, kamikaze_use_dispatcher, new_game_dispatcher,
     server_command_dispatcher, set_configstring_dispatcher,
 };
 use crate::quake_live_engine::{
@@ -15,6 +19,8 @@ use crate::quake_live_engine::{
 use crate::MAIN_ENGINE;
 use alloc::string::String;
 use core::ffi::{c_char, c_int, CStr, VaList, VaListImpl};
+#[cfg(test)]
+use mockall::{automock, mock};
 
 pub(crate) fn shinqlx_cmd_addcommand(cmd: *const c_char, func: unsafe extern "C" fn()) {
     let Some(main_engine_guard) = MAIN_ENGINE.try_read() else {
@@ -108,15 +114,37 @@ pub(crate) fn shinqlx_sv_executeclientcommand(
 ) {
     let rust_cmd = unsafe { CStr::from_ptr(cmd) }.to_string_lossy();
     if !rust_cmd.is_empty() {
-        shinqlx_execute_client_command(Client::try_from(client).ok(), rust_cmd, client_ok.into());
+        shinqlx_execute_client_command(Client::try_from(client).ok(), rust_cmd, client_ok);
     }
 }
 
-pub(crate) fn shinqlx_execute_client_command<T>(client: Option<Client>, cmd: T, client_ok: bool)
+pub(crate) fn shinqlx_execute_client_command<T, U>(client: Option<Client>, cmd: T, client_ok: U)
 where
-    T: AsRef<str>,
+    T: Into<String>,
+    U: Into<qboolean> + Into<bool> + Copy,
 {
-    let passed_on_cmd_str = if client_ok
+    let Some(main_engine_guard) = MAIN_ENGINE.try_read() else {
+        return;
+    };
+
+    let Some(ref main_engine) = *main_engine_guard else {
+        return;
+    };
+
+    shinqlx_execute_client_command_intern(main_engine, client, cmd.into(), client_ok);
+}
+
+#[cfg_attr(not(test), inline)]
+fn shinqlx_execute_client_command_intern<T, U>(
+    main_engine: &T,
+    client: Option<Client>,
+    cmd: String,
+    client_ok: U,
+) where
+    T: ExecuteClientCommand<Client, String, qboolean>,
+    U: Into<qboolean> + Into<bool> + Copy,
+{
+    let passed_on_cmd_str: String = if client_ok.into()
         && client
             .as_ref()
             .is_some_and(|safe_client| safe_client.has_gentity())
@@ -130,19 +158,11 @@ where
         };
         dispatcher_result
     } else {
-        cmd.as_ref().into()
+        cmd.into()
     };
 
     if !passed_on_cmd_str.is_empty() {
-        let Some(main_engine_guard) = MAIN_ENGINE.try_read() else {
-            return;
-        };
-
-        let Some(ref main_engine) = *main_engine_guard else {
-            return;
-        };
-
-        main_engine.execute_client_command(client, passed_on_cmd_str, client_ok);
+        main_engine.execute_client_command(client, passed_on_cmd_str, client_ok.into());
     }
 }
 
@@ -548,5 +568,38 @@ pub extern "C" fn ShiNQlx_G_Damage(
                 means_of_death,
             );
         }
+    }
+}
+
+#[cfg(test)]
+#[automock]
+#[allow(dead_code)]
+mod python {
+    pub(crate) fn client_command_dispatcher(_client_id: i32, _cmd: String) -> Option<String> {
+        None
+    }
+}
+
+#[cfg(test)]
+mock! {
+    QuakeEngine{}
+    impl ExecuteClientCommand<Client, String, qboolean> for QuakeEngine {
+        fn execute_client_command(&self, client: Option<Client>, cmd: String, client_ok: qboolean);
+    }
+}
+#[cfg(test)]
+mod hooks_tests {
+    use crate::hooks::{shinqlx_execute_client_command_intern, MockQuakeEngine};
+
+    #[test]
+    fn execute_client_command_for_none_client_non_empty_cmd() {
+        let mut mock = MockQuakeEngine::new();
+        mock.expect_execute_client_command()
+            .withf_st(|client, cmd, &client_ok| {
+                client.is_none() && cmd == "cp asdf" && client_ok.into()
+            })
+            .return_const_st(());
+
+        shinqlx_execute_client_command_intern(&mock, None, "cp asdf".into(), true);
     }
 }
