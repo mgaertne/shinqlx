@@ -158,7 +158,7 @@ fn shinqlx_execute_client_command_intern<T, U>(
         };
         dispatcher_result
     } else {
-        cmd.into()
+        cmd
     };
 
     if !passed_on_cmd_str.is_empty() {
