@@ -598,7 +598,8 @@ mod hooks_tests {
             .withf_st(|client, cmd, &client_ok| {
                 client.is_none() && cmd == "cp asdf" && client_ok.into()
             })
-            .return_const_st(());
+            .return_const_st(())
+            .times(1);
 
         shinqlx_execute_client_command_intern(&mock, None, "cp asdf".into(), true);
     }
