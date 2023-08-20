@@ -1,7 +1,7 @@
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Literal
 
 if TYPE_CHECKING:
-    from typing import Type, Callable, Iterable, Pattern, Mapping, Literal
+    from typing import Type, Callable, Iterable, Pattern, Mapping
     from minqlx import (
         Plugin,
         Player,
@@ -17,6 +17,7 @@ if TYPE_CHECKING:
     )
 
 _re_vote: Pattern
+hot_plugged_events: Iterable[str]
 
 UncancellableEventReturn = Literal["RET_NONE"] | None
 CancellableEventReturn = Literal[0, 1, 2, 3] | None
