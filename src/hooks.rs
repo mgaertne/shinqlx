@@ -587,9 +587,12 @@ mock! {
         fn execute_client_command(&self, client: Option<Client>, cmd: String, client_ok: qboolean);
     }
 }
+
 #[cfg(test)]
 mod hooks_tests {
+    use crate::client::Client;
     use crate::hooks::{shinqlx_execute_client_command_intern, MockQuakeEngine};
+    use crate::prelude::*;
 
     #[test]
     fn execute_client_command_for_none_client_non_empty_cmd() {
@@ -602,5 +605,47 @@ mod hooks_tests {
             .times(1);
 
         shinqlx_execute_client_command_intern(&mock, None, "cp asdf".into(), true);
+    }
+
+    #[test]
+    fn execute_client_command_for_not_ok_client_non_empty_cmd() {
+        let mut mock = MockQuakeEngine::new();
+        mock.expect_execute_client_command()
+            .withf_st(|client, cmd, &client_ok| {
+                client.is_some() && cmd == "cp asdf" && !<qboolean as Into<bool>>::into(client_ok)
+            })
+            .return_const_st(())
+            .times(1);
+        let mut shared_entity = SharedEntityBuilder::default().build().unwrap();
+        let mut client = ClientBuilder::default()
+            .gentity(&mut shared_entity as *mut sharedEntity_t)
+            .build()
+            .unwrap();
+
+        shinqlx_execute_client_command_intern(
+            &mock,
+            Client::try_from(&mut client as *mut client_t).ok(),
+            "cp asdf".into(),
+            false,
+        );
+    }
+
+    #[test]
+    fn execute_client_command_for_ok_client_without_gentity_non_empty_cmd() {
+        let mut mock = MockQuakeEngine::new();
+        mock.expect_execute_client_command()
+            .withf_st(|client, cmd, &client_ok| {
+                client.is_some() && cmd == "cp asdf" && !<qboolean as Into<bool>>::into(client_ok)
+            })
+            .return_const_st(())
+            .times(1);
+        let mut client = ClientBuilder::default().build().unwrap();
+
+        shinqlx_execute_client_command_intern(
+            &mock,
+            Client::try_from(&mut client as *mut client_t).ok(),
+            "cp asdf".into(),
+            false,
+        );
     }
 }
