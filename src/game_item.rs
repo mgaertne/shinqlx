@@ -147,7 +147,7 @@ impl GameItem {
 }
 
 #[cfg(test)]
-pub(crate) mod game_item_tests {
+mod game_item_tests {
     use crate::game_entity::GameEntity;
     use crate::game_item::GameItem;
     use crate::prelude::*;
@@ -160,7 +160,7 @@ pub(crate) mod game_item_tests {
     use serial_test::serial;
 
     #[test]
-    pub(crate) fn game_item_from_null_pointer() {
+    fn game_item_from_null_pointer() {
         assert_eq!(
             GameItem::try_from(core::ptr::null_mut() as *mut gitem_t),
             Err(QuakeLiveEngineError::NullPointerPassed(
@@ -170,14 +170,14 @@ pub(crate) mod game_item_tests {
     }
 
     #[test]
-    pub(crate) fn game_item_from_valid_item() {
+    fn game_item_from_valid_item() {
         let mut gitem = GItemBuilder::default().build().unwrap();
         let game_item = GameItem::try_from(&mut gitem as *mut gitem_t);
         assert!(game_item.is_ok());
     }
 
     #[test]
-    pub(crate) fn game_item_try_get_from_negative_item_id() {
+    fn game_item_try_get_from_negative_item_id() {
         assert_eq!(
             GameItem::try_from(-1),
             Err(QuakeLiveEngineError::InvalidId(-1))
@@ -185,7 +185,7 @@ pub(crate) mod game_item_tests {
     }
 
     #[test]
-    pub(crate) fn game_item_try_get_with_no_items_available() {
+    fn game_item_try_get_with_no_items_available() {
         assert_eq!(
             GameItem::try_from(42),
             Err(QuakeLiveEngineError::InvalidId(42))
@@ -193,18 +193,18 @@ pub(crate) mod game_item_tests {
     }
 
     #[test]
-    pub(crate) fn get_num_items_from_non_existing_item_list() {
+    fn get_num_items_from_non_existing_item_list() {
         assert_eq!(GameItem::get_num_items(), 0);
     }
 
     #[test]
-    pub(crate) fn get_item_list_with_no_main_engine() {
+    fn get_item_list_with_no_main_engine() {
         assert!(GameItem::get_item_list().is_null());
     }
 
     #[test]
     #[serial]
-    pub(crate) fn get_item_list_with_offset_function_not_defined_in_main_engine() {
+    fn get_item_list_with_offset_function_not_defined_in_main_engine() {
         {
             let mut guard = MAIN_ENGINE.write();
             *guard = Some(QuakeLiveEngine::new());
@@ -221,7 +221,7 @@ pub(crate) mod game_item_tests {
     }
 
     #[test]
-    pub(crate) fn game_item_get_item_id_with_no_itemlist() {
+    fn game_item_get_item_id_with_no_itemlist() {
         let mut gitem = GItemBuilder::default().build().unwrap();
         let game_item = GameItem::try_from(&mut gitem as *mut gitem_t).unwrap();
         assert_eq!(game_item.get_item_id(), -1);
@@ -229,7 +229,7 @@ pub(crate) mod game_item_tests {
 
     #[test]
     #[cfg_attr(miri, ignore)]
-    pub(crate) fn game_item_get_item_id_internal_gets_offset() {
+    fn game_item_get_item_id_internal_gets_offset() {
         let mut itemlist = vec![
             GItemBuilder::default().build().unwrap(),
             GItemBuilder::default().build().unwrap(),
@@ -241,7 +241,7 @@ pub(crate) mod game_item_tests {
     }
 
     #[test]
-    pub(crate) fn game_item_get_classname() {
+    fn game_item_get_classname() {
         let classname = CString::new("item classname").unwrap();
         let mut gitem = GItemBuilder::default()
             .classname(classname.as_ptr() as *mut c_char)
@@ -252,7 +252,7 @@ pub(crate) mod game_item_tests {
     }
 
     #[test]
-    pub(crate) fn game_item_spawn() {
+    fn game_item_spawn() {
         mock! {
             QuakeEngine {}
             impl TryLaunchItem<&mut GameItem> for QuakeEngine {

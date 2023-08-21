@@ -25,13 +25,13 @@ impl Activator {
 }
 
 #[cfg(test)]
-pub(crate) mod activator_tests {
+mod activator_tests {
     use crate::activator::Activator;
     use crate::prelude::*;
     use pretty_assertions::assert_eq;
 
     #[test]
-    pub(crate) fn activator_try_from_null_results_in_error() {
+    fn activator_try_from_null_results_in_error() {
         assert_eq!(
             Activator::try_from(core::ptr::null_mut() as *mut gentity_t),
             Err(QuakeLiveEngineError::NullPointerPassed(
@@ -41,7 +41,7 @@ pub(crate) mod activator_tests {
     }
 
     #[test]
-    pub(crate) fn activator_try_from_valid_entity() {
+    fn activator_try_from_valid_entity() {
         let mut gentity = GEntityBuilder::default().build().unwrap();
         assert_eq!(
             Activator::try_from(&mut gentity as *mut gentity_t).is_ok(),
@@ -50,7 +50,7 @@ pub(crate) mod activator_tests {
     }
 
     #[test]
-    pub(crate) fn activator_get_owner_num() {
+    fn activator_get_owner_num() {
         let entity_shared = EntitySharedBuilder::default().ownerNum(42).build().unwrap();
         let mut gentity = GEntityBuilder::default().r(entity_shared).build().unwrap();
         let activator = Activator::try_from(&mut gentity as *mut gentity_t).unwrap();

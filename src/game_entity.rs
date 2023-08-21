@@ -453,7 +453,7 @@ impl GameEntity {
 }
 
 #[cfg(test)]
-pub(crate) mod game_entity_tests {
+mod game_entity_tests {
     use crate::game_entity::GameEntity;
     use crate::prelude::*;
     use crate::quake_live_engine::{FreeEntity, RegisterDamage, StartKamikaze};
@@ -463,7 +463,7 @@ pub(crate) mod game_entity_tests {
     use pretty_assertions::assert_eq;
 
     #[test]
-    pub(crate) fn game_entity_try_from_null_results_in_error() {
+    fn game_entity_try_from_null_results_in_error() {
         assert_eq!(
             GameEntity::try_from(core::ptr::null_mut() as *mut gentity_t),
             Err(QuakeLiveEngineError::NullPointerPassed(
@@ -473,7 +473,7 @@ pub(crate) mod game_entity_tests {
     }
 
     #[test]
-    pub(crate) fn game_entity_try_from_valid_gentity() {
+    fn game_entity_try_from_valid_gentity() {
         let mut gentity = GEntityBuilder::default().build().unwrap();
         assert_eq!(
             GameEntity::try_from(&mut gentity as *mut gentity_t).is_ok(),
@@ -482,7 +482,7 @@ pub(crate) mod game_entity_tests {
     }
 
     #[test]
-    pub(crate) fn game_entity_try_from_negative_entity_id() {
+    fn game_entity_try_from_negative_entity_id() {
         assert_eq!(
             GameEntity::try_from(-1),
             Err(QuakeLiveEngineError::InvalidId(-1))
@@ -490,7 +490,7 @@ pub(crate) mod game_entity_tests {
     }
 
     #[test]
-    pub(crate) fn game_entity_try_from_too_large_i32_entity_id() {
+    fn game_entity_try_from_too_large_i32_entity_id() {
         assert_eq!(
             GameEntity::try_from(65536i32),
             Err(QuakeLiveEngineError::InvalidId(65536))
@@ -498,7 +498,7 @@ pub(crate) mod game_entity_tests {
     }
 
     #[test]
-    pub(crate) fn game_entity_try_from_valid_i32_gentities_not_initialized() {
+    fn game_entity_try_from_valid_i32_gentities_not_initialized() {
         assert_eq!(
             GameEntity::try_from(42i32),
             Err(QuakeLiveEngineError::EntityNotFound(
@@ -508,7 +508,7 @@ pub(crate) mod game_entity_tests {
     }
 
     #[test]
-    pub(crate) fn game_entity_try_from_too_large_u32_entity_id() {
+    fn game_entity_try_from_too_large_u32_entity_id() {
         assert_eq!(
             GameEntity::try_from(65536u32),
             Err(QuakeLiveEngineError::InvalidId(65536))
@@ -516,7 +516,7 @@ pub(crate) mod game_entity_tests {
     }
 
     #[test]
-    pub(crate) fn game_entity_try_from_valid_u32_gentities_not_initialized() {
+    fn game_entity_try_from_valid_u32_gentities_not_initialized() {
         assert_eq!(
             GameEntity::try_from(42u32),
             Err(QuakeLiveEngineError::EntityNotFound(
@@ -526,12 +526,12 @@ pub(crate) mod game_entity_tests {
     }
 
     #[test]
-    pub(crate) fn game_entity_get_entities_list_with_no_main_engine() {
+    fn game_entity_get_entities_list_with_no_main_engine() {
         assert!(GameEntity::get_entities_list().is_null());
     }
 
     #[test]
-    pub(crate) fn game_entity_get_entity_with_no_entities_list() {
+    fn game_entity_get_entity_with_no_entities_list() {
         let mut gentity = GEntityBuilder::default().build().unwrap();
         let game_entity = GameEntity::try_from(&mut gentity as *mut gentity_t).unwrap();
         assert_eq!(game_entity.get_entity_id(), -1);
@@ -539,7 +539,7 @@ pub(crate) mod game_entity_tests {
 
     #[test]
     #[cfg_attr(miri, ignore)]
-    pub(crate) fn game_entity_get_entity_intern_gets_offset() {
+    fn game_entity_get_entity_intern_gets_offset() {
         let mut gentities = vec![
             GEntityBuilder::default().build().unwrap(),
             GEntityBuilder::default().build().unwrap(),
@@ -552,7 +552,7 @@ pub(crate) mod game_entity_tests {
     }
 
     #[test]
-    pub(crate) fn game_entity_start_kamikaze() {
+    fn game_entity_start_kamikaze() {
         mock! {
             QuakeEngine {}
             impl StartKamikaze<&mut GameEntity> for QuakeEngine {
@@ -567,7 +567,7 @@ pub(crate) mod game_entity_tests {
     }
 
     #[test]
-    pub(crate) fn game_entity_get_player_name_from_null_client() {
+    fn game_entity_get_player_name_from_null_client() {
         let mut gentity = GEntityBuilder::default()
             .client(core::ptr::null_mut() as *mut gclient_t)
             .build()
@@ -577,7 +577,7 @@ pub(crate) mod game_entity_tests {
     }
 
     #[test]
-    pub(crate) fn game_entity_get_player_name_from_disconnected_game_client() {
+    fn game_entity_get_player_name_from_disconnected_game_client() {
         let client_persistant = ClientPersistantBuilder::default()
             .connected(clientConnected_t::CON_DISCONNECTED)
             .build()
@@ -595,7 +595,7 @@ pub(crate) mod game_entity_tests {
     }
 
     #[test]
-    pub(crate) fn game_entity_get_player_name_from_connected_game_client() {
+    fn game_entity_get_player_name_from_connected_game_client() {
         let player_name_str = "UnknownPlayer";
         let mut bytes_iter = player_name_str.bytes();
         let mut player_name: [c_char; 40usize] = [0; 40usize];
@@ -618,7 +618,7 @@ pub(crate) mod game_entity_tests {
     }
 
     #[test]
-    pub(crate) fn game_entity_get_team_from_null_client() {
+    fn game_entity_get_team_from_null_client() {
         let mut gentity = GEntityBuilder::default()
             .client(core::ptr::null_mut() as *mut gclient_t)
             .build()
@@ -628,7 +628,7 @@ pub(crate) mod game_entity_tests {
     }
 
     #[test]
-    pub(crate) fn game_entity_get_team_from_disconnected_game_client() {
+    fn game_entity_get_team_from_disconnected_game_client() {
         let client_persistant = ClientPersistantBuilder::default()
             .connected(clientConnected_t::CON_DISCONNECTED)
             .build()
@@ -646,7 +646,7 @@ pub(crate) mod game_entity_tests {
     }
 
     #[test]
-    pub(crate) fn game_entity_get_team_from_connected_game_client() {
+    fn game_entity_get_team_from_connected_game_client() {
         let client_session = ClientSessionBuilder::default()
             .sessionTeam(team_t::TEAM_RED)
             .build()
@@ -669,7 +669,7 @@ pub(crate) mod game_entity_tests {
     }
 
     #[test]
-    pub(crate) fn game_entity_get_privileges_from_null_client() {
+    fn game_entity_get_privileges_from_null_client() {
         let mut gentity = GEntityBuilder::default()
             .client(core::ptr::null_mut() as *mut gclient_t)
             .build()
@@ -679,7 +679,7 @@ pub(crate) mod game_entity_tests {
     }
 
     #[test]
-    pub(crate) fn game_entity_get_privileges_from_connected_game_client() {
+    fn game_entity_get_privileges_from_connected_game_client() {
         let client_session = ClientSessionBuilder::default()
             .privileges(privileges_t::PRIV_ROOT)
             .build()
@@ -697,7 +697,7 @@ pub(crate) mod game_entity_tests {
     }
 
     #[test]
-    pub(crate) fn game_entity_get_game_client_when_none_is_set() {
+    fn game_entity_get_game_client_when_none_is_set() {
         let mut gentity = GEntityBuilder::default()
             .client(core::ptr::null_mut() as *mut gclient_t)
             .build()
@@ -707,7 +707,7 @@ pub(crate) mod game_entity_tests {
     }
 
     #[test]
-    pub(crate) fn game_entity_get_game_client_with_valid_gclient() {
+    fn game_entity_get_game_client_with_valid_gclient() {
         let mut gclient = GClientBuilder::default().build().unwrap();
         let mut gentity = GEntityBuilder::default()
             .client(&mut gclient as *mut gclient_t)
@@ -718,7 +718,7 @@ pub(crate) mod game_entity_tests {
     }
 
     #[test]
-    pub(crate) fn game_entity_get_activator_when_none_is_set() {
+    fn game_entity_get_activator_when_none_is_set() {
         let mut gentity = GEntityBuilder::default()
             .activator(core::ptr::null_mut() as *mut gentity_t)
             .build()
@@ -728,7 +728,7 @@ pub(crate) mod game_entity_tests {
     }
 
     #[test]
-    pub(crate) fn game_entity_get_activator_with_valid_activator() {
+    fn game_entity_get_activator_with_valid_activator() {
         let mut activator = GEntityBuilder::default().build().unwrap();
         let mut gentity = GEntityBuilder::default()
             .activator(&mut activator as *mut gentity_t)
@@ -739,7 +739,7 @@ pub(crate) mod game_entity_tests {
     }
 
     #[test]
-    pub(crate) fn game_entity_set_health() {
+    fn game_entity_set_health() {
         let mut gclient = GClientBuilder::default().build().unwrap();
         let mut gentity = GEntityBuilder::default()
             .client(&mut gclient as *mut gclient_t)
@@ -751,7 +751,7 @@ pub(crate) mod game_entity_tests {
     }
 
     #[test]
-    pub(crate) fn game_entity_slay_with_mod() {
+    fn game_entity_slay_with_mod() {
         mock! {
             QuakeEngine {}
             #[allow(clippy::too_many_arguments)]
@@ -793,7 +793,7 @@ pub(crate) mod game_entity_tests {
     }
 
     #[test]
-    pub(crate) fn game_entity_slay_with_kamikaze() {
+    fn game_entity_slay_with_kamikaze() {
         mock! {
             QuakeEngine {}
             #[allow(clippy::too_many_arguments)]
@@ -833,7 +833,7 @@ pub(crate) mod game_entity_tests {
     }
 
     #[test]
-    pub(crate) fn game_entity_in_use() {
+    fn game_entity_in_use() {
         let mut gentity = GEntityBuilder::default()
             .inuse(qboolean::qtrue)
             .build()
@@ -843,7 +843,7 @@ pub(crate) mod game_entity_tests {
     }
 
     #[test]
-    pub(crate) fn game_entity_get_classname() {
+    fn game_entity_get_classname() {
         let classname = CString::new("entity classname").unwrap();
         let mut gentity = GEntityBuilder::default()
             .classname(classname.as_ptr())
@@ -854,7 +854,7 @@ pub(crate) mod game_entity_tests {
     }
 
     #[test]
-    pub(crate) fn game_entity_is_game_item() {
+    fn game_entity_is_game_item() {
         let entity_state = EntityStateBuilder::default()
             .eType(entityType_t::ET_ITEM as i32)
             .build()
@@ -866,7 +866,7 @@ pub(crate) mod game_entity_tests {
     }
 
     #[test]
-    pub(crate) fn game_entity_is_respawning_weapon_for_player_entity() {
+    fn game_entity_is_respawning_weapon_for_player_entity() {
         let entity_state = EntityStateBuilder::default()
             .eType(entityType_t::ET_PLAYER as i32)
             .build()
@@ -877,7 +877,7 @@ pub(crate) mod game_entity_tests {
     }
 
     #[test]
-    pub(crate) fn game_entity_is_respawning_weapon_for_null_item() {
+    fn game_entity_is_respawning_weapon_for_null_item() {
         let entity_state = EntityStateBuilder::default()
             .eType(entityType_t::ET_PLAYER as i32)
             .build()
@@ -892,7 +892,7 @@ pub(crate) mod game_entity_tests {
     }
 
     #[test]
-    pub(crate) fn game_entity_is_respawning_weapon_for_non_weapon() {
+    fn game_entity_is_respawning_weapon_for_non_weapon() {
         let gitem = GItemBuilder::default()
             .giType(itemType_t::IT_AMMO)
             .build()
@@ -911,7 +911,7 @@ pub(crate) mod game_entity_tests {
     }
 
     #[test]
-    pub(crate) fn game_entity_is_respawning_weapon_for_an_actual_weapon() {
+    fn game_entity_is_respawning_weapon_for_an_actual_weapon() {
         let gitem = GItemBuilder::default()
             .giType(itemType_t::IT_WEAPON)
             .build()
@@ -930,7 +930,7 @@ pub(crate) mod game_entity_tests {
     }
 
     #[test]
-    pub(crate) fn game_entity_set_respawn_time() {
+    fn game_entity_set_respawn_time() {
         let mut gentity = GEntityBuilder::default().build().unwrap();
         let mut game_entity = GameEntity::try_from(&mut gentity as *mut gentity_t).unwrap();
         game_entity.set_respawn_time(42);
@@ -938,21 +938,21 @@ pub(crate) mod game_entity_tests {
     }
 
     #[test]
-    pub(crate) fn game_entity_has_flags_with_no_flags() {
+    fn game_entity_has_flags_with_no_flags() {
         let mut gentity = GEntityBuilder::default().flags(0).build().unwrap();
         let game_entity = GameEntity::try_from(&mut gentity as *mut gentity_t).unwrap();
         assert_eq!(game_entity.has_flags(), false);
     }
 
     #[test]
-    pub(crate) fn game_entity_has_flags_with_flags_set() {
+    fn game_entity_has_flags_with_flags_set() {
         let mut gentity = GEntityBuilder::default().flags(42).build().unwrap();
         let game_entity = GameEntity::try_from(&mut gentity as *mut gentity_t).unwrap();
         assert_eq!(game_entity.has_flags(), true);
     }
 
     #[test]
-    pub(crate) fn game_entity_is_dropped_item_for_non_dropped_item() {
+    fn game_entity_is_dropped_item_for_non_dropped_item() {
         let mut gentity = GEntityBuilder::default()
             .flags(FL_FORCE_GESTURE as i32)
             .build()
@@ -962,7 +962,7 @@ pub(crate) mod game_entity_tests {
     }
 
     #[test]
-    pub(crate) fn game_entity_is_dropped_item_for_dropped_item() {
+    fn game_entity_is_dropped_item_for_dropped_item() {
         let mut gentity = GEntityBuilder::default()
             .flags(FL_DROPPED_ITEM as i32)
             .build()
@@ -972,7 +972,7 @@ pub(crate) mod game_entity_tests {
     }
 
     #[test]
-    pub(crate) fn game_entity_get_client_number() {
+    fn game_entity_get_client_number() {
         let entity_state = EntityStateBuilder::default().clientNum(42).build().unwrap();
         let mut gentity = GEntityBuilder::default().s(entity_state).build().unwrap();
         let game_entity = GameEntity::try_from(&mut gentity as *mut gentity_t).unwrap();
@@ -980,7 +980,7 @@ pub(crate) mod game_entity_tests {
     }
 
     #[test]
-    pub(crate) fn game_entity_is_kamikaze_timer_for_non_kamikaze_timer() {
+    fn game_entity_is_kamikaze_timer_for_non_kamikaze_timer() {
         let classname = CString::new("no kamikaze timer").unwrap();
         let mut gentity = GEntityBuilder::default()
             .classname(classname.as_ptr())
@@ -991,7 +991,7 @@ pub(crate) mod game_entity_tests {
     }
 
     #[test]
-    pub(crate) fn game_entity_is_kamikaze_timer_for_kamikaze_timer() {
+    fn game_entity_is_kamikaze_timer_for_kamikaze_timer() {
         let classname = CString::new("kamikaze timer").unwrap();
         let mut gentity = GEntityBuilder::default()
             .classname(classname.as_ptr())
@@ -1002,7 +1002,7 @@ pub(crate) mod game_entity_tests {
     }
 
     #[test]
-    pub(crate) fn game_entity_free_entity() {
+    fn game_entity_free_entity() {
         mock! {
             QuakeEngine {}
             impl FreeEntity<&mut GameEntity> for QuakeEngine {

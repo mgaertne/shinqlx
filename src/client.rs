@@ -132,7 +132,7 @@ impl Client {
 }
 
 #[cfg(test)]
-pub(crate) mod client_tests {
+mod client_tests {
     use crate::client::Client;
     use crate::prelude::*;
     use crate::server_static::ServerStatic;
@@ -142,7 +142,7 @@ pub(crate) mod client_tests {
     use serial_test::serial;
 
     #[test]
-    pub(crate) fn client_try_from_null_results_in_error() {
+    fn client_try_from_null_results_in_error() {
         assert_eq!(
             Client::try_from(core::ptr::null() as *const client_t),
             Err(QuakeLiveEngineError::NullPointerPassed(
@@ -152,13 +152,13 @@ pub(crate) mod client_tests {
     }
 
     #[test]
-    pub(crate) fn client_try_from_valid_client() {
+    fn client_try_from_valid_client() {
         let mut client = ClientBuilder::default().build().unwrap();
         assert_eq!(Client::try_from(&mut client as *mut client_t).is_ok(), true);
     }
 
     #[test]
-    pub(crate) fn client_try_from_negative_client_id() {
+    fn client_try_from_negative_client_id() {
         assert_eq!(
             Client::try_from(-1),
             Err(QuakeLiveEngineError::InvalidId(-1))
@@ -166,7 +166,7 @@ pub(crate) mod client_tests {
     }
 
     #[test]
-    pub(crate) fn client_try_from_too_large_client_id() {
+    fn client_try_from_too_large_client_id() {
         assert_eq!(
             Client::try_from(32384),
             Err(QuakeLiveEngineError::InvalidId(32384))
@@ -174,14 +174,14 @@ pub(crate) mod client_tests {
     }
 
     #[test]
-    pub(crate) fn client_get_client_id_when_no_serverstatic_found() {
+    fn client_get_client_id_when_no_serverstatic_found() {
         let mut client = ClientBuilder::default().build().unwrap();
         let rust_client = Client::try_from(&mut client as *mut client_t).unwrap();
         assert_eq!(rust_client.get_client_id(), -1);
     }
 
     #[test]
-    pub(crate) fn client_get_client_id_interal_from_server_static() {
+    fn client_get_client_id_interal_from_server_static() {
         let mut client = ClientBuilder::default().build().unwrap();
         let mut server_static = ServerStaticBuilder::default()
             .clients(&mut client as *mut client_t)
@@ -194,7 +194,7 @@ pub(crate) mod client_tests {
     }
 
     #[test]
-    pub(crate) fn client_get_client_id_interal_from_server_static_not_first_position() {
+    fn client_get_client_id_interal_from_server_static_not_first_position() {
         let mut clients = vec![
             ClientBuilder::default().build().unwrap(),
             ClientBuilder::default().build().unwrap(),
@@ -211,7 +211,7 @@ pub(crate) mod client_tests {
     }
 
     #[test]
-    pub(crate) fn client_get_state() {
+    fn client_get_state() {
         let mut client = ClientBuilder::default()
             .state(clientState_t::CS_ZOMBIE)
             .build()
@@ -221,7 +221,7 @@ pub(crate) mod client_tests {
     }
 
     #[test]
-    pub(crate) fn client_has_gentity_with_no_shared_entity() {
+    fn client_has_gentity_with_no_shared_entity() {
         let mut client = ClientBuilder::default()
             .gentity(core::ptr::null_mut())
             .build()
@@ -231,7 +231,7 @@ pub(crate) mod client_tests {
     }
 
     #[test]
-    pub(crate) fn client_has_gentity_with_valid_shared_entity() {
+    fn client_has_gentity_with_valid_shared_entity() {
         let mut shared_entity = SharedEntityBuilder::default().build().unwrap();
         let mut client = ClientBuilder::default()
             .gentity(&mut shared_entity as *mut sharedEntity_t)
@@ -243,7 +243,7 @@ pub(crate) mod client_tests {
 
     #[test]
     #[serial]
-    pub(crate) fn client_disconnect_with_no_main_engine() {
+    fn client_disconnect_with_no_main_engine() {
         {
             let mut guard = MAIN_ENGINE.write();
             *guard = None;
@@ -256,7 +256,7 @@ pub(crate) mod client_tests {
 
     #[test]
     #[serial]
-    pub(crate) fn client_disconnect_with_no_detour_setup() {
+    fn client_disconnect_with_no_detour_setup() {
         {
             let mut guard = MAIN_ENGINE.write();
             *guard = Some(QuakeLiveEngine::new());
@@ -273,7 +273,7 @@ pub(crate) mod client_tests {
     }
 
     #[test]
-    pub(crate) fn client_get_name_from_empty_name() {
+    fn client_get_name_from_empty_name() {
         let mut client = ClientBuilder::default()
             .name([0; MAX_NAME_LENGTH as usize])
             .build()
@@ -283,7 +283,7 @@ pub(crate) mod client_tests {
     }
 
     #[test]
-    pub(crate) fn client_get_name_from_valid_name() {
+    fn client_get_name_from_valid_name() {
         let player_name_str = "UnknownPlayer";
         let mut bytes_iter = player_name_str.bytes();
         let mut player_name: [c_char; MAX_NAME_LENGTH as usize] = [0; MAX_NAME_LENGTH as usize];
@@ -294,7 +294,7 @@ pub(crate) mod client_tests {
     }
 
     #[test]
-    pub(crate) fn client_get_userinfo_from_null() {
+    fn client_get_userinfo_from_null() {
         let mut client = ClientBuilder::default()
             .userinfo([0; MAX_INFO_STRING as usize])
             .build()
@@ -304,7 +304,7 @@ pub(crate) mod client_tests {
     }
 
     #[test]
-    pub(crate) fn client_get_userinfo_from_valid_userinfo() {
+    fn client_get_userinfo_from_valid_userinfo() {
         let user_info_str = "some user info";
         let mut bytes_iter = user_info_str.bytes();
         let mut userinfo: [c_char; MAX_INFO_STRING as usize] = [0; MAX_INFO_STRING as usize];
@@ -315,7 +315,7 @@ pub(crate) mod client_tests {
     }
 
     #[test]
-    pub(crate) fn client_get_steam_id() {
+    fn client_get_steam_id() {
         let mut client = ClientBuilder::default().steam_id(1234).build().unwrap();
         let rust_client = Client::try_from(&mut client as *mut client_t).unwrap();
         assert_eq!(rust_client.get_steam_id(), 1234);

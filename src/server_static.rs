@@ -41,7 +41,7 @@ impl ServerStatic {
 }
 
 #[cfg(test)]
-pub(crate) mod server_static_tests {
+mod server_static_tests {
     use crate::prelude::*;
     use crate::quake_live_functions::QuakeLiveFunction::SV_Shutdown;
     use crate::server_static::ServerStatic;
@@ -50,7 +50,7 @@ pub(crate) mod server_static_tests {
     use serial_test::serial;
 
     #[test]
-    pub(crate) fn server_static_try_from_null_results_in_error() {
+    fn server_static_try_from_null_results_in_error() {
         assert_eq!(
             ServerStatic::try_from(core::ptr::null_mut()),
             Err(QuakeLiveEngineError::NullPointerPassed(
@@ -60,7 +60,7 @@ pub(crate) mod server_static_tests {
     }
 
     #[test]
-    pub(crate) fn server_static_try_from_valid_server_static() {
+    fn server_static_try_from_valid_server_static() {
         let mut server_static = ServerStaticBuilder::default().build().unwrap();
         assert_eq!(
             ServerStatic::try_from(&mut server_static as *mut serverStatic_t).is_ok(),
@@ -70,7 +70,7 @@ pub(crate) mod server_static_tests {
 
     #[test]
     #[serial]
-    pub(crate) fn server_static_default_panics_when_no_main_engine_found() {
+    fn server_static_default_panics_when_no_main_engine_found() {
         {
             let mut guard = MAIN_ENGINE.write();
             *guard = None;
@@ -87,7 +87,7 @@ pub(crate) mod server_static_tests {
 
     #[test]
     #[serial]
-    pub(crate) fn server_static_default_panics_when_offset_function_not_initialized() {
+    fn server_static_default_panics_when_offset_function_not_initialized() {
         {
             let mut guard = MAIN_ENGINE.write();
             *guard = Some(QuakeLiveEngine::new());

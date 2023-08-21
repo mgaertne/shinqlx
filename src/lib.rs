@@ -35,6 +35,7 @@ pub(crate) mod prelude {
 use crate::prelude::*;
 use once_cell::sync::OnceCell;
 
+#[cfg(not(test))]
 use ctor::ctor;
 use log::LevelFilter;
 use log4rs::append::console::ConsoleAppender;
@@ -76,7 +77,8 @@ fn initialize_logging() {
         .unwrap();
 }
 
-#[ctor]
+#[cfg_attr(not(test), ctor)]
+#[cfg_attr(test, allow(dead_code))]
 fn initialize() {
     let Some(progname) = std::env::args().next() else {
         return;

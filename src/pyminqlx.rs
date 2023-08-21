@@ -1185,13 +1185,13 @@ pub(crate) mod pyminqlx_setup_fixture {
 
 #[cfg(test)]
 #[cfg(not(miri))]
-pub(crate) mod vector3_tests {
+mod vector3_tests {
     use crate::pyminqlx::pyminqlx_setup_fixture::*;
     use pyo3::Python;
     use rstest::rstest;
 
     #[rstest]
-    pub(crate) fn vector3_tuple_test(_pyminqlx_setup: ()) {
+    fn vector3_tuple_test(_pyminqlx_setup: ()) {
         Python::with_gil(|py| {
             let minqlx_module = py.import("_minqlx").unwrap();
             let vector3 = minqlx_module.getattr("Vector3").unwrap();
@@ -1201,7 +1201,7 @@ pub(crate) mod vector3_tests {
     }
 
     #[rstest]
-    pub(crate) fn vector3_can_be_created_from_python(_pyminqlx_setup: ()) {
+    fn vector3_can_be_created_from_python(_pyminqlx_setup: ()) {
         Python::with_gil(|py| {
             let vector3_constructor = py.run(
                 r#"
@@ -1317,13 +1317,13 @@ impl Weapons {
 
 #[cfg(test)]
 #[cfg(not(miri))]
-pub(crate) mod weapons_tests {
+mod weapons_tests {
     use crate::pyminqlx::pyminqlx_setup_fixture::*;
     use pyo3::Python;
     use rstest::rstest;
 
     #[rstest]
-    pub(crate) fn weapons_can_be_created_from_python(_pyminqlx_setup: ()) {
+    fn weapons_can_be_created_from_python(_pyminqlx_setup: ()) {
         Python::with_gil(|py| {
             let weapons_constructor =py.run(r#"
 import _minqlx
@@ -1340,13 +1340,13 @@ weapons = _minqlx.Weapons((False, False, False, False, False, False, False, Fals
 
 #[cfg(test)]
 #[cfg(not(miri))]
-pub(crate) mod ammo_tests {
+mod ammo_tests {
     use crate::pyminqlx::pyminqlx_setup_fixture::*;
     use pyo3::Python;
     use rstest::rstest;
 
     #[rstest]
-    pub(crate) fn ammo_can_be_created_from_python(_pyminqlx_setup: ()) {
+    fn ammo_can_be_created_from_python(_pyminqlx_setup: ()) {
         Python::with_gil(|py| {
             let ammo_constructor = py.run(
                 r#"
@@ -1447,13 +1447,13 @@ impl Powerups {
 
 #[cfg(test)]
 #[cfg(not(miri))]
-pub(crate) mod powerups_tests {
+mod powerups_tests {
     use crate::pyminqlx::pyminqlx_setup_fixture::*;
     use pyo3::Python;
     use rstest::rstest;
 
     #[rstest]
-    pub(crate) fn powerups_can_be_created_from_python(_pyminqlx_setup: ()) {
+    fn powerups_can_be_created_from_python(_pyminqlx_setup: ()) {
         Python::with_gil(|py| {
             let powerups_constructor = py.run(
                 r#"
@@ -1591,13 +1591,13 @@ impl Flight {
 
 #[cfg(test)]
 #[cfg(not(miri))]
-pub(crate) mod flight_tests {
+mod flight_tests {
     use crate::pyminqlx::pyminqlx_setup_fixture::*;
     use pyo3::Python;
     use rstest::rstest;
 
     #[rstest]
-    pub(crate) fn flight_can_be_created_from_python(_pyminqlx_setup: ()) {
+    fn flight_can_be_created_from_python(_pyminqlx_setup: ()) {
         Python::with_gil(|py| {
             let flight_constructor = py.run(
                 r#"
