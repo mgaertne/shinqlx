@@ -1,7 +1,10 @@
+#[cfg(not(test))]
 use crate::client::Client;
 use crate::game_entity::GameEntity;
 #[cfg(test)]
 use crate::hooks::mock_python::client_command_dispatcher;
+#[cfg(test)]
+use crate::hooks::MockClient as Client;
 use crate::prelude::*;
 #[cfg(not(test))]
 use crate::pyminqlx::client_command_dispatcher;
@@ -325,7 +328,8 @@ where
 {
     client_disconnect_dispatcher(client.get_client_id(), &reason);
 
-    client.disconnect(reason);
+    #[allow(clippy::unnecessary_to_owned)]
+    client.disconnect(reason.as_ref().to_string());
 }
 
 #[allow(unused_mut)]
@@ -589,9 +593,32 @@ mock! {
 }
 
 #[cfg(test)]
+mock! {
+    pub(crate) Client {
+        pub(crate) fn has_gentity(&self) -> bool;
+        pub(crate) fn get_client_id(&self) -> i32;
+        pub(crate) fn get_state(&self) -> clientState_t;
+        pub(crate) fn disconnect(&mut self, reason: String);
+    }
+    impl AsMut<client_t> for Client {
+        fn as_mut(&mut self) -> &mut client_t;
+    }
+    impl AsRef<client_t> for Client {
+        fn as_ref(&self) -> &client_t;
+    }
+    impl TryFrom<*mut client_t> for Client {
+        type Error = QuakeLiveEngineError;
+        fn try_from(client: *mut client_t) -> Result<Self, QuakeLiveEngineError>;
+    }
+    impl From<*const client_t> for Client {
+        fn from(client: *const client_t) -> Self;
+    }
+}
+
+#[cfg(test)]
 mod hooks_tests {
-    use crate::client::Client;
-    use crate::hooks::{shinqlx_execute_client_command_intern, MockQuakeEngine};
+    use crate::hooks::mock_python::client_command_dispatcher_context;
+    use crate::hooks::{shinqlx_execute_client_command_intern, MockClient, MockQuakeEngine};
     use crate::prelude::*;
 
     #[test]
@@ -616,18 +643,9 @@ mod hooks_tests {
             })
             .return_const_st(())
             .times(1);
-        let mut shared_entity = SharedEntityBuilder::default().build().unwrap();
-        let mut client = ClientBuilder::default()
-            .gentity(&mut shared_entity as *mut sharedEntity_t)
-            .build()
-            .unwrap();
+        let mock_client = MockClient::new();
 
-        shinqlx_execute_client_command_intern(
-            &mock,
-            Client::try_from(&mut client as *mut client_t).ok(),
-            "cp asdf".into(),
-            false,
-        );
+        shinqlx_execute_client_command_intern(&mock, Some(mock_client), "cp asdf".into(), false);
     }
 
     #[test]
@@ -635,17 +653,39 @@ mod hooks_tests {
         let mut mock = MockQuakeEngine::new();
         mock.expect_execute_client_command()
             .withf_st(|client, cmd, &client_ok| {
-                client.is_some() && cmd == "cp asdf" && !<qboolean as Into<bool>>::into(client_ok)
+                client.is_some() && cmd == "cp asdf" && client_ok.into()
             })
             .return_const_st(())
             .times(1);
-        let mut client = ClientBuilder::default().build().unwrap();
+        let mut mock_client = MockClient::new();
+        mock_client
+            .expect_has_gentity()
+            .return_const_st(false)
+            .times(1);
 
-        shinqlx_execute_client_command_intern(
-            &mock,
-            Client::try_from(&mut client as *mut client_t).ok(),
-            "cp asdf".into(),
-            false,
-        );
+        shinqlx_execute_client_command_intern(&mock, Some(mock_client), "cp asdf".into(), true);
+    }
+
+    #[test]
+    fn execute_client_command_for_ok_client_with_gentity_non_empty_cmd_dispatcher_returns_none() {
+        let mut mock = MockQuakeEngine::new();
+        mock.expect_execute_client_command().times(0);
+        let mut mock_client = MockClient::new();
+        mock_client
+            .expect_has_gentity()
+            .return_const_st(true)
+            .times(1);
+        mock_client
+            .expect_get_client_id()
+            .return_const_st(42)
+            .times(1);
+        let client_command_ctx = client_command_dispatcher_context();
+        client_command_ctx
+            .expect()
+            .withf_st(|&client_id, cmd| client_id == 42 && cmd == "cp asdf")
+            .return_const_st(None)
+            .times(1);
+
+        shinqlx_execute_client_command_intern(&mock, Some(mock_client), "cp asdf".into(), true);
     }
 }
