@@ -102,7 +102,7 @@ impl CurrentLevel {
 }
 
 #[cfg(test)]
-pub(crate) mod current_level_tests {
+mod current_level_tests {
     use crate::current_level::CurrentLevel;
     use crate::prelude::*;
     use crate::quake_live_functions::QuakeLiveFunction::G_InitGame;
@@ -116,7 +116,7 @@ pub(crate) mod current_level_tests {
 
     #[test]
     #[serial]
-    pub(crate) fn current_level_default_panics_when_no_main_engine_found() {
+    fn current_level_default_panics_when_no_main_engine_found() {
         {
             let mut guard = MAIN_ENGINE.write();
             *guard = None;
@@ -132,7 +132,7 @@ pub(crate) mod current_level_tests {
 
     #[test]
     #[serial]
-    pub(crate) fn current_level_default_panics_when_g_init_game_not_set() {
+    fn current_level_default_panics_when_g_init_game_not_set() {
         {
             let mut guard = MAIN_ENGINE.write();
             *guard = Some(QuakeLiveEngine::new());
@@ -153,7 +153,7 @@ pub(crate) mod current_level_tests {
     }
 
     #[test]
-    pub(crate) fn current_level_from_null() {
+    fn current_level_from_null() {
         assert_eq!(
             CurrentLevel::try_from(core::ptr::null_mut()),
             Err(QuakeLiveEngineError::NullPointerPassed(
@@ -163,34 +163,34 @@ pub(crate) mod current_level_tests {
     }
 
     #[test]
-    pub(crate) fn current_level_from_valid_level_locals() {
+    fn current_level_from_valid_level_locals() {
         let mut level = LevelLocalsBuilder::default().build().unwrap();
         assert!(CurrentLevel::try_from(&mut level as *mut level_locals_t).is_ok())
     }
 
     #[test]
-    pub(crate) fn current_level_get_vote_time_no_vote_running() {
+    fn current_level_get_vote_time_no_vote_running() {
         let mut level = LevelLocalsBuilder::default().voteTime(0).build().unwrap();
         let current_level = CurrentLevel::try_from(&mut level as *mut level_locals_t).unwrap();
         assert!(current_level.get_vote_time().is_none());
     }
 
     #[test]
-    pub(crate) fn current_level_get_vote_time_vote_running() {
+    fn current_level_get_vote_time_vote_running() {
         let mut level = LevelLocalsBuilder::default().voteTime(60).build().unwrap();
         let current_level = CurrentLevel::try_from(&mut level as *mut level_locals_t).unwrap();
         assert_eq!(current_level.get_vote_time(), Some(60));
     }
 
     #[test]
-    pub(crate) fn current_level_get_time() {
+    fn current_level_get_time() {
         let mut level = LevelLocalsBuilder::default().time(1234).build().unwrap();
         let current_level = CurrentLevel::try_from(&mut level as *mut level_locals_t).unwrap();
         assert_eq!(current_level.get_leveltime(), 1234);
     }
 
     #[test]
-    pub(crate) fn current_level_set_training_map() {
+    fn current_level_set_training_map() {
         let mut level = LevelLocalsBuilder::default()
             .mapIsTrainingMap(qboolean::qfalse)
             .build()
@@ -201,7 +201,7 @@ pub(crate) mod current_level_tests {
     }
 
     #[test]
-    pub(crate) fn current_level_unset_training_map() {
+    fn current_level_unset_training_map() {
         let mut level = LevelLocalsBuilder::default()
             .mapIsTrainingMap(qboolean::qtrue)
             .build()
@@ -213,7 +213,7 @@ pub(crate) mod current_level_tests {
 
     #[test]
     #[serial]
-    pub(crate) fn current_level_callvote_with_no_main_engine() {
+    fn current_level_callvote_with_no_main_engine() {
         {
             let mut guard = MAIN_ENGINE.write();
             *guard = None;
@@ -237,7 +237,7 @@ pub(crate) mod current_level_tests {
 
     #[test]
     #[serial]
-    pub(crate) fn current_level_callvote_with_main_engine_set() {
+    fn current_level_callvote_with_main_engine_set() {
         let main_engine = QuakeLiveEngine::new();
         main_engine.sv_maxclients.store(8, Ordering::SeqCst);
 

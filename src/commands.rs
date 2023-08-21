@@ -503,7 +503,7 @@ mock! {
 }
 
 #[cfg(test)]
-pub(crate) mod commands_tests {
+mod commands_tests {
     use super::Client;
     use crate::commands::mock_python::{
         new_game_dispatcher_context, pyminqlx_initialize_context, pyminqlx_is_initialized_context,

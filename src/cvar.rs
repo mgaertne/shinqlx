@@ -29,7 +29,7 @@ impl CVar {
 }
 
 #[cfg(test)]
-pub(crate) mod cvar_tests {
+mod cvar_tests {
     use crate::cvar::CVar;
     use crate::prelude::*;
     use alloc::ffi::CString;
@@ -37,7 +37,7 @@ pub(crate) mod cvar_tests {
     use pretty_assertions::assert_eq;
 
     #[test]
-    pub(crate) fn cvar_try_from_null_results_in_error() {
+    fn cvar_try_from_null_results_in_error() {
         assert_eq!(
             CVar::try_from(core::ptr::null_mut() as *mut cvar_t),
             Err(QuakeLiveEngineError::NullPointerPassed(
@@ -47,13 +47,13 @@ pub(crate) mod cvar_tests {
     }
 
     #[test]
-    pub(crate) fn cvar_try_from_valid_cvar() {
+    fn cvar_try_from_valid_cvar() {
         let mut cvar = CVarBuilder::default().build().unwrap();
         assert_eq!(CVar::try_from(&mut cvar as *mut cvar_t).is_ok(), true);
     }
 
     #[test]
-    pub(crate) fn cvar_try_get_string() {
+    fn cvar_try_get_string() {
         let cvar_string = CString::new("some cvar value").unwrap();
         let mut cvar = CVarBuilder::default()
             .string(cvar_string.as_ptr() as *mut c_char)
@@ -64,7 +64,7 @@ pub(crate) mod cvar_tests {
     }
 
     #[test]
-    pub(crate) fn cvar_try_get_integer() {
+    fn cvar_try_get_integer() {
         let mut cvar = CVarBuilder::default().integer(42).build().unwrap();
         let cvar_rust = CVar::try_from(&mut cvar as *mut cvar_t).unwrap();
         assert_eq!(cvar_rust.get_integer(), 42);
