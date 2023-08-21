@@ -4,13 +4,20 @@ use alloc::vec::Vec;
 use alloc::{format, vec};
 
 use crate::commands::cmd_py_command;
+use crate::hooks::{shinqlx_client_spawn, shinqlx_com_printf, shinqlx_set_configstring};
+#[cfg(not(test))]
 use crate::hooks::{
-    shinqlx_client_spawn, shinqlx_com_printf, shinqlx_drop_client, shinqlx_execute_client_command,
-    shinqlx_send_server_command, shinqlx_set_configstring,
+    shinqlx_drop_client, shinqlx_execute_client_command, shinqlx_send_server_command,
+};
+#[cfg(test)]
+use crate::pyminqlx::mock_hooks::{
+    shinqlx_drop_client, shinqlx_execute_client_command, shinqlx_send_server_command,
 };
 use crate::MAIN_ENGINE;
 use core::sync::atomic::AtomicI32;
 use core::sync::atomic::{AtomicBool, Ordering};
+#[cfg(test)]
+use mockall::automock;
 use parking_lot::RwLock;
 
 use crate::client::Client;
@@ -28,6 +35,22 @@ use pyo3::exceptions::{PyEnvironmentError, PyTypeError, PyValueError};
 use pyo3::prelude::*;
 use pyo3::prepare_freethreaded_python;
 use pyo3::types::PyTuple;
+
+#[cfg(test)]
+#[automock]
+#[allow(dead_code)]
+mod hooks {
+    use super::Client;
+
+    pub(crate) fn shinqlx_execute_client_command(
+        _client: Option<Client>,
+        _cmd: String,
+        _client_ok: bool,
+    ) {
+    }
+    pub(crate) fn shinqlx_send_server_command(_client: Option<Client>, _cmd: String) {}
+    pub(crate) fn shinqlx_drop_client(_client: &mut Client, _reason: String) {}
+}
 
 static ALLOW_FREE_CLIENT: AtomicI32 = AtomicI32::new(-1);
 
@@ -656,7 +679,8 @@ fn get_userinfo(py: Python<'_>, client_id: i32) -> PyResult<Option<String>> {
 fn send_server_command(py: Python<'_>, client_id: Option<i32>, cmd: &str) -> PyResult<bool> {
     match client_id {
         None => {
-            shinqlx_send_server_command(None, cmd);
+            #[allow(clippy::unnecessary_to_owned)]
+            shinqlx_send_server_command(None, cmd.to_string());
             Ok(true)
         }
         Some(actual_client_id) => {
@@ -689,7 +713,8 @@ fn send_server_command(py: Python<'_>, client_id: Option<i32>, cmd: &str) -> PyR
                     if client.get_state() != clientState_t::CS_ACTIVE {
                         Ok(false)
                     } else {
-                        shinqlx_send_server_command(Some(client), cmd);
+                        #[allow(clippy::unnecessary_to_owned)]
+                        shinqlx_send_server_command(Some(client), cmd.to_string());
                         Ok(true)
                     }
                 }
@@ -731,7 +756,7 @@ fn client_command(py: Python<'_>, client_id: i32, cmd: &str) -> PyResult<bool> {
             if [clientState_t::CS_FREE, clientState_t::CS_ZOMBIE].contains(&client.get_state()) {
                 Ok(false)
             } else {
-                shinqlx_execute_client_command(Some(client), cmd, true);
+                shinqlx_execute_client_command(Some(client), cmd.to_string(), true);
                 Ok(true)
             }
         }
@@ -894,7 +919,8 @@ fn kick(py: Python<'_>, client_id: i32, reason: Option<&str>) -> PyResult<()> {
             } else {
                 reason.unwrap_or("was kicked.")
             };
-            shinqlx_drop_client(&mut client, reason_str);
+            #[allow(clippy::unnecessary_to_owned)]
+            shinqlx_drop_client(&mut client, reason_str.to_string());
             Ok(())
         }
     })
