@@ -620,6 +620,7 @@ mod hooks_tests {
     use crate::hooks::mock_python::client_command_dispatcher_context;
     use crate::hooks::{shinqlx_execute_client_command_intern, MockClient, MockQuakeEngine};
     use crate::prelude::*;
+    use serial_test::serial;
 
     #[test]
     fn execute_client_command_for_none_client_non_empty_cmd() {
@@ -667,6 +668,7 @@ mod hooks_tests {
     }
 
     #[test]
+    #[serial]
     fn execute_client_command_for_ok_client_with_gentity_non_empty_cmd_dispatcher_returns_none() {
         let mut mock = MockQuakeEngine::new();
         mock.expect_execute_client_command().times(0);
@@ -684,6 +686,63 @@ mod hooks_tests {
             .expect()
             .withf_st(|&client_id, cmd| client_id == 42 && cmd == "cp asdf")
             .return_const_st(None)
+            .times(1);
+
+        shinqlx_execute_client_command_intern(&mock, Some(mock_client), "cp asdf".into(), true);
+    }
+
+    #[test]
+    #[serial]
+    fn execute_client_command_for_ok_client_with_gentity_non_empty_cmd_dispatcher_returns_modified_string(
+    ) {
+        let mut mock = MockQuakeEngine::new();
+        mock.expect_execute_client_command()
+            .withf_st(|client, cmd, &client_ok| {
+                client.is_some() && cmd == "cp modified" && client_ok.into()
+            })
+            .return_const_st(())
+            .times(1);
+
+        let mut mock_client = MockClient::new();
+        mock_client
+            .expect_has_gentity()
+            .return_const_st(true)
+            .times(1);
+        mock_client
+            .expect_get_client_id()
+            .return_const_st(42)
+            .times(1);
+        let client_command_ctx = client_command_dispatcher_context();
+        client_command_ctx
+            .expect()
+            .withf_st(|&client_id, cmd| client_id == 42 && cmd == "cp asdf")
+            .return_const_st(Some("cp modified".into()))
+            .times(1);
+
+        shinqlx_execute_client_command_intern(&mock, Some(mock_client), "cp asdf".into(), true);
+    }
+
+    #[test]
+    #[serial]
+    fn execute_client_command_for_ok_client_with_gentity_non_empty_cmd_dispatcher_returns_empty_string(
+    ) {
+        let mut mock = MockQuakeEngine::new();
+        mock.expect_execute_client_command().times(0);
+
+        let mut mock_client = MockClient::new();
+        mock_client
+            .expect_has_gentity()
+            .return_const_st(true)
+            .times(1);
+        mock_client
+            .expect_get_client_id()
+            .return_const_st(42)
+            .times(1);
+        let client_command_ctx = client_command_dispatcher_context();
+        client_command_ctx
+            .expect()
+            .withf_st(|&client_id, cmd| client_id == 42 && cmd == "cp asdf")
+            .return_const_st(Some("".into()))
             .times(1);
 
         shinqlx_execute_client_command_intern(&mock, Some(mock_client), "cp asdf".into(), true);
