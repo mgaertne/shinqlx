@@ -94,6 +94,7 @@ where
     )
 }
 
+#[allow(dead_code)]
 pub(crate) fn server_command_dispatcher<T>(client_id: Option<i32>, cmd: T) -> Option<String>
 where
     T: AsRef<str>,
