@@ -116,9 +116,7 @@ pub(crate) fn shinqlx_sv_executeclientcommand(
     client_ok: qboolean,
 ) {
     let rust_cmd = unsafe { CStr::from_ptr(cmd) }.to_string_lossy();
-    if !rust_cmd.is_empty() {
-        shinqlx_execute_client_command(Client::try_from(client).ok(), rust_cmd, client_ok);
-    }
+    shinqlx_execute_client_command(Client::try_from(client).ok(), rust_cmd, client_ok);
 }
 
 pub(crate) fn shinqlx_execute_client_command<T, U>(client: Option<Client>, cmd: T, client_ok: U)
@@ -147,6 +145,9 @@ fn shinqlx_execute_client_command_intern<T, U>(
     T: ExecuteClientCommand<Client, String, qboolean>,
     U: Into<qboolean> + Into<bool> + Copy,
 {
+    if cmd.is_empty() {
+        return;
+    }
     let passed_on_cmd_str: String = if client_ok.into()
         && client
             .as_ref()
@@ -194,14 +195,12 @@ pub unsafe extern "C" fn ShiNQlx_SV_SendServerCommand(
     let cmd = CStr::from_bytes_until_nul(&buffer)
         .unwrap()
         .to_string_lossy();
-    if !cmd.is_empty() {
-        if client.is_null() {
-            shinqlx_send_server_command(None, cmd);
-        } else {
-            let safe_client = Client::try_from(client);
-            if safe_client.is_ok() {
-                shinqlx_send_server_command(safe_client.ok(), cmd);
-            }
+    if client.is_null() {
+        shinqlx_send_server_command(None, cmd);
+    } else {
+        let safe_client = Client::try_from(client);
+        if safe_client.is_ok() {
+            shinqlx_send_server_command(safe_client.ok(), cmd);
         }
     }
 }
@@ -226,6 +225,9 @@ fn shinqlx_send_server_command_intern<T>(main_engine: &T, client: Option<Client>
 where
     T: SendServerCommand<Client, String>,
 {
+    if cmd.is_empty() {
+        return;
+    }
     let mut passed_on_cmd_str = cmd;
 
     match client.as_ref() {
