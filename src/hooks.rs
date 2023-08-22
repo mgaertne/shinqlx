@@ -2,17 +2,20 @@
 use crate::client::Client;
 use crate::game_entity::GameEntity;
 #[cfg(test)]
-use crate::hooks::mock_python::{client_command_dispatcher, server_command_dispatcher};
+use crate::hooks::mock_python::{
+    client_command_dispatcher, client_loaded_dispatcher, server_command_dispatcher,
+};
 #[cfg(test)]
 use crate::hooks::MockClient as Client;
 use crate::prelude::*;
 #[cfg(not(test))]
-use crate::pyminqlx::{client_command_dispatcher, server_command_dispatcher};
 use crate::pyminqlx::{
-    client_connect_dispatcher, client_disconnect_dispatcher, client_loaded_dispatcher,
-    client_spawn_dispatcher, console_print_dispatcher, damage_dispatcher, frame_dispatcher,
-    kamikaze_explode_dispatcher, kamikaze_use_dispatcher, new_game_dispatcher,
-    set_configstring_dispatcher,
+    client_command_dispatcher, client_loaded_dispatcher, server_command_dispatcher,
+};
+use crate::pyminqlx::{
+    client_connect_dispatcher, client_disconnect_dispatcher, client_spawn_dispatcher,
+    console_print_dispatcher, damage_dispatcher, frame_dispatcher, kamikaze_explode_dispatcher,
+    kamikaze_use_dispatcher, new_game_dispatcher, set_configstring_dispatcher,
 };
 use crate::quake_live_engine::{
     AddCommand, ClientConnect, ClientEnterWorld, ClientSpawn, ComPrintf, ExecuteClientCommand,
@@ -256,11 +259,9 @@ where
 }
 
 pub(crate) fn shinqlx_sv_cliententerworld(client: *mut client_t, cmd: *mut usercmd_t) {
-    let Some(mut safe_client): Option<Client> = client.try_into().ok() else {
+    let Some(safe_client): Option<Client> = client.try_into().ok() else {
         return;
     };
-
-    let state = safe_client.get_state();
 
     let Some(main_engine_guard) = MAIN_ENGINE.try_read() else {
         return;
@@ -269,6 +270,19 @@ pub(crate) fn shinqlx_sv_cliententerworld(client: *mut client_t, cmd: *mut userc
     let Some(ref main_engine) = *main_engine_guard else {
         return;
     };
+
+    shinqlx_sv_cliententerworld_intern(main_engine, safe_client, cmd);
+}
+
+#[cfg_attr(not(test), inline)]
+fn shinqlx_sv_cliententerworld_intern<T>(
+    main_engine: &T,
+    mut safe_client: Client,
+    cmd: *mut usercmd_t,
+) where
+    T: for<'a> ClientEnterWorld<&'a mut Client>,
+{
+    let state = safe_client.get_state();
 
     main_engine.client_enter_world(&mut safe_client, cmd);
 
@@ -602,6 +616,7 @@ mod python {
     ) -> Option<String> {
         None
     }
+    pub(crate) fn client_loaded_dispatcher(_client_id: i32) {}
 }
 
 #[cfg(test)]
@@ -610,8 +625,11 @@ mock! {
     impl ExecuteClientCommand<Client, String, qboolean> for QuakeEngine {
         fn execute_client_command(&self, client: Option<Client>, cmd: String, client_ok: qboolean);
     }
-    impl SendServerCommand<Client, String> for QuakeEngine {
-        fn send_server_command(&self, client: Option<Client>, cmd: String);
+    impl SendServerCommand<Client, String > for QuakeEngine {
+        fn send_server_command(&self, client: Option <Client>, cmd: String);
+    }
+    impl ClientEnterWorld<&mut Client> for QuakeEngine {
+        fn client_enter_world(&self, client: &mut Client, cmd: * mut usercmd_t);
     }
 }
 
@@ -641,11 +659,12 @@ mock! {
 #[cfg(test)]
 mod hooks_tests {
     use crate::hooks::mock_python::{
-        client_command_dispatcher_context, server_command_dispatcher_context,
+        client_command_dispatcher_context, client_loaded_dispatcher_context,
+        server_command_dispatcher_context,
     };
     use crate::hooks::{
-        shinqlx_execute_client_command_intern, shinqlx_send_server_command_intern, MockClient,
-        MockQuakeEngine,
+        shinqlx_execute_client_command_intern, shinqlx_send_server_command_intern,
+        shinqlx_sv_cliententerworld_intern, MockClient, MockQuakeEngine,
     };
     use crate::prelude::*;
     use serial_test::serial;
@@ -901,5 +920,97 @@ mod hooks_tests {
             .times(1);
 
         shinqlx_send_server_command_intern(&mock, Some(mock_client), "cp asdf".into());
+    }
+
+    #[test]
+    #[serial]
+    fn client_enter_world_for_unprimed_client() {
+        let mut mock_client = MockClient::new();
+        mock_client
+            .expect_get_state()
+            .return_const_st(clientState_t::CS_ZOMBIE)
+            .times(1);
+        mock_client
+            .expect_has_gentity()
+            .return_const_st(true)
+            .times(1);
+        let mut usercmd = UserCmdBuilder::default().build().unwrap();
+        let mut mock_engine = MockQuakeEngine::new();
+        mock_engine
+            .expect_client_enter_world()
+            .return_const_st(())
+            .times(1);
+        let client_loaded_ctx = client_loaded_dispatcher_context();
+        client_loaded_ctx.expect().times(0);
+
+        shinqlx_sv_cliententerworld_intern(
+            &mock_engine,
+            mock_client,
+            &mut usercmd as *mut usercmd_t,
+        );
+    }
+
+    #[test]
+    #[serial]
+    fn client_enter_world_for_primed_client_without_gentity() {
+        let mut mock_client = MockClient::new();
+        mock_client
+            .expect_get_state()
+            .return_const_st(clientState_t::CS_PRIMED)
+            .times(1);
+        mock_client
+            .expect_has_gentity()
+            .return_const_st(false)
+            .times(1);
+        let mut usercmd = UserCmdBuilder::default().build().unwrap();
+        let mut mock_engine = MockQuakeEngine::new();
+        mock_engine
+            .expect_client_enter_world()
+            .return_const_st(())
+            .times(1);
+        let client_loaded_ctx = client_loaded_dispatcher_context();
+        client_loaded_ctx.expect().times(0);
+
+        shinqlx_sv_cliententerworld_intern(
+            &mock_engine,
+            mock_client,
+            &mut usercmd as *mut usercmd_t,
+        );
+    }
+
+    #[test]
+    #[serial]
+    fn client_enter_world_for_primed_client_with_gentity_informs_python() {
+        let mut mock_client = MockClient::new();
+        mock_client
+            .expect_get_state()
+            .return_const_st(clientState_t::CS_PRIMED)
+            .times(1);
+        mock_client
+            .expect_has_gentity()
+            .return_const_st(true)
+            .times(1);
+        mock_client
+            .expect_get_client_id()
+            .return_const_st(42)
+            .times(1);
+        let mut usercmd = UserCmdBuilder::default().build().unwrap();
+        let mut mock_engine = MockQuakeEngine::new();
+        mock_engine
+            .expect_client_enter_world()
+            .return_const_st(())
+            .times(1);
+        let client_loaded_ctx = client_loaded_dispatcher_context();
+        client_loaded_ctx
+            .expect()
+            .withf_st(|&client_id| client_id == 42)
+            .return_const_st(())
+            .times(1);
+
+        shinqlx_sv_cliententerworld_intern(
+            &mock_engine,
+            mock_client,
+            &mut usercmd as *mut usercmd_t,
+        );
     }
 }

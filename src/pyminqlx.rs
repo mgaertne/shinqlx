@@ -220,6 +220,7 @@ where
     ALLOW_FREE_CLIENT.store(-1, Ordering::Relaxed);
 }
 
+#[allow(dead_code)]
 pub(crate) fn client_loaded_dispatcher(client_id: i32) {
     if !pyminqlx_is_initialized() {
         return;
