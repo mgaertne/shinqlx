@@ -263,6 +263,7 @@ pub(crate) fn new_game_dispatcher(restart: bool) {
     });
 }
 
+#[cfg_attr(test, allow(dead_code))]
 pub(crate) fn set_configstring_dispatcher<T, U>(index: T, value: U) -> Option<String>
 where
     T: Into<u32>,
