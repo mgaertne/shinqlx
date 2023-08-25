@@ -4,6 +4,7 @@ use crate::game_entity::GameEntity;
 #[cfg(test)]
 use crate::hooks::mock_python::{
     client_command_dispatcher, client_loaded_dispatcher, server_command_dispatcher,
+    set_configstring_dispatcher,
 };
 #[cfg(test)]
 use crate::hooks::MockClient as Client;
@@ -11,11 +12,12 @@ use crate::prelude::*;
 #[cfg(not(test))]
 use crate::pyminqlx::{
     client_command_dispatcher, client_loaded_dispatcher, server_command_dispatcher,
+    set_configstring_dispatcher,
 };
 use crate::pyminqlx::{
     client_connect_dispatcher, client_disconnect_dispatcher, client_spawn_dispatcher,
     console_print_dispatcher, damage_dispatcher, frame_dispatcher, kamikaze_explode_dispatcher,
-    kamikaze_use_dispatcher, new_game_dispatcher, set_configstring_dispatcher,
+    kamikaze_use_dispatcher, new_game_dispatcher,
 };
 use crate::quake_live_engine::{
     AddCommand, ClientConnect, ClientEnterWorld, ClientSpawn, ComPrintf, ExecuteClientCommand,
@@ -325,6 +327,15 @@ where
         return;
     };
 
+    #[allow(clippy::unnecessary_to_owned)]
+    shinqlx_set_configstring_intern(main_engine, index.into(), value.as_ref().to_string());
+}
+
+#[cfg_attr(not(test), inline)]
+fn shinqlx_set_configstring_intern<T>(main_engine: &T, index: u32, value: String)
+where
+    T: SetConfigstring<c_int, String>,
+{
     let Ok(c_index) = index.try_into() else {
         return;
     };
@@ -617,6 +628,9 @@ mod python {
         None
     }
     pub(crate) fn client_loaded_dispatcher(_client_id: i32) {}
+    pub(crate) fn set_configstring_dispatcher(_index: u32, _value: String) -> Option<String> {
+        None
+    }
 }
 
 #[cfg(test)]
@@ -630,6 +644,9 @@ mock! {
     }
     impl ClientEnterWorld<&mut Client> for QuakeEngine {
         fn client_enter_world(&self, client: &mut Client, cmd: * mut usercmd_t);
+    }
+    impl SetConfigstring<c_int, String> for QuakeEngine {
+        fn set_configstring(&self, index: c_int, value: String);
     }
 }
 
@@ -660,13 +677,15 @@ mock! {
 mod hooks_tests {
     use crate::hooks::mock_python::{
         client_command_dispatcher_context, client_loaded_dispatcher_context,
-        server_command_dispatcher_context,
+        server_command_dispatcher_context, set_configstring_dispatcher_context,
     };
     use crate::hooks::{
         shinqlx_execute_client_command_intern, shinqlx_send_server_command_intern,
-        shinqlx_sv_cliententerworld_intern, MockClient, MockQuakeEngine,
+        shinqlx_set_configstring_intern, shinqlx_sv_cliententerworld_intern, MockClient,
+        MockQuakeEngine,
     };
     use crate::prelude::*;
+    use rstest::*;
     use serial_test::serial;
 
     #[test]
@@ -1012,5 +1031,31 @@ mod hooks_tests {
             mock_client,
             &mut usercmd as *mut usercmd_t,
         );
+    }
+
+    #[rstest]
+    #[case(16)]
+    #[case(662)]
+    #[case(663)]
+    #[case(664)]
+    #[case(665)]
+    #[case(666)]
+    #[case(667)]
+    #[case(668)]
+    #[case(669)]
+    fn set_confgistring_for_undispatched_index(#[case] test_index: u32) {
+        let mut mock_engine = MockQuakeEngine::new();
+        mock_engine
+            .expect_set_configstring()
+            .withf_st(move |&index, value| {
+                index == test_index.try_into().unwrap() && value == "some value"
+            })
+            .return_const_st(())
+            .times(1);
+
+        let set_configstring_dispatcher_ctx = set_configstring_dispatcher_context();
+        set_configstring_dispatcher_ctx.expect().times(0);
+
+        shinqlx_set_configstring_intern(&mock_engine, test_index, "some value".into());
     }
 }

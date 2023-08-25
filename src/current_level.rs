@@ -1,8 +1,20 @@
+#[cfg(test)]
+use crate::current_level::mock_hooks::shinqlx_set_configstring;
 use crate::game_entity::GameEntity;
+#[cfg(not(test))]
 use crate::hooks::shinqlx_set_configstring;
 use crate::prelude::*;
 use crate::MAIN_ENGINE;
 use core::ffi::c_char;
+#[cfg(test)]
+use mockall::automock;
+
+#[cfg(test)]
+#[automock]
+#[allow(dead_code)]
+mod hooks {
+    pub(crate) fn shinqlx_set_configstring(_index: u32, _value: String) {}
+}
 
 #[derive(Debug, PartialEq)]
 #[repr(transparent)]
@@ -90,10 +102,13 @@ impl CurrentLevel {
             .filter_map(|game_entity| game_entity.get_game_client().ok())
             .for_each(|mut game_client| game_client.set_vote_pending());
 
-        shinqlx_set_configstring(CS_VOTE_STRING, vote_disp);
-        shinqlx_set_configstring(CS_VOTE_TIME, format!("{}", self.level.voteTime).as_str());
-        shinqlx_set_configstring(CS_VOTE_YES, "0");
-        shinqlx_set_configstring(CS_VOTE_NO, "0");
+        #[allow(clippy::unnecessary_to_owned)]
+        shinqlx_set_configstring(CS_VOTE_STRING, vote_disp.as_ref().to_string());
+        shinqlx_set_configstring(CS_VOTE_TIME, format!("{}", self.level.voteTime));
+        #[allow(clippy::unnecessary_to_owned)]
+        shinqlx_set_configstring(CS_VOTE_YES, "0".to_string());
+        #[allow(clippy::unnecessary_to_owned)]
+        shinqlx_set_configstring(CS_VOTE_NO, "0".to_string());
     }
 
     pub(crate) fn set_training_map(&mut self, is_training_map: bool) {
@@ -103,6 +118,7 @@ impl CurrentLevel {
 
 #[cfg(test)]
 mod current_level_tests {
+    use crate::current_level::mock_hooks::*;
     use crate::current_level::CurrentLevel;
     use crate::prelude::*;
     use crate::quake_live_functions::QuakeLiveFunction::G_InitGame;
@@ -245,6 +261,9 @@ mod current_level_tests {
             let mut guard = MAIN_ENGINE.write();
             *guard = Some(main_engine);
         }
+
+        let set_configstring_ctx = shinqlx_set_configstring_context();
+        set_configstring_ctx.expect().return_const_st(());
 
         let result = catch_unwind(|| {
             let mut level = LevelLocalsBuilder::default().build().unwrap();
