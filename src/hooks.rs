@@ -9,6 +9,8 @@ use crate::hooks::mock_python::{
 };
 #[cfg(test)]
 use crate::hooks::MockClient as Client;
+#[cfg(test)]
+use crate::hooks::{MockQuakeEngine as QuakeLiveEngine, DUMMY_MAIN_ENGINE as MAIN_ENGINE};
 use crate::prelude::*;
 #[cfg(not(test))]
 use crate::pyminqlx::{
@@ -20,16 +22,24 @@ use crate::pyminqlx::{
     client_connect_dispatcher, client_spawn_dispatcher, damage_dispatcher,
     kamikaze_explode_dispatcher, kamikaze_use_dispatcher,
 };
+#[cfg(not(test))]
+use crate::quake_live_engine::QuakeLiveEngine;
 use crate::quake_live_engine::{
     AddCommand, ClientConnect, ClientEnterWorld, ClientSpawn, ComPrintf, ExecuteClientCommand,
     InitGame, RegisterDamage, RunFrame, SendServerCommand, SetConfigstring, SetModuleOffset,
     ShutdownGame, SpawnServer,
 };
+#[cfg(not(test))]
 use crate::MAIN_ENGINE;
 use alloc::string::String;
 use core::ffi::{c_char, c_int, CStr, VaList, VaListImpl};
 #[cfg(test)]
 use mockall::{automock, mock};
+#[cfg(test)]
+use parking_lot::RwLock;
+
+#[cfg(test)]
+static DUMMY_MAIN_ENGINE: RwLock<Option<QuakeLiveEngine>> = RwLock::new(None);
 
 pub(crate) fn shinqlx_cmd_addcommand(cmd: *const c_char, func: unsafe extern "C" fn()) {
     let Some(main_engine_guard) = MAIN_ENGINE.try_read() else {
@@ -40,6 +50,15 @@ pub(crate) fn shinqlx_cmd_addcommand(cmd: *const c_char, func: unsafe extern "C"
         return;
     };
 
+    shinqlx_cmd_addcommand_intern(main_engine, cmd, func);
+}
+
+#[cfg_attr(not(test), inline)]
+fn shinqlx_cmd_addcommand_intern(
+    main_engine: &QuakeLiveEngine,
+    cmd: *const c_char,
+    func: unsafe extern "C" fn(),
+) {
     if !main_engine.is_common_initialized() {
         if let Err(err) = main_engine.initialize_static() {
             error!(target: "shinqlx", "{:?}", err);
@@ -50,11 +69,29 @@ pub(crate) fn shinqlx_cmd_addcommand(cmd: *const c_char, func: unsafe extern "C"
 
     let command = unsafe { CStr::from_ptr(cmd) }.to_string_lossy();
     if !command.is_empty() {
-        main_engine.add_command(command, func);
+        #[allow(clippy::unnecessary_to_owned)]
+        main_engine.add_command(command.as_ref().to_string(), func);
     }
 }
 
 pub(crate) fn shinqlx_sys_setmoduleoffset(
+    module_name: *const c_char,
+    offset: unsafe extern "C" fn(),
+) {
+    let Some(main_engine_guard) = MAIN_ENGINE.try_read() else {
+        return;
+    };
+
+    let Some(ref main_engine) = *main_engine_guard else {
+        return;
+    };
+
+    shinqlx_sys_setmoduleoffset_intern(main_engine, module_name, offset);
+}
+
+#[cfg_attr(not(test), inline)]
+fn shinqlx_sys_setmoduleoffset_intern(
+    main_engine: &QuakeLiveEngine,
     module_name: *const c_char,
     offset: unsafe extern "C" fn(),
 ) {
@@ -65,15 +102,8 @@ pub(crate) fn shinqlx_sys_setmoduleoffset(
         error!(target: "shinqlx", "Unknown module: {}", converted_module_name);
     }
 
-    let Some(main_engine_guard) = MAIN_ENGINE.try_read() else {
-        return;
-    };
-
-    let Some(ref main_engine) = *main_engine_guard else {
-        return;
-    };
-
-    main_engine.set_module_offset(converted_module_name, offset);
+    #[allow(clippy::unnecessary_to_owned)]
+    main_engine.set_module_offset(converted_module_name.as_ref().to_string(), offset);
 
     if let Err(err) = main_engine.initialize_vm(offset as usize) {
         error!(target: "shinqlx", "{:?}", err);
@@ -92,6 +122,16 @@ pub extern "C" fn ShiNQlx_G_InitGame(level_time: c_int, random_seed: c_int, rest
         return;
     };
 
+    shinqlx_g_initgame_intern(main_engine, level_time, random_seed, restart);
+}
+
+#[cfg_attr(not(test), inline)]
+fn shinqlx_g_initgame_intern(
+    main_engine: &QuakeLiveEngine,
+    level_time: c_int,
+    random_seed: c_int,
+    restart: c_int,
+) {
     main_engine.init_game(level_time, random_seed, restart);
 
     main_engine.set_tag();
@@ -112,6 +152,11 @@ pub extern "C" fn ShiNQlx_G_ShutdownGame(restart: c_int) {
         return;
     };
 
+    shinqlx_g_shutdowngame_intern(main_engine, restart);
+}
+
+#[cfg_attr(not(test), inline)]
+fn shinqlx_g_shutdowngame_intern(main_engine: &QuakeLiveEngine, restart: c_int) {
     main_engine.unhook_vm().unwrap();
     main_engine.shutdown_game(restart);
 }
@@ -440,7 +485,12 @@ pub(crate) fn shinqlx_sv_spawnserver(server: *const c_char, kill_bots: qboolean)
         return;
     };
 
-    shinqlx_sv_spawnserver_intern(main_engine, server_str, kill_bots);
+    #[allow(clippy::unnecessary_to_owned)]
+    shinqlx_sv_spawnserver_intern(
+        main_engine,
+        server_str.as_ref().to_string(),
+        Into::<bool>::into(kill_bots),
+    );
 }
 
 #[cfg_attr(not(test), inline)]
@@ -514,7 +564,11 @@ pub extern "C" fn ShiNQlx_ClientConnect(
         return core::ptr::null();
     };
 
-    main_engine.client_connect(client_num, first_time, is_bot)
+    main_engine.client_connect(
+        client_num,
+        Into::<bool>::into(first_time),
+        Into::<bool>::into(is_bot),
+    )
 }
 
 #[no_mangle]
@@ -544,6 +598,7 @@ pub(crate) fn shinqlx_client_spawn(mut game_entity: GameEntity) {
 }
 
 #[allow(non_snake_case)]
+#[cfg_attr(test, allow(dead_code))]
 pub extern "C" fn ShiNQlx_G_StartKamikaze(ent: *mut gentity_t) {
     let Some(mut game_entity): Option<GameEntity> = ent.try_into().ok() else {
         return;
@@ -572,6 +627,7 @@ pub extern "C" fn ShiNQlx_G_StartKamikaze(ent: *mut gentity_t) {
 
 #[allow(non_snake_case)]
 #[allow(clippy::too_many_arguments)]
+#[cfg_attr(test, allow(dead_code))]
 pub extern "C" fn ShiNQlx_G_Damage(
     target: *mut gentity_t,    // entity that is being damaged
     inflictor: *mut gentity_t, // entity that is causing the damage
@@ -675,7 +731,26 @@ mod python {
 
 #[cfg(test)]
 mock! {
-    QuakeEngine{}
+    QuakeEngine{
+        pub(crate) fn is_common_initialized(&self) -> bool { false }
+        pub(crate) fn initialize_static(&self) -> Result<(), QuakeLiveEngineError> { Ok(()) }
+        pub(crate) fn initialize_vm(&self, _module_offset: usize) -> Result<(), QuakeLiveEngineError> { Ok(()) }
+        pub(crate) fn set_tag(&self) {}
+        pub(crate) fn initialize_cvars(&self) {}
+        pub(crate) fn unhook_vm(&self) -> Result<(), QuakeLiveEngineError> { Ok(()) }
+    }
+    impl AddCommand<String> for QuakeEngine {
+        fn add_command(&self, cmd: String, func: unsafe extern "C" fn());
+    }
+    impl SetModuleOffset<String> for QuakeEngine {
+        fn set_module_offset(&self, module_name: String, offset: unsafe extern "C" fn());
+    }
+    impl InitGame<c_int, c_int, c_int> for QuakeEngine {
+        fn init_game(&self, level_time: c_int, r0andom_seed: c_int, restart: c_int);
+    }
+    impl ShutdownGame<c_int> for QuakeEngine {
+        fn shutdown_game(&self, restart: c_int);
+    }
     impl ExecuteClientCommand<Client, String, qboolean> for QuakeEngine {
         fn execute_client_command(&self, client: Option<Client>, cmd: String, client_ok: qboolean);
     }
@@ -696,6 +771,16 @@ mock! {
     }
     impl RunFrame<c_int> for QuakeEngine {
         fn run_frame(&self, time: c_int);
+    }
+    impl ClientConnect<c_int, bool, bool> for QuakeEngine {
+        fn client_connect(&self, client_num: c_int, first_time: bool, is_bot: bool) -> *const c_char;
+    }
+    impl ClientSpawn<&mut GameEntity> for QuakeEngine {
+        fn client_spawn(&self, ent: &mut GameEntity);
+    }
+    impl RegisterDamage<c_int, c_int, c_int> for QuakeEngine {
+        #[allow(clippy::too_many_arguments)]
+        fn register_damage(&self, target: *mut gentity_t, inflictor: *mut gentity_t, attacker: *mut gentity_t, dir: *mut vec3_t, pos: *mut vec3_t, damage: c_int, dflags: c_int, means_of_death: c_int);
     }
 }
 
@@ -731,14 +816,211 @@ mod hooks_tests {
         set_configstring_dispatcher_context,
     };
     use crate::hooks::{
-        shinqlx_com_printf_intern, shinqlx_drop_client, shinqlx_execute_client_command_intern,
-        shinqlx_g_runframe_intern, shinqlx_send_server_command_intern,
-        shinqlx_set_configstring_intern, shinqlx_sv_cliententerworld_intern,
-        shinqlx_sv_spawnserver_intern, MockClient, MockQuakeEngine,
+        shinqlx_cmd_addcommand_intern, shinqlx_com_printf_intern, shinqlx_drop_client,
+        shinqlx_execute_client_command_intern, shinqlx_g_initgame_intern,
+        shinqlx_g_runframe_intern, shinqlx_g_shutdowngame_intern,
+        shinqlx_send_server_command_intern, shinqlx_set_configstring_intern,
+        shinqlx_sv_cliententerworld_intern, shinqlx_sv_spawnserver_intern,
+        shinqlx_sys_setmoduleoffset_intern, MockClient, MockQuakeEngine,
     };
     use crate::prelude::*;
+    use core::ffi::c_char;
     use rstest::*;
-    use serial_test::serial;
+
+    unsafe extern "C" fn dummy_function() {}
+
+    #[test]
+    fn add_command_with_main_engine_already_initiailized_command_empty() {
+        let mut mock_engine = MockQuakeEngine::new();
+        mock_engine
+            .expect_is_common_initialized()
+            .return_const_st(true);
+        mock_engine.expect_add_command().times(0);
+
+        shinqlx_cmd_addcommand_intern(&mock_engine, "\0".as_ptr() as *const c_char, dummy_function);
+    }
+
+    #[test]
+    fn add_command_with_main_engine_already_initiailized() {
+        let mut mock_engine = MockQuakeEngine::new();
+        mock_engine
+            .expect_is_common_initialized()
+            .return_const_st(true);
+        #[allow(clippy::fn_address_comparisons)]
+        mock_engine
+            .expect_add_command()
+            .withf_st(|cmd, &func| cmd == "slap" && func == dummy_function)
+            .return_const_st(())
+            .times(1);
+
+        shinqlx_cmd_addcommand_intern(
+            &mock_engine,
+            "slap\0".as_ptr() as *const c_char,
+            dummy_function,
+        );
+    }
+
+    #[test]
+    fn add_command_with_main_engine_not_initiailized_command_non_empty() {
+        let mut mock_engine = MockQuakeEngine::new();
+        mock_engine
+            .expect_is_common_initialized()
+            .return_const_st(false);
+        mock_engine
+            .expect_initialize_static()
+            .returning_st(|| Ok(()))
+            .times(1);
+        #[allow(clippy::fn_address_comparisons)]
+        mock_engine
+            .expect_add_command()
+            .withf_st(|cmd, &func| cmd == "slap" && func == dummy_function)
+            .return_const_st(())
+            .times(1);
+
+        shinqlx_cmd_addcommand_intern(
+            &mock_engine,
+            "slap\0".as_ptr() as *const c_char,
+            dummy_function,
+        );
+    }
+
+    #[test]
+    #[should_panic]
+    fn add_command_with_main_engine_already_initiailized_init_returns_err() {
+        let mut mock_engine = MockQuakeEngine::new();
+        mock_engine
+            .expect_is_common_initialized()
+            .return_const_st(false);
+        mock_engine
+            .expect_initialize_static()
+            .returning_st(|| Err(QuakeLiveEngineError::MainEngineNotInitialized))
+            .times(1);
+
+        shinqlx_cmd_addcommand_intern(
+            &mock_engine,
+            "slap\0".as_ptr() as *const c_char,
+            dummy_function,
+        );
+    }
+
+    #[test]
+    fn sys_setmoduleoffset_vm_init_ok() {
+        let mut mock_engine = MockQuakeEngine::new();
+        #[allow(clippy::fn_address_comparisons)]
+        mock_engine
+            .expect_set_module_offset()
+            .withf_st(|module_name, &offset| module_name == "qagame" && offset == dummy_function)
+            .return_const_st(())
+            .times(1);
+        mock_engine
+            .expect_initialize_vm()
+            .withf_st(|&offset| offset == dummy_function as usize)
+            .returning_st(|_offset| Ok(()))
+            .times(1);
+
+        shinqlx_sys_setmoduleoffset_intern(
+            &mock_engine,
+            "qagame\0".as_ptr() as *const c_char,
+            dummy_function,
+        );
+    }
+
+    #[test]
+    #[should_panic]
+    fn sys_setmoduleoffset_vm_init_returns_err() {
+        let mut mock_engine = MockQuakeEngine::new();
+        #[allow(clippy::fn_address_comparisons)]
+        mock_engine
+            .expect_set_module_offset()
+            .withf_st(|module_name, &offset| module_name == "qagame" && offset == dummy_function)
+            .return_const_st(())
+            .times(1);
+        mock_engine
+            .expect_initialize_vm()
+            .withf_st(|&offset| offset == dummy_function as usize)
+            .returning_st(|_offset| Err(QuakeLiveEngineError::MainEngineNotInitialized))
+            .times(1);
+
+        shinqlx_sys_setmoduleoffset_intern(
+            &mock_engine,
+            "qagame\0".as_ptr() as *const c_char,
+            dummy_function,
+        );
+    }
+
+    #[test]
+    fn init_game_without_restart() {
+        let mut mock_engine = MockQuakeEngine::new();
+        mock_engine
+            .expect_init_game()
+            .withf_st(|&level_time, &random_seed, &restart| {
+                level_time == 42 && random_seed == 21 && restart == 0
+            })
+            .return_const_st(())
+            .times(1);
+        mock_engine.expect_set_tag().return_const_st(()).times(1);
+        mock_engine
+            .expect_initialize_cvars()
+            .return_const_st(())
+            .times(1);
+        let new_game_dispatcher_ctx = new_game_dispatcher_context();
+        new_game_dispatcher_ctx
+            .expect()
+            .withf_st(|&restart| restart)
+            .times(0);
+
+        shinqlx_g_initgame_intern(&mock_engine, 42, 21, 0);
+    }
+
+    #[test]
+    fn init_game_with_restart() {
+        let mut mock_engine = MockQuakeEngine::new();
+        mock_engine
+            .expect_init_game()
+            .withf_st(|&level_time, &random_seed, &restart| {
+                level_time == 42 && random_seed == 21 && restart == 1
+            })
+            .return_const_st(())
+            .times(1);
+        mock_engine.expect_set_tag().return_const_st(()).times(1);
+        mock_engine
+            .expect_initialize_cvars()
+            .return_const_st(())
+            .times(1);
+        let new_game_dispatcher_ctx = new_game_dispatcher_context();
+        new_game_dispatcher_ctx
+            .expect()
+            .withf_st(|&restart| restart)
+            .return_const_st(())
+            .times(1);
+
+        shinqlx_g_initgame_intern(&mock_engine, 42, 21, 1);
+    }
+
+    #[test]
+    fn shut_down_game_unhooks_vm() {
+        let mut mock_engine = MockQuakeEngine::new();
+        mock_engine.expect_unhook_vm().returning(|| Ok(())).times(1);
+        mock_engine
+            .expect_shutdown_game()
+            .withf_st(|&restart| restart == 42)
+            .return_const_st(())
+            .times(1);
+
+        shinqlx_g_shutdowngame_intern(&mock_engine, 42);
+    }
+
+    #[test]
+    #[should_panic]
+    fn shut_down_game_unhook_vm_fails() {
+        let mut mock_engine = MockQuakeEngine::new();
+        mock_engine
+            .expect_unhook_vm()
+            .returning(|| Err(QuakeLiveEngineError::MainEngineUnreadable))
+            .times(1);
+
+        shinqlx_g_shutdowngame_intern(&mock_engine, 42);
+    }
 
     #[test]
     fn execute_client_command_for_none_client_non_empty_cmd() {
@@ -786,7 +1068,6 @@ mod hooks_tests {
     }
 
     #[test]
-    #[serial]
     fn execute_client_command_for_ok_client_with_gentity_non_empty_cmd_dispatcher_returns_none() {
         let mut mock = MockQuakeEngine::new();
         mock.expect_execute_client_command().times(0);
@@ -810,7 +1091,6 @@ mod hooks_tests {
     }
 
     #[test]
-    #[serial]
     fn execute_client_command_for_ok_client_with_gentity_non_empty_cmd_dispatcher_returns_modified_string(
     ) {
         let mut mock = MockQuakeEngine::new();
@@ -841,7 +1121,6 @@ mod hooks_tests {
     }
 
     #[test]
-    #[serial]
     fn execute_client_command_for_ok_client_with_gentity_non_empty_cmd_dispatcher_returns_empty_string(
     ) {
         let mut mock = MockQuakeEngine::new();
@@ -867,7 +1146,6 @@ mod hooks_tests {
     }
 
     #[test]
-    #[serial]
     fn send_server_command_for_none_client_non_empty_cmd_dispatcher_returns_none() {
         let mut mock = MockQuakeEngine::new();
         mock.expect_send_server_command().times(0);
@@ -882,7 +1160,6 @@ mod hooks_tests {
     }
 
     #[test]
-    #[serial]
     fn send_server_command_for_none_client_non_empty_cmd_dispatcher_returns_modified_cmd() {
         let mut mock = MockQuakeEngine::new();
         mock.expect_send_server_command()
@@ -916,7 +1193,6 @@ mod hooks_tests {
     }
 
     #[test]
-    #[serial]
     fn send_server_command_for_client_with_gentity_non_empty_cmd_dispatcher_returns_none() {
         let mut mock = MockQuakeEngine::new();
         mock.expect_send_server_command().times(0);
@@ -940,7 +1216,6 @@ mod hooks_tests {
     }
 
     #[test]
-    #[serial]
     fn send_server_command_for_client_with_gentity_non_empty_cmd_dispatcher_returns_modified_string(
     ) {
         let mut mock = MockQuakeEngine::new();
@@ -969,7 +1244,6 @@ mod hooks_tests {
     }
 
     #[test]
-    #[serial]
     fn send_server_command_for_client_with_gentity_non_empty_cmd_dispatcher_returns_empty_string() {
         let mut mock = MockQuakeEngine::new();
         mock.expect_send_server_command().times(0);
@@ -994,7 +1268,6 @@ mod hooks_tests {
     }
 
     #[test]
-    #[serial]
     fn client_enter_world_for_unprimed_client() {
         let mut mock_client = MockClient::new();
         mock_client
@@ -1022,7 +1295,6 @@ mod hooks_tests {
     }
 
     #[test]
-    #[serial]
     fn client_enter_world_for_primed_client_without_gentity() {
         let mut mock_client = MockClient::new();
         mock_client
@@ -1050,7 +1322,6 @@ mod hooks_tests {
     }
 
     #[test]
-    #[serial]
     fn client_enter_world_for_primed_client_with_gentity_informs_python() {
         let mut mock_client = MockClient::new();
         mock_client
