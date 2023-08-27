@@ -4,7 +4,8 @@ use crate::game_entity::GameEntity;
 #[cfg(test)]
 use crate::hooks::mock_python::{
     client_command_dispatcher, client_disconnect_dispatcher, client_loaded_dispatcher,
-    console_print_dispatcher, server_command_dispatcher, set_configstring_dispatcher,
+    console_print_dispatcher, frame_dispatcher, new_game_dispatcher, server_command_dispatcher,
+    set_configstring_dispatcher,
 };
 #[cfg(test)]
 use crate::hooks::MockClient as Client;
@@ -12,11 +13,12 @@ use crate::prelude::*;
 #[cfg(not(test))]
 use crate::pyminqlx::{
     client_command_dispatcher, client_disconnect_dispatcher, client_loaded_dispatcher,
-    console_print_dispatcher, server_command_dispatcher, set_configstring_dispatcher,
+    console_print_dispatcher, frame_dispatcher, new_game_dispatcher, server_command_dispatcher,
+    set_configstring_dispatcher,
 };
 use crate::pyminqlx::{
-    client_connect_dispatcher, client_spawn_dispatcher, damage_dispatcher, frame_dispatcher,
-    kamikaze_explode_dispatcher, kamikaze_use_dispatcher, new_game_dispatcher,
+    client_connect_dispatcher, client_spawn_dispatcher, damage_dispatcher,
+    kamikaze_explode_dispatcher, kamikaze_use_dispatcher,
 };
 use crate::quake_live_engine::{
     AddCommand, ClientConnect, ClientEnterWorld, ClientSpawn, ComPrintf, ExecuteClientCommand,
@@ -438,6 +440,17 @@ pub(crate) fn shinqlx_sv_spawnserver(server: *const c_char, kill_bots: qboolean)
         return;
     };
 
+    shinqlx_sv_spawnserver_intern(main_engine, server_str, kill_bots);
+}
+
+#[cfg_attr(not(test), inline)]
+fn shinqlx_sv_spawnserver_intern<T, U: AsRef<str>, V: Into<qboolean>>(
+    main_engine: &T,
+    server_str: U,
+    kill_bots: V,
+) where
+    T: SpawnServer<U, V>,
+{
     main_engine.spawn_server(server_str, kill_bots);
 
     new_game_dispatcher(false);
@@ -445,8 +458,6 @@ pub(crate) fn shinqlx_sv_spawnserver(server: *const c_char, kill_bots: qboolean)
 
 #[no_mangle]
 pub extern "C" fn ShiNQlx_G_RunFrame(time: c_int) {
-    frame_dispatcher();
-
     let Some(main_engine_guard) = MAIN_ENGINE.try_read() else {
         return;
     };
@@ -454,6 +465,16 @@ pub extern "C" fn ShiNQlx_G_RunFrame(time: c_int) {
     let Some(ref main_engine) = *main_engine_guard else {
         return;
     };
+
+    shinqlx_g_runframe_intern(main_engine, time);
+}
+
+#[cfg_attr(not(test), inline)]
+fn shinqlx_g_runframe_intern<T>(main_engine: &T, time: c_int)
+where
+    T: RunFrame<c_int>,
+{
+    frame_dispatcher();
 
     main_engine.run_frame(time);
 }
@@ -471,7 +492,7 @@ unsafe fn to_return_string(client_id: i32, input: String) -> *const c_char {
     &CLIENT_CONNECT_BUFFER[client_id as usize] as *const c_char
 }
 
-#[allow(non_snake_case)]
+#[no_mangle]
 pub extern "C" fn ShiNQlx_ClientConnect(
     client_num: c_int,
     first_time: qboolean,
@@ -496,7 +517,7 @@ pub extern "C" fn ShiNQlx_ClientConnect(
     main_engine.client_connect(client_num, first_time, is_bot)
 }
 
-#[allow(non_snake_case)]
+#[no_mangle]
 pub extern "C" fn ShiNQlx_ClientSpawn(ent: *mut gentity_t) {
     let Some(game_entity): Option<GameEntity> = ent.try_into().ok() else {
         return;
@@ -646,6 +667,10 @@ mod python {
     pub(crate) fn console_print_dispatcher(_msg: String) -> Option<String> {
         None
     }
+
+    pub(crate) fn new_game_dispatcher(_restart: bool) {}
+
+    pub(crate) fn frame_dispatcher() {}
 }
 
 #[cfg(test)]
@@ -665,6 +690,12 @@ mock! {
     }
     impl ComPrintf<String> for QuakeEngine {
         fn com_printf(&self, msg: String);
+    }
+    impl SpawnServer<String, bool> for QuakeEngine {
+        fn spawn_server(&self, server_str: String, kill_bots: bool);
+    }
+    impl RunFrame<c_int> for QuakeEngine {
+        fn run_frame(&self, time: c_int);
     }
 }
 
@@ -696,12 +727,14 @@ mod hooks_tests {
     use crate::hooks::mock_python::{
         client_command_dispatcher_context, client_disconnect_dispatcher_context,
         client_loaded_dispatcher_context, console_print_dispatcher_context,
-        server_command_dispatcher_context, set_configstring_dispatcher_context,
+        frame_dispatcher_context, new_game_dispatcher_context, server_command_dispatcher_context,
+        set_configstring_dispatcher_context,
     };
     use crate::hooks::{
         shinqlx_com_printf_intern, shinqlx_drop_client, shinqlx_execute_client_command_intern,
-        shinqlx_send_server_command_intern, shinqlx_set_configstring_intern,
-        shinqlx_sv_cliententerworld_intern, MockClient, MockQuakeEngine,
+        shinqlx_g_runframe_intern, shinqlx_send_server_command_intern,
+        shinqlx_set_configstring_intern, shinqlx_sv_cliententerworld_intern,
+        shinqlx_sv_spawnserver_intern, MockClient, MockQuakeEngine,
     };
     use crate::prelude::*;
     use rstest::*;
@@ -1185,5 +1218,42 @@ mod hooks_tests {
             .times(1);
 
         shinqlx_com_printf_intern(&mock_engine, "Hello World!".into());
+    }
+
+    #[test]
+    fn sv_spawnserver_forwards_to_python() {
+        let mut mock_engine = MockQuakeEngine::new();
+        mock_engine
+            .expect_spawn_server()
+            .withf_st(|server_str, &kill_bots| server_str == "l33t ql server" && kill_bots)
+            .return_const_st(())
+            .times(1);
+
+        let mock_new_game_dispatcher_ctx = new_game_dispatcher_context();
+        mock_new_game_dispatcher_ctx
+            .expect()
+            .withf_st(|&restart| !restart)
+            .return_const_st(())
+            .times(1);
+
+        shinqlx_sv_spawnserver_intern(&mock_engine, "l33t ql server".into(), true);
+    }
+
+    #[test]
+    fn g_runframe_forwards_to_python() {
+        let mut mock_engine = MockQuakeEngine::new();
+        mock_engine
+            .expect_run_frame()
+            .withf_st(|&time| time == 42)
+            .return_const_st(())
+            .times(1);
+
+        let mock_frame_dispatcher_ctx = frame_dispatcher_context();
+        mock_frame_dispatcher_ctx
+            .expect()
+            .return_const_st(())
+            .times(1);
+
+        shinqlx_g_runframe_intern(&mock_engine, 42);
     }
 }
