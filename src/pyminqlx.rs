@@ -94,7 +94,7 @@ where
     )
 }
 
-#[allow(dead_code)]
+#[cfg_attr(test, allow(dead_code))]
 pub(crate) fn server_command_dispatcher<T>(client_id: Option<i32>, cmd: T) -> Option<String>
 where
     T: AsRef<str>,
@@ -133,6 +133,7 @@ where
     })
 }
 
+#[cfg_attr(test, allow(dead_code))]
 pub(crate) fn frame_dispatcher() {
     if !pyminqlx_is_initialized() {
         return;
@@ -221,7 +222,7 @@ where
     ALLOW_FREE_CLIENT.store(-1, Ordering::Relaxed);
 }
 
-#[allow(dead_code)]
+#[cfg_attr(test, allow(dead_code))]
 pub(crate) fn client_loaded_dispatcher(client_id: i32) {
     if !pyminqlx_is_initialized() {
         return;
@@ -243,6 +244,7 @@ pub(crate) fn client_loaded_dispatcher(client_id: i32) {
     });
 }
 
+#[cfg_attr(test, allow(dead_code))]
 pub(crate) fn new_game_dispatcher(restart: bool) {
     if !pyminqlx_is_initialized() {
         return;
