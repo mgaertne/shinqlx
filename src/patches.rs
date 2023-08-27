@@ -1,10 +1,14 @@
 use log::error;
 use region::Protection;
 
+#[cfg_attr(test, allow(dead_code))]
 const OFFSET_VOTE_CLIENTKICK_FIX: usize = 0x11C8;
+#[cfg_attr(test, allow(dead_code))]
 const PTRN_VOTE_CLIENTKICK_FIX: &[u8; 38] = b"\x39\xFE\x0F\x8D\x90\x00\x00\x00\x48\x69\xD6\xF8\x0B\x00\x00\x48\x01\xD0\x90\x90\x90\x00\x00\x00\x00\x00\x00\x00\x0f\x85\x76\x00\x00\x00\x90\x90\x90\x90";
+#[cfg_attr(test, allow(dead_code))]
 const MASK_VOTE_CLIENTKICK_FIX: &[u8; 38] = b"XXXXXXXXXXXXXXXXXXXXX-------XXXXXXXXXX";
 
+#[cfg_attr(test, allow(dead_code))]
 pub(crate) fn patch_by_mask(orig_addr: usize, offset: usize, pattern: &[u8], mask: &[u8]) {
     let offset = (orig_addr + offset) as *mut u8;
 
@@ -25,6 +29,7 @@ pub(crate) fn patch_by_mask(orig_addr: usize, offset: usize, pattern: &[u8], mas
     }
 }
 
+#[cfg_attr(test, allow(dead_code))]
 pub(crate) fn patch_callvote_f(orig_addr: usize) {
     patch_by_mask(
         orig_addr,

@@ -3073,10 +3073,12 @@ pub(crate) fn pyminqlx_is_initialized() -> bool {
 #[derive(PartialEq, Eq, Debug, Clone, Copy)]
 pub(crate) enum PythonInitializationError {
     MainScriptError,
+    #[cfg_attr(test, allow(dead_code))]
     AlreadyInitialized,
     NotInitializedError,
 }
 
+#[cfg_attr(test, allow(dead_code))]
 pub(crate) fn pyminqlx_initialize() -> Result<(), PythonInitializationError> {
     if pyminqlx_is_initialized() {
         error!(target: "shinqlx", "pyminqlx_initialize was called while already initialized");

@@ -40,6 +40,7 @@ const QAGAME: &str = "qagamex64.so";
 #[cfg(target_pointer_width = "32")]
 const QAGAME: &str = "qagamei386.so";
 
+#[cfg_attr(test, allow(dead_code))]
 fn try_disable<T: Function>(detour: &GenericDetour<T>) {
     if detour.is_enabled() {
         if let Err(e) = unsafe { detour.disable() } {
@@ -48,6 +49,7 @@ fn try_disable<T: Function>(detour: &GenericDetour<T>) {
     }
 }
 
+#[cfg_attr(test, allow(dead_code))]
 fn extract_detour<T: Function>(
     lock: &RwLock<Option<GenericDetour<T>>>,
 ) -> Option<GenericDetour<T>> {
@@ -69,6 +71,7 @@ pub(crate) enum QuakeLiveEngineError {
     #[cfg(target_os = "linux")]
     NoMemoryMappingInformationFound(String),
     StaticFunctionNotFound(QuakeLiveFunction),
+    #[cfg_attr(test, allow(dead_code))]
     PythonInitializationFailed(PythonInitializationError),
     DetourCouldNotBeCreated(QuakeLiveFunction),
     DetourCouldNotBeEnabled(QuakeLiveFunction),
@@ -136,6 +139,8 @@ type GDamageDetourType = GenericDetour<
         c_int,
     ),
 >;
+
+#[cfg_attr(test, allow(dead_code))]
 type VmHooksResultType = (
     Option<ClientConnectDetourType>,
     Option<GStartKamikazeDetourType>,
@@ -144,6 +149,7 @@ type VmHooksResultType = (
 );
 
 #[derive(Debug)]
+#[cfg_attr(test, allow(dead_code))]
 struct VmFunctions {
     vm_call_table: AtomicUsize,
 
@@ -178,6 +184,7 @@ const OFFSET_INITGAME: usize = 0x18;
 const OFFSET_RUNFRAME: usize = 0x8;
 
 impl VmFunctions {
+    #[cfg_attr(test, allow(dead_code))]
     pub(crate) fn try_initialize_from(
         &self,
         #[allow(unused_variables)] module_offset: usize,
@@ -460,14 +467,20 @@ pub(crate) struct QuakeLiveEngine {
     static_detours: OnceCell<StaticDetours>,
 
     pub(crate) sv_maxclients: AtomicI32,
+    #[cfg_attr(test, allow(dead_code))]
     common_initialized: OnceBool,
 
     vm_functions: VmFunctions,
+    #[cfg_attr(test, allow(dead_code))]
     current_vm: AtomicUsize,
 
+    #[cfg_attr(test, allow(dead_code))]
     pending_client_spawn_detours: RwLock<VecDeque<ClientSpawnDetourType>>,
+    #[cfg_attr(test, allow(dead_code))]
     pending_client_connect_detours: RwLock<VecDeque<ClientConnectDetourType>>,
+    #[cfg_attr(test, allow(dead_code))]
     pending_g_start_kamikaze_detours: RwLock<VecDeque<GStartKamikazeDetourType>>,
+    #[cfg_attr(test, allow(dead_code))]
     pending_g_damage_detours: RwLock<VecDeque<GDamageDetourType>>,
 }
 
@@ -945,6 +958,7 @@ impl QuakeLiveEngine {
         Ok(())
     }
 
+    #[cfg_attr(test, allow(dead_code))]
     pub(crate) fn set_tag(&self) {
         const SV_TAGS_PREFIX: &str = "shinqlx";
 
