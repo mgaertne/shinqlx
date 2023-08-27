@@ -399,6 +399,7 @@ pub(crate) fn client_spawn_dispatcher(client_id: i32) {
     });
 }
 
+#[cfg_attr(test, allow(dead_code))]
 pub(crate) fn kamikaze_use_dispatcher(client_id: i32) {
     if !pyminqlx_is_initialized() {
         return;
@@ -420,6 +421,7 @@ pub(crate) fn kamikaze_use_dispatcher(client_id: i32) {
     });
 }
 
+#[cfg_attr(test, allow(dead_code))]
 pub(crate) fn kamikaze_explode_dispatcher(client_id: i32, is_used_on_demand: bool) {
     if !pyminqlx_is_initialized() {
         return;
@@ -441,6 +443,7 @@ pub(crate) fn kamikaze_explode_dispatcher(client_id: i32, is_used_on_demand: boo
     });
 }
 
+#[cfg_attr(test, allow(dead_code))]
 pub(crate) fn damage_dispatcher(
     target_client_id: i32,
     attacker_client_id: Option<i32>,
