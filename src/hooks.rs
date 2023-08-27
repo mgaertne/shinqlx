@@ -4,7 +4,7 @@ use crate::game_entity::GameEntity;
 #[cfg(test)]
 use crate::hooks::mock_python::{
     client_command_dispatcher, client_disconnect_dispatcher, client_loaded_dispatcher,
-    server_command_dispatcher, set_configstring_dispatcher,
+    console_print_dispatcher, server_command_dispatcher, set_configstring_dispatcher,
 };
 #[cfg(test)]
 use crate::hooks::MockClient as Client;
@@ -12,12 +12,11 @@ use crate::prelude::*;
 #[cfg(not(test))]
 use crate::pyminqlx::{
     client_command_dispatcher, client_disconnect_dispatcher, client_loaded_dispatcher,
-    server_command_dispatcher, set_configstring_dispatcher,
+    console_print_dispatcher, server_command_dispatcher, set_configstring_dispatcher,
 };
 use crate::pyminqlx::{
-    client_connect_dispatcher, client_spawn_dispatcher, console_print_dispatcher,
-    damage_dispatcher, frame_dispatcher, kamikaze_explode_dispatcher, kamikaze_use_dispatcher,
-    new_game_dispatcher,
+    client_connect_dispatcher, client_spawn_dispatcher, damage_dispatcher, frame_dispatcher,
+    kamikaze_explode_dispatcher, kamikaze_use_dispatcher, new_game_dispatcher,
 };
 use crate::quake_live_engine::{
     AddCommand, ClientConnect, ClientEnterWorld, ClientSpawn, ComPrintf, ExecuteClientCommand,
@@ -402,15 +401,23 @@ pub(crate) fn shinqlx_com_printf<T>(msg: T)
 where
     T: AsRef<str>,
 {
-    let Some(_res) = console_print_dispatcher(&msg) else {
-        return;
-    };
-
     let Some(main_engine_guard) = MAIN_ENGINE.try_read() else {
         return;
     };
 
     let Some(ref main_engine) = *main_engine_guard else {
+        return;
+    };
+
+    shinqlx_com_printf_intern(main_engine, msg.as_ref().to_string());
+}
+
+#[cfg_attr(not(test), inline)]
+fn shinqlx_com_printf_intern<T>(main_engine: &T, msg: String)
+where
+    T: ComPrintf<String>,
+{
+    let Some(_res) = console_print_dispatcher(msg.clone()) else {
         return;
     };
 
@@ -635,6 +642,10 @@ mod python {
     }
 
     pub(crate) fn client_disconnect_dispatcher(_client_id: i32, _reason: String) {}
+
+    pub(crate) fn console_print_dispatcher(_msg: String) -> Option<String> {
+        None
+    }
 }
 
 #[cfg(test)]
@@ -651,6 +662,9 @@ mock! {
     }
     impl SetConfigstring<c_int, String> for QuakeEngine {
         fn set_configstring(&self, index: c_int, value: String);
+    }
+    impl ComPrintf<String> for QuakeEngine {
+        fn com_printf(&self, msg: String);
     }
 }
 
@@ -681,11 +695,11 @@ mock! {
 mod hooks_tests {
     use crate::hooks::mock_python::{
         client_command_dispatcher_context, client_disconnect_dispatcher_context,
-        client_loaded_dispatcher_context, server_command_dispatcher_context,
-        set_configstring_dispatcher_context,
+        client_loaded_dispatcher_context, console_print_dispatcher_context,
+        server_command_dispatcher_context, set_configstring_dispatcher_context,
     };
     use crate::hooks::{
-        shinqlx_drop_client, shinqlx_execute_client_command_intern,
+        shinqlx_com_printf_intern, shinqlx_drop_client, shinqlx_execute_client_command_intern,
         shinqlx_send_server_command_intern, shinqlx_set_configstring_intern,
         shinqlx_sv_cliententerworld_intern, MockClient, MockQuakeEngine,
     };
@@ -1139,5 +1153,37 @@ mod hooks_tests {
             .times(1);
 
         shinqlx_drop_client(&mut mock_client, "disconnected.");
+    }
+
+    #[test]
+    fn com_printf_when_dispatcher_returns_none() {
+        let mut mock_engine = MockQuakeEngine::new();
+        mock_engine.expect_com_printf().times(0);
+        let mock_console_print_dispatcher_ctx = console_print_dispatcher_context();
+        mock_console_print_dispatcher_ctx
+            .expect()
+            .withf_st(|msg| msg == "Hello World!")
+            .return_const_st(None)
+            .times(1);
+
+        shinqlx_com_printf_intern(&mock_engine, "Hello World!".into());
+    }
+
+    #[test]
+    fn com_printf_when_dispatcher_returns_some_value() {
+        let mut mock_engine = MockQuakeEngine::new();
+        mock_engine
+            .expect_com_printf()
+            .withf_st(|msg| msg == "Hello World!")
+            .return_const_st(())
+            .times(1);
+        let mock_console_print_dispatcher_ctx = console_print_dispatcher_context();
+        mock_console_print_dispatcher_ctx
+            .expect()
+            .withf_st(|msg| msg == "Hello World!")
+            .return_const_st(Some("Hello you!".into()))
+            .times(1);
+
+        shinqlx_com_printf_intern(&mock_engine, "Hello World!".into());
     }
 }

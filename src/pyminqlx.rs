@@ -330,6 +330,7 @@ where
     });
 }
 
+#[cfg_attr(test, allow(dead_code))]
 pub(crate) fn console_print_dispatcher<T>(text: T) -> Option<String>
 where
     T: AsRef<str>,
