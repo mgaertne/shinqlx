@@ -179,6 +179,7 @@ impl GameEntity {
             .unwrap_or(-1)
     }
 
+    #[cfg_attr(test, allow(dead_code))]
     pub(crate) fn start_kamikaze(&mut self) {
         let Some(main_engine_guard) = MAIN_ENGINE.try_read() else {
             return;
