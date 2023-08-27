@@ -1058,4 +1058,61 @@ mod hooks_tests {
 
         shinqlx_set_configstring_intern(&mock_engine, test_index, "some value".into());
     }
+
+    #[test]
+    fn set_confgistring_dispatcher_returns_none() {
+        let mut mock_engine = MockQuakeEngine::new();
+        mock_engine
+            .expect_set_configstring()
+            .withf_st(move |&index, value| index == 42 && value == "some value")
+            .return_const_st(())
+            .times(0);
+
+        let set_configstring_dispatcher_ctx = set_configstring_dispatcher_context();
+        set_configstring_dispatcher_ctx
+            .expect()
+            .withf_st(|&index, value| index == 42 && value == "some value")
+            .return_const_st(None)
+            .times(1);
+
+        shinqlx_set_configstring_intern(&mock_engine, 42, "some value".into());
+    }
+
+    #[test]
+    fn set_confgistring_dispatcher_returns_modified_string() {
+        let mut mock_engine = MockQuakeEngine::new();
+        mock_engine
+            .expect_set_configstring()
+            .withf_st(move |&index, value| index == 42 && value == "other value")
+            .return_const_st(())
+            .times(1);
+
+        let set_configstring_dispatcher_ctx = set_configstring_dispatcher_context();
+        set_configstring_dispatcher_ctx
+            .expect()
+            .withf_st(|&index, value| index == 42 && value == "some value")
+            .return_const_st(Some("other value".into()))
+            .times(1);
+
+        shinqlx_set_configstring_intern(&mock_engine, 42, "some value".into());
+    }
+
+    #[test]
+    fn set_confgistring_dispatcher_returns_unmodified_string() {
+        let mut mock_engine = MockQuakeEngine::new();
+        mock_engine
+            .expect_set_configstring()
+            .withf_st(move |&index, value| index == 42 && value == "some value")
+            .return_const_st(())
+            .times(1);
+
+        let set_configstring_dispatcher_ctx = set_configstring_dispatcher_context();
+        set_configstring_dispatcher_ctx
+            .expect()
+            .withf_st(|&index, value| index == 42 && value == "some value")
+            .return_const_st(Some("some value".into()))
+            .times(1);
+
+        shinqlx_set_configstring_intern(&mock_engine, 42, "some value".into());
+    }
 }
