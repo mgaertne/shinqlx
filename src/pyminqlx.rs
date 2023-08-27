@@ -4,14 +4,16 @@ use alloc::vec::Vec;
 use alloc::{format, vec};
 
 use crate::commands::cmd_py_command;
-use crate::hooks::{shinqlx_client_spawn, shinqlx_com_printf, shinqlx_set_configstring};
 #[cfg(not(test))]
 use crate::hooks::{
-    shinqlx_drop_client, shinqlx_execute_client_command, shinqlx_send_server_command,
+    shinqlx_client_spawn, shinqlx_drop_client, shinqlx_execute_client_command,
+    shinqlx_send_server_command,
 };
+use crate::hooks::{shinqlx_com_printf, shinqlx_set_configstring};
 #[cfg(test)]
 use crate::pyminqlx::mock_hooks::{
-    shinqlx_drop_client, shinqlx_execute_client_command, shinqlx_send_server_command,
+    shinqlx_client_spawn, shinqlx_drop_client, shinqlx_execute_client_command,
+    shinqlx_send_server_command,
 };
 use crate::MAIN_ENGINE;
 use core::sync::atomic::AtomicI32;
@@ -41,6 +43,7 @@ use pyo3::types::PyTuple;
 #[allow(dead_code)]
 mod hooks {
     use super::Client;
+    use super::GameEntity;
 
     pub(crate) fn shinqlx_execute_client_command(
         _client: Option<Client>,
@@ -50,6 +53,7 @@ mod hooks {
     }
     pub(crate) fn shinqlx_send_server_command(_client: Option<Client>, _cmd: String) {}
     pub(crate) fn shinqlx_drop_client(_client: &mut Client, _reason: String) {}
+    pub(crate) fn shinqlx_client_spawn(_game_entity: GameEntity) {}
 }
 
 static ALLOW_FREE_CLIENT: AtomicI32 = AtomicI32::new(-1);
@@ -155,6 +159,7 @@ pub(crate) fn frame_dispatcher() {
     });
 }
 
+#[cfg_attr(test, allow(dead_code))]
 pub(crate) fn client_connect_dispatcher(client_id: i32, is_bot: bool) -> Option<String> {
     if !pyminqlx_is_initialized() {
         return None;
@@ -372,6 +377,7 @@ where
     )
 }
 
+#[cfg_attr(test, allow(dead_code))]
 pub(crate) fn client_spawn_dispatcher(client_id: i32) {
     if !pyminqlx_is_initialized() {
         return;

@@ -1,27 +1,31 @@
+#[cfg(test)]
+use crate::activator::Activator;
 #[cfg(not(test))]
 use crate::client::Client;
+#[cfg(test)]
+use crate::game_client::GameClient;
+#[cfg(not(test))]
 use crate::game_entity::GameEntity;
 #[cfg(test)]
 use crate::hooks::mock_python::{
-    client_command_dispatcher, client_disconnect_dispatcher, client_loaded_dispatcher,
-    console_print_dispatcher, frame_dispatcher, new_game_dispatcher, server_command_dispatcher,
-    set_configstring_dispatcher,
+    client_command_dispatcher, client_connect_dispatcher, client_disconnect_dispatcher,
+    client_loaded_dispatcher, client_spawn_dispatcher, console_print_dispatcher, frame_dispatcher,
+    new_game_dispatcher, server_command_dispatcher, set_configstring_dispatcher,
 };
 #[cfg(test)]
 use crate::hooks::MockClient as Client;
+#[cfg(test)]
+use crate::hooks::MockGameEntity as GameEntity;
 #[cfg(test)]
 use crate::hooks::{MockQuakeEngine as QuakeLiveEngine, DUMMY_MAIN_ENGINE as MAIN_ENGINE};
 use crate::prelude::*;
 #[cfg(not(test))]
 use crate::pyminqlx::{
-    client_command_dispatcher, client_disconnect_dispatcher, client_loaded_dispatcher,
-    console_print_dispatcher, frame_dispatcher, new_game_dispatcher, server_command_dispatcher,
-    set_configstring_dispatcher,
+    client_command_dispatcher, client_connect_dispatcher, client_disconnect_dispatcher,
+    client_loaded_dispatcher, client_spawn_dispatcher, console_print_dispatcher, frame_dispatcher,
+    new_game_dispatcher, server_command_dispatcher, set_configstring_dispatcher,
 };
-use crate::pyminqlx::{
-    client_connect_dispatcher, client_spawn_dispatcher, damage_dispatcher,
-    kamikaze_explode_dispatcher, kamikaze_use_dispatcher,
-};
+use crate::pyminqlx::{damage_dispatcher, kamikaze_explode_dispatcher, kamikaze_use_dispatcher};
 #[cfg(not(test))]
 use crate::quake_live_engine::QuakeLiveEngine;
 use crate::quake_live_engine::{
@@ -548,14 +552,6 @@ pub extern "C" fn ShiNQlx_ClientConnect(
     first_time: qboolean,
     is_bot: qboolean,
 ) -> *const c_char {
-    if first_time.into() {
-        if let Some(res) = client_connect_dispatcher(client_num, is_bot.into()) {
-            if !<qboolean as Into<bool>>::into(is_bot) {
-                return unsafe { to_return_string(client_num, res) };
-            }
-        }
-    }
-
     let Some(main_engine_guard) = MAIN_ENGINE.try_read() else {
         return core::ptr::null();
     };
@@ -564,11 +560,28 @@ pub extern "C" fn ShiNQlx_ClientConnect(
         return core::ptr::null();
     };
 
-    main_engine.client_connect(
-        client_num,
-        Into::<bool>::into(first_time),
-        Into::<bool>::into(is_bot),
-    )
+    shinqlx_client_connect_intern(main_engine, client_num, first_time.into(), is_bot.into())
+}
+
+#[cfg_attr(not(test), inline)]
+fn shinqlx_client_connect_intern<T>(
+    main_engine: &T,
+    client_num: c_int,
+    first_time: bool,
+    is_bot: bool,
+) -> *const c_char
+where
+    T: ClientConnect<c_int, bool, bool>,
+{
+    if first_time {
+        if let Some(res) = client_connect_dispatcher(client_num, is_bot) {
+            if !is_bot {
+                return unsafe { to_return_string(client_num, res) };
+            }
+        }
+    }
+
+    main_engine.client_connect(client_num, first_time, is_bot)
 }
 
 #[no_mangle]
@@ -580,7 +593,7 @@ pub extern "C" fn ShiNQlx_ClientSpawn(ent: *mut gentity_t) {
     shinqlx_client_spawn(game_entity)
 }
 
-pub(crate) fn shinqlx_client_spawn(mut game_entity: GameEntity) {
+pub(crate) fn shinqlx_client_spawn(game_entity: GameEntity) {
     let Some(main_engine_guard) = MAIN_ENGINE.try_read() else {
         return;
     };
@@ -589,6 +602,14 @@ pub(crate) fn shinqlx_client_spawn(mut game_entity: GameEntity) {
         return;
     };
 
+    shinqlx_client_spawn_intern(main_engine, game_entity);
+}
+
+#[cfg_attr(not(test), inline)]
+fn shinqlx_client_spawn_intern<T>(main_engine: &T, mut game_entity: GameEntity)
+where
+    T: for<'a> ClientSpawn<&'a mut GameEntity>,
+{
     main_engine.client_spawn(&mut game_entity);
 
     // Since we won't ever stop the real function from being called,
@@ -727,6 +748,12 @@ mod python {
     pub(crate) fn new_game_dispatcher(_restart: bool) {}
 
     pub(crate) fn frame_dispatcher() {}
+
+    pub(crate) fn client_connect_dispatcher(_client_id: i32, _is_bot: bool) -> Option<String> {
+        None
+    }
+
+    pub(crate) fn client_spawn_dispatcher(_client_id: i32) {}
 }
 
 #[cfg(test)]
@@ -808,17 +835,39 @@ mock! {
 }
 
 #[cfg(test)]
+mock! {
+    pub(crate) GameEntity {
+        pub(crate) fn get_entity_id(&self) -> i32;
+        pub(crate) fn get_game_client(&self) -> Result<GameClient, QuakeLiveEngineError>;
+        pub(crate) fn get_activator(&self) -> Result<Activator, QuakeLiveEngineError>;
+        pub(crate) fn start_kamikaze(&mut self);
+    }
+    impl AsMut<gentity_t> for GameEntity {
+        fn as_mut(&mut self) -> &mut gentity_t;
+    }
+    impl From<i32> for GameEntity {
+        fn from(entity_id: i32) -> Self;
+    }
+    impl TryFrom<*mut gentity_t> for GameEntity {
+        type Error = QuakeLiveEngineError;
+        fn try_from(entity_id: *mut gentity_t) -> Result<Self, QuakeLiveEngineError>;
+    }
+}
+
+#[cfg(test)]
 mod hooks_tests {
     use crate::hooks::mock_python::{
-        client_command_dispatcher_context, client_disconnect_dispatcher_context,
-        client_loaded_dispatcher_context, console_print_dispatcher_context,
+        client_command_dispatcher_context, client_connect_dispatcher_context,
+        client_disconnect_dispatcher_context, client_loaded_dispatcher_context,
+        client_spawn_dispatcher_context, console_print_dispatcher_context,
         frame_dispatcher_context, new_game_dispatcher_context, server_command_dispatcher_context,
         set_configstring_dispatcher_context,
     };
+    use crate::hooks::MockGameEntity;
     use crate::hooks::{
-        shinqlx_cmd_addcommand_intern, shinqlx_com_printf_intern, shinqlx_drop_client,
-        shinqlx_execute_client_command_intern, shinqlx_g_initgame_intern,
-        shinqlx_g_runframe_intern, shinqlx_g_shutdowngame_intern,
+        shinqlx_client_connect_intern, shinqlx_client_spawn_intern, shinqlx_cmd_addcommand_intern,
+        shinqlx_com_printf_intern, shinqlx_drop_client, shinqlx_execute_client_command_intern,
+        shinqlx_g_initgame_intern, shinqlx_g_runframe_intern, shinqlx_g_shutdowngame_intern,
         shinqlx_send_server_command_intern, shinqlx_set_configstring_intern,
         shinqlx_sv_cliententerworld_intern, shinqlx_sv_spawnserver_intern,
         shinqlx_sys_setmoduleoffset_intern, MockClient, MockQuakeEngine,
@@ -826,6 +875,7 @@ mod hooks_tests {
     use crate::prelude::*;
     use core::ffi::c_char;
     use rstest::*;
+    use std::ffi::CStr;
 
     unsafe extern "C" fn dummy_function() {}
 
@@ -1526,5 +1576,95 @@ mod hooks_tests {
             .times(1);
 
         shinqlx_g_runframe_intern(&mock_engine, 42);
+    }
+
+    #[test]
+    fn client_connect_not_first_time_client() {
+        let mut mock_engine = MockQuakeEngine::new();
+        mock_engine
+            .expect_client_connect()
+            .withf_st(|&client_num, &first_time, &is_bot| {
+                client_num == 42 && !first_time && !is_bot
+            })
+            .return_const_st("\0".as_ptr() as *const c_char)
+            .times(1);
+
+        shinqlx_client_connect_intern(&mock_engine, 42, false, false);
+    }
+
+    #[test]
+    fn client_connect_first_time_client_dispatcher_returns_none() {
+        let mut mock_engine = MockQuakeEngine::new();
+        mock_engine
+            .expect_client_connect()
+            .withf_st(|&client_num, &first_time, &is_bot| client_num == 42 && first_time && !is_bot)
+            .return_const_st("\0".as_ptr() as *const c_char)
+            .times(1);
+        let client_connect_dispatcher_ctx = client_connect_dispatcher_context();
+        client_connect_dispatcher_ctx
+            .expect()
+            .withf_st(|&client_num, &is_bot| client_num == 42 && !is_bot)
+            .return_const_st(None)
+            .times(1);
+
+        shinqlx_client_connect_intern(&mock_engine, 42, true, false);
+    }
+
+    #[test]
+    fn client_connect_first_time_client_dispatcher_returns_string() {
+        let mut mock_engine = MockQuakeEngine::new();
+        mock_engine.expect_client_connect().times(0);
+        let client_connect_dispatcher_ctx = client_connect_dispatcher_context();
+        client_connect_dispatcher_ctx
+            .expect()
+            .withf_st(|&client_num, &is_bot| client_num == 42 && !is_bot)
+            .return_const_st(Some("you are banned from this server".into()))
+            .times(1);
+
+        let result = shinqlx_client_connect_intern(&mock_engine, 42, true, false);
+        assert_eq!(
+            unsafe { CStr::from_ptr(result) }.to_string_lossy(),
+            "you are banned from this server"
+        );
+    }
+
+    #[test]
+    fn client_connect_first_time_client_dispatcher_returns_some_for_bot() {
+        let mut mock_engine = MockQuakeEngine::new();
+        mock_engine
+            .expect_client_connect()
+            .withf_st(|&client_num, &first_time, &is_bot| client_num == 42 && first_time && is_bot)
+            .return_const_st("\0".as_ptr() as *const c_char)
+            .times(1);
+        let client_connect_dispatcher_ctx = client_connect_dispatcher_context();
+        client_connect_dispatcher_ctx
+            .expect()
+            .withf_st(|&client_num, &is_bot| client_num == 42 && is_bot)
+            .return_const_st(Some("we don't like bots here".into()))
+            .times(1);
+
+        shinqlx_client_connect_intern(&mock_engine, 42, true, true);
+    }
+
+    #[test]
+    fn client_spawn_forwards_to_ql_and_python() {
+        let mut mock_entity = MockGameEntity::new();
+        mock_entity
+            .expect_get_entity_id()
+            .return_const_st(42)
+            .times(1);
+        let mut mock_engine = MockQuakeEngine::new();
+        mock_engine
+            .expect_client_spawn()
+            .return_const_st(())
+            .times(1);
+        let client_spawn_dispatcher_ctx = client_spawn_dispatcher_context();
+        client_spawn_dispatcher_ctx
+            .expect()
+            .withf_st(|&client_id| client_id == 42)
+            .return_const_st(())
+            .times(1);
+
+        shinqlx_client_spawn_intern(&mock_engine, mock_entity);
     }
 }
