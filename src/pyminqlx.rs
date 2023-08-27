@@ -194,6 +194,7 @@ pub(crate) fn client_connect_dispatcher(client_id: i32, is_bot: bool) -> Option<
     result
 }
 
+#[cfg_attr(test, allow(dead_code))]
 pub(crate) fn client_disconnect_dispatcher<T>(client_id: i32, reason: T)
 where
     T: AsRef<str>,

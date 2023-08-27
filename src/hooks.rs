@@ -3,21 +3,21 @@ use crate::client::Client;
 use crate::game_entity::GameEntity;
 #[cfg(test)]
 use crate::hooks::mock_python::{
-    client_command_dispatcher, client_loaded_dispatcher, server_command_dispatcher,
-    set_configstring_dispatcher,
+    client_command_dispatcher, client_disconnect_dispatcher, client_loaded_dispatcher,
+    server_command_dispatcher, set_configstring_dispatcher,
 };
 #[cfg(test)]
 use crate::hooks::MockClient as Client;
 use crate::prelude::*;
 #[cfg(not(test))]
 use crate::pyminqlx::{
-    client_command_dispatcher, client_loaded_dispatcher, server_command_dispatcher,
-    set_configstring_dispatcher,
+    client_command_dispatcher, client_disconnect_dispatcher, client_loaded_dispatcher,
+    server_command_dispatcher, set_configstring_dispatcher,
 };
 use crate::pyminqlx::{
-    client_connect_dispatcher, client_disconnect_dispatcher, client_spawn_dispatcher,
-    console_print_dispatcher, damage_dispatcher, frame_dispatcher, kamikaze_explode_dispatcher,
-    kamikaze_use_dispatcher, new_game_dispatcher,
+    client_connect_dispatcher, client_spawn_dispatcher, console_print_dispatcher,
+    damage_dispatcher, frame_dispatcher, kamikaze_explode_dispatcher, kamikaze_use_dispatcher,
+    new_game_dispatcher,
 };
 use crate::quake_live_engine::{
     AddCommand, ClientConnect, ClientEnterWorld, ClientSpawn, ComPrintf, ExecuteClientCommand,
@@ -365,7 +365,8 @@ pub(crate) fn shinqlx_drop_client<T>(client: &mut Client, reason: T)
 where
     T: AsRef<str>,
 {
-    client_disconnect_dispatcher(client.get_client_id(), &reason);
+    #[allow(clippy::unnecessary_to_owned)]
+    client_disconnect_dispatcher(client.get_client_id(), reason.as_ref().to_string());
 
     #[allow(clippy::unnecessary_to_owned)]
     client.disconnect(reason.as_ref().to_string());
@@ -628,9 +629,12 @@ mod python {
         None
     }
     pub(crate) fn client_loaded_dispatcher(_client_id: i32) {}
+
     pub(crate) fn set_configstring_dispatcher(_index: u32, _value: String) -> Option<String> {
         None
     }
+
+    pub(crate) fn client_disconnect_dispatcher(_client_id: i32, _reason: String) {}
 }
 
 #[cfg(test)]
@@ -676,13 +680,14 @@ mock! {
 #[cfg(test)]
 mod hooks_tests {
     use crate::hooks::mock_python::{
-        client_command_dispatcher_context, client_loaded_dispatcher_context,
-        server_command_dispatcher_context, set_configstring_dispatcher_context,
+        client_command_dispatcher_context, client_disconnect_dispatcher_context,
+        client_loaded_dispatcher_context, server_command_dispatcher_context,
+        set_configstring_dispatcher_context,
     };
     use crate::hooks::{
-        shinqlx_execute_client_command_intern, shinqlx_send_server_command_intern,
-        shinqlx_set_configstring_intern, shinqlx_sv_cliententerworld_intern, MockClient,
-        MockQuakeEngine,
+        shinqlx_drop_client, shinqlx_execute_client_command_intern,
+        shinqlx_send_server_command_intern, shinqlx_set_configstring_intern,
+        shinqlx_sv_cliententerworld_intern, MockClient, MockQuakeEngine,
     };
     use crate::prelude::*;
     use rstest::*;
@@ -1114,5 +1119,25 @@ mod hooks_tests {
             .times(1);
 
         shinqlx_set_configstring_intern(&mock_engine, 42, "some value".into());
+    }
+
+    #[test]
+    fn drop_client_is_dispatched_and_original_function_called() {
+        let mut mock_client = MockClient::new();
+        mock_client
+            .expect_disconnect()
+            .withf_st(|reason| reason == "disconnected.")
+            .return_const_st(())
+            .times(1);
+        mock_client.expect_get_client_id().return_const_st(42);
+
+        let client_disconnect_dispatcher_ctx = client_disconnect_dispatcher_context();
+        client_disconnect_dispatcher_ctx
+            .expect()
+            .withf_st(|&client_id, reason| client_id == 42 && reason == "disconnected.")
+            .return_const_st(())
+            .times(1);
+
+        shinqlx_drop_client(&mut mock_client, "disconnected.");
     }
 }
