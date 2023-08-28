@@ -117,8 +117,8 @@ fn shinqlx_sys_setmoduleoffset_intern(
     }
 }
 
-#[no_mangle]
-pub extern "C" fn ShiNQlx_G_InitGame(level_time: c_int, random_seed: c_int, restart: c_int) {
+#[cfg_attr(test, allow(dead_code))]
+pub(crate) fn shinqlx_g_initgame(level_time: c_int, random_seed: c_int, restart: c_int) {
     let Some(main_engine_guard) = MAIN_ENGINE.try_read() else {
         return;
     };
@@ -147,8 +147,8 @@ fn shinqlx_g_initgame_intern(
     }
 }
 
-#[no_mangle]
-pub extern "C" fn ShiNQlx_G_ShutdownGame(restart: c_int) {
+#[cfg_attr(test, allow(dead_code))]
+pub(crate) fn shinqlx_g_shutdowngame(restart: c_int) {
     let Some(main_engine_guard) = MAIN_ENGINE.try_read() else {
         return;
     };
@@ -423,19 +423,19 @@ where
     client.disconnect(reason.as_ref().to_string());
 }
 
-#[allow(unused_mut)]
 #[no_mangle]
-pub unsafe extern "C" fn ShiNQlx_Com_Printf(fmt: *const c_char, mut fmt_args: ...) {
+pub unsafe extern "C" fn ShiNQlx_Com_Printf(fmt: *const c_char, fmt_args: ...) {
     extern "C" {
         fn vsnprintf(s: *mut c_char, n: usize, format: *const c_char, arg: VaList) -> c_int;
     }
 
+    let mut va_args: VaListImpl = fmt_args.clone();
     let mut buffer: [u8; MAX_MSGLEN as usize] = [0; MAX_MSGLEN as usize];
     let result = vsnprintf(
         buffer.as_mut_ptr() as *mut c_char,
         buffer.len(),
         fmt,
-        fmt_args.as_va_list(),
+        va_args.as_va_list(),
     );
     if result < 0 {
         warn!(target: "shinqlx", "some formatting problem occurred");
@@ -511,8 +511,8 @@ fn shinqlx_sv_spawnserver_intern<T, U: AsRef<str>, V: Into<qboolean>>(
     new_game_dispatcher(false);
 }
 
-#[no_mangle]
-pub extern "C" fn ShiNQlx_G_RunFrame(time: c_int) {
+#[cfg_attr(test, allow(dead_code))]
+pub(crate) fn shinqlx_g_runframe(time: c_int) {
     let Some(main_engine_guard) = MAIN_ENGINE.try_read() else {
         return;
     };
@@ -547,8 +547,8 @@ unsafe fn to_return_string(client_id: i32, input: String) -> *const c_char {
     &CLIENT_CONNECT_BUFFER[client_id as usize] as *const c_char
 }
 
-#[no_mangle]
-pub extern "C" fn ShiNQlx_ClientConnect(
+#[cfg_attr(test, allow(dead_code))]
+pub(crate) fn shinqlx_client_connect(
     client_num: c_int,
     first_time: qboolean,
     is_bot: qboolean,
@@ -585,8 +585,8 @@ where
     main_engine.client_connect(client_num, first_time, is_bot)
 }
 
-#[no_mangle]
-pub extern "C" fn ShiNQlx_ClientSpawn(ent: *mut gentity_t) {
+#[cfg_attr(test, allow(dead_code))]
+pub(crate) fn shinqlx_clientspawn(ent: *mut gentity_t) {
     let Some(game_entity): Option<GameEntity> = ent.try_into().ok() else {
         return;
     };
@@ -594,6 +594,7 @@ pub extern "C" fn ShiNQlx_ClientSpawn(ent: *mut gentity_t) {
     shinqlx_client_spawn(game_entity)
 }
 
+#[cfg_attr(test, allow(dead_code))]
 pub(crate) fn shinqlx_client_spawn(game_entity: GameEntity) {
     let Some(main_engine_guard) = MAIN_ENGINE.try_read() else {
         return;
@@ -619,9 +620,7 @@ where
     client_spawn_dispatcher(game_entity.get_entity_id());
 }
 
-#[allow(non_snake_case)]
-#[cfg_attr(test, allow(dead_code))]
-pub extern "C" fn ShiNQlx_G_StartKamikaze(ent: *mut gentity_t) {
+pub(crate) fn shinqlx_g_startkamikaze(ent: *mut gentity_t) {
     let Some(mut game_entity): Option<GameEntity> = ent.try_into().ok() else {
         return;
     };
@@ -647,10 +646,9 @@ pub extern "C" fn ShiNQlx_G_StartKamikaze(ent: *mut gentity_t) {
     kamikaze_explode_dispatcher(client_id, game_entity.get_game_client().is_ok())
 }
 
-#[allow(non_snake_case)]
 #[allow(clippy::too_many_arguments)]
 #[cfg_attr(test, allow(dead_code))]
-pub extern "C" fn ShiNQlx_G_Damage(
+pub(crate) fn shinqlx_g_damage(
     target: *mut gentity_t,    // entity that is being damaged
     inflictor: *mut gentity_t, // entity that is causing the damage
     attacker: *mut gentity_t,  // entity that caused the inflictor to damage target
@@ -673,6 +671,34 @@ pub extern "C" fn ShiNQlx_G_Damage(
         return;
     };
 
+    shinqlx_g_damage_intern(
+        main_engine,
+        target,
+        inflictor,
+        attacker,
+        dir,
+        pos,
+        damage,
+        dflags,
+        means_of_death,
+    );
+}
+
+#[cfg_attr(not(test), inline)]
+#[allow(clippy::too_many_arguments)]
+fn shinqlx_g_damage_intern<T>(
+    main_engine: &T,
+    target: *mut gentity_t,
+    inflictor: *mut gentity_t,
+    attacker: *mut gentity_t,
+    dir: *mut vec3_t,
+    pos: *mut vec3_t,
+    damage: c_int,
+    dflags: c_int,
+    means_of_death: c_int,
+) where
+    T: RegisterDamage<c_int, c_int, c_int>,
+{
     main_engine.register_damage(
         target,
         inflictor,
@@ -889,20 +915,20 @@ mod hooks_tests {
         client_command_dispatcher_context, client_connect_dispatcher_context,
         client_disconnect_dispatcher_context, client_loaded_dispatcher_context,
         client_spawn_dispatcher_context, console_print_dispatcher_context,
-        frame_dispatcher_context, kamikaze_explode_dispatcher_context,
+        damage_dispatcher_context, frame_dispatcher_context, kamikaze_explode_dispatcher_context,
         kamikaze_use_dispatcher_context, new_game_dispatcher_context,
         server_command_dispatcher_context, set_configstring_dispatcher_context,
     };
     use crate::hooks::{
         shinqlx_client_connect_intern, shinqlx_client_spawn_intern, shinqlx_cmd_addcommand_intern,
         shinqlx_com_printf_intern, shinqlx_drop_client, shinqlx_execute_client_command_intern,
-        shinqlx_g_initgame_intern, shinqlx_g_runframe_intern, shinqlx_g_shutdowngame_intern,
-        shinqlx_send_server_command_intern, shinqlx_set_configstring_intern,
-        shinqlx_sv_cliententerworld_intern, shinqlx_sv_spawnserver_intern,
-        shinqlx_sys_setmoduleoffset_intern, MockActivator, MockClient, MockGameClient,
-        MockQuakeEngine,
+        shinqlx_g_damage_intern, shinqlx_g_initgame_intern, shinqlx_g_runframe_intern,
+        shinqlx_g_shutdowngame_intern, shinqlx_send_server_command_intern,
+        shinqlx_set_configstring_intern, shinqlx_sv_cliententerworld_intern,
+        shinqlx_sv_spawnserver_intern, shinqlx_sys_setmoduleoffset_intern, MockActivator,
+        MockClient, MockGameClient, MockQuakeEngine,
     };
-    use crate::hooks::{MockGameEntity, ShiNQlx_G_StartKamikaze};
+    use crate::hooks::{shinqlx_g_startkamikaze, MockGameEntity};
     use crate::prelude::*;
     use core::ffi::c_char;
     use rstest::*;
@@ -1746,7 +1772,7 @@ mod hooks_tests {
         let kamikaze_explode_dispatcher_ctx = kamikaze_explode_dispatcher_context();
         kamikaze_explode_dispatcher_ctx.expect().times(0);
 
-        ShiNQlx_G_StartKamikaze(&mut gentity as *mut gentity_t);
+        shinqlx_g_startkamikaze(&mut gentity as *mut gentity_t);
     }
 
     #[test]
@@ -1798,7 +1824,7 @@ mod hooks_tests {
             .return_const_st(())
             .times(1);
 
-        ShiNQlx_G_StartKamikaze(&mut gentity as *mut gentity_t);
+        shinqlx_g_startkamikaze(&mut gentity as *mut gentity_t);
     }
 
     #[test]
@@ -1828,6 +1854,184 @@ mod hooks_tests {
             .return_const_st(())
             .times(1);
 
-        ShiNQlx_G_StartKamikaze(&mut gentity as *mut gentity_t);
+        shinqlx_g_startkamikaze(&mut gentity as *mut gentity_t);
+    }
+
+    #[test]
+    #[serial]
+    fn g_damage_for_null_attacker() {
+        let mut mock_engine = MockQuakeEngine::new();
+        mock_engine
+            .expect_register_damage()
+            .withf_st(
+                |&target, &inflictor, &attacker, &dir, &pos, &damage, &dflags, &means_of_death| {
+                    target.is_null()
+                        && inflictor.is_null()
+                        && attacker.is_null()
+                        && pos.is_null()
+                        && dir.is_null()
+                        && damage == 666
+                        && dflags == 0
+                        && means_of_death == 0
+                },
+            )
+            .return_const_st(())
+            .times(1);
+        let mut mock_gentity = MockGameEntity::new();
+        mock_gentity.expect_get_entity_id().return_const_st(42);
+        let try_from_ctx = MockGameEntity::try_from_context();
+        try_from_ctx
+            .expect()
+            .return_once_st(|_| Ok(mock_gentity))
+            .times(1);
+
+        let damage_dispatcher_ctx = damage_dispatcher_context();
+        damage_dispatcher_ctx
+            .expect()
+            .withf_st(|&target_id, &attacker, &damage, &dflags, &means_of_death| {
+                target_id == 42
+                    && attacker.is_none()
+                    && damage == 666
+                    && dflags == 0
+                    && means_of_death == 0
+            })
+            .return_const_st(())
+            .times(1);
+
+        shinqlx_g_damage_intern(
+            &mock_engine,
+            core::ptr::null_mut() as *mut gentity_t,
+            core::ptr::null_mut() as *mut gentity_t,
+            core::ptr::null_mut() as *mut gentity_t,
+            core::ptr::null_mut() as *mut vec3_t,
+            core::ptr::null_mut() as *mut vec3_t,
+            666,
+            0,
+            0,
+        );
+    }
+
+    #[test]
+    #[serial]
+    fn g_damage_for_non_null_attacker_try_from_returns_err() {
+        let mut mock_engine = MockQuakeEngine::new();
+        mock_engine
+            .expect_register_damage()
+            .withf_st(
+                |&target, &inflictor, &attacker, &dir, &pos, &damage, &dflags, &means_of_death| {
+                    target.is_null()
+                        && inflictor.is_null()
+                        && !attacker.is_null()
+                        && pos.is_null()
+                        && dir.is_null()
+                        && damage == 666
+                        && dflags == 16
+                        && means_of_death == 7
+                },
+            )
+            .return_const_st(())
+            .times(1);
+        let mut mock_gentity = MockGameEntity::new();
+        mock_gentity.expect_get_entity_id().return_const_st(42);
+        let try_from_ctx = MockGameEntity::try_from_context();
+        try_from_ctx
+            .expect()
+            .return_once_st(|_| Ok(mock_gentity))
+            .times(1);
+        try_from_ctx
+            .expect()
+            .return_once_st(|_| Err(QuakeLiveEngineError::MainEngineNotInitialized))
+            .times(1);
+
+        let damage_dispatcher_ctx = damage_dispatcher_context();
+        damage_dispatcher_ctx
+            .expect()
+            .withf_st(|&target_id, &attacker, &damage, &dflags, &means_of_death| {
+                target_id == 42
+                    && attacker.is_none()
+                    && damage == 666
+                    && dflags == 16
+                    && means_of_death == 7
+            })
+            .return_const_st(())
+            .times(1);
+        let mut attacker = GEntityBuilder::default().build().unwrap();
+
+        shinqlx_g_damage_intern(
+            &mock_engine,
+            core::ptr::null_mut() as *mut gentity_t,
+            core::ptr::null_mut() as *mut gentity_t,
+            &mut attacker as *mut gentity_t,
+            core::ptr::null_mut() as *mut vec3_t,
+            core::ptr::null_mut() as *mut vec3_t,
+            666,
+            16,
+            7,
+        );
+    }
+
+    #[test]
+    #[serial]
+    fn g_damage_for_non_null_attacker_try_from_returns_ok() {
+        let mut mock_engine = MockQuakeEngine::new();
+        mock_engine
+            .expect_register_damage()
+            .withf_st(
+                |&target, &inflictor, &attacker, &dir, &pos, &damage, &dflags, &means_of_death| {
+                    target.is_null()
+                        && inflictor.is_null()
+                        && !attacker.is_null()
+                        && pos.is_null()
+                        && dir.is_null()
+                        && damage == 50
+                        && dflags == 4
+                        && means_of_death == 2
+                },
+            )
+            .return_const_st(())
+            .times(1);
+        let try_from_ctx = MockGameEntity::try_from_context();
+        try_from_ctx
+            .expect()
+            .return_once_st(|_| {
+                let mut mock_gentity = MockGameEntity::new();
+                mock_gentity.expect_get_entity_id().return_const_st(42);
+                Ok(mock_gentity)
+            })
+            .times(1);
+        try_from_ctx
+            .expect()
+            .return_once_st(|_| {
+                let mut gentity = MockGameEntity::new();
+                gentity.expect_get_entity_id().return_const_st(21);
+                Ok(gentity)
+            })
+            .times(1);
+
+        let damage_dispatcher_ctx = damage_dispatcher_context();
+        damage_dispatcher_ctx
+            .expect()
+            .withf_st(|&target_id, &attacker, &damage, &dflags, &means_of_death| {
+                target_id == 42
+                    && attacker == Some(21)
+                    && damage == 50
+                    && dflags == 4
+                    && means_of_death == 2
+            })
+            .return_const_st(())
+            .times(1);
+        let mut attacker = GEntityBuilder::default().build().unwrap();
+
+        shinqlx_g_damage_intern(
+            &mock_engine,
+            core::ptr::null_mut() as *mut gentity_t,
+            core::ptr::null_mut() as *mut gentity_t,
+            &mut attacker as *mut gentity_t,
+            core::ptr::null_mut() as *mut vec3_t,
+            core::ptr::null_mut() as *mut vec3_t,
+            50,
+            4,
+            2,
+        );
     }
 }
