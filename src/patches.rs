@@ -1,3 +1,4 @@
+use core::ptr;
 use log::error;
 use region::Protection;
 
@@ -19,9 +20,7 @@ pub(crate) fn patch_by_mask(orig_addr: usize, offset: usize, pattern: &[u8], mas
         Ok(_protect_guard) => {
             (0..mask.len())
                 .filter(|i| mask[*i] == b'X')
-                .for_each(|i| unsafe {
-                    core::ptr::write_unaligned(offset.wrapping_add(i), pattern[i])
-                });
+                .for_each(|i| unsafe { ptr::write_unaligned(offset.wrapping_add(i), pattern[i]) });
         }
         Err(error) => {
             error!(target: "shinqlx", "{:?}", error);

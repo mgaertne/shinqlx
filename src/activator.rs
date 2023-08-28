@@ -33,7 +33,7 @@ mod activator_tests {
     #[test]
     fn activator_try_from_null_results_in_error() {
         assert_eq!(
-            Activator::try_from(core::ptr::null_mut() as *mut gentity_t),
+            Activator::try_from(ptr::null_mut() as *mut gentity_t),
             Err(QuakeLiveEngineError::NullPointerPassed(
                 "null pointer passed".into()
             ))

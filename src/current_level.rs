@@ -47,9 +47,8 @@ impl CurrentLevel {
         };
 
         let func_pointer = main_engine.g_init_game_orig()?;
-        let base_address = unsafe {
-            core::ptr::read_unaligned((func_pointer as usize + OFFSET_LEVEL) as *const i32)
-        };
+        let base_address =
+            unsafe { ptr::read_unaligned((func_pointer as usize + OFFSET_LEVEL) as *const i32) };
         let level_ptr = base_address as usize + func_pointer as usize + OFFSET_LEVEL + 4;
         Self::try_from(level_ptr as *mut level_locals_t)
     }
@@ -127,7 +126,6 @@ mod current_level_tests {
     use core::ffi::CStr;
     use core::sync::atomic::Ordering;
     use pretty_assertions::assert_eq;
-    use serial_test::serial;
     use std::panic::catch_unwind;
 
     #[test]
@@ -171,7 +169,7 @@ mod current_level_tests {
     #[test]
     fn current_level_from_null() {
         assert_eq!(
-            CurrentLevel::try_from(core::ptr::null_mut()),
+            CurrentLevel::try_from(ptr::null_mut()),
             Err(QuakeLiveEngineError::NullPointerPassed(
                 "null pointer passed".into()
             )),
