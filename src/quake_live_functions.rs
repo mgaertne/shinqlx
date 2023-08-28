@@ -40,7 +40,7 @@ where
         .filter(|i| {
             (0..pattern.len())
                 .filter(|j| mask[*j] == b'X')
-                .all(|j| pattern[j] == unsafe { core::ptr::read((*i + j) as *const u8) })
+                .all(|j| pattern[j] == unsafe { ptr::read((*i + j) as *const u8) })
         })
         .take(1)
         .next()

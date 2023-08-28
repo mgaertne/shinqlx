@@ -29,7 +29,11 @@ pub(crate) mod prelude {
     pub(crate) use crate::quake_live_engine::{QuakeLiveEngine, QuakeLiveEngineError};
     pub(crate) use crate::quake_types::*;
     pub(crate) use alloc::format;
+    pub(crate) use core::mem;
+    pub(crate) use core::ptr;
     pub(crate) use log::{debug, error, warn};
+    #[cfg(test)]
+    pub(crate) use serial_test::serial;
 }
 
 use crate::prelude::*;

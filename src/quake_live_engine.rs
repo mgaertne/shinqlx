@@ -30,8 +30,6 @@ use parking_lot::RwLock;
 #[cfg(target_os = "linux")]
 use procfs::process::{MMapPath, MemoryMap, Process};
 use retour::{Function, GenericDetour, RawDetour};
-#[cfg(target_os = "linux")]
-use std::ffi::OsStr;
 
 #[allow(dead_code)]
 #[cfg(target_pointer_width = "64")]
@@ -194,7 +192,6 @@ impl VmFunctions {
         ));
         #[cfg(target_os = "linux")]
         {
-            let qagame_os_str = OsStr::new(QAGAME);
             let Ok(myself_process) = Process::myself() else {
                 return Err(QuakeLiveEngineError::ProcessNotFound(
                     "could not find my own process\n".into(),
@@ -209,11 +206,11 @@ impl VmFunctions {
                 .memory_maps
                 .iter()
                 .filter(|mmap| {
-                    if let MMapPath::Path(path) = &mmap.pathname {
-                        path.file_name() == Some(qagame_os_str)
-                    } else {
-                        false
-                    }
+                    let MMapPath::Path(path) = &mmap.pathname else {
+                        return false;
+                    };
+                    path.file_name()
+                        .is_some_and(|file_name| file_name.to_str() == Some(QAGAME))
                 })
                 .collect();
 
@@ -256,7 +253,7 @@ impl VmFunctions {
             }
 
             let base_address = unsafe {
-                std::ptr::read_unaligned(
+                ptr::read_unaligned(
                     (module_offset as u64 + OFFSET_VM_CALL_TABLE as u64) as *const i32,
                 )
             };
@@ -264,7 +261,7 @@ impl VmFunctions {
             self.vm_call_table.store(vm_call_table, Ordering::SeqCst);
 
             let g_initgame_orig = unsafe {
-                std::ptr::read(
+                ptr::read(
                     (vm_call_table + OFFSET_INITGAME)
                         as *const *const extern "C" fn(c_int, c_int, c_int),
                 )
@@ -273,17 +270,14 @@ impl VmFunctions {
             self.g_init_game_orig
                 .store(g_initgame_orig as usize, Ordering::SeqCst);
 
-            let g_shutdowngame_orig = unsafe {
-                std::ptr::read_unaligned(vm_call_table as *const *const extern "C" fn(c_int))
-            };
+            let g_shutdowngame_orig =
+                unsafe { ptr::read_unaligned(vm_call_table as *const *const extern "C" fn(c_int)) };
             debug!(target: "shinqlx", "G_ShutdownGame: {:#X}", g_shutdowngame_orig as usize);
             self.g_shutdown_game_orig
                 .store(g_shutdowngame_orig as usize, Ordering::SeqCst);
 
             let g_runframe_orig = unsafe {
-                std::ptr::read(
-                    (vm_call_table + OFFSET_RUNFRAME) as *const *const extern "C" fn(c_int),
-                )
+                ptr::read((vm_call_table + OFFSET_RUNFRAME) as *const *const extern "C" fn(c_int))
             };
             debug!(target: "shinqlx", "G_RunFrame: {:#X}", g_runframe_orig as usize);
             self.g_run_frame_orig
@@ -308,21 +302,21 @@ impl VmFunctions {
 
         debug!(target: "shinqlx", "Hooking VM functions...");
         unsafe {
-            core::ptr::write(
+            ptr::write(
                 (vm_call_table + 0x18) as *mut usize,
                 shinqlx_g_initgame as usize,
             );
         }
 
         unsafe {
-            core::ptr::write(
+            ptr::write(
                 (vm_call_table + 0x8) as *mut usize,
                 shinqlx_g_runframe as usize,
             );
         }
 
         unsafe {
-            core::ptr::write(vm_call_table as *mut usize, shinqlx_g_shutdowngame as usize);
+            ptr::write(vm_call_table as *mut usize, shinqlx_g_shutdowngame as usize);
         }
 
         let pending_client_connect_detour = extract_detour(&self.client_connect_detour).take();
@@ -331,7 +325,7 @@ impl VmFunctions {
         }
 
         let client_connect_orig = self.client_connect_orig.load(Ordering::SeqCst);
-        let client_connect_func = unsafe { core::mem::transmute(client_connect_orig) };
+        let client_connect_func = unsafe { mem::transmute(client_connect_orig) };
         let client_connect_detour =
             unsafe { ClientConnectDetourType::new(client_connect_func, shinqlx_client_connect) }
                 .map_err(|_| {
@@ -352,7 +346,7 @@ impl VmFunctions {
         }
 
         let g_start_kamikaze_orig = self.g_start_kamikaze_orig.load(Ordering::SeqCst);
-        let g_start_kamikaze_func = unsafe { core::mem::transmute(g_start_kamikaze_orig) };
+        let g_start_kamikaze_func = unsafe { mem::transmute(g_start_kamikaze_orig) };
         let g_start_kamikaze_detour = unsafe {
             GStartKamikazeDetourType::new(g_start_kamikaze_func, shinqlx_g_startkamikaze)
         }
@@ -374,7 +368,7 @@ impl VmFunctions {
         }
 
         let client_spawn_orig = self.client_spawn_orig.load(Ordering::SeqCst);
-        let client_spawn_func = unsafe { core::mem::transmute(client_spawn_orig) };
+        let client_spawn_func = unsafe { mem::transmute(client_spawn_orig) };
         let client_spawn_detour =
             unsafe { ClientSpawnDetourType::new(client_spawn_func, shinqlx_clientspawn) }.map_err(
                 |_| QuakeLiveEngineError::DetourCouldNotBeCreated(QuakeLiveFunction::ClientSpawn),
@@ -394,7 +388,7 @@ impl VmFunctions {
         }
 
         let g_damage_orig = self.g_damage_orig.load(Ordering::SeqCst);
-        let g_damage_func = unsafe { core::mem::transmute(g_damage_orig) };
+        let g_damage_func = unsafe { mem::transmute(g_damage_orig) };
         let g_damage_detour = unsafe { GDamageDetourType::new(g_damage_func, shinqlx_g_damage) }
             .map_err(|_| {
                 QuakeLiveEngineError::DetourCouldNotBeCreated(QuakeLiveFunction::G_Damage)
@@ -532,7 +526,6 @@ impl QuakeLiveEngine {
         ));
         #[cfg(target_os = "linux")]
         {
-            let qzeroded_os_str = OsStr::new(QZERODED);
             let Ok(myself_process) = Process::myself() else {
                 return Err(QuakeLiveEngineError::ProcessNotFound(
                     "could not find my own process\n".into(),
@@ -547,11 +540,11 @@ impl QuakeLiveEngine {
                 .memory_maps
                 .iter()
                 .filter(|mmap| {
-                    if let MMapPath::Path(path) = &mmap.pathname {
-                        path.file_name() == Some(qzeroded_os_str)
-                    } else {
-                        false
-                    }
+                    let MMapPath::Path(path) = &mmap.pathname else {
+                        return false;
+                    };
+                    path.file_name()
+                        .is_some_and(|file_name| file_name.to_str() == Some(QZERODED))
                 })
                 .collect();
 
@@ -571,7 +564,7 @@ impl QuakeLiveEngine {
                 ));
             };
             debug!(target: "shinqlx", "{}: {:#X}", &QuakeLiveFunction::Com_Printf, result);
-            let com_printf_orig = unsafe { std::mem::transmute(result) };
+            let com_printf_orig = unsafe { mem::transmute(result) };
 
             let Some(result) =
                 pattern_search_module(&qzeroded_maps, QuakeLiveFunction::Cmd_AddCommand)
@@ -582,7 +575,7 @@ impl QuakeLiveEngine {
                 ));
             };
             debug!(target: "shinqlx", "{}: {:#X}", &QuakeLiveFunction::Cmd_AddCommand, result);
-            let cmd_addcommand_orig = unsafe { std::mem::transmute(result) };
+            let cmd_addcommand_orig = unsafe { mem::transmute(result) };
 
             let Some(result) = pattern_search_module(&qzeroded_maps, QuakeLiveFunction::Cmd_Args)
             else {
@@ -592,7 +585,7 @@ impl QuakeLiveEngine {
                 ));
             };
             debug!(target: "shinqlx", "{}: {:#X}", &QuakeLiveFunction::Cmd_Args, result);
-            let cmd_args_orig = unsafe { std::mem::transmute(result) };
+            let cmd_args_orig = unsafe { mem::transmute(result) };
 
             let Some(result) = pattern_search_module(&qzeroded_maps, QuakeLiveFunction::Cmd_Argv)
             else {
@@ -602,7 +595,7 @@ impl QuakeLiveEngine {
                 ));
             };
             debug!(target: "shinqlx", "{}: {:#X}", &QuakeLiveFunction::Cmd_Argv, result);
-            let cmd_argv_orig = unsafe { std::mem::transmute(result) };
+            let cmd_argv_orig = unsafe { mem::transmute(result) };
 
             let Some(result) =
                 pattern_search_module(&qzeroded_maps, QuakeLiveFunction::Cmd_Tokenizestring)
@@ -616,7 +609,7 @@ impl QuakeLiveEngine {
                 ));
             };
             debug!(target: "shinqlx", "{}: {:#X}", &QuakeLiveFunction::Cmd_Tokenizestring, result);
-            let cmd_tokenizestring_orig = unsafe { std::mem::transmute(result) };
+            let cmd_tokenizestring_orig = unsafe { mem::transmute(result) };
 
             let Some(result) =
                 pattern_search_module(&qzeroded_maps, QuakeLiveFunction::Cbuf_ExecuteText)
@@ -630,7 +623,7 @@ impl QuakeLiveEngine {
                 ));
             };
             debug!(target: "shinqlx", "{}: {:#X}", &QuakeLiveFunction::Cbuf_ExecuteText, result);
-            let cbuf_executetext_orig = unsafe { std::mem::transmute(result) };
+            let cbuf_executetext_orig = unsafe { mem::transmute(result) };
 
             let Some(result) =
                 pattern_search_module(&qzeroded_maps, QuakeLiveFunction::Cvar_FindVar)
@@ -641,7 +634,7 @@ impl QuakeLiveEngine {
                 ));
             };
             debug!(target: "shinqlx", "{}: {:#X}", &QuakeLiveFunction::Cvar_FindVar, result);
-            let cvar_findvar_orig = unsafe { std::mem::transmute(result) };
+            let cvar_findvar_orig = unsafe { mem::transmute(result) };
 
             let Some(result) = pattern_search_module(&qzeroded_maps, QuakeLiveFunction::Cvar_Get)
             else {
@@ -651,7 +644,7 @@ impl QuakeLiveEngine {
                 ));
             };
             debug!(target: "shinqlx", "{}: {:#X}", &QuakeLiveFunction::Cvar_Get, result);
-            let cvar_get_orig = unsafe { std::mem::transmute(result) };
+            let cvar_get_orig = unsafe { mem::transmute(result) };
 
             let Some(result) =
                 pattern_search_module(&qzeroded_maps, QuakeLiveFunction::Cvar_GetLimit)
@@ -662,7 +655,7 @@ impl QuakeLiveEngine {
                 ));
             };
             debug!(target: "shinqlx", "{}: {:#X}", &QuakeLiveFunction::Cvar_GetLimit, result);
-            let cvar_getlimit_orig = unsafe { std::mem::transmute(result) };
+            let cvar_getlimit_orig = unsafe { mem::transmute(result) };
 
             let Some(result) = pattern_search_module(&qzeroded_maps, QuakeLiveFunction::Cvar_Set2)
             else {
@@ -672,7 +665,7 @@ impl QuakeLiveEngine {
                 ));
             };
             debug!(target: "shinqlx", "{}: {:#X}", &QuakeLiveFunction::Cvar_Set2, result);
-            let cvar_set2_orig = unsafe { std::mem::transmute(result) };
+            let cvar_set2_orig = unsafe { mem::transmute(result) };
 
             let Some(result) =
                 pattern_search_module(&qzeroded_maps, QuakeLiveFunction::SV_SendServerCommand)
@@ -690,7 +683,7 @@ impl QuakeLiveEngine {
                 &QuakeLiveFunction::SV_SendServerCommand,
                 result
             );
-            let sv_sendservercommand_orig = unsafe { std::mem::transmute(result) };
+            let sv_sendservercommand_orig = unsafe { mem::transmute(result) };
 
             let Some(result) =
                 pattern_search_module(&qzeroded_maps, QuakeLiveFunction::SV_ExecuteClientCommand)
@@ -708,7 +701,7 @@ impl QuakeLiveEngine {
                 &QuakeLiveFunction::SV_ExecuteClientCommand,
                 result
             );
-            let sv_executeclientcommand_orig = unsafe { std::mem::transmute(result) };
+            let sv_executeclientcommand_orig = unsafe { mem::transmute(result) };
 
             let Some(result) =
                 pattern_search_module(&qzeroded_maps, QuakeLiveFunction::SV_Shutdown)
@@ -719,7 +712,7 @@ impl QuakeLiveEngine {
                 ));
             };
             debug!(target: "shinqlx", "{}: {:#X}", &QuakeLiveFunction::SV_Shutdown, result);
-            let sv_shutdown_orig = unsafe { std::mem::transmute(result) };
+            let sv_shutdown_orig = unsafe { mem::transmute(result) };
 
             let Some(result) = pattern_search_module(&qzeroded_maps, QuakeLiveFunction::SV_Map_f)
             else {
@@ -729,7 +722,7 @@ impl QuakeLiveEngine {
                 ));
             };
             debug!(target: "shinqlx", "{}: {:#X}", QuakeLiveFunction::SV_Map_f, result);
-            let sv_map_f_orig = unsafe { std::mem::transmute(result) };
+            let sv_map_f_orig = unsafe { mem::transmute(result) };
 
             let Some(result) =
                 pattern_search_module(&qzeroded_maps, QuakeLiveFunction::SV_ClientEnterWorld)
@@ -743,7 +736,7 @@ impl QuakeLiveEngine {
                 ));
             };
             debug!(target: "shinqlx", "{}: {:#X}", &QuakeLiveFunction::SV_ClientEnterWorld, result);
-            let sv_cliententerworld_orig = unsafe { std::mem::transmute(result) };
+            let sv_cliententerworld_orig = unsafe { mem::transmute(result) };
 
             let Some(result) =
                 pattern_search_module(&qzeroded_maps, QuakeLiveFunction::SV_SetConfigstring)
@@ -757,7 +750,7 @@ impl QuakeLiveEngine {
                 ));
             };
             debug!(target: "shinqlx", "{}: {:#X}", &QuakeLiveFunction::SV_SetConfigstring, result);
-            let sv_setconfigstring_orig = unsafe { std::mem::transmute(result) };
+            let sv_setconfigstring_orig = unsafe { mem::transmute(result) };
 
             let Some(result) =
                 pattern_search_module(&qzeroded_maps, QuakeLiveFunction::SV_GetConfigstring)
@@ -771,7 +764,7 @@ impl QuakeLiveEngine {
                 ));
             };
             debug!(target: "shinqlx", "{}: {:#X}", &QuakeLiveFunction::SV_GetConfigstring, result);
-            let sv_getconfigstring_orig = unsafe { std::mem::transmute(result) };
+            let sv_getconfigstring_orig = unsafe { mem::transmute(result) };
 
             let Some(result) =
                 pattern_search_module(&qzeroded_maps, QuakeLiveFunction::SV_DropClient)
@@ -782,7 +775,7 @@ impl QuakeLiveEngine {
                 ));
             };
             debug!(target: "shinqlx", "{}: {:#X}", &QuakeLiveFunction::SV_DropClient, result);
-            let sv_dropclient_orig = unsafe { std::mem::transmute(result) };
+            let sv_dropclient_orig = unsafe { mem::transmute(result) };
 
             let Some(result) =
                 pattern_search_module(&qzeroded_maps, QuakeLiveFunction::Sys_SetModuleOffset)
@@ -796,7 +789,7 @@ impl QuakeLiveEngine {
                 ));
             };
             debug!(target: "shinqlx", "{}: {:#X}", &QuakeLiveFunction::Sys_SetModuleOffset, result);
-            let sys_setmoduleoffset_orig = unsafe { std::mem::transmute(result) };
+            let sys_setmoduleoffset_orig = unsafe { mem::transmute(result) };
 
             let Some(result) =
                 pattern_search_module(&qzeroded_maps, QuakeLiveFunction::SV_SpawnServer)
@@ -807,7 +800,7 @@ impl QuakeLiveEngine {
                 ));
             };
             debug!(target: "shinqlx", "{}: {:#X}", &QuakeLiveFunction::SV_SpawnServer, result);
-            let sv_spawnserver_orig = unsafe { std::mem::transmute(result) };
+            let sv_spawnserver_orig = unsafe { mem::transmute(result) };
 
             let Some(result) =
                 pattern_search_module(&qzeroded_maps, QuakeLiveFunction::Cmd_ExecuteString)
@@ -821,18 +814,18 @@ impl QuakeLiveEngine {
                 ));
             };
             debug!(target: "shinqlx", "{}: {:#X}", &QuakeLiveFunction::Cmd_ExecuteString, result);
-            let cmd_executestring_orig = unsafe { std::mem::transmute(result) };
+            let cmd_executestring_orig = unsafe { mem::transmute(result) };
 
             // Cmd_Argc is really small, making it hard to search for, so we use a reference to it instead.
             let base_address = unsafe {
-                std::ptr::read_unaligned(
+                ptr::read_unaligned(
                     (sv_map_f_orig as usize + OFFSET_CMD_ARGC as usize) as *const i32,
                 )
             };
             #[allow(clippy::fn_to_numeric_cast_with_truncation)]
             let cmd_argc_ptr = base_address + sv_map_f_orig as i32 + OFFSET_CMD_ARGC + 4;
             debug!(target: "shinqlx", "{}: {:#X}", QuakeLiveFunction::Cmd_Argc, cmd_argc_ptr);
-            let cmd_argc_orig = unsafe { std::mem::transmute(cmd_argc_ptr as u64) };
+            let cmd_argc_orig = unsafe { mem::transmute(cmd_argc_ptr as u64) };
 
             self.static_functions
                 .set(StaticFunctions {
@@ -1465,7 +1458,7 @@ impl QuakeLiveEngine {
             ));
         }
 
-        let g_init_game_func = unsafe { core::mem::transmute(g_init_game_orig) };
+        let g_init_game_func = unsafe { mem::transmute(g_init_game_orig) };
         Ok(g_init_game_func)
     }
 
@@ -1480,7 +1473,7 @@ impl QuakeLiveEngine {
             ));
         }
 
-        let g_shutdown_game_func = unsafe { core::mem::transmute(g_shutdown_game_orig) };
+        let g_shutdown_game_func = unsafe { mem::transmute(g_shutdown_game_orig) };
         Ok(g_shutdown_game_func)
     }
 
@@ -1492,7 +1485,7 @@ impl QuakeLiveEngine {
             ));
         }
 
-        let g_run_frame_func = unsafe { core::mem::transmute(g_run_frame_orig) };
+        let g_run_frame_func = unsafe { mem::transmute(g_run_frame_orig) };
         Ok(g_run_frame_func)
     }
 
@@ -1506,7 +1499,7 @@ impl QuakeLiveEngine {
             ));
         }
 
-        let g_addevent_func = unsafe { core::mem::transmute(g_addevent_orig) };
+        let g_addevent_func = unsafe { mem::transmute(g_addevent_orig) };
         Ok(g_addevent_func)
     }
 
@@ -1520,7 +1513,7 @@ impl QuakeLiveEngine {
             ));
         }
 
-        let g_free_entity_func = unsafe { core::mem::transmute(g_free_entity_orig) };
+        let g_free_entity_func = unsafe { mem::transmute(g_free_entity_orig) };
         Ok(g_free_entity_func)
     }
 
@@ -1538,7 +1531,7 @@ impl QuakeLiveEngine {
             ));
         }
 
-        let launch_item_func = unsafe { core::mem::transmute(launch_item_orig) };
+        let launch_item_func = unsafe { mem::transmute(launch_item_orig) };
         Ok(launch_item_func)
     }
 
@@ -1553,7 +1546,7 @@ impl QuakeLiveEngine {
             ));
         }
 
-        let touch_item_func = unsafe { core::mem::transmute(touch_item_orig) };
+        let touch_item_func = unsafe { mem::transmute(touch_item_orig) };
         Ok(touch_item_func)
     }
 }
@@ -1655,7 +1648,7 @@ impl<T: AsMut<client_t>, U: AsRef<str>, V: Into<qboolean>> ExecuteClientCommand<
             Some(mut safe_client) => {
                 detour.call(safe_client.as_mut(), c_command.as_ptr(), client_ok.into())
             }
-            None => detour.call(core::ptr::null_mut(), c_command.as_ptr(), client_ok.into()),
+            None => detour.call(ptr::null_mut(), c_command.as_ptr(), client_ok.into()),
         }
     }
 }
@@ -1670,14 +1663,14 @@ impl<T: AsRef<client_t>, U: AsRef<str>> SendServerCommand<T, U> for QuakeLiveEng
             return;
         };
         let original_func: extern "C" fn(*const client_t, *const c_char, ...) =
-            unsafe { core::mem::transmute(detour.trampoline()) };
+            unsafe { mem::transmute(detour.trampoline()) };
 
         let Ok(c_command) = CString::new(command.as_ref()) else {
             return;
         };
         match client {
             Some(safe_client) => original_func(safe_client.as_ref(), c_command.as_ptr()),
-            None => original_func(core::ptr::null(), c_command.as_ptr()),
+            None => original_func(ptr::null(), c_command.as_ptr()),
         }
     }
 }
@@ -1723,7 +1716,7 @@ impl<T: AsRef<str>> ComPrintf<T> for QuakeLiveEngine {
             return;
         };
         let original_func: extern "C" fn(*const c_char, ...) =
-            unsafe { core::mem::transmute(detour.trampoline()) };
+            unsafe { mem::transmute(detour.trampoline()) };
 
         let Ok(c_msg) = CString::new(msg.as_ref()) else {
             return;
@@ -1771,11 +1764,11 @@ impl<T: Into<c_int>, U: Into<qboolean>, V: Into<qboolean>> ClientConnect<T, U, V
 {
     fn client_connect(&self, client_num: T, first_time: U, is_bot: V) -> *const c_char {
         let Some(detour_guard) = self.vm_functions.client_connect_detour.try_read() else {
-            return core::ptr::null();
+            return ptr::null();
         };
 
         let Some(ref detour) = *detour_guard else {
-            return core::ptr::null();
+            return ptr::null();
         };
 
         detour.call(client_num.into(), first_time.into(), is_bot.into())

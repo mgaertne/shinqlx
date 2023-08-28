@@ -11,7 +11,6 @@ use crate::quake_live_engine::{
 use crate::MAIN_ENGINE;
 use alloc::string::String;
 use alloc::vec;
-use alloc::vec::Vec;
 use core::f32::consts::PI;
 use core::ffi::{c_char, c_float, c_int, CStr};
 
@@ -149,18 +148,18 @@ const OFFSET_G_ENTITIES: usize = 0x11B;
 impl GameEntity {
     fn get_entities_list() -> *mut gentity_t {
         let Some(main_engine_guard) = MAIN_ENGINE.try_read() else {
-            return core::ptr::null_mut();
+            return ptr::null_mut();
         };
 
         let Some(ref main_engine) = *main_engine_guard else {
-            return core::ptr::null_mut();
+            return ptr::null_mut();
         };
 
         let Ok(func_pointer) = main_engine.g_run_frame_orig() else {
-            return core::ptr::null_mut();
+            return ptr::null_mut();
         };
         let base_address = unsafe {
-            core::ptr::read_unaligned((func_pointer as usize + OFFSET_G_ENTITIES) as *const i32)
+            ptr::read_unaligned((func_pointer as usize + OFFSET_G_ENTITIES) as *const i32)
         };
         let gentities_ptr = base_address as usize + func_pointer as usize + OFFSET_G_ENTITIES + 4;
         gentities_ptr as *mut gentity_t
@@ -466,7 +465,7 @@ mod game_entity_tests {
     #[test]
     fn game_entity_try_from_null_results_in_error() {
         assert_eq!(
-            GameEntity::try_from(core::ptr::null_mut() as *mut gentity_t),
+            GameEntity::try_from(ptr::null_mut() as *mut gentity_t),
             Err(QuakeLiveEngineError::NullPointerPassed(
                 "null pointer passed".into()
             ))
@@ -570,7 +569,7 @@ mod game_entity_tests {
     #[test]
     fn game_entity_get_player_name_from_null_client() {
         let mut gentity = GEntityBuilder::default()
-            .client(core::ptr::null_mut() as *mut gclient_t)
+            .client(ptr::null_mut() as *mut gclient_t)
             .build()
             .unwrap();
         let game_entity = GameEntity::try_from(&mut gentity as *mut gentity_t).unwrap();
@@ -621,7 +620,7 @@ mod game_entity_tests {
     #[test]
     fn game_entity_get_team_from_null_client() {
         let mut gentity = GEntityBuilder::default()
-            .client(core::ptr::null_mut() as *mut gclient_t)
+            .client(ptr::null_mut() as *mut gclient_t)
             .build()
             .unwrap();
         let game_entity = GameEntity::try_from(&mut gentity as *mut gentity_t).unwrap();
@@ -672,7 +671,7 @@ mod game_entity_tests {
     #[test]
     fn game_entity_get_privileges_from_null_client() {
         let mut gentity = GEntityBuilder::default()
-            .client(core::ptr::null_mut() as *mut gclient_t)
+            .client(ptr::null_mut() as *mut gclient_t)
             .build()
             .unwrap();
         let game_entity = GameEntity::try_from(&mut gentity as *mut gentity_t).unwrap();
@@ -700,7 +699,7 @@ mod game_entity_tests {
     #[test]
     fn game_entity_get_game_client_when_none_is_set() {
         let mut gentity = GEntityBuilder::default()
-            .client(core::ptr::null_mut() as *mut gclient_t)
+            .client(ptr::null_mut() as *mut gclient_t)
             .build()
             .unwrap();
         let game_entity = GameEntity::try_from(&mut gentity as *mut gentity_t).unwrap();
@@ -721,7 +720,7 @@ mod game_entity_tests {
     #[test]
     fn game_entity_get_activator_when_none_is_set() {
         let mut gentity = GEntityBuilder::default()
-            .activator(core::ptr::null_mut() as *mut gentity_t)
+            .activator(ptr::null_mut() as *mut gentity_t)
             .build()
             .unwrap();
         let game_entity = GameEntity::try_from(&mut gentity as *mut gentity_t).unwrap();
@@ -885,7 +884,7 @@ mod game_entity_tests {
             .unwrap();
         let mut gentity = GEntityBuilder::default()
             .s(entity_state)
-            .item(core::ptr::null() as *const gitem_t)
+            .item(ptr::null() as *const gitem_t)
             .build()
             .unwrap();
         let game_entity = GameEntity::try_from(&mut gentity as *mut gentity_t).unwrap();

@@ -65,27 +65,25 @@ impl GameItem {
 
     fn get_item_list() -> *mut gitem_t {
         let Some(main_engine_guard) = MAIN_ENGINE.try_read() else {
-            return core::ptr::null_mut();
+            return ptr::null_mut();
         };
 
         let Some(ref main_engine) = *main_engine_guard else {
-            return core::ptr::null_mut();
+            return ptr::null_mut();
         };
 
         let Ok(launch_item_orig) = main_engine.launch_item_orig() else {
-            return core::ptr::null_mut();
+            return ptr::null_mut();
         };
 
         let base_address = unsafe {
-            core::ptr::read_unaligned(
-                (launch_item_orig as usize + OFFSET_BG_ITEMLIST) as *const i32,
-            )
+            ptr::read_unaligned((launch_item_orig as usize + OFFSET_BG_ITEMLIST) as *const i32)
         };
 
         let bg_itemlist_ptr_ptr =
             base_address as usize + launch_item_orig as usize + OFFSET_BG_ITEMLIST + 4;
 
-        let bg_itemlist_ptr = unsafe { core::ptr::read(bg_itemlist_ptr_ptr as *const u64) };
+        let bg_itemlist_ptr = unsafe { ptr::read(bg_itemlist_ptr_ptr as *const u64) };
         bg_itemlist_ptr as *mut gitem_t
     }
 
@@ -157,12 +155,11 @@ mod game_item_tests {
     use core::ffi::c_char;
     use mockall::*;
     use pretty_assertions::assert_eq;
-    use serial_test::serial;
 
     #[test]
     fn game_item_from_null_pointer() {
         assert_eq!(
-            GameItem::try_from(core::ptr::null_mut() as *mut gitem_t),
+            GameItem::try_from(ptr::null_mut() as *mut gitem_t),
             Err(QuakeLiveEngineError::NullPointerPassed(
                 "null pointer passed".into()
             ))

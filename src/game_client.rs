@@ -353,7 +353,7 @@ mod game_client_tests {
     #[test]
     fn game_client_try_from_null_results_in_error() {
         assert_eq!(
-            GameClient::try_from(core::ptr::null_mut() as *mut gclient_t),
+            GameClient::try_from(ptr::null_mut() as *mut gclient_t),
             Err(QuakeLiveEngineError::NullPointerPassed(
                 "null pointer passed".into()
             ))

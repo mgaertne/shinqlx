@@ -35,7 +35,7 @@ impl ServerStatic {
         let func_pointer = main_engine.sv_shutdown_orig()?;
 
         let svs_ptr_ptr = func_pointer as usize + 0xAC;
-        let svs_ptr: u32 = unsafe { core::ptr::read(svs_ptr_ptr as *const u32) };
+        let svs_ptr: u32 = unsafe { ptr::read(svs_ptr_ptr as *const u32) };
         Self::try_from(svs_ptr as *mut serverStatic_t)
     }
 }
@@ -47,12 +47,11 @@ mod server_static_tests {
     use crate::server_static::ServerStatic;
     use crate::MAIN_ENGINE;
     use pretty_assertions::assert_eq;
-    use serial_test::serial;
 
     #[test]
     fn server_static_try_from_null_results_in_error() {
         assert_eq!(
-            ServerStatic::try_from(core::ptr::null_mut()),
+            ServerStatic::try_from(ptr::null_mut()),
             Err(QuakeLiveEngineError::NullPointerPassed(
                 "null pointer passed".into()
             ))

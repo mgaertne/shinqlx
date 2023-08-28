@@ -139,12 +139,11 @@ mod client_tests {
     use crate::MAIN_ENGINE;
     use core::ffi::c_char;
     use pretty_assertions::assert_eq;
-    use serial_test::serial;
 
     #[test]
     fn client_try_from_null_results_in_error() {
         assert_eq!(
-            Client::try_from(core::ptr::null() as *const client_t),
+            Client::try_from(ptr::null() as *const client_t),
             Err(QuakeLiveEngineError::NullPointerPassed(
                 "null pointer passed".into()
             ))
@@ -223,7 +222,7 @@ mod client_tests {
     #[test]
     fn client_has_gentity_with_no_shared_entity() {
         let mut client = ClientBuilder::default()
-            .gentity(core::ptr::null_mut())
+            .gentity(ptr::null_mut())
             .build()
             .unwrap();
         let rust_client = Client::try_from(&mut client as *mut client_t).unwrap();

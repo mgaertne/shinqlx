@@ -554,11 +554,11 @@ pub(crate) fn shinqlx_client_connect(
     is_bot: qboolean,
 ) -> *const c_char {
     let Some(main_engine_guard) = MAIN_ENGINE.try_read() else {
-        return core::ptr::null();
+        return ptr::null();
     };
 
     let Some(ref main_engine) = *main_engine_guard else {
-        return core::ptr::null();
+        return ptr::null();
     };
 
     shinqlx_client_connect_intern(main_engine, client_num, first_time.into(), is_bot.into())
@@ -930,10 +930,8 @@ mod hooks_tests {
     };
     use crate::hooks::{shinqlx_g_startkamikaze, MockGameEntity};
     use crate::prelude::*;
-    use core::ffi::c_char;
+    use core::ffi::{c_char, CStr};
     use rstest::*;
-    use serial_test::serial;
-    use std::ffi::CStr;
 
     unsafe extern "C" fn dummy_function() {}
 
@@ -1887,11 +1885,11 @@ mod hooks_tests {
 
         shinqlx_g_damage_intern(
             &mock_engine,
-            core::ptr::null_mut() as *mut gentity_t,
-            core::ptr::null_mut() as *mut gentity_t,
-            core::ptr::null_mut() as *mut gentity_t,
-            core::ptr::null_mut() as *mut vec3_t,
-            core::ptr::null_mut() as *mut vec3_t,
+            ptr::null_mut() as *mut gentity_t,
+            ptr::null_mut() as *mut gentity_t,
+            ptr::null_mut() as *mut gentity_t,
+            ptr::null_mut() as *mut vec3_t,
+            ptr::null_mut() as *mut vec3_t,
             0,
             0,
             0,
@@ -1943,11 +1941,11 @@ mod hooks_tests {
 
         shinqlx_g_damage_intern(
             &mock_engine,
-            core::ptr::null_mut() as *mut gentity_t,
-            core::ptr::null_mut() as *mut gentity_t,
-            core::ptr::null_mut() as *mut gentity_t,
-            core::ptr::null_mut() as *mut vec3_t,
-            core::ptr::null_mut() as *mut vec3_t,
+            ptr::null_mut() as *mut gentity_t,
+            ptr::null_mut() as *mut gentity_t,
+            ptr::null_mut() as *mut gentity_t,
+            ptr::null_mut() as *mut vec3_t,
+            ptr::null_mut() as *mut vec3_t,
             666,
             0,
             0,
@@ -2004,11 +2002,11 @@ mod hooks_tests {
 
         shinqlx_g_damage_intern(
             &mock_engine,
-            core::ptr::null_mut() as *mut gentity_t,
-            core::ptr::null_mut() as *mut gentity_t,
+            ptr::null_mut() as *mut gentity_t,
+            ptr::null_mut() as *mut gentity_t,
             &mut attacker as *mut gentity_t,
-            core::ptr::null_mut() as *mut vec3_t,
-            core::ptr::null_mut() as *mut vec3_t,
+            ptr::null_mut() as *mut vec3_t,
+            ptr::null_mut() as *mut vec3_t,
             666,
             16,
             7,
@@ -2069,11 +2067,11 @@ mod hooks_tests {
 
         shinqlx_g_damage_intern(
             &mock_engine,
-            core::ptr::null_mut() as *mut gentity_t,
-            core::ptr::null_mut() as *mut gentity_t,
+            ptr::null_mut() as *mut gentity_t,
+            ptr::null_mut() as *mut gentity_t,
             &mut attacker as *mut gentity_t,
-            core::ptr::null_mut() as *mut vec3_t,
-            core::ptr::null_mut() as *mut vec3_t,
+            ptr::null_mut() as *mut vec3_t,
+            ptr::null_mut() as *mut vec3_t,
             50,
             4,
             2,

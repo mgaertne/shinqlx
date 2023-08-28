@@ -39,7 +39,7 @@ mod cvar_tests {
     #[test]
     fn cvar_try_from_null_results_in_error() {
         assert_eq!(
-            CVar::try_from(core::ptr::null_mut() as *mut cvar_t),
+            CVar::try_from(ptr::null_mut() as *mut cvar_t),
             Err(QuakeLiveEngineError::NullPointerPassed(
                 "null pointer passed".into()
             ))

@@ -243,13 +243,13 @@ impl Not for qboolean {
 #[cfg(test)]
 pub(crate) mod qboolean_tests {
     use crate::prelude::*;
-    use core::ffi::c_int;
+    use core::ffi;
     use pretty_assertions::assert_eq;
 
     #[test]
     pub(crate) fn qboolean_as_c_int() {
-        assert_eq!(c_int::from(qboolean::qtrue), 1);
-        assert_eq!(c_int::from(qboolean::qfalse), 0);
+        assert_eq!(ffi::c_int::from(qboolean::qtrue), 1);
+        assert_eq!(ffi::c_int::from(qboolean::qfalse), 0);
     }
 
     #[test]
