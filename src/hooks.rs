@@ -1859,6 +1859,47 @@ mod hooks_tests {
 
     #[test]
     #[serial]
+    fn g_damage_for_null_target_is_not_forwarded() {
+        let mut mock_engine = MockQuakeEngine::new();
+        mock_engine
+            .expect_register_damage()
+            .withf_st(
+                |&target, &inflictor, &attacker, &dir, &pos, &damage, &dflags, &means_of_death| {
+                    target.is_null()
+                        && inflictor.is_null()
+                        && attacker.is_null()
+                        && pos.is_null()
+                        && dir.is_null()
+                        && damage == 0
+                        && dflags == 0
+                        && means_of_death == 0
+                },
+            )
+            .return_const_st(())
+            .times(1);
+        let try_from_ctx = MockGameEntity::try_from_context();
+        try_from_ctx
+            .expect()
+            .return_once_st(|_| Err(QuakeLiveEngineError::MainEngineNotInitialized));
+
+        let damage_dispatcher_ctx = damage_dispatcher_context();
+        damage_dispatcher_ctx.expect().times(0);
+
+        shinqlx_g_damage_intern(
+            &mock_engine,
+            core::ptr::null_mut() as *mut gentity_t,
+            core::ptr::null_mut() as *mut gentity_t,
+            core::ptr::null_mut() as *mut gentity_t,
+            core::ptr::null_mut() as *mut vec3_t,
+            core::ptr::null_mut() as *mut vec3_t,
+            0,
+            0,
+            0,
+        );
+    }
+
+    #[test]
+    #[serial]
     fn g_damage_for_null_attacker() {
         let mut mock_engine = MockQuakeEngine::new();
         mock_engine
@@ -1877,12 +1918,14 @@ mod hooks_tests {
             )
             .return_const_st(())
             .times(1);
-        let mut mock_gentity = MockGameEntity::new();
-        mock_gentity.expect_get_entity_id().return_const_st(42);
         let try_from_ctx = MockGameEntity::try_from_context();
         try_from_ctx
             .expect()
-            .return_once_st(|_| Ok(mock_gentity))
+            .return_once_st(|_| {
+                let mut mock_gentity = MockGameEntity::new();
+                mock_gentity.expect_get_entity_id().return_const_st(42);
+                Ok(mock_gentity)
+            })
             .times(1);
 
         let damage_dispatcher_ctx = damage_dispatcher_context();
@@ -1931,12 +1974,14 @@ mod hooks_tests {
             )
             .return_const_st(())
             .times(1);
-        let mut mock_gentity = MockGameEntity::new();
-        mock_gentity.expect_get_entity_id().return_const_st(42);
         let try_from_ctx = MockGameEntity::try_from_context();
         try_from_ctx
             .expect()
-            .return_once_st(|_| Ok(mock_gentity))
+            .return_once_st(|_| {
+                let mut mock_gentity = MockGameEntity::new();
+                mock_gentity.expect_get_entity_id().return_const_st(42);
+                Ok(mock_gentity)
+            })
             .times(1);
         try_from_ctx
             .expect()
