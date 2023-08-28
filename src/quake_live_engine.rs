@@ -5,11 +5,11 @@ use crate::commands::{
 use crate::cvar::CVar;
 use crate::game_entity::GameEntity;
 use crate::hooks::{
-    shinqlx_cmd_addcommand, shinqlx_sv_cliententerworld, shinqlx_sv_dropclient,
-    shinqlx_sv_executeclientcommand, shinqlx_sv_setconfigstring, shinqlx_sv_spawnserver,
-    shinqlx_sys_setmoduleoffset, ShiNQlx_ClientConnect, ShiNQlx_ClientSpawn, ShiNQlx_Com_Printf,
-    ShiNQlx_G_Damage, ShiNQlx_G_InitGame, ShiNQlx_G_RunFrame, ShiNQlx_G_ShutdownGame,
-    ShiNQlx_G_StartKamikaze, ShiNQlx_SV_SendServerCommand,
+    shinqlx_client_connect, shinqlx_clientspawn, shinqlx_cmd_addcommand, shinqlx_g_damage,
+    shinqlx_g_initgame, shinqlx_g_runframe, shinqlx_g_shutdowngame, shinqlx_g_startkamikaze,
+    shinqlx_sv_cliententerworld, shinqlx_sv_dropclient, shinqlx_sv_executeclientcommand,
+    shinqlx_sv_setconfigstring, shinqlx_sv_spawnserver, shinqlx_sys_setmoduleoffset,
+    ShiNQlx_Com_Printf, ShiNQlx_SV_SendServerCommand,
 };
 use crate::patches::patch_callvote_f;
 use crate::prelude::*;
@@ -123,12 +123,11 @@ struct StaticDetours {
     com_printf_detour: RawDetour,
 }
 
-type ClientSpawnDetourType = GenericDetour<extern "C" fn(*mut gentity_t)>;
-type ClientConnectDetourType =
-    GenericDetour<extern "C" fn(c_int, qboolean, qboolean) -> *const c_char>;
-type GStartKamikazeDetourType = GenericDetour<extern "C" fn(*mut gentity_t)>;
+type ClientSpawnDetourType = GenericDetour<fn(*mut gentity_t)>;
+type ClientConnectDetourType = GenericDetour<fn(c_int, qboolean, qboolean) -> *const c_char>;
+type GStartKamikazeDetourType = GenericDetour<fn(*mut gentity_t)>;
 type GDamageDetourType = GenericDetour<
-    extern "C" fn(
+    fn(
         *mut gentity_t,
         *mut gentity_t,
         *mut gentity_t,
@@ -311,19 +310,19 @@ impl VmFunctions {
         unsafe {
             core::ptr::write(
                 (vm_call_table + 0x18) as *mut usize,
-                ShiNQlx_G_InitGame as usize,
+                shinqlx_g_initgame as usize,
             );
         }
 
         unsafe {
             core::ptr::write(
                 (vm_call_table + 0x8) as *mut usize,
-                ShiNQlx_G_RunFrame as usize,
+                shinqlx_g_runframe as usize,
             );
         }
 
         unsafe {
-            core::ptr::write(vm_call_table as *mut usize, ShiNQlx_G_ShutdownGame as usize);
+            core::ptr::write(vm_call_table as *mut usize, shinqlx_g_shutdowngame as usize);
         }
 
         let pending_client_connect_detour = extract_detour(&self.client_connect_detour).take();
@@ -334,7 +333,7 @@ impl VmFunctions {
         let client_connect_orig = self.client_connect_orig.load(Ordering::SeqCst);
         let client_connect_func = unsafe { core::mem::transmute(client_connect_orig) };
         let client_connect_detour =
-            unsafe { ClientConnectDetourType::new(client_connect_func, ShiNQlx_ClientConnect) }
+            unsafe { ClientConnectDetourType::new(client_connect_func, shinqlx_client_connect) }
                 .map_err(|_| {
                     QuakeLiveEngineError::DetourCouldNotBeCreated(QuakeLiveFunction::ClientConnect)
                 })?;
@@ -355,7 +354,7 @@ impl VmFunctions {
         let g_start_kamikaze_orig = self.g_start_kamikaze_orig.load(Ordering::SeqCst);
         let g_start_kamikaze_func = unsafe { core::mem::transmute(g_start_kamikaze_orig) };
         let g_start_kamikaze_detour = unsafe {
-            GStartKamikazeDetourType::new(g_start_kamikaze_func, ShiNQlx_G_StartKamikaze)
+            GStartKamikazeDetourType::new(g_start_kamikaze_func, shinqlx_g_startkamikaze)
         }
         .map_err(|_| {
             QuakeLiveEngineError::DetourCouldNotBeCreated(QuakeLiveFunction::G_StartKamikaze)
@@ -377,7 +376,7 @@ impl VmFunctions {
         let client_spawn_orig = self.client_spawn_orig.load(Ordering::SeqCst);
         let client_spawn_func = unsafe { core::mem::transmute(client_spawn_orig) };
         let client_spawn_detour =
-            unsafe { ClientSpawnDetourType::new(client_spawn_func, ShiNQlx_ClientSpawn) }.map_err(
+            unsafe { ClientSpawnDetourType::new(client_spawn_func, shinqlx_clientspawn) }.map_err(
                 |_| QuakeLiveEngineError::DetourCouldNotBeCreated(QuakeLiveFunction::ClientSpawn),
             )?;
         unsafe { client_spawn_detour.enable() }.map_err(|_| {
@@ -396,7 +395,7 @@ impl VmFunctions {
 
         let g_damage_orig = self.g_damage_orig.load(Ordering::SeqCst);
         let g_damage_func = unsafe { core::mem::transmute(g_damage_orig) };
-        let g_damage_detour = unsafe { GDamageDetourType::new(g_damage_func, ShiNQlx_G_Damage) }
+        let g_damage_detour = unsafe { GDamageDetourType::new(g_damage_func, shinqlx_g_damage) }
             .map_err(|_| {
                 QuakeLiveEngineError::DetourCouldNotBeCreated(QuakeLiveFunction::G_Damage)
             })?;
