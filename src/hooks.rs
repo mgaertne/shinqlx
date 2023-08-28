@@ -889,7 +889,8 @@ mod hooks_tests {
         client_command_dispatcher_context, client_connect_dispatcher_context,
         client_disconnect_dispatcher_context, client_loaded_dispatcher_context,
         client_spawn_dispatcher_context, console_print_dispatcher_context,
-        frame_dispatcher_context, kamikaze_explode_dispatcher_context, new_game_dispatcher_context,
+        frame_dispatcher_context, kamikaze_explode_dispatcher_context,
+        kamikaze_use_dispatcher_context, new_game_dispatcher_context,
         server_command_dispatcher_context, set_configstring_dispatcher_context,
     };
     use crate::hooks::{
@@ -898,12 +899,14 @@ mod hooks_tests {
         shinqlx_g_initgame_intern, shinqlx_g_runframe_intern, shinqlx_g_shutdowngame_intern,
         shinqlx_send_server_command_intern, shinqlx_set_configstring_intern,
         shinqlx_sv_cliententerworld_intern, shinqlx_sv_spawnserver_intern,
-        shinqlx_sys_setmoduleoffset_intern, MockClient, MockQuakeEngine,
+        shinqlx_sys_setmoduleoffset_intern, MockActivator, MockClient, MockGameClient,
+        MockQuakeEngine,
     };
     use crate::hooks::{MockGameEntity, ShiNQlx_G_StartKamikaze};
     use crate::prelude::*;
     use core::ffi::c_char;
     use rstest::*;
+    use serial_test::serial;
     use std::ffi::CStr;
 
     unsafe extern "C" fn dummy_function() {}
@@ -1028,6 +1031,7 @@ mod hooks_tests {
     }
 
     #[test]
+    #[serial]
     fn init_game_without_restart() {
         let mut mock_engine = MockQuakeEngine::new();
         mock_engine
@@ -1052,6 +1056,7 @@ mod hooks_tests {
     }
 
     #[test]
+    #[serial]
     fn init_game_with_restart() {
         let mut mock_engine = MockQuakeEngine::new();
         mock_engine
@@ -1147,6 +1152,7 @@ mod hooks_tests {
     }
 
     #[test]
+    #[serial]
     fn execute_client_command_for_ok_client_with_gentity_non_empty_cmd_dispatcher_returns_none() {
         let mut mock = MockQuakeEngine::new();
         mock.expect_execute_client_command().times(0);
@@ -1170,6 +1176,7 @@ mod hooks_tests {
     }
 
     #[test]
+    #[serial]
     fn execute_client_command_for_ok_client_with_gentity_non_empty_cmd_dispatcher_returns_modified_string(
     ) {
         let mut mock = MockQuakeEngine::new();
@@ -1200,6 +1207,7 @@ mod hooks_tests {
     }
 
     #[test]
+    #[serial]
     fn execute_client_command_for_ok_client_with_gentity_non_empty_cmd_dispatcher_returns_empty_string(
     ) {
         let mut mock = MockQuakeEngine::new();
@@ -1225,6 +1233,7 @@ mod hooks_tests {
     }
 
     #[test]
+    #[serial]
     fn send_server_command_for_none_client_non_empty_cmd_dispatcher_returns_none() {
         let mut mock = MockQuakeEngine::new();
         mock.expect_send_server_command().times(0);
@@ -1239,6 +1248,7 @@ mod hooks_tests {
     }
 
     #[test]
+    #[serial]
     fn send_server_command_for_none_client_non_empty_cmd_dispatcher_returns_modified_cmd() {
         let mut mock = MockQuakeEngine::new();
         mock.expect_send_server_command()
@@ -1272,6 +1282,7 @@ mod hooks_tests {
     }
 
     #[test]
+    #[serial]
     fn send_server_command_for_client_with_gentity_non_empty_cmd_dispatcher_returns_none() {
         let mut mock = MockQuakeEngine::new();
         mock.expect_send_server_command().times(0);
@@ -1295,6 +1306,7 @@ mod hooks_tests {
     }
 
     #[test]
+    #[serial]
     fn send_server_command_for_client_with_gentity_non_empty_cmd_dispatcher_returns_modified_string(
     ) {
         let mut mock = MockQuakeEngine::new();
@@ -1323,6 +1335,7 @@ mod hooks_tests {
     }
 
     #[test]
+    #[serial]
     fn send_server_command_for_client_with_gentity_non_empty_cmd_dispatcher_returns_empty_string() {
         let mut mock = MockQuakeEngine::new();
         mock.expect_send_server_command().times(0);
@@ -1347,6 +1360,7 @@ mod hooks_tests {
     }
 
     #[test]
+    #[serial]
     fn client_enter_world_for_unprimed_client() {
         let mut mock_client = MockClient::new();
         mock_client
@@ -1374,6 +1388,7 @@ mod hooks_tests {
     }
 
     #[test]
+    #[serial]
     fn client_enter_world_for_primed_client_without_gentity() {
         let mut mock_client = MockClient::new();
         mock_client
@@ -1401,6 +1416,7 @@ mod hooks_tests {
     }
 
     #[test]
+    #[serial]
     fn client_enter_world_for_primed_client_with_gentity_informs_python() {
         let mut mock_client = MockClient::new();
         mock_client
@@ -1462,6 +1478,7 @@ mod hooks_tests {
     }
 
     #[test]
+    #[serial]
     fn set_confgistring_dispatcher_returns_none() {
         let mut mock_engine = MockQuakeEngine::new();
         mock_engine
@@ -1481,6 +1498,7 @@ mod hooks_tests {
     }
 
     #[test]
+    #[serial]
     fn set_confgistring_dispatcher_returns_modified_string() {
         let mut mock_engine = MockQuakeEngine::new();
         mock_engine
@@ -1500,6 +1518,7 @@ mod hooks_tests {
     }
 
     #[test]
+    #[serial]
     fn set_confgistring_dispatcher_returns_unmodified_string() {
         let mut mock_engine = MockQuakeEngine::new();
         mock_engine
@@ -1519,6 +1538,7 @@ mod hooks_tests {
     }
 
     #[test]
+    #[serial]
     fn drop_client_is_dispatched_and_original_function_called() {
         let mut mock_client = MockClient::new();
         mock_client
@@ -1539,6 +1559,7 @@ mod hooks_tests {
     }
 
     #[test]
+    #[serial]
     fn com_printf_when_dispatcher_returns_none() {
         let mut mock_engine = MockQuakeEngine::new();
         mock_engine.expect_com_printf().times(0);
@@ -1553,6 +1574,7 @@ mod hooks_tests {
     }
 
     #[test]
+    #[serial]
     fn com_printf_when_dispatcher_returns_some_value() {
         let mut mock_engine = MockQuakeEngine::new();
         mock_engine
@@ -1571,6 +1593,7 @@ mod hooks_tests {
     }
 
     #[test]
+    #[serial]
     fn sv_spawnserver_forwards_to_python() {
         let mut mock_engine = MockQuakeEngine::new();
         mock_engine
@@ -1590,6 +1613,7 @@ mod hooks_tests {
     }
 
     #[test]
+    #[serial]
     fn g_runframe_forwards_to_python() {
         let mut mock_engine = MockQuakeEngine::new();
         mock_engine
@@ -1622,6 +1646,7 @@ mod hooks_tests {
     }
 
     #[test]
+    #[serial]
     fn client_connect_first_time_client_dispatcher_returns_none() {
         let mut mock_engine = MockQuakeEngine::new();
         mock_engine
@@ -1640,6 +1665,7 @@ mod hooks_tests {
     }
 
     #[test]
+    #[serial]
     fn client_connect_first_time_client_dispatcher_returns_string() {
         let mut mock_engine = MockQuakeEngine::new();
         mock_engine.expect_client_connect().times(0);
@@ -1658,6 +1684,7 @@ mod hooks_tests {
     }
 
     #[test]
+    #[serial]
     fn client_connect_first_time_client_dispatcher_returns_some_for_bot() {
         let mut mock_engine = MockQuakeEngine::new();
         mock_engine
@@ -1676,6 +1703,7 @@ mod hooks_tests {
     }
 
     #[test]
+    #[serial]
     fn client_spawn_forwards_to_ql_and_python() {
         let mut mock_entity = MockGameEntity::new();
         mock_entity
@@ -1698,6 +1726,7 @@ mod hooks_tests {
     }
 
     #[test]
+    #[serial]
     fn kamikaze_start_for_non_game_client() {
         let mut gentity = GEntityBuilder::default().build().unwrap();
 
@@ -1716,6 +1745,88 @@ mod hooks_tests {
         try_from_ctx.expect().return_once_st(|_| Ok(mock_gentity));
         let kamikaze_explode_dispatcher_ctx = kamikaze_explode_dispatcher_context();
         kamikaze_explode_dispatcher_ctx.expect().times(0);
+
+        ShiNQlx_G_StartKamikaze(&mut gentity as *mut gentity_t);
+    }
+
+    #[test]
+    #[serial]
+    fn kamikaze_start_for_existing_game_client_removes_kamikaze_flag() {
+        let mut gentity = GEntityBuilder::default().build().unwrap();
+        let mut mock_gentity = MockGameEntity::new();
+        mock_gentity
+            .expect_get_game_client()
+            .times(1)
+            .return_once_st(|| {
+                let mut mock_game_client = MockGameClient::new();
+                mock_game_client.expect_get_client_num().return_const_st(42);
+                Ok(mock_game_client)
+            });
+        mock_gentity
+            .expect_get_game_client()
+            .times(1)
+            .return_once_st(|| {
+                let mut mock_game_client = MockGameClient::new();
+                mock_game_client
+                    .expect_remove_kamikaze_flag()
+                    .return_const_st(());
+                Ok(mock_game_client)
+            });
+        mock_gentity
+            .expect_get_game_client()
+            .times(1)
+            .return_once_st(|| Ok(MockGameClient::new()));
+        mock_gentity
+            .expect_get_activator()
+            .returning_st(|| Err(QuakeLiveEngineError::MainEngineNotInitialized));
+        mock_gentity
+            .expect_start_kamikaze()
+            .return_const_st(())
+            .times(1);
+        let try_from_ctx = MockGameEntity::try_from_context();
+        try_from_ctx.expect().return_once_st(|_| Ok(mock_gentity));
+        let kamikaze_use_dispatcher_ctx = kamikaze_use_dispatcher_context();
+        kamikaze_use_dispatcher_ctx
+            .expect()
+            .withf_st(|&client_id| client_id == 42)
+            .return_const_st(())
+            .times(1);
+        let kamikaze_explode_dispatcher_ctx = kamikaze_explode_dispatcher_context();
+        kamikaze_explode_dispatcher_ctx
+            .expect()
+            .withf_st(|&client_id, &is_used_on_demand| client_id == 42 && is_used_on_demand)
+            .return_const_st(())
+            .times(1);
+
+        ShiNQlx_G_StartKamikaze(&mut gentity as *mut gentity_t);
+    }
+
+    #[test]
+    #[serial]
+    fn kamikaze_start_for_activator_use() {
+        let mut gentity = GEntityBuilder::default().build().unwrap();
+
+        let mut mock_gentity = MockGameEntity::new();
+        mock_gentity
+            .expect_get_game_client()
+            .returning_st(|| Err(QuakeLiveEngineError::MainEngineNotInitialized));
+        mock_gentity.expect_get_activator().return_once_st(|| {
+            let mut mock_activator = MockActivator::new();
+            mock_activator.expect_get_owner_num().return_const_st(42);
+            Ok(mock_activator)
+        });
+        mock_gentity
+            .expect_start_kamikaze()
+            .return_const_st(())
+            .times(1);
+        let try_from_ctx = MockGameEntity::try_from_context();
+        try_from_ctx.expect().return_once_st(|_| Ok(mock_gentity));
+        let kamikaze_explode_dispatcher_ctx = kamikaze_explode_dispatcher_context();
+        kamikaze_explode_dispatcher_ctx
+            .expect()
+            .withf_st(|&client_id, &is_used_on_demand| client_id == 42 && !is_used_on_demand)
+            .return_const_st(())
+            .times(1);
 
         ShiNQlx_G_StartKamikaze(&mut gentity as *mut gentity_t);
     }
