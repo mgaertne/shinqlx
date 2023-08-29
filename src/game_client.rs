@@ -3,6 +3,8 @@ use crate::prelude::*;
 use alloc::string::String;
 use alloc::vec::Vec;
 use core::ffi::{c_int, CStr};
+#[cfg(test)]
+use mockall::mock;
 
 #[derive(Debug, PartialEq)]
 #[repr(transparent)]
@@ -161,6 +163,7 @@ impl GameClient {
             .for_each(|(i, &item)| self.game_client.ps.ammo[i + 1] = item);
     }
 
+    #[allow(dead_code)]
     pub(crate) fn get_powerups(&self) -> [i32; 6] {
         let level_time = CurrentLevel::try_get()
             .ok()
@@ -183,6 +186,7 @@ impl GameClient {
             .unwrap()
     }
 
+    #[allow(dead_code)]
     pub(crate) fn set_powerups(&mut self, powerups: [i32; 6]) {
         let level_time = CurrentLevel::try_get()
             .ok()
@@ -259,6 +263,7 @@ impl GameClient {
             flight_params_array[3];
     }
 
+    #[allow(dead_code)]
     pub(crate) fn set_invulnerability(&mut self, time: i32) {
         let level_time = CurrentLevel::try_get()
             .ok()
@@ -308,6 +313,7 @@ impl GameClient {
         self.game_client.expandedStats.totalDamageTaken
     }
 
+    #[allow(dead_code)]
     pub(crate) fn get_time_on_team(&self) -> i32 {
         let level_time = CurrentLevel::try_get()
             .ok()
@@ -339,6 +345,78 @@ impl GameClient {
 
     pub(crate) fn spawn(&mut self) {
         self.game_client.ps.pm_type = pmtype_t::PM_NORMAL;
+    }
+}
+
+#[cfg(test)]
+mock! {
+    pub(crate) GameClient {
+        pub(crate) fn get_client_num(&self) -> i32;
+        pub(crate) fn get_connection_state(&self) -> clientConnected_t;
+        pub(crate) fn get_player_name(&self) -> String;
+        pub(crate) fn get_team(&self) -> team_t;
+        pub(crate) fn get_privileges(&self) -> privileges_t;
+        pub(crate) fn remove_kamikaze_flag(&mut self);
+        pub(crate) fn set_privileges<T>(&mut self, privileges: T)
+        where
+            T: Into<privileges_t> + 'static;
+        pub(crate) fn is_alive(&self) -> bool;
+        pub(crate) fn get_position(&self) -> (f32, f32, f32);
+        pub(crate) fn set_position<T>(&mut self, position: T)
+        where
+            T: Into<[f32; 3]> + 'static;
+        pub(crate) fn get_velocity(&self) -> (f32, f32, f32);
+        pub(crate) fn set_velocity<T>(&mut self, velocity: T)
+        where
+            T: Into<[f32; 3]> + 'static;
+        pub(crate) fn get_armor(&self) -> i32;
+        pub(crate) fn set_armor<T>(&mut self, armor: T)
+        where
+            T: Into<i32> + 'static;
+        pub(crate) fn get_noclip(&self) -> bool;
+        pub(crate) fn set_noclip<T>(&mut self, activate: T)
+        where
+            T: Into<qboolean> + 'static;
+        pub(crate) fn get_weapon(&self) -> weapon_t;
+        pub(crate) fn set_weapon<T>(&mut self, weapon: T)
+        where
+            T: Into<c_int> + 'static;
+        pub(crate) fn get_weapons(&self) -> [i32; 15];
+        pub(crate) fn set_weapons(&mut self, weapons: [i32; 15]);
+        pub(crate) fn get_ammos(&self) -> [i32; 15];
+        pub(crate) fn set_ammos(&mut self, ammos: [i32; 15]);
+        pub(crate) fn get_powerups(&self) -> [i32; 6];
+        pub(crate) fn set_powerups(&mut self, powerups: [i32; 6]);
+        pub(crate) fn get_holdable(&self) -> i32;
+        pub(crate) fn set_holdable<T>(&mut self, holdable: T)
+        where
+            T: Into<i32> + 'static;
+        pub(crate) fn get_current_flight_fuel(&self) -> i32;
+        pub(crate) fn get_max_flight_fuel(&self) -> i32;
+        pub(crate) fn get_flight_thrust(&self) -> i32;
+        pub(crate) fn get_flight_refuel(&self) -> i32;
+        pub(crate) fn set_flight<T>(&mut self, flight_params: T)
+        where
+            T: Into<[i32; 4]> + 'static;
+        pub(crate) fn set_invulnerability(&mut self, time: i32);
+        pub(crate) fn is_chatting(&self) -> bool;
+        pub(crate) fn is_frozen(&self) -> bool;
+        pub(crate) fn get_score(&self) -> i32;
+        pub(crate) fn set_score(&mut self, score: i32);
+        pub(crate) fn get_kills(&self) -> i32;
+        pub(crate) fn get_deaths(&self) -> i32;
+        pub(crate) fn get_damage_dealt(&self) -> i32;
+        pub(crate) fn get_damage_taken(&self) -> i32;
+        pub(crate) fn get_time_on_team(&self) -> i32;
+        pub(crate) fn get_ping(&self) -> i32;
+        pub(crate) fn set_vote_pending(&mut self);
+        pub(crate) fn set_vote_state(&mut self, yes_or_no: bool);
+        pub(crate) fn spawn(&mut self);
+    }
+
+    impl TryFrom<*mut gclient_t> for GameClient {
+        type Error = QuakeLiveEngineError;
+        fn try_from(game_client: *mut gclient_t) -> Result<Self, QuakeLiveEngineError>;
     }
 }
 

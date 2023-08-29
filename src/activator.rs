@@ -1,4 +1,6 @@
 use crate::prelude::*;
+#[cfg(test)]
+use mockall::mock;
 
 #[derive(Debug, PartialEq)]
 #[repr(transparent)]
@@ -21,6 +23,18 @@ impl TryFrom<*mut gentity_t> for Activator {
 impl Activator {
     pub(crate) fn get_owner_num(&self) -> i32 {
         self.activator.r.ownerNum
+    }
+}
+
+#[cfg(test)]
+mock! {
+    pub(crate) Activator {
+        pub(crate) fn get_owner_num(&self) -> i32;
+    }
+
+    impl TryFrom<*mut gentity_t> for Activator {
+        type Error = QuakeLiveEngineError;
+        fn try_from(game_entity: *mut gentity_t) -> Result<Self, QuakeLiveEngineError>;
     }
 }
 

@@ -1,6 +1,4 @@
-use crate::activator::Activator;
 use crate::current_level::CurrentLevel;
-use crate::game_client::GameClient;
 use crate::game_item::GameItem;
 use crate::hooks::shinqlx_set_configstring;
 use crate::prelude::*;
@@ -13,6 +11,8 @@ use alloc::string::String;
 use alloc::vec;
 use core::f32::consts::PI;
 use core::ffi::{c_char, c_float, c_int, CStr};
+#[cfg(test)]
+use mockall::mock;
 
 #[derive(Debug, PartialEq)]
 #[repr(transparent)]
@@ -453,12 +453,56 @@ impl GameEntity {
 }
 
 #[cfg(test)]
+mock! {
+    pub(crate) GameEntity {
+        pub(crate) fn get_entity_id(&self) -> i32;
+        pub(crate) fn start_kamikaze(&mut self);
+        pub(crate) fn get_player_name(&self) -> String;
+        pub(crate) fn get_team(&self) -> team_t;
+        pub(crate) fn get_privileges(&self) -> privileges_t;
+        pub(crate) fn get_game_client(&self) -> Result<GameClient, QuakeLiveEngineError>;
+        pub(crate) fn get_activator(&self) -> Result<Activator, QuakeLiveEngineError>;
+        pub(crate) fn get_health(&self) -> i32;
+        pub(crate) fn set_health(&mut self, new_health: i32);
+        pub(crate) fn slay_with_mod(&mut self, mean_of_death: meansOfDeath_t);
+        pub(crate) fn in_use(&self) -> bool;
+        pub(crate) fn get_classname(&self) -> String;
+        pub(crate) fn is_game_item(&self, item_type: entityType_t) -> bool;
+        pub(crate) fn is_respawning_weapon(&self) -> bool;
+        pub(crate) fn set_respawn_time(&mut self, respawn_time: i32);
+        pub(crate) fn has_flags(&self) -> bool;
+        pub(crate) fn is_dropped_item(&self) -> bool;
+        pub(crate) fn get_client_number(&self) -> i32;
+        pub(crate) fn drop_holdable(&mut self);
+        pub(crate) fn is_kamikaze_timer(&self) -> bool;
+        pub(crate) fn free_entity(&mut self);
+        pub(crate) fn replace_item(&mut self, item_id: i32);
+        pub(crate) fn get_targetting_entity_ids(&self) -> Vec<u32>;
+    }
+
+    impl AsMut<gentity_t> for GameEntity {
+        fn as_mut(&mut self) -> &mut gentity_t;
+    }
+
+    impl From<i32> for GameEntity {
+        fn from(entity_id: i32) -> Self;
+    }
+
+    impl TryFrom<*mut gentity_t> for GameEntity {
+        type Error = QuakeLiveEngineError;
+        fn try_from(gentity: *mut gentity_t) -> Result<Self, QuakeLiveEngineError>;
+    }
+}
+
+#[cfg(test)]
 mod game_entity_tests {
-    use crate::game_entity::GameEntity;
+    use super::GameEntity;
+    use crate::activator::MockActivator;
+    use crate::game_client::MockGameClient;
     use crate::prelude::*;
     use crate::quake_live_engine::{FreeEntity, RegisterDamage, StartKamikaze};
     use alloc::ffi::CString;
-    use core::ffi::{c_char, c_int};
+    use core::ffi::c_int;
     use mockall::mock;
     use pretty_assertions::assert_eq;
 
@@ -567,173 +611,171 @@ mod game_entity_tests {
     }
 
     #[test]
+    #[serial]
     fn game_entity_get_player_name_from_null_client() {
-        let mut gentity = GEntityBuilder::default()
-            .client(ptr::null_mut() as *mut gclient_t)
-            .build()
-            .unwrap();
+        let game_client_try_from_ctx = MockGameClient::try_from_context();
+        game_client_try_from_ctx
+            .expect()
+            .return_once_st(|_| Err(QuakeLiveEngineError::MainEngineNotInitialized));
+        let mut gentity = GEntityBuilder::default().build().unwrap();
         let game_entity = GameEntity::try_from(&mut gentity as *mut gentity_t).unwrap();
         assert_eq!(game_entity.get_player_name(), "");
     }
 
     #[test]
+    #[serial]
     fn game_entity_get_player_name_from_disconnected_game_client() {
-        let client_persistant = ClientPersistantBuilder::default()
-            .connected(clientConnected_t::CON_DISCONNECTED)
-            .build()
-            .unwrap();
-        let mut gclient = GClientBuilder::default()
-            .pers(client_persistant)
-            .build()
-            .unwrap();
-        let mut gentity = GEntityBuilder::default()
-            .client(&mut gclient as *mut gclient_t)
-            .build()
-            .unwrap();
+        let game_client_try_from_ctx = MockGameClient::try_from_context();
+        game_client_try_from_ctx.expect().return_once_st(|_| {
+            let mut mock_game_client = MockGameClient::new();
+            mock_game_client
+                .expect_get_connection_state()
+                .return_const_st(clientConnected_t::CON_DISCONNECTED);
+            Ok(mock_game_client)
+        });
+        let mut gentity = GEntityBuilder::default().build().unwrap();
         let game_entity = GameEntity::try_from(&mut gentity as *mut gentity_t).unwrap();
         assert_eq!(game_entity.get_player_name(), "");
     }
 
     #[test]
+    #[serial]
     fn game_entity_get_player_name_from_connected_game_client() {
-        let player_name_str = "UnknownPlayer";
-        let mut bytes_iter = player_name_str.bytes();
-        let mut player_name: [c_char; 40usize] = [0; 40usize];
-        player_name[0..player_name_str.len()].fill_with(|| bytes_iter.next().unwrap() as c_char);
-        let client_persistant = ClientPersistantBuilder::default()
-            .connected(clientConnected_t::CON_CONNECTED)
-            .netname(player_name)
-            .build()
-            .unwrap();
-        let mut gclient = GClientBuilder::default()
-            .pers(client_persistant)
-            .build()
-            .unwrap();
-        let mut gentity = GEntityBuilder::default()
-            .client(&mut gclient as *mut gclient_t)
-            .build()
-            .unwrap();
+        let game_client_try_from_ctx = MockGameClient::try_from_context();
+        game_client_try_from_ctx.expect().return_once_st(|_| {
+            let mut mock_game_client = MockGameClient::new();
+            mock_game_client
+                .expect_get_connection_state()
+                .return_const_st(clientConnected_t::CON_CONNECTED);
+            mock_game_client
+                .expect_get_player_name()
+                .return_const_st("UnknownPlayer");
+            Ok(mock_game_client)
+        });
+        let mut gentity = GEntityBuilder::default().build().unwrap();
         let game_entity = GameEntity::try_from(&mut gentity as *mut gentity_t).unwrap();
         assert_eq!(game_entity.get_player_name(), "UnknownPlayer");
     }
 
     #[test]
+    #[serial]
     fn game_entity_get_team_from_null_client() {
-        let mut gentity = GEntityBuilder::default()
-            .client(ptr::null_mut() as *mut gclient_t)
-            .build()
-            .unwrap();
+        let game_client_try_from_ctx = MockGameClient::try_from_context();
+        game_client_try_from_ctx
+            .expect()
+            .return_once_st(|_| Err(QuakeLiveEngineError::MainEngineNotInitialized));
+        let mut gentity = GEntityBuilder::default().build().unwrap();
         let game_entity = GameEntity::try_from(&mut gentity as *mut gentity_t).unwrap();
         assert_eq!(game_entity.get_team(), team_t::TEAM_SPECTATOR);
     }
 
     #[test]
+    #[serial]
     fn game_entity_get_team_from_disconnected_game_client() {
-        let client_persistant = ClientPersistantBuilder::default()
-            .connected(clientConnected_t::CON_DISCONNECTED)
-            .build()
-            .unwrap();
-        let mut gclient = GClientBuilder::default()
-            .pers(client_persistant)
-            .build()
-            .unwrap();
-        let mut gentity = GEntityBuilder::default()
-            .client(&mut gclient as *mut gclient_t)
-            .build()
-            .unwrap();
+        let game_client_try_from_ctx = MockGameClient::try_from_context();
+        game_client_try_from_ctx.expect().return_once_st(|_| {
+            let mut mock_game_client = MockGameClient::new();
+            mock_game_client
+                .expect_get_connection_state()
+                .return_const_st(clientConnected_t::CON_DISCONNECTED);
+            Ok(mock_game_client)
+        });
+        let mut gentity = GEntityBuilder::default().build().unwrap();
         let game_entity = GameEntity::try_from(&mut gentity as *mut gentity_t).unwrap();
         assert_eq!(game_entity.get_team(), team_t::TEAM_SPECTATOR);
     }
 
     #[test]
+    #[serial]
     fn game_entity_get_team_from_connected_game_client() {
-        let client_session = ClientSessionBuilder::default()
-            .sessionTeam(team_t::TEAM_RED)
-            .build()
-            .unwrap();
-        let client_persistant = ClientPersistantBuilder::default()
-            .connected(clientConnected_t::CON_CONNECTED)
-            .build()
-            .unwrap();
-        let mut gclient = GClientBuilder::default()
-            .pers(client_persistant)
-            .sess(client_session)
-            .build()
-            .unwrap();
-        let mut gentity = GEntityBuilder::default()
-            .client(&mut gclient as *mut gclient_t)
-            .build()
-            .unwrap();
+        let game_client_try_from_ctx = MockGameClient::try_from_context();
+        game_client_try_from_ctx.expect().return_once_st(|_| {
+            let mut mock_game_client = MockGameClient::new();
+            mock_game_client
+                .expect_get_connection_state()
+                .return_const_st(clientConnected_t::CON_CONNECTED);
+            mock_game_client
+                .expect_get_team()
+                .return_const_st(team_t::TEAM_RED);
+            Ok(mock_game_client)
+        });
+        let mut gentity = GEntityBuilder::default().build().unwrap();
         let game_entity = GameEntity::try_from(&mut gentity as *mut gentity_t).unwrap();
         assert_eq!(game_entity.get_team(), team_t::TEAM_RED);
     }
 
     #[test]
+    #[serial]
     fn game_entity_get_privileges_from_null_client() {
-        let mut gentity = GEntityBuilder::default()
-            .client(ptr::null_mut() as *mut gclient_t)
-            .build()
-            .unwrap();
+        let game_client_try_from_ctx = MockGameClient::try_from_context();
+        game_client_try_from_ctx
+            .expect()
+            .return_once_st(|_| Err(QuakeLiveEngineError::MainEngineNotInitialized));
+        let mut gentity = GEntityBuilder::default().build().unwrap();
         let game_entity = GameEntity::try_from(&mut gentity as *mut gentity_t).unwrap();
         assert_eq!(game_entity.get_privileges(), privileges_t::PRIV_BANNED);
     }
 
     #[test]
+    #[serial]
     fn game_entity_get_privileges_from_connected_game_client() {
-        let client_session = ClientSessionBuilder::default()
-            .privileges(privileges_t::PRIV_ROOT)
-            .build()
-            .unwrap();
-        let mut gclient = GClientBuilder::default()
-            .sess(client_session)
-            .build()
-            .unwrap();
-        let mut gentity = GEntityBuilder::default()
-            .client(&mut gclient as *mut gclient_t)
-            .build()
-            .unwrap();
+        let game_client_try_from_ctx = MockGameClient::try_from_context();
+        game_client_try_from_ctx.expect().return_once_st(|_| {
+            let mut mock_game_client = MockGameClient::new();
+            mock_game_client
+                .expect_get_privileges()
+                .return_const_st(privileges_t::PRIV_ROOT);
+            Ok(mock_game_client)
+        });
+        let mut gentity = GEntityBuilder::default().build().unwrap();
         let game_entity = GameEntity::try_from(&mut gentity as *mut gentity_t).unwrap();
         assert_eq!(game_entity.get_privileges(), privileges_t::PRIV_ROOT);
     }
 
     #[test]
+    #[serial]
     fn game_entity_get_game_client_when_none_is_set() {
-        let mut gentity = GEntityBuilder::default()
-            .client(ptr::null_mut() as *mut gclient_t)
-            .build()
-            .unwrap();
+        let game_client_try_from_ctx = MockGameClient::try_from_context();
+        game_client_try_from_ctx
+            .expect()
+            .return_once_st(|_| Err(QuakeLiveEngineError::MainEngineNotInitialized));
+        let mut gentity = GEntityBuilder::default().build().unwrap();
         let game_entity = GameEntity::try_from(&mut gentity as *mut gentity_t).unwrap();
         assert_eq!(game_entity.get_game_client().is_err(), true);
     }
 
     #[test]
+    #[serial]
     fn game_entity_get_game_client_with_valid_gclient() {
-        let mut gclient = GClientBuilder::default().build().unwrap();
-        let mut gentity = GEntityBuilder::default()
-            .client(&mut gclient as *mut gclient_t)
-            .build()
-            .unwrap();
+        let game_client_try_from_ctx = MockGameClient::try_from_context();
+        game_client_try_from_ctx
+            .expect()
+            .return_once_st(|_| Ok(MockGameClient::new()));
+        let mut gentity = GEntityBuilder::default().build().unwrap();
         let game_entity = GameEntity::try_from(&mut gentity as *mut gentity_t).unwrap();
         assert_eq!(game_entity.get_game_client().is_ok(), true);
     }
 
     #[test]
+    #[serial]
     fn game_entity_get_activator_when_none_is_set() {
-        let mut gentity = GEntityBuilder::default()
-            .activator(ptr::null_mut() as *mut gentity_t)
-            .build()
-            .unwrap();
+        let activator_try_from_ctx = MockActivator::try_from_context();
+        activator_try_from_ctx
+            .expect()
+            .return_once_st(|_| Err(QuakeLiveEngineError::MainEngineNotInitialized));
+        let mut gentity = GEntityBuilder::default().build().unwrap();
         let game_entity = GameEntity::try_from(&mut gentity as *mut gentity_t).unwrap();
         assert_eq!(game_entity.get_activator().is_err(), true);
     }
 
     #[test]
+    #[serial]
     fn game_entity_get_activator_with_valid_activator() {
-        let mut activator = GEntityBuilder::default().build().unwrap();
-        let mut gentity = GEntityBuilder::default()
-            .activator(&mut activator as *mut gentity_t)
-            .build()
-            .unwrap();
+        let activator_try_from_ctx = MockActivator::try_from_context();
+        activator_try_from_ctx
+            .expect()
+            .return_once_st(|_| Ok(MockActivator::new()));
+        let mut gentity = GEntityBuilder::default().build().unwrap();
         let game_entity = GameEntity::try_from(&mut gentity as *mut gentity_t).unwrap();
         assert_eq!(game_entity.get_activator().is_ok(), true);
     }
@@ -751,6 +793,7 @@ mod game_entity_tests {
     }
 
     #[test]
+    #[serial]
     fn game_entity_slay_with_mod() {
         mock! {
             QuakeEngine {}
@@ -770,14 +813,17 @@ mod game_entity_tests {
             }
         }
 
-        let mut player_state = PlayerStateBuilder::default().build().unwrap();
-        player_state.stats[statIndex_t::STAT_ARMOR as usize] = 69;
-        let mut gclient = GClientBuilder::default().ps(player_state).build().unwrap();
-        let mut gentity = GEntityBuilder::default()
-            .client(&mut gclient as *mut gclient_t)
-            .health(42)
-            .build()
-            .unwrap();
+        let game_client_try_from_ctx = MockGameClient::try_from_context();
+        game_client_try_from_ctx.expect().return_once_st(|_| {
+            let mut mock_game_client = MockGameClient::new();
+            mock_game_client
+                .expect_set_armor()
+                .withf_st(|&armor: &i32| armor == 0)
+                .return_const_st(())
+                .times(1);
+            Ok(mock_game_client)
+        });
+        let mut gentity = GEntityBuilder::default().health(42).build().unwrap();
         let mut game_entity = GameEntity::try_from(&mut gentity as *mut gentity_t).unwrap();
 
         let mut mock = MockQuakeEngine::new();
@@ -789,10 +835,10 @@ mod game_entity_tests {
             })
             .return_const(());
         game_entity.slay_with_mod_intern(meansOfDeath_t::MOD_CRUSH, &mock);
-        assert_eq!(gclient.ps.stats[statIndex_t::STAT_ARMOR as usize], 0);
     }
 
     #[test]
+    #[serial]
     fn game_entity_slay_with_kamikaze() {
         mock! {
             QuakeEngine {}
@@ -812,12 +858,17 @@ mod game_entity_tests {
             }
         }
 
-        let mut gclient = GClientBuilder::default().build().unwrap();
-        let mut gentity = GEntityBuilder::default()
-            .client(&mut gclient as *mut gclient_t)
-            .health(123)
-            .build()
-            .unwrap();
+        let game_client_try_from_ctx = MockGameClient::try_from_context();
+        game_client_try_from_ctx.expect().return_once_st(|_| {
+            let mut mock_game_client = MockGameClient::new();
+            mock_game_client
+                .expect_set_armor()
+                .withf_st(|&armor: &i32| armor == 0)
+                .return_const_st(())
+                .times(1);
+            Ok(mock_game_client)
+        });
+        let mut gentity = GEntityBuilder::default().health(123).build().unwrap();
         let mut game_entity = GameEntity::try_from(&mut gentity as *mut gentity_t).unwrap();
 
         let mut mock = MockQuakeEngine::new();
@@ -829,7 +880,6 @@ mod game_entity_tests {
             })
             .return_const(());
         game_entity.slay_with_mod_intern(meansOfDeath_t::MOD_KAMIKAZE, &mock);
-        assert_eq!(gclient.ps.stats[statIndex_t::STAT_ARMOR as usize], 0);
     }
 
     #[test]
