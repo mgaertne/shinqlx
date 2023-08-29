@@ -22,10 +22,7 @@ use core::sync::atomic::{AtomicBool, Ordering};
 use mockall::automock;
 use parking_lot::RwLock;
 
-use crate::client::Client;
 use crate::current_level::CurrentLevel;
-use crate::game_client::GameClient;
-use crate::game_entity::GameEntity;
 use crate::game_item::GameItem;
 use crate::quake_live_engine::{
     AddCommand, ComPrintf, ConsoleCommand, FindCVar, GetCVar, GetConfigstring, SendServerCommand,
@@ -2545,7 +2542,7 @@ fn set_privileges(py: Python<'_>, client_id: i32, privileges: i32) -> PyResult<b
 fn destroy_kamikaze_timers(py: Python<'_>) -> PyResult<bool> {
     py.allow_threads(|| {
         let mut in_use_entities: Vec<GameEntity> = (0..MAX_GENTITIES)
-            .filter_map(|i| GameEntity::try_from(i).ok())
+            .filter_map(|i| GameEntity::try_from(i as i32).ok())
             .filter(|game_entity| game_entity.in_use())
             .collect();
 
@@ -2591,7 +2588,7 @@ fn spawn_item(py: Python<'_>, item_id: i32, x: i32, y: i32, z: i32) -> PyResult<
 fn remove_dropped_items(py: Python<'_>) -> PyResult<bool> {
     py.allow_threads(|| {
         (0..MAX_GENTITIES)
-            .filter_map(|i| GameEntity::try_from(i).ok())
+            .filter_map(|i| GameEntity::try_from(i as i32).ok())
             .filter(|game_entity| {
                 game_entity.in_use() && game_entity.has_flags() && game_entity.is_dropped_item()
             })
@@ -3160,5 +3157,74 @@ pub(crate) fn pyminqlx_reload() -> Result<(), PythonInitializationError> {
             PYMINQLX_INITIALIZED.store(true, Ordering::SeqCst);
             Ok(())
         }
+    }
+}
+
+#[cfg(test)]
+#[automock]
+#[allow(dead_code)]
+pub(crate) mod python {
+    use crate::pyminqlx::PythonInitializationError;
+
+    pub(crate) fn rcon_dispatcher<T>(_cmd: T)
+    where
+        T: AsRef<str> + 'static,
+    {
+    }
+
+    pub(crate) fn client_command_dispatcher(_client_id: i32, _cmd: String) -> Option<String> {
+        None
+    }
+    pub(crate) fn server_command_dispatcher(
+        _client_id: Option<i32>,
+        _cmd: String,
+    ) -> Option<String> {
+        None
+    }
+    pub(crate) fn client_loaded_dispatcher(_client_id: i32) {}
+
+    pub(crate) fn set_configstring_dispatcher(_index: u32, _value: String) -> Option<String> {
+        None
+    }
+
+    pub(crate) fn client_disconnect_dispatcher(_client_id: i32, _reason: String) {}
+
+    pub(crate) fn console_print_dispatcher(_msg: String) -> Option<String> {
+        None
+    }
+
+    pub(crate) fn new_game_dispatcher(_restart: bool) {}
+
+    pub(crate) fn frame_dispatcher() {}
+
+    pub(crate) fn client_connect_dispatcher(_client_id: i32, _is_bot: bool) -> Option<String> {
+        None
+    }
+
+    pub(crate) fn client_spawn_dispatcher(_client_id: i32) {}
+
+    pub(crate) fn kamikaze_use_dispatcher(_client_id: i32) {}
+
+    pub(crate) fn kamikaze_explode_dispatcher(_client_id: i32, _is_used_on_demand: bool) {}
+
+    pub(crate) fn damage_dispatcher(
+        _target_client_id: i32,
+        _attacker_client_id: Option<i32>,
+        _damage: i32,
+        _dflags: i32,
+        _means_of_death: i32,
+    ) {
+    }
+
+    pub(crate) fn pyminqlx_is_initialized() -> bool {
+        false
+    }
+
+    pub(crate) fn pyminqlx_initialize() -> Result<(), PythonInitializationError> {
+        Ok(())
+    }
+
+    pub(crate) fn pyminqlx_reload() -> Result<(), PythonInitializationError> {
+        Ok(())
     }
 }

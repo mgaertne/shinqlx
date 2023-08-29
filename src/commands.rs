@@ -1,17 +1,9 @@
-#[cfg(not(test))]
-use crate::client::Client;
+use crate::prelude::*;
 #[cfg(test)]
-use crate::commands::mock_python::{
+use crate::pyminqlx::mock_python::{
     new_game_dispatcher, pyminqlx_initialize, pyminqlx_is_initialized, pyminqlx_reload,
     rcon_dispatcher,
 };
-#[cfg(test)]
-use crate::commands::MockClient as Client;
-#[cfg(test)]
-use crate::commands::MockGameEntity as GameEntity;
-#[cfg(not(test))]
-use crate::game_entity::GameEntity;
-use crate::prelude::*;
 use crate::pyminqlx::CUSTOM_COMMAND_HANDLER;
 #[cfg(not(test))]
 use crate::pyminqlx::{
@@ -23,7 +15,7 @@ use crate::quake_live_engine::{
 };
 use crate::MAIN_ENGINE;
 #[cfg(test)]
-use mockall::{automock, mock};
+use mockall::mock;
 use pyo3::{Py, PyAny, Python};
 use rand::Rng;
 
@@ -408,35 +400,8 @@ where
 }
 
 #[cfg(test)]
-#[automock]
-#[allow(dead_code)]
-mod python {
-    use crate::pyminqlx::PythonInitializationError;
-
-    pub(crate) fn rcon_dispatcher<T>(_cmd: T)
-    where
-        T: AsRef<str> + 'static,
-    {
-    }
-
-    pub(crate) fn new_game_dispatcher(_restart: bool) {}
-
-    pub(crate) fn pyminqlx_is_initialized() -> bool {
-        false
-    }
-
-    pub(crate) fn pyminqlx_initialize() -> Result<(), PythonInitializationError> {
-        Ok(())
-    }
-
-    pub(crate) fn pyminqlx_reload() -> Result<(), PythonInitializationError> {
-        Ok(())
-    }
-}
-
-#[cfg(test)]
 mock! {
-    QuakeEngine {}
+    pub(crate) QuakeEngine {}
     impl CmdArgs for QuakeEngine {
         fn cmd_args(&self) -> Option<String>;
     }
@@ -458,62 +423,19 @@ mock! {
 }
 
 #[cfg(test)]
-mock! {
-    pub(crate) GameClient {
-        pub(crate) fn set_velocity<T>(&mut self, velocity: T)
-        where
-            T: Into<[f32; 3]> + 'static;
-    }
-}
-
-#[cfg(test)]
-mock! {
-    pub(crate) GameEntity {
-        pub(crate) fn get_game_client(&self) -> Result<MockGameClient, QuakeLiveEngineError>;
-        pub(crate) fn in_use(&self) -> bool;
-        pub(crate) fn get_health(&self) -> i32;
-        pub(crate) fn set_health(&mut self, new_health: i32);
-        pub(crate) fn get_client_number(&self) -> i32;
-    }
-
-    impl AsMut<gentity_t> for GameEntity {
-        fn as_mut(&mut self) -> &mut gentity_t;
-    }
-
-    impl TryFrom<i32> for GameEntity {
-        type Error = QuakeLiveEngineError;
-        fn try_from(entity_id: i32) -> Result<Self, QuakeLiveEngineError>;
-    }
-}
-
-#[cfg(test)]
-mock! {
-    pub(crate) Client {
-        pub(crate) fn get_name(&self) -> String;
-    }
-
-    impl TryFrom<i32> for Client {
-        type Error = QuakeLiveEngineError;
-        fn try_from(entity_id: i32) -> Result<Self, QuakeLiveEngineError>;
-    }
-
-    impl AsRef<client_t> for Client {
-        fn as_ref(&self) -> &client_t;
-    }
-}
-
-#[cfg(test)]
 mod commands_tests {
-    use super::Client;
-    use crate::commands::mock_python::{
-        new_game_dispatcher_context, pyminqlx_initialize_context, pyminqlx_is_initialized_context,
-        pyminqlx_reload_context, rcon_dispatcher_context,
-    };
+    use super::MockQuakeEngine;
+    use crate::client::MockClient;
     use crate::commands::{
         cmd_center_print_intern, cmd_py_command_intern, cmd_py_rcon_intern,
         cmd_regular_print_intern, cmd_restart_python_intern, cmd_send_server_command_intern,
-        cmd_slap_intern, cmd_slay_intern, MockClient, MockGameClient, MockGameEntity,
-        MockQuakeEngine,
+        cmd_slap_intern, cmd_slay_intern,
+    };
+    use crate::game_client::MockGameClient;
+    use crate::game_entity::MockGameEntity;
+    use crate::pyminqlx::mock_python::{
+        new_game_dispatcher_context, pyminqlx_initialize_context, pyminqlx_is_initialized_context,
+        pyminqlx_reload_context, rcon_dispatcher_context,
     };
     #[cfg(not(miri))]
     use crate::pyminqlx::pyminqlx_setup_fixture::*;
@@ -672,8 +594,8 @@ mod commands_tests {
             .return_const_st(())
             .times(1);
 
-        let game_client_try_from_ctx = MockGameEntity::try_from_context();
-        game_client_try_from_ctx
+        let game_entity_from_ctx = MockGameEntity::from_context();
+        game_entity_from_ctx
             .expect()
             .withf_st(|&client_id| client_id == 2)
             .return_once_st(|_| {
@@ -682,7 +604,7 @@ mod commands_tests {
                     .expect_in_use()
                     .return_const_st(false)
                     .times(1);
-                Ok(game_entity_mock)
+                game_entity_mock
             })
             .times(1);
         cmd_slap_intern(16, &mock);
@@ -702,8 +624,8 @@ mod commands_tests {
             .return_const_st(())
             .times(1);
 
-        let game_client_try_from_ctx = MockGameEntity::try_from_context();
-        game_client_try_from_ctx
+        let game_entity_from_ctx = MockGameEntity::from_context();
+        game_entity_from_ctx
             .expect()
             .withf_st(|&client_id| client_id == 2)
             .return_once_st(|_| {
@@ -716,7 +638,7 @@ mod commands_tests {
                     .expect_get_health()
                     .return_const_st(0)
                     .times(1);
-                Ok(game_entity_mock)
+                game_entity_mock
             })
             .times(1);
         cmd_slap_intern(16, &mock);
@@ -748,8 +670,8 @@ mod commands_tests {
             .return_const_st(())
             .times(1);
 
-        let game_client_try_from_ctx = MockGameEntity::try_from_context();
-        game_client_try_from_ctx
+        let game_entity_from_ctx = MockGameEntity::from_context();
+        game_entity_from_ctx
             .expect()
             .withf_st(|&client_id| client_id == 2)
             .return_once_st(|_| {
@@ -773,11 +695,11 @@ mod commands_tests {
                         Ok(game_client_mock)
                     })
                     .times(1);
-                Ok(game_entity_mock)
+                game_entity_mock
             })
             .times(1);
-        let client_try_from_ctx = Client::try_from_context();
-        client_try_from_ctx
+        let client_from_ctx = MockClient::from_context();
+        client_from_ctx
             .expect()
             .withf_st(|&client_id| client_id == 2)
             .return_once_st(|_| {
@@ -786,7 +708,7 @@ mod commands_tests {
                     .expect_get_name()
                     .return_const_st("Slapped Player")
                     .times(1);
-                Ok(client_mock)
+                client_mock
             })
             .times(1);
         cmd_slap_intern(16, &mock);
@@ -823,8 +745,8 @@ mod commands_tests {
             .return_const_st(())
             .times(1);
 
-        let game_client_try_from_ctx = MockGameEntity::try_from_context();
-        game_client_try_from_ctx
+        let game_entity_from_ctx = MockGameEntity::from_context();
+        game_entity_from_ctx
             .expect()
             .withf_st(|&client_id| client_id == 2)
             .return_once_st(|_| {
@@ -853,11 +775,11 @@ mod commands_tests {
                         Ok(game_client_mock)
                     })
                     .times(1);
-                Ok(game_entity_mock)
+                game_entity_mock
             })
             .times(1);
-        let client_try_from_ctx = Client::try_from_context();
-        client_try_from_ctx
+        let client_from_ctx = MockClient::from_context();
+        client_from_ctx
             .expect()
             .withf_st(|&client_id| client_id == 2)
             .return_once_st(|_| {
@@ -866,7 +788,7 @@ mod commands_tests {
                     .expect_get_name()
                     .return_const_st("Slapped Player")
                     .times(1);
-                Ok(client_mock)
+                client_mock
             })
             .times(1);
         cmd_slap_intern(16, &mock);
@@ -903,8 +825,8 @@ mod commands_tests {
             .return_const_st(())
             .times(1);
 
-        let game_client_try_from_ctx = MockGameEntity::try_from_context();
-        game_client_try_from_ctx
+        let game_entity_from_ctx = MockGameEntity::from_context();
+        game_entity_from_ctx
             .expect()
             .withf_st(|&client_id| client_id == 2)
             .return_once_st(|_| {
@@ -937,11 +859,11 @@ mod commands_tests {
                     .expect_get_client_number()
                     .return_const_st(42)
                     .times(1);
-                Ok(game_entity_mock)
+                game_entity_mock
             })
             .times(1);
-        let client_try_from_ctx = Client::try_from_context();
-        client_try_from_ctx
+        let client_from_ctx = MockClient::from_context();
+        client_from_ctx
             .expect()
             .withf_st(|&client_id| client_id == 2)
             .return_once_st(|_| {
@@ -950,7 +872,7 @@ mod commands_tests {
                     .expect_get_name()
                     .return_const_st("Slapped Player")
                     .times(1);
-                Ok(client_mock)
+                client_mock
             })
             .times(1);
         cmd_slap_intern(16, &mock);
@@ -986,8 +908,8 @@ mod commands_tests {
             .return_const_st(())
             .times(1);
 
-        let game_client_try_from_ctx = MockGameEntity::try_from_context();
-        game_client_try_from_ctx
+        let game_entity_from_ctx = MockGameEntity::from_context();
+        game_entity_from_ctx
             .expect()
             .withf_st(|&client_id| client_id == 2)
             .return_once_st(|_| {
@@ -1011,11 +933,11 @@ mod commands_tests {
                         Ok(game_client_mock)
                     })
                     .times(1);
-                Ok(game_entity_mock)
+                game_entity_mock
             })
             .times(1);
-        let client_try_from_ctx = Client::try_from_context();
-        client_try_from_ctx
+        let client_from_ctx = MockClient::from_context();
+        client_from_ctx
             .expect()
             .withf_st(|&client_id| client_id == 2)
             .return_once_st(|_| {
@@ -1024,7 +946,7 @@ mod commands_tests {
                     .expect_get_name()
                     .return_const_st("Slapped Player")
                     .times(1);
-                Ok(client_mock)
+                client_mock
             })
             .times(1);
         cmd_slap_intern(16, &mock);
@@ -1109,8 +1031,8 @@ mod commands_tests {
             .return_const_st(())
             .times(1);
 
-        let game_client_try_from_ctx = MockGameEntity::try_from_context();
-        game_client_try_from_ctx
+        let game_entity_from_ctx = MockGameEntity::from_context();
+        game_entity_from_ctx
             .expect()
             .withf_st(|&client_id| client_id == 2)
             .return_once_st(|_| {
@@ -1119,7 +1041,7 @@ mod commands_tests {
                     .expect_in_use()
                     .return_const_st(false)
                     .times(1);
-                Ok(game_entity_mock)
+                game_entity_mock
             })
             .times(1);
         cmd_slay_intern(16, &mock);
@@ -1139,8 +1061,8 @@ mod commands_tests {
             .return_const_st(())
             .times(1);
 
-        let game_client_try_from_ctx = MockGameEntity::try_from_context();
-        game_client_try_from_ctx
+        let game_entity_from_ctx = MockGameEntity::from_context();
+        game_entity_from_ctx
             .expect()
             .withf_st(|&client_id| client_id == 2)
             .return_once_st(|_| {
@@ -1153,7 +1075,7 @@ mod commands_tests {
                     .expect_get_health()
                     .return_const_st(0)
                     .times(1);
-                Ok(game_entity_mock)
+                game_entity_mock
             })
             .times(1);
         cmd_slay_intern(16, &mock);
@@ -1185,8 +1107,8 @@ mod commands_tests {
             .return_const_st(())
             .times(1);
 
-        let game_client_try_from_ctx = MockGameEntity::try_from_context();
-        game_client_try_from_ctx
+        let game_entity_from_ctx = MockGameEntity::from_context();
+        game_entity_from_ctx
             .expect()
             .withf_st(|&client_id| client_id == 2)
             .return_once_st(|_| {
@@ -1208,11 +1130,11 @@ mod commands_tests {
                     .expect_get_client_number()
                     .return_const_st(42)
                     .times(1);
-                Ok(game_entity_mock)
+                game_entity_mock
             })
             .times(1);
-        let client_try_from_ctx = Client::try_from_context();
-        client_try_from_ctx
+        let client_from_ctx = MockClient::from_context();
+        client_from_ctx
             .expect()
             .withf_st(|&client_id| client_id == 2)
             .return_once_st(|_| {
@@ -1221,7 +1143,7 @@ mod commands_tests {
                     .expect_get_name()
                     .return_const_st("Slain Player")
                     .times(1);
-                Ok(client_mock)
+                client_mock
             })
             .times(1);
         cmd_slay_intern(16, &mock);

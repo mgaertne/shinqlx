@@ -1,25 +1,13 @@
-#[cfg(not(test))]
-use crate::client::Client;
-#[cfg(not(test))]
-use crate::game_entity::GameEntity;
 #[cfg(test)]
-use crate::hooks::mock_python::{
+use crate::hooks::{MockQuakeEngine as QuakeLiveEngine, DUMMY_MAIN_ENGINE as MAIN_ENGINE};
+use crate::prelude::*;
+#[cfg(test)]
+use crate::pyminqlx::mock_python::{
     client_command_dispatcher, client_connect_dispatcher, client_disconnect_dispatcher,
     client_loaded_dispatcher, client_spawn_dispatcher, console_print_dispatcher, damage_dispatcher,
     frame_dispatcher, kamikaze_explode_dispatcher, kamikaze_use_dispatcher, new_game_dispatcher,
     server_command_dispatcher, set_configstring_dispatcher,
 };
-#[cfg(test)]
-use crate::hooks::MockActivator as Activator;
-#[cfg(test)]
-use crate::hooks::MockClient as Client;
-#[cfg(test)]
-use crate::hooks::MockGameClient as GameClient;
-#[cfg(test)]
-use crate::hooks::MockGameEntity as GameEntity;
-#[cfg(test)]
-use crate::hooks::{MockQuakeEngine as QuakeLiveEngine, DUMMY_MAIN_ENGINE as MAIN_ENGINE};
-use crate::prelude::*;
 #[cfg(not(test))]
 use crate::pyminqlx::{
     client_command_dispatcher, client_connect_dispatcher, client_disconnect_dispatcher,
@@ -39,7 +27,7 @@ use crate::MAIN_ENGINE;
 use alloc::string::String;
 use core::ffi::{c_char, c_int, CStr, VaList, VaListImpl};
 #[cfg(test)]
-use mockall::{automock, mock};
+use mockall::mock;
 #[cfg(test)]
 use parking_lot::RwLock;
 
@@ -228,7 +216,7 @@ fn shinqlx_execute_client_command_intern<T, U>(
 
 #[no_mangle]
 pub unsafe extern "C" fn ShiNQlx_SV_SendServerCommand(
-    client: *const client_t,
+    client: *mut client_t,
     fmt: *const c_char,
     fmt_args: ...
 ) {
@@ -254,7 +242,7 @@ pub unsafe extern "C" fn ShiNQlx_SV_SendServerCommand(
     if client.is_null() {
         shinqlx_send_server_command(None, cmd);
     } else {
-        let safe_client = Client::try_from(client);
+        let safe_client: Result<Client, _> = client.try_into();
         if safe_client.is_ok() {
             shinqlx_send_server_command(safe_client.ok(), cmd);
         }
@@ -748,63 +736,14 @@ fn shinqlx_g_damage_intern<T>(
 }
 
 #[cfg(test)]
-#[automock]
-#[allow(dead_code)]
-mod python {
-    pub(crate) fn client_command_dispatcher(_client_id: i32, _cmd: String) -> Option<String> {
-        None
-    }
-    pub(crate) fn server_command_dispatcher(
-        _client_id: Option<i32>,
-        _cmd: String,
-    ) -> Option<String> {
-        None
-    }
-    pub(crate) fn client_loaded_dispatcher(_client_id: i32) {}
-
-    pub(crate) fn set_configstring_dispatcher(_index: u32, _value: String) -> Option<String> {
-        None
-    }
-
-    pub(crate) fn client_disconnect_dispatcher(_client_id: i32, _reason: String) {}
-
-    pub(crate) fn console_print_dispatcher(_msg: String) -> Option<String> {
-        None
-    }
-
-    pub(crate) fn new_game_dispatcher(_restart: bool) {}
-
-    pub(crate) fn frame_dispatcher() {}
-
-    pub(crate) fn client_connect_dispatcher(_client_id: i32, _is_bot: bool) -> Option<String> {
-        None
-    }
-
-    pub(crate) fn client_spawn_dispatcher(_client_id: i32) {}
-
-    pub(crate) fn kamikaze_use_dispatcher(_client_id: i32) {}
-
-    pub(crate) fn kamikaze_explode_dispatcher(_client_id: i32, _is_used_on_demand: bool) {}
-
-    pub(crate) fn damage_dispatcher(
-        _target_client_id: i32,
-        _attacker_client_id: Option<i32>,
-        _damage: i32,
-        _dflags: i32,
-        _means_of_death: i32,
-    ) {
-    }
-}
-
-#[cfg(test)]
 mock! {
     QuakeEngine{
-        pub(crate) fn is_common_initialized(&self) -> bool { false }
-        pub(crate) fn initialize_static(&self) -> Result<(), QuakeLiveEngineError> { Ok(()) }
-        pub(crate) fn initialize_vm(&self, _module_offset: usize) -> Result<(), QuakeLiveEngineError> { Ok(()) }
-        pub(crate) fn set_tag(&self) {}
-        pub(crate) fn initialize_cvars(&self) {}
-        pub(crate) fn unhook_vm(&self) -> Result<(), QuakeLiveEngineError> { Ok(()) }
+        pub(crate) fn is_common_initialized(&self) -> bool;
+        pub(crate) fn initialize_static(&self) -> Result<(), QuakeLiveEngineError>;
+        pub(crate) fn initialize_vm(&self, _module_offset: usize) -> Result<(), QuakeLiveEngineError>;
+        pub(crate) fn set_tag(&self);
+        pub(crate) fn initialize_cvars(&self);
+        pub(crate) fn unhook_vm(&self) -> Result<(), QuakeLiveEngineError>;
     }
     impl AddCommand<String> for QuakeEngine {
         fn add_command(&self, cmd: String, func: unsafe extern "C" fn());
@@ -852,66 +791,22 @@ mock! {
 }
 
 #[cfg(test)]
-mock! {
-    pub(crate) Client {
-        pub(crate) fn has_gentity(&self) -> bool;
-        pub(crate) fn get_client_id(&self) -> i32;
-        pub(crate) fn get_state(&self) -> clientState_t;
-        pub(crate) fn disconnect(&mut self, reason: String);
-    }
-    impl AsMut<client_t> for Client {
-        fn as_mut(&mut self) -> &mut client_t;
-    }
-    impl AsRef<client_t> for Client {
-        fn as_ref(&self) -> &client_t;
-    }
-    impl TryFrom<*mut client_t> for Client {
-        type Error = QuakeLiveEngineError;
-        fn try_from(client: *mut client_t) -> Result<Self, QuakeLiveEngineError>;
-    }
-    impl From<*const client_t> for Client {
-        fn from(client: *const client_t) -> Self;
-    }
-}
-
-#[cfg(test)]
-mock! {
-    pub(crate) GameEntity {
-        pub(crate) fn get_entity_id(&self) -> i32;
-        pub(crate) fn get_game_client(&self) -> Result<GameClient, QuakeLiveEngineError>;
-        pub(crate) fn get_activator(&self) -> Result<Activator, QuakeLiveEngineError>;
-        pub(crate) fn start_kamikaze(&mut self);
-    }
-    impl AsMut<gentity_t> for GameEntity {
-        fn as_mut(&mut self) -> &mut gentity_t;
-    }
-    impl From<i32> for GameEntity {
-        fn from(entity_id: i32) -> Self;
-    }
-    impl TryFrom<*mut gentity_t> for GameEntity {
-        type Error = QuakeLiveEngineError;
-        fn try_from(gentity: *mut gentity_t) -> Result<Self, QuakeLiveEngineError>;
-    }
-}
-
-#[cfg(test)]
-mock! {
-    pub(crate) Activator {
-        pub(crate) fn get_owner_num(&self) -> i32 { -1 }
-    }
-}
-
-#[cfg(test)]
-mock! {
-    pub(crate) GameClient {
-        pub(crate) fn get_client_num(&self) -> i32 { -1 }
-        pub(crate) fn remove_kamikaze_flag(&mut self) {}
-    }
-}
-
-#[cfg(test)]
 mod hooks_tests {
-    use crate::hooks::mock_python::{
+    use crate::activator::MockActivator;
+    use crate::client::MockClient;
+    use crate::game_client::MockGameClient;
+    use crate::game_entity::MockGameEntity;
+    use crate::hooks::shinqlx_g_startkamikaze;
+    use crate::hooks::{
+        shinqlx_client_connect_intern, shinqlx_client_spawn_intern, shinqlx_cmd_addcommand_intern,
+        shinqlx_com_printf_intern, shinqlx_drop_client, shinqlx_execute_client_command_intern,
+        shinqlx_g_damage_intern, shinqlx_g_initgame_intern, shinqlx_g_runframe_intern,
+        shinqlx_g_shutdowngame_intern, shinqlx_send_server_command_intern,
+        shinqlx_set_configstring_intern, shinqlx_sv_cliententerworld_intern,
+        shinqlx_sv_spawnserver_intern, shinqlx_sys_setmoduleoffset_intern, MockQuakeEngine,
+    };
+    use crate::prelude::*;
+    use crate::pyminqlx::mock_python::{
         client_command_dispatcher_context, client_connect_dispatcher_context,
         client_disconnect_dispatcher_context, client_loaded_dispatcher_context,
         client_spawn_dispatcher_context, console_print_dispatcher_context,
@@ -919,17 +814,6 @@ mod hooks_tests {
         kamikaze_use_dispatcher_context, new_game_dispatcher_context,
         server_command_dispatcher_context, set_configstring_dispatcher_context,
     };
-    use crate::hooks::{
-        shinqlx_client_connect_intern, shinqlx_client_spawn_intern, shinqlx_cmd_addcommand_intern,
-        shinqlx_com_printf_intern, shinqlx_drop_client, shinqlx_execute_client_command_intern,
-        shinqlx_g_damage_intern, shinqlx_g_initgame_intern, shinqlx_g_runframe_intern,
-        shinqlx_g_shutdowngame_intern, shinqlx_send_server_command_intern,
-        shinqlx_set_configstring_intern, shinqlx_sv_cliententerworld_intern,
-        shinqlx_sv_spawnserver_intern, shinqlx_sys_setmoduleoffset_intern, MockActivator,
-        MockClient, MockGameClient, MockQuakeEngine,
-    };
-    use crate::hooks::{shinqlx_g_startkamikaze, MockGameEntity};
-    use crate::prelude::*;
     use core::ffi::{c_char, CStr};
     use rstest::*;
 
@@ -1485,7 +1369,8 @@ mod hooks_tests {
     #[case(667)]
     #[case(668)]
     #[case(669)]
-    fn set_confgistring_for_undispatched_index(#[case] test_index: u32) {
+    #[serial]
+    fn set_configstring_for_undispatched_index(#[case] test_index: u32) {
         let mut mock_engine = MockQuakeEngine::new();
         mock_engine
             .expect_set_configstring()

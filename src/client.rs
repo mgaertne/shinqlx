@@ -4,6 +4,8 @@ use crate::MAIN_ENGINE;
 use alloc::ffi::CString;
 use alloc::string::String;
 use core::ffi::{c_char, CStr};
+#[cfg(test)]
+use mockall::mock;
 
 #[derive(Debug, PartialEq)]
 #[repr(transparent)]
@@ -129,6 +131,37 @@ impl Client {
     pub(crate) fn get_steam_id(&self) -> u64 {
         self.client_t.steam_id
     }
+}
+
+#[cfg(test)]
+mock! {
+    pub(crate) Client {
+        pub(crate) fn get_name(&self) -> String;
+        pub(crate) fn has_gentity(&self) -> bool;
+        pub(crate) fn get_client_id(&self) -> i32;
+        pub(crate) fn get_state(&self) -> clientState_t;
+        pub(crate) fn disconnect(&mut self, reason: String);
+        pub(crate) fn get_user_info(&self) -> String;
+        pub(crate) fn get_steam_id(&self) -> u64;
+    }
+
+    impl TryFrom<*mut client_t> for Client {
+        type Error = QuakeLiveEngineError;
+        fn try_from(client: *mut client_t) -> Result<Self, QuakeLiveEngineError>;
+    }
+
+    impl From<i32> for Client {
+        fn from(entity_id: i32) -> Self;
+    }
+
+    impl AsRef<client_t> for Client {
+        fn as_ref(&self) -> &client_t;
+    }
+
+    impl AsMut<client_t> for Client {
+        fn as_mut(&mut self) -> &mut client_t;
+    }
+
 }
 
 #[cfg(test)]

@@ -26,6 +26,22 @@ mod quake_types;
 mod server_static;
 
 pub(crate) mod prelude {
+    #[cfg(not(test))]
+    pub(crate) use crate::activator::Activator;
+    #[cfg(test)]
+    pub(crate) use crate::activator::MockActivator as Activator;
+    #[cfg(not(test))]
+    pub(crate) use crate::client::Client;
+    #[cfg(test)]
+    pub(crate) use crate::client::MockClient as Client;
+    #[cfg(not(test))]
+    pub(crate) use crate::game_client::GameClient;
+    #[cfg(test)]
+    pub(crate) use crate::game_client::MockGameClient as GameClient;
+    #[cfg(not(test))]
+    pub(crate) use crate::game_entity::GameEntity;
+    #[cfg(test)]
+    pub(crate) use crate::game_entity::MockGameEntity as GameEntity;
     pub(crate) use crate::quake_live_engine::{QuakeLiveEngine, QuakeLiveEngineError};
     pub(crate) use crate::quake_types::*;
     pub(crate) use alloc::format;
