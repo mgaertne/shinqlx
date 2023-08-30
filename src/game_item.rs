@@ -1,6 +1,5 @@
-use crate::game_entity::GameEntity;
 use crate::prelude::*;
-use crate::quake_live_engine::{GameAddEvent, QuakeLiveEngineError, TryLaunchItem};
+use crate::quake_live_engine::{GameAddEvent, TryLaunchItem};
 use crate::MAIN_ENGINE;
 use alloc::string::String;
 use core::ffi::{c_float, CStr};
@@ -123,7 +122,7 @@ impl GameItem {
     #[cfg_attr(not(test), inline)]
     fn spawn_intern<'a, T>(&'a mut self, origin: (i32, i32, i32), quake_live_engine: &'a T)
     where
-        T: TryLaunchItem<&'a mut GameItem> + GameAddEvent<GameEntity, i32>,
+        T: TryLaunchItem<&'a mut GameItem> + for<'b> GameAddEvent<&'b mut GameEntity, i32>,
     {
         let mut origin_vec = [
             origin.0 as c_float,
@@ -132,28 +131,28 @@ impl GameItem {
         ];
         let mut velocity = [0.0, 0.0, 0.9];
 
-        let Ok(gentity) = quake_live_engine.try_launch_item(self, &mut origin_vec, &mut velocity)
+        let Ok(mut gentity) =
+            quake_live_engine.try_launch_item(self, &mut origin_vec, &mut velocity)
         else {
             return;
         };
 
-        gentity.gentity_t.nextthink = 0;
-        gentity.gentity_t.think = None;
+        gentity.set_next_think(0);
+        gentity.set_think(None);
         // make item be scaled up
-        quake_live_engine.game_add_event(gentity, entity_event_t::EV_ITEM_RESPAWN, 0);
+        quake_live_engine.game_add_event(&mut gentity, entity_event_t::EV_ITEM_RESPAWN, 0);
     }
 }
 
 #[cfg(test)]
 mod game_item_tests {
-    use crate::game_entity::GameEntity;
-    use crate::game_item::GameItem;
+    use super::GameItem;
+    use crate::game_entity::MockGameEntity;
     use crate::prelude::*;
-    use crate::quake_live_engine::{GameAddEvent, TryLaunchItem};
+    use crate::quake_live_engine::MockQuakeEngine;
     use crate::MAIN_ENGINE;
     use alloc::ffi::CString;
     use core::ffi::c_char;
-    use mockall::*;
     use pretty_assertions::assert_eq;
 
     #[test]
@@ -250,35 +249,30 @@ mod game_item_tests {
 
     #[test]
     fn game_item_spawn() {
-        mock! {
-            QuakeEngine {}
-            impl TryLaunchItem<&mut GameItem> for QuakeEngine {
-                fn try_launch_item<'a>(&self, gitem: &'a mut GameItem, origin: &mut vec3_t, velocity: &mut vec3_t) -> Result<GameEntity, QuakeLiveEngineError>;
-            }
-
-            impl GameAddEvent<GameEntity, i32> for QuakeEngine {
-                fn game_add_event(&self, game_entity: GameEntity, event: entity_event_t, event_param: i32);
-            }
-        }
-
-        let mut mock = MockQuakeEngine::new();
-        let mut gentity = GEntityBuilder::default().build().unwrap();
-        let game_entity = GameEntity::try_from(&mut gentity as *mut gentity_t).unwrap();
+        let mut mock_engine = MockQuakeEngine::new();
         let mut gitem = GItemBuilder::default().build().unwrap();
         let mut game_item = GameItem::try_from(&mut gitem as *mut gitem_t).unwrap();
-        mock.expect_try_launch_item()
+        mock_engine
+            .expect_try_launch_item()
             .withf_st(|_, origin, velocity| {
                 origin == &[1.0, 2.0, 3.0] && velocity == &[0.0, 0.0, 0.9]
             })
-            .return_once_st(|_, _, _| Ok(game_entity));
-        mock.expect_game_add_event()
-            .withf_st(|entity, event, param| {
-                entity.gentity_t.nextthink == 0
-                    && entity.gentity_t.think.is_none()
-                    && event == &entity_event_t::EV_ITEM_RESPAWN
-                    && param == &0
-            })
+            .return_once_st(|_, _, _| {
+                let mut game_entity = MockGameEntity::new();
+                game_entity
+                    .expect_set_next_think()
+                    .withf_st(|&next_think| next_think == 0)
+                    .return_const_st(());
+                game_entity
+                    .expect_set_think()
+                    .withf_st(|&think| think.is_none())
+                    .return_const_st(());
+                Ok(game_entity)
+            });
+        mock_engine
+            .expect_game_add_event()
+            .withf_st(|_, event, param| event == &entity_event_t::EV_ITEM_RESPAWN && param == &0)
             .return_const(());
-        game_item.spawn_intern((1, 2, 3), &mock);
+        game_item.spawn_intern((1, 2, 3), &mock_engine);
     }
 }

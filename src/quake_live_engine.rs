@@ -3,7 +3,8 @@ use crate::commands::{
     cmd_send_server_command, cmd_slap, cmd_slay,
 };
 use crate::cvar::CVar;
-use crate::game_entity::GameEntity;
+#[cfg(test)]
+use crate::game_item::GameItem;
 use crate::hooks::{
     shinqlx_client_connect, shinqlx_clientspawn, shinqlx_cmd_addcommand, shinqlx_g_damage,
     shinqlx_g_initgame, shinqlx_g_runframe, shinqlx_g_shutdowngame, shinqlx_g_startkamikaze,
@@ -24,6 +25,8 @@ use alloc::ffi::CString;
 use alloc::string::String;
 use core::ffi::{c_char, c_int, CStr};
 use core::sync::atomic::{AtomicI32, AtomicUsize, Ordering};
+#[cfg(test)]
+use mockall::mock;
 use once_cell::race::OnceBool;
 use once_cell::sync::OnceCell;
 use parking_lot::RwLock;
@@ -2076,5 +2079,92 @@ impl<T: AsMut<gentity_t>> StartKamikaze<T> for QuakeLiveEngine {
         };
 
         detour.call(gentity.as_mut());
+    }
+}
+
+#[cfg(test)]
+mock! {
+    pub(crate) QuakeEngine{
+        pub(crate) fn is_common_initialized(&self) -> bool;
+        pub(crate) fn get_max_clients(&self) -> i32;
+        pub(crate) fn initialize_static(&self) -> Result<(), QuakeLiveEngineError>;
+        pub(crate) fn initialize_vm(&self, _module_offset: usize) -> Result<(), QuakeLiveEngineError>;
+        pub(crate) fn set_tag(&self);
+        pub(crate) fn initialize_cvars(&self);
+        pub(crate) fn unhook_vm(&self) -> Result<(), QuakeLiveEngineError>;
+        pub(crate) fn touch_item_orig(
+            &self,
+        ) -> Result<extern "C" fn(*mut gentity_t, *mut gentity_t, *mut trace_t), QuakeLiveEngineError>;
+        pub(crate) fn g_free_entity_orig(
+            &self,
+        ) -> Result<extern "C" fn(*mut gentity_t), QuakeLiveEngineError>;
+        pub(crate) fn g_run_frame_orig(&self) -> Result<extern "C" fn(c_int), QuakeLiveEngineError>;
+    }
+    impl AddCommand<String> for QuakeEngine {
+        fn add_command(&self, cmd: String, func: unsafe extern "C" fn());
+    }
+    impl SetModuleOffset<String> for QuakeEngine {
+        fn set_module_offset(&self, module_name: String, offset: unsafe extern "C" fn());
+    }
+    impl InitGame<c_int, c_int, c_int> for QuakeEngine {
+        fn init_game(&self, level_time: c_int, r0andom_seed: c_int, restart: c_int);
+    }
+    impl ShutdownGame<c_int> for QuakeEngine {
+        fn shutdown_game(&self, restart: c_int);
+    }
+    impl ExecuteClientCommand<Client, String, qboolean> for QuakeEngine {
+        fn execute_client_command(&self, client: Option<Client>, cmd: String, client_ok: qboolean);
+    }
+    impl SendServerCommand<Client, String > for QuakeEngine {
+        fn send_server_command(&self, client: Option <Client>, cmd: String);
+    }
+    impl ClientEnterWorld<&mut Client> for QuakeEngine {
+        fn client_enter_world(&self, client: &mut Client, cmd: * mut usercmd_t);
+    }
+    impl SetConfigstring<c_int, String> for QuakeEngine {
+        fn set_configstring(&self, index: c_int, value: String);
+    }
+    impl ComPrintf<String> for QuakeEngine {
+        fn com_printf(&self, msg: String);
+    }
+    impl SpawnServer<String, bool> for QuakeEngine {
+        fn spawn_server(&self, server_str: String, kill_bots: bool);
+    }
+    impl RunFrame<c_int> for QuakeEngine {
+        fn run_frame(&self, time: c_int);
+    }
+    impl ClientConnect<c_int, bool, bool> for QuakeEngine {
+        fn client_connect(&self, client_num: c_int, first_time: bool, is_bot: bool) -> *const c_char;
+    }
+    impl ClientSpawn<&mut GameEntity> for QuakeEngine {
+        fn client_spawn(&self, ent: &mut GameEntity);
+    }
+    impl RegisterDamage<c_int, c_int, c_int> for QuakeEngine {
+        #[allow(clippy::too_many_arguments)]
+        fn register_damage(&self, target: *mut gentity_t, inflictor: *mut gentity_t, attacker: *mut gentity_t, dir: *mut vec3_t, pos: *mut vec3_t, damage: c_int, dflags: c_int, means_of_death: c_int);
+    }
+    impl TryLaunchItem<&mut GameItem> for QuakeEngine {
+        fn try_launch_item<'a>(&self, gitem: &'a mut GameItem, origin: &mut vec3_t, velocity: &mut vec3_t) -> Result<GameEntity, QuakeLiveEngineError>;
+    }
+    impl GameAddEvent<&mut GameEntity, i32> for QuakeEngine {
+        fn game_add_event(&self, game_entity: &mut GameEntity, event: entity_event_t, event_param: i32);
+    }
+    impl CmdArgs for QuakeEngine {
+        fn cmd_args(&self) -> Option<String>;
+    }
+    impl CmdArgc for QuakeEngine {
+        fn cmd_argc(&self) -> i32;
+    }
+    impl CmdArgv<i32> for QuakeEngine {
+        fn cmd_argv(&self, argno: i32) -> Option<&'static str>;
+    }
+    impl StartKamikaze<&mut crate::game_entity::GameEntity> for QuakeEngine {
+        fn start_kamikaze(&self, mut gentity: &mut crate::game_entity::GameEntity);
+    }
+    impl FreeEntity<&mut crate::game_entity::GameEntity> for QuakeEngine {
+        fn free_entity(&self, mut gentity: &mut crate::game_entity::GameEntity);
+    }
+    impl GetConfigstring<u16> for QuakeEngine {
+        fn get_configstring(&self, index: u16) -> String;
     }
 }
