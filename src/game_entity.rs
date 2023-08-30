@@ -1,11 +1,16 @@
 use crate::current_level::CurrentLevel;
+#[cfg(test)]
+use crate::game_entity::DUMMY_MAIN_ENGINE as MAIN_ENGINE;
 use crate::game_item::GameItem;
 use crate::hooks::shinqlx_set_configstring;
 use crate::prelude::*;
+#[cfg(test)]
+use crate::quake_live_engine::MockQuakeEngine as QuakeLiveEngine;
 use crate::quake_live_engine::{
     ComPrintf, FreeEntity, GetConfigstring, QuakeLiveEngineError, RegisterDamage, StartKamikaze,
     TryLaunchItem,
 };
+#[cfg(not(test))]
 use crate::MAIN_ENGINE;
 use alloc::string::String;
 use alloc::vec;
@@ -13,11 +18,16 @@ use core::f32::consts::PI;
 use core::ffi::{c_char, c_float, c_int, CStr};
 #[cfg(test)]
 use mockall::mock;
+#[cfg(test)]
+use parking_lot::RwLock;
+
+#[cfg(test)]
+static DUMMY_MAIN_ENGINE: RwLock<Option<QuakeLiveEngine>> = RwLock::new(None);
 
 #[derive(Debug, PartialEq)]
 #[repr(transparent)]
 pub(crate) struct GameEntity {
-    pub(crate) gentity_t: &'static mut gentity_t,
+    gentity_t: &'static mut gentity_t,
 }
 
 impl AsMut<gentity_t> for GameEntity {
@@ -194,7 +204,7 @@ impl GameEntity {
     #[cfg_attr(not(test), inline)]
     fn start_kamikaze_intern<'a, T: 'static>(&'a mut self, kamikaze_starter: &T)
     where
-        T: for<'b> StartKamikaze<&'b mut GameEntity>,
+        T: StartKamikaze<&'a mut GameEntity>,
     {
         kamikaze_starter.start_kamikaze(self);
     }
@@ -357,25 +367,25 @@ impl GameEntity {
     #[cfg_attr(not(test), inline)]
     fn drop_holdable_intern<T: 'static>(&mut self, level_time: i32, quake_live_engine: &T)
     where
-        T: TryLaunchItem<GameItem>,
+        T: for<'a> TryLaunchItem<&'a mut GameItem>,
     {
         let Ok(mut game_client) = self.get_game_client() else {
             return;
         };
-        let Ok(gitem) = GameItem::try_from(game_client.get_holdable()) else {
+        let Ok(mut gitem) = GameItem::try_from(game_client.get_holdable()) else {
             return;
         };
 
         let angle = self.gentity_t.s.apos.trBase[1] * (PI * 2.0 / 360.0);
         let mut velocity = [150.0 * angle.cos(), 150.0 * angle.sin(), 250.0];
-        let entity = quake_live_engine
-            .try_launch_item(gitem, &mut self.gentity_t.s.pos.trBase, &mut velocity)
+        let mut entity = quake_live_engine
+            .try_launch_item(&mut gitem, &mut self.gentity_t.s.pos.trBase, &mut velocity)
             .unwrap();
-        entity.gentity_t.touch = Some(ShiNQlx_Touch_Item);
-        entity.gentity_t.parent = self.gentity_t;
-        entity.gentity_t.think = Some(ShiNQlx_Switch_Touch_Item);
-        entity.gentity_t.nextthink = level_time + 1000;
-        entity.gentity_t.s.pos.trTime = level_time - 500;
+        entity.set_touch(Some(ShiNQlx_Touch_Item));
+        entity.set_parent(self.gentity_t);
+        entity.set_think(Some(ShiNQlx_Switch_Touch_Item));
+        entity.set_next_think(level_time + 1000);
+        entity.set_position_trace_time(level_time - 500);
         game_client.set_holdable(0);
     }
 
@@ -398,7 +408,7 @@ impl GameEntity {
     #[cfg_attr(not(test), inline)]
     fn free_entity_intern<'a, T: 'static>(&'a mut self, quake_live_engine: &T)
     where
-        T: for<'b> FreeEntity<&'b mut GameEntity>,
+        T: FreeEntity<&'a mut GameEntity>,
     {
         quake_live_engine.free_entity(self);
     }
@@ -413,7 +423,8 @@ impl GameEntity {
         };
 
         let class_name = unsafe { CStr::from_ptr(self.gentity_t.classname) };
-        main_engine.com_printf(class_name.to_string_lossy());
+        #[allow(clippy::unnecessary_to_owned)]
+        main_engine.com_printf(class_name.to_string_lossy().to_string());
         if item_id != 0 {
             let Ok(gitem) = GameItem::try_from(item_id) else {
                 return;
@@ -450,6 +461,29 @@ impl GameEntity {
             })
             .collect()
     }
+
+    pub(crate) fn set_next_think(&mut self, next_think: i32) {
+        self.gentity_t.nextthink = next_think;
+    }
+
+    pub(crate) fn set_think(&mut self, think: Option<unsafe extern "C" fn(*mut gentity_t)>) {
+        self.gentity_t.think = think;
+    }
+
+    pub(crate) fn set_touch(
+        &mut self,
+        touch: Option<unsafe extern "C" fn(*mut gentity_t, *mut gentity_t, *mut trace_t)>,
+    ) {
+        self.gentity_t.touch = touch;
+    }
+
+    pub(crate) fn set_parent(&mut self, parent: &mut gentity_t) {
+        self.gentity_t.parent = parent;
+    }
+
+    pub(crate) fn set_position_trace_time(&mut self, trace_time: i32) {
+        self.gentity_t.s.pos.trTime = trace_time;
+    }
 }
 
 #[cfg(test)]
@@ -478,6 +512,14 @@ mock! {
         pub(crate) fn free_entity(&mut self);
         pub(crate) fn replace_item(&mut self, item_id: i32);
         pub(crate) fn get_targetting_entity_ids(&self) -> Vec<u32>;
+        pub(crate) fn set_next_think(&mut self, next_think: i32);
+        pub(crate) fn set_think(&mut self, think: Option<unsafe extern "C" fn(*mut gentity_t)>);
+        pub(crate) fn set_touch(
+            &mut self,
+            touch: Option<unsafe extern "C" fn(*mut gentity_t, *mut gentity_t, *mut trace_t)>,
+        );
+        pub(crate) fn set_parent(&mut self, parent: &mut gentity_t);
+        pub(crate) fn set_position_trace_time(&mut self, trace_time: i32);
     }
 
     impl AsMut<gentity_t> for GameEntity {
@@ -500,10 +542,9 @@ mod game_entity_tests {
     use crate::activator::MockActivator;
     use crate::game_client::MockGameClient;
     use crate::prelude::*;
-    use crate::quake_live_engine::{FreeEntity, RegisterDamage, StartKamikaze};
+    use crate::quake_live_engine::MockQuakeEngine;
     use alloc::ffi::CString;
     use core::ffi::c_int;
-    use mockall::mock;
     use pretty_assertions::assert_eq;
 
     #[test]
@@ -597,17 +638,11 @@ mod game_entity_tests {
 
     #[test]
     fn game_entity_start_kamikaze() {
-        mock! {
-            QuakeEngine {}
-            impl StartKamikaze<&mut GameEntity> for QuakeEngine {
-                fn start_kamikaze(&self, mut gentity: &mut GameEntity);
-            }
-        }
-        let mut mock = MockQuakeEngine::new();
+        let mut mock_engine = MockQuakeEngine::new();
         let mut gentity = GEntityBuilder::default().build().unwrap();
         let mut game_entity = GameEntity::try_from(&mut gentity as *mut gentity_t).unwrap();
-        mock.expect_start_kamikaze().return_const(());
-        game_entity.start_kamikaze_intern(&mock);
+        mock_engine.expect_start_kamikaze().return_const(());
+        game_entity.start_kamikaze_intern(&mock_engine);
     }
 
     #[test]
@@ -795,24 +830,6 @@ mod game_entity_tests {
     #[test]
     #[serial]
     fn game_entity_slay_with_mod() {
-        mock! {
-            QuakeEngine {}
-            #[allow(clippy::too_many_arguments)]
-            impl RegisterDamage<c_int, c_int, c_int> for QuakeEngine {
-                fn register_damage<'a>(
-                    &self,
-                    target: *mut gentity_t,
-                    inflictor: *mut gentity_t,
-                    attacker: *mut gentity_t,
-                    dir: *mut vec3_t,
-                    pos: *mut vec3_t,
-                    damage: c_int,
-                    dflags: c_int,
-                    means_of_death: c_int
-                );
-            }
-        }
-
         let game_client_try_from_ctx = MockGameClient::try_from_context();
         game_client_try_from_ctx.expect().return_once_st(|_| {
             let mut mock_game_client = MockGameClient::new();
@@ -826,38 +843,21 @@ mod game_entity_tests {
         let mut gentity = GEntityBuilder::default().health(42).build().unwrap();
         let mut game_entity = GameEntity::try_from(&mut gentity as *mut gentity_t).unwrap();
 
-        let mut mock = MockQuakeEngine::new();
-        mock.expect_register_damage()
+        let mut mock_engine = MockQuakeEngine::new();
+        mock_engine
+            .expect_register_damage()
             .withf_st(|_, _, _, _, _, damage, dmg_flags, mean_of_death| {
                 *damage == 84
                     && *dmg_flags == DAMAGE_NO_PROTECTION as c_int
                     && *mean_of_death == meansOfDeath_t::MOD_CRUSH as c_int
             })
             .return_const(());
-        game_entity.slay_with_mod_intern(meansOfDeath_t::MOD_CRUSH, &mock);
+        game_entity.slay_with_mod_intern(meansOfDeath_t::MOD_CRUSH, &mock_engine);
     }
 
     #[test]
     #[serial]
     fn game_entity_slay_with_kamikaze() {
-        mock! {
-            QuakeEngine {}
-            #[allow(clippy::too_many_arguments)]
-            impl RegisterDamage<c_int, c_int, c_int> for QuakeEngine {
-                fn register_damage<'a>(
-                    &self,
-                    target: *mut gentity_t,
-                    inflictor: *mut gentity_t,
-                    attacker: *mut gentity_t,
-                    dir: *mut vec3_t,
-                    pos: *mut vec3_t,
-                    damage: c_int,
-                    dflags: c_int,
-                    means_of_death: c_int
-                );
-            }
-        }
-
         let game_client_try_from_ctx = MockGameClient::try_from_context();
         game_client_try_from_ctx.expect().return_once_st(|_| {
             let mut mock_game_client = MockGameClient::new();
@@ -871,15 +871,16 @@ mod game_entity_tests {
         let mut gentity = GEntityBuilder::default().health(123).build().unwrap();
         let mut game_entity = GameEntity::try_from(&mut gentity as *mut gentity_t).unwrap();
 
-        let mut mock = MockQuakeEngine::new();
-        mock.expect_register_damage()
+        let mut mock_engine = MockQuakeEngine::new();
+        mock_engine
+            .expect_register_damage()
             .withf_st(|_, _, _, _, _, damage, dmg_flags, mean_of_death| {
                 *damage == 200246
                     && *dmg_flags == DAMAGE_NO_PROTECTION as c_int
                     && *mean_of_death == meansOfDeath_t::MOD_KAMIKAZE as c_int
             })
             .return_const(());
-        game_entity.slay_with_mod_intern(meansOfDeath_t::MOD_KAMIKAZE, &mock);
+        game_entity.slay_with_mod_intern(meansOfDeath_t::MOD_KAMIKAZE, &mock_engine);
     }
 
     #[test]
@@ -1053,19 +1054,12 @@ mod game_entity_tests {
 
     #[test]
     fn game_entity_free_entity() {
-        mock! {
-            QuakeEngine {}
-            impl FreeEntity<&mut GameEntity> for QuakeEngine {
-                fn free_entity(&self, mut gentity: &mut GameEntity);
-            }
-        }
-
         let mut gentity = GEntityBuilder::default().build().unwrap();
         let mut game_entity = GameEntity::try_from(&mut gentity as *mut gentity_t).unwrap();
 
-        let mut mock = MockQuakeEngine::new();
-        mock.expect_free_entity().return_const(());
+        let mut mock_engine = MockQuakeEngine::new();
+        mock_engine.expect_free_entity().return_const(());
 
-        game_entity.free_entity_intern(&mock);
+        game_entity.free_entity_intern(&mock_engine);
     }
 }
