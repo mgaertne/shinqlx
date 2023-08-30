@@ -28,22 +28,22 @@ use crate::quake_live_engine::{
 use crate::MAIN_ENGINE;
 use alloc::string::String;
 use core::ffi::{c_char, c_int, CStr, VaList, VaListImpl};
+use core::ops::Deref;
 #[cfg(test)]
-use parking_lot::RwLock;
+use once_cell::sync::Lazy;
+#[cfg(test)]
+use swap_arc::SwapArcOption;
 
 #[cfg(test)]
-static DUMMY_MAIN_ENGINE: RwLock<Option<QuakeLiveEngine>> = RwLock::new(None);
+static DUMMY_MAIN_ENGINE: Lazy<SwapArcOption<QuakeLiveEngine>> =
+    Lazy::new(|| SwapArcOption::new(None));
 
 pub(crate) fn shinqlx_cmd_addcommand(cmd: *const c_char, func: unsafe extern "C" fn()) {
-    let Some(main_engine_guard) = MAIN_ENGINE.try_read() else {
+    let Some(ref main_engine) = *MAIN_ENGINE.load() else {
         return;
     };
 
-    let Some(ref main_engine) = *main_engine_guard else {
-        return;
-    };
-
-    shinqlx_cmd_addcommand_intern(main_engine, cmd, func);
+    shinqlx_cmd_addcommand_intern(main_engine.deref(), cmd, func);
 }
 
 #[cfg_attr(not(test), inline)]
@@ -71,15 +71,11 @@ pub(crate) fn shinqlx_sys_setmoduleoffset(
     module_name: *const c_char,
     offset: unsafe extern "C" fn(),
 ) {
-    let Some(main_engine_guard) = MAIN_ENGINE.try_read() else {
+    let Some(ref main_engine) = *MAIN_ENGINE.load() else {
         return;
     };
 
-    let Some(ref main_engine) = *main_engine_guard else {
-        return;
-    };
-
-    shinqlx_sys_setmoduleoffset_intern(main_engine, module_name, offset);
+    shinqlx_sys_setmoduleoffset_intern(main_engine.deref(), module_name, offset);
 }
 
 #[cfg_attr(not(test), inline)]
@@ -107,15 +103,11 @@ fn shinqlx_sys_setmoduleoffset_intern(
 
 #[cfg_attr(test, allow(dead_code))]
 pub(crate) fn shinqlx_g_initgame(level_time: c_int, random_seed: c_int, restart: c_int) {
-    let Some(main_engine_guard) = MAIN_ENGINE.try_read() else {
+    let Some(ref main_engine) = *MAIN_ENGINE.load() else {
         return;
     };
 
-    let Some(ref main_engine) = *main_engine_guard else {
-        return;
-    };
-
-    shinqlx_g_initgame_intern(main_engine, level_time, random_seed, restart);
+    shinqlx_g_initgame_intern(main_engine.deref(), level_time, random_seed, restart);
 }
 
 #[cfg_attr(not(test), inline)]
@@ -137,15 +129,11 @@ fn shinqlx_g_initgame_intern(
 
 #[cfg_attr(test, allow(dead_code))]
 pub(crate) fn shinqlx_g_shutdowngame(restart: c_int) {
-    let Some(main_engine_guard) = MAIN_ENGINE.try_read() else {
+    let Some(ref main_engine) = *MAIN_ENGINE.load() else {
         return;
     };
 
-    let Some(ref main_engine) = *main_engine_guard else {
-        return;
-    };
-
-    shinqlx_g_shutdowngame_intern(main_engine, restart);
+    shinqlx_g_shutdowngame_intern(main_engine.deref(), restart);
 }
 
 #[cfg_attr(not(test), inline)]
@@ -168,15 +156,11 @@ where
     T: Into<String>,
     U: Into<qboolean> + Into<bool> + Copy,
 {
-    let Some(main_engine_guard) = MAIN_ENGINE.try_read() else {
+    let Some(ref main_engine) = *MAIN_ENGINE.load() else {
         return;
     };
 
-    let Some(ref main_engine) = *main_engine_guard else {
-        return;
-    };
-
-    shinqlx_execute_client_command_intern(main_engine, client, cmd.into(), client_ok);
+    shinqlx_execute_client_command_intern(main_engine.deref(), client, cmd.into(), client_ok);
 }
 
 #[cfg_attr(not(test), inline)]
@@ -253,15 +237,11 @@ pub(crate) fn shinqlx_send_server_command<T>(client: Option<Client>, cmd: T)
 where
     T: Into<String>,
 {
-    let Some(main_engine_guard) = MAIN_ENGINE.try_read() else {
+    let Some(ref main_engine) = *MAIN_ENGINE.load() else {
         return;
     };
 
-    let Some(ref main_engine) = *main_engine_guard else {
-        return;
-    };
-
-    shinqlx_send_server_command_intern(main_engine, client, cmd.into());
+    shinqlx_send_server_command_intern(main_engine.deref(), client, cmd.into());
 }
 
 #[cfg_attr(not(test), inline)]
@@ -304,15 +284,11 @@ pub(crate) fn shinqlx_sv_cliententerworld(client: *mut client_t, cmd: *mut userc
         return;
     };
 
-    let Some(main_engine_guard) = MAIN_ENGINE.try_read() else {
+    let Some(ref main_engine) = *MAIN_ENGINE.load() else {
         return;
     };
 
-    let Some(ref main_engine) = *main_engine_guard else {
-        return;
-    };
-
-    shinqlx_sv_cliententerworld_intern(main_engine, safe_client, cmd);
+    shinqlx_sv_cliententerworld_intern(main_engine.deref(), safe_client, cmd);
 }
 
 #[cfg_attr(not(test), inline)]
@@ -354,20 +330,16 @@ where
     T: TryInto<c_int> + Into<u32> + Copy,
     U: AsRef<str>,
 {
-    // Indices 16 and 66X are spammed a ton every frame for some reason,
-    // so we add some exceptions for those. I don't think we should have any
-    // use for those particular ones anyway. If we don't do this, we get
-    // like a 25% increase in CPU usage on an empty server.
-    let Some(main_engine_guard) = MAIN_ENGINE.try_read() else {
-        return;
-    };
-
-    let Some(ref main_engine) = *main_engine_guard else {
+    let Some(ref main_engine) = *MAIN_ENGINE.load() else {
         return;
     };
 
     #[allow(clippy::unnecessary_to_owned)]
-    shinqlx_set_configstring_intern(main_engine, index.into(), value.as_ref().to_string());
+    shinqlx_set_configstring_intern(
+        main_engine.deref(),
+        index.into(),
+        value.as_ref().to_string(),
+    );
 }
 
 #[cfg_attr(not(test), inline)]
@@ -379,6 +351,10 @@ where
         return;
     };
 
+    // Indices 16 and 66X are spammed a ton every frame for some reason,
+    // so we add some exceptions for those. I don't think we should have any
+    // use for those particular ones anyway. If we don't do this, we get
+    // like a 25% increase in CPU usage on an empty server.
     if c_index == 16 || (662..670).contains(&c_index) {
         main_engine.set_configstring(c_index, value);
         return;
@@ -441,15 +417,11 @@ pub(crate) fn shinqlx_com_printf<T>(msg: T)
 where
     T: AsRef<str>,
 {
-    let Some(main_engine_guard) = MAIN_ENGINE.try_read() else {
+    let Some(ref main_engine) = *MAIN_ENGINE.load() else {
         return;
     };
 
-    let Some(ref main_engine) = *main_engine_guard else {
-        return;
-    };
-
-    shinqlx_com_printf_intern(main_engine, msg.as_ref().to_string());
+    shinqlx_com_printf_intern(main_engine.deref(), msg.as_ref().to_string());
 }
 
 #[cfg_attr(not(test), inline)]
@@ -470,17 +442,13 @@ pub(crate) fn shinqlx_sv_spawnserver(server: *const c_char, kill_bots: qboolean)
         return;
     }
 
-    let Some(main_engine_guard) = MAIN_ENGINE.try_read() else {
-        return;
-    };
-
-    let Some(ref main_engine) = *main_engine_guard else {
+    let Some(ref main_engine) = *MAIN_ENGINE.load() else {
         return;
     };
 
     #[allow(clippy::unnecessary_to_owned)]
     shinqlx_sv_spawnserver_intern(
-        main_engine,
+        main_engine.deref(),
         server_str.as_ref().to_string(),
         Into::<bool>::into(kill_bots),
     );
@@ -501,15 +469,11 @@ fn shinqlx_sv_spawnserver_intern<T, U: AsRef<str>, V: Into<qboolean>>(
 
 #[cfg_attr(test, allow(dead_code))]
 pub(crate) fn shinqlx_g_runframe(time: c_int) {
-    let Some(main_engine_guard) = MAIN_ENGINE.try_read() else {
+    let Some(ref main_engine) = *MAIN_ENGINE.load() else {
         return;
     };
 
-    let Some(ref main_engine) = *main_engine_guard else {
-        return;
-    };
-
-    shinqlx_g_runframe_intern(main_engine, time);
+    shinqlx_g_runframe_intern(main_engine.deref(), time);
 }
 
 #[cfg_attr(not(test), inline)]
@@ -541,15 +505,16 @@ pub(crate) fn shinqlx_client_connect(
     first_time: qboolean,
     is_bot: qboolean,
 ) -> *const c_char {
-    let Some(main_engine_guard) = MAIN_ENGINE.try_read() else {
+    let Some(ref main_engine) = *MAIN_ENGINE.load() else {
         return ptr::null();
     };
 
-    let Some(ref main_engine) = *main_engine_guard else {
-        return ptr::null();
-    };
-
-    shinqlx_client_connect_intern(main_engine, client_num, first_time.into(), is_bot.into())
+    shinqlx_client_connect_intern(
+        main_engine.deref(),
+        client_num,
+        first_time.into(),
+        is_bot.into(),
+    )
 }
 
 #[cfg_attr(not(test), inline)]
@@ -584,15 +549,11 @@ pub(crate) fn shinqlx_clientspawn(ent: *mut gentity_t) {
 
 #[cfg_attr(test, allow(dead_code))]
 pub(crate) fn shinqlx_client_spawn(game_entity: GameEntity) {
-    let Some(main_engine_guard) = MAIN_ENGINE.try_read() else {
+    let Some(ref main_engine) = *MAIN_ENGINE.load() else {
         return;
     };
 
-    let Some(ref main_engine) = *main_engine_guard else {
-        return;
-    };
-
-    shinqlx_client_spawn_intern(main_engine, game_entity);
+    shinqlx_client_spawn_intern(main_engine.deref(), game_entity);
 }
 
 #[cfg_attr(not(test), inline)]
@@ -651,16 +612,12 @@ pub(crate) fn shinqlx_g_damage(
     // DAMAGE_NO_TEAM_PROTECTION	kills team mates
     means_of_death: c_int, // means_of_death indicator
 ) {
-    let Some(main_engine_guard) = MAIN_ENGINE.try_read() else {
-        return;
-    };
-
-    let Some(ref main_engine) = *main_engine_guard else {
+    let Some(ref main_engine) = *MAIN_ENGINE.load() else {
         return;
     };
 
     shinqlx_g_damage_intern(
-        main_engine,
+        main_engine.deref(),
         target,
         inflictor,
         attacker,
@@ -951,7 +908,7 @@ mod hooks_tests {
         let mut mock_engine = MockQuakeEngine::new();
         mock_engine
             .expect_unhook_vm()
-            .returning(|| Err(QuakeLiveEngineError::MainEngineUnreadable))
+            .returning(|| Err(QuakeLiveEngineError::MainEngineNotInitialized))
             .times(1);
 
         shinqlx_g_shutdowngame_intern(&mock_engine, 42);

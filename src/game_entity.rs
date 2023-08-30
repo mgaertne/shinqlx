@@ -16,13 +16,17 @@ use alloc::string::String;
 use alloc::vec;
 use core::f32::consts::PI;
 use core::ffi::{c_char, c_float, c_int, CStr};
+use core::ops::Deref;
 #[cfg(test)]
 use mockall::mock;
 #[cfg(test)]
-use parking_lot::RwLock;
+use once_cell::sync::Lazy;
+#[cfg(test)]
+use swap_arc::SwapArcOption;
 
 #[cfg(test)]
-static DUMMY_MAIN_ENGINE: RwLock<Option<QuakeLiveEngine>> = RwLock::new(None);
+static DUMMY_MAIN_ENGINE: Lazy<SwapArcOption<QuakeLiveEngine>> =
+    Lazy::new(|| SwapArcOption::new(None));
 
 #[derive(Debug, PartialEq)]
 #[repr(transparent)]
@@ -92,18 +96,13 @@ impl TryFrom<u32> for GameEntity {
     }
 }
 
-#[allow(non_snake_case)]
 #[no_mangle]
 pub(crate) extern "C" fn ShiNQlx_Touch_Item(
     ent: *mut gentity_t,
     other: *mut gentity_t,
     trace: *mut trace_t,
 ) {
-    let Some(main_engine_guard) = MAIN_ENGINE.try_read() else {
-        return;
-    };
-
-    let Some(ref main_engine) = *main_engine_guard else {
+    let Some(ref main_engine) = *MAIN_ENGINE.load() else {
         return;
     };
 
@@ -120,14 +119,9 @@ pub(crate) extern "C" fn ShiNQlx_Touch_Item(
     }
 }
 
-#[allow(non_snake_case)]
 #[no_mangle]
 pub(crate) extern "C" fn ShiNQlx_Switch_Touch_Item(ent: *mut gentity_t) {
-    let Some(main_engine_guard) = MAIN_ENGINE.try_read() else {
-        return;
-    };
-
-    let Some(ref main_engine) = *main_engine_guard else {
+    let Some(ref main_engine) = *MAIN_ENGINE.load() else {
         return;
     };
 
@@ -157,11 +151,7 @@ const OFFSET_G_ENTITIES: usize = 0x11B;
 
 impl GameEntity {
     fn get_entities_list() -> *mut gentity_t {
-        let Some(main_engine_guard) = MAIN_ENGINE.try_read() else {
-            return ptr::null_mut();
-        };
-
-        let Some(ref main_engine) = *main_engine_guard else {
+        let Some(ref main_engine) = *MAIN_ENGINE.load() else {
             return ptr::null_mut();
         };
 
@@ -190,15 +180,11 @@ impl GameEntity {
 
     #[cfg_attr(test, allow(dead_code))]
     pub(crate) fn start_kamikaze(&mut self) {
-        let Some(main_engine_guard) = MAIN_ENGINE.try_read() else {
+        let Some(ref main_engine) = *MAIN_ENGINE.load() else {
             return;
         };
 
-        let Some(ref main_engine) = *main_engine_guard else {
-            return;
-        };
-
-        self.start_kamikaze_intern(main_engine);
+        self.start_kamikaze_intern(main_engine.deref());
     }
 
     #[cfg_attr(not(test), inline)]
@@ -259,15 +245,11 @@ impl GameEntity {
     }
 
     pub(crate) fn slay_with_mod(&mut self, mean_of_death: meansOfDeath_t) {
-        let Some(main_engine_guard) = MAIN_ENGINE.try_read() else {
+        let Some(ref main_engine) = *MAIN_ENGINE.load() else {
             return;
         };
 
-        let Some(ref main_engine) = *main_engine_guard else {
-            return;
-        };
-
-        self.slay_with_mod_intern(mean_of_death, main_engine);
+        self.slay_with_mod_intern(mean_of_death, main_engine.deref());
     }
 
     #[cfg_attr(not(test), inline)]
@@ -349,11 +331,7 @@ impl GameEntity {
     }
 
     pub(crate) fn drop_holdable(&mut self) {
-        let Some(main_engine_guard) = MAIN_ENGINE.try_read() else {
-            return;
-        };
-
-        let Some(ref main_engine) = *main_engine_guard else {
+        let Some(ref main_engine) = *MAIN_ENGINE.load() else {
             return;
         };
 
@@ -361,7 +339,7 @@ impl GameEntity {
             .ok()
             .map(|current_level| current_level.get_leveltime())
             .unwrap_or_default();
-        self.drop_holdable_intern(level_time, main_engine);
+        self.drop_holdable_intern(level_time, main_engine.deref());
     }
 
     #[cfg_attr(not(test), inline)]
@@ -394,15 +372,11 @@ impl GameEntity {
     }
 
     pub(crate) fn free_entity(&mut self) {
-        let Some(main_engine_guard) = MAIN_ENGINE.try_read() else {
+        let Some(ref main_engine) = *MAIN_ENGINE.load() else {
             return;
         };
 
-        let Some(ref main_engine) = *main_engine_guard else {
-            return;
-        };
-
-        self.free_entity_intern(main_engine);
+        self.free_entity_intern(main_engine.deref());
     }
 
     #[cfg_attr(not(test), inline)]
@@ -414,11 +388,7 @@ impl GameEntity {
     }
 
     pub(crate) fn replace_item(&mut self, item_id: i32) {
-        let Some(main_engine_guard) = MAIN_ENGINE.try_read() else {
-            return;
-        };
-
-        let Some(ref main_engine) = *main_engine_guard else {
+        let Some(ref main_engine) = *MAIN_ENGINE.load() else {
             return;
         };
 

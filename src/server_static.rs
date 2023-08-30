@@ -24,11 +24,7 @@ impl TryFrom<*mut serverStatic_t> for ServerStatic {
 
 impl ServerStatic {
     pub(crate) fn try_get() -> Result<Self, QuakeLiveEngineError> {
-        let Some(main_engine_guard) = MAIN_ENGINE.try_read() else {
-            return Err(QuakeLiveEngineError::MainEngineUnreadable);
-        };
-
-        let Some(ref main_engine) = *main_engine_guard else {
+        let Some(ref main_engine) = *MAIN_ENGINE.load() else {
             return Err(QuakeLiveEngineError::MainEngineNotInitialized);
         };
 
@@ -71,8 +67,7 @@ mod server_static_tests {
     #[serial]
     fn server_static_default_panics_when_no_main_engine_found() {
         {
-            let mut guard = MAIN_ENGINE.write();
-            *guard = None;
+            MAIN_ENGINE.store(None);
         }
 
         let result = ServerStatic::try_get();
@@ -88,15 +83,13 @@ mod server_static_tests {
     #[serial]
     fn server_static_default_panics_when_offset_function_not_initialized() {
         {
-            let mut guard = MAIN_ENGINE.write();
-            *guard = Some(QuakeLiveEngine::new());
+            MAIN_ENGINE.store(Some(QuakeLiveEngine::new().into()));
         }
 
         let result = ServerStatic::try_get();
 
         {
-            let mut guard = MAIN_ENGINE.write();
-            *guard = None;
+            MAIN_ENGINE.store(None);
         }
 
         assert!(result.is_err());

@@ -38,11 +38,7 @@ const OFFSET_LEVEL: usize = 0x4A1;
 
 impl CurrentLevel {
     pub(crate) fn try_get() -> Result<Self, QuakeLiveEngineError> {
-        let Some(main_engine_guard) = MAIN_ENGINE.try_read() else {
-            return Err(QuakeLiveEngineError::MainEngineUnreadable);
-        };
-
-        let Some(ref main_engine) = *main_engine_guard else {
+        let Some(ref main_engine) = *MAIN_ENGINE.load() else {
             return Err(QuakeLiveEngineError::MainEngineNotInitialized);
         };
 
@@ -70,11 +66,7 @@ impl CurrentLevel {
         T: AsRef<str>,
         U: AsRef<str>,
     {
-        let Some(main_engine_guard) = MAIN_ENGINE.try_read() else {
-            return;
-        };
-
-        let Some(ref main_engine) = *main_engine_guard else {
+        let Some(ref main_engine) = *MAIN_ENGINE.load() else {
             return;
         };
 
@@ -132,8 +124,7 @@ mod current_level_tests {
     #[serial]
     fn current_level_default_panics_when_no_main_engine_found() {
         {
-            let mut guard = MAIN_ENGINE.write();
-            *guard = None;
+            MAIN_ENGINE.store(None);
         }
         let result = CurrentLevel::try_get();
 
@@ -148,15 +139,13 @@ mod current_level_tests {
     #[serial]
     fn current_level_default_panics_when_g_init_game_not_set() {
         {
-            let mut guard = MAIN_ENGINE.write();
-            *guard = Some(QuakeLiveEngine::new());
+            MAIN_ENGINE.store(Some(QuakeLiveEngine::new().into()));
         }
 
         let result = CurrentLevel::try_get();
 
         {
-            let mut guard = MAIN_ENGINE.write();
-            *guard = None;
+            MAIN_ENGINE.store(None);
         }
 
         assert!(result.is_err());
@@ -229,8 +218,7 @@ mod current_level_tests {
     #[serial]
     fn current_level_callvote_with_no_main_engine() {
         {
-            let mut guard = MAIN_ENGINE.write();
-            *guard = None;
+            MAIN_ENGINE.store(None);
         }
         let mut level = LevelLocalsBuilder::default().build().unwrap();
         let mut current_level = CurrentLevel::try_from(&mut level as *mut level_locals_t).unwrap();
@@ -256,8 +244,7 @@ mod current_level_tests {
         main_engine.sv_maxclients.store(8, Ordering::SeqCst);
 
         {
-            let mut guard = MAIN_ENGINE.write();
-            *guard = Some(main_engine);
+            MAIN_ENGINE.store(Some(main_engine.into()));
         }
 
         let set_configstring_ctx = shinqlx_set_configstring_context();
@@ -283,8 +270,7 @@ mod current_level_tests {
         });
 
         {
-            let mut guard = MAIN_ENGINE.write();
-            *guard = None;
+            MAIN_ENGINE.store(None);
         }
 
         assert!(result.is_ok());
