@@ -53,7 +53,6 @@ pub(crate) mod prelude {
 }
 
 use crate::prelude::*;
-use alloc::sync::Arc;
 #[cfg(not(test))]
 use ctor::ctor;
 use log::LevelFilter;
