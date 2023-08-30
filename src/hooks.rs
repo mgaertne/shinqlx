@@ -955,10 +955,7 @@ mod hooks_tests {
             .return_const_st(())
             .times(1);
         let new_game_dispatcher_ctx = new_game_dispatcher_context();
-        new_game_dispatcher_ctx
-            .expect()
-            .withf_st(|&restart| restart)
-            .times(0);
+        new_game_dispatcher_ctx.expect().times(0);
 
         shinqlx_g_initgame_intern(&mock_engine, 42, 21, 0);
     }
@@ -1390,11 +1387,7 @@ mod hooks_tests {
     #[serial]
     fn set_confgistring_dispatcher_returns_none() {
         let mut mock_engine = MockQuakeEngine::new();
-        mock_engine
-            .expect_set_configstring()
-            .withf_st(move |&index, value| index == 42 && value == "some value")
-            .return_const_st(())
-            .times(0);
+        mock_engine.expect_set_configstring().times(0);
 
         let set_configstring_dispatcher_ctx = set_configstring_dispatcher_context();
         set_configstring_dispatcher_ctx
@@ -1685,9 +1678,6 @@ mod hooks_tests {
             .expect_get_game_client()
             .times(1)
             .return_once_st(|| Ok(MockGameClient::new()));
-        mock_gentity
-            .expect_get_activator()
-            .returning_st(|| Err(QuakeLiveEngineError::MainEngineNotInitialized));
         mock_gentity
             .expect_start_kamikaze()
             .return_const_st(())
