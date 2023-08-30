@@ -53,8 +53,7 @@ pub(crate) mod prelude {
 }
 
 use crate::prelude::*;
-use once_cell::sync::OnceCell;
-
+use alloc::sync::Arc;
 #[cfg(not(test))]
 use ctor::ctor;
 use log::LevelFilter;
@@ -62,8 +61,9 @@ use log4rs::append::console::ConsoleAppender;
 use log4rs::config::{Appender, Root};
 use log4rs::encode::pattern::PatternEncoder;
 use log4rs::{Config, Handle};
-use parking_lot::RwLock;
+use once_cell::sync::{Lazy, OnceCell};
 use signal_hook::consts::SIGSEGV;
+use swap_arc::SwapArcOption;
 
 #[allow(dead_code)]
 #[cfg(target_pointer_width = "64")]
@@ -73,7 +73,8 @@ pub(crate) const QZERODED: &str = "qzeroded.x64";
 pub(crate) const QZERODED: &str = "qzeroded.x86";
 
 pub(crate) static MAIN_LOGGER: OnceCell<Handle> = OnceCell::new();
-pub(crate) static MAIN_ENGINE: RwLock<Option<QuakeLiveEngine>> = RwLock::new(None);
+pub(crate) static MAIN_ENGINE: Lazy<SwapArcOption<QuakeLiveEngine>> =
+    Lazy::new(|| SwapArcOption::new(None));
 
 fn initialize_logging() {
     let stdout = ConsoleAppender::builder()
@@ -130,6 +131,5 @@ fn initialize() {
         panic!("Failed to hook static methods. Exiting.");
     }
 
-    let mut guard = MAIN_ENGINE.write();
-    *guard = Some(main_engine);
+    MAIN_ENGINE.store(Some(main_engine.into()));
 }

@@ -19,25 +19,25 @@ use crate::quake_live_engine::{
 };
 #[cfg(not(test))]
 use crate::MAIN_ENGINE;
+use core::ops::Deref;
 #[cfg(test)]
-use parking_lot::RwLock;
+use once_cell::sync::Lazy;
 use pyo3::{Py, PyAny, Python};
 use rand::Rng;
+#[cfg(test)]
+use swap_arc::SwapArcOption;
 
 #[cfg(test)]
-static DUMMY_MAIN_ENGINE: RwLock<Option<QuakeLiveEngine>> = RwLock::new(None);
+static DUMMY_MAIN_ENGINE: Lazy<SwapArcOption<QuakeLiveEngine>> =
+    Lazy::new(|| SwapArcOption::new(None));
 
 #[no_mangle]
 pub extern "C" fn cmd_send_server_command() {
-    let Some(main_engine_guard) = MAIN_ENGINE.try_read() else {
+    let Some(ref main_engine) = *MAIN_ENGINE.load() else {
         return;
     };
 
-    let Some(ref main_engine) = *main_engine_guard else {
-        return;
-    };
-
-    cmd_send_server_command_intern(main_engine);
+    cmd_send_server_command_intern(main_engine.deref());
 }
 
 #[cfg_attr(not(test), inline)]
@@ -54,15 +54,11 @@ where
 
 #[no_mangle]
 pub extern "C" fn cmd_center_print() {
-    let Some(main_engine_guard) = MAIN_ENGINE.try_read() else {
+    let Some(ref main_engine) = *MAIN_ENGINE.load() else {
         return;
     };
 
-    let Some(ref main_engine) = *main_engine_guard else {
-        return;
-    };
-
-    cmd_center_print_intern(main_engine);
+    cmd_center_print_intern(main_engine.deref());
 }
 
 #[cfg_attr(not(test), inline)]
@@ -79,15 +75,11 @@ where
 
 #[no_mangle]
 pub extern "C" fn cmd_regular_print() {
-    let Some(main_engine_guard) = MAIN_ENGINE.try_read() else {
+    let Some(ref main_engine) = *MAIN_ENGINE.load() else {
         return;
     };
 
-    let Some(ref main_engine) = *main_engine_guard else {
-        return;
-    };
-
-    cmd_regular_print_intern(main_engine);
+    cmd_regular_print_intern(main_engine.deref());
 }
 
 #[cfg_attr(not(test), inline)]
@@ -104,17 +96,13 @@ where
 
 #[no_mangle]
 pub extern "C" fn cmd_slap() {
-    let Some(main_engine_guard) = MAIN_ENGINE.try_read() else {
-        return;
-    };
-
-    let Some(ref main_engine) = *main_engine_guard else {
+    let Some(ref main_engine) = *MAIN_ENGINE.load() else {
         return;
     };
 
     let maxclients = main_engine.get_max_clients();
 
-    cmd_slap_intern(maxclients, main_engine);
+    cmd_slap_intern(maxclients, main_engine.deref());
 }
 
 #[cfg_attr(not(test), inline)]
@@ -217,17 +205,13 @@ where
 
 #[no_mangle]
 pub extern "C" fn cmd_slay() {
-    let Some(main_engine_guard) = MAIN_ENGINE.try_read() else {
-        return;
-    };
-
-    let Some(ref main_engine) = *main_engine_guard else {
+    let Some(ref main_engine) = *MAIN_ENGINE.load() else {
         return;
     };
 
     let maxclients = main_engine.get_max_clients();
 
-    cmd_slay_intern(maxclients, main_engine);
+    cmd_slay_intern(maxclients, main_engine.deref());
 }
 
 #[cfg_attr(not(test), inline)]
@@ -303,15 +287,11 @@ where
 // Execute a pyminqlx command as if it were the owner executing it.
 // Output will appear in the console.
 pub extern "C" fn cmd_py_rcon() {
-    let Some(main_engine_guard) = MAIN_ENGINE.try_read() else {
+    let Some(ref main_engine) = *MAIN_ENGINE.load() else {
         return;
     };
 
-    let Some(ref main_engine) = *main_engine_guard else {
-        return;
-    };
-
-    cmd_py_rcon_intern(main_engine);
+    cmd_py_rcon_intern(main_engine.deref());
 }
 
 #[cfg_attr(not(test), inline)]
@@ -336,15 +316,11 @@ pub extern "C" fn cmd_py_command() {
         return;
     };
 
-    let Some(main_engine_guard) = MAIN_ENGINE.try_read() else {
+    let Some(ref main_engine) = *MAIN_ENGINE.load() else {
         return;
     };
 
-    let Some(ref main_engine) = *main_engine_guard else {
-        return;
-    };
-
-    cmd_py_command_intern(custom_command_handler, main_engine);
+    cmd_py_command_intern(custom_command_handler, main_engine.deref());
 }
 
 #[cfg_attr(not(test), inline)]
@@ -370,15 +346,11 @@ where
 
 #[no_mangle]
 pub extern "C" fn cmd_restart_python() {
-    let Some(main_engine_guard) = MAIN_ENGINE.try_read() else {
+    let Some(ref main_engine) = *MAIN_ENGINE.load() else {
         return;
     };
 
-    let Some(ref main_engine) = *main_engine_guard else {
-        return;
-    };
-
-    cmd_restart_python_intern(main_engine);
+    cmd_restart_python_intern(main_engine.deref());
 }
 
 #[cfg_attr(not(test), inline)]

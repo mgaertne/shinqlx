@@ -78,7 +78,6 @@ pub(crate) enum QuakeLiveEngineError {
     DetourCouldNotBeEnabled(QuakeLiveFunction),
     StaticDetourNotFound(QuakeLiveFunction),
     VmFunctionNotFound(QuakeLiveFunction),
-    MainEngineUnreadable,
     MainEngineNotInitialized,
 }
 

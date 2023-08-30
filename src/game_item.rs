@@ -3,6 +3,7 @@ use crate::quake_live_engine::{GameAddEvent, TryLaunchItem};
 use crate::MAIN_ENGINE;
 use alloc::string::String;
 use core::ffi::{c_float, CStr};
+use core::ops::Deref;
 
 #[derive(Debug, PartialEq)]
 #[repr(transparent)]
@@ -63,11 +64,7 @@ impl GameItem {
     }
 
     fn get_item_list() -> *mut gitem_t {
-        let Some(main_engine_guard) = MAIN_ENGINE.try_read() else {
-            return ptr::null_mut();
-        };
-
-        let Some(ref main_engine) = *main_engine_guard else {
+        let Some(ref main_engine) = *MAIN_ENGINE.load() else {
             return ptr::null_mut();
         };
 
@@ -108,19 +105,15 @@ impl GameItem {
     }
 
     pub(crate) fn spawn(&mut self, origin: (i32, i32, i32)) {
-        let Some(main_engine_guard) = MAIN_ENGINE.try_read() else {
+        let Some(ref main_engine) = *MAIN_ENGINE.load() else {
             return;
         };
 
-        let Some(ref main_engine) = *main_engine_guard else {
-            return;
-        };
-
-        self.spawn_intern(origin, main_engine);
+        self.spawn_intern(origin, main_engine.deref());
     }
 
     #[cfg_attr(not(test), inline)]
-    fn spawn_intern<'a, T>(&'a mut self, origin: (i32, i32, i32), quake_live_engine: &'a T)
+    fn spawn_intern<'a, T>(&'a mut self, origin: (i32, i32, i32), quake_live_engine: &T)
     where
         T: TryLaunchItem<&'a mut GameItem> + for<'b> GameAddEvent<&'b mut GameEntity, i32>,
     {
@@ -202,15 +195,13 @@ mod game_item_tests {
     #[serial]
     fn get_item_list_with_offset_function_not_defined_in_main_engine() {
         {
-            let mut guard = MAIN_ENGINE.write();
-            *guard = Some(QuakeLiveEngine::new());
+            MAIN_ENGINE.store(Some(QuakeLiveEngine::new().into()));
         }
 
         let result = GameItem::get_item_list();
 
         {
-            let mut guard = MAIN_ENGINE.write();
-            *guard = None;
+            MAIN_ENGINE.store(None);
         }
 
         assert!(result.is_null());

@@ -569,13 +569,7 @@ impl TryFrom<i32> for PlayerInfo {
 #[pyfunction(name = "player_info")]
 fn get_player_info(py: Python<'_>, client_id: i32) -> PyResult<Option<PlayerInfo>> {
     let maxclients = py.allow_threads(|| {
-        let Some(main_engine_guard) = MAIN_ENGINE.try_read() else {
-            return Err(PyEnvironmentError::new_err(
-                "main quake live engine not accessible",
-            ));
-        };
-
-        let Some(ref main_engine) = *main_engine_guard else {
+        let Some(ref main_engine) = *MAIN_ENGINE.load() else {
             return Err(PyEnvironmentError::new_err(
                 "main quake live engine not set",
             ));
@@ -614,13 +608,7 @@ fn get_player_info(py: Python<'_>, client_id: i32) -> PyResult<Option<PlayerInfo
 #[pyfunction(name = "players_info")]
 fn get_players_info(py: Python<'_>) -> PyResult<Vec<Option<PlayerInfo>>> {
     let maxclients = py.allow_threads(|| {
-        let Some(main_engine_guard) = MAIN_ENGINE.try_read() else {
-            return Err(PyEnvironmentError::new_err(
-                "main quake live engine not accessible",
-            ));
-        };
-
-        let Some(ref main_engine) = *main_engine_guard else {
+        let Some(ref main_engine) = *MAIN_ENGINE.load() else {
             return Err(PyEnvironmentError::new_err(
                 "main quake live engine not set",
             ));
@@ -650,13 +638,7 @@ fn get_players_info(py: Python<'_>) -> PyResult<Vec<Option<PlayerInfo>>> {
 #[pyfunction(name = "get_userinfo")]
 fn get_userinfo(py: Python<'_>, client_id: i32) -> PyResult<Option<String>> {
     let maxclients = py.allow_threads(|| {
-        let Some(main_engine_guard) = MAIN_ENGINE.try_read() else {
-            return Err(PyEnvironmentError::new_err(
-                "main quake live engine not accessible",
-            ));
-        };
-
-        let Some(ref main_engine) = *main_engine_guard else {
+        let Some(ref main_engine) = *MAIN_ENGINE.load() else {
             return Err(PyEnvironmentError::new_err(
                 "main quake live engine not set",
             ));
@@ -698,13 +680,7 @@ fn send_server_command(py: Python<'_>, client_id: Option<i32>, cmd: &str) -> PyR
         }
         Some(actual_client_id) => {
             let maxclients = py.allow_threads(|| {
-                let Some(main_engine_guard) = MAIN_ENGINE.try_read() else {
-                    return Err(PyEnvironmentError::new_err(
-                        "main quake live engine not accessible",
-                    ));
-                };
-
-                let Some(ref main_engine) = *main_engine_guard else {
+                let Some(ref main_engine) = *MAIN_ENGINE.load() else {
                     return Err(PyEnvironmentError::new_err(
                         "main quake live engine not set",
                     ));
@@ -741,13 +717,7 @@ fn send_server_command(py: Python<'_>, client_id: Option<i32>, cmd: &str) -> PyR
 #[pyo3(name = "client_command")]
 fn client_command(py: Python<'_>, client_id: i32, cmd: &str) -> PyResult<bool> {
     let maxclients = py.allow_threads(|| {
-        let Some(main_engine_guard) = MAIN_ENGINE.try_read() else {
-            return Err(PyEnvironmentError::new_err(
-                "main quake live engine not accessible",
-            ));
-        };
-
-        let Some(ref main_engine) = *main_engine_guard else {
+        let Some(ref main_engine) = *MAIN_ENGINE.load() else {
             return Err(PyEnvironmentError::new_err(
                 "main quake live engine not set",
             ));
@@ -781,13 +751,7 @@ fn client_command(py: Python<'_>, client_id: i32, cmd: &str) -> PyResult<bool> {
 #[pyo3(name = "console_command")]
 fn console_command(py: Python<'_>, cmd: &str) -> PyResult<()> {
     py.allow_threads(move || {
-        let Some(main_engine_guard) = MAIN_ENGINE.try_read() else {
-            return Err(PyEnvironmentError::new_err(
-                "main quake live engine not accessible",
-            ));
-        };
-
-        let Some(ref main_engine) = *main_engine_guard else {
+        let Some(ref main_engine) = *MAIN_ENGINE.load() else {
             return Err(PyEnvironmentError::new_err(
                 "main quake live engine not set",
             ));
@@ -804,13 +768,7 @@ fn console_command(py: Python<'_>, cmd: &str) -> PyResult<()> {
 #[pyo3(name = "get_cvar")]
 fn get_cvar(py: Python<'_>, cvar: &str) -> PyResult<Option<String>> {
     py.allow_threads(move || {
-        let Some(main_engine_guard) = MAIN_ENGINE.try_read() else {
-            return Err(PyEnvironmentError::new_err(
-                "main quake live engine not accessible",
-            ));
-        };
-
-        let Some(ref main_engine) = *main_engine_guard else {
+        let Some(ref main_engine) = *MAIN_ENGINE.load() else {
             return Err(PyEnvironmentError::new_err(
                 "main quake live engine not set",
             ));
@@ -829,13 +787,7 @@ fn get_cvar(py: Python<'_>, cvar: &str) -> PyResult<Option<String>> {
 #[pyo3(signature = (cvar, value, flags=None))]
 fn set_cvar(py: Python<'_>, cvar: &str, value: &str, flags: Option<i32>) -> PyResult<bool> {
     py.allow_threads(move || {
-        let Some(main_engine_guard) = MAIN_ENGINE.try_read() else {
-            return Err(PyEnvironmentError::new_err(
-                "main quake live engine not accessible",
-            ));
-        };
-
-        let Some(ref main_engine) = *main_engine_guard else {
+        let Some(ref main_engine) = *MAIN_ENGINE.load() else {
             return Err(PyEnvironmentError::new_err(
                 "main quake live engine not set",
             ));
@@ -871,13 +823,7 @@ fn set_cvar_limit(
     flags: Option<i32>,
 ) -> PyResult<()> {
     py.allow_threads(move || {
-        let Some(main_engine_guard) = MAIN_ENGINE.try_read() else {
-            return Err(PyEnvironmentError::new_err(
-                "main quake live engine not accessible",
-            ));
-        };
-
-        let Some(ref main_engine) = *main_engine_guard else {
+        let Some(ref main_engine) = *MAIN_ENGINE.load() else {
             return Err(PyEnvironmentError::new_err(
                 "main quake live engine not set",
             ));
@@ -895,13 +841,7 @@ fn set_cvar_limit(
 #[pyo3(signature = (client_id, reason=None))]
 fn kick(py: Python<'_>, client_id: i32, reason: Option<&str>) -> PyResult<()> {
     let maxclients = py.allow_threads(|| {
-        let Some(main_engine_guard) = MAIN_ENGINE.try_read() else {
-            return Err(PyEnvironmentError::new_err(
-                "main quake live engine not accessible",
-            ));
-        };
-
-        let Some(ref main_engine) = *main_engine_guard else {
+        let Some(ref main_engine) = *MAIN_ENGINE.load() else {
             return Err(PyEnvironmentError::new_err(
                 "main quake live engine not set",
             ));
@@ -961,13 +901,7 @@ fn get_configstring(py: Python<'_>, config_id: u32) -> PyResult<String> {
     }
 
     py.allow_threads(move || {
-        let Some(main_engine_guard) = MAIN_ENGINE.try_read() else {
-            return Err(PyEnvironmentError::new_err(
-                "main quake live engine not accessible",
-            ));
-        };
-
-        let Some(ref main_engine) = *main_engine_guard else {
+        let Some(ref main_engine) = *MAIN_ENGINE.load() else {
             return Err(PyEnvironmentError::new_err(
                 "main quake live engine not set",
             ));
@@ -1009,13 +943,7 @@ fn force_vote(py: Python<'_>, pass: bool) -> PyResult<bool> {
     }
 
     let maxclients = py.allow_threads(|| {
-        let Some(main_engine_guard) = MAIN_ENGINE.try_read() else {
-            return Err(PyEnvironmentError::new_err(
-                "main quake live engine not accessible",
-            ));
-        };
-
-        let Some(ref main_engine) = *main_engine_guard else {
+        let Some(ref main_engine) = *MAIN_ENGINE.load() else {
             return Err(PyEnvironmentError::new_err(
                 "main quake live engine not set",
             ));
@@ -1043,13 +971,7 @@ fn force_vote(py: Python<'_>, pass: bool) -> PyResult<bool> {
 #[pyo3(name = "add_console_command")]
 fn add_console_command(py: Python<'_>, command: &str) -> PyResult<()> {
     py.allow_threads(move || {
-        let Some(main_engine_guard) = MAIN_ENGINE.try_read() else {
-            return Err(PyEnvironmentError::new_err(
-                "main quake live engine not accessible",
-            ));
-        };
-
-        let Some(ref main_engine) = *main_engine_guard else {
+        let Some(ref main_engine) = *MAIN_ENGINE.load() else {
             return Err(PyEnvironmentError::new_err(
                 "main quake live engine not set",
             ));
@@ -1782,13 +1704,7 @@ fn holdable_from(holdable: Holdable) -> Option<String> {
 #[pyo3(name = "player_state")]
 fn player_state(py: Python<'_>, client_id: i32) -> PyResult<Option<PlayerState>> {
     let maxclients = py.allow_threads(|| {
-        let Some(main_engine_guard) = MAIN_ENGINE.try_read() else {
-            return Err(PyEnvironmentError::new_err(
-                "main quake live engine not accessible",
-            ));
-        };
-
-        let Some(ref main_engine) = *main_engine_guard else {
+        let Some(ref main_engine) = *MAIN_ENGINE.load() else {
             return Err(PyEnvironmentError::new_err(
                 "main quake live engine not set",
             ));
@@ -1868,13 +1784,7 @@ impl From<GameClient> for PlayerStats {
 #[pyo3(name = "player_stats")]
 fn player_stats(py: Python<'_>, client_id: i32) -> PyResult<Option<PlayerStats>> {
     let maxclients = py.allow_threads(|| {
-        let Some(main_engine_guard) = MAIN_ENGINE.try_read() else {
-            return Err(PyEnvironmentError::new_err(
-                "main quake live engine not accessible",
-            ));
-        };
-
-        let Some(ref main_engine) = *main_engine_guard else {
+        let Some(ref main_engine) = *MAIN_ENGINE.load() else {
             return Err(PyEnvironmentError::new_err(
                 "main quake live engine not set",
             ));
@@ -1903,13 +1813,7 @@ fn player_stats(py: Python<'_>, client_id: i32) -> PyResult<Option<PlayerStats>>
 #[pyo3(name = "set_position")]
 fn set_position(py: Python<'_>, client_id: i32, position: Vector3) -> PyResult<bool> {
     let maxclients = py.allow_threads(|| {
-        let Some(main_engine_guard) = MAIN_ENGINE.try_read() else {
-            return Err(PyEnvironmentError::new_err(
-                "main quake live engine not accessible",
-            ));
-        };
-
-        let Some(ref main_engine) = *main_engine_guard else {
+        let Some(ref main_engine) = *MAIN_ENGINE.load() else {
             return Err(PyEnvironmentError::new_err(
                 "main quake live engine not set",
             ));
@@ -1940,13 +1844,7 @@ fn set_position(py: Python<'_>, client_id: i32, position: Vector3) -> PyResult<b
 #[pyo3(name = "set_velocity")]
 fn set_velocity(py: Python<'_>, client_id: i32, velocity: Vector3) -> PyResult<bool> {
     let maxclients = py.allow_threads(|| {
-        let Some(main_engine_guard) = MAIN_ENGINE.try_read() else {
-            return Err(PyEnvironmentError::new_err(
-                "main quake live engine not accessible",
-            ));
-        };
-
-        let Some(ref main_engine) = *main_engine_guard else {
+        let Some(ref main_engine) = *MAIN_ENGINE.load() else {
             return Err(PyEnvironmentError::new_err(
                 "main quake live engine not set",
             ));
@@ -1977,13 +1875,7 @@ fn set_velocity(py: Python<'_>, client_id: i32, velocity: Vector3) -> PyResult<b
 #[pyo3(name = "noclip")]
 fn noclip(py: Python<'_>, client_id: i32, activate: bool) -> PyResult<bool> {
     let maxclients = py.allow_threads(|| {
-        let Some(main_engine_guard) = MAIN_ENGINE.try_read() else {
-            return Err(PyEnvironmentError::new_err(
-                "main quake live engine not accessible",
-            ));
-        };
-
-        let Some(ref main_engine) = *main_engine_guard else {
+        let Some(ref main_engine) = *MAIN_ENGINE.load() else {
             return Err(PyEnvironmentError::new_err(
                 "main quake live engine not set",
             ));
@@ -2018,13 +1910,7 @@ fn noclip(py: Python<'_>, client_id: i32, activate: bool) -> PyResult<bool> {
 #[pyo3(name = "set_health")]
 fn set_health(py: Python<'_>, client_id: i32, health: i32) -> PyResult<bool> {
     let maxclients = py.allow_threads(|| {
-        let Some(main_engine_guard) = MAIN_ENGINE.try_read() else {
-            return Err(PyEnvironmentError::new_err(
-                "main quake live engine not accessible",
-            ));
-        };
-
-        let Some(ref main_engine) = *main_engine_guard else {
+        let Some(ref main_engine) = *MAIN_ENGINE.load() else {
             return Err(PyEnvironmentError::new_err(
                 "main quake live engine not set",
             ));
@@ -2055,13 +1941,7 @@ fn set_health(py: Python<'_>, client_id: i32, health: i32) -> PyResult<bool> {
 #[pyo3(name = "set_armor")]
 fn set_armor(py: Python<'_>, client_id: i32, armor: i32) -> PyResult<bool> {
     let maxclients = py.allow_threads(|| {
-        let Some(main_engine_guard) = MAIN_ENGINE.try_read() else {
-            return Err(PyEnvironmentError::new_err(
-                "main quake live engine not accessible",
-            ));
-        };
-
-        let Some(ref main_engine) = *main_engine_guard else {
+        let Some(ref main_engine) = *MAIN_ENGINE.load() else {
             return Err(PyEnvironmentError::new_err(
                 "main quake live engine not set",
             ));
@@ -2092,13 +1972,7 @@ fn set_armor(py: Python<'_>, client_id: i32, armor: i32) -> PyResult<bool> {
 #[pyo3(name = "set_weapons")]
 fn set_weapons(py: Python<'_>, client_id: i32, weapons: Weapons) -> PyResult<bool> {
     let maxclients = py.allow_threads(|| {
-        let Some(main_engine_guard) = MAIN_ENGINE.try_read() else {
-            return Err(PyEnvironmentError::new_err(
-                "main quake live engine not accessible",
-            ));
-        };
-
-        let Some(ref main_engine) = *main_engine_guard else {
+        let Some(ref main_engine) = *MAIN_ENGINE.load() else {
             return Err(PyEnvironmentError::new_err(
                 "main quake live engine not set",
             ));
@@ -2129,13 +2003,7 @@ fn set_weapons(py: Python<'_>, client_id: i32, weapons: Weapons) -> PyResult<boo
 #[pyo3(name = "set_weapon")]
 fn set_weapon(py: Python<'_>, client_id: i32, weapon: i32) -> PyResult<bool> {
     let maxclients = py.allow_threads(|| {
-        let Some(main_engine_guard) = MAIN_ENGINE.try_read() else {
-            return Err(PyEnvironmentError::new_err(
-                "main quake live engine not accessible",
-            ));
-        };
-
-        let Some(ref main_engine) = *main_engine_guard else {
+        let Some(ref main_engine) = *MAIN_ENGINE.load() else {
             return Err(PyEnvironmentError::new_err(
                 "main quake live engine not set",
             ));
@@ -2172,13 +2040,7 @@ fn set_weapon(py: Python<'_>, client_id: i32, weapon: i32) -> PyResult<bool> {
 #[pyo3(name = "set_ammo")]
 fn set_ammo(py: Python<'_>, client_id: i32, ammos: Weapons) -> PyResult<bool> {
     let maxclients = py.allow_threads(|| {
-        let Some(main_engine_guard) = MAIN_ENGINE.try_read() else {
-            return Err(PyEnvironmentError::new_err(
-                "main quake live engine not accessible",
-            ));
-        };
-
-        let Some(ref main_engine) = *main_engine_guard else {
+        let Some(ref main_engine) = *MAIN_ENGINE.load() else {
             return Err(PyEnvironmentError::new_err(
                 "main quake live engine not set",
             ));
@@ -2209,13 +2071,7 @@ fn set_ammo(py: Python<'_>, client_id: i32, ammos: Weapons) -> PyResult<bool> {
 #[pyo3(name = "set_powerups")]
 fn set_powerups(py: Python<'_>, client_id: i32, powerups: Powerups) -> PyResult<bool> {
     let maxclients = py.allow_threads(|| {
-        let Some(main_engine_guard) = MAIN_ENGINE.try_read() else {
-            return Err(PyEnvironmentError::new_err(
-                "main quake live engine not accessible",
-            ));
-        };
-
-        let Some(ref main_engine) = *main_engine_guard else {
+        let Some(ref main_engine) = *MAIN_ENGINE.load() else {
             return Err(PyEnvironmentError::new_err(
                 "main quake live engine not set",
             ));
@@ -2246,13 +2102,7 @@ fn set_powerups(py: Python<'_>, client_id: i32, powerups: Powerups) -> PyResult<
 #[pyo3(name = "set_holdable")]
 fn set_holdable(py: Python<'_>, client_id: i32, holdable: i32) -> PyResult<bool> {
     let maxclients = py.allow_threads(|| {
-        let Some(main_engine_guard) = MAIN_ENGINE.try_read() else {
-            return Err(PyEnvironmentError::new_err(
-                "main quake live engine not accessible",
-            ));
-        };
-
-        let Some(ref main_engine) = *main_engine_guard else {
+        let Some(ref main_engine) = *MAIN_ENGINE.load() else {
             return Err(PyEnvironmentError::new_err(
                 "main quake live engine not set",
             ));
@@ -2284,13 +2134,7 @@ fn set_holdable(py: Python<'_>, client_id: i32, holdable: i32) -> PyResult<bool>
 #[pyo3(name = "drop_holdable")]
 fn drop_holdable(py: Python<'_>, client_id: i32) -> PyResult<bool> {
     let maxclients = py.allow_threads(|| {
-        let Some(main_engine_guard) = MAIN_ENGINE.try_read() else {
-            return Err(PyEnvironmentError::new_err(
-                "main quake live engine not accessible",
-            ));
-        };
-
-        let Some(ref main_engine) = *main_engine_guard else {
+        let Some(ref main_engine) = *MAIN_ENGINE.load() else {
             return Err(PyEnvironmentError::new_err(
                 "main quake live engine not set",
             ));
@@ -2325,13 +2169,7 @@ fn drop_holdable(py: Python<'_>, client_id: i32) -> PyResult<bool> {
 #[pyo3(name = "set_flight")]
 fn set_flight(py: Python<'_>, client_id: i32, flight: Flight) -> PyResult<bool> {
     let maxclients = py.allow_threads(|| {
-        let Some(main_engine_guard) = MAIN_ENGINE.try_read() else {
-            return Err(PyEnvironmentError::new_err(
-                "main quake live engine not accessible",
-            ));
-        };
-
-        let Some(ref main_engine) = *main_engine_guard else {
+        let Some(ref main_engine) = *MAIN_ENGINE.load() else {
             return Err(PyEnvironmentError::new_err(
                 "main quake live engine not set",
             ));
@@ -2362,13 +2200,7 @@ fn set_flight(py: Python<'_>, client_id: i32, flight: Flight) -> PyResult<bool> 
 #[pyo3(name = "set_invulnerability")]
 fn set_invulnerability(py: Python<'_>, client_id: i32, time: i32) -> PyResult<bool> {
     let maxclients = py.allow_threads(|| {
-        let Some(main_engine_guard) = MAIN_ENGINE.try_read() else {
-            return Err(PyEnvironmentError::new_err(
-                "main quake live engine not accessible",
-            ));
-        };
-
-        let Some(ref main_engine) = *main_engine_guard else {
+        let Some(ref main_engine) = *MAIN_ENGINE.load() else {
             return Err(PyEnvironmentError::new_err(
                 "main quake live engine not set",
             ));
@@ -2399,13 +2231,7 @@ fn set_invulnerability(py: Python<'_>, client_id: i32, time: i32) -> PyResult<bo
 #[pyo3(name = "set_score")]
 fn set_score(py: Python<'_>, client_id: i32, score: i32) -> PyResult<bool> {
     let maxclients = py.allow_threads(|| {
-        let Some(main_engine_guard) = MAIN_ENGINE.try_read() else {
-            return Err(PyEnvironmentError::new_err(
-                "main quake live engine not accessible",
-            ));
-        };
-
-        let Some(ref main_engine) = *main_engine_guard else {
+        let Some(ref main_engine) = *MAIN_ENGINE.load() else {
             return Err(PyEnvironmentError::new_err(
                 "main quake live engine not set",
             ));
@@ -2460,13 +2286,7 @@ fn allow_single_player(py: Python<'_>, allow: bool) {
 #[pyo3(name = "player_spawn")]
 fn player_spawn(py: Python<'_>, client_id: i32) -> PyResult<bool> {
     let maxclients = py.allow_threads(|| {
-        let Some(main_engine_guard) = MAIN_ENGINE.try_read() else {
-            return Err(PyEnvironmentError::new_err(
-                "main quake live engine not accessible",
-            ));
-        };
-
-        let Some(ref main_engine) = *main_engine_guard else {
+        let Some(ref main_engine) = *MAIN_ENGINE.load() else {
             return Err(PyEnvironmentError::new_err(
                 "main quake live engine not set",
             ));
@@ -2501,13 +2321,7 @@ fn player_spawn(py: Python<'_>, client_id: i32) -> PyResult<bool> {
 #[pyo3(name = "set_privileges")]
 fn set_privileges(py: Python<'_>, client_id: i32, privileges: i32) -> PyResult<bool> {
     let maxclients = py.allow_threads(|| {
-        let Some(main_engine_guard) = MAIN_ENGINE.try_read() else {
-            return Err(PyEnvironmentError::new_err(
-                "main quake live engine not accessible",
-            ));
-        };
-
-        let Some(ref main_engine) = *main_engine_guard else {
+        let Some(ref main_engine) = *MAIN_ENGINE.load() else {
             return Err(PyEnvironmentError::new_err(
                 "main quake live engine not set",
             ));
@@ -2603,13 +2417,7 @@ fn remove_dropped_items(py: Python<'_>) -> PyResult<bool> {
 #[pyo3(name = "slay_with_mod")]
 fn slay_with_mod(py: Python<'_>, client_id: i32, mean_of_death: i32) -> PyResult<bool> {
     let maxclients = py.allow_threads(|| {
-        let Some(main_engine_guard) = MAIN_ENGINE.try_read() else {
-            return Err(PyEnvironmentError::new_err(
-                "main quake live engine not accessible",
-            ));
-        };
-
-        let Some(ref main_engine) = *main_engine_guard else {
+        let Some(ref main_engine) = *MAIN_ENGINE.load() else {
             return Err(PyEnvironmentError::new_err(
                 "main quake live engine not set",
             ));
@@ -2768,13 +2576,7 @@ fn dev_print_items(py: Python<'_>) -> PyResult<()> {
         .collect();
 
     py.allow_threads(move || {
-        let Some(main_engine_guard) = MAIN_ENGINE.try_read() else {
-            return Err(PyEnvironmentError::new_err(
-                "main quake live engine not accessible",
-            ));
-        };
-
-        let Some(ref main_engine) = *main_engine_guard else {
+        let Some(ref main_engine) = *MAIN_ENGINE.load() else {
             return Err(PyEnvironmentError::new_err(
                 "main quake live engine not set",
             ));

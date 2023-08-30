@@ -101,11 +101,7 @@ impl Client {
     {
         let c_reason = CString::new(reason.as_ref()).unwrap_or(CString::new("").unwrap());
 
-        let Some(main_engine_guard) = MAIN_ENGINE.try_read() else {
-            return;
-        };
-
-        let Some(ref main_engine) = *main_engine_guard else {
+        let Some(ref main_engine) = *MAIN_ENGINE.load() else {
             return;
         };
 
@@ -277,8 +273,7 @@ mod client_tests {
     #[serial]
     fn client_disconnect_with_no_main_engine() {
         {
-            let mut guard = MAIN_ENGINE.write();
-            *guard = None;
+            MAIN_ENGINE.store(None);
         }
 
         let mut client = ClientBuilder::default().build().unwrap();
@@ -290,8 +285,7 @@ mod client_tests {
     #[serial]
     fn client_disconnect_with_no_detour_setup() {
         {
-            let mut guard = MAIN_ENGINE.write();
-            *guard = Some(QuakeLiveEngine::new());
+            MAIN_ENGINE.store(Some(QuakeLiveEngine::new().into()));
         }
 
         let mut client = ClientBuilder::default().build().unwrap();
@@ -299,8 +293,7 @@ mod client_tests {
         rust_client.disconnect("disconnected");
 
         {
-            let mut guard = MAIN_ENGINE.write();
-            *guard = None;
+            MAIN_ENGINE.store(None);
         }
     }
 
