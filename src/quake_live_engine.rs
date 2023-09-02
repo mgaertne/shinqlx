@@ -7,10 +7,10 @@ use crate::cvar::CVar;
 use crate::game_item::GameItem;
 use crate::hooks::{
     shinqlx_client_connect, shinqlx_clientspawn, shinqlx_cmd_addcommand, shinqlx_g_damage,
-    shinqlx_g_initgame, shinqlx_g_runframe, shinqlx_g_startkamikaze, shinqlx_sv_cliententerworld,
-    shinqlx_sv_dropclient, shinqlx_sv_executeclientcommand, shinqlx_sv_setconfigstring,
-    shinqlx_sv_spawnserver, shinqlx_sys_setmoduleoffset, ShiNQlx_Com_Printf,
-    ShiNQlx_SV_SendServerCommand,
+    shinqlx_g_initgame, shinqlx_g_runframe, shinqlx_g_shutdowngame, shinqlx_g_startkamikaze,
+    shinqlx_sv_cliententerworld, shinqlx_sv_dropclient, shinqlx_sv_executeclientcommand,
+    shinqlx_sv_setconfigstring, shinqlx_sv_spawnserver, shinqlx_sys_setmoduleoffset,
+    ShiNQlx_Com_Printf, ShiNQlx_SV_SendServerCommand,
 };
 use crate::patches::patch_callvote_f;
 use crate::prelude::*;
@@ -286,6 +286,10 @@ impl VmFunctions {
             );
         }
 
+        unsafe {
+            ptr::write(vm_call_table as *mut usize, shinqlx_g_shutdowngame as usize);
+        }
+
         let client_connect_orig = self.client_connect_orig.load(Ordering::SeqCst);
         let client_connect_func = unsafe { mem::transmute(client_connect_orig) };
         let client_connect_detour =
@@ -350,6 +354,44 @@ impl VmFunctions {
         }
 
         patch_callvote_f(cmd_callvote_f_orig);
+    }
+
+    pub(crate) fn unhook(&self) {
+        if let Some(ref client_connect_detour) = *self.client_connect_detour.load() {
+            if client_connect_detour.is_enabled() {
+                if let Err(e) = unsafe { client_connect_detour.disable() } {
+                    error!(target: "shinqlx", "error when disabling detour: {}", e);
+                }
+            }
+        }
+        self.client_connect_detour.store(None);
+
+        if let Some(ref start_kamikaze_detour) = *self.g_start_kamikaze_detour.load() {
+            if start_kamikaze_detour.is_enabled() {
+                if let Err(e) = unsafe { start_kamikaze_detour.disable() } {
+                    error!(target: "shinqlx", "error when disabling detour: {}", e);
+                }
+            }
+        }
+        self.g_start_kamikaze_detour.store(None);
+
+        if let Some(ref client_spawn_detour) = *self.client_spawn_detour.load() {
+            if client_spawn_detour.is_enabled() {
+                if let Err(e) = unsafe { client_spawn_detour.disable() } {
+                    error!(target: "shinqlx", "error when disabling detour: {}", e);
+                }
+            }
+        }
+        self.client_spawn_detour.store(None);
+
+        if let Some(ref g_damage_detour) = *self.g_damage_detour.load() {
+            if g_damage_detour.is_enabled() {
+                if let Err(e) = unsafe { g_damage_detour.disable() } {
+                    error!(target: "shinqlx", "error when disabling detour: {}", e);
+                }
+            }
+        }
+        self.g_damage_detour.store(None);
     }
 }
 
@@ -907,6 +949,10 @@ impl QuakeLiveEngine {
         self.vm_functions.patch();
 
         Ok(())
+    }
+
+    pub(crate) fn unhook_vm(&self) {
+        self.vm_functions.unhook();
     }
 
     fn com_printf_orig(&self) -> Result<extern "C" fn(*const c_char, ...), QuakeLiveEngineError> {
@@ -1862,6 +1908,7 @@ mock! {
         pub(crate) fn initialize_vm(&self, _module_offset: usize) -> Result<(), QuakeLiveEngineError>;
         pub(crate) fn set_tag(&self);
         pub(crate) fn initialize_cvars(&self);
+        pub(crate) fn unhook_vm(&self);
         pub(crate) fn touch_item_orig(
             &self,
         ) -> Result<extern "C" fn(*mut gentity_t, *mut gentity_t, *mut trace_t), QuakeLiveEngineError>;
