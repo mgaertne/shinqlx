@@ -22,7 +22,7 @@ use crate::quake_live_engine::QuakeLiveEngine;
 use crate::quake_live_engine::{
     AddCommand, ClientConnect, ClientEnterWorld, ClientSpawn, ComPrintf, ExecuteClientCommand,
     InitGame, RegisterDamage, RunFrame, SendServerCommand, SetConfigstring, SetModuleOffset,
-    SpawnServer,
+    ShutdownGame, SpawnServer,
 };
 #[cfg(not(test))]
 use crate::MAIN_ENGINE;
@@ -125,6 +125,21 @@ fn shinqlx_g_initgame_intern(
     if restart != 0 {
         new_game_dispatcher(true);
     }
+}
+
+#[cfg_attr(test, allow(dead_code))]
+pub(crate) fn shinqlx_g_shutdowngame(restart: c_int) {
+    let Some(ref main_engine) = *MAIN_ENGINE.load() else {
+        return;
+    };
+
+    shinqlx_g_shutdowngame_intern(main_engine.deref(), restart);
+}
+
+#[cfg_attr(not(test), inline)]
+fn shinqlx_g_shutdowngame_intern(main_engine: &QuakeLiveEngine, restart: c_int) {
+    main_engine.unhook_vm();
+    main_engine.shutdown_game(restart);
 }
 
 pub(crate) fn shinqlx_sv_executeclientcommand(
@@ -688,9 +703,9 @@ mod hooks_tests {
         shinqlx_client_connect_intern, shinqlx_client_spawn_intern, shinqlx_cmd_addcommand_intern,
         shinqlx_com_printf_intern, shinqlx_drop_client, shinqlx_execute_client_command_intern,
         shinqlx_g_damage_intern, shinqlx_g_initgame_intern, shinqlx_g_runframe_intern,
-        shinqlx_send_server_command_intern, shinqlx_set_configstring_intern,
-        shinqlx_sv_cliententerworld_intern, shinqlx_sv_spawnserver_intern,
-        shinqlx_sys_setmoduleoffset_intern,
+        shinqlx_g_shutdowngame_intern, shinqlx_send_server_command_intern,
+        shinqlx_set_configstring_intern, shinqlx_sv_cliententerworld_intern,
+        shinqlx_sv_spawnserver_intern, shinqlx_sys_setmoduleoffset_intern,
     };
     use crate::prelude::*;
     use crate::pyminqlx::mock_python::{
@@ -872,6 +887,19 @@ mod hooks_tests {
             .times(1);
 
         shinqlx_g_initgame_intern(&mock_engine, 42, 21, 1);
+    }
+
+    #[test]
+    fn shut_down_game_unhooks_vm() {
+        let mut mock_engine = MockQuakeEngine::new();
+        mock_engine.expect_unhook_vm().return_const_st(()).times(1);
+        mock_engine
+            .expect_shutdown_game()
+            .withf_st(|&restart| restart == 42)
+            .return_const_st(())
+            .times(1);
+
+        shinqlx_g_shutdowngame_intern(&mock_engine, 42);
     }
 
     #[test]
