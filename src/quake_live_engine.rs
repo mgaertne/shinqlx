@@ -7,10 +7,10 @@ use crate::cvar::CVar;
 use crate::game_item::GameItem;
 use crate::hooks::{
     shinqlx_client_connect, shinqlx_clientspawn, shinqlx_cmd_addcommand, shinqlx_g_damage,
-    shinqlx_g_initgame, shinqlx_g_runframe, shinqlx_g_shutdowngame, shinqlx_g_startkamikaze,
-    shinqlx_sv_cliententerworld, shinqlx_sv_dropclient, shinqlx_sv_executeclientcommand,
-    shinqlx_sv_setconfigstring, shinqlx_sv_spawnserver, shinqlx_sys_setmoduleoffset,
-    ShiNQlx_Com_Printf, ShiNQlx_SV_SendServerCommand,
+    shinqlx_g_initgame, shinqlx_g_runframe, shinqlx_g_startkamikaze, shinqlx_sv_cliententerworld,
+    shinqlx_sv_dropclient, shinqlx_sv_executeclientcommand, shinqlx_sv_setconfigstring,
+    shinqlx_sv_spawnserver, shinqlx_sys_setmoduleoffset, ShiNQlx_Com_Printf,
+    ShiNQlx_SV_SendServerCommand,
 };
 use crate::patches::patch_callvote_f;
 use crate::prelude::*;
@@ -20,7 +20,6 @@ use crate::quake_live_functions::pattern_search_module;
 use crate::quake_live_functions::QuakeLiveFunction;
 #[cfg(target_os = "linux")]
 use crate::QZERODED;
-use alloc::collections::VecDeque;
 use alloc::ffi::CString;
 use alloc::string::String;
 use core::ffi::{c_char, c_int, CStr};
@@ -29,10 +28,10 @@ use core::sync::atomic::{AtomicI32, AtomicUsize, Ordering};
 use mockall::mock;
 use once_cell::race::OnceBool;
 use once_cell::sync::OnceCell;
-use parking_lot::RwLock;
 #[cfg(target_os = "linux")]
 use procfs::process::{MMapPath, MemoryMap, Process};
-use retour::{Function, GenericDetour, RawDetour};
+use retour::{GenericDetour, RawDetour};
+use swap_arc::SwapArcOption;
 
 #[allow(dead_code)]
 #[cfg(target_pointer_width = "64")]
@@ -40,27 +39,6 @@ const QAGAME: &str = "qagamex64.so";
 #[allow(dead_code)]
 #[cfg(target_pointer_width = "32")]
 const QAGAME: &str = "qagamei386.so";
-
-#[cfg_attr(test, allow(dead_code))]
-fn try_disable<T: Function>(detour: &GenericDetour<T>) {
-    if detour.is_enabled() {
-        if let Err(e) = unsafe { detour.disable() } {
-            error!(target: "shinqlx", "error when disabling detour: {}", e);
-        }
-    }
-}
-
-#[cfg_attr(test, allow(dead_code))]
-fn extract_detour<T: Function>(
-    lock: &RwLock<Option<GenericDetour<T>>>,
-) -> Option<GenericDetour<T>> {
-    let mut lock_guard = lock.write();
-
-    let Some(detour) = (*lock_guard).take() else {
-        return None;
-    };
-    Some(detour)
-}
 
 #[derive(Debug, PartialEq, Eq)]
 pub(crate) enum QuakeLiveEngineError {
@@ -140,15 +118,6 @@ type GDamageDetourType = GenericDetour<
 >;
 
 #[cfg_attr(test, allow(dead_code))]
-type VmHooksResultType = (
-    Option<ClientConnectDetourType>,
-    Option<GStartKamikazeDetourType>,
-    Option<ClientSpawnDetourType>,
-    Option<GDamageDetourType>,
-);
-
-#[derive(Debug)]
-#[cfg_attr(test, allow(dead_code))]
 struct VmFunctions {
     vm_call_table: AtomicUsize,
 
@@ -169,10 +138,10 @@ struct VmFunctions {
     g_run_frame_orig: AtomicUsize,
     cmd_callvote_f_orig: AtomicUsize,
 
-    client_spawn_detour: RwLock<Option<ClientSpawnDetourType>>,
-    client_connect_detour: RwLock<Option<ClientConnectDetourType>>,
-    g_start_kamikaze_detour: RwLock<Option<GStartKamikazeDetourType>>,
-    g_damage_detour: RwLock<Option<GDamageDetourType>>,
+    client_spawn_detour: SwapArcOption<ClientSpawnDetourType>,
+    client_connect_detour: SwapArcOption<ClientConnectDetourType>,
+    g_start_kamikaze_detour: SwapArcOption<GStartKamikazeDetourType>,
+    g_damage_detour: SwapArcOption<GDamageDetourType>,
 }
 
 #[allow(dead_code)]
@@ -299,7 +268,7 @@ impl VmFunctions {
      *
      * PROTIP: If you can, ALWAYS use VM_Call table hooks instead of using Hook().
      */
-    pub(crate) fn hook(&self) -> Result<VmHooksResultType, QuakeLiveEngineError> {
+    pub(crate) fn hook(&self) -> Result<(), QuakeLiveEngineError> {
         let vm_call_table = self.vm_call_table.load(Ordering::SeqCst);
 
         debug!(target: "shinqlx", "Hooking VM functions...");
@@ -317,15 +286,6 @@ impl VmFunctions {
             );
         }
 
-        unsafe {
-            ptr::write(vm_call_table as *mut usize, shinqlx_g_shutdowngame as usize);
-        }
-
-        let pending_client_connect_detour = extract_detour(&self.client_connect_detour).take();
-        if let Some(existing_client_connect_detour) = &pending_client_connect_detour {
-            try_disable(existing_client_connect_detour);
-        }
-
         let client_connect_orig = self.client_connect_orig.load(Ordering::SeqCst);
         let client_connect_func = unsafe { mem::transmute(client_connect_orig) };
         let client_connect_detour =
@@ -337,15 +297,8 @@ impl VmFunctions {
             QuakeLiveEngineError::DetourCouldNotBeEnabled(QuakeLiveFunction::ClientConnect)
         })?;
 
-        {
-            let mut guard = self.client_connect_detour.write();
-            *guard = Some(client_connect_detour);
-        }
-
-        let pending_g_start_kamikaze_detour = extract_detour(&self.g_start_kamikaze_detour).take();
-        if let Some(existing_g_start_kamikaze_detour) = &pending_g_start_kamikaze_detour {
-            try_disable(existing_g_start_kamikaze_detour);
-        }
+        self.client_connect_detour
+            .store(Some(client_connect_detour.into()));
 
         let g_start_kamikaze_orig = self.g_start_kamikaze_orig.load(Ordering::SeqCst);
         let g_start_kamikaze_func = unsafe { mem::transmute(g_start_kamikaze_orig) };
@@ -359,15 +312,8 @@ impl VmFunctions {
             QuakeLiveEngineError::DetourCouldNotBeEnabled(QuakeLiveFunction::G_StartKamikaze)
         })?;
 
-        {
-            let mut guard = self.g_start_kamikaze_detour.write();
-            *guard = Some(g_start_kamikaze_detour);
-        }
-
-        let pending_client_spawn_detour = extract_detour(&self.client_spawn_detour).take();
-        if let Some(existing_client_spawn_detour) = &pending_client_spawn_detour {
-            try_disable(existing_client_spawn_detour);
-        }
+        self.g_start_kamikaze_detour
+            .store(Some(g_start_kamikaze_detour.into()));
 
         let client_spawn_orig = self.client_spawn_orig.load(Ordering::SeqCst);
         let client_spawn_func = unsafe { mem::transmute(client_spawn_orig) };
@@ -379,15 +325,8 @@ impl VmFunctions {
             QuakeLiveEngineError::DetourCouldNotBeEnabled(QuakeLiveFunction::ClientSpawn)
         })?;
 
-        {
-            let mut guard = self.client_spawn_detour.write();
-            *guard = Some(client_spawn_detour);
-        }
-
-        let pending_g_damage_detour = extract_detour(&self.g_damage_detour).take();
-        if let Some(existing_g_damage_detour) = &pending_g_damage_detour {
-            try_disable(existing_g_damage_detour);
-        }
+        self.client_spawn_detour
+            .store(Some(client_spawn_detour.into()));
 
         let g_damage_orig = self.g_damage_orig.load(Ordering::SeqCst);
         let g_damage_func = unsafe { mem::transmute(g_damage_orig) };
@@ -399,17 +338,9 @@ impl VmFunctions {
             QuakeLiveEngineError::DetourCouldNotBeEnabled(QuakeLiveFunction::G_Damage)
         })?;
 
-        {
-            let mut guard = self.g_damage_detour.write();
-            *guard = Some(g_damage_detour);
-        }
+        self.g_damage_detour.store(Some(g_damage_detour.into()));
 
-        Ok((
-            pending_client_connect_detour,
-            pending_g_start_kamikaze_detour,
-            pending_client_spawn_detour,
-            pending_g_damage_detour,
-        ))
+        Ok(())
     }
 
     pub(crate) fn patch(&self) {
@@ -420,43 +351,8 @@ impl VmFunctions {
 
         patch_callvote_f(cmd_callvote_f_orig);
     }
-
-    pub(crate) fn unhook(&self) -> Result<VmHooksResultType, QuakeLiveEngineError> {
-        let mut result = (None, None, None, None);
-
-        {
-            result.0 = extract_detour(&self.client_connect_detour).take();
-            if let Some(client_connect_detour) = &result.0 {
-                try_disable(client_connect_detour);
-            }
-        }
-
-        {
-            result.1 = extract_detour(&self.g_start_kamikaze_detour).take();
-            if let Some(start_kamikaze_detour) = &result.1 {
-                try_disable(start_kamikaze_detour);
-            }
-        }
-
-        {
-            result.2 = extract_detour(&self.client_spawn_detour).take();
-            if let Some(client_spawn_detour) = &result.2 {
-                try_disable(client_spawn_detour);
-            }
-        }
-
-        {
-            result.3 = extract_detour(&self.g_damage_detour).take();
-            if let Some(g_damage_detour) = &result.3 {
-                try_disable(g_damage_detour);
-            }
-        }
-
-        Ok(result)
-    }
 }
 
-#[derive(Debug)]
 pub(crate) struct QuakeLiveEngine {
     static_functions: OnceCell<StaticFunctions>,
     static_detours: OnceCell<StaticDetours>,
@@ -468,15 +364,6 @@ pub(crate) struct QuakeLiveEngine {
     vm_functions: VmFunctions,
     #[cfg_attr(test, allow(dead_code))]
     current_vm: AtomicUsize,
-
-    #[cfg_attr(test, allow(dead_code))]
-    pending_client_spawn_detours: RwLock<VecDeque<ClientSpawnDetourType>>,
-    #[cfg_attr(test, allow(dead_code))]
-    pending_client_connect_detours: RwLock<VecDeque<ClientConnectDetourType>>,
-    #[cfg_attr(test, allow(dead_code))]
-    pending_g_start_kamikaze_detours: RwLock<VecDeque<GStartKamikazeDetourType>>,
-    #[cfg_attr(test, allow(dead_code))]
-    pending_g_damage_detours: RwLock<VecDeque<GDamageDetourType>>,
 }
 
 #[cfg(target_os = "linux")]
@@ -507,17 +394,12 @@ impl QuakeLiveEngine {
                 g_shutdown_game_orig: Default::default(),
                 g_run_frame_orig: Default::default(),
                 cmd_callvote_f_orig: Default::default(),
-                client_spawn_detour: Default::default(),
-                client_connect_detour: Default::default(),
-                g_start_kamikaze_detour: Default::default(),
-                g_damage_detour: Default::default(),
+                client_spawn_detour: SwapArcOption::new(None),
+                client_connect_detour: SwapArcOption::new(None),
+                g_start_kamikaze_detour: SwapArcOption::new(None),
+                g_damage_detour: SwapArcOption::new(None),
             },
             current_vm: AtomicUsize::new(0),
-
-            pending_client_connect_detours: RwLock::new(VecDeque::with_capacity(3)),
-            pending_client_spawn_detours: RwLock::new(VecDeque::with_capacity(3)),
-            pending_g_start_kamikaze_detours: RwLock::new(VecDeque::with_capacity(3)),
-            pending_g_damage_detours: RwLock::new(VecDeque::with_capacity(3)),
         }
     }
 
@@ -1021,103 +903,9 @@ impl QuakeLiveEngine {
         self.vm_functions.try_initialize_from(module_offset)?;
         self.current_vm.store(module_offset, Ordering::SeqCst);
 
-        let hook_result = self.vm_functions.hook()?;
-        self.store_pending_detours(hook_result);
+        self.vm_functions.hook()?;
         self.vm_functions.patch();
 
-        self.clean_up_pending_detours();
-
-        Ok(())
-    }
-
-    fn store_pending_detours(&self, mut vm_hook_result: VmHooksResultType) {
-        {
-            if let Some(client_connect_detour) = vm_hook_result.0.take() {
-                try_disable(&client_connect_detour);
-                let mut pending_client_connect_lock = self.pending_client_connect_detours.write();
-                (*pending_client_connect_lock).push_back(client_connect_detour);
-            }
-        }
-
-        {
-            if let Some(start_kamikaze_detour) = vm_hook_result.1.take() {
-                try_disable(&start_kamikaze_detour);
-                let mut pending_start_kamikaze_lock = self.pending_g_start_kamikaze_detours.write();
-                (*pending_start_kamikaze_lock).push_back(start_kamikaze_detour);
-            }
-        }
-
-        {
-            if let Some(client_spawn_detour) = vm_hook_result.2.take() {
-                try_disable(&client_spawn_detour);
-                let mut pending_client_spawn_lock = self.pending_client_spawn_detours.write();
-                (*pending_client_spawn_lock).push_back(client_spawn_detour);
-            }
-        }
-
-        {
-            if let Some(g_damage_detour) = vm_hook_result.3.take() {
-                try_disable(&g_damage_detour);
-                let mut pending_g_danage_lock = self.pending_g_damage_detours.write();
-                (*pending_g_danage_lock).push_back(g_damage_detour);
-            }
-        }
-    }
-
-    fn clean_up_pending_detours(&self) {
-        {
-            let mut pending_client_connect_lock = self.pending_client_connect_detours.write();
-
-            while (*pending_client_connect_lock).len()
-                >= (*pending_client_connect_lock).capacity() - 2
-            {
-                let Some(detour) = (*pending_client_connect_lock).pop_front() else {
-                    continue;
-                };
-                drop(detour);
-            }
-        }
-
-        {
-            let mut pending_g_start_kamikaze_lock = self.pending_g_start_kamikaze_detours.write();
-
-            while (*pending_g_start_kamikaze_lock).len()
-                >= (*pending_g_start_kamikaze_lock).capacity() - 2
-            {
-                let Some(detour) = (*pending_g_start_kamikaze_lock).pop_front() else {
-                    continue;
-                };
-                drop(detour);
-            }
-        }
-
-        {
-            let mut pending_client_spawn_lock = self.pending_client_spawn_detours.write();
-
-            while (*pending_client_spawn_lock).len() >= (*pending_client_spawn_lock).capacity() - 2
-            {
-                let Some(detour) = (*pending_client_spawn_lock).pop_front() else {
-                    continue;
-                };
-                drop(detour);
-            }
-        }
-
-        {
-            let mut pending_g_damage_lock = self.pending_g_damage_detours.write();
-
-            while (*pending_g_damage_lock).len() >= (*pending_g_damage_lock).capacity() - 2 {
-                let Some(detour) = (*pending_g_damage_lock).pop_front() else {
-                    continue;
-                };
-                drop(detour);
-            }
-        }
-    }
-
-    pub(crate) fn unhook_vm(&self) -> Result<(), QuakeLiveEngineError> {
-        let vm_unhook_result = self.vm_functions.unhook()?;
-        self.store_pending_detours(vm_unhook_result);
         Ok(())
     }
 
@@ -1765,11 +1553,7 @@ impl<T: Into<c_int>, U: Into<qboolean>, V: Into<qboolean>> ClientConnect<T, U, V
     for QuakeLiveEngine
 {
     fn client_connect(&self, client_num: T, first_time: U, is_bot: V) -> *const c_char {
-        let Some(detour_guard) = self.vm_functions.client_connect_detour.try_read() else {
-            return ptr::null();
-        };
-
-        let Some(ref detour) = *detour_guard else {
+        let Some(ref detour) = *self.vm_functions.client_connect_detour.load() else {
             return ptr::null();
         };
 
@@ -1783,11 +1567,7 @@ pub(crate) trait ClientSpawn<T: AsMut<gentity_t>> {
 
 impl<T: AsMut<gentity_t>> ClientSpawn<T> for QuakeLiveEngine {
     fn client_spawn(&self, mut ent: T) {
-        let Some(detour_guard) = self.vm_functions.client_spawn_detour.try_read() else {
-            return;
-        };
-
-        let Some(ref detour) = *detour_guard else {
+        let Some(ref detour) = *self.vm_functions.client_spawn_detour.load() else {
             return;
         };
 
@@ -2008,11 +1788,7 @@ impl<T: Into<c_int>, U: Into<c_int>, V: Into<c_int>> RegisterDamage<T, U, V> for
         dflags: U,
         means_of_death: V,
     ) {
-        let Some(detour_guard) = self.vm_functions.g_damage_detour.try_read() else {
-            return;
-        };
-
-        let Some(ref detour) = *detour_guard else {
+        let Some(ref detour) = *self.vm_functions.g_damage_detour.load() else {
             return;
         };
 
@@ -2069,11 +1845,7 @@ pub(crate) trait StartKamikaze<T: AsMut<gentity_t> + ?Sized> {
 
 impl<T: AsMut<gentity_t>> StartKamikaze<T> for QuakeLiveEngine {
     fn start_kamikaze(&self, mut gentity: T) {
-        let Some(detour_guard) = self.vm_functions.g_start_kamikaze_detour.try_read() else {
-            return;
-        };
-
-        let Some(ref detour) = *detour_guard else {
+        let Some(ref detour) = *self.vm_functions.g_start_kamikaze_detour.load() else {
             return;
         };
 
@@ -2090,7 +1862,6 @@ mock! {
         pub(crate) fn initialize_vm(&self, _module_offset: usize) -> Result<(), QuakeLiveEngineError>;
         pub(crate) fn set_tag(&self);
         pub(crate) fn initialize_cvars(&self);
-        pub(crate) fn unhook_vm(&self) -> Result<(), QuakeLiveEngineError>;
         pub(crate) fn touch_item_orig(
             &self,
         ) -> Result<extern "C" fn(*mut gentity_t, *mut gentity_t, *mut trace_t), QuakeLiveEngineError>;
