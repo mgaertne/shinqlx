@@ -308,11 +308,7 @@ where
 
 #[no_mangle]
 pub extern "C" fn cmd_py_command() {
-    let Some(custom_command_lock) = CUSTOM_COMMAND_HANDLER.try_read() else {
-        return;
-    };
-
-    let Some(ref custom_command_handler) = *custom_command_lock else {
+    let Some(ref custom_command_handler) = *CUSTOM_COMMAND_HANDLER.load() else {
         return;
     };
 

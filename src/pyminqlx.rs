@@ -20,7 +20,8 @@ use core::sync::atomic::AtomicI32;
 use core::sync::atomic::{AtomicBool, Ordering};
 #[cfg(test)]
 use mockall::automock;
-use parking_lot::RwLock;
+use once_cell::sync::Lazy;
+use swap_arc::SwapArcOption;
 
 use crate::current_level::CurrentLevel;
 use crate::game_item::GameItem;
@@ -64,11 +65,7 @@ where
         return Some(cmd.as_ref().into());
     }
 
-    let Some(client_command_lock) = CLIENT_COMMAND_HANDLER.try_read() else {
-        return Some(cmd.as_ref().into());
-    };
-
-    let Some(ref client_command_handler) = *client_command_lock else {
+    let Some(ref client_command_handler) = *CLIENT_COMMAND_HANDLER.load() else {
         return Some(cmd.as_ref().into());
     };
 
@@ -104,10 +101,7 @@ where
         return Some(cmd.as_ref().into());
     }
 
-    let Some(server_command_lock) = SERVER_COMMAND_HANDLER.try_read() else {
-        return Some(cmd.as_ref().into());
-    };
-    let Some(ref server_command_handler) = *server_command_lock else {
+    let Some(ref server_command_handler) = *SERVER_COMMAND_HANDLER.load() else {
         return Some(cmd.as_ref().into());
     };
 
@@ -140,11 +134,7 @@ pub(crate) fn frame_dispatcher() {
         return;
     }
 
-    let Some(frame_handler_lock) = FRAME_HANDLER.try_read() else {
-        return;
-    };
-
-    let Some(ref frame_handler) = *frame_handler_lock else {
+    let Some(ref frame_handler) = *FRAME_HANDLER.load() else {
         return;
     };
 
@@ -162,11 +152,7 @@ pub(crate) fn client_connect_dispatcher(client_id: i32, is_bot: bool) -> Option<
         return None;
     }
 
-    let Some(client_connect_lock) = PLAYER_CONNECT_HANDLER.try_read() else {
-        return None;
-    };
-
-    let Some(ref client_connect_handler) = *client_connect_lock else {
+    let Some(ref client_connect_handler) = *PLAYER_CONNECT_HANDLER.load() else {
         return None;
     };
 
@@ -206,11 +192,7 @@ where
         return;
     }
 
-    let Some(client_disconnect_lock) = PLAYER_DISCONNECT_HANDLER.try_read() else {
-        return;
-    };
-
-    let Some(ref client_disconnect_handler) = *client_disconnect_lock else {
+    let Some(ref client_disconnect_handler) = *PLAYER_DISCONNECT_HANDLER.load() else {
         return;
     };
 
@@ -230,11 +212,7 @@ pub(crate) fn client_loaded_dispatcher(client_id: i32) {
         return;
     }
 
-    let Some(client_loaded_lock) = PLAYER_LOADED_HANDLER.try_read() else {
-        return;
-    };
-
-    let Some(ref client_loaded_handler) = *client_loaded_lock else {
+    let Some(ref client_loaded_handler) = *PLAYER_LOADED_HANDLER.load() else {
         return;
     };
 
@@ -252,11 +230,7 @@ pub(crate) fn new_game_dispatcher(restart: bool) {
         return;
     }
 
-    let Some(new_game_lock) = NEW_GAME_HANDLER.try_read() else {
-        return;
-    };
-
-    let Some(ref new_game_handler) = *new_game_lock else {
+    let Some(ref new_game_handler) = *NEW_GAME_HANDLER.load() else {
         return;
     };
 
@@ -278,11 +252,7 @@ where
         return Some(value.as_ref().into());
     }
 
-    let Some(set_configstring_lock) = SET_CONFIGSTRING_HANDLER.try_read() else {
-        return Some(value.as_ref().into());
-    };
-
-    let Some(ref set_configstring_handler) = *set_configstring_lock else {
+    let Some(ref set_configstring_handler) = *SET_CONFIGSTRING_HANDLER.load() else {
         return Some(value.as_ref().into());
     };
 
@@ -318,11 +288,7 @@ where
         return;
     }
 
-    let Some(rcon_lock) = RCON_HANDLER.try_read() else {
-        return;
-    };
-
-    let Some(ref rcon_handler) = *rcon_lock else {
+    let Some(ref rcon_handler) = *RCON_HANDLER.load() else {
         return;
     };
 
@@ -343,11 +309,7 @@ where
         return Some(text.as_ref().into());
     }
 
-    let Some(console_print_lock) = CONSOLE_PRINT_HANDLER.try_read() else {
-        return Some(text.as_ref().into());
-    };
-
-    let Some(ref console_print_handler) = *console_print_lock else {
+    let Some(ref console_print_handler) = *CONSOLE_PRINT_HANDLER.load() else {
         return Some(text.as_ref().into());
     };
 
@@ -380,11 +342,7 @@ pub(crate) fn client_spawn_dispatcher(client_id: i32) {
         return;
     }
 
-    let Some(client_spawn_lock) = PLAYER_SPAWN_HANDLER.try_read() else {
-        return;
-    };
-
-    let Some(ref client_spawn_handler) = *client_spawn_lock else {
+    let Some(ref client_spawn_handler) = *PLAYER_SPAWN_HANDLER.load() else {
         return;
     };
 
@@ -402,11 +360,7 @@ pub(crate) fn kamikaze_use_dispatcher(client_id: i32) {
         return;
     }
 
-    let Some(kamikaze_use_lock) = KAMIKAZE_USE_HANDLER.try_read() else {
-        return;
-    };
-
-    let Some(ref kamikaze_use_handler) = *kamikaze_use_lock else {
+    let Some(ref kamikaze_use_handler) = *KAMIKAZE_USE_HANDLER.load() else {
         return;
     };
 
@@ -424,11 +378,7 @@ pub(crate) fn kamikaze_explode_dispatcher(client_id: i32, is_used_on_demand: boo
         return;
     }
 
-    let Some(kamikaze_explode_lock) = KAMIKAZE_EXPLODE_HANDLER.try_read() else {
-        return;
-    };
-
-    let Some(ref kamikaze_explode_handler) = *kamikaze_explode_lock else {
+    let Some(ref kamikaze_explode_handler) = *KAMIKAZE_EXPLODE_HANDLER.load() else {
         return;
     };
 
@@ -452,11 +402,7 @@ pub(crate) fn damage_dispatcher(
         return;
     }
 
-    let Some(damage_lock) = DAMAGE_HANDLER.try_read() else {
-        return;
-    };
-
-    let Some(ref damage_handler) = *damage_lock else {
+    let Some(ref damage_handler) = *DAMAGE_HANDLER.load() else {
         return;
     };
 
@@ -983,21 +929,32 @@ fn add_console_command(py: Python<'_>, command: &str) -> PyResult<()> {
     })
 }
 
-static CLIENT_COMMAND_HANDLER: RwLock<Option<Py<PyAny>>> = RwLock::new(None);
-static SERVER_COMMAND_HANDLER: RwLock<Option<Py<PyAny>>> = RwLock::new(None);
-static FRAME_HANDLER: RwLock<Option<Py<PyAny>>> = RwLock::new(None);
-static PLAYER_CONNECT_HANDLER: RwLock<Option<Py<PyAny>>> = RwLock::new(None);
-static PLAYER_LOADED_HANDLER: RwLock<Option<Py<PyAny>>> = RwLock::new(None);
-static PLAYER_DISCONNECT_HANDLER: RwLock<Option<Py<PyAny>>> = RwLock::new(None);
-pub(crate) static CUSTOM_COMMAND_HANDLER: RwLock<Option<Py<PyAny>>> = RwLock::new(None);
-static NEW_GAME_HANDLER: RwLock<Option<Py<PyAny>>> = RwLock::new(None);
-static SET_CONFIGSTRING_HANDLER: RwLock<Option<Py<PyAny>>> = RwLock::new(None);
-static RCON_HANDLER: RwLock<Option<Py<PyAny>>> = RwLock::new(None);
-static CONSOLE_PRINT_HANDLER: RwLock<Option<Py<PyAny>>> = RwLock::new(None);
-static PLAYER_SPAWN_HANDLER: RwLock<Option<Py<PyAny>>> = RwLock::new(None);
-static KAMIKAZE_USE_HANDLER: RwLock<Option<Py<PyAny>>> = RwLock::new(None);
-static KAMIKAZE_EXPLODE_HANDLER: RwLock<Option<Py<PyAny>>> = RwLock::new(None);
-static DAMAGE_HANDLER: RwLock<Option<Py<PyAny>>> = RwLock::new(None);
+static CLIENT_COMMAND_HANDLER: Lazy<SwapArcOption<Py<PyAny>>> =
+    Lazy::new(|| SwapArcOption::new(None));
+static SERVER_COMMAND_HANDLER: Lazy<SwapArcOption<Py<PyAny>>> =
+    Lazy::new(|| SwapArcOption::new(None));
+static FRAME_HANDLER: Lazy<SwapArcOption<Py<PyAny>>> = Lazy::new(|| SwapArcOption::new(None));
+static PLAYER_CONNECT_HANDLER: Lazy<SwapArcOption<Py<PyAny>>> =
+    Lazy::new(|| SwapArcOption::new(None));
+static PLAYER_LOADED_HANDLER: Lazy<SwapArcOption<Py<PyAny>>> =
+    Lazy::new(|| SwapArcOption::new(None));
+static PLAYER_DISCONNECT_HANDLER: Lazy<SwapArcOption<Py<PyAny>>> =
+    Lazy::new(|| SwapArcOption::new(None));
+pub(crate) static CUSTOM_COMMAND_HANDLER: Lazy<SwapArcOption<Py<PyAny>>> =
+    Lazy::new(|| SwapArcOption::new(None));
+static NEW_GAME_HANDLER: Lazy<SwapArcOption<Py<PyAny>>> = Lazy::new(|| SwapArcOption::new(None));
+static SET_CONFIGSTRING_HANDLER: Lazy<SwapArcOption<Py<PyAny>>> =
+    Lazy::new(|| SwapArcOption::new(None));
+static RCON_HANDLER: Lazy<SwapArcOption<Py<PyAny>>> = Lazy::new(|| SwapArcOption::new(None));
+static CONSOLE_PRINT_HANDLER: Lazy<SwapArcOption<Py<PyAny>>> =
+    Lazy::new(|| SwapArcOption::new(None));
+static PLAYER_SPAWN_HANDLER: Lazy<SwapArcOption<Py<PyAny>>> =
+    Lazy::new(|| SwapArcOption::new(None));
+static KAMIKAZE_USE_HANDLER: Lazy<SwapArcOption<Py<PyAny>>> =
+    Lazy::new(|| SwapArcOption::new(None));
+static KAMIKAZE_EXPLODE_HANDLER: Lazy<SwapArcOption<Py<PyAny>>> =
+    Lazy::new(|| SwapArcOption::new(None));
+static DAMAGE_HANDLER: Lazy<SwapArcOption<Py<PyAny>>> = Lazy::new(|| SwapArcOption::new(None));
 
 /// Register an event handler. Can be called more than once per event, but only the last one will work.
 #[pyfunction]
@@ -1031,9 +988,7 @@ fn register_handler(py: Python<'_>, event: &str, handler: Option<Py<PyAny>>) -> 
     };
 
     py.allow_threads(move || {
-        let mut guard = handler_lock.write();
-        *guard = handler;
-
+        handler_lock.store(handler.map(|handler_func| handler_func.into()));
         Ok(())
     })
 }
@@ -2939,10 +2894,7 @@ pub(crate) fn pyminqlx_reload() -> Result<(), PythonInitializationError> {
         &DAMAGE_HANDLER,
     ]
     .into_iter()
-    .for_each(|handler_lock| {
-        let mut guard = handler_lock.write();
-        *guard = None;
-    });
+    .for_each(|handler_lock| handler_lock.store(None));
 
     match Python::with_gil(|py| {
         let importlib_module = py.import("importlib")?;
