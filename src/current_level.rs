@@ -1,20 +1,11 @@
-#[cfg(test)]
-use crate::current_level::mock_hooks::shinqlx_set_configstring;
 use crate::game_entity::GameEntity;
+#[cfg(test)]
+use crate::hooks::mock_hooks::shinqlx_set_configstring;
 #[cfg(not(test))]
 use crate::hooks::shinqlx_set_configstring;
 use crate::prelude::*;
 use crate::MAIN_ENGINE;
 use core::ffi::c_char;
-#[cfg(test)]
-use mockall::automock;
-
-#[cfg(test)]
-#[automock]
-#[allow(dead_code)]
-mod hooks {
-    pub(crate) fn shinqlx_set_configstring(_index: u32, _value: String) {}
-}
 
 #[derive(Debug, PartialEq)]
 #[repr(transparent)]
@@ -109,8 +100,8 @@ impl CurrentLevel {
 
 #[cfg(test)]
 mod current_level_tests {
-    use crate::current_level::mock_hooks::*;
     use crate::current_level::CurrentLevel;
+    use crate::hooks::mock_hooks::*;
     use crate::prelude::*;
     use crate::quake_live_functions::QuakeLiveFunction::G_InitGame;
     use crate::MAIN_ENGINE;

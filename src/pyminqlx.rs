@@ -4,22 +4,20 @@ use alloc::vec::Vec;
 use alloc::{format, vec};
 
 use crate::commands::cmd_py_command;
+#[cfg(test)]
+use crate::hooks::mock_hooks::{
+    shinqlx_client_spawn, shinqlx_drop_client, shinqlx_execute_client_command,
+    shinqlx_send_server_command,
+};
 #[cfg(not(test))]
 use crate::hooks::{
     shinqlx_client_spawn, shinqlx_drop_client, shinqlx_execute_client_command,
     shinqlx_send_server_command,
 };
 use crate::hooks::{shinqlx_com_printf, shinqlx_set_configstring};
-#[cfg(test)]
-use crate::pyminqlx::mock_hooks::{
-    shinqlx_client_spawn, shinqlx_drop_client, shinqlx_execute_client_command,
-    shinqlx_send_server_command,
-};
 use crate::MAIN_ENGINE;
 use core::sync::atomic::AtomicI32;
 use core::sync::atomic::{AtomicBool, Ordering};
-#[cfg(test)]
-use mockall::automock;
 use once_cell::sync::Lazy;
 use swap_arc::SwapArcOption;
 
@@ -35,24 +33,6 @@ use pyo3::exceptions::{PyEnvironmentError, PyTypeError, PyValueError};
 use pyo3::prelude::*;
 use pyo3::prepare_freethreaded_python;
 use pyo3::types::PyTuple;
-
-#[cfg(test)]
-#[automock]
-#[allow(dead_code)]
-mod hooks {
-    use super::Client;
-    use super::GameEntity;
-
-    pub(crate) fn shinqlx_execute_client_command(
-        _client: Option<Client>,
-        _cmd: String,
-        _client_ok: bool,
-    ) {
-    }
-    pub(crate) fn shinqlx_send_server_command(_client: Option<Client>, _cmd: String) {}
-    pub(crate) fn shinqlx_drop_client(_client: &mut Client, _reason: String) {}
-    pub(crate) fn shinqlx_client_spawn(_game_entity: GameEntity) {}
-}
 
 static ALLOW_FREE_CLIENT: AtomicI32 = AtomicI32::new(-1);
 
@@ -2915,7 +2895,7 @@ pub(crate) fn pyminqlx_reload() -> Result<(), PythonInitializationError> {
 }
 
 #[cfg(test)]
-#[automock]
+#[cfg_attr(test, mockall::automock)]
 #[allow(dead_code)]
 pub(crate) mod python {
     use crate::pyminqlx::PythonInitializationError;
