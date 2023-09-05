@@ -63,7 +63,8 @@ target-version = "py39"
 max-complexity = 10
 
 [tool.mypy]
-packages = ["python/minqlx"]
+mypy_path = "$MYPY_CONFIG_FILE_DIR/python"
+packages = ["minqlx", "shinqlx"]
 check_untyped_defs = true
 ignore_missing_imports = true
 no_implicit_optional = true
