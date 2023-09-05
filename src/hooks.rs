@@ -17,8 +17,6 @@ use crate::pyminqlx::{
 };
 #[cfg(test)]
 use crate::quake_live_engine::MockQuakeEngine as QuakeLiveEngine;
-#[cfg(not(test))]
-use crate::quake_live_engine::QuakeLiveEngine;
 use crate::quake_live_engine::{
     AddCommand, ClientConnect, ClientEnterWorld, ClientSpawn, ComPrintf, ExecuteClientCommand,
     InitGame, RegisterDamage, RunFrame, SendServerCommand, SetConfigstring, SetModuleOffset,
