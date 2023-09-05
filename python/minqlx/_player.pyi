@@ -1,7 +1,13 @@
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from typing import Iterable, TypedDict, NotRequired
+    import sys
+
+    if sys.version_info >= (3, 11):
+        from typing import NotRequired
+    else:
+        from typing_extensions import NotRequired
+    from typing import Iterable, TypedDict
     from minqlx import (
         PlayerInfo,
         PlayerState,
