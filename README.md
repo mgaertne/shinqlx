@@ -89,3 +89,29 @@ exec $basepath/run_server_shinqlx.sh \
 ```
 
 `run_server.sh 0` will start a server on port 27960, `run_server.sh 1` on port 27961, and so on.
+
+# Supervisor configuration
+I recommend running your ShiNQlx server through a process monitor like `supervisor`. Unfortunately, due to the nature Rust handles crashes with its own panic system, some crashes may not result in the server exiting properly for the supervisor daemon to proper restart your server. Until I can come up with a proper way to solve this, I recommend to add an event listener configuration to your supervisor configuration to automatically check whether your server port is still reachable, and restart the server automatically if it's not.
+
+The [`supervisor_checks` package](https://github.com/vovanec/supervisor_checks) provides the main means for this. However, you will have to install the package to your OS pip environment, like so:
+```shell
+sudo pip3 install --break-system-packages supervisor supervisor_checks
+```
+
+After installation, you can configure your server in the supervisor configuration. Here is an example `/etc/supervisor/conf.d/quakelive.conf`, running two servers on the same host, and the supervisor_checks checking every 60 seconds for connectivity to the respective port (27960 and 27961) and restarting the server in case it stopped responding to TCP connection attempts on the server port:
+```ini
+[program:quakelive]
+command=/home/steam/bin/run_server.sh %(process_num)s
+user=steam
+process_name=qzeroded_%(process_num)s
+numprocs=2
+autorestart=true
+
+[eventlistener:ql_heartbeat_0]
+command=/usr/local/bin/supervisor_tcp_check -N "quakelive:qzeroded_0" -n ql_heartbat_0 -r 1 -p 27960
+events=TICK_60
+
+[eventlistener:ql_heartbeat_1]
+command=/usr/local/bin/supervisor_tcp_check -N "quakelive:qzeroded_1" -n ql_heartbat_1 -r 1 -p 27961
+events=TICK_60
+```
