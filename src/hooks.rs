@@ -232,21 +232,15 @@ pub(crate) fn shinqlx_sv_cliententerworld(client: *mut client_t, cmd: *mut userc
         return;
     };
 
+    shinqlx_sv_cliententerworld_intern(safe_client, cmd);
+}
+
+#[cfg_attr(not(test), inline)]
+fn shinqlx_sv_cliententerworld_intern(mut safe_client: Client, cmd: *mut usercmd_t) {
     let Some(ref main_engine) = *MAIN_ENGINE.load() else {
         return;
     };
 
-    shinqlx_sv_cliententerworld_intern(main_engine.deref(), safe_client, cmd);
-}
-
-#[cfg_attr(not(test), inline)]
-fn shinqlx_sv_cliententerworld_intern<T>(
-    main_engine: &T,
-    mut safe_client: Client,
-    cmd: *mut usercmd_t,
-) where
-    T: for<'a> ClientEnterWorld<&'a mut Client>,
-{
     let state = safe_client.get_state();
 
     main_engine.client_enter_world(&mut safe_client, cmd);
@@ -282,19 +276,6 @@ where
         return;
     };
 
-    #[allow(clippy::unnecessary_to_owned)]
-    shinqlx_set_configstring_intern(
-        main_engine.deref(),
-        index.into(),
-        value.as_ref().to_string(),
-    );
-}
-
-#[cfg_attr(not(test), inline)]
-fn shinqlx_set_configstring_intern<T>(main_engine: &T, index: u32, value: String)
-where
-    T: SetConfigstring<c_int, String>,
-{
     let Ok(c_index) = index.try_into() else {
         return;
     };
@@ -304,11 +285,13 @@ where
     // use for those particular ones anyway. If we don't do this, we get
     // like a 25% increase in CPU usage on an empty server.
     if c_index == 16 || (662..670).contains(&c_index) {
-        main_engine.set_configstring(c_index, value);
+        #[allow(clippy::unnecessary_to_owned)]
+        main_engine.set_configstring(c_index, value.as_ref().to_string());
         return;
     }
 
-    let Some(res) = set_configstring_dispatcher(index, value) else {
+    #[allow(clippy::unnecessary_to_owned)]
+    let Some(res) = set_configstring_dispatcher(index.into(), value.as_ref().to_string()) else {
         return;
     };
     main_engine.set_configstring(c_index, res);
@@ -369,19 +352,13 @@ where
         return;
     };
 
-    shinqlx_com_printf_intern(main_engine.deref(), msg.as_ref().to_string());
-}
-
-#[cfg_attr(not(test), inline)]
-fn shinqlx_com_printf_intern<T>(main_engine: &T, msg: String)
-where
-    T: ComPrintf<String>,
-{
-    let Some(_res) = console_print_dispatcher(msg.clone()) else {
+    #[allow(clippy::unnecessary_to_owned)]
+    let Some(_res) = console_print_dispatcher(msg.as_ref().to_string()) else {
         return;
     };
 
-    main_engine.com_printf(msg);
+    #[allow(clippy::unnecessary_to_owned)]
+    main_engine.com_printf(msg.as_ref().to_string());
 }
 
 pub(crate) fn shinqlx_sv_spawnserver(server: *const c_char, kill_bots: qboolean) {
@@ -667,12 +644,11 @@ mod hooks_tests {
     use crate::game_client::MockGameClient;
     use crate::game_entity::MockGameEntity;
     use crate::hooks::{
-        shinqlx_client_connect_intern, shinqlx_client_spawn_intern, shinqlx_com_printf_intern,
+        shinqlx_client_connect_intern, shinqlx_client_spawn_intern, shinqlx_com_printf,
         shinqlx_drop_client, shinqlx_execute_client_command, shinqlx_g_damage_intern,
         shinqlx_g_initgame, shinqlx_g_runframe_intern, shinqlx_g_shutdowngame,
-        shinqlx_send_server_command, shinqlx_set_configstring_intern,
-        shinqlx_sv_cliententerworld_intern, shinqlx_sv_spawnserver_intern,
-        shinqlx_sys_setmoduleoffset,
+        shinqlx_send_server_command, shinqlx_set_configstring, shinqlx_sv_cliententerworld_intern,
+        shinqlx_sv_spawnserver_intern, shinqlx_sys_setmoduleoffset,
     };
     use crate::hooks::{shinqlx_cmd_addcommand, shinqlx_g_startkamikaze};
     use crate::prelude::*;
@@ -1132,30 +1108,33 @@ mod hooks_tests {
 
     #[test]
     #[serial]
+    fn client_enter_world_with_no_main_engine() {
+        MAIN_ENGINE.store(None);
+
+        let mock_client = MockClient::new();
+        let mut usercmd = UserCmdBuilder::default().build().unwrap();
+
+        shinqlx_sv_cliententerworld_intern(mock_client, &mut usercmd as *mut usercmd_t);
+    }
+
+    #[test]
+    #[serial]
     fn client_enter_world_for_unprimed_client() {
         let mut mock_client = MockClient::new();
         mock_client
             .expect_get_state()
-            .return_const_st(clientState_t::CS_ZOMBIE)
+            .return_const(clientState_t::CS_ZOMBIE)
             .times(1);
-        mock_client
-            .expect_has_gentity()
-            .return_const_st(true)
-            .times(1);
+        mock_client.expect_has_gentity().return_const(true).times(1);
         let mut usercmd = UserCmdBuilder::default().build().unwrap();
         let mut mock_engine = MockQuakeEngine::new();
-        mock_engine
-            .expect_client_enter_world()
-            .return_const_st(())
-            .times(1);
+        mock_engine.expect_client_enter_world().times(1);
+        MAIN_ENGINE.store(Some(mock_engine.into()));
+
         let client_loaded_ctx = client_loaded_dispatcher_context();
         client_loaded_ctx.expect().times(0);
 
-        shinqlx_sv_cliententerworld_intern(
-            &mock_engine,
-            mock_client,
-            &mut usercmd as *mut usercmd_t,
-        );
+        shinqlx_sv_cliententerworld_intern(mock_client, &mut usercmd as *mut usercmd_t);
     }
 
     #[test]
@@ -1164,26 +1143,21 @@ mod hooks_tests {
         let mut mock_client = MockClient::new();
         mock_client
             .expect_get_state()
-            .return_const_st(clientState_t::CS_PRIMED)
+            .return_const(clientState_t::CS_PRIMED)
             .times(1);
         mock_client
             .expect_has_gentity()
-            .return_const_st(false)
+            .return_const(false)
             .times(1);
         let mut usercmd = UserCmdBuilder::default().build().unwrap();
         let mut mock_engine = MockQuakeEngine::new();
-        mock_engine
-            .expect_client_enter_world()
-            .return_const_st(())
-            .times(1);
+        mock_engine.expect_client_enter_world().times(1);
+        MAIN_ENGINE.store(Some(mock_engine.into()));
+
         let client_loaded_ctx = client_loaded_dispatcher_context();
         client_loaded_ctx.expect().times(0);
 
-        shinqlx_sv_cliententerworld_intern(
-            &mock_engine,
-            mock_client,
-            &mut usercmd as *mut usercmd_t,
-        );
+        shinqlx_sv_cliententerworld_intern(mock_client, &mut usercmd as *mut usercmd_t);
     }
 
     #[test]
@@ -1194,32 +1168,28 @@ mod hooks_tests {
             .expect_get_state()
             .return_const_st(clientState_t::CS_PRIMED)
             .times(1);
-        mock_client
-            .expect_has_gentity()
-            .return_const_st(true)
-            .times(1);
-        mock_client
-            .expect_get_client_id()
-            .return_const_st(42)
-            .times(1);
+        mock_client.expect_has_gentity().return_const(true).times(1);
+        mock_client.expect_get_client_id().return_const(42).times(1);
         let mut usercmd = UserCmdBuilder::default().build().unwrap();
         let mut mock_engine = MockQuakeEngine::new();
-        mock_engine
-            .expect_client_enter_world()
-            .return_const_st(())
-            .times(1);
+        mock_engine.expect_client_enter_world().times(1);
+        MAIN_ENGINE.store(Some(mock_engine.into()));
+
         let client_loaded_ctx = client_loaded_dispatcher_context();
         client_loaded_ctx
             .expect()
-            .withf_st(|&client_id| client_id == 42)
-            .return_const_st(())
+            .withf(|&client_id| client_id == 42)
+            .return_const(())
             .times(1);
 
-        shinqlx_sv_cliententerworld_intern(
-            &mock_engine,
-            mock_client,
-            &mut usercmd as *mut usercmd_t,
-        );
+        shinqlx_sv_cliententerworld_intern(mock_client, &mut usercmd as *mut usercmd_t);
+    }
+
+    #[test]
+    #[serial]
+    fn set_configstring_with_no_main_engine() {
+        MAIN_ENGINE.store(None);
+        shinqlx_set_configstring(42u32, "some value");
     }
 
     #[rstest]
@@ -1237,16 +1207,16 @@ mod hooks_tests {
         let mut mock_engine = MockQuakeEngine::new();
         mock_engine
             .expect_set_configstring()
-            .withf_st(move |&index, value| {
+            .withf(move |&index, value| {
                 index == test_index.try_into().unwrap() && value == "some value"
             })
-            .return_const_st(())
             .times(1);
+        MAIN_ENGINE.store(Some(mock_engine.into()));
 
         let set_configstring_dispatcher_ctx = set_configstring_dispatcher_context();
         set_configstring_dispatcher_ctx.expect().times(0);
 
-        shinqlx_set_configstring_intern(&mock_engine, test_index, "some value".into());
+        shinqlx_set_configstring(test_index, "some value");
     }
 
     #[test]
@@ -1254,15 +1224,15 @@ mod hooks_tests {
     fn set_confgistring_dispatcher_returns_none() {
         let mut mock_engine = MockQuakeEngine::new();
         mock_engine.expect_set_configstring().times(0);
+        MAIN_ENGINE.store(Some(mock_engine.into()));
 
         let set_configstring_dispatcher_ctx = set_configstring_dispatcher_context();
         set_configstring_dispatcher_ctx
             .expect()
-            .withf_st(|&index, value| index == 42 && value == "some value")
-            .return_const_st(None)
+            .withf(|&index, value| index == 42 && value == "some value")
             .times(1);
 
-        shinqlx_set_configstring_intern(&mock_engine, 42, "some value".into());
+        shinqlx_set_configstring(42u32, "some value");
     }
 
     #[test]
@@ -1271,18 +1241,18 @@ mod hooks_tests {
         let mut mock_engine = MockQuakeEngine::new();
         mock_engine
             .expect_set_configstring()
-            .withf_st(move |&index, value| index == 42 && value == "other value")
-            .return_const_st(())
+            .withf(move |&index, value| index == 42 && value == "other value")
             .times(1);
+        MAIN_ENGINE.store(Some(mock_engine.into()));
 
         let set_configstring_dispatcher_ctx = set_configstring_dispatcher_context();
         set_configstring_dispatcher_ctx
             .expect()
-            .withf_st(|&index, value| index == 42 && value == "some value")
-            .return_const_st(Some("other value".into()))
+            .withf(|&index, value| index == 42 && value == "some value")
+            .return_const(Some("other value".into()))
             .times(1);
 
-        shinqlx_set_configstring_intern(&mock_engine, 42, "some value".into());
+        shinqlx_set_configstring(42u32, "some value");
     }
 
     #[test]
@@ -1291,18 +1261,18 @@ mod hooks_tests {
         let mut mock_engine = MockQuakeEngine::new();
         mock_engine
             .expect_set_configstring()
-            .withf_st(move |&index, value| index == 42 && value == "some value")
-            .return_const_st(())
+            .withf(|&index, value| index == 42 && value == "some value")
             .times(1);
+        MAIN_ENGINE.store(Some(mock_engine.into()));
 
         let set_configstring_dispatcher_ctx = set_configstring_dispatcher_context();
         set_configstring_dispatcher_ctx
             .expect()
-            .withf_st(|&index, value| index == 42 && value == "some value")
-            .return_const_st(Some("some value".into()))
+            .withf(|&index, value| index == 42 && value == "some value")
+            .return_const(Some("some value".into()))
             .times(1);
 
-        shinqlx_set_configstring_intern(&mock_engine, 42, "some value".into());
+        shinqlx_set_configstring(42u32, "some value");
     }
 
     #[test]
@@ -1328,17 +1298,25 @@ mod hooks_tests {
 
     #[test]
     #[serial]
+    fn com_printf_with_no_main_engine() {
+        MAIN_ENGINE.store(None);
+        shinqlx_com_printf("Hello world!");
+    }
+
+    #[test]
+    #[serial]
     fn com_printf_when_dispatcher_returns_none() {
         let mut mock_engine = MockQuakeEngine::new();
         mock_engine.expect_com_printf().times(0);
+        MAIN_ENGINE.store(Some(mock_engine.into()));
+
         let mock_console_print_dispatcher_ctx = console_print_dispatcher_context();
         mock_console_print_dispatcher_ctx
             .expect()
-            .withf_st(|msg| msg == "Hello World!")
-            .return_const_st(None)
+            .withf(|msg| msg == "Hello World!")
             .times(1);
 
-        shinqlx_com_printf_intern(&mock_engine, "Hello World!".into());
+        shinqlx_com_printf("Hello World!");
     }
 
     #[test]
@@ -1347,17 +1325,18 @@ mod hooks_tests {
         let mut mock_engine = MockQuakeEngine::new();
         mock_engine
             .expect_com_printf()
-            .withf_st(|msg| msg == "Hello World!")
-            .return_const_st(())
+            .withf(|msg| msg == "Hello World!")
             .times(1);
+        MAIN_ENGINE.store(Some(mock_engine.into()));
+
         let mock_console_print_dispatcher_ctx = console_print_dispatcher_context();
         mock_console_print_dispatcher_ctx
             .expect()
-            .withf_st(|msg| msg == "Hello World!")
-            .return_const_st(Some("Hello you!".into()))
+            .withf(|msg| msg == "Hello World!")
+            .return_const(Some("Hello you!".into()))
             .times(1);
 
-        shinqlx_com_printf_intern(&mock_engine, "Hello World!".into());
+        shinqlx_com_printf("Hello World!");
     }
 
     #[test]
