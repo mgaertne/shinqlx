@@ -191,24 +191,16 @@ pub unsafe extern "C" fn ShiNQlx_SV_SendServerCommand(
 
 pub(crate) fn shinqlx_send_server_command<T>(client: Option<Client>, cmd: T)
 where
-    T: Into<String>,
+    T: AsRef<str> + Into<String>,
 {
     let Some(ref main_engine) = *MAIN_ENGINE.load() else {
         return;
     };
 
-    shinqlx_send_server_command_intern(main_engine.deref(), client, cmd.into());
-}
-
-#[cfg_attr(not(test), inline)]
-fn shinqlx_send_server_command_intern<T>(main_engine: &T, client: Option<Client>, cmd: String)
-where
-    T: SendServerCommand<Client, String>,
-{
-    if cmd.is_empty() {
+    if cmd.as_ref().is_empty() {
         return;
     }
-    let mut passed_on_cmd_str = cmd;
+    let mut passed_on_cmd_str = cmd.into();
 
     match client.as_ref() {
         Some(safe_client) => {
@@ -678,7 +670,7 @@ mod hooks_tests {
         shinqlx_client_connect_intern, shinqlx_client_spawn_intern, shinqlx_com_printf_intern,
         shinqlx_drop_client, shinqlx_execute_client_command, shinqlx_g_damage_intern,
         shinqlx_g_initgame, shinqlx_g_runframe_intern, shinqlx_g_shutdowngame,
-        shinqlx_send_server_command_intern, shinqlx_set_configstring_intern,
+        shinqlx_send_server_command, shinqlx_set_configstring_intern,
         shinqlx_sv_cliententerworld_intern, shinqlx_sv_spawnserver_intern,
         shinqlx_sys_setmoduleoffset,
     };
@@ -1014,17 +1006,26 @@ mod hooks_tests {
 
     #[test]
     #[serial]
+    fn send_server_command_with_no_main_engine() {
+        MAIN_ENGINE.store(None);
+        shinqlx_send_server_command(None, "cp asdf");
+    }
+
+    #[test]
+    #[serial]
     fn send_server_command_for_none_client_non_empty_cmd_dispatcher_returns_none() {
         let mut mock_engine = MockQuakeEngine::new();
         mock_engine.expect_send_server_command().times(0);
+        MAIN_ENGINE.store(Some(mock_engine.into()));
+
         let client_command_ctx = server_command_dispatcher_context();
         client_command_ctx
             .expect()
-            .withf_st(|&client_id, cmd| client_id.is_none() && cmd == "cp asdf")
-            .return_const_st(None)
+            .withf(|&client_id, cmd| client_id.is_none() && cmd == "cp asdf")
+            .return_const(None)
             .times(1);
 
-        shinqlx_send_server_command_intern(&mock_engine, None, "cp asdf".into());
+        shinqlx_send_server_command(None, "cp asdf");
     }
 
     #[test]
@@ -1033,34 +1034,35 @@ mod hooks_tests {
         let mut mock_engine = MockQuakeEngine::new();
         mock_engine
             .expect_send_server_command()
-            .withf_st(|client, cmd| client.is_none() && cmd == "cp modified")
-            .return_const_st(())
+            .withf(|client, cmd| client.is_none() && cmd == "cp modified")
             .times(1);
         let client_command_ctx = server_command_dispatcher_context();
         client_command_ctx
             .expect()
-            .withf_st(|&client_id, cmd| client_id.is_none() && cmd == "cp asdf")
-            .return_const_st(Some("cp modified".into()))
+            .withf(|&client_id, cmd| client_id.is_none() && cmd == "cp asdf")
+            .return_const(Some("cp modified".into()))
             .times(1);
+        MAIN_ENGINE.store(Some(mock_engine.into()));
 
-        shinqlx_send_server_command_intern(&mock_engine, None, "cp asdf".into());
+        shinqlx_send_server_command(None, "cp asdf");
     }
 
     #[test]
+    #[serial]
     fn send_server_command_for_client_without_gentity_non_empty_cmd() {
         let mut mock_engine = MockQuakeEngine::new();
         mock_engine
             .expect_send_server_command()
-            .withf_st(|client, cmd| client.is_some() && cmd == "cp asdf")
-            .return_const_st(())
+            .withf(|client, cmd| client.is_some() && cmd == "cp asdf")
             .times(1);
         let mut mock_client = MockClient::new();
         mock_client
             .expect_has_gentity()
-            .return_const_st(false)
+            .return_const(false)
             .times(1);
+        MAIN_ENGINE.store(Some(mock_engine.into()));
 
-        shinqlx_send_server_command_intern(&mock_engine, Some(mock_client), "cp asdf".into());
+        shinqlx_send_server_command(Some(mock_client), "cp asdf");
     }
 
     #[test]
@@ -1069,22 +1071,18 @@ mod hooks_tests {
         let mut mock_engine = MockQuakeEngine::new();
         mock_engine.expect_send_server_command().times(0);
         let mut mock_client = MockClient::new();
-        mock_client
-            .expect_has_gentity()
-            .return_const_st(true)
-            .times(1);
-        mock_client
-            .expect_get_client_id()
-            .return_const_st(42)
-            .times(1);
+        mock_client.expect_has_gentity().return_const(true).times(1);
+        mock_client.expect_get_client_id().return_const(42).times(1);
+        MAIN_ENGINE.store(Some(mock_engine.into()));
+
         let client_command_ctx = server_command_dispatcher_context();
         client_command_ctx
             .expect()
-            .withf_st(|&client_id, cmd| client_id == Some(42) && cmd == "cp asdf")
-            .return_const_st(None)
+            .withf(|&client_id, cmd| client_id == Some(42) && cmd == "cp asdf")
+            .return_const(None)
             .times(1);
 
-        shinqlx_send_server_command_intern(&mock_engine, Some(mock_client), "cp asdf".into());
+        shinqlx_send_server_command(Some(mock_client), "cp asdf");
     }
 
     #[test]
@@ -1094,27 +1092,22 @@ mod hooks_tests {
         let mut mock_engine = MockQuakeEngine::new();
         mock_engine
             .expect_send_server_command()
-            .withf_st(|client, cmd| client.is_some() && cmd == "cp modified")
-            .return_const_st(())
+            .withf(|client, cmd| client.is_some() && cmd == "cp modified")
             .times(1);
 
         let mut mock_client = MockClient::new();
-        mock_client
-            .expect_has_gentity()
-            .return_const_st(true)
-            .times(1);
-        mock_client
-            .expect_get_client_id()
-            .return_const_st(42)
-            .times(1);
+        mock_client.expect_has_gentity().return_const(true).times(1);
+        mock_client.expect_get_client_id().return_const(42).times(1);
+        MAIN_ENGINE.store(Some(mock_engine.into()));
+
         let client_command_ctx = server_command_dispatcher_context();
         client_command_ctx
             .expect()
-            .withf_st(|&client_id, cmd| client_id == Some(42) && cmd == "cp asdf")
-            .return_const_st(Some("cp modified".into()))
+            .withf(|&client_id, cmd| client_id == Some(42) && cmd == "cp asdf")
+            .return_const(Some("cp modified".into()))
             .times(1);
 
-        shinqlx_send_server_command_intern(&mock_engine, Some(mock_client), "cp asdf".into());
+        shinqlx_send_server_command(Some(mock_client), "cp asdf");
     }
 
     #[test]
@@ -1122,24 +1115,19 @@ mod hooks_tests {
     fn send_server_command_for_client_with_gentity_non_empty_cmd_dispatcher_returns_empty_string() {
         let mut mock_engine = MockQuakeEngine::new();
         mock_engine.expect_send_server_command().times(0);
+        MAIN_ENGINE.store(Some(mock_engine.into()));
 
         let mut mock_client = MockClient::new();
-        mock_client
-            .expect_has_gentity()
-            .return_const_st(true)
-            .times(1);
-        mock_client
-            .expect_get_client_id()
-            .return_const_st(42)
-            .times(1);
+        mock_client.expect_has_gentity().return_const(true).times(1);
+        mock_client.expect_get_client_id().return_const(42).times(1);
         let client_command_ctx = server_command_dispatcher_context();
         client_command_ctx
             .expect()
-            .withf_st(|&client_id, cmd| client_id == Some(42) && cmd == "cp asdf")
-            .return_const_st(Some("".into()))
+            .withf(|&client_id, cmd| client_id == Some(42) && cmd == "cp asdf")
+            .return_const(Some("".into()))
             .times(1);
 
-        shinqlx_send_server_command_intern(&mock_engine, Some(mock_client), "cp asdf".into());
+        shinqlx_send_server_command(Some(mock_client), "cp asdf");
     }
 
     #[test]
