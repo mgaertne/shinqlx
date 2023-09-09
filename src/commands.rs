@@ -101,7 +101,7 @@ pub extern "C" fn cmd_slap() {
         return;
     };
 
-    if client_id < 0 || client_id >= maxclients.into() {
+    if client_id < 0 || client_id >= maxclients {
         main_engine.com_printf(format!(
             "client_id must be a number between 0 and {}.\n",
             maxclients - 1
@@ -120,11 +120,13 @@ pub extern "C" fn cmd_slap() {
         return;
     };
     if !client_entity.in_use() || client_entity.get_health() <= 0 {
-        main_engine.com_printf("The player is currently not active.\n".into());
+        #[allow(clippy::unnecessary_to_owned)]
+        main_engine.com_printf("The player is currently not active.\n".to_string());
         return;
     }
 
-    main_engine.com_printf("Slapping...\n".into());
+    #[allow(clippy::unnecessary_to_owned)]
+    main_engine.com_printf("Slapping...\n".to_string());
 
     let Ok(client) = Client::try_from(client_id) else {
         return;
