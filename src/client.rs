@@ -362,7 +362,7 @@ mod client_tests {
         let mut mock_engine = MockQuakeEngine::new();
         mock_engine.expect_sv_dropclient_detour().returning(|| {
             let Some(detour) = SV_DROPCLIENT_DETOUR.get() else {
-                panic!("this should never happen!");
+                return Err(QuakeLiveEngineError::MainEngineNotInitialized);
             };
 
             Ok(detour)
