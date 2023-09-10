@@ -162,7 +162,12 @@ mod client_tests {
     use crate::quake_live_functions::QuakeLiveFunction;
     use crate::server_static::MockTestServerStatic;
     use core::ffi::c_char;
+    use mockall::mock;
+    use once_cell::sync::Lazy;
     use pretty_assertions::assert_eq;
+    use retour::GenericDetour;
+    use std::ffi::CStr;
+    use std::ops::Deref;
 
     #[test]
     fn client_try_from_null_results_in_error() {
@@ -299,9 +304,7 @@ mod client_tests {
     #[test]
     #[serial]
     fn client_disconnect_with_no_main_engine() {
-        {
-            MAIN_ENGINE.store(None);
-        }
+        MAIN_ENGINE.store(None);
 
         let mut client = ClientBuilder::default().build().unwrap();
         let mut rust_client = Client::try_from(&mut client as *mut client_t).unwrap();
@@ -321,6 +324,47 @@ mod client_tests {
         MAIN_ENGINE.store(Some(mock_engine.into()));
 
         let mut client = ClientBuilder::default().build().unwrap();
+        let mut rust_client = Client::try_from(&mut client as *mut client_t).unwrap();
+        rust_client.disconnect("disconnected");
+    }
+
+    mock! {
+       SV_DropcClient {
+            fn original_func(_client: *mut client_t, _reason: *const c_char);
+            fn replacement_func(_client: *mut client_t, _reason: *const c_char);
+        }
+    }
+    static SV_DROPCLIENT_DETOUR: Lazy<
+        Result<GenericDetour<fn(*mut client_t, *const c_char)>, retour::Error>,
+    > = Lazy::new(|| unsafe {
+        GenericDetour::<fn(*mut client_t, *const c_char)>::new(
+            MockSV_DropcClient::original_func,
+            MockSV_DropcClient::replacement_func,
+        )
+    });
+
+    #[test]
+    #[serial]
+    fn client_disconnect_with_valid_detour() {
+        let mut client = ClientBuilder::default().build().unwrap();
+
+        let dropclient_original_ctx = MockSV_DropcClient::original_func_context();
+        dropclient_original_ctx
+            .expect()
+            .withf(
+                |_, &reason| unsafe { CStr::from_ptr(reason).to_string_lossy() } == "disconnected",
+            )
+            .times(1);
+        let mut mock_engine = MockQuakeEngine::new();
+        mock_engine.expect_sv_dropclient_detour().return_once(|| {
+            let Ok(ref detour) = SV_DROPCLIENT_DETOUR.deref() else {
+                panic!("something went wrong");
+            };
+            Ok(detour)
+        });
+
+        MAIN_ENGINE.store(Some(mock_engine.into()));
+
         let mut rust_client = Client::try_from(&mut client as *mut client_t).unwrap();
         rust_client.disconnect("disconnected");
     }
