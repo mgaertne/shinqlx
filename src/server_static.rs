@@ -219,6 +219,7 @@ mod server_static_tests {
         );
     }
     #[test]
+    #[cfg_attr(miri, ignore)]
     fn server_static_determine_client_id_from_invalid_client() {
         let client = ClientBuilder::default().build().unwrap();
         let mut server_static = ServerStaticBuilder::default().build().unwrap();
