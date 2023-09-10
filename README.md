@@ -108,10 +108,10 @@ numprocs=2
 autorestart=true
 
 [eventlistener:ql_heartbeat_0]
-command=/usr/local/bin/supervisor_tcp_check -N "quakelive:qzeroded_0" -n ql_heartbat_0 -r 1 -p 27960
+command=/usr/local/bin/supervisor_tcp_check -N "quakelive:qzeroded_0" -n ql_heartbeat_0 -r 1 -p 27960
 events=TICK_60
 
 [eventlistener:ql_heartbeat_1]
-command=/usr/local/bin/supervisor_tcp_check -N "quakelive:qzeroded_1" -n ql_heartbat_1 -r 1 -p 27961
+command=/usr/local/bin/supervisor_tcp_check -N "quakelive:qzeroded_1" -n ql_heartbeat_1 -r 1 -p 27961
 events=TICK_60
 ```
