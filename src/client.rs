@@ -344,6 +344,7 @@ mod client_tests {
     });
 
     #[test]
+    #[cfg_attr(miri, ignore)]
     #[serial]
     fn client_disconnect_with_valid_detour() {
         let mut client = ClientBuilder::default().build().unwrap();
