@@ -76,6 +76,7 @@ struct StaticFunctions {
     cvar_set2_orig: fn(*const c_char, *const c_char, qboolean) -> *mut cvar_t,
     sv_sendservercommand_orig: extern "C" fn(*mut client_t, *const c_char, ...),
     sv_executeclientcommand_orig: fn(*mut client_t, *const c_char, qboolean),
+    #[cfg_attr(test, allow(dead_code))]
     sv_shutdown_orig: fn(*const c_char),
     sv_map_f_orig: fn(),
     sv_cliententerworld_orig: fn(*mut client_t, *mut usercmd_t),
@@ -95,6 +96,7 @@ struct StaticDetours {
     sv_executeclientcommand_detour: GenericDetour<fn(*mut client_t, *const c_char, qboolean)>,
     sv_cliententerworld_detour: GenericDetour<fn(*mut client_t, *mut usercmd_t)>,
     sv_setconfgistring_detour: GenericDetour<fn(c_int, *const c_char)>,
+    #[cfg_attr(test, allow(dead_code))]
     sv_dropclient_detour: GenericDetour<fn(*mut client_t, *const c_char)>,
     sv_spawnserver_detour: GenericDetour<fn(*const c_char, qboolean)>,
     sv_sendservercommand_detour: RawDetour,
@@ -1916,6 +1918,9 @@ mock! {
             &self,
         ) -> Result<extern "C" fn(*mut gentity_t), QuakeLiveEngineError>;
         pub(crate) fn g_run_frame_orig(&self) -> Result<extern "C" fn(c_int), QuakeLiveEngineError>;
+        #[allow(clippy::type_complexity)]
+        pub(crate) fn sv_dropclient_detour(&self) -> Result<&'static GenericDetour<fn(*mut client_t, *const c_char)>, QuakeLiveEngineError>;
+        pub(crate) fn sv_shutdown_orig(&self) -> Result<fn(*const c_char), QuakeLiveEngineError>;
     }
     impl AddCommand<String> for QuakeEngine {
         fn add_command(&self, cmd: String, func: unsafe extern "C" fn());

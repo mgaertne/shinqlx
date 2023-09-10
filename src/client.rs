@@ -1,11 +1,27 @@
+#[cfg(test)]
+use crate::client::DUMMY_MAIN_ENGINE as MAIN_ENGINE;
 use crate::prelude::*;
+#[cfg(test)]
+use crate::quake_live_engine::MockQuakeEngine as QuakeLiveEngine;
+#[cfg(test)]
+use crate::server_static::MockTestServerStatic as ServerStatic;
+#[cfg(not(test))]
 use crate::server_static::ServerStatic;
+#[cfg(not(test))]
 use crate::MAIN_ENGINE;
 use alloc::ffi::CString;
 use alloc::string::String;
 use core::ffi::{c_char, CStr};
 #[cfg(test)]
 use mockall::mock;
+#[cfg(test)]
+use once_cell::sync::Lazy;
+#[cfg(test)]
+use swap_arc::SwapArcOption;
+
+#[cfg(test)]
+static DUMMY_MAIN_ENGINE: Lazy<SwapArcOption<QuakeLiveEngine>> =
+    Lazy::new(|| SwapArcOption::new(None));
 
 #[derive(Debug, PartialEq)]
 #[repr(transparent)]
@@ -37,24 +53,10 @@ impl TryFrom<i32> for Client {
     type Error = QuakeLiveEngineError;
 
     fn try_from(client_id: i32) -> Result<Self, Self::Error> {
-        if let Ok(max_clients) = i32::try_from(MAX_CLIENTS) {
-            if client_id >= max_clients {
-                return Err(QuakeLiveEngineError::InvalidId(client_id));
-            }
-        }
-
-        if client_id < 0 {
-            return Err(QuakeLiveEngineError::InvalidId(client_id));
-        }
-
         let server_static = ServerStatic::try_get()?;
-        Self::try_from(unsafe {
-            server_static
-                .serverStatic_t
-                .clients
-                .offset(client_id as isize)
-        } as *mut client_t)
-        .map_err(|_| QuakeLiveEngineError::ClientNotFound("client not found".into()))
+        let client = unsafe { server_static.try_get_client_by_id(client_id) }?;
+        Self::try_from(client)
+            .map_err(|_| QuakeLiveEngineError::ClientNotFound("client not found".into()))
     }
 }
 
@@ -75,16 +77,7 @@ impl Client {
         let Ok(server_static) = ServerStatic::try_get() else {
             return -1;
         };
-        self.get_client_id_intern(server_static)
-    }
-
-    #[cfg_attr(not(test), inline)]
-    fn get_client_id_intern(&self, server_static: ServerStatic) -> i32 {
-        unsafe {
-            (self.client_t as *const client_t).offset_from(server_static.serverStatic_t.clients)
-        }
-        .try_into()
-        .unwrap_or(-1)
+        unsafe { server_static.try_determine_client_id(self.client_t) }.unwrap_or(-1)
     }
 
     pub(crate) fn get_state(&self) -> clientState_t {
@@ -162,10 +155,12 @@ mock! {
 
 #[cfg(test)]
 mod client_tests {
-    use crate::client::Client;
+    use super::Client;
+    use super::MAIN_ENGINE;
     use crate::prelude::*;
-    use crate::server_static::ServerStatic;
-    use crate::MAIN_ENGINE;
+    use crate::quake_live_engine::MockQuakeEngine;
+    use crate::quake_live_functions::QuakeLiveFunction;
+    use crate::server_static::MockTestServerStatic;
     use core::ffi::c_char;
     use pretty_assertions::assert_eq;
 
@@ -186,7 +181,17 @@ mod client_tests {
     }
 
     #[test]
+    #[serial]
     fn client_try_from_negative_client_id() {
+        let server_static_try_get_ctx = MockTestServerStatic::try_get_context();
+        server_static_try_get_ctx.expect().return_once(|| {
+            let mut server_static_mock = MockTestServerStatic::new();
+            server_static_mock
+                .expect_try_get_client_by_id()
+                .returning(|id| Err(QuakeLiveEngineError::InvalidId(id)));
+            Ok(server_static_mock)
+        });
+
         assert_eq!(
             Client::try_from(-1),
             Err(QuakeLiveEngineError::InvalidId(-1))
@@ -194,7 +199,17 @@ mod client_tests {
     }
 
     #[test]
+    #[serial]
     fn client_try_from_too_large_client_id() {
+        let server_static_try_get_ctx = MockTestServerStatic::try_get_context();
+        server_static_try_get_ctx.expect().return_once(|| {
+            let mut server_static_mock = MockTestServerStatic::new();
+            server_static_mock
+                .expect_try_get_client_by_id()
+                .returning(|id| Err(QuakeLiveEngineError::InvalidId(id)));
+            Ok(server_static_mock)
+        });
+
         assert_eq!(
             Client::try_from(32384),
             Err(QuakeLiveEngineError::InvalidId(32384))
@@ -202,40 +217,52 @@ mod client_tests {
     }
 
     #[test]
+    #[serial]
     fn client_get_client_id_when_no_serverstatic_found() {
+        let server_static_try_get_ctx = MockTestServerStatic::try_get_context();
+        server_static_try_get_ctx
+            .expect()
+            .return_once(|| Err(QuakeLiveEngineError::MainEngineNotInitialized));
+
         let mut client = ClientBuilder::default().build().unwrap();
         let rust_client = Client::try_from(&mut client as *mut client_t).unwrap();
         assert_eq!(rust_client.get_client_id(), -1);
     }
 
     #[test]
-    fn client_get_client_id_interal_from_server_static() {
+    #[serial]
+    fn client_get_client_id_from_server_static() {
+        let server_static_try_get_ctx = MockTestServerStatic::try_get_context();
+        server_static_try_get_ctx.expect().return_once(|| {
+            let mut server_static_mock = MockTestServerStatic::new();
+            server_static_mock
+                .expect_try_determine_client_id()
+                .return_once(|_| Ok(0));
+            Ok(server_static_mock)
+        });
+
         let mut client = ClientBuilder::default().build().unwrap();
-        let mut server_static = ServerStaticBuilder::default()
-            .clients(&mut client as *mut client_t)
-            .build()
-            .unwrap();
-        let rust_server_static =
-            ServerStatic::try_from(&mut server_static as *mut serverStatic_t).unwrap();
         let rust_client = Client::try_from(&mut client as *mut client_t).unwrap();
-        assert_eq!(rust_client.get_client_id_intern(rust_server_static), 0);
+
+        assert_eq!(rust_client.get_client_id(), 0);
     }
 
     #[test]
-    fn client_get_client_id_interal_from_server_static_not_first_position() {
-        let mut clients = vec![
-            ClientBuilder::default().build().unwrap(),
-            ClientBuilder::default().build().unwrap(),
-            ClientBuilder::default().build().unwrap(),
-        ];
-        let mut server_static = ServerStaticBuilder::default()
-            .clients(&mut clients[0])
-            .build()
-            .unwrap();
-        let rust_server_static =
-            ServerStatic::try_from(&mut server_static as *mut serverStatic_t).unwrap();
-        let rust_client = Client::try_from(&mut clients[2] as *mut client_t).unwrap();
-        assert_eq!(rust_client.get_client_id_intern(rust_server_static), 2);
+    #[serial]
+    fn client_get_client_id_from_server_static_not_first_position() {
+        let server_static_try_get_ctx = MockTestServerStatic::try_get_context();
+        server_static_try_get_ctx.expect().return_once(|| {
+            let mut server_static_mock = MockTestServerStatic::new();
+            server_static_mock
+                .expect_try_determine_client_id()
+                .return_once(|_| Ok(2));
+            Ok(server_static_mock)
+        });
+
+        let mut client = ClientBuilder::default().build().unwrap();
+        let rust_client = Client::try_from(&mut client as *mut client_t).unwrap();
+
+        assert_eq!(rust_client.get_client_id(), 2);
     }
 
     #[test]
@@ -284,17 +311,18 @@ mod client_tests {
     #[test]
     #[serial]
     fn client_disconnect_with_no_detour_setup() {
-        {
-            MAIN_ENGINE.store(Some(QuakeLiveEngine::new().into()));
-        }
+        let mut mock_engine = MockQuakeEngine::new();
+        mock_engine.expect_sv_dropclient_detour().return_once(|| {
+            Err(QuakeLiveEngineError::StaticDetourNotFound(
+                QuakeLiveFunction::SV_DropClient,
+            ))
+        });
+
+        MAIN_ENGINE.store(Some(mock_engine.into()));
 
         let mut client = ClientBuilder::default().build().unwrap();
         let mut rust_client = Client::try_from(&mut client as *mut client_t).unwrap();
         rust_client.disconnect("disconnected");
-
-        {
-            MAIN_ENGINE.store(None);
-        }
     }
 
     #[test]
