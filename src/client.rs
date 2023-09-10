@@ -163,11 +163,10 @@ mod client_tests {
     use crate::server_static::MockTestServerStatic;
     use core::ffi::c_char;
     use mockall::mock;
-    use once_cell::sync::Lazy;
+    use once_cell::sync::OnceCell;
     use pretty_assertions::assert_eq;
     use retour::GenericDetour;
     use std::ffi::CStr;
-    use std::ops::Deref;
 
     #[test]
     fn client_try_from_null_results_in_error() {
@@ -334,33 +333,38 @@ mod client_tests {
             fn replacement_func(_client: *mut client_t, _reason: *const c_char);
         }
     }
-    static SV_DROPCLIENT_DETOUR: Lazy<
-        Result<GenericDetour<fn(*mut client_t, *const c_char)>, retour::Error>,
-    > = Lazy::new(|| unsafe {
-        GenericDetour::<fn(*mut client_t, *const c_char)>::new(
-            MockSV_DropcClient::original_func,
-            MockSV_DropcClient::replacement_func,
-        )
-    });
+
+    #[cfg_attr(test, allow(clippy::type_complexity))]
+    static SV_DROPCLIENT_DETOUR: OnceCell<GenericDetour<fn(*mut client_t, *const c_char)>> =
+        OnceCell::new();
 
     #[test]
     #[cfg_attr(miri, ignore)]
+    #[cfg_attr(tarpaulin, ignore)]
     #[serial]
     fn client_disconnect_with_valid_detour() {
         let mut client = ClientBuilder::default().build().unwrap();
 
-        let dropclient_original_ctx = MockSV_DropcClient::original_func_context();
-        dropclient_original_ctx
-            .expect()
-            .withf(
-                |_, &reason| unsafe { CStr::from_ptr(reason).to_string_lossy() } == "disconnected",
+        let sv_dropclient_detour = unsafe {
+            GenericDetour::<fn(*mut client_t, *const c_char)>::new(
+                MockSV_DropcClient::original_func,
+                MockSV_DropcClient::replacement_func,
             )
-            .times(1);
+            .unwrap()
+        };
+        SV_DROPCLIENT_DETOUR.set(sv_dropclient_detour).unwrap();
+
+        let dropclient_original_ctx = MockSV_DropcClient::original_func_context();
+        dropclient_original_ctx.expect().withf(
+            |_, &reason| unsafe { CStr::from_ptr(reason).to_string_lossy() } == "disconnected",
+        );
+
         let mut mock_engine = MockQuakeEngine::new();
-        mock_engine.expect_sv_dropclient_detour().return_once(|| {
-            let Ok(ref detour) = SV_DROPCLIENT_DETOUR.deref() else {
-                panic!("something went wrong");
+        mock_engine.expect_sv_dropclient_detour().returning(|| {
+            let Some(detour) = SV_DROPCLIENT_DETOUR.get() else {
+                panic!("this should never happen!");
             };
+
             Ok(detour)
         });
 
