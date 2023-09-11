@@ -118,7 +118,7 @@ jobs:
       with:
         toolchain: nightly
         override: true
-        components: "llvm-tools""
+        components: "llvm-tools"
     - name: Run cargo-tarpaulin
       uses: actions-rs/tarpaulin@v0.1
       with:
