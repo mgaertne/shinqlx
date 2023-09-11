@@ -118,11 +118,12 @@ jobs:
       with:
         toolchain: nightly
         override: true
+        components: "llvm-tools""
     - name: Run cargo-tarpaulin
       uses: actions-rs/tarpaulin@v0.1
       with:
-        version: '0.15.0'
-        args: '-l -b --lib --include-tests --engine llvm --implicit-test-threads -- --test-threads 1'
+        version: '0.26.1'
+        args: '-l -b --lib --engine llvm --implicit-test-threads -- --test-threads 1'
     - name: Upload to codecov.io
       uses: codecov/codecov-action@v1.0.2
       with:
