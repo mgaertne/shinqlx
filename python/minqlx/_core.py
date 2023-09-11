@@ -389,7 +389,7 @@ def _thread_init():
 
 
 _thread_name = "minqlxthread"
-_threadpool = multiprocessing.pool.ThreadPool(initializer=_thread_init)
+_threadpool = multiprocessing.pool.ThreadPool(processes=128, initializer=_thread_init)
 
 
 def thread(func, force=False):
