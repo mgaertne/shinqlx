@@ -109,6 +109,10 @@ jobs:
     runs-on: ubuntu-latest
     steps:
     - uses: actions/checkout@v3
+    - name: Set up Python 3.11
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.11'
     - name: Install toolchain
       uses: actions-rs/toolchain@v1
       with:
@@ -116,9 +120,6 @@ jobs:
         override: true
     - name: Run cargo-tarpaulin
       uses: actions-rs/tarpaulin@v0.1
-      with:
-        version: '0.15.0'
-        args: '-l -b --lib -- --test-threads 1'
     - name: Upload to codecov.io
       uses: codecov/codecov-action@v1.0.2
       with:
