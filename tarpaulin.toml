@@ -5,3 +5,7 @@ branch-coverage = true
 no-fail-fast = true
 include-tests = true
 implicit-test-threads = true
+
+[report]
+output-dir = "shinqlx"
+out = ["Xml", "Html"]
