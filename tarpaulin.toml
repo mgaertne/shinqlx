@@ -7,5 +7,4 @@ include-tests = true
 implicit-test-threads = true
 
 [report]
-output-dir = "shinqlx"
 out = ["Xml", "Html"]
