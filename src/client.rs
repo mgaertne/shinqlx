@@ -222,6 +222,26 @@ mod client_tests {
 
     #[test]
     #[serial]
+    fn client_try_from_valid_client_id_but_null() {
+        let server_static_try_get_ctx = MockTestServerStatic::try_get_context();
+        server_static_try_get_ctx.expect().return_once(|| {
+            let mut server_static_mock = MockTestServerStatic::new();
+            server_static_mock
+                .expect_try_get_client_by_id()
+                .returning(|id| Ok(ptr::null_mut() as *mut client_t));
+            Ok(server_static_mock)
+        });
+
+        assert_eq!(
+            Client::try_from(2),
+            Err(QuakeLiveEngineError::ClientNotFound(
+                "client not found".into()
+            ))
+        );
+    }
+
+    #[test]
+    #[serial]
     fn client_get_client_id_when_no_serverstatic_found() {
         let server_static_try_get_ctx = MockTestServerStatic::try_get_context();
         server_static_try_get_ctx
