@@ -228,7 +228,7 @@ mod client_tests {
             let mut server_static_mock = MockTestServerStatic::new();
             server_static_mock
                 .expect_try_get_client_by_id()
-                .returning(|id| Ok(ptr::null_mut() as *mut client_t));
+                .returning(|_| Ok(ptr::null_mut() as *mut client_t));
             Ok(server_static_mock)
         });
 
