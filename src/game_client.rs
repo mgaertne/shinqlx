@@ -1,4 +1,7 @@
+#[cfg(not(test))]
 use crate::current_level::CurrentLevel;
+#[cfg(test)]
+use crate::current_level::MockTestCurrentLevel as CurrentLevel;
 use crate::prelude::*;
 use alloc::string::String;
 use alloc::vec::Vec;
@@ -163,17 +166,12 @@ impl GameClient {
             .for_each(|(i, &item)| self.game_client.ps.ammo[i + 1] = item);
     }
 
-    #[allow(dead_code)]
     pub(crate) fn get_powerups(&self) -> [i32; 6] {
         let level_time = CurrentLevel::try_get()
             .ok()
             .map(|current_level| current_level.get_leveltime())
             .unwrap_or_default();
-        self.get_powerups_intern(level_time)
-    }
 
-    #[cfg_attr(not(test), inline)]
-    fn get_powerups_intern(&self, level_time: i32) -> [i32; 6] {
         (0..6)
             .map(|powerup| powerup_t::try_from(powerup).unwrap_or(powerup_t::PW_NONE))
             .map(|powerup_index| self.game_client.ps.powerups[powerup_index as usize])
@@ -186,17 +184,12 @@ impl GameClient {
             .unwrap()
     }
 
-    #[allow(dead_code)]
     pub(crate) fn set_powerups(&mut self, powerups: [i32; 6]) {
         let level_time = CurrentLevel::try_get()
             .ok()
             .map(|current_level| current_level.get_leveltime())
             .unwrap_or_default();
-        self.set_powerups_intern(powerups, level_time);
-    }
 
-    #[cfg_attr(not(test), inline)]
-    fn set_powerups_intern(&mut self, powerups: [i32; 6], level_time: i32) {
         powerups
             .iter()
             .enumerate()
@@ -263,17 +256,11 @@ impl GameClient {
             flight_params_array[3];
     }
 
-    #[allow(dead_code)]
     pub(crate) fn set_invulnerability(&mut self, time: i32) {
         let level_time = CurrentLevel::try_get()
             .ok()
             .map(|current_level| current_level.get_leveltime())
             .unwrap_or_default();
-        self.set_invulnerability_intern(time, level_time);
-    }
-
-    #[cfg_attr(not(test), inline)]
-    fn set_invulnerability_intern(&mut self, time: i32, level_time: i32) {
         self.game_client.invulnerabilityTime = level_time + time;
     }
 
@@ -313,17 +300,11 @@ impl GameClient {
         self.game_client.expandedStats.totalDamageTaken
     }
 
-    #[allow(dead_code)]
     pub(crate) fn get_time_on_team(&self) -> i32 {
         let level_time = CurrentLevel::try_get()
             .ok()
             .map(|current_level| current_level.get_leveltime())
             .unwrap_or_default();
-        self.get_time_on_team_intern(level_time)
-    }
-
-    #[cfg_attr(not(test), inline)]
-    fn get_time_on_team_intern(&self, level_time: i32) -> i32 {
         level_time - self.game_client.pers.enterTime
     }
 
@@ -422,6 +403,7 @@ mock! {
 
 #[cfg(test)]
 mod game_client_tests {
+    use crate::current_level::MockTestCurrentLevel;
     use crate::game_client::GameClient;
     use crate::prelude::*;
     use core::ffi::c_char;
@@ -702,13 +684,27 @@ mod game_client_tests {
 
     #[test]
     fn game_client_get_powerups_with_no_powerups() {
+        let current_level_ctx = MockTestCurrentLevel::try_get_context();
+        current_level_ctx.expect().returning(|| {
+            let mut current_level = MockTestCurrentLevel::new();
+            current_level.expect_get_leveltime().return_const(1234);
+            Ok(current_level)
+        });
+
         let mut gclient = GClientBuilder::default().build().unwrap();
         let game_client = GameClient::try_from(&mut gclient as *mut gclient_t).unwrap();
-        assert_eq!(game_client.get_powerups_intern(1234), [0; 6]);
+        assert_eq!(game_client.get_powerups(), [0; 6]);
     }
 
     #[test]
     fn game_client_get_powerups_with_all_powerups_set() {
+        let current_level_ctx = MockTestCurrentLevel::try_get_context();
+        current_level_ctx.expect().returning(|| {
+            let mut current_level = MockTestCurrentLevel::new();
+            current_level.expect_get_leveltime().return_const(1234);
+            Ok(current_level)
+        });
+
         let mut player_state = PlayerStateBuilder::default().build().unwrap();
         player_state.powerups[powerup_t::PW_QUAD as usize] = 1235;
         player_state.powerups[powerup_t::PW_BATTLESUIT as usize] = 1236;
@@ -718,22 +714,33 @@ mod game_client_tests {
         player_state.powerups[powerup_t::PW_INVULNERABILITY as usize] = 1240;
         let mut gclient = GClientBuilder::default().ps(player_state).build().unwrap();
         let game_client = GameClient::try_from(&mut gclient as *mut gclient_t).unwrap();
-        assert_eq!(game_client.get_powerups_intern(1234), [1, 2, 3, 4, 5, 6]);
+        assert_eq!(game_client.get_powerups(), [1, 2, 3, 4, 5, 6]);
     }
 
     #[test]
     fn game_client_set_powerups() {
+        let current_level_ctx = MockTestCurrentLevel::try_get_context();
+        current_level_ctx.expect().returning(|| {
+            let mut current_level = MockTestCurrentLevel::new();
+            current_level.expect_get_leveltime().return_const(1000);
+            Ok(current_level)
+        });
+
         let mut gclient = GClientBuilder::default().build().unwrap();
         let mut game_client = GameClient::try_from(&mut gclient as *mut gclient_t).unwrap();
-        game_client.set_powerups_intern([11, 12, 13, 14, 15, 16], 1000);
-        assert_eq!(
-            game_client.get_powerups_intern(1000),
-            [11, 12, 13, 14, 15, 16]
-        );
+        game_client.set_powerups([11, 12, 13, 14, 15, 16]);
+        assert_eq!(game_client.get_powerups(), [11, 12, 13, 14, 15, 16]);
     }
 
     #[test]
     fn game_client_set_powerups_deleting_all_powerups() {
+        let current_level_ctx = MockTestCurrentLevel::try_get_context();
+        current_level_ctx.expect().returning(|| {
+            let mut current_level = MockTestCurrentLevel::new();
+            current_level.expect_get_leveltime().return_const(1000);
+            Ok(current_level)
+        });
+
         let mut player_state = PlayerStateBuilder::default().build().unwrap();
         player_state.powerups[powerup_t::PW_QUAD as usize] = 1235;
         player_state.powerups[powerup_t::PW_BATTLESUIT as usize] = 1236;
@@ -743,8 +750,8 @@ mod game_client_tests {
         player_state.powerups[powerup_t::PW_INVULNERABILITY as usize] = 1240;
         let mut gclient = GClientBuilder::default().ps(player_state).build().unwrap();
         let mut game_client = GameClient::try_from(&mut gclient as *mut gclient_t).unwrap();
-        game_client.set_powerups_intern([0, 0, 0, 0, 0, 0], 1000);
-        assert_eq!(game_client.get_powerups_intern(1000), [0, 0, 0, 0, 0, 0]);
+        game_client.set_powerups([0, 0, 0, 0, 0, 0]);
+        assert_eq!(game_client.get_powerups(), [0, 0, 0, 0, 0, 0]);
     }
 
     #[test]
@@ -788,9 +795,16 @@ mod game_client_tests {
 
     #[test]
     fn game_client_set_invulnerability() {
+        let current_level_ctx = MockTestCurrentLevel::try_get_context();
+        current_level_ctx.expect().returning(|| {
+            let mut current_level = MockTestCurrentLevel::new();
+            current_level.expect_get_leveltime().return_const(1234);
+            Ok(current_level)
+        });
+
         let mut gclient = GClientBuilder::default().build().unwrap();
         let mut game_client = GameClient::try_from(&mut gclient as *mut gclient_t).unwrap();
-        game_client.set_invulnerability_intern(10, 1234);
+        game_client.set_invulnerability(10);
         assert_eq!(gclient.invulnerabilityTime, 1244);
     }
 
@@ -939,6 +953,13 @@ mod game_client_tests {
 
     #[test]
     fn game_client_get_time_on_team() {
+        let current_level_ctx = MockTestCurrentLevel::try_get_context();
+        current_level_ctx.expect().returning(|| {
+            let mut current_level = MockTestCurrentLevel::new();
+            current_level.expect_get_leveltime().return_const(1234);
+            Ok(current_level)
+        });
+
         let client_persistant = ClientPersistantBuilder::default()
             .enterTime(1192)
             .build()
@@ -948,7 +969,7 @@ mod game_client_tests {
             .build()
             .unwrap();
         let game_client = GameClient::try_from(&mut gclient as *mut gclient_t).unwrap();
-        assert_eq!(game_client.get_time_on_team_intern(1234), 42);
+        assert_eq!(game_client.get_time_on_team(), 42);
     }
 
     #[test]

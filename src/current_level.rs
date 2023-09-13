@@ -1,11 +1,26 @@
+#[cfg(test)]
+use crate::current_level::DUMMY_MAIN_ENGINE as MAIN_ENGINE;
 use crate::game_entity::GameEntity;
 #[cfg(test)]
 use crate::hooks::mock_hooks::shinqlx_set_configstring;
 #[cfg(not(test))]
 use crate::hooks::shinqlx_set_configstring;
 use crate::prelude::*;
+#[cfg(test)]
+use crate::quake_live_engine::MockQuakeEngine as QuakeLiveEngine;
+#[cfg(not(test))]
 use crate::MAIN_ENGINE;
 use core::ffi::c_char;
+#[cfg(test)]
+use mockall::mock;
+#[cfg(test)]
+use once_cell::sync::Lazy;
+#[cfg(test)]
+use swap_arc::SwapArcOption;
+
+#[cfg(test)]
+static DUMMY_MAIN_ENGINE: Lazy<SwapArcOption<QuakeLiveEngine>> =
+    Lazy::new(|| SwapArcOption::new(None));
 
 #[derive(Debug, PartialEq)]
 #[repr(transparent)]
@@ -99,17 +114,24 @@ impl CurrentLevel {
 }
 
 #[cfg(test)]
+mock! {
+    pub(crate) TestCurrentLevel {
+        pub(crate) fn try_get() -> Result<Self, QuakeLiveEngineError>;
+        pub(crate) fn get_leveltime(&self) -> i32;
+    }
+}
+
+#[cfg(test)]
 mod current_level_tests {
+    use super::MAIN_ENGINE;
     use crate::current_level::CurrentLevel;
     use crate::hooks::mock_hooks::*;
     use crate::prelude::*;
+    use crate::quake_live_engine::MockQuakeEngine;
     use crate::quake_live_functions::QuakeLiveFunction::G_InitGame;
-    use crate::MAIN_ENGINE;
     use alloc::vec::Vec;
     use core::ffi::CStr;
-    use core::sync::atomic::Ordering;
     use pretty_assertions::assert_eq;
-    use std::panic::catch_unwind;
 
     #[test]
     #[serial]
@@ -129,15 +151,13 @@ mod current_level_tests {
     #[test]
     #[serial]
     fn current_level_default_panics_when_g_init_game_not_set() {
-        {
-            MAIN_ENGINE.store(Some(QuakeLiveEngine::new().into()));
-        }
+        let mut mock_engine = MockQuakeEngine::new();
+        mock_engine
+            .expect_g_init_game_orig()
+            .return_once(|| Err(QuakeLiveEngineError::VmFunctionNotFound(G_InitGame)));
+        MAIN_ENGINE.store(Some(mock_engine.into()));
 
         let result = CurrentLevel::try_get();
-
-        {
-            MAIN_ENGINE.store(None);
-        }
 
         assert!(result.is_err());
         assert_eq!(
@@ -231,39 +251,27 @@ mod current_level_tests {
     #[test]
     #[serial]
     fn current_level_callvote_with_main_engine_set() {
-        let main_engine = QuakeLiveEngine::new();
-        main_engine.sv_maxclients.store(8, Ordering::SeqCst);
-
-        {
-            MAIN_ENGINE.store(Some(main_engine.into()));
-        }
+        let mut mock_engine = MockQuakeEngine::new();
+        mock_engine.expect_get_max_clients().return_const(8);
+        MAIN_ENGINE.store(Some(mock_engine.into()));
 
         let set_configstring_ctx = shinqlx_set_configstring_context();
         set_configstring_ctx.expect().return_const_st(());
 
-        let result = catch_unwind(|| {
-            let mut level = LevelLocalsBuilder::default().build().unwrap();
-            let mut current_level =
-                CurrentLevel::try_from(&mut level as *mut level_locals_t).unwrap();
-            current_level.callvote("map thunderstruck", "map thunderstruck", None);
-            assert_eq!(
-                CStr::from_bytes_until_nul(
-                    &level
-                        .voteString
-                        .iter()
-                        .map(|c| *c as u8)
-                        .collect::<Vec<u8>>()
-                )
-                .unwrap()
-                .to_string_lossy(),
-                "map thunderstruck"
-            );
-        });
-
-        {
-            MAIN_ENGINE.store(None);
-        }
-
-        assert!(result.is_ok());
+        let mut level = LevelLocalsBuilder::default().build().unwrap();
+        let mut current_level = CurrentLevel::try_from(&mut level as *mut level_locals_t).unwrap();
+        current_level.callvote("map thunderstruck", "map thunderstruck", None);
+        assert_eq!(
+            CStr::from_bytes_until_nul(
+                &level
+                    .voteString
+                    .iter()
+                    .map(|c| *c as u8)
+                    .collect::<Vec<u8>>()
+            )
+            .unwrap()
+            .to_string_lossy(),
+            "map thunderstruck"
+        );
     }
 }
