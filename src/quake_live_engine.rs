@@ -1911,6 +1911,9 @@ mock! {
         pub(crate) fn set_tag(&self);
         pub(crate) fn initialize_cvars(&self);
         pub(crate) fn unhook_vm(&self);
+        pub(crate) fn g_init_game_orig(
+            &self,
+        ) -> Result<extern "C" fn(c_int, c_int, c_int), QuakeLiveEngineError>;
         pub(crate) fn touch_item_orig(
             &self,
         ) -> Result<extern "C" fn(*mut gentity_t, *mut gentity_t, *mut trace_t), QuakeLiveEngineError>;

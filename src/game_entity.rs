@@ -16,7 +16,6 @@ use alloc::string::String;
 use alloc::vec;
 use core::f32::consts::PI;
 use core::ffi::{c_char, c_float, c_int, CStr};
-use core::ops::Deref;
 #[cfg(test)]
 use mockall::mock;
 #[cfg(test)]
@@ -170,10 +169,10 @@ impl GameEntity {
         if g_entities.is_null() {
             return -1;
         }
-        self.get_entity_id_inter(g_entities)
+        self.get_entity_id_intern(g_entities)
     }
 
-    fn get_entity_id_inter(&self, g_entities: *mut gentity_t) -> i32 {
+    fn get_entity_id_intern(&self, g_entities: *mut gentity_t) -> i32 {
         i32::try_from(unsafe { (self.gentity_t as *const gentity_t).offset_from(g_entities) })
             .unwrap_or(-1)
     }
@@ -184,15 +183,7 @@ impl GameEntity {
             return;
         };
 
-        self.start_kamikaze_intern(main_engine.deref());
-    }
-
-    #[cfg_attr(not(test), inline)]
-    fn start_kamikaze_intern<'a, T: 'static>(&'a mut self, kamikaze_starter: &T)
-    where
-        T: StartKamikaze<&'a mut GameEntity>,
-    {
-        kamikaze_starter.start_kamikaze(self);
+        main_engine.start_kamikaze(self);
     }
 
     pub(crate) fn get_player_name(&self) -> String {
@@ -249,17 +240,6 @@ impl GameEntity {
             return;
         };
 
-        self.slay_with_mod_intern(mean_of_death, main_engine.deref());
-    }
-
-    #[cfg_attr(not(test), inline)]
-    fn slay_with_mod_intern<T: 'static>(
-        &mut self,
-        mean_of_death: meansOfDeath_t,
-        quake_live_engine: &T,
-    ) where
-        T: RegisterDamage<c_int, c_int, c_int>,
-    {
         let damage = self.get_health()
             + if mean_of_death == meansOfDeath_t::MOD_KAMIKAZE {
                 100000
@@ -272,7 +252,7 @@ impl GameEntity {
             .map(|mut game_client| game_client.set_armor(0));
 
         // self damage = half damage, so multiplaying by 2
-        quake_live_engine.register_damage(
+        main_engine.register_damage(
             self.gentity_t,
             self.gentity_t,
             self.gentity_t,
@@ -330,6 +310,7 @@ impl GameEntity {
         self.gentity_t.s.clientNum
     }
 
+    #[cfg_attr(test, allow(dead_code))]
     pub(crate) fn drop_holdable(&mut self) {
         let Some(ref main_engine) = *MAIN_ENGINE.load() else {
             return;
@@ -339,14 +320,7 @@ impl GameEntity {
             .ok()
             .map(|current_level| current_level.get_leveltime())
             .unwrap_or_default();
-        self.drop_holdable_intern(level_time, main_engine.deref());
-    }
 
-    #[cfg_attr(not(test), inline)]
-    fn drop_holdable_intern<T: 'static>(&mut self, level_time: i32, quake_live_engine: &T)
-    where
-        T: for<'a> TryLaunchItem<&'a mut GameItem>,
-    {
         let Ok(mut game_client) = self.get_game_client() else {
             return;
         };
@@ -356,7 +330,7 @@ impl GameEntity {
 
         let angle = self.gentity_t.s.apos.trBase[1] * (PI * 2.0 / 360.0);
         let mut velocity = [150.0 * angle.cos(), 150.0 * angle.sin(), 250.0];
-        let mut entity = quake_live_engine
+        let mut entity = main_engine
             .try_launch_item(&mut gitem, &mut self.gentity_t.s.pos.trBase, &mut velocity)
             .unwrap();
         entity.set_touch(Some(ShiNQlx_Touch_Item));
@@ -376,17 +350,10 @@ impl GameEntity {
             return;
         };
 
-        self.free_entity_intern(main_engine.deref());
+        main_engine.free_entity(self);
     }
 
-    #[cfg_attr(not(test), inline)]
-    fn free_entity_intern<'a, T: 'static>(&'a mut self, quake_live_engine: &T)
-    where
-        T: FreeEntity<&'a mut GameEntity>,
-    {
-        quake_live_engine.free_entity(self);
-    }
-
+    #[cfg_attr(test, allow(dead_code))]
     pub(crate) fn replace_item(&mut self, item_id: i32) {
         let Some(ref main_engine) = *MAIN_ENGINE.load() else {
             return;
@@ -412,6 +379,7 @@ impl GameEntity {
         }
     }
 
+    #[cfg_attr(test, allow(dead_code))]
     pub(crate) fn get_targetting_entity_ids(&self) -> Vec<u32> {
         if self.gentity_t.targetname.is_null() {
             return vec![];
@@ -436,10 +404,12 @@ impl GameEntity {
         self.gentity_t.nextthink = next_think;
     }
 
+    #[cfg_attr(test, allow(dead_code))]
     pub(crate) fn set_think(&mut self, think: Option<unsafe extern "C" fn(*mut gentity_t)>) {
         self.gentity_t.think = think;
     }
 
+    #[cfg_attr(test, allow(dead_code))]
     pub(crate) fn set_touch(
         &mut self,
         touch: Option<unsafe extern "C" fn(*mut gentity_t, *mut gentity_t, *mut trace_t)>,
@@ -447,10 +417,12 @@ impl GameEntity {
         self.gentity_t.touch = touch;
     }
 
+    #[cfg_attr(test, allow(dead_code))]
     pub(crate) fn set_parent(&mut self, parent: &mut gentity_t) {
         self.gentity_t.parent = parent;
     }
 
+    #[cfg_attr(test, allow(dead_code))]
     pub(crate) fn set_position_trace_time(&mut self, trace_time: i32) {
         self.gentity_t.s.pos.trTime = trace_time;
     }
@@ -509,6 +481,7 @@ mock! {
 #[cfg(test)]
 mod game_entity_tests {
     use super::GameEntity;
+    use super::MAIN_ENGINE;
     use crate::activator::MockActivator;
     use crate::game_client::MockGameClient;
     use crate::prelude::*;
@@ -538,6 +511,7 @@ mod game_entity_tests {
 
     #[test]
     fn game_entity_try_from_negative_entity_id() {
+        MAIN_ENGINE.store(None);
         assert_eq!(
             GameEntity::try_from(-1),
             Err(QuakeLiveEngineError::InvalidId(-1))
@@ -546,6 +520,7 @@ mod game_entity_tests {
 
     #[test]
     fn game_entity_try_from_too_large_i32_entity_id() {
+        MAIN_ENGINE.store(None);
         assert_eq!(
             GameEntity::try_from(65536i32),
             Err(QuakeLiveEngineError::InvalidId(65536))
@@ -554,6 +529,7 @@ mod game_entity_tests {
 
     #[test]
     fn game_entity_try_from_valid_i32_gentities_not_initialized() {
+        MAIN_ENGINE.store(None);
         assert_eq!(
             GameEntity::try_from(42i32),
             Err(QuakeLiveEngineError::EntityNotFound(
@@ -564,6 +540,7 @@ mod game_entity_tests {
 
     #[test]
     fn game_entity_try_from_too_large_u32_entity_id() {
+        MAIN_ENGINE.store(None);
         assert_eq!(
             GameEntity::try_from(65536u32),
             Err(QuakeLiveEngineError::InvalidId(65536))
@@ -572,6 +549,7 @@ mod game_entity_tests {
 
     #[test]
     fn game_entity_try_from_valid_u32_gentities_not_initialized() {
+        MAIN_ENGINE.store(None);
         assert_eq!(
             GameEntity::try_from(42u32),
             Err(QuakeLiveEngineError::EntityNotFound(
@@ -582,11 +560,13 @@ mod game_entity_tests {
 
     #[test]
     fn game_entity_get_entities_list_with_no_main_engine() {
+        MAIN_ENGINE.store(None);
         assert!(GameEntity::get_entities_list().is_null());
     }
 
     #[test]
     fn game_entity_get_entity_with_no_entities_list() {
+        MAIN_ENGINE.store(None);
         let mut gentity = GEntityBuilder::default().build().unwrap();
         let game_entity = GameEntity::try_from(&mut gentity as *mut gentity_t).unwrap();
         assert_eq!(game_entity.get_entity_id(), -1);
@@ -602,40 +582,52 @@ mod game_entity_tests {
             GEntityBuilder::default().build().unwrap(),
             GEntityBuilder::default().build().unwrap(),
         ];
+
         let game_entity = GameEntity::try_from(&mut gentities[3] as *mut gentity_t).unwrap();
-        assert_eq!(game_entity.get_entity_id_inter(&mut gentities[0]), 3);
+        assert_eq!(game_entity.get_entity_id_intern(&mut gentities[0]), 3);
+    }
+
+    #[test]
+    fn game_entity_start_kamikaze_with_no_main_engine() {
+        MAIN_ENGINE.store(None);
+
+        let mut gentity = GEntityBuilder::default().build().unwrap();
+        let mut game_entity = GameEntity::try_from(&mut gentity as *mut gentity_t).unwrap();
+
+        game_entity.start_kamikaze();
     }
 
     #[test]
     fn game_entity_start_kamikaze() {
         let mut mock_engine = MockQuakeEngine::new();
+        mock_engine.expect_start_kamikaze().times(1);
+        MAIN_ENGINE.store(Some(mock_engine.into()));
+
         let mut gentity = GEntityBuilder::default().build().unwrap();
         let mut game_entity = GameEntity::try_from(&mut gentity as *mut gentity_t).unwrap();
-        mock_engine.expect_start_kamikaze().return_const(());
-        game_entity.start_kamikaze_intern(&mock_engine);
+
+        game_entity.start_kamikaze();
     }
 
     #[test]
-    #[serial]
     fn game_entity_get_player_name_from_null_client() {
         let game_client_try_from_ctx = MockGameClient::try_from_context();
         game_client_try_from_ctx
             .expect()
-            .return_once_st(|_| Err(QuakeLiveEngineError::MainEngineNotInitialized));
+            .return_once(|_| Err(QuakeLiveEngineError::MainEngineNotInitialized));
         let mut gentity = GEntityBuilder::default().build().unwrap();
         let game_entity = GameEntity::try_from(&mut gentity as *mut gentity_t).unwrap();
         assert_eq!(game_entity.get_player_name(), "");
     }
 
     #[test]
-    #[serial]
     fn game_entity_get_player_name_from_disconnected_game_client() {
         let game_client_try_from_ctx = MockGameClient::try_from_context();
-        game_client_try_from_ctx.expect().return_once_st(|_| {
+        game_client_try_from_ctx.expect().returning(|_| {
             let mut mock_game_client = MockGameClient::new();
             mock_game_client
                 .expect_get_connection_state()
-                .return_const_st(clientConnected_t::CON_DISCONNECTED);
+                .return_const(clientConnected_t::CON_DISCONNECTED);
             Ok(mock_game_client)
         });
         let mut gentity = GEntityBuilder::default().build().unwrap();
@@ -644,17 +636,16 @@ mod game_entity_tests {
     }
 
     #[test]
-    #[serial]
     fn game_entity_get_player_name_from_connected_game_client() {
         let game_client_try_from_ctx = MockGameClient::try_from_context();
-        game_client_try_from_ctx.expect().return_once_st(|_| {
+        game_client_try_from_ctx.expect().returning(|_| {
             let mut mock_game_client = MockGameClient::new();
             mock_game_client
                 .expect_get_connection_state()
-                .return_const_st(clientConnected_t::CON_CONNECTED);
+                .return_const(clientConnected_t::CON_CONNECTED);
             mock_game_client
                 .expect_get_player_name()
-                .return_const_st("UnknownPlayer");
+                .return_const("UnknownPlayer");
             Ok(mock_game_client)
         });
         let mut gentity = GEntityBuilder::default().build().unwrap();
@@ -663,26 +654,24 @@ mod game_entity_tests {
     }
 
     #[test]
-    #[serial]
     fn game_entity_get_team_from_null_client() {
         let game_client_try_from_ctx = MockGameClient::try_from_context();
         game_client_try_from_ctx
             .expect()
-            .return_once_st(|_| Err(QuakeLiveEngineError::MainEngineNotInitialized));
+            .return_once(|_| Err(QuakeLiveEngineError::MainEngineNotInitialized));
         let mut gentity = GEntityBuilder::default().build().unwrap();
         let game_entity = GameEntity::try_from(&mut gentity as *mut gentity_t).unwrap();
         assert_eq!(game_entity.get_team(), team_t::TEAM_SPECTATOR);
     }
 
     #[test]
-    #[serial]
     fn game_entity_get_team_from_disconnected_game_client() {
         let game_client_try_from_ctx = MockGameClient::try_from_context();
-        game_client_try_from_ctx.expect().return_once_st(|_| {
+        game_client_try_from_ctx.expect().returning(|_| {
             let mut mock_game_client = MockGameClient::new();
             mock_game_client
                 .expect_get_connection_state()
-                .return_const_st(clientConnected_t::CON_DISCONNECTED);
+                .return_const(clientConnected_t::CON_DISCONNECTED);
             Ok(mock_game_client)
         });
         let mut gentity = GEntityBuilder::default().build().unwrap();
@@ -691,17 +680,16 @@ mod game_entity_tests {
     }
 
     #[test]
-    #[serial]
     fn game_entity_get_team_from_connected_game_client() {
         let game_client_try_from_ctx = MockGameClient::try_from_context();
-        game_client_try_from_ctx.expect().return_once_st(|_| {
+        game_client_try_from_ctx.expect().returning(|_| {
             let mut mock_game_client = MockGameClient::new();
             mock_game_client
                 .expect_get_connection_state()
-                .return_const_st(clientConnected_t::CON_CONNECTED);
+                .return_const(clientConnected_t::CON_CONNECTED);
             mock_game_client
                 .expect_get_team()
-                .return_const_st(team_t::TEAM_RED);
+                .return_const(team_t::TEAM_RED);
             Ok(mock_game_client)
         });
         let mut gentity = GEntityBuilder::default().build().unwrap();
@@ -710,26 +698,24 @@ mod game_entity_tests {
     }
 
     #[test]
-    #[serial]
     fn game_entity_get_privileges_from_null_client() {
         let game_client_try_from_ctx = MockGameClient::try_from_context();
         game_client_try_from_ctx
             .expect()
-            .return_once_st(|_| Err(QuakeLiveEngineError::MainEngineNotInitialized));
+            .return_once(|_| Err(QuakeLiveEngineError::MainEngineNotInitialized));
         let mut gentity = GEntityBuilder::default().build().unwrap();
         let game_entity = GameEntity::try_from(&mut gentity as *mut gentity_t).unwrap();
         assert_eq!(game_entity.get_privileges(), privileges_t::PRIV_BANNED);
     }
 
     #[test]
-    #[serial]
     fn game_entity_get_privileges_from_connected_game_client() {
         let game_client_try_from_ctx = MockGameClient::try_from_context();
-        game_client_try_from_ctx.expect().return_once_st(|_| {
+        game_client_try_from_ctx.expect().returning(|_| {
             let mut mock_game_client = MockGameClient::new();
             mock_game_client
                 .expect_get_privileges()
-                .return_const_st(privileges_t::PRIV_ROOT);
+                .return_const(privileges_t::PRIV_ROOT);
             Ok(mock_game_client)
         });
         let mut gentity = GEntityBuilder::default().build().unwrap();
@@ -738,48 +724,44 @@ mod game_entity_tests {
     }
 
     #[test]
-    #[serial]
     fn game_entity_get_game_client_when_none_is_set() {
         let game_client_try_from_ctx = MockGameClient::try_from_context();
         game_client_try_from_ctx
             .expect()
-            .return_once_st(|_| Err(QuakeLiveEngineError::MainEngineNotInitialized));
+            .return_once(|_| Err(QuakeLiveEngineError::MainEngineNotInitialized));
         let mut gentity = GEntityBuilder::default().build().unwrap();
         let game_entity = GameEntity::try_from(&mut gentity as *mut gentity_t).unwrap();
         assert_eq!(game_entity.get_game_client().is_err(), true);
     }
 
     #[test]
-    #[serial]
     fn game_entity_get_game_client_with_valid_gclient() {
         let game_client_try_from_ctx = MockGameClient::try_from_context();
         game_client_try_from_ctx
             .expect()
-            .return_once_st(|_| Ok(MockGameClient::new()));
+            .returning(|_| Ok(MockGameClient::new()));
         let mut gentity = GEntityBuilder::default().build().unwrap();
         let game_entity = GameEntity::try_from(&mut gentity as *mut gentity_t).unwrap();
         assert_eq!(game_entity.get_game_client().is_ok(), true);
     }
 
     #[test]
-    #[serial]
     fn game_entity_get_activator_when_none_is_set() {
         let activator_try_from_ctx = MockActivator::try_from_context();
         activator_try_from_ctx
             .expect()
-            .return_once_st(|_| Err(QuakeLiveEngineError::MainEngineNotInitialized));
+            .return_once(|_| Err(QuakeLiveEngineError::MainEngineNotInitialized));
         let mut gentity = GEntityBuilder::default().build().unwrap();
         let game_entity = GameEntity::try_from(&mut gentity as *mut gentity_t).unwrap();
         assert_eq!(game_entity.get_activator().is_err(), true);
     }
 
     #[test]
-    #[serial]
     fn game_entity_get_activator_with_valid_activator() {
         let activator_try_from_ctx = MockActivator::try_from_context();
         activator_try_from_ctx
             .expect()
-            .return_once_st(|_| Ok(MockActivator::new()));
+            .returning(|_| Ok(MockActivator::new()));
         let mut gentity = GEntityBuilder::default().build().unwrap();
         let game_entity = GameEntity::try_from(&mut gentity as *mut gentity_t).unwrap();
         assert_eq!(game_entity.get_activator().is_ok(), true);
@@ -798,15 +780,32 @@ mod game_entity_tests {
     }
 
     #[test]
-    #[serial]
-    fn game_entity_slay_with_mod() {
+    fn game_entity_slay_with_mod_with_no_main_engine() {
         let game_client_try_from_ctx = MockGameClient::try_from_context();
-        game_client_try_from_ctx.expect().return_once_st(|_| {
+        game_client_try_from_ctx.expect().returning(|_| {
             let mut mock_game_client = MockGameClient::new();
             mock_game_client
                 .expect_set_armor()
-                .withf_st(|&armor: &i32| armor == 0)
-                .return_const_st(())
+                .withf(|&armor: &i32| armor == 0)
+                .times(0);
+            Ok(mock_game_client)
+        });
+        let mut gentity = GEntityBuilder::default().health(42).build().unwrap();
+        let mut game_entity = GameEntity::try_from(&mut gentity as *mut gentity_t).unwrap();
+
+        MAIN_ENGINE.store(None);
+
+        game_entity.slay_with_mod(meansOfDeath_t::MOD_CRUSH);
+    }
+
+    #[test]
+    fn game_entity_slay_with_mod() {
+        let game_client_try_from_ctx = MockGameClient::try_from_context();
+        game_client_try_from_ctx.expect().returning(|_| {
+            let mut mock_game_client = MockGameClient::new();
+            mock_game_client
+                .expect_set_armor()
+                .withf(|&armor: &i32| armor == 0)
                 .times(1);
             Ok(mock_game_client)
         });
@@ -814,27 +813,26 @@ mod game_entity_tests {
         let mut game_entity = GameEntity::try_from(&mut gentity as *mut gentity_t).unwrap();
 
         let mut mock_engine = MockQuakeEngine::new();
-        mock_engine
-            .expect_register_damage()
-            .withf_st(|_, _, _, _, _, damage, dmg_flags, mean_of_death| {
+        mock_engine.expect_register_damage().withf(
+            |_, _, _, _, _, damage, dmg_flags, mean_of_death| {
                 *damage == 84
                     && *dmg_flags == DAMAGE_NO_PROTECTION as c_int
                     && *mean_of_death == meansOfDeath_t::MOD_CRUSH as c_int
-            })
-            .return_const(());
-        game_entity.slay_with_mod_intern(meansOfDeath_t::MOD_CRUSH, &mock_engine);
+            },
+        );
+        MAIN_ENGINE.store(Some(mock_engine.into()));
+
+        game_entity.slay_with_mod(meansOfDeath_t::MOD_CRUSH);
     }
 
     #[test]
-    #[serial]
     fn game_entity_slay_with_kamikaze() {
         let game_client_try_from_ctx = MockGameClient::try_from_context();
-        game_client_try_from_ctx.expect().return_once_st(|_| {
+        game_client_try_from_ctx.expect().returning(|_| {
             let mut mock_game_client = MockGameClient::new();
             mock_game_client
                 .expect_set_armor()
-                .withf_st(|&armor: &i32| armor == 0)
-                .return_const_st(())
+                .withf(|&armor: &i32| armor == 0)
                 .times(1);
             Ok(mock_game_client)
         });
@@ -842,15 +840,16 @@ mod game_entity_tests {
         let mut game_entity = GameEntity::try_from(&mut gentity as *mut gentity_t).unwrap();
 
         let mut mock_engine = MockQuakeEngine::new();
-        mock_engine
-            .expect_register_damage()
-            .withf_st(|_, _, _, _, _, damage, dmg_flags, mean_of_death| {
+        mock_engine.expect_register_damage().withf(
+            |_, _, _, _, _, damage, dmg_flags, mean_of_death| {
                 *damage == 200246
                     && *dmg_flags == DAMAGE_NO_PROTECTION as c_int
                     && *mean_of_death == meansOfDeath_t::MOD_KAMIKAZE as c_int
-            })
-            .return_const(());
-        game_entity.slay_with_mod_intern(meansOfDeath_t::MOD_KAMIKAZE, &mock_engine);
+            },
+        );
+        MAIN_ENGINE.store(Some(mock_engine.into()));
+
+        game_entity.slay_with_mod(meansOfDeath_t::MOD_KAMIKAZE);
     }
 
     #[test]
@@ -1023,13 +1022,24 @@ mod game_entity_tests {
     }
 
     #[test]
+    fn game_entity_free_entity_with_no_main_engine() {
+        let mut gentity = GEntityBuilder::default().build().unwrap();
+        let mut game_entity = GameEntity::try_from(&mut gentity as *mut gentity_t).unwrap();
+
+        MAIN_ENGINE.store(None);
+
+        game_entity.free_entity();
+    }
+
+    #[test]
     fn game_entity_free_entity() {
         let mut gentity = GEntityBuilder::default().build().unwrap();
         let mut game_entity = GameEntity::try_from(&mut gentity as *mut gentity_t).unwrap();
 
         let mut mock_engine = MockQuakeEngine::new();
-        mock_engine.expect_free_entity().return_const(());
+        mock_engine.expect_free_entity();
+        MAIN_ENGINE.store(Some(mock_engine.into()));
 
-        game_entity.free_entity_intern(&mock_engine);
+        game_entity.free_entity();
     }
 }
