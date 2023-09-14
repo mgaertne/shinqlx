@@ -683,6 +683,7 @@ mod game_client_tests {
     }
 
     #[test]
+    #[serial]
     fn game_client_get_powerups_with_no_powerups() {
         let current_level_ctx = MockTestCurrentLevel::try_get_context();
         current_level_ctx.expect().returning(|| {
@@ -697,6 +698,7 @@ mod game_client_tests {
     }
 
     #[test]
+    #[serial]
     fn game_client_get_powerups_with_all_powerups_set() {
         let current_level_ctx = MockTestCurrentLevel::try_get_context();
         current_level_ctx.expect().returning(|| {
@@ -718,6 +720,7 @@ mod game_client_tests {
     }
 
     #[test]
+    #[serial]
     fn game_client_set_powerups() {
         let current_level_ctx = MockTestCurrentLevel::try_get_context();
         current_level_ctx.expect().returning(|| {
@@ -733,6 +736,7 @@ mod game_client_tests {
     }
 
     #[test]
+    #[serial]
     fn game_client_set_powerups_deleting_all_powerups() {
         let current_level_ctx = MockTestCurrentLevel::try_get_context();
         current_level_ctx.expect().returning(|| {
@@ -794,6 +798,7 @@ mod game_client_tests {
     }
 
     #[test]
+    #[serial]
     fn game_client_set_invulnerability() {
         let current_level_ctx = MockTestCurrentLevel::try_get_context();
         current_level_ctx.expect().returning(|| {
@@ -952,6 +957,7 @@ mod game_client_tests {
     }
 
     #[test]
+    #[serial]
     fn game_client_get_time_on_team() {
         let current_level_ctx = MockTestCurrentLevel::try_get_context();
         current_level_ctx.expect().returning(|| {
