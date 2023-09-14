@@ -245,25 +245,20 @@ mod game_item_tests {
         let mut game_item = GameItem::try_from(&mut gitem as *mut gitem_t).unwrap();
         mock_engine
             .expect_try_launch_item()
-            .withf_st(|_, origin, velocity| {
-                origin == &[1.0, 2.0, 3.0] && velocity == &[0.0, 0.0, 0.9]
-            })
-            .return_once_st(|_, _, _| {
+            .withf(|_, origin, velocity| origin == &[1.0, 2.0, 3.0] && velocity == &[0.0, 0.0, 0.9])
+            .return_once(|_, _, _| {
                 let mut game_entity = MockGameEntity::new();
                 game_entity
                     .expect_set_next_think()
-                    .withf_st(|&next_think| next_think == 0)
-                    .return_const_st(());
+                    .withf(|&next_think| next_think == 0);
                 game_entity
                     .expect_set_think()
-                    .withf_st(|&think| think.is_none())
-                    .return_const_st(());
+                    .withf(|&think| think.is_none());
                 Ok(game_entity)
             });
         mock_engine
             .expect_game_add_event()
-            .withf_st(|_, event, param| event == &entity_event_t::EV_ITEM_RESPAWN && param == &0)
-            .return_const(());
+            .withf(|_, event, param| event == &entity_event_t::EV_ITEM_RESPAWN && param == &0);
         game_item.spawn_intern((1, 2, 3), &mock_engine);
     }
 }
