@@ -510,6 +510,7 @@ mod game_entity_tests {
     }
 
     #[test]
+    #[serial]
     fn game_entity_try_from_negative_entity_id() {
         MAIN_ENGINE.store(None);
         assert_eq!(
@@ -528,6 +529,7 @@ mod game_entity_tests {
     }
 
     #[test]
+    #[serial]
     fn game_entity_try_from_valid_i32_gentities_not_initialized() {
         MAIN_ENGINE.store(None);
         assert_eq!(
@@ -588,6 +590,7 @@ mod game_entity_tests {
     }
 
     #[test]
+    #[serial]
     fn game_entity_start_kamikaze_with_no_main_engine() {
         MAIN_ENGINE.store(None);
 
@@ -598,6 +601,7 @@ mod game_entity_tests {
     }
 
     #[test]
+    #[serial]
     fn game_entity_start_kamikaze() {
         let mut mock_engine = MockQuakeEngine::new();
         mock_engine.expect_start_kamikaze().times(1);
@@ -610,6 +614,7 @@ mod game_entity_tests {
     }
 
     #[test]
+    #[serial]
     fn game_entity_get_player_name_from_null_client() {
         let game_client_try_from_ctx = MockGameClient::try_from_context();
         game_client_try_from_ctx
@@ -621,6 +626,7 @@ mod game_entity_tests {
     }
 
     #[test]
+    #[serial]
     fn game_entity_get_player_name_from_disconnected_game_client() {
         let game_client_try_from_ctx = MockGameClient::try_from_context();
         game_client_try_from_ctx.expect().returning(|_| {
@@ -636,6 +642,7 @@ mod game_entity_tests {
     }
 
     #[test]
+    #[serial]
     fn game_entity_get_player_name_from_connected_game_client() {
         let game_client_try_from_ctx = MockGameClient::try_from_context();
         game_client_try_from_ctx.expect().returning(|_| {
@@ -654,6 +661,7 @@ mod game_entity_tests {
     }
 
     #[test]
+    #[serial]
     fn game_entity_get_team_from_null_client() {
         let game_client_try_from_ctx = MockGameClient::try_from_context();
         game_client_try_from_ctx
@@ -665,6 +673,7 @@ mod game_entity_tests {
     }
 
     #[test]
+    #[serial]
     fn game_entity_get_team_from_disconnected_game_client() {
         let game_client_try_from_ctx = MockGameClient::try_from_context();
         game_client_try_from_ctx.expect().returning(|_| {
@@ -680,6 +689,7 @@ mod game_entity_tests {
     }
 
     #[test]
+    #[serial]
     fn game_entity_get_team_from_connected_game_client() {
         let game_client_try_from_ctx = MockGameClient::try_from_context();
         game_client_try_from_ctx.expect().returning(|_| {
@@ -698,6 +708,7 @@ mod game_entity_tests {
     }
 
     #[test]
+    #[serial]
     fn game_entity_get_privileges_from_null_client() {
         let game_client_try_from_ctx = MockGameClient::try_from_context();
         game_client_try_from_ctx
@@ -709,6 +720,7 @@ mod game_entity_tests {
     }
 
     #[test]
+    #[serial]
     fn game_entity_get_privileges_from_connected_game_client() {
         let game_client_try_from_ctx = MockGameClient::try_from_context();
         game_client_try_from_ctx.expect().returning(|_| {
@@ -724,6 +736,7 @@ mod game_entity_tests {
     }
 
     #[test]
+    #[serial]
     fn game_entity_get_game_client_when_none_is_set() {
         let game_client_try_from_ctx = MockGameClient::try_from_context();
         game_client_try_from_ctx
@@ -735,6 +748,7 @@ mod game_entity_tests {
     }
 
     #[test]
+    #[serial]
     fn game_entity_get_game_client_with_valid_gclient() {
         let game_client_try_from_ctx = MockGameClient::try_from_context();
         game_client_try_from_ctx
@@ -746,6 +760,7 @@ mod game_entity_tests {
     }
 
     #[test]
+    #[serial]
     fn game_entity_get_activator_when_none_is_set() {
         let activator_try_from_ctx = MockActivator::try_from_context();
         activator_try_from_ctx
@@ -757,6 +772,7 @@ mod game_entity_tests {
     }
 
     #[test]
+    #[serial]
     fn game_entity_get_activator_with_valid_activator() {
         let activator_try_from_ctx = MockActivator::try_from_context();
         activator_try_from_ctx
@@ -780,6 +796,7 @@ mod game_entity_tests {
     }
 
     #[test]
+    #[serial]
     fn game_entity_slay_with_mod_with_no_main_engine() {
         let game_client_try_from_ctx = MockGameClient::try_from_context();
         game_client_try_from_ctx.expect().returning(|_| {
@@ -799,6 +816,7 @@ mod game_entity_tests {
     }
 
     #[test]
+    #[serial]
     fn game_entity_slay_with_mod() {
         let game_client_try_from_ctx = MockGameClient::try_from_context();
         game_client_try_from_ctx.expect().returning(|_| {
@@ -826,6 +844,7 @@ mod game_entity_tests {
     }
 
     #[test]
+    #[serial]
     fn game_entity_slay_with_kamikaze() {
         let game_client_try_from_ctx = MockGameClient::try_from_context();
         game_client_try_from_ctx.expect().returning(|_| {
