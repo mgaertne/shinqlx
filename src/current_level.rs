@@ -256,7 +256,7 @@ mod current_level_tests {
         MAIN_ENGINE.store(Some(mock_engine.into()));
 
         let set_configstring_ctx = shinqlx_set_configstring_context();
-        set_configstring_ctx.expect().return_const_st(());
+        set_configstring_ctx.expect();
 
         let mut level = LevelLocalsBuilder::default().build().unwrap();
         let mut current_level = CurrentLevel::try_from(&mut level as *mut level_locals_t).unwrap();

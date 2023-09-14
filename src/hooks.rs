@@ -1098,7 +1098,7 @@ mod hooks_tests {
         let mut mock_client = MockClient::new();
         mock_client
             .expect_get_state()
-            .return_const_st(clientState_t::CS_PRIMED)
+            .return_const(clientState_t::CS_PRIMED)
             .times(1);
         mock_client.expect_has_gentity().return_const(true).times(1);
         mock_client.expect_get_client_id().return_const(42).times(1);
@@ -1111,7 +1111,6 @@ mod hooks_tests {
         client_loaded_ctx
             .expect()
             .withf(|&client_id| client_id == 42)
-            .return_const(())
             .times(1);
 
         shinqlx_sv_cliententerworld_intern(mock_client, &mut usercmd as *mut usercmd_t);
@@ -1213,16 +1212,14 @@ mod hooks_tests {
         let mut mock_client = MockClient::new();
         mock_client
             .expect_disconnect()
-            .withf_st(|reason| reason == "disconnected.")
-            .return_const_st(())
+            .withf(|reason| reason == "disconnected.")
             .times(1);
-        mock_client.expect_get_client_id().return_const_st(42);
+        mock_client.expect_get_client_id().return_const(42);
 
         let client_disconnect_dispatcher_ctx = client_disconnect_dispatcher_context();
         client_disconnect_dispatcher_ctx
             .expect()
-            .withf_st(|&client_id, reason| client_id == 42 && reason == "disconnected.")
-            .return_const_st(())
+            .withf(|&client_id, reason| client_id == 42 && reason == "disconnected.")
             .times(1);
 
         shinqlx_drop_client(&mut mock_client, "disconnected.");
@@ -1435,19 +1432,18 @@ mod hooks_tests {
     fn kamikaze_start_for_non_game_client() {
         let mut gentity = GEntityBuilder::default().build().unwrap();
 
-        let mut mock_gentity = MockGameEntity::new();
-        mock_gentity
-            .expect_get_game_client()
-            .returning_st(|| Err(QuakeLiveEngineError::MainEngineNotInitialized));
-        mock_gentity
-            .expect_get_activator()
-            .returning_st(|| Err(QuakeLiveEngineError::MainEngineNotInitialized));
-        mock_gentity
-            .expect_start_kamikaze()
-            .return_const_st(())
-            .times(1);
         let try_from_ctx = MockGameEntity::try_from_context();
-        try_from_ctx.expect().return_once_st(|_| Ok(mock_gentity));
+        try_from_ctx.expect().returning(|_| {
+            let mut mock_gentity = MockGameEntity::new();
+            mock_gentity
+                .expect_get_game_client()
+                .returning(|| Err(QuakeLiveEngineError::MainEngineNotInitialized));
+            mock_gentity
+                .expect_get_activator()
+                .returning(|| Err(QuakeLiveEngineError::MainEngineNotInitialized));
+            mock_gentity.expect_start_kamikaze().times(1);
+            Ok(mock_gentity)
+        });
         let kamikaze_explode_dispatcher_ctx = kamikaze_explode_dispatcher_context();
         kamikaze_explode_dispatcher_ctx.expect().times(0);
 
@@ -1458,46 +1454,41 @@ mod hooks_tests {
     #[serial]
     fn kamikaze_start_for_existing_game_client_removes_kamikaze_flag() {
         let mut gentity = GEntityBuilder::default().build().unwrap();
-        let mut mock_gentity = MockGameEntity::new();
-        mock_gentity
-            .expect_get_game_client()
-            .times(1)
-            .return_once_st(|| {
-                let mut mock_game_client = MockGameClient::new();
-                mock_game_client.expect_get_client_num().return_const_st(42);
-                Ok(mock_game_client)
-            });
-        mock_gentity
-            .expect_get_game_client()
-            .times(1)
-            .return_once_st(|| {
-                let mut mock_game_client = MockGameClient::new();
-                mock_game_client
-                    .expect_remove_kamikaze_flag()
-                    .return_const_st(());
-                Ok(mock_game_client)
-            });
-        mock_gentity
-            .expect_get_game_client()
-            .times(1)
-            .return_once_st(|| Ok(MockGameClient::new()));
-        mock_gentity
-            .expect_start_kamikaze()
-            .return_const_st(())
-            .times(1);
         let try_from_ctx = MockGameEntity::try_from_context();
-        try_from_ctx.expect().return_once_st(|_| Ok(mock_gentity));
+        try_from_ctx.expect().returning(|_| {
+            let mut mock_gentity = MockGameEntity::new();
+            mock_gentity
+                .expect_get_game_client()
+                .times(1)
+                .return_once(|| {
+                    let mut mock_game_client = MockGameClient::new();
+                    mock_game_client.expect_get_client_num().return_const(42);
+                    Ok(mock_game_client)
+                });
+            mock_gentity
+                .expect_get_game_client()
+                .times(1)
+                .return_once(|| {
+                    let mut mock_game_client = MockGameClient::new();
+                    mock_game_client.expect_remove_kamikaze_flag();
+                    Ok(mock_game_client)
+                });
+            mock_gentity
+                .expect_get_game_client()
+                .times(1)
+                .return_once(|| Ok(MockGameClient::new()));
+            mock_gentity.expect_start_kamikaze().times(1);
+            Ok(mock_gentity)
+        });
         let kamikaze_use_dispatcher_ctx = kamikaze_use_dispatcher_context();
         kamikaze_use_dispatcher_ctx
             .expect()
-            .withf_st(|&client_id| client_id == 42)
-            .return_const_st(())
+            .withf(|&client_id| client_id == 42)
             .times(1);
         let kamikaze_explode_dispatcher_ctx = kamikaze_explode_dispatcher_context();
         kamikaze_explode_dispatcher_ctx
             .expect()
-            .withf_st(|&client_id, &is_used_on_demand| client_id == 42 && is_used_on_demand)
-            .return_const_st(())
+            .withf(|&client_id, &is_used_on_demand| client_id == 42 && is_used_on_demand)
             .times(1);
 
         shinqlx_g_startkamikaze(&mut gentity as *mut gentity_t);
@@ -1508,26 +1499,24 @@ mod hooks_tests {
     fn kamikaze_start_for_activator_use() {
         let mut gentity = GEntityBuilder::default().build().unwrap();
 
-        let mut mock_gentity = MockGameEntity::new();
-        mock_gentity
-            .expect_get_game_client()
-            .returning_st(|| Err(QuakeLiveEngineError::MainEngineNotInitialized));
-        mock_gentity.expect_get_activator().return_once_st(|| {
-            let mut mock_activator = MockActivator::new();
-            mock_activator.expect_get_owner_num().return_const_st(42);
-            Ok(mock_activator)
-        });
-        mock_gentity
-            .expect_start_kamikaze()
-            .return_const_st(())
-            .times(1);
         let try_from_ctx = MockGameEntity::try_from_context();
-        try_from_ctx.expect().return_once_st(|_| Ok(mock_gentity));
+        try_from_ctx.expect().return_once(|_| {
+            let mut mock_gentity = MockGameEntity::new();
+            mock_gentity
+                .expect_get_game_client()
+                .returning(|| Err(QuakeLiveEngineError::MainEngineNotInitialized));
+            mock_gentity.expect_get_activator().return_once(|| {
+                let mut mock_activator = MockActivator::new();
+                mock_activator.expect_get_owner_num().return_const(42);
+                Ok(mock_activator)
+            });
+            mock_gentity.expect_start_kamikaze().times(1);
+            Ok(mock_gentity)
+        });
         let kamikaze_explode_dispatcher_ctx = kamikaze_explode_dispatcher_context();
         kamikaze_explode_dispatcher_ctx
             .expect()
-            .withf_st(|&client_id, &is_used_on_demand| client_id == 42 && !is_used_on_demand)
-            .return_const_st(())
+            .withf(|&client_id, &is_used_on_demand| client_id == 42 && !is_used_on_demand)
             .times(1);
 
         shinqlx_g_startkamikaze(&mut gentity as *mut gentity_t);

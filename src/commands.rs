@@ -1112,7 +1112,7 @@ mod commands_tests {
         client_from_ctx
             .expect()
             .withf(|&client_id| client_id == 2)
-            .return_once_st(|_| {
+            .return_once(|_| {
                 let mut client_mock = MockClient::default();
                 client_mock
                     .expect_get_name()
@@ -1323,7 +1323,7 @@ def handler():
         let new_game_dispatcher_ctx = new_game_dispatcher_context();
         new_game_dispatcher_ctx
             .expect()
-            .withf_st(|&new_game| !new_game)
+            .withf(|&new_game| !new_game)
             .times(1);
 
         cmd_restart_python();
