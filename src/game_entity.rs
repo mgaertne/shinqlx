@@ -520,6 +520,7 @@ mod game_entity_tests {
     }
 
     #[test]
+    #[serial]
     fn game_entity_try_from_too_large_i32_entity_id() {
         MAIN_ENGINE.store(None);
         assert_eq!(
@@ -541,6 +542,7 @@ mod game_entity_tests {
     }
 
     #[test]
+    #[serial]
     fn game_entity_try_from_too_large_u32_entity_id() {
         MAIN_ENGINE.store(None);
         assert_eq!(
@@ -550,6 +552,7 @@ mod game_entity_tests {
     }
 
     #[test]
+    #[serial]
     fn game_entity_try_from_valid_u32_gentities_not_initialized() {
         MAIN_ENGINE.store(None);
         assert_eq!(
@@ -561,12 +564,14 @@ mod game_entity_tests {
     }
 
     #[test]
+    #[serial]
     fn game_entity_get_entities_list_with_no_main_engine() {
         MAIN_ENGINE.store(None);
         assert!(GameEntity::get_entities_list().is_null());
     }
 
     #[test]
+    #[serial]
     fn game_entity_get_entity_with_no_entities_list() {
         MAIN_ENGINE.store(None);
         let mut gentity = GEntityBuilder::default().build().unwrap();
