@@ -125,6 +125,7 @@ mock! {
 mod current_level_tests {
     use super::MAIN_ENGINE;
     use crate::current_level::CurrentLevel;
+    use crate::game_entity::MockGameEntity;
     use crate::hooks::mock_hooks::*;
     use crate::prelude::*;
     use crate::quake_live_engine::MockQuakeEngine;
@@ -228,9 +229,8 @@ mod current_level_tests {
     #[test]
     #[serial]
     fn current_level_callvote_with_no_main_engine() {
-        {
-            MAIN_ENGINE.store(None);
-        }
+        MAIN_ENGINE.store(None);
+
         let mut level = LevelLocalsBuilder::default().build().unwrap();
         let mut current_level = CurrentLevel::try_from(&mut level as *mut level_locals_t).unwrap();
         current_level.callvote("map thunderstruck", "map thunderstruck", None);
@@ -257,6 +257,11 @@ mod current_level_tests {
 
         let set_configstring_ctx = shinqlx_set_configstring_context();
         set_configstring_ctx.expect();
+
+        let get_entities_list_ctx = MockGameEntity::get_entities_list_context();
+        get_entities_list_ctx
+            .expect()
+            .returning(|| ptr::null_mut() as *mut gentity_t);
 
         let mut level = LevelLocalsBuilder::default().build().unwrap();
         let mut current_level = CurrentLevel::try_from(&mut level as *mut level_locals_t).unwrap();
