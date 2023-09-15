@@ -1109,7 +1109,7 @@ mod game_entity_tests {
         let game_client_try_from_ctx = MockGameClient::try_from_context();
         game_client_try_from_ctx.expect().returning(|_| {
             let mut mock_game_client = MockGameClient::new();
-            mock_game_client.expect_get_holdable().return_const(-1);
+            mock_game_client.expect_get_holdable().returning(|| -1);
             Ok(mock_game_client)
         });
 
