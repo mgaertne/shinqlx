@@ -549,6 +549,7 @@ mod game_entity_tests {
 
     #[test]
     #[serial]
+    #[cfg_attr(miri, ignore)]
     fn game_entity_try_from_valid_i32_gentities_initialized() {
         MAIN_ENGINE.store(None);
 
@@ -595,6 +596,7 @@ mod game_entity_tests {
 
     #[test]
     #[serial]
+    #[cfg_attr(miri, ignore)]
     fn game_entity_try_from_valid_u32_gentities_initialized() {
         MAIN_ENGINE.store(None);
 
