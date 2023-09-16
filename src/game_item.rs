@@ -1,9 +1,23 @@
+#[cfg(test)]
+use crate::game_item::DUMMY_MAIN_ENGINE as MAIN_ENGINE;
 use crate::prelude::*;
+#[cfg(test)]
+use crate::quake_live_engine::MockQuakeEngine as QuakeLiveEngine;
 use crate::quake_live_engine::{GameAddEvent, TryLaunchItem};
+#[cfg(not(test))]
 use crate::MAIN_ENGINE;
 use alloc::string::String;
 use core::ffi::{c_float, CStr};
-use core::ops::Deref;
+#[cfg(test)]
+use mockall::mock;
+#[cfg(test)]
+use once_cell::sync::Lazy;
+#[cfg(test)]
+use swap_arc::SwapArcOption;
+
+#[cfg(test)]
+static DUMMY_MAIN_ENGINE: Lazy<SwapArcOption<QuakeLiveEngine>> =
+    Lazy::new(|| SwapArcOption::new(None));
 
 #[derive(Debug, PartialEq)]
 #[repr(transparent)]
@@ -64,6 +78,15 @@ impl GameItem {
     }
 
     fn get_item_list() -> *mut gitem_t {
+        #[cfg(test)]
+        if cfg!(test) {
+            return MockGameItem::get_mocked_item_list();
+        }
+
+        Self::get_item_list_real()
+    }
+
+    fn get_item_list_real() -> *mut gitem_t {
         let Some(ref main_engine) = *MAIN_ENGINE.load() else {
             return ptr::null_mut();
         };
@@ -83,17 +106,12 @@ impl GameItem {
         bg_itemlist_ptr as *mut gitem_t
     }
 
-    #[allow(unused)]
+    #[allow(dead_code)]
     pub(crate) fn get_item_id(&self) -> i32 {
         let bg_itemlist = Self::get_item_list();
         if bg_itemlist.is_null() {
             return -1;
         }
-        self.get_item_id_intern(bg_itemlist)
-    }
-
-    #[cfg_attr(not(test), inline)]
-    fn get_item_id_intern(&self, bg_itemlist: *mut gitem_t) -> i32 {
         i32::try_from(unsafe { (self.gitem_t as *const gitem_t).offset_from(bg_itemlist) })
             .unwrap_or(-1)
     }
@@ -109,14 +127,6 @@ impl GameItem {
             return;
         };
 
-        self.spawn_intern(origin, main_engine.deref());
-    }
-
-    #[cfg_attr(not(test), inline)]
-    fn spawn_intern<'a, T>(&'a mut self, origin: (i32, i32, i32), quake_live_engine: &T)
-    where
-        T: TryLaunchItem<&'a mut GameItem> + for<'b> GameAddEvent<&'b mut GameEntity, i32>,
-    {
         let mut origin_vec = [
             origin.0 as c_float,
             origin.1 as c_float,
@@ -124,8 +134,7 @@ impl GameItem {
         ];
         let mut velocity = [0.0, 0.0, 0.9];
 
-        let Ok(mut gentity) =
-            quake_live_engine.try_launch_item(self, &mut origin_vec, &mut velocity)
+        let Ok(mut gentity) = main_engine.try_launch_item(self, &mut origin_vec, &mut velocity)
         else {
             return;
         };
@@ -133,17 +142,25 @@ impl GameItem {
         gentity.set_next_think(0);
         gentity.set_think(None);
         // make item be scaled up
-        quake_live_engine.game_add_event(&mut gentity, entity_event_t::EV_ITEM_RESPAWN, 0);
+        main_engine.game_add_event(&mut gentity, entity_event_t::EV_ITEM_RESPAWN, 0);
+    }
+}
+
+#[cfg(test)]
+mock! {
+    pub(crate) GameItem {
+        fn get_mocked_item_list() -> *mut gitem_t;
     }
 }
 
 #[cfg(test)]
 mod game_item_tests {
     use super::GameItem;
+    use super::MAIN_ENGINE;
     use crate::game_entity::MockGameEntity;
+    use crate::game_item::MockGameItem;
     use crate::prelude::*;
     use crate::quake_live_engine::MockQuakeEngine;
-    use crate::MAIN_ENGINE;
     use alloc::ffi::CString;
     use core::ffi::c_char;
     use pretty_assertions::assert_eq;
@@ -166,7 +183,7 @@ mod game_item_tests {
     }
 
     #[test]
-    fn game_item_try_get_from_negative_item_id() {
+    fn game_item_try_from_with_negative_item_id() {
         assert_eq!(
             GameItem::try_from(-1),
             Err(QuakeLiveEngineError::InvalidId(-1))
@@ -174,7 +191,13 @@ mod game_item_tests {
     }
 
     #[test]
+    #[serial]
     fn game_item_try_get_with_no_items_available() {
+        let get_item_ctx = MockGameItem::get_mocked_item_list_context();
+        get_item_ctx
+            .expect()
+            .returning(|| ptr::null_mut() as *mut gitem_t);
+
         assert_eq!(
             GameItem::try_from(42),
             Err(QuakeLiveEngineError::InvalidId(42))
@@ -182,33 +205,47 @@ mod game_item_tests {
     }
 
     #[test]
+    #[serial]
     fn get_num_items_from_non_existing_item_list() {
+        let get_item_ctx = MockGameItem::get_mocked_item_list_context();
+        get_item_ctx
+            .expect()
+            .returning(|| ptr::null_mut() as *mut gitem_t);
+
         assert_eq!(GameItem::get_num_items(), 0);
     }
 
     #[test]
+    #[serial]
     fn get_item_list_with_no_main_engine() {
-        assert!(GameItem::get_item_list().is_null());
+        MAIN_ENGINE.store(None);
+
+        assert!(GameItem::get_item_list_real().is_null());
     }
 
     #[test]
     #[serial]
     fn get_item_list_with_offset_function_not_defined_in_main_engine() {
-        {
-            MAIN_ENGINE.store(Some(QuakeLiveEngine::new().into()));
-        }
+        let mut mock_engine = MockQuakeEngine::new();
+        mock_engine
+            .expect_launch_item_orig()
+            .return_once(|| Err(QuakeLiveEngineError::MainEngineNotInitialized));
 
-        let result = GameItem::get_item_list();
+        MAIN_ENGINE.store(Some(mock_engine.into()));
 
-        {
-            MAIN_ENGINE.store(None);
-        }
+        let result = GameItem::get_item_list_real();
 
         assert!(result.is_null());
     }
 
     #[test]
+    #[serial]
     fn game_item_get_item_id_with_no_itemlist() {
+        let get_item_ctx = MockGameItem::get_mocked_item_list_context();
+        get_item_ctx
+            .expect()
+            .returning(|| ptr::null_mut() as *mut gitem_t);
+
         let mut gitem = GItemBuilder::default().build().unwrap();
         let game_item = GameItem::try_from(&mut gitem as *mut gitem_t).unwrap();
         assert_eq!(game_item.get_item_id(), -1);
@@ -216,6 +253,7 @@ mod game_item_tests {
 
     #[test]
     #[cfg_attr(miri, ignore)]
+    #[serial]
     fn game_item_get_item_id_internal_gets_offset() {
         let mut itemlist = vec![
             GItemBuilder::default().build().unwrap(),
@@ -223,8 +261,13 @@ mod game_item_tests {
             GItemBuilder::default().build().unwrap(),
             GItemBuilder::default().build().unwrap(),
         ];
-        let game_item = GameItem::try_from(&mut itemlist[1] as *mut gitem_t).unwrap();
-        assert_eq!(game_item.get_item_id_intern(&mut itemlist[0]), 1);
+        let get_item_ctx = MockGameItem::get_mocked_item_list_context();
+        get_item_ctx
+            .expect()
+            .returning_st(move || &mut itemlist[0] as *mut gitem_t);
+
+        let game_item = GameItem::try_from(1).unwrap();
+        assert_eq!(game_item.get_item_id(), 1);
     }
 
     #[test]
@@ -259,6 +302,8 @@ mod game_item_tests {
         mock_engine
             .expect_game_add_event()
             .withf(|_, event, param| event == &entity_event_t::EV_ITEM_RESPAWN && param == &0);
-        game_item.spawn_intern((1, 2, 3), &mock_engine);
+        MAIN_ENGINE.store(Some(mock_engine.into()));
+
+        game_item.spawn((1, 2, 3));
     }
 }
