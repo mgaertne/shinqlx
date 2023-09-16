@@ -106,16 +106,6 @@ impl GameItem {
         bg_itemlist_ptr as *mut gitem_t
     }
 
-    #[allow(dead_code)]
-    pub(crate) fn get_item_id(&self) -> i32 {
-        let bg_itemlist = Self::get_item_list();
-        if bg_itemlist.is_null() {
-            return -1;
-        }
-        i32::try_from(unsafe { (self.gitem_t as *const gitem_t).offset_from(bg_itemlist) })
-            .unwrap_or(-1)
-    }
-
     pub(crate) fn get_classname(&self) -> String {
         unsafe { CStr::from_ptr(self.gitem_t.classname) }
             .to_string_lossy()
@@ -183,6 +173,7 @@ mod game_item_tests {
     }
 
     #[test]
+    #[serial]
     fn game_item_try_from_with_negative_item_id() {
         assert_eq!(
             GameItem::try_from(-1),
@@ -196,7 +187,7 @@ mod game_item_tests {
         let get_item_ctx = MockGameItem::get_mocked_item_list_context();
         get_item_ctx
             .expect()
-            .returning(|| ptr::null_mut() as *mut gitem_t);
+            .returning_st(|| ptr::null_mut() as *mut gitem_t);
 
         assert_eq!(
             GameItem::try_from(42),
@@ -210,7 +201,7 @@ mod game_item_tests {
         let get_item_ctx = MockGameItem::get_mocked_item_list_context();
         get_item_ctx
             .expect()
-            .returning(|| ptr::null_mut() as *mut gitem_t);
+            .returning_st(|| ptr::null_mut() as *mut gitem_t);
 
         assert_eq!(GameItem::get_num_items(), 0);
     }
@@ -240,37 +231,6 @@ mod game_item_tests {
 
     #[test]
     #[serial]
-    fn game_item_get_item_id_with_no_itemlist() {
-        let get_item_ctx = MockGameItem::get_mocked_item_list_context();
-        get_item_ctx
-            .expect()
-            .returning(|| ptr::null_mut() as *mut gitem_t);
-
-        let mut gitem = GItemBuilder::default().build().unwrap();
-        let game_item = GameItem::try_from(&mut gitem as *mut gitem_t).unwrap();
-        assert_eq!(game_item.get_item_id(), -1);
-    }
-
-    #[test]
-    #[cfg_attr(miri, ignore)]
-    #[serial]
-    fn game_item_get_item_id_internal_gets_offset() {
-        let mut itemlist = vec![
-            GItemBuilder::default().build().unwrap(),
-            GItemBuilder::default().build().unwrap(),
-            GItemBuilder::default().build().unwrap(),
-            GItemBuilder::default().build().unwrap(),
-        ];
-        let get_item_ctx = MockGameItem::get_mocked_item_list_context();
-        get_item_ctx
-            .expect()
-            .returning_st(move || &mut itemlist[0] as *mut gitem_t);
-
-        let game_item = GameItem::try_from(1).unwrap();
-        assert_eq!(game_item.get_item_id(), 1);
-    }
-
-    #[test]
     fn game_item_get_classname() {
         let classname = CString::new("item classname").unwrap();
         let mut gitem = GItemBuilder::default()
