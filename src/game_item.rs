@@ -282,6 +282,7 @@ mod game_item_tests {
     }
 
     #[test]
+    #[serial]
     fn game_item_spawn() {
         let mut mock_engine = MockQuakeEngine::new();
         let mut gitem = GItemBuilder::default().build().unwrap();
