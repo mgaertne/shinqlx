@@ -1921,6 +1921,12 @@ mock! {
             &self,
         ) -> Result<extern "C" fn(*mut gentity_t), QuakeLiveEngineError>;
         pub(crate) fn g_run_frame_orig(&self) -> Result<extern "C" fn(c_int), QuakeLiveEngineError>;
+        pub(crate) fn launch_item_orig(
+            &self,
+        ) -> Result<
+            extern "C" fn(*mut gitem_t, &mut vec3_t, &mut vec3_t) -> *mut gentity_t,
+            QuakeLiveEngineError,
+        >;
         #[allow(clippy::type_complexity)]
         pub(crate) fn sv_dropclient_detour(&self) -> Result<&'static GenericDetour<fn(*mut client_t, *const c_char)>, QuakeLiveEngineError>;
         pub(crate) fn sv_shutdown_orig(&self) -> Result<fn(*const c_char), QuakeLiveEngineError>;
