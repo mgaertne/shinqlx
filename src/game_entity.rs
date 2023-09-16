@@ -628,8 +628,9 @@ mod game_entity_tests {
     }
 
     #[test]
+    #[serial]
     #[cfg_attr(miri, ignore)]
-    fn game_entity_get_entity_intern_gets_offset() {
+    fn game_entity_get_entity_id_gets_offset() {
         let mut gentities = vec![
             GEntityBuilder::default().build().unwrap(),
             GEntityBuilder::default().build().unwrap(),
@@ -1142,6 +1143,7 @@ mod game_entity_tests {
     }
 
     #[test]
+    #[serial]
     fn game_entity_free_entity_with_no_main_engine() {
         let mut gentity = GEntityBuilder::default().build().unwrap();
         let mut game_entity = GameEntity::try_from(&mut gentity as *mut gentity_t).unwrap();
@@ -1152,6 +1154,7 @@ mod game_entity_tests {
     }
 
     #[test]
+    #[serial]
     fn game_entity_free_entity() {
         let mut gentity = GEntityBuilder::default().build().unwrap();
         let mut game_entity = GameEntity::try_from(&mut gentity as *mut gentity_t).unwrap();
