@@ -356,7 +356,6 @@ impl GameEntity {
         main_engine.free_entity(self);
     }
 
-    #[cfg_attr(test, allow(dead_code))]
     pub(crate) fn replace_item(&mut self, item_id: i32) {
         let Some(ref main_engine) = *MAIN_ENGINE.load() else {
             return;
@@ -382,7 +381,6 @@ impl GameEntity {
         }
     }
 
-    #[cfg_attr(test, allow(dead_code))]
     pub(crate) fn get_targetting_entity_ids(&self) -> Vec<u32> {
         if self.gentity_t.targetname.is_null() {
             return vec![];
@@ -1182,6 +1180,24 @@ mod game_entity_tests {
         MAIN_ENGINE.store(Some(mock_engine.into()));
 
         game_entity.free_entity();
+    }
+
+    #[test]
+    #[serial]
+    fn game_entity_replace_item_with_no_main_engine() {
+        MAIN_ENGINE.store(None);
+        let mut gentity = GEntityBuilder::default().build().unwrap();
+        let mut game_entity = GameEntity::try_from(&mut gentity as *mut gentity_t).unwrap();
+
+        game_entity.replace_item(42);
+    }
+
+    #[test]
+    fn game_entity_get_targetting_entity_ids_for_no_targetname() {
+        let mut gentity = GEntityBuilder::default().build().unwrap();
+        let game_entity = GameEntity::try_from(&mut gentity as *mut gentity_t).unwrap();
+
+        assert_eq!(game_entity.get_targetting_entity_ids(), vec![]);
     }
 
     #[test]
