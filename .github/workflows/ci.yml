@@ -108,6 +108,9 @@ jobs:
         args: -Z minimal-versions --verbose
   coverage:
     runs-on: ubuntu-latest
+    container:
+      image:                    xd009642/tarpaulin:develop-nightly
+      options:                  --security-opt seccomp=unconfined
     steps:
     - uses: actions/checkout@v3
     - name: Set up Python 3.11
@@ -120,11 +123,6 @@ jobs:
         toolchain: nightly
         override: true
         components: "llvm-tools"
-    - name: Install cargo-tarpaulin
-      uses: actions-rs/cargo@v1
-      with:
-        command: install
-        args: cargo-tarpaulin
     - name: Run cargo-tarpaulin
       uses: actions-rs/cargo@v1
       with:
