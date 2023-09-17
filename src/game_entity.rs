@@ -1111,7 +1111,7 @@ mod game_entity_tests {
         let game_client_try_from_ctx = MockGameClient::try_from_context();
         game_client_try_from_ctx
             .expect()
-            .returning_st(|_| Err(QuakeLiveEngineError::MainEngineNotInitialized));
+            .returning(|_| Err(QuakeLiveEngineError::MainEngineNotInitialized));
 
         let mut gentity = GEntityBuilder::default().build().unwrap();
         let mut game_entity = GameEntity::try_from(&mut gentity as *mut gentity_t).unwrap();
@@ -1124,7 +1124,7 @@ mod game_entity_tests {
     fn game_entity_drop_holdable_with_item_on_game_client() {
         MAIN_ENGINE.store(Some(MockQuakeEngine::new().into()));
         let game_client_try_from_ctx = MockGameClient::try_from_context();
-        game_client_try_from_ctx.expect().returning_st(|_| {
+        game_client_try_from_ctx.expect().returning(|_| {
             let mut mock_game_client = MockGameClient::new();
             mock_game_client.expect_get_holdable().returning(|| -1);
             Ok(mock_game_client)
@@ -1190,6 +1190,26 @@ mod game_entity_tests {
         let mut game_entity = GameEntity::try_from(&mut gentity as *mut gentity_t).unwrap();
 
         game_entity.replace_item(42);
+    }
+
+    #[test]
+    #[serial]
+    fn game_entity_replace_item_with_no_replacement() {
+        let mut mock_engine = MockQuakeEngine::new();
+        mock_engine
+            .expect_com_printf()
+            .withf(|text| text == "class_name");
+        mock_engine.expect_free_entity();
+        MAIN_ENGINE.store(Some(mock_engine.into()));
+
+        let class_name = CString::new("class_name").unwrap();
+        let mut gentity = GEntityBuilder::default()
+            .classname(class_name.as_ptr())
+            .build()
+            .unwrap();
+        let mut game_entity = GameEntity::try_from(&mut gentity as *mut gentity_t).unwrap();
+
+        game_entity.replace_item(0);
     }
 
     #[test]
