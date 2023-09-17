@@ -155,6 +155,10 @@ impl GameEntity {
             return MockGameEntity::get_entities_list();
         }
 
+        Self::get_entities_list_real()
+    }
+
+    fn get_entities_list_real() -> *mut gentity_t {
         let Some(ref main_engine) = *MAIN_ENGINE.load() else {
             return ptr::null_mut();
         };
@@ -403,12 +407,10 @@ impl GameEntity {
         self.gentity_t.nextthink = next_think;
     }
 
-    #[cfg_attr(test, allow(dead_code))]
     pub(crate) fn set_think(&mut self, think: Option<unsafe extern "C" fn(*mut gentity_t)>) {
         self.gentity_t.think = think;
     }
 
-    #[cfg_attr(test, allow(dead_code))]
     pub(crate) fn set_touch(
         &mut self,
         touch: Option<unsafe extern "C" fn(*mut gentity_t, *mut gentity_t, *mut trace_t)>,
@@ -416,12 +418,10 @@ impl GameEntity {
         self.gentity_t.touch = touch;
     }
 
-    #[cfg_attr(test, allow(dead_code))]
     pub(crate) fn set_parent(&mut self, parent: &mut gentity_t) {
         self.gentity_t.parent = parent;
     }
 
-    #[cfg_attr(test, allow(dead_code))]
     pub(crate) fn set_position_trace_time(&mut self, trace_time: i32) {
         self.gentity_t.s.pos.trTime = trace_time;
     }
@@ -484,7 +484,7 @@ mod game_entity_tests {
     use super::MAIN_ENGINE;
     use crate::activator::MockActivator;
     use crate::game_client::MockGameClient;
-    use crate::game_entity::MockGameEntity;
+    use crate::game_entity::{MockGameEntity, ShiNQlx_Switch_Touch_Item, ShiNQlx_Touch_Item};
     use crate::prelude::*;
     use crate::quake_live_engine::MockQuakeEngine;
     use alloc::ffi::CString;
@@ -612,6 +612,24 @@ mod game_entity_tests {
             .returning_st(move || &mut gentities[0] as *mut gentity_t);
 
         assert!(GameEntity::try_from(2u32).is_ok());
+    }
+
+    #[test]
+    #[serial]
+    fn game_entity_get_entities_list_with_no_main_engine() {
+        MAIN_ENGINE.store(None);
+        assert!(GameEntity::get_entities_list_real().is_null());
+    }
+
+    #[test]
+    #[serial]
+    fn game_entity_get_entities_list_with_no_g_run_frame_orig() {
+        let mut mock_engine = MockQuakeEngine::new();
+        mock_engine
+            .expect_g_run_frame_orig()
+            .returning(|| Err(QuakeLiveEngineError::MainEngineNotInitialized));
+        MAIN_ENGINE.store(Some(mock_engine.into()));
+        assert!(GameEntity::get_entities_list_real().is_null());
     }
 
     #[test]
@@ -1164,5 +1182,81 @@ mod game_entity_tests {
         MAIN_ENGINE.store(Some(mock_engine.into()));
 
         game_entity.free_entity();
+    }
+
+    #[test]
+    fn game_entity_set_next_think() {
+        let mut gentity = GEntityBuilder::default().build().unwrap();
+        let mut game_entity = GameEntity::try_from(&mut gentity as *mut gentity_t).unwrap();
+        game_entity.set_next_think(1337);
+
+        assert_eq!(gentity.nextthink, 1337);
+    }
+
+    #[test]
+    fn game_entity_set_think_to_none() {
+        let mut gentity = GEntityBuilder::default()
+            .think(Some(ShiNQlx_Switch_Touch_Item))
+            .build()
+            .unwrap();
+        let mut game_entity = GameEntity::try_from(&mut gentity as *mut gentity_t).unwrap();
+        game_entity.set_think(None);
+
+        assert_eq!(gentity.think, None);
+    }
+
+    #[test]
+    fn game_entity_set_think_to_some_value() {
+        let mut gentity = GEntityBuilder::default().think(None).build().unwrap();
+        let mut game_entity = GameEntity::try_from(&mut gentity as *mut gentity_t).unwrap();
+        game_entity.set_think(Some(ShiNQlx_Switch_Touch_Item));
+
+        assert!(gentity
+            .think
+            .is_some_and(|func| func == ShiNQlx_Switch_Touch_Item));
+    }
+
+    #[test]
+    fn game_entity_set_touch_to_none() {
+        let mut gentity = GEntityBuilder::default()
+            .touch(Some(ShiNQlx_Touch_Item))
+            .build()
+            .unwrap();
+        let mut game_entity = GameEntity::try_from(&mut gentity as *mut gentity_t).unwrap();
+        game_entity.set_touch(None);
+
+        assert_eq!(gentity.touch, None);
+    }
+
+    #[test]
+    fn game_entity_set_touch_to_some_value() {
+        let mut gentity = GEntityBuilder::default().touch(None).build().unwrap();
+        let mut game_entity = GameEntity::try_from(&mut gentity as *mut gentity_t).unwrap();
+        game_entity.set_touch(Some(ShiNQlx_Touch_Item));
+
+        assert!(gentity.touch.is_some_and(|func| func == ShiNQlx_Touch_Item));
+    }
+
+    #[test]
+    fn game_entity_set_parent_to_some_value() {
+        let mut gentity = GEntityBuilder::default()
+            .parent(ptr::null_mut() as *mut gentity_t)
+            .build()
+            .unwrap();
+        let mut game_entity = GameEntity::try_from(&mut gentity as *mut gentity_t).unwrap();
+
+        let mut parent_entity = GEntityBuilder::default().build().unwrap();
+        game_entity.set_parent(&mut parent_entity);
+
+        assert_eq!(gentity.parent, &mut parent_entity as *mut gentity_t);
+    }
+
+    #[test]
+    fn game_entity_set_position_trace_time() {
+        let mut gentity = GEntityBuilder::default().build().unwrap();
+        let mut game_entity = GameEntity::try_from(&mut gentity as *mut gentity_t).unwrap();
+        game_entity.set_position_trace_time(1337);
+
+        assert_eq!(gentity.s.pos.trTime, 1337);
     }
 }
