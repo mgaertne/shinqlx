@@ -1113,7 +1113,7 @@ mod game_entity_tests {
         let game_client_try_from_ctx = MockGameClient::try_from_context();
         game_client_try_from_ctx
             .expect()
-            .returning(|_| Err(QuakeLiveEngineError::MainEngineNotInitialized));
+            .returning_st(|_| Err(QuakeLiveEngineError::MainEngineNotInitialized));
 
         let mut gentity = GEntityBuilder::default().build().unwrap();
         let mut game_entity = GameEntity::try_from(&mut gentity as *mut gentity_t).unwrap();
@@ -1126,7 +1126,7 @@ mod game_entity_tests {
     fn game_entity_drop_holdable_with_item_on_game_client() {
         MAIN_ENGINE.store(Some(MockQuakeEngine::new().into()));
         let game_client_try_from_ctx = MockGameClient::try_from_context();
-        game_client_try_from_ctx.expect().returning(|_| {
+        game_client_try_from_ctx.expect().returning_st(|_| {
             let mut mock_game_client = MockGameClient::new();
             mock_game_client.expect_get_holdable().returning(|| -1);
             Ok(mock_game_client)
