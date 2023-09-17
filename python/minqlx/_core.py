@@ -20,7 +20,6 @@
 # Since this isn't the actual module, we define it here and export
 # it later so that it can be accessed with minqlx.__doc__ by Sphinx.
 import collections
-import multiprocessing.pool
 import subprocess
 import threading
 import traceback
@@ -383,13 +382,8 @@ def delay(time):
     return wrap
 
 
-def _thread_init():
-    current_thread = threading.current_thread()
-    current_thread.name = f"{_thread_name}-{current_thread.name}"
-
-
+_thread_count = 0
 _thread_name = "minqlxthread"
-_threadpool = multiprocessing.pool.ThreadPool(processes=128, initializer=_thread_init)
 
 
 def thread(func, force=False):
@@ -407,10 +401,18 @@ def thread(func, force=False):
 
     @wraps(func)
     def f(*args, **kwargs):
-        if not force and threading.current_thread().name.startswith(_thread_name):
+        if not force and threading.current_thread().name.endswith(_thread_name):
             func(*args, **kwargs)
         else:
-            _threadpool.apply_async(func, args, kwargs)
+            global _thread_count
+            name = func.__name__ + f"-{str(_thread_count)}-{_thread_name}"
+            t = threading.Thread(
+                target=func, name=name, args=args, kwargs=kwargs, daemon=True
+            )
+            t.start()
+            _thread_count += 1
+
+            return t
 
     return f
 
