@@ -1,4 +1,7 @@
+#[cfg(not(test))]
 use crate::current_level::CurrentLevel;
+#[cfg(test)]
+use crate::current_level::MockTestCurrentLevel as CurrentLevel;
 #[cfg(test)]
 use crate::game_entity::DUMMY_MAIN_ENGINE as MAIN_ENGINE;
 use crate::game_item::GameItem;
@@ -481,6 +484,7 @@ mod game_entity_tests {
     use super::GameEntity;
     use super::MAIN_ENGINE;
     use crate::activator::MockActivator;
+    use crate::current_level::MockTestCurrentLevel;
     use crate::game_client::MockGameClient;
     use crate::game_entity::{MockGameEntity, ShiNQlx_Switch_Touch_Item, ShiNQlx_Touch_Item};
     use crate::prelude::*;
@@ -513,6 +517,97 @@ mod game_entity_tests {
             .returning(|| Err(QuakeLiveEngineError::MainEngineNotInitialized));
         MAIN_ENGINE.store(Some(mock_engine.into()));
         ShiNQlx_Touch_Item(&mut entity, &mut other_entity, &mut trace);
+    }
+
+    #[test]
+    #[serial]
+    fn shinqlx_switch_touch_item_with_no_main_engine() {
+        let mut entity = GEntityBuilder::default().build().unwrap();
+
+        MAIN_ENGINE.store(None);
+        ShiNQlx_Switch_Touch_Item(&mut entity);
+    }
+
+    #[test]
+    #[serial]
+    fn shinqlx_switch_touch_item_with_unintialized_main_engine() {
+        let mut entity = GEntityBuilder::default().build().unwrap();
+
+        let mut mock_engine = MockQuakeEngine::new();
+        mock_engine
+            .expect_touch_item_orig()
+            .returning(|| Err(QuakeLiveEngineError::MainEngineNotInitialized));
+        MAIN_ENGINE.store(Some(mock_engine.into()));
+        ShiNQlx_Switch_Touch_Item(&mut entity);
+    }
+
+    extern "C" fn mock_touch_item(
+        _entity: *mut gentity_t,
+        _other: *mut gentity_t,
+        _trace: *mut trace_t,
+    ) {
+    }
+
+    #[test]
+    #[serial]
+    fn shinqlx_switch_touch_item_with_partially_intialized_main_engine() {
+        let mut entity = GEntityBuilder::default().build().unwrap();
+
+        let mut mock_engine = MockQuakeEngine::new();
+        mock_engine
+            .expect_touch_item_orig()
+            .returning(|| Ok(mock_touch_item));
+        mock_engine
+            .expect_g_free_entity_orig()
+            .returning(|| Err(QuakeLiveEngineError::MainEngineNotInitialized));
+
+        MAIN_ENGINE.store(Some(mock_engine.into()));
+        ShiNQlx_Switch_Touch_Item(&mut entity);
+    }
+
+    extern "C" fn mock_g_free_entity(_entity: *mut gentity_t) {}
+
+    #[test]
+    #[serial]
+    fn shinqlx_switch_touch_item_with_null_entity() {
+        let mut mock_engine = MockQuakeEngine::new();
+        mock_engine
+            .expect_touch_item_orig()
+            .returning(|| Ok(mock_touch_item));
+        mock_engine
+            .expect_g_free_entity_orig()
+            .returning(|| Ok(mock_g_free_entity));
+
+        MAIN_ENGINE.store(Some(mock_engine.into()));
+        ShiNQlx_Switch_Touch_Item(ptr::null_mut() as *mut gentity_t);
+    }
+
+    #[test]
+    #[serial]
+    fn shinqlx_switch_touch_item_with_sets_properties() {
+        let mut entity = GEntityBuilder::default().build().unwrap();
+
+        let mut mock_engine = MockQuakeEngine::new();
+        mock_engine
+            .expect_touch_item_orig()
+            .returning(|| Ok(mock_touch_item));
+        mock_engine
+            .expect_g_free_entity_orig()
+            .returning(|| Ok(mock_g_free_entity));
+
+        let current_level_ctx = MockTestCurrentLevel::try_get_context();
+        current_level_ctx.expect().returning(|| {
+            let mut current_level = MockTestCurrentLevel::new();
+            current_level.expect_get_leveltime().return_const(1234);
+            Ok(current_level)
+        });
+
+        MAIN_ENGINE.store(Some(mock_engine.into()));
+        ShiNQlx_Switch_Touch_Item(&mut entity);
+
+        assert!(entity.touch.is_some_and(|func| func == mock_touch_item));
+        assert!(entity.think.is_some_and(|func| func == mock_g_free_entity));
+        assert_eq!(entity.nextthink, 30234);
     }
 
     #[test]
@@ -1134,6 +1229,13 @@ mod game_entity_tests {
     #[serial]
     fn game_entity_drop_holdable_with_no_game_client() {
         MAIN_ENGINE.store(Some(MockQuakeEngine::new().into()));
+        let current_level_ctx = MockTestCurrentLevel::try_get_context();
+        current_level_ctx.expect().returning(|| {
+            let mut current_level = MockTestCurrentLevel::new();
+            current_level.expect_get_leveltime().return_const(1234);
+            Ok(current_level)
+        });
+
         let game_client_try_from_ctx = MockGameClient::try_from_context();
         game_client_try_from_ctx
             .expect()
@@ -1149,6 +1251,13 @@ mod game_entity_tests {
     #[serial]
     fn game_entity_drop_holdable_with_item_on_game_client() {
         MAIN_ENGINE.store(Some(MockQuakeEngine::new().into()));
+        let current_level_ctx = MockTestCurrentLevel::try_get_context();
+        current_level_ctx.expect().returning(|| {
+            let mut current_level = MockTestCurrentLevel::new();
+            current_level.expect_get_leveltime().return_const(1234);
+            Ok(current_level)
+        });
+
         let game_client_try_from_ctx = MockGameClient::try_from_context();
         game_client_try_from_ctx.expect().returning_st(|_| {
             let mut mock_game_client = MockGameClient::new();
