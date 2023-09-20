@@ -479,6 +479,7 @@ mock! {
     }
 }
 
+#[cfg(test)]
 mock! {
     StaticFunc {
         pub(crate) extern "C" fn touch_item(entity: *mut gentity_t, other: *mut gentity_t, trace: *mut trace_t);
