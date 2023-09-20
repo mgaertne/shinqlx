@@ -479,6 +479,13 @@ mock! {
     }
 }
 
+mock! {
+    StaticFunc {
+        pub(crate) extern "C" fn touch_item(entity: *mut gentity_t, other: *mut gentity_t, trace: *mut trace_t);
+        pub(crate) extern "C" fn g_free_entity(entity: *mut gentity_t);
+    }
+}
+
 #[cfg(test)]
 mod game_entity_tests {
     use super::GameEntity;
@@ -486,7 +493,9 @@ mod game_entity_tests {
     use crate::activator::MockActivator;
     use crate::current_level::MockTestCurrentLevel;
     use crate::game_client::MockGameClient;
-    use crate::game_entity::{MockGameEntity, ShiNQlx_Switch_Touch_Item, ShiNQlx_Touch_Item};
+    use crate::game_entity::{
+        MockGameEntity, MockStaticFunc, ShiNQlx_Switch_Touch_Item, ShiNQlx_Touch_Item,
+    };
     use crate::prelude::*;
     use crate::quake_live_engine::MockQuakeEngine;
     use alloc::ffi::CString;
@@ -521,6 +530,69 @@ mod game_entity_tests {
 
     #[test]
     #[serial]
+    fn shinqlx_touch_item_with_null_entity() {
+        let mut other_entity = GEntityBuilder::default().build().unwrap();
+        let mut trace = TraceBuilder::default().build().unwrap();
+
+        let touch_item_ctx = MockStaticFunc::touch_item_context();
+        touch_item_ctx.expect().times(0);
+
+        let mut mock_engine = MockQuakeEngine::new();
+        mock_engine
+            .expect_touch_item_orig()
+            .returning(|| Ok(MockStaticFunc::touch_item));
+        MAIN_ENGINE.store(Some(mock_engine.into()));
+
+        ShiNQlx_Touch_Item(
+            ptr::null_mut() as *mut gentity_t,
+            &mut other_entity,
+            &mut trace,
+        );
+    }
+
+    #[test]
+    #[serial]
+    fn shinqlx_touch_item_with_entity_touched_by_parent() {
+        let mut other_entity = GEntityBuilder::default().build().unwrap();
+        let mut entity = GEntityBuilder::default()
+            .parent(&mut other_entity)
+            .build()
+            .unwrap();
+        let mut trace = TraceBuilder::default().build().unwrap();
+
+        let touch_item_ctx = MockStaticFunc::touch_item_context();
+        touch_item_ctx.expect().times(0);
+
+        let mut mock_engine = MockQuakeEngine::new();
+        mock_engine
+            .expect_touch_item_orig()
+            .returning(|| Ok(MockStaticFunc::touch_item));
+        MAIN_ENGINE.store(Some(mock_engine.into()));
+
+        ShiNQlx_Touch_Item(&mut entity, &mut other_entity, &mut trace);
+    }
+
+    #[test]
+    #[serial]
+    fn shinqlx_touch_item_with_entity_touched_by_non_parent() {
+        let mut entity = GEntityBuilder::default().build().unwrap();
+        let mut other_entity = GEntityBuilder::default().build().unwrap();
+        let mut trace = TraceBuilder::default().build().unwrap();
+
+        let touch_item_ctx = MockStaticFunc::touch_item_context();
+        touch_item_ctx.expect().times(1);
+
+        let mut mock_engine = MockQuakeEngine::new();
+        mock_engine
+            .expect_touch_item_orig()
+            .returning(|| Ok(MockStaticFunc::touch_item));
+        MAIN_ENGINE.store(Some(mock_engine.into()));
+
+        ShiNQlx_Touch_Item(&mut entity, &mut other_entity, &mut trace);
+    }
+
+    #[test]
+    #[serial]
     fn shinqlx_switch_touch_item_with_no_main_engine() {
         let mut entity = GEntityBuilder::default().build().unwrap();
 
@@ -541,13 +613,6 @@ mod game_entity_tests {
         ShiNQlx_Switch_Touch_Item(&mut entity);
     }
 
-    extern "C" fn mock_touch_item(
-        _entity: *mut gentity_t,
-        _other: *mut gentity_t,
-        _trace: *mut trace_t,
-    ) {
-    }
-
     #[test]
     #[serial]
     fn shinqlx_switch_touch_item_with_partially_intialized_main_engine() {
@@ -556,7 +621,7 @@ mod game_entity_tests {
         let mut mock_engine = MockQuakeEngine::new();
         mock_engine
             .expect_touch_item_orig()
-            .returning(|| Ok(mock_touch_item));
+            .returning(|| Ok(MockStaticFunc::touch_item));
         mock_engine
             .expect_g_free_entity_orig()
             .returning(|| Err(QuakeLiveEngineError::MainEngineNotInitialized));
@@ -565,18 +630,16 @@ mod game_entity_tests {
         ShiNQlx_Switch_Touch_Item(&mut entity);
     }
 
-    extern "C" fn mock_g_free_entity(_entity: *mut gentity_t) {}
-
     #[test]
     #[serial]
     fn shinqlx_switch_touch_item_with_null_entity() {
         let mut mock_engine = MockQuakeEngine::new();
         mock_engine
             .expect_touch_item_orig()
-            .returning(|| Ok(mock_touch_item));
+            .returning(|| Ok(MockStaticFunc::touch_item));
         mock_engine
             .expect_g_free_entity_orig()
-            .returning(|| Ok(mock_g_free_entity));
+            .returning(|| Ok(MockStaticFunc::g_free_entity));
 
         MAIN_ENGINE.store(Some(mock_engine.into()));
         ShiNQlx_Switch_Touch_Item(ptr::null_mut() as *mut gentity_t);
@@ -590,10 +653,10 @@ mod game_entity_tests {
         let mut mock_engine = MockQuakeEngine::new();
         mock_engine
             .expect_touch_item_orig()
-            .returning(|| Ok(mock_touch_item));
+            .returning(|| Ok(MockStaticFunc::touch_item));
         mock_engine
             .expect_g_free_entity_orig()
-            .returning(|| Ok(mock_g_free_entity));
+            .returning(|| Ok(MockStaticFunc::g_free_entity));
 
         let current_level_ctx = MockTestCurrentLevel::try_get_context();
         current_level_ctx.expect().returning(|| {
@@ -605,8 +668,12 @@ mod game_entity_tests {
         MAIN_ENGINE.store(Some(mock_engine.into()));
         ShiNQlx_Switch_Touch_Item(&mut entity);
 
-        assert!(entity.touch.is_some_and(|func| func == mock_touch_item));
-        assert!(entity.think.is_some_and(|func| func == mock_g_free_entity));
+        assert!(entity
+            .touch
+            .is_some_and(|func| func == MockStaticFunc::touch_item));
+        assert!(entity
+            .think
+            .is_some_and(|func| func == MockStaticFunc::g_free_entity));
         assert_eq!(entity.nextthink, 30234);
     }
 
