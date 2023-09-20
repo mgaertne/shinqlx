@@ -490,6 +490,32 @@ mod game_entity_tests {
     use pretty_assertions::assert_eq;
 
     #[test]
+    #[serial]
+    fn shinqlx_touch_item_with_no_main_engine() {
+        let mut entity = GEntityBuilder::default().build().unwrap();
+        let mut other_entity = GEntityBuilder::default().build().unwrap();
+        let mut trace = TraceBuilder::default().build().unwrap();
+
+        MAIN_ENGINE.store(None);
+        ShiNQlx_Touch_Item(&mut entity, &mut other_entity, &mut trace);
+    }
+
+    #[test]
+    #[serial]
+    fn shinqlx_touch_item_with_unintialized_main_engine() {
+        let mut entity = GEntityBuilder::default().build().unwrap();
+        let mut other_entity = GEntityBuilder::default().build().unwrap();
+        let mut trace = TraceBuilder::default().build().unwrap();
+
+        let mut mock_engine = MockQuakeEngine::new();
+        mock_engine
+            .expect_touch_item_orig()
+            .returning(|| Err(QuakeLiveEngineError::MainEngineNotInitialized));
+        MAIN_ENGINE.store(Some(mock_engine.into()));
+        ShiNQlx_Touch_Item(&mut entity, &mut other_entity, &mut trace);
+    }
+
+    #[test]
     fn game_entity_try_from_null_results_in_error() {
         assert_eq!(
             GameEntity::try_from(ptr::null_mut() as *mut gentity_t),

@@ -1201,27 +1201,42 @@ pub struct netchan_t {
 }
 
 #[repr(C)]
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Clone, Builder)]
+#[builder(name = "CPlaneBuilder", no_std)]
 pub struct cplane_s {
+    #[builder(default)]
     pub normal: vec3_t,
+    #[builder(default)]
     pub dist: f32,
+    #[builder(default)]
     pub type_: byte,
+    #[builder(default)]
     pub signbits: byte,
+    #[builder(default)]
     pub pad: [byte; 2usize],
 }
 
 pub type cplane_t = cplane_s;
 
 #[repr(C)]
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Clone, Builder)]
+#[builder(name = "TraceBuilder", no_std)]
 pub struct trace_t {
+    #[builder(default = "qboolean::qfalse")]
     pub allsolid: qboolean,
+    #[builder(default = "qboolean::qfalse")]
     pub startsolid: qboolean,
+    #[builder(default)]
     pub fraction: f32,
+    #[builder(default)]
     pub endpos: vec3_t,
+    #[builder(default = "CPlaneBuilder::default().build().unwrap()")]
     pub plane: cplane_t,
+    #[builder(default)]
     pub surfaceFlags: c_int,
+    #[builder(default)]
     pub contents: c_int,
+    #[builder(default)]
     pub entityNum: c_int,
 }
 
