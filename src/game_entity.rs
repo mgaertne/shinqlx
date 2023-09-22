@@ -373,7 +373,7 @@ impl GameEntity {
             };
             self.gentity_t.s.modelindex = item_id;
             self.gentity_t.classname = gitem.get_classname().as_ptr() as *const c_char;
-            self.gentity_t.item = gitem.gitem_t;
+            self.gentity_t.item = gitem.as_ref();
 
             // this forces client to load new item
             let mut items = main_engine.get_configstring(CS_ITEMS as u16);

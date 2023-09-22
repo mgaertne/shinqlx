@@ -22,7 +22,13 @@ static DUMMY_MAIN_ENGINE: Lazy<SwapArcOption<QuakeLiveEngine>> =
 #[derive(Debug, PartialEq)]
 #[repr(transparent)]
 pub(crate) struct GameItem {
-    pub(crate) gitem_t: &'static mut gitem_t,
+    gitem_t: &'static mut gitem_t,
+}
+
+impl AsRef<gitem_t> for GameItem {
+    fn as_ref(&self) -> &gitem_t {
+        self.gitem_t
+    }
 }
 
 impl AsMut<gitem_t> for GameItem {
@@ -178,6 +184,20 @@ mod game_item_tests {
         assert_eq!(
             GameItem::try_from(-1),
             Err(QuakeLiveEngineError::InvalidId(-1))
+        );
+    }
+
+    #[test]
+    #[serial]
+    fn game_entity_try_from_valid_i32_item_id_out_of_range() {
+        let get_item_ctx = MockGameItem::get_mocked_item_list_context();
+        get_item_ctx
+            .expect()
+            .returning_st(|| ptr::null_mut() as *mut gitem_t);
+
+        assert_eq!(
+            GameItem::try_from(42),
+            Err(QuakeLiveEngineError::InvalidId(42))
         );
     }
 
