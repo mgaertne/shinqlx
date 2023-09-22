@@ -26,7 +26,7 @@ static DUMMY_MAIN_ENGINE: Lazy<SwapArcOption<QuakeLiveEngine>> =
 #[derive(Debug, PartialEq)]
 #[repr(transparent)]
 pub(crate) struct Client {
-    pub(crate) client_t: &'static mut client_t,
+    client_t: &'static mut client_t,
 }
 
 impl TryFrom<*const client_t> for Client {

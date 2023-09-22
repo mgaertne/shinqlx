@@ -20,7 +20,7 @@ static DUMMY_MAIN_ENGINE: Lazy<SwapArcOption<QuakeLiveEngine>> =
 #[allow(non_snake_case)]
 #[repr(transparent)]
 pub(crate) struct ServerStatic {
-    pub(crate) serverStatic_t: &'static mut serverStatic_t,
+    serverStatic_t: &'static mut serverStatic_t,
 }
 
 impl TryFrom<*mut serverStatic_t> for ServerStatic {
