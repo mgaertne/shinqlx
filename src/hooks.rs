@@ -153,6 +153,7 @@ where
     }
 }
 
+//noinspection ALL
 #[no_mangle]
 pub unsafe extern "C" fn ShiNQlx_SV_SendServerCommand(
     client: *mut client_t,
@@ -312,6 +313,7 @@ where
     client.disconnect(reason.as_ref().to_string());
 }
 
+//noinspection ALL
 #[no_mangle]
 pub unsafe extern "C" fn ShiNQlx_Com_Printf(fmt: *const c_char, fmt_args: ...) {
     extern "C" {
@@ -540,7 +542,7 @@ pub(crate) fn shinqlx_g_damage(
 
 #[cfg(test)]
 #[cfg_attr(test, mockall::automock)]
-#[allow(dead_code)]
+#[cfg_attr(test, allow(dead_code))]
 pub(crate) mod hooks {
     use super::Client;
     use super::GameEntity;
@@ -607,6 +609,7 @@ mod hooks_tests {
         shinqlx_cmd_addcommand("\0".as_ptr() as *const c_char, dummy_function);
     }
 
+    //noinspection RsUnsupportedBinaryOperator
     #[test]
     #[serial]
     fn add_command_with_main_engine_already_initiailized() {
@@ -624,6 +627,7 @@ mod hooks_tests {
         shinqlx_cmd_addcommand("slap\0".as_ptr() as *const c_char, dummy_function);
     }
 
+    //noinspection RsUnsupportedBinaryOperator
     #[test]
     #[serial]
     fn add_command_with_main_engine_not_initiailized_command_non_empty() {
@@ -669,6 +673,7 @@ mod hooks_tests {
         shinqlx_sys_setmoduleoffset("qagame\0".as_ptr() as *const c_char, dummy_function);
     }
 
+    //noinspection RsUnsupportedBinaryOperator
     #[test]
     #[serial]
     fn sys_setmoduleoffset_vm_init_ok() {
@@ -688,6 +693,7 @@ mod hooks_tests {
         shinqlx_sys_setmoduleoffset("qagame\0".as_ptr() as *const c_char, dummy_function);
     }
 
+    //noinspection RsUnsupportedBinaryOperator
     #[test]
     #[serial]
     #[should_panic]
@@ -1545,6 +1551,7 @@ mod hooks_tests {
         shinqlx_g_startkamikaze(&mut gentity as *mut gentity_t);
     }
 
+    //noinspection DuplicatedCode
     #[test]
     #[serial]
     fn g_damage_with_no_main_engine() {
@@ -1561,6 +1568,7 @@ mod hooks_tests {
         );
     }
 
+    //noinspection DuplicatedCode
     #[test]
     #[serial]
     fn g_damage_for_null_target_is_not_forwarded() {
@@ -1602,6 +1610,7 @@ mod hooks_tests {
         );
     }
 
+    //noinspection DuplicatedCode
     #[test]
     #[serial]
     fn g_damage_for_null_attacker() {
@@ -1657,6 +1666,7 @@ mod hooks_tests {
         );
     }
 
+    //noinspection DuplicatedCode
     #[test]
     #[serial]
     fn g_damage_for_non_null_attacker_try_from_returns_err() {
@@ -1717,6 +1727,7 @@ mod hooks_tests {
         );
     }
 
+    //noinspection DuplicatedCode
     #[test]
     #[serial]
     fn g_damage_for_non_null_attacker_try_from_returns_ok() {
