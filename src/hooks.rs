@@ -227,15 +227,10 @@ where
 }
 
 pub(crate) fn shinqlx_sv_cliententerworld(client: *mut client_t, cmd: *mut usercmd_t) {
-    let Some(safe_client): Option<Client> = client.try_into().ok() else {
+    let Some(mut safe_client): Option<Client> = client.try_into().ok() else {
         return;
     };
 
-    shinqlx_sv_cliententerworld_intern(safe_client, cmd);
-}
-
-#[cfg_attr(not(test), inline)]
-fn shinqlx_sv_cliententerworld_intern(mut safe_client: Client, cmd: *mut usercmd_t) {
     let Some(ref main_engine) = *MAIN_ENGINE.load() else {
         return;
     };
@@ -366,12 +361,6 @@ pub(crate) fn shinqlx_sv_spawnserver(server: *const c_char, kill_bots: qboolean)
         return;
     }
 
-    #[allow(clippy::unnecessary_to_owned)]
-    shinqlx_sv_spawnserver_intern(server_str.as_ref().to_string(), kill_bots);
-}
-
-#[cfg_attr(not(test), inline)]
-fn shinqlx_sv_spawnserver_intern<T: AsRef<str>, U: Into<qboolean>>(server_str: T, kill_bots: U) {
     let Some(ref main_engine) = *MAIN_ENGINE.load() else {
         return;
     };
@@ -379,7 +368,7 @@ fn shinqlx_sv_spawnserver_intern<T: AsRef<str>, U: Into<qboolean>>(server_str: T
     #[allow(clippy::unnecessary_to_owned)]
     main_engine.spawn_server(
         server_str.as_ref().to_string(),
-        Into::<bool>::into(kill_bots.into()),
+        <qboolean as Into<bool>>::into(kill_bots),
     );
 
     new_game_dispatcher(false);
@@ -579,8 +568,7 @@ mod hooks_tests {
         shinqlx_client_connect, shinqlx_client_spawn, shinqlx_com_printf, shinqlx_drop_client,
         shinqlx_execute_client_command, shinqlx_g_damage, shinqlx_g_initgame, shinqlx_g_runframe,
         shinqlx_g_shutdowngame, shinqlx_send_server_command, shinqlx_set_configstring,
-        shinqlx_sv_cliententerworld_intern, shinqlx_sv_spawnserver_intern,
-        shinqlx_sys_setmoduleoffset,
+        shinqlx_sv_cliententerworld, shinqlx_sv_spawnserver, shinqlx_sys_setmoduleoffset,
     };
     use crate::hooks::{shinqlx_cmd_addcommand, shinqlx_g_startkamikaze};
     use crate::prelude::*;
@@ -595,6 +583,7 @@ mod hooks_tests {
     use crate::quake_live_engine::MockQuakeEngine;
     use core::ffi::{c_char, CStr};
     use rstest::*;
+    use std::ffi::CString;
 
     unsafe extern "C" fn dummy_function() {}
 
@@ -1044,9 +1033,17 @@ mod hooks_tests {
         MAIN_ENGINE.store(None);
 
         let mock_client = MockClient::new();
+
+        let client_try_from_ctx = MockClient::try_from_context();
+        client_try_from_ctx
+            .expect()
+            .return_once_st(|_| Ok(mock_client));
+
         let mut usercmd = UserCmdBuilder::default().build().unwrap();
 
-        shinqlx_sv_cliententerworld_intern(mock_client, &mut usercmd as *mut usercmd_t);
+        let mut client = ClientBuilder::default().build().unwrap();
+
+        shinqlx_sv_cliententerworld(&mut client, &mut usercmd as *mut usercmd_t);
     }
 
     #[test]
@@ -1058,6 +1055,12 @@ mod hooks_tests {
             .return_const(clientState_t::CS_ZOMBIE)
             .times(1);
         mock_client.expect_has_gentity().return_const(true).times(1);
+
+        let client_try_from_ctx = MockClient::try_from_context();
+        client_try_from_ctx
+            .expect()
+            .return_once_st(|_| Ok(mock_client));
+
         let mut usercmd = UserCmdBuilder::default().build().unwrap();
         let mut mock_engine = MockQuakeEngine::new();
         mock_engine.expect_client_enter_world().times(1);
@@ -1066,7 +1069,9 @@ mod hooks_tests {
         let client_loaded_ctx = client_loaded_dispatcher_context();
         client_loaded_ctx.expect().times(0);
 
-        shinqlx_sv_cliententerworld_intern(mock_client, &mut usercmd as *mut usercmd_t);
+        let mut client = ClientBuilder::default().build().unwrap();
+
+        shinqlx_sv_cliententerworld(&mut client, &mut usercmd as *mut usercmd_t);
     }
 
     #[test]
@@ -1081,6 +1086,12 @@ mod hooks_tests {
             .expect_has_gentity()
             .return_const(false)
             .times(1);
+
+        let client_try_from_ctx = MockClient::try_from_context();
+        client_try_from_ctx
+            .expect()
+            .return_once_st(|_| Ok(mock_client));
+
         let mut usercmd = UserCmdBuilder::default().build().unwrap();
         let mut mock_engine = MockQuakeEngine::new();
         mock_engine.expect_client_enter_world().times(1);
@@ -1089,7 +1100,9 @@ mod hooks_tests {
         let client_loaded_ctx = client_loaded_dispatcher_context();
         client_loaded_ctx.expect().times(0);
 
-        shinqlx_sv_cliententerworld_intern(mock_client, &mut usercmd as *mut usercmd_t);
+        let mut client = ClientBuilder::default().build().unwrap();
+
+        shinqlx_sv_cliententerworld(&mut client, &mut usercmd as *mut usercmd_t);
     }
 
     #[test]
@@ -1107,13 +1120,20 @@ mod hooks_tests {
         mock_engine.expect_client_enter_world().times(1);
         MAIN_ENGINE.store(Some(mock_engine.into()));
 
+        let client_try_from_ctx = MockClient::try_from_context();
+        client_try_from_ctx
+            .expect()
+            .return_once_st(|_| Ok(mock_client));
+
         let client_loaded_ctx = client_loaded_dispatcher_context();
         client_loaded_ctx
             .expect()
             .withf(|&client_id| client_id == 42)
             .times(1);
 
-        shinqlx_sv_cliententerworld_intern(mock_client, &mut usercmd as *mut usercmd_t);
+        let mut client = ClientBuilder::default().build().unwrap();
+
+        shinqlx_sv_cliententerworld(&mut client, &mut usercmd as *mut usercmd_t);
     }
 
     #[test]
@@ -1272,7 +1292,8 @@ mod hooks_tests {
     #[serial]
     fn sv_spawnserver_with_no_main_engine() {
         MAIN_ENGINE.store(None);
-        shinqlx_sv_spawnserver_intern("l33t ql server", true);
+        let server_str = CString::new("l33t ql server").unwrap();
+        shinqlx_sv_spawnserver(server_str.as_ptr(), qboolean::qtrue);
     }
 
     #[test]
@@ -1291,7 +1312,9 @@ mod hooks_tests {
             .withf(|&restart| !restart)
             .times(1);
 
-        shinqlx_sv_spawnserver_intern("l33t ql server", true);
+        let server_str = CString::new("l33t ql server").unwrap();
+
+        shinqlx_sv_spawnserver(server_str.as_ptr(), qboolean::qtrue);
     }
 
     #[test]
