@@ -8,16 +8,10 @@ use crate::quake_live_engine::{GameAddEvent, TryLaunchItem};
 use crate::MAIN_ENGINE;
 use alloc::string::String;
 use core::ffi::{c_float, CStr};
-#[cfg(test)]
-use mockall::mock;
-#[cfg(test)]
-use once_cell::sync::Lazy;
-#[cfg(test)]
-use swap_arc::SwapArcOption;
 
 #[cfg(test)]
-static DUMMY_MAIN_ENGINE: Lazy<SwapArcOption<QuakeLiveEngine>> =
-    Lazy::new(|| SwapArcOption::new(None));
+static DUMMY_MAIN_ENGINE: once_cell::sync::Lazy<swap_arc::SwapArcOption<QuakeLiveEngine>> =
+    once_cell::sync::Lazy::new(|| swap_arc::SwapArcOption::new(None));
 
 #[derive(Debug, PartialEq)]
 #[repr(transparent)]
@@ -143,7 +137,7 @@ impl GameItem {
 }
 
 #[cfg(test)]
-mock! {
+mockall::mock! {
     pub(crate) GameItem {
         fn get_mocked_item_list() -> *mut gitem_t;
     }

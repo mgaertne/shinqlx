@@ -583,9 +583,9 @@ mod hooks_tests {
         server_command_dispatcher_context, set_configstring_dispatcher_context,
     };
     use crate::quake_live_engine::MockQuakeEngine;
+    use alloc::ffi::CString;
     use core::ffi::{c_char, CStr};
     use rstest::*;
-    use std::ffi::CString;
 
     unsafe extern "C" fn dummy_function() {}
 

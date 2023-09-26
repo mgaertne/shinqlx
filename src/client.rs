@@ -12,16 +12,10 @@ use crate::MAIN_ENGINE;
 use alloc::ffi::CString;
 use alloc::string::String;
 use core::ffi::{c_char, CStr};
-#[cfg(test)]
-use mockall::mock;
-#[cfg(test)]
-use once_cell::sync::Lazy;
-#[cfg(test)]
-use swap_arc::SwapArcOption;
 
 #[cfg(test)]
-static DUMMY_MAIN_ENGINE: Lazy<SwapArcOption<QuakeLiveEngine>> =
-    Lazy::new(|| SwapArcOption::new(None));
+static DUMMY_MAIN_ENGINE: once_cell::sync::Lazy<swap_arc::SwapArcOption<QuakeLiveEngine>> =
+    once_cell::sync::Lazy::new(|| swap_arc::SwapArcOption::new(None));
 
 #[derive(Debug, PartialEq)]
 #[repr(transparent)]
@@ -123,7 +117,7 @@ impl Client {
 }
 
 #[cfg(test)]
-mock! {
+mockall::mock! {
     pub(crate) Client {
         pub(crate) fn get_name(&self) -> String;
         pub(crate) fn has_gentity(&self) -> bool;
@@ -161,12 +155,10 @@ mod client_tests {
     use crate::quake_live_engine::MockQuakeEngine;
     use crate::quake_live_functions::QuakeLiveFunction;
     use crate::server_static::MockTestServerStatic;
-    use core::ffi::c_char;
-    use mockall::mock;
+    use core::ffi::{c_char, CStr};
     use once_cell::sync::OnceCell;
     use pretty_assertions::assert_eq;
     use retour::GenericDetour;
-    use std::ffi::CStr;
 
     #[test]
     fn client_try_from_null_results_in_error() {
@@ -184,6 +176,7 @@ mod client_tests {
         assert_eq!(Client::try_from(&mut client as *mut client_t).is_ok(), true);
     }
 
+    //noinspection DuplicatedCode
     #[test]
     #[serial]
     fn client_try_from_negative_client_id() {
@@ -202,6 +195,7 @@ mod client_tests {
         );
     }
 
+    //noinspection DuplicatedCode
     #[test]
     #[serial]
     fn client_try_from_too_large_client_id() {
@@ -347,7 +341,7 @@ mod client_tests {
         rust_client.disconnect("disconnected");
     }
 
-    mock! {
+    mockall::mock! {
        SV_DropcClient {
             fn original_func(_client: *mut client_t, _reason: *const c_char);
             fn replacement_func(_client: *mut client_t, _reason: *const c_char);

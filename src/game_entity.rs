@@ -19,16 +19,10 @@ use alloc::string::String;
 use alloc::vec;
 use core::f32::consts::PI;
 use core::ffi::{c_char, c_float, c_int, CStr};
-#[cfg(test)]
-use mockall::mock;
-#[cfg(test)]
-use once_cell::sync::Lazy;
-#[cfg(test)]
-use swap_arc::SwapArcOption;
 
 #[cfg(test)]
-static DUMMY_MAIN_ENGINE: Lazy<SwapArcOption<QuakeLiveEngine>> =
-    Lazy::new(|| SwapArcOption::new(None));
+static DUMMY_MAIN_ENGINE: once_cell::sync::Lazy<swap_arc::SwapArcOption<QuakeLiveEngine>> =
+    once_cell::sync::Lazy::new(|| swap_arc::SwapArcOption::new(None));
 
 #[derive(Debug, PartialEq)]
 #[repr(transparent)]
@@ -429,7 +423,7 @@ impl GameEntity {
 }
 
 #[cfg(test)]
-mock! {
+mockall::mock! {
     pub(crate) GameEntity {
         pub(crate) fn get_entities_list() -> *mut gentity_t;
         pub(crate) fn get_entity_id(&self) -> i32;
@@ -480,7 +474,7 @@ mock! {
 }
 
 #[cfg(test)]
-mock! {
+mockall::mock! {
     StaticFunc {
         pub(crate) extern "C" fn touch_item(entity: *mut gentity_t, other: *mut gentity_t, trace: *mut trace_t);
         pub(crate) extern "C" fn g_free_entity(entity: *mut gentity_t);
@@ -734,6 +728,7 @@ mod game_entity_tests {
         );
     }
 
+    //noinspection DuplicatedCode
     #[test]
     #[serial]
     #[cfg_attr(miri, ignore)]
@@ -781,6 +776,7 @@ mod game_entity_tests {
         );
     }
 
+    //noinspection DuplicatedCode
     #[test]
     #[serial]
     #[cfg_attr(miri, ignore)]
@@ -889,6 +885,7 @@ mod game_entity_tests {
         assert_eq!(game_entity.get_player_name(), "");
     }
 
+    //noinspection DuplicatedCode
     #[test]
     #[serial]
     fn game_entity_get_player_name_from_disconnected_game_client() {
@@ -936,6 +933,7 @@ mod game_entity_tests {
         assert_eq!(game_entity.get_team(), team_t::TEAM_SPECTATOR);
     }
 
+    //noinspection DuplicatedCode
     #[test]
     #[serial]
     fn game_entity_get_team_from_disconnected_game_client() {
@@ -1079,6 +1077,7 @@ mod game_entity_tests {
         game_entity.slay_with_mod(meansOfDeath_t::MOD_CRUSH);
     }
 
+    //noinspection DuplicatedCode
     #[test]
     #[serial]
     fn game_entity_slay_with_mod() {

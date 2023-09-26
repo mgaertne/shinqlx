@@ -6,8 +6,6 @@ use crate::prelude::*;
 use alloc::string::String;
 use alloc::vec::Vec;
 use core::ffi::{c_int, CStr};
-#[cfg(test)]
-use mockall::mock;
 
 #[derive(Debug, PartialEq)]
 #[repr(transparent)]
@@ -330,7 +328,7 @@ impl GameClient {
 }
 
 #[cfg(test)]
-mock! {
+mockall::mock! {
     pub(crate) GameClient {
         pub(crate) fn get_client_num(&self) -> i32;
         pub(crate) fn get_connection_state(&self) -> clientConnected_t;
@@ -403,8 +401,8 @@ mock! {
 
 #[cfg(test)]
 mod game_client_tests {
+    use super::GameClient;
     use crate::current_level::MockTestCurrentLevel;
-    use crate::game_client::GameClient;
     use crate::prelude::*;
     use core::ffi::c_char;
     use pretty_assertions::assert_eq;
