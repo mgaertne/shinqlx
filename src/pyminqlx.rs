@@ -27,12 +27,11 @@ use crate::quake_live_engine::{
     AddCommand, ComPrintf, ConsoleCommand, FindCVar, GetCVar, GetConfigstring, SendServerCommand,
     SetCVarForced, SetCVarLimit,
 };
-use pyo3::append_to_inittab;
 use pyo3::basic::CompareOp;
 use pyo3::exceptions::{PyEnvironmentError, PyTypeError, PyValueError};
 use pyo3::prelude::*;
-use pyo3::prepare_freethreaded_python;
 use pyo3::types::PyTuple;
+use pyo3::{append_to_inittab, prepare_freethreaded_python};
 
 static ALLOW_FREE_CLIENT: AtomicI32 = AtomicI32::new(-1);
 

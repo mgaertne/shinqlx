@@ -30,7 +30,7 @@ impl CVar {
 
 #[cfg(test)]
 mod cvar_tests {
-    use crate::cvar::CVar;
+    use super::CVar;
     use crate::prelude::*;
     use alloc::ffi::CString;
     use core::ffi::c_char;

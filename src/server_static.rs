@@ -5,16 +5,10 @@ use crate::quake_live_engine::MockQuakeEngine as QuakeLiveEngine;
 use crate::server_static::DUMMY_MAIN_ENGINE as MAIN_ENGINE;
 #[cfg(not(test))]
 use crate::MAIN_ENGINE;
-#[cfg(test)]
-use mockall::mock;
-#[cfg(test)]
-use once_cell::sync::Lazy;
-#[cfg(test)]
-use swap_arc::SwapArcOption;
 
 #[cfg(test)]
-static DUMMY_MAIN_ENGINE: Lazy<SwapArcOption<QuakeLiveEngine>> =
-    Lazy::new(|| SwapArcOption::new(None));
+static DUMMY_MAIN_ENGINE: once_cell::sync::Lazy<swap_arc::SwapArcOption<QuakeLiveEngine>> =
+    once_cell::sync::Lazy::new(|| swap_arc::SwapArcOption::new(None));
 
 #[derive(Debug, PartialEq)]
 #[allow(non_snake_case)]
@@ -84,7 +78,7 @@ impl ServerStatic {
 }
 
 #[cfg(test)]
-mock! {
+mockall::mock! {
     pub(crate) TestServerStatic {
         pub(crate) fn try_get() -> Result<Self, QuakeLiveEngineError>;
         pub(crate) unsafe fn try_get_client_by_id(
@@ -104,11 +98,11 @@ mock! {
 
 #[cfg(test)]
 mod server_static_tests {
+    use super::ServerStatic;
     use super::MAIN_ENGINE;
     use crate::prelude::*;
     use crate::quake_live_engine::MockQuakeEngine;
     use crate::quake_live_functions::QuakeLiveFunction::SV_Shutdown;
-    use crate::server_static::ServerStatic;
     use pretty_assertions::assert_eq;
 
     #[test]
@@ -200,6 +194,7 @@ mod server_static_tests {
         );
     }
 
+    //noinspection DuplicatedCode
     #[test]
     fn server_static_try_get_client_by_id_from_ok_client_not_first_position() {
         let mut clients = vec![
@@ -248,6 +243,7 @@ mod server_static_tests {
         );
     }
 
+    //noinspection DuplicatedCode
     #[test]
     fn server_static_determine_client_id_from_ok_client_not_first_position() {
         let mut clients = vec![

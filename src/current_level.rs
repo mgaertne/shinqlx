@@ -11,16 +11,10 @@ use crate::quake_live_engine::MockQuakeEngine as QuakeLiveEngine;
 #[cfg(not(test))]
 use crate::MAIN_ENGINE;
 use core::ffi::c_char;
-#[cfg(test)]
-use mockall::mock;
-#[cfg(test)]
-use once_cell::sync::Lazy;
-#[cfg(test)]
-use swap_arc::SwapArcOption;
 
 #[cfg(test)]
-static DUMMY_MAIN_ENGINE: Lazy<SwapArcOption<QuakeLiveEngine>> =
-    Lazy::new(|| SwapArcOption::new(None));
+static DUMMY_MAIN_ENGINE: once_cell::sync::Lazy<swap_arc::SwapArcOption<QuakeLiveEngine>> =
+    once_cell::sync::Lazy::new(|| swap_arc::SwapArcOption::new(None));
 
 #[derive(Debug, PartialEq)]
 #[repr(transparent)]
@@ -114,7 +108,7 @@ impl CurrentLevel {
 }
 
 #[cfg(test)]
-mock! {
+mockall::mock! {
     pub(crate) TestCurrentLevel {
         pub(crate) fn try_get() -> Result<Self, QuakeLiveEngineError>;
         pub(crate) fn get_leveltime(&self) -> i32;
@@ -123,8 +117,8 @@ mock! {
 
 #[cfg(test)]
 mod current_level_tests {
+    use super::CurrentLevel;
     use super::MAIN_ENGINE;
-    use crate::current_level::CurrentLevel;
     use crate::game_entity::MockGameEntity;
     use crate::hooks::mock_hooks::*;
     use crate::prelude::*;

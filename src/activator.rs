@@ -1,6 +1,4 @@
 use crate::prelude::*;
-#[cfg(test)]
-use mockall::mock;
 
 #[derive(Debug, PartialEq)]
 #[repr(transparent)]
@@ -27,7 +25,7 @@ impl Activator {
 }
 
 #[cfg(test)]
-mock! {
+mockall::mock! {
     pub(crate) Activator {
         pub(crate) fn get_owner_num(&self) -> i32;
     }
@@ -40,7 +38,7 @@ mock! {
 
 #[cfg(test)]
 mod activator_tests {
-    use crate::activator::Activator;
+    use super::Activator;
     use crate::prelude::*;
     use pretty_assertions::assert_eq;
 

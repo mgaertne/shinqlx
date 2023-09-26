@@ -24,8 +24,6 @@ use alloc::ffi::CString;
 use alloc::string::String;
 use core::ffi::{c_char, c_int, CStr};
 use core::sync::atomic::{AtomicI32, AtomicUsize, Ordering};
-#[cfg(test)]
-use mockall::mock;
 use once_cell::race::OnceBool;
 use once_cell::sync::OnceCell;
 #[cfg(target_os = "linux")]
@@ -1902,7 +1900,7 @@ impl<T: AsMut<gentity_t>> StartKamikaze<T> for QuakeLiveEngine {
 }
 
 #[cfg(test)]
-mock! {
+mockall::mock! {
     pub(crate) QuakeEngine{
         pub(crate) fn is_common_initialized(&self) -> bool;
         pub(crate) fn get_max_clients(&self) -> i32;

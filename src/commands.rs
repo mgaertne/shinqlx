@@ -19,16 +19,12 @@ use crate::quake_live_engine::{
 };
 #[cfg(not(test))]
 use crate::MAIN_ENGINE;
-#[cfg(test)]
-use once_cell::sync::Lazy;
 use pyo3::Python;
 use rand::Rng;
-#[cfg(test)]
-use swap_arc::SwapArcOption;
 
 #[cfg(test)]
-static DUMMY_MAIN_ENGINE: Lazy<SwapArcOption<QuakeLiveEngine>> =
-    Lazy::new(|| SwapArcOption::new(None));
+static DUMMY_MAIN_ENGINE: once_cell::sync::Lazy<swap_arc::SwapArcOption<QuakeLiveEngine>> =
+    once_cell::sync::Lazy::new(|| swap_arc::SwapArcOption::new(None));
 
 #[no_mangle]
 pub extern "C" fn cmd_send_server_command() {
@@ -309,13 +305,14 @@ pub extern "C" fn cmd_restart_python() {
 #[cfg(test)]
 mod commands_tests {
     use super::MAIN_ENGINE;
-    use crate::client::MockClient;
-    use crate::commands::{
+    use super::{
         cmd_center_print, cmd_py_command, cmd_py_rcon, cmd_regular_print, cmd_restart_python,
         cmd_send_server_command, cmd_slap, cmd_slay,
     };
+    use crate::client::MockClient;
     use crate::game_client::MockGameClient;
     use crate::game_entity::MockGameEntity;
+    use crate::prelude::*;
     use crate::pyminqlx::mock_python::{
         new_game_dispatcher_context, pyminqlx_initialize_context, pyminqlx_is_initialized_context,
         pyminqlx_reload_context, rcon_dispatcher_context,
@@ -324,7 +321,6 @@ mod commands_tests {
     use crate::pyminqlx::pyminqlx_setup_fixture::*;
     use crate::pyminqlx::{PythonInitializationError, CUSTOM_COMMAND_HANDLER};
     use crate::quake_live_engine::MockQuakeEngine;
-    use crate::quake_types::entity_event_t;
     use pyo3::types::PyModule;
     use pyo3::{IntoPy, Py, Python};
     #[cfg(not(miri))]
