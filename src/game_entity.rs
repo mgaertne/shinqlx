@@ -1106,6 +1106,7 @@ mod game_entity_tests {
         game_entity.slay_with_mod(meansOfDeath_t::MOD_CRUSH);
     }
 
+    //noinspection DuplicatedCode
     #[test]
     #[serial]
     fn game_entity_slay_with_kamikaze() {
