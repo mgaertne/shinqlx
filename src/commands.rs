@@ -519,6 +519,7 @@ mod commands_tests {
         cmd_slap();
     }
 
+    //noinspection DuplicatedCode
     #[test]
     #[serial]
     fn cmd_slap_with_game_entity_not_in_use() {
@@ -553,6 +554,7 @@ mod commands_tests {
         cmd_slap();
     }
 
+    //noinspection DuplicatedCode
     #[test]
     #[serial]
     fn cmd_slap_with_game_entity_no_health() {
@@ -588,6 +590,7 @@ mod commands_tests {
         cmd_slap();
     }
 
+    //noinspection DuplicatedCode
     #[test]
     #[serial]
     fn cmd_slap_with_no_damage_provided_slaps() {
@@ -658,6 +661,7 @@ mod commands_tests {
         cmd_slap();
     }
 
+    //noinspection DuplicatedCode
     #[test]
     #[serial]
     fn cmd_slap_with_provided_damage_slaps() {
@@ -738,6 +742,7 @@ mod commands_tests {
         cmd_slap();
     }
 
+    //noinspection DuplicatedCode
     #[test]
     #[serial]
     fn cmd_slap_with_provided_damage_provided_slaps_and_kills() {
@@ -822,6 +827,7 @@ mod commands_tests {
         cmd_slap()
     }
 
+    //noinspection DuplicatedCode
     #[test]
     #[serial]
     fn cmd_slap_with_unparseable_provided_damage_slaps() {
@@ -984,6 +990,7 @@ mod commands_tests {
         cmd_slay();
     }
 
+    //noinspection DuplicatedCode
     #[test]
     #[serial]
     fn cmd_slay_with_game_entity_not_in_use() {
@@ -1018,6 +1025,7 @@ mod commands_tests {
         cmd_slay();
     }
 
+    //noinspection DuplicatedCode
     #[test]
     #[serial]
     fn cmd_slay_with_game_entity_no_health() {
