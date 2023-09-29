@@ -2604,31 +2604,6 @@ enum PythonPriorities {
     PRI_LOWEST,
 }
 
-#[allow(non_camel_case_types, dead_code)]
-enum cvar_flags {
-    CVAR_ARCHIVE = 1,
-    CVAR_USERINFO = 2,
-    CVAR_SERVERINFO = 4,
-    CVAR_SYSTEMINFO = 8,
-    CVAR_INIT = 16,
-    CVAR_LATCH = 32,
-    CVAR_ROM = 64,
-    CVAR_USER_CREATED = 128,
-    CVAR_TEMP = 256,
-    CVAR_CHEAT = 512,
-    CVAR_NORESTART = 1024,
-    CVAR_UNKOWN1 = 2048,
-    CVAR_UNKOWN2 = 4096,
-    CVAR_UNKOWN3 = 8192,
-    CVAR_UNKOWN4 = 16384,
-    CVAR_UNKOWN5 = 32768,
-    CVAR_UNKOWN6 = 65536,
-    CVAR_UNKOWN7 = 131072,
-    CVAR_UNKOWN8 = 262144,
-    CVAR_UNKOWN9 = 524288,
-    CVAR_UNKOWN10 = 1048576,
-}
-
 #[pymodule]
 #[pyo3(name = "shinqlx")]
 fn pyshinqlx_module(_py: Python<'_>, _m: &PyModule) -> PyResult<()> {
