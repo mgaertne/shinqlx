@@ -35,7 +35,6 @@ use pyo3::{append_to_inittab, prepare_freethreaded_python};
 
 static ALLOW_FREE_CLIENT: AtomicI32 = AtomicI32::new(-1);
 
-#[cfg_attr(test, allow(dead_code))]
 pub(crate) fn client_command_dispatcher<T>(client_id: i32, cmd: T) -> Option<String>
 where
     T: AsRef<str>,
@@ -71,7 +70,6 @@ where
     )
 }
 
-#[cfg_attr(test, allow(dead_code))]
 pub(crate) fn server_command_dispatcher<T>(client_id: Option<i32>, cmd: T) -> Option<String>
 where
     T: AsRef<str>,
@@ -107,7 +105,6 @@ where
     })
 }
 
-#[cfg_attr(test, allow(dead_code))]
 pub(crate) fn frame_dispatcher() {
     if !pyminqlx_is_initialized() {
         return;
@@ -125,7 +122,6 @@ pub(crate) fn frame_dispatcher() {
     });
 }
 
-#[cfg_attr(test, allow(dead_code))]
 pub(crate) fn client_connect_dispatcher(client_id: i32, is_bot: bool) -> Option<String> {
     if !pyminqlx_is_initialized() {
         return None;
@@ -162,7 +158,6 @@ pub(crate) fn client_connect_dispatcher(client_id: i32, is_bot: bool) -> Option<
     result
 }
 
-#[cfg_attr(test, allow(dead_code))]
 pub(crate) fn client_disconnect_dispatcher<T>(client_id: i32, reason: T)
 where
     T: AsRef<str>,
@@ -185,7 +180,6 @@ where
     ALLOW_FREE_CLIENT.store(-1, Ordering::Relaxed);
 }
 
-#[cfg_attr(test, allow(dead_code))]
 pub(crate) fn client_loaded_dispatcher(client_id: i32) {
     if !pyminqlx_is_initialized() {
         return;
@@ -203,7 +197,6 @@ pub(crate) fn client_loaded_dispatcher(client_id: i32) {
     });
 }
 
-#[cfg_attr(test, allow(dead_code))]
 pub(crate) fn new_game_dispatcher(restart: bool) {
     if !pyminqlx_is_initialized() {
         return;
@@ -221,7 +214,6 @@ pub(crate) fn new_game_dispatcher(restart: bool) {
     });
 }
 
-#[cfg_attr(test, allow(dead_code))]
 pub(crate) fn set_configstring_dispatcher<T, U>(index: T, value: U) -> Option<String>
 where
     T: Into<u32>,
@@ -258,7 +250,6 @@ where
     })
 }
 
-#[cfg_attr(test, allow(dead_code))]
 pub(crate) fn rcon_dispatcher<T>(cmd: T)
 where
     T: AsRef<str>,
@@ -279,7 +270,6 @@ where
     });
 }
 
-#[cfg_attr(test, allow(dead_code))]
 pub(crate) fn console_print_dispatcher<T>(text: T) -> Option<String>
 where
     T: AsRef<str>,
@@ -315,7 +305,6 @@ where
     )
 }
 
-#[cfg_attr(test, allow(dead_code))]
 pub(crate) fn client_spawn_dispatcher(client_id: i32) {
     if !pyminqlx_is_initialized() {
         return;
@@ -333,7 +322,6 @@ pub(crate) fn client_spawn_dispatcher(client_id: i32) {
     });
 }
 
-#[cfg_attr(test, allow(dead_code))]
 pub(crate) fn kamikaze_use_dispatcher(client_id: i32) {
     if !pyminqlx_is_initialized() {
         return;
@@ -351,7 +339,6 @@ pub(crate) fn kamikaze_use_dispatcher(client_id: i32) {
     });
 }
 
-#[cfg_attr(test, allow(dead_code))]
 pub(crate) fn kamikaze_explode_dispatcher(client_id: i32, is_used_on_demand: bool) {
     if !pyminqlx_is_initialized() {
         return;
@@ -369,7 +356,6 @@ pub(crate) fn kamikaze_explode_dispatcher(client_id: i32, is_used_on_demand: boo
     });
 }
 
-#[cfg_attr(test, allow(dead_code))]
 pub(crate) fn damage_dispatcher(
     target_client_id: i32,
     attacker_client_id: Option<i32>,
@@ -400,6 +386,209 @@ pub(crate) fn damage_dispatcher(
             error!(target: "shinqlx", "damage_handler returned an error.");
         }
     });
+}
+
+#[cfg(test)]
+mod pyminqlx_dispatcher_tests {
+    use super::{
+        client_command_dispatcher, client_connect_dispatcher, client_disconnect_dispatcher,
+        client_loaded_dispatcher, client_spawn_dispatcher, console_print_dispatcher,
+        damage_dispatcher, frame_dispatcher, kamikaze_explode_dispatcher, kamikaze_use_dispatcher,
+        new_game_dispatcher, rcon_dispatcher, server_command_dispatcher,
+        set_configstring_dispatcher, PYMINQLX_INITIALIZED,
+    };
+    use crate::prelude::*;
+    use core::sync::atomic::Ordering;
+    use pretty_assertions::assert_eq;
+    #[test]
+    fn client_command_dispatcher_when_python_not_initiailized() {
+        let result = client_command_dispatcher(123, "asdf");
+        assert_eq!(result, Some("asdf".into()));
+    }
+
+    #[test]
+    fn client_command_dispatcher_when_dispatcher_not_initiailized() {
+        PYMINQLX_INITIALIZED.store(true, Ordering::SeqCst);
+
+        let result = client_command_dispatcher(123, "asdf");
+        assert_eq!(result, Some("asdf".into()));
+    }
+
+    #[test]
+    fn server_command_dispatcher_when_python_not_initiailized() {
+        let result = server_command_dispatcher(Some(123), "asdf");
+        assert_eq!(result, Some("asdf".into()));
+    }
+
+    #[test]
+    fn server_command_dispatcher_when_dispatcher_not_initiailized() {
+        PYMINQLX_INITIALIZED.store(true, Ordering::SeqCst);
+
+        let result = server_command_dispatcher(Some(123), "asdf");
+        assert_eq!(result, Some("asdf".into()));
+    }
+
+    #[test]
+    fn frame_dispatcher_when_python_not_initiailized() {
+        frame_dispatcher();
+    }
+
+    #[test]
+    fn frame_dispatcher_when_dispatcher_not_initiailized() {
+        PYMINQLX_INITIALIZED.store(true, Ordering::SeqCst);
+
+        frame_dispatcher();
+    }
+
+    #[test]
+    fn client_connect_dispatcher_when_python_not_initiailized() {
+        let result = client_connect_dispatcher(123, false);
+        assert_eq!(result, None);
+    }
+
+    #[test]
+    fn client_connect_dispatcher_when_dispatcher_not_initiailized() {
+        PYMINQLX_INITIALIZED.store(true, Ordering::SeqCst);
+
+        let result = client_connect_dispatcher(123, false);
+        assert_eq!(result, None);
+    }
+
+    #[test]
+    fn client_disconnect_dispatcher_when_python_not_initiailized() {
+        client_disconnect_dispatcher(123, "asdf");
+    }
+
+    #[test]
+    fn client_disconnect_dispatcher_when_dispatcher_not_initiailized() {
+        PYMINQLX_INITIALIZED.store(true, Ordering::SeqCst);
+
+        client_disconnect_dispatcher(123, "ragequit");
+    }
+
+    #[test]
+    fn client_loaded_dispatcher_when_python_not_initiailized() {
+        client_loaded_dispatcher(123);
+    }
+
+    #[test]
+    fn client_loaded_dispatcher_when_dispatcher_not_initiailized() {
+        PYMINQLX_INITIALIZED.store(true, Ordering::SeqCst);
+
+        client_loaded_dispatcher(123);
+    }
+
+    #[test]
+    fn new_game_dispatcher_when_python_not_initiailized() {
+        new_game_dispatcher(false);
+    }
+
+    #[test]
+    fn new_game_dispatcher_when_dispatcher_not_initiailized() {
+        PYMINQLX_INITIALIZED.store(true, Ordering::SeqCst);
+
+        new_game_dispatcher(true);
+    }
+
+    #[test]
+    fn set_configstring_dispatcher_when_python_not_initiailized() {
+        let result = set_configstring_dispatcher(666u32, "asdf");
+        assert_eq!(result, Some("asdf".into()));
+    }
+
+    #[test]
+    fn set_configstring_dispatcher_when_dispatcher_not_initiailized() {
+        PYMINQLX_INITIALIZED.store(true, Ordering::SeqCst);
+
+        let result = set_configstring_dispatcher(666u32, "asdf");
+        assert_eq!(result, Some("asdf".into()));
+    }
+
+    #[test]
+    fn rcon_dispatcher_when_python_not_initiailized() {
+        rcon_dispatcher("asdf");
+    }
+
+    #[test]
+    fn rcon_dispatcher_when_dispatcher_not_initiailized() {
+        PYMINQLX_INITIALIZED.store(true, Ordering::SeqCst);
+
+        rcon_dispatcher("asdf");
+    }
+
+    #[test]
+    fn console_print_dispatcher_when_python_not_initiailized() {
+        let result = console_print_dispatcher("asdf");
+        assert_eq!(result, Some("asdf".into()));
+    }
+
+    #[test]
+    fn console_print_dispatcher_when_dispatcher_not_initiailized() {
+        PYMINQLX_INITIALIZED.store(true, Ordering::SeqCst);
+
+        let result = console_print_dispatcher("asdf");
+        assert_eq!(result, Some("asdf".into()));
+    }
+
+    #[test]
+    fn client_spawn_dispatcher_when_python_not_initiailized() {
+        client_spawn_dispatcher(123);
+    }
+
+    #[test]
+    fn client_spawn_dispatcher_when_dispatcher_not_initiailized() {
+        PYMINQLX_INITIALIZED.store(true, Ordering::SeqCst);
+
+        client_spawn_dispatcher(123);
+    }
+
+    #[test]
+    fn kamikaze_use_dispatcher_when_python_not_initiailized() {
+        kamikaze_use_dispatcher(123);
+    }
+
+    #[test]
+    fn kamikaze_use_dispatcher_when_dispatcher_not_initiailized() {
+        PYMINQLX_INITIALIZED.store(true, Ordering::SeqCst);
+
+        kamikaze_use_dispatcher(123);
+    }
+
+    #[test]
+    fn kamikaze_explode_dispatcher_when_python_not_initiailized() {
+        kamikaze_explode_dispatcher(123, false);
+    }
+
+    #[test]
+    fn kamikaze_explode_dispatcher_when_dispatcher_not_initiailized() {
+        PYMINQLX_INITIALIZED.store(true, Ordering::SeqCst);
+
+        kamikaze_explode_dispatcher(123, true);
+    }
+
+    #[test]
+    fn damage_dispatcher_when_python_not_initiailized() {
+        damage_dispatcher(
+            123,
+            None,
+            666,
+            DAMAGE_NO_PROTECTION as i32,
+            meansOfDeath_t::MOD_TRIGGER_HURT as i32,
+        );
+    }
+
+    #[test]
+    fn damage_dispatcher_when_dispatcher_not_initiailized() {
+        PYMINQLX_INITIALIZED.store(true, Ordering::SeqCst);
+
+        damage_dispatcher(
+            123,
+            Some(456),
+            100,
+            DAMAGE_NO_TEAM_PROTECTION as i32,
+            meansOfDeath_t::MOD_ROCKET as i32,
+        );
+    }
 }
 
 /// Information about a player, such as Steam ID, name, client ID, and whatnot.
