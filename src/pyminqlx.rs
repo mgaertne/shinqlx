@@ -400,8 +400,11 @@ mod pyminqlx_dispatcher_tests {
     use crate::prelude::*;
     use core::sync::atomic::Ordering;
     use pretty_assertions::assert_eq;
+
     #[test]
     fn client_command_dispatcher_when_python_not_initiailized() {
+        PYMINQLX_INITIALIZED.store(false, Ordering::SeqCst);
+
         let result = client_command_dispatcher(123, "asdf");
         assert_eq!(result, Some("asdf".into()));
     }
@@ -416,6 +419,8 @@ mod pyminqlx_dispatcher_tests {
 
     #[test]
     fn server_command_dispatcher_when_python_not_initiailized() {
+        PYMINQLX_INITIALIZED.store(false, Ordering::SeqCst);
+
         let result = server_command_dispatcher(Some(123), "asdf");
         assert_eq!(result, Some("asdf".into()));
     }
@@ -430,6 +435,8 @@ mod pyminqlx_dispatcher_tests {
 
     #[test]
     fn frame_dispatcher_when_python_not_initiailized() {
+        PYMINQLX_INITIALIZED.store(false, Ordering::SeqCst);
+
         frame_dispatcher();
     }
 
@@ -442,6 +449,8 @@ mod pyminqlx_dispatcher_tests {
 
     #[test]
     fn client_connect_dispatcher_when_python_not_initiailized() {
+        PYMINQLX_INITIALIZED.store(false, Ordering::SeqCst);
+
         let result = client_connect_dispatcher(123, false);
         assert_eq!(result, None);
     }
@@ -456,6 +465,8 @@ mod pyminqlx_dispatcher_tests {
 
     #[test]
     fn client_disconnect_dispatcher_when_python_not_initiailized() {
+        PYMINQLX_INITIALIZED.store(false, Ordering::SeqCst);
+
         client_disconnect_dispatcher(123, "asdf");
     }
 
@@ -468,6 +479,8 @@ mod pyminqlx_dispatcher_tests {
 
     #[test]
     fn client_loaded_dispatcher_when_python_not_initiailized() {
+        PYMINQLX_INITIALIZED.store(false, Ordering::SeqCst);
+
         client_loaded_dispatcher(123);
     }
 
@@ -480,6 +493,8 @@ mod pyminqlx_dispatcher_tests {
 
     #[test]
     fn new_game_dispatcher_when_python_not_initiailized() {
+        PYMINQLX_INITIALIZED.store(false, Ordering::SeqCst);
+
         new_game_dispatcher(false);
     }
 
@@ -492,6 +507,8 @@ mod pyminqlx_dispatcher_tests {
 
     #[test]
     fn set_configstring_dispatcher_when_python_not_initiailized() {
+        PYMINQLX_INITIALIZED.store(false, Ordering::SeqCst);
+
         let result = set_configstring_dispatcher(666u32, "asdf");
         assert_eq!(result, Some("asdf".into()));
     }
@@ -506,6 +523,8 @@ mod pyminqlx_dispatcher_tests {
 
     #[test]
     fn rcon_dispatcher_when_python_not_initiailized() {
+        PYMINQLX_INITIALIZED.store(false, Ordering::SeqCst);
+
         rcon_dispatcher("asdf");
     }
 
@@ -518,6 +537,8 @@ mod pyminqlx_dispatcher_tests {
 
     #[test]
     fn console_print_dispatcher_when_python_not_initiailized() {
+        PYMINQLX_INITIALIZED.store(false, Ordering::SeqCst);
+
         let result = console_print_dispatcher("asdf");
         assert_eq!(result, Some("asdf".into()));
     }
@@ -532,6 +553,8 @@ mod pyminqlx_dispatcher_tests {
 
     #[test]
     fn client_spawn_dispatcher_when_python_not_initiailized() {
+        PYMINQLX_INITIALIZED.store(false, Ordering::SeqCst);
+
         client_spawn_dispatcher(123);
     }
 
@@ -544,6 +567,8 @@ mod pyminqlx_dispatcher_tests {
 
     #[test]
     fn kamikaze_use_dispatcher_when_python_not_initiailized() {
+        PYMINQLX_INITIALIZED.store(false, Ordering::SeqCst);
+
         kamikaze_use_dispatcher(123);
     }
 
@@ -556,6 +581,8 @@ mod pyminqlx_dispatcher_tests {
 
     #[test]
     fn kamikaze_explode_dispatcher_when_python_not_initiailized() {
+        PYMINQLX_INITIALIZED.store(false, Ordering::SeqCst);
+
         kamikaze_explode_dispatcher(123, false);
     }
 
@@ -568,6 +595,8 @@ mod pyminqlx_dispatcher_tests {
 
     #[test]
     fn damage_dispatcher_when_python_not_initiailized() {
+        PYMINQLX_INITIALIZED.store(false, Ordering::SeqCst);
+
         damage_dispatcher(
             123,
             None,
