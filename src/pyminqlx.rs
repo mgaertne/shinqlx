@@ -408,6 +408,7 @@ mod pyminqlx_dispatcher_tests {
     use rstest::rstest;
 
     #[test]
+    #[serial]
     fn client_command_dispatcher_when_python_not_initiailized() {
         PYMINQLX_INITIALIZED.store(false, Ordering::SeqCst);
 
@@ -416,6 +417,7 @@ mod pyminqlx_dispatcher_tests {
     }
 
     #[test]
+    #[serial]
     fn client_command_dispatcher_when_dispatcher_not_initiailized() {
         PYMINQLX_INITIALIZED.store(true, Ordering::SeqCst);
 
@@ -434,6 +436,136 @@ mod pyminqlx_dispatcher_tests {
                 r#"
 def handler(client_id, cmd):
     return cmd
+"#,
+                "",
+                "",
+            )
+            .unwrap()
+            .into_py(py)
+        });
+        let client_command_handler =
+            Python::with_gil(|py| pymodule.getattr(py, "handler").unwrap().into_py(py));
+        CLIENT_COMMAND_HANDLER.store(Some(client_command_handler.into()));
+
+        let result = client_command_dispatcher(123, "asdf");
+        assert_eq!(result, Some("asdf".into()));
+    }
+
+    #[cfg_attr(not(miri), rstest)]
+    #[serial]
+    fn client_command_dispatcher_dispatcher_returns_original_another_cmd(_pyminqlx_setup: ()) {
+        PYMINQLX_INITIALIZED.store(true, Ordering::SeqCst);
+
+        let pymodule: Py<PyModule> = Python::with_gil(|py| {
+            PyModule::from_code(
+                py,
+                r#"
+def handler(client_id, cmd):
+    return "qwertz"
+"#,
+                "",
+                "",
+            )
+            .unwrap()
+            .into_py(py)
+        });
+        let client_command_handler =
+            Python::with_gil(|py| pymodule.getattr(py, "handler").unwrap().into_py(py));
+        CLIENT_COMMAND_HANDLER.store(Some(client_command_handler.into()));
+
+        let result = client_command_dispatcher(123, "asdf");
+        assert_eq!(result, Some("qwertz".into()));
+    }
+
+    #[cfg_attr(not(miri), rstest)]
+    #[serial]
+    fn client_command_dispatcher_dispatcher_returns_boolean_true(_pyminqlx_setup: ()) {
+        PYMINQLX_INITIALIZED.store(true, Ordering::SeqCst);
+
+        let pymodule: Py<PyModule> = Python::with_gil(|py| {
+            PyModule::from_code(
+                py,
+                r#"
+def handler(client_id, cmd):
+    return True
+"#,
+                "",
+                "",
+            )
+            .unwrap()
+            .into_py(py)
+        });
+        let client_command_handler =
+            Python::with_gil(|py| pymodule.getattr(py, "handler").unwrap().into_py(py));
+        CLIENT_COMMAND_HANDLER.store(Some(client_command_handler.into()));
+
+        let result = client_command_dispatcher(123, "asdf");
+        assert_eq!(result, Some("asdf".into()));
+    }
+
+    #[cfg_attr(not(miri), rstest)]
+    #[serial]
+    fn client_command_dispatcher_dispatcher_returns_false(_pyminqlx_setup: ()) {
+        PYMINQLX_INITIALIZED.store(true, Ordering::SeqCst);
+
+        let pymodule: Py<PyModule> = Python::with_gil(|py| {
+            PyModule::from_code(
+                py,
+                r#"
+def handler(client_id, cmd):
+    return False
+"#,
+                "",
+                "",
+            )
+            .unwrap()
+            .into_py(py)
+        });
+        let client_command_handler =
+            Python::with_gil(|py| pymodule.getattr(py, "handler").unwrap().into_py(py));
+        CLIENT_COMMAND_HANDLER.store(Some(client_command_handler.into()));
+
+        let result = client_command_dispatcher(123, "asdf");
+        assert_eq!(result, None);
+    }
+
+    #[cfg_attr(not(miri), rstest)]
+    #[serial]
+    fn client_command_dispatcher_dispatcher_throws_exception(_pyminqlx_setup: ()) {
+        PYMINQLX_INITIALIZED.store(true, Ordering::SeqCst);
+
+        let pymodule: Py<PyModule> = Python::with_gil(|py| {
+            PyModule::from_code(
+                py,
+                r#"
+def handler(client_id, cmd):
+    raise Exception
+"#,
+                "",
+                "",
+            )
+            .unwrap()
+            .into_py(py)
+        });
+        let client_command_handler =
+            Python::with_gil(|py| pymodule.getattr(py, "handler").unwrap().into_py(py));
+        CLIENT_COMMAND_HANDLER.store(Some(client_command_handler.into()));
+
+        let result = client_command_dispatcher(123, "asdf");
+        assert_eq!(result, Some("asdf".into()));
+    }
+
+    #[cfg_attr(not(miri), rstest)]
+    #[serial]
+    fn client_command_dispatcher_dispatcher_returns_not_supported_value(_pyminqlx_setup: ()) {
+        PYMINQLX_INITIALIZED.store(true, Ordering::SeqCst);
+
+        let pymodule: Py<PyModule> = Python::with_gil(|py| {
+            PyModule::from_code(
+                py,
+                r#"
+def handler(client_id, cmd):
+    return (1, 2, 3)
 "#,
                 "",
                 "",
