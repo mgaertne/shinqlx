@@ -397,7 +397,9 @@ mod pyminqlx_dispatcher_tests {
         new_game_dispatcher, rcon_dispatcher, server_command_dispatcher,
         set_configstring_dispatcher, PYMINQLX_INITIALIZED,
     };
-    use super::{CLIENT_COMMAND_HANDLER, SERVER_COMMAND_HANDLER};
+    use super::{
+        CLIENT_COMMAND_HANDLER, FRAME_HANDLER, PLAYER_CONNECT_HANDLER, SERVER_COMMAND_HANDLER,
+    };
     use crate::prelude::*;
     #[cfg(not(miri))]
     use crate::pyminqlx::pyminqlx_setup_fixture::*;
@@ -769,6 +771,57 @@ def handler(client_id, cmd):
     #[serial]
     fn frame_dispatcher_when_dispatcher_not_initiailized() {
         PYMINQLX_INITIALIZED.store(true, Ordering::SeqCst);
+        FRAME_HANDLER.store(None);
+
+        frame_dispatcher();
+    }
+
+    #[cfg_attr(not(miri), rstest)]
+    #[serial]
+    fn frame_dispatcher_dispatcher_works_properly(_pyminqlx_setup: ()) {
+        PYMINQLX_INITIALIZED.store(true, Ordering::SeqCst);
+
+        let pymodule: Py<PyModule> = Python::with_gil(|py| {
+            PyModule::from_code(
+                py,
+                r#"
+def handler(client_id, cmd):
+    pass
+"#,
+                "",
+                "",
+            )
+            .unwrap()
+            .into_py(py)
+        });
+        let frame_handler =
+            Python::with_gil(|py| pymodule.getattr(py, "handler").unwrap().into_py(py));
+        FRAME_HANDLER.store(Some(frame_handler.into()));
+
+        frame_dispatcher();
+    }
+
+    #[cfg_attr(not(miri), rstest)]
+    #[serial]
+    fn frame_dispatcher_dispatcher_throws_exception(_pyminqlx_setup: ()) {
+        PYMINQLX_INITIALIZED.store(true, Ordering::SeqCst);
+
+        let pymodule: Py<PyModule> = Python::with_gil(|py| {
+            PyModule::from_code(
+                py,
+                r#"
+def handler(client_id, cmd):
+    raise Exception
+"#,
+                "",
+                "",
+            )
+            .unwrap()
+            .into_py(py)
+        });
+        let frame_handler =
+            Python::with_gil(|py| pymodule.getattr(py, "handler").unwrap().into_py(py));
+        FRAME_HANDLER.store(Some(frame_handler.into()));
 
         frame_dispatcher();
     }
@@ -786,6 +839,137 @@ def handler(client_id, cmd):
     #[serial]
     fn client_connect_dispatcher_when_dispatcher_not_initiailized() {
         PYMINQLX_INITIALIZED.store(true, Ordering::SeqCst);
+        PLAYER_CONNECT_HANDLER.store(None);
+
+        let result = client_connect_dispatcher(123, false);
+        assert_eq!(result, None);
+    }
+
+    #[cfg_attr(not(miri), rstest)]
+    #[serial]
+    fn client_connect_dispatcher_dispatcher_returns_connection_status(_pyminqlx_setup: ()) {
+        PYMINQLX_INITIALIZED.store(true, Ordering::SeqCst);
+
+        let pymodule: Py<PyModule> = Python::with_gil(|py| {
+            PyModule::from_code(
+                py,
+                r#"
+def handler(client_id, cmd):
+    return "qwertz"
+"#,
+                "",
+                "",
+            )
+            .unwrap()
+            .into_py(py)
+        });
+        let client_connect_handler =
+            Python::with_gil(|py| pymodule.getattr(py, "handler").unwrap().into_py(py));
+        PLAYER_CONNECT_HANDLER.store(Some(client_connect_handler.into()));
+
+        let result = client_connect_dispatcher(123, false);
+        assert_eq!(result, Some("qwertz".into()));
+    }
+
+    #[cfg_attr(not(miri), rstest)]
+    #[serial]
+    fn client_connect_dispatcher_dispatcher_returns_boolean_true(_pyminqlx_setup: ()) {
+        PYMINQLX_INITIALIZED.store(true, Ordering::SeqCst);
+
+        let pymodule: Py<PyModule> = Python::with_gil(|py| {
+            PyModule::from_code(
+                py,
+                r#"
+def handler(client_id, cmd):
+    return True
+"#,
+                "",
+                "",
+            )
+            .unwrap()
+            .into_py(py)
+        });
+        let client_connect_handler =
+            Python::with_gil(|py| pymodule.getattr(py, "handler").unwrap().into_py(py));
+        PLAYER_CONNECT_HANDLER.store(Some(client_connect_handler.into()));
+
+        let result = client_connect_dispatcher(123, true);
+        assert_eq!(result, None);
+    }
+
+    #[cfg_attr(not(miri), rstest)]
+    #[serial]
+    fn client_connect_dispatcher_dispatcher_returns_false(_pyminqlx_setup: ()) {
+        PYMINQLX_INITIALIZED.store(true, Ordering::SeqCst);
+
+        let pymodule: Py<PyModule> = Python::with_gil(|py| {
+            PyModule::from_code(
+                py,
+                r#"
+def handler(client_id, cmd):
+    return False
+"#,
+                "",
+                "",
+            )
+            .unwrap()
+            .into_py(py)
+        });
+        let client_connect_handler =
+            Python::with_gil(|py| pymodule.getattr(py, "handler").unwrap().into_py(py));
+        PLAYER_CONNECT_HANDLER.store(Some(client_connect_handler.into()));
+
+        let result = client_connect_dispatcher(123, true);
+        assert_eq!(result, Some("You are banned from this server.".into()));
+    }
+
+    #[cfg_attr(not(miri), rstest)]
+    #[serial]
+    fn client_connect_dispatcher_dispatcher_throws_exception(_pyminqlx_setup: ()) {
+        PYMINQLX_INITIALIZED.store(true, Ordering::SeqCst);
+
+        let pymodule: Py<PyModule> = Python::with_gil(|py| {
+            PyModule::from_code(
+                py,
+                r#"
+def handler(client_id, cmd):
+    raise Exception
+"#,
+                "",
+                "",
+            )
+            .unwrap()
+            .into_py(py)
+        });
+        let client_connect_handler =
+            Python::with_gil(|py| pymodule.getattr(py, "handler").unwrap().into_py(py));
+        PLAYER_CONNECT_HANDLER.store(Some(client_connect_handler.into()));
+
+        let result = client_connect_dispatcher(123, false);
+        assert_eq!(result, None);
+    }
+
+    #[cfg_attr(not(miri), rstest)]
+    #[serial]
+    fn client_connect_dispatcher_dispatcher_returns_not_supported_value(_pyminqlx_setup: ()) {
+        PYMINQLX_INITIALIZED.store(true, Ordering::SeqCst);
+
+        let pymodule: Py<PyModule> = Python::with_gil(|py| {
+            PyModule::from_code(
+                py,
+                r#"
+def handler(client_id, cmd):
+    return (1, 2, 3)
+"#,
+                "",
+                "",
+            )
+            .unwrap()
+            .into_py(py)
+        });
+        let player_connect_handler =
+            Python::with_gil(|py| pymodule.getattr(py, "handler").unwrap().into_py(py));
+        PLAYER_CONNECT_HANDLER.store(Some(player_connect_handler.into()));
 
         let result = client_connect_dispatcher(123, false);
         assert_eq!(result, None);
