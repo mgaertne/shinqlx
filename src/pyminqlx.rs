@@ -397,10 +397,10 @@ mod pyminqlx_dispatcher_tests {
         new_game_dispatcher, rcon_dispatcher, server_command_dispatcher,
         set_configstring_dispatcher, PYMINQLX_INITIALIZED,
     };
+    use super::{CLIENT_COMMAND_HANDLER, SERVER_COMMAND_HANDLER};
     use crate::prelude::*;
     #[cfg(not(miri))]
     use crate::pyminqlx::pyminqlx_setup_fixture::*;
-    use crate::pyminqlx::CLIENT_COMMAND_HANDLER;
     use core::sync::atomic::Ordering;
     use pretty_assertions::assert_eq;
     use pyo3::prelude::*;
@@ -454,7 +454,7 @@ def handler(client_id, cmd):
 
     #[cfg_attr(not(miri), rstest)]
     #[serial]
-    fn client_command_dispatcher_dispatcher_returns_original_another_cmd(_pyminqlx_setup: ()) {
+    fn client_command_dispatcher_dispatcher_returns_another_cmd(_pyminqlx_setup: ()) {
         PYMINQLX_INITIALIZED.store(true, Ordering::SeqCst);
 
         let pymodule: Py<PyModule> = Python::with_gil(|py| {
@@ -583,6 +583,7 @@ def handler(client_id, cmd):
     }
 
     #[test]
+    #[serial]
     fn server_command_dispatcher_when_python_not_initiailized() {
         PYMINQLX_INITIALIZED.store(false, Ordering::SeqCst);
 
@@ -591,14 +592,173 @@ def handler(client_id, cmd):
     }
 
     #[test]
+    #[serial]
     fn server_command_dispatcher_when_dispatcher_not_initiailized() {
         PYMINQLX_INITIALIZED.store(true, Ordering::SeqCst);
+        SERVER_COMMAND_HANDLER.store(None);
+
+        let result = server_command_dispatcher(Some(123), "asdf");
+        assert_eq!(result, Some("asdf".into()));
+    }
+
+    #[cfg_attr(not(miri), rstest)]
+    #[serial]
+    fn server_command_dispatcher_dispatcher_returns_original_cmd(_pyminqlx_setup: ()) {
+        PYMINQLX_INITIALIZED.store(true, Ordering::SeqCst);
+
+        let pymodule: Py<PyModule> = Python::with_gil(|py| {
+            PyModule::from_code(
+                py,
+                r#"
+def handler(client_id, cmd):
+    return cmd
+"#,
+                "",
+                "",
+            )
+            .unwrap()
+            .into_py(py)
+        });
+        let server_command_handler =
+            Python::with_gil(|py| pymodule.getattr(py, "handler").unwrap().into_py(py));
+        SERVER_COMMAND_HANDLER.store(Some(server_command_handler.into()));
+
+        let result = server_command_dispatcher(Some(123), "asdf");
+        assert_eq!(result, Some("asdf".into()));
+    }
+
+    #[cfg_attr(not(miri), rstest)]
+    #[serial]
+    fn server_command_dispatcher_dispatcher_returns_another_cmd(_pyminqlx_setup: ()) {
+        PYMINQLX_INITIALIZED.store(true, Ordering::SeqCst);
+
+        let pymodule: Py<PyModule> = Python::with_gil(|py| {
+            PyModule::from_code(
+                py,
+                r#"
+def handler(client_id, cmd):
+    return "qwertz"
+"#,
+                "",
+                "",
+            )
+            .unwrap()
+            .into_py(py)
+        });
+        let server_command_handler =
+            Python::with_gil(|py| pymodule.getattr(py, "handler").unwrap().into_py(py));
+        SERVER_COMMAND_HANDLER.store(Some(server_command_handler.into()));
+
+        let result = server_command_dispatcher(Some(123), "asdf");
+        assert_eq!(result, Some("qwertz".into()));
+    }
+
+    #[cfg_attr(not(miri), rstest)]
+    #[serial]
+    fn server_command_dispatcher_dispatcher_returns_boolean_true(_pyminqlx_setup: ()) {
+        PYMINQLX_INITIALIZED.store(true, Ordering::SeqCst);
+
+        let pymodule: Py<PyModule> = Python::with_gil(|py| {
+            PyModule::from_code(
+                py,
+                r#"
+def handler(client_id, cmd):
+    return True
+"#,
+                "",
+                "",
+            )
+            .unwrap()
+            .into_py(py)
+        });
+        let server_command_handler =
+            Python::with_gil(|py| pymodule.getattr(py, "handler").unwrap().into_py(py));
+        SERVER_COMMAND_HANDLER.store(Some(server_command_handler.into()));
+
+        let result = server_command_dispatcher(Some(123), "asdf");
+        assert_eq!(result, Some("asdf".into()));
+    }
+
+    #[cfg_attr(not(miri), rstest)]
+    #[serial]
+    fn server_command_dispatcher_dispatcher_returns_false(_pyminqlx_setup: ()) {
+        PYMINQLX_INITIALIZED.store(true, Ordering::SeqCst);
+
+        let pymodule: Py<PyModule> = Python::with_gil(|py| {
+            PyModule::from_code(
+                py,
+                r#"
+def handler(client_id, cmd):
+    return False
+"#,
+                "",
+                "",
+            )
+            .unwrap()
+            .into_py(py)
+        });
+        let server_command_handler =
+            Python::with_gil(|py| pymodule.getattr(py, "handler").unwrap().into_py(py));
+        SERVER_COMMAND_HANDLER.store(Some(server_command_handler.into()));
+
+        let result = server_command_dispatcher(Some(123), "asdf");
+        assert_eq!(result, None);
+    }
+
+    #[cfg_attr(not(miri), rstest)]
+    #[serial]
+    fn server_command_dispatcher_dispatcher_throws_exception(_pyminqlx_setup: ()) {
+        PYMINQLX_INITIALIZED.store(true, Ordering::SeqCst);
+
+        let pymodule: Py<PyModule> = Python::with_gil(|py| {
+            PyModule::from_code(
+                py,
+                r#"
+def handler(client_id, cmd):
+    raise Exception
+"#,
+                "",
+                "",
+            )
+            .unwrap()
+            .into_py(py)
+        });
+        let server_command_handler =
+            Python::with_gil(|py| pymodule.getattr(py, "handler").unwrap().into_py(py));
+        SERVER_COMMAND_HANDLER.store(Some(server_command_handler.into()));
+
+        let result = server_command_dispatcher(Some(123), "asdf");
+        assert_eq!(result, Some("asdf".into()));
+    }
+
+    #[cfg_attr(not(miri), rstest)]
+    #[serial]
+    fn server_command_dispatcher_dispatcher_returns_not_supported_value(_pyminqlx_setup: ()) {
+        PYMINQLX_INITIALIZED.store(true, Ordering::SeqCst);
+
+        let pymodule: Py<PyModule> = Python::with_gil(|py| {
+            PyModule::from_code(
+                py,
+                r#"
+def handler(client_id, cmd):
+    return (1, 2, 3)
+"#,
+                "",
+                "",
+            )
+            .unwrap()
+            .into_py(py)
+        });
+        let server_command_handler =
+            Python::with_gil(|py| pymodule.getattr(py, "handler").unwrap().into_py(py));
+        SERVER_COMMAND_HANDLER.store(Some(server_command_handler.into()));
 
         let result = server_command_dispatcher(Some(123), "asdf");
         assert_eq!(result, Some("asdf".into()));
     }
 
     #[test]
+    #[serial]
     fn frame_dispatcher_when_python_not_initiailized() {
         PYMINQLX_INITIALIZED.store(false, Ordering::SeqCst);
 
@@ -606,6 +766,7 @@ def handler(client_id, cmd):
     }
 
     #[test]
+    #[serial]
     fn frame_dispatcher_when_dispatcher_not_initiailized() {
         PYMINQLX_INITIALIZED.store(true, Ordering::SeqCst);
 
@@ -613,6 +774,7 @@ def handler(client_id, cmd):
     }
 
     #[test]
+    #[serial]
     fn client_connect_dispatcher_when_python_not_initiailized() {
         PYMINQLX_INITIALIZED.store(false, Ordering::SeqCst);
 
@@ -621,6 +783,7 @@ def handler(client_id, cmd):
     }
 
     #[test]
+    #[serial]
     fn client_connect_dispatcher_when_dispatcher_not_initiailized() {
         PYMINQLX_INITIALIZED.store(true, Ordering::SeqCst);
 
@@ -629,6 +792,7 @@ def handler(client_id, cmd):
     }
 
     #[test]
+    #[serial]
     fn client_disconnect_dispatcher_when_python_not_initiailized() {
         PYMINQLX_INITIALIZED.store(false, Ordering::SeqCst);
 
@@ -636,6 +800,7 @@ def handler(client_id, cmd):
     }
 
     #[test]
+    #[serial]
     fn client_disconnect_dispatcher_when_dispatcher_not_initiailized() {
         PYMINQLX_INITIALIZED.store(true, Ordering::SeqCst);
 
@@ -643,6 +808,7 @@ def handler(client_id, cmd):
     }
 
     #[test]
+    #[serial]
     fn client_loaded_dispatcher_when_python_not_initiailized() {
         PYMINQLX_INITIALIZED.store(false, Ordering::SeqCst);
 
@@ -650,6 +816,7 @@ def handler(client_id, cmd):
     }
 
     #[test]
+    #[serial]
     fn client_loaded_dispatcher_when_dispatcher_not_initiailized() {
         PYMINQLX_INITIALIZED.store(true, Ordering::SeqCst);
 
@@ -657,6 +824,7 @@ def handler(client_id, cmd):
     }
 
     #[test]
+    #[serial]
     fn new_game_dispatcher_when_python_not_initiailized() {
         PYMINQLX_INITIALIZED.store(false, Ordering::SeqCst);
 
@@ -664,6 +832,7 @@ def handler(client_id, cmd):
     }
 
     #[test]
+    #[serial]
     fn new_game_dispatcher_when_dispatcher_not_initiailized() {
         PYMINQLX_INITIALIZED.store(true, Ordering::SeqCst);
 
@@ -671,6 +840,7 @@ def handler(client_id, cmd):
     }
 
     #[test]
+    #[serial]
     fn set_configstring_dispatcher_when_python_not_initiailized() {
         PYMINQLX_INITIALIZED.store(false, Ordering::SeqCst);
 
@@ -679,6 +849,7 @@ def handler(client_id, cmd):
     }
 
     #[test]
+    #[serial]
     fn set_configstring_dispatcher_when_dispatcher_not_initiailized() {
         PYMINQLX_INITIALIZED.store(true, Ordering::SeqCst);
 
@@ -687,6 +858,7 @@ def handler(client_id, cmd):
     }
 
     #[test]
+    #[serial]
     fn rcon_dispatcher_when_python_not_initiailized() {
         PYMINQLX_INITIALIZED.store(false, Ordering::SeqCst);
 
@@ -694,6 +866,7 @@ def handler(client_id, cmd):
     }
 
     #[test]
+    #[serial]
     fn rcon_dispatcher_when_dispatcher_not_initiailized() {
         PYMINQLX_INITIALIZED.store(true, Ordering::SeqCst);
 
@@ -701,6 +874,7 @@ def handler(client_id, cmd):
     }
 
     #[test]
+    #[serial]
     fn console_print_dispatcher_when_python_not_initiailized() {
         PYMINQLX_INITIALIZED.store(false, Ordering::SeqCst);
 
@@ -709,6 +883,7 @@ def handler(client_id, cmd):
     }
 
     #[test]
+    #[serial]
     fn console_print_dispatcher_when_dispatcher_not_initiailized() {
         PYMINQLX_INITIALIZED.store(true, Ordering::SeqCst);
 
@@ -717,6 +892,7 @@ def handler(client_id, cmd):
     }
 
     #[test]
+    #[serial]
     fn client_spawn_dispatcher_when_python_not_initiailized() {
         PYMINQLX_INITIALIZED.store(false, Ordering::SeqCst);
 
@@ -724,6 +900,7 @@ def handler(client_id, cmd):
     }
 
     #[test]
+    #[serial]
     fn client_spawn_dispatcher_when_dispatcher_not_initiailized() {
         PYMINQLX_INITIALIZED.store(true, Ordering::SeqCst);
 
@@ -731,6 +908,7 @@ def handler(client_id, cmd):
     }
 
     #[test]
+    #[serial]
     fn kamikaze_use_dispatcher_when_python_not_initiailized() {
         PYMINQLX_INITIALIZED.store(false, Ordering::SeqCst);
 
@@ -738,6 +916,7 @@ def handler(client_id, cmd):
     }
 
     #[test]
+    #[serial]
     fn kamikaze_use_dispatcher_when_dispatcher_not_initiailized() {
         PYMINQLX_INITIALIZED.store(true, Ordering::SeqCst);
 
@@ -745,6 +924,7 @@ def handler(client_id, cmd):
     }
 
     #[test]
+    #[serial]
     fn kamikaze_explode_dispatcher_when_python_not_initiailized() {
         PYMINQLX_INITIALIZED.store(false, Ordering::SeqCst);
 
@@ -752,6 +932,7 @@ def handler(client_id, cmd):
     }
 
     #[test]
+    #[serial]
     fn kamikaze_explode_dispatcher_when_dispatcher_not_initiailized() {
         PYMINQLX_INITIALIZED.store(true, Ordering::SeqCst);
 
@@ -759,6 +940,7 @@ def handler(client_id, cmd):
     }
 
     #[test]
+    #[serial]
     fn damage_dispatcher_when_python_not_initiailized() {
         PYMINQLX_INITIALIZED.store(false, Ordering::SeqCst);
 
@@ -772,6 +954,7 @@ def handler(client_id, cmd):
     }
 
     #[test]
+    #[serial]
     fn damage_dispatcher_when_dispatcher_not_initiailized() {
         PYMINQLX_INITIALIZED.store(true, Ordering::SeqCst);
 
