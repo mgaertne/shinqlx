@@ -398,8 +398,14 @@ mod pyminqlx_dispatcher_tests {
         set_configstring_dispatcher, PYMINQLX_INITIALIZED,
     };
     use crate::prelude::*;
+    #[cfg(not(miri))]
+    use crate::pyminqlx::pyminqlx_setup_fixture::*;
+    use crate::pyminqlx::CLIENT_COMMAND_HANDLER;
     use core::sync::atomic::Ordering;
     use pretty_assertions::assert_eq;
+    use pyo3::prelude::*;
+    #[cfg(not(miri))]
+    use rstest::rstest;
 
     #[test]
     fn client_command_dispatcher_when_python_not_initiailized() {
@@ -412,6 +418,32 @@ mod pyminqlx_dispatcher_tests {
     #[test]
     fn client_command_dispatcher_when_dispatcher_not_initiailized() {
         PYMINQLX_INITIALIZED.store(true, Ordering::SeqCst);
+
+        let result = client_command_dispatcher(123, "asdf");
+        assert_eq!(result, Some("asdf".into()));
+    }
+
+    #[cfg_attr(not(miri), rstest)]
+    #[serial]
+    fn client_command_dispatcher_dispatcher_returns_original_cmd(_pyminqlx_setup: ()) {
+        PYMINQLX_INITIALIZED.store(true, Ordering::SeqCst);
+
+        let pymodule: Py<PyModule> = Python::with_gil(|py| {
+            PyModule::from_code(
+                py,
+                r#"
+def handler(client_id, cmd):
+    return cmd
+"#,
+                "",
+                "",
+            )
+            .unwrap()
+            .into_py(py)
+        });
+        let client_command_handler =
+            Python::with_gil(|py| pymodule.getattr(py, "handler").unwrap().into_py(py));
+        CLIENT_COMMAND_HANDLER.store(Some(client_command_handler.into()));
 
         let result = client_command_dispatcher(123, "asdf");
         assert_eq!(result, Some("asdf".into()));
