@@ -420,6 +420,7 @@ mod pyminqlx_dispatcher_tests {
     #[serial]
     fn client_command_dispatcher_when_dispatcher_not_initiailized() {
         PYMINQLX_INITIALIZED.store(true, Ordering::SeqCst);
+        CLIENT_COMMAND_HANDLER.store(None);
 
         let result = client_command_dispatcher(123, "asdf");
         assert_eq!(result, Some("asdf".into()));
