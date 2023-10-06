@@ -909,11 +909,11 @@ impl QuakeLiveEngine {
         };
 
         self.sv_maxclients
-            .store(maxclients.get_integer(), Ordering::Relaxed);
+            .store(maxclients.get_integer(), Ordering::SeqCst);
     }
 
     pub(crate) fn get_max_clients(&self) -> i32 {
-        self.sv_maxclients.load(Ordering::Relaxed)
+        self.sv_maxclients.load(Ordering::SeqCst)
     }
 
     // Currently called by My_Cmd_AddCommand(), since it's called at a point where we

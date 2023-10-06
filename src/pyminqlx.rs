@@ -131,7 +131,7 @@ pub(crate) fn client_connect_dispatcher(client_id: i32, is_bot: bool) -> Option<
         return None;
     };
 
-    ALLOW_FREE_CLIENT.store(client_id, Ordering::Relaxed);
+    ALLOW_FREE_CLIENT.store(client_id, Ordering::SeqCst);
 
     let result: Option<String> =
         Python::with_gil(
@@ -153,7 +153,7 @@ pub(crate) fn client_connect_dispatcher(client_id: i32, is_bot: bool) -> Option<
             },
         );
 
-    ALLOW_FREE_CLIENT.store(-1, Ordering::Relaxed);
+    ALLOW_FREE_CLIENT.store(-1, Ordering::SeqCst);
 
     result
 }
@@ -170,14 +170,14 @@ where
         return;
     };
 
-    ALLOW_FREE_CLIENT.store(client_id, Ordering::Relaxed);
+    ALLOW_FREE_CLIENT.store(client_id, Ordering::SeqCst);
     Python::with_gil(|py| {
         let result = client_disconnect_handler.call1(py, (client_id, reason.as_ref()));
         if result.is_err() {
             error!(target: "shinqlx", "client_disconnect_handler returned an error.");
         }
     });
-    ALLOW_FREE_CLIENT.store(-1, Ordering::Relaxed);
+    ALLOW_FREE_CLIENT.store(-1, Ordering::SeqCst);
 }
 
 pub(crate) fn client_loaded_dispatcher(client_id: i32) {
@@ -2002,7 +2002,7 @@ fn get_player_info(py: Python<'_>, client_id: i32) -> PyResult<Option<PlayerInfo
             return Ok(PlayerInfo::try_from(client_id).ok());
         };
 
-        let allowed_free_client_id = ALLOW_FREE_CLIENT.load(Ordering::Relaxed);
+        let allowed_free_client_id = ALLOW_FREE_CLIENT.load(Ordering::SeqCst);
         if allowed_free_client_id != client_id && client.get_state() == clientState_t::CS_FREE {
             warn!(
                 target: "shinqlx",
@@ -2069,7 +2069,7 @@ fn get_userinfo(py: Python<'_>, client_id: i32) -> PyResult<Option<String>> {
     py.allow_threads(move || match Client::try_from(client_id) {
         Err(_) => Ok(None),
         Ok(client) => {
-            let allowed_free_client_id = ALLOW_FREE_CLIENT.load(Ordering::Relaxed);
+            let allowed_free_client_id = ALLOW_FREE_CLIENT.load(Ordering::SeqCst);
             if allowed_free_client_id != client_id && client.get_state() == clientState_t::CS_FREE {
                 Ok(None)
             } else {
