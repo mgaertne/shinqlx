@@ -16,7 +16,7 @@ use crate::hooks::{
 };
 use crate::hooks::{shinqlx_com_printf, shinqlx_set_configstring};
 use crate::MAIN_ENGINE;
-use core::sync::atomic::AtomicI32;
+use core::default::Default;
 use core::sync::atomic::{AtomicBool, Ordering};
 use once_cell::sync::Lazy;
 use swap_arc::SwapArcOption;
@@ -33,7 +33,72 @@ use pyo3::prelude::*;
 use pyo3::types::PyTuple;
 use pyo3::{append_to_inittab, prepare_freethreaded_python};
 
-static ALLOW_FREE_CLIENT: AtomicI32 = AtomicI32::new(-1);
+static ALLOW_FREE_CLIENT: [AtomicBool; MAX_CLIENTS as usize] = [
+    AtomicBool::new(false),
+    AtomicBool::new(false),
+    AtomicBool::new(false),
+    AtomicBool::new(false),
+    AtomicBool::new(false),
+    AtomicBool::new(false),
+    AtomicBool::new(false),
+    AtomicBool::new(false),
+    AtomicBool::new(false),
+    AtomicBool::new(false),
+    AtomicBool::new(false),
+    AtomicBool::new(false),
+    AtomicBool::new(false),
+    AtomicBool::new(false),
+    AtomicBool::new(false),
+    AtomicBool::new(false),
+    AtomicBool::new(false),
+    AtomicBool::new(false),
+    AtomicBool::new(false),
+    AtomicBool::new(false),
+    AtomicBool::new(false),
+    AtomicBool::new(false),
+    AtomicBool::new(false),
+    AtomicBool::new(false),
+    AtomicBool::new(false),
+    AtomicBool::new(false),
+    AtomicBool::new(false),
+    AtomicBool::new(false),
+    AtomicBool::new(false),
+    AtomicBool::new(false),
+    AtomicBool::new(false),
+    AtomicBool::new(false),
+    AtomicBool::new(false),
+    AtomicBool::new(false),
+    AtomicBool::new(false),
+    AtomicBool::new(false),
+    AtomicBool::new(false),
+    AtomicBool::new(false),
+    AtomicBool::new(false),
+    AtomicBool::new(false),
+    AtomicBool::new(false),
+    AtomicBool::new(false),
+    AtomicBool::new(false),
+    AtomicBool::new(false),
+    AtomicBool::new(false),
+    AtomicBool::new(false),
+    AtomicBool::new(false),
+    AtomicBool::new(false),
+    AtomicBool::new(false),
+    AtomicBool::new(false),
+    AtomicBool::new(false),
+    AtomicBool::new(false),
+    AtomicBool::new(false),
+    AtomicBool::new(false),
+    AtomicBool::new(false),
+    AtomicBool::new(false),
+    AtomicBool::new(false),
+    AtomicBool::new(false),
+    AtomicBool::new(false),
+    AtomicBool::new(false),
+    AtomicBool::new(false),
+    AtomicBool::new(false),
+    AtomicBool::new(false),
+    AtomicBool::new(false),
+];
 
 pub(crate) fn client_command_dispatcher<T>(client_id: i32, cmd: T) -> Option<String>
 where
@@ -131,7 +196,7 @@ pub(crate) fn client_connect_dispatcher(client_id: i32, is_bot: bool) -> Option<
         return None;
     };
 
-    ALLOW_FREE_CLIENT.store(client_id, Ordering::SeqCst);
+    ALLOW_FREE_CLIENT[client_id as usize].store(true, Ordering::SeqCst);
 
     let result: Option<String> =
         Python::with_gil(
@@ -153,7 +218,7 @@ pub(crate) fn client_connect_dispatcher(client_id: i32, is_bot: bool) -> Option<
             },
         );
 
-    ALLOW_FREE_CLIENT.store(-1, Ordering::SeqCst);
+    ALLOW_FREE_CLIENT[client_id as usize].store(false, Ordering::SeqCst);
 
     result
 }
@@ -170,14 +235,14 @@ where
         return;
     };
 
-    ALLOW_FREE_CLIENT.store(client_id, Ordering::SeqCst);
+    ALLOW_FREE_CLIENT[client_id as usize].store(true, Ordering::SeqCst);
     Python::with_gil(|py| {
         let result = client_disconnect_handler.call1(py, (client_id, reason.as_ref()));
         if result.is_err() {
             error!(target: "shinqlx", "client_disconnect_handler returned an error.");
         }
     });
-    ALLOW_FREE_CLIENT.store(-1, Ordering::SeqCst);
+    ALLOW_FREE_CLIENT[client_id as usize].store(false, Ordering::SeqCst);
 }
 
 pub(crate) fn client_loaded_dispatcher(client_id: i32) {
@@ -834,7 +899,7 @@ def handler():
     fn client_connect_dispatcher_when_python_not_initiailized() {
         PYMINQLX_INITIALIZED.store(false, Ordering::SeqCst);
 
-        let result = client_connect_dispatcher(123, false);
+        let result = client_connect_dispatcher(42, false);
         assert_eq!(result, None);
     }
 
@@ -844,7 +909,7 @@ def handler():
         PYMINQLX_INITIALIZED.store(true, Ordering::SeqCst);
         PLAYER_CONNECT_HANDLER.store(None);
 
-        let result = client_connect_dispatcher(123, false);
+        let result = client_connect_dispatcher(42, false);
         assert_eq!(result, None);
     }
 
@@ -870,7 +935,7 @@ def handler(client_id, is_bot):
             Python::with_gil(|py| pymodule.getattr(py, "handler").unwrap().into_py(py));
         PLAYER_CONNECT_HANDLER.store(Some(client_connect_handler.into()));
 
-        let result = client_connect_dispatcher(123, false);
+        let result = client_connect_dispatcher(42, false);
         assert_eq!(result, Some("qwertz".into()));
     }
 
@@ -896,7 +961,7 @@ def handler(client_id, is_bot):
             Python::with_gil(|py| pymodule.getattr(py, "handler").unwrap().into_py(py));
         PLAYER_CONNECT_HANDLER.store(Some(client_connect_handler.into()));
 
-        let result = client_connect_dispatcher(123, true);
+        let result = client_connect_dispatcher(42, true);
         assert_eq!(result, None);
     }
 
@@ -922,7 +987,7 @@ def handler(client_id, is_bot):
             Python::with_gil(|py| pymodule.getattr(py, "handler").unwrap().into_py(py));
         PLAYER_CONNECT_HANDLER.store(Some(client_connect_handler.into()));
 
-        let result = client_connect_dispatcher(123, true);
+        let result = client_connect_dispatcher(42, true);
         assert_eq!(result, Some("You are banned from this server.".into()));
     }
 
@@ -948,7 +1013,7 @@ def handler(client_id, is_bot):
             Python::with_gil(|py| pymodule.getattr(py, "handler").unwrap().into_py(py));
         PLAYER_CONNECT_HANDLER.store(Some(client_connect_handler.into()));
 
-        let result = client_connect_dispatcher(123, false);
+        let result = client_connect_dispatcher(42, false);
         assert_eq!(result, None);
     }
 
@@ -974,7 +1039,7 @@ def handler(client_id, is_bot):
             Python::with_gil(|py| pymodule.getattr(py, "handler").unwrap().into_py(py));
         PLAYER_CONNECT_HANDLER.store(Some(player_connect_handler.into()));
 
-        let result = client_connect_dispatcher(123, false);
+        let result = client_connect_dispatcher(42, false);
         assert_eq!(result, None);
     }
 
@@ -983,7 +1048,7 @@ def handler(client_id, is_bot):
     fn client_disconnect_dispatcher_when_python_not_initiailized() {
         PYMINQLX_INITIALIZED.store(false, Ordering::SeqCst);
 
-        client_disconnect_dispatcher(123, "asdf");
+        client_disconnect_dispatcher(42, "asdf");
     }
 
     #[test]
@@ -992,7 +1057,7 @@ def handler(client_id, is_bot):
         PYMINQLX_INITIALIZED.store(true, Ordering::SeqCst);
         PLAYER_DISCONNECT_HANDLER.store(None);
 
-        client_disconnect_dispatcher(123, "ragequit");
+        client_disconnect_dispatcher(42, "ragequit");
     }
 
     #[cfg_attr(not(miri), rstest)]
@@ -1017,7 +1082,7 @@ def handler(client_id, reason):
             Python::with_gil(|py| pymodule.getattr(py, "handler").unwrap().into_py(py));
         PLAYER_DISCONNECT_HANDLER.store(Some(client_disconnect_handler.into()));
 
-        client_disconnect_dispatcher(123, "ragequit");
+        client_disconnect_dispatcher(42, "ragequit");
     }
 
     #[cfg_attr(not(miri), rstest)]
@@ -1042,7 +1107,7 @@ def handler(client_id, reason):
             Python::with_gil(|py| pymodule.getattr(py, "handler").unwrap().into_py(py));
         PLAYER_DISCONNECT_HANDLER.store(Some(client_disconnect_handler.into()));
 
-        client_disconnect_dispatcher(123, "ragequit");
+        client_disconnect_dispatcher(42, "ragequit");
     }
 
     #[test]
@@ -2002,8 +2067,8 @@ fn get_player_info(py: Python<'_>, client_id: i32) -> PyResult<Option<PlayerInfo
             return Ok(PlayerInfo::try_from(client_id).ok());
         };
 
-        let allowed_free_client_id = ALLOW_FREE_CLIENT.load(Ordering::SeqCst);
-        if allowed_free_client_id != client_id && client.get_state() == clientState_t::CS_FREE {
+        let allowed_free_client_id = ALLOW_FREE_CLIENT[client_id as usize].load(Ordering::SeqCst);
+        if allowed_free_client_id && client.get_state() == clientState_t::CS_FREE {
             warn!(
                 target: "shinqlx",
                 "WARNING: get_player_info called for CS_FREE client {}.",
@@ -2069,8 +2134,9 @@ fn get_userinfo(py: Python<'_>, client_id: i32) -> PyResult<Option<String>> {
     py.allow_threads(move || match Client::try_from(client_id) {
         Err(_) => Ok(None),
         Ok(client) => {
-            let allowed_free_client_id = ALLOW_FREE_CLIENT.load(Ordering::SeqCst);
-            if allowed_free_client_id != client_id && client.get_state() == clientState_t::CS_FREE {
+            let allowed_free_client_id =
+                ALLOW_FREE_CLIENT[client_id as usize].load(Ordering::SeqCst);
+            if allowed_free_client_id && client.get_state() == clientState_t::CS_FREE {
                 Ok(None)
             } else {
                 Ok(Some(client.get_user_info()))

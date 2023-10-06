@@ -542,7 +542,8 @@ pub(crate) fn shinqlx_g_damage(
 
 #[cfg(test)]
 #[cfg_attr(test, mockall::automock)]
-#[cfg_attr(test, allow(dead_code))]
+#[allow(dead_code)]
+#[allow(clippy::module_inception)]
 pub(crate) mod hooks {
     use super::Client;
     use super::GameEntity;
