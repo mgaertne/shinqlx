@@ -15,6 +15,9 @@ use crate::hooks::{
     shinqlx_send_server_command,
 };
 use crate::hooks::{shinqlx_com_printf, shinqlx_set_configstring};
+#[cfg(test)]
+use crate::pyminqlx::DUMMY_MAIN_ENGINE as MAIN_ENGINE;
+#[cfg(not(test))]
 use crate::MAIN_ENGINE;
 use core::default::Default;
 use core::sync::atomic::{AtomicBool, Ordering};
@@ -23,6 +26,8 @@ use swap_arc::SwapArcOption;
 
 use crate::current_level::CurrentLevel;
 use crate::game_item::GameItem;
+#[cfg(test)]
+use crate::quake_live_engine::MockQuakeEngine as QuakeLiveEngine;
 use crate::quake_live_engine::{
     AddCommand, ComPrintf, ConsoleCommand, FindCVar, GetCVar, GetConfigstring, SendServerCommand,
     SetCVarForced, SetCVarLimit,
@@ -32,6 +37,10 @@ use pyo3::exceptions::{PyEnvironmentError, PyTypeError, PyValueError};
 use pyo3::prelude::*;
 use pyo3::types::PyTuple;
 use pyo3::{append_to_inittab, prepare_freethreaded_python};
+
+#[cfg(test)]
+static DUMMY_MAIN_ENGINE: Lazy<SwapArcOption<QuakeLiveEngine>> =
+    Lazy::new(|| SwapArcOption::new(None));
 
 static ALLOW_FREE_CLIENT: [AtomicBool; MAX_CLIENTS as usize] = [
     AtomicBool::new(false),
@@ -2082,15 +2091,20 @@ fn get_player_info(py: Python<'_>, client_id: i32) -> PyResult<Option<PlayerInfo
 }
 
 #[cfg(test)]
+#[cfg(not(miri))]
 mod get_player_into_tests {
     use super::get_player_info;
+    use super::MAIN_ENGINE;
+    use crate::prelude::*;
     use crate::pyminqlx::pyminqlx_setup_fixture::*;
     use pyo3::exceptions::PyEnvironmentError;
     use pyo3::prelude::*;
     use rstest::rstest;
 
     #[rstest]
+    #[serial]
     fn get_player_into_when_main_engine_not_initialized(_pyminqlx_setup: ()) {
+        MAIN_ENGINE.store(None);
         Python::with_gil(|py| {
             let result = get_player_info(py, 0);
             assert!(result.is_err_and(|err| err.is_instance_of::<PyEnvironmentError>(py)));
@@ -2402,7 +2416,7 @@ fn get_configstring(py: Python<'_>, config_id: u32) -> PyResult<String> {
             ));
         };
 
-        Ok(main_engine.get_configstring(config_id as i16))
+        Ok(main_engine.get_configstring(config_id as u16))
     })
 }
 
@@ -2472,7 +2486,8 @@ fn add_console_command(py: Python<'_>, command: &str) -> PyResult<()> {
             ));
         };
 
-        main_engine.add_command(command, cmd_py_command);
+        #[allow(clippy::unnecessary_to_owned)]
+        main_engine.add_command(command.to_string(), cmd_py_command);
 
         Ok(())
     })
@@ -4087,8 +4102,11 @@ fn dev_print_items(py: Python<'_>) -> PyResult<()> {
         };
 
         if printed_items.is_empty() {
-            main_engine
-                .send_server_command(None::<Client>, "print \"No items found in the map\n\"");
+            #[allow(clippy::unnecessary_to_owned)]
+            main_engine.send_server_command(
+                None::<Client>,
+                "print \"No items found in the map\n\"".to_string(),
+            );
             return Ok(());
         }
         main_engine.send_server_command(
@@ -4103,9 +4121,10 @@ fn dev_print_items(py: Python<'_>) -> PyResult<()> {
             .collect();
 
         if !remaining_items.is_empty() {
+            #[allow(clippy::unnecessary_to_owned)]
             main_engine.send_server_command(
                 None::<Client>,
-                "print \"Check server console for other items\n\"\n",
+                "print \"Check server console for other items\n\"\n".to_string(),
             );
             remaining_items
                 .into_iter()

@@ -912,6 +912,7 @@ impl QuakeLiveEngine {
             .store(maxclients.get_integer(), Ordering::SeqCst);
     }
 
+    #[cfg_attr(test, allow(dead_code))]
     pub(crate) fn get_max_clients(&self) -> i32 {
         self.sv_maxclients.load(Ordering::SeqCst)
     }
@@ -2006,5 +2007,20 @@ mockall::mock! {
     }
     impl GetConfigstring<u16> for QuakeEngine {
         fn get_configstring(&self, index: u16) -> String;
+    }
+    impl ConsoleCommand<&str> for QuakeEngine {
+        fn execute_console_command(&self, cmd: &str);
+    }
+    impl FindCVar<&str> for QuakeEngine {
+        fn find_cvar(&self, name: &str) -> Option<CVar>;
+    }
+    impl GetCVar<&str, &str, i32> for QuakeEngine {
+        fn get_cvar(&self, name: &str, value: &str, flags: Option<i32>) -> Option<CVar>;
+    }
+    impl SetCVarForced<&str, &str, bool> for QuakeEngine {
+        fn set_cvar_forced(&self, name: &str, value: &str, forced: bool) -> Option<CVar>;
+    }
+    impl SetCVarLimit<&str, &str, &str, &str, i32> for QuakeEngine {
+        fn set_cvar_limit(&self, name: &str, value: &str, min: &str, max: &str, flags: Option<i32>) -> Option<CVar>;
     }
 }
