@@ -1049,7 +1049,6 @@ def handler(client_id, reason):
     #[serial]
     fn client_loaded_dispatcher_when_python_not_initiailized() {
         PYMINQLX_INITIALIZED.store(false, Ordering::SeqCst);
-        PLAYER_LOADED_HANDLER.store(None);
 
         client_loaded_dispatcher(123);
     }
@@ -1058,6 +1057,7 @@ def handler(client_id, reason):
     #[serial]
     fn client_loaded_dispatcher_when_dispatcher_not_initiailized() {
         PYMINQLX_INITIALIZED.store(true, Ordering::SeqCst);
+        PLAYER_LOADED_HANDLER.store(None);
 
         client_loaded_dispatcher(123);
     }
