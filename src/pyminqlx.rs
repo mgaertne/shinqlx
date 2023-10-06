@@ -20,7 +20,7 @@ use crate::pyminqlx::DUMMY_MAIN_ENGINE as MAIN_ENGINE;
 #[cfg(not(test))]
 use crate::MAIN_ENGINE;
 use core::default::Default;
-use core::sync::atomic::{AtomicBool, Ordering};
+use core::sync::atomic::{AtomicBool, AtomicU64, Ordering};
 use once_cell::sync::Lazy;
 use swap_arc::SwapArcOption;
 
@@ -42,72 +42,7 @@ use pyo3::{append_to_inittab, prepare_freethreaded_python};
 static DUMMY_MAIN_ENGINE: Lazy<SwapArcOption<QuakeLiveEngine>> =
     Lazy::new(|| SwapArcOption::new(None));
 
-static ALLOW_FREE_CLIENT: [AtomicBool; MAX_CLIENTS as usize] = [
-    AtomicBool::new(false),
-    AtomicBool::new(false),
-    AtomicBool::new(false),
-    AtomicBool::new(false),
-    AtomicBool::new(false),
-    AtomicBool::new(false),
-    AtomicBool::new(false),
-    AtomicBool::new(false),
-    AtomicBool::new(false),
-    AtomicBool::new(false),
-    AtomicBool::new(false),
-    AtomicBool::new(false),
-    AtomicBool::new(false),
-    AtomicBool::new(false),
-    AtomicBool::new(false),
-    AtomicBool::new(false),
-    AtomicBool::new(false),
-    AtomicBool::new(false),
-    AtomicBool::new(false),
-    AtomicBool::new(false),
-    AtomicBool::new(false),
-    AtomicBool::new(false),
-    AtomicBool::new(false),
-    AtomicBool::new(false),
-    AtomicBool::new(false),
-    AtomicBool::new(false),
-    AtomicBool::new(false),
-    AtomicBool::new(false),
-    AtomicBool::new(false),
-    AtomicBool::new(false),
-    AtomicBool::new(false),
-    AtomicBool::new(false),
-    AtomicBool::new(false),
-    AtomicBool::new(false),
-    AtomicBool::new(false),
-    AtomicBool::new(false),
-    AtomicBool::new(false),
-    AtomicBool::new(false),
-    AtomicBool::new(false),
-    AtomicBool::new(false),
-    AtomicBool::new(false),
-    AtomicBool::new(false),
-    AtomicBool::new(false),
-    AtomicBool::new(false),
-    AtomicBool::new(false),
-    AtomicBool::new(false),
-    AtomicBool::new(false),
-    AtomicBool::new(false),
-    AtomicBool::new(false),
-    AtomicBool::new(false),
-    AtomicBool::new(false),
-    AtomicBool::new(false),
-    AtomicBool::new(false),
-    AtomicBool::new(false),
-    AtomicBool::new(false),
-    AtomicBool::new(false),
-    AtomicBool::new(false),
-    AtomicBool::new(false),
-    AtomicBool::new(false),
-    AtomicBool::new(false),
-    AtomicBool::new(false),
-    AtomicBool::new(false),
-    AtomicBool::new(false),
-    AtomicBool::new(false),
-];
+static ALLOW_FREE_CLIENT: AtomicU64 = AtomicU64::new(0);
 
 pub(crate) fn client_command_dispatcher<T>(client_id: i32, cmd: T) -> Option<String>
 where
@@ -197,6 +132,7 @@ pub(crate) fn frame_dispatcher() {
 }
 
 pub(crate) fn client_connect_dispatcher(client_id: i32, is_bot: bool) -> Option<String> {
+    dbg!("client:_id: {}", client_id);
     if !pyminqlx_is_initialized() {
         return None;
     }
@@ -205,7 +141,8 @@ pub(crate) fn client_connect_dispatcher(client_id: i32, is_bot: bool) -> Option<
         return None;
     };
 
-    ALLOW_FREE_CLIENT[client_id as usize].store(true, Ordering::SeqCst);
+    let allowed_clients = ALLOW_FREE_CLIENT.load(Ordering::SeqCst);
+    ALLOW_FREE_CLIENT.store(allowed_clients | client_id as u64, Ordering::SeqCst);
 
     let result: Option<String> =
         Python::with_gil(
@@ -227,7 +164,8 @@ pub(crate) fn client_connect_dispatcher(client_id: i32, is_bot: bool) -> Option<
             },
         );
 
-    ALLOW_FREE_CLIENT[client_id as usize].store(false, Ordering::SeqCst);
+    let allowed_clients = ALLOW_FREE_CLIENT.load(Ordering::SeqCst);
+    ALLOW_FREE_CLIENT.store(allowed_clients & !client_id as u64, Ordering::SeqCst);
 
     result
 }
@@ -244,14 +182,16 @@ where
         return;
     };
 
-    ALLOW_FREE_CLIENT[client_id as usize].store(true, Ordering::SeqCst);
+    let allowed_clients = ALLOW_FREE_CLIENT.load(Ordering::SeqCst);
+    ALLOW_FREE_CLIENT.store(allowed_clients | client_id as u64, Ordering::SeqCst);
     Python::with_gil(|py| {
         let result = client_disconnect_handler.call1(py, (client_id, reason.as_ref()));
         if result.is_err() {
             error!(target: "shinqlx", "client_disconnect_handler returned an error.");
         }
     });
-    ALLOW_FREE_CLIENT[client_id as usize].store(false, Ordering::SeqCst);
+    let allowed_clients = ALLOW_FREE_CLIENT.load(Ordering::SeqCst);
+    ALLOW_FREE_CLIENT.store(allowed_clients & !client_id as u64, Ordering::SeqCst);
 }
 
 pub(crate) fn client_loaded_dispatcher(client_id: i32) {
@@ -2076,8 +2016,10 @@ fn get_player_info(py: Python<'_>, client_id: i32) -> PyResult<Option<PlayerInfo
             return Ok(PlayerInfo::try_from(client_id).ok());
         };
 
-        let allowed_free_client_id = ALLOW_FREE_CLIENT[client_id as usize].load(Ordering::SeqCst);
-        if allowed_free_client_id && client.get_state() == clientState_t::CS_FREE {
+        let allowed_free_clients = ALLOW_FREE_CLIENT.load(Ordering::SeqCst);
+        if allowed_free_clients & client_id as u64 == 0
+            && client.get_state() == clientState_t::CS_FREE
+        {
             warn!(
                 target: "shinqlx",
                 "WARNING: get_player_info called for CS_FREE client {}.",
@@ -2187,9 +2129,10 @@ fn get_userinfo(py: Python<'_>, client_id: i32) -> PyResult<Option<String>> {
     py.allow_threads(move || match Client::try_from(client_id) {
         Err(_) => Ok(None),
         Ok(client) => {
-            let allowed_free_client_id =
-                ALLOW_FREE_CLIENT[client_id as usize].load(Ordering::SeqCst);
-            if allowed_free_client_id && client.get_state() == clientState_t::CS_FREE {
+            let allowed_free_clients = ALLOW_FREE_CLIENT.load(Ordering::SeqCst);
+            if allowed_free_clients & client_id as u64 == 0
+                && client.get_state() == clientState_t::CS_FREE
+            {
                 Ok(None)
             } else {
                 Ok(Some(client.get_user_info()))
@@ -2711,6 +2654,28 @@ fn add_console_command(py: Python<'_>, command: &str) -> PyResult<()> {
 
         Ok(())
     })
+}
+
+#[cfg(test)]
+#[cfg(not(miri))]
+mod add_console_command_tests {
+    use super::add_console_command;
+    use super::MAIN_ENGINE;
+    use crate::prelude::*;
+    use crate::pyminqlx::pyminqlx_setup_fixture::*;
+    use pyo3::exceptions::PyEnvironmentError;
+    use pyo3::prelude::*;
+    use rstest::rstest;
+
+    #[rstest]
+    #[serial]
+    fn add_console_command_when_main_engine_not_initialized(_pyminqlx_setup: ()) {
+        MAIN_ENGINE.store(None);
+        Python::with_gil(|py| {
+            let result = add_console_command(py, "slap");
+            assert!(result.is_err_and(|err| err.is_instance_of::<PyEnvironmentError>(py)));
+        })
+    }
 }
 
 static CLIENT_COMMAND_HANDLER: Lazy<SwapArcOption<Py<PyAny>>> =
