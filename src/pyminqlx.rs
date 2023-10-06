@@ -132,7 +132,6 @@ pub(crate) fn frame_dispatcher() {
 }
 
 pub(crate) fn client_connect_dispatcher(client_id: i32, is_bot: bool) -> Option<String> {
-    dbg!("client:_id: {}", client_id);
     if !pyminqlx_is_initialized() {
         return None;
     }
