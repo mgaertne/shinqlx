@@ -1957,7 +1957,7 @@ def handler(client_id, attacker_id, damage, dflags, means_of_death):
 /// Information about a player, such as Steam ID, name, client ID, and whatnot.
 #[pyclass]
 #[pyo3(module = "minqlx", name = "PlayerInfo", get_all)]
-#[derive(Debug)]
+#[derive(Debug, PartialEq)]
 #[allow(unused)]
 struct PlayerInfo {
     /// The player's client ID.
@@ -2079,6 +2079,23 @@ fn get_player_info(py: Python<'_>, client_id: i32) -> PyResult<Option<PlayerInfo
 
         Ok(PlayerInfo::try_from(client_id).ok())
     })
+}
+
+#[cfg(test)]
+mod get_player_into_tests {
+    use super::get_player_info;
+    use crate::pyminqlx::pyminqlx_setup_fixture::*;
+    use pyo3::exceptions::PyEnvironmentError;
+    use pyo3::prelude::*;
+    use rstest::rstest;
+
+    #[rstest]
+    fn get_player_into_when_main_engine_not_initialized(_pyminqlx_setup: ()) {
+        Python::with_gil(|py| {
+            let result = get_player_info(py, 0);
+            assert!(result.is_err_and(|err| err.is_instance_of::<PyEnvironmentError>(py)));
+        })
+    }
 }
 
 /// Returns a list with dictionaries with information about all the players on the server.
