@@ -2092,7 +2092,7 @@ fn get_player_info(py: Python<'_>, client_id: i32) -> PyResult<Option<PlayerInfo
 
 #[cfg(test)]
 #[cfg(not(miri))]
-mod get_player_into_tests {
+mod get_player_info_tests {
     use super::get_player_info;
     use super::MAIN_ENGINE;
     use crate::prelude::*;
@@ -2103,7 +2103,7 @@ mod get_player_into_tests {
 
     #[rstest]
     #[serial]
-    fn get_player_into_when_main_engine_not_initialized(_pyminqlx_setup: ()) {
+    fn get_player_info_when_main_engine_not_initialized(_pyminqlx_setup: ()) {
         MAIN_ENGINE.store(None);
         Python::with_gil(|py| {
             let result = get_player_info(py, 0);
@@ -2142,6 +2142,28 @@ fn get_players_info(py: Python<'_>) -> PyResult<Vec<Option<PlayerInfo>>> {
     })
 }
 
+#[cfg(test)]
+#[cfg(not(miri))]
+mod get_players_info_tests {
+    use super::get_players_info;
+    use super::MAIN_ENGINE;
+    use crate::prelude::*;
+    use crate::pyminqlx::pyminqlx_setup_fixture::*;
+    use pyo3::exceptions::PyEnvironmentError;
+    use pyo3::prelude::*;
+    use rstest::rstest;
+
+    #[rstest]
+    #[serial]
+    fn get_players_info_when_main_engine_not_initialized(_pyminqlx_setup: ()) {
+        MAIN_ENGINE.store(None);
+        Python::with_gil(|py| {
+            let result = get_players_info(py);
+            assert!(result.is_err_and(|err| err.is_instance_of::<PyEnvironmentError>(py)));
+        })
+    }
+}
+
 /// Returns a string with a player's userinfo.
 #[pyfunction(name = "get_userinfo")]
 fn get_userinfo(py: Python<'_>, client_id: i32) -> PyResult<Option<String>> {
@@ -2174,6 +2196,28 @@ fn get_userinfo(py: Python<'_>, client_id: i32) -> PyResult<Option<String>> {
             }
         }
     })
+}
+
+#[cfg(test)]
+#[cfg(not(miri))]
+mod get_userinfo_tests {
+    use super::get_userinfo;
+    use super::MAIN_ENGINE;
+    use crate::prelude::*;
+    use crate::pyminqlx::pyminqlx_setup_fixture::*;
+    use pyo3::exceptions::PyEnvironmentError;
+    use pyo3::prelude::*;
+    use rstest::rstest;
+
+    #[rstest]
+    #[serial]
+    fn get_userinfo_when_main_engine_not_initialized(_pyminqlx_setup: ()) {
+        MAIN_ENGINE.store(None);
+        Python::with_gil(|py| {
+            let result = get_userinfo(py, 0);
+            assert!(result.is_err_and(|err| err.is_instance_of::<PyEnvironmentError>(py)));
+        })
+    }
 }
 
 /// Sends a server command to either one specific client or all the clients.
@@ -2221,6 +2265,28 @@ fn send_server_command(py: Python<'_>, client_id: Option<i32>, cmd: &str) -> PyR
     }
 }
 
+#[cfg(test)]
+#[cfg(not(miri))]
+mod send_server_command_tests {
+    use super::send_server_command;
+    use super::MAIN_ENGINE;
+    use crate::prelude::*;
+    use crate::pyminqlx::pyminqlx_setup_fixture::*;
+    use pyo3::exceptions::PyEnvironmentError;
+    use pyo3::prelude::*;
+    use rstest::rstest;
+
+    #[rstest]
+    #[serial]
+    fn send_server_command_when_main_engine_not_initialized(_pyminqlx_setup: ()) {
+        MAIN_ENGINE.store(None);
+        Python::with_gil(|py| {
+            let result = send_server_command(py, Some(0), "asdf");
+            assert!(result.is_err_and(|err| err.is_instance_of::<PyEnvironmentError>(py)));
+        })
+    }
+}
+
 /// Tells the server to process a command from a specific client.
 #[pyfunction]
 #[pyo3(name = "client_command")]
@@ -2255,6 +2321,28 @@ fn client_command(py: Python<'_>, client_id: i32, cmd: &str) -> PyResult<bool> {
     }
 }
 
+#[cfg(test)]
+#[cfg(not(miri))]
+mod client_command_tests {
+    use super::client_command;
+    use super::MAIN_ENGINE;
+    use crate::prelude::*;
+    use crate::pyminqlx::pyminqlx_setup_fixture::*;
+    use pyo3::exceptions::PyEnvironmentError;
+    use pyo3::prelude::*;
+    use rstest::rstest;
+
+    #[rstest]
+    #[serial]
+    fn client_command_when_main_engine_not_initialized(_pyminqlx_setup: ()) {
+        MAIN_ENGINE.store(None);
+        Python::with_gil(|py| {
+            let result = client_command(py, 0, "asdf");
+            assert!(result.is_err_and(|err| err.is_instance_of::<PyEnvironmentError>(py)));
+        })
+    }
+}
+
 /// Executes a command as if it was executed from the server console.
 #[pyfunction]
 #[pyo3(name = "console_command")]
@@ -2270,6 +2358,28 @@ fn console_command(py: Python<'_>, cmd: &str) -> PyResult<()> {
 
         Ok(())
     })
+}
+
+#[cfg(test)]
+#[cfg(not(miri))]
+mod console_command_tests {
+    use super::console_command;
+    use super::MAIN_ENGINE;
+    use crate::prelude::*;
+    use crate::pyminqlx::pyminqlx_setup_fixture::*;
+    use pyo3::exceptions::PyEnvironmentError;
+    use pyo3::prelude::*;
+    use rstest::rstest;
+
+    #[rstest]
+    #[serial]
+    fn console_command_when_main_engine_not_initialized(_pyminqlx_setup: ()) {
+        MAIN_ENGINE.store(None);
+        Python::with_gil(|py| {
+            let result = console_command(py, "asdf");
+            assert!(result.is_err_and(|err| err.is_instance_of::<PyEnvironmentError>(py)));
+        })
+    }
 }
 
 /// Gets a cvar.
@@ -2288,6 +2398,28 @@ fn get_cvar(py: Python<'_>, cvar: &str) -> PyResult<Option<String>> {
             Some(cvar_result) => Ok(Some(cvar_result.get_string())),
         }
     })
+}
+
+#[cfg(test)]
+#[cfg(not(miri))]
+mod get_cvar_tests {
+    use super::get_cvar;
+    use super::MAIN_ENGINE;
+    use crate::prelude::*;
+    use crate::pyminqlx::pyminqlx_setup_fixture::*;
+    use pyo3::exceptions::PyEnvironmentError;
+    use pyo3::prelude::*;
+    use rstest::rstest;
+
+    #[rstest]
+    #[serial]
+    fn get_cvar_when_main_engine_not_initialized(_pyminqlx_setup: ()) {
+        MAIN_ENGINE.store(None);
+        Python::with_gil(|py| {
+            let result = get_cvar(py, "sv_maxclients");
+            assert!(result.is_err_and(|err| err.is_instance_of::<PyEnvironmentError>(py)));
+        })
+    }
 }
 
 /// Sets a cvar.
@@ -2319,6 +2451,28 @@ fn set_cvar(py: Python<'_>, cvar: &str, value: &str, flags: Option<i32>) -> PyRe
     })
 }
 
+#[cfg(test)]
+#[cfg(not(miri))]
+mod set_cvar_tests {
+    use super::set_cvar;
+    use super::MAIN_ENGINE;
+    use crate::prelude::*;
+    use crate::pyminqlx::pyminqlx_setup_fixture::*;
+    use pyo3::exceptions::PyEnvironmentError;
+    use pyo3::prelude::*;
+    use rstest::rstest;
+
+    #[rstest]
+    #[serial]
+    fn set_cvar_when_main_engine_not_initialized(_pyminqlx_setup: ()) {
+        MAIN_ENGINE.store(None);
+        Python::with_gil(|py| {
+            let result = set_cvar(py, "sv_maxclients", "64", None);
+            assert!(result.is_err_and(|err| err.is_instance_of::<PyEnvironmentError>(py)));
+        })
+    }
+}
+
 /// Sets a non-string cvar with a minimum and maximum value.
 #[pyfunction]
 #[pyo3(name = "set_cvar_limit")]
@@ -2342,6 +2496,28 @@ fn set_cvar_limit(
 
         Ok(())
     })
+}
+
+#[cfg(test)]
+#[cfg(not(miri))]
+mod set_cvar_limit_tests {
+    use super::set_cvar_limit;
+    use super::MAIN_ENGINE;
+    use crate::prelude::*;
+    use crate::pyminqlx::pyminqlx_setup_fixture::*;
+    use pyo3::exceptions::PyEnvironmentError;
+    use pyo3::prelude::*;
+    use rstest::rstest;
+
+    #[rstest]
+    #[serial]
+    fn set_cvar_limit_when_main_engine_not_initialized(_pyminqlx_setup: ()) {
+        MAIN_ENGINE.store(None);
+        Python::with_gil(|py| {
+            let result = set_cvar_limit(py, "sv_maxclients", "64", "1", "64", None);
+            assert!(result.is_err_and(|err| err.is_instance_of::<PyEnvironmentError>(py)));
+        })
+    }
 }
 
 /// Kick a player and allowing the admin to supply a reason for it.
@@ -2388,6 +2564,28 @@ fn kick(py: Python<'_>, client_id: i32, reason: Option<&str>) -> PyResult<()> {
     })
 }
 
+#[cfg(test)]
+#[cfg(not(miri))]
+mod kick_tests {
+    use super::kick;
+    use super::MAIN_ENGINE;
+    use crate::prelude::*;
+    use crate::pyminqlx::pyminqlx_setup_fixture::*;
+    use pyo3::exceptions::PyEnvironmentError;
+    use pyo3::prelude::*;
+    use rstest::rstest;
+
+    #[rstest]
+    #[serial]
+    fn kick_when_main_engine_not_initialized(_pyminqlx_setup: ()) {
+        MAIN_ENGINE.store(None);
+        Python::with_gil(|py| {
+            let result = kick(py, 0, None);
+            assert!(result.is_err_and(|err| err.is_instance_of::<PyEnvironmentError>(py)));
+        })
+    }
+}
+
 /// Prints text on the console. If used during an RCON command, it will be printed in the player's console.
 #[pyfunction]
 #[pyo3(name = "console_print")]
@@ -2418,6 +2616,28 @@ fn get_configstring(py: Python<'_>, config_id: u32) -> PyResult<String> {
 
         Ok(main_engine.get_configstring(config_id as u16))
     })
+}
+
+#[cfg(test)]
+#[cfg(not(miri))]
+mod get_configstring_tests {
+    use super::get_configstring;
+    use super::MAIN_ENGINE;
+    use crate::prelude::*;
+    use crate::pyminqlx::pyminqlx_setup_fixture::*;
+    use pyo3::exceptions::PyEnvironmentError;
+    use pyo3::prelude::*;
+    use rstest::rstest;
+
+    #[rstest]
+    #[serial]
+    fn get_configstring_when_main_engine_not_initialized(_pyminqlx_setup: ()) {
+        MAIN_ENGINE.store(None);
+        Python::with_gil(|py| {
+            let result = get_configstring(py, 666);
+            assert!(result.is_err_and(|err| err.is_instance_of::<PyEnvironmentError>(py)));
+        })
+    }
 }
 
 /// Sets a configstring and sends it to all the players on the server.
