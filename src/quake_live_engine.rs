@@ -268,6 +268,7 @@ impl VmFunctions {
      *
      * PROTIP: If you can, ALWAYS use VM_Call table hooks instead of using Hook().
      */
+    #[cfg_attr(test, allow(dead_code))]
     pub(crate) fn hook(&self) -> Result<(), QuakeLiveEngineError> {
         let vm_call_table = self.vm_call_table.load(Ordering::SeqCst);
 
@@ -347,6 +348,7 @@ impl VmFunctions {
         Ok(())
     }
 
+    #[cfg_attr(test, allow(dead_code))]
     pub(crate) fn patch(&self) {
         let cmd_callvote_f_orig = self.cmd_callvote_f_orig.load(Ordering::SeqCst);
         if cmd_callvote_f_orig == 0 {
@@ -356,6 +358,7 @@ impl VmFunctions {
         patch_callvote_f(cmd_callvote_f_orig);
     }
 
+    #[cfg_attr(test, allow(dead_code))]
     pub(crate) fn unhook(&self) {
         if let Some(ref client_connect_detour) = *self.client_connect_detour.load() {
             if client_connect_detour.is_enabled() {
@@ -899,6 +902,7 @@ impl QuakeLiveEngine {
     }
 
     // Called after the game is initialized.
+    #[cfg_attr(test, allow(dead_code))]
     pub(crate) fn initialize_cvars(&self) {
         let Some(maxclients) = self.find_cvar("sv_maxclients") else {
             return;
@@ -915,6 +919,7 @@ impl QuakeLiveEngine {
     // Currently called by My_Cmd_AddCommand(), since it's called at a point where we
     // can safely do whatever we do below. It'll segfault if we do it at the entry
     // point, since functions like Cmd_AddCommand need initialization first.
+    #[cfg_attr(test, allow(dead_code))]
     pub(crate) fn initialize_static(&self) -> Result<(), QuakeLiveEngineError> {
         debug!(target: "shinqlx", "Initializing...");
         self.add_command("cmd", cmd_send_server_command);
@@ -935,12 +940,14 @@ impl QuakeLiveEngine {
         Ok(())
     }
 
+    #[cfg_attr(test, allow(dead_code))]
     pub(crate) fn is_common_initialized(&self) -> bool {
         self.common_initialized
             .get()
             .is_some_and(|is_initialized| is_initialized)
     }
 
+    #[cfg_attr(test, allow(dead_code))]
     pub(crate) fn initialize_vm(&self, module_offset: usize) -> Result<(), QuakeLiveEngineError> {
         self.vm_functions.try_initialize_from(module_offset)?;
         self.current_vm.store(module_offset, Ordering::SeqCst);
@@ -951,6 +958,7 @@ impl QuakeLiveEngine {
         Ok(())
     }
 
+    #[cfg_attr(test, allow(dead_code))]
     pub(crate) fn unhook_vm(&self) {
         self.vm_functions.unhook();
     }
@@ -1084,6 +1092,7 @@ impl QuakeLiveEngine {
         Ok(static_functions.sv_executeclientcommand_orig)
     }
 
+    #[cfg_attr(test, allow(dead_code))]
     pub(crate) fn sv_shutdown_orig(&self) -> Result<fn(*const c_char), QuakeLiveEngineError> {
         let Some(static_functions) = self.static_functions.get() else {
             return Err(QuakeLiveEngineError::StaticFunctionNotFound(
@@ -1242,6 +1251,7 @@ impl QuakeLiveEngine {
         Ok(&static_detours.sv_setconfgistring_detour)
     }
 
+    #[cfg_attr(test, allow(dead_code))]
     #[allow(clippy::type_complexity)]
     pub(crate) fn sv_dropclient_detour(
         &self,
@@ -1371,6 +1381,7 @@ impl QuakeLiveEngine {
         Ok(launch_item_func)
     }
 
+    #[cfg_attr(test, allow(dead_code))]
     pub(crate) fn touch_item_orig(
         &self,
     ) -> Result<extern "C" fn(*mut gentity_t, *mut gentity_t, *mut trace_t), QuakeLiveEngineError>
@@ -1905,7 +1916,7 @@ mockall::mock! {
         pub(crate) fn is_common_initialized(&self) -> bool;
         pub(crate) fn get_max_clients(&self) -> i32;
         pub(crate) fn initialize_static(&self) -> Result<(), QuakeLiveEngineError>;
-        pub(crate) fn initialize_vm(&self, _module_offset: usize) -> Result<(), QuakeLiveEngineError>;
+        pub(crate) fn initialize_vm(&self, module_offset: usize) -> Result<(), QuakeLiveEngineError>;
         pub(crate) fn set_tag(&self);
         pub(crate) fn initialize_cvars(&self);
         pub(crate) fn unhook_vm(&self);
@@ -1936,7 +1947,7 @@ mockall::mock! {
         fn set_module_offset(&self, module_name: String, offset: unsafe extern "C" fn());
     }
     impl InitGame<c_int, c_int, c_int> for QuakeEngine {
-        fn init_game(&self, level_time: c_int, r0andom_seed: c_int, restart: c_int);
+        fn init_game(&self, level_time: c_int, random_seed: c_int, restart: c_int);
     }
     impl ShutdownGame<c_int> for QuakeEngine {
         fn shutdown_game(&self, restart: c_int);
