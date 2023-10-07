@@ -111,7 +111,10 @@ impl CurrentLevel {
 mockall::mock! {
     pub(crate) TestCurrentLevel {
         pub(crate) fn try_get() -> Result<Self, QuakeLiveEngineError>;
+        pub(crate) fn get_vote_time(&self) -> Option<i32>;
         pub(crate) fn get_leveltime(&self) -> i32;
+        pub(crate) fn callvote(&mut self, vote: &str, vote_disp: &str, vote_time: Option<i32>);
+        pub(crate) fn set_training_map(&mut self, is_training_map: bool);
     }
 }
 
