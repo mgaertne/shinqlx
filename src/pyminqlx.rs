@@ -24,7 +24,10 @@ use core::sync::atomic::{AtomicBool, AtomicU64, Ordering};
 use once_cell::sync::Lazy;
 use swap_arc::SwapArcOption;
 
+#[cfg(not(test))]
 use crate::current_level::CurrentLevel;
+#[cfg(test)]
+use crate::current_level::MockTestCurrentLevel as CurrentLevel;
 use crate::game_item::GameItem;
 #[cfg(test)]
 use crate::quake_live_engine::MockQuakeEngine as QuakeLiveEngine;
@@ -2637,6 +2640,36 @@ fn force_vote(py: Python<'_>, pass: bool) -> PyResult<bool> {
     Ok(true)
 }
 
+#[cfg(test)]
+#[cfg(not(miri))]
+mod force_vote_tests {
+    use super::force_vote;
+    use super::MAIN_ENGINE;
+    use crate::current_level::MockTestCurrentLevel;
+    use crate::prelude::*;
+    use crate::pyminqlx::pyminqlx_setup_fixture::*;
+    use pyo3::exceptions::PyEnvironmentError;
+    use pyo3::prelude::*;
+    use rstest::rstest;
+
+    #[rstest]
+    #[serial]
+    fn force_vote_when_main_engine_not_initialized(_pyminqlx_setup: ()) {
+        let current_level_try_get_ctx = MockTestCurrentLevel::try_get_context();
+        current_level_try_get_ctx.expect().returning(|| {
+            let mut mock_level = MockTestCurrentLevel::new();
+            mock_level.expect_get_vote_time().return_const(21);
+            Ok(mock_level)
+        });
+        MAIN_ENGINE.store(None);
+
+        Python::with_gil(|py| {
+            let result = force_vote(py, true);
+            assert!(result.is_err_and(|err| err.is_instance_of::<PyEnvironmentError>(py)));
+        })
+    }
+}
+
 /// Adds a console command that will be handled by Python code.
 #[pyfunction]
 #[pyo3(name = "add_console_command")]
@@ -3434,6 +3467,28 @@ fn player_state(py: Python<'_>, client_id: i32) -> PyResult<Option<PlayerState>>
     })
 }
 
+#[cfg(test)]
+#[cfg(not(miri))]
+mod player_state_tests {
+    use super::player_state;
+    use super::MAIN_ENGINE;
+    use crate::prelude::*;
+    use crate::pyminqlx::pyminqlx_setup_fixture::*;
+    use pyo3::exceptions::PyEnvironmentError;
+    use pyo3::prelude::*;
+    use rstest::rstest;
+
+    #[rstest]
+    #[serial]
+    fn player_state_when_main_engine_not_initialized(_pyminqlx_setup: ()) {
+        MAIN_ENGINE.store(None);
+        Python::with_gil(|py| {
+            let result = player_state(py, 21);
+            assert!(result.is_err_and(|err| err.is_instance_of::<PyEnvironmentError>(py)));
+        })
+    }
+}
+
 /// A player's score and some basic stats.
 #[pyclass]
 #[pyo3(module = "minqlx", name = "PlayerStats", get_all)]
@@ -3511,6 +3566,28 @@ fn player_stats(py: Python<'_>, client_id: i32) -> PyResult<Option<PlayerStats>>
     })
 }
 
+#[cfg(test)]
+#[cfg(not(miri))]
+mod player_stats_tests {
+    use super::player_stats;
+    use super::MAIN_ENGINE;
+    use crate::prelude::*;
+    use crate::pyminqlx::pyminqlx_setup_fixture::*;
+    use pyo3::exceptions::PyEnvironmentError;
+    use pyo3::prelude::*;
+    use rstest::rstest;
+
+    #[rstest]
+    #[serial]
+    fn player_stats_when_main_engine_not_initialized(_pyminqlx_setup: ()) {
+        MAIN_ENGINE.store(None);
+        Python::with_gil(|py| {
+            let result = player_stats(py, 21);
+            assert!(result.is_err_and(|err| err.is_instance_of::<PyEnvironmentError>(py)));
+        })
+    }
+}
+
 /// Sets a player's position vector.
 #[pyfunction]
 #[pyo3(name = "set_position")]
@@ -3542,6 +3619,29 @@ fn set_position(py: Python<'_>, client_id: i32, position: Vector3) -> PyResult<b
     })
 }
 
+#[cfg(test)]
+#[cfg(not(miri))]
+mod set_position_tests {
+    use super::set_position;
+    use super::MAIN_ENGINE;
+    use crate::prelude::*;
+    use crate::pyminqlx::pyminqlx_setup_fixture::*;
+    use crate::pyminqlx::Vector3;
+    use pyo3::exceptions::PyEnvironmentError;
+    use pyo3::prelude::*;
+    use rstest::rstest;
+
+    #[rstest]
+    #[serial]
+    fn set_position_when_main_engine_not_initialized(_pyminqlx_setup: ()) {
+        MAIN_ENGINE.store(None);
+        Python::with_gil(|py| {
+            let result = set_position(py, 21, Vector3(1, 2, 3));
+            assert!(result.is_err_and(|err| err.is_instance_of::<PyEnvironmentError>(py)));
+        })
+    }
+}
+
 /// Sets a player's velocity vector.
 #[pyfunction]
 #[pyo3(name = "set_velocity")]
@@ -3571,6 +3671,29 @@ fn set_velocity(py: Python<'_>, client_id: i32, velocity: Vector3) -> PyResult<b
             Ok(true)
         }
     })
+}
+
+#[cfg(test)]
+#[cfg(not(miri))]
+mod set_velocity_tests {
+    use super::set_velocity;
+    use super::MAIN_ENGINE;
+    use crate::prelude::*;
+    use crate::pyminqlx::pyminqlx_setup_fixture::*;
+    use crate::pyminqlx::Vector3;
+    use pyo3::exceptions::PyEnvironmentError;
+    use pyo3::prelude::*;
+    use rstest::rstest;
+
+    #[rstest]
+    #[serial]
+    fn set_velocity_when_main_engine_not_initialized(_pyminqlx_setup: ()) {
+        MAIN_ENGINE.store(None);
+        Python::with_gil(|py| {
+            let result = set_velocity(py, 21, Vector3(1, 2, 3));
+            assert!(result.is_err_and(|err| err.is_instance_of::<PyEnvironmentError>(py)));
+        })
+    }
 }
 
 /// Sets noclip for a player.
@@ -3608,6 +3731,28 @@ fn noclip(py: Python<'_>, client_id: i32, activate: bool) -> PyResult<bool> {
     })
 }
 
+#[cfg(test)]
+#[cfg(not(miri))]
+mod noclip_tests {
+    use super::noclip;
+    use super::MAIN_ENGINE;
+    use crate::prelude::*;
+    use crate::pyminqlx::pyminqlx_setup_fixture::*;
+    use pyo3::exceptions::PyEnvironmentError;
+    use pyo3::prelude::*;
+    use rstest::rstest;
+
+    #[rstest]
+    #[serial]
+    fn noclip_when_main_engine_not_initialized(_pyminqlx_setup: ()) {
+        MAIN_ENGINE.store(None);
+        Python::with_gil(|py| {
+            let result = noclip(py, 21, true);
+            assert!(result.is_err_and(|err| err.is_instance_of::<PyEnvironmentError>(py)));
+        })
+    }
+}
+
 /// Sets a player's health.
 #[pyfunction]
 #[pyo3(name = "set_health")]
@@ -3637,6 +3782,28 @@ fn set_health(py: Python<'_>, client_id: i32, health: i32) -> PyResult<bool> {
             Ok(true)
         }
     })
+}
+
+#[cfg(test)]
+#[cfg(not(miri))]
+mod set_health_tests {
+    use super::set_health;
+    use super::MAIN_ENGINE;
+    use crate::prelude::*;
+    use crate::pyminqlx::pyminqlx_setup_fixture::*;
+    use pyo3::exceptions::PyEnvironmentError;
+    use pyo3::prelude::*;
+    use rstest::rstest;
+
+    #[rstest]
+    #[serial]
+    fn set_health_when_main_engine_not_initialized(_pyminqlx_setup: ()) {
+        MAIN_ENGINE.store(None);
+        Python::with_gil(|py| {
+            let result = set_health(py, 21, 666);
+            assert!(result.is_err_and(|err| err.is_instance_of::<PyEnvironmentError>(py)));
+        })
+    }
 }
 
 /// Sets a player's armor.
@@ -3670,6 +3837,28 @@ fn set_armor(py: Python<'_>, client_id: i32, armor: i32) -> PyResult<bool> {
     })
 }
 
+#[cfg(test)]
+#[cfg(not(miri))]
+mod set_armor_tests {
+    use super::set_armor;
+    use super::MAIN_ENGINE;
+    use crate::prelude::*;
+    use crate::pyminqlx::pyminqlx_setup_fixture::*;
+    use pyo3::exceptions::PyEnvironmentError;
+    use pyo3::prelude::*;
+    use rstest::rstest;
+
+    #[rstest]
+    #[serial]
+    fn set_armor_when_main_engine_not_initialized(_pyminqlx_setup: ()) {
+        MAIN_ENGINE.store(None);
+        Python::with_gil(|py| {
+            let result = set_armor(py, 21, 666);
+            assert!(result.is_err_and(|err| err.is_instance_of::<PyEnvironmentError>(py)));
+        })
+    }
+}
+
 /// Sets a player's weapons.
 #[pyfunction]
 #[pyo3(name = "set_weapons")]
@@ -3699,6 +3888,29 @@ fn set_weapons(py: Python<'_>, client_id: i32, weapons: Weapons) -> PyResult<boo
             Ok(true)
         }
     })
+}
+
+#[cfg(test)]
+#[cfg(not(miri))]
+mod set_weapons_tests {
+    use super::set_weapons;
+    use super::Weapons;
+    use super::MAIN_ENGINE;
+    use crate::prelude::*;
+    use crate::pyminqlx::pyminqlx_setup_fixture::*;
+    use pyo3::exceptions::PyEnvironmentError;
+    use pyo3::prelude::*;
+    use rstest::rstest;
+
+    #[rstest]
+    #[serial]
+    fn set_weapons_when_main_engine_not_initialized(_pyminqlx_setup: ()) {
+        MAIN_ENGINE.store(None);
+        Python::with_gil(|py| {
+            let result = set_weapons(py, 21, Weapons(0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0));
+            assert!(result.is_err_and(|err| err.is_instance_of::<PyEnvironmentError>(py)));
+        })
+    }
 }
 
 /// Sets a player's current weapon.
@@ -3738,6 +3950,28 @@ fn set_weapon(py: Python<'_>, client_id: i32, weapon: i32) -> PyResult<bool> {
     })
 }
 
+#[cfg(test)]
+#[cfg(not(miri))]
+mod set_weapon_tests {
+    use super::set_weapon;
+    use super::MAIN_ENGINE;
+    use crate::prelude::*;
+    use crate::pyminqlx::pyminqlx_setup_fixture::*;
+    use pyo3::exceptions::PyEnvironmentError;
+    use pyo3::prelude::*;
+    use rstest::rstest;
+
+    #[rstest]
+    #[serial]
+    fn set_weapon_when_main_engine_not_initialized(_pyminqlx_setup: ()) {
+        MAIN_ENGINE.store(None);
+        Python::with_gil(|py| {
+            let result = set_weapon(py, 21, weapon_t::WP_ROCKET_LAUNCHER.into());
+            assert!(result.is_err_and(|err| err.is_instance_of::<PyEnvironmentError>(py)));
+        })
+    }
+}
+
 /// Sets a player's ammo.
 #[pyfunction]
 #[pyo3(name = "set_ammo")]
@@ -3767,6 +4001,29 @@ fn set_ammo(py: Python<'_>, client_id: i32, ammos: Weapons) -> PyResult<bool> {
             Ok(true)
         }
     })
+}
+
+#[cfg(test)]
+#[cfg(not(miri))]
+mod set_ammo_tests {
+    use super::set_ammo;
+    use super::Weapons;
+    use super::MAIN_ENGINE;
+    use crate::prelude::*;
+    use crate::pyminqlx::pyminqlx_setup_fixture::*;
+    use pyo3::exceptions::PyEnvironmentError;
+    use pyo3::prelude::*;
+    use rstest::rstest;
+
+    #[rstest]
+    #[serial]
+    fn set_ammo_when_main_engine_not_initialized(_pyminqlx_setup: ()) {
+        MAIN_ENGINE.store(None);
+        Python::with_gil(|py| {
+            let result = set_ammo(py, 21, Weapons(0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0));
+            assert!(result.is_err_and(|err| err.is_instance_of::<PyEnvironmentError>(py)));
+        })
+    }
 }
 
 /// Sets a player's powerups.
@@ -3800,6 +4057,29 @@ fn set_powerups(py: Python<'_>, client_id: i32, powerups: Powerups) -> PyResult<
     })
 }
 
+#[cfg(test)]
+#[cfg(not(miri))]
+mod set_powerups_tests {
+    use super::set_powerups;
+    use super::Powerups;
+    use super::MAIN_ENGINE;
+    use crate::prelude::*;
+    use crate::pyminqlx::pyminqlx_setup_fixture::*;
+    use pyo3::exceptions::PyEnvironmentError;
+    use pyo3::prelude::*;
+    use rstest::rstest;
+
+    #[rstest]
+    #[serial]
+    fn set_powerups_when_main_engine_not_initialized(_pyminqlx_setup: ()) {
+        MAIN_ENGINE.store(None);
+        Python::with_gil(|py| {
+            let result = set_powerups(py, 21, Powerups(0, 0, 0, 0, 0, 0));
+            assert!(result.is_err_and(|err| err.is_instance_of::<PyEnvironmentError>(py)));
+        })
+    }
+}
+
 /// Sets a player's holdable item.
 #[pyfunction]
 #[pyo3(name = "set_holdable")]
@@ -3830,6 +4110,28 @@ fn set_holdable(py: Python<'_>, client_id: i32, holdable: i32) -> PyResult<bool>
             Ok(true)
         }
     })
+}
+
+#[cfg(test)]
+#[cfg(not(miri))]
+mod set_holdable_tests {
+    use super::set_holdable;
+    use super::MAIN_ENGINE;
+    use crate::prelude::*;
+    use crate::pyminqlx::pyminqlx_setup_fixture::*;
+    use pyo3::exceptions::PyEnvironmentError;
+    use pyo3::prelude::*;
+    use rstest::rstest;
+
+    #[rstest]
+    #[serial]
+    fn set_holdable_when_main_engine_not_initialized(_pyminqlx_setup: ()) {
+        MAIN_ENGINE.store(None);
+        Python::with_gil(|py| {
+            let result = set_holdable(py, 21, holdable_t::HI_KAMIKAZE as i32);
+            assert!(result.is_err_and(|err| err.is_instance_of::<PyEnvironmentError>(py)));
+        })
+    }
 }
 
 /// Drops player's holdable item.
@@ -3867,6 +4169,28 @@ fn drop_holdable(py: Python<'_>, client_id: i32) -> PyResult<bool> {
     })
 }
 
+#[cfg(test)]
+#[cfg(not(miri))]
+mod drop_holdable_tests {
+    use super::drop_holdable;
+    use super::MAIN_ENGINE;
+    use crate::prelude::*;
+    use crate::pyminqlx::pyminqlx_setup_fixture::*;
+    use pyo3::exceptions::PyEnvironmentError;
+    use pyo3::prelude::*;
+    use rstest::rstest;
+
+    #[rstest]
+    #[serial]
+    fn drop_holdable_when_main_engine_not_initialized(_pyminqlx_setup: ()) {
+        MAIN_ENGINE.store(None);
+        Python::with_gil(|py| {
+            let result = drop_holdable(py, 21);
+            assert!(result.is_err_and(|err| err.is_instance_of::<PyEnvironmentError>(py)));
+        })
+    }
+}
+
 /// Sets a player's flight parameters, such as current fuel, max fuel and, so on.
 #[pyfunction]
 #[pyo3(name = "set_flight")]
@@ -3896,6 +4220,29 @@ fn set_flight(py: Python<'_>, client_id: i32, flight: Flight) -> PyResult<bool> 
             Ok(true)
         }
     })
+}
+
+#[cfg(test)]
+#[cfg(not(miri))]
+mod set_flight_tests {
+    use super::set_flight;
+    use super::Flight;
+    use super::MAIN_ENGINE;
+    use crate::prelude::*;
+    use crate::pyminqlx::pyminqlx_setup_fixture::*;
+    use pyo3::exceptions::PyEnvironmentError;
+    use pyo3::prelude::*;
+    use rstest::rstest;
+
+    #[rstest]
+    #[serial]
+    fn set_flight_when_main_engine_not_initialized(_pyminqlx_setup: ()) {
+        MAIN_ENGINE.store(None);
+        Python::with_gil(|py| {
+            let result = set_flight(py, 21, Flight(0, 0, 0, 0));
+            assert!(result.is_err_and(|err| err.is_instance_of::<PyEnvironmentError>(py)));
+        })
+    }
 }
 
 /// Makes player invulnerable for limited time.
@@ -3929,6 +4276,28 @@ fn set_invulnerability(py: Python<'_>, client_id: i32, time: i32) -> PyResult<bo
     })
 }
 
+#[cfg(test)]
+#[cfg(not(miri))]
+mod set_invulnerability_tests {
+    use super::set_invulnerability;
+    use super::MAIN_ENGINE;
+    use crate::prelude::*;
+    use crate::pyminqlx::pyminqlx_setup_fixture::*;
+    use pyo3::exceptions::PyEnvironmentError;
+    use pyo3::prelude::*;
+    use rstest::rstest;
+
+    #[rstest]
+    #[serial]
+    fn set_invulnerability_when_main_engine_not_initialized(_pyminqlx_setup: ()) {
+        MAIN_ENGINE.store(None);
+        Python::with_gil(|py| {
+            let result = set_invulnerability(py, 21, 42);
+            assert!(result.is_err_and(|err| err.is_instance_of::<PyEnvironmentError>(py)));
+        })
+    }
+}
+
 /// Sets a player's score.
 #[pyfunction]
 #[pyo3(name = "set_score")]
@@ -3958,6 +4327,28 @@ fn set_score(py: Python<'_>, client_id: i32, score: i32) -> PyResult<bool> {
             Ok(true)
         }
     })
+}
+
+#[cfg(test)]
+#[cfg(not(miri))]
+mod set_score_tests {
+    use super::set_score;
+    use super::MAIN_ENGINE;
+    use crate::prelude::*;
+    use crate::pyminqlx::pyminqlx_setup_fixture::*;
+    use pyo3::exceptions::PyEnvironmentError;
+    use pyo3::prelude::*;
+    use rstest::rstest;
+
+    #[rstest]
+    #[serial]
+    fn set_score_when_main_engine_not_initialized(_pyminqlx_setup: ()) {
+        MAIN_ENGINE.store(None);
+        Python::with_gil(|py| {
+            let result = set_score(py, 21, 42);
+            assert!(result.is_err_and(|err| err.is_instance_of::<PyEnvironmentError>(py)));
+        })
+    }
 }
 
 /// Calls a vote as if started by the server and not a player.
@@ -4019,6 +4410,28 @@ fn player_spawn(py: Python<'_>, client_id: i32) -> PyResult<bool> {
     })
 }
 
+#[cfg(test)]
+#[cfg(not(miri))]
+mod player_spawn_tests {
+    use super::player_spawn;
+    use super::MAIN_ENGINE;
+    use crate::prelude::*;
+    use crate::pyminqlx::pyminqlx_setup_fixture::*;
+    use pyo3::exceptions::PyEnvironmentError;
+    use pyo3::prelude::*;
+    use rstest::rstest;
+
+    #[rstest]
+    #[serial]
+    fn player_spawn_when_main_engine_not_initialized(_pyminqlx_setup: ()) {
+        MAIN_ENGINE.store(None);
+        Python::with_gil(|py| {
+            let result = player_spawn(py, 21);
+            assert!(result.is_err_and(|err| err.is_instance_of::<PyEnvironmentError>(py)));
+        })
+    }
+}
+
 /// Sets a player's privileges. Does not persist.
 #[pyfunction]
 #[pyo3(name = "set_privileges")]
@@ -4051,6 +4464,28 @@ fn set_privileges(py: Python<'_>, client_id: i32, privileges: i32) -> PyResult<b
             }
         },
     })
+}
+
+#[cfg(test)]
+#[cfg(not(miri))]
+mod set_privileges_tests {
+    use super::set_privileges;
+    use super::MAIN_ENGINE;
+    use crate::prelude::*;
+    use crate::pyminqlx::pyminqlx_setup_fixture::*;
+    use pyo3::exceptions::PyEnvironmentError;
+    use pyo3::prelude::*;
+    use rstest::rstest;
+
+    #[rstest]
+    #[serial]
+    fn set_privileges_when_main_engine_not_initialized(_pyminqlx_setup: ()) {
+        MAIN_ENGINE.store(None);
+        Python::with_gil(|py| {
+            let result = set_privileges(py, 21, privileges_t::PRIV_MOD as i32);
+            assert!(result.is_err_and(|err| err.is_instance_of::<PyEnvironmentError>(py)));
+        })
+    }
 }
 
 /// Removes all current kamikaze timers.
@@ -4149,6 +4584,28 @@ fn slay_with_mod(py: Python<'_>, client_id: i32, mean_of_death: i32) -> PyResult
             }
         },
     })
+}
+
+#[cfg(test)]
+#[cfg(not(miri))]
+mod slay_woth_mod_tests {
+    use super::slay_with_mod;
+    use super::MAIN_ENGINE;
+    use crate::prelude::*;
+    use crate::pyminqlx::pyminqlx_setup_fixture::*;
+    use pyo3::exceptions::PyEnvironmentError;
+    use pyo3::prelude::*;
+    use rstest::rstest;
+
+    #[rstest]
+    #[serial]
+    fn slay_with_mod_when_main_engine_not_initialized(_pyminqlx_setup: ()) {
+        MAIN_ENGINE.store(None);
+        Python::with_gil(|py| {
+            let result = slay_with_mod(py, 21, meansOfDeath_t::MOD_TRIGGER_HURT as i32);
+            assert!(result.is_err_and(|err| err.is_instance_of::<PyEnvironmentError>(py)));
+        })
+    }
 }
 
 fn determine_item_id(item: &PyAny) -> PyResult<i32> {
