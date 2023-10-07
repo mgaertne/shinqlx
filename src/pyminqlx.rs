@@ -6,15 +6,14 @@ use alloc::{format, vec};
 use crate::commands::cmd_py_command;
 #[cfg(test)]
 use crate::hooks::mock_hooks::{
-    shinqlx_client_spawn, shinqlx_drop_client, shinqlx_execute_client_command,
-    shinqlx_send_server_command,
+    shinqlx_client_spawn, shinqlx_com_printf, shinqlx_drop_client, shinqlx_execute_client_command,
+    shinqlx_send_server_command, shinqlx_set_configstring,
 };
 #[cfg(not(test))]
 use crate::hooks::{
-    shinqlx_client_spawn, shinqlx_drop_client, shinqlx_execute_client_command,
-    shinqlx_send_server_command,
+    shinqlx_client_spawn, shinqlx_com_printf, shinqlx_drop_client, shinqlx_execute_client_command,
+    shinqlx_send_server_command, shinqlx_set_configstring,
 };
-use crate::hooks::{shinqlx_com_printf, shinqlx_set_configstring};
 #[cfg(test)]
 use crate::pyminqlx::DUMMY_MAIN_ENGINE as MAIN_ENGINE;
 #[cfg(not(test))]
@@ -2541,6 +2540,28 @@ fn console_print(py: Python<'_>, text: &str) {
     })
 }
 
+#[cfg(test)]
+#[cfg(not(miri))]
+mod console_print_tests {
+    use super::console_print as py_console_print;
+    use crate::hooks::mock_hooks::shinqlx_com_printf_context;
+    use crate::prelude::*;
+    use crate::pyminqlx::pyminqlx_setup_fixture::*;
+    use pyo3::prelude::*;
+    use rstest::rstest;
+
+    #[rstest]
+    #[serial]
+    fn console_print(_pyminqlx_setup: ()) {
+        let com_printf_ctx = shinqlx_com_printf_context();
+        com_printf_ctx.expect().withf(|text| text == "asdf\n");
+
+        Python::with_gil(|py| {
+            py_console_print(py, "asdf");
+        })
+    }
+}
+
 /// Get a configstring.
 #[pyfunction]
 #[pyo3(name = "get_configstring")]
@@ -2597,10 +2618,46 @@ fn set_configstring(py: Python<'_>, config_id: u32, value: &str) -> PyResult<()>
     }
 
     py.allow_threads(move || {
-        shinqlx_set_configstring(config_id, value);
+        #[allow(clippy::unnecessary_to_owned)]
+        shinqlx_set_configstring(config_id, value.to_string());
 
         Ok(())
     })
+}
+
+#[cfg(test)]
+#[cfg(not(miri))]
+mod set_configstring_tests {
+    use super::set_configstring;
+    use crate::hooks::mock_hooks::shinqlx_set_configstring_context;
+    use crate::prelude::*;
+    use crate::pyminqlx::pyminqlx_setup_fixture::*;
+    use pyo3::exceptions::PyValueError;
+    use pyo3::prelude::*;
+    use rstest::rstest;
+
+    #[rstest]
+    #[serial]
+    fn set_configstring_with_index_out_of_bounds(_pyminqlx_setup: ()) {
+        Python::with_gil(|py| {
+            let result = set_configstring(py, 2048, "asdf");
+            assert!(result.is_err_and(|err| err.is_instance_of::<PyValueError>(py)));
+        })
+    }
+
+    #[rstest]
+    #[serial]
+    fn set_configstring_with_proper_index(_pyminqlx_setup: ()) {
+        let set_configstring_ctx = shinqlx_set_configstring_context();
+        set_configstring_ctx
+            .expect()
+            .withf(|&index, value| index == 666 && value == "asdf");
+
+        Python::with_gil(|py| {
+            let result = set_configstring(py, 666, "asdf");
+            assert!(result.is_ok());
+        })
+    }
 }
 
 /// Forces the current vote to either fail or pass.
@@ -4588,7 +4645,7 @@ fn slay_with_mod(py: Python<'_>, client_id: i32, mean_of_death: i32) -> PyResult
 
 #[cfg(test)]
 #[cfg(not(miri))]
-mod slay_woth_mod_tests {
+mod slay_with_mod_tests {
     use super::slay_with_mod;
     use super::MAIN_ENGINE;
     use crate::prelude::*;
