@@ -558,6 +558,7 @@ pub(crate) mod hooks {
     pub(crate) fn shinqlx_drop_client(_client: &mut Client, _reason: String) {}
     pub(crate) fn shinqlx_client_spawn(_game_entity: GameEntity) {}
     pub(crate) fn shinqlx_set_configstring(_index: u32, _value: String) {}
+    pub(crate) fn shinqlx_com_printf(_msg: &str) {}
 }
 
 #[cfg(test)]
