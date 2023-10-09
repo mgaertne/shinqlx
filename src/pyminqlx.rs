@@ -2043,7 +2043,9 @@ mod get_player_info_tests {
     use crate::game_entity::MockGameEntity;
     use crate::prelude::*;
     use crate::pyminqlx::pyminqlx_setup_fixture::*;
+    use crate::pyminqlx::ALLOW_FREE_CLIENT;
     use crate::quake_live_engine::MockQuakeEngine;
+    use core::sync::atomic::Ordering;
     use pyo3::exceptions::{PyEnvironmentError, PyValueError};
     use pyo3::prelude::*;
     use rstest::rstest;
@@ -2124,6 +2126,97 @@ mod get_player_info_tests {
                 client_id: 2,
                 name: "Mocked Player".into(),
                 connection_state: clientState_t::CS_ACTIVE as i32,
+                userinfo: "asdf".into(),
+                steam_id: 1234,
+                team: team_t::TEAM_RED as i32,
+                privileges: privileges_t::PRIV_NONE as i32
+            })
+        );
+    }
+
+    #[rstest]
+    #[serial]
+    fn get_player_info_for_non_allowed_free_client(_pyminqlx_setup: ()) {
+        let mut mock_engine = MockQuakeEngine::new();
+        mock_engine.expect_get_max_clients().returning(|| 16);
+        MAIN_ENGINE.store(Some(mock_engine.into()));
+        ALLOW_FREE_CLIENT.store(0, Ordering::SeqCst);
+
+        let client_try_from_ctx = MockClient::from_context();
+        client_try_from_ctx.expect().returning(|_client_id| {
+            let mut mock_client = MockClient::new();
+            mock_client
+                .expect_get_state()
+                .returning(|| clientState_t::CS_FREE);
+            mock_client
+                .expect_get_user_info()
+                .returning(|| "asdf".into());
+            mock_client.expect_get_steam_id().returning(|| 1234);
+            mock_client
+        });
+
+        let game_entity_try_from_ctx = MockGameEntity::from_context();
+        game_entity_try_from_ctx.expect().returning(|_client_id| {
+            let mut mock_game_entity = MockGameEntity::new();
+            mock_game_entity
+                .expect_get_player_name()
+                .returning(|| "Mocked Player".into());
+            mock_game_entity
+                .expect_get_team()
+                .returning(|| team_t::TEAM_RED);
+            mock_game_entity
+                .expect_get_privileges()
+                .returning(|| privileges_t::PRIV_NONE);
+            mock_game_entity
+        });
+
+        let player_info = Python::with_gil(|py| get_player_info(py, 2).unwrap());
+        assert_eq!(player_info, None);
+    }
+
+    #[rstest]
+    #[serial]
+    fn get_player_info_for_allowed_free_client(_pyminqlx_setup: ()) {
+        let mut mock_engine = MockQuakeEngine::new();
+        mock_engine.expect_get_max_clients().returning(|| 16);
+        MAIN_ENGINE.store(Some(mock_engine.into()));
+        ALLOW_FREE_CLIENT.store(2, Ordering::SeqCst);
+
+        let client_try_from_ctx = MockClient::from_context();
+        client_try_from_ctx.expect().returning(|_client_id| {
+            let mut mock_client = MockClient::new();
+            mock_client
+                .expect_get_state()
+                .returning(|| clientState_t::CS_FREE);
+            mock_client
+                .expect_get_user_info()
+                .returning(|| "asdf".into());
+            mock_client.expect_get_steam_id().returning(|| 1234);
+            mock_client
+        });
+
+        let game_entity_try_from_ctx = MockGameEntity::from_context();
+        game_entity_try_from_ctx.expect().returning(|_client_id| {
+            let mut mock_game_entity = MockGameEntity::new();
+            mock_game_entity
+                .expect_get_player_name()
+                .returning(|| "Mocked Player".into());
+            mock_game_entity
+                .expect_get_team()
+                .returning(|| team_t::TEAM_RED);
+            mock_game_entity
+                .expect_get_privileges()
+                .returning(|| privileges_t::PRIV_NONE);
+            mock_game_entity
+        });
+
+        let player_info = Python::with_gil(|py| get_player_info(py, 2).unwrap());
+        assert_eq!(
+            player_info,
+            Some(PlayerInfo {
+                client_id: 2,
+                name: "Mocked Player".into(),
+                connection_state: clientState_t::CS_FREE as i32,
                 userinfo: "asdf".into(),
                 steam_id: 1234,
                 team: team_t::TEAM_RED as i32,
