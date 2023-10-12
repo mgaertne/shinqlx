@@ -2042,17 +2042,15 @@ mod get_player_info_tests {
     use crate::client::MockClient;
     use crate::game_entity::MockGameEntity;
     use crate::prelude::*;
-    use crate::pyminqlx::pyminqlx_setup_fixture::*;
     use crate::pyminqlx::ALLOW_FREE_CLIENT;
     use crate::quake_live_engine::MockQuakeEngine;
     use core::sync::atomic::Ordering;
     use pyo3::exceptions::{PyEnvironmentError, PyValueError};
     use pyo3::prelude::*;
-    use rstest::rstest;
 
-    #[rstest]
+    #[test]
     #[serial]
-    fn get_player_info_when_main_engine_not_initialized(_pyminqlx_setup: ()) {
+    fn get_player_info_when_main_engine_not_initialized() {
         MAIN_ENGINE.store(None);
         Python::with_gil(|py| {
             let result = get_player_info(py, 0);
@@ -2060,9 +2058,9 @@ mod get_player_info_tests {
         })
     }
 
-    #[rstest]
+    #[test]
     #[serial]
-    fn get_player_info_for_client_id_below_zero(_pyminqlx_setup: ()) {
+    fn get_player_info_for_client_id_below_zero() {
         let mut mock_engine = MockQuakeEngine::new();
         mock_engine.expect_get_max_clients().returning(|| 16);
         MAIN_ENGINE.store(Some(mock_engine.into()));
@@ -2072,9 +2070,9 @@ mod get_player_info_tests {
         })
     }
 
-    #[rstest]
+    #[test]
     #[serial]
-    fn get_player_info_for_client_id_above_max_clients(_pyminqlx_setup: ()) {
+    fn get_player_info_for_client_id_above_max_clients() {
         let mut mock_engine = MockQuakeEngine::new();
         mock_engine.expect_get_max_clients().returning(|| 16);
         MAIN_ENGINE.store(Some(mock_engine.into()));
@@ -2084,9 +2082,9 @@ mod get_player_info_tests {
         })
     }
 
-    #[rstest]
+    #[test]
     #[serial]
-    fn get_player_info_for_existing_client(_pyminqlx_setup: ()) {
+    fn get_player_info_for_existing_client() {
         let mut mock_engine = MockQuakeEngine::new();
         mock_engine.expect_get_max_clients().returning(|| 16);
         MAIN_ENGINE.store(Some(mock_engine.into()));
@@ -2134,9 +2132,9 @@ mod get_player_info_tests {
         );
     }
 
-    #[rstest]
+    #[test]
     #[serial]
-    fn get_player_info_for_non_allowed_free_client(_pyminqlx_setup: ()) {
+    fn get_player_info_for_non_allowed_free_client() {
         let mut mock_engine = MockQuakeEngine::new();
         mock_engine.expect_get_max_clients().returning(|| 16);
         MAIN_ENGINE.store(Some(mock_engine.into()));
@@ -2174,9 +2172,9 @@ mod get_player_info_tests {
         assert_eq!(player_info, None);
     }
 
-    #[rstest]
+    #[test]
     #[serial]
-    fn get_player_info_for_allowed_free_client(_pyminqlx_setup: ()) {
+    fn get_player_info_for_allowed_free_client() {
         let mut mock_engine = MockQuakeEngine::new();
         mock_engine.expect_get_max_clients().returning(|| 16);
         MAIN_ENGINE.store(Some(mock_engine.into()));
@@ -2262,14 +2260,12 @@ mod get_players_info_tests {
     use super::get_players_info;
     use super::MAIN_ENGINE;
     use crate::prelude::*;
-    use crate::pyminqlx::pyminqlx_setup_fixture::*;
     use pyo3::exceptions::PyEnvironmentError;
     use pyo3::prelude::*;
-    use rstest::rstest;
 
-    #[rstest]
+    #[test]
     #[serial]
-    fn get_players_info_when_main_engine_not_initialized(_pyminqlx_setup: ()) {
+    fn get_players_info_when_main_engine_not_initialized() {
         MAIN_ENGINE.store(None);
         Python::with_gil(|py| {
             let result = get_players_info(py);
@@ -2320,16 +2316,14 @@ mod get_userinfo_tests {
     use super::{get_userinfo, ALLOW_FREE_CLIENT};
     use crate::client::MockClient;
     use crate::prelude::*;
-    use crate::pyminqlx::pyminqlx_setup_fixture::*;
     use crate::quake_live_engine::MockQuakeEngine;
     use core::sync::atomic::Ordering;
     use pyo3::exceptions::{PyEnvironmentError, PyValueError};
     use pyo3::prelude::*;
-    use rstest::rstest;
 
-    #[rstest]
+    #[test]
     #[serial]
-    fn get_userinfo_when_main_engine_not_initialized(_pyminqlx_setup: ()) {
+    fn get_userinfo_when_main_engine_not_initialized() {
         MAIN_ENGINE.store(None);
         Python::with_gil(|py| {
             let result = get_userinfo(py, 0);
@@ -2337,9 +2331,9 @@ mod get_userinfo_tests {
         })
     }
 
-    #[rstest]
+    #[test]
     #[serial]
-    fn get_userinfo_for_client_id_below_zero(_pyminqlx_setup: ()) {
+    fn get_userinfo_for_client_id_below_zero() {
         let mut mock_engine = MockQuakeEngine::new();
         mock_engine.expect_get_max_clients().returning(|| 16);
         MAIN_ENGINE.store(Some(mock_engine.into()));
@@ -2349,9 +2343,9 @@ mod get_userinfo_tests {
         })
     }
 
-    #[rstest]
+    #[test]
     #[serial]
-    fn get_userinfo_for_client_id_above_max_clients(_pyminqlx_setup: ()) {
+    fn get_userinfo_for_client_id_above_max_clients() {
         let mut mock_engine = MockQuakeEngine::new();
         mock_engine.expect_get_max_clients().returning(|| 16);
         MAIN_ENGINE.store(Some(mock_engine.into()));
@@ -2361,9 +2355,9 @@ mod get_userinfo_tests {
         })
     }
 
-    #[rstest]
+    #[test]
     #[serial]
-    fn get_userinfo_for_existing_client(_pyminqlx_setup: ()) {
+    fn get_userinfo_for_existing_client() {
         let mut mock_engine = MockQuakeEngine::new();
         mock_engine.expect_get_max_clients().returning(|| 16);
         MAIN_ENGINE.store(Some(mock_engine.into()));
@@ -2384,9 +2378,9 @@ mod get_userinfo_tests {
         assert_eq!(userinfo, Some("asdf".into()));
     }
 
-    #[rstest]
+    #[test]
     #[serial]
-    fn get_userinfo_for_non_allowed_free_client(_pyminqlx_setup: ()) {
+    fn get_userinfo_for_non_allowed_free_client() {
         let mut mock_engine = MockQuakeEngine::new();
         mock_engine.expect_get_max_clients().returning(|| 16);
         MAIN_ENGINE.store(Some(mock_engine.into()));
@@ -2408,9 +2402,9 @@ mod get_userinfo_tests {
         assert_eq!(userinfo, None);
     }
 
-    #[rstest]
+    #[test]
     #[serial]
-    fn get_userinfo_for_allowed_free_client(_pyminqlx_setup: ()) {
+    fn get_userinfo_for_allowed_free_client() {
         let mut mock_engine = MockQuakeEngine::new();
         mock_engine.expect_get_max_clients().returning(|| 16);
         MAIN_ENGINE.store(Some(mock_engine.into()));
@@ -2484,14 +2478,12 @@ mod send_server_command_tests {
     use super::send_server_command;
     use super::MAIN_ENGINE;
     use crate::prelude::*;
-    use crate::pyminqlx::pyminqlx_setup_fixture::*;
     use pyo3::exceptions::PyEnvironmentError;
     use pyo3::prelude::*;
-    use rstest::rstest;
 
-    #[rstest]
+    #[test]
     #[serial]
-    fn send_server_command_when_main_engine_not_initialized(_pyminqlx_setup: ()) {
+    fn send_server_command_when_main_engine_not_initialized() {
         MAIN_ENGINE.store(None);
         Python::with_gil(|py| {
             let result = send_server_command(py, Some(0), "asdf");
@@ -2540,14 +2532,12 @@ mod client_command_tests {
     use super::client_command;
     use super::MAIN_ENGINE;
     use crate::prelude::*;
-    use crate::pyminqlx::pyminqlx_setup_fixture::*;
     use pyo3::exceptions::PyEnvironmentError;
     use pyo3::prelude::*;
-    use rstest::rstest;
 
-    #[rstest]
+    #[test]
     #[serial]
-    fn client_command_when_main_engine_not_initialized(_pyminqlx_setup: ()) {
+    fn client_command_when_main_engine_not_initialized() {
         MAIN_ENGINE.store(None);
         Python::with_gil(|py| {
             let result = client_command(py, 0, "asdf");
@@ -2579,14 +2569,12 @@ mod console_command_tests {
     use super::console_command;
     use super::MAIN_ENGINE;
     use crate::prelude::*;
-    use crate::pyminqlx::pyminqlx_setup_fixture::*;
     use pyo3::exceptions::PyEnvironmentError;
     use pyo3::prelude::*;
-    use rstest::rstest;
 
-    #[rstest]
+    #[test]
     #[serial]
-    fn console_command_when_main_engine_not_initialized(_pyminqlx_setup: ()) {
+    fn console_command_when_main_engine_not_initialized() {
         MAIN_ENGINE.store(None);
         Python::with_gil(|py| {
             let result = console_command(py, "asdf");
@@ -2619,14 +2607,12 @@ mod get_cvar_tests {
     use super::get_cvar;
     use super::MAIN_ENGINE;
     use crate::prelude::*;
-    use crate::pyminqlx::pyminqlx_setup_fixture::*;
     use pyo3::exceptions::PyEnvironmentError;
     use pyo3::prelude::*;
-    use rstest::rstest;
 
-    #[rstest]
+    #[test]
     #[serial]
-    fn get_cvar_when_main_engine_not_initialized(_pyminqlx_setup: ()) {
+    fn get_cvar_when_main_engine_not_initialized() {
         MAIN_ENGINE.store(None);
         Python::with_gil(|py| {
             let result = get_cvar(py, "sv_maxclients");
@@ -2670,14 +2656,12 @@ mod set_cvar_tests {
     use super::set_cvar;
     use super::MAIN_ENGINE;
     use crate::prelude::*;
-    use crate::pyminqlx::pyminqlx_setup_fixture::*;
     use pyo3::exceptions::PyEnvironmentError;
     use pyo3::prelude::*;
-    use rstest::rstest;
 
-    #[rstest]
+    #[test]
     #[serial]
-    fn set_cvar_when_main_engine_not_initialized(_pyminqlx_setup: ()) {
+    fn set_cvar_when_main_engine_not_initialized() {
         MAIN_ENGINE.store(None);
         Python::with_gil(|py| {
             let result = set_cvar(py, "sv_maxclients", "64", None);
@@ -2717,14 +2701,12 @@ mod set_cvar_limit_tests {
     use super::set_cvar_limit;
     use super::MAIN_ENGINE;
     use crate::prelude::*;
-    use crate::pyminqlx::pyminqlx_setup_fixture::*;
     use pyo3::exceptions::PyEnvironmentError;
     use pyo3::prelude::*;
-    use rstest::rstest;
 
-    #[rstest]
+    #[test]
     #[serial]
-    fn set_cvar_limit_when_main_engine_not_initialized(_pyminqlx_setup: ()) {
+    fn set_cvar_limit_when_main_engine_not_initialized() {
         MAIN_ENGINE.store(None);
         Python::with_gil(|py| {
             let result = set_cvar_limit(py, "sv_maxclients", "64", "1", "64", None);
@@ -2783,14 +2765,12 @@ mod kick_tests {
     use super::kick;
     use super::MAIN_ENGINE;
     use crate::prelude::*;
-    use crate::pyminqlx::pyminqlx_setup_fixture::*;
     use pyo3::exceptions::PyEnvironmentError;
     use pyo3::prelude::*;
-    use rstest::rstest;
 
-    #[rstest]
+    #[test]
     #[serial]
-    fn kick_when_main_engine_not_initialized(_pyminqlx_setup: ()) {
+    fn kick_when_main_engine_not_initialized() {
         MAIN_ENGINE.store(None);
         Python::with_gil(|py| {
             let result = kick(py, 0, None);
@@ -2815,13 +2795,11 @@ mod console_print_tests {
     use super::console_print as py_console_print;
     use crate::hooks::mock_hooks::shinqlx_com_printf_context;
     use crate::prelude::*;
-    use crate::pyminqlx::pyminqlx_setup_fixture::*;
     use pyo3::prelude::*;
-    use rstest::rstest;
 
-    #[rstest]
+    #[test]
     #[serial]
-    fn console_print(_pyminqlx_setup: ()) {
+    fn console_print() {
         let com_printf_ctx = shinqlx_com_printf_context();
         com_printf_ctx.expect().withf(|text| text == "asdf\n");
 
@@ -2859,14 +2837,12 @@ mod get_configstring_tests {
     use super::get_configstring;
     use super::MAIN_ENGINE;
     use crate::prelude::*;
-    use crate::pyminqlx::pyminqlx_setup_fixture::*;
     use pyo3::exceptions::PyEnvironmentError;
     use pyo3::prelude::*;
-    use rstest::rstest;
 
-    #[rstest]
+    #[test]
     #[serial]
-    fn get_configstring_when_main_engine_not_initialized(_pyminqlx_setup: ()) {
+    fn get_configstring_when_main_engine_not_initialized() {
         MAIN_ENGINE.store(None);
         Python::with_gil(|py| {
             let result = get_configstring(py, 666);
@@ -2900,23 +2876,21 @@ mod set_configstring_tests {
     use super::set_configstring;
     use crate::hooks::mock_hooks::shinqlx_set_configstring_context;
     use crate::prelude::*;
-    use crate::pyminqlx::pyminqlx_setup_fixture::*;
     use pyo3::exceptions::PyValueError;
     use pyo3::prelude::*;
-    use rstest::rstest;
 
-    #[rstest]
+    #[test]
     #[serial]
-    fn set_configstring_with_index_out_of_bounds(_pyminqlx_setup: ()) {
+    fn set_configstring_with_index_out_of_bounds() {
         Python::with_gil(|py| {
             let result = set_configstring(py, 2048, "asdf");
             assert!(result.is_err_and(|err| err.is_instance_of::<PyValueError>(py)));
         })
     }
 
-    #[rstest]
+    #[test]
     #[serial]
-    fn set_configstring_with_proper_index(_pyminqlx_setup: ()) {
+    fn set_configstring_with_proper_index() {
         let set_configstring_ctx = shinqlx_set_configstring_context();
         set_configstring_ctx
             .expect()
@@ -2973,14 +2947,12 @@ mod force_vote_tests {
     use super::MAIN_ENGINE;
     use crate::current_level::MockTestCurrentLevel;
     use crate::prelude::*;
-    use crate::pyminqlx::pyminqlx_setup_fixture::*;
     use pyo3::exceptions::PyEnvironmentError;
     use pyo3::prelude::*;
-    use rstest::rstest;
 
-    #[rstest]
+    #[test]
     #[serial]
-    fn force_vote_when_main_engine_not_initialized(_pyminqlx_setup: ()) {
+    fn force_vote_when_main_engine_not_initialized() {
         let current_level_try_get_ctx = MockTestCurrentLevel::try_get_context();
         current_level_try_get_ctx.expect().returning(|| {
             let mut mock_level = MockTestCurrentLevel::new();
@@ -3020,14 +2992,12 @@ mod add_console_command_tests {
     use super::add_console_command;
     use super::MAIN_ENGINE;
     use crate::prelude::*;
-    use crate::pyminqlx::pyminqlx_setup_fixture::*;
     use pyo3::exceptions::PyEnvironmentError;
     use pyo3::prelude::*;
-    use rstest::rstest;
 
-    #[rstest]
+    #[test]
     #[serial]
-    fn add_console_command_when_main_engine_not_initialized(_pyminqlx_setup: ()) {
+    fn add_console_command_when_main_engine_not_initialized() {
         MAIN_ENGINE.store(None);
         Python::with_gil(|py| {
             let result = add_console_command(py, "slap");
@@ -3799,14 +3769,12 @@ mod player_state_tests {
     use super::player_state;
     use super::MAIN_ENGINE;
     use crate::prelude::*;
-    use crate::pyminqlx::pyminqlx_setup_fixture::*;
     use pyo3::exceptions::PyEnvironmentError;
     use pyo3::prelude::*;
-    use rstest::rstest;
 
-    #[rstest]
+    #[test]
     #[serial]
-    fn player_state_when_main_engine_not_initialized(_pyminqlx_setup: ()) {
+    fn player_state_when_main_engine_not_initialized() {
         MAIN_ENGINE.store(None);
         Python::with_gil(|py| {
             let result = player_state(py, 21);
@@ -3898,14 +3866,12 @@ mod player_stats_tests {
     use super::player_stats;
     use super::MAIN_ENGINE;
     use crate::prelude::*;
-    use crate::pyminqlx::pyminqlx_setup_fixture::*;
     use pyo3::exceptions::PyEnvironmentError;
     use pyo3::prelude::*;
-    use rstest::rstest;
 
-    #[rstest]
+    #[test]
     #[serial]
-    fn player_stats_when_main_engine_not_initialized(_pyminqlx_setup: ()) {
+    fn player_stats_when_main_engine_not_initialized() {
         MAIN_ENGINE.store(None);
         Python::with_gil(|py| {
             let result = player_stats(py, 21);
@@ -3951,15 +3917,13 @@ mod set_position_tests {
     use super::set_position;
     use super::MAIN_ENGINE;
     use crate::prelude::*;
-    use crate::pyminqlx::pyminqlx_setup_fixture::*;
     use crate::pyminqlx::Vector3;
     use pyo3::exceptions::PyEnvironmentError;
     use pyo3::prelude::*;
-    use rstest::rstest;
 
-    #[rstest]
+    #[test]
     #[serial]
-    fn set_position_when_main_engine_not_initialized(_pyminqlx_setup: ()) {
+    fn set_position_when_main_engine_not_initialized() {
         MAIN_ENGINE.store(None);
         Python::with_gil(|py| {
             let result = set_position(py, 21, Vector3(1, 2, 3));
@@ -4005,15 +3969,13 @@ mod set_velocity_tests {
     use super::set_velocity;
     use super::MAIN_ENGINE;
     use crate::prelude::*;
-    use crate::pyminqlx::pyminqlx_setup_fixture::*;
     use crate::pyminqlx::Vector3;
     use pyo3::exceptions::PyEnvironmentError;
     use pyo3::prelude::*;
-    use rstest::rstest;
 
-    #[rstest]
+    #[test]
     #[serial]
-    fn set_velocity_when_main_engine_not_initialized(_pyminqlx_setup: ()) {
+    fn set_velocity_when_main_engine_not_initialized() {
         MAIN_ENGINE.store(None);
         Python::with_gil(|py| {
             let result = set_velocity(py, 21, Vector3(1, 2, 3));
@@ -4063,14 +4025,12 @@ mod noclip_tests {
     use super::noclip;
     use super::MAIN_ENGINE;
     use crate::prelude::*;
-    use crate::pyminqlx::pyminqlx_setup_fixture::*;
     use pyo3::exceptions::PyEnvironmentError;
     use pyo3::prelude::*;
-    use rstest::rstest;
 
-    #[rstest]
+    #[test]
     #[serial]
-    fn noclip_when_main_engine_not_initialized(_pyminqlx_setup: ()) {
+    fn noclip_when_main_engine_not_initialized() {
         MAIN_ENGINE.store(None);
         Python::with_gil(|py| {
             let result = noclip(py, 21, true);
@@ -4116,14 +4076,12 @@ mod set_health_tests {
     use super::set_health;
     use super::MAIN_ENGINE;
     use crate::prelude::*;
-    use crate::pyminqlx::pyminqlx_setup_fixture::*;
     use pyo3::exceptions::PyEnvironmentError;
     use pyo3::prelude::*;
-    use rstest::rstest;
 
-    #[rstest]
+    #[test]
     #[serial]
-    fn set_health_when_main_engine_not_initialized(_pyminqlx_setup: ()) {
+    fn set_health_when_main_engine_not_initialized() {
         MAIN_ENGINE.store(None);
         Python::with_gil(|py| {
             let result = set_health(py, 21, 666);
@@ -4169,14 +4127,12 @@ mod set_armor_tests {
     use super::set_armor;
     use super::MAIN_ENGINE;
     use crate::prelude::*;
-    use crate::pyminqlx::pyminqlx_setup_fixture::*;
     use pyo3::exceptions::PyEnvironmentError;
     use pyo3::prelude::*;
-    use rstest::rstest;
 
-    #[rstest]
+    #[test]
     #[serial]
-    fn set_armor_when_main_engine_not_initialized(_pyminqlx_setup: ()) {
+    fn set_armor_when_main_engine_not_initialized() {
         MAIN_ENGINE.store(None);
         Python::with_gil(|py| {
             let result = set_armor(py, 21, 666);
@@ -4223,14 +4179,12 @@ mod set_weapons_tests {
     use super::Weapons;
     use super::MAIN_ENGINE;
     use crate::prelude::*;
-    use crate::pyminqlx::pyminqlx_setup_fixture::*;
     use pyo3::exceptions::PyEnvironmentError;
     use pyo3::prelude::*;
-    use rstest::rstest;
 
-    #[rstest]
+    #[test]
     #[serial]
-    fn set_weapons_when_main_engine_not_initialized(_pyminqlx_setup: ()) {
+    fn set_weapons_when_main_engine_not_initialized() {
         MAIN_ENGINE.store(None);
         Python::with_gil(|py| {
             let result = set_weapons(py, 21, Weapons(0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0));
@@ -4282,14 +4236,12 @@ mod set_weapon_tests {
     use super::set_weapon;
     use super::MAIN_ENGINE;
     use crate::prelude::*;
-    use crate::pyminqlx::pyminqlx_setup_fixture::*;
     use pyo3::exceptions::PyEnvironmentError;
     use pyo3::prelude::*;
-    use rstest::rstest;
 
-    #[rstest]
+    #[test]
     #[serial]
-    fn set_weapon_when_main_engine_not_initialized(_pyminqlx_setup: ()) {
+    fn set_weapon_when_main_engine_not_initialized() {
         MAIN_ENGINE.store(None);
         Python::with_gil(|py| {
             let result = set_weapon(py, 21, weapon_t::WP_ROCKET_LAUNCHER.into());
@@ -4336,14 +4288,12 @@ mod set_ammo_tests {
     use super::Weapons;
     use super::MAIN_ENGINE;
     use crate::prelude::*;
-    use crate::pyminqlx::pyminqlx_setup_fixture::*;
     use pyo3::exceptions::PyEnvironmentError;
     use pyo3::prelude::*;
-    use rstest::rstest;
 
-    #[rstest]
+    #[test]
     #[serial]
-    fn set_ammo_when_main_engine_not_initialized(_pyminqlx_setup: ()) {
+    fn set_ammo_when_main_engine_not_initialized() {
         MAIN_ENGINE.store(None);
         Python::with_gil(|py| {
             let result = set_ammo(py, 21, Weapons(0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0));
@@ -4390,14 +4340,12 @@ mod set_powerups_tests {
     use super::Powerups;
     use super::MAIN_ENGINE;
     use crate::prelude::*;
-    use crate::pyminqlx::pyminqlx_setup_fixture::*;
     use pyo3::exceptions::PyEnvironmentError;
     use pyo3::prelude::*;
-    use rstest::rstest;
 
-    #[rstest]
+    #[test]
     #[serial]
-    fn set_powerups_when_main_engine_not_initialized(_pyminqlx_setup: ()) {
+    fn set_powerups_when_main_engine_not_initialized() {
         MAIN_ENGINE.store(None);
         Python::with_gil(|py| {
             let result = set_powerups(py, 21, Powerups(0, 0, 0, 0, 0, 0));
@@ -4444,14 +4392,12 @@ mod set_holdable_tests {
     use super::set_holdable;
     use super::MAIN_ENGINE;
     use crate::prelude::*;
-    use crate::pyminqlx::pyminqlx_setup_fixture::*;
     use pyo3::exceptions::PyEnvironmentError;
     use pyo3::prelude::*;
-    use rstest::rstest;
 
-    #[rstest]
+    #[test]
     #[serial]
-    fn set_holdable_when_main_engine_not_initialized(_pyminqlx_setup: ()) {
+    fn set_holdable_when_main_engine_not_initialized() {
         MAIN_ENGINE.store(None);
         Python::with_gil(|py| {
             let result = set_holdable(py, 21, holdable_t::HI_KAMIKAZE as i32);
@@ -4501,14 +4447,12 @@ mod drop_holdable_tests {
     use super::drop_holdable;
     use super::MAIN_ENGINE;
     use crate::prelude::*;
-    use crate::pyminqlx::pyminqlx_setup_fixture::*;
     use pyo3::exceptions::PyEnvironmentError;
     use pyo3::prelude::*;
-    use rstest::rstest;
 
-    #[rstest]
+    #[test]
     #[serial]
-    fn drop_holdable_when_main_engine_not_initialized(_pyminqlx_setup: ()) {
+    fn drop_holdable_when_main_engine_not_initialized() {
         MAIN_ENGINE.store(None);
         Python::with_gil(|py| {
             let result = drop_holdable(py, 21);
@@ -4555,14 +4499,12 @@ mod set_flight_tests {
     use super::Flight;
     use super::MAIN_ENGINE;
     use crate::prelude::*;
-    use crate::pyminqlx::pyminqlx_setup_fixture::*;
     use pyo3::exceptions::PyEnvironmentError;
     use pyo3::prelude::*;
-    use rstest::rstest;
 
-    #[rstest]
+    #[test]
     #[serial]
-    fn set_flight_when_main_engine_not_initialized(_pyminqlx_setup: ()) {
+    fn set_flight_when_main_engine_not_initialized() {
         MAIN_ENGINE.store(None);
         Python::with_gil(|py| {
             let result = set_flight(py, 21, Flight(0, 0, 0, 0));
@@ -4608,14 +4550,12 @@ mod set_invulnerability_tests {
     use super::set_invulnerability;
     use super::MAIN_ENGINE;
     use crate::prelude::*;
-    use crate::pyminqlx::pyminqlx_setup_fixture::*;
     use pyo3::exceptions::PyEnvironmentError;
     use pyo3::prelude::*;
-    use rstest::rstest;
 
-    #[rstest]
+    #[test]
     #[serial]
-    fn set_invulnerability_when_main_engine_not_initialized(_pyminqlx_setup: ()) {
+    fn set_invulnerability_when_main_engine_not_initialized() {
         MAIN_ENGINE.store(None);
         Python::with_gil(|py| {
             let result = set_invulnerability(py, 21, 42);
@@ -4661,14 +4601,12 @@ mod set_score_tests {
     use super::set_score;
     use super::MAIN_ENGINE;
     use crate::prelude::*;
-    use crate::pyminqlx::pyminqlx_setup_fixture::*;
     use pyo3::exceptions::PyEnvironmentError;
     use pyo3::prelude::*;
-    use rstest::rstest;
 
-    #[rstest]
+    #[test]
     #[serial]
-    fn set_score_when_main_engine_not_initialized(_pyminqlx_setup: ()) {
+    fn set_score_when_main_engine_not_initialized() {
         MAIN_ENGINE.store(None);
         Python::with_gil(|py| {
             let result = set_score(py, 21, 42);
@@ -4742,14 +4680,12 @@ mod player_spawn_tests {
     use super::player_spawn;
     use super::MAIN_ENGINE;
     use crate::prelude::*;
-    use crate::pyminqlx::pyminqlx_setup_fixture::*;
     use pyo3::exceptions::PyEnvironmentError;
     use pyo3::prelude::*;
-    use rstest::rstest;
 
-    #[rstest]
+    #[test]
     #[serial]
-    fn player_spawn_when_main_engine_not_initialized(_pyminqlx_setup: ()) {
+    fn player_spawn_when_main_engine_not_initialized() {
         MAIN_ENGINE.store(None);
         Python::with_gil(|py| {
             let result = player_spawn(py, 21);
@@ -4798,14 +4734,12 @@ mod set_privileges_tests {
     use super::set_privileges;
     use super::MAIN_ENGINE;
     use crate::prelude::*;
-    use crate::pyminqlx::pyminqlx_setup_fixture::*;
     use pyo3::exceptions::PyEnvironmentError;
     use pyo3::prelude::*;
-    use rstest::rstest;
 
-    #[rstest]
+    #[test]
     #[serial]
-    fn set_privileges_when_main_engine_not_initialized(_pyminqlx_setup: ()) {
+    fn set_privileges_when_main_engine_not_initialized() {
         MAIN_ENGINE.store(None);
         Python::with_gil(|py| {
             let result = set_privileges(py, 21, privileges_t::PRIV_MOD as i32);
@@ -4918,14 +4852,12 @@ mod slay_with_mod_tests {
     use super::slay_with_mod;
     use super::MAIN_ENGINE;
     use crate::prelude::*;
-    use crate::pyminqlx::pyminqlx_setup_fixture::*;
     use pyo3::exceptions::PyEnvironmentError;
     use pyo3::prelude::*;
-    use rstest::rstest;
 
-    #[rstest]
+    #[test]
     #[serial]
-    fn slay_with_mod_when_main_engine_not_initialized(_pyminqlx_setup: ()) {
+    fn slay_with_mod_when_main_engine_not_initialized() {
         MAIN_ENGINE.store(None);
         Python::with_gil(|py| {
             let result = slay_with_mod(py, 21, meansOfDeath_t::MOD_TRIGGER_HURT as i32);
