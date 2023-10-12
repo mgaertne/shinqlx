@@ -2153,21 +2153,6 @@ mod get_player_info_tests {
             mock_client
         });
 
-        let game_entity_try_from_ctx = MockGameEntity::from_context();
-        game_entity_try_from_ctx.expect().returning(|_client_id| {
-            let mut mock_game_entity = MockGameEntity::new();
-            mock_game_entity
-                .expect_get_player_name()
-                .returning(|| "Mocked Player".into());
-            mock_game_entity
-                .expect_get_team()
-                .returning(|| team_t::TEAM_RED);
-            mock_game_entity
-                .expect_get_privileges()
-                .returning(|| privileges_t::PRIV_NONE);
-            mock_game_entity
-        });
-
         let player_info = Python::with_gil(|py| get_player_info(py, 2).unwrap());
         assert_eq!(player_info, None);
     }
