@@ -2797,7 +2797,11 @@ fn get_cvar(py: Python<'_>, cvar: &str) -> PyResult<Option<String>> {
 mod get_cvar_tests {
     use super::get_cvar;
     use super::MAIN_ENGINE;
+    use crate::cvar::CVar;
     use crate::prelude::*;
+    use crate::quake_live_engine::MockQuakeEngine;
+    use alloc::ffi::CString;
+    use core::ffi::c_char;
     use pyo3::exceptions::PyEnvironmentError;
     use pyo3::prelude::*;
 
@@ -2808,7 +2812,49 @@ mod get_cvar_tests {
         Python::with_gil(|py| {
             let result = get_cvar(py, "sv_maxclients");
             assert!(result.is_err_and(|err| err.is_instance_of::<PyEnvironmentError>(py)));
-        })
+        });
+    }
+
+    #[test]
+    #[serial]
+    fn get_cvar_when_cvar_not_found() {
+        let mut mock_engine = MockQuakeEngine::new();
+        mock_engine
+            .expect_find_cvar()
+            .withf(|cvar_name| cvar_name == "asdf")
+            .returning(|_| None)
+            .times(1);
+        MAIN_ENGINE.store(Some(mock_engine.into()));
+
+        Python::with_gil(|py| {
+            let result = get_cvar(py, "asdf");
+            assert!(result.is_ok_and(|value| value.is_none()));
+        });
+    }
+
+    #[test]
+    #[serial]
+    fn get_cvar_when_cvar_is_found() {
+        let cvar_string = CString::new("16").unwrap();
+        let mut mock_engine = MockQuakeEngine::new();
+        mock_engine
+            .expect_find_cvar()
+            .withf(|cvar_name| cvar_name == "sv_maxclients")
+            .returning(move |_| {
+                let mut raw_cvar = CVarBuilder::default()
+                    .string(cvar_string.as_ptr() as *mut c_char)
+                    .build()
+                    .unwrap();
+                let cvar = CVar::try_from(&mut raw_cvar as *mut cvar_t).unwrap();
+                Some(cvar)
+            })
+            .times(1);
+        MAIN_ENGINE.store(Some(mock_engine.into()));
+
+        Python::with_gil(|py| {
+            let result = get_cvar(py, "sv_maxclients");
+            assert!(result.is_ok_and(|value| value.is_some_and(|cvar_string| cvar_string == "16")));
+        });
     }
 }
 
