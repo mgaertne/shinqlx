@@ -2625,7 +2625,7 @@ mod client_command_tests {
     use crate::quake_live_engine::MockQuakeEngine;
     use pyo3::exceptions::{PyEnvironmentError, PyValueError};
     use pyo3::prelude::*;
-    use rstest::rstest;
+    use rstest::*;
 
     #[test]
     #[serial]
@@ -2743,6 +2743,7 @@ mod console_command_tests {
     use super::console_command;
     use super::MAIN_ENGINE;
     use crate::prelude::*;
+    use crate::quake_live_engine::MockQuakeEngine;
     use pyo3::exceptions::PyEnvironmentError;
     use pyo3::prelude::*;
 
@@ -2753,6 +2754,22 @@ mod console_command_tests {
         Python::with_gil(|py| {
             let result = console_command(py, "asdf");
             assert!(result.is_err_and(|err| err.is_instance_of::<PyEnvironmentError>(py)));
+        })
+    }
+
+    #[test]
+    #[serial]
+    fn console_command_with_main_engine_set() {
+        let mut mock_engine = MockQuakeEngine::new();
+        mock_engine
+            .expect_execute_console_command()
+            .withf(|cmd| cmd == "asdf")
+            .times(1);
+        MAIN_ENGINE.store(Some(mock_engine.into()));
+
+        Python::with_gil(|py| {
+            let result = console_command(py, "asdf");
+            assert!(result.is_ok());
         })
     }
 }
