@@ -2990,6 +2990,7 @@ mod set_cvar_limit_tests {
     use super::set_cvar_limit;
     use super::MAIN_ENGINE;
     use crate::prelude::*;
+    use crate::quake_live_engine::MockQuakeEngine;
     use pyo3::exceptions::PyEnvironmentError;
     use pyo3::prelude::*;
 
@@ -3000,6 +3001,35 @@ mod set_cvar_limit_tests {
         Python::with_gil(|py| {
             let result = set_cvar_limit(py, "sv_maxclients", "64", "1", "64", None);
             assert!(result.is_err_and(|err| err.is_instance_of::<PyEnvironmentError>(py)));
+        })
+    }
+
+    #[test]
+    #[serial]
+    fn set_cvar_limit_forwards_parameters_to_main_engine_call() {
+        let mut mock_engine = MockQuakeEngine::new();
+        mock_engine
+            .expect_set_cvar_limit()
+            .withf(|cvar, value, min, max, flags| {
+                cvar == "sv_maxclients"
+                    && value == "64"
+                    && min == "1"
+                    && max == "64"
+                    && flags.is_some_and(|flags_value| flags_value == cvar_flags::CVAR_CHEAT as i32)
+            })
+            .times(1);
+        MAIN_ENGINE.store(Some(mock_engine.into()));
+
+        Python::with_gil(|py| {
+            let result = set_cvar_limit(
+                py,
+                "sv_maxclients",
+                "64",
+                "1",
+                "64",
+                Some(cvar_flags::CVAR_CHEAT as i32),
+            );
+            assert!(result.is_ok());
         })
     }
 }
