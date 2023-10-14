@@ -2479,7 +2479,7 @@ mod send_server_command_tests {
             .withf(|client, cmd| client.is_none() && cmd == "asdf")
             .times(1);
         let result = Python::with_gil(|py| send_server_command(py, None, "asdf"));
-        assert!(result.is_ok_and(|value| value == true));
+        assert!(result.is_ok_and(|value| value));
     }
 
     #[test]
@@ -2551,7 +2551,7 @@ mod send_server_command_tests {
             .times(1);
 
         let result = Python::with_gil(|py| send_server_command(py, Some(2), "asdf"));
-        assert!(result.is_ok_and(|value| value == true));
+        assert!(result.is_ok_and(|value| value));
     }
 
     #[rstest]
@@ -2576,7 +2576,7 @@ mod send_server_command_tests {
         hook_ctx.expect().times(0);
 
         let result = Python::with_gil(|py| send_server_command(py, Some(2), "asdf"));
-        assert!(result.is_ok_and(|value| value == false));
+        assert!(result.is_ok_and(|value| !value));
     }
 }
 
@@ -2693,7 +2693,7 @@ mod client_command_tests {
             .times(1);
 
         let result = Python::with_gil(|py| client_command(py, 2, "asdf"));
-        assert!(result.is_ok_and(|value| value == true));
+        assert!(result.is_ok_and(|value| value));
     }
 
     #[rstest]
@@ -2716,7 +2716,7 @@ mod client_command_tests {
         hook_ctx.expect().times(0);
 
         let result = Python::with_gil(|py| client_command(py, 2, "asdf"));
-        assert!(result.is_ok_and(|value| value == false));
+        assert!(result.is_ok_and(|value| !value));
     }
 }
 
@@ -2892,7 +2892,9 @@ fn set_cvar(py: Python<'_>, cvar: &str, value: &str, flags: Option<i32>) -> PyRe
 mod set_cvar_tests {
     use super::set_cvar;
     use super::MAIN_ENGINE;
+    use crate::cvar::CVar;
     use crate::prelude::*;
+    use crate::quake_live_engine::MockQuakeEngine;
     use pyo3::exceptions::PyEnvironmentError;
     use pyo3::prelude::*;
 
@@ -2903,6 +2905,56 @@ mod set_cvar_tests {
         Python::with_gil(|py| {
             let result = set_cvar(py, "sv_maxclients", "64", None);
             assert!(result.is_err_and(|err| err.is_instance_of::<PyEnvironmentError>(py)));
+        })
+    }
+
+    #[test]
+    #[serial]
+    fn set_cvar_for_not_existing_cvar() {
+        let mut mock_engine = MockQuakeEngine::new();
+        mock_engine
+            .expect_find_cvar()
+            .withf(|cvar| cvar == "sv_maxclients")
+            .returning(|_| None)
+            .times(1);
+        mock_engine
+            .expect_get_cvar()
+            .withf(|cvar, value, flags| {
+                cvar == "sv_maxclients"
+                    && value == "64"
+                    && flags.is_some_and(|flags_value| flags_value == cvar_flags::CVAR_ROM as i32)
+            })
+            .times(1);
+        MAIN_ENGINE.store(Some(mock_engine.into()));
+
+        Python::with_gil(|py| {
+            let result = set_cvar(py, "sv_maxclients", "64", Some(cvar_flags::CVAR_ROM as i32));
+            assert!(result.is_ok_and(|result_value| result_value));
+        })
+    }
+
+    #[test]
+    #[serial]
+    fn set_cvar_for_already_existing_cvar() {
+        let mut mock_engine = MockQuakeEngine::new();
+        mock_engine
+            .expect_find_cvar()
+            .withf(|cvar| cvar == "sv_maxclients")
+            .returning(|_| {
+                let mut raw_cvar = CVarBuilder::default().build().unwrap();
+                let cvar = CVar::try_from(&mut raw_cvar as *mut cvar_t).unwrap();
+                Some(cvar)
+            })
+            .times(1);
+        mock_engine
+            .expect_set_cvar_forced()
+            .withf(|cvar, value, &forced| cvar == "sv_maxclients" && value == "64" && !forced)
+            .times(1);
+        MAIN_ENGINE.store(Some(mock_engine.into()));
+
+        Python::with_gil(|py| {
+            let result = set_cvar(py, "sv_maxclients", "64", Some(cvar_flags::CVAR_ROM as i32));
+            assert!(result.is_ok_and(|result_value| !result_value));
         })
     }
 }
