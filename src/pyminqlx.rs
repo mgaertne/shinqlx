@@ -3704,6 +3704,163 @@ fn register_handler(py: Python<'_>, event: &str, handler: Option<Py<PyAny>>) -> 
     })
 }
 
+#[cfg(test)]
+#[cfg(not(miri))]
+mod register_handler_tests {
+    use super::register_handler;
+    use super::{
+        CLIENT_COMMAND_HANDLER, CONSOLE_PRINT_HANDLER, CUSTOM_COMMAND_HANDLER, DAMAGE_HANDLER,
+        FRAME_HANDLER, KAMIKAZE_EXPLODE_HANDLER, KAMIKAZE_USE_HANDLER, NEW_GAME_HANDLER,
+        PLAYER_CONNECT_HANDLER, PLAYER_DISCONNECT_HANDLER, PLAYER_LOADED_HANDLER,
+        PLAYER_SPAWN_HANDLER, RCON_HANDLER, SERVER_COMMAND_HANDLER, SET_CONFIGSTRING_HANDLER,
+    };
+    use crate::prelude::*;
+    use once_cell::sync::Lazy;
+    use pyo3::exceptions::{PyTypeError, PyValueError};
+    use pyo3::prelude::*;
+    use rstest::rstest;
+    use swap_arc::SwapArcOption;
+
+    #[rstest]
+    #[case("client_command", &CLIENT_COMMAND_HANDLER)]
+    #[case("server_command", &SERVER_COMMAND_HANDLER)]
+    #[case("frame", &FRAME_HANDLER)]
+    #[case("player_connect", &PLAYER_CONNECT_HANDLER)]
+    #[case("player_loaded", &PLAYER_LOADED_HANDLER)]
+    #[case("player_disconnect", &PLAYER_DISCONNECT_HANDLER)]
+    #[case("custom_command", &CUSTOM_COMMAND_HANDLER)]
+    #[case("new_game", &NEW_GAME_HANDLER)]
+    #[case("set_configstring", &SET_CONFIGSTRING_HANDLER)]
+    #[case("rcon", &RCON_HANDLER)]
+    #[case("console_print", &CONSOLE_PRINT_HANDLER)]
+    #[case("player_spawn", &PLAYER_SPAWN_HANDLER)]
+    #[case("kamikaze_use", &KAMIKAZE_USE_HANDLER)]
+    #[case("kamikaze_explode", &KAMIKAZE_EXPLODE_HANDLER)]
+    #[case("damage", &DAMAGE_HANDLER)]
+    #[serial]
+    fn register_handler_setting_handler_to_none(
+        #[case] event: &str,
+        #[case] handler: &Lazy<SwapArcOption<Py<PyAny>>>,
+    ) {
+        let pymodule: Py<PyModule> = Python::with_gil(|py| {
+            PyModule::from_code(
+                py,
+                r#"
+def handler():
+    pass
+"#,
+                "",
+                "",
+            )
+            .unwrap()
+            .into_py(py)
+        });
+        let py_handler =
+            Python::with_gil(|py| pymodule.getattr(py, "handler").unwrap().into_py(py));
+        handler.store(Some(py_handler.into()));
+
+        let result = Python::with_gil(|py| register_handler(py, event, None));
+        assert!(result.is_ok());
+
+        let stored_handler = handler.load();
+        assert!(stored_handler.is_none());
+    }
+
+    #[rstest]
+    #[case("client_command", &CLIENT_COMMAND_HANDLER)]
+    #[case("server_command", &SERVER_COMMAND_HANDLER)]
+    #[case("frame", &FRAME_HANDLER)]
+    #[case("player_connect", &PLAYER_CONNECT_HANDLER)]
+    #[case("player_loaded", &PLAYER_LOADED_HANDLER)]
+    #[case("player_disconnect", &PLAYER_DISCONNECT_HANDLER)]
+    #[case("custom_command", &CUSTOM_COMMAND_HANDLER)]
+    #[case("new_game", &NEW_GAME_HANDLER)]
+    #[case("set_configstring", &SET_CONFIGSTRING_HANDLER)]
+    #[case("rcon", &RCON_HANDLER)]
+    #[case("console_print", &CONSOLE_PRINT_HANDLER)]
+    #[case("player_spawn", &PLAYER_SPAWN_HANDLER)]
+    #[case("kamikaze_use", &KAMIKAZE_USE_HANDLER)]
+    #[case("kamikaze_explode", &KAMIKAZE_EXPLODE_HANDLER)]
+    #[case("damage", &DAMAGE_HANDLER)]
+    #[serial]
+    fn register_handler_setting_handler_to_some_handler(
+        #[case] event: &str,
+        #[case] handler: &Lazy<SwapArcOption<Py<PyAny>>>,
+    ) {
+        let pymodule: Py<PyModule> = Python::with_gil(|py| {
+            PyModule::from_code(
+                py,
+                r#"
+def handler():
+    pass
+"#,
+                "",
+                "",
+            )
+            .unwrap()
+            .into_py(py)
+        });
+        let py_handler =
+            Python::with_gil(|py| pymodule.getattr(py, "handler").unwrap().into_py(py));
+        handler.store(None);
+
+        let result = Python::with_gil(|py| register_handler(py, event, Some(py_handler)));
+        assert!(result.is_ok());
+
+        let stored_handler = handler.load();
+        assert!(stored_handler.is_some());
+    }
+
+    #[test]
+    #[serial]
+    fn register_handler_for_some_unknown_event() {
+        let pymodule: Py<PyModule> = Python::with_gil(|py| {
+            PyModule::from_code(
+                py,
+                r#"
+def handler():
+    pass
+"#,
+                "",
+                "",
+            )
+            .unwrap()
+            .into_py(py)
+        });
+        let py_handler =
+            Python::with_gil(|py| pymodule.getattr(py, "handler").unwrap().into_py(py));
+
+        Python::with_gil(|py| {
+            let result = register_handler(py, "unknown_event", Some(py_handler));
+            assert!(result.is_err_and(|err| err.is_instance_of::<PyValueError>(py)));
+        });
+    }
+
+    #[test]
+    #[serial]
+    fn register_handler_for_uncallable_handler() {
+        let pymodule: Py<PyModule> = Python::with_gil(|py| {
+            PyModule::from_code(
+                py,
+                r#"
+handler = True
+"#,
+                "",
+                "",
+            )
+            .unwrap()
+            .into_py(py)
+        });
+        let py_handler =
+            Python::with_gil(|py| pymodule.getattr(py, "handler").unwrap().into_py(py));
+
+        Python::with_gil(|py| {
+            let result = register_handler(py, "client_command", Some(py_handler));
+            assert!(result.is_err_and(|err| err.is_instance_of::<PyTypeError>(py)));
+        });
+    }
+}
+
 #[pyclass]
 struct Vector3Iter {
     iter: vec::IntoIter<i32>,
