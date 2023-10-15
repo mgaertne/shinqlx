@@ -153,6 +153,7 @@ mod game_item_tests {
     use crate::quake_live_engine::MockQuakeEngine;
     use alloc::ffi::CString;
     use core::ffi::c_char;
+    use mockall::predicate;
     use pretty_assertions::assert_eq;
 
     #[test]
@@ -263,20 +264,20 @@ mod game_item_tests {
         let mut game_item = GameItem::try_from(&mut gitem as *mut gitem_t).unwrap();
         mock_engine
             .expect_try_launch_item()
-            .withf(|_, origin, velocity| origin == &[1.0, 2.0, 3.0] && velocity == &[0.0, 0.0, 0.9])
-            .return_once(|_, _, _| {
+            .withf(|_item, origin, velocity| {
+                origin == &[1.0, 2.0, 3.0] && velocity == &[0.0, 0.0, 0.9]
+            })
+            .return_once(|_item, _origin, _velocity| {
                 let mut game_entity = MockGameEntity::new();
-                game_entity
-                    .expect_set_next_think()
-                    .withf(|&next_think| next_think == 0);
-                game_entity
-                    .expect_set_think()
-                    .withf(|&think| think.is_none());
+                game_entity.expect_set_next_think().with(predicate::eq(0));
+                game_entity.expect_set_think().with(predicate::eq(None));
                 Ok(game_entity)
             });
         mock_engine
             .expect_game_add_event()
-            .withf(|_, event, param| event == &entity_event_t::EV_ITEM_RESPAWN && param == &0);
+            .withf(|_entity, event, param| {
+                event == &entity_event_t::EV_ITEM_RESPAWN && param == &0
+            });
         MAIN_ENGINE.store(Some(mock_engine.into()));
 
         game_item.spawn((1, 2, 3));

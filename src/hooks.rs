@@ -587,6 +587,7 @@ mod hooks_tests {
     use crate::quake_live_engine::MockQuakeEngine;
     use alloc::ffi::CString;
     use core::ffi::{c_char, CStr};
+    use mockall::predicate;
     use rstest::*;
 
     unsafe extern "C" fn dummy_function() {}
@@ -729,9 +730,7 @@ mod hooks_tests {
         let mut mock_engine = MockQuakeEngine::new();
         mock_engine
             .expect_init_game()
-            .withf(|&level_time, &random_seed, &restart| {
-                level_time == 42 && random_seed == 21 && restart == 0
-            })
+            .with(predicate::eq(42), predicate::eq(21), predicate::eq(0))
             .times(1);
         mock_engine.expect_set_tag().times(1);
         mock_engine.expect_initialize_cvars().times(1);
@@ -748,9 +747,7 @@ mod hooks_tests {
         let mut mock_engine = MockQuakeEngine::new();
         mock_engine
             .expect_init_game()
-            .withf(|&level_time, &random_seed, &restart| {
-                level_time == 42 && random_seed == 21 && restart == 1
-            })
+            .with(predicate::eq(42), predicate::eq(21), predicate::eq(1))
             .times(1);
         mock_engine.expect_set_tag().times(1);
         mock_engine.expect_initialize_cvars().times(1);
@@ -758,7 +755,7 @@ mod hooks_tests {
         let new_game_dispatcher_ctx = new_game_dispatcher_context();
         new_game_dispatcher_ctx
             .expect()
-            .withf(|&restart| restart)
+            .with(predicate::eq(true))
             .times(1);
 
         shinqlx_g_initgame(42, 21, 1);
@@ -778,7 +775,7 @@ mod hooks_tests {
         mock_engine.expect_unhook_vm().times(1);
         mock_engine
             .expect_shutdown_game()
-            .withf(|&restart| restart == 42)
+            .with(predicate::eq(42))
             .times(1);
         MAIN_ENGINE.store(Some(mock_engine.into()));
 
@@ -856,7 +853,7 @@ mod hooks_tests {
         let client_command_ctx = client_command_dispatcher_context();
         client_command_ctx
             .expect()
-            .withf(|&client_id, cmd| client_id == 42 && cmd == "cp asdf")
+            .with(predicate::eq(42), predicate::eq("cp asdf".to_string()))
             .times(1);
 
         shinqlx_execute_client_command(Some(mock_client), "cp asdf", true);
@@ -881,7 +878,7 @@ mod hooks_tests {
         let client_command_ctx = client_command_dispatcher_context();
         client_command_ctx
             .expect()
-            .withf(|&client_id, cmd| client_id == 42 && cmd == "cp asdf")
+            .with(predicate::eq(42), predicate::eq("cp asdf".to_string()))
             .return_const(Some("cp modified".into()))
             .times(1);
 
@@ -902,7 +899,7 @@ mod hooks_tests {
         let client_command_ctx = client_command_dispatcher_context();
         client_command_ctx
             .expect()
-            .withf(|&client_id, cmd| client_id == 42 && cmd == "cp asdf")
+            .with(predicate::eq(42), predicate::eq("cp asdf".to_string()))
             .return_const(Some("".into()))
             .times(1);
 
@@ -926,7 +923,7 @@ mod hooks_tests {
         let client_command_ctx = server_command_dispatcher_context();
         client_command_ctx
             .expect()
-            .withf(|&client_id, cmd| client_id.is_none() && cmd == "cp asdf")
+            .with(predicate::eq(None), predicate::eq("cp asdf".to_string()))
             .return_const(None)
             .times(1);
 
@@ -944,7 +941,7 @@ mod hooks_tests {
         let client_command_ctx = server_command_dispatcher_context();
         client_command_ctx
             .expect()
-            .withf(|&client_id, cmd| client_id.is_none() && cmd == "cp asdf")
+            .with(predicate::eq(None), predicate::eq("cp asdf".to_string()))
             .return_const(Some("cp modified".into()))
             .times(1);
         MAIN_ENGINE.store(Some(mock_engine.into()));
@@ -983,7 +980,10 @@ mod hooks_tests {
         let client_command_ctx = server_command_dispatcher_context();
         client_command_ctx
             .expect()
-            .withf(|&client_id, cmd| client_id == Some(42) && cmd == "cp asdf")
+            .with(
+                predicate::eq(Some(42)),
+                predicate::eq("cp asdf".to_string()),
+            )
             .return_const(None)
             .times(1);
 
@@ -1008,7 +1008,10 @@ mod hooks_tests {
         let client_command_ctx = server_command_dispatcher_context();
         client_command_ctx
             .expect()
-            .withf(|&client_id, cmd| client_id == Some(42) && cmd == "cp asdf")
+            .with(
+                predicate::eq(Some(42)),
+                predicate::eq("cp asdf".to_string()),
+            )
             .return_const(Some("cp modified".into()))
             .times(1);
 
@@ -1028,7 +1031,10 @@ mod hooks_tests {
         let client_command_ctx = server_command_dispatcher_context();
         client_command_ctx
             .expect()
-            .withf(|&client_id, cmd| client_id == Some(42) && cmd == "cp asdf")
+            .with(
+                predicate::eq(Some(42)),
+                predicate::eq("cp asdf".to_string()),
+            )
             .return_const(Some("".into()))
             .times(1);
 
@@ -1134,10 +1140,7 @@ mod hooks_tests {
             .return_once_st(|_| Ok(mock_client));
 
         let client_loaded_ctx = client_loaded_dispatcher_context();
-        client_loaded_ctx
-            .expect()
-            .withf(|&client_id| client_id == 42)
-            .times(1);
+        client_loaded_ctx.expect().with(predicate::eq(42)).times(1);
 
         let mut client = ClientBuilder::default().build().unwrap();
 
@@ -1166,9 +1169,10 @@ mod hooks_tests {
         let mut mock_engine = MockQuakeEngine::new();
         mock_engine
             .expect_set_configstring()
-            .withf(move |&index, value| {
-                index == test_index.try_into().unwrap() && value == "some value"
-            })
+            .with(
+                predicate::eq::<i32>(test_index.try_into().unwrap()),
+                predicate::eq("some value".to_string()),
+            )
             .times(1);
         MAIN_ENGINE.store(Some(mock_engine.into()));
 
@@ -1188,7 +1192,7 @@ mod hooks_tests {
         let set_configstring_dispatcher_ctx = set_configstring_dispatcher_context();
         set_configstring_dispatcher_ctx
             .expect()
-            .withf(|&index, value| index == 42 && value == "some value")
+            .with(predicate::eq(42), predicate::eq("some value".to_string()))
             .times(1);
 
         shinqlx_set_configstring(42u32, "some value");
@@ -1200,14 +1204,14 @@ mod hooks_tests {
         let mut mock_engine = MockQuakeEngine::new();
         mock_engine
             .expect_set_configstring()
-            .withf(move |&index, value| index == 42 && value == "other value")
+            .with(predicate::eq(42), predicate::eq("other value".to_string()))
             .times(1);
         MAIN_ENGINE.store(Some(mock_engine.into()));
 
         let set_configstring_dispatcher_ctx = set_configstring_dispatcher_context();
         set_configstring_dispatcher_ctx
             .expect()
-            .withf(|&index, value| index == 42 && value == "some value")
+            .with(predicate::eq(42), predicate::eq("some value".to_string()))
             .return_const(Some("other value".into()))
             .times(1);
 
@@ -1220,14 +1224,14 @@ mod hooks_tests {
         let mut mock_engine = MockQuakeEngine::new();
         mock_engine
             .expect_set_configstring()
-            .withf(|&index, value| index == 42 && value == "some value")
+            .with(predicate::eq(42), predicate::eq("some value".to_string()))
             .times(1);
         MAIN_ENGINE.store(Some(mock_engine.into()));
 
         let set_configstring_dispatcher_ctx = set_configstring_dispatcher_context();
         set_configstring_dispatcher_ctx
             .expect()
-            .withf(|&index, value| index == 42 && value == "some value")
+            .with(predicate::eq(42), predicate::eq("some value".to_string()))
             .return_const(Some("some value".into()))
             .times(1);
 
@@ -1240,14 +1244,17 @@ mod hooks_tests {
         let mut mock_client = MockClient::new();
         mock_client
             .expect_disconnect()
-            .withf(|reason| reason == "disconnected.")
+            .with(predicate::eq("disconnected.".to_string()))
             .times(1);
         mock_client.expect_get_client_id().return_const(42);
 
         let client_disconnect_dispatcher_ctx = client_disconnect_dispatcher_context();
         client_disconnect_dispatcher_ctx
             .expect()
-            .withf(|&client_id, reason| client_id == 42 && reason == "disconnected.")
+            .with(
+                predicate::eq(42),
+                predicate::eq("disconnected.".to_string()),
+            )
             .times(1);
 
         shinqlx_drop_client(&mut mock_client, "disconnected.");
@@ -1270,7 +1277,7 @@ mod hooks_tests {
         let mock_console_print_dispatcher_ctx = console_print_dispatcher_context();
         mock_console_print_dispatcher_ctx
             .expect()
-            .withf(|msg| msg == "Hello World!")
+            .with(predicate::eq("Hello World!".to_string()))
             .times(1);
 
         shinqlx_com_printf("Hello World!");
@@ -1282,14 +1289,14 @@ mod hooks_tests {
         let mut mock_engine = MockQuakeEngine::new();
         mock_engine
             .expect_com_printf()
-            .withf(|msg| msg == "Hello World!")
+            .with(predicate::eq("Hello World!".to_string()))
             .times(1);
         MAIN_ENGINE.store(Some(mock_engine.into()));
 
         let mock_console_print_dispatcher_ctx = console_print_dispatcher_context();
         mock_console_print_dispatcher_ctx
             .expect()
-            .withf(|msg| msg == "Hello World!")
+            .with(predicate::eq("Hello World!".to_string()))
             .return_const(Some("Hello you!".into()))
             .times(1);
 
@@ -1310,14 +1317,17 @@ mod hooks_tests {
         let mut mock_engine = MockQuakeEngine::new();
         mock_engine
             .expect_spawn_server()
-            .withf(|server_str, &kill_bots| server_str == "l33t ql server" && kill_bots)
+            .with(
+                predicate::eq("l33t ql server".to_string()),
+                predicate::eq(true),
+            )
             .times(1);
         MAIN_ENGINE.store(Some(mock_engine.into()));
 
         let mock_new_game_dispatcher_ctx = new_game_dispatcher_context();
         mock_new_game_dispatcher_ctx
             .expect()
-            .withf(|&restart| !restart)
+            .with(predicate::eq(false))
             .times(1);
 
         let server_str = CString::new("l33t ql server").unwrap();
@@ -1338,7 +1348,7 @@ mod hooks_tests {
         let mut mock_engine = MockQuakeEngine::new();
         mock_engine
             .expect_run_frame()
-            .withf(|&time| time == 42)
+            .with(predicate::eq(42))
             .times(1);
         MAIN_ENGINE.store(Some(mock_engine.into()));
 
@@ -1362,8 +1372,12 @@ mod hooks_tests {
         let mut mock_engine = MockQuakeEngine::new();
         mock_engine
             .expect_client_connect()
-            .withf(|&client_num, &first_time, &is_bot| client_num == 42 && !first_time && !is_bot)
-            .returning(|_, _, _| "\0".as_ptr() as *const c_char)
+            .with(
+                predicate::eq(42),
+                predicate::eq(false),
+                predicate::eq(false),
+            )
+            .returning(|_client_num, _first_time, _is_bot| "\0".as_ptr() as *const c_char)
             .times(1);
         MAIN_ENGINE.store(Some(mock_engine.into()));
 
@@ -1376,15 +1390,15 @@ mod hooks_tests {
         let mut mock_engine = MockQuakeEngine::new();
         mock_engine
             .expect_client_connect()
-            .withf(|&client_num, &first_time, &is_bot| client_num == 42 && first_time && !is_bot)
-            .returning(|_, _, _| "\0".as_ptr() as *const c_char)
+            .with(predicate::eq(42), predicate::eq(true), predicate::eq(false))
+            .returning(|_client_num, _first_time, _is_bot| "\0".as_ptr() as *const c_char)
             .times(1);
         MAIN_ENGINE.store(Some(mock_engine.into()));
 
         let client_connect_dispatcher_ctx = client_connect_dispatcher_context();
         client_connect_dispatcher_ctx
             .expect()
-            .withf(|&client_num, &is_bot| client_num == 42 && !is_bot)
+            .with(predicate::eq(42), predicate::eq(false))
             .return_const(None)
             .times(1);
 
@@ -1401,7 +1415,7 @@ mod hooks_tests {
         let client_connect_dispatcher_ctx = client_connect_dispatcher_context();
         client_connect_dispatcher_ctx
             .expect()
-            .withf(|&client_num, &is_bot| client_num == 42 && !is_bot)
+            .with(predicate::eq(42), predicate::eq(false))
             .return_const(Some("you are banned from this server".into()))
             .times(1);
 
@@ -1418,15 +1432,15 @@ mod hooks_tests {
         let mut mock_engine = MockQuakeEngine::new();
         mock_engine
             .expect_client_connect()
-            .withf(|&client_num, &first_time, &is_bot| client_num == 42 && first_time && is_bot)
-            .returning(|_, _, _| "\0".as_ptr() as *const c_char)
+            .with(predicate::eq(42), predicate::eq(true), predicate::eq(true))
+            .returning(|_client_num, _first_time, _is_bot| "\0".as_ptr() as *const c_char)
             .times(1);
         MAIN_ENGINE.store(Some(mock_engine.into()));
 
         let client_connect_dispatcher_ctx = client_connect_dispatcher_context();
         client_connect_dispatcher_ctx
             .expect()
-            .withf(|&client_num, &is_bot| client_num == 42 && is_bot)
+            .with(predicate::eq(42), predicate::eq(true))
             .return_const(Some("we don't like bots here".into()))
             .times(1);
 
@@ -1452,7 +1466,7 @@ mod hooks_tests {
         let client_spawn_dispatcher_ctx = client_spawn_dispatcher_context();
         client_spawn_dispatcher_ctx
             .expect()
-            .withf(|&client_id| client_id == 42)
+            .with(predicate::eq(42))
             .times(1);
 
         shinqlx_client_spawn(mock_entity);
@@ -1514,12 +1528,12 @@ mod hooks_tests {
         let kamikaze_use_dispatcher_ctx = kamikaze_use_dispatcher_context();
         kamikaze_use_dispatcher_ctx
             .expect()
-            .withf(|&client_id| client_id == 42)
+            .with(predicate::eq(42))
             .times(1);
         let kamikaze_explode_dispatcher_ctx = kamikaze_explode_dispatcher_context();
         kamikaze_explode_dispatcher_ctx
             .expect()
-            .withf(|&client_id, &is_used_on_demand| client_id == 42 && is_used_on_demand)
+            .with(predicate::eq(42), predicate::eq(true))
             .times(1);
 
         shinqlx_g_startkamikaze(&mut gentity as *mut gentity_t);
@@ -1547,7 +1561,7 @@ mod hooks_tests {
         let kamikaze_explode_dispatcher_ctx = kamikaze_explode_dispatcher_context();
         kamikaze_explode_dispatcher_ctx
             .expect()
-            .withf(|&client_id, &is_used_on_demand| client_id == 42 && !is_used_on_demand)
+            .with(predicate::eq(42), predicate::eq(false))
             .times(1);
 
         shinqlx_g_startkamikaze(&mut gentity as *mut gentity_t);
@@ -1647,13 +1661,13 @@ mod hooks_tests {
         let damage_dispatcher_ctx = damage_dispatcher_context();
         damage_dispatcher_ctx
             .expect()
-            .withf(|&target_id, &attacker, &damage, &dflags, &means_of_death| {
-                target_id == 42
-                    && attacker.is_none()
-                    && damage == 666
-                    && dflags == 0
-                    && means_of_death == 0
-            })
+            .with(
+                predicate::eq(42),
+                predicate::eq(None),
+                predicate::eq(666),
+                predicate::eq(0),
+                predicate::eq(0),
+            )
             .times(1);
 
         shinqlx_g_damage(
@@ -1707,13 +1721,13 @@ mod hooks_tests {
         let damage_dispatcher_ctx = damage_dispatcher_context();
         damage_dispatcher_ctx
             .expect()
-            .withf(|&target_id, &attacker, &damage, &dflags, &means_of_death| {
-                target_id == 42
-                    && attacker.is_none()
-                    && damage == 666
-                    && dflags == 16
-                    && means_of_death == 7
-            })
+            .with(
+                predicate::eq(42),
+                predicate::eq(None),
+                predicate::eq(666),
+                predicate::eq(16),
+                predicate::eq(7),
+            )
             .times(1);
         let mut attacker = GEntityBuilder::default().build().unwrap();
 
@@ -1772,13 +1786,13 @@ mod hooks_tests {
         let damage_dispatcher_ctx = damage_dispatcher_context();
         damage_dispatcher_ctx
             .expect()
-            .withf(|&target_id, &attacker, &damage, &dflags, &means_of_death| {
-                target_id == 42
-                    && attacker == Some(21)
-                    && damage == 50
-                    && dflags == 4
-                    && means_of_death == 2
-            })
+            .with(
+                predicate::eq(42),
+                predicate::eq(Some(21)),
+                predicate::eq(50),
+                predicate::eq(4),
+                predicate::eq(2),
+            )
             .times(1);
         let mut attacker = GEntityBuilder::default().build().unwrap();
 

@@ -369,7 +369,7 @@ mod client_tests {
 
         let dropclient_original_ctx = MockSV_DropcClient::original_func_context();
         dropclient_original_ctx.expect().withf(
-            |_, &reason| unsafe { CStr::from_ptr(reason).to_string_lossy() } == "disconnected",
+            |_client, &reason| unsafe { CStr::from_ptr(reason).to_string_lossy() } == "disconnected",
         );
 
         let mut mock_engine = MockQuakeEngine::new();

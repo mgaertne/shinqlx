@@ -2734,6 +2734,7 @@ mod console_command_tests {
     use super::MAIN_ENGINE;
     use crate::prelude::*;
     use crate::quake_live_engine::MockQuakeEngine;
+    use mockall::predicate;
     use pyo3::exceptions::PyEnvironmentError;
     use pyo3::prelude::*;
 
@@ -2753,7 +2754,7 @@ mod console_command_tests {
         let mut mock_engine = MockQuakeEngine::new();
         mock_engine
             .expect_execute_console_command()
-            .withf(|cmd| cmd == "asdf")
+            .with(predicate::eq("asdf"))
             .times(1);
         MAIN_ENGINE.store(Some(mock_engine.into()));
 
@@ -2790,6 +2791,7 @@ mod get_cvar_tests {
     use crate::quake_live_engine::MockQuakeEngine;
     use alloc::ffi::CString;
     use core::ffi::c_char;
+    use mockall::predicate;
     use pretty_assertions::assert_eq;
     use pyo3::exceptions::PyEnvironmentError;
     use pyo3::prelude::*;
@@ -2810,7 +2812,7 @@ mod get_cvar_tests {
         let mut mock_engine = MockQuakeEngine::new();
         mock_engine
             .expect_find_cvar()
-            .withf(|cvar_name| cvar_name == "asdf")
+            .with(predicate::eq("asdf"))
             .returning(|_| None)
             .times(1);
         MAIN_ENGINE.store(Some(mock_engine.into()));
@@ -2826,7 +2828,7 @@ mod get_cvar_tests {
         let mut mock_engine = MockQuakeEngine::new();
         mock_engine
             .expect_find_cvar()
-            .withf(|cvar_name| cvar_name == "sv_maxclients")
+            .with(predicate::eq("sv_maxclients"))
             .returning(move |_| {
                 let mut raw_cvar = CVarBuilder::default()
                     .string(cvar_string.as_ptr() as *mut c_char)
@@ -2880,6 +2882,7 @@ mod set_cvar_tests {
     use crate::cvar::CVar;
     use crate::prelude::*;
     use crate::quake_live_engine::MockQuakeEngine;
+    use mockall::predicate;
     use pretty_assertions::assert_eq;
     use pyo3::exceptions::PyEnvironmentError;
     use pyo3::prelude::*;
@@ -2900,16 +2903,16 @@ mod set_cvar_tests {
         let mut mock_engine = MockQuakeEngine::new();
         mock_engine
             .expect_find_cvar()
-            .withf(|cvar| cvar == "sv_maxclients")
+            .with(predicate::eq("sv_maxclients"))
             .returning(|_| None)
             .times(1);
         mock_engine
             .expect_get_cvar()
-            .withf(|cvar, value, flags| {
-                cvar == "sv_maxclients"
-                    && value == "64"
-                    && flags.is_some_and(|flags_value| flags_value == cvar_flags::CVAR_ROM as i32)
-            })
+            .with(
+                predicate::eq("sv_maxclients"),
+                predicate::eq("64"),
+                predicate::eq(Some(cvar_flags::CVAR_ROM as i32)),
+            )
             .times(1);
         MAIN_ENGINE.store(Some(mock_engine.into()));
 
@@ -2926,7 +2929,7 @@ mod set_cvar_tests {
         let mut mock_engine = MockQuakeEngine::new();
         mock_engine
             .expect_find_cvar()
-            .withf(|cvar| cvar == "sv_maxclients")
+            .with(predicate::eq("sv_maxclients"))
             .returning(|_| {
                 let mut raw_cvar = CVarBuilder::default().build().unwrap();
                 let cvar = CVar::try_from(&mut raw_cvar as *mut cvar_t).unwrap();
@@ -2935,7 +2938,11 @@ mod set_cvar_tests {
             .times(1);
         mock_engine
             .expect_set_cvar_forced()
-            .withf(|cvar, value, &forced| cvar == "sv_maxclients" && value == "64" && !forced)
+            .with(
+                predicate::eq("sv_maxclients"),
+                predicate::eq("64"),
+                predicate::eq(false),
+            )
             .times(1);
         MAIN_ENGINE.store(Some(mock_engine.into()));
 
@@ -2979,6 +2986,7 @@ mod set_cvar_limit_tests {
     use super::MAIN_ENGINE;
     use crate::prelude::*;
     use crate::quake_live_engine::MockQuakeEngine;
+    use mockall::predicate;
     use pyo3::exceptions::PyEnvironmentError;
     use pyo3::prelude::*;
 
@@ -2998,13 +3006,13 @@ mod set_cvar_limit_tests {
         let mut mock_engine = MockQuakeEngine::new();
         mock_engine
             .expect_set_cvar_limit()
-            .withf(|cvar, value, min, max, flags| {
-                cvar == "sv_maxclients"
-                    && value == "64"
-                    && min == "1"
-                    && max == "64"
-                    && flags.is_some_and(|flags_value| flags_value == cvar_flags::CVAR_CHEAT as i32)
-            })
+            .with(
+                predicate::eq("sv_maxclients"),
+                predicate::eq("64"),
+                predicate::eq("1"),
+                predicate::eq("64"),
+                predicate::eq(Some(cvar_flags::CVAR_CHEAT as i32)),
+            )
             .times(1);
         MAIN_ENGINE.store(Some(mock_engine.into()));
 
@@ -3165,7 +3173,7 @@ mod kick_tests {
         let drop_client_ctx = shinqlx_drop_client_context();
         drop_client_ctx
             .expect()
-            .withf(|_, reason| reason == "was kicked.")
+            .withf(|_client, reason| reason == "was kicked.")
             .times(1);
 
         let result = Python::with_gil(|py| kick(py, 2, None));
@@ -3194,7 +3202,7 @@ mod kick_tests {
         let drop_client_ctx = shinqlx_drop_client_context();
         drop_client_ctx
             .expect()
-            .withf(|_, reason| reason == "please go away!")
+            .withf(|_client, reason| reason == "please go away!")
             .times(1);
 
         let result = Python::with_gil(|py| kick(py, 2, Some("please go away!")));
@@ -3223,7 +3231,7 @@ mod kick_tests {
         let drop_client_ctx = shinqlx_drop_client_context();
         drop_client_ctx
             .expect()
-            .withf(|_, reason| reason == "was kicked.")
+            .withf(|_client, reason| reason == "was kicked.")
             .times(1);
 
         let result = Python::with_gil(|py| kick(py, 2, Some("")));
@@ -3247,13 +3255,14 @@ mod console_print_tests {
     use super::console_print as py_console_print;
     use crate::hooks::mock_hooks::shinqlx_com_printf_context;
     use crate::prelude::*;
+    use mockall::predicate;
     use pyo3::prelude::*;
 
     #[test]
     #[serial]
     fn console_print() {
         let com_printf_ctx = shinqlx_com_printf_context();
-        com_printf_ctx.expect().withf(|text| text == "asdf\n");
+        com_printf_ctx.expect().with(predicate::eq("asdf\n"));
 
         Python::with_gil(|py| {
             py_console_print(py, "asdf");
@@ -3290,6 +3299,7 @@ mod get_configstring_tests {
     use super::MAIN_ENGINE;
     use crate::prelude::*;
     use crate::quake_live_engine::MockQuakeEngine;
+    use mockall::predicate;
     use pretty_assertions::assert_eq;
     use pyo3::exceptions::{PyEnvironmentError, PyValueError};
     use pyo3::prelude::*;
@@ -3320,7 +3330,7 @@ mod get_configstring_tests {
         let mut mock_engine = MockQuakeEngine::new();
         mock_engine
             .expect_get_configstring()
-            .withf(|&config_id| config_id == 666)
+            .with(predicate::eq(666))
             .returning(|_| "asdf".into())
             .times(1);
         MAIN_ENGINE.store(Some(mock_engine.into()));
@@ -3355,6 +3365,7 @@ mod set_configstring_tests {
     use super::set_configstring;
     use crate::hooks::mock_hooks::shinqlx_set_configstring_context;
     use crate::prelude::*;
+    use mockall::predicate;
     use pyo3::exceptions::PyValueError;
     use pyo3::prelude::*;
 
@@ -3373,7 +3384,8 @@ mod set_configstring_tests {
         let set_configstring_ctx = shinqlx_set_configstring_context();
         set_configstring_ctx
             .expect()
-            .withf(|&index, value| index == 666 && value == "asdf");
+            .with(predicate::eq(666), predicate::eq("asdf".to_string()))
+            .times(1);
 
         let result = Python::with_gil(|py| set_configstring(py, 666, "asdf"));
         assert!(result.is_ok());
