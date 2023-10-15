@@ -3434,10 +3434,17 @@ fn force_vote(py: Python<'_>, pass: bool) -> PyResult<bool> {
 mod force_vote_tests {
     use super::force_vote;
     use super::MAIN_ENGINE;
+    use crate::client::MockClient;
     use crate::current_level::MockTestCurrentLevel;
+    use crate::game_client::MockGameClient;
+    use crate::game_entity::MockGameEntity;
     use crate::prelude::*;
+    use crate::quake_live_engine::MockQuakeEngine;
+    use mockall::predicate;
+    use pretty_assertions::assert_eq;
     use pyo3::exceptions::PyEnvironmentError;
     use pyo3::prelude::*;
+    use rstest::rstest;
 
     #[test]
     #[serial]
@@ -3454,6 +3461,128 @@ mod force_vote_tests {
             let result = force_vote(py, true);
             assert!(result.is_err_and(|err| err.is_instance_of::<PyEnvironmentError>(py)));
         });
+    }
+
+    #[rstest]
+    #[case(clientState_t::CS_ZOMBIE)]
+    #[case(clientState_t::CS_CONNECTED)]
+    #[case(clientState_t::CS_FREE)]
+    #[case(clientState_t::CS_PRIMED)]
+    #[serial]
+    fn force_vote_for_non_active_client(#[case] clientstate: clientState_t) {
+        let current_level_try_get_ctx = MockTestCurrentLevel::try_get_context();
+        current_level_try_get_ctx.expect().returning(|| {
+            let mut mock_level = MockTestCurrentLevel::new();
+            mock_level.expect_get_vote_time().return_const(21);
+            Ok(mock_level)
+        });
+
+        let mut mock_engine = MockQuakeEngine::new();
+        mock_engine.expect_get_max_clients().return_const(1);
+        MAIN_ENGINE.store(Some(mock_engine.into()));
+
+        let client_from_ctx = MockClient::from_context();
+        client_from_ctx
+            .expect()
+            .with(predicate::eq(0))
+            .returning(move |_| {
+                let mut mock_client = MockClient::new();
+                mock_client.expect_get_state().return_const(clientstate);
+                mock_client
+            });
+
+        let result = Python::with_gil(|py| force_vote(py, true)).unwrap();
+
+        assert_eq!(result, true);
+    }
+
+    #[test]
+    #[serial]
+    fn force_vote_for_active_client_with_no_game_client() {
+        let current_level_try_get_ctx = MockTestCurrentLevel::try_get_context();
+        current_level_try_get_ctx.expect().returning(|| {
+            let mut mock_level = MockTestCurrentLevel::new();
+            mock_level.expect_get_vote_time().return_const(21);
+            Ok(mock_level)
+        });
+
+        let mut mock_engine = MockQuakeEngine::new();
+        mock_engine.expect_get_max_clients().return_const(1);
+        MAIN_ENGINE.store(Some(mock_engine.into()));
+
+        let client_from_ctx = MockClient::from_context();
+        client_from_ctx
+            .expect()
+            .with(predicate::eq(0))
+            .returning(|_| {
+                let mut mock_client = MockClient::new();
+                mock_client
+                    .expect_get_state()
+                    .return_const(clientState_t::CS_ACTIVE);
+                mock_client
+            });
+        let game_entity_from_ctx = MockGameEntity::from_context();
+        game_entity_from_ctx
+            .expect()
+            .with(predicate::eq(0))
+            .returning(|_| {
+                let mut mock_game_entity = MockGameEntity::new();
+                mock_game_entity
+                    .expect_get_game_client()
+                    .returning(|| Err(QuakeLiveEngineError::MainEngineNotInitialized));
+                mock_game_entity
+            });
+
+        let result = Python::with_gil(|py| force_vote(py, true)).unwrap();
+
+        assert_eq!(result, true);
+    }
+
+    #[test]
+    #[serial]
+    fn force_vote_for_active_client_forces_vote() {
+        let current_level_try_get_ctx = MockTestCurrentLevel::try_get_context();
+        current_level_try_get_ctx.expect().returning(|| {
+            let mut mock_level = MockTestCurrentLevel::new();
+            mock_level.expect_get_vote_time().return_const(21);
+            Ok(mock_level)
+        });
+
+        let mut mock_engine = MockQuakeEngine::new();
+        mock_engine.expect_get_max_clients().return_const(1);
+        MAIN_ENGINE.store(Some(mock_engine.into()));
+
+        let client_from_ctx = MockClient::from_context();
+        client_from_ctx
+            .expect()
+            .with(predicate::eq(0))
+            .returning(|_| {
+                let mut mock_client = MockClient::new();
+                mock_client
+                    .expect_get_state()
+                    .return_const(clientState_t::CS_ACTIVE);
+                mock_client
+            });
+        let game_entity_from_ctx = MockGameEntity::from_context();
+        game_entity_from_ctx
+            .expect()
+            .with(predicate::eq(0))
+            .returning(|_| {
+                let mut mock_game_entity = MockGameEntity::new();
+                mock_game_entity.expect_get_game_client().returning(|| {
+                    let mut mock_game_client = MockGameClient::new();
+                    mock_game_client
+                        .expect_set_vote_state()
+                        .with(predicate::eq(true))
+                        .times(1);
+                    Ok(mock_game_client)
+                });
+                mock_game_entity
+            });
+
+        let result = Python::with_gil(|py| force_vote(py, true)).unwrap();
+
+        assert_eq!(result, true);
     }
 }
 
@@ -3480,7 +3609,9 @@ fn add_console_command(py: Python<'_>, command: &str) -> PyResult<()> {
 mod add_console_command_tests {
     use super::add_console_command;
     use super::MAIN_ENGINE;
+    use crate::commands::cmd_py_command;
     use crate::prelude::*;
+    use crate::quake_live_engine::MockQuakeEngine;
     use pyo3::exceptions::PyEnvironmentError;
     use pyo3::prelude::*;
 
@@ -3492,6 +3623,20 @@ mod add_console_command_tests {
             let result = add_console_command(py, "slap");
             assert!(result.is_err_and(|err| err.is_instance_of::<PyEnvironmentError>(py)));
         });
+    }
+
+    #[test]
+    #[serial]
+    fn add_console_command_adds_py_command_to_main_engine() {
+        let mut mock_engine = MockQuakeEngine::new();
+        mock_engine
+            .expect_add_command()
+            .withf(|cmd, &func| cmd == "asdf" && func == cmd_py_command)
+            .times(1);
+        MAIN_ENGINE.store(Some(mock_engine.into()));
+
+        let result = Python::with_gil(|py| add_console_command(py, "asdf"));
+        assert!(result.is_ok());
     }
 }
 
