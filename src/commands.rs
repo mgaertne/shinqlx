@@ -321,6 +321,7 @@ mod commands_tests {
     use crate::pyminqlx::pyminqlx_setup_fixture::*;
     use crate::pyminqlx::{PythonInitializationError, CUSTOM_COMMAND_HANDLER};
     use crate::quake_live_engine::MockQuakeEngine;
+    use mockall::predicate;
     use pyo3::types::PyModule;
     use pyo3::{IntoPy, Py, Python};
     #[cfg(not(miri))]
@@ -355,7 +356,7 @@ mod commands_tests {
             .times(1);
         mock_engine
             .expect_send_server_command()
-            .withf(move |client, command| client.is_none() && command == "asdf\n")
+            .withf(|client, command| client.is_none() && command == "asdf\n")
             .times(1);
         MAIN_ENGINE.store(Some(mock_engine.into()));
 
@@ -390,7 +391,7 @@ mod commands_tests {
             .times(1);
         mock_engine
             .expect_send_server_command()
-            .withf(move |client, command| client.is_none() && command == "cp \"asdf\"\n")
+            .withf(|client, command| client.is_none() && command == "cp \"asdf\"\n")
             .times(1);
         MAIN_ENGINE.store(Some(mock_engine.into()));
 
@@ -425,7 +426,7 @@ mod commands_tests {
             .times(1);
         mock_engine
             .expect_send_server_command()
-            .withf(move |client, command| client.is_none() && command == "print \"asdf\n\"\n")
+            .withf(|client, command| client.is_none() && command == "print \"asdf\n\"\n")
             .times(1);
         MAIN_ENGINE.store(Some(mock_engine.into()));
 
@@ -446,12 +447,14 @@ mod commands_tests {
         mock_engine.expect_cmd_argc().return_const(1).times(1);
         mock_engine
             .expect_cmd_argv()
-            .withf(|&argv| argv == 0)
+            .with(predicate::eq(0))
             .return_const(Some("!slap"))
             .times(1);
         mock_engine
             .expect_com_printf()
-            .withf(|text| text == "Usage: !slap <client_id> [damage]\n")
+            .with(predicate::eq(
+                "Usage: !slap <client_id> [damage]\n".to_string(),
+            ))
             .times(1);
         mock_engine.expect_get_max_clients().return_const(16);
         MAIN_ENGINE.store(Some(mock_engine.into()));
@@ -466,12 +469,14 @@ mod commands_tests {
         mock_engine.expect_cmd_argc().return_const(2).times(1);
         mock_engine
             .expect_cmd_argv()
-            .withf(|&argv| argv == 1)
+            .with(predicate::eq(1))
             .return_const(Some("2147483648"))
             .times(1);
         mock_engine
             .expect_com_printf()
-            .withf(|text| text == "client_id must be a number between 0 and 15.\n")
+            .with(predicate::eq(
+                "client_id must be a number between 0 and 15.\n".to_string(),
+            ))
             .times(1);
         mock_engine.expect_get_max_clients().return_const(16);
         MAIN_ENGINE.store(Some(mock_engine.into()));
@@ -486,12 +491,14 @@ mod commands_tests {
         mock_engine.expect_cmd_argc().return_const(2).times(1);
         mock_engine
             .expect_cmd_argv()
-            .withf(|&argv| argv == 1)
+            .with(predicate::eq(1))
             .return_const(Some("-1"))
             .times(1);
         mock_engine
             .expect_com_printf()
-            .withf(|text| text == "client_id must be a number between 0 and 15.\n")
+            .with(predicate::eq(
+                "client_id must be a number between 0 and 15.\n".to_string(),
+            ))
             .times(1);
         mock_engine.expect_get_max_clients().return_const(16);
         MAIN_ENGINE.store(Some(mock_engine.into()));
@@ -506,12 +513,14 @@ mod commands_tests {
         mock_engine.expect_cmd_argc().return_const(2).times(1);
         mock_engine
             .expect_cmd_argv()
-            .withf(|&argv| argv == 1)
+            .with(predicate::eq(1))
             .return_const(Some("42"))
             .times(1);
         mock_engine
             .expect_com_printf()
-            .withf(|text| text == "client_id must be a number between 0 and 15.\n")
+            .with(predicate::eq(
+                "client_id must be a number between 0 and 15.\n".to_string(),
+            ))
             .times(1);
         mock_engine.expect_get_max_clients().return_const(16);
         MAIN_ENGINE.store(Some(mock_engine.into()));
@@ -527,12 +536,14 @@ mod commands_tests {
         mock_engine.expect_cmd_argc().return_const(2).times(1);
         mock_engine
             .expect_cmd_argv()
-            .withf(|&argv| argv == 1)
+            .with(predicate::eq(1))
             .return_const(Some("2"))
             .times(1);
         mock_engine
             .expect_com_printf()
-            .withf(|text| text == "The player is currently not active.\n")
+            .with(predicate::eq(
+                "The player is currently not active.\n".to_string(),
+            ))
             .times(1);
         mock_engine.expect_get_max_clients().return_const(16);
         MAIN_ENGINE.store(Some(mock_engine.into()));
@@ -540,7 +551,7 @@ mod commands_tests {
         let game_entity_from_ctx = MockGameEntity::from_context();
         game_entity_from_ctx
             .expect()
-            .withf(|&client_id| client_id == 2)
+            .with(predicate::eq(2))
             .return_once(|_| {
                 let mut game_entity_mock = MockGameEntity::default();
                 game_entity_mock
@@ -562,12 +573,14 @@ mod commands_tests {
         mock_engine.expect_cmd_argc().return_const(2).times(1);
         mock_engine
             .expect_cmd_argv()
-            .withf(|&argv| argv == 1)
+            .with(predicate::eq(1))
             .return_const(Some("2"))
             .times(1);
         mock_engine
             .expect_com_printf()
-            .withf(|text| text == "The player is currently not active.\n")
+            .with(predicate::eq(
+                "The player is currently not active.\n".to_string(),
+            ))
             .times(1);
         mock_engine.expect_get_max_clients().return_const(16);
         MAIN_ENGINE.store(Some(mock_engine.into()));
@@ -575,7 +588,7 @@ mod commands_tests {
         let game_entity_from_ctx = MockGameEntity::from_context();
         game_entity_from_ctx
             .expect()
-            .withf(|&client_id| client_id == 2)
+            .with(predicate::eq(2))
             .return_once(|_| {
                 let mut game_entity_mock = MockGameEntity::default();
                 game_entity_mock.expect_in_use().return_const(true).times(1);
@@ -598,12 +611,12 @@ mod commands_tests {
         mock_engine.expect_cmd_argc().return_const(2).times(1);
         mock_engine
             .expect_cmd_argv()
-            .withf(|&argv| argv == 1)
+            .with(predicate::eq(1))
             .return_const(Some("2"))
             .times(1);
         mock_engine
             .expect_com_printf()
-            .withf(|text| text == "Slapping...\n")
+            .with(predicate::eq("Slapping...\n".to_string()))
             .times(1);
         mock_engine
             .expect_send_server_command()
@@ -613,7 +626,7 @@ mod commands_tests {
             .times(1);
         mock_engine
             .expect_game_add_event()
-            .withf(|_, &entity_event, &event_param| {
+            .withf(|_entity, &entity_event, &event_param| {
                 entity_event == entity_event_t::EV_PAIN && event_param == 99
             })
             .times(1);
@@ -623,7 +636,7 @@ mod commands_tests {
         let game_entity_from_ctx = MockGameEntity::from_context();
         game_entity_from_ctx
             .expect()
-            .withf(|&client_id| client_id == 2)
+            .with(predicate::eq(2))
             .return_once(|_| {
                 let mut game_entity_mock = MockGameEntity::default();
                 game_entity_mock.expect_in_use().return_const(true).times(1);
@@ -647,7 +660,7 @@ mod commands_tests {
         let client_from_ctx = MockClient::from_context();
         client_from_ctx
             .expect()
-            .withf(|&client_id| client_id == 2)
+            .with(predicate::eq(2))
             .return_once(|_| {
                 let mut client_mock = MockClient::default();
                 client_mock
@@ -669,17 +682,17 @@ mod commands_tests {
         mock_engine.expect_cmd_argc().return_const(3).times(1);
         mock_engine
             .expect_cmd_argv()
-            .withf(|&argv| argv == 1)
+            .with(predicate::eq(1))
             .return_const(Some("2"))
             .times(1);
         mock_engine
             .expect_cmd_argv()
-            .withf(|&argv| argv == 2)
+            .with(predicate::eq(2))
             .return_const(Some("1"))
             .times(1);
         mock_engine
             .expect_com_printf()
-            .withf(|text| text == "Slapping...\n")
+            .with(predicate::eq("Slapping...\n".to_string()))
             .times(1);
         mock_engine
             .expect_send_server_command()
@@ -690,7 +703,7 @@ mod commands_tests {
             .times(1);
         mock_engine
             .expect_game_add_event()
-            .withf(|_, &entity_event, &event_param| {
+            .withf(|_entity, &entity_event, &event_param| {
                 entity_event == entity_event_t::EV_PAIN && event_param == 99
             })
             .times(1);
@@ -700,7 +713,7 @@ mod commands_tests {
         let game_entity_from_ctx = MockGameEntity::from_context();
         game_entity_from_ctx
             .expect()
-            .withf(|&client_id| client_id == 2)
+            .with(predicate::eq(2))
             .return_once(|_| {
                 let mut game_entity_mock = MockGameEntity::default();
                 game_entity_mock.expect_in_use().return_const(true).times(1);
@@ -710,7 +723,7 @@ mod commands_tests {
                     .times(1..);
                 game_entity_mock
                     .expect_set_health()
-                    .withf(|&health| health == 199)
+                    .with(predicate::eq(199))
                     .times(1);
                 game_entity_mock
                     .expect_get_game_client()
@@ -728,7 +741,7 @@ mod commands_tests {
         let client_from_ctx = MockClient::from_context();
         client_from_ctx
             .expect()
-            .withf(|&client_id| client_id == 2)
+            .with(predicate::eq(2))
             .return_once(|_| {
                 let mut client_mock = MockClient::default();
                 client_mock
@@ -750,17 +763,17 @@ mod commands_tests {
         mock_engine.expect_cmd_argc().return_const(3).times(1);
         mock_engine
             .expect_cmd_argv()
-            .withf(|&argv| argv == 1)
+            .with(predicate::eq(1))
             .return_const(Some("2"))
             .times(1);
         mock_engine
             .expect_cmd_argv()
-            .withf(|&argv| argv == 2)
+            .with(predicate::eq(2))
             .return_const(Some("666"))
             .times(1);
         mock_engine
             .expect_com_printf()
-            .withf(|text| text == "Slapping...\n")
+            .with(predicate::eq("Slapping...\n".to_string()))
             .times(1);
         mock_engine
             .expect_send_server_command()
@@ -771,7 +784,7 @@ mod commands_tests {
             .times(1);
         mock_engine
             .expect_game_add_event()
-            .withf(|_, &entity_event, &event_param| {
+            .withf(|_entity, &entity_event, &event_param| {
                 entity_event == entity_event_t::EV_DEATH1 && event_param == 42
             })
             .times(1);
@@ -781,7 +794,7 @@ mod commands_tests {
         let game_entity_from_ctx = MockGameEntity::from_context();
         game_entity_from_ctx
             .expect()
-            .withf(|&client_id| client_id == 2)
+            .with(predicate::eq(2))
             .return_once(|_| {
                 let mut game_entity_mock = MockGameEntity::default();
                 game_entity_mock.expect_in_use().return_const(true).times(1);
@@ -791,7 +804,7 @@ mod commands_tests {
                     .times(1..);
                 game_entity_mock
                     .expect_set_health()
-                    .withf(|&health| health == -466)
+                    .with(predicate::eq(-466))
                     .times(1);
                 game_entity_mock
                     .expect_get_game_client()
@@ -813,7 +826,7 @@ mod commands_tests {
         let client_from_ctx = MockClient::from_context();
         client_from_ctx
             .expect()
-            .withf(|&client_id| client_id == 2)
+            .with(predicate::eq(2))
             .return_once(|_| {
                 let mut client_mock = MockClient::default();
                 client_mock
@@ -835,17 +848,17 @@ mod commands_tests {
         mock_engine.expect_cmd_argc().return_const(3).times(1);
         mock_engine
             .expect_cmd_argv()
-            .withf(|&argv| argv == 1)
+            .with(predicate::eq(1))
             .return_const(Some("2"))
             .times(1);
         mock_engine
             .expect_cmd_argv()
-            .withf(|&argv| argv == 2)
+            .with(predicate::eq(2))
             .return_const(Some("2147483648"))
             .times(1);
         mock_engine
             .expect_com_printf()
-            .withf(|text| text == "Slapping...\n")
+            .with(predicate::eq("Slapping...\n".to_string()))
             .times(1);
         mock_engine
             .expect_send_server_command()
@@ -855,7 +868,7 @@ mod commands_tests {
             .times(1);
         mock_engine
             .expect_game_add_event()
-            .withf(|_, &entity_event, &event_param| {
+            .withf(|_entity, &entity_event, &event_param| {
                 entity_event == entity_event_t::EV_PAIN && event_param == 99
             })
             .times(1);
@@ -865,7 +878,7 @@ mod commands_tests {
         let game_entity_from_ctx = MockGameEntity::from_context();
         game_entity_from_ctx
             .expect()
-            .withf(|&client_id| client_id == 2)
+            .with(predicate::eq(2))
             .return_once(|_| {
                 let mut game_entity_mock = MockGameEntity::default();
                 game_entity_mock.expect_in_use().return_const(true).times(1);
@@ -889,7 +902,7 @@ mod commands_tests {
         let client_from_ctx = MockClient::from_context();
         client_from_ctx
             .expect()
-            .withf(|&client_id| client_id == 2)
+            .with(predicate::eq(2))
             .return_once(|_| {
                 let mut client_mock = MockClient::default();
                 client_mock
@@ -917,12 +930,14 @@ mod commands_tests {
         mock_engine.expect_cmd_argc().return_const(1).times(1);
         mock_engine
             .expect_cmd_argv()
-            .withf(|&argv| argv == 0)
+            .with(predicate::eq(0))
             .return_const(Some("!slap"))
             .times(1);
         mock_engine
             .expect_com_printf()
-            .withf(|text| text == "Usage: !slap <client_id> [damage]\n")
+            .with(predicate::eq(
+                "Usage: !slap <client_id> [damage]\n".to_string(),
+            ))
             .times(1);
         mock_engine.expect_get_max_clients().return_const(16);
         MAIN_ENGINE.store(Some(mock_engine.into()));
@@ -937,12 +952,14 @@ mod commands_tests {
         mock_engine.expect_cmd_argc().return_const(2).times(1);
         mock_engine
             .expect_cmd_argv()
-            .withf(|&argv| argv == 1)
+            .with(predicate::eq(1))
             .return_const(Some("2147483648"))
             .times(1);
         mock_engine
             .expect_com_printf()
-            .withf(|text| text == "client_id must be a number between 0 and 15.\n")
+            .with(predicate::eq(
+                "client_id must be a number between 0 and 15.\n".to_string(),
+            ))
             .times(1);
         mock_engine.expect_get_max_clients().return_const(16);
         MAIN_ENGINE.store(Some(mock_engine.into()));
@@ -957,12 +974,14 @@ mod commands_tests {
         mock_engine.expect_cmd_argc().return_const(2).times(1);
         mock_engine
             .expect_cmd_argv()
-            .withf(|&argv| argv == 1)
+            .with(predicate::eq(1))
             .return_const(Some("-1"))
             .times(1);
         mock_engine
             .expect_com_printf()
-            .withf(|text| text == "client_id must be a number between 0 and 15.\n")
+            .with(predicate::eq(
+                "client_id must be a number between 0 and 15.\n".to_string(),
+            ))
             .times(1);
         mock_engine.expect_get_max_clients().return_const(16);
         MAIN_ENGINE.store(Some(mock_engine.into()));
@@ -977,12 +996,14 @@ mod commands_tests {
         mock_engine.expect_cmd_argc().return_const(2).times(1);
         mock_engine
             .expect_cmd_argv()
-            .withf(|&argv| argv == 1)
+            .with(predicate::eq(1))
             .return_const(Some("42"))
             .times(1);
         mock_engine
             .expect_com_printf()
-            .withf(|text| text == "client_id must be a number between 0 and 15.\n")
+            .with(predicate::eq(
+                "client_id must be a number between 0 and 15.\n".to_string(),
+            ))
             .times(1);
         mock_engine.expect_get_max_clients().return_const(16);
         MAIN_ENGINE.store(Some(mock_engine.into()));
@@ -998,12 +1019,14 @@ mod commands_tests {
         mock_engine.expect_cmd_argc().return_const(2).times(1);
         mock_engine
             .expect_cmd_argv()
-            .withf(|&argv| argv == 1)
+            .with(predicate::eq(1))
             .return_const(Some("2"))
             .times(1);
         mock_engine
             .expect_com_printf()
-            .withf(|text| text == "The player is currently not active.\n")
+            .with(predicate::eq(
+                "The player is currently not active.\n".to_string(),
+            ))
             .times(1);
         mock_engine.expect_get_max_clients().return_const(16);
         MAIN_ENGINE.store(Some(mock_engine.into()));
@@ -1011,7 +1034,7 @@ mod commands_tests {
         let game_entity_from_ctx = MockGameEntity::from_context();
         game_entity_from_ctx
             .expect()
-            .withf(|&client_id| client_id == 2)
+            .with(predicate::eq(2))
             .return_once(|_| {
                 let mut game_entity_mock = MockGameEntity::default();
                 game_entity_mock
@@ -1033,12 +1056,14 @@ mod commands_tests {
         mock_engine.expect_cmd_argc().return_const(2).times(1);
         mock_engine
             .expect_cmd_argv()
-            .withf(|&argv| argv == 1)
+            .with(predicate::eq(1))
             .return_const(Some("2"))
             .times(1);
         mock_engine
             .expect_com_printf()
-            .withf(|text| text == "The player is currently not active.\n")
+            .with(predicate::eq(
+                "The player is currently not active.\n".to_string(),
+            ))
             .times(1);
         mock_engine.expect_get_max_clients().return_const(16);
         MAIN_ENGINE.store(Some(mock_engine.into()));
@@ -1046,7 +1071,7 @@ mod commands_tests {
         let game_entity_from_ctx = MockGameEntity::from_context();
         game_entity_from_ctx
             .expect()
-            .withf(|&client_id| client_id == 2)
+            .with(predicate::eq(2))
             .return_once(|_| {
                 let mut game_entity_mock = MockGameEntity::default();
                 game_entity_mock.expect_in_use().return_const(true).times(1);
@@ -1068,12 +1093,12 @@ mod commands_tests {
         mock_engine.expect_cmd_argc().return_const(2).times(1);
         mock_engine
             .expect_cmd_argv()
-            .withf(|&argv| argv == 1)
+            .with(predicate::eq(1))
             .return_const(Some("2"))
             .times(1);
         mock_engine
             .expect_com_printf()
-            .withf(|text| text == "Slaying player...\n")
+            .with(predicate::eq("Slaying player...\n".to_string()))
             .times(1);
         mock_engine
             .expect_send_server_command()
@@ -1083,7 +1108,7 @@ mod commands_tests {
             .times(1);
         mock_engine
             .expect_game_add_event()
-            .withf(|_, &entity_event, &event_param| {
+            .withf(|_entity, &entity_event, &event_param| {
                 entity_event == entity_event_t::EV_GIB_PLAYER && event_param == 42
             })
             .times(1);
@@ -1093,7 +1118,7 @@ mod commands_tests {
         let game_entity_from_ctx = MockGameEntity::from_context();
         game_entity_from_ctx
             .expect()
-            .withf(|&client_id| client_id == 2)
+            .with(predicate::eq(2))
             .return_once(|_| {
                 let mut game_entity_mock = MockGameEntity::default();
                 game_entity_mock.expect_in_use().return_const(true).times(1);
@@ -1103,7 +1128,7 @@ mod commands_tests {
                     .times(1);
                 game_entity_mock
                     .expect_set_health()
-                    .withf(|&new_health| new_health < 0)
+                    .with(predicate::lt(0))
                     .times(1);
                 game_entity_mock
                     .expect_get_client_number()
@@ -1115,7 +1140,7 @@ mod commands_tests {
         let client_from_ctx = MockClient::from_context();
         client_from_ctx
             .expect()
-            .withf(|&client_id| client_id == 2)
+            .with(predicate::eq(2))
             .return_once(|_| {
                 let mut client_mock = MockClient::default();
                 client_mock
@@ -1162,7 +1187,7 @@ mod commands_tests {
         let rcon_dispatcher_ctx = rcon_dispatcher_context();
         rcon_dispatcher_ctx
             .expect::<String>()
-            .withf(|cmd| cmd == "!version")
+            .with(predicate::eq("!version".to_string()))
             .times(1);
 
         cmd_py_rcon();
@@ -1241,9 +1266,9 @@ def handler():
         mock_engine.expect_cmd_args().return_const(None).times(1);
         mock_engine
             .expect_com_printf()
-            .withf(|text| {
-                text == "The command failed to be executed. pyshinqlx found no handler.\n"
-            })
+            .with(predicate::eq(
+                "The command failed to be executed. pyshinqlx found no handler.\n".to_string(),
+            ))
             .times(1);
         MAIN_ENGINE.store(Some(mock_engine.into()));
 
@@ -1274,9 +1299,9 @@ def handler():
         mock_engine.expect_cmd_args().return_const(None).times(1);
         mock_engine
             .expect_com_printf()
-            .withf(|text| {
-                text == "The command failed to be executed. pyshinqlx found no handler.\n"
-            })
+            .with(predicate::eq(
+                "The command failed to be executed. pyshinqlx found no handler.\n".to_string(),
+            ))
             .times(1);
         MAIN_ENGINE.store(Some(mock_engine.into()));
 
@@ -1313,7 +1338,7 @@ def handler():
         let mut mock_engine = MockQuakeEngine::new();
         mock_engine
             .expect_com_printf()
-            .withf(|text| text == "Restarting Python...\n")
+            .with(predicate::eq("Restarting Python...\n".to_string()))
             .times(1);
         MAIN_ENGINE.store(Some(mock_engine.into()));
 
@@ -1327,7 +1352,7 @@ def handler():
         let new_game_dispatcher_ctx = new_game_dispatcher_context();
         new_game_dispatcher_ctx
             .expect()
-            .withf(|&new_game| !new_game)
+            .with(predicate::eq(false))
             .times(1);
 
         cmd_restart_python();
@@ -1339,7 +1364,7 @@ def handler():
         let mut mock_engine = MockQuakeEngine::new();
         mock_engine
             .expect_com_printf()
-            .withf(|text| text == "Restarting Python...\n")
+            .with(predicate::eq("Restarting Python...\n".to_string()))
             .times(1);
         MAIN_ENGINE.store(Some(mock_engine.into()));
 
@@ -1365,7 +1390,7 @@ def handler():
         let mut mock_engine = MockQuakeEngine::new();
         mock_engine
             .expect_com_printf()
-            .withf(|text| text == "Restarting Python...\n")
+            .with(predicate::eq("Restarting Python...\n".to_string()))
             .times(1);
         MAIN_ENGINE.store(Some(mock_engine.into()));
 
@@ -1382,7 +1407,7 @@ def handler():
         let new_game_dispatcher_ctx = new_game_dispatcher_context();
         new_game_dispatcher_ctx
             .expect()
-            .withf(|&value| !value)
+            .with(predicate::eq(false))
             .times(1);
 
         cmd_restart_python();
@@ -1394,7 +1419,7 @@ def handler():
         let mut mock_engine = MockQuakeEngine::new();
         mock_engine
             .expect_com_printf()
-            .withf(|text| text == "Restarting Python...\n")
+            .with(predicate::eq("Restarting Python...\n".to_string()))
             .times(1);
         MAIN_ENGINE.store(Some(mock_engine.into()));
 

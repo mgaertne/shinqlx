@@ -495,6 +495,7 @@ mod game_entity_tests {
     use crate::quake_live_engine::MockQuakeEngine;
     use alloc::ffi::CString;
     use core::ffi::c_int;
+    use mockall::predicate;
     use pretty_assertions::assert_eq;
 
     #[test]
@@ -1065,7 +1066,7 @@ mod game_entity_tests {
             let mut mock_game_client = MockGameClient::new();
             mock_game_client
                 .expect_set_armor()
-                .withf(|&armor: &i32| armor == 0)
+                .with(predicate::eq(0))
                 .times(0);
             Ok(mock_game_client)
         });
@@ -1086,7 +1087,7 @@ mod game_entity_tests {
             let mut mock_game_client = MockGameClient::new();
             mock_game_client
                 .expect_set_armor()
-                .withf(|&armor: &i32| armor == 0)
+                .with(predicate::eq(0))
                 .times(1);
             Ok(mock_game_client)
         });
@@ -1095,7 +1096,7 @@ mod game_entity_tests {
 
         let mut mock_engine = MockQuakeEngine::new();
         mock_engine.expect_register_damage().withf(
-            |_, _, _, _, _, damage, dmg_flags, mean_of_death| {
+            |_target, _inflictor, _attacker, _dir, _pos, damage, dmg_flags, mean_of_death| {
                 *damage == 84
                     && *dmg_flags == DAMAGE_NO_PROTECTION as c_int
                     && *mean_of_death == meansOfDeath_t::MOD_CRUSH as c_int
@@ -1115,7 +1116,7 @@ mod game_entity_tests {
             let mut mock_game_client = MockGameClient::new();
             mock_game_client
                 .expect_set_armor()
-                .withf(|&armor: &i32| armor == 0)
+                .with(predicate::eq(0))
                 .times(1);
             Ok(mock_game_client)
         });
@@ -1124,7 +1125,7 @@ mod game_entity_tests {
 
         let mut mock_engine = MockQuakeEngine::new();
         mock_engine.expect_register_damage().withf(
-            |_, _, _, _, _, damage, dmg_flags, mean_of_death| {
+            |_target, _inflictor, _attacker, _dir, _pos, damage, dmg_flags, mean_of_death| {
                 *damage == 200246
                     && *dmg_flags == DAMAGE_NO_PROTECTION as c_int
                     && *mean_of_death == meansOfDeath_t::MOD_KAMIKAZE as c_int
@@ -1401,7 +1402,7 @@ mod game_entity_tests {
         let mut mock_engine = MockQuakeEngine::new();
         mock_engine
             .expect_com_printf()
-            .withf(|text| text == "class_name");
+            .with(predicate::eq("class_name".to_string()));
         mock_engine.expect_free_entity();
         MAIN_ENGINE.store(Some(mock_engine.into()));
 
