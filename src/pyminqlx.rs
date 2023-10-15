@@ -4710,7 +4710,8 @@ mod player_stats_tests {
     use super::player_stats;
     use super::MAIN_ENGINE;
     use crate::prelude::*;
-    use pyo3::exceptions::PyEnvironmentError;
+    use crate::quake_live_engine::MockQuakeEngine;
+    use pyo3::exceptions::{PyEnvironmentError, PyValueError};
     use pyo3::prelude::*;
 
     #[test]
@@ -4720,6 +4721,32 @@ mod player_stats_tests {
         Python::with_gil(|py| {
             let result = player_stats(py, 21);
             assert!(result.is_err_and(|err| err.is_instance_of::<PyEnvironmentError>(py)));
+        });
+    }
+
+    #[test]
+    #[serial]
+    fn player_stats_for_client_id_too_small() {
+        let mut mock_engine = MockQuakeEngine::new();
+        mock_engine.expect_get_max_clients().returning(|| 16);
+        MAIN_ENGINE.store(Some(mock_engine.into()));
+
+        Python::with_gil(|py| {
+            let result = player_stats(py, -1);
+            assert!(result.is_err_and(|err| err.is_instance_of::<PyValueError>(py)));
+        });
+    }
+
+    #[test]
+    #[serial]
+    fn player_stats_for_client_id_too_large() {
+        let mut mock_engine = MockQuakeEngine::new();
+        mock_engine.expect_get_max_clients().returning(|| 16);
+        MAIN_ENGINE.store(Some(mock_engine.into()));
+
+        Python::with_gil(|py| {
+            let result = player_stats(py, 666);
+            assert!(result.is_err_and(|err| err.is_instance_of::<PyValueError>(py)));
         });
     }
 }
@@ -4748,8 +4775,8 @@ fn set_position(py: Python<'_>, client_id: i32, position: Vector3) -> PyResult<b
     py.allow_threads(move || match GameEntity::try_from(client_id) {
         Err(_) => Ok(false),
         Ok(game_entity) => {
-            let mut mutable_client = game_entity.get_game_client().unwrap();
-            mutable_client.set_position((position.0 as f32, position.1 as f32, position.2 as f32));
+            let mut game_client = game_entity.get_game_client().unwrap();
+            game_client.set_position((position.0 as f32, position.1 as f32, position.2 as f32));
             Ok(true)
         }
     })
@@ -4762,7 +4789,8 @@ mod set_position_tests {
     use super::MAIN_ENGINE;
     use crate::prelude::*;
     use crate::pyminqlx::Vector3;
-    use pyo3::exceptions::PyEnvironmentError;
+    use crate::quake_live_engine::MockQuakeEngine;
+    use pyo3::exceptions::{PyEnvironmentError, PyValueError};
     use pyo3::prelude::*;
 
     #[test]
@@ -4772,6 +4800,32 @@ mod set_position_tests {
         Python::with_gil(|py| {
             let result = set_position(py, 21, Vector3(1, 2, 3));
             assert!(result.is_err_and(|err| err.is_instance_of::<PyEnvironmentError>(py)));
+        });
+    }
+
+    #[test]
+    #[serial]
+    fn set_position_for_client_id_too_small() {
+        let mut mock_engine = MockQuakeEngine::new();
+        mock_engine.expect_get_max_clients().returning(|| 16);
+        MAIN_ENGINE.store(Some(mock_engine.into()));
+
+        Python::with_gil(|py| {
+            let result = set_position(py, -1, Vector3(1, 2, 3));
+            assert!(result.is_err_and(|err| err.is_instance_of::<PyValueError>(py)));
+        });
+    }
+
+    #[test]
+    #[serial]
+    fn set_position_for_client_id_too_large() {
+        let mut mock_engine = MockQuakeEngine::new();
+        mock_engine.expect_get_max_clients().returning(|| 16);
+        MAIN_ENGINE.store(Some(mock_engine.into()));
+
+        Python::with_gil(|py| {
+            let result = set_position(py, 666, Vector3(1, 2, 3));
+            assert!(result.is_err_and(|err| err.is_instance_of::<PyValueError>(py)));
         });
     }
 }
@@ -4814,7 +4868,8 @@ mod set_velocity_tests {
     use super::MAIN_ENGINE;
     use crate::prelude::*;
     use crate::pyminqlx::Vector3;
-    use pyo3::exceptions::PyEnvironmentError;
+    use crate::quake_live_engine::MockQuakeEngine;
+    use pyo3::exceptions::{PyEnvironmentError, PyValueError};
     use pyo3::prelude::*;
 
     #[test]
@@ -4824,6 +4879,32 @@ mod set_velocity_tests {
         Python::with_gil(|py| {
             let result = set_velocity(py, 21, Vector3(1, 2, 3));
             assert!(result.is_err_and(|err| err.is_instance_of::<PyEnvironmentError>(py)));
+        });
+    }
+
+    #[test]
+    #[serial]
+    fn set_velocity_for_client_id_too_small() {
+        let mut mock_engine = MockQuakeEngine::new();
+        mock_engine.expect_get_max_clients().returning(|| 16);
+        MAIN_ENGINE.store(Some(mock_engine.into()));
+
+        Python::with_gil(|py| {
+            let result = set_velocity(py, -1, Vector3(1, 2, 3));
+            assert!(result.is_err_and(|err| err.is_instance_of::<PyValueError>(py)));
+        });
+    }
+
+    #[test]
+    #[serial]
+    fn set_velocity_for_client_id_too_large() {
+        let mut mock_engine = MockQuakeEngine::new();
+        mock_engine.expect_get_max_clients().returning(|| 16);
+        MAIN_ENGINE.store(Some(mock_engine.into()));
+
+        Python::with_gil(|py| {
+            let result = set_velocity(py, 666, Vector3(1, 2, 3));
+            assert!(result.is_err_and(|err| err.is_instance_of::<PyValueError>(py)));
         });
     }
 }
@@ -4869,7 +4950,8 @@ mod noclip_tests {
     use super::noclip;
     use super::MAIN_ENGINE;
     use crate::prelude::*;
-    use pyo3::exceptions::PyEnvironmentError;
+    use crate::quake_live_engine::MockQuakeEngine;
+    use pyo3::exceptions::{PyEnvironmentError, PyValueError};
     use pyo3::prelude::*;
 
     #[test]
@@ -4879,6 +4961,32 @@ mod noclip_tests {
         Python::with_gil(|py| {
             let result = noclip(py, 21, true);
             assert!(result.is_err_and(|err| err.is_instance_of::<PyEnvironmentError>(py)));
+        });
+    }
+
+    #[test]
+    #[serial]
+    fn noclip_for_client_id_too_small() {
+        let mut mock_engine = MockQuakeEngine::new();
+        mock_engine.expect_get_max_clients().returning(|| 16);
+        MAIN_ENGINE.store(Some(mock_engine.into()));
+
+        Python::with_gil(|py| {
+            let result = noclip(py, -1, false);
+            assert!(result.is_err_and(|err| err.is_instance_of::<PyValueError>(py)));
+        });
+    }
+
+    #[test]
+    #[serial]
+    fn noclip_for_client_id_too_large() {
+        let mut mock_engine = MockQuakeEngine::new();
+        mock_engine.expect_get_max_clients().returning(|| 16);
+        MAIN_ENGINE.store(Some(mock_engine.into()));
+
+        Python::with_gil(|py| {
+            let result = noclip(py, 666, true);
+            assert!(result.is_err_and(|err| err.is_instance_of::<PyValueError>(py)));
         });
     }
 }
@@ -4920,7 +5028,8 @@ mod set_health_tests {
     use super::set_health;
     use super::MAIN_ENGINE;
     use crate::prelude::*;
-    use pyo3::exceptions::PyEnvironmentError;
+    use crate::quake_live_engine::MockQuakeEngine;
+    use pyo3::exceptions::{PyEnvironmentError, PyValueError};
     use pyo3::prelude::*;
 
     #[test]
@@ -4930,6 +5039,32 @@ mod set_health_tests {
         Python::with_gil(|py| {
             let result = set_health(py, 21, 666);
             assert!(result.is_err_and(|err| err.is_instance_of::<PyEnvironmentError>(py)));
+        });
+    }
+
+    #[test]
+    #[serial]
+    fn set_health_for_client_id_too_small() {
+        let mut mock_engine = MockQuakeEngine::new();
+        mock_engine.expect_get_max_clients().returning(|| 16);
+        MAIN_ENGINE.store(Some(mock_engine.into()));
+
+        Python::with_gil(|py| {
+            let result = set_health(py, -1, 666);
+            assert!(result.is_err_and(|err| err.is_instance_of::<PyValueError>(py)));
+        });
+    }
+
+    #[test]
+    #[serial]
+    fn set_health_for_client_id_too_large() {
+        let mut mock_engine = MockQuakeEngine::new();
+        mock_engine.expect_get_max_clients().returning(|| 16);
+        MAIN_ENGINE.store(Some(mock_engine.into()));
+
+        Python::with_gil(|py| {
+            let result = set_health(py, 666, 42);
+            assert!(result.is_err_and(|err| err.is_instance_of::<PyValueError>(py)));
         });
     }
 }
@@ -4971,7 +5106,8 @@ mod set_armor_tests {
     use super::set_armor;
     use super::MAIN_ENGINE;
     use crate::prelude::*;
-    use pyo3::exceptions::PyEnvironmentError;
+    use crate::quake_live_engine::MockQuakeEngine;
+    use pyo3::exceptions::{PyEnvironmentError, PyValueError};
     use pyo3::prelude::*;
 
     #[test]
@@ -4981,6 +5117,32 @@ mod set_armor_tests {
         Python::with_gil(|py| {
             let result = set_armor(py, 21, 666);
             assert!(result.is_err_and(|err| err.is_instance_of::<PyEnvironmentError>(py)));
+        });
+    }
+
+    #[test]
+    #[serial]
+    fn set_armor_for_client_id_too_small() {
+        let mut mock_engine = MockQuakeEngine::new();
+        mock_engine.expect_get_max_clients().returning(|| 16);
+        MAIN_ENGINE.store(Some(mock_engine.into()));
+
+        Python::with_gil(|py| {
+            let result = set_armor(py, -1, 42);
+            assert!(result.is_err_and(|err| err.is_instance_of::<PyValueError>(py)));
+        });
+    }
+
+    #[test]
+    #[serial]
+    fn set_armor_for_client_id_too_large() {
+        let mut mock_engine = MockQuakeEngine::new();
+        mock_engine.expect_get_max_clients().returning(|| 16);
+        MAIN_ENGINE.store(Some(mock_engine.into()));
+
+        Python::with_gil(|py| {
+            let result = set_armor(py, 666, 21);
+            assert!(result.is_err_and(|err| err.is_instance_of::<PyValueError>(py)));
         });
     }
 }
@@ -5023,7 +5185,8 @@ mod set_weapons_tests {
     use super::Weapons;
     use super::MAIN_ENGINE;
     use crate::prelude::*;
-    use pyo3::exceptions::PyEnvironmentError;
+    use crate::quake_live_engine::MockQuakeEngine;
+    use pyo3::exceptions::{PyEnvironmentError, PyValueError};
     use pyo3::prelude::*;
 
     #[test]
@@ -5033,6 +5196,36 @@ mod set_weapons_tests {
         Python::with_gil(|py| {
             let result = set_weapons(py, 21, Weapons(0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0));
             assert!(result.is_err_and(|err| err.is_instance_of::<PyEnvironmentError>(py)));
+        });
+    }
+
+    #[test]
+    #[serial]
+    fn set_weapons_for_client_id_too_small() {
+        let mut mock_engine = MockQuakeEngine::new();
+        mock_engine.expect_get_max_clients().returning(|| 16);
+        MAIN_ENGINE.store(Some(mock_engine.into()));
+
+        Python::with_gil(|py| {
+            let result = set_weapons(py, -1, Weapons(0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0));
+            assert!(result.is_err_and(|err| err.is_instance_of::<PyValueError>(py)));
+        });
+    }
+
+    #[test]
+    #[serial]
+    fn set_weapons_for_client_id_too_large() {
+        let mut mock_engine = MockQuakeEngine::new();
+        mock_engine.expect_get_max_clients().returning(|| 16);
+        MAIN_ENGINE.store(Some(mock_engine.into()));
+
+        Python::with_gil(|py| {
+            let result = set_weapons(
+                py,
+                666,
+                Weapons(0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0),
+            );
+            assert!(result.is_err_and(|err| err.is_instance_of::<PyValueError>(py)));
         });
     }
 }
@@ -5080,7 +5273,8 @@ mod set_weapon_tests {
     use super::set_weapon;
     use super::MAIN_ENGINE;
     use crate::prelude::*;
-    use pyo3::exceptions::PyEnvironmentError;
+    use crate::quake_live_engine::MockQuakeEngine;
+    use pyo3::exceptions::{PyEnvironmentError, PyValueError};
     use pyo3::prelude::*;
 
     #[test]
@@ -5090,6 +5284,32 @@ mod set_weapon_tests {
         Python::with_gil(|py| {
             let result = set_weapon(py, 21, weapon_t::WP_ROCKET_LAUNCHER.into());
             assert!(result.is_err_and(|err| err.is_instance_of::<PyEnvironmentError>(py)));
+        });
+    }
+
+    #[test]
+    #[serial]
+    fn set_weapon_for_client_id_too_small() {
+        let mut mock_engine = MockQuakeEngine::new();
+        mock_engine.expect_get_max_clients().returning(|| 16);
+        MAIN_ENGINE.store(Some(mock_engine.into()));
+
+        Python::with_gil(|py| {
+            let result = set_weapon(py, -1, weapon_t::WP_GRAPPLING_HOOK.into());
+            assert!(result.is_err_and(|err| err.is_instance_of::<PyValueError>(py)));
+        });
+    }
+
+    #[test]
+    #[serial]
+    fn set_weapon_for_client_id_too_large() {
+        let mut mock_engine = MockQuakeEngine::new();
+        mock_engine.expect_get_max_clients().returning(|| 16);
+        MAIN_ENGINE.store(Some(mock_engine.into()));
+
+        Python::with_gil(|py| {
+            let result = set_weapon(py, 666, weapon_t::WP_PROX_LAUNCHER.into());
+            assert!(result.is_err_and(|err| err.is_instance_of::<PyValueError>(py)));
         });
     }
 }
@@ -5132,7 +5352,8 @@ mod set_ammo_tests {
     use super::Weapons;
     use super::MAIN_ENGINE;
     use crate::prelude::*;
-    use pyo3::exceptions::PyEnvironmentError;
+    use crate::quake_live_engine::MockQuakeEngine;
+    use pyo3::exceptions::{PyEnvironmentError, PyValueError};
     use pyo3::prelude::*;
 
     #[test]
@@ -5142,6 +5363,36 @@ mod set_ammo_tests {
         Python::with_gil(|py| {
             let result = set_ammo(py, 21, Weapons(0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0));
             assert!(result.is_err_and(|err| err.is_instance_of::<PyEnvironmentError>(py)));
+        });
+    }
+
+    #[test]
+    #[serial]
+    fn set_ammo_for_client_id_too_small() {
+        let mut mock_engine = MockQuakeEngine::new();
+        mock_engine.expect_get_max_clients().returning(|| 16);
+        MAIN_ENGINE.store(Some(mock_engine.into()));
+
+        Python::with_gil(|py| {
+            let result = set_ammo(py, -1, Weapons(0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0));
+            assert!(result.is_err_and(|err| err.is_instance_of::<PyValueError>(py)));
+        });
+    }
+
+    #[test]
+    #[serial]
+    fn set_ammo_for_client_id_too_large() {
+        let mut mock_engine = MockQuakeEngine::new();
+        mock_engine.expect_get_max_clients().returning(|| 16);
+        MAIN_ENGINE.store(Some(mock_engine.into()));
+
+        Python::with_gil(|py| {
+            let result = set_ammo(
+                py,
+                666,
+                Weapons(0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0),
+            );
+            assert!(result.is_err_and(|err| err.is_instance_of::<PyValueError>(py)));
         });
     }
 }
@@ -5184,7 +5435,8 @@ mod set_powerups_tests {
     use super::Powerups;
     use super::MAIN_ENGINE;
     use crate::prelude::*;
-    use pyo3::exceptions::PyEnvironmentError;
+    use crate::quake_live_engine::MockQuakeEngine;
+    use pyo3::exceptions::{PyEnvironmentError, PyValueError};
     use pyo3::prelude::*;
 
     #[test]
@@ -5194,6 +5446,32 @@ mod set_powerups_tests {
         Python::with_gil(|py| {
             let result = set_powerups(py, 21, Powerups(0, 0, 0, 0, 0, 0));
             assert!(result.is_err_and(|err| err.is_instance_of::<PyEnvironmentError>(py)));
+        });
+    }
+
+    #[test]
+    #[serial]
+    fn set_powerups_for_client_id_too_small() {
+        let mut mock_engine = MockQuakeEngine::new();
+        mock_engine.expect_get_max_clients().returning(|| 16);
+        MAIN_ENGINE.store(Some(mock_engine.into()));
+
+        Python::with_gil(|py| {
+            let result = set_powerups(py, -1, Powerups(0, 0, 0, 0, 0, 0));
+            assert!(result.is_err_and(|err| err.is_instance_of::<PyValueError>(py)));
+        });
+    }
+
+    #[test]
+    #[serial]
+    fn set_powerups_for_client_id_too_large() {
+        let mut mock_engine = MockQuakeEngine::new();
+        mock_engine.expect_get_max_clients().returning(|| 16);
+        MAIN_ENGINE.store(Some(mock_engine.into()));
+
+        Python::with_gil(|py| {
+            let result = set_powerups(py, 666, Powerups(0, 0, 0, 0, 0, 0));
+            assert!(result.is_err_and(|err| err.is_instance_of::<PyValueError>(py)));
         });
     }
 }
@@ -5236,7 +5514,8 @@ mod set_holdable_tests {
     use super::set_holdable;
     use super::MAIN_ENGINE;
     use crate::prelude::*;
-    use pyo3::exceptions::PyEnvironmentError;
+    use crate::quake_live_engine::MockQuakeEngine;
+    use pyo3::exceptions::{PyEnvironmentError, PyValueError};
     use pyo3::prelude::*;
 
     #[test]
@@ -5246,6 +5525,32 @@ mod set_holdable_tests {
         Python::with_gil(|py| {
             let result = set_holdable(py, 21, holdable_t::HI_KAMIKAZE as i32);
             assert!(result.is_err_and(|err| err.is_instance_of::<PyEnvironmentError>(py)));
+        });
+    }
+
+    #[test]
+    #[serial]
+    fn set_holdable_for_client_id_too_small() {
+        let mut mock_engine = MockQuakeEngine::new();
+        mock_engine.expect_get_max_clients().returning(|| 16);
+        MAIN_ENGINE.store(Some(mock_engine.into()));
+
+        Python::with_gil(|py| {
+            let result = set_holdable(py, -1, holdable_t::HI_INVULNERABILITY as i32);
+            assert!(result.is_err_and(|err| err.is_instance_of::<PyValueError>(py)));
+        });
+    }
+
+    #[test]
+    #[serial]
+    fn set_holdable_for_client_id_too_large() {
+        let mut mock_engine = MockQuakeEngine::new();
+        mock_engine.expect_get_max_clients().returning(|| 16);
+        MAIN_ENGINE.store(Some(mock_engine.into()));
+
+        Python::with_gil(|py| {
+            let result = set_holdable(py, 666, holdable_t::HI_TELEPORTER as i32);
+            assert!(result.is_err_and(|err| err.is_instance_of::<PyValueError>(py)));
         });
     }
 }
@@ -5291,7 +5596,8 @@ mod drop_holdable_tests {
     use super::drop_holdable;
     use super::MAIN_ENGINE;
     use crate::prelude::*;
-    use pyo3::exceptions::PyEnvironmentError;
+    use crate::quake_live_engine::MockQuakeEngine;
+    use pyo3::exceptions::{PyEnvironmentError, PyValueError};
     use pyo3::prelude::*;
 
     #[test]
@@ -5301,6 +5607,32 @@ mod drop_holdable_tests {
         Python::with_gil(|py| {
             let result = drop_holdable(py, 21);
             assert!(result.is_err_and(|err| err.is_instance_of::<PyEnvironmentError>(py)));
+        });
+    }
+
+    #[test]
+    #[serial]
+    fn drop_holdable_for_client_id_too_small() {
+        let mut mock_engine = MockQuakeEngine::new();
+        mock_engine.expect_get_max_clients().returning(|| 16);
+        MAIN_ENGINE.store(Some(mock_engine.into()));
+
+        Python::with_gil(|py| {
+            let result = drop_holdable(py, -1);
+            assert!(result.is_err_and(|err| err.is_instance_of::<PyValueError>(py)));
+        });
+    }
+
+    #[test]
+    #[serial]
+    fn drop_holdable_for_client_id_too_large() {
+        let mut mock_engine = MockQuakeEngine::new();
+        mock_engine.expect_get_max_clients().returning(|| 16);
+        MAIN_ENGINE.store(Some(mock_engine.into()));
+
+        Python::with_gil(|py| {
+            let result = drop_holdable(py, 666);
+            assert!(result.is_err_and(|err| err.is_instance_of::<PyValueError>(py)));
         });
     }
 }
@@ -5343,7 +5675,8 @@ mod set_flight_tests {
     use super::Flight;
     use super::MAIN_ENGINE;
     use crate::prelude::*;
-    use pyo3::exceptions::PyEnvironmentError;
+    use crate::quake_live_engine::MockQuakeEngine;
+    use pyo3::exceptions::{PyEnvironmentError, PyValueError};
     use pyo3::prelude::*;
 
     #[test]
@@ -5353,6 +5686,32 @@ mod set_flight_tests {
         Python::with_gil(|py| {
             let result = set_flight(py, 21, Flight(0, 0, 0, 0));
             assert!(result.is_err_and(|err| err.is_instance_of::<PyEnvironmentError>(py)));
+        });
+    }
+
+    #[test]
+    #[serial]
+    fn set_flight_for_client_id_too_small() {
+        let mut mock_engine = MockQuakeEngine::new();
+        mock_engine.expect_get_max_clients().returning(|| 16);
+        MAIN_ENGINE.store(Some(mock_engine.into()));
+
+        Python::with_gil(|py| {
+            let result = set_flight(py, -1, Flight(0, 0, 0, 0));
+            assert!(result.is_err_and(|err| err.is_instance_of::<PyValueError>(py)));
+        });
+    }
+
+    #[test]
+    #[serial]
+    fn set_flight_for_client_id_too_large() {
+        let mut mock_engine = MockQuakeEngine::new();
+        mock_engine.expect_get_max_clients().returning(|| 16);
+        MAIN_ENGINE.store(Some(mock_engine.into()));
+
+        Python::with_gil(|py| {
+            let result = set_flight(py, 666, Flight(0, 0, 0, 0));
+            assert!(result.is_err_and(|err| err.is_instance_of::<PyValueError>(py)));
         });
     }
 }
@@ -5394,7 +5753,8 @@ mod set_invulnerability_tests {
     use super::set_invulnerability;
     use super::MAIN_ENGINE;
     use crate::prelude::*;
-    use pyo3::exceptions::PyEnvironmentError;
+    use crate::quake_live_engine::MockQuakeEngine;
+    use pyo3::exceptions::{PyEnvironmentError, PyValueError};
     use pyo3::prelude::*;
 
     #[test]
@@ -5404,6 +5764,32 @@ mod set_invulnerability_tests {
         Python::with_gil(|py| {
             let result = set_invulnerability(py, 21, 42);
             assert!(result.is_err_and(|err| err.is_instance_of::<PyEnvironmentError>(py)));
+        });
+    }
+
+    #[test]
+    #[serial]
+    fn set_invulnerability_for_client_id_too_small() {
+        let mut mock_engine = MockQuakeEngine::new();
+        mock_engine.expect_get_max_clients().returning(|| 16);
+        MAIN_ENGINE.store(Some(mock_engine.into()));
+
+        Python::with_gil(|py| {
+            let result = set_invulnerability(py, -1, 42);
+            assert!(result.is_err_and(|err| err.is_instance_of::<PyValueError>(py)));
+        });
+    }
+
+    #[test]
+    #[serial]
+    fn set_invulnerability_for_client_id_too_large() {
+        let mut mock_engine = MockQuakeEngine::new();
+        mock_engine.expect_get_max_clients().returning(|| 16);
+        MAIN_ENGINE.store(Some(mock_engine.into()));
+
+        Python::with_gil(|py| {
+            let result = set_invulnerability(py, 666, 42);
+            assert!(result.is_err_and(|err| err.is_instance_of::<PyValueError>(py)));
         });
     }
 }
@@ -5445,7 +5831,8 @@ mod set_score_tests {
     use super::set_score;
     use super::MAIN_ENGINE;
     use crate::prelude::*;
-    use pyo3::exceptions::PyEnvironmentError;
+    use crate::quake_live_engine::MockQuakeEngine;
+    use pyo3::exceptions::{PyEnvironmentError, PyValueError};
     use pyo3::prelude::*;
 
     #[test]
@@ -5455,6 +5842,32 @@ mod set_score_tests {
         Python::with_gil(|py| {
             let result = set_score(py, 21, 42);
             assert!(result.is_err_and(|err| err.is_instance_of::<PyEnvironmentError>(py)));
+        });
+    }
+
+    #[test]
+    #[serial]
+    fn set_score_for_client_id_too_small() {
+        let mut mock_engine = MockQuakeEngine::new();
+        mock_engine.expect_get_max_clients().returning(|| 16);
+        MAIN_ENGINE.store(Some(mock_engine.into()));
+
+        Python::with_gil(|py| {
+            let result = set_score(py, -1, 42);
+            assert!(result.is_err_and(|err| err.is_instance_of::<PyValueError>(py)));
+        });
+    }
+
+    #[test]
+    #[serial]
+    fn set_score_for_client_id_too_large() {
+        let mut mock_engine = MockQuakeEngine::new();
+        mock_engine.expect_get_max_clients().returning(|| 16);
+        MAIN_ENGINE.store(Some(mock_engine.into()));
+
+        Python::with_gil(|py| {
+            let result = set_score(py, 666, 42);
+            assert!(result.is_err_and(|err| err.is_instance_of::<PyValueError>(py)));
         });
     }
 }
@@ -5524,7 +5937,8 @@ mod player_spawn_tests {
     use super::player_spawn;
     use super::MAIN_ENGINE;
     use crate::prelude::*;
-    use pyo3::exceptions::PyEnvironmentError;
+    use crate::quake_live_engine::MockQuakeEngine;
+    use pyo3::exceptions::{PyEnvironmentError, PyValueError};
     use pyo3::prelude::*;
 
     #[test]
@@ -5534,6 +5948,32 @@ mod player_spawn_tests {
         Python::with_gil(|py| {
             let result = player_spawn(py, 21);
             assert!(result.is_err_and(|err| err.is_instance_of::<PyEnvironmentError>(py)));
+        });
+    }
+
+    #[test]
+    #[serial]
+    fn player_spawn_for_client_id_too_small() {
+        let mut mock_engine = MockQuakeEngine::new();
+        mock_engine.expect_get_max_clients().returning(|| 16);
+        MAIN_ENGINE.store(Some(mock_engine.into()));
+
+        Python::with_gil(|py| {
+            let result = player_spawn(py, -1);
+            assert!(result.is_err_and(|err| err.is_instance_of::<PyValueError>(py)));
+        });
+    }
+
+    #[test]
+    #[serial]
+    fn player_spawn_for_client_id_too_large() {
+        let mut mock_engine = MockQuakeEngine::new();
+        mock_engine.expect_get_max_clients().returning(|| 16);
+        MAIN_ENGINE.store(Some(mock_engine.into()));
+
+        Python::with_gil(|py| {
+            let result = player_spawn(py, 666);
+            assert!(result.is_err_and(|err| err.is_instance_of::<PyValueError>(py)));
         });
     }
 }
@@ -5578,7 +6018,8 @@ mod set_privileges_tests {
     use super::set_privileges;
     use super::MAIN_ENGINE;
     use crate::prelude::*;
-    use pyo3::exceptions::PyEnvironmentError;
+    use crate::quake_live_engine::MockQuakeEngine;
+    use pyo3::exceptions::{PyEnvironmentError, PyValueError};
     use pyo3::prelude::*;
 
     #[test]
@@ -5588,6 +6029,32 @@ mod set_privileges_tests {
         Python::with_gil(|py| {
             let result = set_privileges(py, 21, privileges_t::PRIV_MOD as i32);
             assert!(result.is_err_and(|err| err.is_instance_of::<PyEnvironmentError>(py)));
+        });
+    }
+
+    #[test]
+    #[serial]
+    fn set_privileges_for_client_id_too_small() {
+        let mut mock_engine = MockQuakeEngine::new();
+        mock_engine.expect_get_max_clients().returning(|| 16);
+        MAIN_ENGINE.store(Some(mock_engine.into()));
+
+        Python::with_gil(|py| {
+            let result = set_privileges(py, -1, privileges_t::PRIV_MOD as i32);
+            assert!(result.is_err_and(|err| err.is_instance_of::<PyValueError>(py)));
+        });
+    }
+
+    #[test]
+    #[serial]
+    fn set_privileges_for_client_id_too_large() {
+        let mut mock_engine = MockQuakeEngine::new();
+        mock_engine.expect_get_max_clients().returning(|| 16);
+        MAIN_ENGINE.store(Some(mock_engine.into()));
+
+        Python::with_gil(|py| {
+            let result = set_privileges(py, 666, privileges_t::PRIV_MOD as i32);
+            assert!(result.is_err_and(|err| err.is_instance_of::<PyValueError>(py)));
         });
     }
 }
@@ -5696,7 +6163,8 @@ mod slay_with_mod_tests {
     use super::slay_with_mod;
     use super::MAIN_ENGINE;
     use crate::prelude::*;
-    use pyo3::exceptions::PyEnvironmentError;
+    use crate::quake_live_engine::MockQuakeEngine;
+    use pyo3::exceptions::{PyEnvironmentError, PyValueError};
     use pyo3::prelude::*;
 
     #[test]
@@ -5706,6 +6174,32 @@ mod slay_with_mod_tests {
         Python::with_gil(|py| {
             let result = slay_with_mod(py, 21, meansOfDeath_t::MOD_TRIGGER_HURT as i32);
             assert!(result.is_err_and(|err| err.is_instance_of::<PyEnvironmentError>(py)));
+        });
+    }
+
+    #[test]
+    #[serial]
+    fn slay_with_mod_for_client_id_too_small() {
+        let mut mock_engine = MockQuakeEngine::new();
+        mock_engine.expect_get_max_clients().returning(|| 16);
+        MAIN_ENGINE.store(Some(mock_engine.into()));
+
+        Python::with_gil(|py| {
+            let result = slay_with_mod(py, -1, meansOfDeath_t::MOD_TRIGGER_HURT as i32);
+            assert!(result.is_err_and(|err| err.is_instance_of::<PyValueError>(py)));
+        });
+    }
+
+    #[test]
+    #[serial]
+    fn slay_with_mod_for_client_id_too_large() {
+        let mut mock_engine = MockQuakeEngine::new();
+        mock_engine.expect_get_max_clients().returning(|| 16);
+        MAIN_ENGINE.store(Some(mock_engine.into()));
+
+        Python::with_gil(|py| {
+            let result = slay_with_mod(py, 666, meansOfDeath_t::MOD_TRIGGER_HURT as i32);
+            assert!(result.is_err_and(|err| err.is_instance_of::<PyValueError>(py)));
         });
     }
 }
