@@ -4403,7 +4403,7 @@ weapons = _minqlx.Flight((0, 1, 2, 3))
 /// Information about a player's state in the game.
 #[pyclass]
 #[pyo3(module = "minqlx", name = "PlayerState", get_all)]
-#[allow(unused)]
+#[derive(Debug, PartialEq)]
 struct PlayerState {
     /// Whether the player's alive or not.
     is_alive: bool,
@@ -4559,8 +4559,12 @@ fn player_state(py: Python<'_>, client_id: i32) -> PyResult<Option<PlayerState>>
 mod player_state_tests {
     use super::player_state;
     use super::MAIN_ENGINE;
+    use crate::game_entity::MockGameEntity;
     use crate::prelude::*;
-    use pyo3::exceptions::PyEnvironmentError;
+    use crate::quake_live_engine::MockQuakeEngine;
+    use mockall::predicate;
+    use pretty_assertions::assert_eq;
+    use pyo3::exceptions::{PyEnvironmentError, PyValueError};
     use pyo3::prelude::*;
 
     #[test]
@@ -4572,12 +4576,61 @@ mod player_state_tests {
             assert!(result.is_err_and(|err| err.is_instance_of::<PyEnvironmentError>(py)));
         });
     }
+
+    #[test]
+    #[serial]
+    fn player_state_for_client_id_too_small() {
+        let mut mock_engine = MockQuakeEngine::new();
+        mock_engine.expect_get_max_clients().returning(|| 16);
+        MAIN_ENGINE.store(Some(mock_engine.into()));
+
+        Python::with_gil(|py| {
+            let result = player_state(py, -1);
+            assert!(result.is_err_and(|err| err.is_instance_of::<PyValueError>(py)));
+        });
+    }
+
+    #[test]
+    #[serial]
+    fn player_state_for_client_id_too_large() {
+        let mut mock_engine = MockQuakeEngine::new();
+        mock_engine.expect_get_max_clients().returning(|| 16);
+        MAIN_ENGINE.store(Some(mock_engine.into()));
+
+        Python::with_gil(|py| {
+            let result = player_state(py, 666);
+            assert!(result.is_err_and(|err| err.is_instance_of::<PyValueError>(py)));
+        });
+    }
+
+    #[test]
+    #[serial]
+    fn player_state_for_client_without_game_client() {
+        let mut mock_engine = MockQuakeEngine::new();
+        mock_engine.expect_get_max_clients().returning(|| 16);
+        MAIN_ENGINE.store(Some(mock_engine.into()));
+
+        let game_entity_from_ctx = MockGameEntity::from_context();
+        game_entity_from_ctx
+            .expect()
+            .with(predicate::eq(2))
+            .returning(|_| {
+                let mut mock_game_entity = MockGameEntity::new();
+                mock_game_entity
+                    .expect_get_game_client()
+                    .returning(|| Err(QuakeLiveEngineError::MainEngineNotInitialized));
+                mock_game_entity
+            });
+
+        let result = Python::with_gil(|py| player_state(py, 2)).unwrap();
+        assert_eq!(result, None);
+    }
 }
 
 /// A player's score and some basic stats.
 #[pyclass]
 #[pyo3(module = "minqlx", name = "PlayerStats", get_all)]
-#[allow(unused)]
+#[derive(Debug, PartialEq)]
 struct PlayerStats {
     /// The player's primary score.
     score: i32,
@@ -5688,7 +5741,6 @@ fn determine_item_id(item: &PyAny) -> PyResult<i32> {
 }
 
 /// Replaces target entity's item with specified one.
-#[allow(unused_variables)]
 #[pyfunction]
 #[pyo3(name = "replace_items")]
 #[pyo3(signature = (item1, item2))]
