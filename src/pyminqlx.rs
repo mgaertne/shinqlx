@@ -125,12 +125,10 @@ pub(crate) fn frame_dispatcher() {
         return;
     };
 
-    Python::with_gil(|py| {
-        let result = frame_handler.call0(py);
-        if result.is_err() {
-            error!(target: "shinqlx", "frame_handler returned an error.");
-        }
-    });
+    let result = Python::with_gil(|py| frame_handler.call0(py));
+    if result.is_err() {
+        error!(target: "shinqlx", "frame_handler returned an error.");
+    }
 }
 
 pub(crate) fn client_connect_dispatcher(client_id: i32, is_bot: bool) -> Option<String> {
@@ -185,12 +183,13 @@ where
 
     let allowed_clients = ALLOW_FREE_CLIENT.load(Ordering::SeqCst);
     ALLOW_FREE_CLIENT.store(allowed_clients | client_id as u64, Ordering::SeqCst);
-    Python::with_gil(|py| {
-        let result = client_disconnect_handler.call1(py, (client_id, reason.as_ref()));
-        if result.is_err() {
-            error!(target: "shinqlx", "client_disconnect_handler returned an error.");
-        }
-    });
+
+    let result =
+        Python::with_gil(|py| client_disconnect_handler.call1(py, (client_id, reason.as_ref())));
+    if result.is_err() {
+        error!(target: "shinqlx", "client_disconnect_handler returned an error.");
+    }
+
     let allowed_clients = ALLOW_FREE_CLIENT.load(Ordering::SeqCst);
     ALLOW_FREE_CLIENT.store(allowed_clients & !client_id as u64, Ordering::SeqCst);
 }
@@ -204,12 +203,10 @@ pub(crate) fn client_loaded_dispatcher(client_id: i32) {
         return;
     };
 
-    Python::with_gil(|py| {
-        let returned_value = client_loaded_handler.call1(py, (client_id,));
-        if returned_value.is_err() {
-            error!(target: "shinqlx", "client_loaded_handler returned an error.");
-        }
-    });
+    let result = Python::with_gil(|py| client_loaded_handler.call1(py, (client_id,)));
+    if result.is_err() {
+        error!(target: "shinqlx", "client_loaded_handler returned an error.");
+    }
 }
 
 pub(crate) fn new_game_dispatcher(restart: bool) {
@@ -221,12 +218,10 @@ pub(crate) fn new_game_dispatcher(restart: bool) {
         return;
     };
 
-    Python::with_gil(|py| {
-        let result = new_game_handler.call1(py, (restart,));
-        if result.is_err() {
-            error!(target: "shinqlx", "new_game_handler returned an error.");
-        }
-    });
+    let result = Python::with_gil(|py| new_game_handler.call1(py, (restart,)));
+    if result.is_err() {
+        error!(target: "shinqlx", "new_game_handler returned an error.");
+    }
 }
 
 pub(crate) fn set_configstring_dispatcher<T, U>(index: T, value: U) -> Option<String>
@@ -277,12 +272,10 @@ where
         return;
     };
 
-    Python::with_gil(|py| {
-        let result = rcon_handler.call1(py, (cmd.as_ref(),));
-        if result.is_err() {
-            error!(target: "shinqlx", "rcon_handler returned an error.");
-        }
-    });
+    let result = Python::with_gil(|py| rcon_handler.call1(py, (cmd.as_ref(),)));
+    if result.is_err() {
+        error!(target: "shinqlx", "rcon_handler returned an error.");
+    }
 }
 
 pub(crate) fn console_print_dispatcher<T>(text: T) -> Option<String>
@@ -329,12 +322,10 @@ pub(crate) fn client_spawn_dispatcher(client_id: i32) {
         return;
     };
 
-    Python::with_gil(|py| {
-        let result = client_spawn_handler.call1(py, (client_id,));
-        if result.is_err() {
-            error!(target: "shinqlx", "client_spawn_handler returned an error.");
-        }
-    });
+    let result = Python::with_gil(|py| client_spawn_handler.call1(py, (client_id,)));
+    if result.is_err() {
+        error!(target: "shinqlx", "client_spawn_handler returned an error.");
+    }
 }
 
 pub(crate) fn kamikaze_use_dispatcher(client_id: i32) {
@@ -346,12 +337,10 @@ pub(crate) fn kamikaze_use_dispatcher(client_id: i32) {
         return;
     };
 
-    Python::with_gil(|py| {
-        let result = kamikaze_use_handler.call1(py, (client_id,));
-        if result.is_err() {
-            error!(target: "shinqlx", "kamikaze_use_handler returned an error.");
-        }
-    });
+    let result = Python::with_gil(|py| kamikaze_use_handler.call1(py, (client_id,)));
+    if result.is_err() {
+        error!(target: "shinqlx", "kamikaze_use_handler returned an error.");
+    }
 }
 
 pub(crate) fn kamikaze_explode_dispatcher(client_id: i32, is_used_on_demand: bool) {
@@ -363,12 +352,11 @@ pub(crate) fn kamikaze_explode_dispatcher(client_id: i32, is_used_on_demand: boo
         return;
     };
 
-    Python::with_gil(|py| {
-        let result = kamikaze_explode_handler.call1(py, (client_id, is_used_on_demand));
-        if result.is_err() {
-            error!(target: "shinqlx", "kamikaze_explode_handler returned an error.");
-        }
-    });
+    let result =
+        Python::with_gil(|py| kamikaze_explode_handler.call1(py, (client_id, is_used_on_demand)));
+    if result.is_err() {
+        error!(target: "shinqlx", "kamikaze_explode_handler returned an error.");
+    }
 }
 
 pub(crate) fn damage_dispatcher(
@@ -386,8 +374,8 @@ pub(crate) fn damage_dispatcher(
         return;
     };
 
-    Python::with_gil(|py| {
-        let returned_value = damage_handler.call1(
+    let result = Python::with_gil(|py| {
+        damage_handler.call1(
             py,
             (
                 target_client_id,
@@ -396,11 +384,11 @@ pub(crate) fn damage_dispatcher(
                 dflags,
                 means_of_death,
             ),
-        );
-        if returned_value.is_err() {
-            error!(target: "shinqlx", "damage_handler returned an error.");
-        }
+        )
     });
+    if result.is_err() {
+        error!(target: "shinqlx", "damage_handler returned an error.");
+    }
 }
 
 #[cfg(test)]
@@ -2055,7 +2043,7 @@ mod get_player_info_tests {
         Python::with_gil(|py| {
             let result = get_player_info(py, 0);
             assert!(result.is_err_and(|err| err.is_instance_of::<PyEnvironmentError>(py)));
-        })
+        });
     }
 
     #[test]
@@ -2067,7 +2055,7 @@ mod get_player_info_tests {
         Python::with_gil(|py| {
             let result = get_player_info(py, -1);
             assert!(result.is_err_and(|err| err.is_instance_of::<PyValueError>(py)));
-        })
+        });
     }
 
     #[test]
@@ -2079,7 +2067,7 @@ mod get_player_info_tests {
         Python::with_gil(|py| {
             let result = get_player_info(py, 42);
             assert!(result.is_err_and(|err| err.is_instance_of::<PyValueError>(py)));
-        })
+        });
     }
 
     #[test]
@@ -2255,7 +2243,7 @@ mod get_players_info_tests {
         Python::with_gil(|py| {
             let result = get_players_info(py);
             assert!(result.is_err_and(|err| err.is_instance_of::<PyEnvironmentError>(py)));
-        })
+        });
     }
 }
 
@@ -2313,7 +2301,7 @@ mod get_userinfo_tests {
         Python::with_gil(|py| {
             let result = get_userinfo(py, 0);
             assert!(result.is_err_and(|err| err.is_instance_of::<PyEnvironmentError>(py)));
-        })
+        });
     }
 
     #[test]
@@ -2325,7 +2313,7 @@ mod get_userinfo_tests {
         Python::with_gil(|py| {
             let result = get_userinfo(py, -1);
             assert!(result.is_err_and(|err| err.is_instance_of::<PyValueError>(py)));
-        })
+        });
     }
 
     #[test]
@@ -2337,7 +2325,7 @@ mod get_userinfo_tests {
         Python::with_gil(|py| {
             let result = get_userinfo(py, 42);
             assert!(result.is_err_and(|err| err.is_instance_of::<PyValueError>(py)));
-        })
+        });
     }
 
     #[test]
@@ -2466,6 +2454,7 @@ mod send_server_command_tests {
     use crate::hooks::mock_hooks::shinqlx_send_server_command_context;
     use crate::prelude::*;
     use crate::quake_live_engine::MockQuakeEngine;
+    use pretty_assertions::assert_eq;
     use pyo3::exceptions::{PyEnvironmentError, PyValueError};
     use pyo3::prelude::*;
     use rstest::rstest;
@@ -2478,8 +2467,8 @@ mod send_server_command_tests {
             .expect()
             .withf(|client, cmd| client.is_none() && cmd == "asdf")
             .times(1);
-        let result = Python::with_gil(|py| send_server_command(py, None, "asdf"));
-        assert!(result.is_ok_and(|value| value));
+        let result = Python::with_gil(|py| send_server_command(py, None, "asdf")).unwrap();
+        assert_eq!(result, true);
     }
 
     #[test]
@@ -2493,7 +2482,7 @@ mod send_server_command_tests {
         Python::with_gil(|py| {
             let result = send_server_command(py, Some(0), "asdf");
             assert!(result.is_err_and(|err| err.is_instance_of::<PyEnvironmentError>(py)));
-        })
+        });
     }
 
     #[test]
@@ -2509,7 +2498,7 @@ mod send_server_command_tests {
         Python::with_gil(|py| {
             let result = send_server_command(py, Some(-1), "asdf");
             assert!(result.is_err_and(|err| err.is_instance_of::<PyValueError>(py)));
-        })
+        });
     }
 
     #[test]
@@ -2525,7 +2514,7 @@ mod send_server_command_tests {
         Python::with_gil(|py| {
             let result = send_server_command(py, Some(42), "asdf");
             assert!(result.is_err_and(|err| err.is_instance_of::<PyValueError>(py)));
-        })
+        });
     }
 
     #[test]
@@ -2550,8 +2539,8 @@ mod send_server_command_tests {
             .withf(|client, cmd| client.is_some() && cmd == "asdf")
             .times(1);
 
-        let result = Python::with_gil(|py| send_server_command(py, Some(2), "asdf"));
-        assert!(result.is_ok_and(|value| value));
+        let result = Python::with_gil(|py| send_server_command(py, Some(2), "asdf")).unwrap();
+        assert_eq!(result, true);
     }
 
     #[rstest]
@@ -2575,8 +2564,8 @@ mod send_server_command_tests {
         let hook_ctx = shinqlx_send_server_command_context();
         hook_ctx.expect().times(0);
 
-        let result = Python::with_gil(|py| send_server_command(py, Some(2), "asdf"));
-        assert!(result.is_ok_and(|value| !value));
+        let result = Python::with_gil(|py| send_server_command(py, Some(2), "asdf")).unwrap();
+        assert_eq!(result, false);
     }
 }
 
@@ -2623,6 +2612,7 @@ mod client_command_tests {
     use crate::hooks::mock_hooks::shinqlx_execute_client_command_context;
     use crate::prelude::*;
     use crate::quake_live_engine::MockQuakeEngine;
+    use pretty_assertions::assert_eq;
     use pyo3::exceptions::{PyEnvironmentError, PyValueError};
     use pyo3::prelude::*;
     use rstest::*;
@@ -2634,7 +2624,7 @@ mod client_command_tests {
         Python::with_gil(|py| {
             let result = client_command(py, 0, "asdf");
             assert!(result.is_err_and(|err| err.is_instance_of::<PyEnvironmentError>(py)));
-        })
+        });
     }
 
     #[test]
@@ -2650,7 +2640,7 @@ mod client_command_tests {
         Python::with_gil(|py| {
             let result = client_command(py, -1, "asdf");
             assert!(result.is_err_and(|err| err.is_instance_of::<PyValueError>(py)));
-        })
+        });
     }
 
     #[test]
@@ -2666,7 +2656,7 @@ mod client_command_tests {
         Python::with_gil(|py| {
             let result = client_command(py, 42, "asdf");
             assert!(result.is_err_and(|err| err.is_instance_of::<PyValueError>(py)));
-        })
+        });
     }
 
     #[rstest]
@@ -2692,8 +2682,8 @@ mod client_command_tests {
             .withf(|client, cmd, &client_ok| client.is_some() && cmd == "asdf" && client_ok)
             .times(1);
 
-        let result = Python::with_gil(|py| client_command(py, 2, "asdf"));
-        assert!(result.is_ok_and(|value| value));
+        let result = Python::with_gil(|py| client_command(py, 2, "asdf")).unwrap();
+        assert_eq!(result, true);
     }
 
     #[rstest]
@@ -2715,8 +2705,8 @@ mod client_command_tests {
         let hook_ctx = shinqlx_execute_client_command_context();
         hook_ctx.expect().times(0);
 
-        let result = Python::with_gil(|py| client_command(py, 2, "asdf"));
-        assert!(result.is_ok_and(|value| !value));
+        let result = Python::with_gil(|py| client_command(py, 2, "asdf")).unwrap();
+        assert_eq!(result, false);
     }
 }
 
@@ -2754,7 +2744,7 @@ mod console_command_tests {
         Python::with_gil(|py| {
             let result = console_command(py, "asdf");
             assert!(result.is_err_and(|err| err.is_instance_of::<PyEnvironmentError>(py)));
-        })
+        });
     }
 
     #[test]
@@ -2767,10 +2757,8 @@ mod console_command_tests {
             .times(1);
         MAIN_ENGINE.store(Some(mock_engine.into()));
 
-        Python::with_gil(|py| {
-            let result = console_command(py, "asdf");
-            assert!(result.is_ok());
-        })
+        let result = Python::with_gil(|py| console_command(py, "asdf"));
+        assert!(result.is_ok());
     }
 }
 
@@ -2802,6 +2790,7 @@ mod get_cvar_tests {
     use crate::quake_live_engine::MockQuakeEngine;
     use alloc::ffi::CString;
     use core::ffi::c_char;
+    use pretty_assertions::assert_eq;
     use pyo3::exceptions::PyEnvironmentError;
     use pyo3::prelude::*;
 
@@ -2826,10 +2815,8 @@ mod get_cvar_tests {
             .times(1);
         MAIN_ENGINE.store(Some(mock_engine.into()));
 
-        Python::with_gil(|py| {
-            let result = get_cvar(py, "asdf");
-            assert!(result.is_ok_and(|value| value.is_none()));
-        });
+        let result = Python::with_gil(|py| get_cvar(py, "asdf")).unwrap();
+        assert_eq!(result, None);
     }
 
     #[test]
@@ -2851,10 +2838,8 @@ mod get_cvar_tests {
             .times(1);
         MAIN_ENGINE.store(Some(mock_engine.into()));
 
-        Python::with_gil(|py| {
-            let result = get_cvar(py, "sv_maxclients");
-            assert!(result.is_ok_and(|value| value.is_some_and(|cvar_string| cvar_string == "16")));
-        });
+        let result = Python::with_gil(|py| get_cvar(py, "sv_maxclients")).unwrap();
+        assert_eq!(result, Some("16".into()));
     }
 }
 
@@ -2895,6 +2880,7 @@ mod set_cvar_tests {
     use crate::cvar::CVar;
     use crate::prelude::*;
     use crate::quake_live_engine::MockQuakeEngine;
+    use pretty_assertions::assert_eq;
     use pyo3::exceptions::PyEnvironmentError;
     use pyo3::prelude::*;
 
@@ -2905,7 +2891,7 @@ mod set_cvar_tests {
         Python::with_gil(|py| {
             let result = set_cvar(py, "sv_maxclients", "64", None);
             assert!(result.is_err_and(|err| err.is_instance_of::<PyEnvironmentError>(py)));
-        })
+        });
     }
 
     #[test]
@@ -2927,10 +2913,11 @@ mod set_cvar_tests {
             .times(1);
         MAIN_ENGINE.store(Some(mock_engine.into()));
 
-        Python::with_gil(|py| {
-            let result = set_cvar(py, "sv_maxclients", "64", Some(cvar_flags::CVAR_ROM as i32));
-            assert!(result.is_ok_and(|result_value| result_value));
+        let result = Python::with_gil(|py| {
+            set_cvar(py, "sv_maxclients", "64", Some(cvar_flags::CVAR_ROM as i32))
         })
+        .unwrap();
+        assert_eq!(result, true);
     }
 
     #[test]
@@ -2952,10 +2939,11 @@ mod set_cvar_tests {
             .times(1);
         MAIN_ENGINE.store(Some(mock_engine.into()));
 
-        Python::with_gil(|py| {
-            let result = set_cvar(py, "sv_maxclients", "64", Some(cvar_flags::CVAR_ROM as i32));
-            assert!(result.is_ok_and(|result_value| !result_value));
+        let result = Python::with_gil(|py| {
+            set_cvar(py, "sv_maxclients", "64", Some(cvar_flags::CVAR_ROM as i32))
         })
+        .unwrap();
+        assert_eq!(result, false);
     }
 }
 
@@ -3001,7 +2989,7 @@ mod set_cvar_limit_tests {
         Python::with_gil(|py| {
             let result = set_cvar_limit(py, "sv_maxclients", "64", "1", "64", None);
             assert!(result.is_err_and(|err| err.is_instance_of::<PyEnvironmentError>(py)));
-        })
+        });
     }
 
     #[test]
@@ -3020,17 +3008,17 @@ mod set_cvar_limit_tests {
             .times(1);
         MAIN_ENGINE.store(Some(mock_engine.into()));
 
-        Python::with_gil(|py| {
-            let result = set_cvar_limit(
+        let result = Python::with_gil(|py| {
+            set_cvar_limit(
                 py,
                 "sv_maxclients",
                 "64",
                 "1",
                 "64",
                 Some(cvar_flags::CVAR_CHEAT as i32),
-            );
-            assert!(result.is_ok());
-        })
+            )
+        });
+        assert!(result.is_ok());
     }
 }
 
@@ -3099,7 +3087,7 @@ mod kick_tests {
         Python::with_gil(|py| {
             let result = kick(py, 0, None);
             assert!(result.is_err_and(|err| err.is_instance_of::<PyEnvironmentError>(py)));
-        })
+        });
     }
 
     #[test]
@@ -3112,7 +3100,7 @@ mod kick_tests {
         Python::with_gil(|py| {
             let result = kick(py, -1, None);
             assert!(result.is_err_and(|err| err.is_instance_of::<PyValueError>(py)));
-        })
+        });
     }
 
     #[test]
@@ -3125,7 +3113,7 @@ mod kick_tests {
         Python::with_gil(|py| {
             let result = kick(py, 42, None);
             assert!(result.is_err_and(|err| err.is_instance_of::<PyValueError>(py)));
-        })
+        });
     }
 
     #[rstest]
@@ -3152,7 +3140,7 @@ mod kick_tests {
         Python::with_gil(|py| {
             let result = kick(py, 2, None);
             assert!(result.is_err_and(|err| err.is_instance_of::<PyValueError>(py)));
-        })
+        });
     }
 
     #[test]
@@ -3180,10 +3168,8 @@ mod kick_tests {
             .withf(|_, reason| reason == "was kicked.")
             .times(1);
 
-        Python::with_gil(|py| {
-            let result = kick(py, 2, None);
-            assert!(result.is_ok());
-        })
+        let result = Python::with_gil(|py| kick(py, 2, None));
+        assert!(result.is_ok());
     }
 
     #[test]
@@ -3211,10 +3197,8 @@ mod kick_tests {
             .withf(|_, reason| reason == "please go away!")
             .times(1);
 
-        Python::with_gil(|py| {
-            let result = kick(py, 2, Some("please go away!"));
-            assert!(result.is_ok());
-        })
+        let result = Python::with_gil(|py| kick(py, 2, Some("please go away!")));
+        assert!(result.is_ok());
     }
 
     #[test]
@@ -3242,10 +3226,8 @@ mod kick_tests {
             .withf(|_, reason| reason == "was kicked.")
             .times(1);
 
-        Python::with_gil(|py| {
-            let result = kick(py, 2, Some(""));
-            assert!(result.is_ok());
-        })
+        let result = Python::with_gil(|py| kick(py, 2, Some("")));
+        assert!(result.is_ok());
     }
 }
 
@@ -3275,7 +3257,7 @@ mod console_print_tests {
 
         Python::with_gil(|py| {
             py_console_print(py, "asdf");
-        })
+        });
     }
 }
 
@@ -3308,6 +3290,7 @@ mod get_configstring_tests {
     use super::MAIN_ENGINE;
     use crate::prelude::*;
     use crate::quake_live_engine::MockQuakeEngine;
+    use pretty_assertions::assert_eq;
     use pyo3::exceptions::{PyEnvironmentError, PyValueError};
     use pyo3::prelude::*;
 
@@ -3318,7 +3301,7 @@ mod get_configstring_tests {
         Python::with_gil(|py| {
             let result = get_configstring(py, MAX_CONFIGSTRINGS + 1);
             assert!(result.is_err_and(|err| err.is_instance_of::<PyValueError>(py)));
-        })
+        });
     }
 
     #[test]
@@ -3342,10 +3325,8 @@ mod get_configstring_tests {
             .times(1);
         MAIN_ENGINE.store(Some(mock_engine.into()));
 
-        Python::with_gil(|py| {
-            let result = get_configstring(py, 666);
-            assert!(result.is_ok_and(|value| value == "asdf"));
-        });
+        let result = Python::with_gil(|py| get_configstring(py, 666)).unwrap();
+        assert_eq!(result, "asdf");
     }
 }
 
@@ -3383,7 +3364,7 @@ mod set_configstring_tests {
         Python::with_gil(|py| {
             let result = set_configstring(py, 2048, "asdf");
             assert!(result.is_err_and(|err| err.is_instance_of::<PyValueError>(py)));
-        })
+        });
     }
 
     #[test]
@@ -3394,10 +3375,8 @@ mod set_configstring_tests {
             .expect()
             .withf(|&index, value| index == 666 && value == "asdf");
 
-        Python::with_gil(|py| {
-            let result = set_configstring(py, 666, "asdf");
-            assert!(result.is_ok());
-        })
+        let result = Python::with_gil(|py| set_configstring(py, 666, "asdf"));
+        assert!(result.is_ok());
     }
 }
 
@@ -3462,7 +3441,7 @@ mod force_vote_tests {
         Python::with_gil(|py| {
             let result = force_vote(py, true);
             assert!(result.is_err_and(|err| err.is_instance_of::<PyEnvironmentError>(py)));
-        })
+        });
     }
 }
 
@@ -3500,7 +3479,7 @@ mod add_console_command_tests {
         Python::with_gil(|py| {
             let result = add_console_command(py, "slap");
             assert!(result.is_err_and(|err| err.is_instance_of::<PyEnvironmentError>(py)));
-        })
+        });
     }
 }
 
@@ -4277,7 +4256,7 @@ mod player_state_tests {
         Python::with_gil(|py| {
             let result = player_state(py, 21);
             assert!(result.is_err_and(|err| err.is_instance_of::<PyEnvironmentError>(py)));
-        })
+        });
     }
 }
 
@@ -4374,7 +4353,7 @@ mod player_stats_tests {
         Python::with_gil(|py| {
             let result = player_stats(py, 21);
             assert!(result.is_err_and(|err| err.is_instance_of::<PyEnvironmentError>(py)));
-        })
+        });
     }
 }
 
@@ -4426,7 +4405,7 @@ mod set_position_tests {
         Python::with_gil(|py| {
             let result = set_position(py, 21, Vector3(1, 2, 3));
             assert!(result.is_err_and(|err| err.is_instance_of::<PyEnvironmentError>(py)));
-        })
+        });
     }
 }
 
@@ -4478,7 +4457,7 @@ mod set_velocity_tests {
         Python::with_gil(|py| {
             let result = set_velocity(py, 21, Vector3(1, 2, 3));
             assert!(result.is_err_and(|err| err.is_instance_of::<PyEnvironmentError>(py)));
-        })
+        });
     }
 }
 
@@ -4533,7 +4512,7 @@ mod noclip_tests {
         Python::with_gil(|py| {
             let result = noclip(py, 21, true);
             assert!(result.is_err_and(|err| err.is_instance_of::<PyEnvironmentError>(py)));
-        })
+        });
     }
 }
 
@@ -4584,7 +4563,7 @@ mod set_health_tests {
         Python::with_gil(|py| {
             let result = set_health(py, 21, 666);
             assert!(result.is_err_and(|err| err.is_instance_of::<PyEnvironmentError>(py)));
-        })
+        });
     }
 }
 
@@ -4635,7 +4614,7 @@ mod set_armor_tests {
         Python::with_gil(|py| {
             let result = set_armor(py, 21, 666);
             assert!(result.is_err_and(|err| err.is_instance_of::<PyEnvironmentError>(py)));
-        })
+        });
     }
 }
 
@@ -4687,7 +4666,7 @@ mod set_weapons_tests {
         Python::with_gil(|py| {
             let result = set_weapons(py, 21, Weapons(0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0));
             assert!(result.is_err_and(|err| err.is_instance_of::<PyEnvironmentError>(py)));
-        })
+        });
     }
 }
 
@@ -4744,7 +4723,7 @@ mod set_weapon_tests {
         Python::with_gil(|py| {
             let result = set_weapon(py, 21, weapon_t::WP_ROCKET_LAUNCHER.into());
             assert!(result.is_err_and(|err| err.is_instance_of::<PyEnvironmentError>(py)));
-        })
+        });
     }
 }
 
@@ -4796,7 +4775,7 @@ mod set_ammo_tests {
         Python::with_gil(|py| {
             let result = set_ammo(py, 21, Weapons(0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0));
             assert!(result.is_err_and(|err| err.is_instance_of::<PyEnvironmentError>(py)));
-        })
+        });
     }
 }
 
@@ -4848,7 +4827,7 @@ mod set_powerups_tests {
         Python::with_gil(|py| {
             let result = set_powerups(py, 21, Powerups(0, 0, 0, 0, 0, 0));
             assert!(result.is_err_and(|err| err.is_instance_of::<PyEnvironmentError>(py)));
-        })
+        });
     }
 }
 
@@ -4900,7 +4879,7 @@ mod set_holdable_tests {
         Python::with_gil(|py| {
             let result = set_holdable(py, 21, holdable_t::HI_KAMIKAZE as i32);
             assert!(result.is_err_and(|err| err.is_instance_of::<PyEnvironmentError>(py)));
-        })
+        });
     }
 }
 
@@ -4955,7 +4934,7 @@ mod drop_holdable_tests {
         Python::with_gil(|py| {
             let result = drop_holdable(py, 21);
             assert!(result.is_err_and(|err| err.is_instance_of::<PyEnvironmentError>(py)));
-        })
+        });
     }
 }
 
@@ -5007,7 +4986,7 @@ mod set_flight_tests {
         Python::with_gil(|py| {
             let result = set_flight(py, 21, Flight(0, 0, 0, 0));
             assert!(result.is_err_and(|err| err.is_instance_of::<PyEnvironmentError>(py)));
-        })
+        });
     }
 }
 
@@ -5058,7 +5037,7 @@ mod set_invulnerability_tests {
         Python::with_gil(|py| {
             let result = set_invulnerability(py, 21, 42);
             assert!(result.is_err_and(|err| err.is_instance_of::<PyEnvironmentError>(py)));
-        })
+        });
     }
 }
 
@@ -5109,7 +5088,7 @@ mod set_score_tests {
         Python::with_gil(|py| {
             let result = set_score(py, 21, 42);
             assert!(result.is_err_and(|err| err.is_instance_of::<PyEnvironmentError>(py)));
-        })
+        });
     }
 }
 
@@ -5188,7 +5167,7 @@ mod player_spawn_tests {
         Python::with_gil(|py| {
             let result = player_spawn(py, 21);
             assert!(result.is_err_and(|err| err.is_instance_of::<PyEnvironmentError>(py)));
-        })
+        });
     }
 }
 
@@ -5242,7 +5221,7 @@ mod set_privileges_tests {
         Python::with_gil(|py| {
             let result = set_privileges(py, 21, privileges_t::PRIV_MOD as i32);
             assert!(result.is_err_and(|err| err.is_instance_of::<PyEnvironmentError>(py)));
-        })
+        });
     }
 }
 
@@ -5360,7 +5339,7 @@ mod slay_with_mod_tests {
         Python::with_gil(|py| {
             let result = slay_with_mod(py, 21, meansOfDeath_t::MOD_TRIGGER_HURT as i32);
             assert!(result.is_err_and(|err| err.is_instance_of::<PyEnvironmentError>(py)));
-        })
+        });
     }
 }
 
