@@ -3216,6 +3216,37 @@ mod kick_tests {
             assert!(result.is_ok());
         })
     }
+
+    #[test]
+    #[serial]
+    fn kick_with_client_id_for_active_client_with_empty_kick_reason() {
+        let mut mock_engine = MockQuakeEngine::new();
+        mock_engine.expect_get_max_clients().returning(|| 16);
+        MAIN_ENGINE.store(Some(mock_engine.into()));
+
+        let client_try_from_ctx = MockClient::from_context();
+        client_try_from_ctx
+            .expect()
+            .with(predicate::eq(2))
+            .returning(move |_| {
+                let mut mock_client = MockClient::new();
+                mock_client
+                    .expect_get_state()
+                    .return_const(clientState_t::CS_ACTIVE);
+                mock_client
+            });
+
+        let drop_client_ctx = shinqlx_drop_client_context();
+        drop_client_ctx
+            .expect()
+            .withf(|_, reason| reason == "was kicked.")
+            .times(1);
+
+        Python::with_gil(|py| {
+            let result = kick(py, 2, Some(""));
+            assert!(result.is_ok());
+        })
+    }
 }
 
 /// Prints text on the console. If used during an RCON command, it will be printed in the player's console.
@@ -3276,8 +3307,19 @@ mod get_configstring_tests {
     use super::get_configstring;
     use super::MAIN_ENGINE;
     use crate::prelude::*;
-    use pyo3::exceptions::PyEnvironmentError;
+    use crate::quake_live_engine::MockQuakeEngine;
+    use pyo3::exceptions::{PyEnvironmentError, PyValueError};
     use pyo3::prelude::*;
+
+    #[test]
+    #[serial]
+    fn get_configstring_for_too_large_configstring_id() {
+        MAIN_ENGINE.store(None);
+        Python::with_gil(|py| {
+            let result = get_configstring(py, MAX_CONFIGSTRINGS + 1);
+            assert!(result.is_err_and(|err| err.is_instance_of::<PyValueError>(py)));
+        })
+    }
 
     #[test]
     #[serial]
@@ -3286,7 +3328,24 @@ mod get_configstring_tests {
         Python::with_gil(|py| {
             let result = get_configstring(py, 666);
             assert!(result.is_err_and(|err| err.is_instance_of::<PyEnvironmentError>(py)));
-        })
+        });
+    }
+
+    #[test]
+    #[serial]
+    fn get_configstring_forwards_call_to_engine() {
+        let mut mock_engine = MockQuakeEngine::new();
+        mock_engine
+            .expect_get_configstring()
+            .withf(|&config_id| config_id == 666)
+            .returning(|_| "asdf".into())
+            .times(1);
+        MAIN_ENGINE.store(Some(mock_engine.into()));
+
+        Python::with_gil(|py| {
+            let result = get_configstring(py, 666);
+            assert!(result.is_ok_and(|value| value == "asdf"));
+        });
     }
 }
 
