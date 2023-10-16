@@ -3631,7 +3631,7 @@ mod add_console_command_tests {
         let mut mock_engine = MockQuakeEngine::new();
         mock_engine
             .expect_add_command()
-            .withf(|cmd, &func| cmd == "asdf" && func == cmd_py_command)
+            .withf(|cmd, &func| cmd == "asdf" && func as usize == cmd_py_command as usize)
             .times(1);
         MAIN_ENGINE.store(Some(mock_engine.into()));
 
