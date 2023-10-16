@@ -4312,6 +4312,21 @@ impl From<Holdable> for i32 {
     }
 }
 
+impl From<Holdable> for Option<String> {
+    fn from(holdable: Holdable) -> Self {
+        match holdable {
+            Holdable::None => None,
+            Holdable::Teleporter => Some("teleporter".into()),
+            Holdable::MedKit => Some("medkit".into()),
+            Holdable::Kamikaze => Some("kamikaze".into()),
+            Holdable::Portal => Some("portal".into()),
+            Holdable::Invulnerability => Some("invulnerability".into()),
+            Holdable::Flight => Some("flight".into()),
+            Holdable::Unknown => Some("unknown".into()),
+        }
+    }
+}
+
 /// A struct sequence containing parameters for the flight holdable item.
 #[pyclass]
 #[pyo3(module = "minqlx", name = "Flight", get_all)]
@@ -4508,7 +4523,7 @@ impl From<GameEntity> for PlayerState {
             weapons: Weapons::from(game_client.get_weapons()),
             ammo: Weapons::from(game_client.get_ammos()),
             powerups: Powerups::from(game_client.get_powerups()),
-            holdable: holdable_from(game_client.get_holdable().into()),
+            holdable: Holdable::from(game_client.get_holdable()).into(),
             flight: Flight(
                 game_client.get_current_flight_fuel(),
                 game_client.get_max_flight_fuel(),
@@ -4518,19 +4533,6 @@ impl From<GameEntity> for PlayerState {
             is_chatting: game_client.is_chatting(),
             is_frozen: game_client.is_frozen(),
         }
-    }
-}
-
-fn holdable_from(holdable: Holdable) -> Option<String> {
-    match holdable {
-        Holdable::None => None,
-        Holdable::Teleporter => Some("teleporter".into()),
-        Holdable::MedKit => Some("medkit".into()),
-        Holdable::Kamikaze => Some("kamikaze".into()),
-        Holdable::Portal => Some("portal".into()),
-        Holdable::Invulnerability => Some("invulnerability".into()),
-        Holdable::Flight => Some("flight".into()),
-        Holdable::Unknown => Some("unknown".into()),
     }
 }
 
