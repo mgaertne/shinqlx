@@ -666,10 +666,10 @@ mod game_entity_tests {
 
         assert!(entity
             .touch
-            .is_some_and(|func| func == MockStaticFunc::touch_item));
+            .is_some_and(|func| func as usize == MockStaticFunc::touch_item as usize));
         assert!(entity
             .think
-            .is_some_and(|func| func == MockStaticFunc::g_free_entity));
+            .is_some_and(|func| func as usize == MockStaticFunc::g_free_entity as usize));
         assert_eq!(entity.nextthink, 30234);
     }
 
@@ -1453,7 +1453,7 @@ mod game_entity_tests {
 
         assert!(gentity
             .think
-            .is_some_and(|func| func == ShiNQlx_Switch_Touch_Item));
+            .is_some_and(|func| func as usize == ShiNQlx_Switch_Touch_Item as usize));
     }
 
     #[test]
@@ -1474,7 +1474,9 @@ mod game_entity_tests {
         let mut game_entity = GameEntity::try_from(&mut gentity as *mut gentity_t).unwrap();
         game_entity.set_touch(Some(ShiNQlx_Touch_Item));
 
-        assert!(gentity.touch.is_some_and(|func| func == ShiNQlx_Touch_Item));
+        assert!(gentity
+            .touch
+            .is_some_and(|func| func as usize == ShiNQlx_Touch_Item as usize));
     }
 
     #[test]
