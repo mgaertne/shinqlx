@@ -4847,10 +4847,7 @@ fn player_stats(py: Python<'_>, client_id: i32) -> PyResult<Option<PlayerStats>>
 
     py.allow_threads(move || match GameEntity::try_from(client_id) {
         Err(_) => Ok(None),
-        Ok(game_entity) => Ok(game_entity
-            .get_game_client()
-            .ok()
-            .map(|game_client| PlayerStats::from(game_client))),
+        Ok(game_entity) => Ok(game_entity.get_game_client().ok().map(PlayerStats::from)),
     })
 }
 
@@ -4989,8 +4986,7 @@ fn set_position(py: Python<'_>, client_id: i32, position: Vector3) -> PyResult<b
     py.allow_threads(move || {
         let mut game_client: Vec<GameClient> = GameEntity::try_from(client_id)
             .iter()
-            .map(|game_entity| game_entity.get_game_client())
-            .flatten()
+            .flat_map(|game_entity| game_entity.get_game_client())
             .collect();
         game_client.iter_mut().for_each(|game_client| {
             game_client.set_position((position.0 as f32, position.1 as f32, position.2 as f32))
