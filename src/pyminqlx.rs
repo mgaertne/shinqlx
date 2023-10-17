@@ -5495,13 +5495,14 @@ fn set_armor(py: Python<'_>, client_id: i32, armor: i32) -> PyResult<bool> {
         )));
     }
 
-    py.allow_threads(move || match GameEntity::try_from(client_id) {
-        Err(_) => Ok(false),
-        Ok(game_entity) => {
-            let mut game_client = game_entity.get_game_client().unwrap();
-            game_client.set_armor(armor);
-            Ok(true)
-        }
+    py.allow_threads(move || {
+        let mut opt_game_client = GameEntity::try_from(client_id)
+            .ok()
+            .and_then(|game_entity| game_entity.get_game_client().ok());
+        opt_game_client
+            .iter_mut()
+            .for_each(|game_client| game_client.set_armor(armor));
+        Ok(opt_game_client.is_some())
     })
 }
 
@@ -5510,8 +5511,12 @@ fn set_armor(py: Python<'_>, client_id: i32, armor: i32) -> PyResult<bool> {
 mod set_armor_tests {
     use super::set_armor;
     use super::MAIN_ENGINE;
+    use crate::game_client::MockGameClient;
+    use crate::game_entity::MockGameEntity;
     use crate::prelude::*;
     use crate::quake_live_engine::MockQuakeEngine;
+    use mockall::predicate;
+    use pretty_assertions::assert_eq;
     use pyo3::exceptions::{PyEnvironmentError, PyValueError};
     use pyo3::prelude::*;
 
@@ -5549,6 +5554,51 @@ mod set_armor_tests {
             let result = set_armor(py, 666, 21);
             assert!(result.is_err_and(|err| err.is_instance_of::<PyValueError>(py)));
         });
+    }
+
+    #[test]
+    #[serial]
+    fn set_armor_for_existing_game_client() {
+        let mut mock_engine = MockQuakeEngine::new();
+        mock_engine.expect_get_max_clients().returning(|| 16);
+        MAIN_ENGINE.store(Some(mock_engine.into()));
+
+        let game_entity_from_ctx = MockGameEntity::from_context();
+        game_entity_from_ctx.expect().returning(|_| {
+            let mut mock_game_entity = MockGameEntity::new();
+            mock_game_entity.expect_get_game_client().returning(|| {
+                let mut mock_game_client = MockGameClient::new();
+                mock_game_client
+                    .expect_set_armor()
+                    .with(predicate::eq(456))
+                    .times(1);
+                Ok(mock_game_client)
+            });
+            mock_game_entity
+        });
+
+        let result = Python::with_gil(|py| set_armor(py, 2, 456)).unwrap();
+        assert_eq!(result, true);
+    }
+
+    #[test]
+    #[serial]
+    fn set_armor_for_entity_with_no_game_client() {
+        let mut mock_engine = MockQuakeEngine::new();
+        mock_engine.expect_get_max_clients().returning(|| 16);
+        MAIN_ENGINE.store(Some(mock_engine.into()));
+
+        let game_entity_from_ctx = MockGameEntity::from_context();
+        game_entity_from_ctx.expect().returning(|_| {
+            let mut mock_game_entity = MockGameEntity::new();
+            mock_game_entity
+                .expect_get_game_client()
+                .returning(|| Err(QuakeLiveEngineError::MainEngineNotInitialized));
+            mock_game_entity
+        });
+
+        let result = Python::with_gil(|py| set_armor(py, 2, 123)).unwrap();
+        assert_eq!(result, false);
     }
 }
 
