@@ -3471,6 +3471,7 @@ mod force_vote_tests {
         });
     }
 
+    #[test]
     #[serial]
     fn force_vote_when_no_vote_is_running() {
         let current_level_try_get_ctx = MockTestCurrentLevel::try_get_context();
@@ -4983,13 +4984,13 @@ fn set_position(py: Python<'_>, client_id: i32, position: Vector3) -> PyResult<b
     }
 
     py.allow_threads(move || {
-        let mut game_client = GameEntity::try_from(client_id)
+        let mut opt_game_client = GameEntity::try_from(client_id)
             .ok()
             .and_then(|game_entity| game_entity.get_game_client().ok());
-        game_client.iter_mut().for_each(|game_client| {
+        opt_game_client.iter_mut().for_each(|game_client| {
             game_client.set_position((position.0 as f32, position.1 as f32, position.2 as f32))
         });
-        Ok(game_client.is_some())
+        Ok(opt_game_client.is_some())
     })
 }
 
@@ -5112,13 +5113,13 @@ fn set_velocity(py: Python<'_>, client_id: i32, velocity: Vector3) -> PyResult<b
     }
 
     py.allow_threads(move || {
-        let mut game_client = GameEntity::try_from(client_id)
+        let mut opt_game_client = GameEntity::try_from(client_id)
             .ok()
             .and_then(|game_entity| game_entity.get_game_client().ok());
-        game_client.iter_mut().for_each(|game_client| {
+        opt_game_client.iter_mut().for_each(|game_client| {
             game_client.set_velocity((velocity.0 as f32, velocity.1 as f32, velocity.2 as f32))
         });
-        Ok(game_client.is_some())
+        Ok(opt_game_client.is_some())
     })
 }
 
@@ -5133,6 +5134,7 @@ mod set_velocity_tests {
     use crate::pyminqlx::Vector3;
     use crate::quake_live_engine::MockQuakeEngine;
     use mockall::predicate;
+    use pretty_assertions::assert_eq;
     use pyo3::exceptions::{PyEnvironmentError, PyValueError};
     use pyo3::prelude::*;
 
@@ -5239,17 +5241,15 @@ fn noclip(py: Python<'_>, client_id: i32, activate: bool) -> PyResult<bool> {
         )));
     }
 
-    py.allow_threads(move || match GameEntity::try_from(client_id) {
-        Err(_) => Ok(false),
-        Ok(game_entity) => {
-            let mut game_client = game_entity.get_game_client().unwrap();
-            if game_client.get_noclip() == activate {
-                Ok(false)
-            } else {
-                game_client.set_noclip(activate);
-                Ok(true)
-            }
-        }
+    py.allow_threads(move || {
+        let mut opt_game_client = GameEntity::try_from(client_id)
+            .ok()
+            .and_then(|game_entity| game_entity.get_game_client().ok())
+            .filter(|game_client| game_client.get_noclip() != activate);
+        opt_game_client.iter_mut().for_each(|game_client| {
+            game_client.set_noclip(activate);
+        });
+        Ok(opt_game_client.is_some())
     })
 }
 
@@ -5258,8 +5258,12 @@ fn noclip(py: Python<'_>, client_id: i32, activate: bool) -> PyResult<bool> {
 mod noclip_tests {
     use super::noclip;
     use super::MAIN_ENGINE;
+    use crate::game_client::MockGameClient;
+    use crate::game_entity::MockGameEntity;
     use crate::prelude::*;
     use crate::quake_live_engine::MockQuakeEngine;
+    use mockall::predicate;
+    use pretty_assertions::assert_eq;
     use pyo3::exceptions::{PyEnvironmentError, PyValueError};
     use pyo3::prelude::*;
 
@@ -5297,6 +5301,75 @@ mod noclip_tests {
             let result = noclip(py, 666, true);
             assert!(result.is_err_and(|err| err.is_instance_of::<PyValueError>(py)));
         });
+    }
+
+    #[test]
+    #[serial]
+    fn noclip_for_entity_with_no_game_client() {
+        let mut mock_engine = MockQuakeEngine::new();
+        mock_engine.expect_get_max_clients().returning(|| 16);
+        MAIN_ENGINE.store(Some(mock_engine.into()));
+
+        let game_entity_from_ctx = MockGameEntity::from_context();
+        game_entity_from_ctx.expect().returning(|_| {
+            let mut mock_game_entity = MockGameEntity::new();
+            mock_game_entity
+                .expect_get_game_client()
+                .returning(|| Err(QuakeLiveEngineError::MainEngineNotInitialized));
+            mock_game_entity
+        });
+
+        let result = Python::with_gil(|py| noclip(py, 2, true)).unwrap();
+        assert_eq!(result, false);
+    }
+
+    #[test]
+    #[serial]
+    fn noclip_for_entity_with_noclip_already_set_properly() {
+        let mut mock_engine = MockQuakeEngine::new();
+        mock_engine.expect_get_max_clients().returning(|| 16);
+        MAIN_ENGINE.store(Some(mock_engine.into()));
+
+        let game_entity_from_ctx = MockGameEntity::from_context();
+        game_entity_from_ctx.expect().returning(|_| {
+            let mut mock_game_entity = MockGameEntity::new();
+            mock_game_entity.expect_get_game_client().returning(|| {
+                let mut mock_game_client = MockGameClient::new();
+                mock_game_client.expect_get_noclip().returning(|| true);
+                mock_game_client.expect_set_noclip::<bool>().times(0);
+                Ok(mock_game_client)
+            });
+            mock_game_entity
+        });
+
+        let result = Python::with_gil(|py| noclip(py, 2, true)).unwrap();
+        assert_eq!(result, false);
+    }
+
+    #[test]
+    #[serial]
+    fn noclip_for_entity_with_change_applied() {
+        let mut mock_engine = MockQuakeEngine::new();
+        mock_engine.expect_get_max_clients().returning(|| 16);
+        MAIN_ENGINE.store(Some(mock_engine.into()));
+
+        let game_entity_from_ctx = MockGameEntity::from_context();
+        game_entity_from_ctx.expect().returning(|_| {
+            let mut mock_game_entity = MockGameEntity::new();
+            mock_game_entity.expect_get_game_client().returning(|| {
+                let mut mock_game_client = MockGameClient::new();
+                mock_game_client.expect_get_noclip().returning(|| true);
+                mock_game_client
+                    .expect_set_noclip::<bool>()
+                    .with(predicate::eq(false))
+                    .times(1);
+                Ok(mock_game_client)
+            });
+            mock_game_entity
+        });
+
+        let result = Python::with_gil(|py| noclip(py, 2, false)).unwrap();
+        assert_eq!(result, true);
     }
 }
 
