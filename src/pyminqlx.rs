@@ -140,8 +140,10 @@ pub(crate) fn client_connect_dispatcher(client_id: i32, is_bot: bool) -> Option<
         return None;
     };
 
-    let allowed_clients = ALLOW_FREE_CLIENT.load(Ordering::SeqCst);
-    ALLOW_FREE_CLIENT.store(allowed_clients | client_id as u64, Ordering::SeqCst);
+    {
+        let allowed_clients = ALLOW_FREE_CLIENT.load(Ordering::SeqCst);
+        ALLOW_FREE_CLIENT.store(allowed_clients | client_id as u64, Ordering::SeqCst);
+    }
 
     let result: Option<String> =
         Python::with_gil(
@@ -163,8 +165,10 @@ pub(crate) fn client_connect_dispatcher(client_id: i32, is_bot: bool) -> Option<
             },
         );
 
-    let allowed_clients = ALLOW_FREE_CLIENT.load(Ordering::SeqCst);
-    ALLOW_FREE_CLIENT.store(allowed_clients & !client_id as u64, Ordering::SeqCst);
+    {
+        let allowed_clients = ALLOW_FREE_CLIENT.load(Ordering::SeqCst);
+        ALLOW_FREE_CLIENT.store(allowed_clients & !client_id as u64, Ordering::SeqCst);
+    }
 
     result
 }
@@ -181,8 +185,10 @@ where
         return;
     };
 
-    let allowed_clients = ALLOW_FREE_CLIENT.load(Ordering::SeqCst);
-    ALLOW_FREE_CLIENT.store(allowed_clients | client_id as u64, Ordering::SeqCst);
+    {
+        let allowed_clients = ALLOW_FREE_CLIENT.load(Ordering::SeqCst);
+        ALLOW_FREE_CLIENT.store(allowed_clients | client_id as u64, Ordering::SeqCst);
+    }
 
     let result =
         Python::with_gil(|py| client_disconnect_handler.call1(py, (client_id, reason.as_ref())));
@@ -190,8 +196,10 @@ where
         error!(target: "shinqlx", "client_disconnect_handler returned an error.");
     }
 
-    let allowed_clients = ALLOW_FREE_CLIENT.load(Ordering::SeqCst);
-    ALLOW_FREE_CLIENT.store(allowed_clients & !client_id as u64, Ordering::SeqCst);
+    {
+        let allowed_clients = ALLOW_FREE_CLIENT.load(Ordering::SeqCst);
+        ALLOW_FREE_CLIENT.store(allowed_clients & !client_id as u64, Ordering::SeqCst);
+    }
 }
 
 pub(crate) fn client_loaded_dispatcher(client_id: i32) {
