@@ -5768,13 +5768,14 @@ fn set_weapon(py: Python<'_>, client_id: i32, weapon: i32) -> PyResult<bool> {
         ));
     }
 
-    py.allow_threads(move || match GameEntity::try_from(client_id) {
-        Err(_) => Ok(false),
-        Ok(game_entity) => {
-            let mut game_client = game_entity.get_game_client().unwrap();
-            game_client.set_weapon(weapon);
-            Ok(true)
-        }
+    py.allow_threads(move || {
+        let mut opt_game_client = GameEntity::try_from(client_id)
+            .ok()
+            .and_then(|game_entity| game_entity.get_game_client().ok());
+        opt_game_client
+            .iter_mut()
+            .for_each(|game_client| game_client.set_weapon(weapon));
+        Ok(opt_game_client.is_some())
     })
 }
 
@@ -5783,8 +5784,12 @@ fn set_weapon(py: Python<'_>, client_id: i32, weapon: i32) -> PyResult<bool> {
 mod set_weapon_tests {
     use super::set_weapon;
     use super::MAIN_ENGINE;
+    use crate::game_client::MockGameClient;
+    use crate::game_entity::MockGameEntity;
     use crate::prelude::*;
     use crate::quake_live_engine::MockQuakeEngine;
+    use mockall::predicate;
+    use pretty_assertions::assert_eq;
     use pyo3::exceptions::{PyEnvironmentError, PyValueError};
     use pyo3::prelude::*;
 
@@ -5823,6 +5828,51 @@ mod set_weapon_tests {
             assert!(result.is_err_and(|err| err.is_instance_of::<PyValueError>(py)));
         });
     }
+
+    #[test]
+    #[serial]
+    fn set_weapon_for_existing_game_client() {
+        let mut mock_engine = MockQuakeEngine::new();
+        mock_engine.expect_get_max_clients().returning(|| 16);
+        MAIN_ENGINE.store(Some(mock_engine.into()));
+
+        let game_entity_from_ctx = MockGameEntity::from_context();
+        game_entity_from_ctx.expect().returning(|_| {
+            let mut mock_game_entity = MockGameEntity::new();
+            mock_game_entity.expect_get_game_client().returning(|| {
+                let mut mock_game_client = MockGameClient::new();
+                mock_game_client
+                    .expect_set_weapon()
+                    .with(predicate::eq(weapon_t::WP_BFG as i32))
+                    .times(1);
+                Ok(mock_game_client)
+            });
+            mock_game_entity
+        });
+
+        let result = Python::with_gil(|py| set_weapon(py, 2, weapon_t::WP_BFG.into())).unwrap();
+        assert_eq!(result, true);
+    }
+
+    #[test]
+    #[serial]
+    fn set_weapon_for_entity_with_no_game_client() {
+        let mut mock_engine = MockQuakeEngine::new();
+        mock_engine.expect_get_max_clients().returning(|| 16);
+        MAIN_ENGINE.store(Some(mock_engine.into()));
+
+        let game_entity_from_ctx = MockGameEntity::from_context();
+        game_entity_from_ctx.expect().returning(|_| {
+            let mut mock_game_entity = MockGameEntity::new();
+            mock_game_entity
+                .expect_get_game_client()
+                .returning(|| Err(QuakeLiveEngineError::MainEngineNotInitialized));
+            mock_game_entity
+        });
+
+        let result = Python::with_gil(|py| set_weapon(py, 2, weapon_t::WP_HMG.into())).unwrap();
+        assert_eq!(result, false);
+    }
 }
 
 /// Sets a player's ammo.
@@ -5846,13 +5896,14 @@ fn set_ammo(py: Python<'_>, client_id: i32, ammos: Weapons) -> PyResult<bool> {
         )));
     }
 
-    py.allow_threads(move || match GameEntity::try_from(client_id) {
-        Err(_) => Ok(false),
-        Ok(game_entity) => {
-            let mut game_client = game_entity.get_game_client().unwrap();
-            game_client.set_ammos(ammos.into());
-            Ok(true)
-        }
+    py.allow_threads(move || {
+        let mut opt_game_client = GameEntity::try_from(client_id)
+            .ok()
+            .and_then(|game_entity| game_entity.get_game_client().ok());
+        opt_game_client
+            .iter_mut()
+            .for_each(|game_client| game_client.set_ammos(ammos.into()));
+        Ok(opt_game_client.is_some())
     })
 }
 
@@ -5862,8 +5913,12 @@ mod set_ammo_tests {
     use super::set_ammo;
     use super::Weapons;
     use super::MAIN_ENGINE;
+    use crate::game_client::MockGameClient;
+    use crate::game_entity::MockGameEntity;
     use crate::prelude::*;
     use crate::quake_live_engine::MockQuakeEngine;
+    use mockall::predicate;
+    use pretty_assertions::assert_eq;
     use pyo3::exceptions::{PyEnvironmentError, PyValueError};
     use pyo3::prelude::*;
 
@@ -5905,6 +5960,63 @@ mod set_ammo_tests {
             );
             assert!(result.is_err_and(|err| err.is_instance_of::<PyValueError>(py)));
         });
+    }
+
+    #[test]
+    #[serial]
+    fn set_ammo_for_existing_game_client() {
+        let mut mock_engine = MockQuakeEngine::new();
+        mock_engine.expect_get_max_clients().returning(|| 16);
+        MAIN_ENGINE.store(Some(mock_engine.into()));
+
+        let game_entity_from_ctx = MockGameEntity::from_context();
+        game_entity_from_ctx.expect().returning(|_| {
+            let mut mock_game_entity = MockGameEntity::new();
+            mock_game_entity.expect_get_game_client().returning(|| {
+                let mut mock_game_client = MockGameClient::new();
+                mock_game_client
+                    .expect_set_ammos()
+                    .with(predicate::eq([
+                        1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15,
+                    ]))
+                    .times(1);
+                Ok(mock_game_client)
+            });
+            mock_game_entity
+        });
+
+        let result = Python::with_gil(|py| {
+            set_ammo(
+                py,
+                2,
+                Weapons(1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15),
+            )
+        })
+        .unwrap();
+        assert_eq!(result, true);
+    }
+
+    #[test]
+    #[serial]
+    fn set_ammo_for_entity_with_no_game_client() {
+        let mut mock_engine = MockQuakeEngine::new();
+        mock_engine.expect_get_max_clients().returning(|| 16);
+        MAIN_ENGINE.store(Some(mock_engine.into()));
+
+        let game_entity_from_ctx = MockGameEntity::from_context();
+        game_entity_from_ctx.expect().returning(|_| {
+            let mut mock_game_entity = MockGameEntity::new();
+            mock_game_entity
+                .expect_get_game_client()
+                .returning(|| Err(QuakeLiveEngineError::MainEngineNotInitialized));
+            mock_game_entity
+        });
+
+        let result = Python::with_gil(|py| {
+            set_ammo(py, 2, Weapons(0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0))
+        })
+        .unwrap();
+        assert_eq!(result, false);
     }
 }
 
