@@ -4614,14 +4614,11 @@ fn player_state(py: Python<'_>, client_id: i32) -> PyResult<Option<PlayerState>>
         )));
     }
 
-    py.allow_threads(move || match GameEntity::try_from(client_id) {
-        Err(_) => Ok(None),
-        Ok(game_entity) => {
-            if game_entity.get_game_client().is_err() {
-                return Ok(None);
-            }
-            Ok(Some(PlayerState::from(game_entity)))
-        }
+    py.allow_threads(move || {
+        Ok(GameEntity::try_from(client_id)
+            .ok()
+            .filter(|game_entity| game_entity.get_game_client().is_ok())
+            .map(PlayerState::from))
     })
 }
 
@@ -4845,9 +4842,11 @@ fn player_stats(py: Python<'_>, client_id: i32) -> PyResult<Option<PlayerStats>>
         )));
     }
 
-    py.allow_threads(move || match GameEntity::try_from(client_id) {
-        Err(_) => Ok(None),
-        Ok(game_entity) => Ok(game_entity.get_game_client().ok().map(PlayerStats::from)),
+    py.allow_threads(move || {
+        Ok(GameEntity::try_from(client_id)
+            .ok()
+            .and_then(|game_entity| game_entity.get_game_client().ok())
+            .map(PlayerStats::from))
     })
 }
 
@@ -4984,14 +4983,13 @@ fn set_position(py: Python<'_>, client_id: i32, position: Vector3) -> PyResult<b
     }
 
     py.allow_threads(move || {
-        let mut game_client: Vec<GameClient> = GameEntity::try_from(client_id)
-            .iter()
-            .flat_map(|game_entity| game_entity.get_game_client())
-            .collect();
+        let mut game_client = GameEntity::try_from(client_id)
+            .ok()
+            .and_then(|game_entity| game_entity.get_game_client().ok());
         game_client.iter_mut().for_each(|game_client| {
             game_client.set_position((position.0 as f32, position.1 as f32, position.2 as f32))
         });
-        Ok(!game_client.is_empty())
+        Ok(game_client.is_some())
     })
 }
 
