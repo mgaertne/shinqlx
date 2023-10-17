@@ -4847,9 +4847,10 @@ fn player_stats(py: Python<'_>, client_id: i32) -> PyResult<Option<PlayerStats>>
 
     py.allow_threads(move || match GameEntity::try_from(client_id) {
         Err(_) => Ok(None),
-        Ok(game_entity) => Ok(Some(PlayerStats::from(
-            game_entity.get_game_client().unwrap(),
-        ))),
+        Ok(game_entity) => Ok(game_entity
+            .get_game_client()
+            .ok()
+            .map(|game_client| PlayerStats::from(game_client))),
     })
 }
 
@@ -4862,6 +4863,7 @@ mod player_stats_tests {
     use crate::game_entity::MockGameEntity;
     use crate::prelude::*;
     use crate::quake_live_engine::MockQuakeEngine;
+    use pretty_assertions::assert_eq;
     use pyo3::exceptions::{PyEnvironmentError, PyValueError};
     use pyo3::prelude::*;
 
@@ -4940,6 +4942,26 @@ mod player_stats_tests {
                 time: 123,
                 ping: 9,
             }));
+    }
+
+    #[test]
+    #[serial]
+    fn player_stats_for_game_entiy_with_no_game_client() {
+        let mut mock_engine = MockQuakeEngine::new();
+        mock_engine.expect_get_max_clients().returning(|| 16);
+        MAIN_ENGINE.store(Some(mock_engine.into()));
+
+        let game_entity_from_ctx = MockGameEntity::from_context();
+        game_entity_from_ctx.expect().returning(|_| {
+            let mut mock_game_entity = MockGameEntity::new();
+            mock_game_entity
+                .expect_get_game_client()
+                .returning(|| Err(QuakeLiveEngineError::MainEngineNotInitialized));
+            mock_game_entity
+        });
+        let result = Python::with_gil(|py| player_stats(py, 2)).unwrap();
+
+        assert_eq!(result, None);
     }
 }
 
