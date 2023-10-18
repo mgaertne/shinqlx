@@ -5831,6 +5831,32 @@ mod set_weapon_tests {
 
     #[test]
     #[serial]
+    fn set_weapon_for_weapon_id_too_small() {
+        let mut mock_engine = MockQuakeEngine::new();
+        mock_engine.expect_get_max_clients().returning(|| 16);
+        MAIN_ENGINE.store(Some(mock_engine.into()));
+
+        Python::with_gil(|py| {
+            let result = set_weapon(py, 2, -1);
+            assert!(result.is_err_and(|err| err.is_instance_of::<PyValueError>(py)));
+        });
+    }
+
+    #[test]
+    #[serial]
+    fn set_weapon_for_weapon_id_too_large() {
+        let mut mock_engine = MockQuakeEngine::new();
+        mock_engine.expect_get_max_clients().returning(|| 16);
+        MAIN_ENGINE.store(Some(mock_engine.into()));
+
+        Python::with_gil(|py| {
+            let result = set_weapon(py, 2, 42);
+            assert!(result.is_err_and(|err| err.is_instance_of::<PyValueError>(py)));
+        });
+    }
+
+    #[test]
+    #[serial]
     fn set_weapon_for_existing_game_client() {
         let mut mock_engine = MockQuakeEngine::new();
         mock_engine.expect_get_max_clients().returning(|| 16);
@@ -6041,13 +6067,14 @@ fn set_powerups(py: Python<'_>, client_id: i32, powerups: Powerups) -> PyResult<
         )));
     }
 
-    py.allow_threads(move || match GameEntity::try_from(client_id) {
-        Err(_) => Ok(false),
-        Ok(game_entity) => {
-            let mut game_client = game_entity.get_game_client().unwrap();
-            game_client.set_powerups(powerups.into());
-            Ok(true)
-        }
+    py.allow_threads(move || {
+        let mut opt_game_client = GameEntity::try_from(client_id)
+            .ok()
+            .and_then(|game_entity| game_entity.get_game_client().ok());
+        opt_game_client
+            .iter_mut()
+            .for_each(|game_client| game_client.set_powerups(powerups.into()));
+        Ok(opt_game_client.is_some())
     })
 }
 
@@ -6057,8 +6084,12 @@ mod set_powerups_tests {
     use super::set_powerups;
     use super::Powerups;
     use super::MAIN_ENGINE;
+    use crate::game_client::MockGameClient;
+    use crate::game_entity::MockGameEntity;
     use crate::prelude::*;
     use crate::quake_live_engine::MockQuakeEngine;
+    use mockall::predicate;
+    use pretty_assertions::assert_eq;
     use pyo3::exceptions::{PyEnvironmentError, PyValueError};
     use pyo3::prelude::*;
 
@@ -6096,6 +6127,53 @@ mod set_powerups_tests {
             let result = set_powerups(py, 666, Powerups(0, 0, 0, 0, 0, 0));
             assert!(result.is_err_and(|err| err.is_instance_of::<PyValueError>(py)));
         });
+    }
+
+    #[test]
+    #[serial]
+    fn set_powerups_for_existing_game_client() {
+        let mut mock_engine = MockQuakeEngine::new();
+        mock_engine.expect_get_max_clients().returning(|| 16);
+        MAIN_ENGINE.store(Some(mock_engine.into()));
+
+        let game_entity_from_ctx = MockGameEntity::from_context();
+        game_entity_from_ctx.expect().returning(|_| {
+            let mut mock_game_entity = MockGameEntity::new();
+            mock_game_entity.expect_get_game_client().returning(|| {
+                let mut mock_game_client = MockGameClient::new();
+                mock_game_client
+                    .expect_set_powerups()
+                    .with(predicate::eq([1, 2, 3, 4, 5, 6]))
+                    .times(1);
+                Ok(mock_game_client)
+            });
+            mock_game_entity
+        });
+
+        let result =
+            Python::with_gil(|py| set_powerups(py, 2, Powerups(1, 2, 3, 4, 5, 6))).unwrap();
+        assert_eq!(result, true);
+    }
+
+    #[test]
+    #[serial]
+    fn set_powerups_for_entity_with_no_game_client() {
+        let mut mock_engine = MockQuakeEngine::new();
+        mock_engine.expect_get_max_clients().returning(|| 16);
+        MAIN_ENGINE.store(Some(mock_engine.into()));
+
+        let game_entity_from_ctx = MockGameEntity::from_context();
+        game_entity_from_ctx.expect().returning(|_| {
+            let mut mock_game_entity = MockGameEntity::new();
+            mock_game_entity
+                .expect_get_game_client()
+                .returning(|| Err(QuakeLiveEngineError::MainEngineNotInitialized));
+            mock_game_entity
+        });
+
+        let result =
+            Python::with_gil(|py| set_powerups(py, 2, Powerups(0, 0, 0, 0, 0, 0))).unwrap();
+        assert_eq!(result, false);
     }
 }
 
