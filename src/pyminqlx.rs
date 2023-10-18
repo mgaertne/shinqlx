@@ -6198,24 +6198,29 @@ fn set_holdable(py: Python<'_>, client_id: i32, holdable: i32) -> PyResult<bool>
         )));
     }
 
-    py.allow_threads(move || match GameEntity::try_from(client_id) {
-        Err(_) => Ok(false),
-        Ok(game_entity) => {
-            let mut game_client = game_entity.get_game_client().unwrap();
-            let ql_holdable = Holdable::from(holdable);
-            game_client.set_holdable(ql_holdable);
-            Ok(true)
-        }
+    py.allow_threads(move || {
+        let mut opt_game_client = GameEntity::try_from(client_id)
+            .ok()
+            .and_then(|game_entity| game_entity.get_game_client().ok());
+        let ql_holdable = Holdable::from(holdable);
+        opt_game_client
+            .iter_mut()
+            .for_each(|game_client| game_client.set_holdable(ql_holdable));
+        Ok(opt_game_client.is_some())
     })
 }
 
 #[cfg(test)]
 #[cfg(not(miri))]
 mod set_holdable_tests {
-    use super::set_holdable;
     use super::MAIN_ENGINE;
+    use super::{set_holdable, Holdable};
+    use crate::game_client::MockGameClient;
+    use crate::game_entity::MockGameEntity;
     use crate::prelude::*;
     use crate::quake_live_engine::MockQuakeEngine;
+    use mockall::predicate;
+    use pretty_assertions::assert_eq;
     use pyo3::exceptions::{PyEnvironmentError, PyValueError};
     use pyo3::prelude::*;
 
@@ -6224,7 +6229,7 @@ mod set_holdable_tests {
     fn set_holdable_when_main_engine_not_initialized() {
         MAIN_ENGINE.store(None);
         Python::with_gil(|py| {
-            let result = set_holdable(py, 21, holdable_t::HI_KAMIKAZE as i32);
+            let result = set_holdable(py, 21, Holdable::Kamikaze as i32);
             assert!(result.is_err_and(|err| err.is_instance_of::<PyEnvironmentError>(py)));
         });
     }
@@ -6237,7 +6242,7 @@ mod set_holdable_tests {
         MAIN_ENGINE.store(Some(mock_engine.into()));
 
         Python::with_gil(|py| {
-            let result = set_holdable(py, -1, holdable_t::HI_INVULNERABILITY as i32);
+            let result = set_holdable(py, -1, Holdable::Invulnerability as i32);
             assert!(result.is_err_and(|err| err.is_instance_of::<PyValueError>(py)));
         });
     }
@@ -6250,9 +6255,55 @@ mod set_holdable_tests {
         MAIN_ENGINE.store(Some(mock_engine.into()));
 
         Python::with_gil(|py| {
-            let result = set_holdable(py, 666, holdable_t::HI_TELEPORTER as i32);
+            let result = set_holdable(py, 666, Holdable::Teleporter as i32);
             assert!(result.is_err_and(|err| err.is_instance_of::<PyValueError>(py)));
         });
+    }
+
+    #[test]
+    #[serial]
+    fn set_holdable_for_existing_game_client() {
+        let mut mock_engine = MockQuakeEngine::new();
+        mock_engine.expect_get_max_clients().returning(|| 16);
+        MAIN_ENGINE.store(Some(mock_engine.into()));
+
+        let game_entity_from_ctx = MockGameEntity::from_context();
+        game_entity_from_ctx.expect().returning(|_| {
+            let mut mock_game_entity = MockGameEntity::new();
+            mock_game_entity.expect_get_game_client().returning(|| {
+                let mut mock_game_client = MockGameClient::new();
+                mock_game_client
+                    .expect_set_holdable()
+                    .with(predicate::eq(Holdable::Kamikaze))
+                    .times(1);
+                Ok(mock_game_client)
+            });
+            mock_game_entity
+        });
+
+        let result = Python::with_gil(|py| set_holdable(py, 2, Holdable::Kamikaze as i32)).unwrap();
+        assert_eq!(result, true);
+    }
+
+    #[test]
+    #[serial]
+    fn set_holdable_for_entity_with_no_game_client() {
+        let mut mock_engine = MockQuakeEngine::new();
+        mock_engine.expect_get_max_clients().returning(|| 16);
+        MAIN_ENGINE.store(Some(mock_engine.into()));
+
+        let game_entity_from_ctx = MockGameEntity::from_context();
+        game_entity_from_ctx.expect().returning(|_| {
+            let mut mock_game_entity = MockGameEntity::new();
+            mock_game_entity
+                .expect_get_game_client()
+                .returning(|| Err(QuakeLiveEngineError::MainEngineNotInitialized));
+            mock_game_entity
+        });
+
+        let result =
+            Python::with_gil(|py| set_holdable(py, 2, Holdable::Invulnerability as i32)).unwrap();
+        assert_eq!(result, false);
     }
 }
 
@@ -6277,27 +6328,40 @@ fn drop_holdable(py: Python<'_>, client_id: i32) -> PyResult<bool> {
         )));
     }
 
-    py.allow_threads(move || match GameEntity::try_from(client_id) {
-        Err(_) => Ok(false),
-        Ok(mut game_entity) => {
-            let mut game_client = game_entity.get_game_client().unwrap();
-            game_client.remove_kamikaze_flag();
-            if Holdable::from(game_client.get_holdable()) == Holdable::None {
-                return Ok(false);
-            }
-            game_entity.drop_holdable();
-            Ok(true)
-        }
+    py.allow_threads(move || {
+        GameEntity::try_from(client_id)
+            .ok()
+            .and_then(|game_entity| game_entity.get_game_client().ok())
+            .iter_mut()
+            .for_each(|game_client| game_client.remove_kamikaze_flag());
+        let mut opt_game_entity_with_holdable =
+            GameEntity::try_from(client_id).ok().filter(|game_entity| {
+                game_entity
+                    .get_game_client()
+                    .ok()
+                    .filter(|game_client| {
+                        Holdable::from(game_client.get_holdable()) != Holdable::None
+                    })
+                    .is_some()
+            });
+        opt_game_entity_with_holdable
+            .iter_mut()
+            .for_each(|game_entity| game_entity.drop_holdable());
+        Ok(opt_game_entity_with_holdable.is_some())
     })
 }
 
 #[cfg(test)]
 #[cfg(not(miri))]
 mod drop_holdable_tests {
-    use super::drop_holdable;
     use super::MAIN_ENGINE;
+    use super::{drop_holdable, Holdable};
+    use crate::game_client::MockGameClient;
+    use crate::game_entity::MockGameEntity;
     use crate::prelude::*;
     use crate::quake_live_engine::MockQuakeEngine;
+    use mockall::Sequence;
+    use pretty_assertions::assert_eq;
     use pyo3::exceptions::{PyEnvironmentError, PyValueError};
     use pyo3::prelude::*;
 
@@ -6335,6 +6399,115 @@ mod drop_holdable_tests {
             let result = drop_holdable(py, 666);
             assert!(result.is_err_and(|err| err.is_instance_of::<PyValueError>(py)));
         });
+    }
+
+    #[test]
+    #[serial]
+    fn drop_holdable_for_entity_with_no_game_client() {
+        let mut mock_engine = MockQuakeEngine::new();
+        mock_engine.expect_get_max_clients().returning(|| 16);
+        MAIN_ENGINE.store(Some(mock_engine.into()));
+
+        let game_entity_from_ctx = MockGameEntity::from_context();
+        game_entity_from_ctx.expect().returning(|_| {
+            let mut mock_game_entity = MockGameEntity::new();
+            mock_game_entity
+                .expect_get_game_client()
+                .returning(|| Err(QuakeLiveEngineError::MainEngineNotInitialized));
+            mock_game_entity
+        });
+
+        let result = Python::with_gil(|py| drop_holdable(py, 2)).unwrap();
+        assert_eq!(result, false);
+    }
+
+    #[test]
+    #[serial]
+    fn drop_holdable_for_entity_with_no_holdable() {
+        let mut mock_engine = MockQuakeEngine::new();
+        mock_engine.expect_get_max_clients().returning(|| 16);
+        MAIN_ENGINE.store(Some(mock_engine.into()));
+
+        let mut seq = Sequence::new();
+
+        let game_entity_from_ctx = MockGameEntity::from_context();
+        game_entity_from_ctx
+            .expect()
+            .times(1)
+            .in_sequence(&mut seq)
+            .returning(|_| {
+                let mut mock_game_entity = MockGameEntity::new();
+                mock_game_entity.expect_get_game_client().returning(|| {
+                    let mut mock_game_client = MockGameClient::new();
+                    mock_game_client.expect_remove_kamikaze_flag().times(1);
+                    Ok(mock_game_client)
+                });
+                mock_game_entity.expect_drop_holdable().times(0);
+                mock_game_entity
+            });
+
+        game_entity_from_ctx
+            .expect()
+            .times(1)
+            .in_sequence(&mut seq)
+            .returning(|_| {
+                let mut mock_game_entity = MockGameEntity::new();
+                mock_game_entity.expect_get_game_client().returning(|| {
+                    let mut mock_game_client = MockGameClient::new();
+                    mock_game_client.expect_get_holdable().returning(|| 0);
+                    Ok(mock_game_client)
+                });
+                mock_game_entity.expect_drop_holdable().times(0);
+                mock_game_entity
+            });
+
+        let result = Python::with_gil(|py| drop_holdable(py, 2)).unwrap();
+        assert_eq!(result, false);
+    }
+
+    #[test]
+    #[serial]
+    fn drop_holdable_for_entity_with_holdable_dropped() {
+        let mut mock_engine = MockQuakeEngine::new();
+        mock_engine.expect_get_max_clients().returning(|| 16);
+        MAIN_ENGINE.store(Some(mock_engine.into()));
+
+        let mut seq = Sequence::new();
+
+        let game_entity_from_ctx = MockGameEntity::from_context();
+        game_entity_from_ctx
+            .expect()
+            .times(1)
+            .in_sequence(&mut seq)
+            .returning(|_| {
+                let mut mock_game_entity = MockGameEntity::new();
+                mock_game_entity.expect_get_game_client().returning(|| {
+                    let mut mock_game_client = MockGameClient::new();
+                    mock_game_client.expect_remove_kamikaze_flag().times(1);
+                    Ok(mock_game_client)
+                });
+                mock_game_entity
+            });
+
+        game_entity_from_ctx
+            .expect()
+            .times(1)
+            .in_sequence(&mut seq)
+            .returning(|_| {
+                let mut mock_game_entity = MockGameEntity::new();
+                mock_game_entity.expect_get_game_client().returning(|| {
+                    let mut mock_game_client = MockGameClient::new();
+                    mock_game_client
+                        .expect_get_holdable()
+                        .returning(|| Holdable::Teleporter as i32);
+                    Ok(mock_game_client)
+                });
+                mock_game_entity.expect_drop_holdable().times(1);
+                mock_game_entity
+            });
+
+        let result = Python::with_gil(|py| drop_holdable(py, 2)).unwrap();
+        assert_eq!(result, true);
     }
 }
 
