@@ -2598,17 +2598,14 @@ fn client_command(py: Python<'_>, client_id: i32, cmd: &str) -> PyResult<bool> {
         )));
     }
 
-    match Client::try_from(client_id) {
-        Err(_) => Ok(false),
-        Ok(client) => {
-            if [clientState_t::CS_FREE, clientState_t::CS_ZOMBIE].contains(&client.get_state()) {
-                Ok(false)
-            } else {
-                shinqlx_execute_client_command(Some(client), cmd.to_string(), true);
-                Ok(true)
-            }
-        }
+    let opt_client = Client::try_from(client_id).ok().filter(|client| {
+        ![clientState_t::CS_FREE, clientState_t::CS_ZOMBIE].contains(&client.get_state())
+    });
+    let returned = opt_client.is_some();
+    if returned {
+        shinqlx_execute_client_command(opt_client, cmd.to_string(), true);
     }
+    Ok(returned)
 }
 
 #[cfg(test)]
@@ -2677,8 +2674,8 @@ mod client_command_tests {
         mock_engine.expect_get_max_clients().returning(|| 16);
         MAIN_ENGINE.store(Some(mock_engine.into()));
 
-        let client_try_from_ctx = MockClient::from_context();
-        client_try_from_ctx.expect().returning(move |_client_id| {
+        let client_from_ctx = MockClient::from_context();
+        client_from_ctx.expect().returning(move |_client_id| {
             let mut mock_client = MockClient::new();
             mock_client.expect_get_state().return_const(clientstate);
             mock_client
@@ -3060,24 +3057,23 @@ fn kick(py: Python<'_>, client_id: i32, reason: Option<&str>) -> PyResult<()> {
         )));
     }
 
-    py.allow_threads(move || match Client::try_from(client_id) {
-        Err(_) => Err(PyValueError::new_err(
-            "client_id must be the ID of an active player.",
-        )),
-        Ok(mut client) => {
-            if client.get_state() != clientState_t::CS_ACTIVE {
-                return Err(PyValueError::new_err(
-                    "client_id must be the ID of an active player.",
-                ));
-            }
-            let reason_str = if reason.unwrap_or("was kicked.").is_empty() {
-                "was kicked."
-            } else {
-                reason.unwrap_or("was kicked.")
-            };
-            #[allow(clippy::unnecessary_to_owned)]
-            shinqlx_drop_client(&mut client, reason_str.to_string());
+    py.allow_threads(move || {
+        let mut opt_client = Client::try_from(client_id)
+            .ok()
+            .filter(|client| client.get_state() == clientState_t::CS_ACTIVE);
+        let reason_str = reason
+            .filter(|rsn| !rsn.is_empty())
+            .unwrap_or("was kicked.");
+        #[allow(clippy::unnecessary_to_owned)]
+        opt_client
+            .iter_mut()
+            .for_each(|client| shinqlx_drop_client(client, reason_str.to_string()));
+        if opt_client.is_some() {
             Ok(())
+        } else {
+            Err(PyValueError::new_err(
+                "client_id must be the ID of an active player.",
+            ))
         }
     })
 }
@@ -3427,7 +3423,9 @@ fn force_vote(py: Python<'_>, pass: bool) -> PyResult<bool> {
         (0..maxclients)
             .filter(|i| {
                 Client::try_from(*i)
-                    .is_ok_and(|client| client.get_state() == clientState_t::CS_ACTIVE)
+                    .ok()
+                    .filter(|client| client.get_state() == clientState_t::CS_ACTIVE)
+                    .is_some()
             })
             .filter_map(|client_id| GameEntity::try_from(client_id).ok())
             .filter_map(|game_entity| game_entity.get_game_client().ok())
