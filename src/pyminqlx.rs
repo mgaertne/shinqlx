@@ -6908,11 +6908,52 @@ mod set_score_tests {
 #[pyo3(name = "callvote")]
 fn callvote(py: Python<'_>, vote: &str, vote_disp: &str, vote_time: Option<i32>) {
     py.allow_threads(move || {
-        let Ok(mut current_level) = CurrentLevel::try_get() else {
-            return;
-        };
-        current_level.callvote(vote, vote_disp, vote_time);
+        CurrentLevel::try_get()
+            .ok()
+            .iter_mut()
+            .for_each(|current_level| current_level.callvote(vote, vote_disp, vote_time));
     })
+}
+
+#[cfg(test)]
+#[cfg(not(miri))]
+mod callvote_tests {
+    use super::callvote;
+    use crate::current_level::MockTestCurrentLevel;
+    use crate::prelude::*;
+    use mockall::predicate;
+    use pyo3::prelude::*;
+
+    #[test]
+    #[serial]
+    fn callvote_with_no_current_level() {
+        let level_ctx = MockTestCurrentLevel::try_get_context();
+        level_ctx
+            .expect()
+            .returning(|| Err(QuakeLiveEngineError::MainEngineNotInitialized));
+
+        Python::with_gil(|py| callvote(py, "map thunderstruck", "map thunderstruck", None));
+    }
+
+    #[test]
+    #[serial]
+    fn callvote_with_current_level_calls_vote() {
+        let level_ctx = MockTestCurrentLevel::try_get_context();
+        level_ctx.expect().returning(|| {
+            let mut mock_level = MockTestCurrentLevel::new();
+            mock_level
+                .expect_callvote()
+                .with(
+                    predicate::eq("map theatreofpain"),
+                    predicate::eq("map Theatre of Pain"),
+                    predicate::eq(Some(10)),
+                )
+                .times(1);
+            Ok(mock_level)
+        });
+
+        Python::with_gil(|py| callvote(py, "map theatreofpain", "map Theatre of Pain", Some(10)));
+    }
 }
 
 /// Allows or disallows a game with only a single player in it to go on without forfeiting. Useful for race.
@@ -6920,11 +6961,48 @@ fn callvote(py: Python<'_>, vote: &str, vote_disp: &str, vote_time: Option<i32>)
 #[pyo3(name = "allow_single_player")]
 fn allow_single_player(py: Python<'_>, allow: bool) {
     py.allow_threads(move || {
-        let Ok(mut current_level) = CurrentLevel::try_get() else {
-            return;
-        };
-        current_level.set_training_map(allow);
-    })
+        CurrentLevel::try_get()
+            .ok()
+            .iter_mut()
+            .for_each(|current_level| current_level.set_training_map(allow))
+    });
+}
+
+#[cfg(test)]
+#[cfg(not(miri))]
+mod allow_single_player_tests {
+    use super::allow_single_player;
+    use crate::current_level::MockTestCurrentLevel;
+    use crate::prelude::*;
+    use mockall::predicate;
+    use pyo3::prelude::*;
+
+    #[test]
+    #[serial]
+    fn allow_single_player_with_no_current_level() {
+        let level_ctx = MockTestCurrentLevel::try_get_context();
+        level_ctx
+            .expect()
+            .returning(|| Err(QuakeLiveEngineError::MainEngineNotInitialized));
+
+        Python::with_gil(|py| allow_single_player(py, true));
+    }
+
+    #[test]
+    #[serial]
+    fn allow_single_player_sets_training_map() {
+        let level_ctx = MockTestCurrentLevel::try_get_context();
+        level_ctx.expect().returning(|| {
+            let mut mock_level = MockTestCurrentLevel::new();
+            mock_level
+                .expect_set_training_map()
+                .with(predicate::eq(true))
+                .times(1);
+            Ok(mock_level)
+        });
+
+        Python::with_gil(|py| allow_single_player(py, true));
+    }
 }
 
 /// Spawns a player.
@@ -6948,17 +7026,16 @@ fn player_spawn(py: Python<'_>, client_id: i32) -> PyResult<bool> {
         )));
     }
 
-    py.allow_threads(move || match GameEntity::try_from(client_id) {
-        Err(_) => Ok(false),
-        Ok(game_entity) => match game_entity.get_game_client() {
-            Err(_) => Ok(false),
-            Ok(game_client) => {
-                let mut game_client = game_client;
-                game_client.spawn();
-                shinqlx_client_spawn(game_entity);
-                Ok(true)
-            }
-        },
+    py.allow_threads(move || {
+        let Ok(game_entity) = GameEntity::try_from(client_id) else {
+            return Ok(false);
+        };
+        let Ok(mut game_client) = game_entity.get_game_client() else {
+            return Ok(false);
+        };
+        game_client.spawn();
+        shinqlx_client_spawn(game_entity);
+        Ok(true)
     })
 }
 
@@ -6967,8 +7044,12 @@ fn player_spawn(py: Python<'_>, client_id: i32) -> PyResult<bool> {
 mod player_spawn_tests {
     use super::player_spawn;
     use super::MAIN_ENGINE;
+    use crate::game_client::MockGameClient;
+    use crate::game_entity::MockGameEntity;
+    use crate::hooks::mock_hooks::shinqlx_client_spawn_context;
     use crate::prelude::*;
     use crate::quake_live_engine::MockQuakeEngine;
+    use pretty_assertions::assert_eq;
     use pyo3::exceptions::{PyEnvironmentError, PyValueError};
     use pyo3::prelude::*;
 
@@ -7007,6 +7088,54 @@ mod player_spawn_tests {
             assert!(result.is_err_and(|err| err.is_instance_of::<PyValueError>(py)));
         });
     }
+
+    #[test]
+    #[serial]
+    fn player_spawn_for_existing_game_client() {
+        let mut mock_engine = MockQuakeEngine::new();
+        mock_engine.expect_get_max_clients().returning(|| 16);
+        MAIN_ENGINE.store(Some(mock_engine.into()));
+
+        let game_entity_from_ctx = MockGameEntity::from_context();
+        game_entity_from_ctx.expect().returning(|_| {
+            let mut mock_game_entity = MockGameEntity::new();
+            mock_game_entity.expect_get_game_client().returning(|| {
+                let mut mock_game_client = MockGameClient::new();
+                mock_game_client.expect_spawn().times(1);
+                Ok(mock_game_client)
+            });
+            mock_game_entity
+        });
+
+        let client_spawn_ctx = shinqlx_client_spawn_context();
+        client_spawn_ctx.expect().returning_st(|_| ()).times(1);
+
+        let result = Python::with_gil(|py| player_spawn(py, 2)).unwrap();
+        assert_eq!(result, true);
+    }
+
+    #[test]
+    #[serial]
+    fn player_spawn_for_entity_with_no_game_client() {
+        let mut mock_engine = MockQuakeEngine::new();
+        mock_engine.expect_get_max_clients().returning(|| 16);
+        MAIN_ENGINE.store(Some(mock_engine.into()));
+
+        let game_entity_from_ctx = MockGameEntity::from_context();
+        game_entity_from_ctx.expect().returning(|_| {
+            let mut mock_game_entity = MockGameEntity::new();
+            mock_game_entity
+                .expect_get_game_client()
+                .returning(|| Err(QuakeLiveEngineError::MainEngineNotInitialized));
+            mock_game_entity
+        });
+
+        let client_spawn_ctx = shinqlx_client_spawn_context();
+        client_spawn_ctx.expect().returning_st(|_| ()).times(0);
+
+        let result = Python::with_gil(|py| player_spawn(py, 2)).unwrap();
+        assert_eq!(result, false);
+    }
 }
 
 /// Sets a player's privileges. Does not persist.
@@ -7030,16 +7159,14 @@ fn set_privileges(py: Python<'_>, client_id: i32, privileges: i32) -> PyResult<b
         )));
     }
 
-    py.allow_threads(move || match GameEntity::try_from(client_id) {
-        Err(_) => Ok(false),
-        Ok(game_entity) => match game_entity.get_game_client() {
-            Err(_) => Ok(false),
-            Ok(game_client) => {
-                let mut game_client = game_client;
-                game_client.set_privileges(privileges);
-                Ok(true)
-            }
-        },
+    py.allow_threads(move || {
+        let mut opt_game_client = GameEntity::try_from(client_id)
+            .ok()
+            .and_then(|game_entity| game_entity.get_game_client().ok());
+        opt_game_client
+            .iter_mut()
+            .for_each(|game_client| game_client.set_privileges(privileges));
+        Ok(opt_game_client.is_some())
     })
 }
 
@@ -7048,10 +7175,15 @@ fn set_privileges(py: Python<'_>, client_id: i32, privileges: i32) -> PyResult<b
 mod set_privileges_tests {
     use super::set_privileges;
     use super::MAIN_ENGINE;
+    use crate::game_client::MockGameClient;
+    use crate::game_entity::MockGameEntity;
     use crate::prelude::*;
     use crate::quake_live_engine::MockQuakeEngine;
+    use mockall::predicate;
+    use pretty_assertions::assert_eq;
     use pyo3::exceptions::{PyEnvironmentError, PyValueError};
     use pyo3::prelude::*;
+    use rstest::rstest;
 
     #[test]
     #[serial]
@@ -7087,6 +7219,57 @@ mod set_privileges_tests {
             let result = set_privileges(py, 666, privileges_t::PRIV_MOD as i32);
             assert!(result.is_err_and(|err| err.is_instance_of::<PyValueError>(py)));
         });
+    }
+
+    #[rstest]
+    #[case(&privileges_t::PRIV_NONE)]
+    #[case(&privileges_t::PRIV_MOD)]
+    #[case(&privileges_t::PRIV_ADMIN)]
+    #[case(&privileges_t::PRIV_ROOT)]
+    #[case(&privileges_t::PRIV_BANNED)]
+    #[serial]
+    fn set_privileges_for_existing_game_client(#[case] privileges: &'static privileges_t) {
+        let mut mock_engine = MockQuakeEngine::new();
+        mock_engine.expect_get_max_clients().returning(|| 16);
+        MAIN_ENGINE.store(Some(mock_engine.into()));
+
+        let game_entity_from_ctx = MockGameEntity::from_context();
+        game_entity_from_ctx.expect().returning(|_| {
+            let mut mock_game_entity = MockGameEntity::new();
+            mock_game_entity.expect_get_game_client().returning(|| {
+                let mut mock_game_client = MockGameClient::new();
+                mock_game_client
+                    .expect_set_privileges()
+                    .with(predicate::eq(*privileges as i32))
+                    .times(1);
+                Ok(mock_game_client)
+            });
+            mock_game_entity
+        });
+
+        let result = Python::with_gil(|py| set_privileges(py, 2, *privileges as i32)).unwrap();
+        assert_eq!(result, true);
+    }
+
+    #[test]
+    #[serial]
+    fn set_privileges_for_entity_with_no_game_client() {
+        let mut mock_engine = MockQuakeEngine::new();
+        mock_engine.expect_get_max_clients().returning(|| 16);
+        MAIN_ENGINE.store(Some(mock_engine.into()));
+
+        let game_entity_from_ctx = MockGameEntity::from_context();
+        game_entity_from_ctx.expect().returning(|_| {
+            let mut mock_game_entity = MockGameEntity::new();
+            mock_game_entity
+                .expect_get_game_client()
+                .returning(|| Err(QuakeLiveEngineError::MainEngineNotInitialized));
+            mock_game_entity
+        });
+
+        let result =
+            Python::with_gil(|py| set_privileges(py, 2, privileges_t::PRIV_NONE as i32)).unwrap();
+        assert_eq!(result, false);
     }
 }
 
@@ -7173,18 +7356,22 @@ fn slay_with_mod(py: Python<'_>, client_id: i32, mean_of_death: i32) -> PyResult
         )));
     }
 
-    py.allow_threads(move || match GameEntity::try_from(client_id) {
-        Err(_) => Ok(false),
-        Ok(game_entity) => match game_entity.get_game_client() {
-            Err(_) => Ok(false),
-            Ok(_) => {
-                if game_entity.get_health() > 0 {
-                    let mut mut_entity = game_entity;
-                    mut_entity.slay_with_mod(mean_of_death.try_into().unwrap());
-                }
-                Ok(true)
+    let Ok(means_of_death): Result<meansOfDeath_t, _> = mean_of_death.try_into() else {
+        return Err(PyValueError::new_err(
+            "means of death needs to be a valid enum value.",
+        ));
+    };
+
+    py.allow_threads(move || {
+        let mut opt_game_entity = GameEntity::try_from(client_id)
+            .ok()
+            .filter(|game_entity| game_entity.get_game_client().is_ok());
+        opt_game_entity.iter_mut().for_each(|game_entity| {
+            if game_entity.get_health() > 0 {
+                game_entity.slay_with_mod(means_of_death);
             }
-        },
+        });
+        Ok(opt_game_entity.is_some())
     })
 }
 
@@ -7193,8 +7380,12 @@ fn slay_with_mod(py: Python<'_>, client_id: i32, mean_of_death: i32) -> PyResult
 mod slay_with_mod_tests {
     use super::slay_with_mod;
     use super::MAIN_ENGINE;
+    use crate::game_client::MockGameClient;
+    use crate::game_entity::MockGameEntity;
     use crate::prelude::*;
     use crate::quake_live_engine::MockQuakeEngine;
+    use mockall::predicate;
+    use pretty_assertions::assert_eq;
     use pyo3::exceptions::{PyEnvironmentError, PyValueError};
     use pyo3::prelude::*;
 
@@ -7232,6 +7423,93 @@ mod slay_with_mod_tests {
             let result = slay_with_mod(py, 666, meansOfDeath_t::MOD_TRIGGER_HURT as i32);
             assert!(result.is_err_and(|err| err.is_instance_of::<PyValueError>(py)));
         });
+    }
+
+    #[test]
+    #[serial]
+    fn slay_with_mod_for_invalid_means_of_death() {
+        let mut mock_engine = MockQuakeEngine::new();
+        mock_engine.expect_get_max_clients().returning(|| 16);
+        MAIN_ENGINE.store(Some(mock_engine.into()));
+
+        Python::with_gil(|py| {
+            let result = slay_with_mod(py, 2, 12345);
+            assert!(result.is_err_and(|err| err.is_instance_of::<PyValueError>(py)));
+        });
+    }
+
+    #[test]
+    #[serial]
+    fn slay_with_mod_for_existing_game_client_with_remaining_health() {
+        let mut mock_engine = MockQuakeEngine::new();
+        mock_engine.expect_get_max_clients().returning(|| 16);
+        MAIN_ENGINE.store(Some(mock_engine.into()));
+
+        let game_entity_from_ctx = MockGameEntity::from_context();
+        game_entity_from_ctx.expect().returning(|_| {
+            let mut mock_game_entity = MockGameEntity::new();
+            mock_game_entity.expect_get_game_client().returning(|| {
+                let mock_game_client = MockGameClient::new();
+                Ok(mock_game_client)
+            });
+            mock_game_entity.expect_get_health().returning(|| 42);
+            mock_game_entity
+                .expect_slay_with_mod()
+                .with(predicate::eq(meansOfDeath_t::MOD_PROXIMITY_MINE))
+                .times(1);
+            mock_game_entity
+        });
+
+        let result =
+            Python::with_gil(|py| slay_with_mod(py, 2, meansOfDeath_t::MOD_PROXIMITY_MINE as i32))
+                .unwrap();
+        assert_eq!(result, true);
+    }
+
+    #[test]
+    #[serial]
+    fn slay_with_mod_for_existing_game_client_with_no_remaining_health() {
+        let mut mock_engine = MockQuakeEngine::new();
+        mock_engine.expect_get_max_clients().returning(|| 16);
+        MAIN_ENGINE.store(Some(mock_engine.into()));
+
+        let game_entity_from_ctx = MockGameEntity::from_context();
+        game_entity_from_ctx.expect().returning(|_| {
+            let mut mock_game_entity = MockGameEntity::new();
+            mock_game_entity.expect_get_game_client().returning(|| {
+                let mock_game_client = MockGameClient::new();
+                Ok(mock_game_client)
+            });
+            mock_game_entity.expect_get_health().returning(|| 0);
+            mock_game_entity.expect_slay_with_mod().times(0);
+            mock_game_entity
+        });
+
+        let result =
+            Python::with_gil(|py| slay_with_mod(py, 2, meansOfDeath_t::MOD_PROXIMITY_MINE as i32))
+                .unwrap();
+        assert_eq!(result, true);
+    }
+
+    #[test]
+    #[serial]
+    fn slay_with_mod_for_entity_with_no_game_client() {
+        let mut mock_engine = MockQuakeEngine::new();
+        mock_engine.expect_get_max_clients().returning(|| 16);
+        MAIN_ENGINE.store(Some(mock_engine.into()));
+
+        let game_entity_from_ctx = MockGameEntity::from_context();
+        game_entity_from_ctx.expect().returning(|_| {
+            let mut mock_game_entity = MockGameEntity::new();
+            mock_game_entity
+                .expect_get_game_client()
+                .returning(|| Err(QuakeLiveEngineError::MainEngineNotInitialized));
+            mock_game_entity
+        });
+
+        let result =
+            Python::with_gil(|py| slay_with_mod(py, 2, meansOfDeath_t::MOD_CRUSH as i32)).unwrap();
+        assert_eq!(result, false);
     }
 }
 
