@@ -2275,18 +2275,13 @@ fn get_userinfo(py: Python<'_>, client_id: i32) -> PyResult<Option<String>> {
         )));
     }
 
-    py.allow_threads(move || match Client::try_from(client_id) {
-        Err(_) => Ok(None),
-        Ok(client) => {
+    py.allow_threads(move || {
+        let opt_client = Client::try_from(client_id).ok().filter(|client| {
             let allowed_free_clients = ALLOW_FREE_CLIENT.load(Ordering::SeqCst);
-            if allowed_free_clients & client_id as u64 == 0
-                && client.get_state() == clientState_t::CS_FREE
-            {
-                Ok(None)
-            } else {
-                Ok(Some(client.get_user_info()))
-            }
-        }
+            client.get_state() != clientState_t::CS_FREE
+                || allowed_free_clients & client_id as u64 != 0
+        });
+        Ok(opt_client.map(|client| client.get_user_info()))
     })
 }
 
@@ -2299,6 +2294,7 @@ mod get_userinfo_tests {
     use crate::prelude::*;
     use crate::quake_live_engine::MockQuakeEngine;
     use core::sync::atomic::Ordering;
+    use pretty_assertions::assert_eq;
     use pyo3::exceptions::{PyEnvironmentError, PyValueError};
     use pyo3::prelude::*;
 
@@ -2437,18 +2433,15 @@ fn send_server_command(py: Python<'_>, client_id: Option<i32>, cmd: &str) -> PyR
                 )));
             }
 
-            match Client::try_from(actual_client_id) {
-                Err(_) => Ok(false),
-                Ok(client) => {
-                    if client.get_state() != clientState_t::CS_ACTIVE {
-                        Ok(false)
-                    } else {
-                        #[allow(clippy::unnecessary_to_owned)]
-                        shinqlx_send_server_command(Some(client), cmd.to_string());
-                        Ok(true)
-                    }
-                }
+            let opt_client = Client::try_from(actual_client_id)
+                .ok()
+                .filter(|client| client.get_state() == clientState_t::CS_ACTIVE);
+            let returned = opt_client.is_some();
+            #[allow(clippy::unnecessary_to_owned)]
+            if returned {
+                shinqlx_send_server_command(opt_client, cmd.to_string());
             }
+            Ok(returned)
         }
     }
 }
