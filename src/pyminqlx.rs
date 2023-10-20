@@ -142,7 +142,7 @@ pub(crate) fn client_connect_dispatcher(client_id: i32, is_bot: bool) -> Option<
 
     {
         let allowed_clients = ALLOW_FREE_CLIENT.load(Ordering::SeqCst);
-        ALLOW_FREE_CLIENT.store(allowed_clients | client_id as u64, Ordering::SeqCst);
+        ALLOW_FREE_CLIENT.store(allowed_clients | (1 << client_id as u64), Ordering::SeqCst);
     }
 
     let result: Option<String> =
@@ -167,7 +167,7 @@ pub(crate) fn client_connect_dispatcher(client_id: i32, is_bot: bool) -> Option<
 
     {
         let allowed_clients = ALLOW_FREE_CLIENT.load(Ordering::SeqCst);
-        ALLOW_FREE_CLIENT.store(allowed_clients & !client_id as u64, Ordering::SeqCst);
+        ALLOW_FREE_CLIENT.store(allowed_clients & !(1 << client_id as u64), Ordering::SeqCst);
     }
 
     result
@@ -187,7 +187,7 @@ where
 
     {
         let allowed_clients = ALLOW_FREE_CLIENT.load(Ordering::SeqCst);
-        ALLOW_FREE_CLIENT.store(allowed_clients | client_id as u64, Ordering::SeqCst);
+        ALLOW_FREE_CLIENT.store(allowed_clients | (1 << client_id as u64), Ordering::SeqCst);
     }
 
     let result =
@@ -198,7 +198,7 @@ where
 
     {
         let allowed_clients = ALLOW_FREE_CLIENT.load(Ordering::SeqCst);
-        ALLOW_FREE_CLIENT.store(allowed_clients & !client_id as u64, Ordering::SeqCst);
+        ALLOW_FREE_CLIENT.store(allowed_clients & !(1 << client_id as u64), Ordering::SeqCst);
     }
 }
 
@@ -2106,7 +2106,7 @@ fn get_player_info(py: Python<'_>, client_id: i32) -> PyResult<Option<PlayerInfo
         };
 
         let allowed_free_clients = ALLOW_FREE_CLIENT.load(Ordering::SeqCst);
-        if allowed_free_clients & client_id as u64 == 0
+        if allowed_free_clients & (1 << client_id as u64) == 0
             && client.get_state() == clientState_t::CS_FREE
         {
             warn!(
@@ -2251,7 +2251,7 @@ mod get_player_info_tests {
         let mut mock_engine = MockQuakeEngine::new();
         mock_engine.expect_get_max_clients().returning(|| 16);
         MAIN_ENGINE.store(Some(mock_engine.into()));
-        ALLOW_FREE_CLIENT.store(2, Ordering::SeqCst);
+        ALLOW_FREE_CLIENT.store(1 << 2, Ordering::SeqCst);
 
         let client_try_from_ctx = MockClient::from_context();
         client_try_from_ctx.expect().returning(|_client_id| {
@@ -2371,7 +2371,7 @@ fn get_userinfo(py: Python<'_>, client_id: i32) -> PyResult<Option<String>> {
         let opt_client = Client::try_from(client_id).ok().filter(|client| {
             let allowed_free_clients = ALLOW_FREE_CLIENT.load(Ordering::SeqCst);
             client.get_state() != clientState_t::CS_FREE
-                || allowed_free_clients & client_id as u64 != 0
+                || allowed_free_clients & (1 << client_id as u64) != 0
         });
         Ok(opt_client.map(|client| client.get_user_info()))
     })
@@ -2477,7 +2477,7 @@ mod get_userinfo_tests {
         let mut mock_engine = MockQuakeEngine::new();
         mock_engine.expect_get_max_clients().returning(|| 16);
         MAIN_ENGINE.store(Some(mock_engine.into()));
-        ALLOW_FREE_CLIENT.store(2, Ordering::SeqCst);
+        ALLOW_FREE_CLIENT.store(1 << 2, Ordering::SeqCst);
 
         let client_try_from_ctx = MockClient::from_context();
         client_try_from_ctx.expect().returning(|_client_id| {
