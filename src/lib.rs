@@ -17,23 +17,11 @@ mod quake_live_engine;
 mod quake_live_functions;
 
 pub(crate) mod prelude {
-    #[cfg(not(test))]
-    pub(crate) use crate::ffi::c::activator::Activator;
-    #[cfg(test)]
-    pub(crate) use crate::ffi::c::activator::MockActivator as Activator;
-    #[cfg(not(test))]
-    pub(crate) use crate::ffi::c::client::Client;
-    #[cfg(test)]
-    pub(crate) use crate::ffi::c::client::MockClient as Client;
-    #[cfg(not(test))]
-    pub(crate) use crate::ffi::c::game_client::GameClient;
-    #[cfg(test)]
-    pub(crate) use crate::ffi::c::game_client::MockGameClient as GameClient;
-    #[cfg(not(test))]
-    pub(crate) use crate::ffi::c::game_entity::GameEntity;
-    #[cfg(test)]
-    pub(crate) use crate::ffi::c::game_entity::MockGameEntity as GameEntity;
     pub(crate) use crate::ffi::c::quake_types::*;
+    pub(crate) use crate::ffi::c::Activator;
+    pub(crate) use crate::ffi::c::Client;
+    pub(crate) use crate::ffi::c::GameClient;
+    pub(crate) use crate::ffi::c::GameEntity;
     pub(crate) use crate::quake_live_engine::{QuakeLiveEngine, QuakeLiveEngineError};
     pub(crate) use alloc::format;
     pub(crate) use core::mem;

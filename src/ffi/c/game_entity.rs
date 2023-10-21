@@ -1,10 +1,7 @@
-#[cfg(not(test))]
-use crate::ffi::c::current_level::CurrentLevel;
-#[cfg(test)]
-use crate::ffi::c::current_level::MockTestCurrentLevel as CurrentLevel;
 #[cfg(test)]
 use crate::ffi::c::game_entity::DUMMY_MAIN_ENGINE as MAIN_ENGINE;
-use crate::ffi::c::game_item::GameItem;
+use crate::ffi::c::CurrentLevel;
+use crate::ffi::c::GameItem;
 use crate::hooks::shinqlx_set_configstring;
 use crate::prelude::*;
 #[cfg(test)]

@@ -1,9 +1,6 @@
 #[cfg(test)]
 use crate::ffi::c::client::DUMMY_MAIN_ENGINE as MAIN_ENGINE;
-#[cfg(test)]
-use crate::ffi::c::server_static::MockTestServerStatic as ServerStatic;
-#[cfg(not(test))]
-use crate::ffi::c::server_static::ServerStatic;
+use crate::ffi::c::ServerStatic;
 use crate::prelude::*;
 #[cfg(test)]
 use crate::quake_live_engine::MockQuakeEngine as QuakeLiveEngine;

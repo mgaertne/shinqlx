@@ -2,9 +2,9 @@ use crate::commands::{
     cmd_center_print, cmd_py_command, cmd_py_rcon, cmd_regular_print, cmd_restart_python,
     cmd_send_server_command, cmd_slap, cmd_slay,
 };
-use crate::ffi::c::cvar::CVar;
+use crate::ffi::c::CVar;
 #[cfg(test)]
-use crate::ffi::c::game_item::GameItem;
+use crate::ffi::c::GameItem;
 use crate::ffi::python::{pyminqlx_initialize, PythonInitializationError};
 use crate::hooks::{
     shinqlx_client_connect, shinqlx_clientspawn, shinqlx_cmd_addcommand, shinqlx_g_damage,

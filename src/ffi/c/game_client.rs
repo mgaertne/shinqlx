@@ -1,7 +1,4 @@
-#[cfg(not(test))]
-use crate::ffi::c::current_level::CurrentLevel;
-#[cfg(test)]
-use crate::ffi::c::current_level::MockTestCurrentLevel as CurrentLevel;
+use crate::ffi::c::CurrentLevel;
 use crate::prelude::*;
 use alloc::string::String;
 use alloc::vec::Vec;
