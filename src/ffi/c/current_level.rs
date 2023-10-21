@@ -1,6 +1,5 @@
 #[cfg(test)]
 use crate::ffi::c::current_level::DUMMY_MAIN_ENGINE as MAIN_ENGINE;
-use crate::ffi::c::game_entity::GameEntity;
 #[cfg(test)]
 use crate::hooks::mock_hooks::shinqlx_set_configstring;
 #[cfg(not(test))]
@@ -259,6 +258,14 @@ mod current_level_tests {
         get_entities_list_ctx
             .expect()
             .returning(|| ptr::null_mut() as *mut gentity_t);
+        let game_entity_from_ctx = MockGameEntity::from_context();
+        game_entity_from_ctx.expect().returning(|_| {
+            let mut mock_entity = MockGameEntity::new();
+            mock_entity
+                .expect_get_game_client()
+                .returning(|| Err(QuakeLiveEngineError::MainEngineNotInitialized));
+            mock_entity
+        });
 
         let mut level = LevelLocalsBuilder::default().build().unwrap();
         let mut current_level = CurrentLevel::try_from(&mut level as *mut level_locals_t).unwrap();

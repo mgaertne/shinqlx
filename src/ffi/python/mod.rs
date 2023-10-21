@@ -2,22 +2,22 @@ pub(crate) mod dispatchers;
 pub(crate) mod embed;
 mod flight;
 mod holdable;
-mod player_atate;
 mod player_info;
+mod player_state;
 mod player_stats;
 mod powerups;
 mod vector3;
 mod weapons;
 
 use crate::ffi::python::embed::*;
-pub(crate) use crate::ffi::python::flight::Flight;
-pub(crate) use crate::ffi::python::holdable::Holdable;
-pub(crate) use crate::ffi::python::player_atate::PlayerState;
-pub(crate) use crate::ffi::python::player_info::PlayerInfo;
-pub(crate) use crate::ffi::python::player_stats::PlayerStats;
-pub(crate) use crate::ffi::python::powerups::Powerups;
-pub(crate) use crate::ffi::python::vector3::Vector3;
-pub(crate) use crate::ffi::python::weapons::Weapons;
+pub(crate) use flight::Flight;
+pub(crate) use holdable::Holdable;
+pub(crate) use player_info::PlayerInfo;
+pub(crate) use player_state::PlayerState;
+pub(crate) use player_stats::PlayerStats;
+pub(crate) use powerups::Powerups;
+pub(crate) use vector3::Vector3;
+pub(crate) use weapons::Weapons;
 
 use crate::prelude::*;
 #[cfg(test)]

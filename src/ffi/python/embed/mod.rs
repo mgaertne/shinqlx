@@ -20,11 +20,8 @@ use crate::hooks::{
 use crate::MAIN_ENGINE;
 use core::sync::atomic::Ordering;
 
-#[cfg(not(test))]
-use crate::ffi::c::current_level::CurrentLevel;
-#[cfg(test)]
-use crate::ffi::c::current_level::MockTestCurrentLevel as CurrentLevel;
-use crate::ffi::c::game_item::GameItem;
+use crate::ffi::c::CurrentLevel;
+use crate::ffi::c::GameItem;
 use crate::ffi::python::{
     ALLOW_FREE_CLIENT, CLIENT_COMMAND_HANDLER, CONSOLE_PRINT_HANDLER, CUSTOM_COMMAND_HANDLER,
     DAMAGE_HANDLER, FRAME_HANDLER, KAMIKAZE_EXPLODE_HANDLER, KAMIKAZE_USE_HANDLER,
@@ -840,7 +837,7 @@ pub(crate) fn get_cvar(py: Python<'_>, cvar: &str) -> PyResult<Option<String>> {
 mod get_cvar_tests {
     use super::get_cvar;
     use super::MAIN_ENGINE;
-    use crate::ffi::c::cvar::CVar;
+    use crate::ffi::c::CVar;
     use crate::prelude::*;
     use crate::quake_live_engine::MockQuakeEngine;
     use alloc::ffi::CString;
@@ -937,7 +934,7 @@ pub(crate) fn set_cvar(
 mod set_cvar_tests {
     use super::set_cvar;
     use super::MAIN_ENGINE;
-    use crate::ffi::c::cvar::CVar;
+    use crate::ffi::c::CVar;
     use crate::prelude::*;
     use crate::quake_live_engine::MockQuakeEngine;
     use mockall::predicate;
