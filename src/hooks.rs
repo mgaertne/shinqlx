@@ -25,6 +25,7 @@ use crate::quake_live_engine::{
 #[cfg(not(test))]
 use crate::MAIN_ENGINE;
 use alloc::string::String;
+use core::borrow::BorrowMut;
 use core::ffi::{c_char, c_int, CStr, VaList, VaListImpl};
 #[cfg(test)]
 use once_cell::sync::Lazy;
@@ -425,20 +426,20 @@ pub(crate) fn shinqlx_client_connect(
 
 #[cfg_attr(test, allow(dead_code))]
 pub(crate) fn shinqlx_clientspawn(ent: *mut gentity_t) {
-    let Some(game_entity): Option<GameEntity> = ent.try_into().ok() else {
+    let Some(mut game_entity): Option<GameEntity> = ent.try_into().ok() else {
         return;
     };
 
-    shinqlx_client_spawn(game_entity)
+    shinqlx_client_spawn(&mut game_entity)
 }
 
 #[cfg_attr(test, allow(dead_code))]
-pub(crate) fn shinqlx_client_spawn(mut game_entity: GameEntity) {
+pub(crate) fn shinqlx_client_spawn(game_entity: &mut GameEntity) {
     let Some(ref main_engine) = *MAIN_ENGINE.load() else {
         return;
     };
 
-    main_engine.client_spawn(&mut game_entity);
+    main_engine.client_spawn(game_entity.borrow_mut());
 
     // Since we won't ever stop the real function from being called,
     // we trigger the event after calling the real one. This will allow
@@ -556,7 +557,7 @@ pub(crate) mod hooks {
     }
     pub(crate) fn shinqlx_send_server_command(_client: Option<Client>, _cmd: String) {}
     pub(crate) fn shinqlx_drop_client(_client: &mut Client, _reason: String) {}
-    pub(crate) fn shinqlx_client_spawn(_game_entity: GameEntity) {}
+    pub(crate) fn shinqlx_client_spawn(_game_entity: &mut GameEntity) {}
     pub(crate) fn shinqlx_set_configstring(_index: u32, _value: String) {}
     pub(crate) fn shinqlx_com_printf(_msg: &str) {}
 }
@@ -1451,7 +1452,8 @@ mod hooks_tests {
     #[serial]
     fn client_spawn_with_no_main_engine() {
         MAIN_ENGINE.store(None);
-        shinqlx_client_spawn(MockGameEntity::new());
+        let mut mock_entity = MockGameEntity::new();
+        shinqlx_client_spawn(&mut mock_entity);
     }
 
     #[test]
@@ -1469,7 +1471,7 @@ mod hooks_tests {
             .with(predicate::eq(42))
             .times(1);
 
-        shinqlx_client_spawn(mock_entity);
+        shinqlx_client_spawn(&mut mock_entity);
     }
 
     #[test]

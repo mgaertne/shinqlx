@@ -888,8 +888,7 @@ mod get_cvar_tests {
                     .string(cvar_string.as_ptr() as *mut c_char)
                     .build()
                     .unwrap();
-                let cvar = CVar::try_from(&mut raw_cvar as *mut cvar_t).unwrap();
-                Some(cvar)
+                CVar::try_from(&mut raw_cvar as *mut cvar_t).ok()
             })
             .times(1);
         MAIN_ENGINE.store(Some(mock_engine.into()));
@@ -991,8 +990,7 @@ mod set_cvar_tests {
             .with(predicate::eq("sv_maxclients"))
             .returning(|_| {
                 let mut raw_cvar = CVarBuilder::default().build().unwrap();
-                let cvar = CVar::try_from(&mut raw_cvar as *mut cvar_t).unwrap();
-                Some(cvar)
+                CVar::try_from(&mut raw_cvar as *mut cvar_t).ok()
             })
             .times(1);
         mock_engine
@@ -4296,15 +4294,20 @@ pub(crate) fn player_spawn(py: Python<'_>, client_id: i32) -> PyResult<bool> {
     }
 
     py.allow_threads(move || {
-        let Ok(game_entity) = GameEntity::try_from(client_id) else {
-            return Ok(false);
-        };
-        let Ok(mut game_client) = game_entity.get_game_client() else {
-            return Ok(false);
-        };
-        game_client.spawn();
-        shinqlx_client_spawn(game_entity);
-        Ok(true)
+        let mut opt_game_entity = GameEntity::try_from(client_id)
+            .ok()
+            .filter(|game_entity| game_entity.get_game_client().is_ok());
+
+        let returned = opt_game_entity.is_some();
+        if returned {
+            opt_game_entity.iter_mut().for_each(|game_entity| {
+                if let Ok(mut game_client) = game_entity.get_game_client() {
+                    game_client.spawn();
+                }
+                shinqlx_client_spawn(game_entity)
+            });
+        }
+        Ok(returned)
     })
 }
 
@@ -4366,11 +4369,11 @@ mod player_spawn_tests {
         MAIN_ENGINE.store(Some(mock_engine.into()));
 
         let game_entity_from_ctx = MockGameEntity::from_context();
-        game_entity_from_ctx.expect().returning(|_| {
+        game_entity_from_ctx.expect().returning(move |_| {
             let mut mock_game_entity = MockGameEntity::new();
             mock_game_entity.expect_get_game_client().returning(|| {
                 let mut mock_game_client = MockGameClient::new();
-                mock_game_client.expect_spawn().times(1);
+                mock_game_client.expect_spawn().times(..=1);
                 Ok(mock_game_client)
             });
             mock_game_entity
