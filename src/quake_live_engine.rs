@@ -2,9 +2,10 @@ use crate::commands::{
     cmd_center_print, cmd_py_command, cmd_py_rcon, cmd_regular_print, cmd_restart_python,
     cmd_send_server_command, cmd_slap, cmd_slay,
 };
-use crate::cvar::CVar;
+use crate::ffi::c::cvar::CVar;
 #[cfg(test)]
-use crate::game_item::GameItem;
+use crate::ffi::c::game_item::GameItem;
+use crate::ffi::python::{pyminqlx_initialize, PythonInitializationError};
 use crate::hooks::{
     shinqlx_client_connect, shinqlx_clientspawn, shinqlx_cmd_addcommand, shinqlx_g_damage,
     shinqlx_g_initgame, shinqlx_g_runframe, shinqlx_g_shutdowngame, shinqlx_g_startkamikaze,
@@ -14,7 +15,6 @@ use crate::hooks::{
 };
 use crate::patches::patch_callvote_f;
 use crate::prelude::*;
-use crate::pyminqlx::{pyminqlx_initialize, PythonInitializationError};
 #[cfg(target_os = "linux")]
 use crate::quake_live_functions::pattern_search_module;
 use crate::quake_live_functions::QuakeLiveFunction;
@@ -1999,11 +1999,11 @@ mockall::mock! {
     impl CmdArgv<i32> for QuakeEngine {
         fn cmd_argv(&self, argno: i32) -> Option<&'static str>;
     }
-    impl StartKamikaze<&mut crate::game_entity::GameEntity> for QuakeEngine {
-        fn start_kamikaze(&self, mut gentity: &mut crate::game_entity::GameEntity);
+    impl StartKamikaze<&mut crate::ffi::c::game_entity::GameEntity> for QuakeEngine {
+        fn start_kamikaze(&self, mut gentity: &mut crate::ffi::c::game_entity::GameEntity);
     }
-    impl FreeEntity<&mut crate::game_entity::GameEntity> for QuakeEngine {
-        fn free_entity(&self, mut gentity: &mut crate::game_entity::GameEntity);
+    impl FreeEntity<&mut crate::ffi::c::game_entity::GameEntity> for QuakeEngine {
+        fn free_entity(&self, mut gentity: &mut crate::ffi::c::game_entity::GameEntity);
     }
     impl GetConfigstring<u16> for QuakeEngine {
         fn get_configstring(&self, index: u16) -> String;

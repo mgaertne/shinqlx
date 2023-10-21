@@ -1,8 +1,8 @@
+#[cfg(test)]
+use crate::ffi::c::server_static::DUMMY_MAIN_ENGINE as MAIN_ENGINE;
 use crate::prelude::*;
 #[cfg(test)]
 use crate::quake_live_engine::MockQuakeEngine as QuakeLiveEngine;
-#[cfg(test)]
-use crate::server_static::DUMMY_MAIN_ENGINE as MAIN_ENGINE;
 #[cfg(not(test))]
 use crate::MAIN_ENGINE;
 

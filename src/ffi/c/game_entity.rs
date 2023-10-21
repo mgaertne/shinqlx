@@ -1,10 +1,10 @@
 #[cfg(not(test))]
-use crate::current_level::CurrentLevel;
+use crate::ffi::c::current_level::CurrentLevel;
 #[cfg(test)]
-use crate::current_level::MockTestCurrentLevel as CurrentLevel;
+use crate::ffi::c::current_level::MockTestCurrentLevel as CurrentLevel;
 #[cfg(test)]
-use crate::game_entity::DUMMY_MAIN_ENGINE as MAIN_ENGINE;
-use crate::game_item::GameItem;
+use crate::ffi::c::game_entity::DUMMY_MAIN_ENGINE as MAIN_ENGINE;
+use crate::ffi::c::game_item::GameItem;
 use crate::hooks::shinqlx_set_configstring;
 use crate::prelude::*;
 #[cfg(test)]
@@ -485,10 +485,10 @@ mockall::mock! {
 mod game_entity_tests {
     use super::GameEntity;
     use super::MAIN_ENGINE;
-    use crate::activator::MockActivator;
-    use crate::current_level::MockTestCurrentLevel;
-    use crate::game_client::MockGameClient;
-    use crate::game_entity::{
+    use crate::ffi::c::activator::MockActivator;
+    use crate::ffi::c::current_level::MockTestCurrentLevel;
+    use crate::ffi::c::game_client::MockGameClient;
+    use crate::ffi::c::game_entity::{
         MockGameEntity, MockStaticFunc, ShiNQlx_Switch_Touch_Item, ShiNQlx_Touch_Item,
     };
     use crate::prelude::*;

@@ -1,6 +1,6 @@
 #[cfg(test)]
-use crate::current_level::DUMMY_MAIN_ENGINE as MAIN_ENGINE;
-use crate::game_entity::GameEntity;
+use crate::ffi::c::current_level::DUMMY_MAIN_ENGINE as MAIN_ENGINE;
+use crate::ffi::c::game_entity::GameEntity;
 #[cfg(test)]
 use crate::hooks::mock_hooks::shinqlx_set_configstring;
 #[cfg(not(test))]
@@ -122,7 +122,7 @@ mockall::mock! {
 mod current_level_tests {
     use super::CurrentLevel;
     use super::MAIN_ENGINE;
-    use crate::game_entity::MockGameEntity;
+    use crate::ffi::c::game_entity::MockGameEntity;
     use crate::hooks::mock_hooks::*;
     use crate::prelude::*;
     use crate::quake_live_engine::MockQuakeEngine;

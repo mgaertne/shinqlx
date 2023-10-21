@@ -1,12 +1,12 @@
 #[cfg(test)]
-use crate::client::DUMMY_MAIN_ENGINE as MAIN_ENGINE;
+use crate::ffi::c::client::DUMMY_MAIN_ENGINE as MAIN_ENGINE;
+#[cfg(test)]
+use crate::ffi::c::server_static::MockTestServerStatic as ServerStatic;
+#[cfg(not(test))]
+use crate::ffi::c::server_static::ServerStatic;
 use crate::prelude::*;
 #[cfg(test)]
 use crate::quake_live_engine::MockQuakeEngine as QuakeLiveEngine;
-#[cfg(test)]
-use crate::server_static::MockTestServerStatic as ServerStatic;
-#[cfg(not(test))]
-use crate::server_static::ServerStatic;
 #[cfg(not(test))]
 use crate::MAIN_ENGINE;
 use alloc::ffi::CString;
@@ -151,10 +151,10 @@ mockall::mock! {
 mod client_tests {
     use super::Client;
     use super::MAIN_ENGINE;
+    use crate::ffi::c::server_static::MockTestServerStatic;
     use crate::prelude::*;
     use crate::quake_live_engine::MockQuakeEngine;
     use crate::quake_live_functions::QuakeLiveFunction;
-    use crate::server_static::MockTestServerStatic;
     use core::ffi::{c_char, CStr};
     use once_cell::sync::OnceCell;
     use pretty_assertions::assert_eq;
