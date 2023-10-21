@@ -5,6 +5,8 @@ use alloc::{format, vec};
 
 use crate::commands::cmd_py_command;
 #[cfg(test)]
+use crate::ffi::python::DUMMY_MAIN_ENGINE as MAIN_ENGINE;
+#[cfg(test)]
 use crate::hooks::mock_hooks::{
     shinqlx_client_spawn, shinqlx_com_printf, shinqlx_drop_client, shinqlx_execute_client_command,
     shinqlx_send_server_command, shinqlx_set_configstring,
@@ -14,2075 +16,33 @@ use crate::hooks::{
     shinqlx_client_spawn, shinqlx_com_printf, shinqlx_drop_client, shinqlx_execute_client_command,
     shinqlx_send_server_command, shinqlx_set_configstring,
 };
-#[cfg(test)]
-use crate::pyminqlx::DUMMY_MAIN_ENGINE as MAIN_ENGINE;
 #[cfg(not(test))]
 use crate::MAIN_ENGINE;
-use core::default::Default;
-use core::sync::atomic::{AtomicBool, AtomicU64, Ordering};
-use once_cell::sync::Lazy;
-use swap_arc::SwapArcOption;
+use core::sync::atomic::Ordering;
 
 #[cfg(not(test))]
-use crate::current_level::CurrentLevel;
+use crate::ffi::c::current_level::CurrentLevel;
 #[cfg(test)]
-use crate::current_level::MockTestCurrentLevel as CurrentLevel;
-use crate::game_item::GameItem;
-#[cfg(test)]
-use crate::quake_live_engine::MockQuakeEngine as QuakeLiveEngine;
+use crate::ffi::c::current_level::MockTestCurrentLevel as CurrentLevel;
+use crate::ffi::c::game_item::GameItem;
+use crate::ffi::python::{
+    ALLOW_FREE_CLIENT, CLIENT_COMMAND_HANDLER, CONSOLE_PRINT_HANDLER, CUSTOM_COMMAND_HANDLER,
+    DAMAGE_HANDLER, FRAME_HANDLER, KAMIKAZE_EXPLODE_HANDLER, KAMIKAZE_USE_HANDLER,
+    NEW_GAME_HANDLER, PLAYER_CONNECT_HANDLER, PLAYER_DISCONNECT_HANDLER, PLAYER_LOADED_HANDLER,
+    PLAYER_SPAWN_HANDLER, RCON_HANDLER, SERVER_COMMAND_HANDLER, SET_CONFIGSTRING_HANDLER,
+};
 use crate::quake_live_engine::{
     AddCommand, ComPrintf, ConsoleCommand, FindCVar, GetCVar, GetConfigstring, SendServerCommand,
     SetCVarForced, SetCVarLimit,
 };
-use pyo3::basic::CompareOp;
 use pyo3::exceptions::{PyEnvironmentError, PyTypeError, PyValueError};
 use pyo3::prelude::*;
-use pyo3::types::PyTuple;
-use pyo3::{append_to_inittab, prepare_freethreaded_python};
 
-#[cfg(test)]
-static DUMMY_MAIN_ENGINE: Lazy<SwapArcOption<QuakeLiveEngine>> =
-    Lazy::new(|| SwapArcOption::new(None));
+use super::{Flight, Holdable, PlayerInfo, PlayerState, PlayerStats, Powerups, Vector3, Weapons};
 
-static ALLOW_FREE_CLIENT: AtomicU64 = AtomicU64::new(0);
-
-pub(crate) fn client_command_dispatcher<T>(client_id: i32, cmd: T) -> Option<String>
-where
-    T: AsRef<str>,
-{
-    if !pyminqlx_is_initialized() {
-        return Some(cmd.as_ref().into());
-    }
-
-    let Some(ref client_command_handler) = *CLIENT_COMMAND_HANDLER.load() else {
-        return Some(cmd.as_ref().into());
-    };
-
-    Python::with_gil(
-        |py| match client_command_handler.call1(py, (client_id, cmd.as_ref())) {
-            Err(_) => {
-                error!(target: "shinqlx", "client_command_handler returned an error.");
-                Some(cmd.as_ref().into())
-            }
-            Ok(returned) => match returned.extract::<String>(py) {
-                Err(_) => match returned.extract::<bool>(py) {
-                    Err(_) => Some(cmd.as_ref().into()),
-                    Ok(result_bool) => {
-                        if !result_bool {
-                            None
-                        } else {
-                            Some(cmd.as_ref().into())
-                        }
-                    }
-                },
-                Ok(result_string) => Some(result_string),
-            },
-        },
-    )
-}
-
-pub(crate) fn server_command_dispatcher<T>(client_id: Option<i32>, cmd: T) -> Option<String>
-where
-    T: AsRef<str>,
-{
-    if !pyminqlx_is_initialized() {
-        return Some(cmd.as_ref().into());
-    }
-
-    let Some(ref server_command_handler) = *SERVER_COMMAND_HANDLER.load() else {
-        return Some(cmd.as_ref().into());
-    };
-
-    Python::with_gil(|py| {
-        match server_command_handler.call1(py, (client_id.unwrap_or(-1), cmd.as_ref())) {
-            Err(_) => {
-                error!(target: "shinqlx", "server_command_handler returned an error.");
-                Some(cmd.as_ref().into())
-            }
-            Ok(returned) => match returned.extract::<String>(py) {
-                Err(_) => match returned.extract::<bool>(py) {
-                    Err(_) => Some(cmd.as_ref().into()),
-                    Ok(result_bool) => {
-                        if !result_bool {
-                            None
-                        } else {
-                            Some(cmd.as_ref().into())
-                        }
-                    }
-                },
-                Ok(result_string) => Some(result_string),
-            },
-        }
-    })
-}
-
-pub(crate) fn frame_dispatcher() {
-    if !pyminqlx_is_initialized() {
-        return;
-    }
-
-    let Some(ref frame_handler) = *FRAME_HANDLER.load() else {
-        return;
-    };
-
-    let result = Python::with_gil(|py| frame_handler.call0(py));
-    if result.is_err() {
-        error!(target: "shinqlx", "frame_handler returned an error.");
-    }
-}
-
-pub(crate) fn client_connect_dispatcher(client_id: i32, is_bot: bool) -> Option<String> {
-    if !pyminqlx_is_initialized() {
-        return None;
-    }
-
-    let Some(ref client_connect_handler) = *PLAYER_CONNECT_HANDLER.load() else {
-        return None;
-    };
-
-    {
-        let allowed_clients = ALLOW_FREE_CLIENT.load(Ordering::SeqCst);
-        ALLOW_FREE_CLIENT.store(allowed_clients | (1 << client_id as u64), Ordering::SeqCst);
-    }
-
-    let result: Option<String> =
-        Python::with_gil(
-            |py| match client_connect_handler.call1(py, (client_id, is_bot)) {
-                Err(_) => None,
-                Ok(returned) => match returned.extract::<String>(py) {
-                    Err(_) => match returned.extract::<bool>(py) {
-                        Err(_) => None,
-                        Ok(result_bool) => {
-                            if !result_bool {
-                                Some("You are banned from this server.".into())
-                            } else {
-                                None
-                            }
-                        }
-                    },
-                    Ok(result_string) => Some(result_string),
-                },
-            },
-        );
-
-    {
-        let allowed_clients = ALLOW_FREE_CLIENT.load(Ordering::SeqCst);
-        ALLOW_FREE_CLIENT.store(allowed_clients & !(1 << client_id as u64), Ordering::SeqCst);
-    }
-
-    result
-}
-
-pub(crate) fn client_disconnect_dispatcher<T>(client_id: i32, reason: T)
-where
-    T: AsRef<str>,
-{
-    if !pyminqlx_is_initialized() {
-        return;
-    }
-
-    let Some(ref client_disconnect_handler) = *PLAYER_DISCONNECT_HANDLER.load() else {
-        return;
-    };
-
-    {
-        let allowed_clients = ALLOW_FREE_CLIENT.load(Ordering::SeqCst);
-        ALLOW_FREE_CLIENT.store(allowed_clients | (1 << client_id as u64), Ordering::SeqCst);
-    }
-
-    let result =
-        Python::with_gil(|py| client_disconnect_handler.call1(py, (client_id, reason.as_ref())));
-    if result.is_err() {
-        error!(target: "shinqlx", "client_disconnect_handler returned an error.");
-    }
-
-    {
-        let allowed_clients = ALLOW_FREE_CLIENT.load(Ordering::SeqCst);
-        ALLOW_FREE_CLIENT.store(allowed_clients & !(1 << client_id as u64), Ordering::SeqCst);
-    }
-}
-
-pub(crate) fn client_loaded_dispatcher(client_id: i32) {
-    if !pyminqlx_is_initialized() {
-        return;
-    }
-
-    let Some(ref client_loaded_handler) = *PLAYER_LOADED_HANDLER.load() else {
-        return;
-    };
-
-    let result = Python::with_gil(|py| client_loaded_handler.call1(py, (client_id,)));
-    if result.is_err() {
-        error!(target: "shinqlx", "client_loaded_handler returned an error.");
-    }
-}
-
-pub(crate) fn new_game_dispatcher(restart: bool) {
-    if !pyminqlx_is_initialized() {
-        return;
-    }
-
-    let Some(ref new_game_handler) = *NEW_GAME_HANDLER.load() else {
-        return;
-    };
-
-    let result = Python::with_gil(|py| new_game_handler.call1(py, (restart,)));
-    if result.is_err() {
-        error!(target: "shinqlx", "new_game_handler returned an error.");
-    }
-}
-
-pub(crate) fn set_configstring_dispatcher<T, U>(index: T, value: U) -> Option<String>
-where
-    T: Into<u32>,
-    U: AsRef<str>,
-{
-    if !pyminqlx_is_initialized() {
-        return Some(value.as_ref().into());
-    }
-
-    let Some(ref set_configstring_handler) = *SET_CONFIGSTRING_HANDLER.load() else {
-        return Some(value.as_ref().into());
-    };
-
-    Python::with_gil(|py| {
-        match set_configstring_handler.call1(py, (index.into(), value.as_ref())) {
-            Err(_) => {
-                error!(target: "shinqlx", "set_configstring_handler returned an error.");
-                Some(value.as_ref().into())
-            }
-            Ok(returned) => match returned.extract::<String>(py) {
-                Err(_) => match returned.extract::<bool>(py) {
-                    Err(_) => Some(value.as_ref().into()),
-                    Ok(result_bool) => {
-                        if !result_bool {
-                            None
-                        } else {
-                            Some(value.as_ref().into())
-                        }
-                    }
-                },
-                Ok(result_string) => Some(result_string),
-            },
-        }
-    })
-}
-
-pub(crate) fn rcon_dispatcher<T>(cmd: T)
-where
-    T: AsRef<str>,
-{
-    if !pyminqlx_is_initialized() {
-        return;
-    }
-
-    let Some(ref rcon_handler) = *RCON_HANDLER.load() else {
-        return;
-    };
-
-    let result = Python::with_gil(|py| rcon_handler.call1(py, (cmd.as_ref(),)));
-    if result.is_err() {
-        error!(target: "shinqlx", "rcon_handler returned an error.");
-    }
-}
-
-pub(crate) fn console_print_dispatcher<T>(text: T) -> Option<String>
-where
-    T: AsRef<str>,
-{
-    if !pyminqlx_is_initialized() {
-        return Some(text.as_ref().into());
-    }
-
-    let Some(ref console_print_handler) = *CONSOLE_PRINT_HANDLER.load() else {
-        return Some(text.as_ref().into());
-    };
-
-    Python::with_gil(
-        |py| match console_print_handler.call1(py, (text.as_ref(),)) {
-            Err(_) => {
-                error!(target: "shinqlx", "console_print_handler returned an error.");
-                Some(text.as_ref().into())
-            }
-            Ok(returned) => match returned.extract::<String>(py) {
-                Err(_) => match returned.extract::<bool>(py) {
-                    Err(_) => Some(text.as_ref().into()),
-                    Ok(result_bool) => {
-                        if !result_bool {
-                            None
-                        } else {
-                            Some(text.as_ref().into())
-                        }
-                    }
-                },
-                Ok(result_string) => Some(result_string),
-            },
-        },
-    )
-}
-
-pub(crate) fn client_spawn_dispatcher(client_id: i32) {
-    if !pyminqlx_is_initialized() {
-        return;
-    }
-
-    let Some(ref client_spawn_handler) = *PLAYER_SPAWN_HANDLER.load() else {
-        return;
-    };
-
-    let result = Python::with_gil(|py| client_spawn_handler.call1(py, (client_id,)));
-    if result.is_err() {
-        error!(target: "shinqlx", "client_spawn_handler returned an error.");
-    }
-}
-
-pub(crate) fn kamikaze_use_dispatcher(client_id: i32) {
-    if !pyminqlx_is_initialized() {
-        return;
-    }
-
-    let Some(ref kamikaze_use_handler) = *KAMIKAZE_USE_HANDLER.load() else {
-        return;
-    };
-
-    let result = Python::with_gil(|py| kamikaze_use_handler.call1(py, (client_id,)));
-    if result.is_err() {
-        error!(target: "shinqlx", "kamikaze_use_handler returned an error.");
-    }
-}
-
-pub(crate) fn kamikaze_explode_dispatcher(client_id: i32, is_used_on_demand: bool) {
-    if !pyminqlx_is_initialized() {
-        return;
-    }
-
-    let Some(ref kamikaze_explode_handler) = *KAMIKAZE_EXPLODE_HANDLER.load() else {
-        return;
-    };
-
-    let result =
-        Python::with_gil(|py| kamikaze_explode_handler.call1(py, (client_id, is_used_on_demand)));
-    if result.is_err() {
-        error!(target: "shinqlx", "kamikaze_explode_handler returned an error.");
-    }
-}
-
-pub(crate) fn damage_dispatcher(
-    target_client_id: i32,
-    attacker_client_id: Option<i32>,
-    damage: i32,
-    dflags: i32,
-    means_of_death: i32,
-) {
-    if !pyminqlx_is_initialized() {
-        return;
-    }
-
-    let Some(ref damage_handler) = *DAMAGE_HANDLER.load() else {
-        return;
-    };
-
-    let result = Python::with_gil(|py| {
-        damage_handler.call1(
-            py,
-            (
-                target_client_id,
-                attacker_client_id,
-                damage,
-                dflags,
-                means_of_death,
-            ),
-        )
-    });
-    if result.is_err() {
-        error!(target: "shinqlx", "damage_handler returned an error.");
-    }
-}
-
-#[cfg(test)]
-mod pyminqlx_dispatcher_tests {
-    use super::{
-        client_command_dispatcher, client_connect_dispatcher, client_disconnect_dispatcher,
-        client_loaded_dispatcher, client_spawn_dispatcher, console_print_dispatcher,
-        damage_dispatcher, frame_dispatcher, kamikaze_explode_dispatcher, kamikaze_use_dispatcher,
-        new_game_dispatcher, rcon_dispatcher, server_command_dispatcher,
-        set_configstring_dispatcher, PYMINQLX_INITIALIZED,
-    };
-    use super::{
-        CLIENT_COMMAND_HANDLER, CONSOLE_PRINT_HANDLER, DAMAGE_HANDLER, FRAME_HANDLER,
-        KAMIKAZE_EXPLODE_HANDLER, KAMIKAZE_USE_HANDLER, NEW_GAME_HANDLER, PLAYER_CONNECT_HANDLER,
-        PLAYER_DISCONNECT_HANDLER, PLAYER_LOADED_HANDLER, PLAYER_SPAWN_HANDLER, RCON_HANDLER,
-        SERVER_COMMAND_HANDLER, SET_CONFIGSTRING_HANDLER,
-    };
-    use crate::prelude::*;
-    #[cfg(not(miri))]
-    use crate::pyminqlx::pyminqlx_setup_fixture::*;
-    use core::sync::atomic::Ordering;
-    use pretty_assertions::assert_eq;
-    use pyo3::prelude::*;
-    #[cfg(not(miri))]
-    use rstest::rstest;
-
-    #[test]
-    #[serial]
-    fn client_command_dispatcher_when_python_not_initiailized() {
-        PYMINQLX_INITIALIZED.store(false, Ordering::SeqCst);
-
-        let result = client_command_dispatcher(123, "asdf");
-        assert_eq!(result, Some("asdf".into()));
-    }
-
-    #[test]
-    #[serial]
-    fn client_command_dispatcher_when_dispatcher_not_initiailized() {
-        PYMINQLX_INITIALIZED.store(true, Ordering::SeqCst);
-        CLIENT_COMMAND_HANDLER.store(None);
-
-        let result = client_command_dispatcher(123, "asdf");
-        assert_eq!(result, Some("asdf".into()));
-    }
-
-    #[cfg_attr(not(miri), rstest)]
-    #[serial]
-    fn client_command_dispatcher_dispatcher_returns_original_cmd(_pyminqlx_setup: ()) {
-        PYMINQLX_INITIALIZED.store(true, Ordering::SeqCst);
-
-        let pymodule: Py<PyModule> = Python::with_gil(|py| {
-            PyModule::from_code(
-                py,
-                r#"
-def handler(client_id, cmd):
-    return cmd
-"#,
-                "",
-                "",
-            )
-            .unwrap()
-            .into_py(py)
-        });
-        let client_command_handler =
-            Python::with_gil(|py| pymodule.getattr(py, "handler").unwrap().into_py(py));
-        CLIENT_COMMAND_HANDLER.store(Some(client_command_handler.into()));
-
-        let result = client_command_dispatcher(123, "asdf");
-        assert_eq!(result, Some("asdf".into()));
-    }
-
-    #[cfg_attr(not(miri), rstest)]
-    #[serial]
-    fn client_command_dispatcher_dispatcher_returns_another_cmd(_pyminqlx_setup: ()) {
-        PYMINQLX_INITIALIZED.store(true, Ordering::SeqCst);
-
-        let pymodule: Py<PyModule> = Python::with_gil(|py| {
-            PyModule::from_code(
-                py,
-                r#"
-def handler(client_id, cmd):
-    return "qwertz"
-"#,
-                "",
-                "",
-            )
-            .unwrap()
-            .into_py(py)
-        });
-        let client_command_handler =
-            Python::with_gil(|py| pymodule.getattr(py, "handler").unwrap().into_py(py));
-        CLIENT_COMMAND_HANDLER.store(Some(client_command_handler.into()));
-
-        let result = client_command_dispatcher(123, "asdf");
-        assert_eq!(result, Some("qwertz".into()));
-    }
-
-    #[cfg_attr(not(miri), rstest)]
-    #[serial]
-    fn client_command_dispatcher_dispatcher_returns_boolean_true(_pyminqlx_setup: ()) {
-        PYMINQLX_INITIALIZED.store(true, Ordering::SeqCst);
-
-        let pymodule: Py<PyModule> = Python::with_gil(|py| {
-            PyModule::from_code(
-                py,
-                r#"
-def handler(client_id, cmd):
-    return True
-"#,
-                "",
-                "",
-            )
-            .unwrap()
-            .into_py(py)
-        });
-        let client_command_handler =
-            Python::with_gil(|py| pymodule.getattr(py, "handler").unwrap().into_py(py));
-        CLIENT_COMMAND_HANDLER.store(Some(client_command_handler.into()));
-
-        let result = client_command_dispatcher(123, "asdf");
-        assert_eq!(result, Some("asdf".into()));
-    }
-
-    #[cfg_attr(not(miri), rstest)]
-    #[serial]
-    fn client_command_dispatcher_dispatcher_returns_false(_pyminqlx_setup: ()) {
-        PYMINQLX_INITIALIZED.store(true, Ordering::SeqCst);
-
-        let pymodule: Py<PyModule> = Python::with_gil(|py| {
-            PyModule::from_code(
-                py,
-                r#"
-def handler(client_id, cmd):
-    return False
-"#,
-                "",
-                "",
-            )
-            .unwrap()
-            .into_py(py)
-        });
-        let client_command_handler =
-            Python::with_gil(|py| pymodule.getattr(py, "handler").unwrap().into_py(py));
-        CLIENT_COMMAND_HANDLER.store(Some(client_command_handler.into()));
-
-        let result = client_command_dispatcher(123, "asdf");
-        assert_eq!(result, None);
-    }
-
-    #[cfg_attr(not(miri), rstest)]
-    #[serial]
-    fn client_command_dispatcher_dispatcher_throws_exception(_pyminqlx_setup: ()) {
-        PYMINQLX_INITIALIZED.store(true, Ordering::SeqCst);
-
-        let pymodule: Py<PyModule> = Python::with_gil(|py| {
-            PyModule::from_code(
-                py,
-                r#"
-def handler(client_id, cmd):
-    raise Exception
-"#,
-                "",
-                "",
-            )
-            .unwrap()
-            .into_py(py)
-        });
-        let client_command_handler =
-            Python::with_gil(|py| pymodule.getattr(py, "handler").unwrap().into_py(py));
-        CLIENT_COMMAND_HANDLER.store(Some(client_command_handler.into()));
-
-        let result = client_command_dispatcher(123, "asdf");
-        assert_eq!(result, Some("asdf".into()));
-    }
-
-    #[cfg_attr(not(miri), rstest)]
-    #[serial]
-    fn client_command_dispatcher_dispatcher_returns_not_supported_value(_pyminqlx_setup: ()) {
-        PYMINQLX_INITIALIZED.store(true, Ordering::SeqCst);
-
-        let pymodule: Py<PyModule> = Python::with_gil(|py| {
-            PyModule::from_code(
-                py,
-                r#"
-def handler(client_id, cmd):
-    return (1, 2, 3)
-"#,
-                "",
-                "",
-            )
-            .unwrap()
-            .into_py(py)
-        });
-        let client_command_handler =
-            Python::with_gil(|py| pymodule.getattr(py, "handler").unwrap().into_py(py));
-        CLIENT_COMMAND_HANDLER.store(Some(client_command_handler.into()));
-
-        let result = client_command_dispatcher(123, "asdf");
-        assert_eq!(result, Some("asdf".into()));
-    }
-
-    #[test]
-    #[serial]
-    fn server_command_dispatcher_when_python_not_initiailized() {
-        PYMINQLX_INITIALIZED.store(false, Ordering::SeqCst);
-
-        let result = server_command_dispatcher(Some(123), "asdf");
-        assert_eq!(result, Some("asdf".into()));
-    }
-
-    #[test]
-    #[serial]
-    fn server_command_dispatcher_when_dispatcher_not_initiailized() {
-        PYMINQLX_INITIALIZED.store(true, Ordering::SeqCst);
-        SERVER_COMMAND_HANDLER.store(None);
-
-        let result = server_command_dispatcher(Some(123), "asdf");
-        assert_eq!(result, Some("asdf".into()));
-    }
-
-    #[cfg_attr(not(miri), rstest)]
-    #[serial]
-    fn server_command_dispatcher_dispatcher_returns_original_cmd(_pyminqlx_setup: ()) {
-        PYMINQLX_INITIALIZED.store(true, Ordering::SeqCst);
-
-        let pymodule: Py<PyModule> = Python::with_gil(|py| {
-            PyModule::from_code(
-                py,
-                r#"
-def handler(client_id, cmd):
-    return cmd
-"#,
-                "",
-                "",
-            )
-            .unwrap()
-            .into_py(py)
-        });
-        let server_command_handler =
-            Python::with_gil(|py| pymodule.getattr(py, "handler").unwrap().into_py(py));
-        SERVER_COMMAND_HANDLER.store(Some(server_command_handler.into()));
-
-        let result = server_command_dispatcher(Some(123), "asdf");
-        assert_eq!(result, Some("asdf".into()));
-    }
-
-    #[cfg_attr(not(miri), rstest)]
-    #[serial]
-    fn server_command_dispatcher_dispatcher_returns_another_cmd(_pyminqlx_setup: ()) {
-        PYMINQLX_INITIALIZED.store(true, Ordering::SeqCst);
-
-        let pymodule: Py<PyModule> = Python::with_gil(|py| {
-            PyModule::from_code(
-                py,
-                r#"
-def handler(client_id, cmd):
-    return "qwertz"
-"#,
-                "",
-                "",
-            )
-            .unwrap()
-            .into_py(py)
-        });
-        let server_command_handler =
-            Python::with_gil(|py| pymodule.getattr(py, "handler").unwrap().into_py(py));
-        SERVER_COMMAND_HANDLER.store(Some(server_command_handler.into()));
-
-        let result = server_command_dispatcher(Some(123), "asdf");
-        assert_eq!(result, Some("qwertz".into()));
-    }
-
-    #[cfg_attr(not(miri), rstest)]
-    #[serial]
-    fn server_command_dispatcher_dispatcher_returns_boolean_true(_pyminqlx_setup: ()) {
-        PYMINQLX_INITIALIZED.store(true, Ordering::SeqCst);
-
-        let pymodule: Py<PyModule> = Python::with_gil(|py| {
-            PyModule::from_code(
-                py,
-                r#"
-def handler(client_id, cmd):
-    return True
-"#,
-                "",
-                "",
-            )
-            .unwrap()
-            .into_py(py)
-        });
-        let server_command_handler =
-            Python::with_gil(|py| pymodule.getattr(py, "handler").unwrap().into_py(py));
-        SERVER_COMMAND_HANDLER.store(Some(server_command_handler.into()));
-
-        let result = server_command_dispatcher(Some(123), "asdf");
-        assert_eq!(result, Some("asdf".into()));
-    }
-
-    #[cfg_attr(not(miri), rstest)]
-    #[serial]
-    fn server_command_dispatcher_dispatcher_returns_false(_pyminqlx_setup: ()) {
-        PYMINQLX_INITIALIZED.store(true, Ordering::SeqCst);
-
-        let pymodule: Py<PyModule> = Python::with_gil(|py| {
-            PyModule::from_code(
-                py,
-                r#"
-def handler(client_id, cmd):
-    return False
-"#,
-                "",
-                "",
-            )
-            .unwrap()
-            .into_py(py)
-        });
-        let server_command_handler =
-            Python::with_gil(|py| pymodule.getattr(py, "handler").unwrap().into_py(py));
-        SERVER_COMMAND_HANDLER.store(Some(server_command_handler.into()));
-
-        let result = server_command_dispatcher(Some(123), "asdf");
-        assert_eq!(result, None);
-    }
-
-    #[cfg_attr(not(miri), rstest)]
-    #[serial]
-    fn server_command_dispatcher_dispatcher_throws_exception(_pyminqlx_setup: ()) {
-        PYMINQLX_INITIALIZED.store(true, Ordering::SeqCst);
-
-        let pymodule: Py<PyModule> = Python::with_gil(|py| {
-            PyModule::from_code(
-                py,
-                r#"
-def handler(client_id, cmd):
-    raise Exception
-"#,
-                "",
-                "",
-            )
-            .unwrap()
-            .into_py(py)
-        });
-        let server_command_handler =
-            Python::with_gil(|py| pymodule.getattr(py, "handler").unwrap().into_py(py));
-        SERVER_COMMAND_HANDLER.store(Some(server_command_handler.into()));
-
-        let result = server_command_dispatcher(Some(123), "asdf");
-        assert_eq!(result, Some("asdf".into()));
-    }
-
-    #[cfg_attr(not(miri), rstest)]
-    #[serial]
-    fn server_command_dispatcher_dispatcher_returns_not_supported_value(_pyminqlx_setup: ()) {
-        PYMINQLX_INITIALIZED.store(true, Ordering::SeqCst);
-
-        let pymodule: Py<PyModule> = Python::with_gil(|py| {
-            PyModule::from_code(
-                py,
-                r#"
-def handler(client_id, cmd):
-    return (1, 2, 3)
-"#,
-                "",
-                "",
-            )
-            .unwrap()
-            .into_py(py)
-        });
-        let server_command_handler =
-            Python::with_gil(|py| pymodule.getattr(py, "handler").unwrap().into_py(py));
-        SERVER_COMMAND_HANDLER.store(Some(server_command_handler.into()));
-
-        let result = server_command_dispatcher(Some(123), "asdf");
-        assert_eq!(result, Some("asdf".into()));
-    }
-
-    #[test]
-    #[serial]
-    fn frame_dispatcher_when_python_not_initiailized() {
-        PYMINQLX_INITIALIZED.store(false, Ordering::SeqCst);
-
-        frame_dispatcher();
-    }
-
-    #[test]
-    #[serial]
-    fn frame_dispatcher_when_dispatcher_not_initiailized() {
-        PYMINQLX_INITIALIZED.store(true, Ordering::SeqCst);
-        FRAME_HANDLER.store(None);
-
-        frame_dispatcher();
-    }
-
-    #[cfg_attr(not(miri), rstest)]
-    #[serial]
-    fn frame_dispatcher_dispatcher_works_properly(_pyminqlx_setup: ()) {
-        PYMINQLX_INITIALIZED.store(true, Ordering::SeqCst);
-
-        let pymodule: Py<PyModule> = Python::with_gil(|py| {
-            PyModule::from_code(
-                py,
-                r#"
-def handler():
-    pass
-"#,
-                "",
-                "",
-            )
-            .unwrap()
-            .into_py(py)
-        });
-        let frame_handler =
-            Python::with_gil(|py| pymodule.getattr(py, "handler").unwrap().into_py(py));
-        FRAME_HANDLER.store(Some(frame_handler.into()));
-
-        frame_dispatcher();
-    }
-
-    #[cfg_attr(not(miri), rstest)]
-    #[serial]
-    fn frame_dispatcher_dispatcher_throws_exception(_pyminqlx_setup: ()) {
-        PYMINQLX_INITIALIZED.store(true, Ordering::SeqCst);
-
-        let pymodule: Py<PyModule> = Python::with_gil(|py| {
-            PyModule::from_code(
-                py,
-                r#"
-def handler():
-    raise Exception
-"#,
-                "",
-                "",
-            )
-            .unwrap()
-            .into_py(py)
-        });
-        let frame_handler =
-            Python::with_gil(|py| pymodule.getattr(py, "handler").unwrap().into_py(py));
-        FRAME_HANDLER.store(Some(frame_handler.into()));
-
-        frame_dispatcher();
-    }
-
-    #[test]
-    #[serial]
-    fn client_connect_dispatcher_when_python_not_initiailized() {
-        PYMINQLX_INITIALIZED.store(false, Ordering::SeqCst);
-
-        let result = client_connect_dispatcher(42, false);
-        assert_eq!(result, None);
-    }
-
-    #[test]
-    #[serial]
-    fn client_connect_dispatcher_when_dispatcher_not_initiailized() {
-        PYMINQLX_INITIALIZED.store(true, Ordering::SeqCst);
-        PLAYER_CONNECT_HANDLER.store(None);
-
-        let result = client_connect_dispatcher(42, false);
-        assert_eq!(result, None);
-    }
-
-    #[cfg_attr(not(miri), rstest)]
-    #[serial]
-    fn client_connect_dispatcher_dispatcher_returns_connection_status(_pyminqlx_setup: ()) {
-        PYMINQLX_INITIALIZED.store(true, Ordering::SeqCst);
-
-        let pymodule: Py<PyModule> = Python::with_gil(|py| {
-            PyModule::from_code(
-                py,
-                r#"
-def handler(client_id, is_bot):
-    return "qwertz"
-"#,
-                "",
-                "",
-            )
-            .unwrap()
-            .into_py(py)
-        });
-        let client_connect_handler =
-            Python::with_gil(|py| pymodule.getattr(py, "handler").unwrap().into_py(py));
-        PLAYER_CONNECT_HANDLER.store(Some(client_connect_handler.into()));
-
-        let result = client_connect_dispatcher(42, false);
-        assert_eq!(result, Some("qwertz".into()));
-    }
-
-    #[cfg_attr(not(miri), rstest)]
-    #[serial]
-    fn client_connect_dispatcher_dispatcher_returns_boolean_true(_pyminqlx_setup: ()) {
-        PYMINQLX_INITIALIZED.store(true, Ordering::SeqCst);
-
-        let pymodule: Py<PyModule> = Python::with_gil(|py| {
-            PyModule::from_code(
-                py,
-                r#"
-def handler(client_id, is_bot):
-    return True
-"#,
-                "",
-                "",
-            )
-            .unwrap()
-            .into_py(py)
-        });
-        let client_connect_handler =
-            Python::with_gil(|py| pymodule.getattr(py, "handler").unwrap().into_py(py));
-        PLAYER_CONNECT_HANDLER.store(Some(client_connect_handler.into()));
-
-        let result = client_connect_dispatcher(42, true);
-        assert_eq!(result, None);
-    }
-
-    #[cfg_attr(not(miri), rstest)]
-    #[serial]
-    fn client_connect_dispatcher_dispatcher_returns_false(_pyminqlx_setup: ()) {
-        PYMINQLX_INITIALIZED.store(true, Ordering::SeqCst);
-
-        let pymodule: Py<PyModule> = Python::with_gil(|py| {
-            PyModule::from_code(
-                py,
-                r#"
-def handler(client_id, is_bot):
-    return False
-"#,
-                "",
-                "",
-            )
-            .unwrap()
-            .into_py(py)
-        });
-        let client_connect_handler =
-            Python::with_gil(|py| pymodule.getattr(py, "handler").unwrap().into_py(py));
-        PLAYER_CONNECT_HANDLER.store(Some(client_connect_handler.into()));
-
-        let result = client_connect_dispatcher(42, true);
-        assert_eq!(result, Some("You are banned from this server.".into()));
-    }
-
-    #[cfg_attr(not(miri), rstest)]
-    #[serial]
-    fn client_connect_dispatcher_dispatcher_throws_exception(_pyminqlx_setup: ()) {
-        PYMINQLX_INITIALIZED.store(true, Ordering::SeqCst);
-
-        let pymodule: Py<PyModule> = Python::with_gil(|py| {
-            PyModule::from_code(
-                py,
-                r#"
-def handler(client_id, is_bot):
-    raise Exception
-"#,
-                "",
-                "",
-            )
-            .unwrap()
-            .into_py(py)
-        });
-        let client_connect_handler =
-            Python::with_gil(|py| pymodule.getattr(py, "handler").unwrap().into_py(py));
-        PLAYER_CONNECT_HANDLER.store(Some(client_connect_handler.into()));
-
-        let result = client_connect_dispatcher(42, false);
-        assert_eq!(result, None);
-    }
-
-    #[cfg_attr(not(miri), rstest)]
-    #[serial]
-    fn client_connect_dispatcher_dispatcher_returns_not_supported_value(_pyminqlx_setup: ()) {
-        PYMINQLX_INITIALIZED.store(true, Ordering::SeqCst);
-
-        let pymodule: Py<PyModule> = Python::with_gil(|py| {
-            PyModule::from_code(
-                py,
-                r#"
-def handler(client_id, is_bot):
-    return (1, 2, 3)
-"#,
-                "",
-                "",
-            )
-            .unwrap()
-            .into_py(py)
-        });
-        let player_connect_handler =
-            Python::with_gil(|py| pymodule.getattr(py, "handler").unwrap().into_py(py));
-        PLAYER_CONNECT_HANDLER.store(Some(player_connect_handler.into()));
-
-        let result = client_connect_dispatcher(42, false);
-        assert_eq!(result, None);
-    }
-
-    #[test]
-    #[serial]
-    fn client_disconnect_dispatcher_when_python_not_initiailized() {
-        PYMINQLX_INITIALIZED.store(false, Ordering::SeqCst);
-
-        client_disconnect_dispatcher(42, "asdf");
-    }
-
-    #[test]
-    #[serial]
-    fn client_disconnect_dispatcher_when_dispatcher_not_initiailized() {
-        PYMINQLX_INITIALIZED.store(true, Ordering::SeqCst);
-        PLAYER_DISCONNECT_HANDLER.store(None);
-
-        client_disconnect_dispatcher(42, "ragequit");
-    }
-
-    #[cfg_attr(not(miri), rstest)]
-    #[serial]
-    fn client_disconnect_dispatcher_dispatcher_works_properly(_pyminqlx_setup: ()) {
-        PYMINQLX_INITIALIZED.store(true, Ordering::SeqCst);
-
-        let pymodule: Py<PyModule> = Python::with_gil(|py| {
-            PyModule::from_code(
-                py,
-                r#"
-def handler(client_id, reason):
-    pass
-"#,
-                "",
-                "",
-            )
-            .unwrap()
-            .into_py(py)
-        });
-        let client_disconnect_handler =
-            Python::with_gil(|py| pymodule.getattr(py, "handler").unwrap().into_py(py));
-        PLAYER_DISCONNECT_HANDLER.store(Some(client_disconnect_handler.into()));
-
-        client_disconnect_dispatcher(42, "ragequit");
-    }
-
-    #[cfg_attr(not(miri), rstest)]
-    #[serial]
-    fn client_disconnect_dispatcher_dispatcher_throws_exception(_pyminqlx_setup: ()) {
-        PYMINQLX_INITIALIZED.store(true, Ordering::SeqCst);
-
-        let pymodule: Py<PyModule> = Python::with_gil(|py| {
-            PyModule::from_code(
-                py,
-                r#"
-def handler(client_id, reason):
-    raise Exception
-"#,
-                "",
-                "",
-            )
-            .unwrap()
-            .into_py(py)
-        });
-        let client_disconnect_handler =
-            Python::with_gil(|py| pymodule.getattr(py, "handler").unwrap().into_py(py));
-        PLAYER_DISCONNECT_HANDLER.store(Some(client_disconnect_handler.into()));
-
-        client_disconnect_dispatcher(42, "ragequit");
-    }
-
-    #[test]
-    #[serial]
-    fn client_loaded_dispatcher_when_python_not_initiailized() {
-        PYMINQLX_INITIALIZED.store(false, Ordering::SeqCst);
-
-        client_loaded_dispatcher(123);
-    }
-
-    #[test]
-    #[serial]
-    fn client_loaded_dispatcher_when_dispatcher_not_initiailized() {
-        PYMINQLX_INITIALIZED.store(true, Ordering::SeqCst);
-        PLAYER_LOADED_HANDLER.store(None);
-
-        client_loaded_dispatcher(123);
-    }
-
-    #[cfg_attr(not(miri), rstest)]
-    #[serial]
-    fn client_loaded_dispatcher_dispatcher_works_properly(_pyminqlx_setup: ()) {
-        PYMINQLX_INITIALIZED.store(true, Ordering::SeqCst);
-
-        let pymodule: Py<PyModule> = Python::with_gil(|py| {
-            PyModule::from_code(
-                py,
-                r#"
-def handler(client_id):
-    pass
-"#,
-                "",
-                "",
-            )
-            .unwrap()
-            .into_py(py)
-        });
-        let client_loaded_handler =
-            Python::with_gil(|py| pymodule.getattr(py, "handler").unwrap().into_py(py));
-        PLAYER_LOADED_HANDLER.store(Some(client_loaded_handler.into()));
-
-        client_loaded_dispatcher(123);
-    }
-
-    #[cfg_attr(not(miri), rstest)]
-    #[serial]
-    fn client_loaded_dispatcher_dispatcher_throws_exception(_pyminqlx_setup: ()) {
-        PYMINQLX_INITIALIZED.store(true, Ordering::SeqCst);
-
-        let pymodule: Py<PyModule> = Python::with_gil(|py| {
-            PyModule::from_code(
-                py,
-                r#"
-def handler(client_id):
-    raise Exception
-"#,
-                "",
-                "",
-            )
-            .unwrap()
-            .into_py(py)
-        });
-        let client_loaded_handler =
-            Python::with_gil(|py| pymodule.getattr(py, "handler").unwrap().into_py(py));
-        PLAYER_LOADED_HANDLER.store(Some(client_loaded_handler.into()));
-
-        client_loaded_dispatcher(123);
-    }
-
-    #[test]
-    #[serial]
-    fn new_game_dispatcher_when_python_not_initiailized() {
-        PYMINQLX_INITIALIZED.store(false, Ordering::SeqCst);
-
-        new_game_dispatcher(false);
-    }
-
-    #[test]
-    #[serial]
-    fn new_game_dispatcher_when_dispatcher_not_initiailized() {
-        PYMINQLX_INITIALIZED.store(true, Ordering::SeqCst);
-        NEW_GAME_HANDLER.store(None);
-
-        new_game_dispatcher(true);
-    }
-
-    #[cfg_attr(not(miri), rstest)]
-    #[serial]
-    fn new_game_dispatcher_dispatcher_works_properly(_pyminqlx_setup: ()) {
-        PYMINQLX_INITIALIZED.store(true, Ordering::SeqCst);
-
-        let pymodule: Py<PyModule> = Python::with_gil(|py| {
-            PyModule::from_code(
-                py,
-                r#"
-def handler(restart):
-    pass
-"#,
-                "",
-                "",
-            )
-            .unwrap()
-            .into_py(py)
-        });
-        let new_game_handler =
-            Python::with_gil(|py| pymodule.getattr(py, "handler").unwrap().into_py(py));
-        NEW_GAME_HANDLER.store(Some(new_game_handler.into()));
-
-        new_game_dispatcher(false);
-    }
-
-    #[cfg_attr(not(miri), rstest)]
-    #[serial]
-    fn new_game_dispatcher_dispatcher_throws_exception(_pyminqlx_setup: ()) {
-        PYMINQLX_INITIALIZED.store(true, Ordering::SeqCst);
-
-        let pymodule: Py<PyModule> = Python::with_gil(|py| {
-            PyModule::from_code(
-                py,
-                r#"
-def handler(restart):
-    raise Exception
-"#,
-                "",
-                "",
-            )
-            .unwrap()
-            .into_py(py)
-        });
-        let new_game_handler =
-            Python::with_gil(|py| pymodule.getattr(py, "handler").unwrap().into_py(py));
-        NEW_GAME_HANDLER.store(Some(new_game_handler.into()));
-
-        new_game_dispatcher(true);
-    }
-
-    #[test]
-    #[serial]
-    fn set_configstring_dispatcher_when_python_not_initiailized() {
-        PYMINQLX_INITIALIZED.store(false, Ordering::SeqCst);
-
-        let result = set_configstring_dispatcher(666u32, "asdf");
-        assert_eq!(result, Some("asdf".into()));
-    }
-
-    #[test]
-    #[serial]
-    fn set_configstring_dispatcher_when_dispatcher_not_initiailized() {
-        PYMINQLX_INITIALIZED.store(true, Ordering::SeqCst);
-        SET_CONFIGSTRING_HANDLER.store(None);
-
-        let result = set_configstring_dispatcher(666u32, "asdf");
-        assert_eq!(result, Some("asdf".into()));
-    }
-
-    #[cfg_attr(not(miri), rstest)]
-    #[serial]
-    fn set_configstring_dispatcher_dispatcher_returns_original_cmd(_pyminqlx_setup: ()) {
-        PYMINQLX_INITIALIZED.store(true, Ordering::SeqCst);
-
-        let pymodule: Py<PyModule> = Python::with_gil(|py| {
-            PyModule::from_code(
-                py,
-                r#"
-def handler(index, value):
-    return cmd
-"#,
-                "",
-                "",
-            )
-            .unwrap()
-            .into_py(py)
-        });
-        let set_configstring_handler =
-            Python::with_gil(|py| pymodule.getattr(py, "handler").unwrap().into_py(py));
-        SET_CONFIGSTRING_HANDLER.store(Some(set_configstring_handler.into()));
-
-        let result = set_configstring_dispatcher(123u32, "asdf");
-        assert_eq!(result, Some("asdf".into()));
-    }
-
-    #[cfg_attr(not(miri), rstest)]
-    #[serial]
-    fn set_configstring_dispatcher_dispatcher_returns_another_cmd(_pyminqlx_setup: ()) {
-        PYMINQLX_INITIALIZED.store(true, Ordering::SeqCst);
-
-        let pymodule: Py<PyModule> = Python::with_gil(|py| {
-            PyModule::from_code(
-                py,
-                r#"
-def handler(index, value):
-    return "qwertz"
-"#,
-                "",
-                "",
-            )
-            .unwrap()
-            .into_py(py)
-        });
-        let set_configstring_handler =
-            Python::with_gil(|py| pymodule.getattr(py, "handler").unwrap().into_py(py));
-        SET_CONFIGSTRING_HANDLER.store(Some(set_configstring_handler.into()));
-
-        let result = set_configstring_dispatcher(123u32, "asdf");
-        assert_eq!(result, Some("qwertz".into()));
-    }
-
-    #[cfg_attr(not(miri), rstest)]
-    #[serial]
-    fn set_configstring_dispatcher_dispatcher_returns_boolean_true(_pyminqlx_setup: ()) {
-        PYMINQLX_INITIALIZED.store(true, Ordering::SeqCst);
-
-        let pymodule: Py<PyModule> = Python::with_gil(|py| {
-            PyModule::from_code(
-                py,
-                r#"
-def handler(index, value):
-    return True
-"#,
-                "",
-                "",
-            )
-            .unwrap()
-            .into_py(py)
-        });
-        let set_configstring_handler =
-            Python::with_gil(|py| pymodule.getattr(py, "handler").unwrap().into_py(py));
-        SET_CONFIGSTRING_HANDLER.store(Some(set_configstring_handler.into()));
-
-        let result = set_configstring_dispatcher(123u32, "asdf");
-        assert_eq!(result, Some("asdf".into()));
-    }
-
-    #[cfg_attr(not(miri), rstest)]
-    #[serial]
-    fn set_configstring_dispatcher_dispatcher_returns_false(_pyminqlx_setup: ()) {
-        PYMINQLX_INITIALIZED.store(true, Ordering::SeqCst);
-
-        let pymodule: Py<PyModule> = Python::with_gil(|py| {
-            PyModule::from_code(
-                py,
-                r#"
-def handler(index, value):
-    return False
-"#,
-                "",
-                "",
-            )
-            .unwrap()
-            .into_py(py)
-        });
-        let set_configstring_handler =
-            Python::with_gil(|py| pymodule.getattr(py, "handler").unwrap().into_py(py));
-        SET_CONFIGSTRING_HANDLER.store(Some(set_configstring_handler.into()));
-
-        let result = set_configstring_dispatcher(123u32, "asdf");
-        assert_eq!(result, None);
-    }
-
-    #[cfg_attr(not(miri), rstest)]
-    #[serial]
-    fn set_configstring_dispatcher_dispatcher_throws_exception(_pyminqlx_setup: ()) {
-        PYMINQLX_INITIALIZED.store(true, Ordering::SeqCst);
-
-        let pymodule: Py<PyModule> = Python::with_gil(|py| {
-            PyModule::from_code(
-                py,
-                r#"
-def handler(index, value):
-    raise Exception
-"#,
-                "",
-                "",
-            )
-            .unwrap()
-            .into_py(py)
-        });
-        let set_configstring_handler =
-            Python::with_gil(|py| pymodule.getattr(py, "handler").unwrap().into_py(py));
-        SET_CONFIGSTRING_HANDLER.store(Some(set_configstring_handler.into()));
-
-        let result = set_configstring_dispatcher(123u32, "asdf");
-        assert_eq!(result, Some("asdf".into()));
-    }
-
-    #[cfg_attr(not(miri), rstest)]
-    #[serial]
-    fn set_configstring_dispatcher_dispatcher_returns_not_supported_value(_pyminqlx_setup: ()) {
-        PYMINQLX_INITIALIZED.store(true, Ordering::SeqCst);
-
-        let pymodule: Py<PyModule> = Python::with_gil(|py| {
-            PyModule::from_code(
-                py,
-                r#"
-def handler(index, value):
-    return (1, 2, 3)
-"#,
-                "",
-                "",
-            )
-            .unwrap()
-            .into_py(py)
-        });
-        let set_configstring_handler =
-            Python::with_gil(|py| pymodule.getattr(py, "handler").unwrap().into_py(py));
-        SET_CONFIGSTRING_HANDLER.store(Some(set_configstring_handler.into()));
-
-        let result = set_configstring_dispatcher(123u32, "asdf");
-        assert_eq!(result, Some("asdf".into()));
-    }
-
-    #[test]
-    #[serial]
-    fn rcon_dispatcher_when_python_not_initiailized() {
-        PYMINQLX_INITIALIZED.store(false, Ordering::SeqCst);
-
-        rcon_dispatcher("asdf");
-    }
-
-    #[test]
-    #[serial]
-    fn rcon_dispatcher_when_dispatcher_not_initiailized() {
-        PYMINQLX_INITIALIZED.store(true, Ordering::SeqCst);
-        RCON_HANDLER.store(None);
-
-        rcon_dispatcher("asdf");
-    }
-
-    #[cfg_attr(not(miri), rstest)]
-    #[serial]
-    fn rcon_dispatcher_dispatcher_works_properly(_pyminqlx_setup: ()) {
-        PYMINQLX_INITIALIZED.store(true, Ordering::SeqCst);
-
-        let pymodule: Py<PyModule> = Python::with_gil(|py| {
-            PyModule::from_code(
-                py,
-                r#"
-def handler(cmd):
-    pass
-"#,
-                "",
-                "",
-            )
-            .unwrap()
-            .into_py(py)
-        });
-        let rcon_handler =
-            Python::with_gil(|py| pymodule.getattr(py, "handler").unwrap().into_py(py));
-        RCON_HANDLER.store(Some(rcon_handler.into()));
-
-        rcon_dispatcher("asdf");
-    }
-
-    #[cfg_attr(not(miri), rstest)]
-    #[serial]
-    fn rcon_dispatcher_dispatcher_throws_exception(_pyminqlx_setup: ()) {
-        PYMINQLX_INITIALIZED.store(true, Ordering::SeqCst);
-
-        let pymodule: Py<PyModule> = Python::with_gil(|py| {
-            PyModule::from_code(
-                py,
-                r#"
-def handler(cmd):
-    raise Exception
-"#,
-                "",
-                "",
-            )
-            .unwrap()
-            .into_py(py)
-        });
-        let rcon_handler =
-            Python::with_gil(|py| pymodule.getattr(py, "handler").unwrap().into_py(py));
-        RCON_HANDLER.store(Some(rcon_handler.into()));
-
-        rcon_dispatcher("asdf");
-    }
-
-    #[test]
-    #[serial]
-    fn console_print_dispatcher_when_python_not_initiailized() {
-        PYMINQLX_INITIALIZED.store(false, Ordering::SeqCst);
-
-        let result = console_print_dispatcher("asdf");
-        assert_eq!(result, Some("asdf".into()));
-    }
-
-    #[test]
-    #[serial]
-    fn console_print_dispatcher_when_dispatcher_not_initiailized() {
-        PYMINQLX_INITIALIZED.store(true, Ordering::SeqCst);
-        CONSOLE_PRINT_HANDLER.store(None);
-
-        let result = console_print_dispatcher("asdf");
-        assert_eq!(result, Some("asdf".into()));
-    }
-
-    #[cfg_attr(not(miri), rstest)]
-    #[serial]
-    fn console_print_dispatcher_dispatcher_returns_original_cmd(_pyminqlx_setup: ()) {
-        PYMINQLX_INITIALIZED.store(true, Ordering::SeqCst);
-
-        let pymodule: Py<PyModule> = Python::with_gil(|py| {
-            PyModule::from_code(
-                py,
-                r#"
-def handler(text):
-    return cmd
-"#,
-                "",
-                "",
-            )
-            .unwrap()
-            .into_py(py)
-        });
-        let console_print_handler =
-            Python::with_gil(|py| pymodule.getattr(py, "handler").unwrap().into_py(py));
-        CONSOLE_PRINT_HANDLER.store(Some(console_print_handler.into()));
-
-        let result = console_print_dispatcher("asdf");
-        assert_eq!(result, Some("asdf".into()));
-    }
-
-    #[cfg_attr(not(miri), rstest)]
-    #[serial]
-    fn console_print_dispatcher_dispatcher_returns_another_cmd(_pyminqlx_setup: ()) {
-        PYMINQLX_INITIALIZED.store(true, Ordering::SeqCst);
-
-        let pymodule: Py<PyModule> = Python::with_gil(|py| {
-            PyModule::from_code(
-                py,
-                r#"
-def handler(text):
-    return "qwertz"
-"#,
-                "",
-                "",
-            )
-            .unwrap()
-            .into_py(py)
-        });
-        let console_print_handler =
-            Python::with_gil(|py| pymodule.getattr(py, "handler").unwrap().into_py(py));
-        CONSOLE_PRINT_HANDLER.store(Some(console_print_handler.into()));
-
-        let result = console_print_dispatcher("asdf");
-        assert_eq!(result, Some("qwertz".into()));
-    }
-
-    #[cfg_attr(not(miri), rstest)]
-    #[serial]
-    fn console_print_dispatcher_dispatcher_returns_boolean_true(_pyminqlx_setup: ()) {
-        PYMINQLX_INITIALIZED.store(true, Ordering::SeqCst);
-
-        let pymodule: Py<PyModule> = Python::with_gil(|py| {
-            PyModule::from_code(
-                py,
-                r#"
-def handler(text):
-    return True
-"#,
-                "",
-                "",
-            )
-            .unwrap()
-            .into_py(py)
-        });
-        let console_print_handler =
-            Python::with_gil(|py| pymodule.getattr(py, "handler").unwrap().into_py(py));
-        CONSOLE_PRINT_HANDLER.store(Some(console_print_handler.into()));
-
-        let result = console_print_dispatcher("asdf");
-        assert_eq!(result, Some("asdf".into()));
-    }
-
-    #[cfg_attr(not(miri), rstest)]
-    #[serial]
-    fn console_print_dispatcher_dispatcher_returns_false(_pyminqlx_setup: ()) {
-        PYMINQLX_INITIALIZED.store(true, Ordering::SeqCst);
-
-        let pymodule: Py<PyModule> = Python::with_gil(|py| {
-            PyModule::from_code(
-                py,
-                r#"
-def handler(text):
-    return False
-"#,
-                "",
-                "",
-            )
-            .unwrap()
-            .into_py(py)
-        });
-        let console_print_handler =
-            Python::with_gil(|py| pymodule.getattr(py, "handler").unwrap().into_py(py));
-        CONSOLE_PRINT_HANDLER.store(Some(console_print_handler.into()));
-
-        let result = console_print_dispatcher("asdf");
-        assert_eq!(result, None);
-    }
-
-    #[cfg_attr(not(miri), rstest)]
-    #[serial]
-    fn console_print_dispatcher_dispatcher_throws_exception(_pyminqlx_setup: ()) {
-        PYMINQLX_INITIALIZED.store(true, Ordering::SeqCst);
-
-        let pymodule: Py<PyModule> = Python::with_gil(|py| {
-            PyModule::from_code(
-                py,
-                r#"
-def handler(text):
-    raise Exception
-"#,
-                "",
-                "",
-            )
-            .unwrap()
-            .into_py(py)
-        });
-        let console_print_handler =
-            Python::with_gil(|py| pymodule.getattr(py, "handler").unwrap().into_py(py));
-        CONSOLE_PRINT_HANDLER.store(Some(console_print_handler.into()));
-
-        let result = console_print_dispatcher("asdf");
-        assert_eq!(result, Some("asdf".into()));
-    }
-
-    #[cfg_attr(not(miri), rstest)]
-    #[serial]
-    fn console_print_dispatcher_dispatcher_returns_not_supported_value(_pyminqlx_setup: ()) {
-        PYMINQLX_INITIALIZED.store(true, Ordering::SeqCst);
-
-        let pymodule: Py<PyModule> = Python::with_gil(|py| {
-            PyModule::from_code(
-                py,
-                r#"
-def handler(text):
-    return (1, 2, 3)
-"#,
-                "",
-                "",
-            )
-            .unwrap()
-            .into_py(py)
-        });
-        let console_print_handler =
-            Python::with_gil(|py| pymodule.getattr(py, "handler").unwrap().into_py(py));
-        CONSOLE_PRINT_HANDLER.store(Some(console_print_handler.into()));
-
-        let result = console_print_dispatcher("asdf");
-        assert_eq!(result, Some("asdf".into()));
-    }
-
-    #[test]
-    #[serial]
-    fn client_spawn_dispatcher_when_python_not_initiailized() {
-        PYMINQLX_INITIALIZED.store(false, Ordering::SeqCst);
-
-        client_spawn_dispatcher(123);
-    }
-
-    #[test]
-    #[serial]
-    fn client_spawn_dispatcher_when_dispatcher_not_initiailized() {
-        PYMINQLX_INITIALIZED.store(true, Ordering::SeqCst);
-        PLAYER_SPAWN_HANDLER.store(None);
-
-        client_spawn_dispatcher(123);
-    }
-
-    #[cfg_attr(not(miri), rstest)]
-    #[serial]
-    fn client_spawn_dispatcher_dispatcher_works_properly(_pyminqlx_setup: ()) {
-        PYMINQLX_INITIALIZED.store(true, Ordering::SeqCst);
-
-        let pymodule: Py<PyModule> = Python::with_gil(|py| {
-            PyModule::from_code(
-                py,
-                r#"
-def handler(client_id):
-    pass
-"#,
-                "",
-                "",
-            )
-            .unwrap()
-            .into_py(py)
-        });
-        let client_spawn_handler =
-            Python::with_gil(|py| pymodule.getattr(py, "handler").unwrap().into_py(py));
-        PLAYER_SPAWN_HANDLER.store(Some(client_spawn_handler.into()));
-
-        client_spawn_dispatcher(123);
-    }
-
-    #[cfg_attr(not(miri), rstest)]
-    #[serial]
-    fn client_spawn_dispatcher_dispatcher_throws_exception(_pyminqlx_setup: ()) {
-        PYMINQLX_INITIALIZED.store(true, Ordering::SeqCst);
-
-        let pymodule: Py<PyModule> = Python::with_gil(|py| {
-            PyModule::from_code(
-                py,
-                r#"
-def handler(client_id):
-    raise Exception
-"#,
-                "",
-                "",
-            )
-            .unwrap()
-            .into_py(py)
-        });
-        let client_spawn_handler =
-            Python::with_gil(|py| pymodule.getattr(py, "handler").unwrap().into_py(py));
-        PLAYER_SPAWN_HANDLER.store(Some(client_spawn_handler.into()));
-
-        client_spawn_dispatcher(123);
-    }
-
-    #[test]
-    #[serial]
-    fn kamikaze_use_dispatcher_when_python_not_initiailized() {
-        PYMINQLX_INITIALIZED.store(false, Ordering::SeqCst);
-
-        kamikaze_use_dispatcher(123);
-    }
-
-    #[test]
-    #[serial]
-    fn kamikaze_use_dispatcher_when_dispatcher_not_initiailized() {
-        PYMINQLX_INITIALIZED.store(true, Ordering::SeqCst);
-        KAMIKAZE_USE_HANDLER.store(None);
-
-        kamikaze_use_dispatcher(123);
-    }
-
-    #[cfg_attr(not(miri), rstest)]
-    #[serial]
-    fn kamikaze_use_dispatcher_dispatcher_works_properly(_pyminqlx_setup: ()) {
-        PYMINQLX_INITIALIZED.store(true, Ordering::SeqCst);
-
-        let pymodule: Py<PyModule> = Python::with_gil(|py| {
-            PyModule::from_code(
-                py,
-                r#"
-def handler(client_id):
-    pass
-"#,
-                "",
-                "",
-            )
-            .unwrap()
-            .into_py(py)
-        });
-        let kamikaze_use_handler =
-            Python::with_gil(|py| pymodule.getattr(py, "handler").unwrap().into_py(py));
-        KAMIKAZE_USE_HANDLER.store(Some(kamikaze_use_handler.into()));
-
-        kamikaze_use_dispatcher(123);
-    }
-
-    #[cfg_attr(not(miri), rstest)]
-    #[serial]
-    fn kamikaze_use_dispatcher_dispatcher_throws_exception(_pyminqlx_setup: ()) {
-        PYMINQLX_INITIALIZED.store(true, Ordering::SeqCst);
-
-        let pymodule: Py<PyModule> = Python::with_gil(|py| {
-            PyModule::from_code(
-                py,
-                r#"
-def handler(client_id):
-    raise Exception
-"#,
-                "",
-                "",
-            )
-            .unwrap()
-            .into_py(py)
-        });
-        let kamikaze_use_handler =
-            Python::with_gil(|py| pymodule.getattr(py, "handler").unwrap().into_py(py));
-        KAMIKAZE_USE_HANDLER.store(Some(kamikaze_use_handler.into()));
-
-        kamikaze_use_dispatcher(123);
-    }
-
-    #[test]
-    #[serial]
-    fn kamikaze_explode_dispatcher_when_python_not_initiailized() {
-        PYMINQLX_INITIALIZED.store(false, Ordering::SeqCst);
-
-        kamikaze_explode_dispatcher(123, false);
-    }
-
-    #[test]
-    #[serial]
-    fn kamikaze_explode_dispatcher_when_dispatcher_not_initiailized() {
-        PYMINQLX_INITIALIZED.store(true, Ordering::SeqCst);
-        KAMIKAZE_EXPLODE_HANDLER.store(None);
-
-        kamikaze_explode_dispatcher(123, true);
-    }
-
-    #[cfg_attr(not(miri), rstest)]
-    #[serial]
-    fn kamikaze_explode_dispatcher_dispatcher_works_properly(_pyminqlx_setup: ()) {
-        PYMINQLX_INITIALIZED.store(true, Ordering::SeqCst);
-
-        let pymodule: Py<PyModule> = Python::with_gil(|py| {
-            PyModule::from_code(
-                py,
-                r#"
-def handler(client_id, is_used_on_demand):
-    pass
-"#,
-                "",
-                "",
-            )
-            .unwrap()
-            .into_py(py)
-        });
-        let kamikaze_explode_handler =
-            Python::with_gil(|py| pymodule.getattr(py, "handler").unwrap().into_py(py));
-        KAMIKAZE_EXPLODE_HANDLER.store(Some(kamikaze_explode_handler.into()));
-
-        kamikaze_explode_dispatcher(123, false);
-    }
-
-    #[cfg_attr(not(miri), rstest)]
-    #[serial]
-    fn kamikaze_explode_dispatcher_dispatcher_throws_exception(_pyminqlx_setup: ()) {
-        PYMINQLX_INITIALIZED.store(true, Ordering::SeqCst);
-
-        let pymodule: Py<PyModule> = Python::with_gil(|py| {
-            PyModule::from_code(
-                py,
-                r#"
-def handler(client_id, is_used_on_demand):
-    raise Exception
-"#,
-                "",
-                "",
-            )
-            .unwrap()
-            .into_py(py)
-        });
-        let kamikaze_explode_handler =
-            Python::with_gil(|py| pymodule.getattr(py, "handler").unwrap().into_py(py));
-        KAMIKAZE_EXPLODE_HANDLER.store(Some(kamikaze_explode_handler.into()));
-
-        kamikaze_explode_dispatcher(123, true);
-    }
-
-    #[test]
-    #[serial]
-    fn damage_dispatcher_when_python_not_initiailized() {
-        PYMINQLX_INITIALIZED.store(false, Ordering::SeqCst);
-
-        damage_dispatcher(
-            123,
-            None,
-            666,
-            DAMAGE_NO_PROTECTION as i32,
-            meansOfDeath_t::MOD_TRIGGER_HURT as i32,
-        );
-    }
-
-    #[test]
-    #[serial]
-    fn damage_dispatcher_when_dispatcher_not_initiailized() {
-        PYMINQLX_INITIALIZED.store(true, Ordering::SeqCst);
-        DAMAGE_HANDLER.store(None);
-
-        damage_dispatcher(
-            123,
-            Some(456),
-            100,
-            DAMAGE_NO_TEAM_PROTECTION as i32,
-            meansOfDeath_t::MOD_ROCKET as i32,
-        );
-    }
-
-    #[cfg_attr(not(miri), rstest)]
-    #[serial]
-    fn damage_dispatcher_dispatcher_works_properly(_pyminqlx_setup: ()) {
-        PYMINQLX_INITIALIZED.store(true, Ordering::SeqCst);
-
-        let pymodule: Py<PyModule> = Python::with_gil(|py| {
-            PyModule::from_code(
-                py,
-                r#"
-def handler(client_id, attacker_id, damage, dflags, means_of_death):
-    pass
-"#,
-                "",
-                "",
-            )
-            .unwrap()
-            .into_py(py)
-        });
-        let damage_handler =
-            Python::with_gil(|py| pymodule.getattr(py, "handler").unwrap().into_py(py));
-        DAMAGE_HANDLER.store(Some(damage_handler.into()));
-
-        damage_dispatcher(
-            123,
-            Some(456),
-            100,
-            DAMAGE_NO_TEAM_PROTECTION as i32,
-            meansOfDeath_t::MOD_ROCKET as i32,
-        );
-    }
-
-    #[cfg_attr(not(miri), rstest)]
-    #[serial]
-    fn damage_dispatcher_dispatcher_throws_exception(_pyminqlx_setup: ()) {
-        PYMINQLX_INITIALIZED.store(true, Ordering::SeqCst);
-
-        let pymodule: Py<PyModule> = Python::with_gil(|py| {
-            PyModule::from_code(
-                py,
-                r#"
-def handler(client_id, attacker_id, damage, dflags, means_of_death):
-    raise Exception
-"#,
-                "",
-                "",
-            )
-            .unwrap()
-            .into_py(py)
-        });
-        let damage_handler =
-            Python::with_gil(|py| pymodule.getattr(py, "handler").unwrap().into_py(py));
-        DAMAGE_HANDLER.store(Some(damage_handler.into()));
-
-        damage_dispatcher(
-            123,
-            None,
-            666,
-            DAMAGE_NO_PROTECTION as i32,
-            meansOfDeath_t::MOD_TRIGGER_HURT as i32,
-        );
-    }
-}
-
-/// Information about a player, such as Steam ID, name, client ID, and whatnot.
-#[pyclass]
-#[pyo3(module = "minqlx", name = "PlayerInfo", get_all)]
-#[derive(Debug, PartialEq)]
-#[allow(unused)]
-struct PlayerInfo {
-    /// The player's client ID.
-    client_id: i32,
-    /// The player's name.
-    name: String,
-    /// The player's connection state.
-    connection_state: i32,
-    /// The player's userinfo.
-    userinfo: String,
-    /// The player's 64-bit representation of the Steam ID.
-    steam_id: u64,
-    /// The player's team.
-    team: i32,
-    /// The player's privileges.
-    privileges: i32,
-}
-
-#[pymethods]
-impl PlayerInfo {
-    fn __str__(&self) -> String {
-        format!("PlayerInfo(client_id={}, name={}, connection_state={}, userinfo={}, steam_id={}, team={}, privileges={})",
-                self.client_id,
-                self.name,
-                self.connection_state,
-                self.userinfo,
-                self.steam_id,
-                self.team,
-                self.privileges)
-    }
-
-    fn __repr__(&self) -> String {
-        format!("PlayerInfo(client_id={}, name={}, connection_state={}, userinfo={}, steam_id={}, team={}, privileges={})",
-                self.client_id,
-                self.name,
-                self.connection_state,
-                self.userinfo,
-                self.steam_id,
-                self.team,
-                self.privileges)
-    }
-}
-
-impl From<i32> for PlayerInfo {
-    fn from(client_id: i32) -> Self {
-        let game_entity_result = GameEntity::try_from(client_id);
-        match game_entity_result {
-            Err(_) => PlayerInfo {
-                client_id,
-                name: Default::default(),
-                connection_state: clientState_t::CS_FREE as i32,
-                userinfo: Default::default(),
-                steam_id: 0,
-                team: team_t::TEAM_SPECTATOR as i32,
-                privileges: -1,
-            },
-            Ok(game_entity) => {
-                let Ok(client) = Client::try_from(client_id) else {
-                    return PlayerInfo {
-                        client_id,
-                        name: game_entity.get_player_name(),
-                        connection_state: clientState_t::CS_FREE as i32,
-                        userinfo: Default::default(),
-                        steam_id: 0,
-                        team: game_entity.get_team() as i32,
-                        privileges: game_entity.get_privileges() as i32,
-                    };
-                };
-                PlayerInfo {
-                    client_id,
-                    name: game_entity.get_player_name(),
-                    connection_state: client.get_state() as i32,
-                    userinfo: client.get_user_info(),
-                    steam_id: client.get_steam_id(),
-                    team: game_entity.get_team() as i32,
-                    privileges: game_entity.get_privileges() as i32,
-                }
-            }
-        }
-    }
-}
-
-#[cfg(test)]
-#[cfg(not(miri))]
-mod player_info_tests {
-    use super::PlayerInfo;
-    use crate::client::MockClient;
-    use crate::game_entity::MockGameEntity;
-    use crate::prelude::*;
-    use pretty_assertions::assert_eq;
-
-    #[test]
-    #[serial]
-    fn player_info_python_string() {
-        let player_info = PlayerInfo {
-            client_id: 2,
-            name: "UnknownPlayer".into(),
-            connection_state: clientState_t::CS_ACTIVE as i32,
-            userinfo: "asdf".into(),
-            steam_id: 42,
-            team: team_t::TEAM_SPECTATOR as i32,
-            privileges: privileges_t::PRIV_NONE as i32,
-        };
-
-        assert_eq!(
-            player_info.__str__(),
-            "PlayerInfo(client_id=2, name=UnknownPlayer, connection_state=4, userinfo=asdf, \
-            steam_id=42, team=3, privileges=0)"
-        );
-    }
-
-    #[test]
-    #[serial]
-    fn player_info_python_repr() {
-        let player_info = PlayerInfo {
-            client_id: 2,
-            name: "UnknownPlayer".into(),
-            connection_state: clientState_t::CS_ACTIVE as i32,
-            userinfo: "asdf".into(),
-            steam_id: 42,
-            team: team_t::TEAM_SPECTATOR as i32,
-            privileges: privileges_t::PRIV_NONE as i32,
-        };
-
-        assert_eq!(
-            player_info.__repr__(),
-            "PlayerInfo(client_id=2, name=UnknownPlayer, connection_state=4, userinfo=asdf, \
-            steam_id=42, team=3, privileges=0)"
-        );
-    }
-
-    #[test]
-    #[serial]
-    fn player_info_from_existing_game_entity_and_client() {
-        let game_entity_from_ctx = MockGameEntity::from_context();
-        game_entity_from_ctx.expect().returning(|_| {
-            let mut mock_game_entity = MockGameEntity::new();
-            mock_game_entity
-                .expect_get_player_name()
-                .returning(|| "UnknownPlayer".into());
-            mock_game_entity
-                .expect_get_team()
-                .returning(|| team_t::TEAM_SPECTATOR);
-            mock_game_entity
-                .expect_get_privileges()
-                .returning(|| privileges_t::PRIV_NONE);
-            mock_game_entity
-        });
-        let client_from_ctx = MockClient::from_context();
-        client_from_ctx.expect().returning(|_| {
-            let mut mock_client = MockClient::new();
-            mock_client
-                .expect_get_state()
-                .returning(|| clientState_t::CS_ACTIVE);
-            mock_client
-                .expect_get_user_info()
-                .returning(|| "asdf".into());
-            mock_client.expect_get_steam_id().returning(|| 42);
-            mock_client
-        });
-
-        assert_eq!(
-            PlayerInfo::from(2),
-            PlayerInfo {
-                client_id: 2,
-                name: "UnknownPlayer".into(),
-                connection_state: clientState_t::CS_ACTIVE as i32,
-                userinfo: "asdf".into(),
-                steam_id: 42,
-                team: team_t::TEAM_SPECTATOR as i32,
-                privileges: privileges_t::PRIV_NONE as i32
-            }
-        );
-    }
-}
-
-/// Returns a dictionary with information about a player by ID.
+/// Returns a dictionary with information about a plapub(crate) yer by ID.
 #[pyfunction(name = "player_info")]
-fn get_player_info(py: Python<'_>, client_id: i32) -> PyResult<Option<PlayerInfo>> {
+pub(crate) fn get_player_info(py: Python<'_>, client_id: i32) -> PyResult<Option<PlayerInfo>> {
     let maxclients = py.allow_threads(|| {
         let Some(ref main_engine) = *MAIN_ENGINE.load() else {
             return Err(PyEnvironmentError::new_err(
@@ -2125,12 +85,12 @@ fn get_player_info(py: Python<'_>, client_id: i32) -> PyResult<Option<PlayerInfo
 #[cfg(not(miri))]
 mod get_player_info_tests {
     use super::get_player_info;
-    use super::PlayerInfo;
     use super::MAIN_ENGINE;
-    use crate::client::MockClient;
-    use crate::game_entity::MockGameEntity;
+    use crate::ffi::c::client::MockClient;
+    use crate::ffi::c::game_entity::MockGameEntity;
+    use crate::ffi::python::player_info::PlayerInfo;
+    use crate::ffi::python::ALLOW_FREE_CLIENT;
     use crate::prelude::*;
-    use crate::pyminqlx::ALLOW_FREE_CLIENT;
     use crate::quake_live_engine::MockQuakeEngine;
     use core::sync::atomic::Ordering;
     use pyo3::exceptions::{PyEnvironmentError, PyValueError};
@@ -2299,7 +259,7 @@ mod get_player_info_tests {
 
 /// Returns a list with dictionaries with information about all the players on the server.
 #[pyfunction(name = "players_info")]
-fn get_players_info(py: Python<'_>) -> PyResult<Vec<Option<PlayerInfo>>> {
+pub(crate) fn get_players_info(py: Python<'_>) -> PyResult<Vec<Option<PlayerInfo>>> {
     let maxclients = py.allow_threads(|| {
         let Some(ref main_engine) = *MAIN_ENGINE.load() else {
             return Err(PyEnvironmentError::new_err(
@@ -2349,7 +309,7 @@ mod get_players_info_tests {
 
 /// Returns a string with a player's userinfo.
 #[pyfunction(name = "get_userinfo")]
-fn get_userinfo(py: Python<'_>, client_id: i32) -> PyResult<Option<String>> {
+pub(crate) fn get_userinfo(py: Python<'_>, client_id: i32) -> PyResult<Option<String>> {
     let maxclients = py.allow_threads(|| {
         let Some(ref main_engine) = *MAIN_ENGINE.load() else {
             return Err(PyEnvironmentError::new_err(
@@ -2382,7 +342,7 @@ fn get_userinfo(py: Python<'_>, client_id: i32) -> PyResult<Option<String>> {
 mod get_userinfo_tests {
     use super::MAIN_ENGINE;
     use super::{get_userinfo, ALLOW_FREE_CLIENT};
-    use crate::client::MockClient;
+    use crate::ffi::c::client::MockClient;
     use crate::prelude::*;
     use crate::quake_live_engine::MockQuakeEngine;
     use core::sync::atomic::Ordering;
@@ -2500,7 +460,11 @@ mod get_userinfo_tests {
 #[pyfunction]
 #[pyo3(name = "send_server_command")]
 #[pyo3(signature = (client_id, cmd))]
-fn send_server_command(py: Python<'_>, client_id: Option<i32>, cmd: &str) -> PyResult<bool> {
+pub(crate) fn send_server_command(
+    py: Python<'_>,
+    client_id: Option<i32>,
+    cmd: &str,
+) -> PyResult<bool> {
     match client_id {
         None => {
             #[allow(clippy::unnecessary_to_owned)]
@@ -2543,7 +507,7 @@ fn send_server_command(py: Python<'_>, client_id: Option<i32>, cmd: &str) -> PyR
 mod send_server_command_tests {
     use super::send_server_command;
     use super::MAIN_ENGINE;
-    use crate::client::MockClient;
+    use crate::ffi::c::client::MockClient;
     use crate::hooks::mock_hooks::shinqlx_send_server_command_context;
     use crate::prelude::*;
     use crate::quake_live_engine::MockQuakeEngine;
@@ -2665,7 +629,7 @@ mod send_server_command_tests {
 /// Tells the server to process a command from a specific client.
 #[pyfunction]
 #[pyo3(name = "client_command")]
-fn client_command(py: Python<'_>, client_id: i32, cmd: &str) -> PyResult<bool> {
+pub(crate) fn client_command(py: Python<'_>, client_id: i32, cmd: &str) -> PyResult<bool> {
     let maxclients = py.allow_threads(|| {
         let Some(ref main_engine) = *MAIN_ENGINE.load() else {
             return Err(PyEnvironmentError::new_err(
@@ -2698,7 +662,7 @@ fn client_command(py: Python<'_>, client_id: i32, cmd: &str) -> PyResult<bool> {
 mod client_command_tests {
     use super::client_command;
     use super::MAIN_ENGINE;
-    use crate::client::MockClient;
+    use crate::ffi::c::client::MockClient;
     use crate::hooks::mock_hooks::shinqlx_execute_client_command_context;
     use crate::prelude::*;
     use crate::quake_live_engine::MockQuakeEngine;
@@ -2803,7 +767,7 @@ mod client_command_tests {
 /// Executes a command as if it was executed from the server console.
 #[pyfunction]
 #[pyo3(name = "console_command")]
-fn console_command(py: Python<'_>, cmd: &str) -> PyResult<()> {
+pub(crate) fn console_command(py: Python<'_>, cmd: &str) -> PyResult<()> {
     py.allow_threads(move || {
         let Some(ref main_engine) = *MAIN_ENGINE.load() else {
             return Err(PyEnvironmentError::new_err(
@@ -2856,7 +820,7 @@ mod console_command_tests {
 /// Gets a cvar.
 #[pyfunction]
 #[pyo3(name = "get_cvar")]
-fn get_cvar(py: Python<'_>, cvar: &str) -> PyResult<Option<String>> {
+pub(crate) fn get_cvar(py: Python<'_>, cvar: &str) -> PyResult<Option<String>> {
     py.allow_threads(move || {
         let Some(ref main_engine) = *MAIN_ENGINE.load() else {
             return Err(PyEnvironmentError::new_err(
@@ -2876,7 +840,7 @@ fn get_cvar(py: Python<'_>, cvar: &str) -> PyResult<Option<String>> {
 mod get_cvar_tests {
     use super::get_cvar;
     use super::MAIN_ENGINE;
-    use crate::cvar::CVar;
+    use crate::ffi::c::cvar::CVar;
     use crate::prelude::*;
     use crate::quake_live_engine::MockQuakeEngine;
     use alloc::ffi::CString;
@@ -2939,7 +903,12 @@ mod get_cvar_tests {
 #[pyfunction]
 #[pyo3(name = "set_cvar")]
 #[pyo3(signature = (cvar, value, flags=None))]
-fn set_cvar(py: Python<'_>, cvar: &str, value: &str, flags: Option<i32>) -> PyResult<bool> {
+pub(crate) fn set_cvar(
+    py: Python<'_>,
+    cvar: &str,
+    value: &str,
+    flags: Option<i32>,
+) -> PyResult<bool> {
     py.allow_threads(move || {
         let Some(ref main_engine) = *MAIN_ENGINE.load() else {
             return Err(PyEnvironmentError::new_err(
@@ -2969,7 +938,7 @@ fn set_cvar(py: Python<'_>, cvar: &str, value: &str, flags: Option<i32>) -> PyRe
 mod set_cvar_tests {
     use super::set_cvar;
     use super::MAIN_ENGINE;
-    use crate::cvar::CVar;
+    use crate::ffi::c::cvar::CVar;
     use crate::prelude::*;
     use crate::quake_live_engine::MockQuakeEngine;
     use mockall::predicate;
@@ -3048,7 +1017,7 @@ mod set_cvar_tests {
 #[pyfunction]
 #[pyo3(name = "set_cvar_limit")]
 #[pyo3(signature = (cvar, value, min, max, flags=None))]
-fn set_cvar_limit(
+pub(crate) fn set_cvar_limit(
     py: Python<'_>,
     cvar: &str,
     value: &str,
@@ -3124,7 +1093,7 @@ mod set_cvar_limit_tests {
 #[pyfunction]
 #[pyo3(name = "kick")]
 #[pyo3(signature = (client_id, reason=None))]
-fn kick(py: Python<'_>, client_id: i32, reason: Option<&str>) -> PyResult<()> {
+pub(crate) fn kick(py: Python<'_>, client_id: i32, reason: Option<&str>) -> PyResult<()> {
     let maxclients = py.allow_threads(|| {
         let Some(ref main_engine) = *MAIN_ENGINE.load() else {
             return Err(PyEnvironmentError::new_err(
@@ -3168,7 +1137,7 @@ fn kick(py: Python<'_>, client_id: i32, reason: Option<&str>) -> PyResult<()> {
 mod kick_tests {
     use super::kick;
     use super::MAIN_ENGINE;
-    use crate::client::MockClient;
+    use crate::ffi::c::client::MockClient;
     use crate::hooks::mock_hooks::shinqlx_drop_client_context;
     use crate::prelude::*;
     use crate::quake_live_engine::MockQuakeEngine;
@@ -3331,7 +1300,7 @@ mod kick_tests {
 /// Prints text on the console. If used during an RCON command, it will be printed in the player's console.
 #[pyfunction]
 #[pyo3(name = "console_print")]
-fn console_print(py: Python<'_>, text: &str) {
+pub(crate) fn console_print(py: Python<'_>, text: &str) {
     py.allow_threads(move || {
         let formatted_string = format!("{}\n", text);
         shinqlx_com_printf(formatted_string.as_str());
@@ -3362,7 +1331,7 @@ mod console_print_tests {
 /// Get a configstring.
 #[pyfunction]
 #[pyo3(name = "get_configstring")]
-fn get_configstring(py: Python<'_>, config_id: u32) -> PyResult<String> {
+pub(crate) fn get_configstring(py: Python<'_>, config_id: u32) -> PyResult<String> {
     if !(0..MAX_CONFIGSTRINGS).contains(&config_id) {
         return Err(PyValueError::new_err(format!(
             "index needs to be a number from 0 to {}.",
@@ -3432,7 +1401,7 @@ mod get_configstring_tests {
 /// Sets a configstring and sends it to all the players on the server.
 #[pyfunction]
 #[pyo3(name = "set_configstring")]
-fn set_configstring(py: Python<'_>, config_id: u32, value: &str) -> PyResult<()> {
+pub(crate) fn set_configstring(py: Python<'_>, config_id: u32, value: &str) -> PyResult<()> {
     if !(0..MAX_CONFIGSTRINGS).contains(&config_id) {
         return Err(PyValueError::new_err(format!(
             "index needs to be a number from 0 to {}.",
@@ -3484,7 +1453,7 @@ mod set_configstring_tests {
 /// Forces the current vote to either fail or pass.
 #[pyfunction]
 #[pyo3(name = "force_vote")]
-fn force_vote(py: Python<'_>, pass: bool) -> PyResult<bool> {
+pub(crate) fn force_vote(py: Python<'_>, pass: bool) -> PyResult<bool> {
     let vote_time = py.allow_threads(|| {
         CurrentLevel::try_get()
             .ok()
@@ -3525,10 +1494,10 @@ fn force_vote(py: Python<'_>, pass: bool) -> PyResult<bool> {
 mod force_vote_tests {
     use super::force_vote;
     use super::MAIN_ENGINE;
-    use crate::client::MockClient;
-    use crate::current_level::MockTestCurrentLevel;
-    use crate::game_client::MockGameClient;
-    use crate::game_entity::MockGameEntity;
+    use crate::ffi::c::client::MockClient;
+    use crate::ffi::c::current_level::MockTestCurrentLevel;
+    use crate::ffi::c::game_client::MockGameClient;
+    use crate::ffi::c::game_entity::MockGameEntity;
     use crate::prelude::*;
     use crate::quake_live_engine::MockQuakeEngine;
     use mockall::predicate;
@@ -3693,7 +1662,7 @@ mod force_vote_tests {
 /// Adds a console command that will be handled by Python code.
 #[pyfunction]
 #[pyo3(name = "add_console_command")]
-fn add_console_command(py: Python<'_>, command: &str) -> PyResult<()> {
+pub(crate) fn add_console_command(py: Python<'_>, command: &str) -> PyResult<()> {
     py.allow_threads(move || {
         let Some(ref main_engine) = *MAIN_ENGINE.load() else {
             return Err(PyEnvironmentError::new_err(
@@ -3744,38 +1713,15 @@ mod add_console_command_tests {
     }
 }
 
-static CLIENT_COMMAND_HANDLER: Lazy<SwapArcOption<Py<PyAny>>> =
-    Lazy::new(|| SwapArcOption::new(None));
-static SERVER_COMMAND_HANDLER: Lazy<SwapArcOption<Py<PyAny>>> =
-    Lazy::new(|| SwapArcOption::new(None));
-static FRAME_HANDLER: Lazy<SwapArcOption<Py<PyAny>>> = Lazy::new(|| SwapArcOption::new(None));
-static PLAYER_CONNECT_HANDLER: Lazy<SwapArcOption<Py<PyAny>>> =
-    Lazy::new(|| SwapArcOption::new(None));
-static PLAYER_LOADED_HANDLER: Lazy<SwapArcOption<Py<PyAny>>> =
-    Lazy::new(|| SwapArcOption::new(None));
-static PLAYER_DISCONNECT_HANDLER: Lazy<SwapArcOption<Py<PyAny>>> =
-    Lazy::new(|| SwapArcOption::new(None));
-pub(crate) static CUSTOM_COMMAND_HANDLER: Lazy<SwapArcOption<Py<PyAny>>> =
-    Lazy::new(|| SwapArcOption::new(None));
-static NEW_GAME_HANDLER: Lazy<SwapArcOption<Py<PyAny>>> = Lazy::new(|| SwapArcOption::new(None));
-static SET_CONFIGSTRING_HANDLER: Lazy<SwapArcOption<Py<PyAny>>> =
-    Lazy::new(|| SwapArcOption::new(None));
-static RCON_HANDLER: Lazy<SwapArcOption<Py<PyAny>>> = Lazy::new(|| SwapArcOption::new(None));
-static CONSOLE_PRINT_HANDLER: Lazy<SwapArcOption<Py<PyAny>>> =
-    Lazy::new(|| SwapArcOption::new(None));
-static PLAYER_SPAWN_HANDLER: Lazy<SwapArcOption<Py<PyAny>>> =
-    Lazy::new(|| SwapArcOption::new(None));
-static KAMIKAZE_USE_HANDLER: Lazy<SwapArcOption<Py<PyAny>>> =
-    Lazy::new(|| SwapArcOption::new(None));
-static KAMIKAZE_EXPLODE_HANDLER: Lazy<SwapArcOption<Py<PyAny>>> =
-    Lazy::new(|| SwapArcOption::new(None));
-static DAMAGE_HANDLER: Lazy<SwapArcOption<Py<PyAny>>> = Lazy::new(|| SwapArcOption::new(None));
-
 /// Register an event handler. Can be called more than once per event, but only the last one will work.
 #[pyfunction]
 #[pyo3(name = "register_handler")]
 #[pyo3(signature = (event, handler=None))]
-fn register_handler(py: Python<'_>, event: &str, handler: Option<Py<PyAny>>) -> PyResult<()> {
+pub(crate) fn register_handler(
+    py: Python<'_>,
+    event: &str,
+    handler: Option<Py<PyAny>>,
+) -> PyResult<()> {
     if handler
         .as_ref()
         .is_some_and(|handler_function| !handler_function.as_ref(py).is_callable())
@@ -3965,722 +1911,10 @@ handler = True
     }
 }
 
-#[pyclass]
-struct Vector3Iter {
-    iter: vec::IntoIter<i32>,
-}
-
-#[pymethods]
-impl Vector3Iter {
-    fn __iter__(slf: PyRef<'_, Self>) -> PyRef<'_, Self> {
-        slf
-    }
-
-    fn __next__(mut slf: PyRefMut<'_, Self>) -> Option<i32> {
-        slf.iter.next()
-    }
-}
-
-/// A three-dimensional vector.
-#[pyclass(name = "Vector3", module = "minqlx", get_all)]
-#[derive(PartialEq, Eq, Debug, Clone, Copy, Default)]
-struct Vector3(
-    #[pyo3(name = "x")] i32,
-    #[pyo3(name = "y")] i32,
-    #[pyo3(name = "z")] i32,
-);
-
-#[pymethods]
-impl Vector3 {
-    #[new]
-    fn py_new(values: &PyTuple) -> PyResult<Self> {
-        if values.len() < 3 {
-            return Err(PyValueError::new_err(
-                "tuple did not provide values for all three dimensions",
-            ));
-        }
-
-        if values.len() > 3 {
-            return Err(PyValueError::new_err(
-                "tuple did provide values for more than three dimensions",
-            ));
-        }
-
-        let results = values
-            .iter()
-            .map(|item| item.extract::<i32>().ok())
-            .collect::<Vec<Option<i32>>>();
-
-        if results.iter().any(|item| item.is_none()) {
-            return Err(PyValueError::new_err("Vector3 values need to be integer"));
-        }
-
-        Ok(Self(
-            results[0].unwrap(),
-            results[1].unwrap(),
-            results[2].unwrap(),
-        ))
-    }
-
-    fn __richcmp__(&self, other: &Self, op: CompareOp, py: Python<'_>) -> PyObject {
-        match op {
-            CompareOp::Eq => (self == other).into_py(py),
-            CompareOp::Ne => (self != other).into_py(py),
-            _ => py.NotImplemented(),
-        }
-    }
-
-    fn __str__(&self) -> String {
-        format!("Vector3(x={}, y={}, z={})", self.0, self.1, self.2)
-    }
-
-    fn __repr__(&self) -> String {
-        format!("Vector3(x={}, y={}, z={})", self.0, self.1, self.2)
-    }
-
-    fn __iter__(slf: PyRef<'_, Self>) -> PyResult<Py<Vector3Iter>> {
-        let iter_vec = vec![slf.0, slf.1, slf.2];
-        let iter = Vector3Iter {
-            iter: iter_vec.into_iter(),
-        };
-        Py::new(slf.py(), iter)
-    }
-}
-
-impl From<(f32, f32, f32)> for Vector3 {
-    fn from(value: (f32, f32, f32)) -> Self {
-        Self(value.0 as i32, value.1 as i32, value.2 as i32)
-    }
-}
-
-#[cfg(test)]
-#[cfg(not(miri))]
-pub(crate) mod pyminqlx_setup_fixture {
-    use crate::pyminqlx::pyminqlx_module;
-    use pyo3::ffi::Py_IsInitialized;
-    use pyo3::{append_to_inittab, prepare_freethreaded_python};
-    use rstest::fixture;
-
-    #[fixture]
-    #[once]
-    pub(crate) fn pyminqlx_setup() {
-        if unsafe { Py_IsInitialized() } == 0 {
-            append_to_inittab!(pyminqlx_module);
-            prepare_freethreaded_python();
-        }
-    }
-}
-
-#[cfg(test)]
-#[cfg(not(miri))]
-mod vector3_tests {
-    use crate::pyminqlx::pyminqlx_setup_fixture::*;
-    use pyo3::Python;
-    use rstest::rstest;
-
-    #[rstest]
-    fn vector3_tuple_test(_pyminqlx_setup: ()) {
-        Python::with_gil(|py| {
-            let minqlx_module = py.import("_minqlx").unwrap();
-            let vector3 = minqlx_module.getattr("Vector3").unwrap();
-            let tuple = py.import("builtins").unwrap().getattr("tuple").unwrap();
-            assert!(vector3.is_instance(tuple.get_type()).unwrap());
-        });
-    }
-
-    #[rstest]
-    fn vector3_can_be_created_from_python(_pyminqlx_setup: ()) {
-        Python::with_gil(|py| {
-            let vector3_constructor = py.run(
-                r#"
-import _minqlx
-weapons = _minqlx.Vector3((0, 42, 666))
-            "#,
-                None,
-                None,
-            );
-            assert!(
-                vector3_constructor.is_ok(),
-                "{}",
-                vector3_constructor.err().unwrap()
-            );
-        });
-    }
-}
-
-/// A struct sequence containing all the weapons in the game.
-#[pyclass]
-#[pyo3(module = "minqlx", name = "Weapons", get_all)]
-#[derive(PartialEq, Eq, Debug, Clone, Copy)]
-struct Weapons(
-    #[pyo3(name = "g")] i32,
-    #[pyo3(name = "mg")] i32,
-    #[pyo3(name = "sg")] i32,
-    #[pyo3(name = "gl")] i32,
-    #[pyo3(name = "rl")] i32,
-    #[pyo3(name = "lg")] i32,
-    #[pyo3(name = "rg")] i32,
-    #[pyo3(name = "pg")] i32,
-    #[pyo3(name = "bfg")] i32,
-    #[pyo3(name = "gh")] i32,
-    #[pyo3(name = "ng")] i32,
-    #[pyo3(name = "pl")] i32,
-    #[pyo3(name = "cg")] i32,
-    #[pyo3(name = "hmg")] i32,
-    #[pyo3(name = "hands")] i32,
-);
-
-impl From<[i32; 15]> for Weapons {
-    fn from(value: [i32; 15]) -> Self {
-        Self(
-            value[0], value[1], value[2], value[3], value[4], value[5], value[6], value[7],
-            value[8], value[9], value[10], value[11], value[12], value[13], value[14],
-        )
-    }
-}
-
-impl From<Weapons> for [i32; 15] {
-    fn from(value: Weapons) -> Self {
-        [
-            value.0, value.1, value.2, value.3, value.4, value.5, value.6, value.7, value.8,
-            value.9, value.10, value.11, value.12, value.13, value.14,
-        ]
-    }
-}
-
-#[pymethods]
-impl Weapons {
-    #[new]
-    fn py_new(values: &PyTuple) -> PyResult<Self> {
-        if values.len() < 15 {
-            return Err(PyValueError::new_err(
-                "tuple did not provide values for all 15 weapons",
-            ));
-        }
-
-        if values.len() > 15 {
-            return Err(PyValueError::new_err(
-                "tuple did provide values for more than 15 weapons",
-            ));
-        }
-
-        let results = values
-            .iter()
-            .map(|item| item.extract::<i32>().ok())
-            .collect::<Vec<Option<i32>>>();
-
-        if results.iter().any(|item| item.is_none()) {
-            return Err(PyValueError::new_err("Weapons values need to be boolean"));
-        }
-
-        Ok(Self::from(
-            <Vec<i32> as TryInto<[i32; 15]>>::try_into(
-                results
-                    .into_iter()
-                    .map(|value| value.unwrap_or(0))
-                    .collect::<Vec<i32>>(),
-            )
-            .unwrap(),
-        ))
-    }
-
-    fn __richcmp__(&self, other: &Self, op: CompareOp, py: Python<'_>) -> PyObject {
-        match op {
-            CompareOp::Eq => (self == other).into_py(py),
-            CompareOp::Ne => (self != other).into_py(py),
-            _ => py.NotImplemented(),
-        }
-    }
-
-    fn __str__(&self) -> String {
-        format!("Weapons(g={}, mg={}, sg={}, gl={}, rl={}, lg={}, rg={}, pg={}, bfg={}, gh={}, ng={}, pl={}, cg={}, hmg={}, hands={})",
-        self.0, self.1, self.2, self.3, self.4, self.5, self.5, self.7, self.8, self.9, self.10, self.11, self.12, self.13, self.14)
-    }
-
-    fn __repr__(&self) -> String {
-        format!("Weapons(g={}, mg={}, sg={}, gl={}, rl={}, lg={}, rg={}, pg={}, bfg={}, gh={}, ng={}, pl={}, cg={}, hmg={}, hands={})",
-        self.0, self.1, self.2, self.3, self.4, self.5, self.5, self.7, self.8, self.9, self.10, self.11, self.12, self.13, self.14)
-    }
-}
-
-#[cfg(test)]
-#[cfg(not(miri))]
-mod weapons_tests {
-    use crate::pyminqlx::pyminqlx_setup_fixture::*;
-    use pyo3::Python;
-    use rstest::rstest;
-
-    #[rstest]
-    fn weapons_can_be_created_from_python(_pyminqlx_setup: ()) {
-        Python::with_gil(|py| {
-            let weapons_constructor =py.run(r#"
-import _minqlx
-weapons = _minqlx.Weapons((False, False, False, False, False, False, False, False, False, False, False, False, False, False, False))
-            "#, None, None);
-            assert!(
-                weapons_constructor.is_ok(),
-                "{}",
-                weapons_constructor.err().unwrap()
-            );
-        });
-    }
-}
-
-#[cfg(test)]
-#[cfg(not(miri))]
-mod ammo_tests {
-    use crate::pyminqlx::pyminqlx_setup_fixture::*;
-    use pyo3::Python;
-    use rstest::rstest;
-
-    #[rstest]
-    fn ammo_can_be_created_from_python(_pyminqlx_setup: ()) {
-        Python::with_gil(|py| {
-            let ammo_constructor = py.run(
-                r#"
-import _minqlx
-weapons = _minqlx.Weapons((0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14))
-            "#,
-                None,
-                None,
-            );
-            assert!(
-                ammo_constructor.is_ok(),
-                "{}",
-                ammo_constructor.err().unwrap()
-            );
-        });
-    }
-}
-
-/// A struct sequence containing all the powerups in the game.
-#[pyclass]
-#[pyo3(module = "minqlx", name = "Powerups", get_all)]
-#[derive(PartialEq, Eq, Debug, Clone, Copy)]
-struct Powerups(
-    #[pyo3(name = "quad")] i32,
-    #[pyo3(name = "battlesuit")] i32,
-    #[pyo3(name = "haste")] i32,
-    #[pyo3(name = "invisibility")] i32,
-    #[pyo3(name = "regeneration")] i32,
-    #[pyo3(name = "invulnerability")] i32,
-);
-
-impl From<[i32; 6]> for Powerups {
-    fn from(value: [i32; 6]) -> Self {
-        Self(value[0], value[1], value[2], value[3], value[4], value[5])
-    }
-}
-
-impl From<Powerups> for [i32; 6] {
-    fn from(value: Powerups) -> Self {
-        [value.0, value.1, value.2, value.3, value.4, value.5]
-    }
-}
-
-#[pymethods]
-impl Powerups {
-    #[new]
-    fn py_new(values: &PyTuple) -> PyResult<Self> {
-        if values.len() < 6 {
-            return Err(PyValueError::new_err(
-                "tuple did not provide values for all 6 powerups",
-            ));
-        }
-
-        if values.len() > 6 {
-            return Err(PyValueError::new_err(
-                "tuple did provide values for more than 6 powerups",
-            ));
-        }
-
-        let results = values
-            .iter()
-            .map(|item| item.extract::<i32>().ok())
-            .collect::<Vec<Option<i32>>>();
-
-        if results.iter().any(|item| item.is_none()) {
-            return Err(PyValueError::new_err("Powerups values need to be integer"));
-        }
-
-        Ok(Self::from(
-            <Vec<i32> as TryInto<[i32; 6]>>::try_into(
-                results
-                    .into_iter()
-                    .map(|value| value.unwrap_or(0))
-                    .collect::<Vec<i32>>(),
-            )
-            .unwrap(),
-        ))
-    }
-
-    fn __richcmp__(&self, other: &Self, op: CompareOp, py: Python<'_>) -> PyObject {
-        match op {
-            CompareOp::Eq => (self == other).into_py(py),
-            CompareOp::Ne => (self != other).into_py(py),
-            _ => py.NotImplemented(),
-        }
-    }
-
-    fn __str__(&self) -> String {
-        format!("Powerups(quad={}, battlesuit={}, haste={}, invisibility={}, regeneration={}, invulnerability={})",
-            self.0, self.1, self.2, self.3, self.4, self.5)
-    }
-
-    fn __repr__(&self) -> String {
-        format!("Powerups(quad={}, battlesuit={}, haste={}, invisibility={}, regeneration={}, invulnerability={})",
-            self.0, self.1, self.2, self.3, self.4, self.5)
-    }
-}
-
-#[cfg(test)]
-#[cfg(not(miri))]
-mod powerups_tests {
-    use crate::pyminqlx::pyminqlx_setup_fixture::*;
-    use pyo3::Python;
-    use rstest::rstest;
-
-    #[rstest]
-    fn powerups_can_be_created_from_python(_pyminqlx_setup: ()) {
-        Python::with_gil(|py| {
-            let powerups_constructor = py.run(
-                r#"
-import _minqlx
-weapons = _minqlx.Powerups((0, 1, 2, 3, 4, 5))
-            "#,
-                None,
-                None,
-            );
-            assert!(
-                powerups_constructor.is_ok(),
-                "{}",
-                powerups_constructor.err().unwrap(),
-            );
-        });
-    }
-}
-
-#[pyclass]
-#[pyo3(module = "minqlx", name = "Holdable")]
-#[derive(PartialEq, Debug, Clone, Copy)]
-enum Holdable {
-    None = 0,
-    Teleporter = 27,
-    MedKit = 28,
-    Kamikaze = 37,
-    Portal = 38,
-    Invulnerability = 39,
-    Flight = 34,
-    Unknown = 666,
-}
-
-impl From<i32> for Holdable {
-    fn from(value: i32) -> Self {
-        match value {
-            0 => Holdable::None,
-            27 => Holdable::Teleporter,
-            28 => Holdable::MedKit,
-            34 => Holdable::Flight,
-            37 => Holdable::Kamikaze,
-            38 => Holdable::Portal,
-            39 => Holdable::Invulnerability,
-            _ => Holdable::Unknown,
-        }
-    }
-}
-
-impl From<Holdable> for i32 {
-    fn from(value: Holdable) -> Self {
-        match value {
-            Holdable::None => 0,
-            Holdable::Teleporter => 27,
-            Holdable::MedKit => 28,
-            Holdable::Flight => 34,
-            Holdable::Kamikaze => 37,
-            Holdable::Portal => 38,
-            Holdable::Invulnerability => 39,
-            Holdable::Unknown => 0,
-        }
-    }
-}
-
-impl From<Holdable> for Option<String> {
-    fn from(holdable: Holdable) -> Self {
-        match holdable {
-            Holdable::None => None,
-            Holdable::Teleporter => Some("teleporter".into()),
-            Holdable::MedKit => Some("medkit".into()),
-            Holdable::Kamikaze => Some("kamikaze".into()),
-            Holdable::Portal => Some("portal".into()),
-            Holdable::Invulnerability => Some("invulnerability".into()),
-            Holdable::Flight => Some("flight".into()),
-            Holdable::Unknown => Some("unknown".into()),
-        }
-    }
-}
-
-#[cfg(test)]
-mod holdable_tests {
-    use super::Holdable;
-    use pretty_assertions::assert_eq;
-    use rstest::rstest;
-
-    #[rstest]
-    #[case(0, Holdable::None)]
-    #[case(27, Holdable::Teleporter)]
-    #[case(28, Holdable::MedKit)]
-    #[case(34, Holdable::Flight)]
-    #[case(37, Holdable::Kamikaze)]
-    #[case(38, Holdable::Portal)]
-    #[case(39, Holdable::Invulnerability)]
-    #[case(666, Holdable::Unknown)]
-    fn holdable_from_integer(#[case] integer: i32, #[case] expected_holdable: Holdable) {
-        assert_eq!(Holdable::from(integer), expected_holdable);
-    }
-
-    #[rstest]
-    #[case(Holdable::None, 0)]
-    #[case(Holdable::Teleporter, 27)]
-    #[case(Holdable::MedKit, 28)]
-    #[case(Holdable::Flight, 34)]
-    #[case(Holdable::Kamikaze, 37)]
-    #[case(Holdable::Portal, 38)]
-    #[case(Holdable::Invulnerability, 39)]
-    #[case(Holdable::Unknown, 0)]
-    fn integer_from_holdable(#[case] holdable: Holdable, #[case] expected_integer: i32) {
-        assert_eq!(i32::from(holdable), expected_integer);
-    }
-
-    #[rstest]
-    #[case(Holdable::None, None)]
-    #[case(Holdable::Teleporter, Some("teleporter".into()))]
-    #[case(Holdable::MedKit, Some("medkit".into()))]
-    #[case(Holdable::Flight, Some("flight".into()))]
-    #[case(Holdable::Kamikaze, Some("kamikaze".into()))]
-    #[case(Holdable::Portal, Some("portal".into()))]
-    #[case(Holdable::Invulnerability, Some("invulnerability".into()))]
-    #[case(Holdable::Unknown, Some("unknown".into()))]
-    fn opt_string_from_holdable(
-        #[case] holdable: Holdable,
-        #[case] expected_result: Option<String>,
-    ) {
-        assert_eq!(Option::<String>::from(holdable), expected_result);
-    }
-}
-
-/// A struct sequence containing parameters for the flight holdable item.
-#[pyclass]
-#[pyo3(module = "minqlx", name = "Flight", get_all)]
-#[derive(PartialEq, Eq, Debug, Clone, Copy)]
-struct Flight(
-    #[pyo3(name = "fuel")] i32,
-    #[pyo3(name = "max_fuel")] i32,
-    #[pyo3(name = "thrust")] i32,
-    #[pyo3(name = "refuel")] i32,
-);
-
-impl From<Flight> for [i32; 4] {
-    fn from(flight: Flight) -> Self {
-        [flight.0, flight.1, flight.2, flight.3]
-    }
-}
-
-#[pymethods]
-impl Flight {
-    #[new]
-    fn py_new(values: &PyTuple) -> PyResult<Self> {
-        if values.len() < 4 {
-            return Err(PyValueError::new_err(
-                "tuple did not provide values for all 4 flight parameters",
-            ));
-        }
-
-        if values.len() > 4 {
-            return Err(PyValueError::new_err(
-                "tuple did provide values for more than 4 flight parameters",
-            ));
-        }
-
-        let results = values
-            .iter()
-            .map(|item| item.extract::<i32>().ok())
-            .collect::<Vec<Option<i32>>>();
-
-        if results.iter().any(|item| item.is_none()) {
-            return Err(PyValueError::new_err("Flight values need to be integer"));
-        }
-
-        Ok(Self(
-            results[0].unwrap(),
-            results[1].unwrap(),
-            results[2].unwrap(),
-            results[3].unwrap(),
-        ))
-    }
-
-    fn __richcmp__(&self, other: &Self, op: CompareOp, py: Python<'_>) -> PyObject {
-        match op {
-            CompareOp::Eq => (self == other).into_py(py),
-            CompareOp::Ne => (self != other).into_py(py),
-            _ => py.NotImplemented(),
-        }
-    }
-
-    fn __str__(&self) -> String {
-        format!(
-            "Flight(fuel={}, max_fuel={}, thrust={}, refuel={})",
-            self.0, self.1, self.2, self.3
-        )
-    }
-
-    fn __repr__(&self) -> String {
-        format!(
-            "Flight(fuel={}, max_fuel={}, thrust={}, refuel={})",
-            self.0, self.1, self.2, self.3
-        )
-    }
-}
-
-#[cfg(test)]
-#[cfg(not(miri))]
-mod flight_tests {
-    use crate::pyminqlx::pyminqlx_setup_fixture::*;
-    use pyo3::Python;
-    use rstest::rstest;
-
-    #[rstest]
-    fn flight_can_be_created_from_python(_pyminqlx_setup: ()) {
-        Python::with_gil(|py| {
-            let flight_constructor = py.run(
-                r#"
-import _minqlx
-weapons = _minqlx.Flight((0, 1, 2, 3))
-            "#,
-                None,
-                None,
-            );
-            assert!(
-                flight_constructor.is_ok(),
-                "{}",
-                flight_constructor.err().unwrap()
-            );
-        });
-    }
-}
-
-/// Information about a player's state in the game.
-#[pyclass]
-#[pyo3(module = "minqlx", name = "PlayerState", get_all)]
-#[derive(Debug, PartialEq)]
-struct PlayerState {
-    /// Whether the player's alive or not.
-    is_alive: bool,
-    /// The player's position.
-    position: Vector3,
-    /// The player's velocity.
-    velocity: Vector3,
-    /// The player's health.
-    health: i32,
-    /// The player's armor.
-    armor: i32,
-    /// Whether the player has noclip or not.
-    noclip: bool,
-    /// The weapon the player is currently using.
-    weapon: i32,
-    /// The player's weapons.
-    weapons: Weapons,
-    /// The player's weapon ammo.
-    ammo: Weapons,
-    ///The player's powerups.
-    powerups: Powerups,
-    /// The player's holdable item.
-    holdable: Option<String>,
-    /// A struct sequence with flight parameters.
-    flight: Flight,
-    /// Whether the player is currently chatting.
-    is_chatting: bool,
-    /// Whether the player is frozen(freezetag).
-    is_frozen: bool,
-}
-
-#[pymethods]
-impl PlayerState {
-    fn __str__(&self) -> String {
-        format!("PlayerState(is_alive={}, position={}, veclocity={}, health={}, armor={}, noclip={}, weapon={}, weapons={}, ammo={}, powerups={}, holdable={}, flight={}, is_chatting={}, is_frozen={})",
-            self.is_alive,
-            self.position.__str__(),
-            self.velocity.__str__(),
-            self.health,
-            self.armor,
-            self.noclip,
-            self.weapon,
-            self.weapons.__str__(),
-            self.ammo.__str__(),
-            self.powerups.__str__(),
-            match self.holdable.as_ref() {
-                Some(value) => value,
-                None => "None",
-            },
-            self.flight.__str__(),
-            self.is_chatting,
-            self.is_frozen)
-    }
-
-    fn __repr__(&self) -> String {
-        format!("PlayerState(is_alive={}, position={}, veclocity={}, health={}, armor={}, noclip={}, weapon={}, weapons={}, ammo={}, powerups={}, holdable={}, flight={}, is_chatting={}, is_frozen={})",
-            self.is_alive,
-            self.position.__str__(),
-            self.velocity.__str__(),
-            self.health,
-            self.armor,
-            self.noclip,
-            self.weapon,
-            self.weapons.__str__(),
-            self.ammo.__str__(),
-            self.powerups.__str__(),
-            match self.holdable.as_ref() {
-                Some(value) => value,
-                None => "None",
-            },
-            self.flight.__str__(),
-            self.is_chatting,
-            self.is_frozen)
-    }
-}
-
-impl From<GameEntity> for PlayerState {
-    fn from(game_entity: GameEntity) -> Self {
-        let game_client = game_entity.get_game_client().unwrap();
-        let position = game_client.get_position();
-        let velocity = game_client.get_velocity();
-        Self {
-            is_alive: game_client.is_alive(),
-            position: Vector3::from(position),
-            velocity: Vector3::from(velocity),
-            health: game_entity.get_health(),
-            armor: game_client.get_armor(),
-            noclip: game_client.get_noclip(),
-            weapon: game_client.get_weapon().into(),
-            weapons: Weapons::from(game_client.get_weapons()),
-            ammo: Weapons::from(game_client.get_ammos()),
-            powerups: Powerups::from(game_client.get_powerups()),
-            holdable: Holdable::from(game_client.get_holdable()).into(),
-            flight: Flight(
-                game_client.get_current_flight_fuel(),
-                game_client.get_max_flight_fuel(),
-                game_client.get_flight_thrust(),
-                game_client.get_flight_refuel(),
-            ),
-            is_chatting: game_client.is_chatting(),
-            is_frozen: game_client.is_frozen(),
-        }
-    }
-}
-
 /// Get information about the player's state in the game.
 #[pyfunction]
 #[pyo3(name = "player_state")]
-fn player_state(py: Python<'_>, client_id: i32) -> PyResult<Option<PlayerState>> {
+pub(crate) fn get_player_state(py: Python<'_>, client_id: i32) -> PyResult<Option<PlayerState>> {
     let maxclients = py.allow_threads(|| {
         let Some(ref main_engine) = *MAIN_ENGINE.load() else {
             return Err(PyEnvironmentError::new_err(
@@ -4709,10 +1943,10 @@ fn player_state(py: Python<'_>, client_id: i32) -> PyResult<Option<PlayerState>>
 #[cfg(test)]
 #[cfg(not(miri))]
 mod player_state_tests {
-    use super::{player_state, Holdable, PlayerState, Vector3};
+    use super::{get_player_state, Holdable, PlayerState, Vector3};
     use super::{Flight, Powerups, Weapons, MAIN_ENGINE};
-    use crate::game_client::MockGameClient;
-    use crate::game_entity::MockGameEntity;
+    use crate::ffi::c::game_client::MockGameClient;
+    use crate::ffi::c::game_entity::MockGameEntity;
     use crate::prelude::*;
     use crate::quake_live_engine::MockQuakeEngine;
     use mockall::predicate;
@@ -4725,7 +1959,7 @@ mod player_state_tests {
     fn player_state_when_main_engine_not_initialized() {
         MAIN_ENGINE.store(None);
         Python::with_gil(|py| {
-            let result = player_state(py, 21);
+            let result = get_player_state(py, 21);
             assert!(result.is_err_and(|err| err.is_instance_of::<PyEnvironmentError>(py)));
         });
     }
@@ -4738,7 +1972,7 @@ mod player_state_tests {
         MAIN_ENGINE.store(Some(mock_engine.into()));
 
         Python::with_gil(|py| {
-            let result = player_state(py, -1);
+            let result = get_player_state(py, -1);
             assert!(result.is_err_and(|err| err.is_instance_of::<PyValueError>(py)));
         });
     }
@@ -4751,7 +1985,7 @@ mod player_state_tests {
         MAIN_ENGINE.store(Some(mock_engine.into()));
 
         Python::with_gil(|py| {
-            let result = player_state(py, 666);
+            let result = get_player_state(py, 666);
             assert!(result.is_err_and(|err| err.is_instance_of::<PyValueError>(py)));
         });
     }
@@ -4775,7 +2009,7 @@ mod player_state_tests {
                 mock_game_entity
             });
 
-        let result = Python::with_gil(|py| player_state(py, 2)).unwrap();
+        let result = Python::with_gil(|py| get_player_state(py, 2)).unwrap();
         assert_eq!(result, None);
     }
 
@@ -4834,7 +2068,7 @@ mod player_state_tests {
                 mock_game_entity
             });
 
-        let result = Python::with_gil(|py| player_state(py, 2)).unwrap();
+        let result = Python::with_gil(|py| get_player_state(py, 2)).unwrap();
         assert_eq!(
             result,
             Some(PlayerState {
@@ -4857,58 +2091,10 @@ mod player_state_tests {
     }
 }
 
-/// A player's score and some basic stats.
-#[pyclass]
-#[pyo3(module = "minqlx", name = "PlayerStats", get_all)]
-#[derive(Debug, PartialEq)]
-struct PlayerStats {
-    /// The player's primary score.
-    score: i32,
-    /// The player's number of kills.
-    kills: i32,
-    /// The player's number of deaths.
-    deaths: i32,
-    /// The player's total damage dealt.
-    damage_dealt: i32,
-    /// The player's total damage taken.
-    damage_taken: i32,
-    /// The time in milliseconds the player has on a team since the game started.
-    time: i32,
-    /// The player's ping.
-    ping: i32,
-}
-
-#[pymethods]
-impl PlayerStats {
-    fn __str__(&self) -> String {
-        format!("PlayerStats(score={}, kills={}, deaths={}, damage_dealt={}, damage_taken={}, time={}, ping={})",
-            self.score, self.kills, self.deaths, self.damage_dealt, self.damage_taken, self.time, self.ping)
-    }
-
-    fn __repr__(&self) -> String {
-        format!("PlayerStats(score={}, kills={}, deaths={}, damage_dealt={}, damage_taken={}, time={}, ping={})",
-            self.score, self.kills, self.deaths, self.damage_dealt, self.damage_taken, self.time, self.ping)
-    }
-}
-
-impl From<GameClient> for PlayerStats {
-    fn from(game_client: GameClient) -> Self {
-        Self {
-            score: game_client.get_score(),
-            kills: game_client.get_kills(),
-            deaths: game_client.get_deaths(),
-            damage_dealt: game_client.get_damage_dealt(),
-            damage_taken: game_client.get_damage_taken(),
-            time: game_client.get_time_on_team(),
-            ping: game_client.get_ping(),
-        }
-    }
-}
-
 /// Get some player stats.
 #[pyfunction]
 #[pyo3(name = "player_stats")]
-fn player_stats(py: Python<'_>, client_id: i32) -> PyResult<Option<PlayerStats>> {
+pub(crate) fn get_player_stats(py: Python<'_>, client_id: i32) -> PyResult<Option<PlayerStats>> {
     let maxclients = py.allow_threads(|| {
         let Some(ref main_engine) = *MAIN_ENGINE.load() else {
             return Err(PyEnvironmentError::new_err(
@@ -4938,9 +2124,9 @@ fn player_stats(py: Python<'_>, client_id: i32) -> PyResult<Option<PlayerStats>>
 #[cfg(not(miri))]
 mod player_stats_tests {
     use super::MAIN_ENGINE;
-    use super::{player_stats, PlayerStats};
-    use crate::game_client::MockGameClient;
-    use crate::game_entity::MockGameEntity;
+    use super::{get_player_stats, PlayerStats};
+    use crate::ffi::c::game_client::MockGameClient;
+    use crate::ffi::c::game_entity::MockGameEntity;
     use crate::prelude::*;
     use crate::quake_live_engine::MockQuakeEngine;
     use pretty_assertions::assert_eq;
@@ -4952,7 +2138,7 @@ mod player_stats_tests {
     fn player_stats_when_main_engine_not_initialized() {
         MAIN_ENGINE.store(None);
         Python::with_gil(|py| {
-            let result = player_stats(py, 21);
+            let result = get_player_stats(py, 21);
             assert!(result.is_err_and(|err| err.is_instance_of::<PyEnvironmentError>(py)));
         });
     }
@@ -4965,7 +2151,7 @@ mod player_stats_tests {
         MAIN_ENGINE.store(Some(mock_engine.into()));
 
         Python::with_gil(|py| {
-            let result = player_stats(py, -1);
+            let result = get_player_stats(py, -1);
             assert!(result.is_err_and(|err| err.is_instance_of::<PyValueError>(py)));
         });
     }
@@ -4978,7 +2164,7 @@ mod player_stats_tests {
         MAIN_ENGINE.store(Some(mock_engine.into()));
 
         Python::with_gil(|py| {
-            let result = player_stats(py, 666);
+            let result = get_player_stats(py, 666);
             assert!(result.is_err_and(|err| err.is_instance_of::<PyValueError>(py)));
         });
     }
@@ -5010,7 +2196,7 @@ mod player_stats_tests {
             });
             mock_game_entity
         });
-        let result = Python::with_gil(|py| player_stats(py, 2)).unwrap();
+        let result = Python::with_gil(|py| get_player_stats(py, 2)).unwrap();
 
         assert!(result.is_some_and(|pstats| pstats
             == PlayerStats {
@@ -5039,7 +2225,7 @@ mod player_stats_tests {
                 .returning(|| Err(QuakeLiveEngineError::MainEngineNotInitialized));
             mock_game_entity
         });
-        let result = Python::with_gil(|py| player_stats(py, 2)).unwrap();
+        let result = Python::with_gil(|py| get_player_stats(py, 2)).unwrap();
 
         assert_eq!(result, None);
     }
@@ -5048,7 +2234,7 @@ mod player_stats_tests {
 /// Sets a player's position vector.
 #[pyfunction]
 #[pyo3(name = "set_position")]
-fn set_position(py: Python<'_>, client_id: i32, position: Vector3) -> PyResult<bool> {
+pub(crate) fn set_position(py: Python<'_>, client_id: i32, position: Vector3) -> PyResult<bool> {
     let maxclients = py.allow_threads(|| {
         let Some(ref main_engine) = *MAIN_ENGINE.load() else {
             return Err(PyEnvironmentError::new_err(
@@ -5081,11 +2267,11 @@ fn set_position(py: Python<'_>, client_id: i32, position: Vector3) -> PyResult<b
 #[cfg(not(miri))]
 mod set_position_tests {
     use super::set_position;
+    use super::Vector3;
     use super::MAIN_ENGINE;
-    use crate::game_client::MockGameClient;
-    use crate::game_entity::MockGameEntity;
+    use crate::ffi::c::game_client::MockGameClient;
+    use crate::ffi::c::game_entity::MockGameEntity;
     use crate::prelude::*;
-    use crate::pyminqlx::Vector3;
     use crate::quake_live_engine::MockQuakeEngine;
     use mockall::predicate;
     use pretty_assertions::assert_eq;
@@ -5177,7 +2363,7 @@ mod set_position_tests {
 /// Sets a player's velocity vector.
 #[pyfunction]
 #[pyo3(name = "set_velocity")]
-fn set_velocity(py: Python<'_>, client_id: i32, velocity: Vector3) -> PyResult<bool> {
+pub(crate) fn set_velocity(py: Python<'_>, client_id: i32, velocity: Vector3) -> PyResult<bool> {
     let maxclients = py.allow_threads(|| {
         let Some(ref main_engine) = *MAIN_ENGINE.load() else {
             return Err(PyEnvironmentError::new_err(
@@ -5210,11 +2396,11 @@ fn set_velocity(py: Python<'_>, client_id: i32, velocity: Vector3) -> PyResult<b
 #[cfg(not(miri))]
 mod set_velocity_tests {
     use super::set_velocity;
+    use super::Vector3;
     use super::MAIN_ENGINE;
-    use crate::game_client::MockGameClient;
-    use crate::game_entity::MockGameEntity;
+    use crate::ffi::c::game_client::MockGameClient;
+    use crate::ffi::c::game_entity::MockGameEntity;
     use crate::prelude::*;
-    use crate::pyminqlx::Vector3;
     use crate::quake_live_engine::MockQuakeEngine;
     use mockall::predicate;
     use pretty_assertions::assert_eq;
@@ -5306,7 +2492,7 @@ mod set_velocity_tests {
 /// Sets noclip for a player.
 #[pyfunction]
 #[pyo3(name = "noclip")]
-fn noclip(py: Python<'_>, client_id: i32, activate: bool) -> PyResult<bool> {
+pub(crate) fn noclip(py: Python<'_>, client_id: i32, activate: bool) -> PyResult<bool> {
     let maxclients = py.allow_threads(|| {
         let Some(ref main_engine) = *MAIN_ENGINE.load() else {
             return Err(PyEnvironmentError::new_err(
@@ -5341,8 +2527,8 @@ fn noclip(py: Python<'_>, client_id: i32, activate: bool) -> PyResult<bool> {
 mod noclip_tests {
     use super::noclip;
     use super::MAIN_ENGINE;
-    use crate::game_client::MockGameClient;
-    use crate::game_entity::MockGameEntity;
+    use crate::ffi::c::game_client::MockGameClient;
+    use crate::ffi::c::game_entity::MockGameEntity;
     use crate::prelude::*;
     use crate::quake_live_engine::MockQuakeEngine;
     use mockall::predicate;
@@ -5459,7 +2645,7 @@ mod noclip_tests {
 /// Sets a player's health.
 #[pyfunction]
 #[pyo3(name = "set_health")]
-fn set_health(py: Python<'_>, client_id: i32, health: i32) -> PyResult<bool> {
+pub(crate) fn set_health(py: Python<'_>, client_id: i32, health: i32) -> PyResult<bool> {
     let maxclients = py.allow_threads(|| {
         let Some(ref main_engine) = *MAIN_ENGINE.load() else {
             return Err(PyEnvironmentError::new_err(
@@ -5491,7 +2677,7 @@ fn set_health(py: Python<'_>, client_id: i32, health: i32) -> PyResult<bool> {
 mod set_health_tests {
     use super::set_health;
     use super::MAIN_ENGINE;
-    use crate::game_entity::MockGameEntity;
+    use crate::ffi::c::game_entity::MockGameEntity;
     use crate::prelude::*;
     use crate::quake_live_engine::MockQuakeEngine;
     use mockall::predicate;
@@ -5560,7 +2746,7 @@ mod set_health_tests {
 /// Sets a player's armor.
 #[pyfunction]
 #[pyo3(name = "set_armor")]
-fn set_armor(py: Python<'_>, client_id: i32, armor: i32) -> PyResult<bool> {
+pub(crate) fn set_armor(py: Python<'_>, client_id: i32, armor: i32) -> PyResult<bool> {
     let maxclients = py.allow_threads(|| {
         let Some(ref main_engine) = *MAIN_ENGINE.load() else {
             return Err(PyEnvironmentError::new_err(
@@ -5594,8 +2780,8 @@ fn set_armor(py: Python<'_>, client_id: i32, armor: i32) -> PyResult<bool> {
 mod set_armor_tests {
     use super::set_armor;
     use super::MAIN_ENGINE;
-    use crate::game_client::MockGameClient;
-    use crate::game_entity::MockGameEntity;
+    use crate::ffi::c::game_client::MockGameClient;
+    use crate::ffi::c::game_entity::MockGameEntity;
     use crate::prelude::*;
     use crate::quake_live_engine::MockQuakeEngine;
     use mockall::predicate;
@@ -5688,7 +2874,7 @@ mod set_armor_tests {
 /// Sets a player's weapons.
 #[pyfunction]
 #[pyo3(name = "set_weapons")]
-fn set_weapons(py: Python<'_>, client_id: i32, weapons: Weapons) -> PyResult<bool> {
+pub(crate) fn set_weapons(py: Python<'_>, client_id: i32, weapons: Weapons) -> PyResult<bool> {
     let maxclients = py.allow_threads(|| {
         let Some(ref main_engine) = *MAIN_ENGINE.load() else {
             return Err(PyEnvironmentError::new_err(
@@ -5723,8 +2909,8 @@ mod set_weapons_tests {
     use super::set_weapons;
     use super::Weapons;
     use super::MAIN_ENGINE;
-    use crate::game_client::MockGameClient;
-    use crate::game_entity::MockGameEntity;
+    use crate::ffi::c::game_client::MockGameClient;
+    use crate::ffi::c::game_entity::MockGameEntity;
     use crate::prelude::*;
     use crate::quake_live_engine::MockQuakeEngine;
     use mockall::predicate;
@@ -5827,7 +3013,7 @@ mod set_weapons_tests {
 /// Sets a player's current weapon.
 #[pyfunction]
 #[pyo3(name = "set_weapon")]
-fn set_weapon(py: Python<'_>, client_id: i32, weapon: i32) -> PyResult<bool> {
+pub(crate) fn set_weapon(py: Python<'_>, client_id: i32, weapon: i32) -> PyResult<bool> {
     let maxclients = py.allow_threads(|| {
         let Some(ref main_engine) = *MAIN_ENGINE.load() else {
             return Err(PyEnvironmentError::new_err(
@@ -5867,8 +3053,8 @@ fn set_weapon(py: Python<'_>, client_id: i32, weapon: i32) -> PyResult<bool> {
 mod set_weapon_tests {
     use super::set_weapon;
     use super::MAIN_ENGINE;
-    use crate::game_client::MockGameClient;
-    use crate::game_entity::MockGameEntity;
+    use crate::ffi::c::game_client::MockGameClient;
+    use crate::ffi::c::game_entity::MockGameEntity;
     use crate::prelude::*;
     use crate::quake_live_engine::MockQuakeEngine;
     use mockall::predicate;
@@ -5987,7 +3173,7 @@ mod set_weapon_tests {
 /// Sets a player's ammo.
 #[pyfunction]
 #[pyo3(name = "set_ammo")]
-fn set_ammo(py: Python<'_>, client_id: i32, ammos: Weapons) -> PyResult<bool> {
+pub(crate) fn set_ammo(py: Python<'_>, client_id: i32, ammos: Weapons) -> PyResult<bool> {
     let maxclients = py.allow_threads(|| {
         let Some(ref main_engine) = *MAIN_ENGINE.load() else {
             return Err(PyEnvironmentError::new_err(
@@ -6022,8 +3208,8 @@ mod set_ammo_tests {
     use super::set_ammo;
     use super::Weapons;
     use super::MAIN_ENGINE;
-    use crate::game_client::MockGameClient;
-    use crate::game_entity::MockGameEntity;
+    use crate::ffi::c::game_client::MockGameClient;
+    use crate::ffi::c::game_entity::MockGameEntity;
     use crate::prelude::*;
     use crate::quake_live_engine::MockQuakeEngine;
     use mockall::predicate;
@@ -6132,7 +3318,7 @@ mod set_ammo_tests {
 /// Sets a player's powerups.
 #[pyfunction]
 #[pyo3(name = "set_powerups")]
-fn set_powerups(py: Python<'_>, client_id: i32, powerups: Powerups) -> PyResult<bool> {
+pub(crate) fn set_powerups(py: Python<'_>, client_id: i32, powerups: Powerups) -> PyResult<bool> {
     let maxclients = py.allow_threads(|| {
         let Some(ref main_engine) = *MAIN_ENGINE.load() else {
             return Err(PyEnvironmentError::new_err(
@@ -6167,8 +3353,8 @@ mod set_powerups_tests {
     use super::set_powerups;
     use super::Powerups;
     use super::MAIN_ENGINE;
-    use crate::game_client::MockGameClient;
-    use crate::game_entity::MockGameEntity;
+    use crate::ffi::c::game_client::MockGameClient;
+    use crate::ffi::c::game_entity::MockGameEntity;
     use crate::prelude::*;
     use crate::quake_live_engine::MockQuakeEngine;
     use mockall::predicate;
@@ -6263,7 +3449,7 @@ mod set_powerups_tests {
 /// Sets a player's holdable item.
 #[pyfunction]
 #[pyo3(name = "set_holdable")]
-fn set_holdable(py: Python<'_>, client_id: i32, holdable: i32) -> PyResult<bool> {
+pub(crate) fn set_holdable(py: Python<'_>, client_id: i32, holdable: i32) -> PyResult<bool> {
     let maxclients = py.allow_threads(|| {
         let Some(ref main_engine) = *MAIN_ENGINE.load() else {
             return Err(PyEnvironmentError::new_err(
@@ -6298,8 +3484,8 @@ fn set_holdable(py: Python<'_>, client_id: i32, holdable: i32) -> PyResult<bool>
 mod set_holdable_tests {
     use super::MAIN_ENGINE;
     use super::{set_holdable, Holdable};
-    use crate::game_client::MockGameClient;
-    use crate::game_entity::MockGameEntity;
+    use crate::ffi::c::game_client::MockGameClient;
+    use crate::ffi::c::game_entity::MockGameEntity;
     use crate::prelude::*;
     use crate::quake_live_engine::MockQuakeEngine;
     use mockall::predicate;
@@ -6393,7 +3579,7 @@ mod set_holdable_tests {
 /// Drops player's holdable item.
 #[pyfunction]
 #[pyo3(name = "drop_holdable")]
-fn drop_holdable(py: Python<'_>, client_id: i32) -> PyResult<bool> {
+pub(crate) fn drop_holdable(py: Python<'_>, client_id: i32) -> PyResult<bool> {
     let maxclients = py.allow_threads(|| {
         let Some(ref main_engine) = *MAIN_ENGINE.load() else {
             return Err(PyEnvironmentError::new_err(
@@ -6439,8 +3625,8 @@ fn drop_holdable(py: Python<'_>, client_id: i32) -> PyResult<bool> {
 mod drop_holdable_tests {
     use super::MAIN_ENGINE;
     use super::{drop_holdable, Holdable};
-    use crate::game_client::MockGameClient;
-    use crate::game_entity::MockGameEntity;
+    use crate::ffi::c::game_client::MockGameClient;
+    use crate::ffi::c::game_entity::MockGameEntity;
     use crate::prelude::*;
     use crate::quake_live_engine::MockQuakeEngine;
     use mockall::Sequence;
@@ -6604,7 +3790,7 @@ mod drop_holdable_tests {
 /// Sets a player's flight parameters, such as current fuel, max fuel and, so on.
 #[pyfunction]
 #[pyo3(name = "set_flight")]
-fn set_flight(py: Python<'_>, client_id: i32, flight: Flight) -> PyResult<bool> {
+pub(crate) fn set_flight(py: Python<'_>, client_id: i32, flight: Flight) -> PyResult<bool> {
     let maxclients = py.allow_threads(|| {
         let Some(ref main_engine) = *MAIN_ENGINE.load() else {
             return Err(PyEnvironmentError::new_err(
@@ -6639,8 +3825,8 @@ mod set_flight_tests {
     use super::set_flight;
     use super::Flight;
     use super::MAIN_ENGINE;
-    use crate::game_client::MockGameClient;
-    use crate::game_entity::MockGameEntity;
+    use crate::ffi::c::game_client::MockGameClient;
+    use crate::ffi::c::game_entity::MockGameEntity;
     use crate::prelude::*;
     use crate::quake_live_engine::MockQuakeEngine;
     use mockall::predicate;
@@ -6733,7 +3919,7 @@ mod set_flight_tests {
 /// Makes player invulnerable for limited time.
 #[pyfunction]
 #[pyo3(name = "set_invulnerability")]
-fn set_invulnerability(py: Python<'_>, client_id: i32, time: i32) -> PyResult<bool> {
+pub(crate) fn set_invulnerability(py: Python<'_>, client_id: i32, time: i32) -> PyResult<bool> {
     let maxclients = py.allow_threads(|| {
         let Some(ref main_engine) = *MAIN_ENGINE.load() else {
             return Err(PyEnvironmentError::new_err(
@@ -6767,8 +3953,8 @@ fn set_invulnerability(py: Python<'_>, client_id: i32, time: i32) -> PyResult<bo
 mod set_invulnerability_tests {
     use super::set_invulnerability;
     use super::MAIN_ENGINE;
-    use crate::game_client::MockGameClient;
-    use crate::game_entity::MockGameEntity;
+    use crate::ffi::c::game_client::MockGameClient;
+    use crate::ffi::c::game_entity::MockGameEntity;
     use crate::prelude::*;
     use crate::quake_live_engine::MockQuakeEngine;
     use mockall::predicate;
@@ -6861,7 +4047,7 @@ mod set_invulnerability_tests {
 /// Sets a player's score.
 #[pyfunction]
 #[pyo3(name = "set_score")]
-fn set_score(py: Python<'_>, client_id: i32, score: i32) -> PyResult<bool> {
+pub(crate) fn set_score(py: Python<'_>, client_id: i32, score: i32) -> PyResult<bool> {
     let maxclients = py.allow_threads(|| {
         let Some(ref main_engine) = *MAIN_ENGINE.load() else {
             return Err(PyEnvironmentError::new_err(
@@ -6895,8 +4081,8 @@ fn set_score(py: Python<'_>, client_id: i32, score: i32) -> PyResult<bool> {
 mod set_score_tests {
     use super::set_score;
     use super::MAIN_ENGINE;
-    use crate::game_client::MockGameClient;
-    use crate::game_entity::MockGameEntity;
+    use crate::ffi::c::game_client::MockGameClient;
+    use crate::ffi::c::game_entity::MockGameEntity;
     use crate::prelude::*;
     use crate::quake_live_engine::MockQuakeEngine;
     use mockall::predicate;
@@ -6989,7 +4175,7 @@ mod set_score_tests {
 /// Calls a vote as if started by the server and not a player.
 #[pyfunction]
 #[pyo3(name = "callvote")]
-fn callvote(py: Python<'_>, vote: &str, vote_disp: &str, vote_time: Option<i32>) {
+pub(crate) fn callvote(py: Python<'_>, vote: &str, vote_disp: &str, vote_time: Option<i32>) {
     py.allow_threads(move || {
         CurrentLevel::try_get()
             .ok()
@@ -7002,7 +4188,7 @@ fn callvote(py: Python<'_>, vote: &str, vote_disp: &str, vote_time: Option<i32>)
 #[cfg(not(miri))]
 mod callvote_tests {
     use super::callvote;
-    use crate::current_level::MockTestCurrentLevel;
+    use crate::ffi::c::current_level::MockTestCurrentLevel;
     use crate::prelude::*;
     use mockall::predicate;
     use pyo3::prelude::*;
@@ -7042,7 +4228,7 @@ mod callvote_tests {
 /// Allows or disallows a game with only a single player in it to go on without forfeiting. Useful for race.
 #[pyfunction]
 #[pyo3(name = "allow_single_player")]
-fn allow_single_player(py: Python<'_>, allow: bool) {
+pub(crate) fn allow_single_player(py: Python<'_>, allow: bool) {
     py.allow_threads(move || {
         CurrentLevel::try_get()
             .ok()
@@ -7055,7 +4241,7 @@ fn allow_single_player(py: Python<'_>, allow: bool) {
 #[cfg(not(miri))]
 mod allow_single_player_tests {
     use super::allow_single_player;
-    use crate::current_level::MockTestCurrentLevel;
+    use crate::ffi::c::current_level::MockTestCurrentLevel;
     use crate::prelude::*;
     use mockall::predicate;
     use pyo3::prelude::*;
@@ -7091,7 +4277,7 @@ mod allow_single_player_tests {
 /// Spawns a player.
 #[pyfunction]
 #[pyo3(name = "player_spawn")]
-fn player_spawn(py: Python<'_>, client_id: i32) -> PyResult<bool> {
+pub(crate) fn player_spawn(py: Python<'_>, client_id: i32) -> PyResult<bool> {
     let maxclients = py.allow_threads(|| {
         let Some(ref main_engine) = *MAIN_ENGINE.load() else {
             return Err(PyEnvironmentError::new_err(
@@ -7127,8 +4313,8 @@ fn player_spawn(py: Python<'_>, client_id: i32) -> PyResult<bool> {
 mod player_spawn_tests {
     use super::player_spawn;
     use super::MAIN_ENGINE;
-    use crate::game_client::MockGameClient;
-    use crate::game_entity::MockGameEntity;
+    use crate::ffi::c::game_client::MockGameClient;
+    use crate::ffi::c::game_entity::MockGameEntity;
     use crate::hooks::mock_hooks::shinqlx_client_spawn_context;
     use crate::prelude::*;
     use crate::quake_live_engine::MockQuakeEngine;
@@ -7224,7 +4410,7 @@ mod player_spawn_tests {
 /// Sets a player's privileges. Does not persist.
 #[pyfunction]
 #[pyo3(name = "set_privileges")]
-fn set_privileges(py: Python<'_>, client_id: i32, privileges: i32) -> PyResult<bool> {
+pub(crate) fn set_privileges(py: Python<'_>, client_id: i32, privileges: i32) -> PyResult<bool> {
     let maxclients = py.allow_threads(|| {
         let Some(ref main_engine) = *MAIN_ENGINE.load() else {
             return Err(PyEnvironmentError::new_err(
@@ -7258,8 +4444,8 @@ fn set_privileges(py: Python<'_>, client_id: i32, privileges: i32) -> PyResult<b
 mod set_privileges_tests {
     use super::set_privileges;
     use super::MAIN_ENGINE;
-    use crate::game_client::MockGameClient;
-    use crate::game_entity::MockGameEntity;
+    use crate::ffi::c::game_client::MockGameClient;
+    use crate::ffi::c::game_entity::MockGameEntity;
     use crate::prelude::*;
     use crate::quake_live_engine::MockQuakeEngine;
     use mockall::predicate;
@@ -7359,7 +4545,7 @@ mod set_privileges_tests {
 /// Removes all current kamikaze timers.
 #[pyfunction]
 #[pyo3(name = "destroy_kamikaze_timers")]
-fn destroy_kamikaze_timers(py: Python<'_>) -> PyResult<bool> {
+pub(crate) fn destroy_kamikaze_timers(py: Python<'_>) -> PyResult<bool> {
     py.allow_threads(|| {
         let mut in_use_entities: Vec<GameEntity> = (0..MAX_GENTITIES)
             .filter_map(|i| GameEntity::try_from(i as i32).ok())
@@ -7385,7 +4571,7 @@ fn destroy_kamikaze_timers(py: Python<'_>) -> PyResult<bool> {
 #[pyfunction]
 #[pyo3(name = "spawn_item")]
 #[pyo3(signature = (item_id, x, y, z))]
-fn spawn_item(py: Python<'_>, item_id: i32, x: i32, y: i32, z: i32) -> PyResult<bool> {
+pub(crate) fn spawn_item(py: Python<'_>, item_id: i32, x: i32, y: i32, z: i32) -> PyResult<bool> {
     let max_items: i32 = GameItem::get_num_items();
     if !(1..max_items).contains(&item_id) {
         return Err(PyValueError::new_err(format!(
@@ -7405,7 +4591,7 @@ fn spawn_item(py: Python<'_>, item_id: i32, x: i32, y: i32, z: i32) -> PyResult<
 /// Removes all dropped items.
 #[pyfunction]
 #[pyo3(name = "remove_dropped_items")]
-fn remove_dropped_items(py: Python<'_>) -> PyResult<bool> {
+pub(crate) fn remove_dropped_items(py: Python<'_>) -> PyResult<bool> {
     py.allow_threads(|| {
         (0..MAX_GENTITIES)
             .filter_map(|i| GameEntity::try_from(i as i32).ok())
@@ -7421,7 +4607,7 @@ fn remove_dropped_items(py: Python<'_>) -> PyResult<bool> {
 /// Slay player with mean of death.
 #[pyfunction]
 #[pyo3(name = "slay_with_mod")]
-fn slay_with_mod(py: Python<'_>, client_id: i32, mean_of_death: i32) -> PyResult<bool> {
+pub(crate) fn slay_with_mod(py: Python<'_>, client_id: i32, mean_of_death: i32) -> PyResult<bool> {
     let maxclients = py.allow_threads(|| {
         let Some(ref main_engine) = *MAIN_ENGINE.load() else {
             return Err(PyEnvironmentError::new_err(
@@ -7463,8 +4649,8 @@ fn slay_with_mod(py: Python<'_>, client_id: i32, mean_of_death: i32) -> PyResult
 mod slay_with_mod_tests {
     use super::slay_with_mod;
     use super::MAIN_ENGINE;
-    use crate::game_client::MockGameClient;
-    use crate::game_entity::MockGameEntity;
+    use crate::ffi::c::game_client::MockGameClient;
+    use crate::ffi::c::game_entity::MockGameEntity;
     use crate::prelude::*;
     use crate::quake_live_engine::MockQuakeEngine;
     use mockall::predicate;
@@ -7630,7 +4816,7 @@ fn determine_item_id(item: &PyAny) -> PyResult<i32> {
 #[pyfunction]
 #[pyo3(name = "replace_items")]
 #[pyo3(signature = (item1, item2))]
-fn replace_items(py: Python<'_>, item1: Py<PyAny>, item2: Py<PyAny>) -> PyResult<bool> {
+pub(crate) fn replace_items(py: Python<'_>, item1: Py<PyAny>, item2: Py<PyAny>) -> PyResult<bool> {
     let item2_id = determine_item_id(item2.as_ref(py))?;
     // Note: if item_id == 0 and item_classname == NULL, then item will be removed
 
@@ -7696,7 +4882,7 @@ fn replace_items(py: Python<'_>, item1: Py<PyAny>, item2: Py<PyAny>) -> PyResult
 /// Prints all items and entity numbers to server console.
 #[pyfunction]
 #[pyo3(name = "dev_print_items")]
-fn dev_print_items(py: Python<'_>) -> PyResult<()> {
+pub(crate) fn dev_print_items(py: Python<'_>) -> PyResult<()> {
     let formatted_items: Vec<String> = py.allow_threads(|| {
         (0..MAX_GENTITIES)
             .filter_map(|i| GameEntity::try_from(i as i32).ok())
@@ -7766,7 +4952,7 @@ fn dev_print_items(py: Python<'_>) -> PyResult<()> {
 /// Slay player with mean of death.
 #[pyfunction]
 #[pyo3(name = "force_weapon_respawn_time")]
-fn force_weapon_respawn_time(py: Python<'_>, respawn_time: i32) -> PyResult<bool> {
+pub(crate) fn force_weapon_respawn_time(py: Python<'_>, respawn_time: i32) -> PyResult<bool> {
     if respawn_time < 0 {
         return Err(PyValueError::new_err(
             "respawn time needs to be an integer 0 or greater",
@@ -7786,7 +4972,7 @@ fn force_weapon_respawn_time(py: Python<'_>, respawn_time: i32) -> PyResult<bool
 /// get a list of entities that target a given entity
 #[pyfunction]
 #[pyo3(name = "get_targetting_entities")]
-fn get_entity_targets(py: Python<'_>, entity_id: i32) -> PyResult<Vec<u32>> {
+pub(crate) fn get_entity_targets(py: Python<'_>, entity_id: i32) -> PyResult<Vec<u32>> {
     if entity_id < 0 || entity_id >= MAX_GENTITIES as i32 {
         return Err(PyValueError::new_err(format!(
             "entity_id need to be between 0 and {}.",
@@ -7800,356 +4986,4 @@ fn get_entity_targets(py: Python<'_>, entity_id: i32) -> PyResult<Vec<u32>> {
             |entity| Ok(entity.get_targetting_entity_ids()),
         )
     })
-}
-
-// Used primarily in Python, but defined here and added using PyModule_AddIntMacro().
-#[allow(non_camel_case_types)]
-enum PythonReturnCodes {
-    RET_NONE,
-    RET_STOP,       // Stop execution of event handlers within Python.
-    RET_STOP_EVENT, // Only stop the event, but let other handlers process it.
-    RET_STOP_ALL,   // Stop execution at an engine level. SCARY STUFF!
-    RET_USAGE,      // Used for commands. Replies to the channel with a command's usage.
-}
-
-#[allow(non_camel_case_types)]
-enum PythonPriorities {
-    PRI_HIGHEST,
-    PRI_HIGH,
-    PRI_NORMAL,
-    PRI_LOW,
-    PRI_LOWEST,
-}
-
-#[pymodule]
-#[pyo3(name = "shinqlx")]
-fn pyshinqlx_module(_py: Python<'_>, _m: &PyModule) -> PyResult<()> {
-    Ok(())
-}
-
-#[pymodule]
-#[pyo3(name = "_minqlx")]
-fn pyminqlx_module(_py: Python<'_>, m: &PyModule) -> PyResult<()> {
-    m.add_function(wrap_pyfunction!(get_player_info, m)?)?;
-    m.add_function(wrap_pyfunction!(get_players_info, m)?)?;
-    m.add_function(wrap_pyfunction!(get_userinfo, m)?)?;
-    m.add_function(wrap_pyfunction!(send_server_command, m)?)?;
-    m.add_function(wrap_pyfunction!(client_command, m)?)?;
-    m.add_function(wrap_pyfunction!(console_command, m)?)?;
-    m.add_function(wrap_pyfunction!(get_cvar, m)?)?;
-    m.add_function(wrap_pyfunction!(set_cvar, m)?)?;
-    m.add_function(wrap_pyfunction!(set_cvar_limit, m)?)?;
-    m.add_function(wrap_pyfunction!(kick, m)?)?;
-    m.add_function(wrap_pyfunction!(console_print, m)?)?;
-    m.add_function(wrap_pyfunction!(get_configstring, m)?)?;
-    m.add_function(wrap_pyfunction!(set_configstring, m)?)?;
-    m.add_function(wrap_pyfunction!(force_vote, m)?)?;
-    m.add_function(wrap_pyfunction!(add_console_command, m)?)?;
-    m.add_function(wrap_pyfunction!(register_handler, m)?)?;
-    m.add_function(wrap_pyfunction!(player_state, m)?)?;
-    m.add_function(wrap_pyfunction!(player_stats, m)?)?;
-    m.add_function(wrap_pyfunction!(set_position, m)?)?;
-    m.add_function(wrap_pyfunction!(set_velocity, m)?)?;
-    m.add_function(wrap_pyfunction!(noclip, m)?)?;
-    m.add_function(wrap_pyfunction!(set_health, m)?)?;
-    m.add_function(wrap_pyfunction!(set_armor, m)?)?;
-    m.add_function(wrap_pyfunction!(set_weapons, m)?)?;
-    m.add_function(wrap_pyfunction!(set_weapon, m)?)?;
-    m.add_function(wrap_pyfunction!(set_ammo, m)?)?;
-    m.add_function(wrap_pyfunction!(set_powerups, m)?)?;
-    m.add_function(wrap_pyfunction!(set_holdable, m)?)?;
-    m.add_function(wrap_pyfunction!(drop_holdable, m)?)?;
-    m.add_function(wrap_pyfunction!(set_flight, m)?)?;
-    m.add_function(wrap_pyfunction!(set_invulnerability, m)?)?;
-    m.add_function(wrap_pyfunction!(set_score, m)?)?;
-    m.add_function(wrap_pyfunction!(callvote, m)?)?;
-    m.add_function(wrap_pyfunction!(allow_single_player, m)?)?;
-    m.add_function(wrap_pyfunction!(player_spawn, m)?)?;
-    m.add_function(wrap_pyfunction!(set_privileges, m)?)?;
-    m.add_function(wrap_pyfunction!(destroy_kamikaze_timers, m)?)?;
-    m.add_function(wrap_pyfunction!(spawn_item, m)?)?;
-    m.add_function(wrap_pyfunction!(remove_dropped_items, m)?)?;
-    m.add_function(wrap_pyfunction!(slay_with_mod, m)?)?;
-    m.add_function(wrap_pyfunction!(replace_items, m)?)?;
-    m.add_function(wrap_pyfunction!(dev_print_items, m)?)?;
-    m.add_function(wrap_pyfunction!(force_weapon_respawn_time, m)?)?;
-    m.add_function(wrap_pyfunction!(get_entity_targets, m)?)?;
-
-    m.add("__version__", env!("SHINQLX_VERSION"))?;
-    m.add("DEBUG", cfg!(debug_assertions))?;
-
-    // Set a bunch of constants. We set them here because if you define functions in Python that use module
-    // constants as keyword defaults, we have to always make sure they're exported first, and fuck that.
-    m.add("RET_NONE", PythonReturnCodes::RET_NONE as i32)?;
-    m.add("RET_STOP", PythonReturnCodes::RET_STOP as i32)?;
-    m.add("RET_STOP_EVENT", PythonReturnCodes::RET_STOP_EVENT as i32)?;
-    m.add("RET_STOP_ALL", PythonReturnCodes::RET_STOP_ALL as i32)?;
-    m.add("RET_USAGE", PythonReturnCodes::RET_USAGE as i32)?;
-    m.add("PRI_HIGHEST", PythonPriorities::PRI_HIGHEST as i32)?;
-    m.add("PRI_HIGH", PythonPriorities::PRI_HIGH as i32)?;
-    m.add("PRI_NORMAL", PythonPriorities::PRI_NORMAL as i32)?;
-    m.add("PRI_LOW", PythonPriorities::PRI_LOW as i32)?;
-    m.add("PRI_LOWEST", PythonPriorities::PRI_LOWEST as i32)?;
-
-    // Cvar flags.
-    m.add("CVAR_ARCHIVE", cvar_flags::CVAR_ARCHIVE as i32)?;
-    m.add("CVAR_USERINFO", cvar_flags::CVAR_USERINFO as i32)?;
-    m.add("CVAR_SERVERINFO", cvar_flags::CVAR_SERVERINFO as i32)?;
-    m.add("CVAR_SYSTEMINFO", cvar_flags::CVAR_SYSTEMINFO as i32)?;
-    m.add("CVAR_INIT", cvar_flags::CVAR_INIT as i32)?;
-    m.add("CVAR_LATCH", cvar_flags::CVAR_LATCH as i32)?;
-    m.add("CVAR_ROM", cvar_flags::CVAR_ROM as i32)?;
-    m.add("CVAR_USER_CREATED", cvar_flags::CVAR_USER_CREATED as i32)?;
-    m.add("CVAR_TEMP", cvar_flags::CVAR_TEMP as i32)?;
-    m.add("CVAR_CHEAT", cvar_flags::CVAR_CHEAT as i32)?;
-    m.add("CVAR_NORESTART", cvar_flags::CVAR_NORESTART as i32)?;
-
-    // Privileges.
-    m.add("PRIV_NONE", privileges_t::PRIV_NONE as i32)?;
-    m.add("PRIV_MOD", privileges_t::PRIV_MOD as i32)?;
-    m.add("PRIV_ADMIN", privileges_t::PRIV_ADMIN as i32)?;
-    m.add("PRIV_ROOT", privileges_t::PRIV_ROOT as i32)?;
-    m.add("PRIV_BANNED", privileges_t::PRIV_BANNED as i32)?;
-
-    // Connection states.
-    m.add("CS_FREE", clientState_t::CS_FREE as i32)?;
-    m.add("CS_ZOMBIE", clientState_t::CS_ZOMBIE as i32)?;
-    m.add("CS_CONNECTED", clientState_t::CS_CONNECTED as i32)?;
-    m.add("CS_PRIMED", clientState_t::CS_PRIMED as i32)?;
-    m.add("CS_ACTIVE", clientState_t::CS_ACTIVE as i32)?;
-
-    // Teams.
-    m.add("TEAM_FREE", team_t::TEAM_FREE as i32)?;
-    m.add("TEAM_RED", team_t::TEAM_RED as i32)?;
-    m.add("TEAM_BLUE", team_t::TEAM_BLUE as i32)?;
-    m.add("TEAM_SPECTATOR", team_t::TEAM_SPECTATOR as i32)?;
-
-    // Means of death.
-    m.add("MOD_UNKNOWN", meansOfDeath_t::MOD_UNKNOWN as i32)?;
-    m.add("MOD_SHOTGUN", meansOfDeath_t::MOD_SHOTGUN as i32)?;
-    m.add("MOD_GAUNTLET", meansOfDeath_t::MOD_GAUNTLET as i32)?;
-    m.add("MOD_MACHINEGUN", meansOfDeath_t::MOD_MACHINEGUN as i32)?;
-    m.add("MOD_GRENADE", meansOfDeath_t::MOD_GRENADE as i32)?;
-    m.add(
-        "MOD_GRENADE_SPLASH",
-        meansOfDeath_t::MOD_GRENADE_SPLASH as i32,
-    )?;
-    m.add("MOD_ROCKET", meansOfDeath_t::MOD_ROCKET as i32)?;
-    m.add(
-        "MOD_ROCKET_SPLASH",
-        meansOfDeath_t::MOD_ROCKET_SPLASH as i32,
-    )?;
-    m.add("MOD_PLASMA", meansOfDeath_t::MOD_PLASMA as i32)?;
-    m.add(
-        "MOD_PLASMA_SPLASH",
-        meansOfDeath_t::MOD_PLASMA_SPLASH as i32,
-    )?;
-    m.add("MOD_RAILGUN", meansOfDeath_t::MOD_RAILGUN as i32)?;
-    m.add("MOD_LIGHTNING", meansOfDeath_t::MOD_LIGHTNING as i32)?;
-    m.add("MOD_BFG", meansOfDeath_t::MOD_BFG as i32)?;
-    m.add("MOD_BFG_SPLASH", meansOfDeath_t::MOD_BFG_SPLASH as i32)?;
-    m.add("MOD_WATER", meansOfDeath_t::MOD_WATER as i32)?;
-    m.add("MOD_SLIME", meansOfDeath_t::MOD_SLIME as i32)?;
-    m.add("MOD_LAVA", meansOfDeath_t::MOD_LAVA as i32)?;
-    m.add("MOD_CRUSH", meansOfDeath_t::MOD_CRUSH as i32)?;
-    m.add("MOD_TELEFRAG", meansOfDeath_t::MOD_TELEFRAG as i32)?;
-    m.add("MOD_FALLING", meansOfDeath_t::MOD_FALLING as i32)?;
-    m.add("MOD_SUICIDE", meansOfDeath_t::MOD_SUICIDE as i32)?;
-    m.add("MOD_TARGET_LASER", meansOfDeath_t::MOD_TARGET_LASER as i32)?;
-    m.add("MOD_TRIGGER_HURT", meansOfDeath_t::MOD_TRIGGER_HURT as i32)?;
-    m.add("MOD_NAIL", meansOfDeath_t::MOD_NAIL as i32)?;
-    m.add("MOD_CHAINGUN", meansOfDeath_t::MOD_CHAINGUN as i32)?;
-    m.add(
-        "MOD_PROXIMITY_MINE",
-        meansOfDeath_t::MOD_PROXIMITY_MINE as i32,
-    )?;
-    m.add("MOD_KAMIKAZE", meansOfDeath_t::MOD_KAMIKAZE as i32)?;
-    m.add("MOD_JUICED", meansOfDeath_t::MOD_JUICED as i32)?;
-    m.add("MOD_GRAPPLE", meansOfDeath_t::MOD_GRAPPLE as i32)?;
-    m.add("MOD_SWITCH_TEAMS", meansOfDeath_t::MOD_SWITCH_TEAMS as i32)?;
-    m.add("MOD_THAW", meansOfDeath_t::MOD_THAW as i32)?;
-    m.add(
-        "MOD_LIGHTNING_DISCHARGE",
-        meansOfDeath_t::MOD_LIGHTNING_DISCHARGE as i32,
-    )?;
-    m.add("MOD_HMG", meansOfDeath_t::MOD_HMG as i32)?;
-    m.add(
-        "MOD_RAILGUN_HEADSHOT",
-        meansOfDeath_t::MOD_RAILGUN_HEADSHOT as i32,
-    )?;
-
-    m.add("DAMAGE_RADIUS", DAMAGE_RADIUS as i32)?;
-    m.add("DAMAGE_NO_ARMOR", DAMAGE_NO_ARMOR as i32)?;
-    m.add("DAMAGE_NO_KNOCKBACK", DAMAGE_NO_KNOCKBACK as i32)?;
-    m.add("DAMAGE_NO_PROTECTION", DAMAGE_NO_PROTECTION as i32)?;
-    m.add(
-        "DAMAGE_NO_TEAM_PROTECTION",
-        DAMAGE_NO_TEAM_PROTECTION as i32,
-    )?;
-
-    m.add_class::<PlayerInfo>()?;
-    m.add_class::<PlayerState>()?;
-    m.add_class::<PlayerStats>()?;
-    m.add_class::<Vector3>()?;
-    m.add_class::<Weapons>()?;
-    m.add_class::<Powerups>()?;
-    m.add_class::<Flight>()?;
-
-    Ok(())
-}
-
-pub(crate) static PYMINQLX_INITIALIZED: AtomicBool = AtomicBool::new(false);
-
-pub(crate) fn pyminqlx_is_initialized() -> bool {
-    PYMINQLX_INITIALIZED.load(Ordering::SeqCst)
-}
-
-#[derive(PartialEq, Eq, Debug, Clone, Copy)]
-pub(crate) enum PythonInitializationError {
-    MainScriptError,
-    #[cfg_attr(test, allow(dead_code))]
-    AlreadyInitialized,
-    NotInitializedError,
-}
-
-#[cfg_attr(test, allow(dead_code))]
-pub(crate) fn pyminqlx_initialize() -> Result<(), PythonInitializationError> {
-    if pyminqlx_is_initialized() {
-        error!(target: "shinqlx", "pyminqlx_initialize was called while already initialized");
-        return Err(PythonInitializationError::AlreadyInitialized);
-    }
-
-    debug!(target: "shinqlx", "Initializing Python...");
-    append_to_inittab!(pyminqlx_module);
-    prepare_freethreaded_python();
-    match Python::with_gil(|py| {
-        let minqlx_module = py.import("minqlx")?;
-        minqlx_module.call_method0("initialize")?;
-        Ok::<(), PyErr>(())
-    }) {
-        Err(e) => {
-            error!(target: "shinqlx", "{:?}", e);
-            error!(target: "shinqlx", "loader sequence returned an error. Did you modify the loader?");
-            Err(PythonInitializationError::MainScriptError)
-        }
-        Ok(_) => {
-            PYMINQLX_INITIALIZED.store(true, Ordering::SeqCst);
-            debug!(target: "shinqlx", "Python initialized!");
-            Ok(())
-        }
-    }
-}
-
-#[cfg_attr(test, allow(dead_code))]
-pub(crate) fn pyminqlx_reload() -> Result<(), PythonInitializationError> {
-    if !pyminqlx_is_initialized() {
-        error!(target: "shinqlx", "pyminqlx_finalize was called before being initialized");
-        return Err(PythonInitializationError::NotInitializedError);
-    }
-
-    [
-        &CLIENT_COMMAND_HANDLER,
-        &SERVER_COMMAND_HANDLER,
-        &FRAME_HANDLER,
-        &PLAYER_CONNECT_HANDLER,
-        &PLAYER_LOADED_HANDLER,
-        &PLAYER_DISCONNECT_HANDLER,
-        &CUSTOM_COMMAND_HANDLER,
-        &NEW_GAME_HANDLER,
-        &SET_CONFIGSTRING_HANDLER,
-        &RCON_HANDLER,
-        &CONSOLE_PRINT_HANDLER,
-        &PLAYER_SPAWN_HANDLER,
-        &KAMIKAZE_USE_HANDLER,
-        &KAMIKAZE_EXPLODE_HANDLER,
-        &DAMAGE_HANDLER,
-    ]
-    .into_iter()
-    .for_each(|handler_lock| handler_lock.store(None));
-
-    match Python::with_gil(|py| {
-        let importlib_module = py.import("importlib")?;
-        let minqlx_module = py.import("minqlx")?;
-        let new_minqlx_module = importlib_module.call_method1("reload", (minqlx_module,))?;
-        new_minqlx_module.call_method0("initialize")?;
-        Ok::<(), PyErr>(())
-    }) {
-        Err(_) => {
-            PYMINQLX_INITIALIZED.store(false, Ordering::SeqCst);
-            Err(PythonInitializationError::MainScriptError)
-        }
-        Ok(()) => {
-            PYMINQLX_INITIALIZED.store(true, Ordering::SeqCst);
-            Ok(())
-        }
-    }
-}
-
-#[cfg(test)]
-#[cfg_attr(test, mockall::automock)]
-#[allow(dead_code)]
-pub(crate) mod python {
-    use crate::pyminqlx::PythonInitializationError;
-
-    pub(crate) fn rcon_dispatcher<T>(_cmd: T)
-    where
-        T: AsRef<str> + 'static,
-    {
-    }
-
-    pub(crate) fn client_command_dispatcher(_client_id: i32, _cmd: String) -> Option<String> {
-        None
-    }
-    pub(crate) fn server_command_dispatcher(
-        _client_id: Option<i32>,
-        _cmd: String,
-    ) -> Option<String> {
-        None
-    }
-    pub(crate) fn client_loaded_dispatcher(_client_id: i32) {}
-
-    pub(crate) fn set_configstring_dispatcher(_index: u32, _value: String) -> Option<String> {
-        None
-    }
-
-    pub(crate) fn client_disconnect_dispatcher(_client_id: i32, _reason: String) {}
-
-    pub(crate) fn console_print_dispatcher(_msg: String) -> Option<String> {
-        None
-    }
-
-    pub(crate) fn new_game_dispatcher(_restart: bool) {}
-
-    pub(crate) fn frame_dispatcher() {}
-
-    pub(crate) fn client_connect_dispatcher(_client_id: i32, _is_bot: bool) -> Option<String> {
-        None
-    }
-
-    pub(crate) fn client_spawn_dispatcher(_client_id: i32) {}
-
-    pub(crate) fn kamikaze_use_dispatcher(_client_id: i32) {}
-
-    pub(crate) fn kamikaze_explode_dispatcher(_client_id: i32, _is_used_on_demand: bool) {}
-
-    pub(crate) fn damage_dispatcher(
-        _target_client_id: i32,
-        _attacker_client_id: Option<i32>,
-        _damage: i32,
-        _dflags: i32,
-        _means_of_death: i32,
-    ) {
-    }
-
-    pub(crate) fn pyminqlx_is_initialized() -> bool {
-        false
-    }
-
-    pub(crate) fn pyminqlx_initialize() -> Result<(), PythonInitializationError> {
-        Ok(())
-    }
-
-    pub(crate) fn pyminqlx_reload() -> Result<(), PythonInitializationError> {
-        Ok(())
-    }
 }

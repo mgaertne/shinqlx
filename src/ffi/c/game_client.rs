@@ -1,7 +1,7 @@
 #[cfg(not(test))]
-use crate::current_level::CurrentLevel;
+use crate::ffi::c::current_level::CurrentLevel;
 #[cfg(test)]
-use crate::current_level::MockTestCurrentLevel as CurrentLevel;
+use crate::ffi::c::current_level::MockTestCurrentLevel as CurrentLevel;
 use crate::prelude::*;
 use alloc::string::String;
 use alloc::vec::Vec;
@@ -402,7 +402,7 @@ mockall::mock! {
 #[cfg(test)]
 mod game_client_tests {
     use super::GameClient;
-    use crate::current_level::MockTestCurrentLevel;
+    use crate::ffi::c::current_level::MockTestCurrentLevel;
     use crate::prelude::*;
     use core::ffi::c_char;
     use pretty_assertions::assert_eq;

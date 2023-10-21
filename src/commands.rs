@@ -1,17 +1,18 @@
 #[cfg(test)]
 use crate::commands::DUMMY_MAIN_ENGINE as MAIN_ENGINE;
-use crate::prelude::*;
-#[cfg(test)]
-use crate::pyminqlx::mock_python::{
-    new_game_dispatcher, pyminqlx_initialize, pyminqlx_is_initialized, pyminqlx_reload,
-    rcon_dispatcher,
-};
-use crate::pyminqlx::CUSTOM_COMMAND_HANDLER;
 #[cfg(not(test))]
-use crate::pyminqlx::{
+use crate::ffi::python::dispatchers::new_game_dispatcher;
+#[cfg(not(test))]
+use crate::ffi::python::dispatchers::rcon_dispatcher;
+#[cfg(test)]
+use crate::ffi::python::mock_python_tests::{
     new_game_dispatcher, pyminqlx_initialize, pyminqlx_is_initialized, pyminqlx_reload,
     rcon_dispatcher,
 };
+use crate::ffi::python::CUSTOM_COMMAND_HANDLER;
+#[cfg(not(test))]
+use crate::ffi::python::{pyminqlx_initialize, pyminqlx_is_initialized, pyminqlx_reload};
+use crate::prelude::*;
 #[cfg(test)]
 use crate::quake_live_engine::MockQuakeEngine as QuakeLiveEngine;
 use crate::quake_live_engine::{
@@ -309,17 +310,17 @@ mod commands_tests {
         cmd_center_print, cmd_py_command, cmd_py_rcon, cmd_regular_print, cmd_restart_python,
         cmd_send_server_command, cmd_slap, cmd_slay,
     };
-    use crate::client::MockClient;
-    use crate::game_client::MockGameClient;
-    use crate::game_entity::MockGameEntity;
-    use crate::prelude::*;
-    use crate::pyminqlx::mock_python::{
+    use crate::ffi::c::client::MockClient;
+    use crate::ffi::c::game_client::MockGameClient;
+    use crate::ffi::c::game_entity::MockGameEntity;
+    use crate::ffi::python::mock_python_tests::{
         new_game_dispatcher_context, pyminqlx_initialize_context, pyminqlx_is_initialized_context,
         pyminqlx_reload_context, rcon_dispatcher_context,
     };
     #[cfg(not(miri))]
-    use crate::pyminqlx::pyminqlx_setup_fixture::*;
-    use crate::pyminqlx::{PythonInitializationError, CUSTOM_COMMAND_HANDLER};
+    use crate::ffi::python::pyminqlx_setup_fixture::*;
+    use crate::ffi::python::{PythonInitializationError, CUSTOM_COMMAND_HANDLER};
+    use crate::prelude::*;
     use crate::quake_live_engine::MockQuakeEngine;
     use mockall::predicate;
     use pyo3::types::PyModule;

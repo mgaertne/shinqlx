@@ -1,5 +1,5 @@
 #[cfg(test)]
-use crate::game_item::DUMMY_MAIN_ENGINE as MAIN_ENGINE;
+use crate::ffi::c::game_item::DUMMY_MAIN_ENGINE as MAIN_ENGINE;
 use crate::prelude::*;
 #[cfg(test)]
 use crate::quake_live_engine::MockQuakeEngine as QuakeLiveEngine;
@@ -147,8 +147,8 @@ mockall::mock! {
 mod game_item_tests {
     use super::GameItem;
     use super::MAIN_ENGINE;
-    use crate::game_entity::MockGameEntity;
-    use crate::game_item::MockGameItem;
+    use crate::ffi::c::game_entity::MockGameEntity;
+    use crate::ffi::c::game_item::MockGameItem;
     use crate::prelude::*;
     use crate::quake_live_engine::MockQuakeEngine;
     use alloc::ffi::CString;
