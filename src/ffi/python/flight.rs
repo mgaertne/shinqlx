@@ -79,7 +79,10 @@ impl Flight {
 #[cfg(test)]
 #[cfg(not(miri))]
 mod flight_tests {
+    use super::Flight;
     use crate::ffi::python::pyminqlx_setup_fixture::*;
+    use pretty_assertions::assert_eq;
+    use pyo3::exceptions::PyValueError;
     use pyo3::Python;
     use rstest::rstest;
 
@@ -89,7 +92,7 @@ mod flight_tests {
             let flight_constructor = py.run(
                 r#"
 import _minqlx
-weapons = _minqlx.Flight((0, 1, 2, 3))
+flight = _minqlx.Flight((0, 1, 2, 3))
             "#,
                 None,
                 None,
@@ -100,5 +103,98 @@ weapons = _minqlx.Flight((0, 1, 2, 3))
                 flight_constructor.err().unwrap()
             );
         });
+    }
+
+    #[rstest]
+    fn flight_py_constructor_with_too_few_values(_pyminqlx_setup: ()) {
+        Python::with_gil(|py| {
+            let flight_constructor = py.run(
+                r#"
+import _minqlx
+flight = _minqlx.Flight((0, 1, 2))
+            "#,
+                None,
+                None,
+            );
+            assert!(flight_constructor.is_err_and(|err| err.is_instance_of::<PyValueError>(py)));
+        });
+    }
+
+    #[rstest]
+    fn flight_py_constructor_with_too_many_values(_pyminqlx_setup: ()) {
+        Python::with_gil(|py| {
+            let flight_constructor = py.run(
+                r#"
+import _minqlx
+flight = _minqlx.Flight((0, 1, 2, 3, 4))
+            "#,
+                None,
+                None,
+            );
+            assert!(flight_constructor.is_err_and(|err| err.is_instance_of::<PyValueError>(py)));
+        });
+    }
+
+    #[rstest]
+    fn flight_py_constructor_with_non_numeric_values(_pyminqlx_setup: ()) {
+        Python::with_gil(|py| {
+            let flight_constructor = py.run(
+                r#"
+import _minqlx
+flight = _minqlx.Flight(("asdf", True, (1, 2, 3), []))
+            "#,
+                None,
+                None,
+            );
+            assert!(flight_constructor.is_err_and(|err| err.is_instance_of::<PyValueError>(py)));
+        });
+    }
+
+    #[rstest]
+    fn flight_can_be_compared_for_equality_in_python(_pyminqlx_setup: ()) {
+        let result = Python::with_gil(|py| {
+            py.run(
+                r#"
+import _minqlx
+assert(_minqlx.Flight((0, 1, 2, 3)) == _minqlx.Flight((0, 1, 2, 3)))
+            "#,
+                None,
+                None,
+            )
+        });
+        assert!(result.is_ok());
+    }
+
+    #[rstest]
+    fn flight_can_be_compared_for_non_equality_in_python(_pyminqlx_setup: ()) {
+        let result = Python::with_gil(|py| {
+            py.run(
+                r#"
+import _minqlx
+assert(_minqlx.Flight((0, 1, 2, 3)) != _minqlx.Flight((3, 2, 1, 0)))
+            "#,
+                None,
+                None,
+            )
+        });
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn flight_to_str() {
+        let flight = Flight(1, 2, 3, 4);
+        assert_eq!(
+            flight.__str__(),
+            "Flight(fuel=1, max_fuel=2, thrust=3, refuel=4)"
+        );
+    }
+
+    #[test]
+    fn flight_repr() {
+        let flight = Flight(1, 2, 3, 4);
+        assert_eq!(
+            flight.__repr__(),
+            "Flight(fuel=1, max_fuel=2, thrust=3, refuel=4)"
+        );
     }
 }
