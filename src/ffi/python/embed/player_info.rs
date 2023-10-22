@@ -28,13 +28,15 @@ pub(crate) fn minqlx_player_info(py: Python<'_>, client_id: i32) -> PyResult<Opt
     }
 
     py.allow_threads(move || {
-        let Ok(client) = Client::try_from(client_id) else {
-            return Ok(Some(PlayerInfo::from(client_id)));
-        };
-
         let allowed_free_clients = ALLOW_FREE_CLIENT.load(Ordering::SeqCst);
-        if allowed_free_clients & (1 << client_id as u64) == 0
-            && client.get_state() == clientState_t::CS_FREE
+        let opt_client = Client::try_from(client_id).ok();
+
+        if opt_client
+            .filter(|client| {
+                client.get_state() == clientState_t::CS_FREE
+                    && allowed_free_clients & (1 << client_id as u64) == 0
+            })
+            .is_some()
         {
             warn!(
                 target: "shinqlx",
@@ -42,7 +44,7 @@ pub(crate) fn minqlx_player_info(py: Python<'_>, client_id: i32) -> PyResult<Opt
                 client_id
             );
             return Ok(None);
-        }
+        };
 
         Ok(Some(PlayerInfo::from(client_id)))
     })
