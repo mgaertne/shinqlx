@@ -50,40 +50,32 @@ impl PlayerInfo {
 
 impl From<i32> for PlayerInfo {
     fn from(client_id: i32) -> Self {
-        let game_entity_result = GameEntity::try_from(client_id);
-        match game_entity_result {
-            Err(_) => PlayerInfo {
-                client_id,
-                name: Default::default(),
-                connection_state: clientState_t::CS_FREE as i32,
-                userinfo: Default::default(),
-                steam_id: 0,
-                team: team_t::TEAM_SPECTATOR as i32,
-                privileges: -1,
-            },
-            Ok(game_entity) => {
-                let Ok(client) = Client::try_from(client_id) else {
-                    return PlayerInfo {
-                        client_id,
-                        name: game_entity.get_player_name(),
-                        connection_state: clientState_t::CS_FREE as i32,
-                        userinfo: Default::default(),
-                        steam_id: 0,
-                        team: game_entity.get_team() as i32,
-                        privileges: game_entity.get_privileges() as i32,
-                    };
-                };
-                PlayerInfo {
-                    client_id,
-                    name: game_entity.get_player_name(),
-                    connection_state: client.get_state() as i32,
-                    userinfo: client.get_user_info(),
-                    steam_id: client.get_steam_id(),
-                    team: game_entity.get_team() as i32,
-                    privileges: game_entity.get_privileges() as i32,
-                }
-            }
-        }
+        let mut returned = PlayerInfo {
+            client_id,
+            name: Default::default(),
+            connection_state: clientState_t::CS_FREE as i32,
+            userinfo: Default::default(),
+            steam_id: 0,
+            team: team_t::TEAM_SPECTATOR as i32,
+            privileges: -1,
+        };
+
+        GameEntity::try_from(client_id)
+            .ok()
+            .iter()
+            .for_each(|game_entity| {
+                returned.name = game_entity.get_player_name();
+                returned.team = game_entity.get_team() as i32;
+                returned.privileges = game_entity.get_privileges() as i32;
+            });
+
+        Client::try_from(client_id).ok().iter().for_each(|client| {
+            returned.connection_state = client.get_state() as i32;
+            returned.userinfo = client.get_user_info();
+            returned.steam_id = client.get_steam_id();
+        });
+
+        returned
     }
 }
 
