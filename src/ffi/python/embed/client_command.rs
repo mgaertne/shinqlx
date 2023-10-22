@@ -1,11 +1,8 @@
 #[cfg(test)]
-use crate::ffi::python::DUMMY_MAIN_ENGINE as MAIN_ENGINE;
-#[cfg(test)]
 use crate::hooks::mock_hooks::shinqlx_execute_client_command;
 #[cfg(not(test))]
 use crate::hooks::shinqlx_execute_client_command;
 use crate::prelude::*;
-#[cfg(not(test))]
 use crate::MAIN_ENGINE;
 
 use pyo3::exceptions::{PyEnvironmentError, PyValueError};

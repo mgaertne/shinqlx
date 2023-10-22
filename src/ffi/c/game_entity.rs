@@ -1,25 +1,16 @@
-#[cfg(test)]
-use crate::ffi::c::game_entity::DUMMY_MAIN_ENGINE as MAIN_ENGINE;
 use crate::ffi::c::CurrentLevel;
 use crate::ffi::c::GameItem;
 use crate::hooks::shinqlx_set_configstring;
 use crate::prelude::*;
-#[cfg(test)]
-use crate::quake_live_engine::MockQuakeEngine as QuakeLiveEngine;
 use crate::quake_live_engine::{
     ComPrintf, FreeEntity, GetConfigstring, QuakeLiveEngineError, RegisterDamage, StartKamikaze,
     TryLaunchItem,
 };
-#[cfg(not(test))]
 use crate::MAIN_ENGINE;
 use alloc::string::String;
 use alloc::vec;
 use core::f32::consts::PI;
 use core::ffi::{c_char, c_float, c_int, CStr};
-
-#[cfg(test)]
-static DUMMY_MAIN_ENGINE: once_cell::sync::Lazy<swap_arc::SwapArcOption<QuakeLiveEngine>> =
-    once_cell::sync::Lazy::new(|| swap_arc::SwapArcOption::new(None));
 
 #[derive(Debug, PartialEq)]
 #[repr(transparent)]

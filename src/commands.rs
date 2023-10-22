@@ -1,5 +1,3 @@
-#[cfg(test)]
-use crate::commands::DUMMY_MAIN_ENGINE as MAIN_ENGINE;
 #[cfg(not(test))]
 use crate::ffi::python::dispatchers::new_game_dispatcher;
 #[cfg(not(test))]
@@ -13,19 +11,12 @@ use crate::ffi::python::CUSTOM_COMMAND_HANDLER;
 #[cfg(not(test))]
 use crate::ffi::python::{pyminqlx_initialize, pyminqlx_is_initialized, pyminqlx_reload};
 use crate::prelude::*;
-#[cfg(test)]
-use crate::quake_live_engine::MockQuakeEngine as QuakeLiveEngine;
 use crate::quake_live_engine::{
     CmdArgc, CmdArgs, CmdArgv, ComPrintf, GameAddEvent, SendServerCommand,
 };
-#[cfg(not(test))]
 use crate::MAIN_ENGINE;
 use pyo3::Python;
 use rand::Rng;
-
-#[cfg(test)]
-static DUMMY_MAIN_ENGINE: once_cell::sync::Lazy<swap_arc::SwapArcOption<QuakeLiveEngine>> =
-    once_cell::sync::Lazy::new(|| swap_arc::SwapArcOption::new(None));
 
 #[no_mangle]
 pub extern "C" fn cmd_send_server_command() {

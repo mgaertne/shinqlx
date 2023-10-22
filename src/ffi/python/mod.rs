@@ -20,18 +20,12 @@ pub(crate) use vector3::Vector3;
 pub(crate) use weapons::Weapons;
 
 use crate::prelude::*;
-#[cfg(test)]
-use crate::quake_live_engine::MockQuakeEngine as QuakeLiveEngine;
 use core::sync::atomic::{AtomicBool, AtomicU64, Ordering};
 use log::*;
 use once_cell::sync::Lazy;
 use pyo3::prelude::*;
 use pyo3::{append_to_inittab, prepare_freethreaded_python};
 use swap_arc::SwapArcOption;
-
-#[cfg(test)]
-pub(crate) static DUMMY_MAIN_ENGINE: Lazy<SwapArcOption<QuakeLiveEngine>> =
-    Lazy::new(|| SwapArcOption::new(None));
 
 pub(crate) static ALLOW_FREE_CLIENT: AtomicU64 = AtomicU64::new(0);
 

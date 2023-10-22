@@ -1,8 +1,5 @@
-#[cfg(test)]
-use crate::ffi::python::DUMMY_MAIN_ENGINE as MAIN_ENGINE;
 use crate::prelude::*;
 use crate::quake_live_engine::{ComPrintf, SendServerCommand};
-#[cfg(not(test))]
 use crate::MAIN_ENGINE;
 
 use pyo3::exceptions::PyEnvironmentError;

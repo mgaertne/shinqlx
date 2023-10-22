@@ -1,11 +1,9 @@
-#[cfg(test)]
-use crate::ffi::python::DUMMY_MAIN_ENGINE as MAIN_ENGINE;
 use crate::prelude::*;
-#[cfg(not(test))]
 use crate::MAIN_ENGINE;
-use pyo3::exceptions::PyEnvironmentError;
 
 use crate::ffi::python::PlayerInfo;
+
+use pyo3::exceptions::PyEnvironmentError;
 use pyo3::prelude::*;
 
 /// Returns a list with dictionaries with information about all the players on the server.
