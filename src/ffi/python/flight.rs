@@ -82,7 +82,7 @@ mod flight_tests {
     use super::Flight;
     use crate::ffi::python::pyminqlx_setup_fixture::*;
     use pretty_assertions::assert_eq;
-    use pyo3::exceptions::PyValueError;
+    use pyo3::exceptions::{PyTypeError, PyValueError};
     use pyo3::Python;
     use rstest::rstest;
 
@@ -178,6 +178,21 @@ assert(_minqlx.Flight((0, 1, 2, 3)) != _minqlx.Flight((3, 2, 1, 0)))
             )
         });
         assert!(result.is_ok());
+    }
+
+    #[rstest]
+    fn flight_can_not_be_compared_for_lower_in_python(_pyminqlx_setup: ()) {
+        Python::with_gil(|py| {
+            let result = py.run(
+                r#"
+import _minqlx
+assert(_minqlx.Flight((0, 1, 2, 3)) < _minqlx.Flight((3, 2, 1, 0)))
+            "#,
+                None,
+                None,
+            );
+            assert!(result.is_err_and(|err| err.is_instance_of::<PyTypeError>(py)));
+        });
     }
 
     #[test]
