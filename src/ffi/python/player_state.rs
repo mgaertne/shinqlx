@@ -121,10 +121,11 @@ mod player_state_tests {
     use crate::ffi::c::game_client::MockGameClient;
     use crate::ffi::c::game_entity::MockGameEntity;
     use crate::ffi::python::{Flight, Holdable, Powerups, Vector3, Weapons};
-    use crate::prelude::weapon_t;
+    use crate::prelude::*;
     use pretty_assertions::assert_eq;
 
     #[test]
+    #[serial]
     fn player_state_from_game_client() {
         let mut mock_game_entity = MockGameEntity::new();
         mock_game_entity.expect_get_game_client().returning(|| {
@@ -206,7 +207,6 @@ mod player_state_tests {
             is_chatting: true,
             is_frozen: true,
         };
-
         assert_eq!(
             player_state.__str__(),
             "PlayerState(\
@@ -221,6 +221,44 @@ mod player_state_tests {
             ammo=Weapons(g=1, mg=2, sg=3, gl=4, rl=5, lg=6, rg=6, pg=8, bfg=9, gh=10, ng=11, pl=12, cg=13, hmg=14, hands=15), \
             powerups=Powerups(quad=12, battlesuit=34, haste=56, invisibility=78, regeneration=90, invulnerability=24), \
             holdable=kamikaze, \
+            flight=Flight(fuel=12, max_fuel=34, thrust=56, refuel=78), \
+            is_chatting=true, \
+            is_frozen=true)");
+    }
+
+    #[test]
+    fn player_state_to_str_with_no_holdble() {
+        let player_state = PlayerState {
+            is_alive: true,
+            position: Vector3(1, 2, 3),
+            velocity: Vector3(4, 5, 6),
+            health: 123,
+            armor: 456,
+            noclip: true,
+            weapon: weapon_t::WP_NAILGUN.into(),
+            weapons: Weapons(1, 1, 1, 0, 0, 0, 1, 1, 1, 0, 0, 0, 1, 1, 1),
+            ammo: Weapons(1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15),
+            powerups: Powerups(12, 34, 56, 78, 90, 24),
+            holdable: None,
+            flight: Flight(12, 34, 56, 78),
+            is_chatting: true,
+            is_frozen: true,
+        };
+
+        assert_eq!(
+                player_state.__str__(),
+                "PlayerState(\
+            is_alive=true, \
+            position=Vector3(x=1, y=2, z=3), \
+            veclocity=Vector3(x=4, y=5, z=6), \
+            health=123, \
+            armor=456, \
+            noclip=true, \
+            weapon=11, \
+            weapons=Weapons(g=1, mg=1, sg=1, gl=0, rl=0, lg=0, rg=0, pg=1, bfg=1, gh=0, ng=0, pl=0, cg=1, hmg=1, hands=1), \
+            ammo=Weapons(g=1, mg=2, sg=3, gl=4, rl=5, lg=6, rg=6, pg=8, bfg=9, gh=10, ng=11, pl=12, cg=13, hmg=14, hands=15), \
+            powerups=Powerups(quad=12, battlesuit=34, haste=56, invisibility=78, regeneration=90, invulnerability=24), \
+            holdable=None, \
             flight=Flight(fuel=12, max_fuel=34, thrust=56, refuel=78), \
             is_chatting=true, \
             is_frozen=true)");
@@ -246,8 +284,8 @@ mod player_state_tests {
         };
 
         assert_eq!(
-            player_state.__repr__(),
-            "PlayerState(\
+                player_state.__repr__(),
+                "PlayerState(\
             is_alive=true, \
             position=Vector3(x=1, y=2, z=3), \
             veclocity=Vector3(x=4, y=5, z=6), \
@@ -259,6 +297,44 @@ mod player_state_tests {
             ammo=Weapons(g=1, mg=2, sg=3, gl=4, rl=5, lg=6, rg=6, pg=8, bfg=9, gh=10, ng=11, pl=12, cg=13, hmg=14, hands=15), \
             powerups=Powerups(quad=12, battlesuit=34, haste=56, invisibility=78, regeneration=90, invulnerability=24), \
             holdable=kamikaze, \
+            flight=Flight(fuel=12, max_fuel=34, thrust=56, refuel=78), \
+            is_chatting=true, \
+            is_frozen=true)");
+    }
+
+    #[test]
+    fn player_state_repr_with_no_holdable() {
+        let player_state = PlayerState {
+            is_alive: true,
+            position: Vector3(1, 2, 3),
+            velocity: Vector3(4, 5, 6),
+            health: 123,
+            armor: 456,
+            noclip: true,
+            weapon: weapon_t::WP_NAILGUN.into(),
+            weapons: Weapons(1, 1, 1, 0, 0, 0, 1, 1, 1, 0, 0, 0, 1, 1, 1),
+            ammo: Weapons(1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15),
+            powerups: Powerups(12, 34, 56, 78, 90, 24),
+            holdable: None,
+            flight: Flight(12, 34, 56, 78),
+            is_chatting: true,
+            is_frozen: true,
+        };
+
+        assert_eq!(
+                player_state.__repr__(),
+                "PlayerState(\
+            is_alive=true, \
+            position=Vector3(x=1, y=2, z=3), \
+            veclocity=Vector3(x=4, y=5, z=6), \
+            health=123, \
+            armor=456, \
+            noclip=true, \
+            weapon=11, \
+            weapons=Weapons(g=1, mg=1, sg=1, gl=0, rl=0, lg=0, rg=0, pg=1, bfg=1, gh=0, ng=0, pl=0, cg=1, hmg=1, hands=1), \
+            ammo=Weapons(g=1, mg=2, sg=3, gl=4, rl=5, lg=6, rg=6, pg=8, bfg=9, gh=10, ng=11, pl=12, cg=13, hmg=14, hands=15), \
+            powerups=Powerups(quad=12, battlesuit=34, haste=56, invisibility=78, regeneration=90, invulnerability=24), \
+            holdable=None, \
             flight=Flight(fuel=12, max_fuel=34, thrust=56, refuel=78), \
             is_chatting=true, \
             is_frozen=true)");
