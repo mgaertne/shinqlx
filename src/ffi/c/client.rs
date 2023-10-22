@@ -1,18 +1,9 @@
-#[cfg(test)]
-use crate::ffi::c::client::DUMMY_MAIN_ENGINE as MAIN_ENGINE;
 use crate::ffi::c::ServerStatic;
 use crate::prelude::*;
-#[cfg(test)]
-use crate::quake_live_engine::MockQuakeEngine as QuakeLiveEngine;
-#[cfg(not(test))]
 use crate::MAIN_ENGINE;
 use alloc::ffi::CString;
 use alloc::string::String;
 use core::ffi::{c_char, CStr};
-
-#[cfg(test)]
-static DUMMY_MAIN_ENGINE: once_cell::sync::Lazy<swap_arc::SwapArcOption<QuakeLiveEngine>> =
-    once_cell::sync::Lazy::new(|| swap_arc::SwapArcOption::new(None));
 
 #[derive(Debug, PartialEq)]
 #[repr(transparent)]

@@ -1,12 +1,10 @@
 use crate::ffi::python::ALLOW_FREE_CLIENT;
-#[cfg(test)]
-use crate::ffi::python::DUMMY_MAIN_ENGINE as MAIN_ENGINE;
 use crate::prelude::*;
-#[cfg(not(test))]
 use crate::MAIN_ENGINE;
+
+use core::sync::atomic::Ordering;
 use pyo3::exceptions::{PyEnvironmentError, PyValueError};
 use pyo3::prelude::*;
-use std::sync::atomic::Ordering;
 
 /// Returns a string with a player's userinfo.
 #[pyfunction(name = "get_userinfo")]

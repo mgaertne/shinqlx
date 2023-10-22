@@ -132,6 +132,7 @@ impl Display for QuakeLiveFunction {
 }
 
 impl QuakeLiveFunction {
+    #[cfg_attr(test, allow(dead_code))]
     pub(crate) fn create_and_enable_generic_detour<T, D>(
         &self,
         function: T,

@@ -59,7 +59,9 @@ pub(crate) enum QuakeLiveEngineError {
 
 #[derive(Debug)]
 struct StaticFunctions {
+    #[cfg_attr(test, allow(dead_code))]
     com_printf_orig: extern "C" fn(*const c_char, ...),
+    #[cfg_attr(test, allow(dead_code))]
     cmd_addcommand_orig: fn(*const c_char, unsafe extern "C" fn()),
     cmd_args_orig: fn() -> *const c_char,
     cmd_argv_orig: fn(c_int) -> *const c_char,
@@ -72,16 +74,23 @@ struct StaticFunctions {
     cvar_getlimit_orig:
         fn(*const c_char, *const c_char, *const c_char, *const c_char, c_int) -> *mut cvar_t,
     cvar_set2_orig: fn(*const c_char, *const c_char, qboolean) -> *mut cvar_t,
+    #[cfg_attr(test, allow(dead_code))]
     sv_sendservercommand_orig: extern "C" fn(*mut client_t, *const c_char, ...),
+    #[cfg_attr(test, allow(dead_code))]
     sv_executeclientcommand_orig: fn(*mut client_t, *const c_char, qboolean),
     #[cfg_attr(test, allow(dead_code))]
     sv_shutdown_orig: fn(*const c_char),
     sv_map_f_orig: fn(),
+    #[cfg_attr(test, allow(dead_code))]
     sv_cliententerworld_orig: fn(*mut client_t, *mut usercmd_t),
+    #[cfg_attr(test, allow(dead_code))]
     sv_setconfigstring_orig: fn(c_int, *const c_char),
     sv_getconfigstring_orig: fn(c_int, *const c_char, c_int),
+    #[cfg_attr(test, allow(dead_code))]
     sv_dropclient_orig: fn(*mut client_t, *const c_char),
+    #[cfg_attr(test, allow(dead_code))]
     sys_setmoduleoffset_orig: fn(*const c_char, unsafe extern "C" fn()),
+    #[cfg_attr(test, allow(dead_code))]
     sv_spawnserver_orig: fn(*const c_char, qboolean),
     cmd_executestring_orig: fn(*const c_char),
     cmd_argc_orig: fn() -> c_int,
@@ -415,6 +424,7 @@ pub(crate) struct QuakeLiveEngine {
 const OFFSET_CMD_ARGC: i32 = 0x81;
 
 impl QuakeLiveEngine {
+    #[cfg_attr(test, allow(dead_code))]
     pub(crate) fn new() -> Self {
         Self {
             static_functions: OnceCell::new(),
@@ -448,6 +458,7 @@ impl QuakeLiveEngine {
         }
     }
 
+    #[cfg_attr(test, allow(dead_code))]
     pub(crate) fn search_static_functions(&self) -> Result<(), QuakeLiveEngineError> {
         #[cfg(not(target_os = "linux"))]
         return Err(QuakeLiveEngineError::ProcessNotFound(
@@ -787,6 +798,7 @@ impl QuakeLiveEngine {
         }
     }
 
+    #[cfg_attr(test, allow(dead_code))]
     pub(crate) fn hook_static(&self) -> Result<(), QuakeLiveEngineError> {
         debug!(target: "shinqlx", "Hooking...");
         let cmd_addcommand_detour = QuakeLiveFunction::Cmd_AddCommand
@@ -964,6 +976,7 @@ impl QuakeLiveEngine {
         self.vm_functions.unhook();
     }
 
+    #[cfg_attr(test, allow(dead_code))]
     fn com_printf_orig(&self) -> Result<extern "C" fn(*const c_char, ...), QuakeLiveEngineError> {
         let Some(static_functions) = self.static_functions.get() else {
             return Err(QuakeLiveEngineError::StaticFunctionNotFound(
@@ -973,6 +986,7 @@ impl QuakeLiveEngine {
         Ok(static_functions.com_printf_orig)
     }
 
+    #[cfg_attr(test, allow(dead_code))]
     fn cmd_addcommand_orig(
         &self,
     ) -> Result<fn(*const c_char, unsafe extern "C" fn()), QuakeLiveEngineError> {
@@ -1071,6 +1085,7 @@ impl QuakeLiveEngine {
         Ok(static_functions.cvar_set2_orig)
     }
 
+    #[cfg_attr(test, allow(dead_code))]
     fn sv_sendservercommand_orig(
         &self,
     ) -> Result<extern "C" fn(*mut client_t, *const c_char, ...), QuakeLiveEngineError> {
@@ -1082,6 +1097,7 @@ impl QuakeLiveEngine {
         Ok(static_functions.sv_sendservercommand_orig)
     }
 
+    #[cfg_attr(test, allow(dead_code))]
     fn sv_executeclientcommand_orig(
         &self,
     ) -> Result<fn(*mut client_t, *const c_char, qboolean), QuakeLiveEngineError> {
@@ -1113,6 +1129,7 @@ impl QuakeLiveEngine {
         Ok(static_functions.sv_map_f_orig)
     }
 
+    #[cfg_attr(test, allow(dead_code))]
     fn sv_cliententerworld_orig(
         &self,
     ) -> Result<fn(*mut client_t, *mut usercmd_t), QuakeLiveEngineError> {
@@ -1124,6 +1141,7 @@ impl QuakeLiveEngine {
         Ok(static_functions.sv_cliententerworld_orig)
     }
 
+    #[cfg_attr(test, allow(dead_code))]
     fn sv_setconfigstring_orig(&self) -> Result<fn(c_int, *const c_char), QuakeLiveEngineError> {
         let Some(static_functions) = self.static_functions.get() else {
             return Err(QuakeLiveEngineError::StaticFunctionNotFound(
@@ -1144,6 +1162,7 @@ impl QuakeLiveEngine {
         Ok(static_functions.sv_getconfigstring_orig)
     }
 
+    #[cfg_attr(test, allow(dead_code))]
     fn sv_dropclient_orig(&self) -> Result<fn(*mut client_t, *const c_char), QuakeLiveEngineError> {
         let Some(static_functions) = self.static_functions.get() else {
             return Err(QuakeLiveEngineError::StaticFunctionNotFound(
@@ -1153,6 +1172,7 @@ impl QuakeLiveEngine {
         Ok(static_functions.sv_dropclient_orig)
     }
 
+    #[cfg_attr(test, allow(dead_code))]
     fn sys_setmoduleoffset_orig(
         &self,
     ) -> Result<fn(*const c_char, unsafe extern "C" fn()), QuakeLiveEngineError> {
@@ -1164,6 +1184,7 @@ impl QuakeLiveEngine {
         Ok(static_functions.sys_setmoduleoffset_orig)
     }
 
+    #[cfg_attr(test, allow(dead_code))]
     fn sv_spawnserver_orig(&self) -> Result<fn(*const c_char, qboolean), QuakeLiveEngineError> {
         let Some(static_functions) = self.static_functions.get() else {
             return Err(QuakeLiveEngineError::StaticFunctionNotFound(
@@ -1914,6 +1935,8 @@ impl<T: AsMut<gentity_t>> StartKamikaze<T> for QuakeLiveEngine {
 #[cfg(test)]
 mockall::mock! {
     pub(crate) QuakeEngine{
+        pub(crate) fn search_static_functions(&self) -> Result<(), QuakeLiveEngineError>;
+        pub(crate) fn hook_static(&self) -> Result<(), QuakeLiveEngineError>;
         pub(crate) fn is_common_initialized(&self) -> bool;
         pub(crate) fn get_max_clients(&self) -> i32;
         pub(crate) fn initialize_static(&self) -> Result<(), QuakeLiveEngineError>;

@@ -1,10 +1,8 @@
-#[cfg(test)]
-use crate::ffi::python::DUMMY_MAIN_ENGINE as MAIN_ENGINE;
 use crate::prelude::*;
-#[cfg(not(test))]
 use crate::MAIN_ENGINE;
 
 use crate::ffi::python::Holdable;
+
 use pyo3::exceptions::{PyEnvironmentError, PyValueError};
 use pyo3::{pyfunction, PyResult, Python};
 

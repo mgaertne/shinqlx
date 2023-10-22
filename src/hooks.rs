@@ -12,29 +12,16 @@ use crate::ffi::python::mock_python_tests::{
     frame_dispatcher, kamikaze_explode_dispatcher, kamikaze_use_dispatcher, new_game_dispatcher,
     server_command_dispatcher, set_configstring_dispatcher,
 };
-#[cfg(test)]
-use crate::hooks::DUMMY_MAIN_ENGINE as MAIN_ENGINE;
 use crate::prelude::*;
-#[cfg(test)]
-use crate::quake_live_engine::MockQuakeEngine as QuakeLiveEngine;
 use crate::quake_live_engine::{
     AddCommand, ClientConnect, ClientEnterWorld, ClientSpawn, ComPrintf, ExecuteClientCommand,
     InitGame, RegisterDamage, RunFrame, SendServerCommand, SetConfigstring, SetModuleOffset,
     ShutdownGame, SpawnServer,
 };
-#[cfg(not(test))]
 use crate::MAIN_ENGINE;
 use alloc::string::String;
 use core::borrow::BorrowMut;
 use core::ffi::{c_char, c_int, CStr, VaList, VaListImpl};
-#[cfg(test)]
-use once_cell::sync::Lazy;
-#[cfg(test)]
-use swap_arc::SwapArcOption;
-
-#[cfg(test)]
-static DUMMY_MAIN_ENGINE: Lazy<SwapArcOption<QuakeLiveEngine>> =
-    Lazy::new(|| SwapArcOption::new(None));
 
 pub(crate) fn shinqlx_cmd_addcommand(cmd: *const c_char, func: unsafe extern "C" fn()) {
     let Some(ref main_engine) = *MAIN_ENGINE.load() else {
@@ -107,6 +94,7 @@ pub(crate) fn shinqlx_g_shutdowngame(restart: c_int) {
     main_engine.shutdown_game(restart);
 }
 
+#[cfg_attr(test, allow(dead_code))]
 pub(crate) fn shinqlx_sv_executeclientcommand(
     client: *mut client_t,
     cmd: *const c_char,
@@ -249,6 +237,7 @@ pub(crate) fn shinqlx_sv_cliententerworld(client: *mut client_t, cmd: *mut userc
     }
 }
 
+#[cfg_attr(test, allow(dead_code))]
 pub(crate) fn shinqlx_sv_setconfigstring(index: c_int, value: *const c_char) {
     let safe_value = if !value.is_null() {
         unsafe { CStr::from_ptr(value) }.to_string_lossy()
@@ -293,6 +282,7 @@ where
     main_engine.set_configstring(c_index, res);
 }
 
+#[cfg_attr(test, allow(dead_code))]
 pub(crate) fn shinqlx_sv_dropclient(client: *mut client_t, reason: *const c_char) {
     let Ok(mut safe_client) = Client::try_from(client) else {
         return;

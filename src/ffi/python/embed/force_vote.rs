@@ -1,8 +1,5 @@
 use crate::ffi::c::CurrentLevel;
-#[cfg(test)]
-use crate::ffi::python::DUMMY_MAIN_ENGINE as MAIN_ENGINE;
 use crate::prelude::*;
-#[cfg(not(test))]
 use crate::MAIN_ENGINE;
 
 use pyo3::exceptions::PyEnvironmentError;

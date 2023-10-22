@@ -1,19 +1,10 @@
 #[cfg(test)]
-use crate::ffi::c::current_level::DUMMY_MAIN_ENGINE as MAIN_ENGINE;
-#[cfg(test)]
 use crate::hooks::mock_hooks::shinqlx_set_configstring;
 #[cfg(not(test))]
 use crate::hooks::shinqlx_set_configstring;
 use crate::prelude::*;
-#[cfg(test)]
-use crate::quake_live_engine::MockQuakeEngine as QuakeLiveEngine;
-#[cfg(not(test))]
 use crate::MAIN_ENGINE;
 use core::ffi::c_char;
-
-#[cfg(test)]
-static DUMMY_MAIN_ENGINE: once_cell::sync::Lazy<swap_arc::SwapArcOption<QuakeLiveEngine>> =
-    once_cell::sync::Lazy::new(|| swap_arc::SwapArcOption::new(None));
 
 #[derive(Debug, PartialEq)]
 #[repr(transparent)]
