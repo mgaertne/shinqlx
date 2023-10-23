@@ -87,8 +87,27 @@ impl Powerups {
 #[cfg(not(miri))]
 mod powerups_tests {
     use crate::ffi::python::pyminqlx_setup_fixture::*;
+    use crate::ffi::python::Powerups;
+    use pretty_assertions::assert_eq;
+    use pyo3::exceptions::{PyTypeError, PyValueError};
     use pyo3::Python;
     use rstest::rstest;
+
+    #[test]
+    fn powerups_from_integer_array() {
+        assert_eq!(
+            Powerups::from([1, 2, 3, 4, 5, 6]),
+            Powerups(1, 2, 3, 4, 5, 6)
+        );
+    }
+
+    #[test]
+    fn powerups_into_integer_array() {
+        assert_eq!(
+            <Powerups as Into<[i32; 6]>>::into(Powerups(1, 2, 3, 4, 5, 6)),
+            [1, 2, 3, 4, 5, 6]
+        );
+    }
 
     #[rstest]
     fn powerups_can_be_created_from_python(_pyminqlx_setup: ()) {
@@ -96,7 +115,7 @@ mod powerups_tests {
             let powerups_constructor = py.run(
                 r#"
 import _minqlx
-weapons = _minqlx.Powerups((0, 1, 2, 3, 4, 5))
+powerups = _minqlx.Powerups((0, 1, 2, 3, 4, 5))
             "#,
                 None,
                 None,
@@ -107,5 +126,113 @@ weapons = _minqlx.Powerups((0, 1, 2, 3, 4, 5))
                 powerups_constructor.err().unwrap(),
             );
         });
+    }
+
+    #[rstest]
+    fn powerups_py_constructor_with_too_few_values(_pyminqlx_setup: ()) {
+        Python::with_gil(|py| {
+            let powerups_constructor = py.run(
+                r#"
+import _minqlx
+powerups = _minqlx.Powerups((0, 1, 2, 3, 4))
+            "#,
+                None,
+                None,
+            );
+            assert!(powerups_constructor.is_err_and(|err| err.is_instance_of::<PyValueError>(py)));
+        });
+    }
+
+    #[rstest]
+    fn powerups_py_constructor_with_too_many_values(_pyminqlx_setup: ()) {
+        Python::with_gil(|py| {
+            let powerups_constructor = py.run(
+                r#"
+import _minqlx
+powerups = _minqlx.Powerups((0, 1, 2, 3, 4, 5, 6))
+            "#,
+                None,
+                None,
+            );
+            assert!(powerups_constructor.is_err_and(|err| err.is_instance_of::<PyValueError>(py)));
+        });
+    }
+
+    #[rstest]
+    fn powerups_py_constructor_with_non_numeric_values(_pyminqlx_setup: ()) {
+        Python::with_gil(|py| {
+            let powerups_constructor = py.run(
+                r#"
+import _minqlx
+powerups = _minqlx.Powerups(("asdf", True, (1, 2, 3), [], {}, set()))
+            "#,
+                None,
+                None,
+            );
+            assert!(powerups_constructor.is_err_and(|err| err.is_instance_of::<PyValueError>(py)));
+        });
+    }
+
+    #[rstest]
+    fn powerups_can_be_compared_for_equality_in_python(_pyminqlx_setup: ()) {
+        let result = Python::with_gil(|py| {
+            py.run(
+                r#"
+import _minqlx
+assert(_minqlx.Powerups((0, 1, 2, 3, 4, 5)) == _minqlx.Powerups((0, 1, 2, 3, 4, 5)))
+            "#,
+                None,
+                None,
+            )
+        });
+        assert!(result.is_ok());
+    }
+
+    #[rstest]
+    fn powerups_can_be_compared_for_non_equality_in_python(_pyminqlx_setup: ()) {
+        let result = Python::with_gil(|py| {
+            py.run(
+                r#"
+import _minqlx
+assert(_minqlx.Powerups((0, 1, 2, 3, 4, 5)) != _minqlx.Powerups((5, 4, 3, 2, 1, 0)))
+            "#,
+                None,
+                None,
+            )
+        });
+        assert!(result.is_ok());
+    }
+
+    #[rstest]
+    fn powerups_can_not_be_compared_for_lower_in_python(_pyminqlx_setup: ()) {
+        Python::with_gil(|py| {
+            let result = py.run(
+                r#"
+import _minqlx
+assert(_minqlx.Powerups((0, 1, 2, 3, 4, 5)) < _minqlx.Powerups((5, 4, 3, 2, 1, 0)))
+            "#,
+                None,
+                None,
+            );
+            assert!(result.is_err_and(|err| err.is_instance_of::<PyTypeError>(py)));
+        });
+    }
+
+    #[test]
+    fn powerups_to_str() {
+        let powerups = Powerups(1, 2, 3, 4, 5, 6);
+        assert_eq!(
+            powerups.__str__(),
+            "Powerups(quad=1, battlesuit=2, haste=3, invisibility=4, regeneration=5, invulnerability=6)"
+        );
+    }
+
+    #[test]
+    fn powerups_repr() {
+        let powerups = Powerups(1, 2, 3, 4, 5, 6);
+        assert_eq!(
+            powerups.__repr__(),
+            "Powerups(quad=1, battlesuit=2, haste=3, invisibility=4, regeneration=5, invulnerability=6)"
+        );
     }
 }
