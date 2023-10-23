@@ -130,8 +130,16 @@ impl GameItem {
 #[cfg(test)]
 mockall::mock! {
     pub(crate) GameItem {
-        fn get_mocked_item_list() -> *mut gitem_t;
+        pub(crate) fn get_mocked_item_list() -> *mut gitem_t;
+        pub(crate) fn get_num_items() -> i32;
+        pub(crate) fn spawn(&mut self, _origin: (i32, i32, i32));
     }
+
+    impl TryFrom<i32> for GameItem {
+        type Error = QuakeLiveEngineError;
+        fn try_from(_item_id: i32) -> Result<Self, QuakeLiveEngineError> {}
+    }
+
 }
 
 #[cfg(test)]
