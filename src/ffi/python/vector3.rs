@@ -240,7 +240,7 @@ assert(_minqlx.Vector3((0, 1, 2)) < _minqlx.Vector3((2, 1, 0)))
                 r#"
 import _minqlx
 vector3 = _minqlx.Vector3((0, 1, 2))
-vec_iter = iter(vector3)
+vec_iter = iter(iter(vector3))
 assert(next(vec_iter) == 0)
 assert(next(vec_iter) == 1)
 assert(next(vec_iter) == 2)
