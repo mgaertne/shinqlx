@@ -93,12 +93,19 @@ impl From<(f32, f32, f32)> for Vector3 {
 }
 
 #[cfg(test)]
-#[cfg(not(miri))]
 mod vector3_tests {
+    use super::Vector3;
+    #[cfg(not(miri))]
     use crate::ffi::python::pyminqlx_setup_fixture::*;
+    use pretty_assertions::assert_eq;
+    #[cfg(not(miri))]
+    use pyo3::exceptions::{PyTypeError, PyValueError};
+    #[cfg(not(miri))]
     use pyo3::Python;
+    #[cfg(not(miri))]
     use rstest::rstest;
 
+    #[cfg(not(miri))]
     #[rstest]
     fn vector3_tuple_test(_pyminqlx_setup: ()) {
         Python::with_gil(|py| {
@@ -109,6 +116,7 @@ mod vector3_tests {
         });
     }
 
+    #[cfg(not(miri))]
     #[rstest]
     fn vector3_can_be_created_from_python(_pyminqlx_setup: ()) {
         Python::with_gil(|py| {
@@ -126,5 +134,142 @@ weapons = _minqlx.Vector3((0, 42, 666))
                 vector3_constructor.err().unwrap()
             );
         });
+    }
+
+    #[cfg(not(miri))]
+    #[rstest]
+    fn vector3_py_constructor_with_too_few_values(_pyminqlx_setup: ()) {
+        Python::with_gil(|py| {
+            let vector3_constructor = py.run(
+                r#"
+import _minqlx
+powerups = _minqlx.Vector3((0, 1))
+            "#,
+                None,
+                None,
+            );
+            assert!(vector3_constructor.is_err_and(|err| err.is_instance_of::<PyValueError>(py)));
+        });
+    }
+
+    #[cfg(not(miri))]
+    #[rstest]
+    fn vector3_py_constructor_with_too_many_values(_pyminqlx_setup: ()) {
+        Python::with_gil(|py| {
+            let vector3_constructor = py.run(
+                r#"
+import _minqlx
+powerups = _minqlx.Vector3((0, 1, 2, 3))
+            "#,
+                None,
+                None,
+            );
+            assert!(vector3_constructor.is_err_and(|err| err.is_instance_of::<PyValueError>(py)));
+        });
+    }
+
+    #[cfg(not(miri))]
+    #[rstest]
+    fn vector3_py_constructor_with_non_numeric_values(_pyminqlx_setup: ()) {
+        Python::with_gil(|py| {
+            let vector3_constructor = py.run(
+                r#"
+import _minqlx
+powerups = _minqlx.Vector3(("asdf", True, (1, 2, 3)))
+            "#,
+                None,
+                None,
+            );
+            assert!(vector3_constructor.is_err_and(|err| err.is_instance_of::<PyValueError>(py)));
+        });
+    }
+
+    #[cfg(not(miri))]
+    #[rstest]
+    fn vector3_can_be_compared_for_equality_in_python(_pyminqlx_setup: ()) {
+        let result = Python::with_gil(|py| {
+            py.run(
+                r#"
+import _minqlx
+assert(_minqlx.Vector3((0, 1, 2)) == _minqlx.Vector3((0, 1, 2)))
+            "#,
+                None,
+                None,
+            )
+        });
+        assert!(result.is_ok());
+    }
+
+    #[cfg(not(miri))]
+    #[rstest]
+    fn vector3_can_be_compared_for_non_equality_in_python(_pyminqlx_setup: ()) {
+        let result = Python::with_gil(|py| {
+            py.run(
+                r#"
+import _minqlx
+assert(_minqlx.Vector3((0, 1, 2)) != _minqlx.Vector3((2, 1, 0)))
+            "#,
+                None,
+                None,
+            )
+        });
+        assert!(result.is_ok());
+    }
+
+    #[cfg(not(miri))]
+    #[rstest]
+    fn vector3_can_not_be_compared_for_lower_in_python(_pyminqlx_setup: ()) {
+        Python::with_gil(|py| {
+            let result = py.run(
+                r#"
+import _minqlx
+assert(_minqlx.Vector3((0, 1, 2)) < _minqlx.Vector3((2, 1, 0)))
+            "#,
+                None,
+                None,
+            );
+            assert!(result.is_err_and(|err| err.is_instance_of::<PyTypeError>(py)));
+        });
+    }
+
+    #[cfg(not(miri))]
+    #[rstest]
+    fn vector3_can_be_iterated_over_in_python(_pyminqlx_setup: ()) {
+        let result = Python::with_gil(|py| {
+            py.run(
+                r#"
+import _minqlx
+vector3 = _minqlx.Vector3((0, 1, 2))
+vec_iter = iter(vector3)
+assert(next(vec_iter) == 0)
+assert(next(vec_iter) == 1)
+assert(next(vec_iter) == 2)
+try:
+    next(vec_iter)
+except StopIteration:
+    pass
+            "#,
+                None,
+                None,
+            )
+        });
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn vector3_to_str() {
+        let vector3 = Vector3(1, 2, 3);
+        assert_eq!(vector3.__str__(), "Vector3(x=1, y=2, z=3)");
+    }
+
+    #[test]
+    fn vector3_repr() {
+        let vector3 = Vector3(1, 2, 3);
+        assert_eq!(vector3.__repr__(), "Vector3(x=1, y=2, z=3)");
+    }
+
+    #[test]
+    fn vector3_from_tuple() {
+        assert_eq!(Vector3::from((1.0, 2.0, 3.0)), Vector3(1, 2, 3));
     }
 }
