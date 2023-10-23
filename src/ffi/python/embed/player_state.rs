@@ -38,11 +38,10 @@ pub(crate) fn minqlx_player_state(py: Python<'_>, client_id: i32) -> PyResult<Op
 #[cfg(not(miri))]
 mod player_state_tests {
     use super::minqlx_player_state;
-    use super::PlayerState;
     use super::MAIN_ENGINE;
     use crate::ffi::c::game_client::MockGameClient;
     use crate::ffi::c::game_entity::MockGameEntity;
-    use crate::ffi::python::{Flight, Holdable, Powerups, Vector3, Weapons};
+    use crate::ffi::python::{Flight, Holdable, PlayerState, Powerups, Vector3, Weapons};
     use crate::prelude::*;
     use crate::quake_live_engine::MockQuakeEngine;
     use mockall::predicate;

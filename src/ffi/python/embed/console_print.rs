@@ -18,7 +18,7 @@ pub(crate) fn minqlx_console_print(py: Python<'_>, text: &str) {
 #[cfg(test)]
 #[cfg(not(miri))]
 mod console_print_tests {
-    use super::minqlx_console_print as py_console_print;
+    use super::minqlx_console_print;
     use crate::hooks::mock_hooks::shinqlx_com_printf_context;
     use crate::prelude::*;
     use mockall::predicate;
@@ -26,12 +26,12 @@ mod console_print_tests {
 
     #[test]
     #[serial]
-    fn console_print() {
+    fn console_print_forwards_to_ql_engine() {
         let com_printf_ctx = shinqlx_com_printf_context();
         com_printf_ctx.expect().with(predicate::eq("asdf\n"));
 
         Python::with_gil(|py| {
-            py_console_print(py, "asdf");
+            minqlx_console_print(py, "asdf");
         });
     }
 }

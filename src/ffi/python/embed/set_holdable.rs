@@ -42,10 +42,11 @@ pub(crate) fn minqlx_set_holdable(py: Python<'_>, client_id: i32, holdable: i32)
 #[cfg(test)]
 #[cfg(not(miri))]
 mod set_holdable_tests {
+    use super::minqlx_set_holdable;
     use super::MAIN_ENGINE;
-    use super::{minqlx_set_holdable, Holdable};
     use crate::ffi::c::game_client::MockGameClient;
     use crate::ffi::c::game_entity::MockGameEntity;
+    use crate::ffi::python::Holdable;
     use crate::prelude::*;
     use crate::quake_live_engine::MockQuakeEngine;
     use mockall::predicate;
