@@ -52,8 +52,9 @@ pub(crate) fn minqlx_drop_holdable(py: Python<'_>, client_id: i32) -> PyResult<b
 #[cfg(test)]
 #[cfg(not(miri))]
 mod drop_holdable_tests {
+    use super::minqlx_drop_holdable;
+    use super::Holdable;
     use super::MAIN_ENGINE;
-    use super::{minqlx_drop_holdable, Holdable};
     use crate::ffi::c::game_client::MockGameClient;
     use crate::ffi::c::game_entity::MockGameEntity;
     use crate::prelude::*;

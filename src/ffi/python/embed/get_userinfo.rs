@@ -39,9 +39,10 @@ pub(crate) fn minqlx_get_userinfo(py: Python<'_>, client_id: i32) -> PyResult<Op
 #[cfg(test)]
 #[cfg(not(miri))]
 mod get_userinfo_tests {
+    use super::minqlx_get_userinfo;
     use super::MAIN_ENGINE;
-    use super::{minqlx_get_userinfo, ALLOW_FREE_CLIENT};
     use crate::ffi::c::client::MockClient;
+    use crate::ffi::python::ALLOW_FREE_CLIENT;
     use crate::prelude::*;
     use crate::quake_live_engine::MockQuakeEngine;
     use core::sync::atomic::Ordering;
