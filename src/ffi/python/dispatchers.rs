@@ -363,7 +363,7 @@ pub(crate) fn damage_dispatcher(
 
 #[cfg(test)]
 mod pyminqlx_dispatcher_tests {
-    use crate::ffi::python::dispatchers::{
+    use super::{
         client_command_dispatcher, client_connect_dispatcher, client_disconnect_dispatcher,
         client_loaded_dispatcher, client_spawn_dispatcher, console_print_dispatcher,
         damage_dispatcher, frame_dispatcher, kamikaze_explode_dispatcher, kamikaze_use_dispatcher,
