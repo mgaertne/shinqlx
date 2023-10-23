@@ -1,8 +1,4 @@
-use super::Flight;
-use super::Holdable;
-use super::Powerups;
-use super::Vector3;
-use super::Weapons;
+use crate::ffi::python::{Flight, Holdable, Powerups, Vector3, Weapons};
 use crate::prelude::*;
 use pyo3::prelude::*;
 
