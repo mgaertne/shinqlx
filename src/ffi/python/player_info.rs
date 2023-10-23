@@ -80,7 +80,6 @@ impl From<i32> for PlayerInfo {
 }
 
 #[cfg(test)]
-#[cfg(not(miri))]
 mod player_info_tests {
     use super::PlayerInfo;
     use crate::ffi::c::client::MockClient;
