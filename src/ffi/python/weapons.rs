@@ -253,6 +253,7 @@ mod ammo_tests {
         );
     }
 
+    #[cfg(not(miri))]
     #[rstest]
     fn ammo_can_be_created_from_python(_pyminqlx_setup: ()) {
         Python::with_gil(|py| {
