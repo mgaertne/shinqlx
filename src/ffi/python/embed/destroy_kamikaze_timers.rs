@@ -48,11 +48,6 @@ mod destroy_kamikaze_timers_tests {
                 let mut mock_game_entity = MockGameEntity::new();
                 mock_game_entity.expect_in_use().returning(|| false);
                 mock_game_entity.expect_get_health().returning(|| 0);
-                mock_game_entity.expect_get_game_client().returning(|| {
-                    let mut mock_game_client = MockGameClient::new();
-                    mock_game_client.expect_remove_kamikaze_flag().times(0);
-                    Ok(mock_game_client)
-                });
                 mock_game_entity
                     .expect_is_kamikaze_timer()
                     .returning(|| true);
@@ -64,6 +59,7 @@ mod destroy_kamikaze_timers_tests {
             let mut mock_game_entity = MockGameEntity::new();
             mock_game_entity.expect_in_use().returning(|| false);
             mock_game_entity.expect_get_health().returning(|| 42);
+            mock_game_entity.expect_get_game_client().times(0);
             mock_game_entity
                 .expect_get_game_client()
                 .returning(|| Err(QuakeLiveEngineError::MainEngineNotInitialized));
@@ -89,11 +85,7 @@ mod destroy_kamikaze_timers_tests {
                 let mut mock_game_entity = MockGameEntity::new();
                 mock_game_entity.expect_in_use().returning(|| true);
                 mock_game_entity.expect_get_health().returning(|| 42);
-                mock_game_entity.expect_get_game_client().returning(|| {
-                    let mut mock_game_client = MockGameClient::new();
-                    mock_game_client.expect_remove_kamikaze_flag().times(0);
-                    Ok(mock_game_client)
-                });
+                mock_game_entity.expect_get_game_client().times(0);
                 mock_game_entity
                     .expect_is_kamikaze_timer()
                     .returning(|| false);
@@ -130,11 +122,7 @@ mod destroy_kamikaze_timers_tests {
                 let mut mock_game_entity = MockGameEntity::new();
                 mock_game_entity.expect_in_use().returning(|| true);
                 mock_game_entity.expect_get_health().returning(|| 42);
-                mock_game_entity.expect_get_game_client().returning(|| {
-                    let mut mock_game_client = MockGameClient::new();
-                    mock_game_client.expect_remove_kamikaze_flag().times(0);
-                    Ok(mock_game_client)
-                });
+                mock_game_entity.expect_get_game_client().times(0);
                 mock_game_entity
                     .expect_is_kamikaze_timer()
                     .returning(|| true);
