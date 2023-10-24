@@ -74,3 +74,173 @@ pub(crate) fn minqlx_dev_print_items(py: Python<'_>) -> PyResult<()> {
         Ok(())
     })
 }
+
+#[cfg(test)]
+#[cfg(not(miri))]
+mod dev_print_items_tests {
+    use super::minqlx_dev_print_items;
+    use crate::ffi::c::game_entity::MockGameEntity;
+    use crate::prelude::*;
+    use crate::quake_live_engine::MockQuakeEngine;
+    use crate::MAIN_ENGINE;
+    use mockall::predicate;
+    use pyo3::exceptions::PyEnvironmentError;
+    use pyo3::prelude::*;
+
+    #[test]
+    #[serial]
+    fn dev_print_items_with_no_main_engine() {
+        MAIN_ENGINE.store(None);
+
+        let game_entity_from_ctx = MockGameEntity::from_context();
+        game_entity_from_ctx
+            .expect()
+            .with(predicate::eq(2))
+            .returning(|_| {
+                let mut mock_game_entity = MockGameEntity::new();
+                mock_game_entity.expect_in_use().returning(|| false);
+                mock_game_entity
+                    .expect_is_game_item()
+                    .with(predicate::eq(entityType_t::ET_ITEM))
+                    .returning(|_| true);
+                mock_game_entity
+            });
+        game_entity_from_ctx.expect().returning(|_| {
+            let mut mock_game_entity = MockGameEntity::new();
+            mock_game_entity.expect_in_use().returning(|| false);
+            mock_game_entity
+                .expect_is_game_item()
+                .with(predicate::eq(entityType_t::ET_ITEM))
+                .returning(|_| false);
+            mock_game_entity
+        });
+
+        Python::with_gil(|py| {
+            let result = minqlx_dev_print_items(py);
+            assert!(result.is_err_and(|err| err.is_instance_of::<PyEnvironmentError>(py)));
+        });
+    }
+
+    #[test]
+    #[serial]
+    fn dev_print_items_for_unused_game_item() {
+        let mut mock_engine = MockQuakeEngine::new();
+        mock_engine
+            .expect_send_server_command()
+            .withf(|opt_client, cmd| {
+                opt_client.is_none() && cmd == "print \"No items found in the map\n\""
+            })
+            .times(1);
+        MAIN_ENGINE.store(Some(mock_engine.into()));
+
+        let game_entity_from_ctx = MockGameEntity::from_context();
+        game_entity_from_ctx
+            .expect()
+            .with(predicate::eq(2))
+            .returning(|_| {
+                let mut mock_game_entity = MockGameEntity::new();
+                mock_game_entity.expect_in_use().returning(|| false);
+                mock_game_entity
+                    .expect_is_game_item()
+                    .with(predicate::eq(entityType_t::ET_ITEM))
+                    .returning(|_| true);
+                mock_game_entity
+            });
+        game_entity_from_ctx.expect().returning(|_| {
+            let mut mock_game_entity = MockGameEntity::new();
+            mock_game_entity.expect_in_use().returning(|| false);
+            mock_game_entity
+                .expect_is_game_item()
+                .with(predicate::eq(entityType_t::ET_ITEM))
+                .returning(|_| false);
+            mock_game_entity
+        });
+
+        let result = Python::with_gil(|py| minqlx_dev_print_items(py));
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    #[serial]
+    fn dev_print_items_for_non_et_item() {
+        let mut mock_engine = MockQuakeEngine::new();
+        mock_engine
+            .expect_send_server_command()
+            .withf(|opt_client, cmd| {
+                opt_client.is_none() && cmd == "print \"No items found in the map\n\""
+            })
+            .times(1);
+        MAIN_ENGINE.store(Some(mock_engine.into()));
+
+        let game_entity_from_ctx = MockGameEntity::from_context();
+        game_entity_from_ctx
+            .expect()
+            .with(predicate::eq(2))
+            .returning(|_| {
+                let mut mock_game_entity = MockGameEntity::new();
+                mock_game_entity.expect_in_use().returning(|| true);
+                mock_game_entity
+                    .expect_is_game_item()
+                    .with(predicate::eq(entityType_t::ET_ITEM))
+                    .returning(|_| false);
+                mock_game_entity
+            });
+        game_entity_from_ctx.expect().returning(|_| {
+            let mut mock_game_entity = MockGameEntity::new();
+            mock_game_entity.expect_in_use().returning(|| false);
+            mock_game_entity
+                .expect_is_game_item()
+                .with(predicate::eq(entityType_t::ET_ITEM))
+                .returning(|_| false);
+            mock_game_entity
+        });
+
+        let result = Python::with_gil(|py| minqlx_dev_print_items(py));
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    #[serial]
+    fn dev_print_items_prints_single_item() {
+        let mut mock_engine = MockQuakeEngine::new();
+        mock_engine
+            .expect_send_server_command()
+            .withf(|opt_client, cmd| {
+                opt_client.is_none() && cmd == "print \"2 super important entity\n\""
+            })
+            .times(1);
+        MAIN_ENGINE.store(Some(mock_engine.into()));
+
+        let game_entity_from_ctx = MockGameEntity::from_context();
+        game_entity_from_ctx
+            .expect()
+            .with(predicate::eq(2))
+            .returning(|entity_id| {
+                let mut mock_game_entity = MockGameEntity::new();
+                mock_game_entity.expect_in_use().returning(|| true);
+                mock_game_entity
+                    .expect_is_game_item()
+                    .with(predicate::eq(entityType_t::ET_ITEM))
+                    .returning(|_| true);
+                mock_game_entity
+                    .expect_get_entity_id()
+                    .returning(move || entity_id);
+                mock_game_entity
+                    .expect_get_classname()
+                    .returning(|| "super important entity".into());
+                mock_game_entity
+            });
+        game_entity_from_ctx.expect().returning(|_| {
+            let mut mock_game_entity = MockGameEntity::new();
+            mock_game_entity.expect_in_use().returning(|| false);
+            mock_game_entity
+                .expect_is_game_item()
+                .with(predicate::eq(entityType_t::ET_ITEM))
+                .returning(|_| false);
+            mock_game_entity
+        });
+
+        let result = Python::with_gil(|py| minqlx_dev_print_items(py));
+        assert!(result.is_ok());
+    }
+}
