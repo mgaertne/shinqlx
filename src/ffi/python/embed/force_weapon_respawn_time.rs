@@ -41,7 +41,7 @@ mod force_weapon_respawn_time_tests {
         Python::with_gil(|py| {
             let result = minqlx_force_weapon_respawn_time(py, -1);
             assert!(result.is_err_and(|err| err.is_instance_of::<PyValueError>(py)));
-        })
+        });
     }
 
     #[test]
