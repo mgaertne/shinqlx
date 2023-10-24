@@ -53,7 +53,7 @@ mod remove_dropped_items_tests {
             mock_game_entity
         });
 
-        let result = Python::with_gil(|py| minqlx_remove_dropped_items(py));
+        let result = Python::with_gil(minqlx_remove_dropped_items);
         assert!(result.is_ok_and(|value| value));
     }
 
@@ -83,7 +83,7 @@ mod remove_dropped_items_tests {
             mock_game_entity
         });
 
-        let result = Python::with_gil(|py| minqlx_remove_dropped_items(py));
+        let result = Python::with_gil(minqlx_remove_dropped_items);
         assert!(result.is_ok_and(|value| value));
     }
 
@@ -115,7 +115,7 @@ mod remove_dropped_items_tests {
             mock_game_entity
         });
 
-        let result = Python::with_gil(|py| minqlx_remove_dropped_items(py));
+        let result = Python::with_gil(minqlx_remove_dropped_items);
         assert!(result.is_ok_and(|value| value));
     }
 
@@ -132,7 +132,7 @@ mod remove_dropped_items_tests {
             mock_game_entity
         });
 
-        let result = Python::with_gil(|py| minqlx_remove_dropped_items(py));
+        let result = Python::with_gil(minqlx_remove_dropped_items);
         assert!(result.is_ok_and(|value| value));
     }
 }

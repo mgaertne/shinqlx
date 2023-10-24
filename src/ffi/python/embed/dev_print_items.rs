@@ -156,7 +156,7 @@ mod dev_print_items_tests {
             mock_game_entity
         });
 
-        let result = Python::with_gil(|py| minqlx_dev_print_items(py));
+        let result = Python::with_gil(minqlx_dev_print_items);
         assert!(result.is_ok());
     }
 
@@ -195,7 +195,7 @@ mod dev_print_items_tests {
             mock_game_entity
         });
 
-        let result = Python::with_gil(|py| minqlx_dev_print_items(py));
+        let result = Python::with_gil(minqlx_dev_print_items);
         assert!(result.is_ok());
     }
 
@@ -240,7 +240,7 @@ mod dev_print_items_tests {
             mock_game_entity
         });
 
-        let result = Python::with_gil(|py| minqlx_dev_print_items(py));
+        let result = Python::with_gil(minqlx_dev_print_items);
         assert!(result.is_ok());
     }
 
@@ -279,11 +279,11 @@ mod dev_print_items_tests {
                 .returning(move || entity_id);
             mock_game_entity
                 .expect_get_classname()
-                .returning(move || format!("super important entity {}", entity_id).into());
+                .returning(move || format!("super important entity {}", entity_id));
             mock_game_entity
         });
 
-        let result = Python::with_gil(|py| minqlx_dev_print_items(py));
+        let result = Python::with_gil(minqlx_dev_print_items);
         assert!(result.is_ok());
     }
 }
