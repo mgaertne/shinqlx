@@ -19,6 +19,7 @@ pub(crate) fn minqlx_remove_dropped_items(py: Python<'_>) -> PyResult<bool> {
 }
 
 #[cfg(test)]
+#[cfg(not(miri))]
 mod remove_dropped_items_tests {
     use super::minqlx_remove_dropped_items;
     use crate::ffi::c::game_entity::MockGameEntity;
