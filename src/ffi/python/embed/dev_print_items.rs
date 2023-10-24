@@ -243,4 +243,47 @@ mod dev_print_items_tests {
         let result = Python::with_gil(|py| minqlx_dev_print_items(py));
         assert!(result.is_ok());
     }
+
+    #[test]
+    #[serial]
+    fn dev_print_items_with_too_many_items_notifies_players_and_prints_remaining_items() {
+        let mut mock_engine = MockQuakeEngine::new();
+        mock_engine
+            .expect_send_server_command()
+            .withf(|opt_client, cmd| {
+                opt_client.is_none()
+                    && cmd.starts_with(
+                        "print \"0 super important entity 0\n1 super important entity 1\n",
+                    )
+            })
+            .times(1);
+        mock_engine
+            .expect_send_server_command()
+            .withf(|opt_client, cmd| {
+                opt_client.is_none() && cmd == "print \"Check server console for other items\n\"\n"
+            })
+            .times(1);
+        mock_engine.expect_com_printf().times(1..);
+        MAIN_ENGINE.store(Some(mock_engine.into()));
+
+        let game_entity_from_ctx = MockGameEntity::from_context();
+        game_entity_from_ctx.expect().returning(|entity_id| {
+            let mut mock_game_entity = MockGameEntity::new();
+            mock_game_entity.expect_in_use().returning(|| true);
+            mock_game_entity
+                .expect_is_game_item()
+                .with(predicate::eq(entityType_t::ET_ITEM))
+                .returning(|_| true);
+            mock_game_entity
+                .expect_get_entity_id()
+                .returning(move || entity_id);
+            mock_game_entity
+                .expect_get_classname()
+                .returning(move || format!("super important entity {}", entity_id).into());
+            mock_game_entity
+        });
+
+        let result = Python::with_gil(|py| minqlx_dev_print_items(py));
+        assert!(result.is_ok());
+    }
 }
