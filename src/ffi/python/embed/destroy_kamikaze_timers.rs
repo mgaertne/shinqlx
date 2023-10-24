@@ -70,7 +70,7 @@ mod destroy_kamikaze_timers_tests {
             mock_game_entity
         });
 
-        let result = Python::with_gil(|py| minqlx_destroy_kamikaze_timers(py));
+        let result = Python::with_gil(minqlx_destroy_kamikaze_timers);
         assert!(result.is_ok_and(|value| value));
     }
 
@@ -107,7 +107,7 @@ mod destroy_kamikaze_timers_tests {
             mock_game_entity
         });
 
-        let result = Python::with_gil(|py| minqlx_destroy_kamikaze_timers(py));
+        let result = Python::with_gil(minqlx_destroy_kamikaze_timers);
         assert!(result.is_ok_and(|value| value));
     }
 
@@ -144,7 +144,7 @@ mod destroy_kamikaze_timers_tests {
             mock_game_entity
         });
 
-        let result = Python::with_gil(|py| minqlx_destroy_kamikaze_timers(py));
+        let result = Python::with_gil(minqlx_destroy_kamikaze_timers);
         assert!(result.is_ok_and(|value| value));
     }
 
@@ -183,7 +183,7 @@ mod destroy_kamikaze_timers_tests {
             mock_game_entity
         });
 
-        let result = Python::with_gil(|py| minqlx_destroy_kamikaze_timers(py));
+        let result = Python::with_gil(minqlx_destroy_kamikaze_timers);
         assert!(result.is_ok_and(|value| value));
     }
 
@@ -207,7 +207,7 @@ mod destroy_kamikaze_timers_tests {
             mock_game_entity
         });
 
-        let result = Python::with_gil(|py| minqlx_destroy_kamikaze_timers(py));
+        let result = Python::with_gil(minqlx_destroy_kamikaze_timers);
         assert!(result.is_ok_and(|value| value));
     }
 }

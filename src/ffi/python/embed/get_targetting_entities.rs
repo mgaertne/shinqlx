@@ -59,7 +59,7 @@ mod get_entity_targets_tests {
                 let mut mock_game_entity = MockGameEntity::new();
                 mock_game_entity
                     .expect_get_targetting_entity_ids()
-                    .returning(|| vec![]);
+                    .returning(Vec::new);
                 mock_game_entity
             })
             .times(1);

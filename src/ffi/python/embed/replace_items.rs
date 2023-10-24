@@ -22,8 +22,8 @@ fn determine_item_id(item: &PyAny) -> PyResult<i32> {
     };
 
     (1..GameItem::get_num_items())
-        .filter(|i| {
-            let game_item = GameItem::try_from(*i);
+        .filter(|&i| {
+            let game_item = GameItem::try_from(i);
             game_item.is_ok() && game_item.unwrap().get_classname() == item_classname
         })
         .take(1)
