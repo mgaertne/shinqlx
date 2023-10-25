@@ -29,7 +29,10 @@ pub(crate) use game_client::MockGameClient as GameClient;
 pub(crate) use game_entity::GameEntity;
 #[cfg(test)]
 pub(crate) use game_entity::MockGameEntity as GameEntity;
+#[cfg(not(test))]
 pub(crate) use game_item::GameItem;
+#[cfg(test)]
+pub(crate) use game_item::MockGameItem as GameItem;
 #[cfg(test)]
 pub(crate) use server_static::MockTestServerStatic as ServerStatic;
 #[cfg(not(test))]

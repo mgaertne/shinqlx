@@ -1,4 +1,3 @@
-use crate::ffi::c::GameItem;
 use crate::prelude::*;
 
 use pyo3::exceptions::PyValueError;
@@ -6,9 +5,9 @@ use pyo3::{pyfunction, Py, PyAny, PyResult, Python};
 
 fn determine_item_id(item: &PyAny) -> PyResult<i32> {
     if let Ok(item_id) = item.extract::<i32>() {
-        if item_id < 0 || item_id >= GameItem::get_num_items() {
+        if !(0..GameItem::get_num_items()).contains(&item_id) {
             return Err(PyValueError::new_err(format!(
-                "item_id needs to be between 0 and {}.",
+                "item2 needs to be between 0 and {}.",
                 GameItem::get_num_items() - 1
             )));
         }
@@ -17,7 +16,7 @@ fn determine_item_id(item: &PyAny) -> PyResult<i32> {
 
     let Ok(item_classname) = item.extract::<String>() else {
         return Err(PyValueError::new_err(
-            "item needs to be type of int or string.",
+            "item2 needs to be of type int or string.",
         ));
     };
 
@@ -50,10 +49,10 @@ pub(crate) fn minqlx_replace_items(
         // replacing item by entity_id
 
         // entity_id checking
-        if item1_id < 0 || item1_id >= MAX_GENTITIES as i32 {
+        if !(0..GameItem::get_num_items()).contains(&item1_id) {
             return Err(PyValueError::new_err(format!(
-                "entity_id need to be between 0 and {}.",
-                MAX_GENTITIES - 1
+                "item1 needs to be between 0 and {}.",
+                GameItem::get_num_items() - 1
             )));
         }
 
@@ -69,7 +68,7 @@ pub(crate) fn minqlx_replace_items(
                     }
                     if !game_entity.is_game_item(entityType_t::ET_ITEM) {
                         return Err(PyValueError::new_err(format!(
-                            "entity #{} is not item. Cannot replace it",
+                            "entity #{} is not a game item. Cannot replace it",
                             item1_id
                         )));
                     }
@@ -101,6 +100,72 @@ pub(crate) fn minqlx_replace_items(
     }
 
     Err(PyValueError::new_err(
-        "entity needs to be type of int or string.",
+        "item1 needs to be of type int or string.",
     ))
+}
+
+#[cfg(test)]
+#[cfg(not(miri))]
+mod replace_items_tests {
+    use super::minqlx_replace_items;
+    use crate::ffi::c::game_item::MockGameItem;
+    use crate::prelude::*;
+    use pyo3::exceptions::PyValueError;
+    use pyo3::prelude::*;
+
+    #[test]
+    #[serial]
+    fn replace_items_for_too_small_item1_id() {
+        let get_num_items_ctx = MockGameItem::get_num_items_context();
+        get_num_items_ctx.expect().returning(|| 42);
+
+        Python::with_gil(|py| {
+            let result = minqlx_replace_items(
+                py,
+                <i32 as IntoPy<Py<PyAny>>>::into_py(-1, py),
+                1.into_py(py),
+            );
+            assert!(result.is_err_and(|err| err.is_instance_of::<PyValueError>(py)));
+        });
+    }
+
+    #[test]
+    #[serial]
+    fn replace_items_for_too_large_item1_id() {
+        let get_num_items_ctx = MockGameItem::get_num_items_context();
+        get_num_items_ctx.expect().returning(|| 42);
+
+        Python::with_gil(|py| {
+            let result = minqlx_replace_items(py, 43.into_py(py), 1.into_py(py));
+            assert!(result.is_err_and(|err| err.is_instance_of::<PyValueError>(py)));
+        });
+    }
+
+    #[test]
+    #[serial]
+    fn replace_items_for_too_small_item2_id() {
+        let get_num_items_ctx = MockGameItem::get_num_items_context();
+        get_num_items_ctx.expect().returning(|| 42);
+
+        Python::with_gil(|py| {
+            let result = minqlx_replace_items(
+                py,
+                1.into_py(py),
+                <i32 as IntoPy<Py<PyAny>>>::into_py(-1, py),
+            );
+            assert!(result.is_err_and(|err| err.is_instance_of::<PyValueError>(py)));
+        });
+    }
+
+    #[test]
+    #[serial]
+    fn replace_items_for_too_large_item2_id() {
+        let get_num_items_ctx = MockGameItem::get_num_items_context();
+        get_num_items_ctx.expect().returning(|| 42);
+
+        Python::with_gil(|py| {
+            let result = minqlx_replace_items(py, 1.into_py(py), 43.into_py(py));
+            assert!(result.is_err_and(|err| err.is_instance_of::<PyValueError>(py)));
+        });
+    }
 }

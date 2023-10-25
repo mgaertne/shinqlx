@@ -1,5 +1,4 @@
 use crate::ffi::c::CurrentLevel;
-use crate::ffi::c::GameItem;
 use crate::hooks::shinqlx_set_configstring;
 use crate::prelude::*;
 use crate::quake_live_engine::{
@@ -312,7 +311,9 @@ impl GameEntity {
         let Ok(mut game_client) = self.get_game_client() else {
             return;
         };
-        let Ok(mut gitem) = GameItem::try_from(game_client.get_holdable()) else {
+        let Ok(mut gitem) =
+            crate::ffi::c::game_item::GameItem::try_from(game_client.get_holdable())
+        else {
             return;
         };
 
