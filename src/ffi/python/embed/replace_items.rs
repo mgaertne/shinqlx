@@ -196,15 +196,6 @@ mod replace_items_tests {
         let get_num_items_ctx = MockGameItem::get_num_items_context();
         get_num_items_ctx.expect().returning(|| 42);
 
-        let game_item_from_ctx = MockGameItem::from_context();
-        game_item_from_ctx.expect().returning(|_| {
-            let mut mock_game_item = MockGameItem::new();
-            mock_game_item
-                .expect_get_classname()
-                .returning(|| "available_classname".into());
-            mock_game_item
-        });
-
         let game_entity_from_ctx = MockGameEntity::from_context();
         game_entity_from_ctx.expect().returning(|_| {
             let mut mock_game_entity = MockGameEntity::new();
