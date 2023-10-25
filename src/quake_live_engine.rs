@@ -3,8 +3,6 @@ use crate::commands::{
     cmd_send_server_command, cmd_slap, cmd_slay,
 };
 use crate::ffi::c::CVar;
-#[cfg(test)]
-use crate::ffi::c::GameItem;
 use crate::ffi::python::{pyminqlx_initialize, PythonInitializationError};
 use crate::hooks::{
     shinqlx_client_connect, shinqlx_clientspawn, shinqlx_cmd_addcommand, shinqlx_g_damage,
@@ -2007,8 +2005,8 @@ mockall::mock! {
         #[allow(clippy::too_many_arguments)]
         fn register_damage(&self, target: *mut gentity_t, inflictor: *mut gentity_t, attacker: *mut gentity_t, dir: *mut vec3_t, pos: *mut vec3_t, damage: c_int, dflags: c_int, means_of_death: c_int);
     }
-    impl TryLaunchItem<&mut GameItem> for QuakeEngine {
-        fn try_launch_item<'a>(&self, gitem: &'a mut GameItem, origin: &mut vec3_t, velocity: &mut vec3_t) -> Result<GameEntity, QuakeLiveEngineError>;
+    impl TryLaunchItem<&mut crate::ffi::c::game_item::GameItem> for QuakeEngine {
+        fn try_launch_item<'a>(&self, gitem: &'a mut crate::ffi::c::game_item::GameItem, origin: &mut vec3_t, velocity: &mut vec3_t) -> Result<GameEntity, QuakeLiveEngineError>;
     }
     impl GameAddEvent<&mut GameEntity, i32> for QuakeEngine {
         fn game_add_event(&self, game_entity: &mut GameEntity, event: entity_event_t, event_param: i32);

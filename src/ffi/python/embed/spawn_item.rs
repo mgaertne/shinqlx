@@ -1,7 +1,4 @@
-#[cfg(test)]
-use crate::ffi::c::game_item::MockGameItem as GameItem;
-#[cfg(not(test))]
-use crate::ffi::c::GameItem;
+use crate::prelude::*;
 use pyo3::exceptions::PyValueError;
 use pyo3::{pyfunction, PyResult, Python};
 
@@ -73,8 +70,8 @@ mod spawn_item_tests {
         let get_num_item_ctx = MockGameItem::get_num_items_context();
         get_num_item_ctx.expect().returning(|| 64);
 
-        let item_try_from_ctx = MockGameItem::try_from_context();
-        item_try_from_ctx
+        let item_from_ctx = MockGameItem::from_context();
+        item_from_ctx
             .expect()
             .with(predicate::eq(42))
             .returning(|_| {
@@ -83,7 +80,7 @@ mod spawn_item_tests {
                     .expect_spawn()
                     .with(predicate::eq((1, 2, 3)))
                     .times(1);
-                Ok(mock_item)
+                mock_item
             });
 
         let result = Python::with_gil(|py| minqlx_spawn_item(py, 42, 1, 2, 3));
