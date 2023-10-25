@@ -22,8 +22,7 @@ fn determine_item_id(item: &PyAny) -> PyResult<i32> {
 
     (1..GameItem::get_num_items())
         .filter(|&i| {
-            let game_item = GameItem::try_from(i);
-            game_item.is_ok() && game_item.unwrap().get_classname() == item_classname
+            GameItem::try_from(i).is_ok_and(|game_item| game_item.get_classname() == item_classname)
         })
         .take(1)
         .next()
@@ -57,25 +56,21 @@ pub(crate) fn minqlx_replace_items(
         }
 
         return py.allow_threads(move || {
-            match GameEntity::try_from(item1_id) {
-                Err(_) => return Err(PyValueError::new_err("game entity does not exist")),
-                Ok(game_entity) => {
-                    if !game_entity.in_use() {
-                        return Err(PyValueError::new_err(format!(
-                            "entity #{} is not in use.",
-                            item1_id
-                        )));
-                    }
-                    if !game_entity.is_game_item(entityType_t::ET_ITEM) {
-                        return Err(PyValueError::new_err(format!(
-                            "entity #{} is not a game item. Cannot replace it",
-                            item1_id
-                        )));
-                    }
-                    let mut mut_game_entity = game_entity;
-                    mut_game_entity.replace_item(item2_id);
-                }
+            let mut opt_game_entity = GameEntity::try_from(item1_id).ok().filter(|game_entity| {
+                game_entity.in_use() && game_entity.is_game_item(entityType_t::ET_ITEM)
+            });
+
+            if opt_game_entity.is_none() {
+                return Err(PyValueError::new_err(format!(
+                    "entity #{} is not a valid game item",
+                    item1_id
+                )));
             }
+
+            opt_game_entity
+                .iter_mut()
+                .for_each(|game_entity| game_entity.replace_item(item2_id));
+
             Ok(true)
         });
     }
@@ -90,9 +85,11 @@ pub(crate) fn minqlx_replace_items(
                         && game_entity.get_classname() == item1_classname
                 })
                 .collect();
+
             matching_item1_entities
                 .iter_mut()
                 .for_each(|game_entity| game_entity.replace_item(item2_id));
+
             Ok(!matching_item1_entities.is_empty())
         });
     }
@@ -371,6 +368,203 @@ mod replace_items_tests {
 
         let result = Python::with_gil(|py| {
             minqlx_replace_items(py, 1.into_py(py), "weapon_bfg".into_py(py))
+        });
+        assert!(result.is_ok_and(|value| value));
+    }
+
+    #[test]
+    #[serial]
+    fn replace_items_replaces_item1_string_by_item2_clssname() {
+        let get_num_items_ctx = MockGameItem::get_num_items_context();
+        get_num_items_ctx.expect().returning(|| 42);
+
+        let game_item_from_ctx = MockGameItem::from_context();
+        game_item_from_ctx
+            .expect()
+            .with(predicate::eq(2))
+            .returning(|_| {
+                let mut mock_game_item = MockGameItem::new();
+                mock_game_item
+                    .expect_get_classname()
+                    .returning(|| "weapon_bfg".into());
+                mock_game_item
+            });
+        game_item_from_ctx.expect().returning(|_| {
+            let mut mock_game_item = MockGameItem::new();
+            mock_game_item
+                .expect_get_classname()
+                .returning(|| "available_classname".into());
+            mock_game_item
+        });
+
+        let game_entity_from_ctx = MockGameEntity::from_context();
+        game_entity_from_ctx
+            .expect()
+            .with(predicate::eq(1))
+            .returning(|_| {
+                let mut mock_game_entity = MockGameEntity::new();
+                mock_game_entity.expect_in_use().returning(|| false);
+                mock_game_entity
+                    .expect_is_game_item()
+                    .with(predicate::eq(entityType_t::ET_ITEM))
+                    .returning(|_| true);
+                mock_game_entity
+                    .expect_get_classname()
+                    .returning(|| "weapon_railgun".into());
+                mock_game_entity.expect_replace_item().times(0);
+                mock_game_entity
+            });
+        game_entity_from_ctx
+            .expect()
+            .with(predicate::eq(2))
+            .returning(|_| {
+                let mut mock_game_entity = MockGameEntity::new();
+                mock_game_entity.expect_in_use().returning(|| true);
+                mock_game_entity
+                    .expect_is_game_item()
+                    .with(predicate::eq(entityType_t::ET_ITEM))
+                    .returning(|_| false);
+                mock_game_entity
+                    .expect_get_classname()
+                    .returning(|| "weapon_railgun".into());
+                mock_game_entity.expect_replace_item().times(0);
+                mock_game_entity
+            });
+        game_entity_from_ctx
+            .expect()
+            .with(predicate::eq(3))
+            .returning(|_| {
+                let mut mock_game_entity = MockGameEntity::new();
+                mock_game_entity.expect_in_use().returning(|| true);
+                mock_game_entity
+                    .expect_is_game_item()
+                    .with(predicate::eq(entityType_t::ET_ITEM))
+                    .returning(|_| true);
+                mock_game_entity
+                    .expect_get_classname()
+                    .returning(|| "weapon_shotgun".into());
+                mock_game_entity.expect_replace_item().times(0);
+                mock_game_entity
+            });
+        game_entity_from_ctx
+            .expect()
+            .with(predicate::eq(4))
+            .returning(|_| {
+                let mut mock_game_entity = MockGameEntity::new();
+                mock_game_entity.expect_in_use().returning(|| true);
+                mock_game_entity
+                    .expect_is_game_item()
+                    .with(predicate::eq(entityType_t::ET_ITEM))
+                    .returning(|_| true);
+                mock_game_entity
+                    .expect_get_classname()
+                    .returning(|| "weapon_railgun".into());
+                mock_game_entity
+                    .expect_replace_item()
+                    .with(predicate::eq(2))
+                    .times(1);
+                mock_game_entity
+            });
+        game_entity_from_ctx.expect().returning(|_| {
+            let mut mock_game_entity = MockGameEntity::new();
+            mock_game_entity.expect_in_use().returning(|| true);
+            mock_game_entity
+                .expect_is_game_item()
+                .with(predicate::eq(entityType_t::ET_ITEM))
+                .returning(|_| true);
+            mock_game_entity
+                .expect_get_classname()
+                .returning(|| "other_classname".into());
+            mock_game_entity.expect_replace_item().times(0);
+            mock_game_entity
+        });
+
+        let result = Python::with_gil(|py| {
+            minqlx_replace_items(py, "weapon_railgun".into_py(py), "weapon_bfg".into_py(py))
+        });
+        assert!(result.is_ok_and(|value| value));
+    }
+
+    #[test]
+    #[serial]
+    fn replace_items_replaces_item1_string_items_by_item2_clssname() {
+        let get_num_items_ctx = MockGameItem::get_num_items_context();
+        get_num_items_ctx.expect().returning(|| 42);
+
+        let game_item_from_ctx = MockGameItem::from_context();
+        game_item_from_ctx
+            .expect()
+            .with(predicate::eq(2))
+            .returning(|_| {
+                let mut mock_game_item = MockGameItem::new();
+                mock_game_item
+                    .expect_get_classname()
+                    .returning(|| "weapon_bfg".into());
+                mock_game_item
+            });
+        game_item_from_ctx.expect().returning(|_| {
+            let mut mock_game_item = MockGameItem::new();
+            mock_game_item
+                .expect_get_classname()
+                .returning(|| "available_classname".into());
+            mock_game_item
+        });
+
+        let game_entity_from_ctx = MockGameEntity::from_context();
+        game_entity_from_ctx
+            .expect()
+            .with(predicate::eq(1))
+            .returning(|_| {
+                let mut mock_game_entity = MockGameEntity::new();
+                mock_game_entity.expect_in_use().returning(|| true);
+                mock_game_entity
+                    .expect_is_game_item()
+                    .with(predicate::eq(entityType_t::ET_ITEM))
+                    .returning(|_| true);
+                mock_game_entity
+                    .expect_get_classname()
+                    .returning(|| "weapon_railgun".into());
+                mock_game_entity
+                    .expect_replace_item()
+                    .with(predicate::eq(2))
+                    .times(1);
+                mock_game_entity
+            });
+        game_entity_from_ctx
+            .expect()
+            .with(predicate::eq(42))
+            .returning(|_| {
+                let mut mock_game_entity = MockGameEntity::new();
+                mock_game_entity.expect_in_use().returning(|| true);
+                mock_game_entity
+                    .expect_is_game_item()
+                    .with(predicate::eq(entityType_t::ET_ITEM))
+                    .returning(|_| true);
+                mock_game_entity
+                    .expect_get_classname()
+                    .returning(|| "weapon_railgun".into());
+                mock_game_entity
+                    .expect_replace_item()
+                    .with(predicate::eq(2))
+                    .times(1);
+                mock_game_entity
+            });
+        game_entity_from_ctx.expect().returning(|_| {
+            let mut mock_game_entity = MockGameEntity::new();
+            mock_game_entity.expect_in_use().returning(|| true);
+            mock_game_entity
+                .expect_is_game_item()
+                .with(predicate::eq(entityType_t::ET_ITEM))
+                .returning(|_| true);
+            mock_game_entity
+                .expect_get_classname()
+                .returning(|| "other_classname".into());
+            mock_game_entity.expect_replace_item().times(0);
+            mock_game_entity
+        });
+
+        let result = Python::with_gil(|py| {
+            minqlx_replace_items(py, "weapon_railgun".into_py(py), "weapon_bfg".into_py(py))
         });
         assert!(result.is_ok_and(|value| value));
     }
