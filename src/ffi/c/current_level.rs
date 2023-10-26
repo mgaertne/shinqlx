@@ -112,12 +112,12 @@ mockall::mock! {
 mod current_level_tests {
     use super::CurrentLevel;
     use super::MAIN_ENGINE;
+    use crate::ffi::c::game_client::MockGameClient;
     use crate::ffi::c::game_entity::MockGameEntity;
     use crate::hooks::mock_hooks::*;
     use crate::prelude::*;
     use crate::quake_live_engine::MockQuakeEngine;
     use crate::quake_live_functions::QuakeLiveFunction::G_InitGame;
-    use alloc::vec::Vec;
     use core::ffi::CStr;
     use mockall::predicate;
     use pretty_assertions::assert_eq;
@@ -223,15 +223,7 @@ mod current_level_tests {
         let mut current_level = CurrentLevel::try_from(&mut level as *mut level_locals_t).unwrap();
         current_level.callvote("map thunderstruck", "map thunderstruck", None);
         assert_eq!(
-            CStr::from_bytes_until_nul(
-                &level
-                    .voteString
-                    .iter()
-                    .map(|c| *c as u8)
-                    .collect::<Vec<u8>>()
-            )
-            .unwrap()
-            .to_string_lossy(),
+            unsafe { CStr::from_ptr(level.voteString.as_ptr()) }.to_string_lossy(),
             ""
         );
     }
@@ -269,6 +261,18 @@ mod current_level_tests {
             .expect()
             .returning(|| ptr::null_mut() as *mut gentity_t);
         let game_entity_from_ctx = MockGameEntity::from_context();
+        game_entity_from_ctx
+            .expect()
+            .with(predicate::eq(2))
+            .returning(|_| {
+                let mut mock_entity = MockGameEntity::new();
+                mock_entity.expect_get_game_client().returning(|| {
+                    let mut mock_game_client = MockGameClient::new();
+                    mock_game_client.expect_set_vote_pending().times(1);
+                    Ok(mock_game_client)
+                });
+                mock_entity
+            });
         game_entity_from_ctx.expect().returning(|_| {
             let mut mock_entity = MockGameEntity::new();
             mock_entity
