@@ -119,6 +119,7 @@ mod current_level_tests {
     use crate::quake_live_functions::QuakeLiveFunction::G_InitGame;
     use alloc::vec::Vec;
     use core::ffi::CStr;
+    use mockall::predicate;
     use pretty_assertions::assert_eq;
 
     #[test]
@@ -243,7 +244,25 @@ mod current_level_tests {
         MAIN_ENGINE.store(Some(mock_engine.into()));
 
         let set_configstring_ctx = shinqlx_set_configstring_context();
-        set_configstring_ctx.expect();
+        set_configstring_ctx
+            .expect()
+            .with(
+                predicate::eq(CS_VOTE_STRING),
+                predicate::eq("map thunderstruck".to_string()),
+            )
+            .times(1);
+        set_configstring_ctx
+            .expect()
+            .with(predicate::eq(CS_VOTE_TIME), predicate::eq("42".to_string()))
+            .times(1);
+        set_configstring_ctx
+            .expect()
+            .with(predicate::eq(CS_VOTE_YES), predicate::eq("0".to_string()))
+            .times(1);
+        set_configstring_ctx
+            .expect()
+            .with(predicate::eq(CS_VOTE_NO), predicate::eq("0".to_string()))
+            .times(1);
 
         let get_entities_list_ctx = MockGameEntity::get_entities_list_context();
         get_entities_list_ctx
@@ -258,20 +277,19 @@ mod current_level_tests {
             mock_entity
         });
 
-        let mut level = LevelLocalsBuilder::default().build().unwrap();
+        let mut level = LevelLocalsBuilder::default().time(42).build().unwrap();
         let mut current_level = CurrentLevel::try_from(&mut level as *mut level_locals_t).unwrap();
         current_level.callvote("map thunderstruck", "map thunderstruck", None);
         assert_eq!(
-            CStr::from_bytes_until_nul(
-                &level
-                    .voteString
-                    .iter()
-                    .map(|c| *c as u8)
-                    .collect::<Vec<u8>>()
-            )
-            .unwrap()
-            .to_string_lossy(),
+            unsafe { CStr::from_ptr(level.voteString.as_ptr()) }.to_string_lossy(),
             "map thunderstruck"
         );
+        assert_eq!(
+            unsafe { CStr::from_ptr(level.voteDisplayString.as_ptr()) }.to_string_lossy(),
+            "map thunderstruck"
+        );
+        assert_eq!(level.voteTime, 42);
+        assert_eq!(level.voteYes, 0);
+        assert_eq!(level.voteNo, 0);
     }
 }
