@@ -1520,19 +1520,19 @@ impl<T: AsMut<client_t>, U: AsRef<str>, V: Into<qboolean>> ExecuteClientCommand<
     }
 }
 
-pub(crate) trait SendServerCommand<T: AsRef<client_t>, U: AsRef<str>> {
-    fn send_server_command(&self, client: Option<T>, command: U);
+pub(crate) trait SendServerCommand<T: AsRef<client_t>> {
+    fn send_server_command(&self, client: Option<T>, command: &str);
 }
 
-impl<T: AsRef<client_t>, U: AsRef<str>> SendServerCommand<T, U> for QuakeLiveEngine {
-    fn send_server_command(&self, client: Option<T>, command: U) {
+impl<T: AsRef<client_t>> SendServerCommand<T> for QuakeLiveEngine {
+    fn send_server_command(&self, client: Option<T>, command: &str) {
         let Ok(detour) = self.sv_sendservercommand_detour() else {
             return;
         };
         let original_func: extern "C" fn(*const client_t, *const c_char, ...) =
             unsafe { mem::transmute(detour.trampoline()) };
 
-        let Ok(c_command) = CString::new(command.as_ref()) else {
+        let Ok(c_command) = CString::new(command) else {
             return;
         };
         match client {
@@ -1556,13 +1556,13 @@ impl<T: AsMut<client_t>> ClientEnterWorld<T> for QuakeLiveEngine {
     }
 }
 
-pub(crate) trait SetConfigstring<T: Into<c_int>, U: AsRef<str>> {
-    fn set_configstring(&self, index: T, value: U);
+pub(crate) trait SetConfigstring<T: Into<c_int>> {
+    fn set_configstring(&self, index: T, value: &str);
 }
 
-impl<T: Into<c_int>, U: AsRef<str>> SetConfigstring<T, U> for QuakeLiveEngine {
-    fn set_configstring(&self, index: T, value: U) {
-        let Ok(c_value) = CString::new(value.as_ref()) else {
+impl<T: Into<c_int>> SetConfigstring<T> for QuakeLiveEngine {
+    fn set_configstring(&self, index: T, value: &str) {
+        let Ok(c_value) = CString::new(value) else {
             return;
         };
         let Ok(detour) = self.sv_setconfgistring_detour() else {
@@ -1573,19 +1573,19 @@ impl<T: Into<c_int>, U: AsRef<str>> SetConfigstring<T, U> for QuakeLiveEngine {
     }
 }
 
-pub(crate) trait ComPrintf<T: AsRef<str>> {
-    fn com_printf(&self, msg: T);
+pub(crate) trait ComPrintf {
+    fn com_printf(&self, msg: &str);
 }
 
-impl<T: AsRef<str>> ComPrintf<T> for QuakeLiveEngine {
-    fn com_printf(&self, msg: T) {
+impl ComPrintf for QuakeLiveEngine {
+    fn com_printf(&self, msg: &str) {
         let Ok(detour) = self.com_printf_detour() else {
             return;
         };
         let original_func: extern "C" fn(*const c_char, ...) =
             unsafe { mem::transmute(detour.trampoline()) };
 
-        let Ok(c_msg) = CString::new(msg.as_ref()) else {
+        let Ok(c_msg) = CString::new(msg) else {
             return;
         };
         original_func(c_msg.as_ptr());
@@ -1962,11 +1962,11 @@ mockall::mock! {
         pub(crate) fn sv_dropclient_detour(&self) -> Result<&'static GenericDetour<fn(*mut client_t, *const c_char)>, QuakeLiveEngineError>;
         pub(crate) fn sv_shutdown_orig(&self) -> Result<fn(*const c_char), QuakeLiveEngineError>;
     }
-    impl AddCommand<String> for QuakeEngine {
-        fn add_command(&self, cmd: String, func: unsafe extern "C" fn());
+    impl AddCommand<&str> for QuakeEngine {
+        fn add_command(&self, cmd: &str, func: unsafe extern "C" fn());
     }
-    impl SetModuleOffset<String> for QuakeEngine {
-        fn set_module_offset(&self, module_name: String, offset: unsafe extern "C" fn());
+    impl SetModuleOffset<&str> for QuakeEngine {
+        fn set_module_offset(&self, module_name: &str, offset: unsafe extern "C" fn());
     }
     impl InitGame<c_int, c_int, c_int> for QuakeEngine {
         fn init_game(&self, level_time: c_int, random_seed: c_int, restart: c_int);
@@ -1977,20 +1977,20 @@ mockall::mock! {
     impl ExecuteClientCommand<Client, String, qboolean> for QuakeEngine {
         fn execute_client_command(&self, client: Option<Client>, cmd: String, client_ok: qboolean);
     }
-    impl SendServerCommand<Client, String > for QuakeEngine {
-        fn send_server_command(&self, client: Option <Client>, cmd: String);
+    impl SendServerCommand<Client> for QuakeEngine {
+        fn send_server_command(&self, client: Option <Client>, cmd: &str);
     }
     impl ClientEnterWorld<&mut Client> for QuakeEngine {
         fn client_enter_world(&self, client: &mut Client, cmd: * mut usercmd_t);
     }
-    impl SetConfigstring<c_int, String> for QuakeEngine {
-        fn set_configstring(&self, index: c_int, value: String);
+    impl SetConfigstring<c_int> for QuakeEngine {
+        fn set_configstring(&self, index: c_int, value: &str);
     }
-    impl ComPrintf<String> for QuakeEngine {
-        fn com_printf(&self, msg: String);
+    impl ComPrintf for QuakeEngine {
+        fn com_printf(&self, msg: &str);
     }
-    impl SpawnServer<String, bool> for QuakeEngine {
-        fn spawn_server(&self, server_str: String, kill_bots: bool);
+    impl SpawnServer<&str, bool> for QuakeEngine {
+        fn spawn_server(&self, server_str: &str, kill_bots: bool);
     }
     impl RunFrame<c_int> for QuakeEngine {
         fn run_frame(&self, time: c_int);

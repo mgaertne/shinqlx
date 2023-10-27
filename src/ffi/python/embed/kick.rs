@@ -38,10 +38,9 @@ pub(crate) fn minqlx_kick(py: Python<'_>, client_id: i32, reason: Option<&str>) 
         let reason_str = reason
             .filter(|rsn| !rsn.is_empty())
             .unwrap_or("was kicked.");
-        #[allow(clippy::unnecessary_to_owned)]
         opt_client
             .iter_mut()
-            .for_each(|client| shinqlx_drop_client(client, reason_str.to_string()));
+            .for_each(|client| shinqlx_drop_client(client, reason_str));
         if opt_client.is_some() {
             Ok(())
         } else {

@@ -34,7 +34,7 @@ pub(crate) fn minqlx_client_command(py: Python<'_>, client_id: i32, cmd: &str) -
     });
     let returned = opt_client.is_some();
     if returned {
-        shinqlx_execute_client_command(opt_client, cmd.to_string(), true);
+        shinqlx_execute_client_command(opt_client, cmd, true);
     }
     Ok(returned)
 }

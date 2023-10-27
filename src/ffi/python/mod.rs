@@ -366,13 +366,13 @@ pub(crate) mod python_tests {
     }
     pub(crate) fn client_loaded_dispatcher(_client_id: i32) {}
 
-    pub(crate) fn set_configstring_dispatcher(_index: u32, _value: String) -> Option<String> {
+    pub(crate) fn set_configstring_dispatcher(_index: u32, _value: &str) -> Option<String> {
         None
     }
 
-    pub(crate) fn client_disconnect_dispatcher(_client_id: i32, _reason: String) {}
+    pub(crate) fn client_disconnect_dispatcher(_client_id: i32, _reason: &str) {}
 
-    pub(crate) fn console_print_dispatcher(_msg: String) -> Option<String> {
+    pub(crate) fn console_print_dispatcher(_msg: &str) -> Option<String> {
         None
     }
 

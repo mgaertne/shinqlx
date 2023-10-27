@@ -19,8 +19,7 @@ pub(crate) fn minqlx_set_configstring(py: Python<'_>, config_id: u32, value: &st
     }
 
     py.allow_threads(move || {
-        #[allow(clippy::unnecessary_to_owned)]
-        shinqlx_set_configstring(config_id, value.to_string());
+        shinqlx_set_configstring(config_id, value);
 
         Ok(())
     })

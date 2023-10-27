@@ -111,7 +111,7 @@ mockall::mock! {
         pub(crate) fn has_gentity(&self) -> bool;
         pub(crate) fn get_client_id(&self) -> i32;
         pub(crate) fn get_state(&self) -> clientState_t;
-        pub(crate) fn disconnect(&mut self, reason: String);
+        pub(crate) fn disconnect(&mut self, reason: &str);
         pub(crate) fn get_user_info(&self) -> String;
         pub(crate) fn get_steam_id(&self) -> u64;
     }

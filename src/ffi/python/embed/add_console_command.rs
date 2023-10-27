@@ -16,8 +16,7 @@ pub(crate) fn minqlx_add_console_command(py: Python<'_>, command: &str) -> PyRes
             ));
         };
 
-        #[allow(clippy::unnecessary_to_owned)]
-        main_engine.add_command(command.to_string(), cmd_py_command);
+        main_engine.add_command(command, cmd_py_command);
 
         Ok(())
     })

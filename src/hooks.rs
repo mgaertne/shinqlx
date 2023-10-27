@@ -38,8 +38,7 @@ pub(crate) fn shinqlx_cmd_addcommand(cmd: *const c_char, func: unsafe extern "C"
 
     let command = unsafe { CStr::from_ptr(cmd) }.to_string_lossy();
     if !command.is_empty() {
-        #[allow(clippy::unnecessary_to_owned)]
-        main_engine.add_command(command.to_string(), func);
+        main_engine.add_command(&command, func);
     }
 }
 
@@ -58,8 +57,7 @@ pub(crate) fn shinqlx_sys_setmoduleoffset(
         error!(target: "shinqlx", "Unknown module: {}", converted_module_name);
     }
 
-    #[allow(clippy::unnecessary_to_owned)]
-    main_engine.set_module_offset(converted_module_name.to_string(), offset);
+    main_engine.set_module_offset(&converted_module_name, offset);
 
     if let Err(err) = main_engine.initialize_vm(offset as usize) {
         error!(target: "shinqlx", "{:?}", err);
@@ -212,7 +210,7 @@ where
     }
 
     if !passed_on_cmd_str.is_empty() {
-        main_engine.send_server_command(client, passed_on_cmd_str);
+        main_engine.send_server_command(client, &passed_on_cmd_str);
     }
 }
 
@@ -249,13 +247,12 @@ pub(crate) fn shinqlx_sv_setconfigstring(index: c_int, value: *const c_char) {
         return;
     };
 
-    shinqlx_set_configstring(ql_index, safe_value);
+    shinqlx_set_configstring(ql_index, &safe_value);
 }
 
-pub(crate) fn shinqlx_set_configstring<T, U>(index: T, value: U)
+pub(crate) fn shinqlx_set_configstring<T>(index: T, value: &str)
 where
     T: TryInto<c_int> + Into<u32> + Copy,
-    U: AsRef<str>,
 {
     let Some(ref main_engine) = *MAIN_ENGINE.load() else {
         return;
@@ -270,16 +267,14 @@ where
     // use for those particular ones anyway. If we don't do this, we get
     // like a 25% increase in CPU usage on an empty server.
     if c_index == 16 || (662..670).contains(&c_index) {
-        #[allow(clippy::unnecessary_to_owned)]
-        main_engine.set_configstring(c_index, value.as_ref().to_string());
+        main_engine.set_configstring(c_index, value.as_ref());
         return;
     }
 
-    #[allow(clippy::unnecessary_to_owned)]
-    let Some(res) = set_configstring_dispatcher(index.into(), value.as_ref().to_string()) else {
+    let Some(res) = set_configstring_dispatcher(index.into(), value) else {
         return;
     };
-    main_engine.set_configstring(c_index, res);
+    main_engine.set_configstring(c_index, &res);
 }
 
 #[cfg_attr(test, allow(dead_code))]
@@ -297,11 +292,9 @@ pub(crate) fn shinqlx_drop_client<T>(client: &mut Client, reason: T)
 where
     T: AsRef<str>,
 {
-    #[allow(clippy::unnecessary_to_owned)]
-    client_disconnect_dispatcher(client.get_client_id(), reason.as_ref().to_string());
+    client_disconnect_dispatcher(client.get_client_id(), reason.as_ref());
 
-    #[allow(clippy::unnecessary_to_owned)]
-    client.disconnect(reason.as_ref().to_string());
+    client.disconnect(reason.as_ref());
 }
 
 //noinspection ALL
@@ -339,13 +332,11 @@ where
         return;
     };
 
-    #[allow(clippy::unnecessary_to_owned)]
-    let Some(_res) = console_print_dispatcher(msg.as_ref().to_string()) else {
+    let Some(_res) = console_print_dispatcher(msg.as_ref()) else {
         return;
     };
 
-    #[allow(clippy::unnecessary_to_owned)]
-    main_engine.com_printf(msg.as_ref().to_string());
+    main_engine.com_printf(msg.as_ref());
 }
 
 pub(crate) fn shinqlx_sv_spawnserver(server: *const c_char, kill_bots: qboolean) {
@@ -358,9 +349,8 @@ pub(crate) fn shinqlx_sv_spawnserver(server: *const c_char, kill_bots: qboolean)
         return;
     };
 
-    #[allow(clippy::unnecessary_to_owned)]
     main_engine.spawn_server(
-        server_str.as_ref().to_string(),
+        server_str.as_ref(),
         <qboolean as Into<bool>>::into(kill_bots),
     );
 
@@ -541,14 +531,14 @@ pub(crate) mod hooks {
 
     pub(crate) fn shinqlx_execute_client_command(
         _client: Option<Client>,
-        _cmd: String,
+        _cmd: &str,
         _client_ok: bool,
     ) {
     }
-    pub(crate) fn shinqlx_send_server_command(_client: Option<Client>, _cmd: String) {}
-    pub(crate) fn shinqlx_drop_client(_client: &mut Client, _reason: String) {}
+    pub(crate) fn shinqlx_send_server_command(_client: Option<Client>, _cmd: &str) {}
+    pub(crate) fn shinqlx_drop_client(_client: &mut Client, _reason: &str) {}
     pub(crate) fn shinqlx_client_spawn(_game_entity: &mut GameEntity) {}
-    pub(crate) fn shinqlx_set_configstring(_index: u32, _value: String) {}
+    pub(crate) fn shinqlx_set_configstring(_index: u32, _value: &str) {}
     pub(crate) fn shinqlx_com_printf(_msg: &str) {}
 }
 

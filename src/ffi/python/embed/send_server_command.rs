@@ -19,8 +19,7 @@ pub(crate) fn minqlx_send_server_command(
 ) -> PyResult<bool> {
     match client_id {
         None => {
-            #[allow(clippy::unnecessary_to_owned)]
-            shinqlx_send_server_command(None, cmd.to_string());
+            shinqlx_send_server_command(None, cmd);
             Ok(true)
         }
         Some(actual_client_id) => {
@@ -45,9 +44,8 @@ pub(crate) fn minqlx_send_server_command(
                 .ok()
                 .filter(|client| client.get_state() == clientState_t::CS_ACTIVE);
             let returned = opt_client.is_some();
-            #[allow(clippy::unnecessary_to_owned)]
             if returned {
-                shinqlx_send_server_command(opt_client, cmd.to_string());
+                shinqlx_send_server_command(opt_client, cmd);
             }
             Ok(returned)
         }
