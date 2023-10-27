@@ -28,7 +28,7 @@ pub extern "C" fn cmd_send_server_command() {
         return;
     };
 
-    main_engine.send_server_command(None::<Client>, format!("{}\n", cmd_args));
+    main_engine.send_server_command(None::<Client>, &format!("{}\n", cmd_args));
 }
 
 #[no_mangle]
@@ -41,7 +41,7 @@ pub extern "C" fn cmd_center_print() {
         return;
     };
 
-    main_engine.send_server_command(None::<Client>, format!("cp \"{}\"\n", cmd_args));
+    main_engine.send_server_command(None::<Client>, &format!("cp \"{}\"\n", cmd_args));
 }
 
 #[no_mangle]
@@ -54,7 +54,7 @@ pub extern "C" fn cmd_regular_print() {
         return;
     };
 
-    main_engine.send_server_command(None::<Client>, format!("print \"{}\n\"\n", cmd_args));
+    main_engine.send_server_command(None::<Client>, &format!("print \"{}\n\"\n", cmd_args));
 }
 
 #[no_mangle]
@@ -72,7 +72,7 @@ pub extern "C" fn cmd_slap() {
             return;
         };
 
-        main_engine.com_printf(format!("Usage: {} <client_id> [damage]\n", command_name));
+        main_engine.com_printf(&format!("Usage: {} <client_id> [damage]\n", command_name));
         return;
     }
 
@@ -81,7 +81,7 @@ pub extern "C" fn cmd_slap() {
     };
 
     let Ok(client_id) = passed_client_id_str.parse::<i32>() else {
-        main_engine.com_printf(format!(
+        main_engine.com_printf(&format!(
             "client_id must be a number between 0 and {}.\n",
             maxclients - 1
         ));
@@ -89,7 +89,7 @@ pub extern "C" fn cmd_slap() {
     };
 
     if client_id < 0 || client_id >= maxclients {
-        main_engine.com_printf(format!(
+        main_engine.com_printf(&format!(
             "client_id must be a number between 0 and {}.\n",
             maxclients - 1
         ));
@@ -107,13 +107,11 @@ pub extern "C" fn cmd_slap() {
         return;
     };
     if !client_entity.in_use() || client_entity.get_health() <= 0 {
-        #[allow(clippy::unnecessary_to_owned)]
-        main_engine.com_printf("The player is currently not active.\n".to_string());
+        main_engine.com_printf("The player is currently not active.\n");
         return;
     }
 
-    #[allow(clippy::unnecessary_to_owned)]
-    main_engine.com_printf("Slapping...\n".to_string());
+    main_engine.com_printf("Slapping...\n");
 
     let Ok(client) = Client::try_from(client_id) else {
         return;
@@ -128,7 +126,7 @@ pub extern "C" fn cmd_slap() {
         format!("print \"{}^7 was slapped\n\"\n", client.get_name())
     };
 
-    main_engine.send_server_command(None::<Client>, message);
+    main_engine.send_server_command(None::<Client>, &message);
 
     let mut rng = rand::thread_rng();
     let Ok(mut game_client) = client_entity.get_game_client() else {
@@ -170,7 +168,7 @@ pub extern "C" fn cmd_slay() {
             return;
         };
 
-        main_engine.com_printf(format!("Usage: {} <client_id> [damage]\n", command_name));
+        main_engine.com_printf(&format!("Usage: {} <client_id> [damage]\n", command_name));
         return;
     }
 
@@ -179,7 +177,7 @@ pub extern "C" fn cmd_slay() {
     };
 
     let Ok(client_id) = passed_client_id_str.parse::<i32>() else {
-        main_engine.com_printf(format!(
+        main_engine.com_printf(&format!(
             "client_id must be a number between 0 and {}.\n",
             maxclients - 1
         ));
@@ -187,7 +185,7 @@ pub extern "C" fn cmd_slay() {
     };
 
     if client_id < 0 || client_id >= maxclients {
-        main_engine.com_printf(format!(
+        main_engine.com_printf(&format!(
             "client_id must be a number between 0 and {}.\n",
             maxclients - 1
         ));
@@ -198,13 +196,11 @@ pub extern "C" fn cmd_slay() {
         return;
     };
     if !client_entity.in_use() || client_entity.get_health() <= 0 {
-        #[allow(clippy::unnecessary_to_owned)]
-        main_engine.com_printf("The player is currently not active.\n".to_string());
+        main_engine.com_printf("The player is currently not active.\n");
         return;
     }
 
-    #[allow(clippy::unnecessary_to_owned)]
-    main_engine.com_printf("Slaying player...\n".to_string());
+    main_engine.com_printf("Slaying player...\n");
 
     let Ok(client) = Client::try_from(client_id) else {
         return;
@@ -212,7 +208,7 @@ pub extern "C" fn cmd_slay() {
 
     main_engine.send_server_command(
         None::<Client>,
-        format!("print \"{}^7 was slain!\n\"\n", client.get_name()),
+        &format!("print \"{}^7 was slain!\n\"\n", client.get_name()),
     );
 
     client_entity.set_health(-40);
@@ -258,10 +254,8 @@ pub extern "C" fn cmd_py_command() {
         };
 
         if result.is_err() || !result.unwrap().is_true(py).unwrap() {
-            #[allow(clippy::unnecessary_to_owned)]
-            main_engine.com_printf(
-                "The command failed to be executed. pyshinqlx found no handler.\n".to_string(),
-            );
+            main_engine
+                .com_printf("The command failed to be executed. pyshinqlx found no handler.\n");
         }
     });
 }
@@ -272,8 +266,7 @@ pub extern "C" fn cmd_restart_python() {
         return;
     };
 
-    #[allow(clippy::unnecessary_to_owned)]
-    main_engine.com_printf("Restarting Python...\n".to_string());
+    main_engine.com_printf("Restarting Python...\n");
 
     if pyminqlx_is_initialized() {
         if pyminqlx_reload().is_err() {

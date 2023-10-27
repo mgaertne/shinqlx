@@ -83,13 +83,10 @@ impl CurrentLevel {
             .filter_map(|game_entity| game_entity.get_game_client().ok())
             .for_each(|mut game_client| game_client.set_vote_pending());
 
-        #[allow(clippy::unnecessary_to_owned)]
-        shinqlx_set_configstring(CS_VOTE_STRING, vote_disp.as_ref().to_string());
-        shinqlx_set_configstring(CS_VOTE_TIME, format!("{}", self.level.voteTime));
-        #[allow(clippy::unnecessary_to_owned)]
-        shinqlx_set_configstring(CS_VOTE_YES, "0".to_string());
-        #[allow(clippy::unnecessary_to_owned)]
-        shinqlx_set_configstring(CS_VOTE_NO, "0".to_string());
+        shinqlx_set_configstring(CS_VOTE_STRING, vote_disp.as_ref());
+        shinqlx_set_configstring(CS_VOTE_TIME, &format!("{}", self.level.voteTime));
+        shinqlx_set_configstring(CS_VOTE_YES, "0");
+        shinqlx_set_configstring(CS_VOTE_NO, "0");
     }
 
     pub(crate) fn set_training_map(&mut self, is_training_map: bool) {

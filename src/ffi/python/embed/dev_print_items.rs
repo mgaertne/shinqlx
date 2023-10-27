@@ -42,16 +42,13 @@ pub(crate) fn minqlx_dev_print_items(py: Python<'_>) -> PyResult<()> {
         };
 
         if printed_items.is_empty() {
-            #[allow(clippy::unnecessary_to_owned)]
-            main_engine.send_server_command(
-                None::<Client>,
-                "print \"No items found in the map\n\"".to_string(),
-            );
+            main_engine
+                .send_server_command(None::<Client>, "print \"No items found in the map\n\"");
             return Ok(());
         }
         main_engine.send_server_command(
             None::<Client>,
-            format!("print \"{}\n\"", printed_items.join("\n")),
+            &format!("print \"{}\n\"", printed_items.join("\n")),
         );
 
         let remaining_items: Vec<String> = formatted_items
@@ -61,14 +58,13 @@ pub(crate) fn minqlx_dev_print_items(py: Python<'_>) -> PyResult<()> {
             .collect();
 
         if !remaining_items.is_empty() {
-            #[allow(clippy::unnecessary_to_owned)]
             main_engine.send_server_command(
                 None::<Client>,
-                "print \"Check server console for other items\n\"\n".to_string(),
+                "print \"Check server console for other items\n\"\n",
             );
             remaining_items
                 .into_iter()
-                .for_each(|item| main_engine.com_printf(item));
+                .for_each(|item| main_engine.com_printf(&item));
         }
 
         Ok(())
