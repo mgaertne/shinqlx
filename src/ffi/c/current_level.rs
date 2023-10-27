@@ -293,4 +293,70 @@ mod current_level_tests {
         assert_eq!(level.voteYes, 0);
         assert_eq!(level.voteNo, 0);
     }
+
+    #[test]
+    #[serial]
+    fn current_level_callvote_with_vote_time_value() {
+        let mut mock_engine = MockQuakeEngine::new();
+        mock_engine.expect_get_max_clients().return_const(8);
+        MAIN_ENGINE.store(Some(mock_engine.into()));
+
+        let set_configstring_ctx = shinqlx_set_configstring_context();
+        set_configstring_ctx
+            .expect()
+            .with(predicate::eq(CS_VOTE_STRING), predicate::eq("map asdf"))
+            .times(1);
+        set_configstring_ctx
+            .expect()
+            .with(predicate::eq(CS_VOTE_TIME), predicate::eq("12042"))
+            .times(1);
+        set_configstring_ctx
+            .expect()
+            .with(predicate::eq(CS_VOTE_YES), predicate::eq("0"))
+            .times(1);
+        set_configstring_ctx
+            .expect()
+            .with(predicate::eq(CS_VOTE_NO), predicate::eq("0"))
+            .times(1);
+
+        let get_entities_list_ctx = MockGameEntity::get_entities_list_context();
+        get_entities_list_ctx
+            .expect()
+            .returning(|| ptr::null_mut() as *mut gentity_t);
+        let game_entity_from_ctx = MockGameEntity::from_context();
+        game_entity_from_ctx
+            .expect()
+            .with(predicate::eq(2))
+            .returning(|_| {
+                let mut mock_entity = MockGameEntity::new();
+                mock_entity.expect_get_game_client().returning(|| {
+                    let mut mock_game_client = MockGameClient::new();
+                    mock_game_client.expect_set_vote_pending().times(1);
+                    Ok(mock_game_client)
+                });
+                mock_entity
+            });
+        game_entity_from_ctx.expect().returning(|_| {
+            let mut mock_entity = MockGameEntity::new();
+            mock_entity
+                .expect_get_game_client()
+                .returning(|| Err(QuakeLiveEngineError::MainEngineNotInitialized));
+            mock_entity
+        });
+
+        let mut level = LevelLocalsBuilder::default().time(42).build().unwrap();
+        let mut current_level = CurrentLevel::try_from(&mut level as *mut level_locals_t).unwrap();
+        current_level.callvote("map campgrounds", "map asdf", Some(42));
+        assert_eq!(
+            unsafe { CStr::from_ptr(level.voteString.as_ptr()) }.to_string_lossy(),
+            "map campgrounds"
+        );
+        assert_eq!(
+            unsafe { CStr::from_ptr(level.voteDisplayString.as_ptr()) }.to_string_lossy(),
+            "map asdf"
+        );
+        assert_eq!(level.voteTime, 12042);
+        assert_eq!(level.voteYes, 0);
+        assert_eq!(level.voteNo, 0);
+    }
 }
