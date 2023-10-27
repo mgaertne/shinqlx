@@ -237,20 +237,20 @@ mod current_level_tests {
             .expect()
             .with(
                 predicate::eq(CS_VOTE_STRING),
-                predicate::eq("map thunderstruck".to_string()),
+                predicate::eq("map thunderstruck"),
             )
             .times(1);
         set_configstring_ctx
             .expect()
-            .with(predicate::eq(CS_VOTE_TIME), predicate::eq("42".to_string()))
+            .with(predicate::eq(CS_VOTE_TIME), predicate::eq("42"))
             .times(1);
         set_configstring_ctx
             .expect()
-            .with(predicate::eq(CS_VOTE_YES), predicate::eq("0".to_string()))
+            .with(predicate::eq(CS_VOTE_YES), predicate::eq("0"))
             .times(1);
         set_configstring_ctx
             .expect()
-            .with(predicate::eq(CS_VOTE_NO), predicate::eq("0".to_string()))
+            .with(predicate::eq(CS_VOTE_NO), predicate::eq("0"))
             .times(1);
 
         let get_entities_list_ctx = MockGameEntity::get_entities_list_context();
