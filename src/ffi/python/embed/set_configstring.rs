@@ -50,7 +50,7 @@ mod set_configstring_tests {
         let set_configstring_ctx = shinqlx_set_configstring_context();
         set_configstring_ctx
             .expect()
-            .with(predicate::eq(666), predicate::eq("asdf".to_string()))
+            .with(predicate::eq(666), predicate::eq("asdf"))
             .times(1);
 
         let result = Python::with_gil(|py| minqlx_set_configstring(py, 666, "asdf"));

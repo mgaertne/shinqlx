@@ -1390,7 +1390,7 @@ mod game_entity_tests {
         let mut mock_engine = MockQuakeEngine::new();
         mock_engine
             .expect_com_printf()
-            .with(predicate::eq("class_name".to_string()));
+            .with(predicate::eq("class_name"));
         mock_engine.expect_free_entity();
         MAIN_ENGINE.store(Some(mock_engine.into()));
 

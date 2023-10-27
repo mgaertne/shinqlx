@@ -1152,7 +1152,7 @@ mod hooks_tests {
             .expect_set_configstring()
             .with(
                 predicate::eq::<i32>(test_index.try_into().unwrap()),
-                predicate::eq("some value".to_string()),
+                predicate::eq("some value"),
             )
             .times(1);
         MAIN_ENGINE.store(Some(mock_engine.into()));
@@ -1173,7 +1173,7 @@ mod hooks_tests {
         let set_configstring_dispatcher_ctx = set_configstring_dispatcher_context();
         set_configstring_dispatcher_ctx
             .expect()
-            .with(predicate::eq(42), predicate::eq("some value".to_string()))
+            .with(predicate::eq(42), predicate::eq("some value"))
             .times(1);
 
         shinqlx_set_configstring(42u32, "some value");
@@ -1185,14 +1185,14 @@ mod hooks_tests {
         let mut mock_engine = MockQuakeEngine::new();
         mock_engine
             .expect_set_configstring()
-            .with(predicate::eq(42), predicate::eq("other value".to_string()))
+            .with(predicate::eq(42), predicate::eq("other value"))
             .times(1);
         MAIN_ENGINE.store(Some(mock_engine.into()));
 
         let set_configstring_dispatcher_ctx = set_configstring_dispatcher_context();
         set_configstring_dispatcher_ctx
             .expect()
-            .with(predicate::eq(42), predicate::eq("some value".to_string()))
+            .with(predicate::eq(42), predicate::eq("some value"))
             .return_const(Some("other value".into()))
             .times(1);
 
@@ -1205,14 +1205,14 @@ mod hooks_tests {
         let mut mock_engine = MockQuakeEngine::new();
         mock_engine
             .expect_set_configstring()
-            .with(predicate::eq(42), predicate::eq("some value".to_string()))
+            .with(predicate::eq(42), predicate::eq("some value"))
             .times(1);
         MAIN_ENGINE.store(Some(mock_engine.into()));
 
         let set_configstring_dispatcher_ctx = set_configstring_dispatcher_context();
         set_configstring_dispatcher_ctx
             .expect()
-            .with(predicate::eq(42), predicate::eq("some value".to_string()))
+            .with(predicate::eq(42), predicate::eq("some value"))
             .return_const(Some("some value".into()))
             .times(1);
 
@@ -1225,17 +1225,14 @@ mod hooks_tests {
         let mut mock_client = MockClient::new();
         mock_client
             .expect_disconnect()
-            .with(predicate::eq("disconnected.".to_string()))
+            .with(predicate::eq("disconnected."))
             .times(1);
         mock_client.expect_get_client_id().return_const(42);
 
         let client_disconnect_dispatcher_ctx = client_disconnect_dispatcher_context();
         client_disconnect_dispatcher_ctx
             .expect()
-            .with(
-                predicate::eq(42),
-                predicate::eq("disconnected.".to_string()),
-            )
+            .with(predicate::eq(42), predicate::eq("disconnected."))
             .times(1);
 
         shinqlx_drop_client(&mut mock_client, "disconnected.");
@@ -1258,7 +1255,7 @@ mod hooks_tests {
         let mock_console_print_dispatcher_ctx = console_print_dispatcher_context();
         mock_console_print_dispatcher_ctx
             .expect()
-            .with(predicate::eq("Hello World!".to_string()))
+            .with(predicate::eq("Hello World!"))
             .times(1);
 
         shinqlx_com_printf("Hello World!");
@@ -1270,14 +1267,14 @@ mod hooks_tests {
         let mut mock_engine = MockQuakeEngine::new();
         mock_engine
             .expect_com_printf()
-            .with(predicate::eq("Hello World!".to_string()))
+            .with(predicate::eq("Hello World!"))
             .times(1);
         MAIN_ENGINE.store(Some(mock_engine.into()));
 
         let mock_console_print_dispatcher_ctx = console_print_dispatcher_context();
         mock_console_print_dispatcher_ctx
             .expect()
-            .with(predicate::eq("Hello World!".to_string()))
+            .with(predicate::eq("Hello World!"))
             .return_const(Some("Hello you!".into()))
             .times(1);
 
@@ -1298,10 +1295,7 @@ mod hooks_tests {
         let mut mock_engine = MockQuakeEngine::new();
         mock_engine
             .expect_spawn_server()
-            .with(
-                predicate::eq("l33t ql server".to_string()),
-                predicate::eq(true),
-            )
+            .with(predicate::eq("l33t ql server"), predicate::eq(true))
             .times(1);
         MAIN_ENGINE.store(Some(mock_engine.into()));
 

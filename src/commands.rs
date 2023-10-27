@@ -437,9 +437,7 @@ mod commands_tests {
             .times(1);
         mock_engine
             .expect_com_printf()
-            .with(predicate::eq(
-                "Usage: !slap <client_id> [damage]\n".to_string(),
-            ))
+            .with(predicate::eq("Usage: !slap <client_id> [damage]\n"))
             .times(1);
         mock_engine.expect_get_max_clients().return_const(16);
         MAIN_ENGINE.store(Some(mock_engine.into()));
@@ -460,7 +458,7 @@ mod commands_tests {
         mock_engine
             .expect_com_printf()
             .with(predicate::eq(
-                "client_id must be a number between 0 and 15.\n".to_string(),
+                "client_id must be a number between 0 and 15.\n",
             ))
             .times(1);
         mock_engine.expect_get_max_clients().return_const(16);
@@ -482,7 +480,7 @@ mod commands_tests {
         mock_engine
             .expect_com_printf()
             .with(predicate::eq(
-                "client_id must be a number between 0 and 15.\n".to_string(),
+                "client_id must be a number between 0 and 15.\n",
             ))
             .times(1);
         mock_engine.expect_get_max_clients().return_const(16);
@@ -504,7 +502,7 @@ mod commands_tests {
         mock_engine
             .expect_com_printf()
             .with(predicate::eq(
-                "client_id must be a number between 0 and 15.\n".to_string(),
+                "client_id must be a number between 0 and 15.\n",
             ))
             .times(1);
         mock_engine.expect_get_max_clients().return_const(16);
@@ -526,9 +524,7 @@ mod commands_tests {
             .times(1);
         mock_engine
             .expect_com_printf()
-            .with(predicate::eq(
-                "The player is currently not active.\n".to_string(),
-            ))
+            .with(predicate::eq("The player is currently not active.\n"))
             .times(1);
         mock_engine.expect_get_max_clients().return_const(16);
         MAIN_ENGINE.store(Some(mock_engine.into()));
@@ -563,9 +559,7 @@ mod commands_tests {
             .times(1);
         mock_engine
             .expect_com_printf()
-            .with(predicate::eq(
-                "The player is currently not active.\n".to_string(),
-            ))
+            .with(predicate::eq("The player is currently not active.\n"))
             .times(1);
         mock_engine.expect_get_max_clients().return_const(16);
         MAIN_ENGINE.store(Some(mock_engine.into()));
@@ -601,7 +595,7 @@ mod commands_tests {
             .times(1);
         mock_engine
             .expect_com_printf()
-            .with(predicate::eq("Slapping...\n".to_string()))
+            .with(predicate::eq("Slapping...\n"))
             .times(1);
         mock_engine
             .expect_send_server_command()
@@ -677,7 +671,7 @@ mod commands_tests {
             .times(1);
         mock_engine
             .expect_com_printf()
-            .with(predicate::eq("Slapping...\n".to_string()))
+            .with(predicate::eq("Slapping...\n"))
             .times(1);
         mock_engine
             .expect_send_server_command()
@@ -758,7 +752,7 @@ mod commands_tests {
             .times(1);
         mock_engine
             .expect_com_printf()
-            .with(predicate::eq("Slapping...\n".to_string()))
+            .with(predicate::eq("Slapping...\n"))
             .times(1);
         mock_engine
             .expect_send_server_command()
@@ -843,7 +837,7 @@ mod commands_tests {
             .times(1);
         mock_engine
             .expect_com_printf()
-            .with(predicate::eq("Slapping...\n".to_string()))
+            .with(predicate::eq("Slapping...\n"))
             .times(1);
         mock_engine
             .expect_send_server_command()
@@ -920,9 +914,7 @@ mod commands_tests {
             .times(1);
         mock_engine
             .expect_com_printf()
-            .with(predicate::eq(
-                "Usage: !slap <client_id> [damage]\n".to_string(),
-            ))
+            .with(predicate::eq("Usage: !slap <client_id> [damage]\n"))
             .times(1);
         mock_engine.expect_get_max_clients().return_const(16);
         MAIN_ENGINE.store(Some(mock_engine.into()));
@@ -943,7 +935,7 @@ mod commands_tests {
         mock_engine
             .expect_com_printf()
             .with(predicate::eq(
-                "client_id must be a number between 0 and 15.\n".to_string(),
+                "client_id must be a number between 0 and 15.\n",
             ))
             .times(1);
         mock_engine.expect_get_max_clients().return_const(16);
@@ -965,7 +957,7 @@ mod commands_tests {
         mock_engine
             .expect_com_printf()
             .with(predicate::eq(
-                "client_id must be a number between 0 and 15.\n".to_string(),
+                "client_id must be a number between 0 and 15.\n",
             ))
             .times(1);
         mock_engine.expect_get_max_clients().return_const(16);
@@ -987,7 +979,7 @@ mod commands_tests {
         mock_engine
             .expect_com_printf()
             .with(predicate::eq(
-                "client_id must be a number between 0 and 15.\n".to_string(),
+                "client_id must be a number between 0 and 15.\n",
             ))
             .times(1);
         mock_engine.expect_get_max_clients().return_const(16);
@@ -1009,9 +1001,7 @@ mod commands_tests {
             .times(1);
         mock_engine
             .expect_com_printf()
-            .with(predicate::eq(
-                "The player is currently not active.\n".to_string(),
-            ))
+            .with(predicate::eq("The player is currently not active.\n"))
             .times(1);
         mock_engine.expect_get_max_clients().return_const(16);
         MAIN_ENGINE.store(Some(mock_engine.into()));
@@ -1046,9 +1036,7 @@ mod commands_tests {
             .times(1);
         mock_engine
             .expect_com_printf()
-            .with(predicate::eq(
-                "The player is currently not active.\n".to_string(),
-            ))
+            .with(predicate::eq("The player is currently not active.\n"))
             .times(1);
         mock_engine.expect_get_max_clients().return_const(16);
         MAIN_ENGINE.store(Some(mock_engine.into()));
@@ -1083,7 +1071,7 @@ mod commands_tests {
             .times(1);
         mock_engine
             .expect_com_printf()
-            .with(predicate::eq("Slaying player...\n".to_string()))
+            .with(predicate::eq("Slaying player...\n"))
             .times(1);
         mock_engine
             .expect_send_server_command()
@@ -1252,7 +1240,7 @@ def handler():
         mock_engine
             .expect_com_printf()
             .with(predicate::eq(
-                "The command failed to be executed. pyshinqlx found no handler.\n".to_string(),
+                "The command failed to be executed. pyshinqlx found no handler.\n",
             ))
             .times(1);
         MAIN_ENGINE.store(Some(mock_engine.into()));
@@ -1285,7 +1273,7 @@ def handler():
         mock_engine
             .expect_com_printf()
             .with(predicate::eq(
-                "The command failed to be executed. pyshinqlx found no handler.\n".to_string(),
+                "The command failed to be executed. pyshinqlx found no handler.\n",
             ))
             .times(1);
         MAIN_ENGINE.store(Some(mock_engine.into()));
@@ -1323,7 +1311,7 @@ def handler():
         let mut mock_engine = MockQuakeEngine::new();
         mock_engine
             .expect_com_printf()
-            .with(predicate::eq("Restarting Python...\n".to_string()))
+            .with(predicate::eq("Restarting Python...\n"))
             .times(1);
         MAIN_ENGINE.store(Some(mock_engine.into()));
 
@@ -1349,7 +1337,7 @@ def handler():
         let mut mock_engine = MockQuakeEngine::new();
         mock_engine
             .expect_com_printf()
-            .with(predicate::eq("Restarting Python...\n".to_string()))
+            .with(predicate::eq("Restarting Python...\n"))
             .times(1);
         MAIN_ENGINE.store(Some(mock_engine.into()));
 
@@ -1375,7 +1363,7 @@ def handler():
         let mut mock_engine = MockQuakeEngine::new();
         mock_engine
             .expect_com_printf()
-            .with(predicate::eq("Restarting Python...\n".to_string()))
+            .with(predicate::eq("Restarting Python...\n"))
             .times(1);
         MAIN_ENGINE.store(Some(mock_engine.into()));
 
@@ -1404,7 +1392,7 @@ def handler():
         let mut mock_engine = MockQuakeEngine::new();
         mock_engine
             .expect_com_printf()
-            .with(predicate::eq("Restarting Python...\n".to_string()))
+            .with(predicate::eq("Restarting Python...\n"))
             .times(1);
         MAIN_ENGINE.store(Some(mock_engine.into()));
 
