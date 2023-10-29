@@ -8,7 +8,7 @@ use pyo3::{pyfunction, PyResult, Python};
 /// Forces the current vote to either fail or pass.
 #[pyfunction]
 #[pyo3(name = "force_vote")]
-pub(crate) fn minqlx_force_vote(py: Python<'_>, pass: bool) -> PyResult<bool> {
+pub(crate) fn pyshinqlx_force_vote(py: Python<'_>, pass: bool) -> PyResult<bool> {
     let vote_time = py.allow_threads(|| {
         CurrentLevel::try_get()
             .ok()
@@ -47,7 +47,7 @@ pub(crate) fn minqlx_force_vote(py: Python<'_>, pass: bool) -> PyResult<bool> {
 #[cfg(test)]
 #[cfg(not(miri))]
 mod force_vote_tests {
-    use super::minqlx_force_vote;
+    use super::pyshinqlx_force_vote;
     use super::MAIN_ENGINE;
     use crate::ffi::c::client::MockClient;
     use crate::ffi::c::current_level::MockTestCurrentLevel;
@@ -73,7 +73,7 @@ mod force_vote_tests {
         MAIN_ENGINE.store(None);
 
         Python::with_gil(|py| {
-            let result = minqlx_force_vote(py, true);
+            let result = pyshinqlx_force_vote(py, true);
             assert!(result.is_err_and(|err| err.is_instance_of::<PyEnvironmentError>(py)));
         });
     }
@@ -87,7 +87,7 @@ mod force_vote_tests {
             .returning(|| Err(QuakeLiveEngineError::MainEngineNotInitialized));
         MAIN_ENGINE.store(None);
 
-        let result = Python::with_gil(|py| minqlx_force_vote(py, false)).unwrap();
+        let result = Python::with_gil(|py| pyshinqlx_force_vote(py, false)).unwrap();
         assert_eq!(result, false);
     }
 
@@ -119,7 +119,7 @@ mod force_vote_tests {
                 mock_client
             });
 
-        let result = Python::with_gil(|py| minqlx_force_vote(py, true)).unwrap();
+        let result = Python::with_gil(|py| pyshinqlx_force_vote(py, true)).unwrap();
 
         assert_eq!(result, true);
     }
@@ -161,7 +161,7 @@ mod force_vote_tests {
                 mock_game_entity
             });
 
-        let result = Python::with_gil(|py| minqlx_force_vote(py, true)).unwrap();
+        let result = Python::with_gil(|py| pyshinqlx_force_vote(py, true)).unwrap();
 
         assert_eq!(result, true);
     }
@@ -208,7 +208,7 @@ mod force_vote_tests {
                 mock_game_entity
             });
 
-        let result = Python::with_gil(|py| minqlx_force_vote(py, true)).unwrap();
+        let result = Python::with_gil(|py| pyshinqlx_force_vote(py, true)).unwrap();
 
         assert_eq!(result, true);
     }

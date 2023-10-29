@@ -8,7 +8,7 @@ use pyo3::prelude::*;
 
 /// Returns a string with a player's userinfo.
 #[pyfunction(name = "get_userinfo")]
-pub(crate) fn minqlx_get_userinfo(py: Python<'_>, client_id: i32) -> PyResult<Option<String>> {
+pub(crate) fn pyshinqlx_get_userinfo(py: Python<'_>, client_id: i32) -> PyResult<Option<String>> {
     let maxclients = py.allow_threads(|| {
         let Some(ref main_engine) = *MAIN_ENGINE.load() else {
             return Err(PyEnvironmentError::new_err(
@@ -39,7 +39,7 @@ pub(crate) fn minqlx_get_userinfo(py: Python<'_>, client_id: i32) -> PyResult<Op
 #[cfg(test)]
 #[cfg(not(miri))]
 mod get_userinfo_tests {
-    use super::minqlx_get_userinfo;
+    use super::pyshinqlx_get_userinfo;
     use super::MAIN_ENGINE;
     use crate::ffi::c::client::MockClient;
     use crate::ffi::python::ALLOW_FREE_CLIENT;
@@ -55,7 +55,7 @@ mod get_userinfo_tests {
     fn get_userinfo_when_main_engine_not_initialized() {
         MAIN_ENGINE.store(None);
         Python::with_gil(|py| {
-            let result = minqlx_get_userinfo(py, 0);
+            let result = pyshinqlx_get_userinfo(py, 0);
             assert!(result.is_err_and(|err| err.is_instance_of::<PyEnvironmentError>(py)));
         });
     }
@@ -67,7 +67,7 @@ mod get_userinfo_tests {
         mock_engine.expect_get_max_clients().returning(|| 16);
         MAIN_ENGINE.store(Some(mock_engine.into()));
         Python::with_gil(|py| {
-            let result = minqlx_get_userinfo(py, -1);
+            let result = pyshinqlx_get_userinfo(py, -1);
             assert!(result.is_err_and(|err| err.is_instance_of::<PyValueError>(py)));
         });
     }
@@ -79,7 +79,7 @@ mod get_userinfo_tests {
         mock_engine.expect_get_max_clients().returning(|| 16);
         MAIN_ENGINE.store(Some(mock_engine.into()));
         Python::with_gil(|py| {
-            let result = minqlx_get_userinfo(py, 42);
+            let result = pyshinqlx_get_userinfo(py, 42);
             assert!(result.is_err_and(|err| err.is_instance_of::<PyValueError>(py)));
         });
     }
@@ -103,7 +103,7 @@ mod get_userinfo_tests {
             mock_client
         });
 
-        let userinfo = Python::with_gil(|py| minqlx_get_userinfo(py, 2).unwrap());
+        let userinfo = Python::with_gil(|py| pyshinqlx_get_userinfo(py, 2).unwrap());
         assert_eq!(userinfo, Some("asdf".into()));
     }
 
@@ -127,7 +127,7 @@ mod get_userinfo_tests {
             mock_client
         });
 
-        let userinfo = Python::with_gil(|py| minqlx_get_userinfo(py, 2).unwrap());
+        let userinfo = Python::with_gil(|py| pyshinqlx_get_userinfo(py, 2).unwrap());
         assert_eq!(userinfo, None);
     }
 
@@ -151,7 +151,7 @@ mod get_userinfo_tests {
             mock_client
         });
 
-        let userinfo = Python::with_gil(|py| minqlx_get_userinfo(py, 2).unwrap());
+        let userinfo = Python::with_gil(|py| pyshinqlx_get_userinfo(py, 2).unwrap());
         assert_eq!(userinfo, Some("asdf".into()));
     }
 }

@@ -9,7 +9,7 @@ use pyo3::{pyfunction, PyResult, Python};
 /// Sets a player's position vector.
 #[pyfunction]
 #[pyo3(name = "set_position")]
-pub(crate) fn minqlx_set_position(
+pub(crate) fn pyshinqlx_set_position(
     py: Python<'_>,
     client_id: i32,
     position: Vector3,
@@ -45,7 +45,7 @@ pub(crate) fn minqlx_set_position(
 #[cfg(test)]
 #[cfg(not(miri))]
 mod set_position_tests {
-    use super::minqlx_set_position;
+    use super::pyshinqlx_set_position;
     use super::MAIN_ENGINE;
     use crate::ffi::c::game_client::MockGameClient;
     use crate::ffi::c::game_entity::MockGameEntity;
@@ -62,7 +62,7 @@ mod set_position_tests {
     fn set_position_when_main_engine_not_initialized() {
         MAIN_ENGINE.store(None);
         Python::with_gil(|py| {
-            let result = minqlx_set_position(py, 21, Vector3(1, 2, 3));
+            let result = pyshinqlx_set_position(py, 21, Vector3(1, 2, 3));
             assert!(result.is_err_and(|err| err.is_instance_of::<PyEnvironmentError>(py)));
         });
     }
@@ -75,7 +75,7 @@ mod set_position_tests {
         MAIN_ENGINE.store(Some(mock_engine.into()));
 
         Python::with_gil(|py| {
-            let result = minqlx_set_position(py, -1, Vector3(1, 2, 3));
+            let result = pyshinqlx_set_position(py, -1, Vector3(1, 2, 3));
             assert!(result.is_err_and(|err| err.is_instance_of::<PyValueError>(py)));
         });
     }
@@ -88,7 +88,7 @@ mod set_position_tests {
         MAIN_ENGINE.store(Some(mock_engine.into()));
 
         Python::with_gil(|py| {
-            let result = minqlx_set_position(py, 666, Vector3(1, 2, 3));
+            let result = pyshinqlx_set_position(py, 666, Vector3(1, 2, 3));
             assert!(result.is_err_and(|err| err.is_instance_of::<PyValueError>(py)));
         });
     }
@@ -114,7 +114,8 @@ mod set_position_tests {
             mock_game_entity
         });
 
-        let result = Python::with_gil(|py| minqlx_set_position(py, 2, Vector3(1, 2, 3))).unwrap();
+        let result =
+            Python::with_gil(|py| pyshinqlx_set_position(py, 2, Vector3(1, 2, 3))).unwrap();
         assert_eq!(result, true);
     }
 
@@ -134,7 +135,8 @@ mod set_position_tests {
             mock_game_entity
         });
 
-        let result = Python::with_gil(|py| minqlx_set_position(py, 2, Vector3(1, 2, 3))).unwrap();
+        let result =
+            Python::with_gil(|py| pyshinqlx_set_position(py, 2, Vector3(1, 2, 3))).unwrap();
         assert_eq!(result, false);
     }
 }

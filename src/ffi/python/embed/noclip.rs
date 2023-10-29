@@ -7,7 +7,7 @@ use pyo3::{pyfunction, PyResult, Python};
 /// Sets noclip for a player.
 #[pyfunction]
 #[pyo3(name = "noclip")]
-pub(crate) fn minqlx_noclip(py: Python<'_>, client_id: i32, activate: bool) -> PyResult<bool> {
+pub(crate) fn pyshinqlx_noclip(py: Python<'_>, client_id: i32, activate: bool) -> PyResult<bool> {
     let maxclients = py.allow_threads(|| {
         let Some(ref main_engine) = *MAIN_ENGINE.load() else {
             return Err(PyEnvironmentError::new_err(
@@ -40,7 +40,7 @@ pub(crate) fn minqlx_noclip(py: Python<'_>, client_id: i32, activate: bool) -> P
 #[cfg(test)]
 #[cfg(not(miri))]
 mod noclip_tests {
-    use super::minqlx_noclip;
+    use super::pyshinqlx_noclip;
     use super::MAIN_ENGINE;
     use crate::ffi::c::game_client::MockGameClient;
     use crate::ffi::c::game_entity::MockGameEntity;
@@ -56,7 +56,7 @@ mod noclip_tests {
     fn noclip_when_main_engine_not_initialized() {
         MAIN_ENGINE.store(None);
         Python::with_gil(|py| {
-            let result = minqlx_noclip(py, 21, true);
+            let result = pyshinqlx_noclip(py, 21, true);
             assert!(result.is_err_and(|err| err.is_instance_of::<PyEnvironmentError>(py)));
         });
     }
@@ -69,7 +69,7 @@ mod noclip_tests {
         MAIN_ENGINE.store(Some(mock_engine.into()));
 
         Python::with_gil(|py| {
-            let result = minqlx_noclip(py, -1, false);
+            let result = pyshinqlx_noclip(py, -1, false);
             assert!(result.is_err_and(|err| err.is_instance_of::<PyValueError>(py)));
         });
     }
@@ -82,7 +82,7 @@ mod noclip_tests {
         MAIN_ENGINE.store(Some(mock_engine.into()));
 
         Python::with_gil(|py| {
-            let result = minqlx_noclip(py, 666, true);
+            let result = pyshinqlx_noclip(py, 666, true);
             assert!(result.is_err_and(|err| err.is_instance_of::<PyValueError>(py)));
         });
     }
@@ -103,7 +103,7 @@ mod noclip_tests {
             mock_game_entity
         });
 
-        let result = Python::with_gil(|py| minqlx_noclip(py, 2, true)).unwrap();
+        let result = Python::with_gil(|py| pyshinqlx_noclip(py, 2, true)).unwrap();
         assert_eq!(result, false);
     }
 
@@ -126,7 +126,7 @@ mod noclip_tests {
             mock_game_entity
         });
 
-        let result = Python::with_gil(|py| minqlx_noclip(py, 2, true)).unwrap();
+        let result = Python::with_gil(|py| pyshinqlx_noclip(py, 2, true)).unwrap();
         assert_eq!(result, false);
     }
 
@@ -152,7 +152,7 @@ mod noclip_tests {
             mock_game_entity
         });
 
-        let result = Python::with_gil(|py| minqlx_noclip(py, 2, false)).unwrap();
+        let result = Python::with_gil(|py| pyshinqlx_noclip(py, 2, false)).unwrap();
         assert_eq!(result, true);
     }
 }

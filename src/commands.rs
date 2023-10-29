@@ -4,12 +4,12 @@ use crate::ffi::python::dispatchers::new_game_dispatcher;
 use crate::ffi::python::dispatchers::rcon_dispatcher;
 #[cfg(test)]
 use crate::ffi::python::mock_python_tests::{
-    new_game_dispatcher, pyminqlx_initialize, pyminqlx_is_initialized, pyminqlx_reload,
+    new_game_dispatcher, pyshinqlx_initialize, pyshinqlx_is_initialized, pyshinqlx_reload,
     rcon_dispatcher,
 };
 use crate::ffi::python::CUSTOM_COMMAND_HANDLER;
 #[cfg(not(test))]
-use crate::ffi::python::{pyminqlx_initialize, pyminqlx_is_initialized, pyminqlx_reload};
+use crate::ffi::python::{pyshinqlx_initialize, pyshinqlx_is_initialized, pyshinqlx_reload};
 use crate::prelude::*;
 use crate::quake_live_engine::{
     CmdArgc, CmdArgs, CmdArgv, ComPrintf, GameAddEvent, SendServerCommand,
@@ -268,8 +268,8 @@ pub extern "C" fn cmd_restart_python() {
 
     main_engine.com_printf("Restarting Python...\n");
 
-    if pyminqlx_is_initialized() {
-        if pyminqlx_reload().is_err() {
+    if pyshinqlx_is_initialized() {
+        if pyshinqlx_reload().is_err() {
             return;
         };
         // minqlx initializes after the first new game starts, but since the game already
@@ -278,7 +278,7 @@ pub extern "C" fn cmd_restart_python() {
         return;
     }
 
-    if pyminqlx_initialize().is_err() {
+    if pyshinqlx_initialize().is_err() {
         return;
     };
 
@@ -298,11 +298,11 @@ mod commands_tests {
     use crate::ffi::c::game_client::MockGameClient;
     use crate::ffi::c::game_entity::MockGameEntity;
     use crate::ffi::python::mock_python_tests::{
-        new_game_dispatcher_context, pyminqlx_initialize_context, pyminqlx_is_initialized_context,
-        pyminqlx_reload_context, rcon_dispatcher_context,
+        new_game_dispatcher_context, pyshinqlx_initialize_context,
+        pyshinqlx_is_initialized_context, pyshinqlx_reload_context, rcon_dispatcher_context,
     };
     #[cfg(not(miri))]
-    use crate::ffi::python::pyminqlx_setup_fixture::*;
+    use crate::ffi::python::pyshinqlx_setup_fixture::*;
     use crate::ffi::python::{PythonInitializationError, CUSTOM_COMMAND_HANDLER};
     use crate::prelude::*;
     use crate::quake_live_engine::MockQuakeEngine;
@@ -1175,7 +1175,7 @@ mod commands_tests {
 
     #[cfg_attr(not(miri), rstest)]
     #[serial]
-    fn cmd_py_command_with_arguments(_pyminqlx_setup: ()) {
+    fn cmd_py_command_with_arguments(_pyshinqlx_setup: ()) {
         let mut mock_engine = MockQuakeEngine::new();
         mock_engine
             .expect_cmd_args()
@@ -1206,7 +1206,7 @@ def handler(params):
 
     #[cfg_attr(not(miri), rstest)]
     #[serial]
-    fn cmd_py_command_with_no_args(_pyminqlx_setup: ()) {
+    fn cmd_py_command_with_no_args(_pyshinqlx_setup: ()) {
         let mut mock_engine = MockQuakeEngine::new();
         mock_engine.expect_cmd_args().return_const(None).times(1);
         mock_engine.expect_com_printf().times(0);
@@ -1234,7 +1234,7 @@ def handler():
 
     #[cfg_attr(not(miri), rstest)]
     #[serial]
-    fn cmd_py_command_returns_error(_pyminqlx_setup: ()) {
+    fn cmd_py_command_returns_error(_pyshinqlx_setup: ()) {
         let mut mock_engine = MockQuakeEngine::new();
         mock_engine.expect_cmd_args().return_const(None).times(1);
         mock_engine
@@ -1267,7 +1267,7 @@ def handler():
 
     #[cfg_attr(not(miri), rstest)]
     #[serial]
-    fn cmd_py_command_returns_false(_pyminqlx_setup: ()) {
+    fn cmd_py_command_returns_false(_pyshinqlx_setup: ()) {
         let mut mock_engine = MockQuakeEngine::new();
         mock_engine.expect_cmd_args().return_const(None).times(1);
         mock_engine
@@ -1315,13 +1315,13 @@ def handler():
             .times(1);
         MAIN_ENGINE.store(Some(mock_engine.into()));
 
-        let pyminqlx_is_initialized_ctx = pyminqlx_is_initialized_context();
-        pyminqlx_is_initialized_ctx
+        let pyshinqlx_is_initialized_ctx = pyshinqlx_is_initialized_context();
+        pyshinqlx_is_initialized_ctx
             .expect()
             .return_const(true)
             .times(1);
-        let pyminqlx_reload_ctx = pyminqlx_reload_context();
-        pyminqlx_reload_ctx.expect().return_const(Ok(())).times(1);
+        let pyshinqlx_reload_ctx = pyshinqlx_reload_context();
+        pyshinqlx_reload_ctx.expect().return_const(Ok(())).times(1);
         let new_game_dispatcher_ctx = new_game_dispatcher_context();
         new_game_dispatcher_ctx
             .expect()
@@ -1341,13 +1341,13 @@ def handler():
             .times(1);
         MAIN_ENGINE.store(Some(mock_engine.into()));
 
-        let pyminqlx_is_initialized_ctx = pyminqlx_is_initialized_context();
-        pyminqlx_is_initialized_ctx
+        let pyshinqlx_is_initialized_ctx = pyshinqlx_is_initialized_context();
+        pyshinqlx_is_initialized_ctx
             .expect()
             .return_const(true)
             .times(1);
-        let pyminqlx_reload_ctx = pyminqlx_reload_context();
-        pyminqlx_reload_ctx
+        let pyshinqlx_reload_ctx = pyshinqlx_reload_context();
+        pyshinqlx_reload_ctx
             .expect()
             .return_const(Err(PythonInitializationError::NotInitializedError))
             .times(1);
@@ -1367,13 +1367,13 @@ def handler():
             .times(1);
         MAIN_ENGINE.store(Some(mock_engine.into()));
 
-        let pyminqlx_is_initialized_ctx = pyminqlx_is_initialized_context();
-        pyminqlx_is_initialized_ctx
+        let pyshinqlx_is_initialized_ctx = pyshinqlx_is_initialized_context();
+        pyshinqlx_is_initialized_ctx
             .expect()
             .return_const(false)
             .times(1);
-        let pyminqlx_initialize_ctx = pyminqlx_initialize_context();
-        pyminqlx_initialize_ctx
+        let pyshinqlx_initialize_ctx = pyshinqlx_initialize_context();
+        pyshinqlx_initialize_ctx
             .expect()
             .return_const(Ok(()))
             .times(1);
@@ -1396,13 +1396,13 @@ def handler():
             .times(1);
         MAIN_ENGINE.store(Some(mock_engine.into()));
 
-        let pyminqlx_is_initialized_ctx = pyminqlx_is_initialized_context();
-        pyminqlx_is_initialized_ctx
+        let pyshinqlx_is_initialized_ctx = pyshinqlx_is_initialized_context();
+        pyshinqlx_is_initialized_ctx
             .expect()
             .return_const(false)
             .times(1);
-        let pyminqlx_initialize_ctx = pyminqlx_initialize_context();
-        pyminqlx_initialize_ctx
+        let pyshinqlx_initialize_ctx = pyshinqlx_initialize_context();
+        pyshinqlx_initialize_ctx
             .expect()
             .return_const(Err(PythonInitializationError::MainScriptError))
             .times(1);

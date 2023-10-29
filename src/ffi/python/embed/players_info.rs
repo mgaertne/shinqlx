@@ -8,7 +8,7 @@ use pyo3::prelude::*;
 
 /// Returns a list with dictionaries with information about all the players on the server.
 #[pyfunction(name = "players_info")]
-pub(crate) fn minqlx_players_info(py: Python<'_>) -> PyResult<Vec<Option<PlayerInfo>>> {
+pub(crate) fn pyshinqlx_players_info(py: Python<'_>) -> PyResult<Vec<Option<PlayerInfo>>> {
     let maxclients = py.allow_threads(|| {
         let Some(ref main_engine) = *MAIN_ENGINE.load() else {
             return Err(PyEnvironmentError::new_err(
@@ -39,7 +39,7 @@ pub(crate) fn minqlx_players_info(py: Python<'_>) -> PyResult<Vec<Option<PlayerI
 #[cfg(test)]
 #[cfg(not(miri))]
 mod get_players_info_tests {
-    use super::minqlx_players_info;
+    use super::pyshinqlx_players_info;
     use super::MAIN_ENGINE;
     use crate::ffi::c::client::MockClient;
     use crate::ffi::c::game_entity::MockGameEntity;
@@ -55,7 +55,7 @@ mod get_players_info_tests {
     fn get_players_info_when_main_engine_not_initialized() {
         MAIN_ENGINE.store(None);
         Python::with_gil(|py| {
-            let result = minqlx_players_info(py);
+            let result = pyshinqlx_players_info(py);
             assert!(result.is_err_and(|err| err.is_instance_of::<PyEnvironmentError>(py)));
         });
     }
@@ -129,7 +129,7 @@ mod get_players_info_tests {
             mock_game_entity
         });
 
-        let players_info = Python::with_gil(|py| minqlx_players_info(py).unwrap());
+        let players_info = Python::with_gil(|py| pyshinqlx_players_info(py).unwrap());
         assert_eq!(
             players_info,
             vec![

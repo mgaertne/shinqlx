@@ -8,7 +8,7 @@ use pyo3::{pyfunction, PyResult, Python};
 /// Sets a player's powerups.
 #[pyfunction]
 #[pyo3(name = "set_powerups")]
-pub(crate) fn minqlx_set_powerups(
+pub(crate) fn pyshinqlx_set_powerups(
     py: Python<'_>,
     client_id: i32,
     powerups: Powerups,
@@ -44,7 +44,7 @@ pub(crate) fn minqlx_set_powerups(
 #[cfg(test)]
 #[cfg(not(miri))]
 mod set_powerups_tests {
-    use super::minqlx_set_powerups;
+    use super::pyshinqlx_set_powerups;
     use super::MAIN_ENGINE;
     use crate::ffi::c::game_client::MockGameClient;
     use crate::ffi::c::game_entity::MockGameEntity;
@@ -61,7 +61,7 @@ mod set_powerups_tests {
     fn set_powerups_when_main_engine_not_initialized() {
         MAIN_ENGINE.store(None);
         Python::with_gil(|py| {
-            let result = minqlx_set_powerups(py, 21, Powerups(0, 0, 0, 0, 0, 0));
+            let result = pyshinqlx_set_powerups(py, 21, Powerups(0, 0, 0, 0, 0, 0));
             assert!(result.is_err_and(|err| err.is_instance_of::<PyEnvironmentError>(py)));
         });
     }
@@ -74,7 +74,7 @@ mod set_powerups_tests {
         MAIN_ENGINE.store(Some(mock_engine.into()));
 
         Python::with_gil(|py| {
-            let result = minqlx_set_powerups(py, -1, Powerups(0, 0, 0, 0, 0, 0));
+            let result = pyshinqlx_set_powerups(py, -1, Powerups(0, 0, 0, 0, 0, 0));
             assert!(result.is_err_and(|err| err.is_instance_of::<PyValueError>(py)));
         });
     }
@@ -87,7 +87,7 @@ mod set_powerups_tests {
         MAIN_ENGINE.store(Some(mock_engine.into()));
 
         Python::with_gil(|py| {
-            let result = minqlx_set_powerups(py, 666, Powerups(0, 0, 0, 0, 0, 0));
+            let result = pyshinqlx_set_powerups(py, 666, Powerups(0, 0, 0, 0, 0, 0));
             assert!(result.is_err_and(|err| err.is_instance_of::<PyValueError>(py)));
         });
     }
@@ -114,7 +114,8 @@ mod set_powerups_tests {
         });
 
         let result =
-            Python::with_gil(|py| minqlx_set_powerups(py, 2, Powerups(1, 2, 3, 4, 5, 6))).unwrap();
+            Python::with_gil(|py| pyshinqlx_set_powerups(py, 2, Powerups(1, 2, 3, 4, 5, 6)))
+                .unwrap();
         assert_eq!(result, true);
     }
 
@@ -135,7 +136,8 @@ mod set_powerups_tests {
         });
 
         let result =
-            Python::with_gil(|py| minqlx_set_powerups(py, 2, Powerups(0, 0, 0, 0, 0, 0))).unwrap();
+            Python::with_gil(|py| pyshinqlx_set_powerups(py, 2, Powerups(0, 0, 0, 0, 0, 0)))
+                .unwrap();
         assert_eq!(result, false);
     }
 }

@@ -9,7 +9,7 @@ use pyo3::{pyfunction, PyResult, Python};
 /// Sets a player's ammo.
 #[pyfunction]
 #[pyo3(name = "set_ammo")]
-pub(crate) fn minqlx_set_ammo(py: Python<'_>, client_id: i32, ammos: Weapons) -> PyResult<bool> {
+pub(crate) fn pyshinqlx_set_ammo(py: Python<'_>, client_id: i32, ammos: Weapons) -> PyResult<bool> {
     let maxclients = py.allow_threads(|| {
         let Some(ref main_engine) = *MAIN_ENGINE.load() else {
             return Err(PyEnvironmentError::new_err(
@@ -41,7 +41,7 @@ pub(crate) fn minqlx_set_ammo(py: Python<'_>, client_id: i32, ammos: Weapons) ->
 #[cfg(test)]
 #[cfg(not(miri))]
 mod set_ammo_tests {
-    use super::minqlx_set_ammo;
+    use super::pyshinqlx_set_ammo;
     use super::MAIN_ENGINE;
     use crate::ffi::c::game_client::MockGameClient;
     use crate::ffi::c::game_entity::MockGameEntity;
@@ -59,7 +59,7 @@ mod set_ammo_tests {
         MAIN_ENGINE.store(None);
         Python::with_gil(|py| {
             let result =
-                minqlx_set_ammo(py, 21, Weapons(0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0));
+                pyshinqlx_set_ammo(py, 21, Weapons(0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0));
             assert!(result.is_err_and(|err| err.is_instance_of::<PyEnvironmentError>(py)));
         });
     }
@@ -73,7 +73,7 @@ mod set_ammo_tests {
 
         Python::with_gil(|py| {
             let result =
-                minqlx_set_ammo(py, -1, Weapons(0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0));
+                pyshinqlx_set_ammo(py, -1, Weapons(0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0));
             assert!(result.is_err_and(|err| err.is_instance_of::<PyValueError>(py)));
         });
     }
@@ -86,7 +86,7 @@ mod set_ammo_tests {
         MAIN_ENGINE.store(Some(mock_engine.into()));
 
         Python::with_gil(|py| {
-            let result = minqlx_set_ammo(
+            let result = pyshinqlx_set_ammo(
                 py,
                 666,
                 Weapons(0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0),
@@ -119,7 +119,7 @@ mod set_ammo_tests {
         });
 
         let result = Python::with_gil(|py| {
-            minqlx_set_ammo(
+            pyshinqlx_set_ammo(
                 py,
                 2,
                 Weapons(1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15),
@@ -146,7 +146,7 @@ mod set_ammo_tests {
         });
 
         let result = Python::with_gil(|py| {
-            minqlx_set_ammo(py, 2, Weapons(0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0))
+            pyshinqlx_set_ammo(py, 2, Weapons(0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0))
         })
         .unwrap();
         assert_eq!(result, false);

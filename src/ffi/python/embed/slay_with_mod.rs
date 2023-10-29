@@ -7,7 +7,7 @@ use pyo3::{pyfunction, PyResult, Python};
 /// Slay player with mean of death.
 #[pyfunction]
 #[pyo3(name = "slay_with_mod")]
-pub(crate) fn minqlx_slay_with_mod(
+pub(crate) fn pyshinqlx_slay_with_mod(
     py: Python<'_>,
     client_id: i32,
     mean_of_death: i32,
@@ -51,7 +51,7 @@ pub(crate) fn minqlx_slay_with_mod(
 #[cfg(test)]
 #[cfg(not(miri))]
 mod slay_with_mod_tests {
-    use super::minqlx_slay_with_mod;
+    use super::pyshinqlx_slay_with_mod;
     use super::MAIN_ENGINE;
     use crate::ffi::c::game_client::MockGameClient;
     use crate::ffi::c::game_entity::MockGameEntity;
@@ -67,7 +67,7 @@ mod slay_with_mod_tests {
     fn slay_with_mod_when_main_engine_not_initialized() {
         MAIN_ENGINE.store(None);
         Python::with_gil(|py| {
-            let result = minqlx_slay_with_mod(py, 21, meansOfDeath_t::MOD_TRIGGER_HURT as i32);
+            let result = pyshinqlx_slay_with_mod(py, 21, meansOfDeath_t::MOD_TRIGGER_HURT as i32);
             assert!(result.is_err_and(|err| err.is_instance_of::<PyEnvironmentError>(py)));
         });
     }
@@ -80,7 +80,7 @@ mod slay_with_mod_tests {
         MAIN_ENGINE.store(Some(mock_engine.into()));
 
         Python::with_gil(|py| {
-            let result = minqlx_slay_with_mod(py, -1, meansOfDeath_t::MOD_TRIGGER_HURT as i32);
+            let result = pyshinqlx_slay_with_mod(py, -1, meansOfDeath_t::MOD_TRIGGER_HURT as i32);
             assert!(result.is_err_and(|err| err.is_instance_of::<PyValueError>(py)));
         });
     }
@@ -93,7 +93,7 @@ mod slay_with_mod_tests {
         MAIN_ENGINE.store(Some(mock_engine.into()));
 
         Python::with_gil(|py| {
-            let result = minqlx_slay_with_mod(py, 666, meansOfDeath_t::MOD_TRIGGER_HURT as i32);
+            let result = pyshinqlx_slay_with_mod(py, 666, meansOfDeath_t::MOD_TRIGGER_HURT as i32);
             assert!(result.is_err_and(|err| err.is_instance_of::<PyValueError>(py)));
         });
     }
@@ -106,7 +106,7 @@ mod slay_with_mod_tests {
         MAIN_ENGINE.store(Some(mock_engine.into()));
 
         Python::with_gil(|py| {
-            let result = minqlx_slay_with_mod(py, 2, 12345);
+            let result = pyshinqlx_slay_with_mod(py, 2, 12345);
             assert!(result.is_err_and(|err| err.is_instance_of::<PyValueError>(py)));
         });
     }
@@ -134,7 +134,7 @@ mod slay_with_mod_tests {
         });
 
         let result = Python::with_gil(|py| {
-            minqlx_slay_with_mod(py, 2, meansOfDeath_t::MOD_PROXIMITY_MINE as i32)
+            pyshinqlx_slay_with_mod(py, 2, meansOfDeath_t::MOD_PROXIMITY_MINE as i32)
         })
         .unwrap();
         assert_eq!(result, true);
@@ -160,7 +160,7 @@ mod slay_with_mod_tests {
         });
 
         let result = Python::with_gil(|py| {
-            minqlx_slay_with_mod(py, 2, meansOfDeath_t::MOD_PROXIMITY_MINE as i32)
+            pyshinqlx_slay_with_mod(py, 2, meansOfDeath_t::MOD_PROXIMITY_MINE as i32)
         })
         .unwrap();
         assert_eq!(result, true);
@@ -183,7 +183,7 @@ mod slay_with_mod_tests {
         });
 
         let result =
-            Python::with_gil(|py| minqlx_slay_with_mod(py, 2, meansOfDeath_t::MOD_CRUSH as i32))
+            Python::with_gil(|py| pyshinqlx_slay_with_mod(py, 2, meansOfDeath_t::MOD_CRUSH as i32))
                 .unwrap();
         assert_eq!(result, false);
     }

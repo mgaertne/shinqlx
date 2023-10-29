@@ -96,7 +96,7 @@ impl From<(f32, f32, f32)> for Vector3 {
 mod vector3_tests {
     use super::Vector3;
     #[cfg(not(miri))]
-    use crate::ffi::python::pyminqlx_setup_fixture::*;
+    use crate::ffi::python::pyshinqlx_setup_fixture::*;
     use pretty_assertions::assert_eq;
     #[cfg(not(miri))]
     use pyo3::exceptions::{PyTypeError, PyValueError};
@@ -107,10 +107,10 @@ mod vector3_tests {
 
     #[cfg(not(miri))]
     #[rstest]
-    fn vector3_tuple_test(_pyminqlx_setup: ()) {
+    fn vector3_tuple_test(_pyshinqlx_setup: ()) {
         Python::with_gil(|py| {
-            let minqlx_module = py.import("_minqlx").unwrap();
-            let vector3 = minqlx_module.getattr("Vector3").unwrap();
+            let shinqlx_module = py.import("_minqlx").unwrap();
+            let vector3 = shinqlx_module.getattr("Vector3").unwrap();
             let tuple = py.import("builtins").unwrap().getattr("tuple").unwrap();
             assert!(vector3.is_instance(tuple.get_type()).unwrap());
         });
@@ -118,7 +118,7 @@ mod vector3_tests {
 
     #[cfg(not(miri))]
     #[rstest]
-    fn vector3_can_be_created_from_python(_pyminqlx_setup: ()) {
+    fn vector3_can_be_created_from_python(_pyshinqlx_setup: ()) {
         Python::with_gil(|py| {
             let vector3_constructor = py.run(
                 r#"
@@ -138,7 +138,7 @@ weapons = _minqlx.Vector3((0, 42, 666))
 
     #[cfg(not(miri))]
     #[rstest]
-    fn vector3_py_constructor_with_too_few_values(_pyminqlx_setup: ()) {
+    fn vector3_py_constructor_with_too_few_values(_pyshinqlx_setup: ()) {
         Python::with_gil(|py| {
             let vector3_constructor = py.run(
                 r#"
@@ -154,7 +154,7 @@ powerups = _minqlx.Vector3((0, 1))
 
     #[cfg(not(miri))]
     #[rstest]
-    fn vector3_py_constructor_with_too_many_values(_pyminqlx_setup: ()) {
+    fn vector3_py_constructor_with_too_many_values(_pyshinqlx_setup: ()) {
         Python::with_gil(|py| {
             let vector3_constructor = py.run(
                 r#"
@@ -170,7 +170,7 @@ powerups = _minqlx.Vector3((0, 1, 2, 3))
 
     #[cfg(not(miri))]
     #[rstest]
-    fn vector3_py_constructor_with_non_numeric_values(_pyminqlx_setup: ()) {
+    fn vector3_py_constructor_with_non_numeric_values(_pyshinqlx_setup: ()) {
         Python::with_gil(|py| {
             let vector3_constructor = py.run(
                 r#"
@@ -186,7 +186,7 @@ powerups = _minqlx.Vector3(("asdf", True, (1, 2, 3)))
 
     #[cfg(not(miri))]
     #[rstest]
-    fn vector3_can_be_compared_for_equality_in_python(_pyminqlx_setup: ()) {
+    fn vector3_can_be_compared_for_equality_in_python(_pyshinqlx_setup: ()) {
         let result = Python::with_gil(|py| {
             py.run(
                 r#"
@@ -202,7 +202,7 @@ assert(_minqlx.Vector3((0, 1, 2)) == _minqlx.Vector3((0, 1, 2)))
 
     #[cfg(not(miri))]
     #[rstest]
-    fn vector3_can_be_compared_for_non_equality_in_python(_pyminqlx_setup: ()) {
+    fn vector3_can_be_compared_for_non_equality_in_python(_pyshinqlx_setup: ()) {
         let result = Python::with_gil(|py| {
             py.run(
                 r#"
@@ -218,7 +218,7 @@ assert(_minqlx.Vector3((0, 1, 2)) != _minqlx.Vector3((2, 1, 0)))
 
     #[cfg(not(miri))]
     #[rstest]
-    fn vector3_can_not_be_compared_for_lower_in_python(_pyminqlx_setup: ()) {
+    fn vector3_can_not_be_compared_for_lower_in_python(_pyshinqlx_setup: ()) {
         Python::with_gil(|py| {
             let result = py.run(
                 r#"
@@ -234,7 +234,7 @@ assert(_minqlx.Vector3((0, 1, 2)) < _minqlx.Vector3((2, 1, 0)))
 
     #[cfg(not(miri))]
     #[rstest]
-    fn vector3_can_be_iterated_over_in_python(_pyminqlx_setup: ()) {
+    fn vector3_can_be_iterated_over_in_python(_pyshinqlx_setup: ()) {
         let result = Python::with_gil(|py| {
             py.run(
                 r#"

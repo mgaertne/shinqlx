@@ -8,7 +8,10 @@ use pyo3::{pyfunction, PyResult, Python};
 /// Get information about the player's state in the game.
 #[pyfunction]
 #[pyo3(name = "player_state")]
-pub(crate) fn minqlx_player_state(py: Python<'_>, client_id: i32) -> PyResult<Option<PlayerState>> {
+pub(crate) fn pyshinqlx_player_state(
+    py: Python<'_>,
+    client_id: i32,
+) -> PyResult<Option<PlayerState>> {
     let maxclients = py.allow_threads(|| {
         let Some(ref main_engine) = *MAIN_ENGINE.load() else {
             return Err(PyEnvironmentError::new_err(
@@ -37,7 +40,7 @@ pub(crate) fn minqlx_player_state(py: Python<'_>, client_id: i32) -> PyResult<Op
 #[cfg(test)]
 #[cfg(not(miri))]
 mod player_state_tests {
-    use super::minqlx_player_state;
+    use super::pyshinqlx_player_state;
     use super::MAIN_ENGINE;
     use crate::ffi::c::game_client::MockGameClient;
     use crate::ffi::c::game_entity::MockGameEntity;
@@ -54,7 +57,7 @@ mod player_state_tests {
     fn player_state_when_main_engine_not_initialized() {
         MAIN_ENGINE.store(None);
         Python::with_gil(|py| {
-            let result = minqlx_player_state(py, 21);
+            let result = pyshinqlx_player_state(py, 21);
             assert!(result.is_err_and(|err| err.is_instance_of::<PyEnvironmentError>(py)));
         });
     }
@@ -67,7 +70,7 @@ mod player_state_tests {
         MAIN_ENGINE.store(Some(mock_engine.into()));
 
         Python::with_gil(|py| {
-            let result = minqlx_player_state(py, -1);
+            let result = pyshinqlx_player_state(py, -1);
             assert!(result.is_err_and(|err| err.is_instance_of::<PyValueError>(py)));
         });
     }
@@ -80,7 +83,7 @@ mod player_state_tests {
         MAIN_ENGINE.store(Some(mock_engine.into()));
 
         Python::with_gil(|py| {
-            let result = minqlx_player_state(py, 666);
+            let result = pyshinqlx_player_state(py, 666);
             assert!(result.is_err_and(|err| err.is_instance_of::<PyValueError>(py)));
         });
     }
@@ -104,7 +107,7 @@ mod player_state_tests {
                 mock_game_entity
             });
 
-        let result = Python::with_gil(|py| minqlx_player_state(py, 2)).unwrap();
+        let result = Python::with_gil(|py| pyshinqlx_player_state(py, 2)).unwrap();
         assert_eq!(result, None);
     }
 
@@ -163,7 +166,7 @@ mod player_state_tests {
                 mock_game_entity
             });
 
-        let result = Python::with_gil(|py| minqlx_player_state(py, 2)).unwrap();
+        let result = Python::with_gil(|py| pyshinqlx_player_state(py, 2)).unwrap();
         assert_eq!(
             result,
             Some(PlayerState {

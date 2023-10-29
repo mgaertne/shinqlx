@@ -7,7 +7,7 @@ use pyo3::{pyfunction, PyResult, Python};
 /// Sets a player's current weapon.
 #[pyfunction]
 #[pyo3(name = "set_weapon")]
-pub(crate) fn minqlx_set_weapon(py: Python<'_>, client_id: i32, weapon: i32) -> PyResult<bool> {
+pub(crate) fn pyshinqlx_set_weapon(py: Python<'_>, client_id: i32, weapon: i32) -> PyResult<bool> {
     let maxclients = py.allow_threads(|| {
         let Some(ref main_engine) = *MAIN_ENGINE.load() else {
             return Err(PyEnvironmentError::new_err(
@@ -45,7 +45,7 @@ pub(crate) fn minqlx_set_weapon(py: Python<'_>, client_id: i32, weapon: i32) -> 
 #[cfg(test)]
 #[cfg(not(miri))]
 mod set_weapon_tests {
-    use super::minqlx_set_weapon;
+    use super::pyshinqlx_set_weapon;
     use super::MAIN_ENGINE;
     use crate::ffi::c::game_client::MockGameClient;
     use crate::ffi::c::game_entity::MockGameEntity;
@@ -61,7 +61,7 @@ mod set_weapon_tests {
     fn set_weapon_when_main_engine_not_initialized() {
         MAIN_ENGINE.store(None);
         Python::with_gil(|py| {
-            let result = minqlx_set_weapon(py, 21, weapon_t::WP_ROCKET_LAUNCHER.into());
+            let result = pyshinqlx_set_weapon(py, 21, weapon_t::WP_ROCKET_LAUNCHER.into());
             assert!(result.is_err_and(|err| err.is_instance_of::<PyEnvironmentError>(py)));
         });
     }
@@ -74,7 +74,7 @@ mod set_weapon_tests {
         MAIN_ENGINE.store(Some(mock_engine.into()));
 
         Python::with_gil(|py| {
-            let result = minqlx_set_weapon(py, -1, weapon_t::WP_GRAPPLING_HOOK.into());
+            let result = pyshinqlx_set_weapon(py, -1, weapon_t::WP_GRAPPLING_HOOK.into());
             assert!(result.is_err_and(|err| err.is_instance_of::<PyValueError>(py)));
         });
     }
@@ -87,7 +87,7 @@ mod set_weapon_tests {
         MAIN_ENGINE.store(Some(mock_engine.into()));
 
         Python::with_gil(|py| {
-            let result = minqlx_set_weapon(py, 666, weapon_t::WP_PROX_LAUNCHER.into());
+            let result = pyshinqlx_set_weapon(py, 666, weapon_t::WP_PROX_LAUNCHER.into());
             assert!(result.is_err_and(|err| err.is_instance_of::<PyValueError>(py)));
         });
     }
@@ -100,7 +100,7 @@ mod set_weapon_tests {
         MAIN_ENGINE.store(Some(mock_engine.into()));
 
         Python::with_gil(|py| {
-            let result = minqlx_set_weapon(py, 2, -1);
+            let result = pyshinqlx_set_weapon(py, 2, -1);
             assert!(result.is_err_and(|err| err.is_instance_of::<PyValueError>(py)));
         });
     }
@@ -113,7 +113,7 @@ mod set_weapon_tests {
         MAIN_ENGINE.store(Some(mock_engine.into()));
 
         Python::with_gil(|py| {
-            let result = minqlx_set_weapon(py, 2, 42);
+            let result = pyshinqlx_set_weapon(py, 2, 42);
             assert!(result.is_err_and(|err| err.is_instance_of::<PyValueError>(py)));
         });
     }
@@ -140,7 +140,7 @@ mod set_weapon_tests {
         });
 
         let result =
-            Python::with_gil(|py| minqlx_set_weapon(py, 2, weapon_t::WP_BFG.into())).unwrap();
+            Python::with_gil(|py| pyshinqlx_set_weapon(py, 2, weapon_t::WP_BFG.into())).unwrap();
         assert_eq!(result, true);
     }
 
@@ -161,7 +161,7 @@ mod set_weapon_tests {
         });
 
         let result =
-            Python::with_gil(|py| minqlx_set_weapon(py, 2, weapon_t::WP_HMG.into())).unwrap();
+            Python::with_gil(|py| pyshinqlx_set_weapon(py, 2, weapon_t::WP_HMG.into())).unwrap();
         assert_eq!(result, false);
     }
 }

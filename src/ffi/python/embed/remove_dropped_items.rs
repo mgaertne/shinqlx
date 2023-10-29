@@ -5,7 +5,7 @@ use pyo3::{pyfunction, PyResult, Python};
 /// Removes all dropped items.
 #[pyfunction]
 #[pyo3(name = "remove_dropped_items")]
-pub(crate) fn minqlx_remove_dropped_items(py: Python<'_>) -> PyResult<bool> {
+pub(crate) fn pyshinqlx_remove_dropped_items(py: Python<'_>) -> PyResult<bool> {
     py.allow_threads(|| {
         (0..MAX_GENTITIES)
             .filter_map(|i| GameEntity::try_from(i as i32).ok())
@@ -21,7 +21,7 @@ pub(crate) fn minqlx_remove_dropped_items(py: Python<'_>) -> PyResult<bool> {
 #[cfg(test)]
 #[cfg(not(miri))]
 mod remove_dropped_items_tests {
-    use super::minqlx_remove_dropped_items;
+    use super::pyshinqlx_remove_dropped_items;
     use crate::ffi::c::game_entity::MockGameEntity;
     use crate::prelude::*;
     use mockall::predicate;
@@ -53,7 +53,7 @@ mod remove_dropped_items_tests {
             mock_game_entity
         });
 
-        let result = Python::with_gil(minqlx_remove_dropped_items);
+        let result = Python::with_gil(pyshinqlx_remove_dropped_items);
         assert!(result.is_ok_and(|value| value));
     }
 
@@ -83,7 +83,7 @@ mod remove_dropped_items_tests {
             mock_game_entity
         });
 
-        let result = Python::with_gil(minqlx_remove_dropped_items);
+        let result = Python::with_gil(pyshinqlx_remove_dropped_items);
         assert!(result.is_ok_and(|value| value));
     }
 
@@ -115,7 +115,7 @@ mod remove_dropped_items_tests {
             mock_game_entity
         });
 
-        let result = Python::with_gil(minqlx_remove_dropped_items);
+        let result = Python::with_gil(pyshinqlx_remove_dropped_items);
         assert!(result.is_ok_and(|value| value));
     }
 
@@ -132,7 +132,7 @@ mod remove_dropped_items_tests {
             mock_game_entity
         });
 
-        let result = Python::with_gil(minqlx_remove_dropped_items);
+        let result = Python::with_gil(pyshinqlx_remove_dropped_items);
         assert!(result.is_ok_and(|value| value));
     }
 }

@@ -101,7 +101,7 @@ impl Weapons {
 #[cfg(test)]
 mod weapons_tests {
     #[cfg(not(miri))]
-    use crate::ffi::python::pyminqlx_setup_fixture::*;
+    use crate::ffi::python::pyshinqlx_setup_fixture::*;
     #[cfg(not(miri))]
     use pyo3::exceptions::{PyTypeError, PyValueError};
     #[cfg(not(miri))]
@@ -111,7 +111,7 @@ mod weapons_tests {
 
     #[cfg(not(miri))]
     #[rstest]
-    fn weapons_can_be_created_from_python(_pyminqlx_setup: ()) {
+    fn weapons_can_be_created_from_python(_pyshinqlx_setup: ()) {
         Python::with_gil(|py| {
             let weapons_constructor =py.run(r#"
 import _minqlx
@@ -127,7 +127,7 @@ weapons = _minqlx.Weapons((False, False, False, False, False, False, False, Fals
 
     #[cfg(not(miri))]
     #[rstest]
-    fn weapons_py_constructor_with_too_few_values(_pyminqlx_setup: ()) {
+    fn weapons_py_constructor_with_too_few_values(_pyshinqlx_setup: ()) {
         Python::with_gil(|py| {
             let weapons_constructor = py.run(
                 r#"
@@ -143,7 +143,7 @@ powerups = _minqlx.Weapons((False, False, False, False, False, False, False, Fal
 
     #[cfg(not(miri))]
     #[rstest]
-    fn weapons_py_constructor_with_too_many_values(_pyminqlx_setup: ()) {
+    fn weapons_py_constructor_with_too_many_values(_pyshinqlx_setup: ()) {
         Python::with_gil(|py| {
             let weapons_constructor = py.run(
                 r#"
@@ -159,7 +159,7 @@ powerups = _minqlx.Weapons((False, False, False, False, False, False, False, Fal
 
     #[cfg(not(miri))]
     #[rstest]
-    fn weapons_py_constructor_with_non_boolean_values(_pyminqlx_setup: ()) {
+    fn weapons_py_constructor_with_non_boolean_values(_pyshinqlx_setup: ()) {
         Python::with_gil(|py| {
             let weapons_constructor = py.run(
                 r#"
@@ -175,7 +175,7 @@ powerups = _minqlx.Weapons(("asdf", True, (1, 2, 3), [], {}, set(), 6, 7, 8, 9, 
 
     #[cfg(not(miri))]
     #[rstest]
-    fn weapons_can_be_compared_for_equality_in_python(_pyminqlx_setup: ()) {
+    fn weapons_can_be_compared_for_equality_in_python(_pyshinqlx_setup: ()) {
         let result = Python::with_gil(|py| {
             py.run(
                 r#"
@@ -191,7 +191,7 @@ assert(_minqlx.Weapons((False, False, False, False, False, False, False, False, 
 
     #[cfg(not(miri))]
     #[rstest]
-    fn weapons_can_be_compared_for_non_equality_in_python(_pyminqlx_setup: ()) {
+    fn weapons_can_be_compared_for_non_equality_in_python(_pyshinqlx_setup: ()) {
         let result = Python::with_gil(|py| {
             py.run(
                 r#"
@@ -207,7 +207,7 @@ assert(_minqlx.Weapons((False, False, False, False, False, False, False, False, 
 
     #[cfg(not(miri))]
     #[rstest]
-    fn weapons_can_not_be_compared_for_lower_in_python(_pyminqlx_setup: ()) {
+    fn weapons_can_not_be_compared_for_lower_in_python(_pyshinqlx_setup: ()) {
         Python::with_gil(|py| {
             let result = py.run(
                 r#"
@@ -226,7 +226,7 @@ assert(_minqlx.Weapons((False, False, False, False, False, False, False, False, 
 mod ammo_tests {
     use super::Weapons;
     #[cfg(not(miri))]
-    use crate::ffi::python::pyminqlx_setup_fixture::*;
+    use crate::ffi::python::pyshinqlx_setup_fixture::*;
     use pretty_assertions::assert_eq;
     #[cfg(not(miri))]
     use pyo3::exceptions::{PyTypeError, PyValueError};
@@ -255,7 +255,7 @@ mod ammo_tests {
 
     #[cfg(not(miri))]
     #[rstest]
-    fn ammo_can_be_created_from_python(_pyminqlx_setup: ()) {
+    fn ammo_can_be_created_from_python(_pyshinqlx_setup: ()) {
         Python::with_gil(|py| {
             let ammo_constructor = py.run(
                 r#"
@@ -274,7 +274,7 @@ weapons = _minqlx.Weapons((0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14))
     }
     #[cfg(not(miri))]
     #[rstest]
-    fn ammo_py_constructor_with_too_few_values(_pyminqlx_setup: ()) {
+    fn ammo_py_constructor_with_too_few_values(_pyshinqlx_setup: ()) {
         Python::with_gil(|py| {
             let ammo_constructor = py.run(
                 r#"
@@ -290,7 +290,7 @@ powerups = _minqlx.Weapons((0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13))
 
     #[cfg(not(miri))]
     #[rstest]
-    fn ammo_py_constructor_with_too_many_values(_pyminqlx_setup: ()) {
+    fn ammo_py_constructor_with_too_many_values(_pyshinqlx_setup: ()) {
         Python::with_gil(|py| {
             let ammo_constructor = py.run(
                 r#"
@@ -306,7 +306,7 @@ powerups = _minqlx.Weapons((0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15
 
     #[cfg(not(miri))]
     #[rstest]
-    fn ammo_py_constructor_with_non_numeric_values(_pyminqlx_setup: ()) {
+    fn ammo_py_constructor_with_non_numeric_values(_pyshinqlx_setup: ()) {
         Python::with_gil(|py| {
             let ammo_constructor = py.run(
                 r#"
@@ -322,7 +322,7 @@ powerups = _minqlx.Weapons(("asdf", True, (1, 2, 3), [], {}, set(), 6, 7, 8, 9, 
 
     #[cfg(not(miri))]
     #[rstest]
-    fn ammo_can_be_compared_for_equality_in_python(_pyminqlx_setup: ()) {
+    fn ammo_can_be_compared_for_equality_in_python(_pyshinqlx_setup: ()) {
         let result = Python::with_gil(|py| {
             py.run(
                 r#"
@@ -338,7 +338,7 @@ assert(_minqlx.Weapons((0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14)) == _m
 
     #[cfg(not(miri))]
     #[rstest]
-    fn ammo_can_be_compared_for_non_equality_in_python(_pyminqlx_setup: ()) {
+    fn ammo_can_be_compared_for_non_equality_in_python(_pyshinqlx_setup: ()) {
         let result = Python::with_gil(|py| {
             py.run(
                 r#"
@@ -354,7 +354,7 @@ assert(_minqlx.Weapons((0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14)) != _m
 
     #[cfg(not(miri))]
     #[rstest]
-    fn ammo_can_not_be_compared_for_lower_in_python(_pyminqlx_setup: ()) {
+    fn ammo_can_not_be_compared_for_lower_in_python(_pyshinqlx_setup: ()) {
         Python::with_gil(|py| {
             let result = py.run(
                 r#"

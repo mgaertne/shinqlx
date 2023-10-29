@@ -7,7 +7,7 @@ use pyo3::prelude::*;
 /// Executes a command as if it was executed from the server console.
 #[pyfunction]
 #[pyo3(name = "console_command")]
-pub(crate) fn minqlx_console_command(py: Python<'_>, cmd: &str) -> PyResult<()> {
+pub(crate) fn pyshinqlx_console_command(py: Python<'_>, cmd: &str) -> PyResult<()> {
     py.allow_threads(move || {
         let Some(ref main_engine) = *MAIN_ENGINE.load() else {
             return Err(PyEnvironmentError::new_err(
@@ -24,7 +24,7 @@ pub(crate) fn minqlx_console_command(py: Python<'_>, cmd: &str) -> PyResult<()> 
 #[cfg(test)]
 #[cfg(not(miri))]
 mod console_command_tests {
-    use super::minqlx_console_command;
+    use super::pyshinqlx_console_command;
     use super::MAIN_ENGINE;
     use crate::prelude::*;
     use crate::quake_live_engine::MockQuakeEngine;
@@ -37,7 +37,7 @@ mod console_command_tests {
     fn console_command_when_main_engine_not_initialized() {
         MAIN_ENGINE.store(None);
         Python::with_gil(|py| {
-            let result = minqlx_console_command(py, "asdf");
+            let result = pyshinqlx_console_command(py, "asdf");
             assert!(result.is_err_and(|err| err.is_instance_of::<PyEnvironmentError>(py)));
         });
     }
@@ -52,7 +52,7 @@ mod console_command_tests {
             .times(1);
         MAIN_ENGINE.store(Some(mock_engine.into()));
 
-        let result = Python::with_gil(|py| minqlx_console_command(py, "asdf"));
+        let result = Python::with_gil(|py| pyshinqlx_console_command(py, "asdf"));
         assert!(result.is_ok());
     }
 }

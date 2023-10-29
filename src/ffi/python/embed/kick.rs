@@ -13,7 +13,7 @@ use pyo3::{pyfunction, PyResult, Python};
 #[pyfunction]
 #[pyo3(name = "kick")]
 #[pyo3(signature = (client_id, reason=None))]
-pub(crate) fn minqlx_kick(py: Python<'_>, client_id: i32, reason: Option<&str>) -> PyResult<()> {
+pub(crate) fn pyshinqlx_kick(py: Python<'_>, client_id: i32, reason: Option<&str>) -> PyResult<()> {
     let maxclients = py.allow_threads(|| {
         let Some(ref main_engine) = *MAIN_ENGINE.load() else {
             return Err(PyEnvironmentError::new_err(
@@ -54,7 +54,7 @@ pub(crate) fn minqlx_kick(py: Python<'_>, client_id: i32, reason: Option<&str>) 
 #[cfg(test)]
 #[cfg(not(miri))]
 mod kick_tests {
-    use super::minqlx_kick;
+    use super::pyshinqlx_kick;
     use super::MAIN_ENGINE;
     use crate::ffi::c::client::MockClient;
     use crate::hooks::mock_hooks::shinqlx_drop_client_context;
@@ -70,7 +70,7 @@ mod kick_tests {
     fn kick_when_main_engine_not_initialized() {
         MAIN_ENGINE.store(None);
         Python::with_gil(|py| {
-            let result = minqlx_kick(py, 0, None);
+            let result = pyshinqlx_kick(py, 0, None);
             assert!(result.is_err_and(|err| err.is_instance_of::<PyEnvironmentError>(py)));
         });
     }
@@ -83,7 +83,7 @@ mod kick_tests {
         MAIN_ENGINE.store(Some(mock_engine.into()));
 
         Python::with_gil(|py| {
-            let result = minqlx_kick(py, -1, None);
+            let result = pyshinqlx_kick(py, -1, None);
             assert!(result.is_err_and(|err| err.is_instance_of::<PyValueError>(py)));
         });
     }
@@ -96,7 +96,7 @@ mod kick_tests {
         MAIN_ENGINE.store(Some(mock_engine.into()));
 
         Python::with_gil(|py| {
-            let result = minqlx_kick(py, 42, None);
+            let result = pyshinqlx_kick(py, 42, None);
             assert!(result.is_err_and(|err| err.is_instance_of::<PyValueError>(py)));
         });
     }
@@ -123,7 +123,7 @@ mod kick_tests {
             });
 
         Python::with_gil(|py| {
-            let result = minqlx_kick(py, 2, None);
+            let result = pyshinqlx_kick(py, 2, None);
             assert!(result.is_err_and(|err| err.is_instance_of::<PyValueError>(py)));
         });
     }
@@ -153,7 +153,7 @@ mod kick_tests {
             .withf(|_client, reason| reason == "was kicked.")
             .times(1);
 
-        let result = Python::with_gil(|py| minqlx_kick(py, 2, None));
+        let result = Python::with_gil(|py| pyshinqlx_kick(py, 2, None));
         assert!(result.is_ok());
     }
 
@@ -182,7 +182,7 @@ mod kick_tests {
             .withf(|_client, reason| reason == "please go away!")
             .times(1);
 
-        let result = Python::with_gil(|py| minqlx_kick(py, 2, Some("please go away!")));
+        let result = Python::with_gil(|py| pyshinqlx_kick(py, 2, Some("please go away!")));
         assert!(result.is_ok());
     }
 
@@ -211,7 +211,7 @@ mod kick_tests {
             .withf(|_client, reason| reason == "was kicked.")
             .times(1);
 
-        let result = Python::with_gil(|py| minqlx_kick(py, 2, Some("")));
+        let result = Python::with_gil(|py| pyshinqlx_kick(py, 2, Some("")));
         assert!(result.is_ok());
     }
 }

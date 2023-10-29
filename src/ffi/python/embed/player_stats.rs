@@ -9,7 +9,10 @@ use pyo3::{pyfunction, PyResult, Python};
 /// Get some player stats.
 #[pyfunction]
 #[pyo3(name = "player_stats")]
-pub(crate) fn minqlx_player_stats(py: Python<'_>, client_id: i32) -> PyResult<Option<PlayerStats>> {
+pub(crate) fn pyshinqlx_player_stats(
+    py: Python<'_>,
+    client_id: i32,
+) -> PyResult<Option<PlayerStats>> {
     let maxclients = py.allow_threads(|| {
         let Some(ref main_engine) = *MAIN_ENGINE.load() else {
             return Err(PyEnvironmentError::new_err(
@@ -38,7 +41,7 @@ pub(crate) fn minqlx_player_stats(py: Python<'_>, client_id: i32) -> PyResult<Op
 #[cfg(test)]
 #[cfg(not(miri))]
 mod player_stats_tests {
-    use super::minqlx_player_stats;
+    use super::pyshinqlx_player_stats;
     use super::MAIN_ENGINE;
     use crate::ffi::c::game_client::MockGameClient;
     use crate::ffi::c::game_entity::MockGameEntity;
@@ -54,7 +57,7 @@ mod player_stats_tests {
     fn player_stats_when_main_engine_not_initialized() {
         MAIN_ENGINE.store(None);
         Python::with_gil(|py| {
-            let result = minqlx_player_stats(py, 21);
+            let result = pyshinqlx_player_stats(py, 21);
             assert!(result.is_err_and(|err| err.is_instance_of::<PyEnvironmentError>(py)));
         });
     }
@@ -67,7 +70,7 @@ mod player_stats_tests {
         MAIN_ENGINE.store(Some(mock_engine.into()));
 
         Python::with_gil(|py| {
-            let result = minqlx_player_stats(py, -1);
+            let result = pyshinqlx_player_stats(py, -1);
             assert!(result.is_err_and(|err| err.is_instance_of::<PyValueError>(py)));
         });
     }
@@ -80,7 +83,7 @@ mod player_stats_tests {
         MAIN_ENGINE.store(Some(mock_engine.into()));
 
         Python::with_gil(|py| {
-            let result = minqlx_player_stats(py, 666);
+            let result = pyshinqlx_player_stats(py, 666);
             assert!(result.is_err_and(|err| err.is_instance_of::<PyValueError>(py)));
         });
     }
@@ -112,7 +115,7 @@ mod player_stats_tests {
             });
             mock_game_entity
         });
-        let result = Python::with_gil(|py| minqlx_player_stats(py, 2)).unwrap();
+        let result = Python::with_gil(|py| pyshinqlx_player_stats(py, 2)).unwrap();
 
         assert!(result.is_some_and(|pstats| pstats
             == PlayerStats {
@@ -141,7 +144,7 @@ mod player_stats_tests {
                 .returning(|| Err(QuakeLiveEngineError::MainEngineNotInitialized));
             mock_game_entity
         });
-        let result = Python::with_gil(|py| minqlx_player_stats(py, 2)).unwrap();
+        let result = Python::with_gil(|py| pyshinqlx_player_stats(py, 2)).unwrap();
 
         assert_eq!(result, None);
     }

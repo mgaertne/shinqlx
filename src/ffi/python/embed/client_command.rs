@@ -11,7 +11,11 @@ use pyo3::prelude::*;
 /// Tells the server to process a command from a specific client.
 #[pyfunction]
 #[pyo3(name = "client_command")]
-pub(crate) fn minqlx_client_command(py: Python<'_>, client_id: i32, cmd: &str) -> PyResult<bool> {
+pub(crate) fn pyshinqlx_client_command(
+    py: Python<'_>,
+    client_id: i32,
+    cmd: &str,
+) -> PyResult<bool> {
     let maxclients = py.allow_threads(|| {
         let Some(ref main_engine) = *MAIN_ENGINE.load() else {
             return Err(PyEnvironmentError::new_err(
@@ -42,7 +46,7 @@ pub(crate) fn minqlx_client_command(py: Python<'_>, client_id: i32, cmd: &str) -
 #[cfg(test)]
 #[cfg(not(miri))]
 mod client_command_tests {
-    use super::minqlx_client_command;
+    use super::pyshinqlx_client_command;
     use super::MAIN_ENGINE;
     use crate::ffi::c::client::MockClient;
     use crate::hooks::mock_hooks::shinqlx_execute_client_command_context;
@@ -58,7 +62,7 @@ mod client_command_tests {
     fn client_command_when_main_engine_not_initialized() {
         MAIN_ENGINE.store(None);
         Python::with_gil(|py| {
-            let result = minqlx_client_command(py, 0, "asdf");
+            let result = pyshinqlx_client_command(py, 0, "asdf");
             assert!(result.is_err_and(|err| err.is_instance_of::<PyEnvironmentError>(py)));
         });
     }
@@ -74,7 +78,7 @@ mod client_command_tests {
         hook_ctx.expect().times(0);
 
         Python::with_gil(|py| {
-            let result = minqlx_client_command(py, -1, "asdf");
+            let result = pyshinqlx_client_command(py, -1, "asdf");
             assert!(result.is_err_and(|err| err.is_instance_of::<PyValueError>(py)));
         });
     }
@@ -90,7 +94,7 @@ mod client_command_tests {
         hook_ctx.expect().times(0);
 
         Python::with_gil(|py| {
-            let result = minqlx_client_command(py, 42, "asdf");
+            let result = pyshinqlx_client_command(py, 42, "asdf");
             assert!(result.is_err_and(|err| err.is_instance_of::<PyValueError>(py)));
         });
     }
@@ -118,7 +122,7 @@ mod client_command_tests {
             .withf(|client, cmd, &client_ok| client.is_some() && cmd == "asdf" && client_ok)
             .times(1);
 
-        let result = Python::with_gil(|py| minqlx_client_command(py, 2, "asdf")).unwrap();
+        let result = Python::with_gil(|py| pyshinqlx_client_command(py, 2, "asdf")).unwrap();
         assert_eq!(result, true);
     }
 
@@ -141,7 +145,7 @@ mod client_command_tests {
         let hook_ctx = shinqlx_execute_client_command_context();
         hook_ctx.expect().times(0);
 
-        let result = Python::with_gil(|py| minqlx_client_command(py, 2, "asdf")).unwrap();
+        let result = Python::with_gil(|py| pyshinqlx_client_command(py, 2, "asdf")).unwrap();
         assert_eq!(result, false);
     }
 }

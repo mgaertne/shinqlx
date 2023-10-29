@@ -8,7 +8,7 @@ use pyo3::{pyfunction, PyResult, Python};
 /// Get a configstring.
 #[pyfunction]
 #[pyo3(name = "get_configstring")]
-pub(crate) fn minqlx_get_configstring(py: Python<'_>, config_id: u32) -> PyResult<String> {
+pub(crate) fn pyshinqlx_get_configstring(py: Python<'_>, config_id: u32) -> PyResult<String> {
     if !(0..MAX_CONFIGSTRINGS).contains(&config_id) {
         return Err(PyValueError::new_err(format!(
             "index needs to be a number from 0 to {}.",
@@ -30,7 +30,7 @@ pub(crate) fn minqlx_get_configstring(py: Python<'_>, config_id: u32) -> PyResul
 #[cfg(test)]
 #[cfg(not(miri))]
 mod get_configstring_tests {
-    use super::minqlx_get_configstring;
+    use super::pyshinqlx_get_configstring;
     use super::MAIN_ENGINE;
     use crate::prelude::*;
     use crate::quake_live_engine::MockQuakeEngine;
@@ -44,7 +44,7 @@ mod get_configstring_tests {
     fn get_configstring_for_too_large_configstring_id() {
         MAIN_ENGINE.store(None);
         Python::with_gil(|py| {
-            let result = minqlx_get_configstring(py, MAX_CONFIGSTRINGS + 1);
+            let result = pyshinqlx_get_configstring(py, MAX_CONFIGSTRINGS + 1);
             assert!(result.is_err_and(|err| err.is_instance_of::<PyValueError>(py)));
         });
     }
@@ -54,7 +54,7 @@ mod get_configstring_tests {
     fn get_configstring_when_main_engine_not_initialized() {
         MAIN_ENGINE.store(None);
         Python::with_gil(|py| {
-            let result = minqlx_get_configstring(py, 666);
+            let result = pyshinqlx_get_configstring(py, 666);
             assert!(result.is_err_and(|err| err.is_instance_of::<PyEnvironmentError>(py)));
         });
     }
@@ -70,7 +70,7 @@ mod get_configstring_tests {
             .times(1);
         MAIN_ENGINE.store(Some(mock_engine.into()));
 
-        let result = Python::with_gil(|py| minqlx_get_configstring(py, 666)).unwrap();
+        let result = Python::with_gil(|py| pyshinqlx_get_configstring(py, 666)).unwrap();
         assert_eq!(result, "asdf");
     }
 }

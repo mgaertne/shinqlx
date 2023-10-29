@@ -7,7 +7,7 @@ use pyo3::{pyfunction, PyResult, Python};
 /// Sets a player's score.
 #[pyfunction]
 #[pyo3(name = "set_score")]
-pub(crate) fn minqlx_set_score(py: Python<'_>, client_id: i32, score: i32) -> PyResult<bool> {
+pub(crate) fn pyshinqlx_set_score(py: Python<'_>, client_id: i32, score: i32) -> PyResult<bool> {
     let maxclients = py.allow_threads(|| {
         let Some(ref main_engine) = *MAIN_ENGINE.load() else {
             return Err(PyEnvironmentError::new_err(
@@ -39,7 +39,7 @@ pub(crate) fn minqlx_set_score(py: Python<'_>, client_id: i32, score: i32) -> Py
 #[cfg(test)]
 #[cfg(not(miri))]
 mod set_score_tests {
-    use super::minqlx_set_score;
+    use super::pyshinqlx_set_score;
     use super::MAIN_ENGINE;
     use crate::ffi::c::game_client::MockGameClient;
     use crate::ffi::c::game_entity::MockGameEntity;
@@ -55,7 +55,7 @@ mod set_score_tests {
     fn set_score_when_main_engine_not_initialized() {
         MAIN_ENGINE.store(None);
         Python::with_gil(|py| {
-            let result = minqlx_set_score(py, 21, 42);
+            let result = pyshinqlx_set_score(py, 21, 42);
             assert!(result.is_err_and(|err| err.is_instance_of::<PyEnvironmentError>(py)));
         });
     }
@@ -68,7 +68,7 @@ mod set_score_tests {
         MAIN_ENGINE.store(Some(mock_engine.into()));
 
         Python::with_gil(|py| {
-            let result = minqlx_set_score(py, -1, 42);
+            let result = pyshinqlx_set_score(py, -1, 42);
             assert!(result.is_err_and(|err| err.is_instance_of::<PyValueError>(py)));
         });
     }
@@ -81,7 +81,7 @@ mod set_score_tests {
         MAIN_ENGINE.store(Some(mock_engine.into()));
 
         Python::with_gil(|py| {
-            let result = minqlx_set_score(py, 666, 42);
+            let result = pyshinqlx_set_score(py, 666, 42);
             assert!(result.is_err_and(|err| err.is_instance_of::<PyValueError>(py)));
         });
     }
@@ -107,7 +107,7 @@ mod set_score_tests {
             mock_game_entity
         });
 
-        let result = Python::with_gil(|py| minqlx_set_score(py, 2, 42)).unwrap();
+        let result = Python::with_gil(|py| pyshinqlx_set_score(py, 2, 42)).unwrap();
         assert_eq!(result, true);
     }
 
@@ -127,7 +127,7 @@ mod set_score_tests {
             mock_game_entity
         });
 
-        let result = Python::with_gil(|py| minqlx_set_score(py, 2, 42)).unwrap();
+        let result = Python::with_gil(|py| pyshinqlx_set_score(py, 2, 42)).unwrap();
         assert_eq!(result, false);
     }
 }

@@ -8,7 +8,7 @@ use pyo3::prelude::*;
 #[pyfunction]
 #[pyo3(name = "set_cvar")]
 #[pyo3(signature = (cvar, value, flags=None))]
-pub(crate) fn minqlx_set_cvar(
+pub(crate) fn pyshinqlx_set_cvar(
     py: Python<'_>,
     cvar: &str,
     value: &str,
@@ -41,7 +41,7 @@ pub(crate) fn minqlx_set_cvar(
 #[cfg(test)]
 #[cfg(not(miri))]
 mod set_cvar_tests {
-    use super::minqlx_set_cvar;
+    use super::pyshinqlx_set_cvar;
     use super::MAIN_ENGINE;
     use crate::ffi::c::CVar;
     use crate::prelude::*;
@@ -56,7 +56,7 @@ mod set_cvar_tests {
     fn set_cvar_when_main_engine_not_initialized() {
         MAIN_ENGINE.store(None);
         Python::with_gil(|py| {
-            let result = minqlx_set_cvar(py, "sv_maxclients", "64", None);
+            let result = pyshinqlx_set_cvar(py, "sv_maxclients", "64", None);
             assert!(result.is_err_and(|err| err.is_instance_of::<PyEnvironmentError>(py)));
         });
     }
@@ -81,7 +81,7 @@ mod set_cvar_tests {
         MAIN_ENGINE.store(Some(mock_engine.into()));
 
         let result = Python::with_gil(|py| {
-            minqlx_set_cvar(py, "sv_maxclients", "64", Some(cvar_flags::CVAR_ROM as i32))
+            pyshinqlx_set_cvar(py, "sv_maxclients", "64", Some(cvar_flags::CVAR_ROM as i32))
         })
         .unwrap();
         assert_eq!(result, true);
@@ -110,7 +110,7 @@ mod set_cvar_tests {
         MAIN_ENGINE.store(Some(mock_engine.into()));
 
         let result = Python::with_gil(|py| {
-            minqlx_set_cvar(py, "sv_maxclients", "64", Some(cvar_flags::CVAR_ROM as i32))
+            pyshinqlx_set_cvar(py, "sv_maxclients", "64", Some(cvar_flags::CVAR_ROM as i32))
         })
         .unwrap();
         assert_eq!(result, false);

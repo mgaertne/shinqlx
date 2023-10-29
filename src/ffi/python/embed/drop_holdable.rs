@@ -8,7 +8,7 @@ use pyo3::{pyfunction, PyResult, Python};
 /// Drops player's holdable item.
 #[pyfunction]
 #[pyo3(name = "drop_holdable")]
-pub(crate) fn minqlx_drop_holdable(py: Python<'_>, client_id: i32) -> PyResult<bool> {
+pub(crate) fn pyshinqlx_drop_holdable(py: Python<'_>, client_id: i32) -> PyResult<bool> {
     let maxclients = py.allow_threads(|| {
         let Some(ref main_engine) = *MAIN_ENGINE.load() else {
             return Err(PyEnvironmentError::new_err(
@@ -52,7 +52,7 @@ pub(crate) fn minqlx_drop_holdable(py: Python<'_>, client_id: i32) -> PyResult<b
 #[cfg(test)]
 #[cfg(not(miri))]
 mod drop_holdable_tests {
-    use super::minqlx_drop_holdable;
+    use super::pyshinqlx_drop_holdable;
     use super::MAIN_ENGINE;
     use crate::ffi::c::game_client::MockGameClient;
     use crate::ffi::c::game_entity::MockGameEntity;
@@ -70,7 +70,7 @@ mod drop_holdable_tests {
     fn drop_holdable_when_main_engine_not_initialized() {
         MAIN_ENGINE.store(None);
         Python::with_gil(|py| {
-            let result = minqlx_drop_holdable(py, 21);
+            let result = pyshinqlx_drop_holdable(py, 21);
             assert!(result.is_err_and(|err| err.is_instance_of::<PyEnvironmentError>(py)));
         });
     }
@@ -83,7 +83,7 @@ mod drop_holdable_tests {
         MAIN_ENGINE.store(Some(mock_engine.into()));
 
         Python::with_gil(|py| {
-            let result = minqlx_drop_holdable(py, -1);
+            let result = pyshinqlx_drop_holdable(py, -1);
             assert!(result.is_err_and(|err| err.is_instance_of::<PyValueError>(py)));
         });
     }
@@ -96,7 +96,7 @@ mod drop_holdable_tests {
         MAIN_ENGINE.store(Some(mock_engine.into()));
 
         Python::with_gil(|py| {
-            let result = minqlx_drop_holdable(py, 666);
+            let result = pyshinqlx_drop_holdable(py, 666);
             assert!(result.is_err_and(|err| err.is_instance_of::<PyValueError>(py)));
         });
     }
@@ -117,7 +117,7 @@ mod drop_holdable_tests {
             mock_game_entity
         });
 
-        let result = Python::with_gil(|py| minqlx_drop_holdable(py, 2)).unwrap();
+        let result = Python::with_gil(|py| pyshinqlx_drop_holdable(py, 2)).unwrap();
         assert_eq!(result, false);
     }
 
@@ -161,7 +161,7 @@ mod drop_holdable_tests {
                 mock_game_entity
             });
 
-        let result = Python::with_gil(|py| minqlx_drop_holdable(py, 2)).unwrap();
+        let result = Python::with_gil(|py| pyshinqlx_drop_holdable(py, 2)).unwrap();
         assert_eq!(result, false);
     }
 
@@ -212,7 +212,7 @@ mod drop_holdable_tests {
                 mock_game_entity
             });
 
-        let result = Python::with_gil(|py| minqlx_drop_holdable(py, 2)).unwrap();
+        let result = Python::with_gil(|py| pyshinqlx_drop_holdable(py, 2)).unwrap();
         assert_eq!(result, true);
     }
 }

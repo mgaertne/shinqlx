@@ -9,7 +9,10 @@ use pyo3::prelude::*;
 
 /// Returns a dictionary with information about a plapub(crate) yer by ID.
 #[pyfunction(name = "player_info")]
-pub(crate) fn minqlx_player_info(py: Python<'_>, client_id: i32) -> PyResult<Option<PlayerInfo>> {
+pub(crate) fn pyshinqlx_player_info(
+    py: Python<'_>,
+    client_id: i32,
+) -> PyResult<Option<PlayerInfo>> {
     let maxclients = py.allow_threads(|| {
         let Some(ref main_engine) = *MAIN_ENGINE.load() else {
             return Err(PyEnvironmentError::new_err(
@@ -53,7 +56,7 @@ pub(crate) fn minqlx_player_info(py: Python<'_>, client_id: i32) -> PyResult<Opt
 #[cfg(test)]
 #[cfg(not(miri))]
 mod get_player_info_tests {
-    use super::minqlx_player_info;
+    use super::pyshinqlx_player_info;
     use super::MAIN_ENGINE;
     use crate::ffi::c::client::MockClient;
     use crate::ffi::c::game_entity::MockGameEntity;
@@ -70,7 +73,7 @@ mod get_player_info_tests {
     fn get_player_info_when_main_engine_not_initialized() {
         MAIN_ENGINE.store(None);
         Python::with_gil(|py| {
-            let result = minqlx_player_info(py, 0);
+            let result = pyshinqlx_player_info(py, 0);
             assert!(result.is_err_and(|err| err.is_instance_of::<PyEnvironmentError>(py)));
         });
     }
@@ -82,7 +85,7 @@ mod get_player_info_tests {
         mock_engine.expect_get_max_clients().returning(|| 16);
         MAIN_ENGINE.store(Some(mock_engine.into()));
         Python::with_gil(|py| {
-            let result = minqlx_player_info(py, -1);
+            let result = pyshinqlx_player_info(py, -1);
             assert!(result.is_err_and(|err| err.is_instance_of::<PyValueError>(py)));
         });
     }
@@ -94,7 +97,7 @@ mod get_player_info_tests {
         mock_engine.expect_get_max_clients().returning(|| 16);
         MAIN_ENGINE.store(Some(mock_engine.into()));
         Python::with_gil(|py| {
-            let result = minqlx_player_info(py, 42);
+            let result = pyshinqlx_player_info(py, 42);
             assert!(result.is_err_and(|err| err.is_instance_of::<PyValueError>(py)));
         });
     }
@@ -134,7 +137,7 @@ mod get_player_info_tests {
             mock_game_entity
         });
 
-        let player_info = Python::with_gil(|py| minqlx_player_info(py, 2).unwrap());
+        let player_info = Python::with_gil(|py| pyshinqlx_player_info(py, 2).unwrap());
         assert_eq!(
             player_info,
             Some(PlayerInfo {
@@ -170,7 +173,7 @@ mod get_player_info_tests {
             mock_client
         });
 
-        let player_info = Python::with_gil(|py| minqlx_player_info(py, 2).unwrap());
+        let player_info = Python::with_gil(|py| pyshinqlx_player_info(py, 2).unwrap());
         assert_eq!(player_info, None);
     }
 
@@ -210,7 +213,7 @@ mod get_player_info_tests {
             mock_game_entity
         });
 
-        let player_info = Python::with_gil(|py| minqlx_player_info(py, 2).unwrap());
+        let player_info = Python::with_gil(|py| pyshinqlx_player_info(py, 2).unwrap());
         assert_eq!(
             player_info,
             Some(PlayerInfo {
