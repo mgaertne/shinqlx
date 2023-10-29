@@ -5,7 +5,7 @@ use pyo3::{pyfunction, Python};
 /// Allows or disallows a game with only a single player in it to go on without forfeiting. Useful for race.
 #[pyfunction]
 #[pyo3(name = "allow_single_player")]
-pub(crate) fn minqlx_allow_single_player(py: Python<'_>, allow: bool) {
+pub(crate) fn pyshinqlx_allow_single_player(py: Python<'_>, allow: bool) {
     py.allow_threads(move || {
         CurrentLevel::try_get()
             .ok()
@@ -17,7 +17,7 @@ pub(crate) fn minqlx_allow_single_player(py: Python<'_>, allow: bool) {
 #[cfg(test)]
 #[cfg(not(miri))]
 mod allow_single_player_tests {
-    use super::minqlx_allow_single_player;
+    use super::pyshinqlx_allow_single_player;
     use crate::ffi::c::current_level::MockTestCurrentLevel;
     use crate::prelude::*;
     use mockall::predicate;
@@ -31,7 +31,7 @@ mod allow_single_player_tests {
             .expect()
             .returning(|| Err(QuakeLiveEngineError::MainEngineNotInitialized));
 
-        Python::with_gil(|py| minqlx_allow_single_player(py, true));
+        Python::with_gil(|py| pyshinqlx_allow_single_player(py, true));
     }
 
     #[test]
@@ -47,6 +47,6 @@ mod allow_single_player_tests {
             Ok(mock_level)
         });
 
-        Python::with_gil(|py| minqlx_allow_single_player(py, true));
+        Python::with_gil(|py| pyshinqlx_allow_single_player(py, true));
     }
 }

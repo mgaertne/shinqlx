@@ -8,7 +8,7 @@ use pyo3::{pyfunction, PyResult, Python};
 /// Adds a console command that will be handled by Python code.
 #[pyfunction]
 #[pyo3(name = "add_console_command")]
-pub(crate) fn minqlx_add_console_command(py: Python<'_>, command: &str) -> PyResult<()> {
+pub(crate) fn pyshinqlx_add_console_command(py: Python<'_>, command: &str) -> PyResult<()> {
     py.allow_threads(move || {
         let Some(ref main_engine) = *MAIN_ENGINE.load() else {
             return Err(PyEnvironmentError::new_err(
@@ -25,7 +25,7 @@ pub(crate) fn minqlx_add_console_command(py: Python<'_>, command: &str) -> PyRes
 #[cfg(test)]
 #[cfg(not(miri))]
 mod add_console_command_tests {
-    use super::minqlx_add_console_command;
+    use super::pyshinqlx_add_console_command;
     use super::MAIN_ENGINE;
     use crate::commands::cmd_py_command;
     use crate::prelude::*;
@@ -38,7 +38,7 @@ mod add_console_command_tests {
     fn add_console_command_when_main_engine_not_initialized() {
         MAIN_ENGINE.store(None);
         Python::with_gil(|py| {
-            let result = minqlx_add_console_command(py, "slap");
+            let result = pyshinqlx_add_console_command(py, "slap");
             assert!(result.is_err_and(|err| err.is_instance_of::<PyEnvironmentError>(py)));
         });
     }
@@ -53,7 +53,7 @@ mod add_console_command_tests {
             .times(1);
         MAIN_ENGINE.store(Some(mock_engine.into()));
 
-        let result = Python::with_gil(|py| minqlx_add_console_command(py, "asdf"));
+        let result = Python::with_gil(|py| pyshinqlx_add_console_command(py, "asdf"));
         assert!(result.is_ok());
     }
 }

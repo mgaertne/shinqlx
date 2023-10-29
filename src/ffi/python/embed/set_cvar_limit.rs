@@ -8,7 +8,7 @@ use pyo3::{pyfunction, PyResult, Python};
 #[pyfunction]
 #[pyo3(name = "set_cvar_limit")]
 #[pyo3(signature = (cvar, value, min, max, flags=None))]
-pub(crate) fn minqlx_set_cvar_limit(
+pub(crate) fn pyshinqlx_set_cvar_limit(
     py: Python<'_>,
     cvar: &str,
     value: &str,
@@ -32,7 +32,7 @@ pub(crate) fn minqlx_set_cvar_limit(
 #[cfg(test)]
 #[cfg(not(miri))]
 mod set_cvar_limit_tests {
-    use super::minqlx_set_cvar_limit;
+    use super::pyshinqlx_set_cvar_limit;
     use super::MAIN_ENGINE;
     use crate::prelude::*;
     use crate::quake_live_engine::MockQuakeEngine;
@@ -45,7 +45,7 @@ mod set_cvar_limit_tests {
     fn set_cvar_limit_when_main_engine_not_initialized() {
         MAIN_ENGINE.store(None);
         Python::with_gil(|py| {
-            let result = minqlx_set_cvar_limit(py, "sv_maxclients", "64", "1", "64", None);
+            let result = pyshinqlx_set_cvar_limit(py, "sv_maxclients", "64", "1", "64", None);
             assert!(result.is_err_and(|err| err.is_instance_of::<PyEnvironmentError>(py)));
         });
     }
@@ -67,7 +67,7 @@ mod set_cvar_limit_tests {
         MAIN_ENGINE.store(Some(mock_engine.into()));
 
         let result = Python::with_gil(|py| {
-            minqlx_set_cvar_limit(
+            pyshinqlx_set_cvar_limit(
                 py,
                 "sv_maxclients",
                 "64",

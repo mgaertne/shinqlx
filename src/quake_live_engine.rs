@@ -3,7 +3,7 @@ use crate::commands::{
     cmd_send_server_command, cmd_slap, cmd_slay,
 };
 use crate::ffi::c::CVar;
-use crate::ffi::python::{pyminqlx_initialize, PythonInitializationError};
+use crate::ffi::python::{pyshinqlx_initialize, PythonInitializationError};
 use crate::hooks::{
     shinqlx_client_connect, shinqlx_clientspawn, shinqlx_cmd_addcommand, shinqlx_g_damage,
     shinqlx_g_initgame, shinqlx_g_runframe, shinqlx_g_shutdowngame, shinqlx_g_startkamikaze,
@@ -942,7 +942,7 @@ impl QuakeLiveEngine {
         self.add_command("pycmd", cmd_py_command);
         self.add_command("pyrestart", cmd_restart_python);
 
-        if let Err(err) = pyminqlx_initialize() {
+        if let Err(err) = pyshinqlx_initialize() {
             error!(target: "shinqlx", "Python initialization failed.");
             return Err(QuakeLiveEngineError::PythonInitializationFailed(err));
         };

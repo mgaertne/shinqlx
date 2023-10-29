@@ -8,7 +8,7 @@ use pyo3::{pyfunction, PyResult, Python};
 /// Prints all items and entity numbers to server console.
 #[pyfunction]
 #[pyo3(name = "dev_print_items")]
-pub(crate) fn minqlx_dev_print_items(py: Python<'_>) -> PyResult<()> {
+pub(crate) fn pyshinqlx_dev_print_items(py: Python<'_>) -> PyResult<()> {
     let formatted_items: Vec<String> = py.allow_threads(|| {
         (0..MAX_GENTITIES)
             .filter_map(|i| GameEntity::try_from(i as i32).ok())
@@ -74,7 +74,7 @@ pub(crate) fn minqlx_dev_print_items(py: Python<'_>) -> PyResult<()> {
 #[cfg(test)]
 #[cfg(not(miri))]
 mod dev_print_items_tests {
-    use super::minqlx_dev_print_items;
+    use super::pyshinqlx_dev_print_items;
     use crate::ffi::c::game_entity::MockGameEntity;
     use crate::prelude::*;
     use crate::quake_live_engine::MockQuakeEngine;
@@ -112,7 +112,7 @@ mod dev_print_items_tests {
         });
 
         Python::with_gil(|py| {
-            let result = minqlx_dev_print_items(py);
+            let result = pyshinqlx_dev_print_items(py);
             assert!(result.is_err_and(|err| err.is_instance_of::<PyEnvironmentError>(py)));
         });
     }
@@ -152,7 +152,7 @@ mod dev_print_items_tests {
             mock_game_entity
         });
 
-        let result = Python::with_gil(minqlx_dev_print_items);
+        let result = Python::with_gil(pyshinqlx_dev_print_items);
         assert!(result.is_ok());
     }
 
@@ -191,7 +191,7 @@ mod dev_print_items_tests {
             mock_game_entity
         });
 
-        let result = Python::with_gil(minqlx_dev_print_items);
+        let result = Python::with_gil(pyshinqlx_dev_print_items);
         assert!(result.is_ok());
     }
 
@@ -236,7 +236,7 @@ mod dev_print_items_tests {
             mock_game_entity
         });
 
-        let result = Python::with_gil(minqlx_dev_print_items);
+        let result = Python::with_gil(pyshinqlx_dev_print_items);
         assert!(result.is_ok());
     }
 
@@ -279,7 +279,7 @@ mod dev_print_items_tests {
             mock_game_entity
         });
 
-        let result = Python::with_gil(minqlx_dev_print_items);
+        let result = Python::with_gil(pyshinqlx_dev_print_items);
         assert!(result.is_ok());
     }
 }

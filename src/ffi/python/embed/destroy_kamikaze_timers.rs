@@ -5,7 +5,7 @@ use pyo3::{pyfunction, PyResult, Python};
 /// Removes all current kamikaze timers.
 #[pyfunction]
 #[pyo3(name = "destroy_kamikaze_timers")]
-pub(crate) fn minqlx_destroy_kamikaze_timers(py: Python<'_>) -> PyResult<bool> {
+pub(crate) fn pyshinqlx_destroy_kamikaze_timers(py: Python<'_>) -> PyResult<bool> {
     py.allow_threads(|| {
         let mut in_use_entities: Vec<GameEntity> = (0..MAX_GENTITIES)
             .filter_map(|i| GameEntity::try_from(i as i32).ok())
@@ -30,7 +30,7 @@ pub(crate) fn minqlx_destroy_kamikaze_timers(py: Python<'_>) -> PyResult<bool> {
 #[cfg(test)]
 #[cfg(not(miri))]
 mod destroy_kamikaze_timers_tests {
-    use super::minqlx_destroy_kamikaze_timers;
+    use super::pyshinqlx_destroy_kamikaze_timers;
     use crate::ffi::c::game_client::MockGameClient;
     use crate::ffi::c::game_entity::MockGameEntity;
     use crate::prelude::*;
@@ -70,7 +70,7 @@ mod destroy_kamikaze_timers_tests {
             mock_game_entity
         });
 
-        let result = Python::with_gil(minqlx_destroy_kamikaze_timers);
+        let result = Python::with_gil(pyshinqlx_destroy_kamikaze_timers);
         assert!(result.is_ok_and(|value| value));
     }
 
@@ -107,7 +107,7 @@ mod destroy_kamikaze_timers_tests {
             mock_game_entity
         });
 
-        let result = Python::with_gil(minqlx_destroy_kamikaze_timers);
+        let result = Python::with_gil(pyshinqlx_destroy_kamikaze_timers);
         assert!(result.is_ok_and(|value| value));
     }
 
@@ -144,7 +144,7 @@ mod destroy_kamikaze_timers_tests {
             mock_game_entity
         });
 
-        let result = Python::with_gil(minqlx_destroy_kamikaze_timers);
+        let result = Python::with_gil(pyshinqlx_destroy_kamikaze_timers);
         assert!(result.is_ok_and(|value| value));
     }
 
@@ -183,7 +183,7 @@ mod destroy_kamikaze_timers_tests {
             mock_game_entity
         });
 
-        let result = Python::with_gil(minqlx_destroy_kamikaze_timers);
+        let result = Python::with_gil(pyshinqlx_destroy_kamikaze_timers);
         assert!(result.is_ok_and(|value| value));
     }
 
@@ -207,7 +207,7 @@ mod destroy_kamikaze_timers_tests {
             mock_game_entity
         });
 
-        let result = Python::with_gil(minqlx_destroy_kamikaze_timers);
+        let result = Python::with_gil(pyshinqlx_destroy_kamikaze_timers);
         assert!(result.is_ok_and(|value| value));
     }
 }

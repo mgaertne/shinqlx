@@ -9,7 +9,11 @@ use pyo3::{pyfunction, PyResult, Python};
 /// Sets a player's flight parameters, such as current fuel, max fuel and, so on.
 #[pyfunction]
 #[pyo3(name = "set_flight")]
-pub(crate) fn minqlx_set_flight(py: Python<'_>, client_id: i32, flight: Flight) -> PyResult<bool> {
+pub(crate) fn pyshinqlx_set_flight(
+    py: Python<'_>,
+    client_id: i32,
+    flight: Flight,
+) -> PyResult<bool> {
     let maxclients = py.allow_threads(|| {
         let Some(ref main_engine) = *MAIN_ENGINE.load() else {
             return Err(PyEnvironmentError::new_err(
@@ -41,7 +45,7 @@ pub(crate) fn minqlx_set_flight(py: Python<'_>, client_id: i32, flight: Flight) 
 #[cfg(test)]
 #[cfg(not(miri))]
 mod set_flight_tests {
-    use super::minqlx_set_flight;
+    use super::pyshinqlx_set_flight;
     use super::MAIN_ENGINE;
     use crate::ffi::c::game_client::MockGameClient;
     use crate::ffi::c::game_entity::MockGameEntity;
@@ -58,7 +62,7 @@ mod set_flight_tests {
     fn set_flight_when_main_engine_not_initialized() {
         MAIN_ENGINE.store(None);
         Python::with_gil(|py| {
-            let result = minqlx_set_flight(py, 21, Flight(0, 0, 0, 0));
+            let result = pyshinqlx_set_flight(py, 21, Flight(0, 0, 0, 0));
             assert!(result.is_err_and(|err| err.is_instance_of::<PyEnvironmentError>(py)));
         });
     }
@@ -71,7 +75,7 @@ mod set_flight_tests {
         MAIN_ENGINE.store(Some(mock_engine.into()));
 
         Python::with_gil(|py| {
-            let result = minqlx_set_flight(py, -1, Flight(0, 0, 0, 0));
+            let result = pyshinqlx_set_flight(py, -1, Flight(0, 0, 0, 0));
             assert!(result.is_err_and(|err| err.is_instance_of::<PyValueError>(py)));
         });
     }
@@ -84,7 +88,7 @@ mod set_flight_tests {
         MAIN_ENGINE.store(Some(mock_engine.into()));
 
         Python::with_gil(|py| {
-            let result = minqlx_set_flight(py, 666, Flight(0, 0, 0, 0));
+            let result = pyshinqlx_set_flight(py, 666, Flight(0, 0, 0, 0));
             assert!(result.is_err_and(|err| err.is_instance_of::<PyValueError>(py)));
         });
     }
@@ -111,7 +115,7 @@ mod set_flight_tests {
         });
 
         let result =
-            Python::with_gil(|py| minqlx_set_flight(py, 2, Flight(12, 34, 56, 78))).unwrap();
+            Python::with_gil(|py| pyshinqlx_set_flight(py, 2, Flight(12, 34, 56, 78))).unwrap();
         assert_eq!(result, true);
     }
 
@@ -132,7 +136,7 @@ mod set_flight_tests {
         });
 
         let result =
-            Python::with_gil(|py| minqlx_set_flight(py, 2, Flight(12, 34, 56, 78))).unwrap();
+            Python::with_gil(|py| pyshinqlx_set_flight(py, 2, Flight(12, 34, 56, 78))).unwrap();
         assert_eq!(result, false);
     }
 }

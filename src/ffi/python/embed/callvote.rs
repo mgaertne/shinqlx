@@ -5,7 +5,12 @@ use pyo3::{pyfunction, Python};
 /// Calls a vote as if started by the server and not a player.
 #[pyfunction]
 #[pyo3(name = "callvote")]
-pub(crate) fn minqlx_callvote(py: Python<'_>, vote: &str, vote_disp: &str, vote_time: Option<i32>) {
+pub(crate) fn pyshinqlx_callvote(
+    py: Python<'_>,
+    vote: &str,
+    vote_disp: &str,
+    vote_time: Option<i32>,
+) {
     py.allow_threads(move || {
         CurrentLevel::try_get()
             .ok()
@@ -17,7 +22,7 @@ pub(crate) fn minqlx_callvote(py: Python<'_>, vote: &str, vote_disp: &str, vote_
 #[cfg(test)]
 #[cfg(not(miri))]
 mod callvote_tests {
-    use super::minqlx_callvote;
+    use super::pyshinqlx_callvote;
     use crate::ffi::c::current_level::MockTestCurrentLevel;
     use crate::prelude::*;
     use mockall::predicate;
@@ -31,7 +36,9 @@ mod callvote_tests {
             .expect()
             .returning(|| Err(QuakeLiveEngineError::MainEngineNotInitialized));
 
-        Python::with_gil(|py| minqlx_callvote(py, "map thunderstruck", "map thunderstruck", None));
+        Python::with_gil(|py| {
+            pyshinqlx_callvote(py, "map thunderstruck", "map thunderstruck", None)
+        });
     }
 
     #[test]
@@ -52,7 +59,7 @@ mod callvote_tests {
         });
 
         Python::with_gil(|py| {
-            minqlx_callvote(py, "map theatreofpain", "map Theatre of Pain", Some(10))
+            pyshinqlx_callvote(py, "map theatreofpain", "map Theatre of Pain", Some(10))
         });
     }
 }

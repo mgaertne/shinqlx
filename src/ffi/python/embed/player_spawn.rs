@@ -11,7 +11,7 @@ use pyo3::{pyfunction, PyResult, Python};
 /// Spawns a player.
 #[pyfunction]
 #[pyo3(name = "player_spawn")]
-pub(crate) fn minqlx_player_spawn(py: Python<'_>, client_id: i32) -> PyResult<bool> {
+pub(crate) fn pyshinqlx_player_spawn(py: Python<'_>, client_id: i32) -> PyResult<bool> {
     let maxclients = py.allow_threads(|| {
         let Some(ref main_engine) = *MAIN_ENGINE.load() else {
             return Err(PyEnvironmentError::new_err(
@@ -50,7 +50,7 @@ pub(crate) fn minqlx_player_spawn(py: Python<'_>, client_id: i32) -> PyResult<bo
 #[cfg(test)]
 #[cfg(not(miri))]
 mod player_spawn_tests {
-    use super::minqlx_player_spawn;
+    use super::pyshinqlx_player_spawn;
     use super::MAIN_ENGINE;
     use crate::ffi::c::game_client::MockGameClient;
     use crate::ffi::c::game_entity::MockGameEntity;
@@ -66,7 +66,7 @@ mod player_spawn_tests {
     fn player_spawn_when_main_engine_not_initialized() {
         MAIN_ENGINE.store(None);
         Python::with_gil(|py| {
-            let result = minqlx_player_spawn(py, 21);
+            let result = pyshinqlx_player_spawn(py, 21);
             assert!(result.is_err_and(|err| err.is_instance_of::<PyEnvironmentError>(py)));
         });
     }
@@ -79,7 +79,7 @@ mod player_spawn_tests {
         MAIN_ENGINE.store(Some(mock_engine.into()));
 
         Python::with_gil(|py| {
-            let result = minqlx_player_spawn(py, -1);
+            let result = pyshinqlx_player_spawn(py, -1);
             assert!(result.is_err_and(|err| err.is_instance_of::<PyValueError>(py)));
         });
     }
@@ -92,7 +92,7 @@ mod player_spawn_tests {
         MAIN_ENGINE.store(Some(mock_engine.into()));
 
         Python::with_gil(|py| {
-            let result = minqlx_player_spawn(py, 666);
+            let result = pyshinqlx_player_spawn(py, 666);
             assert!(result.is_err_and(|err| err.is_instance_of::<PyValueError>(py)));
         });
     }
@@ -118,7 +118,7 @@ mod player_spawn_tests {
         let client_spawn_ctx = shinqlx_client_spawn_context();
         client_spawn_ctx.expect().returning_st(|_| ()).times(1);
 
-        let result = Python::with_gil(|py| minqlx_player_spawn(py, 2)).unwrap();
+        let result = Python::with_gil(|py| pyshinqlx_player_spawn(py, 2)).unwrap();
         assert_eq!(result, true);
     }
 
@@ -141,7 +141,7 @@ mod player_spawn_tests {
         let client_spawn_ctx = shinqlx_client_spawn_context();
         client_spawn_ctx.expect().returning_st(|_| ()).times(0);
 
-        let result = Python::with_gil(|py| minqlx_player_spawn(py, 2)).unwrap();
+        let result = Python::with_gil(|py| pyshinqlx_player_spawn(py, 2)).unwrap();
         assert_eq!(result, false);
     }
 }

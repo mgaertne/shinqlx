@@ -11,7 +11,7 @@ use pyo3::{pyfunction, Py, PyAny, PyResult, Python};
 #[pyfunction]
 #[pyo3(name = "register_handler")]
 #[pyo3(signature = (event, handler=None))]
-pub(crate) fn minqlx_register_handler(
+pub(crate) fn pyshinqlx_register_handler(
     py: Python<'_>,
     event: &str,
     handler: Option<Py<PyAny>>,
@@ -51,7 +51,7 @@ pub(crate) fn minqlx_register_handler(
 #[cfg(test)]
 #[cfg(not(miri))]
 mod register_handler_tests {
-    use super::minqlx_register_handler;
+    use super::pyshinqlx_register_handler;
     use crate::ffi::python::{
         CLIENT_COMMAND_HANDLER, CONSOLE_PRINT_HANDLER, CUSTOM_COMMAND_HANDLER, DAMAGE_HANDLER,
         FRAME_HANDLER, KAMIKAZE_EXPLODE_HANDLER, KAMIKAZE_USE_HANDLER, NEW_GAME_HANDLER,
@@ -103,7 +103,7 @@ def handler():
             Python::with_gil(|py| pymodule.getattr(py, "handler").unwrap().into_py(py));
         handler.store(Some(py_handler.into()));
 
-        let result = Python::with_gil(|py| minqlx_register_handler(py, event, None));
+        let result = Python::with_gil(|py| pyshinqlx_register_handler(py, event, None));
         assert!(result.is_ok());
 
         let stored_handler = handler.load();
@@ -148,7 +148,7 @@ def handler():
             Python::with_gil(|py| pymodule.getattr(py, "handler").unwrap().into_py(py));
         handler.store(None);
 
-        let result = Python::with_gil(|py| minqlx_register_handler(py, event, Some(py_handler)));
+        let result = Python::with_gil(|py| pyshinqlx_register_handler(py, event, Some(py_handler)));
         assert!(result.is_ok());
 
         let stored_handler = handler.load();
@@ -175,7 +175,7 @@ def handler():
             Python::with_gil(|py| pymodule.getattr(py, "handler").unwrap().into_py(py));
 
         Python::with_gil(|py| {
-            let result = minqlx_register_handler(py, "unknown_event", Some(py_handler));
+            let result = pyshinqlx_register_handler(py, "unknown_event", Some(py_handler));
             assert!(result.is_err_and(|err| err.is_instance_of::<PyValueError>(py)));
         });
     }
@@ -199,7 +199,7 @@ handler = True
             Python::with_gil(|py| pymodule.getattr(py, "handler").unwrap().into_py(py));
 
         Python::with_gil(|py| {
-            let result = minqlx_register_handler(py, "client_command", Some(py_handler));
+            let result = pyshinqlx_register_handler(py, "client_command", Some(py_handler));
             assert!(result.is_err_and(|err| err.is_instance_of::<PyTypeError>(py)));
         });
     }

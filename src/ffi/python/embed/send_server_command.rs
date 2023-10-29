@@ -12,7 +12,7 @@ use pyo3::prelude::*;
 #[pyfunction]
 #[pyo3(name = "send_server_command")]
 #[pyo3(signature = (client_id, cmd))]
-pub(crate) fn minqlx_send_server_command(
+pub(crate) fn pyshinqlx_send_server_command(
     py: Python<'_>,
     client_id: Option<i32>,
     cmd: &str,
@@ -55,7 +55,7 @@ pub(crate) fn minqlx_send_server_command(
 #[cfg(test)]
 #[cfg(not(miri))]
 mod send_server_command_tests {
-    use super::minqlx_send_server_command;
+    use super::pyshinqlx_send_server_command;
     use super::MAIN_ENGINE;
     use crate::ffi::c::client::MockClient;
     use crate::hooks::mock_hooks::shinqlx_send_server_command_context;
@@ -74,7 +74,8 @@ mod send_server_command_tests {
             .expect()
             .withf(|client, cmd| client.is_none() && cmd == "asdf")
             .times(1);
-        let result = Python::with_gil(|py| minqlx_send_server_command(py, None, "asdf")).unwrap();
+        let result =
+            Python::with_gil(|py| pyshinqlx_send_server_command(py, None, "asdf")).unwrap();
         assert_eq!(result, true);
     }
 
@@ -87,7 +88,7 @@ mod send_server_command_tests {
         hook_ctx.expect().times(0);
 
         Python::with_gil(|py| {
-            let result = minqlx_send_server_command(py, Some(0), "asdf");
+            let result = pyshinqlx_send_server_command(py, Some(0), "asdf");
             assert!(result.is_err_and(|err| err.is_instance_of::<PyEnvironmentError>(py)));
         });
     }
@@ -103,7 +104,7 @@ mod send_server_command_tests {
         hook_ctx.expect().times(0);
 
         Python::with_gil(|py| {
-            let result = minqlx_send_server_command(py, Some(-1), "asdf");
+            let result = pyshinqlx_send_server_command(py, Some(-1), "asdf");
             assert!(result.is_err_and(|err| err.is_instance_of::<PyValueError>(py)));
         });
     }
@@ -119,7 +120,7 @@ mod send_server_command_tests {
         hook_ctx.expect().times(0);
 
         Python::with_gil(|py| {
-            let result = minqlx_send_server_command(py, Some(42), "asdf");
+            let result = pyshinqlx_send_server_command(py, Some(42), "asdf");
             assert!(result.is_err_and(|err| err.is_instance_of::<PyValueError>(py)));
         });
     }
@@ -147,7 +148,7 @@ mod send_server_command_tests {
             .times(1);
 
         let result =
-            Python::with_gil(|py| minqlx_send_server_command(py, Some(2), "asdf")).unwrap();
+            Python::with_gil(|py| pyshinqlx_send_server_command(py, Some(2), "asdf")).unwrap();
         assert_eq!(result, true);
     }
 
@@ -173,7 +174,7 @@ mod send_server_command_tests {
         hook_ctx.expect().times(0);
 
         let result =
-            Python::with_gil(|py| minqlx_send_server_command(py, Some(2), "asdf")).unwrap();
+            Python::with_gil(|py| pyshinqlx_send_server_command(py, Some(2), "asdf")).unwrap();
         assert_eq!(result, false);
     }
 }

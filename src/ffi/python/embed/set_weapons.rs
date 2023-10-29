@@ -9,7 +9,7 @@ use pyo3::{pyfunction, PyResult, Python};
 /// Sets a player's weapons.
 #[pyfunction]
 #[pyo3(name = "set_weapons")]
-pub(crate) fn minqlx_set_weapons(
+pub(crate) fn pyshinqlx_set_weapons(
     py: Python<'_>,
     client_id: i32,
     weapons: Weapons,
@@ -45,7 +45,7 @@ pub(crate) fn minqlx_set_weapons(
 #[cfg(test)]
 #[cfg(not(miri))]
 mod set_weapons_tests {
-    use super::minqlx_set_weapons;
+    use super::pyshinqlx_set_weapons;
     use super::MAIN_ENGINE;
     use crate::ffi::c::game_client::MockGameClient;
     use crate::ffi::c::game_entity::MockGameEntity;
@@ -63,7 +63,7 @@ mod set_weapons_tests {
         MAIN_ENGINE.store(None);
         Python::with_gil(|py| {
             let result =
-                minqlx_set_weapons(py, 21, Weapons(0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0));
+                pyshinqlx_set_weapons(py, 21, Weapons(0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0));
             assert!(result.is_err_and(|err| err.is_instance_of::<PyEnvironmentError>(py)));
         });
     }
@@ -77,7 +77,7 @@ mod set_weapons_tests {
 
         Python::with_gil(|py| {
             let result =
-                minqlx_set_weapons(py, -1, Weapons(0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0));
+                pyshinqlx_set_weapons(py, -1, Weapons(0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0));
             assert!(result.is_err_and(|err| err.is_instance_of::<PyValueError>(py)));
         });
     }
@@ -90,7 +90,7 @@ mod set_weapons_tests {
         MAIN_ENGINE.store(Some(mock_engine.into()));
 
         Python::with_gil(|py| {
-            let result = minqlx_set_weapons(
+            let result = pyshinqlx_set_weapons(
                 py,
                 666,
                 Weapons(0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0),
@@ -121,7 +121,7 @@ mod set_weapons_tests {
         });
 
         let result = Python::with_gil(|py| {
-            minqlx_set_weapons(py, 2, Weapons(1, 1, 1, 0, 0, 0, 1, 1, 1, 0, 0, 0, 1, 1, 1))
+            pyshinqlx_set_weapons(py, 2, Weapons(1, 1, 1, 0, 0, 0, 1, 1, 1, 0, 0, 0, 1, 1, 1))
         })
         .unwrap();
         assert_eq!(result, true);
@@ -144,7 +144,7 @@ mod set_weapons_tests {
         });
 
         let result = Python::with_gil(|py| {
-            minqlx_set_weapons(py, 2, Weapons(0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0))
+            pyshinqlx_set_weapons(py, 2, Weapons(0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0))
         })
         .unwrap();
         assert_eq!(result, false);

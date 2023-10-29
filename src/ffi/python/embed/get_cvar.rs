@@ -7,7 +7,7 @@ use pyo3::prelude::*;
 /// Gets a cvar.
 #[pyfunction]
 #[pyo3(name = "get_cvar")]
-pub(crate) fn minqlx_get_cvar(py: Python<'_>, cvar: &str) -> PyResult<Option<String>> {
+pub(crate) fn pyshinqlx_get_cvar(py: Python<'_>, cvar: &str) -> PyResult<Option<String>> {
     py.allow_threads(move || {
         let Some(ref main_engine) = *MAIN_ENGINE.load() else {
             return Err(PyEnvironmentError::new_err(
@@ -25,7 +25,7 @@ pub(crate) fn minqlx_get_cvar(py: Python<'_>, cvar: &str) -> PyResult<Option<Str
 #[cfg(test)]
 #[cfg(not(miri))]
 mod get_cvar_tests {
-    use super::minqlx_get_cvar;
+    use super::pyshinqlx_get_cvar;
     use super::MAIN_ENGINE;
     use crate::ffi::c::CVar;
     use crate::prelude::*;
@@ -42,7 +42,7 @@ mod get_cvar_tests {
     fn get_cvar_when_main_engine_not_initialized() {
         MAIN_ENGINE.store(None);
         Python::with_gil(|py| {
-            let result = minqlx_get_cvar(py, "sv_maxclients");
+            let result = pyshinqlx_get_cvar(py, "sv_maxclients");
             assert!(result.is_err_and(|err| err.is_instance_of::<PyEnvironmentError>(py)));
         });
     }
@@ -58,7 +58,7 @@ mod get_cvar_tests {
             .times(1);
         MAIN_ENGINE.store(Some(mock_engine.into()));
 
-        let result = Python::with_gil(|py| minqlx_get_cvar(py, "asdf")).unwrap();
+        let result = Python::with_gil(|py| pyshinqlx_get_cvar(py, "asdf")).unwrap();
         assert_eq!(result, None);
     }
 
@@ -80,7 +80,7 @@ mod get_cvar_tests {
             .times(1);
         MAIN_ENGINE.store(Some(mock_engine.into()));
 
-        let result = Python::with_gil(|py| minqlx_get_cvar(py, "sv_maxclients")).unwrap();
+        let result = Python::with_gil(|py| pyshinqlx_get_cvar(py, "sv_maxclients")).unwrap();
         assert_eq!(result, Some("16".into()));
     }
 }

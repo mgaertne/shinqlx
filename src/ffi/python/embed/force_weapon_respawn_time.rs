@@ -6,7 +6,7 @@ use pyo3::{pyfunction, PyResult, Python};
 /// Slay player with mean of death.
 #[pyfunction]
 #[pyo3(name = "force_weapon_respawn_time")]
-pub(crate) fn minqlx_force_weapon_respawn_time(
+pub(crate) fn pyshinqlx_force_weapon_respawn_time(
     py: Python<'_>,
     respawn_time: i32,
 ) -> PyResult<bool> {
@@ -29,7 +29,7 @@ pub(crate) fn minqlx_force_weapon_respawn_time(
 #[cfg(test)]
 #[cfg(not(miri))]
 mod force_weapon_respawn_time_tests {
-    use super::minqlx_force_weapon_respawn_time;
+    use super::pyshinqlx_force_weapon_respawn_time;
     use crate::ffi::c::game_entity::MockGameEntity;
     use crate::prelude::*;
     use mockall::predicate;
@@ -39,7 +39,7 @@ mod force_weapon_respawn_time_tests {
     #[test]
     fn force_weapon_respawn_time_with_too_small_respawn_time() {
         Python::with_gil(|py| {
-            let result = minqlx_force_weapon_respawn_time(py, -1);
+            let result = pyshinqlx_force_weapon_respawn_time(py, -1);
             assert!(result.is_err_and(|err| err.is_instance_of::<PyValueError>(py)));
         });
     }
@@ -70,7 +70,7 @@ mod force_weapon_respawn_time_tests {
             mock_game_entity
         });
 
-        let result = Python::with_gil(|py| minqlx_force_weapon_respawn_time(py, 123));
+        let result = Python::with_gil(|py| pyshinqlx_force_weapon_respawn_time(py, 123));
         assert!(result.is_ok_and(|value| value));
     }
 
@@ -100,7 +100,7 @@ mod force_weapon_respawn_time_tests {
             mock_game_entity
         });
 
-        let result = Python::with_gil(|py| minqlx_force_weapon_respawn_time(py, 123));
+        let result = Python::with_gil(|py| pyshinqlx_force_weapon_respawn_time(py, 123));
         assert!(result.is_ok_and(|value| value));
     }
 
@@ -121,7 +121,7 @@ mod force_weapon_respawn_time_tests {
             mock_game_entity
         });
 
-        let result = Python::with_gil(|py| minqlx_force_weapon_respawn_time(py, 123));
+        let result = Python::with_gil(|py| pyshinqlx_force_weapon_respawn_time(py, 123));
         assert!(result.is_ok_and(|value| value));
     }
 }

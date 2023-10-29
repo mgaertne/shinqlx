@@ -88,50 +88,50 @@ fn pyshinqlx_module(_py: Python<'_>, _m: &PyModule) -> PyResult<()> {
 #[pymodule]
 #[pyo3(name = "_minqlx")]
 fn pyminqlx_module(_py: Python<'_>, m: &PyModule) -> PyResult<()> {
-    m.add_function(wrap_pyfunction!(minqlx_player_info, m)?)?;
-    m.add_function(wrap_pyfunction!(minqlx_players_info, m)?)?;
-    m.add_function(wrap_pyfunction!(minqlx_get_userinfo, m)?)?;
-    m.add_function(wrap_pyfunction!(minqlx_send_server_command, m)?)?;
-    m.add_function(wrap_pyfunction!(minqlx_client_command, m)?)?;
-    m.add_function(wrap_pyfunction!(minqlx_console_command, m)?)?;
-    m.add_function(wrap_pyfunction!(minqlx_get_cvar, m)?)?;
-    m.add_function(wrap_pyfunction!(minqlx_set_cvar, m)?)?;
-    m.add_function(wrap_pyfunction!(minqlx_set_cvar_limit, m)?)?;
-    m.add_function(wrap_pyfunction!(minqlx_kick, m)?)?;
-    m.add_function(wrap_pyfunction!(minqlx_console_print, m)?)?;
-    m.add_function(wrap_pyfunction!(minqlx_get_configstring, m)?)?;
-    m.add_function(wrap_pyfunction!(minqlx_set_configstring, m)?)?;
-    m.add_function(wrap_pyfunction!(minqlx_force_vote, m)?)?;
-    m.add_function(wrap_pyfunction!(minqlx_add_console_command, m)?)?;
-    m.add_function(wrap_pyfunction!(minqlx_register_handler, m)?)?;
-    m.add_function(wrap_pyfunction!(minqlx_player_state, m)?)?;
-    m.add_function(wrap_pyfunction!(minqlx_player_stats, m)?)?;
-    m.add_function(wrap_pyfunction!(minqlx_set_position, m)?)?;
-    m.add_function(wrap_pyfunction!(minqlx_set_velocity, m)?)?;
-    m.add_function(wrap_pyfunction!(minqlx_noclip, m)?)?;
-    m.add_function(wrap_pyfunction!(minqlx_set_health, m)?)?;
-    m.add_function(wrap_pyfunction!(minqlx_set_armor, m)?)?;
-    m.add_function(wrap_pyfunction!(minqlx_set_weapons, m)?)?;
-    m.add_function(wrap_pyfunction!(minqlx_set_weapon, m)?)?;
-    m.add_function(wrap_pyfunction!(minqlx_set_ammo, m)?)?;
-    m.add_function(wrap_pyfunction!(minqlx_set_powerups, m)?)?;
-    m.add_function(wrap_pyfunction!(minqlx_set_holdable, m)?)?;
-    m.add_function(wrap_pyfunction!(minqlx_drop_holdable, m)?)?;
-    m.add_function(wrap_pyfunction!(minqlx_set_flight, m)?)?;
-    m.add_function(wrap_pyfunction!(minqlx_set_invulnerability, m)?)?;
-    m.add_function(wrap_pyfunction!(minqlx_set_score, m)?)?;
-    m.add_function(wrap_pyfunction!(minqlx_callvote, m)?)?;
-    m.add_function(wrap_pyfunction!(minqlx_allow_single_player, m)?)?;
-    m.add_function(wrap_pyfunction!(minqlx_player_spawn, m)?)?;
-    m.add_function(wrap_pyfunction!(minqlx_set_privileges, m)?)?;
-    m.add_function(wrap_pyfunction!(minqlx_destroy_kamikaze_timers, m)?)?;
-    m.add_function(wrap_pyfunction!(minqlx_spawn_item, m)?)?;
-    m.add_function(wrap_pyfunction!(minqlx_remove_dropped_items, m)?)?;
-    m.add_function(wrap_pyfunction!(minqlx_slay_with_mod, m)?)?;
-    m.add_function(wrap_pyfunction!(minqlx_replace_items, m)?)?;
-    m.add_function(wrap_pyfunction!(minqlx_dev_print_items, m)?)?;
-    m.add_function(wrap_pyfunction!(minqlx_force_weapon_respawn_time, m)?)?;
-    m.add_function(wrap_pyfunction!(minqlx_get_entity_targets, m)?)?;
+    m.add_function(wrap_pyfunction!(pyshinqlx_player_info, m)?)?;
+    m.add_function(wrap_pyfunction!(pyshinqlx_players_info, m)?)?;
+    m.add_function(wrap_pyfunction!(pyshinqlx_get_userinfo, m)?)?;
+    m.add_function(wrap_pyfunction!(pyshinqlx_send_server_command, m)?)?;
+    m.add_function(wrap_pyfunction!(pyshinqlx_client_command, m)?)?;
+    m.add_function(wrap_pyfunction!(pyshinqlx_console_command, m)?)?;
+    m.add_function(wrap_pyfunction!(pyshinqlx_get_cvar, m)?)?;
+    m.add_function(wrap_pyfunction!(pyshinqlx_set_cvar, m)?)?;
+    m.add_function(wrap_pyfunction!(pyshinqlx_set_cvar_limit, m)?)?;
+    m.add_function(wrap_pyfunction!(pyshinqlx_kick, m)?)?;
+    m.add_function(wrap_pyfunction!(pyshinqlx_console_print, m)?)?;
+    m.add_function(wrap_pyfunction!(pyshinqlx_get_configstring, m)?)?;
+    m.add_function(wrap_pyfunction!(pyshinqlx_set_configstring, m)?)?;
+    m.add_function(wrap_pyfunction!(pyshinqlx_force_vote, m)?)?;
+    m.add_function(wrap_pyfunction!(pyshinqlx_add_console_command, m)?)?;
+    m.add_function(wrap_pyfunction!(pyshinqlx_register_handler, m)?)?;
+    m.add_function(wrap_pyfunction!(pyshinqlx_player_state, m)?)?;
+    m.add_function(wrap_pyfunction!(pyshinqlx_player_stats, m)?)?;
+    m.add_function(wrap_pyfunction!(pyshinqlx_set_position, m)?)?;
+    m.add_function(wrap_pyfunction!(pyshinqlx_set_velocity, m)?)?;
+    m.add_function(wrap_pyfunction!(pyshinqlx_noclip, m)?)?;
+    m.add_function(wrap_pyfunction!(pyshinqlx_set_health, m)?)?;
+    m.add_function(wrap_pyfunction!(pyshinqlx_set_armor, m)?)?;
+    m.add_function(wrap_pyfunction!(pyshinqlx_set_weapons, m)?)?;
+    m.add_function(wrap_pyfunction!(pyshinqlx_set_weapon, m)?)?;
+    m.add_function(wrap_pyfunction!(pyshinqlx_set_ammo, m)?)?;
+    m.add_function(wrap_pyfunction!(pyshinqlx_set_powerups, m)?)?;
+    m.add_function(wrap_pyfunction!(pyshinqlx_set_holdable, m)?)?;
+    m.add_function(wrap_pyfunction!(pyshinqlx_drop_holdable, m)?)?;
+    m.add_function(wrap_pyfunction!(pyshinqlx_set_flight, m)?)?;
+    m.add_function(wrap_pyfunction!(pyshinqlx_set_invulnerability, m)?)?;
+    m.add_function(wrap_pyfunction!(pyshinqlx_set_score, m)?)?;
+    m.add_function(wrap_pyfunction!(pyshinqlx_callvote, m)?)?;
+    m.add_function(wrap_pyfunction!(pyshinqlx_allow_single_player, m)?)?;
+    m.add_function(wrap_pyfunction!(pyshinqlx_player_spawn, m)?)?;
+    m.add_function(wrap_pyfunction!(pyshinqlx_set_privileges, m)?)?;
+    m.add_function(wrap_pyfunction!(pyshinqlx_destroy_kamikaze_timers, m)?)?;
+    m.add_function(wrap_pyfunction!(pyshinqlx_spawn_item, m)?)?;
+    m.add_function(wrap_pyfunction!(pyshinqlx_remove_dropped_items, m)?)?;
+    m.add_function(wrap_pyfunction!(pyshinqlx_slay_with_mod, m)?)?;
+    m.add_function(wrap_pyfunction!(pyshinqlx_replace_items, m)?)?;
+    m.add_function(wrap_pyfunction!(pyshinqlx_dev_print_items, m)?)?;
+    m.add_function(wrap_pyfunction!(pyshinqlx_force_weapon_respawn_time, m)?)?;
+    m.add_function(wrap_pyfunction!(pyshinqlx_get_entity_targets, m)?)?;
 
     m.add("__version__", env!("SHINQLX_VERSION"))?;
     m.add("DEBUG", cfg!(debug_assertions))?;
@@ -256,10 +256,10 @@ fn pyminqlx_module(_py: Python<'_>, m: &PyModule) -> PyResult<()> {
     Ok(())
 }
 
-pub(crate) static PYMINQLX_INITIALIZED: AtomicBool = AtomicBool::new(false);
+pub(crate) static PYSHINQLX_INITIALIZED: AtomicBool = AtomicBool::new(false);
 
-pub(crate) fn pyminqlx_is_initialized() -> bool {
-    PYMINQLX_INITIALIZED.load(Ordering::SeqCst)
+pub(crate) fn pyshinqlx_is_initialized() -> bool {
+    PYSHINQLX_INITIALIZED.load(Ordering::SeqCst)
 }
 
 #[derive(PartialEq, Eq, Debug, Clone, Copy)]
@@ -271,8 +271,8 @@ pub(crate) enum PythonInitializationError {
 }
 
 #[cfg_attr(test, allow(dead_code))]
-pub(crate) fn pyminqlx_initialize() -> Result<(), PythonInitializationError> {
-    if pyminqlx_is_initialized() {
+pub(crate) fn pyshinqlx_initialize() -> Result<(), PythonInitializationError> {
+    if pyshinqlx_is_initialized() {
         error!(target: "shinqlx", "pyminqlx_initialize was called while already initialized");
         return Err(PythonInitializationError::AlreadyInitialized);
     }
@@ -281,8 +281,8 @@ pub(crate) fn pyminqlx_initialize() -> Result<(), PythonInitializationError> {
     append_to_inittab!(pyminqlx_module);
     prepare_freethreaded_python();
     match Python::with_gil(|py| {
-        let minqlx_module = py.import("minqlx")?;
-        minqlx_module.call_method0("initialize")?;
+        let shinqlx_module = py.import("minqlx")?;
+        shinqlx_module.call_method0("initialize")?;
         Ok::<(), PyErr>(())
     }) {
         Err(e) => {
@@ -291,7 +291,7 @@ pub(crate) fn pyminqlx_initialize() -> Result<(), PythonInitializationError> {
             Err(PythonInitializationError::MainScriptError)
         }
         Ok(_) => {
-            PYMINQLX_INITIALIZED.store(true, Ordering::SeqCst);
+            PYSHINQLX_INITIALIZED.store(true, Ordering::SeqCst);
             debug!(target: "shinqlx", "Python initialized!");
             Ok(())
         }
@@ -299,8 +299,8 @@ pub(crate) fn pyminqlx_initialize() -> Result<(), PythonInitializationError> {
 }
 
 #[cfg_attr(test, allow(dead_code))]
-pub(crate) fn pyminqlx_reload() -> Result<(), PythonInitializationError> {
-    if !pyminqlx_is_initialized() {
+pub(crate) fn pyshinqlx_reload() -> Result<(), PythonInitializationError> {
+    if !pyshinqlx_is_initialized() {
         error!(target: "shinqlx", "pyminqlx_finalize was called before being initialized");
         return Err(PythonInitializationError::NotInitializedError);
     }
@@ -327,17 +327,17 @@ pub(crate) fn pyminqlx_reload() -> Result<(), PythonInitializationError> {
 
     match Python::with_gil(|py| {
         let importlib_module = py.import("importlib")?;
-        let minqlx_module = py.import("minqlx")?;
-        let new_minqlx_module = importlib_module.call_method1("reload", (minqlx_module,))?;
-        new_minqlx_module.call_method0("initialize")?;
+        let shinqlx_module = py.import("minqlx")?;
+        let new_shinqlx_module = importlib_module.call_method1("reload", (shinqlx_module,))?;
+        new_shinqlx_module.call_method0("initialize")?;
         Ok::<(), PyErr>(())
     }) {
         Err(_) => {
-            PYMINQLX_INITIALIZED.store(false, Ordering::SeqCst);
+            PYSHINQLX_INITIALIZED.store(false, Ordering::SeqCst);
             Err(PythonInitializationError::MainScriptError)
         }
         Ok(()) => {
-            PYMINQLX_INITIALIZED.store(true, Ordering::SeqCst);
+            PYSHINQLX_INITIALIZED.store(true, Ordering::SeqCst);
             Ok(())
         }
     }
@@ -399,22 +399,22 @@ pub(crate) mod python_tests {
     ) {
     }
 
-    pub(crate) fn pyminqlx_is_initialized() -> bool {
+    pub(crate) fn pyshinqlx_is_initialized() -> bool {
         false
     }
 
-    pub(crate) fn pyminqlx_initialize() -> Result<(), PythonInitializationError> {
+    pub(crate) fn pyshinqlx_initialize() -> Result<(), PythonInitializationError> {
         Ok(())
     }
 
-    pub(crate) fn pyminqlx_reload() -> Result<(), PythonInitializationError> {
+    pub(crate) fn pyshinqlx_reload() -> Result<(), PythonInitializationError> {
         Ok(())
     }
 }
 
 #[cfg(test)]
 #[cfg(not(miri))]
-pub(crate) mod pyminqlx_setup_fixture {
+pub(crate) mod pyshinqlx_setup_fixture {
     use super::pyminqlx_module;
     use pyo3::ffi::Py_IsInitialized;
     use pyo3::{append_to_inittab, prepare_freethreaded_python};
@@ -422,7 +422,7 @@ pub(crate) mod pyminqlx_setup_fixture {
 
     #[fixture]
     #[once]
-    pub(crate) fn pyminqlx_setup() {
+    pub(crate) fn pyshinqlx_setup() {
         if unsafe { Py_IsInitialized() } == 0 {
             append_to_inittab!(pyminqlx_module);
             prepare_freethreaded_python();

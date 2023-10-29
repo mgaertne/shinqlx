@@ -6,7 +6,7 @@ use pyo3::{pyfunction, PyResult, Python};
 /// get a list of entities that target a given entity
 #[pyfunction]
 #[pyo3(name = "get_targetting_entities")]
-pub(crate) fn minqlx_get_entity_targets(py: Python<'_>, entity_id: i32) -> PyResult<Vec<u32>> {
+pub(crate) fn pyshinqlx_get_entity_targets(py: Python<'_>, entity_id: i32) -> PyResult<Vec<u32>> {
     if !(0..MAX_GENTITIES as i32).contains(&entity_id) {
         return Err(PyValueError::new_err(format!(
             "entity_id need to be between 0 and {}.",
@@ -25,7 +25,7 @@ pub(crate) fn minqlx_get_entity_targets(py: Python<'_>, entity_id: i32) -> PyRes
 #[cfg(test)]
 #[cfg(not(miri))]
 mod get_entity_targets_tests {
-    use super::minqlx_get_entity_targets;
+    use super::pyshinqlx_get_entity_targets;
     use crate::ffi::c::game_entity::MockGameEntity;
     use crate::prelude::*;
     use mockall::predicate;
@@ -35,7 +35,7 @@ mod get_entity_targets_tests {
     #[test]
     fn get_entity_targets_for_too_small_entity_id() {
         Python::with_gil(|py| {
-            let result = minqlx_get_entity_targets(py, -1);
+            let result = pyshinqlx_get_entity_targets(py, -1);
             assert!(result.is_err_and(|err| err.is_instance_of::<PyValueError>(py)));
         });
     }
@@ -43,7 +43,7 @@ mod get_entity_targets_tests {
     #[test]
     fn get_entity_targets_for_too_large_entity_id() {
         Python::with_gil(|py| {
-            let result = minqlx_get_entity_targets(py, MAX_GENTITIES as i32);
+            let result = pyshinqlx_get_entity_targets(py, MAX_GENTITIES as i32);
             assert!(result.is_err_and(|err| err.is_instance_of::<PyValueError>(py)));
         });
     }
@@ -64,7 +64,7 @@ mod get_entity_targets_tests {
             })
             .times(1);
 
-        let result = Python::with_gil(|py| minqlx_get_entity_targets(py, 2));
+        let result = Python::with_gil(|py| pyshinqlx_get_entity_targets(py, 2));
         assert!(result.is_ok_and(|item_ids| item_ids == vec![]));
     }
 
@@ -84,7 +84,7 @@ mod get_entity_targets_tests {
             })
             .times(1);
 
-        let result = Python::with_gil(|py| minqlx_get_entity_targets(py, 2));
+        let result = Python::with_gil(|py| pyshinqlx_get_entity_targets(py, 2));
         assert!(result.is_ok_and(|item_ids| item_ids == vec![42, 21, 1337]));
     }
 }
