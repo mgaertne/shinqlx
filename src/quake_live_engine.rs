@@ -181,6 +181,7 @@ impl VmFunctions {
                 ));
             };
             let qagame_maps: Vec<&MemoryMap> = myself_maps
+                .iter()
                 .into_iter()
                 .filter(|mmap| {
                     let MMapPath::Path(path) = &mmap.pathname else {
@@ -474,6 +475,7 @@ impl QuakeLiveEngine {
                 ));
             };
             let qzeroded_maps: Vec<&MemoryMap> = myself_maps
+                .iter()
                 .into_iter()
                 .filter(|mmap| {
                     let MMapPath::Path(path) = &mmap.pathname else {
