@@ -8,7 +8,7 @@ if TYPE_CHECKING:
     else:
         from typing_extensions import NotRequired
     from typing import Iterable, TypedDict
-    from minqlx import (
+    from shinqlx import (
         PlayerInfo,
         PlayerState,
         PlayerStats,

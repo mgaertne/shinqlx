@@ -3,7 +3,7 @@ use pyo3::prelude::*;
 
 /// A player's score and some basic stats.
 #[pyclass]
-#[pyo3(module = "minqlx", name = "PlayerStats", get_all)]
+#[pyo3(module = "shinqlx", name = "PlayerStats", get_all)]
 #[derive(Debug, PartialEq)]
 pub(crate) struct PlayerStats {
     /// The player's primary score.

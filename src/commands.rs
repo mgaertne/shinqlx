@@ -221,7 +221,7 @@ pub extern "C" fn cmd_slay() {
 }
 
 #[no_mangle]
-// Execute a pyminqlx command as if it were the owner executing it.
+// Execute a pyshinqlx command as if it were the owner executing it.
 // Output will appear in the console.
 pub extern "C" fn cmd_py_rcon() {
     let Some(ref main_engine) = *MAIN_ENGINE.load() else {
@@ -272,7 +272,7 @@ pub extern "C" fn cmd_restart_python() {
         if pyshinqlx_reload().is_err() {
             return;
         };
-        // minqlx initializes after the first new game starts, but since the game already
+        // shinqlx initializes after the first new game starts, but since the game already
         // start, we manually trigger the event to make it initialize properly.
         new_game_dispatcher(false);
         return;
@@ -282,7 +282,7 @@ pub extern "C" fn cmd_restart_python() {
         return;
     };
 
-    // minqlx initializes after the first new game starts, but since the game already
+    // shinqlx initializes after the first new game starts, but since the game already
     // start, we manually trigger the event to make it initialize properly.
     new_game_dispatcher(false);
 }

@@ -1,24 +1,6 @@
-# minqlx - Extends Quake Live's dedicated server with extra functionality and scripting.
-# Copyright (C) 2015 Mino <mino@minomino.org>
-
-# This file is part of minqlx.
-
-# minqlx is free software: you can redistribute it and/or modify
-# it under the terms of the GNU General Public License as published by
-# the Free Software Foundation, either version 3 of the License, or
-# (at your option) any later version.
-
-# minqlx is distributed in the hope that it will be useful,
-# but WITHOUT ANY WARRANTY; without even the implied warranty of
-# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-# GNU General Public License for more details.
-
-# You should have received a copy of the GNU General Public License
-# along with minqlx. If not, see <http://www.gnu.org/licenses/>.
-
 import re
 
-import minqlx
+import shinqlx
 
 _DUMMY_USERINFO = (
     "ui_singlePlayerActive\\0\\cg_autoAction\\1\\cg_autoHop\\0"
@@ -42,7 +24,7 @@ class Player:
     then moves to red, it will still be blue when you check a second time.
     To update it, use :meth:`~.Player.update`. Note that if you update it
     and the player has disconnected, it will raise a
-    :exc:`minqlx.NonexistentPlayerError` exception.
+    :exc:`shinqlx.NonexistentPlayerError` exception.
 
     """
 
@@ -57,7 +39,7 @@ class Player:
             self._info = info
         else:
             self._id = client_id
-            self._info = minqlx.player_info(client_id)
+            self._info = shinqlx.player_info(client_id)
             if not self._info:
                 self._invalidate(
                     f"Tried to initialize a Player instance of nonexistant player {client_id}."
@@ -71,7 +53,7 @@ class Player:
         if self._info.name:
             self._name = self._info.name
         else:
-            self._userinfo = minqlx.parse_variables(self._info.userinfo, ordered=True)
+            self._userinfo = shinqlx.parse_variables(self._info.userinfo, ordered=True)
             self._name = self._userinfo.get("name", "")
 
     def __repr__(self):
@@ -106,10 +88,10 @@ class Player:
         The player's name and Steam ID can still be accessed after being
         invalidated, but anything else will make it throw an exception too.
 
-        :raises: minqlx.NonexistentPlayerError
+        :raises: shinqlx.NonexistentPlayerError
 
         """
-        self._info = minqlx.player_info(self._id)
+        self._info = shinqlx.player_info(self._id)
 
         if not self._info or self._steam_id != self._info.steam_id:
             self._invalidate()
@@ -118,7 +100,7 @@ class Player:
         if self._info.name:
             self._name = self._info.name
         else:
-            self._userinfo = minqlx.parse_variables(self._info.userinfo, ordered=True)
+            self._userinfo = shinqlx.parse_variables(self._info.userinfo, ordered=True)
             self._name = self._userinfo.get("name", "")
 
     def _invalidate(
@@ -133,7 +115,7 @@ class Player:
             self._invalidate()
 
         if not self._userinfo:
-            self._userinfo = minqlx.parse_variables(self._info.userinfo, ordered=True)
+            self._userinfo = shinqlx.parse_variables(self._info.userinfo, ordered=True)
 
         return self._userinfo.copy()
 
@@ -141,7 +123,7 @@ class Player:
     @cvars.setter
     def cvars(self, new_cvars):
         new = "".join([f"\\{key}\\{new_cvars[key]}" for key in new_cvars])
-        minqlx.client_command(self.id, f'userinfo "{new}"')
+        shinqlx.client_command(self.id, f'userinfo "{new}"')
 
     @property
     def steam_id(self):
@@ -163,7 +145,9 @@ class Player:
         fortunately the scoreboard still properly displays it if we manually
         set the configstring to use clan tags."""
         try:
-            return minqlx.parse_variables(minqlx.get_configstring(529 + self._id))["cn"]
+            return shinqlx.parse_variables(shinqlx.get_configstring(529 + self._id))[
+                "cn"
+            ]
         except KeyError:
             return ""
 
@@ -171,11 +155,11 @@ class Player:
     @clan.setter
     def clan(self, tag):
         index = self.id + 529
-        cs = minqlx.parse_variables(minqlx.get_configstring(index), ordered=True)
+        cs = shinqlx.parse_variables(shinqlx.get_configstring(index), ordered=True)
         cs["xcn"] = tag
         cs["cn"] = tag
         new_cs = "".join([f"\\{key}\\{cs[key]}" for key in cs])
-        minqlx.set_configstring(index, new_cs)
+        shinqlx.set_configstring(index, new_cs)
 
     @property
     def name(self):
@@ -202,7 +186,7 @@ class Player:
 
     @property
     def team(self):
-        return minqlx.TEAMS[self._info.team]
+        return shinqlx.TEAMS[self._info.team]
 
     # noinspection PyUnresolvedReferences
     @team.setter
@@ -303,21 +287,21 @@ class Player:
         In other words, if you need to make sure a player is in-game, check if ``player.connection_state == "active"``.
 
         """
-        return minqlx.CONNECTION_STATES[self._info.connection_state]
+        return shinqlx.CONNECTION_STATES[self._info.connection_state]
 
     @property
     def state(self):
-        return minqlx.player_state(self.id)
+        return shinqlx.player_state(self.id)
 
     @property
     def privileges(self):
-        if self._info.privileges == minqlx.PRIV_MOD:
+        if self._info.privileges == shinqlx.PRIV_MOD:
             return "mod"
-        if self._info.privileges == minqlx.PRIV_ADMIN:
+        if self._info.privileges == shinqlx.PRIV_ADMIN:
             return "admin"
-        if self._info.privileges == minqlx.PRIV_ROOT:
+        if self._info.privileges == shinqlx.PRIV_ROOT:
             return "root"
-        if self._info.privileges == minqlx.PRIV_BANNED:
+        if self._info.privileges == shinqlx.PRIV_BANNED:
             return "banned"
         return None
 
@@ -325,11 +309,11 @@ class Player:
     @privileges.setter
     def privileges(self, value):
         if not value or value == "none":
-            minqlx.set_privileges(self.id, minqlx.PRIV_NONE)
+            shinqlx.set_privileges(self.id, shinqlx.PRIV_NONE)
         elif value == "mod":
-            minqlx.set_privileges(self.id, minqlx.PRIV_MOD)
+            shinqlx.set_privileges(self.id, shinqlx.PRIV_MOD)
         elif value == "admin":
-            minqlx.set_privileges(self.id, minqlx.PRIV_ADMIN)
+            shinqlx.set_privileges(self.id, shinqlx.PRIV_ADMIN)
         else:
             raise ValueError("Invalid privilege level.")
 
@@ -350,14 +334,14 @@ class Player:
 
     @property
     def stats(self):
-        return minqlx.player_stats(self.id)
+        return shinqlx.player_stats(self.id)
 
     @property
     def ping(self):
         return self.stats.ping
 
     def position(self, reset=False, **kwargs):
-        pos = minqlx.Vector3((0, 0, 0)) if reset else self.state.position
+        pos = shinqlx.Vector3((0, 0, 0)) if reset else self.state.position
 
         if not kwargs:
             return pos
@@ -366,10 +350,10 @@ class Player:
         y = pos.y if "y" not in kwargs else kwargs["y"]
         z = pos.z if "z" not in kwargs else kwargs["z"]
 
-        return minqlx.set_position(self.id, minqlx.Vector3((x, y, z)))
+        return shinqlx.set_position(self.id, shinqlx.Vector3((x, y, z)))
 
     def velocity(self, reset=False, **kwargs):
-        vel = minqlx.Vector3((0, 0, 0)) if reset else self.state.velocity
+        vel = shinqlx.Vector3((0, 0, 0)) if reset else self.state.velocity
 
         if not kwargs:
             return vel
@@ -378,10 +362,10 @@ class Player:
         y = vel.y if "y" not in kwargs else kwargs["y"]
         z = vel.z if "z" not in kwargs else kwargs["z"]
 
-        return minqlx.set_velocity(self.id, minqlx.Vector3((x, y, z)))
+        return shinqlx.set_velocity(self.id, shinqlx.Vector3((x, y, z)))
 
     def weapons(self, reset=False, **kwargs):
-        weaps = minqlx.Weapons((False,) * 15) if reset else self.state.weapons
+        weaps = shinqlx.Weapons((False,) * 15) if reset else self.state.weapons
 
         if not kwargs:
             return weaps
@@ -402,9 +386,9 @@ class Player:
         hmg = weaps.hmg if "hmg" not in kwargs else kwargs["hmg"]
         hands = weaps.hands if "hands" not in kwargs else kwargs["hands"]
 
-        return minqlx.set_weapons(
+        return shinqlx.set_weapons(
             self.id,
-            minqlx.Weapons(
+            shinqlx.Weapons(
                 (g, mg, sg, gl, rl, lg, rg, pg, bfg, gh, ng, pl, cg, hmg, hands)
             ),
         )
@@ -412,15 +396,15 @@ class Player:
     def weapon(self, new_weapon=None):
         if new_weapon is None:
             return self.state.weapon
-        if new_weapon in minqlx.WEAPONS:
+        if new_weapon in shinqlx.WEAPONS:
             pass
-        elif new_weapon in minqlx.WEAPONS.values():
-            new_weapon = tuple(minqlx.WEAPONS.values()).index(new_weapon)
+        elif new_weapon in shinqlx.WEAPONS.values():
+            new_weapon = tuple(shinqlx.WEAPONS.values()).index(new_weapon)
 
-        return minqlx.set_weapon(self.id, new_weapon)
+        return shinqlx.set_weapon(self.id, new_weapon)
 
     def ammo(self, reset=False, **kwargs):
-        a = minqlx.Weapons((0,) * 15) if reset else self.state.ammo
+        a = shinqlx.Weapons((0,) * 15) if reset else self.state.ammo
 
         if not kwargs:
             return a
@@ -441,15 +425,15 @@ class Player:
         hmg = a.hmg if "hmg" not in kwargs else kwargs["hmg"]
         hands = a.hands if "hands" not in kwargs else kwargs["hands"]
 
-        return minqlx.set_ammo(
+        return shinqlx.set_ammo(
             self.id,
-            minqlx.Weapons(
+            shinqlx.Weapons(
                 (g, mg, sg, gl, rl, lg, rg, pg, bfg, gh, ng, pl, cg, hmg, hands)
             ),
         )
 
     def powerups(self, reset=False, **kwargs):
-        pu = minqlx.Powerups((0,) * 6) if reset else self.state.powerups
+        pu = shinqlx.Powerups((0,) * 6) if reset else self.state.powerups
 
         if not kwargs:
             return pu
@@ -477,8 +461,8 @@ class Player:
             else round(kwargs["invulnerability"] * 1000)
         )
 
-        return minqlx.set_powerups(
-            self.id, minqlx.Powerups((quad, bs, haste, invis, regen, invul))
+        return shinqlx.set_powerups(
+            self.id, shinqlx.Powerups((quad, bs, haste, invis, regen, invul))
         )
 
     @property
@@ -489,25 +473,25 @@ class Player:
     @holdable.setter
     def holdable(self, value):
         if not value:
-            minqlx.set_holdable(self.id, 0)
+            shinqlx.set_holdable(self.id, 0)
         elif value == "teleporter":
-            minqlx.set_holdable(self.id, 27)
+            shinqlx.set_holdable(self.id, 27)
         elif value == "medkit":
-            minqlx.set_holdable(self.id, 28)
+            shinqlx.set_holdable(self.id, 28)
         elif value == "flight":
-            minqlx.set_holdable(self.id, 34)
+            shinqlx.set_holdable(self.id, 34)
             self.flight(reset=True)
         elif value == "kamikaze":
-            minqlx.set_holdable(self.id, 37)
+            shinqlx.set_holdable(self.id, 37)
         elif value == "portal":
-            minqlx.set_holdable(self.id, 38)
+            shinqlx.set_holdable(self.id, 38)
         elif value == "invulnerability":
-            minqlx.set_holdable(self.id, 39)
+            shinqlx.set_holdable(self.id, 39)
         else:
             raise ValueError("Invalid holdable item.")
 
     def drop_holdable(self):
-        minqlx.drop_holdable(self.id)
+        shinqlx.drop_holdable(self.id)
 
     def flight(self, reset=False, **kwargs):
         state = self.state
@@ -516,15 +500,15 @@ class Player:
             reset = True
 
         # Set to defaults on reset.
-        fl = minqlx.Flight((16000, 16000, 1200, 0)) if reset else state.flight
+        fl = shinqlx.Flight((16000, 16000, 1200, 0)) if reset else state.flight
 
         fuel = fl.fuel if "fuel" not in kwargs else kwargs["fuel"]
         max_fuel = fl.max_fuel if "max_fuel" not in kwargs else kwargs["max_fuel"]
         thrust = fl.thrust if "thrust" not in kwargs else kwargs["thrust"]
         refuel = fl.refuel if "refuel" not in kwargs else kwargs["refuel"]
 
-        return minqlx.set_flight(
-            self.id, minqlx.Flight((fuel, max_fuel, thrust, refuel))
+        return shinqlx.set_flight(
+            self.id, shinqlx.Flight((fuel, max_fuel, thrust, refuel))
         )
 
     @property
@@ -534,7 +518,7 @@ class Player:
     # noinspection PyUnresolvedReferences
     @noclip.setter
     def noclip(self, value):
-        minqlx.noclip(self.id, bool(value))
+        shinqlx.noclip(self.id, bool(value))
 
     @property
     def health(self):
@@ -543,7 +527,7 @@ class Player:
     # noinspection PyUnresolvedReferences
     @health.setter
     def health(self, value):
-        minqlx.set_health(self.id, value)
+        shinqlx.set_health(self.id, value)
 
     @property
     def armor(self):
@@ -552,7 +536,7 @@ class Player:
     # noinspection PyUnresolvedReferences
     @armor.setter
     def armor(self, value):
-        minqlx.set_armor(self.id, value)
+        shinqlx.set_armor(self.id, value)
 
     @property
     def is_alive(self):
@@ -569,7 +553,7 @@ class Player:
             # TODO: Proper death and not just setting health to 0.
             self.health = 0
         elif not cur and value is True:
-            minqlx.player_spawn(self.id)
+            shinqlx.player_spawn(self.id)
 
     @property
     def is_frozen(self):
@@ -582,78 +566,78 @@ class Player:
     # noinspection PyUnresolvedReferences
     @score.setter
     def score(self, value):
-        minqlx.set_score(self.id, value)
+        shinqlx.set_score(self.id, value)
 
     @property
     def channel(self):
-        return minqlx.TellChannel(self)
+        return shinqlx.TellChannel(self)
 
     def center_print(self, msg):
-        minqlx.send_server_command(self.id, f'cp "{msg}"')
+        shinqlx.send_server_command(self.id, f'cp "{msg}"')
 
     def tell(self, msg, **kwargs):
-        return minqlx.Plugin.tell(msg, self, **kwargs)
+        return shinqlx.Plugin.tell(msg, self, **kwargs)
 
     def kick(self, reason=""):
-        return minqlx.Plugin.kick(self, reason)
+        return shinqlx.Plugin.kick(self, reason)
 
     def ban(self):
-        return minqlx.Plugin.ban(self)
+        return shinqlx.Plugin.ban(self)
 
     def tempban(self):
-        return minqlx.Plugin.tempban(self)
+        return shinqlx.Plugin.tempban(self)
 
     def addadmin(self):
-        return minqlx.Plugin.addadmin(self)
+        return shinqlx.Plugin.addadmin(self)
 
     def addmod(self):
-        return minqlx.Plugin.addmod(self)
+        return shinqlx.Plugin.addmod(self)
 
     def demote(self):
-        return minqlx.Plugin.demote(self)
+        return shinqlx.Plugin.demote(self)
 
     def mute(self):
-        return minqlx.Plugin.mute(self)
+        return shinqlx.Plugin.mute(self)
 
     def unmute(self):
-        return minqlx.Plugin.unmute(self)
+        return shinqlx.Plugin.unmute(self)
 
     def put(self, team):
-        return minqlx.Plugin.put(self, team)
+        return shinqlx.Plugin.put(self, team)
 
     def addscore(self, score):
-        return minqlx.Plugin.addscore(self, score)
+        return shinqlx.Plugin.addscore(self, score)
 
     def switch(self, other_player):
-        return minqlx.Plugin.switch(self, other_player)
+        return shinqlx.Plugin.switch(self, other_player)
 
     def slap(self, damage=0):
-        return minqlx.Plugin.slap(self, damage)
+        return shinqlx.Plugin.slap(self, damage)
 
     def slay(self):
-        return minqlx.Plugin.slay(self)
+        return shinqlx.Plugin.slay(self)
 
     def slay_with_mod(self, mod):
-        return minqlx.slay_with_mod(self.id, mod)
+        return shinqlx.slay_with_mod(self.id, mod)
 
     @classmethod
     def all_players(cls):
         return [
-            cls(info.client_id, info=info) for info in minqlx.players_info() if info
+            cls(info.client_id, info=info) for info in shinqlx.players_info() if info
         ]
 
 
 class AbstractDummyPlayer(Player):
     def __init__(self, name="DummyPlayer"):
-        info = minqlx.PlayerInfo(
+        info = shinqlx.PlayerInfo(
             (
                 -1,
                 name,
-                minqlx.CS_CONNECTED,
+                shinqlx.CS_CONNECTED,
                 _DUMMY_USERINFO,
                 -1,
-                minqlx.TEAM_SPECTATOR,
-                minqlx.PRIV_NONE,
+                shinqlx.TEAM_SPECTATOR,
+                shinqlx.PRIV_NONE,
             )
         )
         super().__init__(-1, info=info)
@@ -683,11 +667,11 @@ class RconDummyPlayer(AbstractDummyPlayer):
 
     @property
     def steam_id(self):
-        return minqlx.owner()
+        return shinqlx.owner()
 
     @property
     def channel(self):
-        return minqlx.CONSOLE_CHANNEL
+        return shinqlx.CONSOLE_CHANNEL
 
     def tell(self, msg, **kwargs):
         self.channel.reply(msg)

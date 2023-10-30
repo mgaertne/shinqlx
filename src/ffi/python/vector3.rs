@@ -21,7 +21,7 @@ impl Vector3Iter {
 }
 
 /// A three-dimensional vector.
-#[pyclass(name = "Vector3", module = "minqlx", get_all)]
+#[pyclass(name = "Vector3", module = "shinqlx", get_all)]
 #[derive(PartialEq, Eq, Debug, Clone, Copy, Default)]
 pub(crate) struct Vector3(
     #[pyo3(name = "x")] pub(crate) i32,
@@ -109,7 +109,7 @@ mod vector3_tests {
     #[rstest]
     fn vector3_tuple_test(_pyshinqlx_setup: ()) {
         Python::with_gil(|py| {
-            let shinqlx_module = py.import("_minqlx").unwrap();
+            let shinqlx_module = py.import("_shinqlx").unwrap();
             let vector3 = shinqlx_module.getattr("Vector3").unwrap();
             let tuple = py.import("builtins").unwrap().getattr("tuple").unwrap();
             assert!(vector3.is_instance(tuple.get_type()).unwrap());
@@ -122,8 +122,8 @@ mod vector3_tests {
         Python::with_gil(|py| {
             let vector3_constructor = py.run(
                 r#"
-import _minqlx
-weapons = _minqlx.Vector3((0, 42, 666))
+import _shinqlx
+weapons = _shinqlx.Vector3((0, 42, 666))
             "#,
                 None,
                 None,
@@ -142,8 +142,8 @@ weapons = _minqlx.Vector3((0, 42, 666))
         Python::with_gil(|py| {
             let vector3_constructor = py.run(
                 r#"
-import _minqlx
-powerups = _minqlx.Vector3((0, 1))
+import _shinqlx
+powerups = _shinqlx.Vector3((0, 1))
             "#,
                 None,
                 None,
@@ -158,8 +158,8 @@ powerups = _minqlx.Vector3((0, 1))
         Python::with_gil(|py| {
             let vector3_constructor = py.run(
                 r#"
-import _minqlx
-powerups = _minqlx.Vector3((0, 1, 2, 3))
+import _shinqlx
+powerups = _shinqlx.Vector3((0, 1, 2, 3))
             "#,
                 None,
                 None,
@@ -174,8 +174,8 @@ powerups = _minqlx.Vector3((0, 1, 2, 3))
         Python::with_gil(|py| {
             let vector3_constructor = py.run(
                 r#"
-import _minqlx
-powerups = _minqlx.Vector3(("asdf", True, (1, 2, 3)))
+import _shinqlx
+powerups = _shinqlx.Vector3(("asdf", True, (1, 2, 3)))
             "#,
                 None,
                 None,
@@ -190,8 +190,8 @@ powerups = _minqlx.Vector3(("asdf", True, (1, 2, 3)))
         let result = Python::with_gil(|py| {
             py.run(
                 r#"
-import _minqlx
-assert(_minqlx.Vector3((0, 1, 2)) == _minqlx.Vector3((0, 1, 2)))
+import _shinqlx
+assert(_shinqlx.Vector3((0, 1, 2)) == _shinqlx.Vector3((0, 1, 2)))
             "#,
                 None,
                 None,
@@ -206,8 +206,8 @@ assert(_minqlx.Vector3((0, 1, 2)) == _minqlx.Vector3((0, 1, 2)))
         let result = Python::with_gil(|py| {
             py.run(
                 r#"
-import _minqlx
-assert(_minqlx.Vector3((0, 1, 2)) != _minqlx.Vector3((2, 1, 0)))
+import _shinqlx
+assert(_shinqlx.Vector3((0, 1, 2)) != _shinqlx.Vector3((2, 1, 0)))
             "#,
                 None,
                 None,
@@ -222,8 +222,8 @@ assert(_minqlx.Vector3((0, 1, 2)) != _minqlx.Vector3((2, 1, 0)))
         Python::with_gil(|py| {
             let result = py.run(
                 r#"
-import _minqlx
-assert(_minqlx.Vector3((0, 1, 2)) < _minqlx.Vector3((2, 1, 0)))
+import _shinqlx
+assert(_shinqlx.Vector3((0, 1, 2)) < _shinqlx.Vector3((2, 1, 0)))
             "#,
                 None,
                 None,
@@ -238,8 +238,8 @@ assert(_minqlx.Vector3((0, 1, 2)) < _minqlx.Vector3((2, 1, 0)))
         let result = Python::with_gil(|py| {
             py.run(
                 r#"
-import _minqlx
-vector3 = _minqlx.Vector3((0, 1, 2))
+import _shinqlx
+vector3 = _shinqlx.Vector3((0, 1, 2))
 vec_iter = iter(iter(vector3))
 assert(next(vec_iter) == 0)
 assert(next(vec_iter) == 1)

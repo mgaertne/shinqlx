@@ -1,24 +1,7 @@
-# minqlx - Extends Quake Live's dedicated server with extra functionality and scripting.
-# Copyright (C) 2015 Mino <mino@minomino.org>
-
-# This file is part of minqlx.
-
-# minqlx is free software: you can redistribute it and/or modify
-# it under the terms of the GNU General Public License as published by
-# the Free Software Foundation, either version 3 of the License, or
-# (at your option) any later version.
-
-# minqlx is distributed in the hope that it will be useful,
-# but WITHOUT ANY WARRANTY; without even the implied warranty of
-# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-# GNU General Public License for more details.
-
-# You should have received a copy of the GNU General Public License
-# along with minqlx. If not, see <http://www.gnu.org/licenses/>.
 import re
 from abc import abstractmethod
 
-import minqlx
+import shinqlx
 
 
 MAX_MSG_LENGTH = 1000
@@ -81,7 +64,7 @@ class AbstractChannel:
             i = msg.find("\n")
             if 0 <= i <= limit:
                 res.append(msg[:i])
-                msg = msg[i + 1:]
+                msg = msg[i + 1 :]
                 continue
 
             if len(msg) < limit:
@@ -96,7 +79,7 @@ class AbstractChannel:
                     if not length:
                         length = limit + 1
                     res.append(msg[: length - 1])
-                    msg = msg[length + len(delimiter) - 1:]
+                    msg = msg[length + len(delimiter) - 1 :]
                     break
                 length += i + 1
 
@@ -114,7 +97,7 @@ class ChatChannel(AbstractChannel):
     def receipients(self):
         pass
 
-    @minqlx.next_frame
+    @shinqlx.next_frame
     def reply(self, msg, limit=100, delimiter=" "):
         # We convert whatever we got to a string and replace all double quotes
         # to single quotes, since the engine doesn't support escaping them.
@@ -140,10 +123,10 @@ class ChatChannel(AbstractChannel):
 
         for s in joined_msgs:
             if not targets:
-                minqlx.send_server_command(None, self.fmt.format(last_color + s))
+                shinqlx.send_server_command(None, self.fmt.format(last_color + s))
             else:
                 for cid in targets:
-                    minqlx.send_server_command(cid, self.fmt.format(last_color + s))
+                    shinqlx.send_server_command(cid, self.fmt.format(last_color + s))
 
             find = re_color_tag.findall(s)
             if find:
@@ -163,7 +146,7 @@ class TeamChatChannel(ChatChannel):
 
         return [
             player.id
-            for player in minqlx.Player.all_players()
+            for player in shinqlx.Player.all_players()
             if player.team == self.team
         ]
 
@@ -176,13 +159,13 @@ class TellChannel(ChatChannel):
         self.recipient = player
 
     def __repr__(self):
-        player = minqlx.Plugin.player(self.recipient)
+        player = shinqlx.Plugin.player(self.recipient)
         if player is None:
             return ""
         return f"tell {player.steam_id}"
 
     def receipients(self):
-        cid = minqlx.Plugin.client_id(self.recipient)
+        cid = shinqlx.Plugin.client_id(self.recipient)
         if cid is None:
             raise ValueError("Invalid recipient.")
         return [cid]
@@ -195,7 +178,7 @@ class ConsoleChannel(AbstractChannel):
         super().__init__("console")
 
     def reply(self, msg, limit=100, delimiter=" "):
-        minqlx.console_print(str(msg))
+        shinqlx.console_print(str(msg))
 
 
 class ClientCommandChannel(AbstractChannel):
@@ -207,7 +190,7 @@ class ClientCommandChannel(AbstractChannel):
         self.tell_channel = TellChannel(player)
 
     def __repr__(self):
-        player = minqlx.Plugin.player(self.recipient)
+        player = shinqlx.Plugin.player(self.recipient)
         if player is None:
             return ""
 
@@ -264,7 +247,7 @@ class Command:
         self.usage = usage
 
     def execute(self, player, msg, channel):
-        logger = minqlx.get_logger(self.plugin)
+        logger = shinqlx.get_logger(self.plugin)
         logger.debug(
             "%s executed: %s @ %s -> %s",
             player.steam_id,
@@ -276,12 +259,12 @@ class Command:
 
     def is_eligible_name(self, name):
         if self.prefix:
-            prefix = minqlx.get_cvar("qlx_commandPrefix")
+            prefix = shinqlx.get_cvar("qlx_commandPrefix")
             if prefix is None:
                 return False
             if not name.startswith(prefix):
                 return False
-            name = name[len(prefix):]
+            name = name[len(prefix) :]
 
         return name.lower() in self.name
 
@@ -302,16 +285,16 @@ class Command:
         client_cmd_perm = self.client_cmd_perm
 
         if is_client_cmd:
-            cvar_client_cmd = minqlx.get_cvar("qlx_ccmd_perm_" + self.name[0])
+            cvar_client_cmd = shinqlx.get_cvar("qlx_ccmd_perm_" + self.name[0])
             if cvar_client_cmd:
                 client_cmd_perm = int(cvar_client_cmd)
         else:
-            cvar = minqlx.get_cvar("qlx_perm_" + self.name[0])
+            cvar = shinqlx.get_cvar("qlx_perm_" + self.name[0])
             if cvar:
                 perm = int(cvar)
 
         if (
-            player.steam_id == minqlx.owner()
+            player.steam_id == shinqlx.owner()
             or (not is_client_cmd and perm == 0)
             or (is_client_cmd and client_cmd_perm == 0)
         ):
@@ -399,23 +382,23 @@ class CommandInvoker:
 
                     # Dispatch "command" and allow people to stop it from being executed.
                     if (
-                        minqlx.EVENT_DISPATCHERS["command"].dispatch(player, cmd, msg)
+                        shinqlx.EVENT_DISPATCHERS["command"].dispatch(player, cmd, msg)
                         is False
                     ):
                         return True
 
                     res = cmd.execute(player, msg, channel)
-                    if res == minqlx.RET_STOP:
+                    if res == shinqlx.RET_STOP:
                         return False
-                    if res == minqlx.RET_STOP_EVENT:
+                    if res == shinqlx.RET_STOP_EVENT:
                         pass_through = False
-                    elif res == minqlx.RET_STOP_ALL:
+                    elif res == shinqlx.RET_STOP_ALL:
                         # C-level dispatchers expect False if it shouldn't go to the engine.
                         return False
-                    elif res == minqlx.RET_USAGE and cmd.usage:
+                    elif res == shinqlx.RET_USAGE and cmd.usage:
                         channel.reply(f"^7Usage: ^6{name} {cmd.usage}")
-                    elif res is not None and res != minqlx.RET_NONE:
-                        logger = minqlx.get_logger(None)
+                    elif res is not None and res != shinqlx.RET_NONE:
+                        logger = shinqlx.get_logger(None)
                         logger.warning(
                             "Command '%s' with handler '%s' returned an unknown return value: %s",
                             cmd.name,

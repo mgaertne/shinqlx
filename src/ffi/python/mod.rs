@@ -80,14 +80,8 @@ enum PythonPriorities {
 }
 
 #[pymodule]
-#[pyo3(name = "shinqlx")]
-fn pyshinqlx_module(_py: Python<'_>, _m: &PyModule) -> PyResult<()> {
-    Ok(())
-}
-
-#[pymodule]
-#[pyo3(name = "_minqlx")]
-fn pyminqlx_module(_py: Python<'_>, m: &PyModule) -> PyResult<()> {
+#[pyo3(name = "_shinqlx")]
+fn pyshinqlx_module(_py: Python<'_>, m: &PyModule) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(pyshinqlx_player_info, m)?)?;
     m.add_function(wrap_pyfunction!(pyshinqlx_players_info, m)?)?;
     m.add_function(wrap_pyfunction!(pyshinqlx_get_userinfo, m)?)?;
@@ -273,15 +267,15 @@ pub(crate) enum PythonInitializationError {
 #[cfg_attr(test, allow(dead_code))]
 pub(crate) fn pyshinqlx_initialize() -> Result<(), PythonInitializationError> {
     if pyshinqlx_is_initialized() {
-        error!(target: "shinqlx", "pyminqlx_initialize was called while already initialized");
+        error!(target: "shinqlx", "pyshinqlx_initialize was called while already initialized");
         return Err(PythonInitializationError::AlreadyInitialized);
     }
 
     debug!(target: "shinqlx", "Initializing Python...");
-    append_to_inittab!(pyminqlx_module);
+    append_to_inittab!(pyshinqlx_module);
     prepare_freethreaded_python();
     match Python::with_gil(|py| {
-        let shinqlx_module = py.import("minqlx")?;
+        let shinqlx_module = py.import("shinqlx")?;
         shinqlx_module.call_method0("initialize")?;
         Ok::<(), PyErr>(())
     }) {
@@ -301,7 +295,7 @@ pub(crate) fn pyshinqlx_initialize() -> Result<(), PythonInitializationError> {
 #[cfg_attr(test, allow(dead_code))]
 pub(crate) fn pyshinqlx_reload() -> Result<(), PythonInitializationError> {
     if !pyshinqlx_is_initialized() {
-        error!(target: "shinqlx", "pyminqlx_finalize was called before being initialized");
+        error!(target: "shinqlx", "pyshinqlx_finalize was called before being initialized");
         return Err(PythonInitializationError::NotInitializedError);
     }
 
@@ -327,7 +321,7 @@ pub(crate) fn pyshinqlx_reload() -> Result<(), PythonInitializationError> {
 
     match Python::with_gil(|py| {
         let importlib_module = py.import("importlib")?;
-        let shinqlx_module = py.import("minqlx")?;
+        let shinqlx_module = py.import("shinqlx")?;
         let new_shinqlx_module = importlib_module.call_method1("reload", (shinqlx_module,))?;
         new_shinqlx_module.call_method0("initialize")?;
         Ok::<(), PyErr>(())
@@ -415,7 +409,7 @@ pub(crate) mod python_tests {
 #[cfg(test)]
 #[cfg(not(miri))]
 pub(crate) mod pyshinqlx_setup_fixture {
-    use super::pyminqlx_module;
+    use super::pyshinqlx_module;
     use pyo3::ffi::Py_IsInitialized;
     use pyo3::{append_to_inittab, prepare_freethreaded_python};
     use rstest::fixture;
@@ -424,7 +418,7 @@ pub(crate) mod pyshinqlx_setup_fixture {
     #[once]
     pub(crate) fn pyshinqlx_setup() {
         if unsafe { Py_IsInitialized() } == 0 {
-            append_to_inittab!(pyminqlx_module);
+            append_to_inittab!(pyshinqlx_module);
             prepare_freethreaded_python();
         }
     }

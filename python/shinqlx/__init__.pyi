@@ -1,4 +1,4 @@
-from ._minqlx import (
+from ._shinqlx import (
     DEBUG,
     RET_NONE,
     RET_STOP,
@@ -69,6 +69,11 @@ from ._minqlx import (
     MOD_LIGHTNING_DISCHARGE,
     MOD_HMG,
     MOD_RAILGUN_HEADSHOT,
+    DAMAGE_RADIUS,
+    DAMAGE_NO_ARMOR,
+    DAMAGE_NO_KNOCKBACK,
+    DAMAGE_NO_PROTECTION,
+    DAMAGE_NO_TEAM_PROTECTION,
     Vector3,
     Flight,
     Powerups,
@@ -119,7 +124,7 @@ from ._minqlx import (
     dev_print_items,
     force_weapon_respawn_time,
     register_handler,
-    get_targetting_entities
+    get_targetting_entities,
 )
 from ._core import (
     PluginLoadError,
@@ -233,6 +238,7 @@ from ._events import (
     KamikazeUseDispatcher,
     KamikazeExplodeDispatcher,
     PlayerItemsTossDispatcher,
+    DamageDispatcher,
     EVENT_DISPATCHERS,
     UncancellableEventReturn,
     CancellableEventReturn,
@@ -253,6 +259,7 @@ from ._handlers import (
     handle_kamikaze_use,
     handle_kamikaze_explode,
     handle_console_print,
+    handle_damage,
     redirect_print,
     register_handlers,
 )
@@ -290,7 +297,7 @@ __all__ = [
     "__version__",
     "__version_info__",
     "__plugins_version__",
-    # _minqlx
+    # _shinqlx
     "DEBUG",
     "RET_NONE",
     "RET_STOP",
@@ -361,6 +368,11 @@ __all__ = [
     "MOD_LIGHTNING_DISCHARGE",
     "MOD_HMG",
     "MOD_RAILGUN_HEADSHOT",
+    "DAMAGE_RADIUS",
+    "DAMAGE_NO_ARMOR",
+    "DAMAGE_NO_KNOCKBACK",
+    "DAMAGE_NO_PROTECTION",
+    "DAMAGE_NO_TEAM_PROTECTION",
     "Vector3",
     "Flight",
     "Powerups",
@@ -541,6 +553,7 @@ __all__ = [
     "KamikazeUseDispatcher",
     "KamikazeExplodeDispatcher",
     "PlayerItemsTossDispatcher",
+    "DamageDispatcher",
     "EVENT_DISPATCHERS",
     "UncancellableEventReturn",
     "CancellableEventReturn",
@@ -560,6 +573,7 @@ __all__ = [
     "handle_kamikaze_use",
     "handle_kamikaze_explode",
     "handle_console_print",
+    "handle_damage",
     "redirect_print",
     "register_handlers",
     # _zmq
