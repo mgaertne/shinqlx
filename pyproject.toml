@@ -29,7 +29,7 @@ include-package-data = false
 [tool.maturin]
 bindings = "pyo3"
 python-source = "python"
-python-packages = ["shinqlx"]
+python-packages = ["shinqlx", "minqlx"]
 compatibility = "linux"
 
 [tool.ruff]
