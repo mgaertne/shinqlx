@@ -12,8 +12,8 @@ if TYPE_CHECKING:
     )
     from logging import Logger
 
-    from minqlx.database import Redis
-    from minqlx import (
+    from shinqlx.database import Redis
+    from shinqlx import (
         Command,
         Player,
         Game,
@@ -858,7 +858,8 @@ class Plugin:
         self,
         event: Literal["damage"],
         handler: Callable[
-            [Player | int | None, Player | int | None, int, int, int], UncancellableEventReturn
+            [Player | int | None, Player | int | None, int, int, int],
+            UncancellableEventReturn,
         ],
         priority: int = ...,
     ) -> None: ...
@@ -1108,7 +1109,8 @@ class Plugin:
         self,
         event: Literal["damage"],
         handler: Callable[
-            [Player | int | None, Player | int | None, int, int, int], UncancellableEventReturn
+            [Player | int | None, Player | int | None, int, int, int],
+            UncancellableEventReturn,
         ],
         priority: int = ...,
     ) -> None: ...

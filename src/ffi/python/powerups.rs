@@ -5,7 +5,7 @@ use pyo3::types::PyTuple;
 
 /// A struct sequence containing all the powerups in the game.
 #[pyclass]
-#[pyo3(module = "minqlx", name = "Powerups", get_all)]
+#[pyo3(module = "shinqlx", name = "Powerups", get_all)]
 #[derive(PartialEq, Eq, Debug, Clone, Copy)]
 pub(crate) struct Powerups(
     #[pyo3(name = "quad")] pub(crate) i32,
@@ -118,8 +118,8 @@ mod powerups_tests {
         Python::with_gil(|py| {
             let powerups_constructor = py.run(
                 r#"
-import _minqlx
-powerups = _minqlx.Powerups((0, 1, 2, 3, 4, 5))
+import _shinqlx
+powerups = _shinqlx.Powerups((0, 1, 2, 3, 4, 5))
             "#,
                 None,
                 None,
@@ -138,8 +138,8 @@ powerups = _minqlx.Powerups((0, 1, 2, 3, 4, 5))
         Python::with_gil(|py| {
             let powerups_constructor = py.run(
                 r#"
-import _minqlx
-powerups = _minqlx.Powerups((0, 1, 2, 3, 4))
+import _shinqlx
+powerups = _shinqlx.Powerups((0, 1, 2, 3, 4))
             "#,
                 None,
                 None,
@@ -154,8 +154,8 @@ powerups = _minqlx.Powerups((0, 1, 2, 3, 4))
         Python::with_gil(|py| {
             let powerups_constructor = py.run(
                 r#"
-import _minqlx
-powerups = _minqlx.Powerups((0, 1, 2, 3, 4, 5, 6))
+import _shinqlx
+powerups = _shinqlx.Powerups((0, 1, 2, 3, 4, 5, 6))
             "#,
                 None,
                 None,
@@ -170,8 +170,8 @@ powerups = _minqlx.Powerups((0, 1, 2, 3, 4, 5, 6))
         Python::with_gil(|py| {
             let powerups_constructor = py.run(
                 r#"
-import _minqlx
-powerups = _minqlx.Powerups(("asdf", True, (1, 2, 3), [], {}, set()))
+import _shinqlx
+powerups = _shinqlx.Powerups(("asdf", True, (1, 2, 3), [], {}, set()))
             "#,
                 None,
                 None,
@@ -186,8 +186,8 @@ powerups = _minqlx.Powerups(("asdf", True, (1, 2, 3), [], {}, set()))
         let result = Python::with_gil(|py| {
             py.run(
                 r#"
-import _minqlx
-assert(_minqlx.Powerups((0, 1, 2, 3, 4, 5)) == _minqlx.Powerups((0, 1, 2, 3, 4, 5)))
+import _shinqlx
+assert(_shinqlx.Powerups((0, 1, 2, 3, 4, 5)) == _shinqlx.Powerups((0, 1, 2, 3, 4, 5)))
             "#,
                 None,
                 None,
@@ -202,8 +202,8 @@ assert(_minqlx.Powerups((0, 1, 2, 3, 4, 5)) == _minqlx.Powerups((0, 1, 2, 3, 4, 
         let result = Python::with_gil(|py| {
             py.run(
                 r#"
-import _minqlx
-assert(_minqlx.Powerups((0, 1, 2, 3, 4, 5)) != _minqlx.Powerups((5, 4, 3, 2, 1, 0)))
+import _shinqlx
+assert(_shinqlx.Powerups((0, 1, 2, 3, 4, 5)) != _shinqlx.Powerups((5, 4, 3, 2, 1, 0)))
             "#,
                 None,
                 None,
@@ -218,8 +218,8 @@ assert(_minqlx.Powerups((0, 1, 2, 3, 4, 5)) != _minqlx.Powerups((5, 4, 3, 2, 1, 
         Python::with_gil(|py| {
             let result = py.run(
                 r#"
-import _minqlx
-assert(_minqlx.Powerups((0, 1, 2, 3, 4, 5)) < _minqlx.Powerups((5, 4, 3, 2, 1, 0)))
+import _shinqlx
+assert(_shinqlx.Powerups((0, 1, 2, 3, 4, 5)) < _shinqlx.Powerups((5, 4, 3, 2, 1, 0)))
             "#,
                 None,
                 None,

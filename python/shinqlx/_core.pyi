@@ -6,7 +6,7 @@ if TYPE_CHECKING:
     from datetime import datetime, timedelta
     from logging import Logger
 
-    from minqlx import StatsListener, Plugin
+    from shinqlx import StatsListener, Plugin
 
 class ExceptHookArgs(Protocol):
     exc_traceback: TracebackType

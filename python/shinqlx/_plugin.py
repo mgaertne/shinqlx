@@ -1,23 +1,6 @@
-# minqlx - Extends Quake Live's dedicated server with extra functionality and scripting.
-# Copyright (C) 2015 Mino <mino@minomino.org>
-
-# This file is part of minqlx.
-
-# minqlx is free software: you can redistribute it and/or modify
-# it under the terms of the GNU General Public License as published by
-# the Free Software Foundation, either version 3 of the License, or
-# (at your option) any later version.
-
-# minqlx is distributed in the hope that it will be useful,
-# but WITHOUT ANY WARRANTY; without even the implied warranty of
-# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-# GNU General Public License for more details.
-
-# You should have received a copy of the GNU General Public License
-# along with minqlx. If not, see <http://www.gnu.org/licenses/>.
 from typing import ClassVar, Dict
 
-import minqlx
+import shinqlx
 
 
 class Plugin:
@@ -25,7 +8,7 @@ class Plugin:
 
     Every plugin must inherit this or a subclass of this. It does not support any database
     by itself, but it has a *database* static variable that must be a subclass of the
-    abstract class :class:`minqlx.database.AbstractDatabase`. This abstract class requires
+    abstract class :class:`shinqlx.database.AbstractDatabase`. This abstract class requires
     a few methods that deal with permissions. This will make sure that simple plugins that
     only care about permissions can work on any database. Abstraction beyond that is hard,
     so any use of the database past that point will be uncharted territory, meaning the
@@ -39,12 +22,12 @@ class Plugin:
     .. warning::
         I/O is the bane of single-threaded applications. You do **not** want blocking operations
         in code called by commands or events. That could make players lag. Helper decorators
-        like :func:`minqlx.thread` can be useful.
+        like :func:`shinqlx.thread` can be useful.
 
     """
 
     # Static dictionary of plugins currently loaded for the purpose of inter-plugin communication.
-    _loaded_plugins: ClassVar[Dict[str, "minqlx.Plugin"]] = {}
+    _loaded_plugins: ClassVar[Dict[str, "shinqlx.Plugin"]] = {}
     # The database driver class the plugin should use.
     database = None
 
@@ -97,29 +80,29 @@ class Plugin:
     def game(self):
         """A Game instance."""
         try:
-            return minqlx.Game()
-        except minqlx.NonexistentGameError:
+            return shinqlx.Game()
+        except shinqlx.NonexistentGameError:
             return None
 
     @property
     def logger(self):
         """An instance of :class:`logging.Logger`, but initialized for this plugin."""
-        return minqlx.get_logger(self)
+        return shinqlx.get_logger(self)
 
     # TODO: Document plugin methods.
-    def add_hook(self, event, handler, priority=minqlx.PRI_NORMAL):
+    def add_hook(self, event, handler, priority=shinqlx.PRI_NORMAL):
         if not hasattr(self, "_hooks"):
             self._hooks = []
 
         self._hooks.append((event, handler, priority))
-        minqlx.EVENT_DISPATCHERS[event].add_hook(self.name, handler, priority)
+        shinqlx.EVENT_DISPATCHERS[event].add_hook(self.name, handler, priority)
 
-    def remove_hook(self, event, handler, priority=minqlx.PRI_NORMAL):
+    def remove_hook(self, event, handler, priority=shinqlx.PRI_NORMAL):
         if not hasattr(self, "_hooks"):
             self._hooks = []
             return
 
-        minqlx.EVENT_DISPATCHERS[event].remove_hook(self.name, handler, priority)
+        shinqlx.EVENT_DISPATCHERS[event].remove_hook(self.name, handler, priority)
         self._hooks.remove((event, handler, priority))
 
     def add_command(
@@ -129,7 +112,7 @@ class Plugin:
         permission=0,
         channels=None,
         exclude_channels=(),
-        priority=minqlx.PRI_NORMAL,
+        priority=shinqlx.PRI_NORMAL,
         client_cmd_pass=False,
         client_cmd_perm=5,
         prefix=True,
@@ -138,7 +121,7 @@ class Plugin:
         if not hasattr(self, "_commands"):
             self._commands = []
 
-        cmd = minqlx.Command(
+        cmd = shinqlx.Command(
             self,
             name,
             handler,
@@ -151,7 +134,7 @@ class Plugin:
             usage,
         )
         self._commands.append(cmd)
-        minqlx.COMMANDS.add_command(cmd, priority)
+        shinqlx.COMMANDS.add_command(cmd, priority)
 
     def remove_command(self, name, handler):
         if not hasattr(self, "_commands"):
@@ -160,7 +143,7 @@ class Plugin:
 
         for cmd in self._commands:
             if cmd.name == name and cmd.handler == handler:
-                minqlx.COMMANDS.remove_command(cmd)
+                shinqlx.COMMANDS.remove_command(cmd)
 
     @classmethod
     def get_cvar(cls, name, return_type=str):
@@ -172,7 +155,7 @@ class Plugin:
             Supported types: str, int, float, bool, list, tuple
 
         """
-        res = minqlx.get_cvar(name)
+        res = shinqlx.get_cvar(name)
         if return_type == str:
             return res
         if return_type == int:
@@ -206,10 +189,10 @@ class Plugin:
 
         """
         if cls.get_cvar(name) is None:
-            minqlx.set_cvar(name, value, flags)
+            shinqlx.set_cvar(name, value, flags)
             return True
 
-        minqlx.console_command(f'{name} "{value}"')
+        shinqlx.console_command(f'{name} "{value}"')
         return False
 
     @classmethod
@@ -232,10 +215,10 @@ class Plugin:
 
         """
         if cls.get_cvar(name) is None:
-            minqlx.set_cvar_limit(name, value, minimum, maximum, flags)
+            shinqlx.set_cvar_limit(name, value, minimum, maximum, flags)
             return True
 
-        minqlx.set_cvar_limit(name, value, minimum, maximum, flags)
+        shinqlx.set_cvar_limit(name, value, minimum, maximum, flags)
         return False
 
     @classmethod
@@ -252,7 +235,7 @@ class Plugin:
         :rtype: bool
 
         """
-        return minqlx.set_cvar_once(name, value, flags)
+        return shinqlx.set_cvar_once(name, value, flags)
 
     @classmethod
     def set_cvar_limit_once(cls, name, value, minimum, maximum, flags=0):
@@ -272,12 +255,12 @@ class Plugin:
         :rtype: bool
 
         """
-        return minqlx.set_cvar_limit_once(name, value, minimum, maximum, flags)
+        return shinqlx.set_cvar_limit_once(name, value, minimum, maximum, flags)
 
     @classmethod
     def players(cls):
         """Get a list of all the players on the server."""
-        return minqlx.Player.all_players()
+        return shinqlx.Player.all_players()
 
     @classmethod
     def player(cls, name, player_list=None):
@@ -287,10 +270,10 @@ class Plugin:
 
         """
         # In case 'name' isn't a string.
-        if isinstance(name, minqlx.Player):
+        if isinstance(name, shinqlx.Player):
             return name
         if isinstance(name, int) and 0 <= name < 64:
-            return minqlx.Player(name)
+            return shinqlx.Player(name)
 
         players = player_list if player_list else cls.players()
 
@@ -310,33 +293,33 @@ class Plugin:
     @classmethod
     def msg(cls, msg, chat_channel="chat", **kwargs):
         """Send a message to the chat, or any other channel."""
-        if isinstance(chat_channel, minqlx.AbstractChannel):
+        if isinstance(chat_channel, shinqlx.AbstractChannel):
             chat_channel.reply(msg, **kwargs)
-        elif chat_channel == minqlx.CHAT_CHANNEL:
-            minqlx.CHAT_CHANNEL.reply(msg, **kwargs)
-        elif chat_channel == minqlx.RED_TEAM_CHAT_CHANNEL:
-            minqlx.RED_TEAM_CHAT_CHANNEL.reply(msg, **kwargs)
-        elif chat_channel == minqlx.BLUE_TEAM_CHAT_CHANNEL:
-            minqlx.BLUE_TEAM_CHAT_CHANNEL.reply(msg, **kwargs)
-        elif chat_channel == minqlx.CONSOLE_CHANNEL:
-            minqlx.CONSOLE_CHANNEL.reply(msg, **kwargs)
+        elif chat_channel == shinqlx.CHAT_CHANNEL:
+            shinqlx.CHAT_CHANNEL.reply(msg, **kwargs)
+        elif chat_channel == shinqlx.RED_TEAM_CHAT_CHANNEL:
+            shinqlx.RED_TEAM_CHAT_CHANNEL.reply(msg, **kwargs)
+        elif chat_channel == shinqlx.BLUE_TEAM_CHAT_CHANNEL:
+            shinqlx.BLUE_TEAM_CHAT_CHANNEL.reply(msg, **kwargs)
+        elif chat_channel == shinqlx.CONSOLE_CHANNEL:
+            shinqlx.CONSOLE_CHANNEL.reply(msg, **kwargs)
         else:
             raise ValueError("Invalid channel.")
 
     @classmethod
     def console(cls, text):
         """Prints text in the console."""
-        minqlx.console_print(str(text))
+        shinqlx.console_print(str(text))
 
     @classmethod
     def clean_text(cls, text):
         """Removes color tags from text."""
-        return minqlx.re_color_tag.sub("", text)
+        return shinqlx.re_color_tag.sub("", text)
 
     @classmethod
     def colored_name(cls, name, player_list=None):
         """Get the colored name of a decolored name."""
-        if isinstance(name, minqlx.Player):
+        if isinstance(name, shinqlx.Player):
             return name.name
 
         players = player_list if player_list else cls.players()
@@ -357,7 +340,7 @@ class Plugin:
         """
         if isinstance(name, int) and 0 <= name < 64:
             return name
-        if isinstance(name, minqlx.Player):
+        if isinstance(name, shinqlx.Player):
             return name.id
 
         players = player_list if player_list else cls.players()
@@ -402,7 +385,7 @@ class Plugin:
         """Get a dictionary with the teams as keys and players as values."""
         players = player_list if player_list else cls.players()
 
-        res = {team_value: [] for team_value in minqlx.TEAMS.values()}  # type: ignore
+        res = {team_value: [] for team_value in shinqlx.TEAMS.values()}  # type: ignore
 
         for p in players:
             res[p.team].append(p)
@@ -415,7 +398,7 @@ class Plugin:
         if recipient:
             client_id = cls.client_id(recipient)
 
-        minqlx.send_server_command(client_id, f'cp "{msg}"')
+        shinqlx.send_server_command(client_id, f'cp "{msg}"')
 
     @classmethod
     def tell(cls, msg, recipient, **kwargs):
@@ -424,20 +407,20 @@ class Plugin:
         :param: msg: The message to be sent.
         :type: msg: str
         :param: recipient: The player that should receive the message.
-        :type: recipient: str/int/minqlx.Player
+        :type: recipient: str/int/shinqlx.Player
         :returns: bool -- True if succeeded, False otherwise.
         :raises: ValueError
         """
-        minqlx.TellChannel(recipient).reply(msg, **kwargs)
+        shinqlx.TellChannel(recipient).reply(msg, **kwargs)
 
     @classmethod
     def is_vote_active(cls):
-        return bool(minqlx.get_configstring(9))
+        return bool(shinqlx.get_configstring(9))
 
     @classmethod
     def current_vote_count(cls):
-        yes = minqlx.get_configstring(10)
-        no = minqlx.get_configstring(11)
+        yes = shinqlx.get_configstring(10)
+        no = shinqlx.get_configstring(11)
         if yes and no:
             return int(yes), int(no)
 
@@ -450,20 +433,20 @@ class Plugin:
 
         # Tell vote_started's dispatcher that it's a vote called by the server.
         # noinspection PyUnresolvedReferences
-        minqlx.EVENT_DISPATCHERS["vote_started"].caller(None)
-        minqlx.callvote(vote, display, time)
+        shinqlx.EVENT_DISPATCHERS["vote_started"].caller(None)
+        shinqlx.callvote(vote, display, time)
         return True
 
     @classmethod
     def force_vote(cls, pass_it):
         if pass_it is True or pass_it is False:
-            return minqlx.force_vote(pass_it)
+            return shinqlx.force_vote(pass_it)
 
         raise ValueError("pass_it must be either True or False.")
 
     @classmethod
     def teamsize(cls, size):
-        minqlx.Game().teamsize = size
+        shinqlx.Game().teamsize = size
 
     @classmethod
     def kick(cls, player, reason=""):
@@ -472,13 +455,13 @@ class Plugin:
             raise ValueError("Invalid player.")
 
         if not reason:
-            minqlx.kick(cid, None)
+            shinqlx.kick(cid, None)
         else:
-            minqlx.kick(cid, reason)
+            shinqlx.kick(cid, reason)
 
     @classmethod
     def shuffle(cls):
-        minqlx.Game().shuffle()
+        shinqlx.Game().shuffle()
 
     @classmethod
     def cointoss(cls):
@@ -488,9 +471,9 @@ class Plugin:
     @classmethod
     def change_map(cls, new_map, factory=None):
         if not factory:
-            minqlx.Game().map = new_map
+            shinqlx.Game().map = new_map
         else:
-            minqlx.console_command(f"map {new_map} {factory}")
+            shinqlx.console_command(f"map {new_map} {factory}")
 
     @classmethod
     def switch(cls, player, other_player):
@@ -517,9 +500,9 @@ class Plugin:
             return False
 
         if player:
-            minqlx.send_server_command(player.id, f"playSound {sound_path}")
+            shinqlx.send_server_command(player.id, f"playSound {sound_path}")
         else:
-            minqlx.send_server_command(None, f"playSound {sound_path}")
+            shinqlx.send_server_command(None, f"playSound {sound_path}")
         return True
 
     @classmethod
@@ -528,18 +511,18 @@ class Plugin:
             return False
 
         if player:
-            minqlx.send_server_command(player.id, f"playMusic {music_path}")
+            shinqlx.send_server_command(player.id, f"playMusic {music_path}")
         else:
-            minqlx.send_server_command(None, f"playMusic {music_path}")
+            shinqlx.send_server_command(None, f"playMusic {music_path}")
         return True
 
     @classmethod
     def stop_sound(cls, player=None):
-        minqlx.send_server_command(player.id if player else None, "clearSounds")
+        shinqlx.send_server_command(player.id if player else None, "clearSounds")
 
     @classmethod
     def stop_music(cls, player=None):
-        minqlx.send_server_command(player.id if player else None, "stopMusic")
+        shinqlx.send_server_command(player.id if player else None, "stopMusic")
 
     @classmethod
     def slap(cls, player, damage=0):
@@ -547,7 +530,7 @@ class Plugin:
         if cid is None:
             raise ValueError("Invalid player.")
 
-        minqlx.console_command(f"slap {cid} {damage}")
+        shinqlx.console_command(f"slap {cid} {damage}")
 
     @classmethod
     def slay(cls, player):
@@ -555,7 +538,7 @@ class Plugin:
         if cid is None:
             raise ValueError("Invalid player.")
 
-        minqlx.console_command(f"slay {cid}")
+        shinqlx.console_command(f"slay {cid}")
 
     # ====================================================================
     #                         ADMIN COMMANDS
@@ -563,85 +546,85 @@ class Plugin:
 
     @classmethod
     def timeout(cls):
-        minqlx.Game.timeout()
+        shinqlx.Game.timeout()
 
     @classmethod
     def timein(cls):
-        minqlx.Game.timein()
+        shinqlx.Game.timein()
 
     @classmethod
     def allready(cls):
-        minqlx.Game.allready()
+        shinqlx.Game.allready()
 
     @classmethod
     def pause(cls):
-        minqlx.Game.pause()
+        shinqlx.Game.pause()
 
     @classmethod
     def unpause(cls):
-        minqlx.Game.unpause()
+        shinqlx.Game.unpause()
 
     @classmethod
     def lock(cls, team=None):
-        minqlx.Game.lock(team)
+        shinqlx.Game.lock(team)
 
     @classmethod
     def unlock(cls, team=None):
-        minqlx.Game.unlock(team)
+        shinqlx.Game.unlock(team)
 
     @classmethod
     def put(cls, player, team):
-        minqlx.Game.put(player, team)
+        shinqlx.Game.put(player, team)
 
     @classmethod
     def mute(cls, player):
-        minqlx.Game.mute(player)
+        shinqlx.Game.mute(player)
 
     @classmethod
     def unmute(cls, player):
-        minqlx.Game.unmute(player)
+        shinqlx.Game.unmute(player)
 
     @classmethod
     def tempban(cls, player):
         # TODO: Add an optional reason to tempban.
-        minqlx.Game.tempban(player)
+        shinqlx.Game.tempban(player)
 
     @classmethod
     def ban(cls, player):
-        minqlx.Game.ban(player)
+        shinqlx.Game.ban(player)
 
     @classmethod
     def unban(cls, player):
-        minqlx.Game.unban(player)
+        shinqlx.Game.unban(player)
 
     @classmethod
     def opsay(cls, msg):
-        minqlx.Game.opsay(msg)
+        shinqlx.Game.opsay(msg)
 
     @classmethod
     def addadmin(cls, player):
-        minqlx.Game.addadmin(player)
+        shinqlx.Game.addadmin(player)
 
     @classmethod
     def addmod(cls, player):
-        minqlx.Game.addmod(player)
+        shinqlx.Game.addmod(player)
 
     @classmethod
     def demote(cls, player):
-        minqlx.Game.demote(player)
+        shinqlx.Game.demote(player)
 
     @classmethod
     def abort(cls):
-        minqlx.Game.abort()
+        shinqlx.Game.abort()
 
     @classmethod
     def addscore(cls, player, score):
-        minqlx.Game.addscore(player, score)
+        shinqlx.Game.addscore(player, score)
 
     @classmethod
     def addteamscore(cls, team, score):
-        minqlx.Game.addteamscore(team, score)
+        shinqlx.Game.addteamscore(team, score)
 
     @classmethod
     def setmatchtime(cls, time):
-        minqlx.Game.setmatchtime(time)
+        shinqlx.Game.setmatchtime(time)

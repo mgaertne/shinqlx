@@ -1,24 +1,6 @@
-# minqlx - Extends Quake Live's dedicated server with extra functionality and scripting.
-# Copyright (C) 2015 Mino <mino@minomino.org>
-
-# This file is part of minqlx.
-
-# minqlx is free software: you can redistribute it and/or modify
-# it under the terms of the GNU General Public License as published by
-# the Free Software Foundation, either version 3 of the License, or
-# (at your option) any later version.
-
-# minqlx is distributed in the hope that it will be useful,
-# but WITHOUT ANY WARRANTY; without even the implied warranty of
-# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-# GNU General Public License for more details.
-
-# You should have received a copy of the GNU General Public License
-# along with minqlx. If not, see <http://www.gnu.org/licenses/>.
-
 import re
 
-import minqlx
+import shinqlx
 
 _re_vote = re.compile(r"^(?P<cmd>[^ ]+)(?: \"?(?P<args>.*?)\"?)?$")
 hot_plugged_events = (
@@ -96,11 +78,11 @@ class EventDispatcher:
         and call this method by using ``super().dispatch()``.
 
         Handlers have several options for return values that can affect the flow:
-            - minqlx.RET_NONE or None -- Continue execution normally.
-            - minqlx.RET_STOP -- Stop any further handlers from being called.
-            - minqlx.RET_STOP_EVENT -- Let handlers process it, but stop the event
+            - shinqlx.RET_NONE or None -- Continue execution normally.
+            - shinqlx.RET_STOP -- Stop any further handlers from being called.
+            - shinqlx.RET_STOP_EVENT -- Let handlers process it, but stop the event
                 at the engine-level.
-            - minqlx.RET_STOP_ALL -- Stop handlers **and** the event.
+            - shinqlx.RET_STOP_ALL -- Stop handlers **and** the event.
             - Any other value -- Passed on to :func:`self.handle_return`, which will
                 by default simply send a warning to the logger about an unknown value
                 being returned. Can be overridden so that events can have their own
@@ -115,7 +97,7 @@ class EventDispatcher:
         # is returned, we pass it on to handle_return.
         self.args = args
         self.kwargs = kwargs
-        logger = minqlx.get_logger()
+        logger = shinqlx.get_logger()
         # Log the events as they come in.
         if self.name not in self.no_debug:
             dbgstr = f"{self.name}{args}"
@@ -131,21 +113,21 @@ class EventDispatcher:
                     # noinspection PyBroadException
                     try:
                         res = handler(*self.args, **self.kwargs)
-                        if res == minqlx.RET_NONE or res is None:
+                        if res == shinqlx.RET_NONE or res is None:
                             continue
-                        if res == minqlx.RET_STOP:
+                        if res == shinqlx.RET_STOP:
                             return True
-                        if res == minqlx.RET_STOP_EVENT:
+                        if res == shinqlx.RET_STOP_EVENT:
                             self.return_value = False
                             continue
-                        if res == minqlx.RET_STOP_ALL:
+                        if res == shinqlx.RET_STOP_ALL:
                             return False
                         # Got an unknown return value.
                         return_handler = self.handle_return(handler, res)
                         if return_handler is not None:
                             return return_handler
                     except:  # noqa: E722
-                        minqlx.log_exception(plugin_name)
+                        shinqlx.log_exception(plugin_name)
                         continue
 
         return self.return_value
@@ -160,7 +142,7 @@ class EventDispatcher:
         is the return value that will be sent to the C-level handler if the
         event isn't stopped later along the road.
         """
-        logger = minqlx.get_logger()
+        logger = shinqlx.get_logger()
         logger.warning(
             "Handler '%s' returned unknown value '%s' for event '%s'",
             handler.__name__,
@@ -168,23 +150,24 @@ class EventDispatcher:
             self.name,
         )
 
-    def add_hook(self, plugin, handler, priority=minqlx.PRI_NORMAL):
+    def add_hook(self, plugin, handler, priority=shinqlx.PRI_NORMAL):
         """Hook the event, making the handler get called with relevant arguments
         whenever the event is takes place.
 
         :param: plugin: The plugin that's hooking the event.
-        :type: plugin: minqlx.Plugin
+        :type: plugin: shinqlx.Plugin
         :param: handler: The handler to be called when the event takes place.
         :type: handler: callable
         :param: priority: The priority of the hook. Determines the order the handlers are called in.
-        :type: priority: minqlx.PRI_LOWEST, minqlx.PRI_LOW, minqlx.PRI_NORMAL, minqlx.PRI_HIGH or minqlx.PRI_HIGHEST
+        :type: priority: shinqlx.PRI_LOWEST, shinqlx.PRI_LOW, shinqlx.PRI_NORMAL, shinqlx.PRI_HIGH or
+            shinqlx.PRI_HIGHEST
         :raises: ValueError
 
         """
-        if not minqlx.PRI_HIGHEST <= priority <= minqlx.PRI_LOWEST:
+        if not shinqlx.PRI_HIGHEST <= priority <= shinqlx.PRI_LOWEST:
             raise ValueError(f"'{priority}' is an invalid priority level.")
 
-        stats_enable_cvar = minqlx.get_cvar("zmq_stats_enable")
+        stats_enable_cvar = shinqlx.get_cvar("zmq_stats_enable")
         if self.need_zmq_stats_enabled and (
             stats_enable_cvar is None or not bool(int(stats_enable_cvar))
         ):
@@ -193,7 +176,7 @@ class EventDispatcher:
             )
 
         if self.name in hot_plugged_events and len(self.plugins) == 0:
-            minqlx.register_handler(self.name, getattr(minqlx, f"handle_{self.name}"))
+            shinqlx.register_handler(self.name, getattr(shinqlx, f"handle_{self.name}"))
 
         if plugin not in self.plugins:
             # Initialize tuple.
@@ -209,15 +192,16 @@ class EventDispatcher:
 
         self.plugins[plugin][priority].append(handler)
 
-    def remove_hook(self, plugin, handler, priority=minqlx.PRI_NORMAL):
+    def remove_hook(self, plugin, handler, priority=shinqlx.PRI_NORMAL):
         """Removes a previously hooked event.
 
         :param: plugin: The plugin that hooked the event.
-        :type: plugin: minqlx.Plugin
+        :type: plugin: shinqlx.Plugin
         :param: handler: The handler used when hooked.
         :type: handler: callable
         :param: priority: The priority of the hook when hooked.
-        :type: priority: minqlx.PRI_LOWEST, minqlx.PRI_LOW, minqlx.PRI_NORMAL, minqlx.PRI_HIGH or minqlx.PRI_HIGHEST
+        :type: priority: shinqlx.PRI_LOWEST, shinqlx.PRI_LOW, shinqlx.PRI_NORMAL, shinqlx.PRI_HIGH or
+            shinqlx.PRI_HIGHEST
         :raises: ValueError
 
         """
@@ -225,7 +209,7 @@ class EventDispatcher:
             if handler == hook:
                 self.plugins[plugin][priority].remove(handler)
                 if self.name in hot_plugged_events and len(self.plugins) == 0:
-                    minqlx.register_handler(self.name, None)
+                    shinqlx.register_handler(self.name, None)
 
                 return
 
@@ -276,7 +260,7 @@ class EventDispatcherManager:
 # ====================================================================
 class ConsolePrintDispatcher(EventDispatcher):
     """Event that goes off whenever the console prints something, including
-    those with :func:`minqlx.console_print`.
+    those with :func:`shinqlx.console_print`.
 
     """
 
@@ -322,8 +306,8 @@ class ClientCommandDispatcher(EventDispatcher):
         if ret is False:
             return False
 
-        ret = minqlx.COMMANDS.handle_input(
-            player, cmd, minqlx.ClientCommandChannel(player)
+        ret = shinqlx.COMMANDS.handle_input(
+            player, cmd, shinqlx.ClientCommandChannel(player)
         )
         if ret is False:
             return False
@@ -345,7 +329,7 @@ class ClientCommandDispatcher(EventDispatcher):
 
 class ServerCommandDispatcher(EventDispatcher):
     """Event that triggers with any server command sent by the server,
-    including :func:`minqlx.send_server_command`. Can be cancelled.
+    including :func:`shinqlx.send_server_command`. Can be cancelled.
 
     """
 
@@ -378,7 +362,7 @@ class FrameEventDispatcher(EventDispatcher):
 
 class SetConfigstringDispatcher(EventDispatcher):
     """Event that triggers when the server tries to set a configstring. You can
-    stop this event and use :func:`minqlx.set_configstring` to modify it, but a
+    stop this event and use :func:`shinqlx.set_configstring` to modify it, but a
     more elegant way to do it is simply returning the new configstring in
     the handler, and the modified one will go down the plugin chain instead.
 
@@ -413,7 +397,7 @@ class ChatEventDispatcher(EventDispatcher):
     name = "chat"
 
     def dispatch(self, player, msg, channel):
-        ret = minqlx.COMMANDS.handle_input(player, msg, channel)
+        ret = shinqlx.COMMANDS.handle_input(player, msg, channel)
         if ret is False:  # Stop event if told to.
             return False
 
@@ -533,19 +517,19 @@ class VoteEndedDispatcher(EventDispatcher):
 
     def dispatch(self, passed):
         # Check if there's a current vote in the first place.
-        cs = minqlx.get_configstring(9)
+        cs = shinqlx.get_configstring(9)
         if not cs:
-            minqlx.get_logger().warning("vote_ended went off without configstring 9.")
+            shinqlx.get_logger().warning("vote_ended went off without configstring 9.")
             return
 
         res = _re_vote.match(cs)
         if not res:
-            minqlx.get_logger().warning(f"invalid vote called: {cs}")
+            shinqlx.get_logger().warning(f"invalid vote called: {cs}")
             return
 
         vote = res.group("cmd")
         args = res.group("args") if res.group("args") else ""
-        votes = (int(minqlx.get_configstring(10)), int(minqlx.get_configstring(11)))
+        votes = (int(shinqlx.get_configstring(10)), int(shinqlx.get_configstring(11)))
         super().dispatch(votes, vote, args, passed)
 
 

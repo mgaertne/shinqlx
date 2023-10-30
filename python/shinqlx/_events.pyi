@@ -2,7 +2,7 @@ from typing import TYPE_CHECKING, Literal
 
 if TYPE_CHECKING:
     from typing import Type, Callable, Iterable, Pattern, Mapping
-    from minqlx import (
+    from shinqlx import (
         Plugin,
         Player,
         AbstractChannel,

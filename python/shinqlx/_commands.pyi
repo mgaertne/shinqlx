@@ -3,7 +3,7 @@ from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
     from typing import Pattern, Callable, Iterable
-    from minqlx import Player, Plugin
+    from shinqlx import Player, Plugin
 
 MAX_MSG_LENGTH: int
 re_color_tag: Pattern

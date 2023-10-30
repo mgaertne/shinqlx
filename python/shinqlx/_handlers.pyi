@@ -6,7 +6,7 @@ if TYPE_CHECKING:
     from queue import Queue
     from types import TracebackType
 
-    from minqlx import AbstractChannel
+    from shinqlx import AbstractChannel
 
 _re_say: Pattern
 _re_say_team: Pattern

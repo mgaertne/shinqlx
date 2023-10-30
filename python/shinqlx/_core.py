@@ -1,24 +1,3 @@
-# minqlx - Extends Quake Live's dedicated server with extra functionality and scripting.
-# Copyright (C) 2015 Mino <mino@minomino.org>
-
-# This file is part of minqlx.
-
-# minqlx is free software: you can redistribute it and/or modify
-# it under the terms of the GNU General Public License as published by
-# the Free Software Foundation, either version 3 of the License, or
-# (at your option) any later version.
-
-# minqlx is distributed in the hope that it will be useful,
-# but WITHOUT ANY WARRANTY; without even the implied warranty of
-# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-# GNU General Public License for more details.
-
-# You should have received a copy of the GNU General Public License
-# along with minqlx. If not, see <http://www.gnu.org/licenses/>.
-
-
-# Since this isn't the actual module, we define it here and export
-# it later so that it can be accessed with minqlx.__doc__ by Sphinx.
 import collections
 import subprocess
 import threading
@@ -35,14 +14,11 @@ from functools import wraps
 
 from logging.handlers import RotatingFileHandler
 
-import minqlx
-import minqlx.database
+import shinqlx
+import shinqlx.database
 
-# em92: reasons not to support older than 3.5
-# https://docs.python.org/3.5/whatsnew/3.5.html#whatsnew-ordereddict
-# plugins already assume, that they are running on python >= 3.5
-if sys.version_info < (3, 5):
-    raise AssertionError("Only python 3.5 and later is supported by minqlx")
+if sys.version_info < (3, 7):
+    raise AssertionError("Only python 3.7 and later is supported by shinqlx")
 
 # Team number -> string
 TEAMS = {0: "free", 1: "red", 2: "blue", 3: "spectator"}
@@ -138,7 +114,7 @@ def parse_variables(varstr, ordered=False):
             res[_vars[i]] = _vars[i + 1]
     except IndexError:
         # Log and return incomplete dict.
-        logger = minqlx.get_logger()
+        logger = shinqlx.get_logger()
         logger.warning("Uneven number of keys and values: %s", varstr)
 
     return res
@@ -151,16 +127,16 @@ def get_logger(plugin=None):
     as well as to a file.
 
     :param: plugin: The plugin that is using the logger.
-    :type: plugin: minqlx.Plugin
+    :type: plugin: shinqlx.Plugin
     :returns: logging.Logger -- The logger in question.
     """
     if plugin:
-        return logging.getLogger("minqlx." + str(plugin))
-    return logging.getLogger("minqlx")
+        return logging.getLogger("shinqlx." + str(plugin))
+    return logging.getLogger("shinqlx")
 
 
 def _configure_logger():
-    logger = logging.getLogger("minqlx")
+    logger = logging.getLogger("shinqlx")
     logger.setLevel(logging.DEBUG)
 
     # Console
@@ -173,14 +149,14 @@ def _configure_logger():
     logger.addHandler(console_handler)
 
     # File
-    homepath_cvar = minqlx.get_cvar("fs_homepath")
+    homepath_cvar = shinqlx.get_cvar("fs_homepath")
     if homepath_cvar is None:
         return
-    file_path = os.path.join(homepath_cvar, "minqlx.log")
-    maxlogs = minqlx.Plugin.get_cvar("qlx_logs", int)
+    file_path = os.path.join(homepath_cvar, "shinqlx.log")
+    maxlogs = shinqlx.Plugin.get_cvar("qlx_logs", int)
     if maxlogs is None:
         return
-    maxlogsize = minqlx.Plugin.get_cvar("qlx_logsSize", int)
+    maxlogsize = shinqlx.Plugin.get_cvar("qlx_logsSize", int)
     if maxlogsize is None:
         return
     file_fmt = logging.Formatter(
@@ -193,7 +169,7 @@ def _configure_logger():
     file_handler.setFormatter(file_fmt)
     logger.addHandler(file_handler)
     logger.info(
-        "============================= minqlx run @ %s =============================",
+        "============================= shinqlx run @ %s =============================",
         datetime.datetime.now(),
     )
 
@@ -203,7 +179,7 @@ def log_exception(plugin=None):
     Logs an exception using :func:`get_logger`. Call this in an except block.
 
     :param: plugin: The plugin that is using the logger.
-    :type: plugin: minqlx.Plugin
+    :type: plugin: shinqlx.Plugin
     """
     # TODO: Remove plugin arg and make it automatic.
     logger = get_logger(plugin)
@@ -239,7 +215,7 @@ def owner():
     """Returns the SteamID64 of the owner. This is set in the config."""
     # noinspection PyBroadException
     try:
-        owner_cvar = minqlx.get_cvar("qlx_owner")
+        owner_cvar = shinqlx.get_cvar("qlx_owner")
         if owner_cvar is None:
             raise RuntimeError
         sid = int(owner_cvar)
@@ -247,7 +223,7 @@ def owner():
             raise RuntimeError
         return sid
     except:  # noqa: E722
-        logger = minqlx.get_logger()
+        logger = shinqlx.get_logger()
         logger.error(
             "Failed to parse the Owner Steam ID. Make sure it's in SteamID64 format."
         )
@@ -258,21 +234,21 @@ _stats = None
 
 
 def stats_listener():
-    """Returns the :class:`minqlx.StatsListener` instance used to listen for stats."""
+    """Returns the :class:`shinqlx.StatsListener` instance used to listen for stats."""
     return _stats
 
 
 def set_cvar_once(name, value, flags=0):
-    if minqlx.get_cvar(name) is None:
-        minqlx.set_cvar(name, value, flags)
+    if shinqlx.get_cvar(name) is None:
+        shinqlx.set_cvar(name, value, flags)
         return True
 
     return False
 
 
 def set_cvar_limit_once(name, value, minimum, maximum, flags=0):
-    if minqlx.get_cvar(name) is None:
-        minqlx.set_cvar_limit(name, value, minimum, maximum, flags)
+    if shinqlx.get_cvar(name) is None:
+        shinqlx.set_cvar_limit(name, value, minimum, maximum, flags)
         return True
 
     return False
@@ -296,7 +272,7 @@ def set_plugins_version(path) -> None:
         ) as p:
             p.wait(timeout=1)
             if p.returncode != 0:
-                setattr(minqlx, "__plugins_version__", "NOT_SET")
+                setattr(shinqlx, "__plugins_version__", "NOT_SET")
                 return
 
             if p.stdout:
@@ -312,37 +288,37 @@ def set_plugins_version(path) -> None:
         ) as p:
             p.wait(timeout=1)
             if p.returncode != 0:
-                setattr(minqlx, "__plugins_version__", version)
+                setattr(shinqlx, "__plugins_version__", version)
                 return
 
             if p.stdout:
                 branch = p.stdout.read().decode().strip()
     except (FileNotFoundError, subprocess.TimeoutExpired):
-        setattr(minqlx, "__plugins_version__", "NOT_SET")
+        setattr(shinqlx, "__plugins_version__", "NOT_SET")
         return
 
-    setattr(minqlx, "__plugins_version__", f"{version}-{branch}")
+    setattr(shinqlx, "__plugins_version__", f"{version}-{branch}")
 
 
 def set_map_subtitles() -> None:
     # We save the actual values before setting them so that we can retrieve them in Game.
-    setattr(minqlx, "_map_title", minqlx.get_configstring(3))
-    setattr(minqlx, "_map_subtitle1", minqlx.get_configstring(678))
-    setattr(minqlx, "_map_subtitle2", minqlx.get_configstring(679))
+    setattr(shinqlx, "_map_title", shinqlx.get_configstring(3))
+    setattr(shinqlx, "_map_subtitle1", shinqlx.get_configstring(678))
+    setattr(shinqlx, "_map_subtitle2", shinqlx.get_configstring(679))
 
-    cs = minqlx.get_configstring(678)
+    cs = shinqlx.get_configstring(678)
     if cs:
         cs += " - "
-    minqlx.set_configstring(
+    shinqlx.set_configstring(
         678,
-        cs + f"Running minqlx ^6{minqlx.__version__}^7 "
-        f"with plugins ^6{getattr(minqlx, '__plugins_version__', 'NOT_SET')}^7.",
+        cs + f"Running shinqlx ^6{shinqlx.__version__}^7 "
+        f"with plugins ^6{getattr(shinqlx, '__plugins_version__', 'NOT_SET')}^7.",
     )
-    cs = minqlx.get_configstring(679)
+    cs = shinqlx.get_configstring(679)
     if cs:
         cs += " - "
-    minqlx.set_configstring(
-        679, cs + "Check ^6http://github.com/MinoMino/minqlx^7 for more details."
+    shinqlx.set_configstring(
+        679, cs + "Check ^6http://github.com/mgaertne/shinqlx^7 for more details."
     )
 
 
@@ -352,7 +328,7 @@ def set_map_subtitles() -> None:
 def next_frame(func):
     @wraps(func)
     def f(*args, **kwargs):
-        minqlx.next_frame_tasks.put((func, args, kwargs), block=False)
+        shinqlx.next_frame_tasks.put((func, args, kwargs), block=False)
 
     return f
 
@@ -375,7 +351,7 @@ def delay(time):
     def wrap(func):
         @wraps(func)
         def f(*args, **kwargs):
-            minqlx.frame_tasks.enter(time, 1, func, args, kwargs)
+            shinqlx.frame_tasks.enter(time, 1, func, args, kwargs)
 
         return f
 
@@ -383,7 +359,7 @@ def delay(time):
 
 
 _thread_count = 0
-_thread_name = "minqlxthread"
+_thread_name = "shinqlxthread"
 
 
 def thread(func, force=False):
@@ -434,7 +410,7 @@ class PluginUnloadError(Exception):
 
 def load_preset_plugins():
     plugins_temp = []
-    plugins_cvar = minqlx.Plugin.get_cvar("qlx_plugins", list)
+    plugins_cvar = shinqlx.Plugin.get_cvar("qlx_plugins", list)
     if plugins_cvar is None:
         return
     for p in plugins_cvar:
@@ -448,7 +424,7 @@ def load_preset_plugins():
         if p not in plugins:
             plugins.append(p)
 
-    plugins_path_cvar = minqlx.get_cvar("qlx_pluginsPath")
+    plugins_path_cvar = shinqlx.get_cvar("qlx_pluginsPath")
     if plugins_path_cvar is None:
         raise PluginLoadError("cvar qlx_pluginsPath misconfigured")
 
@@ -469,8 +445,8 @@ def load_plugin(plugin):
     logger = get_logger(None)
     logger.info("Loading plugin '%s'...", plugin)
     # noinspection PyProtectedMember
-    plugins = minqlx.Plugin._loaded_plugins
-    plugins_path_cvar = minqlx.get_cvar("qlx_pluginsPath")
+    plugins = shinqlx.Plugin._loaded_plugins
+    plugins_path_cvar = shinqlx.get_cvar("qlx_pluginsPath")
     if plugins_path_cvar is None:
         raise PluginLoadError("cvar qlx_pluginsPath misconfigured")
 
@@ -493,9 +469,9 @@ def load_plugin(plugin):
             )
 
         plugin_class = getattr(module, plugin)
-        if not issubclass(plugin_class, minqlx.Plugin):
+        if not issubclass(plugin_class, shinqlx.Plugin):
             raise PluginLoadError(
-                "Attempted to load a plugin that is not a subclass of 'minqlx.Plugin'."
+                "Attempted to load a plugin that is not a subclass of 'shinqlx.Plugin'."
             )
         plugins[plugin] = plugin_class()
     except:
@@ -507,12 +483,12 @@ def unload_plugin(plugin):
     logger = get_logger(None)
     logger.info("Unloading plugin '%s'...", plugin)
     # noinspection PyProtectedMember
-    plugins = minqlx.Plugin._loaded_plugins
+    plugins = shinqlx.Plugin._loaded_plugins
     if plugin not in plugins:
         raise PluginUnloadError("Attempted to unload a plugin that is not loaded.")
 
     try:
-        minqlx.EVENT_DISPATCHERS["unload"].dispatch(plugin)
+        shinqlx.EVENT_DISPATCHERS["unload"].dispatch(plugin)
 
         # Unhook its hooks.
         for hook in plugins[plugin].hooks:
@@ -543,25 +519,25 @@ def reload_plugin(plugin):
 
 def initialize_cvars():
     # Core
-    minqlx.set_cvar_once("qlx_owner", "-1")
-    minqlx.set_cvar_once("qlx_plugins", ", ".join(DEFAULT_PLUGINS))
-    minqlx.set_cvar_once("qlx_pluginsPath", "minqlx-plugins")
-    minqlx.set_cvar_once("qlx_database", "Redis")
-    minqlx.set_cvar_once("qlx_commandPrefix", "!")
-    minqlx.set_cvar_once("qlx_logs", "2")
-    minqlx.set_cvar_once("qlx_logsSize", str(3 * 10**6))  # 3 MB
+    shinqlx.set_cvar_once("qlx_owner", "-1")
+    shinqlx.set_cvar_once("qlx_plugins", ", ".join(DEFAULT_PLUGINS))
+    shinqlx.set_cvar_once("qlx_pluginsPath", "shinqlx-plugins")
+    shinqlx.set_cvar_once("qlx_database", "Redis")
+    shinqlx.set_cvar_once("qlx_commandPrefix", "!")
+    shinqlx.set_cvar_once("qlx_logs", "2")
+    shinqlx.set_cvar_once("qlx_logsSize", str(3 * 10**6))  # 3 MB
     # Redis
-    minqlx.set_cvar_once("qlx_redisAddress", "127.0.0.1")
-    minqlx.set_cvar_once("qlx_redisDatabase", "0")
-    minqlx.set_cvar_once("qlx_redisUnixSocket", "0")
-    minqlx.set_cvar_once("qlx_redisPassword", "")
+    shinqlx.set_cvar_once("qlx_redisAddress", "127.0.0.1")
+    shinqlx.set_cvar_once("qlx_redisDatabase", "0")
+    shinqlx.set_cvar_once("qlx_redisUnixSocket", "0")
+    shinqlx.set_cvar_once("qlx_redisPassword", "")
 
 
 # ====================================================================
 #                                 MAIN
 # ====================================================================
 def initialize():
-    minqlx.register_handlers()
+    shinqlx.register_handlers()
 
 
 def late_init():
@@ -569,16 +545,16 @@ def late_init():
     its own initialization.
 
     """
-    minqlx.initialize_cvars()
+    shinqlx.initialize_cvars()
 
     # Set the default database plugins should use.
     # TODO: Make Plugin.database setting generic.
-    database_cvar = minqlx.get_cvar("qlx_database")
+    database_cvar = shinqlx.get_cvar("qlx_database")
     if database_cvar is not None and database_cvar.lower() == "redis":
-        minqlx.Plugin.database = minqlx.database.Redis
+        shinqlx.Plugin.database = shinqlx.database.Redis
 
-    # Get the plugins path and set minqlx.__plugins_version__.
-    plugins_path_cvar = minqlx.get_cvar("qlx_pluginsPath")
+    # Get the plugins path and set shinqlx.__plugins_version__.
+    plugins_path_cvar = shinqlx.get_cvar("qlx_pluginsPath")
     if plugins_path_cvar is not None:
         plugins_path = os.path.abspath(plugins_path_cvar)
         set_plugins_version(plugins_path)
@@ -598,10 +574,10 @@ def late_init():
     logger.info("Loading preset plugins...")
     load_preset_plugins()
 
-    stats_enable_cvar = minqlx.get_cvar("zmq_stats_enable")
+    stats_enable_cvar = shinqlx.get_cvar("zmq_stats_enable")
     if stats_enable_cvar is not None and bool(int(stats_enable_cvar)):
         global _stats
-        _stats = minqlx.StatsListener()
+        _stats = shinqlx.StatsListener()
         logger.info("Stats listener started on %s.", _stats.address)
         # Start polling. Not blocking due to decorator magic. Aw yeah.
         _stats.keep_receiving()

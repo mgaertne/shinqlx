@@ -5,7 +5,7 @@ use pyo3::types::PyTuple;
 
 /// A struct sequence containing parameters for the flight holdable item.
 #[pyclass]
-#[pyo3(module = "minqlx", name = "Flight", get_all)]
+#[pyo3(module = "shinqlx", name = "Flight", get_all)]
 #[derive(PartialEq, Eq, Debug, Clone, Copy)]
 pub(crate) struct Flight(
     #[pyo3(name = "fuel")] pub(crate) i32,
@@ -95,8 +95,8 @@ mod flight_tests {
         Python::with_gil(|py| {
             let flight_constructor = py.run(
                 r#"
-import _minqlx
-flight = _minqlx.Flight((0, 1, 2, 3))
+import _shinqlx
+flight = _shinqlx.Flight((0, 1, 2, 3))
             "#,
                 None,
                 None,
@@ -115,8 +115,8 @@ flight = _minqlx.Flight((0, 1, 2, 3))
         Python::with_gil(|py| {
             let flight_constructor = py.run(
                 r#"
-import _minqlx
-flight = _minqlx.Flight((0, 1, 2))
+import _shinqlx
+flight = _shinqlx.Flight((0, 1, 2))
             "#,
                 None,
                 None,
@@ -131,8 +131,8 @@ flight = _minqlx.Flight((0, 1, 2))
         Python::with_gil(|py| {
             let flight_constructor = py.run(
                 r#"
-import _minqlx
-flight = _minqlx.Flight((0, 1, 2, 3, 4))
+import _shinqlx
+flight = _shinqlx.Flight((0, 1, 2, 3, 4))
             "#,
                 None,
                 None,
@@ -147,8 +147,8 @@ flight = _minqlx.Flight((0, 1, 2, 3, 4))
         Python::with_gil(|py| {
             let flight_constructor = py.run(
                 r#"
-import _minqlx
-flight = _minqlx.Flight(("asdf", True, (1, 2, 3), []))
+import _shinqlx
+flight = _shinqlx.Flight(("asdf", True, (1, 2, 3), []))
             "#,
                 None,
                 None,
@@ -163,8 +163,8 @@ flight = _minqlx.Flight(("asdf", True, (1, 2, 3), []))
         let result = Python::with_gil(|py| {
             py.run(
                 r#"
-import _minqlx
-assert(_minqlx.Flight((0, 1, 2, 3)) == _minqlx.Flight((0, 1, 2, 3)))
+import _shinqlx
+assert(_shinqlx.Flight((0, 1, 2, 3)) == _shinqlx.Flight((0, 1, 2, 3)))
             "#,
                 None,
                 None,
@@ -179,8 +179,8 @@ assert(_minqlx.Flight((0, 1, 2, 3)) == _minqlx.Flight((0, 1, 2, 3)))
         let result = Python::with_gil(|py| {
             py.run(
                 r#"
-import _minqlx
-assert(_minqlx.Flight((0, 1, 2, 3)) != _minqlx.Flight((3, 2, 1, 0)))
+import _shinqlx
+assert(_shinqlx.Flight((0, 1, 2, 3)) != _shinqlx.Flight((3, 2, 1, 0)))
             "#,
                 None,
                 None,
@@ -195,8 +195,8 @@ assert(_minqlx.Flight((0, 1, 2, 3)) != _minqlx.Flight((3, 2, 1, 0)))
         Python::with_gil(|py| {
             let result = py.run(
                 r#"
-import _minqlx
-assert(_minqlx.Flight((0, 1, 2, 3)) < _minqlx.Flight((3, 2, 1, 0)))
+import _shinqlx
+assert(_shinqlx.Flight((0, 1, 2, 3)) < _shinqlx.Flight((3, 2, 1, 0)))
             "#,
                 None,
                 None,

@@ -6,7 +6,7 @@ if TYPE_CHECKING:
     from logging import Logger
 
     from redis import Redis as redisRedis, ConnectionPool
-    from minqlx import Plugin, Player
+    from shinqlx import Plugin, Player
 
 class AbstractDatabase:
     _counter: int

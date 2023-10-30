@@ -4,7 +4,7 @@ use pyo3::prelude::*;
 
 /// Information about a player's state in the game.
 #[pyclass]
-#[pyo3(module = "minqlx", name = "PlayerState", get_all)]
+#[pyo3(module = "shinqlx", name = "PlayerState", get_all)]
 #[derive(Debug, PartialEq)]
 pub(crate) struct PlayerState {
     /// Whether the player's alive or not.
