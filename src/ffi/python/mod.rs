@@ -80,6 +80,12 @@ enum PythonPriorities {
 }
 
 #[pymodule]
+#[pyo3(name = "shinqlx")]
+fn pyshinqlx_root_module(_py: Python<'_>, _m: &PyModule) -> PyResult<()> {
+    Ok(())
+}
+
+#[pymodule]
 #[pyo3(name = "_shinqlx")]
 fn pyshinqlx_module(_py: Python<'_>, m: &PyModule) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(pyshinqlx_player_info, m)?)?;
