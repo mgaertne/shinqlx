@@ -4,7 +4,7 @@ use pyo3::prelude::*;
 use pyo3::types::PyTuple;
 
 /// A struct sequence containing parameters for the flight holdable item.
-#[pyclass]
+#[pyclass(frozen)]
 #[pyo3(module = "shinqlx", name = "Flight", get_all)]
 #[derive(PartialEq, Eq, Debug, Clone, Copy)]
 pub(crate) struct Flight(

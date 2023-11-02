@@ -4,7 +4,7 @@ use pyo3::prelude::*;
 use pyo3::types::PyTuple;
 
 /// A struct sequence containing all the weapons in the game.
-#[pyclass]
+#[pyclass(frozen)]
 #[pyo3(module = "shinqlx", name = "Weapons", get_all)]
 #[derive(PartialEq, Eq, Debug, Clone, Copy)]
 pub(crate) struct Weapons(
