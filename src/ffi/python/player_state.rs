@@ -3,7 +3,7 @@ use crate::prelude::*;
 use pyo3::prelude::*;
 
 /// Information about a player's state in the game.
-#[pyclass]
+#[pyclass(frozen)]
 #[pyo3(module = "shinqlx", name = "PlayerState", get_all)]
 #[derive(Debug, PartialEq)]
 pub(crate) struct PlayerState {
