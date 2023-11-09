@@ -1,5 +1,5 @@
 """Subscribes to the ZMQ stats protocol and calls the stats event dispatcher when
-we get stats from it. It polls the ZMQ socket approx. every 0.25 seconds."""
+we get stats from it."""
 
 
 import zmq
