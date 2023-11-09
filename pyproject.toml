@@ -13,7 +13,7 @@ classifiers = [
     "Programming Language :: Python :: Implementation :: CPython",
     "Programming Language :: Python :: Implementation :: PyPy",
 ]
-dependencies = ["redis>=2.10", "hiredis", "requests>=2.20", "pyzmq"]
+dependencies = ["redis>=2.10", "hiredis", "requests>=2.20", "pyzmq>=23"]
 
 [project.readme]
 file = "README.md"
