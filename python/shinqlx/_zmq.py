@@ -20,7 +20,7 @@ class StatsListener:
         self.address = f"tcp://{host}:{port}"
         self.password = shinqlx.get_cvar("zmq_stats_password")
 
-    @shinqlx.delay(0.25)
+    @shinqlx.thread
     def keep_receiving(self):
         """Receives until 'self.done' is set to True."""
         if self.done:
@@ -39,7 +39,7 @@ class StatsListener:
             while True:  # Will throw an expcetion if no more data to get.
                 pending_events = dict(poller.poll(timeout=250))
                 for receiver in pending_events:
-                    stats = receiver.recv.json()
+                    stats = receiver.recv_json()
                     shinqlx.EVENT_DISPATCHERS["stats"].dispatch(stats)
 
                     if stats["TYPE"] == "MATCH_STARTED":
