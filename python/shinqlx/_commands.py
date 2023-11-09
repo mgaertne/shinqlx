@@ -5,7 +5,7 @@ import shinqlx
 
 
 MAX_MSG_LENGTH = 1000
-re_color_tag = re.compile(r"\^[1-7]")
+re_color_tag = re.compile(r"\^[0-7]")
 
 
 # ====================================================================
