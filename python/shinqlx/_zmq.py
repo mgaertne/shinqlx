@@ -3,11 +3,80 @@ we get stats from it."""
 
 
 import zmq
+
 import shinqlx
+from threading import Thread
 
 
-class StatsListener:
+@shinqlx.next_frame
+def dispatch_stats_event(stats):
+    shinqlx.EVENT_DISPATCHERS["stats"].dispatch(stats)
+
+
+@shinqlx.next_frame
+def dispatch_game_start_event(data):
+    shinqlx.EVENT_DISPATCHERS["game_start"].dispatch(data)
+
+
+@shinqlx.next_frame
+def dispatch_round_end_event(data):
+    shinqlx.EVENT_DISPATCHERS["round_end"].dispatch(data)
+
+
+@shinqlx.next_frame
+def dispatch_game_end_event(data):
+    # MATCH_REPORT event goes off with a map change and map_restart,
+    # but we really only want it for when the game actually ends.
+    # We use a variable instead of Game().state because by the
+    # time we get the event, the game is probably gone.
+    shinqlx.EVENT_DISPATCHERS["game_end"].dispatch(data)
+
+
+@shinqlx.next_frame
+def dispatch_player_death_event(data):
+    # Dead player.
+    sid = int(data["VICTIM"]["STEAM_ID"])
+    player = (
+        shinqlx.Plugin.player(sid)
+        if sid
+        else shinqlx.Plugin.player(data["VICTIM"]["NAME"])
+    )
+
+    # Killer player.
+    if not data["KILLER"]:
+        player_killer = None
+    else:
+        sid_killer = int(data["KILLER"]["STEAM_ID"])
+        if sid_killer:
+            player_killer = shinqlx.Plugin.player(sid_killer)
+        else:  # It's a bot. Forced to use name as an identifier.
+            player_killer = shinqlx.Plugin.player(data["KILLER"]["NAME"])
+
+    shinqlx.EVENT_DISPATCHERS["death"].dispatch(player, player_killer, data)
+    if player_killer:
+        shinqlx.EVENT_DISPATCHERS["kill"].dispatch(player, player_killer, data)
+
+
+@shinqlx.next_frame
+def dispatch_team_switch_event(data):
+    # No idea why they named it "KILLER" here, but whatever.
+    player = shinqlx.Plugin.player(int(data["KILLER"]["STEAM_ID"]))
+    if player is None:
+        return
+    old_team = data["KILLER"]["OLD_TEAM"].lower()
+    new_team = data["KILLER"]["TEAM"].lower()
+    if old_team != new_team:
+        res = shinqlx.EVENT_DISPATCHERS["team_switch"].dispatch(
+            player, old_team, new_team
+        )
+        if res is False:
+            player.put(old_team)
+
+
+class StatsListener(Thread):
     def __init__(self):
+        super().__init__()
+
         self.done = False
         self._in_progress = False
 
@@ -20,9 +89,11 @@ class StatsListener:
         self.address = f"tcp://{host}:{port}"
         self.password = shinqlx.get_cvar("zmq_stats_password")
 
-    @shinqlx.thread
     def keep_receiving(self):
         """Receives until 'self.done' is set to True."""
+        self.start()
+
+    def run(self):
         if self.done:
             return
 
@@ -40,64 +111,21 @@ class StatsListener:
                 pending_events = dict(poller.poll(timeout=250))
                 for receiver in pending_events:
                     stats = receiver.recv_json()
-                    shinqlx.EVENT_DISPATCHERS["stats"].dispatch(stats)
+                    dispatch_stats_event(stats)
 
                     if stats["TYPE"] == "MATCH_STARTED":
                         self._in_progress = True
-                        shinqlx.EVENT_DISPATCHERS["game_start"].dispatch(stats["DATA"])
+                        dispatch_game_start_event(stats["DATA"])
                     elif stats["TYPE"] == "ROUND_OVER":
-                        shinqlx.EVENT_DISPATCHERS["round_end"].dispatch(stats["DATA"])
+                        dispatch_round_end_event(stats["DATA"])
                     elif stats["TYPE"] == "MATCH_REPORT":
-                        # MATCH_REPORT event goes off with a map change and map_restart,
-                        # but we really only want it for when the game actually ends.
-                        # We use a variable instead of Game().state because by the
-                        # time we get the event, the game is probably gone.
                         if self._in_progress:
-                            shinqlx.EVENT_DISPATCHERS["game_end"].dispatch(stats["DATA"])
+                            dispatch_game_end_event(stats["DATA"])
                         self._in_progress = False
                     elif stats["TYPE"] == "PLAYER_DEATH":
-                        # Dead player.
-                        sid = int(stats["DATA"]["VICTIM"]["STEAM_ID"])
-                        player = (
-                            shinqlx.Plugin.player(sid)
-                            if sid
-                            else shinqlx.Plugin.player(stats["DATA"]["VICTIM"]["NAME"])
-                        )
-
-                        # Killer player.
-                        if not stats["DATA"]["KILLER"]:
-                            player_killer = None
-                        else:
-                            sid_killer = int(stats["DATA"]["KILLER"]["STEAM_ID"])
-                            if sid_killer:
-                                player_killer = shinqlx.Plugin.player(sid_killer)
-                            else:  # It's a bot. Forced to use name as an identifier.
-                                player_killer = shinqlx.Plugin.player(
-                                    stats["DATA"]["KILLER"]["NAME"]
-                                )
-
-                        shinqlx.EVENT_DISPATCHERS["death"].dispatch(
-                            player, player_killer, stats["DATA"]
-                        )
-                        if player_killer:
-                            shinqlx.EVENT_DISPATCHERS["kill"].dispatch(
-                                player, player_killer, stats["DATA"]
-                            )
+                        dispatch_player_death_event(stats["DATA"])
                     elif stats["TYPE"] == "PLAYER_SWITCHTEAM":
-                        # No idea why they named it "KILLER" here, but whatever.
-                        player = shinqlx.Plugin.player(
-                            int(stats["DATA"]["KILLER"]["STEAM_ID"])
-                        )
-                        if player is None:
-                            continue
-                        old_team = stats["DATA"]["KILLER"]["OLD_TEAM"].lower()
-                        new_team = stats["DATA"]["KILLER"]["TEAM"].lower()
-                        if old_team != new_team:
-                            res = shinqlx.EVENT_DISPATCHERS["team_switch"].dispatch(
-                                player, old_team, new_team
-                            )
-                            if res is False:
-                                player.put(old_team)
+                        dispatch_team_switch_event(stats["DATA"])
 
     def stop(self):
         self.done = True
