@@ -22,6 +22,7 @@ fn determine_item_id(item: &PyAny) -> PyResult<i32> {
 
     (1..GameItem::get_num_items())
         .filter(|&i| {
+            #[cfg_attr(test, allow(clippy::unnecessary_fallible_conversions))]
             GameItem::try_from(i).is_ok_and(|game_item| game_item.get_classname() == item_classname)
         })
         .take(1)
@@ -55,7 +56,8 @@ pub(crate) fn pyshinqlx_replace_items(
             )));
         }
 
-        return py.allow_threads(move || {
+        return py.allow_threads(|| {
+            #[cfg_attr(test, allow(clippy::unnecessary_fallible_conversions))]
             let mut opt_game_entity = GameEntity::try_from(item1_id).ok().filter(|game_entity| {
                 game_entity.in_use() && game_entity.is_game_item(entityType_t::ET_ITEM)
             });
@@ -76,7 +78,8 @@ pub(crate) fn pyshinqlx_replace_items(
     }
 
     if let Ok(item1_classname) = item1.extract::<String>(py) {
-        return py.allow_threads(move || {
+        return py.allow_threads(|| {
+            #[cfg_attr(test, allow(clippy::unnecessary_fallible_conversions))]
             let mut matching_item1_entities: Vec<GameEntity> = (0..MAX_GENTITIES)
                 .filter_map(|i| GameEntity::try_from(i as i32).ok())
                 .filter(|game_entity| {

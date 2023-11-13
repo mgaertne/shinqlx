@@ -6,7 +6,7 @@ use pyo3::{pyfunction, Python};
 #[pyfunction]
 #[pyo3(name = "allow_single_player")]
 pub(crate) fn pyshinqlx_allow_single_player(py: Python<'_>, allow: bool) {
-    py.allow_threads(move || {
+    py.allow_threads(|| {
         CurrentLevel::try_get()
             .ok()
             .iter_mut()

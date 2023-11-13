@@ -30,7 +30,8 @@ pub(crate) fn pyshinqlx_player_stats(
         )));
     }
 
-    py.allow_threads(move || {
+    py.allow_threads(|| {
+        #[cfg_attr(test, allow(clippy::unnecessary_fallible_conversions))]
         Ok(GameEntity::try_from(client_id)
             .ok()
             .and_then(|game_entity| game_entity.get_game_client().ok())

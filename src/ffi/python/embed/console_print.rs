@@ -9,7 +9,7 @@ use pyo3::{pyfunction, Python};
 #[pyfunction]
 #[pyo3(name = "console_print")]
 pub(crate) fn pyshinqlx_console_print(py: Python<'_>, text: &str) {
-    py.allow_threads(move || {
+    py.allow_threads(|| {
         let formatted_string = format!("{}\n", text);
         shinqlx_com_printf(formatted_string.as_str());
     })

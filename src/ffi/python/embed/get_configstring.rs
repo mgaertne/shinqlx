@@ -16,7 +16,7 @@ pub(crate) fn pyshinqlx_get_configstring(py: Python<'_>, config_id: u32) -> PyRe
         )));
     }
 
-    py.allow_threads(move || {
+    py.allow_threads(|| {
         let Some(ref main_engine) = *MAIN_ENGINE.load() else {
             return Err(PyEnvironmentError::new_err(
                 "main quake live engine not set",
