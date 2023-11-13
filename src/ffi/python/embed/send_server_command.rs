@@ -40,6 +40,7 @@ pub(crate) fn pyshinqlx_send_server_command(
                 )));
             }
 
+            #[cfg_attr(test, allow(clippy::unnecessary_fallible_conversions))]
             let opt_client = Client::try_from(actual_client_id)
                 .ok()
                 .filter(|client| client.get_state() == clientState_t::CS_ACTIVE);

@@ -21,7 +21,8 @@ pub(crate) fn pyshinqlx_spawn_item(
         )));
     }
 
-    py.allow_threads(move || {
+    py.allow_threads(|| {
+        #[cfg_attr(test, allow(clippy::unnecessary_fallible_conversions))]
         GameItem::try_from(item_id)
             .iter_mut()
             .for_each(|gitem| gitem.spawn((x, y, z)));

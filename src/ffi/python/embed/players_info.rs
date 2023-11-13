@@ -19,9 +19,10 @@ pub(crate) fn pyshinqlx_players_info(py: Python<'_>) -> PyResult<Vec<Option<Play
         Ok(main_engine.get_max_clients())
     })?;
 
-    py.allow_threads(move || {
+    py.allow_threads(|| {
         let result: Vec<Option<PlayerInfo>> = (0..maxclients)
             .filter_map(|client_id| {
+                #[cfg_attr(test, allow(clippy::unnecessary_fallible_conversions))]
                 Client::try_from(client_id).map_or_else(
                     |_| None,
                     |client| match client.get_state() {

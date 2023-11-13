@@ -350,6 +350,7 @@ impl GameEntity {
         let class_name = unsafe { CStr::from_ptr(self.gentity_t.classname) };
         main_engine.com_printf(&class_name.to_string_lossy());
         if item_id != 0 {
+            #[cfg_attr(test, allow(clippy::unnecessary_fallible_conversions))]
             let Ok(gitem) = GameItem::try_from(item_id) else {
                 return;
             };

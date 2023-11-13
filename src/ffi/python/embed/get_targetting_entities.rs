@@ -14,7 +14,8 @@ pub(crate) fn pyshinqlx_get_entity_targets(py: Python<'_>, entity_id: i32) -> Py
         )));
     }
 
-    py.allow_threads(move || {
+    py.allow_threads(|| {
+        #[cfg_attr(test, allow(clippy::unnecessary_fallible_conversions))]
         GameEntity::try_from(entity_id).map_or_else(
             |_| Ok(vec![]),
             |entity| Ok(entity.get_targetting_entity_ids()),

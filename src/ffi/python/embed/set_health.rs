@@ -25,7 +25,8 @@ pub(crate) fn pyshinqlx_set_health(py: Python<'_>, client_id: i32, health: i32) 
         )));
     }
 
-    py.allow_threads(move || {
+    py.allow_threads(|| {
+        #[cfg_attr(test, allow(clippy::unnecessary_fallible_conversions))]
         let mut opt_game_entity = GameEntity::try_from(client_id).ok();
         opt_game_entity
             .iter_mut()

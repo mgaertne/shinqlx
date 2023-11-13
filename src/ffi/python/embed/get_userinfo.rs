@@ -26,7 +26,8 @@ pub(crate) fn pyshinqlx_get_userinfo(py: Python<'_>, client_id: i32) -> PyResult
         )));
     }
 
-    py.allow_threads(move || {
+    py.allow_threads(|| {
+        #[cfg_attr(test, allow(clippy::unnecessary_fallible_conversions))]
         let opt_client = Client::try_from(client_id).ok().filter(|client| {
             let allowed_free_clients = ALLOW_FREE_CLIENT.load(Ordering::SeqCst);
             client.get_state() != clientState_t::CS_FREE

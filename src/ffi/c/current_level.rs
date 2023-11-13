@@ -74,6 +74,7 @@ impl CurrentLevel {
 
         let maxclients = main_engine.get_max_clients();
 
+        #[cfg_attr(test, allow(clippy::unnecessary_fallible_conversions))]
         (0..maxclients)
             .filter_map(|client_id| GameEntity::try_from(client_id).ok())
             .filter_map(|game_entity| game_entity.get_game_client().ok())
