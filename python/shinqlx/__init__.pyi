@@ -125,6 +125,12 @@ from ._shinqlx import (
     force_weapon_respawn_time,
     register_handler,
     get_targetting_entities,
+    set_map_subtitles,
+    Game,
+    NonexistentGameError,
+    _map_title,
+    _map_subtitle1,
+    _map_subtitle2,
 )
 from ._core import (
     PluginLoadError,
@@ -146,7 +152,6 @@ from ._core import (
     set_cvar_once,
     set_cvar_limit_once,
     set_plugins_version,
-    set_map_subtitles,
     next_frame,
     delay,
     thread,
@@ -158,7 +163,6 @@ from ._core import (
     initialize,
     late_init,
 )
-from ._game import Game, NonexistentGameError
 from ._player import (
     Player,
     NonexistentPlayerError,
@@ -287,16 +291,15 @@ from ._zmq import StatsListener
 __version__: str
 __plugins_version__: str
 
-_map_title: str | None
-_map_subtitle1: str | None
-_map_subtitle2: str | None
-
 __version_info__: tuple[int, int, int]
 
 __all__ = [
     "__version__",
     "__version_info__",
     "__plugins_version__",
+    "_map_title",
+    "_map_subtitle1",
+    "_map_subtitle2",
     # _shinqlx
     "DEBUG",
     "RET_NONE",
