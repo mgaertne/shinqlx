@@ -60,6 +60,7 @@ impl From<i32> for PlayerInfo {
             privileges: -1,
         };
 
+        #[cfg_attr(test, allow(clippy::unnecessary_fallible_conversions))]
         GameEntity::try_from(client_id)
             .ok()
             .iter()
@@ -69,6 +70,7 @@ impl From<i32> for PlayerInfo {
                 returned.privileges = game_entity.get_privileges() as i32;
             });
 
+        #[cfg_attr(test, allow(clippy::unnecessary_fallible_conversions))]
         Client::try_from(client_id).ok().iter().for_each(|client| {
             returned.connection_state = client.get_state() as i32;
             returned.userinfo = client.get_user_info();

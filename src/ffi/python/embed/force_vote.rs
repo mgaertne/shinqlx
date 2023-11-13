@@ -28,7 +28,8 @@ pub(crate) fn pyshinqlx_force_vote(py: Python<'_>, pass: bool) -> PyResult<bool>
         Ok(main_engine.get_max_clients())
     })?;
 
-    py.allow_threads(move || {
+    py.allow_threads(|| {
+        #[cfg_attr(test, allow(clippy::unnecessary_fallible_conversions))]
         (0..maxclients)
             .filter(|i| {
                 Client::try_from(*i)

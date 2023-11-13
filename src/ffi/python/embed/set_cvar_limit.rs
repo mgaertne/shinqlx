@@ -16,7 +16,7 @@ pub(crate) fn pyshinqlx_set_cvar_limit(
     max: &str,
     flags: Option<i32>,
 ) -> PyResult<()> {
-    py.allow_threads(move || {
+    py.allow_threads(|| {
         let Some(ref main_engine) = *MAIN_ENGINE.load() else {
             return Err(PyEnvironmentError::new_err(
                 "main quake live engine not set",

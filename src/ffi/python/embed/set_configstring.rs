@@ -22,7 +22,7 @@ pub(crate) fn pyshinqlx_set_configstring(
         )));
     }
 
-    py.allow_threads(move || {
+    py.allow_threads(|| {
         shinqlx_set_configstring(config_id, value);
 
         Ok(())

@@ -30,8 +30,9 @@ pub(crate) fn pyshinqlx_player_info(
         )));
     }
 
-    py.allow_threads(move || {
+    py.allow_threads(|| {
         let allowed_free_clients = ALLOW_FREE_CLIENT.load(Ordering::SeqCst);
+        #[cfg_attr(test, allow(clippy::unnecessary_fallible_conversions))]
         let opt_client = Client::try_from(client_id).ok();
 
         if opt_client

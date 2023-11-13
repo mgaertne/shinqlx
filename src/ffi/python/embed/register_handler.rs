@@ -42,7 +42,7 @@ pub(crate) fn pyshinqlx_register_handler(
         _ => return Err(PyValueError::new_err("Unsupported event.")),
     };
 
-    py.allow_threads(move || {
+    py.allow_threads(|| {
         handler_lock.store(handler.map(|handler_func| handler_func.into()));
         Ok(())
     })

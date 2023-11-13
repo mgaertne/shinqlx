@@ -26,12 +26,14 @@ pub(crate) fn pyshinqlx_drop_holdable(py: Python<'_>, client_id: i32) -> PyResul
         )));
     }
 
-    py.allow_threads(move || {
+    py.allow_threads(|| {
+        #[cfg_attr(test, allow(clippy::unnecessary_fallible_conversions))]
         GameEntity::try_from(client_id)
             .ok()
             .and_then(|game_entity| game_entity.get_game_client().ok())
             .iter_mut()
             .for_each(|game_client| game_client.remove_kamikaze_flag());
+        #[cfg_attr(test, allow(clippy::unnecessary_fallible_conversions))]
         let mut opt_game_entity_with_holdable =
             GameEntity::try_from(client_id).ok().filter(|game_entity| {
                 game_entity

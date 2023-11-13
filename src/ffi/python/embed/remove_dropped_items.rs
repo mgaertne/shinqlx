@@ -7,6 +7,7 @@ use pyo3::{pyfunction, PyResult, Python};
 #[pyo3(name = "remove_dropped_items")]
 pub(crate) fn pyshinqlx_remove_dropped_items(py: Python<'_>) -> PyResult<bool> {
     py.allow_threads(|| {
+        #[cfg_attr(test, allow(clippy::unnecessary_fallible_conversions))]
         (0..MAX_GENTITIES)
             .filter_map(|i| GameEntity::try_from(i as i32).ok())
             .filter(|game_entity| {

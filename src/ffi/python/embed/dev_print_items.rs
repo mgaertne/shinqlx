@@ -10,6 +10,7 @@ use pyo3::{pyfunction, PyResult, Python};
 #[pyo3(name = "dev_print_items")]
 pub(crate) fn pyshinqlx_dev_print_items(py: Python<'_>) -> PyResult<()> {
     let formatted_items: Vec<String> = py.allow_threads(|| {
+        #[cfg_attr(test, allow(clippy::unnecessary_fallible_conversions))]
         (0..MAX_GENTITIES)
             .filter_map(|i| GameEntity::try_from(i as i32).ok())
             .filter(|game_entity| {
@@ -34,7 +35,7 @@ pub(crate) fn pyshinqlx_dev_print_items(py: Python<'_>) -> PyResult<()> {
         .map(|item| item.into())
         .collect();
 
-    py.allow_threads(move || {
+    py.allow_threads(|| {
         let Some(ref main_engine) = *MAIN_ENGINE.load() else {
             return Err(PyEnvironmentError::new_err(
                 "main quake live engine not set",
