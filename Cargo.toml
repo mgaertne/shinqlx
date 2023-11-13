@@ -31,7 +31,7 @@ codegen-units = 1
 [dependencies]
 ctor = ">=0.2"
 rand = ">=0.8"
-pyo3 = { version = ">=0.19", features = ["pyo3-macros", "extension-module", "nightly"]}
+pyo3 = { version = ">=0.20", features = ["pyo3-macros", "extension-module", "nightly"]}
 pyo3-log = "0.9.0"
 retour = ">=0.3.1"
 derive_builder = ">=0.12"
@@ -53,7 +53,7 @@ procfs = ">=0.15"
 openssl-sys = ">=0.9.90"
 
 [build-dependencies]
-pyo3-build-config = { version = ">=0.19", features = ["resolve-config"] }
+pyo3-build-config = { version = ">=0.20", features = ["resolve-config"] }
 git2 = ">=0.17"
 
 [dev-dependencies]
