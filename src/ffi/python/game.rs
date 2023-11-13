@@ -2654,7 +2654,7 @@ _shinqlx._map_subtitle2 = "Awesome map!"
         let mut mock_engine = MockQuakeEngine::new();
         mock_engine
             .expect_execute_console_command()
-            .with(predicate::eq(lock_cmd))
+            .withf(move |cmd| cmd == lock_cmd)
             .times(1);
         MAIN_ENGINE.store(Some(mock_engine.into()));
 
@@ -2700,7 +2700,7 @@ _shinqlx._map_subtitle2 = "Awesome map!"
         let mut mock_engine = MockQuakeEngine::new();
         mock_engine
             .expect_execute_console_command()
-            .with(predicate::eq(unlock_cmd))
+            .withf(move |cmd| cmd == unlock_cmd)
             .times(1);
         MAIN_ENGINE.store(Some(mock_engine.into()));
 
@@ -2749,7 +2749,7 @@ _shinqlx._map_subtitle2 = "Awesome map!"
         let mut mock_engine = MockQuakeEngine::new();
         mock_engine
             .expect_execute_console_command()
-            .with(predicate::eq(put_cmd))
+            .withf(move |cmd| cmd == put_cmd)
             .times(1);
         MAIN_ENGINE.store(Some(mock_engine.into()));
 
@@ -3037,7 +3037,7 @@ _shinqlx._map_subtitle2 = "Awesome map!"
         let mut mock_engine = MockQuakeEngine::new();
         mock_engine
             .expect_execute_console_command()
-            .with(predicate::eq(unlock_cmd))
+            .withf(move |cmd| cmd == unlock_cmd)
             .times(1);
         MAIN_ENGINE.store(Some(mock_engine.into()));
 
