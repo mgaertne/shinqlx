@@ -25,7 +25,8 @@ pub(crate) fn pyshinqlx_noclip(py: Python<'_>, client_id: i32, activate: bool) -
         )));
     }
 
-    py.allow_threads(move || {
+    py.allow_threads(|| {
+        #[cfg_attr(test, allow(clippy::unnecessary_fallible_conversions))]
         let mut opt_game_client = GameEntity::try_from(client_id)
             .ok()
             .and_then(|game_entity| game_entity.get_game_client().ok())

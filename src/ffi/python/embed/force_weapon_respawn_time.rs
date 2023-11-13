@@ -16,7 +16,8 @@ pub(crate) fn pyshinqlx_force_weapon_respawn_time(
         ));
     }
 
-    py.allow_threads(move || {
+    py.allow_threads(|| {
+        #[cfg_attr(test, allow(clippy::unnecessary_fallible_conversions))]
         (0..MAX_GENTITIES)
             .filter_map(|i| GameEntity::try_from(i as i32).ok())
             .filter(|game_entity| game_entity.in_use() && game_entity.is_respawning_weapon())

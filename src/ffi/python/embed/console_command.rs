@@ -8,7 +8,7 @@ use pyo3::prelude::*;
 #[pyfunction]
 #[pyo3(name = "console_command")]
 pub(crate) fn pyshinqlx_console_command(py: Python<'_>, cmd: &str) -> PyResult<()> {
-    py.allow_threads(move || {
+    py.allow_threads(|| {
         let Some(ref main_engine) = *MAIN_ENGINE.load() else {
             return Err(PyEnvironmentError::new_err(
                 "main quake live engine not set",

@@ -33,6 +33,7 @@ pub(crate) fn pyshinqlx_client_command(
         )));
     }
 
+    #[cfg_attr(test, allow(clippy::unnecessary_fallible_conversions))]
     let opt_client = Client::try_from(client_id).ok().filter(|client| {
         ![clientState_t::CS_FREE, clientState_t::CS_ZOMBIE].contains(&client.get_state())
     });

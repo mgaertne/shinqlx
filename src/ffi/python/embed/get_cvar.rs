@@ -8,7 +8,7 @@ use pyo3::prelude::*;
 #[pyfunction]
 #[pyo3(name = "get_cvar")]
 pub(crate) fn pyshinqlx_get_cvar(py: Python<'_>, cvar: &str) -> PyResult<Option<String>> {
-    py.allow_threads(move || {
+    py.allow_threads(|| {
         let Some(ref main_engine) = *MAIN_ENGINE.load() else {
             return Err(PyEnvironmentError::new_err(
                 "main quake live engine not set",

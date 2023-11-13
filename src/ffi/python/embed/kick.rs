@@ -31,7 +31,8 @@ pub(crate) fn pyshinqlx_kick(py: Python<'_>, client_id: i32, reason: Option<&str
         )));
     }
 
-    py.allow_threads(move || {
+    py.allow_threads(|| {
+        #[cfg_attr(test, allow(clippy::unnecessary_fallible_conversions))]
         let mut opt_client = Client::try_from(client_id)
             .ok()
             .filter(|client| client.get_state() == clientState_t::CS_ACTIVE);
