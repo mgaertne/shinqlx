@@ -300,28 +300,6 @@ def set_plugins_version(path) -> None:
     setattr(shinqlx, "__plugins_version__", f"{version}-{branch}")
 
 
-def set_map_subtitles() -> None:
-    # We save the actual values before setting them so that we can retrieve them in Game.
-    setattr(shinqlx, "_map_title", shinqlx.get_configstring(3))
-    setattr(shinqlx, "_map_subtitle1", shinqlx.get_configstring(678))
-    setattr(shinqlx, "_map_subtitle2", shinqlx.get_configstring(679))
-
-    cs = shinqlx.get_configstring(678)
-    if cs:
-        cs += " - "
-    shinqlx.set_configstring(
-        678,
-        cs + f"Running shinqlx ^6{shinqlx.__version__}^7 "
-        f"with plugins ^6{getattr(shinqlx, '__plugins_version__', 'NOT_SET')}^7.",
-    )
-    cs = shinqlx.get_configstring(679)
-    if cs:
-        cs += " - "
-    shinqlx.set_configstring(
-        679, cs + "Check ^6http://github.com/mgaertne/shinqlx^7 for more details."
-    )
-
-
 # ====================================================================
 #                              DECORATORS
 # ====================================================================

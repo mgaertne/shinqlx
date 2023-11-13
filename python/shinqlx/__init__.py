@@ -1,5 +1,4 @@
 # pylint: disable=C0413
-
 import re as _re
 import importlib
 
@@ -132,6 +131,12 @@ try:
         force_weapon_respawn_time,
         register_handler,
         get_targetting_entities,
+        set_map_subtitles,
+        Game,
+        NonexistentGameError,
+        _map_title,
+        _map_subtitle1,
+        _map_subtitle2,
     )
 except ModuleNotFoundError:
     _shinqlx = importlib.import_module(name="._shinqlx", package="shinqlx")
@@ -257,6 +262,12 @@ except ModuleNotFoundError:
         force_weapon_respawn_time,
         register_handler,
         get_targetting_entities,
+        set_map_subtitles,
+        Game,
+        NonexistentGameError,
+        _map_title,
+        _map_subtitle1,
+        _map_subtitle2,
     )
 
 from ._core import (
@@ -279,7 +290,6 @@ from ._core import (
     set_cvar_once,
     set_cvar_limit_once,
     set_plugins_version,
-    set_map_subtitles,
     next_frame,
     delay,
     thread,
@@ -291,7 +301,6 @@ from ._core import (
     initialize,
     late_init,
 )
-from ._game import Game, NonexistentGameError
 from ._player import (
     Player,
     NonexistentPlayerError,
@@ -382,10 +391,6 @@ from ._zmq import StatsListener
 __version__ = _shinqlx.__version__
 __plugins_version__ = "NOT_SET"
 
-_map_title = ""
-_map_subtitle1 = ""
-_map_subtitle2 = ""
-
 temp = _re.search(r"(\d+)\.(\d+)\.(\d+)", __version__)
 if temp is None:
     __version_info__ = (999, 999, 999)
@@ -402,6 +407,9 @@ __all__ = [
     "__version__",
     "__version_info__",
     "__plugins_version__",
+    "_map_title",
+    "_map_subtitle1",
+    "_map_subtitle2"
     # _shinqlx
     "DEBUG",
     "RET_NONE",

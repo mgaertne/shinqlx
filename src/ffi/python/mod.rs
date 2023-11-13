@@ -1,6 +1,7 @@
 pub(crate) mod dispatchers;
 pub(crate) mod embed;
 mod flight;
+mod game;
 mod holdable;
 mod player_info;
 mod player_state;
@@ -9,8 +10,9 @@ mod powerups;
 mod vector3;
 mod weapons;
 
-use crate::ffi::python::embed::*;
+use embed::*;
 pub(crate) use flight::Flight;
+use game::{Game, NonexistentGameError};
 pub(crate) use holdable::Holdable;
 pub(crate) use player_info::PlayerInfo;
 pub(crate) use player_state::PlayerState;
@@ -20,7 +22,10 @@ pub(crate) use vector3::Vector3;
 pub(crate) use weapons::Weapons;
 
 use crate::prelude::*;
+
+use alloc::vec::IntoIter;
 use core::sync::atomic::{AtomicBool, AtomicU64, Ordering};
+use itertools::{Itertools, Tuples};
 use log::*;
 use once_cell::sync::Lazy;
 use pyo3::prelude::*;
@@ -79,6 +84,57 @@ enum PythonPriorities {
     PRI_LOWEST,
 }
 
+#[pyfunction]
+#[pyo3(pass_module)]
+fn set_map_subtitles(module: &PyModule) -> PyResult<()> {
+    let map_title = pyshinqlx_get_configstring(module.py(), 3)?;
+    module.setattr("_map_title", map_title)?;
+
+    let mut map_subtitle1 = pyshinqlx_get_configstring(module.py(), 678)?;
+    module.setattr("_map_subtitle1", map_subtitle1.clone())?;
+
+    let mut map_subtitle2 = pyshinqlx_get_configstring(module.py(), 679)?;
+    module.setattr("_map_subtitle2", map_subtitle2.clone())?;
+
+    if !map_subtitle1.is_empty() {
+        map_subtitle1.push_str(" - ");
+    }
+
+    map_subtitle1.push_str("Running shinqlx ^6");
+    map_subtitle1.push_str(env!("SHINQLX_VERSION"));
+    map_subtitle1.push_str("^7 with plugins ^6");
+    let plugins_version = module
+        .getattr("__plugins_version__")
+        .map(|value| value.extract::<String>().unwrap_or("NOT_SET".into()))
+        .unwrap_or("NOT_SET".into());
+    map_subtitle1.push_str(plugins_version.as_str());
+    map_subtitle1.push_str("^7.");
+
+    pyshinqlx_set_configstring(module.py(), 678, map_subtitle1.as_str())?;
+
+    if !map_subtitle2.is_empty() {
+        map_subtitle2.push_str(" - ");
+    }
+    map_subtitle2.push_str("Check ^6https://github.com/mgaertne/shinqlx^7 for more details.");
+    pyshinqlx_set_configstring(module.py(), 679, map_subtitle2.as_str())?;
+
+    Ok(())
+}
+
+fn parse_variables(varstr: String) -> Tuples<IntoIter<String>, (String, String)> {
+    let Some(configstring_vec): Option<Vec<String>> = varstr
+        .strip_prefix('\\')
+        .map(|value| value.split('\\').map(|value| value.to_string()).collect())
+    else {
+        return vec![].into_iter().tuples();
+    };
+
+    if configstring_vec.len() % 2 == 1 {
+        warn!("Uneven number of keys and values: {}", varstr);
+    }
+    configstring_vec.into_iter().tuples()
+}
+
 #[pymodule]
 #[pyo3(name = "shinqlx")]
 fn pyshinqlx_root_module(_py: Python<'_>, _m: &PyModule) -> PyResult<()> {
@@ -87,7 +143,7 @@ fn pyshinqlx_root_module(_py: Python<'_>, _m: &PyModule) -> PyResult<()> {
 
 #[pymodule]
 #[pyo3(name = "_shinqlx")]
-fn pyshinqlx_module(_py: Python<'_>, m: &PyModule) -> PyResult<()> {
+fn pyshinqlx_module(py: Python<'_>, m: &PyModule) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(pyshinqlx_player_info, m)?)?;
     m.add_function(wrap_pyfunction!(pyshinqlx_players_info, m)?)?;
     m.add_function(wrap_pyfunction!(pyshinqlx_get_userinfo, m)?)?;
@@ -245,6 +301,11 @@ fn pyshinqlx_module(_py: Python<'_>, m: &PyModule) -> PyResult<()> {
         DAMAGE_NO_TEAM_PROTECTION as i32,
     )?;
 
+    m.add("_map_title", "")?;
+    m.add("_map_subtitle1", "")?;
+    m.add("_map_subtitle2", "")?;
+    m.add_function(wrap_pyfunction!(set_map_subtitles, m)?)?;
+
     m.add_class::<PlayerInfo>()?;
     m.add_class::<PlayerState>()?;
     m.add_class::<PlayerStats>()?;
@@ -252,6 +313,11 @@ fn pyshinqlx_module(_py: Python<'_>, m: &PyModule) -> PyResult<()> {
     m.add_class::<Weapons>()?;
     m.add_class::<Powerups>()?;
     m.add_class::<Flight>()?;
+    m.add_class::<Game>()?;
+    m.add(
+        "NonexistentGameError",
+        py.get_type::<NonexistentGameError>(),
+    )?;
 
     Ok(())
 }
