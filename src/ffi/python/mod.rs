@@ -29,6 +29,7 @@ use itertools::{Itertools, Tuples};
 use log::*;
 use once_cell::sync::Lazy;
 use pyo3::prelude::*;
+use pyo3::types::{PyCFunction, PyDict, PyFunction, PyTuple};
 use pyo3::{append_to_inittab, prepare_freethreaded_python};
 use swap_arc::SwapArcOption;
 
@@ -133,6 +134,24 @@ fn parse_variables(varstr: String) -> Tuples<IntoIter<String>, (String, String)>
         warn!("Uneven number of keys and values: {}", varstr);
     }
     configstring_vec.into_iter().tuples()
+}
+
+#[pyfunction]
+fn next_frame(py: Python<'_>, func: Py<PyFunction>) -> PyResult<&PyCFunction> {
+    let f = move |args: &PyTuple, kwargs: Option<&PyDict>| -> PyResult<()> {
+        Python::with_gil(|py| {
+            let shinqlx_module = py.import("shinqlx")?;
+            let next_frame_tasks = shinqlx_module.getattr("next_frame_tasks")?;
+            next_frame_tasks.call_method(
+                "put",
+                (func.as_ref(py), args, kwargs),
+                Some(PyDict::from_sequence(py, ("block", false).into_py(py))?),
+            )?;
+            Ok(())
+        })
+    };
+
+    PyCFunction::new_closure(py, None, None, f)
 }
 
 #[pymodule]
@@ -305,6 +324,7 @@ fn pyshinqlx_module(py: Python<'_>, m: &PyModule) -> PyResult<()> {
     m.add("_map_subtitle1", "")?;
     m.add("_map_subtitle2", "")?;
     m.add_function(wrap_pyfunction!(set_map_subtitles, m)?)?;
+    m.add_function(wrap_pyfunction!(next_frame, m)?)?;
 
     m.add_class::<PlayerInfo>()?;
     m.add_class::<PlayerState>()?;

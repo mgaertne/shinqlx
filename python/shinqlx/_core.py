@@ -303,14 +303,6 @@ def set_plugins_version(path) -> None:
 # ====================================================================
 #                              DECORATORS
 # ====================================================================
-def next_frame(func):
-    @wraps(func)
-    def f(*args, **kwargs):
-        shinqlx.next_frame_tasks.put((func, args, kwargs), block=False)
-
-    return f
-
-
 def delay(time):
     """Delay a function call a certain amount of time.
 
