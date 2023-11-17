@@ -29,7 +29,7 @@ use itertools::{Itertools, Tuples};
 use log::*;
 use once_cell::sync::Lazy;
 use pyo3::prelude::*;
-use pyo3::types::{PyCFunction, PyDict, PyFunction, PyTuple};
+use pyo3::types::PyFunction;
 use pyo3::{append_to_inittab, prepare_freethreaded_python};
 use swap_arc::SwapArcOption;
 
@@ -137,21 +137,105 @@ fn parse_variables(varstr: String) -> Tuples<IntoIter<String>, (String, String)>
 }
 
 #[pyfunction]
-fn next_frame(py: Python<'_>, func: Py<PyFunction>) -> PyResult<&PyCFunction> {
-    let f = move |args: &PyTuple, kwargs: Option<&PyDict>| -> PyResult<()> {
-        Python::with_gil(|py| {
-            let shinqlx_module = py.import("shinqlx")?;
-            let next_frame_tasks = shinqlx_module.getattr("next_frame_tasks")?;
-            next_frame_tasks.call_method(
-                "put",
-                (func.as_ref(py), args, kwargs),
-                Some(PyDict::from_sequence(py, ("block", false).into_py(py))?),
-            )?;
-            Ok(())
-        })
-    };
+fn next_frame(py: Python<'_>, func: Py<PyFunction>) -> PyResult<PyObject> {
+    let next_frame_func: Py<PyAny> = PyModule::from_code(
+        py,
+        r#"
+from functools import wraps
 
-    PyCFunction::new_closure(py, None, None, f)
+import shinqlx
+
+
+def next_frame(func):
+    @wraps(func)
+    def f(*args, **kwargs):
+        shinqlx.next_frame_tasks.put((func, args, kwargs), block=False)
+
+    return f
+        "#,
+        "",
+        "",
+    )?
+    .getattr("next_frame")?
+    .into();
+
+    next_frame_func.call1(py, (func.into_py(py),))
+}
+
+/// Delay a function call a certain amount of time.
+///
+///     .. note::
+///         It cannot guarantee you that it will be called right as the timer
+///         expires, but unless some plugin is for some reason blocking, then
+///         you can expect it to be called practically as soon as it expires.
+#[pyfunction]
+fn delay(py: Python<'_>, time: f32) -> PyResult<PyObject> {
+    let delay_func: Py<PyAny> = PyModule::from_code(
+        py,
+        r#"
+from functools import wraps
+
+import shinqlx
+
+
+def delay(time):
+    def wrap(func):
+        @wraps(func)
+        def f(*args, **kwargs):
+            shinqlx.frame_tasks.enter(time, 1, func, args, kwargs)
+
+        return f
+
+    return wrap
+    "#,
+        "",
+        "",
+    )?
+    .getattr("delay")?
+    .into();
+
+    delay_func.call1(py, (time.into_py(py),))
+}
+
+/// Starts a thread with the function passed as its target. If a function decorated
+/// with this is called within a function also decorated, it will **not** create a second
+/// thread unless told to do so with the *force* keyword.
+#[pyfunction]
+#[pyo3(signature = (func, force=false))]
+fn thread(py: Python<'_>, func: Py<PyFunction>, force: bool) -> PyResult<PyObject> {
+    let thread_func: Py<PyAny> = PyModule::from_code(
+        py,
+        r#"
+import threading
+from functools import wraps
+
+import shinqlx
+
+
+def thread(func, force=False):
+    @wraps(func)
+    def f(*args, **kwargs):
+        if not force and threading.current_thread().name.endswith(shinqlx._thread_name):
+            func(*args, **kwargs)
+        else:
+            name = f"{func.__name__}-{str(shinqlx._thread_count)}-{shinqlx._thread_name}"
+            t = threading.Thread(
+                target=func, name=name, args=args, kwargs=kwargs, daemon=True
+            )
+            t.start()
+            shinqlx._thread_count += 1
+
+            return t
+
+    return f
+        "#,
+        "",
+        "",
+    )?
+    .getattr("thread")?
+    .into();
+
+    thread_func.call1(py, (func.into_py(py), force.into_py(py)))
 }
 
 #[pymodule]
@@ -324,7 +408,13 @@ fn pyshinqlx_module(py: Python<'_>, m: &PyModule) -> PyResult<()> {
     m.add("_map_subtitle1", "")?;
     m.add("_map_subtitle2", "")?;
     m.add_function(wrap_pyfunction!(set_map_subtitles, m)?)?;
+
     m.add_function(wrap_pyfunction!(next_frame, m)?)?;
+    m.add_function(wrap_pyfunction!(delay, m)?)?;
+
+    m.add("_thread_count", 0)?;
+    m.add("_thread_name", "shinqlxthread")?;
+    m.add_function(wrap_pyfunction!(thread, m)?)?;
 
     m.add_class::<PlayerInfo>()?;
     m.add_class::<PlayerState>()?;
