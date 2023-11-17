@@ -10,7 +10,6 @@ import logging
 import shlex
 import sys
 from contextlib import suppress
-from functools import wraps
 
 from logging.handlers import RotatingFileHandler
 
@@ -236,22 +235,6 @@ _stats = None
 def stats_listener():
     """Returns the :class:`shinqlx.StatsListener` instance used to listen for stats."""
     return _stats
-
-
-def set_cvar_once(name, value, flags=0):
-    if shinqlx.get_cvar(name) is None:
-        shinqlx.set_cvar(name, value, flags)
-        return True
-
-    return False
-
-
-def set_cvar_limit_once(name, value, minimum, maximum, flags=0):
-    if shinqlx.get_cvar(name) is None:
-        shinqlx.set_cvar_limit(name, value, minimum, maximum, flags)
-        return True
-
-    return False
 
 
 def set_plugins_version(path) -> None:
