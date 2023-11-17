@@ -141,6 +141,8 @@ try:
         _thread_count,
         Game,
         NonexistentGameError,
+        PluginLoadError,
+        PluginUnloadError,
         _map_title,
         _map_subtitle1,
         _map_subtitle2,
@@ -279,14 +281,14 @@ except ModuleNotFoundError:
         _thread_count,
         Game,
         NonexistentGameError,
+        PluginLoadError,
+        PluginUnloadError,
         _map_title,
         _map_subtitle1,
         _map_subtitle2,
     )
 
 from ._core import (
-    PluginLoadError,
-    PluginUnloadError,
     TEAMS,
     GAMETYPES,
     GAMETYPES_SHORT,
@@ -554,9 +556,11 @@ __all__ = [
     "thread",
     "_thread_name",
     "_thread_count",
-    # _core
     "PluginLoadError",
     "PluginUnloadError",
+    "Game",
+    "NonexistentGameError",
+    # _core
     "TEAMS",
     "GAMETYPES",
     "GAMETYPES_SHORT",
@@ -579,10 +583,8 @@ __all__ = [
     "initialize_cvars",
     "initialize",
     "late_init",
-    # _plugin, _game
+    # _plugin
     "Plugin",
-    "Game",
-    "NonexistentGameError",
     # _player
     "Player",
     "NonexistentPlayerError",

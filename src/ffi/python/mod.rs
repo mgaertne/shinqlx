@@ -28,9 +28,10 @@ use core::sync::atomic::{AtomicBool, AtomicU64, Ordering};
 use itertools::{Itertools, Tuples};
 use log::*;
 use once_cell::sync::Lazy;
+use pyo3::exceptions::PyException;
 use pyo3::prelude::*;
 use pyo3::types::PyFunction;
-use pyo3::{append_to_inittab, prepare_freethreaded_python};
+use pyo3::{append_to_inittab, create_exception, prepare_freethreaded_python};
 use swap_arc::SwapArcOption;
 
 pub(crate) static ALLOW_FREE_CLIENT: AtomicU64 = AtomicU64::new(0);
@@ -84,6 +85,9 @@ enum PythonPriorities {
     PRI_LOW,
     PRI_LOWEST,
 }
+
+create_exception!(pyshinqlx_module, PluginLoadError, PyException);
+create_exception!(pyshinqlx_module, PluginUnloadError, PyException);
 
 #[pyfunction]
 #[pyo3(pass_module)]
@@ -430,6 +434,8 @@ fn pyshinqlx_module(py: Python<'_>, m: &PyModule) -> PyResult<()> {
         "NonexistentGameError",
         py.get_type::<NonexistentGameError>(),
     )?;
+    m.add("PluginLoadError", py.get_type::<PluginLoadError>())?;
+    m.add("PluginUnloadError", py.get_type::<PluginUnloadError>())?;
 
     Ok(())
 }
