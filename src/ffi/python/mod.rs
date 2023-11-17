@@ -291,6 +291,8 @@ fn pyshinqlx_module(py: Python<'_>, m: &PyModule) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(pyshinqlx_dev_print_items, m)?)?;
     m.add_function(wrap_pyfunction!(pyshinqlx_force_weapon_respawn_time, m)?)?;
     m.add_function(wrap_pyfunction!(pyshinqlx_get_entity_targets, m)?)?;
+    m.add_function(wrap_pyfunction!(pyshinqlx_set_cvar_once, m)?)?;
+    m.add_function(wrap_pyfunction!(pyshinqlx_set_cvar_limit_once, m)?)?;
 
     m.add("__version__", env!("SHINQLX_VERSION"))?;
     m.add("DEBUG", cfg!(debug_assertions))?;
