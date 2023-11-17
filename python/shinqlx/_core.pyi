@@ -13,9 +13,6 @@ class ExceptHookArgs(Protocol):
     exc_type: Type[BaseException]
     exc_value: BaseException
 
-class PluginLoadError(Exception): ...
-class PluginUnloadError(Exception): ...
-
 TEAMS: dict[int, str]
 GAMETYPES: dict[int, str]
 GAMETYPES_SHORT: dict[int, str]

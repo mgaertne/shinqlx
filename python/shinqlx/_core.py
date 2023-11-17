@@ -290,14 +290,6 @@ def set_plugins_version(path) -> None:
 _modules = {}
 
 
-class PluginLoadError(Exception):
-    pass
-
-
-class PluginUnloadError(Exception):
-    pass
-
-
 def load_preset_plugins():
     plugins_temp = []
     plugins_cvar = shinqlx.Plugin.get_cvar("qlx_plugins", list)

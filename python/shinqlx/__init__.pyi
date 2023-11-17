@@ -133,6 +133,8 @@ from ._shinqlx import (
     thread,
     Game,
     NonexistentGameError,
+    PluginLoadError,
+    PluginUnloadError,
     _map_title,
     _map_subtitle1,
     _map_subtitle2,
@@ -140,8 +142,6 @@ from ._shinqlx import (
     _thread_count,
 )
 from ._core import (
-    PluginLoadError,
-    PluginUnloadError,
     TEAMS,
     GAMETYPES,
     GAMETYPES_SHORT,
@@ -436,9 +436,11 @@ __all__ = [
     "next_frame",
     "delay",
     "thread",
-    # _core
+    "Game",
+    "NonexistentGameError",
     "PluginLoadError",
     "PluginUnloadError",
+    # _core
     "TEAMS",
     "GAMETYPES",
     "GAMETYPES_SHORT",
@@ -497,9 +499,6 @@ __all__ = [
     "DamageEntry",
     "SingleWeaponStatsEntry",
     "StatsData",
-    # _game
-    "Game",
-    "NonexistentGameError",
     # _player
     "Player",
     "NonexistentPlayerError",
