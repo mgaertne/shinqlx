@@ -301,69 +301,6 @@ def set_plugins_version(path) -> None:
 
 
 # ====================================================================
-#                              DECORATORS
-# ====================================================================
-def delay(time):
-    """Delay a function call a certain amount of time.
-
-    .. note::
-        It cannot guarantee you that it will be called right as the timer
-        expires, but unless some plugin is for some reason blocking, then
-        you can expect it to be called practically as soon as it expires.
-
-    :param: func: The function to be called.
-    :type: func: callable
-    :param: time: The number of seconds before the function should be called.
-    :type: time: float
-
-    """
-
-    def wrap(func):
-        @wraps(func)
-        def f(*args, **kwargs):
-            shinqlx.frame_tasks.enter(time, 1, func, args, kwargs)
-
-        return f
-
-    return wrap
-
-
-_thread_count = 0
-_thread_name = "shinqlxthread"
-
-
-def thread(func, force=False):
-    """Starts a thread with the function passed as its target. If a function decorated
-    with this is called within a function also decorated, it will **not** create a second
-    thread unless told to do so with the *force* keyword.
-
-    :param: func: The function to be run in a thread.
-    :type: func: callable
-    :param: force: Force it to create a new thread even if already in one created by this decorator.
-    :type: force: bool
-    :returns: threading.Thread
-
-    """
-
-    @wraps(func)
-    def f(*args, **kwargs):
-        if not force and threading.current_thread().name.endswith(_thread_name):
-            func(*args, **kwargs)
-        else:
-            global _thread_count
-            name = func.__name__ + f"-{str(_thread_count)}-{_thread_name}"
-            t = threading.Thread(
-                target=func, name=name, args=args, kwargs=kwargs, daemon=True
-            )
-            t.start()
-            _thread_count += 1
-
-            return t
-
-    return f
-
-
-# ====================================================================
 #                       CONFIG AND PLUGIN LOADING
 # ====================================================================
 # We need to keep track of module instances for use with importlib.reload.
