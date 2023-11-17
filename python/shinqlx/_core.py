@@ -14,6 +14,7 @@ from contextlib import suppress
 from logging.handlers import RotatingFileHandler
 
 import shinqlx
+from shinqlx import PluginLoadError, PluginUnloadError
 import shinqlx.database
 
 if sys.version_info < (3, 7):
