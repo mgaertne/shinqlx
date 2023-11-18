@@ -30,7 +30,7 @@ use log::*;
 use once_cell::sync::Lazy;
 use pyo3::exceptions::PyException;
 use pyo3::prelude::*;
-use pyo3::types::PyFunction;
+use pyo3::types::{PyDict, PyFunction, PyTuple};
 use pyo3::{append_to_inittab, create_exception, prepare_freethreaded_python};
 use swap_arc::SwapArcOption;
 
@@ -327,6 +327,50 @@ fn pyshinqlx_module(py: Python<'_>, m: &PyModule) -> PyResult<()> {
     m.add("CVAR_CHEAT", cvar_flags::CVAR_CHEAT as i32)?;
     m.add("CVAR_NORESTART", cvar_flags::CVAR_NORESTART as i32)?;
 
+    // Game types
+    m.add(
+        "GAMETYPES",
+        PyDict::from_sequence(
+            py,
+            [
+                [0.into_py(py), "Free for All".into_py(py)],
+                [1.into_py(py), "Duel".into_py(py)],
+                [2.into_py(py), "Race".into_py(py)],
+                [3.into_py(py), "Team Deathmatch".into_py(py)],
+                [4.into_py(py), "Clan Arena".into_py(py)],
+                [5.into_py(py), "Capture the Flag".into_py(py)],
+                [6.into_py(py), "One Flag".into_py(py)],
+                [8.into_py(py), "Harvester".into_py(py)],
+                [9.into_py(py), "Freeze Tag".into_py(py)],
+                [10.into_py(py), "Domination".into_py(py)],
+                [11.into_py(py), "Attack and Defend".into_py(py)],
+                [12.into_py(py), "Red Rover".into_py(py)],
+            ]
+            .into_py(py),
+        )?,
+    )?;
+    m.add(
+        "GAMETYPES_SHORT",
+        PyDict::from_sequence(
+            py,
+            [
+                [0.into_py(py), "ffa".into_py(py)],
+                [1.into_py(py), "duel".into_py(py)],
+                [2.into_py(py), "race".into_py(py)],
+                [3.into_py(py), "tdm".into_py(py)],
+                [4.into_py(py), "ca".into_py(py)],
+                [5.into_py(py), "ctf".into_py(py)],
+                [6.into_py(py), "1f".into_py(py)],
+                [8.into_py(py), "har".into_py(py)],
+                [9.into_py(py), "ft".into_py(py)],
+                [10.into_py(py), "dom".into_py(py)],
+                [11.into_py(py), "ad".into_py(py)],
+                [12.into_py(py), "rr".into_py(py)],
+            ]
+            .into_py(py),
+        )?,
+    )?;
+
     // Privileges.
     m.add("PRIV_NONE", privileges_t::PRIV_NONE as i32)?;
     m.add("PRIV_MOD", privileges_t::PRIV_MOD as i32)?;
@@ -340,12 +384,57 @@ fn pyshinqlx_module(py: Python<'_>, m: &PyModule) -> PyResult<()> {
     m.add("CS_CONNECTED", clientState_t::CS_CONNECTED as i32)?;
     m.add("CS_PRIMED", clientState_t::CS_PRIMED as i32)?;
     m.add("CS_ACTIVE", clientState_t::CS_ACTIVE as i32)?;
+    m.add(
+        "CONNECTION_STATES",
+        PyDict::from_sequence(
+            py,
+            [
+                [
+                    (clientState_t::CS_FREE as i32).into_py(py),
+                    "free".into_py(py),
+                ],
+                [
+                    (clientState_t::CS_ZOMBIE as i32).into_py(py),
+                    "zombie".into_py(py),
+                ],
+                [
+                    (clientState_t::CS_CONNECTED as i32).into_py(py),
+                    "connected".into_py(py),
+                ],
+                [
+                    (clientState_t::CS_PRIMED as i32).into_py(py),
+                    "primed".into_py(py),
+                ],
+                [
+                    (clientState_t::CS_ACTIVE as i32).into_py(py),
+                    "active".into_py(py),
+                ],
+            ]
+            .into_py(py),
+        )?,
+    )?;
 
     // Teams.
     m.add("TEAM_FREE", team_t::TEAM_FREE as i32)?;
     m.add("TEAM_RED", team_t::TEAM_RED as i32)?;
     m.add("TEAM_BLUE", team_t::TEAM_BLUE as i32)?;
     m.add("TEAM_SPECTATOR", team_t::TEAM_SPECTATOR as i32)?;
+    m.add(
+        "TEAMS",
+        PyDict::from_sequence(
+            py,
+            [
+                [(team_t::TEAM_FREE as i32).into_py(py), "free".into_py(py)],
+                [(team_t::TEAM_RED as i32).into_py(py), "red".into_py(py)],
+                [(team_t::TEAM_BLUE as i32).into_py(py), "blue".into_py(py)],
+                [
+                    (team_t::TEAM_SPECTATOR as i32).into_py(py),
+                    "spectator".into_py(py),
+                ],
+            ]
+            .into_py(py),
+        )?,
+    )?;
 
     // Means of death.
     m.add("MOD_UNKNOWN", meansOfDeath_t::MOD_UNKNOWN as i32)?;
@@ -401,6 +490,53 @@ fn pyshinqlx_module(py: Python<'_>, m: &PyModule) -> PyResult<()> {
         meansOfDeath_t::MOD_RAILGUN_HEADSHOT as i32,
     )?;
 
+    // Weapons
+    m.add(
+        "WEAPONS",
+        PyDict::from_sequence(
+            py,
+            [
+                [(weapon_t::WP_GAUNTLET as i32).into_py(py), "g".into_py(py)],
+                [
+                    (weapon_t::WP_MACHINEGUN as i32).into_py(py),
+                    "mg".into_py(py),
+                ],
+                [(weapon_t::WP_SHOTGUN as i32).into_py(py), "sg".into_py(py)],
+                [
+                    (weapon_t::WP_GRENADE_LAUNCHER as i32).into_py(py),
+                    "gl".into_py(py),
+                ],
+                [
+                    (weapon_t::WP_ROCKET_LAUNCHER as i32).into_py(py),
+                    "rl".into_py(py),
+                ],
+                [
+                    (weapon_t::WP_LIGHTNING as i32).into_py(py),
+                    "lg".into_py(py),
+                ],
+                [(weapon_t::WP_RAILGUN as i32).into_py(py), "rg".into_py(py)],
+                [
+                    (weapon_t::WP_PLASMAGUN as i32).into_py(py),
+                    "pg".into_py(py),
+                ],
+                [(weapon_t::WP_BFG as i32).into_py(py), "bfg".into_py(py)],
+                [
+                    (weapon_t::WP_GRAPPLING_HOOK as i32).into_py(py),
+                    "gh".into_py(py),
+                ],
+                [(weapon_t::WP_NAILGUN as i32).into_py(py), "ng".into_py(py)],
+                [
+                    (weapon_t::WP_PROX_LAUNCHER as i32).into_py(py),
+                    "pl".into_py(py),
+                ],
+                [(weapon_t::WP_CHAINGUN as i32).into_py(py), "cg".into_py(py)],
+                [(weapon_t::WP_HMG as i32).into_py(py), "hmg".into_py(py)],
+                [(weapon_t::WP_HANDS as i32).into_py(py), "hands".into_py(py)],
+            ]
+            .into_py(py),
+        )?,
+    )?;
+
     m.add("DAMAGE_RADIUS", DAMAGE_RADIUS as i32)?;
     m.add("DAMAGE_NO_ARMOR", DAMAGE_NO_ARMOR as i32)?;
     m.add("DAMAGE_NO_KNOCKBACK", DAMAGE_NO_KNOCKBACK as i32)?;
@@ -408,6 +544,25 @@ fn pyshinqlx_module(py: Python<'_>, m: &PyModule) -> PyResult<()> {
     m.add(
         "DAMAGE_NO_TEAM_PROTECTION",
         DAMAGE_NO_TEAM_PROTECTION as i32,
+    )?;
+
+    m.add(
+        "DEFAULT_PLUGINS",
+        PyTuple::new(
+            py,
+            [
+                "plugin_manager",
+                "essentials",
+                "motd",
+                "permission",
+                "ban",
+                "silence",
+                "clan",
+                "names",
+                "log",
+                "workshop",
+            ],
+        ),
     )?;
 
     m.add("_map_title", "")?;

@@ -13,13 +13,6 @@ class ExceptHookArgs(Protocol):
     exc_type: Type[BaseException]
     exc_value: BaseException
 
-TEAMS: dict[int, str]
-GAMETYPES: dict[int, str]
-GAMETYPES_SHORT: dict[int, str]
-CONNECTION_STATES: dict[int, str]
-WEAPONS: dict[int, str]
-DEFAULT_PLUGINS: tuple[str, ...]
-
 _init_time: datetime
 _stats: StatsListener
 _modules: dict[str, ModuleType]

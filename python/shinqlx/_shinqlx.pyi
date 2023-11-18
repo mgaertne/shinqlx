@@ -39,6 +39,10 @@ CVAR_TEMP: int
 CVAR_CHEAT: int
 CVAR_NORESTART: int
 
+# game types
+GAMETYPES: dict[int, str]
+GAMETYPES_SHORT: dict[int, str]
+
 # Privileges
 PRIV_NONE: int
 PRIV_MOD: int
@@ -52,12 +56,14 @@ CS_ZOMBIE: int
 CS_CONNECTED: int
 CS_PRIMED: int
 CS_ACTIVE: int
+CONNECTION_STATES: dict[int, str]
 
 # Teams
 TEAM_FREE: int
 TEAM_RED: int
 TEAM_BLUE: int
 TEAM_SPECTATOR: int
+TEAMS: dict[int, str]
 
 # Means of death
 MOD_UNKNOWN: int
@@ -95,12 +101,17 @@ MOD_LIGHTNING_DISCHARGE: int
 MOD_HMG: int
 MOD_RAILGUN_HEADSHOT: int
 
+# weapons
+WEAPONS: dict[int, str]
+
 # damage flags
 DAMAGE_RADIUS: int
 DAMAGE_NO_ARMOR: int
 DAMAGE_NO_KNOCKBACK: int
 DAMAGE_NO_PROTECTION: int
 DAMAGE_NO_TEAM_PROTECTION: int
+
+DEFAULT_PLUGINS: tuple[str, ...]
 
 # classes
 class Vector3(tuple):
@@ -230,11 +241,11 @@ def force_weapon_respawn_time(_respawn_time: int) -> bool: ...
 def get_targetting_entities(_entity_id: int) -> list[int]: ...
 def set_cvar_once(name: str, value: str, flags: int = ...) -> bool: ...
 def set_cvar_limit_once(
-        name: str,
-        value: int | float,
-        minimum: int | float,
-        maximum: int | float,
-        flags: int = ...,
+    name: str,
+    value: int | float,
+    minimum: int | float,
+    maximum: int | float,
+    flags: int = ...,
 ) -> bool: ...
 def set_map_subtitles() -> None: ...
 def next_frame(func: Callable) -> Callable: ...
