@@ -23,6 +23,7 @@ pub(crate) use weapons::Weapons;
 
 use crate::prelude::*;
 
+use crate::_INIT_TIME;
 use alloc::vec::IntoIter;
 use core::sync::atomic::{AtomicBool, AtomicU64, Ordering};
 use itertools::{Itertools, Tuples};
@@ -30,7 +31,7 @@ use log::*;
 use once_cell::sync::Lazy;
 use pyo3::exceptions::PyException;
 use pyo3::prelude::*;
-use pyo3::types::{PyDict, PyFunction, PyTuple};
+use pyo3::types::{PyDelta, PyDict, PyFunction, PyTuple};
 use pyo3::{append_to_inittab, create_exception, prepare_freethreaded_python};
 use swap_arc::SwapArcOption;
 
@@ -240,6 +241,77 @@ def thread(func, force=False):
     .into();
 
     thread_func.call1(py, (func.into_py(py), force.into_py(py)))
+}
+
+/// Returns a :class:`datetime.timedelta` instance of the time since initialized.
+#[pyfunction]
+fn uptime(py: Python<'_>) -> PyResult<&PyDelta> {
+    let elapsed = _INIT_TIME.elapsed();
+    let elapsed_days: i32 = (elapsed.as_secs() / (24 * 60 * 60))
+        .try_into()
+        .unwrap_or_default();
+    let elapsed_seconds: i32 = (elapsed.as_secs() % (24 * 60 * 60))
+        .try_into()
+        .unwrap_or_default();
+    let elapsed_microseconds: i32 = elapsed.subsec_micros().try_into().unwrap_or_default();
+    PyDelta::new(
+        py,
+        elapsed_days,
+        elapsed_seconds,
+        elapsed_microseconds,
+        false,
+    )
+}
+
+/// Returns the SteamID64 of the owner. This is set in the config.
+#[pyfunction]
+fn owner(py: Python<'_>) -> PyResult<Option<i64>> {
+    let Ok(Some(owner_cvar)) = pyshinqlx_get_cvar(py, "qlx_owner") else {
+        error!("Failed to parse the Owner Steam ID. Make sure it's in SteamID64 format.");
+        return Ok(None);
+    };
+
+    let Ok(steam_id) = owner_cvar.parse::<i64>() else {
+        error!("Failed to parse the Owner Steam ID. Make sure it's in SteamID64 format.");
+        return Ok(None);
+    };
+
+    if steam_id == -1 {
+        error!("Failed to parse the Owner Steam ID. Make sure it's in SteamID64 format.");
+        return Ok(None);
+    }
+
+    Ok(Some(steam_id))
+}
+
+static DEFAULT_PLUGINS: [&str; 10] = [
+    "plugin_manager",
+    "essentials",
+    "motd",
+    "permission",
+    "ban",
+    "silence",
+    "clan",
+    "names",
+    "log",
+    "workshop",
+];
+
+#[pyfunction]
+fn initialize_cvars(py: Python<'_>) -> PyResult<()> {
+    pyshinqlx_set_cvar_once(py, "qlx_owner", "-1", 0)?;
+    pyshinqlx_set_cvar_once(py, "qlx_plugins", DEFAULT_PLUGINS.join(", ").as_str(), 0)?;
+    pyshinqlx_set_cvar_once(py, "qlx_pluginsPath", "shinqlx-plugins", 0)?;
+    pyshinqlx_set_cvar_once(py, "qlx_database", "Redis", 0)?;
+    pyshinqlx_set_cvar_once(py, "qlx_commandPrefix", "!", 0)?;
+    pyshinqlx_set_cvar_once(py, "qlx_logs", "2", 0)?;
+    pyshinqlx_set_cvar_once(py, "qlx_logsSize", 3_000_000.to_string().as_str(), 0)?;
+
+    pyshinqlx_set_cvar_once(py, "qlx_redisAddress", "127.0.0.1", 0)?;
+    pyshinqlx_set_cvar_once(py, "qlx_redisDatabase", "0", 0)?;
+    pyshinqlx_set_cvar_once(py, "qlx_redisUnixSocket", "0", 0)?;
+    pyshinqlx_set_cvar_once(py, "qlx_redisPassword", "", 0)?;
+    Ok(())
 }
 
 #[pymodule]
@@ -546,24 +618,7 @@ fn pyshinqlx_module(py: Python<'_>, m: &PyModule) -> PyResult<()> {
         DAMAGE_NO_TEAM_PROTECTION as i32,
     )?;
 
-    m.add(
-        "DEFAULT_PLUGINS",
-        PyTuple::new(
-            py,
-            [
-                "plugin_manager",
-                "essentials",
-                "motd",
-                "permission",
-                "ban",
-                "silence",
-                "clan",
-                "names",
-                "log",
-                "workshop",
-            ],
-        ),
-    )?;
+    m.add("DEFAULT_PLUGINS", PyTuple::new(py, DEFAULT_PLUGINS))?;
 
     m.add("_map_title", "")?;
     m.add("_map_subtitle1", "")?;
@@ -576,6 +631,10 @@ fn pyshinqlx_module(py: Python<'_>, m: &PyModule) -> PyResult<()> {
     m.add("_thread_count", 0)?;
     m.add("_thread_name", "shinqlxthread")?;
     m.add_function(wrap_pyfunction!(thread, m)?)?;
+    m.add_function(wrap_pyfunction!(initialize_cvars, m)?)?;
+
+    m.add_function(wrap_pyfunction!(uptime, m)?)?;
+    m.add_function(wrap_pyfunction!(owner, m)?)?;
 
     m.add_class::<PlayerInfo>()?;
     m.add_class::<PlayerState>()?;
