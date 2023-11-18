@@ -20,75 +20,6 @@ import shinqlx.database
 if sys.version_info < (3, 7):
     raise AssertionError("Only python 3.7 and later is supported by shinqlx")
 
-# Team number -> string
-TEAMS = {0: "free", 1: "red", 2: "blue", 3: "spectator"}
-
-# Game type number -> string
-GAMETYPES = {
-    0: "Free for All",
-    1: "Duel",
-    2: "Race",
-    3: "Team Deathmatch",
-    4: "Clan Arena",
-    5: "Capture the Flag",
-    6: "One Flag",
-    8: "Harvester",
-    9: "Freeze Tag",
-    10: "Domination",
-    11: "Attack and Defend",
-    12: "Red Rover",
-}
-
-# Game type number -> short string
-GAMETYPES_SHORT = {
-    0: "ffa",
-    1: "duel",
-    2: "race",
-    3: "tdm",
-    4: "ca",
-    5: "ctf",
-    6: "1f",
-    8: "har",
-    9: "ft",
-    10: "dom",
-    11: "ad",
-    12: "rr",
-}
-
-# Connection states.
-CONNECTION_STATES = {0: "free", 1: "zombie", 2: "connected", 3: "primed", 4: "active"}
-
-WEAPONS = {
-    1: "g",
-    2: "mg",
-    3: "sg",
-    4: "gl",
-    5: "rl",
-    6: "lg",
-    7: "rg",
-    8: "pg",
-    9: "bfg",
-    10: "gh",
-    11: "ng",
-    12: "pl",
-    13: "cg",
-    14: "hmg",
-    15: "hands",
-}
-
-DEFAULT_PLUGINS = (
-    "plugin_manager",
-    "essentials",
-    "motd",
-    "permission",
-    "ban",
-    "silence",
-    "clan",
-    "names",
-    "log",
-    "workshop",
-)
-
 
 # ====================================================================
 #                               HELPERS
@@ -298,7 +229,7 @@ def load_preset_plugins():
         return
     for p in plugins_cvar:
         if p == "DEFAULT":
-            plugins_temp += list(DEFAULT_PLUGINS)
+            plugins_temp += list(shinqlx.DEFAULT_PLUGINS)
         else:
             plugins_temp.append(p)
 
@@ -403,7 +334,7 @@ def reload_plugin(plugin):
 def initialize_cvars():
     # Core
     shinqlx.set_cvar_once("qlx_owner", "-1")
-    shinqlx.set_cvar_once("qlx_plugins", ", ".join(DEFAULT_PLUGINS))
+    shinqlx.set_cvar_once("qlx_plugins", ", ".join(shinqlx.DEFAULT_PLUGINS))
     shinqlx.set_cvar_once("qlx_pluginsPath", "shinqlx-plugins")
     shinqlx.set_cvar_once("qlx_database", "Redis")
     shinqlx.set_cvar_once("qlx_commandPrefix", "!")
