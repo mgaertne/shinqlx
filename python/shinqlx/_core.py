@@ -134,33 +134,6 @@ def threading_excepthook(args):
     handle_exception(args.exc_type, args.exc_value, args.exc_traceback)
 
 
-_init_time: datetime.datetime = datetime.datetime.now()
-
-
-def uptime():
-    """Returns a :class:`datetime.timedelta` instance of the time since initialized."""
-    return datetime.datetime.now() - _init_time
-
-
-def owner():
-    """Returns the SteamID64 of the owner. This is set in the config."""
-    # noinspection PyBroadException
-    try:
-        owner_cvar = shinqlx.get_cvar("qlx_owner")
-        if owner_cvar is None:
-            raise RuntimeError
-        sid = int(owner_cvar)
-        if sid == -1:
-            raise RuntimeError
-        return sid
-    except:  # noqa: E722
-        logger = shinqlx.get_logger()
-        logger.error(
-            "Failed to parse the Owner Steam ID. Make sure it's in SteamID64 format."
-        )
-    return None
-
-
 _stats = None
 
 
@@ -329,22 +302,6 @@ def reload_plugin(plugin):
     except:
         log_exception(plugin)
         raise
-
-
-def initialize_cvars():
-    # Core
-    shinqlx.set_cvar_once("qlx_owner", "-1")
-    shinqlx.set_cvar_once("qlx_plugins", ", ".join(shinqlx.DEFAULT_PLUGINS))
-    shinqlx.set_cvar_once("qlx_pluginsPath", "shinqlx-plugins")
-    shinqlx.set_cvar_once("qlx_database", "Redis")
-    shinqlx.set_cvar_once("qlx_commandPrefix", "!")
-    shinqlx.set_cvar_once("qlx_logs", "2")
-    shinqlx.set_cvar_once("qlx_logsSize", str(3 * 10**6))  # 3 MB
-    # Redis
-    shinqlx.set_cvar_once("qlx_redisAddress", "127.0.0.1")
-    shinqlx.set_cvar_once("qlx_redisDatabase", "0")
-    shinqlx.set_cvar_once("qlx_redisUnixSocket", "0")
-    shinqlx.set_cvar_once("qlx_redisPassword", "")
 
 
 # ====================================================================
