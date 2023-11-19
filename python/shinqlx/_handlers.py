@@ -240,7 +240,7 @@ def handle_frame():
         return True
 
     while not next_frame_tasks.empty():
-        func, args, kwargs = next_frame_tasks.get(block=False)
+        func, args, kwargs = next_frame_tasks.get_nowait()
         frame_tasks.enter(0, 1, func, args, kwargs)
 
 

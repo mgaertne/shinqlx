@@ -264,7 +264,7 @@ impl Game {
             return Ok("in_progress".into());
         }
 
-        warn!("Got unknown game state: {}", game_state);
+        warn!(target: "shinqlx", "Got unknown game state: {}", game_state);
 
         Ok(game_state)
     }
