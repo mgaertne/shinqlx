@@ -30,7 +30,7 @@ use log::*;
 use once_cell::sync::Lazy;
 use pyo3::exceptions::PyException;
 use pyo3::prelude::*;
-use pyo3::types::{IntoPyDict, PyDelta, PyFunction, PyTuple};
+use pyo3::types::{IntoPyDict, PyDelta, PyDict, PyFunction, PyTuple};
 use pyo3::{append_to_inittab, create_exception, prepare_freethreaded_python};
 use swap_arc::SwapArcOption;
 
@@ -126,18 +126,30 @@ fn set_map_subtitles(module: &PyModule) -> PyResult<()> {
     Ok(())
 }
 
-fn parse_variables(varstr: String) -> Vec<(String, String)> {
+/// Parses strings of key-value pairs delimited by "\\" and puts
+/// them into a dictionary.
+#[pyfunction]
+#[pyo3(signature = (varstr, ordered=false))]
+fn parse_variables(
+    py: Python<'_>,
+    varstr: String,
+    #[allow(unused_variables)] ordered: bool,
+) -> &PyDict {
     let Some(configstring_vec): Option<Vec<String>> = varstr
         .strip_prefix('\\')
         .map(|value| value.split('\\').map(|value| value.to_string()).collect())
     else {
-        return vec![];
+        return PyDict::new(py);
     };
 
     if configstring_vec.len() % 2 == 1 {
         warn!(target: "shinqlx", "Uneven number of keys and values: {}", varstr);
     }
-    configstring_vec.into_iter().tuples().collect()
+    configstring_vec
+        .into_iter()
+        .tuples()
+        .collect::<Vec<(String, String)>>()
+        .into_py_dict(py)
 }
 
 #[pyfunction]
@@ -569,6 +581,7 @@ fn pyshinqlx_module(py: Python<'_>, m: &PyModule) -> PyResult<()> {
     m.add("_map_subtitle1", "")?;
     m.add("_map_subtitle2", "")?;
     m.add_function(wrap_pyfunction!(set_map_subtitles, m)?)?;
+    m.add_function(wrap_pyfunction!(parse_variables, m)?)?;
 
     m.add_function(wrap_pyfunction!(next_frame, m)?)?;
     m.add_function(wrap_pyfunction!(delay, m)?)?;

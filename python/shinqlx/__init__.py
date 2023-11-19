@@ -140,6 +140,7 @@ try:
         set_cvar_once,
         set_cvar_limit_once,
         set_map_subtitles,
+        parse_variables,
         next_frame,
         delay,
         thread,
@@ -294,6 +295,7 @@ except ModuleNotFoundError:
         set_cvar_once,
         set_cvar_limit_once,
         set_map_subtitles,
+        parse_variables,
         next_frame,
         delay,
         thread,
@@ -312,7 +314,6 @@ except ModuleNotFoundError:
     )
 
 from ._core import (
-    parse_variables,
     get_logger,
     log_exception,
     handle_exception,
@@ -571,6 +572,7 @@ __all__ = [
     "set_cvar_once",
     "set_cvar_limit_once",
     "set_map_subtitles",
+    "parse_variables",
     "next_frame",
     "delay",
     "thread",
@@ -584,7 +586,6 @@ __all__ = [
     "Game",
     "NonexistentGameError",
     # _core
-    "parse_variables",
     "get_logger",
     "log_exception",
     "handle_exception",

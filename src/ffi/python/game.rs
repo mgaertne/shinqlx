@@ -11,7 +11,7 @@ use log::*;
 use pyo3::create_exception;
 use pyo3::exceptions::{PyException, PyKeyError, PyValueError};
 use pyo3::prelude::*;
-use pyo3::types::{IntoPyDict, PyDict, PyType};
+use pyo3::types::{PyDict, PyType};
 
 create_exception!(game_module, NonexistentGameError, PyException);
 
@@ -126,9 +126,7 @@ impl Game {
             ));
         }
 
-        Ok(parse_variables(configstring)
-            .iter()
-            .any(|(key, _value)| *key == item))
+        parse_variables(py, configstring, false).contains(item)
     }
 
     fn __getitem__(&mut self, py: Python<'_>, item: String) -> PyResult<String> {
@@ -140,12 +138,11 @@ impl Game {
             ));
         }
 
-        let opt_value = parse_variables(configstring)
-            .into_iter()
-            .filter(|(key, _value)| *key == item)
-            .map(|(_key, value)| value)
-            .nth(0);
-        opt_value.map_or_else(|| Err(PyKeyError::new_err(format!("'{}'", item))), Ok)
+        let opt_value = parse_variables(py, configstring, false).get_item(&item)?;
+        opt_value.map_or_else(
+            || Err(PyKeyError::new_err(format!("'{}'", &item))),
+            |value| value.extract::<String>(),
+        )
     }
 
     /// A dictionary of unprocessed cvars. Use attributes whenever possible, but since some cvars
@@ -160,8 +157,7 @@ impl Game {
             ));
         }
 
-        let result = parse_variables(configstring);
-        Ok(result.into_iter().into_py_dict(py))
+        Ok(parse_variables(py, configstring, false))
     }
 
     #[getter]

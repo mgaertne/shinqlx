@@ -24,33 +24,6 @@ if sys.version_info < (3, 7):
 # ====================================================================
 #                               HELPERS
 # ====================================================================
-def parse_variables(varstr, ordered=False):
-    """
-    Parses strings of key-value pairs delimited by "\\" and puts
-    them into a dictionary.
-
-    :param: varstr: The string with variables.
-    :type: varstr: str
-    :param: ordered: Whether it should use :class:`collections.OrderedDict` or not.
-    :type: ordered: bool
-    :returns: dict -- A dictionary with the variables added as key-value pairs.
-    """
-    res = collections.OrderedDict() if ordered else {}  # type: ignore
-    if not varstr.strip():
-        return res
-
-    _vars = varstr.lstrip("\\").split("\\")
-    try:
-        for i in range(0, len(_vars), 2):
-            res[_vars[i]] = _vars[i + 1]
-    except IndexError:
-        # Log and return incomplete dict.
-        logger = shinqlx.get_logger()
-        logger.warning("Uneven number of keys and values: %s", varstr)
-
-    return res
-
-
 def get_logger(plugin=None):
     """
     Provides a logger that should be used by your plugin for debugging, info
