@@ -24,9 +24,8 @@ pub(crate) use weapons::Weapons;
 use crate::prelude::*;
 
 use crate::_INIT_TIME;
-use alloc::vec::IntoIter;
 use core::sync::atomic::{AtomicBool, AtomicU64, Ordering};
-use itertools::{Itertools, Tuples};
+use itertools::Itertools;
 use log::*;
 use once_cell::sync::Lazy;
 use pyo3::exceptions::PyException;
@@ -127,18 +126,18 @@ fn set_map_subtitles(module: &PyModule) -> PyResult<()> {
     Ok(())
 }
 
-fn parse_variables(varstr: String) -> Tuples<IntoIter<String>, (String, String)> {
+fn parse_variables(varstr: String) -> Vec<(String, String)> {
     let Some(configstring_vec): Option<Vec<String>> = varstr
         .strip_prefix('\\')
         .map(|value| value.split('\\').map(|value| value.to_string()).collect())
     else {
-        return vec![].into_iter().tuples();
+        return vec![];
     };
 
     if configstring_vec.len() % 2 == 1 {
         warn!(target: "shinqlx", "Uneven number of keys and values: {}", varstr);
     }
-    configstring_vec.into_iter().tuples()
+    configstring_vec.into_iter().tuples().collect()
 }
 
 #[pyfunction]
