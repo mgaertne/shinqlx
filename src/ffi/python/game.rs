@@ -11,7 +11,7 @@ use log::*;
 use pyo3::create_exception;
 use pyo3::exceptions::{PyException, PyKeyError, PyValueError};
 use pyo3::prelude::*;
-use pyo3::types::{PyDict, PyType};
+use pyo3::types::{IntoPyDict, PyDict, PyType};
 
 create_exception!(game_module, NonexistentGameError, PyException);
 
@@ -126,7 +126,9 @@ impl Game {
             ));
         }
 
-        Ok(parse_variables(configstring).any(|(key, _value)| key == item))
+        Ok(parse_variables(configstring)
+            .iter()
+            .any(|(key, _value)| *key == item))
     }
 
     fn __getitem__(&mut self, py: Python<'_>, item: String) -> PyResult<String> {
@@ -139,6 +141,7 @@ impl Game {
         }
 
         let opt_value = parse_variables(configstring)
+            .into_iter()
             .filter(|(key, _value)| *key == item)
             .map(|(_key, value)| value)
             .nth(0);
@@ -148,7 +151,7 @@ impl Game {
     /// A dictionary of unprocessed cvars. Use attributes whenever possible, but since some cvars
     /// might not have attributes on this class, this could be useful.
     #[getter(cvars)]
-    fn get_cvars(&mut self, py: Python<'_>) -> PyResult<Py<PyDict>> {
+    fn get_cvars<'b>(&mut self, py: Python<'b>) -> PyResult<&'b PyDict> {
         let configstring = pyshinqlx_get_configstring(py, 0)?;
         if configstring.is_empty() {
             self.valid = false;
@@ -157,9 +160,8 @@ impl Game {
             ));
         }
 
-        let result = PyDict::new(py);
-        parse_variables(configstring).for_each(|(key, value)| result.set_item(key, value).unwrap());
-        Ok(result.into_py(py))
+        let result = parse_variables(configstring);
+        Ok(result.into_iter().into_py_dict(py))
     }
 
     #[getter]
@@ -1264,7 +1266,6 @@ mod pyshinqlx_game_tests {
 
             let cvars_result = game.get_cvars(py);
             assert!(cvars_result.is_ok_and(|cvars| cvars
-                .as_ref(py)
                 .get_item("asdf")
                 .is_ok_and(|opt_value| opt_value
                     .is_some_and(|value| value.extract::<String>().unwrap() == "42"))));
