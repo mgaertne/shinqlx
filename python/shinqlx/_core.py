@@ -1,4 +1,3 @@
-import collections
 import subprocess
 import threading
 import traceback
