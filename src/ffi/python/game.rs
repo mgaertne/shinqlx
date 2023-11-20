@@ -8,19 +8,13 @@ use super::embed::{
 use itertools::Itertools;
 use log::*;
 
+use crate::ffi::python;
 use pyo3::create_exception;
 use pyo3::exceptions::{PyException, PyKeyError, PyValueError};
 use pyo3::prelude::*;
-use pyo3::types::{PyDict, PyType};
+use pyo3::types::{IntoPyDict, PyDict, PyType};
 
-create_exception!(game_module, NonexistentGameError, PyException);
-
-fn clean_text<T>(text: &T) -> String
-where
-    T: AsRef<str>,
-{
-    text.as_ref().replace(r#"\^[0-7]"#, "")
-}
+create_exception!(pyshinqlx_module, NonexistentGameError, PyException);
 
 fn client_id(py: Python<'_>, player: Py<PyAny>) -> Option<i32> {
     if let Ok(value) = player.extract::<i32>(py) {
@@ -51,7 +45,8 @@ fn client_id(py: Python<'_>, player: Py<PyAny>) -> Option<i32> {
     if let Ok(name) = player.extract::<String>(py) {
         return all_players.iter().find_map(|opt_player_info| {
             if opt_player_info.as_ref().is_some_and(|player_info| {
-                clean_text(&player_info.name).to_lowercase() == clean_text(&name).to_lowercase()
+                python::clean_text(&player_info.name).to_lowercase()
+                    == python::clean_text(&name).to_lowercase()
             }) {
                 Some(opt_player_info.as_ref().unwrap().client_id)
             } else {
@@ -126,7 +121,9 @@ impl Game {
             ));
         }
 
-        parse_variables(py, configstring, false).contains(item)
+        Ok(parse_variables(configstring)
+            .iter()
+            .any(|(key, _value)| *key == item))
     }
 
     fn __getitem__(&mut self, py: Python<'_>, item: String) -> PyResult<String> {
@@ -138,11 +135,12 @@ impl Game {
             ));
         }
 
-        let opt_value = parse_variables(py, configstring, false).get_item(&item)?;
-        opt_value.map_or_else(
-            || Err(PyKeyError::new_err(format!("'{}'", &item))),
-            |value| value.extract::<String>(),
-        )
+        let opt_value = parse_variables(configstring)
+            .into_iter()
+            .filter(|(key, _value)| *key == item)
+            .map(|(_key, value)| value)
+            .nth(0);
+        opt_value.map_or_else(|| Err(PyKeyError::new_err(format!("'{}'", item))), Ok)
     }
 
     /// A dictionary of unprocessed cvars. Use attributes whenever possible, but since some cvars
@@ -157,7 +155,7 @@ impl Game {
             ));
         }
 
-        Ok(parse_variables(py, configstring, false))
+        Ok(parse_variables(configstring).into_py_dict(py))
     }
 
     #[getter]

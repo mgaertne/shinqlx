@@ -3,6 +3,7 @@ pub(crate) mod embed;
 mod flight;
 mod game;
 mod holdable;
+mod player;
 mod player_info;
 mod player_state;
 mod player_stats;
@@ -14,6 +15,8 @@ use embed::*;
 pub(crate) use flight::Flight;
 use game::{Game, NonexistentGameError};
 pub(crate) use holdable::Holdable;
+#[allow(unused_imports)]
+use player::{NonexistentPlayerError, Player};
 pub(crate) use player_info::PlayerInfo;
 pub(crate) use player_state::PlayerState;
 pub(crate) use player_stats::PlayerStats;
@@ -89,6 +92,27 @@ enum PythonPriorities {
 create_exception!(pyshinqlx_module, PluginLoadError, PyException);
 create_exception!(pyshinqlx_module, PluginUnloadError, PyException);
 
+pub(crate) fn clean_text<T>(text: &T) -> String
+where
+    T: AsRef<str>,
+{
+    text.as_ref().replace(r#"\^[0-7]"#, "")
+}
+
+pub(crate) fn parse_variables(varstr: String) -> Vec<(String, String)> {
+    let Some(varstr_vec): Option<Vec<String>> = varstr
+        .strip_prefix('\\')
+        .map(|value| value.split('\\').map(|value| value.to_string()).collect())
+    else {
+        return vec![];
+    };
+
+    if varstr_vec.len() % 2 == 1 {
+        warn!(target: "shinqlx", "Uneven number of keys and values: {}", varstr);
+    }
+    varstr_vec.into_iter().tuples().collect()
+}
+
 #[pyfunction]
 #[pyo3(pass_module)]
 fn set_map_subtitles(module: &PyModule) -> PyResult<()> {
@@ -130,26 +154,12 @@ fn set_map_subtitles(module: &PyModule) -> PyResult<()> {
 /// them into a dictionary.
 #[pyfunction]
 #[pyo3(signature = (varstr, ordered=false))]
-fn parse_variables(
+fn pyshinqlx_parse_variables(
     py: Python<'_>,
     varstr: String,
     #[allow(unused_variables)] ordered: bool,
 ) -> &PyDict {
-    let Some(configstring_vec): Option<Vec<String>> = varstr
-        .strip_prefix('\\')
-        .map(|value| value.split('\\').map(|value| value.to_string()).collect())
-    else {
-        return PyDict::new(py);
-    };
-
-    if configstring_vec.len() % 2 == 1 {
-        warn!(target: "shinqlx", "Uneven number of keys and values: {}", varstr);
-    }
-    configstring_vec
-        .into_iter()
-        .tuples()
-        .collect::<Vec<(String, String)>>()
-        .into_py_dict(py)
+    parse_variables(varstr).into_py_dict(py)
 }
 
 #[pyfunction]
@@ -581,7 +591,7 @@ fn pyshinqlx_module(py: Python<'_>, m: &PyModule) -> PyResult<()> {
     m.add("_map_subtitle1", "")?;
     m.add("_map_subtitle2", "")?;
     m.add_function(wrap_pyfunction!(set_map_subtitles, m)?)?;
-    m.add_function(wrap_pyfunction!(parse_variables, m)?)?;
+    m.add_function(wrap_pyfunction!(pyshinqlx_parse_variables, m)?)?;
 
     m.add_function(wrap_pyfunction!(next_frame, m)?)?;
     m.add_function(wrap_pyfunction!(delay, m)?)?;
@@ -606,6 +616,11 @@ fn pyshinqlx_module(py: Python<'_>, m: &PyModule) -> PyResult<()> {
         "NonexistentGameError",
         py.get_type::<NonexistentGameError>(),
     )?;
+    // m.add_class::<Player>()?;
+    // m.add(
+    //    "NonexistentPlayerError",
+    //    py.get_type::<NonexistentPlayerError>(),
+    // )?;
     m.add("PluginLoadError", py.get_type::<PluginLoadError>())?;
     m.add("PluginUnloadError", py.get_type::<PluginUnloadError>())?;
 

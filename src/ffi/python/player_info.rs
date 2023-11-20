@@ -4,7 +4,7 @@ use pyo3::prelude::*;
 /// Information about a player, such as Steam ID, name, client ID, and whatnot.
 #[pyclass(frozen)]
 #[pyo3(module = "shinqlx", name = "PlayerInfo", get_all)]
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Eq, Clone)]
 #[allow(unused)]
 pub(crate) struct PlayerInfo {
     /// The player's client ID.
