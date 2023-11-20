@@ -74,7 +74,7 @@ impl Client {
     where
         T: AsRef<str>,
     {
-        let c_reason = CString::new(reason.as_ref()).unwrap_or(CString::new("").unwrap());
+        let c_reason = CString::new(reason.as_ref()).unwrap_or_else(|_| CString::new("").unwrap());
 
         let Some(ref main_engine) = *MAIN_ENGINE.load() else {
             return;
