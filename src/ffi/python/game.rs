@@ -746,11 +746,13 @@ mod pyshinqlx_game_tests {
         MAIN_ENGINE.store(Some(mock_engine.into()));
 
         let result = Python::with_gil(|py| Game::py_new(py, true));
-        assert!(result.is_ok_and(|game| game
-            == Game {
+        assert_eq!(
+            result.expect("result was not OK"),
+            Game {
                 cached: true,
                 valid: true
-            }));
+            }
+        );
     }
 
     #[test]
@@ -1018,7 +1020,7 @@ mod pyshinqlx_game_tests {
 
             game.__contains__(py, "asdf".into())
         });
-        assert!(result.is_ok_and(|value| value));
+        assert_eq!(result.expect("result was not OK"), true);
     }
 
     #[test]
@@ -1039,7 +1041,7 @@ mod pyshinqlx_game_tests {
 
             game.__contains__(py, "qwertz".into())
         });
-        assert!(result.is_ok_and(|value| !value));
+        assert_eq!(result.expect("result was not OK"), false);
     }
 
     #[test]
@@ -1060,7 +1062,7 @@ mod pyshinqlx_game_tests {
 
             game.__contains__(py, "asdf".into())
         });
-        assert!(result.is_ok_and(|value| !value));
+        assert_eq!(result.expect("result was not OK"), false);
     }
 
     #[test]
@@ -1081,7 +1083,7 @@ mod pyshinqlx_game_tests {
 
             game.__contains__(py, "asdf".into())
         });
-        assert!(result.is_ok_and(|value| !value));
+        assert_eq!(result.expect("result was not OK"), false);
     }
 
     #[test]
@@ -1139,7 +1141,7 @@ mod pyshinqlx_game_tests {
 
             game.__getitem__(py, "asdf".into())
         });
-        assert!(result.is_ok_and(|value| value == "12"));
+        assert_eq!(result.expect("result was not OK"), "12");
     }
 
     #[test]
@@ -1299,7 +1301,7 @@ mod pyshinqlx_game_tests {
             };
 
             let result = game.get_type(py);
-            assert!(result.is_ok_and(|mapname| mapname == "unknown"));
+            assert_eq!(result.expect("result was not OK"), "unknown");
         });
     }
 
@@ -1337,7 +1339,7 @@ mod pyshinqlx_game_tests {
             };
 
             let result = game.get_type(py);
-            assert!(result.is_ok_and(|mapname| mapname == expected_string));
+            assert_eq!(result.expect("result was not OK"), expected_string);
         });
     }
 
@@ -1374,7 +1376,7 @@ mod pyshinqlx_game_tests {
             };
 
             let result = game.get_type_short(py);
-            assert!(result.is_ok_and(|mapname| mapname == "N/A"));
+            assert_eq!(result.expect("result was not OK"), "N/A");
         });
     }
 
@@ -1412,7 +1414,7 @@ mod pyshinqlx_game_tests {
             };
 
             let result = game.get_type_short(py);
-            assert!(result.is_ok_and(|mapname| mapname == expected_string));
+            assert_eq!(result.expect("result was not OK"), expected_string);
         });
     }
 
@@ -1433,7 +1435,7 @@ mod pyshinqlx_game_tests {
             };
 
             let result = game.get_map(py);
-            assert!(result.is_ok_and(|mapname| mapname == "thunderstruck"));
+            assert_eq!(result.expect("result was not OK"), "thunderstruck");
         });
     }
 
@@ -1475,9 +1477,10 @@ _shinqlx._map_title = "eyetoeye"
                 valid: true,
             };
 
-            assert!(game
-                .get_map_title(py)
-                .is_ok_and(|map_name| map_name == "eyetoeye"));
+            assert_eq!(
+                game.get_map_title(py).expect("result was not OK"),
+                "eyetoeye"
+            );
         });
     }
 
@@ -1499,9 +1502,10 @@ _shinqlx._map_subtitle1 = "Clan Arena"
                 valid: true,
             };
 
-            assert!(game
-                .get_map_subtitle1(py)
-                .is_ok_and(|subtitle1| subtitle1 == "Clan Arena"));
+            assert_eq!(
+                game.get_map_subtitle1(py).expect("result was not OK"),
+                "Clan Arena"
+            );
         });
     }
 
@@ -1523,9 +1527,10 @@ _shinqlx._map_subtitle2 = "Awesome map!"
                 valid: true,
             };
 
-            assert!(game
-                .get_map_subtitle2(py)
-                .is_ok_and(|subtitle2| subtitle2 == "Awesome map!"));
+            assert_eq!(
+                game.get_map_subtitle2(py).expect("result was not OK"),
+                "Awesome map!"
+            );
         });
     }
 
@@ -1562,7 +1567,7 @@ _shinqlx._map_subtitle2 = "Awesome map!"
             };
 
             let result = game.get_red_score(py);
-            assert!(result.is_ok_and(|red_score| red_score == 7));
+            assert_eq!(result.expect("result was not OK"), 7);
         });
     }
 
@@ -1583,7 +1588,7 @@ _shinqlx._map_subtitle2 = "Awesome map!"
             };
 
             let result = game.get_red_score(py);
-            assert!(result.is_ok_and(|red_score| red_score == 0));
+            assert_eq!(result.expect("result was not OK"), 0);
         });
     }
 
@@ -1620,7 +1625,7 @@ _shinqlx._map_subtitle2 = "Awesome map!"
             };
 
             let result = game.get_blue_score(py);
-            assert!(result.is_ok_and(|blue_score| blue_score == 5));
+            assert_eq!(result.expect("result was not OK"), 5);
         });
     }
 
@@ -1641,7 +1646,7 @@ _shinqlx._map_subtitle2 = "Awesome map!"
             };
 
             let result = game.get_blue_score(py);
-            assert!(result.is_ok_and(|blue_score| blue_score == 0));
+            assert_eq!(result.expect("result was not OK"), 0);
         });
     }
 
@@ -1686,7 +1691,7 @@ _shinqlx._map_subtitle2 = "Awesome map!"
 
             game.get_state(py)
         });
-        assert!(result.is_ok_and(|value| value == expected_return));
+        assert_eq!(result.expect("result was not OK"), expected_return);
     }
 
     #[test]
@@ -1723,7 +1728,7 @@ _shinqlx._map_subtitle2 = "Awesome map!"
 
             game.get_factory(py)
         });
-        assert!(result.is_ok_and(|value| value == "ca"));
+        assert_eq!(result.expect("result was not OK"), "ca");
     }
 
     #[test]
@@ -1768,7 +1773,7 @@ _shinqlx._map_subtitle2 = "Awesome map!"
 
             game.get_hostname(py)
         });
-        assert!(result.is_ok_and(|value| value == "Awesome server!"));
+        assert_eq!(result.expect("result was not OK"), "Awesome server!");
     }
 
     #[test]
@@ -1818,7 +1823,7 @@ _shinqlx._map_subtitle2 = "Awesome map!"
 
             game.get_instagib(py)
         });
-        assert!(result.is_ok_and(|value| value == expected));
+        assert_eq!(result.expect("result was not OK"), expected);
     }
 
     #[rstest]
@@ -1922,7 +1927,7 @@ _shinqlx._map_subtitle2 = "Awesome map!"
 
             game.get_loadout(py)
         });
-        assert!(result.is_ok_and(|value| value == expected));
+        assert_eq!(result.expect("result was not OK"), expected);
     }
 
     #[rstest]
@@ -2024,7 +2029,7 @@ _shinqlx._map_subtitle2 = "Awesome map!"
 
             game.get_maxclients(py)
         });
-        assert!(result.is_ok_and(|value| value == 8));
+        assert_eq!(result.expect("result was not OK"), 8);
     }
 
     #[test]
@@ -2069,7 +2074,7 @@ _shinqlx._map_subtitle2 = "Awesome map!"
 
             game.get_timelimit(py)
         });
-        assert!(result.is_ok_and(|value| value == 20));
+        assert_eq!(result.expect("result was not OK"), 20);
     }
 
     #[test]
@@ -2114,7 +2119,7 @@ _shinqlx._map_subtitle2 = "Awesome map!"
 
             game.get_fraglimit(py)
         });
-        assert!(result.is_ok_and(|value| value == 10));
+        assert_eq!(result.expect("result was not OK"), 10);
     }
 
     #[test]
@@ -2159,7 +2164,7 @@ _shinqlx._map_subtitle2 = "Awesome map!"
 
             game.get_roundlimit(py)
         });
-        assert!(result.is_ok_and(|value| value == 11));
+        assert_eq!(result.expect("result was not OK"), 11);
     }
 
     #[test]
@@ -2204,7 +2209,7 @@ _shinqlx._map_subtitle2 = "Awesome map!"
 
             game.get_roundtimelimit(py)
         });
-        assert!(result.is_ok_and(|value| value == 240));
+        assert_eq!(result.expect("result was not OK"), 240);
     }
 
     #[test]
@@ -2251,7 +2256,7 @@ _shinqlx._map_subtitle2 = "Awesome map!"
 
             game.get_scorelimit(py)
         });
-        assert!(result.is_ok_and(|value| value == 10));
+        assert_eq!(result.expect("result was not OK"), 10);
     }
 
     #[test]
@@ -2295,7 +2300,7 @@ _shinqlx._map_subtitle2 = "Awesome map!"
 
             game.get_capturelimit(py)
         });
-        assert!(result.is_ok_and(|value| value == 10));
+        assert_eq!(result.expect("result was not OK"), 10);
     }
 
     #[test]
@@ -2340,7 +2345,7 @@ _shinqlx._map_subtitle2 = "Awesome map!"
 
             game.get_teamsize(py)
         });
-        assert!(result.is_ok_and(|value| value == 4));
+        assert_eq!(result.expect("result was not OK"), 4);
     }
 
     #[test]
@@ -2385,7 +2390,10 @@ _shinqlx._map_subtitle2 = "Awesome map!"
 
             game.get_tags(py)
         });
-        assert!(result.is_ok_and(|value| value == vec!["tag1", "tag2", "tag3"]));
+        assert_eq!(
+            result.expect("result was not OK"),
+            vec!["tag1", "tag2", "tag3"]
+        );
     }
 
     #[test]
@@ -2484,7 +2492,7 @@ _shinqlx._map_subtitle2 = "Awesome map!"
 
             game.get_workshop_items(py)
         });
-        assert!(result.is_ok_and(|value| value == vec![1234, 5678, 9101]));
+        assert_eq!(result.expect("result was not OK"), vec![1234, 5678, 9101]);
     }
 
     #[test]
