@@ -104,8 +104,8 @@ mod get_userinfo_tests {
             mock_client
         });
 
-        let userinfo = Python::with_gil(|py| pyshinqlx_get_userinfo(py, 2).unwrap());
-        assert_eq!(userinfo, Some("asdf".into()));
+        let userinfo = Python::with_gil(|py| pyshinqlx_get_userinfo(py, 2));
+        assert_eq!(userinfo.expect("result was not OK"), Some("asdf".into()));
     }
 
     #[test]
@@ -128,8 +128,8 @@ mod get_userinfo_tests {
             mock_client
         });
 
-        let userinfo = Python::with_gil(|py| pyshinqlx_get_userinfo(py, 2).unwrap());
-        assert_eq!(userinfo, None);
+        let userinfo = Python::with_gil(|py| pyshinqlx_get_userinfo(py, 2));
+        assert_eq!(userinfo.expect("result was not OK"), None);
     }
 
     #[test]
@@ -152,7 +152,7 @@ mod get_userinfo_tests {
             mock_client
         });
 
-        let userinfo = Python::with_gil(|py| pyshinqlx_get_userinfo(py, 2).unwrap());
-        assert_eq!(userinfo, Some("asdf".into()));
+        let userinfo = Python::with_gil(|py| pyshinqlx_get_userinfo(py, 2));
+        assert_eq!(userinfo.expect("result was not OK"), Some("asdf".into()));
     }
 }

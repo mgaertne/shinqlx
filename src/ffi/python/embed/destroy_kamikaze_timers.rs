@@ -36,6 +36,7 @@ mod destroy_kamikaze_timers_tests {
     use crate::ffi::c::game_entity::MockGameEntity;
     use crate::prelude::*;
     use mockall::predicate;
+    use pretty_assertions::assert_eq;
     use pyo3::prelude::*;
 
     #[test]
@@ -72,7 +73,7 @@ mod destroy_kamikaze_timers_tests {
         });
 
         let result = Python::with_gil(pyshinqlx_destroy_kamikaze_timers);
-        assert!(result.is_ok_and(|value| value));
+        assert_eq!(result.expect("result was not OK"), true);
     }
 
     #[test]
@@ -109,7 +110,7 @@ mod destroy_kamikaze_timers_tests {
         });
 
         let result = Python::with_gil(pyshinqlx_destroy_kamikaze_timers);
-        assert!(result.is_ok_and(|value| value));
+        assert_eq!(result.expect("result was not OK"), true);
     }
 
     #[test]
@@ -146,7 +147,7 @@ mod destroy_kamikaze_timers_tests {
         });
 
         let result = Python::with_gil(pyshinqlx_destroy_kamikaze_timers);
-        assert!(result.is_ok_and(|value| value));
+        assert_eq!(result.expect("result was not OK"), true);
     }
 
     #[test]
@@ -185,7 +186,7 @@ mod destroy_kamikaze_timers_tests {
         });
 
         let result = Python::with_gil(pyshinqlx_destroy_kamikaze_timers);
-        assert!(result.is_ok_and(|value| value));
+        assert_eq!(result.expect("result was not OK"), true);
     }
 
     #[test]
@@ -209,6 +210,6 @@ mod destroy_kamikaze_timers_tests {
         });
 
         let result = Python::with_gil(pyshinqlx_destroy_kamikaze_timers);
-        assert!(result.is_ok_and(|value| value));
+        assert_eq!(result.expect("result was not OK"), true);
     }
 }

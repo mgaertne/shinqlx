@@ -75,9 +75,8 @@ mod send_server_command_tests {
             .expect()
             .withf(|client, cmd| client.is_none() && cmd == "asdf")
             .times(1);
-        let result =
-            Python::with_gil(|py| pyshinqlx_send_server_command(py, None, "asdf")).unwrap();
-        assert_eq!(result, true);
+        let result = Python::with_gil(|py| pyshinqlx_send_server_command(py, None, "asdf"));
+        assert_eq!(result.expect("result was not OK"), true);
     }
 
     #[test]
@@ -148,9 +147,8 @@ mod send_server_command_tests {
             .withf(|client, cmd| client.is_some() && cmd == "asdf")
             .times(1);
 
-        let result =
-            Python::with_gil(|py| pyshinqlx_send_server_command(py, Some(2), "asdf")).unwrap();
-        assert_eq!(result, true);
+        let result = Python::with_gil(|py| pyshinqlx_send_server_command(py, Some(2), "asdf"));
+        assert_eq!(result.expect("result was not OK"), true);
     }
 
     #[rstest]
@@ -174,8 +172,7 @@ mod send_server_command_tests {
         let hook_ctx = shinqlx_send_server_command_context();
         hook_ctx.expect().times(0);
 
-        let result =
-            Python::with_gil(|py| pyshinqlx_send_server_command(py, Some(2), "asdf")).unwrap();
-        assert_eq!(result, false);
+        let result = Python::with_gil(|py| pyshinqlx_send_server_command(py, Some(2), "asdf"));
+        assert_eq!(result.expect("result was not OK"), false);
     }
 }
