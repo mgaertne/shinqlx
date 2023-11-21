@@ -1,8 +1,8 @@
-use crate::ffi::python::clean_text;
-use crate::ffi::python::{parse_variables, PlayerInfo};
+use super::{clean_text, parse_variables, PlayerInfo};
 use pyo3::create_exception;
-use pyo3::exceptions::PyException;
+use pyo3::exceptions::{PyException, PyKeyError};
 use pyo3::prelude::*;
+use pyo3::types::{IntoPyDict, PyDict};
 
 create_exception!(pyshinqlx_module, NonexistentPlayerError, PyException);
 
@@ -82,13 +82,52 @@ impl Player {
         self.name.clone()
     }
 
-    #[getter(id)]
-    fn get_id(&self) -> i32 {
-        self.id
+    fn __contains__(&self, item: String) -> PyResult<bool> {
+        if !self.valid {
+            return Err(NonexistentPlayerError::new_err(
+                "The player does not exist anymore. Did the player disconnect?",
+            ));
+        }
+
+        Ok(parse_variables(self.user_info.clone())
+            .iter()
+            .any(|(key, _value)| *key == item))
     }
+
+    fn __getitem__(&self, item: String) -> PyResult<String> {
+        if !self.valid {
+            return Err(NonexistentPlayerError::new_err(
+                "The player does not exist anymore. Did the player disconnect?",
+            ));
+        }
+
+        let opt_value = parse_variables(self.user_info.clone())
+            .into_iter()
+            .filter(|(key, _value)| *key == item)
+            .map(|(_key, value)| value)
+            .nth(0);
+        opt_value.map_or_else(|| Err(PyKeyError::new_err(format!("'{item}'"))), Ok)
+    }
+
+    #[getter(cvars)]
+    fn get_cvars<'a>(&self, py: Python<'a>) -> PyResult<&'a PyDict> {
+        if !self.valid {
+            return Err(NonexistentPlayerError::new_err(
+                "The player does not exist anymore. Did the player disconnect?",
+            ));
+        }
+
+        Ok(parse_variables(self.user_info.clone()).into_py_dict(py))
+    }
+
     #[getter(steam_id)]
     fn get_steam_id(&self) -> u64 {
         self.steam_id
+    }
+
+    #[getter(id)]
+    fn get_id(&self) -> i32 {
+        self.id
     }
 
     #[getter(clean_name)]
@@ -98,9 +137,8 @@ impl Player {
 }
 
 #[cfg(test)]
-#[cfg(not(miri))]
 mod pyshinqlx_player_tests {
-    use super::Player;
+    use super::{NonexistentPlayerError, Player};
     use crate::ffi::c::client::MockClient;
     use crate::ffi::c::game_entity::MockGameEntity;
     use crate::ffi::python::PlayerInfo;
@@ -110,6 +148,7 @@ mod pyshinqlx_player_tests {
     use crate::prelude::*;
     use mockall::predicate;
     use pretty_assertions::assert_eq;
+    use pyo3::exceptions::PyKeyError;
     use pyo3::{PyCell, Python};
 
     #[test]
@@ -165,7 +204,6 @@ mod pyshinqlx_player_tests {
     }
 
     #[test]
-    #[serial]
     fn pyconstructor_with_empty_name() {
         let result = Player::py_new(
             2,
@@ -201,7 +239,6 @@ mod pyshinqlx_player_tests {
     }
 
     #[test]
-    #[serial]
     fn pyconstructor_with_empty_name_and_no_name_in_userinfo() {
         let result = Player::py_new(
             2,
@@ -237,7 +274,6 @@ mod pyshinqlx_player_tests {
     }
 
     #[test]
-    #[serial]
     fn pyconstructor_with_nonempty_playerinfo() {
         let result = Player::py_new(
             2,
@@ -273,7 +309,7 @@ mod pyshinqlx_player_tests {
     }
 
     #[test]
-    #[serial]
+    #[cfg_attr(miri, ignore)]
     fn repr_with_all_values_set() {
         let result = Python::with_gil(|py| {
             let player = PyCell::new(
@@ -302,7 +338,6 @@ mod pyshinqlx_player_tests {
     }
 
     #[test]
-    #[serial]
     fn str_returns_player_name() {
         let player = Player {
             valid: true,
@@ -321,5 +356,207 @@ mod pyshinqlx_player_tests {
             name: "^1Unnamed^2Player".to_string(),
         };
         assert_eq!(player.__str__(), "^1Unnamed^2Player");
+    }
+
+    #[test]
+    #[cfg_attr(miri, ignore)]
+    fn contains_with_invalid_player() {
+        let player = Player {
+            valid: false,
+            id: 2,
+            player_info: PlayerInfo {
+                client_id: 2,
+                name: "^1Unnamed^2Player".to_string(),
+                connection_state: CS_CONNECTED as i32,
+                userinfo: "".to_string(),
+                steam_id: 1234567890,
+                team: TEAM_SPECTATOR as i32,
+                privileges: PRIV_NONE as i32,
+            },
+            user_info: "".to_string(),
+            steam_id: 1234567890,
+            name: "^1Unnamed^2Player".to_string(),
+        };
+        let result = player.__contains__("asdf".into());
+        Python::with_gil(|py| {
+            assert!(result.is_err_and(|err| err.is_instance_of::<NonexistentPlayerError>(py)));
+        });
+    }
+
+    #[test]
+    fn contains_where_value_is_part_of_userinfo() {
+        let player = Player {
+            valid: true,
+            id: 2,
+            player_info: PlayerInfo {
+                client_id: 2,
+                name: "^1Unnamed^2Player".to_string(),
+                connection_state: CS_CONNECTED as i32,
+                userinfo: "\\asdf\\some value".to_string(),
+                steam_id: 1234567890,
+                team: TEAM_SPECTATOR as i32,
+                privileges: PRIV_NONE as i32,
+            },
+            user_info: "\\asdf\\some value".to_string(),
+            steam_id: 1234567890,
+            name: "^1Unnamed^2Player".to_string(),
+        };
+
+        let result = player.__contains__("asdf".into());
+        assert_eq!(result.expect("result was not OK"), true);
+    }
+
+    #[test]
+    fn contains_where_value_is_not_in_userinfo() {
+        let player = Player {
+            valid: true,
+            id: 2,
+            player_info: PlayerInfo {
+                client_id: 2,
+                name: "^1Unnamed^2Player".to_string(),
+                connection_state: CS_CONNECTED as i32,
+                userinfo: "\\name\\^1Unnamed^2Player".to_string(),
+                steam_id: 1234567890,
+                team: TEAM_SPECTATOR as i32,
+                privileges: PRIV_NONE as i32,
+            },
+            user_info: "\\name\\^1Unnamed^2Player".to_string(),
+            steam_id: 1234567890,
+            name: "^1Unnamed^2Player".to_string(),
+        };
+
+        let result = player.__contains__("asdf".into());
+        assert_eq!(result.expect("result was not OK"), false);
+    }
+
+    #[test]
+    #[cfg_attr(miri, ignore)]
+    fn getitem_with_invalid_player() {
+        let player = Player {
+            valid: false,
+            id: 2,
+            player_info: PlayerInfo {
+                client_id: 2,
+                name: "^1Unnamed^2Player".to_string(),
+                connection_state: CS_CONNECTED as i32,
+                userinfo: "".to_string(),
+                steam_id: 1234567890,
+                team: TEAM_SPECTATOR as i32,
+                privileges: PRIV_NONE as i32,
+            },
+            user_info: "".to_string(),
+            steam_id: 1234567890,
+            name: "^1Unnamed^2Player".to_string(),
+        };
+        let result = player.__getitem__("asdf".into());
+        Python::with_gil(|py| {
+            assert!(result.is_err_and(|err| err.is_instance_of::<NonexistentPlayerError>(py)));
+        });
+    }
+
+    #[test]
+    fn getitem_where_value_is_part_of_userinfo() {
+        let player = Player {
+            valid: true,
+            id: 2,
+            player_info: PlayerInfo {
+                client_id: 2,
+                name: "^1Unnamed^2Player".to_string(),
+                connection_state: CS_CONNECTED as i32,
+                userinfo: "\\asdf\\some value".to_string(),
+                steam_id: 1234567890,
+                team: TEAM_SPECTATOR as i32,
+                privileges: PRIV_NONE as i32,
+            },
+            user_info: "\\asdf\\some value".to_string(),
+            steam_id: 1234567890,
+            name: "^1Unnamed^2Player".to_string(),
+        };
+
+        let result = player.__getitem__("asdf".into());
+        assert_eq!(result.expect("result was not OK"), "some value");
+    }
+
+    #[test]
+    #[cfg_attr(miri, ignore)]
+    fn getitem_where_value_is_not_in_userinfo() {
+        let player = Player {
+            valid: true,
+            id: 2,
+            player_info: PlayerInfo {
+                client_id: 2,
+                name: "^1Unnamed^2Player".to_string(),
+                connection_state: CS_CONNECTED as i32,
+                userinfo: "\\name\\^1Unnamed^2Player".to_string(),
+                steam_id: 1234567890,
+                team: TEAM_SPECTATOR as i32,
+                privileges: PRIV_NONE as i32,
+            },
+            user_info: "\\name\\^1Unnamed^2Player".to_string(),
+            steam_id: 1234567890,
+            name: "^1Unnamed^2Player".to_string(),
+        };
+
+        let result = player.__getitem__("asdf".into());
+        Python::with_gil(|py| {
+            assert!(result.is_err_and(|err| err.is_instance_of::<PyKeyError>(py)))
+        });
+    }
+
+    #[test]
+    #[cfg_attr(miri, ignore)]
+    fn cvars_with_invalid_player() {
+        let player = Player {
+            valid: false,
+            id: 2,
+            player_info: PlayerInfo {
+                client_id: 2,
+                name: "^1Unnamed^2Player".to_string(),
+                connection_state: CS_CONNECTED as i32,
+                userinfo: "".to_string(),
+                steam_id: 1234567890,
+                team: TEAM_SPECTATOR as i32,
+                privileges: PRIV_NONE as i32,
+            },
+            user_info: "".to_string(),
+            steam_id: 1234567890,
+            name: "^1Unnamed^2Player".to_string(),
+        };
+        Python::with_gil(|py| {
+            let result = player.get_cvars(py);
+            assert!(result.is_err_and(|err| err.is_instance_of::<NonexistentPlayerError>(py)));
+        });
+    }
+
+    #[test]
+    #[cfg_attr(miri, ignore)]
+    fn cvars_where_value_is_part_of_userinfo() {
+        let player = Player {
+            valid: true,
+            id: 2,
+            player_info: PlayerInfo {
+                client_id: 2,
+                name: "^1Unnamed^2Player".to_string(),
+                connection_state: CS_CONNECTED as i32,
+                userinfo: "\\asdf\\some value".to_string(),
+                steam_id: 1234567890,
+                team: TEAM_SPECTATOR as i32,
+                privileges: PRIV_NONE as i32,
+            },
+            user_info: "\\asdf\\some value".to_string(),
+            steam_id: 1234567890,
+            name: "^1Unnamed^2Player".to_string(),
+        };
+
+        Python::with_gil(|py| {
+            let result = player.get_cvars(py);
+            assert!(result
+                .expect("result was not OK")
+                .get_item("asdf")
+                .is_ok_and(|opt_value| opt_value.is_some_and(|value| value
+                    .extract::<String>()
+                    .expect("this should not happen")
+                    == "some value")))
+        });
     }
 }
