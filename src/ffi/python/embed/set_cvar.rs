@@ -82,9 +82,8 @@ mod set_cvar_tests {
 
         let result = Python::with_gil(|py| {
             pyshinqlx_set_cvar(py, "sv_maxclients", "64", Some(cvar_flags::CVAR_ROM as i32))
-        })
-        .unwrap();
-        assert_eq!(result, true);
+        });
+        assert_eq!(result.expect("result was not OK"), true);
     }
 
     #[test]
@@ -95,7 +94,9 @@ mod set_cvar_tests {
             .expect_find_cvar()
             .with(predicate::eq("sv_maxclients"))
             .returning(|_| {
-                let mut raw_cvar = CVarBuilder::default().build().unwrap();
+                let mut raw_cvar = CVarBuilder::default()
+                    .build()
+                    .expect("this should not happen");
                 CVar::try_from(&mut raw_cvar as *mut cvar_t).ok()
             })
             .times(1);
@@ -111,8 +112,7 @@ mod set_cvar_tests {
 
         let result = Python::with_gil(|py| {
             pyshinqlx_set_cvar(py, "sv_maxclients", "64", Some(cvar_flags::CVAR_ROM as i32))
-        })
-        .unwrap();
-        assert_eq!(result, false);
+        });
+        assert_eq!(result.expect("result was not OK"), false);
     }
 }

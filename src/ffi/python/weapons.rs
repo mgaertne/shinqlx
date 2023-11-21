@@ -120,7 +120,7 @@ weapons = _shinqlx.Weapons((False, False, False, False, False, False, False, Fal
             assert!(
                 weapons_constructor.is_ok(),
                 "{}",
-                weapons_constructor.err().unwrap()
+                weapons_constructor.err().expect("this should not happen")
             );
         });
     }
@@ -268,7 +268,7 @@ weapons = _shinqlx.Weapons((0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14))
             assert!(
                 ammo_constructor.is_ok(),
                 "{}",
-                ammo_constructor.err().unwrap()
+                ammo_constructor.err().expect("this should not happen")
             );
         });
     }

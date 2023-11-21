@@ -88,8 +88,8 @@ mod force_vote_tests {
             .returning(|| Err(QuakeLiveEngineError::MainEngineNotInitialized));
         MAIN_ENGINE.store(None);
 
-        let result = Python::with_gil(|py| pyshinqlx_force_vote(py, false)).unwrap();
-        assert_eq!(result, false);
+        let result = Python::with_gil(|py| pyshinqlx_force_vote(py, false));
+        assert_eq!(result.expect("result was not OK"), false);
     }
 
     #[rstest]
@@ -120,9 +120,9 @@ mod force_vote_tests {
                 mock_client
             });
 
-        let result = Python::with_gil(|py| pyshinqlx_force_vote(py, true)).unwrap();
+        let result = Python::with_gil(|py| pyshinqlx_force_vote(py, true));
 
-        assert_eq!(result, true);
+        assert_eq!(result.expect("result was not OK"), true);
     }
 
     #[test]
@@ -162,9 +162,9 @@ mod force_vote_tests {
                 mock_game_entity
             });
 
-        let result = Python::with_gil(|py| pyshinqlx_force_vote(py, true)).unwrap();
+        let result = Python::with_gil(|py| pyshinqlx_force_vote(py, true));
 
-        assert_eq!(result, true);
+        assert_eq!(result.expect("result was not OK"), true);
     }
 
     #[test]
@@ -209,8 +209,8 @@ mod force_vote_tests {
                 mock_game_entity
             });
 
-        let result = Python::with_gil(|py| pyshinqlx_force_vote(py, true)).unwrap();
+        let result = Python::with_gil(|py| pyshinqlx_force_vote(py, true));
 
-        assert_eq!(result, true);
+        assert_eq!(result.expect("result was not OK"), true);
     }
 }

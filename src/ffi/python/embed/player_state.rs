@@ -108,8 +108,8 @@ mod player_state_tests {
                 mock_game_entity
             });
 
-        let result = Python::with_gil(|py| pyshinqlx_player_state(py, 2)).unwrap();
-        assert_eq!(result, None);
+        let result = Python::with_gil(|py| pyshinqlx_player_state(py, 2));
+        assert_eq!(result.expect("result was not OK"), None);
     }
 
     #[test]
@@ -167,9 +167,9 @@ mod player_state_tests {
                 mock_game_entity
             });
 
-        let result = Python::with_gil(|py| pyshinqlx_player_state(py, 2)).unwrap();
+        let result = Python::with_gil(|py| pyshinqlx_player_state(py, 2));
         assert_eq!(
-            result,
+            result.expect("result was not OK"),
             Some(PlayerState {
                 is_alive: true,
                 position: Vector3(1, 2, 3),

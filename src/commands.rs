@@ -257,7 +257,9 @@ pub extern "C" fn cmd_py_command() {
             Some(args) => custom_command_handler.call1(py, (args,)),
         };
 
-        if result.is_err() || !result.unwrap().is_true(py).unwrap() {
+        if result.is_err()
+            || result.is_ok_and(|value| value.is_true(py).is_ok_and(|result| !result))
+        {
             main_engine
                 .com_printf("The command failed to be executed. pyshinqlx found no handler.\n");
         }
@@ -1198,11 +1200,15 @@ def handler(params):
                 "",
                 "",
             )
-            .unwrap()
+            .expect("this should not happen")
             .into_py(py)
         });
-        let custom_command_handler =
-            Python::with_gil(|py| pymodule.getattr(py, "handler").unwrap().into_py(py));
+        let custom_command_handler = Python::with_gil(|py| {
+            pymodule
+                .getattr(py, "handler")
+                .expect("this should not happen")
+                .into_py(py)
+        });
         CUSTOM_COMMAND_HANDLER.store(Some(custom_command_handler.into()));
 
         cmd_py_command();
@@ -1226,11 +1232,15 @@ def handler():
                 "",
                 "",
             )
-            .unwrap()
+            .expect("this should not happen")
             .into_py(py)
         });
-        let custom_command_handler =
-            Python::with_gil(|py| pymodule.getattr(py, "handler").unwrap().into_py(py));
+        let custom_command_handler = Python::with_gil(|py| {
+            pymodule
+                .getattr(py, "handler")
+                .expect("this should not happen")
+                .into_py(py)
+        });
         CUSTOM_COMMAND_HANDLER.store(Some(custom_command_handler.into()));
 
         cmd_py_command();
@@ -1259,11 +1269,15 @@ def handler():
                 "",
                 "",
             )
-            .unwrap()
+            .expect("this should not happen")
             .into_py(py)
         });
-        let custom_command_handler =
-            Python::with_gil(|py| pymodule.getattr(py, "handler").unwrap().into_py(py));
+        let custom_command_handler = Python::with_gil(|py| {
+            pymodule
+                .getattr(py, "handler")
+                .expect("this should not happen")
+                .into_py(py)
+        });
         CUSTOM_COMMAND_HANDLER.store(Some(custom_command_handler.into()));
 
         cmd_py_command();
@@ -1292,11 +1306,15 @@ def handler():
                 "",
                 "",
             )
-            .unwrap()
+            .expect("this should not happen")
             .into_py(py)
         });
-        let custom_command_handler =
-            Python::with_gil(|py| pymodule.getattr(py, "handler").unwrap().into_py(py));
+        let custom_command_handler = Python::with_gil(|py| {
+            pymodule
+                .getattr(py, "handler")
+                .expect("this should not happen")
+                .into_py(py)
+        });
         CUSTOM_COMMAND_HANDLER.store(Some(custom_command_handler.into()));
 
         cmd_py_command();

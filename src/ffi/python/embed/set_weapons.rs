@@ -123,9 +123,8 @@ mod set_weapons_tests {
 
         let result = Python::with_gil(|py| {
             pyshinqlx_set_weapons(py, 2, Weapons(1, 1, 1, 0, 0, 0, 1, 1, 1, 0, 0, 0, 1, 1, 1))
-        })
-        .unwrap();
-        assert_eq!(result, true);
+        });
+        assert_eq!(result.expect("result was not OK"), true);
     }
 
     #[test]
@@ -146,8 +145,7 @@ mod set_weapons_tests {
 
         let result = Python::with_gil(|py| {
             pyshinqlx_set_weapons(py, 2, Weapons(0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0))
-        })
-        .unwrap();
-        assert_eq!(result, false);
+        });
+        assert_eq!(result.expect("result was not OK"), false);
     }
 }

@@ -119,8 +119,8 @@ mod player_spawn_tests {
         let client_spawn_ctx = shinqlx_client_spawn_context();
         client_spawn_ctx.expect().returning_st(|_| ()).times(1);
 
-        let result = Python::with_gil(|py| pyshinqlx_player_spawn(py, 2)).unwrap();
-        assert_eq!(result, true);
+        let result = Python::with_gil(|py| pyshinqlx_player_spawn(py, 2));
+        assert_eq!(result.expect("result was not OK"), true);
     }
 
     #[test]
@@ -142,7 +142,7 @@ mod player_spawn_tests {
         let client_spawn_ctx = shinqlx_client_spawn_context();
         client_spawn_ctx.expect().returning_st(|_| ()).times(0);
 
-        let result = Python::with_gil(|py| pyshinqlx_player_spawn(py, 2)).unwrap();
-        assert_eq!(result, false);
+        let result = Python::with_gil(|py| pyshinqlx_player_spawn(py, 2));
+        assert_eq!(result.expect("result was not OK"), false);
     }
 }

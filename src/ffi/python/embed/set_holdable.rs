@@ -117,9 +117,8 @@ mod set_holdable_tests {
         });
 
         let result =
-            Python::with_gil(|py| pyshinqlx_set_holdable(py, 2, Holdable::Kamikaze as i32))
-                .unwrap();
-        assert_eq!(result, true);
+            Python::with_gil(|py| pyshinqlx_set_holdable(py, 2, Holdable::Kamikaze as i32));
+        assert_eq!(result.expect("result was not OK"), true);
     }
 
     #[test]
@@ -139,8 +138,7 @@ mod set_holdable_tests {
         });
 
         let result =
-            Python::with_gil(|py| pyshinqlx_set_holdable(py, 2, Holdable::Invulnerability as i32))
-                .unwrap();
-        assert_eq!(result, false);
+            Python::with_gil(|py| pyshinqlx_set_holdable(py, 2, Holdable::Invulnerability as i32));
+        assert_eq!(result.expect("result was not OK"), false);
     }
 }

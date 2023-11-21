@@ -96,11 +96,15 @@ def handler():
                 "",
                 "",
             )
-            .unwrap()
+            .expect("this should not happen")
             .into_py(py)
         });
-        let py_handler =
-            Python::with_gil(|py| pymodule.getattr(py, "handler").unwrap().into_py(py));
+        let py_handler = Python::with_gil(|py| {
+            pymodule
+                .getattr(py, "handler")
+                .expect("this should not happen")
+                .into_py(py)
+        });
         handler.store(Some(py_handler.into()));
 
         let result = Python::with_gil(|py| pyshinqlx_register_handler(py, event, None));
@@ -141,11 +145,15 @@ def handler():
                 "",
                 "",
             )
-            .unwrap()
+            .expect("this should not happen")
             .into_py(py)
         });
-        let py_handler =
-            Python::with_gil(|py| pymodule.getattr(py, "handler").unwrap().into_py(py));
+        let py_handler = Python::with_gil(|py| {
+            pymodule
+                .getattr(py, "handler")
+                .expect("this should not happen")
+                .into_py(py)
+        });
         handler.store(None);
 
         let result = Python::with_gil(|py| pyshinqlx_register_handler(py, event, Some(py_handler)));
@@ -168,11 +176,15 @@ def handler():
                 "",
                 "",
             )
-            .unwrap()
+            .expect("this should not happen")
             .into_py(py)
         });
-        let py_handler =
-            Python::with_gil(|py| pymodule.getattr(py, "handler").unwrap().into_py(py));
+        let py_handler = Python::with_gil(|py| {
+            pymodule
+                .getattr(py, "handler")
+                .expect("this should not happen")
+                .into_py(py)
+        });
 
         Python::with_gil(|py| {
             let result = pyshinqlx_register_handler(py, "unknown_event", Some(py_handler));
@@ -192,11 +204,15 @@ handler = True
                 "",
                 "",
             )
-            .unwrap()
+            .expect("this should not happen")
             .into_py(py)
         });
-        let py_handler =
-            Python::with_gil(|py| pymodule.getattr(py, "handler").unwrap().into_py(py));
+        let py_handler = Python::with_gil(|py| {
+            pymodule
+                .getattr(py, "handler")
+                .expect("this should not happen")
+                .into_py(py)
+        });
 
         Python::with_gil(|py| {
             let result = pyshinqlx_register_handler(py, "client_command", Some(py_handler));
