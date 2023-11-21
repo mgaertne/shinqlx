@@ -420,11 +420,15 @@ def handler(client_id, cmd):
                 "",
                 "",
             )
-            .unwrap()
+            .expect("this should not happen")
             .into_py(py)
         });
-        let client_command_handler =
-            Python::with_gil(|py| pymodule.getattr(py, "handler").unwrap().into_py(py));
+        let client_command_handler = Python::with_gil(|py| {
+            pymodule
+                .getattr(py, "handler")
+                .expect("this should not happen")
+                .into_py(py)
+        });
         CLIENT_COMMAND_HANDLER.store(Some(client_command_handler.into()));
 
         let result = client_command_dispatcher(123, "asdf");
@@ -446,11 +450,15 @@ def handler(client_id, cmd):
                 "",
                 "",
             )
-            .unwrap()
+            .expect("this should not happen")
             .into_py(py)
         });
-        let client_command_handler =
-            Python::with_gil(|py| pymodule.getattr(py, "handler").unwrap().into_py(py));
+        let client_command_handler = Python::with_gil(|py| {
+            pymodule
+                .getattr(py, "handler")
+                .expect("this should not happen")
+                .into_py(py)
+        });
         CLIENT_COMMAND_HANDLER.store(Some(client_command_handler.into()));
 
         let result = client_command_dispatcher(123, "asdf");
@@ -472,11 +480,15 @@ def handler(client_id, cmd):
                 "",
                 "",
             )
-            .unwrap()
+            .expect("this should not happen")
             .into_py(py)
         });
-        let client_command_handler =
-            Python::with_gil(|py| pymodule.getattr(py, "handler").unwrap().into_py(py));
+        let client_command_handler = Python::with_gil(|py| {
+            pymodule
+                .getattr(py, "handler")
+                .expect("this should not happen")
+                .into_py(py)
+        });
         CLIENT_COMMAND_HANDLER.store(Some(client_command_handler.into()));
 
         let result = client_command_dispatcher(123, "asdf");
@@ -498,11 +510,15 @@ def handler(client_id, cmd):
                 "",
                 "",
             )
-            .unwrap()
+            .expect("this should not happen")
             .into_py(py)
         });
-        let client_command_handler =
-            Python::with_gil(|py| pymodule.getattr(py, "handler").unwrap().into_py(py));
+        let client_command_handler = Python::with_gil(|py| {
+            pymodule
+                .getattr(py, "handler")
+                .expect("this should not happen")
+                .into_py(py)
+        });
         CLIENT_COMMAND_HANDLER.store(Some(client_command_handler.into()));
 
         let result = client_command_dispatcher(123, "asdf");
@@ -524,11 +540,15 @@ def handler(client_id, cmd):
                 "",
                 "",
             )
-            .unwrap()
+            .expect("this should not happen")
             .into_py(py)
         });
-        let client_command_handler =
-            Python::with_gil(|py| pymodule.getattr(py, "handler").unwrap().into_py(py));
+        let client_command_handler = Python::with_gil(|py| {
+            pymodule
+                .getattr(py, "handler")
+                .expect("this should not happen")
+                .into_py(py)
+        });
         CLIENT_COMMAND_HANDLER.store(Some(client_command_handler.into()));
 
         let result = client_command_dispatcher(123, "asdf");
@@ -550,11 +570,15 @@ def handler(client_id, cmd):
                 "",
                 "",
             )
-            .unwrap()
+            .expect("this should not happen")
             .into_py(py)
         });
-        let client_command_handler =
-            Python::with_gil(|py| pymodule.getattr(py, "handler").unwrap().into_py(py));
+        let client_command_handler = Python::with_gil(|py| {
+            pymodule
+                .getattr(py, "handler")
+                .expect("this should not happen")
+                .into_py(py)
+        });
         CLIENT_COMMAND_HANDLER.store(Some(client_command_handler.into()));
 
         let result = client_command_dispatcher(123, "asdf");
@@ -595,11 +619,15 @@ def handler(client_id, cmd):
                 "",
                 "",
             )
-            .unwrap()
+            .expect("this should not happen")
             .into_py(py)
         });
-        let server_command_handler =
-            Python::with_gil(|py| pymodule.getattr(py, "handler").unwrap().into_py(py));
+        let server_command_handler = Python::with_gil(|py| {
+            pymodule
+                .getattr(py, "handler")
+                .expect("this should not happen")
+                .into_py(py)
+        });
         SERVER_COMMAND_HANDLER.store(Some(server_command_handler.into()));
 
         let result = server_command_dispatcher(Some(123), "asdf");
@@ -621,11 +649,15 @@ def handler(client_id, cmd):
                 "",
                 "",
             )
-            .unwrap()
+            .expect("this should not happen")
             .into_py(py)
         });
-        let server_command_handler =
-            Python::with_gil(|py| pymodule.getattr(py, "handler").unwrap().into_py(py));
+        let server_command_handler = Python::with_gil(|py| {
+            pymodule
+                .getattr(py, "handler")
+                .expect("this should not happen")
+                .into_py(py)
+        });
         SERVER_COMMAND_HANDLER.store(Some(server_command_handler.into()));
 
         let result = server_command_dispatcher(Some(123), "asdf");
@@ -647,11 +679,15 @@ def handler(client_id, cmd):
                 "",
                 "",
             )
-            .unwrap()
+            .expect("this should not happen")
             .into_py(py)
         });
-        let server_command_handler =
-            Python::with_gil(|py| pymodule.getattr(py, "handler").unwrap().into_py(py));
+        let server_command_handler = Python::with_gil(|py| {
+            pymodule
+                .getattr(py, "handler")
+                .expect("this should not happen")
+                .into_py(py)
+        });
         SERVER_COMMAND_HANDLER.store(Some(server_command_handler.into()));
 
         let result = server_command_dispatcher(Some(123), "asdf");
@@ -673,11 +709,15 @@ def handler(client_id, cmd):
                 "",
                 "",
             )
-            .unwrap()
+            .expect("this should not happen")
             .into_py(py)
         });
-        let server_command_handler =
-            Python::with_gil(|py| pymodule.getattr(py, "handler").unwrap().into_py(py));
+        let server_command_handler = Python::with_gil(|py| {
+            pymodule
+                .getattr(py, "handler")
+                .expect("this should not happen")
+                .into_py(py)
+        });
         SERVER_COMMAND_HANDLER.store(Some(server_command_handler.into()));
 
         let result = server_command_dispatcher(Some(123), "asdf");
@@ -699,11 +739,15 @@ def handler(client_id, cmd):
                 "",
                 "",
             )
-            .unwrap()
+            .expect("this should not happen")
             .into_py(py)
         });
-        let server_command_handler =
-            Python::with_gil(|py| pymodule.getattr(py, "handler").unwrap().into_py(py));
+        let server_command_handler = Python::with_gil(|py| {
+            pymodule
+                .getattr(py, "handler")
+                .expect("this should not happen")
+                .into_py(py)
+        });
         SERVER_COMMAND_HANDLER.store(Some(server_command_handler.into()));
 
         let result = server_command_dispatcher(Some(123), "asdf");
@@ -725,11 +769,15 @@ def handler(client_id, cmd):
                 "",
                 "",
             )
-            .unwrap()
+            .expect("this should not happen")
             .into_py(py)
         });
-        let server_command_handler =
-            Python::with_gil(|py| pymodule.getattr(py, "handler").unwrap().into_py(py));
+        let server_command_handler = Python::with_gil(|py| {
+            pymodule
+                .getattr(py, "handler")
+                .expect("this should not happen")
+                .into_py(py)
+        });
         SERVER_COMMAND_HANDLER.store(Some(server_command_handler.into()));
 
         let result = server_command_dispatcher(Some(123), "asdf");
@@ -768,11 +816,15 @@ def handler():
                 "",
                 "",
             )
-            .unwrap()
+            .expect("this should not happen")
             .into_py(py)
         });
-        let frame_handler =
-            Python::with_gil(|py| pymodule.getattr(py, "handler").unwrap().into_py(py));
+        let frame_handler = Python::with_gil(|py| {
+            pymodule
+                .getattr(py, "handler")
+                .expect("this should not happen")
+                .into_py(py)
+        });
         FRAME_HANDLER.store(Some(frame_handler.into()));
 
         frame_dispatcher();
@@ -793,11 +845,15 @@ def handler():
                 "",
                 "",
             )
-            .unwrap()
+            .expect("this should not happen")
             .into_py(py)
         });
-        let frame_handler =
-            Python::with_gil(|py| pymodule.getattr(py, "handler").unwrap().into_py(py));
+        let frame_handler = Python::with_gil(|py| {
+            pymodule
+                .getattr(py, "handler")
+                .expect("this should not happen")
+                .into_py(py)
+        });
         FRAME_HANDLER.store(Some(frame_handler.into()));
 
         frame_dispatcher();
@@ -837,11 +893,15 @@ def handler(client_id, is_bot):
                 "",
                 "",
             )
-            .unwrap()
+            .expect("this should not happen")
             .into_py(py)
         });
-        let client_connect_handler =
-            Python::with_gil(|py| pymodule.getattr(py, "handler").unwrap().into_py(py));
+        let client_connect_handler = Python::with_gil(|py| {
+            pymodule
+                .getattr(py, "handler")
+                .expect("this should not happen")
+                .into_py(py)
+        });
         PLAYER_CONNECT_HANDLER.store(Some(client_connect_handler.into()));
 
         let result = client_connect_dispatcher(42, false);
@@ -863,11 +923,15 @@ def handler(client_id, is_bot):
                 "",
                 "",
             )
-            .unwrap()
+            .expect("this should not happen")
             .into_py(py)
         });
-        let client_connect_handler =
-            Python::with_gil(|py| pymodule.getattr(py, "handler").unwrap().into_py(py));
+        let client_connect_handler = Python::with_gil(|py| {
+            pymodule
+                .getattr(py, "handler")
+                .expect("this should not happen")
+                .into_py(py)
+        });
         PLAYER_CONNECT_HANDLER.store(Some(client_connect_handler.into()));
 
         let result = client_connect_dispatcher(42, true);
@@ -889,11 +953,15 @@ def handler(client_id, is_bot):
                 "",
                 "",
             )
-            .unwrap()
+            .expect("this should not happen")
             .into_py(py)
         });
-        let client_connect_handler =
-            Python::with_gil(|py| pymodule.getattr(py, "handler").unwrap().into_py(py));
+        let client_connect_handler = Python::with_gil(|py| {
+            pymodule
+                .getattr(py, "handler")
+                .expect("this should not happen")
+                .into_py(py)
+        });
         PLAYER_CONNECT_HANDLER.store(Some(client_connect_handler.into()));
 
         let result = client_connect_dispatcher(42, true);
@@ -915,11 +983,15 @@ def handler(client_id, is_bot):
                 "",
                 "",
             )
-            .unwrap()
+            .expect("this should not happen")
             .into_py(py)
         });
-        let client_connect_handler =
-            Python::with_gil(|py| pymodule.getattr(py, "handler").unwrap().into_py(py));
+        let client_connect_handler = Python::with_gil(|py| {
+            pymodule
+                .getattr(py, "handler")
+                .expect("this should not happen")
+                .into_py(py)
+        });
         PLAYER_CONNECT_HANDLER.store(Some(client_connect_handler.into()));
 
         let result = client_connect_dispatcher(42, false);
@@ -941,11 +1013,15 @@ def handler(client_id, is_bot):
                 "",
                 "",
             )
-            .unwrap()
+            .expect("this should not happen")
             .into_py(py)
         });
-        let player_connect_handler =
-            Python::with_gil(|py| pymodule.getattr(py, "handler").unwrap().into_py(py));
+        let player_connect_handler = Python::with_gil(|py| {
+            pymodule
+                .getattr(py, "handler")
+                .expect("this should not happen")
+                .into_py(py)
+        });
         PLAYER_CONNECT_HANDLER.store(Some(player_connect_handler.into()));
 
         let result = client_connect_dispatcher(42, false);
@@ -984,11 +1060,15 @@ def handler(client_id, reason):
                 "",
                 "",
             )
-            .unwrap()
+            .expect("this should not happen")
             .into_py(py)
         });
-        let client_disconnect_handler =
-            Python::with_gil(|py| pymodule.getattr(py, "handler").unwrap().into_py(py));
+        let client_disconnect_handler = Python::with_gil(|py| {
+            pymodule
+                .getattr(py, "handler")
+                .expect("this should not happen")
+                .into_py(py)
+        });
         PLAYER_DISCONNECT_HANDLER.store(Some(client_disconnect_handler.into()));
 
         client_disconnect_dispatcher(42, "ragequit");
@@ -1009,11 +1089,15 @@ def handler(client_id, reason):
                 "",
                 "",
             )
-            .unwrap()
+            .expect("this should not happen")
             .into_py(py)
         });
-        let client_disconnect_handler =
-            Python::with_gil(|py| pymodule.getattr(py, "handler").unwrap().into_py(py));
+        let client_disconnect_handler = Python::with_gil(|py| {
+            pymodule
+                .getattr(py, "handler")
+                .expect("this should not happen")
+                .into_py(py)
+        });
         PLAYER_DISCONNECT_HANDLER.store(Some(client_disconnect_handler.into()));
 
         client_disconnect_dispatcher(42, "ragequit");
@@ -1051,11 +1135,15 @@ def handler(client_id):
                 "",
                 "",
             )
-            .unwrap()
+            .expect("this should not happen")
             .into_py(py)
         });
-        let client_loaded_handler =
-            Python::with_gil(|py| pymodule.getattr(py, "handler").unwrap().into_py(py));
+        let client_loaded_handler = Python::with_gil(|py| {
+            pymodule
+                .getattr(py, "handler")
+                .expect("this should not happen")
+                .into_py(py)
+        });
         PLAYER_LOADED_HANDLER.store(Some(client_loaded_handler.into()));
 
         client_loaded_dispatcher(123);
@@ -1076,11 +1164,15 @@ def handler(client_id):
                 "",
                 "",
             )
-            .unwrap()
+            .expect("this should not happen")
             .into_py(py)
         });
-        let client_loaded_handler =
-            Python::with_gil(|py| pymodule.getattr(py, "handler").unwrap().into_py(py));
+        let client_loaded_handler = Python::with_gil(|py| {
+            pymodule
+                .getattr(py, "handler")
+                .expect("this should not happen")
+                .into_py(py)
+        });
         PLAYER_LOADED_HANDLER.store(Some(client_loaded_handler.into()));
 
         client_loaded_dispatcher(123);
@@ -1118,11 +1210,15 @@ def handler(restart):
                 "",
                 "",
             )
-            .unwrap()
+            .expect("this should not happen")
             .into_py(py)
         });
-        let new_game_handler =
-            Python::with_gil(|py| pymodule.getattr(py, "handler").unwrap().into_py(py));
+        let new_game_handler = Python::with_gil(|py| {
+            pymodule
+                .getattr(py, "handler")
+                .expect("this should not happen")
+                .into_py(py)
+        });
         NEW_GAME_HANDLER.store(Some(new_game_handler.into()));
 
         new_game_dispatcher(false);
@@ -1143,11 +1239,15 @@ def handler(restart):
                 "",
                 "",
             )
-            .unwrap()
+            .expect("this should not happen")
             .into_py(py)
         });
-        let new_game_handler =
-            Python::with_gil(|py| pymodule.getattr(py, "handler").unwrap().into_py(py));
+        let new_game_handler = Python::with_gil(|py| {
+            pymodule
+                .getattr(py, "handler")
+                .expect("this should not happen")
+                .into_py(py)
+        });
         NEW_GAME_HANDLER.store(Some(new_game_handler.into()));
 
         new_game_dispatcher(true);
@@ -1187,11 +1287,15 @@ def handler(index, value):
                 "",
                 "",
             )
-            .unwrap()
+            .expect("this should not happen")
             .into_py(py)
         });
-        let set_configstring_handler =
-            Python::with_gil(|py| pymodule.getattr(py, "handler").unwrap().into_py(py));
+        let set_configstring_handler = Python::with_gil(|py| {
+            pymodule
+                .getattr(py, "handler")
+                .expect("this should not happen")
+                .into_py(py)
+        });
         SET_CONFIGSTRING_HANDLER.store(Some(set_configstring_handler.into()));
 
         let result = set_configstring_dispatcher(123u32, "asdf");
@@ -1213,11 +1317,15 @@ def handler(index, value):
                 "",
                 "",
             )
-            .unwrap()
+            .expect("this should not happen")
             .into_py(py)
         });
-        let set_configstring_handler =
-            Python::with_gil(|py| pymodule.getattr(py, "handler").unwrap().into_py(py));
+        let set_configstring_handler = Python::with_gil(|py| {
+            pymodule
+                .getattr(py, "handler")
+                .expect("this should not happen")
+                .into_py(py)
+        });
         SET_CONFIGSTRING_HANDLER.store(Some(set_configstring_handler.into()));
 
         let result = set_configstring_dispatcher(123u32, "asdf");
@@ -1239,11 +1347,15 @@ def handler(index, value):
                 "",
                 "",
             )
-            .unwrap()
+            .expect("this should not happen")
             .into_py(py)
         });
-        let set_configstring_handler =
-            Python::with_gil(|py| pymodule.getattr(py, "handler").unwrap().into_py(py));
+        let set_configstring_handler = Python::with_gil(|py| {
+            pymodule
+                .getattr(py, "handler")
+                .expect("this should not happen")
+                .into_py(py)
+        });
         SET_CONFIGSTRING_HANDLER.store(Some(set_configstring_handler.into()));
 
         let result = set_configstring_dispatcher(123u32, "asdf");
@@ -1265,11 +1377,15 @@ def handler(index, value):
                 "",
                 "",
             )
-            .unwrap()
+            .expect("this should not happen")
             .into_py(py)
         });
-        let set_configstring_handler =
-            Python::with_gil(|py| pymodule.getattr(py, "handler").unwrap().into_py(py));
+        let set_configstring_handler = Python::with_gil(|py| {
+            pymodule
+                .getattr(py, "handler")
+                .expect("this should not happen")
+                .into_py(py)
+        });
         SET_CONFIGSTRING_HANDLER.store(Some(set_configstring_handler.into()));
 
         let result = set_configstring_dispatcher(123u32, "asdf");
@@ -1291,11 +1407,15 @@ def handler(index, value):
                 "",
                 "",
             )
-            .unwrap()
+            .expect("this should not happen")
             .into_py(py)
         });
-        let set_configstring_handler =
-            Python::with_gil(|py| pymodule.getattr(py, "handler").unwrap().into_py(py));
+        let set_configstring_handler = Python::with_gil(|py| {
+            pymodule
+                .getattr(py, "handler")
+                .expect("this should not happen")
+                .into_py(py)
+        });
         SET_CONFIGSTRING_HANDLER.store(Some(set_configstring_handler.into()));
 
         let result = set_configstring_dispatcher(123u32, "asdf");
@@ -1317,11 +1437,15 @@ def handler(index, value):
                 "",
                 "",
             )
-            .unwrap()
+            .expect("this should not happen")
             .into_py(py)
         });
-        let set_configstring_handler =
-            Python::with_gil(|py| pymodule.getattr(py, "handler").unwrap().into_py(py));
+        let set_configstring_handler = Python::with_gil(|py| {
+            pymodule
+                .getattr(py, "handler")
+                .expect("this should not happen")
+                .into_py(py)
+        });
         SET_CONFIGSTRING_HANDLER.store(Some(set_configstring_handler.into()));
 
         let result = set_configstring_dispatcher(123u32, "asdf");
@@ -1360,11 +1484,15 @@ def handler(cmd):
                 "",
                 "",
             )
-            .unwrap()
+            .expect("this should not happen")
             .into_py(py)
         });
-        let rcon_handler =
-            Python::with_gil(|py| pymodule.getattr(py, "handler").unwrap().into_py(py));
+        let rcon_handler = Python::with_gil(|py| {
+            pymodule
+                .getattr(py, "handler")
+                .expect("this should not happen")
+                .into_py(py)
+        });
         RCON_HANDLER.store(Some(rcon_handler.into()));
 
         rcon_dispatcher("asdf");
@@ -1385,11 +1513,15 @@ def handler(cmd):
                 "",
                 "",
             )
-            .unwrap()
+            .expect("this should not happen")
             .into_py(py)
         });
-        let rcon_handler =
-            Python::with_gil(|py| pymodule.getattr(py, "handler").unwrap().into_py(py));
+        let rcon_handler = Python::with_gil(|py| {
+            pymodule
+                .getattr(py, "handler")
+                .expect("this should not happen")
+                .into_py(py)
+        });
         RCON_HANDLER.store(Some(rcon_handler.into()));
 
         rcon_dispatcher("asdf");
@@ -1429,11 +1561,15 @@ def handler(text):
                 "",
                 "",
             )
-            .unwrap()
+            .expect("this should not happen")
             .into_py(py)
         });
-        let console_print_handler =
-            Python::with_gil(|py| pymodule.getattr(py, "handler").unwrap().into_py(py));
+        let console_print_handler = Python::with_gil(|py| {
+            pymodule
+                .getattr(py, "handler")
+                .expect("this should not happen")
+                .into_py(py)
+        });
         CONSOLE_PRINT_HANDLER.store(Some(console_print_handler.into()));
 
         let result = console_print_dispatcher("asdf");
@@ -1455,11 +1591,15 @@ def handler(text):
                 "",
                 "",
             )
-            .unwrap()
+            .expect("this should not happen")
             .into_py(py)
         });
-        let console_print_handler =
-            Python::with_gil(|py| pymodule.getattr(py, "handler").unwrap().into_py(py));
+        let console_print_handler = Python::with_gil(|py| {
+            pymodule
+                .getattr(py, "handler")
+                .expect("this should not happen")
+                .into_py(py)
+        });
         CONSOLE_PRINT_HANDLER.store(Some(console_print_handler.into()));
 
         let result = console_print_dispatcher("asdf");
@@ -1481,11 +1621,15 @@ def handler(text):
                 "",
                 "",
             )
-            .unwrap()
+            .expect("this should not happen")
             .into_py(py)
         });
-        let console_print_handler =
-            Python::with_gil(|py| pymodule.getattr(py, "handler").unwrap().into_py(py));
+        let console_print_handler = Python::with_gil(|py| {
+            pymodule
+                .getattr(py, "handler")
+                .expect("this should not happen")
+                .into_py(py)
+        });
         CONSOLE_PRINT_HANDLER.store(Some(console_print_handler.into()));
 
         let result = console_print_dispatcher("asdf");
@@ -1507,11 +1651,15 @@ def handler(text):
                 "",
                 "",
             )
-            .unwrap()
+            .expect("this should not happen")
             .into_py(py)
         });
-        let console_print_handler =
-            Python::with_gil(|py| pymodule.getattr(py, "handler").unwrap().into_py(py));
+        let console_print_handler = Python::with_gil(|py| {
+            pymodule
+                .getattr(py, "handler")
+                .expect("this should not happen")
+                .into_py(py)
+        });
         CONSOLE_PRINT_HANDLER.store(Some(console_print_handler.into()));
 
         let result = console_print_dispatcher("asdf");
@@ -1533,11 +1681,15 @@ def handler(text):
                 "",
                 "",
             )
-            .unwrap()
+            .expect("this should not happen")
             .into_py(py)
         });
-        let console_print_handler =
-            Python::with_gil(|py| pymodule.getattr(py, "handler").unwrap().into_py(py));
+        let console_print_handler = Python::with_gil(|py| {
+            pymodule
+                .getattr(py, "handler")
+                .expect("this should not happen")
+                .into_py(py)
+        });
         CONSOLE_PRINT_HANDLER.store(Some(console_print_handler.into()));
 
         let result = console_print_dispatcher("asdf");
@@ -1559,11 +1711,15 @@ def handler(text):
                 "",
                 "",
             )
-            .unwrap()
+            .expect("this should not happen")
             .into_py(py)
         });
-        let console_print_handler =
-            Python::with_gil(|py| pymodule.getattr(py, "handler").unwrap().into_py(py));
+        let console_print_handler = Python::with_gil(|py| {
+            pymodule
+                .getattr(py, "handler")
+                .expect("this should not happen")
+                .into_py(py)
+        });
         CONSOLE_PRINT_HANDLER.store(Some(console_print_handler.into()));
 
         let result = console_print_dispatcher("asdf");
@@ -1602,11 +1758,15 @@ def handler(client_id):
                 "",
                 "",
             )
-            .unwrap()
+            .expect("this should not happen")
             .into_py(py)
         });
-        let client_spawn_handler =
-            Python::with_gil(|py| pymodule.getattr(py, "handler").unwrap().into_py(py));
+        let client_spawn_handler = Python::with_gil(|py| {
+            pymodule
+                .getattr(py, "handler")
+                .expect("this should not happen")
+                .into_py(py)
+        });
         PLAYER_SPAWN_HANDLER.store(Some(client_spawn_handler.into()));
 
         client_spawn_dispatcher(123);
@@ -1627,11 +1787,15 @@ def handler(client_id):
                 "",
                 "",
             )
-            .unwrap()
+            .expect("this should not happen")
             .into_py(py)
         });
-        let client_spawn_handler =
-            Python::with_gil(|py| pymodule.getattr(py, "handler").unwrap().into_py(py));
+        let client_spawn_handler = Python::with_gil(|py| {
+            pymodule
+                .getattr(py, "handler")
+                .expect("this should not happen")
+                .into_py(py)
+        });
         PLAYER_SPAWN_HANDLER.store(Some(client_spawn_handler.into()));
 
         client_spawn_dispatcher(123);
@@ -1669,11 +1833,15 @@ def handler(client_id):
                 "",
                 "",
             )
-            .unwrap()
+            .expect("this should not happen")
             .into_py(py)
         });
-        let kamikaze_use_handler =
-            Python::with_gil(|py| pymodule.getattr(py, "handler").unwrap().into_py(py));
+        let kamikaze_use_handler = Python::with_gil(|py| {
+            pymodule
+                .getattr(py, "handler")
+                .expect("this should not happen")
+                .into_py(py)
+        });
         KAMIKAZE_USE_HANDLER.store(Some(kamikaze_use_handler.into()));
 
         kamikaze_use_dispatcher(123);
@@ -1694,11 +1862,15 @@ def handler(client_id):
                 "",
                 "",
             )
-            .unwrap()
+            .expect("this should not happen")
             .into_py(py)
         });
-        let kamikaze_use_handler =
-            Python::with_gil(|py| pymodule.getattr(py, "handler").unwrap().into_py(py));
+        let kamikaze_use_handler = Python::with_gil(|py| {
+            pymodule
+                .getattr(py, "handler")
+                .expect("this should not happen")
+                .into_py(py)
+        });
         KAMIKAZE_USE_HANDLER.store(Some(kamikaze_use_handler.into()));
 
         kamikaze_use_dispatcher(123);
@@ -1736,11 +1908,15 @@ def handler(client_id, is_used_on_demand):
                 "",
                 "",
             )
-            .unwrap()
+            .expect("this should not happen")
             .into_py(py)
         });
-        let kamikaze_explode_handler =
-            Python::with_gil(|py| pymodule.getattr(py, "handler").unwrap().into_py(py));
+        let kamikaze_explode_handler = Python::with_gil(|py| {
+            pymodule
+                .getattr(py, "handler")
+                .expect("this should not happen")
+                .into_py(py)
+        });
         KAMIKAZE_EXPLODE_HANDLER.store(Some(kamikaze_explode_handler.into()));
 
         kamikaze_explode_dispatcher(123, false);
@@ -1761,11 +1937,15 @@ def handler(client_id, is_used_on_demand):
                 "",
                 "",
             )
-            .unwrap()
+            .expect("this should not happen")
             .into_py(py)
         });
-        let kamikaze_explode_handler =
-            Python::with_gil(|py| pymodule.getattr(py, "handler").unwrap().into_py(py));
+        let kamikaze_explode_handler = Python::with_gil(|py| {
+            pymodule
+                .getattr(py, "handler")
+                .expect("this should not happen")
+                .into_py(py)
+        });
         KAMIKAZE_EXPLODE_HANDLER.store(Some(kamikaze_explode_handler.into()));
 
         kamikaze_explode_dispatcher(123, true);
@@ -1815,11 +1995,15 @@ def handler(client_id, attacker_id, damage, dflags, means_of_death):
                 "",
                 "",
             )
-            .unwrap()
+            .expect("this should not happen")
             .into_py(py)
         });
-        let damage_handler =
-            Python::with_gil(|py| pymodule.getattr(py, "handler").unwrap().into_py(py));
+        let damage_handler = Python::with_gil(|py| {
+            pymodule
+                .getattr(py, "handler")
+                .expect("this should not happen")
+                .into_py(py)
+        });
         DAMAGE_HANDLER.store(Some(damage_handler.into()));
 
         damage_dispatcher(
@@ -1846,11 +2030,15 @@ def handler(client_id, attacker_id, damage, dflags, means_of_death):
                 "",
                 "",
             )
-            .unwrap()
+            .expect("this should not happen")
             .into_py(py)
         });
-        let damage_handler =
-            Python::with_gil(|py| pymodule.getattr(py, "handler").unwrap().into_py(py));
+        let damage_handler = Python::with_gil(|py| {
+            pymodule
+                .getattr(py, "handler")
+                .expect("this should not happen")
+                .into_py(py)
+        });
         DAMAGE_HANDLER.store(Some(damage_handler.into()));
 
         damage_dispatcher(

@@ -115,9 +115,8 @@ mod set_powerups_tests {
         });
 
         let result =
-            Python::with_gil(|py| pyshinqlx_set_powerups(py, 2, Powerups(1, 2, 3, 4, 5, 6)))
-                .unwrap();
-        assert_eq!(result, true);
+            Python::with_gil(|py| pyshinqlx_set_powerups(py, 2, Powerups(1, 2, 3, 4, 5, 6)));
+        assert_eq!(result.expect("result was not OK"), true);
     }
 
     #[test]
@@ -137,8 +136,7 @@ mod set_powerups_tests {
         });
 
         let result =
-            Python::with_gil(|py| pyshinqlx_set_powerups(py, 2, Powerups(0, 0, 0, 0, 0, 0)))
-                .unwrap();
-        assert_eq!(result, false);
+            Python::with_gil(|py| pyshinqlx_set_powerups(py, 2, Powerups(0, 0, 0, 0, 0, 0)));
+        assert_eq!(result.expect("result was not OK"), false);
     }
 }

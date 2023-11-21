@@ -197,8 +197,8 @@ mod server_static_tests {
             .clients(&mut clients[0])
             .build()
             .unwrap();
-        let rust_server_static =
-            ServerStatic::try_from(&mut server_static as *mut serverStatic_t).unwrap();
+        let rust_server_static = ServerStatic::try_from(&mut server_static as *mut serverStatic_t)
+            .expect("this should not happen");
         assert_eq!(
             unsafe { rust_server_static.try_get_client_by_id(2) },
             Ok(&mut clients[2] as *mut client_t)
@@ -207,10 +207,14 @@ mod server_static_tests {
     #[test]
     #[cfg_attr(miri, ignore)]
     fn server_static_determine_client_id_from_invalid_client() {
-        let client = ClientBuilder::default().build().unwrap();
-        let mut server_static = ServerStaticBuilder::default().build().unwrap();
-        let rust_server_static =
-            ServerStatic::try_from(&mut server_static as *mut serverStatic_t).unwrap();
+        let client = ClientBuilder::default()
+            .build()
+            .expect("this should not happen");
+        let mut server_static = ServerStaticBuilder::default()
+            .build()
+            .expect("this should not happen");
+        let rust_server_static = ServerStatic::try_from(&mut server_static as *mut serverStatic_t)
+            .expect("this should not happen");
         assert_eq!(
             unsafe { rust_server_static.try_determine_client_id(&client) },
             Err(QuakeLiveEngineError::ClientNotFound(
@@ -221,13 +225,15 @@ mod server_static_tests {
 
     #[test]
     fn server_static_determine_client_id_from_ok_client() {
-        let mut client = ClientBuilder::default().build().unwrap();
+        let mut client = ClientBuilder::default()
+            .build()
+            .expect("this should not happen");
         let mut server_static = ServerStaticBuilder::default()
             .clients(&mut client as *mut client_t)
             .build()
-            .unwrap();
-        let rust_server_static =
-            ServerStatic::try_from(&mut server_static as *mut serverStatic_t).unwrap();
+            .expect("this should not happen");
+        let rust_server_static = ServerStatic::try_from(&mut server_static as *mut serverStatic_t)
+            .expect("this should not happen");
         assert_eq!(
             unsafe { rust_server_static.try_determine_client_id(&client) },
             Ok(0)
@@ -238,16 +244,22 @@ mod server_static_tests {
     #[test]
     fn server_static_determine_client_id_from_ok_client_not_first_position() {
         let mut clients = vec![
-            ClientBuilder::default().build().unwrap(),
-            ClientBuilder::default().build().unwrap(),
-            ClientBuilder::default().build().unwrap(),
+            ClientBuilder::default()
+                .build()
+                .expect("this should not happen"),
+            ClientBuilder::default()
+                .build()
+                .expect("this should not happen"),
+            ClientBuilder::default()
+                .build()
+                .expect("this should not happen"),
         ];
         let mut server_static = ServerStaticBuilder::default()
             .clients(&mut clients[0])
             .build()
-            .unwrap();
-        let rust_server_static =
-            ServerStatic::try_from(&mut server_static as *mut serverStatic_t).unwrap();
+            .expect("this should not happen");
+        let rust_server_static = ServerStatic::try_from(&mut server_static as *mut serverStatic_t)
+            .expect("this should not happen");
         assert_eq!(
             unsafe { rust_server_static.try_determine_client_id(&(clients[2])) },
             Ok(2)

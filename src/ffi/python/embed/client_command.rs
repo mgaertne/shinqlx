@@ -123,8 +123,8 @@ mod client_command_tests {
             .withf(|client, cmd, &client_ok| client.is_some() && cmd == "asdf" && client_ok)
             .times(1);
 
-        let result = Python::with_gil(|py| pyshinqlx_client_command(py, 2, "asdf")).unwrap();
-        assert_eq!(result, true);
+        let result = Python::with_gil(|py| pyshinqlx_client_command(py, 2, "asdf"));
+        assert_eq!(result.expect("result was not OK"), true);
     }
 
     #[rstest]
@@ -146,7 +146,7 @@ mod client_command_tests {
         let hook_ctx = shinqlx_execute_client_command_context();
         hook_ctx.expect().times(0);
 
-        let result = Python::with_gil(|py| pyshinqlx_client_command(py, 2, "asdf")).unwrap();
-        assert_eq!(result, false);
+        let result = Python::with_gil(|py| pyshinqlx_client_command(py, 2, "asdf"));
+        assert_eq!(result.expect("result was not OK"), false);
     }
 }
