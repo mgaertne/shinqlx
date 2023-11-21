@@ -295,7 +295,7 @@ mod pyshinqlx_player_tests {
                     name: "UnnamedPlayer".to_string(),
                 },
             )
-            .unwrap();
+            .expect("this should not happen");
             Player::__repr__(player)
         });
         assert_eq!(result, "Player(2:'UnnamedPlayer':1234567890)");

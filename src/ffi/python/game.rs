@@ -768,7 +768,7 @@ mod pyshinqlx_game_tests {
                     valid: true,
                 },
             )
-            .unwrap();
+            .expect("this should not happen");
             Game::__repr__(game)
         });
         assert_eq!(result, "Game(N/A@N/A)");
@@ -792,7 +792,7 @@ mod pyshinqlx_game_tests {
                     valid: true,
                 },
             )
-            .unwrap();
+            .expect("this should not happen");
             Game::__repr__(game)
         });
         assert_eq!(result, "Game(N/A@N/A)");
@@ -816,7 +816,7 @@ mod pyshinqlx_game_tests {
                     valid: true,
                 },
             )
-            .unwrap();
+            .expect("this should not happen");
             Game::__repr__(game)
         });
         assert_eq!(result, "Game(N/A@N/A)");
@@ -840,7 +840,7 @@ mod pyshinqlx_game_tests {
                     valid: true,
                 },
             )
-            .unwrap();
+            .expect("this should not happen");
             Game::__repr__(game)
         });
         assert_eq!(result, "Game(N/A@N/A)");
@@ -864,7 +864,7 @@ mod pyshinqlx_game_tests {
                     valid: true,
                 },
             )
-            .unwrap();
+            .expect("this should not happen");
             Game::__repr__(game)
         });
         assert_eq!(result, "Game(Clan Arena@thunderstruck)");
@@ -1261,10 +1261,13 @@ mod pyshinqlx_game_tests {
             };
 
             let cvars_result = game.get_cvars(py);
-            assert!(cvars_result.is_ok_and(|cvars| cvars
-                .get_item("asdf")
-                .is_ok_and(|opt_value| opt_value
-                    .is_some_and(|value| value.extract::<String>().unwrap() == "42"))));
+            assert!(
+                cvars_result.is_ok_and(|cvars| cvars.get_item("asdf").is_ok_and(|opt_value| {
+                    opt_value.is_some_and(|value| {
+                        value.extract::<String>().expect("this should not happen") == "42"
+                    })
+                }))
+            );
         });
     }
 
@@ -1455,7 +1458,8 @@ mod pyshinqlx_game_tests {
                 valid: true,
             };
 
-            game.set_map(py, "campgrounds".into()).unwrap();
+            game.set_map(py, "campgrounds".into())
+                .expect("this should not happen");
         });
     }
 
@@ -1471,7 +1475,7 @@ _shinqlx._map_title = "eyetoeye"
                 None,
                 None,
             )
-            .unwrap();
+            .expect("this should not happen");
             let game = Game {
                 cached: true,
                 valid: true,
@@ -1496,7 +1500,7 @@ _shinqlx._map_subtitle1 = "Clan Arena"
                 None,
                 None,
             )
-            .unwrap();
+            .expect("this should not happen");
             let game = Game {
                 cached: true,
                 valid: true,
@@ -1521,7 +1525,7 @@ _shinqlx._map_subtitle2 = "Awesome map!"
                 None,
                 None,
             )
-            .unwrap();
+            .expect("this should not happen");
             let game = Game {
                 cached: true,
                 valid: true,
@@ -1751,7 +1755,8 @@ _shinqlx._map_subtitle2 = "Awesome map!"
                 valid: true,
             };
 
-            game.set_factory(py, "ffa".into()).unwrap();
+            game.set_factory(py, "ffa".into())
+                .expect("this should not happen");
         });
     }
 
@@ -1799,7 +1804,7 @@ _shinqlx._map_subtitle2 = "Awesome map!"
             };
 
             game.set_hostname(py, "More awesome server!".into())
-                .unwrap();
+                .expect("this should not happen");
         });
     }
 
@@ -1850,7 +1855,8 @@ _shinqlx._map_subtitle2 = "Awesome map!"
                 valid: true,
             };
 
-            game.set_instagib(py, value_set.into_py(py)).unwrap();
+            game.set_instagib(py, value_set.into_py(py))
+                .expect("this should not happen");
         });
     }
 
@@ -1878,7 +1884,8 @@ _shinqlx._map_subtitle2 = "Awesome map!"
                 valid: true,
             };
 
-            game.set_instagib(py, value_set.into_py(py)).unwrap();
+            game.set_instagib(py, value_set.into_py(py))
+                .expect("this should not happen");
         });
     }
 
@@ -1954,7 +1961,8 @@ _shinqlx._map_subtitle2 = "Awesome map!"
                 valid: true,
             };
 
-            game.set_loadout(py, value_set.into_py(py)).unwrap();
+            game.set_loadout(py, value_set.into_py(py))
+                .expect("this should not happen");
         });
     }
 
@@ -1982,7 +1990,8 @@ _shinqlx._map_subtitle2 = "Awesome map!"
                 valid: true,
             };
 
-            game.set_loadout(py, value_set.into_py(py)).unwrap();
+            game.set_loadout(py, value_set.into_py(py))
+                .expect("this should not happen");
         });
     }
 
@@ -2052,7 +2061,7 @@ _shinqlx._map_subtitle2 = "Awesome map!"
                 valid: true,
             };
 
-            game.set_maxclients(py, 32).unwrap();
+            game.set_maxclients(py, 32).expect("this should not happen");
         });
     }
 
@@ -2097,7 +2106,7 @@ _shinqlx._map_subtitle2 = "Awesome map!"
                 valid: true,
             };
 
-            game.set_timelimit(py, 30).unwrap();
+            game.set_timelimit(py, 30).expect("this should not happen");
         });
     }
 
@@ -2142,7 +2151,7 @@ _shinqlx._map_subtitle2 = "Awesome map!"
                 valid: true,
             };
 
-            game.set_fraglimit(py, 20).unwrap();
+            game.set_fraglimit(py, 20).expect("this should not happen");
         });
     }
 
@@ -2187,7 +2196,7 @@ _shinqlx._map_subtitle2 = "Awesome map!"
                 valid: true,
             };
 
-            game.set_roundlimit(py, 13).unwrap();
+            game.set_roundlimit(py, 13).expect("this should not happen");
         });
     }
 
@@ -2234,7 +2243,8 @@ _shinqlx._map_subtitle2 = "Awesome map!"
                 valid: true,
             };
 
-            game.set_roundtimelimit(py, 150).unwrap();
+            game.set_roundtimelimit(py, 150)
+                .expect("this should not happen");
         });
     }
 
@@ -2279,7 +2289,7 @@ _shinqlx._map_subtitle2 = "Awesome map!"
                 valid: true,
             };
 
-            game.set_scorelimit(py, 8).unwrap();
+            game.set_scorelimit(py, 8).expect("this should not happen");
         });
     }
     #[test]
@@ -2323,7 +2333,8 @@ _shinqlx._map_subtitle2 = "Awesome map!"
                 valid: true,
             };
 
-            game.set_capturelimit(py, 20).unwrap();
+            game.set_capturelimit(py, 20)
+                .expect("this should not happen");
         });
     }
 
@@ -2368,7 +2379,7 @@ _shinqlx._map_subtitle2 = "Awesome map!"
                 valid: true,
             };
 
-            game.set_teamsize(py, 8).unwrap();
+            game.set_teamsize(py, 8).expect("this should not happen");
         });
     }
 
@@ -2418,7 +2429,8 @@ _shinqlx._map_subtitle2 = "Awesome map!"
                 valid: true,
             };
 
-            game.set_tags(py, "tag1,tag2,tag3".into_py(py)).unwrap();
+            game.set_tags(py, "tag1,tag2,tag3".into_py(py))
+                .expect("this should not happen");
         });
     }
 
@@ -2445,7 +2457,7 @@ _shinqlx._map_subtitle2 = "Awesome map!"
             };
 
             game.set_tags(py, ["tag1", "tag2", "tag3"].into_py(py))
-                .unwrap();
+                .expect("this should not happen");
         });
     }
 
@@ -2511,7 +2523,7 @@ _shinqlx._map_subtitle2 = "Awesome map!"
             };
 
             game.set_workshop_items(py, [1234, 5678, 9101].into_py(py))
-                .unwrap();
+                .expect("this should not happen");
         });
     }
 
