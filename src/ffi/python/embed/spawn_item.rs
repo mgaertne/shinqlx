@@ -38,6 +38,7 @@ mod spawn_item_tests {
     use crate::ffi::c::game_item::MockGameItem;
     use crate::prelude::*;
     use mockall::predicate;
+    use pretty_assertions::assert_eq;
     use pyo3::exceptions::PyValueError;
     use pyo3::prelude::*;
 
@@ -86,6 +87,6 @@ mod spawn_item_tests {
 
         let result = Python::with_gil(|py| pyshinqlx_spawn_item(py, 42, 1, 2, 3));
 
-        assert!(result.is_ok_and(|value| value));
+        assert_eq!(result.expect("result was not OK"), true);
     }
 }
