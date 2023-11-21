@@ -179,7 +179,9 @@ mod game_item_tests {
 
     #[test]
     fn game_item_from_valid_item() {
-        let mut gitem = GItemBuilder::default().build().unwrap();
+        let mut gitem = GItemBuilder::default()
+            .build()
+            .expect("this should not happen");
         let game_item = GameItem::try_from(&mut gitem as *mut gitem_t);
         assert!(game_item.is_ok());
     }
@@ -258,12 +260,13 @@ mod game_item_tests {
     #[test]
     #[serial]
     fn game_item_get_classname() {
-        let classname = CString::new("item classname").unwrap();
+        let classname = CString::new("item classname").expect("this should not happen");
         let mut gitem = GItemBuilder::default()
             .classname(classname.as_ptr() as *mut c_char)
             .build()
-            .unwrap();
-        let game_item = GameItem::try_from(&mut gitem as *mut gitem_t).unwrap();
+            .expect("this should not happen");
+        let game_item =
+            GameItem::try_from(&mut gitem as *mut gitem_t).expect("this should not happen");
         assert_eq!(game_item.get_classname(), "item classname")
     }
 
@@ -271,8 +274,11 @@ mod game_item_tests {
     #[serial]
     fn game_item_spawn() {
         let mut mock_engine = MockQuakeEngine::new();
-        let mut gitem = GItemBuilder::default().build().unwrap();
-        let mut game_item = GameItem::try_from(&mut gitem as *mut gitem_t).unwrap();
+        let mut gitem = GItemBuilder::default()
+            .build()
+            .expect("this should not happen");
+        let mut game_item =
+            GameItem::try_from(&mut gitem as *mut gitem_t).expect("this should not happen");
         mock_engine
             .expect_try_launch_item()
             .withf(|_item, origin, velocity| {

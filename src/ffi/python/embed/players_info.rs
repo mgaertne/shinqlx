@@ -130,7 +130,7 @@ mod get_players_info_tests {
             mock_game_entity
         });
 
-        let players_info = Python::with_gil(|py| pyshinqlx_players_info(py));
+        let players_info = Python::with_gil(pyshinqlx_players_info);
         assert_eq!(
             players_info.expect("result was not OK"),
             vec![
