@@ -48,25 +48,30 @@ mod cvar_tests {
 
     #[test]
     fn cvar_try_from_valid_cvar() {
-        let mut cvar = CVarBuilder::default().build().unwrap();
+        let mut cvar = CVarBuilder::default()
+            .build()
+            .expect("this should not happen");
         assert_eq!(CVar::try_from(&mut cvar as *mut cvar_t).is_ok(), true);
     }
 
     #[test]
     fn cvar_try_get_string() {
-        let cvar_string = CString::new("some cvar value").unwrap();
+        let cvar_string = CString::new("some cvar value").expect("this should not happen");
         let mut cvar = CVarBuilder::default()
             .string(cvar_string.as_ptr() as *mut c_char)
             .build()
-            .unwrap();
-        let cvar_rust = CVar::try_from(&mut cvar as *mut cvar_t).unwrap();
+            .expect("this should not happen");
+        let cvar_rust = CVar::try_from(&mut cvar as *mut cvar_t).expect("this should not happen");
         assert_eq!(cvar_rust.get_string(), "some cvar value");
     }
 
     #[test]
     fn cvar_try_get_integer() {
-        let mut cvar = CVarBuilder::default().integer(42).build().unwrap();
-        let cvar_rust = CVar::try_from(&mut cvar as *mut cvar_t).unwrap();
+        let mut cvar = CVarBuilder::default()
+            .integer(42)
+            .build()
+            .expect("this should not happen");
+        let cvar_rust = CVar::try_from(&mut cvar as *mut cvar_t).expect("this should not happen");
         assert_eq!(cvar_rust.get_integer(), 42);
     }
 }

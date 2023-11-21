@@ -139,7 +139,7 @@ weapons = _shinqlx.Vector3((0, 42, 666))
             assert!(
                 vector3_constructor.is_ok(),
                 "{}",
-                vector3_constructor.err().expect("this should not happen")
+                vector3_constructor.expect_err("this should not happen")
             );
         });
     }
