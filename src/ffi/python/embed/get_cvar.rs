@@ -58,14 +58,14 @@ mod get_cvar_tests {
             .times(1);
         MAIN_ENGINE.store(Some(mock_engine.into()));
 
-        let result = Python::with_gil(|py| pyshinqlx_get_cvar(py, "asdf")).unwrap();
-        assert_eq!(result, None);
+        let result = Python::with_gil(|py| pyshinqlx_get_cvar(py, "asdf"));
+        assert_eq!(result.expect("result was not OK"), None);
     }
 
     #[test]
     #[serial]
     fn get_cvar_when_cvar_is_found() {
-        let cvar_string = CString::new("16").unwrap();
+        let cvar_string = CString::new("16").expect("result was not OK");
         let mut mock_engine = MockQuakeEngine::new();
         mock_engine
             .expect_find_cvar()
@@ -74,13 +74,13 @@ mod get_cvar_tests {
                 let mut raw_cvar = CVarBuilder::default()
                     .string(cvar_string.as_ptr() as *mut c_char)
                     .build()
-                    .unwrap();
+                    .expect("this should not happen");
                 CVar::try_from(&mut raw_cvar as *mut cvar_t).ok()
             })
             .times(1);
         MAIN_ENGINE.store(Some(mock_engine.into()));
 
-        let result = Python::with_gil(|py| pyshinqlx_get_cvar(py, "sv_maxclients")).unwrap();
-        assert_eq!(result, Some("16".into()));
+        let result = Python::with_gil(|py| pyshinqlx_get_cvar(py, "sv_maxclients"));
+        assert_eq!(result.expect("result was not OK"), Some("16".into()));
     }
 }

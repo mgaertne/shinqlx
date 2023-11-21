@@ -118,9 +118,8 @@ mod set_privileges_tests {
             mock_game_entity
         });
 
-        let result =
-            Python::with_gil(|py| pyshinqlx_set_privileges(py, 2, *privileges as i32)).unwrap();
-        assert_eq!(result, true);
+        let result = Python::with_gil(|py| pyshinqlx_set_privileges(py, 2, *privileges as i32));
+        assert_eq!(result.expect("result was not OK"), true);
     }
 
     #[test]
@@ -140,8 +139,7 @@ mod set_privileges_tests {
         });
 
         let result =
-            Python::with_gil(|py| pyshinqlx_set_privileges(py, 2, privileges_t::PRIV_NONE as i32))
-                .unwrap();
-        assert_eq!(result, false);
+            Python::with_gil(|py| pyshinqlx_set_privileges(py, 2, privileges_t::PRIV_NONE as i32));
+        assert_eq!(result.expect("result was not OK"), false);
     }
 }

@@ -101,7 +101,7 @@ mod set_health_tests {
             mock_game_entity
         });
 
-        let result = Python::with_gil(|py| pyshinqlx_set_health(py, 2, 666)).unwrap();
-        assert_eq!(result, true);
+        let result = Python::with_gil(|py| pyshinqlx_set_health(py, 2, 666));
+        assert_eq!(result.expect("result was not OK"), true);
     }
 }

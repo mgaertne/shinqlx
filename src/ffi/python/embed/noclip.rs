@@ -104,8 +104,8 @@ mod noclip_tests {
             mock_game_entity
         });
 
-        let result = Python::with_gil(|py| pyshinqlx_noclip(py, 2, true)).unwrap();
-        assert_eq!(result, false);
+        let result = Python::with_gil(|py| pyshinqlx_noclip(py, 2, true));
+        assert_eq!(result.expect("result was not OK"), false);
     }
 
     #[test]
@@ -127,8 +127,8 @@ mod noclip_tests {
             mock_game_entity
         });
 
-        let result = Python::with_gil(|py| pyshinqlx_noclip(py, 2, true)).unwrap();
-        assert_eq!(result, false);
+        let result = Python::with_gil(|py| pyshinqlx_noclip(py, 2, true));
+        assert_eq!(result.expect("result was not OK"), false);
     }
 
     #[test]
@@ -153,7 +153,7 @@ mod noclip_tests {
             mock_game_entity
         });
 
-        let result = Python::with_gil(|py| pyshinqlx_noclip(py, 2, false)).unwrap();
-        assert_eq!(result, true);
+        let result = Python::with_gil(|py| pyshinqlx_noclip(py, 2, false));
+        assert_eq!(result.expect("result was not OK"), true);
     }
 }

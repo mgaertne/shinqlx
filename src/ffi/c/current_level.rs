@@ -126,7 +126,7 @@ mod current_level_tests {
 
         assert!(result.is_err());
         assert_eq!(
-            result.err().unwrap(),
+            result.expect_err("this should not happen"),
             QuakeLiveEngineError::MainEngineNotInitialized
         );
     }
@@ -144,7 +144,7 @@ mod current_level_tests {
 
         assert!(result.is_err());
         assert_eq!(
-            result.err().unwrap(),
+            result.expect_err("this should not happen"),
             QuakeLiveEngineError::VmFunctionNotFound(G_InitGame)
         );
     }
@@ -161,28 +161,42 @@ mod current_level_tests {
 
     #[test]
     fn current_level_from_valid_level_locals() {
-        let mut level = LevelLocalsBuilder::default().build().unwrap();
+        let mut level = LevelLocalsBuilder::default()
+            .build()
+            .expect("this should not happen");
         assert!(CurrentLevel::try_from(&mut level as *mut level_locals_t).is_ok())
     }
 
     #[test]
     fn current_level_get_vote_time_no_vote_running() {
-        let mut level = LevelLocalsBuilder::default().voteTime(0).build().unwrap();
-        let current_level = CurrentLevel::try_from(&mut level as *mut level_locals_t).unwrap();
+        let mut level = LevelLocalsBuilder::default()
+            .voteTime(0)
+            .build()
+            .expect("this should not happen");
+        let current_level = CurrentLevel::try_from(&mut level as *mut level_locals_t)
+            .expect("this should not happen");
         assert!(current_level.get_vote_time().is_none());
     }
 
     #[test]
     fn current_level_get_vote_time_vote_running() {
-        let mut level = LevelLocalsBuilder::default().voteTime(60).build().unwrap();
-        let current_level = CurrentLevel::try_from(&mut level as *mut level_locals_t).unwrap();
+        let mut level = LevelLocalsBuilder::default()
+            .voteTime(60)
+            .build()
+            .expect("this should not happen");
+        let current_level = CurrentLevel::try_from(&mut level as *mut level_locals_t)
+            .expect("this should not happen");
         assert_eq!(current_level.get_vote_time(), Some(60));
     }
 
     #[test]
     fn current_level_get_time() {
-        let mut level = LevelLocalsBuilder::default().time(1234).build().unwrap();
-        let current_level = CurrentLevel::try_from(&mut level as *mut level_locals_t).unwrap();
+        let mut level = LevelLocalsBuilder::default()
+            .time(1234)
+            .build()
+            .expect("this should not happen");
+        let current_level = CurrentLevel::try_from(&mut level as *mut level_locals_t)
+            .expect("this should not happen");
         assert_eq!(current_level.get_leveltime(), 1234);
     }
 
@@ -191,8 +205,9 @@ mod current_level_tests {
         let mut level = LevelLocalsBuilder::default()
             .mapIsTrainingMap(qboolean::qfalse)
             .build()
-            .unwrap();
-        let mut current_level = CurrentLevel::try_from(&mut level as *mut level_locals_t).unwrap();
+            .expect("this should not happen");
+        let mut current_level = CurrentLevel::try_from(&mut level as *mut level_locals_t)
+            .expect("this should not happen");
         current_level.set_training_map(true);
         assert_eq!(level.mapIsTrainingMap, qboolean::qtrue);
     }
@@ -202,8 +217,9 @@ mod current_level_tests {
         let mut level = LevelLocalsBuilder::default()
             .mapIsTrainingMap(qboolean::qtrue)
             .build()
-            .unwrap();
-        let mut current_level = CurrentLevel::try_from(&mut level as *mut level_locals_t).unwrap();
+            .expect("this should not happen");
+        let mut current_level = CurrentLevel::try_from(&mut level as *mut level_locals_t)
+            .expect("this should not happen");
         current_level.set_training_map(false);
         assert_eq!(level.mapIsTrainingMap, qboolean::qfalse);
     }
@@ -213,8 +229,11 @@ mod current_level_tests {
     fn current_level_callvote_with_no_main_engine() {
         MAIN_ENGINE.store(None);
 
-        let mut level = LevelLocalsBuilder::default().build().unwrap();
-        let mut current_level = CurrentLevel::try_from(&mut level as *mut level_locals_t).unwrap();
+        let mut level = LevelLocalsBuilder::default()
+            .build()
+            .expect("this should not happen");
+        let mut current_level = CurrentLevel::try_from(&mut level as *mut level_locals_t)
+            .expect("this should not happen");
         current_level.callvote("map thunderstruck", "map thunderstruck", None);
         assert_eq!(
             unsafe { CStr::from_ptr(level.voteString.as_ptr()) }.to_string_lossy(),
@@ -275,8 +294,12 @@ mod current_level_tests {
             mock_entity
         });
 
-        let mut level = LevelLocalsBuilder::default().time(42).build().unwrap();
-        let mut current_level = CurrentLevel::try_from(&mut level as *mut level_locals_t).unwrap();
+        let mut level = LevelLocalsBuilder::default()
+            .time(42)
+            .build()
+            .expect("this should not happen");
+        let mut current_level = CurrentLevel::try_from(&mut level as *mut level_locals_t)
+            .expect("this should not happen");
         current_level.callvote("map thunderstruck", "map thunderstruck", None);
         assert_eq!(
             unsafe { CStr::from_ptr(level.voteString.as_ptr()) }.to_string_lossy(),
@@ -341,8 +364,12 @@ mod current_level_tests {
             mock_entity
         });
 
-        let mut level = LevelLocalsBuilder::default().time(42).build().unwrap();
-        let mut current_level = CurrentLevel::try_from(&mut level as *mut level_locals_t).unwrap();
+        let mut level = LevelLocalsBuilder::default()
+            .time(42)
+            .build()
+            .expect("this should not happen");
+        let mut current_level = CurrentLevel::try_from(&mut level as *mut level_locals_t)
+            .expect("this should not happen");
         current_level.callvote("map campgrounds", "map asdf", Some(42));
         assert_eq!(
             unsafe { CStr::from_ptr(level.voteString.as_ptr()) }.to_string_lossy(),

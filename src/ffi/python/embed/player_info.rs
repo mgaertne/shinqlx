@@ -138,9 +138,9 @@ mod get_player_info_tests {
             mock_game_entity
         });
 
-        let player_info = Python::with_gil(|py| pyshinqlx_player_info(py, 2).unwrap());
+        let player_info = Python::with_gil(|py| pyshinqlx_player_info(py, 2));
         assert_eq!(
-            player_info,
+            player_info.expect("result was not OK"),
             Some(PlayerInfo {
                 client_id: 2,
                 name: "Mocked Player".into(),
@@ -174,8 +174,8 @@ mod get_player_info_tests {
             mock_client
         });
 
-        let player_info = Python::with_gil(|py| pyshinqlx_player_info(py, 2).unwrap());
-        assert_eq!(player_info, None);
+        let player_info = Python::with_gil(|py| pyshinqlx_player_info(py, 2));
+        assert_eq!(player_info.expect("result was not OK"), None);
     }
 
     #[test]
@@ -214,9 +214,9 @@ mod get_player_info_tests {
             mock_game_entity
         });
 
-        let player_info = Python::with_gil(|py| pyshinqlx_player_info(py, 2).unwrap());
+        let player_info = Python::with_gil(|py| pyshinqlx_player_info(py, 2));
         assert_eq!(
-            player_info,
+            player_info.expect("result was not OK"),
             Some(PlayerInfo {
                 client_id: 2,
                 name: "Mocked Player".into(),

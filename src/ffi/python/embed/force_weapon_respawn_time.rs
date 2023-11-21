@@ -34,6 +34,7 @@ mod force_weapon_respawn_time_tests {
     use crate::ffi::c::game_entity::MockGameEntity;
     use crate::prelude::*;
     use mockall::predicate;
+    use pretty_assertions::assert_eq;
     use pyo3::exceptions::PyValueError;
     use pyo3::prelude::*;
 
@@ -72,7 +73,7 @@ mod force_weapon_respawn_time_tests {
         });
 
         let result = Python::with_gil(|py| pyshinqlx_force_weapon_respawn_time(py, 123));
-        assert!(result.is_ok_and(|value| value));
+        assert_eq!(result.expect("result was not OK"), true);
     }
 
     #[test]
@@ -102,7 +103,7 @@ mod force_weapon_respawn_time_tests {
         });
 
         let result = Python::with_gil(|py| pyshinqlx_force_weapon_respawn_time(py, 123));
-        assert!(result.is_ok_and(|value| value));
+        assert_eq!(result.expect("result was not OK"), true);
     }
 
     #[test]
@@ -123,6 +124,6 @@ mod force_weapon_respawn_time_tests {
         });
 
         let result = Python::with_gil(|py| pyshinqlx_force_weapon_respawn_time(py, 123));
-        assert!(result.is_ok_and(|value| value));
+        assert_eq!(result.expect("result was not OK"), true);
     }
 }

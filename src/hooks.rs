@@ -1034,9 +1034,13 @@ mod hooks_tests {
             .expect()
             .return_once_st(|_| Ok(mock_client));
 
-        let mut usercmd = UserCmdBuilder::default().build().unwrap();
+        let mut usercmd = UserCmdBuilder::default()
+            .build()
+            .expect("this should not happen");
 
-        let mut client = ClientBuilder::default().build().unwrap();
+        let mut client = ClientBuilder::default()
+            .build()
+            .expect("this should not happen");
 
         shinqlx_sv_cliententerworld(&mut client, &mut usercmd as *mut usercmd_t);
     }
@@ -1056,7 +1060,9 @@ mod hooks_tests {
             .expect()
             .return_once_st(|_| Ok(mock_client));
 
-        let mut usercmd = UserCmdBuilder::default().build().unwrap();
+        let mut usercmd = UserCmdBuilder::default()
+            .build()
+            .expect("this should not happen");
         let mut mock_engine = MockQuakeEngine::new();
         mock_engine.expect_client_enter_world().times(1);
         MAIN_ENGINE.store(Some(mock_engine.into()));
@@ -1064,7 +1070,9 @@ mod hooks_tests {
         let client_loaded_ctx = client_loaded_dispatcher_context();
         client_loaded_ctx.expect().times(0);
 
-        let mut client = ClientBuilder::default().build().unwrap();
+        let mut client = ClientBuilder::default()
+            .build()
+            .expect("this should not happen");
 
         shinqlx_sv_cliententerworld(&mut client, &mut usercmd as *mut usercmd_t);
     }
@@ -1087,7 +1095,9 @@ mod hooks_tests {
             .expect()
             .return_once_st(|_| Ok(mock_client));
 
-        let mut usercmd = UserCmdBuilder::default().build().unwrap();
+        let mut usercmd = UserCmdBuilder::default()
+            .build()
+            .expect("this should not happen");
         let mut mock_engine = MockQuakeEngine::new();
         mock_engine.expect_client_enter_world().times(1);
         MAIN_ENGINE.store(Some(mock_engine.into()));
@@ -1095,7 +1105,9 @@ mod hooks_tests {
         let client_loaded_ctx = client_loaded_dispatcher_context();
         client_loaded_ctx.expect().times(0);
 
-        let mut client = ClientBuilder::default().build().unwrap();
+        let mut client = ClientBuilder::default()
+            .build()
+            .expect("this should not happen");
 
         shinqlx_sv_cliententerworld(&mut client, &mut usercmd as *mut usercmd_t);
     }
@@ -1110,7 +1122,9 @@ mod hooks_tests {
             .times(1);
         mock_client.expect_has_gentity().return_const(true).times(1);
         mock_client.expect_get_client_id().return_const(42).times(1);
-        let mut usercmd = UserCmdBuilder::default().build().unwrap();
+        let mut usercmd = UserCmdBuilder::default()
+            .build()
+            .expect("this should not happen");
         let mut mock_engine = MockQuakeEngine::new();
         mock_engine.expect_client_enter_world().times(1);
         MAIN_ENGINE.store(Some(mock_engine.into()));
@@ -1123,7 +1137,9 @@ mod hooks_tests {
         let client_loaded_ctx = client_loaded_dispatcher_context();
         client_loaded_ctx.expect().with(predicate::eq(42)).times(1);
 
-        let mut client = ClientBuilder::default().build().unwrap();
+        let mut client = ClientBuilder::default()
+            .build()
+            .expect("this should not happen");
 
         shinqlx_sv_cliententerworld(&mut client, &mut usercmd as *mut usercmd_t);
     }
@@ -1151,7 +1167,7 @@ mod hooks_tests {
         mock_engine
             .expect_set_configstring()
             .with(
-                predicate::eq::<i32>(test_index.try_into().unwrap()),
+                predicate::eq::<i32>(test_index.try_into().expect("this should not happen")),
                 predicate::eq("some value"),
             )
             .times(1);
@@ -1285,7 +1301,7 @@ mod hooks_tests {
     #[serial]
     fn sv_spawnserver_with_no_main_engine() {
         MAIN_ENGINE.store(None);
-        let server_str = CString::new("l33t ql server").unwrap();
+        let server_str = CString::new("l33t ql server").expect("this should not happen");
         shinqlx_sv_spawnserver(server_str.as_ptr(), qboolean::qtrue);
     }
 
@@ -1305,7 +1321,7 @@ mod hooks_tests {
             .with(predicate::eq(false))
             .times(1);
 
-        let server_str = CString::new("l33t ql server").unwrap();
+        let server_str = CString::new("l33t ql server").expect("this should not happen");
 
         shinqlx_sv_spawnserver(server_str.as_ptr(), qboolean::qtrue);
     }
@@ -1451,7 +1467,9 @@ mod hooks_tests {
     #[test]
     #[serial]
     fn kamikaze_start_for_non_game_client() {
-        let mut gentity = GEntityBuilder::default().build().unwrap();
+        let mut gentity = GEntityBuilder::default()
+            .build()
+            .expect("this should not happen");
 
         let try_from_ctx = MockGameEntity::try_from_context();
         try_from_ctx.expect().returning(|_| {
@@ -1474,7 +1492,9 @@ mod hooks_tests {
     #[test]
     #[serial]
     fn kamikaze_start_for_existing_game_client_removes_kamikaze_flag() {
-        let mut gentity = GEntityBuilder::default().build().unwrap();
+        let mut gentity = GEntityBuilder::default()
+            .build()
+            .expect("this should not happen");
         let try_from_ctx = MockGameEntity::try_from_context();
         try_from_ctx.expect().returning(|_| {
             let mut mock_gentity = MockGameEntity::new();
@@ -1518,7 +1538,9 @@ mod hooks_tests {
     #[test]
     #[serial]
     fn kamikaze_start_for_activator_use() {
-        let mut gentity = GEntityBuilder::default().build().unwrap();
+        let mut gentity = GEntityBuilder::default()
+            .build()
+            .expect("this should not happen");
 
         let try_from_ctx = MockGameEntity::try_from_context();
         try_from_ctx.expect().return_once(|_| {
@@ -1705,7 +1727,9 @@ mod hooks_tests {
                 predicate::eq(7),
             )
             .times(1);
-        let mut attacker = GEntityBuilder::default().build().unwrap();
+        let mut attacker = GEntityBuilder::default()
+            .build()
+            .expect("this should not happen");
 
         shinqlx_g_damage(
             ptr::null_mut() as *mut gentity_t,
@@ -1770,7 +1794,9 @@ mod hooks_tests {
                 predicate::eq(2),
             )
             .times(1);
-        let mut attacker = GEntityBuilder::default().build().unwrap();
+        let mut attacker = GEntityBuilder::default()
+            .build()
+            .expect("this should not happen");
 
         shinqlx_g_damage(
             ptr::null_mut() as *mut gentity_t,

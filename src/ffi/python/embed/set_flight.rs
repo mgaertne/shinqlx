@@ -115,9 +115,8 @@ mod set_flight_tests {
             mock_game_entity
         });
 
-        let result =
-            Python::with_gil(|py| pyshinqlx_set_flight(py, 2, Flight(12, 34, 56, 78))).unwrap();
-        assert_eq!(result, true);
+        let result = Python::with_gil(|py| pyshinqlx_set_flight(py, 2, Flight(12, 34, 56, 78)));
+        assert_eq!(result.expect("result was not OK"), true);
     }
 
     #[test]
@@ -136,8 +135,7 @@ mod set_flight_tests {
             mock_game_entity
         });
 
-        let result =
-            Python::with_gil(|py| pyshinqlx_set_flight(py, 2, Flight(12, 34, 56, 78))).unwrap();
-        assert_eq!(result, false);
+        let result = Python::with_gil(|py| pyshinqlx_set_flight(py, 2, Flight(12, 34, 56, 78)));
+        assert_eq!(result.expect("result was not OK"), false);
     }
 }
