@@ -110,6 +110,7 @@ mod replace_items_tests {
     use crate::ffi::c::game_item::MockGameItem;
     use crate::prelude::*;
     use mockall::predicate;
+    use pretty_assertions::assert_eq;
     use pyo3::exceptions::PyValueError;
     use pyo3::prelude::*;
 
@@ -216,7 +217,7 @@ mod replace_items_tests {
         let result = Python::with_gil(|py| {
             pyshinqlx_replace_items(py, "not existing classname".into_py(py), 1.into_py(py))
         });
-        assert!(result.is_ok_and(|value| !value));
+        assert_eq!(result.expect("result was not OK"), false);
     }
 
     #[test]
@@ -315,7 +316,7 @@ mod replace_items_tests {
 
         let result =
             Python::with_gil(|py| pyshinqlx_replace_items(py, 1.into_py(py), 2.into_py(py)));
-        assert!(result.is_ok_and(|value| value));
+        assert_eq!(result.expect("result was not OK"), true);
     }
 
     #[test]
@@ -364,7 +365,7 @@ mod replace_items_tests {
         let result = Python::with_gil(|py| {
             pyshinqlx_replace_items(py, 1.into_py(py), "weapon_bfg".into_py(py))
         });
-        assert!(result.is_ok_and(|value| value));
+        assert_eq!(result.expect("result was not OK"), true);
     }
 
     #[test]
@@ -477,7 +478,7 @@ mod replace_items_tests {
         let result = Python::with_gil(|py| {
             pyshinqlx_replace_items(py, "weapon_railgun".into_py(py), "weapon_bfg".into_py(py))
         });
-        assert!(result.is_ok_and(|value| value));
+        assert_eq!(result.expect("result was not OK"), true);
     }
 
     #[test]
@@ -561,6 +562,6 @@ mod replace_items_tests {
         let result = Python::with_gil(|py| {
             pyshinqlx_replace_items(py, "weapon_railgun".into_py(py), "weapon_bfg".into_py(py))
         });
-        assert!(result.is_ok_and(|value| value));
+        assert_eq!(result.expect("result was not OK"), true);
     }
 }
