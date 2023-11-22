@@ -1,4 +1,5 @@
 use super::{clean_text, parse_variables, PlayerInfo};
+use pyo3::basic::CompareOp;
 use pyo3::create_exception;
 use pyo3::exceptions::{PyException, PyKeyError};
 use pyo3::prelude::*;
@@ -109,6 +110,30 @@ impl Player {
         opt_value.map_or_else(|| Err(PyKeyError::new_err(format!("'{item}'"))), Ok)
     }
 
+    fn __richcmp__(&self, other: &PyAny, op: CompareOp, py: Python<'_>) -> PyObject {
+        match op {
+            CompareOp::Eq => {
+                if let Ok(other_player) = other.extract::<Self>() {
+                    (*self == other_player).into_py(py)
+                } else if let Ok(steam_id) = other.extract::<u64>() {
+                    (self.steam_id == steam_id).into_py(py)
+                } else {
+                    false.into_py(py)
+                }
+            }
+            CompareOp::Ne => {
+                if let Ok(other_player) = other.extract::<Self>() {
+                    (*self != other_player).into_py(py)
+                } else if let Ok(steam_id) = other.extract::<u64>() {
+                    (self.steam_id != steam_id).into_py(py)
+                } else {
+                    true.into_py(py)
+                }
+            }
+            _ => py.NotImplemented(),
+        }
+    }
+
     #[getter(cvars)]
     fn get_cvars<'a>(&self, py: Python<'a>) -> PyResult<&'a PyDict> {
         if !self.valid {
@@ -141,6 +166,8 @@ mod pyshinqlx_player_tests {
     use super::{NonexistentPlayerError, Player};
     use crate::ffi::c::client::MockClient;
     use crate::ffi::c::game_entity::MockGameEntity;
+    #[cfg(not(miri))]
+    use crate::ffi::python::pyshinqlx_setup_fixture::*;
     use crate::ffi::python::PlayerInfo;
     use crate::prelude::clientState_t::CS_CONNECTED;
     use crate::prelude::privileges_t::PRIV_NONE;
@@ -149,7 +176,9 @@ mod pyshinqlx_player_tests {
     use mockall::predicate;
     use pretty_assertions::assert_eq;
     use pyo3::exceptions::PyKeyError;
-    use pyo3::{PyCell, Python};
+    use pyo3::types::IntoPyDict;
+    use pyo3::{IntoPy, PyCell, Python};
+    use rstest::rstest;
 
     #[test]
     #[serial]
@@ -558,5 +587,109 @@ mod pyshinqlx_player_tests {
                     .expect("this should not happen")
                     == "some value")))
         });
+    }
+
+    #[cfg(not(miri))]
+    #[rstest]
+    fn player_can_be_compared_for_equality_with_other_player_in_python(_pyshinqlx_setup: ()) {
+        let player_info = PlayerInfo {
+            client_id: 42,
+            name: "test".to_string(),
+            connection_state: CS_CONNECTED as i32,
+            userinfo: "".to_string(),
+            steam_id: 1234567890,
+            team: TEAM_SPECTATOR as i32,
+            privileges: PRIV_NONE as i32,
+        };
+        let result = Python::with_gil(|py| {
+            py.run(
+                r#"
+import _shinqlx
+assert(_shinqlx.Player(42, player_info) == _shinqlx.Player(42, player_info))
+assert((_shinqlx.Player(42, player_info) == _shinqlx.Player(41, player_info)) == False)
+            "#,
+                None,
+                Some([("player_info", player_info.into_py(py))].into_py_dict(py)),
+            )
+        });
+        assert!(result.as_ref().is_ok(), "{:?}", result.unwrap());
+    }
+
+    #[cfg(not(miri))]
+    #[rstest]
+    fn player_can_be_compared_for_equality_with_steam_id_in_python(_pyshinqlx_setup: ()) {
+        let player_info = PlayerInfo {
+            client_id: 42,
+            name: "test".to_string(),
+            connection_state: CS_CONNECTED as i32,
+            userinfo: "".to_string(),
+            steam_id: 1234567890,
+            team: TEAM_SPECTATOR as i32,
+            privileges: PRIV_NONE as i32,
+        };
+        let result = Python::with_gil(|py| {
+            py.run(
+                r#"
+import _shinqlx
+assert(_shinqlx.Player(42, player_info) == 1234567890)
+assert((_shinqlx.Player(42, player_info) == 1234567891) == False)
+            "#,
+                None,
+                Some([("player_info", player_info.into_py(py))].into_py_dict(py)),
+            )
+        });
+        assert!(result.as_ref().is_ok(), "{:?}", result.unwrap());
+    }
+
+    #[cfg(not(miri))]
+    #[rstest]
+    fn player_can_be_compared_for_inequality_with_other_player_in_python(_pyshinqlx_setup: ()) {
+        let player_info = PlayerInfo {
+            client_id: 42,
+            name: "test".to_string(),
+            connection_state: CS_CONNECTED as i32,
+            userinfo: "".to_string(),
+            steam_id: 1234567890,
+            team: TEAM_SPECTATOR as i32,
+            privileges: PRIV_NONE as i32,
+        };
+        let result = Python::with_gil(|py| {
+            py.run(
+                r#"
+import _shinqlx
+assert((_shinqlx.Player(42, player_info) != _shinqlx.Player(42, player_info)) == False)
+assert(_shinqlx.Player(42, player_info) != _shinqlx.Player(41, player_info))
+            "#,
+                None,
+                Some([("player_info", player_info.into_py(py))].into_py_dict(py)),
+            )
+        });
+        assert!(result.as_ref().is_ok(), "{:?}", result.unwrap());
+    }
+
+    #[cfg(not(miri))]
+    #[rstest]
+    fn player_can_be_compared_for_inequality_with_steam_id_in_python(_pyshinqlx_setup: ()) {
+        let player_info = PlayerInfo {
+            client_id: 42,
+            name: "test".to_string(),
+            connection_state: CS_CONNECTED as i32,
+            userinfo: "".to_string(),
+            steam_id: 1234567890,
+            team: TEAM_SPECTATOR as i32,
+            privileges: PRIV_NONE as i32,
+        };
+        let result = Python::with_gil(|py| {
+            py.run(
+                r#"
+import _shinqlx
+assert((_shinqlx.Player(42, player_info) != 1234567890) == False)
+assert(_shinqlx.Player(42, player_info) != 1234567891)
+            "#,
+                None,
+                Some([("player_info", player_info.into_py(py))].into_py_dict(py)),
+            )
+        });
+        assert!(result.as_ref().is_ok(), "{:?}", result.unwrap());
     }
 }
