@@ -22,7 +22,7 @@ pub(crate) struct Player {
     valid: bool,
     #[pyo3(name = "_id")]
     id: i32,
-    #[pyo3(name = "_playerinfo")]
+    #[pyo3(name = "_info")]
     player_info: PlayerInfo,
     #[pyo3(name = "_userinfo")]
     user_info: String,
@@ -134,6 +134,46 @@ impl Player {
         }
     }
 
+    ///Update the player information with the latest data. If the player
+    ///         disconnected it will raise an exception and invalidates a player.
+    ///         The player's name and Steam ID can still be accessed after being
+    ///         invalidated, but anything else will make it throw an exception too.
+    ///
+    ///         :raises: shinqlx.NonexistentPlayerError
+    fn update(&mut self) -> PyResult<()> {
+        self.player_info = PlayerInfo::from(self.id);
+        if self.player_info.steam_id != self.steam_id {
+            self.valid = false;
+            return Err(NonexistentPlayerError::new_err(
+                "The player does not exist anymore. Did the player disconnect?",
+            ));
+        }
+
+        let name = if self.player_info.name.is_empty() {
+            let cvars = parse_variables(self.player_info.userinfo.clone());
+            cvars
+                .into_iter()
+                .filter(|(key, _value)| *key == "name")
+                .map(|(_key, value)| value)
+                .nth(0)
+                .unwrap_or_default()
+        } else {
+            self.player_info.name.clone()
+        };
+        self.name = name;
+
+        Ok(())
+    }
+
+    #[pyo3(
+        name = "_invalidate",
+        signature = (e="The player does not exist anymore. Did the player disconnect?".into())
+    )]
+    fn invalidate(&mut self, e: String) -> PyResult<()> {
+        self.valid = false;
+        Err(NonexistentPlayerError::new_err(e))
+    }
+
     #[getter(cvars)]
     fn get_cvars<'a>(&self, py: Python<'a>) -> PyResult<&'a PyDict> {
         if !self.valid {
@@ -173,13 +213,33 @@ mod pyshinqlx_player_tests {
     use mockall::predicate;
     use pretty_assertions::assert_eq;
     use pyo3::exceptions::PyKeyError;
-    #[cfg(not(miri))]
     use pyo3::types::IntoPyDict;
-    #[cfg(not(miri))]
-    use pyo3::IntoPy;
-    use pyo3::{PyCell, Python};
+    use pyo3::{IntoPy, PyCell, Python};
     #[cfg(not(miri))]
     use rstest::rstest;
+
+    fn default_test_player_info() -> PlayerInfo {
+        PlayerInfo {
+            client_id: 2,
+            name: "".to_string(),
+            connection_state: clientState_t::CS_CONNECTED as i32,
+            userinfo: "".to_string(),
+            steam_id: 1234567890,
+            team: team_t::TEAM_SPECTATOR as i32,
+            privileges: privileges_t::PRIV_NONE as i32,
+        }
+    }
+
+    fn default_test_player() -> Player {
+        Player {
+            valid: true,
+            id: 2,
+            player_info: default_test_player_info(),
+            user_info: "".to_string(),
+            steam_id: 1234567890,
+            name: "".to_string(),
+        }
+    }
 
     #[test]
     #[serial]
@@ -221,20 +281,12 @@ mod pyshinqlx_player_tests {
         assert_eq!(
             result.expect("result was not OK"),
             Player {
-                valid: true,
-                id: 2,
-                player_info: PlayerInfo {
-                    client_id: 2,
-                    name: "UnnamedPlayer".to_string(),
-                    connection_state: clientState_t::CS_CONNECTED as i32,
-                    userinfo: "".to_string(),
-                    steam_id: 1234567890,
-                    team: team_t::TEAM_SPECTATOR as i32,
-                    privileges: privileges_t::PRIV_NONE as i32,
-                },
-                user_info: "".to_string(),
-                steam_id: 1234567890,
                 name: "UnnamedPlayer".to_string(),
+                player_info: PlayerInfo {
+                    name: "UnnamedPlayer".to_string(),
+                    ..default_test_player_info()
+                },
+                ..default_test_player()
             }
         );
     }
@@ -244,69 +296,28 @@ mod pyshinqlx_player_tests {
         let result = Player::py_new(
             2,
             Some(PlayerInfo {
-                client_id: 2,
-                name: "".to_string(),
-                connection_state: clientState_t::CS_CONNECTED as i32,
                 userinfo: "\\name\\UnnamedPlayer".to_string(),
-                steam_id: 1234567890,
-                team: team_t::TEAM_SPECTATOR as i32,
-                privileges: privileges_t::PRIV_NONE as i32,
+                ..default_test_player_info()
             }),
         );
         assert_eq!(
             result.expect("result was not OK"),
             Player {
-                valid: true,
-                id: 2,
                 player_info: PlayerInfo {
-                    client_id: 2,
-                    name: "".to_string(),
-                    connection_state: clientState_t::CS_CONNECTED as i32,
                     userinfo: "\\name\\UnnamedPlayer".to_string(),
-                    steam_id: 1234567890,
-                    team: team_t::TEAM_SPECTATOR as i32,
-                    privileges: privileges_t::PRIV_NONE as i32,
+                    ..default_test_player_info()
                 },
                 user_info: "\\name\\UnnamedPlayer".to_string(),
-                steam_id: 1234567890,
                 name: "UnnamedPlayer".to_string(),
+                ..default_test_player()
             }
         );
     }
 
     #[test]
     fn pyconstructor_with_empty_name_and_no_name_in_userinfo() {
-        let result = Player::py_new(
-            2,
-            Some(PlayerInfo {
-                client_id: 2,
-                name: "".to_string(),
-                connection_state: clientState_t::CS_CONNECTED as i32,
-                userinfo: "".to_string(),
-                steam_id: 1234567890,
-                team: team_t::TEAM_SPECTATOR as i32,
-                privileges: privileges_t::PRIV_NONE as i32,
-            }),
-        );
-        assert_eq!(
-            result.expect("result was not OK"),
-            Player {
-                valid: true,
-                id: 2,
-                player_info: PlayerInfo {
-                    client_id: 2,
-                    name: "".to_string(),
-                    connection_state: clientState_t::CS_CONNECTED as i32,
-                    userinfo: "".to_string(),
-                    steam_id: 1234567890,
-                    team: team_t::TEAM_SPECTATOR as i32,
-                    privileges: privileges_t::PRIV_NONE as i32,
-                },
-                user_info: "".to_string(),
-                steam_id: 1234567890,
-                name: "".to_string(),
-            }
-        );
+        let result = Player::py_new(2, Some(default_test_player_info()));
+        assert_eq!(result.expect("result was not OK"), default_test_player());
     }
 
     #[test]
@@ -314,32 +325,19 @@ mod pyshinqlx_player_tests {
         let result = Player::py_new(
             2,
             Some(PlayerInfo {
-                client_id: 2,
                 name: "UnnamedPlayer".to_string(),
-                connection_state: clientState_t::CS_CONNECTED as i32,
-                userinfo: "".to_string(),
-                steam_id: 1234567890,
-                team: team_t::TEAM_SPECTATOR as i32,
-                privileges: privileges_t::PRIV_NONE as i32,
+                ..default_test_player_info()
             }),
         );
         assert_eq!(
             result.expect("result was not OK"),
             Player {
-                valid: true,
-                id: 2,
-                player_info: PlayerInfo {
-                    client_id: 2,
-                    name: "UnnamedPlayer".to_string(),
-                    connection_state: clientState_t::CS_CONNECTED as i32,
-                    userinfo: "".to_string(),
-                    steam_id: 1234567890,
-                    team: team_t::TEAM_SPECTATOR as i32,
-                    privileges: privileges_t::PRIV_NONE as i32,
-                },
-                user_info: "".to_string(),
-                steam_id: 1234567890,
                 name: "UnnamedPlayer".to_string(),
+                player_info: PlayerInfo {
+                    name: "UnnamedPlayer".to_string(),
+                    ..default_test_player_info()
+                },
+                ..default_test_player()
             }
         );
     }
@@ -351,20 +349,12 @@ mod pyshinqlx_player_tests {
             let player = PyCell::new(
                 py,
                 Player {
-                    valid: true,
-                    id: 2,
                     player_info: PlayerInfo {
-                        client_id: 2,
                         name: "UnnamedPlayer".to_string(),
-                        connection_state: clientState_t::CS_CONNECTED as i32,
-                        userinfo: "".to_string(),
-                        steam_id: 1234567890,
-                        team: team_t::TEAM_SPECTATOR as i32,
-                        privileges: privileges_t::PRIV_NONE as i32,
+                        ..default_test_player_info()
                     },
-                    user_info: "".to_string(),
-                    steam_id: 1234567890,
                     name: "UnnamedPlayer".to_string(),
+                    ..default_test_player()
                 },
             )
             .expect("this should not happen");
@@ -376,20 +366,12 @@ mod pyshinqlx_player_tests {
     #[test]
     fn str_returns_player_name() {
         let player = Player {
-            valid: true,
-            id: 2,
             player_info: PlayerInfo {
-                client_id: 2,
                 name: "^1Unnamed^2Player".to_string(),
-                connection_state: clientState_t::CS_CONNECTED as i32,
-                userinfo: "".to_string(),
-                steam_id: 1234567890,
-                team: team_t::TEAM_SPECTATOR as i32,
-                privileges: privileges_t::PRIV_NONE as i32,
+                ..default_test_player_info()
             },
-            user_info: "".to_string(),
-            steam_id: 1234567890,
             name: "^1Unnamed^2Player".to_string(),
+            ..default_test_player()
         };
         assert_eq!(player.__str__(), "^1Unnamed^2Player");
     }
@@ -399,19 +381,7 @@ mod pyshinqlx_player_tests {
     fn contains_with_invalid_player() {
         let player = Player {
             valid: false,
-            id: 2,
-            player_info: PlayerInfo {
-                client_id: 2,
-                name: "^1Unnamed^2Player".to_string(),
-                connection_state: clientState_t::CS_CONNECTED as i32,
-                userinfo: "".to_string(),
-                steam_id: 1234567890,
-                team: team_t::TEAM_SPECTATOR as i32,
-                privileges: privileges_t::PRIV_NONE as i32,
-            },
-            user_info: "".to_string(),
-            steam_id: 1234567890,
-            name: "^1Unnamed^2Player".to_string(),
+            ..default_test_player()
         };
         let result = player.__contains__("asdf".into());
         Python::with_gil(|py| {
@@ -422,20 +392,12 @@ mod pyshinqlx_player_tests {
     #[test]
     fn contains_where_value_is_part_of_userinfo() {
         let player = Player {
-            valid: true,
-            id: 2,
             player_info: PlayerInfo {
-                client_id: 2,
-                name: "^1Unnamed^2Player".to_string(),
-                connection_state: clientState_t::CS_CONNECTED as i32,
                 userinfo: "\\asdf\\some value".to_string(),
-                steam_id: 1234567890,
-                team: team_t::TEAM_SPECTATOR as i32,
-                privileges: privileges_t::PRIV_NONE as i32,
+                ..default_test_player_info()
             },
             user_info: "\\asdf\\some value".to_string(),
-            steam_id: 1234567890,
-            name: "^1Unnamed^2Player".to_string(),
+            ..default_test_player()
         };
 
         let result = player.__contains__("asdf".into());
@@ -445,20 +407,12 @@ mod pyshinqlx_player_tests {
     #[test]
     fn contains_where_value_is_not_in_userinfo() {
         let player = Player {
-            valid: true,
-            id: 2,
             player_info: PlayerInfo {
-                client_id: 2,
-                name: "^1Unnamed^2Player".to_string(),
-                connection_state: clientState_t::CS_CONNECTED as i32,
                 userinfo: "\\name\\^1Unnamed^2Player".to_string(),
-                steam_id: 1234567890,
-                team: team_t::TEAM_SPECTATOR as i32,
-                privileges: privileges_t::PRIV_NONE as i32,
+                ..default_test_player_info()
             },
             user_info: "\\name\\^1Unnamed^2Player".to_string(),
-            steam_id: 1234567890,
-            name: "^1Unnamed^2Player".to_string(),
+            ..default_test_player()
         };
 
         let result = player.__contains__("asdf".into());
@@ -470,19 +424,7 @@ mod pyshinqlx_player_tests {
     fn getitem_with_invalid_player() {
         let player = Player {
             valid: false,
-            id: 2,
-            player_info: PlayerInfo {
-                client_id: 2,
-                name: "^1Unnamed^2Player".to_string(),
-                connection_state: clientState_t::CS_CONNECTED as i32,
-                userinfo: "".to_string(),
-                steam_id: 1234567890,
-                team: team_t::TEAM_SPECTATOR as i32,
-                privileges: privileges_t::PRIV_NONE as i32,
-            },
-            user_info: "".to_string(),
-            steam_id: 1234567890,
-            name: "^1Unnamed^2Player".to_string(),
+            ..default_test_player()
         };
         let result = player.__getitem__("asdf".into());
         Python::with_gil(|py| {
@@ -493,20 +435,12 @@ mod pyshinqlx_player_tests {
     #[test]
     fn getitem_where_value_is_part_of_userinfo() {
         let player = Player {
-            valid: true,
-            id: 2,
             player_info: PlayerInfo {
-                client_id: 2,
-                name: "^1Unnamed^2Player".to_string(),
-                connection_state: clientState_t::CS_CONNECTED as i32,
                 userinfo: "\\asdf\\some value".to_string(),
-                steam_id: 1234567890,
-                team: team_t::TEAM_SPECTATOR as i32,
-                privileges: privileges_t::PRIV_NONE as i32,
+                ..default_test_player_info()
             },
             user_info: "\\asdf\\some value".to_string(),
-            steam_id: 1234567890,
-            name: "^1Unnamed^2Player".to_string(),
+            ..default_test_player()
         };
 
         let result = player.__getitem__("asdf".into());
@@ -517,20 +451,12 @@ mod pyshinqlx_player_tests {
     #[cfg_attr(miri, ignore)]
     fn getitem_where_value_is_not_in_userinfo() {
         let player = Player {
-            valid: true,
-            id: 2,
             player_info: PlayerInfo {
-                client_id: 2,
-                name: "^1Unnamed^2Player".to_string(),
-                connection_state: clientState_t::CS_CONNECTED as i32,
                 userinfo: "\\name\\^1Unnamed^2Player".to_string(),
-                steam_id: 1234567890,
-                team: team_t::TEAM_SPECTATOR as i32,
-                privileges: privileges_t::PRIV_NONE as i32,
+                ..default_test_player_info()
             },
             user_info: "\\name\\^1Unnamed^2Player".to_string(),
-            steam_id: 1234567890,
-            name: "^1Unnamed^2Player".to_string(),
+            ..default_test_player()
         };
 
         let result = player.__getitem__("asdf".into());
@@ -544,19 +470,7 @@ mod pyshinqlx_player_tests {
     fn cvars_with_invalid_player() {
         let player = Player {
             valid: false,
-            id: 2,
-            player_info: PlayerInfo {
-                client_id: 2,
-                name: "^1Unnamed^2Player".to_string(),
-                connection_state: clientState_t::CS_CONNECTED as i32,
-                userinfo: "".to_string(),
-                steam_id: 1234567890,
-                team: team_t::TEAM_SPECTATOR as i32,
-                privileges: privileges_t::PRIV_NONE as i32,
-            },
-            user_info: "".to_string(),
-            steam_id: 1234567890,
-            name: "^1Unnamed^2Player".to_string(),
+            ..default_test_player()
         };
         Python::with_gil(|py| {
             let result = player.get_cvars(py);
@@ -568,20 +482,12 @@ mod pyshinqlx_player_tests {
     #[cfg_attr(miri, ignore)]
     fn cvars_where_value_is_part_of_userinfo() {
         let player = Player {
-            valid: true,
-            id: 2,
             player_info: PlayerInfo {
-                client_id: 2,
-                name: "^1Unnamed^2Player".to_string(),
-                connection_state: clientState_t::CS_CONNECTED as i32,
                 userinfo: "\\asdf\\some value".to_string(),
-                steam_id: 1234567890,
-                team: team_t::TEAM_SPECTATOR as i32,
-                privileges: privileges_t::PRIV_NONE as i32,
+                ..default_test_player_info()
             },
             user_info: "\\asdf\\some value".to_string(),
-            steam_id: 1234567890,
-            name: "^1Unnamed^2Player".to_string(),
+            ..default_test_player()
         };
 
         Python::with_gil(|py| {
@@ -601,16 +507,13 @@ mod pyshinqlx_player_tests {
     fn player_can_be_compared_for_equality_with_other_player_in_python(_pyshinqlx_setup: ()) {
         let player_info = PlayerInfo {
             client_id: 42,
-            name: "test".to_string(),
-            connection_state: clientState_t::CS_CONNECTED as i32,
-            userinfo: "".to_string(),
             steam_id: 1234567890,
-            team: team_t::TEAM_SPECTATOR as i32,
-            privileges: privileges_t::PRIV_NONE as i32,
+            ..default_test_player_info()
         };
         let player_info2 = PlayerInfo {
+            client_id: 42,
             steam_id: 41,
-            ..player_info.clone()
+            ..default_test_player_info()
         };
         let result = Python::with_gil(|py| {
             py.run(
@@ -637,12 +540,8 @@ assert((_shinqlx.Player(42, player_info) == _shinqlx.Player(41, player_info2)) =
     fn player_can_be_compared_for_equality_with_steam_id_in_python(_pyshinqlx_setup: ()) {
         let player_info = PlayerInfo {
             client_id: 42,
-            name: "test".to_string(),
-            connection_state: clientState_t::CS_CONNECTED as i32,
-            userinfo: "".to_string(),
             steam_id: 1234567890,
-            team: team_t::TEAM_SPECTATOR as i32,
-            privileges: privileges_t::PRIV_NONE as i32,
+            ..default_test_player_info()
         };
         let result = Python::with_gil(|py| {
             py.run(
@@ -664,16 +563,13 @@ assert((_shinqlx.Player(42, player_info) == "asdf") == False)
     fn player_can_be_compared_for_inequality_with_other_player_in_python(_pyshinqlx_setup: ()) {
         let player_info = PlayerInfo {
             client_id: 42,
-            name: "test".to_string(),
-            connection_state: clientState_t::CS_CONNECTED as i32,
-            userinfo: "".to_string(),
             steam_id: 1234567890,
-            team: team_t::TEAM_SPECTATOR as i32,
-            privileges: privileges_t::PRIV_NONE as i32,
+            ..default_test_player_info()
         };
         let player_info2 = PlayerInfo {
+            client_id: 42,
             steam_id: 42,
-            ..player_info.clone()
+            ..default_test_player_info()
         };
         let result = Python::with_gil(|py| {
             py.run(
@@ -700,12 +596,8 @@ assert(_shinqlx.Player(42, player_info) != _shinqlx.Player(41, player_info2))
     fn player_can_be_compared_for_inequality_with_steam_id_in_python(_pyshinqlx_setup: ()) {
         let player_info = PlayerInfo {
             client_id: 42,
-            name: "test".to_string(),
-            connection_state: clientState_t::CS_CONNECTED as i32,
-            userinfo: "".to_string(),
             steam_id: 1234567890,
-            team: team_t::TEAM_SPECTATOR as i32,
-            privileges: privileges_t::PRIV_NONE as i32,
+            ..default_test_player_info()
         };
         let result = Python::with_gil(|py| {
             py.run(
@@ -720,5 +612,212 @@ assert(_shinqlx.Player(42, player_info) != "asdf")
             )
         });
         assert!(result.is_ok());
+    }
+
+    #[test]
+    #[serial]
+    #[cfg_attr(miri, ignore)]
+    fn update_with_different_steam_id() {
+        let game_entity_from_ctx = MockGameEntity::from_context();
+        game_entity_from_ctx
+            .expect()
+            .with(predicate::eq(2))
+            .returning(|_| {
+                let mut mock_entity = MockGameEntity::new();
+                mock_entity
+                    .expect_get_player_name()
+                    .return_const("UnnamedPlayer");
+                mock_entity
+                    .expect_get_team()
+                    .return_const(team_t::TEAM_SPECTATOR);
+                mock_entity
+                    .expect_get_privileges()
+                    .return_const(privileges_t::PRIV_NONE);
+                mock_entity
+            });
+        let client_from_ctx = MockClient::from_context();
+        client_from_ctx
+            .expect()
+            .with(predicate::eq(2))
+            .returning(|_| {
+                let mut mock_client = MockClient::new();
+                mock_client
+                    .expect_get_state()
+                    .return_const(clientState_t::CS_CONNECTED);
+                mock_client.expect_get_user_info().return_const("");
+                mock_client
+                    .expect_get_steam_id()
+                    .return_const(1234567891u64);
+                mock_client
+            });
+
+        let mut player = Player {
+            steam_id: 1234567890,
+            ..default_test_player()
+        };
+
+        Python::with_gil(|py| {
+            let result = player.update();
+            assert!(result.is_err_and(|err| err.is_instance_of::<NonexistentPlayerError>(py)));
+        });
+        assert_eq!(player.valid, false);
+    }
+
+    #[test]
+    #[serial]
+    #[cfg_attr(miri, ignore)]
+    fn update_can_be_called_from_python() {
+        let game_entity_from_ctx = MockGameEntity::from_context();
+        game_entity_from_ctx
+            .expect()
+            .with(predicate::eq(2))
+            .returning(|_| {
+                let mut mock_entity = MockGameEntity::new();
+                mock_entity
+                    .expect_get_player_name()
+                    .return_const("UnnamedPlayer");
+                mock_entity
+                    .expect_get_team()
+                    .return_const(team_t::TEAM_SPECTATOR);
+                mock_entity
+                    .expect_get_privileges()
+                    .return_const(privileges_t::PRIV_NONE);
+                mock_entity
+            });
+        let client_from_ctx = MockClient::from_context();
+        client_from_ctx
+            .expect()
+            .with(predicate::eq(2))
+            .returning(|_| {
+                let mut mock_client = MockClient::new();
+                mock_client
+                    .expect_get_state()
+                    .return_const(clientState_t::CS_CONNECTED);
+                mock_client.expect_get_user_info().return_const("");
+                mock_client
+                    .expect_get_steam_id()
+                    .return_const(1234567890u64);
+                mock_client
+            });
+
+        let player = Player {
+            steam_id: 1234567890,
+            ..default_test_player()
+        };
+
+        let result = Python::with_gil(|py| {
+            py.run(
+                r#"
+player.update()
+assert(player._valid)
+            "#,
+                None,
+                Some([("player", player.into_py(py))].into_py_dict(py)),
+            )
+        });
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    #[serial]
+    fn update_updates_new_player_name() {
+        let game_entity_from_ctx = MockGameEntity::from_context();
+        game_entity_from_ctx
+            .expect()
+            .with(predicate::eq(2))
+            .returning(|_| {
+                let mut mock_entity = MockGameEntity::new();
+                mock_entity
+                    .expect_get_player_name()
+                    .return_const("NewUnnamedPlayer");
+                mock_entity
+                    .expect_get_team()
+                    .return_const(team_t::TEAM_SPECTATOR);
+                mock_entity
+                    .expect_get_privileges()
+                    .return_const(privileges_t::PRIV_NONE);
+                mock_entity
+            });
+        let client_from_ctx = MockClient::from_context();
+        client_from_ctx
+            .expect()
+            .with(predicate::eq(2))
+            .returning(|_| {
+                let mut mock_client = MockClient::new();
+                mock_client
+                    .expect_get_state()
+                    .return_const(clientState_t::CS_CONNECTED);
+                mock_client.expect_get_user_info().return_const("");
+                mock_client
+                    .expect_get_steam_id()
+                    .return_const(1234567890u64);
+                mock_client
+            });
+
+        let mut player = Player {
+            steam_id: 1234567890,
+            ..default_test_player()
+        };
+
+        player.update().unwrap();
+        assert_eq!(player.valid, true);
+        assert_eq!(player.name, "NewUnnamedPlayer");
+    }
+
+    #[test]
+    #[serial]
+    fn update_updates_new_player_name_from_userinfo() {
+        let game_entity_from_ctx = MockGameEntity::from_context();
+        game_entity_from_ctx
+            .expect()
+            .with(predicate::eq(2))
+            .returning(|_| {
+                let mut mock_entity = MockGameEntity::new();
+                mock_entity.expect_get_player_name().return_const("");
+                mock_entity
+                    .expect_get_team()
+                    .return_const(team_t::TEAM_SPECTATOR);
+                mock_entity
+                    .expect_get_privileges()
+                    .return_const(privileges_t::PRIV_NONE);
+                mock_entity
+            });
+        let client_from_ctx = MockClient::from_context();
+        client_from_ctx
+            .expect()
+            .with(predicate::eq(2))
+            .returning(|_| {
+                let mut mock_client = MockClient::new();
+                mock_client
+                    .expect_get_state()
+                    .return_const(clientState_t::CS_CONNECTED);
+                mock_client
+                    .expect_get_user_info()
+                    .return_const("\\name\\NewUnnamedPlayer");
+                mock_client
+                    .expect_get_steam_id()
+                    .return_const(1234567890u64);
+                mock_client
+            });
+
+        let mut player = Player {
+            steam_id: 1234567890,
+            ..default_test_player()
+        };
+
+        player.update().unwrap();
+        assert_eq!(player.valid, true);
+        assert_eq!(player.name, "NewUnnamedPlayer");
+    }
+
+    #[test]
+    #[cfg_attr(miri, ignore)]
+    fn invalidate_invalidates_player() {
+        let mut player = default_test_player();
+        let result = player.invalidate("invalid player".into());
+        assert_eq!(player.valid, false);
+        Python::with_gil(|py| {
+            assert!(result.is_err_and(|err| err.is_instance_of::<NonexistentPlayerError>(py)));
+        });
     }
 }
