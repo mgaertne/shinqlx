@@ -169,15 +169,16 @@ mod pyshinqlx_player_tests {
     #[cfg(not(miri))]
     use crate::ffi::python::pyshinqlx_setup_fixture::*;
     use crate::ffi::python::PlayerInfo;
-    use crate::prelude::clientState_t::CS_CONNECTED;
-    use crate::prelude::privileges_t::PRIV_NONE;
-    use crate::prelude::team_t::TEAM_SPECTATOR;
     use crate::prelude::*;
     use mockall::predicate;
     use pretty_assertions::assert_eq;
     use pyo3::exceptions::PyKeyError;
+    #[cfg(not(miri))]
     use pyo3::types::IntoPyDict;
-    use pyo3::{IntoPy, PyCell, Python};
+    #[cfg(not(miri))]
+    use pyo3::IntoPy;
+    use pyo3::{PyCell, Python};
+    #[cfg(not(miri))]
     use rstest::rstest;
 
     #[test]
@@ -192,8 +193,12 @@ mod pyshinqlx_player_tests {
                 mock_entity
                     .expect_get_player_name()
                     .return_const("UnnamedPlayer");
-                mock_entity.expect_get_team().return_const(TEAM_SPECTATOR);
-                mock_entity.expect_get_privileges().return_const(PRIV_NONE);
+                mock_entity
+                    .expect_get_team()
+                    .return_const(team_t::TEAM_SPECTATOR);
+                mock_entity
+                    .expect_get_privileges()
+                    .return_const(privileges_t::PRIV_NONE);
                 mock_entity
             });
         let client_from_ctx = MockClient::from_context();
@@ -202,7 +207,9 @@ mod pyshinqlx_player_tests {
             .with(predicate::eq(2))
             .returning(|_| {
                 let mut mock_client = MockClient::new();
-                mock_client.expect_get_state().return_const(CS_CONNECTED);
+                mock_client
+                    .expect_get_state()
+                    .return_const(clientState_t::CS_CONNECTED);
                 mock_client.expect_get_user_info().return_const("");
                 mock_client
                     .expect_get_steam_id()
@@ -219,11 +226,11 @@ mod pyshinqlx_player_tests {
                 player_info: PlayerInfo {
                     client_id: 2,
                     name: "UnnamedPlayer".to_string(),
-                    connection_state: CS_CONNECTED as i32,
+                    connection_state: clientState_t::CS_CONNECTED as i32,
                     userinfo: "".to_string(),
                     steam_id: 1234567890,
-                    team: TEAM_SPECTATOR as i32,
-                    privileges: PRIV_NONE as i32,
+                    team: team_t::TEAM_SPECTATOR as i32,
+                    privileges: privileges_t::PRIV_NONE as i32,
                 },
                 user_info: "".to_string(),
                 steam_id: 1234567890,
@@ -239,11 +246,11 @@ mod pyshinqlx_player_tests {
             Some(PlayerInfo {
                 client_id: 2,
                 name: "".to_string(),
-                connection_state: CS_CONNECTED as i32,
+                connection_state: clientState_t::CS_CONNECTED as i32,
                 userinfo: "\\name\\UnnamedPlayer".to_string(),
                 steam_id: 1234567890,
-                team: TEAM_SPECTATOR as i32,
-                privileges: PRIV_NONE as i32,
+                team: team_t::TEAM_SPECTATOR as i32,
+                privileges: privileges_t::PRIV_NONE as i32,
             }),
         );
         assert_eq!(
@@ -254,11 +261,11 @@ mod pyshinqlx_player_tests {
                 player_info: PlayerInfo {
                     client_id: 2,
                     name: "".to_string(),
-                    connection_state: CS_CONNECTED as i32,
+                    connection_state: clientState_t::CS_CONNECTED as i32,
                     userinfo: "\\name\\UnnamedPlayer".to_string(),
                     steam_id: 1234567890,
-                    team: TEAM_SPECTATOR as i32,
-                    privileges: PRIV_NONE as i32,
+                    team: team_t::TEAM_SPECTATOR as i32,
+                    privileges: privileges_t::PRIV_NONE as i32,
                 },
                 user_info: "\\name\\UnnamedPlayer".to_string(),
                 steam_id: 1234567890,
@@ -274,11 +281,11 @@ mod pyshinqlx_player_tests {
             Some(PlayerInfo {
                 client_id: 2,
                 name: "".to_string(),
-                connection_state: CS_CONNECTED as i32,
+                connection_state: clientState_t::CS_CONNECTED as i32,
                 userinfo: "".to_string(),
                 steam_id: 1234567890,
-                team: TEAM_SPECTATOR as i32,
-                privileges: PRIV_NONE as i32,
+                team: team_t::TEAM_SPECTATOR as i32,
+                privileges: privileges_t::PRIV_NONE as i32,
             }),
         );
         assert_eq!(
@@ -289,11 +296,11 @@ mod pyshinqlx_player_tests {
                 player_info: PlayerInfo {
                     client_id: 2,
                     name: "".to_string(),
-                    connection_state: CS_CONNECTED as i32,
+                    connection_state: clientState_t::CS_CONNECTED as i32,
                     userinfo: "".to_string(),
                     steam_id: 1234567890,
-                    team: TEAM_SPECTATOR as i32,
-                    privileges: PRIV_NONE as i32,
+                    team: team_t::TEAM_SPECTATOR as i32,
+                    privileges: privileges_t::PRIV_NONE as i32,
                 },
                 user_info: "".to_string(),
                 steam_id: 1234567890,
@@ -309,11 +316,11 @@ mod pyshinqlx_player_tests {
             Some(PlayerInfo {
                 client_id: 2,
                 name: "UnnamedPlayer".to_string(),
-                connection_state: CS_CONNECTED as i32,
+                connection_state: clientState_t::CS_CONNECTED as i32,
                 userinfo: "".to_string(),
                 steam_id: 1234567890,
-                team: TEAM_SPECTATOR as i32,
-                privileges: PRIV_NONE as i32,
+                team: team_t::TEAM_SPECTATOR as i32,
+                privileges: privileges_t::PRIV_NONE as i32,
             }),
         );
         assert_eq!(
@@ -324,11 +331,11 @@ mod pyshinqlx_player_tests {
                 player_info: PlayerInfo {
                     client_id: 2,
                     name: "UnnamedPlayer".to_string(),
-                    connection_state: CS_CONNECTED as i32,
+                    connection_state: clientState_t::CS_CONNECTED as i32,
                     userinfo: "".to_string(),
                     steam_id: 1234567890,
-                    team: TEAM_SPECTATOR as i32,
-                    privileges: PRIV_NONE as i32,
+                    team: team_t::TEAM_SPECTATOR as i32,
+                    privileges: privileges_t::PRIV_NONE as i32,
                 },
                 user_info: "".to_string(),
                 steam_id: 1234567890,
@@ -349,11 +356,11 @@ mod pyshinqlx_player_tests {
                     player_info: PlayerInfo {
                         client_id: 2,
                         name: "UnnamedPlayer".to_string(),
-                        connection_state: CS_CONNECTED as i32,
+                        connection_state: clientState_t::CS_CONNECTED as i32,
                         userinfo: "".to_string(),
                         steam_id: 1234567890,
-                        team: TEAM_SPECTATOR as i32,
-                        privileges: PRIV_NONE as i32,
+                        team: team_t::TEAM_SPECTATOR as i32,
+                        privileges: privileges_t::PRIV_NONE as i32,
                     },
                     user_info: "".to_string(),
                     steam_id: 1234567890,
@@ -374,11 +381,11 @@ mod pyshinqlx_player_tests {
             player_info: PlayerInfo {
                 client_id: 2,
                 name: "^1Unnamed^2Player".to_string(),
-                connection_state: CS_CONNECTED as i32,
+                connection_state: clientState_t::CS_CONNECTED as i32,
                 userinfo: "".to_string(),
                 steam_id: 1234567890,
-                team: TEAM_SPECTATOR as i32,
-                privileges: PRIV_NONE as i32,
+                team: team_t::TEAM_SPECTATOR as i32,
+                privileges: privileges_t::PRIV_NONE as i32,
             },
             user_info: "".to_string(),
             steam_id: 1234567890,
@@ -396,11 +403,11 @@ mod pyshinqlx_player_tests {
             player_info: PlayerInfo {
                 client_id: 2,
                 name: "^1Unnamed^2Player".to_string(),
-                connection_state: CS_CONNECTED as i32,
+                connection_state: clientState_t::CS_CONNECTED as i32,
                 userinfo: "".to_string(),
                 steam_id: 1234567890,
-                team: TEAM_SPECTATOR as i32,
-                privileges: PRIV_NONE as i32,
+                team: team_t::TEAM_SPECTATOR as i32,
+                privileges: privileges_t::PRIV_NONE as i32,
             },
             user_info: "".to_string(),
             steam_id: 1234567890,
@@ -420,11 +427,11 @@ mod pyshinqlx_player_tests {
             player_info: PlayerInfo {
                 client_id: 2,
                 name: "^1Unnamed^2Player".to_string(),
-                connection_state: CS_CONNECTED as i32,
+                connection_state: clientState_t::CS_CONNECTED as i32,
                 userinfo: "\\asdf\\some value".to_string(),
                 steam_id: 1234567890,
-                team: TEAM_SPECTATOR as i32,
-                privileges: PRIV_NONE as i32,
+                team: team_t::TEAM_SPECTATOR as i32,
+                privileges: privileges_t::PRIV_NONE as i32,
             },
             user_info: "\\asdf\\some value".to_string(),
             steam_id: 1234567890,
@@ -443,11 +450,11 @@ mod pyshinqlx_player_tests {
             player_info: PlayerInfo {
                 client_id: 2,
                 name: "^1Unnamed^2Player".to_string(),
-                connection_state: CS_CONNECTED as i32,
+                connection_state: clientState_t::CS_CONNECTED as i32,
                 userinfo: "\\name\\^1Unnamed^2Player".to_string(),
                 steam_id: 1234567890,
-                team: TEAM_SPECTATOR as i32,
-                privileges: PRIV_NONE as i32,
+                team: team_t::TEAM_SPECTATOR as i32,
+                privileges: privileges_t::PRIV_NONE as i32,
             },
             user_info: "\\name\\^1Unnamed^2Player".to_string(),
             steam_id: 1234567890,
@@ -467,11 +474,11 @@ mod pyshinqlx_player_tests {
             player_info: PlayerInfo {
                 client_id: 2,
                 name: "^1Unnamed^2Player".to_string(),
-                connection_state: CS_CONNECTED as i32,
+                connection_state: clientState_t::CS_CONNECTED as i32,
                 userinfo: "".to_string(),
                 steam_id: 1234567890,
-                team: TEAM_SPECTATOR as i32,
-                privileges: PRIV_NONE as i32,
+                team: team_t::TEAM_SPECTATOR as i32,
+                privileges: privileges_t::PRIV_NONE as i32,
             },
             user_info: "".to_string(),
             steam_id: 1234567890,
@@ -491,11 +498,11 @@ mod pyshinqlx_player_tests {
             player_info: PlayerInfo {
                 client_id: 2,
                 name: "^1Unnamed^2Player".to_string(),
-                connection_state: CS_CONNECTED as i32,
+                connection_state: clientState_t::CS_CONNECTED as i32,
                 userinfo: "\\asdf\\some value".to_string(),
                 steam_id: 1234567890,
-                team: TEAM_SPECTATOR as i32,
-                privileges: PRIV_NONE as i32,
+                team: team_t::TEAM_SPECTATOR as i32,
+                privileges: privileges_t::PRIV_NONE as i32,
             },
             user_info: "\\asdf\\some value".to_string(),
             steam_id: 1234567890,
@@ -515,11 +522,11 @@ mod pyshinqlx_player_tests {
             player_info: PlayerInfo {
                 client_id: 2,
                 name: "^1Unnamed^2Player".to_string(),
-                connection_state: CS_CONNECTED as i32,
+                connection_state: clientState_t::CS_CONNECTED as i32,
                 userinfo: "\\name\\^1Unnamed^2Player".to_string(),
                 steam_id: 1234567890,
-                team: TEAM_SPECTATOR as i32,
-                privileges: PRIV_NONE as i32,
+                team: team_t::TEAM_SPECTATOR as i32,
+                privileges: privileges_t::PRIV_NONE as i32,
             },
             user_info: "\\name\\^1Unnamed^2Player".to_string(),
             steam_id: 1234567890,
@@ -541,11 +548,11 @@ mod pyshinqlx_player_tests {
             player_info: PlayerInfo {
                 client_id: 2,
                 name: "^1Unnamed^2Player".to_string(),
-                connection_state: CS_CONNECTED as i32,
+                connection_state: clientState_t::CS_CONNECTED as i32,
                 userinfo: "".to_string(),
                 steam_id: 1234567890,
-                team: TEAM_SPECTATOR as i32,
-                privileges: PRIV_NONE as i32,
+                team: team_t::TEAM_SPECTATOR as i32,
+                privileges: privileges_t::PRIV_NONE as i32,
             },
             user_info: "".to_string(),
             steam_id: 1234567890,
@@ -566,11 +573,11 @@ mod pyshinqlx_player_tests {
             player_info: PlayerInfo {
                 client_id: 2,
                 name: "^1Unnamed^2Player".to_string(),
-                connection_state: CS_CONNECTED as i32,
+                connection_state: clientState_t::CS_CONNECTED as i32,
                 userinfo: "\\asdf\\some value".to_string(),
                 steam_id: 1234567890,
-                team: TEAM_SPECTATOR as i32,
-                privileges: PRIV_NONE as i32,
+                team: team_t::TEAM_SPECTATOR as i32,
+                privileges: privileges_t::PRIV_NONE as i32,
             },
             user_info: "\\asdf\\some value".to_string(),
             steam_id: 1234567890,
@@ -595,11 +602,11 @@ mod pyshinqlx_player_tests {
         let player_info = PlayerInfo {
             client_id: 42,
             name: "test".to_string(),
-            connection_state: CS_CONNECTED as i32,
+            connection_state: clientState_t::CS_CONNECTED as i32,
             userinfo: "".to_string(),
             steam_id: 1234567890,
-            team: TEAM_SPECTATOR as i32,
-            privileges: PRIV_NONE as i32,
+            team: team_t::TEAM_SPECTATOR as i32,
+            privileges: privileges_t::PRIV_NONE as i32,
         };
         let result = Python::with_gil(|py| {
             py.run(
@@ -612,7 +619,7 @@ assert((_shinqlx.Player(42, player_info) == _shinqlx.Player(41, player_info)) ==
                 Some([("player_info", player_info.into_py(py))].into_py_dict(py)),
             )
         });
-        assert!(result.as_ref().is_ok(), "{:?}", result.unwrap());
+        assert!(result.is_ok());
     }
 
     #[cfg(not(miri))]
@@ -621,11 +628,11 @@ assert((_shinqlx.Player(42, player_info) == _shinqlx.Player(41, player_info)) ==
         let player_info = PlayerInfo {
             client_id: 42,
             name: "test".to_string(),
-            connection_state: CS_CONNECTED as i32,
+            connection_state: clientState_t::CS_CONNECTED as i32,
             userinfo: "".to_string(),
             steam_id: 1234567890,
-            team: TEAM_SPECTATOR as i32,
-            privileges: PRIV_NONE as i32,
+            team: team_t::TEAM_SPECTATOR as i32,
+            privileges: privileges_t::PRIV_NONE as i32,
         };
         let result = Python::with_gil(|py| {
             py.run(
@@ -638,7 +645,7 @@ assert((_shinqlx.Player(42, player_info) == 1234567891) == False)
                 Some([("player_info", player_info.into_py(py))].into_py_dict(py)),
             )
         });
-        assert!(result.as_ref().is_ok(), "{:?}", result.unwrap());
+        assert!(result.is_ok());
     }
 
     #[cfg(not(miri))]
@@ -647,11 +654,11 @@ assert((_shinqlx.Player(42, player_info) == 1234567891) == False)
         let player_info = PlayerInfo {
             client_id: 42,
             name: "test".to_string(),
-            connection_state: CS_CONNECTED as i32,
+            connection_state: clientState_t::CS_CONNECTED as i32,
             userinfo: "".to_string(),
             steam_id: 1234567890,
-            team: TEAM_SPECTATOR as i32,
-            privileges: PRIV_NONE as i32,
+            team: team_t::TEAM_SPECTATOR as i32,
+            privileges: privileges_t::PRIV_NONE as i32,
         };
         let result = Python::with_gil(|py| {
             py.run(
@@ -664,7 +671,7 @@ assert(_shinqlx.Player(42, player_info) != _shinqlx.Player(41, player_info))
                 Some([("player_info", player_info.into_py(py))].into_py_dict(py)),
             )
         });
-        assert!(result.as_ref().is_ok(), "{:?}", result.unwrap());
+        assert!(result.is_ok());
     }
 
     #[cfg(not(miri))]
@@ -673,11 +680,11 @@ assert(_shinqlx.Player(42, player_info) != _shinqlx.Player(41, player_info))
         let player_info = PlayerInfo {
             client_id: 42,
             name: "test".to_string(),
-            connection_state: CS_CONNECTED as i32,
+            connection_state: clientState_t::CS_CONNECTED as i32,
             userinfo: "".to_string(),
             steam_id: 1234567890,
-            team: TEAM_SPECTATOR as i32,
-            privileges: PRIV_NONE as i32,
+            team: team_t::TEAM_SPECTATOR as i32,
+            privileges: privileges_t::PRIV_NONE as i32,
         };
         let result = Python::with_gil(|py| {
             py.run(
@@ -690,6 +697,6 @@ assert(_shinqlx.Player(42, player_info) != 1234567891)
                 Some([("player_info", player_info.into_py(py))].into_py_dict(py)),
             )
         });
-        assert!(result.as_ref().is_ok(), "{:?}", result.unwrap());
+        assert!(result.is_ok());
     }
 }
