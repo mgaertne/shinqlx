@@ -114,7 +114,7 @@ impl Player {
         match op {
             CompareOp::Eq => {
                 if let Ok(other_player) = other.extract::<Self>() {
-                    (*self == other_player).into_py(py)
+                    (self.steam_id == other_player.steam_id).into_py(py)
                 } else if let Ok(steam_id) = other.extract::<u64>() {
                     (self.steam_id == steam_id).into_py(py)
                 } else {
@@ -123,7 +123,7 @@ impl Player {
             }
             CompareOp::Ne => {
                 if let Ok(other_player) = other.extract::<Self>() {
-                    (*self != other_player).into_py(py)
+                    (self.steam_id != other_player.steam_id).into_py(py)
                 } else if let Ok(steam_id) = other.extract::<u64>() {
                     (self.steam_id != steam_id).into_py(py)
                 } else {
@@ -608,15 +608,25 @@ mod pyshinqlx_player_tests {
             team: team_t::TEAM_SPECTATOR as i32,
             privileges: privileges_t::PRIV_NONE as i32,
         };
+        let player_info2 = PlayerInfo {
+            steam_id: 41,
+            ..player_info.clone()
+        };
         let result = Python::with_gil(|py| {
             py.run(
                 r#"
 import _shinqlx
 assert(_shinqlx.Player(42, player_info) == _shinqlx.Player(42, player_info))
-assert((_shinqlx.Player(42, player_info) == _shinqlx.Player(41, player_info)) == False)
+assert((_shinqlx.Player(42, player_info) == _shinqlx.Player(41, player_info2)) == False)
             "#,
                 None,
-                Some([("player_info", player_info.into_py(py))].into_py_dict(py)),
+                Some(
+                    [
+                        ("player_info", player_info.into_py(py)),
+                        ("player_info2", player_info2.into_py(py)),
+                    ]
+                    .into_py_dict(py),
+                ),
             )
         });
         assert!(result.is_ok());
@@ -661,15 +671,25 @@ assert((_shinqlx.Player(42, player_info) == "asdf") == False)
             team: team_t::TEAM_SPECTATOR as i32,
             privileges: privileges_t::PRIV_NONE as i32,
         };
+        let player_info2 = PlayerInfo {
+            steam_id: 42,
+            ..player_info.clone()
+        };
         let result = Python::with_gil(|py| {
             py.run(
                 r#"
 import _shinqlx
 assert((_shinqlx.Player(42, player_info) != _shinqlx.Player(42, player_info)) == False)
-assert(_shinqlx.Player(42, player_info) != _shinqlx.Player(41, player_info))
+assert(_shinqlx.Player(42, player_info) != _shinqlx.Player(41, player_info2))
             "#,
                 None,
-                Some([("player_info", player_info.into_py(py))].into_py_dict(py)),
+                Some(
+                    [
+                        ("player_info", player_info.into_py(py)),
+                        ("player_info2", player_info2.into_py(py)),
+                    ]
+                    .into_py_dict(py),
+                ),
             )
         });
         assert!(result.is_ok());
