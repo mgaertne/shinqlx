@@ -640,6 +640,7 @@ assert((_shinqlx.Player(42, player_info) == _shinqlx.Player(41, player_info)) ==
 import _shinqlx
 assert(_shinqlx.Player(42, player_info) == 1234567890)
 assert((_shinqlx.Player(42, player_info) == 1234567891) == False)
+assert((_shinqlx.Player(42, player_info) == "asdf") == False)
             "#,
                 None,
                 Some([("player_info", player_info.into_py(py))].into_py_dict(py)),
@@ -692,6 +693,7 @@ assert(_shinqlx.Player(42, player_info) != _shinqlx.Player(41, player_info))
 import _shinqlx
 assert((_shinqlx.Player(42, player_info) != 1234567890) == False)
 assert(_shinqlx.Player(42, player_info) != 1234567891)
+assert(_shinqlx.Player(42, player_info) != "asdf")
             "#,
                 None,
                 Some([("player_info", player_info.into_py(py))].into_py_dict(py)),
