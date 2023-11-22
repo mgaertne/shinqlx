@@ -616,7 +616,7 @@ fn pyshinqlx_module(py: Python<'_>, m: &PyModule) -> PyResult<()> {
         "NonexistentGameError",
         py.get_type::<NonexistentGameError>(),
     )?;
-    // m.add_class::<Player>()?;
+    m.add_class::<Player>()?;
     // m.add(
     //    "NonexistentPlayerError",
     //    py.get_type::<NonexistentPlayerError>(),
