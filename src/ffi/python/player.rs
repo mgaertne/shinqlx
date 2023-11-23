@@ -1,4 +1,6 @@
 use super::{clean_text, parse_variables, PlayerInfo};
+use crate::ffi::python::embed::pyshinqlx_client_command;
+use itertools::Itertools;
 use pyo3::basic::CompareOp;
 use pyo3::create_exception;
 use pyo3::exceptions::{PyException, PyKeyError};
@@ -185,6 +187,17 @@ impl Player {
         Ok(parse_variables(self.user_info.clone()).into_py_dict(py))
     }
 
+    #[setter(cvars)]
+    fn set_cvars(&self, py: Python<'_>, new_cvars: &PyDict) -> PyResult<()> {
+        let new = new_cvars
+            .iter()
+            .map(|(key, value)| format!("\\{key}\\{value}"))
+            .join("");
+        let client_command = format!("userinfo {new}");
+        pyshinqlx_client_command(py, self.id, client_command.as_str())?;
+        Ok(())
+    }
+
     #[getter(steam_id)]
     fn get_steam_id(&self) -> u64 {
         self.steam_id
@@ -209,7 +222,10 @@ mod pyshinqlx_player_tests {
     #[cfg(not(miri))]
     use crate::ffi::python::pyshinqlx_setup_fixture::*;
     use crate::ffi::python::PlayerInfo;
+    use crate::hooks::mock_hooks::shinqlx_execute_client_command_context;
     use crate::prelude::*;
+    use crate::quake_live_engine::MockQuakeEngine;
+    use crate::MAIN_ENGINE;
     use mockall::predicate;
     use pretty_assertions::assert_eq;
     use pyo3::exceptions::PyKeyError;
@@ -819,5 +835,42 @@ assert(player._valid)
         Python::with_gil(|py| {
             assert!(result.is_err_and(|err| err.is_instance_of::<NonexistentPlayerError>(py)));
         });
+    }
+
+    #[test]
+    #[cfg_attr(miri, ignore)]
+    #[serial]
+    fn set_cvars_sets_client_cvars() {
+        let mut mock_engine = MockQuakeEngine::new();
+        mock_engine.expect_get_max_clients().returning(|| 16);
+        MAIN_ENGINE.store(Some(mock_engine.into()));
+
+        let client_from_ctx = MockClient::from_context();
+        client_from_ctx.expect().returning(move |_client_id| {
+            let mut mock_client = MockClient::new();
+            mock_client
+                .expect_get_state()
+                .return_const(clientState_t::CS_CONNECTED);
+            mock_client
+        });
+
+        let hook_ctx = shinqlx_execute_client_command_context();
+        hook_ctx
+            .expect()
+            .withf(|client, cmd, &client_ok| {
+                client.is_some()
+                    && cmd == "userinfo \\asdf\\qwertz\\name\\UnnamedPlayer"
+                    && client_ok
+            })
+            .times(1);
+
+        let player = default_test_player();
+        let result = Python::with_gil(|py| {
+            player.set_cvars(
+                py,
+                [("asdf", "qwertz"), ("name", "UnnamedPlayer")].into_py_dict(py),
+            )
+        });
+        assert!(result.is_ok());
     }
 }
