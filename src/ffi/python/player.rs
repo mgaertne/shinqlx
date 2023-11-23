@@ -1,5 +1,7 @@
 use super::{clean_text, parse_variables, PlayerInfo};
 use crate::ffi::python::embed::pyshinqlx_client_command;
+use crate::quake_live_engine::{GetConfigstring, SetConfigstring};
+use crate::MAIN_ENGINE;
 use itertools::Itertools;
 use pyo3::basic::CompareOp;
 use pyo3::create_exception;
@@ -208,6 +210,91 @@ impl Player {
         self.id
     }
 
+    #[getter(ip)]
+    fn get_ip(&self) -> String {
+        let cvars = parse_variables(self.user_info.clone());
+        cvars
+            .iter()
+            .filter(|(key, _value)| key == "ip")
+            .map(|(_key, value)| value.split(':').nth(0).unwrap_or("").to_string())
+            .nth(0)
+            .unwrap_or("".to_string())
+    }
+
+    /// The clan tag. Not actually supported by QL, but it used to be and
+    /// fortunately the scoreboard still properly displays it if we manually
+    /// set the configstring to use clan tags.
+    #[getter(clan)]
+    fn get_clan(&self, py: Python<'_>) -> String {
+        py.allow_threads(|| {
+            let Some(ref main_engine) = *MAIN_ENGINE.load() else {
+                return "".into();
+            };
+
+            let configstring = main_engine.get_configstring(529 + self.id as u16);
+            parse_variables(configstring)
+                .iter()
+                .filter(|(key, _value)| key == "cn")
+                .map(|(_key, value)| value.into())
+                .nth(0)
+                .unwrap_or("".into())
+        })
+    }
+
+    #[setter(clan)]
+    fn set_clan(&self, py: Python<'_>, tag: String) {
+        py.allow_threads(|| {
+            let Some(ref main_engine) = *MAIN_ENGINE.load() else {
+                return;
+            };
+
+            let config_index = 529 + self.id as u16;
+
+            let configstring = main_engine.get_configstring(config_index);
+            let parsed_variables = parse_variables(configstring);
+
+            let mut filtered_variables: Vec<(String, String)> = parsed_variables
+                .into_iter()
+                .filter(|(key, _value)| !["cn", "xcn"].contains(&key.as_str()))
+                .collect();
+            filtered_variables.push(("xcn".to_string(), tag.clone()));
+            filtered_variables.push(("cn".to_string(), tag.clone()));
+
+            let new_configstring = filtered_variables
+                .iter()
+                .map(|(key, value)| format!("\\{key}\\{value}"))
+                .join("");
+            main_engine.set_configstring(config_index as i32, new_configstring.as_str());
+        })
+    }
+
+    #[getter(name)]
+    fn get_name(&self) -> String {
+        if self.name.ends_with("^7") {
+            self.name.clone()
+        } else {
+            format!("{}^7", self.name)
+        }
+    }
+
+    #[setter(name)]
+    fn set_name(&self, py: Python<'_>, value: String) -> PyResult<()> {
+        let cvars = parse_variables(self.user_info.clone());
+        let mut new_cvars: Vec<(String, String)> = cvars
+            .into_iter()
+            .filter(|(key, _value)| key != "name")
+            .collect();
+        new_cvars.push(("name".into(), value));
+        let new = new_cvars
+            .iter()
+            .map(|(key, value)| format!("\\{key}\\{value}"))
+            .join("");
+        let client_command = format!("userinfo {new}");
+        pyshinqlx_client_command(py, self.id, client_command.as_str())?;
+        Ok(())
+    }
+
+    /// Removes color tags from the name.
     #[getter(clean_name)]
     fn get_clean_name(&self) -> String {
         clean_text(&self.name)
@@ -871,6 +958,209 @@ assert(player._valid)
                 [("asdf", "qwertz"), ("name", "UnnamedPlayer")].into_py_dict(py),
             )
         });
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn get_ip_where_no_ip_is_set() {
+        let player = Player {
+            user_info: "".to_string(),
+            player_info: PlayerInfo {
+                userinfo: "".to_string(),
+                ..default_test_player_info()
+            },
+            ..default_test_player()
+        };
+        assert_eq!(player.get_ip(), "");
+    }
+
+    #[test]
+    fn get_ip_for_ip_with_no_port() {
+        let player = Player {
+            user_info: "\\ip\\127.0.0.1".to_string(),
+            player_info: PlayerInfo {
+                userinfo: "\\ip\\127.0.0.1".to_string(),
+                ..default_test_player_info()
+            },
+            ..default_test_player()
+        };
+        assert_eq!(player.get_ip(), "127.0.0.1");
+    }
+
+    #[test]
+    fn get_ip_for_ip_with_port() {
+        let player = Player {
+            user_info: "\\ip\\127.0.0.1:27666".to_string(),
+            player_info: PlayerInfo {
+                userinfo: "\\ip\\127.0.0.1:27666".to_string(),
+                ..default_test_player_info()
+            },
+            ..default_test_player()
+        };
+        assert_eq!(player.get_ip(), "127.0.0.1");
+    }
+
+    #[test]
+    #[cfg_attr(miri, ignore)]
+    #[serial]
+    fn get_clan_with_no_main_engine() {
+        MAIN_ENGINE.store(None);
+        let player = default_test_player();
+        let result = Python::with_gil(|py| player.get_clan(py));
+        assert_eq!(result, "");
+    }
+
+    #[test]
+    #[cfg_attr(miri, ignore)]
+    #[serial]
+    fn get_clan_with_no_clan_set() {
+        let mut mock_engine = MockQuakeEngine::new();
+        mock_engine
+            .expect_get_configstring()
+            .with(predicate::eq(531))
+            .returning(|_| "".into());
+        MAIN_ENGINE.store(Some(mock_engine.into()));
+
+        let player = default_test_player();
+        let result = Python::with_gil(|py| player.get_clan(py));
+        assert_eq!(result, "");
+    }
+
+    #[test]
+    #[cfg_attr(miri, ignore)]
+    #[serial]
+    fn get_clan_with_clan_set() {
+        let mut mock_engine = MockQuakeEngine::new();
+        mock_engine
+            .expect_get_configstring()
+            .with(predicate::eq(531))
+            .returning(|_| "\\cn\\asdf".into());
+        MAIN_ENGINE.store(Some(mock_engine.into()));
+
+        let player = default_test_player();
+        let result = Python::with_gil(|py| player.get_clan(py));
+        assert_eq!(result, "asdf");
+    }
+
+    #[test]
+    #[cfg_attr(miri, ignore)]
+    #[serial]
+    fn set_clan_with_no_main_engine() {
+        MAIN_ENGINE.store(None);
+        let player = default_test_player();
+        Python::with_gil(|py| player.set_clan(py, "asdf".into()));
+    }
+
+    #[test]
+    #[cfg_attr(miri, ignore)]
+    #[serial]
+    fn set_clan_with_no_clan_set() {
+        let mut mock_engine = MockQuakeEngine::new();
+        mock_engine
+            .expect_get_configstring()
+            .with(predicate::eq(531))
+            .returning(|_| "".into());
+        mock_engine
+            .expect_set_configstring()
+            .withf(|index, value| {
+                *index == 531i32 && value.contains("\\cn\\clan") && value.contains("\\xcn\\clan")
+            })
+            .times(1);
+        MAIN_ENGINE.store(Some(mock_engine.into()));
+
+        let player = default_test_player();
+        Python::with_gil(|py| player.set_clan(py, "clan".into()));
+    }
+
+    #[test]
+    #[cfg_attr(miri, ignore)]
+    #[serial]
+    fn set_clan_with_clan_set() {
+        let mut mock_engine = MockQuakeEngine::new();
+        mock_engine
+            .expect_get_configstring()
+            .with(predicate::eq(531))
+            .returning(|_| "\\xcn\\asdf\\cn\\asdf".into());
+        mock_engine
+            .expect_set_configstring()
+            .withf(|index, value| {
+                *index == 531i32
+                    && value.contains("\\cn\\clan")
+                    && value.contains("\\xcn\\clan")
+                    && !value.contains("\\cn\\asdf")
+                    && !value.contains("\\xcn\\asdf")
+            })
+            .times(1);
+        MAIN_ENGINE.store(Some(mock_engine.into()));
+
+        let player = default_test_player();
+        Python::with_gil(|py| player.set_clan(py, "clan".into()));
+    }
+
+    #[test]
+    fn get_name_for_color_terminated_name() {
+        let player = Player {
+            name: "UnnamedPlayer^7".into(),
+            player_info: PlayerInfo {
+                name: "UnnamedPlayer^7".into(),
+                ..default_test_player_info()
+            },
+            ..default_test_player()
+        };
+
+        assert_eq!(player.get_name(), "UnnamedPlayer^7");
+    }
+
+    #[test]
+    fn get_name_for_color_unterminated_name() {
+        let player = Player {
+            name: "UnnamedPlayer".into(),
+            player_info: PlayerInfo {
+                name: "UnnamedPlayer".into(),
+                ..default_test_player_info()
+            },
+            ..default_test_player()
+        };
+
+        assert_eq!(player.get_name(), "UnnamedPlayer^7");
+    }
+
+    #[test]
+    #[cfg_attr(miri, ignore)]
+    #[serial]
+    fn set_name_updated_client_cvars() {
+        let mut mock_engine = MockQuakeEngine::new();
+        mock_engine.expect_get_max_clients().returning(|| 16);
+        MAIN_ENGINE.store(Some(mock_engine.into()));
+
+        let client_from_ctx = MockClient::from_context();
+        client_from_ctx.expect().returning(move |_client_id| {
+            let mut mock_client = MockClient::new();
+            mock_client
+                .expect_get_state()
+                .return_const(clientState_t::CS_CONNECTED);
+            mock_client
+        });
+
+        let hook_ctx = shinqlx_execute_client_command_context();
+        hook_ctx
+            .expect()
+            .withf(|client, cmd, &client_ok| {
+                client.is_some()
+                    && cmd == "userinfo \\asdf\\qwertz\\name\\^1Unnamed^2Player"
+                    && client_ok
+            })
+            .times(1);
+
+        let player = Player {
+            user_info: "\\asdf\\qwertz\\name\\UnnamedPlayer".into(),
+            player_info: PlayerInfo {
+                userinfo: "\\asdf\\qwertz\\name\\UnnamedPlayer".into(),
+                ..default_test_player_info()
+            },
+            ..default_test_player()
+        };
+        let result = Python::with_gil(|py| player.set_name(py, "^1Unnamed^2Player".into()));
         assert!(result.is_ok());
     }
 }
