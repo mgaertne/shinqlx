@@ -83,28 +83,32 @@ impl Player {
         self.name.clone()
     }
 
-    fn __contains__(&self, item: String) -> PyResult<bool> {
+    fn __contains__(&self, py: Python<'_>, item: String) -> PyResult<bool> {
         if !self.valid {
             return Err(NonexistentPlayerError::new_err(
                 "The player does not exist anymore. Did the player disconnect?",
             ));
         }
 
-        let cvars = parse_variables(self.user_info.clone());
-        Ok(cvars.get(item).is_some())
+        py.allow_threads(|| {
+            let cvars = parse_variables(self.user_info.clone());
+            Ok(cvars.get(item).is_some())
+        })
     }
 
-    fn __getitem__(&self, item: String) -> PyResult<String> {
+    fn __getitem__(&self, py: Python<'_>, item: String) -> PyResult<String> {
         if !self.valid {
             return Err(NonexistentPlayerError::new_err(
                 "The player does not exist anymore. Did the player disconnect?",
             ));
         }
 
-        let cvars = parse_variables(self.user_info.clone());
-        cvars
-            .get(&item)
-            .map_or_else(|| Err(PyKeyError::new_err(format!("'{item}'"))), Ok)
+        py.allow_threads(|| {
+            let cvars = parse_variables(self.user_info.clone());
+            cvars
+                .get(&item)
+                .map_or_else(|| Err(PyKeyError::new_err(format!("'{item}'"))), Ok)
+        })
     }
 
     fn __richcmp__(&self, other: &PyAny, op: CompareOp, py: Python<'_>) -> PyObject {
@@ -137,8 +141,9 @@ impl Player {
     ///         invalidated, but anything else will make it throw an exception too.
     ///
     ///         :raises: shinqlx.NonexistentPlayerError
-    fn update(&mut self) -> PyResult<()> {
-        self.player_info = PlayerInfo::from(self.id);
+    fn update(&mut self, py: Python<'_>) -> PyResult<()> {
+        py.allow_threads(|| self.player_info = PlayerInfo::from(self.id));
+
         if self.player_info.steam_id != self.steam_id {
             self.valid = false;
             return Err(NonexistentPlayerError::new_err(
@@ -146,13 +151,15 @@ impl Player {
             ));
         }
 
-        let name = if self.player_info.name.is_empty() {
-            let cvars = parse_variables(self.player_info.userinfo.clone());
-            cvars.get("name").unwrap_or_default()
-        } else {
-            self.player_info.name.clone()
-        };
-        self.name = name;
+        py.allow_threads(|| {
+            let name = if self.player_info.name.is_empty() {
+                let cvars = parse_variables(self.player_info.userinfo.clone());
+                cvars.get("name").unwrap_or_default()
+            } else {
+                self.player_info.name.clone()
+            };
+            self.name = name;
+        });
 
         Ok(())
     }
@@ -199,12 +206,14 @@ impl Player {
     }
 
     #[getter(ip)]
-    fn get_ip(&self) -> String {
-        let cvars = parse_variables(self.user_info.clone());
-        cvars
-            .get("ip")
-            .map(|value| value.split(':').next().unwrap_or("").into())
-            .unwrap_or("".into())
+    fn get_ip(&self, py: Python<'_>) -> String {
+        py.allow_threads(|| {
+            let cvars = parse_variables(self.user_info.clone());
+            cvars
+                .get("ip")
+                .map(|value| value.split(':').next().unwrap_or("").into())
+                .unwrap_or("".into())
+        })
     }
 
     /// The clan tag. Not actually supported by QL, but it used to be and
@@ -243,19 +252,24 @@ impl Player {
     }
 
     #[getter(name)]
-    fn get_name(&self) -> String {
-        if self.name.ends_with("^7") {
-            self.name.clone()
-        } else {
-            format!("{}^7", self.name)
-        }
+    fn get_name(&self, py: Python<'_>) -> String {
+        py.allow_threads(|| {
+            if self.name.ends_with("^7") {
+                self.name.clone()
+            } else {
+                format!("{}^7", self.name)
+            }
+        })
     }
 
     #[setter(name)]
     fn set_name(&self, py: Python<'_>, value: String) -> PyResult<()> {
-        let mut new_cvars = parse_variables(self.user_info.clone());
-        new_cvars.set("name".into(), value);
-        let new: String = new_cvars.into();
+        let new: String = py.allow_threads(|| {
+            let mut new_cvars = parse_variables(self.user_info.clone());
+            new_cvars.set("name".into(), value);
+            new_cvars.into()
+        });
+
         let client_command = format!("userinfo {new}");
         pyshinqlx_client_command(py, self.id, client_command.as_str())?;
         Ok(())
@@ -263,8 +277,8 @@ impl Player {
 
     /// Removes color tags from the name.
     #[getter(clean_name)]
-    fn get_clean_name(&self) -> String {
-        clean_text(&self.name)
+    fn get_clean_name(&self, py: Python<'_>) -> String {
+        py.allow_threads(|| clean_text(&self.name))
     }
 
     #[getter(qport)]
@@ -279,14 +293,14 @@ impl Player {
     }
 
     #[getter(team)]
-    fn get_team(&self) -> PyResult<String> {
-        match team_t::try_from(self.player_info.team) {
+    fn get_team(&self, py: Python<'_>) -> PyResult<String> {
+        py.allow_threads(|| match team_t::try_from(self.player_info.team) {
             Ok(team_t::TEAM_FREE) => Ok("free".into()),
             Ok(team_t::TEAM_RED) => Ok("red".into()),
             Ok(team_t::TEAM_BLUE) => Ok("blue".into()),
             Ok(team_t::TEAM_SPECTATOR) => Ok("spectator".into()),
             _ => Err(PyValueError::new_err("invalid team")),
-        }
+        })
     }
 
     #[setter(team)]
@@ -313,6 +327,20 @@ impl Player {
                 .unwrap_or(0.0);
             (color1, color2)
         })
+    }
+
+    #[setter(colors)]
+    fn set_colors(&self, py: Python<'_>, new: (i32, i32)) -> PyResult<()> {
+        let new_cvars_string: String = py.allow_threads(|| {
+            let mut new_cvars = parse_variables(self.player_info.userinfo.clone());
+            new_cvars.set("color1".into(), format!("{}", new.0));
+            new_cvars.set("color2".into(), format!("{}", new.1));
+            new_cvars.into()
+        });
+
+        let client_command = format!("userinfo {new_cvars_string}");
+        pyshinqlx_client_command(py, self.id, client_command.as_str())?;
+        Ok(())
     }
 }
 
@@ -500,13 +528,15 @@ mod pyshinqlx_player_tests {
             valid: false,
             ..default_test_player()
         };
-        let result = player.__contains__("asdf".into());
+
         Python::with_gil(|py| {
+            let result = player.__contains__(py, "asdf".into());
             assert!(result.is_err_and(|err| err.is_instance_of::<NonexistentPlayerError>(py)));
         });
     }
 
     #[test]
+    #[cfg_attr(miri, ignore)]
     fn contains_where_value_is_part_of_userinfo() {
         let player = Player {
             player_info: PlayerInfo {
@@ -517,11 +547,12 @@ mod pyshinqlx_player_tests {
             ..default_test_player()
         };
 
-        let result = player.__contains__("asdf".into());
+        let result = Python::with_gil(|py| player.__contains__(py, "asdf".into()));
         assert_eq!(result.expect("result was not OK"), true);
     }
 
     #[test]
+    #[cfg_attr(miri, ignore)]
     fn contains_where_value_is_not_in_userinfo() {
         let player = Player {
             player_info: PlayerInfo {
@@ -532,7 +563,7 @@ mod pyshinqlx_player_tests {
             ..default_test_player()
         };
 
-        let result = player.__contains__("asdf".into());
+        let result = Python::with_gil(|py| player.__contains__(py, "asdf".into()));
         assert_eq!(result.expect("result was not OK"), false);
     }
 
@@ -543,13 +574,15 @@ mod pyshinqlx_player_tests {
             valid: false,
             ..default_test_player()
         };
-        let result = player.__getitem__("asdf".into());
+
         Python::with_gil(|py| {
+            let result = player.__getitem__(py, "asdf".into());
             assert!(result.is_err_and(|err| err.is_instance_of::<NonexistentPlayerError>(py)));
         });
     }
 
     #[test]
+    #[cfg_attr(miri, ignore)]
     fn getitem_where_value_is_part_of_userinfo() {
         let player = Player {
             player_info: PlayerInfo {
@@ -560,7 +593,7 @@ mod pyshinqlx_player_tests {
             ..default_test_player()
         };
 
-        let result = player.__getitem__("asdf".into());
+        let result = Python::with_gil(|py| player.__getitem__(py, "asdf".into()));
         assert_eq!(result.expect("result was not OK"), "some value");
     }
 
@@ -576,8 +609,8 @@ mod pyshinqlx_player_tests {
             ..default_test_player()
         };
 
-        let result = player.__getitem__("asdf".into());
         Python::with_gil(|py| {
+            let result = player.__getitem__(py, "asdf".into());
             assert!(result.is_err_and(|err| err.is_instance_of::<PyKeyError>(py)))
         });
     }
@@ -589,6 +622,7 @@ mod pyshinqlx_player_tests {
             valid: false,
             ..default_test_player()
         };
+
         Python::with_gil(|py| {
             let result = player.get_cvars(py);
             assert!(result.is_err_and(|err| err.is_instance_of::<NonexistentPlayerError>(py)));
@@ -774,7 +808,7 @@ assert(_shinqlx.Player(42, player_info) != "asdf")
         };
 
         Python::with_gil(|py| {
-            let result = player.update();
+            let result = player.update(py);
             assert!(result.is_err_and(|err| err.is_instance_of::<NonexistentPlayerError>(py)));
         });
         assert_eq!(player.valid, false);
@@ -837,6 +871,7 @@ assert(player._valid)
 
     #[test]
     #[serial]
+    #[cfg_attr(miri, ignore)]
     fn update_updates_new_player_name() {
         let game_entity_from_ctx = MockGameEntity::from_context();
         game_entity_from_ctx
@@ -876,13 +911,14 @@ assert(player._valid)
             ..default_test_player()
         };
 
-        player.update().unwrap();
+        Python::with_gil(|py| player.update(py).unwrap());
         assert_eq!(player.valid, true);
         assert_eq!(player.name, "NewUnnamedPlayer");
     }
 
     #[test]
     #[serial]
+    #[cfg_attr(miri, ignore)]
     fn update_updates_new_player_name_from_userinfo() {
         let game_entity_from_ctx = MockGameEntity::from_context();
         game_entity_from_ctx
@@ -922,7 +958,7 @@ assert(player._valid)
             ..default_test_player()
         };
 
-        player.update().unwrap();
+        Python::with_gil(|py| player.update(py).unwrap());
         assert_eq!(player.valid, true);
         assert_eq!(player.name, "NewUnnamedPlayer");
     }
@@ -976,6 +1012,7 @@ assert(player._valid)
     }
 
     #[test]
+    #[cfg_attr(miri, ignore)]
     fn get_ip_where_no_ip_is_set() {
         let player = Player {
             user_info: "".to_string(),
@@ -985,10 +1022,11 @@ assert(player._valid)
             },
             ..default_test_player()
         };
-        assert_eq!(player.get_ip(), "");
+        assert_eq!(Python::with_gil(|py| player.get_ip(py)), "");
     }
 
     #[test]
+    #[cfg_attr(miri, ignore)]
     fn get_ip_for_ip_with_no_port() {
         let player = Player {
             user_info: "\\ip\\127.0.0.1".to_string(),
@@ -998,10 +1036,12 @@ assert(player._valid)
             },
             ..default_test_player()
         };
-        assert_eq!(player.get_ip(), "127.0.0.1");
+
+        assert_eq!(Python::with_gil(|py| player.get_ip(py)), "127.0.0.1");
     }
 
     #[test]
+    #[cfg_attr(miri, ignore)]
     fn get_ip_for_ip_with_port() {
         let player = Player {
             user_info: "\\ip\\127.0.0.1:27666".to_string(),
@@ -1011,7 +1051,8 @@ assert(player._valid)
             },
             ..default_test_player()
         };
-        assert_eq!(player.get_ip(), "127.0.0.1");
+
+        assert_eq!(Python::with_gil(|py| player.get_ip(py)), "127.0.0.1");
     }
 
     #[test]
@@ -1112,6 +1153,7 @@ assert(player._valid)
     }
 
     #[test]
+    #[cfg_attr(miri, ignore)]
     fn get_name_for_color_terminated_name() {
         let player = Player {
             name: "UnnamedPlayer^7".into(),
@@ -1122,10 +1164,14 @@ assert(player._valid)
             ..default_test_player()
         };
 
-        assert_eq!(player.get_name(), "UnnamedPlayer^7");
+        assert_eq!(
+            Python::with_gil(|py| player.get_name(py)),
+            "UnnamedPlayer^7"
+        );
     }
 
     #[test]
+    #[cfg_attr(miri, ignore)]
     fn get_name_for_color_unterminated_name() {
         let player = Player {
             name: "UnnamedPlayer".into(),
@@ -1136,7 +1182,10 @@ assert(player._valid)
             ..default_test_player()
         };
 
-        assert_eq!(player.get_name(), "UnnamedPlayer^7");
+        assert_eq!(
+            Python::with_gil(|py| player.get_name(py)),
+            "UnnamedPlayer^7"
+        );
     }
 
     #[test]
@@ -1174,6 +1223,7 @@ assert(player._valid)
             },
             ..default_test_player()
         };
+
         let result = Python::with_gil(|py| player.set_name(py, "^1Unnamed^2Player".into()));
         assert!(result.is_ok());
     }
@@ -1189,6 +1239,7 @@ assert(player._valid)
             },
             ..default_test_player()
         };
+
         Python::with_gil(|py| {
             assert_eq!(player.get_qport(py), -1);
         });
@@ -1205,6 +1256,7 @@ assert(player._valid)
             },
             ..default_test_player()
         };
+
         Python::with_gil(|py| {
             assert_eq!(player.get_qport(py), 27666);
         });
@@ -1221,6 +1273,7 @@ assert(player._valid)
             },
             ..default_test_player()
         };
+
         Python::with_gil(|py| {
             assert_eq!(player.get_qport(py), -1);
         });
@@ -1231,6 +1284,7 @@ assert(player._valid)
     #[case(team_t::TEAM_RED, "red")]
     #[case(team_t::TEAM_BLUE, "blue")]
     #[case(team_t::TEAM_SPECTATOR, "spectator")]
+    #[cfg_attr(miri, ignore)]
     fn get_team_for_team_t_values(#[case] team: team_t, #[case] return_value: &str) {
         let player = Player {
             player_info: PlayerInfo {
@@ -1240,7 +1294,12 @@ assert(player._valid)
             ..default_test_player()
         };
 
-        assert_eq!(player.get_team().expect("result was not OK"), return_value);
+        Python::with_gil(|py| {
+            assert_eq!(
+                player.get_team(py).expect("result was not OK"),
+                return_value
+            )
+        });
     }
 
     #[test]
@@ -1253,9 +1312,10 @@ assert(player._valid)
             },
             ..default_test_player()
         };
+
         Python::with_gil(|py| {
             assert!(player
-                .get_team()
+                .get_team(py)
                 .is_err_and(|err| err.is_instance_of::<PyValueError>(py)));
         });
     }
@@ -1290,6 +1350,114 @@ assert(player._valid)
         MAIN_ENGINE.store(Some(mock_engine.into()));
 
         let result = Python::with_gil(|py| default_test_player().set_team(py, new_team.into()));
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    #[cfg_attr(miri, ignore)]
+    fn get_colors_where_no_colors_are_set() {
+        let player = Player {
+            user_info: "".to_string(),
+            player_info: PlayerInfo {
+                userinfo: "".to_string(),
+                ..default_test_player_info()
+            },
+            ..default_test_player()
+        };
+
+        Python::with_gil(|py| {
+            assert_eq!(player.get_colors(py), (0.0, 0.0));
+        });
+    }
+
+    #[test]
+    #[cfg_attr(miri, ignore)]
+    fn get_colors_for_colors_set() {
+        let player = Player {
+            user_info: "\\color1\\42\\color2\\21".to_string(),
+            player_info: PlayerInfo {
+                userinfo: "\\color1\\42\\colors2\\21".to_string(),
+                ..default_test_player_info()
+            },
+            ..default_test_player()
+        };
+
+        Python::with_gil(|py| {
+            assert_eq!(player.get_colors(py), (42.0, 21.0));
+        });
+    }
+
+    #[test]
+    #[cfg_attr(miri, ignore)]
+    fn get_colors_for_invalid_color1_set() {
+        let player = Player {
+            user_info: "\\color1\\asdf\\color2\\42".to_string(),
+            player_info: PlayerInfo {
+                userinfo: "\\color1\\asdf\\color2\\42".to_string(),
+                ..default_test_player_info()
+            },
+            ..default_test_player()
+        };
+
+        Python::with_gil(|py| {
+            assert_eq!(player.get_colors(py), (0.0, 42.0));
+        });
+    }
+
+    #[test]
+    #[cfg_attr(miri, ignore)]
+    fn get_colors_for_invalid_color2_set() {
+        let player = Player {
+            user_info: "\\color1\\42\\color2\\asdf".to_string(),
+            player_info: PlayerInfo {
+                userinfo: "\\color1\\42\\color2\\asdf".to_string(),
+                ..default_test_player_info()
+            },
+            ..default_test_player()
+        };
+
+        Python::with_gil(|py| {
+            assert_eq!(player.get_colors(py), (42.0, 0.0));
+        });
+    }
+
+    #[test]
+    #[cfg_attr(miri, ignore)]
+    #[serial]
+    fn set_colors_updated_client_cvars() {
+        let mut mock_engine = MockQuakeEngine::new();
+        mock_engine.expect_get_max_clients().returning(|| 16);
+        MAIN_ENGINE.store(Some(mock_engine.into()));
+
+        let client_from_ctx = MockClient::from_context();
+        client_from_ctx.expect().returning(move |_client_id| {
+            let mut mock_client = MockClient::new();
+            mock_client
+                .expect_get_state()
+                .return_const(clientState_t::CS_CONNECTED);
+            mock_client
+        });
+
+        let hook_ctx = shinqlx_execute_client_command_context();
+        hook_ctx
+            .expect()
+            .withf(|client, cmd, &client_ok| {
+                client.is_some()
+                    && cmd == "userinfo \\asdf\\qwertz\\name\\UnnamedPlayer\\color1\\0\\color2\\3"
+                    && client_ok
+            })
+            .times(1);
+
+        let player = Player {
+            user_info: "\\asdf\\qwertz\\color1\\7.0\\color2\\5\\name\\UnnamedPlayer".into(),
+            player_info: PlayerInfo {
+                userinfo: "\\asdf\\qwertz\\color1\\7.0\\color2\\5\\name\\UnnamedPlayer".into(),
+                ..default_test_player_info()
+            },
+            ..default_test_player()
+        };
+
+        let result = Python::with_gil(|py| player.set_colors(py, (0, 3)));
         assert!(result.is_ok());
     }
 }
