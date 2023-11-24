@@ -185,7 +185,7 @@ impl Player {
     }
 
     #[setter(cvars)]
-    fn set_cvars(&self, py: Python<'_>, new_cvars: &PyDict) -> PyResult<()> {
+    fn set_cvars(&mut self, py: Python<'_>, new_cvars: &PyDict) -> PyResult<()> {
         let new = new_cvars
             .iter()
             .map(|(key, value)| format!("\\{key}\\{value}"))
@@ -233,7 +233,7 @@ impl Player {
     }
 
     #[setter(clan)]
-    fn set_clan(&self, py: Python<'_>, tag: String) {
+    fn set_clan(&mut self, py: Python<'_>, tag: String) {
         py.allow_threads(|| {
             let Some(ref main_engine) = *MAIN_ENGINE.load() else {
                 return;
@@ -263,7 +263,7 @@ impl Player {
     }
 
     #[setter(name)]
-    fn set_name(&self, py: Python<'_>, value: String) -> PyResult<()> {
+    fn set_name(&mut self, py: Python<'_>, value: String) -> PyResult<()> {
         let new: String = py.allow_threads(|| {
             let mut new_cvars = parse_variables(self.user_info.clone());
             new_cvars.set("name".into(), value);
@@ -304,7 +304,7 @@ impl Player {
     }
 
     #[setter(team)]
-    fn set_team(&self, py: Python<'_>, new_team: String) -> PyResult<()> {
+    fn set_team(&mut self, py: Python<'_>, new_team: String) -> PyResult<()> {
         if !["free", "red", "blue", "spectator"].contains(&new_team.to_lowercase().as_str()) {
             return Err(PyValueError::new_err("Invalid team."));
         }
@@ -330,11 +330,34 @@ impl Player {
     }
 
     #[setter(colors)]
-    fn set_colors(&self, py: Python<'_>, new: (i32, i32)) -> PyResult<()> {
+    fn set_colors(&mut self, py: Python<'_>, new: (i32, i32)) -> PyResult<()> {
         let new_cvars_string: String = py.allow_threads(|| {
             let mut new_cvars = parse_variables(self.player_info.userinfo.clone());
             new_cvars.set("color1".into(), format!("{}", new.0));
             new_cvars.set("color2".into(), format!("{}", new.1));
+            new_cvars.into()
+        });
+
+        let client_command = format!("userinfo {new_cvars_string}");
+        pyshinqlx_client_command(py, self.id, client_command.as_str())?;
+        Ok(())
+    }
+
+    #[getter(model)]
+    fn get_model(&self, py: Python<'_>) -> PyResult<String> {
+        py.allow_threads(|| {
+            let cvars = parse_variables(self.user_info.clone());
+            cvars
+                .get("model")
+                .map_or_else(|| Err(PyKeyError::new_err("'model'")), Ok)
+        })
+    }
+
+    #[setter(model)]
+    fn set_model(&mut self, py: Python<'_>, value: String) -> PyResult<()> {
+        let new_cvars_string: String = py.allow_threads(|| {
+            let mut new_cvars = parse_variables(self.player_info.userinfo.clone());
+            new_cvars.set("model".into(), value);
             new_cvars.into()
         });
 
@@ -1001,7 +1024,7 @@ assert(player._valid)
             })
             .times(1);
 
-        let player = default_test_player();
+        let mut player = default_test_player();
         let result = Python::with_gil(|py| {
             player.set_cvars(
                 py,
@@ -1102,7 +1125,7 @@ assert(player._valid)
     #[serial]
     fn set_clan_with_no_main_engine() {
         MAIN_ENGINE.store(None);
-        let player = default_test_player();
+        let mut player = default_test_player();
         Python::with_gil(|py| player.set_clan(py, "asdf".into()));
     }
 
@@ -1123,7 +1146,7 @@ assert(player._valid)
             .times(1);
         MAIN_ENGINE.store(Some(mock_engine.into()));
 
-        let player = default_test_player();
+        let mut player = default_test_player();
         Python::with_gil(|py| player.set_clan(py, "clan".into()));
     }
 
@@ -1148,7 +1171,7 @@ assert(player._valid)
             .times(1);
         MAIN_ENGINE.store(Some(mock_engine.into()));
 
-        let player = default_test_player();
+        let mut player = default_test_player();
         Python::with_gil(|py| player.set_clan(py, "clan".into()));
     }
 
@@ -1215,7 +1238,7 @@ assert(player._valid)
             })
             .times(1);
 
-        let player = Player {
+        let mut player = Player {
             user_info: "\\asdf\\qwertz\\name\\UnnamedPlayer".into(),
             player_info: PlayerInfo {
                 userinfo: "\\asdf\\qwertz\\name\\UnnamedPlayer".into(),
@@ -1424,7 +1447,7 @@ assert(player._valid)
     #[test]
     #[cfg_attr(miri, ignore)]
     #[serial]
-    fn set_colors_updated_client_cvars() {
+    fn set_colors_updates_client_cvars() {
         let mut mock_engine = MockQuakeEngine::new();
         mock_engine.expect_get_max_clients().returning(|| 16);
         MAIN_ENGINE.store(Some(mock_engine.into()));
@@ -1448,7 +1471,7 @@ assert(player._valid)
             })
             .times(1);
 
-        let player = Player {
+        let mut player = Player {
             user_info: "\\asdf\\qwertz\\color1\\7.0\\color2\\5\\name\\UnnamedPlayer".into(),
             player_info: PlayerInfo {
                 userinfo: "\\asdf\\qwertz\\color1\\7.0\\color2\\5\\name\\UnnamedPlayer".into(),
@@ -1458,6 +1481,80 @@ assert(player._valid)
         };
 
         let result = Python::with_gil(|py| player.set_colors(py, (0, 3)));
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    #[cfg_attr(miri, ignore)]
+    fn get_model_when_no_model_is_set() {
+        let player = Player {
+            user_info: "".into(),
+            player_info: PlayerInfo {
+                userinfo: "".into(),
+                ..default_test_player_info()
+            },
+            ..default_test_player()
+        };
+
+        Python::with_gil(|py| {
+            let result = player.get_model(py);
+            assert!(result.is_err_and(|err| err.is_instance_of::<PyKeyError>(py)));
+        });
+    }
+
+    #[test]
+    #[cfg_attr(miri, ignore)]
+    fn get_model_when_model_is_set() {
+        let player = Player {
+            user_info: "\\model\\asdf".into(),
+            player_info: PlayerInfo {
+                userinfo: "\\model\\asdf".into(),
+                ..default_test_player_info()
+            },
+            ..default_test_player()
+        };
+
+        let result = Python::with_gil(|py| player.get_model(py));
+        assert_eq!(result.expect("result was not OK"), "asdf");
+    }
+
+    #[test]
+    #[cfg_attr(miri, ignore)]
+    #[serial]
+    fn set_model_updates_client_cvars() {
+        let mut mock_engine = MockQuakeEngine::new();
+        mock_engine.expect_get_max_clients().returning(|| 16);
+        MAIN_ENGINE.store(Some(mock_engine.into()));
+
+        let client_from_ctx = MockClient::from_context();
+        client_from_ctx.expect().returning(move |_client_id| {
+            let mut mock_client = MockClient::new();
+            mock_client
+                .expect_get_state()
+                .return_const(clientState_t::CS_CONNECTED);
+            mock_client
+        });
+
+        let hook_ctx = shinqlx_execute_client_command_context();
+        hook_ctx
+            .expect()
+            .withf(|client, cmd, &client_ok| {
+                client.is_some()
+                    && cmd == "userinfo \\asdf\\qwertz\\name\\UnnamedPlayer\\model\\Uriel"
+                    && client_ok
+            })
+            .times(1);
+
+        let mut player = Player {
+            user_info: "\\asdf\\qwertz\\model\\Anarki\\name\\UnnamedPlayer".into(),
+            player_info: PlayerInfo {
+                userinfo: "\\asdf\\qwertz\\model\\Anarki\\name\\UnnamedPlayer".into(),
+                ..default_test_player_info()
+            },
+            ..default_test_player()
+        };
+
+        let result = Python::with_gil(|py| player.set_model(py, "Uriel".into()));
         assert!(result.is_ok());
     }
 }
