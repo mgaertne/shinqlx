@@ -438,6 +438,60 @@ impl Player {
         pyshinqlx_client_command(py, self.id, client_command.as_str())?;
         Ok(())
     }
+
+    #[getter(autoaction)]
+    fn get_autoaction(&self, py: Python<'_>) -> PyResult<bool> {
+        py.allow_threads(|| {
+            let cvars = parse_variables(self.user_info.clone());
+            cvars.get("autoaction").map_or_else(
+                || Err(PyKeyError::new_err("'handicap'")),
+                |value| Ok(value != "0"),
+            )
+        })
+    }
+
+    #[setter(autoaction)]
+    fn set_autoaction(&mut self, py: Python<'_>, value: bool) -> PyResult<()> {
+        let new_cvars_string: String = py.allow_threads(|| {
+            let mut new_cvars = parse_variables(self.player_info.userinfo.clone());
+            new_cvars.set(
+                "autoaction".into(),
+                if value { "1".into() } else { "0".into() },
+            );
+            new_cvars.into()
+        });
+
+        let client_command = format!("userinfo {new_cvars_string}");
+        pyshinqlx_client_command(py, self.id, client_command.as_str())?;
+        Ok(())
+    }
+
+    #[getter(predictitems)]
+    fn get_predictitems(&self, py: Python<'_>) -> PyResult<bool> {
+        py.allow_threads(|| {
+            let cvars = parse_variables(self.user_info.clone());
+            cvars.get("cg_predictitems").map_or_else(
+                || Err(PyKeyError::new_err("'handicap'")),
+                |value| Ok(value != "0"),
+            )
+        })
+    }
+
+    #[setter(predictitems)]
+    fn set_predictitems(&mut self, py: Python<'_>, value: bool) -> PyResult<()> {
+        let new_cvars_string: String = py.allow_threads(|| {
+            let mut new_cvars = parse_variables(self.player_info.userinfo.clone());
+            new_cvars.set(
+                "cg_predictitems".into(),
+                if value { "1".into() } else { "0".into() },
+            );
+            new_cvars.into()
+        });
+
+        let client_command = format!("userinfo {new_cvars_string}");
+        pyshinqlx_client_command(py, self.id, client_command.as_str())?;
+        Ok(())
+    }
 }
 
 #[cfg(test)]
@@ -1866,6 +1920,186 @@ assert(player._valid)
         };
 
         let result = Python::with_gil(|py| player.set_autohop(py, false));
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    #[cfg_attr(miri, ignore)]
+    fn get_autoaction_when_no_autoaction_is_set() {
+        let player = Player {
+            user_info: "".into(),
+            player_info: PlayerInfo {
+                userinfo: "".into(),
+                ..default_test_player_info()
+            },
+            ..default_test_player()
+        };
+
+        Python::with_gil(|py| {
+            let result = player.get_autoaction(py);
+            assert!(result.is_err_and(|err| err.is_instance_of::<PyKeyError>(py)));
+        });
+    }
+
+    #[test]
+    #[cfg_attr(miri, ignore)]
+    fn get_autoaction_when_autohop_is_set() {
+        let player = Player {
+            user_info: "\\autoaction\\1".into(),
+            player_info: PlayerInfo {
+                userinfo: "\\autoaction\\1".into(),
+                ..default_test_player_info()
+            },
+            ..default_test_player()
+        };
+
+        let result = Python::with_gil(|py| player.get_autoaction(py));
+        assert_eq!(result.expect("result was not OK"), true);
+    }
+
+    #[test]
+    #[cfg_attr(miri, ignore)]
+    fn get_autoaction_when_autoaction_is_disabled() {
+        let player = Player {
+            user_info: "\\autoaction\\0".into(),
+            player_info: PlayerInfo {
+                userinfo: "\\autoaction\\0".into(),
+                ..default_test_player_info()
+            },
+            ..default_test_player()
+        };
+
+        let result = Python::with_gil(|py| player.get_autoaction(py));
+        assert_eq!(result.expect("result was not OK"), false);
+    }
+
+    #[test]
+    #[cfg_attr(miri, ignore)]
+    #[serial]
+    fn set_autoaction_updates_client_cvars() {
+        let mut mock_engine = MockQuakeEngine::new();
+        mock_engine.expect_get_max_clients().returning(|| 16);
+        MAIN_ENGINE.store(Some(mock_engine.into()));
+
+        let client_from_ctx = MockClient::from_context();
+        client_from_ctx.expect().returning(move |_client_id| {
+            let mut mock_client = MockClient::new();
+            mock_client
+                .expect_get_state()
+                .return_const(clientState_t::CS_CONNECTED);
+            mock_client
+        });
+
+        let hook_ctx = shinqlx_execute_client_command_context();
+        hook_ctx
+            .expect()
+            .withf(|client, cmd, &client_ok| {
+                client.is_some()
+                    && cmd == "userinfo \\asdf\\qwertz\\name\\UnnamedPlayer\\autoaction\\0"
+                    && client_ok
+            })
+            .times(1);
+
+        let mut player = Player {
+            user_info: "\\asdf\\qwertz\\autoaction\\1\\name\\UnnamedPlayer".into(),
+            player_info: PlayerInfo {
+                userinfo: "\\asdf\\qwertz\\autoaction\\1\\name\\UnnamedPlayer".into(),
+                ..default_test_player_info()
+            },
+            ..default_test_player()
+        };
+
+        let result = Python::with_gil(|py| player.set_autoaction(py, false));
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    #[cfg_attr(miri, ignore)]
+    fn get_predictitems_when_no_predictitems_is_set() {
+        let player = Player {
+            user_info: "".into(),
+            player_info: PlayerInfo {
+                userinfo: "".into(),
+                ..default_test_player_info()
+            },
+            ..default_test_player()
+        };
+
+        Python::with_gil(|py| {
+            let result = player.get_predictitems(py);
+            assert!(result.is_err_and(|err| err.is_instance_of::<PyKeyError>(py)));
+        });
+    }
+
+    #[test]
+    #[cfg_attr(miri, ignore)]
+    fn get_predictitems_when_predictitems_is_set() {
+        let player = Player {
+            user_info: "\\cg_predictitems\\1".into(),
+            player_info: PlayerInfo {
+                userinfo: "\\cg_predictitems\\1".into(),
+                ..default_test_player_info()
+            },
+            ..default_test_player()
+        };
+
+        let result = Python::with_gil(|py| player.get_predictitems(py));
+        assert_eq!(result.expect("result was not OK"), true);
+    }
+
+    #[test]
+    #[cfg_attr(miri, ignore)]
+    fn get_predititems_when_predictitems_is_disabled() {
+        let player = Player {
+            user_info: "\\cg_predictitems\\0".into(),
+            player_info: PlayerInfo {
+                userinfo: "\\cg_predictitems\\0".into(),
+                ..default_test_player_info()
+            },
+            ..default_test_player()
+        };
+
+        let result = Python::with_gil(|py| player.get_predictitems(py));
+        assert_eq!(result.expect("result was not OK"), false);
+    }
+
+    #[test]
+    #[cfg_attr(miri, ignore)]
+    #[serial]
+    fn set_predictitems_updates_client_cvars() {
+        let mut mock_engine = MockQuakeEngine::new();
+        mock_engine.expect_get_max_clients().returning(|| 16);
+        MAIN_ENGINE.store(Some(mock_engine.into()));
+
+        let client_from_ctx = MockClient::from_context();
+        client_from_ctx.expect().returning(move |_client_id| {
+            let mut mock_client = MockClient::new();
+            mock_client
+                .expect_get_state()
+                .return_const(clientState_t::CS_CONNECTED);
+            mock_client
+        });
+
+        let hook_ctx = shinqlx_execute_client_command_context();
+        hook_ctx
+            .expect()
+            .withf(|client, cmd, &client_ok| {
+                client.is_some()
+                    && cmd == "userinfo \\asdf\\qwertz\\name\\UnnamedPlayer\\cg_predictitems\\0"
+                    && client_ok
+            })
+            .times(1);
+
+        let mut player = Player {
+            user_info: "\\asdf\\qwertz\\cg_predictitems\\1\\name\\UnnamedPlayer".into(),
+            player_info: PlayerInfo {
+                userinfo: "\\asdf\\qwertz\\cg_predictitems\\1\\name\\UnnamedPlayer".into(),
+                ..default_test_player_info()
+            },
+            ..default_test_player()
+        };
+
+        let result = Python::with_gil(|py| player.set_predictitems(py, false));
         assert!(result.is_ok());
     }
 }
