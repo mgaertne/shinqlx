@@ -1,15 +1,28 @@
 use super::{clean_text, parse_variables, PlayerInfo};
-use crate::ffi::python::embed::pyshinqlx_client_command;
+use crate::ffi::python::embed::{pyshinqlx_client_command, pyshinqlx_console_command};
+use crate::prelude::*;
 use crate::quake_live_engine::{GetConfigstring, SetConfigstring};
 use crate::MAIN_ENGINE;
 use itertools::Itertools;
 use pyo3::basic::CompareOp;
 use pyo3::create_exception;
-use pyo3::exceptions::{PyException, PyKeyError};
+use pyo3::exceptions::{PyException, PyKeyError, PyValueError};
 use pyo3::prelude::*;
 use pyo3::types::{IntoPyDict, PyDict};
 
 create_exception!(pyshinqlx_module, NonexistentPlayerError, PyException);
+
+fn get_item<T>(items: &[(String, String)], item: T) -> Option<String>
+where
+    T: AsRef<str>,
+{
+    items
+        .iter()
+        .filter(|(key, _value)| key == item.as_ref())
+        .map(|(_key, value)| value)
+        .next()
+        .cloned()
+}
 
 /// A class that represents a player on the server. As opposed to minqlbot,
 ///    attributes are all the values from when the class was instantiated. This
@@ -47,12 +60,7 @@ impl Player {
         // so we fall back to the userinfo and try parse it ourselves to get the name if needed.
         let name = if player_info.name.is_empty() {
             let cvars = parse_variables(player_info.userinfo.clone());
-            cvars
-                .into_iter()
-                .filter(|(key, _value)| *key == "name")
-                .map(|(_key, value)| value)
-                .nth(0)
-                .unwrap_or_default()
+            get_item(&cvars, "name").unwrap_or_default()
         } else {
             player_info.name.clone()
         };
@@ -94,9 +102,8 @@ impl Player {
             ));
         }
 
-        Ok(parse_variables(self.user_info.clone())
-            .iter()
-            .any(|(key, _value)| *key == item))
+        let cvars = parse_variables(self.user_info.clone());
+        Ok(get_item(&cvars, item).is_some())
     }
 
     fn __getitem__(&self, item: String) -> PyResult<String> {
@@ -106,12 +113,8 @@ impl Player {
             ));
         }
 
-        let opt_value = parse_variables(self.user_info.clone())
-            .into_iter()
-            .filter(|(key, _value)| *key == item)
-            .map(|(_key, value)| value)
-            .nth(0);
-        opt_value.map_or_else(|| Err(PyKeyError::new_err(format!("'{item}'"))), Ok)
+        let cvars = parse_variables(self.user_info.clone());
+        get_item(&cvars, &item).map_or_else(|| Err(PyKeyError::new_err(format!("'{item}'"))), Ok)
     }
 
     fn __richcmp__(&self, other: &PyAny, op: CompareOp, py: Python<'_>) -> PyObject {
@@ -155,12 +158,7 @@ impl Player {
 
         let name = if self.player_info.name.is_empty() {
             let cvars = parse_variables(self.player_info.userinfo.clone());
-            cvars
-                .into_iter()
-                .filter(|(key, _value)| *key == "name")
-                .map(|(_key, value)| value)
-                .nth(0)
-                .unwrap_or_default()
+            get_item(&cvars, "name").unwrap_or_default()
         } else {
             self.player_info.name.clone()
         };
@@ -213,12 +211,9 @@ impl Player {
     #[getter(ip)]
     fn get_ip(&self) -> String {
         let cvars = parse_variables(self.user_info.clone());
-        cvars
-            .iter()
-            .filter(|(key, _value)| key == "ip")
-            .map(|(_key, value)| value.split(':').nth(0).unwrap_or("").to_string())
-            .nth(0)
-            .unwrap_or("".to_string())
+        get_item(&cvars, "ip")
+            .map(|value| value.split(':').next().unwrap_or("").into())
+            .unwrap_or("".into())
     }
 
     /// The clan tag. Not actually supported by QL, but it used to be and
@@ -232,12 +227,8 @@ impl Player {
             };
 
             let configstring = main_engine.get_configstring(529 + self.id as u16);
-            parse_variables(configstring)
-                .iter()
-                .filter(|(key, _value)| key == "cn")
-                .map(|(_key, value)| value.into())
-                .nth(0)
-                .unwrap_or("".into())
+            let parsed_cs = parse_variables(configstring);
+            get_item(&parsed_cs, "cn").unwrap_or("".into())
         })
     }
 
@@ -304,12 +295,44 @@ impl Player {
     fn get_qport(&self, py: Python<'_>) -> i32 {
         py.allow_threads(|| {
             let cvars = parse_variables(self.user_info.clone());
-            cvars
-                .iter()
-                .filter(|(key, _value)| key == "qport")
-                .map(|(_key, value)| value.parse::<i32>().unwrap_or(-1))
-                .nth(0)
+            get_item(&cvars, "qport")
+                .map(|value| value.parse::<i32>().unwrap_or(-1))
                 .unwrap_or(-1)
+        })
+    }
+
+    #[getter(team)]
+    fn get_team(&self) -> PyResult<String> {
+        match team_t::try_from(self.player_info.team) {
+            Ok(team_t::TEAM_FREE) => Ok("free".into()),
+            Ok(team_t::TEAM_RED) => Ok("red".into()),
+            Ok(team_t::TEAM_BLUE) => Ok("blue".into()),
+            Ok(team_t::TEAM_SPECTATOR) => Ok("spectator".into()),
+            _ => Err(PyValueError::new_err("invalid team")),
+        }
+    }
+
+    #[setter(team)]
+    fn set_team(&self, py: Python<'_>, new_team: String) -> PyResult<()> {
+        if !["free", "red", "blue", "spectator"].contains(&new_team.to_lowercase().as_str()) {
+            return Err(PyValueError::new_err("Invalid team."));
+        }
+
+        let team_change_cmd = format!("put {} {}", self.id, new_team.to_lowercase());
+        pyshinqlx_console_command(py, team_change_cmd.as_str())
+    }
+
+    #[getter(colors)]
+    fn get_colors(&self, py: Python<'_>) -> (f32, f32) {
+        py.allow_threads(|| {
+            let cvars = parse_variables(self.user_info.clone());
+            let color1 = get_item(&cvars, "color1")
+                .map(|value| value.parse::<f32>().unwrap_or(0.0))
+                .unwrap_or(0.0);
+            let color2 = get_item(&cvars, "color2")
+                .map(|value| value.parse::<f32>().unwrap_or(0.0))
+                .unwrap_or(0.0);
+            (color1, color2)
         })
     }
 }
@@ -328,10 +351,9 @@ mod pyshinqlx_player_tests {
     use crate::MAIN_ENGINE;
     use mockall::predicate;
     use pretty_assertions::assert_eq;
-    use pyo3::exceptions::PyKeyError;
+    use pyo3::exceptions::{PyKeyError, PyValueError};
     use pyo3::types::IntoPyDict;
     use pyo3::{IntoPy, PyCell, Python};
-    #[cfg(not(miri))]
     use rstest::rstest;
 
     fn default_test_player_info() -> PlayerInfo {
@@ -1223,5 +1245,72 @@ assert(player._valid)
         Python::with_gil(|py| {
             assert_eq!(player.get_qport(py), -1);
         });
+    }
+
+    #[rstest]
+    #[case(team_t::TEAM_FREE, "free")]
+    #[case(team_t::TEAM_RED, "red")]
+    #[case(team_t::TEAM_BLUE, "blue")]
+    #[case(team_t::TEAM_SPECTATOR, "spectator")]
+    fn get_team_for_team_t_values(#[case] team: team_t, #[case] return_value: &str) {
+        let player = Player {
+            player_info: PlayerInfo {
+                team: team as i32,
+                ..default_test_player_info()
+            },
+            ..default_test_player()
+        };
+
+        assert_eq!(player.get_team().expect("result was not OK"), return_value);
+    }
+
+    #[test]
+    #[cfg_attr(miri, ignore)]
+    fn get_team_for_invalid_team() {
+        let player = Player {
+            player_info: PlayerInfo {
+                team: 42,
+                ..default_test_player_info()
+            },
+            ..default_test_player()
+        };
+        Python::with_gil(|py| {
+            assert!(player
+                .get_team()
+                .is_err_and(|err| err.is_instance_of::<PyValueError>(py)));
+        });
+    }
+
+    #[test]
+    #[cfg_attr(miri, ignore)]
+    #[serial]
+    fn set_team_with_invalid_team() {
+        MAIN_ENGINE.store(None);
+
+        Python::with_gil(|py| {
+            let result = default_test_player().set_team(py, "invalid team".into());
+            assert!(result.is_err_and(|err| err.is_instance_of::<PyValueError>(py)));
+        });
+    }
+
+    #[rstest]
+    #[case("red")]
+    #[case("RED")]
+    #[case("free")]
+    #[case("blue")]
+    #[case("spectator")]
+    #[cfg_attr(miri, ignore)]
+    #[serial]
+    fn set_team_puts_player_on_a_specific_team(#[case] new_team: &str) {
+        let put_cmd = format!("put 2 {}", new_team.to_lowercase());
+        let mut mock_engine = MockQuakeEngine::new();
+        mock_engine
+            .expect_execute_console_command()
+            .withf(move |cmd| cmd == put_cmd)
+            .times(1);
+        MAIN_ENGINE.store(Some(mock_engine.into()));
+
+        let result = Python::with_gil(|py| default_test_player().set_team(py, new_team.into()));
+        assert!(result.is_ok());
     }
 }

@@ -765,6 +765,20 @@ pub enum team_t {
     TEAM_NUM_TEAMS = 4,
 }
 
+impl TryFrom<i32> for team_t {
+    type Error = &'static str;
+
+    fn try_from(value: i32) -> Result<Self, Self::Error> {
+        match value {
+            0 => Ok(team_t::TEAM_FREE),
+            1 => Ok(team_t::TEAM_RED),
+            2 => Ok(team_t::TEAM_BLUE),
+            3 => Ok(team_t::TEAM_SPECTATOR),
+            _ => Err("invalid team"),
+        }
+    }
+}
+
 // https://github.com/brugal/wolfcamql/blob/73e2d707e5dd1fb0fc50d4ad9f00940909c4b3ec/code/game/bg_public.h#L1142-L1188
 // means of death
 #[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
