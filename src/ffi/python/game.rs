@@ -2759,8 +2759,8 @@ _shinqlx._map_subtitle2 = "Awesome map!"
     #[case("blue")]
     #[case("spectator")]
     #[serial]
-    fn put_put_player_on_a_specific_team(#[case] locked_team: &str) {
-        let put_cmd = format!("put 2 {}", locked_team.to_lowercase());
+    fn put_put_player_on_a_specific_team(#[case] new_team: &str) {
+        let put_cmd = format!("put 2 {}", new_team.to_lowercase());
         let mut mock_engine = MockQuakeEngine::new();
         mock_engine
             .expect_execute_console_command()
@@ -2769,7 +2769,7 @@ _shinqlx._map_subtitle2 = "Awesome map!"
         MAIN_ENGINE.store(Some(mock_engine.into()));
 
         let result = Python::with_gil(|py| {
-            Game::put(py.get_type::<Game>(), py, 2.into_py(py), locked_team.into())
+            Game::put(py.get_type::<Game>(), py, 2.into_py(py), new_team.into())
         });
         assert!(result.is_ok());
     }
