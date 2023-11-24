@@ -299,6 +299,19 @@ impl Player {
     fn get_clean_name(&self) -> String {
         clean_text(&self.name)
     }
+
+    #[getter(qport)]
+    fn get_qport(&self, py: Python<'_>) -> i32 {
+        py.allow_threads(|| {
+            let cvars = parse_variables(self.user_info.clone());
+            cvars
+                .iter()
+                .filter(|(key, _value)| key == "qport")
+                .map(|(_key, value)| value.parse::<i32>().unwrap_or(-1))
+                .nth(0)
+                .unwrap_or(-1)
+        })
+    }
 }
 
 #[cfg(test)]
@@ -1162,5 +1175,53 @@ assert(player._valid)
         };
         let result = Python::with_gil(|py| player.set_name(py, "^1Unnamed^2Player".into()));
         assert!(result.is_ok());
+    }
+
+    #[test]
+    #[cfg_attr(miri, ignore)]
+    fn get_qport_where_no_port_is_set() {
+        let player = Player {
+            user_info: "".to_string(),
+            player_info: PlayerInfo {
+                userinfo: "".to_string(),
+                ..default_test_player_info()
+            },
+            ..default_test_player()
+        };
+        Python::with_gil(|py| {
+            assert_eq!(player.get_qport(py), -1);
+        });
+    }
+
+    #[test]
+    #[cfg_attr(miri, ignore)]
+    fn get_qport_for_port_set() {
+        let player = Player {
+            user_info: "\\qport\\27666".to_string(),
+            player_info: PlayerInfo {
+                userinfo: "\\qport\\27666".to_string(),
+                ..default_test_player_info()
+            },
+            ..default_test_player()
+        };
+        Python::with_gil(|py| {
+            assert_eq!(player.get_qport(py), 27666);
+        });
+    }
+
+    #[test]
+    #[cfg_attr(miri, ignore)]
+    fn get_qport_for_invalid_port_set() {
+        let player = Player {
+            user_info: "\\qport\\asdf".to_string(),
+            player_info: PlayerInfo {
+                userinfo: "\\qport\\asdf".to_string(),
+                ..default_test_player_info()
+            },
+            ..default_test_player()
+        };
+        Python::with_gil(|py| {
+            assert_eq!(player.get_qport(py), -1);
+        });
     }
 }
