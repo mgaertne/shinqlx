@@ -365,6 +365,79 @@ impl Player {
         pyshinqlx_client_command(py, self.id, client_command.as_str())?;
         Ok(())
     }
+
+    #[getter(headmodel)]
+    fn get_headmodel(&self, py: Python<'_>) -> PyResult<String> {
+        py.allow_threads(|| {
+            let cvars = parse_variables(self.user_info.clone());
+            cvars
+                .get("headmodel")
+                .map_or_else(|| Err(PyKeyError::new_err("'headmodel'")), Ok)
+        })
+    }
+
+    #[setter(headmodel)]
+    fn set_headmodel(&mut self, py: Python<'_>, value: String) -> PyResult<()> {
+        let new_cvars_string: String = py.allow_threads(|| {
+            let mut new_cvars = parse_variables(self.player_info.userinfo.clone());
+            new_cvars.set("headmodel".into(), value);
+            new_cvars.into()
+        });
+
+        let client_command = format!("userinfo {new_cvars_string}");
+        pyshinqlx_client_command(py, self.id, client_command.as_str())?;
+        Ok(())
+    }
+
+    #[getter(handicap)]
+    fn get_handicap(&self, py: Python<'_>) -> PyResult<String> {
+        py.allow_threads(|| {
+            let cvars = parse_variables(self.user_info.clone());
+            cvars
+                .get("handicap")
+                .map_or_else(|| Err(PyKeyError::new_err("'handicap'")), Ok)
+        })
+    }
+
+    #[setter(handicap)]
+    fn set_handicap(&mut self, py: Python<'_>, value: String) -> PyResult<()> {
+        let new_cvars_string: String = py.allow_threads(|| {
+            let mut new_cvars = parse_variables(self.player_info.userinfo.clone());
+            new_cvars.set("handicap".into(), value);
+            new_cvars.into()
+        });
+
+        let client_command = format!("userinfo {new_cvars_string}");
+        pyshinqlx_client_command(py, self.id, client_command.as_str())?;
+        Ok(())
+    }
+
+    #[getter(autohop)]
+    fn get_autohop(&self, py: Python<'_>) -> PyResult<bool> {
+        py.allow_threads(|| {
+            let cvars = parse_variables(self.user_info.clone());
+            cvars.get("autohop").map_or_else(
+                || Err(PyKeyError::new_err("'handicap'")),
+                |value| Ok(value != "0"),
+            )
+        })
+    }
+
+    #[setter(autohop)]
+    fn set_autohop(&mut self, py: Python<'_>, value: bool) -> PyResult<()> {
+        let new_cvars_string: String = py.allow_threads(|| {
+            let mut new_cvars = parse_variables(self.player_info.userinfo.clone());
+            new_cvars.set(
+                "autohop".into(),
+                if value { "1".into() } else { "0".into() },
+            );
+            new_cvars.into()
+        });
+
+        let client_command = format!("userinfo {new_cvars_string}");
+        pyshinqlx_client_command(py, self.id, client_command.as_str())?;
+        Ok(())
+    }
 }
 
 #[cfg(test)]
@@ -1555,6 +1628,244 @@ assert(player._valid)
         };
 
         let result = Python::with_gil(|py| player.set_model(py, "Uriel".into()));
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    #[cfg_attr(miri, ignore)]
+    fn get_headmodel_when_no_headmodel_is_set() {
+        let player = Player {
+            user_info: "".into(),
+            player_info: PlayerInfo {
+                userinfo: "".into(),
+                ..default_test_player_info()
+            },
+            ..default_test_player()
+        };
+
+        Python::with_gil(|py| {
+            let result = player.get_headmodel(py);
+            assert!(result.is_err_and(|err| err.is_instance_of::<PyKeyError>(py)));
+        });
+    }
+
+    #[test]
+    #[cfg_attr(miri, ignore)]
+    fn get_headmodel_when_headmodel_is_set() {
+        let player = Player {
+            user_info: "\\headmodel\\asdf".into(),
+            player_info: PlayerInfo {
+                userinfo: "\\headmodel\\asdf".into(),
+                ..default_test_player_info()
+            },
+            ..default_test_player()
+        };
+
+        let result = Python::with_gil(|py| player.get_headmodel(py));
+        assert_eq!(result.expect("result was not OK"), "asdf");
+    }
+
+    #[test]
+    #[cfg_attr(miri, ignore)]
+    #[serial]
+    fn set_headmodel_updates_client_cvars() {
+        let mut mock_engine = MockQuakeEngine::new();
+        mock_engine.expect_get_max_clients().returning(|| 16);
+        MAIN_ENGINE.store(Some(mock_engine.into()));
+
+        let client_from_ctx = MockClient::from_context();
+        client_from_ctx.expect().returning(move |_client_id| {
+            let mut mock_client = MockClient::new();
+            mock_client
+                .expect_get_state()
+                .return_const(clientState_t::CS_CONNECTED);
+            mock_client
+        });
+
+        let hook_ctx = shinqlx_execute_client_command_context();
+        hook_ctx
+            .expect()
+            .withf(|client, cmd, &client_ok| {
+                client.is_some()
+                    && cmd == "userinfo \\asdf\\qwertz\\name\\UnnamedPlayer\\headmodel\\Uriel"
+                    && client_ok
+            })
+            .times(1);
+
+        let mut player = Player {
+            user_info: "\\asdf\\qwertz\\headmodel\\Anarki\\name\\UnnamedPlayer".into(),
+            player_info: PlayerInfo {
+                userinfo: "\\asdf\\qwertz\\headmodel\\Anarki\\name\\UnnamedPlayer".into(),
+                ..default_test_player_info()
+            },
+            ..default_test_player()
+        };
+
+        let result = Python::with_gil(|py| player.set_headmodel(py, "Uriel".into()));
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    #[cfg_attr(miri, ignore)]
+    fn get_handicap_when_no_handicap_is_set() {
+        let player = Player {
+            user_info: "".into(),
+            player_info: PlayerInfo {
+                userinfo: "".into(),
+                ..default_test_player_info()
+            },
+            ..default_test_player()
+        };
+
+        Python::with_gil(|py| {
+            let result = player.get_handicap(py);
+            assert!(result.is_err_and(|err| err.is_instance_of::<PyKeyError>(py)));
+        });
+    }
+
+    #[test]
+    #[cfg_attr(miri, ignore)]
+    fn get_handicap_when_handicap_is_set() {
+        let player = Player {
+            user_info: "\\handicap\\42".into(),
+            player_info: PlayerInfo {
+                userinfo: "\\handicap\\42".into(),
+                ..default_test_player_info()
+            },
+            ..default_test_player()
+        };
+
+        let result = Python::with_gil(|py| player.get_handicap(py));
+        assert_eq!(result.expect("result was not OK"), "42");
+    }
+
+    #[test]
+    #[cfg_attr(miri, ignore)]
+    #[serial]
+    fn set_handicap_updates_client_cvars() {
+        let mut mock_engine = MockQuakeEngine::new();
+        mock_engine.expect_get_max_clients().returning(|| 16);
+        MAIN_ENGINE.store(Some(mock_engine.into()));
+
+        let client_from_ctx = MockClient::from_context();
+        client_from_ctx.expect().returning(move |_client_id| {
+            let mut mock_client = MockClient::new();
+            mock_client
+                .expect_get_state()
+                .return_const(clientState_t::CS_CONNECTED);
+            mock_client
+        });
+
+        let hook_ctx = shinqlx_execute_client_command_context();
+        hook_ctx
+            .expect()
+            .withf(|client, cmd, &client_ok| {
+                client.is_some()
+                    && cmd == "userinfo \\asdf\\qwertz\\name\\UnnamedPlayer\\handicap\\50"
+                    && client_ok
+            })
+            .times(1);
+
+        let mut player = Player {
+            user_info: "\\asdf\\qwertz\\handicap\\100\\name\\UnnamedPlayer".into(),
+            player_info: PlayerInfo {
+                userinfo: "\\asdf\\qwertz\\handicap\\100\\name\\UnnamedPlayer".into(),
+                ..default_test_player_info()
+            },
+            ..default_test_player()
+        };
+
+        let result = Python::with_gil(|py| player.set_handicap(py, "50".into()));
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    #[cfg_attr(miri, ignore)]
+    fn get_autohop_when_no_autohop_is_set() {
+        let player = Player {
+            user_info: "".into(),
+            player_info: PlayerInfo {
+                userinfo: "".into(),
+                ..default_test_player_info()
+            },
+            ..default_test_player()
+        };
+
+        Python::with_gil(|py| {
+            let result = player.get_autohop(py);
+            assert!(result.is_err_and(|err| err.is_instance_of::<PyKeyError>(py)));
+        });
+    }
+
+    #[test]
+    #[cfg_attr(miri, ignore)]
+    fn get_autohop_when_autohop_is_set() {
+        let player = Player {
+            user_info: "\\autohop\\1".into(),
+            player_info: PlayerInfo {
+                userinfo: "\\autohop\\1".into(),
+                ..default_test_player_info()
+            },
+            ..default_test_player()
+        };
+
+        let result = Python::with_gil(|py| player.get_autohop(py));
+        assert_eq!(result.expect("result was not OK"), true);
+    }
+
+    #[test]
+    #[cfg_attr(miri, ignore)]
+    fn get_autohop_when_autohop_is_disabled() {
+        let player = Player {
+            user_info: "\\autohop\\0".into(),
+            player_info: PlayerInfo {
+                userinfo: "\\autohop\\0".into(),
+                ..default_test_player_info()
+            },
+            ..default_test_player()
+        };
+
+        let result = Python::with_gil(|py| player.get_autohop(py));
+        assert_eq!(result.expect("result was not OK"), false);
+    }
+
+    #[test]
+    #[cfg_attr(miri, ignore)]
+    #[serial]
+    fn set_autohop_updates_client_cvars() {
+        let mut mock_engine = MockQuakeEngine::new();
+        mock_engine.expect_get_max_clients().returning(|| 16);
+        MAIN_ENGINE.store(Some(mock_engine.into()));
+
+        let client_from_ctx = MockClient::from_context();
+        client_from_ctx.expect().returning(move |_client_id| {
+            let mut mock_client = MockClient::new();
+            mock_client
+                .expect_get_state()
+                .return_const(clientState_t::CS_CONNECTED);
+            mock_client
+        });
+
+        let hook_ctx = shinqlx_execute_client_command_context();
+        hook_ctx
+            .expect()
+            .withf(|client, cmd, &client_ok| {
+                client.is_some()
+                    && cmd == "userinfo \\asdf\\qwertz\\name\\UnnamedPlayer\\autohop\\0"
+                    && client_ok
+            })
+            .times(1);
+
+        let mut player = Player {
+            user_info: "\\asdf\\qwertz\\autohop\\1\\name\\UnnamedPlayer".into(),
+            player_info: PlayerInfo {
+                userinfo: "\\asdf\\qwertz\\autohop\\1\\name\\UnnamedPlayer".into(),
+                ..default_test_player_info()
+            },
+            ..default_test_player()
+        };
+
+        let result = Python::with_gil(|py| player.set_autohop(py, false));
         assert!(result.is_ok());
     }
 }
