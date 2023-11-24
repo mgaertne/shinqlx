@@ -12,18 +12,6 @@ use pyo3::types::{IntoPyDict, PyDict};
 
 create_exception!(pyshinqlx_module, NonexistentPlayerError, PyException);
 
-fn get_item<T>(items: &[(String, String)], item: T) -> Option<String>
-where
-    T: AsRef<str>,
-{
-    items
-        .iter()
-        .filter(|(key, _value)| key == item.as_ref())
-        .map(|(_key, value)| value)
-        .next()
-        .cloned()
-}
-
 /// A class that represents a player on the server. As opposed to minqlbot,
 ///    attributes are all the values from when the class was instantiated. This
 ///    means for instance if a player is on the blue team when you check, but
@@ -60,7 +48,7 @@ impl Player {
         // so we fall back to the userinfo and try parse it ourselves to get the name if needed.
         let name = if player_info.name.is_empty() {
             let cvars = parse_variables(player_info.userinfo.clone());
-            get_item(&cvars, "name").unwrap_or_default()
+            cvars.get("name").unwrap_or_default()
         } else {
             player_info.name.clone()
         };
@@ -103,7 +91,7 @@ impl Player {
         }
 
         let cvars = parse_variables(self.user_info.clone());
-        Ok(get_item(&cvars, item).is_some())
+        Ok(cvars.get(item).is_some())
     }
 
     fn __getitem__(&self, item: String) -> PyResult<String> {
@@ -114,7 +102,9 @@ impl Player {
         }
 
         let cvars = parse_variables(self.user_info.clone());
-        get_item(&cvars, &item).map_or_else(|| Err(PyKeyError::new_err(format!("'{item}'"))), Ok)
+        cvars
+            .get(&item)
+            .map_or_else(|| Err(PyKeyError::new_err(format!("'{item}'"))), Ok)
     }
 
     fn __richcmp__(&self, other: &PyAny, op: CompareOp, py: Python<'_>) -> PyObject {
@@ -158,7 +148,7 @@ impl Player {
 
         let name = if self.player_info.name.is_empty() {
             let cvars = parse_variables(self.player_info.userinfo.clone());
-            get_item(&cvars, "name").unwrap_or_default()
+            cvars.get("name").unwrap_or_default()
         } else {
             self.player_info.name.clone()
         };
@@ -211,7 +201,8 @@ impl Player {
     #[getter(ip)]
     fn get_ip(&self) -> String {
         let cvars = parse_variables(self.user_info.clone());
-        get_item(&cvars, "ip")
+        cvars
+            .get("ip")
             .map(|value| value.split(':').next().unwrap_or("").into())
             .unwrap_or("".into())
     }
@@ -228,7 +219,7 @@ impl Player {
 
             let configstring = main_engine.get_configstring(529 + self.id as u16);
             let parsed_cs = parse_variables(configstring);
-            get_item(&parsed_cs, "cn").unwrap_or("".into())
+            parsed_cs.get("cn").unwrap_or("".into())
         })
     }
 
@@ -242,19 +233,11 @@ impl Player {
             let config_index = 529 + self.id as u16;
 
             let configstring = main_engine.get_configstring(config_index);
-            let parsed_variables = parse_variables(configstring);
+            let mut parsed_variables = parse_variables(configstring);
+            parsed_variables.set("xcn".into(), tag.clone());
+            parsed_variables.set("cn".into(), tag.clone());
 
-            let mut filtered_variables: Vec<(String, String)> = parsed_variables
-                .into_iter()
-                .filter(|(key, _value)| !["cn", "xcn"].contains(&key.as_str()))
-                .collect();
-            filtered_variables.push(("xcn".to_string(), tag.clone()));
-            filtered_variables.push(("cn".to_string(), tag.clone()));
-
-            let new_configstring = filtered_variables
-                .iter()
-                .map(|(key, value)| format!("\\{key}\\{value}"))
-                .join("");
+            let new_configstring: String = parsed_variables.into();
             main_engine.set_configstring(config_index as i32, new_configstring.as_str());
         })
     }
@@ -270,16 +253,9 @@ impl Player {
 
     #[setter(name)]
     fn set_name(&self, py: Python<'_>, value: String) -> PyResult<()> {
-        let cvars = parse_variables(self.user_info.clone());
-        let mut new_cvars: Vec<(String, String)> = cvars
-            .into_iter()
-            .filter(|(key, _value)| key != "name")
-            .collect();
-        new_cvars.push(("name".into(), value));
-        let new = new_cvars
-            .iter()
-            .map(|(key, value)| format!("\\{key}\\{value}"))
-            .join("");
+        let mut new_cvars = parse_variables(self.user_info.clone());
+        new_cvars.set("name".into(), value);
+        let new: String = new_cvars.into();
         let client_command = format!("userinfo {new}");
         pyshinqlx_client_command(py, self.id, client_command.as_str())?;
         Ok(())
@@ -295,7 +271,8 @@ impl Player {
     fn get_qport(&self, py: Python<'_>) -> i32 {
         py.allow_threads(|| {
             let cvars = parse_variables(self.user_info.clone());
-            get_item(&cvars, "qport")
+            cvars
+                .get("qport")
                 .map(|value| value.parse::<i32>().unwrap_or(-1))
                 .unwrap_or(-1)
         })
@@ -326,10 +303,12 @@ impl Player {
     fn get_colors(&self, py: Python<'_>) -> (f32, f32) {
         py.allow_threads(|| {
             let cvars = parse_variables(self.user_info.clone());
-            let color1 = get_item(&cvars, "color1")
+            let color1 = cvars
+                .get("color1")
                 .map(|value| value.parse::<f32>().unwrap_or(0.0))
                 .unwrap_or(0.0);
-            let color2 = get_item(&cvars, "color2")
+            let color2 = cvars
+                .get("color2")
                 .map(|value| value.parse::<f32>().unwrap_or(0.0))
                 .unwrap_or(0.0);
             (color1, color2)
