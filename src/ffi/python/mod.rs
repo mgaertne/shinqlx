@@ -27,6 +27,8 @@ pub(crate) use weapons::Weapons;
 use crate::prelude::*;
 
 use crate::_INIT_TIME;
+use alloc::vec::IntoIter;
+use core::str::FromStr;
 use core::sync::atomic::{AtomicBool, AtomicU64, Ordering};
 use itertools::Itertools;
 use log::*;
@@ -99,18 +101,84 @@ where
     text.as_ref().replace(r#"\^[0-7]"#, "")
 }
 
-pub(crate) fn parse_variables(varstr: String) -> Vec<(String, String)> {
-    let Some(varstr_vec): Option<Vec<String>> = varstr
-        .strip_prefix('\\')
-        .map(|value| value.split('\\').map(|value| value.to_string()).collect())
-    else {
-        return vec![];
-    };
+pub(crate) fn parse_variables(varstr: String) -> ParsedVariables {
+    varstr
+        .parse::<ParsedVariables>()
+        .unwrap_or(ParsedVariables { items: vec![] })
+}
 
-    if varstr_vec.len() % 2 == 1 {
-        warn!(target: "shinqlx", "Uneven number of keys and values: {}", varstr);
+pub(crate) struct ParsedVariables {
+    items: Vec<(String, String)>,
+}
+
+impl FromStr for ParsedVariables {
+    type Err = &'static str;
+
+    fn from_str(varstr: &str) -> Result<Self, Self::Err> {
+        let Some(varstr_vec): Option<Vec<String>> = varstr
+            .strip_prefix('\\')
+            .map(|value| value.split('\\').map(|value| value.to_string()).collect())
+        else {
+            return Ok(Self { items: vec![] });
+        };
+
+        if varstr_vec.len() % 2 == 1 {
+            warn!(target: "shinqlx", "Uneven number of keys and values: {}", varstr);
+        }
+        Ok(Self {
+            items: varstr_vec.into_iter().tuples().collect(),
+        })
     }
-    varstr_vec.into_iter().tuples().collect()
+}
+
+impl From<ParsedVariables> for String {
+    fn from(value: ParsedVariables) -> Self {
+        value
+            .items
+            .iter()
+            .map(|(key, value)| format!("\\{key}\\{value}"))
+            .join("")
+    }
+}
+
+impl IntoPy<PyObject> for ParsedVariables {
+    fn into_py(self, py: Python<'_>) -> PyObject {
+        self.items.into_py_dict(py).into()
+    }
+}
+
+impl IntoIterator for ParsedVariables {
+    type Item = (String, String);
+    type IntoIter = IntoIter<(String, String)>;
+
+    fn into_iter(self) -> Self::IntoIter {
+        self.items.into_iter()
+    }
+}
+
+impl ParsedVariables {
+    pub fn get<T>(&self, item: T) -> Option<String>
+    where
+        T: AsRef<str>,
+    {
+        self.items
+            .iter()
+            .filter(|(key, _value)| key == item.as_ref())
+            .map(|(_key, value)| value)
+            .next()
+            .cloned()
+    }
+
+    pub fn set(&mut self, item: String, value: String) {
+        let mut new_items: Vec<(String, String)> = self
+            .items
+            .clone()
+            .into_iter()
+            .filter(|(key, _value)| *key != item)
+            .collect();
+        new_items.push((item, value));
+        self.items = new_items;
+    }
 }
 
 #[pyfunction]

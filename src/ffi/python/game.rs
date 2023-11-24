@@ -121,9 +121,7 @@ impl Game {
             ));
         }
 
-        Ok(parse_variables(configstring)
-            .iter()
-            .any(|(key, _value)| *key == item))
+        Ok(parse_variables(configstring).get(item).is_some())
     }
 
     fn __getitem__(&mut self, py: Python<'_>, item: String) -> PyResult<String> {
