@@ -1,5 +1,8 @@
-use super::{clean_text, parse_variables, PlayerInfo};
-use crate::ffi::python::embed::{pyshinqlx_client_command, pyshinqlx_console_command};
+use super::{clean_text, parse_variables, PlayerInfo, PlayerState, PlayerStats};
+use crate::ffi::python::embed::{
+    pyshinqlx_client_command, pyshinqlx_console_command, pyshinqlx_player_state,
+    pyshinqlx_player_stats, pyshinqlx_set_privileges,
+};
 use crate::prelude::*;
 use crate::quake_live_engine::{GetConfigstring, SetConfigstring};
 use crate::MAIN_ENGINE;
@@ -11,6 +14,19 @@ use pyo3::prelude::*;
 use pyo3::types::{IntoPyDict, PyDict};
 
 create_exception!(pyshinqlx_module, NonexistentPlayerError, PyException);
+
+impl TryFrom<String> for privileges_t {
+    type Error = &'static str;
+
+    fn try_from(value: String) -> Result<Self, Self::Error> {
+        match value.as_str() {
+            "none" => Ok(privileges_t::PRIV_NONE),
+            "mod" => Ok(privileges_t::PRIV_MOD),
+            "admin" => Ok(privileges_t::PRIV_ADMIN),
+            _ => Err("Invalid privilege level."),
+        }
+    }
+}
 
 /// A class that represents a player on the server. As opposed to minqlbot,
 ///    attributes are all the values from when the class was instantiated. This
@@ -417,7 +433,7 @@ impl Player {
         py.allow_threads(|| {
             let cvars = parse_variables(self.user_info.clone());
             cvars.get("autohop").map_or_else(
-                || Err(PyKeyError::new_err("'handicap'")),
+                || Err(PyKeyError::new_err("'autohop'")),
                 |value| Ok(value != "0"),
             )
         })
@@ -444,7 +460,7 @@ impl Player {
         py.allow_threads(|| {
             let cvars = parse_variables(self.user_info.clone());
             cvars.get("autoaction").map_or_else(
-                || Err(PyKeyError::new_err("'handicap'")),
+                || Err(PyKeyError::new_err("'autoaction'")),
                 |value| Ok(value != "0"),
             )
         })
@@ -471,7 +487,7 @@ impl Player {
         py.allow_threads(|| {
             let cvars = parse_variables(self.user_info.clone());
             cvars.get("cg_predictitems").map_or_else(
-                || Err(PyKeyError::new_err("'handicap'")),
+                || Err(PyKeyError::new_err("'cg_predictitems'")),
                 |value| Ok(value != "0"),
             )
         })
@@ -516,23 +532,95 @@ impl Player {
             },
         )
     }
+
+    #[getter(state)]
+    fn get_state(&self, py: Python<'_>) -> PyResult<Option<PlayerState>> {
+        pyshinqlx_player_state(py, self.id)
+    }
+
+    #[getter(privileges)]
+    fn get_privileges(&self, py: Python<'_>) -> Option<String> {
+        py.allow_threads(|| match privileges_t::from(self.player_info.privileges) {
+            privileges_t::PRIV_MOD => Some("mod".into()),
+            privileges_t::PRIV_ADMIN => Some("admin".into()),
+            privileges_t::PRIV_ROOT => Some("root".into()),
+            privileges_t::PRIV_BANNED => Some("banned".into()),
+            _ => None,
+        })
+    }
+
+    #[setter(privileges)]
+    fn set_privileges(&mut self, py: Python<'_>, value: Option<String>) -> PyResult<()> {
+        let new_privileges =
+            py.allow_threads(|| privileges_t::try_from(value.unwrap_or("none".into())));
+
+        new_privileges.map_or(
+            Err(PyValueError::new_err("Invalid privilege level.")),
+            |new_privilege| {
+                pyshinqlx_set_privileges(py, self.id, new_privilege as i32)?;
+                Ok(())
+            },
+        )
+    }
+
+    #[getter(country)]
+    fn get_country(&self, py: Python<'_>) -> PyResult<String> {
+        py.allow_threads(|| {
+            let cvars = parse_variables(self.user_info.clone());
+            cvars
+                .get("country")
+                .map_or_else(|| Err(PyKeyError::new_err("'country'")), Ok)
+        })
+    }
+
+    #[setter(country)]
+    fn set_country(&mut self, py: Python<'_>, value: String) -> PyResult<()> {
+        let new_cvars_string: String = py.allow_threads(|| {
+            let mut new_cvars = parse_variables(self.player_info.userinfo.clone());
+            new_cvars.set("country".into(), value);
+            new_cvars.into()
+        });
+
+        let client_command = format!("userinfo {new_cvars_string}");
+        pyshinqlx_client_command(py, self.id, client_command.as_str())?;
+        Ok(())
+    }
+
+    #[getter(valid)]
+    fn get_valid(&self, py: Python<'_>) -> bool {
+        py.allow_threads(|| self.valid)
+    }
+
+    #[getter(stats)]
+    fn get_stats(&self, py: Python<'_>) -> PyResult<Option<PlayerStats>> {
+        pyshinqlx_player_stats(py, self.id)
+    }
+
+    #[getter(ping)]
+    fn get_ping(&self, py: Python<'_>) -> PyResult<i32> {
+        pyshinqlx_player_stats(py, self.id)
+            .map(|opt_stats| opt_stats.map(|stats| stats.ping).unwrap_or(999))
+    }
 }
 
 #[cfg(test)]
 mod pyshinqlx_player_tests {
     use super::{NonexistentPlayerError, Player};
     use crate::ffi::c::client::MockClient;
+    use crate::ffi::c::game_client::MockGameClient;
     use crate::ffi::c::game_entity::MockGameEntity;
     #[cfg(not(miri))]
     use crate::ffi::python::pyshinqlx_setup_fixture::*;
-    use crate::ffi::python::PlayerInfo;
+    use crate::ffi::python::{
+        Flight, Holdable, PlayerInfo, PlayerState, PlayerStats, Powerups, Vector3, Weapons,
+    };
     use crate::hooks::mock_hooks::shinqlx_execute_client_command_context;
     use crate::prelude::*;
     use crate::quake_live_engine::MockQuakeEngine;
     use crate::MAIN_ENGINE;
     use mockall::predicate;
     use pretty_assertions::assert_eq;
-    use pyo3::exceptions::{PyKeyError, PyValueError};
+    use pyo3::exceptions::{PyEnvironmentError, PyKeyError, PyValueError};
     use pyo3::types::IntoPyDict;
     use pyo3::{IntoPy, PyCell, Python};
     use rstest::rstest;
@@ -2165,5 +2253,430 @@ assert(player._valid)
             let result = player.get_connection_state(py);
             assert!(result.is_err_and(|err| err.is_instance_of::<PyValueError>(py)));
         });
+    }
+
+    #[test]
+    #[serial]
+    #[cfg_attr(miri, ignore)]
+    fn get_state_when_main_engine_not_initialized() {
+        MAIN_ENGINE.store(None);
+
+        let player = default_test_player();
+
+        Python::with_gil(|py| {
+            let result = player.get_state(py);
+            assert!(result.is_err_and(|err| err.is_instance_of::<PyEnvironmentError>(py)));
+        });
+    }
+
+    #[test]
+    #[serial]
+    #[cfg_attr(miri, ignore)]
+    fn get_state_for_client_without_game_client() {
+        let mut mock_engine = MockQuakeEngine::new();
+        mock_engine.expect_get_max_clients().returning(|| 16);
+        MAIN_ENGINE.store(Some(mock_engine.into()));
+
+        let game_entity_from_ctx = MockGameEntity::from_context();
+        game_entity_from_ctx
+            .expect()
+            .with(predicate::eq(2))
+            .returning(|_| {
+                let mut mock_game_entity = MockGameEntity::new();
+                mock_game_entity
+                    .expect_get_game_client()
+                    .returning(|| Err(QuakeLiveEngineError::MainEngineNotInitialized));
+                mock_game_entity
+            });
+
+        let player = default_test_player();
+
+        let result = Python::with_gil(|py| player.get_state(py));
+        assert_eq!(result.expect("result was not OK"), None);
+    }
+
+    #[test]
+    #[serial]
+    #[cfg_attr(miri, ignore)]
+    fn get_state_transforms_from_game_client() {
+        let mut mock_engine = MockQuakeEngine::new();
+        mock_engine.expect_get_max_clients().returning(|| 16);
+        MAIN_ENGINE.store(Some(mock_engine.into()));
+
+        let game_entity_from_ctx = MockGameEntity::from_context();
+        game_entity_from_ctx
+            .expect()
+            .with(predicate::eq(2))
+            .returning(|_| {
+                let mut mock_game_entity = MockGameEntity::new();
+                mock_game_entity.expect_get_game_client().returning(|| {
+                    let mut mock_game_client = MockGameClient::new();
+                    mock_game_client
+                        .expect_get_position()
+                        .returning(|| (1.0, 2.0, 3.0));
+                    mock_game_client
+                        .expect_get_velocity()
+                        .returning(|| (4.0, 5.0, 6.0));
+                    mock_game_client.expect_is_alive().returning(|| true);
+                    mock_game_client.expect_get_armor().returning(|| 456);
+                    mock_game_client.expect_get_noclip().returning(|| true);
+                    mock_game_client
+                        .expect_get_weapon()
+                        .returning(|| weapon_t::WP_NAILGUN);
+                    mock_game_client
+                        .expect_get_weapons()
+                        .returning(|| [1, 1, 1, 0, 0, 0, 1, 1, 1, 0, 0, 0, 1, 1, 1]);
+                    mock_game_client
+                        .expect_get_ammos()
+                        .returning(|| [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15]);
+                    mock_game_client
+                        .expect_get_powerups()
+                        .returning(|| [12, 34, 56, 78, 90, 24]);
+                    mock_game_client
+                        .expect_get_holdable()
+                        .returning(|| Holdable::Kamikaze.into());
+                    mock_game_client
+                        .expect_get_current_flight_fuel()
+                        .returning(|| 12);
+                    mock_game_client
+                        .expect_get_max_flight_fuel()
+                        .returning(|| 34);
+                    mock_game_client.expect_get_flight_thrust().returning(|| 56);
+                    mock_game_client.expect_get_flight_refuel().returning(|| 78);
+                    mock_game_client.expect_is_chatting().returning(|| true);
+                    mock_game_client.expect_is_frozen().returning(|| true);
+                    Ok(mock_game_client)
+                });
+                mock_game_entity.expect_get_health().returning(|| 123);
+                mock_game_entity
+            });
+
+        let player = default_test_player();
+
+        let result = Python::with_gil(|py| player.get_state(py));
+        assert_eq!(
+            result.expect("result was not OK"),
+            Some(PlayerState {
+                is_alive: true,
+                position: Vector3(1, 2, 3),
+                velocity: Vector3(4, 5, 6),
+                health: 123,
+                armor: 456,
+                noclip: true,
+                weapon: weapon_t::WP_NAILGUN.into(),
+                weapons: Weapons(1, 1, 1, 0, 0, 0, 1, 1, 1, 0, 0, 0, 1, 1, 1),
+                ammo: Weapons(1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15),
+                powerups: Powerups(12, 34, 56, 78, 90, 24),
+                holdable: Some("kamikaze".into()),
+                flight: Flight(12, 34, 56, 78),
+                is_chatting: true,
+                is_frozen: true,
+            })
+        );
+    }
+
+    #[rstest]
+    #[case(privileges_t::PRIV_MOD as i32, Some("mod".into()))]
+    #[case(privileges_t::PRIV_ADMIN as i32, Some("admin".into()))]
+    #[case(privileges_t::PRIV_ROOT as i32, Some("root".into()))]
+    #[case(privileges_t::PRIV_BANNED as i32, Some("banned".into()))]
+    #[case(privileges_t::PRIV_NONE as i32, None)]
+    #[case(42, None)]
+    #[cfg_attr(miri, ignore)]
+    fn get_privileges_various_values(
+        #[case] privileges: i32,
+        #[case] expected_value: Option<String>,
+    ) {
+        let player = Player {
+            player_info: PlayerInfo {
+                privileges,
+                ..default_test_player_info()
+            },
+            ..default_test_player()
+        };
+
+        let result = Python::with_gil(|py| player.get_privileges(py));
+        assert_eq!(result, expected_value);
+    }
+
+    #[rstest]
+    #[case(None, &privileges_t::PRIV_NONE)]
+    #[case(Some("none".into()), &privileges_t::PRIV_NONE)]
+    #[case(Some("mod".into()), &privileges_t::PRIV_MOD)]
+    #[case(Some("admin".into()), &privileges_t::PRIV_ADMIN)]
+    #[serial]
+    #[cfg_attr(miri, ignore)]
+    fn set_privileges_for_valid_values(
+        #[case] opt_priv: Option<String>,
+        #[case] privileges: &'static privileges_t,
+    ) {
+        let mut mock_engine = MockQuakeEngine::new();
+        mock_engine.expect_get_max_clients().returning(|| 16);
+        MAIN_ENGINE.store(Some(mock_engine.into()));
+
+        let game_entity_from_ctx = MockGameEntity::from_context();
+        game_entity_from_ctx.expect().returning(|_| {
+            let mut mock_game_entity = MockGameEntity::new();
+            mock_game_entity.expect_get_game_client().returning(|| {
+                let mut mock_game_client = MockGameClient::new();
+                mock_game_client
+                    .expect_set_privileges()
+                    .with(predicate::eq(*privileges as i32))
+                    .times(1);
+                Ok(mock_game_client)
+            });
+            mock_game_entity
+        });
+
+        let mut player = default_test_player();
+
+        let result = Python::with_gil(|py| player.set_privileges(py, opt_priv));
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    #[cfg_attr(miri, ignore)]
+    fn set_privileges_for_invalid_string() {
+        let mut player = default_test_player();
+
+        Python::with_gil(|py| {
+            let result = player.set_privileges(py, Some("root".into()));
+            assert!(result.is_err_and(|err| err.is_instance_of::<PyValueError>(py)));
+        });
+    }
+
+    #[test]
+    #[cfg_attr(miri, ignore)]
+    fn get_country_when_country_is_set() {
+        let player = Player {
+            user_info: "\\country\\de".into(),
+            player_info: PlayerInfo {
+                userinfo: "\\country\\de".into(),
+                ..default_test_player_info()
+            },
+            ..default_test_player()
+        };
+
+        let result = Python::with_gil(|py| player.get_country(py));
+        assert_eq!(result.expect("result was not OK"), "de");
+    }
+
+    #[test]
+    #[cfg_attr(miri, ignore)]
+    #[serial]
+    fn set_country_updates_client_cvars() {
+        let mut mock_engine = MockQuakeEngine::new();
+        mock_engine.expect_get_max_clients().returning(|| 16);
+        MAIN_ENGINE.store(Some(mock_engine.into()));
+
+        let client_from_ctx = MockClient::from_context();
+        client_from_ctx.expect().returning(move |_client_id| {
+            let mut mock_client = MockClient::new();
+            mock_client
+                .expect_get_state()
+                .return_const(clientState_t::CS_CONNECTED);
+            mock_client
+        });
+
+        let hook_ctx = shinqlx_execute_client_command_context();
+        hook_ctx
+            .expect()
+            .withf(|client, cmd, &client_ok| {
+                client.is_some()
+                    && cmd == "userinfo \\asdf\\qwertz\\name\\UnnamedPlayer\\country\\uk"
+                    && client_ok
+            })
+            .times(1);
+
+        let mut player = Player {
+            user_info: "\\asdf\\qwertz\\country\\de\\name\\UnnamedPlayer".into(),
+            player_info: PlayerInfo {
+                userinfo: "\\asdf\\qwertz\\country\\de\\name\\UnnamedPlayer".into(),
+                ..default_test_player_info()
+            },
+            ..default_test_player()
+        };
+
+        let result = Python::with_gil(|py| player.set_country(py, "uk".into()));
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    #[cfg_attr(miri, ignore)]
+    fn get_valid_for_valid_player() {
+        let player = Player {
+            valid: true,
+            ..default_test_player()
+        };
+        Python::with_gil(|py| assert_eq!(player.get_valid(py), true));
+    }
+
+    #[test]
+    #[cfg_attr(miri, ignore)]
+    fn get_valid_for_invalid_player() {
+        let player = Player {
+            valid: false,
+            ..default_test_player()
+        };
+        Python::with_gil(|py| assert_eq!(player.get_valid(py), false));
+    }
+
+    #[test]
+    #[serial]
+    #[cfg_attr(miri, ignore)]
+    fn get_stats_when_main_engine_not_initialized() {
+        MAIN_ENGINE.store(None);
+
+        let player = default_test_player();
+
+        Python::with_gil(|py| {
+            let result = player.get_stats(py);
+            assert!(result.is_err_and(|err| err.is_instance_of::<PyEnvironmentError>(py)));
+        });
+    }
+
+    #[test]
+    #[serial]
+    #[cfg_attr(miri, ignore)]
+    fn get_stats_for_game_client() {
+        let mut mock_engine = MockQuakeEngine::new();
+        mock_engine.expect_get_max_clients().returning(|| 16);
+        MAIN_ENGINE.store(Some(mock_engine.into()));
+
+        let game_entity_from_ctx = MockGameEntity::from_context();
+        game_entity_from_ctx.expect().returning(|_| {
+            let mut mock_game_entity = MockGameEntity::new();
+            mock_game_entity.expect_get_game_client().returning(|| {
+                let mut mock_game_client = MockGameClient::new();
+                mock_game_client.expect_get_score().returning(|| 42);
+                mock_game_client.expect_get_kills().returning(|| 7);
+                mock_game_client.expect_get_deaths().returning(|| 9);
+                mock_game_client
+                    .expect_get_damage_dealt()
+                    .returning(|| 5000);
+                mock_game_client
+                    .expect_get_damage_taken()
+                    .returning(|| 4200);
+                mock_game_client.expect_get_time_on_team().returning(|| 123);
+                mock_game_client.expect_get_ping().returning(|| 9);
+                Ok(mock_game_client)
+            });
+            mock_game_entity
+        });
+
+        let player = default_test_player();
+        let result = Python::with_gil(|py| player.get_stats(py));
+
+        assert_eq!(
+            result
+                .expect("result was not OK")
+                .expect("result was not Some"),
+            PlayerStats {
+                score: 42,
+                kills: 7,
+                deaths: 9,
+                damage_dealt: 5000,
+                damage_taken: 4200,
+                time: 123,
+                ping: 9,
+            }
+        );
+    }
+
+    #[test]
+    #[serial]
+    #[cfg_attr(miri, ignore)]
+    fn get_stats_for_game_entiy_with_no_game_client() {
+        let mut mock_engine = MockQuakeEngine::new();
+        mock_engine.expect_get_max_clients().returning(|| 16);
+        MAIN_ENGINE.store(Some(mock_engine.into()));
+
+        let game_entity_from_ctx = MockGameEntity::from_context();
+        game_entity_from_ctx.expect().returning(|_| {
+            let mut mock_game_entity = MockGameEntity::new();
+            mock_game_entity
+                .expect_get_game_client()
+                .returning(|| Err(QuakeLiveEngineError::MainEngineNotInitialized));
+            mock_game_entity
+        });
+
+        let player = default_test_player();
+
+        let result = Python::with_gil(|py| player.get_stats(py));
+
+        assert_eq!(result.expect("result was not OK"), None);
+    }
+
+    #[test]
+    #[serial]
+    #[cfg_attr(miri, ignore)]
+    fn get_ping_when_main_engine_not_initialized() {
+        MAIN_ENGINE.store(None);
+
+        let player = default_test_player();
+
+        Python::with_gil(|py| {
+            let result = player.get_ping(py);
+            assert!(result.is_err_and(|err| err.is_instance_of::<PyEnvironmentError>(py)));
+        });
+    }
+
+    #[test]
+    #[serial]
+    #[cfg_attr(miri, ignore)]
+    fn get_ping_for_game_client() {
+        let mut mock_engine = MockQuakeEngine::new();
+        mock_engine.expect_get_max_clients().returning(|| 16);
+        MAIN_ENGINE.store(Some(mock_engine.into()));
+
+        let game_entity_from_ctx = MockGameEntity::from_context();
+        game_entity_from_ctx.expect().returning(|_| {
+            let mut mock_game_entity = MockGameEntity::new();
+            mock_game_entity.expect_get_game_client().returning(|| {
+                let mut mock_game_client = MockGameClient::new();
+                mock_game_client.expect_get_score().returning(|| 42);
+                mock_game_client.expect_get_kills().returning(|| 7);
+                mock_game_client.expect_get_deaths().returning(|| 9);
+                mock_game_client
+                    .expect_get_damage_dealt()
+                    .returning(|| 5000);
+                mock_game_client
+                    .expect_get_damage_taken()
+                    .returning(|| 4200);
+                mock_game_client.expect_get_time_on_team().returning(|| 123);
+                mock_game_client.expect_get_ping().returning(|| 42);
+                Ok(mock_game_client)
+            });
+            mock_game_entity
+        });
+
+        let player = default_test_player();
+        let result = Python::with_gil(|py| player.get_ping(py));
+
+        assert_eq!(result.expect("result was not OK"), 42);
+    }
+
+    #[test]
+    #[serial]
+    #[cfg_attr(miri, ignore)]
+    fn get_ping_for_game_entiy_with_no_game_client() {
+        let mut mock_engine = MockQuakeEngine::new();
+        mock_engine.expect_get_max_clients().returning(|| 16);
+        MAIN_ENGINE.store(Some(mock_engine.into()));
+
+        let game_entity_from_ctx = MockGameEntity::from_context();
+        game_entity_from_ctx.expect().returning(|_| {
+            let mut mock_game_entity = MockGameEntity::new();
+            mock_game_entity
+                .expect_get_game_client()
+                .returning(|| Err(QuakeLiveEngineError::MainEngineNotInitialized));
+            mock_game_entity
+        });
+
+        let player = default_test_player();
+
+        let result = Python::with_gil(|py| player.get_ping(py));
+
+        assert_eq!(result.expect("result was not OK"), 999);
     }
 }
