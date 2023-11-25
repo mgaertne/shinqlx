@@ -339,6 +339,21 @@ pub enum clientState_t {
     CS_ACTIVE = 4,    // client is fully in game
 }
 
+impl TryFrom<i32> for clientState_t {
+    type Error = &'static str;
+
+    fn try_from(value: i32) -> Result<Self, Self::Error> {
+        match value {
+            0 => Ok(clientState_t::CS_FREE),
+            1 => Ok(clientState_t::CS_ZOMBIE),
+            2 => Ok(clientState_t::CS_CONNECTED),
+            3 => Ok(clientState_t::CS_PRIMED),
+            4 => Ok(clientState_t::CS_ACTIVE),
+            _ => Err("invalid clientState value"),
+        }
+    }
+}
+
 #[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
 #[repr(u32)]
 pub enum roundStateState_t {
