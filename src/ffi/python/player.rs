@@ -492,6 +492,30 @@ impl Player {
         pyshinqlx_client_command(py, self.id, client_command.as_str())?;
         Ok(())
     }
+
+    /// A string describing the connection state of a player.
+    ///
+    /// Possible values:
+    ///   - *free* -- The player has disconnected and the slot is free to be used by someone else.
+    ///   - *zombie* -- The player disconnected and his/her slot will be available to other players shortly.
+    ///   - *connected* -- The player connected, but is currently loading the game.
+    ///   - *primed* -- The player was sent the necessary information to play, but has yet to send commands.
+    ///   - *active* -- The player finished loading and is actively sending commands to the server.
+    ///
+    /// In other words, if you need to make sure a player is in-game, check if ``player.connection_state == "active"``.
+    #[getter(connection_state)]
+    fn get_connection_state(&self, py: Python<'_>) -> PyResult<String> {
+        py.allow_threads(
+            || match clientState_t::try_from(self.player_info.connection_state) {
+                Ok(clientState_t::CS_FREE) => Ok("free".into()),
+                Ok(clientState_t::CS_ZOMBIE) => Ok("zombie".into()),
+                Ok(clientState_t::CS_CONNECTED) => Ok("connected".into()),
+                Ok(clientState_t::CS_PRIMED) => Ok("primed".into()),
+                Ok(clientState_t::CS_ACTIVE) => Ok("active".into()),
+                _ => Err(PyValueError::new_err("invalid clientState")),
+            },
+        )
+    }
 }
 
 #[cfg(test)]
@@ -2101,5 +2125,45 @@ assert(player._valid)
 
         let result = Python::with_gil(|py| player.set_predictitems(py, false));
         assert!(result.is_ok());
+    }
+
+    #[rstest]
+    #[case(clientState_t::CS_FREE, "free")]
+    #[case(clientState_t::CS_ZOMBIE, "zombie")]
+    #[case(clientState_t::CS_CONNECTED, "connected")]
+    #[case(clientState_t::CS_PRIMED, "primed")]
+    #[case(clientState_t::CS_ACTIVE, "active")]
+    #[cfg_attr(miri, ignore)]
+    fn get_connection_state_for_valid_values(
+        #[case] client_state: clientState_t,
+        #[case] expected_value: &str,
+    ) {
+        let player = Player {
+            player_info: PlayerInfo {
+                connection_state: client_state as i32,
+                ..default_test_player_info()
+            },
+            ..default_test_player()
+        };
+
+        let result = Python::with_gil(|py| player.get_connection_state(py));
+        assert_eq!(result.expect("result was not Ok"), expected_value);
+    }
+
+    #[test]
+    #[cfg_attr(miri, ignore)]
+    fn get_connection_state_for_invalid_value() {
+        let player = Player {
+            player_info: PlayerInfo {
+                connection_state: 42,
+                ..default_test_player_info()
+            },
+            ..default_test_player()
+        };
+
+        Python::with_gil(|py| {
+            let result = player.get_connection_state(py);
+            assert!(result.is_err_and(|err| err.is_instance_of::<PyValueError>(py)));
+        });
     }
 }
