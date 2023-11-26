@@ -54,11 +54,7 @@ jobs:
       uses: actions/setup-python@v4
       with:
         python-version: ${{ matrix.python-version }}
-    - name: Build
-      uses: actions-rs/cargo@v1
-      with:
-        command: build
-        args: --verbose
+    - run: cargo build --verbose
     - run: cargo test --verbose
   minimal_build:
     name: build & test with minimal versions
@@ -94,11 +90,11 @@ jobs:
     - run: cargo install cargo-tarpaulin
     - run: cargo tarpaulin
     - name: Upload to codecov.io
-      uses: codecov/codecov-action@v1.0.2
+      uses: codecov/codecov-action@v3
       with:
         token: ${{secrets.CODECOV_TOKEN}}
     - name: Archive code coverage results
-      uses: actions/upload-artifact@v1
+      uses: actions/upload-artifact@v3
       with:
         name: code-coverage-report
         path: cobertura.xml
