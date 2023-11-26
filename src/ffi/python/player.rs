@@ -2,7 +2,7 @@ use super::{clean_text, parse_variables, PlayerInfo, PlayerState, PlayerStats, V
 use crate::ffi::python::embed::{
     pyshinqlx_client_command, pyshinqlx_console_command, pyshinqlx_player_state,
     pyshinqlx_player_stats, pyshinqlx_set_position, pyshinqlx_set_privileges,
-    pyshinqlx_set_velocity, pyshinqlx_set_weapons,
+    pyshinqlx_set_velocity, pyshinqlx_set_weapon, pyshinqlx_set_weapons,
 };
 use crate::prelude::*;
 use crate::quake_live_engine::{GetConfigstring, SetConfigstring};
@@ -25,6 +25,31 @@ impl TryFrom<String> for privileges_t {
             "mod" => Ok(privileges_t::PRIV_MOD),
             "admin" => Ok(privileges_t::PRIV_ADMIN),
             _ => Err("Invalid privilege level."),
+        }
+    }
+}
+
+impl TryFrom<String> for weapon_t {
+    type Error = String;
+
+    fn try_from(value: String) -> Result<Self, Self::Error> {
+        match value.as_str() {
+            "g" => Ok(weapon_t::WP_GAUNTLET),
+            "mg" => Ok(weapon_t::WP_MACHINEGUN),
+            "sg" => Ok(weapon_t::WP_SHOTGUN),
+            "gl" => Ok(weapon_t::WP_GRENADE_LAUNCHER),
+            "rl" => Ok(weapon_t::WP_ROCKET_LAUNCHER),
+            "lg" => Ok(weapon_t::WP_LIGHTNING),
+            "rg" => Ok(weapon_t::WP_RAILGUN),
+            "pg" => Ok(weapon_t::WP_PLASMAGUN),
+            "bfg" => Ok(weapon_t::WP_BFG),
+            "gh" => Ok(weapon_t::WP_GRAPPLING_HOOK),
+            "ng" => Ok(weapon_t::WP_NAILGUN),
+            "pl" => Ok(weapon_t::WP_PROX_LAUNCHER),
+            "cg" => Ok(weapon_t::WP_CHAINGUN),
+            "hmg" => Ok(weapon_t::WP_HMG),
+            "hands" => Ok(weapon_t::WP_HANDS),
+            _ => Err("invalid weapon".into()),
         }
     }
 }
@@ -752,6 +777,30 @@ impl Player {
                 .map(|value| value.into_py(py))
             }
         }
+    }
+
+    #[pyo3(signature = (new_weapon=None))]
+    fn weapon(&self, py: Python<'_>, new_weapon: Option<PyObject>) -> PyResult<PyObject> {
+        let Some(weapon) = new_weapon else {
+            let weapon = match pyshinqlx_player_state(py, self.id)? {
+                None => weapon_t::WP_HANDS as i32,
+                Some(state) => state.weapon,
+            };
+
+            return Ok(weapon.into_py(py));
+        };
+
+        let Ok(converted_weapon) = (match weapon.extract::<i32>(py) {
+            Ok(value) => weapon_t::try_from(value),
+            Err(_) => match weapon.extract::<String>(py) {
+                Ok(value) => weapon_t::try_from(value),
+                Err(_) => Err("invalid weapon".into()),
+            },
+        }) else {
+            return Err(PyValueError::new_err("invalid new_weapon"));
+        };
+
+        pyshinqlx_set_weapon(py, self.id, converted_weapon as i32).map(|value| value.into_py(py))
     }
 }
 
@@ -3506,6 +3555,242 @@ assert(player._valid)
                     .expect("result was not a bool value"),
                 false
             );
+        });
+    }
+
+    #[rstest]
+    #[case(weapon_t::WP_GAUNTLET)]
+    #[case(weapon_t::WP_MACHINEGUN)]
+    #[case(weapon_t::WP_SHOTGUN)]
+    #[case(weapon_t::WP_GRENADE_LAUNCHER)]
+    #[case(weapon_t::WP_ROCKET_LAUNCHER)]
+    #[case(weapon_t::WP_LIGHTNING)]
+    #[case(weapon_t::WP_RAILGUN)]
+    #[case(weapon_t::WP_PLASMAGUN)]
+    #[case(weapon_t::WP_BFG)]
+    #[case(weapon_t::WP_GRAPPLING_HOOK)]
+    #[case(weapon_t::WP_NAILGUN)]
+    #[case(weapon_t::WP_PROX_LAUNCHER)]
+    #[case(weapon_t::WP_CHAINGUN)]
+    #[case(weapon_t::WP_HMG)]
+    #[case(weapon_t::WP_HANDS)]
+    #[cfg_attr(miri, ignore)]
+    #[serial]
+    fn weapon_gets_currently_held_weapon(#[case] weapon: weapon_t) {
+        let mut mock_engine = MockQuakeEngine::new();
+        mock_engine.expect_get_max_clients().returning(|| 16);
+        MAIN_ENGINE.store(Some(mock_engine.into()));
+
+        let game_entity_from_ctx = MockGameEntity::from_context();
+        game_entity_from_ctx.expect().returning(move |_| {
+            let mut mock_game_entity = MockGameEntity::new();
+            mock_game_entity
+                .expect_get_game_client()
+                .returning(move || {
+                    let mut mock_game_client = MockGameClient::new();
+                    mock_game_client.expect_get_position();
+                    mock_game_client.expect_get_velocity();
+                    mock_game_client.expect_is_alive();
+                    mock_game_client.expect_get_armor();
+                    mock_game_client.expect_get_noclip();
+                    mock_game_client
+                        .expect_get_weapon()
+                        .returning(move || weapon);
+                    mock_game_client.expect_get_weapons();
+                    mock_game_client.expect_get_ammos();
+                    mock_game_client.expect_get_powerups();
+                    mock_game_client.expect_get_holdable();
+                    mock_game_client.expect_get_current_flight_fuel();
+                    mock_game_client.expect_get_max_flight_fuel();
+                    mock_game_client.expect_get_flight_thrust();
+                    mock_game_client.expect_get_flight_refuel();
+                    mock_game_client.expect_is_chatting();
+                    mock_game_client.expect_is_frozen();
+                    Ok(mock_game_client)
+                });
+            mock_game_entity.expect_get_health();
+            mock_game_entity
+        });
+
+        let player = default_test_player();
+
+        Python::with_gil(|py| {
+            let result = player.weapon(py, None);
+            assert_eq!(
+                result
+                    .expect("result was not Ok")
+                    .extract::<i32>(py)
+                    .expect("result was not an integer"),
+                weapon as i32
+            )
+        });
+    }
+
+    #[test]
+    #[cfg_attr(miri, ignore)]
+    #[serial]
+    fn weapon_gets_currently_held_weapon_with_no_game_client() {
+        let mut mock_engine = MockQuakeEngine::new();
+        mock_engine.expect_get_max_clients().returning(|| 16);
+        MAIN_ENGINE.store(Some(mock_engine.into()));
+
+        let game_entity_from_ctx = MockGameEntity::from_context();
+        game_entity_from_ctx.expect().returning(|_| {
+            let mut mock_game_entity = MockGameEntity::new();
+            mock_game_entity
+                .expect_get_game_client()
+                .returning(|| Err(QuakeLiveEngineError::MainEngineNotInitialized));
+            mock_game_entity.expect_get_health();
+            mock_game_entity
+        });
+
+        let player = default_test_player();
+
+        Python::with_gil(|py| {
+            let result = player.weapon(py, None);
+            assert_eq!(
+                result
+                    .expect("result was not Ok")
+                    .extract::<i32>(py)
+                    .expect("result was not an integer"),
+                weapon_t::WP_HANDS as i32
+            )
+        });
+    }
+
+    #[rstest]
+    #[case("g".into(), weapon_t::WP_GAUNTLET)]
+    #[case("mg".into(), weapon_t::WP_MACHINEGUN)]
+    #[case("sg".into(), weapon_t::WP_SHOTGUN)]
+    #[case("gl".into(), weapon_t::WP_GRENADE_LAUNCHER)]
+    #[case("rl".into(), weapon_t::WP_ROCKET_LAUNCHER)]
+    #[case("lg".into(), weapon_t::WP_LIGHTNING)]
+    #[case("rg".into(), weapon_t::WP_RAILGUN)]
+    #[case("pg".into(), weapon_t::WP_PLASMAGUN)]
+    #[case("bfg".into(), weapon_t::WP_BFG)]
+    #[case("gh".into(), weapon_t::WP_GRAPPLING_HOOK)]
+    #[case("ng".into(), weapon_t::WP_NAILGUN)]
+    #[case("pl".into(), weapon_t::WP_PROX_LAUNCHER)]
+    #[case("cg".into(), weapon_t::WP_CHAINGUN)]
+    #[case("hmg".into(), weapon_t::WP_HMG)]
+    #[case("hands".into(), weapon_t::WP_HANDS)]
+    #[cfg_attr(miri, ignore)]
+    #[serial]
+    fn weapon_sets_players_weapon_from_str(
+        #[case] weapon_str: String,
+        #[case] expected_weapon: weapon_t,
+    ) {
+        let mut mock_engine = MockQuakeEngine::new();
+        mock_engine.expect_get_max_clients().returning(|| 16);
+        MAIN_ENGINE.store(Some(mock_engine.into()));
+
+        let game_entity_from_ctx = MockGameEntity::from_context();
+        game_entity_from_ctx.expect().times(1).returning(move |_| {
+            let mut mock_game_entity = MockGameEntity::new();
+            mock_game_entity
+                .expect_get_game_client()
+                .returning(move || {
+                    let mut mock_game_client = MockGameClient::new();
+                    mock_game_client
+                        .expect_set_weapon()
+                        .with(predicate::eq(expected_weapon as i32))
+                        .times(1);
+                    Ok(mock_game_client)
+                });
+            mock_game_entity.expect_get_health();
+            mock_game_entity
+        });
+
+        let player = default_test_player();
+
+        Python::with_gil(|py| {
+            let result = player.weapon(py, Some(weapon_str.into_py(py)));
+            assert_eq!(
+                result
+                    .expect("result was not Ok")
+                    .extract::<bool>(py)
+                    .expect("result was not a bool value"),
+                true
+            );
+        });
+    }
+
+    #[test]
+    #[cfg_attr(miri, ignore)]
+    fn weapon_sets_players_weapon_from_invalid_str() {
+        let player = default_test_player();
+
+        Python::with_gil(|py| {
+            let result = player.weapon(py, Some("invalid weapon".into_py(py)));
+            assert!(result.is_err_and(|err| err.is_instance_of::<PyValueError>(py)));
+        });
+    }
+
+    #[rstest]
+    #[case(1, weapon_t::WP_GAUNTLET)]
+    #[case(2, weapon_t::WP_MACHINEGUN)]
+    #[case(3, weapon_t::WP_SHOTGUN)]
+    #[case(4, weapon_t::WP_GRENADE_LAUNCHER)]
+    #[case(5, weapon_t::WP_ROCKET_LAUNCHER)]
+    #[case(6, weapon_t::WP_LIGHTNING)]
+    #[case(7, weapon_t::WP_RAILGUN)]
+    #[case(8, weapon_t::WP_PLASMAGUN)]
+    #[case(9, weapon_t::WP_BFG)]
+    #[case(10, weapon_t::WP_GRAPPLING_HOOK)]
+    #[case(11, weapon_t::WP_NAILGUN)]
+    #[case(12, weapon_t::WP_PROX_LAUNCHER)]
+    #[case(13, weapon_t::WP_CHAINGUN)]
+    #[case(14, weapon_t::WP_HMG)]
+    #[case(15, weapon_t::WP_HANDS)]
+    #[cfg_attr(miri, ignore)]
+    #[serial]
+    fn weapon_sets_players_weapon_from_int(
+        #[case] weapon_index: i32,
+        #[case] expected_weapon: weapon_t,
+    ) {
+        let mut mock_engine = MockQuakeEngine::new();
+        mock_engine.expect_get_max_clients().returning(|| 16);
+        MAIN_ENGINE.store(Some(mock_engine.into()));
+
+        let game_entity_from_ctx = MockGameEntity::from_context();
+        game_entity_from_ctx.expect().times(1).returning(move |_| {
+            let mut mock_game_entity = MockGameEntity::new();
+            mock_game_entity
+                .expect_get_game_client()
+                .returning(move || {
+                    let mut mock_game_client = MockGameClient::new();
+                    mock_game_client
+                        .expect_set_weapon()
+                        .with(predicate::eq(expected_weapon as i32))
+                        .times(1);
+                    Ok(mock_game_client)
+                });
+            mock_game_entity.expect_get_health();
+            mock_game_entity
+        });
+
+        let player = default_test_player();
+
+        Python::with_gil(|py| {
+            let result = player.weapon(py, Some(weapon_index.into_py(py)));
+            assert_eq!(
+                result
+                    .expect("result was not Ok")
+                    .extract::<bool>(py)
+                    .expect("result was not a bool value"),
+                true
+            );
+        });
+    }
+
+    #[test]
+    #[cfg_attr(miri, ignore)]
+    fn weapon_sets_players_weapon_from_invalid_int() {
+        let player = default_test_player();
+
+        Python::with_gil(|py| {
+            let result = player.weapon(py, Some(42.into_py(py)));
+            assert!(result.is_err_and(|err| err.is_instance_of::<PyValueError>(py)));
         });
     }
 }
