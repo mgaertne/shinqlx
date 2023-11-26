@@ -1,8 +1,10 @@
-use super::{clean_text, parse_variables, PlayerInfo, PlayerState, PlayerStats, Vector3, Weapons};
+use super::{
+    clean_text, parse_variables, PlayerInfo, PlayerState, PlayerStats, Powerups, Vector3, Weapons,
+};
 use crate::ffi::python::embed::{
     pyshinqlx_client_command, pyshinqlx_console_command, pyshinqlx_player_state,
-    pyshinqlx_player_stats, pyshinqlx_set_position, pyshinqlx_set_privileges,
-    pyshinqlx_set_velocity, pyshinqlx_set_weapon, pyshinqlx_set_weapons,
+    pyshinqlx_player_stats, pyshinqlx_set_ammo, pyshinqlx_set_position, pyshinqlx_set_powerups,
+    pyshinqlx_set_privileges, pyshinqlx_set_velocity, pyshinqlx_set_weapon, pyshinqlx_set_weapons,
 };
 use crate::prelude::*;
 use crate::quake_live_engine::{GetConfigstring, SetConfigstring};
@@ -801,6 +803,138 @@ impl Player {
         };
 
         pyshinqlx_set_weapon(py, self.id, converted_weapon as i32).map(|value| value.into_py(py))
+    }
+
+    #[pyo3(signature=(reset=false, **kwargs))]
+    fn ammo(&self, py: Python<'_>, reset: bool, kwargs: Option<&PyDict>) -> PyResult<PyObject> {
+        let ammos = if reset {
+            Weapons(0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0)
+        } else {
+            match pyshinqlx_player_state(py, self.id)? {
+                None => Weapons(0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0),
+                Some(state) => state.ammo,
+            }
+        };
+
+        match kwargs {
+            None => Ok(ammos.into_py(py)),
+            Some(py_kwargs) => {
+                let g = match py_kwargs.get_item("g")? {
+                    None => ammos.0,
+                    Some(value) => value.extract::<i32>()?,
+                };
+                let mg = match py_kwargs.get_item("mg")? {
+                    None => ammos.1,
+                    Some(value) => value.extract::<i32>()?,
+                };
+                let sg = match py_kwargs.get_item("sg")? {
+                    None => ammos.2,
+                    Some(value) => value.extract::<i32>()?,
+                };
+                let gl = match py_kwargs.get_item("gl")? {
+                    None => ammos.3,
+                    Some(value) => value.extract::<i32>()?,
+                };
+                let rl = match py_kwargs.get_item("rl")? {
+                    None => ammos.4,
+                    Some(value) => value.extract::<i32>()?,
+                };
+                let lg = match py_kwargs.get_item("lg")? {
+                    None => ammos.5,
+                    Some(value) => value.extract::<i32>()?,
+                };
+                let rg = match py_kwargs.get_item("rg")? {
+                    None => ammos.6,
+                    Some(value) => value.extract::<i32>()?,
+                };
+                let pg = match py_kwargs.get_item("pg")? {
+                    None => ammos.7,
+                    Some(value) => value.extract::<i32>()?,
+                };
+                let bfg = match py_kwargs.get_item("bfg")? {
+                    None => ammos.8,
+                    Some(value) => value.extract::<i32>()?,
+                };
+                let gh = match py_kwargs.get_item("gh")? {
+                    None => ammos.9,
+                    Some(value) => value.extract::<i32>()?,
+                };
+                let ng = match py_kwargs.get_item("ng")? {
+                    None => ammos.10,
+                    Some(value) => value.extract::<i32>()?,
+                };
+                let pl = match py_kwargs.get_item("pl")? {
+                    None => ammos.11,
+                    Some(value) => value.extract::<i32>()?,
+                };
+                let cg = match py_kwargs.get_item("cg")? {
+                    None => ammos.12,
+                    Some(value) => value.extract::<i32>()?,
+                };
+                let hmg = match py_kwargs.get_item("hmg")? {
+                    None => ammos.13,
+                    Some(value) => value.extract::<i32>()?,
+                };
+                let hands = match py_kwargs.get_item("hands")? {
+                    None => ammos.14,
+                    Some(value) => value.extract::<i32>()?,
+                };
+
+                pyshinqlx_set_ammo(
+                    py,
+                    self.id,
+                    Weapons(
+                        g, mg, sg, gl, rl, lg, rg, pg, bfg, gh, ng, pl, cg, hmg, hands,
+                    ),
+                )
+                .map(|value| value.into_py(py))
+            }
+        }
+    }
+
+    #[pyo3(signature=(reset=false, **kwargs))]
+    fn powerups(&self, py: Python<'_>, reset: bool, kwargs: Option<&PyDict>) -> PyResult<PyObject> {
+        let powerups = if reset {
+            Powerups(0, 0, 0, 0, 0, 0)
+        } else {
+            match pyshinqlx_player_state(py, self.id)? {
+                None => Powerups(0, 0, 0, 0, 0, 0),
+                Some(state) => state.powerups,
+            }
+        };
+
+        match kwargs {
+            None => Ok(powerups.into_py(py)),
+            Some(py_kwargs) => {
+                let quad = match py_kwargs.get_item("quad")? {
+                    None => powerups.0,
+                    Some(value) => (value.extract::<f32>()? * 1000.0).floor() as i32,
+                };
+                let bs = match py_kwargs.get_item("battlesuit")? {
+                    None => powerups.1,
+                    Some(value) => (value.extract::<f32>()? * 1000.0).floor() as i32,
+                };
+                let haste = match py_kwargs.get_item("haste")? {
+                    None => powerups.2,
+                    Some(value) => (value.extract::<f32>()? * 1000.0).floor() as i32,
+                };
+                let invis = match py_kwargs.get_item("invisibility")? {
+                    None => powerups.2,
+                    Some(value) => (value.extract::<f32>()? * 1000.0).floor() as i32,
+                };
+                let regen = match py_kwargs.get_item("regeneration")? {
+                    None => powerups.2,
+                    Some(value) => (value.extract::<f32>()? * 1000.0).floor() as i32,
+                };
+                let invul = match py_kwargs.get_item("invulnerability")? {
+                    None => powerups.2,
+                    Some(value) => (value.extract::<f32>()? * 1000.0).floor() as i32,
+                };
+
+                pyshinqlx_set_powerups(py, self.id, Powerups(quad, bs, haste, invis, regen, invul))
+                    .map(|value| value.into_py(py))
+            }
+        }
     }
 }
 
@@ -3791,6 +3925,497 @@ assert(player._valid)
         Python::with_gil(|py| {
             let result = player.weapon(py, Some(42.into_py(py)));
             assert!(result.is_err_and(|err| err.is_instance_of::<PyValueError>(py)));
+        });
+    }
+
+    #[test]
+    #[cfg_attr(miri, ignore)]
+    #[serial]
+    fn ammo_gathers_players_ammo_with_no_kwargs() {
+        let mut mock_engine = MockQuakeEngine::new();
+        mock_engine.expect_get_max_clients().returning(|| 16);
+        MAIN_ENGINE.store(Some(mock_engine.into()));
+
+        let game_entity_from_ctx = MockGameEntity::from_context();
+        game_entity_from_ctx.expect().returning(|_| {
+            let mut mock_game_entity = MockGameEntity::new();
+            mock_game_entity.expect_get_game_client().returning(|| {
+                let mut mock_game_client = MockGameClient::new();
+                mock_game_client.expect_get_position();
+                mock_game_client.expect_get_velocity();
+                mock_game_client.expect_is_alive();
+                mock_game_client.expect_get_armor();
+                mock_game_client.expect_get_noclip();
+                mock_game_client
+                    .expect_get_weapon()
+                    .returning(|| weapon_t::WP_ROCKET_LAUNCHER);
+                mock_game_client.expect_get_weapons();
+                mock_game_client
+                    .expect_get_ammos()
+                    .returning(|| [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15]);
+                mock_game_client.expect_get_powerups();
+                mock_game_client.expect_get_holdable();
+                mock_game_client.expect_get_current_flight_fuel();
+                mock_game_client.expect_get_max_flight_fuel();
+                mock_game_client.expect_get_flight_thrust();
+                mock_game_client.expect_get_flight_refuel();
+                mock_game_client.expect_is_chatting();
+                mock_game_client.expect_is_frozen();
+                Ok(mock_game_client)
+            });
+            mock_game_entity.expect_get_health();
+            mock_game_entity
+        });
+
+        let player = default_test_player();
+
+        Python::with_gil(|py| {
+            let result = player.ammo(py, false, None);
+            assert!(result.is_ok_and(|value| value
+                .extract::<Weapons>(py)
+                .expect("result was not Weapons")
+                == Weapons(1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15)));
+        });
+    }
+
+    #[test]
+    #[cfg_attr(miri, ignore)]
+    #[serial]
+    fn ammo_sets_players_ammo_when_provided() {
+        let mut mock_engine = MockQuakeEngine::new();
+        mock_engine.expect_get_max_clients().returning(|| 16);
+        MAIN_ENGINE.store(Some(mock_engine.into()));
+
+        let mut seq = Sequence::new();
+
+        let game_entity_from_ctx = MockGameEntity::from_context();
+        game_entity_from_ctx
+            .expect()
+            .times(1)
+            .in_sequence(&mut seq)
+            .returning(|_| {
+                let mut mock_game_entity = MockGameEntity::new();
+                mock_game_entity.expect_get_game_client().returning(|| {
+                    let mut mock_game_client = MockGameClient::new();
+                    mock_game_client.expect_get_position();
+                    mock_game_client.expect_get_velocity();
+                    mock_game_client.expect_is_alive();
+                    mock_game_client.expect_get_armor();
+                    mock_game_client.expect_get_noclip();
+                    mock_game_client
+                        .expect_get_weapon()
+                        .returning(|| weapon_t::WP_ROCKET_LAUNCHER);
+                    mock_game_client.expect_get_weapons();
+                    mock_game_client.expect_get_ammos();
+                    mock_game_client.expect_get_powerups();
+                    mock_game_client.expect_get_holdable();
+                    mock_game_client.expect_get_current_flight_fuel();
+                    mock_game_client.expect_get_max_flight_fuel();
+                    mock_game_client.expect_get_flight_thrust();
+                    mock_game_client.expect_get_flight_refuel();
+                    mock_game_client.expect_is_chatting();
+                    mock_game_client.expect_is_frozen();
+                    Ok(mock_game_client)
+                });
+                mock_game_entity.expect_get_health();
+                mock_game_entity
+            });
+
+        game_entity_from_ctx
+            .expect()
+            .times(1)
+            .in_sequence(&mut seq)
+            .returning(|_| {
+                let mut mock_game_entity = MockGameEntity::new();
+                mock_game_entity.expect_get_game_client().returning(|| {
+                    let mut mock_game_client = MockGameClient::new();
+                    mock_game_client
+                        .expect_set_ammos()
+                        .with(predicate::eq([
+                            1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15,
+                        ]))
+                        .times(1);
+                    Ok(mock_game_client)
+                });
+                mock_game_entity
+            });
+
+        let player = default_test_player();
+
+        Python::with_gil(|py| {
+            let result = player.ammo(
+                py,
+                false,
+                Some(
+                    [
+                        ("g", 1),
+                        ("mg", 2),
+                        ("sg", 3),
+                        ("gl", 4),
+                        ("rl", 5),
+                        ("lg", 6),
+                        ("rg", 7),
+                        ("pg", 8),
+                        ("bfg", 9),
+                        ("gh", 10),
+                        ("ng", 11),
+                        ("pl", 12),
+                        ("cg", 13),
+                        ("hmg", 14),
+                        ("hands", 15),
+                    ]
+                    .into_py_dict(py),
+                ),
+            );
+            assert_eq!(
+                result
+                    .expect("result was not Ok")
+                    .extract::<bool>(py)
+                    .expect("result was not a bool value"),
+                true
+            );
+        });
+    }
+
+    #[rstest]
+    #[case([("g".to_string(), 42)], [42, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0])]
+    #[case([("mg".to_string(), 42)], [0, 42, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0])]
+    #[case([("sg".to_string(), 42)], [0, 0, 42, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0])]
+    #[case([("gl".to_string(), 42)], [0, 0, 0, 42, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0])]
+    #[case([("rl".to_string(), 42)], [0, 0, 0, 0, 42, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0])]
+    #[case([("lg".to_string(), 42)], [0, 0, 0, 0, 0, 42, 0, 0, 0, 0, 0, 0, 0, 0, 0])]
+    #[case([("rg".to_string(), 42)], [0, 0, 0, 0, 0, 0, 42, 0, 0, 0, 0, 0, 0, 0, 0])]
+    #[case([("pg".to_string(), 42)], [0, 0, 0, 0, 0, 0, 0, 42, 0, 0, 0, 0, 0, 0, 0])]
+    #[case([("bfg".to_string(), 42)], [0, 0, 0, 0, 0, 0, 0, 0, 42, 0, 0, 0, 0, 0, 0])]
+    #[case([("gh".to_string(), 42)], [0, 0, 0, 0, 0, 0, 0, 0, 0, 42, 0, 0, 0, 0, 0])]
+    #[case([("ng".to_string(), 42)], [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 42, 0, 0, 0, 0])]
+    #[case([("pl".to_string(), 42)], [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 42, 0, 0, 0])]
+    #[case([("cg".to_string(), 42)], [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 42, 0, 0])]
+    #[case([("hmg".to_string(), 42)], [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 42, 0])]
+    #[case([("hands".to_string(), 42)], [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 42])]
+    #[cfg_attr(miri, ignore)]
+    #[serial]
+    fn ammo_resets_players_ammos_with_single_value(
+        #[case] ammos: [(String, i32); 1],
+        #[case] expected_ammos: [i32; 15],
+    ) {
+        let mut mock_engine = MockQuakeEngine::new();
+        mock_engine.expect_get_max_clients().returning(|| 16);
+        MAIN_ENGINE.store(Some(mock_engine.into()));
+
+        let game_entity_from_ctx = MockGameEntity::from_context();
+        game_entity_from_ctx.expect().times(1).returning(move |_| {
+            let mut mock_game_entity = MockGameEntity::new();
+            mock_game_entity
+                .expect_get_game_client()
+                .returning(move || {
+                    let mut mock_game_client = MockGameClient::new();
+                    mock_game_client
+                        .expect_set_ammos()
+                        .with(predicate::eq(expected_ammos))
+                        .times(1);
+                    Ok(mock_game_client)
+                });
+            mock_game_entity
+        });
+
+        let player = default_test_player();
+
+        Python::with_gil(|py| {
+            let result = player.ammo(py, true, Some(ammos.into_py_dict(py)));
+            assert_eq!(
+                result
+                    .expect("result was not Ok")
+                    .extract::<bool>(py)
+                    .expect("result was not a bool value"),
+                true
+            );
+        });
+    }
+
+    #[test]
+    #[cfg_attr(miri, ignore)]
+    #[serial]
+    fn ammo_sets_players_ammo_with_no_game_client() {
+        let mut mock_engine = MockQuakeEngine::new();
+        mock_engine.expect_get_max_clients().returning(|| 16);
+        MAIN_ENGINE.store(Some(mock_engine.into()));
+
+        let game_entity_from_ctx = MockGameEntity::from_context();
+        game_entity_from_ctx.expect().returning(|_| {
+            let mut mock_game_entity = MockGameEntity::new();
+            mock_game_entity
+                .expect_get_game_client()
+                .returning(|| Err(QuakeLiveEngineError::MainEngineNotInitialized));
+            mock_game_entity
+        });
+
+        let player = default_test_player();
+
+        Python::with_gil(|py| {
+            let result = player.ammo(
+                py,
+                false,
+                Some(
+                    [
+                        ("g", 1),
+                        ("mg", 2),
+                        ("sg", 3),
+                        ("gl", 4),
+                        ("rl", 5),
+                        ("lg", 6),
+                        ("rg", 7),
+                        ("pg", 8),
+                        ("bfg", 9),
+                        ("gh", 10),
+                        ("ng", 11),
+                        ("pl", 12),
+                        ("cg", 13),
+                        ("hmg", 14),
+                        ("hands", 15),
+                    ]
+                    .into_py_dict(py),
+                ),
+            );
+            assert_eq!(
+                result
+                    .expect("result was not Ok")
+                    .extract::<bool>(py)
+                    .expect("result was not a bool value"),
+                false
+            );
+        });
+    }
+
+    #[test]
+    #[cfg_attr(miri, ignore)]
+    #[serial]
+    fn powerups_gathers_players_powerups_with_no_kwargs() {
+        let mut mock_engine = MockQuakeEngine::new();
+        mock_engine.expect_get_max_clients().returning(|| 16);
+        MAIN_ENGINE.store(Some(mock_engine.into()));
+
+        let game_entity_from_ctx = MockGameEntity::from_context();
+        game_entity_from_ctx.expect().returning(|_| {
+            let mut mock_game_entity = MockGameEntity::new();
+            mock_game_entity.expect_get_game_client().returning(|| {
+                let mut mock_game_client = MockGameClient::new();
+                mock_game_client.expect_get_position();
+                mock_game_client.expect_get_velocity();
+                mock_game_client.expect_is_alive();
+                mock_game_client.expect_get_armor();
+                mock_game_client.expect_get_noclip();
+                mock_game_client
+                    .expect_get_weapon()
+                    .returning(|| weapon_t::WP_ROCKET_LAUNCHER);
+                mock_game_client.expect_get_weapons();
+                mock_game_client.expect_get_ammos();
+                mock_game_client
+                    .expect_get_powerups()
+                    .returning(|| [1000, 2000, 3000, 4000, 5000, 6000]);
+                mock_game_client.expect_get_holdable();
+                mock_game_client.expect_get_current_flight_fuel();
+                mock_game_client.expect_get_max_flight_fuel();
+                mock_game_client.expect_get_flight_thrust();
+                mock_game_client.expect_get_flight_refuel();
+                mock_game_client.expect_is_chatting();
+                mock_game_client.expect_is_frozen();
+                Ok(mock_game_client)
+            });
+            mock_game_entity.expect_get_health();
+            mock_game_entity
+        });
+
+        let player = default_test_player();
+
+        Python::with_gil(|py| {
+            let result = player.powerups(py, false, None);
+            assert!(result.is_ok_and(|value| value
+                .extract::<Powerups>(py)
+                .expect("result was not a Powerups")
+                == Powerups(1000, 2000, 3000, 4000, 5000, 6000)));
+        });
+    }
+
+    #[test]
+    #[cfg_attr(miri, ignore)]
+    #[serial]
+    fn powerups_sets_players_powerups_when_provided() {
+        let mut mock_engine = MockQuakeEngine::new();
+        mock_engine.expect_get_max_clients().returning(|| 16);
+        MAIN_ENGINE.store(Some(mock_engine.into()));
+
+        let mut seq = Sequence::new();
+
+        let game_entity_from_ctx = MockGameEntity::from_context();
+        game_entity_from_ctx
+            .expect()
+            .times(1)
+            .in_sequence(&mut seq)
+            .returning(|_| {
+                let mut mock_game_entity = MockGameEntity::new();
+                mock_game_entity.expect_get_game_client().returning(|| {
+                    let mut mock_game_client = MockGameClient::new();
+                    mock_game_client.expect_get_position();
+                    mock_game_client.expect_get_velocity();
+                    mock_game_client.expect_is_alive();
+                    mock_game_client.expect_get_armor();
+                    mock_game_client.expect_get_noclip();
+                    mock_game_client
+                        .expect_get_weapon()
+                        .returning(|| weapon_t::WP_ROCKET_LAUNCHER);
+                    mock_game_client.expect_get_weapons();
+                    mock_game_client.expect_get_ammos();
+                    mock_game_client
+                        .expect_get_powerups()
+                        .returning(|| [1000, 2000, 3000, 4000, 5000, 6000]);
+                    mock_game_client.expect_get_holdable();
+                    mock_game_client.expect_get_current_flight_fuel();
+                    mock_game_client.expect_get_max_flight_fuel();
+                    mock_game_client.expect_get_flight_thrust();
+                    mock_game_client.expect_get_flight_refuel();
+                    mock_game_client.expect_is_chatting();
+                    mock_game_client.expect_is_frozen();
+                    Ok(mock_game_client)
+                });
+                mock_game_entity.expect_get_health();
+                mock_game_entity
+            });
+
+        game_entity_from_ctx
+            .expect()
+            .times(1)
+            .in_sequence(&mut seq)
+            .returning(|_| {
+                let mut mock_game_entity = MockGameEntity::new();
+                mock_game_entity.expect_get_game_client().returning(|| {
+                    let mut mock_game_client = MockGameClient::new();
+                    mock_game_client
+                        .expect_set_powerups()
+                        .with(predicate::eq([6500, 5000, 4250, 3000, 2125, 1000]))
+                        .times(1);
+                    Ok(mock_game_client)
+                });
+                mock_game_entity
+            });
+
+        let player = default_test_player();
+
+        Python::with_gil(|py| {
+            let result = player.powerups(
+                py,
+                false,
+                Some(
+                    [
+                        ("quad", 6.5),
+                        ("battlesuit", 5.0),
+                        ("haste", 4.25),
+                        ("invisibility", 3.0),
+                        ("regeneration", 2.125),
+                        ("invulnerability", 1.0),
+                    ]
+                    .into_py_dict(py),
+                ),
+            );
+            assert_eq!(
+                result
+                    .expect("result was not Ok")
+                    .extract::<bool>(py)
+                    .expect("result was not a bool value"),
+                true
+            );
+        });
+    }
+
+    #[rstest]
+    #[case([("quad".to_string(), 42)], [42000, 0, 0, 0, 0, 0])]
+    #[case([("battlesuit".to_string(), 42)], [0, 42000, 0, 0, 0, 0])]
+    #[case([("haste".to_string(), 42)], [0, 0, 42000, 0, 0, 0])]
+    #[case([("invisibility".to_string(), 42)], [0, 0, 0, 42000, 0, 0])]
+    #[case([("regeneration".to_string(), 42)], [0, 0, 0, 0, 42000, 0])]
+    #[case([("invulnerability".to_string(), 42)], [0, 0, 0, 0, 0, 42000])]
+    #[cfg_attr(miri, ignore)]
+    #[serial]
+    fn powerups_resets_players_powerups_with_single_value(
+        #[case] powerups: [(String, i32); 1],
+        #[case] expected_powerups: [i32; 6],
+    ) {
+        let mut mock_engine = MockQuakeEngine::new();
+        mock_engine.expect_get_max_clients().returning(|| 16);
+        MAIN_ENGINE.store(Some(mock_engine.into()));
+
+        let game_entity_from_ctx = MockGameEntity::from_context();
+        game_entity_from_ctx.expect().times(1).returning(move |_| {
+            let mut mock_game_entity = MockGameEntity::new();
+            mock_game_entity
+                .expect_get_game_client()
+                .returning(move || {
+                    let mut mock_game_client = MockGameClient::new();
+                    mock_game_client
+                        .expect_set_powerups()
+                        .with(predicate::eq(expected_powerups))
+                        .times(1);
+                    Ok(mock_game_client)
+                });
+            mock_game_entity
+        });
+
+        let player = default_test_player();
+
+        Python::with_gil(|py| {
+            let result = player.powerups(py, true, Some(powerups.into_py_dict(py)));
+            assert_eq!(
+                result
+                    .expect("result was not Ok")
+                    .extract::<bool>(py)
+                    .expect("result was not a bool value"),
+                true
+            );
+        });
+    }
+
+    #[test]
+    #[cfg_attr(miri, ignore)]
+    #[serial]
+    fn powerups_sets_players_powerups_with_no_game_client() {
+        let mut mock_engine = MockQuakeEngine::new();
+        mock_engine.expect_get_max_clients().returning(|| 16);
+        MAIN_ENGINE.store(Some(mock_engine.into()));
+
+        let game_entity_from_ctx = MockGameEntity::from_context();
+        game_entity_from_ctx.expect().returning(|_| {
+            let mut mock_game_entity = MockGameEntity::new();
+            mock_game_entity
+                .expect_get_game_client()
+                .returning(|| Err(QuakeLiveEngineError::MainEngineNotInitialized));
+            mock_game_entity
+        });
+
+        let player = default_test_player();
+
+        Python::with_gil(|py| {
+            let result = player.powerups(
+                py,
+                false,
+                Some(
+                    [
+                        ("quad", 6),
+                        ("battlesuit", 5),
+                        ("haste", 4),
+                        ("invisibility", 3),
+                        ("regeneration", 2),
+                        ("invulnerability", 1),
+                    ]
+                    .into_py_dict(py),
+                ),
+            );
+            assert_eq!(
+                result
+                    .expect("result was not Ok")
+                    .extract::<bool>(py)
+                    .expect("result was not a bool value"),
+                false
+            );
         });
     }
 }
