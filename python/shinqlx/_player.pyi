@@ -4,10 +4,10 @@ if TYPE_CHECKING:
     import sys
 
     if sys.version_info >= (3, 11):
-        from typing import NotRequired
+        from typing import NotRequired, Unpack
     else:
-        from typing_extensions import NotRequired
-    from typing import Iterable, TypedDict
+        from typing_extensions import NotRequired, Unpack
+    from typing import Iterable, TypedDict, Literal
     from shinqlx import (
         PlayerInfo,
         PlayerState,
@@ -41,6 +41,69 @@ UserInfo = TypedDict(
         "name": str,
         "handicap": str,
         "password": NotRequired[str],
+    },
+)
+
+Vector3Kwargs = TypedDict(
+    "Vector3Kwargs",
+    {
+        "x": NotRequired[int | float],
+        "y": NotRequired[int | float],
+        "z": NotRequired[int | float],
+    },
+)
+
+WeaponsKwargs = TypedDict(
+    "WeaponsKwargs",
+    {
+        "g": NotRequired[bool | int],
+        "mg": NotRequired[bool | int],
+        "sg": NotRequired[bool | int],
+        "gl": NotRequired[bool | int],
+        "rl": NotRequired[bool | int],
+        "lg": NotRequired[bool | int],
+        "rg": NotRequired[bool | int],
+        "pg": NotRequired[bool | int],
+        "bfg": NotRequired[bool | int],
+        "gh": NotRequired[bool | int],
+        "ng": NotRequired[bool | int],
+        "pl": NotRequired[bool | int],
+        "cg": NotRequired[bool | int],
+        "hmg": NotRequired[bool | int],
+        "hands": NotRequired[bool | int],
+    },
+)
+
+AmmoKwargs = TypedDict(
+    "AmmoKwargs",
+    {
+        "g": NotRequired[int],
+        "mg": NotRequired[int],
+        "sg": NotRequired[int],
+        "gl": NotRequired[int],
+        "rl": NotRequired[int],
+        "lg": NotRequired[int],
+        "rg": NotRequired[int],
+        "pg": NotRequired[int],
+        "bfg": NotRequired[int],
+        "gh": NotRequired[int],
+        "ng": NotRequired[int],
+        "pl": NotRequired[int],
+        "cg": NotRequired[int],
+        "hmg": NotRequired[int],
+        "hands": NotRequired[int],
+    },
+)
+
+PowerupsKwargs = TypedDict(
+    "PowerupsKwargs",
+    {
+        "quad": NotRequired[str | float],
+        "battlesuit": NotRequired[str | float],
+        "haste": NotRequired[str | float],
+        "invisibility": NotRequired[str | float],
+        "regeneration": NotRequired[str | float],
+        "invulnerability": NotRequired[str | float],
     },
 )
 
@@ -89,9 +152,9 @@ class Player:
     @property
     def qport(self) -> int: ...
     @property
-    def team(self) -> str: ...
+    def team(self) -> Literal["free", "red", "blue", "spectator"]: ...
     @team.setter
-    def team(self, new_team: str) -> None: ...
+    def team(self, new_team: Literal["free", "red", "blue", "spectator"]) -> None: ...
     @property
     def colors(self) -> tuple[float, float]: ...
     @colors.setter
@@ -121,13 +184,15 @@ class Player:
     @predictitems.setter
     def predictitems(self, value: bool) -> None: ...
     @property
-    def connection_state(self) -> str: ...
+    def connection_state(
+        self,
+    ) -> Literal["free", "zombie", "connected", "primed", "active"]: ...
     @property
     def state(self) -> PlayerState | None: ...
     @property
-    def privileges(self) -> str: ...
+    def privileges(self) -> Literal["mod", "admin", "root", "banned"]: ...
     @privileges.setter
-    def privileges(self, value: None | str) -> None: ...
+    def privileges(self, value: None | Literal["none", "mod", "admin"]) -> None: ...
     @property
     def country(self) -> str: ...
     @country.setter
@@ -138,16 +203,66 @@ class Player:
     def stats(self) -> PlayerStats | None: ...
     @property
     def ping(self) -> int: ...
-    def position(self, reset: bool = ..., **kwargs: int) -> bool | Vector3: ...
-    def velocity(self, reset: bool = ..., **kwargs: int) -> bool | Vector3: ...
-    def weapons(self, reset: bool = ..., **kwargs: bool) -> bool | Weapons: ...
-    def weapon(self, new_weapon: int | str | None = ...) -> bool | int: ...
-    def ammo(self, reset: bool = ..., **kwargs: int) -> bool | Weapons: ...
-    def powerups(self, reset: bool = ..., **kwargs: int) -> bool | Powerups: ...
+    def position(
+        self, reset: bool = ..., **kwargs: Unpack[Vector3Kwargs]
+    ) -> Vector3 | bool: ...
+    def velocity(
+        self, reset: bool = ..., **kwargs: Unpack[Vector3Kwargs]
+    ) -> bool | Vector3: ...
+    def weapons(
+        self, reset: bool = ..., **kwargs: Unpack[WeaponsKwargs]
+    ) -> bool | Weapons: ...
+    def weapon(
+        self,
+        new_weapon: Literal[1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15]
+        | Literal[
+            "g",
+            "mg",
+            "sg",
+            "gl",
+            "rl",
+            "lg",
+            "rg",
+            "pg",
+            "bfg",
+            "gh",
+            "ng",
+            "pl",
+            "cg",
+            "hmg",
+            "hands",
+        ]
+        | None = ...,
+    ) -> bool | Literal[1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15]: ...
+    def ammo(
+        self, reset: bool = ..., **kwargs: Unpack[AmmoKwargs]
+    ) -> bool | Weapons: ...
+    def powerups(
+        self, reset: bool = ..., **kwargs: Unpack[PowerupsKwargs]
+    ) -> bool | Powerups: ...
     @property
-    def holdable(self) -> str | None: ...
+    def holdable(
+        self,
+    ) -> (
+        None
+        | Literal[
+            "teleporter", "medkit", "flight", "kamikaze", "portal", "invulnerability"
+        ]
+    ): ...
     @holdable.setter
-    def holdable(self, value: str | None) -> None: ...
+    def holdable(
+        self,
+        value: None
+        | Literal[
+            "teleporter",
+            "medkit",
+            "flight",
+            "kamikaze",
+            "portal",
+            "invulnerability",
+            "none",
+        ],
+    ) -> None: ...
     def drop_holdable(self) -> None: ...
     def flight(self, reset: bool = ..., **kwargs: int) -> bool | Flight: ...
     @property
