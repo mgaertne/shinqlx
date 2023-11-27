@@ -1,9 +1,11 @@
 use super::{
-    clean_text, parse_variables, PlayerInfo, PlayerState, PlayerStats, Powerups, Vector3, Weapons,
+    clean_text, parse_variables, Flight, Holdable, PlayerInfo, PlayerState, PlayerStats, Powerups,
+    Vector3, Weapons,
 };
 use crate::ffi::python::embed::{
-    pyshinqlx_client_command, pyshinqlx_console_command, pyshinqlx_player_state,
-    pyshinqlx_player_stats, pyshinqlx_set_ammo, pyshinqlx_set_position, pyshinqlx_set_powerups,
+    pyshinqlx_client_command, pyshinqlx_console_command, pyshinqlx_drop_holdable,
+    pyshinqlx_player_state, pyshinqlx_player_stats, pyshinqlx_set_ammo, pyshinqlx_set_flight,
+    pyshinqlx_set_holdable, pyshinqlx_set_position, pyshinqlx_set_powerups,
     pyshinqlx_set_privileges, pyshinqlx_set_velocity, pyshinqlx_set_weapon, pyshinqlx_set_weapons,
 };
 use crate::prelude::*;
@@ -941,6 +943,74 @@ impl Player {
     fn get_holdable(&self, py: Python<'_>) -> PyResult<Option<String>> {
         pyshinqlx_player_state(py, self.id)
             .map(|opt_state| opt_state.and_then(|state| state.holdable))
+    }
+
+    #[setter(holdable)]
+    fn set_holdable(&mut self, py: Python<'_>, holdable: Option<String>) -> PyResult<()> {
+        match Holdable::from(holdable) {
+            Holdable::Unknown => Err(PyValueError::new_err("Invalid holdable item.")),
+            value => {
+                pyshinqlx_set_holdable(py, self.id, value.into())?;
+                if value == Holdable::Flight {
+                    pyshinqlx_set_flight(py, self.id, Flight(16000, 16000, 1200, 0))?;
+                }
+                Ok(())
+            }
+        }
+    }
+
+    fn drop_holdable(&mut self, py: Python<'_>) -> PyResult<()> {
+        pyshinqlx_drop_holdable(py, self.id)?;
+        Ok(())
+    }
+
+    #[pyo3(signature=(reset=false, **kwargs))]
+    fn flight(
+        &mut self,
+        py: Python<'_>,
+        reset: bool,
+        kwargs: Option<&PyDict>,
+    ) -> PyResult<PyObject> {
+        let flight = if reset {
+            Flight(16_000, 16_000, 1_200, 0)
+        } else {
+            match pyshinqlx_player_state(py, self.id)? {
+                None => Flight(16_000, 16_000, 1_200, 0),
+                Some(state) => {
+                    if state.holdable != Some("flight".into()) {
+                        self.set_holdable(py, Some("flight".into()))?;
+                        Flight(16_000, 16_000, 1_200, 0)
+                    } else {
+                        state.flight
+                    }
+                }
+            }
+        };
+
+        match kwargs {
+            None => Ok(flight.into_py(py)),
+            Some(py_kwargs) => {
+                let fuel = match py_kwargs.get_item("fuel")? {
+                    None => flight.0,
+                    Some(value) => value.extract::<i32>()?,
+                };
+                let max_fuel = match py_kwargs.get_item("max_fuel")? {
+                    None => flight.1,
+                    Some(value) => value.extract::<i32>()?,
+                };
+                let thrust = match py_kwargs.get_item("thrust")? {
+                    None => flight.2,
+                    Some(value) => value.extract::<i32>()?,
+                };
+                let refuel = match py_kwargs.get_item("refuel")? {
+                    None => flight.3,
+                    Some(value) => value.extract::<i32>()?,
+                };
+
+                pyshinqlx_set_flight(py, self.id, Flight(fuel, max_fuel, thrust, refuel))
+                    .map(|value| value.into_py(py))
+            }
+        }
     }
 }
 
@@ -4494,5 +4564,396 @@ assert(player._valid)
 
         let result = Python::with_gil(|py| player.get_holdable(py));
         assert_eq!(result.expect("result was not Ok"), expected_result);
+    }
+
+    #[test]
+    #[cfg_attr(mir, ignore)]
+    #[serial]
+    fn set_holdable_with_no_main_engine() {
+        MAIN_ENGINE.store(None);
+
+        let mut player = default_test_player();
+
+        Python::with_gil(|py| {
+            let result = player.set_holdable(py, Some("kamikaze".into()));
+            assert!(result.is_err_and(|err| err.is_instance_of::<PyEnvironmentError>(py)))
+        });
+    }
+
+    #[rstest]
+    #[case("unknown")]
+    #[case("asdf")]
+    #[cfg_attr(mir, ignore)]
+    #[serial]
+    fn set_holdable_for_unknown_values(#[case] invalid_str: &str) {
+        let mut player = default_test_player();
+
+        Python::with_gil(|py| {
+            let result = player.set_holdable(py, Some(invalid_str.into()));
+            assert!(result.is_err_and(|err| err.is_instance_of::<PyValueError>(py)))
+        });
+    }
+
+    #[rstest]
+    #[case(None, Holdable::None)]
+    #[case(Some("none".into()), Holdable::None)]
+    #[case(Some("teleporter".into()), Holdable::Teleporter)]
+    #[case(Some("medkit".into()), Holdable::MedKit)]
+    #[case(Some("kamikaze".into()), Holdable::Kamikaze)]
+    #[case(Some("portal".into()), Holdable::Portal)]
+    #[case(Some("invulnerability".into()), Holdable::Invulnerability)]
+    #[cfg_attr(mir, ignore)]
+    #[serial]
+    fn set_holdable_for_various_values(
+        #[case] new_holdable: Option<String>,
+        #[case] expected_holdable: Holdable,
+    ) {
+        let mut mock_engine = MockQuakeEngine::new();
+        mock_engine.expect_get_max_clients().returning(|| 16);
+        MAIN_ENGINE.store(Some(mock_engine.into()));
+
+        let game_entity_from_ctx = MockGameEntity::from_context();
+        game_entity_from_ctx.expect().returning(move |_| {
+            let mut mock_game_entity = MockGameEntity::new();
+            mock_game_entity
+                .expect_get_game_client()
+                .returning(move || {
+                    let mut mock_game_client = MockGameClient::new();
+                    mock_game_client
+                        .expect_set_holdable()
+                        .with(predicate::eq(expected_holdable))
+                        .times(1);
+                    Ok(mock_game_client)
+                });
+            mock_game_entity
+        });
+
+        let mut player = default_test_player();
+
+        let result = Python::with_gil(|py| player.set_holdable(py, new_holdable));
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    #[cfg_attr(mir, ignore)]
+    #[serial]
+    fn set_holdable_for_flight() {
+        let mut mock_engine = MockQuakeEngine::new();
+        mock_engine.expect_get_max_clients().returning(|| 16);
+        MAIN_ENGINE.store(Some(mock_engine.into()));
+
+        let mut seq = Sequence::new();
+
+        let game_entity_from_ctx = MockGameEntity::from_context();
+        game_entity_from_ctx
+            .expect()
+            .times(1)
+            .in_sequence(&mut seq)
+            .returning(|_| {
+                let mut mock_game_entity = MockGameEntity::new();
+                mock_game_entity.expect_get_game_client().returning(|| {
+                    let mut mock_game_client = MockGameClient::new();
+                    mock_game_client
+                        .expect_set_holdable()
+                        .with(predicate::eq(Holdable::Flight))
+                        .times(1);
+                    Ok(mock_game_client)
+                });
+                mock_game_entity
+            });
+
+        game_entity_from_ctx
+            .expect()
+            .times(1)
+            .in_sequence(&mut seq)
+            .returning(|_| {
+                let mut mock_game_entity = MockGameEntity::new();
+                mock_game_entity.expect_get_game_client().returning(|| {
+                    let mut mock_game_client = MockGameClient::new();
+                    mock_game_client
+                        .expect_set_flight::<[i32; 4]>()
+                        .with(predicate::eq([16_000, 16_000, 1_200, 0]))
+                        .times(1);
+                    Ok(mock_game_client)
+                });
+                mock_game_entity
+            });
+
+        let mut player = default_test_player();
+
+        let result = Python::with_gil(|py| player.set_holdable(py, Some("flight".into())));
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    #[cfg_attr(miri, ignore)]
+    #[serial]
+    fn drop_holdable_when_player_holds_one() {
+        let mut mock_engine = MockQuakeEngine::new();
+        mock_engine.expect_get_max_clients().returning(|| 16);
+        MAIN_ENGINE.store(Some(mock_engine.into()));
+
+        let mut seq = Sequence::new();
+
+        let game_entity_from_ctx = MockGameEntity::from_context();
+        game_entity_from_ctx
+            .expect()
+            .times(1)
+            .in_sequence(&mut seq)
+            .returning(|_| {
+                let mut mock_game_entity = MockGameEntity::new();
+                mock_game_entity.expect_get_game_client().returning(|| {
+                    let mut mock_game_client = MockGameClient::new();
+                    mock_game_client.expect_remove_kamikaze_flag().times(1);
+                    Ok(mock_game_client)
+                });
+                mock_game_entity
+            });
+
+        game_entity_from_ctx
+            .expect()
+            .times(1)
+            .in_sequence(&mut seq)
+            .returning(|_| {
+                let mut mock_game_entity = MockGameEntity::new();
+                mock_game_entity.expect_get_game_client().returning(|| {
+                    let mut mock_game_client = MockGameClient::new();
+                    mock_game_client
+                        .expect_get_holdable()
+                        .returning(|| Holdable::Kamikaze as i32);
+                    Ok(mock_game_client)
+                });
+                mock_game_entity.expect_drop_holdable().times(1);
+                mock_game_entity
+            });
+
+        let mut player = default_test_player();
+
+        let result = Python::with_gil(|py| player.drop_holdable(py));
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    #[cfg_attr(miri, ignore)]
+    #[serial]
+    fn flight_gathers_players_flight_parameters_with_no_kwargs() {
+        let mut mock_engine = MockQuakeEngine::new();
+        mock_engine.expect_get_max_clients().returning(|| 16);
+        MAIN_ENGINE.store(Some(mock_engine.into()));
+
+        let game_entity_from_ctx = MockGameEntity::from_context();
+        game_entity_from_ctx.expect().returning(|_| {
+            let mut mock_game_entity = MockGameEntity::new();
+            mock_game_entity.expect_get_game_client().returning(|| {
+                let mut mock_game_client = MockGameClient::new();
+                mock_game_client.expect_get_position();
+                mock_game_client.expect_get_velocity();
+                mock_game_client.expect_is_alive();
+                mock_game_client.expect_get_armor();
+                mock_game_client.expect_get_noclip();
+                mock_game_client
+                    .expect_get_weapon()
+                    .returning(|| weapon_t::WP_ROCKET_LAUNCHER);
+                mock_game_client.expect_get_weapons();
+                mock_game_client.expect_get_ammos();
+                mock_game_client.expect_get_powerups();
+                mock_game_client
+                    .expect_get_holdable()
+                    .returning(|| Holdable::Flight as i32);
+                mock_game_client
+                    .expect_get_current_flight_fuel()
+                    .returning(|| 1);
+                mock_game_client
+                    .expect_get_max_flight_fuel()
+                    .returning(|| 2);
+                mock_game_client.expect_get_flight_thrust().returning(|| 3);
+                mock_game_client.expect_get_flight_refuel().returning(|| 4);
+                mock_game_client.expect_is_chatting();
+                mock_game_client.expect_is_frozen();
+                Ok(mock_game_client)
+            });
+            mock_game_entity.expect_get_health();
+            mock_game_entity
+        });
+
+        let mut player = default_test_player();
+
+        Python::with_gil(|py| {
+            let result = player.flight(py, false, None);
+            assert!(result.is_ok_and(|value| value
+                .extract::<Flight>(py)
+                .expect("result was not a Flight")
+                == Flight(1, 2, 3, 4)));
+        });
+    }
+
+    #[test]
+    #[cfg_attr(miri, ignore)]
+    #[serial]
+    fn flight_sets_players_flight_when_provided() {
+        let mut mock_engine = MockQuakeEngine::new();
+        mock_engine.expect_get_max_clients().returning(|| 16);
+        MAIN_ENGINE.store(Some(mock_engine.into()));
+
+        let mut seq = Sequence::new();
+
+        let game_entity_from_ctx = MockGameEntity::from_context();
+        game_entity_from_ctx
+            .expect()
+            .times(1)
+            .in_sequence(&mut seq)
+            .returning(|_| {
+                let mut mock_game_entity = MockGameEntity::new();
+                mock_game_entity.expect_get_game_client().returning(|| {
+                    let mut mock_game_client = MockGameClient::new();
+                    mock_game_client.expect_get_position();
+                    mock_game_client.expect_get_velocity();
+                    mock_game_client.expect_is_alive();
+                    mock_game_client.expect_get_armor();
+                    mock_game_client.expect_get_noclip();
+                    mock_game_client
+                        .expect_get_weapon()
+                        .returning(|| weapon_t::WP_ROCKET_LAUNCHER);
+                    mock_game_client.expect_get_weapons();
+                    mock_game_client.expect_get_ammos();
+                    mock_game_client.expect_get_powerups();
+                    mock_game_client
+                        .expect_get_holdable()
+                        .returning(|| Holdable::Flight as i32);
+                    mock_game_client.expect_get_current_flight_fuel();
+                    mock_game_client.expect_get_max_flight_fuel();
+                    mock_game_client.expect_get_flight_thrust();
+                    mock_game_client.expect_get_flight_refuel();
+                    mock_game_client.expect_is_chatting();
+                    mock_game_client.expect_is_frozen();
+                    Ok(mock_game_client)
+                });
+                mock_game_entity.expect_get_health();
+                mock_game_entity
+            });
+
+        game_entity_from_ctx
+            .expect()
+            .times(1)
+            .in_sequence(&mut seq)
+            .returning(|_| {
+                let mut mock_game_entity = MockGameEntity::new();
+                mock_game_entity.expect_get_game_client().returning(|| {
+                    let mut mock_game_client = MockGameClient::new();
+                    mock_game_client
+                        .expect_set_flight::<[i32; 4]>()
+                        .with(predicate::eq([5, 6, 7, 8]))
+                        .times(1);
+                    Ok(mock_game_client)
+                });
+                mock_game_entity
+            });
+        let mut player = default_test_player();
+
+        Python::with_gil(|py| {
+            let result = player.flight(
+                py,
+                false,
+                Some([("fuel", 5), ("max_fuel", 6), ("thrust", 7), ("refuel", 8)].into_py_dict(py)),
+            );
+            assert_eq!(
+                result
+                    .expect("result was not Ok")
+                    .extract::<bool>(py)
+                    .expect("result was not a bool value"),
+                true
+            );
+        });
+    }
+
+    #[rstest]
+    #[case([("fuel".to_string(), 42)], Flight(42, 16_000, 1_200, 0))]
+    #[case([("max_fuel".to_string(), 42)], Flight(16_000, 42, 1_200, 0))]
+    #[case([("thrust".to_string(), 42)], Flight(16_000, 16_000, 42, 0))]
+    #[case([("refuel".to_string(), 42)], Flight(16_000, 16_000, 1_200, 42))]
+    #[cfg_attr(miri, ignore)]
+    #[serial]
+    fn flight_resets_players_flight_with_single_value(
+        #[case] flight_opts: [(String, i32); 1],
+        #[case] expected_flight: Flight,
+    ) {
+        let mut mock_engine = MockQuakeEngine::new();
+        mock_engine.expect_get_max_clients().returning(|| 16);
+        MAIN_ENGINE.store(Some(mock_engine.into()));
+
+        let mut seq = Sequence::new();
+
+        let game_entity_from_ctx = MockGameEntity::from_context();
+        game_entity_from_ctx
+            .expect()
+            .times(1)
+            .in_sequence(&mut seq)
+            .returning(move |_| {
+                let mut mock_game_entity = MockGameEntity::new();
+                mock_game_entity
+                    .expect_get_game_client()
+                    .returning(move || {
+                        let mut mock_game_client = MockGameClient::new();
+                        mock_game_client
+                            .expect_set_flight::<[i32; 4]>()
+                            .with(predicate::eq([
+                                expected_flight.0,
+                                expected_flight.1,
+                                expected_flight.2,
+                                expected_flight.3,
+                            ]))
+                            .times(1);
+                        Ok(mock_game_client)
+                    });
+                mock_game_entity
+            });
+
+        let mut player = default_test_player();
+
+        Python::with_gil(|py| {
+            let result = player.flight(py, true, Some(flight_opts.into_py_dict(py)));
+            assert_eq!(
+                result
+                    .expect("result was not Ok")
+                    .extract::<bool>(py)
+                    .expect("result was not a bool value"),
+                true
+            );
+        });
+    }
+
+    #[test]
+    #[cfg_attr(miri, ignore)]
+    #[serial]
+    fn flight_sets_players_flight_with_no_game_client() {
+        let mut mock_engine = MockQuakeEngine::new();
+        mock_engine.expect_get_max_clients().returning(|| 16);
+        MAIN_ENGINE.store(Some(mock_engine.into()));
+
+        let game_entity_from_ctx = MockGameEntity::from_context();
+        game_entity_from_ctx.expect().returning(|_| {
+            let mut mock_game_entity = MockGameEntity::new();
+            mock_game_entity
+                .expect_get_game_client()
+                .returning(|| Err(QuakeLiveEngineError::MainEngineNotInitialized));
+            mock_game_entity
+        });
+
+        let mut player = default_test_player();
+
+        Python::with_gil(|py| {
+            let result = player.flight(
+                py,
+                false,
+                Some([("fuel", 5), ("max_fuel", 6), ("refuel", 8), ("thrust", 7)].into_py_dict(py)),
+            );
+            assert_eq!(
+                result
+                    .expect("result was not Ok")
+                    .extract::<bool>(py)
+                    .expect("result was not a bool value"),
+                false
+            );
+        });
     }
 }
