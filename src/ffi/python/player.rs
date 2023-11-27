@@ -971,19 +971,25 @@ impl Player {
         reset: bool,
         kwargs: Option<&PyDict>,
     ) -> PyResult<PyObject> {
-        let flight = if reset {
+        let opt_state = pyshinqlx_player_state(py, self.id)?;
+        let init_flight = if !opt_state.as_ref().is_some_and(|state| {
+            state
+                .holdable
+                .as_ref()
+                .is_some_and(|holdable| holdable == "flight")
+        }) {
+            self.set_holdable(py, Some("flight".into()))?;
+            true
+        } else {
+            reset
+        };
+
+        let flight = if init_flight {
             Flight(16_000, 16_000, 1_200, 0)
         } else {
-            match pyshinqlx_player_state(py, self.id)? {
+            match opt_state {
                 None => Flight(16_000, 16_000, 1_200, 0),
-                Some(state) => {
-                    if state.holdable != Some("flight".into()) {
-                        self.set_holdable(py, Some("flight".into()))?;
-                        Flight(16_000, 16_000, 1_200, 0)
-                    } else {
-                        state.flight
-                    }
-                }
+                Some(state) => state.flight,
             }
         };
 
@@ -4882,6 +4888,41 @@ assert(player._valid)
         MAIN_ENGINE.store(Some(mock_engine.into()));
 
         let mut seq = Sequence::new();
+
+        let game_entity_from_ctx = MockGameEntity::from_context();
+        game_entity_from_ctx
+            .expect()
+            .times(1)
+            .in_sequence(&mut seq)
+            .returning(|_| {
+                let mut mock_game_entity = MockGameEntity::new();
+                mock_game_entity.expect_get_game_client().returning(|| {
+                    let mut mock_game_client = MockGameClient::new();
+                    mock_game_client.expect_get_position();
+                    mock_game_client.expect_get_velocity();
+                    mock_game_client.expect_is_alive();
+                    mock_game_client.expect_get_armor();
+                    mock_game_client.expect_get_noclip();
+                    mock_game_client
+                        .expect_get_weapon()
+                        .returning(|| weapon_t::WP_ROCKET_LAUNCHER);
+                    mock_game_client.expect_get_weapons();
+                    mock_game_client.expect_get_ammos();
+                    mock_game_client.expect_get_powerups();
+                    mock_game_client
+                        .expect_get_holdable()
+                        .returning(|| Holdable::Flight as i32);
+                    mock_game_client.expect_get_current_flight_fuel();
+                    mock_game_client.expect_get_max_flight_fuel();
+                    mock_game_client.expect_get_flight_thrust();
+                    mock_game_client.expect_get_flight_refuel();
+                    mock_game_client.expect_is_chatting();
+                    mock_game_client.expect_is_frozen();
+                    Ok(mock_game_client)
+                });
+                mock_game_entity.expect_get_health();
+                mock_game_entity
+            });
 
         let game_entity_from_ctx = MockGameEntity::from_context();
         game_entity_from_ctx
