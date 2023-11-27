@@ -4635,7 +4635,7 @@ assert(player._valid)
     }
 
     #[test]
-    #[cfg_attr(mir, ignore)]
+    #[cfg_attr(miri, ignore)]
     #[serial]
     fn set_holdable_for_flight() {
         let mut mock_engine = MockQuakeEngine::new();
