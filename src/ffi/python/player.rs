@@ -4567,7 +4567,7 @@ assert(player._valid)
     }
 
     #[test]
-    #[cfg_attr(mir, ignore)]
+    #[cfg_attr(miri, ignore)]
     #[serial]
     fn set_holdable_with_no_main_engine() {
         MAIN_ENGINE.store(None);
@@ -4583,7 +4583,7 @@ assert(player._valid)
     #[rstest]
     #[case("unknown")]
     #[case("asdf")]
-    #[cfg_attr(mir, ignore)]
+    #[cfg_attr(miri, ignore)]
     #[serial]
     fn set_holdable_for_unknown_values(#[case] invalid_str: &str) {
         let mut player = default_test_player();
@@ -4602,7 +4602,7 @@ assert(player._valid)
     #[case(Some("kamikaze".into()), Holdable::Kamikaze)]
     #[case(Some("portal".into()), Holdable::Portal)]
     #[case(Some("invulnerability".into()), Holdable::Invulnerability)]
-    #[cfg_attr(mir, ignore)]
+    #[cfg_attr(miri, ignore)]
     #[serial]
     fn set_holdable_for_various_values(
         #[case] new_holdable: Option<String>,
