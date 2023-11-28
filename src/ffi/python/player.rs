@@ -1086,6 +1086,12 @@ impl Player {
         }
         Ok(())
     }
+
+    #[getter(is_frozen)]
+    fn get_is_frozen(&self, py: Python<'_>) -> PyResult<bool> {
+        pyshinqlx_player_state(py, self.id)
+            .map(|opt_state| opt_state.map(|state| state.is_frozen).unwrap_or(false))
+    }
 }
 
 #[cfg(test)]
@@ -5201,7 +5207,7 @@ assert(player._valid)
 
         let result = Python::with_gil(|py| player.set_noclip(py, noclip_value.into_py(py)));
 
-        assert!(result.is_ok());
+        assert!(result.as_ref().is_ok(), "{:?}", result.err());
     }
 
     #[rstest]
@@ -5254,7 +5260,7 @@ assert(player._valid)
 
         let result = Python::with_gil(|py| player.set_noclip(py, noclip_value.into_py(py)));
 
-        assert!(result.is_ok());
+        assert!(result.as_ref().is_ok(), "{:?}", result.err());
     }
 
     #[rstest]
@@ -5307,7 +5313,7 @@ assert(player._valid)
 
         let result = Python::with_gil(|py| player.set_noclip(py, noclip_value.into_py(py)));
 
-        assert!(result.is_ok());
+        assert!(result.as_ref().is_ok(), "{:?}", result.err());
     }
 
     #[test]
@@ -5353,7 +5359,7 @@ assert(player._valid)
 
         let result = Python::with_gil(|py| player.set_noclip(py, py.None()));
 
-        assert!(result.is_ok());
+        assert!(result.as_ref().is_ok(), "{:?}", result.err());
     }
 
     #[test]
@@ -5954,5 +5960,91 @@ assert(player._valid)
 
         let result = Python::with_gil(|py| player.set_is_alive(py, true));
         assert!(result.is_ok());
+    }
+
+    #[rstest]
+    #[case(true)]
+    #[case(false)]
+    #[cfg_attr(miri, ignore)]
+    #[serial]
+    fn get_is_frozen_returns_players_is_frozen_state(#[case] is_frozen: bool) {
+        let mut mock_engine = MockQuakeEngine::new();
+        mock_engine.expect_get_max_clients().returning(|| 16);
+        MAIN_ENGINE.store(Some(mock_engine.into()));
+
+        let game_entity_from_ctx = MockGameEntity::from_context();
+        game_entity_from_ctx.expect().returning(move |_| {
+            let mut mock_game_entity = MockGameEntity::new();
+            mock_game_entity
+                .expect_get_game_client()
+                .returning(move || {
+                    let mut mock_game_client = MockGameClient::new();
+                    mock_game_client.expect_get_position();
+                    mock_game_client.expect_get_velocity();
+                    mock_game_client.expect_is_alive();
+                    mock_game_client.expect_get_armor();
+                    mock_game_client.expect_get_noclip();
+                    mock_game_client
+                        .expect_get_weapon()
+                        .returning(|| weapon_t::WP_ROCKET_LAUNCHER);
+                    mock_game_client.expect_get_weapons();
+                    mock_game_client.expect_get_ammos();
+                    mock_game_client.expect_get_powerups();
+                    mock_game_client.expect_get_holdable();
+                    mock_game_client.expect_get_current_flight_fuel();
+                    mock_game_client.expect_get_max_flight_fuel();
+                    mock_game_client.expect_get_flight_thrust();
+                    mock_game_client.expect_get_flight_refuel();
+                    mock_game_client.expect_is_chatting();
+                    mock_game_client
+                        .expect_is_frozen()
+                        .returning(move || is_frozen);
+                    Ok(mock_game_client)
+                });
+            mock_game_entity.expect_get_health();
+            mock_game_entity
+        });
+
+        let player = default_test_player();
+
+        let result = Python::with_gil(|py| player.get_is_frozen(py));
+        assert_eq!(result.expect("result was not Ok"), is_frozen);
+    }
+
+    #[test]
+    #[cfg_attr(miri, ignore)]
+    #[serial]
+    fn get_is_frozen_for_player_without_game_client() {
+        let mut mock_engine = MockQuakeEngine::new();
+        mock_engine.expect_get_max_clients().returning(|| 16);
+        MAIN_ENGINE.store(Some(mock_engine.into()));
+
+        let game_entity_from_ctx = MockGameEntity::from_context();
+        game_entity_from_ctx.expect().returning(|_| {
+            let mut mock_game_entity = MockGameEntity::new();
+            mock_game_entity
+                .expect_get_game_client()
+                .returning(|| Err(QuakeLiveEngineError::MainEngineNotInitialized));
+            mock_game_entity
+        });
+
+        let player = default_test_player();
+
+        let result = Python::with_gil(|py| player.get_is_frozen(py));
+        assert_eq!(result.expect("result was not Ok"), false);
+    }
+
+    #[test]
+    #[cfg_attr(miri, ignore)]
+    #[serial]
+    fn get_is_frozen_with_no_main_engine() {
+        MAIN_ENGINE.store(None);
+
+        let player = default_test_player();
+
+        Python::with_gil(|py| {
+            let result = player.get_is_frozen(py);
+            assert!(result.is_err_and(|err| err.is_instance_of::<PyEnvironmentError>(py)));
+        });
     }
 }
