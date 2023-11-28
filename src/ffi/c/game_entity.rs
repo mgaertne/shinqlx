@@ -235,9 +235,9 @@ impl GameEntity {
                 0
             };
 
-        let _ = self
-            .get_game_client()
-            .map(|mut game_client| game_client.set_armor(0));
+        self.get_game_client()
+            .iter_mut()
+            .for_each(|game_client| game_client.set_armor(0));
 
         // self damage = half damage, so multiplaying by 2
         main_engine.register_damage(
