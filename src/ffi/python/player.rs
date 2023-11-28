@@ -5480,6 +5480,10 @@ assert(player._valid)
     #[cfg_attr(miri, ignore)]
     #[serial]
     fn set_health_set_players_health() {
+        let mut mock_engine = MockQuakeEngine::new();
+        mock_engine.expect_get_max_clients().returning(|| 16);
+        MAIN_ENGINE.store(Some(mock_engine.into()));
+
         let game_entity_from_ctx = MockGameEntity::from_context();
         game_entity_from_ctx.expect().returning(|_| {
             let mut mock_game_entity = MockGameEntity::new();
@@ -6171,7 +6175,7 @@ assert(player._valid)
     #[test]
     #[serial]
     #[cfg_attr(miri, ignore)]
-    fn get_core_when_main_engine_not_initialized() {
+    fn get_score_when_main_engine_not_initialized() {
         MAIN_ENGINE.store(None);
 
         let player = default_test_player();
@@ -6243,7 +6247,25 @@ assert(player._valid)
     #[test]
     #[serial]
     #[cfg_attr(miri, ignore)]
+    fn set_score_when_main_engine_not_initialized() {
+        MAIN_ENGINE.store(None);
+
+        let player = default_test_player();
+
+        Python::with_gil(|py| {
+            let result = player.set_score(py, 42);
+            assert!(result.is_err_and(|err| err.is_instance_of::<PyEnvironmentError>(py)));
+        });
+    }
+
+    #[test]
+    #[serial]
+    #[cfg_attr(miri, ignore)]
     fn set_score_for_game_client() {
+        let mut mock_engine = MockQuakeEngine::new();
+        mock_engine.expect_get_max_clients().returning(|| 16);
+        MAIN_ENGINE.store(Some(mock_engine.into()));
+
         let game_entity_from_ctx = MockGameEntity::from_context();
         game_entity_from_ctx.expect().returning(|_| {
             let mut mock_game_entity = MockGameEntity::new();
@@ -6268,6 +6290,10 @@ assert(player._valid)
     #[serial]
     #[cfg_attr(miri, ignore)]
     fn set_score_for_game_entiy_with_no_game_client() {
+        let mut mock_engine = MockQuakeEngine::new();
+        mock_engine.expect_get_max_clients().returning(|| 16);
+        MAIN_ENGINE.store(Some(mock_engine.into()));
+
         let game_entity_from_ctx = MockGameEntity::from_context();
         game_entity_from_ctx.expect().returning(|_| {
             let mut mock_game_entity = MockGameEntity::new();
