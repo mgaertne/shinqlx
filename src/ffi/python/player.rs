@@ -6,7 +6,7 @@ use crate::ffi::python::embed::{
     pyshinqlx_client_command, pyshinqlx_console_command, pyshinqlx_drop_holdable, pyshinqlx_noclip,
     pyshinqlx_player_spawn, pyshinqlx_player_state, pyshinqlx_player_stats, pyshinqlx_set_ammo,
     pyshinqlx_set_armor, pyshinqlx_set_flight, pyshinqlx_set_health, pyshinqlx_set_holdable,
-    pyshinqlx_set_position, pyshinqlx_set_powerups, pyshinqlx_set_privileges,
+    pyshinqlx_set_position, pyshinqlx_set_powerups, pyshinqlx_set_privileges, pyshinqlx_set_score,
     pyshinqlx_set_velocity, pyshinqlx_set_weapon, pyshinqlx_set_weapons,
 };
 use crate::prelude::*;
@@ -1097,6 +1097,18 @@ impl Player {
     fn get_is_chatting(&self, py: Python<'_>) -> PyResult<bool> {
         pyshinqlx_player_state(py, self.id)
             .map(|opt_state| opt_state.map(|state| state.is_chatting).unwrap_or(false))
+    }
+
+    #[getter(score)]
+    fn get_score(&self, py: Python<'_>) -> PyResult<i32> {
+        pyshinqlx_player_stats(py, self.id)
+            .map(|opt_stats| opt_stats.map(|stats| stats.score).unwrap_or(0))
+    }
+
+    #[setter(score)]
+    fn set_score(&self, py: Python<'_>, value: i32) -> PyResult<()> {
+        pyshinqlx_set_score(py, self.id, value)?;
+        Ok(())
     }
 }
 
@@ -5172,6 +5184,10 @@ assert(player._valid)
     #[cfg_attr(miri, ignore)]
     #[serial]
     fn set_noclip_set_players_noclip_value_by_bool(#[case] noclip_value: bool) {
+        let mut mock_engine = MockQuakeEngine::new();
+        mock_engine.expect_get_max_clients().returning(|| 16);
+        MAIN_ENGINE.store(Some(mock_engine.into()));
+
         let game_entity_from_ctx = MockGameEntity::from_context();
         game_entity_from_ctx.expect().returning(move |_| {
             let mut mock_game_entity = MockGameEntity::new();
@@ -6150,5 +6166,120 @@ assert(player._valid)
             let result = player.get_is_chatting(py);
             assert!(result.is_err_and(|err| err.is_instance_of::<PyEnvironmentError>(py)));
         });
+    }
+
+    #[test]
+    #[serial]
+    #[cfg_attr(miri, ignore)]
+    fn get_core_when_main_engine_not_initialized() {
+        MAIN_ENGINE.store(None);
+
+        let player = default_test_player();
+
+        Python::with_gil(|py| {
+            let result = player.get_score(py);
+            assert!(result.is_err_and(|err| err.is_instance_of::<PyEnvironmentError>(py)));
+        });
+    }
+
+    #[test]
+    #[serial]
+    #[cfg_attr(miri, ignore)]
+    fn get_score_for_game_client() {
+        let mut mock_engine = MockQuakeEngine::new();
+        mock_engine.expect_get_max_clients().returning(|| 16);
+        MAIN_ENGINE.store(Some(mock_engine.into()));
+
+        let game_entity_from_ctx = MockGameEntity::from_context();
+        game_entity_from_ctx.expect().returning(|_| {
+            let mut mock_game_entity = MockGameEntity::new();
+            mock_game_entity.expect_get_game_client().returning(|| {
+                let mut mock_game_client = MockGameClient::new();
+                mock_game_client.expect_get_score().returning(|| 42);
+                mock_game_client.expect_get_kills().returning(|| 7);
+                mock_game_client.expect_get_deaths().returning(|| 9);
+                mock_game_client
+                    .expect_get_damage_dealt()
+                    .returning(|| 5000);
+                mock_game_client
+                    .expect_get_damage_taken()
+                    .returning(|| 4200);
+                mock_game_client.expect_get_time_on_team().returning(|| 123);
+                mock_game_client.expect_get_ping().returning(|| 9);
+                Ok(mock_game_client)
+            });
+            mock_game_entity
+        });
+
+        let player = default_test_player();
+
+        let result = Python::with_gil(|py| player.get_score(py));
+        assert_eq!(result.expect("result was not OK"), 42);
+    }
+
+    #[test]
+    #[serial]
+    #[cfg_attr(miri, ignore)]
+    fn get_score_for_game_entiy_with_no_game_client() {
+        let mut mock_engine = MockQuakeEngine::new();
+        mock_engine.expect_get_max_clients().returning(|| 16);
+        MAIN_ENGINE.store(Some(mock_engine.into()));
+
+        let game_entity_from_ctx = MockGameEntity::from_context();
+        game_entity_from_ctx.expect().returning(|_| {
+            let mut mock_game_entity = MockGameEntity::new();
+            mock_game_entity
+                .expect_get_game_client()
+                .returning(|| Err(QuakeLiveEngineError::MainEngineNotInitialized));
+            mock_game_entity
+        });
+
+        let player = default_test_player();
+
+        let result = Python::with_gil(|py| player.get_score(py));
+        assert_eq!(result.expect("result was not OK"), 0);
+    }
+
+    #[test]
+    #[serial]
+    #[cfg_attr(miri, ignore)]
+    fn set_score_for_game_client() {
+        let game_entity_from_ctx = MockGameEntity::from_context();
+        game_entity_from_ctx.expect().returning(|_| {
+            let mut mock_game_entity = MockGameEntity::new();
+            mock_game_entity.expect_get_game_client().returning(|| {
+                let mut mock_game_client = MockGameClient::new();
+                mock_game_client
+                    .expect_set_score()
+                    .with(predicate::eq(42))
+                    .times(1);
+                Ok(mock_game_client)
+            });
+            mock_game_entity
+        });
+
+        let player = default_test_player();
+
+        let result = Python::with_gil(|py| player.set_score(py, 42));
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    #[serial]
+    #[cfg_attr(miri, ignore)]
+    fn set_score_for_game_entiy_with_no_game_client() {
+        let game_entity_from_ctx = MockGameEntity::from_context();
+        game_entity_from_ctx.expect().returning(|_| {
+            let mut mock_game_entity = MockGameEntity::new();
+            mock_game_entity
+                .expect_get_game_client()
+                .returning(|| Err(QuakeLiveEngineError::MainEngineNotInitialized));
+            mock_game_entity
+        });
+
+        let player = default_test_player();
+
+        let result = Python::with_gil(|py| player.set_score(py, 42));
+        assert!(result.is_ok());
     }
 }
