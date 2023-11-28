@@ -5487,29 +5487,6 @@ assert(player._valid)
         let game_entity_from_ctx = MockGameEntity::from_context();
         game_entity_from_ctx.expect().returning(|_| {
             let mut mock_game_entity = MockGameEntity::new();
-            mock_game_entity.expect_get_game_client().returning(|| {
-                let mut mock_game_client = MockGameClient::new();
-                mock_game_client.expect_get_position();
-                mock_game_client.expect_get_velocity();
-                mock_game_client.expect_is_alive();
-                mock_game_client.expect_get_armor();
-                mock_game_client.expect_get_noclip();
-                mock_game_client
-                    .expect_get_weapon()
-                    .returning(|| weapon_t::WP_ROCKET_LAUNCHER);
-                mock_game_client.expect_get_weapons();
-                mock_game_client.expect_get_ammos();
-                mock_game_client.expect_get_powerups();
-                mock_game_client.expect_get_holdable();
-                mock_game_client.expect_get_current_flight_fuel();
-                mock_game_client.expect_get_max_flight_fuel();
-                mock_game_client.expect_get_flight_thrust();
-                mock_game_client.expect_get_flight_refuel();
-                mock_game_client.expect_is_chatting();
-                mock_game_client.expect_is_frozen();
-                Ok(mock_game_client)
-            });
-            mock_game_entity.expect_get_health();
             mock_game_entity
                 .expect_set_health()
                 .with(predicate::eq(666))
@@ -5800,29 +5777,6 @@ assert(player._valid)
             .in_sequence(&mut seq)
             .returning(|_| {
                 let mut mock_game_entity = MockGameEntity::new();
-                mock_game_entity.expect_get_game_client().returning(|| {
-                    let mut mock_game_client = MockGameClient::new();
-                    mock_game_client.expect_get_position();
-                    mock_game_client.expect_get_velocity();
-                    mock_game_client.expect_is_alive().returning(|| true);
-                    mock_game_client.expect_get_armor();
-                    mock_game_client.expect_get_noclip();
-                    mock_game_client
-                        .expect_get_weapon()
-                        .returning(|| weapon_t::WP_ROCKET_LAUNCHER);
-                    mock_game_client.expect_get_weapons();
-                    mock_game_client.expect_get_ammos();
-                    mock_game_client.expect_get_powerups();
-                    mock_game_client.expect_get_holdable();
-                    mock_game_client.expect_get_current_flight_fuel();
-                    mock_game_client.expect_get_max_flight_fuel();
-                    mock_game_client.expect_get_flight_thrust();
-                    mock_game_client.expect_get_flight_refuel();
-                    mock_game_client.expect_is_chatting();
-                    mock_game_client.expect_is_frozen();
-                    Ok(mock_game_client)
-                });
-                mock_game_entity.expect_get_health();
                 mock_game_entity
                     .expect_set_health()
                     .with(predicate::eq(0))
