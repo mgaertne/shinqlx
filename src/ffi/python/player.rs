@@ -4,10 +4,10 @@ use super::{
 };
 use crate::ffi::python::embed::{
     pyshinqlx_client_command, pyshinqlx_console_command, pyshinqlx_drop_holdable, pyshinqlx_noclip,
-    pyshinqlx_player_state, pyshinqlx_player_stats, pyshinqlx_set_ammo, pyshinqlx_set_armor,
-    pyshinqlx_set_flight, pyshinqlx_set_health, pyshinqlx_set_holdable, pyshinqlx_set_position,
-    pyshinqlx_set_powerups, pyshinqlx_set_privileges, pyshinqlx_set_velocity, pyshinqlx_set_weapon,
-    pyshinqlx_set_weapons,
+    pyshinqlx_player_spawn, pyshinqlx_player_state, pyshinqlx_player_stats, pyshinqlx_set_ammo,
+    pyshinqlx_set_armor, pyshinqlx_set_flight, pyshinqlx_set_health, pyshinqlx_set_holdable,
+    pyshinqlx_set_position, pyshinqlx_set_powerups, pyshinqlx_set_privileges,
+    pyshinqlx_set_velocity, pyshinqlx_set_weapon, pyshinqlx_set_weapons,
 };
 use crate::prelude::*;
 use crate::quake_live_engine::{GetConfigstring, SetConfigstring};
@@ -1071,6 +1071,21 @@ impl Player {
         pyshinqlx_player_state(py, self.id)
             .map(|opt_state| opt_state.map(|state| state.is_alive).unwrap_or(false))
     }
+
+    #[setter(is_alive)]
+    fn set_is_alive(&mut self, py: Python<'_>, value: bool) -> PyResult<()> {
+        let current = self.get_is_alive(py)?;
+
+        if !current && value {
+            pyshinqlx_player_spawn(py, self.id)?;
+        }
+
+        if current && !value {
+            // TODO: Proper death and not just setting health to 0.
+            self.set_health(py, 0)?;
+        }
+        Ok(())
+    }
 }
 
 #[cfg(test)]
@@ -1084,7 +1099,9 @@ mod pyshinqlx_player_tests {
     use crate::ffi::python::{
         Flight, Holdable, PlayerInfo, PlayerState, PlayerStats, Powerups, Vector3, Weapons,
     };
-    use crate::hooks::mock_hooks::shinqlx_execute_client_command_context;
+    use crate::hooks::mock_hooks::{
+        shinqlx_client_spawn_context, shinqlx_execute_client_command_context,
+    };
     use crate::prelude::*;
     use crate::quake_live_engine::MockQuakeEngine;
     use crate::MAIN_ENGINE;
@@ -5547,6 +5564,10 @@ assert(player._valid)
     #[cfg_attr(miri, ignore)]
     #[serial]
     fn set_armor_set_players_armor() {
+        let mut mock_engine = MockQuakeEngine::new();
+        mock_engine.expect_get_max_clients().returning(|| 16);
+        MAIN_ENGINE.store(Some(mock_engine.into()));
+
         let game_entity_from_ctx = MockGameEntity::from_context();
         game_entity_from_ctx.expect().returning(|_| {
             let mut mock_game_entity = MockGameEntity::new();
@@ -5671,5 +5692,267 @@ assert(player._valid)
             let result = player.get_is_alive(py);
             assert!(result.is_err_and(|err| err.is_instance_of::<PyEnvironmentError>(py)));
         });
+    }
+
+    #[test]
+    #[cfg_attr(miri, ignore)]
+    #[serial]
+    fn set_is_alive_with_no_main_engine() {
+        MAIN_ENGINE.store(None);
+
+        let player = default_test_player();
+
+        Python::with_gil(|py| {
+            let result = player.get_is_alive(py);
+            assert!(result.is_err_and(|err| err.is_instance_of::<PyEnvironmentError>(py)));
+        });
+    }
+
+    #[test]
+    #[cfg_attr(miri, ignore)]
+    #[serial]
+    fn set_is_alive_for_alive_player_with_false() {
+        let mut mock_engine = MockQuakeEngine::new();
+        mock_engine.expect_get_max_clients().returning(|| 16);
+        MAIN_ENGINE.store(Some(mock_engine.into()));
+
+        let mut seq = Sequence::new();
+
+        let game_entity_from_ctx = MockGameEntity::from_context();
+        game_entity_from_ctx
+            .expect()
+            .times(1)
+            .in_sequence(&mut seq)
+            .returning(|_| {
+                let mut mock_game_entity = MockGameEntity::new();
+                mock_game_entity.expect_get_game_client().returning(|| {
+                    let mut mock_game_client = MockGameClient::new();
+                    mock_game_client.expect_get_position();
+                    mock_game_client.expect_get_velocity();
+                    mock_game_client.expect_is_alive().returning(|| true);
+                    mock_game_client.expect_get_armor();
+                    mock_game_client.expect_get_noclip();
+                    mock_game_client
+                        .expect_get_weapon()
+                        .returning(|| weapon_t::WP_ROCKET_LAUNCHER);
+                    mock_game_client.expect_get_weapons();
+                    mock_game_client.expect_get_ammos();
+                    mock_game_client.expect_get_powerups();
+                    mock_game_client.expect_get_holdable();
+                    mock_game_client.expect_get_current_flight_fuel();
+                    mock_game_client.expect_get_max_flight_fuel();
+                    mock_game_client.expect_get_flight_thrust();
+                    mock_game_client.expect_get_flight_refuel();
+                    mock_game_client.expect_is_chatting();
+                    mock_game_client.expect_is_frozen();
+                    Ok(mock_game_client)
+                });
+                mock_game_entity.expect_get_health();
+                mock_game_entity
+            });
+        game_entity_from_ctx
+            .expect()
+            .times(1)
+            .in_sequence(&mut seq)
+            .returning(|_| {
+                let mut mock_game_entity = MockGameEntity::new();
+                mock_game_entity.expect_get_game_client().returning(|| {
+                    let mut mock_game_client = MockGameClient::new();
+                    mock_game_client.expect_get_position();
+                    mock_game_client.expect_get_velocity();
+                    mock_game_client.expect_is_alive().returning(|| true);
+                    mock_game_client.expect_get_armor();
+                    mock_game_client.expect_get_noclip();
+                    mock_game_client
+                        .expect_get_weapon()
+                        .returning(|| weapon_t::WP_ROCKET_LAUNCHER);
+                    mock_game_client.expect_get_weapons();
+                    mock_game_client.expect_get_ammos();
+                    mock_game_client.expect_get_powerups();
+                    mock_game_client.expect_get_holdable();
+                    mock_game_client.expect_get_current_flight_fuel();
+                    mock_game_client.expect_get_max_flight_fuel();
+                    mock_game_client.expect_get_flight_thrust();
+                    mock_game_client.expect_get_flight_refuel();
+                    mock_game_client.expect_is_chatting();
+                    mock_game_client.expect_is_frozen();
+                    Ok(mock_game_client)
+                });
+                mock_game_entity.expect_get_health();
+                mock_game_entity
+                    .expect_set_health()
+                    .with(predicate::eq(0))
+                    .times(1);
+                mock_game_entity
+            });
+
+        let mut player = default_test_player();
+
+        let result = Python::with_gil(|py| player.set_is_alive(py, false));
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    #[cfg_attr(miri, ignore)]
+    #[serial]
+    fn set_is_alive_for_dead_player_with_false() {
+        let mut mock_engine = MockQuakeEngine::new();
+        mock_engine.expect_get_max_clients().returning(|| 16);
+        MAIN_ENGINE.store(Some(mock_engine.into()));
+
+        let game_entity_from_ctx = MockGameEntity::from_context();
+        game_entity_from_ctx.expect().times(1).returning(|_| {
+            let mut mock_game_entity = MockGameEntity::new();
+            mock_game_entity.expect_get_game_client().returning(|| {
+                let mut mock_game_client = MockGameClient::new();
+                mock_game_client.expect_get_position();
+                mock_game_client.expect_get_velocity();
+                mock_game_client.expect_is_alive().returning(|| false);
+                mock_game_client.expect_get_armor();
+                mock_game_client.expect_get_noclip();
+                mock_game_client
+                    .expect_get_weapon()
+                    .returning(|| weapon_t::WP_ROCKET_LAUNCHER);
+                mock_game_client.expect_get_weapons();
+                mock_game_client.expect_get_ammos();
+                mock_game_client.expect_get_powerups();
+                mock_game_client.expect_get_holdable();
+                mock_game_client.expect_get_current_flight_fuel();
+                mock_game_client.expect_get_max_flight_fuel();
+                mock_game_client.expect_get_flight_thrust();
+                mock_game_client.expect_get_flight_refuel();
+                mock_game_client.expect_is_chatting();
+                mock_game_client.expect_is_frozen();
+                Ok(mock_game_client)
+            });
+            mock_game_entity.expect_get_health();
+            mock_game_entity
+        });
+        let mut player = default_test_player();
+
+        let result = Python::with_gil(|py| player.set_is_alive(py, false));
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    #[cfg_attr(miri, ignore)]
+    #[serial]
+    fn set_is_alive_for_alive_player_with_true() {
+        let mut mock_engine = MockQuakeEngine::new();
+        mock_engine.expect_get_max_clients().returning(|| 16);
+        MAIN_ENGINE.store(Some(mock_engine.into()));
+
+        let game_entity_from_ctx = MockGameEntity::from_context();
+        game_entity_from_ctx.expect().times(1).returning(|_| {
+            let mut mock_game_entity = MockGameEntity::new();
+            mock_game_entity.expect_get_game_client().returning(|| {
+                let mut mock_game_client = MockGameClient::new();
+                mock_game_client.expect_get_position();
+                mock_game_client.expect_get_velocity();
+                mock_game_client.expect_is_alive().returning(|| true);
+                mock_game_client.expect_get_armor();
+                mock_game_client.expect_get_noclip();
+                mock_game_client
+                    .expect_get_weapon()
+                    .returning(|| weapon_t::WP_ROCKET_LAUNCHER);
+                mock_game_client.expect_get_weapons();
+                mock_game_client.expect_get_ammos();
+                mock_game_client.expect_get_powerups();
+                mock_game_client.expect_get_holdable();
+                mock_game_client.expect_get_current_flight_fuel();
+                mock_game_client.expect_get_max_flight_fuel();
+                mock_game_client.expect_get_flight_thrust();
+                mock_game_client.expect_get_flight_refuel();
+                mock_game_client.expect_is_chatting();
+                mock_game_client.expect_is_frozen();
+                Ok(mock_game_client)
+            });
+            mock_game_entity.expect_get_health();
+            mock_game_entity
+        });
+
+        let mut player = default_test_player();
+
+        let result = Python::with_gil(|py| player.set_is_alive(py, true));
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    #[cfg_attr(miri, ignore)]
+    #[serial]
+    fn set_is_alive_for_dead_player_with_true() {
+        let mut mock_engine = MockQuakeEngine::new();
+        mock_engine.expect_get_max_clients().returning(|| 16);
+        MAIN_ENGINE.store(Some(mock_engine.into()));
+
+        let mut seq = Sequence::new();
+
+        let game_entity_from_ctx = MockGameEntity::from_context();
+        game_entity_from_ctx
+            .expect()
+            .times(1)
+            .in_sequence(&mut seq)
+            .returning(|_| {
+                let mut mock_game_entity = MockGameEntity::new();
+                mock_game_entity.expect_get_game_client().returning(|| {
+                    let mut mock_game_client = MockGameClient::new();
+                    mock_game_client.expect_get_position();
+                    mock_game_client.expect_get_velocity();
+                    mock_game_client.expect_is_alive().returning(|| false);
+                    mock_game_client.expect_get_armor();
+                    mock_game_client.expect_get_noclip();
+                    mock_game_client
+                        .expect_get_weapon()
+                        .returning(|| weapon_t::WP_ROCKET_LAUNCHER);
+                    mock_game_client.expect_get_weapons();
+                    mock_game_client.expect_get_ammos();
+                    mock_game_client.expect_get_powerups();
+                    mock_game_client.expect_get_holdable();
+                    mock_game_client.expect_get_current_flight_fuel();
+                    mock_game_client.expect_get_max_flight_fuel();
+                    mock_game_client.expect_get_flight_thrust();
+                    mock_game_client.expect_get_flight_refuel();
+                    mock_game_client.expect_is_chatting();
+                    mock_game_client.expect_is_frozen();
+                    Ok(mock_game_client)
+                });
+                mock_game_entity.expect_get_health();
+                mock_game_entity
+            });
+        game_entity_from_ctx
+            .expect()
+            .times(1)
+            .in_sequence(&mut seq)
+            .returning(|_| {
+                let mut mock_game_entity = MockGameEntity::new();
+                let mut seq2 = Sequence::new();
+                mock_game_entity
+                    .expect_get_game_client()
+                    .times(1)
+                    .in_sequence(&mut seq2)
+                    .returning(|| {
+                        let mock_game_client = MockGameClient::new();
+                        Ok(mock_game_client)
+                    });
+                mock_game_entity
+                    .expect_get_game_client()
+                    .times(1)
+                    .in_sequence(&mut seq2)
+                    .returning(|| {
+                        let mut mock_game_client = MockGameClient::new();
+                        mock_game_client.expect_spawn().times(1);
+                        Ok(mock_game_client)
+                    });
+                mock_game_entity.expect_get_health();
+                mock_game_entity
+            });
+
+        let shinqlx_client_spawn_ctx = shinqlx_client_spawn_context();
+        shinqlx_client_spawn_ctx.expect().times(1);
+
+        let mut player = default_test_player();
+
+        let result = Python::with_gil(|py| player.set_is_alive(py, true));
+        assert!(result.is_ok());
     }
 }
