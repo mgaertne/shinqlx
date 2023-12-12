@@ -3,11 +3,12 @@ use super::{
     Vector3, Weapons,
 };
 use crate::ffi::python::embed::{
-    pyshinqlx_client_command, pyshinqlx_console_command, pyshinqlx_drop_holdable, pyshinqlx_noclip,
-    pyshinqlx_player_spawn, pyshinqlx_player_state, pyshinqlx_player_stats, pyshinqlx_set_ammo,
-    pyshinqlx_set_armor, pyshinqlx_set_flight, pyshinqlx_set_health, pyshinqlx_set_holdable,
-    pyshinqlx_set_position, pyshinqlx_set_powerups, pyshinqlx_set_privileges, pyshinqlx_set_score,
-    pyshinqlx_set_velocity, pyshinqlx_set_weapon, pyshinqlx_set_weapons,
+    pyshinqlx_client_command, pyshinqlx_console_command, pyshinqlx_drop_holdable, pyshinqlx_kick,
+    pyshinqlx_noclip, pyshinqlx_player_spawn, pyshinqlx_player_state, pyshinqlx_player_stats,
+    pyshinqlx_send_server_command, pyshinqlx_set_ammo, pyshinqlx_set_armor, pyshinqlx_set_flight,
+    pyshinqlx_set_health, pyshinqlx_set_holdable, pyshinqlx_set_position, pyshinqlx_set_powerups,
+    pyshinqlx_set_privileges, pyshinqlx_set_score, pyshinqlx_set_velocity, pyshinqlx_set_weapon,
+    pyshinqlx_set_weapons,
 };
 use crate::prelude::*;
 use crate::quake_live_engine::{GetConfigstring, SetConfigstring};
@@ -1110,6 +1111,55 @@ impl Player {
         pyshinqlx_set_score(py, self.id, value)?;
         Ok(())
     }
+
+    // TODO: implement TellChannel getter
+
+    fn center_print(&self, py: Python<'_>, msg: String) -> PyResult<()> {
+        let cmd = format!("cp \"{msg}\"");
+        pyshinqlx_send_server_command(py, Some(self.id), cmd.as_str()).map(|_| ())
+    }
+
+    // TODO: implement tell method
+
+    #[pyo3(signature=(reason=""))]
+    fn kick(&self, py: Python<'_>, reason: &str) -> PyResult<()> {
+        pyshinqlx_kick(py, self.id, Some(reason))
+    }
+
+    fn ban(&self, py: Python<'_>) -> PyResult<()> {
+        let ban_cmd = format!("ban {}", self.id);
+        pyshinqlx_console_command(py, ban_cmd.as_str())
+    }
+
+    fn tempban(&self, py: Python<'_>) -> PyResult<()> {
+        let tempban_cmd = format!("tempban {}", self.id);
+        pyshinqlx_console_command(py, tempban_cmd.as_str())
+    }
+
+    fn addadmin(&self, py: Python<'_>) -> PyResult<()> {
+        let addadmin_cmd = format!("addadmin {}", self.id);
+        pyshinqlx_console_command(py, addadmin_cmd.as_str())
+    }
+
+    fn addmod(&self, py: Python<'_>) -> PyResult<()> {
+        let addmod_cmd = format!("addmod {}", self.id);
+        pyshinqlx_console_command(py, addmod_cmd.as_str())
+    }
+
+    fn demote(&self, py: Python<'_>) -> PyResult<()> {
+        let demote_cmd = format!("demote {}", self.id);
+        pyshinqlx_console_command(py, demote_cmd.as_str())
+    }
+
+    fn mute(&self, py: Python<'_>) -> PyResult<()> {
+        let mute_cmd = format!("mute {}", self.id);
+        pyshinqlx_console_command(py, mute_cmd.as_str())
+    }
+
+    fn unmute(&self, py: Python<'_>) -> PyResult<()> {
+        let unmute_cmd = format!("unmute {}", self.id);
+        pyshinqlx_console_command(py, unmute_cmd.as_str())
+    }
 }
 
 #[cfg(test)]
@@ -1124,7 +1174,8 @@ mod pyshinqlx_player_tests {
         Flight, Holdable, PlayerInfo, PlayerState, PlayerStats, Powerups, Vector3, Weapons,
     };
     use crate::hooks::mock_hooks::{
-        shinqlx_client_spawn_context, shinqlx_execute_client_command_context,
+        shinqlx_client_spawn_context, shinqlx_drop_client_context,
+        shinqlx_execute_client_command_context, shinqlx_send_server_command_context,
     };
     use crate::prelude::*;
     use crate::quake_live_engine::MockQuakeEngine;
@@ -6260,6 +6311,183 @@ assert(player._valid)
         let player = default_test_player();
 
         let result = Python::with_gil(|py| player.set_score(py, 42));
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    #[serial]
+    #[cfg_attr(miri, ignore)]
+    fn center_print_send_center_print_server_command() {
+        let mut mock_engine = MockQuakeEngine::new();
+        mock_engine.expect_get_max_clients().returning(|| 16);
+        MAIN_ENGINE.store(Some(mock_engine.into()));
+
+        let client_from_ctx = MockClient::from_context();
+        client_from_ctx.expect().returning(|_| {
+            let mut mock_client = MockClient::new();
+            mock_client
+                .expect_get_state()
+                .returning(|| clientState_t::CS_ACTIVE);
+            mock_client
+        });
+
+        let send_server_cmd_ctx = shinqlx_send_server_command_context();
+        send_server_cmd_ctx
+            .expect()
+            .withf(|_, cmd| cmd == "cp \"asdf\"")
+            .times(1);
+
+        let player = default_test_player();
+
+        let result = Python::with_gil(|py| player.center_print(py, "asdf".into()));
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    #[serial]
+    #[cfg_attr(miri, ignore)]
+    fn kick_kicks_player() {
+        let mut mock_engine = MockQuakeEngine::new();
+        mock_engine.expect_get_max_clients().returning(|| 16);
+        MAIN_ENGINE.store(Some(mock_engine.into()));
+
+        let client_from_ctx = MockClient::from_context();
+        client_from_ctx.expect().returning(|_| {
+            let mut mock_client = MockClient::new();
+            mock_client
+                .expect_get_state()
+                .returning(|| clientState_t::CS_ACTIVE);
+            mock_client
+        });
+
+        let drop_client_ctx = shinqlx_drop_client_context();
+        drop_client_ctx
+            .expect()
+            .withf(|_client, reason| reason == "you stink, go away!")
+            .times(1);
+
+        let player = default_test_player();
+
+        let result = Python::with_gil(|py| player.kick(py, "you stink, go away!".into()));
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    #[serial]
+    #[cfg_attr(miri, ignore)]
+    fn ban_bans_player() {
+        let mut mock_engine = MockQuakeEngine::new();
+        mock_engine
+            .expect_execute_console_command()
+            .with(predicate::eq("ban 2"))
+            .times(1);
+        MAIN_ENGINE.store(Some(mock_engine.into()));
+
+        let player = default_test_player();
+
+        let result = Python::with_gil(|py| player.ban(py));
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    #[serial]
+    #[cfg_attr(miri, ignore)]
+    fn tempban_tempbans_player() {
+        let mut mock_engine = MockQuakeEngine::new();
+        mock_engine
+            .expect_execute_console_command()
+            .with(predicate::eq("tempban 2"))
+            .times(1);
+        MAIN_ENGINE.store(Some(mock_engine.into()));
+
+        let player = default_test_player();
+
+        let result = Python::with_gil(|py| player.tempban(py));
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    #[serial]
+    #[cfg_attr(miri, ignore)]
+    fn addadmin_adds_player_to_admins() {
+        let mut mock_engine = MockQuakeEngine::new();
+        mock_engine
+            .expect_execute_console_command()
+            .with(predicate::eq("addadmin 2"))
+            .times(1);
+        MAIN_ENGINE.store(Some(mock_engine.into()));
+
+        let player = default_test_player();
+
+        let result = Python::with_gil(|py| player.addadmin(py));
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    #[serial]
+    #[cfg_attr(miri, ignore)]
+    fn addmod_adds_player_to_mods() {
+        let mut mock_engine = MockQuakeEngine::new();
+        mock_engine
+            .expect_execute_console_command()
+            .with(predicate::eq("addmod 2"))
+            .times(1);
+        MAIN_ENGINE.store(Some(mock_engine.into()));
+
+        let player = default_test_player();
+
+        let result = Python::with_gil(|py| player.addmod(py));
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    #[serial]
+    #[cfg_attr(miri, ignore)]
+    fn demote_demotes_player() {
+        let mut mock_engine = MockQuakeEngine::new();
+        mock_engine
+            .expect_execute_console_command()
+            .with(predicate::eq("demote 2"))
+            .times(1);
+        MAIN_ENGINE.store(Some(mock_engine.into()));
+
+        let player = default_test_player();
+
+        let result = Python::with_gil(|py| player.demote(py));
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    #[serial]
+    #[cfg_attr(miri, ignore)]
+    fn mute_mutes_player() {
+        let mut mock_engine = MockQuakeEngine::new();
+        mock_engine
+            .expect_execute_console_command()
+            .with(predicate::eq("mute 2"))
+            .times(1);
+        MAIN_ENGINE.store(Some(mock_engine.into()));
+
+        let player = default_test_player();
+
+        let result = Python::with_gil(|py| player.mute(py));
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    #[serial]
+    #[cfg_attr(miri, ignore)]
+    fn unmute_unmutes_player() {
+        let mut mock_engine = MockQuakeEngine::new();
+        mock_engine
+            .expect_execute_console_command()
+            .with(predicate::eq("unmute 2"))
+            .times(1);
+        MAIN_ENGINE.store(Some(mock_engine.into()));
+
+        let player = default_test_player();
+
+        let result = Python::with_gil(|py| player.unmute(py));
         assert!(result.is_ok());
     }
 }
