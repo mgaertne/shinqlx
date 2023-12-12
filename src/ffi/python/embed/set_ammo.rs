@@ -125,9 +125,8 @@ mod set_ammo_tests {
                 2,
                 Weapons(1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15),
             )
-        })
-        .unwrap();
-        assert_eq!(result, true);
+        });
+        assert_eq!(result.expect("result was not OK"), true);
     }
 
     #[test]
@@ -148,8 +147,7 @@ mod set_ammo_tests {
 
         let result = Python::with_gil(|py| {
             pyshinqlx_set_ammo(py, 2, Weapons(0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0))
-        })
-        .unwrap();
-        assert_eq!(result, false);
+        });
+        assert_eq!(result.expect("result was not OK"), false);
     }
 }

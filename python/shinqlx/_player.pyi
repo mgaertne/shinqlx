@@ -32,7 +32,7 @@ UserInfo = TypedDict(
         "model": str,
         "headmodel": str,
         "cl_anonymous": str,
-        "countr<": str,
+        "country": str,
         "color1": str,
         "rate": str,
         "color2": str,

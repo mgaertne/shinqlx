@@ -109,10 +109,18 @@ mod vector3_tests {
     #[rstest]
     fn vector3_tuple_test(_pyshinqlx_setup: ()) {
         Python::with_gil(|py| {
-            let shinqlx_module = py.import("_shinqlx").unwrap();
-            let vector3 = shinqlx_module.getattr("Vector3").unwrap();
-            let tuple = py.import("builtins").unwrap().getattr("tuple").unwrap();
-            assert!(vector3.is_instance(tuple.get_type()).unwrap());
+            let shinqlx_module = py.import("_shinqlx").expect("this should not happen");
+            let vector3 = shinqlx_module
+                .getattr("Vector3")
+                .expect("this should not happen");
+            let tuple = py
+                .import("builtins")
+                .expect("this should not happen")
+                .getattr("tuple")
+                .expect("this should not happen");
+            assert!(vector3
+                .is_instance(tuple.get_type())
+                .expect("result was not OK"));
         });
     }
 
@@ -131,7 +139,7 @@ weapons = _shinqlx.Vector3((0, 42, 666))
             assert!(
                 vector3_constructor.is_ok(),
                 "{}",
-                vector3_constructor.err().unwrap()
+                vector3_constructor.expect_err("this should not happen")
             );
         });
     }

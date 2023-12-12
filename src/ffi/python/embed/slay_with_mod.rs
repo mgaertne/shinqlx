@@ -136,9 +136,8 @@ mod slay_with_mod_tests {
 
         let result = Python::with_gil(|py| {
             pyshinqlx_slay_with_mod(py, 2, meansOfDeath_t::MOD_PROXIMITY_MINE as i32)
-        })
-        .unwrap();
-        assert_eq!(result, true);
+        });
+        assert_eq!(result.expect("result was not OK"), true);
     }
 
     #[test]
@@ -162,9 +161,8 @@ mod slay_with_mod_tests {
 
         let result = Python::with_gil(|py| {
             pyshinqlx_slay_with_mod(py, 2, meansOfDeath_t::MOD_PROXIMITY_MINE as i32)
-        })
-        .unwrap();
-        assert_eq!(result, true);
+        });
+        assert_eq!(result.expect("result was not OK"), true);
     }
 
     #[test]
@@ -184,8 +182,7 @@ mod slay_with_mod_tests {
         });
 
         let result =
-            Python::with_gil(|py| pyshinqlx_slay_with_mod(py, 2, meansOfDeath_t::MOD_CRUSH as i32))
-                .unwrap();
-        assert_eq!(result, false);
+            Python::with_gil(|py| pyshinqlx_slay_with_mod(py, 2, meansOfDeath_t::MOD_CRUSH as i32));
+        assert_eq!(result.expect("result was not OK"), false);
     }
 }

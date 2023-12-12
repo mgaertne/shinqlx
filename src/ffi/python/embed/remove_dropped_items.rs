@@ -26,6 +26,7 @@ mod remove_dropped_items_tests {
     use crate::ffi::c::game_entity::MockGameEntity;
     use crate::prelude::*;
     use mockall::predicate;
+    use pretty_assertions::assert_eq;
     use pyo3::prelude::*;
 
     #[test]
@@ -55,7 +56,7 @@ mod remove_dropped_items_tests {
         });
 
         let result = Python::with_gil(pyshinqlx_remove_dropped_items);
-        assert!(result.is_ok_and(|value| value));
+        assert_eq!(result.expect("result was not OK"), true);
     }
 
     #[test]
@@ -85,7 +86,7 @@ mod remove_dropped_items_tests {
         });
 
         let result = Python::with_gil(pyshinqlx_remove_dropped_items);
-        assert!(result.is_ok_and(|value| value));
+        assert_eq!(result.expect("result was not OK"), true);
     }
 
     #[test]
@@ -117,7 +118,7 @@ mod remove_dropped_items_tests {
         });
 
         let result = Python::with_gil(pyshinqlx_remove_dropped_items);
-        assert!(result.is_ok_and(|value| value));
+        assert_eq!(result.expect("result was not OK"), true);
     }
 
     #[test]
@@ -134,6 +135,6 @@ mod remove_dropped_items_tests {
         });
 
         let result = Python::with_gil(pyshinqlx_remove_dropped_items);
-        assert!(result.is_ok_and(|value| value));
+        assert_eq!(result.expect("result was not OK"), true);
     }
 }
