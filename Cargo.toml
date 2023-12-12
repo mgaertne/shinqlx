@@ -61,3 +61,6 @@ pretty_assertions = ">=1.4"
 rstest = ">=0.18"
 mockall = { version = ">=0.11", features = ["nightly"]}
 serial_test = ">=2.0"
+
+[patch.crates-io]
+swap-arc = {git = "https://github.com/mgaertne/SwapArc", rev = "5966687"}
