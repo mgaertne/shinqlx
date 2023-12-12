@@ -104,7 +104,7 @@ flight = _shinqlx.Flight((0, 1, 2, 3))
             assert!(
                 flight_constructor.is_ok(),
                 "{}",
-                flight_constructor.err().unwrap()
+                flight_constructor.expect_err("this should not happen")
             );
         });
     }

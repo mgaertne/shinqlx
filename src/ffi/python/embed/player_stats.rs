@@ -116,10 +116,13 @@ mod player_stats_tests {
             });
             mock_game_entity
         });
-        let result = Python::with_gil(|py| pyshinqlx_player_stats(py, 2)).unwrap();
+        let result = Python::with_gil(|py| pyshinqlx_player_stats(py, 2));
 
-        assert!(result.is_some_and(|pstats| pstats
-            == PlayerStats {
+        assert_eq!(
+            result
+                .expect("result was not OK")
+                .expect("result was not Some"),
+            PlayerStats {
                 score: 42,
                 kills: 7,
                 deaths: 9,
@@ -127,7 +130,8 @@ mod player_stats_tests {
                 damage_taken: 4200,
                 time: 123,
                 ping: 9,
-            }));
+            }
+        );
     }
 
     #[test]
@@ -145,8 +149,8 @@ mod player_stats_tests {
                 .returning(|| Err(QuakeLiveEngineError::MainEngineNotInitialized));
             mock_game_entity
         });
-        let result = Python::with_gil(|py| pyshinqlx_player_stats(py, 2)).unwrap();
+        let result = Python::with_gil(|py| pyshinqlx_player_stats(py, 2));
 
-        assert_eq!(result, None);
+        assert_eq!(result.expect("result was not OK"), None);
     }
 }

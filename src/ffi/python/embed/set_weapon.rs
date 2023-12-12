@@ -140,9 +140,8 @@ mod set_weapon_tests {
             mock_game_entity
         });
 
-        let result =
-            Python::with_gil(|py| pyshinqlx_set_weapon(py, 2, weapon_t::WP_BFG.into())).unwrap();
-        assert_eq!(result, true);
+        let result = Python::with_gil(|py| pyshinqlx_set_weapon(py, 2, weapon_t::WP_BFG.into()));
+        assert_eq!(result.expect("result was not OK"), true);
     }
 
     #[test]
@@ -161,8 +160,7 @@ mod set_weapon_tests {
             mock_game_entity
         });
 
-        let result =
-            Python::with_gil(|py| pyshinqlx_set_weapon(py, 2, weapon_t::WP_HMG.into())).unwrap();
-        assert_eq!(result, false);
+        let result = Python::with_gil(|py| pyshinqlx_set_weapon(py, 2, weapon_t::WP_HMG.into()));
+        assert_eq!(result.expect("result was not OK"), false);
     }
 }

@@ -30,6 +30,7 @@ mod get_entity_targets_tests {
     use crate::ffi::c::game_entity::MockGameEntity;
     use crate::prelude::*;
     use mockall::predicate;
+    use pretty_assertions::assert_eq;
     use pyo3::exceptions::PyValueError;
     use pyo3::prelude::*;
 
@@ -66,7 +67,7 @@ mod get_entity_targets_tests {
             .times(1);
 
         let result = Python::with_gil(|py| pyshinqlx_get_entity_targets(py, 2));
-        assert!(result.is_ok_and(|item_ids| item_ids == vec![]));
+        assert_eq!(result.expect("result was not OK"), vec![]);
     }
 
     #[test]
@@ -86,6 +87,6 @@ mod get_entity_targets_tests {
             .times(1);
 
         let result = Python::with_gil(|py| pyshinqlx_get_entity_targets(py, 2));
-        assert!(result.is_ok_and(|item_ids| item_ids == vec![42, 21, 1337]));
+        assert_eq!(result.expect("result was not OK"), vec![42, 21, 1337]);
     }
 }

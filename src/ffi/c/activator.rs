@@ -54,7 +54,9 @@ mod activator_tests {
 
     #[test]
     fn activator_try_from_valid_entity() {
-        let mut gentity = GEntityBuilder::default().build().unwrap();
+        let mut gentity = GEntityBuilder::default()
+            .build()
+            .expect("this should not happen");
         assert_eq!(
             Activator::try_from(&mut gentity as *mut gentity_t).is_ok(),
             true
@@ -63,9 +65,16 @@ mod activator_tests {
 
     #[test]
     fn activator_get_owner_num() {
-        let entity_shared = EntitySharedBuilder::default().ownerNum(42).build().unwrap();
-        let mut gentity = GEntityBuilder::default().r(entity_shared).build().unwrap();
-        let activator = Activator::try_from(&mut gentity as *mut gentity_t).unwrap();
+        let entity_shared = EntitySharedBuilder::default()
+            .ownerNum(42)
+            .build()
+            .expect("this should not happen");
+        let mut gentity = GEntityBuilder::default()
+            .r(entity_shared)
+            .build()
+            .expect("this should not happen");
+        let activator =
+            Activator::try_from(&mut gentity as *mut gentity_t).expect("this should not happen");
         assert_eq!(activator.get_owner_num(), 42);
     }
 }

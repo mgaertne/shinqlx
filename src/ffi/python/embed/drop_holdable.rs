@@ -119,8 +119,8 @@ mod drop_holdable_tests {
             mock_game_entity
         });
 
-        let result = Python::with_gil(|py| pyshinqlx_drop_holdable(py, 2)).unwrap();
-        assert_eq!(result, false);
+        let result = Python::with_gil(|py| pyshinqlx_drop_holdable(py, 2));
+        assert_eq!(result.expect("result was not OK"), false);
     }
 
     #[test]
@@ -163,8 +163,8 @@ mod drop_holdable_tests {
                 mock_game_entity
             });
 
-        let result = Python::with_gil(|py| pyshinqlx_drop_holdable(py, 2)).unwrap();
-        assert_eq!(result, false);
+        let result = Python::with_gil(|py| pyshinqlx_drop_holdable(py, 2));
+        assert_eq!(result.expect("result was not OK"), false);
     }
 
     #[rstest]
@@ -214,7 +214,7 @@ mod drop_holdable_tests {
                 mock_game_entity
             });
 
-        let result = Python::with_gil(|py| pyshinqlx_drop_holdable(py, 2)).unwrap();
-        assert_eq!(result, true);
+        let result = Python::with_gil(|py| pyshinqlx_drop_holdable(py, 2));
+        assert_eq!(result.expect("result was not OK"), true);
     }
 }

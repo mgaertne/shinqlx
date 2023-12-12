@@ -108,8 +108,8 @@ mod set_armor_tests {
             mock_game_entity
         });
 
-        let result = Python::with_gil(|py| pyshinqlx_set_armor(py, 2, 456)).unwrap();
-        assert_eq!(result, true);
+        let result = Python::with_gil(|py| pyshinqlx_set_armor(py, 2, 456));
+        assert_eq!(result.expect("result was not OK"), true);
     }
 
     #[test]
@@ -128,7 +128,7 @@ mod set_armor_tests {
             mock_game_entity
         });
 
-        let result = Python::with_gil(|py| pyshinqlx_set_armor(py, 2, 123)).unwrap();
-        assert_eq!(result, false);
+        let result = Python::with_gil(|py| pyshinqlx_set_armor(py, 2, 123));
+        assert_eq!(result.expect("result was not OK"), false);
     }
 }

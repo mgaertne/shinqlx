@@ -74,7 +74,7 @@ impl Client {
     where
         T: AsRef<str>,
     {
-        let c_reason = CString::new(reason.as_ref()).unwrap_or(CString::new("").unwrap());
+        let c_reason = CString::new(reason.as_ref()).unwrap_or_else(|_| CString::new("").unwrap());
 
         let Some(ref main_engine) = *MAIN_ENGINE.load() else {
             return;
@@ -160,7 +160,9 @@ mod client_tests {
 
     #[test]
     fn client_try_from_valid_client() {
-        let mut client = ClientBuilder::default().build().unwrap();
+        let mut client = ClientBuilder::default()
+            .build()
+            .expect("this should not happen");
         assert_eq!(Client::try_from(&mut client as *mut client_t).is_ok(), true);
     }
 
@@ -230,8 +232,11 @@ mod client_tests {
             .expect()
             .return_once(|| Err(QuakeLiveEngineError::MainEngineNotInitialized));
 
-        let mut client = ClientBuilder::default().build().unwrap();
-        let rust_client = Client::try_from(&mut client as *mut client_t).unwrap();
+        let mut client = ClientBuilder::default()
+            .build()
+            .expect("this should not happen");
+        let rust_client =
+            Client::try_from(&mut client as *mut client_t).expect("this should not happen");
         assert_eq!(rust_client.get_client_id(), -1);
     }
 
@@ -247,8 +252,11 @@ mod client_tests {
             Ok(server_static_mock)
         });
 
-        let mut client = ClientBuilder::default().build().unwrap();
-        let rust_client = Client::try_from(&mut client as *mut client_t).unwrap();
+        let mut client = ClientBuilder::default()
+            .build()
+            .expect("this should not happen");
+        let rust_client =
+            Client::try_from(&mut client as *mut client_t).expect("this should not happen");
 
         assert_eq!(rust_client.get_client_id(), 0);
     }
@@ -265,8 +273,11 @@ mod client_tests {
             Ok(server_static_mock)
         });
 
-        let mut client = ClientBuilder::default().build().unwrap();
-        let rust_client = Client::try_from(&mut client as *mut client_t).unwrap();
+        let mut client = ClientBuilder::default()
+            .build()
+            .expect("this should not happen");
+        let rust_client =
+            Client::try_from(&mut client as *mut client_t).expect("this should not happen");
 
         assert_eq!(rust_client.get_client_id(), 2);
     }
@@ -276,8 +287,9 @@ mod client_tests {
         let mut client = ClientBuilder::default()
             .state(clientState_t::CS_ZOMBIE)
             .build()
-            .unwrap();
-        let rust_client = Client::try_from(&mut client as *mut client_t).unwrap();
+            .expect("this should not happen");
+        let rust_client =
+            Client::try_from(&mut client as *mut client_t).expect("this should not happen");
         assert_eq!(rust_client.get_state(), clientState_t::CS_ZOMBIE);
     }
 
@@ -286,19 +298,23 @@ mod client_tests {
         let mut client = ClientBuilder::default()
             .gentity(ptr::null_mut())
             .build()
-            .unwrap();
-        let rust_client = Client::try_from(&mut client as *mut client_t).unwrap();
+            .expect("this should not happen");
+        let rust_client =
+            Client::try_from(&mut client as *mut client_t).expect("this should not happen");
         assert_eq!(rust_client.has_gentity(), false);
     }
 
     #[test]
     fn client_has_gentity_with_valid_shared_entity() {
-        let mut shared_entity = SharedEntityBuilder::default().build().unwrap();
+        let mut shared_entity = SharedEntityBuilder::default()
+            .build()
+            .expect("this should not happen");
         let mut client = ClientBuilder::default()
             .gentity(&mut shared_entity as *mut sharedEntity_t)
             .build()
-            .unwrap();
-        let rust_client = Client::try_from(&mut client as *mut client_t).unwrap();
+            .expect("this should not happen");
+        let rust_client =
+            Client::try_from(&mut client as *mut client_t).expect("this should not happen");
         assert_eq!(rust_client.has_gentity(), true);
     }
 
@@ -307,8 +323,11 @@ mod client_tests {
     fn client_disconnect_with_no_main_engine() {
         MAIN_ENGINE.store(None);
 
-        let mut client = ClientBuilder::default().build().unwrap();
-        let mut rust_client = Client::try_from(&mut client as *mut client_t).unwrap();
+        let mut client = ClientBuilder::default()
+            .build()
+            .expect("this should not happen");
+        let mut rust_client =
+            Client::try_from(&mut client as *mut client_t).expect("this should not happen");
         rust_client.disconnect("disconnected");
     }
 
@@ -324,8 +343,11 @@ mod client_tests {
 
         MAIN_ENGINE.store(Some(mock_engine.into()));
 
-        let mut client = ClientBuilder::default().build().unwrap();
-        let mut rust_client = Client::try_from(&mut client as *mut client_t).unwrap();
+        let mut client = ClientBuilder::default()
+            .build()
+            .expect("this should not happen");
+        let mut rust_client =
+            Client::try_from(&mut client as *mut client_t).expect("this should not happen");
         rust_client.disconnect("disconnected");
     }
 
@@ -344,16 +366,20 @@ mod client_tests {
     #[cfg_attr(miri, ignore)]
     #[serial]
     fn client_disconnect_with_valid_detour() {
-        let mut client = ClientBuilder::default().build().unwrap();
+        let mut client = ClientBuilder::default()
+            .build()
+            .expect("this should not happen");
 
         let sv_dropclient_detour = unsafe {
             GenericDetour::<fn(*mut client_t, *const c_char)>::new(
                 MockSV_DropcClient::original_func,
                 MockSV_DropcClient::replacement_func,
             )
-            .unwrap()
+            .expect("this should not happen")
         };
-        SV_DROPCLIENT_DETOUR.set(sv_dropclient_detour).unwrap();
+        SV_DROPCLIENT_DETOUR
+            .set(sv_dropclient_detour)
+            .expect("this should not happen");
 
         let dropclient_original_ctx = MockSV_DropcClient::original_func_context();
         dropclient_original_ctx.expect().withf(
@@ -371,7 +397,8 @@ mod client_tests {
 
         MAIN_ENGINE.store(Some(mock_engine.into()));
 
-        let mut rust_client = Client::try_from(&mut client as *mut client_t).unwrap();
+        let mut rust_client =
+            Client::try_from(&mut client as *mut client_t).expect("this should not happen");
         rust_client.disconnect("disconnected");
     }
 
@@ -380,8 +407,9 @@ mod client_tests {
         let mut client = ClientBuilder::default()
             .name([0; MAX_NAME_LENGTH as usize])
             .build()
-            .unwrap();
-        let rust_client = Client::try_from(&mut client as *mut client_t).unwrap();
+            .expect("this should not happen");
+        let rust_client =
+            Client::try_from(&mut client as *mut client_t).expect("this should not happen");
         assert_eq!(rust_client.get_name(), "");
     }
 
@@ -391,8 +419,12 @@ mod client_tests {
         let mut bytes_iter = player_name_str.bytes();
         let mut player_name: [c_char; MAX_NAME_LENGTH as usize] = [0; MAX_NAME_LENGTH as usize];
         player_name[0..player_name_str.len()].fill_with(|| bytes_iter.next().unwrap() as c_char);
-        let mut client = ClientBuilder::default().name(player_name).build().unwrap();
-        let rust_client = Client::try_from(&mut client as *mut client_t).unwrap();
+        let mut client = ClientBuilder::default()
+            .name(player_name)
+            .build()
+            .expect("this should not happen");
+        let rust_client =
+            Client::try_from(&mut client as *mut client_t).expect("this should not happen");
         assert_eq!(rust_client.get_name(), "UnknownPlayer");
     }
 
@@ -401,8 +433,9 @@ mod client_tests {
         let mut client = ClientBuilder::default()
             .userinfo([0; MAX_INFO_STRING as usize])
             .build()
-            .unwrap();
-        let rust_client = Client::try_from(&mut client as *mut client_t).unwrap();
+            .expect("this should not happen");
+        let rust_client =
+            Client::try_from(&mut client as *mut client_t).expect("this should not happen");
         assert_eq!(rust_client.get_user_info(), "");
     }
 
@@ -411,16 +444,25 @@ mod client_tests {
         let user_info_str = "some user info";
         let mut bytes_iter = user_info_str.bytes();
         let mut userinfo: [c_char; MAX_INFO_STRING as usize] = [0; MAX_INFO_STRING as usize];
-        userinfo[0..user_info_str.len()].fill_with(|| bytes_iter.next().unwrap() as c_char);
-        let mut client = ClientBuilder::default().userinfo(userinfo).build().unwrap();
-        let rust_client = Client::try_from(&mut client as *mut client_t).unwrap();
+        userinfo[0..user_info_str.len()]
+            .fill_with(|| bytes_iter.next().expect("this should not happen") as c_char);
+        let mut client = ClientBuilder::default()
+            .userinfo(userinfo)
+            .build()
+            .expect("this should not happen");
+        let rust_client =
+            Client::try_from(&mut client as *mut client_t).expect("this should not happen");
         assert_eq!(rust_client.get_user_info(), "some user info");
     }
 
     #[test]
     fn client_get_steam_id() {
-        let mut client = ClientBuilder::default().steam_id(1234).build().unwrap();
-        let rust_client = Client::try_from(&mut client as *mut client_t).unwrap();
+        let mut client = ClientBuilder::default()
+            .steam_id(1234)
+            .build()
+            .expect("this should not happen");
+        let rust_client =
+            Client::try_from(&mut client as *mut client_t).expect("this should not happen");
         assert_eq!(rust_client.get_steam_id(), 1234);
     }
 }

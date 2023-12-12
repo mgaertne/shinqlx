@@ -127,7 +127,7 @@ powerups = _shinqlx.Powerups((0, 1, 2, 3, 4, 5))
             assert!(
                 powerups_constructor.is_ok(),
                 "{}",
-                powerups_constructor.err().unwrap(),
+                powerups_constructor.expect_err("this should not happen"),
             );
         });
     }

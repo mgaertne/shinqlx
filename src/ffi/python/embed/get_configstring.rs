@@ -70,7 +70,7 @@ mod get_configstring_tests {
             .times(1);
         MAIN_ENGINE.store(Some(mock_engine.into()));
 
-        let result = Python::with_gil(|py| pyshinqlx_get_configstring(py, 666)).unwrap();
-        assert_eq!(result, "asdf");
+        let result = Python::with_gil(|py| pyshinqlx_get_configstring(py, 666));
+        assert_eq!(result.expect("result was not OK"), "asdf");
     }
 }
