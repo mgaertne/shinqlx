@@ -8,7 +8,7 @@ use crate::ffi::python::embed::{
     pyshinqlx_send_server_command, pyshinqlx_set_ammo, pyshinqlx_set_armor, pyshinqlx_set_flight,
     pyshinqlx_set_health, pyshinqlx_set_holdable, pyshinqlx_set_position, pyshinqlx_set_powerups,
     pyshinqlx_set_privileges, pyshinqlx_set_score, pyshinqlx_set_velocity, pyshinqlx_set_weapon,
-    pyshinqlx_set_weapons,
+    pyshinqlx_set_weapons, pyshinqlx_slay_with_mod,
 };
 use crate::prelude::*;
 use crate::quake_live_engine::{GetConfigstring, SetConfigstring};
@@ -1159,6 +1159,47 @@ impl Player {
     fn unmute(&self, py: Python<'_>) -> PyResult<()> {
         let unmute_cmd = format!("unmute {}", self.id);
         pyshinqlx_console_command(py, unmute_cmd.as_str())
+    }
+
+    fn put(&self, py: Python<'_>, team: String) -> PyResult<()> {
+        if !["free", "red", "blue", "spectator"].contains(&team.to_lowercase().as_str()) {
+            return Err(PyValueError::new_err("Invalid team."));
+        }
+
+        let team_change_cmd = format!("put {} {}", self.id, team.to_lowercase());
+        pyshinqlx_console_command(py, team_change_cmd.as_str())
+    }
+
+    fn addscore(&self, py: Python<'_>, score: i32) -> PyResult<()> {
+        let addscore_cmd = format!("addscore {} {}", self.id, score);
+        pyshinqlx_console_command(py, addscore_cmd.as_str())
+    }
+
+    fn switch(&self, py: Python<'_>, other_player: Player) -> PyResult<()> {
+        let own_team = self.get_team(py)?;
+        let other_team = other_player.get_team(py)?;
+
+        if own_team == other_team {
+            return Err(PyValueError::new_err("Both players are on the same team."));
+        }
+
+        self.put(py, other_team)?;
+        other_player.put(py, own_team)
+    }
+
+    #[pyo3(signature=(damage=0))]
+    fn slap(&self, py: Python<'_>, damage: i32) -> PyResult<()> {
+        let slap_cmd = format!("slap {} {}", self.id, damage);
+        pyshinqlx_console_command(py, slap_cmd.as_str())
+    }
+
+    fn slay(&self, py: Python<'_>) -> PyResult<()> {
+        let slay_cmd = format!("slay {}", self.id);
+        pyshinqlx_console_command(py, slay_cmd.as_str())
+    }
+
+    fn slay_with_mod(&self, py: Python<'_>, means_of_death: i32) -> PyResult<()> {
+        pyshinqlx_slay_with_mod(py, self.id, means_of_death).map(|_| ())
     }
 }
 
@@ -6488,6 +6529,186 @@ assert(player._valid)
         let player = default_test_player();
 
         let result = Python::with_gil(|py| player.unmute(py));
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    #[serial]
+    #[cfg_attr(miri, ignore)]
+    fn put_with_invalid_team() {
+        MAIN_ENGINE.store(None);
+
+        let player = default_test_player();
+
+        Python::with_gil(|py| {
+            let result = player.put(py, "invalid team".into());
+            assert!(result.is_err_and(|err| err.is_instance_of::<PyValueError>(py)));
+        });
+    }
+
+    #[rstest]
+    #[case("red")]
+    #[case("RED")]
+    #[case("free")]
+    #[case("blue")]
+    #[case("spectator")]
+    #[serial]
+    #[cfg_attr(miri, ignore)]
+    fn put_put_player_on_a_specific_team(#[case] new_team: &str) {
+        let put_cmd = format!("put 2 {}", new_team.to_lowercase());
+        let mut mock_engine = MockQuakeEngine::new();
+        mock_engine
+            .expect_execute_console_command()
+            .withf(move |cmd| cmd == put_cmd)
+            .times(1);
+        MAIN_ENGINE.store(Some(mock_engine.into()));
+
+        let player = default_test_player();
+        let result = Python::with_gil(|py| player.put(py, new_team.into()));
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    #[serial]
+    #[cfg_attr(miri, ignore)]
+    fn addscore_adds_score_to_player() {
+        let mut mock_engine = MockQuakeEngine::new();
+        mock_engine
+            .expect_execute_console_command()
+            .with(predicate::eq("addscore 2 42"))
+            .times(1);
+        MAIN_ENGINE.store(Some(mock_engine.into()));
+
+        let player = default_test_player();
+
+        let result = Python::with_gil(|py| player.addscore(py, 42));
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    #[serial]
+    #[cfg_attr(miri, ignore)]
+    fn switch_with_player_on_same_team() {
+        MAIN_ENGINE.store(None);
+
+        let player = Player {
+            id: 2,
+            player_info: PlayerInfo {
+                team: team_t::TEAM_SPECTATOR as i32,
+                ..default_test_player_info()
+            },
+            ..default_test_player()
+        };
+        let other_player = Player {
+            id: 1,
+            player_info: PlayerInfo {
+                team: team_t::TEAM_SPECTATOR as i32,
+                ..default_test_player_info()
+            },
+            ..default_test_player()
+        };
+
+        Python::with_gil(|py| {
+            let result = player.switch(py, other_player);
+            assert!(result.is_err_and(|err| err.is_instance_of::<PyValueError>(py)));
+        });
+    }
+
+    #[test]
+    #[serial]
+    #[cfg_attr(miri, ignore)]
+    fn switch_with_player_on_different_team() {
+        let mut mock_engine = MockQuakeEngine::new();
+        mock_engine
+            .expect_execute_console_command()
+            .withf(move |cmd| cmd == "put 2 blue")
+            .times(1);
+        mock_engine
+            .expect_execute_console_command()
+            .withf(move |cmd| cmd == "put 1 red")
+            .times(1);
+        MAIN_ENGINE.store(Some(mock_engine.into()));
+
+        let player = Player {
+            id: 2,
+            player_info: PlayerInfo {
+                team: team_t::TEAM_RED as i32,
+                ..default_test_player_info()
+            },
+            ..default_test_player()
+        };
+        let other_player = Player {
+            id: 1,
+            player_info: PlayerInfo {
+                team: team_t::TEAM_BLUE as i32,
+                ..default_test_player_info()
+            },
+            ..default_test_player()
+        };
+
+        let result = Python::with_gil(|py| player.switch(py, other_player));
+        assert!(result.as_ref().is_ok(), "{:?}", result.as_ref().unwrap());
+    }
+
+    #[test]
+    #[serial]
+    #[cfg_attr(miri, ignore)]
+    fn slap_slaps_player() {
+        let mut mock_engine = MockQuakeEngine::new();
+        mock_engine
+            .expect_execute_console_command()
+            .with(predicate::eq("slap 2 42"))
+            .times(1);
+        MAIN_ENGINE.store(Some(mock_engine.into()));
+
+        let player = default_test_player();
+
+        let result = Python::with_gil(|py| player.slap(py, 42));
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    #[serial]
+    #[cfg_attr(miri, ignore)]
+    fn slay_slays_player() {
+        let mut mock_engine = MockQuakeEngine::new();
+        mock_engine
+            .expect_execute_console_command()
+            .with(predicate::eq("slay 2"))
+            .times(1);
+        MAIN_ENGINE.store(Some(mock_engine.into()));
+
+        let player = default_test_player();
+
+        let result = Python::with_gil(|py| player.slay(py));
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    #[serial]
+    #[cfg_attr(miri, ignore)]
+    fn slay_with_mod_slays_with_mod() {
+        let mut mock_engine = MockQuakeEngine::new();
+        mock_engine.expect_get_max_clients().returning(|| 16);
+        MAIN_ENGINE.store(Some(mock_engine.into()));
+
+        let game_entity_from_ctx = MockGameEntity::from_context();
+        game_entity_from_ctx.expect().returning(|_| {
+            let mut mock_game_entity = MockGameEntity::new();
+            mock_game_entity.expect_get_game_client().returning(|| {
+                let mock_game_client = MockGameClient::new();
+                Ok(mock_game_client)
+            });
+            mock_game_entity.expect_get_health().returning(|| 0);
+            mock_game_entity.expect_slay_with_mod().times(0);
+            mock_game_entity
+        });
+
+        let player = default_test_player();
+
+        let result = Python::with_gil(|py| {
+            player.slay_with_mod(py, meansOfDeath_t::MOD_PROXIMITY_MINE as i32)
+        });
         assert!(result.is_ok());
     }
 }
