@@ -6368,7 +6368,7 @@ assert(player._valid)
 
         let player = default_test_player();
 
-        let result = Python::with_gil(|py| player.kick(py, "you stink, go away!".into()));
+        let result = Python::with_gil(|py| player.kick(py, "you stink, go away!"));
         assert!(result.is_ok());
     }
 
