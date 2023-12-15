@@ -37,6 +37,7 @@ use pyo3::exceptions::PyException;
 use pyo3::prelude::*;
 use pyo3::types::{IntoPyDict, PyDelta, PyDict, PyFunction, PyTuple};
 use pyo3::{append_to_inittab, create_exception, prepare_freethreaded_python};
+use regex::Regex;
 use swap_arc::SwapArcOption;
 
 pub(crate) static ALLOW_FREE_CLIENT: AtomicU64 = AtomicU64::new(0);
@@ -98,7 +99,8 @@ pub(crate) fn clean_text<T>(text: &T) -> String
 where
     T: AsRef<str>,
 {
-    text.as_ref().replace(r#"\^[0-7]"#, "")
+    let re = Regex::new(r#"\^[0-7]"#).unwrap();
+    re.replace_all(text.as_ref(), "").into()
 }
 
 pub(crate) fn parse_variables(varstr: String) -> ParsedVariables {
@@ -221,6 +223,7 @@ fn set_map_subtitles(module: &PyModule) -> PyResult<()> {
 /// Parses strings of key-value pairs delimited by "\\" and puts
 /// them into a dictionary.
 #[pyfunction]
+#[pyo3(name = "parse_variables")]
 #[pyo3(signature = (varstr, ordered=false))]
 fn pyshinqlx_parse_variables(
     py: Python<'_>,
@@ -388,18 +391,28 @@ static DEFAULT_PLUGINS: [&str; 10] = [
 
 #[pyfunction]
 fn initialize_cvars(py: Python<'_>) -> PyResult<()> {
-    pyshinqlx_set_cvar_once(py, "qlx_owner", "-1", 0)?;
-    pyshinqlx_set_cvar_once(py, "qlx_plugins", DEFAULT_PLUGINS.join(", ").as_str(), 0)?;
-    pyshinqlx_set_cvar_once(py, "qlx_pluginsPath", "shinqlx-plugins", 0)?;
-    pyshinqlx_set_cvar_once(py, "qlx_database", "Redis", 0)?;
-    pyshinqlx_set_cvar_once(py, "qlx_commandPrefix", "!", 0)?;
-    pyshinqlx_set_cvar_once(py, "qlx_logs", "2", 0)?;
-    pyshinqlx_set_cvar_once(py, "qlx_logsSize", 3_000_000.to_string().as_str(), 0)?;
+    pyshinqlx_set_cvar_once(py, "qlx_owner", "-1".into_py(py), 0)?;
+    pyshinqlx_set_cvar_once(
+        py,
+        "qlx_plugins",
+        DEFAULT_PLUGINS.join(", ").as_str().into_py(py),
+        0,
+    )?;
+    pyshinqlx_set_cvar_once(py, "qlx_pluginsPath", "shinqlx-plugins".into_py(py), 0)?;
+    pyshinqlx_set_cvar_once(py, "qlx_database", "Redis".into_py(py), 0)?;
+    pyshinqlx_set_cvar_once(py, "qlx_commandPrefix", "!".into_py(py), 0)?;
+    pyshinqlx_set_cvar_once(py, "qlx_logs", "2".into_py(py), 0)?;
+    pyshinqlx_set_cvar_once(
+        py,
+        "qlx_logsSize",
+        3_000_000.to_string().as_str().into_py(py),
+        0,
+    )?;
 
-    pyshinqlx_set_cvar_once(py, "qlx_redisAddress", "127.0.0.1", 0)?;
-    pyshinqlx_set_cvar_once(py, "qlx_redisDatabase", "0", 0)?;
-    pyshinqlx_set_cvar_once(py, "qlx_redisUnixSocket", "0", 0)?;
-    pyshinqlx_set_cvar_once(py, "qlx_redisPassword", "", 0)?;
+    pyshinqlx_set_cvar_once(py, "qlx_redisAddress", "127.0.0.1".into_py(py), 0)?;
+    pyshinqlx_set_cvar_once(py, "qlx_redisDatabase", "0".into_py(py), 0)?;
+    pyshinqlx_set_cvar_once(py, "qlx_redisUnixSocket", "0".into_py(py), 0)?;
+    pyshinqlx_set_cvar_once(py, "qlx_redisPassword", "".into_py(py), 0)?;
     Ok(())
 }
 
@@ -685,10 +698,10 @@ fn pyshinqlx_module(py: Python<'_>, m: &PyModule) -> PyResult<()> {
         py.get_type::<NonexistentGameError>(),
     )?;
     m.add_class::<Player>()?;
-    // m.add(
-    //    "NonexistentPlayerError",
-    //    py.get_type::<NonexistentPlayerError>(),
-    // )?;
+    m.add(
+        "NonexistentPlayerError",
+        py.get_type::<NonexistentPlayerError>(),
+    )?;
     m.add("PluginLoadError", py.get_type::<PluginLoadError>())?;
     m.add("PluginUnloadError", py.get_type::<PluginUnloadError>())?;
 

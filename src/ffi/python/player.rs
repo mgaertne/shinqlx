@@ -5,10 +5,10 @@ use super::{
 use crate::ffi::python::embed::{
     pyshinqlx_client_command, pyshinqlx_console_command, pyshinqlx_drop_holdable, pyshinqlx_kick,
     pyshinqlx_noclip, pyshinqlx_player_spawn, pyshinqlx_player_state, pyshinqlx_player_stats,
-    pyshinqlx_send_server_command, pyshinqlx_set_ammo, pyshinqlx_set_armor, pyshinqlx_set_flight,
-    pyshinqlx_set_health, pyshinqlx_set_holdable, pyshinqlx_set_position, pyshinqlx_set_powerups,
-    pyshinqlx_set_privileges, pyshinqlx_set_score, pyshinqlx_set_velocity, pyshinqlx_set_weapon,
-    pyshinqlx_set_weapons, pyshinqlx_slay_with_mod,
+    pyshinqlx_players_info, pyshinqlx_send_server_command, pyshinqlx_set_ammo, pyshinqlx_set_armor,
+    pyshinqlx_set_flight, pyshinqlx_set_health, pyshinqlx_set_holdable, pyshinqlx_set_position,
+    pyshinqlx_set_powerups, pyshinqlx_set_privileges, pyshinqlx_set_score, pyshinqlx_set_velocity,
+    pyshinqlx_set_weapon, pyshinqlx_set_weapons, pyshinqlx_slay_with_mod,
 };
 use crate::prelude::*;
 use crate::quake_live_engine::{GetConfigstring, SetConfigstring};
@@ -18,7 +18,7 @@ use pyo3::basic::CompareOp;
 use pyo3::create_exception;
 use pyo3::exceptions::{PyException, PyKeyError, PyValueError};
 use pyo3::prelude::*;
-use pyo3::types::{IntoPyDict, PyDict};
+use pyo3::types::{IntoPyDict, PyDict, PyType};
 
 create_exception!(pyshinqlx_module, NonexistentPlayerError, PyException);
 
@@ -67,7 +67,7 @@ impl TryFrom<String> for weapon_t {
 ///    To update it, use :meth:`~.Player.update`. Note that if you update it
 ///    and the player has disconnected, it will raise a
 ///    :exc:`shinqlx.NonexistentPlayerError` exception.
-#[pyclass]
+#[pyclass(subclass)]
 #[pyo3(module = "shinqlx", name = "Player", get_all)]
 #[derive(PartialEq, Eq, Debug, Clone)]
 pub(crate) struct Player {
@@ -326,7 +326,7 @@ impl Player {
     /// Removes color tags from the name.
     #[getter(clean_name)]
     fn get_clean_name(&self, py: Python<'_>) -> String {
-        py.allow_threads(|| clean_text(&self.name))
+        py.allow_threads(|| clean_text(&self.name.as_str()))
     }
 
     #[getter(qport)]
@@ -1112,14 +1112,47 @@ impl Player {
         Ok(())
     }
 
-    // TODO: implement TellChannel getter
+    #[getter(channel)]
+    fn get_channel<'py>(slf: PyRef<'py, Self>, py: Python<'py>) -> PyResult<&'py PyAny> {
+        let tell_channel = PyModule::from_code(
+            py,
+            r#"
+import shinqlx
+
+tell_channel = shinqlx.TellChannel"#,
+            "",
+            "",
+        )
+        .expect("this should not happen");
+
+        tell_channel.call_method1("tell_channel", (slf,))
+    }
 
     fn center_print(&self, py: Python<'_>, msg: String) -> PyResult<()> {
         let cmd = format!("cp \"{msg}\"");
         pyshinqlx_send_server_command(py, Some(self.id), cmd.as_str()).map(|_| ())
     }
 
-    // TODO: implement tell method
+    #[pyo3(signature=(msg, **kwargs))]
+    fn tell<'py>(
+        slf: PyRef<'py, Self>,
+        py: Python<'py>,
+        msg: String,
+        kwargs: Option<&'py PyDict>,
+    ) -> PyResult<&'py PyAny> {
+        let tell_module = PyModule::from_code(
+            py,
+            r#"
+import shinqlx
+
+func = shinqlx.Plugin.tell"#,
+            "",
+            "",
+        )
+        .expect("this should not happen");
+
+        tell_module.call_method("func", (msg, slf), kwargs)
+    }
 
     #[pyo3(signature=(reason=""))]
     fn kick(&self, py: Python<'_>, reason: &str) -> PyResult<()> {
@@ -1200,6 +1233,24 @@ impl Player {
 
     fn slay_with_mod(&self, py: Python<'_>, means_of_death: i32) -> PyResult<()> {
         pyshinqlx_slay_with_mod(py, self.id, means_of_death).map(|_| ())
+    }
+
+    #[classmethod]
+    fn all_players(_cls: &PyType, py: Python<'_>) -> PyResult<Vec<Player>> {
+        let players_info = pyshinqlx_players_info(py)?;
+        Ok(players_info
+            .iter()
+            .filter_map(|opt_player_info| {
+                opt_player_info.as_ref().map(|player_info| Player {
+                    valid: true,
+                    id: player_info.client_id,
+                    user_info: player_info.userinfo.clone(),
+                    steam_id: player_info.steam_id,
+                    name: player_info.name.clone(),
+                    player_info: player_info.clone(),
+                })
+            })
+            .collect())
     }
 }
 
@@ -2091,6 +2142,18 @@ assert(player._valid)
 
         let result = Python::with_gil(|py| player.set_name(py, "^1Unnamed^2Player".into()));
         assert!(result.is_ok());
+    }
+
+    #[test]
+    #[cfg_attr(miri, ignore)]
+    fn get_clean_name_returns_cleaned_name() {
+        let player = Player {
+            name: "^7^1S^3hi^4N^10^7".to_string(),
+            ..default_test_player()
+        };
+
+        let result = Python::with_gil(|py| player.get_clean_name(py));
+        assert_eq!(result, "ShiN0");
     }
 
     #[test]
@@ -6710,5 +6773,115 @@ assert(player._valid)
             player.slay_with_mod(py, meansOfDeath_t::MOD_PROXIMITY_MINE as i32)
         });
         assert!(result.is_ok());
+    }
+
+    #[test]
+    #[serial]
+    #[cfg_attr(miri, ignore)]
+    fn all_players_for_existing_clients() {
+        let mut mock_engine = MockQuakeEngine::new();
+        mock_engine.expect_get_max_clients().returning(|| 3);
+        MAIN_ENGINE.store(Some(mock_engine.into()));
+
+        let client_try_from_ctx = MockClient::from_context();
+        client_try_from_ctx
+            .expect()
+            .with(predicate::eq(0))
+            .returning(|_client_id| {
+                let mut mock_client = MockClient::new();
+                mock_client
+                    .expect_get_state()
+                    .returning(|| clientState_t::CS_ACTIVE);
+                mock_client
+                    .expect_get_user_info()
+                    .returning(|| "asdf".into());
+                mock_client.expect_get_steam_id().returning(|| 1234);
+                mock_client
+            });
+
+        client_try_from_ctx
+            .expect()
+            .with(predicate::eq(1))
+            .returning(|_client_id| {
+                let mut mock_client = MockClient::new();
+                mock_client
+                    .expect_get_state()
+                    .returning(|| clientState_t::CS_FREE);
+                mock_client
+                    .expect_get_user_info()
+                    .returning(|| "asdf".into());
+                mock_client.expect_get_steam_id().returning(|| 1234);
+                mock_client
+            });
+
+        let client_try_from_ctx = MockClient::from_context();
+        client_try_from_ctx
+            .expect()
+            .with(predicate::eq(2))
+            .returning(|_client_id| {
+                let mut mock_client = MockClient::new();
+                mock_client
+                    .expect_get_state()
+                    .returning(|| clientState_t::CS_ACTIVE);
+                mock_client
+                    .expect_get_user_info()
+                    .returning(|| "asdf".into());
+                mock_client.expect_get_steam_id().returning(|| 1234);
+                mock_client
+            });
+
+        let game_entity_try_from_ctx = MockGameEntity::from_context();
+        game_entity_try_from_ctx.expect().returning(|_client_id| {
+            let mut mock_game_entity = MockGameEntity::new();
+            mock_game_entity
+                .expect_get_player_name()
+                .returning(|| "Mocked Player".into());
+            mock_game_entity
+                .expect_get_team()
+                .returning(|| team_t::TEAM_RED);
+            mock_game_entity
+                .expect_get_privileges()
+                .returning(|| privileges_t::PRIV_NONE);
+            mock_game_entity
+        });
+
+        let all_players = Python::with_gil(|py| Player::all_players(py.get_type::<Player>(), py));
+        assert_eq!(
+            all_players.expect("result was not ok"),
+            vec![
+                Player {
+                    valid: true,
+                    id: 0,
+                    player_info: PlayerInfo {
+                        client_id: 0,
+                        name: "Mocked Player".to_string(),
+                        connection_state: clientState_t::CS_ACTIVE as i32,
+                        userinfo: "asdf".to_string(),
+                        steam_id: 1234,
+                        team: team_t::TEAM_RED as i32,
+                        privileges: 0,
+                    },
+                    name: "Mocked Player".into(),
+                    steam_id: 1234,
+                    user_info: "asdf".to_string(),
+                },
+                Player {
+                    valid: true,
+                    id: 2,
+                    player_info: PlayerInfo {
+                        client_id: 2,
+                        name: "Mocked Player".to_string(),
+                        connection_state: clientState_t::CS_ACTIVE as i32,
+                        userinfo: "asdf".to_string(),
+                        steam_id: 1234,
+                        team: team_t::TEAM_RED as i32,
+                        privileges: 0,
+                    },
+                    name: "Mocked Player".into(),
+                    steam_id: 1234,
+                    user_info: "asdf".to_string(),
+                }
+            ]
+        );
     }
 }
