@@ -11,9 +11,10 @@ use pyo3::prelude::*;
 pub(crate) fn pyshinqlx_set_cvar_once(
     py: Python<'_>,
     cvar: &str,
-    value: &str,
+    value: Py<PyAny>,
     flags: i32,
 ) -> PyResult<bool> {
+    let value_string = value.to_string();
     py.allow_threads(|| {
         let Some(ref main_engine) = *MAIN_ENGINE.load() else {
             return Err(PyEnvironmentError::new_err(
@@ -24,7 +25,8 @@ pub(crate) fn pyshinqlx_set_cvar_once(
         if main_engine.find_cvar(cvar).is_some() {
             return Ok(false);
         }
-        main_engine.get_cvar(cvar, value, Some(flags));
+
+        main_engine.get_cvar(cvar, value_string.as_str(), Some(flags));
         Ok(true)
     })
 }
@@ -47,7 +49,7 @@ mod set_cvar_once_tests {
     fn set_cvar_once_when_main_engine_not_initialized() {
         MAIN_ENGINE.store(None);
         Python::with_gil(|py| {
-            let result = pyshinqlx_set_cvar_once(py, "sv_maxclients", "64", 0);
+            let result = pyshinqlx_set_cvar_once(py, "sv_maxclients", "64".into_py(py), 0);
             assert!(result.is_err_and(|err| err.is_instance_of::<PyEnvironmentError>(py)));
         });
     }
@@ -72,7 +74,12 @@ mod set_cvar_once_tests {
         MAIN_ENGINE.store(Some(mock_engine.into()));
 
         let result = Python::with_gil(|py| {
-            pyshinqlx_set_cvar_once(py, "sv_maxclients", "64", cvar_flags::CVAR_ROM as i32)
+            pyshinqlx_set_cvar_once(
+                py,
+                "sv_maxclients",
+                64i32.into_py(py),
+                cvar_flags::CVAR_ROM as i32,
+            )
         })
         .unwrap();
         assert_eq!(result, true);
@@ -94,7 +101,12 @@ mod set_cvar_once_tests {
         MAIN_ENGINE.store(Some(mock_engine.into()));
 
         let result = Python::with_gil(|py| {
-            pyshinqlx_set_cvar_once(py, "sv_maxclients", "64", cvar_flags::CVAR_ROM as i32)
+            pyshinqlx_set_cvar_once(
+                py,
+                "sv_maxclients",
+                "64".into_py(py),
+                cvar_flags::CVAR_ROM as i32,
+            )
         })
         .unwrap();
         assert_eq!(result, false);

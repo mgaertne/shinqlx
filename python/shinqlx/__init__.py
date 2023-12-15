@@ -151,6 +151,8 @@ try:
         initialize_cvars,
         Game,
         NonexistentGameError,
+        Player,
+        NonexistentPlayerError,
         PluginLoadError,
         PluginUnloadError,
         _map_title,
@@ -306,6 +308,8 @@ except ModuleNotFoundError:
         initialize_cvars,
         Game,
         NonexistentGameError,
+        Player,
+        NonexistentPlayerError,
         PluginLoadError,
         PluginUnloadError,
         _map_title,
@@ -328,8 +332,6 @@ from ._core import (
     late_init,
 )
 from ._player import (
-    Player,
-    NonexistentPlayerError,
     AbstractDummyPlayer,
     RconDummyPlayer,
 )
@@ -585,6 +587,8 @@ __all__ = [
     "PluginUnloadError",
     "Game",
     "NonexistentGameError",
+    "Player",
+    "NonexistentPlayerError",
     # _core
     "get_logger",
     "log_exception",
@@ -601,8 +605,6 @@ __all__ = [
     # _plugin
     "Plugin",
     # _player
-    "Player",
-    "NonexistentPlayerError",
     "AbstractDummyPlayer",
     "RconDummyPlayer",
     # _commands

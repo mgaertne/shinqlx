@@ -143,6 +143,9 @@ from ._shinqlx import (
     initialize_cvars,
     Game,
     NonexistentGameError,
+    UserInfo,
+    Player,
+    NonexistentPlayerError,
     PluginLoadError,
     PluginUnloadError,
     _map_title,
@@ -166,11 +169,8 @@ from ._core import (
     late_init,
 )
 from ._player import (
-    Player,
-    NonexistentPlayerError,
     AbstractDummyPlayer,
     RconDummyPlayer,
-    UserInfo,
 )
 from ._plugin import (
     Plugin,
@@ -449,6 +449,9 @@ __all__ = [
     "initialize_cvars",
     "Game",
     "NonexistentGameError",
+    "UserInfo",
+    "Player",
+    "NonexistentPlayerError",
     "PluginLoadError",
     "PluginUnloadError",
     # _core
@@ -500,11 +503,8 @@ __all__ = [
     "SingleWeaponStatsEntry",
     "StatsData",
     # _player
-    "Player",
-    "NonexistentPlayerError",
     "AbstractDummyPlayer",
     "RconDummyPlayer",
-    "UserInfo",
     # _commands
     "MAX_MSG_LENGTH",
     "re_color_tag",

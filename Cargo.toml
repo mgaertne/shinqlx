@@ -43,6 +43,7 @@ log4rs = { version = ">=1.2", default-features = false, features = ["console_app
 signal-hook = ">=0.3.1"
 signal-hook-registry = ">=1.4.1"
 itertools = ">=0.11.0"
+regex = { version = ">=1.10.2", features = [] }
 # dependencies to make -Z minimal-versions work
 proc-macro2 = ">=1.0.63"
 pkg-config = ">=0.3.27"
