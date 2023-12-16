@@ -53,6 +53,7 @@ jobs:
         uses: dtolnay/rust-toolchain@stable
         with:
           toolchain: nightly
+          components: "rust-src"
       - name: Set up Python ${{ matrix.python-version }}
         uses: actions/setup-python@v4
         with:
