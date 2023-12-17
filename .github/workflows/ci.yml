@@ -132,6 +132,11 @@ jobs:
     steps:
       - name: Checkout sources
         uses: actions/checkout@v4
+      - name: Install toolchain
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          toolchain: nightly
+          components: rust-src
       - name: Build sdist
         uses: PyO3/maturin-action@v1
         with:
