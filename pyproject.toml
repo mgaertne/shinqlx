@@ -30,7 +30,7 @@ include-package-data = false
 bindings = "pyo3"
 python-source = "python"
 python-packages = ["shinqlx", "minqlx"]
-compatibility = "manylinux"
+compatibility = "manylinux2014"
 
 [tool.ruff]
 select = ["C40", "E", "F", "SIM", "TCH"]
