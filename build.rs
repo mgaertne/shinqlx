@@ -3,16 +3,6 @@ use git2::{Repository, StatusOptions, StatusShow};
 const COMMIT_ID_SHORT_HASH_LENGTH: usize = 8;
 
 fn main() {
-    let python_config = pyo3_build_config::get();
-
-    if let Some(lib_dir) = &python_config.lib_dir {
-        println!("cargo:rustc-link-search={}", lib_dir);
-    }
-
-    if let Some(library) = &python_config.lib_name {
-        println!("cargo:rustc-link-lib={}", library);
-    }
-
     let shinqlx_version = gather_shinqlx_version();
     println!("cargo:rustc-env=SHINQLX_VERSION={}", shinqlx_version);
 }
