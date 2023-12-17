@@ -20,7 +20,7 @@ fn main() {
 fn gather_shinqlx_version() -> String {
     match Repository::discover(env!("CARGO_MANIFEST_DIR")) {
         Err(_) => format!(
-            "\"v{}-{}-unversioned\"",
+            "\"v{}-{}\"",
             env!("CARGO_PKG_VERSION"),
             env!("CARGO_PKG_NAME")
         ),
@@ -29,14 +29,6 @@ fn gather_shinqlx_version() -> String {
                 "cargo:rerun-if-changed={}",
                 repository.workdir().unwrap().display()
             );
-
-            if option_env!("IS_SHINQLX_RELEASE").is_some() {
-                return format!(
-                    "\"v{}-{}\"",
-                    env!("CARGO_PKG_VERSION"),
-                    env!("CARGO_PKG_NAME")
-                );
-            }
 
             let modified = {
                 let statuses = repository
