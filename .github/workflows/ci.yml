@@ -132,6 +132,10 @@ jobs:
     steps:
       - name: Checkout sources
         uses: actions/checkout@v4
+      - name: Set up Python 3.12
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.12'
       - name: Install toolchain
         uses: dtolnay/rust-toolchain@stable
         with:
