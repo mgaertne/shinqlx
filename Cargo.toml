@@ -1,6 +1,6 @@
 [package]
 name = "shinqlx"
-version = "0.5.4"
+version = "0.5.4-rc.2"
 authors = ["Markus 'ShiN0' Gaertner"]
 edition = "2021"
 readme = "README.md"
@@ -51,6 +51,7 @@ procfs = ">=0.15"
 openssl-sys = ">=0.9.90"
 
 [build-dependencies]
+pyo3-build-config = { version = ">=0.19", features = ["resolve-config"] }
 git2 = ">=0.17"
 
 [dev-dependencies]

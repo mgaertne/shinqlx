@@ -27,12 +27,17 @@ license-files = ["LICENSE"]
 include-package-data = false
 
 [tool.maturin]
+unstable-flags = ["build-std=std"]
+include = [
+    { path = "src/**/*", format = "sdist" },
+    { path = "build.rs", format = "sdist" },
+    { path = ".cargo/**/*", format = "sdist" }
+]
 bindings = "pyo3"
+compatibility = "linux"
+skip-auditwheel = true
 python-source = "python"
 python-packages = ["shinqlx", "minqlx"]
-compatibility = "linux"
-features = ["pyo3/extension-module"]
-unstable-flags = ["build-std=std"]
 
 [tool.ruff]
 select = ["C40", "E", "F", "SIM", "TCH"]
