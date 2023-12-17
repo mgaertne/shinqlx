@@ -132,16 +132,11 @@ jobs:
     steps:
       - name: Checkout sources
         uses: actions/checkout@v4
-      - name: Install toolchain
-        uses: dtolnay/rust-toolchain@stable
-        with:
-          toolchain: nightly
-          components: "rust-src"
       - name: Build sdist
         uses: PyO3/maturin-action@v1
         with:
-          target: x86_64
-          args: --sdist --out dist
+          command: sdist
+          args: --out dist
       - name: Upload sdist
         uses: actions/upload-artifact@v3
         with:
