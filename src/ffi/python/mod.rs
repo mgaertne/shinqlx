@@ -280,11 +280,12 @@ pub(crate) fn pyshinqlx_initialize() -> Result<(), PythonInitializationError> {
     debug!(target: "shinqlx", "Initializing Python...");
     append_to_inittab!(pyshinqlx_module);
     prepare_freethreaded_python();
-    match Python::with_gil(|py| {
+    let init_result = Python::with_gil(|py| {
         let shinqlx_module = py.import("shinqlx")?;
         shinqlx_module.call_method0("initialize")?;
         Ok::<(), PyErr>(())
-    }) {
+    });
+    match init_result {
         Err(e) => {
             error!(target: "shinqlx", "{:?}", e);
             error!(target: "shinqlx", "loader sequence returned an error. Did you modify the loader?");
@@ -325,13 +326,14 @@ pub(crate) fn pyshinqlx_reload() -> Result<(), PythonInitializationError> {
     .into_iter()
     .for_each(|handler_lock| handler_lock.store(None));
 
-    match Python::with_gil(|py| {
+    let reinit_result = Python::with_gil(|py| {
         let importlib_module = py.import("importlib")?;
         let shinqlx_module = py.import("shinqlx")?;
         let new_shinqlx_module = importlib_module.call_method1("reload", (shinqlx_module,))?;
         new_shinqlx_module.call_method0("initialize")?;
         Ok::<(), PyErr>(())
-    }) {
+    });
+    match reinit_result {
         Err(_) => {
             PYSHINQLX_INITIALIZED.store(false, Ordering::SeqCst);
             Err(PythonInitializationError::MainScriptError)
