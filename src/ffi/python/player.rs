@@ -16,7 +16,9 @@ use crate::MAIN_ENGINE;
 use itertools::Itertools;
 use pyo3::basic::CompareOp;
 use pyo3::create_exception;
-use pyo3::exceptions::{PyException, PyKeyError, PyValueError};
+use pyo3::exceptions::{
+    PyAttributeError, PyException, PyKeyError, PyNotImplementedError, PyValueError,
+};
 use pyo3::prelude::*;
 use pyo3::types::{IntoPyDict, PyDict, PyType};
 
@@ -6883,5 +6885,168 @@ assert(player._valid)
                 }
             ]
         );
+    }
+}
+
+static _DUMMY_USERINFO: &str = "\
+ui_singlePlayerActive\\0\\\
+cg_autoAction\\1\\\
+cg_autoHop\\0\\\
+cg_predictItems\\1\\\
+model\\bitterman/sport_blue\\\
+headmodel\\crash/red\\\
+handicap\\100\\\
+cl_anonymous\\0\\\
+color1\\4\\color2\\23\\\
+sex\\male\\\
+teamtask\\0\\\
+rate\\25000\\\
+country\\NO\
+";
+
+#[pyclass(extends=Player, subclass)]
+#[pyo3(module = "shinqlx", name = "AbstractDummyPlayer")]
+#[derive(PartialEq, Eq, Debug, Clone)]
+pub(crate) struct AbstractDummyPlayer;
+
+#[pymethods]
+impl AbstractDummyPlayer {
+    #[new]
+    #[pyo3(signature = (name = "DummyPlayer".to_string()))]
+    fn py_new(name: String) -> PyResult<(Self, Player)> {
+        let player_info = PlayerInfo {
+            client_id: -1,
+            name,
+            connection_state: clientState_t::CS_CONNECTED as i32,
+            userinfo: _DUMMY_USERINFO.into(),
+            steam_id: 0,
+            team: team_t::TEAM_SPECTATOR as i32,
+            privileges: privileges_t::PRIV_NONE as i32,
+        };
+        Ok((
+            AbstractDummyPlayer {},
+            Player::py_new(-1, Some(player_info))?,
+        ))
+    }
+
+    #[getter(id)]
+    fn get_id(&self) -> PyResult<i32> {
+        Err(PyAttributeError::new_err(
+            "Dummy players do not have client IDs.",
+        ))
+    }
+
+    #[getter(steam_id)]
+    fn get_steam_id(&self) -> PyResult<u64> {
+        Err(PyNotImplementedError::new_err(
+            "steam_id property needs to be implemented.",
+        ))
+    }
+
+    fn update(&self) -> PyResult<()> {
+        Ok(())
+    }
+
+    #[getter(channel)]
+    fn get_channel(&self) -> PyResult<&PyAny> {
+        Err(PyNotImplementedError::new_err(
+            "channel property needs to be implemented.",
+        ))
+    }
+
+    #[pyo3(signature=(msg, **kwargs))]
+    fn tell(
+        &self,
+        #[allow(unused_variables)] msg: String,
+        #[allow(unused_variables)] kwargs: Option<&PyDict>,
+    ) -> PyResult<&PyAny> {
+        Err(PyNotImplementedError::new_err(
+            "tell() needs to be implemented.",
+        ))
+    }
+}
+
+#[cfg(test)]
+mod pyshinqlx_abstract_dummy_player_tests {
+    use super::AbstractDummyPlayer;
+    #[cfg(not(miri))]
+    use crate::ffi::python::pyshinqlx_setup_fixture::*;
+    use pyo3::exceptions::{PyAttributeError, PyNotImplementedError};
+    use pyo3::Python;
+    #[cfg(not(miri))]
+    use rstest::rstest;
+
+    #[cfg(not(miri))]
+    #[rstest]
+    fn dummy_player_is_a_player_instance(_pyshinqlx_setup: ()) {
+        let result = Python::with_gil(|py| {
+            py.run(
+                r#"
+import _shinqlx
+assert(isinstance(_shinqlx.AbstractDummyPlayer(), _shinqlx.Player))
+            "#,
+                None,
+                None,
+            )
+        });
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    #[cfg_attr(miri, ignore)]
+    fn get_id_returns_attribute_error() {
+        let dummy_player =
+            AbstractDummyPlayer::py_new("DummyTestPlayer".into()).expect("result was not ok");
+
+        Python::with_gil(|py| {
+            let result = dummy_player.0.get_id();
+            assert!(result.is_err_and(|err| err.is_instance_of::<PyAttributeError>(py)));
+        });
+    }
+
+    #[test]
+    #[cfg_attr(miri, ignore)]
+    fn get_steam_id_returns_not_implemented_error() {
+        let dummy_player =
+            AbstractDummyPlayer::py_new("DummyTestPlayer".into()).expect("result was not ok");
+
+        Python::with_gil(|py| {
+            let result = dummy_player.0.get_steam_id();
+            assert!(result.is_err_and(|err| err.is_instance_of::<PyNotImplementedError>(py)));
+        });
+    }
+
+    #[test]
+    #[cfg_attr(miri, ignore)]
+    fn update_does_nothing() {
+        let dummy_player =
+            AbstractDummyPlayer::py_new("DummyTestPlayer".into()).expect("result was not ok");
+
+        let result = dummy_player.0.update();
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    #[cfg_attr(miri, ignore)]
+    fn get_channel_returns_not_implemented_error() {
+        let dummy_player =
+            AbstractDummyPlayer::py_new("DummyTestPlayer".into()).expect("result was not ok");
+
+        Python::with_gil(|py| {
+            let result = dummy_player.0.get_channel();
+            assert!(result.is_err_and(|err| err.is_instance_of::<PyNotImplementedError>(py)));
+        });
+    }
+
+    #[test]
+    #[cfg_attr(miri, ignore)]
+    fn tell_returns_not_implemented_error() {
+        let dummy_player =
+            AbstractDummyPlayer::py_new("DummyTestPlayer".into()).expect("result was not ok");
+
+        Python::with_gil(|py| {
+            let result = dummy_player.0.tell("asdf".into(), None);
+            assert!(result.is_err_and(|err| err.is_instance_of::<PyNotImplementedError>(py)));
+        });
     }
 }

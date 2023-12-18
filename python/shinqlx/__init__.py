@@ -153,6 +153,7 @@ try:
         NonexistentGameError,
         Player,
         NonexistentPlayerError,
+        AbstractDummyPlayer,
         PluginLoadError,
         PluginUnloadError,
         _map_title,
@@ -310,6 +311,7 @@ except ModuleNotFoundError:
         NonexistentGameError,
         Player,
         NonexistentPlayerError,
+        AbstractDummyPlayer,
         PluginLoadError,
         PluginUnloadError,
         _map_title,
@@ -332,7 +334,6 @@ from ._core import (
     late_init,
 )
 from ._player import (
-    AbstractDummyPlayer,
     RconDummyPlayer,
 )
 from ._plugin import Plugin
@@ -589,6 +590,7 @@ __all__ = [
     "NonexistentGameError",
     "Player",
     "NonexistentPlayerError",
+    "AbstractDummyPlayer"
     # _core
     "get_logger",
     "log_exception",
@@ -605,7 +607,6 @@ __all__ = [
     # _plugin
     "Plugin",
     # _player
-    "AbstractDummyPlayer",
     "RconDummyPlayer",
     # _commands
     "MAX_MSG_LENGTH",
