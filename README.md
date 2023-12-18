@@ -1,5 +1,5 @@
 # shinqlx
-![python](https://img.shields.io/badge/python-3.8%7C3.9%7C3.10%7C3.11-blue.svg)
+![python](https://img.shields.io/badge/python-3.8%7C3.9%7C3.10%7C3.11%7C3.12-blue.svg)
 ![Tests](https://github.com/mgaertne/shinqlx/actions/workflows/ci.yml/badge.svg)
 [![codecov](https://codecov.io/gh/mgaertne/shinqlx/branch/main/graph/badge.svg?token=VK9QI52BZX)](https://codecov.io/gh/mgaertne/shinqlx)
 
@@ -47,17 +47,14 @@ If you need to install additional packages later, you can activate the virtual p
 pip install maturin
 ```
 
-- Clone this repository and compile shinqlx (unfortunately this might take a long while if you're compiling for the first time and recently ran `cargo clean`)
-
+- Install shinqlx from pypi source distribution into the virtual python environment (this may take a while):
 ```shell
-git clone https://github.com/mgaertne/shinqlx.git
-cd shinqlx
-maturin build -Z build-std=std --release
+pip install shinqlx
 ```
 
-- Install the generated python wheel into the virtual python environment:
+- Since this may take a while, if you want to see the current progress use run in verbose mode:
 ```shell
-pip install target/wheels/shinqlx*.whl
+pip install -v shinqlx
 ```
 
 - Copy the convenience script `run_server_shinqlx.sh` into `~/qlds`, or whatever other directory you might have installed the quake live dedicated server files in. (Note: The remaining sections assume you installed the dedicated server into ~/qlds)
