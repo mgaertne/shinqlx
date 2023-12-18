@@ -15,8 +15,7 @@ use embed::*;
 pub(crate) use flight::Flight;
 use game::{Game, NonexistentGameError};
 pub(crate) use holdable::Holdable;
-#[allow(unused_imports)]
-use player::{NonexistentPlayerError, Player};
+use player::{AbstractDummyPlayer, NonexistentPlayerError, Player};
 pub(crate) use player_info::PlayerInfo;
 pub(crate) use player_state::PlayerState;
 pub(crate) use player_stats::PlayerStats;
@@ -702,6 +701,7 @@ fn pyshinqlx_module(py: Python<'_>, m: &PyModule) -> PyResult<()> {
         "NonexistentPlayerError",
         py.get_type::<NonexistentPlayerError>(),
     )?;
+    m.add_class::<AbstractDummyPlayer>()?;
     m.add("PluginLoadError", py.get_type::<PluginLoadError>())?;
     m.add("PluginUnloadError", py.get_type::<PluginUnloadError>())?;
 
