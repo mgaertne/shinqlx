@@ -42,7 +42,6 @@ use log4rs::encode::pattern::PatternEncoder;
 use log4rs::{Config, Handle};
 use once_cell::sync::{Lazy, OnceCell};
 use signal_hook::consts::SIGSEGV;
-use std::sync::atomic::AtomicBool;
 use swap_arc::SwapArcOption;
 
 #[allow(dead_code)]
@@ -55,7 +54,6 @@ pub(crate) const QZERODED: &str = "qzeroded.x86";
 pub(crate) static MAIN_LOGGER: OnceCell<Handle> = OnceCell::new();
 pub(crate) static MAIN_ENGINE: Lazy<SwapArcOption<QuakeLiveEngine>> =
     Lazy::new(|| SwapArcOption::new(None));
-pub(crate) static FRAME_DISPATCHER_ENABLED: AtomicBool = AtomicBool::new(false);
 
 fn initialize_logging() {
     let stdout = ConsoleAppender::builder()
