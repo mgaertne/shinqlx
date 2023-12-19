@@ -18,11 +18,10 @@ use crate::quake_live_engine::{
     InitGame, RegisterDamage, RunFrame, SendServerCommand, SetConfigstring, SetModuleOffset,
     ShutdownGame, SpawnServer,
 };
-use crate::{FRAME_DISPATCHER_ENABLED, MAIN_ENGINE};
+use crate::MAIN_ENGINE;
 use alloc::string::String;
 use core::borrow::BorrowMut;
 use core::ffi::{c_char, c_int, CStr, VaList, VaListImpl};
-use std::sync::atomic::Ordering;
 
 pub(crate) fn shinqlx_cmd_addcommand(cmd: *const c_char, func: unsafe extern "C" fn()) {
     let Some(ref main_engine) = *MAIN_ENGINE.load() else {
@@ -88,8 +87,6 @@ pub(crate) fn shinqlx_g_shutdowngame(restart: c_int) {
     let Some(ref main_engine) = *MAIN_ENGINE.load() else {
         return;
     };
-
-    FRAME_DISPATCHER_ENABLED.store(false, Ordering::SeqCst);
 
     main_engine.unhook_vm();
     main_engine.shutdown_game(restart);
@@ -357,8 +354,6 @@ pub(crate) fn shinqlx_sv_spawnserver(server: *const c_char, kill_bots: qboolean)
         <qboolean as Into<bool>>::into(kill_bots),
     );
 
-    FRAME_DISPATCHER_ENABLED.store(true, Ordering::SeqCst);
-
     new_game_dispatcher(false);
 }
 
@@ -367,9 +362,7 @@ pub(crate) fn shinqlx_g_runframe(time: c_int) {
         return;
     };
 
-    if FRAME_DISPATCHER_ENABLED.load(Ordering::SeqCst) {
-        frame_dispatcher();
-    }
+    frame_dispatcher();
 
     main_engine.run_frame(time);
 }
@@ -573,13 +566,11 @@ mod hooks_tests {
     use crate::hooks::{shinqlx_cmd_addcommand, shinqlx_g_startkamikaze};
     use crate::prelude::*;
     use crate::quake_live_engine::MockQuakeEngine;
-    use crate::FRAME_DISPATCHER_ENABLED;
     use alloc::ffi::CString;
     use core::ffi::{c_char, CStr};
     use mockall::predicate;
     use pretty_assertions::assert_eq;
     use rstest::*;
-    use std::sync::atomic::Ordering;
 
     unsafe extern "C" fn dummy_function() {}
 
@@ -771,8 +762,6 @@ mod hooks_tests {
         MAIN_ENGINE.store(Some(mock_engine.into()));
 
         shinqlx_g_shutdowngame(42);
-
-        assert_eq!(FRAME_DISPATCHER_ENABLED.load(Ordering::SeqCst), false);
     }
 
     #[test]
@@ -1336,8 +1325,6 @@ mod hooks_tests {
         let server_str = CString::new("l33t ql server").expect("this should not happen");
 
         shinqlx_sv_spawnserver(server_str.as_ptr(), qboolean::qtrue);
-
-        assert_eq!(FRAME_DISPATCHER_ENABLED.load(Ordering::SeqCst), true);
     }
 
     #[test]
@@ -1356,27 +1343,9 @@ mod hooks_tests {
             .with(predicate::eq(42))
             .times(1);
         MAIN_ENGINE.store(Some(mock_engine.into()));
-        FRAME_DISPATCHER_ENABLED.store(true, Ordering::SeqCst);
 
         let mock_frame_dispatcher_ctx = frame_dispatcher_context();
         mock_frame_dispatcher_ctx.expect().times(1);
-
-        shinqlx_g_runframe(42);
-    }
-
-    #[test]
-    #[serial]
-    fn g_runframe_between_games() {
-        let mut mock_engine = MockQuakeEngine::new();
-        mock_engine
-            .expect_run_frame()
-            .with(predicate::eq(42))
-            .times(1);
-        MAIN_ENGINE.store(Some(mock_engine.into()));
-        FRAME_DISPATCHER_ENABLED.store(false, Ordering::SeqCst);
-
-        let mock_frame_dispatcher_ctx = frame_dispatcher_context();
-        mock_frame_dispatcher_ctx.expect().times(0);
 
         shinqlx_g_runframe(42);
     }
