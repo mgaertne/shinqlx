@@ -154,6 +154,7 @@ try:
         Player,
         NonexistentPlayerError,
         AbstractDummyPlayer,
+        RconDummyPlayer,
         PluginLoadError,
         PluginUnloadError,
         _map_title,
@@ -312,6 +313,7 @@ except ModuleNotFoundError:
         Player,
         NonexistentPlayerError,
         AbstractDummyPlayer,
+        RconDummyPlayer,
         PluginLoadError,
         PluginUnloadError,
         _map_title,
@@ -332,9 +334,6 @@ from ._core import (
     reload_plugin,
     initialize,
     late_init,
-)
-from ._player import (
-    RconDummyPlayer,
 )
 from ._plugin import Plugin
 from ._events import (
@@ -438,7 +437,7 @@ __all__ = [
     "__plugins_version__",
     "_map_title",
     "_map_subtitle1",
-    "_map_subtitle2"
+    "_map_subtitle2",
     # _shinqlx
     "DEBUG",
     "RET_NONE",
@@ -590,7 +589,8 @@ __all__ = [
     "NonexistentGameError",
     "Player",
     "NonexistentPlayerError",
-    "AbstractDummyPlayer"
+    "AbstractDummyPlayer",
+    "RconDummyPlayer",
     # _core
     "get_logger",
     "log_exception",
@@ -606,8 +606,6 @@ __all__ = [
     "late_init",
     # _plugin
     "Plugin",
-    # _player
-    "RconDummyPlayer",
     # _commands
     "MAX_MSG_LENGTH",
     "re_color_tag",
