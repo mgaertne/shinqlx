@@ -6913,7 +6913,7 @@ pub(crate) struct AbstractDummyPlayer;
 impl AbstractDummyPlayer {
     #[new]
     #[pyo3(signature = (name = "DummyPlayer".to_string()))]
-    fn py_new(name: String) -> PyResult<(Self, Player)> {
+    fn py_new(name: String) -> PyClassInitializer<Self> {
         let player_info = PlayerInfo {
             client_id: -1,
             name,
@@ -6923,10 +6923,8 @@ impl AbstractDummyPlayer {
             team: team_t::TEAM_SPECTATOR as i32,
             privileges: privileges_t::PRIV_NONE as i32,
         };
-        Ok((
-            AbstractDummyPlayer {},
-            Player::py_new(-1, Some(player_info))?,
-        ))
+        PyClassInitializer::from(Player::py_new(-1, Some(player_info)).unwrap())
+            .add_subclass(AbstractDummyPlayer {})
     }
 
     #[getter(id)]
@@ -6966,17 +6964,14 @@ impl AbstractDummyPlayer {
     }
 }
 
+#[cfg(not(miri))]
 #[cfg(test)]
 mod pyshinqlx_abstract_dummy_player_tests {
-    use super::AbstractDummyPlayer;
-    #[cfg(not(miri))]
     use crate::ffi::python::pyshinqlx_setup_fixture::*;
     use pyo3::exceptions::{PyAttributeError, PyNotImplementedError};
     use pyo3::Python;
-    #[cfg(not(miri))]
     use rstest::rstest;
 
-    #[cfg(not(miri))]
     #[rstest]
     fn dummy_player_is_a_player_instance(_pyshinqlx_setup: ()) {
         let result = Python::with_gil(|py| {
@@ -6992,61 +6987,162 @@ assert(isinstance(_shinqlx.AbstractDummyPlayer(), _shinqlx.Player))
         assert!(result.is_ok());
     }
 
-    #[test]
-    #[cfg_attr(miri, ignore)]
-    fn get_id_returns_attribute_error() {
-        let dummy_player =
-            AbstractDummyPlayer::py_new("DummyTestPlayer".into()).expect("result was not ok");
-
+    #[rstest]
+    fn get_id_returns_attribute_error(_pyshinqlx_setup: ()) {
         Python::with_gil(|py| {
-            let result = dummy_player.0.get_id();
+            let result = py.run(
+                r#"
+import _shinqlx
+_shinqlx.AbstractDummyPlayer().id
+            "#,
+                None,
+                None,
+            );
             assert!(result.is_err_and(|err| err.is_instance_of::<PyAttributeError>(py)));
         });
     }
 
-    #[test]
-    #[cfg_attr(miri, ignore)]
-    fn get_steam_id_returns_not_implemented_error() {
-        let dummy_player =
-            AbstractDummyPlayer::py_new("DummyTestPlayer".into()).expect("result was not ok");
-
+    #[rstest]
+    fn get_steam_id_returns_not_implemented_error(_pyshinqlx_setup: ()) {
         Python::with_gil(|py| {
-            let result = dummy_player.0.get_steam_id();
+            let result = py.run(
+                r#"
+import _shinqlx
+_shinqlx.AbstractDummyPlayer().steam_id
+            "#,
+                None,
+                None,
+            );
             assert!(result.is_err_and(|err| err.is_instance_of::<PyNotImplementedError>(py)));
         });
     }
 
-    #[test]
-    #[cfg_attr(miri, ignore)]
-    fn update_does_nothing() {
-        let dummy_player =
-            AbstractDummyPlayer::py_new("DummyTestPlayer".into()).expect("result was not ok");
+    #[rstest]
+    fn update_does_nothing(_pyshinqlx_setup: ()) {
+        Python::with_gil(|py| {
+            let result = py.run(
+                r#"
+import _shinqlx
+_shinqlx.AbstractDummyPlayer().update()
+            "#,
+                None,
+                None,
+            );
+            assert!(result.is_ok());
+        });
+    }
 
-        let result = dummy_player.0.update();
+    #[rstest]
+    fn get_channel_returns_not_implemented_error(_pyshinqlx_setup: ()) {
+        Python::with_gil(|py| {
+            let result = py.run(
+                r#"
+import _shinqlx
+_shinqlx.AbstractDummyPlayer().channel
+            "#,
+                None,
+                None,
+            );
+            assert!(result.is_err_and(|err| err.is_instance_of::<PyNotImplementedError>(py)));
+        });
+    }
+
+    #[rstest]
+    fn tell_returns_not_implemented_error(_pyshinqlx_setup: ()) {
+        Python::with_gil(|py| {
+            let result = py.run(
+                r#"
+import _shinqlx
+_shinqlx.AbstractDummyPlayer().tell("asdf")
+            "#,
+                None,
+                None,
+            );
+            assert!(result.is_err_and(|err| err.is_instance_of::<PyNotImplementedError>(py)));
+        });
+    }
+}
+
+#[pyclass(extends=AbstractDummyPlayer)]
+#[pyo3(module = "shinqlx", name = "RconDummyPlayer")]
+#[derive(PartialEq, Eq, Debug, Clone)]
+pub(crate) struct RconDummyPlayer;
+
+#[pymethods]
+impl RconDummyPlayer {
+    #[new]
+    fn py_new() -> PyClassInitializer<Self> {
+        AbstractDummyPlayer::py_new("RconDummyPlayer".into()).add_subclass(RconDummyPlayer {})
+    }
+
+    #[getter(steam_id)]
+    fn get_steam_id(&self, py: Python<'_>) -> PyResult<u64> {
+        super::owner(py).map(|opt_value| opt_value.unwrap_or_default())
+    }
+
+    #[getter(channel)]
+    fn get_channel<'py>(
+        #[allow(unused_variables)] slf: PyRef<'py, Self>,
+        py: Python<'py>,
+    ) -> PyResult<&'py PyAny> {
+        let console_channel = PyModule::from_code(
+            py,
+            r#"
+import shinqlx
+
+console_channel = shinqlx.CONSOLE_CHANNEL"#,
+            "",
+            "",
+        )
+        .expect("this should not happen");
+
+        console_channel.getattr("console_channel")
+    }
+
+    #[pyo3(signature=(msg, **kwargs))]
+    fn tell<'py>(
+        #[allow(unused_variables)] slf: PyRef<'py, Self>,
+        py: Python<'py>,
+        msg: String,
+        #[allow(unused_variables)] kwargs: Option<&PyDict>,
+    ) -> PyResult<&'py PyAny> {
+        let console_channel = PyModule::from_code(
+            py,
+            r#"
+import shinqlx
+
+console_channel = shinqlx.CONSOLE_CHANNEL"#,
+            "",
+            "",
+        )
+        .expect("this should not happen");
+
+        console_channel
+            .getattr("console_channel")?
+            .call_method1("reply", (msg,))
+    }
+}
+
+#[cfg(not(miri))]
+#[cfg(test)]
+mod pyshinqlx_rcon_dummy_player_tests {
+    use crate::ffi::python::pyshinqlx_setup_fixture::*;
+    use pyo3::Python;
+    use rstest::rstest;
+
+    #[rstest]
+    fn dummy_player_is_a_player_instance(_pyshinqlx_setup: ()) {
+        let result = Python::with_gil(|py| {
+            py.run(
+                r#"
+import _shinqlx
+assert(isinstance(_shinqlx.RconDummyPlayer(), _shinqlx.Player))
+assert(isinstance(_shinqlx.RconDummyPlayer(), _shinqlx.AbstractDummyPlayer))
+            "#,
+                None,
+                None,
+            )
+        });
         assert!(result.is_ok());
-    }
-
-    #[test]
-    #[cfg_attr(miri, ignore)]
-    fn get_channel_returns_not_implemented_error() {
-        let dummy_player =
-            AbstractDummyPlayer::py_new("DummyTestPlayer".into()).expect("result was not ok");
-
-        Python::with_gil(|py| {
-            let result = dummy_player.0.get_channel();
-            assert!(result.is_err_and(|err| err.is_instance_of::<PyNotImplementedError>(py)));
-        });
-    }
-
-    #[test]
-    #[cfg_attr(miri, ignore)]
-    fn tell_returns_not_implemented_error() {
-        let dummy_player =
-            AbstractDummyPlayer::py_new("DummyTestPlayer".into()).expect("result was not ok");
-
-        Python::with_gil(|py| {
-            let result = dummy_player.0.tell("asdf".into(), None);
-            assert!(result.is_err_and(|err| err.is_instance_of::<PyNotImplementedError>(py)));
-        });
     }
 }

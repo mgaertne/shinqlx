@@ -15,7 +15,7 @@ use embed::*;
 pub(crate) use flight::Flight;
 use game::{Game, NonexistentGameError};
 pub(crate) use holdable::Holdable;
-use player::{AbstractDummyPlayer, NonexistentPlayerError, Player};
+use player::{AbstractDummyPlayer, NonexistentPlayerError, Player, RconDummyPlayer};
 pub(crate) use player_info::PlayerInfo;
 pub(crate) use player_state::PlayerState;
 pub(crate) use player_stats::PlayerStats;
@@ -356,7 +356,7 @@ fn uptime(py: Python<'_>) -> PyResult<&PyDelta> {
 
 /// Returns the SteamID64 of the owner. This is set in the config.
 #[pyfunction]
-fn owner(py: Python<'_>) -> PyResult<Option<i64>> {
+fn owner(py: Python<'_>) -> PyResult<Option<u64>> {
     let Ok(Some(owner_cvar)) = pyshinqlx_get_cvar(py, "qlx_owner") else {
         error!(target: "shinqlx", "Failed to parse the Owner Steam ID. Make sure it's in SteamID64 format.");
         return Ok(None);
@@ -367,12 +367,12 @@ fn owner(py: Python<'_>) -> PyResult<Option<i64>> {
         return Ok(None);
     };
 
-    if steam_id == -1 {
+    if steam_id < 0 {
         error!(target: "shinqlx", "Failed to parse the Owner Steam ID. Make sure it's in SteamID64 format.");
         return Ok(None);
     }
 
-    Ok(Some(steam_id))
+    Ok(Some(steam_id.try_into()?))
 }
 
 static DEFAULT_PLUGINS: [&str; 10] = [
@@ -702,6 +702,7 @@ fn pyshinqlx_module(py: Python<'_>, m: &PyModule) -> PyResult<()> {
         py.get_type::<NonexistentPlayerError>(),
     )?;
     m.add_class::<AbstractDummyPlayer>()?;
+    m.add_class::<RconDummyPlayer>()?;
     m.add("PluginLoadError", py.get_type::<PluginLoadError>())?;
     m.add("PluginUnloadError", py.get_type::<PluginUnloadError>())?;
 
