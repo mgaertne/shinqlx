@@ -1,4 +1,4 @@
-use crate::ffi::python::embed::pyshinqlx_send_server_command;
+use crate::ffi::python::embed::{pyshinqlx_console_print, pyshinqlx_send_server_command};
 use pyo3::basic::CompareOp;
 use pyo3::exceptions::PyNotImplementedError;
 use pyo3::prelude::*;
@@ -108,6 +108,34 @@ impl AbstractChannel {
     }
 }
 
+/// A channel that prints to the console.
+#[pyclass(extends=AbstractChannel, subclass)]
+#[pyo3(module = "shinqlx", name = "ConsoleChannel", get_all)]
+#[derive(PartialEq, Eq, Debug, Clone)]
+pub(crate) struct ConsoleChannel {}
+
+#[pymethods]
+impl ConsoleChannel {
+    #[new]
+    fn py_new() -> PyClassInitializer<Self> {
+        PyClassInitializer::from(AbstractChannel {
+            name: "console".to_string(),
+        })
+        .add_subclass(Self {})
+    }
+
+    fn reply(
+        #[allow(unused_variables)] self_: PyRef<'_, Self>,
+        py: Python<'_>,
+        msg: String,
+        #[allow(unused_variables)] limit: i32,
+        #[allow(unused_variables)] delimiter: String,
+    ) -> PyResult<()> {
+        pyshinqlx_console_print(py, msg.as_str());
+        Ok(())
+    }
+}
+
 pub(crate) const MAX_MSG_LENGTH: i32 = 1000;
 
 #[pyclass(extends=AbstractChannel, subclass)]
@@ -121,12 +149,8 @@ pub(crate) struct ChatChannel {
 #[pymethods]
 impl ChatChannel {
     #[new]
-    #[pyo3(signature = (name = "chat".to_string(), fmt = "print \"{}\n\"\n".to_string(), **kwargs))]
-    fn py_new(
-        name: String,
-        fmt: String,
-        #[allow(unused_variables)] kwargs: Option<&PyAny>,
-    ) -> PyClassInitializer<Self> {
+    #[pyo3(signature = (name = "chat".to_string(), fmt = "print \"{}\n\"\n".to_string()))]
+    fn py_new(name: String, fmt: String) -> PyClassInitializer<Self> {
         PyClassInitializer::from(AbstractChannel { name }).add_subclass(Self { fmt })
     }
 
@@ -147,9 +171,9 @@ impl ChatChannel {
         let cleaned_msg = msg.replace('"', "'");
         let targets: Option<Vec<i32>> = self_.call_method0("receipients")?.extract()?;
 
-        let split_msgs: Vec<String> = self_.call_method1(
-            "split_long_lines",
-            (cleaned_msg, limit, delimiter))?.extract()?;
+        let split_msgs: Vec<String> = self_
+            .call_method1("split_long_lines", (cleaned_msg, limit, delimiter))?
+            .extract()?;
 
         let mut joined_msgs = vec![];
         for s in split_msgs {

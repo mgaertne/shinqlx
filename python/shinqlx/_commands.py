@@ -1,7 +1,7 @@
 import re
 
 import shinqlx
-from shinqlx import AbstractChannel, ChatChannel
+from shinqlx import AbstractChannel, ChatChannel, ConsoleChannel
 
 re_color_tag = re.compile(r"\^[0-7]")
 
@@ -51,19 +51,6 @@ class TellChannel(ChatChannel):
         if cid is None:
             raise ValueError("Invalid recipient.")
         return [cid]
-
-
-class ConsoleChannel(AbstractChannel):
-    """A channel that prints to the console."""
-
-    def __new__(cls):
-        return super().__new__(cls, "console")
-
-    def __init__(self):
-        super().__init__()
-
-    def reply(self, msg, limit=100, delimiter=" "):
-        shinqlx.console_print(str(msg))
 
 
 class ClientCommandChannel(AbstractChannel):
