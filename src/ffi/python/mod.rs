@@ -1,3 +1,4 @@
+mod channels;
 pub(crate) mod dispatchers;
 pub(crate) mod embed;
 mod flight;
@@ -25,6 +26,7 @@ pub(crate) use weapons::Weapons;
 
 use crate::prelude::*;
 
+use crate::ffi::python::channels::{AbstractChannel, ChatChannel, MAX_MSG_LENGTH};
 use crate::_INIT_TIME;
 use alloc::vec::IntoIter;
 use core::str::FromStr;
@@ -703,6 +705,9 @@ fn pyshinqlx_module(py: Python<'_>, m: &PyModule) -> PyResult<()> {
     )?;
     m.add_class::<AbstractDummyPlayer>()?;
     m.add_class::<RconDummyPlayer>()?;
+    m.add("MAX_MSG_LENGTH", MAX_MSG_LENGTH)?;
+    m.add_class::<AbstractChannel>()?;
+    m.add_class::<ChatChannel>()?;
     m.add("PluginLoadError", py.get_type::<PluginLoadError>())?;
     m.add("PluginUnloadError", py.get_type::<PluginUnloadError>())?;
 

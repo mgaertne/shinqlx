@@ -1,143 +1,22 @@
 import re
-from abc import abstractmethod
 
 import shinqlx
+from shinqlx import AbstractChannel, ChatChannel
 
-
-MAX_MSG_LENGTH = 1000
 re_color_tag = re.compile(r"\^[0-7]")
 
 
 # ====================================================================
 #                             CHANNELS
 # ====================================================================
-class AbstractChannel:
-    """An abstract class of a chat channel. A chat channel being a source of a message.
-
-    Chat channels must implement reply(), since that's the whole point of having a chat channel
-    as a class. Makes it quite convenient when dealing with commands and such, while allowing
-    people to implement their own channels, opening the possibilites for communication with the
-    bot through other means than just chat and console (e.g. web interface).
-
-    Say "ChatChannelA" and "ChatChannelB" are both subclasses of this, and "cca" and "ccb" are instances,
-    the default implementation of "cca == ccb" is comparing __repr__(). However, when you register
-    a command and list what channels you want it to work with, it'll use this class' __str__(). It's
-    important to keep this in mind if you make a subclass. Say you have a web interface that
-    supports multiple users on it simulaneously. The right way would be to set "name" to something
-    like "webinterface", and then implement a __repr__() to return something like "webinterface user1".
-
-    """
-
-    def __init__(self, name):
-        self._name = name
-
-    def __str__(self):
-        return self.name
-
-    def __repr__(self):
-        return str(self)
-
-    # Equal.
-    def __eq__(self, other):
-        if isinstance(other, str):
-            # For string comparison, we use self.name. This allows
-            # stuff like: if channel == "tell": do_something()
-            return self.name == other
-        return repr(self) == repr(other)
-
-    # Not equal.
-    def __ne__(self, other):
-        return not self.__eq__(other)
-
-    @property
-    def name(self):
-        return self._name
-
-    def reply(self, msg, limit=100, delimiter=" "):
-        raise NotImplementedError()
-
-    # noinspection PyMethodMayBeStatic
-    def split_long_lines(self, msg, limit=100, delimiter=" "):
-        res = []
-
-        while msg:
-            i = msg.find("\n")
-            if 0 <= i <= limit:
-                res.append(msg[:i])
-                msg = msg[i + 1:]
-                continue
-
-            if len(msg) < limit:
-                if msg:
-                    res.append(msg)
-                break
-
-            length = 0
-            while True:
-                i = msg[length:].find(delimiter)
-                if i == -1 or i + length > limit:
-                    if not length:
-                        length = limit + 1
-                    res.append(msg[: length - 1])
-                    msg = msg[length + len(delimiter) - 1:]
-                    break
-                length += i + 1
-
-        return res
-
-
-class ChatChannel(AbstractChannel):
-    """A channel for chat to and from the server."""
-
-    def __init__(self, name="chat", fmt='print "{}\n"\n'):
-        super().__init__(name)
-        self.fmt = fmt
-
-    @abstractmethod
-    def receipients(self):
-        pass
-
-    @shinqlx.next_frame
-    def reply(self, msg, limit=100, delimiter=" "):
-        # We convert whatever we got to a string and replace all double quotes
-        # to single quotes, since the engine doesn't support escaping them.
-        # TODO: rcon can print quotes to clients using NET_OutOfBandPrint. Maybe we should too?
-        msg = str(msg).replace('"', "'")
-        # Can deal with all the below ChatChannel subclasses.
-        last_color = ""
-        targets = self.receipients()
-
-        split_msgs = self.split_long_lines(msg, limit, delimiter)
-        # We've split messages, but we can still just join them up to 1000-ish
-        # bytes before we need to send multiple server cmds.
-        joined_msgs: list[str] = []
-        for s in split_msgs:
-            if len(joined_msgs) == 0:
-                joined_msgs.append(s)
-            else:
-                s_new = joined_msgs[-1] + "\n" + s
-                if len(s_new.encode(errors="replace")) > MAX_MSG_LENGTH:
-                    joined_msgs.append(s)
-                else:
-                    joined_msgs[-1] = s_new
-
-        for s in joined_msgs:
-            if not targets:
-                shinqlx.send_server_command(None, self.fmt.format(last_color + s))
-            else:
-                for cid in targets:
-                    shinqlx.send_server_command(cid, self.fmt.format(last_color + s))
-
-            find = re_color_tag.findall(s)
-            if find:
-                last_color = find[-1]
-
-
 class TeamChatChannel(ChatChannel):
     """A channel for chat to and from the server."""
 
+    def __new__(cls, team="all", name="chat", fmt='print "{}\n"\n'):
+        return super().__new__(cls, name=name, fmt=fmt)
+
     def __init__(self, team="all", name="chat", fmt='print "{}\n"\n'):
-        super().__init__(name=name, fmt=fmt)
+        super().__init__()
         self.team = team
 
     def receipients(self):
@@ -154,8 +33,11 @@ class TeamChatChannel(ChatChannel):
 class TellChannel(ChatChannel):
     """A channel for private in-game messages."""
 
+    def __new__(cls, player):
+        return super().__new__(cls, name="tell", fmt='print "{}\n"\n')
+
     def __init__(self, player):
-        super().__init__(name="tell", fmt='print "{}\n"\n')
+        super().__init__()
         self.recipient = player
 
     def __repr__(self):
@@ -174,8 +56,11 @@ class TellChannel(ChatChannel):
 class ConsoleChannel(AbstractChannel):
     """A channel that prints to the console."""
 
+    def __new__(cls):
+        return super().__new__(cls, "console")
+
     def __init__(self):
-        super().__init__("console")
+        super().__init__()
 
     def reply(self, msg, limit=100, delimiter=" "):
         shinqlx.console_print(str(msg))
@@ -184,8 +69,11 @@ class ConsoleChannel(AbstractChannel):
 class ClientCommandChannel(AbstractChannel):
     """Wraps a TellChannel, but with its own name."""
 
+    def __new__(cls, player):
+        return super().__new__(cls, "client_command")
+
     def __init__(self, player):
-        super().__init__("client_command")
+        super().__init__()
         self.recipient = player
         self.tell_channel = TellChannel(player)
 

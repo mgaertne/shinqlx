@@ -155,6 +155,9 @@ try:
         NonexistentPlayerError,
         AbstractDummyPlayer,
         RconDummyPlayer,
+        MAX_MSG_LENGTH,
+        AbstractChannel,
+        ChatChannel,
         PluginLoadError,
         PluginUnloadError,
         _map_title,
@@ -314,6 +317,9 @@ except ModuleNotFoundError:
         NonexistentPlayerError,
         AbstractDummyPlayer,
         RconDummyPlayer,
+        MAX_MSG_LENGTH,
+        AbstractChannel,
+        ChatChannel,
         PluginLoadError,
         PluginUnloadError,
         _map_title,
@@ -396,10 +402,7 @@ from ._handlers import (
     register_handlers,
 )
 from ._commands import (
-    MAX_MSG_LENGTH,
     re_color_tag,
-    AbstractChannel,
-    ChatChannel,
     TeamChatChannel,
     TellChannel,
     ConsoleChannel,
@@ -591,6 +594,9 @@ __all__ = [
     "NonexistentPlayerError",
     "AbstractDummyPlayer",
     "RconDummyPlayer",
+    "MAX_MSG_LENGTH",
+    "AbstractChannel",
+    "ChatChannel",
     # _core
     "get_logger",
     "log_exception",
@@ -607,10 +613,7 @@ __all__ = [
     # _plugin
     "Plugin",
     # _commands
-    "MAX_MSG_LENGTH",
     "re_color_tag",
-    "AbstractChannel",
-    "ChatChannel",
     "TeamChatChannel",
     "TellChannel",
     "ConsoleChannel",
