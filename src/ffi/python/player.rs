@@ -2,6 +2,7 @@ use super::{
     clean_text, parse_variables, Flight, Holdable, PlayerInfo, PlayerState, PlayerStats, Powerups,
     Vector3, Weapons,
 };
+use crate::ffi::python::channels::TellChannel;
 use crate::ffi::python::embed::{
     pyshinqlx_client_command, pyshinqlx_console_command, pyshinqlx_drop_holdable, pyshinqlx_kick,
     pyshinqlx_noclip, pyshinqlx_player_spawn, pyshinqlx_player_state, pyshinqlx_player_stats,
@@ -76,7 +77,7 @@ pub(crate) struct Player {
     #[pyo3(name = "_valid")]
     valid: bool,
     #[pyo3(name = "_id")]
-    id: i32,
+    pub(crate) id: i32,
     #[pyo3(name = "_info")]
     player_info: PlayerInfo,
     #[pyo3(name = "_userinfo")]
@@ -1115,19 +1116,11 @@ impl Player {
     }
 
     #[getter(channel)]
-    fn get_channel<'py>(slf: PyRef<'py, Self>, py: Python<'py>) -> PyResult<&'py PyAny> {
-        let tell_channel = PyModule::from_code(
-            py,
-            r#"
-import shinqlx
-
-tell_channel = shinqlx.TellChannel"#,
-            "",
-            "",
-        )
-        .expect("this should not happen");
-
-        tell_channel.call_method1("tell_channel", (slf,))
+    fn get_channel(&self, py: Python<'_>) -> Py<PyAny> {
+        match Py::new(py, TellChannel::py_new(self)) {
+            Err(_) => py.None(),
+            Ok(tell_channel) => tell_channel.to_object(py),
+        }
     }
 
     fn center_print(&self, py: Python<'_>, msg: String) -> PyResult<()> {
@@ -1137,23 +1130,16 @@ tell_channel = shinqlx.TellChannel"#,
 
     #[pyo3(signature=(msg, **kwargs))]
     fn tell<'py>(
-        slf: PyRef<'py, Self>,
+        &self,
         py: Python<'py>,
         msg: String,
         kwargs: Option<&'py PyDict>,
-    ) -> PyResult<&'py PyAny> {
-        let tell_module = PyModule::from_code(
-            py,
-            r#"
-import shinqlx
-
-func = shinqlx.Plugin.tell"#,
-            "",
-            "",
-        )
-        .expect("this should not happen");
-
-        tell_module.call_method("func", (msg, slf), kwargs)
+    ) -> PyResult<PyObject> {
+        let tell_channel = self.get_channel(py);
+        if tell_channel.is_none(py) {
+            return Err(PyNotImplementedError::new_err(""));
+        }
+        tell_channel.call_method(py, "reply", (msg,), kwargs)
     }
 
     #[pyo3(signature=(reason=""))]

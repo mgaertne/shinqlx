@@ -1,7 +1,7 @@
 import re
 
 import shinqlx
-from shinqlx import AbstractChannel, ChatChannel, ConsoleChannel
+from shinqlx import AbstractChannel, ChatChannel, ConsoleChannel, TellChannel
 
 re_color_tag = re.compile(r"\^[0-7]")
 
@@ -28,29 +28,6 @@ class TeamChatChannel(ChatChannel):
             for player in shinqlx.Player.all_players()
             if player.team == self.team
         ]
-
-
-class TellChannel(ChatChannel):
-    """A channel for private in-game messages."""
-
-    def __new__(cls, player):
-        return super().__new__(cls, name="tell", fmt='print "{}\n"\n')
-
-    def __init__(self, player):
-        super().__init__()
-        self.recipient = player
-
-    def __repr__(self):
-        player = shinqlx.Plugin.player(self.recipient)
-        if player is None:
-            return ""
-        return f"tell {player.steam_id}"
-
-    def receipients(self):
-        cid = shinqlx.Plugin.client_id(self.recipient)
-        if cid is None:
-            raise ValueError("Invalid recipient.")
-        return [cid]
 
 
 class ClientCommandChannel(AbstractChannel):
