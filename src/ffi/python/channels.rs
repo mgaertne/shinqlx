@@ -1,4 +1,5 @@
 use crate::ffi::python::embed::{pyshinqlx_console_print, pyshinqlx_send_server_command};
+use crate::ffi::python::player::Player;
 use pyo3::basic::CompareOp;
 use pyo3::exceptions::PyNotImplementedError;
 use pyo3::prelude::*;
@@ -218,5 +219,36 @@ impl ChatChannel {
         }
 
         Ok(())
+    }
+}
+
+#[pyclass(extends=ChatChannel, subclass)]
+#[pyo3(module = "shinqlx", name = "TellChannel", get_all)]
+#[derive(PartialEq, Eq, Debug, Clone)]
+pub(crate) struct TellChannel {
+    recipient: i32,
+}
+
+#[pymethods]
+impl TellChannel {
+    #[new]
+    pub(crate) fn py_new(player: &Player) -> PyClassInitializer<Self> {
+        PyClassInitializer::from(AbstractChannel {
+            name: "tell".to_string(),
+        })
+        .add_subclass(ChatChannel {
+            fmt: "print \"{}\n\"\n".to_string(),
+        })
+        .add_subclass(Self {
+            recipient: player.id,
+        })
+    }
+
+    fn __repr__(&self) -> String {
+        format!("tell {}", self.recipient)
+    }
+
+    fn receipients(&self) -> PyResult<Option<Vec<i32>>> {
+        Ok(Some(vec![self.recipient]))
     }
 }

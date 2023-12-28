@@ -152,6 +152,7 @@ from ._shinqlx import (
     AbstractChannel,
     ConsoleChannel,
     ChatChannel,
+    TellChannel,
     PluginLoadError,
     PluginUnloadError,
     _map_title,
@@ -274,7 +275,6 @@ from ._handlers import (
 from ._commands import (
     re_color_tag,
     TeamChatChannel,
-    TellChannel,
     ClientCommandChannel,
     Command,
     CommandInvoker,
@@ -456,6 +456,7 @@ __all__ = [
     "AbstractChannel",
     "ConsoleChannel",
     "ChatChannel",
+    "TellChannel",
     "PluginLoadError",
     "PluginUnloadError",
     # _core
@@ -509,7 +510,6 @@ __all__ = [
     # _commands
     "re_color_tag",
     "TeamChatChannel",
-    "TellChannel",
     "ClientCommandChannel",
     "Command",
     "CommandInvoker",
