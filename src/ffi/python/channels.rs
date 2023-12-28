@@ -1,6 +1,4 @@
-use crate::ffi::python::embed::{
-    pyshinqlx_console_print, pyshinqlx_players_info, pyshinqlx_send_server_command,
-};
+use crate::ffi::python::embed::{pyshinqlx_console_print, pyshinqlx_players_info};
 use crate::ffi::python::player::Player;
 use crate::prelude::team_t;
 use pyo3::basic::CompareOp;
@@ -205,13 +203,30 @@ impl ChatChannel {
                     Some([("fmt", fmt.clone()), ("message", message.clone())].into_py_dict(py)),
                 )?
                 .extract()?;
+
+            let next_frame_reply: Py<PyAny> = PyModule::from_code(
+                py,
+                r#"
+import shinqlx
+
+
+@shinqlx.next_frame
+def reply(targets, msg):
+    shinqlx.send_server_command(targets, msg)
+        "#,
+                "",
+                "",
+            )?
+            .getattr("reply")?
+            .into();
+
             match targets {
                 None => {
-                    pyshinqlx_send_server_command(py, None, server_command.as_str())?;
+                    next_frame_reply.call1(py, (py.None(), server_command.as_str()))?;
                 }
                 Some(ref cids) => {
                     for &cid in cids {
-                        pyshinqlx_send_server_command(py, Some(cid), server_command.as_str())?;
+                        next_frame_reply.call1(py, (cid, server_command.as_str()))?;
                     }
                 }
             }
