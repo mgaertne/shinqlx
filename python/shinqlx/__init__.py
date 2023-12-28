@@ -160,6 +160,7 @@ try:
         ConsoleChannel,
         ChatChannel,
         TellChannel,
+        TeamChatChannel,
         PluginLoadError,
         PluginUnloadError,
         _map_title,
@@ -324,6 +325,7 @@ except ModuleNotFoundError:
         ConsoleChannel,
         ChatChannel,
         TellChannel,
+        TeamChatChannel,
         PluginLoadError,
         PluginUnloadError,
         _map_title,
@@ -407,7 +409,6 @@ from ._handlers import (
 )
 from ._commands import (
     re_color_tag,
-    TeamChatChannel,
     ClientCommandChannel,
     Command,
     CommandInvoker,
@@ -601,6 +602,7 @@ __all__ = [
     "ConsoleChannel",
     "ChatChannel",
     "TellChannel",
+    "TeamChatChannel",
     # _core
     "get_logger",
     "log_exception",
@@ -618,7 +620,6 @@ __all__ = [
     "Plugin",
     # _commands
     "re_color_tag",
-    "TeamChatChannel",
     "ClientCommandChannel",
     "Command",
     "CommandInvoker",

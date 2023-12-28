@@ -1,7 +1,7 @@
 import re
 
 import shinqlx
-from shinqlx import AbstractChannel, ChatChannel, ConsoleChannel, TellChannel
+from shinqlx import AbstractChannel, TeamChatChannel, ConsoleChannel, TellChannel
 
 re_color_tag = re.compile(r"\^[0-7]")
 
@@ -9,27 +9,6 @@ re_color_tag = re.compile(r"\^[0-7]")
 # ====================================================================
 #                             CHANNELS
 # ====================================================================
-class TeamChatChannel(ChatChannel):
-    """A channel for chat to and from the server."""
-
-    def __new__(cls, team="all", name="chat", fmt='print "{}\n"\n'):
-        return super().__new__(cls, name=name, fmt=fmt)
-
-    def __init__(self, team="all", name="chat", fmt='print "{}\n"\n'):
-        super().__init__()
-        self.team = team
-
-    def receipients(self):
-        if self.team == "all":
-            return None
-
-        return [
-            player.id
-            for player in shinqlx.Player.all_players()
-            if player.team == self.team
-        ]
-
-
 class ClientCommandChannel(AbstractChannel):
     """Wraps a TellChannel, but with its own name."""
 

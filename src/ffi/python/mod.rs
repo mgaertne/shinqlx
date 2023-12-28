@@ -27,7 +27,7 @@ pub(crate) use weapons::Weapons;
 use crate::prelude::*;
 
 use crate::ffi::python::channels::{
-    AbstractChannel, ChatChannel, ConsoleChannel, TellChannel, MAX_MSG_LENGTH,
+    AbstractChannel, ChatChannel, ConsoleChannel, TeamChatChannel, TellChannel, MAX_MSG_LENGTH,
 };
 use crate::_INIT_TIME;
 use alloc::vec::IntoIter;
@@ -712,6 +712,7 @@ fn pyshinqlx_module(py: Python<'_>, m: &PyModule) -> PyResult<()> {
     m.add_class::<ConsoleChannel>()?;
     m.add_class::<ChatChannel>()?;
     m.add_class::<TellChannel>()?;
+    m.add_class::<TeamChatChannel>()?;
     m.add("PluginLoadError", py.get_type::<PluginLoadError>())?;
     m.add("PluginUnloadError", py.get_type::<PluginUnloadError>())?;
 
