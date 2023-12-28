@@ -121,7 +121,7 @@ pub(crate) struct ConsoleChannel {}
 #[pymethods]
 impl ConsoleChannel {
     #[new]
-    fn py_new() -> PyClassInitializer<Self> {
+    pub(crate) fn py_new() -> PyClassInitializer<Self> {
         PyClassInitializer::from(AbstractChannel {
             name: "console".to_string(),
         })

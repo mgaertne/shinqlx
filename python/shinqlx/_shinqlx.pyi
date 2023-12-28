@@ -761,3 +761,10 @@ class TeamChatChannel(ChatChannel):
     team: str
     def __init__(self, team: str = ..., name: str = ..., fmt: str = ...) -> None: ...
     def receipients(self) -> list[int] | None: ...
+
+CHAT_CHANNEL: AbstractChannel
+RED_TEAM_CHAT_CHANNEL: AbstractChannel
+BLUE_TEAM_CHAT_CHANNEL: AbstractChannel
+FREE_CHAT_CHANNEL: AbstractChannel
+SPECTATOR_CHAT_CHANNEL: AbstractChannel
+CONSOLE_CHANNEL: AbstractChannel

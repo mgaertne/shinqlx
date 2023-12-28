@@ -1,7 +1,7 @@
 import re
 
 import shinqlx
-from shinqlx import AbstractChannel, TeamChatChannel, ConsoleChannel, TellChannel
+from shinqlx import AbstractChannel, TellChannel
 
 re_color_tag = re.compile(r"\^[0-7]")
 
@@ -244,9 +244,3 @@ class CommandInvoker:
 #                          MODULE CONSTANTS
 # ====================================================================
 COMMANDS = CommandInvoker()
-CHAT_CHANNEL = TeamChatChannel(team="all", name="chat")
-RED_TEAM_CHAT_CHANNEL = TeamChatChannel(team="red", name="red_team_chat")
-BLUE_TEAM_CHAT_CHANNEL = TeamChatChannel(team="blue", name="blue_team_chat")
-FREE_CHAT_CHANNEL = TeamChatChannel(team="free", name="free_chat")
-SPECTATOR_CHAT_CHANNEL = TeamChatChannel(team="spectator", name="spectator_chat")
-CONSOLE_CHANNEL = ConsoleChannel()
