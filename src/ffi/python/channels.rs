@@ -229,7 +229,7 @@ impl ChatChannel {
 #[pyo3(module = "shinqlx", name = "TellChannel", get_all)]
 #[derive(PartialEq, Eq, Debug, Clone)]
 pub(crate) struct TellChannel {
-    recipient: i32,
+    client_id: i32,
 }
 
 #[pymethods]
@@ -243,16 +243,21 @@ impl TellChannel {
             fmt: "print \"{}\n\"\n".to_string(),
         })
         .add_subclass(Self {
-            recipient: player.id,
+            client_id: player.id,
         })
     }
 
     fn __repr__(&self) -> String {
-        format!("tell {}", self.recipient)
+        format!("tell {}", self.client_id)
+    }
+
+    #[getter(recipient)]
+    fn get_recipient(&self) -> PyResult<Player> {
+        Player::py_new(self.client_id, None)
     }
 
     fn receipients(&self) -> PyResult<Option<Vec<i32>>> {
-        Ok(Some(vec![self.recipient]))
+        Ok(Some(vec![self.client_id]))
     }
 }
 
@@ -306,5 +311,61 @@ impl TeamChatChannel {
                 })
                 .collect(),
         ))
+    }
+}
+
+/// Wraps a TellChannel, but with its own name.
+#[pyclass(extends=AbstractChannel, subclass)]
+#[pyo3(module = "shinqlx", name = "ClientCommandChannel", get_all)]
+#[derive(PartialEq, Eq, Debug, Clone)]
+pub(crate) struct ClientCommandChannel {
+    client_id: i32,
+}
+
+#[pymethods]
+impl ClientCommandChannel {
+    #[new]
+    pub(crate) fn py_new(player: &Player) -> PyClassInitializer<Self> {
+        PyClassInitializer::from(AbstractChannel {
+            name: "client_command".to_string(),
+        })
+        .add_subclass(Self {
+            client_id: player.id,
+        })
+    }
+
+    fn __repr__(&self) -> String {
+        format!("client_command {}", self.client_id)
+    }
+
+    #[getter(recipient)]
+    fn get_recipient(&self) -> PyResult<Player> {
+        Player::py_new(self.client_id, None)
+    }
+
+    #[getter(tell_channel)]
+    fn get_tell_channel(&self, py: Python<'_>) -> PyResult<Py<TellChannel>> {
+        let player = self.get_recipient()?;
+        Py::new(py, TellChannel::py_new(&player))
+    }
+
+    #[pyo3(signature = (msg, limit=100, delimiter="".to_string()))]
+    fn reply(&self, py: Python<'_>, msg: String, limit: i32, delimiter: String) -> PyResult<()> {
+        let tell_channel = Py::new(
+            py,
+            PyClassInitializer::from(AbstractChannel {
+                name: "tell".to_string(),
+            })
+            .add_subclass(ChatChannel {
+                fmt: "print \"{}\n\"\n".to_string(),
+            })
+            .add_subclass(TellChannel {
+                client_id: self.client_id,
+            }),
+        )?
+        .to_object(py);
+
+        tell_channel.call_method1(py, "reply", (msg, limit, delimiter))?;
+        Ok(())
     }
 }
