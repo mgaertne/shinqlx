@@ -63,9 +63,3 @@ class CommandInvoker:
     ) -> bool: ...
 
 COMMANDS: CommandInvoker
-CHAT_CHANNEL: AbstractChannel
-RED_TEAM_CHAT_CHANNEL: AbstractChannel
-BLUE_TEAM_CHAT_CHANNEL: AbstractChannel
-FREE_CHAT_CHANNEL: AbstractChannel
-SPECTATOR_CHAT_CHANNEL: AbstractChannel
-CONSOLE_CHANNEL: AbstractChannel

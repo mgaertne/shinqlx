@@ -713,6 +713,62 @@ fn pyshinqlx_module(py: Python<'_>, m: &PyModule) -> PyResult<()> {
     m.add_class::<ChatChannel>()?;
     m.add_class::<TellChannel>()?;
     m.add_class::<TeamChatChannel>()?;
+    m.add(
+        "CHAT_CHANNEL",
+        Py::new(
+            py,
+            TeamChatChannel::py_new("all".into(), "chat".into(), "print \"{}\n\"\n".into()),
+        )?
+        .to_object(py),
+    )?;
+    m.add(
+        "RED_TEAM_CHAT_CHANNEL",
+        Py::new(
+            py,
+            TeamChatChannel::py_new(
+                "red".into(),
+                "red_team_chat".into(),
+                "print \"{}\n\"\n".into(),
+            ),
+        )?
+        .to_object(py),
+    )?;
+    m.add(
+        "BLUE_TEAM_CHAT_CHANNEL",
+        Py::new(
+            py,
+            TeamChatChannel::py_new(
+                "blue".into(),
+                "blue_team_chat".into(),
+                "print \"{}\n\"\n".into(),
+            ),
+        )?
+        .to_object(py),
+    )?;
+    m.add(
+        "FREE_CHAT_CHANNEL",
+        Py::new(
+            py,
+            TeamChatChannel::py_new("free".into(), "free_chat".into(), "print \"{}\n\"\n".into()),
+        )?
+        .to_object(py),
+    )?;
+    m.add(
+        "SPECTATOR_CHAT_CHANNEL",
+        Py::new(
+            py,
+            TeamChatChannel::py_new(
+                "spectator".into(),
+                "spectator_chat".into(),
+                "print \"{}\n\"\n".into(),
+            ),
+        )?
+        .to_object(py),
+    )?;
+    m.add(
+        "CONSOLE_CHANNEL",
+        Py::new(py, ConsoleChannel::py_new())?.to_object(py),
+    )?;
     m.add("PluginLoadError", py.get_type::<PluginLoadError>())?;
     m.add("PluginUnloadError", py.get_type::<PluginUnloadError>())?;
 
