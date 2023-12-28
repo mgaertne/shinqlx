@@ -160,6 +160,7 @@ try:
         ConsoleChannel,
         ChatChannel,
         TellChannel,
+        ClientCommandChannel,
         TeamChatChannel,
         CHAT_CHANNEL,
         RED_TEAM_CHAT_CHANNEL,
@@ -331,6 +332,7 @@ except ModuleNotFoundError:
         ConsoleChannel,
         ChatChannel,
         TellChannel,
+        ClientCommandChannel,
         TeamChatChannel,
         CHAT_CHANNEL,
         RED_TEAM_CHAT_CHANNEL,
@@ -421,7 +423,6 @@ from ._handlers import (
 )
 from ._commands import (
     re_color_tag,
-    ClientCommandChannel,
     Command,
     CommandInvoker,
     COMMANDS,
@@ -608,6 +609,7 @@ __all__ = [
     "ConsoleChannel",
     "ChatChannel",
     "TellChannel",
+    "ClientCommandChannel",
     "TeamChatChannel",
     "CHAT_CHANNEL",
     "RED_TEAM_CHAT_CHANNEL",
@@ -632,7 +634,6 @@ __all__ = [
     "Plugin",
     # _commands
     "re_color_tag",
-    "ClientCommandChannel",
     "Command",
     "CommandInvoker",
     "COMMANDS",

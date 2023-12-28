@@ -1,19 +1,11 @@
 from typing import TYPE_CHECKING
-from shinqlx import AbstractChannel, ChatChannel
+from shinqlx import AbstractChannel
 
 if TYPE_CHECKING:
     from typing import Pattern, Callable, Iterable
     from shinqlx import Player, Plugin
 
 re_color_tag: Pattern
-
-class ClientCommandChannel(AbstractChannel):
-    recipient: Player
-    tell_channel: ChatChannel
-
-    def __init__(self, player: Player) -> None: ...
-    def __repr__(self) -> str: ...
-    def reply(self, msg: str, limit: int = ..., delimiter: str = ...) -> None: ...
 
 class Command:
     name: list[str]

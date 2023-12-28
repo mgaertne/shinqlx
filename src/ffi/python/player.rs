@@ -92,7 +92,7 @@ pub(crate) struct Player {
 impl Player {
     #[new]
     #[pyo3(signature = (client_id, info = None))]
-    fn py_new(client_id: i32, info: Option<PlayerInfo>) -> PyResult<Self> {
+    pub(crate) fn py_new(client_id: i32, info: Option<PlayerInfo>) -> PyResult<Self> {
         let player_info = info.unwrap_or_else(|| PlayerInfo::from(client_id));
 
         // When a player connects, the name field in the client struct has yet to be initialized,

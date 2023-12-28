@@ -1,34 +1,8 @@
 import re
 
 import shinqlx
-from shinqlx import AbstractChannel, TellChannel
 
 re_color_tag = re.compile(r"\^[0-7]")
-
-
-# ====================================================================
-#                             CHANNELS
-# ====================================================================
-class ClientCommandChannel(AbstractChannel):
-    """Wraps a TellChannel, but with its own name."""
-
-    def __new__(cls, player):
-        return super().__new__(cls, "client_command")
-
-    def __init__(self, player):
-        super().__init__()
-        self.recipient = player
-        self.tell_channel = TellChannel(player)
-
-    def __repr__(self):
-        player = shinqlx.Plugin.player(self.recipient)
-        if player is None:
-            return ""
-
-        return f"client_command {player.id}"
-
-    def reply(self, msg, limit=100, delimiter=" "):
-        self.tell_channel.reply(msg, limit, delimiter)
 
 
 # ====================================================================
