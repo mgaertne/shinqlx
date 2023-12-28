@@ -1,4 +1,3 @@
-from abc import abstractmethod
 from typing import TYPE_CHECKING
 from shinqlx import AbstractChannel, ChatChannel
 
@@ -7,11 +6,6 @@ if TYPE_CHECKING:
     from shinqlx import Player, Plugin
 
 re_color_tag: Pattern
-
-class TeamChatChannel(ChatChannel):
-    team: str
-    def __init__(self, team: str = ..., name: str = ..., fmt: str = ...) -> None: ...
-    def receipients(self) -> list[int] | None: ...
 
 class ClientCommandChannel(AbstractChannel):
     recipient: Player

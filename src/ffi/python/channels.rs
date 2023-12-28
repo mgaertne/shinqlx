@@ -1,5 +1,8 @@
-use crate::ffi::python::embed::{pyshinqlx_console_print, pyshinqlx_send_server_command};
+use crate::ffi::python::embed::{
+    pyshinqlx_console_print, pyshinqlx_players_info, pyshinqlx_send_server_command,
+};
 use crate::ffi::python::player::Player;
+use crate::prelude::team_t;
 use pyo3::basic::CompareOp;
 use pyo3::exceptions::PyNotImplementedError;
 use pyo3::prelude::*;
@@ -250,5 +253,58 @@ impl TellChannel {
 
     fn receipients(&self) -> PyResult<Option<Vec<i32>>> {
         Ok(Some(vec![self.recipient]))
+    }
+}
+
+/// A channel for chat to and from the server.
+#[pyclass(extends=ChatChannel, subclass)]
+#[pyo3(module = "shinqlx", name = "TeamChatChannel", get_all)]
+#[derive(PartialEq, Eq, Debug, Clone)]
+pub(crate) struct TeamChatChannel {
+    team: String,
+}
+
+#[pymethods]
+impl TeamChatChannel {
+    #[new]
+    #[pyo3(signature = (team="all".to_string(), name="chat".to_string(), fmt="print \"{}\n\"\n".to_string()))]
+    pub(crate) fn py_new(team: String, name: String, fmt: String) -> PyClassInitializer<Self> {
+        PyClassInitializer::from(AbstractChannel { name })
+            .add_subclass(ChatChannel { fmt })
+            .add_subclass(Self { team })
+    }
+
+    fn receipients(&self, py: Python<'_>) -> PyResult<Option<Vec<i32>>> {
+        if self.team == "all" {
+            return Ok(None);
+        }
+
+        let filtered_team: i32 = match self.team.as_str() {
+            "red" => team_t::TEAM_RED as i32,
+            "blue" => team_t::TEAM_BLUE as i32,
+            "free" => team_t::TEAM_FREE as i32,
+            "spectator" => team_t::TEAM_SPECTATOR as i32,
+            _ => -1,
+        };
+
+        let players_info = pyshinqlx_players_info(py)?;
+        Ok(Some(
+            players_info
+                .iter()
+                .filter_map(|opt_player_info| {
+                    opt_player_info
+                        .as_ref()
+                        .into_iter()
+                        .filter_map(|player_info| {
+                            if player_info.team == filtered_team {
+                                Some(player_info.client_id)
+                            } else {
+                                None
+                            }
+                        })
+                        .next()
+                })
+                .collect(),
+        ))
     }
 }
