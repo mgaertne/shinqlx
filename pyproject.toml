@@ -91,7 +91,7 @@ legacy_tox_ini = """
 
     [testenv:ruff]
     deps = ruff
-    commands = ruff {posargs}
+    commands = ruff check {posargs}
 
     [testenv:mypy]
     deps = mypy
