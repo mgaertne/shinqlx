@@ -25,7 +25,7 @@ use core::sync::atomic::{AtomicI32, AtomicUsize, Ordering};
 use once_cell::race::OnceBool;
 use once_cell::sync::OnceCell;
 #[cfg(target_os = "linux")]
-use procfs::process::{MMapPath, MemoryMap, Process};
+use procfs_core::process::{MMapPath, MemoryMap, Process};
 use retour::{GenericDetour, RawDetour};
 use swap_arc::SwapArcOption;
 
