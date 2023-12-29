@@ -1,5 +1,5 @@
 [build-system]
-requires = ["maturin>=1.0,<2.0"]
+requires = ["maturin>=1.0,<2.0", "tox"]
 build-backend = "maturin"
 
 [project]
@@ -82,3 +82,18 @@ warn_unused_configs = true
 no_implicit_reexport = true
 disallow_untyped_defs = true
 disallow_incomplete_defs = true
+
+[tool.tox]
+legacy_tox_ini = """
+    [tox]
+    envlist = ruff,mypy
+    usedevelop = true
+
+    [testenv:ruff]
+    deps = ruff
+    commands = ruff {posargs:src stubs tests}
+
+    [testenv:mypy]
+    deps = mypy
+    commands = mypy {posargs}
+"""
