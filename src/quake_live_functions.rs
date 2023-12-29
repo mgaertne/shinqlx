@@ -1,23 +1,18 @@
 use crate::prelude::*;
 use core::borrow::Borrow;
 use core::fmt::{Display, Formatter};
+#[cfg(target_os = "linux")]
+use procfs::process::{MMPermissions, MemoryMap};
 use retour::{Function, GenericDetour, HookableWith};
 
 #[cfg(target_os = "linux")]
-pub(crate) fn pattern_search_module<T>(
-    module_info: &[&procfs_core::process::MemoryMap],
-    ql_func: T,
-) -> Option<usize>
+pub(crate) fn pattern_search_module<T>(module_info: &[&MemoryMap], ql_func: T) -> Option<usize>
 where
     T: Borrow<QuakeLiveFunction>,
 {
     module_info
         .iter()
-        .filter(|memory_map| {
-            memory_map
-                .perms
-                .contains(procfs_core::process::MMPermissions::READ)
-        })
+        .filter(|memory_map| memory_map.perms.contains(MMPermissions::READ))
         .filter_map(|memory_map| {
             pattern_search(
                 memory_map.address.0 as usize,
