@@ -49,7 +49,7 @@ pkg-config = ">=0.3"
 pest_derive = ">=2.7"
 
 [target."cfg(target_os=\"linux\")".dependencies]
-procfs = ">=0.16"
+procfs = ">=0.15"
 openssl-sys = ">=0.9.90"
 
 [build-dependencies]
