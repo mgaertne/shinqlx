@@ -5,7 +5,7 @@ use retour::{Function, GenericDetour, HookableWith};
 
 #[cfg(target_os = "linux")]
 pub(crate) fn pattern_search_module<T>(
-    module_info: &[&procfs::process::MemoryMap],
+    module_info: &[&procfs_core::process::MemoryMap],
     ql_func: T,
 ) -> Option<usize>
 where
@@ -16,7 +16,7 @@ where
         .filter(|memory_map| {
             memory_map
                 .perms
-                .contains(procfs::process::MMPermissions::READ)
+                .contains(procfs_core::process::MMPermissions::READ)
         })
         .filter_map(|memory_map| {
             pattern_search(
