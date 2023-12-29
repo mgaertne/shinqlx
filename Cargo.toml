@@ -44,11 +44,11 @@ signal-hook-registry = ">=1.4"
 itertools = ">=0.12"
 regex = { version = ">=1.10", features = [] }
 # dependencies to make -Z minimal-versions work
-pkg-config = ">=0.3.28"
 pest_derive = ">=2.7"
 
 [target."cfg(target_os=\"linux\")".dependencies]
 procfs = ">=0.16"
+procfs-core = ">=0.16"
 openssl-sys = ">=0.9.90"
 
 [build-dependencies]
