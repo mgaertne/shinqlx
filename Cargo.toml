@@ -44,6 +44,8 @@ signal-hook-registry = ">=1.4"
 itertools = ">=0.12"
 regex = { version = ">=1.10", features = [] }
 # dependencies to make -Z minimal-versions work
+proc-macro2 = ">=1.0"
+pkg-config = ">=0.3"
 pest_derive = ">=2.7"
 
 [target."cfg(target_os=\"linux\")".dependencies]
