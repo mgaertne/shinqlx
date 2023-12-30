@@ -93,6 +93,7 @@ pub(crate) fn frame_dispatcher() {
     }
 }
 
+#[allow(clippy::question_mark)]
 pub(crate) fn client_connect_dispatcher(client_id: i32, is_bot: bool) -> Option<String> {
     if !pyshinqlx_is_initialized() {
         return None;
