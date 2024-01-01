@@ -120,12 +120,11 @@ pub(crate) struct ConsoleChannel {}
 impl ConsoleChannel {
     #[new]
     pub(crate) fn py_new() -> PyClassInitializer<Self> {
-        PyClassInitializer::from(AbstractChannel {
-            name: "console".to_string(),
-        })
-        .add_subclass(Self {})
+        PyClassInitializer::from(AbstractChannel::py_new("console".to_string()))
+            .add_subclass(Self {})
     }
 
+    #[pyo3(signature = (msg, limit=100, delimiter=" ".to_string()))]
     fn reply(
         #[allow(unused_variables)] self_: PyRef<'_, Self>,
         py: Python<'_>,
@@ -135,6 +134,59 @@ impl ConsoleChannel {
     ) -> PyResult<()> {
         pyshinqlx_console_print(py, msg.as_str());
         Ok(())
+    }
+}
+
+#[cfg(test)]
+#[cfg(not(miri))]
+mod console_channel_tests {
+    use super::ConsoleChannel;
+    use crate::ffi::python::pyshinqlx_setup_fixture::pyshinqlx_setup;
+    use crate::hooks::mock_hooks::shinqlx_com_printf_context;
+    use crate::prelude::*;
+    use mockall::predicate;
+    use pyo3::{Py, Python};
+    use rstest::rstest;
+
+    #[rstest]
+    fn console_channel_can_be_created_from_python(_pyshinqlx_setup: ()) {
+        Python::with_gil(|py| {
+            let console_channel_constructor = py.run(
+                r#"
+import _shinqlx
+console_channel = _shinqlx.ConsoleChannel()
+            "#,
+                None,
+                None,
+            );
+            assert!(
+                console_channel_constructor.is_ok(),
+                "{}",
+                console_channel_constructor.expect_err("this should not happen")
+            );
+        });
+    }
+
+    #[test]
+    #[serial]
+    fn reply_prints_text_to_console() {
+        let com_printf_ctx = shinqlx_com_printf_context();
+        com_printf_ctx
+            .expect()
+            .with(predicate::eq("asdf\n"))
+            .times(1);
+
+        let result = Python::with_gil(|py| {
+            let console_channel = Py::new(py, ConsoleChannel::py_new()).unwrap();
+            ConsoleChannel::reply(
+                console_channel.as_ref(py).borrow(),
+                py,
+                "asdf".to_string(),
+                100,
+                " ".to_string(),
+            )
+        });
+        assert!(result.is_ok());
     }
 }
 
@@ -153,7 +205,7 @@ impl ChatChannel {
     #[new]
     #[pyo3(signature = (name = "chat".to_string(), fmt = "print \"{}\n\"\n".to_string()))]
     fn py_new(name: String, fmt: String) -> PyClassInitializer<Self> {
-        PyClassInitializer::from(AbstractChannel { name }).add_subclass(Self { fmt })
+        PyClassInitializer::from(AbstractChannel::py_new(name)).add_subclass(Self { fmt })
     }
 
     fn receipients(&self) -> PyResult<Option<Vec<i32>>> {
@@ -251,15 +303,13 @@ pub(crate) struct TellChannel {
 impl TellChannel {
     #[new]
     pub(crate) fn py_new(player: &Player) -> PyClassInitializer<Self> {
-        PyClassInitializer::from(AbstractChannel {
-            name: "tell".to_string(),
-        })
-        .add_subclass(ChatChannel {
-            fmt: "print \"{}\n\"\n".to_string(),
-        })
-        .add_subclass(Self {
-            client_id: player.id,
-        })
+        PyClassInitializer::from(AbstractChannel::py_new("tell".to_string()))
+            .add_subclass(ChatChannel {
+                fmt: "print \"{}\n\"\n".to_string(),
+            })
+            .add_subclass(Self {
+                client_id: player.id,
+            })
     }
 
     fn __repr__(&self) -> String {
@@ -289,7 +339,7 @@ impl TeamChatChannel {
     #[new]
     #[pyo3(signature = (team="all".to_string(), name="chat".to_string(), fmt="print \"{}\n\"\n".to_string()))]
     pub(crate) fn py_new(team: String, name: String, fmt: String) -> PyClassInitializer<Self> {
-        PyClassInitializer::from(AbstractChannel { name })
+        PyClassInitializer::from(AbstractChannel::py_new(name))
             .add_subclass(ChatChannel { fmt })
             .add_subclass(Self { team })
     }
@@ -341,12 +391,10 @@ pub(crate) struct ClientCommandChannel {
 impl ClientCommandChannel {
     #[new]
     pub(crate) fn py_new(player: &Player) -> PyClassInitializer<Self> {
-        PyClassInitializer::from(AbstractChannel {
-            name: "client_command".to_string(),
-        })
-        .add_subclass(Self {
-            client_id: player.id,
-        })
+        PyClassInitializer::from(AbstractChannel::py_new("client_command".to_string()))
+            .add_subclass(Self {
+                client_id: player.id,
+            })
     }
 
     fn __repr__(&self) -> String {
@@ -368,15 +416,13 @@ impl ClientCommandChannel {
     fn reply(&self, py: Python<'_>, msg: String, limit: i32, delimiter: String) -> PyResult<()> {
         let tell_channel = Py::new(
             py,
-            PyClassInitializer::from(AbstractChannel {
-                name: "tell".to_string(),
-            })
-            .add_subclass(ChatChannel {
-                fmt: "print \"{}\n\"\n".to_string(),
-            })
-            .add_subclass(TellChannel {
-                client_id: self.client_id,
-            }),
+            PyClassInitializer::from(AbstractChannel::py_new("tell".to_string()))
+                .add_subclass(ChatChannel {
+                    fmt: "print \"{}\n\"\n".to_string(),
+                })
+                .add_subclass(TellChannel {
+                    client_id: self.client_id,
+                }),
         )?
         .to_object(py);
 
