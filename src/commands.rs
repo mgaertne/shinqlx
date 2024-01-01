@@ -343,7 +343,7 @@ mod commands_tests {
         let mut mock_engine = MockQuakeEngine::new();
         mock_engine
             .expect_cmd_args()
-            .return_const(Some("asdf".to_string()))
+            .return_const(Some("asdf".into()))
             .times(1);
         mock_engine
             .expect_send_server_command()
@@ -378,7 +378,7 @@ mod commands_tests {
         let mut mock_engine = MockQuakeEngine::new();
         mock_engine
             .expect_cmd_args()
-            .return_const(Some("asdf".to_string()))
+            .return_const(Some("asdf".into()))
             .times(1);
         mock_engine
             .expect_send_server_command()
@@ -413,7 +413,7 @@ mod commands_tests {
         let mut mock_engine = MockQuakeEngine::new();
         mock_engine
             .expect_cmd_args()
-            .return_const(Some("asdf".to_string()))
+            .return_const(Some("asdf".into()))
             .times(1);
         mock_engine
             .expect_send_server_command()
