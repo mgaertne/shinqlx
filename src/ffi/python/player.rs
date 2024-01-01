@@ -242,7 +242,7 @@ impl Player {
             .map(|(key, value)| format!("\\{key}\\{value}"))
             .join("");
         let client_command = format!("userinfo {new}");
-        pyshinqlx_client_command(py, self.id, client_command.as_str())?;
+        pyshinqlx_client_command(py, self.id, &client_command)?;
         Ok(())
     }
 
@@ -298,7 +298,7 @@ impl Player {
             parsed_variables.set("cn".into(), tag.clone());
 
             let new_configstring: String = parsed_variables.into();
-            main_engine.set_configstring(config_index as i32, new_configstring.as_str());
+            main_engine.set_configstring(config_index as i32, &new_configstring);
         })
     }
 
@@ -322,14 +322,14 @@ impl Player {
         });
 
         let client_command = format!("userinfo {new}");
-        pyshinqlx_client_command(py, self.id, client_command.as_str())?;
+        pyshinqlx_client_command(py, self.id, &client_command)?;
         Ok(())
     }
 
     /// Removes color tags from the name.
     #[getter(clean_name)]
     fn get_clean_name(&self, py: Python<'_>) -> String {
-        py.allow_threads(|| clean_text(&self.name.as_str()))
+        py.allow_threads(|| clean_text(&self.name))
     }
 
     #[getter(qport)]
@@ -356,12 +356,12 @@ impl Player {
 
     #[setter(team)]
     fn set_team(&mut self, py: Python<'_>, new_team: String) -> PyResult<()> {
-        if !["free", "red", "blue", "spectator"].contains(&new_team.to_lowercase().as_str()) {
+        if !["free", "red", "blue", "spectator"].contains(&&*new_team.to_lowercase()) {
             return Err(PyValueError::new_err("Invalid team."));
         }
 
         let team_change_cmd = format!("put {} {}", self.id, new_team.to_lowercase());
-        pyshinqlx_console_command(py, team_change_cmd.as_str())
+        pyshinqlx_console_command(py, &team_change_cmd)
     }
 
     #[getter(colors)]
@@ -390,7 +390,7 @@ impl Player {
         });
 
         let client_command = format!("userinfo {new_cvars_string}");
-        pyshinqlx_client_command(py, self.id, client_command.as_str())?;
+        pyshinqlx_client_command(py, self.id, &client_command)?;
         Ok(())
     }
 
@@ -413,7 +413,7 @@ impl Player {
         });
 
         let client_command = format!("userinfo {new_cvars_string}");
-        pyshinqlx_client_command(py, self.id, client_command.as_str())?;
+        pyshinqlx_client_command(py, self.id, &client_command)?;
         Ok(())
     }
 
@@ -436,7 +436,7 @@ impl Player {
         });
 
         let client_command = format!("userinfo {new_cvars_string}");
-        pyshinqlx_client_command(py, self.id, client_command.as_str())?;
+        pyshinqlx_client_command(py, self.id, &client_command)?;
         Ok(())
     }
 
@@ -459,7 +459,7 @@ impl Player {
         });
 
         let client_command = format!("userinfo {new_cvars_string}");
-        pyshinqlx_client_command(py, self.id, client_command.as_str())?;
+        pyshinqlx_client_command(py, self.id, &client_command)?;
         Ok(())
     }
 
@@ -486,7 +486,7 @@ impl Player {
         });
 
         let client_command = format!("userinfo {new_cvars_string}");
-        pyshinqlx_client_command(py, self.id, client_command.as_str())?;
+        pyshinqlx_client_command(py, self.id, &client_command)?;
         Ok(())
     }
 
@@ -513,7 +513,7 @@ impl Player {
         });
 
         let client_command = format!("userinfo {new_cvars_string}");
-        pyshinqlx_client_command(py, self.id, client_command.as_str())?;
+        pyshinqlx_client_command(py, self.id, &client_command)?;
         Ok(())
     }
 
@@ -540,7 +540,7 @@ impl Player {
         });
 
         let client_command = format!("userinfo {new_cvars_string}");
-        pyshinqlx_client_command(py, self.id, client_command.as_str())?;
+        pyshinqlx_client_command(py, self.id, &client_command)?;
         Ok(())
     }
 
@@ -617,7 +617,7 @@ impl Player {
         });
 
         let client_command = format!("userinfo {new_cvars_string}");
-        pyshinqlx_client_command(py, self.id, client_command.as_str())?;
+        pyshinqlx_client_command(py, self.id, &client_command)?;
         Ok(())
     }
 
@@ -1125,7 +1125,7 @@ impl Player {
 
     fn center_print(&self, py: Python<'_>, msg: String) -> PyResult<()> {
         let cmd = format!("cp \"{msg}\"");
-        pyshinqlx_send_server_command(py, Some(self.id), cmd.as_str()).map(|_| ())
+        pyshinqlx_send_server_command(py, Some(self.id), &cmd).map(|_| ())
     }
 
     #[pyo3(signature=(msg, **kwargs))]
@@ -1149,51 +1149,51 @@ impl Player {
 
     fn ban(&self, py: Python<'_>) -> PyResult<()> {
         let ban_cmd = format!("ban {}", self.id);
-        pyshinqlx_console_command(py, ban_cmd.as_str())
+        pyshinqlx_console_command(py, &ban_cmd)
     }
 
     fn tempban(&self, py: Python<'_>) -> PyResult<()> {
         let tempban_cmd = format!("tempban {}", self.id);
-        pyshinqlx_console_command(py, tempban_cmd.as_str())
+        pyshinqlx_console_command(py, &tempban_cmd)
     }
 
     fn addadmin(&self, py: Python<'_>) -> PyResult<()> {
         let addadmin_cmd = format!("addadmin {}", self.id);
-        pyshinqlx_console_command(py, addadmin_cmd.as_str())
+        pyshinqlx_console_command(py, &addadmin_cmd)
     }
 
     fn addmod(&self, py: Python<'_>) -> PyResult<()> {
         let addmod_cmd = format!("addmod {}", self.id);
-        pyshinqlx_console_command(py, addmod_cmd.as_str())
+        pyshinqlx_console_command(py, &addmod_cmd)
     }
 
     fn demote(&self, py: Python<'_>) -> PyResult<()> {
         let demote_cmd = format!("demote {}", self.id);
-        pyshinqlx_console_command(py, demote_cmd.as_str())
+        pyshinqlx_console_command(py, &demote_cmd)
     }
 
     fn mute(&self, py: Python<'_>) -> PyResult<()> {
         let mute_cmd = format!("mute {}", self.id);
-        pyshinqlx_console_command(py, mute_cmd.as_str())
+        pyshinqlx_console_command(py, &mute_cmd)
     }
 
     fn unmute(&self, py: Python<'_>) -> PyResult<()> {
         let unmute_cmd = format!("unmute {}", self.id);
-        pyshinqlx_console_command(py, unmute_cmd.as_str())
+        pyshinqlx_console_command(py, &unmute_cmd)
     }
 
     fn put(&self, py: Python<'_>, team: String) -> PyResult<()> {
-        if !["free", "red", "blue", "spectator"].contains(&team.to_lowercase().as_str()) {
+        if !["free", "red", "blue", "spectator"].contains(&&*team.to_lowercase()) {
             return Err(PyValueError::new_err("Invalid team."));
         }
 
         let team_change_cmd = format!("put {} {}", self.id, team.to_lowercase());
-        pyshinqlx_console_command(py, team_change_cmd.as_str())
+        pyshinqlx_console_command(py, &team_change_cmd)
     }
 
     fn addscore(&self, py: Python<'_>, score: i32) -> PyResult<()> {
         let addscore_cmd = format!("addscore {} {}", self.id, score);
-        pyshinqlx_console_command(py, addscore_cmd.as_str())
+        pyshinqlx_console_command(py, &addscore_cmd)
     }
 
     fn switch(&self, py: Python<'_>, other_player: Player) -> PyResult<()> {
@@ -1211,12 +1211,12 @@ impl Player {
     #[pyo3(signature=(damage=0))]
     fn slap(&self, py: Python<'_>, damage: i32) -> PyResult<()> {
         let slap_cmd = format!("slap {} {}", self.id, damage);
-        pyshinqlx_console_command(py, slap_cmd.as_str())
+        pyshinqlx_console_command(py, &slap_cmd)
     }
 
     fn slay(&self, py: Python<'_>) -> PyResult<()> {
         let slay_cmd = format!("slay {}", self.id);
-        pyshinqlx_console_command(py, slay_cmd.as_str())
+        pyshinqlx_console_command(py, &slay_cmd)
     }
 
     fn slay_with_mod(&self, py: Python<'_>, means_of_death: i32) -> PyResult<()> {
@@ -1270,9 +1270,9 @@ mod pyshinqlx_player_tests {
     fn default_test_player_info() -> PlayerInfo {
         PlayerInfo {
             client_id: 2,
-            name: "".to_string(),
+            name: "".into(),
             connection_state: clientState_t::CS_CONNECTED as i32,
-            userinfo: "".to_string(),
+            userinfo: "".into(),
             steam_id: 1234567890,
             team: team_t::TEAM_SPECTATOR as i32,
             privileges: privileges_t::PRIV_NONE as i32,
@@ -1284,9 +1284,9 @@ mod pyshinqlx_player_tests {
             valid: true,
             id: 2,
             player_info: default_test_player_info(),
-            user_info: "".to_string(),
+            user_info: "".into(),
             steam_id: 1234567890,
-            name: "".to_string(),
+            name: "".into(),
         }
     }
 
@@ -1330,9 +1330,9 @@ mod pyshinqlx_player_tests {
         assert_eq!(
             result.expect("result was not OK"),
             Player {
-                name: "UnnamedPlayer".to_string(),
+                name: "UnnamedPlayer".into(),
                 player_info: PlayerInfo {
-                    name: "UnnamedPlayer".to_string(),
+                    name: "UnnamedPlayer".into(),
                     ..default_test_player_info()
                 },
                 ..default_test_player()
@@ -1345,7 +1345,7 @@ mod pyshinqlx_player_tests {
         let result = Player::py_new(
             2,
             Some(PlayerInfo {
-                userinfo: "\\name\\UnnamedPlayer".to_string(),
+                userinfo: "\\name\\UnnamedPlayer".into(),
                 ..default_test_player_info()
             }),
         );
@@ -1353,11 +1353,11 @@ mod pyshinqlx_player_tests {
             result.expect("result was not OK"),
             Player {
                 player_info: PlayerInfo {
-                    userinfo: "\\name\\UnnamedPlayer".to_string(),
+                    userinfo: "\\name\\UnnamedPlayer".into(),
                     ..default_test_player_info()
                 },
-                user_info: "\\name\\UnnamedPlayer".to_string(),
-                name: "UnnamedPlayer".to_string(),
+                user_info: "\\name\\UnnamedPlayer".into(),
+                name: "UnnamedPlayer".into(),
                 ..default_test_player()
             }
         );
@@ -1374,16 +1374,16 @@ mod pyshinqlx_player_tests {
         let result = Player::py_new(
             2,
             Some(PlayerInfo {
-                name: "UnnamedPlayer".to_string(),
+                name: "UnnamedPlayer".into(),
                 ..default_test_player_info()
             }),
         );
         assert_eq!(
             result.expect("result was not OK"),
             Player {
-                name: "UnnamedPlayer".to_string(),
+                name: "UnnamedPlayer".into(),
                 player_info: PlayerInfo {
-                    name: "UnnamedPlayer".to_string(),
+                    name: "UnnamedPlayer".into(),
                     ..default_test_player_info()
                 },
                 ..default_test_player()
@@ -1399,10 +1399,10 @@ mod pyshinqlx_player_tests {
                 py,
                 Player {
                     player_info: PlayerInfo {
-                        name: "UnnamedPlayer".to_string(),
+                        name: "UnnamedPlayer".into(),
                         ..default_test_player_info()
                     },
-                    name: "UnnamedPlayer".to_string(),
+                    name: "UnnamedPlayer".into(),
                     ..default_test_player()
                 },
             )
@@ -1416,10 +1416,10 @@ mod pyshinqlx_player_tests {
     fn str_returns_player_name() {
         let player = Player {
             player_info: PlayerInfo {
-                name: "^1Unnamed^2Player".to_string(),
+                name: "^1Unnamed^2Player".into(),
                 ..default_test_player_info()
             },
-            name: "^1Unnamed^2Player".to_string(),
+            name: "^1Unnamed^2Player".into(),
             ..default_test_player()
         };
         assert_eq!(player.__str__(), "^1Unnamed^2Player");
@@ -1444,10 +1444,10 @@ mod pyshinqlx_player_tests {
     fn contains_where_value_is_part_of_userinfo() {
         let player = Player {
             player_info: PlayerInfo {
-                userinfo: "\\asdf\\some value".to_string(),
+                userinfo: "\\asdf\\some value".into(),
                 ..default_test_player_info()
             },
-            user_info: "\\asdf\\some value".to_string(),
+            user_info: "\\asdf\\some value".into(),
             ..default_test_player()
         };
 
@@ -1460,10 +1460,10 @@ mod pyshinqlx_player_tests {
     fn contains_where_value_is_not_in_userinfo() {
         let player = Player {
             player_info: PlayerInfo {
-                userinfo: "\\name\\^1Unnamed^2Player".to_string(),
+                userinfo: "\\name\\^1Unnamed^2Player".into(),
                 ..default_test_player_info()
             },
-            user_info: "\\name\\^1Unnamed^2Player".to_string(),
+            user_info: "\\name\\^1Unnamed^2Player".into(),
             ..default_test_player()
         };
 
@@ -1490,10 +1490,10 @@ mod pyshinqlx_player_tests {
     fn getitem_where_value_is_part_of_userinfo() {
         let player = Player {
             player_info: PlayerInfo {
-                userinfo: "\\asdf\\some value".to_string(),
+                userinfo: "\\asdf\\some value".into(),
                 ..default_test_player_info()
             },
-            user_info: "\\asdf\\some value".to_string(),
+            user_info: "\\asdf\\some value".into(),
             ..default_test_player()
         };
 
@@ -1506,10 +1506,10 @@ mod pyshinqlx_player_tests {
     fn getitem_where_value_is_not_in_userinfo() {
         let player = Player {
             player_info: PlayerInfo {
-                userinfo: "\\name\\^1Unnamed^2Player".to_string(),
+                userinfo: "\\name\\^1Unnamed^2Player".into(),
                 ..default_test_player_info()
             },
-            user_info: "\\name\\^1Unnamed^2Player".to_string(),
+            user_info: "\\name\\^1Unnamed^2Player".into(),
             ..default_test_player()
         };
 
@@ -1538,10 +1538,10 @@ mod pyshinqlx_player_tests {
     fn cvars_where_value_is_part_of_userinfo() {
         let player = Player {
             player_info: PlayerInfo {
-                userinfo: "\\asdf\\some value".to_string(),
+                userinfo: "\\asdf\\some value".into(),
                 ..default_test_player_info()
             },
-            user_info: "\\asdf\\some value".to_string(),
+            user_info: "\\asdf\\some value".into(),
             ..default_test_player()
         };
 
@@ -1919,9 +1919,9 @@ assert(player._valid)
     #[cfg_attr(miri, ignore)]
     fn get_ip_where_no_ip_is_set() {
         let player = Player {
-            user_info: "".to_string(),
+            user_info: "".into(),
             player_info: PlayerInfo {
-                userinfo: "".to_string(),
+                userinfo: "".into(),
                 ..default_test_player_info()
             },
             ..default_test_player()
@@ -1933,9 +1933,9 @@ assert(player._valid)
     #[cfg_attr(miri, ignore)]
     fn get_ip_for_ip_with_no_port() {
         let player = Player {
-            user_info: "\\ip\\127.0.0.1".to_string(),
+            user_info: "\\ip\\127.0.0.1".into(),
             player_info: PlayerInfo {
-                userinfo: "\\ip\\127.0.0.1".to_string(),
+                userinfo: "\\ip\\127.0.0.1".into(),
                 ..default_test_player_info()
             },
             ..default_test_player()
@@ -1948,9 +1948,9 @@ assert(player._valid)
     #[cfg_attr(miri, ignore)]
     fn get_ip_for_ip_with_port() {
         let player = Player {
-            user_info: "\\ip\\127.0.0.1:27666".to_string(),
+            user_info: "\\ip\\127.0.0.1:27666".into(),
             player_info: PlayerInfo {
-                userinfo: "\\ip\\127.0.0.1:27666".to_string(),
+                userinfo: "\\ip\\127.0.0.1:27666".into(),
                 ..default_test_player_info()
             },
             ..default_test_player()
@@ -2136,7 +2136,7 @@ assert(player._valid)
     #[cfg_attr(miri, ignore)]
     fn get_clean_name_returns_cleaned_name() {
         let player = Player {
-            name: "^7^1S^3hi^4N^10^7".to_string(),
+            name: "^7^1S^3hi^4N^10^7".into(),
             ..default_test_player()
         };
 
@@ -2148,9 +2148,9 @@ assert(player._valid)
     #[cfg_attr(miri, ignore)]
     fn get_qport_where_no_port_is_set() {
         let player = Player {
-            user_info: "".to_string(),
+            user_info: "".into(),
             player_info: PlayerInfo {
-                userinfo: "".to_string(),
+                userinfo: "".into(),
                 ..default_test_player_info()
             },
             ..default_test_player()
@@ -2165,9 +2165,9 @@ assert(player._valid)
     #[cfg_attr(miri, ignore)]
     fn get_qport_for_port_set() {
         let player = Player {
-            user_info: "\\qport\\27666".to_string(),
+            user_info: "\\qport\\27666".into(),
             player_info: PlayerInfo {
-                userinfo: "\\qport\\27666".to_string(),
+                userinfo: "\\qport\\27666".into(),
                 ..default_test_player_info()
             },
             ..default_test_player()
@@ -2182,9 +2182,9 @@ assert(player._valid)
     #[cfg_attr(miri, ignore)]
     fn get_qport_for_invalid_port_set() {
         let player = Player {
-            user_info: "\\qport\\asdf".to_string(),
+            user_info: "\\qport\\asdf".into(),
             player_info: PlayerInfo {
-                userinfo: "\\qport\\asdf".to_string(),
+                userinfo: "\\qport\\asdf".into(),
                 ..default_test_player_info()
             },
             ..default_test_player()
@@ -2273,9 +2273,9 @@ assert(player._valid)
     #[cfg_attr(miri, ignore)]
     fn get_colors_where_no_colors_are_set() {
         let player = Player {
-            user_info: "".to_string(),
+            user_info: "".into(),
             player_info: PlayerInfo {
-                userinfo: "".to_string(),
+                userinfo: "".into(),
                 ..default_test_player_info()
             },
             ..default_test_player()
@@ -2290,9 +2290,9 @@ assert(player._valid)
     #[cfg_attr(miri, ignore)]
     fn get_colors_for_colors_set() {
         let player = Player {
-            user_info: "\\color1\\42\\color2\\21".to_string(),
+            user_info: "\\color1\\42\\color2\\21".into(),
             player_info: PlayerInfo {
-                userinfo: "\\color1\\42\\colors2\\21".to_string(),
+                userinfo: "\\color1\\42\\colors2\\21".into(),
                 ..default_test_player_info()
             },
             ..default_test_player()
@@ -2307,9 +2307,9 @@ assert(player._valid)
     #[cfg_attr(miri, ignore)]
     fn get_colors_for_invalid_color1_set() {
         let player = Player {
-            user_info: "\\color1\\asdf\\color2\\42".to_string(),
+            user_info: "\\color1\\asdf\\color2\\42".into(),
             player_info: PlayerInfo {
-                userinfo: "\\color1\\asdf\\color2\\42".to_string(),
+                userinfo: "\\color1\\asdf\\color2\\42".into(),
                 ..default_test_player_info()
             },
             ..default_test_player()
@@ -2324,9 +2324,9 @@ assert(player._valid)
     #[cfg_attr(miri, ignore)]
     fn get_colors_for_invalid_color2_set() {
         let player = Player {
-            user_info: "\\color1\\42\\color2\\asdf".to_string(),
+            user_info: "\\color1\\42\\color2\\asdf".into(),
             player_info: PlayerInfo {
-                userinfo: "\\color1\\42\\color2\\asdf".to_string(),
+                userinfo: "\\color1\\42\\color2\\asdf".into(),
                 ..default_test_player_info()
             },
             ..default_test_player()
@@ -3465,9 +3465,9 @@ assert(player._valid)
     }
 
     #[rstest]
-    #[case([("x".to_string(), 42)], (42.0, 0.0, 0.0))]
-    #[case([("y".to_string(), 42)], (0.0, 42.0, 0.0))]
-    #[case([("z".to_string(), 42)], (0.0, 0.0, 42.0))]
+    #[case([("x".into(), 42)], (42.0, 0.0, 0.0))]
+    #[case([("y".into(), 42)], (0.0, 42.0, 0.0))]
+    #[case([("z".into(), 42)], (0.0, 0.0, 42.0))]
     #[cfg_attr(miri, ignore)]
     #[serial]
     fn position_resets_players_position_with_single_value(
@@ -3674,9 +3674,9 @@ assert(player._valid)
     }
 
     #[rstest]
-    #[case([("x".to_string(), 42)], (42.0, 0.0, 0.0))]
-    #[case([("y".to_string(), 42)], (0.0, 42.0, 0.0))]
-    #[case([("z".to_string(), 42)], (0.0, 0.0, 42.0))]
+    #[case([("x".into(), 42)], (42.0, 0.0, 0.0))]
+    #[case([("y".into(), 42)], (0.0, 42.0, 0.0))]
+    #[case([("z".into(), 42)], (0.0, 0.0, 42.0))]
     #[cfg_attr(miri, ignore)]
     #[serial]
     fn velocity_resets_players_veloity_with_single_value(
@@ -3902,21 +3902,21 @@ assert(player._valid)
     }
 
     #[rstest]
-    #[case([("g".to_string(), 1)], [1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0])]
-    #[case([("mg".to_string(), 1)], [0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0])]
-    #[case([("sg".to_string(), 1)], [0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0])]
-    #[case([("gl".to_string(), 1)], [0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0])]
-    #[case([("rl".to_string(), 1)], [0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0])]
-    #[case([("lg".to_string(), 1)], [0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0])]
-    #[case([("rg".to_string(), 1)], [0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0])]
-    #[case([("pg".to_string(), 1)], [0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0])]
-    #[case([("bfg".to_string(), 1)], [0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0])]
-    #[case([("gh".to_string(), 1)], [0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0])]
-    #[case([("ng".to_string(), 1)], [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0])]
-    #[case([("pl".to_string(), 1)], [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0])]
-    #[case([("cg".to_string(), 1)], [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0])]
-    #[case([("hmg".to_string(), 1)], [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0])]
-    #[case([("hands".to_string(), 1)], [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1])]
+    #[case([("g".into(), 1)], [1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0])]
+    #[case([("mg".into(), 1)], [0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0])]
+    #[case([("sg".into(), 1)], [0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0])]
+    #[case([("gl".into(), 1)], [0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0])]
+    #[case([("rl".into(), 1)], [0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0])]
+    #[case([("lg".into(), 1)], [0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0])]
+    #[case([("rg".into(), 1)], [0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0])]
+    #[case([("pg".into(), 1)], [0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0])]
+    #[case([("bfg".into(), 1)], [0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0])]
+    #[case([("gh".into(), 1)], [0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0])]
+    #[case([("ng".into(), 1)], [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0])]
+    #[case([("pl".into(), 1)], [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0])]
+    #[case([("cg".into(), 1)], [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0])]
+    #[case([("hmg".into(), 1)], [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0])]
+    #[case([("hands".into(), 1)], [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1])]
     #[cfg_attr(miri, ignore)]
     #[serial]
     fn weapons_resets_players_weapons_with_single_value(
@@ -4397,21 +4397,21 @@ assert(player._valid)
     }
 
     #[rstest]
-    #[case([("g".to_string(), 42)], [42, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0])]
-    #[case([("mg".to_string(), 42)], [0, 42, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0])]
-    #[case([("sg".to_string(), 42)], [0, 0, 42, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0])]
-    #[case([("gl".to_string(), 42)], [0, 0, 0, 42, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0])]
-    #[case([("rl".to_string(), 42)], [0, 0, 0, 0, 42, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0])]
-    #[case([("lg".to_string(), 42)], [0, 0, 0, 0, 0, 42, 0, 0, 0, 0, 0, 0, 0, 0, 0])]
-    #[case([("rg".to_string(), 42)], [0, 0, 0, 0, 0, 0, 42, 0, 0, 0, 0, 0, 0, 0, 0])]
-    #[case([("pg".to_string(), 42)], [0, 0, 0, 0, 0, 0, 0, 42, 0, 0, 0, 0, 0, 0, 0])]
-    #[case([("bfg".to_string(), 42)], [0, 0, 0, 0, 0, 0, 0, 0, 42, 0, 0, 0, 0, 0, 0])]
-    #[case([("gh".to_string(), 42)], [0, 0, 0, 0, 0, 0, 0, 0, 0, 42, 0, 0, 0, 0, 0])]
-    #[case([("ng".to_string(), 42)], [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 42, 0, 0, 0, 0])]
-    #[case([("pl".to_string(), 42)], [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 42, 0, 0, 0])]
-    #[case([("cg".to_string(), 42)], [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 42, 0, 0])]
-    #[case([("hmg".to_string(), 42)], [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 42, 0])]
-    #[case([("hands".to_string(), 42)], [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 42])]
+    #[case([("g".into(), 42)], [42, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0])]
+    #[case([("mg".into(), 42)], [0, 42, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0])]
+    #[case([("sg".into(), 42)], [0, 0, 42, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0])]
+    #[case([("gl".into(), 42)], [0, 0, 0, 42, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0])]
+    #[case([("rl".into(), 42)], [0, 0, 0, 0, 42, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0])]
+    #[case([("lg".into(), 42)], [0, 0, 0, 0, 0, 42, 0, 0, 0, 0, 0, 0, 0, 0, 0])]
+    #[case([("rg".into(), 42)], [0, 0, 0, 0, 0, 0, 42, 0, 0, 0, 0, 0, 0, 0, 0])]
+    #[case([("pg".into(), 42)], [0, 0, 0, 0, 0, 0, 0, 42, 0, 0, 0, 0, 0, 0, 0])]
+    #[case([("bfg".into(), 42)], [0, 0, 0, 0, 0, 0, 0, 0, 42, 0, 0, 0, 0, 0, 0])]
+    #[case([("gh".into(), 42)], [0, 0, 0, 0, 0, 0, 0, 0, 0, 42, 0, 0, 0, 0, 0])]
+    #[case([("ng".into(), 42)], [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 42, 0, 0, 0, 0])]
+    #[case([("pl".into(), 42)], [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 42, 0, 0, 0])]
+    #[case([("cg".into(), 42)], [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 42, 0, 0])]
+    #[case([("hmg".into(), 42)], [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 42, 0])]
+    #[case([("hands".into(), 42)], [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 42])]
     #[cfg_attr(miri, ignore)]
     #[serial]
     fn ammo_resets_players_ammos_with_single_value(
@@ -4647,12 +4647,12 @@ assert(player._valid)
     }
 
     #[rstest]
-    #[case([("quad".to_string(), 42)], [42000, 0, 0, 0, 0, 0])]
-    #[case([("battlesuit".to_string(), 42)], [0, 42000, 0, 0, 0, 0])]
-    #[case([("haste".to_string(), 42)], [0, 0, 42000, 0, 0, 0])]
-    #[case([("invisibility".to_string(), 42)], [0, 0, 0, 42000, 0, 0])]
-    #[case([("regeneration".to_string(), 42)], [0, 0, 0, 0, 42000, 0])]
-    #[case([("invulnerability".to_string(), 42)], [0, 0, 0, 0, 0, 42000])]
+    #[case([("quad".into(), 42)], [42000, 0, 0, 0, 0, 0])]
+    #[case([("battlesuit".into(), 42)], [0, 42000, 0, 0, 0, 0])]
+    #[case([("haste".into(), 42)], [0, 0, 42000, 0, 0, 0])]
+    #[case([("invisibility".into(), 42)], [0, 0, 0, 42000, 0, 0])]
+    #[case([("regeneration".into(), 42)], [0, 0, 0, 0, 42000, 0])]
+    #[case([("invulnerability".into(), 42)], [0, 0, 0, 0, 0, 42000])]
     #[cfg_attr(miri, ignore)]
     #[serial]
     fn powerups_resets_players_powerups_with_single_value(
@@ -5110,10 +5110,10 @@ assert(player._valid)
     }
 
     #[rstest]
-    #[case([("fuel".to_string(), 42)], Flight(42, 16_000, 1_200, 0))]
-    #[case([("max_fuel".to_string(), 42)], Flight(16_000, 42, 1_200, 0))]
-    #[case([("thrust".to_string(), 42)], Flight(16_000, 16_000, 42, 0))]
-    #[case([("refuel".to_string(), 42)], Flight(16_000, 16_000, 1_200, 42))]
+    #[case([("fuel".into(), 42)], Flight(42, 16_000, 1_200, 0))]
+    #[case([("max_fuel".into(), 42)], Flight(16_000, 42, 1_200, 0))]
+    #[case([("thrust".into(), 42)], Flight(16_000, 16_000, 42, 0))]
+    #[case([("refuel".into(), 42)], Flight(16_000, 16_000, 1_200, 42))]
     #[cfg_attr(miri, ignore)]
     #[serial]
     fn flight_resets_players_flight_with_single_value(
@@ -6842,32 +6842,32 @@ assert(player._valid)
                     id: 0,
                     player_info: PlayerInfo {
                         client_id: 0,
-                        name: "Mocked Player".to_string(),
+                        name: "Mocked Player".into(),
                         connection_state: clientState_t::CS_ACTIVE as i32,
-                        userinfo: "asdf".to_string(),
+                        userinfo: "asdf".into(),
                         steam_id: 1234,
                         team: team_t::TEAM_RED as i32,
                         privileges: 0,
                     },
                     name: "Mocked Player".into(),
                     steam_id: 1234,
-                    user_info: "asdf".to_string(),
+                    user_info: "asdf".into(),
                 },
                 Player {
                     valid: true,
                     id: 2,
                     player_info: PlayerInfo {
                         client_id: 2,
-                        name: "Mocked Player".to_string(),
+                        name: "Mocked Player".into(),
                         connection_state: clientState_t::CS_ACTIVE as i32,
-                        userinfo: "asdf".to_string(),
+                        userinfo: "asdf".into(),
                         steam_id: 1234,
                         team: team_t::TEAM_RED as i32,
                         privileges: 0,
                     },
                     name: "Mocked Player".into(),
                     steam_id: 1234,
-                    user_info: "asdf".to_string(),
+                    user_info: "asdf".into(),
                 }
             ]
         );
@@ -6898,7 +6898,7 @@ pub(crate) struct AbstractDummyPlayer;
 #[pymethods]
 impl AbstractDummyPlayer {
     #[new]
-    #[pyo3(signature = (name = "DummyPlayer".to_string()))]
+    #[pyo3(signature = (name = "DummyPlayer".into()))]
     fn py_new(name: String) -> PyClassInitializer<Self> {
         let player_info = PlayerInfo {
             client_id: -1,

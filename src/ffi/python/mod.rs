@@ -123,7 +123,7 @@ impl FromStr for ParsedVariables {
     fn from_str(varstr: &str) -> Result<Self, Self::Err> {
         let Some(varstr_vec): Option<Vec<String>> = varstr
             .strip_prefix('\\')
-            .map(|value| value.split('\\').map(|value| value.to_string()).collect())
+            .map(|value| value.split('\\').map(|value| value.into()).collect())
         else {
             return Ok(Self { items: vec![] });
         };
@@ -210,16 +210,16 @@ fn set_map_subtitles(module: &PyModule) -> PyResult<()> {
         .getattr("__plugins_version__")
         .map(|value| value.extract::<String>().unwrap_or("NOT_SET".into()))
         .unwrap_or("NOT_SET".into());
-    map_subtitle1.push_str(plugins_version.as_str());
+    map_subtitle1.push_str(&plugins_version);
     map_subtitle1.push_str("^7.");
 
-    pyshinqlx_set_configstring(module.py(), 678, map_subtitle1.as_str())?;
+    pyshinqlx_set_configstring(module.py(), 678, &map_subtitle1)?;
 
     if !map_subtitle2.is_empty() {
         map_subtitle2.push_str(" - ");
     }
     map_subtitle2.push_str("Check ^6https://github.com/mgaertne/shinqlx^7 for more details.");
-    pyshinqlx_set_configstring(module.py(), 679, map_subtitle2.as_str())?;
+    pyshinqlx_set_configstring(module.py(), 679, &map_subtitle2)?;
 
     Ok(())
 }
@@ -396,22 +396,12 @@ static DEFAULT_PLUGINS: [&str; 10] = [
 #[pyfunction]
 fn initialize_cvars(py: Python<'_>) -> PyResult<()> {
     pyshinqlx_set_cvar_once(py, "qlx_owner", "-1".into_py(py), 0)?;
-    pyshinqlx_set_cvar_once(
-        py,
-        "qlx_plugins",
-        DEFAULT_PLUGINS.join(", ").as_str().into_py(py),
-        0,
-    )?;
+    pyshinqlx_set_cvar_once(py, "qlx_plugins", DEFAULT_PLUGINS.join(", ").into_py(py), 0)?;
     pyshinqlx_set_cvar_once(py, "qlx_pluginsPath", "shinqlx-plugins".into_py(py), 0)?;
     pyshinqlx_set_cvar_once(py, "qlx_database", "Redis".into_py(py), 0)?;
     pyshinqlx_set_cvar_once(py, "qlx_commandPrefix", "!".into_py(py), 0)?;
     pyshinqlx_set_cvar_once(py, "qlx_logs", "2".into_py(py), 0)?;
-    pyshinqlx_set_cvar_once(
-        py,
-        "qlx_logsSize",
-        3_000_000.to_string().as_str().into_py(py),
-        0,
-    )?;
+    pyshinqlx_set_cvar_once(py, "qlx_logsSize", "3000000".into_py(py), 0)?;
 
     pyshinqlx_set_cvar_once(py, "qlx_redisAddress", "127.0.0.1".into_py(py), 0)?;
     pyshinqlx_set_cvar_once(py, "qlx_redisDatabase", "0".into_py(py), 0)?;

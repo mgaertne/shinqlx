@@ -204,7 +204,7 @@ impl Game {
     #[setter(map)]
     fn set_map(&mut self, py: Python<'_>, value: String) -> PyResult<()> {
         let mapchange_command = format!("map {}", value);
-        pyshinqlx_console_command(py, mapchange_command.as_str())
+        pyshinqlx_console_command(py, &mapchange_command)
     }
 
     /// The full name of the map. Ex.: ``Longest Yard``.
@@ -271,7 +271,7 @@ impl Game {
     #[setter(factory)]
     fn set_factory(&mut self, py: Python<'_>, value: String) -> PyResult<()> {
         let mapchange_command = format!("map {} {}", self.get_map(py)?, value);
-        pyshinqlx_console_command(py, mapchange_command.as_str())
+        pyshinqlx_console_command(py, &mapchange_command)
     }
 
     #[getter(hostname)]
@@ -281,7 +281,7 @@ impl Game {
 
     #[setter(hostname)]
     fn set_hostname(&mut self, py: Python<'_>, value: String) -> PyResult<()> {
-        pyshinqlx_set_cvar(py, "sv_hostname", value.as_str(), None)?;
+        pyshinqlx_set_cvar(py, "sv_hostname", &value, None)?;
         Ok(())
     }
 
@@ -344,7 +344,7 @@ impl Game {
     #[setter(maxclients)]
     fn set_maxclients(&mut self, py: Python<'_>, value: i32) -> PyResult<()> {
         let value_str = format!("{}", value);
-        pyshinqlx_set_cvar(py, "sv_maxclients", value_str.as_str(), None)?;
+        pyshinqlx_set_cvar(py, "sv_maxclients", &value_str, None)?;
         Ok(())
     }
 
@@ -357,7 +357,7 @@ impl Game {
     #[setter(timelimit)]
     fn set_timelimit(&mut self, py: Python<'_>, value: i32) -> PyResult<()> {
         let value_str = format!("{}", value);
-        pyshinqlx_set_cvar(py, "timelimit", value_str.as_str(), None)?;
+        pyshinqlx_set_cvar(py, "timelimit", &value_str, None)?;
         Ok(())
     }
 
@@ -370,7 +370,7 @@ impl Game {
     #[setter(fraglimit)]
     fn set_fraglimit(&mut self, py: Python<'_>, value: i32) -> PyResult<()> {
         let value_str = format!("{}", value);
-        pyshinqlx_set_cvar(py, "fraglimit", value_str.as_str(), None)?;
+        pyshinqlx_set_cvar(py, "fraglimit", &value_str, None)?;
         Ok(())
     }
 
@@ -383,7 +383,7 @@ impl Game {
     #[setter(roundlimit)]
     fn set_roundlimit(&mut self, py: Python<'_>, value: i32) -> PyResult<()> {
         let value_str = format!("{}", value);
-        pyshinqlx_set_cvar(py, "roundlimit", value_str.as_str(), None)?;
+        pyshinqlx_set_cvar(py, "roundlimit", &value_str, None)?;
         Ok(())
     }
 
@@ -396,7 +396,7 @@ impl Game {
     #[setter(roundtimelimit)]
     fn set_roundtimelimit(&mut self, py: Python<'_>, value: i32) -> PyResult<()> {
         let value_str = format!("{}", value);
-        pyshinqlx_set_cvar(py, "roundtimelimit", value_str.as_str(), None)?;
+        pyshinqlx_set_cvar(py, "roundtimelimit", &value_str, None)?;
         Ok(())
     }
 
@@ -409,7 +409,7 @@ impl Game {
     #[setter(scorelimit)]
     fn set_scorelimit(&mut self, py: Python<'_>, value: i32) -> PyResult<()> {
         let value_str = format!("{}", value);
-        pyshinqlx_set_cvar(py, "scorelimit", value_str.as_str(), None)?;
+        pyshinqlx_set_cvar(py, "scorelimit", &value_str, None)?;
         Ok(())
     }
 
@@ -422,7 +422,7 @@ impl Game {
     #[setter(capturelimit)]
     fn set_capturelimit(&mut self, py: Python<'_>, value: i32) -> PyResult<()> {
         let value_str = format!("{}", value);
-        pyshinqlx_set_cvar(py, "capturelimit", value_str.as_str(), None)?;
+        pyshinqlx_set_cvar(py, "capturelimit", &value_str, None)?;
         Ok(())
     }
 
@@ -435,17 +435,14 @@ impl Game {
     #[setter(teamsize)]
     fn set_teamsize(&mut self, py: Python<'_>, value: i32) -> PyResult<()> {
         let value_str = format!("{}", value);
-        pyshinqlx_set_cvar(py, "teamsize", value_str.as_str(), None)?;
+        pyshinqlx_set_cvar(py, "teamsize", &value_str, None)?;
         Ok(())
     }
 
     #[getter(tags)]
     fn get_tags(&mut self, py: Python<'_>) -> PyResult<Vec<String>> {
         let tags_cvar = self.__getitem__(py, "sv_tags".into())?;
-        Ok(tags_cvar
-            .split(',')
-            .map(|value| value.to_string())
-            .collect())
+        Ok(tags_cvar.split(',').map(|value| value.into()).collect())
     }
 
     #[setter(tags)]
@@ -464,7 +461,7 @@ impl Game {
                 }
             },
         };
-        pyshinqlx_set_cvar(py, "sv_tags", string_cvar_value.as_str(), None)?;
+        pyshinqlx_set_cvar(py, "sv_tags", &string_cvar_value, None)?;
         Ok(())
     }
 
@@ -488,7 +485,7 @@ impl Game {
                 return Err(PyValueError::new_err("The value needs to be an iterable."));
             }
         };
-        pyshinqlx_set_configstring(py, 715, workshop_items_str.as_str())?;
+        pyshinqlx_set_configstring(py, 715, &workshop_items_str)?;
         Ok(())
     }
 
@@ -528,13 +525,11 @@ impl Game {
         match team {
             None => pyshinqlx_console_command(py, "lock"),
             Some(team_name) => {
-                if !["free", "red", "blue", "spectator"]
-                    .contains(&team_name.to_lowercase().as_str())
-                {
+                if !["free", "red", "blue", "spectator"].contains(&&*team_name.to_lowercase()) {
                     Err(PyValueError::new_err("Invalid team."))
                 } else {
                     let lock_cmd = format!("lock {}", team_name.to_lowercase());
-                    pyshinqlx_console_command(py, lock_cmd.as_str())
+                    pyshinqlx_console_command(py, &lock_cmd)
                 }
             }
         }
@@ -546,13 +541,11 @@ impl Game {
         match team {
             None => pyshinqlx_console_command(py, "unlock"),
             Some(team_name) => {
-                if !["free", "red", "blue", "spectator"]
-                    .contains(&team_name.to_lowercase().as_str())
-                {
+                if !["free", "red", "blue", "spectator"].contains(&&*team_name.to_lowercase()) {
                     Err(PyValueError::new_err("Invalid team."))
                 } else {
                     let unlock_cmd = format!("unlock {}", team_name.to_lowercase());
-                    pyshinqlx_console_command(py, unlock_cmd.as_str())
+                    pyshinqlx_console_command(py, &unlock_cmd)
                 }
             }
         }
@@ -564,12 +557,12 @@ impl Game {
             return Err(PyValueError::new_err("Invalid player."));
         };
 
-        if !["free", "red", "blue", "spectator"].contains(&team.to_lowercase().as_str()) {
+        if !["free", "red", "blue", "spectator"].contains(&&*team.to_lowercase()) {
             return Err(PyValueError::new_err("Invalid team."));
         }
 
         let team_change_cmd = format!("put {} {}", player_id, team.to_lowercase());
-        pyshinqlx_console_command(py, team_change_cmd.as_str())
+        pyshinqlx_console_command(py, &team_change_cmd)
     }
 
     #[classmethod]
@@ -579,7 +572,7 @@ impl Game {
         };
 
         let mute_cmd = format!("mute {}", player_id);
-        pyshinqlx_console_command(py, mute_cmd.as_str())
+        pyshinqlx_console_command(py, &mute_cmd)
     }
 
     #[classmethod]
@@ -589,7 +582,7 @@ impl Game {
         };
 
         let unmute_cmd = format!("unmute {}", player_id);
-        pyshinqlx_console_command(py, unmute_cmd.as_str())
+        pyshinqlx_console_command(py, &unmute_cmd)
     }
 
     #[classmethod]
@@ -599,7 +592,7 @@ impl Game {
         };
 
         let tempban_cmd = format!("tempban {}", player_id);
-        pyshinqlx_console_command(py, tempban_cmd.as_str())
+        pyshinqlx_console_command(py, &tempban_cmd)
     }
 
     #[classmethod]
@@ -609,7 +602,7 @@ impl Game {
         };
 
         let ban_cmd = format!("ban {}", player_id);
-        pyshinqlx_console_command(py, ban_cmd.as_str())
+        pyshinqlx_console_command(py, &ban_cmd)
     }
 
     #[classmethod]
@@ -619,13 +612,13 @@ impl Game {
         };
 
         let unban_cmd = format!("unban {}", player_id);
-        pyshinqlx_console_command(py, unban_cmd.as_str())
+        pyshinqlx_console_command(py, &unban_cmd)
     }
 
     #[classmethod]
     fn opsay(_cls: &PyType, py: Python<'_>, msg: String) -> PyResult<()> {
         let opsay_cmd = format!("opsay {}", msg);
-        pyshinqlx_console_command(py, opsay_cmd.as_str())
+        pyshinqlx_console_command(py, &opsay_cmd)
     }
 
     #[classmethod]
@@ -635,7 +628,7 @@ impl Game {
         };
 
         let addadmin_cmd = format!("addadmin {}", player_id);
-        pyshinqlx_console_command(py, addadmin_cmd.as_str())
+        pyshinqlx_console_command(py, &addadmin_cmd)
     }
 
     #[classmethod]
@@ -645,7 +638,7 @@ impl Game {
         };
 
         let addmod_cmd = format!("addmod {}", player_id);
-        pyshinqlx_console_command(py, addmod_cmd.as_str())
+        pyshinqlx_console_command(py, &addmod_cmd)
     }
 
     #[classmethod]
@@ -655,7 +648,7 @@ impl Game {
         };
 
         let demote_cmd = format!("demote {}", player_id);
-        pyshinqlx_console_command(py, demote_cmd.as_str())
+        pyshinqlx_console_command(py, &demote_cmd)
     }
 
     #[classmethod]
@@ -670,23 +663,23 @@ impl Game {
         };
 
         let addscore_cmd = format!("addscore {} {}", player_id, score);
-        pyshinqlx_console_command(py, addscore_cmd.as_str())
+        pyshinqlx_console_command(py, &addscore_cmd)
     }
 
     #[classmethod]
     fn addteamscore(_cls: &PyType, py: Python<'_>, team: String, score: i32) -> PyResult<()> {
-        if !["free", "red", "blue", "spectator"].contains(&team.to_lowercase().as_str()) {
+        if !["free", "red", "blue", "spectator"].contains(&&*team.to_lowercase()) {
             return Err(PyValueError::new_err("Invalid team."));
         }
 
         let addteamscore_cmd = format!("addteamscore {} {}", team.to_lowercase(), score);
-        pyshinqlx_console_command(py, addteamscore_cmd.as_str())
+        pyshinqlx_console_command(py, &addteamscore_cmd)
     }
 
     #[classmethod]
     fn setmatchtime(_cls: &PyType, py: Python<'_>, time: i32) -> PyResult<()> {
         let setmatchtime_cmd = format!("setmatchtime {}", time);
-        pyshinqlx_console_command(py, setmatchtime_cmd.as_str())
+        pyshinqlx_console_command(py, &setmatchtime_cmd)
     }
 }
 
