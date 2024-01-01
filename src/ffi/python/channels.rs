@@ -74,7 +74,7 @@ impl AbstractChannel {
         self.name.clone()
     }
 
-    #[pyo3(signature = (msg, limit=100, delimiter=" ".to_string()))]
+    #[pyo3(signature = (msg, limit=100, delimiter=" ".into()))]
     fn reply(
         #[allow(unused_variables)] self_: PyRef<'_, Self>,
         #[allow(unused_variables)] msg: String,
@@ -84,7 +84,7 @@ impl AbstractChannel {
         Err(PyNotImplementedError::new_err("not implemented"))
     }
 
-    #[pyo3(signature = (msg, limit=100, delimiter=" ".to_string()))]
+    #[pyo3(signature = (msg, limit=100, delimiter=" ".into()))]
     fn split_long_lines(&self, msg: String, limit: i32, delimiter: String) -> Vec<String> {
         let split_string = msg.split('\n').flat_map(|value| {
             if value.len() <= limit as usize {
@@ -97,7 +97,7 @@ impl AbstractChannel {
                         next_string.push_str(item);
                     } else {
                         result.push(next_string);
-                        next_string = item.to_string();
+                        next_string = item.into();
                     }
                 }
                 if !next_string.is_empty() {
@@ -268,11 +268,10 @@ pub(crate) struct ConsoleChannel {}
 impl ConsoleChannel {
     #[new]
     pub(crate) fn py_new() -> PyClassInitializer<Self> {
-        PyClassInitializer::from(AbstractChannel::py_new("console".to_string()))
-            .add_subclass(Self {})
+        PyClassInitializer::from(AbstractChannel::py_new("console".into())).add_subclass(Self {})
     }
 
-    #[pyo3(signature = (msg, limit=100, delimiter=" ".to_string()))]
+    #[pyo3(signature = (msg, limit=100, delimiter=" ".into()))]
     fn reply(
         #[allow(unused_variables)] self_: PyRef<'_, Self>,
         py: Python<'_>,
@@ -347,7 +346,7 @@ pub(crate) struct ChatChannel {
 #[pymethods]
 impl ChatChannel {
     #[new]
-    #[pyo3(signature = (name = "chat".to_string(), fmt = "print \"{}\n\"\n".to_string()))]
+    #[pyo3(signature = (name = "chat".into(), fmt = "print \"{}\n\"\n".into()))]
     fn py_new(name: String, fmt: String) -> PyClassInitializer<Self> {
         PyClassInitializer::from(AbstractChannel::py_new(name)).add_subclass(Self { fmt })
     }
@@ -356,7 +355,7 @@ impl ChatChannel {
         Err(PyNotImplementedError::new_err(""))
     }
 
-    #[pyo3(signature = (msg, limit=100, delimiter=" ".to_string()))]
+    #[pyo3(signature = (msg, limit=100, delimiter=" ".into()))]
     fn reply(
         self_: &PyCell<Self>,
         py: Python<'_>,
@@ -418,17 +417,17 @@ def reply(targets, msg):
 
             match targets {
                 None => {
-                    next_frame_reply.call1(py, (py.None(), server_command.as_str()))?;
+                    next_frame_reply.call1(py, (py.None(), &server_command))?;
                 }
                 Some(ref cids) => {
                     for &cid in cids {
-                        next_frame_reply.call1(py, (cid, server_command.as_str()))?;
+                        next_frame_reply.call1(py, (cid, &server_command))?;
                     }
                 }
             }
 
-            if let Some(color_tag) = re_color_tag.find_iter(message.as_str()).last() {
-                last_color = color_tag.as_str().to_string().clone();
+            if let Some(color_tag) = re_color_tag.find_iter(&message).last() {
+                last_color = color_tag.as_str().into();
             }
         }
 
@@ -447,9 +446,9 @@ pub(crate) struct TellChannel {
 impl TellChannel {
     #[new]
     pub(crate) fn py_new(player: &Player) -> PyClassInitializer<Self> {
-        PyClassInitializer::from(AbstractChannel::py_new("tell".to_string()))
+        PyClassInitializer::from(AbstractChannel::py_new("tell".into()))
             .add_subclass(ChatChannel {
-                fmt: "print \"{}\n\"\n".to_string(),
+                fmt: "print \"{}\n\"\n".into(),
             })
             .add_subclass(Self {
                 client_id: player.id,
@@ -481,7 +480,7 @@ pub(crate) struct TeamChatChannel {
 #[pymethods]
 impl TeamChatChannel {
     #[new]
-    #[pyo3(signature = (team="all".to_string(), name="chat".to_string(), fmt="print \"{}\n\"\n".to_string()))]
+    #[pyo3(signature = (team="all".into(), name="chat".into(), fmt="print \"{}\n\"\n".into()))]
     pub(crate) fn py_new(team: String, name: String, fmt: String) -> PyClassInitializer<Self> {
         PyClassInitializer::from(AbstractChannel::py_new(name))
             .add_subclass(ChatChannel { fmt })
@@ -535,10 +534,11 @@ pub(crate) struct ClientCommandChannel {
 impl ClientCommandChannel {
     #[new]
     pub(crate) fn py_new(player: &Player) -> PyClassInitializer<Self> {
-        PyClassInitializer::from(AbstractChannel::py_new("client_command".to_string()))
-            .add_subclass(Self {
+        PyClassInitializer::from(AbstractChannel::py_new("client_command".into())).add_subclass(
+            Self {
                 client_id: player.id,
-            })
+            },
+        )
     }
 
     fn __repr__(&self) -> String {
@@ -556,13 +556,13 @@ impl ClientCommandChannel {
         Py::new(py, TellChannel::py_new(&player))
     }
 
-    #[pyo3(signature = (msg, limit=100, delimiter="".to_string()))]
+    #[pyo3(signature = (msg, limit=100, delimiter="".into()))]
     fn reply(&self, py: Python<'_>, msg: String, limit: i32, delimiter: String) -> PyResult<()> {
         let tell_channel = Py::new(
             py,
-            PyClassInitializer::from(AbstractChannel::py_new("tell".to_string()))
+            PyClassInitializer::from(AbstractChannel::py_new("tell".into()))
                 .add_subclass(ChatChannel {
-                    fmt: "print \"{}\n\"\n".to_string(),
+                    fmt: "print \"{}\n\"\n".into(),
                 })
                 .add_subclass(TellChannel {
                     client_id: self.client_id,

@@ -26,7 +26,7 @@ pub(crate) fn pyshinqlx_set_cvar_once(
             return Ok(false);
         }
 
-        main_engine.get_cvar(cvar, value_string.as_str(), Some(flags));
+        main_engine.get_cvar(cvar, &value_string, Some(flags));
         Ok(true)
     })
 }
