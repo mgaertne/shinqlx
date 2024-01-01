@@ -361,7 +361,7 @@ impl GameEntity {
             // this forces client to load new item
             let mut items = main_engine.get_configstring(CS_ITEMS as u16);
             items.replace_range(item_id as usize..=item_id as usize, "1");
-            shinqlx_set_configstring(item_id as u32, items.as_str());
+            shinqlx_set_configstring(item_id as u32, &items);
         } else {
             self.free_entity();
         }
