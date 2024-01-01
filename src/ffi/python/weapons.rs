@@ -272,6 +272,7 @@ weapons = _shinqlx.Weapons((0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14))
             );
         });
     }
+
     #[cfg(not(miri))]
     #[rstest]
     fn ammo_py_constructor_with_too_few_values(_pyshinqlx_setup: ()) {
