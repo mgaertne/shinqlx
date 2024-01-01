@@ -110,6 +110,154 @@ impl AbstractChannel {
     }
 }
 
+#[cfg(test)]
+#[cfg(not(miri))]
+mod abstract_channel_tests {
+    use super::AbstractChannel;
+    use crate::ffi::python::pyshinqlx_setup_fixture::pyshinqlx_setup;
+    use crate::prelude::*;
+    use pretty_assertions::assert_eq;
+    use pyo3::exceptions::{PyNotImplementedError, PyTypeError};
+    use pyo3::{Py, Python};
+    use rstest::rstest;
+
+    #[rstest]
+    fn abstract_channel_can_be_created_from_python(_pyshinqlx_setup: ()) {
+        Python::with_gil(|py| {
+            let abstract_channel_constructor = py.run(
+                r#"
+import _shinqlx
+abstract_channel = _shinqlx.AbstractChannel("abstract")
+            "#,
+                None,
+                None,
+            );
+            assert!(abstract_channel_constructor.is_ok());
+        });
+    }
+
+    #[rstest]
+    fn abstract_channel_str_representation(_pyshinqlx_setup: ()) {
+        Python::with_gil(|py| {
+            let abstract_channel_str_assert = py.run(
+                r#"
+import _shinqlx
+abstract_channel = _shinqlx.AbstractChannel("abstract")
+assert str(abstract_channel) == "abstract"
+            "#,
+                None,
+                None,
+            );
+            assert!(abstract_channel_str_assert.is_ok());
+        });
+    }
+
+    #[rstest]
+    fn abstract_channel_repr_representation(_pyshinqlx_setup: ()) {
+        Python::with_gil(|py| {
+            let abstract_channel_repr_assert = py.run(
+                r#"
+import _shinqlx
+abstract_channel = _shinqlx.AbstractChannel("abstract")
+assert repr(abstract_channel) == "abstract"
+            "#,
+                None,
+                None,
+            );
+            assert!(abstract_channel_repr_assert.is_ok());
+        });
+    }
+
+    #[rstest]
+    fn abstract_channel_eq_comparison(_pyshinqlx_setup: ()) {
+        Python::with_gil(|py| {
+            let abstract_channel_eq_assert = py.run(
+                r#"
+import _shinqlx
+
+assert _shinqlx.AbstractChannel("abstract") == "abstract"
+assert _shinqlx.AbstractChannel("abstract") == _shinqlx.AbstractChannel("abstract")
+assert not (_shinqlx.AbstractChannel("abstract1") == _shinqlx.AbstractChannel("abstract2"))
+
+class NoReprClass():
+    def __repr__(self):
+        raise NotImplementedError()
+        
+assert not (_shinqlx.AbstractChannel("abstract") == NoReprClass())
+            "#,
+                None,
+                None,
+            );
+            assert!(abstract_channel_eq_assert.is_ok(),);
+        });
+    }
+
+    #[rstest]
+    fn abstract_channel_not_eq_comparison(_pyshinqlx_setup: ()) {
+        Python::with_gil(|py| {
+            let abstract_channel_ne_assert = py.run(
+                r#"
+import _shinqlx
+
+assert _shinqlx.AbstractChannel("abstract1") != "abstract2"
+assert _shinqlx.AbstractChannel("abstract1") != _shinqlx.AbstractChannel("abstract2")
+assert not (_shinqlx.AbstractChannel("abstract") != _shinqlx.AbstractChannel("abstract"))
+
+class NoReprClass():
+    def __repr__(self):
+        raise NotImplementedError()
+        
+assert _shinqlx.AbstractChannel("abstract") != NoReprClass()
+            "#,
+                None,
+                None,
+            );
+            assert!(abstract_channel_ne_assert.is_ok());
+        });
+    }
+
+    #[rstest]
+    fn abstract_channel_does_not_support_other_comparisons(_pyshinqlx_setup: ()) {
+        Python::with_gil(|py| {
+            let abstract_channel_cmp_assert = py.run(
+                r#"
+import _shinqlx
+
+_shinqlx.AbstractChannel("abstract") < 2
+            "#,
+                None,
+                None,
+            );
+            assert!(
+                abstract_channel_cmp_assert.is_err_and(|err| err.is_instance_of::<PyTypeError>(py))
+            );
+        });
+    }
+
+    #[test]
+    fn abstract_channel_get_name() {
+        let abstract_channel = AbstractChannel {
+            name: "abstract".into(),
+        };
+        assert_eq!(abstract_channel.get_name(), "abstract");
+    }
+
+    #[test]
+    #[serial]
+    fn reply_prints_text_to_console() {
+        Python::with_gil(|py| {
+            let abstract_channel = Py::new(py, AbstractChannel::py_new("abstract".into())).unwrap();
+            let result = AbstractChannel::reply(
+                abstract_channel.as_ref(py).borrow(),
+                "asdf".into(),
+                100,
+                " ".into(),
+            );
+            assert!(result.is_err_and(|err| err.is_instance_of::<PyNotImplementedError>(py)));
+        });
+    }
+}
+
 /// A channel that prints to the console.
 #[pyclass(extends=AbstractChannel, subclass)]
 #[pyo3(module = "shinqlx", name = "ConsoleChannel", get_all)]
@@ -132,7 +280,7 @@ impl ConsoleChannel {
         #[allow(unused_variables)] limit: i32,
         #[allow(unused_variables)] delimiter: String,
     ) -> PyResult<()> {
-        pyshinqlx_console_print(py, msg.as_str());
+        pyshinqlx_console_print(py, &msg);
         Ok(())
     }
 }
@@ -159,11 +307,7 @@ console_channel = _shinqlx.ConsoleChannel()
                 None,
                 None,
             );
-            assert!(
-                console_channel_constructor.is_ok(),
-                "{}",
-                console_channel_constructor.expect_err("this should not happen")
-            );
+            assert!(console_channel_constructor.is_ok());
         });
     }
 
@@ -181,9 +325,9 @@ console_channel = _shinqlx.ConsoleChannel()
             ConsoleChannel::reply(
                 console_channel.as_ref(py).borrow(),
                 py,
-                "asdf".to_string(),
+                "asdf".into(),
                 100,
-                " ".to_string(),
+                " ".into(),
             )
         });
         assert!(result.is_ok());
