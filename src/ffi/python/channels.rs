@@ -96,7 +96,9 @@ impl AbstractChannel {
                     if next_string.len() + item.len() <= limit as usize {
                         next_string.push_str(item);
                     } else {
-                        result.push(next_string);
+                        if !next_string.is_empty() {
+                            result.push(next_string);
+                        }
                         next_string = item.into();
                     }
                 }
@@ -111,17 +113,20 @@ impl AbstractChannel {
 }
 
 #[cfg(test)]
-#[cfg(not(miri))]
 mod abstract_channel_tests {
     use super::AbstractChannel;
+    #[cfg(not(miri))]
     use crate::ffi::python::pyshinqlx_setup_fixture::pyshinqlx_setup;
-    use crate::prelude::*;
     use pretty_assertions::assert_eq;
+    #[cfg(not(miri))]
     use pyo3::exceptions::{PyNotImplementedError, PyTypeError};
+    #[cfg(not(miri))]
     use pyo3::{Py, Python};
+    #[cfg(not(miri))]
     use rstest::rstest;
 
     #[rstest]
+    #[cfg(not(miri))]
     fn abstract_channel_can_be_created_from_python(_pyshinqlx_setup: ()) {
         Python::with_gil(|py| {
             let abstract_channel_constructor = py.run(
@@ -137,6 +142,7 @@ abstract_channel = _shinqlx.AbstractChannel("abstract")
     }
 
     #[rstest]
+    #[cfg(not(miri))]
     fn abstract_channel_str_representation(_pyshinqlx_setup: ()) {
         Python::with_gil(|py| {
             let abstract_channel_str_assert = py.run(
@@ -153,6 +159,7 @@ assert str(abstract_channel) == "abstract"
     }
 
     #[rstest]
+    #[cfg(not(miri))]
     fn abstract_channel_repr_representation(_pyshinqlx_setup: ()) {
         Python::with_gil(|py| {
             let abstract_channel_repr_assert = py.run(
@@ -169,6 +176,7 @@ assert repr(abstract_channel) == "abstract"
     }
 
     #[rstest]
+    #[cfg(not(miri))]
     fn abstract_channel_eq_comparison(_pyshinqlx_setup: ()) {
         Python::with_gil(|py| {
             let abstract_channel_eq_assert = py.run(
@@ -193,6 +201,7 @@ assert not (_shinqlx.AbstractChannel("abstract") == NoReprClass())
     }
 
     #[rstest]
+    #[cfg(not(miri))]
     fn abstract_channel_not_eq_comparison(_pyshinqlx_setup: ()) {
         Python::with_gil(|py| {
             let abstract_channel_ne_assert = py.run(
@@ -217,6 +226,7 @@ assert _shinqlx.AbstractChannel("abstract") != NoReprClass()
     }
 
     #[rstest]
+    #[cfg(not(miri))]
     fn abstract_channel_does_not_support_other_comparisons(_pyshinqlx_setup: ()) {
         Python::with_gil(|py| {
             let abstract_channel_cmp_assert = py.run(
@@ -235,7 +245,7 @@ _shinqlx.AbstractChannel("abstract") < 2
     }
 
     #[test]
-    fn abstract_channel_get_name() {
+    fn get_name() {
         let abstract_channel = AbstractChannel {
             name: "abstract".into(),
         };
@@ -243,8 +253,8 @@ _shinqlx.AbstractChannel("abstract") < 2
     }
 
     #[test]
-    #[serial]
-    fn reply_prints_text_to_console() {
+    #[cfg(not(miri))]
+    fn reply_is_not_implemented() {
         Python::with_gil(|py| {
             let abstract_channel = Py::new(py, AbstractChannel::py_new("abstract".into())).unwrap();
             let result = AbstractChannel::reply(
@@ -255,6 +265,62 @@ _shinqlx.AbstractChannel("abstract") < 2
             );
             assert!(result.is_err_and(|err| err.is_instance_of::<PyNotImplementedError>(py)));
         });
+    }
+
+    #[test]
+    fn split_long_lines_with_short_string() {
+        let abstract_channel = AbstractChannel {
+            name: "abstract".into(),
+        };
+        let result = abstract_channel.split_long_lines("short".into(), 100, " ".into());
+
+        assert_eq!(result, vec!["short".to_string()]);
+    }
+
+    #[test]
+    fn split_long_lines_with_string_that_is_split() {
+        let abstract_channel = AbstractChannel {
+            name: "abstract".into(),
+        };
+        let result = abstract_channel.split_long_lines(
+            "asdf1 asdf2 asdf3 asdf4\nasdf5\nasdf6".into(),
+            5,
+            " ".into(),
+        );
+
+        assert_eq!(
+            result,
+            vec![
+                "asdf1 ".to_string(),
+                "asdf2 ".to_string(),
+                "asdf3 ".to_string(),
+                "asdf4".to_string(),
+                "asdf5".to_string(),
+                "asdf6".to_string()
+            ]
+        );
+    }
+
+    #[test]
+    fn split_long_lines_with_string_with_multiple_chunks() {
+        let abstract_channel = AbstractChannel {
+            name: "abstract".into(),
+        };
+        let result = abstract_channel.split_long_lines(
+            "asdf1 asdf2 asdf3 asdf4\nasdf5\nasdf6".into(),
+            15,
+            " ".into(),
+        );
+
+        assert_eq!(
+            result,
+            vec![
+                "asdf1 asdf2 ".to_string(),
+                "asdf3 asdf4".to_string(),
+                "asdf5".to_string(),
+                "asdf6".to_string()
+            ]
+        );
     }
 }
 
@@ -432,6 +498,50 @@ def reply(targets, msg):
         }
 
         Ok(())
+    }
+}
+
+#[cfg(test)]
+mod chat_channel_tests {
+    use super::ChatChannel;
+    #[cfg(not(miri))]
+    use crate::ffi::python::pyshinqlx_setup_fixture::pyshinqlx_setup;
+    #[cfg(not(miri))]
+    use crate::prelude::*;
+    use pretty_assertions::assert_eq;
+    #[cfg(not(miri))]
+    use pyo3::exceptions::PyNotImplementedError;
+    #[cfg(not(miri))]
+    use pyo3::{Py, Python};
+    #[cfg(not(miri))]
+    use rstest::rstest;
+
+    #[rstest]
+    #[cfg(not(miri))]
+    fn console_channel_can_be_created_from_python(_pyshinqlx_setup: ()) {
+        Python::with_gil(|py| {
+            let chat_channel_constructor = py.run(
+                r#"
+import _shinqlx
+chat_channel = _shinqlx.ChatChannel()
+            "#,
+                None,
+                None,
+            );
+            assert!(chat_channel_constructor.is_ok());
+        });
+    }
+
+    #[test]
+    #[cfg(not(miri))]
+    fn receipients_is_not_implemented() {
+        Python::with_gil(|py| {
+            let chat_channel = ChatChannel {
+                fmt: "print\"{}\n\"\n".into(),
+            };
+            let result = chat_channel.receipients();
+            assert!(result.is_err_and(|err| err.is_instance_of::<PyNotImplementedError>(py)));
+        });
     }
 }
 
