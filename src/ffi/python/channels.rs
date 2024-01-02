@@ -573,6 +573,124 @@ impl TellChannel {
     }
 }
 
+#[cfg(test)]
+mod tell_channel_tests {
+    use super::TellChannel;
+    use crate::ffi::c::client::MockClient;
+    use crate::ffi::c::game_entity::MockGameEntity;
+    use crate::ffi::python::player::Player;
+    #[cfg(not(miri))]
+    use crate::ffi::python::pyshinqlx_setup_fixture::pyshinqlx_setup;
+    use crate::ffi::python::PlayerInfo;
+    use crate::prelude::*;
+    use mockall::predicate;
+    use pretty_assertions::assert_eq;
+    #[cfg(not(miri))]
+    use pyo3::types::IntoPyDict;
+    #[cfg(not(miri))]
+    use pyo3::{IntoPy, Python};
+    #[cfg(not(miri))]
+    use rstest::rstest;
+
+    #[cfg_attr(miri, allow(dead_code))]
+    fn default_test_player() -> Player {
+        Player {
+            valid: true,
+            id: 2,
+            player_info: PlayerInfo {
+                client_id: 2,
+                name: "".into(),
+                connection_state: clientState_t::CS_CONNECTED as i32,
+                userinfo: "".into(),
+                steam_id: 1234567890,
+                team: team_t::TEAM_SPECTATOR as i32,
+                privileges: privileges_t::PRIV_NONE as i32,
+            },
+            user_info: "".into(),
+            steam_id: 1234567890,
+            name: "".into(),
+        }
+    }
+
+    #[rstest]
+    #[cfg(not(miri))]
+    fn tell_channel_can_be_created_from_python(_pyshinqlx_setup: ()) {
+        let player = default_test_player();
+
+        Python::with_gil(|py| {
+            let tell_channel_constructor = py.run(
+                r#"
+import _shinqlx
+tell_channel = _shinqlx.TellChannel(player)
+            "#,
+                None,
+                Some(vec![("player", player.into_py(py))].into_py_dict(py)),
+            );
+            assert!(
+                tell_channel_constructor.is_ok(),
+                "{:?}",
+                tell_channel_constructor.unwrap()
+            );
+        });
+    }
+
+    #[test]
+    fn repr_returns_tell_client_id() {
+        let tell_channel = TellChannel { client_id: 42 };
+        assert_eq!(tell_channel.__repr__(), "tell 42");
+    }
+
+    #[test]
+    #[serial]
+    fn get_recipient_returns_player_with_client_id() {
+        let game_entity_from_ctx = MockGameEntity::from_context();
+        game_entity_from_ctx
+            .expect()
+            .with(predicate::eq(42))
+            .returning(|_| {
+                let mut mock_entity = MockGameEntity::new();
+                mock_entity
+                    .expect_get_player_name()
+                    .return_const("UnnamedPlayer");
+                mock_entity
+                    .expect_get_team()
+                    .return_const(team_t::TEAM_SPECTATOR);
+                mock_entity
+                    .expect_get_privileges()
+                    .return_const(privileges_t::PRIV_NONE);
+                mock_entity
+            });
+        let client_from_ctx = MockClient::from_context();
+        client_from_ctx
+            .expect()
+            .with(predicate::eq(42))
+            .returning(|_| {
+                let mut mock_client = MockClient::new();
+                mock_client
+                    .expect_get_state()
+                    .return_const(clientState_t::CS_CONNECTED);
+                mock_client.expect_get_user_info().return_const("");
+                mock_client
+                    .expect_get_steam_id()
+                    .return_const(1234567890u64);
+                mock_client
+            });
+
+        let tell_channel = TellChannel { client_id: 42 };
+        assert!(tell_channel
+            .get_recipient()
+            .is_ok_and(|player| player.id == 42));
+    }
+
+    #[test]
+    fn repr_receipients_returns_vec_with_client_id() {
+        let tell_channel = TellChannel { client_id: 42 };
+        assert!(tell_channel
+            .receipients()
+            .is_ok_and(|receipients| receipients == Some(vec![42,])));
+    }
+}
+
 /// A channel for chat to and from the server.
 #[pyclass(extends=ChatChannel, subclass)]
 #[pyo3(module = "shinqlx", name = "TeamChatChannel", get_all)]
