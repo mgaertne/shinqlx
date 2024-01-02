@@ -446,7 +446,7 @@ impl ChatChannel {
                 None => joined_msgs.push(s),
                 Some(last_msg) => {
                     let s_new = format!("{last_msg}\n{s}");
-                    if s_new.bytes().len() > 1000 {
+                    if s_new.bytes().len() > MAX_MSG_LENGTH as usize {
                         joined_msgs.push(last_msg);
                         joined_msgs.push(s);
                     } else {
