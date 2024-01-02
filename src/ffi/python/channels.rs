@@ -434,9 +434,11 @@ impl ChatChannel {
         let cleaned_msg = msg.replace('"', "'");
         let targets: Option<Vec<i32>> = self_.call_method0("receipients")?.extract()?;
 
-        let split_msgs: Vec<String> = self_
-            .call_method1("split_long_lines", (cleaned_msg, limit, delimiter))?
-            .extract()?;
+        let split_msgs =
+            self_
+                .borrow()
+                .into_super()
+                .split_long_lines(cleaned_msg, limit, delimiter);
 
         let mut joined_msgs = vec![];
         for s in split_msgs {
@@ -457,13 +459,13 @@ impl ChatChannel {
         let mut last_color = "".to_string();
         for s in joined_msgs {
             let message = format!("{last_color}{s}");
-            let server_command: String = py
+            let server_command = py
                 .eval(
                     "fmt.format(message)",
                     None,
                     Some([("fmt", fmt.clone()), ("message", message.clone())].into_py_dict(py)),
                 )?
-                .extract()?;
+                .extract::<String>()?;
 
             let next_frame_reply: Py<PyAny> = PyModule::from_code(
                 py,
@@ -502,22 +504,15 @@ def reply(targets, msg):
 }
 
 #[cfg(test)]
+#[cfg(not(miri))]
 mod chat_channel_tests {
     use super::ChatChannel;
-    #[cfg(not(miri))]
     use crate::ffi::python::pyshinqlx_setup_fixture::pyshinqlx_setup;
-    #[cfg(not(miri))]
-    use crate::prelude::*;
-    use pretty_assertions::assert_eq;
-    #[cfg(not(miri))]
     use pyo3::exceptions::PyNotImplementedError;
-    #[cfg(not(miri))]
-    use pyo3::{Py, Python};
-    #[cfg(not(miri))]
+    use pyo3::Python;
     use rstest::rstest;
 
     #[rstest]
-    #[cfg(not(miri))]
     fn console_channel_can_be_created_from_python(_pyshinqlx_setup: ()) {
         Python::with_gil(|py| {
             let chat_channel_constructor = py.run(
@@ -533,7 +528,6 @@ chat_channel = _shinqlx.ChatChannel()
     }
 
     #[test]
-    #[cfg(not(miri))]
     fn receipients_is_not_implemented() {
         Python::with_gil(|py| {
             let chat_channel = ChatChannel {
