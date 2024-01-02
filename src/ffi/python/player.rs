@@ -75,17 +75,17 @@ impl TryFrom<String> for weapon_t {
 #[derive(PartialEq, Eq, Debug, Clone)]
 pub(crate) struct Player {
     #[pyo3(name = "_valid")]
-    valid: bool,
+    pub(crate) valid: bool,
     #[pyo3(name = "_id")]
     pub(crate) id: i32,
     #[pyo3(name = "_info")]
-    player_info: PlayerInfo,
+    pub(crate) player_info: PlayerInfo,
     #[pyo3(name = "_userinfo")]
-    user_info: String,
+    pub(crate) user_info: String,
     #[pyo3(name = "_steam_id")]
-    steam_id: u64,
+    pub(crate) steam_id: u64,
     #[pyo3(name = "_name")]
-    name: String,
+    pub(crate) name: String,
 }
 
 #[pymethods]
