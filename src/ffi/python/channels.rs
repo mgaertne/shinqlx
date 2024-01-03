@@ -20,9 +20,13 @@ use regex::Regex;
 /// important to keep this in mind if you make a subclass. Say you have a web interface that
 /// supports multiple users on it simulaneously. The right way would be to set "name" to something
 /// like "webinterface", and then implement a __repr__() to return something like "webinterface user1".
-#[pyclass(subclass)]
-#[pyo3(module = "shinqlx", name = "AbstractChannel", get_all)]
-#[derive(PartialEq, Eq, Debug, Clone)]
+#[pyclass(
+    module = "_commands",
+    name = "AbstractChannel",
+    subclass,
+    frozen,
+    get_all
+)]
 pub(crate) struct AbstractChannel {
     #[pyo3(name = "_name")]
     name: String,
@@ -325,9 +329,14 @@ _shinqlx.AbstractChannel("abstract") < 2
 }
 
 /// A channel that prints to the console.
-#[pyclass(extends=AbstractChannel, subclass)]
-#[pyo3(module = "shinqlx", name = "ConsoleChannel", get_all)]
-#[derive(PartialEq, Eq, Debug, Clone)]
+#[pyclass(
+    extends = AbstractChannel,
+    module = "_commands",
+    name = "ConsoleChannel",
+    subclass,
+    frozen,
+    get_all
+)]
 pub(crate) struct ConsoleChannel {}
 
 #[pymethods]
@@ -401,9 +410,14 @@ console_channel = _shinqlx.ConsoleChannel()
 
 pub(crate) const MAX_MSG_LENGTH: i32 = 1000;
 
-#[pyclass(extends=AbstractChannel, subclass)]
-#[pyo3(module = "shinqlx", name = "ChatChannel", get_all)]
-#[derive(PartialEq, Eq, Debug, Clone)]
+#[pyclass(
+    extends = AbstractChannel,
+    module = "_commands",
+    name = "ChatChannel",
+    subclass,
+    frozen,
+    get_all
+)]
 pub(crate) struct ChatChannel {
     #[pyo3(name = "fmt")]
     fmt: String,
@@ -539,8 +553,14 @@ chat_channel = _shinqlx.ChatChannel()
     }
 }
 
-#[pyclass(extends=ChatChannel, subclass)]
-#[pyo3(module = "shinqlx", name = "TellChannel", get_all)]
+#[pyclass(
+    extends = ChatChannel,
+    module = "_commands",
+    name = "TellChannel",
+    subclass,
+    frozen,
+    get_all
+)]
 #[derive(PartialEq, Eq, Debug, Clone)]
 pub(crate) struct TellChannel {
     client_id: i32,
@@ -688,9 +708,14 @@ tell_channel = _shinqlx.TellChannel(player)
 }
 
 /// A channel for chat to and from the server.
-#[pyclass(extends=ChatChannel, subclass)]
-#[pyo3(module = "shinqlx", name = "TeamChatChannel", get_all)]
-#[derive(PartialEq, Eq, Debug, Clone)]
+#[pyclass(
+    extends = ChatChannel,
+    module = "_commands",
+    name = "TeamChatChannel",
+    subclass,
+    frozen,
+    get_all
+)]
 pub(crate) struct TeamChatChannel {
     team: String,
 }
@@ -741,9 +766,14 @@ impl TeamChatChannel {
 }
 
 /// Wraps a TellChannel, but with its own name.
-#[pyclass(extends=AbstractChannel, subclass)]
-#[pyo3(module = "shinqlx", name = "ClientCommandChannel", get_all)]
-#[derive(PartialEq, Eq, Debug, Clone)]
+#[pyclass(
+    extends = AbstractChannel,
+    module = "_commands",
+    name = "ClientCommandChannel",
+    subclass,
+    frozen,
+    get_all
+)]
 pub(crate) struct ClientCommandChannel {
     client_id: i32,
 }
@@ -808,7 +838,8 @@ mod client_command_channel_tests {
     #[cfg(not(miri))]
     use pyo3::types::IntoPyDict;
     #[cfg(not(miri))]
-    use pyo3::{IntoPy, Python};
+    use pyo3::IntoPy;
+    use pyo3::Python;
     #[cfg(not(miri))]
     use rstest::rstest;
 
@@ -896,5 +927,47 @@ tell_channel = _shinqlx.ClientCommandChannel(player)
         assert!(client_command_channel
             .get_recipient()
             .is_ok_and(|player| player.id == 42));
+    }
+
+    #[test]
+    #[serial]
+    #[cfg_attr(miri, ignore)]
+    fn get_tell_channel_returns_tell_channel_with_client_id() {
+        let game_entity_from_ctx = MockGameEntity::from_context();
+        game_entity_from_ctx
+            .expect()
+            .with(predicate::eq(42))
+            .returning(|_| {
+                let mut mock_entity = MockGameEntity::new();
+                mock_entity
+                    .expect_get_player_name()
+                    .return_const("UnnamedPlayer");
+                mock_entity
+                    .expect_get_team()
+                    .return_const(team_t::TEAM_SPECTATOR);
+                mock_entity
+                    .expect_get_privileges()
+                    .return_const(privileges_t::PRIV_NONE);
+                mock_entity
+            });
+        let client_from_ctx = MockClient::from_context();
+        client_from_ctx
+            .expect()
+            .with(predicate::eq(42))
+            .returning(|_| {
+                let mut mock_client = MockClient::new();
+                mock_client
+                    .expect_get_state()
+                    .return_const(clientState_t::CS_CONNECTED);
+                mock_client.expect_get_user_info().return_const("");
+                mock_client
+                    .expect_get_steam_id()
+                    .return_const(1234567890u64);
+                mock_client
+            });
+
+        let client_command_channel = ClientCommandChannel { client_id: 42 };
+        let result = Python::with_gil(|py| client_command_channel.get_tell_channel(py));
+        assert!(result.is_ok_and(|tell_channel| tell_channel.get().client_id == 42));
     }
 }
