@@ -764,6 +764,150 @@ impl TeamChatChannel {
     }
 }
 
+#[cfg(test)]
+#[cfg(not(miri))]
+mod team_chat_channel_tests {
+    use super::TeamChatChannel;
+    use crate::ffi::c::client::MockClient;
+    use crate::ffi::c::game_entity::MockGameEntity;
+    use crate::ffi::python::pyshinqlx_setup_fixture::pyshinqlx_setup;
+    use crate::prelude::*;
+    use crate::quake_live_engine::MockQuakeEngine;
+    use crate::MAIN_ENGINE;
+    use pyo3::Python;
+    use rstest::*;
+
+    #[rstest]
+    fn team_chat_channel_can_be_created_from_python(_pyshinqlx_setup: ()) {
+        Python::with_gil(|py| {
+            let team_chat_channel_constructor = py.run(
+                r#"
+import _shinqlx
+tell_channel = _shinqlx.TeamChatChannel("all")
+            "#,
+                None,
+                None,
+            );
+            assert!(team_chat_channel_constructor.is_ok());
+        });
+    }
+
+    #[rstest]
+    #[case("all".into(), None)]
+    #[case("red".into(), Some(vec![1, 5]))]
+    #[case("blue".into(), Some(vec![2, 6]))]
+    #[case("spectator".into(), Some(vec![3, 7]))]
+    #[case("free".into(), Some(vec![0, 4]))]
+    #[serial]
+    fn recipients_returns_client_ids(#[case] team: String, #[case] expected_ids: Option<Vec<i32>>) {
+        let mut mock_engine = MockQuakeEngine::new();
+        mock_engine.expect_get_max_clients().returning(|| 8);
+        MAIN_ENGINE.store(Some(mock_engine.into()));
+
+        let client_try_from_ctx = MockClient::from_context();
+        client_try_from_ctx
+            .expect()
+            .withf(|client_id| (0..8).contains(client_id))
+            .returning(|_client_id| {
+                let mut mock_client = MockClient::new();
+                mock_client
+                    .expect_get_state()
+                    .returning(|| clientState_t::CS_ACTIVE);
+                mock_client
+                    .expect_get_user_info()
+                    .returning(|| "asdf".into());
+                mock_client.expect_get_steam_id().returning(|| 1234);
+                mock_client
+            });
+
+        let game_entity_try_from_ctx = MockGameEntity::from_context();
+        game_entity_try_from_ctx
+            .expect()
+            .withf(|client_id| (0..8).contains(client_id))
+            .returning(|client_id| {
+                let mut mock_game_entity = MockGameEntity::new();
+                mock_game_entity
+                    .expect_get_player_name()
+                    .returning(|| "Mocked Player".into());
+                mock_game_entity
+                    .expect_get_team()
+                    .returning(move || match client_id {
+                        0 => team_t::TEAM_FREE,
+                        1 => team_t::TEAM_RED,
+                        2 => team_t::TEAM_BLUE,
+                        4 => team_t::TEAM_FREE,
+                        5 => team_t::TEAM_RED,
+                        6 => team_t::TEAM_BLUE,
+                        _ => team_t::TEAM_SPECTATOR,
+                    });
+                mock_game_entity
+                    .expect_get_privileges()
+                    .returning(|| privileges_t::PRIV_NONE);
+                mock_game_entity
+            });
+
+        let team_chat_channel = TeamChatChannel { team };
+        let result = Python::with_gil(|py| team_chat_channel.receipients(py));
+        assert!(result.is_ok_and(|ids| ids == expected_ids));
+    }
+
+    #[test]
+    #[serial]
+    fn recipients_for_invalid_team_chat_channel_name() {
+        let mut mock_engine = MockQuakeEngine::new();
+        mock_engine.expect_get_max_clients().returning(|| 8);
+        MAIN_ENGINE.store(Some(mock_engine.into()));
+
+        let client_try_from_ctx = MockClient::from_context();
+        client_try_from_ctx
+            .expect()
+            .withf(|client_id| (0..8).contains(client_id))
+            .returning(|_client_id| {
+                let mut mock_client = MockClient::new();
+                mock_client
+                    .expect_get_state()
+                    .returning(|| clientState_t::CS_ACTIVE);
+                mock_client
+                    .expect_get_user_info()
+                    .returning(|| "asdf".into());
+                mock_client.expect_get_steam_id().returning(|| 1234);
+                mock_client
+            });
+
+        let game_entity_try_from_ctx = MockGameEntity::from_context();
+        game_entity_try_from_ctx
+            .expect()
+            .withf(|client_id| (0..8).contains(client_id))
+            .returning(|client_id| {
+                let mut mock_game_entity = MockGameEntity::new();
+                mock_game_entity
+                    .expect_get_player_name()
+                    .returning(|| "Mocked Player".into());
+                mock_game_entity
+                    .expect_get_team()
+                    .returning(move || match client_id {
+                        0 => team_t::TEAM_FREE,
+                        1 => team_t::TEAM_RED,
+                        2 => team_t::TEAM_BLUE,
+                        4 => team_t::TEAM_FREE,
+                        5 => team_t::TEAM_RED,
+                        6 => team_t::TEAM_BLUE,
+                        _ => team_t::TEAM_SPECTATOR,
+                    });
+                mock_game_entity
+                    .expect_get_privileges()
+                    .returning(|| privileges_t::PRIV_NONE);
+                mock_game_entity
+            });
+
+        let team_chat_channel = TeamChatChannel {
+            team: "invalid".into(),
+        };
+        let result = Python::with_gil(|py| team_chat_channel.receipients(py));
+        assert!(result.is_ok_and(|ids| ids == Some(vec![])));
+    }
+}
+
 /// Wraps a TellChannel, but with its own name.
 #[pyclass(
     extends = AbstractChannel,
