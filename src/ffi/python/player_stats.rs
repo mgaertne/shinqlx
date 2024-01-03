@@ -2,8 +2,7 @@ use crate::prelude::*;
 use pyo3::prelude::*;
 
 /// A player's score and some basic stats.
-#[pyclass(frozen)]
-#[pyo3(module = "shinqlx", name = "PlayerStats", get_all)]
+#[pyclass(module = "_shinqlx", name = "PlayerStats", frozen, get_all)]
 #[derive(Debug, PartialEq)]
 pub(crate) struct PlayerStats {
     /// The player's primary score.

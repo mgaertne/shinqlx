@@ -2,8 +2,7 @@ use crate::prelude::*;
 use pyo3::prelude::*;
 
 /// Information about a player, such as Steam ID, name, client ID, and whatnot.
-#[pyclass(frozen)]
-#[pyo3(module = "shinqlx", name = "PlayerInfo", get_all)]
+#[pyclass(module = "_shinqlx", name = "PlayerInfo", frozen, get_all)]
 #[derive(Debug, PartialEq, Eq, Clone)]
 #[allow(unused)]
 pub(crate) struct PlayerInfo {

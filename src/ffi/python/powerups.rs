@@ -4,9 +4,8 @@ use pyo3::prelude::*;
 use pyo3::types::PyTuple;
 
 /// A struct sequence containing all the powerups in the game.
-#[pyclass(frozen)]
-#[pyo3(module = "shinqlx", name = "Powerups", get_all)]
-#[derive(PartialEq, Eq, Debug, Clone, Copy)]
+#[pyclass(module = "_shinqlx", name = "Powerups", frozen, get_all)]
+#[derive(PartialEq, Debug, Clone, Copy)]
 pub(crate) struct Powerups(
     #[pyo3(name = "quad")] pub(crate) i32,
     #[pyo3(name = "battlesuit")] pub(crate) i32,

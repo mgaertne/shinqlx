@@ -1,7 +1,6 @@
 use pyo3::prelude::*;
 
-#[pyclass(frozen)]
-#[pyo3(module = "shinqlx", name = "Holdable")]
+#[pyclass(module = "_shinqlx", name = "Holdable", frozen)]
 #[derive(PartialEq, Debug, Clone, Copy)]
 pub(crate) enum Holdable {
     None = 0,

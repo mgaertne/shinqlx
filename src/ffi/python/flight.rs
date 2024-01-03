@@ -4,9 +4,8 @@ use pyo3::prelude::*;
 use pyo3::types::PyTuple;
 
 /// A struct sequence containing parameters for the flight holdable item.
-#[pyclass(frozen)]
-#[pyo3(module = "shinqlx", name = "Flight", get_all)]
-#[derive(PartialEq, Eq, Debug, Clone, Copy)]
+#[pyclass(module = "_shinqlx", name = "Flight", frozen, get_all)]
+#[derive(PartialEq, Debug, Clone, Copy)]
 pub(crate) struct Flight(
     #[pyo3(name = "fuel")] pub(crate) i32,
     #[pyo3(name = "max_fuel")] pub(crate) i32,

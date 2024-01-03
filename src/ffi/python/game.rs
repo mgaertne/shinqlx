@@ -61,9 +61,8 @@ fn client_id(py: Python<'_>, player: Py<PyAny>) -> Option<i32> {
 /// A class representing the game. That is, stuff like what map is being played,
 /// if it's in warmup, and so on. It also has methods to call in timeins, aborts,
 /// pauses, and so on.
-#[pyclass]
-#[pyo3(module = "shinqlx", name = "Game", get_all)]
-#[derive(PartialEq, Eq, Debug, Clone, Copy)]
+#[pyclass(module = "_game", name = "Game", get_all)]
+#[derive(PartialEq, Debug)]
 pub(crate) struct Game {
     #[pyo3(name = "cached")]
     cached: bool,
