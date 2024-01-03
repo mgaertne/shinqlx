@@ -3,8 +3,7 @@ use crate::prelude::*;
 use pyo3::prelude::*;
 
 /// Information about a player's state in the game.
-#[pyclass(frozen)]
-#[pyo3(module = "shinqlx", name = "PlayerState", get_all)]
+#[pyclass(module = "_shinqlx", name = "PlayerState", frozen, get_all)]
 #[derive(Debug, PartialEq)]
 pub(crate) struct PlayerState {
     /// Whether the player's alive or not.

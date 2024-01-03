@@ -70,9 +70,8 @@ impl TryFrom<String> for weapon_t {
 ///    To update it, use :meth:`~.Player.update`. Note that if you update it
 ///    and the player has disconnected, it will raise a
 ///    :exc:`shinqlx.NonexistentPlayerError` exception.
-#[pyclass(subclass)]
-#[pyo3(module = "shinqlx", name = "Player", get_all)]
-#[derive(PartialEq, Eq, Debug, Clone)]
+#[pyclass(module = "_player", name = "Player", subclass, get_all)]
+#[derive(PartialEq, Debug, Clone)]
 pub(crate) struct Player {
     #[pyo3(name = "_valid")]
     pub(crate) valid: bool,
@@ -6890,9 +6889,7 @@ rate\\25000\\\
 country\\NO\
 ";
 
-#[pyclass(extends=Player, subclass)]
-#[pyo3(module = "shinqlx", name = "AbstractDummyPlayer")]
-#[derive(PartialEq, Eq, Debug, Clone)]
+#[pyclass(module = "_player", name = "AbstractDummyPlayer", extends=Player, subclass)]
 pub(crate) struct AbstractDummyPlayer;
 
 #[pymethods]
@@ -7049,9 +7046,7 @@ _shinqlx.AbstractDummyPlayer().tell("asdf")
     }
 }
 
-#[pyclass(extends=AbstractDummyPlayer)]
-#[pyo3(module = "shinqlx", name = "RconDummyPlayer")]
-#[derive(PartialEq, Eq, Debug, Clone)]
+#[pyclass(module = "_player", name = "RconDummyPlayer", extends=AbstractDummyPlayer)]
 pub(crate) struct RconDummyPlayer;
 
 #[pymethods]

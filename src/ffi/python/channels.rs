@@ -561,7 +561,6 @@ chat_channel = _shinqlx.ChatChannel()
     frozen,
     get_all
 )]
-#[derive(PartialEq, Eq, Debug, Clone)]
 pub(crate) struct TellChannel {
     client_id: i32,
 }
