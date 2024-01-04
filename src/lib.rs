@@ -114,4 +114,6 @@ fn initialize() {
     }
 
     MAIN_ENGINE.store(Some(main_engine.into()));
+
+    let _ = _INIT_TIME.elapsed();
 }
