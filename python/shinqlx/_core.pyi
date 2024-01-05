@@ -1,26 +1,13 @@
-from typing import Protocol, TYPE_CHECKING
+from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from typing import Type
-    from types import TracebackType, ModuleType
+    from types import ModuleType
 
     from shinqlx import StatsListener
-
-class ExceptHookArgs(Protocol):
-    exc_traceback: TracebackType
-    exc_type: Type[BaseException]
-    exc_value: BaseException
 
 _stats: StatsListener
 _modules: dict[str, ModuleType]
 
-def _configure_logger() -> None: ...
-def handle_exception(
-    exc_type: Type[BaseException],
-    exc_value: BaseException,
-    exc_traceback: TracebackType | None,
-) -> None: ...
-def threading_excepthook(args: ExceptHookArgs) -> None: ...
 def stats_listener() -> StatsListener: ...
 def set_plugins_version(path: str) -> None: ...
 def load_preset_plugins() -> None: ...

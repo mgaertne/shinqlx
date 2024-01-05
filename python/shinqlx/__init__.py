@@ -144,6 +144,8 @@ try:
         get_logger,
         _configure_logger,
         log_exception,
+        handle_exception,
+        threading_excepthook,
         next_frame,
         delay,
         thread,
@@ -319,6 +321,8 @@ except ModuleNotFoundError:
         get_logger,
         _configure_logger,
         log_exception,
+        handle_exception,
+        threading_excepthook,
         next_frame,
         delay,
         thread,
@@ -354,8 +358,6 @@ except ModuleNotFoundError:
     )
 
 from ._core import (
-    handle_exception,
-    threading_excepthook,
     stats_listener,
     set_plugins_version,
     load_preset_plugins,
@@ -595,6 +597,8 @@ __all__ = [
     "get_logger",
     "_configure_logger",
     "log_exception",
+    "handle_exception",
+    "threading_excepthook",
     "next_frame",
     "delay",
     "thread",
@@ -625,8 +629,6 @@ __all__ = [
     "SPECTATOR_CHAT_CHANNEL",
     "CONSOLE_CHANNEL",
     # _core
-    "handle_exception",
-    "threading_excepthook",
     "stats_listener",
     "set_plugins_version",
     "load_preset_plugins",

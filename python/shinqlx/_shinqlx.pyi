@@ -10,7 +10,17 @@ if TYPE_CHECKING:
         from typing import NotRequired, Unpack
     else:
         from typing_extensions import NotRequired, Unpack
-    from typing import Callable, Any, Iterable, Mapping, TypedDict, Literal
+    from typing import (
+        Callable,
+        Any,
+        Iterable,
+        Mapping,
+        TypedDict,
+        Literal,
+        Type,
+        Protocol,
+    )
+    from types import TracebackType
     from shinqlx import Plugin
 
 __version__: str
@@ -261,6 +271,18 @@ def parse_variables(varstr: str, ordered: bool = False) -> dict[str, str]: ...
 def get_logger(plugin: Plugin | str | None = ...) -> Logger: ...
 def _configure_logger() -> None: ...
 def log_exception(plugin: Plugin | str | None = ...) -> None: ...
+def handle_exception(
+    exc_type: Type[BaseException],
+    exc_value: BaseException,
+    exc_traceback: TracebackType | None,
+) -> None: ...
+
+class ExceptHookArgs(Protocol):
+    exc_traceback: TracebackType
+    exc_type: Type[BaseException]
+    exc_value: BaseException
+
+def threading_excepthook(args: ExceptHookArgs) -> None: ...
 def next_frame(func: Callable) -> Callable: ...
 def delay(time: float) -> Callable: ...
 def thread(func: Callable, force: bool = ...) -> Callable: ...
