@@ -2,18 +2,14 @@ import subprocess
 import threading
 import traceback
 import importlib
-import datetime
 import os
 import os.path
-import logging
 import shlex
 import sys
 from contextlib import suppress
 
-from logging.handlers import RotatingFileHandler
-
 import shinqlx
-from shinqlx import PluginLoadError, PluginUnloadError
+from shinqlx import PluginLoadError, PluginUnloadError, get_logger, log_exception, _configure_logger
 import shinqlx.database
 
 if sys.version_info < (3, 7):
@@ -23,74 +19,6 @@ if sys.version_info < (3, 7):
 # ====================================================================
 #                               HELPERS
 # ====================================================================
-def get_logger(plugin=None):
-    """
-    Provides a logger that should be used by your plugin for debugging, info
-    and error reporting. It will automatically output to both the server console
-    as well as to a file.
-
-    :param: plugin: The plugin that is using the logger.
-    :type: plugin: shinqlx.Plugin
-    :returns: logging.Logger -- The logger in question.
-    """
-    if plugin:
-        return logging.getLogger("shinqlx." + str(plugin))
-    return logging.getLogger("shinqlx")
-
-
-def _configure_logger():
-    logger = logging.getLogger("shinqlx")
-    logger.setLevel(logging.DEBUG)
-
-    # Console
-    console_fmt = logging.Formatter(
-        "[%(name)s.%(funcName)s] %(levelname)s: %(message)s", "%H:%M:%S"
-    )
-    console_handler = logging.StreamHandler()
-    console_handler.setLevel(logging.INFO)
-    console_handler.setFormatter(console_fmt)
-    logger.addHandler(console_handler)
-
-    # File
-    homepath_cvar = shinqlx.get_cvar("fs_homepath")
-    if homepath_cvar is None:
-        return
-    file_path = os.path.join(homepath_cvar, "shinqlx.log")
-    maxlogs = shinqlx.Plugin.get_cvar("qlx_logs", int)
-    if maxlogs is None:
-        return
-    maxlogsize = shinqlx.Plugin.get_cvar("qlx_logsSize", int)
-    if maxlogsize is None:
-        return
-    file_fmt = logging.Formatter(
-        "(%(asctime)s) [%(levelname)s @ %(name)s.%(funcName)s] %(message)s", "%H:%M:%S"
-    )
-    file_handler = RotatingFileHandler(
-        file_path, encoding="utf-8", maxBytes=maxlogsize, backupCount=maxlogs
-    )
-    file_handler.setLevel(logging.DEBUG)
-    file_handler.setFormatter(file_fmt)
-    logger.addHandler(file_handler)
-    logger.info(
-        "============================= shinqlx run @ %s =============================",
-        datetime.datetime.now(),
-    )
-
-
-def log_exception(plugin=None):
-    """
-    Logs an exception using :func:`get_logger`. Call this in an except block.
-
-    :param: plugin: The plugin that is using the logger.
-    :type: plugin: shinqlx.Plugin
-    """
-    # TODO: Remove plugin arg and make it automatic.
-    logger = get_logger(plugin)
-    e = traceback.format_exc().rstrip("\n")
-    for line in e.split("\n"):
-        logger.error(line)
-
-
 def handle_exception(exc_type, exc_value, exc_traceback):
     """A handler for unhandled exceptions."""
     # TODO: If exception was raised within a plugin, detect it and pass to log_exception()
