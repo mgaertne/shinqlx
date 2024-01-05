@@ -141,6 +141,9 @@ try:
         set_cvar_limit_once,
         set_map_subtitles,
         parse_variables,
+        get_logger,
+        _configure_logger,
+        log_exception,
         next_frame,
         delay,
         thread,
@@ -313,6 +316,9 @@ except ModuleNotFoundError:
         set_cvar_limit_once,
         set_map_subtitles,
         parse_variables,
+        get_logger,
+        _configure_logger,
+        log_exception,
         next_frame,
         delay,
         thread,
@@ -348,8 +354,6 @@ except ModuleNotFoundError:
     )
 
 from ._core import (
-    get_logger,
-    log_exception,
     handle_exception,
     threading_excepthook,
     stats_listener,
@@ -588,6 +592,9 @@ __all__ = [
     "set_cvar_limit_once",
     "set_map_subtitles",
     "parse_variables",
+    "get_logger",
+    "_configure_logger",
+    "log_exception",
     "next_frame",
     "delay",
     "thread",
@@ -618,8 +625,6 @@ __all__ = [
     "SPECTATOR_CHAT_CHANNEL",
     "CONSOLE_CHANNEL",
     # _core
-    "get_logger",
-    "log_exception",
     "handle_exception",
     "threading_excepthook",
     "stats_listener",

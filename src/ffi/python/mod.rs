@@ -25,6 +25,8 @@ pub(crate) use vector3::Vector3;
 pub(crate) use weapons::Weapons;
 
 use crate::prelude::*;
+use crate::quake_live_engine::FindCVar;
+use crate::MAIN_ENGINE;
 
 use crate::ffi::python::channels::{
     AbstractChannel, ChatChannel, ClientCommandChannel, ConsoleChannel, TeamChatChannel,
@@ -37,7 +39,7 @@ use core::sync::atomic::{AtomicBool, AtomicU64, Ordering};
 use itertools::Itertools;
 use log::*;
 use once_cell::sync::Lazy;
-use pyo3::exceptions::PyException;
+use pyo3::exceptions::{PyEnvironmentError, PyException};
 use pyo3::prelude::*;
 use pyo3::types::{IntoPyDict, PyDelta, PyDict, PyFunction, PyTuple};
 use pyo3::{append_to_inittab, create_exception, prepare_freethreaded_python};
@@ -235,6 +237,127 @@ fn pyshinqlx_parse_variables(
     #[allow(unused_variables)] ordered: bool,
 ) -> &PyDict {
     parse_variables(varstr).into_py_dict(py)
+}
+
+fn get_logger_name(py: Python<'_>, plugin: Option<PyObject>) -> String {
+    match plugin {
+        None => "shinqlx".into(),
+        Some(req_plugin) => match req_plugin.call_method0(py, "__str__") {
+            Err(_) => "shinqlx".into(),
+            Ok(plugin_name) => format!("shinqlx::{plugin_name}"),
+        },
+    }
+}
+
+/// Provides a logger that should be used by your plugin for debugging, info and error reporting. It will automatically output to both the server console as well as to a file.
+#[pyfunction]
+#[pyo3(name = "get_logger")]
+#[pyo3(signature = (plugin = None))]
+fn pyshinqlx_get_logger(py: Python<'_>, plugin: Option<PyObject>) -> PyResult<&PyAny> {
+    let logger_name = get_logger_name(py, plugin);
+    PyModule::import(py, "logging")?.call_method1("getLogger", (logger_name,))
+}
+
+#[pyfunction]
+#[pyo3(name = "_configure_logger")]
+fn pyshinqlx_configure_logger(py: Python<'_>) -> PyResult<()> {
+    let Some(ref main_engine) = *MAIN_ENGINE.load() else {
+        return Err(PyEnvironmentError::new_err("no main engine found"));
+    };
+    let homepath = main_engine
+        .find_cvar("fs_homepath")
+        .map(|homepath_cvar| homepath_cvar.get_string())
+        .unwrap_or_default();
+    let num_max_logs = main_engine
+        .find_cvar("qlx_logs")
+        .map(|max_logs_cvar| max_logs_cvar.get_integer())
+        .unwrap_or_default();
+    let max_logsize = main_engine
+        .find_cvar("qlx_logSize")
+        .map(|max_logsize_cvar| max_logsize_cvar.get_integer())
+        .unwrap_or_default();
+
+    let logging_module = py.import("logging")?;
+    let debug_level = logging_module.getattr("DEBUG")?;
+    let info_level = logging_module.getattr("INFO")?;
+    let logger = logging_module.call_method1("getLogger", ("shinqlx",))?;
+    logger.call_method1("setLevel", (debug_level,))?;
+
+    let console_fmt = logging_module.call_method1(
+        "Formatter",
+        (
+            "[%(name)s.%(funcName)s] %(levelname)s: %(message)s",
+            "%H:%M:%S",
+        ),
+    )?;
+
+    let console_handler = logging_module.call_method0("StreamHandler")?;
+    console_handler.call_method1("setLevel", (info_level,))?;
+    console_handler.call_method1("setFormatter", (console_fmt,))?;
+    logger.call_method1("addHandler", (console_handler,))?;
+
+    let file_fmt = logging_module.call_method1(
+        "Formatter",
+        (
+            "(%(asctime)s) [%(levelname)s @ %(name)s.%(funcName)s] %(message)s",
+            "%H:%M:%S",
+        ),
+    )?;
+    let file_path = format!("{homepath}/shinqlx.log");
+    let handlers_submodule = py.import("logging.handlers")?;
+    let file_handler = handlers_submodule.call_method(
+        "RotatingFileHandler",
+        (file_path,),
+        Some(
+            [
+                ("encoding", "utf-8".into_py(py)),
+                ("maxBytes", max_logsize.into_py(py)),
+                ("backupCount", num_max_logs.into_py(py)),
+            ]
+            .into_py_dict(py),
+        ),
+    )?;
+    file_handler.call_method1("setLevel", (debug_level,))?;
+    file_handler.call_method1("setFormatter", (file_fmt,))?;
+    logger.call_method1("addHandler", (file_handler,))?;
+
+    let datetime_module = py.import("datetime")?;
+    let datetime_now = datetime_module.getattr("datetime")?.call_method0("now")?;
+    logger.call_method1(
+        "info",
+        (
+            "============================= shinqlx run @ %s =============================",
+            datetime_now,
+        ),
+    )?;
+    Ok(())
+}
+
+/// Logs an exception using :func:`get_logger`. Call this in an except block.
+#[pyfunction]
+#[pyo3(name = "log_exception")]
+#[pyo3(signature = (plugin = None))]
+fn pyshinqlx_log_exception(py: Python<'_>, plugin: Option<PyObject>) -> PyResult<()> {
+    let logger_name = get_logger_name(py, plugin);
+
+    let formatted_exception: Vec<String> = PyModule::from_code(
+        py,
+        r#"
+import sys
+import traceback
+
+formatted_exception = traceback.format_exception(*sys.exc_info())
+"#,
+        "",
+        "",
+    )?
+    .getattr("formatted_exception")?
+    .extract()?;
+
+    formatted_exception
+        .iter()
+        .for_each(|line| error!(target: &logger_name, "{}", line.trim_end()));
+    Ok(())
 }
 
 #[pyfunction]
@@ -667,6 +790,10 @@ fn pyshinqlx_module(py: Python<'_>, m: &PyModule) -> PyResult<()> {
     m.add("_map_subtitle2", "")?;
     m.add_function(wrap_pyfunction!(set_map_subtitles, m)?)?;
     m.add_function(wrap_pyfunction!(pyshinqlx_parse_variables, m)?)?;
+
+    m.add_function(wrap_pyfunction!(pyshinqlx_get_logger, m)?)?;
+    m.add_function(wrap_pyfunction!(pyshinqlx_configure_logger, m)?)?;
+    m.add_function(wrap_pyfunction!(pyshinqlx_log_exception, m)?)?;
 
     m.add_function(wrap_pyfunction!(next_frame, m)?)?;
     m.add_function(wrap_pyfunction!(delay, m)?)?;

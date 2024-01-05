@@ -3,9 +3,8 @@ from typing import Protocol, TYPE_CHECKING
 if TYPE_CHECKING:
     from typing import Type
     from types import TracebackType, ModuleType
-    from logging import Logger
 
-    from shinqlx import StatsListener, Plugin
+    from shinqlx import StatsListener
 
 class ExceptHookArgs(Protocol):
     exc_traceback: TracebackType
@@ -15,9 +14,7 @@ class ExceptHookArgs(Protocol):
 _stats: StatsListener
 _modules: dict[str, ModuleType]
 
-def get_logger(plugin: Plugin | str | None = ...) -> Logger: ...
 def _configure_logger() -> None: ...
-def log_exception(plugin: Plugin | str | None = ...) -> None: ...
 def handle_exception(
     exc_type: Type[BaseException],
     exc_value: BaseException,
