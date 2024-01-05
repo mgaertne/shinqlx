@@ -354,10 +354,47 @@ formatted_exception = traceback.format_exception(*sys.exc_info())
     .getattr("formatted_exception")?
     .extract()?;
 
-    formatted_exception
-        .iter()
-        .for_each(|line| error!(target: &logger_name, "{}", line.trim_end()));
+    let py_logger = PyModule::import(py, "logging")?.call_method1("getLogger", (logger_name,))?;
+    formatted_exception.iter().for_each(|line| {
+        let _ = py_logger.call_method1("error", (line.trim_end(),));
+    });
     Ok(())
+}
+
+/// A handler for unhandled exceptions.
+#[pyfunction]
+#[pyo3(name = "handle_exception")]
+fn pyshinqlx_handle_exception(
+    py: Python<'_>,
+    exc_type: Py<PyAny>,
+    exc_value: Py<PyAny>,
+    exc_traceback: Py<PyAny>,
+) -> PyResult<()> {
+    let logging_module = py.import("logging")?;
+    let traceback_module = py.import("traceback")?;
+
+    let py_logger = logging_module.call_method1("getLogger", ("shinqlx",))?;
+
+    let formatted_traceback: Vec<String> = traceback_module
+        .call_method1("format_exception", (exc_type, exc_value, exc_traceback))?
+        .extract()?;
+
+    formatted_traceback.iter().for_each(|line| {
+        let _ = py_logger.call_method1("error", (line.trim_end(),));
+    });
+
+    Ok(())
+}
+
+#[pyfunction]
+#[pyo3(name = "threading_excepthook")]
+fn pyshinqlx_handle_threading_exception(py: Python<'_>, args: Py<PyAny>) -> PyResult<()> {
+    pyshinqlx_handle_exception(
+        py,
+        args.getattr(py, "exc_type")?,
+        args.getattr(py, "exc_value")?,
+        args.getattr(py, "exc_traceback")?,
+    )
 }
 
 #[pyfunction]
@@ -794,6 +831,8 @@ fn pyshinqlx_module(py: Python<'_>, m: &PyModule) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(pyshinqlx_get_logger, m)?)?;
     m.add_function(wrap_pyfunction!(pyshinqlx_configure_logger, m)?)?;
     m.add_function(wrap_pyfunction!(pyshinqlx_log_exception, m)?)?;
+    m.add_function(wrap_pyfunction!(pyshinqlx_handle_exception, m)?)?;
+    m.add_function(wrap_pyfunction!(pyshinqlx_handle_threading_exception, m)?)?;
 
     m.add_function(wrap_pyfunction!(next_frame, m)?)?;
     m.add_function(wrap_pyfunction!(delay, m)?)?;

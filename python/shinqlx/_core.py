@@ -1,6 +1,5 @@
 import subprocess
 import threading
-import traceback
 import importlib
 import os
 import os.path
@@ -9,7 +8,15 @@ import sys
 from contextlib import suppress
 
 import shinqlx
-from shinqlx import PluginLoadError, PluginUnloadError, get_logger, log_exception, _configure_logger
+from shinqlx import (
+    PluginLoadError,
+    PluginUnloadError,
+    get_logger,
+    log_exception,
+    _configure_logger,
+    handle_exception,
+    threading_excepthook,
+)
 import shinqlx.database
 
 if sys.version_info < (3, 7):
@@ -19,21 +26,6 @@ if sys.version_info < (3, 7):
 # ====================================================================
 #                               HELPERS
 # ====================================================================
-def handle_exception(exc_type, exc_value, exc_traceback):
-    """A handler for unhandled exceptions."""
-    # TODO: If exception was raised within a plugin, detect it and pass to log_exception()
-    logger = get_logger(None)
-    e = "".join(traceback.format_exception(exc_type, exc_value, exc_traceback)).rstrip(
-        "\n"
-    )
-    for line in e.split("\n"):
-        logger.error(line)
-
-
-def threading_excepthook(args):
-    handle_exception(args.exc_type, args.exc_value, args.exc_traceback)
-
-
 _stats = None
 
 

@@ -137,7 +137,9 @@ from ._shinqlx import (
     parse_variables,
     get_logger,
     _configure_logger,
+    handle_exception,
     log_exception,
+    threading_excepthook,
     next_frame,
     delay,
     thread,
@@ -173,8 +175,6 @@ from ._shinqlx import (
     _thread_count,
 )
 from ._core import (
-    handle_exception,
-    threading_excepthook,
     stats_listener,
     set_plugins_version,
     load_preset_plugins,
@@ -443,6 +443,8 @@ __all__ = [
     "get_logger",
     "_configure_logger",
     "log_exception",
+    "handle_exception",
+    "threading_excepthook",
     "next_frame",
     "delay",
     "thread",
@@ -472,8 +474,6 @@ __all__ = [
     "PluginLoadError",
     "PluginUnloadError",
     # _core
-    "handle_exception",
-    "threading_excepthook",
     "stats_listener",
     "set_plugins_version",
     "load_preset_plugins",
