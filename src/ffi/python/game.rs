@@ -29,7 +29,7 @@ fn client_id(py: Python<'_>, player: Py<PyAny>) -> Option<i32> {
 
     let all_players = pyshinqlx_players_info(py).unwrap_or_default();
 
-    if let Ok(steam_id) = player.extract::<u64>(py) {
+    if let Ok(steam_id) = player.extract::<i64>(py) {
         return all_players.iter().find_map(|opt_player_info| {
             if opt_player_info
                 .as_ref()

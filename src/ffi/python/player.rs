@@ -82,7 +82,7 @@ pub(crate) struct Player {
     #[pyo3(name = "_userinfo")]
     pub(crate) user_info: String,
     #[pyo3(name = "_steam_id")]
-    pub(crate) steam_id: u64,
+    pub(crate) steam_id: i64,
     #[pyo3(name = "_name")]
     pub(crate) name: String,
 }
@@ -166,7 +166,7 @@ impl Player {
             CompareOp::Eq => {
                 if let Ok(other_player) = other.extract::<Self>() {
                     (self.steam_id == other_player.steam_id).into_py(py)
-                } else if let Ok(steam_id) = other.extract::<u64>() {
+                } else if let Ok(steam_id) = other.extract::<i64>() {
                     (self.steam_id == steam_id).into_py(py)
                 } else {
                     false.into_py(py)
@@ -175,7 +175,7 @@ impl Player {
             CompareOp::Ne => {
                 if let Ok(other_player) = other.extract::<Self>() {
                     (self.steam_id != other_player.steam_id).into_py(py)
-                } else if let Ok(steam_id) = other.extract::<u64>() {
+                } else if let Ok(steam_id) = other.extract::<i64>() {
                     (self.steam_id != steam_id).into_py(py)
                 } else {
                     true.into_py(py)
@@ -246,7 +246,7 @@ impl Player {
     }
 
     #[getter(steam_id)]
-    fn get_steam_id(&self) -> u64 {
+    fn get_steam_id(&self) -> i64 {
         self.steam_id
     }
 
