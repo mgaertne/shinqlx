@@ -133,6 +133,7 @@ class Weapons(tuple):
     hands: int
 
 class PlayerInfo(tuple):
+    def __init__(self, tuple: tuple[int, str, int, str, int, int, int]) -> None: ...
     @property
     def client_id(self) -> int: ...
     @property
