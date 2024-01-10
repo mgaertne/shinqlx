@@ -35,32 +35,40 @@ def dispatch_game_end_event(data):
 @shinqlx.next_frame
 def dispatch_player_death_event(data):
     # Dead player.
-    sid = int(data["VICTIM"]["STEAM_ID"])
-    player = (
-        shinqlx.Plugin.player(sid)
-        if sid
+    sid_victim = int(data["VICTIM"]["STEAM_ID"])
+    victim = (
+        shinqlx.Plugin.player(sid_victim)
+        if sid_victim
         else shinqlx.Plugin.player(data["VICTIM"]["NAME"])
     )
 
     # Killer player.
     if not data["KILLER"]:
-        player_killer = None
+        killer = None
     else:
         sid_killer = int(data["KILLER"]["STEAM_ID"])
-        if sid_killer:
-            player_killer = shinqlx.Plugin.player(sid_killer)
-        else:  # It's a bot. Forced to use name as an identifier.
-            player_killer = shinqlx.Plugin.player(data["KILLER"]["NAME"])
+        killer = (
+            shinqlx.Plugin.player(sid_killer)
+            if sid_killer
+            else shinqlx.Plugin.player(  # It's a bot. Forced to use name as an identifier.
+                data["KILLER"]["NAME"]
+            )
+        )
 
-    shinqlx.EVENT_DISPATCHERS["death"].dispatch(player, player_killer, data)
-    if player_killer:
-        shinqlx.EVENT_DISPATCHERS["kill"].dispatch(player, player_killer, data)
+    shinqlx.EVENT_DISPATCHERS["death"].dispatch(victim, killer, data)
+    if killer:
+        shinqlx.EVENT_DISPATCHERS["kill"].dispatch(victim, killer, data)
 
 
 @shinqlx.next_frame
 def dispatch_team_switch_event(data):
     # No idea why they named it "KILLER" here, but whatever.
-    player = shinqlx.Plugin.player(int(data["KILLER"]["STEAM_ID"]))
+    steam_id = int(data["KILLER"]["STEAM_ID"])
+    player = (
+        shinqlx.Plugin.player(steam_id)
+        if steam_id
+        else shinqlx.Plugin.player(data["KILLER"]["NAME"])
+    )
     if player is None:
         return
     old_team = data["KILLER"]["OLD_TEAM"].lower()
