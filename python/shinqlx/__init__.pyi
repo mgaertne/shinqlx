@@ -173,6 +173,7 @@ from ._shinqlx import (
     _map_subtitle2,
     _thread_name,
     _thread_count,
+    StatsListener,
 )
 from ._core import (
     stats_listener,
@@ -287,7 +288,6 @@ from ._commands import (
     CommandInvoker,
     COMMANDS,
 )
-from ._zmq import StatsListener
 
 __version__: str
 __plugins_version__: str
@@ -473,6 +473,7 @@ __all__ = [
     "CONSOLE_CHANNEL",
     "PluginLoadError",
     "PluginUnloadError",
+    "StatsListener",
     # _core
     "stats_listener",
     "set_plugins_version",
@@ -581,6 +582,4 @@ __all__ = [
     "handle_damage",
     "redirect_print",
     "register_handlers",
-    # _zmq
-    "StatsListener",
 ]

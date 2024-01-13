@@ -9,6 +9,7 @@ mod player_info;
 mod player_state;
 mod player_stats;
 mod powerups;
+mod stats_listener;
 mod vector3;
 mod weapons;
 
@@ -21,6 +22,7 @@ pub(crate) use player_info::PlayerInfo;
 pub(crate) use player_state::PlayerState;
 pub(crate) use player_stats::PlayerStats;
 pub(crate) use powerups::Powerups;
+use stats_listener::StatsListener;
 pub(crate) use vector3::Vector3;
 pub(crate) use weapons::Weapons;
 
@@ -244,7 +246,7 @@ fn get_logger_name(py: Python<'_>, plugin: Option<PyObject>) -> String {
         None => "shinqlx".into(),
         Some(req_plugin) => match req_plugin.call_method0(py, "__str__") {
             Err(_) => "shinqlx".into(),
-            Ok(plugin_name) => format!("shinqlx::{plugin_name}"),
+            Ok(plugin_name) => format!("shinqlx.{plugin_name}"),
         },
     }
 }
@@ -929,6 +931,7 @@ fn pyshinqlx_module(py: Python<'_>, m: &PyModule) -> PyResult<()> {
     )?;
     m.add("PluginLoadError", py.get_type::<PluginLoadError>())?;
     m.add("PluginUnloadError", py.get_type::<PluginUnloadError>())?;
+    m.add_class::<StatsListener>()?;
 
     Ok(())
 }

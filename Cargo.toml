@@ -29,7 +29,7 @@ codegen-units = 1
 [dependencies]
 ctor = ">=0.2"
 rand = ">=0.8"
-pyo3 = { version = ">=0.20", features = ["pyo3-macros", "extension-module", "nightly"]}
+pyo3 = { version = ">=0.20", features = ["pyo3-macros", "extension-module", "nightly"] }
 retour = ">=0.3.1"
 derive_builder = ">=0.12"
 once_cell = ">=1.19"
@@ -41,6 +41,8 @@ signal-hook = ">=0.3"
 signal-hook-registry = ">=1.4"
 itertools = ">=0.12"
 regex = { version = ">=1.10", features = [] }
+zmq = ">=0.10"
+serde_json = { version = ">=1.0.111", default-features = false, features = ["alloc"] }
 # dependencies to make -Z minimal-versions work
 pest_derive = ">=2.7"
 
