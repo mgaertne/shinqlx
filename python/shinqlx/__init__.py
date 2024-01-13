@@ -178,6 +178,7 @@ try:
         _map_title,
         _map_subtitle1,
         _map_subtitle2,
+        StatsListener,
     )
 except ModuleNotFoundError:
     _shinqlx = importlib.import_module(name="._shinqlx", package="shinqlx")
@@ -355,6 +356,7 @@ except ModuleNotFoundError:
         _map_title,
         _map_subtitle1,
         _map_subtitle2,
+        StatsListener,
     )
 
 from ._core import (
@@ -433,7 +435,6 @@ from ._commands import (
     CommandInvoker,
     COMMANDS,
 )
-from ._zmq import StatsListener
 
 __version__ = _shinqlx.__version__
 __plugins_version__ = "NOT_SET"
@@ -628,6 +629,7 @@ __all__ = [
     "FREE_CHAT_CHANNEL",
     "SPECTATOR_CHAT_CHANNEL",
     "CONSOLE_CHANNEL",
+    "StatsListener",
     # _core
     "stats_listener",
     "set_plugins_version",
@@ -701,6 +703,4 @@ __all__ = [
     "handle_damage",
     "redirect_print",
     "register_handlers",
-    # _zmq
-    "StatsListener",
 ]

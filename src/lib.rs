@@ -4,6 +4,7 @@
 
 #![cfg_attr(not(test), no_main)]
 #![feature(arbitrary_self_types, c_variadic, auto_traits, negative_impls)]
+#![feature(stmt_expr_attributes)]
 #![deny(rustdoc::broken_intra_doc_links)]
 #![warn(missing_docs)]
 

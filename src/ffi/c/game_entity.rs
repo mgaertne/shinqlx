@@ -1589,7 +1589,7 @@ mod game_entity_tests {
         let game_entity =
             GameEntity::try_from(&mut gentity as *mut gentity_t).expect("this should not happen");
 
-        assert_eq!(game_entity.get_targetting_entity_ids(), vec![]);
+        assert_eq!(game_entity.get_targetting_entity_ids(), Vec::<u32>::new());
     }
 
     #[test]
