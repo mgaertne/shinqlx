@@ -9,6 +9,7 @@ use itertools::Itertools;
 use log::*;
 
 use crate::ffi::python;
+use crate::ffi::python::player::Player;
 use pyo3::create_exception;
 use pyo3::exceptions::{PyException, PyKeyError, PyValueError};
 use pyo3::prelude::*;
@@ -23,35 +24,28 @@ fn client_id(py: Python<'_>, player: Py<PyAny>) -> Option<i32> {
         }
     }
 
-    if let Ok(id_method) = player.getattr(py, "id") {
-        return id_method.extract::<i32>(py).ok();
+    if let Ok(player_object) = player.extract::<Player>(py) {
+        return Some(player_object.id);
     }
 
     let all_players = pyshinqlx_players_info(py).unwrap_or_default();
 
     if let Ok(steam_id) = player.extract::<i64>(py) {
-        return all_players.iter().find_map(|opt_player_info| {
-            if opt_player_info
-                .as_ref()
-                .is_some_and(|player_info| player_info.steam_id == steam_id)
-            {
-                Some(opt_player_info.as_ref().unwrap().client_id)
-            } else {
-                None
-            }
+        return all_players.into_iter().find_map(|opt_player_info| {
+            opt_player_info
+                .filter(|player_info| player_info.steam_id == steam_id)
+                .map(|player_info| player_info.client_id)
         });
     }
 
     if let Ok(name) = player.extract::<String>(py) {
-        return all_players.iter().find_map(|opt_player_info| {
-            if opt_player_info.as_ref().is_some_and(|player_info| {
-                python::clean_text(&player_info.name).to_lowercase()
-                    == python::clean_text(&name).to_lowercase()
-            }) {
-                Some(opt_player_info.as_ref().unwrap().client_id)
-            } else {
-                None
-            }
+        return all_players.into_iter().find_map(|opt_player_info| {
+            opt_player_info
+                .filter(|player_info| {
+                    python::clean_text(&player_info.name).to_lowercase()
+                        == python::clean_text(&name).to_lowercase()
+                })
+                .map(|player_info| player_info.client_id)
         });
     }
 
