@@ -34,7 +34,7 @@ retour = ">=0.3.1"
 derive_builder = ">=0.12"
 once_cell = ">=1.19"
 region = ">=3.0"
-swap-arc = ">=0.1"
+arc-swap = ">=1.6"
 log = ">=0.4"
 log4rs = { version = ">=1.2", default-features = false, features = ["console_appender", "pattern_encoder"] }
 signal-hook = ">=0.3"
@@ -58,6 +58,3 @@ pretty_assertions = ">=1.4"
 rstest = ">=0.18"
 mockall = { version = ">=0.12", features = ["nightly"]}
 serial_test = ">=2.0"
-
-[patch.crates-io]
-swap-arc = {git = "https://github.com/mgaertne/SwapArc", rev = "5966687"}
