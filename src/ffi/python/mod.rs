@@ -46,7 +46,6 @@ use pyo3::exceptions::{PyEnvironmentError, PyException};
 use pyo3::prelude::*;
 use pyo3::types::{IntoPyDict, PyDelta, PyDict, PyFunction, PyTuple};
 use pyo3::{append_to_inittab, create_exception, prepare_freethreaded_python};
-use pyo3::{append_to_inittab, prepare_freethreaded_python};
 use regex::Regex;
 
 pub(crate) static ALLOW_FREE_CLIENT: AtomicU64 = AtomicU64::new(0);
