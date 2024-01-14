@@ -33,6 +33,7 @@ pub(crate) mod prelude {
 }
 
 use crate::prelude::*;
+use arc_swap::ArcSwapOption;
 #[cfg(not(test))]
 use ctor::ctor;
 use log::LevelFilter;
@@ -42,7 +43,6 @@ use log4rs::encode::pattern::PatternEncoder;
 use log4rs::{Config, Handle};
 use once_cell::sync::{Lazy, OnceCell};
 use signal_hook::consts::SIGSEGV;
-use swap_arc::SwapArcOption;
 
 #[allow(dead_code)]
 #[cfg(target_pointer_width = "64")]
@@ -52,8 +52,8 @@ pub(crate) const QZERODED: &str = "qzeroded.x64";
 pub(crate) const QZERODED: &str = "qzeroded.x86";
 
 pub(crate) static MAIN_LOGGER: OnceCell<Handle> = OnceCell::new();
-pub(crate) static MAIN_ENGINE: Lazy<SwapArcOption<QuakeLiveEngine>> =
-    Lazy::new(|| SwapArcOption::new(None));
+pub(crate) static MAIN_ENGINE: Lazy<ArcSwapOption<QuakeLiveEngine>> =
+    Lazy::new(|| ArcSwapOption::empty());
 
 fn initialize_logging() {
     let stdout = ConsoleAppender::builder()
