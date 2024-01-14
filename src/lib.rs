@@ -53,7 +53,7 @@ pub(crate) const QZERODED: &str = "qzeroded.x86";
 
 pub(crate) static MAIN_LOGGER: OnceCell<Handle> = OnceCell::new();
 pub(crate) static MAIN_ENGINE: Lazy<ArcSwapOption<QuakeLiveEngine>> =
-    Lazy::new(|| ArcSwapOption::empty());
+    Lazy::new(ArcSwapOption::empty);
 
 fn initialize_logging() {
     let stdout = ConsoleAppender::builder()

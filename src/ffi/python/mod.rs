@@ -30,35 +30,32 @@ use pyo3::{append_to_inittab, prepare_freethreaded_python};
 pub(crate) static ALLOW_FREE_CLIENT: AtomicU64 = AtomicU64::new(0);
 
 pub(crate) static CLIENT_COMMAND_HANDLER: Lazy<ArcSwapOption<Py<PyAny>>> =
-    Lazy::new(|| ArcSwapOption::empty());
+    Lazy::new(ArcSwapOption::empty);
 pub(crate) static SERVER_COMMAND_HANDLER: Lazy<ArcSwapOption<Py<PyAny>>> =
-    Lazy::new(|| ArcSwapOption::empty());
-pub(crate) static FRAME_HANDLER: Lazy<ArcSwapOption<Py<PyAny>>> =
-    Lazy::new(|| ArcSwapOption::empty());
+    Lazy::new(ArcSwapOption::empty);
+pub(crate) static FRAME_HANDLER: Lazy<ArcSwapOption<Py<PyAny>>> = Lazy::new(ArcSwapOption::empty);
 pub(crate) static PLAYER_CONNECT_HANDLER: Lazy<ArcSwapOption<Py<PyAny>>> =
-    Lazy::new(|| ArcSwapOption::empty());
+    Lazy::new(ArcSwapOption::empty);
 pub(crate) static PLAYER_LOADED_HANDLER: Lazy<ArcSwapOption<Py<PyAny>>> =
-    Lazy::new(|| ArcSwapOption::empty());
+    Lazy::new(ArcSwapOption::empty);
 pub(crate) static PLAYER_DISCONNECT_HANDLER: Lazy<ArcSwapOption<Py<PyAny>>> =
-    Lazy::new(|| ArcSwapOption::empty());
+    Lazy::new(ArcSwapOption::empty);
 pub(crate) static CUSTOM_COMMAND_HANDLER: Lazy<ArcSwapOption<Py<PyAny>>> =
-    Lazy::new(|| ArcSwapOption::empty());
+    Lazy::new(ArcSwapOption::empty);
 pub(crate) static NEW_GAME_HANDLER: Lazy<ArcSwapOption<Py<PyAny>>> =
-    Lazy::new(|| ArcSwapOption::empty());
+    Lazy::new(ArcSwapOption::empty);
 pub(crate) static SET_CONFIGSTRING_HANDLER: Lazy<ArcSwapOption<Py<PyAny>>> =
-    Lazy::new(|| ArcSwapOption::empty());
-pub(crate) static RCON_HANDLER: Lazy<ArcSwapOption<Py<PyAny>>> =
-    Lazy::new(|| ArcSwapOption::empty());
+    Lazy::new(ArcSwapOption::empty);
+pub(crate) static RCON_HANDLER: Lazy<ArcSwapOption<Py<PyAny>>> = Lazy::new(ArcSwapOption::empty);
 pub(crate) static CONSOLE_PRINT_HANDLER: Lazy<ArcSwapOption<Py<PyAny>>> =
-    Lazy::new(|| ArcSwapOption::empty());
+    Lazy::new(ArcSwapOption::empty);
 pub(crate) static PLAYER_SPAWN_HANDLER: Lazy<ArcSwapOption<Py<PyAny>>> =
-    Lazy::new(|| ArcSwapOption::empty());
+    Lazy::new(ArcSwapOption::empty);
 pub(crate) static KAMIKAZE_USE_HANDLER: Lazy<ArcSwapOption<Py<PyAny>>> =
-    Lazy::new(|| ArcSwapOption::empty());
+    Lazy::new(ArcSwapOption::empty);
 pub(crate) static KAMIKAZE_EXPLODE_HANDLER: Lazy<ArcSwapOption<Py<PyAny>>> =
-    Lazy::new(|| ArcSwapOption::empty());
-pub(crate) static DAMAGE_HANDLER: Lazy<ArcSwapOption<Py<PyAny>>> =
-    Lazy::new(|| ArcSwapOption::empty());
+    Lazy::new(ArcSwapOption::empty);
+pub(crate) static DAMAGE_HANDLER: Lazy<ArcSwapOption<Py<PyAny>>> = Lazy::new(ArcSwapOption::empty);
 
 // Used primarily in Python, but defined here and added using PyModule_AddIntMacro().
 #[allow(non_camel_case_types)]
