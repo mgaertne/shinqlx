@@ -325,8 +325,8 @@ pub(crate) fn pyshinqlx_reload() -> Result<(), PythonInitializationError> {
         &KAMIKAZE_EXPLODE_HANDLER,
         &DAMAGE_HANDLER,
     ]
-    .into_iter()
-    .for_each(|handler_lock| handler_lock.store(None));
+    .iter()
+    .for_each(|&handler_lock| handler_lock.store(None));
 
     let reinit_result = Python::with_gil(|py| {
         let importlib_module = py.import("importlib")?;
