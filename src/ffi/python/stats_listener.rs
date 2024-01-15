@@ -122,58 +122,44 @@ fn player_by_steam_id(py: Python<'_>, steam_id: &i64) -> Option<Player> {
     let Ok(players_info) = pyshinqlx_players_info(py) else {
         return None;
     };
-    players_info
-        .iter()
-        .filter_map(|opt_player_info| {
-            opt_player_info
-                .as_ref()
-                .into_iter()
-                .filter_map(|player_info| {
-                    if player_info.steam_id != *steam_id {
-                        None
-                    } else {
-                        Some(Player {
-                            valid: true,
-                            id: player_info.client_id,
-                            user_info: player_info.userinfo.clone(),
-                            steam_id: player_info.steam_id,
-                            name: player_info.name.clone(),
-                            player_info: player_info.clone(),
-                        })
-                    }
+    players_info.iter().find_map(|opt_player_info| {
+        opt_player_info.as_ref().iter().find_map(|&player_info| {
+            if player_info.steam_id != *steam_id {
+                None
+            } else {
+                Some(Player {
+                    valid: true,
+                    id: player_info.client_id,
+                    user_info: player_info.userinfo.clone(),
+                    steam_id: player_info.steam_id,
+                    name: player_info.name.clone(),
+                    player_info: player_info.clone(),
                 })
-                .next()
+            }
         })
-        .next()
+    })
 }
 
 fn player_by_name(py: Python<'_>, name: &String) -> Option<Player> {
     let Ok(players_info) = pyshinqlx_players_info(py) else {
         return None;
     };
-    players_info
-        .iter()
-        .filter_map(|opt_player_info| {
-            opt_player_info
-                .as_ref()
-                .into_iter()
-                .filter_map(|player_info| {
-                    if player_info.name != *name {
-                        None
-                    } else {
-                        Some(Player {
-                            valid: true,
-                            id: player_info.client_id,
-                            user_info: player_info.userinfo.clone(),
-                            steam_id: player_info.steam_id,
-                            name: player_info.name.clone(),
-                            player_info: player_info.clone(),
-                        })
-                    }
+    players_info.iter().find_map(|opt_player_info| {
+        opt_player_info.as_ref().iter().find_map(|&player_info| {
+            if player_info.name != *name {
+                None
+            } else {
+                Some(Player {
+                    valid: true,
+                    id: player_info.client_id,
+                    user_info: player_info.userinfo.clone(),
+                    steam_id: player_info.steam_id,
+                    name: player_info.name.clone(),
+                    player_info: player_info.clone(),
                 })
-                .next()
+            }
         })
-        .next()
+    })
 }
 
 fn dispatch_player_death_events(

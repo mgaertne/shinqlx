@@ -214,10 +214,10 @@ impl VmFunctions {
                 (QuakeLiveFunction::G_FreeEntity, &self.g_free_entity_orig),
                 (QuakeLiveFunction::Cmd_Callvote_f, &self.cmd_callvote_f_orig),
             ]
-            .into_iter()
+            .iter()
             .for_each(|(ql_func, field)| {
                 match pattern_search_module(&qagame_maps, ql_func) {
-                    None => failed_functions.push(ql_func),
+                    None => failed_functions.push(*ql_func),
                     Some(orig_func) => {
                         debug!(target: "shinqlx", "{}: {:#X}", &ql_func, orig_func);
                         field.store(orig_func, Ordering::SeqCst);
