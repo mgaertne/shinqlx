@@ -59,4 +59,4 @@ git2 = ">=0.18"
 pretty_assertions = ">=1.4"
 rstest = ">=0.18"
 mockall = { version = ">=0.12", features = ["nightly"]}
-serial_test = ">=2.0"
+serial_test = ">=3.0"
