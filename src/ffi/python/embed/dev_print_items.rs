@@ -64,8 +64,8 @@ pub(crate) fn pyshinqlx_dev_print_items(py: Python<'_>) -> PyResult<()> {
                 "print \"Check server console for other items\n\"\n",
             );
             remaining_items
-                .into_iter()
-                .for_each(|item| main_engine.com_printf(&item));
+                .iter()
+                .for_each(|item| main_engine.com_printf(item));
         }
 
         Ok(())
