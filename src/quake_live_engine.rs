@@ -18,8 +18,10 @@ use crate::quake_live_functions::pattern_search_module;
 use crate::quake_live_functions::QuakeLiveFunction;
 #[cfg(target_os = "linux")]
 use crate::QZERODED;
+
 use alloc::ffi::CString;
 use alloc::string::String;
+use alloc::sync::Arc;
 use arc_swap::ArcSwapOption;
 use core::ffi::{c_char, c_int, CStr};
 use core::sync::atomic::{AtomicI32, AtomicUsize, Ordering};
@@ -145,10 +147,10 @@ struct VmFunctions {
     g_run_frame_orig: AtomicUsize,
     cmd_callvote_f_orig: AtomicUsize,
 
-    client_spawn_detour: ArcSwapOption<ClientSpawnDetourType>,
-    client_connect_detour: ArcSwapOption<ClientConnectDetourType>,
-    g_start_kamikaze_detour: ArcSwapOption<GStartKamikazeDetourType>,
-    g_damage_detour: ArcSwapOption<GDamageDetourType>,
+    client_spawn_detour: Arc<ArcSwapOption<ClientSpawnDetourType>>,
+    client_connect_detour: Arc<ArcSwapOption<ClientConnectDetourType>>,
+    g_start_kamikaze_detour: Arc<ArcSwapOption<GStartKamikazeDetourType>>,
+    g_damage_detour: Arc<ArcSwapOption<GDamageDetourType>>,
 }
 
 #[allow(dead_code)]
@@ -446,10 +448,10 @@ impl QuakeLiveEngine {
                 g_shutdown_game_orig: Default::default(),
                 g_run_frame_orig: Default::default(),
                 cmd_callvote_f_orig: Default::default(),
-                client_spawn_detour: ArcSwapOption::empty(),
-                client_connect_detour: ArcSwapOption::empty(),
-                g_start_kamikaze_detour: ArcSwapOption::empty(),
-                g_damage_detour: ArcSwapOption::empty(),
+                client_spawn_detour: ArcSwapOption::empty().into(),
+                client_connect_detour: ArcSwapOption::empty().into(),
+                g_start_kamikaze_detour: ArcSwapOption::empty().into(),
+                g_damage_detour: ArcSwapOption::empty().into(),
             },
             current_vm: AtomicUsize::new(0),
         }
