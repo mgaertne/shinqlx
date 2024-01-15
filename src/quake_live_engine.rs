@@ -219,7 +219,7 @@ impl VmFunctions {
                 match pattern_search_module(&qagame_maps, ql_func) {
                     None => failed_functions.push(*ql_func),
                     Some(orig_func) => {
-                        debug!(target: "shinqlx", "{}: {:#X}", &ql_func, orig_func);
+                        debug!(target: "shinqlx", "{}: {:#X}", ql_func, orig_func);
                         field.store(orig_func, Ordering::SeqCst);
                     }
                 }
