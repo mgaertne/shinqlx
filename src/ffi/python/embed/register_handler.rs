@@ -59,6 +59,8 @@ mod register_handler_tests {
         PLAYER_SPAWN_HANDLER, RCON_HANDLER, SERVER_COMMAND_HANDLER, SET_CONFIGSTRING_HANDLER,
     };
     use crate::prelude::*;
+
+    use alloc::sync::Arc;
     use arc_swap::ArcSwapOption;
     use once_cell::sync::Lazy;
     use pyo3::exceptions::{PyTypeError, PyValueError};
@@ -84,7 +86,7 @@ mod register_handler_tests {
     #[serial]
     fn register_handler_setting_handler_to_none(
         #[case] event: &str,
-        #[case] handler: &Lazy<ArcSwapOption<Py<PyAny>>>,
+        #[case] handler: &Lazy<Arc<ArcSwapOption<Py<PyAny>>>>,
     ) {
         let pymodule: Py<PyModule> = Python::with_gil(|py| {
             PyModule::from_code(
@@ -133,7 +135,7 @@ def handler():
     #[serial]
     fn register_handler_setting_handler_to_some_handler(
         #[case] event: &str,
-        #[case] handler: &Lazy<ArcSwapOption<Py<PyAny>>>,
+        #[case] handler: &Lazy<Arc<ArcSwapOption<Py<PyAny>>>>,
     ) {
         let pymodule: Py<PyModule> = Python::with_gil(|py| {
             PyModule::from_code(
