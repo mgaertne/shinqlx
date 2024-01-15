@@ -71,7 +71,7 @@ impl Weapons {
             <Vec<i32> as TryInto<[i32; 15]>>::try_into(
                 results
                     .iter()
-                    .map(|value| value.unwrap_or(0))
+                    .map(|&value| value.unwrap_or(0))
                     .collect::<Vec<i32>>(),
             )
             .unwrap(),

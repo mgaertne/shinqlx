@@ -56,7 +56,7 @@ impl Powerups {
             <Vec<i32> as TryInto<[i32; 6]>>::try_into(
                 results
                     .iter()
-                    .map(|value| value.unwrap_or(0))
+                    .map(|&value| value.unwrap_or(0))
                     .collect::<Vec<i32>>(),
             )
             .unwrap(),
