@@ -34,6 +34,7 @@ pub(crate) mod prelude {
 }
 
 use crate::prelude::*;
+use alloc::sync::Arc;
 use arc_swap::ArcSwapOption;
 #[cfg(not(test))]
 use ctor::ctor;
@@ -54,8 +55,8 @@ pub(crate) const QZERODED: &str = "qzeroded.x64";
 pub(crate) const QZERODED: &str = "qzeroded.x86";
 
 pub(crate) static MAIN_LOGGER: OnceCell<Handle> = OnceCell::new();
-pub(crate) static MAIN_ENGINE: Lazy<ArcSwapOption<QuakeLiveEngine>> =
-    Lazy::new(ArcSwapOption::empty);
+pub(crate) static MAIN_ENGINE: Lazy<Arc<ArcSwapOption<QuakeLiveEngine>>> =
+    Lazy::new(|| ArcSwapOption::empty().into());
 
 pub(crate) static _INIT_TIME: Lazy<Instant> = Lazy::new(Instant::now);
 
