@@ -147,11 +147,12 @@ impl GameClient {
     pub(crate) fn get_ammos(&self) -> [i32; 15] {
         let ammos = self.game_client.ps.ammo;
         ammos
-            .into_iter()
+            .iter()
             .skip(1)
+            .copied()
             .collect::<Vec<i32>>()
             .try_into()
-            .unwrap()
+            .unwrap_or_default()
     }
 
     pub(crate) fn set_ammos(&mut self, ammos: [i32; 15]) {

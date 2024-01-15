@@ -37,8 +37,8 @@ use crate::ffi::python::channels::{
 use crate::_INIT_TIME;
 
 use alloc::sync::Arc;
-use alloc::vec::IntoIter;
 use arc_swap::ArcSwapOption;
+use core::ops::Deref;
 use core::str::FromStr;
 use core::sync::atomic::{AtomicBool, AtomicU64, Ordering};
 use itertools::Itertools;
@@ -153,18 +153,17 @@ impl From<ParsedVariables> for String {
     }
 }
 
-impl IntoPy<PyObject> for ParsedVariables {
-    fn into_py(self, py: Python<'_>) -> PyObject {
-        self.items.into_py_dict(py).into()
+impl IntoPyDict for ParsedVariables {
+    fn into_py_dict(self, py: Python<'_>) -> &PyDict {
+        self.items.into_py_dict(py)
     }
 }
 
-impl IntoIterator for ParsedVariables {
-    type Item = (String, String);
-    type IntoIter = IntoIter<(String, String)>;
+impl Deref for ParsedVariables {
+    type Target = Vec<(String, String)>;
 
-    fn into_iter(self) -> Self::IntoIter {
-        self.items.into_iter()
+    fn deref(&self) -> &Self::Target {
+        &self.items
     }
 }
 
@@ -1005,8 +1004,8 @@ pub(crate) fn pyshinqlx_reload() -> Result<(), PythonInitializationError> {
         &KAMIKAZE_EXPLODE_HANDLER,
         &DAMAGE_HANDLER,
     ]
-    .into_iter()
-    .for_each(|handler_lock| handler_lock.store(None));
+    .iter()
+    .for_each(|&handler_lock| handler_lock.store(None));
 
     let reinit_result = Python::with_gil(|py| {
         let importlib_module = py.import("importlib")?;

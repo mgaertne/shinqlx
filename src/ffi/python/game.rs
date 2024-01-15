@@ -31,17 +31,19 @@ fn client_id(py: Python<'_>, player: Py<PyAny>) -> Option<i32> {
     let all_players = pyshinqlx_players_info(py).unwrap_or_default();
 
     if let Ok(steam_id) = player.extract::<i64>(py) {
-        return all_players.into_iter().find_map(|opt_player_info| {
+        return all_players.iter().find_map(|opt_player_info| {
             opt_player_info
-                .filter(|player_info| player_info.steam_id == steam_id)
+                .as_ref()
+                .filter(|&player_info| player_info.steam_id == steam_id)
                 .map(|player_info| player_info.client_id)
         });
     }
 
     if let Ok(name) = player.extract::<String>(py) {
-        return all_players.into_iter().find_map(|opt_player_info| {
+        return all_players.iter().find_map(|opt_player_info| {
             opt_player_info
-                .filter(|player_info| {
+                .as_ref()
+                .filter(|&player_info| {
                     python::clean_text(&player_info.name).to_lowercase()
                         == python::clean_text(&name).to_lowercase()
                 })
@@ -126,12 +128,16 @@ impl Game {
             ));
         }
 
-        let opt_value = parse_variables(configstring)
-            .into_iter()
-            .filter(|(key, _value)| *key == item)
-            .map(|(_key, value)| value)
-            .nth(0);
-        opt_value.map_or_else(|| Err(PyKeyError::new_err(format!("'{}'", item))), Ok)
+        parse_variables(configstring)
+            .iter()
+            .find_map(|(key, value)| {
+                if *key == item {
+                    Some(value.into())
+                } else {
+                    None
+                }
+            })
+            .map_or_else(|| Err(PyKeyError::new_err(format!("'{}'", item))), Ok)
     }
 
     /// A dictionary of unprocessed cvars. Use attributes whenever possible, but since some cvars

@@ -749,7 +749,7 @@ impl TeamChatChannel {
                 .filter_map(|opt_player_info| {
                     opt_player_info
                         .as_ref()
-                        .into_iter()
+                        .iter()
                         .filter_map(|player_info| {
                             if player_info.team == filtered_team {
                                 Some(player_info.client_id)
