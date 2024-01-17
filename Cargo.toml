@@ -21,9 +21,9 @@ harness = true
 crate-type = ["cdylib"]
 
 [profile.release]
-strip = true
+strip = "symbols"
 opt-level = 3
-lto = true
+lto = "fat"
 codegen-units = 1
 
 [dependencies]
