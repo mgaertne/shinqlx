@@ -1,4 +1,4 @@
-use alloc::vec;
+use core::array;
 use pyo3::basic::CompareOp;
 use pyo3::exceptions::PyValueError;
 use pyo3::prelude::*;
@@ -6,7 +6,7 @@ use pyo3::types::PyTuple;
 
 #[pyclass]
 struct Vector3Iter {
-    iter: vec::IntoIter<i32>,
+    iter: array::IntoIter<i32, 3>,
 }
 
 #[pymethods]
@@ -78,9 +78,9 @@ impl Vector3 {
     }
 
     fn __iter__(slf: PyRef<'_, Self>) -> PyResult<Py<Vector3Iter>> {
-        let iter_vec = vec![slf.0, slf.1, slf.2];
+        let iter_array = [slf.0, slf.1, slf.2];
         let iter = Vector3Iter {
-            iter: iter_vec.into_iter(),
+            iter: iter_array.into_iter(),
         };
         Py::new(slf.py(), iter)
     }

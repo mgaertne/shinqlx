@@ -124,8 +124,7 @@ impl GameClient {
     pub(crate) fn get_weapons(&self) -> [i32; 15] {
         let weapon_stats = self.game_client.ps.stats[statIndex_t::STAT_WEAPONS as usize];
         (0..15)
-            .map(|i| weapon_stats & (1 << (i + 1)))
-            .map(|weapon| match weapon {
+            .map(|i| match weapon_stats & (1 << (i + 1)) {
                 0 => 0,
                 _ => 1,
             })
