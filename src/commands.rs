@@ -130,7 +130,7 @@ pub extern "C" fn cmd_slap() {
 
     main_engine.send_server_command(None::<Client>, &message);
 
-    let mut rng = rand::thread_rng();
+    let mut rng = rand::rngs::OsRng;
     let Ok(mut game_client) = client_entity.get_game_client() else {
         return;
     };
