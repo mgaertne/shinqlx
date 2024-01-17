@@ -39,7 +39,7 @@ log = { version = ">=0.4", default-features = false }
 log4rs = { version = ">=1.2", default-features = false, features = ["console_appender", "pattern_encoder"] }
 signal-hook = { version = ">=0.3", default-features = false }
 signal-hook-registry = ">=1.4"
-itertools = { version = ">=0.12", default-features = false }
+itertools = { version = ">=0.12", default-features = false, features = ["use_alloc"] }
 regex = { version = ">=1.10", features = ["perf"] }
 arrayvec = { version = ">=0.7", default-features = false }
 zmq = ">=0.10"
