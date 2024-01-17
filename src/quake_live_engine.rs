@@ -23,6 +23,8 @@ use alloc::ffi::CString;
 use alloc::string::String;
 use alloc::sync::Arc;
 use arc_swap::ArcSwapOption;
+#[cfg(target_os = "linux")]
+use arrayvec::ArrayVec;
 use core::ffi::{c_char, c_int, CStr};
 use core::sync::atomic::{AtomicI32, AtomicUsize, Ordering};
 use once_cell::race::OnceBool;
@@ -194,7 +196,7 @@ impl VmFunctions {
                 .collect();
 
             debug!(target: "shinqlx", "Searching for necessary VM functions...");
-            let mut failed_functions: Vec<QuakeLiveFunction> = Vec::new();
+            let mut failed_functions: ArrayVec<QuakeLiveFunction, 11> = ArrayVec::new();
             [
                 (QuakeLiveFunction::G_AddEvent, &self.g_addevent_orig),
                 (

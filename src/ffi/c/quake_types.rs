@@ -1073,9 +1073,9 @@ pub struct cvar_s {
     pub integer: c_int, // atof( string )
     #[builder(default = "[0; 8]")]
     pub _unknown3: [u8; 8usize],
-    #[builder(default = "core::ptr::null_mut() as *mut cvar_s")]
+    #[builder(default = "core::ptr::null_mut()")]
     pub next: *mut cvar_s,
-    #[builder(default = "core::ptr::null_mut() as *mut cvar_s")]
+    #[builder(default = "core::ptr::null_mut()")]
     pub hashNext: *mut cvar_s,
 }
 
@@ -1609,7 +1609,7 @@ pub struct client_s {
     pub lastClientCommand: c_int, // reliable client message sequence
     #[builder(default = "[0; MAX_STRING_CHARS as usize]")]
     pub lastClientCommandString: [c_char; MAX_STRING_CHARS as usize],
-    #[builder(default = "core::ptr::null_mut() as *mut sharedEntity_t")]
+    #[builder(default = "core::ptr::null_mut()")]
     pub gentity: *mut sharedEntity_t, // SV_GentityNum(clientnum)
     #[builder(default = "[0; MAX_NAME_LENGTH as usize]")]
     pub name: [c_char; MAX_NAME_LENGTH as usize], // extracted from userinfo, high bits masked
@@ -1684,9 +1684,9 @@ pub struct client_s {
     pub gotCP: qboolean, // TTimo - additional flag to distinguish between a bad pure checksum, and no cp command at all
     #[builder(default = "NetchanBuilder::default().build().unwrap()")]
     pub netchan: netchan_t,
-    #[builder(default = "core::ptr::null_mut() as *mut netchan_buffer_t")]
+    #[builder(default = "core::ptr::null_mut()")]
     pub netchan_start_queue: *mut netchan_buffer_t,
-    #[builder(default = "core::ptr::null_mut() as *mut *mut netchan_buffer_t")]
+    #[builder(default = "core::ptr::null_mut()")]
     pub netchan_end_queue: *mut *mut netchan_buffer_t,
     // Mino: Holy crap. A bunch of data was added. I have no idea where it actually goes,
     // but this will at least correct sizeof(client_t).
