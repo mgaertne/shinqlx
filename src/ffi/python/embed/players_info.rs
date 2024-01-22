@@ -44,7 +44,6 @@ mod get_players_info_tests {
     use super::MAIN_ENGINE;
     use crate::ffi::python::PlayerInfo;
     use crate::prelude::*;
-    use crate::quake_live_engine::MockQuakeEngine;
     use mockall::predicate;
     use pyo3::exceptions::PyEnvironmentError;
     use pyo3::prelude::*;

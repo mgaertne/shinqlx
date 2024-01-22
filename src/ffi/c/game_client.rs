@@ -398,7 +398,6 @@ mockall::mock! {
 #[cfg(test)]
 mod game_client_tests {
     use super::GameClient;
-    use crate::ffi::c::current_level::MockTestCurrentLevel;
     use crate::prelude::*;
     use core::ffi::c_char;
     use pretty_assertions::assert_eq;

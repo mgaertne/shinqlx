@@ -44,7 +44,6 @@ mod get_userinfo_tests {
     use super::MAIN_ENGINE;
     use crate::ffi::python::ALLOW_FREE_CLIENT;
     use crate::prelude::*;
-    use crate::quake_live_engine::MockQuakeEngine;
     use core::sync::atomic::Ordering;
     use pretty_assertions::assert_eq;
     use pyo3::exceptions::{PyEnvironmentError, PyValueError};

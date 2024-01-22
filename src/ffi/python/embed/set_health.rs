@@ -41,7 +41,6 @@ mod set_health_tests {
     use super::pyshinqlx_set_health;
     use super::MAIN_ENGINE;
     use crate::prelude::*;
-    use crate::quake_live_engine::MockQuakeEngine;
     use mockall::predicate;
     use pretty_assertions::assert_eq;
     use pyo3::exceptions::{PyEnvironmentError, PyValueError};

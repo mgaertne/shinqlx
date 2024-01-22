@@ -158,10 +158,7 @@ mockall::mock! {
 mod game_item_tests {
     use super::GameItem;
     use super::MAIN_ENGINE;
-    use crate::ffi::c::game_entity::MockGameEntity;
-    use crate::ffi::c::game_item::MockGameItem;
     use crate::prelude::*;
-    use crate::quake_live_engine::MockQuakeEngine;
     use alloc::ffi::CString;
     use core::ffi::c_char;
     use mockall::predicate;

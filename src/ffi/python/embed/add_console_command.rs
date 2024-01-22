@@ -29,7 +29,6 @@ mod add_console_command_tests {
     use super::MAIN_ENGINE;
     use crate::commands::cmd_py_command;
     use crate::prelude::*;
-    use crate::quake_live_engine::MockQuakeEngine;
     use pyo3::exceptions::PyEnvironmentError;
     use pyo3::prelude::*;
 

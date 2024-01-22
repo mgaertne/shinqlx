@@ -561,7 +561,6 @@ mod hooks_tests {
     };
     use crate::hooks::{shinqlx_cmd_addcommand, shinqlx_g_startkamikaze};
     use crate::prelude::*;
-    use crate::quake_live_engine::MockQuakeEngine;
     use alloc::ffi::CString;
     use core::ffi::{c_char, CStr};
     use mockall::predicate;

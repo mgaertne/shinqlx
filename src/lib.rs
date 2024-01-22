@@ -20,6 +20,8 @@ pub(crate) mod prelude {
     pub(crate) use crate::ffi::c::prelude::*;
     #[cfg(test)]
     pub(crate) use crate::quake_live_engine::MockQuakeEngine as QuakeLiveEngine;
+    #[cfg(test)]
+    pub(crate) use crate::quake_live_engine::MockQuakeEngine;
     #[cfg(not(test))]
     pub(crate) use crate::quake_live_engine::QuakeLiveEngine;
     pub(crate) use crate::quake_live_engine::QuakeLiveEngineError;

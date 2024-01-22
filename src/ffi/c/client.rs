@@ -138,9 +138,7 @@ mockall::mock! {
 mod client_tests {
     use super::Client;
     use super::MAIN_ENGINE;
-    use crate::ffi::c::server_static::MockTestServerStatic;
     use crate::prelude::*;
-    use crate::quake_live_engine::MockQuakeEngine;
     use crate::quake_live_functions::QuakeLiveFunction;
     use core::ffi::{c_char, CStr};
     use once_cell::sync::OnceCell;
