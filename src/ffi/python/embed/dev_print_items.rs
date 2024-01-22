@@ -76,7 +76,6 @@ pub(crate) fn pyshinqlx_dev_print_items(py: Python<'_>) -> PyResult<()> {
 #[cfg(not(miri))]
 mod dev_print_items_tests {
     use super::pyshinqlx_dev_print_items;
-    use crate::ffi::c::game_entity::MockGameEntity;
     use crate::prelude::*;
     use crate::quake_live_engine::MockQuakeEngine;
     use crate::MAIN_ENGINE;

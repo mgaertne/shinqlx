@@ -53,8 +53,6 @@ pub(crate) fn pyshinqlx_player_spawn(py: Python<'_>, client_id: i32) -> PyResult
 mod player_spawn_tests {
     use super::pyshinqlx_player_spawn;
     use super::MAIN_ENGINE;
-    use crate::ffi::c::game_client::MockGameClient;
-    use crate::ffi::c::game_entity::MockGameEntity;
     use crate::hooks::mock_hooks::shinqlx_client_spawn_context;
     use crate::prelude::*;
     use crate::quake_live_engine::MockQuakeEngine;

@@ -1,4 +1,3 @@
-use crate::ffi::c::CurrentLevel;
 use crate::hooks::shinqlx_set_configstring;
 use crate::prelude::*;
 use crate::quake_live_engine::{

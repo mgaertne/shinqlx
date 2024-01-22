@@ -106,8 +106,6 @@ pub(crate) fn pyshinqlx_replace_items(
 #[cfg(not(miri))]
 mod replace_items_tests {
     use super::pyshinqlx_replace_items;
-    use crate::ffi::c::game_entity::MockGameEntity;
-    use crate::ffi::c::game_item::MockGameItem;
     use crate::prelude::*;
     use mockall::predicate;
     use pretty_assertions::assert_eq;

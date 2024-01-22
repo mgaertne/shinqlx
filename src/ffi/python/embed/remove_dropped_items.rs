@@ -23,7 +23,6 @@ pub(crate) fn pyshinqlx_remove_dropped_items(py: Python<'_>) -> PyResult<bool> {
 #[cfg(not(miri))]
 mod remove_dropped_items_tests {
     use super::pyshinqlx_remove_dropped_items;
-    use crate::ffi::c::game_entity::MockGameEntity;
     use crate::prelude::*;
     use mockall::predicate;
     use pretty_assertions::assert_eq;

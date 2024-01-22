@@ -35,7 +35,6 @@ pub(crate) fn pyshinqlx_spawn_item(
 #[cfg(not(miri))]
 mod spawn_item_tests {
     use super::pyshinqlx_spawn_item;
-    use crate::ffi::c::game_item::MockGameItem;
     use crate::prelude::*;
     use mockall::predicate;
     use pretty_assertions::assert_eq;
