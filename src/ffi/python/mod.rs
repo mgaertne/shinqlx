@@ -1,5 +1,7 @@
 mod channels;
+mod dispatchers;
 pub(crate) mod dispatchers;
+mod embed;
 pub(crate) mod embed;
 mod flight;
 mod game;
