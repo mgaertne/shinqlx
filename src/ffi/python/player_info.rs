@@ -96,8 +96,6 @@ impl From<i32> for PlayerInfo {
 #[cfg(test)]
 mod player_info_tests {
     use super::PlayerInfo;
-    use crate::ffi::c::client::MockClient;
-    use crate::ffi::c::game_entity::MockGameEntity;
     #[cfg(not(miri))]
     use crate::ffi::python::pyshinqlx_setup_fixture::pyshinqlx_setup;
     use crate::prelude::*;

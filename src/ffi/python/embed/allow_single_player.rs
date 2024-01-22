@@ -1,4 +1,4 @@
-use crate::ffi::c::CurrentLevel;
+use crate::ffi::c::prelude::CurrentLevel;
 
 use pyo3::{pyfunction, Python};
 
@@ -18,7 +18,6 @@ pub(crate) fn pyshinqlx_allow_single_player(py: Python<'_>, allow: bool) {
 #[cfg(not(miri))]
 mod allow_single_player_tests {
     use super::pyshinqlx_allow_single_player;
-    use crate::ffi::c::current_level::MockTestCurrentLevel;
     use crate::prelude::*;
     use mockall::predicate;
     use pyo3::prelude::*;

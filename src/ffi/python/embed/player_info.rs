@@ -59,8 +59,6 @@ pub(crate) fn pyshinqlx_player_info(
 mod get_player_info_tests {
     use super::pyshinqlx_player_info;
     use super::MAIN_ENGINE;
-    use crate::ffi::c::client::MockClient;
-    use crate::ffi::c::game_entity::MockGameEntity;
     use crate::ffi::python::player_info::PlayerInfo;
     use crate::ffi::python::ALLOW_FREE_CLIENT;
     use crate::prelude::*;

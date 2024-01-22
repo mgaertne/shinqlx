@@ -300,9 +300,6 @@ mod commands_tests {
         cmd_center_print, cmd_py_command, cmd_py_rcon, cmd_regular_print, cmd_restart_python,
         cmd_send_server_command, cmd_slap, cmd_slay,
     };
-    use crate::ffi::c::client::MockClient;
-    use crate::ffi::c::game_client::MockGameClient;
-    use crate::ffi::c::game_entity::MockGameEntity;
     use crate::ffi::python::mock_python_tests::{
         new_game_dispatcher_context, pyshinqlx_initialize_context,
         pyshinqlx_is_initialized_context, pyshinqlx_reload_context, rcon_dispatcher_context,

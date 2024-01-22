@@ -42,8 +42,6 @@ pub(crate) fn pyshinqlx_players_info(py: Python<'_>) -> PyResult<Vec<Option<Play
 mod get_players_info_tests {
     use super::pyshinqlx_players_info;
     use super::MAIN_ENGINE;
-    use crate::ffi::c::client::MockClient;
-    use crate::ffi::c::game_entity::MockGameEntity;
     use crate::ffi::python::PlayerInfo;
     use crate::prelude::*;
     use crate::quake_live_engine::MockQuakeEngine;

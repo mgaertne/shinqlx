@@ -54,8 +54,6 @@ pub(crate) fn pyshinqlx_slay_with_mod(
 mod slay_with_mod_tests {
     use super::pyshinqlx_slay_with_mod;
     use super::MAIN_ENGINE;
-    use crate::ffi::c::game_client::MockGameClient;
-    use crate::ffi::c::game_entity::MockGameEntity;
     use crate::prelude::*;
     use crate::quake_live_engine::MockQuakeEngine;
     use mockall::predicate;

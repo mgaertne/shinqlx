@@ -113,8 +113,6 @@ impl From<GameEntity> for PlayerState {
 #[cfg(test)]
 mod player_state_tests {
     use super::PlayerState;
-    use crate::ffi::c::game_client::MockGameClient;
-    use crate::ffi::c::game_entity::MockGameEntity;
     use crate::ffi::python::{Flight, Holdable, Powerups, Vector3, Weapons};
     use crate::prelude::*;
     use pretty_assertions::assert_eq;

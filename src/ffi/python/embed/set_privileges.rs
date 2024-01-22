@@ -46,8 +46,6 @@ pub(crate) fn pyshinqlx_set_privileges(
 mod set_privileges_tests {
     use super::pyshinqlx_set_privileges;
     use super::MAIN_ENGINE;
-    use crate::ffi::c::game_client::MockGameClient;
-    use crate::ffi::c::game_entity::MockGameEntity;
     use crate::prelude::*;
     use crate::quake_live_engine::MockQuakeEngine;
     use mockall::predicate;

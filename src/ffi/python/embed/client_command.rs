@@ -49,7 +49,6 @@ pub(crate) fn pyshinqlx_client_command(
 mod client_command_tests {
     use super::pyshinqlx_client_command;
     use super::MAIN_ENGINE;
-    use crate::ffi::c::client::MockClient;
     use crate::hooks::mock_hooks::shinqlx_execute_client_command_context;
     use crate::prelude::*;
     use crate::quake_live_engine::MockQuakeEngine;
