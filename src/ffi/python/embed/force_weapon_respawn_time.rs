@@ -31,7 +31,6 @@ pub(crate) fn pyshinqlx_force_weapon_respawn_time(
 #[cfg(not(miri))]
 mod force_weapon_respawn_time_tests {
     use super::pyshinqlx_force_weapon_respawn_time;
-    use crate::ffi::c::game_entity::MockGameEntity;
     use crate::prelude::*;
     use mockall::predicate;
     use pretty_assertions::assert_eq;

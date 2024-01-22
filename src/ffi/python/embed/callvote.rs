@@ -1,4 +1,4 @@
-use crate::ffi::c::CurrentLevel;
+use crate::ffi::c::prelude::CurrentLevel;
 
 use pyo3::{pyfunction, Python};
 
@@ -23,7 +23,6 @@ pub(crate) fn pyshinqlx_callvote(
 #[cfg(not(miri))]
 mod callvote_tests {
     use super::pyshinqlx_callvote;
-    use crate::ffi::c::current_level::MockTestCurrentLevel;
     use crate::prelude::*;
     use mockall::predicate;
     use pyo3::prelude::*;

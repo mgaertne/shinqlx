@@ -58,7 +58,6 @@ pub(crate) fn pyshinqlx_send_server_command(
 mod send_server_command_tests {
     use super::pyshinqlx_send_server_command;
     use super::MAIN_ENGINE;
-    use crate::ffi::c::client::MockClient;
     use crate::hooks::mock_hooks::shinqlx_send_server_command_context;
     use crate::prelude::*;
     use crate::quake_live_engine::MockQuakeEngine;

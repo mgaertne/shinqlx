@@ -48,8 +48,6 @@ pub(crate) fn pyshinqlx_set_position(
 mod set_position_tests {
     use super::pyshinqlx_set_position;
     use super::MAIN_ENGINE;
-    use crate::ffi::c::game_client::MockGameClient;
-    use crate::ffi::c::game_entity::MockGameEntity;
     use crate::ffi::python::Vector3;
     use crate::prelude::*;
     use crate::quake_live_engine::MockQuakeEngine;

@@ -27,7 +27,6 @@ pub(crate) fn pyshinqlx_get_entity_targets(py: Python<'_>, entity_id: i32) -> Py
 #[cfg(not(miri))]
 mod get_entity_targets_tests {
     use super::pyshinqlx_get_entity_targets;
-    use crate::ffi::c::game_entity::MockGameEntity;
     use crate::prelude::*;
     use mockall::predicate;
     use pretty_assertions::assert_eq;

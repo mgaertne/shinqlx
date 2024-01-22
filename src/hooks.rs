@@ -545,10 +545,6 @@ pub(crate) mod hooks {
 #[cfg(test)]
 mod hooks_tests {
     use super::MAIN_ENGINE;
-    use crate::ffi::c::activator::MockActivator;
-    use crate::ffi::c::client::MockClient;
-    use crate::ffi::c::game_client::MockGameClient;
-    use crate::ffi::c::game_entity::MockGameEntity;
     use crate::ffi::python::mock_python_tests::{
         client_command_dispatcher_context, client_connect_dispatcher_context,
         client_disconnect_dispatcher_context, client_loaded_dispatcher_context,

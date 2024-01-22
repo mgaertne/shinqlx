@@ -48,8 +48,6 @@ pub(crate) fn pyshinqlx_set_weapons(
 mod set_weapons_tests {
     use super::pyshinqlx_set_weapons;
     use super::MAIN_ENGINE;
-    use crate::ffi::c::game_client::MockGameClient;
-    use crate::ffi::c::game_entity::MockGameEntity;
     use crate::ffi::python::Weapons;
     use crate::prelude::*;
     use crate::quake_live_engine::MockQuakeEngine;

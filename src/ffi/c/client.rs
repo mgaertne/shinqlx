@@ -1,4 +1,3 @@
-use crate::ffi::c::ServerStatic;
 use crate::prelude::*;
 use crate::MAIN_ENGINE;
 use alloc::ffi::CString;
