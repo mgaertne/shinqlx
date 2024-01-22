@@ -1244,9 +1244,6 @@ impl Player {
 #[cfg(test)]
 mod pyshinqlx_player_tests {
     use super::{NonexistentPlayerError, Player};
-    use crate::ffi::c::client::MockClient;
-    use crate::ffi::c::game_client::MockGameClient;
-    use crate::ffi::c::game_entity::MockGameEntity;
     #[cfg(not(miri))]
     use crate::ffi::python::pyshinqlx_setup_fixture::*;
     use crate::ffi::python::{

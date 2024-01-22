@@ -36,7 +36,6 @@ pub(crate) fn pyshinqlx_set_cvar_once(
 mod set_cvar_once_tests {
     use super::pyshinqlx_set_cvar_once;
     use super::MAIN_ENGINE;
-    use crate::ffi::c::CVar;
     use crate::prelude::*;
     use crate::quake_live_engine::MockQuakeEngine;
     use mockall::predicate;

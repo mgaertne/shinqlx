@@ -595,8 +595,6 @@ impl TellChannel {
 #[cfg(test)]
 mod tell_channel_tests {
     use super::TellChannel;
-    use crate::ffi::c::client::MockClient;
-    use crate::ffi::c::game_entity::MockGameEntity;
     use crate::ffi::python::player::Player;
     #[cfg(not(miri))]
     use crate::ffi::python::pyshinqlx_setup_fixture::pyshinqlx_setup;
@@ -768,8 +766,6 @@ impl TeamChatChannel {
 #[cfg(not(miri))]
 mod team_chat_channel_tests {
     use super::TeamChatChannel;
-    use crate::ffi::c::client::MockClient;
-    use crate::ffi::c::game_entity::MockGameEntity;
     use crate::ffi::python::pyshinqlx_setup_fixture::pyshinqlx_setup;
     use crate::prelude::*;
     use crate::quake_live_engine::MockQuakeEngine;
@@ -969,8 +965,6 @@ impl ClientCommandChannel {
 #[cfg(test)]
 mod client_command_channel_tests {
     use super::ClientCommandChannel;
-    use crate::ffi::c::client::MockClient;
-    use crate::ffi::c::game_entity::MockGameEntity;
     use crate::ffi::python::player::Player;
     #[cfg(not(miri))]
     use crate::ffi::python::pyshinqlx_setup_fixture::pyshinqlx_setup;
