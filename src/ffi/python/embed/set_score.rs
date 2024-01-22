@@ -42,8 +42,6 @@ pub(crate) fn pyshinqlx_set_score(py: Python<'_>, client_id: i32, score: i32) ->
 mod set_score_tests {
     use super::pyshinqlx_set_score;
     use super::MAIN_ENGINE;
-    use crate::ffi::c::game_client::MockGameClient;
-    use crate::ffi::c::game_entity::MockGameEntity;
     use crate::prelude::*;
     use crate::quake_live_engine::MockQuakeEngine;
     use mockall::predicate;

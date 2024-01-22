@@ -56,8 +56,6 @@ pub(crate) fn pyshinqlx_drop_holdable(py: Python<'_>, client_id: i32) -> PyResul
 mod drop_holdable_tests {
     use super::pyshinqlx_drop_holdable;
     use super::MAIN_ENGINE;
-    use crate::ffi::c::game_client::MockGameClient;
-    use crate::ffi::c::game_entity::MockGameEntity;
     use crate::ffi::python::Holdable;
     use crate::prelude::*;
     use crate::quake_live_engine::MockQuakeEngine;

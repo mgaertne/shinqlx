@@ -44,8 +44,6 @@ pub(crate) fn pyshinqlx_player_stats(
 mod player_stats_tests {
     use super::pyshinqlx_player_stats;
     use super::MAIN_ENGINE;
-    use crate::ffi::c::game_client::MockGameClient;
-    use crate::ffi::c::game_entity::MockGameEntity;
     use crate::ffi::python::PlayerStats;
     use crate::prelude::*;
     use crate::quake_live_engine::MockQuakeEngine;

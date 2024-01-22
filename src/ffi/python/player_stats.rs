@@ -52,7 +52,6 @@ impl From<GameClient> for PlayerStats {
 #[cfg(test)]
 mod player_stats_tests {
     use super::PlayerStats;
-    use crate::ffi::c::game_client::MockGameClient;
     use crate::prelude::*;
     use pretty_assertions::assert_eq;
 

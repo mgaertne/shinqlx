@@ -44,8 +44,6 @@ pub(crate) fn pyshinqlx_set_ammo(py: Python<'_>, client_id: i32, ammos: Weapons)
 mod set_ammo_tests {
     use super::pyshinqlx_set_ammo;
     use super::MAIN_ENGINE;
-    use crate::ffi::c::game_client::MockGameClient;
-    use crate::ffi::c::game_entity::MockGameEntity;
     use crate::ffi::python::Weapons;
     use crate::prelude::*;
     use crate::quake_live_engine::MockQuakeEngine;

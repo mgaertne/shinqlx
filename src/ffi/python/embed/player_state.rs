@@ -43,8 +43,6 @@ pub(crate) fn pyshinqlx_player_state(
 mod player_state_tests {
     use super::pyshinqlx_player_state;
     use super::MAIN_ENGINE;
-    use crate::ffi::c::game_client::MockGameClient;
-    use crate::ffi::c::game_entity::MockGameEntity;
     use crate::ffi::python::{Flight, Holdable, PlayerState, Powerups, Vector3, Weapons};
     use crate::prelude::*;
     use crate::quake_live_engine::MockQuakeEngine;

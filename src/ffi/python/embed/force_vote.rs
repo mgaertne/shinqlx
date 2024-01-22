@@ -1,4 +1,3 @@
-use crate::ffi::c::CurrentLevel;
 use crate::prelude::*;
 use crate::MAIN_ENGINE;
 
@@ -50,10 +49,6 @@ pub(crate) fn pyshinqlx_force_vote(py: Python<'_>, pass: bool) -> PyResult<bool>
 mod force_vote_tests {
     use super::pyshinqlx_force_vote;
     use super::MAIN_ENGINE;
-    use crate::ffi::c::client::MockClient;
-    use crate::ffi::c::current_level::MockTestCurrentLevel;
-    use crate::ffi::c::game_client::MockGameClient;
-    use crate::ffi::c::game_entity::MockGameEntity;
     use crate::prelude::*;
     use crate::quake_live_engine::MockQuakeEngine;
     use mockall::predicate;
