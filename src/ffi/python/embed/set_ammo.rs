@@ -1,8 +1,6 @@
 use crate::prelude::*;
 use crate::MAIN_ENGINE;
 
-use crate::ffi::python::Weapons;
-
 use pyo3::exceptions::{PyEnvironmentError, PyValueError};
 use pyo3::{pyfunction, PyResult, Python};
 
@@ -44,7 +42,6 @@ pub(crate) fn pyshinqlx_set_ammo(py: Python<'_>, client_id: i32, ammos: Weapons)
 mod set_ammo_tests {
     use super::pyshinqlx_set_ammo;
     use super::MAIN_ENGINE;
-    use crate::ffi::python::Weapons;
     use crate::prelude::*;
     use mockall::predicate;
     use pretty_assertions::assert_eq;

@@ -1,8 +1,6 @@
 use crate::prelude::*;
 use crate::MAIN_ENGINE;
 
-use crate::ffi::python::Flight;
-
 use pyo3::exceptions::{PyEnvironmentError, PyValueError};
 use pyo3::{pyfunction, PyResult, Python};
 
@@ -48,7 +46,6 @@ pub(crate) fn pyshinqlx_set_flight(
 mod set_flight_tests {
     use super::pyshinqlx_set_flight;
     use super::MAIN_ENGINE;
-    use crate::ffi::python::Flight;
     use crate::prelude::*;
     use mockall::predicate;
     use pretty_assertions::assert_eq;

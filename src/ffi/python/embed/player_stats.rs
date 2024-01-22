@@ -1,8 +1,6 @@
 use crate::prelude::*;
 use crate::MAIN_ENGINE;
 
-use crate::ffi::python::PlayerStats;
-
 use pyo3::exceptions::{PyEnvironmentError, PyValueError};
 use pyo3::{pyfunction, PyResult, Python};
 
@@ -44,7 +42,6 @@ pub(crate) fn pyshinqlx_player_stats(
 mod player_stats_tests {
     use super::pyshinqlx_player_stats;
     use super::MAIN_ENGINE;
-    use crate::ffi::python::PlayerStats;
     use crate::prelude::*;
     use pretty_assertions::assert_eq;
     use pyo3::exceptions::{PyEnvironmentError, PyValueError};

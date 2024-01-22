@@ -1,17 +1,3 @@
-#[cfg(not(test))]
-use crate::ffi::python::dispatchers::{
-    client_command_dispatcher, client_connect_dispatcher, client_disconnect_dispatcher,
-    client_loaded_dispatcher, client_spawn_dispatcher, console_print_dispatcher, damage_dispatcher,
-    frame_dispatcher, kamikaze_explode_dispatcher, kamikaze_use_dispatcher, new_game_dispatcher,
-    server_command_dispatcher, set_configstring_dispatcher,
-};
-#[cfg(test)]
-use crate::ffi::python::mock_python_tests::{
-    client_command_dispatcher, client_connect_dispatcher, client_disconnect_dispatcher,
-    client_loaded_dispatcher, client_spawn_dispatcher, console_print_dispatcher, damage_dispatcher,
-    frame_dispatcher, kamikaze_explode_dispatcher, kamikaze_use_dispatcher, new_game_dispatcher,
-    server_command_dispatcher, set_configstring_dispatcher,
-};
 use crate::prelude::*;
 use crate::quake_live_engine::{
     AddCommand, ClientConnect, ClientEnterWorld, ClientSpawn, ComPrintf, ExecuteClientCommand,
@@ -545,14 +531,6 @@ pub(crate) mod hooks {
 #[cfg(test)]
 mod hooks_tests {
     use super::MAIN_ENGINE;
-    use crate::ffi::python::mock_python_tests::{
-        client_command_dispatcher_context, client_connect_dispatcher_context,
-        client_disconnect_dispatcher_context, client_loaded_dispatcher_context,
-        client_spawn_dispatcher_context, console_print_dispatcher_context,
-        damage_dispatcher_context, frame_dispatcher_context, kamikaze_explode_dispatcher_context,
-        kamikaze_use_dispatcher_context, new_game_dispatcher_context,
-        server_command_dispatcher_context, set_configstring_dispatcher_context,
-    };
     use crate::hooks::{
         shinqlx_client_connect, shinqlx_client_spawn, shinqlx_com_printf, shinqlx_drop_client,
         shinqlx_execute_client_command, shinqlx_g_damage, shinqlx_g_initgame, shinqlx_g_runframe,

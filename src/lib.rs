@@ -18,6 +18,7 @@ mod quake_live_functions;
 
 pub(crate) mod prelude {
     pub(crate) use crate::ffi::c::prelude::*;
+    pub(crate) use crate::ffi::python::prelude::*;
     #[cfg(test)]
     pub(crate) use crate::quake_live_engine::MockQuakeEngine as QuakeLiveEngine;
     #[cfg(test)]

@@ -1,8 +1,6 @@
 use crate::prelude::*;
 use crate::MAIN_ENGINE;
 
-use crate::ffi::python::Holdable;
-
 use pyo3::exceptions::{PyEnvironmentError, PyValueError};
 use pyo3::{pyfunction, PyResult, Python};
 
@@ -49,7 +47,6 @@ pub(crate) fn pyshinqlx_set_holdable(
 mod set_holdable_tests {
     use super::pyshinqlx_set_holdable;
     use super::MAIN_ENGINE;
-    use crate::ffi::python::Holdable;
     use crate::prelude::*;
     use mockall::predicate;
     use pretty_assertions::assert_eq;

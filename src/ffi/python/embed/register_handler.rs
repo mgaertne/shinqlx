@@ -1,9 +1,5 @@
-use crate::ffi::python::{
-    CLIENT_COMMAND_HANDLER, CONSOLE_PRINT_HANDLER, CUSTOM_COMMAND_HANDLER, DAMAGE_HANDLER,
-    FRAME_HANDLER, KAMIKAZE_EXPLODE_HANDLER, KAMIKAZE_USE_HANDLER, NEW_GAME_HANDLER,
-    PLAYER_CONNECT_HANDLER, PLAYER_DISCONNECT_HANDLER, PLAYER_LOADED_HANDLER, PLAYER_SPAWN_HANDLER,
-    RCON_HANDLER, SERVER_COMMAND_HANDLER, SET_CONFIGSTRING_HANDLER,
-};
+use crate::prelude::*;
+
 use pyo3::exceptions::{PyTypeError, PyValueError};
 use pyo3::{pyfunction, Py, PyAny, PyResult, Python};
 
@@ -52,12 +48,6 @@ pub(crate) fn pyshinqlx_register_handler(
 #[cfg(not(miri))]
 mod register_handler_tests {
     use super::pyshinqlx_register_handler;
-    use crate::ffi::python::{
-        CLIENT_COMMAND_HANDLER, CONSOLE_PRINT_HANDLER, CUSTOM_COMMAND_HANDLER, DAMAGE_HANDLER,
-        FRAME_HANDLER, KAMIKAZE_EXPLODE_HANDLER, KAMIKAZE_USE_HANDLER, NEW_GAME_HANDLER,
-        PLAYER_CONNECT_HANDLER, PLAYER_DISCONNECT_HANDLER, PLAYER_LOADED_HANDLER,
-        PLAYER_SPAWN_HANDLER, RCON_HANDLER, SERVER_COMMAND_HANDLER, SET_CONFIGSTRING_HANDLER,
-    };
     use crate::prelude::*;
 
     use alloc::sync::Arc;

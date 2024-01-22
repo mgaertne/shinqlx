@@ -80,7 +80,8 @@ impl Flight {
 mod flight_tests {
     use super::Flight;
     #[cfg(not(miri))]
-    use crate::ffi::python::pyshinqlx_setup_fixture::*;
+    use crate::prelude::*;
+
     use pretty_assertions::assert_eq;
     #[cfg(not(miri))]
     use pyo3::exceptions::{PyTypeError, PyValueError};
