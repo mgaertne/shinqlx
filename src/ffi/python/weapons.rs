@@ -100,7 +100,7 @@ impl Weapons {
 #[cfg(test)]
 mod weapons_tests {
     #[cfg(not(miri))]
-    use crate::ffi::python::pyshinqlx_setup_fixture::*;
+    use crate::prelude::*;
     #[cfg(not(miri))]
     use pyo3::exceptions::{PyTypeError, PyValueError};
     #[cfg(not(miri))]
@@ -225,7 +225,7 @@ assert(_shinqlx.Weapons((False, False, False, False, False, False, False, False,
 mod ammo_tests {
     use super::Weapons;
     #[cfg(not(miri))]
-    use crate::ffi::python::pyshinqlx_setup_fixture::*;
+    use crate::prelude::*;
     use pretty_assertions::assert_eq;
     #[cfg(not(miri))]
     use pyo3::exceptions::{PyTypeError, PyValueError};

@@ -55,7 +55,6 @@ mod slay_with_mod_tests {
     use super::pyshinqlx_slay_with_mod;
     use super::MAIN_ENGINE;
     use crate::prelude::*;
-    use crate::quake_live_engine::MockQuakeEngine;
     use mockall::predicate;
     use pretty_assertions::assert_eq;
     use pyo3::exceptions::{PyEnvironmentError, PyValueError};

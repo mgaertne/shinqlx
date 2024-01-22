@@ -96,7 +96,8 @@ impl From<(f32, f32, f32)> for Vector3 {
 mod vector3_tests {
     use super::Vector3;
     #[cfg(not(miri))]
-    use crate::ffi::python::pyshinqlx_setup_fixture::*;
+    use crate::prelude::*;
+
     use pretty_assertions::assert_eq;
     #[cfg(not(miri))]
     use pyo3::exceptions::{PyTypeError, PyValueError};

@@ -1,15 +1,3 @@
-#[cfg(not(test))]
-use crate::ffi::python::dispatchers::new_game_dispatcher;
-#[cfg(not(test))]
-use crate::ffi::python::dispatchers::rcon_dispatcher;
-#[cfg(test)]
-use crate::ffi::python::mock_python_tests::{
-    new_game_dispatcher, pyshinqlx_initialize, pyshinqlx_is_initialized, pyshinqlx_reload,
-    rcon_dispatcher,
-};
-use crate::ffi::python::CUSTOM_COMMAND_HANDLER;
-#[cfg(not(test))]
-use crate::ffi::python::{pyshinqlx_initialize, pyshinqlx_is_initialized, pyshinqlx_reload};
 use crate::prelude::*;
 use crate::quake_live_engine::{
     CmdArgc, CmdArgs, CmdArgv, ComPrintf, GameAddEvent, SendServerCommand,
@@ -135,8 +123,8 @@ pub extern "C" fn cmd_slap() {
         return;
     };
     game_client.set_velocity((
-        (rng.gen_range(-1.0..=1.0) * 200.0),
-        (rng.gen_range(-1.0..=1.0) * 200.0),
+        rng.gen_range(-1.0..=1.0) * 200.0,
+        rng.gen_range(-1.0..=1.0) * 200.0,
         300.0,
     ));
     if dmg > 0 {
@@ -300,15 +288,7 @@ mod commands_tests {
         cmd_center_print, cmd_py_command, cmd_py_rcon, cmd_regular_print, cmd_restart_python,
         cmd_send_server_command, cmd_slap, cmd_slay,
     };
-    use crate::ffi::python::mock_python_tests::{
-        new_game_dispatcher_context, pyshinqlx_initialize_context,
-        pyshinqlx_is_initialized_context, pyshinqlx_reload_context, rcon_dispatcher_context,
-    };
-    #[cfg(not(miri))]
-    use crate::ffi::python::pyshinqlx_setup_fixture::*;
-    use crate::ffi::python::{PythonInitializationError, CUSTOM_COMMAND_HANDLER};
     use crate::prelude::*;
-    use crate::quake_live_engine::MockQuakeEngine;
     use mockall::predicate;
     use pyo3::types::PyModule;
     use pyo3::{IntoPy, Py, Python};

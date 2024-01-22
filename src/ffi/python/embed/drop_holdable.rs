@@ -1,7 +1,6 @@
 use crate::prelude::*;
 use crate::MAIN_ENGINE;
 
-use crate::ffi::python::Holdable;
 use pyo3::exceptions::{PyEnvironmentError, PyValueError};
 use pyo3::{pyfunction, PyResult, Python};
 
@@ -56,9 +55,7 @@ pub(crate) fn pyshinqlx_drop_holdable(py: Python<'_>, client_id: i32) -> PyResul
 mod drop_holdable_tests {
     use super::pyshinqlx_drop_holdable;
     use super::MAIN_ENGINE;
-    use crate::ffi::python::Holdable;
     use crate::prelude::*;
-    use crate::quake_live_engine::MockQuakeEngine;
     use mockall::Sequence;
     use pretty_assertions::assert_eq;
     use pyo3::exceptions::{PyEnvironmentError, PyValueError};

@@ -77,7 +77,6 @@ pub(crate) fn pyshinqlx_dev_print_items(py: Python<'_>) -> PyResult<()> {
 mod dev_print_items_tests {
     use super::pyshinqlx_dev_print_items;
     use crate::prelude::*;
-    use crate::quake_live_engine::MockQuakeEngine;
     use crate::MAIN_ENGINE;
     use mockall::predicate;
     use pyo3::exceptions::PyEnvironmentError;

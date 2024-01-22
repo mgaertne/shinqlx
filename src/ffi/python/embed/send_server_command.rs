@@ -60,7 +60,6 @@ mod send_server_command_tests {
     use super::MAIN_ENGINE;
     use crate::hooks::mock_hooks::shinqlx_send_server_command_context;
     use crate::prelude::*;
-    use crate::quake_live_engine::MockQuakeEngine;
     use pretty_assertions::assert_eq;
     use pyo3::exceptions::{PyEnvironmentError, PyValueError};
     use pyo3::prelude::*;

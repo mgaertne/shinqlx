@@ -96,8 +96,6 @@ impl From<i32> for PlayerInfo {
 #[cfg(test)]
 mod player_info_tests {
     use super::PlayerInfo;
-    #[cfg(not(miri))]
-    use crate::ffi::python::pyshinqlx_setup_fixture::pyshinqlx_setup;
     use crate::prelude::*;
     use pretty_assertions::assert_eq;
     #[cfg(not(miri))]

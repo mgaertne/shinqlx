@@ -106,11 +106,8 @@ mockall::mock! {
 mod current_level_tests {
     use super::CurrentLevel;
     use super::MAIN_ENGINE;
-    use crate::ffi::c::game_client::MockGameClient;
-    use crate::ffi::c::game_entity::MockGameEntity;
     use crate::hooks::mock_hooks::*;
     use crate::prelude::*;
-    use crate::quake_live_engine::MockQuakeEngine;
     use crate::quake_live_functions::QuakeLiveFunction::G_InitGame;
     use core::ffi::CStr;
     use mockall::predicate;

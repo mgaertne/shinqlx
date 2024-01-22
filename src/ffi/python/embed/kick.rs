@@ -59,7 +59,6 @@ mod kick_tests {
     use super::MAIN_ENGINE;
     use crate::hooks::mock_hooks::shinqlx_drop_client_context;
     use crate::prelude::*;
-    use crate::quake_live_engine::MockQuakeEngine;
     use mockall::predicate;
     use pyo3::exceptions::{PyEnvironmentError, PyValueError};
     use pyo3::prelude::*;

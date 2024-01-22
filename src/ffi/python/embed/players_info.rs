@@ -1,8 +1,6 @@
 use crate::prelude::*;
 use crate::MAIN_ENGINE;
 
-use crate::ffi::python::PlayerInfo;
-
 use pyo3::exceptions::PyEnvironmentError;
 use pyo3::prelude::*;
 
@@ -42,9 +40,7 @@ pub(crate) fn pyshinqlx_players_info(py: Python<'_>) -> PyResult<Vec<Option<Play
 mod get_players_info_tests {
     use super::pyshinqlx_players_info;
     use super::MAIN_ENGINE;
-    use crate::ffi::python::PlayerInfo;
     use crate::prelude::*;
-    use crate::quake_live_engine::MockQuakeEngine;
     use mockall::predicate;
     use pretty_assertions::assert_eq;
     use pyo3::exceptions::PyEnvironmentError;

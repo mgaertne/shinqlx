@@ -35,7 +35,6 @@ mod set_cvar_limit_tests {
     use super::pyshinqlx_set_cvar_limit;
     use super::MAIN_ENGINE;
     use crate::prelude::*;
-    use crate::quake_live_engine::MockQuakeEngine;
     use mockall::predicate;
     use pyo3::exceptions::PyEnvironmentError;
     use pyo3::prelude::*;
