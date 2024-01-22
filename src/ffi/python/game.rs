@@ -1,15 +1,8 @@
-use super::parse_variables;
-
-use super::embed::{
-    pyshinqlx_console_command, pyshinqlx_get_configstring, pyshinqlx_players_info,
-    pyshinqlx_set_configstring, pyshinqlx_set_cvar,
-};
+use crate::prelude::*;
 
 use itertools::Itertools;
 use log::*;
 
-use crate::ffi::python;
-use crate::ffi::python::player::Player;
 use pyo3::create_exception;
 use pyo3::exceptions::{PyException, PyKeyError, PyValueError};
 use pyo3::prelude::*;
@@ -44,8 +37,7 @@ fn client_id(py: Python<'_>, player: Py<PyAny>) -> Option<i32> {
             opt_player_info
                 .as_ref()
                 .filter(|&player_info| {
-                    python::clean_text(&player_info.name).to_lowercase()
-                        == python::clean_text(&name).to_lowercase()
+                    clean_text(&player_info.name).to_lowercase() == clean_text(&name).to_lowercase()
                 })
                 .map(|player_info| player_info.client_id)
         });
@@ -686,12 +678,10 @@ impl Game {
 #[cfg(not(miri))]
 mod pyshinqlx_game_tests {
     use super::{Game, NonexistentGameError};
+    use crate::hooks::mock_hooks::shinqlx_set_configstring_context;
     use crate::prelude::*;
-    use crate::quake_live_engine::MockQuakeEngine;
     use crate::MAIN_ENGINE;
 
-    use crate::ffi::python::pyshinqlx_setup_fixture::pyshinqlx_setup;
-    use crate::hooks::mock_hooks::shinqlx_set_configstring_context;
     use mockall::predicate;
     use pretty_assertions::assert_eq;
     use pyo3::exceptions::{PyEnvironmentError, PyKeyError, PyValueError};

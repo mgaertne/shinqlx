@@ -1,6 +1,5 @@
-use crate::ffi::python::embed::{pyshinqlx_console_print, pyshinqlx_players_info};
-use crate::ffi::python::player::Player;
-use crate::prelude::team_t;
+use crate::prelude::*;
+
 use pyo3::basic::CompareOp;
 use pyo3::exceptions::PyNotImplementedError;
 use pyo3::prelude::*;
@@ -120,7 +119,8 @@ impl AbstractChannel {
 mod abstract_channel_tests {
     use super::AbstractChannel;
     #[cfg(not(miri))]
-    use crate::ffi::python::pyshinqlx_setup_fixture::pyshinqlx_setup;
+    use crate::prelude::*;
+
     use pretty_assertions::assert_eq;
     #[cfg(not(miri))]
     use pyo3::exceptions::{PyNotImplementedError, PyTypeError};
@@ -363,7 +363,6 @@ impl ConsoleChannel {
 #[cfg(not(miri))]
 mod console_channel_tests {
     use super::ConsoleChannel;
-    use crate::ffi::python::pyshinqlx_setup_fixture::pyshinqlx_setup;
     use crate::hooks::mock_hooks::shinqlx_com_printf_context;
     use crate::prelude::*;
     use mockall::predicate;
@@ -521,7 +520,8 @@ def reply(targets, msg):
 #[cfg(not(miri))]
 mod chat_channel_tests {
     use super::ChatChannel;
-    use crate::ffi::python::pyshinqlx_setup_fixture::pyshinqlx_setup;
+    use crate::prelude::*;
+
     use pyo3::exceptions::PyNotImplementedError;
     use pyo3::Python;
     use rstest::rstest;
@@ -595,10 +595,6 @@ impl TellChannel {
 #[cfg(test)]
 mod tell_channel_tests {
     use super::TellChannel;
-    use crate::ffi::python::player::Player;
-    #[cfg(not(miri))]
-    use crate::ffi::python::pyshinqlx_setup_fixture::pyshinqlx_setup;
-    use crate::ffi::python::PlayerInfo;
     use crate::prelude::*;
     use mockall::predicate;
     use pretty_assertions::assert_eq;
@@ -766,9 +762,7 @@ impl TeamChatChannel {
 #[cfg(not(miri))]
 mod team_chat_channel_tests {
     use super::TeamChatChannel;
-    use crate::ffi::python::pyshinqlx_setup_fixture::pyshinqlx_setup;
     use crate::prelude::*;
-    use crate::quake_live_engine::MockQuakeEngine;
     use crate::MAIN_ENGINE;
     use pyo3::Python;
     use rstest::*;
@@ -965,10 +959,6 @@ impl ClientCommandChannel {
 #[cfg(test)]
 mod client_command_channel_tests {
     use super::ClientCommandChannel;
-    use crate::ffi::python::player::Player;
-    #[cfg(not(miri))]
-    use crate::ffi::python::pyshinqlx_setup_fixture::pyshinqlx_setup;
-    use crate::ffi::python::PlayerInfo;
     use crate::prelude::*;
     use mockall::predicate;
     use pretty_assertions::assert_eq;
