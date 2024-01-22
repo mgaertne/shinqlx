@@ -1,5 +1,5 @@
-pub(crate) mod dispatchers;
-pub(crate) mod embed;
+mod dispatchers;
+mod embed;
 mod flight;
 mod holdable;
 mod player_info;
