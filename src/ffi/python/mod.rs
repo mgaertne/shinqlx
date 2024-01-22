@@ -1,8 +1,6 @@
 mod channels;
 mod dispatchers;
-pub(crate) mod dispatchers;
 mod embed;
-pub(crate) mod embed;
 mod flight;
 mod game;
 mod holdable;
@@ -16,15 +14,26 @@ mod vector3;
 mod weapons;
 
 pub(crate) mod prelude {
+    pub(crate) use super::channels::{
+        AbstractChannel, ChatChannel, ClientCommandChannel, ConsoleChannel, TeamChatChannel,
+        TellChannel, MAX_MSG_LENGTH,
+    };
     pub(crate) use super::embed::*;
     pub(crate) use super::flight::Flight;
+    pub(crate) use super::game::{Game, NonexistentGameError};
     pub(crate) use super::holdable::Holdable;
+    pub(crate) use super::player::{
+        AbstractDummyPlayer, NonexistentPlayerError, Player, RconDummyPlayer,
+    };
     pub(crate) use super::player_info::PlayerInfo;
     pub(crate) use super::player_state::PlayerState;
     pub(crate) use super::player_stats::PlayerStats;
     pub(crate) use super::powerups::Powerups;
+    pub(crate) use super::stats_listener::StatsListener;
     pub(crate) use super::vector3::Vector3;
     pub(crate) use super::weapons::Weapons;
+
+    pub(crate) use super::{clean_text, parse_variables};
 
     pub(crate) use super::ALLOW_FREE_CLIENT;
     pub(crate) use super::{
@@ -82,11 +91,6 @@ pub(crate) mod prelude {
 use crate::prelude::*;
 use crate::quake_live_engine::FindCVar;
 use crate::MAIN_ENGINE;
-
-use crate::ffi::python::channels::{
-    AbstractChannel, ChatChannel, ClientCommandChannel, ConsoleChannel, TeamChatChannel,
-    TellChannel, MAX_MSG_LENGTH,
-};
 use crate::_INIT_TIME;
 
 use alloc::sync::Arc;

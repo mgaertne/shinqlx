@@ -1,16 +1,3 @@
-use super::{
-    clean_text, parse_variables, Flight, Holdable, PlayerInfo, PlayerState, PlayerStats, Powerups,
-    Vector3, Weapons,
-};
-use crate::ffi::python::channels::TellChannel;
-use crate::ffi::python::embed::{
-    pyshinqlx_client_command, pyshinqlx_console_command, pyshinqlx_drop_holdable, pyshinqlx_kick,
-    pyshinqlx_noclip, pyshinqlx_player_spawn, pyshinqlx_player_state, pyshinqlx_player_stats,
-    pyshinqlx_players_info, pyshinqlx_send_server_command, pyshinqlx_set_ammo, pyshinqlx_set_armor,
-    pyshinqlx_set_flight, pyshinqlx_set_health, pyshinqlx_set_holdable, pyshinqlx_set_position,
-    pyshinqlx_set_powerups, pyshinqlx_set_privileges, pyshinqlx_set_score, pyshinqlx_set_velocity,
-    pyshinqlx_set_weapon, pyshinqlx_set_weapons, pyshinqlx_slay_with_mod,
-};
 use crate::prelude::*;
 use crate::quake_live_engine::{GetConfigstring, SetConfigstring};
 use crate::MAIN_ENGINE;
@@ -1244,17 +1231,11 @@ impl Player {
 #[cfg(test)]
 mod pyshinqlx_player_tests {
     use super::{NonexistentPlayerError, Player};
-    #[cfg(not(miri))]
-    use crate::ffi::python::pyshinqlx_setup_fixture::*;
-    use crate::ffi::python::{
-        Flight, Holdable, PlayerInfo, PlayerState, PlayerStats, Powerups, Vector3, Weapons,
-    };
     use crate::hooks::mock_hooks::{
         shinqlx_client_spawn_context, shinqlx_drop_client_context,
         shinqlx_execute_client_command_context, shinqlx_send_server_command_context,
     };
     use crate::prelude::*;
-    use crate::quake_live_engine::MockQuakeEngine;
     use crate::MAIN_ENGINE;
     use mockall::{predicate, Sequence};
     use pretty_assertions::assert_eq;
@@ -6947,7 +6928,7 @@ impl AbstractDummyPlayer {
 #[cfg(not(miri))]
 #[cfg(test)]
 mod pyshinqlx_abstract_dummy_player_tests {
-    use crate::ffi::python::pyshinqlx_setup_fixture::*;
+    use crate::prelude::*;
     use pyo3::exceptions::{PyAttributeError, PyNotImplementedError};
     use pyo3::Python;
     use rstest::rstest;
@@ -7104,7 +7085,7 @@ console_channel = shinqlx.CONSOLE_CHANNEL"#,
 #[cfg(not(miri))]
 #[cfg(test)]
 mod pyshinqlx_rcon_dummy_player_tests {
-    use crate::ffi::python::pyshinqlx_setup_fixture::*;
+    use crate::prelude::*;
     use pyo3::Python;
     use rstest::rstest;
 
