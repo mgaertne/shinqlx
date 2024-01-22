@@ -62,7 +62,6 @@ mod get_player_info_tests {
     use crate::ffi::python::player_info::PlayerInfo;
     use crate::ffi::python::ALLOW_FREE_CLIENT;
     use crate::prelude::*;
-    use crate::quake_live_engine::MockQuakeEngine;
     use core::sync::atomic::Ordering;
     use pyo3::exceptions::{PyEnvironmentError, PyValueError};
     use pyo3::prelude::*;

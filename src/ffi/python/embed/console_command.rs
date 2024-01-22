@@ -27,7 +27,6 @@ mod console_command_tests {
     use super::pyshinqlx_console_command;
     use super::MAIN_ENGINE;
     use crate::prelude::*;
-    use crate::quake_live_engine::MockQuakeEngine;
     use mockall::predicate;
     use pyo3::exceptions::PyEnvironmentError;
     use pyo3::prelude::*;

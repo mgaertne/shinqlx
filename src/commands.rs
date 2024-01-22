@@ -135,8 +135,8 @@ pub extern "C" fn cmd_slap() {
         return;
     };
     game_client.set_velocity((
-        (rng.gen_range(-1.0..=1.0) * 200.0),
-        (rng.gen_range(-1.0..=1.0) * 200.0),
+        rng.gen_range(-1.0..=1.0) * 200.0,
+        rng.gen_range(-1.0..=1.0) * 200.0,
         300.0,
     ));
     if dmg > 0 {
@@ -308,7 +308,6 @@ mod commands_tests {
     use crate::ffi::python::pyshinqlx_setup_fixture::*;
     use crate::ffi::python::{PythonInitializationError, CUSTOM_COMMAND_HANDLER};
     use crate::prelude::*;
-    use crate::quake_live_engine::MockQuakeEngine;
     use mockall::predicate;
     use pyo3::types::PyModule;
     use pyo3::{IntoPy, Py, Python};

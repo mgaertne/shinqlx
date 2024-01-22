@@ -46,7 +46,6 @@ mod set_ammo_tests {
     use super::MAIN_ENGINE;
     use crate::ffi::python::Weapons;
     use crate::prelude::*;
-    use crate::quake_live_engine::MockQuakeEngine;
     use mockall::predicate;
     use pretty_assertions::assert_eq;
     use pyo3::exceptions::{PyEnvironmentError, PyValueError};

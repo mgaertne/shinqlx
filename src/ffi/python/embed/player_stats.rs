@@ -46,7 +46,6 @@ mod player_stats_tests {
     use super::MAIN_ENGINE;
     use crate::ffi::python::PlayerStats;
     use crate::prelude::*;
-    use crate::quake_live_engine::MockQuakeEngine;
     use pretty_assertions::assert_eq;
     use pyo3::exceptions::{PyEnvironmentError, PyValueError};
     use pyo3::prelude::*;

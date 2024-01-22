@@ -473,14 +473,10 @@ mockall::mock! {
 mod game_entity_tests {
     use super::GameEntity;
     use super::MAIN_ENGINE;
-    use crate::ffi::c::activator::MockActivator;
-    use crate::ffi::c::current_level::MockTestCurrentLevel;
-    use crate::ffi::c::game_client::MockGameClient;
     use crate::ffi::c::game_entity::{
-        MockGameEntity, MockStaticFunc, ShiNQlx_Switch_Touch_Item, ShiNQlx_Touch_Item,
+        MockStaticFunc, ShiNQlx_Switch_Touch_Item, ShiNQlx_Touch_Item,
     };
     use crate::prelude::*;
-    use crate::quake_live_engine::MockQuakeEngine;
     use alloc::ffi::CString;
     use core::ffi::c_int;
     use mockall::predicate;

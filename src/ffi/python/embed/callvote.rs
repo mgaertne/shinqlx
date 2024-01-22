@@ -1,4 +1,4 @@
-use crate::ffi::c::prelude::CurrentLevel;
+use crate::prelude::*;
 
 use pyo3::{pyfunction, Python};
 

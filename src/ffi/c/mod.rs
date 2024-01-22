@@ -45,13 +45,13 @@ pub(crate) mod prelude {
     #[cfg(test)]
     pub(crate) use super::client::MockClient;
     #[cfg(test)]
-    #[cfg(not(miri))]
     pub(crate) use super::current_level::MockTestCurrentLevel;
     #[cfg(test)]
     pub(crate) use super::game_client::MockGameClient;
     #[cfg(test)]
     pub(crate) use super::game_entity::MockGameEntity;
     #[cfg(test)]
-    #[cfg(not(miri))]
     pub(crate) use super::game_item::MockGameItem;
+    #[cfg(test)]
+    pub(crate) use super::server_static::MockTestServerStatic;
 }
