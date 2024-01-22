@@ -371,15 +371,6 @@ mod pyshinqlx_dispatcher_tests {
         new_game_dispatcher, rcon_dispatcher, server_command_dispatcher,
         set_configstring_dispatcher,
     };
-    #[cfg(not(miri))]
-    use crate::ffi::python::pyshinqlx_setup_fixture::*;
-    use crate::ffi::python::PYSHINQLX_INITIALIZED;
-    use crate::ffi::python::{
-        CLIENT_COMMAND_HANDLER, CONSOLE_PRINT_HANDLER, DAMAGE_HANDLER, FRAME_HANDLER,
-        KAMIKAZE_EXPLODE_HANDLER, KAMIKAZE_USE_HANDLER, NEW_GAME_HANDLER, PLAYER_CONNECT_HANDLER,
-        PLAYER_DISCONNECT_HANDLER, PLAYER_LOADED_HANDLER, PLAYER_SPAWN_HANDLER, RCON_HANDLER,
-        SERVER_COMMAND_HANDLER, SET_CONFIGSTRING_HANDLER,
-    };
     use crate::prelude::*;
     use core::sync::atomic::Ordering;
     use pretty_assertions::assert_eq;

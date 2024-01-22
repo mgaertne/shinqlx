@@ -86,7 +86,8 @@ impl Powerups {
 mod powerups_tests {
     use super::Powerups;
     #[cfg(not(miri))]
-    use crate::ffi::python::pyshinqlx_setup_fixture::*;
+    use crate::prelude::*;
+
     use pretty_assertions::assert_eq;
     #[cfg(not(miri))]
     use pyo3::exceptions::{PyTypeError, PyValueError};

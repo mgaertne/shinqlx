@@ -1,4 +1,3 @@
-use crate::ffi::python::ALLOW_FREE_CLIENT;
 use crate::prelude::*;
 use crate::MAIN_ENGINE;
 
@@ -42,9 +41,7 @@ pub(crate) fn pyshinqlx_get_userinfo(py: Python<'_>, client_id: i32) -> PyResult
 mod get_userinfo_tests {
     use super::pyshinqlx_get_userinfo;
     use super::MAIN_ENGINE;
-    use crate::ffi::python::ALLOW_FREE_CLIENT;
     use crate::prelude::*;
-    use crate::quake_live_engine::MockQuakeEngine;
     use core::sync::atomic::Ordering;
     use pretty_assertions::assert_eq;
     use pyo3::exceptions::{PyEnvironmentError, PyValueError};
