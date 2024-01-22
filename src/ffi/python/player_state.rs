@@ -1,4 +1,3 @@
-use crate::ffi::python::{Flight, Holdable, Powerups, Vector3, Weapons};
 use crate::prelude::*;
 use pyo3::prelude::*;
 
@@ -114,7 +113,6 @@ impl From<GameEntity> for PlayerState {
 #[cfg(test)]
 mod player_state_tests {
     use super::PlayerState;
-    use crate::ffi::python::{Flight, Holdable, Powerups, Vector3, Weapons};
     use crate::prelude::*;
     use pretty_assertions::assert_eq;
 

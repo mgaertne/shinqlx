@@ -3,8 +3,6 @@ use crate::MAIN_ENGINE;
 
 use core::sync::atomic::Ordering;
 use pyo3::exceptions::{PyEnvironmentError, PyValueError};
-
-use crate::ffi::python::{PlayerInfo, ALLOW_FREE_CLIENT};
 use pyo3::prelude::*;
 
 /// Returns a dictionary with information about a plapub(crate) yer by ID.
@@ -59,8 +57,6 @@ pub(crate) fn pyshinqlx_player_info(
 mod get_player_info_tests {
     use super::pyshinqlx_player_info;
     use super::MAIN_ENGINE;
-    use crate::ffi::python::player_info::PlayerInfo;
-    use crate::ffi::python::ALLOW_FREE_CLIENT;
     use crate::prelude::*;
     use core::sync::atomic::Ordering;
     use pyo3::exceptions::{PyEnvironmentError, PyValueError};

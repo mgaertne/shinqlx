@@ -9,15 +9,69 @@ mod powerups;
 mod vector3;
 mod weapons;
 
-use crate::ffi::python::embed::*;
-pub(crate) use flight::Flight;
-pub(crate) use holdable::Holdable;
-pub(crate) use player_info::PlayerInfo;
-pub(crate) use player_state::PlayerState;
-pub(crate) use player_stats::PlayerStats;
-pub(crate) use powerups::Powerups;
-pub(crate) use vector3::Vector3;
-pub(crate) use weapons::Weapons;
+pub(crate) mod prelude {
+    pub(crate) use super::embed::*;
+    pub(crate) use super::flight::Flight;
+    pub(crate) use super::holdable::Holdable;
+    pub(crate) use super::player_info::PlayerInfo;
+    pub(crate) use super::player_state::PlayerState;
+    pub(crate) use super::player_stats::PlayerStats;
+    pub(crate) use super::powerups::Powerups;
+    pub(crate) use super::vector3::Vector3;
+    pub(crate) use super::weapons::Weapons;
+
+    pub(crate) use super::ALLOW_FREE_CLIENT;
+    pub(crate) use super::{
+        CLIENT_COMMAND_HANDLER, CONSOLE_PRINT_HANDLER, CUSTOM_COMMAND_HANDLER, DAMAGE_HANDLER,
+        FRAME_HANDLER, KAMIKAZE_EXPLODE_HANDLER, KAMIKAZE_USE_HANDLER, NEW_GAME_HANDLER,
+        PLAYER_CONNECT_HANDLER, PLAYER_DISCONNECT_HANDLER, PLAYER_LOADED_HANDLER,
+        PLAYER_SPAWN_HANDLER, RCON_HANDLER, SERVER_COMMAND_HANDLER, SET_CONFIGSTRING_HANDLER,
+    };
+
+    #[cfg(test)]
+    pub(crate) use super::mock_python_tests::{
+        pyshinqlx_initialize, pyshinqlx_is_initialized, pyshinqlx_reload,
+    };
+    #[cfg(test)]
+    pub(crate) use super::mock_python_tests::{
+        pyshinqlx_initialize_context, pyshinqlx_is_initialized_context, pyshinqlx_reload_context,
+    };
+    pub(crate) use super::PythonInitializationError;
+    #[cfg(test)]
+    pub(crate) use super::PYSHINQLX_INITIALIZED;
+    #[cfg(not(test))]
+    pub(crate) use super::{pyshinqlx_initialize, pyshinqlx_is_initialized, pyshinqlx_reload};
+
+    #[cfg(not(test))]
+    pub(crate) use super::dispatchers::{
+        client_command_dispatcher, client_connect_dispatcher, client_disconnect_dispatcher,
+        client_loaded_dispatcher, client_spawn_dispatcher, console_print_dispatcher,
+        damage_dispatcher, frame_dispatcher, kamikaze_explode_dispatcher, kamikaze_use_dispatcher,
+        new_game_dispatcher, rcon_dispatcher, server_command_dispatcher,
+        set_configstring_dispatcher,
+    };
+    #[cfg(test)]
+    pub(crate) use super::mock_python_tests::{
+        client_command_dispatcher, client_connect_dispatcher, client_disconnect_dispatcher,
+        client_loaded_dispatcher, client_spawn_dispatcher, console_print_dispatcher,
+        damage_dispatcher, frame_dispatcher, kamikaze_explode_dispatcher, kamikaze_use_dispatcher,
+        new_game_dispatcher, rcon_dispatcher, server_command_dispatcher,
+        set_configstring_dispatcher,
+    };
+    #[cfg(test)]
+    pub(crate) use super::mock_python_tests::{
+        client_command_dispatcher_context, client_connect_dispatcher_context,
+        client_disconnect_dispatcher_context, client_loaded_dispatcher_context,
+        client_spawn_dispatcher_context, console_print_dispatcher_context,
+        damage_dispatcher_context, frame_dispatcher_context, kamikaze_explode_dispatcher_context,
+        kamikaze_use_dispatcher_context, new_game_dispatcher_context, rcon_dispatcher_context,
+        server_command_dispatcher_context, set_configstring_dispatcher_context,
+    };
+
+    #[cfg(test)]
+    #[cfg(not(miri))]
+    pub(crate) use super::pyshinqlx_setup_fixture::*;
+}
 
 use crate::prelude::*;
 
