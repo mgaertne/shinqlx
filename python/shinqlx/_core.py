@@ -318,7 +318,7 @@ def set_map_subtitles() -> None:
     if cs:
         cs += " - "
     shinqlx.set_configstring(
-        679, cs + "Check ^6http://github.com/mgaertne/shinqlx^7 for more details."
+        679, cs + "Check ^6https://github.com/mgaertne/shinqlx^7 for more details."
     )
 
 
