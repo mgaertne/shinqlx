@@ -179,6 +179,11 @@ try:
         _map_subtitle1,
         _map_subtitle2,
         StatsListener,
+        handle_rcon,
+        handle_player_connect,
+        handle_player_loaded,
+        handle_player_spawn,
+        handle_player_disconnect,
     )
 except ModuleNotFoundError:
     _shinqlx = importlib.import_module(name="._shinqlx", package="shinqlx")
@@ -357,6 +362,11 @@ except ModuleNotFoundError:
         _map_subtitle1,
         _map_subtitle2,
         StatsListener,
+        handle_rcon,
+        handle_player_connect,
+        handle_player_loaded,
+        handle_player_spawn,
+        handle_player_disconnect,
     )
 
 from ._core import (
@@ -412,16 +422,11 @@ from ._events import (
 from ._handlers import (
     frame_tasks,
     next_frame_tasks,
-    handle_rcon,
     handle_client_command,
     handle_server_command,
     handle_frame,
     handle_new_game,
     handle_set_configstring,
-    handle_player_connect,
-    handle_player_loaded,
-    handle_player_disconnect,
-    handle_player_spawn,
     handle_kamikaze_use,
     handle_kamikaze_explode,
     handle_console_print,
@@ -639,6 +644,11 @@ __all__ = [
     "reload_plugin",
     "initialize",
     "late_init",
+    "handle_rcon",
+    "handle_player_connect",
+    "handle_player_loaded",
+    "handle_player_spawn",
+    "handle_player_disconnect",
     # _plugin
     "Plugin",
     # _commands
@@ -687,16 +697,11 @@ __all__ = [
     # _handlers
     "frame_tasks",
     "next_frame_tasks",
-    "handle_rcon",
     "handle_client_command",
     "handle_server_command",
     "handle_frame",
     "handle_new_game",
     "handle_set_configstring",
-    "handle_player_connect",
-    "handle_player_loaded",
-    "handle_player_disconnect",
-    "handle_player_spawn",
     "handle_kamikaze_use",
     "handle_kamikaze_explode",
     "handle_console_print",

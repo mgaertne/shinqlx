@@ -7030,7 +7030,7 @@ pub(crate) struct RconDummyPlayer;
 #[pymethods]
 impl RconDummyPlayer {
     #[new]
-    fn py_new() -> PyClassInitializer<Self> {
+    pub(crate) fn py_new() -> PyClassInitializer<Self> {
         AbstractDummyPlayer::py_new("RconDummyPlayer".into()).add_subclass(RconDummyPlayer {})
     }
 

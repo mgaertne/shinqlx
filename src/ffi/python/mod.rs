@@ -3,6 +3,7 @@ mod dispatchers;
 mod embed;
 mod flight;
 mod game;
+mod handlers;
 mod holdable;
 mod player;
 mod player_info;
@@ -21,6 +22,10 @@ pub(crate) mod prelude {
     pub(crate) use super::embed::*;
     pub(crate) use super::flight::Flight;
     pub(crate) use super::game::{Game, NonexistentGameError};
+    pub(crate) use super::handlers::{
+        handle_player_connect, handle_player_disconnect, handle_player_loaded, handle_player_spawn,
+        handle_rcon,
+    };
     pub(crate) use super::holdable::Holdable;
     pub(crate) use super::player::{
         AbstractDummyPlayer, NonexistentPlayerError, Player, RconDummyPlayer,
@@ -990,6 +995,12 @@ fn pyshinqlx_module(py: Python<'_>, m: &PyModule) -> PyResult<()> {
     m.add("PluginLoadError", py.get_type::<PluginLoadError>())?;
     m.add("PluginUnloadError", py.get_type::<PluginUnloadError>())?;
     m.add_class::<StatsListener>()?;
+
+    m.add_function(wrap_pyfunction!(handle_rcon, m)?)?;
+    m.add_function(wrap_pyfunction!(handle_player_connect, m)?)?;
+    m.add_function(wrap_pyfunction!(handle_player_loaded, m)?)?;
+    m.add_function(wrap_pyfunction!(handle_player_disconnect, m)?)?;
+    m.add_function(wrap_pyfunction!(handle_player_spawn, m)?)?;
 
     Ok(())
 }
