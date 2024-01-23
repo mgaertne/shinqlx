@@ -23,22 +23,6 @@ _re_userinfo = re.compile(r"^userinfo \"(?P<vars>.+)\"$")
 #                         LOW-LEVEL HANDLERS
 #        These are all called by the C code, not within Python.
 # ====================================================================
-def handle_rcon(cmd):
-    """Console commands that are to be processed as regular pyshinqlx
-    commands as if the owner executes it. This allows the owner to
-    interact with the Python part of shinqlx without having to connect.
-
-    """
-    # noinspection PyBroadException
-    try:
-        shinqlx.COMMANDS.handle_input(
-            shinqlx.RconDummyPlayer(), cmd, shinqlx.CONSOLE_CHANNEL
-        )
-    except:  # noqa: E722
-        shinqlx.log_exception()
-        return True
-
-
 def handle_client_command(client_id, cmd):
     """Client commands are commands such as "say", "say_team", "scores",
     "disconnect" and so on. This function parses those and passes it
@@ -371,78 +355,6 @@ def handle_set_configstring(index, value):
         return True
 
 
-def handle_player_connect(client_id, _is_bot):
-    """This will be called whenever a player tries to connect. If the dispatcher
-    returns False, it will not allow the player to connect and instead show them
-    a message explaining why. The default message is "You are banned from this
-    server.", but it can be set with :func:`shinqlx.set_ban_message`.
-
-    :param: client_id: The client identifier.
-    :type: client_id: int
-    :param: _is_bot: Whether or not the player is a bot.
-    :type: _is_bot: bool
-
-    """
-    # noinspection PyBroadException
-    try:
-        player = shinqlx.Player(client_id)
-        return shinqlx.EVENT_DISPATCHERS["player_connect"].dispatch(player)
-    except:  # noqa: E722
-        shinqlx.log_exception()
-        return True
-
-
-def handle_player_loaded(client_id):
-    """This will be called whenever a player has connected and finished loading,
-    meaning it'll go off a bit later than the usual "X connected" messages.
-    This will not trigger on bots.
-
-    :param: client_id: The client identifier.
-    :type: client_id: int
-
-    """
-    # noinspection PyBroadException
-    try:
-        player = shinqlx.Player(client_id)
-        return shinqlx.EVENT_DISPATCHERS["player_loaded"].dispatch(player)
-    except:  # noqa: E722
-        shinqlx.log_exception()
-        return True
-
-
-def handle_player_disconnect(client_id, reason):
-    """This will be called whenever a player disconnects.
-
-    :param: client_id: The client identifier.
-    :type: client_id: int
-    :param: reason: The reason for the disconnect
-    :type: reason: str
-
-    """
-    # noinspection PyBroadException
-    try:
-        player = shinqlx.Player(client_id)
-        return shinqlx.EVENT_DISPATCHERS["player_disconnect"].dispatch(player, reason)
-    except:  # noqa: E722
-        shinqlx.log_exception()
-        return True
-
-
-def handle_player_spawn(client_id):
-    """Called when a player spawns. Note that a spectator going in free spectate mode
-    makes the client spawn, so you'll want to check for that if you only want "actual"
-    spawns.
-
-    """
-    # noinspection PyBroadException
-    try:
-        player = shinqlx.Player(client_id)
-        return shinqlx.EVENT_DISPATCHERS["player_spawn"].dispatch(player)
-    except:  # noqa: E722
-        shinqlx.log_exception()
-        return True
-
-
 def handle_kamikaze_use(client_id):
     """This will be called whenever player uses kamikaze item.
 
@@ -568,7 +480,7 @@ def redirect_print(channel):
 
 
 def register_handlers():
-    shinqlx.register_handler("rcon", handle_rcon)
+    shinqlx.register_handler("rcon", shinqlx.handle_rcon)
     shinqlx.register_handler("client_command", handle_client_command)
     shinqlx.register_handler("server_command", handle_server_command)
     shinqlx.register_handler("new_game", handle_new_game)
