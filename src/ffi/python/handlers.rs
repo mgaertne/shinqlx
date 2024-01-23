@@ -1,4 +1,5 @@
 use crate::ffi::python::player::{Player, RconDummyPlayer};
+use crate::prelude::MAX_CLIENTS;
 use pyo3::prelude::*;
 
 fn try_log_exception(py: Python<'_>, exception: PyErr) -> PyResult<()> {
@@ -108,8 +109,8 @@ fn try_handle_player_disconnect(
 
     let shinqlx_module = py.import("shinqlx")?;
     let shinqlx_event_dispatchers = shinqlx_module.getattr("EVENT_DISPATCHERS")?;
-    let player_connect_dispatcher = shinqlx_event_dispatchers.get_item("player_disconnect")?;
-    player_connect_dispatcher
+    let player_disconnect_dispatcher = shinqlx_event_dispatchers.get_item("player_disconnect")?;
+    player_disconnect_dispatcher
         .call_method1("dispatch", (player, reason))
         .map(|value| value.into_py(py))
 }
@@ -132,8 +133,8 @@ fn try_handle_player_spawn(py: Python<'_>, client_id: i32) -> PyResult<PyObject>
 
     let shinqlx_module = py.import("shinqlx")?;
     let shinqlx_event_dispatchers = shinqlx_module.getattr("EVENT_DISPATCHERS")?;
-    let player_connect_dispatcher = shinqlx_event_dispatchers.get_item("player_spawn")?;
-    player_connect_dispatcher
+    let player_spawn_dispatcher = shinqlx_event_dispatchers.get_item("player_spawn")?;
+    player_spawn_dispatcher
         .call_method1("dispatch", (player,))
         .map(|value| value.into_py(py))
 }
@@ -154,8 +155,8 @@ fn try_handle_kamikaze_use(py: Python<'_>, client_id: i32) -> PyResult<PyObject>
 
     let shinqlx_module = py.import("shinqlx")?;
     let shinqlx_event_dispatchers = shinqlx_module.getattr("EVENT_DISPATCHERS")?;
-    let player_connect_dispatcher = shinqlx_event_dispatchers.get_item("kamikaze_use")?;
-    player_connect_dispatcher
+    let kamikaze_use_dispatcher = shinqlx_event_dispatchers.get_item("kamikaze_use")?;
+    kamikaze_use_dispatcher
         .call_method1("dispatch", (player,))
         .map(|value| value.into_py(py))
 }
@@ -167,4 +168,90 @@ pub(crate) fn handle_kamikaze_use(py: Python<'_>, client_id: i32) -> PyObject {
         log_exception(py, e);
         true.into_py(py)
     })
+}
+
+fn try_handle_kamikaze_explode(
+    py: Python<'_>,
+    client_id: i32,
+    is_used_on_demand: bool,
+) -> PyResult<PyObject> {
+    let player = Player::py_new(client_id, None)?;
+
+    let shinqlx_module = py.import("shinqlx")?;
+    let shinqlx_event_dispatchers = shinqlx_module.getattr("EVENT_DISPATCHERS")?;
+    let kamikaze_explode_dispatcher = shinqlx_event_dispatchers.get_item("kamikaze_explode")?;
+    kamikaze_explode_dispatcher
+        .call_method1("dispatch", (player, is_used_on_demand))
+        .map(|value| value.into_py(py))
+}
+
+/// This will be called whenever kamikaze explodes.
+#[pyfunction]
+pub(crate) fn handle_kamikaze_explode(
+    py: Python<'_>,
+    client_id: i32,
+    is_used_on_demand: bool,
+) -> PyObject {
+    try_handle_kamikaze_explode(py, client_id, is_used_on_demand).unwrap_or_else(|e| {
+        log_exception(py, e);
+        true.into_py(py)
+    })
+}
+
+fn try_handle_damage(
+    py: Python<'_>,
+    target_id: i32,
+    attacker_id: Option<i32>,
+    damage: i32,
+    dflags: i32,
+    means_of_death: i32,
+) -> PyResult<Option<bool>> {
+    let target_player = if (0..MAX_CLIENTS as i32).contains(&target_id) {
+        Player::py_new(target_id, None)?.into_py(py)
+    } else {
+        target_id.into_py(py)
+    };
+
+    let attacker_player = attacker_id.and_then(|attacker_id| {
+        if (0..MAX_CLIENTS as i32).contains(&attacker_id) {
+            Player::py_new(attacker_id, None)
+                .ok()
+                .map(|player| player.into_py(py))
+        } else {
+            Some(attacker_id.into_py(py))
+        }
+    });
+
+    let shinqlx_module = py.import("shinqlx")?;
+    let shinqlx_event_dispatchers = shinqlx_module.getattr("EVENT_DISPATCHERS")?;
+    let damage_dispatcher = shinqlx_event_dispatchers.get_item("damage")?;
+    let _ = damage_dispatcher.call_method1(
+        "dispatch",
+        (
+            target_player,
+            attacker_player,
+            damage,
+            dflags,
+            means_of_death,
+        ),
+    )?;
+    Ok(None)
+}
+
+#[pyfunction]
+#[pyo3(signature = (target_id, attacker_id, damage, dflags, means_of_death))]
+pub(crate) fn handle_damage(
+    py: Python<'_>,
+    target_id: i32,
+    attacker_id: Option<i32>,
+    damage: i32,
+    dflags: i32,
+    means_of_death: i32,
+) -> Option<bool> {
+    try_handle_damage(py, target_id, attacker_id, damage, dflags, means_of_death).unwrap_or_else(
+        |e| {
+            log_exception(py, e);
+            Some(true)
+        },
+    )
 }

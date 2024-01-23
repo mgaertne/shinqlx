@@ -23,8 +23,8 @@ pub(crate) mod prelude {
     pub(crate) use super::flight::Flight;
     pub(crate) use super::game::{Game, NonexistentGameError};
     pub(crate) use super::handlers::{
-        handle_kamikaze_use, handle_player_connect, handle_player_disconnect, handle_player_loaded,
-        handle_player_spawn, handle_rcon,
+        handle_damage, handle_kamikaze_explode, handle_kamikaze_use, handle_player_connect,
+        handle_player_disconnect, handle_player_loaded, handle_player_spawn, handle_rcon,
     };
     pub(crate) use super::holdable::Holdable;
     pub(crate) use super::player::{
@@ -1002,6 +1002,8 @@ fn pyshinqlx_module(py: Python<'_>, m: &PyModule) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(handle_player_disconnect, m)?)?;
     m.add_function(wrap_pyfunction!(handle_player_spawn, m)?)?;
     m.add_function(wrap_pyfunction!(handle_kamikaze_use, m)?)?;
+    m.add_function(wrap_pyfunction!(handle_kamikaze_explode, m)?)?;
+    m.add_function(wrap_pyfunction!(handle_damage, m)?)?;
 
     Ok(())
 }

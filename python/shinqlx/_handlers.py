@@ -355,44 +355,6 @@ def handle_set_configstring(index, value):
         return True
 
 
-def handle_kamikaze_explode(client_id, is_used_on_demand):
-    """This will be called whenever kamikaze explodes.
-
-    :param: client_id: The client identifier.
-    :type: client_id: int
-    :param: is_used_on_demand: Non-zero if kamikaze is used on demand.
-    :type: is_used_on_demand: int
-
-
-    """
-    # noinspection PyBroadException
-    try:
-        player = shinqlx.Player(client_id)
-        return shinqlx.EVENT_DISPATCHERS["kamikaze_explode"].dispatch(
-            player, bool(is_used_on_demand)
-        )
-    except:  # noqa: E722
-        shinqlx.log_exception()
-        return True
-
-
-def handle_damage(target_id, attacker_id, damage, dflags, mod):
-    target_player = (
-        shinqlx.Player(target_id) if target_id in range(0, 64) else target_id
-    )
-    attacker_player = (
-        shinqlx.Player(attacker_id) if attacker_id in range(0, 64) else attacker_id
-    )
-    # noinspection PyBroadException
-    try:
-        shinqlx.EVENT_DISPATCHERS["damage"].dispatch(
-            target_player, attacker_player, damage, dflags, mod
-        )
-    except:  # noqa: E722
-        shinqlx.log_exception()
-        return True
-
-
 def handle_console_print(text):
     """Called whenever the server prints something to the console and when rcon is used."""
     if not text:
