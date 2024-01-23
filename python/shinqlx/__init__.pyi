@@ -179,6 +179,7 @@ from ._shinqlx import (
     handle_player_loaded,
     handle_player_spawn,
     handle_player_disconnect,
+    handle_kamikaze_use,
 )
 from ._core import (
     stats_listener,
@@ -275,7 +276,6 @@ from ._handlers import (
     handle_frame,
     handle_new_game,
     handle_set_configstring,
-    handle_kamikaze_use,
     handle_kamikaze_explode,
     handle_console_print,
     handle_damage,
@@ -479,6 +479,7 @@ __all__ = [
     "handle_player_loaded",
     "handle_player_spawn",
     "handle_player_disconnect",
+    "handle_kamikaze_use",
     # _core
     "stats_listener",
     "set_plugins_version",
@@ -576,7 +577,6 @@ __all__ = [
     "handle_frame",
     "handle_new_game",
     "handle_set_configstring",
-    "handle_kamikaze_use",
     "handle_kamikaze_explode",
     "handle_console_print",
     "handle_damage",

@@ -167,3 +167,27 @@ pub(crate) fn handle_player_spawn(module: &PyModule, py: Python<'_>, client_id: 
         true.into_py(py)
     })
 }
+
+fn try_handle_kamikaze_use(
+    module: &PyModule,
+    py: Python<'_>,
+    client_id: i32,
+) -> PyResult<PyObject> {
+    let player = Player::py_new(client_id, None)?;
+
+    let shinqlx_event_dispatchers = module.getattr("EVENT_DISPATCHERS")?;
+    let player_connect_dispatcher = shinqlx_event_dispatchers.get_item("kamikaze_use")?;
+    player_connect_dispatcher
+        .call_method1("dispatch", (player,))
+        .map(|value| value.into_py(py))
+}
+
+/// This will be called whenever player uses kamikaze item.
+#[pyfunction]
+#[pyo3(pass_module)]
+pub(crate) fn handle_kamikaze_use(module: &PyModule, py: Python<'_>, client_id: i32) -> PyObject {
+    try_handle_kamikaze_use(module, py, client_id).unwrap_or_else(|e| {
+        log_exception(py, e);
+        true.into_py(py)
+    })
+}

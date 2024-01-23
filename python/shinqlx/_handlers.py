@@ -355,22 +355,6 @@ def handle_set_configstring(index, value):
         return True
 
 
-def handle_kamikaze_use(client_id):
-    """This will be called whenever player uses kamikaze item.
-
-    :param: client_id: The client identifier.
-    :type: client_id: int
-
-    """
-    # noinspection PyBroadException
-    try:
-        player = shinqlx.Player(client_id)
-        return shinqlx.EVENT_DISPATCHERS["kamikaze_use"].dispatch(player)
-    except:  # noqa: E722
-        shinqlx.log_exception()
-        return True
-
-
 def handle_kamikaze_explode(client_id, is_used_on_demand):
     """This will be called whenever kamikaze explodes.
 
