@@ -184,6 +184,7 @@ try:
         handle_player_loaded,
         handle_player_spawn,
         handle_player_disconnect,
+        handle_kamikaze_use,
     )
 except ModuleNotFoundError:
     _shinqlx = importlib.import_module(name="._shinqlx", package="shinqlx")
@@ -367,6 +368,7 @@ except ModuleNotFoundError:
         handle_player_loaded,
         handle_player_spawn,
         handle_player_disconnect,
+        handle_kamikaze_use,
     )
 
 from ._core import (
@@ -427,7 +429,6 @@ from ._handlers import (
     handle_frame,
     handle_new_game,
     handle_set_configstring,
-    handle_kamikaze_use,
     handle_kamikaze_explode,
     handle_console_print,
     handle_damage,
@@ -635,6 +636,12 @@ __all__ = [
     "SPECTATOR_CHAT_CHANNEL",
     "CONSOLE_CHANNEL",
     "StatsListener",
+    "handle_rcon",
+    "handle_player_connect",
+    "handle_player_loaded",
+    "handle_player_spawn",
+    "handle_player_disconnect",
+    "handle_kamikaze_use",
     # _core
     "stats_listener",
     "set_plugins_version",
@@ -644,11 +651,6 @@ __all__ = [
     "reload_plugin",
     "initialize",
     "late_init",
-    "handle_rcon",
-    "handle_player_connect",
-    "handle_player_loaded",
-    "handle_player_spawn",
-    "handle_player_disconnect",
     # _plugin
     "Plugin",
     # _commands
@@ -702,7 +704,6 @@ __all__ = [
     "handle_frame",
     "handle_new_game",
     "handle_set_configstring",
-    "handle_kamikaze_use",
     "handle_kamikaze_explode",
     "handle_console_print",
     "handle_damage",
