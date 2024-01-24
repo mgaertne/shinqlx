@@ -1,8 +1,10 @@
 use crate::prelude::*;
 use crate::MAIN_ENGINE;
 
-use pyo3::exceptions::{PyEnvironmentError, PyValueError};
-use pyo3::{pyfunction, PyResult, Python};
+use pyo3::{
+    exceptions::{PyEnvironmentError, PyValueError},
+    pyfunction, PyResult, Python,
+};
 
 /// Sets a player's holdable item.
 #[pyfunction]
@@ -48,10 +50,13 @@ mod set_holdable_tests {
     use super::pyshinqlx_set_holdable;
     use super::MAIN_ENGINE;
     use crate::prelude::*;
+
     use mockall::predicate;
     use pretty_assertions::assert_eq;
-    use pyo3::exceptions::{PyEnvironmentError, PyValueError};
-    use pyo3::prelude::*;
+    use pyo3::{
+        exceptions::{PyEnvironmentError, PyValueError},
+        prelude::*,
+    };
 
     #[test]
     #[serial]

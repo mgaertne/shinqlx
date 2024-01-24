@@ -24,6 +24,7 @@ pub(crate) fn pyshinqlx_remove_dropped_items(py: Python<'_>) -> PyResult<bool> {
 mod remove_dropped_items_tests {
     use super::pyshinqlx_remove_dropped_items;
     use crate::prelude::*;
+
     use mockall::predicate;
     use pretty_assertions::assert_eq;
     use pyo3::prelude::*;

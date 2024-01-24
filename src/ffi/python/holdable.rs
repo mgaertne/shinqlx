@@ -62,6 +62,7 @@ impl From<Holdable> for Option<String> {
 #[cfg(test)]
 mod holdable_tests {
     use super::Holdable;
+
     use pretty_assertions::assert_eq;
     use rstest::rstest;
 

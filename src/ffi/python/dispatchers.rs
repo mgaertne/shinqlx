@@ -4,6 +4,7 @@ use super::{
     NEW_GAME_HANDLER, PLAYER_CONNECT_HANDLER, PLAYER_DISCONNECT_HANDLER, PLAYER_LOADED_HANDLER,
     PLAYER_SPAWN_HANDLER, RCON_HANDLER, SERVER_COMMAND_HANDLER, SET_CONFIGSTRING_HANDLER,
 };
+
 use core::sync::atomic::Ordering;
 use log::error;
 use pyo3::Python;
@@ -372,6 +373,7 @@ mod pyshinqlx_dispatcher_tests {
         set_configstring_dispatcher,
     };
     use crate::prelude::*;
+
     use core::sync::atomic::Ordering;
     use pretty_assertions::assert_eq;
     use pyo3::prelude::*;

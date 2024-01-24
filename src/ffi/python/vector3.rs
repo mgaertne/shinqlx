@@ -1,8 +1,5 @@
 use core::array;
-use pyo3::basic::CompareOp;
-use pyo3::exceptions::PyValueError;
-use pyo3::prelude::*;
-use pyo3::types::PyTuple;
+use pyo3::{basic::CompareOp, exceptions::PyValueError, prelude::*, types::PyTuple};
 
 #[pyclass]
 struct Vector3Iter {
@@ -100,9 +97,10 @@ mod vector3_tests {
 
     use pretty_assertions::assert_eq;
     #[cfg(not(miri))]
-    use pyo3::exceptions::{PyTypeError, PyValueError};
-    #[cfg(not(miri))]
-    use pyo3::Python;
+    use pyo3::{
+        exceptions::{PyTypeError, PyValueError},
+        Python,
+    };
     #[cfg(not(miri))]
     use rstest::rstest;
 

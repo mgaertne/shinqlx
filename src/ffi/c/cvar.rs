@@ -1,4 +1,5 @@
 use crate::prelude::*;
+
 use alloc::string::String;
 use core::ffi::CStr;
 
@@ -32,6 +33,7 @@ impl CVar {
 mod cvar_tests {
     use super::CVar;
     use crate::prelude::*;
+
     use alloc::ffi::CString;
     use core::ffi::c_char;
     use pretty_assertions::assert_eq;

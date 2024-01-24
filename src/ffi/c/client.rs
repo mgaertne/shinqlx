@@ -1,7 +1,7 @@
 use crate::prelude::*;
 use crate::MAIN_ENGINE;
-use alloc::ffi::CString;
-use alloc::string::String;
+
+use alloc::{ffi::CString, string::String};
 use core::ffi::{c_char, CStr};
 
 #[derive(Debug, PartialEq)]
@@ -140,6 +140,7 @@ mod client_tests {
     use super::MAIN_ENGINE;
     use crate::prelude::*;
     use crate::quake_live_functions::QuakeLiveFunction;
+
     use core::ffi::{c_char, CStr};
     use once_cell::sync::OnceCell;
     use pretty_assertions::assert_eq;

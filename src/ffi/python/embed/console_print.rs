@@ -21,6 +21,7 @@ mod console_print_tests {
     use super::pyshinqlx_console_print;
     use crate::hooks::mock_hooks::shinqlx_com_printf_context;
     use crate::prelude::*;
+
     use mockall::predicate;
     use pyo3::prelude::*;
 

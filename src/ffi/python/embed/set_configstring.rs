@@ -2,10 +2,9 @@
 use crate::hooks::mock_hooks::shinqlx_set_configstring;
 #[cfg(not(test))]
 use crate::hooks::shinqlx_set_configstring;
-
 use crate::prelude::MAX_CONFIGSTRINGS;
-use pyo3::exceptions::PyValueError;
-use pyo3::{pyfunction, PyResult, Python};
+
+use pyo3::{exceptions::PyValueError, pyfunction, PyResult, Python};
 
 /// Sets a configstring and sends it to all the players on the server.
 #[pyfunction]
@@ -35,9 +34,9 @@ mod set_configstring_tests {
     use super::pyshinqlx_set_configstring;
     use crate::hooks::mock_hooks::shinqlx_set_configstring_context;
     use crate::prelude::*;
+
     use mockall::predicate;
-    use pyo3::exceptions::PyValueError;
-    use pyo3::prelude::*;
+    use pyo3::{exceptions::PyValueError, prelude::*};
 
     #[test]
     #[serial]

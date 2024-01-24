@@ -4,8 +4,10 @@
 #![allow(non_snake_case)]
 
 use alloc::string::String;
-use core::ffi::{c_char, c_float, c_int, c_uchar, c_uint, c_ushort};
-use core::ops::Not;
+use core::{
+    ffi::{c_char, c_float, c_int, c_uchar, c_uint, c_ushort},
+    ops::Not,
+};
 use derive_builder::Builder;
 
 // these are the only configstrings that the system reserves, all the
@@ -243,6 +245,7 @@ impl Not for qboolean {
 #[cfg(test)]
 pub(crate) mod qboolean_tests {
     use crate::prelude::*;
+
     use core::ffi;
     use pretty_assertions::assert_eq;
 
@@ -303,6 +306,7 @@ impl From<i32> for privileges_t {
 #[cfg(test)]
 pub(crate) mod privileges_tests {
     use crate::prelude::*;
+
     use pretty_assertions::assert_eq;
 
     #[test]
@@ -577,6 +581,7 @@ impl TryFrom<usize> for powerup_t {
 #[cfg(test)]
 pub(crate) mod powerup_t_tests {
     use crate::prelude::*;
+
     use pretty_assertions::assert_eq;
 
     #[test]
@@ -681,6 +686,7 @@ impl TryFrom<i32> for weapon_t {
 #[cfg(test)]
 pub(crate) mod weapon_t_tests {
     use crate::prelude::*;
+
     use pretty_assertions::assert_eq;
 
     #[test]
@@ -853,6 +859,7 @@ impl TryFrom<i32> for meansOfDeath_t {
 #[cfg(test)]
 pub(crate) mod meansofdeath_t_tests {
     use crate::prelude::*;
+
     use pretty_assertions::assert_eq;
 
     #[test]
