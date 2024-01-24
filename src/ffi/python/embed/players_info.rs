@@ -1,8 +1,7 @@
 use crate::prelude::*;
 use crate::MAIN_ENGINE;
 
-use pyo3::exceptions::PyEnvironmentError;
-use pyo3::prelude::*;
+use pyo3::{exceptions::PyEnvironmentError, prelude::*};
 
 /// Returns a list with dictionaries with information about all the players on the server.
 #[pyfunction(name = "players_info")]
@@ -41,8 +40,9 @@ mod get_players_info_tests {
     use super::pyshinqlx_players_info;
     use super::MAIN_ENGINE;
     use crate::prelude::*;
+
     use mockall::predicate;
-    use pyo3::exceptions::PyEnvironmentError;
+    pub(crate) use pyo3::exceptions::PyEnvironmentError;
     use pyo3::prelude::*;
 
     #[test]

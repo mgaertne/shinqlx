@@ -19,6 +19,7 @@ pub(crate) fn pyshinqlx_allow_single_player(py: Python<'_>, allow: bool) {
 mod allow_single_player_tests {
     use super::pyshinqlx_allow_single_player;
     use crate::prelude::*;
+
     use mockall::predicate;
     use pyo3::prelude::*;
 

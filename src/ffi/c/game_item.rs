@@ -1,6 +1,7 @@
 use crate::prelude::*;
 use crate::quake_live_engine::{GameAddEvent, TryLaunchItem};
 use crate::MAIN_ENGINE;
+
 use alloc::string::String;
 use core::ffi::{c_float, CStr};
 
@@ -159,6 +160,7 @@ mod game_item_tests {
     use super::GameItem;
     use super::MAIN_ENGINE;
     use crate::prelude::*;
+
     use alloc::ffi::CString;
     use core::ffi::c_char;
     use mockall::predicate;

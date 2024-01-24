@@ -1,7 +1,6 @@
 use crate::prelude::*;
 
-use pyo3::exceptions::PyValueError;
-use pyo3::{pyfunction, PyResult, Python};
+use pyo3::{exceptions::PyValueError, pyfunction, PyResult, Python};
 
 /// get a list of entities that target a given entity
 #[pyfunction]
@@ -28,10 +27,10 @@ pub(crate) fn pyshinqlx_get_entity_targets(py: Python<'_>, entity_id: i32) -> Py
 mod get_entity_targets_tests {
     use super::pyshinqlx_get_entity_targets;
     use crate::prelude::*;
+
     use mockall::predicate;
     use pretty_assertions::assert_eq;
-    use pyo3::exceptions::PyValueError;
-    use pyo3::prelude::*;
+    use pyo3::{exceptions::PyValueError, prelude::*};
 
     #[test]
     fn get_entity_targets_for_too_small_entity_id() {

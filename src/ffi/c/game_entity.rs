@@ -5,10 +5,12 @@ use crate::quake_live_engine::{
     TryLaunchItem,
 };
 use crate::MAIN_ENGINE;
-use alloc::string::String;
-use alloc::vec;
-use core::f32::consts::PI;
-use core::ffi::{c_char, c_float, c_int, CStr};
+
+use alloc::{string::String, vec};
+use core::{
+    f32::consts::PI,
+    ffi::{c_char, c_float, c_int, CStr},
+};
 
 #[derive(Debug, PartialEq)]
 #[repr(transparent)]
@@ -473,10 +475,9 @@ mockall::mock! {
 mod game_entity_tests {
     use super::GameEntity;
     use super::MAIN_ENGINE;
-    use crate::ffi::c::game_entity::{
-        MockStaticFunc, ShiNQlx_Switch_Touch_Item, ShiNQlx_Touch_Item,
-    };
+    use super::{MockStaticFunc, ShiNQlx_Switch_Touch_Item, ShiNQlx_Touch_Item};
     use crate::prelude::*;
+
     use alloc::ffi::CString;
     use core::ffi::c_int;
     use mockall::predicate;

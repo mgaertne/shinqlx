@@ -40,6 +40,7 @@ mockall::mock! {
 mod activator_tests {
     use super::Activator;
     use crate::prelude::*;
+
     use pretty_assertions::assert_eq;
 
     #[test]
