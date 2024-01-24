@@ -1,14 +1,15 @@
 use crate::prelude::*;
 use crate::quake_live_engine::{GetConfigstring, SetConfigstring};
 use crate::MAIN_ENGINE;
+
 use itertools::Itertools;
-use pyo3::basic::CompareOp;
-use pyo3::create_exception;
-use pyo3::exceptions::{
-    PyAttributeError, PyException, PyKeyError, PyNotImplementedError, PyValueError,
+use pyo3::{
+    basic::CompareOp,
+    create_exception,
+    exceptions::{PyAttributeError, PyException, PyKeyError, PyNotImplementedError, PyValueError},
+    prelude::*,
+    types::{IntoPyDict, PyDict, PyType},
 };
-use pyo3::prelude::*;
-use pyo3::types::{IntoPyDict, PyDict, PyType};
 
 create_exception!(pyshinqlx_module, NonexistentPlayerError, PyException);
 
@@ -1230,18 +1231,21 @@ impl Player {
 
 #[cfg(test)]
 mod pyshinqlx_player_tests {
+    use super::MAIN_ENGINE;
     use super::{NonexistentPlayerError, Player};
     use crate::hooks::mock_hooks::{
         shinqlx_client_spawn_context, shinqlx_drop_client_context,
         shinqlx_execute_client_command_context, shinqlx_send_server_command_context,
     };
     use crate::prelude::*;
-    use crate::MAIN_ENGINE;
+
     use mockall::{predicate, Sequence};
     use pretty_assertions::assert_eq;
-    use pyo3::exceptions::{PyEnvironmentError, PyKeyError, PyValueError};
-    use pyo3::types::IntoPyDict;
-    use pyo3::{IntoPy, PyCell, Python};
+    use pyo3::{
+        exceptions::{PyEnvironmentError, PyKeyError, PyValueError},
+        types::IntoPyDict,
+        IntoPy, PyCell, Python,
+    };
     use rstest::rstest;
 
     fn default_test_player_info() -> PlayerInfo {
@@ -6929,8 +6933,11 @@ impl AbstractDummyPlayer {
 #[cfg(test)]
 mod pyshinqlx_abstract_dummy_player_tests {
     use crate::prelude::*;
-    use pyo3::exceptions::{PyAttributeError, PyNotImplementedError};
-    use pyo3::Python;
+
+    use pyo3::{
+        exceptions::{PyAttributeError, PyNotImplementedError},
+        Python,
+    };
     use rstest::rstest;
 
     #[rstest]
@@ -7086,6 +7093,7 @@ console_channel = shinqlx.CONSOLE_CHANNEL"#,
 #[cfg(test)]
 mod pyshinqlx_rcon_dummy_player_tests {
     use crate::prelude::*;
+
     use pyo3::Python;
     use rstest::rstest;
 

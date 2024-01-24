@@ -1,9 +1,6 @@
 use crate::prelude::*;
 
-use pyo3::basic::CompareOp;
-use pyo3::exceptions::PyNotImplementedError;
-use pyo3::prelude::*;
-use pyo3::types::IntoPyDict;
+use pyo3::{basic::CompareOp, exceptions::PyNotImplementedError, prelude::*, types::IntoPyDict};
 use regex::Regex;
 
 /// An abstract class of a chat channel. A chat channel being a source of a message.
@@ -123,9 +120,10 @@ mod abstract_channel_tests {
 
     use pretty_assertions::assert_eq;
     #[cfg(not(miri))]
-    use pyo3::exceptions::{PyNotImplementedError, PyTypeError};
-    #[cfg(not(miri))]
-    use pyo3::{Py, Python};
+    use pyo3::{
+        exceptions::{PyNotImplementedError, PyTypeError},
+        Py, Python,
+    };
     #[cfg(not(miri))]
     use rstest::rstest;
 
@@ -365,6 +363,7 @@ mod console_channel_tests {
     use super::ConsoleChannel;
     use crate::hooks::mock_hooks::shinqlx_com_printf_context;
     use crate::prelude::*;
+
     use mockall::predicate;
     use pyo3::{Py, Python};
     use rstest::rstest;
@@ -522,8 +521,7 @@ mod chat_channel_tests {
     use super::ChatChannel;
     use crate::prelude::*;
 
-    use pyo3::exceptions::PyNotImplementedError;
-    use pyo3::Python;
+    use pyo3::{exceptions::PyNotImplementedError, Python};
     use rstest::rstest;
 
     #[rstest]
@@ -596,12 +594,11 @@ impl TellChannel {
 mod tell_channel_tests {
     use super::TellChannel;
     use crate::prelude::*;
+
     use mockall::predicate;
     use pretty_assertions::assert_eq;
     #[cfg(not(miri))]
-    use pyo3::types::IntoPyDict;
-    #[cfg(not(miri))]
-    use pyo3::{IntoPy, Python};
+    use pyo3::{types::IntoPyDict, IntoPy, Python};
     #[cfg(not(miri))]
     use rstest::rstest;
 
@@ -764,6 +761,7 @@ mod team_chat_channel_tests {
     use super::TeamChatChannel;
     use crate::prelude::*;
     use crate::MAIN_ENGINE;
+
     use pyo3::Python;
     use rstest::*;
 
@@ -960,13 +958,12 @@ impl ClientCommandChannel {
 mod client_command_channel_tests {
     use super::ClientCommandChannel;
     use crate::prelude::*;
+
     use mockall::predicate;
     use pretty_assertions::assert_eq;
-    #[cfg(not(miri))]
-    use pyo3::types::IntoPyDict;
-    #[cfg(not(miri))]
-    use pyo3::IntoPy;
     use pyo3::Python;
+    #[cfg(not(miri))]
+    use pyo3::{types::IntoPyDict, IntoPy};
     #[cfg(not(miri))]
     use rstest::rstest;
 

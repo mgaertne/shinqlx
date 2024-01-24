@@ -1,6 +1,9 @@
 use crate::prelude::*;
-use core::borrow::Borrow;
-use core::fmt::{Display, Formatter};
+
+use core::{
+    borrow::Borrow,
+    fmt::{Display, Formatter},
+};
 use retour::{Function, GenericDetour, HookableWith};
 
 #[cfg(target_os = "linux")]
