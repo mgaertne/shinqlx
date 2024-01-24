@@ -1,4 +1,5 @@
 use crate::prelude::*;
+
 use pyo3::prelude::*;
 
 /// Information about a player's state in the game.
@@ -113,6 +114,7 @@ impl From<GameEntity> for PlayerState {
 mod player_state_tests {
     use super::PlayerState;
     use crate::prelude::*;
+
     use pretty_assertions::assert_eq;
 
     #[test]

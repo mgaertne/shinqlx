@@ -1,7 +1,6 @@
 use crate::prelude::*;
 
-use pyo3::exceptions::PyValueError;
-use pyo3::{pyfunction, PyResult, Python};
+use pyo3::{exceptions::PyValueError, pyfunction, PyResult, Python};
 
 /// Slay player with mean of death.
 #[pyfunction]
@@ -32,10 +31,10 @@ pub(crate) fn pyshinqlx_force_weapon_respawn_time(
 mod force_weapon_respawn_time_tests {
     use super::pyshinqlx_force_weapon_respawn_time;
     use crate::prelude::*;
+
     use mockall::predicate;
     use pretty_assertions::assert_eq;
-    use pyo3::exceptions::PyValueError;
-    use pyo3::prelude::*;
+    use pyo3::{exceptions::PyValueError, prelude::*};
 
     #[test]
     fn force_weapon_respawn_time_with_too_small_respawn_time() {

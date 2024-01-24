@@ -5,8 +5,10 @@ use crate::hooks::shinqlx_execute_client_command;
 use crate::prelude::*;
 use crate::MAIN_ENGINE;
 
-use pyo3::exceptions::{PyEnvironmentError, PyValueError};
-use pyo3::prelude::*;
+use pyo3::{
+    exceptions::{PyEnvironmentError, PyValueError},
+    prelude::*,
+};
 
 /// Tells the server to process a command from a specific client.
 #[pyfunction]
@@ -51,9 +53,12 @@ mod client_command_tests {
     use super::MAIN_ENGINE;
     use crate::hooks::mock_hooks::shinqlx_execute_client_command_context;
     use crate::prelude::*;
+
     use pretty_assertions::assert_eq;
-    use pyo3::exceptions::{PyEnvironmentError, PyValueError};
-    use pyo3::prelude::*;
+    use pyo3::{
+        exceptions::{PyEnvironmentError, PyValueError},
+        prelude::*,
+    };
     use rstest::*;
 
     #[test]

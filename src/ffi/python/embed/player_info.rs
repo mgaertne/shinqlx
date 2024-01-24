@@ -2,8 +2,10 @@ use crate::prelude::*;
 use crate::MAIN_ENGINE;
 
 use core::sync::atomic::Ordering;
-use pyo3::exceptions::{PyEnvironmentError, PyValueError};
-use pyo3::prelude::*;
+use pyo3::{
+    exceptions::{PyEnvironmentError, PyValueError},
+    prelude::*,
+};
 
 /// Returns a dictionary with information about a plapub(crate) yer by ID.
 #[pyfunction(name = "player_info")]
@@ -58,9 +60,12 @@ mod get_player_info_tests {
     use super::pyshinqlx_player_info;
     use super::MAIN_ENGINE;
     use crate::prelude::*;
+
     use core::sync::atomic::Ordering;
-    use pyo3::exceptions::{PyEnvironmentError, PyValueError};
-    use pyo3::prelude::*;
+    use pyo3::{
+        exceptions::{PyEnvironmentError, PyValueError},
+        prelude::*,
+    };
 
     #[test]
     #[serial]

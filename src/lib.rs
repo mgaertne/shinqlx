@@ -27,24 +27,27 @@ pub(crate) mod prelude {
     #[cfg(not(test))]
     pub(crate) use crate::quake_live_engine::QuakeLiveEngine;
     pub(crate) use crate::quake_live_engine::QuakeLiveEngineError;
+
     pub(crate) use alloc::format;
-    pub(crate) use core::mem;
-    pub(crate) use core::ptr;
+    pub(crate) use core::{mem, ptr};
     pub(crate) use log::{debug, error, warn};
     #[cfg(test)]
     pub(crate) use serial_test::serial;
 }
 
 use crate::prelude::*;
+
 use alloc::sync::Arc;
 use arc_swap::ArcSwapOption;
 #[cfg(not(test))]
 use ctor::ctor;
 use log::LevelFilter;
-use log4rs::append::console::ConsoleAppender;
-use log4rs::config::{Appender, Root};
-use log4rs::encode::pattern::PatternEncoder;
-use log4rs::{Config, Handle};
+use log4rs::{
+    append::console::ConsoleAppender,
+    config::{Appender, Root},
+    encode::pattern::PatternEncoder,
+    Config, Handle,
+};
 use once_cell::sync::{Lazy, OnceCell};
 use signal_hook::consts::SIGSEGV;
 use std::time::Instant;

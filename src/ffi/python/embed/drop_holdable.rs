@@ -1,8 +1,10 @@
 use crate::prelude::*;
 use crate::MAIN_ENGINE;
 
-use pyo3::exceptions::{PyEnvironmentError, PyValueError};
-use pyo3::{pyfunction, PyResult, Python};
+use pyo3::{
+    exceptions::{PyEnvironmentError, PyValueError},
+    pyfunction, PyResult, Python,
+};
 
 /// Drops player's holdable item.
 #[pyfunction]
@@ -56,10 +58,13 @@ mod drop_holdable_tests {
     use super::pyshinqlx_drop_holdable;
     use super::MAIN_ENGINE;
     use crate::prelude::*;
+
     use mockall::Sequence;
     use pretty_assertions::assert_eq;
-    use pyo3::exceptions::{PyEnvironmentError, PyValueError};
-    use pyo3::prelude::*;
+    use pyo3::{
+        exceptions::{PyEnvironmentError, PyValueError},
+        prelude::*,
+    };
     use rstest::rstest;
 
     #[test]

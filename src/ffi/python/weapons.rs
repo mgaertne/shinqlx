@@ -1,7 +1,4 @@
-use pyo3::basic::CompareOp;
-use pyo3::exceptions::PyValueError;
-use pyo3::prelude::*;
-use pyo3::types::PyTuple;
+use pyo3::{basic::CompareOp, exceptions::PyValueError, prelude::*, types::PyTuple};
 
 /// A struct sequence containing all the weapons in the game.
 #[pyclass(module = "_shinqlx", name = "Weapons", frozen, get_all)]
@@ -101,10 +98,12 @@ impl Weapons {
 mod weapons_tests {
     #[cfg(not(miri))]
     use crate::prelude::*;
+
     #[cfg(not(miri))]
-    use pyo3::exceptions::{PyTypeError, PyValueError};
-    #[cfg(not(miri))]
-    use pyo3::Python;
+    use pyo3::{
+        exceptions::{PyTypeError, PyValueError},
+        Python,
+    };
     #[cfg(not(miri))]
     use rstest::rstest;
 
@@ -226,11 +225,13 @@ mod ammo_tests {
     use super::Weapons;
     #[cfg(not(miri))]
     use crate::prelude::*;
+
     use pretty_assertions::assert_eq;
     #[cfg(not(miri))]
-    use pyo3::exceptions::{PyTypeError, PyValueError};
-    #[cfg(not(miri))]
-    use pyo3::Python;
+    use pyo3::{
+        exceptions::{PyTypeError, PyValueError},
+        Python,
+    };
     #[cfg(not(miri))]
     use rstest::rstest;
 

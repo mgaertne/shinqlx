@@ -1,8 +1,7 @@
 use crate::quake_live_engine::{FindCVar, GetCVar, SetCVarForced};
 use crate::MAIN_ENGINE;
 
-use pyo3::exceptions::PyEnvironmentError;
-use pyo3::prelude::*;
+use pyo3::{exceptions::PyEnvironmentError, prelude::*};
 
 /// Sets a cvar.
 #[pyfunction]
@@ -44,10 +43,10 @@ mod set_cvar_tests {
     use super::pyshinqlx_set_cvar;
     use super::MAIN_ENGINE;
     use crate::prelude::*;
+
     use mockall::predicate;
     use pretty_assertions::assert_eq;
-    use pyo3::exceptions::PyEnvironmentError;
-    use pyo3::prelude::*;
+    use pyo3::{exceptions::PyEnvironmentError, prelude::*};
 
     #[test]
     #[serial]

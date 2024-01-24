@@ -5,9 +5,12 @@ use crate::quake_live_engine::{
     ShutdownGame, SpawnServer,
 };
 use crate::MAIN_ENGINE;
+
 use alloc::string::String;
-use core::borrow::BorrowMut;
-use core::ffi::{c_char, c_int, CStr, VaList, VaListImpl};
+use core::{
+    borrow::BorrowMut,
+    ffi::{c_char, c_int, CStr, VaList, VaListImpl},
+};
 
 pub(crate) fn shinqlx_cmd_addcommand(cmd: *const c_char, func: unsafe extern "C" fn()) {
     let Some(ref main_engine) = *MAIN_ENGINE.load() else {
@@ -531,14 +534,15 @@ pub(crate) mod hooks {
 #[cfg(test)]
 mod hooks_tests {
     use super::MAIN_ENGINE;
-    use crate::hooks::{
-        shinqlx_client_connect, shinqlx_client_spawn, shinqlx_com_printf, shinqlx_drop_client,
-        shinqlx_execute_client_command, shinqlx_g_damage, shinqlx_g_initgame, shinqlx_g_runframe,
-        shinqlx_g_shutdowngame, shinqlx_send_server_command, shinqlx_set_configstring,
-        shinqlx_sv_cliententerworld, shinqlx_sv_spawnserver, shinqlx_sys_setmoduleoffset,
+    use super::{
+        shinqlx_client_connect, shinqlx_client_spawn, shinqlx_cmd_addcommand, shinqlx_com_printf,
+        shinqlx_drop_client, shinqlx_execute_client_command, shinqlx_g_damage, shinqlx_g_initgame,
+        shinqlx_g_runframe, shinqlx_g_shutdowngame, shinqlx_g_startkamikaze,
+        shinqlx_send_server_command, shinqlx_set_configstring, shinqlx_sv_cliententerworld,
+        shinqlx_sv_spawnserver, shinqlx_sys_setmoduleoffset,
     };
-    use crate::hooks::{shinqlx_cmd_addcommand, shinqlx_g_startkamikaze};
     use crate::prelude::*;
+
     use alloc::ffi::CString;
     use core::ffi::{c_char, CStr};
     use mockall::predicate;

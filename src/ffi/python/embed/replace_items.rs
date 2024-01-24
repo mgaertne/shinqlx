@@ -1,7 +1,6 @@
 use crate::prelude::*;
 
-use pyo3::exceptions::PyValueError;
-use pyo3::{pyfunction, Py, PyAny, PyResult, Python};
+use pyo3::{exceptions::PyValueError, pyfunction, Py, PyAny, PyResult, Python};
 
 fn determine_item_id(item: &PyAny) -> PyResult<i32> {
     if let Ok(item_id) = item.extract::<i32>() {
@@ -107,10 +106,10 @@ pub(crate) fn pyshinqlx_replace_items(
 mod replace_items_tests {
     use super::pyshinqlx_replace_items;
     use crate::prelude::*;
+
     use mockall::predicate;
     use pretty_assertions::assert_eq;
-    use pyo3::exceptions::PyValueError;
-    use pyo3::prelude::*;
+    use pyo3::{exceptions::PyValueError, prelude::*};
 
     #[test]
     #[serial]
