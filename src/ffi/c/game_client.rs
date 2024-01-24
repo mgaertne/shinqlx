@@ -1,4 +1,5 @@
 use crate::prelude::*;
+
 use alloc::string::String;
 use alloc::vec::Vec;
 use core::ffi::{c_int, CStr};
@@ -399,6 +400,7 @@ mockall::mock! {
 mod game_client_tests {
     use super::GameClient;
     use crate::prelude::*;
+
     use core::ffi::c_char;
     use pretty_assertions::assert_eq;
     use rstest::*;

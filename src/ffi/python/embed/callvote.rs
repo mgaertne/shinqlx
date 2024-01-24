@@ -24,6 +24,7 @@ pub(crate) fn pyshinqlx_callvote(
 mod callvote_tests {
     use super::pyshinqlx_callvote;
     use crate::prelude::*;
+
     use mockall::predicate;
     use pyo3::prelude::*;
 

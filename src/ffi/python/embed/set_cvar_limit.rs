@@ -1,8 +1,7 @@
 use crate::quake_live_engine::SetCVarLimit;
 use crate::MAIN_ENGINE;
 
-use pyo3::exceptions::PyEnvironmentError;
-use pyo3::{pyfunction, PyResult, Python};
+use pyo3::{exceptions::PyEnvironmentError, pyfunction, PyResult, Python};
 
 /// Sets a non-string cvar with a minimum and maximum value.
 #[pyfunction]
@@ -35,9 +34,9 @@ mod set_cvar_limit_tests {
     use super::pyshinqlx_set_cvar_limit;
     use super::MAIN_ENGINE;
     use crate::prelude::*;
+
     use mockall::predicate;
-    use pyo3::exceptions::PyEnvironmentError;
-    use pyo3::prelude::*;
+    use pyo3::{exceptions::PyEnvironmentError, prelude::*};
 
     #[test]
     #[serial]

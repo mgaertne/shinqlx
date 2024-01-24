@@ -1,8 +1,7 @@
 use crate::quake_live_engine::ConsoleCommand;
 use crate::MAIN_ENGINE;
 
-use pyo3::exceptions::PyEnvironmentError;
-use pyo3::prelude::*;
+use pyo3::{exceptions::PyEnvironmentError, prelude::*};
 
 /// Executes a command as if it was executed from the server console.
 #[pyfunction]
@@ -27,9 +26,9 @@ mod console_command_tests {
     use super::pyshinqlx_console_command;
     use super::MAIN_ENGINE;
     use crate::prelude::*;
+
     use mockall::predicate;
-    use pyo3::exceptions::PyEnvironmentError;
-    use pyo3::prelude::*;
+    use pyo3::{exceptions::PyEnvironmentError, prelude::*};
 
     #[test]
     #[serial]

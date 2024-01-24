@@ -1,7 +1,9 @@
 use crate::prelude::*;
 
-use pyo3::exceptions::{PyTypeError, PyValueError};
-use pyo3::{pyfunction, Py, PyAny, PyResult, Python};
+use pyo3::{
+    exceptions::{PyTypeError, PyValueError},
+    pyfunction, Py, PyAny, PyResult, Python,
+};
 
 /// Register an event handler. Can be called more than once per event, but only the last one will work.
 #[pyfunction]
@@ -53,8 +55,10 @@ mod register_handler_tests {
     use alloc::sync::Arc;
     use arc_swap::ArcSwapOption;
     use once_cell::sync::Lazy;
-    use pyo3::exceptions::{PyTypeError, PyValueError};
-    use pyo3::prelude::*;
+    use pyo3::{
+        exceptions::{PyTypeError, PyValueError},
+        prelude::*,
+    };
     use rstest::rstest;
 
     #[rstest]

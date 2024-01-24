@@ -79,6 +79,7 @@ impl From<Option<String>> for Holdable {
 #[cfg(test)]
 mod holdable_tests {
     use super::Holdable;
+
     use pretty_assertions::assert_eq;
     use rstest::rstest;
 

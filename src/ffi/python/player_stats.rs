@@ -1,4 +1,5 @@
 use crate::prelude::*;
+
 use pyo3::prelude::*;
 
 /// A player's score and some basic stats.
@@ -52,6 +53,7 @@ impl From<GameClient> for PlayerStats {
 mod player_stats_tests {
     use super::PlayerStats;
     use crate::prelude::*;
+
     use pretty_assertions::assert_eq;
 
     #[test]

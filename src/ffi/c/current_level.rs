@@ -4,6 +4,7 @@ use crate::hooks::mock_hooks::shinqlx_set_configstring;
 use crate::hooks::shinqlx_set_configstring;
 use crate::prelude::*;
 use crate::MAIN_ENGINE;
+
 use core::ffi::c_char;
 
 #[derive(Debug, PartialEq)]
@@ -106,9 +107,10 @@ mockall::mock! {
 mod current_level_tests {
     use super::CurrentLevel;
     use super::MAIN_ENGINE;
-    use crate::hooks::mock_hooks::*;
+    use crate::hooks::mock_hooks::shinqlx_set_configstring_context;
     use crate::prelude::*;
     use crate::quake_live_functions::QuakeLiveFunction::G_InitGame;
+
     use core::ffi::CStr;
     use mockall::predicate;
     use pretty_assertions::assert_eq;

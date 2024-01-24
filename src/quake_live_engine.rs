@@ -17,16 +17,15 @@ use crate::quake_live_functions::QuakeLiveFunction;
 #[cfg(target_os = "linux")]
 use crate::QZERODED;
 
-use alloc::ffi::CString;
-use alloc::string::String;
-use alloc::sync::Arc;
+use alloc::{ffi::CString, string::String, sync::Arc};
 use arc_swap::ArcSwapOption;
 #[cfg(target_os = "linux")]
 use arrayvec::ArrayVec;
-use core::ffi::{c_char, c_int, CStr};
-use core::sync::atomic::{AtomicI32, AtomicUsize, Ordering};
-use once_cell::race::OnceBool;
-use once_cell::sync::OnceCell;
+use core::{
+    ffi::{c_char, c_int, CStr},
+    sync::atomic::{AtomicI32, AtomicUsize, Ordering},
+};
+use once_cell::{race::OnceBool, sync::OnceCell};
 #[cfg(target_os = "linux")]
 use procfs::process::{MMapPath, MemoryMap, Process};
 use retour::{GenericDetour, RawDetour};

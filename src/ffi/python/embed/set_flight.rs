@@ -1,8 +1,10 @@
 use crate::prelude::*;
 use crate::MAIN_ENGINE;
 
-use pyo3::exceptions::{PyEnvironmentError, PyValueError};
-use pyo3::{pyfunction, PyResult, Python};
+use pyo3::{
+    exceptions::{PyEnvironmentError, PyValueError},
+    pyfunction, PyResult, Python,
+};
 
 /// Sets a player's flight parameters, such as current fuel, max fuel and, so on.
 #[pyfunction]
@@ -47,10 +49,13 @@ mod set_flight_tests {
     use super::pyshinqlx_set_flight;
     use super::MAIN_ENGINE;
     use crate::prelude::*;
+
     use mockall::predicate;
     use pretty_assertions::assert_eq;
-    use pyo3::exceptions::{PyEnvironmentError, PyValueError};
-    use pyo3::prelude::*;
+    use pyo3::{
+        exceptions::{PyEnvironmentError, PyValueError},
+        prelude::*,
+    };
 
     #[test]
     #[serial]

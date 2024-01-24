@@ -3,6 +3,7 @@ use crate::quake_live_engine::{
     CmdArgc, CmdArgs, CmdArgv, ComPrintf, GameAddEvent, SendServerCommand,
 };
 use crate::MAIN_ENGINE;
+
 use pyo3::Python;
 use rand::Rng;
 
@@ -289,9 +290,9 @@ mod commands_tests {
         cmd_send_server_command, cmd_slap, cmd_slay,
     };
     use crate::prelude::*;
+
     use mockall::predicate;
-    use pyo3::types::PyModule;
-    use pyo3::{IntoPy, Py, Python};
+    use pyo3::{types::PyModule, IntoPy, Py, Python};
     #[cfg(not(miri))]
     use rstest::rstest;
     use serial_test::serial;

@@ -93,6 +93,7 @@ mod server_static_tests {
     use super::MAIN_ENGINE;
     use crate::prelude::*;
     use crate::quake_live_functions::QuakeLiveFunction::SV_Shutdown;
+
     use pretty_assertions::assert_eq;
 
     #[test]
