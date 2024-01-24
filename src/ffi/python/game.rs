@@ -3,10 +3,12 @@ use crate::prelude::*;
 use itertools::Itertools;
 use log::*;
 
-use pyo3::create_exception;
-use pyo3::exceptions::{PyException, PyKeyError, PyValueError};
-use pyo3::prelude::*;
-use pyo3::types::{IntoPyDict, PyDict, PyType};
+use pyo3::{
+    create_exception,
+    exceptions::{PyException, PyKeyError, PyValueError},
+    prelude::*,
+    types::{IntoPyDict, PyDict, PyType},
+};
 
 create_exception!(pyshinqlx_module, NonexistentGameError, PyException);
 
@@ -684,8 +686,10 @@ mod pyshinqlx_game_tests {
 
     use mockall::predicate;
     use pretty_assertions::assert_eq;
-    use pyo3::exceptions::{PyEnvironmentError, PyKeyError, PyValueError};
-    use pyo3::prelude::*;
+    use pyo3::{
+        exceptions::{PyEnvironmentError, PyKeyError, PyValueError},
+        prelude::*,
+    };
     use rstest::rstest;
 
     #[test]

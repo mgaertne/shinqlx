@@ -40,7 +40,6 @@ pub(crate) mod prelude {
 
     pub(crate) use super::{clean_text, parse_variables};
 
-    pub(crate) use super::ALLOW_FREE_CLIENT;
     pub(crate) use super::{
         ALLOW_FREE_CLIENT, CLIENT_COMMAND_HANDLER, CONSOLE_PRINT_HANDLER, CUSTOM_COMMAND_HANDLER,
         DAMAGE_HANDLER, FRAME_HANDLER, KAMIKAZE_EXPLODE_HANDLER, KAMIKAZE_USE_HANDLER,
@@ -100,16 +99,21 @@ use crate::_INIT_TIME;
 
 use alloc::sync::Arc;
 use arc_swap::ArcSwapOption;
-use core::ops::Deref;
-use core::str::FromStr;
-use core::sync::atomic::{AtomicBool, AtomicU64, Ordering};
+use core::{
+    ops::Deref,
+    str::FromStr,
+    sync::atomic::{AtomicBool, AtomicU64, Ordering},
+};
 use itertools::Itertools;
 use log::*;
 use once_cell::sync::Lazy;
-use pyo3::exceptions::{PyEnvironmentError, PyException};
-use pyo3::prelude::*;
-use pyo3::types::{IntoPyDict, PyDelta, PyDict, PyFunction, PyTuple};
-use pyo3::{append_to_inittab, create_exception, prepare_freethreaded_python};
+use pyo3::{
+    append_to_inittab, create_exception,
+    exceptions::{PyEnvironmentError, PyException},
+    prelude::*,
+    prepare_freethreaded_python,
+    types::{IntoPyDict, PyDelta, PyDict, PyFunction, PyTuple},
+};
 use regex::Regex;
 
 pub(crate) static ALLOW_FREE_CLIENT: AtomicU64 = AtomicU64::new(0);

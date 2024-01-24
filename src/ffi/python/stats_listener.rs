@@ -1,8 +1,8 @@
 use crate::prelude::*;
 use crate::quake_live_engine::FindCVar;
 use crate::MAIN_ENGINE;
-use pyo3::exceptions::PyEnvironmentError;
-use pyo3::prelude::*;
+
+use pyo3::{exceptions::PyEnvironmentError, prelude::*};
 use serde_json::Value;
 use zmq::{Context, SocketType, DONTWAIT, POLLIN};
 
