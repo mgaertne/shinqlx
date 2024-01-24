@@ -4,6 +4,8 @@ use core::{
     borrow::Borrow,
     fmt::{Display, Formatter},
 };
+#[cfg(target_os = "linux")]
+use procfs::process::{MMPermissions, MemoryMap};
 use retour::{Function, GenericDetour, HookableWith};
 
 #[cfg(target_os = "linux")]
