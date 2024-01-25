@@ -1,9 +1,6 @@
-use crate::prelude::*;
+use crate::ffi::python::prelude::*;
 
-use pyo3::{
-    exceptions::{PyTypeError, PyValueError},
-    pyfunction, Py, PyAny, PyResult, Python,
-};
+use pyo3::exceptions::{PyTypeError, PyValueError};
 
 /// Register an event handler. Can be called more than once per event, but only the last one will work.
 #[pyfunction]
@@ -50,15 +47,13 @@ pub(crate) fn pyshinqlx_register_handler(
 #[cfg(not(miri))]
 mod register_handler_tests {
     use super::pyshinqlx_register_handler;
+    use crate::ffi::python::prelude::*;
     use crate::prelude::*;
 
     use alloc::sync::Arc;
     use arc_swap::ArcSwapOption;
     use once_cell::sync::Lazy;
-    use pyo3::{
-        exceptions::{PyTypeError, PyValueError},
-        prelude::*,
-    };
+    use pyo3::exceptions::{PyTypeError, PyValueError};
     use rstest::rstest;
 
     #[rstest]

@@ -1,14 +1,12 @@
+use crate::ffi::c::prelude::*;
+use crate::ffi::python::prelude::*;
 #[cfg(test)]
 use crate::hooks::mock_hooks::shinqlx_send_server_command;
 #[cfg(not(test))]
 use crate::hooks::shinqlx_send_server_command;
-use crate::prelude::*;
 use crate::MAIN_ENGINE;
 
-use pyo3::{
-    exceptions::{PyEnvironmentError, PyValueError},
-    prelude::*,
-};
+use pyo3::exceptions::{PyEnvironmentError, PyValueError};
 
 /// Sends a server command to either one specific client or all the clients.
 #[pyfunction]
@@ -60,14 +58,13 @@ pub(crate) fn pyshinqlx_send_server_command(
 mod send_server_command_tests {
     use super::pyshinqlx_send_server_command;
     use super::MAIN_ENGINE;
+    use crate::ffi::c::prelude::*;
+    use crate::ffi::python::prelude::*;
     use crate::hooks::mock_hooks::shinqlx_send_server_command_context;
     use crate::prelude::*;
 
     use pretty_assertions::assert_eq;
-    use pyo3::{
-        exceptions::{PyEnvironmentError, PyValueError},
-        prelude::*,
-    };
+    use pyo3::exceptions::{PyEnvironmentError, PyValueError};
     use rstest::rstest;
 
     #[test]

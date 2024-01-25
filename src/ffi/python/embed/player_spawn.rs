@@ -1,14 +1,12 @@
+use crate::ffi::c::prelude::*;
+use crate::ffi::python::prelude::*;
 #[cfg(test)]
 use crate::hooks::mock_hooks::shinqlx_client_spawn;
 #[cfg(not(test))]
 use crate::hooks::shinqlx_client_spawn;
-use crate::prelude::*;
 use crate::MAIN_ENGINE;
 
-use pyo3::{
-    exceptions::{PyEnvironmentError, PyValueError},
-    pyfunction, PyResult, Python,
-};
+use pyo3::exceptions::{PyEnvironmentError, PyValueError};
 
 /// Spawns a player.
 #[pyfunction]
@@ -55,14 +53,13 @@ pub(crate) fn pyshinqlx_player_spawn(py: Python<'_>, client_id: i32) -> PyResult
 mod player_spawn_tests {
     use super::pyshinqlx_player_spawn;
     use super::MAIN_ENGINE;
+    use crate::ffi::c::prelude::*;
+    use crate::ffi::python::prelude::*;
     use crate::hooks::mock_hooks::shinqlx_client_spawn_context;
     use crate::prelude::*;
 
     use pretty_assertions::assert_eq;
-    use pyo3::{
-        exceptions::{PyEnvironmentError, PyValueError},
-        prelude::*,
-    };
+    use pyo3::exceptions::{PyEnvironmentError, PyValueError};
 
     #[test]
     #[serial]

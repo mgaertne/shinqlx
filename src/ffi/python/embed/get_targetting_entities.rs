@@ -1,6 +1,7 @@
-use crate::prelude::*;
+use crate::ffi::c::prelude::*;
+use crate::ffi::python::prelude::*;
 
-use pyo3::{exceptions::PyValueError, pyfunction, PyResult, Python};
+use pyo3::exceptions::PyValueError;
 
 /// get a list of entities that target a given entity
 #[pyfunction]
@@ -26,11 +27,13 @@ pub(crate) fn pyshinqlx_get_entity_targets(py: Python<'_>, entity_id: i32) -> Py
 #[cfg(not(miri))]
 mod get_entity_targets_tests {
     use super::pyshinqlx_get_entity_targets;
+    use crate::ffi::c::prelude::*;
+    use crate::ffi::python::prelude::*;
     use crate::prelude::*;
 
     use mockall::predicate;
     use pretty_assertions::assert_eq;
-    use pyo3::{exceptions::PyValueError, prelude::*};
+    use pyo3::exceptions::PyValueError;
 
     #[test]
     fn get_entity_targets_for_too_small_entity_id() {

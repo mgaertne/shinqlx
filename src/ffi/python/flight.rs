@@ -1,4 +1,6 @@
-use pyo3::{basic::CompareOp, exceptions::PyValueError, prelude::*, types::PyTuple};
+use super::prelude::*;
+
+use pyo3::{basic::CompareOp, exceptions::PyValueError, types::PyTuple};
 
 /// A struct sequence containing parameters for the flight holdable item.
 #[pyclass(frozen)]
@@ -77,14 +79,11 @@ impl Flight {
 mod flight_tests {
     use super::Flight;
     #[cfg(not(miri))]
-    use crate::prelude::*;
+    use crate::ffi::python::prelude::*;
 
     use pretty_assertions::assert_eq;
     #[cfg(not(miri))]
-    use pyo3::{
-        exceptions::{PyTypeError, PyValueError},
-        Python,
-    };
+    use pyo3::exceptions::{PyTypeError, PyValueError};
     #[cfg(not(miri))]
     use rstest::rstest;
 

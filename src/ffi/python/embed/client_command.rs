@@ -1,14 +1,12 @@
+use crate::ffi::c::prelude::*;
+use crate::ffi::python::prelude::*;
 #[cfg(test)]
 use crate::hooks::mock_hooks::shinqlx_execute_client_command;
 #[cfg(not(test))]
 use crate::hooks::shinqlx_execute_client_command;
-use crate::prelude::*;
 use crate::MAIN_ENGINE;
 
-use pyo3::{
-    exceptions::{PyEnvironmentError, PyValueError},
-    prelude::*,
-};
+use pyo3::exceptions::{PyEnvironmentError, PyValueError};
 
 /// Tells the server to process a command from a specific client.
 #[pyfunction]
@@ -51,14 +49,13 @@ pub(crate) fn pyshinqlx_client_command(
 mod client_command_tests {
     use super::pyshinqlx_client_command;
     use super::MAIN_ENGINE;
+    use crate::ffi::c::prelude::*;
+    use crate::ffi::python::prelude::*;
     use crate::hooks::mock_hooks::shinqlx_execute_client_command_context;
     use crate::prelude::*;
 
     use pretty_assertions::assert_eq;
-    use pyo3::{
-        exceptions::{PyEnvironmentError, PyValueError},
-        prelude::*,
-    };
+    use pyo3::exceptions::{PyEnvironmentError, PyValueError};
     use rstest::*;
 
     #[test]

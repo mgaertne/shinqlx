@@ -1,4 +1,5 @@
-use crate::prelude::*;
+use crate::ffi::c::prelude::*;
+use crate::ffi::python::prelude::*;
 use crate::MAIN_ENGINE;
 
 #[cfg(test)]
@@ -6,10 +7,7 @@ use crate::hooks::mock_hooks::shinqlx_drop_client;
 #[cfg(not(test))]
 use crate::hooks::shinqlx_drop_client;
 
-use pyo3::{
-    exceptions::{PyEnvironmentError, PyValueError},
-    pyfunction, PyResult, Python,
-};
+use pyo3::exceptions::{PyEnvironmentError, PyValueError};
 
 /// Kick a player and allowing the admin to supply a reason for it.
 #[pyfunction]
@@ -59,14 +57,13 @@ pub(crate) fn pyshinqlx_kick(py: Python<'_>, client_id: i32, reason: Option<&str
 mod kick_tests {
     use super::pyshinqlx_kick;
     use super::MAIN_ENGINE;
+    use crate::ffi::c::prelude::*;
+    use crate::ffi::python::prelude::*;
     use crate::hooks::mock_hooks::shinqlx_drop_client_context;
     use crate::prelude::*;
 
     use mockall::predicate;
-    use pyo3::{
-        exceptions::{PyEnvironmentError, PyValueError},
-        prelude::*,
-    };
+    use pyo3::exceptions::{PyEnvironmentError, PyValueError};
     use rstest::rstest;
 
     #[test]

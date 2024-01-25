@@ -1,6 +1,5 @@
-use crate::prelude::*;
-
-use pyo3::prelude::*;
+use super::prelude::*;
+use crate::ffi::c::prelude::*;
 
 /// Information about a player, such as Steam ID, name, client ID, and whatnot.
 #[pyclass(frozen)]
@@ -98,11 +97,12 @@ impl From<i32> for PlayerInfo {
 #[cfg(test)]
 mod player_info_tests {
     use super::PlayerInfo;
+    use crate::ffi::c::prelude::*;
+    #[cfg(not(miri))]
+    use crate::ffi::python::prelude::*;
     use crate::prelude::*;
 
     use pretty_assertions::assert_eq;
-    #[cfg(not(miri))]
-    use pyo3::Python;
     #[cfg(not(miri))]
     use rstest::*;
 

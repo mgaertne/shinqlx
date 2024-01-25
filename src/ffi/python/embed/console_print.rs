@@ -1,9 +1,8 @@
+use crate::ffi::python::prelude::*;
 #[cfg(test)]
 use crate::hooks::mock_hooks::shinqlx_com_printf;
 #[cfg(not(test))]
 use crate::hooks::shinqlx_com_printf;
-
-use pyo3::{pyfunction, Python};
 
 /// Prints text on the console. If used during an RCON command, it will be printed in the player's console.
 #[pyfunction]
@@ -19,11 +18,11 @@ pub(crate) fn pyshinqlx_console_print(py: Python<'_>, text: &str) {
 #[cfg(not(miri))]
 mod console_print_tests {
     use super::pyshinqlx_console_print;
+    use crate::ffi::python::prelude::*;
     use crate::hooks::mock_hooks::shinqlx_com_printf_context;
     use crate::prelude::*;
 
     use mockall::predicate;
-    use pyo3::prelude::*;
 
     #[test]
     #[serial]

@@ -1,11 +1,9 @@
-use crate::prelude::*;
+use crate::ffi::c::prelude::*;
+use crate::ffi::python::prelude::*;
 use crate::MAIN_ENGINE;
 
 use core::sync::atomic::Ordering;
-use pyo3::{
-    exceptions::{PyEnvironmentError, PyValueError},
-    prelude::*,
-};
+use pyo3::exceptions::{PyEnvironmentError, PyValueError};
 
 /// Returns a string with a player's userinfo.
 #[pyfunction(name = "get_userinfo")]
@@ -43,14 +41,13 @@ pub(crate) fn pyshinqlx_get_userinfo(py: Python<'_>, client_id: i32) -> PyResult
 mod get_userinfo_tests {
     use super::pyshinqlx_get_userinfo;
     use super::MAIN_ENGINE;
+    use crate::ffi::c::prelude::*;
+    use crate::ffi::python::prelude::*;
     use crate::prelude::*;
 
     use core::sync::atomic::Ordering;
     use pretty_assertions::assert_eq;
-    use pyo3::{
-        exceptions::{PyEnvironmentError, PyValueError},
-        prelude::*,
-    };
+    use pyo3::exceptions::{PyEnvironmentError, PyValueError};
 
     #[test]
     #[serial]

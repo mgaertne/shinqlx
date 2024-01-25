@@ -1,6 +1,5 @@
-use crate::prelude::*;
-
-use pyo3::{pyfunction, Python};
+use crate::ffi::c::prelude::*;
+use crate::ffi::python::prelude::*;
 
 /// Calls a vote as if started by the server and not a player.
 #[pyfunction]
@@ -23,10 +22,11 @@ pub(crate) fn pyshinqlx_callvote(
 #[cfg(not(miri))]
 mod callvote_tests {
     use super::pyshinqlx_callvote;
+    use crate::ffi::c::prelude::*;
+    use crate::ffi::python::prelude::*;
     use crate::prelude::*;
 
     use mockall::predicate;
-    use pyo3::prelude::*;
 
     #[test]
     #[serial]

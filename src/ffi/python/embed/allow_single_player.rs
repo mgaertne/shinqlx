@@ -1,6 +1,5 @@
-use crate::prelude::*;
-
-use pyo3::{pyfunction, Python};
+use crate::ffi::c::prelude::*;
+use crate::ffi::python::prelude::*;
 
 /// Allows or disallows a game with only a single player in it to go on without forfeiting. Useful for race.
 #[pyfunction]
@@ -18,10 +17,11 @@ pub(crate) fn pyshinqlx_allow_single_player(py: Python<'_>, allow: bool) {
 #[cfg(not(miri))]
 mod allow_single_player_tests {
     use super::pyshinqlx_allow_single_player;
+    use crate::ffi::c::prelude::*;
+    use crate::ffi::python::prelude::*;
     use crate::prelude::*;
 
     use mockall::predicate;
-    use pyo3::prelude::*;
 
     #[test]
     #[serial]
