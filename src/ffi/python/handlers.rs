@@ -1,5 +1,5 @@
+use super::prelude::*;
 use crate::ffi::c::prelude::*;
-use crate::ffi::python::prelude::*;
 
 fn try_log_exception(py: Python<'_>, exception: PyErr) -> PyResult<()> {
     let logging_module = py.import("logging")?;

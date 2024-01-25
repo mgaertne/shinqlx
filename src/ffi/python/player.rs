@@ -1,5 +1,5 @@
+use super::prelude::*;
 use crate::ffi::c::prelude::*;
-use crate::ffi::python::prelude::*;
 use crate::quake_live_engine::{GetConfigstring, SetConfigstring};
 use crate::MAIN_ENGINE;
 
@@ -8,7 +8,6 @@ use pyo3::{
     basic::CompareOp,
     create_exception,
     exceptions::{PyAttributeError, PyException, PyKeyError, PyNotImplementedError, PyValueError},
-    prelude::*,
     types::{IntoPyDict, PyDict, PyType},
 };
 
