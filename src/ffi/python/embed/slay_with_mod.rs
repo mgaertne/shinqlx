@@ -1,10 +1,8 @@
-use crate::prelude::*;
+use crate::ffi::c::prelude::*;
+use crate::ffi::python::prelude::*;
 use crate::MAIN_ENGINE;
 
-use pyo3::{
-    exceptions::{PyEnvironmentError, PyValueError},
-    pyfunction, PyResult, Python,
-};
+use pyo3::exceptions::{PyEnvironmentError, PyValueError};
 
 /// Slay player with mean of death.
 #[pyfunction]
@@ -56,14 +54,13 @@ pub(crate) fn pyshinqlx_slay_with_mod(
 mod slay_with_mod_tests {
     use super::pyshinqlx_slay_with_mod;
     use super::MAIN_ENGINE;
+    use crate::ffi::c::prelude::*;
+    use crate::ffi::python::prelude::*;
     use crate::prelude::*;
 
     use mockall::predicate;
     use pretty_assertions::assert_eq;
-    use pyo3::{
-        exceptions::{PyEnvironmentError, PyValueError},
-        prelude::*,
-    };
+    use pyo3::exceptions::{PyEnvironmentError, PyValueError};
 
     #[test]
     #[serial]

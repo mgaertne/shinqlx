@@ -1,4 +1,6 @@
-use pyo3::{basic::CompareOp, exceptions::PyValueError, prelude::*, types::PyTuple};
+use super::prelude::*;
+
+use pyo3::{basic::CompareOp, exceptions::PyValueError, types::PyTuple};
 
 /// A struct sequence containing all the powerups in the game.
 #[pyclass(frozen)]
@@ -84,14 +86,11 @@ impl Powerups {
 mod powerups_tests {
     use super::Powerups;
     #[cfg(not(miri))]
-    use crate::prelude::*;
+    use crate::ffi::python::prelude::*;
 
     use pretty_assertions::assert_eq;
     #[cfg(not(miri))]
-    use pyo3::{
-        exceptions::{PyTypeError, PyValueError},
-        Python,
-    };
+    use pyo3::exceptions::{PyTypeError, PyValueError};
     #[cfg(not(miri))]
     use rstest::rstest;
 

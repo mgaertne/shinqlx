@@ -1,10 +1,11 @@
+use crate::ffi::c::prelude::*;
+use crate::ffi::python::prelude::*;
 #[cfg(test)]
 use crate::hooks::mock_hooks::shinqlx_set_configstring;
 #[cfg(not(test))]
 use crate::hooks::shinqlx_set_configstring;
-use crate::prelude::MAX_CONFIGSTRINGS;
 
-use pyo3::{exceptions::PyValueError, pyfunction, PyResult, Python};
+use pyo3::exceptions::PyValueError;
 
 /// Sets a configstring and sends it to all the players on the server.
 #[pyfunction]
@@ -32,11 +33,12 @@ pub(crate) fn pyshinqlx_set_configstring(
 #[cfg(not(miri))]
 mod set_configstring_tests {
     use super::pyshinqlx_set_configstring;
+    use crate::ffi::python::prelude::*;
     use crate::hooks::mock_hooks::shinqlx_set_configstring_context;
     use crate::prelude::*;
 
     use mockall::predicate;
-    use pyo3::{exceptions::PyValueError, prelude::*};
+    use pyo3::exceptions::PyValueError;
 
     #[test]
     #[serial]

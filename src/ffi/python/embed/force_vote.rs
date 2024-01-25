@@ -1,7 +1,8 @@
-use crate::prelude::*;
+use crate::ffi::c::prelude::*;
+use crate::ffi::python::prelude::*;
 use crate::MAIN_ENGINE;
 
-use pyo3::{exceptions::PyEnvironmentError, pyfunction, PyResult, Python};
+use pyo3::exceptions::PyEnvironmentError;
 
 /// Forces the current vote to either fail or pass.
 #[pyfunction]
@@ -48,11 +49,13 @@ pub(crate) fn pyshinqlx_force_vote(py: Python<'_>, pass: bool) -> PyResult<bool>
 mod force_vote_tests {
     use super::pyshinqlx_force_vote;
     use super::MAIN_ENGINE;
+    use crate::ffi::c::prelude::*;
+    use crate::ffi::python::prelude::*;
     use crate::prelude::*;
 
     use mockall::predicate;
     use pretty_assertions::assert_eq;
-    use pyo3::{exceptions::PyEnvironmentError, prelude::*};
+    use pyo3::exceptions::PyEnvironmentError;
     use rstest::rstest;
 
     #[test]

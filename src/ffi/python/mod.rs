@@ -36,8 +36,6 @@ pub(crate) mod prelude {
         pyshinqlx_initialize_context, pyshinqlx_is_initialized_context, pyshinqlx_reload_context,
     };
     pub(crate) use super::PythonInitializationError;
-    #[cfg(test)]
-    pub(crate) use super::PYSHINQLX_INITIALIZED;
     #[cfg(not(test))]
     pub(crate) use super::{pyshinqlx_initialize, pyshinqlx_is_initialized, pyshinqlx_reload};
 
@@ -70,16 +68,19 @@ pub(crate) mod prelude {
     #[cfg(test)]
     #[cfg(not(miri))]
     pub(crate) use super::pyshinqlx_setup_fixture::*;
+
+    pub(crate) use pyo3::prelude::*;
 }
 
-use crate::prelude::*;
+use crate::ffi::c::prelude::*;
+use prelude::*;
 
 use alloc::sync::Arc;
 use arc_swap::ArcSwapOption;
 use core::sync::atomic::{AtomicBool, AtomicU64, Ordering};
 use log::*;
 use once_cell::sync::Lazy;
-use pyo3::{append_to_inittab, prelude::*, prepare_freethreaded_python};
+use pyo3::{append_to_inittab, prepare_freethreaded_python};
 
 pub(crate) static ALLOW_FREE_CLIENT: AtomicU64 = AtomicU64::new(0);
 

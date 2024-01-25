@@ -1,6 +1,5 @@
-use crate::prelude::*;
-
-use pyo3::{pyfunction, PyResult, Python};
+use crate::ffi::c::prelude::*;
+use crate::ffi::python::prelude::*;
 
 /// Removes all current kamikaze timers.
 #[pyfunction]
@@ -32,11 +31,12 @@ pub(crate) fn pyshinqlx_destroy_kamikaze_timers(py: Python<'_>) -> PyResult<bool
 #[cfg(not(miri))]
 mod destroy_kamikaze_timers_tests {
     use super::pyshinqlx_destroy_kamikaze_timers;
+    use crate::ffi::c::prelude::*;
+    use crate::ffi::python::prelude::*;
     use crate::prelude::*;
 
     use mockall::predicate;
     use pretty_assertions::assert_eq;
-    use pyo3::prelude::*;
 
     #[test]
     #[serial]

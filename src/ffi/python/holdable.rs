@@ -1,4 +1,4 @@
-use pyo3::prelude::*;
+use super::prelude::*;
 
 #[pyclass(frozen)]
 #[pyo3(module = "shinqlx", name = "Holdable")]

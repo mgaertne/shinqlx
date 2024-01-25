@@ -1,3 +1,4 @@
+use super::prelude::*;
 use crate::prelude::*;
 use crate::MAIN_ENGINE;
 
@@ -91,6 +92,7 @@ mockall::mock! {
 mod server_static_tests {
     use super::ServerStatic;
     use super::MAIN_ENGINE;
+    use crate::ffi::c::prelude::*;
     use crate::prelude::*;
     use crate::quake_live_functions::QuakeLiveFunction::SV_Shutdown;
 

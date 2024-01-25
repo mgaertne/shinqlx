@@ -1,3 +1,4 @@
+use super::prelude::*;
 use crate::prelude::*;
 use crate::MAIN_ENGINE;
 
@@ -138,6 +139,7 @@ mockall::mock! {
 mod client_tests {
     use super::Client;
     use super::MAIN_ENGINE;
+    use crate::ffi::c::prelude::*;
     use crate::prelude::*;
     use crate::quake_live_functions::QuakeLiveFunction;
 

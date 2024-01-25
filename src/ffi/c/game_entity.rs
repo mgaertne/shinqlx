@@ -1,3 +1,4 @@
+use super::prelude::*;
 use crate::hooks::shinqlx_set_configstring;
 use crate::prelude::*;
 use crate::quake_live_engine::{
@@ -476,6 +477,7 @@ mod game_entity_tests {
     use super::GameEntity;
     use super::MAIN_ENGINE;
     use super::{MockStaticFunc, ShiNQlx_Switch_Touch_Item, ShiNQlx_Touch_Item};
+    use crate::ffi::c::prelude::*;
     use crate::prelude::*;
 
     use alloc::ffi::CString;

@@ -1,6 +1,7 @@
-use crate::prelude::*;
+use crate::ffi::c::prelude::*;
+use crate::ffi::python::prelude::*;
 
-use pyo3::{exceptions::PyValueError, pyfunction, PyResult, Python};
+use pyo3::exceptions::PyValueError;
 
 /// Spawns item with specified coordinates.
 #[pyfunction]
@@ -35,11 +36,13 @@ pub(crate) fn pyshinqlx_spawn_item(
 #[cfg(not(miri))]
 mod spawn_item_tests {
     use super::pyshinqlx_spawn_item;
+    use crate::ffi::c::prelude::*;
+    use crate::ffi::python::prelude::*;
     use crate::prelude::*;
 
     use mockall::predicate;
     use pretty_assertions::assert_eq;
-    use pyo3::{exceptions::PyValueError, prelude::*};
+    use pyo3::exceptions::PyValueError;
 
     #[test]
     #[serial]
