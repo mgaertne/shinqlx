@@ -1,4 +1,5 @@
-use crate::prelude::*;
+use crate::ffi::c::prelude::*;
+use crate::ffi::python::prelude::*;
 use crate::quake_live_engine::{GetConfigstring, SetConfigstring};
 use crate::MAIN_ENGINE;
 
@@ -1233,6 +1234,8 @@ impl Player {
 mod pyshinqlx_player_tests {
     use super::MAIN_ENGINE;
     use super::{NonexistentPlayerError, Player};
+    use crate::ffi::c::prelude::*;
+    use crate::ffi::python::prelude::*;
     use crate::hooks::mock_hooks::{
         shinqlx_client_spawn_context, shinqlx_drop_client_context,
         shinqlx_execute_client_command_context, shinqlx_send_server_command_context,
@@ -1244,7 +1247,6 @@ mod pyshinqlx_player_tests {
     use pyo3::{
         exceptions::{PyEnvironmentError, PyKeyError, PyValueError},
         types::IntoPyDict,
-        IntoPy, PyCell, Python,
     };
     use rstest::rstest;
 
@@ -6932,13 +6934,10 @@ impl AbstractDummyPlayer {
 #[cfg(not(miri))]
 #[cfg(test)]
 mod pyshinqlx_abstract_dummy_player_tests {
-    use crate::prelude::*;
+    use crate::ffi::python::prelude::*;
 
-    use pyo3::{
-        exceptions::{PyAttributeError, PyNotImplementedError},
-        Python,
-    };
-    use rstest::rstest;
+    use pyo3::exceptions::{PyAttributeError, PyNotImplementedError};
+    use rstest::*;
 
     #[rstest]
     fn dummy_player_is_a_player_instance(_pyshinqlx_setup: ()) {
@@ -7092,10 +7091,9 @@ console_channel = shinqlx.CONSOLE_CHANNEL"#,
 #[cfg(not(miri))]
 #[cfg(test)]
 mod pyshinqlx_rcon_dummy_player_tests {
-    use crate::prelude::*;
+    use crate::ffi::python::prelude::*;
 
-    use pyo3::Python;
-    use rstest::rstest;
+    use rstest::*;
 
     #[rstest]
     fn dummy_player_is_a_player_instance(_pyshinqlx_setup: ()) {

@@ -1,4 +1,4 @@
-use crate::prelude::*;
+use crate::ffi::python::prelude::*;
 
 use itertools::Itertools;
 use log::*;
@@ -6,7 +6,6 @@ use log::*;
 use pyo3::{
     create_exception,
     exceptions::{PyException, PyKeyError, PyValueError},
-    prelude::*,
     types::{IntoPyDict, PyDict, PyType},
 };
 
@@ -680,6 +679,7 @@ impl Game {
 #[cfg(not(miri))]
 mod pyshinqlx_game_tests {
     use super::{Game, NonexistentGameError};
+    use crate::ffi::python::prelude::*;
     use crate::hooks::mock_hooks::shinqlx_set_configstring_context;
     use crate::prelude::*;
     use crate::MAIN_ENGINE;
