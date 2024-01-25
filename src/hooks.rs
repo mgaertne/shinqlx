@@ -1,3 +1,5 @@
+use crate::ffi::c::prelude::*;
+use crate::ffi::python::prelude::*;
 use crate::prelude::*;
 use crate::quake_live_engine::{
     AddCommand, ClientConnect, ClientEnterWorld, ClientSpawn, ComPrintf, ExecuteClientCommand,
@@ -541,6 +543,8 @@ mod hooks_tests {
         shinqlx_send_server_command, shinqlx_set_configstring, shinqlx_sv_cliententerworld,
         shinqlx_sv_spawnserver, shinqlx_sys_setmoduleoffset,
     };
+    use crate::ffi::c::prelude::*;
+    use crate::ffi::python::prelude::*;
     use crate::prelude::*;
 
     use alloc::ffi::CString;

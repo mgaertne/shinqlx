@@ -1,3 +1,4 @@
+use super::prelude::*;
 use crate::prelude::*;
 
 use alloc::string::String;
@@ -32,6 +33,7 @@ impl CVar {
 #[cfg(test)]
 mod cvar_tests {
     use super::CVar;
+    use crate::ffi::c::prelude::*;
     use crate::prelude::*;
 
     use alloc::ffi::CString;

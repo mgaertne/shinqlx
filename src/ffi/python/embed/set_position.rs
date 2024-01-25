@@ -1,10 +1,8 @@
-use crate::prelude::*;
+use crate::ffi::c::prelude::*;
+use crate::ffi::python::prelude::*;
 use crate::MAIN_ENGINE;
 
-use pyo3::{
-    exceptions::{PyEnvironmentError, PyValueError},
-    pyfunction, PyResult, Python,
-};
+use pyo3::exceptions::{PyEnvironmentError, PyValueError};
 
 /// Sets a player's position vector.
 #[pyfunction]
@@ -48,14 +46,13 @@ pub(crate) fn pyshinqlx_set_position(
 mod set_position_tests {
     use super::pyshinqlx_set_position;
     use super::MAIN_ENGINE;
+    use crate::ffi::c::prelude::*;
+    use crate::ffi::python::prelude::*;
     use crate::prelude::*;
 
     use mockall::predicate;
     use pretty_assertions::assert_eq;
-    use pyo3::{
-        exceptions::{PyEnvironmentError, PyValueError},
-        prelude::*,
-    };
+    use pyo3::exceptions::{PyEnvironmentError, PyValueError};
 
     #[test]
     #[serial]

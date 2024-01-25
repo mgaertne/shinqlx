@@ -2,6 +2,8 @@ use crate::commands::{
     cmd_center_print, cmd_py_command, cmd_py_rcon, cmd_regular_print, cmd_restart_python,
     cmd_send_server_command, cmd_slap, cmd_slay,
 };
+use crate::ffi::c::prelude::*;
+use crate::ffi::python::prelude::*;
 use crate::hooks::{
     shinqlx_client_connect, shinqlx_clientspawn, shinqlx_cmd_addcommand, shinqlx_g_damage,
     shinqlx_g_initgame, shinqlx_g_runframe, shinqlx_g_shutdowngame, shinqlx_g_startkamikaze,

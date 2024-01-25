@@ -244,7 +244,7 @@ impl Not for qboolean {
 
 #[cfg(test)]
 pub(crate) mod qboolean_tests {
-    use crate::prelude::*;
+    use super::qboolean;
 
     use core::ffi;
     use pretty_assertions::assert_eq;
@@ -305,7 +305,7 @@ impl From<i32> for privileges_t {
 
 #[cfg(test)]
 pub(crate) mod privileges_tests {
-    use crate::prelude::*;
+    use super::privileges_t;
 
     use pretty_assertions::assert_eq;
 
@@ -595,7 +595,7 @@ impl TryFrom<usize> for powerup_t {
 
 #[cfg(test)]
 pub(crate) mod powerup_t_tests {
-    use crate::prelude::*;
+    use super::powerup_t;
 
     use pretty_assertions::assert_eq;
 
@@ -700,7 +700,7 @@ impl TryFrom<i32> for weapon_t {
 
 #[cfg(test)]
 pub(crate) mod weapon_t_tests {
-    use crate::prelude::*;
+    use super::weapon_t;
 
     use pretty_assertions::assert_eq;
 
@@ -887,7 +887,7 @@ impl TryFrom<i32> for meansOfDeath_t {
 
 #[cfg(test)]
 pub(crate) mod meansofdeath_t_tests {
-    use crate::prelude::*;
+    use super::meansOfDeath_t;
 
     use pretty_assertions::assert_eq;
 

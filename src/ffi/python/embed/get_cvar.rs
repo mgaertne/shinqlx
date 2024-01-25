@@ -1,7 +1,8 @@
+use crate::ffi::python::prelude::*;
 use crate::quake_live_engine::FindCVar;
 use crate::MAIN_ENGINE;
 
-use pyo3::{exceptions::PyEnvironmentError, prelude::*};
+use pyo3::exceptions::PyEnvironmentError;
 
 /// Gets a cvar.
 #[pyfunction]
@@ -26,13 +27,15 @@ pub(crate) fn pyshinqlx_get_cvar(py: Python<'_>, cvar: &str) -> PyResult<Option<
 mod get_cvar_tests {
     use super::pyshinqlx_get_cvar;
     use super::MAIN_ENGINE;
+    use crate::ffi::c::prelude::*;
+    use crate::ffi::python::prelude::*;
     use crate::prelude::*;
 
     use alloc::ffi::CString;
     use core::ffi::c_char;
     use mockall::predicate;
     use pretty_assertions::assert_eq;
-    use pyo3::{exceptions::PyEnvironmentError, prelude::*};
+    use pyo3::exceptions::PyEnvironmentError;
 
     #[test]
     #[serial]

@@ -1,7 +1,7 @@
+use super::prelude::*;
 use crate::prelude::*;
 
-use alloc::string::String;
-use alloc::vec::Vec;
+use alloc::{string::String, vec::Vec};
 use core::ffi::{c_int, CStr};
 
 #[derive(Debug, PartialEq)]
@@ -399,6 +399,7 @@ mockall::mock! {
 #[cfg(test)]
 mod game_client_tests {
     use super::GameClient;
+    use crate::ffi::c::prelude::*;
     use crate::prelude::*;
 
     use core::ffi::c_char;

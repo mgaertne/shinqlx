@@ -1,4 +1,4 @@
-use pyo3::prelude::*;
+use super::prelude::*;
 
 #[pyclass(module = "_shinqlx", name = "Holdable", frozen)]
 #[derive(PartialEq, Debug, Clone, Copy)]

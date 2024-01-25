@@ -1,6 +1,5 @@
-use crate::prelude::*;
-
-use pyo3::prelude::*;
+use super::prelude::*;
+use crate::ffi::c::prelude::*;
 
 /// Information about a player's state in the game.
 #[pyclass(module = "_shinqlx", name = "PlayerState", frozen, get_all)]
@@ -113,6 +112,8 @@ impl From<GameEntity> for PlayerState {
 #[cfg(test)]
 mod player_state_tests {
     use super::PlayerState;
+    use crate::ffi::c::prelude::*;
+    use crate::ffi::python::prelude::*;
     use crate::prelude::*;
 
     use pretty_assertions::assert_eq;

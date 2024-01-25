@@ -1,5 +1,7 @@
+use super::prelude::*;
+
 use core::array;
-use pyo3::{basic::CompareOp, exceptions::PyValueError, prelude::*, types::PyTuple};
+use pyo3::{basic::CompareOp, exceptions::PyValueError, types::PyTuple};
 
 #[pyclass]
 struct Vector3Iter {
@@ -93,14 +95,11 @@ impl From<(f32, f32, f32)> for Vector3 {
 mod vector3_tests {
     use super::Vector3;
     #[cfg(not(miri))]
-    use crate::prelude::*;
+    use crate::ffi::python::prelude::*;
 
     use pretty_assertions::assert_eq;
     #[cfg(not(miri))]
-    use pyo3::{
-        exceptions::{PyTypeError, PyValueError},
-        Python,
-    };
+    use pyo3::exceptions::{PyTypeError, PyValueError};
     #[cfg(not(miri))]
     use rstest::rstest;
 
