@@ -1,4 +1,4 @@
-use crate::ffi::python::prelude::*;
+use super::prelude::*;
 
 use itertools::Itertools;
 use log::*;
@@ -686,10 +686,7 @@ mod pyshinqlx_game_tests {
 
     use mockall::predicate;
     use pretty_assertions::assert_eq;
-    use pyo3::{
-        exceptions::{PyEnvironmentError, PyKeyError, PyValueError},
-        prelude::*,
-    };
+    use pyo3::exceptions::{PyEnvironmentError, PyKeyError, PyValueError};
     use rstest::rstest;
 
     #[test]

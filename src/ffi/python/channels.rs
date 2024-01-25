@@ -1,5 +1,5 @@
+use super::prelude::*;
 use crate::ffi::c::prelude::*;
-use crate::ffi::python::prelude::*;
 
 use pyo3::{basic::CompareOp, exceptions::PyNotImplementedError, types::IntoPyDict};
 use regex::Regex;
@@ -598,7 +598,7 @@ mod tell_channel_tests {
     use mockall::predicate;
     use pretty_assertions::assert_eq;
     #[cfg(not(miri))]
-    use pyo3::{types::IntoPyDict, IntoPy, Python};
+    use pyo3::types::IntoPyDict;
     #[cfg(not(miri))]
     use rstest::rstest;
 
@@ -965,7 +965,7 @@ mod client_command_channel_tests {
     use mockall::predicate;
     use pretty_assertions::assert_eq;
     #[cfg(not(miri))]
-    use pyo3::{types::IntoPyDict, IntoPy};
+    use pyo3::types::IntoPyDict;
     #[cfg(not(miri))]
     use rstest::rstest;
 

@@ -1,7 +1,8 @@
+use crate::ffi::python::prelude::*;
 use crate::quake_live_engine::{FindCVar, GetCVar};
 use crate::MAIN_ENGINE;
 
-use pyo3::{exceptions::PyEnvironmentError, prelude::*};
+use pyo3::exceptions::PyEnvironmentError;
 
 /// Sets a cvar.
 #[pyfunction]
