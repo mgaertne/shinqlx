@@ -1,13 +1,7 @@
-use super::{
-    pyshinqlx_is_initialized, ALLOW_FREE_CLIENT, CLIENT_COMMAND_HANDLER, CONSOLE_PRINT_HANDLER,
-    DAMAGE_HANDLER, FRAME_HANDLER, KAMIKAZE_EXPLODE_HANDLER, KAMIKAZE_USE_HANDLER,
-    NEW_GAME_HANDLER, PLAYER_CONNECT_HANDLER, PLAYER_DISCONNECT_HANDLER, PLAYER_LOADED_HANDLER,
-    PLAYER_SPAWN_HANDLER, RCON_HANDLER, SERVER_COMMAND_HANDLER, SET_CONFIGSTRING_HANDLER,
-};
+use super::prelude::*;
 
 use core::sync::atomic::Ordering;
 use log::error;
-use pyo3::Python;
 
 pub(crate) fn client_command_dispatcher<T>(client_id: i32, cmd: T) -> Option<String>
 where
@@ -372,18 +366,19 @@ mod pyshinqlx_dispatcher_tests {
         new_game_dispatcher, rcon_dispatcher, server_command_dispatcher,
         set_configstring_dispatcher,
     };
+    use crate::ffi::c::prelude::*;
+    use crate::ffi::python::prelude::*;
     use crate::prelude::*;
 
-    use core::sync::atomic::Ordering;
     use pretty_assertions::assert_eq;
-    use pyo3::prelude::*;
     #[cfg(not(miri))]
     use rstest::rstest;
 
     #[test]
     #[serial]
     fn client_command_dispatcher_when_python_not_initiailized() {
-        PYSHINQLX_INITIALIZED.store(false, Ordering::SeqCst);
+        let is_initialized_context = pyshinqlx_is_initialized_context();
+        is_initialized_context.expect().returning(|| false);
 
         let result = client_command_dispatcher(123, "asdf");
         assert_eq!(result, Some("asdf".into()));
@@ -392,7 +387,8 @@ mod pyshinqlx_dispatcher_tests {
     #[test]
     #[serial]
     fn client_command_dispatcher_when_dispatcher_not_initiailized() {
-        PYSHINQLX_INITIALIZED.store(true, Ordering::SeqCst);
+        let is_initialized_context = pyshinqlx_is_initialized_context();
+        is_initialized_context.expect().returning(|| true);
         CLIENT_COMMAND_HANDLER.store(None);
 
         let result = client_command_dispatcher(123, "asdf");
@@ -402,7 +398,8 @@ mod pyshinqlx_dispatcher_tests {
     #[cfg_attr(not(miri), rstest)]
     #[serial]
     fn client_command_dispatcher_dispatcher_returns_original_cmd(_pyshinqlx_setup: ()) {
-        PYSHINQLX_INITIALIZED.store(true, Ordering::SeqCst);
+        let is_initialized_context = pyshinqlx_is_initialized_context();
+        is_initialized_context.expect().returning(|| true);
 
         let pymodule: Py<PyModule> = Python::with_gil(|py| {
             PyModule::from_code(
@@ -432,7 +429,8 @@ def handler(client_id, cmd):
     #[cfg_attr(not(miri), rstest)]
     #[serial]
     fn client_command_dispatcher_dispatcher_returns_another_cmd(_pyshinqlx_setup: ()) {
-        PYSHINQLX_INITIALIZED.store(true, Ordering::SeqCst);
+        let is_initialized_context = pyshinqlx_is_initialized_context();
+        is_initialized_context.expect().returning(|| true);
 
         let pymodule: Py<PyModule> = Python::with_gil(|py| {
             PyModule::from_code(
@@ -462,7 +460,8 @@ def handler(client_id, cmd):
     #[cfg_attr(not(miri), rstest)]
     #[serial]
     fn client_command_dispatcher_dispatcher_returns_boolean_true(_pyshinqlx_setup: ()) {
-        PYSHINQLX_INITIALIZED.store(true, Ordering::SeqCst);
+        let is_initialized_context = pyshinqlx_is_initialized_context();
+        is_initialized_context.expect().returning(|| true);
 
         let pymodule: Py<PyModule> = Python::with_gil(|py| {
             PyModule::from_code(
@@ -492,7 +491,8 @@ def handler(client_id, cmd):
     #[cfg_attr(not(miri), rstest)]
     #[serial]
     fn client_command_dispatcher_dispatcher_returns_false(_pyshinqlx_setup: ()) {
-        PYSHINQLX_INITIALIZED.store(true, Ordering::SeqCst);
+        let is_initialized_context = pyshinqlx_is_initialized_context();
+        is_initialized_context.expect().returning(|| true);
 
         let pymodule: Py<PyModule> = Python::with_gil(|py| {
             PyModule::from_code(
@@ -522,7 +522,8 @@ def handler(client_id, cmd):
     #[cfg_attr(not(miri), rstest)]
     #[serial]
     fn client_command_dispatcher_dispatcher_throws_exception(_pyshinqlx_setup: ()) {
-        PYSHINQLX_INITIALIZED.store(true, Ordering::SeqCst);
+        let is_initialized_context = pyshinqlx_is_initialized_context();
+        is_initialized_context.expect().returning(|| true);
 
         let pymodule: Py<PyModule> = Python::with_gil(|py| {
             PyModule::from_code(
@@ -552,7 +553,8 @@ def handler(client_id, cmd):
     #[cfg_attr(not(miri), rstest)]
     #[serial]
     fn client_command_dispatcher_dispatcher_returns_not_supported_value(_pyshinqlx_setup: ()) {
-        PYSHINQLX_INITIALIZED.store(true, Ordering::SeqCst);
+        let is_initialized_context = pyshinqlx_is_initialized_context();
+        is_initialized_context.expect().returning(|| true);
 
         let pymodule: Py<PyModule> = Python::with_gil(|py| {
             PyModule::from_code(
@@ -582,7 +584,8 @@ def handler(client_id, cmd):
     #[test]
     #[serial]
     fn server_command_dispatcher_when_python_not_initiailized() {
-        PYSHINQLX_INITIALIZED.store(false, Ordering::SeqCst);
+        let is_initialized_context = pyshinqlx_is_initialized_context();
+        is_initialized_context.expect().returning(|| false);
 
         let result = server_command_dispatcher(Some(123), "asdf");
         assert_eq!(result, Some("asdf".into()));
@@ -591,7 +594,8 @@ def handler(client_id, cmd):
     #[test]
     #[serial]
     fn server_command_dispatcher_when_dispatcher_not_initiailized() {
-        PYSHINQLX_INITIALIZED.store(true, Ordering::SeqCst);
+        let is_initialized_context = pyshinqlx_is_initialized_context();
+        is_initialized_context.expect().returning(|| true);
         SERVER_COMMAND_HANDLER.store(None);
 
         let result = server_command_dispatcher(Some(123), "asdf");
@@ -601,7 +605,8 @@ def handler(client_id, cmd):
     #[cfg_attr(not(miri), rstest)]
     #[serial]
     fn server_command_dispatcher_dispatcher_returns_original_cmd(_pyshinqlx_setup: ()) {
-        PYSHINQLX_INITIALIZED.store(true, Ordering::SeqCst);
+        let is_initialized_context = pyshinqlx_is_initialized_context();
+        is_initialized_context.expect().returning(|| true);
 
         let pymodule: Py<PyModule> = Python::with_gil(|py| {
             PyModule::from_code(
@@ -631,7 +636,8 @@ def handler(client_id, cmd):
     #[cfg_attr(not(miri), rstest)]
     #[serial]
     fn server_command_dispatcher_dispatcher_returns_another_cmd(_pyshinqlx_setup: ()) {
-        PYSHINQLX_INITIALIZED.store(true, Ordering::SeqCst);
+        let is_initialized_context = pyshinqlx_is_initialized_context();
+        is_initialized_context.expect().returning(|| true);
 
         let pymodule: Py<PyModule> = Python::with_gil(|py| {
             PyModule::from_code(
@@ -661,7 +667,8 @@ def handler(client_id, cmd):
     #[cfg_attr(not(miri), rstest)]
     #[serial]
     fn server_command_dispatcher_dispatcher_returns_boolean_true(_pyshinqlx_setup: ()) {
-        PYSHINQLX_INITIALIZED.store(true, Ordering::SeqCst);
+        let is_initialized_context = pyshinqlx_is_initialized_context();
+        is_initialized_context.expect().returning(|| true);
 
         let pymodule: Py<PyModule> = Python::with_gil(|py| {
             PyModule::from_code(
@@ -691,7 +698,8 @@ def handler(client_id, cmd):
     #[cfg_attr(not(miri), rstest)]
     #[serial]
     fn server_command_dispatcher_dispatcher_returns_false(_pyshinqlx_setup: ()) {
-        PYSHINQLX_INITIALIZED.store(true, Ordering::SeqCst);
+        let is_initialized_context = pyshinqlx_is_initialized_context();
+        is_initialized_context.expect().returning(|| true);
 
         let pymodule: Py<PyModule> = Python::with_gil(|py| {
             PyModule::from_code(
@@ -721,7 +729,8 @@ def handler(client_id, cmd):
     #[cfg_attr(not(miri), rstest)]
     #[serial]
     fn server_command_dispatcher_dispatcher_throws_exception(_pyshinqlx_setup: ()) {
-        PYSHINQLX_INITIALIZED.store(true, Ordering::SeqCst);
+        let is_initialized_context = pyshinqlx_is_initialized_context();
+        is_initialized_context.expect().returning(|| true);
 
         let pymodule: Py<PyModule> = Python::with_gil(|py| {
             PyModule::from_code(
@@ -751,7 +760,8 @@ def handler(client_id, cmd):
     #[cfg_attr(not(miri), rstest)]
     #[serial]
     fn server_command_dispatcher_dispatcher_returns_not_supported_value(_pyshinqlx_setup: ()) {
-        PYSHINQLX_INITIALIZED.store(true, Ordering::SeqCst);
+        let is_initialized_context = pyshinqlx_is_initialized_context();
+        is_initialized_context.expect().returning(|| true);
 
         let pymodule: Py<PyModule> = Python::with_gil(|py| {
             PyModule::from_code(
@@ -781,7 +791,8 @@ def handler(client_id, cmd):
     #[test]
     #[serial]
     fn frame_dispatcher_when_python_not_initiailized() {
-        PYSHINQLX_INITIALIZED.store(false, Ordering::SeqCst);
+        let is_initialized_context = pyshinqlx_is_initialized_context();
+        is_initialized_context.expect().returning(|| false);
 
         frame_dispatcher();
     }
@@ -789,7 +800,8 @@ def handler(client_id, cmd):
     #[test]
     #[serial]
     fn frame_dispatcher_when_dispatcher_not_initiailized() {
-        PYSHINQLX_INITIALIZED.store(true, Ordering::SeqCst);
+        let is_initialized_context = pyshinqlx_is_initialized_context();
+        is_initialized_context.expect().returning(|| true);
         FRAME_HANDLER.store(None);
 
         frame_dispatcher();
@@ -798,7 +810,8 @@ def handler(client_id, cmd):
     #[cfg_attr(not(miri), rstest)]
     #[serial]
     fn frame_dispatcher_dispatcher_works_properly(_pyshinqlx_setup: ()) {
-        PYSHINQLX_INITIALIZED.store(true, Ordering::SeqCst);
+        let is_initialized_context = pyshinqlx_is_initialized_context();
+        is_initialized_context.expect().returning(|| true);
 
         let pymodule: Py<PyModule> = Python::with_gil(|py| {
             PyModule::from_code(
@@ -827,7 +840,8 @@ def handler():
     #[cfg_attr(not(miri), rstest)]
     #[serial]
     fn frame_dispatcher_dispatcher_throws_exception(_pyshinqlx_setup: ()) {
-        PYSHINQLX_INITIALIZED.store(true, Ordering::SeqCst);
+        let is_initialized_context = pyshinqlx_is_initialized_context();
+        is_initialized_context.expect().returning(|| true);
 
         let pymodule: Py<PyModule> = Python::with_gil(|py| {
             PyModule::from_code(
@@ -856,7 +870,8 @@ def handler():
     #[test]
     #[serial]
     fn client_connect_dispatcher_when_python_not_initiailized() {
-        PYSHINQLX_INITIALIZED.store(false, Ordering::SeqCst);
+        let is_initialized_context = pyshinqlx_is_initialized_context();
+        is_initialized_context.expect().returning(|| false);
 
         let result = client_connect_dispatcher(42, false);
         assert_eq!(result, None);
@@ -865,7 +880,8 @@ def handler():
     #[test]
     #[serial]
     fn client_connect_dispatcher_when_dispatcher_not_initiailized() {
-        PYSHINQLX_INITIALIZED.store(true, Ordering::SeqCst);
+        let is_initialized_context = pyshinqlx_is_initialized_context();
+        is_initialized_context.expect().returning(|| true);
         PLAYER_CONNECT_HANDLER.store(None);
 
         let result = client_connect_dispatcher(42, false);
@@ -875,7 +891,8 @@ def handler():
     #[cfg_attr(not(miri), rstest)]
     #[serial]
     fn client_connect_dispatcher_dispatcher_returns_connection_status(_pyshinqlx_setup: ()) {
-        PYSHINQLX_INITIALIZED.store(true, Ordering::SeqCst);
+        let is_initialized_context = pyshinqlx_is_initialized_context();
+        is_initialized_context.expect().returning(|| true);
 
         let pymodule: Py<PyModule> = Python::with_gil(|py| {
             PyModule::from_code(
@@ -905,7 +922,8 @@ def handler(client_id, is_bot):
     #[cfg_attr(not(miri), rstest)]
     #[serial]
     fn client_connect_dispatcher_dispatcher_returns_boolean_true(_pyshinqlx_setup: ()) {
-        PYSHINQLX_INITIALIZED.store(true, Ordering::SeqCst);
+        let is_initialized_context = pyshinqlx_is_initialized_context();
+        is_initialized_context.expect().returning(|| true);
 
         let pymodule: Py<PyModule> = Python::with_gil(|py| {
             PyModule::from_code(
@@ -935,7 +953,8 @@ def handler(client_id, is_bot):
     #[cfg_attr(not(miri), rstest)]
     #[serial]
     fn client_connect_dispatcher_dispatcher_returns_false(_pyshinqlx_setup: ()) {
-        PYSHINQLX_INITIALIZED.store(true, Ordering::SeqCst);
+        let is_initialized_context = pyshinqlx_is_initialized_context();
+        is_initialized_context.expect().returning(|| true);
 
         let pymodule: Py<PyModule> = Python::with_gil(|py| {
             PyModule::from_code(
@@ -965,7 +984,8 @@ def handler(client_id, is_bot):
     #[cfg_attr(not(miri), rstest)]
     #[serial]
     fn client_connect_dispatcher_dispatcher_throws_exception(_pyshinqlx_setup: ()) {
-        PYSHINQLX_INITIALIZED.store(true, Ordering::SeqCst);
+        let is_initialized_context = pyshinqlx_is_initialized_context();
+        is_initialized_context.expect().returning(|| true);
 
         let pymodule: Py<PyModule> = Python::with_gil(|py| {
             PyModule::from_code(
@@ -995,7 +1015,8 @@ def handler(client_id, is_bot):
     #[cfg_attr(not(miri), rstest)]
     #[serial]
     fn client_connect_dispatcher_dispatcher_returns_not_supported_value(_pyshinqlx_setup: ()) {
-        PYSHINQLX_INITIALIZED.store(true, Ordering::SeqCst);
+        let is_initialized_context = pyshinqlx_is_initialized_context();
+        is_initialized_context.expect().returning(|| true);
 
         let pymodule: Py<PyModule> = Python::with_gil(|py| {
             PyModule::from_code(
@@ -1025,7 +1046,8 @@ def handler(client_id, is_bot):
     #[test]
     #[serial]
     fn client_disconnect_dispatcher_when_python_not_initiailized() {
-        PYSHINQLX_INITIALIZED.store(false, Ordering::SeqCst);
+        let is_initialized_context = pyshinqlx_is_initialized_context();
+        is_initialized_context.expect().returning(|| false);
 
         client_disconnect_dispatcher(42, "asdf");
     }
@@ -1033,7 +1055,8 @@ def handler(client_id, is_bot):
     #[test]
     #[serial]
     fn client_disconnect_dispatcher_when_dispatcher_not_initiailized() {
-        PYSHINQLX_INITIALIZED.store(true, Ordering::SeqCst);
+        let is_initialized_context = pyshinqlx_is_initialized_context();
+        is_initialized_context.expect().returning(|| true);
         PLAYER_DISCONNECT_HANDLER.store(None);
 
         client_disconnect_dispatcher(42, "ragequit");
@@ -1042,7 +1065,8 @@ def handler(client_id, is_bot):
     #[cfg_attr(not(miri), rstest)]
     #[serial]
     fn client_disconnect_dispatcher_dispatcher_works_properly(_pyshinqlx_setup: ()) {
-        PYSHINQLX_INITIALIZED.store(true, Ordering::SeqCst);
+        let is_initialized_context = pyshinqlx_is_initialized_context();
+        is_initialized_context.expect().returning(|| true);
 
         let pymodule: Py<PyModule> = Python::with_gil(|py| {
             PyModule::from_code(
@@ -1071,7 +1095,8 @@ def handler(client_id, reason):
     #[cfg_attr(not(miri), rstest)]
     #[serial]
     fn client_disconnect_dispatcher_dispatcher_throws_exception(_pyshinqlx_setup: ()) {
-        PYSHINQLX_INITIALIZED.store(true, Ordering::SeqCst);
+        let is_initialized_context = pyshinqlx_is_initialized_context();
+        is_initialized_context.expect().returning(|| true);
 
         let pymodule: Py<PyModule> = Python::with_gil(|py| {
             PyModule::from_code(
@@ -1100,7 +1125,8 @@ def handler(client_id, reason):
     #[test]
     #[serial]
     fn client_loaded_dispatcher_when_python_not_initiailized() {
-        PYSHINQLX_INITIALIZED.store(false, Ordering::SeqCst);
+        let is_initialized_context = pyshinqlx_is_initialized_context();
+        is_initialized_context.expect().returning(|| false);
 
         client_loaded_dispatcher(123);
     }
@@ -1108,7 +1134,8 @@ def handler(client_id, reason):
     #[test]
     #[serial]
     fn client_loaded_dispatcher_when_dispatcher_not_initiailized() {
-        PYSHINQLX_INITIALIZED.store(true, Ordering::SeqCst);
+        let is_initialized_context = pyshinqlx_is_initialized_context();
+        is_initialized_context.expect().returning(|| true);
         PLAYER_LOADED_HANDLER.store(None);
 
         client_loaded_dispatcher(123);
@@ -1117,7 +1144,8 @@ def handler(client_id, reason):
     #[cfg_attr(not(miri), rstest)]
     #[serial]
     fn client_loaded_dispatcher_dispatcher_works_properly(_pyshinqlx_setup: ()) {
-        PYSHINQLX_INITIALIZED.store(true, Ordering::SeqCst);
+        let is_initialized_context = pyshinqlx_is_initialized_context();
+        is_initialized_context.expect().returning(|| true);
 
         let pymodule: Py<PyModule> = Python::with_gil(|py| {
             PyModule::from_code(
@@ -1146,7 +1174,8 @@ def handler(client_id):
     #[cfg_attr(not(miri), rstest)]
     #[serial]
     fn client_loaded_dispatcher_dispatcher_throws_exception(_pyshinqlx_setup: ()) {
-        PYSHINQLX_INITIALIZED.store(true, Ordering::SeqCst);
+        let is_initialized_context = pyshinqlx_is_initialized_context();
+        is_initialized_context.expect().returning(|| true);
 
         let pymodule: Py<PyModule> = Python::with_gil(|py| {
             PyModule::from_code(
@@ -1175,7 +1204,8 @@ def handler(client_id):
     #[test]
     #[serial]
     fn new_game_dispatcher_when_python_not_initiailized() {
-        PYSHINQLX_INITIALIZED.store(false, Ordering::SeqCst);
+        let is_initialized_context = pyshinqlx_is_initialized_context();
+        is_initialized_context.expect().returning(|| false);
 
         new_game_dispatcher(false);
     }
@@ -1183,7 +1213,8 @@ def handler(client_id):
     #[test]
     #[serial]
     fn new_game_dispatcher_when_dispatcher_not_initiailized() {
-        PYSHINQLX_INITIALIZED.store(true, Ordering::SeqCst);
+        let is_initialized_context = pyshinqlx_is_initialized_context();
+        is_initialized_context.expect().returning(|| true);
         NEW_GAME_HANDLER.store(None);
 
         new_game_dispatcher(true);
@@ -1192,7 +1223,8 @@ def handler(client_id):
     #[cfg_attr(not(miri), rstest)]
     #[serial]
     fn new_game_dispatcher_dispatcher_works_properly(_pyshinqlx_setup: ()) {
-        PYSHINQLX_INITIALIZED.store(true, Ordering::SeqCst);
+        let is_initialized_context = pyshinqlx_is_initialized_context();
+        is_initialized_context.expect().returning(|| true);
 
         let pymodule: Py<PyModule> = Python::with_gil(|py| {
             PyModule::from_code(
@@ -1221,7 +1253,8 @@ def handler(restart):
     #[cfg_attr(not(miri), rstest)]
     #[serial]
     fn new_game_dispatcher_dispatcher_throws_exception(_pyshinqlx_setup: ()) {
-        PYSHINQLX_INITIALIZED.store(true, Ordering::SeqCst);
+        let is_initialized_context = pyshinqlx_is_initialized_context();
+        is_initialized_context.expect().returning(|| true);
 
         let pymodule: Py<PyModule> = Python::with_gil(|py| {
             PyModule::from_code(
@@ -1250,7 +1283,8 @@ def handler(restart):
     #[test]
     #[serial]
     fn set_configstring_dispatcher_when_python_not_initiailized() {
-        PYSHINQLX_INITIALIZED.store(false, Ordering::SeqCst);
+        let is_initialized_context = pyshinqlx_is_initialized_context();
+        is_initialized_context.expect().returning(|| false);
 
         let result = set_configstring_dispatcher(666u32, "asdf");
         assert_eq!(result, Some("asdf".into()));
@@ -1259,7 +1293,8 @@ def handler(restart):
     #[test]
     #[serial]
     fn set_configstring_dispatcher_when_dispatcher_not_initiailized() {
-        PYSHINQLX_INITIALIZED.store(true, Ordering::SeqCst);
+        let is_initialized_context = pyshinqlx_is_initialized_context();
+        is_initialized_context.expect().returning(|| true);
         SET_CONFIGSTRING_HANDLER.store(None);
 
         let result = set_configstring_dispatcher(666u32, "asdf");
@@ -1269,7 +1304,8 @@ def handler(restart):
     #[cfg_attr(not(miri), rstest)]
     #[serial]
     fn set_configstring_dispatcher_dispatcher_returns_original_cmd(_pyshinqlx_setup: ()) {
-        PYSHINQLX_INITIALIZED.store(true, Ordering::SeqCst);
+        let is_initialized_context = pyshinqlx_is_initialized_context();
+        is_initialized_context.expect().returning(|| true);
 
         let pymodule: Py<PyModule> = Python::with_gil(|py| {
             PyModule::from_code(
@@ -1299,7 +1335,8 @@ def handler(index, value):
     #[cfg_attr(not(miri), rstest)]
     #[serial]
     fn set_configstring_dispatcher_dispatcher_returns_another_cmd(_pyshinqlx_setup: ()) {
-        PYSHINQLX_INITIALIZED.store(true, Ordering::SeqCst);
+        let is_initialized_context = pyshinqlx_is_initialized_context();
+        is_initialized_context.expect().returning(|| true);
 
         let pymodule: Py<PyModule> = Python::with_gil(|py| {
             PyModule::from_code(
@@ -1329,7 +1366,8 @@ def handler(index, value):
     #[cfg_attr(not(miri), rstest)]
     #[serial]
     fn set_configstring_dispatcher_dispatcher_returns_boolean_true(_pyshinqlx_setup: ()) {
-        PYSHINQLX_INITIALIZED.store(true, Ordering::SeqCst);
+        let is_initialized_context = pyshinqlx_is_initialized_context();
+        is_initialized_context.expect().returning(|| true);
 
         let pymodule: Py<PyModule> = Python::with_gil(|py| {
             PyModule::from_code(
@@ -1359,7 +1397,8 @@ def handler(index, value):
     #[cfg_attr(not(miri), rstest)]
     #[serial]
     fn set_configstring_dispatcher_dispatcher_returns_false(_pyshinqlx_setup: ()) {
-        PYSHINQLX_INITIALIZED.store(true, Ordering::SeqCst);
+        let is_initialized_context = pyshinqlx_is_initialized_context();
+        is_initialized_context.expect().returning(|| true);
 
         let pymodule: Py<PyModule> = Python::with_gil(|py| {
             PyModule::from_code(
@@ -1389,7 +1428,8 @@ def handler(index, value):
     #[cfg_attr(not(miri), rstest)]
     #[serial]
     fn set_configstring_dispatcher_dispatcher_throws_exception(_pyshinqlx_setup: ()) {
-        PYSHINQLX_INITIALIZED.store(true, Ordering::SeqCst);
+        let is_initialized_context = pyshinqlx_is_initialized_context();
+        is_initialized_context.expect().returning(|| true);
 
         let pymodule: Py<PyModule> = Python::with_gil(|py| {
             PyModule::from_code(
@@ -1419,7 +1459,8 @@ def handler(index, value):
     #[cfg_attr(not(miri), rstest)]
     #[serial]
     fn set_configstring_dispatcher_dispatcher_returns_not_supported_value(_pyshinqlx_setup: ()) {
-        PYSHINQLX_INITIALIZED.store(true, Ordering::SeqCst);
+        let is_initialized_context = pyshinqlx_is_initialized_context();
+        is_initialized_context.expect().returning(|| true);
 
         let pymodule: Py<PyModule> = Python::with_gil(|py| {
             PyModule::from_code(
@@ -1449,7 +1490,8 @@ def handler(index, value):
     #[test]
     #[serial]
     fn rcon_dispatcher_when_python_not_initiailized() {
-        PYSHINQLX_INITIALIZED.store(false, Ordering::SeqCst);
+        let is_initialized_context = pyshinqlx_is_initialized_context();
+        is_initialized_context.expect().returning(|| false);
 
         rcon_dispatcher("asdf");
     }
@@ -1457,7 +1499,8 @@ def handler(index, value):
     #[test]
     #[serial]
     fn rcon_dispatcher_when_dispatcher_not_initiailized() {
-        PYSHINQLX_INITIALIZED.store(true, Ordering::SeqCst);
+        let is_initialized_context = pyshinqlx_is_initialized_context();
+        is_initialized_context.expect().returning(|| true);
         RCON_HANDLER.store(None);
 
         rcon_dispatcher("asdf");
@@ -1466,7 +1509,8 @@ def handler(index, value):
     #[cfg_attr(not(miri), rstest)]
     #[serial]
     fn rcon_dispatcher_dispatcher_works_properly(_pyshinqlx_setup: ()) {
-        PYSHINQLX_INITIALIZED.store(true, Ordering::SeqCst);
+        let is_initialized_context = pyshinqlx_is_initialized_context();
+        is_initialized_context.expect().returning(|| true);
 
         let pymodule: Py<PyModule> = Python::with_gil(|py| {
             PyModule::from_code(
@@ -1495,7 +1539,8 @@ def handler(cmd):
     #[cfg_attr(not(miri), rstest)]
     #[serial]
     fn rcon_dispatcher_dispatcher_throws_exception(_pyshinqlx_setup: ()) {
-        PYSHINQLX_INITIALIZED.store(true, Ordering::SeqCst);
+        let is_initialized_context = pyshinqlx_is_initialized_context();
+        is_initialized_context.expect().returning(|| true);
 
         let pymodule: Py<PyModule> = Python::with_gil(|py| {
             PyModule::from_code(
@@ -1524,7 +1569,8 @@ def handler(cmd):
     #[test]
     #[serial]
     fn console_print_dispatcher_when_python_not_initiailized() {
-        PYSHINQLX_INITIALIZED.store(false, Ordering::SeqCst);
+        let is_initialized_context = pyshinqlx_is_initialized_context();
+        is_initialized_context.expect().returning(|| false);
 
         let result = console_print_dispatcher("asdf");
         assert_eq!(result, Some("asdf".into()));
@@ -1533,7 +1579,8 @@ def handler(cmd):
     #[test]
     #[serial]
     fn console_print_dispatcher_when_dispatcher_not_initiailized() {
-        PYSHINQLX_INITIALIZED.store(true, Ordering::SeqCst);
+        let is_initialized_context = pyshinqlx_is_initialized_context();
+        is_initialized_context.expect().returning(|| true);
         CONSOLE_PRINT_HANDLER.store(None);
 
         let result = console_print_dispatcher("asdf");
@@ -1543,7 +1590,8 @@ def handler(cmd):
     #[cfg_attr(not(miri), rstest)]
     #[serial]
     fn console_print_dispatcher_dispatcher_returns_original_cmd(_pyshinqlx_setup: ()) {
-        PYSHINQLX_INITIALIZED.store(true, Ordering::SeqCst);
+        let is_initialized_context = pyshinqlx_is_initialized_context();
+        is_initialized_context.expect().returning(|| true);
 
         let pymodule: Py<PyModule> = Python::with_gil(|py| {
             PyModule::from_code(
@@ -1573,7 +1621,8 @@ def handler(text):
     #[cfg_attr(not(miri), rstest)]
     #[serial]
     fn console_print_dispatcher_dispatcher_returns_another_cmd(_pyshinqlx_setup: ()) {
-        PYSHINQLX_INITIALIZED.store(true, Ordering::SeqCst);
+        let is_initialized_context = pyshinqlx_is_initialized_context();
+        is_initialized_context.expect().returning(|| true);
 
         let pymodule: Py<PyModule> = Python::with_gil(|py| {
             PyModule::from_code(
@@ -1603,7 +1652,8 @@ def handler(text):
     #[cfg_attr(not(miri), rstest)]
     #[serial]
     fn console_print_dispatcher_dispatcher_returns_boolean_true(_pyshinqlx_setup: ()) {
-        PYSHINQLX_INITIALIZED.store(true, Ordering::SeqCst);
+        let is_initialized_context = pyshinqlx_is_initialized_context();
+        is_initialized_context.expect().returning(|| true);
 
         let pymodule: Py<PyModule> = Python::with_gil(|py| {
             PyModule::from_code(
@@ -1633,7 +1683,8 @@ def handler(text):
     #[cfg_attr(not(miri), rstest)]
     #[serial]
     fn console_print_dispatcher_dispatcher_returns_false(_pyshinqlx_setup: ()) {
-        PYSHINQLX_INITIALIZED.store(true, Ordering::SeqCst);
+        let is_initialized_context = pyshinqlx_is_initialized_context();
+        is_initialized_context.expect().returning(|| true);
 
         let pymodule: Py<PyModule> = Python::with_gil(|py| {
             PyModule::from_code(
@@ -1663,7 +1714,8 @@ def handler(text):
     #[cfg_attr(not(miri), rstest)]
     #[serial]
     fn console_print_dispatcher_dispatcher_throws_exception(_pyshinqlx_setup: ()) {
-        PYSHINQLX_INITIALIZED.store(true, Ordering::SeqCst);
+        let is_initialized_context = pyshinqlx_is_initialized_context();
+        is_initialized_context.expect().returning(|| true);
 
         let pymodule: Py<PyModule> = Python::with_gil(|py| {
             PyModule::from_code(
@@ -1693,7 +1745,8 @@ def handler(text):
     #[cfg_attr(not(miri), rstest)]
     #[serial]
     fn console_print_dispatcher_dispatcher_returns_not_supported_value(_pyshinqlx_setup: ()) {
-        PYSHINQLX_INITIALIZED.store(true, Ordering::SeqCst);
+        let is_initialized_context = pyshinqlx_is_initialized_context();
+        is_initialized_context.expect().returning(|| true);
 
         let pymodule: Py<PyModule> = Python::with_gil(|py| {
             PyModule::from_code(
@@ -1723,7 +1776,8 @@ def handler(text):
     #[test]
     #[serial]
     fn client_spawn_dispatcher_when_python_not_initiailized() {
-        PYSHINQLX_INITIALIZED.store(false, Ordering::SeqCst);
+        let is_initialized_context = pyshinqlx_is_initialized_context();
+        is_initialized_context.expect().returning(|| false);
 
         client_spawn_dispatcher(123);
     }
@@ -1731,7 +1785,8 @@ def handler(text):
     #[test]
     #[serial]
     fn client_spawn_dispatcher_when_dispatcher_not_initiailized() {
-        PYSHINQLX_INITIALIZED.store(true, Ordering::SeqCst);
+        let is_initialized_context = pyshinqlx_is_initialized_context();
+        is_initialized_context.expect().returning(|| true);
         PLAYER_SPAWN_HANDLER.store(None);
 
         client_spawn_dispatcher(123);
@@ -1740,7 +1795,8 @@ def handler(text):
     #[cfg_attr(not(miri), rstest)]
     #[serial]
     fn client_spawn_dispatcher_dispatcher_works_properly(_pyshinqlx_setup: ()) {
-        PYSHINQLX_INITIALIZED.store(true, Ordering::SeqCst);
+        let is_initialized_context = pyshinqlx_is_initialized_context();
+        is_initialized_context.expect().returning(|| true);
 
         let pymodule: Py<PyModule> = Python::with_gil(|py| {
             PyModule::from_code(
@@ -1769,7 +1825,8 @@ def handler(client_id):
     #[cfg_attr(not(miri), rstest)]
     #[serial]
     fn client_spawn_dispatcher_dispatcher_throws_exception(_pyshinqlx_setup: ()) {
-        PYSHINQLX_INITIALIZED.store(true, Ordering::SeqCst);
+        let is_initialized_context = pyshinqlx_is_initialized_context();
+        is_initialized_context.expect().returning(|| true);
 
         let pymodule: Py<PyModule> = Python::with_gil(|py| {
             PyModule::from_code(
@@ -1798,7 +1855,8 @@ def handler(client_id):
     #[test]
     #[serial]
     fn kamikaze_use_dispatcher_when_python_not_initiailized() {
-        PYSHINQLX_INITIALIZED.store(false, Ordering::SeqCst);
+        let is_initialized_context = pyshinqlx_is_initialized_context();
+        is_initialized_context.expect().returning(|| false);
 
         kamikaze_use_dispatcher(123);
     }
@@ -1806,7 +1864,8 @@ def handler(client_id):
     #[test]
     #[serial]
     fn kamikaze_use_dispatcher_when_dispatcher_not_initiailized() {
-        PYSHINQLX_INITIALIZED.store(true, Ordering::SeqCst);
+        let is_initialized_context = pyshinqlx_is_initialized_context();
+        is_initialized_context.expect().returning(|| true);
         KAMIKAZE_USE_HANDLER.store(None);
 
         kamikaze_use_dispatcher(123);
@@ -1815,7 +1874,8 @@ def handler(client_id):
     #[cfg_attr(not(miri), rstest)]
     #[serial]
     fn kamikaze_use_dispatcher_dispatcher_works_properly(_pyshinqlx_setup: ()) {
-        PYSHINQLX_INITIALIZED.store(true, Ordering::SeqCst);
+        let is_initialized_context = pyshinqlx_is_initialized_context();
+        is_initialized_context.expect().returning(|| true);
 
         let pymodule: Py<PyModule> = Python::with_gil(|py| {
             PyModule::from_code(
@@ -1844,7 +1904,8 @@ def handler(client_id):
     #[cfg_attr(not(miri), rstest)]
     #[serial]
     fn kamikaze_use_dispatcher_dispatcher_throws_exception(_pyshinqlx_setup: ()) {
-        PYSHINQLX_INITIALIZED.store(true, Ordering::SeqCst);
+        let is_initialized_context = pyshinqlx_is_initialized_context();
+        is_initialized_context.expect().returning(|| true);
 
         let pymodule: Py<PyModule> = Python::with_gil(|py| {
             PyModule::from_code(
@@ -1873,7 +1934,8 @@ def handler(client_id):
     #[test]
     #[serial]
     fn kamikaze_explode_dispatcher_when_python_not_initiailized() {
-        PYSHINQLX_INITIALIZED.store(false, Ordering::SeqCst);
+        let is_initialized_context = pyshinqlx_is_initialized_context();
+        is_initialized_context.expect().returning(|| false);
 
         kamikaze_explode_dispatcher(123, false);
     }
@@ -1881,7 +1943,8 @@ def handler(client_id):
     #[test]
     #[serial]
     fn kamikaze_explode_dispatcher_when_dispatcher_not_initiailized() {
-        PYSHINQLX_INITIALIZED.store(true, Ordering::SeqCst);
+        let is_initialized_context = pyshinqlx_is_initialized_context();
+        is_initialized_context.expect().returning(|| true);
         KAMIKAZE_EXPLODE_HANDLER.store(None);
 
         kamikaze_explode_dispatcher(123, true);
@@ -1890,7 +1953,8 @@ def handler(client_id):
     #[cfg_attr(not(miri), rstest)]
     #[serial]
     fn kamikaze_explode_dispatcher_dispatcher_works_properly(_pyshinqlx_setup: ()) {
-        PYSHINQLX_INITIALIZED.store(true, Ordering::SeqCst);
+        let is_initialized_context = pyshinqlx_is_initialized_context();
+        is_initialized_context.expect().returning(|| true);
 
         let pymodule: Py<PyModule> = Python::with_gil(|py| {
             PyModule::from_code(
@@ -1919,7 +1983,8 @@ def handler(client_id, is_used_on_demand):
     #[cfg_attr(not(miri), rstest)]
     #[serial]
     fn kamikaze_explode_dispatcher_dispatcher_throws_exception(_pyshinqlx_setup: ()) {
-        PYSHINQLX_INITIALIZED.store(true, Ordering::SeqCst);
+        let is_initialized_context = pyshinqlx_is_initialized_context();
+        is_initialized_context.expect().returning(|| true);
 
         let pymodule: Py<PyModule> = Python::with_gil(|py| {
             PyModule::from_code(
@@ -1948,7 +2013,8 @@ def handler(client_id, is_used_on_demand):
     #[test]
     #[serial]
     fn damage_dispatcher_when_python_not_initiailized() {
-        PYSHINQLX_INITIALIZED.store(false, Ordering::SeqCst);
+        let is_initialized_context = pyshinqlx_is_initialized_context();
+        is_initialized_context.expect().returning(|| false);
 
         damage_dispatcher(
             123,
@@ -1962,7 +2028,8 @@ def handler(client_id, is_used_on_demand):
     #[test]
     #[serial]
     fn damage_dispatcher_when_dispatcher_not_initiailized() {
-        PYSHINQLX_INITIALIZED.store(true, Ordering::SeqCst);
+        let is_initialized_context = pyshinqlx_is_initialized_context();
+        is_initialized_context.expect().returning(|| true);
         DAMAGE_HANDLER.store(None);
 
         damage_dispatcher(
@@ -1977,7 +2044,8 @@ def handler(client_id, is_used_on_demand):
     #[cfg_attr(not(miri), rstest)]
     #[serial]
     fn damage_dispatcher_dispatcher_works_properly(_pyshinqlx_setup: ()) {
-        PYSHINQLX_INITIALIZED.store(true, Ordering::SeqCst);
+        let is_initialized_context = pyshinqlx_is_initialized_context();
+        is_initialized_context.expect().returning(|| true);
 
         let pymodule: Py<PyModule> = Python::with_gil(|py| {
             PyModule::from_code(
@@ -2012,7 +2080,8 @@ def handler(client_id, attacker_id, damage, dflags, means_of_death):
     #[cfg_attr(not(miri), rstest)]
     #[serial]
     fn damage_dispatcher_dispatcher_throws_exception(_pyshinqlx_setup: ()) {
-        PYSHINQLX_INITIALIZED.store(true, Ordering::SeqCst);
+        let is_initialized_context = pyshinqlx_is_initialized_context();
+        is_initialized_context.expect().returning(|| true);
 
         let pymodule: Py<PyModule> = Python::with_gil(|py| {
             PyModule::from_code(

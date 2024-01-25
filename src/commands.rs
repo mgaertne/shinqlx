@@ -1,10 +1,11 @@
+use crate::ffi::c::prelude::*;
+use crate::ffi::python::prelude::*;
 use crate::prelude::*;
 use crate::quake_live_engine::{
     CmdArgc, CmdArgs, CmdArgv, ComPrintf, GameAddEvent, SendServerCommand,
 };
 use crate::MAIN_ENGINE;
 
-use pyo3::Python;
 use rand::Rng;
 
 #[no_mangle]
@@ -289,10 +290,11 @@ mod commands_tests {
         cmd_center_print, cmd_py_command, cmd_py_rcon, cmd_regular_print, cmd_restart_python,
         cmd_send_server_command, cmd_slap, cmd_slay,
     };
+    use crate::ffi::c::prelude::*;
+    use crate::ffi::python::prelude::*;
     use crate::prelude::*;
 
     use mockall::predicate;
-    use pyo3::{types::PyModule, IntoPy, Py, Python};
     #[cfg(not(miri))]
     use rstest::rstest;
     use serial_test::serial;

@@ -56,8 +56,6 @@ pub(crate) mod prelude {
         pyshinqlx_initialize_context, pyshinqlx_is_initialized_context, pyshinqlx_reload_context,
     };
     pub(crate) use super::PythonInitializationError;
-    #[cfg(test)]
-    pub(crate) use super::PYSHINQLX_INITIALIZED;
     #[cfg(not(test))]
     pub(crate) use super::{pyshinqlx_initialize, pyshinqlx_is_initialized, pyshinqlx_reload};
 
@@ -90,12 +88,15 @@ pub(crate) mod prelude {
     #[cfg(test)]
     #[cfg(not(miri))]
     pub(crate) use super::pyshinqlx_setup_fixture::*;
+
+    pub(crate) use pyo3::prelude::*;
 }
 
-use crate::prelude::*;
+use crate::ffi::c::prelude::*;
 use crate::quake_live_engine::FindCVar;
 use crate::MAIN_ENGINE;
 use crate::_INIT_TIME;
+use prelude::*;
 
 use alloc::sync::Arc;
 use arc_swap::ArcSwapOption;
@@ -110,7 +111,6 @@ use once_cell::sync::Lazy;
 use pyo3::{
     append_to_inittab, create_exception,
     exceptions::{PyEnvironmentError, PyException},
-    prelude::*,
     prepare_freethreaded_python,
     types::{IntoPyDict, PyDelta, PyDict, PyFunction, PyTuple},
 };

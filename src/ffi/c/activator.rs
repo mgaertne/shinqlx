@@ -1,3 +1,4 @@
+use super::prelude::*;
 use crate::prelude::*;
 
 #[derive(Debug, PartialEq)]
@@ -39,6 +40,7 @@ mockall::mock! {
 #[cfg(test)]
 mod activator_tests {
     use super::Activator;
+    use crate::ffi::c::prelude::*;
     use crate::prelude::*;
 
     use pretty_assertions::assert_eq;

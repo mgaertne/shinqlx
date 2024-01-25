@@ -1,3 +1,4 @@
+use super::prelude::*;
 #[cfg(test)]
 use crate::hooks::mock_hooks::shinqlx_set_configstring;
 #[cfg(not(test))]
@@ -107,6 +108,7 @@ mockall::mock! {
 mod current_level_tests {
     use super::CurrentLevel;
     use super::MAIN_ENGINE;
+    use crate::ffi::c::prelude::*;
     use crate::hooks::mock_hooks::shinqlx_set_configstring_context;
     use crate::prelude::*;
     use crate::quake_live_functions::QuakeLiveFunction::G_InitGame;

@@ -1,3 +1,4 @@
+use super::prelude::*;
 use crate::prelude::*;
 use crate::quake_live_engine::{GameAddEvent, TryLaunchItem};
 use crate::MAIN_ENGINE;
@@ -159,6 +160,7 @@ mockall::mock! {
 mod game_item_tests {
     use super::GameItem;
     use super::MAIN_ENGINE;
+    use crate::ffi::c::prelude::*;
     use crate::prelude::*;
 
     use alloc::ffi::CString;

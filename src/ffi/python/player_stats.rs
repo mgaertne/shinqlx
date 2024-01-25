@@ -1,6 +1,5 @@
-use crate::prelude::*;
-
-use pyo3::prelude::*;
+use super::prelude::*;
+use crate::ffi::c::prelude::*;
 
 /// A player's score and some basic stats.
 #[pyclass(module = "_shinqlx", name = "PlayerStats", frozen, get_all)]
@@ -52,6 +51,7 @@ impl From<GameClient> for PlayerStats {
 #[cfg(test)]
 mod player_stats_tests {
     use super::PlayerStats;
+    use crate::ffi::c::prelude::*;
     use crate::prelude::*;
 
     use pretty_assertions::assert_eq;
