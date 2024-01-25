@@ -1,6 +1,7 @@
-use crate::prelude::*;
+use crate::ffi::c::prelude::*;
+use crate::ffi::python::prelude::*;
 
-use pyo3::{basic::CompareOp, exceptions::PyNotImplementedError, prelude::*, types::IntoPyDict};
+use pyo3::{basic::CompareOp, exceptions::PyNotImplementedError, types::IntoPyDict};
 use regex::Regex;
 
 /// An abstract class of a chat channel. A chat channel being a source of a message.
@@ -116,16 +117,13 @@ impl AbstractChannel {
 mod abstract_channel_tests {
     use super::AbstractChannel;
     #[cfg(not(miri))]
-    use crate::prelude::*;
+    use crate::ffi::python::prelude::*;
 
     use pretty_assertions::assert_eq;
     #[cfg(not(miri))]
-    use pyo3::{
-        exceptions::{PyNotImplementedError, PyTypeError},
-        Py, Python,
-    };
+    use pyo3::exceptions::{PyNotImplementedError, PyTypeError};
     #[cfg(not(miri))]
-    use rstest::rstest;
+    use rstest::*;
 
     #[rstest]
     #[cfg(not(miri))]
@@ -361,12 +359,12 @@ impl ConsoleChannel {
 #[cfg(not(miri))]
 mod console_channel_tests {
     use super::ConsoleChannel;
+    use crate::ffi::python::prelude::*;
     use crate::hooks::mock_hooks::shinqlx_com_printf_context;
     use crate::prelude::*;
 
     use mockall::predicate;
-    use pyo3::{Py, Python};
-    use rstest::rstest;
+    use rstest::*;
 
     #[rstest]
     fn console_channel_can_be_created_from_python(_pyshinqlx_setup: ()) {
@@ -519,10 +517,10 @@ def reply(targets, msg):
 #[cfg(not(miri))]
 mod chat_channel_tests {
     use super::ChatChannel;
-    use crate::prelude::*;
+    use crate::ffi::python::prelude::*;
 
-    use pyo3::{exceptions::PyNotImplementedError, Python};
-    use rstest::rstest;
+    use pyo3::exceptions::PyNotImplementedError;
+    use rstest::*;
 
     #[rstest]
     fn console_channel_can_be_created_from_python(_pyshinqlx_setup: ()) {
@@ -593,6 +591,8 @@ impl TellChannel {
 #[cfg(test)]
 mod tell_channel_tests {
     use super::TellChannel;
+    use crate::ffi::c::prelude::*;
+    use crate::ffi::python::prelude::*;
     use crate::prelude::*;
 
     use mockall::predicate;
@@ -759,10 +759,11 @@ impl TeamChatChannel {
 #[cfg(not(miri))]
 mod team_chat_channel_tests {
     use super::TeamChatChannel;
+    use crate::ffi::c::prelude::*;
+    use crate::ffi::python::prelude::*;
     use crate::prelude::*;
     use crate::MAIN_ENGINE;
 
-    use pyo3::Python;
     use rstest::*;
 
     #[rstest]
@@ -957,11 +958,12 @@ impl ClientCommandChannel {
 #[cfg(test)]
 mod client_command_channel_tests {
     use super::ClientCommandChannel;
+    use crate::ffi::c::prelude::*;
+    use crate::ffi::python::prelude::*;
     use crate::prelude::*;
 
     use mockall::predicate;
     use pretty_assertions::assert_eq;
-    use pyo3::Python;
     #[cfg(not(miri))]
     use pyo3::{types::IntoPyDict, IntoPy};
     #[cfg(not(miri))]
