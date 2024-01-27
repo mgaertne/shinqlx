@@ -7,14 +7,14 @@ use pyo3::exceptions::PyValueError;
 #[pyfunction]
 #[pyo3(name = "get_targetting_entities")]
 pub(crate) fn pyshinqlx_get_entity_targets(py: Python<'_>, entity_id: i32) -> PyResult<Vec<u32>> {
-    if !(0..MAX_GENTITIES as i32).contains(&entity_id) {
-        return Err(PyValueError::new_err(format!(
-            "entity_id need to be between 0 and {}.",
-            MAX_GENTITIES - 1
-        )));
-    }
-
     py.allow_threads(|| {
+        if !(0..MAX_GENTITIES as i32).contains(&entity_id) {
+            return Err(PyValueError::new_err(format!(
+                "entity_id need to be between 0 and {}.",
+                MAX_GENTITIES - 1
+            )));
+        }
+
         #[cfg_attr(test, allow(clippy::unnecessary_fallible_conversions))]
         GameEntity::try_from(entity_id).map_or_else(
             |_| Ok(vec![]),

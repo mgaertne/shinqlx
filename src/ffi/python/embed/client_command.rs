@@ -1,12 +1,10 @@
+use super::validate_client_id;
 use crate::ffi::c::prelude::*;
 use crate::ffi::python::prelude::*;
 #[cfg(test)]
 use crate::hooks::mock_hooks::shinqlx_execute_client_command;
 #[cfg(not(test))]
 use crate::hooks::shinqlx_execute_client_command;
-use crate::MAIN_ENGINE;
-
-use pyo3::exceptions::{PyEnvironmentError, PyValueError};
 
 /// Tells the server to process a command from a specific client.
 #[pyfunction]
@@ -16,43 +14,30 @@ pub(crate) fn pyshinqlx_client_command(
     client_id: i32,
     cmd: &str,
 ) -> PyResult<bool> {
-    let maxclients = py.allow_threads(|| {
-        let Some(ref main_engine) = *MAIN_ENGINE.load() else {
-            return Err(PyEnvironmentError::new_err(
-                "main quake live engine not set",
-            ));
-        };
+    validate_client_id(py, client_id)?;
 
-        Ok(main_engine.get_max_clients())
-    })?;
-
-    if !(0..maxclients).contains(&client_id) {
-        return Err(PyValueError::new_err(format!(
-            "client_id needs to be a number from 0 to {}, or None.",
-            maxclients - 1
-        )));
-    }
-
-    #[cfg_attr(test, allow(clippy::unnecessary_fallible_conversions))]
-    let opt_client = Client::try_from(client_id).ok().filter(|client| {
-        ![clientState_t::CS_FREE, clientState_t::CS_ZOMBIE].contains(&client.get_state())
-    });
-    let returned = opt_client.is_some();
-    if returned {
-        shinqlx_execute_client_command(opt_client, cmd, true);
-    }
-    Ok(returned)
+    py.allow_threads(|| {
+        #[cfg_attr(test, allow(clippy::unnecessary_fallible_conversions))]
+        let opt_client = Client::try_from(client_id).ok().filter(|client| {
+            ![clientState_t::CS_FREE, clientState_t::CS_ZOMBIE].contains(&client.get_state())
+        });
+        let returned = opt_client.is_some();
+        if returned {
+            shinqlx_execute_client_command(opt_client, cmd, true);
+        }
+        Ok(returned)
+    })
 }
 
 #[cfg(test)]
 #[cfg(not(miri))]
 mod client_command_tests {
     use super::pyshinqlx_client_command;
-    use super::MAIN_ENGINE;
     use crate::ffi::c::prelude::*;
     use crate::ffi::python::prelude::*;
     use crate::hooks::mock_hooks::shinqlx_execute_client_command_context;
     use crate::prelude::*;
+    use crate::MAIN_ENGINE;
 
     use pretty_assertions::assert_eq;
     use pyo3::exceptions::{PyEnvironmentError, PyValueError};

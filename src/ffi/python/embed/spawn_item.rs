@@ -14,22 +14,22 @@ pub(crate) fn pyshinqlx_spawn_item(
     y: i32,
     z: i32,
 ) -> PyResult<bool> {
-    let max_items: i32 = GameItem::get_num_items();
-    if !(1..max_items).contains(&item_id) {
-        return Err(PyValueError::new_err(format!(
-            "item_id needs to be a number from 1 to {}.",
-            max_items - 1
-        )));
-    }
-
     py.allow_threads(|| {
+        let max_items: i32 = GameItem::get_num_items();
+        if !(1..max_items).contains(&item_id) {
+            return Err(PyValueError::new_err(format!(
+                "item_id needs to be a number from 1 to {}.",
+                max_items - 1
+            )));
+        }
+
         #[cfg_attr(test, allow(clippy::unnecessary_fallible_conversions))]
         GameItem::try_from(item_id)
             .iter_mut()
             .for_each(|gitem| gitem.spawn((x, y, z)));
-    });
 
-    Ok(true)
+        Ok(true)
+    })
 }
 
 #[cfg(test)]

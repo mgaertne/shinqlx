@@ -7,17 +7,15 @@ use pyo3::exceptions::PyEnvironmentError;
 /// Returns a list with dictionaries with information about all the players on the server.
 #[pyfunction(name = "players_info")]
 pub(crate) fn pyshinqlx_players_info(py: Python<'_>) -> PyResult<Vec<Option<PlayerInfo>>> {
-    let maxclients = py.allow_threads(|| {
+    py.allow_threads(|| {
         let Some(ref main_engine) = *MAIN_ENGINE.load() else {
             return Err(PyEnvironmentError::new_err(
                 "main quake live engine not set",
             ));
         };
 
-        Ok(main_engine.get_max_clients())
-    })?;
+        let maxclients = main_engine.get_max_clients();
 
-    py.allow_threads(|| {
         let result: Vec<Option<PlayerInfo>> = (0..maxclients)
             .filter_map(|client_id| {
                 #[cfg_attr(test, allow(clippy::unnecessary_fallible_conversions))]
