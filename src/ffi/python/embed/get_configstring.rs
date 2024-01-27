@@ -9,14 +9,14 @@ use pyo3::exceptions::{PyEnvironmentError, PyValueError};
 #[pyfunction]
 #[pyo3(name = "get_configstring")]
 pub(crate) fn pyshinqlx_get_configstring(py: Python<'_>, config_id: u32) -> PyResult<String> {
-    if !(0..MAX_CONFIGSTRINGS).contains(&config_id) {
-        return Err(PyValueError::new_err(format!(
-            "index needs to be a number from 0 to {}.",
-            MAX_CONFIGSTRINGS - 1
-        )));
-    }
-
     py.allow_threads(|| {
+        if !(0..MAX_CONFIGSTRINGS).contains(&config_id) {
+            return Err(PyValueError::new_err(format!(
+                "index needs to be a number from 0 to {}.",
+                MAX_CONFIGSTRINGS - 1
+            )));
+        }
+
         let Some(ref main_engine) = *MAIN_ENGINE.load() else {
             return Err(PyEnvironmentError::new_err(
                 "main quake live engine not set",

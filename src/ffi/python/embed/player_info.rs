@@ -1,10 +1,9 @@
+use super::validate_client_id;
 use crate::ffi::c::prelude::*;
 use crate::ffi::python::prelude::*;
 use crate::prelude::*;
-use crate::MAIN_ENGINE;
 
 use core::sync::atomic::Ordering;
-use pyo3::exceptions::{PyEnvironmentError, PyValueError};
 
 /// Returns a dictionary with information about a plapub(crate) yer by ID.
 #[pyfunction(name = "player_info")]
@@ -12,22 +11,7 @@ pub(crate) fn pyshinqlx_player_info(
     py: Python<'_>,
     client_id: i32,
 ) -> PyResult<Option<PlayerInfo>> {
-    let maxclients = py.allow_threads(|| {
-        let Some(ref main_engine) = *MAIN_ENGINE.load() else {
-            return Err(PyEnvironmentError::new_err(
-                "main quake live engine not set",
-            ));
-        };
-
-        Ok(main_engine.get_max_clients())
-    })?;
-
-    if !(0..maxclients).contains(&client_id) {
-        return Err(PyValueError::new_err(format!(
-            "client_id needs to be a number from 0 to {}.",
-            maxclients - 1
-        )));
-    }
+    validate_client_id(py, client_id)?;
 
     py.allow_threads(|| {
         let allowed_free_clients = ALLOW_FREE_CLIENT.load(Ordering::SeqCst);
@@ -57,10 +41,10 @@ pub(crate) fn pyshinqlx_player_info(
 #[cfg(not(miri))]
 mod get_player_info_tests {
     use super::pyshinqlx_player_info;
-    use super::MAIN_ENGINE;
     use crate::ffi::c::prelude::*;
     use crate::ffi::python::prelude::*;
     use crate::prelude::*;
+    use crate::MAIN_ENGINE;
 
     use core::sync::atomic::Ordering;
     use pyo3::exceptions::{PyEnvironmentError, PyValueError};

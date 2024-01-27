@@ -1,8 +1,8 @@
+use super::validate_client_id;
 use crate::ffi::c::prelude::*;
 use crate::ffi::python::prelude::*;
-use crate::MAIN_ENGINE;
 
-use pyo3::exceptions::{PyEnvironmentError, PyValueError};
+use pyo3::exceptions::PyValueError;
 
 /// Slay player with mean of death.
 #[pyfunction]
@@ -12,30 +12,15 @@ pub(crate) fn pyshinqlx_slay_with_mod(
     client_id: i32,
     mean_of_death: i32,
 ) -> PyResult<bool> {
-    let maxclients = py.allow_threads(|| {
-        let Some(ref main_engine) = *MAIN_ENGINE.load() else {
-            return Err(PyEnvironmentError::new_err(
-                "main quake live engine not set",
+    validate_client_id(py, client_id)?;
+
+    py.allow_threads(|| {
+        let Ok(means_of_death): Result<meansOfDeath_t, _> = mean_of_death.try_into() else {
+            return Err(PyValueError::new_err(
+                "means of death needs to be a valid enum value.",
             ));
         };
 
-        Ok(main_engine.get_max_clients())
-    })?;
-
-    if !(0..maxclients).contains(&client_id) {
-        return Err(PyValueError::new_err(format!(
-            "client_id needs to be a number from 0 to {}.",
-            maxclients - 1
-        )));
-    }
-
-    let Ok(means_of_death): Result<meansOfDeath_t, _> = mean_of_death.try_into() else {
-        return Err(PyValueError::new_err(
-            "means of death needs to be a valid enum value.",
-        ));
-    };
-
-    py.allow_threads(|| {
         #[cfg_attr(test, allow(clippy::unnecessary_fallible_conversions))]
         let mut opt_game_entity = GameEntity::try_from(client_id)
             .ok()
@@ -53,10 +38,10 @@ pub(crate) fn pyshinqlx_slay_with_mod(
 #[cfg(not(miri))]
 mod slay_with_mod_tests {
     use super::pyshinqlx_slay_with_mod;
-    use super::MAIN_ENGINE;
     use crate::ffi::c::prelude::*;
     use crate::ffi::python::prelude::*;
     use crate::prelude::*;
+    use crate::MAIN_ENGINE;
 
     use mockall::predicate;
     use pretty_assertions::assert_eq;
