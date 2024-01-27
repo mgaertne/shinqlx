@@ -10,21 +10,21 @@ pub(crate) fn pyshinqlx_force_weapon_respawn_time(
     py: Python<'_>,
     respawn_time: i32,
 ) -> PyResult<bool> {
-    if respawn_time < 0 {
-        return Err(PyValueError::new_err(
-            "respawn time needs to be an integer 0 or greater",
-        ));
-    }
-
     py.allow_threads(|| {
+        if respawn_time < 0 {
+            return Err(PyValueError::new_err(
+                "respawn time needs to be an integer 0 or greater",
+            ));
+        }
+
         #[cfg_attr(test, allow(clippy::unnecessary_fallible_conversions))]
         (0..MAX_GENTITIES)
             .filter_map(|i| GameEntity::try_from(i as i32).ok())
             .filter(|game_entity| game_entity.in_use() && game_entity.is_respawning_weapon())
-            .for_each(|mut game_entity| game_entity.set_respawn_time(respawn_time))
-    });
+            .for_each(|mut game_entity| game_entity.set_respawn_time(respawn_time));
 
-    Ok(true)
+        Ok(true)
+    })
 }
 
 #[cfg(test)]
