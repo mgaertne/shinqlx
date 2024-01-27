@@ -43,6 +43,7 @@ mod set_weapons;
 mod slay_with_mod;
 mod spawn_item;
 
+use crate::MAIN_ENGINE;
 pub(crate) use add_console_command::pyshinqlx_add_console_command;
 pub(crate) use allow_single_player::pyshinqlx_allow_single_player;
 pub(crate) use callvote::pyshinqlx_callvote;
@@ -65,6 +66,8 @@ pub(crate) use player_spawn::pyshinqlx_player_spawn;
 pub(crate) use player_state::pyshinqlx_player_state;
 pub(crate) use player_stats::pyshinqlx_player_stats;
 pub(crate) use players_info::pyshinqlx_players_info;
+use pyo3::exceptions::{PyEnvironmentError, PyValueError};
+use pyo3::{PyResult, Python};
 pub(crate) use register_handler::pyshinqlx_register_handler;
 pub(crate) use remove_dropped_items::pyshinqlx_remove_dropped_items;
 pub(crate) use replace_items::pyshinqlx_replace_items;
@@ -87,3 +90,22 @@ pub(crate) use set_weapon::pyshinqlx_set_weapon;
 pub(crate) use set_weapons::pyshinqlx_set_weapons;
 pub(crate) use slay_with_mod::pyshinqlx_slay_with_mod;
 pub(crate) use spawn_item::pyshinqlx_spawn_item;
+
+fn validate_client_id(py: Python<'_>, client_id: i32) -> PyResult<()> {
+    py.allow_threads(|| {
+        let Some(ref main_engine) = *MAIN_ENGINE.load() else {
+            return Err(PyEnvironmentError::new_err(
+                "main quake live engine not set",
+            ));
+        };
+
+        let maxclients = main_engine.get_max_clients();
+        if !(0..maxclients).contains(&client_id) {
+            return Err(PyValueError::new_err(format!(
+                "client_id needs to be a number from 0 to {}, or None.",
+                maxclients - 1
+            )));
+        }
+        Ok(())
+    })
+}

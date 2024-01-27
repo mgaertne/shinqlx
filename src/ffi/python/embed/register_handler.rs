@@ -18,26 +18,26 @@ pub(crate) fn pyshinqlx_register_handler(
         return Err(PyTypeError::new_err("The handler must be callable."));
     }
 
-    let handler_lock = match event {
-        "client_command" => &CLIENT_COMMAND_HANDLER,
-        "server_command" => &SERVER_COMMAND_HANDLER,
-        "frame" => &FRAME_HANDLER,
-        "player_connect" => &PLAYER_CONNECT_HANDLER,
-        "player_loaded" => &PLAYER_LOADED_HANDLER,
-        "player_disconnect" => &PLAYER_DISCONNECT_HANDLER,
-        "custom_command" => &CUSTOM_COMMAND_HANDLER,
-        "new_game" => &NEW_GAME_HANDLER,
-        "set_configstring" => &SET_CONFIGSTRING_HANDLER,
-        "rcon" => &RCON_HANDLER,
-        "console_print" => &CONSOLE_PRINT_HANDLER,
-        "player_spawn" => &PLAYER_SPAWN_HANDLER,
-        "kamikaze_use" => &KAMIKAZE_USE_HANDLER,
-        "kamikaze_explode" => &KAMIKAZE_EXPLODE_HANDLER,
-        "damage" => &DAMAGE_HANDLER,
-        _ => return Err(PyValueError::new_err("Unsupported event.")),
-    };
-
     py.allow_threads(|| {
+        let handler_lock = match event {
+            "client_command" => &CLIENT_COMMAND_HANDLER,
+            "server_command" => &SERVER_COMMAND_HANDLER,
+            "frame" => &FRAME_HANDLER,
+            "player_connect" => &PLAYER_CONNECT_HANDLER,
+            "player_loaded" => &PLAYER_LOADED_HANDLER,
+            "player_disconnect" => &PLAYER_DISCONNECT_HANDLER,
+            "custom_command" => &CUSTOM_COMMAND_HANDLER,
+            "new_game" => &NEW_GAME_HANDLER,
+            "set_configstring" => &SET_CONFIGSTRING_HANDLER,
+            "rcon" => &RCON_HANDLER,
+            "console_print" => &CONSOLE_PRINT_HANDLER,
+            "player_spawn" => &PLAYER_SPAWN_HANDLER,
+            "kamikaze_use" => &KAMIKAZE_USE_HANDLER,
+            "kamikaze_explode" => &KAMIKAZE_EXPLODE_HANDLER,
+            "damage" => &DAMAGE_HANDLER,
+            _ => return Err(PyValueError::new_err("Unsupported event.")),
+        };
+
         handler_lock.store(handler.map(|handler_func| handler_func.into()));
         Ok(())
     })

@@ -15,14 +15,14 @@ pub(crate) fn pyshinqlx_set_configstring(
     config_id: u32,
     value: &str,
 ) -> PyResult<()> {
-    if !(0..MAX_CONFIGSTRINGS).contains(&config_id) {
-        return Err(PyValueError::new_err(format!(
-            "index needs to be a number from 0 to {}.",
-            MAX_CONFIGSTRINGS - 1
-        )));
-    }
-
     py.allow_threads(|| {
+        if !(0..MAX_CONFIGSTRINGS).contains(&config_id) {
+            return Err(PyValueError::new_err(format!(
+                "index needs to be a number from 0 to {}.",
+                MAX_CONFIGSTRINGS - 1
+            )));
+        }
+
         shinqlx_set_configstring(config_id, value);
 
         Ok(())

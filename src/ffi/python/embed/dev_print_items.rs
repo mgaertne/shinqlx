@@ -9,9 +9,9 @@ use pyo3::exceptions::PyEnvironmentError;
 #[pyfunction]
 #[pyo3(name = "dev_print_items")]
 pub(crate) fn pyshinqlx_dev_print_items(py: Python<'_>) -> PyResult<()> {
-    let formatted_items: Vec<String> = py.allow_threads(|| {
+    py.allow_threads(|| {
         #[cfg_attr(test, allow(clippy::unnecessary_fallible_conversions))]
-        (0..MAX_GENTITIES)
+        let formatted_items: Vec<String> = (0..MAX_GENTITIES)
             .filter_map(|i| GameEntity::try_from(i as i32).ok())
             .filter(|game_entity| {
                 game_entity.in_use() && game_entity.is_game_item(entityType_t::ET_ITEM)
@@ -23,19 +23,17 @@ pub(crate) fn pyshinqlx_dev_print_items(py: Python<'_>) -> PyResult<()> {
                     game_entity.get_classname()
                 )
             })
-            .collect()
-    });
-    let mut str_length = 0;
-    let printed_items: Vec<String> = formatted_items
-        .iter()
-        .take_while(|&item| {
-            str_length += item.len();
-            str_length < 1024
-        })
-        .map(|item| item.into())
-        .collect();
+            .collect();
+        let mut str_length = 0;
+        let printed_items: Vec<String> = formatted_items
+            .iter()
+            .take_while(|&item| {
+                str_length += item.len();
+                str_length < 1024
+            })
+            .map(|item| item.into())
+            .collect();
 
-    py.allow_threads(|| {
         let Some(ref main_engine) = *MAIN_ENGINE.load() else {
             return Err(PyEnvironmentError::new_err(
                 "main quake live engine not set",

@@ -1,12 +1,10 @@
+use super::validate_client_id;
 use crate::ffi::c::prelude::*;
 use crate::ffi::python::prelude::*;
 #[cfg(test)]
 use crate::hooks::mock_hooks::shinqlx_send_server_command;
 #[cfg(not(test))]
 use crate::hooks::shinqlx_send_server_command;
-use crate::MAIN_ENGINE;
-
-use pyo3::exceptions::{PyEnvironmentError, PyValueError};
 
 /// Sends a server command to either one specific client or all the clients.
 #[pyfunction]
@@ -18,37 +16,24 @@ pub(crate) fn pyshinqlx_send_server_command(
     cmd: &str,
 ) -> PyResult<bool> {
     match client_id {
-        None => {
+        None => py.allow_threads(|| {
             shinqlx_send_server_command(None, cmd);
             Ok(true)
-        }
+        }),
         Some(actual_client_id) => {
-            let maxclients = py.allow_threads(|| {
-                let Some(ref main_engine) = *MAIN_ENGINE.load() else {
-                    return Err(PyEnvironmentError::new_err(
-                        "main quake live engine not set",
-                    ));
-                };
+            validate_client_id(py, actual_client_id)?;
 
-                Ok(main_engine.get_max_clients())
-            })?;
-
-            if !(0..maxclients).contains(&actual_client_id) {
-                return Err(PyValueError::new_err(format!(
-                    "client_id needs to be a number from 0 to {}, or None.",
-                    maxclients - 1
-                )));
-            }
-
-            #[cfg_attr(test, allow(clippy::unnecessary_fallible_conversions))]
-            let opt_client = Client::try_from(actual_client_id)
-                .ok()
-                .filter(|client| client.get_state() == clientState_t::CS_ACTIVE);
-            let returned = opt_client.is_some();
-            if returned {
-                shinqlx_send_server_command(opt_client, cmd);
-            }
-            Ok(returned)
+            py.allow_threads(|| {
+                #[cfg_attr(test, allow(clippy::unnecessary_fallible_conversions))]
+                let opt_client = Client::try_from(actual_client_id)
+                    .ok()
+                    .filter(|client| client.get_state() == clientState_t::CS_ACTIVE);
+                let returned = opt_client.is_some();
+                if returned {
+                    shinqlx_send_server_command(opt_client, cmd);
+                }
+                Ok(returned)
+            })
         }
     }
 }
@@ -57,11 +42,11 @@ pub(crate) fn pyshinqlx_send_server_command(
 #[cfg(not(miri))]
 mod send_server_command_tests {
     use super::pyshinqlx_send_server_command;
-    use super::MAIN_ENGINE;
     use crate::ffi::c::prelude::*;
     use crate::ffi::python::prelude::*;
     use crate::hooks::mock_hooks::shinqlx_send_server_command_context;
     use crate::prelude::*;
+    use crate::MAIN_ENGINE;
 
     use pretty_assertions::assert_eq;
     use pyo3::exceptions::{PyEnvironmentError, PyValueError};

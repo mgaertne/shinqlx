@@ -8,26 +8,22 @@ use pyo3::exceptions::PyEnvironmentError;
 #[pyfunction]
 #[pyo3(name = "force_vote")]
 pub(crate) fn pyshinqlx_force_vote(py: Python<'_>, pass: bool) -> PyResult<bool> {
-    let vote_time = py.allow_threads(|| {
-        CurrentLevel::try_get()
+    py.allow_threads(|| {
+        let vote_time = CurrentLevel::try_get()
             .ok()
-            .and_then(|current_level| current_level.get_vote_time())
-    });
-    if vote_time.is_none() {
-        return Ok(false);
-    }
+            .and_then(|current_level| current_level.get_vote_time());
+        if vote_time.is_none() {
+            return Ok(false);
+        }
 
-    let maxclients = py.allow_threads(|| {
         let Some(ref main_engine) = *MAIN_ENGINE.load() else {
             return Err(PyEnvironmentError::new_err(
                 "main quake live engine not set",
             ));
         };
 
-        Ok(main_engine.get_max_clients())
-    })?;
+        let maxclients = main_engine.get_max_clients();
 
-    py.allow_threads(|| {
         #[cfg_attr(test, allow(clippy::unnecessary_fallible_conversions))]
         (0..maxclients)
             .filter(|i| {
@@ -39,9 +35,8 @@ pub(crate) fn pyshinqlx_force_vote(py: Python<'_>, pass: bool) -> PyResult<bool>
             .filter_map(|client_id| GameEntity::try_from(client_id).ok())
             .filter_map(|game_entity| game_entity.get_game_client().ok())
             .for_each(|mut game_client| game_client.set_vote_state(pass));
-    });
-
-    Ok(true)
+        Ok(true)
+    })
 }
 
 #[cfg(test)]
