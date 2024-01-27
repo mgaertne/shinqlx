@@ -1,6 +1,8 @@
+cargo-features = ["profile-rustflags"]
+
 [package]
 name = "shinqlx"
-version = "0.5.4-rc.13"
+version = "0.5.4-rc.14"
 authors = ["Markus 'ShiN0' Gaertner"]
 edition = "2021"
 readme = "README.md"
@@ -26,6 +28,9 @@ strip = "symbols"
 opt-level = "z"
 lto = "fat"
 codegen-units = 1
+
+[profile.release.build-override]
+rustflags = ["-Zlocation-detail=none"]
 
 [dependencies]
 ctor = { version = ">=0.2", features = ["used_linker"] }
