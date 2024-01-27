@@ -12,7 +12,7 @@ classifiers = [
     "Programming Language :: Rust",
     "Programming Language :: Python :: Implementation :: CPython",
 ]
-dependencies = ["setuptools>=61.2", "redis>=2.10", "hiredis", "requests>=2.20", "pyzmq>=23"]
+dependencies = ["setuptools>=61.2", "redis>=2.10", "hiredis", "pyzmq>=23"]
 
 [project.readme]
 file = "README.md"
@@ -26,7 +26,7 @@ license-files = ["LICENSE"]
 include-package-data = false
 
 [tool.maturin]
-unstable-flags = ["build-std=std"]
+unstable-flags = ["build-std=std,core,alloc,panic_abort"]
 include = [
     { path = "src/**/*", format = "sdist" },
     { path = "build.rs", format = "sdist" },
