@@ -26,7 +26,7 @@ license-files = ["LICENSE"]
 include-package-data = false
 
 [tool.maturin]
-unstable-flags = ["build-std=std"]
+unstable-flags = ["build-std=std,core,alloc,panic_abort"]
 include = [
     { path = "src/**/*", format = "sdist" },
     { path = "build.rs", format = "sdist" },
