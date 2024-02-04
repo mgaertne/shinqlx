@@ -11,6 +11,7 @@ use crate::hooks::{
     shinqlx_sv_setconfigstring, shinqlx_sv_spawnserver, shinqlx_sys_setmoduleoffset,
     ShiNQlx_Com_Printf, ShiNQlx_SV_SendServerCommand,
 };
+#[cfg(feature = "patches")]
 use crate::patches::patch_callvote_f;
 use crate::prelude::*;
 #[cfg(target_os = "linux")]
@@ -357,6 +358,7 @@ impl VmFunctions {
         Ok(())
     }
 
+    #[cfg(feature = "patches")]
     #[cfg_attr(test, allow(dead_code))]
     pub(crate) fn patch(&self) {
         let cmd_callvote_f_orig = self.cmd_callvote_f_orig.load(Ordering::SeqCst);
@@ -965,6 +967,7 @@ impl QuakeLiveEngine {
         self.current_vm.store(module_offset, Ordering::SeqCst);
 
         self.vm_functions.hook()?;
+        #[cfg(feature = "patches")]
         self.vm_functions.patch();
 
         Ok(())

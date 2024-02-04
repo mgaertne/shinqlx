@@ -64,3 +64,8 @@ pretty_assertions = { version = ">=1.4", default-features = false, features = ["
 rstest = { version = ">=0.18", default-features = false }
 mockall = { version = ">=0.12", features = ["nightly"]}
 serial_test = { version = ">=3.0", default-features = false }
+
+[features]
+default = ["patches"]
+patches = []
+
