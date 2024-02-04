@@ -346,9 +346,9 @@ class Player:
         if not kwargs:
             return pos
 
-        x = pos.x if "x" not in kwargs else kwargs["x"]
-        y = pos.y if "y" not in kwargs else kwargs["y"]
-        z = pos.z if "z" not in kwargs else kwargs["z"]
+        x = kwargs.get("x", pos.x)
+        y = kwargs.get("y", pos.y)
+        z = kwargs.get("z", pos.z)
 
         return shinqlx.set_position(self.id, shinqlx.Vector3((x, y, z)))
 
@@ -358,9 +358,9 @@ class Player:
         if not kwargs:
             return vel
 
-        x = vel.x if "x" not in kwargs else kwargs["x"]
-        y = vel.y if "y" not in kwargs else kwargs["y"]
-        z = vel.z if "z" not in kwargs else kwargs["z"]
+        x = kwargs.get("x", vel.x)
+        y = kwargs.get("y", vel.y)
+        z = kwargs.get("z", vel.z)
 
         return shinqlx.set_velocity(self.id, shinqlx.Vector3((x, y, z)))
 
@@ -370,21 +370,21 @@ class Player:
         if not kwargs:
             return weaps
 
-        g = weaps.g if "g" not in kwargs else kwargs["g"]
-        mg = weaps.mg if "mg" not in kwargs else kwargs["mg"]
-        sg = weaps.sg if "sg" not in kwargs else kwargs["sg"]
-        gl = weaps.gl if "gl" not in kwargs else kwargs["gl"]
-        rl = weaps.rl if "rl" not in kwargs else kwargs["rl"]
-        lg = weaps.lg if "lg" not in kwargs else kwargs["lg"]
-        rg = weaps.rg if "rg" not in kwargs else kwargs["rg"]
-        pg = weaps.pg if "pg" not in kwargs else kwargs["pg"]
-        bfg = weaps.bfg if "bfg" not in kwargs else kwargs["bfg"]
-        gh = weaps.gh if "gh" not in kwargs else kwargs["gh"]
-        ng = weaps.ng if "ng" not in kwargs else kwargs["ng"]
-        pl = weaps.pl if "pl" not in kwargs else kwargs["pl"]
-        cg = weaps.cg if "cg" not in kwargs else kwargs["cg"]
-        hmg = weaps.hmg if "hmg" not in kwargs else kwargs["hmg"]
-        hands = weaps.hands if "hands" not in kwargs else kwargs["hands"]
+        g = kwargs.get("g", weaps.g)
+        mg = kwargs.get("mg", weaps.mg)
+        sg = kwargs.get("sg", weaps.sg)
+        gl = kwargs.get("gl", weaps.gl)
+        rl = kwargs.get("rl", weaps.rl)
+        lg = kwargs.get("lg", weaps.lg)
+        rg = kwargs.get("rg", weaps.rg)
+        pg = kwargs.get("pg", weaps.pg)
+        bfg = kwargs.get("bfg", weaps.bfg)
+        gh = kwargs.get("gh", weaps.gh)
+        ng = kwargs.get("ng", weaps.ng)
+        pl = kwargs.get("pl", weaps.pl)
+        cg = kwargs.get("cg", weaps.cg)
+        hmg = kwargs.get("hmg", weaps.hmg)
+        hands = kwargs.get("hands", weaps.hands)
 
         return shinqlx.set_weapons(
             self.id,
@@ -409,21 +409,21 @@ class Player:
         if not kwargs:
             return a
 
-        g = a.g if "g" not in kwargs else kwargs["g"]
-        mg = a.mg if "mg" not in kwargs else kwargs["mg"]
-        sg = a.sg if "sg" not in kwargs else kwargs["sg"]
-        gl = a.gl if "gl" not in kwargs else kwargs["gl"]
-        rl = a.rl if "rl" not in kwargs else kwargs["rl"]
-        lg = a.lg if "lg" not in kwargs else kwargs["lg"]
-        rg = a.rg if "rg" not in kwargs else kwargs["rg"]
-        pg = a.pg if "pg" not in kwargs else kwargs["pg"]
-        bfg = a.bfg if "bfg" not in kwargs else kwargs["bfg"]
-        gh = a.gh if "gh" not in kwargs else kwargs["gh"]
-        ng = a.ng if "ng" not in kwargs else kwargs["ng"]
-        pl = a.pl if "pl" not in kwargs else kwargs["pl"]
-        cg = a.cg if "cg" not in kwargs else kwargs["cg"]
-        hmg = a.hmg if "hmg" not in kwargs else kwargs["hmg"]
-        hands = a.hands if "hands" not in kwargs else kwargs["hands"]
+        g = kwargs.get("g", a.g)
+        mg = kwargs.get("mg", a.mg)
+        sg = kwargs.get("sg", a.sg)
+        gl = kwargs.get("gl", a.gl)
+        rl = kwargs.get("rl", a.rl)
+        lg = kwargs.get("lg", a.lg)
+        rg = kwargs.get("rg", a.rg)
+        pg = kwargs.get("pg", a.pg)
+        bfg = kwargs.get("bfg", a.bfg)
+        gh = kwargs.get("gh", a.gh)
+        ng = kwargs.get("ng", a.ng)
+        pl = kwargs.get("pl", a.pl)
+        cg = kwargs.get("cg", a.cg)
+        hmg = kwargs.get("hmg", a.hmg)
+        hands = kwargs.get("hands", a.hands)
 
         return shinqlx.set_ammo(
             self.id,
@@ -502,10 +502,10 @@ class Player:
         # Set to defaults on reset.
         fl = shinqlx.Flight((16000, 16000, 1200, 0)) if reset else state.flight
 
-        fuel = fl.fuel if "fuel" not in kwargs else kwargs["fuel"]
-        max_fuel = fl.max_fuel if "max_fuel" not in kwargs else kwargs["max_fuel"]
-        thrust = fl.thrust if "thrust" not in kwargs else kwargs["thrust"]
-        refuel = fl.refuel if "refuel" not in kwargs else kwargs["refuel"]
+        fuel = kwargs.get("fuel", fl.fuel)
+        max_fuel = kwargs.get("max_fuel", fl.max_fuel)
+        thrust = kwargs.get("thrust", fl.thrust)
+        refuel = kwargs.get("refuel", fl.refuel)
 
         return shinqlx.set_flight(
             self.id, shinqlx.Flight((fuel, max_fuel, thrust, refuel))
