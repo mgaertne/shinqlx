@@ -1428,14 +1428,11 @@ pub(crate) trait FindCVar<T: AsRef<str>> {
 
 impl<T: AsRef<str>> FindCVar<T> for QuakeLiveEngine {
     fn find_cvar(&self, name: T) -> Option<CVar> {
-        let Ok(original_func) = self.cvar_findvar_orig() else {
-            return None;
-        };
-        let Ok(c_name) = CString::new(name.as_ref()) else {
-            return None;
-        };
-        let cvar = original_func(c_name.as_ptr());
-        CVar::try_from(cvar).ok()
+        let c_name = CString::new(name.as_ref()).ok()?;
+        self.cvar_findvar_orig()
+            .map(|original_func| original_func(c_name.as_ptr()))
+            .and_then(CVar::try_from)
+            .ok()
     }
 }
 
@@ -1448,11 +1445,9 @@ impl<T: AsRef<str>> AddCommand<T> for QuakeLiveEngine {
         let Ok(c_cmd) = CString::new(cmd.as_ref()) else {
             return;
         };
-        let Ok(detour) = self.cmd_addcommand_detour() else {
-            return;
-        };
-
-        detour.call(c_cmd.as_ptr(), func);
+        self.cmd_addcommand_detour()
+            .iter()
+            .for_each(|detour| detour.call(c_cmd.as_ptr(), func));
     }
 }
 
@@ -1465,11 +1460,9 @@ impl<T: AsRef<str>> SetModuleOffset<T> for QuakeLiveEngine {
         let Ok(c_module_name) = CString::new(module_name.as_ref()) else {
             return;
         };
-        let Ok(detour) = self.sys_setmoduleoffset_detour() else {
-            return;
-        };
-
-        detour.call(c_module_name.as_ptr(), offset);
+        self.sys_setmoduleoffset_detour()
+            .iter()
+            .for_each(|detour| detour.call(c_module_name.as_ptr(), offset));
     }
 }
 
@@ -1479,10 +1472,12 @@ pub(crate) trait InitGame<T: Into<c_int>, U: Into<c_int>, V: Into<c_int>> {
 
 impl<T: Into<c_int>, U: Into<c_int>, V: Into<c_int>> InitGame<T, U, V> for QuakeLiveEngine {
     fn init_game(&self, level_time: T, random_seed: U, restart: V) {
-        let Ok(original_func) = self.g_init_game_orig() else {
-            return;
-        };
-        original_func(level_time.into(), random_seed.into(), restart.into());
+        let level_time_param = level_time.into();
+        let random_seed_param = random_seed.into();
+        let restart_param = restart.into();
+        self.g_init_game_orig().iter().for_each(|original_func| {
+            original_func(level_time_param, random_seed_param, restart_param)
+        });
     }
 }
 
@@ -1492,10 +1487,10 @@ pub(crate) trait ShutdownGame<T: Into<c_int>> {
 
 impl<T: Into<c_int>> ShutdownGame<T> for QuakeLiveEngine {
     fn shutdown_game(&self, restart: T) {
-        let Ok(original_func) = self.g_shutdown_game_orig() else {
-            return;
-        };
-        original_func(restart.into());
+        let restart_param = restart.into();
+        self.g_shutdown_game_orig()
+            .iter()
+            .for_each(|original_func| original_func(restart_param));
     }
 }
 
@@ -1507,20 +1502,20 @@ pub(crate) trait ExecuteClientCommand<T: AsMut<client_t>, U: AsRef<str>, V: Into
 impl<T: AsMut<client_t>, U: AsRef<str>, V: Into<qboolean>> ExecuteClientCommand<T, U, V>
     for QuakeLiveEngine
 {
-    fn execute_client_command(&self, client: Option<T>, cmd: U, client_ok: V) {
-        let Ok(detour) = self.sv_executeclientcommand_detour() else {
-            return;
-        };
-
+    fn execute_client_command(&self, mut client: Option<T>, cmd: U, client_ok: V) {
         let Ok(c_command) = CString::new(cmd.as_ref()) else {
             return;
         };
-        match client {
-            Some(mut safe_client) => {
-                detour.call(safe_client.as_mut(), c_command.as_ptr(), client_ok.into())
-            }
-            None => detour.call(ptr::null_mut(), c_command.as_ptr(), client_ok.into()),
-        }
+
+        let client_ok_param = client_ok.into();
+        self.sv_executeclientcommand_detour()
+            .iter()
+            .for_each(|detour| match &mut client {
+                Some(ref mut safe_client) => {
+                    detour.call(safe_client.as_mut(), c_command.as_ptr(), client_ok_param)
+                }
+                None => detour.call(ptr::null_mut(), c_command.as_ptr(), client_ok_param),
+            });
     }
 }
 
@@ -1530,19 +1525,21 @@ pub(crate) trait SendServerCommand<T: AsRef<client_t>> {
 
 impl<T: AsRef<client_t>> SendServerCommand<T> for QuakeLiveEngine {
     fn send_server_command(&self, client: Option<T>, command: &str) {
-        let Ok(detour) = self.sv_sendservercommand_detour() else {
-            return;
-        };
-        let original_func: extern "C" fn(*const client_t, *const c_char, ...) =
-            unsafe { mem::transmute(detour.trampoline()) };
-
         let Ok(c_command) = CString::new(command) else {
             return;
         };
-        match client {
-            Some(safe_client) => original_func(safe_client.as_ref(), c_command.as_ptr()),
-            None => original_func(ptr::null(), c_command.as_ptr()),
-        }
+
+        self.sv_sendservercommand_detour()
+            .map(|detour| unsafe { mem::transmute(detour.trampoline()) })
+            .iter()
+            .for_each(
+                |original_func: &extern "C" fn(*const client_t, *const c_char, ...)| match &client {
+                    Some(ref safe_client) => {
+                        original_func(safe_client.as_ref(), c_command.as_ptr())
+                    }
+                    None => original_func(ptr::null(), c_command.as_ptr()),
+                },
+            );
     }
 }
 
@@ -1552,11 +1549,9 @@ pub(crate) trait ClientEnterWorld<T: AsMut<client_t>> {
 
 impl<T: AsMut<client_t>> ClientEnterWorld<T> for QuakeLiveEngine {
     fn client_enter_world(&self, mut client: T, cmd: *mut usercmd_t) {
-        let Ok(detour) = self.sv_cliententerworld_detour() else {
-            return;
-        };
-
-        detour.call(client.as_mut(), cmd);
+        self.sv_cliententerworld_detour()
+            .iter()
+            .for_each(|detour| detour.call(client.as_mut(), cmd));
     }
 }
 
@@ -1569,11 +1564,10 @@ impl<T: Into<c_int>> SetConfigstring<T> for QuakeLiveEngine {
         let Ok(c_value) = CString::new(value) else {
             return;
         };
-        let Ok(detour) = self.sv_setconfgistring_detour() else {
-            return;
-        };
-
-        detour.call(index.into(), c_value.as_ptr());
+        let index_param = index.into();
+        self.sv_setconfgistring_detour()
+            .iter()
+            .for_each(|detour| detour.call(index_param, c_value.as_ptr()));
     }
 }
 
@@ -1583,16 +1577,14 @@ pub(crate) trait ComPrintf {
 
 impl ComPrintf for QuakeLiveEngine {
     fn com_printf(&self, msg: &str) {
-        let Ok(detour) = self.com_printf_detour() else {
-            return;
-        };
-        let original_func: extern "C" fn(*const c_char, ...) =
-            unsafe { mem::transmute(detour.trampoline()) };
-
         let Ok(c_msg) = CString::new(msg) else {
             return;
         };
-        original_func(c_msg.as_ptr());
+        self.com_printf_detour().iter().for_each(|detour| {
+            let original_func: extern "C" fn(*const c_char, ...) =
+                unsafe { mem::transmute(detour.trampoline()) };
+            original_func(c_msg.as_ptr())
+        });
     }
 }
 
@@ -1605,11 +1597,10 @@ impl<T: AsRef<str>, U: Into<qboolean>> SpawnServer<T, U> for QuakeLiveEngine {
         let Ok(c_server) = CString::new(server.as_ref()) else {
             return;
         };
-        let Ok(detour) = self.sv_spawnserver_detour() else {
-            return;
-        };
-
-        detour.call(c_server.as_ptr(), kill_bots.into());
+        let kill_bots_param = kill_bots.into();
+        self.sv_spawnserver_detour()
+            .iter()
+            .for_each(|detour| detour.call(c_server.as_ptr(), kill_bots_param));
     }
 }
 
@@ -1619,10 +1610,10 @@ pub(crate) trait RunFrame<T: Into<c_int>> {
 
 impl<T: Into<c_int>> RunFrame<T> for QuakeLiveEngine {
     fn run_frame(&self, time: T) {
-        let Ok(original_func) = self.g_run_frame_orig() else {
-            return;
-        };
-        original_func(time.into());
+        let time_param = time.into();
+        self.g_run_frame_orig()
+            .iter()
+            .for_each(|original_func| original_func(time_param));
     }
 }
 
@@ -1634,11 +1625,12 @@ impl<T: Into<c_int>, U: Into<qboolean>, V: Into<qboolean>> ClientConnect<T, U, V
     for QuakeLiveEngine
 {
     fn client_connect(&self, client_num: T, first_time: U, is_bot: V) -> *const c_char {
-        let Some(ref detour) = *self.vm_functions.client_connect_detour.load() else {
-            return ptr::null();
-        };
-
-        detour.call(client_num.into(), first_time.into(), is_bot.into())
+        self.vm_functions
+            .client_connect_detour
+            .load()
+            .as_ref()
+            .map(|detour| detour.call(client_num.into(), first_time.into(), is_bot.into()))
+            .unwrap_or_else(ptr::null)
     }
 }
 
@@ -1648,11 +1640,11 @@ pub(crate) trait ClientSpawn<T: AsMut<gentity_t>> {
 
 impl<T: AsMut<gentity_t>> ClientSpawn<T> for QuakeLiveEngine {
     fn client_spawn(&self, mut ent: T) {
-        let Some(ref detour) = *self.vm_functions.client_spawn_detour.load() else {
-            return;
-        };
-
-        detour.call(ent.as_mut());
+        self.vm_functions
+            .client_spawn_detour
+            .load()
+            .iter()
+            .for_each(|detour| detour.call(ent.as_mut()));
     }
 }
 
@@ -1662,15 +1654,11 @@ pub(crate) trait CmdArgs {
 
 impl CmdArgs for QuakeLiveEngine {
     fn cmd_args(&self) -> Option<String> {
-        let Ok(original_func) = self.cmd_args_orig() else {
-            return None;
-        };
-        let cmd_args = original_func();
-        if cmd_args.is_null() {
-            return None;
-        }
-        let cmd_args = unsafe { CStr::from_ptr(cmd_args) }.to_string_lossy();
-        Some(cmd_args.into())
+        self.cmd_args_orig()
+            .ok()
+            .map(|original_func| original_func())
+            .filter(|cmd_args| !cmd_args.is_null())
+            .map(|cmd_args| unsafe { CStr::from_ptr(cmd_args) }.to_string_lossy().into())
     }
 }
 
@@ -1680,10 +1668,9 @@ pub(crate) trait CmdArgc {
 
 impl CmdArgc for QuakeLiveEngine {
     fn cmd_argc(&self) -> i32 {
-        let Ok(original_func) = self.cmd_argc_orig() else {
-            return 0;
-        };
-        original_func()
+        self.cmd_argc_orig()
+            .map(|original_func| original_func())
+            .unwrap_or(0)
     }
 }
 
@@ -1696,14 +1683,11 @@ impl<T: Into<c_int> + PartialOrd<c_int>> CmdArgv<T> for QuakeLiveEngine {
         if argno < 0 {
             return None;
         }
-        let Ok(original_func) = self.cmd_argv_orig() else {
-            return None;
-        };
-        let cmd_argv = original_func(argno.into());
-        if cmd_argv.is_null() {
-            return None;
-        }
-        unsafe { CStr::from_ptr(cmd_argv).to_str().ok() }
+        self.cmd_argv_orig()
+            .map(|original_func| original_func(argno.into()))
+            .ok()
+            .filter(|cmd_argv| !cmd_argv.is_null())
+            .and_then(|cmd_argv| unsafe { CStr::from_ptr(cmd_argv) }.to_str().ok())
     }
 }
 
@@ -1713,10 +1697,10 @@ pub(crate) trait GameAddEvent<T: AsMut<gentity_t>, U: Into<c_int>> {
 
 impl<T: AsMut<gentity_t>, U: Into<c_int>> GameAddEvent<T, U> for QuakeLiveEngine {
     fn game_add_event(&self, mut game_entity: T, event: entity_event_t, event_param: U) {
-        let Ok(original_func) = self.g_addevent_orig() else {
-            return;
-        };
-        original_func(game_entity.as_mut(), event, event_param.into());
+        let event_param_param = event_param.into();
+        self.g_addevent_orig().iter().for_each(|original_func| {
+            original_func(game_entity.as_mut(), event, event_param_param)
+        });
     }
 }
 
@@ -1726,13 +1710,12 @@ pub(crate) trait ConsoleCommand<T: AsRef<str>> {
 
 impl<T: AsRef<str>> ConsoleCommand<T> for QuakeLiveEngine {
     fn execute_console_command(&self, cmd: T) {
-        let Ok(original_func) = self.cmd_executestring_orig() else {
-            return;
-        };
         let Ok(c_cmd) = CString::new(cmd.as_ref()) else {
             return;
         };
-        original_func(c_cmd.as_ptr());
+        self.cmd_executestring_orig()
+            .iter()
+            .for_each(|original_func| original_func(c_cmd.as_ptr()));
     }
 }
 
@@ -1742,18 +1725,22 @@ pub(crate) trait GetCVar<T: AsRef<str>, U: AsRef<str>, V: Into<c_int>> {
 
 impl<T: AsRef<str>, U: AsRef<str>, V: Into<c_int> + Default> GetCVar<T, U, V> for QuakeLiveEngine {
     fn get_cvar(&self, name: T, value: U, flags: Option<V>) -> Option<CVar> {
-        let Ok(original_func) = self.cvar_get_orig() else {
-            return None;
-        };
         let Ok(c_name) = CString::new(name.as_ref()) else {
             return None;
         };
         let Ok(c_value) = CString::new(value.as_ref()) else {
             return None;
         };
-        let flags_value = flags.unwrap_or_default();
-        let cvar = original_func(c_name.as_ptr(), c_value.as_ptr(), flags_value.into());
-        CVar::try_from(cvar).ok()
+        self.cvar_get_orig()
+            .map(|original_func| {
+                original_func(
+                    c_name.as_ptr(),
+                    c_value.as_ptr(),
+                    flags.unwrap_or_default().into(),
+                )
+            })
+            .and_then(CVar::try_from)
+            .ok()
     }
 }
 
@@ -1763,17 +1750,16 @@ pub(crate) trait SetCVarForced<T: AsRef<str>, U: AsRef<str>, V: Into<qboolean>> 
 
 impl<T: AsRef<str>, U: AsRef<str>, V: Into<qboolean>> SetCVarForced<T, U, V> for QuakeLiveEngine {
     fn set_cvar_forced(&self, name: T, value: U, forced: V) -> Option<CVar> {
-        let Ok(original_func) = self.cvar_set2_orig() else {
-            return None;
-        };
         let Ok(c_name) = CString::new(name.as_ref()) else {
             return None;
         };
         let Ok(c_value) = CString::new(value.as_ref()) else {
             return None;
         };
-        let cvar = original_func(c_name.as_ptr(), c_value.as_ptr(), forced.into());
-        CVar::try_from(cvar).ok()
+        self.cvar_set2_orig()
+            .map(|original_func| original_func(c_name.as_ptr(), c_value.as_ptr(), forced.into()))
+            .and_then(CVar::try_from)
+            .ok()
     }
 }
 
@@ -1792,9 +1778,6 @@ impl<T: AsRef<str>, U: AsRef<str>, V: AsRef<str>, W: AsRef<str>, X: Into<c_int> 
     SetCVarLimit<T, U, V, W, X> for QuakeLiveEngine
 {
     fn set_cvar_limit(&self, name: T, value: U, min: V, max: W, flags: Option<X>) -> Option<CVar> {
-        let Ok(original_func) = self.cvar_getlimit_orig() else {
-            return None;
-        };
         let Ok(c_name) = CString::new(name.as_ref()) else {
             return None;
         };
@@ -1807,15 +1790,18 @@ impl<T: AsRef<str>, U: AsRef<str>, V: AsRef<str>, W: AsRef<str>, X: Into<c_int> 
         let Ok(c_max) = CString::new(max.as_ref()) else {
             return None;
         };
-        let flags_value = flags.unwrap_or_default();
-        let cvar = original_func(
-            c_name.as_ptr(),
-            c_value.as_ptr(),
-            c_min.as_ptr(),
-            c_max.as_ptr(),
-            flags_value.into(),
-        );
-        CVar::try_from(cvar).ok()
+        self.cvar_getlimit_orig()
+            .map(|original_func| {
+                original_func(
+                    c_name.as_ptr(),
+                    c_value.as_ptr(),
+                    c_min.as_ptr(),
+                    c_max.as_ptr(),
+                    flags.unwrap_or_default().into(),
+                )
+            })
+            .and_then(CVar::try_from)
+            .ok()
     }
 }
 
@@ -1825,20 +1811,20 @@ pub(crate) trait GetConfigstring<T: Into<c_int>> {
 
 impl<T: Into<c_int>> GetConfigstring<T> for QuakeLiveEngine {
     fn get_configstring(&self, index: T) -> String {
-        let Ok(original_func) = self.sv_getconfigstring_orig() else {
-            return "".into();
-        };
-
-        let mut buffer: [u8; MAX_STRING_CHARS as usize] = [0; MAX_STRING_CHARS as usize];
-        original_func(
-            index.into(),
-            buffer.as_mut_ptr() as *mut c_char,
-            buffer.len() as c_int,
-        );
-        let Ok(result) = CStr::from_bytes_until_nul(&buffer) else {
-            return "".into();
-        };
-        result.to_string_lossy().into()
+        self.sv_getconfigstring_orig()
+            .map(|original_func| {
+                let mut buffer: [u8; MAX_STRING_CHARS as usize] = [0; MAX_STRING_CHARS as usize];
+                original_func(
+                    index.into(),
+                    buffer.as_mut_ptr() as *mut c_char,
+                    buffer.len() as c_int,
+                );
+                CStr::from_bytes_until_nul(&buffer)
+                    .unwrap_or_default()
+                    .to_string_lossy()
+                    .into()
+            })
+            .unwrap_or("".into())
     }
 }
 
@@ -1869,20 +1855,25 @@ impl<T: Into<c_int>, U: Into<c_int>, V: Into<c_int>> RegisterDamage<T, U, V> for
         dflags: U,
         means_of_death: V,
     ) {
-        let Some(ref detour) = *self.vm_functions.g_damage_detour.load() else {
-            return;
-        };
-
-        detour.call(
-            target,
-            inflictor,
-            attacker,
-            dir,
-            pos,
-            damage.into(),
-            dflags.into(),
-            means_of_death.into(),
-        );
+        let damage_param = damage.into();
+        let dflags_param = dflags.into();
+        let means_of_death_param = means_of_death.into();
+        self.vm_functions
+            .g_damage_detour
+            .load()
+            .iter()
+            .for_each(|detour| {
+                detour.call(
+                    target,
+                    inflictor,
+                    attacker,
+                    dir,
+                    pos,
+                    damage_param,
+                    dflags_param,
+                    means_of_death_param,
+                )
+            });
     }
 }
 
@@ -1892,10 +1883,9 @@ pub(crate) trait FreeEntity<T: AsMut<gentity_t>> {
 
 impl<T: AsMut<gentity_t>> FreeEntity<T> for QuakeLiveEngine {
     fn free_entity(&self, mut gentity: T) {
-        let Ok(original_func) = self.g_free_entity_orig() else {
-            return;
-        };
-        original_func(gentity.as_mut());
+        self.g_free_entity_orig()
+            .iter()
+            .for_each(|original_func| original_func(gentity.as_mut()))
     }
 }
 
@@ -1915,8 +1905,9 @@ impl<T: AsMut<gitem_t>> TryLaunchItem<T> for QuakeLiveEngine {
         origin: &mut vec3_t,
         velocity: &mut vec3_t,
     ) -> Result<GameEntity, QuakeLiveEngineError> {
-        let original_func = self.launch_item_orig()?;
-        GameEntity::try_from(original_func(gitem.as_mut(), origin, velocity))
+        self.launch_item_orig()
+            .map(|original_func| original_func(gitem.as_mut(), origin, velocity))
+            .and_then(GameEntity::try_from)
     }
 }
 
@@ -1926,11 +1917,11 @@ pub(crate) trait StartKamikaze<T: AsMut<gentity_t> + ?Sized> {
 
 impl<T: AsMut<gentity_t>> StartKamikaze<T> for QuakeLiveEngine {
     fn start_kamikaze(&self, mut gentity: T) {
-        let Some(ref detour) = *self.vm_functions.g_start_kamikaze_detour.load() else {
-            return;
-        };
-
-        detour.call(gentity.as_mut());
+        self.vm_functions
+            .g_start_kamikaze_detour
+            .load()
+            .iter()
+            .for_each(|detour| detour.call(gentity.as_mut()));
     }
 }
 
