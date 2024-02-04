@@ -13,6 +13,7 @@ extern crate alloc;
 mod commands;
 mod ffi;
 mod hooks;
+#[cfg(feature = "patches")]
 mod patches;
 mod quake_live_engine;
 mod quake_live_functions;
