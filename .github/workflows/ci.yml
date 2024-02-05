@@ -55,7 +55,7 @@ jobs:
           toolchain: nightly
           components: rust-src
       - name: Set up Python 3.12
-        uses: actions/setup-python@v4
+        uses: actions/setup-python@v5
         with:
           python-version: '3.12'
       - name: Install dependencies
@@ -80,7 +80,7 @@ jobs:
         with:
           toolchain: nightly
       - name: Set up Python ${{ matrix.python-version }}
-        uses: actions/setup-python@v4
+        uses: actions/setup-python@v5
         with:
           python-version: ${{ matrix.python-version }}
       - run: cargo build --verbose
@@ -101,7 +101,7 @@ jobs:
         with:
           toolchain: nightly
       - name: Set up Python ${{ matrix.python-version }}
-        uses: actions/setup-python@v4
+        uses: actions/setup-python@v5
         with:
           python-version: ${{ matrix.python-version }}
       - run: cargo build -Z minimal-versions --verbose
@@ -114,7 +114,7 @@ jobs:
       - name: Checkout sources
         uses: actions/checkout@v4
       - name: Set up Python 3.12
-        uses: actions/setup-python@v4
+        uses: actions/setup-python@v5
         with:
           python-version: '3.12'
       - name: Install toolchain
@@ -147,7 +147,7 @@ jobs:
           toolchain: nightly
           components: miri
       - name: Set up Python 3.12
-        uses: actions/setup-python@v4
+        uses: actions/setup-python@v5
         with:
           python-version: '3.12'
       - run: cargo miri test
@@ -161,7 +161,7 @@ jobs:
       - name: Checkout sources
         uses: actions/checkout@v4
       - name: Set up Python 3.12
-        uses: actions/setup-python@v4
+        uses: actions/setup-python@v5
         with:
           python-version: '3.12'
       - name: Install toolchain
