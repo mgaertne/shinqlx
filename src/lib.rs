@@ -9,7 +9,7 @@
 
 extern crate alloc;
 
-#[cfg(feature = "alloc")]
+#[cfg(all(feature = "alloc", not(miri)))]
 cfg_if::cfg_if! {
     if #[cfg(not(target_os = "windows"))] {
         #[global_allocator]
