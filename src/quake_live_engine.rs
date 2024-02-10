@@ -147,6 +147,7 @@ struct VmFunctions {
     g_init_game_orig: AtomicUsize,
     g_shutdown_game_orig: AtomicUsize,
     g_run_frame_orig: AtomicUsize,
+    #[cfg(feature = "patches")]
     cmd_callvote_f_orig: AtomicUsize,
 
     client_spawn_detour: Arc<ArcSwapOption<ClientSpawnDetourType>>,
@@ -214,6 +215,7 @@ impl VmFunctions {
                     &self.g_start_kamikaze_orig,
                 ),
                 (QuakeLiveFunction::G_FreeEntity, &self.g_free_entity_orig),
+                #[cfg(feature = "patches")]
                 (QuakeLiveFunction::Cmd_Callvote_f, &self.cmd_callvote_f_orig),
             ]
             .iter()
@@ -450,6 +452,7 @@ impl QuakeLiveEngine {
                 g_init_game_orig: Default::default(),
                 g_shutdown_game_orig: Default::default(),
                 g_run_frame_orig: Default::default(),
+                #[cfg(feature = "patches")]
                 cmd_callvote_f_orig: Default::default(),
                 client_spawn_detour: ArcSwapOption::empty().into(),
                 client_connect_detour: ArcSwapOption::empty().into(),
