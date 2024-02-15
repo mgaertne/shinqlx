@@ -147,6 +147,7 @@ struct VmFunctions {
     g_init_game_orig: AtomicUsize,
     g_shutdown_game_orig: AtomicUsize,
     g_run_frame_orig: AtomicUsize,
+    #[cfg(feature = "patches")]
     cmd_callvote_f_orig: AtomicUsize,
 
     client_spawn_detour: Arc<ArcSwapOption<ClientSpawnDetourType>>,
@@ -214,6 +215,7 @@ impl VmFunctions {
                     &self.g_start_kamikaze_orig,
                 ),
                 (QuakeLiveFunction::G_FreeEntity, &self.g_free_entity_orig),
+                #[cfg(feature = "patches")]
                 (QuakeLiveFunction::Cmd_Callvote_f, &self.cmd_callvote_f_orig),
             ]
             .iter()
@@ -371,41 +373,67 @@ impl VmFunctions {
 
     #[cfg_attr(test, allow(dead_code))]
     pub(crate) fn unhook(&self) {
-        if let Some(ref client_connect_detour) = *self.client_connect_detour.load() {
-            if client_connect_detour.is_enabled() {
-                if let Err(e) = unsafe { client_connect_detour.disable() } {
-                    error!(target: "shinqlx", "error when disabling detour: {}", e);
-                }
-            }
-        }
-        self.client_connect_detour.store(None);
+        [
+            &self.vm_call_table,
+            &self.g_addevent_orig,
+            &self.check_privileges_orig,
+            &self.client_connect_orig,
+            &self.client_spawn_orig,
+            &self.g_damage_orig,
+            &self.touch_item_orig,
+            &self.launch_item_orig,
+            &self.drop_item_orig,
+            &self.g_start_kamikaze_orig,
+            &self.g_free_entity_orig,
+            &self.g_init_game_orig,
+            &self.g_run_frame_orig,
+            #[cfg(feature = "patches")]
+            &self.cmd_callvote_f_orig,
+        ]
+        .iter()
+        .for_each(|field| {
+            field.store(0, Ordering::SeqCst);
+        });
 
-        if let Some(ref start_kamikaze_detour) = *self.g_start_kamikaze_detour.load() {
-            if start_kamikaze_detour.is_enabled() {
-                if let Err(e) = unsafe { start_kamikaze_detour.disable() } {
+        self.client_connect_detour
+            .swap(None)
+            .filter(|detour| detour.is_enabled())
+            .iter()
+            .for_each(|detour| {
+                if let Err(e) = unsafe { detour.disable() } {
                     error!(target: "shinqlx", "error when disabling detour: {}", e);
                 }
-            }
-        }
-        self.g_start_kamikaze_detour.store(None);
+            });
 
-        if let Some(ref client_spawn_detour) = *self.client_spawn_detour.load() {
-            if client_spawn_detour.is_enabled() {
-                if let Err(e) = unsafe { client_spawn_detour.disable() } {
+        self.g_start_kamikaze_detour
+            .swap(None)
+            .filter(|detour| detour.is_enabled())
+            .iter()
+            .for_each(|detour| {
+                if let Err(e) = unsafe { detour.disable() } {
                     error!(target: "shinqlx", "error when disabling detour: {}", e);
                 }
-            }
-        }
-        self.client_spawn_detour.store(None);
+            });
 
-        if let Some(ref g_damage_detour) = *self.g_damage_detour.load() {
-            if g_damage_detour.is_enabled() {
-                if let Err(e) = unsafe { g_damage_detour.disable() } {
+        self.client_spawn_detour
+            .swap(None)
+            .filter(|detour| detour.is_enabled())
+            .iter()
+            .for_each(|detour| {
+                if let Err(e) = unsafe { detour.disable() } {
                     error!(target: "shinqlx", "error when disabling detour: {}", e);
                 }
-            }
-        }
-        self.g_damage_detour.store(None);
+            });
+
+        self.g_damage_detour
+            .swap(None)
+            .filter(|detour| detour.is_enabled())
+            .iter()
+            .for_each(|detour| {
+                if let Err(e) = unsafe { detour.disable() } {
+                    error!(target: "shinqlx", "error when disabling detour: {}", e);
+                }
+            });
     }
 }
 
@@ -450,6 +478,7 @@ impl QuakeLiveEngine {
                 g_init_game_orig: Default::default(),
                 g_shutdown_game_orig: Default::default(),
                 g_run_frame_orig: Default::default(),
+                #[cfg(feature = "patches")]
                 cmd_callvote_f_orig: Default::default(),
                 client_spawn_detour: ArcSwapOption::empty().into(),
                 client_connect_detour: ArcSwapOption::empty().into(),
@@ -974,8 +1003,10 @@ impl QuakeLiveEngine {
     }
 
     #[cfg_attr(test, allow(dead_code))]
-    pub(crate) fn unhook_vm(&self) {
-        self.vm_functions.unhook();
+    pub(crate) fn unhook_vm(&self, restart: bool) {
+        if !restart {
+            self.vm_functions.unhook();
+        }
     }
 
     #[cfg_attr(test, allow(dead_code))]
@@ -1936,7 +1967,7 @@ mockall::mock! {
         pub(crate) fn initialize_vm(&self, module_offset: usize) -> Result<(), QuakeLiveEngineError>;
         pub(crate) fn set_tag(&self);
         pub(crate) fn initialize_cvars(&self);
-        pub(crate) fn unhook_vm(&self);
+        pub(crate) fn unhook_vm(&self, restart: bool);
         pub(crate) fn g_init_game_orig(
             &self,
         ) -> Result<extern "C" fn(c_int, c_int, c_int), QuakeLiveEngineError>;
