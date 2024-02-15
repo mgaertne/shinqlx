@@ -79,7 +79,7 @@ pub(crate) fn shinqlx_g_shutdowngame(restart: c_int) {
         return;
     };
 
-    main_engine.unhook_vm();
+    main_engine.unhook_vm(restart != 0);
     main_engine.shutdown_game(restart);
 }
 
