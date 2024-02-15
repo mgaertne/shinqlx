@@ -10,6 +10,17 @@
 
 extern crate alloc;
 
+#[cfg(all(feature = "alloc", not(miri)))]
+cfg_if::cfg_if! {
+    if #[cfg(not(target_os = "windows"))] {
+        #[global_allocator]
+        static GLOBAL: tikv_jemallocator::Jemalloc = tikv_jemallocator::Jemalloc;
+    } else {
+        #[global_allocator]
+        static GLOBAL: mimalloc::MiMalloc = mimalloc::MiMalloc;
+    }
+}
+
 mod commands;
 mod ffi;
 mod hooks;
