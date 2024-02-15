@@ -22,6 +22,9 @@ proc-macro = false
 harness = true
 crate-type = ["cdylib"]
 
+[profile.dev]
+panic = "abort"
+
 [profile.release]
 panic = "abort"
 strip = "symbols"
