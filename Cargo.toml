@@ -40,18 +40,18 @@ ctor = { version = ">=0.2", features = ["used_linker"] }
 rand = { version = ">=0.8", default-features = false, features = ["getrandom"] }
 pyo3 = { version = ">=0.20", features = ["pyo3-macros", "extension-module", "nightly"]}
 retour = ">=0.3.1"
-derive_builder = { version = ">=0.13", default-features = false, features = ["clippy", "alloc"] }
+derive_builder = { version = ">=0.20", default-features = false, features = ["clippy", "alloc"] }
 once_cell = { version = ">=1.19", default-features = false }
 region = ">=3.0"
 arc-swap = { version = ">=1.6", default-features = false }
 log = { version = ">=0.4", default-features = false }
-log4rs = { version = ">=1.2", default-features = false, features = ["console_appender", "pattern_encoder"] }
+log4rs = { version = ">=1.3", default-features = false, features = ["console_appender", "pattern_encoder"] }
 signal-hook = { version = ">=0.3", default-features = false }
 signal-hook-registry = ">=1.4"
 itertools = { version = ">=0.12", default-features = false }
 regex = { version = ">=1.10", features = ["perf"] }
 arrayvec = { version = ">=0.7", default-features = false }
-cfg-if = { version = ">=0.1", default-features = false}
+cfg-if = { version = ">=1.0", default-features = false}
 mimalloc = { version = ">=0.1", optional = true }
 
 [target."cfg(target_os=\"linux\")".dependencies]
