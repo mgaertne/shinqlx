@@ -228,7 +228,7 @@ impl Player {
             .iter()
             .map(|(key, value)| format!("\\{key}\\{value}"))
             .join("");
-        let client_command = format!("userinfo {new}");
+        let client_command = format!("userinfo \"{new}\"");
         pyshinqlx_client_command(py, self.id, &client_command)?;
         Ok(())
     }
@@ -308,7 +308,7 @@ impl Player {
             new_cvars.into()
         });
 
-        let client_command = format!("userinfo {new}");
+        let client_command = format!("userinfo \"{new}\"");
         pyshinqlx_client_command(py, self.id, &client_command)?;
         Ok(())
     }
@@ -376,7 +376,7 @@ impl Player {
             new_cvars.into()
         });
 
-        let client_command = format!("userinfo {new_cvars_string}");
+        let client_command = format!("userinfo \"{new_cvars_string}\"");
         pyshinqlx_client_command(py, self.id, &client_command)?;
         Ok(())
     }
@@ -399,7 +399,7 @@ impl Player {
             new_cvars.into()
         });
 
-        let client_command = format!("userinfo {new_cvars_string}");
+        let client_command = format!("userinfo \"{new_cvars_string}\"");
         pyshinqlx_client_command(py, self.id, &client_command)?;
         Ok(())
     }
@@ -422,7 +422,7 @@ impl Player {
             new_cvars.into()
         });
 
-        let client_command = format!("userinfo {new_cvars_string}");
+        let client_command = format!("userinfo \"{new_cvars_string}\"");
         pyshinqlx_client_command(py, self.id, &client_command)?;
         Ok(())
     }
@@ -445,7 +445,7 @@ impl Player {
             new_cvars.into()
         });
 
-        let client_command = format!("userinfo {new_cvars_string}");
+        let client_command = format!("userinfo \"{new_cvars_string}\"");
         pyshinqlx_client_command(py, self.id, &client_command)?;
         Ok(())
     }
@@ -472,7 +472,7 @@ impl Player {
             new_cvars.into()
         });
 
-        let client_command = format!("userinfo {new_cvars_string}");
+        let client_command = format!("userinfo \"{new_cvars_string}\"");
         pyshinqlx_client_command(py, self.id, &client_command)?;
         Ok(())
     }
@@ -499,7 +499,7 @@ impl Player {
             new_cvars.into()
         });
 
-        let client_command = format!("userinfo {new_cvars_string}");
+        let client_command = format!("userinfo \"{new_cvars_string}\"");
         pyshinqlx_client_command(py, self.id, &client_command)?;
         Ok(())
     }
@@ -526,7 +526,7 @@ impl Player {
             new_cvars.into()
         });
 
-        let client_command = format!("userinfo {new_cvars_string}");
+        let client_command = format!("userinfo \"{new_cvars_string}\"");
         pyshinqlx_client_command(py, self.id, &client_command)?;
         Ok(())
     }
@@ -603,7 +603,7 @@ impl Player {
             new_cvars.into()
         });
 
-        let client_command = format!("userinfo {new_cvars_string}");
+        let client_command = format!("userinfo \"{new_cvars_string}\"");
         pyshinqlx_client_command(py, self.id, &client_command)?;
         Ok(())
     }
@@ -1882,7 +1882,7 @@ assert(player._valid)
             .expect()
             .withf(|client, cmd, &client_ok| {
                 client.is_some()
-                    && cmd == "userinfo \\asdf\\qwertz\\name\\UnnamedPlayer"
+                    && cmd == "userinfo \"\\asdf\\qwertz\\name\\UnnamedPlayer\""
                     && client_ok
             })
             .times(1);
@@ -2096,7 +2096,7 @@ assert(player._valid)
             .expect()
             .withf(|client, cmd, &client_ok| {
                 client.is_some()
-                    && cmd == "userinfo \\asdf\\qwertz\\name\\^1Unnamed^2Player"
+                    && cmd == "userinfo \"\\asdf\\qwertz\\name\\^1Unnamed^2Player\""
                     && client_ok
             })
             .times(1);
@@ -2341,7 +2341,7 @@ assert(player._valid)
             .expect()
             .withf(|client, cmd, &client_ok| {
                 client.is_some()
-                    && cmd == "userinfo \\asdf\\qwertz\\name\\UnnamedPlayer\\color1\\0\\color2\\3"
+                    && cmd == "userinfo \"\\asdf\\qwertz\\name\\UnnamedPlayer\\color1\\0\\color2\\3\""
                     && client_ok
             })
             .times(1);
@@ -2415,7 +2415,7 @@ assert(player._valid)
             .expect()
             .withf(|client, cmd, &client_ok| {
                 client.is_some()
-                    && cmd == "userinfo \\asdf\\qwertz\\name\\UnnamedPlayer\\model\\Uriel"
+                    && cmd == "userinfo \"\\asdf\\qwertz\\name\\UnnamedPlayer\\model\\Uriel\""
                     && client_ok
             })
             .times(1);
@@ -2489,7 +2489,7 @@ assert(player._valid)
             .expect()
             .withf(|client, cmd, &client_ok| {
                 client.is_some()
-                    && cmd == "userinfo \\asdf\\qwertz\\name\\UnnamedPlayer\\headmodel\\Uriel"
+                    && cmd == "userinfo \"\\asdf\\qwertz\\name\\UnnamedPlayer\\headmodel\\Uriel\""
                     && client_ok
             })
             .times(1);
@@ -2563,7 +2563,7 @@ assert(player._valid)
             .expect()
             .withf(|client, cmd, &client_ok| {
                 client.is_some()
-                    && cmd == "userinfo \\asdf\\qwertz\\name\\UnnamedPlayer\\handicap\\50"
+                    && cmd == "userinfo \"\\asdf\\qwertz\\name\\UnnamedPlayer\\handicap\\50\""
                     && client_ok
             })
             .times(1);
@@ -2653,7 +2653,7 @@ assert(player._valid)
             .expect()
             .withf(|client, cmd, &client_ok| {
                 client.is_some()
-                    && cmd == "userinfo \\asdf\\qwertz\\name\\UnnamedPlayer\\autohop\\0"
+                    && cmd == "userinfo \"\\asdf\\qwertz\\name\\UnnamedPlayer\\autohop\\0\""
                     && client_ok
             })
             .times(1);
@@ -2743,7 +2743,7 @@ assert(player._valid)
             .expect()
             .withf(|client, cmd, &client_ok| {
                 client.is_some()
-                    && cmd == "userinfo \\asdf\\qwertz\\name\\UnnamedPlayer\\autoaction\\0"
+                    && cmd == "userinfo \"\\asdf\\qwertz\\name\\UnnamedPlayer\\autoaction\\0\""
                     && client_ok
             })
             .times(1);
@@ -2833,7 +2833,7 @@ assert(player._valid)
             .expect()
             .withf(|client, cmd, &client_ok| {
                 client.is_some()
-                    && cmd == "userinfo \\asdf\\qwertz\\name\\UnnamedPlayer\\cg_predictitems\\0"
+                    && cmd == "userinfo \"\\asdf\\qwertz\\name\\UnnamedPlayer\\cg_predictitems\\0\""
                     && client_ok
             })
             .times(1);
@@ -3119,7 +3119,7 @@ assert(player._valid)
             .expect()
             .withf(|client, cmd, &client_ok| {
                 client.is_some()
-                    && cmd == "userinfo \\asdf\\qwertz\\name\\UnnamedPlayer\\country\\uk"
+                    && cmd == "userinfo \"\\asdf\\qwertz\\name\\UnnamedPlayer\\country\\uk\""
                     && client_ok
             })
             .times(1);
