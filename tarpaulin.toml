@@ -1,5 +1,5 @@
 [all]
-engine = "Ptrace"
+engine = "Llvm"
 line = true
 branch = true
 count = true
