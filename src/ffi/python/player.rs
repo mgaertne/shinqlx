@@ -2341,7 +2341,8 @@ assert(player._valid)
             .expect()
             .withf(|client, cmd, &client_ok| {
                 client.is_some()
-                    && cmd == "userinfo \"\\asdf\\qwertz\\name\\UnnamedPlayer\\color1\\0\\color2\\3\""
+                    && cmd
+                        == "userinfo \"\\asdf\\qwertz\\name\\UnnamedPlayer\\color1\\0\\color2\\3\""
                     && client_ok
             })
             .times(1);
