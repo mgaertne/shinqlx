@@ -258,6 +258,22 @@ impl ParsedVariables {
     }
 }
 
+#[cfg(test)]
+mod parsed_variables_test {
+    use super::ParsedVariables;
+    use core::str::FromStr;
+
+    #[test]
+    fn test_parse_variables_with_space() {
+        let variables = ParsedVariables::from_str("\\name\\Unnamed Player\\country\\de")
+            .expect("this should not happen");
+        assert!(variables
+            .get("name")
+            .is_some_and(|value| value == "Unnamed Player"));
+        assert!(variables.get("country").is_some_and(|value| value == "de"));
+    }
+}
+
 #[pyfunction]
 #[pyo3(pass_module)]
 fn set_map_subtitles(module: &PyModule) -> PyResult<()> {
