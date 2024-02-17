@@ -1,10 +1,10 @@
-[all-targets]
-engine = "Llvm"
-line-coverage = true
-branch-coverage = true
+[all]
+engine = "Ptrace"
+line = true
+branch = true
+count = true
 no-fail-fast = true
 include-tests = true
-implicit-test-threads = true
 
 [report]
 out = ["Xml", "Html"]
