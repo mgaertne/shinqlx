@@ -1,10 +1,10 @@
-[all-targets]
+[all]
 engine = "Llvm"
-line-coverage = true
-branch-coverage = true
+line = true
+branch = true
+count = true
 no-fail-fast = true
 include-tests = true
-implicit-test-threads = true
 
 [report]
 out = ["Xml", "Html"]
