@@ -32,7 +32,6 @@ pub(crate) fn pyshinqlx_set_cvar_limit(
 #[cfg(test)]
 #[cfg(not(miri))]
 mod set_cvar_limit_tests {
-    use super::pyshinqlx_set_cvar_limit;
     use super::MAIN_ENGINE;
     use crate::ffi::c::prelude::*;
     use crate::ffi::python::prelude::*;

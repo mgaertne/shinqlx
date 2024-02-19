@@ -3,7 +3,6 @@
 #![allow(non_camel_case_types)]
 #![allow(non_snake_case)]
 
-use alloc::string::String;
 use core::{
     ffi::{c_char, c_float, c_int, c_uchar, c_uint, c_ushort},
     ops::Not,

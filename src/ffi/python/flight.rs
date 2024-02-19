@@ -76,8 +76,6 @@ impl Flight {
 
 #[cfg(test)]
 mod flight_tests {
-    use super::Flight;
-    #[cfg(not(miri))]
     use crate::ffi::python::prelude::*;
 
     use pretty_assertions::assert_eq;

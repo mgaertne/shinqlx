@@ -32,7 +32,6 @@ pub(crate) fn pyshinqlx_client_command(
 #[cfg(test)]
 #[cfg(not(miri))]
 mod client_command_tests {
-    use super::pyshinqlx_client_command;
     use crate::ffi::c::prelude::*;
     use crate::ffi::python::prelude::*;
     use crate::hooks::mock_hooks::shinqlx_execute_client_command_context;

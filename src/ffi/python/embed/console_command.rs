@@ -24,7 +24,6 @@ pub(crate) fn pyshinqlx_console_command(py: Python<'_>, cmd: &str) -> PyResult<(
 #[cfg(test)]
 #[cfg(not(miri))]
 mod console_command_tests {
-    use super::pyshinqlx_console_command;
     use super::MAIN_ENGINE;
     use crate::ffi::python::prelude::*;
     use crate::prelude::*;

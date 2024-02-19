@@ -23,7 +23,6 @@ pub(crate) fn pyshinqlx_player_state(
 #[cfg(test)]
 #[cfg(not(miri))]
 mod player_state_tests {
-    use super::pyshinqlx_player_state;
     use crate::ffi::c::prelude::*;
     use crate::ffi::python::prelude::*;
     use crate::prelude::*;

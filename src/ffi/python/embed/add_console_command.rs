@@ -26,7 +26,6 @@ pub(crate) fn pyshinqlx_add_console_command(py: Python<'_>, command: &str) -> Py
 #[cfg(not(miri))]
 mod add_console_command_tests {
     use super::cmd_py_command;
-    use super::pyshinqlx_add_console_command;
     use super::MAIN_ENGINE;
     use crate::ffi::python::prelude::*;
     use crate::prelude::*;

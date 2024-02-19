@@ -34,7 +34,6 @@ pub(crate) fn pyshinqlx_player_spawn(py: Python<'_>, client_id: i32) -> PyResult
 #[cfg(test)]
 #[cfg(not(miri))]
 mod player_spawn_tests {
-    use super::pyshinqlx_player_spawn;
     use crate::ffi::c::prelude::*;
     use crate::ffi::python::prelude::*;
     use crate::hooks::mock_hooks::shinqlx_client_spawn_context;

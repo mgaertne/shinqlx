@@ -23,7 +23,6 @@ pub(crate) fn pyshinqlx_set_ammo(py: Python<'_>, client_id: i32, ammos: Weapons)
 #[cfg(test)]
 #[cfg(not(miri))]
 mod set_ammo_tests {
-    use super::pyshinqlx_set_ammo;
     use crate::ffi::c::prelude::*;
     use crate::ffi::python::prelude::*;
     use crate::prelude::*;

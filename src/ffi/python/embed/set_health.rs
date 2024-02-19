@@ -21,7 +21,6 @@ pub(crate) fn pyshinqlx_set_health(py: Python<'_>, client_id: i32, health: i32) 
 #[cfg(test)]
 #[cfg(not(miri))]
 mod set_health_tests {
-    use super::pyshinqlx_set_health;
     use crate::ffi::c::prelude::*;
     use crate::ffi::python::prelude::*;
     use crate::prelude::*;

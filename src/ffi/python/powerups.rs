@@ -83,8 +83,6 @@ impl Powerups {
 
 #[cfg(test)]
 mod powerups_tests {
-    use super::Powerups;
-    #[cfg(not(miri))]
     use crate::ffi::python::prelude::*;
 
     use pretty_assertions::assert_eq;

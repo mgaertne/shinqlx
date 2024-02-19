@@ -23,7 +23,6 @@ pub(crate) fn pyshinqlx_get_userinfo(py: Python<'_>, client_id: i32) -> PyResult
 #[cfg(test)]
 #[cfg(not(miri))]
 mod get_userinfo_tests {
-    use super::pyshinqlx_get_userinfo;
     use crate::ffi::c::prelude::*;
     use crate::ffi::python::prelude::*;
     use crate::prelude::*;

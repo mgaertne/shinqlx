@@ -23,7 +23,6 @@ pub(crate) fn pyshinqlx_set_score(py: Python<'_>, client_id: i32, score: i32) ->
 #[cfg(test)]
 #[cfg(not(miri))]
 mod set_score_tests {
-    use super::pyshinqlx_set_score;
     use crate::ffi::c::prelude::*;
     use crate::ffi::python::prelude::*;
     use crate::prelude::*;

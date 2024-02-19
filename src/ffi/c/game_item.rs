@@ -3,7 +3,6 @@ use crate::prelude::*;
 use crate::quake_live_engine::{GameAddEvent, TryLaunchItem};
 use crate::MAIN_ENGINE;
 
-use alloc::string::String;
 use core::ffi::{c_float, CStr};
 
 #[derive(Debug, PartialEq)]
