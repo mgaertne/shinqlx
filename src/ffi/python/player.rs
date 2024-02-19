@@ -1539,8 +1539,8 @@ mod pyshinqlx_player_tests {
         });
     }
 
-    #[cfg(not(miri))]
     #[rstest]
+    #[cfg_attr(miri, ignore)]
     fn player_can_be_compared_for_equality_with_other_player_in_python(_pyshinqlx_setup: ()) {
         let player_info = PlayerInfo {
             client_id: 42,
@@ -1572,8 +1572,8 @@ assert((_shinqlx.Player(42, player_info) == _shinqlx.Player(41, player_info2)) =
         assert!(result.is_ok());
     }
 
-    #[cfg(not(miri))]
     #[rstest]
+    #[cfg_attr(miri, ignore)]
     fn player_can_be_compared_for_equality_with_steam_id_in_python(_pyshinqlx_setup: ()) {
         let player_info = PlayerInfo {
             client_id: 42,
@@ -1595,8 +1595,8 @@ assert((_shinqlx.Player(42, player_info) == "asdf") == False)
         assert!(result.is_ok());
     }
 
-    #[cfg(not(miri))]
     #[rstest]
+    #[cfg_attr(miri, ignore)]
     fn player_can_be_compared_for_inequality_with_other_player_in_python(_pyshinqlx_setup: ()) {
         let player_info = PlayerInfo {
             client_id: 42,
@@ -1628,8 +1628,8 @@ assert(_shinqlx.Player(42, player_info) != _shinqlx.Player(41, player_info2))
         assert!(result.is_ok());
     }
 
-    #[cfg(not(miri))]
     #[rstest]
+    #[cfg_attr(miri, ignore)]
     fn player_can_be_compared_for_inequality_with_steam_id_in_python(_pyshinqlx_setup: ()) {
         let player_info = PlayerInfo {
             client_id: 42,
@@ -6931,7 +6931,6 @@ impl AbstractDummyPlayer {
     }
 }
 
-#[cfg(not(miri))]
 #[cfg(test)]
 mod pyshinqlx_abstract_dummy_player_tests {
     use crate::ffi::python::prelude::*;
@@ -6940,6 +6939,7 @@ mod pyshinqlx_abstract_dummy_player_tests {
     use rstest::*;
 
     #[rstest]
+    #[cfg_attr(miri, ignore)]
     fn dummy_player_is_a_player_instance(_pyshinqlx_setup: ()) {
         let result = Python::with_gil(|py| {
             py.run(
@@ -6955,6 +6955,7 @@ assert(isinstance(_shinqlx.AbstractDummyPlayer(), _shinqlx.Player))
     }
 
     #[rstest]
+    #[cfg_attr(miri, ignore)]
     fn get_id_returns_attribute_error(_pyshinqlx_setup: ()) {
         Python::with_gil(|py| {
             let result = py.run(
@@ -6970,6 +6971,7 @@ _shinqlx.AbstractDummyPlayer().id
     }
 
     #[rstest]
+    #[cfg_attr(miri, ignore)]
     fn get_steam_id_returns_not_implemented_error(_pyshinqlx_setup: ()) {
         Python::with_gil(|py| {
             let result = py.run(
@@ -6985,6 +6987,7 @@ _shinqlx.AbstractDummyPlayer().steam_id
     }
 
     #[rstest]
+    #[cfg_attr(miri, ignore)]
     fn update_does_nothing(_pyshinqlx_setup: ()) {
         Python::with_gil(|py| {
             let result = py.run(
@@ -7000,6 +7003,7 @@ _shinqlx.AbstractDummyPlayer().update()
     }
 
     #[rstest]
+    #[cfg_attr(miri, ignore)]
     fn get_channel_returns_not_implemented_error(_pyshinqlx_setup: ()) {
         Python::with_gil(|py| {
             let result = py.run(
@@ -7015,6 +7019,7 @@ _shinqlx.AbstractDummyPlayer().channel
     }
 
     #[rstest]
+    #[cfg_attr(miri, ignore)]
     fn tell_returns_not_implemented_error(_pyshinqlx_setup: ()) {
         Python::with_gil(|py| {
             let result = py.run(
@@ -7088,7 +7093,6 @@ console_channel = shinqlx.CONSOLE_CHANNEL"#,
     }
 }
 
-#[cfg(not(miri))]
 #[cfg(test)]
 mod pyshinqlx_rcon_dummy_player_tests {
     use crate::ffi::python::prelude::*;
@@ -7096,6 +7100,7 @@ mod pyshinqlx_rcon_dummy_player_tests {
     use rstest::*;
 
     #[rstest]
+    #[cfg_attr(miri, ignore)]
     fn dummy_player_is_a_player_instance(_pyshinqlx_setup: ()) {
         let result = Python::with_gil(|py| {
             py.run(

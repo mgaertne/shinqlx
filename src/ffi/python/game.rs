@@ -676,7 +676,6 @@ impl Game {
 }
 
 #[cfg(test)]
-#[cfg(not(miri))]
 mod pyshinqlx_game_tests {
     use super::NonexistentGameError;
     use crate::ffi::python::prelude::*;
@@ -690,6 +689,7 @@ mod pyshinqlx_game_tests {
     use rstest::rstest;
 
     #[test]
+    #[cfg_attr(miri, ignore)]
     #[serial]
     fn pyconstructor_when_no_main_engine_loaded() {
         MAIN_ENGINE.store(None);
@@ -701,6 +701,7 @@ mod pyshinqlx_game_tests {
     }
 
     #[test]
+    #[cfg_attr(miri, ignore)]
     #[serial]
     fn pyconstructor_with_empty_configstring() {
         let mut mock_engine = MockQuakeEngine::new();
@@ -717,6 +718,7 @@ mod pyshinqlx_game_tests {
     }
 
     #[test]
+    #[cfg_attr(miri, ignore)]
     #[serial]
     fn pyconstructor_with_nonempty_configstring() {
         let mut mock_engine = MockQuakeEngine::new();
@@ -737,6 +739,7 @@ mod pyshinqlx_game_tests {
     }
 
     #[test]
+    #[cfg_attr(miri, ignore)]
     #[serial]
     fn repr_when_no_main_engine_loaded() {
         MAIN_ENGINE.store(None);
@@ -756,6 +759,7 @@ mod pyshinqlx_game_tests {
     }
 
     #[test]
+    #[cfg_attr(miri, ignore)]
     #[serial]
     fn repr_with_empty_configstring() {
         let mut mock_engine = MockQuakeEngine::new();
@@ -780,6 +784,7 @@ mod pyshinqlx_game_tests {
     }
 
     #[test]
+    #[cfg_attr(miri, ignore)]
     #[serial]
     fn repr_with_empty_map_configstring() {
         let mut mock_engine = MockQuakeEngine::new();
@@ -804,6 +809,7 @@ mod pyshinqlx_game_tests {
     }
 
     #[test]
+    #[cfg_attr(miri, ignore)]
     #[serial]
     fn repr_with_empty_gametype_configstring() {
         let mut mock_engine = MockQuakeEngine::new();
@@ -828,6 +834,7 @@ mod pyshinqlx_game_tests {
     }
 
     #[test]
+    #[cfg_attr(miri, ignore)]
     #[serial]
     fn repr_with_nonempty_configstring() {
         let mut mock_engine = MockQuakeEngine::new();
@@ -852,6 +859,7 @@ mod pyshinqlx_game_tests {
     }
 
     #[test]
+    #[cfg_attr(miri, ignore)]
     #[serial]
     fn str_when_no_main_engine_loaded() {
         MAIN_ENGINE.store(None);
@@ -867,6 +875,7 @@ mod pyshinqlx_game_tests {
     }
 
     #[test]
+    #[cfg_attr(miri, ignore)]
     #[serial]
     fn str_with_empty_configstring() {
         let mut mock_engine = MockQuakeEngine::new();
@@ -887,6 +896,7 @@ mod pyshinqlx_game_tests {
     }
 
     #[test]
+    #[cfg_attr(miri, ignore)]
     #[serial]
     fn str_with_empty_map_configstring() {
         let mut mock_engine = MockQuakeEngine::new();
@@ -907,6 +917,7 @@ mod pyshinqlx_game_tests {
     }
 
     #[test]
+    #[cfg_attr(miri, ignore)]
     #[serial]
     fn str_with_empty_gametype_configstring() {
         let mut mock_engine = MockQuakeEngine::new();
@@ -927,6 +938,7 @@ mod pyshinqlx_game_tests {
     }
 
     #[test]
+    #[cfg_attr(miri, ignore)]
     #[serial]
     fn str_with_nonempty_configstring() {
         let mut mock_engine = MockQuakeEngine::new();
@@ -947,6 +959,7 @@ mod pyshinqlx_game_tests {
     }
 
     #[test]
+    #[cfg_attr(miri, ignore)]
     #[serial]
     fn contains_with_no_main_engine() {
         MAIN_ENGINE.store(None);
@@ -963,6 +976,7 @@ mod pyshinqlx_game_tests {
     }
 
     #[test]
+    #[cfg_attr(miri, ignore)]
     #[serial]
     fn contains_when_configstring_variables_are_unparseable() {
         let mut mock_engine = MockQuakeEngine::new();
@@ -984,6 +998,7 @@ mod pyshinqlx_game_tests {
     }
 
     #[test]
+    #[cfg_attr(miri, ignore)]
     #[serial]
     fn contains_when_value_is_in_configstring_variables() {
         let mut mock_engine = MockQuakeEngine::new();
@@ -1005,6 +1020,7 @@ mod pyshinqlx_game_tests {
     }
 
     #[test]
+    #[cfg_attr(miri, ignore)]
     #[serial]
     fn contains_when_value_is_not_in_configstring_variables() {
         let mut mock_engine = MockQuakeEngine::new();
@@ -1026,6 +1042,7 @@ mod pyshinqlx_game_tests {
     }
 
     #[test]
+    #[cfg_attr(miri, ignore)]
     #[serial]
     fn contains_when_configstring_parses_empty() {
         let mut mock_engine = MockQuakeEngine::new();
@@ -1047,6 +1064,7 @@ mod pyshinqlx_game_tests {
     }
 
     #[test]
+    #[cfg_attr(miri, ignore)]
     #[serial]
     fn contains_when_configstring_parses_to_none() {
         let mut mock_engine = MockQuakeEngine::new();
@@ -1068,6 +1086,7 @@ mod pyshinqlx_game_tests {
     }
 
     #[test]
+    #[cfg_attr(miri, ignore)]
     #[serial]
     fn getitem_with_no_main_engine() {
         MAIN_ENGINE.store(None);
@@ -1084,6 +1103,7 @@ mod pyshinqlx_game_tests {
     }
 
     #[test]
+    #[cfg_attr(miri, ignore)]
     #[serial]
     fn getitem_when_configstring_variables_are_unparseable() {
         let mut mock_engine = MockQuakeEngine::new();
@@ -1105,6 +1125,7 @@ mod pyshinqlx_game_tests {
     }
 
     #[test]
+    #[cfg_attr(miri, ignore)]
     #[serial]
     fn getitem_when_value_is_in_configstring_variables() {
         let mut mock_engine = MockQuakeEngine::new();
@@ -1126,6 +1147,7 @@ mod pyshinqlx_game_tests {
     }
 
     #[test]
+    #[cfg_attr(miri, ignore)]
     #[serial]
     fn getitem_when_value_is_not_in_configstring_variables() {
         let mut mock_engine = MockQuakeEngine::new();
@@ -1147,6 +1169,7 @@ mod pyshinqlx_game_tests {
     }
 
     #[test]
+    #[cfg_attr(miri, ignore)]
     #[serial]
     fn getitem_when_configstring_parses_empty() {
         let mut mock_engine = MockQuakeEngine::new();
@@ -1168,6 +1191,7 @@ mod pyshinqlx_game_tests {
     }
 
     #[test]
+    #[cfg_attr(miri, ignore)]
     #[serial]
     fn getitems_when_configstring_parses_to_none() {
         let mut mock_engine = MockQuakeEngine::new();
@@ -1189,6 +1213,7 @@ mod pyshinqlx_game_tests {
     }
 
     #[test]
+    #[cfg_attr(miri, ignore)]
     #[serial]
     fn cvars_with_no_main_engine() {
         MAIN_ENGINE.store(None);
@@ -1205,6 +1230,7 @@ mod pyshinqlx_game_tests {
     }
 
     #[test]
+    #[cfg_attr(miri, ignore)]
     #[serial]
     fn cvars_with_empty_configstring() {
         let mut mock_engine = MockQuakeEngine::new();
@@ -1226,6 +1252,7 @@ mod pyshinqlx_game_tests {
     }
 
     #[test]
+    #[cfg_attr(miri, ignore)]
     #[serial]
     fn cvars_contains_parsed_configstring_zero() {
         let mut mock_engine = MockQuakeEngine::new();
@@ -1253,6 +1280,7 @@ mod pyshinqlx_game_tests {
     }
 
     #[test]
+    #[cfg_attr(miri, ignore)]
     #[serial]
     fn get_type_with_no_main_engine() {
         MAIN_ENGINE.store(None);
@@ -1269,6 +1297,7 @@ mod pyshinqlx_game_tests {
     }
 
     #[test]
+    #[cfg_attr(miri, ignore)]
     #[serial]
     fn get_type_for_unparseable_gametype() {
         let mut mock_engine = MockQuakeEngine::new();
@@ -1304,6 +1333,7 @@ mod pyshinqlx_game_tests {
     #[case(12, "Red Rover")]
     #[case(-1, "unknown")]
     #[case(13, "unknown")]
+    #[cfg_attr(miri, ignore)]
     #[serial]
     fn get_type_returns_parsed_long_factory_name(
         #[case] g_gametype: i32,
@@ -1328,6 +1358,7 @@ mod pyshinqlx_game_tests {
     }
 
     #[test]
+    #[cfg_attr(miri, ignore)]
     #[serial]
     fn get_type_short_with_no_main_engine() {
         MAIN_ENGINE.store(None);
@@ -1344,6 +1375,7 @@ mod pyshinqlx_game_tests {
     }
 
     #[test]
+    #[cfg_attr(miri, ignore)]
     #[serial]
     fn get_type_short_for_unparseable_gametype() {
         let mut mock_engine = MockQuakeEngine::new();
@@ -1379,6 +1411,7 @@ mod pyshinqlx_game_tests {
     #[case(12, "rr")]
     #[case(-1, "N/A")]
     #[case(13, "N/A")]
+    #[cfg_attr(miri, ignore)]
     #[serial]
     fn get_type_short_returns_parsed_long_factory_name(
         #[case] g_gametype: i32,
@@ -1403,6 +1436,7 @@ mod pyshinqlx_game_tests {
     }
 
     #[test]
+    #[cfg_attr(miri, ignore)]
     #[serial]
     fn get_map_returns_current_map() {
         let mut mock_engine = MockQuakeEngine::new();
@@ -1424,6 +1458,7 @@ mod pyshinqlx_game_tests {
     }
 
     #[test]
+    #[cfg_attr(miri, ignore)]
     #[serial]
     fn set_map_changes_current_map() {
         let mut mock_engine = MockQuakeEngine::new();
@@ -1445,6 +1480,7 @@ mod pyshinqlx_game_tests {
     }
 
     #[rstest]
+    #[cfg_attr(miri, ignore)]
     #[serial]
     fn get_map_title_gets_current_map(_pyshinqlx_setup: ()) {
         Python::with_gil(|py| {
@@ -1470,6 +1506,7 @@ _shinqlx._map_title = "eyetoeye"
     }
 
     #[rstest]
+    #[cfg_attr(miri, ignore)]
     #[serial]
     fn get_map_subtitle1_gets_current_subtitle1(_pyshinqlx_setup: ()) {
         Python::with_gil(|py| {
@@ -1495,6 +1532,7 @@ _shinqlx._map_subtitle1 = "Clan Arena"
     }
 
     #[rstest]
+    #[cfg_attr(miri, ignore)]
     #[serial]
     fn get_map_subtitle2_gets_current_subtitle2(_pyshinqlx_setup: ()) {
         Python::with_gil(|py| {
@@ -1520,6 +1558,7 @@ _shinqlx._map_subtitle2 = "Awesome map!"
     }
 
     #[test]
+    #[cfg_attr(miri, ignore)]
     #[serial]
     fn get_red_score_with_no_main_engine() {
         MAIN_ENGINE.store(None);
@@ -1536,6 +1575,7 @@ _shinqlx._map_subtitle2 = "Awesome map!"
     }
 
     #[test]
+    #[cfg_attr(miri, ignore)]
     #[serial]
     fn get_red_score_returns_red_score() {
         let mut mock_engine = MockQuakeEngine::new();
@@ -1557,6 +1597,7 @@ _shinqlx._map_subtitle2 = "Awesome map!"
     }
 
     #[test]
+    #[cfg_attr(miri, ignore)]
     #[serial]
     fn get_red_score_defaults_when_unpareable() {
         let mut mock_engine = MockQuakeEngine::new();
@@ -1578,6 +1619,7 @@ _shinqlx._map_subtitle2 = "Awesome map!"
     }
 
     #[test]
+    #[cfg_attr(miri, ignore)]
     #[serial]
     fn get_blue_score_with_no_main_engine() {
         MAIN_ENGINE.store(None);
@@ -1594,6 +1636,7 @@ _shinqlx._map_subtitle2 = "Awesome map!"
     }
 
     #[test]
+    #[cfg_attr(miri, ignore)]
     #[serial]
     fn get_blue_score_returns_blue_score() {
         let mut mock_engine = MockQuakeEngine::new();
@@ -1615,6 +1658,7 @@ _shinqlx._map_subtitle2 = "Awesome map!"
     }
 
     #[test]
+    #[cfg_attr(miri, ignore)]
     #[serial]
     fn get_blue_score_defaults_when_unparsable() {
         let mut mock_engine = MockQuakeEngine::new();
@@ -1636,6 +1680,7 @@ _shinqlx._map_subtitle2 = "Awesome map!"
     }
 
     #[test]
+    #[cfg_attr(miri, ignore)]
     #[serial]
     fn get_state_with_no_main_engine() {
         MAIN_ENGINE.store(None);
@@ -1656,6 +1701,7 @@ _shinqlx._map_subtitle2 = "Awesome map!"
     #[case("COUNT_DOWN", "countdown")]
     #[case("IN_PROGRESS", "in_progress")]
     #[case("ASDF", "ASDF")]
+    #[cfg_attr(miri, ignore)]
     #[serial]
     fn get_state_converts_gamestate_cvar(
         #[case] cvar_value: String,
@@ -1680,6 +1726,7 @@ _shinqlx._map_subtitle2 = "Awesome map!"
     }
 
     #[test]
+    #[cfg_attr(miri, ignore)]
     #[serial]
     fn get_factory_with_no_main_engine() {
         MAIN_ENGINE.store(None);
@@ -1696,6 +1743,7 @@ _shinqlx._map_subtitle2 = "Awesome map!"
     }
 
     #[test]
+    #[cfg_attr(miri, ignore)]
     #[serial]
     fn get_factory_returns_factory() {
         let mut mock_engine = MockQuakeEngine::new();
@@ -1717,6 +1765,7 @@ _shinqlx._map_subtitle2 = "Awesome map!"
     }
 
     #[test]
+    #[cfg_attr(miri, ignore)]
     #[serial]
     fn set_factory_sets_factory_and_reloads() {
         let mut mock_engine = MockQuakeEngine::new();
@@ -1742,6 +1791,7 @@ _shinqlx._map_subtitle2 = "Awesome map!"
     }
 
     #[test]
+    #[cfg_attr(miri, ignore)]
     #[serial]
     fn get_hostname_returns_hostname() {
         let mut mock_engine = MockQuakeEngine::new();
@@ -1763,6 +1813,7 @@ _shinqlx._map_subtitle2 = "Awesome map!"
     }
 
     #[test]
+    #[cfg_attr(miri, ignore)]
     #[serial]
     fn set_hostname_sets_new_hostname() {
         let mut mock_engine = MockQuakeEngine::new();
@@ -1792,6 +1843,7 @@ _shinqlx._map_subtitle2 = "Awesome map!"
     #[rstest]
     #[case(0, false)]
     #[case(1, true)]
+    #[cfg_attr(miri, ignore)]
     #[serial]
     fn get_instagib_returns_instagib_setting(#[case] mode: i32, #[case] expected: bool) {
         let mut mock_engine = MockQuakeEngine::new();
@@ -1815,6 +1867,7 @@ _shinqlx._map_subtitle2 = "Awesome map!"
     #[rstest]
     #[case("0", false)]
     #[case("1", true)]
+    #[cfg_attr(miri, ignore)]
     #[serial]
     fn set_instagib_with_bool_value(#[case] instagib: &'static str, #[case] value_set: bool) {
         let mut mock_engine = MockQuakeEngine::new();
@@ -1844,6 +1897,7 @@ _shinqlx._map_subtitle2 = "Awesome map!"
     #[rstest]
     #[case("0", 0)]
     #[case("1", 1)]
+    #[cfg_attr(miri, ignore)]
     #[serial]
     fn set_instagib_with_integer_value(#[case] instagib: &'static str, #[case] value_set: i32) {
         let mut mock_engine = MockQuakeEngine::new();
@@ -1871,6 +1925,7 @@ _shinqlx._map_subtitle2 = "Awesome map!"
     }
 
     #[test]
+    #[cfg_attr(miri, ignore)]
     #[serial]
     fn set_instagib_with_invalid_value() {
         let mut mock_engine = MockQuakeEngine::new();
@@ -1898,6 +1953,7 @@ _shinqlx._map_subtitle2 = "Awesome map!"
     #[rstest]
     #[case(0, false)]
     #[case(1, true)]
+    #[cfg_attr(miri, ignore)]
     #[serial]
     fn get_loadout_returns_instagib_setting(#[case] mode: i32, #[case] expected: bool) {
         let mut mock_engine = MockQuakeEngine::new();
@@ -1921,6 +1977,7 @@ _shinqlx._map_subtitle2 = "Awesome map!"
     #[rstest]
     #[case("0", false)]
     #[case("1", true)]
+    #[cfg_attr(miri, ignore)]
     #[serial]
     fn set_loadout_with_bool_value(#[case] loadout: &'static str, #[case] value_set: bool) {
         let mut mock_engine = MockQuakeEngine::new();
@@ -1950,6 +2007,7 @@ _shinqlx._map_subtitle2 = "Awesome map!"
     #[rstest]
     #[case("0", 0)]
     #[case("1", 1)]
+    #[cfg_attr(miri, ignore)]
     #[serial]
     fn set_loadout_with_integer_value(#[case] loadout: &'static str, #[case] value_set: i32) {
         let mut mock_engine = MockQuakeEngine::new();
@@ -1977,6 +2035,7 @@ _shinqlx._map_subtitle2 = "Awesome map!"
     }
 
     #[test]
+    #[cfg_attr(miri, ignore)]
     #[serial]
     fn set_loadout_with_invalid_value() {
         let mut mock_engine = MockQuakeEngine::new();
@@ -2002,6 +2061,7 @@ _shinqlx._map_subtitle2 = "Awesome map!"
     }
 
     #[test]
+    #[cfg_attr(miri, ignore)]
     #[serial]
     fn get_maxclients_returns_maxclients() {
         let mut mock_engine = MockQuakeEngine::new();
@@ -2023,6 +2083,7 @@ _shinqlx._map_subtitle2 = "Awesome map!"
     }
 
     #[test]
+    #[cfg_attr(miri, ignore)]
     #[serial]
     fn set_maxclients_sets_new_maxclients_value() {
         let mut mock_engine = MockQuakeEngine::new();
@@ -2047,6 +2108,7 @@ _shinqlx._map_subtitle2 = "Awesome map!"
     }
 
     #[test]
+    #[cfg_attr(miri, ignore)]
     #[serial]
     fn get_timelimit_returns_timelimit() {
         let mut mock_engine = MockQuakeEngine::new();
@@ -2068,6 +2130,7 @@ _shinqlx._map_subtitle2 = "Awesome map!"
     }
 
     #[test]
+    #[cfg_attr(miri, ignore)]
     #[serial]
     fn set_timelimit_sets_new_timelimit_value() {
         let mut mock_engine = MockQuakeEngine::new();
@@ -2092,6 +2155,7 @@ _shinqlx._map_subtitle2 = "Awesome map!"
     }
 
     #[test]
+    #[cfg_attr(miri, ignore)]
     #[serial]
     fn get_fraglimit_returns_fraglimit() {
         let mut mock_engine = MockQuakeEngine::new();
@@ -2113,6 +2177,7 @@ _shinqlx._map_subtitle2 = "Awesome map!"
     }
 
     #[test]
+    #[cfg_attr(miri, ignore)]
     #[serial]
     fn set_fraglimit_sets_new_fraglimit() {
         let mut mock_engine = MockQuakeEngine::new();
@@ -2137,6 +2202,7 @@ _shinqlx._map_subtitle2 = "Awesome map!"
     }
 
     #[test]
+    #[cfg_attr(miri, ignore)]
     #[serial]
     fn get_roundlimit_returns_roundlimit() {
         let mut mock_engine = MockQuakeEngine::new();
@@ -2158,6 +2224,7 @@ _shinqlx._map_subtitle2 = "Awesome map!"
     }
 
     #[test]
+    #[cfg_attr(miri, ignore)]
     #[serial]
     fn set_roundlimit_sets_new_roundlimit() {
         let mut mock_engine = MockQuakeEngine::new();
@@ -2182,6 +2249,7 @@ _shinqlx._map_subtitle2 = "Awesome map!"
     }
 
     #[test]
+    #[cfg_attr(miri, ignore)]
     #[serial]
     fn get_roundtimelimit_returns_roundtimelimit() {
         let mut mock_engine = MockQuakeEngine::new();
@@ -2203,6 +2271,7 @@ _shinqlx._map_subtitle2 = "Awesome map!"
     }
 
     #[test]
+    #[cfg_attr(miri, ignore)]
     #[serial]
     fn set_roundtimelimit_sets_new_roundtimelimit() {
         let mut mock_engine = MockQuakeEngine::new();
@@ -2230,6 +2299,7 @@ _shinqlx._map_subtitle2 = "Awesome map!"
     }
 
     #[test]
+    #[cfg_attr(miri, ignore)]
     #[serial]
     fn get_scorelimit_returns_scorelimit() {
         let mut mock_engine = MockQuakeEngine::new();
@@ -2251,6 +2321,7 @@ _shinqlx._map_subtitle2 = "Awesome map!"
     }
 
     #[test]
+    #[cfg_attr(miri, ignore)]
     #[serial]
     fn set_scorelimit_sets_new_scorelimit() {
         let mut mock_engine = MockQuakeEngine::new();
@@ -2274,6 +2345,7 @@ _shinqlx._map_subtitle2 = "Awesome map!"
         });
     }
     #[test]
+    #[cfg_attr(miri, ignore)]
     #[serial]
     fn get_capturelimit_returns_capturelimit() {
         let mut mock_engine = MockQuakeEngine::new();
@@ -2295,6 +2367,7 @@ _shinqlx._map_subtitle2 = "Awesome map!"
     }
 
     #[test]
+    #[cfg_attr(miri, ignore)]
     #[serial]
     fn set_capturelimit_sets_new_capturelimit() {
         let mut mock_engine = MockQuakeEngine::new();
@@ -2320,6 +2393,7 @@ _shinqlx._map_subtitle2 = "Awesome map!"
     }
 
     #[test]
+    #[cfg_attr(miri, ignore)]
     #[serial]
     fn get_teamsize_returns_teamsize() {
         let mut mock_engine = MockQuakeEngine::new();
@@ -2341,6 +2415,7 @@ _shinqlx._map_subtitle2 = "Awesome map!"
     }
 
     #[test]
+    #[cfg_attr(miri, ignore)]
     #[serial]
     fn set_teamsize_sets_new_teamsize() {
         let mut mock_engine = MockQuakeEngine::new();
@@ -2365,6 +2440,7 @@ _shinqlx._map_subtitle2 = "Awesome map!"
     }
 
     #[test]
+    #[cfg_attr(miri, ignore)]
     #[serial]
     fn get_tags_returns_tags() {
         let mut mock_engine = MockQuakeEngine::new();
@@ -2389,6 +2465,7 @@ _shinqlx._map_subtitle2 = "Awesome map!"
     }
 
     #[test]
+    #[cfg_attr(miri, ignore)]
     #[serial]
     fn set_tags_with_string_tags() {
         let mut mock_engine = MockQuakeEngine::new();
@@ -2416,6 +2493,7 @@ _shinqlx._map_subtitle2 = "Awesome map!"
     }
 
     #[test]
+    #[cfg_attr(miri, ignore)]
     #[serial]
     fn set_tags_with_iterable_tags() {
         let mut mock_engine = MockQuakeEngine::new();
@@ -2443,6 +2521,7 @@ _shinqlx._map_subtitle2 = "Awesome map!"
     }
 
     #[test]
+    #[cfg_attr(miri, ignore)]
     #[serial]
     fn set_tags_with_invalid_value() {
         let mut mock_engine = MockQuakeEngine::new();
@@ -2468,6 +2547,7 @@ _shinqlx._map_subtitle2 = "Awesome map!"
     }
 
     #[test]
+    #[cfg_attr(miri, ignore)]
     #[serial]
     fn get_workshop_items_returns_workshop_items() {
         let mut mock_engine = MockQuakeEngine::new();
@@ -2489,6 +2569,7 @@ _shinqlx._map_subtitle2 = "Awesome map!"
     }
 
     #[test]
+    #[cfg_attr(miri, ignore)]
     #[serial]
     fn set_workshop_items_with_iterable_items() {
         let set_configstring_ctx = shinqlx_set_configstring_context();
@@ -2509,6 +2590,7 @@ _shinqlx._map_subtitle2 = "Awesome map!"
     }
 
     #[test]
+    #[cfg_attr(miri, ignore)]
     #[serial]
     fn set_workshop_items_with_invalid_value() {
         let mut mock_engine = MockQuakeEngine::new();
@@ -2530,6 +2612,7 @@ _shinqlx._map_subtitle2 = "Awesome map!"
     }
 
     #[test]
+    #[cfg_attr(miri, ignore)]
     #[serial]
     fn shuffle_forces_shuffle() {
         let mut mock_engine = MockQuakeEngine::new();
@@ -2544,6 +2627,7 @@ _shinqlx._map_subtitle2 = "Awesome map!"
     }
 
     #[test]
+    #[cfg_attr(miri, ignore)]
     #[serial]
     fn timeout_pauses_game() {
         let mut mock_engine = MockQuakeEngine::new();
@@ -2558,6 +2642,7 @@ _shinqlx._map_subtitle2 = "Awesome map!"
     }
 
     #[test]
+    #[cfg_attr(miri, ignore)]
     #[serial]
     fn timein_unpauses_game() {
         let mut mock_engine = MockQuakeEngine::new();
@@ -2572,6 +2657,7 @@ _shinqlx._map_subtitle2 = "Awesome map!"
     }
 
     #[test]
+    #[cfg_attr(miri, ignore)]
     #[serial]
     fn allready_readies_all_players() {
         let mut mock_engine = MockQuakeEngine::new();
@@ -2586,6 +2672,7 @@ _shinqlx._map_subtitle2 = "Awesome map!"
     }
 
     #[test]
+    #[cfg_attr(miri, ignore)]
     #[serial]
     fn pause_pauses_game() {
         let mut mock_engine = MockQuakeEngine::new();
@@ -2600,6 +2687,7 @@ _shinqlx._map_subtitle2 = "Awesome map!"
     }
 
     #[test]
+    #[cfg_attr(miri, ignore)]
     #[serial]
     fn unpause_unpauses_game() {
         let mut mock_engine = MockQuakeEngine::new();
@@ -2614,6 +2702,7 @@ _shinqlx._map_subtitle2 = "Awesome map!"
     }
 
     #[test]
+    #[cfg_attr(miri, ignore)]
     #[serial]
     fn lock_with_invalid_team() {
         MAIN_ENGINE.store(None);
@@ -2625,6 +2714,7 @@ _shinqlx._map_subtitle2 = "Awesome map!"
     }
 
     #[test]
+    #[cfg_attr(miri, ignore)]
     #[serial]
     fn lock_with_no_team() {
         let mut mock_engine = MockQuakeEngine::new();
@@ -2644,6 +2734,7 @@ _shinqlx._map_subtitle2 = "Awesome map!"
     #[case("free")]
     #[case("blue")]
     #[case("spectator")]
+    #[cfg_attr(miri, ignore)]
     #[serial]
     fn lock_a_specific_team(#[case] locked_team: &str) {
         let lock_cmd = format!("lock {}", locked_team.to_lowercase());
@@ -2660,6 +2751,7 @@ _shinqlx._map_subtitle2 = "Awesome map!"
     }
 
     #[test]
+    #[cfg_attr(miri, ignore)]
     #[serial]
     fn unlock_with_invalid_team() {
         MAIN_ENGINE.store(None);
@@ -2671,6 +2763,7 @@ _shinqlx._map_subtitle2 = "Awesome map!"
     }
 
     #[test]
+    #[cfg_attr(miri, ignore)]
     #[serial]
     fn unlock_with_no_team() {
         let mut mock_engine = MockQuakeEngine::new();
@@ -2690,6 +2783,7 @@ _shinqlx._map_subtitle2 = "Awesome map!"
     #[case("free")]
     #[case("blue")]
     #[case("spectator")]
+    #[cfg_attr(miri, ignore)]
     #[serial]
     fn unlock_a_specific_team(#[case] locked_team: &str) {
         let unlock_cmd = format!("unlock {}", locked_team.to_lowercase());
@@ -2707,6 +2801,7 @@ _shinqlx._map_subtitle2 = "Awesome map!"
     }
 
     #[test]
+    #[cfg_attr(miri, ignore)]
     #[serial]
     fn put_with_invalid_team() {
         MAIN_ENGINE.store(None);
@@ -2723,6 +2818,7 @@ _shinqlx._map_subtitle2 = "Awesome map!"
     }
 
     #[test]
+    #[cfg_attr(miri, ignore)]
     #[serial]
     fn put_with_invalid_player() {
         MAIN_ENGINE.store(None);
@@ -2739,6 +2835,7 @@ _shinqlx._map_subtitle2 = "Awesome map!"
     #[case("free")]
     #[case("blue")]
     #[case("spectator")]
+    #[cfg_attr(miri, ignore)]
     #[serial]
     fn put_put_player_on_a_specific_team(#[case] new_team: &str) {
         let put_cmd = format!("put 2 {}", new_team.to_lowercase());
@@ -2756,6 +2853,7 @@ _shinqlx._map_subtitle2 = "Awesome map!"
     }
 
     #[test]
+    #[cfg_attr(miri, ignore)]
     #[serial]
     fn mute_with_invalid_player() {
         MAIN_ENGINE.store(None);
@@ -2767,6 +2865,7 @@ _shinqlx._map_subtitle2 = "Awesome map!"
     }
 
     #[test]
+    #[cfg_attr(miri, ignore)]
     #[serial]
     fn mute_mutes_player() {
         let mut mock_engine = MockQuakeEngine::new();
@@ -2781,6 +2880,7 @@ _shinqlx._map_subtitle2 = "Awesome map!"
     }
 
     #[test]
+    #[cfg_attr(miri, ignore)]
     #[serial]
     fn unmute_with_invalid_player() {
         MAIN_ENGINE.store(None);
@@ -2792,6 +2892,7 @@ _shinqlx._map_subtitle2 = "Awesome map!"
     }
 
     #[test]
+    #[cfg_attr(miri, ignore)]
     #[serial]
     fn unmute_unmutes_player() {
         let mut mock_engine = MockQuakeEngine::new();
@@ -2806,6 +2907,7 @@ _shinqlx._map_subtitle2 = "Awesome map!"
     }
 
     #[test]
+    #[cfg_attr(miri, ignore)]
     #[serial]
     fn tempban_with_invalid_player() {
         MAIN_ENGINE.store(None);
@@ -2817,6 +2919,7 @@ _shinqlx._map_subtitle2 = "Awesome map!"
     }
 
     #[test]
+    #[cfg_attr(miri, ignore)]
     #[serial]
     fn tempban_tempbans_player() {
         let mut mock_engine = MockQuakeEngine::new();
@@ -2831,6 +2934,7 @@ _shinqlx._map_subtitle2 = "Awesome map!"
     }
 
     #[test]
+    #[cfg_attr(miri, ignore)]
     #[serial]
     fn ban_with_invalid_player() {
         MAIN_ENGINE.store(None);
@@ -2842,6 +2946,7 @@ _shinqlx._map_subtitle2 = "Awesome map!"
     }
 
     #[test]
+    #[cfg_attr(miri, ignore)]
     #[serial]
     fn ban_bans_player() {
         let mut mock_engine = MockQuakeEngine::new();
@@ -2856,6 +2961,7 @@ _shinqlx._map_subtitle2 = "Awesome map!"
     }
 
     #[test]
+    #[cfg_attr(miri, ignore)]
     #[serial]
     fn unban_with_invalid_player() {
         MAIN_ENGINE.store(None);
@@ -2867,6 +2973,7 @@ _shinqlx._map_subtitle2 = "Awesome map!"
     }
 
     #[test]
+    #[cfg_attr(miri, ignore)]
     #[serial]
     fn unban_unbans_player() {
         let mut mock_engine = MockQuakeEngine::new();
@@ -2881,6 +2988,7 @@ _shinqlx._map_subtitle2 = "Awesome map!"
     }
 
     #[test]
+    #[cfg_attr(miri, ignore)]
     #[serial]
     fn opsay_sends_op_message() {
         let mut mock_engine = MockQuakeEngine::new();
@@ -2895,6 +3003,7 @@ _shinqlx._map_subtitle2 = "Awesome map!"
     }
 
     #[test]
+    #[cfg_attr(miri, ignore)]
     #[serial]
     fn addadmin_with_invalid_player() {
         MAIN_ENGINE.store(None);
@@ -2906,6 +3015,7 @@ _shinqlx._map_subtitle2 = "Awesome map!"
     }
 
     #[test]
+    #[cfg_attr(miri, ignore)]
     #[serial]
     fn addadmin_adds_player_to_admins() {
         let mut mock_engine = MockQuakeEngine::new();
@@ -2921,6 +3031,7 @@ _shinqlx._map_subtitle2 = "Awesome map!"
     }
 
     #[test]
+    #[cfg_attr(miri, ignore)]
     #[serial]
     fn addmod_with_invalid_player() {
         MAIN_ENGINE.store(None);
@@ -2932,6 +3043,7 @@ _shinqlx._map_subtitle2 = "Awesome map!"
     }
 
     #[test]
+    #[cfg_attr(miri, ignore)]
     #[serial]
     fn addmod_adds_player_to_moderators() {
         let mut mock_engine = MockQuakeEngine::new();
@@ -2946,6 +3058,7 @@ _shinqlx._map_subtitle2 = "Awesome map!"
     }
 
     #[test]
+    #[cfg_attr(miri, ignore)]
     #[serial]
     fn demote_with_invalid_player() {
         MAIN_ENGINE.store(None);
@@ -2957,6 +3070,7 @@ _shinqlx._map_subtitle2 = "Awesome map!"
     }
 
     #[test]
+    #[cfg_attr(miri, ignore)]
     #[serial]
     fn demote_demotes_player() {
         let mut mock_engine = MockQuakeEngine::new();
@@ -2971,6 +3085,7 @@ _shinqlx._map_subtitle2 = "Awesome map!"
     }
 
     #[test]
+    #[cfg_attr(miri, ignore)]
     #[serial]
     fn abort_aborts_game() {
         let mut mock_engine = MockQuakeEngine::new();
@@ -2985,6 +3100,7 @@ _shinqlx._map_subtitle2 = "Awesome map!"
     }
 
     #[test]
+    #[cfg_attr(miri, ignore)]
     #[serial]
     fn addscore_with_invalid_player() {
         MAIN_ENGINE.store(None);
@@ -2996,6 +3112,7 @@ _shinqlx._map_subtitle2 = "Awesome map!"
     }
 
     #[test]
+    #[cfg_attr(miri, ignore)]
     #[serial]
     fn addscore_adds_score_to_player() {
         let mut mock_engine = MockQuakeEngine::new();
@@ -3011,6 +3128,7 @@ _shinqlx._map_subtitle2 = "Awesome map!"
     }
 
     #[test]
+    #[cfg_attr(miri, ignore)]
     #[serial]
     fn addteamscore_with_invalid_team() {
         MAIN_ENGINE.store(None);
@@ -3027,6 +3145,7 @@ _shinqlx._map_subtitle2 = "Awesome map!"
     #[case("free")]
     #[case("blue")]
     #[case("spectator")]
+    #[cfg_attr(miri, ignore)]
     #[serial]
     fn addteamscore_adds_score_to_team(#[case] locked_team: &str) {
         let unlock_cmd = format!("addteamscore {} 42", locked_team.to_lowercase());
@@ -3044,6 +3163,7 @@ _shinqlx._map_subtitle2 = "Awesome map!"
     }
 
     #[test]
+    #[cfg_attr(miri, ignore)]
     #[serial]
     fn setmatchtime_sets_match_time() {
         let mut mock_engine = MockQuakeEngine::new();

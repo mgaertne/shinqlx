@@ -118,13 +118,11 @@ mod abstract_channel_tests {
     use crate::ffi::python::prelude::*;
 
     use pretty_assertions::assert_eq;
-    #[cfg(not(miri))]
     use pyo3::exceptions::{PyNotImplementedError, PyTypeError};
-    #[cfg(not(miri))]
     use rstest::*;
 
     #[rstest]
-    #[cfg(not(miri))]
+    #[cfg_attr(miri, ignore)]
     fn abstract_channel_can_be_created_from_python(_pyshinqlx_setup: ()) {
         Python::with_gil(|py| {
             let abstract_channel_constructor = py.run(
@@ -140,24 +138,7 @@ abstract_channel = _shinqlx.AbstractChannel("abstract")
     }
 
     #[rstest]
-    #[cfg(not(miri))]
-    fn abstract_channel_str_representation(_pyshinqlx_setup: ()) {
-        Python::with_gil(|py| {
-            let abstract_channel_str_assert = py.run(
-                r#"
-import _shinqlx
-abstract_channel = _shinqlx.AbstractChannel("abstract")
-assert str(abstract_channel) == "abstract"
-            "#,
-                None,
-                None,
-            );
-            assert!(abstract_channel_str_assert.is_ok());
-        });
-    }
-
-    #[rstest]
-    #[cfg(not(miri))]
+    #[cfg_attr(miri, ignore)]
     fn abstract_channel_repr_representation(_pyshinqlx_setup: ()) {
         Python::with_gil(|py| {
             let abstract_channel_repr_assert = py.run(
@@ -174,7 +155,24 @@ assert repr(abstract_channel) == "abstract"
     }
 
     #[rstest]
-    #[cfg(not(miri))]
+    #[cfg_attr(miri, ignore)]
+    fn abstract_channel_str_representation(_pyshinqlx_setup: ()) {
+        Python::with_gil(|py| {
+            let abstract_channel_str_assert = py.run(
+                r#"
+import _shinqlx
+abstract_channel = _shinqlx.AbstractChannel("abstract")
+assert str(abstract_channel) == "abstract"
+            "#,
+                None,
+                None,
+            );
+            assert!(abstract_channel_str_assert.is_ok());
+        });
+    }
+
+    #[rstest]
+    #[cfg_attr(miri, ignore)]
     fn abstract_channel_eq_comparison(_pyshinqlx_setup: ()) {
         Python::with_gil(|py| {
             let abstract_channel_eq_assert = py.run(
@@ -199,7 +197,7 @@ assert not (_shinqlx.AbstractChannel("abstract") == NoReprClass())
     }
 
     #[rstest]
-    #[cfg(not(miri))]
+    #[cfg_attr(miri, ignore)]
     fn abstract_channel_not_eq_comparison(_pyshinqlx_setup: ()) {
         Python::with_gil(|py| {
             let abstract_channel_ne_assert = py.run(
@@ -224,7 +222,7 @@ assert _shinqlx.AbstractChannel("abstract") != NoReprClass()
     }
 
     #[rstest]
-    #[cfg(not(miri))]
+    #[cfg_attr(miri, ignore)]
     fn abstract_channel_does_not_support_other_comparisons(_pyshinqlx_setup: ()) {
         Python::with_gil(|py| {
             let abstract_channel_cmp_assert = py.run(
@@ -251,7 +249,7 @@ _shinqlx.AbstractChannel("abstract") < 2
     }
 
     #[test]
-    #[cfg(not(miri))]
+    #[cfg_attr(miri, ignore)]
     fn reply_is_not_implemented() {
         Python::with_gil(|py| {
             let abstract_channel = Py::new(py, AbstractChannel::py_new("abstract".into())).unwrap();
@@ -354,7 +352,6 @@ impl ConsoleChannel {
 }
 
 #[cfg(test)]
-#[cfg(not(miri))]
 mod console_channel_tests {
     use crate::ffi::python::prelude::*;
     use crate::hooks::mock_hooks::shinqlx_com_printf_context;
@@ -364,6 +361,7 @@ mod console_channel_tests {
     use rstest::*;
 
     #[rstest]
+    #[cfg_attr(miri, ignore)]
     fn console_channel_can_be_created_from_python(_pyshinqlx_setup: ()) {
         Python::with_gil(|py| {
             let console_channel_constructor = py.run(
@@ -379,6 +377,7 @@ console_channel = _shinqlx.ConsoleChannel()
     }
 
     #[test]
+    #[cfg_attr(miri, ignore)]
     #[serial]
     fn reply_prints_text_to_console() {
         let com_printf_ctx = shinqlx_com_printf_context();
@@ -511,7 +510,6 @@ def reply(targets, msg):
 }
 
 #[cfg(test)]
-#[cfg(not(miri))]
 mod chat_channel_tests {
     use crate::ffi::python::prelude::*;
 
@@ -519,6 +517,7 @@ mod chat_channel_tests {
     use rstest::*;
 
     #[rstest]
+    #[cfg_attr(miri, ignore)]
     fn console_channel_can_be_created_from_python(_pyshinqlx_setup: ()) {
         Python::with_gil(|py| {
             let chat_channel_constructor = py.run(
@@ -534,6 +533,7 @@ chat_channel = _shinqlx.ChatChannel()
     }
 
     #[test]
+    #[cfg_attr(miri, ignore)]
     fn receipients_is_not_implemented() {
         Python::with_gil(|py| {
             let chat_channel = ChatChannel {
@@ -592,12 +592,9 @@ mod tell_channel_tests {
 
     use mockall::predicate;
     use pretty_assertions::assert_eq;
-    #[cfg(not(miri))]
     use pyo3::types::IntoPyDict;
-    #[cfg(not(miri))]
     use rstest::rstest;
 
-    #[cfg_attr(miri, allow(dead_code))]
     fn default_test_player() -> Player {
         Player {
             valid: true,
@@ -618,7 +615,7 @@ mod tell_channel_tests {
     }
 
     #[rstest]
-    #[cfg(not(miri))]
+    #[cfg_attr(miri, ignore)]
     fn tell_channel_can_be_created_from_python(_pyshinqlx_setup: ()) {
         let player = default_test_player();
 
@@ -751,7 +748,6 @@ impl TeamChatChannel {
 }
 
 #[cfg(test)]
-#[cfg(not(miri))]
 mod team_chat_channel_tests {
     use crate::ffi::c::prelude::*;
     use crate::ffi::python::prelude::*;
@@ -761,6 +757,7 @@ mod team_chat_channel_tests {
     use rstest::*;
 
     #[rstest]
+    #[cfg_attr(miri, ignore)]
     fn team_chat_channel_can_be_created_from_python(_pyshinqlx_setup: ()) {
         Python::with_gil(|py| {
             let team_chat_channel_constructor = py.run(
@@ -781,6 +778,7 @@ tell_channel = _shinqlx.TeamChatChannel("all")
     #[case("blue".into(), Some(vec![2, 6]))]
     #[case("spectator".into(), Some(vec![3, 7]))]
     #[case("free".into(), Some(vec![0, 4]))]
+    #[cfg_attr(miri, ignore)]
     #[serial]
     fn recipients_returns_client_ids(#[case] team: String, #[case] expected_ids: Option<Vec<i32>>) {
         let mut mock_engine = MockQuakeEngine::new();
@@ -835,6 +833,7 @@ tell_channel = _shinqlx.TeamChatChannel("all")
     }
 
     #[test]
+    #[cfg_attr(miri, ignore)]
     #[serial]
     fn recipients_for_invalid_team_chat_channel_name() {
         let mut mock_engine = MockQuakeEngine::new();
@@ -957,12 +956,9 @@ mod client_command_channel_tests {
 
     use mockall::predicate;
     use pretty_assertions::assert_eq;
-    #[cfg(not(miri))]
     use pyo3::types::IntoPyDict;
-    #[cfg(not(miri))]
     use rstest::rstest;
 
-    #[cfg_attr(miri, allow(dead_code))]
     fn default_test_player() -> Player {
         Player {
             valid: true,
@@ -983,7 +979,7 @@ mod client_command_channel_tests {
     }
 
     #[rstest]
-    #[cfg(not(miri))]
+    #[cfg_attr(miri, ignore)]
     fn client_command_channel_can_be_created_from_python(_pyshinqlx_setup: ()) {
         let player = default_test_player();
 
