@@ -41,7 +41,6 @@ pub(crate) fn pyshinqlx_send_server_command(
 #[cfg(test)]
 #[cfg(not(miri))]
 mod send_server_command_tests {
-    use super::pyshinqlx_send_server_command;
     use crate::ffi::c::prelude::*;
     use crate::ffi::python::prelude::*;
     use crate::hooks::mock_hooks::shinqlx_send_server_command_context;

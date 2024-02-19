@@ -21,7 +21,6 @@ pub(crate) fn pyshinqlx_callvote(
 #[cfg(test)]
 #[cfg(not(miri))]
 mod callvote_tests {
-    use super::pyshinqlx_callvote;
     use crate::ffi::c::prelude::*;
     use crate::ffi::python::prelude::*;
     use crate::prelude::*;

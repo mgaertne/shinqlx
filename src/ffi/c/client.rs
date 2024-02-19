@@ -2,7 +2,7 @@ use super::prelude::*;
 use crate::prelude::*;
 use crate::MAIN_ENGINE;
 
-use alloc::{ffi::CString, string::String};
+use alloc::ffi::CString;
 use core::ffi::{c_char, CStr};
 
 #[derive(Debug, PartialEq)]

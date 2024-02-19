@@ -30,7 +30,6 @@ pub(crate) fn pyshinqlx_destroy_kamikaze_timers(py: Python<'_>) -> PyResult<bool
 #[cfg(test)]
 #[cfg(not(miri))]
 mod destroy_kamikaze_timers_tests {
-    use super::pyshinqlx_destroy_kamikaze_timers;
     use crate::ffi::c::prelude::*;
     use crate::ffi::python::prelude::*;
     use crate::prelude::*;

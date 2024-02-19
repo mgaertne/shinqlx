@@ -42,7 +42,6 @@ pub(crate) fn pyshinqlx_force_vote(py: Python<'_>, pass: bool) -> PyResult<bool>
 #[cfg(test)]
 #[cfg(not(miri))]
 mod force_vote_tests {
-    use super::pyshinqlx_force_vote;
     use super::MAIN_ENGINE;
     use crate::ffi::c::prelude::*;
     use crate::ffi::python::prelude::*;

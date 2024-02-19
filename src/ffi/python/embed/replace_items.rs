@@ -105,7 +105,6 @@ pub(crate) fn pyshinqlx_replace_items(
 #[cfg(test)]
 #[cfg(not(miri))]
 mod replace_items_tests {
-    use super::pyshinqlx_replace_items;
     use crate::ffi::c::prelude::*;
     use crate::ffi::python::prelude::*;
     use crate::prelude::*;

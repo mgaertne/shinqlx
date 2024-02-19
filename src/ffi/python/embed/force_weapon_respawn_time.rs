@@ -30,7 +30,6 @@ pub(crate) fn pyshinqlx_force_weapon_respawn_time(
 #[cfg(test)]
 #[cfg(not(miri))]
 mod force_weapon_respawn_time_tests {
-    use super::pyshinqlx_force_weapon_respawn_time;
     use crate::ffi::c::prelude::*;
     use crate::ffi::python::prelude::*;
     use crate::prelude::*;

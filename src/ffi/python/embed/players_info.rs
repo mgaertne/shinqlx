@@ -36,7 +36,6 @@ pub(crate) fn pyshinqlx_players_info(py: Python<'_>) -> PyResult<Vec<Option<Play
 #[cfg(test)]
 #[cfg(not(miri))]
 mod get_players_info_tests {
-    use super::pyshinqlx_players_info;
     use super::MAIN_ENGINE;
     use crate::ffi::c::prelude::*;
     use crate::ffi::python::prelude::*;
