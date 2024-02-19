@@ -27,7 +27,6 @@ pub(crate) fn pyshinqlx_set_flight(
 #[cfg(test)]
 #[cfg(not(miri))]
 mod set_flight_tests {
-    use super::pyshinqlx_set_flight;
     use crate::ffi::c::prelude::*;
     use crate::ffi::python::prelude::*;
     use crate::prelude::*;

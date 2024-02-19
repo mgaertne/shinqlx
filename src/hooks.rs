@@ -8,7 +8,6 @@ use crate::quake_live_engine::{
 };
 use crate::MAIN_ENGINE;
 
-use alloc::string::String;
 use core::{
     borrow::BorrowMut,
     ffi::{c_char, c_int, CStr, VaList, VaListImpl},

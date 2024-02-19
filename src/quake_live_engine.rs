@@ -20,7 +20,7 @@ use crate::quake_live_functions::QuakeLiveFunction;
 #[cfg(target_os = "linux")]
 use crate::QZERODED;
 
-use alloc::{ffi::CString, string::String, sync::Arc};
+use alloc::{ffi::CString, sync::Arc};
 use arc_swap::ArcSwapOption;
 #[cfg(target_os = "linux")]
 use arrayvec::ArrayVec;

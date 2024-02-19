@@ -93,7 +93,6 @@ impl From<(f32, f32, f32)> for Vector3 {
 
 #[cfg(test)]
 mod vector3_tests {
-    use super::Vector3;
     #[cfg(not(miri))]
     use crate::ffi::python::prelude::*;
 

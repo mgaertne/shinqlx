@@ -40,7 +40,6 @@ pub(crate) fn pyshinqlx_kick(py: Python<'_>, client_id: i32, reason: Option<&str
 #[cfg(test)]
 #[cfg(not(miri))]
 mod kick_tests {
-    use super::pyshinqlx_kick;
     use crate::ffi::c::prelude::*;
     use crate::ffi::python::prelude::*;
     use crate::hooks::mock_hooks::shinqlx_drop_client_context;

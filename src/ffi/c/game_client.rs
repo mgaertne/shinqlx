@@ -1,7 +1,6 @@
 use super::prelude::*;
 use crate::prelude::*;
 
-use alloc::{string::String, vec::Vec};
 use core::ffi::{c_int, CStr};
 
 #[derive(Debug, PartialEq)]

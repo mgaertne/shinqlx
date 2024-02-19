@@ -36,7 +36,6 @@ pub(crate) fn pyshinqlx_drop_holdable(py: Python<'_>, client_id: i32) -> PyResul
 #[cfg(test)]
 #[cfg(not(miri))]
 mod drop_holdable_tests {
-    use super::pyshinqlx_drop_holdable;
     use crate::ffi::c::prelude::*;
     use crate::ffi::python::prelude::*;
     use crate::prelude::*;

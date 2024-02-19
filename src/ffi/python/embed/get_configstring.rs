@@ -30,7 +30,6 @@ pub(crate) fn pyshinqlx_get_configstring(py: Python<'_>, config_id: u32) -> PyRe
 #[cfg(test)]
 #[cfg(not(miri))]
 mod get_configstring_tests {
-    use super::pyshinqlx_get_configstring;
     use super::MAIN_ENGINE;
     use crate::ffi::c::prelude::*;
     use crate::ffi::python::prelude::*;

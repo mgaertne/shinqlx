@@ -37,7 +37,6 @@ pub(crate) fn pyshinqlx_slay_with_mod(
 #[cfg(test)]
 #[cfg(not(miri))]
 mod slay_with_mod_tests {
-    use super::pyshinqlx_slay_with_mod;
     use crate::ffi::c::prelude::*;
     use crate::ffi::python::prelude::*;
     use crate::prelude::*;

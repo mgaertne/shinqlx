@@ -27,7 +27,6 @@ pub(crate) fn pyshinqlx_set_privileges(
 #[cfg(test)]
 #[cfg(not(miri))]
 mod set_privileges_tests {
-    use super::pyshinqlx_set_privileges;
     use crate::ffi::c::prelude::*;
     use crate::ffi::python::prelude::*;
     use crate::prelude::*;
