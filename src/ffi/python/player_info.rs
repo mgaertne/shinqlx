@@ -97,7 +97,6 @@ impl From<i32> for PlayerInfo {
 #[cfg(test)]
 mod player_info_tests {
     use crate::ffi::c::prelude::*;
-    #[cfg(not(miri))]
     use crate::ffi::python::prelude::*;
     use crate::prelude::*;
 
