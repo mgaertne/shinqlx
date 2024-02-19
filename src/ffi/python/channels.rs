@@ -115,8 +115,6 @@ impl AbstractChannel {
 
 #[cfg(test)]
 mod abstract_channel_tests {
-    use super::AbstractChannel;
-    #[cfg(not(miri))]
     use crate::ffi::python::prelude::*;
 
     use pretty_assertions::assert_eq;
@@ -358,7 +356,6 @@ impl ConsoleChannel {
 #[cfg(test)]
 #[cfg(not(miri))]
 mod console_channel_tests {
-    use super::ConsoleChannel;
     use crate::ffi::python::prelude::*;
     use crate::hooks::mock_hooks::shinqlx_com_printf_context;
     use crate::prelude::*;
@@ -516,7 +513,6 @@ def reply(targets, msg):
 #[cfg(test)]
 #[cfg(not(miri))]
 mod chat_channel_tests {
-    use super::ChatChannel;
     use crate::ffi::python::prelude::*;
 
     use pyo3::exceptions::PyNotImplementedError;
@@ -590,7 +586,6 @@ impl TellChannel {
 
 #[cfg(test)]
 mod tell_channel_tests {
-    use super::TellChannel;
     use crate::ffi::c::prelude::*;
     use crate::ffi::python::prelude::*;
     use crate::prelude::*;
@@ -758,7 +753,6 @@ impl TeamChatChannel {
 #[cfg(test)]
 #[cfg(not(miri))]
 mod team_chat_channel_tests {
-    use super::TeamChatChannel;
     use crate::ffi::c::prelude::*;
     use crate::ffi::python::prelude::*;
     use crate::prelude::*;
@@ -957,7 +951,6 @@ impl ClientCommandChannel {
 
 #[cfg(test)]
 mod client_command_channel_tests {
-    use super::ClientCommandChannel;
     use crate::ffi::c::prelude::*;
     use crate::ffi::python::prelude::*;
     use crate::prelude::*;

@@ -678,7 +678,7 @@ impl Game {
 #[cfg(test)]
 #[cfg(not(miri))]
 mod pyshinqlx_game_tests {
-    use super::{Game, NonexistentGameError};
+    use super::NonexistentGameError;
     use crate::ffi::python::prelude::*;
     use crate::hooks::mock_hooks::shinqlx_set_configstring_context;
     use crate::prelude::*;
