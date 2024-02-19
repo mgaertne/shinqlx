@@ -26,7 +26,6 @@ pub(crate) fn pyshinqlx_get_entity_targets(py: Python<'_>, entity_id: i32) -> Py
 #[cfg(test)]
 #[cfg(not(miri))]
 mod get_entity_targets_tests {
-    use super::pyshinqlx_get_entity_targets;
     use crate::ffi::c::prelude::*;
     use crate::ffi::python::prelude::*;
     use crate::prelude::*;

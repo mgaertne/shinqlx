@@ -31,7 +31,6 @@ pub(crate) fn pyshinqlx_set_weapon(py: Python<'_>, client_id: i32, weapon: i32) 
 #[cfg(test)]
 #[cfg(not(miri))]
 mod set_weapon_tests {
-    use super::pyshinqlx_set_weapon;
     use crate::ffi::c::prelude::*;
     use crate::ffi::python::prelude::*;
     use crate::prelude::*;

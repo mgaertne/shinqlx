@@ -25,7 +25,6 @@ pub(crate) fn pyshinqlx_get_cvar(py: Python<'_>, cvar: &str) -> PyResult<Option<
 #[cfg(test)]
 #[cfg(not(miri))]
 mod get_cvar_tests {
-    use super::pyshinqlx_get_cvar;
     use super::MAIN_ENGINE;
     use crate::ffi::c::prelude::*;
     use crate::ffi::python::prelude::*;

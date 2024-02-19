@@ -24,7 +24,6 @@ pub(crate) fn pyshinqlx_noclip(py: Python<'_>, client_id: i32, activate: bool) -
 #[cfg(test)]
 #[cfg(not(miri))]
 mod noclip_tests {
-    use super::pyshinqlx_noclip;
     use crate::ffi::c::prelude::*;
     use crate::ffi::python::prelude::*;
     use crate::prelude::*;

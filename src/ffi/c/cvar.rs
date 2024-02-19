@@ -1,7 +1,6 @@
 use super::prelude::*;
 use crate::prelude::*;
 
-use alloc::string::String;
 use core::ffi::CStr;
 
 #[derive(Debug, PartialEq)]
@@ -32,7 +31,6 @@ impl CVar {
 
 #[cfg(test)]
 mod cvar_tests {
-    use super::CVar;
     use crate::ffi::c::prelude::*;
     use crate::prelude::*;
 

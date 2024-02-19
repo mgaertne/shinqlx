@@ -23,7 +23,6 @@ pub(crate) fn pyshinqlx_player_stats(
 #[cfg(test)]
 #[cfg(not(miri))]
 mod player_stats_tests {
-    use super::pyshinqlx_player_stats;
     use crate::ffi::c::prelude::*;
     use crate::ffi::python::prelude::*;
     use crate::prelude::*;

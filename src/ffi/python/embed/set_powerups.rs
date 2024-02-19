@@ -27,7 +27,6 @@ pub(crate) fn pyshinqlx_set_powerups(
 #[cfg(test)]
 #[cfg(not(miri))]
 mod set_powerups_tests {
-    use super::pyshinqlx_set_powerups;
     use crate::ffi::c::prelude::*;
     use crate::ffi::python::prelude::*;
     use crate::prelude::*;

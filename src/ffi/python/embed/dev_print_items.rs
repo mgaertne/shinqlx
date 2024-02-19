@@ -73,7 +73,6 @@ pub(crate) fn pyshinqlx_dev_print_items(py: Python<'_>) -> PyResult<()> {
 #[cfg(test)]
 #[cfg(not(miri))]
 mod dev_print_items_tests {
-    use super::pyshinqlx_dev_print_items;
     use super::MAIN_ENGINE;
     use crate::ffi::c::prelude::*;
     use crate::ffi::python::prelude::*;

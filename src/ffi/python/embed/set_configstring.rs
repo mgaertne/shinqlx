@@ -32,7 +32,6 @@ pub(crate) fn pyshinqlx_set_configstring(
 #[cfg(test)]
 #[cfg(not(miri))]
 mod set_configstring_tests {
-    use super::pyshinqlx_set_configstring;
     use crate::ffi::python::prelude::*;
     use crate::hooks::mock_hooks::shinqlx_set_configstring_context;
     use crate::prelude::*;

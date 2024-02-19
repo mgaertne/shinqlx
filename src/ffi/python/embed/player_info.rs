@@ -40,7 +40,6 @@ pub(crate) fn pyshinqlx_player_info(
 #[cfg(test)]
 #[cfg(not(miri))]
 mod get_player_info_tests {
-    use super::pyshinqlx_player_info;
     use crate::ffi::c::prelude::*;
     use crate::ffi::python::prelude::*;
     use crate::prelude::*;

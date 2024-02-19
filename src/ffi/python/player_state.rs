@@ -111,7 +111,6 @@ impl From<GameEntity> for PlayerState {
 
 #[cfg(test)]
 mod player_state_tests {
-    use super::PlayerState;
     use crate::ffi::c::prelude::*;
     use crate::ffi::python::prelude::*;
     use crate::prelude::*;

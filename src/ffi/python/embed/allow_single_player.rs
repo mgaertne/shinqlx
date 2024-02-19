@@ -16,7 +16,6 @@ pub(crate) fn pyshinqlx_allow_single_player(py: Python<'_>, allow: bool) {
 #[cfg(test)]
 #[cfg(not(miri))]
 mod allow_single_player_tests {
-    use super::pyshinqlx_allow_single_player;
     use crate::ffi::c::prelude::*;
     use crate::ffi::python::prelude::*;
     use crate::prelude::*;

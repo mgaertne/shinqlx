@@ -46,7 +46,6 @@ pub(crate) fn pyshinqlx_register_handler(
 #[cfg(test)]
 #[cfg(not(miri))]
 mod register_handler_tests {
-    use super::pyshinqlx_register_handler;
     use crate::ffi::python::prelude::*;
     use crate::prelude::*;
 

@@ -35,7 +35,6 @@ pub(crate) fn pyshinqlx_spawn_item(
 #[cfg(test)]
 #[cfg(not(miri))]
 mod spawn_item_tests {
-    use super::pyshinqlx_spawn_item;
     use crate::ffi::c::prelude::*;
     use crate::ffi::python::prelude::*;
     use crate::prelude::*;

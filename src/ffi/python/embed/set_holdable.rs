@@ -28,7 +28,6 @@ pub(crate) fn pyshinqlx_set_holdable(
 #[cfg(test)]
 #[cfg(not(miri))]
 mod set_holdable_tests {
-    use super::pyshinqlx_set_holdable;
     use crate::ffi::c::prelude::*;
     use crate::ffi::python::prelude::*;
     use crate::prelude::*;

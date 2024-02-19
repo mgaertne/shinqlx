@@ -221,8 +221,6 @@ assert(_shinqlx.Weapons((False, False, False, False, False, False, False, False,
 
 #[cfg(test)]
 mod ammo_tests {
-    use super::Weapons;
-    #[cfg(not(miri))]
     use crate::ffi::python::prelude::*;
 
     use pretty_assertions::assert_eq;

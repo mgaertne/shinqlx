@@ -23,7 +23,6 @@ pub(crate) fn pyshinqlx_set_armor(py: Python<'_>, client_id: i32, armor: i32) ->
 #[cfg(test)]
 #[cfg(not(miri))]
 mod set_armor_tests {
-    use super::pyshinqlx_set_armor;
     use crate::ffi::c::prelude::*;
     use crate::ffi::python::prelude::*;
     use crate::prelude::*;

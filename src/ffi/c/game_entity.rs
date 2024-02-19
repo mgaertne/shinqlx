@@ -2,12 +2,11 @@ use super::prelude::*;
 use crate::hooks::shinqlx_set_configstring;
 use crate::prelude::*;
 use crate::quake_live_engine::{
-    ComPrintf, FreeEntity, GetConfigstring, QuakeLiveEngineError, RegisterDamage, StartKamikaze,
-    TryLaunchItem,
+    ComPrintf, FreeEntity, GetConfigstring, RegisterDamage, StartKamikaze, TryLaunchItem,
 };
 use crate::MAIN_ENGINE;
 
-use alloc::{string::String, vec};
+use alloc::vec;
 use core::{
     f32::consts::PI,
     ffi::{c_char, c_float, c_int, CStr},

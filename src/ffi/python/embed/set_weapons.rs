@@ -27,7 +27,6 @@ pub(crate) fn pyshinqlx_set_weapons(
 #[cfg(test)]
 #[cfg(not(miri))]
 mod set_weapons_tests {
-    use super::pyshinqlx_set_weapons;
     use crate::ffi::c::prelude::*;
     use crate::ffi::python::prelude::*;
     use crate::prelude::*;
