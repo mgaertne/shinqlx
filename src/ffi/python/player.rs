@@ -226,9 +226,9 @@ impl Player {
     fn set_cvars(&mut self, py: Python<'_>, new_cvars: &PyDict) -> PyResult<()> {
         let new = new_cvars
             .iter()
-            .map(|(key, value)| format!("\\{key}\\{value}"))
+            .map(|(key, value)| format!(r"\\{key}\\{value}"))
             .join("");
-        let client_command = format!("userinfo \"{new}\"");
+        let client_command = format!(r#"userinfo "{new}""#);
         pyshinqlx_client_command(py, self.id, &client_command)?;
         Ok(())
     }
@@ -1327,7 +1327,7 @@ mod pyshinqlx_player_tests {
         let result = Player::py_new(
             2,
             Some(PlayerInfo {
-                userinfo: "\\name\\UnnamedPlayer".into(),
+                userinfo: r"\\name\\UnnamedPlayer".into(),
                 ..default_test_player_info()
             }),
         );
@@ -1335,10 +1335,10 @@ mod pyshinqlx_player_tests {
             result.expect("result was not OK"),
             Player {
                 player_info: PlayerInfo {
-                    userinfo: "\\name\\UnnamedPlayer".into(),
+                    userinfo: r"\\name\\UnnamedPlayer".into(),
                     ..default_test_player_info()
                 },
-                user_info: "\\name\\UnnamedPlayer".into(),
+                user_info: r"\\name\\UnnamedPlayer".into(),
                 name: "UnnamedPlayer".into(),
                 ..default_test_player()
             }
@@ -1426,10 +1426,10 @@ mod pyshinqlx_player_tests {
     fn contains_where_value_is_part_of_userinfo() {
         let player = Player {
             player_info: PlayerInfo {
-                userinfo: "\\asdf\\some value".into(),
+                userinfo: r"\\asdf\\some value".into(),
                 ..default_test_player_info()
             },
-            user_info: "\\asdf\\some value".into(),
+            user_info: r"\\asdf\\some value".into(),
             ..default_test_player()
         };
 
@@ -1442,10 +1442,10 @@ mod pyshinqlx_player_tests {
     fn contains_where_value_is_not_in_userinfo() {
         let player = Player {
             player_info: PlayerInfo {
-                userinfo: "\\name\\^1Unnamed^2Player".into(),
+                userinfo: r"\\name\\^1Unnamed^2Player".into(),
                 ..default_test_player_info()
             },
-            user_info: "\\name\\^1Unnamed^2Player".into(),
+            user_info: r"\\name\\^1Unnamed^2Player".into(),
             ..default_test_player()
         };
 
@@ -1472,10 +1472,10 @@ mod pyshinqlx_player_tests {
     fn getitem_where_value_is_part_of_userinfo() {
         let player = Player {
             player_info: PlayerInfo {
-                userinfo: "\\asdf\\some value".into(),
+                userinfo: r"\\asdf\\some value".into(),
                 ..default_test_player_info()
             },
-            user_info: "\\asdf\\some value".into(),
+            user_info: r"\\asdf\\some value".into(),
             ..default_test_player()
         };
 
@@ -1488,10 +1488,10 @@ mod pyshinqlx_player_tests {
     fn getitem_where_value_is_not_in_userinfo() {
         let player = Player {
             player_info: PlayerInfo {
-                userinfo: "\\name\\^1Unnamed^2Player".into(),
+                userinfo: r"\\name\\^1Unnamed^2Player".into(),
                 ..default_test_player_info()
             },
-            user_info: "\\name\\^1Unnamed^2Player".into(),
+            user_info: r"\\name\\^1Unnamed^2Player".into(),
             ..default_test_player()
         };
 
@@ -1520,10 +1520,10 @@ mod pyshinqlx_player_tests {
     fn cvars_where_value_is_part_of_userinfo() {
         let player = Player {
             player_info: PlayerInfo {
-                userinfo: "\\asdf\\some value".into(),
+                userinfo: r"\\asdf\\some value".into(),
                 ..default_test_player_info()
             },
-            user_info: "\\asdf\\some value".into(),
+            user_info: r"\\asdf\\some value".into(),
             ..default_test_player()
         };
 
@@ -1832,7 +1832,7 @@ assert(player._valid)
                     .return_const(clientState_t::CS_CONNECTED);
                 mock_client
                     .expect_get_user_info()
-                    .return_const("\\name\\NewUnnamedPlayer");
+                    .return_const(r"\\name\\NewUnnamedPlayer");
                 mock_client
                     .expect_get_steam_id()
                     .return_const(1234567890u64);
@@ -1882,7 +1882,7 @@ assert(player._valid)
             .expect()
             .withf(|client, cmd, &client_ok| {
                 client.is_some()
-                    && cmd == "userinfo \"\\asdf\\qwertz\\name\\UnnamedPlayer\""
+                    && cmd == r#"userinfo "\\asdf\\qwertz\\name\\UnnamedPlayer""#
                     && client_ok
             })
             .times(1);
@@ -1915,9 +1915,9 @@ assert(player._valid)
     #[cfg_attr(miri, ignore)]
     fn get_ip_for_ip_with_no_port() {
         let player = Player {
-            user_info: "\\ip\\127.0.0.1".into(),
+            user_info: r"\\ip\\127.0.0.1".into(),
             player_info: PlayerInfo {
-                userinfo: "\\ip\\127.0.0.1".into(),
+                userinfo: r"\\ip\\127.0.0.1".into(),
                 ..default_test_player_info()
             },
             ..default_test_player()
@@ -1930,9 +1930,9 @@ assert(player._valid)
     #[cfg_attr(miri, ignore)]
     fn get_ip_for_ip_with_port() {
         let player = Player {
-            user_info: "\\ip\\127.0.0.1:27666".into(),
+            user_info: r"\\ip\\127.0.0.1:27666".into(),
             player_info: PlayerInfo {
-                userinfo: "\\ip\\127.0.0.1:27666".into(),
+                userinfo: r"\\ip\\127.0.0.1:27666".into(),
                 ..default_test_player_info()
             },
             ..default_test_player()
@@ -1975,7 +1975,7 @@ assert(player._valid)
         mock_engine
             .expect_get_configstring()
             .with(predicate::eq(531))
-            .returning(|_| "\\cn\\asdf".into());
+            .returning(|_| r"\\cn\\asdf".into());
         MAIN_ENGINE.store(Some(mock_engine.into()));
 
         let player = default_test_player();
@@ -2004,7 +2004,7 @@ assert(player._valid)
         mock_engine
             .expect_set_configstring()
             .withf(|index, value| {
-                *index == 531i32 && value.contains("\\cn\\clan") && value.contains("\\xcn\\clan")
+                *index == 531i32 && value.contains(r"\\cn\\clan") && value.contains(r"\\xcn\\clan")
             })
             .times(1);
         MAIN_ENGINE.store(Some(mock_engine.into()));
@@ -2021,15 +2021,15 @@ assert(player._valid)
         mock_engine
             .expect_get_configstring()
             .with(predicate::eq(531))
-            .returning(|_| "\\xcn\\asdf\\cn\\asdf".into());
+            .returning(|_| r"\\xcn\\asdf\\cn\\asdf".into());
         mock_engine
             .expect_set_configstring()
             .withf(|index, value| {
                 *index == 531i32
-                    && value.contains("\\cn\\clan")
-                    && value.contains("\\xcn\\clan")
-                    && !value.contains("\\cn\\asdf")
-                    && !value.contains("\\xcn\\asdf")
+                    && value.contains(r"\\cn\\clan")
+                    && value.contains(r"\\xcn\\clan")
+                    && !value.contains(r"\\cn\\asdf")
+                    && !value.contains(r"\\xcn\\asdf")
             })
             .times(1);
         MAIN_ENGINE.store(Some(mock_engine.into()));
@@ -2096,15 +2096,15 @@ assert(player._valid)
             .expect()
             .withf(|client, cmd, &client_ok| {
                 client.is_some()
-                    && cmd == "userinfo \"\\asdf\\qwertz\\name\\^1Unnamed^2Player\""
+                    && cmd == r#"userinfo "\\asdf\\qwertz\\name\\^1Unnamed^2Player""#
                     && client_ok
             })
             .times(1);
 
         let mut player = Player {
-            user_info: "\\asdf\\qwertz\\name\\UnnamedPlayer".into(),
+            user_info: r"\\asdf\\qwertz\\name\\UnnamedPlayer".into(),
             player_info: PlayerInfo {
-                userinfo: "\\asdf\\qwertz\\name\\UnnamedPlayer".into(),
+                userinfo: r"\\asdf\\qwertz\\name\\UnnamedPlayer".into(),
                 ..default_test_player_info()
             },
             ..default_test_player()
@@ -2147,9 +2147,9 @@ assert(player._valid)
     #[cfg_attr(miri, ignore)]
     fn get_qport_for_port_set() {
         let player = Player {
-            user_info: "\\qport\\27666".into(),
+            user_info: r"\\qport\\27666".into(),
             player_info: PlayerInfo {
-                userinfo: "\\qport\\27666".into(),
+                userinfo: r"\\qport\\27666".into(),
                 ..default_test_player_info()
             },
             ..default_test_player()
@@ -2164,9 +2164,9 @@ assert(player._valid)
     #[cfg_attr(miri, ignore)]
     fn get_qport_for_invalid_port_set() {
         let player = Player {
-            user_info: "\\qport\\asdf".into(),
+            user_info: r"\\qport\\asdf".into(),
             player_info: PlayerInfo {
-                userinfo: "\\qport\\asdf".into(),
+                userinfo: r"\\qport\\asdf".into(),
                 ..default_test_player_info()
             },
             ..default_test_player()
@@ -2272,9 +2272,9 @@ assert(player._valid)
     #[cfg_attr(miri, ignore)]
     fn get_colors_for_colors_set() {
         let player = Player {
-            user_info: "\\color1\\42\\color2\\21".into(),
+            user_info: r"\\color1\\42\\color2\\21".into(),
             player_info: PlayerInfo {
-                userinfo: "\\color1\\42\\colors2\\21".into(),
+                userinfo: r"\\color1\\42\\colors2\\21".into(),
                 ..default_test_player_info()
             },
             ..default_test_player()
@@ -2289,9 +2289,9 @@ assert(player._valid)
     #[cfg_attr(miri, ignore)]
     fn get_colors_for_invalid_color1_set() {
         let player = Player {
-            user_info: "\\color1\\asdf\\color2\\42".into(),
+            user_info: r"\\color1\\asdf\\color2\\42".into(),
             player_info: PlayerInfo {
-                userinfo: "\\color1\\asdf\\color2\\42".into(),
+                userinfo: r"\\color1\\asdf\\color2\\42".into(),
                 ..default_test_player_info()
             },
             ..default_test_player()
@@ -2306,9 +2306,9 @@ assert(player._valid)
     #[cfg_attr(miri, ignore)]
     fn get_colors_for_invalid_color2_set() {
         let player = Player {
-            user_info: "\\color1\\42\\color2\\asdf".into(),
+            user_info: r"\\color1\\42\\color2\\asdf".into(),
             player_info: PlayerInfo {
-                userinfo: "\\color1\\42\\color2\\asdf".into(),
+                userinfo: r"\\color1\\42\\color2\\asdf".into(),
                 ..default_test_player_info()
             },
             ..default_test_player()
@@ -2342,15 +2342,15 @@ assert(player._valid)
             .withf(|client, cmd, &client_ok| {
                 client.is_some()
                     && cmd
-                        == "userinfo \"\\asdf\\qwertz\\name\\UnnamedPlayer\\color1\\0\\color2\\3\""
+                        == r#"userinfo "\\asdf\\qwertz\\name\\UnnamedPlayer\\color1\\0\\color2\\3""#
                     && client_ok
             })
             .times(1);
 
         let mut player = Player {
-            user_info: "\\asdf\\qwertz\\color1\\7.0\\color2\\5\\name\\UnnamedPlayer".into(),
+            user_info: r"\\asdf\\qwertz\\color1\\7.0\\color2\\5\\name\\UnnamedPlayer".into(),
             player_info: PlayerInfo {
-                userinfo: "\\asdf\\qwertz\\color1\\7.0\\color2\\5\\name\\UnnamedPlayer".into(),
+                userinfo: r"\\asdf\\qwertz\\color1\\7.0\\color2\\5\\name\\UnnamedPlayer".into(),
                 ..default_test_player_info()
             },
             ..default_test_player()
@@ -2382,9 +2382,9 @@ assert(player._valid)
     #[cfg_attr(miri, ignore)]
     fn get_model_when_model_is_set() {
         let player = Player {
-            user_info: "\\model\\asdf".into(),
+            user_info: r"\\model\\asdf".into(),
             player_info: PlayerInfo {
-                userinfo: "\\model\\asdf".into(),
+                userinfo: r"\\model\\asdf".into(),
                 ..default_test_player_info()
             },
             ..default_test_player()
@@ -2416,15 +2416,15 @@ assert(player._valid)
             .expect()
             .withf(|client, cmd, &client_ok| {
                 client.is_some()
-                    && cmd == "userinfo \"\\asdf\\qwertz\\name\\UnnamedPlayer\\model\\Uriel\""
+                    && cmd == r#"userinfo "\\asdf\\qwertz\\name\\UnnamedPlayer\\model\\Uriel""#
                     && client_ok
             })
             .times(1);
 
         let mut player = Player {
-            user_info: "\\asdf\\qwertz\\model\\Anarki\\name\\UnnamedPlayer".into(),
+            user_info: r"\\asdf\\qwertz\\model\\Anarki\\name\\UnnamedPlayer".into(),
             player_info: PlayerInfo {
-                userinfo: "\\asdf\\qwertz\\model\\Anarki\\name\\UnnamedPlayer".into(),
+                userinfo: r"\\asdf\\qwertz\\model\\Anarki\\name\\UnnamedPlayer".into(),
                 ..default_test_player_info()
             },
             ..default_test_player()
@@ -2456,9 +2456,9 @@ assert(player._valid)
     #[cfg_attr(miri, ignore)]
     fn get_headmodel_when_headmodel_is_set() {
         let player = Player {
-            user_info: "\\headmodel\\asdf".into(),
+            user_info: r"\\headmodel\\asdf".into(),
             player_info: PlayerInfo {
-                userinfo: "\\headmodel\\asdf".into(),
+                userinfo: r"\\headmodel\\asdf".into(),
                 ..default_test_player_info()
             },
             ..default_test_player()
@@ -2490,15 +2490,15 @@ assert(player._valid)
             .expect()
             .withf(|client, cmd, &client_ok| {
                 client.is_some()
-                    && cmd == "userinfo \"\\asdf\\qwertz\\name\\UnnamedPlayer\\headmodel\\Uriel\""
+                    && cmd == r#"userinfo "\\asdf\\qwertz\\name\\UnnamedPlayer\\headmodel\\Uriel""#
                     && client_ok
             })
             .times(1);
 
         let mut player = Player {
-            user_info: "\\asdf\\qwertz\\headmodel\\Anarki\\name\\UnnamedPlayer".into(),
+            user_info: r"\\asdf\\qwertz\\headmodel\\Anarki\\name\\UnnamedPlayer".into(),
             player_info: PlayerInfo {
-                userinfo: "\\asdf\\qwertz\\headmodel\\Anarki\\name\\UnnamedPlayer".into(),
+                userinfo: r"\\asdf\\qwertz\\headmodel\\Anarki\\name\\UnnamedPlayer".into(),
                 ..default_test_player_info()
             },
             ..default_test_player()
@@ -2530,9 +2530,9 @@ assert(player._valid)
     #[cfg_attr(miri, ignore)]
     fn get_handicap_when_handicap_is_set() {
         let player = Player {
-            user_info: "\\handicap\\42".into(),
+            user_info: r"\\handicap\\42".into(),
             player_info: PlayerInfo {
-                userinfo: "\\handicap\\42".into(),
+                userinfo: r"\\handicap\\42".into(),
                 ..default_test_player_info()
             },
             ..default_test_player()
@@ -2564,15 +2564,15 @@ assert(player._valid)
             .expect()
             .withf(|client, cmd, &client_ok| {
                 client.is_some()
-                    && cmd == "userinfo \"\\asdf\\qwertz\\name\\UnnamedPlayer\\handicap\\50\""
+                    && cmd == r#"userinfo "\\asdf\\qwertz\\name\\UnnamedPlayer\\handicap\\50""#
                     && client_ok
             })
             .times(1);
 
         let mut player = Player {
-            user_info: "\\asdf\\qwertz\\handicap\\100\\name\\UnnamedPlayer".into(),
+            user_info: r"\\asdf\\qwertz\\handicap\\100\\name\\UnnamedPlayer".into(),
             player_info: PlayerInfo {
-                userinfo: "\\asdf\\qwertz\\handicap\\100\\name\\UnnamedPlayer".into(),
+                userinfo: r"\\asdf\\qwertz\\handicap\\100\\name\\UnnamedPlayer".into(),
                 ..default_test_player_info()
             },
             ..default_test_player()
@@ -2604,9 +2604,9 @@ assert(player._valid)
     #[cfg_attr(miri, ignore)]
     fn get_autohop_when_autohop_is_set() {
         let player = Player {
-            user_info: "\\autohop\\1".into(),
+            user_info: r"\\autohop\\1".into(),
             player_info: PlayerInfo {
-                userinfo: "\\autohop\\1".into(),
+                userinfo: r"\\autohop\\1".into(),
                 ..default_test_player_info()
             },
             ..default_test_player()
@@ -2620,9 +2620,9 @@ assert(player._valid)
     #[cfg_attr(miri, ignore)]
     fn get_autohop_when_autohop_is_disabled() {
         let player = Player {
-            user_info: "\\autohop\\0".into(),
+            user_info: r"\\autohop\\0".into(),
             player_info: PlayerInfo {
-                userinfo: "\\autohop\\0".into(),
+                userinfo: r"\\autohop\\0".into(),
                 ..default_test_player_info()
             },
             ..default_test_player()
@@ -2654,15 +2654,15 @@ assert(player._valid)
             .expect()
             .withf(|client, cmd, &client_ok| {
                 client.is_some()
-                    && cmd == "userinfo \"\\asdf\\qwertz\\name\\UnnamedPlayer\\autohop\\0\""
+                    && cmd == r#"userinfo "\\asdf\\qwertz\\name\\UnnamedPlayer\\autohop\\0""#
                     && client_ok
             })
             .times(1);
 
         let mut player = Player {
-            user_info: "\\asdf\\qwertz\\autohop\\1\\name\\UnnamedPlayer".into(),
+            user_info: r"\\asdf\\qwertz\\autohop\\1\\name\\UnnamedPlayer".into(),
             player_info: PlayerInfo {
-                userinfo: "\\asdf\\qwertz\\autohop\\1\\name\\UnnamedPlayer".into(),
+                userinfo: r"\\asdf\\qwertz\\autohop\\1\\name\\UnnamedPlayer".into(),
                 ..default_test_player_info()
             },
             ..default_test_player()
@@ -2694,9 +2694,9 @@ assert(player._valid)
     #[cfg_attr(miri, ignore)]
     fn get_autoaction_when_autohop_is_set() {
         let player = Player {
-            user_info: "\\autoaction\\1".into(),
+            user_info: r"\\autoaction\\1".into(),
             player_info: PlayerInfo {
-                userinfo: "\\autoaction\\1".into(),
+                userinfo: r"\\autoaction\\1".into(),
                 ..default_test_player_info()
             },
             ..default_test_player()
@@ -2710,9 +2710,9 @@ assert(player._valid)
     #[cfg_attr(miri, ignore)]
     fn get_autoaction_when_autoaction_is_disabled() {
         let player = Player {
-            user_info: "\\autoaction\\0".into(),
+            user_info: r"\\autoaction\\0".into(),
             player_info: PlayerInfo {
-                userinfo: "\\autoaction\\0".into(),
+                userinfo: r"\\autoaction\\0".into(),
                 ..default_test_player_info()
             },
             ..default_test_player()
@@ -2744,15 +2744,15 @@ assert(player._valid)
             .expect()
             .withf(|client, cmd, &client_ok| {
                 client.is_some()
-                    && cmd == "userinfo \"\\asdf\\qwertz\\name\\UnnamedPlayer\\autoaction\\0\""
+                    && cmd == r#"userinfo "\\asdf\\qwertz\\name\\UnnamedPlayer\\autoaction\\0""#
                     && client_ok
             })
             .times(1);
 
         let mut player = Player {
-            user_info: "\\asdf\\qwertz\\autoaction\\1\\name\\UnnamedPlayer".into(),
+            user_info: r"\\asdf\\qwertz\\autoaction\\1\\name\\UnnamedPlayer".into(),
             player_info: PlayerInfo {
-                userinfo: "\\asdf\\qwertz\\autoaction\\1\\name\\UnnamedPlayer".into(),
+                userinfo: r"\\asdf\\qwertz\\autoaction\\1\\name\\UnnamedPlayer".into(),
                 ..default_test_player_info()
             },
             ..default_test_player()
@@ -2784,9 +2784,9 @@ assert(player._valid)
     #[cfg_attr(miri, ignore)]
     fn get_predictitems_when_predictitems_is_set() {
         let player = Player {
-            user_info: "\\cg_predictitems\\1".into(),
+            user_info: r"\\cg_predictitems\\1".into(),
             player_info: PlayerInfo {
-                userinfo: "\\cg_predictitems\\1".into(),
+                userinfo: r"\\cg_predictitems\\1".into(),
                 ..default_test_player_info()
             },
             ..default_test_player()
@@ -2800,9 +2800,9 @@ assert(player._valid)
     #[cfg_attr(miri, ignore)]
     fn get_predititems_when_predictitems_is_disabled() {
         let player = Player {
-            user_info: "\\cg_predictitems\\0".into(),
+            user_info: r"\\cg_predictitems\\0".into(),
             player_info: PlayerInfo {
-                userinfo: "\\cg_predictitems\\0".into(),
+                userinfo: r"\\cg_predictitems\\0".into(),
                 ..default_test_player_info()
             },
             ..default_test_player()
@@ -2834,15 +2834,16 @@ assert(player._valid)
             .expect()
             .withf(|client, cmd, &client_ok| {
                 client.is_some()
-                    && cmd == "userinfo \"\\asdf\\qwertz\\name\\UnnamedPlayer\\cg_predictitems\\0\""
+                    && cmd
+                        == r#"userinfo "\\asdf\\qwertz\\name\\UnnamedPlayer\\cg_predictitems\\0""#
                     && client_ok
             })
             .times(1);
 
         let mut player = Player {
-            user_info: "\\asdf\\qwertz\\cg_predictitems\\1\\name\\UnnamedPlayer".into(),
+            user_info: r"\\asdf\\qwertz\\cg_predictitems\\1\\name\\UnnamedPlayer".into(),
             player_info: PlayerInfo {
-                userinfo: "\\asdf\\qwertz\\cg_predictitems\\1\\name\\UnnamedPlayer".into(),
+                userinfo: r"\\asdf\\qwertz\\cg_predictitems\\1\\name\\UnnamedPlayer".into(),
                 ..default_test_player_info()
             },
             ..default_test_player()
@@ -3086,9 +3087,9 @@ assert(player._valid)
     #[cfg_attr(miri, ignore)]
     fn get_country_when_country_is_set() {
         let player = Player {
-            user_info: "\\country\\de".into(),
+            user_info: r"\\country\\de".into(),
             player_info: PlayerInfo {
-                userinfo: "\\country\\de".into(),
+                userinfo: r"\\country\\de".into(),
                 ..default_test_player_info()
             },
             ..default_test_player()
@@ -3120,15 +3121,15 @@ assert(player._valid)
             .expect()
             .withf(|client, cmd, &client_ok| {
                 client.is_some()
-                    && cmd == "userinfo \"\\asdf\\qwertz\\name\\UnnamedPlayer\\country\\uk\""
+                    && cmd == r#"userinfo "\\asdf\\qwertz\\name\\UnnamedPlayer\\country\\uk""#
                     && client_ok
             })
             .times(1);
 
         let mut player = Player {
-            user_info: "\\asdf\\qwertz\\country\\de\\name\\UnnamedPlayer".into(),
+            user_info: r"\\asdf\\qwertz\\country\\de\\name\\UnnamedPlayer".into(),
             player_info: PlayerInfo {
-                userinfo: "\\asdf\\qwertz\\country\\de\\name\\UnnamedPlayer".into(),
+                userinfo: r"\\asdf\\qwertz\\country\\de\\name\\UnnamedPlayer".into(),
                 ..default_test_player_info()
             },
             ..default_test_player()
@@ -6857,21 +6858,20 @@ assert(player._valid)
     }
 }
 
-static _DUMMY_USERINFO: &str = "\
-ui_singlePlayerActive\\0\\\
-cg_autoAction\\1\\\
-cg_autoHop\\0\\\
-cg_predictItems\\1\\\
-model\\bitterman/sport_blue\\\
-headmodel\\crash/red\\\
-handicap\\100\\\
-cl_anonymous\\0\\\
-color1\\4\\color2\\23\\\
-sex\\male\\\
-teamtask\\0\\\
-rate\\25000\\\
-country\\NO\
-";
+static _DUMMY_USERINFO: &str = r#"
+ui_singlePlayerActive\\0\\
+cg_autoAction\\1\\
+cg_autoHop\\0\\
+cg_predictItems\\1\\
+model\\bitterman/sport_blue\\
+headmodel\\crash/red\\
+handicap\\100\\
+cl_anonymous\\0\\
+color1\\4\\color2\\23\\
+sex\\male\\
+teamtask\\0\\
+rate\\25000\\
+country\\NO"#;
 
 #[pyclass(module = "_player", name = "AbstractDummyPlayer", extends=Player, subclass)]
 pub(crate) struct AbstractDummyPlayer;
