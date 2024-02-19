@@ -93,7 +93,6 @@ impl From<(f32, f32, f32)> for Vector3 {
 
 #[cfg(test)]
 mod vector3_tests {
-    #[cfg(not(miri))]
     use crate::ffi::python::prelude::*;
 
     use pretty_assertions::assert_eq;
