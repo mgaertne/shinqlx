@@ -3,6 +3,9 @@ use super::prelude::*;
 use itertools::Itertools;
 use log::*;
 
+use crate::quake_live_engine::{GetConfigstring, SetConfigstring};
+use crate::MAIN_ENGINE;
+use pyo3::exceptions::PyEnvironmentError;
 use pyo3::{
     create_exception,
     exceptions::{PyException, PyKeyError, PyValueError},
@@ -64,16 +67,25 @@ impl Game {
     #[new]
     #[pyo3(signature = (cached=true))]
     fn py_new(py: Python<'_>, cached: bool) -> PyResult<Self> {
-        let configstring = pyshinqlx_get_configstring(py, 0)?;
-        if configstring.is_empty() {
-            return Err(NonexistentGameError::new_err(
-                "Tried to instantiate a game while no game is active.",
-            ));
-        }
+        py.allow_threads(|| {
+            let Some(ref main_engine) = *MAIN_ENGINE.load() else {
+                return Err(PyEnvironmentError::new_err(
+                    "main quake live engine not set",
+                ));
+            };
 
-        Ok(Game {
-            cached,
-            valid: true,
+            let configstring = main_engine.get_configstring(0);
+
+            if configstring.is_empty() {
+                return Err(NonexistentGameError::new_err(
+                    "Tried to instantiate a game while no game is active.",
+                ));
+            }
+
+            Ok(Game {
+                cached,
+                valid: true,
+            })
         })
     }
 
@@ -101,36 +113,63 @@ impl Game {
     }
 
     fn __contains__(&mut self, py: Python<'_>, item: String) -> PyResult<bool> {
-        let configstring = pyshinqlx_get_configstring(py, 0)?;
-        if configstring.is_empty() {
-            self.valid = false;
-            return Err(NonexistentGameError::new_err(
-                "Invalid game. Is the server loading a new map?",
-            ));
-        }
+        py.allow_threads(|| {
+            let Some(ref main_engine) = *MAIN_ENGINE.load() else {
+                return Err(PyEnvironmentError::new_err(
+                    "main quake live engine not set",
+                ));
+            };
 
-        Ok(parse_variables(configstring).get(item).is_some())
+            let configstring = main_engine.get_configstring(0);
+
+            if configstring.is_empty() {
+                self.valid = false;
+                return Err(NonexistentGameError::new_err(
+                    "Invalid game. Is the server loading a new map?",
+                ));
+            }
+
+            Ok(parse_variables(configstring).get(item).is_some())
+        })
     }
 
     fn __getitem__(&mut self, py: Python<'_>, item: String) -> PyResult<String> {
-        let configstring = pyshinqlx_get_configstring(py, 0)?;
-        if configstring.is_empty() {
-            self.valid = false;
-            return Err(NonexistentGameError::new_err(
-                "Invalid game. Is the server loading a new map?",
-            ));
-        }
+        py.allow_threads(|| {
+            let Some(ref main_engine) = *MAIN_ENGINE.load() else {
+                return Err(PyEnvironmentError::new_err(
+                    "main quake live engine not set",
+                ));
+            };
 
-        parse_variables(configstring)
-            .get(&item)
-            .map_or_else(|| Err(PyKeyError::new_err(format!("'{}'", item))), Ok)
+            let configstring = main_engine.get_configstring(0);
+
+            if configstring.is_empty() {
+                self.valid = false;
+                return Err(NonexistentGameError::new_err(
+                    "Invalid game. Is the server loading a new map?",
+                ));
+            }
+
+            parse_variables(configstring)
+                .get(&item)
+                .map_or_else(|| Err(PyKeyError::new_err(format!("'{}'", item))), Ok)
+        })
     }
 
     /// A dictionary of unprocessed cvars. Use attributes whenever possible, but since some cvars
     /// might not have attributes on this class, this could be useful.
     #[getter(cvars)]
     fn get_cvars<'b>(&mut self, py: Python<'b>) -> PyResult<&'b PyDict> {
-        let configstring = pyshinqlx_get_configstring(py, 0)?;
+        let configstring = py.allow_threads(|| {
+            let Some(ref main_engine) = *MAIN_ENGINE.load() else {
+                return Err(PyEnvironmentError::new_err(
+                    "main quake live engine not set",
+                ));
+            };
+
+            Ok(main_engine.get_configstring(0))
+        })?;
+
         if configstring.is_empty() {
             self.valid = false;
             return Err(NonexistentGameError::new_err(
@@ -218,14 +257,30 @@ impl Game {
 
     #[getter(red_score)]
     fn get_red_score(&self, py: Python<'_>) -> PyResult<i32> {
-        let configstring = pyshinqlx_get_configstring(py, 6)?;
-        Ok(configstring.parse::<i32>().unwrap_or_default())
+        py.allow_threads(|| {
+            let Some(ref main_engine) = *MAIN_ENGINE.load() else {
+                return Err(PyEnvironmentError::new_err(
+                    "main quake live engine not set",
+                ));
+            };
+
+            let configstring = main_engine.get_configstring(6);
+            Ok(configstring.parse::<i32>().unwrap_or_default())
+        })
     }
 
     #[getter(blue_score)]
     fn get_blue_score(&self, py: Python<'_>) -> PyResult<i32> {
-        let configstring: String = pyshinqlx_get_configstring(py, 7)?;
-        Ok(configstring.parse::<i32>().unwrap_or_default())
+        py.allow_threads(|| {
+            let Some(ref main_engine) = *MAIN_ENGINE.load() else {
+                return Err(PyEnvironmentError::new_err(
+                    "main quake live engine not set",
+                ));
+            };
+
+            let configstring = main_engine.get_configstring(7);
+            Ok(configstring.parse::<i32>().unwrap_or_default())
+        })
     }
 
     #[getter(state)]
@@ -452,11 +507,19 @@ impl Game {
 
     #[getter(workshop_items)]
     fn get_workshop_items(&self, py: Python<'_>) -> PyResult<Vec<u64>> {
-        let configstring = pyshinqlx_get_configstring(py, 715)?;
-        Ok(configstring
-            .split(' ')
-            .filter_map(|value| value.parse::<u64>().ok())
-            .collect())
+        py.allow_threads(|| {
+            let Some(ref main_engine) = *MAIN_ENGINE.load() else {
+                return Err(PyEnvironmentError::new_err(
+                    "main quake live engine not set",
+                ));
+            };
+
+            let configstring = main_engine.get_configstring(715);
+            Ok(configstring
+                .split(' ')
+                .filter_map(|value| value.parse::<u64>().ok())
+                .collect())
+        })
     }
 
     #[setter(workshop_items)]
@@ -470,8 +533,17 @@ impl Game {
                 return Err(PyValueError::new_err("The value needs to be an iterable."));
             }
         };
-        pyshinqlx_set_configstring(py, 715, &workshop_items_str)?;
-        Ok(())
+
+        py.allow_threads(|| {
+            let Some(ref main_engine) = *MAIN_ENGINE.load() else {
+                return Err(PyEnvironmentError::new_err(
+                    "main quake live engine not set",
+                ));
+            };
+
+            main_engine.set_configstring(715, &workshop_items_str);
+            Ok(())
+        })
     }
 
     #[classmethod]
@@ -672,7 +744,6 @@ impl Game {
 mod pyshinqlx_game_tests {
     use super::NonexistentGameError;
     use crate::ffi::python::prelude::*;
-    use crate::hooks::mock_hooks::shinqlx_set_configstring_context;
     use crate::prelude::*;
     use crate::MAIN_ENGINE;
 
@@ -2565,11 +2636,12 @@ _shinqlx._map_subtitle2 = "Awesome map!"
     #[cfg_attr(miri, ignore)]
     #[serial]
     fn set_workshop_items_with_iterable_items() {
-        let set_configstring_ctx = shinqlx_set_configstring_context();
-        set_configstring_ctx
-            .expect()
+        let mut mock_engine = MockQuakeEngine::new();
+        mock_engine
+            .expect_set_configstring()
             .with(predicate::eq(715), predicate::eq("1234 5678 9101"))
             .times(1);
+        MAIN_ENGINE.store(Some(mock_engine.into()));
 
         Python::with_gil(|py| {
             let mut game = Game {
