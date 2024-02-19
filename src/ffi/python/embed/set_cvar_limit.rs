@@ -30,7 +30,6 @@ pub(crate) fn pyshinqlx_set_cvar_limit(
 }
 
 #[cfg(test)]
-#[cfg(not(miri))]
 mod set_cvar_limit_tests {
     use super::MAIN_ENGINE;
     use crate::ffi::c::prelude::*;
@@ -41,6 +40,7 @@ mod set_cvar_limit_tests {
     use pyo3::exceptions::PyEnvironmentError;
 
     #[test]
+    #[cfg_attr(miri, ignore)]
     #[serial]
     fn set_cvar_limit_when_main_engine_not_initialized() {
         MAIN_ENGINE.store(None);
@@ -51,6 +51,7 @@ mod set_cvar_limit_tests {
     }
 
     #[test]
+    #[cfg_attr(miri, ignore)]
     #[serial]
     fn set_cvar_limit_forwards_parameters_to_main_engine_call() {
         let mut mock_engine = MockQuakeEngine::new();

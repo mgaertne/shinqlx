@@ -28,7 +28,6 @@ pub(crate) fn pyshinqlx_get_configstring(py: Python<'_>, config_id: u32) -> PyRe
 }
 
 #[cfg(test)]
-#[cfg(not(miri))]
 mod get_configstring_tests {
     use super::MAIN_ENGINE;
     use crate::ffi::c::prelude::*;
@@ -40,6 +39,7 @@ mod get_configstring_tests {
     use pyo3::exceptions::{PyEnvironmentError, PyValueError};
 
     #[test]
+    #[cfg_attr(miri, ignore)]
     #[serial]
     fn get_configstring_for_too_large_configstring_id() {
         MAIN_ENGINE.store(None);
@@ -50,6 +50,7 @@ mod get_configstring_tests {
     }
 
     #[test]
+    #[cfg_attr(miri, ignore)]
     #[serial]
     fn get_configstring_when_main_engine_not_initialized() {
         MAIN_ENGINE.store(None);
@@ -60,6 +61,7 @@ mod get_configstring_tests {
     }
 
     #[test]
+    #[cfg_attr(miri, ignore)]
     #[serial]
     fn get_configstring_forwards_call_to_engine() {
         let mut mock_engine = MockQuakeEngine::new();

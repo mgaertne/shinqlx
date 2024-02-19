@@ -371,7 +371,6 @@ mod pyshinqlx_dispatcher_tests {
     use crate::prelude::*;
 
     use pretty_assertions::assert_eq;
-    #[cfg(not(miri))]
     use rstest::rstest;
 
     #[test]
@@ -395,7 +394,8 @@ mod pyshinqlx_dispatcher_tests {
         assert_eq!(result, Some("asdf".into()));
     }
 
-    #[cfg_attr(not(miri), rstest)]
+    #[rstest]
+    #[cfg_attr(miri, ignore)]
     #[serial]
     fn client_command_dispatcher_dispatcher_returns_original_cmd(_pyshinqlx_setup: ()) {
         let is_initialized_context = pyshinqlx_is_initialized_context();
@@ -426,7 +426,8 @@ def handler(client_id, cmd):
         assert_eq!(result, Some("asdf".into()));
     }
 
-    #[cfg_attr(not(miri), rstest)]
+    #[rstest]
+    #[cfg_attr(miri, ignore)]
     #[serial]
     fn client_command_dispatcher_dispatcher_returns_another_cmd(_pyshinqlx_setup: ()) {
         let is_initialized_context = pyshinqlx_is_initialized_context();
@@ -457,7 +458,8 @@ def handler(client_id, cmd):
         assert_eq!(result, Some("qwertz".into()));
     }
 
-    #[cfg_attr(not(miri), rstest)]
+    #[rstest]
+    #[cfg_attr(miri, ignore)]
     #[serial]
     fn client_command_dispatcher_dispatcher_returns_boolean_true(_pyshinqlx_setup: ()) {
         let is_initialized_context = pyshinqlx_is_initialized_context();
@@ -488,7 +490,8 @@ def handler(client_id, cmd):
         assert_eq!(result, Some("asdf".into()));
     }
 
-    #[cfg_attr(not(miri), rstest)]
+    #[rstest]
+    #[cfg_attr(miri, ignore)]
     #[serial]
     fn client_command_dispatcher_dispatcher_returns_false(_pyshinqlx_setup: ()) {
         let is_initialized_context = pyshinqlx_is_initialized_context();
@@ -519,7 +522,8 @@ def handler(client_id, cmd):
         assert_eq!(result, None);
     }
 
-    #[cfg_attr(not(miri), rstest)]
+    #[rstest]
+    #[cfg_attr(miri, ignore)]
     #[serial]
     fn client_command_dispatcher_dispatcher_throws_exception(_pyshinqlx_setup: ()) {
         let is_initialized_context = pyshinqlx_is_initialized_context();
@@ -550,7 +554,8 @@ def handler(client_id, cmd):
         assert_eq!(result, Some("asdf".into()));
     }
 
-    #[cfg_attr(not(miri), rstest)]
+    #[rstest]
+    #[cfg_attr(miri, ignore)]
     #[serial]
     fn client_command_dispatcher_dispatcher_returns_not_supported_value(_pyshinqlx_setup: ()) {
         let is_initialized_context = pyshinqlx_is_initialized_context();
@@ -602,7 +607,8 @@ def handler(client_id, cmd):
         assert_eq!(result, Some("asdf".into()));
     }
 
-    #[cfg_attr(not(miri), rstest)]
+    #[rstest]
+    #[cfg_attr(miri, ignore)]
     #[serial]
     fn server_command_dispatcher_dispatcher_returns_original_cmd(_pyshinqlx_setup: ()) {
         let is_initialized_context = pyshinqlx_is_initialized_context();
@@ -633,7 +639,8 @@ def handler(client_id, cmd):
         assert_eq!(result, Some("asdf".into()));
     }
 
-    #[cfg_attr(not(miri), rstest)]
+    #[rstest]
+    #[cfg_attr(miri, ignore)]
     #[serial]
     fn server_command_dispatcher_dispatcher_returns_another_cmd(_pyshinqlx_setup: ()) {
         let is_initialized_context = pyshinqlx_is_initialized_context();
@@ -664,7 +671,8 @@ def handler(client_id, cmd):
         assert_eq!(result, Some("qwertz".into()));
     }
 
-    #[cfg_attr(not(miri), rstest)]
+    #[rstest]
+    #[cfg_attr(miri, ignore)]
     #[serial]
     fn server_command_dispatcher_dispatcher_returns_boolean_true(_pyshinqlx_setup: ()) {
         let is_initialized_context = pyshinqlx_is_initialized_context();
@@ -695,7 +703,8 @@ def handler(client_id, cmd):
         assert_eq!(result, Some("asdf".into()));
     }
 
-    #[cfg_attr(not(miri), rstest)]
+    #[rstest]
+    #[cfg_attr(miri, ignore)]
     #[serial]
     fn server_command_dispatcher_dispatcher_returns_false(_pyshinqlx_setup: ()) {
         let is_initialized_context = pyshinqlx_is_initialized_context();
@@ -726,7 +735,8 @@ def handler(client_id, cmd):
         assert_eq!(result, None);
     }
 
-    #[cfg_attr(not(miri), rstest)]
+    #[rstest]
+    #[cfg_attr(miri, ignore)]
     #[serial]
     fn server_command_dispatcher_dispatcher_throws_exception(_pyshinqlx_setup: ()) {
         let is_initialized_context = pyshinqlx_is_initialized_context();
@@ -757,7 +767,8 @@ def handler(client_id, cmd):
         assert_eq!(result, Some("asdf".into()));
     }
 
-    #[cfg_attr(not(miri), rstest)]
+    #[rstest]
+    #[cfg_attr(miri, ignore)]
     #[serial]
     fn server_command_dispatcher_dispatcher_returns_not_supported_value(_pyshinqlx_setup: ()) {
         let is_initialized_context = pyshinqlx_is_initialized_context();
@@ -807,7 +818,8 @@ def handler(client_id, cmd):
         frame_dispatcher();
     }
 
-    #[cfg_attr(not(miri), rstest)]
+    #[rstest]
+    #[cfg_attr(miri, ignore)]
     #[serial]
     fn frame_dispatcher_dispatcher_works_properly(_pyshinqlx_setup: ()) {
         let is_initialized_context = pyshinqlx_is_initialized_context();
@@ -837,7 +849,8 @@ def handler():
         frame_dispatcher();
     }
 
-    #[cfg_attr(not(miri), rstest)]
+    #[rstest]
+    #[cfg_attr(miri, ignore)]
     #[serial]
     fn frame_dispatcher_dispatcher_throws_exception(_pyshinqlx_setup: ()) {
         let is_initialized_context = pyshinqlx_is_initialized_context();
@@ -888,7 +901,8 @@ def handler():
         assert_eq!(result, None);
     }
 
-    #[cfg_attr(not(miri), rstest)]
+    #[rstest]
+    #[cfg_attr(miri, ignore)]
     #[serial]
     fn client_connect_dispatcher_dispatcher_returns_connection_status(_pyshinqlx_setup: ()) {
         let is_initialized_context = pyshinqlx_is_initialized_context();
@@ -919,7 +933,8 @@ def handler(client_id, is_bot):
         assert_eq!(result, Some("qwertz".into()));
     }
 
-    #[cfg_attr(not(miri), rstest)]
+    #[rstest]
+    #[cfg_attr(miri, ignore)]
     #[serial]
     fn client_connect_dispatcher_dispatcher_returns_boolean_true(_pyshinqlx_setup: ()) {
         let is_initialized_context = pyshinqlx_is_initialized_context();
@@ -950,7 +965,8 @@ def handler(client_id, is_bot):
         assert_eq!(result, None);
     }
 
-    #[cfg_attr(not(miri), rstest)]
+    #[rstest]
+    #[cfg_attr(miri, ignore)]
     #[serial]
     fn client_connect_dispatcher_dispatcher_returns_false(_pyshinqlx_setup: ()) {
         let is_initialized_context = pyshinqlx_is_initialized_context();
@@ -981,7 +997,8 @@ def handler(client_id, is_bot):
         assert_eq!(result, Some("You are banned from this server.".into()));
     }
 
-    #[cfg_attr(not(miri), rstest)]
+    #[rstest]
+    #[cfg_attr(miri, ignore)]
     #[serial]
     fn client_connect_dispatcher_dispatcher_throws_exception(_pyshinqlx_setup: ()) {
         let is_initialized_context = pyshinqlx_is_initialized_context();
@@ -1012,7 +1029,8 @@ def handler(client_id, is_bot):
         assert_eq!(result, None);
     }
 
-    #[cfg_attr(not(miri), rstest)]
+    #[rstest]
+    #[cfg_attr(miri, ignore)]
     #[serial]
     fn client_connect_dispatcher_dispatcher_returns_not_supported_value(_pyshinqlx_setup: ()) {
         let is_initialized_context = pyshinqlx_is_initialized_context();
@@ -1062,7 +1080,8 @@ def handler(client_id, is_bot):
         client_disconnect_dispatcher(42, "ragequit");
     }
 
-    #[cfg_attr(not(miri), rstest)]
+    #[rstest]
+    #[cfg_attr(miri, ignore)]
     #[serial]
     fn client_disconnect_dispatcher_dispatcher_works_properly(_pyshinqlx_setup: ()) {
         let is_initialized_context = pyshinqlx_is_initialized_context();
@@ -1092,7 +1111,8 @@ def handler(client_id, reason):
         client_disconnect_dispatcher(42, "ragequit");
     }
 
-    #[cfg_attr(not(miri), rstest)]
+    #[rstest]
+    #[cfg_attr(miri, ignore)]
     #[serial]
     fn client_disconnect_dispatcher_dispatcher_throws_exception(_pyshinqlx_setup: ()) {
         let is_initialized_context = pyshinqlx_is_initialized_context();
@@ -1141,7 +1161,8 @@ def handler(client_id, reason):
         client_loaded_dispatcher(123);
     }
 
-    #[cfg_attr(not(miri), rstest)]
+    #[rstest]
+    #[cfg_attr(miri, ignore)]
     #[serial]
     fn client_loaded_dispatcher_dispatcher_works_properly(_pyshinqlx_setup: ()) {
         let is_initialized_context = pyshinqlx_is_initialized_context();
@@ -1171,7 +1192,8 @@ def handler(client_id):
         client_loaded_dispatcher(123);
     }
 
-    #[cfg_attr(not(miri), rstest)]
+    #[rstest]
+    #[cfg_attr(miri, ignore)]
     #[serial]
     fn client_loaded_dispatcher_dispatcher_throws_exception(_pyshinqlx_setup: ()) {
         let is_initialized_context = pyshinqlx_is_initialized_context();
@@ -1220,7 +1242,8 @@ def handler(client_id):
         new_game_dispatcher(true);
     }
 
-    #[cfg_attr(not(miri), rstest)]
+    #[rstest]
+    #[cfg_attr(miri, ignore)]
     #[serial]
     fn new_game_dispatcher_dispatcher_works_properly(_pyshinqlx_setup: ()) {
         let is_initialized_context = pyshinqlx_is_initialized_context();
@@ -1250,7 +1273,8 @@ def handler(restart):
         new_game_dispatcher(false);
     }
 
-    #[cfg_attr(not(miri), rstest)]
+    #[rstest]
+    #[cfg_attr(miri, ignore)]
     #[serial]
     fn new_game_dispatcher_dispatcher_throws_exception(_pyshinqlx_setup: ()) {
         let is_initialized_context = pyshinqlx_is_initialized_context();
@@ -1301,7 +1325,8 @@ def handler(restart):
         assert_eq!(result, Some("asdf".into()));
     }
 
-    #[cfg_attr(not(miri), rstest)]
+    #[rstest]
+    #[cfg_attr(miri, ignore)]
     #[serial]
     fn set_configstring_dispatcher_dispatcher_returns_original_cmd(_pyshinqlx_setup: ()) {
         let is_initialized_context = pyshinqlx_is_initialized_context();
@@ -1332,7 +1357,8 @@ def handler(index, value):
         assert_eq!(result, Some("asdf".into()));
     }
 
-    #[cfg_attr(not(miri), rstest)]
+    #[rstest]
+    #[cfg_attr(miri, ignore)]
     #[serial]
     fn set_configstring_dispatcher_dispatcher_returns_another_cmd(_pyshinqlx_setup: ()) {
         let is_initialized_context = pyshinqlx_is_initialized_context();
@@ -1363,7 +1389,8 @@ def handler(index, value):
         assert_eq!(result, Some("qwertz".into()));
     }
 
-    #[cfg_attr(not(miri), rstest)]
+    #[rstest]
+    #[cfg_attr(miri, ignore)]
     #[serial]
     fn set_configstring_dispatcher_dispatcher_returns_boolean_true(_pyshinqlx_setup: ()) {
         let is_initialized_context = pyshinqlx_is_initialized_context();
@@ -1394,7 +1421,8 @@ def handler(index, value):
         assert_eq!(result, Some("asdf".into()));
     }
 
-    #[cfg_attr(not(miri), rstest)]
+    #[rstest]
+    #[cfg_attr(miri, ignore)]
     #[serial]
     fn set_configstring_dispatcher_dispatcher_returns_false(_pyshinqlx_setup: ()) {
         let is_initialized_context = pyshinqlx_is_initialized_context();
@@ -1425,7 +1453,8 @@ def handler(index, value):
         assert_eq!(result, None);
     }
 
-    #[cfg_attr(not(miri), rstest)]
+    #[rstest]
+    #[cfg_attr(miri, ignore)]
     #[serial]
     fn set_configstring_dispatcher_dispatcher_throws_exception(_pyshinqlx_setup: ()) {
         let is_initialized_context = pyshinqlx_is_initialized_context();
@@ -1456,7 +1485,8 @@ def handler(index, value):
         assert_eq!(result, Some("asdf".into()));
     }
 
-    #[cfg_attr(not(miri), rstest)]
+    #[rstest]
+    #[cfg_attr(miri, ignore)]
     #[serial]
     fn set_configstring_dispatcher_dispatcher_returns_not_supported_value(_pyshinqlx_setup: ()) {
         let is_initialized_context = pyshinqlx_is_initialized_context();
@@ -1506,7 +1536,8 @@ def handler(index, value):
         rcon_dispatcher("asdf");
     }
 
-    #[cfg_attr(not(miri), rstest)]
+    #[rstest]
+    #[cfg_attr(miri, ignore)]
     #[serial]
     fn rcon_dispatcher_dispatcher_works_properly(_pyshinqlx_setup: ()) {
         let is_initialized_context = pyshinqlx_is_initialized_context();
@@ -1536,7 +1567,8 @@ def handler(cmd):
         rcon_dispatcher("asdf");
     }
 
-    #[cfg_attr(not(miri), rstest)]
+    #[rstest]
+    #[cfg_attr(miri, ignore)]
     #[serial]
     fn rcon_dispatcher_dispatcher_throws_exception(_pyshinqlx_setup: ()) {
         let is_initialized_context = pyshinqlx_is_initialized_context();
@@ -1587,7 +1619,8 @@ def handler(cmd):
         assert_eq!(result, Some("asdf".into()));
     }
 
-    #[cfg_attr(not(miri), rstest)]
+    #[rstest]
+    #[cfg_attr(miri, ignore)]
     #[serial]
     fn console_print_dispatcher_dispatcher_returns_original_cmd(_pyshinqlx_setup: ()) {
         let is_initialized_context = pyshinqlx_is_initialized_context();
@@ -1618,7 +1651,8 @@ def handler(text):
         assert_eq!(result, Some("asdf".into()));
     }
 
-    #[cfg_attr(not(miri), rstest)]
+    #[rstest]
+    #[cfg_attr(miri, ignore)]
     #[serial]
     fn console_print_dispatcher_dispatcher_returns_another_cmd(_pyshinqlx_setup: ()) {
         let is_initialized_context = pyshinqlx_is_initialized_context();
@@ -1649,7 +1683,8 @@ def handler(text):
         assert_eq!(result, Some("qwertz".into()));
     }
 
-    #[cfg_attr(not(miri), rstest)]
+    #[rstest]
+    #[cfg_attr(miri, ignore)]
     #[serial]
     fn console_print_dispatcher_dispatcher_returns_boolean_true(_pyshinqlx_setup: ()) {
         let is_initialized_context = pyshinqlx_is_initialized_context();
@@ -1680,7 +1715,8 @@ def handler(text):
         assert_eq!(result, Some("asdf".into()));
     }
 
-    #[cfg_attr(not(miri), rstest)]
+    #[rstest]
+    #[cfg_attr(miri, ignore)]
     #[serial]
     fn console_print_dispatcher_dispatcher_returns_false(_pyshinqlx_setup: ()) {
         let is_initialized_context = pyshinqlx_is_initialized_context();
@@ -1711,7 +1747,8 @@ def handler(text):
         assert_eq!(result, None);
     }
 
-    #[cfg_attr(not(miri), rstest)]
+    #[rstest]
+    #[cfg_attr(miri, ignore)]
     #[serial]
     fn console_print_dispatcher_dispatcher_throws_exception(_pyshinqlx_setup: ()) {
         let is_initialized_context = pyshinqlx_is_initialized_context();
@@ -1742,7 +1779,8 @@ def handler(text):
         assert_eq!(result, Some("asdf".into()));
     }
 
-    #[cfg_attr(not(miri), rstest)]
+    #[rstest]
+    #[cfg_attr(miri, ignore)]
     #[serial]
     fn console_print_dispatcher_dispatcher_returns_not_supported_value(_pyshinqlx_setup: ()) {
         let is_initialized_context = pyshinqlx_is_initialized_context();
@@ -1792,7 +1830,8 @@ def handler(text):
         client_spawn_dispatcher(123);
     }
 
-    #[cfg_attr(not(miri), rstest)]
+    #[rstest]
+    #[cfg_attr(miri, ignore)]
     #[serial]
     fn client_spawn_dispatcher_dispatcher_works_properly(_pyshinqlx_setup: ()) {
         let is_initialized_context = pyshinqlx_is_initialized_context();
@@ -1822,7 +1861,8 @@ def handler(client_id):
         client_spawn_dispatcher(123);
     }
 
-    #[cfg_attr(not(miri), rstest)]
+    #[rstest]
+    #[cfg_attr(miri, ignore)]
     #[serial]
     fn client_spawn_dispatcher_dispatcher_throws_exception(_pyshinqlx_setup: ()) {
         let is_initialized_context = pyshinqlx_is_initialized_context();
@@ -1871,7 +1911,8 @@ def handler(client_id):
         kamikaze_use_dispatcher(123);
     }
 
-    #[cfg_attr(not(miri), rstest)]
+    #[rstest]
+    #[cfg_attr(miri, ignore)]
     #[serial]
     fn kamikaze_use_dispatcher_dispatcher_works_properly(_pyshinqlx_setup: ()) {
         let is_initialized_context = pyshinqlx_is_initialized_context();
@@ -1901,7 +1942,8 @@ def handler(client_id):
         kamikaze_use_dispatcher(123);
     }
 
-    #[cfg_attr(not(miri), rstest)]
+    #[rstest]
+    #[cfg_attr(miri, ignore)]
     #[serial]
     fn kamikaze_use_dispatcher_dispatcher_throws_exception(_pyshinqlx_setup: ()) {
         let is_initialized_context = pyshinqlx_is_initialized_context();
@@ -1950,7 +1992,8 @@ def handler(client_id):
         kamikaze_explode_dispatcher(123, true);
     }
 
-    #[cfg_attr(not(miri), rstest)]
+    #[rstest]
+    #[cfg_attr(miri, ignore)]
     #[serial]
     fn kamikaze_explode_dispatcher_dispatcher_works_properly(_pyshinqlx_setup: ()) {
         let is_initialized_context = pyshinqlx_is_initialized_context();
@@ -1980,7 +2023,8 @@ def handler(client_id, is_used_on_demand):
         kamikaze_explode_dispatcher(123, false);
     }
 
-    #[cfg_attr(not(miri), rstest)]
+    #[rstest]
+    #[cfg_attr(miri, ignore)]
     #[serial]
     fn kamikaze_explode_dispatcher_dispatcher_throws_exception(_pyshinqlx_setup: ()) {
         let is_initialized_context = pyshinqlx_is_initialized_context();
@@ -2041,7 +2085,8 @@ def handler(client_id, is_used_on_demand):
         );
     }
 
-    #[cfg_attr(not(miri), rstest)]
+    #[rstest]
+    #[cfg_attr(miri, ignore)]
     #[serial]
     fn damage_dispatcher_dispatcher_works_properly(_pyshinqlx_setup: ()) {
         let is_initialized_context = pyshinqlx_is_initialized_context();
@@ -2077,7 +2122,8 @@ def handler(client_id, attacker_id, damage, dflags, means_of_death):
         );
     }
 
-    #[cfg_attr(not(miri), rstest)]
+    #[rstest]
+    #[cfg_attr(miri, ignore)]
     #[serial]
     fn damage_dispatcher_dispatcher_throws_exception(_pyshinqlx_setup: ()) {
         let is_initialized_context = pyshinqlx_is_initialized_context();

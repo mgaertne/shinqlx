@@ -19,7 +19,6 @@ pub(crate) fn pyshinqlx_remove_dropped_items(py: Python<'_>) -> PyResult<bool> {
 }
 
 #[cfg(test)]
-#[cfg(not(miri))]
 mod remove_dropped_items_tests {
     use crate::ffi::c::prelude::*;
     use crate::ffi::python::prelude::*;
@@ -29,6 +28,7 @@ mod remove_dropped_items_tests {
     use pretty_assertions::assert_eq;
 
     #[test]
+    #[cfg_attr(miri, ignore)]
     #[serial]
     fn remove_dropped_items_for_unused_entity() {
         let game_entity_from_ctx = MockGameEntity::from_context();
@@ -59,6 +59,7 @@ mod remove_dropped_items_tests {
     }
 
     #[test]
+    #[cfg_attr(miri, ignore)]
     #[serial]
     fn remove_dropped_items_for_entity_without_flags() {
         let game_entity_from_ctx = MockGameEntity::from_context();
@@ -89,6 +90,7 @@ mod remove_dropped_items_tests {
     }
 
     #[test]
+    #[cfg_attr(miri, ignore)]
     #[serial]
     fn remove_dropped_items_for_non_dropped_entity() {
         let game_entity_from_ctx = MockGameEntity::from_context();
@@ -121,6 +123,7 @@ mod remove_dropped_items_tests {
     }
 
     #[test]
+    #[cfg_attr(miri, ignore)]
     #[serial]
     fn remove_dropped_items_for_removable_dropped_entities() {
         let game_entity_from_ctx = MockGameEntity::from_context();

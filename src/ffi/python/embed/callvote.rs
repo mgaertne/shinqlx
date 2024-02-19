@@ -19,7 +19,6 @@ pub(crate) fn pyshinqlx_callvote(
 }
 
 #[cfg(test)]
-#[cfg(not(miri))]
 mod callvote_tests {
     use crate::ffi::c::prelude::*;
     use crate::ffi::python::prelude::*;
@@ -28,6 +27,7 @@ mod callvote_tests {
     use mockall::predicate;
 
     #[test]
+    #[cfg_attr(miri, ignore)]
     #[serial]
     fn callvote_with_no_current_level() {
         let level_ctx = MockTestCurrentLevel::try_get_context();
@@ -41,6 +41,7 @@ mod callvote_tests {
     }
 
     #[test]
+    #[cfg_attr(miri, ignore)]
     #[serial]
     fn callvote_with_current_level_calls_vote() {
         let level_ctx = MockTestCurrentLevel::try_get_context();

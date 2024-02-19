@@ -15,7 +15,6 @@ pub(crate) fn pyshinqlx_console_print(py: Python<'_>, text: &str) {
 }
 
 #[cfg(test)]
-#[cfg(not(miri))]
 mod console_print_tests {
     use crate::ffi::python::prelude::*;
     use crate::hooks::mock_hooks::shinqlx_com_printf_context;
@@ -24,6 +23,7 @@ mod console_print_tests {
     use mockall::predicate;
 
     #[test]
+    #[cfg_attr(miri, ignore)]
     #[serial]
     fn console_print_forwards_to_ql_engine() {
         let com_printf_ctx = shinqlx_com_printf_context();

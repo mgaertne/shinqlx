@@ -22,7 +22,6 @@ pub(crate) fn pyshinqlx_console_command(py: Python<'_>, cmd: &str) -> PyResult<(
 }
 
 #[cfg(test)]
-#[cfg(not(miri))]
 mod console_command_tests {
     use super::MAIN_ENGINE;
     use crate::ffi::python::prelude::*;
@@ -32,6 +31,7 @@ mod console_command_tests {
     use pyo3::exceptions::PyEnvironmentError;
 
     #[test]
+    #[cfg_attr(miri, ignore)]
     #[serial]
     fn console_command_when_main_engine_not_initialized() {
         MAIN_ENGINE.store(None);
@@ -42,6 +42,7 @@ mod console_command_tests {
     }
 
     #[test]
+    #[cfg_attr(miri, ignore)]
     #[serial]
     fn console_command_with_main_engine_set() {
         let mut mock_engine = MockQuakeEngine::new();

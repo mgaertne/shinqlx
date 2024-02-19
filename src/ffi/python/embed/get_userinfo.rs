@@ -21,7 +21,6 @@ pub(crate) fn pyshinqlx_get_userinfo(py: Python<'_>, client_id: i32) -> PyResult
 }
 
 #[cfg(test)]
-#[cfg(not(miri))]
 mod get_userinfo_tests {
     use crate::ffi::c::prelude::*;
     use crate::ffi::python::prelude::*;
@@ -33,6 +32,7 @@ mod get_userinfo_tests {
     use pyo3::exceptions::{PyEnvironmentError, PyValueError};
 
     #[test]
+    #[cfg_attr(miri, ignore)]
     #[serial]
     fn get_userinfo_when_main_engine_not_initialized() {
         MAIN_ENGINE.store(None);
@@ -43,6 +43,7 @@ mod get_userinfo_tests {
     }
 
     #[test]
+    #[cfg_attr(miri, ignore)]
     #[serial]
     fn get_userinfo_for_client_id_below_zero() {
         let mut mock_engine = MockQuakeEngine::new();
@@ -55,6 +56,7 @@ mod get_userinfo_tests {
     }
 
     #[test]
+    #[cfg_attr(miri, ignore)]
     #[serial]
     fn get_userinfo_for_client_id_above_max_clients() {
         let mut mock_engine = MockQuakeEngine::new();
@@ -67,6 +69,7 @@ mod get_userinfo_tests {
     }
 
     #[test]
+    #[cfg_attr(miri, ignore)]
     #[serial]
     fn get_userinfo_for_existing_client() {
         let mut mock_engine = MockQuakeEngine::new();
@@ -90,6 +93,7 @@ mod get_userinfo_tests {
     }
 
     #[test]
+    #[cfg_attr(miri, ignore)]
     #[serial]
     fn get_userinfo_for_non_allowed_free_client() {
         let mut mock_engine = MockQuakeEngine::new();
@@ -114,6 +118,7 @@ mod get_userinfo_tests {
     }
 
     #[test]
+    #[cfg_attr(miri, ignore)]
     #[serial]
     fn get_userinfo_for_allowed_free_client() {
         let mut mock_engine = MockQuakeEngine::new();

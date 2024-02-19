@@ -23,7 +23,6 @@ pub(crate) fn pyshinqlx_get_cvar(py: Python<'_>, cvar: &str) -> PyResult<Option<
 }
 
 #[cfg(test)]
-#[cfg(not(miri))]
 mod get_cvar_tests {
     use super::MAIN_ENGINE;
     use crate::ffi::c::prelude::*;
@@ -37,6 +36,7 @@ mod get_cvar_tests {
     use pyo3::exceptions::PyEnvironmentError;
 
     #[test]
+    #[cfg_attr(miri, ignore)]
     #[serial]
     fn get_cvar_when_main_engine_not_initialized() {
         MAIN_ENGINE.store(None);
@@ -47,6 +47,7 @@ mod get_cvar_tests {
     }
 
     #[test]
+    #[cfg_attr(miri, ignore)]
     #[serial]
     fn get_cvar_when_cvar_not_found() {
         let mut mock_engine = MockQuakeEngine::new();
@@ -62,6 +63,7 @@ mod get_cvar_tests {
     }
 
     #[test]
+    #[cfg_attr(miri, ignore)]
     #[serial]
     fn get_cvar_when_cvar_is_found() {
         let cvar_string = CString::new("16").expect("result was not OK");

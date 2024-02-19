@@ -23,7 +23,6 @@ pub(crate) fn pyshinqlx_add_console_command(py: Python<'_>, command: &str) -> Py
 }
 
 #[cfg(test)]
-#[cfg(not(miri))]
 mod add_console_command_tests {
     use super::cmd_py_command;
     use super::MAIN_ENGINE;
@@ -33,6 +32,7 @@ mod add_console_command_tests {
     use pyo3::exceptions::PyEnvironmentError;
 
     #[test]
+    #[cfg_attr(miri, ignore)]
     #[serial]
     fn add_console_command_when_main_engine_not_initialized() {
         MAIN_ENGINE.store(None);
@@ -43,6 +43,7 @@ mod add_console_command_tests {
     }
 
     #[test]
+    #[cfg_attr(miri, ignore)]
     #[serial]
     fn add_console_command_adds_py_command_to_main_engine() {
         let mut mock_engine = MockQuakeEngine::new();

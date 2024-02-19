@@ -103,7 +103,6 @@ pub(crate) fn pyshinqlx_replace_items(
 }
 
 #[cfg(test)]
-#[cfg(not(miri))]
 mod replace_items_tests {
     use crate::ffi::c::prelude::*;
     use crate::ffi::python::prelude::*;
@@ -114,6 +113,7 @@ mod replace_items_tests {
     use pyo3::exceptions::PyValueError;
 
     #[test]
+    #[cfg_attr(miri, ignore)]
     #[serial]
     fn replace_items_for_too_small_item1_id() {
         let get_num_items_ctx = MockGameItem::get_num_items_context();
@@ -130,6 +130,7 @@ mod replace_items_tests {
     }
 
     #[test]
+    #[cfg_attr(miri, ignore)]
     #[serial]
     fn replace_items_for_too_large_item1_id() {
         let get_num_items_ctx = MockGameItem::get_num_items_context();
@@ -142,6 +143,7 @@ mod replace_items_tests {
     }
 
     #[test]
+    #[cfg_attr(miri, ignore)]
     #[serial]
     fn replace_items_for_too_small_item2_id() {
         let get_num_items_ctx = MockGameItem::get_num_items_context();
@@ -158,6 +160,7 @@ mod replace_items_tests {
     }
 
     #[test]
+    #[cfg_attr(miri, ignore)]
     #[serial]
     fn replace_items_for_too_large_item2_id() {
         let get_num_items_ctx = MockGameItem::get_num_items_context();
@@ -170,6 +173,7 @@ mod replace_items_tests {
     }
 
     #[test]
+    #[cfg_attr(miri, ignore)]
     #[serial]
     fn replace_items_for_item1_not_integer_nor_string() {
         let get_num_items_ctx = MockGameItem::get_num_items_context();
@@ -182,6 +186,7 @@ mod replace_items_tests {
     }
 
     #[test]
+    #[cfg_attr(miri, ignore)]
     #[serial]
     fn replace_items_for_item2_not_integer_nor_string() {
         let get_num_items_ctx = MockGameItem::get_num_items_context();
@@ -194,6 +199,7 @@ mod replace_items_tests {
     }
 
     #[test]
+    #[cfg_attr(miri, ignore)]
     #[serial]
     fn replace_items_for_item1_string_not_existing_classname() {
         let get_num_items_ctx = MockGameItem::get_num_items_context();
@@ -220,6 +226,7 @@ mod replace_items_tests {
     }
 
     #[test]
+    #[cfg_attr(miri, ignore)]
     #[serial]
     fn replace_items_for_item2_string_not_existing_classname() {
         let get_num_items_ctx = MockGameItem::get_num_items_context();
@@ -242,6 +249,7 @@ mod replace_items_tests {
     }
 
     #[test]
+    #[cfg_attr(miri, ignore)]
     #[serial]
     fn replace_items_for_not_in_use_item() {
         let get_num_items_ctx = MockGameItem::get_num_items_context();
@@ -264,6 +272,7 @@ mod replace_items_tests {
     }
 
     #[test]
+    #[cfg_attr(miri, ignore)]
     #[serial]
     fn replace_items_for_non_game_item() {
         let get_num_items_ctx = MockGameItem::get_num_items_context();
@@ -290,6 +299,7 @@ mod replace_items_tests {
     }
 
     #[test]
+    #[cfg_attr(miri, ignore)]
     #[serial]
     fn replace_items_replaces_item1_by_item2_id() {
         let get_num_items_ctx = MockGameItem::get_num_items_context();
@@ -319,6 +329,7 @@ mod replace_items_tests {
     }
 
     #[test]
+    #[cfg_attr(miri, ignore)]
     #[serial]
     fn replace_items_replaces_item1_id_by_item2_clssname() {
         let get_num_items_ctx = MockGameItem::get_num_items_context();
@@ -368,6 +379,7 @@ mod replace_items_tests {
     }
 
     #[test]
+    #[cfg_attr(miri, ignore)]
     #[serial]
     fn replace_items_replaces_item1_string_by_item2_clssname() {
         let get_num_items_ctx = MockGameItem::get_num_items_context();
@@ -481,6 +493,7 @@ mod replace_items_tests {
     }
 
     #[test]
+    #[cfg_attr(miri, ignore)]
     #[serial]
     fn replace_items_replaces_item1_string_items_by_item2_clssname() {
         let get_num_items_ctx = MockGameItem::get_num_items_context();

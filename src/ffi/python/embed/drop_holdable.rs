@@ -34,7 +34,6 @@ pub(crate) fn pyshinqlx_drop_holdable(py: Python<'_>, client_id: i32) -> PyResul
 }
 
 #[cfg(test)]
-#[cfg(not(miri))]
 mod drop_holdable_tests {
     use crate::ffi::c::prelude::*;
     use crate::ffi::python::prelude::*;
@@ -47,6 +46,7 @@ mod drop_holdable_tests {
     use rstest::rstest;
 
     #[test]
+    #[cfg_attr(miri, ignore)]
     #[serial]
     fn drop_holdable_when_main_engine_not_initialized() {
         MAIN_ENGINE.store(None);
@@ -57,6 +57,7 @@ mod drop_holdable_tests {
     }
 
     #[test]
+    #[cfg_attr(miri, ignore)]
     #[serial]
     fn drop_holdable_for_client_id_too_small() {
         let mut mock_engine = MockQuakeEngine::new();
@@ -70,6 +71,7 @@ mod drop_holdable_tests {
     }
 
     #[test]
+    #[cfg_attr(miri, ignore)]
     #[serial]
     fn drop_holdable_for_client_id_too_large() {
         let mut mock_engine = MockQuakeEngine::new();
@@ -83,6 +85,7 @@ mod drop_holdable_tests {
     }
 
     #[test]
+    #[cfg_attr(miri, ignore)]
     #[serial]
     fn drop_holdable_for_entity_with_no_game_client() {
         let mut mock_engine = MockQuakeEngine::new();
@@ -103,6 +106,7 @@ mod drop_holdable_tests {
     }
 
     #[test]
+    #[cfg_attr(miri, ignore)]
     #[serial]
     fn drop_holdable_for_entity_with_no_holdable() {
         let mut mock_engine = MockQuakeEngine::new();
@@ -153,6 +157,7 @@ mod drop_holdable_tests {
     #[case(&Holdable::Portal)]
     #[case(&Holdable::Invulnerability)]
     #[case(&Holdable::Flight)]
+    #[cfg_attr(miri, ignore)]
     #[serial]
     fn drop_holdable_for_entity_with_holdable_dropped(#[case] holdable: &'static Holdable) {
         let mut mock_engine = MockQuakeEngine::new();
