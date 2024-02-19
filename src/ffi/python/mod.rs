@@ -192,12 +192,12 @@ impl FromStr for ParsedVariables {
     type Err = &'static str;
 
     fn from_str(varstr: &str) -> Result<Self, Self::Err> {
-        let Some(varstr_vec): Option<Vec<String>> = varstr
-            .strip_prefix('\\')
-            .map(|value| value.split('\\').map(|value| value.into()).collect())
-        else {
-            return Ok(Self { items: vec![] });
-        };
+        let stripped_varstr = varstr.strip_prefix(r"\\").unwrap_or(varstr).to_string();
+
+        let varstr_vec: Vec<String> = stripped_varstr
+            .split(r"\\")
+            .map(|value| value.into())
+            .collect();
 
         if varstr_vec.len() % 2 == 1 {
             warn!(target: "shinqlx", "Uneven number of keys and values: {}", varstr);
@@ -213,7 +213,7 @@ impl From<ParsedVariables> for String {
         value
             .items
             .iter()
-            .map(|(key, value)| format!("\\{key}\\{value}"))
+            .map(|(key, value)| format!(r"\\{key}\\{value}"))
             .join("")
     }
 }
@@ -239,7 +239,7 @@ impl ParsedVariables {
     {
         self.items
             .iter()
-            .filter(|(key, _value)| key == item.as_ref())
+            .filter(|(key, _value)| *key == *item.as_ref())
             .map(|(_key, value)| value)
             .next()
             .cloned()
@@ -264,7 +264,7 @@ mod parsed_variables_test {
 
     #[test]
     fn test_parse_variables_with_space() {
-        let variables = ParsedVariables::from_str("\\name\\Unnamed Player\\country\\de")
+        let variables = ParsedVariables::from_str(r"\\name\\Unnamed Player\\country\\de")
             .expect("this should not happen");
         assert!(variables
             .get("name")

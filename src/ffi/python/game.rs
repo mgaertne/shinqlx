@@ -122,14 +122,7 @@ impl Game {
         }
 
         parse_variables(configstring)
-            .iter()
-            .find_map(|(key, value)| {
-                if *key == item {
-                    Some(value.into())
-                } else {
-                    None
-                }
-            })
+            .get(&item)
             .map_or_else(|| Err(PyKeyError::new_err(format!("'{}'", item))), Ok)
     }
 
@@ -791,7 +784,7 @@ mod pyshinqlx_game_tests {
         mock_engine
             .expect_get_configstring()
             .with(predicate::eq(0))
-            .returning(|_| "\\g_gametype\\4".into());
+            .returning(|_| r"\\g_gametype\\4".into());
         MAIN_ENGINE.store(Some(mock_engine.into()));
 
         let result = Python::with_gil(|py| {
@@ -816,7 +809,7 @@ mod pyshinqlx_game_tests {
         mock_engine
             .expect_get_configstring()
             .with(predicate::eq(0))
-            .returning(|_| "\\mapname\\thunderstruck".into());
+            .returning(|_| r"\\mapname\\thunderstruck".into());
         MAIN_ENGINE.store(Some(mock_engine.into()));
 
         let result = Python::with_gil(|py| {
@@ -841,7 +834,7 @@ mod pyshinqlx_game_tests {
         mock_engine
             .expect_get_configstring()
             .with(predicate::eq(0))
-            .returning(|_| "\\mapname\\thunderstruck\\g_gametype\\4".into());
+            .returning(|_| r"\\mapname\\thunderstruck\\g_gametype\\4".into());
         MAIN_ENGINE.store(Some(mock_engine.into()));
 
         let result = Python::with_gil(|py| {
@@ -903,7 +896,7 @@ mod pyshinqlx_game_tests {
         mock_engine
             .expect_get_configstring()
             .with(predicate::eq(0))
-            .returning(|_| "\\g_gametype\\4".into());
+            .returning(|_| r"\\g_gametype\\4".into());
         MAIN_ENGINE.store(Some(mock_engine.into()));
 
         let result = Python::with_gil(|py| {
@@ -924,7 +917,7 @@ mod pyshinqlx_game_tests {
         mock_engine
             .expect_get_configstring()
             .with(predicate::eq(0))
-            .returning(|_| "\\mapname\\thunderstruck".into());
+            .returning(|_| r"\\mapname\\thunderstruck".into());
         MAIN_ENGINE.store(Some(mock_engine.into()));
 
         let result = Python::with_gil(|py| {
@@ -945,7 +938,7 @@ mod pyshinqlx_game_tests {
         mock_engine
             .expect_get_configstring()
             .with(predicate::eq(0))
-            .returning(|_| "\\mapname\\thunderstruck\\g_gametype\\4".into());
+            .returning(|_| r"\\mapname\\thunderstruck\\g_gametype\\4".into());
         MAIN_ENGINE.store(Some(mock_engine.into()));
 
         let result = Python::with_gil(|py| {
@@ -1005,7 +998,7 @@ mod pyshinqlx_game_tests {
         mock_engine
             .expect_get_configstring()
             .with(predicate::eq(0))
-            .returning(|_| "\\asdf\\12".into());
+            .returning(|_| r"\\asdf\\12".into());
         MAIN_ENGINE.store(Some(mock_engine.into()));
 
         let result = Python::with_gil(|py| {
@@ -1027,7 +1020,7 @@ mod pyshinqlx_game_tests {
         mock_engine
             .expect_get_configstring()
             .with(predicate::eq(0))
-            .returning(|_| "\\asdf\\12".into());
+            .returning(|_| r"\\asdf\\12".into());
         MAIN_ENGINE.store(Some(mock_engine.into()));
 
         let result = Python::with_gil(|py| {
@@ -1049,7 +1042,7 @@ mod pyshinqlx_game_tests {
         mock_engine
             .expect_get_configstring()
             .with(predicate::eq(0))
-            .returning(|_| "\\".into());
+            .returning(|_| r"\\".into());
         MAIN_ENGINE.store(Some(mock_engine.into()));
 
         let result = Python::with_gil(|py| {
@@ -1132,7 +1125,7 @@ mod pyshinqlx_game_tests {
         mock_engine
             .expect_get_configstring()
             .with(predicate::eq(0))
-            .returning(|_| "\\asdf\\12".into());
+            .returning(|_| r"\\asdf\\12".into());
         MAIN_ENGINE.store(Some(mock_engine.into()));
 
         let result = Python::with_gil(|py| {
@@ -1154,7 +1147,7 @@ mod pyshinqlx_game_tests {
         mock_engine
             .expect_get_configstring()
             .with(predicate::eq(0))
-            .returning(|_| "\\asdf\\12".into());
+            .returning(|_| r"\\asdf\\12".into());
         MAIN_ENGINE.store(Some(mock_engine.into()));
 
         Python::with_gil(|py| {
@@ -1176,7 +1169,7 @@ mod pyshinqlx_game_tests {
         mock_engine
             .expect_get_configstring()
             .with(predicate::eq(0))
-            .returning(|_| "\\".into());
+            .returning(|_| r"\\".into());
         MAIN_ENGINE.store(Some(mock_engine.into()));
 
         Python::with_gil(|py| {
@@ -1259,7 +1252,7 @@ mod pyshinqlx_game_tests {
         mock_engine
             .expect_get_configstring()
             .with(predicate::eq(0))
-            .returning(|_| "\\asdf\\42".into());
+            .returning(|_| r"\\asdf\\42".into());
         MAIN_ENGINE.store(Some(mock_engine.into()));
 
         Python::with_gil(|py| {
@@ -1304,7 +1297,7 @@ mod pyshinqlx_game_tests {
         mock_engine
             .expect_get_configstring()
             .with(predicate::eq(0))
-            .returning(|_| "\\g_gametype\\asdf".into());
+            .returning(|_| r"\\g_gametype\\asdf".into());
         MAIN_ENGINE.store(Some(mock_engine.into()));
 
         Python::with_gil(|py| {
@@ -1343,7 +1336,7 @@ mod pyshinqlx_game_tests {
         mock_engine
             .expect_get_configstring()
             .with(predicate::eq(0))
-            .returning(move |_| format!("\\g_gametype\\{}", g_gametype));
+            .returning(move |_| format!(r"\\g_gametype\\{}", g_gametype));
         MAIN_ENGINE.store(Some(mock_engine.into()));
 
         Python::with_gil(|py| {
@@ -1382,7 +1375,7 @@ mod pyshinqlx_game_tests {
         mock_engine
             .expect_get_configstring()
             .with(predicate::eq(0))
-            .returning(|_| "\\g_gametype\\asdf".into());
+            .returning(|_| r"\\g_gametype\\asdf".into());
         MAIN_ENGINE.store(Some(mock_engine.into()));
 
         Python::with_gil(|py| {
@@ -1421,7 +1414,7 @@ mod pyshinqlx_game_tests {
         mock_engine
             .expect_get_configstring()
             .with(predicate::eq(0))
-            .returning(move |_| format!("\\g_gametype\\{}", g_gametype));
+            .returning(move |_| format!(r"\\g_gametype\\{}", g_gametype));
         MAIN_ENGINE.store(Some(mock_engine.into()));
 
         Python::with_gil(|py| {
@@ -1443,7 +1436,7 @@ mod pyshinqlx_game_tests {
         mock_engine
             .expect_get_configstring()
             .with(predicate::eq(0))
-            .returning(|_| "\\mapname\\thunderstruck".into());
+            .returning(|_| r"\\mapname\\thunderstruck".into());
         MAIN_ENGINE.store(Some(mock_engine.into()));
 
         Python::with_gil(|py| {
@@ -1711,7 +1704,7 @@ _shinqlx._map_subtitle2 = "Awesome map!"
         mock_engine
             .expect_get_configstring()
             .with(predicate::eq(0))
-            .returning(move |_| format!("\\g_gameState\\{}", cvar_value));
+            .returning(move |_| format!(r"\\g_gameState\\{}", cvar_value));
         MAIN_ENGINE.store(Some(mock_engine.into()));
 
         let result = Python::with_gil(|py| {
@@ -1750,7 +1743,7 @@ _shinqlx._map_subtitle2 = "Awesome map!"
         mock_engine
             .expect_get_configstring()
             .with(predicate::eq(0))
-            .returning(|_| "\\g_factory\\ca".into());
+            .returning(|_| r"\\g_factory\\ca".into());
         MAIN_ENGINE.store(Some(mock_engine.into()));
 
         let result = Python::with_gil(|py| {
@@ -1772,7 +1765,7 @@ _shinqlx._map_subtitle2 = "Awesome map!"
         mock_engine
             .expect_get_configstring()
             .with(predicate::eq(0))
-            .returning(|_| "\\mapname\\theatreofpain".into());
+            .returning(|_| r"\\mapname\\theatreofpain".into());
         mock_engine
             .expect_execute_console_command()
             .with(predicate::eq("map theatreofpain ffa"))
@@ -1798,7 +1791,7 @@ _shinqlx._map_subtitle2 = "Awesome map!"
         mock_engine
             .expect_get_configstring()
             .with(predicate::eq(0))
-            .returning(|_| "\\sv_hostname\\Awesome server!".into());
+            .returning(|_| r"\\sv_hostname\\Awesome server!".into());
         MAIN_ENGINE.store(Some(mock_engine.into()));
 
         let result = Python::with_gil(|py| {
@@ -1850,7 +1843,7 @@ _shinqlx._map_subtitle2 = "Awesome map!"
         mock_engine
             .expect_get_configstring()
             .with(predicate::eq(0))
-            .returning(move |_| format!("\\g_instagib\\{}", mode));
+            .returning(move |_| format!(r"\\g_instagib\\{}", mode));
         MAIN_ENGINE.store(Some(mock_engine.into()));
 
         let result = Python::with_gil(|py| {
@@ -1960,7 +1953,7 @@ _shinqlx._map_subtitle2 = "Awesome map!"
         mock_engine
             .expect_get_configstring()
             .with(predicate::eq(0))
-            .returning(move |_| format!("\\g_loadout\\{}", mode));
+            .returning(move |_| format!(r"\\g_loadout\\{}", mode));
         MAIN_ENGINE.store(Some(mock_engine.into()));
 
         let result = Python::with_gil(|py| {
@@ -2068,7 +2061,7 @@ _shinqlx._map_subtitle2 = "Awesome map!"
         mock_engine
             .expect_get_configstring()
             .with(predicate::eq(0))
-            .returning(|_| "\\sv_maxclients\\8".into());
+            .returning(|_| r"\\sv_maxclients\\8".into());
         MAIN_ENGINE.store(Some(mock_engine.into()));
 
         let result = Python::with_gil(|py| {
@@ -2115,7 +2108,7 @@ _shinqlx._map_subtitle2 = "Awesome map!"
         mock_engine
             .expect_get_configstring()
             .with(predicate::eq(0))
-            .returning(|_| "\\timelimit\\20".into());
+            .returning(|_| r"\\timelimit\\20".into());
         MAIN_ENGINE.store(Some(mock_engine.into()));
 
         let result = Python::with_gil(|py| {
@@ -2162,7 +2155,7 @@ _shinqlx._map_subtitle2 = "Awesome map!"
         mock_engine
             .expect_get_configstring()
             .with(predicate::eq(0))
-            .returning(|_| "\\fraglimit\\10".into());
+            .returning(|_| r"\\fraglimit\\10".into());
         MAIN_ENGINE.store(Some(mock_engine.into()));
 
         let result = Python::with_gil(|py| {
@@ -2209,7 +2202,7 @@ _shinqlx._map_subtitle2 = "Awesome map!"
         mock_engine
             .expect_get_configstring()
             .with(predicate::eq(0))
-            .returning(|_| "\\roundlimit\\11".into());
+            .returning(|_| r"\\roundlimit\\11".into());
         MAIN_ENGINE.store(Some(mock_engine.into()));
 
         let result = Python::with_gil(|py| {
@@ -2256,7 +2249,7 @@ _shinqlx._map_subtitle2 = "Awesome map!"
         mock_engine
             .expect_get_configstring()
             .with(predicate::eq(0))
-            .returning(|_| "\\roundtimelimit\\240".into());
+            .returning(|_| r"\\roundtimelimit\\240".into());
         MAIN_ENGINE.store(Some(mock_engine.into()));
 
         let result = Python::with_gil(|py| {
@@ -2306,7 +2299,7 @@ _shinqlx._map_subtitle2 = "Awesome map!"
         mock_engine
             .expect_get_configstring()
             .with(predicate::eq(0))
-            .returning(|_| "\\scorelimit\\10".into());
+            .returning(|_| r"\\scorelimit\\10".into());
         MAIN_ENGINE.store(Some(mock_engine.into()));
 
         let result = Python::with_gil(|py| {
@@ -2352,7 +2345,7 @@ _shinqlx._map_subtitle2 = "Awesome map!"
         mock_engine
             .expect_get_configstring()
             .with(predicate::eq(0))
-            .returning(|_| "\\capturelimit\\10".into());
+            .returning(|_| r"\\capturelimit\\10".into());
         MAIN_ENGINE.store(Some(mock_engine.into()));
 
         let result = Python::with_gil(|py| {
@@ -2400,7 +2393,7 @@ _shinqlx._map_subtitle2 = "Awesome map!"
         mock_engine
             .expect_get_configstring()
             .with(predicate::eq(0))
-            .returning(|_| "\\teamsize\\4".into());
+            .returning(|_| r"\\teamsize\\4".into());
         MAIN_ENGINE.store(Some(mock_engine.into()));
 
         let result = Python::with_gil(|py| {
@@ -2447,7 +2440,7 @@ _shinqlx._map_subtitle2 = "Awesome map!"
         mock_engine
             .expect_get_configstring()
             .with(predicate::eq(0))
-            .returning(|_| "\\sv_tags\\tag1,tag2,tag3".into());
+            .returning(|_| r"\\sv_tags\\tag1,tag2,tag3".into());
         MAIN_ENGINE.store(Some(mock_engine.into()));
 
         let result = Python::with_gil(|py| {
