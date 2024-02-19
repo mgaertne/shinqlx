@@ -295,7 +295,6 @@ mod commands_tests {
     use crate::prelude::*;
 
     use mockall::predicate;
-    #[cfg(not(miri))]
     use rstest::rstest;
     use serial_test::serial;
 
@@ -1159,7 +1158,8 @@ mod commands_tests {
         cmd_py_command();
     }
 
-    #[cfg_attr(not(miri), rstest)]
+    #[rstest]
+    #[cfg_attr(miri, ignore)]
     #[serial]
     fn cmd_py_command_with_arguments(_pyshinqlx_setup: ()) {
         let mut mock_engine = MockQuakeEngine::new();
@@ -1194,7 +1194,8 @@ def handler(params):
         cmd_py_command();
     }
 
-    #[cfg_attr(not(miri), rstest)]
+    #[rstest]
+    #[cfg_attr(miri, ignore)]
     #[serial]
     fn cmd_py_command_with_no_args(_pyshinqlx_setup: ()) {
         let mut mock_engine = MockQuakeEngine::new();
@@ -1226,7 +1227,8 @@ def handler():
         cmd_py_command();
     }
 
-    #[cfg_attr(not(miri), rstest)]
+    #[rstest]
+    #[cfg_attr(miri, ignore)]
     #[serial]
     fn cmd_py_command_returns_error(_pyshinqlx_setup: ()) {
         let mut mock_engine = MockQuakeEngine::new();
@@ -1263,7 +1265,8 @@ def handler():
         cmd_py_command();
     }
 
-    #[cfg_attr(not(miri), rstest)]
+    #[rstest]
+    #[cfg_attr(miri, ignore)]
     #[serial]
     fn cmd_py_command_returns_false(_pyshinqlx_setup: ()) {
         let mut mock_engine = MockQuakeEngine::new();

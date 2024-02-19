@@ -22,7 +22,6 @@ pub(crate) fn pyshinqlx_noclip(py: Python<'_>, client_id: i32, activate: bool) -
 }
 
 #[cfg(test)]
-#[cfg(not(miri))]
 mod noclip_tests {
     use crate::ffi::c::prelude::*;
     use crate::ffi::python::prelude::*;
@@ -34,6 +33,7 @@ mod noclip_tests {
     use pyo3::exceptions::{PyEnvironmentError, PyValueError};
 
     #[test]
+    #[cfg_attr(miri, ignore)]
     #[serial]
     fn noclip_when_main_engine_not_initialized() {
         MAIN_ENGINE.store(None);
@@ -44,6 +44,7 @@ mod noclip_tests {
     }
 
     #[test]
+    #[cfg_attr(miri, ignore)]
     #[serial]
     fn noclip_for_client_id_too_small() {
         let mut mock_engine = MockQuakeEngine::new();
@@ -57,6 +58,7 @@ mod noclip_tests {
     }
 
     #[test]
+    #[cfg_attr(miri, ignore)]
     #[serial]
     fn noclip_for_client_id_too_large() {
         let mut mock_engine = MockQuakeEngine::new();
@@ -70,6 +72,7 @@ mod noclip_tests {
     }
 
     #[test]
+    #[cfg_attr(miri, ignore)]
     #[serial]
     fn noclip_for_entity_with_no_game_client() {
         let mut mock_engine = MockQuakeEngine::new();
@@ -90,6 +93,7 @@ mod noclip_tests {
     }
 
     #[test]
+    #[cfg_attr(miri, ignore)]
     #[serial]
     fn noclip_for_entity_with_noclip_already_set_properly() {
         let mut mock_engine = MockQuakeEngine::new();
@@ -113,6 +117,7 @@ mod noclip_tests {
     }
 
     #[test]
+    #[cfg_attr(miri, ignore)]
     #[serial]
     fn noclip_for_entity_with_change_applied() {
         let mut mock_engine = MockQuakeEngine::new();

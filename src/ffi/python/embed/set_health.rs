@@ -19,7 +19,6 @@ pub(crate) fn pyshinqlx_set_health(py: Python<'_>, client_id: i32, health: i32) 
 }
 
 #[cfg(test)]
-#[cfg(not(miri))]
 mod set_health_tests {
     use crate::ffi::c::prelude::*;
     use crate::ffi::python::prelude::*;
@@ -31,6 +30,7 @@ mod set_health_tests {
     use pyo3::exceptions::{PyEnvironmentError, PyValueError};
 
     #[test]
+    #[cfg_attr(miri, ignore)]
     #[serial]
     fn set_health_when_main_engine_not_initialized() {
         MAIN_ENGINE.store(None);
@@ -41,6 +41,7 @@ mod set_health_tests {
     }
 
     #[test]
+    #[cfg_attr(miri, ignore)]
     #[serial]
     fn set_health_for_client_id_too_small() {
         let mut mock_engine = MockQuakeEngine::new();
@@ -54,6 +55,7 @@ mod set_health_tests {
     }
 
     #[test]
+    #[cfg_attr(miri, ignore)]
     #[serial]
     fn set_health_for_client_id_too_large() {
         let mut mock_engine = MockQuakeEngine::new();
@@ -67,6 +69,7 @@ mod set_health_tests {
     }
 
     #[test]
+    #[cfg_attr(miri, ignore)]
     #[serial]
     fn set_health_for_existing_game_client() {
         let mut mock_engine = MockQuakeEngine::new();

@@ -28,7 +28,6 @@ pub(crate) fn pyshinqlx_force_weapon_respawn_time(
 }
 
 #[cfg(test)]
-#[cfg(not(miri))]
 mod force_weapon_respawn_time_tests {
     use crate::ffi::c::prelude::*;
     use crate::ffi::python::prelude::*;
@@ -39,6 +38,7 @@ mod force_weapon_respawn_time_tests {
     use pyo3::exceptions::PyValueError;
 
     #[test]
+    #[cfg_attr(miri, ignore)]
     fn force_weapon_respawn_time_with_too_small_respawn_time() {
         Python::with_gil(|py| {
             let result = pyshinqlx_force_weapon_respawn_time(py, -1);
@@ -47,6 +47,7 @@ mod force_weapon_respawn_time_tests {
     }
 
     #[test]
+    #[cfg_attr(miri, ignore)]
     #[serial]
     fn force_weapon_respawn_time_with_non_in_use_weapon() {
         let game_entity_from_ctx = MockGameEntity::from_context();
@@ -77,6 +78,7 @@ mod force_weapon_respawn_time_tests {
     }
 
     #[test]
+    #[cfg_attr(miri, ignore)]
     #[serial]
     fn force_weapon_respawn_time_with_non_respawning_weapon() {
         let game_entity_from_ctx = MockGameEntity::from_context();
@@ -107,6 +109,7 @@ mod force_weapon_respawn_time_tests {
     }
 
     #[test]
+    #[cfg_attr(miri, ignore)]
     #[serial]
     fn force_weapon_respawn_time_sets_respawn_time_on_in_use_respawning_weapons() {
         let game_entity_from_ctx = MockGameEntity::from_context();

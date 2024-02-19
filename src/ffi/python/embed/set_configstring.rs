@@ -30,7 +30,6 @@ pub(crate) fn pyshinqlx_set_configstring(
 }
 
 #[cfg(test)]
-#[cfg(not(miri))]
 mod set_configstring_tests {
     use crate::ffi::python::prelude::*;
     use crate::hooks::mock_hooks::shinqlx_set_configstring_context;
@@ -40,6 +39,7 @@ mod set_configstring_tests {
     use pyo3::exceptions::PyValueError;
 
     #[test]
+    #[cfg_attr(miri, ignore)]
     #[serial]
     fn set_configstring_with_index_out_of_bounds() {
         Python::with_gil(|py| {
@@ -49,6 +49,7 @@ mod set_configstring_tests {
     }
 
     #[test]
+    #[cfg_attr(miri, ignore)]
     #[serial]
     fn set_configstring_with_proper_index() {
         let set_configstring_ctx = shinqlx_set_configstring_context();

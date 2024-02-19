@@ -40,7 +40,6 @@ pub(crate) fn pyshinqlx_force_vote(py: Python<'_>, pass: bool) -> PyResult<bool>
 }
 
 #[cfg(test)]
-#[cfg(not(miri))]
 mod force_vote_tests {
     use super::MAIN_ENGINE;
     use crate::ffi::c::prelude::*;
@@ -53,6 +52,7 @@ mod force_vote_tests {
     use rstest::rstest;
 
     #[test]
+    #[cfg_attr(miri, ignore)]
     #[serial]
     fn force_vote_when_main_engine_not_initialized() {
         let current_level_try_get_ctx = MockTestCurrentLevel::try_get_context();
@@ -70,6 +70,7 @@ mod force_vote_tests {
     }
 
     #[test]
+    #[cfg_attr(miri, ignore)]
     #[serial]
     fn force_vote_when_no_vote_is_running() {
         let current_level_try_get_ctx = MockTestCurrentLevel::try_get_context();
@@ -87,6 +88,7 @@ mod force_vote_tests {
     #[case(clientState_t::CS_CONNECTED)]
     #[case(clientState_t::CS_FREE)]
     #[case(clientState_t::CS_PRIMED)]
+    #[cfg_attr(miri, ignore)]
     #[serial]
     fn force_vote_for_non_active_client(#[case] clientstate: clientState_t) {
         let current_level_try_get_ctx = MockTestCurrentLevel::try_get_context();
@@ -116,6 +118,7 @@ mod force_vote_tests {
     }
 
     #[test]
+    #[cfg_attr(miri, ignore)]
     #[serial]
     fn force_vote_for_active_client_with_no_game_client() {
         let current_level_try_get_ctx = MockTestCurrentLevel::try_get_context();
@@ -158,6 +161,7 @@ mod force_vote_tests {
     }
 
     #[test]
+    #[cfg_attr(miri, ignore)]
     #[serial]
     fn force_vote_for_active_client_forces_vote() {
         let current_level_try_get_ctx = MockTestCurrentLevel::try_get_context();

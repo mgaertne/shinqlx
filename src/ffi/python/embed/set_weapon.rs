@@ -29,7 +29,6 @@ pub(crate) fn pyshinqlx_set_weapon(py: Python<'_>, client_id: i32, weapon: i32) 
 }
 
 #[cfg(test)]
-#[cfg(not(miri))]
 mod set_weapon_tests {
     use crate::ffi::c::prelude::*;
     use crate::ffi::python::prelude::*;
@@ -41,6 +40,7 @@ mod set_weapon_tests {
     use pyo3::exceptions::{PyEnvironmentError, PyValueError};
 
     #[test]
+    #[cfg_attr(miri, ignore)]
     #[serial]
     fn set_weapon_when_main_engine_not_initialized() {
         MAIN_ENGINE.store(None);
@@ -51,6 +51,7 @@ mod set_weapon_tests {
     }
 
     #[test]
+    #[cfg_attr(miri, ignore)]
     #[serial]
     fn set_weapon_for_client_id_too_small() {
         let mut mock_engine = MockQuakeEngine::new();
@@ -64,6 +65,7 @@ mod set_weapon_tests {
     }
 
     #[test]
+    #[cfg_attr(miri, ignore)]
     #[serial]
     fn set_weapon_for_client_id_too_large() {
         let mut mock_engine = MockQuakeEngine::new();
@@ -77,6 +79,7 @@ mod set_weapon_tests {
     }
 
     #[test]
+    #[cfg_attr(miri, ignore)]
     #[serial]
     fn set_weapon_for_weapon_id_too_small() {
         let mut mock_engine = MockQuakeEngine::new();
@@ -90,6 +93,7 @@ mod set_weapon_tests {
     }
 
     #[test]
+    #[cfg_attr(miri, ignore)]
     #[serial]
     fn set_weapon_for_weapon_id_too_large() {
         let mut mock_engine = MockQuakeEngine::new();
@@ -103,6 +107,7 @@ mod set_weapon_tests {
     }
 
     #[test]
+    #[cfg_attr(miri, ignore)]
     #[serial]
     fn set_weapon_for_existing_game_client() {
         let mut mock_engine = MockQuakeEngine::new();
@@ -128,6 +133,7 @@ mod set_weapon_tests {
     }
 
     #[test]
+    #[cfg_attr(miri, ignore)]
     #[serial]
     fn set_weapon_for_entity_with_no_game_client() {
         let mut mock_engine = MockQuakeEngine::new();
