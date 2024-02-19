@@ -1231,8 +1231,8 @@ impl Player {
 
 #[cfg(test)]
 mod pyshinqlx_player_tests {
+    use super::NonexistentPlayerError;
     use super::MAIN_ENGINE;
-    use super::{NonexistentPlayerError, Player};
     use crate::ffi::c::prelude::*;
     use crate::ffi::python::prelude::*;
     use crate::hooks::mock_hooks::{
