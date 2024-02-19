@@ -86,7 +86,6 @@ pub(crate) mod prelude {
     };
 
     #[cfg(test)]
-    #[cfg(not(miri))]
     pub(crate) use super::pyshinqlx_setup_fixture::*;
 
     pub(crate) use pyo3::prelude::*;
@@ -1187,7 +1186,6 @@ pub(crate) mod python_tests {
 }
 
 #[cfg(test)]
-#[cfg(not(miri))]
 pub(crate) mod pyshinqlx_setup_fixture {
     use super::pyshinqlx_module;
 

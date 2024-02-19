@@ -33,7 +33,6 @@ pub(crate) fn pyshinqlx_spawn_item(
 }
 
 #[cfg(test)]
-#[cfg(not(miri))]
 mod spawn_item_tests {
     use crate::ffi::c::prelude::*;
     use crate::ffi::python::prelude::*;
@@ -44,6 +43,7 @@ mod spawn_item_tests {
     use pyo3::exceptions::PyValueError;
 
     #[test]
+    #[cfg_attr(miri, ignore)]
     #[serial]
     fn spawn_item_for_too_small_item_id() {
         let get_num_item_ctx = MockGameItem::get_num_items_context();
@@ -56,6 +56,7 @@ mod spawn_item_tests {
     }
 
     #[test]
+    #[cfg_attr(miri, ignore)]
     #[serial]
     fn spawn_item_for_too_large_item_id() {
         let get_num_item_ctx = MockGameItem::get_num_items_context();
@@ -68,6 +69,7 @@ mod spawn_item_tests {
     }
 
     #[test]
+    #[cfg_attr(miri, ignore)]
     #[serial]
     fn spawn_item_spawns_item() {
         let get_num_item_ctx = MockGameItem::get_num_items_context();

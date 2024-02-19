@@ -39,7 +39,6 @@ pub(crate) fn pyshinqlx_send_server_command(
 }
 
 #[cfg(test)]
-#[cfg(not(miri))]
 mod send_server_command_tests {
     use crate::ffi::c::prelude::*;
     use crate::ffi::python::prelude::*;
@@ -52,6 +51,7 @@ mod send_server_command_tests {
     use rstest::rstest;
 
     #[test]
+    #[cfg_attr(miri, ignore)]
     #[serial]
     fn send_server_command_with_no_client_id() {
         let hook_ctx = shinqlx_send_server_command_context();
@@ -64,6 +64,7 @@ mod send_server_command_tests {
     }
 
     #[test]
+    #[cfg_attr(miri, ignore)]
     #[serial]
     fn send_server_command_when_main_engine_not_initialized() {
         MAIN_ENGINE.store(None);
@@ -78,6 +79,7 @@ mod send_server_command_tests {
     }
 
     #[test]
+    #[cfg_attr(miri, ignore)]
     #[serial]
     fn get_userinfo_for_client_id_below_zero() {
         let mut mock_engine = MockQuakeEngine::new();
@@ -94,6 +96,7 @@ mod send_server_command_tests {
     }
 
     #[test]
+    #[cfg_attr(miri, ignore)]
     #[serial]
     fn send_server_command_for_client_id_above_max_clients() {
         let mut mock_engine = MockQuakeEngine::new();
@@ -110,6 +113,7 @@ mod send_server_command_tests {
     }
 
     #[test]
+    #[cfg_attr(miri, ignore)]
     #[serial]
     fn send_server_command_for_active_client() {
         let mut mock_engine = MockQuakeEngine::new();
@@ -140,6 +144,7 @@ mod send_server_command_tests {
     #[case(clientState_t::CS_CONNECTED)]
     #[case(clientState_t::CS_PRIMED)]
     #[case(clientState_t::CS_ZOMBIE)]
+    #[cfg_attr(miri, ignore)]
     #[serial]
     fn send_server_command_for_non_active_free_client(#[case] clientstate: clientState_t) {
         let mut mock_engine = MockQuakeEngine::new();

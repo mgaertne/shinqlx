@@ -38,7 +38,6 @@ pub(crate) fn pyshinqlx_kick(py: Python<'_>, client_id: i32, reason: Option<&str
 }
 
 #[cfg(test)]
-#[cfg(not(miri))]
 mod kick_tests {
     use crate::ffi::c::prelude::*;
     use crate::ffi::python::prelude::*;
@@ -51,6 +50,7 @@ mod kick_tests {
     use rstest::rstest;
 
     #[test]
+    #[cfg_attr(miri, ignore)]
     #[serial]
     fn kick_when_main_engine_not_initialized() {
         MAIN_ENGINE.store(None);
@@ -61,6 +61,7 @@ mod kick_tests {
     }
 
     #[test]
+    #[cfg_attr(miri, ignore)]
     #[serial]
     fn kick_with_client_id_below_zero() {
         let mut mock_engine = MockQuakeEngine::new();
@@ -74,6 +75,7 @@ mod kick_tests {
     }
 
     #[test]
+    #[cfg_attr(miri, ignore)]
     #[serial]
     fn kick_with_client_id_too_large() {
         let mut mock_engine = MockQuakeEngine::new();
@@ -91,6 +93,7 @@ mod kick_tests {
     #[case(clientState_t::CS_CONNECTED)]
     #[case(clientState_t::CS_PRIMED)]
     #[case(clientState_t::CS_ZOMBIE)]
+    #[cfg_attr(miri, ignore)]
     #[serial]
     fn kick_with_client_id_for_non_active_client(#[case] clientstate: clientState_t) {
         let mut mock_engine = MockQuakeEngine::new();
@@ -114,6 +117,7 @@ mod kick_tests {
     }
 
     #[test]
+    #[cfg_attr(miri, ignore)]
     #[serial]
     fn kick_with_client_id_for_active_client_without_kick_reason() {
         let mut mock_engine = MockQuakeEngine::new();
@@ -143,6 +147,7 @@ mod kick_tests {
     }
 
     #[test]
+    #[cfg_attr(miri, ignore)]
     #[serial]
     fn kick_with_client_id_for_active_client_with_kick_reason() {
         let mut mock_engine = MockQuakeEngine::new();
@@ -172,6 +177,7 @@ mod kick_tests {
     }
 
     #[test]
+    #[cfg_attr(miri, ignore)]
     #[serial]
     fn kick_with_client_id_for_active_client_with_empty_kick_reason() {
         let mut mock_engine = MockQuakeEngine::new();

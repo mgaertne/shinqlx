@@ -24,7 +24,6 @@ pub(crate) fn pyshinqlx_get_entity_targets(py: Python<'_>, entity_id: i32) -> Py
 }
 
 #[cfg(test)]
-#[cfg(not(miri))]
 mod get_entity_targets_tests {
     use crate::ffi::c::prelude::*;
     use crate::ffi::python::prelude::*;
@@ -35,6 +34,7 @@ mod get_entity_targets_tests {
     use pyo3::exceptions::PyValueError;
 
     #[test]
+    #[cfg_attr(miri, ignore)]
     fn get_entity_targets_for_too_small_entity_id() {
         Python::with_gil(|py| {
             let result = pyshinqlx_get_entity_targets(py, -1);
@@ -43,6 +43,7 @@ mod get_entity_targets_tests {
     }
 
     #[test]
+    #[cfg_attr(miri, ignore)]
     fn get_entity_targets_for_too_large_entity_id() {
         Python::with_gil(|py| {
             let result = pyshinqlx_get_entity_targets(py, MAX_GENTITIES as i32);
@@ -51,6 +52,7 @@ mod get_entity_targets_tests {
     }
 
     #[test]
+    #[cfg_attr(miri, ignore)]
     #[serial]
     fn get_entity_targets_for_valid_entity_id_with_no_targetting_entities() {
         let game_entity_from_ctx = MockGameEntity::from_context();
@@ -71,6 +73,7 @@ mod get_entity_targets_tests {
     }
 
     #[test]
+    #[cfg_attr(miri, ignore)]
     #[serial]
     fn get_entity_targets_for_valid_entity_id_with_targetting_entities() {
         let game_entity_from_ctx = MockGameEntity::from_context();

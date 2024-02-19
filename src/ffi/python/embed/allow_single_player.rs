@@ -14,7 +14,6 @@ pub(crate) fn pyshinqlx_allow_single_player(py: Python<'_>, allow: bool) {
 }
 
 #[cfg(test)]
-#[cfg(not(miri))]
 mod allow_single_player_tests {
     use crate::ffi::c::prelude::*;
     use crate::ffi::python::prelude::*;
@@ -23,6 +22,7 @@ mod allow_single_player_tests {
     use mockall::predicate;
 
     #[test]
+    #[cfg_attr(miri, ignore)]
     #[serial]
     fn allow_single_player_with_no_current_level() {
         let level_ctx = MockTestCurrentLevel::try_get_context();
@@ -34,6 +34,7 @@ mod allow_single_player_tests {
     }
 
     #[test]
+    #[cfg_attr(miri, ignore)]
     #[serial]
     fn allow_single_player_sets_training_map() {
         let level_ctx = MockTestCurrentLevel::try_get_context();

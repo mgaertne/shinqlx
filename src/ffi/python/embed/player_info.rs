@@ -38,7 +38,6 @@ pub(crate) fn pyshinqlx_player_info(
 }
 
 #[cfg(test)]
-#[cfg(not(miri))]
 mod get_player_info_tests {
     use crate::ffi::c::prelude::*;
     use crate::ffi::python::prelude::*;
@@ -49,6 +48,7 @@ mod get_player_info_tests {
     use pyo3::exceptions::{PyEnvironmentError, PyValueError};
 
     #[test]
+    #[cfg_attr(miri, ignore)]
     #[serial]
     fn get_player_info_when_main_engine_not_initialized() {
         MAIN_ENGINE.store(None);
@@ -59,6 +59,7 @@ mod get_player_info_tests {
     }
 
     #[test]
+    #[cfg_attr(miri, ignore)]
     #[serial]
     fn get_player_info_for_client_id_below_zero() {
         let mut mock_engine = MockQuakeEngine::new();
@@ -71,6 +72,7 @@ mod get_player_info_tests {
     }
 
     #[test]
+    #[cfg_attr(miri, ignore)]
     #[serial]
     fn get_player_info_for_client_id_above_max_clients() {
         let mut mock_engine = MockQuakeEngine::new();
@@ -83,6 +85,7 @@ mod get_player_info_tests {
     }
 
     #[test]
+    #[cfg_attr(miri, ignore)]
     #[serial]
     fn get_player_info_for_existing_client() {
         let mut mock_engine = MockQuakeEngine::new();
@@ -133,6 +136,7 @@ mod get_player_info_tests {
     }
 
     #[test]
+    #[cfg_attr(miri, ignore)]
     #[serial]
     fn get_player_info_for_non_allowed_free_client() {
         let mut mock_engine = MockQuakeEngine::new();
@@ -158,6 +162,7 @@ mod get_player_info_tests {
     }
 
     #[test]
+    #[cfg_attr(miri, ignore)]
     #[serial]
     fn get_player_info_for_allowed_free_client() {
         let mut mock_engine = MockQuakeEngine::new();

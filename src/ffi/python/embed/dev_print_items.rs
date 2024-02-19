@@ -71,7 +71,6 @@ pub(crate) fn pyshinqlx_dev_print_items(py: Python<'_>) -> PyResult<()> {
 }
 
 #[cfg(test)]
-#[cfg(not(miri))]
 mod dev_print_items_tests {
     use super::MAIN_ENGINE;
     use crate::ffi::c::prelude::*;
@@ -82,6 +81,7 @@ mod dev_print_items_tests {
     use pyo3::exceptions::PyEnvironmentError;
 
     #[test]
+    #[cfg_attr(miri, ignore)]
     #[serial]
     fn dev_print_items_with_no_main_engine() {
         MAIN_ENGINE.store(None);
@@ -116,6 +116,7 @@ mod dev_print_items_tests {
     }
 
     #[test]
+    #[cfg_attr(miri, ignore)]
     #[serial]
     fn dev_print_items_for_unused_game_item() {
         let mut mock_engine = MockQuakeEngine::new();
@@ -155,6 +156,7 @@ mod dev_print_items_tests {
     }
 
     #[test]
+    #[cfg_attr(miri, ignore)]
     #[serial]
     fn dev_print_items_for_non_et_item() {
         let mut mock_engine = MockQuakeEngine::new();
@@ -194,6 +196,7 @@ mod dev_print_items_tests {
     }
 
     #[test]
+    #[cfg_attr(miri, ignore)]
     #[serial]
     fn dev_print_items_prints_single_item() {
         let mut mock_engine = MockQuakeEngine::new();
@@ -239,6 +242,7 @@ mod dev_print_items_tests {
     }
 
     #[test]
+    #[cfg_attr(miri, ignore)]
     #[serial]
     fn dev_print_items_with_too_many_items_notifies_players_and_prints_remaining_items() {
         let mut mock_engine = MockQuakeEngine::new();
