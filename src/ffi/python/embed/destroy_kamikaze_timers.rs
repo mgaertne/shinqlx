@@ -28,7 +28,6 @@ pub(crate) fn pyshinqlx_destroy_kamikaze_timers(py: Python<'_>) -> PyResult<bool
 }
 
 #[cfg(test)]
-#[cfg(not(miri))]
 mod destroy_kamikaze_timers_tests {
     use crate::ffi::c::prelude::*;
     use crate::ffi::python::prelude::*;
@@ -38,6 +37,7 @@ mod destroy_kamikaze_timers_tests {
     use pretty_assertions::assert_eq;
 
     #[test]
+    #[cfg_attr(miri, ignore)]
     #[serial]
     fn destroy_kamikaze_timers_for_not_in_use_game_entity() {
         let game_entity_from_ctx = MockGameEntity::from_context();
@@ -75,6 +75,7 @@ mod destroy_kamikaze_timers_tests {
     }
 
     #[test]
+    #[cfg_attr(miri, ignore)]
     #[serial]
     fn destroy_kamikaze_timers_for_in_use_non_kamikaze_timer() {
         let game_entity_from_ctx = MockGameEntity::from_context();
@@ -112,6 +113,7 @@ mod destroy_kamikaze_timers_tests {
     }
 
     #[test]
+    #[cfg_attr(miri, ignore)]
     #[serial]
     fn destroy_kamikaze_timers_for_in_use_kamikaze_timer_with_health() {
         let game_entity_from_ctx = MockGameEntity::from_context();
@@ -149,6 +151,7 @@ mod destroy_kamikaze_timers_tests {
     }
 
     #[test]
+    #[cfg_attr(miri, ignore)]
     #[serial]
     fn destroy_kamikaze_timers_for_in_use_kamikaze_timer_with_no_health_but_no_game_client() {
         let game_entity_from_ctx = MockGameEntity::from_context();
@@ -188,6 +191,7 @@ mod destroy_kamikaze_timers_tests {
     }
 
     #[test]
+    #[cfg_attr(miri, ignore)]
     #[serial]
     fn destroy_kamikaze_timers_for_in_use_kamikaze_timer_with_no_health_but_game_client() {
         let game_entity_from_ctx = MockGameEntity::from_context();

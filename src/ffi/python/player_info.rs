@@ -101,11 +101,10 @@ mod player_info_tests {
     use crate::prelude::*;
 
     use pretty_assertions::assert_eq;
-    #[cfg(not(miri))]
     use rstest::*;
 
-    #[cfg(not(miri))]
     #[rstest]
+    #[cfg_attr(miri, ignore)]
     fn player_info_can_be_constructed_from_python(_pyshinqlx_setup: ()) {
         Python::with_gil(|py| {
             let player_info_constructor = py.run(

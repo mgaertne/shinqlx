@@ -21,7 +21,6 @@ pub(crate) fn pyshinqlx_set_ammo(py: Python<'_>, client_id: i32, ammos: Weapons)
 }
 
 #[cfg(test)]
-#[cfg(not(miri))]
 mod set_ammo_tests {
     use crate::ffi::c::prelude::*;
     use crate::ffi::python::prelude::*;
@@ -33,6 +32,7 @@ mod set_ammo_tests {
     use pyo3::exceptions::{PyEnvironmentError, PyValueError};
 
     #[test]
+    #[cfg_attr(miri, ignore)]
     #[serial]
     fn set_ammo_when_main_engine_not_initialized() {
         MAIN_ENGINE.store(None);
@@ -44,6 +44,7 @@ mod set_ammo_tests {
     }
 
     #[test]
+    #[cfg_attr(miri, ignore)]
     #[serial]
     fn set_ammo_for_client_id_too_small() {
         let mut mock_engine = MockQuakeEngine::new();
@@ -58,6 +59,7 @@ mod set_ammo_tests {
     }
 
     #[test]
+    #[cfg_attr(miri, ignore)]
     #[serial]
     fn set_ammo_for_client_id_too_large() {
         let mut mock_engine = MockQuakeEngine::new();
@@ -75,6 +77,7 @@ mod set_ammo_tests {
     }
 
     #[test]
+    #[cfg_attr(miri, ignore)]
     #[serial]
     fn set_ammo_for_existing_game_client() {
         let mut mock_engine = MockQuakeEngine::new();
@@ -108,6 +111,7 @@ mod set_ammo_tests {
     }
 
     #[test]
+    #[cfg_attr(miri, ignore)]
     #[serial]
     fn set_ammo_for_entity_with_no_game_client() {
         let mut mock_engine = MockQuakeEngine::new();

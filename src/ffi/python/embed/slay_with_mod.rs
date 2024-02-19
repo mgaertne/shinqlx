@@ -35,7 +35,6 @@ pub(crate) fn pyshinqlx_slay_with_mod(
 }
 
 #[cfg(test)]
-#[cfg(not(miri))]
 mod slay_with_mod_tests {
     use crate::ffi::c::prelude::*;
     use crate::ffi::python::prelude::*;
@@ -47,6 +46,7 @@ mod slay_with_mod_tests {
     use pyo3::exceptions::{PyEnvironmentError, PyValueError};
 
     #[test]
+    #[cfg_attr(miri, ignore)]
     #[serial]
     fn slay_with_mod_when_main_engine_not_initialized() {
         MAIN_ENGINE.store(None);
@@ -57,6 +57,7 @@ mod slay_with_mod_tests {
     }
 
     #[test]
+    #[cfg_attr(miri, ignore)]
     #[serial]
     fn slay_with_mod_for_client_id_too_small() {
         let mut mock_engine = MockQuakeEngine::new();
@@ -70,6 +71,7 @@ mod slay_with_mod_tests {
     }
 
     #[test]
+    #[cfg_attr(miri, ignore)]
     #[serial]
     fn slay_with_mod_for_client_id_too_large() {
         let mut mock_engine = MockQuakeEngine::new();
@@ -83,6 +85,7 @@ mod slay_with_mod_tests {
     }
 
     #[test]
+    #[cfg_attr(miri, ignore)]
     #[serial]
     fn slay_with_mod_for_invalid_means_of_death() {
         let mut mock_engine = MockQuakeEngine::new();
@@ -96,6 +99,7 @@ mod slay_with_mod_tests {
     }
 
     #[test]
+    #[cfg_attr(miri, ignore)]
     #[serial]
     fn slay_with_mod_for_existing_game_client_with_remaining_health() {
         let mut mock_engine = MockQuakeEngine::new();
@@ -124,6 +128,7 @@ mod slay_with_mod_tests {
     }
 
     #[test]
+    #[cfg_attr(miri, ignore)]
     #[serial]
     fn slay_with_mod_for_existing_game_client_with_no_remaining_health() {
         let mut mock_engine = MockQuakeEngine::new();
@@ -149,6 +154,7 @@ mod slay_with_mod_tests {
     }
 
     #[test]
+    #[cfg_attr(miri, ignore)]
     #[serial]
     fn slay_with_mod_for_entity_with_no_game_client() {
         let mut mock_engine = MockQuakeEngine::new();

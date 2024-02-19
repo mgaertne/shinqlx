@@ -34,7 +34,6 @@ pub(crate) fn pyshinqlx_players_info(py: Python<'_>) -> PyResult<Vec<Option<Play
 }
 
 #[cfg(test)]
-#[cfg(not(miri))]
 mod get_players_info_tests {
     use super::MAIN_ENGINE;
     use crate::ffi::c::prelude::*;
@@ -45,6 +44,7 @@ mod get_players_info_tests {
     use pyo3::exceptions::PyEnvironmentError;
 
     #[test]
+    #[cfg_attr(miri, ignore)]
     #[serial]
     fn get_players_info_when_main_engine_not_initialized() {
         MAIN_ENGINE.store(None);
@@ -55,6 +55,7 @@ mod get_players_info_tests {
     }
 
     #[test]
+    #[cfg_attr(miri, ignore)]
     #[serial]
     fn get_players_info_for_existing_clients() {
         let mut mock_engine = MockQuakeEngine::new();

@@ -25,7 +25,6 @@ pub(crate) fn pyshinqlx_set_privileges(
 }
 
 #[cfg(test)]
-#[cfg(not(miri))]
 mod set_privileges_tests {
     use crate::ffi::c::prelude::*;
     use crate::ffi::python::prelude::*;
@@ -38,6 +37,7 @@ mod set_privileges_tests {
     use rstest::rstest;
 
     #[test]
+    #[cfg_attr(miri, ignore)]
     #[serial]
     fn set_privileges_when_main_engine_not_initialized() {
         MAIN_ENGINE.store(None);
@@ -48,6 +48,7 @@ mod set_privileges_tests {
     }
 
     #[test]
+    #[cfg_attr(miri, ignore)]
     #[serial]
     fn set_privileges_for_client_id_too_small() {
         let mut mock_engine = MockQuakeEngine::new();
@@ -61,6 +62,7 @@ mod set_privileges_tests {
     }
 
     #[test]
+    #[cfg_attr(miri, ignore)]
     #[serial]
     fn set_privileges_for_client_id_too_large() {
         let mut mock_engine = MockQuakeEngine::new();
@@ -79,6 +81,7 @@ mod set_privileges_tests {
     #[case(&privileges_t::PRIV_ADMIN)]
     #[case(&privileges_t::PRIV_ROOT)]
     #[case(&privileges_t::PRIV_BANNED)]
+    #[cfg_attr(miri, ignore)]
     #[serial]
     fn set_privileges_for_existing_game_client(#[case] privileges: &'static privileges_t) {
         let mut mock_engine = MockQuakeEngine::new();
@@ -104,6 +107,7 @@ mod set_privileges_tests {
     }
 
     #[test]
+    #[cfg_attr(miri, ignore)]
     #[serial]
     fn set_privileges_for_entity_with_no_game_client() {
         let mut mock_engine = MockQuakeEngine::new();

@@ -44,7 +44,6 @@ pub(crate) fn pyshinqlx_register_handler(
 }
 
 #[cfg(test)]
-#[cfg(not(miri))]
 mod register_handler_tests {
     use crate::ffi::python::prelude::*;
     use crate::prelude::*;
@@ -71,6 +70,7 @@ mod register_handler_tests {
     #[case("kamikaze_use", &KAMIKAZE_USE_HANDLER)]
     #[case("kamikaze_explode", &KAMIKAZE_EXPLODE_HANDLER)]
     #[case("damage", &DAMAGE_HANDLER)]
+    #[cfg_attr(miri, ignore)]
     #[serial]
     fn register_handler_setting_handler_to_none(
         #[case] event: &str,
@@ -120,6 +120,7 @@ def handler():
     #[case("kamikaze_use", &KAMIKAZE_USE_HANDLER)]
     #[case("kamikaze_explode", &KAMIKAZE_EXPLODE_HANDLER)]
     #[case("damage", &DAMAGE_HANDLER)]
+    #[cfg_attr(miri, ignore)]
     #[serial]
     fn register_handler_setting_handler_to_some_handler(
         #[case] event: &str,
@@ -154,6 +155,7 @@ def handler():
     }
 
     #[test]
+    #[cfg_attr(miri, ignore)]
     #[serial]
     fn register_handler_for_some_unknown_event() {
         let pymodule: Py<PyModule> = Python::with_gil(|py| {
@@ -183,6 +185,7 @@ def handler():
     }
 
     #[test]
+    #[cfg_attr(miri, ignore)]
     #[serial]
     fn register_handler_for_uncallable_handler() {
         let pymodule: Py<PyModule> = Python::with_gil(|py| {
