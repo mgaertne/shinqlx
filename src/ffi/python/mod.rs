@@ -152,10 +152,13 @@ pub(crate) static DAMAGE_HANDLER: Lazy<Arc<ArcSwapOption<Py<PyAny>>>> =
 #[allow(non_camel_case_types)]
 enum PythonReturnCodes {
     RET_NONE,
-    RET_STOP,       // Stop execution of event handlers within Python.
-    RET_STOP_EVENT, // Only stop the event, but let other handlers process it.
-    RET_STOP_ALL,   // Stop execution at an engine level. SCARY STUFF!
-    RET_USAGE,      // Used for commands. Replies to the channel with a command's usage.
+    RET_STOP,
+    // Stop execution of event handlers within Python.
+    RET_STOP_EVENT,
+    // Only stop the event, but let other handlers process it.
+    RET_STOP_ALL,
+    // Stop execution at an engine level. SCARY STUFF!
+    RET_USAGE, // Used for commands. Replies to the channel with a command's usage.
 }
 
 #[allow(non_camel_case_types)]
@@ -171,8 +174,8 @@ create_exception!(pyshinqlx_module, PluginLoadError, PyException);
 create_exception!(pyshinqlx_module, PluginUnloadError, PyException);
 
 pub(crate) fn clean_text<T>(text: &T) -> String
-where
-    T: AsRef<str>,
+    where
+        T: AsRef<str>,
 {
     let re = Regex::new(r#"\^[0-7]"#).unwrap();
     re.replace_all(text.as_ref(), "").into()
@@ -234,12 +237,12 @@ impl Deref for ParsedVariables {
 
 impl ParsedVariables {
     pub fn get<T>(&self, item: T) -> Option<String>
-    where
-        T: AsRef<str>,
+        where
+            T: AsRef<str>,
     {
         self.items
             .iter()
-            .filter(|(key, _value)| *key == *item.as_ref())
+            .filter(|(key, _value)| *key == item.as_ref())
             .map(|(_key, value)| value)
             .next()
             .cloned()
@@ -314,7 +317,7 @@ fn set_map_subtitles(module: &PyModule) -> PyResult<()> {
 /// them into a dictionary.
 #[pyfunction]
 #[pyo3(name = "parse_variables")]
-#[pyo3(signature = (varstr, ordered=false))]
+#[pyo3(signature = (varstr, ordered = false))]
 fn pyshinqlx_parse_variables(
     py: Python<'_>,
     varstr: String,
@@ -339,7 +342,7 @@ fn get_logger_name(py: Python<'_>, plugin: Option<PyObject>) -> String {
 #[pyo3(signature = (plugin = None))]
 fn pyshinqlx_get_logger(py: Python<'_>, plugin: Option<PyObject>) -> PyResult<&PyAny> {
     let logger_name = get_logger_name(py, plugin);
-    PyModule::import(py, "logging")?.call_method1("getLogger", (logger_name,))
+    PyModule::import(py, "logging")?.call_method1("getLogger", (logger_name, ))
 }
 
 #[pyfunction]
@@ -364,8 +367,8 @@ fn pyshinqlx_configure_logger(py: Python<'_>) -> PyResult<()> {
     let logging_module = py.import("logging")?;
     let debug_level = logging_module.getattr("DEBUG")?;
     let info_level = logging_module.getattr("INFO")?;
-    let logger = logging_module.call_method1("getLogger", ("shinqlx",))?;
-    logger.call_method1("setLevel", (debug_level,))?;
+    let logger = logging_module.call_method1("getLogger", ("shinqlx", ))?;
+    logger.call_method1("setLevel", (debug_level, ))?;
 
     let console_fmt = logging_module.call_method1(
         "Formatter",
@@ -376,9 +379,9 @@ fn pyshinqlx_configure_logger(py: Python<'_>) -> PyResult<()> {
     )?;
 
     let console_handler = logging_module.call_method0("StreamHandler")?;
-    console_handler.call_method1("setLevel", (info_level,))?;
-    console_handler.call_method1("setFormatter", (console_fmt,))?;
-    logger.call_method1("addHandler", (console_handler,))?;
+    console_handler.call_method1("setLevel", (info_level, ))?;
+    console_handler.call_method1("setFormatter", (console_fmt, ))?;
+    logger.call_method1("addHandler", (console_handler, ))?;
 
     let file_fmt = logging_module.call_method1(
         "Formatter",
@@ -391,19 +394,19 @@ fn pyshinqlx_configure_logger(py: Python<'_>) -> PyResult<()> {
     let handlers_submodule = py.import("logging.handlers")?;
     let file_handler = handlers_submodule.call_method(
         "RotatingFileHandler",
-        (file_path,),
+        (file_path, ),
         Some(
             [
                 ("encoding", "utf-8".into_py(py)),
                 ("maxBytes", max_logsize.into_py(py)),
                 ("backupCount", num_max_logs.into_py(py)),
             ]
-            .into_py_dict(py),
+                .into_py_dict(py),
         ),
     )?;
-    file_handler.call_method1("setLevel", (debug_level,))?;
-    file_handler.call_method1("setFormatter", (file_fmt,))?;
-    logger.call_method1("addHandler", (file_handler,))?;
+    file_handler.call_method1("setLevel", (debug_level, ))?;
+    file_handler.call_method1("setFormatter", (file_fmt, ))?;
+    logger.call_method1("addHandler", (file_handler, ))?;
 
     let datetime_module = py.import("datetime")?;
     let datetime_now = datetime_module.getattr("datetime")?.call_method0("now")?;
@@ -435,12 +438,12 @@ formatted_exception = traceback.format_exception(*sys.exc_info())
         "",
         "",
     )?
-    .getattr("formatted_exception")?
-    .extract()?;
+        .getattr("formatted_exception")?
+        .extract()?;
 
-    let py_logger = PyModule::import(py, "logging")?.call_method1("getLogger", (logger_name,))?;
+    let py_logger = PyModule::import(py, "logging")?.call_method1("getLogger", (logger_name, ))?;
     formatted_exception.iter().for_each(|line| {
-        let _ = py_logger.call_method1("error", (line.trim_end(),));
+        let _ = py_logger.call_method1("error", (line.trim_end(), ));
     });
     Ok(())
 }
@@ -457,14 +460,14 @@ fn pyshinqlx_handle_exception(
     let logging_module = py.import("logging")?;
     let traceback_module = py.import("traceback")?;
 
-    let py_logger = logging_module.call_method1("getLogger", ("shinqlx",))?;
+    let py_logger = logging_module.call_method1("getLogger", ("shinqlx", ))?;
 
     let formatted_traceback: Vec<String> = traceback_module
         .call_method1("format_exception", (exc_type, exc_value, exc_traceback))?
         .extract()?;
 
     formatted_traceback.iter().for_each(|line| {
-        let _ = py_logger.call_method1("error", (line.trim_end(),));
+        let _ = py_logger.call_method1("error", (line.trim_end(), ));
     });
 
     Ok(())
@@ -501,10 +504,10 @@ def next_frame(func):
         "",
         "",
     )?
-    .getattr("next_frame")?
-    .into();
+        .getattr("next_frame")?
+        .into();
 
-    next_frame_func.call1(py, (func.into_py(py),))
+    next_frame_func.call1(py, (func.into_py(py), ))
 }
 
 /// Delay a function call a certain amount of time.
@@ -536,17 +539,17 @@ def delay(time):
         "",
         "",
     )?
-    .getattr("delay")?
-    .into();
+        .getattr("delay")?
+        .into();
 
-    delay_func.call1(py, (time.into_py(py),))
+    delay_func.call1(py, (time.into_py(py), ))
 }
 
 /// Starts a thread with the function passed as its target. If a function decorated
 /// with this is called within a function also decorated, it will **not** create a second
 /// thread unless told to do so with the *force* keyword.
 #[pyfunction]
-#[pyo3(signature = (func, force=false))]
+#[pyo3(signature = (func, force = false))]
 fn thread(py: Python<'_>, func: Py<PyFunction>, force: bool) -> PyResult<PyObject> {
     let thread_func: Py<PyAny> = PyModule::from_code(
         py,
@@ -577,8 +580,8 @@ def thread(func, force=False):
         "",
         "",
     )?
-    .getattr("thread")?
-    .into();
+        .getattr("thread")?
+        .into();
 
     thread_func.call1(py, (func.into_py(py), force.into_py(py)))
 }
@@ -756,7 +759,7 @@ fn pyshinqlx_module(py: Python<'_>, m: &PyModule) -> PyResult<()> {
             (11, "Attack and Defend"),
             (12, "Red Rover"),
         ]
-        .into_py_dict(py),
+            .into_py_dict(py),
     )?;
     m.add(
         "GAMETYPES_SHORT",
@@ -774,7 +777,7 @@ fn pyshinqlx_module(py: Python<'_>, m: &PyModule) -> PyResult<()> {
             (11, "ad"),
             (12, "rr"),
         ]
-        .into_py_dict(py),
+            .into_py_dict(py),
     )?;
 
     // Privileges.
@@ -799,7 +802,7 @@ fn pyshinqlx_module(py: Python<'_>, m: &PyModule) -> PyResult<()> {
             (clientState_t::CS_PRIMED as i32, "primed"),
             (clientState_t::CS_ACTIVE as i32, "active"),
         ]
-        .into_py_dict(py),
+            .into_py_dict(py),
     )?;
 
     // Teams.
@@ -815,7 +818,7 @@ fn pyshinqlx_module(py: Python<'_>, m: &PyModule) -> PyResult<()> {
             (team_t::TEAM_BLUE as i32, "blue"),
             (team_t::TEAM_SPECTATOR as i32, "spectator"),
         ]
-        .into_py_dict(py),
+            .into_py_dict(py),
     )?;
 
     // Means of death.
@@ -892,7 +895,7 @@ fn pyshinqlx_module(py: Python<'_>, m: &PyModule) -> PyResult<()> {
             (weapon_t::WP_HMG as i32, "hmg"),
             (weapon_t::WP_HANDS as i32, "hands"),
         ]
-        .into_py_dict(py),
+            .into_py_dict(py),
     )?;
 
     m.add("DAMAGE_RADIUS", DAMAGE_RADIUS as i32)?;
@@ -961,7 +964,7 @@ fn pyshinqlx_module(py: Python<'_>, m: &PyModule) -> PyResult<()> {
             py,
             TeamChatChannel::py_new("all".into(), "chat".into(), "print \"{}\n\"\n".into()),
         )?
-        .to_object(py),
+            .to_object(py),
     )?;
     m.add(
         "RED_TEAM_CHAT_CHANNEL",
@@ -973,7 +976,7 @@ fn pyshinqlx_module(py: Python<'_>, m: &PyModule) -> PyResult<()> {
                 "print \"{}\n\"\n".into(),
             ),
         )?
-        .to_object(py),
+            .to_object(py),
     )?;
     m.add(
         "BLUE_TEAM_CHAT_CHANNEL",
@@ -985,7 +988,7 @@ fn pyshinqlx_module(py: Python<'_>, m: &PyModule) -> PyResult<()> {
                 "print \"{}\n\"\n".into(),
             ),
         )?
-        .to_object(py),
+            .to_object(py),
     )?;
     m.add(
         "FREE_CHAT_CHANNEL",
@@ -993,7 +996,7 @@ fn pyshinqlx_module(py: Python<'_>, m: &PyModule) -> PyResult<()> {
             py,
             TeamChatChannel::py_new("free".into(), "free_chat".into(), "print \"{}\n\"\n".into()),
         )?
-        .to_object(py),
+            .to_object(py),
     )?;
     m.add(
         "SPECTATOR_CHAT_CHANNEL",
@@ -1005,7 +1008,7 @@ fn pyshinqlx_module(py: Python<'_>, m: &PyModule) -> PyResult<()> {
                 "print \"{}\n\"\n".into(),
             ),
         )?
-        .to_object(py),
+            .to_object(py),
     )?;
     m.add(
         "CONSOLE_CHANNEL",
@@ -1094,13 +1097,13 @@ pub(crate) fn pyshinqlx_reload() -> Result<(), PythonInitializationError> {
         &KAMIKAZE_EXPLODE_HANDLER,
         &DAMAGE_HANDLER,
     ]
-    .iter()
-    .for_each(|&handler_lock| handler_lock.store(None));
+        .iter()
+        .for_each(|&handler_lock| handler_lock.store(None));
 
     let reinit_result = Python::with_gil(|py| {
         let importlib_module = py.import("importlib")?;
         let shinqlx_module = py.import("shinqlx")?;
-        let new_shinqlx_module = importlib_module.call_method1("reload", (shinqlx_module,))?;
+        let new_shinqlx_module = importlib_module.call_method1("reload", (shinqlx_module, ))?;
         new_shinqlx_module.call_method0("initialize")?;
         Ok::<(), PyErr>(())
     });
@@ -1123,20 +1126,21 @@ pub(crate) mod python_tests {
     use super::PythonInitializationError;
 
     pub(crate) fn rcon_dispatcher<T>(_cmd: T)
-    where
-        T: AsRef<str> + 'static,
-    {
-    }
+        where
+            T: AsRef<str> + 'static,
+    {}
 
     pub(crate) fn client_command_dispatcher(_client_id: i32, _cmd: String) -> Option<String> {
         None
     }
+
     pub(crate) fn server_command_dispatcher(
         _client_id: Option<i32>,
         _cmd: String,
     ) -> Option<String> {
         None
     }
+
     pub(crate) fn client_loaded_dispatcher(_client_id: i32) {}
 
     pub(crate) fn set_configstring_dispatcher(_index: u32, _value: &str) -> Option<String> {
@@ -1169,8 +1173,7 @@ pub(crate) mod python_tests {
         _damage: i32,
         _dflags: i32,
         _means_of_death: i32,
-    ) {
-    }
+    ) {}
 
     pub(crate) fn pyshinqlx_is_initialized() -> bool {
         false
