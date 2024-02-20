@@ -65,7 +65,7 @@ pub(crate) struct Game {
 #[pymethods]
 impl Game {
     #[new]
-    #[pyo3(signature = (cached=true))]
+    #[pyo3(signature = (cached = true))]
     fn py_new(py: Python<'_>, cached: bool) -> PyResult<Self> {
         py.allow_threads(|| {
             let Some(ref main_engine) = *MAIN_ENGINE.load() else {
@@ -342,7 +342,7 @@ impl Game {
                 _ => {
                     return Err(PyValueError::new_err(
                         "instagib needs to be 0, 1, or a bool.",
-                    ))
+                    ));
                 }
             },
         };
@@ -367,7 +367,7 @@ impl Game {
                 _ => {
                     return Err(PyValueError::new_err(
                         "loadout needs to be 0, 1, or a bool.",
-                    ))
+                    ));
                 }
             },
         };
@@ -797,7 +797,7 @@ mod pyshinqlx_game_tests {
             result.expect("result was not OK"),
             Game {
                 cached: true,
-                valid: true
+                valid: true,
             }
         );
     }
@@ -1395,7 +1395,7 @@ mod pyshinqlx_game_tests {
     #[case(10, "Domination")]
     #[case(11, "Attack and Defend")]
     #[case(12, "Red Rover")]
-    #[case(-1, "unknown")]
+    #[case(- 1, "unknown")]
     #[case(13, "unknown")]
     #[cfg_attr(miri, ignore)]
     #[serial]
@@ -1473,7 +1473,7 @@ mod pyshinqlx_game_tests {
     #[case(10, "dom")]
     #[case(11, "ad")]
     #[case(12, "rr")]
-    #[case(-1, "N/A")]
+    #[case(- 1, "N/A")]
     #[case(13, "N/A")]
     #[cfg_attr(miri, ignore)]
     #[serial]
@@ -2408,6 +2408,7 @@ _shinqlx._map_subtitle2 = "Awesome map!"
             game.set_scorelimit(py, 8).expect("this should not happen");
         });
     }
+
     #[test]
     #[cfg_attr(miri, ignore)]
     #[serial]
