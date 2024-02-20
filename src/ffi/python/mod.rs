@@ -195,6 +195,10 @@ impl FromStr for ParsedVariables {
     type Err = &'static str;
 
     fn from_str(varstr: &str) -> Result<Self, Self::Err> {
+        if varstr.trim().is_empty() {
+            return Ok(Self { items: vec![] });
+        }
+
         let stripped_varstr = varstr.strip_prefix(r"\\").unwrap_or(varstr).to_string();
 
         let varstr_vec: Vec<String> = stripped_varstr

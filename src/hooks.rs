@@ -228,7 +228,10 @@ pub(crate) fn shinqlx_sv_cliententerworld(client: *mut client_t, cmd: *mut userc
 #[cfg_attr(test, allow(dead_code))]
 pub(crate) fn shinqlx_sv_setconfigstring(index: c_int, value: *const c_char) {
     let safe_value = if !value.is_null() {
-        unsafe { CStr::from_ptr(value) }.to_string_lossy()
+        unsafe { CStr::from_ptr(value) }
+            .to_string_lossy()
+            .escape_default()
+            .to_string()
     } else {
         "".into()
     };
@@ -525,10 +528,15 @@ pub(crate) mod hooks {
         _client_ok: bool,
     ) {
     }
+
     pub(crate) fn shinqlx_send_server_command(_client: Option<Client>, _cmd: &str) {}
+
     pub(crate) fn shinqlx_drop_client(_client: &mut Client, _reason: &str) {}
+
     pub(crate) fn shinqlx_client_spawn(_game_entity: &mut GameEntity) {}
+
     pub(crate) fn shinqlx_set_configstring(_index: u32, _value: &str) {}
+
     pub(crate) fn shinqlx_com_printf(_msg: &str) {}
 }
 
