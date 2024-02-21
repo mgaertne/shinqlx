@@ -225,13 +225,9 @@ pub(crate) fn shinqlx_sv_cliententerworld(client: *mut client_t, cmd: *mut userc
     }
 }
 
-#[cfg_attr(test, allow(dead_code))]
 pub(crate) fn shinqlx_sv_setconfigstring(index: c_int, value: *const c_char) {
     let safe_value = if !value.is_null() {
-        unsafe { CStr::from_ptr(value) }
-            .to_string_lossy()
-            .escape_default()
-            .to_string()
+        unsafe { CStr::from_ptr(value) }.to_string_lossy()
     } else {
         "".into()
     };
@@ -548,14 +544,14 @@ mod hooks_tests {
         shinqlx_drop_client, shinqlx_execute_client_command, shinqlx_g_damage, shinqlx_g_initgame,
         shinqlx_g_runframe, shinqlx_g_shutdowngame, shinqlx_g_startkamikaze,
         shinqlx_send_server_command, shinqlx_set_configstring, shinqlx_sv_cliententerworld,
-        shinqlx_sv_spawnserver, shinqlx_sys_setmoduleoffset,
+        shinqlx_sv_setconfigstring, shinqlx_sv_spawnserver, shinqlx_sys_setmoduleoffset,
     };
     use crate::ffi::c::prelude::*;
     use crate::ffi::python::prelude::*;
     use crate::prelude::*;
 
     use alloc::ffi::CString;
-    use core::ffi::{c_char, CStr};
+    use core::ffi::{c_char, c_int, CStr};
     use mockall::predicate;
     use pretty_assertions::assert_eq;
     use rstest::*;
@@ -1131,6 +1127,27 @@ mod hooks_tests {
             .expect("this should not happen");
 
         shinqlx_sv_cliententerworld(&mut client, &mut usercmd as *mut usercmd_t);
+    }
+
+    #[test]
+    #[serial]
+    fn sv_set_configstring_with_parseable_variable() {
+        let mut mock_engine = MockQuakeEngine::new();
+        mock_engine
+            .expect_set_configstring()
+            .with(predicate::eq(42), predicate::eq(r"\some\value"))
+            .times(1);
+        MAIN_ENGINE.store(Some(mock_engine.into()));
+
+        let set_configstring_dispatcher_ctx = set_configstring_dispatcher_context();
+        set_configstring_dispatcher_ctx
+            .expect()
+            .with(predicate::eq(42), predicate::eq(r"\some\value"))
+            .return_const(Some(r"\some\value".into()))
+            .times(1);
+
+        let value = CString::new(r"\some\value").expect("this should not happen");
+        shinqlx_sv_setconfigstring(42 as c_int, value.as_ptr());
     }
 
     #[test]

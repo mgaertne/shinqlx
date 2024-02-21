@@ -110,10 +110,10 @@ mod player_info_tests {
                 r#"
 import _shinqlx
 _DUMMY_USERINFO = (
-    "ui_singlePlayerActive\\0\\cg_autoAction\\1\\cg_autoHop\\0"
-    "\\cg_predictItems\\1\\model\\bitterman/sport_blue\\headmodel\\crash/red"
-    "\\handicap\\100\\cl_anonymous\\0\\color1\\4\\color2\\23\\sex\\male"
-    "\\teamtask\\0\\rate\\25000\\country\\NO"
+    r"ui_singlePlayerActive\0\cg_autoAction\1\cg_autoHop\0"
+    r"\cg_predictItems\1\model\bitterman/sport_blue\headmodel\crash/red"
+    r"\handicap\100\cl_anonymous\0\color1\4\color2\23\sex\male"
+    r"\teamtask\0\rate\25000\country\NO"
 )
 player_info = _shinqlx.PlayerInfo(
             (
@@ -215,7 +215,7 @@ player_info = _shinqlx.PlayerInfo(
                 userinfo: "asdf".into(),
                 steam_id: 42,
                 team: team_t::TEAM_SPECTATOR as i32,
-                privileges: privileges_t::PRIV_NONE as i32
+                privileges: privileges_t::PRIV_NONE as i32,
             }
         );
     }
