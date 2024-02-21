@@ -199,10 +199,10 @@ impl FromStr for ParsedVariables {
             return Ok(Self { items: vec![] });
         }
 
-        let stripped_varstr = varstr.strip_prefix(r"\\").unwrap_or(varstr).to_string();
+        let stripped_varstr = varstr.strip_prefix('\\').unwrap_or(varstr).to_string();
 
         let varstr_vec: Vec<String> = stripped_varstr
-            .split(r"\\")
+            .split('\\')
             .map(|value| value.into())
             .collect();
 
@@ -220,7 +220,7 @@ impl From<ParsedVariables> for String {
         value
             .items
             .iter()
-            .map(|(key, value)| format!(r"\\{key}\\{value}"))
+            .map(|(key, value)| format!(r"\{key}\{value}"))
             .join("")
     }
 }
@@ -271,7 +271,7 @@ mod parsed_variables_test {
 
     #[test]
     fn test_parse_variables_with_space() {
-        let variables = ParsedVariables::from_str(r"\\name\\Unnamed Player\\country\\de")
+        let variables = ParsedVariables::from_str(r"\name\Unnamed Player\country\de")
             .expect("this should not happen");
         assert!(variables
             .get("name")
@@ -317,7 +317,7 @@ fn set_map_subtitles(module: &PyModule) -> PyResult<()> {
     Ok(())
 }
 
-/// Parses strings of key-value pairs delimited by "\\" and puts
+/// Parses strings of key-value pairs delimited by r"\" and puts
 /// them into a dictionary.
 #[pyfunction]
 #[pyo3(name = "parse_variables")]

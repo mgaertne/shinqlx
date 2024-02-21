@@ -203,8 +203,8 @@ impl Player {
     }
 
     #[pyo3(
-        name = "_invalidate",
-        signature = (e="The player does not exist anymore. Did the player disconnect?".into())
+    name = "_invalidate",
+    signature = (e = "The player does not exist anymore. Did the player disconnect?".into())
     )]
     fn invalidate(&mut self, e: String) -> PyResult<()> {
         self.valid = false;
@@ -226,7 +226,7 @@ impl Player {
     fn set_cvars(&mut self, py: Python<'_>, new_cvars: &PyDict) -> PyResult<()> {
         let new = new_cvars
             .iter()
-            .map(|(key, value)| format!(r"\\{key}\\{value}"))
+            .map(|(key, value)| format!(r"\{key}\{value}"))
             .join("");
         let client_command = format!(r#"userinfo "{new}""#);
         pyshinqlx_client_command(py, self.id, &client_command)?;
@@ -624,7 +624,7 @@ impl Player {
             .map(|opt_stats| opt_stats.map(|stats| stats.ping).unwrap_or(999))
     }
 
-    #[pyo3(signature=(reset=false, **kwargs))]
+    #[pyo3(signature = (reset = false, * * kwargs))]
     fn position(&self, py: Python<'_>, reset: bool, kwargs: Option<&PyDict>) -> PyResult<PyObject> {
         let pos = if reset {
             Vector3(0, 0, 0)
@@ -656,7 +656,7 @@ impl Player {
         }
     }
 
-    #[pyo3(signature=(reset=false, **kwargs))]
+    #[pyo3(signature = (reset = false, * * kwargs))]
     fn velocity(&self, py: Python<'_>, reset: bool, kwargs: Option<&PyDict>) -> PyResult<PyObject> {
         let vel = if reset {
             Vector3(0, 0, 0)
@@ -688,7 +688,7 @@ impl Player {
         }
     }
 
-    #[pyo3(signature=(reset=false, **kwargs))]
+    #[pyo3(signature = (reset = false, * * kwargs))]
     fn weapons(&self, py: Python<'_>, reset: bool, kwargs: Option<&PyDict>) -> PyResult<PyObject> {
         let weaps = if reset {
             Weapons(0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0)
@@ -775,7 +775,7 @@ impl Player {
         }
     }
 
-    #[pyo3(signature = (new_weapon=None))]
+    #[pyo3(signature = (new_weapon = None))]
     fn weapon(&self, py: Python<'_>, new_weapon: Option<PyObject>) -> PyResult<PyObject> {
         let Some(weapon) = new_weapon else {
             let weapon = match pyshinqlx_player_state(py, self.id)? {
@@ -799,7 +799,7 @@ impl Player {
         pyshinqlx_set_weapon(py, self.id, converted_weapon as i32).map(|value| value.into_py(py))
     }
 
-    #[pyo3(signature=(reset=false, **kwargs))]
+    #[pyo3(signature = (reset = false, * * kwargs))]
     fn ammo(&self, py: Python<'_>, reset: bool, kwargs: Option<&PyDict>) -> PyResult<PyObject> {
         let ammos = if reset {
             Weapons(0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0)
@@ -886,7 +886,7 @@ impl Player {
         }
     }
 
-    #[pyo3(signature=(reset=false, **kwargs))]
+    #[pyo3(signature = (reset = false, * * kwargs))]
     fn powerups(&self, py: Python<'_>, reset: bool, kwargs: Option<&PyDict>) -> PyResult<PyObject> {
         let powerups = if reset {
             Powerups(0, 0, 0, 0, 0, 0)
@@ -956,7 +956,7 @@ impl Player {
         Ok(())
     }
 
-    #[pyo3(signature=(reset=false, **kwargs))]
+    #[pyo3(signature = (reset = false, * * kwargs))]
     fn flight(
         &mut self,
         py: Python<'_>,
@@ -1115,7 +1115,7 @@ impl Player {
         pyshinqlx_send_server_command(py, Some(self.id), &cmd).map(|_| ())
     }
 
-    #[pyo3(signature=(msg, **kwargs))]
+    #[pyo3(signature = (msg, * * kwargs))]
     fn tell<'py>(
         &self,
         py: Python<'py>,
@@ -1129,7 +1129,7 @@ impl Player {
         tell_channel.call_method(py, "reply", (msg,), kwargs)
     }
 
-    #[pyo3(signature=(reason=""))]
+    #[pyo3(signature = (reason = ""))]
     fn kick(&self, py: Python<'_>, reason: &str) -> PyResult<()> {
         pyshinqlx_kick(py, self.id, Some(reason))
     }
@@ -1195,7 +1195,7 @@ impl Player {
         other_player.put(py, own_team)
     }
 
-    #[pyo3(signature=(damage=0))]
+    #[pyo3(signature = (damage = 0))]
     fn slap(&self, py: Python<'_>, damage: i32) -> PyResult<()> {
         let slap_cmd = format!("slap {} {}", self.id, damage);
         pyshinqlx_console_command(py, &slap_cmd)
@@ -1327,7 +1327,7 @@ mod pyshinqlx_player_tests {
         let result = Player::py_new(
             2,
             Some(PlayerInfo {
-                userinfo: r"\\name\\UnnamedPlayer".into(),
+                userinfo: r"\name\UnnamedPlayer".into(),
                 ..default_test_player_info()
             }),
         );
@@ -1335,10 +1335,10 @@ mod pyshinqlx_player_tests {
             result.expect("result was not OK"),
             Player {
                 player_info: PlayerInfo {
-                    userinfo: r"\\name\\UnnamedPlayer".into(),
+                    userinfo: r"\name\UnnamedPlayer".into(),
                     ..default_test_player_info()
                 },
-                user_info: r"\\name\\UnnamedPlayer".into(),
+                user_info: r"\name\UnnamedPlayer".into(),
                 name: "UnnamedPlayer".into(),
                 ..default_test_player()
             }
@@ -1426,10 +1426,10 @@ mod pyshinqlx_player_tests {
     fn contains_where_value_is_part_of_userinfo() {
         let player = Player {
             player_info: PlayerInfo {
-                userinfo: r"\\asdf\\some value".into(),
+                userinfo: r"\asdf\some value".into(),
                 ..default_test_player_info()
             },
-            user_info: r"\\asdf\\some value".into(),
+            user_info: r"\asdf\some value".into(),
             ..default_test_player()
         };
 
@@ -1442,10 +1442,10 @@ mod pyshinqlx_player_tests {
     fn contains_where_value_is_not_in_userinfo() {
         let player = Player {
             player_info: PlayerInfo {
-                userinfo: r"\\name\\^1Unnamed^2Player".into(),
+                userinfo: r"\name\^1Unnamed^2Player".into(),
                 ..default_test_player_info()
             },
-            user_info: r"\\name\\^1Unnamed^2Player".into(),
+            user_info: r"\name\^1Unnamed^2Player".into(),
             ..default_test_player()
         };
 
@@ -1472,10 +1472,10 @@ mod pyshinqlx_player_tests {
     fn getitem_where_value_is_part_of_userinfo() {
         let player = Player {
             player_info: PlayerInfo {
-                userinfo: r"\\asdf\\some value".into(),
+                userinfo: r"\asdf\some value".into(),
                 ..default_test_player_info()
             },
-            user_info: r"\\asdf\\some value".into(),
+            user_info: r"\asdf\some value".into(),
             ..default_test_player()
         };
 
@@ -1488,10 +1488,10 @@ mod pyshinqlx_player_tests {
     fn getitem_where_value_is_not_in_userinfo() {
         let player = Player {
             player_info: PlayerInfo {
-                userinfo: r"\\name\\^1Unnamed^2Player".into(),
+                userinfo: r"\name\^1Unnamed^2Player".into(),
                 ..default_test_player_info()
             },
-            user_info: r"\\name\\^1Unnamed^2Player".into(),
+            user_info: r"\name\^1Unnamed^2Player".into(),
             ..default_test_player()
         };
 
@@ -1520,10 +1520,10 @@ mod pyshinqlx_player_tests {
     fn cvars_where_value_is_part_of_userinfo() {
         let player = Player {
             player_info: PlayerInfo {
-                userinfo: r"\\asdf\\some value".into(),
+                userinfo: r"\asdf\some value".into(),
                 ..default_test_player_info()
             },
-            user_info: r"\\asdf\\some value".into(),
+            user_info: r"\asdf\some value".into(),
             ..default_test_player()
         };
 
@@ -1832,7 +1832,7 @@ assert(player._valid)
                     .return_const(clientState_t::CS_CONNECTED);
                 mock_client
                     .expect_get_user_info()
-                    .return_const(r"\\name\\NewUnnamedPlayer");
+                    .return_const(r"\name\NewUnnamedPlayer");
                 mock_client
                     .expect_get_steam_id()
                     .return_const(1234567890u64);
@@ -1882,7 +1882,7 @@ assert(player._valid)
             .expect()
             .withf(|client, cmd, &client_ok| {
                 client.is_some()
-                    && cmd == r#"userinfo "\\asdf\\qwertz\\name\\UnnamedPlayer""#
+                    && cmd == r#"userinfo "\asdf\qwertz\name\UnnamedPlayer""#
                     && client_ok
             })
             .times(1);
@@ -1915,9 +1915,9 @@ assert(player._valid)
     #[cfg_attr(miri, ignore)]
     fn get_ip_for_ip_with_no_port() {
         let player = Player {
-            user_info: r"\\ip\\127.0.0.1".into(),
+            user_info: r"\ip\127.0.0.1".into(),
             player_info: PlayerInfo {
-                userinfo: r"\\ip\\127.0.0.1".into(),
+                userinfo: r"\ip\127.0.0.1".into(),
                 ..default_test_player_info()
             },
             ..default_test_player()
@@ -1930,9 +1930,9 @@ assert(player._valid)
     #[cfg_attr(miri, ignore)]
     fn get_ip_for_ip_with_port() {
         let player = Player {
-            user_info: r"\\ip\\127.0.0.1:27666".into(),
+            user_info: r"\ip\127.0.0.1:27666".into(),
             player_info: PlayerInfo {
-                userinfo: r"\\ip\\127.0.0.1:27666".into(),
+                userinfo: r"\ip\127.0.0.1:27666".into(),
                 ..default_test_player_info()
             },
             ..default_test_player()
@@ -1975,7 +1975,7 @@ assert(player._valid)
         mock_engine
             .expect_get_configstring()
             .with(predicate::eq(531))
-            .returning(|_| r"\\cn\\asdf".into());
+            .returning(|_| r"\cn\asdf".into());
         MAIN_ENGINE.store(Some(mock_engine.into()));
 
         let player = default_test_player();
@@ -2004,7 +2004,7 @@ assert(player._valid)
         mock_engine
             .expect_set_configstring()
             .withf(|index, value| {
-                *index == 531i32 && value.contains(r"\\cn\\clan") && value.contains(r"\\xcn\\clan")
+                *index == 531i32 && value.contains(r"\cn\clan") && value.contains(r"\xcn\clan")
             })
             .times(1);
         MAIN_ENGINE.store(Some(mock_engine.into()));
@@ -2021,15 +2021,15 @@ assert(player._valid)
         mock_engine
             .expect_get_configstring()
             .with(predicate::eq(531))
-            .returning(|_| r"\\xcn\\asdf\\cn\\asdf".into());
+            .returning(|_| r"\xcn\asdf\cn\asdf".into());
         mock_engine
             .expect_set_configstring()
             .withf(|index, value| {
                 *index == 531i32
-                    && value.contains(r"\\cn\\clan")
-                    && value.contains(r"\\xcn\\clan")
-                    && !value.contains(r"\\cn\\asdf")
-                    && !value.contains(r"\\xcn\\asdf")
+                    && value.contains(r"\cn\clan")
+                    && value.contains(r"\xcn\clan")
+                    && !value.contains(r"\cn\asdf")
+                    && !value.contains(r"\xcn\asdf")
             })
             .times(1);
         MAIN_ENGINE.store(Some(mock_engine.into()));
@@ -2096,15 +2096,15 @@ assert(player._valid)
             .expect()
             .withf(|client, cmd, &client_ok| {
                 client.is_some()
-                    && cmd == r#"userinfo "\\asdf\\qwertz\\name\\^1Unnamed^2Player""#
+                    && cmd == r#"userinfo "\asdf\qwertz\name\^1Unnamed^2Player""#
                     && client_ok
             })
             .times(1);
 
         let mut player = Player {
-            user_info: r"\\asdf\\qwertz\\name\\UnnamedPlayer".into(),
+            user_info: r"\asdf\qwertz\name\UnnamedPlayer".into(),
             player_info: PlayerInfo {
-                userinfo: r"\\asdf\\qwertz\\name\\UnnamedPlayer".into(),
+                userinfo: r"\asdf\qwertz\name\UnnamedPlayer".into(),
                 ..default_test_player_info()
             },
             ..default_test_player()
@@ -2147,9 +2147,9 @@ assert(player._valid)
     #[cfg_attr(miri, ignore)]
     fn get_qport_for_port_set() {
         let player = Player {
-            user_info: r"\\qport\\27666".into(),
+            user_info: r"\qport\27666".into(),
             player_info: PlayerInfo {
-                userinfo: r"\\qport\\27666".into(),
+                userinfo: r"\qport\27666".into(),
                 ..default_test_player_info()
             },
             ..default_test_player()
@@ -2164,9 +2164,9 @@ assert(player._valid)
     #[cfg_attr(miri, ignore)]
     fn get_qport_for_invalid_port_set() {
         let player = Player {
-            user_info: r"\\qport\\asdf".into(),
+            user_info: r"\qport\asdf".into(),
             player_info: PlayerInfo {
-                userinfo: r"\\qport\\asdf".into(),
+                userinfo: r"\qport\asdf".into(),
                 ..default_test_player_info()
             },
             ..default_test_player()
@@ -2272,9 +2272,9 @@ assert(player._valid)
     #[cfg_attr(miri, ignore)]
     fn get_colors_for_colors_set() {
         let player = Player {
-            user_info: r"\\color1\\42\\color2\\21".into(),
+            user_info: r"\color1\42\color2\21".into(),
             player_info: PlayerInfo {
-                userinfo: r"\\color1\\42\\colors2\\21".into(),
+                userinfo: r"\color1\42\colors2\21".into(),
                 ..default_test_player_info()
             },
             ..default_test_player()
@@ -2289,9 +2289,9 @@ assert(player._valid)
     #[cfg_attr(miri, ignore)]
     fn get_colors_for_invalid_color1_set() {
         let player = Player {
-            user_info: r"\\color1\\asdf\\color2\\42".into(),
+            user_info: r"\color1\asdf\color2\42".into(),
             player_info: PlayerInfo {
-                userinfo: r"\\color1\\asdf\\color2\\42".into(),
+                userinfo: r"\color1\asdf\color2\42".into(),
                 ..default_test_player_info()
             },
             ..default_test_player()
@@ -2306,9 +2306,9 @@ assert(player._valid)
     #[cfg_attr(miri, ignore)]
     fn get_colors_for_invalid_color2_set() {
         let player = Player {
-            user_info: r"\\color1\\42\\color2\\asdf".into(),
+            user_info: r"\color1\42\color2\asdf".into(),
             player_info: PlayerInfo {
-                userinfo: r"\\color1\\42\\color2\\asdf".into(),
+                userinfo: r"\color1\42\color2\asdf".into(),
                 ..default_test_player_info()
             },
             ..default_test_player()
@@ -2341,16 +2341,15 @@ assert(player._valid)
             .expect()
             .withf(|client, cmd, &client_ok| {
                 client.is_some()
-                    && cmd
-                        == r#"userinfo "\\asdf\\qwertz\\name\\UnnamedPlayer\\color1\\0\\color2\\3""#
+                    && cmd == r#"userinfo "\asdf\qwertz\name\UnnamedPlayer\color1\0\color2\3""#
                     && client_ok
             })
             .times(1);
 
         let mut player = Player {
-            user_info: r"\\asdf\\qwertz\\color1\\7.0\\color2\\5\\name\\UnnamedPlayer".into(),
+            user_info: r"\asdf\qwertz\color1\7.0\color2\5\name\UnnamedPlayer".into(),
             player_info: PlayerInfo {
-                userinfo: r"\\asdf\\qwertz\\color1\\7.0\\color2\\5\\name\\UnnamedPlayer".into(),
+                userinfo: r"\asdf\qwertz\color1\7.0\color2\5\name\UnnamedPlayer".into(),
                 ..default_test_player_info()
             },
             ..default_test_player()
@@ -2382,9 +2381,9 @@ assert(player._valid)
     #[cfg_attr(miri, ignore)]
     fn get_model_when_model_is_set() {
         let player = Player {
-            user_info: r"\\model\\asdf".into(),
+            user_info: r"\model\asdf".into(),
             player_info: PlayerInfo {
-                userinfo: r"\\model\\asdf".into(),
+                userinfo: r"\model\asdf".into(),
                 ..default_test_player_info()
             },
             ..default_test_player()
@@ -2416,15 +2415,15 @@ assert(player._valid)
             .expect()
             .withf(|client, cmd, &client_ok| {
                 client.is_some()
-                    && cmd == r#"userinfo "\\asdf\\qwertz\\name\\UnnamedPlayer\\model\\Uriel""#
+                    && cmd == r#"userinfo "\asdf\qwertz\name\UnnamedPlayer\model\Uriel""#
                     && client_ok
             })
             .times(1);
 
         let mut player = Player {
-            user_info: r"\\asdf\\qwertz\\model\\Anarki\\name\\UnnamedPlayer".into(),
+            user_info: r"\asdf\qwertz\model\Anarki\name\UnnamedPlayer".into(),
             player_info: PlayerInfo {
-                userinfo: r"\\asdf\\qwertz\\model\\Anarki\\name\\UnnamedPlayer".into(),
+                userinfo: r"\asdf\qwertz\model\Anarki\name\UnnamedPlayer".into(),
                 ..default_test_player_info()
             },
             ..default_test_player()
@@ -2456,9 +2455,9 @@ assert(player._valid)
     #[cfg_attr(miri, ignore)]
     fn get_headmodel_when_headmodel_is_set() {
         let player = Player {
-            user_info: r"\\headmodel\\asdf".into(),
+            user_info: r"\headmodel\asdf".into(),
             player_info: PlayerInfo {
-                userinfo: r"\\headmodel\\asdf".into(),
+                userinfo: r"\headmodel\asdf".into(),
                 ..default_test_player_info()
             },
             ..default_test_player()
@@ -2490,15 +2489,15 @@ assert(player._valid)
             .expect()
             .withf(|client, cmd, &client_ok| {
                 client.is_some()
-                    && cmd == r#"userinfo "\\asdf\\qwertz\\name\\UnnamedPlayer\\headmodel\\Uriel""#
+                    && cmd == r#"userinfo "\asdf\qwertz\name\UnnamedPlayer\headmodel\Uriel""#
                     && client_ok
             })
             .times(1);
 
         let mut player = Player {
-            user_info: r"\\asdf\\qwertz\\headmodel\\Anarki\\name\\UnnamedPlayer".into(),
+            user_info: r"\asdf\qwertz\headmodel\Anarki\name\UnnamedPlayer".into(),
             player_info: PlayerInfo {
-                userinfo: r"\\asdf\\qwertz\\headmodel\\Anarki\\name\\UnnamedPlayer".into(),
+                userinfo: r"\asdf\qwertz\headmodel\Anarki\name\UnnamedPlayer".into(),
                 ..default_test_player_info()
             },
             ..default_test_player()
@@ -2530,9 +2529,9 @@ assert(player._valid)
     #[cfg_attr(miri, ignore)]
     fn get_handicap_when_handicap_is_set() {
         let player = Player {
-            user_info: r"\\handicap\\42".into(),
+            user_info: r"\handicap\42".into(),
             player_info: PlayerInfo {
-                userinfo: r"\\handicap\\42".into(),
+                userinfo: r"\handicap\42".into(),
                 ..default_test_player_info()
             },
             ..default_test_player()
@@ -2564,15 +2563,15 @@ assert(player._valid)
             .expect()
             .withf(|client, cmd, &client_ok| {
                 client.is_some()
-                    && cmd == r#"userinfo "\\asdf\\qwertz\\name\\UnnamedPlayer\\handicap\\50""#
+                    && cmd == r#"userinfo "\asdf\qwertz\name\UnnamedPlayer\handicap\50""#
                     && client_ok
             })
             .times(1);
 
         let mut player = Player {
-            user_info: r"\\asdf\\qwertz\\handicap\\100\\name\\UnnamedPlayer".into(),
+            user_info: r"\asdf\qwertz\handicap\100\name\UnnamedPlayer".into(),
             player_info: PlayerInfo {
-                userinfo: r"\\asdf\\qwertz\\handicap\\100\\name\\UnnamedPlayer".into(),
+                userinfo: r"\asdf\qwertz\handicap\100\name\UnnamedPlayer".into(),
                 ..default_test_player_info()
             },
             ..default_test_player()
@@ -2604,9 +2603,9 @@ assert(player._valid)
     #[cfg_attr(miri, ignore)]
     fn get_autohop_when_autohop_is_set() {
         let player = Player {
-            user_info: r"\\autohop\\1".into(),
+            user_info: r"\autohop\1".into(),
             player_info: PlayerInfo {
-                userinfo: r"\\autohop\\1".into(),
+                userinfo: r"\autohop\1".into(),
                 ..default_test_player_info()
             },
             ..default_test_player()
@@ -2620,9 +2619,9 @@ assert(player._valid)
     #[cfg_attr(miri, ignore)]
     fn get_autohop_when_autohop_is_disabled() {
         let player = Player {
-            user_info: r"\\autohop\\0".into(),
+            user_info: r"\autohop\0".into(),
             player_info: PlayerInfo {
-                userinfo: r"\\autohop\\0".into(),
+                userinfo: r"\autohop\0".into(),
                 ..default_test_player_info()
             },
             ..default_test_player()
@@ -2654,15 +2653,15 @@ assert(player._valid)
             .expect()
             .withf(|client, cmd, &client_ok| {
                 client.is_some()
-                    && cmd == r#"userinfo "\\asdf\\qwertz\\name\\UnnamedPlayer\\autohop\\0""#
+                    && cmd == r#"userinfo "\asdf\qwertz\name\UnnamedPlayer\autohop\0""#
                     && client_ok
             })
             .times(1);
 
         let mut player = Player {
-            user_info: r"\\asdf\\qwertz\\autohop\\1\\name\\UnnamedPlayer".into(),
+            user_info: r"\asdf\qwertz\autohop\1\name\UnnamedPlayer".into(),
             player_info: PlayerInfo {
-                userinfo: r"\\asdf\\qwertz\\autohop\\1\\name\\UnnamedPlayer".into(),
+                userinfo: r"\asdf\qwertz\autohop\1\name\UnnamedPlayer".into(),
                 ..default_test_player_info()
             },
             ..default_test_player()
@@ -2694,9 +2693,9 @@ assert(player._valid)
     #[cfg_attr(miri, ignore)]
     fn get_autoaction_when_autohop_is_set() {
         let player = Player {
-            user_info: r"\\autoaction\\1".into(),
+            user_info: r"\autoaction\1".into(),
             player_info: PlayerInfo {
-                userinfo: r"\\autoaction\\1".into(),
+                userinfo: r"\autoaction\1".into(),
                 ..default_test_player_info()
             },
             ..default_test_player()
@@ -2710,9 +2709,9 @@ assert(player._valid)
     #[cfg_attr(miri, ignore)]
     fn get_autoaction_when_autoaction_is_disabled() {
         let player = Player {
-            user_info: r"\\autoaction\\0".into(),
+            user_info: r"\autoaction\0".into(),
             player_info: PlayerInfo {
-                userinfo: r"\\autoaction\\0".into(),
+                userinfo: r"\autoaction\0".into(),
                 ..default_test_player_info()
             },
             ..default_test_player()
@@ -2744,15 +2743,15 @@ assert(player._valid)
             .expect()
             .withf(|client, cmd, &client_ok| {
                 client.is_some()
-                    && cmd == r#"userinfo "\\asdf\\qwertz\\name\\UnnamedPlayer\\autoaction\\0""#
+                    && cmd == r#"userinfo "\asdf\qwertz\name\UnnamedPlayer\autoaction\0""#
                     && client_ok
             })
             .times(1);
 
         let mut player = Player {
-            user_info: r"\\asdf\\qwertz\\autoaction\\1\\name\\UnnamedPlayer".into(),
+            user_info: r"\asdf\qwertz\autoaction\1\name\UnnamedPlayer".into(),
             player_info: PlayerInfo {
-                userinfo: r"\\asdf\\qwertz\\autoaction\\1\\name\\UnnamedPlayer".into(),
+                userinfo: r"\asdf\qwertz\autoaction\1\name\UnnamedPlayer".into(),
                 ..default_test_player_info()
             },
             ..default_test_player()
@@ -2784,9 +2783,9 @@ assert(player._valid)
     #[cfg_attr(miri, ignore)]
     fn get_predictitems_when_predictitems_is_set() {
         let player = Player {
-            user_info: r"\\cg_predictitems\\1".into(),
+            user_info: r"\cg_predictitems\1".into(),
             player_info: PlayerInfo {
-                userinfo: r"\\cg_predictitems\\1".into(),
+                userinfo: r"\cg_predictitems\1".into(),
                 ..default_test_player_info()
             },
             ..default_test_player()
@@ -2800,9 +2799,9 @@ assert(player._valid)
     #[cfg_attr(miri, ignore)]
     fn get_predititems_when_predictitems_is_disabled() {
         let player = Player {
-            user_info: r"\\cg_predictitems\\0".into(),
+            user_info: r"\cg_predictitems\0".into(),
             player_info: PlayerInfo {
-                userinfo: r"\\cg_predictitems\\0".into(),
+                userinfo: r"\cg_predictitems\0".into(),
                 ..default_test_player_info()
             },
             ..default_test_player()
@@ -2834,16 +2833,15 @@ assert(player._valid)
             .expect()
             .withf(|client, cmd, &client_ok| {
                 client.is_some()
-                    && cmd
-                        == r#"userinfo "\\asdf\\qwertz\\name\\UnnamedPlayer\\cg_predictitems\\0""#
+                    && cmd == r#"userinfo "\asdf\qwertz\name\UnnamedPlayer\cg_predictitems\0""#
                     && client_ok
             })
             .times(1);
 
         let mut player = Player {
-            user_info: r"\\asdf\\qwertz\\cg_predictitems\\1\\name\\UnnamedPlayer".into(),
+            user_info: r"\asdf\qwertz\cg_predictitems\1\name\UnnamedPlayer".into(),
             player_info: PlayerInfo {
-                userinfo: r"\\asdf\\qwertz\\cg_predictitems\\1\\name\\UnnamedPlayer".into(),
+                userinfo: r"\asdf\qwertz\cg_predictitems\1\name\UnnamedPlayer".into(),
                 ..default_test_player_info()
             },
             ..default_test_player()
@@ -3038,10 +3036,10 @@ assert(player._valid)
     }
 
     #[rstest]
-    #[case(None, &privileges_t::PRIV_NONE)]
-    #[case(Some("none".into()), &privileges_t::PRIV_NONE)]
-    #[case(Some("mod".into()), &privileges_t::PRIV_MOD)]
-    #[case(Some("admin".into()), &privileges_t::PRIV_ADMIN)]
+    #[case(None, & privileges_t::PRIV_NONE)]
+    #[case(Some("none".into()), & privileges_t::PRIV_NONE)]
+    #[case(Some("mod".into()), & privileges_t::PRIV_MOD)]
+    #[case(Some("admin".into()), & privileges_t::PRIV_ADMIN)]
     #[serial]
     #[cfg_attr(miri, ignore)]
     fn set_privileges_for_valid_values(
@@ -3087,9 +3085,9 @@ assert(player._valid)
     #[cfg_attr(miri, ignore)]
     fn get_country_when_country_is_set() {
         let player = Player {
-            user_info: r"\\country\\de".into(),
+            user_info: r"\country\de".into(),
             player_info: PlayerInfo {
-                userinfo: r"\\country\\de".into(),
+                userinfo: r"\country\de".into(),
                 ..default_test_player_info()
             },
             ..default_test_player()
@@ -3121,15 +3119,15 @@ assert(player._valid)
             .expect()
             .withf(|client, cmd, &client_ok| {
                 client.is_some()
-                    && cmd == r#"userinfo "\\asdf\\qwertz\\name\\UnnamedPlayer\\country\\uk""#
+                    && cmd == r#"userinfo "\asdf\qwertz\name\UnnamedPlayer\country\uk""#
                     && client_ok
             })
             .times(1);
 
         let mut player = Player {
-            user_info: r"\\asdf\\qwertz\\country\\de\\name\\UnnamedPlayer".into(),
+            user_info: r"\asdf\qwertz\country\de\name\UnnamedPlayer".into(),
             player_info: PlayerInfo {
-                userinfo: r"\\asdf\\qwertz\\country\\de\\name\\UnnamedPlayer".into(),
+                userinfo: r"\asdf\qwertz\country\de\name\UnnamedPlayer".into(),
                 ..default_test_player_info()
             },
             ..default_test_player()
@@ -6852,28 +6850,28 @@ assert(player._valid)
                     name: "Mocked Player".into(),
                     steam_id: 1234,
                     user_info: "asdf".into(),
-                }
+                },
             ]
         );
     }
 }
 
 static _DUMMY_USERINFO: &str = r#"
-ui_singlePlayerActive\\0\\
-cg_autoAction\\1\\
-cg_autoHop\\0\\
-cg_predictItems\\1\\
-model\\bitterman/sport_blue\\
-headmodel\\crash/red\\
-handicap\\100\\
-cl_anonymous\\0\\
-color1\\4\\color2\\23\\
-sex\\male\\
-teamtask\\0\\
-rate\\25000\\
-country\\NO"#;
+\ui_singlePlayerActive\0
+\cg_autoAction\1
+\cg_autoHop\0
+\cg_predictItems\1
+\model\bitterman/sport_blue
+\headmodel\crash/red
+\handicap\100
+\cl_anonymous\0
+\color1\4\color2\23
+\sex\male
+\teamtask\0
+\rate\25000
+\country\NO"#;
 
-#[pyclass(module = "_player", name = "AbstractDummyPlayer", extends=Player, subclass)]
+#[pyclass(module = "_player", name = "AbstractDummyPlayer", extends = Player, subclass)]
 pub(crate) struct AbstractDummyPlayer;
 
 #[pymethods]
@@ -6919,7 +6917,7 @@ impl AbstractDummyPlayer {
         ))
     }
 
-    #[pyo3(signature=(msg, **kwargs))]
+    #[pyo3(signature = (msg, * * kwargs))]
     fn tell(
         &self,
         #[allow(unused_variables)] msg: String,
@@ -7035,7 +7033,7 @@ _shinqlx.AbstractDummyPlayer().tell("asdf")
     }
 }
 
-#[pyclass(module = "_player", name = "RconDummyPlayer", extends=AbstractDummyPlayer)]
+#[pyclass(module = "_player", name = "RconDummyPlayer", extends = AbstractDummyPlayer)]
 pub(crate) struct RconDummyPlayer;
 
 #[pymethods]
@@ -7069,7 +7067,7 @@ console_channel = shinqlx.CONSOLE_CHANNEL"#,
         console_channel.getattr("console_channel")
     }
 
-    #[pyo3(signature=(msg, **kwargs))]
+    #[pyo3(signature = (msg, * * kwargs))]
     fn tell<'py>(
         #[allow(unused_variables)] slf: PyRef<'py, Self>,
         py: Python<'py>,
