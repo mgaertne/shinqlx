@@ -72,6 +72,6 @@ mockall = { version = ">=0.12", features = ["nightly"]}
 serial_test = { version = ">=3.0", default-features = false }
 
 [features]
-default = ["patches"]
+default = ["alloc"]
 patches = []
 alloc = ["dep:tikv-jemallocator", "dep:mimalloc"]
