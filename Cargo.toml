@@ -2,7 +2,7 @@ cargo-features = ["profile-rustflags"]
 
 [package]
 name = "shinqlx"
-version = "0.5.4-rc.14"
+version = "0.5.4"
 authors = ["Markus 'ShiN0' Gaertner"]
 edition = "2021"
 readme = "README.md"
