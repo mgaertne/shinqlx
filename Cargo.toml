@@ -52,7 +52,7 @@ itertools = { version = ">=0.12", default-features = false }
 regex = { version = ">=1.10", features = ["perf"] }
 arrayvec = { version = ">=0.7", default-features = false }
 cfg-if = { version = ">=1.0", default-features = false}
-mimalloc = { version = ">=0.1", optional = true }
+mimalloc = { version = ">=0.1.34", optional = true }
 
 [target."cfg(target_os=\"linux\")".dependencies]
 procfs = { version = ">=0.16", default-features = false }
