@@ -52,7 +52,7 @@ itertools = { version = ">=0.12", default-features = false, features = ["use_all
 regex = { version = ">=1.10", features = ["perf"] }
 arrayvec = { version = ">=0.7", default-features = false }
 cfg-if = { version = ">=1.0", default-features = false}
-mimalloc = { version = ">=0.1", optional = true }
+mimalloc = { version = ">=0.1.34", optional = true }
 zmq = ">=0.10"
 serde_json = { version = ">=1.0.111", default-features = false, features = ["alloc"] }
 
@@ -74,6 +74,6 @@ mockall = { version = ">=0.12", features = ["nightly"]}
 serial_test = { version = ">=3.0", default-features = false }
 
 [features]
-default = ["patches"]
+default = ["alloc"]
 patches = []
 alloc = ["dep:tikv-jemallocator", "dep:mimalloc"]
