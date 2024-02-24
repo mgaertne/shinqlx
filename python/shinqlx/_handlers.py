@@ -424,7 +424,6 @@ def redirect_print(channel):
 
 
 def register_handlers():
-    shinqlx.register_handler("rcon", shinqlx.handle_rcon)
     shinqlx.register_handler("client_command", handle_client_command)
     shinqlx.register_handler("server_command", handle_server_command)
     shinqlx.register_handler("new_game", handle_new_game)

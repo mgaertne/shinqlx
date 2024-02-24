@@ -254,3 +254,70 @@ pub(crate) fn handle_damage(
         },
     )
 }
+
+#[cfg(test)]
+#[cfg_attr(test, mockall::automock)]
+#[allow(dead_code)]
+#[allow(clippy::module_inception)]
+pub(crate) mod handlers {
+    use pyo3::prelude::*;
+
+    #[allow(clippy::needless_lifetimes)]
+    pub(crate) fn handle_rcon<'a>(_py: Python<'a>, _cmd: String) -> Option<bool> {
+        None
+    }
+
+    #[allow(clippy::needless_lifetimes)]
+    pub(crate) fn handle_player_connect<'a>(
+        py: Python<'a>,
+        _client_id: i32,
+        _is_bot: bool,
+    ) -> PyObject {
+        py.None()
+    }
+
+    #[allow(clippy::needless_lifetimes)]
+    pub(crate) fn handle_player_loaded<'a>(py: Python<'a>, _client_id: i32) -> PyObject {
+        py.None()
+    }
+
+    #[allow(clippy::needless_lifetimes)]
+    pub(crate) fn handle_player_disconnect<'a>(
+        py: Python<'a>,
+        _client_id: i32,
+        _reason: Option<String>,
+    ) -> PyObject {
+        py.None()
+    }
+
+    #[allow(clippy::needless_lifetimes)]
+    pub(crate) fn handle_player_spawn<'a>(py: Python<'a>, _client_id: i32) -> PyObject {
+        py.None()
+    }
+
+    #[allow(clippy::needless_lifetimes)]
+    pub(crate) fn handle_kamikaze_use<'a>(py: Python<'a>, _client_id: i32) -> PyObject {
+        py.None()
+    }
+
+    #[allow(clippy::needless_lifetimes)]
+    pub(crate) fn handle_kamikaze_explode<'a>(
+        py: Python<'a>,
+        _client_id: i32,
+        _is_used_on_demand: bool,
+    ) -> PyObject {
+        py.None()
+    }
+
+    #[allow(clippy::needless_lifetimes)]
+    pub(crate) fn handle_damage<'a>(
+        _py: Python<'a>,
+        _target_id: i32,
+        _attacker_id: Option<i32>,
+        _damage: i32,
+        _dflags: i32,
+        _means_of_death: i32,
+    ) -> Option<bool> {
+        None
+    }
+}
