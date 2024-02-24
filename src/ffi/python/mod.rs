@@ -22,6 +22,18 @@ pub(crate) mod prelude {
     pub(crate) use super::embed::*;
     pub(crate) use super::flight::Flight;
     pub(crate) use super::game::{Game, NonexistentGameError};
+    #[cfg(test)]
+    pub(crate) use super::handlers::mock_handlers::{
+        handle_damage, handle_kamikaze_explode, handle_kamikaze_use, handle_player_connect,
+        handle_player_disconnect, handle_player_loaded, handle_player_spawn, handle_rcon,
+    };
+    #[cfg(test)]
+    pub(crate) use super::handlers::mock_handlers::{
+        handle_damage_context, handle_kamikaze_explode_context, handle_kamikaze_use_context,
+        handle_player_connect_context, handle_player_disconnect_context,
+        handle_player_loaded_context, handle_player_spawn_context, handle_rcon_context,
+    };
+    #[cfg(not(test))]
     pub(crate) use super::handlers::{
         handle_damage, handle_kamikaze_explode, handle_kamikaze_use, handle_player_connect,
         handle_player_disconnect, handle_player_loaded, handle_player_spawn, handle_rcon,
@@ -42,9 +54,7 @@ pub(crate) mod prelude {
 
     pub(crate) use super::{
         ALLOW_FREE_CLIENT, CLIENT_COMMAND_HANDLER, CONSOLE_PRINT_HANDLER, CUSTOM_COMMAND_HANDLER,
-        DAMAGE_HANDLER, FRAME_HANDLER, KAMIKAZE_EXPLODE_HANDLER, KAMIKAZE_USE_HANDLER,
-        NEW_GAME_HANDLER, PLAYER_CONNECT_HANDLER, PLAYER_DISCONNECT_HANDLER, PLAYER_LOADED_HANDLER,
-        PLAYER_SPAWN_HANDLER, RCON_HANDLER, SERVER_COMMAND_HANDLER, SET_CONFIGSTRING_HANDLER,
+        FRAME_HANDLER, NEW_GAME_HANDLER, SERVER_COMMAND_HANDLER, SET_CONFIGSTRING_HANDLER,
     };
 
     #[cfg(test)]
@@ -123,29 +133,13 @@ pub(crate) static SERVER_COMMAND_HANDLER: Lazy<Arc<ArcSwapOption<Py<PyAny>>>> =
     Lazy::new(|| ArcSwapOption::empty().into());
 pub(crate) static FRAME_HANDLER: Lazy<Arc<ArcSwapOption<Py<PyAny>>>> =
     Lazy::new(|| ArcSwapOption::empty().into());
-pub(crate) static PLAYER_CONNECT_HANDLER: Lazy<Arc<ArcSwapOption<Py<PyAny>>>> =
-    Lazy::new(|| ArcSwapOption::empty().into());
-pub(crate) static PLAYER_LOADED_HANDLER: Lazy<Arc<ArcSwapOption<Py<PyAny>>>> =
-    Lazy::new(|| ArcSwapOption::empty().into());
-pub(crate) static PLAYER_DISCONNECT_HANDLER: Lazy<Arc<ArcSwapOption<Py<PyAny>>>> =
-    Lazy::new(|| ArcSwapOption::empty().into());
 pub(crate) static CUSTOM_COMMAND_HANDLER: Lazy<Arc<ArcSwapOption<Py<PyAny>>>> =
     Lazy::new(|| ArcSwapOption::empty().into());
 pub(crate) static NEW_GAME_HANDLER: Lazy<Arc<ArcSwapOption<Py<PyAny>>>> =
     Lazy::new(|| ArcSwapOption::empty().into());
 pub(crate) static SET_CONFIGSTRING_HANDLER: Lazy<Arc<ArcSwapOption<Py<PyAny>>>> =
     Lazy::new(|| ArcSwapOption::empty().into());
-pub(crate) static RCON_HANDLER: Lazy<Arc<ArcSwapOption<Py<PyAny>>>> =
-    Lazy::new(|| ArcSwapOption::empty().into());
 pub(crate) static CONSOLE_PRINT_HANDLER: Lazy<Arc<ArcSwapOption<Py<PyAny>>>> =
-    Lazy::new(|| ArcSwapOption::empty().into());
-pub(crate) static PLAYER_SPAWN_HANDLER: Lazy<Arc<ArcSwapOption<Py<PyAny>>>> =
-    Lazy::new(|| ArcSwapOption::empty().into());
-pub(crate) static KAMIKAZE_USE_HANDLER: Lazy<Arc<ArcSwapOption<Py<PyAny>>>> =
-    Lazy::new(|| ArcSwapOption::empty().into());
-pub(crate) static KAMIKAZE_EXPLODE_HANDLER: Lazy<Arc<ArcSwapOption<Py<PyAny>>>> =
-    Lazy::new(|| ArcSwapOption::empty().into());
-pub(crate) static DAMAGE_HANDLER: Lazy<Arc<ArcSwapOption<Py<PyAny>>>> =
     Lazy::new(|| ArcSwapOption::empty().into());
 
 // Used primarily in Python, but defined here and added using PyModule_AddIntMacro().
@@ -1022,14 +1016,14 @@ fn pyshinqlx_module(py: Python<'_>, m: &PyModule) -> PyResult<()> {
     m.add("PluginUnloadError", py.get_type::<PluginUnloadError>())?;
     m.add_class::<StatsListener>()?;
 
-    m.add_function(wrap_pyfunction!(handle_rcon, m)?)?;
-    m.add_function(wrap_pyfunction!(handle_player_connect, m)?)?;
-    m.add_function(wrap_pyfunction!(handle_player_loaded, m)?)?;
-    m.add_function(wrap_pyfunction!(handle_player_disconnect, m)?)?;
-    m.add_function(wrap_pyfunction!(handle_player_spawn, m)?)?;
-    m.add_function(wrap_pyfunction!(handle_kamikaze_use, m)?)?;
-    m.add_function(wrap_pyfunction!(handle_kamikaze_explode, m)?)?;
-    m.add_function(wrap_pyfunction!(handle_damage, m)?)?;
+    m.add_function(wrap_pyfunction!(handlers::handle_rcon, m)?)?;
+    m.add_function(wrap_pyfunction!(handlers::handle_player_connect, m)?)?;
+    m.add_function(wrap_pyfunction!(handlers::handle_player_loaded, m)?)?;
+    m.add_function(wrap_pyfunction!(handlers::handle_player_disconnect, m)?)?;
+    m.add_function(wrap_pyfunction!(handlers::handle_player_spawn, m)?)?;
+    m.add_function(wrap_pyfunction!(handlers::handle_kamikaze_use, m)?)?;
+    m.add_function(wrap_pyfunction!(handlers::handle_kamikaze_explode, m)?)?;
+    m.add_function(wrap_pyfunction!(handlers::handle_damage, m)?)?;
 
     Ok(())
 }
@@ -1088,18 +1082,10 @@ pub(crate) fn pyshinqlx_reload() -> Result<(), PythonInitializationError> {
         &CLIENT_COMMAND_HANDLER,
         &SERVER_COMMAND_HANDLER,
         &FRAME_HANDLER,
-        &PLAYER_CONNECT_HANDLER,
-        &PLAYER_LOADED_HANDLER,
-        &PLAYER_DISCONNECT_HANDLER,
         &CUSTOM_COMMAND_HANDLER,
         &NEW_GAME_HANDLER,
         &SET_CONFIGSTRING_HANDLER,
-        &RCON_HANDLER,
         &CONSOLE_PRINT_HANDLER,
-        &PLAYER_SPAWN_HANDLER,
-        &KAMIKAZE_USE_HANDLER,
-        &KAMIKAZE_EXPLODE_HANDLER,
-        &DAMAGE_HANDLER,
     ]
     .iter()
     .for_each(|&handler_lock| handler_lock.store(None));

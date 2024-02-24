@@ -94,34 +94,27 @@ pub(crate) fn client_connect_dispatcher(client_id: i32, is_bot: bool) -> Option<
         return None;
     }
 
-    let Some(ref client_connect_handler) = *PLAYER_CONNECT_HANDLER.load() else {
-        return None;
-    };
-
     {
         let allowed_clients = ALLOW_FREE_CLIENT.load(Ordering::SeqCst);
         ALLOW_FREE_CLIENT.store(allowed_clients | (1 << client_id as u64), Ordering::SeqCst);
     }
 
-    let result: Option<String> =
-        Python::with_gil(
-            |py| match client_connect_handler.call1(py, (client_id, is_bot)) {
+    let result: Option<String> = Python::with_gil(|py| {
+        let returned = handle_player_connect(py, client_id, is_bot);
+        match returned.extract::<String>(py) {
+            Err(_) => match returned.extract::<bool>(py) {
                 Err(_) => None,
-                Ok(returned) => match returned.extract::<String>(py) {
-                    Err(_) => match returned.extract::<bool>(py) {
-                        Err(_) => None,
-                        Ok(result_bool) => {
-                            if !result_bool {
-                                Some("You are banned from this server.".into())
-                            } else {
-                                None
-                            }
-                        }
-                    },
-                    Ok(result_string) => Some(result_string),
-                },
+                Ok(result_bool) => {
+                    if !result_bool {
+                        Some("You are banned from this server.".into())
+                    } else {
+                        None
+                    }
+                }
             },
-        );
+            Ok(result_string) => Some(result_string),
+        }
+    });
 
     {
         let allowed_clients = ALLOW_FREE_CLIENT.load(Ordering::SeqCst);
@@ -139,20 +132,12 @@ where
         return;
     }
 
-    let Some(ref client_disconnect_handler) = *PLAYER_DISCONNECT_HANDLER.load() else {
-        return;
-    };
-
     {
         let allowed_clients = ALLOW_FREE_CLIENT.load(Ordering::SeqCst);
         ALLOW_FREE_CLIENT.store(allowed_clients | (1 << client_id as u64), Ordering::SeqCst);
     }
 
-    let result =
-        Python::with_gil(|py| client_disconnect_handler.call1(py, (client_id, reason.as_ref())));
-    if result.is_err() {
-        error!(target: "shinqlx", "client_disconnect_handler returned an error.");
-    }
+    Python::with_gil(|py| handle_player_disconnect(py, client_id, Some(reason.as_ref().into())));
 
     {
         let allowed_clients = ALLOW_FREE_CLIENT.load(Ordering::SeqCst);
@@ -165,14 +150,7 @@ pub(crate) fn client_loaded_dispatcher(client_id: i32) {
         return;
     }
 
-    let Some(ref client_loaded_handler) = *PLAYER_LOADED_HANDLER.load() else {
-        return;
-    };
-
-    let result = Python::with_gil(|py| client_loaded_handler.call1(py, (client_id,)));
-    if result.is_err() {
-        error!(target: "shinqlx", "client_loaded_handler returned an error.");
-    }
+    Python::with_gil(|py| handle_player_loaded(py, client_id));
 }
 
 pub(crate) fn new_game_dispatcher(restart: bool) {
@@ -234,14 +212,7 @@ where
         return;
     }
 
-    let Some(ref rcon_handler) = *RCON_HANDLER.load() else {
-        return;
-    };
-
-    let result = Python::with_gil(|py| rcon_handler.call1(py, (cmd.as_ref(),)));
-    if result.is_err() {
-        error!(target: "shinqlx", "rcon_handler returned an error.");
-    }
+    Python::with_gil(|py| handle_rcon(py, cmd.as_ref().to_string()));
 }
 
 pub(crate) fn console_print_dispatcher<T>(text: T) -> Option<String>
@@ -284,14 +255,7 @@ pub(crate) fn client_spawn_dispatcher(client_id: i32) {
         return;
     }
 
-    let Some(ref client_spawn_handler) = *PLAYER_SPAWN_HANDLER.load() else {
-        return;
-    };
-
-    let result = Python::with_gil(|py| client_spawn_handler.call1(py, (client_id,)));
-    if result.is_err() {
-        error!(target: "shinqlx", "client_spawn_handler returned an error.");
-    }
+    Python::with_gil(|py| handle_player_spawn(py, client_id));
 }
 
 pub(crate) fn kamikaze_use_dispatcher(client_id: i32) {
@@ -299,14 +263,7 @@ pub(crate) fn kamikaze_use_dispatcher(client_id: i32) {
         return;
     }
 
-    let Some(ref kamikaze_use_handler) = *KAMIKAZE_USE_HANDLER.load() else {
-        return;
-    };
-
-    let result = Python::with_gil(|py| kamikaze_use_handler.call1(py, (client_id,)));
-    if result.is_err() {
-        error!(target: "shinqlx", "kamikaze_use_handler returned an error.");
-    }
+    Python::with_gil(|py| handle_kamikaze_use(py, client_id));
 }
 
 pub(crate) fn kamikaze_explode_dispatcher(client_id: i32, is_used_on_demand: bool) {
@@ -314,15 +271,7 @@ pub(crate) fn kamikaze_explode_dispatcher(client_id: i32, is_used_on_demand: boo
         return;
     }
 
-    let Some(ref kamikaze_explode_handler) = *KAMIKAZE_EXPLODE_HANDLER.load() else {
-        return;
-    };
-
-    let result =
-        Python::with_gil(|py| kamikaze_explode_handler.call1(py, (client_id, is_used_on_demand)));
-    if result.is_err() {
-        error!(target: "shinqlx", "kamikaze_explode_handler returned an error.");
-    }
+    Python::with_gil(|py| handle_kamikaze_explode(py, client_id, is_used_on_demand));
 }
 
 pub(crate) fn damage_dispatcher(
@@ -336,25 +285,16 @@ pub(crate) fn damage_dispatcher(
         return;
     }
 
-    let Some(ref damage_handler) = *DAMAGE_HANDLER.load() else {
-        return;
-    };
-
-    let result = Python::with_gil(|py| {
-        damage_handler.call1(
+    Python::with_gil(|py| {
+        handle_damage(
             py,
-            (
-                target_client_id,
-                attacker_client_id,
-                damage,
-                dflags,
-                means_of_death,
-            ),
+            target_client_id,
+            attacker_client_id,
+            damage,
+            dflags,
+            means_of_death,
         )
     });
-    if result.is_err() {
-        error!(target: "shinqlx", "damage_handler returned an error.");
-    }
 }
 
 #[cfg(test)]
@@ -371,6 +311,7 @@ mod pyshinqlx_dispatcher_tests {
     use crate::prelude::*;
 
     use pretty_assertions::assert_eq;
+    use pyo3::exceptions::PyException;
     use rstest::rstest;
 
     #[test]
@@ -886,176 +827,88 @@ def handler():
         let is_initialized_context = pyshinqlx_is_initialized_context();
         is_initialized_context.expect().returning(|| false);
 
+        let player_connect_handler_ctx = handle_player_connect_context();
+        player_connect_handler_ctx.expect().times(0);
+
         let result = client_connect_dispatcher(42, false);
         assert_eq!(result, None);
     }
 
     #[test]
-    #[serial]
-    fn client_connect_dispatcher_when_dispatcher_not_initiailized() {
-        let is_initialized_context = pyshinqlx_is_initialized_context();
-        is_initialized_context.expect().returning(|| true);
-        PLAYER_CONNECT_HANDLER.store(None);
-
-        let result = client_connect_dispatcher(42, false);
-        assert_eq!(result, None);
-    }
-
-    #[rstest]
     #[cfg_attr(miri, ignore)]
     #[serial]
-    fn client_connect_dispatcher_dispatcher_returns_connection_status(_pyshinqlx_setup: ()) {
+    fn client_connect_dispatcher_dispatcher_returns_connection_status() {
         let is_initialized_context = pyshinqlx_is_initialized_context();
         is_initialized_context.expect().returning(|| true);
 
-        let pymodule: Py<PyModule> = Python::with_gil(|py| {
-            PyModule::from_code(
-                py,
-                r#"
-def handler(client_id, is_bot):
-    return "qwertz"
-"#,
-                "",
-                "",
-            )
-            .expect("this should not happen")
-            .into_py(py)
-        });
-        let client_connect_handler = Python::with_gil(|py| {
-            pymodule
-                .getattr(py, "handler")
-                .expect("this should not happen")
-                .into_py(py)
-        });
-        PLAYER_CONNECT_HANDLER.store(Some(client_connect_handler.into()));
+        let player_connect_handler_ctx = handle_player_connect_context();
+        player_connect_handler_ctx
+            .expect()
+            .returning(|py, _, _| "qwertz".into_py(py));
 
         let result = client_connect_dispatcher(42, false);
         assert_eq!(result, Some("qwertz".into()));
     }
 
-    #[rstest]
+    #[test]
     #[cfg_attr(miri, ignore)]
     #[serial]
-    fn client_connect_dispatcher_dispatcher_returns_boolean_true(_pyshinqlx_setup: ()) {
+    fn client_connect_dispatcher_dispatcher_returns_boolean_true() {
         let is_initialized_context = pyshinqlx_is_initialized_context();
         is_initialized_context.expect().returning(|| true);
 
-        let pymodule: Py<PyModule> = Python::with_gil(|py| {
-            PyModule::from_code(
-                py,
-                r#"
-def handler(client_id, is_bot):
-    return True
-"#,
-                "",
-                "",
-            )
-            .expect("this should not happen")
-            .into_py(py)
-        });
-        let client_connect_handler = Python::with_gil(|py| {
-            pymodule
-                .getattr(py, "handler")
-                .expect("this should not happen")
-                .into_py(py)
-        });
-        PLAYER_CONNECT_HANDLER.store(Some(client_connect_handler.into()));
+        let player_connect_handler_ctx = handle_player_connect_context();
+        player_connect_handler_ctx
+            .expect()
+            .returning(|py, _, _| true.into_py(py));
 
         let result = client_connect_dispatcher(42, true);
         assert_eq!(result, None);
     }
 
-    #[rstest]
+    #[test]
     #[cfg_attr(miri, ignore)]
     #[serial]
-    fn client_connect_dispatcher_dispatcher_returns_false(_pyshinqlx_setup: ()) {
+    fn client_connect_dispatcher_dispatcher_returns_false() {
         let is_initialized_context = pyshinqlx_is_initialized_context();
         is_initialized_context.expect().returning(|| true);
 
-        let pymodule: Py<PyModule> = Python::with_gil(|py| {
-            PyModule::from_code(
-                py,
-                r#"
-def handler(client_id, is_bot):
-    return False
-"#,
-                "",
-                "",
-            )
-            .expect("this should not happen")
-            .into_py(py)
-        });
-        let client_connect_handler = Python::with_gil(|py| {
-            pymodule
-                .getattr(py, "handler")
-                .expect("this should not happen")
-                .into_py(py)
-        });
-        PLAYER_CONNECT_HANDLER.store(Some(client_connect_handler.into()));
+        let player_connect_handler_ctx = handle_player_connect_context();
+        player_connect_handler_ctx
+            .expect()
+            .returning(|py, _, _| false.into_py(py));
 
         let result = client_connect_dispatcher(42, true);
         assert_eq!(result, Some("You are banned from this server.".into()));
     }
 
-    #[rstest]
+    #[test]
     #[cfg_attr(miri, ignore)]
     #[serial]
-    fn client_connect_dispatcher_dispatcher_throws_exception(_pyshinqlx_setup: ()) {
+    fn client_connect_dispatcher_dispatcher_throws_exception() {
         let is_initialized_context = pyshinqlx_is_initialized_context();
         is_initialized_context.expect().returning(|| true);
 
-        let pymodule: Py<PyModule> = Python::with_gil(|py| {
-            PyModule::from_code(
-                py,
-                r#"
-def handler(client_id, is_bot):
-    raise Exception
-"#,
-                "",
-                "",
-            )
-            .expect("this should not happen")
-            .into_py(py)
-        });
-        let client_connect_handler = Python::with_gil(|py| {
-            pymodule
-                .getattr(py, "handler")
-                .expect("this should not happen")
-                .into_py(py)
-        });
-        PLAYER_CONNECT_HANDLER.store(Some(client_connect_handler.into()));
+        let player_connect_handler_ctx = handle_player_connect_context();
+        player_connect_handler_ctx
+            .expect()
+            .returning(|py, _, _| PyException::new_err("asdf").into_py(py));
 
         let result = client_connect_dispatcher(42, false);
         assert_eq!(result, None);
     }
 
-    #[rstest]
+    #[test]
     #[cfg_attr(miri, ignore)]
     #[serial]
-    fn client_connect_dispatcher_dispatcher_returns_not_supported_value(_pyshinqlx_setup: ()) {
+    fn client_connect_dispatcher_dispatcher_returns_not_supported_value() {
         let is_initialized_context = pyshinqlx_is_initialized_context();
         is_initialized_context.expect().returning(|| true);
 
-        let pymodule: Py<PyModule> = Python::with_gil(|py| {
-            PyModule::from_code(
-                py,
-                r#"
-def handler(client_id, is_bot):
-    return (1, 2, 3)
-"#,
-                "",
-                "",
-            )
-            .expect("this should not happen")
-            .into_py(py)
-        });
-        let player_connect_handler = Python::with_gil(|py| {
-            pymodule
-                .getattr(py, "handler")
-                .expect("this should not happen")
-                .into_py(py)
-        });
-        PLAYER_CONNECT_HANDLER.store(Some(player_connect_handler.into()));
+        let player_connect_handler_ctx = handle_player_connect_context();
+        player_connect_handler_ctx
+            .expect()
+            .returning(|py, _, _| (1, 2, 3).into_py(py));
 
         let result = client_connect_dispatcher(42, false);
         assert_eq!(result, None);
@@ -1067,77 +920,38 @@ def handler(client_id, is_bot):
         let is_initialized_context = pyshinqlx_is_initialized_context();
         is_initialized_context.expect().returning(|| false);
 
+        let handle_player_disconnect_ctx = handle_player_disconnect_context();
+        handle_player_disconnect_ctx.expect().times(0);
+
         client_disconnect_dispatcher(42, "asdf");
     }
 
     #[test]
+    #[cfg_attr(miri, ignore)]
     #[serial]
-    fn client_disconnect_dispatcher_when_dispatcher_not_initiailized() {
+    fn client_disconnect_dispatcher_dispatcher_works_properly() {
         let is_initialized_context = pyshinqlx_is_initialized_context();
         is_initialized_context.expect().returning(|| true);
-        PLAYER_DISCONNECT_HANDLER.store(None);
+
+        let handle_player_disconnect_ctx = handle_player_disconnect_context();
+        handle_player_disconnect_ctx
+            .expect()
+            .returning(|py, _, _| py.None());
 
         client_disconnect_dispatcher(42, "ragequit");
     }
 
-    #[rstest]
+    #[test]
     #[cfg_attr(miri, ignore)]
     #[serial]
-    fn client_disconnect_dispatcher_dispatcher_works_properly(_pyshinqlx_setup: ()) {
+    fn client_disconnect_dispatcher_dispatcher_throws_exception() {
         let is_initialized_context = pyshinqlx_is_initialized_context();
         is_initialized_context.expect().returning(|| true);
 
-        let pymodule: Py<PyModule> = Python::with_gil(|py| {
-            PyModule::from_code(
-                py,
-                r#"
-def handler(client_id, reason):
-    pass
-"#,
-                "",
-                "",
-            )
-            .expect("this should not happen")
-            .into_py(py)
-        });
-        let client_disconnect_handler = Python::with_gil(|py| {
-            pymodule
-                .getattr(py, "handler")
-                .expect("this should not happen")
-                .into_py(py)
-        });
-        PLAYER_DISCONNECT_HANDLER.store(Some(client_disconnect_handler.into()));
-
-        client_disconnect_dispatcher(42, "ragequit");
-    }
-
-    #[rstest]
-    #[cfg_attr(miri, ignore)]
-    #[serial]
-    fn client_disconnect_dispatcher_dispatcher_throws_exception(_pyshinqlx_setup: ()) {
-        let is_initialized_context = pyshinqlx_is_initialized_context();
-        is_initialized_context.expect().returning(|| true);
-
-        let pymodule: Py<PyModule> = Python::with_gil(|py| {
-            PyModule::from_code(
-                py,
-                r#"
-def handler(client_id, reason):
-    raise Exception
-"#,
-                "",
-                "",
-            )
-            .expect("this should not happen")
-            .into_py(py)
-        });
-        let client_disconnect_handler = Python::with_gil(|py| {
-            pymodule
-                .getattr(py, "handler")
-                .expect("this should not happen")
-                .into_py(py)
-        });
-        PLAYER_DISCONNECT_HANDLER.store(Some(client_disconnect_handler.into()));
+        let handle_player_disconnect_ctx = handle_player_disconnect_context();
+        handle_player_disconnect_ctx
+            .expect()
+            .returning(|py, _, _| PyException::new_err("").into_py(py));
 
         client_disconnect_dispatcher(42, "ragequit");
     }
@@ -1148,77 +962,38 @@ def handler(client_id, reason):
         let is_initialized_context = pyshinqlx_is_initialized_context();
         is_initialized_context.expect().returning(|| false);
 
+        let handle_player_loaded_ctx = handle_player_loaded_context();
+        handle_player_loaded_ctx.expect().times(0);
+
         client_loaded_dispatcher(123);
     }
 
     #[test]
+    #[cfg_attr(miri, ignore)]
     #[serial]
-    fn client_loaded_dispatcher_when_dispatcher_not_initiailized() {
+    fn client_loaded_dispatcher_dispatcher_works_properly() {
         let is_initialized_context = pyshinqlx_is_initialized_context();
         is_initialized_context.expect().returning(|| true);
-        PLAYER_LOADED_HANDLER.store(None);
+
+        let handle_player_loaded_ctx = handle_player_loaded_context();
+        handle_player_loaded_ctx
+            .expect()
+            .returning(|py, _| py.None());
 
         client_loaded_dispatcher(123);
     }
 
-    #[rstest]
+    #[test]
     #[cfg_attr(miri, ignore)]
     #[serial]
-    fn client_loaded_dispatcher_dispatcher_works_properly(_pyshinqlx_setup: ()) {
+    fn client_loaded_dispatcher_dispatcher_throws_exception() {
         let is_initialized_context = pyshinqlx_is_initialized_context();
         is_initialized_context.expect().returning(|| true);
 
-        let pymodule: Py<PyModule> = Python::with_gil(|py| {
-            PyModule::from_code(
-                py,
-                r#"
-def handler(client_id):
-    pass
-"#,
-                "",
-                "",
-            )
-            .expect("this should not happen")
-            .into_py(py)
-        });
-        let client_loaded_handler = Python::with_gil(|py| {
-            pymodule
-                .getattr(py, "handler")
-                .expect("this should not happen")
-                .into_py(py)
-        });
-        PLAYER_LOADED_HANDLER.store(Some(client_loaded_handler.into()));
-
-        client_loaded_dispatcher(123);
-    }
-
-    #[rstest]
-    #[cfg_attr(miri, ignore)]
-    #[serial]
-    fn client_loaded_dispatcher_dispatcher_throws_exception(_pyshinqlx_setup: ()) {
-        let is_initialized_context = pyshinqlx_is_initialized_context();
-        is_initialized_context.expect().returning(|| true);
-
-        let pymodule: Py<PyModule> = Python::with_gil(|py| {
-            PyModule::from_code(
-                py,
-                r#"
-def handler(client_id):
-    raise Exception
-"#,
-                "",
-                "",
-            )
-            .expect("this should not happen")
-            .into_py(py)
-        });
-        let client_loaded_handler = Python::with_gil(|py| {
-            pymodule
-                .getattr(py, "handler")
-                .expect("this should not happen")
-                .into_py(py)
-        });
-        PLAYER_LOADED_HANDLER.store(Some(client_loaded_handler.into()));
+        let handle_player_loaded_ctx = handle_player_loaded_context();
+        handle_player_loaded_ctx
+            .expect()
+            .returning(|py, _| PyException::new_err("").into_py(py));
 
         client_loaded_dispatcher(123);
     }
@@ -1523,77 +1298,21 @@ def handler(index, value):
         let is_initialized_context = pyshinqlx_is_initialized_context();
         is_initialized_context.expect().returning(|| false);
 
+        let handle_rcon_ctx = handle_rcon_context();
+        handle_rcon_ctx.expect().times(0);
+
         rcon_dispatcher("asdf");
     }
 
     #[test]
-    #[serial]
-    fn rcon_dispatcher_when_dispatcher_not_initiailized() {
-        let is_initialized_context = pyshinqlx_is_initialized_context();
-        is_initialized_context.expect().returning(|| true);
-        RCON_HANDLER.store(None);
-
-        rcon_dispatcher("asdf");
-    }
-
-    #[rstest]
     #[cfg_attr(miri, ignore)]
     #[serial]
-    fn rcon_dispatcher_dispatcher_works_properly(_pyshinqlx_setup: ()) {
+    fn rcon_dispatcher_dispatcher_works_properly() {
         let is_initialized_context = pyshinqlx_is_initialized_context();
         is_initialized_context.expect().returning(|| true);
 
-        let pymodule: Py<PyModule> = Python::with_gil(|py| {
-            PyModule::from_code(
-                py,
-                r#"
-def handler(cmd):
-    pass
-"#,
-                "",
-                "",
-            )
-            .expect("this should not happen")
-            .into_py(py)
-        });
-        let rcon_handler = Python::with_gil(|py| {
-            pymodule
-                .getattr(py, "handler")
-                .expect("this should not happen")
-                .into_py(py)
-        });
-        RCON_HANDLER.store(Some(rcon_handler.into()));
-
-        rcon_dispatcher("asdf");
-    }
-
-    #[rstest]
-    #[cfg_attr(miri, ignore)]
-    #[serial]
-    fn rcon_dispatcher_dispatcher_throws_exception(_pyshinqlx_setup: ()) {
-        let is_initialized_context = pyshinqlx_is_initialized_context();
-        is_initialized_context.expect().returning(|| true);
-
-        let pymodule: Py<PyModule> = Python::with_gil(|py| {
-            PyModule::from_code(
-                py,
-                r#"
-def handler(cmd):
-    raise Exception
-"#,
-                "",
-                "",
-            )
-            .expect("this should not happen")
-            .into_py(py)
-        });
-        let rcon_handler = Python::with_gil(|py| {
-            pymodule
-                .getattr(py, "handler")
-                .expect("this should not happen")
-                .into_py(py)
-        });
-        RCON_HANDLER.store(Some(rcon_handler.into()));
+        let handle_rcon_ctx = handle_rcon_context();
+        handle_rcon_ctx.expect();
 
         rcon_dispatcher("asdf");
     }
@@ -1817,77 +1536,38 @@ def handler(text):
         let is_initialized_context = pyshinqlx_is_initialized_context();
         is_initialized_context.expect().returning(|| false);
 
+        let handle_player_spawn_ctx = handle_player_spawn_context();
+        handle_player_spawn_ctx.expect().times(0);
+
         client_spawn_dispatcher(123);
     }
 
     #[test]
+    #[cfg_attr(miri, ignore)]
     #[serial]
-    fn client_spawn_dispatcher_when_dispatcher_not_initiailized() {
+    fn client_spawn_dispatcher_dispatcher_works_properly() {
         let is_initialized_context = pyshinqlx_is_initialized_context();
         is_initialized_context.expect().returning(|| true);
-        PLAYER_SPAWN_HANDLER.store(None);
+
+        let handle_player_spawn_ctx = handle_player_spawn_context();
+        handle_player_spawn_ctx
+            .expect()
+            .returning(|py, _| py.None());
 
         client_spawn_dispatcher(123);
     }
 
-    #[rstest]
+    #[test]
     #[cfg_attr(miri, ignore)]
     #[serial]
-    fn client_spawn_dispatcher_dispatcher_works_properly(_pyshinqlx_setup: ()) {
+    fn client_spawn_dispatcher_dispatcher_throws_exception() {
         let is_initialized_context = pyshinqlx_is_initialized_context();
         is_initialized_context.expect().returning(|| true);
 
-        let pymodule: Py<PyModule> = Python::with_gil(|py| {
-            PyModule::from_code(
-                py,
-                r#"
-def handler(client_id):
-    pass
-"#,
-                "",
-                "",
-            )
-            .expect("this should not happen")
-            .into_py(py)
-        });
-        let client_spawn_handler = Python::with_gil(|py| {
-            pymodule
-                .getattr(py, "handler")
-                .expect("this should not happen")
-                .into_py(py)
-        });
-        PLAYER_SPAWN_HANDLER.store(Some(client_spawn_handler.into()));
-
-        client_spawn_dispatcher(123);
-    }
-
-    #[rstest]
-    #[cfg_attr(miri, ignore)]
-    #[serial]
-    fn client_spawn_dispatcher_dispatcher_throws_exception(_pyshinqlx_setup: ()) {
-        let is_initialized_context = pyshinqlx_is_initialized_context();
-        is_initialized_context.expect().returning(|| true);
-
-        let pymodule: Py<PyModule> = Python::with_gil(|py| {
-            PyModule::from_code(
-                py,
-                r#"
-def handler(client_id):
-    raise Exception
-"#,
-                "",
-                "",
-            )
-            .expect("this should not happen")
-            .into_py(py)
-        });
-        let client_spawn_handler = Python::with_gil(|py| {
-            pymodule
-                .getattr(py, "handler")
-                .expect("this should not happen")
-                .into_py(py)
-        });
-        PLAYER_SPAWN_HANDLER.store(Some(client_spawn_handler.into()));
+        let handle_player_spawn_ctx = handle_player_spawn_context();
+        handle_player_spawn_ctx
+            .expect()
+            .returning(|py, _| PyException::new_err("").into_py(py));
 
         client_spawn_dispatcher(123);
     }
@@ -1898,78 +1578,39 @@ def handler(client_id):
         let is_initialized_context = pyshinqlx_is_initialized_context();
         is_initialized_context.expect().returning(|| false);
 
+        let handle_kamikaze_use_ctx = handle_kamikaze_use_context();
+        handle_kamikaze_use_ctx.expect().times(0);
+
         kamikaze_use_dispatcher(123);
     }
 
     #[test]
+    #[cfg_attr(miri, ignore)]
     #[serial]
-    fn kamikaze_use_dispatcher_when_dispatcher_not_initiailized() {
+    fn kamikaze_use_dispatcher_dispatcher_works_properly() {
         let is_initialized_context = pyshinqlx_is_initialized_context();
         is_initialized_context.expect().returning(|| true);
-        KAMIKAZE_USE_HANDLER.store(None);
+
+        let handle_kamikaze_use_ctx = handle_kamikaze_use_context();
+        handle_kamikaze_use_ctx
+            .expect()
+            .returning(|py, _| py.None());
 
         kamikaze_use_dispatcher(123);
     }
 
-    #[rstest]
+    #[test]
     #[cfg_attr(miri, ignore)]
     #[serial]
-    fn kamikaze_use_dispatcher_dispatcher_works_properly(_pyshinqlx_setup: ()) {
+    fn kamikaze_use_dispatcher_dispatcher_throws_exception() {
         let is_initialized_context = pyshinqlx_is_initialized_context();
         is_initialized_context.expect().returning(|| true);
 
-        let pymodule: Py<PyModule> = Python::with_gil(|py| {
-            PyModule::from_code(
-                py,
-                r#"
-def handler(client_id):
-    pass
-"#,
-                "",
-                "",
-            )
-            .expect("this should not happen")
-            .into_py(py)
-        });
-        let kamikaze_use_handler = Python::with_gil(|py| {
-            pymodule
-                .getattr(py, "handler")
-                .expect("this should not happen")
-                .into_py(py)
-        });
-        KAMIKAZE_USE_HANDLER.store(Some(kamikaze_use_handler.into()));
+        let handle_kamikaze_use_ctx = handle_kamikaze_use_context();
 
-        kamikaze_use_dispatcher(123);
-    }
-
-    #[rstest]
-    #[cfg_attr(miri, ignore)]
-    #[serial]
-    fn kamikaze_use_dispatcher_dispatcher_throws_exception(_pyshinqlx_setup: ()) {
-        let is_initialized_context = pyshinqlx_is_initialized_context();
-        is_initialized_context.expect().returning(|| true);
-
-        let pymodule: Py<PyModule> = Python::with_gil(|py| {
-            PyModule::from_code(
-                py,
-                r#"
-def handler(client_id):
-    raise Exception
-"#,
-                "",
-                "",
-            )
-            .expect("this should not happen")
-            .into_py(py)
-        });
-        let kamikaze_use_handler = Python::with_gil(|py| {
-            pymodule
-                .getattr(py, "handler")
-                .expect("this should not happen")
-                .into_py(py)
-        });
-        KAMIKAZE_USE_HANDLER.store(Some(kamikaze_use_handler.into()));
-
+        handle_kamikaze_use_ctx
+            .expect()
+            .returning(|py, _| PyException::new_err("").into_py(py));
         kamikaze_use_dispatcher(123);
     }
 
@@ -1979,77 +1620,38 @@ def handler(client_id):
         let is_initialized_context = pyshinqlx_is_initialized_context();
         is_initialized_context.expect().returning(|| false);
 
+        let handle_kamikaze_explode_ctx = handle_kamikaze_explode_context();
+        handle_kamikaze_explode_ctx.expect().times(0);
+
         kamikaze_explode_dispatcher(123, false);
     }
 
     #[test]
-    #[serial]
-    fn kamikaze_explode_dispatcher_when_dispatcher_not_initiailized() {
-        let is_initialized_context = pyshinqlx_is_initialized_context();
-        is_initialized_context.expect().returning(|| true);
-        KAMIKAZE_EXPLODE_HANDLER.store(None);
-
-        kamikaze_explode_dispatcher(123, true);
-    }
-
-    #[rstest]
     #[cfg_attr(miri, ignore)]
     #[serial]
-    fn kamikaze_explode_dispatcher_dispatcher_works_properly(_pyshinqlx_setup: ()) {
+    fn kamikaze_explode_dispatcher_dispatcher_works_properly() {
         let is_initialized_context = pyshinqlx_is_initialized_context();
         is_initialized_context.expect().returning(|| true);
 
-        let pymodule: Py<PyModule> = Python::with_gil(|py| {
-            PyModule::from_code(
-                py,
-                r#"
-def handler(client_id, is_used_on_demand):
-    pass
-"#,
-                "",
-                "",
-            )
-            .expect("this should not happen")
-            .into_py(py)
-        });
-        let kamikaze_explode_handler = Python::with_gil(|py| {
-            pymodule
-                .getattr(py, "handler")
-                .expect("this should not happen")
-                .into_py(py)
-        });
-        KAMIKAZE_EXPLODE_HANDLER.store(Some(kamikaze_explode_handler.into()));
+        let handle_kamikaze_explode_ctx = handle_kamikaze_explode_context();
+        handle_kamikaze_explode_ctx
+            .expect()
+            .returning(|py, _, _| py.None());
 
         kamikaze_explode_dispatcher(123, false);
     }
 
-    #[rstest]
+    #[test]
     #[cfg_attr(miri, ignore)]
     #[serial]
-    fn kamikaze_explode_dispatcher_dispatcher_throws_exception(_pyshinqlx_setup: ()) {
+    fn kamikaze_explode_dispatcher_dispatcher_throws_exception() {
         let is_initialized_context = pyshinqlx_is_initialized_context();
         is_initialized_context.expect().returning(|| true);
 
-        let pymodule: Py<PyModule> = Python::with_gil(|py| {
-            PyModule::from_code(
-                py,
-                r#"
-def handler(client_id, is_used_on_demand):
-    raise Exception
-"#,
-                "",
-                "",
-            )
-            .expect("this should not happen")
-            .into_py(py)
-        });
-        let kamikaze_explode_handler = Python::with_gil(|py| {
-            pymodule
-                .getattr(py, "handler")
-                .expect("this should not happen")
-                .into_py(py)
-        });
-        KAMIKAZE_EXPLODE_HANDLER.store(Some(kamikaze_explode_handler.into()));
+        let handle_kamikaze_explode_ctx = handle_kamikaze_explode_context();
+        handle_kamikaze_explode_ctx
+            .expect()
+            .returning(|py, _, _| PyException::new_err("").into_py(py));
 
         kamikaze_explode_dispatcher(123, true);
     }
@@ -2060,6 +1662,9 @@ def handler(client_id, is_used_on_demand):
         let is_initialized_context = pyshinqlx_is_initialized_context();
         is_initialized_context.expect().returning(|| false);
 
+        let handle_damage_ctx = handle_damage_context();
+        handle_damage_ctx.expect().times(0);
+
         damage_dispatcher(
             123,
             None,
@@ -2070,11 +1675,16 @@ def handler(client_id, is_used_on_demand):
     }
 
     #[test]
+    #[cfg_attr(miri, ignore)]
     #[serial]
-    fn damage_dispatcher_when_dispatcher_not_initiailized() {
+    fn damage_dispatcher_dispatcher_works_properly() {
         let is_initialized_context = pyshinqlx_is_initialized_context();
         is_initialized_context.expect().returning(|| true);
-        DAMAGE_HANDLER.store(None);
+
+        let handle_damage_ctx = handle_damage_context();
+        handle_damage_ctx
+            .expect()
+            .returning(|_, _, _, _, _, _| None);
 
         damage_dispatcher(
             123,
@@ -2082,80 +1692,6 @@ def handler(client_id, is_used_on_demand):
             100,
             DAMAGE_NO_TEAM_PROTECTION as i32,
             meansOfDeath_t::MOD_ROCKET as i32,
-        );
-    }
-
-    #[rstest]
-    #[cfg_attr(miri, ignore)]
-    #[serial]
-    fn damage_dispatcher_dispatcher_works_properly(_pyshinqlx_setup: ()) {
-        let is_initialized_context = pyshinqlx_is_initialized_context();
-        is_initialized_context.expect().returning(|| true);
-
-        let pymodule: Py<PyModule> = Python::with_gil(|py| {
-            PyModule::from_code(
-                py,
-                r#"
-def handler(client_id, attacker_id, damage, dflags, means_of_death):
-    pass
-"#,
-                "",
-                "",
-            )
-            .expect("this should not happen")
-            .into_py(py)
-        });
-        let damage_handler = Python::with_gil(|py| {
-            pymodule
-                .getattr(py, "handler")
-                .expect("this should not happen")
-                .into_py(py)
-        });
-        DAMAGE_HANDLER.store(Some(damage_handler.into()));
-
-        damage_dispatcher(
-            123,
-            Some(456),
-            100,
-            DAMAGE_NO_TEAM_PROTECTION as i32,
-            meansOfDeath_t::MOD_ROCKET as i32,
-        );
-    }
-
-    #[rstest]
-    #[cfg_attr(miri, ignore)]
-    #[serial]
-    fn damage_dispatcher_dispatcher_throws_exception(_pyshinqlx_setup: ()) {
-        let is_initialized_context = pyshinqlx_is_initialized_context();
-        is_initialized_context.expect().returning(|| true);
-
-        let pymodule: Py<PyModule> = Python::with_gil(|py| {
-            PyModule::from_code(
-                py,
-                r#"
-def handler(client_id, attacker_id, damage, dflags, means_of_death):
-    raise Exception
-"#,
-                "",
-                "",
-            )
-            .expect("this should not happen")
-            .into_py(py)
-        });
-        let damage_handler = Python::with_gil(|py| {
-            pymodule
-                .getattr(py, "handler")
-                .expect("this should not happen")
-                .into_py(py)
-        });
-        DAMAGE_HANDLER.store(Some(damage_handler.into()));
-
-        damage_dispatcher(
-            123,
-            None,
-            666,
-            DAMAGE_NO_PROTECTION as i32,
-            meansOfDeath_t::MOD_TRIGGER_HURT as i32,
         );
     }
 }

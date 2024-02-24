@@ -5,13 +5,6 @@ import shinqlx
 _re_vote = re.compile(r"^(?P<cmd>[^ ]+)(?: \"?(?P<args>.*?)\"?)?$")
 hot_plugged_events = (
     "frame",
-    "player_connect",
-    "player_loaded",
-    "player_disconnect",
-    "player_spawn",
-    "kamikaze_use",
-    "kamikaze_explode",
-    "damage",
 )
 
 

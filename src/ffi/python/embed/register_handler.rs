@@ -23,18 +23,10 @@ pub(crate) fn pyshinqlx_register_handler(
             "client_command" => &CLIENT_COMMAND_HANDLER,
             "server_command" => &SERVER_COMMAND_HANDLER,
             "frame" => &FRAME_HANDLER,
-            "player_connect" => &PLAYER_CONNECT_HANDLER,
-            "player_loaded" => &PLAYER_LOADED_HANDLER,
-            "player_disconnect" => &PLAYER_DISCONNECT_HANDLER,
             "custom_command" => &CUSTOM_COMMAND_HANDLER,
             "new_game" => &NEW_GAME_HANDLER,
             "set_configstring" => &SET_CONFIGSTRING_HANDLER,
-            "rcon" => &RCON_HANDLER,
             "console_print" => &CONSOLE_PRINT_HANDLER,
-            "player_spawn" => &PLAYER_SPAWN_HANDLER,
-            "kamikaze_use" => &KAMIKAZE_USE_HANDLER,
-            "kamikaze_explode" => &KAMIKAZE_EXPLODE_HANDLER,
-            "damage" => &DAMAGE_HANDLER,
             _ => return Err(PyValueError::new_err("Unsupported event.")),
         };
 
@@ -58,18 +50,10 @@ mod register_handler_tests {
     #[case("client_command", &CLIENT_COMMAND_HANDLER)]
     #[case("server_command", &SERVER_COMMAND_HANDLER)]
     #[case("frame", &FRAME_HANDLER)]
-    #[case("player_connect", &PLAYER_CONNECT_HANDLER)]
-    #[case("player_loaded", &PLAYER_LOADED_HANDLER)]
-    #[case("player_disconnect", &PLAYER_DISCONNECT_HANDLER)]
     #[case("custom_command", &CUSTOM_COMMAND_HANDLER)]
     #[case("new_game", &NEW_GAME_HANDLER)]
     #[case("set_configstring", &SET_CONFIGSTRING_HANDLER)]
-    #[case("rcon", &RCON_HANDLER)]
     #[case("console_print", &CONSOLE_PRINT_HANDLER)]
-    #[case("player_spawn", &PLAYER_SPAWN_HANDLER)]
-    #[case("kamikaze_use", &KAMIKAZE_USE_HANDLER)]
-    #[case("kamikaze_explode", &KAMIKAZE_EXPLODE_HANDLER)]
-    #[case("damage", &DAMAGE_HANDLER)]
     #[cfg_attr(miri, ignore)]
     #[serial]
     fn register_handler_setting_handler_to_none(
@@ -108,18 +92,10 @@ def handler():
     #[case("client_command", &CLIENT_COMMAND_HANDLER)]
     #[case("server_command", &SERVER_COMMAND_HANDLER)]
     #[case("frame", &FRAME_HANDLER)]
-    #[case("player_connect", &PLAYER_CONNECT_HANDLER)]
-    #[case("player_loaded", &PLAYER_LOADED_HANDLER)]
-    #[case("player_disconnect", &PLAYER_DISCONNECT_HANDLER)]
     #[case("custom_command", &CUSTOM_COMMAND_HANDLER)]
     #[case("new_game", &NEW_GAME_HANDLER)]
     #[case("set_configstring", &SET_CONFIGSTRING_HANDLER)]
-    #[case("rcon", &RCON_HANDLER)]
     #[case("console_print", &CONSOLE_PRINT_HANDLER)]
-    #[case("player_spawn", &PLAYER_SPAWN_HANDLER)]
-    #[case("kamikaze_use", &KAMIKAZE_USE_HANDLER)]
-    #[case("kamikaze_explode", &KAMIKAZE_EXPLODE_HANDLER)]
-    #[case("damage", &DAMAGE_HANDLER)]
     #[cfg_attr(miri, ignore)]
     #[serial]
     fn register_handler_setting_handler_to_some_handler(
