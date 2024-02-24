@@ -3,9 +3,7 @@ import re
 import shinqlx
 
 _re_vote = re.compile(r"^(?P<cmd>[^ ]+)(?: \"?(?P<args>.*?)\"?)?$")
-hot_plugged_events = (
-    "frame",
-)
+hot_plugged_events = ("frame",)
 
 
 # ====================================================================
