@@ -38,7 +38,7 @@ rustflags = ["-Zlocation-detail=none"]
 [dependencies]
 ctor = { version = ">=0.2", features = ["used_linker"] }
 rand = { version = ">=0.8", default-features = false, features = ["getrandom"] }
-pyo3 = { version = ">=0.20", features = ["pyo3-macros", "extension-module", "nightly"]}
+pyo3 = { version = ">=0.20", features = ["pyo3-macros", "extension-module", "nightly"] }
 retour = ">=0.3.1"
 derive_builder = { version = ">=0.20", default-features = false, features = ["clippy", "alloc"] }
 once_cell = { version = ">=1.19", default-features = false }
@@ -51,7 +51,7 @@ signal-hook-registry = ">=1.4"
 itertools = { version = ">=0.12", default-features = false, features = ["use_alloc"] }
 regex = { version = ">=1.10", features = ["perf"] }
 arrayvec = { version = ">=0.7", default-features = false }
-cfg-if = { version = ">=1.0", default-features = false}
+cfg-if = { version = ">=1.0", default-features = false }
 mimalloc = { version = ">=0.1.34", optional = true }
 zmq = ">=0.10"
 serde_json = { version = ">=1.0.111", default-features = false, features = ["alloc"] }
@@ -70,10 +70,13 @@ git2 = { version = ">=0.18", default-features = false }
 [dev-dependencies]
 pretty_assertions = { version = ">=1.4", default-features = false, features = ["alloc"] }
 rstest = { version = ">=0.18", default-features = false }
-mockall = { version = ">=0.12", features = ["nightly"]}
+mockall = { version = ">=0.12", features = ["nightly"] }
 serial_test = { version = ">=3.0", default-features = false }
 
 [features]
 default = ["alloc"]
 patches = []
 alloc = ["dep:tikv-jemallocator", "dep:mimalloc"]
+
+[lints.rust]
+non_local_definitions = "allow"
