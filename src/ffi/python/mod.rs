@@ -26,17 +26,20 @@ pub(crate) mod prelude {
     pub(crate) use super::handlers::mock_handlers::{
         handle_damage, handle_kamikaze_explode, handle_kamikaze_use, handle_player_connect,
         handle_player_disconnect, handle_player_loaded, handle_player_spawn, handle_rcon,
+        handle_server_command,
     };
     #[cfg(test)]
     pub(crate) use super::handlers::mock_handlers::{
         handle_damage_context, handle_kamikaze_explode_context, handle_kamikaze_use_context,
         handle_player_connect_context, handle_player_disconnect_context,
         handle_player_loaded_context, handle_player_spawn_context, handle_rcon_context,
+        handle_server_command_context,
     };
     #[cfg(not(test))]
     pub(crate) use super::handlers::{
         handle_damage, handle_kamikaze_explode, handle_kamikaze_use, handle_player_connect,
         handle_player_disconnect, handle_player_loaded, handle_player_spawn, handle_rcon,
+        handle_server_command,
     };
     pub(crate) use super::holdable::Holdable;
     pub(crate) use super::player::{
@@ -54,7 +57,7 @@ pub(crate) mod prelude {
 
     pub(crate) use super::{
         ALLOW_FREE_CLIENT, CLIENT_COMMAND_HANDLER, CONSOLE_PRINT_HANDLER, CUSTOM_COMMAND_HANDLER,
-        FRAME_HANDLER, NEW_GAME_HANDLER, SERVER_COMMAND_HANDLER, SET_CONFIGSTRING_HANDLER,
+        FRAME_HANDLER, NEW_GAME_HANDLER, SET_CONFIGSTRING_HANDLER,
     };
 
     #[cfg(test)]
@@ -128,8 +131,6 @@ use regex::Regex;
 pub(crate) static ALLOW_FREE_CLIENT: AtomicU64 = AtomicU64::new(0);
 
 pub(crate) static CLIENT_COMMAND_HANDLER: Lazy<Arc<ArcSwapOption<Py<PyAny>>>> =
-    Lazy::new(|| ArcSwapOption::empty().into());
-pub(crate) static SERVER_COMMAND_HANDLER: Lazy<Arc<ArcSwapOption<Py<PyAny>>>> =
     Lazy::new(|| ArcSwapOption::empty().into());
 pub(crate) static FRAME_HANDLER: Lazy<Arc<ArcSwapOption<Py<PyAny>>>> =
     Lazy::new(|| ArcSwapOption::empty().into());
@@ -1017,6 +1018,7 @@ fn pyshinqlx_module(py: Python<'_>, m: &PyModule) -> PyResult<()> {
     m.add_class::<StatsListener>()?;
 
     m.add_function(wrap_pyfunction!(handlers::handle_rcon, m)?)?;
+    m.add_function(wrap_pyfunction!(handlers::handle_server_command, m)?)?;
     m.add_function(wrap_pyfunction!(handlers::handle_player_connect, m)?)?;
     m.add_function(wrap_pyfunction!(handlers::handle_player_loaded, m)?)?;
     m.add_function(wrap_pyfunction!(handlers::handle_player_disconnect, m)?)?;
@@ -1080,7 +1082,6 @@ pub(crate) fn pyshinqlx_reload() -> Result<(), PythonInitializationError> {
 
     [
         &CLIENT_COMMAND_HANDLER,
-        &SERVER_COMMAND_HANDLER,
         &FRAME_HANDLER,
         &CUSTOM_COMMAND_HANDLER,
         &NEW_GAME_HANDLER,

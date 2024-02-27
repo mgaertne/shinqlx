@@ -1,5 +1,7 @@
 use super::prelude::*;
 use crate::ffi::c::prelude::*;
+use once_cell::sync::Lazy;
+use regex::Regex;
 
 fn try_log_exception(py: Python<'_>, exception: PyErr) -> PyResult<()> {
     let logging_module = py.import("logging")?;
@@ -51,6 +53,57 @@ pub(crate) fn handle_rcon(py: Python<'_>, cmd: String) -> Option<bool> {
     try_handle_rcon(py, cmd).unwrap_or_else(|e| {
         log_exception(py, e);
         Some(true)
+    })
+}
+
+static RE_VOTE_ENDED: Lazy<Regex> =
+    Lazy::new(|| Regex::new(r#"^print "Vote (?P<result>passed|failed).\n"$"#).unwrap());
+
+fn try_handle_server_command(
+    py: Python<'_>,
+    client_id: i32,
+    cmd: String,
+) -> PyResult<Option<PyObject>> {
+    let player = if (0..MAX_CLIENTS as i32).contains(&client_id) {
+        Player::py_new(client_id, None)?.into_py(py)
+    } else {
+        py.None()
+    };
+
+    let shinqlx_module = py.import("shinqlx")?;
+    let shinqlx_event_dispatchers = shinqlx_module.getattr("EVENT_DISPATCHERS")?;
+    let server_command_dispatcher = shinqlx_event_dispatchers.get_item("server_command")?;
+
+    let return_value = server_command_dispatcher.call_method1("dispatch", (player, cmd.clone()))?;
+    if return_value.extract::<bool>().is_ok_and(|value| !value) {
+        return Ok(Some(false.into_py(py)));
+    };
+
+    let updated_cmd = match return_value.extract::<String>() {
+        Ok(extracted_string) => extracted_string,
+        _ => cmd.clone(),
+    };
+
+    if let Some(captures) = RE_VOTE_ENDED.captures(&updated_cmd) {
+        let vote_passed = captures
+            .name("result")
+            .is_some_and(|value| value.as_str() == "passed");
+        let vote_ended_dispatcher = shinqlx_event_dispatchers.get_item("vote_ended")?;
+        let _ = vote_ended_dispatcher.call_method1("dispatch", (vote_passed,))?;
+    }
+
+    Ok(Some(updated_cmd.into_py(py)))
+}
+
+#[pyfunction]
+pub(crate) fn handle_server_command(
+    py: Python<'_>,
+    client_id: i32,
+    cmd: String,
+) -> Option<PyObject> {
+    try_handle_server_command(py, client_id, cmd).unwrap_or_else(|e| {
+        log_exception(py, e);
+        Some(true.into_py(py))
     })
 }
 
@@ -264,6 +317,15 @@ pub(crate) mod handlers {
 
     #[allow(clippy::needless_lifetimes)]
     pub(crate) fn handle_rcon<'a>(_py: Python<'a>, _cmd: String) -> Option<bool> {
+        None
+    }
+
+    #[allow(clippy::needless_lifetimes)]
+    pub(crate) fn handle_server_command<'a>(
+        _py: Python<'a>,
+        _client_id: i32,
+        _cmd: String,
+    ) -> Option<PyObject> {
         None
     }
 

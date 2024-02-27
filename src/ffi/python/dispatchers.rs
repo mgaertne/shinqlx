@@ -46,17 +46,9 @@ where
         return Some(cmd.as_ref().into());
     }
 
-    let Some(ref server_command_handler) = *SERVER_COMMAND_HANDLER.load() else {
-        return Some(cmd.as_ref().into());
-    };
-
     Python::with_gil(|py| {
-        match server_command_handler.call1(py, (client_id.unwrap_or(-1), cmd.as_ref())) {
-            Err(_) => {
-                error!(target: "shinqlx", "server_command_handler returned an error.");
-                Some(cmd.as_ref().into())
-            }
-            Ok(returned) => match returned.extract::<String>(py) {
+        handle_server_command(py, client_id.unwrap_or(-1), cmd.as_ref().to_string()).and_then(
+            |returned| match returned.extract::<String>(py) {
                 Err(_) => match returned.extract::<bool>(py) {
                     Err(_) => Some(cmd.as_ref().into()),
                     Ok(result_bool) => {
@@ -69,7 +61,7 @@ where
                 },
                 Ok(result_string) => Some(result_string),
             },
-        }
+        )
     })
 }
 
@@ -533,208 +525,104 @@ def handler(client_id, cmd):
         let is_initialized_context = pyshinqlx_is_initialized_context();
         is_initialized_context.expect().returning(|| false);
 
+        let handle_server_command_ctx = handle_server_command_context();
+        handle_server_command_ctx.expect().times(0);
+
         let result = server_command_dispatcher(Some(123), "asdf");
         assert_eq!(result, Some("asdf".into()));
     }
 
     #[test]
+    #[cfg_attr(miri, ignore)]
     #[serial]
-    fn server_command_dispatcher_when_dispatcher_not_initiailized() {
+    fn server_command_dispatcher_dispatcher_returns_original_cmd() {
         let is_initialized_context = pyshinqlx_is_initialized_context();
         is_initialized_context.expect().returning(|| true);
-        SERVER_COMMAND_HANDLER.store(None);
+
+        let handle_server_command_ctx = handle_server_command_context();
+        handle_server_command_ctx
+            .expect()
+            .returning(|py, _, cmd| Some(cmd.into_py(py)));
 
         let result = server_command_dispatcher(Some(123), "asdf");
         assert_eq!(result, Some("asdf".into()));
     }
 
-    #[rstest]
+    #[test]
     #[cfg_attr(miri, ignore)]
     #[serial]
-    fn server_command_dispatcher_dispatcher_returns_original_cmd(_pyshinqlx_setup: ()) {
+    fn server_command_dispatcher_dispatcher_returns_another_cmd() {
         let is_initialized_context = pyshinqlx_is_initialized_context();
         is_initialized_context.expect().returning(|| true);
 
-        let pymodule: Py<PyModule> = Python::with_gil(|py| {
-            PyModule::from_code(
-                py,
-                r#"
-def handler(client_id, cmd):
-    return cmd
-"#,
-                "",
-                "",
-            )
-            .expect("this should not happen")
-            .into_py(py)
-        });
-        let server_command_handler = Python::with_gil(|py| {
-            pymodule
-                .getattr(py, "handler")
-                .expect("this should not happen")
-                .into_py(py)
-        });
-        SERVER_COMMAND_HANDLER.store(Some(server_command_handler.into()));
-
-        let result = server_command_dispatcher(Some(123), "asdf");
-        assert_eq!(result, Some("asdf".into()));
-    }
-
-    #[rstest]
-    #[cfg_attr(miri, ignore)]
-    #[serial]
-    fn server_command_dispatcher_dispatcher_returns_another_cmd(_pyshinqlx_setup: ()) {
-        let is_initialized_context = pyshinqlx_is_initialized_context();
-        is_initialized_context.expect().returning(|| true);
-
-        let pymodule: Py<PyModule> = Python::with_gil(|py| {
-            PyModule::from_code(
-                py,
-                r#"
-def handler(client_id, cmd):
-    return "qwertz"
-"#,
-                "",
-                "",
-            )
-            .expect("this should not happen")
-            .into_py(py)
-        });
-        let server_command_handler = Python::with_gil(|py| {
-            pymodule
-                .getattr(py, "handler")
-                .expect("this should not happen")
-                .into_py(py)
-        });
-        SERVER_COMMAND_HANDLER.store(Some(server_command_handler.into()));
+        let handle_server_command_ctx = handle_server_command_context();
+        handle_server_command_ctx
+            .expect()
+            .returning(|py, _, _| Some("qwertz".into_py(py)));
 
         let result = server_command_dispatcher(Some(123), "asdf");
         assert_eq!(result, Some("qwertz".into()));
     }
 
-    #[rstest]
+    #[test]
     #[cfg_attr(miri, ignore)]
     #[serial]
-    fn server_command_dispatcher_dispatcher_returns_boolean_true(_pyshinqlx_setup: ()) {
+    fn server_command_dispatcher_dispatcher_returns_boolean_true() {
         let is_initialized_context = pyshinqlx_is_initialized_context();
         is_initialized_context.expect().returning(|| true);
 
-        let pymodule: Py<PyModule> = Python::with_gil(|py| {
-            PyModule::from_code(
-                py,
-                r#"
-def handler(client_id, cmd):
-    return True
-"#,
-                "",
-                "",
-            )
-            .expect("this should not happen")
-            .into_py(py)
-        });
-        let server_command_handler = Python::with_gil(|py| {
-            pymodule
-                .getattr(py, "handler")
-                .expect("this should not happen")
-                .into_py(py)
-        });
-        SERVER_COMMAND_HANDLER.store(Some(server_command_handler.into()));
+        let handle_server_command_ctx = handle_server_command_context();
+        handle_server_command_ctx
+            .expect()
+            .returning(|py, _, _| Some(true.into_py(py)));
 
         let result = server_command_dispatcher(Some(123), "asdf");
         assert_eq!(result, Some("asdf".into()));
     }
 
-    #[rstest]
+    #[test]
     #[cfg_attr(miri, ignore)]
     #[serial]
-    fn server_command_dispatcher_dispatcher_returns_false(_pyshinqlx_setup: ()) {
+    fn server_command_dispatcher_dispatcher_returns_false() {
         let is_initialized_context = pyshinqlx_is_initialized_context();
         is_initialized_context.expect().returning(|| true);
 
-        let pymodule: Py<PyModule> = Python::with_gil(|py| {
-            PyModule::from_code(
-                py,
-                r#"
-def handler(client_id, cmd):
-    return False
-"#,
-                "",
-                "",
-            )
-            .expect("this should not happen")
-            .into_py(py)
-        });
-        let server_command_handler = Python::with_gil(|py| {
-            pymodule
-                .getattr(py, "handler")
-                .expect("this should not happen")
-                .into_py(py)
-        });
-        SERVER_COMMAND_HANDLER.store(Some(server_command_handler.into()));
+        let handle_server_command_ctx = handle_server_command_context();
+        handle_server_command_ctx
+            .expect()
+            .returning(|py, _, _| Some(false.into_py(py)));
 
         let result = server_command_dispatcher(Some(123), "asdf");
         assert_eq!(result, None);
     }
 
-    #[rstest]
+    #[test]
     #[cfg_attr(miri, ignore)]
     #[serial]
-    fn server_command_dispatcher_dispatcher_throws_exception(_pyshinqlx_setup: ()) {
+    fn server_command_dispatcher_dispatcher_throws_exception() {
         let is_initialized_context = pyshinqlx_is_initialized_context();
         is_initialized_context.expect().returning(|| true);
 
-        let pymodule: Py<PyModule> = Python::with_gil(|py| {
-            PyModule::from_code(
-                py,
-                r#"
-def handler(client_id, cmd):
-    raise Exception
-"#,
-                "",
-                "",
-            )
-            .expect("this should not happen")
-            .into_py(py)
-        });
-        let server_command_handler = Python::with_gil(|py| {
-            pymodule
-                .getattr(py, "handler")
-                .expect("this should not happen")
-                .into_py(py)
-        });
-        SERVER_COMMAND_HANDLER.store(Some(server_command_handler.into()));
+        let handle_server_command_ctx = handle_server_command_context();
+        handle_server_command_ctx
+            .expect()
+            .returning(|py, _, _| Some(PyException::new_err("").into_py(py)));
 
         let result = server_command_dispatcher(Some(123), "asdf");
         assert_eq!(result, Some("asdf".into()));
     }
 
-    #[rstest]
+    #[test]
     #[cfg_attr(miri, ignore)]
     #[serial]
-    fn server_command_dispatcher_dispatcher_returns_not_supported_value(_pyshinqlx_setup: ()) {
+    fn server_command_dispatcher_dispatcher_returns_not_supported_value() {
         let is_initialized_context = pyshinqlx_is_initialized_context();
         is_initialized_context.expect().returning(|| true);
 
-        let pymodule: Py<PyModule> = Python::with_gil(|py| {
-            PyModule::from_code(
-                py,
-                r#"
-def handler(client_id, cmd):
-    return (1, 2, 3)
-"#,
-                "",
-                "",
-            )
-            .expect("this should not happen")
-            .into_py(py)
-        });
-        let server_command_handler = Python::with_gil(|py| {
-            pymodule
-                .getattr(py, "handler")
-                .expect("this should not happen")
-                .into_py(py)
-        });
-        SERVER_COMMAND_HANDLER.store(Some(server_command_handler.into()));
+        let handle_server_command_ctx = handle_server_command_context();
+        handle_server_command_ctx
+            .expect()
+            .returning(|py, _, _| Some((1, 2, 3).into_py(py)));
 
         let result = server_command_dispatcher(Some(123), "asdf");
         assert_eq!(result, Some("asdf".into()));
