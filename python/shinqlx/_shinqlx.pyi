@@ -632,25 +632,27 @@ class Player:
     ) -> bool | Weapons: ...
     def weapon(
         self,
-        new_weapon: Literal[1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15]
-        | Literal[
-            "g",
-            "mg",
-            "sg",
-            "gl",
-            "rl",
-            "lg",
-            "rg",
-            "pg",
-            "bfg",
-            "gh",
-            "ng",
-            "pl",
-            "cg",
-            "hmg",
-            "hands",
-        ]
-        | None = ...,
+        new_weapon: (
+            Literal[1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15]
+            | Literal[
+                "g",
+                "mg",
+                "sg",
+                "gl",
+                "rl",
+                "lg",
+                "rg",
+                "pg",
+                "bfg",
+                "gh",
+                "ng",
+                "pl",
+                "cg",
+                "hmg",
+                "hands",
+            ]
+            | None
+        ) = ...,
     ) -> bool | Literal[1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15]: ...
     def ammo(
         self, reset: bool = ..., **kwargs: Unpack[AmmoKwargs]
@@ -670,16 +672,18 @@ class Player:
     @holdable.setter
     def holdable(
         self,
-        value: None
-        | Literal[
-            "teleporter",
-            "medkit",
-            "flight",
-            "kamikaze",
-            "portal",
-            "invulnerability",
-            "none",
-        ],
+        value: (
+            None
+            | Literal[
+                "teleporter",
+                "medkit",
+                "flight",
+                "kamikaze",
+                "portal",
+                "invulnerability",
+                "none",
+            ]
+        ),
     ) -> None: ...
     def drop_holdable(self) -> None: ...
     def flight(
@@ -795,6 +799,7 @@ class ClientCommandChannel(AbstractChannel):
 
 class TeamChatChannel(ChatChannel):
     team: str
+
     def __init__(self, team: str = ..., name: str = ..., fmt: str = ...) -> None: ...
     def receipients(self) -> list[int] | None: ...
 
@@ -815,6 +820,7 @@ class StatsListener:
     def stop(self) -> None: ...
 
 def handle_rcon(cmd: str) -> bool | None: ...
+def handle_server_command(client_id: int, cmd: str) -> bool | str: ...
 def handle_player_connect(client_id: int, _is_bot: bool) -> bool | str | None: ...
 def handle_player_loaded(client_id: int) -> bool | None: ...
 def handle_player_disconnect(client_id: int, reason: str | None) -> bool | None: ...

@@ -15,7 +15,6 @@ _re_callvote = re.compile(
 )
 _re_vote = re.compile(r"^vote +(?P<arg>.)", flags=re.IGNORECASE)
 _re_team = re.compile(r"^team +(?P<arg>.)", flags=re.IGNORECASE)
-_re_vote_ended = re.compile(r"^print \"Vote (?P<result>passed|failed).\n\"$")
 _re_userinfo = re.compile(r"^userinfo \"(?P<vars>.+)\"$")
 
 
@@ -154,34 +153,6 @@ def handle_client_command(client_id, cmd):
                         [f"\\{key}\\{value}" for key, value in new_info.items()]
                     )
                     cmd = f'userinfo "{formatted_key_values}"'
-
-        return cmd
-    except:  # noqa: E722
-        shinqlx.log_exception()
-        return True
-
-
-def handle_server_command(client_id, cmd):
-    # noinspection PyBroadException
-    try:
-        # Dispatch the "server_command" event before further processing.
-        try:
-            player = shinqlx.Player(client_id) if client_id >= 0 else None
-        except shinqlx.NonexistentPlayerError:
-            return True
-
-        retval = shinqlx.EVENT_DISPATCHERS["server_command"].dispatch(player, cmd)
-        if retval is False:
-            return False
-        if isinstance(retval, str):
-            cmd = retval
-
-        res = _re_vote_ended.match(cmd)
-        if res:
-            if res.group("result") == "passed":
-                shinqlx.EVENT_DISPATCHERS["vote_ended"].dispatch(True)
-            else:
-                shinqlx.EVENT_DISPATCHERS["vote_ended"].dispatch(False)
 
         return cmd
     except:  # noqa: E722
@@ -425,7 +396,6 @@ def redirect_print(channel):
 
 def register_handlers():
     shinqlx.register_handler("client_command", handle_client_command)
-    shinqlx.register_handler("server_command", handle_server_command)
     shinqlx.register_handler("new_game", handle_new_game)
     shinqlx.register_handler("set_configstring", handle_set_configstring)
     shinqlx.register_handler("console_print", handle_console_print)
