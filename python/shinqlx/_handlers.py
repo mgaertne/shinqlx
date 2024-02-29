@@ -1,165 +1,12 @@
 import queue
 import sched
-import re
 
 import shinqlx
-
-# ====================================================================
-#                        REGULAR EXPRESSIONS
-# ====================================================================
-
-_re_say = re.compile(r"^say +\"?(?P<msg>.+)\"?$", flags=re.IGNORECASE)
-_re_say_team = re.compile(r"^say_team +\"?(?P<msg>.+)\"?$", flags=re.IGNORECASE)
-_re_callvote = re.compile(
-    r"^(?:cv|callvote) +(?P<cmd>[^ ]+)(?: \"?(?P<args>.+?)\"?)?$", flags=re.IGNORECASE
-)
-_re_vote = re.compile(r"^vote +(?P<arg>.)", flags=re.IGNORECASE)
-_re_team = re.compile(r"^team +(?P<arg>.)", flags=re.IGNORECASE)
-_re_userinfo = re.compile(r"^userinfo \"(?P<vars>.+)\"$")
-
 
 # ====================================================================
 #                         LOW-LEVEL HANDLERS
 #        These are all called by the C code, not within Python.
 # ====================================================================
-def handle_client_command(client_id, cmd):
-    """Client commands are commands such as "say", "say_team", "scores",
-    "disconnect" and so on. This function parses those and passes it
-    on to the event dispatcher.
-
-    :param: client_id: The client identifier.
-    :type: client_id: int
-    :param: cmd: The command being run by the client.
-    :type: cmd: str
-
-    """
-    # noinspection PyBroadException
-    try:
-        # Dispatch the "client_command" event before further processing.
-        player = shinqlx.Player(client_id)
-        retval = shinqlx.EVENT_DISPATCHERS["client_command"].dispatch(player, cmd)
-        if retval is False:
-            return False
-        if isinstance(retval, str):
-            # Allow plugins to modify the command before passing it on.
-            cmd = retval
-
-        res = _re_say.match(cmd)
-        if res:
-            msg = res.group("msg").replace('"', "")
-            channel = shinqlx.CHAT_CHANNEL
-            if (
-                shinqlx.EVENT_DISPATCHERS["chat"].dispatch(player, msg, channel)
-                is False
-            ):
-                return False
-            return cmd
-
-        res = _re_say_team.match(cmd)
-        if res:
-            msg = res.group("msg").replace('"', "")
-            if (
-                player.team == "free"
-            ):  # I haven't tried this, but I don't think it's even possible.
-                channel = shinqlx.FREE_CHAT_CHANNEL
-            elif player.team == "red":
-                channel = shinqlx.RED_TEAM_CHAT_CHANNEL
-            elif player.team == "blue":
-                channel = shinqlx.BLUE_TEAM_CHAT_CHANNEL
-            else:
-                channel = shinqlx.SPECTATOR_CHAT_CHANNEL
-            if (
-                shinqlx.EVENT_DISPATCHERS["chat"].dispatch(player, msg, channel)
-                is False
-            ):
-                return False
-            return cmd
-
-        res = _re_callvote.match(cmd)
-        if res and not shinqlx.Plugin.is_vote_active():
-            vote = res.group("cmd")
-            args = res.group("args") if res.group("args") else ""
-            # Set the caller for vote_started in case the vote goes through.
-            # noinspection PyUnresolvedReferences
-            shinqlx.EVENT_DISPATCHERS["vote_started"].caller(player)
-            if (
-                shinqlx.EVENT_DISPATCHERS["vote_called"].dispatch(player, vote, args)
-                is False
-            ):
-                return False
-            return cmd
-
-        res = _re_vote.match(cmd)
-        if res and shinqlx.Plugin.is_vote_active():
-            arg = res.group("arg").lower()
-            if (
-                arg in ["y", "1"]
-                and shinqlx.EVENT_DISPATCHERS["vote"].dispatch(player, True) is False
-            ):
-                return False
-            if (
-                arg in ["n", "2"]
-                and shinqlx.EVENT_DISPATCHERS["vote"].dispatch(player, False) is False
-            ):
-                return False
-            return cmd
-
-        res = _re_team.match(cmd)
-        if res:
-            arg = res.group("arg").lower()
-            target_team = ""
-            if arg == player.team[0]:
-                # Don't trigger if player is joining the same team.
-                return cmd
-            if arg == "f":
-                target_team = "free"
-            elif arg == "r":
-                target_team = "red"
-            elif arg == "b":
-                target_team = "blue"
-            elif arg == "s":
-                target_team = "spectator"
-            elif arg == "a":
-                target_team = "any"
-
-            if (
-                target_team
-                and shinqlx.EVENT_DISPATCHERS["team_switch_attempt"].dispatch(
-                    player, player.team, target_team
-                )
-                is False
-            ):
-                return False
-            return cmd
-
-        res = _re_userinfo.match(cmd)
-        if res:
-            new_info = shinqlx.parse_variables(res.group("vars"), ordered=True)
-            old_info = player.cvars
-            changed = {
-                key: value
-                for key, value in new_info.items()
-                if key not in old_info or old_info[key] != value
-            }
-
-            if changed:
-                ret = shinqlx.EVENT_DISPATCHERS["userinfo"].dispatch(player, changed)
-                if ret is False:
-                    return False
-                if isinstance(ret, dict):
-                    for key in ret:
-                        new_info[key] = ret[key]
-                    formatted_key_values = "".join(
-                        [f"\\{key}\\{value}" for key, value in new_info.items()]
-                    )
-                    cmd = f'userinfo "{formatted_key_values}"'
-
-        return cmd
-    except:  # noqa: E722
-        shinqlx.log_exception()
-        return True
-
-
 # Executing tasks right before a frame, by the main thread, will often be desirable to avoid
 # weird behavior if you were to use threading. This list will act as a task queue.
 # Tasks can be added by simply adding the @shinqlx.next_frame decorator to functions.
@@ -395,7 +242,6 @@ def redirect_print(channel):
 
 
 def register_handlers():
-    shinqlx.register_handler("client_command", handle_client_command)
     shinqlx.register_handler("new_game", handle_new_game)
     shinqlx.register_handler("set_configstring", handle_set_configstring)
     shinqlx.register_handler("console_print", handle_console_print)

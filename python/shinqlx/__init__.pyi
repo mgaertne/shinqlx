@@ -175,6 +175,7 @@ from ._shinqlx import (
     _thread_count,
     StatsListener,
     handle_rcon,
+    handle_client_command,
     handle_server_command,
     handle_player_connect,
     handle_player_loaded,
@@ -274,7 +275,6 @@ from ._events import (
 from ._handlers import (
     frame_tasks,
     next_frame_tasks,
-    handle_client_command,
     handle_frame,
     handle_new_game,
     handle_set_configstring,
@@ -475,6 +475,7 @@ __all__ = [
     "PluginUnloadError",
     "StatsListener",
     "handle_rcon",
+    "handle_client_command",
     "handle_server_command",
     "handle_player_connect",
     "handle_player_loaded",
@@ -575,7 +576,6 @@ __all__ = [
     # _handlers
     "frame_tasks",
     "next_frame_tasks",
-    "handle_client_command",
     "handle_frame",
     "handle_new_game",
     "handle_set_configstring",

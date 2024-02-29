@@ -20,7 +20,6 @@ pub(crate) fn pyshinqlx_register_handler(
 
     py.allow_threads(|| {
         let handler_lock = match event {
-            "client_command" => &CLIENT_COMMAND_HANDLER,
             "frame" => &FRAME_HANDLER,
             "custom_command" => &CUSTOM_COMMAND_HANDLER,
             "new_game" => &NEW_GAME_HANDLER,
@@ -46,7 +45,6 @@ mod register_handler_tests {
     use rstest::rstest;
 
     #[rstest]
-    #[case("client_command", &CLIENT_COMMAND_HANDLER)]
     #[case("frame", &FRAME_HANDLER)]
     #[case("custom_command", &CUSTOM_COMMAND_HANDLER)]
     #[case("new_game", &NEW_GAME_HANDLER)]
@@ -87,7 +85,6 @@ def handler():
     }
 
     #[rstest]
-    #[case("client_command", &CLIENT_COMMAND_HANDLER)]
     #[case("frame", &FRAME_HANDLER)]
     #[case("custom_command", &CUSTOM_COMMAND_HANDLER)]
     #[case("new_game", &NEW_GAME_HANDLER)]
