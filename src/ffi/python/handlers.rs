@@ -1,7 +1,11 @@
 use super::prelude::*;
 use crate::ffi::c::prelude::*;
+use crate::{quake_live_engine::GetConfigstring, MAIN_ENGINE};
+use itertools::Itertools;
+
 use once_cell::sync::Lazy;
-use regex::Regex;
+use pyo3::types::{IntoPyDict, PyDict};
+use regex::{Regex, RegexBuilder};
 
 fn try_log_exception(py: Python<'_>, exception: PyErr) -> PyResult<()> {
     let logging_module = py.import("logging")?;
@@ -56,18 +60,223 @@ pub(crate) fn handle_rcon(py: Python<'_>, cmd: String) -> Option<bool> {
     })
 }
 
+static RE_SAY: Lazy<Regex> = Lazy::new(|| {
+    RegexBuilder::new(r#"^say +"?(?P<msg>.+)"?$"#)
+        .case_insensitive(true)
+        .build()
+        .unwrap()
+});
+static RE_SAY_TEAM: Lazy<Regex> = Lazy::new(|| {
+    RegexBuilder::new(r#"^say_team +"?(?P<msg>.+)"?$"#)
+        .case_insensitive(true)
+        .build()
+        .unwrap()
+});
+static RE_CALLVOTE: Lazy<Regex> = Lazy::new(|| {
+    RegexBuilder::new(r#"^(?:cv|callvote) +(?P<cmd>[^ ]+)(?: "?(?P<args>.+?)"?)?$"#)
+        .case_insensitive(true)
+        .build()
+        .unwrap()
+});
+static RE_VOTE: Lazy<Regex> = Lazy::new(|| {
+    RegexBuilder::new(r"^vote +(?P<arg>.)")
+        .case_insensitive(true)
+        .build()
+        .unwrap()
+});
+static RE_TEAM: Lazy<Regex> = Lazy::new(|| {
+    RegexBuilder::new(r"^team +(?P<arg>.)")
+        .case_insensitive(true)
+        .build()
+        .unwrap()
+});
+static RE_USERINFO: Lazy<Regex> = Lazy::new(|| Regex::new(r#"^userinfo "(?P<vars>.+)"$"#).unwrap());
+
+fn is_vote_active() -> bool {
+    let Some(ref main_engine) = *MAIN_ENGINE.load() else {
+        return false;
+    };
+    !main_engine
+        .get_configstring(CS_VOTE_STRING as u16)
+        .is_empty()
+}
+
+fn try_handle_client_command(py: Python<'_>, client_id: i32, cmd: String) -> PyResult<PyObject> {
+    let player = Player::py_new(client_id, None)?;
+
+    let shinqlx_module = py.import("shinqlx")?;
+    let shinqlx_event_dispatchers = shinqlx_module.getattr("EVENT_DISPATCHERS")?;
+    let server_command_dispatcher = shinqlx_event_dispatchers.get_item("client_command")?;
+
+    let return_value =
+        server_command_dispatcher.call_method1("dispatch", (player.clone(), cmd.clone()))?;
+    if return_value.extract::<bool>().is_ok_and(|value| !value) {
+        return Ok(false.into_py(py));
+    };
+
+    let updated_cmd = match return_value.extract::<String>() {
+        Ok(extracted_string) => extracted_string,
+        _ => cmd.clone(),
+    };
+
+    if let Some(captures) = RE_SAY.captures(&updated_cmd) {
+        if let Some(msg) = captures.name("msg") {
+            let reformatted_msg = msg.as_str().replace('"', "");
+            let channel = shinqlx_module.getattr("CHAT_CHANNEL")?;
+            let chat_dispatcher = shinqlx_event_dispatchers.get_item("chat")?;
+            let result = chat_dispatcher
+                .call_method1("dispatch", (player.clone(), reformatted_msg, channel))?;
+            if result.extract::<bool>().is_ok_and(|value| !value) {
+                return Ok(false.into_py(py));
+            }
+        }
+        return Ok(updated_cmd.into_py(py));
+    }
+
+    if let Some(captures) = RE_SAY_TEAM.captures(&updated_cmd) {
+        if let Some(msg) = captures.name("msg") {
+            let reformatted_msg = msg.as_str().replace('"', "");
+            let channel = match player.get_team(py)?.as_str() {
+                "free" => shinqlx_module.getattr("FREE_CHAT_CHANNEL")?,
+                "red" => shinqlx_module.getattr("RED_CHAT_CHANNEL")?,
+                "blue" => shinqlx_module.getattr("BLUE_CHAT_CHANNEL")?,
+                _ => shinqlx_module.getattr("SPECTATOR_CHAT_CHANNEL")?,
+            };
+            let chat_dispatcher = shinqlx_event_dispatchers.get_item("chat")?;
+            let result = chat_dispatcher
+                .call_method1("dispatch", (player.clone(), reformatted_msg, channel))?;
+            if result.extract::<bool>().is_ok_and(|value| !value) {
+                return Ok(false.into_py(py));
+            }
+        }
+        return Ok(updated_cmd.into_py(py));
+    }
+
+    if let Some(captures) = RE_CALLVOTE.captures(&updated_cmd) {
+        if !is_vote_active() {
+            if let Some(vote) = captures.name("cmd") {
+                let args = captures
+                    .name("args")
+                    .map(|matched| matched.as_str())
+                    .unwrap_or("");
+                let vote_started_dispatcher = shinqlx_event_dispatchers.get_item("vote_started")?;
+                let result = vote_started_dispatcher
+                    .call_method1("dispatch", (player.clone(), vote.as_str(), args))?;
+                if result.extract::<bool>().is_ok_and(|value| !value) {
+                    return Ok(false.into_py(py));
+                }
+            }
+        }
+        return Ok(updated_cmd.into_py(py));
+    }
+
+    if let Some(captures) = RE_VOTE.captures(&updated_cmd) {
+        if is_vote_active() {
+            if let Some(arg) = captures.name("arg") {
+                if ["y", "Y", "1", "n", "N", "2"].contains(&arg.as_str()) {
+                    let vote = ["y", "Y", "1"].contains(&arg.as_str());
+                    let vote_dispatcher = shinqlx_event_dispatchers.get_item("vote_started")?;
+                    let result =
+                        vote_dispatcher.call_method1("dispatch", (player.clone(), vote))?;
+                    if result.extract::<bool>().is_ok_and(|value| !value) {
+                        return Ok(false.into_py(py));
+                    }
+                }
+            }
+        }
+        return Ok(updated_cmd.into_py(py));
+    }
+
+    if let Some(captures) = RE_TEAM.captures(&updated_cmd) {
+        if let Some(arg) = captures.name("arg") {
+            let current_team = player.get_team(py)?;
+            if !["f", "r", "b", "s", "a"].contains(&arg.as_str())
+                || current_team.starts_with(arg.as_str())
+            {
+                return Ok(updated_cmd.into_py(py));
+            }
+
+            let target_team = match arg.as_str() {
+                "f" => "free",
+                "r" => "red",
+                "b" => "blue",
+                "s" => "spectator",
+                _ => "any",
+            };
+            let team_switch_attempt_dispatcher =
+                shinqlx_event_dispatchers.get_item("team_switch_attempt")?;
+            let result = team_switch_attempt_dispatcher
+                .call_method1("dispatch", (player.clone(), current_team, target_team))?;
+            if result.extract::<bool>().is_ok_and(|value| !value) {
+                return Ok(false.into_py(py));
+            }
+        }
+        return Ok(updated_cmd.into_py(py));
+    }
+
+    if let Some(captures) = RE_USERINFO.captures(&updated_cmd) {
+        if let Some(vars) = captures.name("vars") {
+            let new_info = parse_variables(vars.as_str().into());
+            let old_info = parse_variables(player.user_info.clone());
+
+            let changed: Vec<&(String, String)> = new_info
+                .items
+                .iter()
+                .filter(|(key, new_value)| {
+                    let opt_old_value = old_info.get(key);
+                    opt_old_value.is_none()
+                        || opt_old_value.is_some_and(|old_value| old_value != *new_value)
+                })
+                .collect();
+
+            if !changed.is_empty() {
+                let userinfo_dispatcher = shinqlx_event_dispatchers.get_item("userinfo")?;
+                let result = userinfo_dispatcher
+                    .call_method1("dispatch", (player.clone(), changed.into_py_dict(py)))?;
+                if result.extract::<bool>().is_ok_and(|value| !value) {
+                    return Ok(false.into_py(py));
+                }
+                if let Ok(changed_values) = result.extract::<&PyDict>() {
+                    let updated_info = new_info.into_py_dict(py);
+                    updated_info.update(changed_values.as_mapping())?;
+                    let formatted_key_values = updated_info
+                        .iter()
+                        .map(|(key, value)| format!(r"\{key}\{value}"))
+                        .join("");
+
+                    return Ok(format!(r#"userinfo "{formatted_key_values}""#).into_py(py));
+                }
+            }
+        }
+        return Ok(updated_cmd.into_py(py));
+    }
+
+    Ok(updated_cmd.into_py(py))
+}
+
+/// Client commands are commands such as "say", "say_team", "scores",
+/// "disconnect" and so on. This function parses those and passes it
+/// on to the event dispatcher.
+#[pyfunction]
+pub(crate) fn handle_client_command(py: Python<'_>, client_id: i32, cmd: String) -> PyObject {
+    try_handle_client_command(py, client_id, cmd).unwrap_or_else(|e| {
+        log_exception(py, e);
+        true.into_py(py)
+    })
+}
+
 static RE_VOTE_ENDED: Lazy<Regex> =
     Lazy::new(|| Regex::new(r#"^print "Vote (?P<result>passed|failed).\n"$"#).unwrap());
 
-fn try_handle_server_command(
-    py: Python<'_>,
-    client_id: i32,
-    cmd: String,
-) -> PyResult<Option<PyObject>> {
-    let player = if (0..MAX_CLIENTS as i32).contains(&client_id) {
-        Player::py_new(client_id, None)?.into_py(py)
+fn try_handle_server_command(py: Python<'_>, client_id: i32, cmd: String) -> PyResult<PyObject> {
+    let Some(player) = (if (0..MAX_CLIENTS as i32).contains(&client_id) {
+        Player::py_new(client_id, None)
+            .map(|player| player.into_py(py))
+            .ok()
     } else {
-        py.None()
+        Some(py.None())
+    }) else {
+        return Ok(true.into_py(py));
     };
 
     let shinqlx_module = py.import("shinqlx")?;
@@ -76,7 +285,7 @@ fn try_handle_server_command(
 
     let return_value = server_command_dispatcher.call_method1("dispatch", (player, cmd.clone()))?;
     if return_value.extract::<bool>().is_ok_and(|value| !value) {
-        return Ok(Some(false.into_py(py)));
+        return Ok(false.into_py(py));
     };
 
     let updated_cmd = match return_value.extract::<String>() {
@@ -92,18 +301,14 @@ fn try_handle_server_command(
         let _ = vote_ended_dispatcher.call_method1("dispatch", (vote_passed,))?;
     }
 
-    Ok(Some(updated_cmd.into_py(py)))
+    Ok(updated_cmd.into_py(py))
 }
 
 #[pyfunction]
-pub(crate) fn handle_server_command(
-    py: Python<'_>,
-    client_id: i32,
-    cmd: String,
-) -> Option<PyObject> {
+pub(crate) fn handle_server_command(py: Python<'_>, client_id: i32, cmd: String) -> PyObject {
     try_handle_server_command(py, client_id, cmd).unwrap_or_else(|e| {
         log_exception(py, e);
-        Some(true.into_py(py))
+        true.into_py(py)
     })
 }
 
@@ -321,12 +526,21 @@ pub(crate) mod handlers {
     }
 
     #[allow(clippy::needless_lifetimes)]
-    pub(crate) fn handle_server_command<'a>(
-        _py: Python<'a>,
+    pub(crate) fn handle_client_command<'a>(
+        py: Python<'a>,
         _client_id: i32,
         _cmd: String,
-    ) -> Option<PyObject> {
-        None
+    ) -> PyObject {
+        py.None()
+    }
+
+    #[allow(clippy::needless_lifetimes)]
+    pub(crate) fn handle_server_command<'a>(
+        py: Python<'a>,
+        _client_id: i32,
+        _cmd: String,
+    ) -> PyObject {
+        py.None()
     }
 
     #[allow(clippy::needless_lifetimes)]

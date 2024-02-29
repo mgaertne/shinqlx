@@ -1,19 +1,12 @@
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from typing import Pattern, Type
+    from typing import Type
     from sched import scheduler
     from queue import Queue
     from types import TracebackType
 
     from shinqlx import AbstractChannel
-
-_re_say: Pattern
-_re_say_team: Pattern
-_re_callvote: Pattern
-_re_vote: Pattern
-_re_team: Pattern
-_re_userinfo: Pattern
 
 frame_tasks: scheduler
 next_frame_tasks: Queue
@@ -25,7 +18,6 @@ _ad_round_number: int
 _print_redirection: AbstractChannel | None
 _print_buffer: str
 
-def handle_client_command(client_id: int, cmd: str) -> bool | str: ...
 def handle_frame() -> bool | None: ...
 def handle_new_game(is_restart: bool) -> bool | None: ...
 def handle_set_configstring(index: int, value: str) -> bool | None: ...

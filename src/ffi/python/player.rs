@@ -331,7 +331,7 @@ impl Player {
     }
 
     #[getter(team)]
-    fn get_team(&self, py: Python<'_>) -> PyResult<String> {
+    pub(crate) fn get_team(&self, py: Python<'_>) -> PyResult<String> {
         py.allow_threads(|| match team_t::try_from(self.player_info.team) {
             Ok(team_t::TEAM_FREE) => Ok("free".into()),
             Ok(team_t::TEAM_RED) => Ok("red".into()),
