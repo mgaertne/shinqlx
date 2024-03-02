@@ -335,16 +335,17 @@ fn run_next_frame_tasks(py: Python<'_>) {
         r#"
 from shinqlx import next_frame_tasks, frame_tasks
 
-while not next_frame_tasks.empty():
-    func, args, kwargs = next_frame_tasks.get_nowait()
-    frame_tasks.enter(0, 1, func, args, kwargs)
+def next_frame_tasks_runner():
+    while not next_frame_tasks.empty():
+        func, args, kwargs = next_frame_tasks.get_nowait()
+        frame_tasks.enter(0, 1, func, args, kwargs)
 "#,
         "",
         "",
     ) {
         Err(e) => log_exception(py, e),
         Ok(next_frame_tasks_runner) => {
-            if let Err(e) = next_frame_tasks_runner.call0() {
+            if let Err(e) = next_frame_tasks_runner.call_method0("next_frame_tasks_runner") {
                 log_exception(py, e);
             }
         }
