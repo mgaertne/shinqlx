@@ -148,8 +148,8 @@ fn try_handle_client_command(py: Python<'_>, client_id: i32, cmd: String) -> PyR
             let reformatted_msg = msg.as_str().replace('"', "");
             let channel = match player.get_team(py)?.as_str() {
                 "free" => shinqlx_module.getattr("FREE_CHAT_CHANNEL")?,
-                "red" => shinqlx_module.getattr("RED_CHAT_CHANNEL")?,
-                "blue" => shinqlx_module.getattr("BLUE_CHAT_CHANNEL")?,
+                "red" => shinqlx_module.getattr("RED_TEAM_CHAT_CHANNEL")?,
+                "blue" => shinqlx_module.getattr("BLUE_TEAM_CHAT_CHANNEL")?,
                 _ => shinqlx_module.getattr("SPECTATOR_CHAT_CHANNEL")?,
             };
             let chat_dispatcher = shinqlx_event_dispatchers.get_item("chat")?;
