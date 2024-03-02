@@ -4,7 +4,7 @@ use crate::ffi::c::prelude::*;
 use super::{pyshinqlx_get_logger, set_map_subtitles};
 use crate::{quake_live_engine::GetConfigstring, MAIN_ENGINE};
 
-use core::sync::atomic::{AtomicBool, Ordering};
+use core::sync::atomic::{AtomicBool, AtomicI32, Ordering};
 use itertools::Itertools;
 use once_cell::sync::Lazy;
 use pyo3::types::{IntoPyDict, PyDict};
@@ -432,6 +432,135 @@ pub(crate) fn handle_new_game(py: Python<'_>, is_restart: bool) -> Option<bool> 
     None
 }
 
+static AD_ROUND_NUMBER: AtomicI32 = AtomicI32::new(0);
+
+fn try_handle_set_configstring(py: Python<'_>, index: u32, value: String) -> PyResult<PyObject> {
+    let shinqlx_module = py.import("shinqlx")?;
+    let shinqlx_event_dispatchers = shinqlx_module.getattr("EVENT_DISPATCHER")?;
+
+    let set_confistring_dispatcher = shinqlx_event_dispatchers.get_item("set_configstring")?;
+    let result = set_confistring_dispatcher
+        .call_method1("dispatch", (index.into_py(py), value.clone().into_py(py)))?;
+
+    if result
+        .extract::<bool>()
+        .is_ok_and(|result_value| !result_value)
+    {
+        return Ok(false.into_py(py));
+    }
+
+    let configstring_value = result.extract::<String>().unwrap_or(value.clone());
+    match index {
+        CS_VOTE_STRING => {
+            if !configstring_value.is_empty() {
+                let (vote, args) = configstring_value
+                    .split_once(' ')
+                    .unwrap_or((configstring_value.as_str(), ""));
+                let vote_started_dispatcher = shinqlx_event_dispatchers.get_item("vote_started")?;
+                vote_started_dispatcher.call_method1("dispatch", (vote, args))?;
+                Ok(py.None())
+            } else {
+                Ok(configstring_value.into_py(py))
+            }
+        }
+        CS_SERVERINFO => {
+            let Some(ref main_engine) = *MAIN_ENGINE.load() else {
+                return Ok(py.None());
+            };
+            let old_configstring = main_engine.get_configstring(0);
+            if old_configstring.is_empty() {
+                return Ok(py.None());
+            }
+            let old_cvars = parse_variables(old_configstring);
+            let opt_old_state = old_cvars.get("g_gameState");
+            let old_state = opt_old_state.as_deref().unwrap_or("");
+
+            let new_cvars = parse_variables(configstring_value.clone());
+            let opt_new_state = new_cvars.get("g_gameState");
+            let new_state = opt_new_state.as_deref().unwrap_or("");
+
+            if old_state == new_state {
+                return Ok(configstring_value.into_py(py));
+            }
+            match (old_state, new_state) {
+                ("PRE_GAME", "IN_PROGRESS") => {}
+                ("PRE_GAME", "COUNTDOWN") => {
+                    AD_ROUND_NUMBER.store(1, Ordering::SeqCst);
+                    let game_countdown_dispatcher =
+                        shinqlx_event_dispatchers.get_item("game_countdown")?;
+                    game_countdown_dispatcher.call_method0("dispatch")?;
+                }
+                ("COUNT_DOWN", "IN_PROGRESS") => {}
+                ("IN_PROGRESS", "PRE_GAME") => {}
+                ("COUNT_DOWN", "PRE_GAME") => {}
+                _ => {
+                    let logger = pyshinqlx_get_logger(py, None)?;
+                    let warning = format!("UNKNOWN GAME STATES: {old_state} - {new_state}");
+                    logger.call_method1("warning", (warning,))?;
+                }
+            }
+            Ok(configstring_value.into_py(py))
+        }
+        CS_ROUND_STATUS => {
+            let cvars = parse_variables(configstring_value.clone());
+            if cvars.is_empty() {
+                return Ok(configstring_value.into_py(py));
+            }
+
+            let opt_round = cvars
+                .get("round")
+                .and_then(|value| value.parse::<i32>().ok());
+            let opt_turn = cvars
+                .get("turn")
+                .and_then(|value| value.parse::<i32>().ok());
+            let opt_time = cvars.get("time");
+
+            let opt_round_number = if opt_turn.is_some() {
+                if cvars
+                    .get("state")
+                    .is_some_and(|value| value.parse::<i32>().is_ok_and(|value| value == 0))
+                {
+                    return Ok(py.None());
+                }
+
+                if opt_round.is_some() {
+                    let ad_round_number =
+                        opt_round.unwrap_or_default() * 2 + 1 + opt_turn.unwrap_or_default();
+                    AD_ROUND_NUMBER.store(ad_round_number, Ordering::SeqCst);
+                }
+                Some(AD_ROUND_NUMBER.load(Ordering::SeqCst))
+            } else {
+                opt_round
+            };
+
+            if opt_round_number.is_some() {
+                let round_number = opt_round_number.unwrap();
+                let event = match opt_time {
+                    Some(_) => "round_countdown",
+                    None => "round_start",
+                };
+
+                let round_discpatcher = shinqlx_event_dispatchers.get_item(event)?;
+                round_discpatcher.call_method1("dispatch", (round_number,))?;
+                return Ok(py.None());
+            }
+
+            Ok(configstring_value.into_py(py))
+        }
+        _ => Ok(configstring_value.into_py(py)),
+    }
+}
+
+/// Called whenever the server tries to set a configstring. Can return
+/// False to stop the event.
+#[pyfunction]
+pub(crate) fn handle_set_configstring(py: Python<'_>, index: u32, value: String) -> PyObject {
+    try_handle_set_configstring(py, index, value).unwrap_or_else(|e| {
+        log_exception(py, e);
+        true.into_py(py)
+    })
+}
+
 fn try_handle_player_connect(py: Python<'_>, client_id: i32, _is_bot: bool) -> PyResult<PyObject> {
     let player = Player::py_new(client_id, None)?;
 
@@ -671,6 +800,15 @@ pub(crate) mod handlers {
     #[allow(clippy::needless_lifetimes)]
     pub(crate) fn handle_new_game<'a>(_py: Python<'a>, _is_restart: bool) -> Option<bool> {
         None
+    }
+
+    #[allow(clippy::needless_lifetimes)]
+    pub(crate) fn handle_set_configstring<'a>(
+        py: Python<'a>,
+        _index: u32,
+        _value: String,
+    ) -> PyObject {
+        py.None()
     }
 
     #[allow(clippy::needless_lifetimes)]
