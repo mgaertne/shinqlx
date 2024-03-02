@@ -1,10 +1,14 @@
 use super::prelude::*;
 
+use crate::{
+    ffi::c::prelude::{CS_SCORES1, CS_SCORES2, CS_SERVERINFO},
+    quake_live_engine::{GetConfigstring, SetConfigstring},
+    MAIN_ENGINE
+};
+
 use itertools::Itertools;
 use log::*;
 
-use crate::quake_live_engine::{GetConfigstring, SetConfigstring};
-use crate::MAIN_ENGINE;
 use pyo3::exceptions::PyEnvironmentError;
 use pyo3::{
     create_exception,
@@ -74,7 +78,8 @@ impl Game {
                 ));
             };
 
-            let configstring = main_engine.get_configstring(0);
+            let configstring = main_engine
+                .get_configstring(CS_SERVERINFO as u16);
 
             if configstring.is_empty() {
                 return Err(NonexistentGameError::new_err(
@@ -120,7 +125,8 @@ impl Game {
                 ));
             };
 
-            let configstring = main_engine.get_configstring(0);
+            let configstring = main_engine
+                .get_configstring(CS_SERVERINFO as u16;
 
             if configstring.is_empty() {
                 self.valid = false;
@@ -141,7 +147,7 @@ impl Game {
                 ));
             };
 
-            let configstring = main_engine.get_configstring(0);
+            let configstring = main_engine.get_configstring(CS_SERVERINFO as u16);
 
             if configstring.is_empty() {
                 self.valid = false;
@@ -167,7 +173,7 @@ impl Game {
                 ));
             };
 
-            Ok(main_engine.get_configstring(0))
+            Ok(main_engine.get_configstring(CS_SERVERINFO as u16))
         })?;
 
         if configstring.is_empty() {
@@ -264,7 +270,7 @@ impl Game {
                 ));
             };
 
-            let configstring = main_engine.get_configstring(6);
+            let configstring = main_engine.get_configstring(CS_SCORES1 as u16);
             Ok(configstring.parse::<i32>().unwrap_or_default())
         })
     }
@@ -278,7 +284,7 @@ impl Game {
                 ));
             };
 
-            let configstring = main_engine.get_configstring(7);
+            let configstring = main_engine.get_configstring(CS_SCORES2 as u16);
             Ok(configstring.parse::<i32>().unwrap_or_default())
         })
     }

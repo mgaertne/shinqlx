@@ -467,7 +467,7 @@ fn try_handle_set_configstring(py: Python<'_>, index: u32, value: String) -> PyR
             let Some(ref main_engine) = *MAIN_ENGINE.load() else {
                 return Ok(py.None());
             };
-            let old_configstring = main_engine.get_configstring(0);
+            let old_configstring = main_engine.get_configstring(CS_SERVERINFO as u16);
             if old_configstring.is_empty() {
                 return Ok(py.None());
             }

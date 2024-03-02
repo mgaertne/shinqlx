@@ -264,7 +264,7 @@ impl Player {
                 return "".into();
             };
 
-            let configstring = main_engine.get_configstring(529 + self.id as u16);
+            let configstring = main_engine.get_configstring(CS_PLAYERS as u16 + self.id as u16);
             let parsed_cs = parse_variables(configstring);
             parsed_cs.get("cn").unwrap_or("".into())
         })
