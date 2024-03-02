@@ -436,7 +436,7 @@ static AD_ROUND_NUMBER: AtomicI32 = AtomicI32::new(0);
 
 fn try_handle_set_configstring(py: Python<'_>, index: u32, value: String) -> PyResult<PyObject> {
     let shinqlx_module = py.import("shinqlx")?;
-    let shinqlx_event_dispatchers = shinqlx_module.getattr("EVENT_DISPATCHER")?;
+    let shinqlx_event_dispatchers = shinqlx_module.getattr("EVENT_DISPATCHERS")?;
 
     let set_confistring_dispatcher = shinqlx_event_dispatchers.get_item("set_configstring")?;
     let result = set_confistring_dispatcher
