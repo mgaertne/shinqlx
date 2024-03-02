@@ -60,14 +60,7 @@ pub(crate) fn frame_dispatcher() {
         return;
     }
 
-    let Some(ref frame_handler) = *FRAME_HANDLER.load() else {
-        return;
-    };
-
-    let result = Python::with_gil(|py| frame_handler.call0(py));
-    if result.is_err() {
-        error!(target: "shinqlx", "frame_handler returned an error.");
-    }
+    let _ = Python::with_gil(handle_frame);
 }
 
 #[allow(clippy::question_mark)]
@@ -488,77 +481,21 @@ mod pyshinqlx_dispatcher_tests {
         let is_initialized_context = pyshinqlx_is_initialized_context();
         is_initialized_context.expect().returning(|| false);
 
+        let handle_frame_ctx = handle_frame_context();
+        handle_frame_ctx.expect().times(0);
+
         frame_dispatcher();
     }
 
     #[test]
-    #[serial]
-    fn frame_dispatcher_when_dispatcher_not_initiailized() {
-        let is_initialized_context = pyshinqlx_is_initialized_context();
-        is_initialized_context.expect().returning(|| true);
-        FRAME_HANDLER.store(None);
-
-        frame_dispatcher();
-    }
-
-    #[rstest]
     #[cfg_attr(miri, ignore)]
     #[serial]
-    fn frame_dispatcher_dispatcher_works_properly(_pyshinqlx_setup: ()) {
+    fn frame_dispatcher_dispatcher_works_properly() {
         let is_initialized_context = pyshinqlx_is_initialized_context();
         is_initialized_context.expect().returning(|| true);
 
-        let pymodule: Py<PyModule> = Python::with_gil(|py| {
-            PyModule::from_code(
-                py,
-                r#"
-def handler():
-    pass
-"#,
-                "",
-                "",
-            )
-            .expect("this should not happen")
-            .into_py(py)
-        });
-        let frame_handler = Python::with_gil(|py| {
-            pymodule
-                .getattr(py, "handler")
-                .expect("this should not happen")
-                .into_py(py)
-        });
-        FRAME_HANDLER.store(Some(frame_handler.into()));
-
-        frame_dispatcher();
-    }
-
-    #[rstest]
-    #[cfg_attr(miri, ignore)]
-    #[serial]
-    fn frame_dispatcher_dispatcher_throws_exception(_pyshinqlx_setup: ()) {
-        let is_initialized_context = pyshinqlx_is_initialized_context();
-        is_initialized_context.expect().returning(|| true);
-
-        let pymodule: Py<PyModule> = Python::with_gil(|py| {
-            PyModule::from_code(
-                py,
-                r#"
-def handler():
-    raise Exception
-"#,
-                "",
-                "",
-            )
-            .expect("this should not happen")
-            .into_py(py)
-        });
-        let frame_handler = Python::with_gil(|py| {
-            pymodule
-                .getattr(py, "handler")
-                .expect("this should not happen")
-                .into_py(py)
-        });
-        FRAME_HANDLER.store(Some(frame_handler.into()));
+        let handle_frame_ctx = handle_frame_context();
+        handle_frame_ctx.expect().returning(|_| None);
 
         frame_dispatcher();
     }

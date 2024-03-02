@@ -17,7 +17,6 @@ if TYPE_CHECKING:
     )
 
 _re_vote: Pattern
-hot_plugged_events: Iterable[str]
 
 UncancellableEventReturn = Literal["RET_NONE"] | None
 CancellableEventReturn = Literal[0, 1, 2, 3] | None

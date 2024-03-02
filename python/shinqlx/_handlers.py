@@ -1,49 +1,9 @@
-import queue
-import sched
-
 import shinqlx
 
 # ====================================================================
 #                         LOW-LEVEL HANDLERS
 #        These are all called by the C code, not within Python.
 # ====================================================================
-# Executing tasks right before a frame, by the main thread, will often be desirable to avoid
-# weird behavior if you were to use threading. This list will act as a task queue.
-# Tasks can be added by simply adding the @shinqlx.next_frame decorator to functions.
-frame_tasks = sched.scheduler()
-next_frame_tasks = queue.Queue()  # type: ignore
-
-
-def handle_frame():
-    """This will be called every frame. To allow threads to call stuff from the
-    main thread, tasks can be scheduled using the :func:`shinqlx.next_frame` decorator
-    and have it be executed here.
-
-    """
-
-    while True:
-        # This will run all tasks that are currently scheduled.
-        # If one of the tasks throw an exception, it'll log it
-        # and continue execution of the next tasks if any.
-        # noinspection PyBroadException
-        try:
-            frame_tasks.run(blocking=False)
-            break
-        except:  # noqa: E722
-            shinqlx.log_exception()
-            continue
-    # noinspection PyBroadException
-    try:
-        shinqlx.EVENT_DISPATCHERS["frame"].dispatch()
-    except:  # noqa: E722
-        shinqlx.log_exception()
-        return True
-
-    while not next_frame_tasks.empty():
-        func, args, kwargs = next_frame_tasks.get_nowait()
-        frame_tasks.enter(0, 1, func, args, kwargs)
-
-
 _zmq_warning_issued = False
 _first_game = True
 _ad_round_number = 0
