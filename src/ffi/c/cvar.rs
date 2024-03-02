@@ -21,7 +21,12 @@ impl TryFrom<*mut cvar_t> for CVar {
 
 impl CVar {
     pub(crate) fn get_string(&self) -> String {
-        unsafe { CStr::from_ptr(self.cvar.string).to_string_lossy().into() }
+        if self.cvar.string.is_null() {
+            return "".into();
+        }
+        unsafe { CStr::from_ptr(self.cvar.string) }
+            .to_string_lossy()
+            .into()
     }
 
     pub(crate) fn get_integer(&self) -> i32 {
