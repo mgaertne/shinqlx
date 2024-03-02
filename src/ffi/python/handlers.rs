@@ -4,12 +4,11 @@ use crate::ffi::c::prelude::*;
 use super::{pyshinqlx_get_logger, set_map_subtitles};
 use crate::{quake_live_engine::GetConfigstring, MAIN_ENGINE};
 
-use core::sync::atomic::AtomicBool;
+use core::sync::atomic::{AtomicBool, Ordering};
 use itertools::Itertools;
 use once_cell::sync::Lazy;
 use pyo3::types::{IntoPyDict, PyDict};
 use regex::{Regex, RegexBuilder};
-use std::sync::atomic::Ordering;
 
 fn try_log_exception(py: Python<'_>, exception: PyErr) -> PyResult<()> {
     let logging_module = py.import("logging")?;
