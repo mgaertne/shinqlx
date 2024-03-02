@@ -6,14 +6,11 @@ if TYPE_CHECKING:
 
     from shinqlx import AbstractChannel
 
-_zmq_warning_issued: bool
-_first_game: bool
 _ad_round_number: int
 
 _print_redirection: AbstractChannel | None
 _print_buffer: str
 
-def handle_new_game(is_restart: bool) -> bool | None: ...
 def handle_set_configstring(index: int, value: str) -> bool | None: ...
 def handle_console_print(text: str | None) -> bool | str | None: ...
 def redirect_print(channel: AbstractChannel) -> PrintRedirector: ...

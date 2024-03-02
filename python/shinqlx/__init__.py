@@ -185,6 +185,7 @@ try:
         handle_client_command,
         handle_server_command,
         handle_frame,
+        handle_new_game,
         handle_player_connect,
         handle_player_loaded,
         handle_player_spawn,
@@ -376,6 +377,7 @@ except ModuleNotFoundError:
         handle_client_command,
         handle_server_command,
         handle_frame,
+        handle_new_game,
         handle_player_connect,
         handle_player_loaded,
         handle_player_spawn,
@@ -436,7 +438,6 @@ from ._events import (
     EVENT_DISPATCHERS,
 )
 from ._handlers import (
-    handle_new_game,
     handle_set_configstring,
     handle_console_print,
     redirect_print,
@@ -649,6 +650,7 @@ __all__ = [
     "handle_client_command",
     "handle_server_command",
     "handle_frame",
+    "handle_new_game",
     "handle_player_connect",
     "handle_player_loaded",
     "handle_player_spawn",
@@ -711,7 +713,6 @@ __all__ = [
     "DamageDispatcher",
     "EVENT_DISPATCHERS",
     # _handlers
-    "handle_new_game",
     "handle_set_configstring",
     "handle_console_print",
     "redirect_print",

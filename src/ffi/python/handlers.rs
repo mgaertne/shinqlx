@@ -1,11 +1,15 @@
 use super::prelude::*;
 use crate::ffi::c::prelude::*;
+
+use super::{pyshinqlx_get_logger, set_map_subtitles};
 use crate::{quake_live_engine::GetConfigstring, MAIN_ENGINE};
 
+use core::sync::atomic::AtomicBool;
 use itertools::Itertools;
 use once_cell::sync::Lazy;
 use pyo3::types::{IntoPyDict, PyDict};
 use regex::{Regex, RegexBuilder};
+use std::sync::atomic::Ordering;
 
 fn try_log_exception(py: Python<'_>, exception: PyErr) -> PyResult<()> {
     let logging_module = py.import("logging")?;
@@ -385,6 +389,50 @@ pub(crate) fn handle_frame(py: Python<'_>) -> Option<bool> {
     None
 }
 
+static ZMQ_WARNING_ISSUED: AtomicBool = AtomicBool::new(false);
+static IS_FIRST_GAME: AtomicBool = AtomicBool::new(true);
+
+fn try_handle_new_game(py: Python<'_>, is_restart: bool) -> PyResult<()> {
+    let shinqlx_module = py.import("shinqlx")?;
+    if IS_FIRST_GAME.load(Ordering::SeqCst) {
+        shinqlx_module.call_method0("late_init")?;
+        IS_FIRST_GAME.store(false, Ordering::SeqCst);
+
+        let zmq_enabled_cvar = pyshinqlx_get_cvar(py, "zmq_stats_enable")?;
+        let zmq_enabled = zmq_enabled_cvar.is_some_and(|value| value != "0");
+        if !zmq_enabled && !ZMQ_WARNING_ISSUED.load(Ordering::SeqCst) {
+            let logger = pyshinqlx_get_logger(py, None)?;
+            logger.call_method1("warning", (r#"Some events will not work because ZMQ stats is not enabled. Launch the server with "zmq_stats_enable 1""#,))?;
+            ZMQ_WARNING_ISSUED.store(true, Ordering::SeqCst);
+        }
+    }
+
+    set_map_subtitles(shinqlx_module)?;
+
+    let event_dispatchers_module = shinqlx_module.getattr("EVENT_DISPATCHERS")?;
+    if !is_restart {
+        let map_name = pyshinqlx_get_cvar(py, "mapname")?;
+        let factory_name = pyshinqlx_get_cvar(py, "g_factory")?;
+        let map_dispatcher = event_dispatchers_module.get_item("map")?;
+        map_dispatcher.call_method1("dispatch", (map_name, factory_name))?;
+    }
+
+    let new_game_dispatcher = event_dispatchers_module.get_item("new_game")?;
+    new_game_dispatcher.call_method0("dispatch")?;
+
+    Ok(())
+}
+
+#[pyfunction]
+pub(crate) fn handle_new_game(py: Python<'_>, is_restart: bool) -> Option<bool> {
+    if let Err(e) = try_handle_new_game(py, is_restart) {
+        log_exception(py, e);
+        return Some(true);
+    }
+
+    None
+}
+
 fn try_handle_player_connect(py: Python<'_>, client_id: i32, _is_bot: bool) -> PyResult<PyObject> {
     let player = Player::py_new(client_id, None)?;
 
@@ -618,6 +666,11 @@ pub(crate) mod handlers {
 
     #[allow(clippy::needless_lifetimes)]
     pub(crate) fn handle_frame<'a>(_py: Python<'a>) -> Option<bool> {
+        None
+    }
+
+    #[allow(clippy::needless_lifetimes)]
+    pub(crate) fn handle_new_game<'a>(_py: Python<'a>, _is_restart: bool) -> Option<bool> {
         None
     }
 
