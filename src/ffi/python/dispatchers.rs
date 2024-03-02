@@ -133,14 +133,7 @@ pub(crate) fn new_game_dispatcher(restart: bool) {
         return;
     }
 
-    let Some(ref new_game_handler) = *NEW_GAME_HANDLER.load() else {
-        return;
-    };
-
-    let result = Python::with_gil(|py| new_game_handler.call1(py, (restart,)));
-    if result.is_err() {
-        error!(target: "shinqlx", "new_game_handler returned an error.");
-    }
+    let _ = Python::with_gil(|py| handle_new_game(py, restart));
 }
 
 pub(crate) fn set_configstring_dispatcher<T, U>(index: T, value: U) -> Option<String>
@@ -683,79 +676,23 @@ mod pyshinqlx_dispatcher_tests {
         let is_initialized_context = pyshinqlx_is_initialized_context();
         is_initialized_context.expect().returning(|| false);
 
+        let handle_new_game_ctx = handle_new_game_context();
+        handle_new_game_ctx.expect().times(0);
+
         new_game_dispatcher(false);
     }
 
     #[test]
-    #[serial]
-    fn new_game_dispatcher_when_dispatcher_not_initiailized() {
-        let is_initialized_context = pyshinqlx_is_initialized_context();
-        is_initialized_context.expect().returning(|| true);
-        NEW_GAME_HANDLER.store(None);
-
-        new_game_dispatcher(true);
-    }
-
-    #[rstest]
     #[cfg_attr(miri, ignore)]
     #[serial]
-    fn new_game_dispatcher_dispatcher_works_properly(_pyshinqlx_setup: ()) {
+    fn new_game_dispatcher_dispatcher_works_properly() {
         let is_initialized_context = pyshinqlx_is_initialized_context();
         is_initialized_context.expect().returning(|| true);
 
-        let pymodule: Py<PyModule> = Python::with_gil(|py| {
-            PyModule::from_code(
-                py,
-                r#"
-def handler(restart):
-    pass
-"#,
-                "",
-                "",
-            )
-            .expect("this should not happen")
-            .into_py(py)
-        });
-        let new_game_handler = Python::with_gil(|py| {
-            pymodule
-                .getattr(py, "handler")
-                .expect("this should not happen")
-                .into_py(py)
-        });
-        NEW_GAME_HANDLER.store(Some(new_game_handler.into()));
+        let handle_new_game_ctx = handle_new_game_context();
+        handle_new_game_ctx.expect().returning(|_, _| None);
 
         new_game_dispatcher(false);
-    }
-
-    #[rstest]
-    #[cfg_attr(miri, ignore)]
-    #[serial]
-    fn new_game_dispatcher_dispatcher_throws_exception(_pyshinqlx_setup: ()) {
-        let is_initialized_context = pyshinqlx_is_initialized_context();
-        is_initialized_context.expect().returning(|| true);
-
-        let pymodule: Py<PyModule> = Python::with_gil(|py| {
-            PyModule::from_code(
-                py,
-                r#"
-def handler(restart):
-    raise Exception
-"#,
-                "",
-                "",
-            )
-            .expect("this should not happen")
-            .into_py(py)
-        });
-        let new_game_handler = Python::with_gil(|py| {
-            pymodule
-                .getattr(py, "handler")
-                .expect("this should not happen")
-                .into_py(py)
-        });
-        NEW_GAME_HANDLER.store(Some(new_game_handler.into()));
-
-        new_game_dispatcher(true);
     }
 
     #[test]

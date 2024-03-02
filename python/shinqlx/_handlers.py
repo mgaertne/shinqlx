@@ -4,50 +4,7 @@ import shinqlx
 #                         LOW-LEVEL HANDLERS
 #        These are all called by the C code, not within Python.
 # ====================================================================
-_zmq_warning_issued = False
-_first_game = True
 _ad_round_number = 0
-
-
-def handle_new_game(is_restart):
-    # This is called early in the launch process, so it's a good place to initialize
-    # shinqlx stuff that needs QLDS to be initialized.
-    global _first_game
-    if _first_game:
-        shinqlx.late_init()
-        _first_game = False
-
-        # A good place to warn the owner if ZMQ stats are disabled.
-        global _zmq_warning_issued
-        stats_enabled_cvar = shinqlx.get_cvar("zmq_stats_enable")
-        if (
-            stats_enabled_cvar is None or not bool(int(stats_enabled_cvar))
-        ) and not _zmq_warning_issued:
-            logger = shinqlx.get_logger()
-            logger.warning(
-                "Some events will not work because ZMQ stats is not enabled. "
-                'Launch the server with "zmq_stats_enable 1"'
-            )
-            _zmq_warning_issued = True
-
-    shinqlx.set_map_subtitles()
-
-    if not is_restart:
-        # noinspection PyBroadException
-        try:
-            shinqlx.EVENT_DISPATCHERS["map"].dispatch(
-                shinqlx.get_cvar("mapname"), shinqlx.get_cvar("g_factory")
-            )
-        except:  # noqa: E722
-            shinqlx.log_exception()
-            return True
-
-    # noinspection PyBroadException
-    try:
-        shinqlx.EVENT_DISPATCHERS["new_game"].dispatch()
-    except:  # noqa: E722
-        shinqlx.log_exception()
-        return True
 
 
 def handle_set_configstring(index, value):
@@ -202,6 +159,5 @@ def redirect_print(channel):
 
 
 def register_handlers():
-    shinqlx.register_handler("new_game", handle_new_game)
     shinqlx.register_handler("set_configstring", handle_set_configstring)
     shinqlx.register_handler("console_print", handle_console_print)

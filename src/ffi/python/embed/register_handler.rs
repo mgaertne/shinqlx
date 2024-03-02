@@ -21,7 +21,6 @@ pub(crate) fn pyshinqlx_register_handler(
     py.allow_threads(|| {
         let handler_lock = match event {
             "custom_command" => &CUSTOM_COMMAND_HANDLER,
-            "new_game" => &NEW_GAME_HANDLER,
             "set_configstring" => &SET_CONFIGSTRING_HANDLER,
             "console_print" => &CONSOLE_PRINT_HANDLER,
             _ => return Err(PyValueError::new_err("Unsupported event.")),
@@ -45,7 +44,6 @@ mod register_handler_tests {
 
     #[rstest]
     #[case("custom_command", &CUSTOM_COMMAND_HANDLER)]
-    #[case("new_game", &NEW_GAME_HANDLER)]
     #[case("set_configstring", &SET_CONFIGSTRING_HANDLER)]
     #[case("console_print", &CONSOLE_PRINT_HANDLER)]
     #[cfg_attr(miri, ignore)]
@@ -84,7 +82,6 @@ def handler():
 
     #[rstest]
     #[case("custom_command", &CUSTOM_COMMAND_HANDLER)]
-    #[case("new_game", &NEW_GAME_HANDLER)]
     #[case("set_configstring", &SET_CONFIGSTRING_HANDLER)]
     #[case("console_print", &CONSOLE_PRINT_HANDLER)]
     #[cfg_attr(miri, ignore)]
