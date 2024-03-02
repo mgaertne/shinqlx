@@ -1,93 +1,10 @@
 import shinqlx
 
+
 # ====================================================================
 #                         LOW-LEVEL HANDLERS
 #        These are all called by the C code, not within Python.
 # ====================================================================
-_ad_round_number = 0
-
-
-def handle_set_configstring(index, value):
-    """Called whenever the server tries to set a configstring. Can return
-    False to stop the event.
-
-    """
-    global _ad_round_number
-
-    # noinspection PyBroadException
-    try:
-        res = shinqlx.EVENT_DISPATCHERS["set_configstring"].dispatch(index, value)
-        if res is False:
-            return False
-        if isinstance(res, str):
-            value = res
-
-        # VOTES
-        if index == 9 and value:
-            cmd = value.split()
-            vote = cmd[0] if cmd else ""
-            args = " ".join(cmd[1:]) if len(cmd) > 1 else ""
-            shinqlx.EVENT_DISPATCHERS["vote_started"].dispatch(vote, args)
-            return
-        # GAME STATE CHANGES
-        if index == 0:
-            old_cs = shinqlx.parse_variables(shinqlx.get_configstring(index))
-            if not old_cs:
-                return
-
-            new_cs = shinqlx.parse_variables(value)
-            old_state = old_cs["g_gameState"]
-            new_state = new_cs["g_gameState"]
-            if old_state != new_state:
-                if old_state == "PRE_GAME" and new_state == "IN_PROGRESS":
-                    pass
-                elif old_state == "PRE_GAME" and new_state == "COUNT_DOWN":
-                    _ad_round_number = 1
-                    shinqlx.EVENT_DISPATCHERS["game_countdown"].dispatch()
-                elif (old_state == "COUNT_DOWN" and new_state == "IN_PROGRESS") or (
-                    new_state == "PRE_GAME"
-                    and old_state
-                    in [
-                        "IN_PROGRESS",
-                        "COUNT_DOWN",
-                    ]
-                ):
-                    pass
-                else:
-                    logger = shinqlx.get_logger()
-                    logger.warning(f"UNKNOWN GAME STATES: {old_state} - {new_state}")
-        # ROUND COUNTDOWN AND START
-        elif index == 661:
-            cvars = shinqlx.parse_variables(value)
-            if cvars:
-                if "turn" in cvars:
-                    # it is A&D
-                    if int(cvars["state"]) == 0:
-                        return
-                    # round cvar appears only on round countdown
-                    # and first round is 0, not 1
-                    try:
-                        round_number = int(cvars["round"]) * 2 + 1 + int(cvars["turn"])
-                        _ad_round_number = round_number
-                    except KeyError:
-                        round_number = _ad_round_number
-                else:
-                    # it is CA
-                    round_number = int(cvars["round"])
-
-                if round_number and "time" in cvars:
-                    shinqlx.EVENT_DISPATCHERS["round_countdown"].dispatch(round_number)
-                    return
-                if round_number:
-                    shinqlx.EVENT_DISPATCHERS["round_start"].dispatch(round_number)
-                    return
-
-        return res
-    except:  # noqa: E722
-        shinqlx.log_exception()
-        return True
-
-
 def handle_console_print(text):
     """Called whenever the server prints something to the console and when rcon is used."""
     if not text:
@@ -159,5 +76,4 @@ def redirect_print(channel):
 
 
 def register_handlers():
-    shinqlx.register_handler("set_configstring", handle_set_configstring)
     shinqlx.register_handler("console_print", handle_console_print)

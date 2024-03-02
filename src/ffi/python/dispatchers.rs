@@ -145,29 +145,20 @@ where
         return Some(value.as_ref().into());
     }
 
-    let Some(ref set_configstring_handler) = *SET_CONFIGSTRING_HANDLER.load() else {
-        return Some(value.as_ref().into());
-    };
-
     Python::with_gil(|py| {
-        match set_configstring_handler.call1(py, (index.into(), value.as_ref())) {
-            Err(_) => {
-                error!(target: "shinqlx", "set_configstring_handler returned an error.");
-                Some(value.as_ref().into())
-            }
-            Ok(returned) => match returned.extract::<String>(py) {
-                Err(_) => match returned.extract::<bool>(py) {
-                    Err(_) => Some(value.as_ref().into()),
-                    Ok(result_bool) => {
-                        if !result_bool {
-                            None
-                        } else {
-                            Some(value.as_ref().into())
-                        }
+        let returned = handle_set_configstring(py, index.into(), value.as_ref().to_string());
+        match returned.extract::<String>(py) {
+            Err(_) => match returned.extract::<bool>(py) {
+                Err(_) => Some(value.as_ref().into()),
+                Ok(result_bool) => {
+                    if !result_bool {
+                        None
+                    } else {
+                        Some(value.as_ref().into())
                     }
-                },
-                Ok(result_string) => Some(result_string),
+                }
             },
+            Ok(result_string) => Some(result_string),
         }
     })
 }
@@ -701,208 +692,88 @@ mod pyshinqlx_dispatcher_tests {
         let is_initialized_context = pyshinqlx_is_initialized_context();
         is_initialized_context.expect().returning(|| false);
 
+        let handle_set_configstring_ctx = handle_set_configstring_context();
+        handle_set_configstring_ctx.expect().times(0);
+
         let result = set_configstring_dispatcher(666u32, "asdf");
         assert_eq!(result, Some("asdf".into()));
     }
 
     #[test]
-    #[serial]
-    fn set_configstring_dispatcher_when_dispatcher_not_initiailized() {
-        let is_initialized_context = pyshinqlx_is_initialized_context();
-        is_initialized_context.expect().returning(|| true);
-        SET_CONFIGSTRING_HANDLER.store(None);
-
-        let result = set_configstring_dispatcher(666u32, "asdf");
-        assert_eq!(result, Some("asdf".into()));
-    }
-
-    #[rstest]
     #[cfg_attr(miri, ignore)]
     #[serial]
-    fn set_configstring_dispatcher_dispatcher_returns_original_cmd(_pyshinqlx_setup: ()) {
+    fn set_configstring_dispatcher_dispatcher_returns_original_cmd() {
         let is_initialized_context = pyshinqlx_is_initialized_context();
         is_initialized_context.expect().returning(|| true);
 
-        let pymodule: Py<PyModule> = Python::with_gil(|py| {
-            PyModule::from_code(
-                py,
-                r#"
-def handler(index, value):
-    return cmd
-"#,
-                "",
-                "",
-            )
-            .expect("this should not happen")
-            .into_py(py)
-        });
-        let set_configstring_handler = Python::with_gil(|py| {
-            pymodule
-                .getattr(py, "handler")
-                .expect("this should not happen")
-                .into_py(py)
-        });
-        SET_CONFIGSTRING_HANDLER.store(Some(set_configstring_handler.into()));
+        let handle_set_configstring_ctx = handle_set_configstring_context();
+        handle_set_configstring_ctx
+            .expect()
+            .returning(|py, _, value| value.into_py(py));
 
         let result = set_configstring_dispatcher(123u32, "asdf");
         assert_eq!(result, Some("asdf".into()));
     }
 
-    #[rstest]
+    #[test]
     #[cfg_attr(miri, ignore)]
     #[serial]
-    fn set_configstring_dispatcher_dispatcher_returns_another_cmd(_pyshinqlx_setup: ()) {
+    fn set_configstring_dispatcher_dispatcher_returns_another_cmd() {
         let is_initialized_context = pyshinqlx_is_initialized_context();
         is_initialized_context.expect().returning(|| true);
 
-        let pymodule: Py<PyModule> = Python::with_gil(|py| {
-            PyModule::from_code(
-                py,
-                r#"
-def handler(index, value):
-    return "qwertz"
-"#,
-                "",
-                "",
-            )
-            .expect("this should not happen")
-            .into_py(py)
-        });
-        let set_configstring_handler = Python::with_gil(|py| {
-            pymodule
-                .getattr(py, "handler")
-                .expect("this should not happen")
-                .into_py(py)
-        });
-        SET_CONFIGSTRING_HANDLER.store(Some(set_configstring_handler.into()));
+        let handle_set_configstring_ctx = handle_set_configstring_context();
+        handle_set_configstring_ctx
+            .expect()
+            .returning(|py, _, _| "qwertz".into_py(py));
 
         let result = set_configstring_dispatcher(123u32, "asdf");
         assert_eq!(result, Some("qwertz".into()));
     }
 
-    #[rstest]
+    #[test]
     #[cfg_attr(miri, ignore)]
     #[serial]
-    fn set_configstring_dispatcher_dispatcher_returns_boolean_true(_pyshinqlx_setup: ()) {
+    fn set_configstring_dispatcher_dispatcher_returns_boolean_true() {
         let is_initialized_context = pyshinqlx_is_initialized_context();
         is_initialized_context.expect().returning(|| true);
 
-        let pymodule: Py<PyModule> = Python::with_gil(|py| {
-            PyModule::from_code(
-                py,
-                r#"
-def handler(index, value):
-    return True
-"#,
-                "",
-                "",
-            )
-            .expect("this should not happen")
-            .into_py(py)
-        });
-        let set_configstring_handler = Python::with_gil(|py| {
-            pymodule
-                .getattr(py, "handler")
-                .expect("this should not happen")
-                .into_py(py)
-        });
-        SET_CONFIGSTRING_HANDLER.store(Some(set_configstring_handler.into()));
+        let handle_set_configstring_ctx = handle_set_configstring_context();
+        handle_set_configstring_ctx
+            .expect()
+            .returning(|py, _, _| true.into_py(py));
 
         let result = set_configstring_dispatcher(123u32, "asdf");
         assert_eq!(result, Some("asdf".into()));
     }
 
-    #[rstest]
+    #[test]
     #[cfg_attr(miri, ignore)]
     #[serial]
-    fn set_configstring_dispatcher_dispatcher_returns_false(_pyshinqlx_setup: ()) {
+    fn set_configstring_dispatcher_dispatcher_returns_false() {
         let is_initialized_context = pyshinqlx_is_initialized_context();
         is_initialized_context.expect().returning(|| true);
 
-        let pymodule: Py<PyModule> = Python::with_gil(|py| {
-            PyModule::from_code(
-                py,
-                r#"
-def handler(index, value):
-    return False
-"#,
-                "",
-                "",
-            )
-            .expect("this should not happen")
-            .into_py(py)
-        });
-        let set_configstring_handler = Python::with_gil(|py| {
-            pymodule
-                .getattr(py, "handler")
-                .expect("this should not happen")
-                .into_py(py)
-        });
-        SET_CONFIGSTRING_HANDLER.store(Some(set_configstring_handler.into()));
+        let handle_set_configstring_ctx = handle_set_configstring_context();
+        handle_set_configstring_ctx
+            .expect()
+            .returning(|py, _, _| false.into_py(py));
 
         let result = set_configstring_dispatcher(123u32, "asdf");
         assert_eq!(result, None);
     }
 
-    #[rstest]
+    #[test]
     #[cfg_attr(miri, ignore)]
     #[serial]
-    fn set_configstring_dispatcher_dispatcher_throws_exception(_pyshinqlx_setup: ()) {
+    fn set_configstring_dispatcher_dispatcher_returns_not_supported_value() {
         let is_initialized_context = pyshinqlx_is_initialized_context();
         is_initialized_context.expect().returning(|| true);
 
-        let pymodule: Py<PyModule> = Python::with_gil(|py| {
-            PyModule::from_code(
-                py,
-                r#"
-def handler(index, value):
-    raise Exception
-"#,
-                "",
-                "",
-            )
-            .expect("this should not happen")
-            .into_py(py)
-        });
-        let set_configstring_handler = Python::with_gil(|py| {
-            pymodule
-                .getattr(py, "handler")
-                .expect("this should not happen")
-                .into_py(py)
-        });
-        SET_CONFIGSTRING_HANDLER.store(Some(set_configstring_handler.into()));
-
-        let result = set_configstring_dispatcher(123u32, "asdf");
-        assert_eq!(result, Some("asdf".into()));
-    }
-
-    #[rstest]
-    #[cfg_attr(miri, ignore)]
-    #[serial]
-    fn set_configstring_dispatcher_dispatcher_returns_not_supported_value(_pyshinqlx_setup: ()) {
-        let is_initialized_context = pyshinqlx_is_initialized_context();
-        is_initialized_context.expect().returning(|| true);
-
-        let pymodule: Py<PyModule> = Python::with_gil(|py| {
-            PyModule::from_code(
-                py,
-                r#"
-def handler(index, value):
-    return (1, 2, 3)
-"#,
-                "",
-                "",
-            )
-            .expect("this should not happen")
-            .into_py(py)
-        });
-        let set_configstring_handler = Python::with_gil(|py| {
-            pymodule
-                .getattr(py, "handler")
-                .expect("this should not happen")
-                .into_py(py)
-        });
-        SET_CONFIGSTRING_HANDLER.store(Some(set_configstring_handler.into()));
+        let handle_set_configstring_ctx = handle_set_configstring_context();
+        handle_set_configstring_ctx
+            .expect()
+            .returning(|py, _, _| (1, 2, 3).into_py(py));
 
         let result = set_configstring_dispatcher(123u32, "asdf");
         assert_eq!(result, Some("asdf".into()));

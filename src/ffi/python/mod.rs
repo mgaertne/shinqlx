@@ -27,6 +27,7 @@ pub(crate) mod prelude {
         handle_client_command, handle_damage, handle_frame, handle_kamikaze_explode,
         handle_kamikaze_use, handle_new_game, handle_player_connect, handle_player_disconnect,
         handle_player_loaded, handle_player_spawn, handle_rcon, handle_server_command,
+        handle_set_configstring,
     };
     #[cfg(test)]
     pub(crate) use super::handlers::mock_handlers::{
@@ -34,13 +35,14 @@ pub(crate) mod prelude {
         handle_kamikaze_explode_context, handle_kamikaze_use_context, handle_new_game_context,
         handle_player_connect_context, handle_player_disconnect_context,
         handle_player_loaded_context, handle_player_spawn_context, handle_rcon_context,
-        handle_server_command_context,
+        handle_server_command_context, handle_set_configstring_context,
     };
     #[cfg(not(test))]
     pub(crate) use super::handlers::{
         handle_client_command, handle_damage, handle_frame, handle_kamikaze_explode,
         handle_kamikaze_use, handle_new_game, handle_player_connect, handle_player_disconnect,
         handle_player_loaded, handle_player_spawn, handle_rcon, handle_server_command,
+        handle_set_configstring,
     };
     pub(crate) use super::holdable::Holdable;
     pub(crate) use super::player::{
@@ -56,9 +58,7 @@ pub(crate) mod prelude {
 
     pub(crate) use super::{clean_text, parse_variables};
 
-    pub(crate) use super::{
-        ALLOW_FREE_CLIENT, CONSOLE_PRINT_HANDLER, CUSTOM_COMMAND_HANDLER, SET_CONFIGSTRING_HANDLER,
-    };
+    pub(crate) use super::{ALLOW_FREE_CLIENT, CONSOLE_PRINT_HANDLER, CUSTOM_COMMAND_HANDLER};
 
     #[cfg(test)]
     pub(crate) use super::mock_python_tests::{
@@ -131,8 +131,6 @@ use regex::Regex;
 pub(crate) static ALLOW_FREE_CLIENT: AtomicU64 = AtomicU64::new(0);
 
 pub(crate) static CUSTOM_COMMAND_HANDLER: Lazy<Arc<ArcSwapOption<Py<PyAny>>>> =
-    Lazy::new(|| ArcSwapOption::empty().into());
-pub(crate) static SET_CONFIGSTRING_HANDLER: Lazy<Arc<ArcSwapOption<Py<PyAny>>>> =
     Lazy::new(|| ArcSwapOption::empty().into());
 pub(crate) static CONSOLE_PRINT_HANDLER: Lazy<Arc<ArcSwapOption<Py<PyAny>>>> =
     Lazy::new(|| ArcSwapOption::empty().into());
@@ -1021,6 +1019,7 @@ fn pyshinqlx_module(py: Python<'_>, m: &PyModule) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(handlers::handle_server_command, m)?)?;
     m.add_function(wrap_pyfunction!(handlers::handle_frame, m)?)?;
     m.add_function(wrap_pyfunction!(handlers::handle_new_game, m)?)?;
+    m.add_function(wrap_pyfunction!(handlers::handle_set_configstring, m)?)?;
     m.add_function(wrap_pyfunction!(handlers::handle_player_connect, m)?)?;
     m.add_function(wrap_pyfunction!(handlers::handle_player_loaded, m)?)?;
     m.add_function(wrap_pyfunction!(handlers::handle_player_disconnect, m)?)?;
@@ -1082,13 +1081,9 @@ pub(crate) fn pyshinqlx_reload() -> Result<(), PythonInitializationError> {
         return Err(PythonInitializationError::NotInitializedError);
     }
 
-    [
-        &CUSTOM_COMMAND_HANDLER,
-        &SET_CONFIGSTRING_HANDLER,
-        &CONSOLE_PRINT_HANDLER,
-    ]
-    .iter()
-    .for_each(|&handler_lock| handler_lock.store(None));
+    [&CUSTOM_COMMAND_HANDLER, &CONSOLE_PRINT_HANDLER]
+        .iter()
+        .for_each(|&handler_lock| handler_lock.store(None));
 
     let reinit_result = Python::with_gil(|py| {
         let importlib_module = py.import("importlib")?;
