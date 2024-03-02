@@ -3,7 +3,6 @@ import re
 import shinqlx
 
 _re_vote = re.compile(r"^(?P<cmd>[^ ]+)(?: \"?(?P<args>.*?)\"?)?$")
-hot_plugged_events = ("frame",)
 
 
 # ====================================================================
@@ -166,9 +165,6 @@ class EventDispatcher:
                 f"{self.name} hook requires zmq_stats_enabled cvar to have nonzero value"
             )
 
-        if self.name in hot_plugged_events and len(self.plugins) == 0:
-            shinqlx.register_handler(self.name, getattr(shinqlx, f"handle_{self.name}"))
-
         if plugin not in self.plugins:
             # Initialize tuple.
             self.plugins[plugin] = ([], [], [], [], [])  # 5 priority levels.
@@ -199,9 +195,6 @@ class EventDispatcher:
         for hook in self.plugins[plugin][priority]:
             if handler == hook:
                 self.plugins[plugin][priority].remove(handler)
-                if self.name in hot_plugged_events and len(self.plugins) == 0:
-                    shinqlx.register_handler(self.name, None)
-
                 return
 
         raise ValueError("The event has not been hooked with the handler provided")

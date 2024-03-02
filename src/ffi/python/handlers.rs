@@ -1,8 +1,8 @@
 use super::prelude::*;
 use crate::ffi::c::prelude::*;
 use crate::{quake_live_engine::GetConfigstring, MAIN_ENGINE};
-use itertools::Itertools;
 
+use itertools::Itertools;
 use once_cell::sync::Lazy;
 use pyo3::types::{IntoPyDict, PyDict};
 use regex::{Regex, RegexBuilder};
@@ -312,6 +312,64 @@ pub(crate) fn handle_server_command(py: Python<'_>, client_id: i32, cmd: String)
     })
 }
 
+fn try_run_frame_tasks(py: Python<'_>) -> PyResult<()> {
+    let shinqlx_module = py.import("shinqlx")?;
+    let frame_tasks = shinqlx_module.getattr("frame_tasks")?;
+    frame_tasks.call_method("run", (), Some([("blocking", false)].into_py_dict(py)))?;
+
+    Ok(())
+}
+
+fn try_handle_frame(py: Python<'_>) -> PyResult<()> {
+    let shinqlx_module = py.import("shinqlx")?;
+    let shinqlx_event_dispatchers = shinqlx_module.getattr("EVENT_DISPATCHERS")?;
+    let frame_dispatcher = shinqlx_event_dispatchers.get_item("frame")?;
+    frame_dispatcher.call_method0("dispatch")?;
+
+    Ok(())
+}
+
+fn run_next_frame_tasks(py: Python<'_>) {
+    match PyModule::from_code(
+        py,
+        r#"
+from shinqlx import next_frame_tasks, frame_tasks
+
+while not next_frame_tasks.empty():
+    func, args, kwargs = next_frame_tasks.get_nowait()
+    frame_tasks.enter(0, 1, func, args, kwargs)
+"#,
+        "",
+        "",
+    ) {
+        Err(e) => log_exception(py, e),
+        Ok(next_frame_tasks_runner) => {
+            if let Err(e) = next_frame_tasks_runner.call0() {
+                log_exception(py, e);
+            }
+        }
+    }
+}
+
+/// This will be called every frame. To allow threads to call stuff from the
+/// main thread, tasks can be scheduled using the :func:`shinqlx.next_frame` decorator
+/// and have it be executed here.
+#[pyfunction]
+pub(crate) fn handle_frame(py: Python<'_>) -> Option<bool> {
+    while let Err(e) = try_run_frame_tasks(py) {
+        log_exception(py, e);
+    }
+
+    if let Err(e) = try_handle_frame(py) {
+        log_exception(py, e);
+        return Some(true);
+    }
+
+    run_next_frame_tasks(py);
+
+    None
+}
+
 fn try_handle_player_connect(py: Python<'_>, client_id: i32, _is_bot: bool) -> PyResult<PyObject> {
     let player = Player::py_new(client_id, None)?;
 
@@ -541,6 +599,11 @@ pub(crate) mod handlers {
         _cmd: String,
     ) -> PyObject {
         py.None()
+    }
+
+    #[allow(clippy::needless_lifetimes)]
+    pub(crate) fn handle_frame<'a>(_py: Python<'a>) -> Option<bool> {
+        None
     }
 
     #[allow(clippy::needless_lifetimes)]
