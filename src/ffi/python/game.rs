@@ -3,7 +3,7 @@ use super::prelude::*;
 use crate::{
     ffi::c::prelude::{CS_SCORES1, CS_SCORES2, CS_SERVERINFO},
     quake_live_engine::{GetConfigstring, SetConfigstring},
-    MAIN_ENGINE
+    MAIN_ENGINE,
 };
 
 use itertools::Itertools;
@@ -78,8 +78,7 @@ impl Game {
                 ));
             };
 
-            let configstring = main_engine
-                .get_configstring(CS_SERVERINFO as u16);
+            let configstring = main_engine.get_configstring(CS_SERVERINFO as u16);
 
             if configstring.is_empty() {
                 return Err(NonexistentGameError::new_err(
@@ -125,8 +124,7 @@ impl Game {
                 ));
             };
 
-            let configstring = main_engine
-                .get_configstring(CS_SERVERINFO as u16;
+            let configstring = main_engine.get_configstring(CS_SERVERINFO as u16);
 
             if configstring.is_empty() {
                 self.valid = false;
