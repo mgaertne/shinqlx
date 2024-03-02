@@ -63,34 +63,44 @@ pub(crate) fn handle_rcon(py: Python<'_>, cmd: String) -> Option<bool> {
 static RE_SAY: Lazy<Regex> = Lazy::new(|| {
     RegexBuilder::new(r#"^say +"?(?P<msg>.+)"?$"#)
         .case_insensitive(true)
+        .multi_line(true)
         .build()
         .unwrap()
 });
 static RE_SAY_TEAM: Lazy<Regex> = Lazy::new(|| {
     RegexBuilder::new(r#"^say_team +"?(?P<msg>.+)"?$"#)
         .case_insensitive(true)
+        .multi_line(true)
         .build()
         .unwrap()
 });
 static RE_CALLVOTE: Lazy<Regex> = Lazy::new(|| {
     RegexBuilder::new(r#"^(?:cv|callvote) +(?P<cmd>[^ ]+)(?: "?(?P<args>.+?)"?)?$"#)
         .case_insensitive(true)
+        .multi_line(true)
         .build()
         .unwrap()
 });
 static RE_VOTE: Lazy<Regex> = Lazy::new(|| {
     RegexBuilder::new(r"^vote +(?P<arg>.)")
         .case_insensitive(true)
+        .multi_line(true)
         .build()
         .unwrap()
 });
 static RE_TEAM: Lazy<Regex> = Lazy::new(|| {
     RegexBuilder::new(r"^team +(?P<arg>.)")
         .case_insensitive(true)
+        .multi_line(true)
         .build()
         .unwrap()
 });
-static RE_USERINFO: Lazy<Regex> = Lazy::new(|| Regex::new(r#"^userinfo "(?P<vars>.+)"$"#).unwrap());
+static RE_USERINFO: Lazy<Regex> = Lazy::new(|| {
+    RegexBuilder::new(r#"^userinfo "(?P<vars>.+)"$"#)
+        .multi_line(true)
+        .build()
+        .unwrap()
+});
 
 fn is_vote_active() -> bool {
     let Some(ref main_engine) = *MAIN_ENGINE.load() else {
@@ -265,8 +275,12 @@ pub(crate) fn handle_client_command(py: Python<'_>, client_id: i32, cmd: String)
     })
 }
 
-static RE_VOTE_ENDED: Lazy<Regex> =
-    Lazy::new(|| Regex::new(r#"^print "Vote (?P<result>passed|failed).\n"$"#).unwrap());
+static RE_VOTE_ENDED: Lazy<Regex> = Lazy::new(|| {
+    RegexBuilder::new(r#"^print "Vote (?P<result>passed|failed).\n"$"#)
+        .multi_line(true)
+        .build()
+        .unwrap()
+});
 
 fn try_handle_server_command(py: Python<'_>, client_id: i32, cmd: String) -> PyResult<PyObject> {
     let Some(player) = (if (0..MAX_CLIENTS as i32).contains(&client_id) {
