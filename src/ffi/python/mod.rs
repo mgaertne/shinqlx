@@ -270,13 +270,13 @@ mod parsed_variables_test {
 #[pyfunction]
 #[pyo3(pass_module)]
 fn set_map_subtitles(module: &PyModule) -> PyResult<()> {
-    let map_title = pyshinqlx_get_configstring(module.py(), 3)?;
+    let map_title = pyshinqlx_get_configstring(module.py(), CS_MESSAGE)?;
     module.setattr("_map_title", map_title)?;
 
-    let mut map_subtitle1 = pyshinqlx_get_configstring(module.py(), 678)?;
+    let mut map_subtitle1 = pyshinqlx_get_configstring(module.py(), CS_MAP_CREATOR)?;
     module.setattr("_map_subtitle1", map_subtitle1.clone())?;
 
-    let mut map_subtitle2 = pyshinqlx_get_configstring(module.py(), 679)?;
+    let mut map_subtitle2 = pyshinqlx_get_configstring(module.py(), CS_ORIGINAL_MAP_CREATOR)?;
     module.setattr("_map_subtitle2", map_subtitle2.clone())?;
 
     if !map_subtitle1.is_empty() {
