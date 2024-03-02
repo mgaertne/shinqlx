@@ -171,7 +171,7 @@ fn try_handle_client_command(py: Python<'_>, client_id: i32, cmd: String) -> PyR
                     .unwrap_or("");
                 let vote_started_dispatcher = shinqlx_event_dispatchers.get_item("vote_started")?;
                 let result = vote_started_dispatcher
-                    .call_method1("dispatch", (player.clone(), vote.as_str(), args))?;
+                    .call_method1("dispatch", (player.clone(), vote.as_str(), (args,)))?;
                 if result.extract::<bool>().is_ok_and(|value| !value) {
                     return Ok(false.into_py(py));
                 }
@@ -185,7 +185,7 @@ fn try_handle_client_command(py: Python<'_>, client_id: i32, cmd: String) -> PyR
             if let Some(arg) = captures.name("arg") {
                 if ["y", "Y", "1", "n", "N", "2"].contains(&arg.as_str()) {
                     let vote = ["y", "Y", "1"].contains(&arg.as_str());
-                    let vote_dispatcher = shinqlx_event_dispatchers.get_item("vote_started")?;
+                    let vote_dispatcher = shinqlx_event_dispatchers.get_item("vote")?;
                     let result =
                         vote_dispatcher.call_method1("dispatch", (player.clone(), vote))?;
                     if result.extract::<bool>().is_ok_and(|value| !value) {
