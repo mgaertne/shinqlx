@@ -9,6 +9,7 @@ use crate::{
 use itertools::Itertools;
 use log::*;
 
+use crate::ffi::c::prelude::CS_STEAM_WORKSHOP_IDS;
 use pyo3::exceptions::PyEnvironmentError;
 use pyo3::{
     create_exception,
@@ -518,7 +519,7 @@ impl Game {
                 ));
             };
 
-            let configstring = main_engine.get_configstring(715);
+            let configstring = main_engine.get_configstring(CS_STEAM_WORKSHOP_IDS as u16);
             Ok(configstring
                 .split(' ')
                 .filter_map(|value| value.parse::<u64>().ok())
@@ -545,7 +546,7 @@ impl Game {
                 ));
             };
 
-            main_engine.set_configstring(715, &workshop_items_str);
+            main_engine.set_configstring(CS_STEAM_WORKSHOP_IDS as i32, &workshop_items_str);
             Ok(())
         })
     }
