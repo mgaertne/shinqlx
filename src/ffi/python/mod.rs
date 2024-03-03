@@ -273,10 +273,10 @@ fn set_map_subtitles(module: &PyModule) -> PyResult<()> {
     let map_title = pyshinqlx_get_configstring(module.py(), CS_MESSAGE)?;
     module.setattr("_map_title", map_title)?;
 
-    let mut map_subtitle1 = pyshinqlx_get_configstring(module.py(), CS_MAP_CREATOR)?;
+    let mut map_subtitle1 = pyshinqlx_get_configstring(module.py(), CS_AUTHOR)?;
     module.setattr("_map_subtitle1", map_subtitle1.clone())?;
 
-    let mut map_subtitle2 = pyshinqlx_get_configstring(module.py(), CS_ORIGINAL_MAP_CREATOR)?;
+    let mut map_subtitle2 = pyshinqlx_get_configstring(module.py(), CS_AUTHOR2)?;
     module.setattr("_map_subtitle2", map_subtitle2.clone())?;
 
     if !map_subtitle1.is_empty() {
@@ -293,13 +293,13 @@ fn set_map_subtitles(module: &PyModule) -> PyResult<()> {
     map_subtitle1.push_str(&plugins_version);
     map_subtitle1.push_str("^7.");
 
-    pyshinqlx_set_configstring(module.py(), 678, &map_subtitle1)?;
+    pyshinqlx_set_configstring(module.py(), CS_AUTHOR, &map_subtitle1)?;
 
     if !map_subtitle2.is_empty() {
         map_subtitle2.push_str(" - ");
     }
     map_subtitle2.push_str("Check ^6https://github.com/mgaertne/shinqlx^7 for more details.");
-    pyshinqlx_set_configstring(module.py(), 679, &map_subtitle2)?;
+    pyshinqlx_set_configstring(module.py(), CS_AUTHOR2, &map_subtitle2)?;
 
     Ok(())
 }
