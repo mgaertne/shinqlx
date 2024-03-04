@@ -4,11 +4,14 @@ use crate::ffi::c::prelude::*;
 use super::{pyshinqlx_get_logger, set_map_subtitles};
 use crate::{quake_live_engine::GetConfigstring, MAIN_ENGINE};
 
+use arc_swap::ArcSwapOption;
 use core::sync::atomic::{AtomicBool, AtomicI32, Ordering};
 use itertools::Itertools;
 use once_cell::sync::Lazy;
+use pyo3::exceptions::PyValueError;
 use pyo3::types::{IntoPyDict, PyDict};
 use regex::{Regex, RegexBuilder};
+use std::sync::Arc;
 
 fn try_log_exception(py: Python<'_>, exception: PyErr) -> PyResult<()> {
     let logging_module = py.import("logging")?;
@@ -173,8 +176,10 @@ fn try_handle_client_command(py: Python<'_>, client_id: i32, cmd: String) -> PyR
                     .map(|matched| matched.as_str())
                     .unwrap_or("");
                 let vote_started_dispatcher = shinqlx_event_dispatchers.get_item("vote_started")?;
-                let result = vote_started_dispatcher
-                    .call_method1("dispatch", (player.clone(), vote.as_str(), (args,)))?;
+                vote_started_dispatcher.call_method1("caller", (player.clone(),))?;
+                let vote_called_dispatcher = shinqlx_event_dispatchers.get_item("vote_called")?;
+                let result = vote_called_dispatcher
+                    .call_method1("dispatch", (player.clone(), vote.as_str(), args))?;
                 if result.extract::<bool>().is_ok_and(|value| !value) {
                     return Ok(false.into_py(py));
                 }
@@ -762,6 +767,123 @@ pub(crate) fn handle_damage(
     )
 }
 
+static PRINT_REDIRECTION: Lazy<ArcSwapOption<Py<PyAny>>> = Lazy::new(ArcSwapOption::empty);
+
+fn try_handle_console_print(py: Python<'_>, text: String) -> PyResult<PyObject> {
+    let logger = pyshinqlx_get_logger(py, None)?;
+    let console_text = text.clone();
+    logger.call_method1("debug", (console_text.trim_end_matches('\n'),))?;
+
+    let shinqlx_module = py.import("shinqlx")?;
+    let event_dispatchers = shinqlx_module.getattr("EVENT_DISPATCHERS")?;
+    let console_print_dispatcher = event_dispatchers.get_item("console_print")?;
+    let result = console_print_dispatcher.call_method1("dispatch", (console_text,))?;
+    if result.extract::<bool>().is_ok_and(|value| !value) {
+        return Ok(false.into_py(py));
+    }
+
+    PRINT_REDIRECTION
+        .load()
+        .iter()
+        .for_each(|print_redirector| {
+            if let Err(e) = print_redirector.call_method1(py, "append", (&text,)) {
+                log_exception(py, e);
+            }
+        });
+
+    let returned = result.extract::<String>().unwrap_or(text);
+    Ok(returned.into_py(py))
+}
+
+/// Called whenever the server prints something to the console and when rcon is used.
+#[pyfunction]
+pub(crate) fn handle_console_print(py: Python<'_>, text: String) -> PyObject {
+    if text.is_empty() {
+        return py.None();
+    }
+
+    try_handle_console_print(py, text).unwrap_or_else(|e| {
+        log_exception(py, e);
+        true.into_py(py)
+    })
+}
+
+#[pyclass(module = "_handlers", name = "PrintRedirector")]
+pub(crate) struct PrintRedirector {
+    channel: PyObject,
+    print_buffer: parking_lot::RwLock<String>,
+}
+
+#[pymethods]
+impl PrintRedirector {
+    #[new]
+    fn py_new(py: Python<'_>, channel: PyObject) -> PyResult<PrintRedirector> {
+        if !channel.as_ref(py).is_instance_of::<AbstractChannel>() {
+            return Err(PyValueError::new_err(
+                "The redirection channel must be an instance of shinqlx.AbstractChannel.",
+            ));
+        }
+
+        Ok(PrintRedirector {
+            channel,
+            print_buffer: parking_lot::RwLock::new(String::with_capacity(MAX_MSG_LENGTH as usize)),
+        })
+    }
+
+    #[pyo3(name = "__enter__")]
+    fn context_manager_enter(slf: PyRef<'_, Self>, py: Python<'_>) {
+        PRINT_REDIRECTION.store(Some(Arc::new(slf.into_py(py))));
+    }
+
+    #[pyo3(name = "__exit__")]
+    #[allow(unused_variables)]
+    fn context_manager_exit(
+        &self,
+        py: Python<'_>,
+        exc_type: Py<PyAny>,
+        exc_value: Py<PyAny>,
+        exc_traceback: Py<PyAny>,
+    ) -> PyResult<()> {
+        self.flush(py)?;
+        PRINT_REDIRECTION.store(None);
+        Ok(())
+    }
+
+    fn flush(&self, py: Python<'_>) -> PyResult<()> {
+        let mut print_buffer_guard = self.print_buffer.write();
+        let print_buffer_contents = print_buffer_guard.clone();
+        print_buffer_guard.clear();
+
+        let _ = self
+            .channel
+            .call_method1(py, "reply", (print_buffer_contents,))?;
+
+        Ok(())
+    }
+
+    fn append(&self, text: String) {
+        let mut print_buffer_guard = self.print_buffer.write();
+        (*print_buffer_guard).push_str(&text);
+    }
+}
+
+/// Redirects print output to a channel. Useful for commands that execute console commands
+/// and want to redirect the output to the channel instead of letting it go to the console.
+///
+/// To use it, use the return value with the "with" statement.
+///
+/// .. code-block:: python
+///     def cmd_echo(self, player, msg, channel):
+///         with shinqlx.redirect_print(channel):
+///             shinqlx.console_command("echo {}".format(" ".join(msg)))
+#[pyfunction]
+pub(crate) fn redirect_print(py: Python<'_>, channel: PyObject) -> PyResult<PrintRedirector> {
+    PrintRedirector::py_new(py, channel)
+}
+
+#[pyfunction]
+pub(crate) fn register_handlers() {}
+
 #[cfg(test)]
 #[cfg_attr(test, mockall::automock)]
 #[allow(dead_code)]
@@ -864,4 +986,11 @@ pub(crate) mod handlers {
     ) -> Option<bool> {
         None
     }
+
+    #[allow(clippy::needless_lifetimes)]
+    pub(crate) fn handle_console_print<'a>(py: Python<'a>, _text: String) -> PyObject {
+        py.None()
+    }
+
+    pub(crate) fn register_handlers() {}
 }

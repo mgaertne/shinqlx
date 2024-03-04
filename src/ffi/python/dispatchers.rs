@@ -1,7 +1,6 @@
 use super::prelude::*;
 
 use core::sync::atomic::Ordering;
-use log::error;
 
 pub(crate) fn client_command_dispatcher<T>(client_id: i32, cmd: T) -> Option<String>
 where
@@ -182,31 +181,22 @@ where
         return Some(text.as_ref().into());
     }
 
-    let Some(ref console_print_handler) = *CONSOLE_PRINT_HANDLER.load() else {
-        return Some(text.as_ref().into());
-    };
-
-    Python::with_gil(
-        |py| match console_print_handler.call1(py, (text.as_ref(),)) {
-            Err(_) => {
-                error!(target: "shinqlx", "console_print_handler returned an error.");
-                Some(text.as_ref().into())
-            }
-            Ok(returned) => match returned.extract::<String>(py) {
-                Err(_) => match returned.extract::<bool>(py) {
-                    Err(_) => Some(text.as_ref().into()),
-                    Ok(result_bool) => {
-                        if !result_bool {
-                            None
-                        } else {
-                            Some(text.as_ref().into())
-                        }
+    Python::with_gil(|py| {
+        let returned = handle_console_print(py, text.as_ref().into());
+        match returned.extract::<String>(py) {
+            Err(_) => match returned.extract::<bool>(py) {
+                Err(_) => Some(text.as_ref().into()),
+                Ok(result_bool) => {
+                    if !result_bool {
+                        None
+                    } else {
+                        Some(text.as_ref().into())
                     }
-                },
-                Ok(result_string) => Some(result_string),
+                }
             },
-        },
-    )
+            Ok(result_string) => Some(result_string),
+        }
+    })
 }
 
 pub(crate) fn client_spawn_dispatcher(client_id: i32) {
@@ -271,7 +261,6 @@ mod pyshinqlx_dispatcher_tests {
 
     use pretty_assertions::assert_eq;
     use pyo3::exceptions::PyException;
-    use rstest::rstest;
 
     #[test]
     #[serial]
@@ -810,208 +799,88 @@ mod pyshinqlx_dispatcher_tests {
         let is_initialized_context = pyshinqlx_is_initialized_context();
         is_initialized_context.expect().returning(|| false);
 
+        let handle_console_print_ctx = handle_console_print_context();
+        handle_console_print_ctx.expect().times(0);
+
         let result = console_print_dispatcher("asdf");
         assert_eq!(result, Some("asdf".into()));
     }
 
     #[test]
+    #[cfg_attr(miri, ignore)]
     #[serial]
-    fn console_print_dispatcher_when_dispatcher_not_initiailized() {
+    fn console_print_dispatcher_dispatcher_returns_original_cmd() {
         let is_initialized_context = pyshinqlx_is_initialized_context();
         is_initialized_context.expect().returning(|| true);
-        CONSOLE_PRINT_HANDLER.store(None);
+
+        let handle_console_print_ctx = handle_console_print_context();
+        handle_console_print_ctx
+            .expect()
+            .returning(|py, text| text.into_py(py));
 
         let result = console_print_dispatcher("asdf");
         assert_eq!(result, Some("asdf".into()));
     }
 
-    #[rstest]
+    #[test]
     #[cfg_attr(miri, ignore)]
     #[serial]
-    fn console_print_dispatcher_dispatcher_returns_original_cmd(_pyshinqlx_setup: ()) {
+    fn console_print_dispatcher_dispatcher_returns_another_cmd() {
         let is_initialized_context = pyshinqlx_is_initialized_context();
         is_initialized_context.expect().returning(|| true);
 
-        let pymodule: Py<PyModule> = Python::with_gil(|py| {
-            PyModule::from_code(
-                py,
-                r#"
-def handler(text):
-    return cmd
-"#,
-                "",
-                "",
-            )
-            .expect("this should not happen")
-            .into_py(py)
-        });
-        let console_print_handler = Python::with_gil(|py| {
-            pymodule
-                .getattr(py, "handler")
-                .expect("this should not happen")
-                .into_py(py)
-        });
-        CONSOLE_PRINT_HANDLER.store(Some(console_print_handler.into()));
-
-        let result = console_print_dispatcher("asdf");
-        assert_eq!(result, Some("asdf".into()));
-    }
-
-    #[rstest]
-    #[cfg_attr(miri, ignore)]
-    #[serial]
-    fn console_print_dispatcher_dispatcher_returns_another_cmd(_pyshinqlx_setup: ()) {
-        let is_initialized_context = pyshinqlx_is_initialized_context();
-        is_initialized_context.expect().returning(|| true);
-
-        let pymodule: Py<PyModule> = Python::with_gil(|py| {
-            PyModule::from_code(
-                py,
-                r#"
-def handler(text):
-    return "qwertz"
-"#,
-                "",
-                "",
-            )
-            .expect("this should not happen")
-            .into_py(py)
-        });
-        let console_print_handler = Python::with_gil(|py| {
-            pymodule
-                .getattr(py, "handler")
-                .expect("this should not happen")
-                .into_py(py)
-        });
-        CONSOLE_PRINT_HANDLER.store(Some(console_print_handler.into()));
+        let handle_console_print_ctx = handle_console_print_context();
+        handle_console_print_ctx
+            .expect()
+            .returning(|py, _| "qwertz".into_py(py));
 
         let result = console_print_dispatcher("asdf");
         assert_eq!(result, Some("qwertz".into()));
     }
 
-    #[rstest]
+    #[test]
     #[cfg_attr(miri, ignore)]
     #[serial]
-    fn console_print_dispatcher_dispatcher_returns_boolean_true(_pyshinqlx_setup: ()) {
+    fn console_print_dispatcher_dispatcher_returns_boolean_true() {
         let is_initialized_context = pyshinqlx_is_initialized_context();
         is_initialized_context.expect().returning(|| true);
 
-        let pymodule: Py<PyModule> = Python::with_gil(|py| {
-            PyModule::from_code(
-                py,
-                r#"
-def handler(text):
-    return True
-"#,
-                "",
-                "",
-            )
-            .expect("this should not happen")
-            .into_py(py)
-        });
-        let console_print_handler = Python::with_gil(|py| {
-            pymodule
-                .getattr(py, "handler")
-                .expect("this should not happen")
-                .into_py(py)
-        });
-        CONSOLE_PRINT_HANDLER.store(Some(console_print_handler.into()));
+        let handle_console_print_ctx = handle_console_print_context();
+        handle_console_print_ctx
+            .expect()
+            .returning(|py, _| true.into_py(py));
 
         let result = console_print_dispatcher("asdf");
         assert_eq!(result, Some("asdf".into()));
     }
 
-    #[rstest]
+    #[test]
     #[cfg_attr(miri, ignore)]
     #[serial]
-    fn console_print_dispatcher_dispatcher_returns_false(_pyshinqlx_setup: ()) {
+    fn console_print_dispatcher_dispatcher_returns_false() {
         let is_initialized_context = pyshinqlx_is_initialized_context();
         is_initialized_context.expect().returning(|| true);
 
-        let pymodule: Py<PyModule> = Python::with_gil(|py| {
-            PyModule::from_code(
-                py,
-                r#"
-def handler(text):
-    return False
-"#,
-                "",
-                "",
-            )
-            .expect("this should not happen")
-            .into_py(py)
-        });
-        let console_print_handler = Python::with_gil(|py| {
-            pymodule
-                .getattr(py, "handler")
-                .expect("this should not happen")
-                .into_py(py)
-        });
-        CONSOLE_PRINT_HANDLER.store(Some(console_print_handler.into()));
+        let handle_console_print_ctx = handle_console_print_context();
+        handle_console_print_ctx
+            .expect()
+            .returning(|py, _| false.into_py(py));
 
         let result = console_print_dispatcher("asdf");
         assert_eq!(result, None);
     }
 
-    #[rstest]
+    #[test]
     #[cfg_attr(miri, ignore)]
     #[serial]
-    fn console_print_dispatcher_dispatcher_throws_exception(_pyshinqlx_setup: ()) {
+    fn console_print_dispatcher_dispatcher_returns_not_supported_value() {
         let is_initialized_context = pyshinqlx_is_initialized_context();
         is_initialized_context.expect().returning(|| true);
 
-        let pymodule: Py<PyModule> = Python::with_gil(|py| {
-            PyModule::from_code(
-                py,
-                r#"
-def handler(text):
-    raise Exception
-"#,
-                "",
-                "",
-            )
-            .expect("this should not happen")
-            .into_py(py)
-        });
-        let console_print_handler = Python::with_gil(|py| {
-            pymodule
-                .getattr(py, "handler")
-                .expect("this should not happen")
-                .into_py(py)
-        });
-        CONSOLE_PRINT_HANDLER.store(Some(console_print_handler.into()));
-
-        let result = console_print_dispatcher("asdf");
-        assert_eq!(result, Some("asdf".into()));
-    }
-
-    #[rstest]
-    #[cfg_attr(miri, ignore)]
-    #[serial]
-    fn console_print_dispatcher_dispatcher_returns_not_supported_value(_pyshinqlx_setup: ()) {
-        let is_initialized_context = pyshinqlx_is_initialized_context();
-        is_initialized_context.expect().returning(|| true);
-
-        let pymodule: Py<PyModule> = Python::with_gil(|py| {
-            PyModule::from_code(
-                py,
-                r#"
-def handler(text):
-    return (1, 2, 3)
-"#,
-                "",
-                "",
-            )
-            .expect("this should not happen")
-            .into_py(py)
-        });
-        let console_print_handler = Python::with_gil(|py| {
-            pymodule
-                .getattr(py, "handler")
-                .expect("this should not happen")
-                .into_py(py)
-        });
-        CONSOLE_PRINT_HANDLER.store(Some(console_print_handler.into()));
+        let handle_console_print_ctx = handle_console_print_context();
+        handle_console_print_ctx
+            .expect()
+            .returning(|py, _| (1, 2, 3).into_py(py));
 
         let result = console_print_dispatcher("asdf");
         assert_eq!(result, Some("asdf".into()));

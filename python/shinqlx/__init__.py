@@ -194,6 +194,9 @@ try:
         handle_kamikaze_use,
         handle_kamikaze_explode,
         handle_damage,
+        handle_console_print,
+        redirect_print,
+        register_handlers,
     )
 except ModuleNotFoundError:
     _shinqlx = importlib.import_module(name="._shinqlx", package="shinqlx")
@@ -387,6 +390,9 @@ except ModuleNotFoundError:
         handle_kamikaze_use,
         handle_kamikaze_explode,
         handle_damage,
+        handle_console_print,
+        redirect_print,
+        register_handlers,
     )
 
 from ._core import (
@@ -438,11 +444,6 @@ from ._events import (
     PlayerItemsTossDispatcher,
     DamageDispatcher,
     EVENT_DISPATCHERS,
-)
-from ._handlers import (
-    handle_console_print,
-    redirect_print,
-    register_handlers,
 )
 from ._commands import (
     re_color_tag,
@@ -660,6 +661,9 @@ __all__ = [
     "handle_kamikaze_use",
     "handle_kamikaze_explode",
     "handle_damage",
+    "handle_console_print",
+    "redirect_print",
+    "register_handlers",
     # _core
     "stats_listener",
     "set_plugins_version",
@@ -714,8 +718,4 @@ __all__ = [
     "PlayerItemsTossDispatcher",
     "DamageDispatcher",
     "EVENT_DISPATCHERS",
-    # _handlers
-    "handle_console_print",
-    "redirect_print",
-    "register_handlers",
 ]

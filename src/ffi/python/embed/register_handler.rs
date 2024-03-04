@@ -21,7 +21,6 @@ pub(crate) fn pyshinqlx_register_handler(
     py.allow_threads(|| {
         let handler_lock = match event {
             "custom_command" => &CUSTOM_COMMAND_HANDLER,
-            "console_print" => &CONSOLE_PRINT_HANDLER,
             _ => return Err(PyValueError::new_err("Unsupported event.")),
         };
 
@@ -35,21 +34,12 @@ mod register_handler_tests {
     use crate::ffi::python::prelude::*;
     use crate::prelude::*;
 
-    use alloc::sync::Arc;
-    use arc_swap::ArcSwapOption;
-    use once_cell::sync::Lazy;
     use pyo3::exceptions::{PyTypeError, PyValueError};
-    use rstest::rstest;
 
-    #[rstest]
-    #[case("custom_command", &CUSTOM_COMMAND_HANDLER)]
-    #[case("console_print", &CONSOLE_PRINT_HANDLER)]
+    #[test]
     #[cfg_attr(miri, ignore)]
     #[serial]
-    fn register_handler_setting_handler_to_none(
-        #[case] event: &str,
-        #[case] handler: &Lazy<Arc<ArcSwapOption<Py<PyAny>>>>,
-    ) {
+    fn register_custom_command_handler_setting_handler_to_none() {
         let pymodule: Py<PyModule> = Python::with_gil(|py| {
             PyModule::from_code(
                 py,
@@ -69,24 +59,19 @@ def handler():
                 .expect("this should not happen")
                 .into_py(py)
         });
-        handler.store(Some(py_handler.into()));
+        CUSTOM_COMMAND_HANDLER.store(Some(py_handler.into()));
 
-        let result = Python::with_gil(|py| pyshinqlx_register_handler(py, event, None));
+        let result = Python::with_gil(|py| pyshinqlx_register_handler(py, "custom_command", None));
         assert!(result.is_ok());
 
-        let stored_handler = handler.load();
+        let stored_handler = CUSTOM_COMMAND_HANDLER.load();
         assert!(stored_handler.is_none());
     }
 
-    #[rstest]
-    #[case("custom_command", &CUSTOM_COMMAND_HANDLER)]
-    #[case("console_print", &CONSOLE_PRINT_HANDLER)]
+    #[test]
     #[cfg_attr(miri, ignore)]
     #[serial]
-    fn register_handler_setting_handler_to_some_handler(
-        #[case] event: &str,
-        #[case] handler: &Lazy<Arc<ArcSwapOption<Py<PyAny>>>>,
-    ) {
+    fn register_custom_command_handler_setting_handler_to_some_handler() {
         let pymodule: Py<PyModule> = Python::with_gil(|py| {
             PyModule::from_code(
                 py,
@@ -106,12 +91,14 @@ def handler():
                 .expect("this should not happen")
                 .into_py(py)
         });
-        handler.store(None);
+        CUSTOM_COMMAND_HANDLER.store(None);
 
-        let result = Python::with_gil(|py| pyshinqlx_register_handler(py, event, Some(py_handler)));
+        let result = Python::with_gil(|py| {
+            pyshinqlx_register_handler(py, "custom_command", Some(py_handler))
+        });
         assert!(result.is_ok());
 
-        let stored_handler = handler.load();
+        let stored_handler = CUSTOM_COMMAND_HANDLER.load();
         assert!(stored_handler.is_some());
     }
 
@@ -169,7 +156,7 @@ handler = True
         });
 
         Python::with_gil(|py| {
-            let result = pyshinqlx_register_handler(py, "client_command", Some(py_handler));
+            let result = pyshinqlx_register_handler(py, "custom_command", Some(py_handler));
             assert!(result.is_err_and(|err| err.is_instance_of::<PyTypeError>(py)));
         });
     }
