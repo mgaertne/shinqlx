@@ -189,6 +189,9 @@ from ._shinqlx import (
     handle_kamikaze_use,
     handle_kamikaze_explode,
     handle_damage,
+    handle_console_print,
+    redirect_print,
+    register_handlers,
 )
 from ._core import (
     stats_listener,
@@ -276,11 +279,6 @@ from ._events import (
     EVENT_DISPATCHERS,
     UncancellableEventReturn,
     CancellableEventReturn,
-)
-from ._handlers import (
-    handle_console_print,
-    redirect_print,
-    register_handlers,
 )
 from ._commands import (
     re_color_tag,
@@ -489,6 +487,9 @@ __all__ = [
     "handle_kamikaze_use",
     "handle_kamikaze_explode",
     "handle_damage",
+    "handle_console_print",
+    "redirect_print",
+    "register_handlers",
     # _core
     "stats_listener",
     "set_plugins_version",
@@ -578,8 +579,4 @@ __all__ = [
     "EVENT_DISPATCHERS",
     "UncancellableEventReturn",
     "CancellableEventReturn",
-    # _handlers
-    "handle_console_print",
-    "redirect_print",
-    "register_handlers",
 ]
