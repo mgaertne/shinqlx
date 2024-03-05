@@ -197,6 +197,7 @@ try:
         handle_console_print,
         redirect_print,
         register_handlers,
+        re_color_tag,
     )
 except ModuleNotFoundError:
     _shinqlx = importlib.import_module(name="._shinqlx", package="shinqlx")
@@ -393,6 +394,7 @@ except ModuleNotFoundError:
         handle_console_print,
         redirect_print,
         register_handlers,
+        re_color_tag,
     )
 
 from ._core import (
@@ -446,7 +448,6 @@ from ._events import (
     EVENT_DISPATCHERS,
 )
 from ._commands import (
-    re_color_tag,
     Command,
     CommandInvoker,
     COMMANDS,
@@ -664,6 +665,7 @@ __all__ = [
     "handle_console_print",
     "redirect_print",
     "register_handlers",
+    "re_color_tag",
     # _core
     "stats_listener",
     "set_plugins_version",
@@ -676,7 +678,6 @@ __all__ = [
     # _plugin
     "Plugin",
     # _commands
-    "re_color_tag",
     "Command",
     "CommandInvoker",
     "COMMANDS",

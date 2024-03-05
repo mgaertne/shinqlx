@@ -2,10 +2,8 @@ from typing import TYPE_CHECKING
 from shinqlx import AbstractChannel
 
 if TYPE_CHECKING:
-    from typing import Pattern, Callable, Iterable
+    from typing import Callable, Iterable
     from shinqlx import Player, Plugin
-
-re_color_tag: Pattern
 
 class Command:
     name: list[str]
