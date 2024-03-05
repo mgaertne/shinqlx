@@ -1010,6 +1010,7 @@ fn pyshinqlx_module(py: Python<'_>, m: &PyModule) -> PyResult<()> {
     m.add("PluginUnloadError", py.get_type::<PluginUnloadError>())?;
     m.add_class::<StatsListener>()?;
 
+    // from _handlers.py
     let sched_module = py.import("sched")?;
     m.add("frame_tasks", sched_module.call_method0("scheduler")?)?;
     let queue_module = py.import("queue")?;
@@ -1032,6 +1033,13 @@ fn pyshinqlx_module(py: Python<'_>, m: &PyModule) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(handlers::redirect_print, m)?)?;
     m.add_class::<handlers::PrintRedirector>()?;
     m.add_function(wrap_pyfunction!(handlers::register_handlers, m)?)?;
+
+    // from _commands.py
+    let regex_module = py.import("re")?;
+    m.add(
+        "re_color_tag",
+        regex_module.call_method1("compile", (r"\^[0-7]",))?,
+    )?;
 
     Ok(())
 }

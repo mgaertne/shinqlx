@@ -1,8 +1,4 @@
-import re
-
 import shinqlx
-
-re_color_tag = re.compile(r"\^[0-7]")
 
 
 # ====================================================================
@@ -31,7 +27,7 @@ class Command:
     ):
         if not (channels is None or hasattr(channels, "__iter__")):
             raise ValueError("'channels' must be a finite iterable or None.")
-        if not (channels is None or hasattr(exclude_channels, "__iter__")):
+        if not (exclude_channels is None or hasattr(exclude_channels, "__iter__")):
             raise ValueError("'exclude_channels' must be a finite iterable or None.")
         self.plugin = plugin  # Instance of the owner.
 
@@ -69,7 +65,7 @@ class Command:
                 return False
             if not name.startswith(prefix):
                 return False
-            name = name[len(prefix):]
+            name = name[len(prefix) :]
 
         return name.lower() in self.name
 

@@ -192,6 +192,7 @@ from ._shinqlx import (
     handle_console_print,
     redirect_print,
     register_handlers,
+    re_color_tag,
 )
 from ._core import (
     stats_listener,
@@ -281,7 +282,6 @@ from ._events import (
     CancellableEventReturn,
 )
 from ._commands import (
-    re_color_tag,
     Command,
     CommandInvoker,
     COMMANDS,
@@ -490,6 +490,7 @@ __all__ = [
     "handle_console_print",
     "redirect_print",
     "register_handlers",
+    "re_color_tag",
     # _core
     "stats_listener",
     "set_plugins_version",
@@ -535,7 +536,6 @@ __all__ = [
     "SingleWeaponStatsEntry",
     "StatsData",
     # _commands
-    "re_color_tag",
     "Command",
     "CommandInvoker",
     "COMMANDS",

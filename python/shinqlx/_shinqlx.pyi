@@ -11,6 +11,7 @@ if TYPE_CHECKING:
     else:
         from typing_extensions import NotRequired, Unpack
     from typing import (
+        Pattern,
         Callable,
         Any,
         Iterable,
@@ -857,3 +858,5 @@ class PrintRedirector:
     ) -> None: ...
     def flush(self) -> None: ...
     def append(self, text: str) -> None: ...
+
+re_color_tag: Pattern
