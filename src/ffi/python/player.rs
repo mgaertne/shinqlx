@@ -8,6 +8,7 @@ use pyo3::{
     basic::CompareOp,
     create_exception,
     exceptions::{PyAttributeError, PyException, PyKeyError, PyNotImplementedError, PyValueError},
+    intern,
     types::{IntoPyDict, PyDict, PyType},
 };
 
@@ -1126,7 +1127,7 @@ impl Player {
         if tell_channel.is_none(py) {
             return Err(PyNotImplementedError::new_err(""));
         }
-        tell_channel.call_method(py, "reply", (msg,), kwargs)
+        tell_channel.call_method(py, intern!(py, "reply"), (msg,), kwargs)
     }
 
     #[pyo3(signature = (reason = ""))]
@@ -7086,8 +7087,8 @@ console_channel = shinqlx.CONSOLE_CHANNEL"#,
         .expect("this should not happen");
 
         console_channel
-            .getattr("console_channel")?
-            .call_method1("reply", (msg,))
+            .getattr(intern!(py, "console_channel"))?
+            .call_method1(intern!(py, "reply"), (msg,))
     }
 }
 
