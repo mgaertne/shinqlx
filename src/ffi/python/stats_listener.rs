@@ -2,7 +2,7 @@ use super::prelude::*;
 use crate::quake_live_engine::FindCVar;
 use crate::MAIN_ENGINE;
 
-use pyo3::exceptions::PyEnvironmentError;
+use pyo3::{exceptions::PyEnvironmentError, intern};
 use serde_json::Value;
 use zmq::{Context, SocketType, DONTWAIT, POLLIN};
 
@@ -21,7 +21,7 @@ def dispatch_stats_event(stats):
         "",
         "",
     )?
-    .call_method1("dispatch_stats_event", (stats,))?;
+    .call_method1(intern!(py, "dispatch_stats_event"), (stats,))?;
     Ok(())
 }
 
@@ -40,7 +40,7 @@ def dispatch_game_start_event(stats):
         "",
         "",
     )?
-    .call_method1("dispatch_game_start_event", (stats,))?;
+    .call_method1(intern!(py, "dispatch_game_start_event"), (stats,))?;
     Ok(())
 }
 
@@ -59,7 +59,7 @@ def dispatch_round_end_event(stats):
         "",
         "",
     )?
-    .call_method1("dispatch_round_end_event", (stats,))?;
+    .call_method1(intern!(py, "dispatch_round_end_event"), (stats,))?;
     Ok(())
 }
 
@@ -78,7 +78,7 @@ def dispatch_game_end_event(stats):
         "",
         "",
     )?
-    .call_method1("dispatch_game_end_event", (stats,))?;
+    .call_method1(intern!(py, "dispatch_game_end_event"), (stats,))?;
     Ok(())
 }
 
@@ -197,7 +197,10 @@ def dispatch_death_event(victim, killer, stats):
         "",
         "",
     )?
-    .call_method1("dispatch_death_event", (victim, opt_killer, stats))?;
+    .call_method1(
+        intern!(py, "dispatch_death_event"),
+        (victim, opt_killer, stats),
+    )?;
 
     Ok(())
 }
@@ -259,8 +262,10 @@ def dispatch_team_switch_event(player, old_team, new_team):
     )?;
 
     let player_id = player.id;
-    let py_result = dispatch_module
-        .call_method1("dispatch_team_switch_event", (player, &old_team, &new_team))?;
+    let py_result = dispatch_module.call_method1(
+        intern!(py, "dispatch_team_switch_event"),
+        (player, &old_team, &new_team),
+    )?;
     if py_result.extract::<bool>().is_ok_and(|value| !value) {
         let team_change_cmd = format!("put {} {}", player_id, &old_team);
         pyshinqlx_console_command(py, &team_change_cmd)?;
@@ -348,7 +353,7 @@ def run_zmq_thread(poller):
             "",
             "",
         )?
-        .call_method1("run_zmq_thread", (slf,))?;
+        .call_method1(intern!(py, "run_zmq_thread"), (slf,))?;
 
         Ok(())
     }

@@ -124,9 +124,9 @@ use itertools::Itertools;
 use log::*;
 use once_cell::sync::Lazy;
 use pyo3::{
-    append_to_inittab, create_exception, intern,
+    append_to_inittab, create_exception,
     exceptions::{PyEnvironmentError, PyException},
-    prepare_freethreaded_python,
+    intern, prepare_freethreaded_python,
     types::{IntoPyDict, PyDelta, PyDict, PyFunction, PyTuple},
 };
 use regex::Regex;
@@ -272,13 +272,19 @@ mod parsed_variables_test {
 #[pyo3(pass_module)]
 fn set_map_subtitles(module: &PyModule) -> PyResult<()> {
     let map_title = pyshinqlx_get_configstring(module.py(), CS_MESSAGE)?;
-    module.setattr("_map_title", map_title)?;
+    module.setattr(intern!(module.py(), "_map_title"), map_title)?;
 
     let mut map_subtitle1 = pyshinqlx_get_configstring(module.py(), CS_AUTHOR)?;
-    module.setattr("_map_subtitle1", map_subtitle1.clone())?;
+    module.setattr(
+        intern!(module.py(), "_map_subtitle1"),
+        map_subtitle1.clone(),
+    )?;
 
     let mut map_subtitle2 = pyshinqlx_get_configstring(module.py(), CS_AUTHOR2)?;
-    module.setattr("_map_subtitle2", map_subtitle2.clone())?;
+    module.setattr(
+        intern!(module.py(), "_map_subtitle2"),
+        map_subtitle2.clone(),
+    )?;
 
     if !map_subtitle1.is_empty() {
         map_subtitle1.push_str(" - ");
@@ -288,7 +294,7 @@ fn set_map_subtitles(module: &PyModule) -> PyResult<()> {
     map_subtitle1.push_str(env!("SHINQLX_VERSION"));
     map_subtitle1.push_str("^7 with plugins ^6");
     let plugins_version = module
-        .getattr("__plugins_version__")
+        .getattr(intern!(module.py(), "__plugins_version__"))
         .map(|value| value.extract::<String>().unwrap_or("NOT_SET".into()))
         .unwrap_or("NOT_SET".into());
     map_subtitle1.push_str(&plugins_version);
@@ -321,7 +327,7 @@ fn pyshinqlx_parse_variables(
 fn get_logger_name(py: Python<'_>, plugin: Option<PyObject>) -> String {
     match plugin {
         None => "shinqlx".into(),
-        Some(req_plugin) => match req_plugin.call_method0(py, "__str__") {
+        Some(req_plugin) => match req_plugin.call_method0(py, intern!(py, "__str__")) {
             Err(_) => "shinqlx".into(),
             Ok(plugin_name) => format!("shinqlx.{plugin_name}"),
         },
@@ -334,7 +340,8 @@ fn get_logger_name(py: Python<'_>, plugin: Option<PyObject>) -> String {
 #[pyo3(signature = (plugin = None))]
 fn pyshinqlx_get_logger(py: Python<'_>, plugin: Option<PyObject>) -> PyResult<&PyAny> {
     let logger_name = get_logger_name(py, plugin);
-    PyModule::import(py, "logging")?.call_method1("getLogger", (logger_name,))
+    PyModule::import(py, intern!(py, "logging"))?
+        .call_method1(intern!(py, "getLogger"), (logger_name,))
 }
 
 #[pyfunction]
@@ -356,14 +363,15 @@ fn pyshinqlx_configure_logger(py: Python<'_>) -> PyResult<()> {
         .map(|max_logsize_cvar| max_logsize_cvar.get_integer())
         .unwrap_or_default();
 
-    let logging_module = py.import("logging")?;
-    let debug_level = logging_module.getattr("DEBUG")?;
-    let info_level = logging_module.getattr("INFO")?;
-    let logger = logging_module.call_method1("getLogger", ("shinqlx",))?;
-    logger.call_method1("setLevel", (debug_level,))?;
+    let logging_module = py.import(intern!(py, "logging"))?;
+    let debug_level = logging_module.getattr(intern!(py, "DEBUG"))?;
+    let info_level = logging_module.getattr(intern!(py, "INFO"))?;
+    let logger =
+        logging_module.call_method1(intern!(py, "getLogger"), (intern!(py, "shinqlx"),))?;
+    logger.call_method1(intern!(py, "setLevel"), (debug_level,))?;
 
     let console_fmt = logging_module.call_method1(
-        "Formatter",
+        intern!(py, "Formatter"),
         (
             "[%(name)s.%(funcName)s] %(levelname)s: %(message)s",
             "%H:%M:%S",
@@ -371,12 +379,12 @@ fn pyshinqlx_configure_logger(py: Python<'_>) -> PyResult<()> {
     )?;
 
     let console_handler = logging_module.call_method0("StreamHandler")?;
-    console_handler.call_method1("setLevel", (info_level,))?;
-    console_handler.call_method1("setFormatter", (console_fmt,))?;
-    logger.call_method1("addHandler", (console_handler,))?;
+    console_handler.call_method1(intern!(py, "setLevel"), (info_level,))?;
+    console_handler.call_method1(intern!(py, "setFormatter"), (console_fmt,))?;
+    logger.call_method1(intern!(py, "addHandler"), (console_handler,))?;
 
     let file_fmt = logging_module.call_method1(
-        "Formatter",
+        intern!(py, "Formatter"),
         (
             "(%(asctime)s) [%(levelname)s @ %(name)s.%(funcName)s] %(message)s",
             "%H:%M:%S",
@@ -396,14 +404,14 @@ fn pyshinqlx_configure_logger(py: Python<'_>) -> PyResult<()> {
             .into_py_dict(py),
         ),
     )?;
-    file_handler.call_method1("setLevel", (debug_level,))?;
-    file_handler.call_method1("setFormatter", (file_fmt,))?;
-    logger.call_method1("addHandler", (file_handler,))?;
+    file_handler.call_method1(intern!(py, "setLevel"), (debug_level,))?;
+    file_handler.call_method1(intern!(py, "setFormatter"), (file_fmt,))?;
+    logger.call_method1(intern!(py, "addHandler"), (file_handler,))?;
 
     let datetime_module = py.import("datetime")?;
     let datetime_now = datetime_module.getattr("datetime")?.call_method0("now")?;
     logger.call_method1(
-        "info",
+        intern!(py, "info"),
         (
             "============================= shinqlx run @ %s =============================",
             datetime_now,
@@ -430,12 +438,13 @@ formatted_exception = traceback.format_exception(*sys.exc_info())
         "",
         "",
     )?
-    .getattr("formatted_exception")?
+    .getattr(intern!(py, "formatted_exception"))?
     .extract()?;
 
-    let py_logger = PyModule::import(py, "logging")?.call_method1("getLogger", (logger_name,))?;
+    let py_logger = PyModule::import(py, intern!(py, "logging"))?
+        .call_method1(intern!(py, "getLogger"), (logger_name,))?;
     formatted_exception.iter().for_each(|line| {
-        let _ = py_logger.call_method1("error", (line.trim_end(),));
+        let _ = py_logger.call_method1(intern!(py, "error"), (line.trim_end(),));
     });
     Ok(())
 }
@@ -449,17 +458,21 @@ fn pyshinqlx_handle_exception(
     exc_value: Py<PyAny>,
     exc_traceback: Py<PyAny>,
 ) -> PyResult<()> {
-    let logging_module = py.import("logging")?;
-    let traceback_module = py.import("traceback")?;
+    let logging_module = py.import(intern!(py, "logging"))?;
+    let traceback_module = py.import(intern!(py, "traceback"))?;
 
-    let py_logger = logging_module.call_method1("getLogger", ("shinqlx",))?;
+    let py_logger =
+        logging_module.call_method1(intern!(py, "getLogger"), (intern!(py, "shinqlx"),))?;
 
     let formatted_traceback: Vec<String> = traceback_module
-        .call_method1("format_exception", (exc_type, exc_value, exc_traceback))?
+        .call_method1(
+            intern!(py, "format_exception"),
+            (exc_type, exc_value, exc_traceback),
+        )?
         .extract()?;
 
     formatted_traceback.iter().for_each(|line| {
-        let _ = py_logger.call_method1("error", (line.trim_end(),));
+        let _ = py_logger.call_method1(intern!(py, "error"), (line.trim_end(),));
     });
 
     Ok(())
@@ -470,9 +483,9 @@ fn pyshinqlx_handle_exception(
 fn pyshinqlx_handle_threading_exception(py: Python<'_>, args: Py<PyAny>) -> PyResult<()> {
     pyshinqlx_handle_exception(
         py,
-        args.getattr(py, "exc_type")?,
-        args.getattr(py, "exc_value")?,
-        args.getattr(py, "exc_traceback")?,
+        args.getattr(py, intern!(py, "exc_type"))?,
+        args.getattr(py, intern!(py, "exc_value"))?,
+        args.getattr(py, intern!(py, "exc_traceback"))?,
     )
 }
 
@@ -496,7 +509,7 @@ def next_frame(func):
         "",
         "",
     )?
-    .getattr("next_frame")?
+    .getattr(intern!(py, "next_frame"))?
     .into();
 
     next_frame_func.call1(py, (func.into_py(py),))
@@ -531,7 +544,7 @@ def delay(time):
         "",
         "",
     )?
-    .getattr("delay")?
+    .getattr(intern!(py, "delay"))?
     .into();
 
     delay_func.call1(py, (time.into_py(py),))
@@ -572,7 +585,7 @@ def thread(func, force=False):
         "",
         "",
     )?
-    .getattr("thread")?
+    .getattr(intern!(py, "thread"))?
     .into();
 
     thread_func.call1(py, (func.into_py(py), force.into_py(py)))
@@ -954,7 +967,7 @@ fn pyshinqlx_module(py: Python<'_>, m: &PyModule) -> PyResult<()> {
         "CHAT_CHANNEL",
         Py::new(
             py,
-            TeamChatChannel::py_new("all".into(), "chat".into(), "print \"{}\n\"\n".into()),
+            TeamChatChannel::py_new("all".into(), "chat".into(), r#"print "{}\n"\n"#.into()),
         )?
         .to_object(py),
     )?;
@@ -965,7 +978,7 @@ fn pyshinqlx_module(py: Python<'_>, m: &PyModule) -> PyResult<()> {
             TeamChatChannel::py_new(
                 "red".into(),
                 "red_team_chat".into(),
-                "print \"{}\n\"\n".into(),
+                r#"print "{}\n"\n"#.into(),
             ),
         )?
         .to_object(py),
@@ -977,7 +990,7 @@ fn pyshinqlx_module(py: Python<'_>, m: &PyModule) -> PyResult<()> {
             TeamChatChannel::py_new(
                 "blue".into(),
                 "blue_team_chat".into(),
-                "print \"{}\n\"\n".into(),
+                r#"print "{}\n"\n"#.into(),
             ),
         )?
         .to_object(py),
@@ -986,7 +999,11 @@ fn pyshinqlx_module(py: Python<'_>, m: &PyModule) -> PyResult<()> {
         "FREE_CHAT_CHANNEL",
         Py::new(
             py,
-            TeamChatChannel::py_new("free".into(), "free_chat".into(), "print \"{}\n\"\n".into()),
+            TeamChatChannel::py_new(
+                "free".into(),
+                "free_chat".into(),
+                r#"print "{}\n"\n"#.into(),
+            ),
         )?
         .to_object(py),
     )?;
@@ -997,7 +1014,7 @@ fn pyshinqlx_module(py: Python<'_>, m: &PyModule) -> PyResult<()> {
             TeamChatChannel::py_new(
                 "spectator".into(),
                 "spectator_chat".into(),
-                "print \"{}\n\"\n".into(),
+                r#"print "{}\n"\n"#.into(),
             ),
         )?
         .to_object(py),

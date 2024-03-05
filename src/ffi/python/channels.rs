@@ -1,7 +1,7 @@
 use super::prelude::*;
 use crate::ffi::c::prelude::*;
 
-use pyo3::{basic::CompareOp, exceptions::PyNotImplementedError, types::IntoPyDict};
+use pyo3::{basic::CompareOp, exceptions::PyNotImplementedError, intern, types::IntoPyDict};
 use regex::Regex;
 
 /// An abstract class of a chat channel. A chat channel being a source of a message.
@@ -438,7 +438,8 @@ impl ChatChannel {
         let re_color_tag = Regex::new(r"\^[0-7]").unwrap();
         let fmt = self_.borrow().fmt.clone();
         let cleaned_msg = msg.replace('"', "'");
-        let targets: Option<Vec<i32>> = self_.call_method0("receipients")?.extract()?;
+        let targets: Option<Vec<i32>> =
+            self_.call_method0(intern!(py, "receipients"))?.extract()?;
 
         let split_msgs =
             self_
@@ -469,7 +470,13 @@ impl ChatChannel {
                 .eval(
                     "fmt.format(message)",
                     None,
-                    Some([("fmt", fmt.clone()), ("message", message.clone())].into_py_dict(py)),
+                    Some(
+                        [
+                            (intern!(py, "fmt"), fmt.clone()),
+                            (intern!(py, "message"), message.clone()),
+                        ]
+                        .into_py_dict(py),
+                    ),
                 )?
                 .extract::<String>()?;
 
@@ -486,7 +493,7 @@ def reply(targets, msg):
                 "",
                 "",
             )?
-            .getattr("reply")?
+            .getattr(intern!(py, "reply"))?
             .into();
 
             match targets {
@@ -537,7 +544,7 @@ chat_channel = _shinqlx.ChatChannel()
     fn receipients_is_not_implemented() {
         Python::with_gil(|py| {
             let chat_channel = ChatChannel {
-                fmt: "print\"{}\n\"\n".into(),
+                fmt: r#"print"{}\n"\n"#.into(),
             };
             let result = chat_channel.receipients();
             assert!(result.is_err_and(|err| err.is_instance_of::<PyNotImplementedError>(py)));
@@ -563,7 +570,7 @@ impl TellChannel {
     pub(crate) fn py_new(player: &Player) -> PyClassInitializer<Self> {
         PyClassInitializer::from(AbstractChannel::py_new("tell".into()))
             .add_subclass(ChatChannel {
-                fmt: "print \"{}\n\"\n".into(),
+                fmt: r#"print "{}\n"\n"#.into(),
             })
             .add_subclass(Self {
                 client_id: player.id,
@@ -935,7 +942,7 @@ impl ClientCommandChannel {
             py,
             PyClassInitializer::from(AbstractChannel::py_new("tell".into()))
                 .add_subclass(ChatChannel {
-                    fmt: "print \"{}\n\"\n".into(),
+                    fmt: r#"print "{}\n"\n"#.into(),
                 })
                 .add_subclass(TellChannel {
                     client_id: self.client_id,
@@ -943,7 +950,7 @@ impl ClientCommandChannel {
         )?
         .to_object(py);
 
-        tell_channel.call_method1(py, "reply", (msg, limit, delimiter))?;
+        tell_channel.call_method1(py, intern!(py, "reply"), (msg, limit, delimiter))?;
         Ok(())
     }
 }
