@@ -544,7 +544,7 @@ chat_channel = _shinqlx.ChatChannel()
     fn receipients_is_not_implemented() {
         Python::with_gil(|py| {
             let chat_channel = ChatChannel {
-                fmt: r#"print"{}\n"\n"#.into(),
+                fmt: "print\"{}\n\"\n".into(),
             };
             let result = chat_channel.receipients();
             assert!(result.is_err_and(|err| err.is_instance_of::<PyNotImplementedError>(py)));
@@ -570,7 +570,7 @@ impl TellChannel {
     pub(crate) fn py_new(player: &Player) -> PyClassInitializer<Self> {
         PyClassInitializer::from(AbstractChannel::py_new("tell".into()))
             .add_subclass(ChatChannel {
-                fmt: r#"print "{}\n"\n"#.into(),
+                fmt: "print \"{}\n\"\n".into(),
             })
             .add_subclass(Self {
                 client_id: player.id,
@@ -942,7 +942,7 @@ impl ClientCommandChannel {
             py,
             PyClassInitializer::from(AbstractChannel::py_new("tell".into()))
                 .add_subclass(ChatChannel {
-                    fmt: r#"print "{}\n"\n"#.into(),
+                    fmt: "print \"{}\n\"\n".into(),
                 })
                 .add_subclass(TellChannel {
                     client_id: self.client_id,

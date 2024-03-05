@@ -967,7 +967,7 @@ fn pyshinqlx_module(py: Python<'_>, m: &PyModule) -> PyResult<()> {
         "CHAT_CHANNEL",
         Py::new(
             py,
-            TeamChatChannel::py_new("all".into(), "chat".into(), r#"print "{}\n"\n"#.into()),
+            TeamChatChannel::py_new("all".into(), "chat".into(), "print \"{}\n\"\n".into()),
         )?
         .to_object(py),
     )?;
@@ -978,7 +978,7 @@ fn pyshinqlx_module(py: Python<'_>, m: &PyModule) -> PyResult<()> {
             TeamChatChannel::py_new(
                 "red".into(),
                 "red_team_chat".into(),
-                r#"print "{}\n"\n"#.into(),
+                "print \"{}\n\"\n".into(),
             ),
         )?
         .to_object(py),
@@ -990,7 +990,7 @@ fn pyshinqlx_module(py: Python<'_>, m: &PyModule) -> PyResult<()> {
             TeamChatChannel::py_new(
                 "blue".into(),
                 "blue_team_chat".into(),
-                r#"print "{}\n"\n"#.into(),
+                "print \"{}\n\"\n".into(),
             ),
         )?
         .to_object(py),
@@ -999,11 +999,7 @@ fn pyshinqlx_module(py: Python<'_>, m: &PyModule) -> PyResult<()> {
         "FREE_CHAT_CHANNEL",
         Py::new(
             py,
-            TeamChatChannel::py_new(
-                "free".into(),
-                "free_chat".into(),
-                r#"print "{}\n"\n"#.into(),
-            ),
+            TeamChatChannel::py_new("free".into(), "free_chat".into(), "print \"{}\n\"\n".into()),
         )?
         .to_object(py),
     )?;
@@ -1014,7 +1010,7 @@ fn pyshinqlx_module(py: Python<'_>, m: &PyModule) -> PyResult<()> {
             TeamChatChannel::py_new(
                 "spectator".into(),
                 "spectator_chat".into(),
-                r#"print "{}\n"\n"#.into(),
+                "print \"{}\n\"\n".into(),
             ),
         )?
         .to_object(py),
