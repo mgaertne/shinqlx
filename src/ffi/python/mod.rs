@@ -79,7 +79,7 @@ use arc_swap::ArcSwapOption;
 use core::sync::atomic::{AtomicBool, AtomicU64, Ordering};
 use log::*;
 use once_cell::sync::Lazy;
-use pyo3::{append_to_inittab, prepare_freethreaded_python};
+use pyo3::{append_to_inittab, intern, prepare_freethreaded_python};
 
 pub(crate) static ALLOW_FREE_CLIENT: AtomicU64 = AtomicU64::new(0);
 
@@ -335,7 +335,7 @@ pub(crate) fn pyshinqlx_initialize() -> Result<(), PythonInitializationError> {
     append_to_inittab!(pyshinqlx_module);
     prepare_freethreaded_python();
     let init_result = Python::with_gil(|py| {
-        let shinqlx_module = py.import("shinqlx")?;
+        let shinqlx_module = py.import(intern!(py, "shinqlx"))?;
         shinqlx_module.call_method0("initialize")?;
         Ok::<(), PyErr>(())
     });
@@ -382,7 +382,7 @@ pub(crate) fn pyshinqlx_reload() -> Result<(), PythonInitializationError> {
 
     let reinit_result = Python::with_gil(|py| {
         let importlib_module = py.import("importlib")?;
-        let shinqlx_module = py.import("shinqlx")?;
+        let shinqlx_module = py.import(intern!(py, "shinqlx"))?;
         let new_shinqlx_module = importlib_module.call_method1("reload", (shinqlx_module,))?;
         new_shinqlx_module.call_method0("initialize")?;
         Ok::<(), PyErr>(())
