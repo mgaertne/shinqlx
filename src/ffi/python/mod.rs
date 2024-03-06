@@ -671,53 +671,12 @@ fn pyshinqlx_root_module(_py: Python<'_>, _m: &PyModule) -> PyResult<()> {
 #[pymodule]
 #[pyo3(name = "_shinqlx")]
 fn pyshinqlx_module(py: Python<'_>, m: &PyModule) -> PyResult<()> {
-    m.add_function(wrap_pyfunction!(pyshinqlx_player_info, m)?)?;
-    m.add_function(wrap_pyfunction!(pyshinqlx_players_info, m)?)?;
-    m.add_function(wrap_pyfunction!(pyshinqlx_get_userinfo, m)?)?;
-    m.add_function(wrap_pyfunction!(pyshinqlx_send_server_command, m)?)?;
-    m.add_function(wrap_pyfunction!(pyshinqlx_client_command, m)?)?;
-    m.add_function(wrap_pyfunction!(pyshinqlx_console_command, m)?)?;
-    m.add_function(wrap_pyfunction!(pyshinqlx_get_cvar, m)?)?;
-    m.add_function(wrap_pyfunction!(pyshinqlx_set_cvar, m)?)?;
-    m.add_function(wrap_pyfunction!(pyshinqlx_set_cvar_limit, m)?)?;
-    m.add_function(wrap_pyfunction!(pyshinqlx_kick, m)?)?;
-    m.add_function(wrap_pyfunction!(pyshinqlx_console_print, m)?)?;
-    m.add_function(wrap_pyfunction!(pyshinqlx_get_configstring, m)?)?;
-    m.add_function(wrap_pyfunction!(pyshinqlx_set_configstring, m)?)?;
-    m.add_function(wrap_pyfunction!(pyshinqlx_force_vote, m)?)?;
-    m.add_function(wrap_pyfunction!(pyshinqlx_add_console_command, m)?)?;
-    m.add_function(wrap_pyfunction!(pyshinqlx_register_handler, m)?)?;
-    m.add_function(wrap_pyfunction!(pyshinqlx_player_state, m)?)?;
-    m.add_function(wrap_pyfunction!(pyshinqlx_player_stats, m)?)?;
-    m.add_function(wrap_pyfunction!(pyshinqlx_set_position, m)?)?;
-    m.add_function(wrap_pyfunction!(pyshinqlx_set_velocity, m)?)?;
-    m.add_function(wrap_pyfunction!(pyshinqlx_noclip, m)?)?;
-    m.add_function(wrap_pyfunction!(pyshinqlx_set_health, m)?)?;
-    m.add_function(wrap_pyfunction!(pyshinqlx_set_armor, m)?)?;
-    m.add_function(wrap_pyfunction!(pyshinqlx_set_weapons, m)?)?;
-    m.add_function(wrap_pyfunction!(pyshinqlx_set_weapon, m)?)?;
-    m.add_function(wrap_pyfunction!(pyshinqlx_set_ammo, m)?)?;
-    m.add_function(wrap_pyfunction!(pyshinqlx_set_powerups, m)?)?;
-    m.add_function(wrap_pyfunction!(pyshinqlx_set_holdable, m)?)?;
-    m.add_function(wrap_pyfunction!(pyshinqlx_drop_holdable, m)?)?;
-    m.add_function(wrap_pyfunction!(pyshinqlx_set_flight, m)?)?;
-    m.add_function(wrap_pyfunction!(pyshinqlx_set_invulnerability, m)?)?;
-    m.add_function(wrap_pyfunction!(pyshinqlx_set_score, m)?)?;
-    m.add_function(wrap_pyfunction!(pyshinqlx_callvote, m)?)?;
-    m.add_function(wrap_pyfunction!(pyshinqlx_allow_single_player, m)?)?;
-    m.add_function(wrap_pyfunction!(pyshinqlx_player_spawn, m)?)?;
-    m.add_function(wrap_pyfunction!(pyshinqlx_set_privileges, m)?)?;
-    m.add_function(wrap_pyfunction!(pyshinqlx_destroy_kamikaze_timers, m)?)?;
-    m.add_function(wrap_pyfunction!(pyshinqlx_spawn_item, m)?)?;
-    m.add_function(wrap_pyfunction!(pyshinqlx_remove_dropped_items, m)?)?;
-    m.add_function(wrap_pyfunction!(pyshinqlx_slay_with_mod, m)?)?;
-    m.add_function(wrap_pyfunction!(pyshinqlx_replace_items, m)?)?;
-    m.add_function(wrap_pyfunction!(pyshinqlx_dev_print_items, m)?)?;
-    m.add_function(wrap_pyfunction!(pyshinqlx_force_weapon_respawn_time, m)?)?;
-    m.add_function(wrap_pyfunction!(pyshinqlx_get_entity_targets, m)?)?;
-    m.add_function(wrap_pyfunction!(pyshinqlx_set_cvar_once, m)?)?;
-    m.add_function(wrap_pyfunction!(pyshinqlx_set_cvar_limit_once, m)?)?;
+    // from __init__.py
+    m.add("_map_title", "")?;
+    m.add("_map_subtitle1", "")?;
+    m.add("_map_subtitle2", "")?;
 
+    // from _shinqlx.pyi
     m.add("__version__", env!("SHINQLX_VERSION"))?;
     m.add("DEBUG", cfg!(debug_assertions))?;
 
@@ -747,44 +706,6 @@ fn pyshinqlx_module(py: Python<'_>, m: &PyModule) -> PyResult<()> {
     m.add("CVAR_CHEAT", cvar_flags::CVAR_CHEAT as i32)?;
     m.add("CVAR_NORESTART", cvar_flags::CVAR_NORESTART as i32)?;
 
-    // Game types
-    m.add(
-        "GAMETYPES",
-        [
-            (0, "Free for All"),
-            (1, "Duel"),
-            (2, "Race"),
-            (3, "Team Deathmatch"),
-            (4, "Clan Arena"),
-            (5, "Capture the Flag"),
-            (6, "One Flag"),
-            (8, "Harvester"),
-            (9, "Freeze Tag"),
-            (10, "Domination"),
-            (11, "Attack and Defend"),
-            (12, "Red Rover"),
-        ]
-        .into_py_dict(py),
-    )?;
-    m.add(
-        "GAMETYPES_SHORT",
-        [
-            (0, "ffa"),
-            (1, "duel"),
-            (2, "race"),
-            (3, "tdm"),
-            (4, "ca"),
-            (5, "ctf"),
-            (6, "1f"),
-            (8, "har"),
-            (9, "ft"),
-            (10, "dom"),
-            (11, "ad"),
-            (12, "rr"),
-        ]
-        .into_py_dict(py),
-    )?;
-
     // Privileges.
     m.add("PRIV_NONE", privileges_t::PRIV_NONE as i32)?;
     m.add("PRIV_MOD", privileges_t::PRIV_MOD as i32)?;
@@ -798,33 +719,12 @@ fn pyshinqlx_module(py: Python<'_>, m: &PyModule) -> PyResult<()> {
     m.add("CS_CONNECTED", clientState_t::CS_CONNECTED as i32)?;
     m.add("CS_PRIMED", clientState_t::CS_PRIMED as i32)?;
     m.add("CS_ACTIVE", clientState_t::CS_ACTIVE as i32)?;
-    m.add(
-        "CONNECTION_STATES",
-        [
-            (clientState_t::CS_FREE as i32, "free"),
-            (clientState_t::CS_ZOMBIE as i32, "zombie"),
-            (clientState_t::CS_CONNECTED as i32, "connected"),
-            (clientState_t::CS_PRIMED as i32, "primed"),
-            (clientState_t::CS_ACTIVE as i32, "active"),
-        ]
-        .into_py_dict(py),
-    )?;
 
     // Teams.
     m.add("TEAM_FREE", team_t::TEAM_FREE as i32)?;
     m.add("TEAM_RED", team_t::TEAM_RED as i32)?;
     m.add("TEAM_BLUE", team_t::TEAM_BLUE as i32)?;
     m.add("TEAM_SPECTATOR", team_t::TEAM_SPECTATOR as i32)?;
-    m.add(
-        "TEAMS",
-        [
-            (team_t::TEAM_FREE as i32, "free"),
-            (team_t::TEAM_RED as i32, "red"),
-            (team_t::TEAM_BLUE as i32, "blue"),
-            (team_t::TEAM_SPECTATOR as i32, "spectator"),
-        ]
-        .into_py_dict(py),
-    )?;
 
     // Means of death.
     m.add("MOD_UNKNOWN", meansOfDeath_t::MOD_UNKNOWN as i32)?;
@@ -880,6 +780,130 @@ fn pyshinqlx_module(py: Python<'_>, m: &PyModule) -> PyResult<()> {
         meansOfDeath_t::MOD_RAILGUN_HEADSHOT as i32,
     )?;
 
+    m.add("DAMAGE_RADIUS", DAMAGE_RADIUS as i32)?;
+    m.add("DAMAGE_NO_ARMOR", DAMAGE_NO_ARMOR as i32)?;
+    m.add("DAMAGE_NO_KNOCKBACK", DAMAGE_NO_KNOCKBACK as i32)?;
+    m.add("DAMAGE_NO_PROTECTION", DAMAGE_NO_PROTECTION as i32)?;
+    m.add(
+        "DAMAGE_NO_TEAM_PROTECTION",
+        DAMAGE_NO_TEAM_PROTECTION as i32,
+    )?;
+
+    m.add_class::<Vector3>()?;
+    m.add_class::<Flight>()?;
+    m.add_class::<Powerups>()?;
+    m.add_class::<Weapons>()?;
+    m.add_class::<PlayerInfo>()?;
+    m.add_class::<PlayerState>()?;
+    m.add_class::<PlayerStats>()?;
+
+    m.add_function(wrap_pyfunction!(pyshinqlx_player_info, m)?)?;
+    m.add_function(wrap_pyfunction!(pyshinqlx_players_info, m)?)?;
+    m.add_function(wrap_pyfunction!(pyshinqlx_get_userinfo, m)?)?;
+    m.add_function(wrap_pyfunction!(pyshinqlx_send_server_command, m)?)?;
+    m.add_function(wrap_pyfunction!(pyshinqlx_client_command, m)?)?;
+    m.add_function(wrap_pyfunction!(pyshinqlx_console_command, m)?)?;
+    m.add_function(wrap_pyfunction!(pyshinqlx_get_cvar, m)?)?;
+    m.add_function(wrap_pyfunction!(pyshinqlx_set_cvar, m)?)?;
+    m.add_function(wrap_pyfunction!(pyshinqlx_set_cvar_limit, m)?)?;
+    m.add_function(wrap_pyfunction!(pyshinqlx_kick, m)?)?;
+    m.add_function(wrap_pyfunction!(pyshinqlx_console_print, m)?)?;
+    m.add_function(wrap_pyfunction!(pyshinqlx_get_configstring, m)?)?;
+    m.add_function(wrap_pyfunction!(pyshinqlx_set_configstring, m)?)?;
+    m.add_function(wrap_pyfunction!(pyshinqlx_force_vote, m)?)?;
+    m.add_function(wrap_pyfunction!(pyshinqlx_add_console_command, m)?)?;
+    m.add_function(wrap_pyfunction!(pyshinqlx_register_handler, m)?)?;
+    m.add_function(wrap_pyfunction!(pyshinqlx_player_state, m)?)?;
+    m.add_function(wrap_pyfunction!(pyshinqlx_player_stats, m)?)?;
+    m.add_function(wrap_pyfunction!(pyshinqlx_set_position, m)?)?;
+    m.add_function(wrap_pyfunction!(pyshinqlx_set_velocity, m)?)?;
+    m.add_function(wrap_pyfunction!(pyshinqlx_noclip, m)?)?;
+    m.add_function(wrap_pyfunction!(pyshinqlx_set_health, m)?)?;
+    m.add_function(wrap_pyfunction!(pyshinqlx_set_armor, m)?)?;
+    m.add_function(wrap_pyfunction!(pyshinqlx_set_weapons, m)?)?;
+    m.add_function(wrap_pyfunction!(pyshinqlx_set_weapon, m)?)?;
+    m.add_function(wrap_pyfunction!(pyshinqlx_set_ammo, m)?)?;
+    m.add_function(wrap_pyfunction!(pyshinqlx_set_powerups, m)?)?;
+    m.add_function(wrap_pyfunction!(pyshinqlx_set_holdable, m)?)?;
+    m.add_function(wrap_pyfunction!(pyshinqlx_drop_holdable, m)?)?;
+    m.add_function(wrap_pyfunction!(pyshinqlx_set_flight, m)?)?;
+    m.add_function(wrap_pyfunction!(pyshinqlx_set_invulnerability, m)?)?;
+    m.add_function(wrap_pyfunction!(pyshinqlx_set_score, m)?)?;
+    m.add_function(wrap_pyfunction!(pyshinqlx_callvote, m)?)?;
+    m.add_function(wrap_pyfunction!(pyshinqlx_allow_single_player, m)?)?;
+    m.add_function(wrap_pyfunction!(pyshinqlx_player_spawn, m)?)?;
+    m.add_function(wrap_pyfunction!(pyshinqlx_set_privileges, m)?)?;
+    m.add_function(wrap_pyfunction!(pyshinqlx_destroy_kamikaze_timers, m)?)?;
+    m.add_function(wrap_pyfunction!(pyshinqlx_spawn_item, m)?)?;
+    m.add_function(wrap_pyfunction!(pyshinqlx_remove_dropped_items, m)?)?;
+    m.add_function(wrap_pyfunction!(pyshinqlx_slay_with_mod, m)?)?;
+    m.add_function(wrap_pyfunction!(pyshinqlx_replace_items, m)?)?;
+    m.add_function(wrap_pyfunction!(pyshinqlx_dev_print_items, m)?)?;
+    m.add_function(wrap_pyfunction!(pyshinqlx_force_weapon_respawn_time, m)?)?;
+    m.add_function(wrap_pyfunction!(pyshinqlx_get_entity_targets, m)?)?;
+
+    // from _core.py
+    m.add("PluginLoadError", py.get_type::<PluginLoadError>())?;
+    m.add("PluginUnloadError", py.get_type::<PluginUnloadError>())?;
+
+    m.add(
+        "TEAMS",
+        [
+            (team_t::TEAM_FREE as i32, "free"),
+            (team_t::TEAM_RED as i32, "red"),
+            (team_t::TEAM_BLUE as i32, "blue"),
+            (team_t::TEAM_SPECTATOR as i32, "spectator"),
+        ]
+        .into_py_dict(py),
+    )?;
+    // Game types
+    m.add(
+        "GAMETYPES",
+        [
+            (0, "Free for All"),
+            (1, "Duel"),
+            (2, "Race"),
+            (3, "Team Deathmatch"),
+            (4, "Clan Arena"),
+            (5, "Capture the Flag"),
+            (6, "One Flag"),
+            (8, "Harvester"),
+            (9, "Freeze Tag"),
+            (10, "Domination"),
+            (11, "Attack and Defend"),
+            (12, "Red Rover"),
+        ]
+        .into_py_dict(py),
+    )?;
+    m.add(
+        "GAMETYPES_SHORT",
+        [
+            (0, "ffa"),
+            (1, "duel"),
+            (2, "race"),
+            (3, "tdm"),
+            (4, "ca"),
+            (5, "ctf"),
+            (6, "1f"),
+            (8, "har"),
+            (9, "ft"),
+            (10, "dom"),
+            (11, "ad"),
+            (12, "rr"),
+        ]
+        .into_py_dict(py),
+    )?;
+    m.add(
+        "CONNECTION_STATES",
+        [
+            (clientState_t::CS_FREE as i32, "free"),
+            (clientState_t::CS_ZOMBIE as i32, "zombie"),
+            (clientState_t::CS_CONNECTED as i32, "connected"),
+            (clientState_t::CS_PRIMED as i32, "primed"),
+            (clientState_t::CS_ACTIVE as i32, "active"),
+        ]
+        .into_py_dict(py),
+    )?;
     // Weapons
     m.add(
         "WEAPONS",
@@ -902,53 +926,38 @@ fn pyshinqlx_module(py: Python<'_>, m: &PyModule) -> PyResult<()> {
         ]
         .into_py_dict(py),
     )?;
-
-    m.add("DAMAGE_RADIUS", DAMAGE_RADIUS as i32)?;
-    m.add("DAMAGE_NO_ARMOR", DAMAGE_NO_ARMOR as i32)?;
-    m.add("DAMAGE_NO_KNOCKBACK", DAMAGE_NO_KNOCKBACK as i32)?;
-    m.add("DAMAGE_NO_PROTECTION", DAMAGE_NO_PROTECTION as i32)?;
-    m.add(
-        "DAMAGE_NO_TEAM_PROTECTION",
-        DAMAGE_NO_TEAM_PROTECTION as i32,
-    )?;
-
     m.add("DEFAULT_PLUGINS", PyTuple::new(py, DEFAULT_PLUGINS))?;
 
-    m.add("_map_title", "")?;
-    m.add("_map_subtitle1", "")?;
-    m.add("_map_subtitle2", "")?;
-    m.add_function(wrap_pyfunction!(set_map_subtitles, m)?)?;
-    m.add_function(wrap_pyfunction!(pyshinqlx_parse_variables, m)?)?;
+    m.add("_thread_count", 0)?;
+    m.add("_thread_name", "shinqlxthread")?;
 
+    m.add_function(wrap_pyfunction!(pyshinqlx_parse_variables, m)?)?;
     m.add_function(wrap_pyfunction!(pyshinqlx_get_logger, m)?)?;
     m.add_function(wrap_pyfunction!(pyshinqlx_configure_logger, m)?)?;
     m.add_function(wrap_pyfunction!(pyshinqlx_log_exception, m)?)?;
     m.add_function(wrap_pyfunction!(pyshinqlx_handle_exception, m)?)?;
     m.add_function(wrap_pyfunction!(pyshinqlx_handle_threading_exception, m)?)?;
-
-    m.add_function(wrap_pyfunction!(next_frame, m)?)?;
-    m.add_function(wrap_pyfunction!(delay, m)?)?;
-
-    m.add("_thread_count", 0)?;
-    m.add("_thread_name", "shinqlxthread")?;
-    m.add_function(wrap_pyfunction!(thread, m)?)?;
-    m.add_function(wrap_pyfunction!(initialize_cvars, m)?)?;
-
     m.add_function(wrap_pyfunction!(uptime, m)?)?;
     m.add_function(wrap_pyfunction!(owner, m)?)?;
 
-    m.add_class::<PlayerInfo>()?;
-    m.add_class::<PlayerState>()?;
-    m.add_class::<PlayerStats>()?;
-    m.add_class::<Vector3>()?;
-    m.add_class::<Weapons>()?;
-    m.add_class::<Powerups>()?;
-    m.add_class::<Flight>()?;
+    m.add_function(wrap_pyfunction!(pyshinqlx_set_cvar_once, m)?)?;
+    m.add_function(wrap_pyfunction!(pyshinqlx_set_cvar_limit_once, m)?)?;
+
+    m.add_function(wrap_pyfunction!(set_map_subtitles, m)?)?;
+
+    m.add_function(wrap_pyfunction!(next_frame, m)?)?;
+    m.add_function(wrap_pyfunction!(delay, m)?)?;
+    m.add_function(wrap_pyfunction!(thread, m)?)?;
+    m.add_function(wrap_pyfunction!(initialize_cvars, m)?)?;
+
+    // from _game.py
     m.add_class::<Game>()?;
     m.add(
         "NonexistentGameError",
         py.get_type::<NonexistentGameError>(),
     )?;
+
+    // from _player.py
     m.add_class::<Player>()?;
     m.add(
         "NonexistentPlayerError",
@@ -956,13 +965,20 @@ fn pyshinqlx_module(py: Python<'_>, m: &PyModule) -> PyResult<()> {
     )?;
     m.add_class::<AbstractDummyPlayer>()?;
     m.add_class::<RconDummyPlayer>()?;
+
+    // from _commands.py
     m.add("MAX_MSG_LENGTH", MAX_MSG_LENGTH)?;
+    let regex_module = py.import("re")?;
+    m.add(
+        "re_color_tag",
+        regex_module.call_method1("compile", (r"\^[0-7]",))?,
+    )?;
     m.add_class::<AbstractChannel>()?;
-    m.add_class::<ConsoleChannel>()?;
     m.add_class::<ChatChannel>()?;
-    m.add_class::<TellChannel>()?;
-    m.add_class::<ClientCommandChannel>()?;
     m.add_class::<TeamChatChannel>()?;
+    m.add_class::<TellChannel>()?;
+    m.add_class::<ConsoleChannel>()?;
+    m.add_class::<ClientCommandChannel>()?;
     m.add(
         "CHAT_CHANNEL",
         Py::new(
@@ -1019,9 +1035,6 @@ fn pyshinqlx_module(py: Python<'_>, m: &PyModule) -> PyResult<()> {
         "CONSOLE_CHANNEL",
         Py::new(py, ConsoleChannel::py_new())?.to_object(py),
     )?;
-    m.add("PluginLoadError", py.get_type::<PluginLoadError>())?;
-    m.add("PluginUnloadError", py.get_type::<PluginUnloadError>())?;
-    m.add_class::<StatsListener>()?;
 
     // from _handlers.py
     let sched_module = py.import("sched")?;
@@ -1047,12 +1060,8 @@ fn pyshinqlx_module(py: Python<'_>, m: &PyModule) -> PyResult<()> {
     m.add_class::<handlers::PrintRedirector>()?;
     m.add_function(wrap_pyfunction!(handlers::register_handlers, m)?)?;
 
-    // from _commands.py
-    let regex_module = py.import("re")?;
-    m.add(
-        "re_color_tag",
-        regex_module.call_method1("compile", (r"\^[0-7]",))?,
-    )?;
+    // from _zmq.py
+    m.add_class::<StatsListener>()?;
 
     Ok(())
 }

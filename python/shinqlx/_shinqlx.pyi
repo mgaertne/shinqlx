@@ -27,13 +27,13 @@ if TYPE_CHECKING:
     from types import TracebackType
     from shinqlx import Plugin
 
-__version__: str
+# from __init__.pyi
 _map_title: str | None
 _map_subtitle1: str | None
 _map_subtitle2: str | None
-_thread_count: int
-_thread_name: str
 
+# from _shinqlx.pyi
+__version__: str
 DEBUG: bool
 
 # Variables with simple values
@@ -62,10 +62,6 @@ CVAR_TEMP: int
 CVAR_CHEAT: int
 CVAR_NORESTART: int
 
-# game types
-GAMETYPES: dict[int, str]
-GAMETYPES_SHORT: dict[int, str]
-
 # Privileges
 PRIV_NONE: int
 PRIV_MOD: int
@@ -79,14 +75,12 @@ CS_ZOMBIE: int
 CS_CONNECTED: int
 CS_PRIMED: int
 CS_ACTIVE: int
-CONNECTION_STATES: dict[int, str]
 
 # Teams
 TEAM_FREE: int
 TEAM_RED: int
 TEAM_BLUE: int
 TEAM_SPECTATOR: int
-TEAMS: dict[int, str]
 
 # Means of death
 MOD_UNKNOWN: int
@@ -124,9 +118,6 @@ MOD_LIGHTNING_DISCHARGE: int
 MOD_HMG: int
 MOD_RAILGUN_HEADSHOT: int
 
-# weapons
-WEAPONS: dict[int, str]
-
 # damage flags
 DAMAGE_RADIUS: int
 DAMAGE_NO_ARMOR: int
@@ -134,9 +125,6 @@ DAMAGE_NO_KNOCKBACK: int
 DAMAGE_NO_PROTECTION: int
 DAMAGE_NO_TEAM_PROTECTION: int
 
-DEFAULT_PLUGINS: tuple[str, ...]
-
-# classes
 class Vector3(tuple):
     x: int
     y: int
@@ -263,15 +251,25 @@ def replace_items(_item1: int | str, _item2: int | str) -> bool: ...
 def dev_print_items() -> None: ...
 def force_weapon_respawn_time(_respawn_time: int) -> bool: ...
 def get_targetting_entities(_entity_id: int) -> list[int]: ...
-def set_cvar_once(name: str, value: str, flags: int = ...) -> bool: ...
-def set_cvar_limit_once(
-    name: str,
-    value: int | float,
-    minimum: int | float,
-    maximum: int | float,
-    flags: int = ...,
-) -> bool: ...
-def set_map_subtitles() -> None: ...
+
+# from _core.pyi
+class PluginLoadError(Exception): ...
+class PluginUnloadError(Exception): ...
+
+TEAMS: dict[int, str]
+
+# game types
+GAMETYPES: dict[int, str]
+GAMETYPES_SHORT: dict[int, str]
+
+CONNECTION_STATES: dict[int, str]
+WEAPONS: dict[int, str]
+
+DEFAULT_PLUGINS: tuple[str, ...]
+
+_thread_count: int
+_thread_name: str
+
 def parse_variables(varstr: str, ordered: bool = False) -> dict[str, str]: ...
 def get_logger(plugin: Plugin | str | None = ...) -> Logger: ...
 def _configure_logger() -> None: ...
@@ -288,15 +286,23 @@ class ExceptHookArgs(Protocol):
     exc_value: BaseException
 
 def threading_excepthook(args: ExceptHookArgs) -> None: ...
+def uptime() -> timedelta: ...
+def owner() -> int | None: ...
+def set_cvar_once(name: str, value: str, flags: int = ...) -> bool: ...
+def set_cvar_limit_once(
+    name: str,
+    value: int | float,
+    minimum: int | float,
+    maximum: int | float,
+    flags: int = ...,
+) -> bool: ...
+def set_map_subtitles() -> None: ...
 def next_frame(func: Callable) -> Callable: ...
 def delay(time: float) -> Callable: ...
 def thread(func: Callable, force: bool = ...) -> Callable: ...
-def uptime() -> timedelta: ...
-def owner() -> int | None: ...
 def initialize_cvars() -> None: ...
 
-class PluginLoadError(Exception): ...
-class PluginUnloadError(Exception): ...
+# from _game.pyi
 class NonexistentGameError(Exception): ...
 
 class Game:
@@ -433,6 +439,7 @@ class Game:
     @classmethod
     def setmatchtime(cls, time: int) -> None: ...
 
+# from _player.pyi
 UserInfo = TypedDict(
     "UserInfo",
     {
@@ -757,7 +764,10 @@ class RconDummyPlayer(AbstractDummyPlayer):
     def channel(self) -> AbstractChannel: ...
     def tell(self, msg: str, **kwargs: str) -> None: ...
 
+# from _commands.pyi
 MAX_MSG_LENGTH: int
+
+re_color_tag: Pattern
 
 class AbstractChannel:
     _name: str
@@ -774,10 +784,6 @@ class AbstractChannel:
         self, msg: str, limit: int = ..., delimiter: str = ...
     ) -> list[str]: ...
 
-class ConsoleChannel(AbstractChannel):
-    def __init__(self) -> None: ...
-    def reply(self, msg: str, limit: int = ..., delimiter: str = ...) -> None: ...
-
 class ChatChannel(AbstractChannel):
     fmt: str
 
@@ -786,12 +792,22 @@ class ChatChannel(AbstractChannel):
     def receipients(self) -> list[int] | None: ...
     def reply(self, msg: str, limit: int = ..., delimiter: str = ...) -> None: ...
 
+class TeamChatChannel(ChatChannel):
+    team: str
+
+    def __init__(self, team: str = ..., name: str = ..., fmt: str = ...) -> None: ...
+    def receipients(self) -> list[int] | None: ...
+
 class TellChannel(ChatChannel):
     recipient: str | int | Player
 
     def __init__(self, player: str | int | Player) -> None: ...
     def __repr__(self) -> str: ...
     def receipients(self) -> list[int] | None: ...
+
+class ConsoleChannel(AbstractChannel):
+    def __init__(self) -> None: ...
+    def reply(self, msg: str, limit: int = ..., delimiter: str = ...) -> None: ...
 
 class ClientCommandChannel(AbstractChannel):
     recipient: Player
@@ -801,12 +817,6 @@ class ClientCommandChannel(AbstractChannel):
     def __repr__(self) -> str: ...
     def reply(self, msg: str, limit: int = ..., delimiter: str = ...) -> None: ...
 
-class TeamChatChannel(ChatChannel):
-    team: str
-
-    def __init__(self, team: str = ..., name: str = ..., fmt: str = ...) -> None: ...
-    def receipients(self) -> list[int] | None: ...
-
 CHAT_CHANNEL: AbstractChannel
 RED_TEAM_CHAT_CHANNEL: AbstractChannel
 BLUE_TEAM_CHAT_CHANNEL: AbstractChannel
@@ -814,6 +824,7 @@ FREE_CHAT_CHANNEL: AbstractChannel
 SPECTATOR_CHAT_CHANNEL: AbstractChannel
 CONSOLE_CHANNEL: AbstractChannel
 
+# from _zmq.pyi
 class StatsListener:
     done: bool
     address: str
@@ -823,6 +834,7 @@ class StatsListener:
     def keep_receiving(self) -> None: ...
     def stop(self) -> None: ...
 
+# from _handlers.pyi
 frame_tasks: scheduler
 next_frame_tasks: Queue
 
@@ -858,5 +870,3 @@ class PrintRedirector:
     ) -> None: ...
     def flush(self) -> None: ...
     def append(self, text: str) -> None: ...
-
-re_color_tag: Pattern
