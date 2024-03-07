@@ -1,4 +1,5 @@
 mod channels;
+mod commands;
 mod dispatchers;
 mod embed;
 mod flight;
@@ -19,6 +20,7 @@ pub(crate) mod prelude {
         AbstractChannel, ChatChannel, ClientCommandChannel, ConsoleChannel, TeamChatChannel,
         TellChannel, MAX_MSG_LENGTH,
     };
+    pub(crate) use super::commands::Command;
     pub(crate) use super::embed::*;
     pub(crate) use super::flight::Flight;
     pub(crate) use super::game::{Game, NonexistentGameError};
@@ -613,7 +615,7 @@ fn uptime(py: Python<'_>) -> PyResult<&PyDelta> {
 
 /// Returns the SteamID64 of the owner. This is set in the config.
 #[pyfunction]
-fn owner(py: Python<'_>) -> PyResult<Option<u64>> {
+fn owner(py: Python<'_>) -> PyResult<Option<i64>> {
     let Ok(Some(owner_cvar)) = pyshinqlx_get_cvar(py, "qlx_owner") else {
         error!(target: "shinqlx", "Failed to parse the Owner Steam ID. Make sure it's in SteamID64 format.");
         return Ok(None);
@@ -629,7 +631,7 @@ fn owner(py: Python<'_>) -> PyResult<Option<u64>> {
         return Ok(None);
     }
 
-    Ok(Some(steam_id.try_into()?))
+    Ok(Some(steam_id))
 }
 
 static DEFAULT_PLUGINS: [&str; 10] = [
@@ -1035,6 +1037,7 @@ fn pyshinqlx_module(py: Python<'_>, m: &PyModule) -> PyResult<()> {
         "CONSOLE_CHANNEL",
         Py::new(py, ConsoleChannel::py_new())?.to_object(py),
     )?;
+    m.add_class::<Command>()?;
 
     // from _handlers.py
     let sched_module = py.import("sched")?;
