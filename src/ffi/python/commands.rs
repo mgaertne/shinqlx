@@ -179,7 +179,12 @@ impl Command {
     ///
     /// Exclude takes precedence.
     fn is_eligible_channel(&self, py: Python<'_>, channel: PyObject) -> bool {
-        let Ok(channel_name) = channel.extract::<String>(py) else {
+        let Some(channel_name) = channel
+            .as_ref(py)
+            .str()
+            .ok()
+            .and_then(|channel_name_str| channel_name_str.extract::<String>().ok())
+        else {
             return false;
         };
 
