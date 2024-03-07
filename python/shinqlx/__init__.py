@@ -173,6 +173,7 @@ try:
         FREE_CHAT_CHANNEL,
         SPECTATOR_CHAT_CHANNEL,
         CONSOLE_CHANNEL,
+        Command,
         PluginLoadError,
         PluginUnloadError,
         _map_title,
@@ -370,6 +371,7 @@ except ModuleNotFoundError:
         FREE_CHAT_CHANNEL,
         SPECTATOR_CHAT_CHANNEL,
         CONSOLE_CHANNEL,
+        Command,
         PluginLoadError,
         PluginUnloadError,
         _map_title,
@@ -448,7 +450,6 @@ from ._events import (
     EVENT_DISPATCHERS,
 )
 from ._commands import (
-    Command,
     CommandInvoker,
     COMMANDS,
 )
@@ -646,6 +647,7 @@ __all__ = [
     "FREE_CHAT_CHANNEL",
     "SPECTATOR_CHAT_CHANNEL",
     "CONSOLE_CHANNEL",
+    "Command",
     "StatsListener",
     "frame_tasks",
     "next_frame_tasks",
@@ -678,7 +680,6 @@ __all__ = [
     # _plugin
     "Plugin",
     # _commands
-    "Command",
     "CommandInvoker",
     "COMMANDS",
     # _events

@@ -6901,7 +6901,7 @@ impl AbstractDummyPlayer {
     }
 
     #[getter(steam_id)]
-    fn get_steam_id(&self) -> PyResult<u64> {
+    fn get_steam_id(&self) -> PyResult<i64> {
         Err(PyNotImplementedError::new_err(
             "steam_id property needs to be implemented.",
         ))
@@ -7045,7 +7045,7 @@ impl RconDummyPlayer {
     }
 
     #[getter(steam_id)]
-    fn get_steam_id(&self, py: Python<'_>) -> PyResult<u64> {
+    fn get_steam_id(&self, py: Python<'_>) -> PyResult<i64> {
         super::owner(py).map(|opt_value| opt_value.unwrap_or_default())
     }
 

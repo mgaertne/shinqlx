@@ -824,6 +824,38 @@ FREE_CHAT_CHANNEL: AbstractChannel
 SPECTATOR_CHAT_CHANNEL: AbstractChannel
 CONSOLE_CHANNEL: AbstractChannel
 
+class Command:
+    name: list[str]
+    plugin: Plugin
+    handler: Callable
+    permission: int
+    channels: list[AbstractChannel]
+    exclude_channels: list[AbstractChannel]
+    client_cmd_pass: bool
+    client_cmd_perm: int
+    prefix: bool
+    usage: str
+
+    def __init__(
+        self,
+        plugin: Plugin,
+        name: str | Iterable[str],
+        handler: Callable,
+        permission: int,
+        channels: Iterable[AbstractChannel] | None,
+        exclude_channels: Iterable[AbstractChannel] | None,
+        client_cmd_pass: bool,
+        client_cmd_perm: int,
+        prefix: bool,
+        usage: str,
+    ) -> None: ...
+    def execute(
+        self, player: Player, msg: str, channel: AbstractChannel
+    ) -> int | None: ...
+    def is_eligible_name(self, name: str) -> bool: ...
+    def is_eligible_channel(self, channel: AbstractChannel) -> bool: ...
+    def is_eligible_player(self, player: Player, is_client_cmd: bool) -> bool: ...
+
 # from _zmq.pyi
 class StatsListener:
     done: bool
