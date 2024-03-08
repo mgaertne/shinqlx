@@ -20,7 +20,7 @@ pub(crate) mod prelude {
         AbstractChannel, ChatChannel, ClientCommandChannel, ConsoleChannel, TeamChatChannel,
         TellChannel, MAX_MSG_LENGTH,
     };
-    pub(crate) use super::commands::Command;
+    pub(crate) use super::commands::{Command, CommandInvoker};
     pub(crate) use super::embed::*;
     pub(crate) use super::flight::Flight;
     pub(crate) use super::game::{Game, NonexistentGameError};
@@ -117,6 +117,7 @@ use prelude::*;
 
 use alloc::sync::Arc;
 use arc_swap::ArcSwapOption;
+use commands::CommandPriorities;
 use core::{
     ops::Deref,
     str::FromStr,
@@ -140,7 +141,7 @@ pub(crate) static CUSTOM_COMMAND_HANDLER: Lazy<Arc<ArcSwapOption<Py<PyAny>>>> =
 
 // Used primarily in Python, but defined here and added using PyModule_AddIntMacro().
 #[allow(non_camel_case_types)]
-enum PythonReturnCodes {
+pub(crate) enum PythonReturnCodes {
     RET_NONE,
     RET_STOP,
     // Stop execution of event handlers within Python.
@@ -149,15 +150,6 @@ enum PythonReturnCodes {
     RET_STOP_ALL,
     // Stop execution at an engine level. SCARY STUFF!
     RET_USAGE, // Used for commands. Replies to the channel with a command's usage.
-}
-
-#[allow(non_camel_case_types)]
-enum PythonPriorities {
-    PRI_HIGHEST,
-    PRI_HIGH,
-    PRI_NORMAL,
-    PRI_LOW,
-    PRI_LOWEST,
 }
 
 create_exception!(pyshinqlx_module, PluginLoadError, PyException);
@@ -689,11 +681,11 @@ fn pyshinqlx_module(py: Python<'_>, m: &PyModule) -> PyResult<()> {
     m.add("RET_STOP_EVENT", PythonReturnCodes::RET_STOP_EVENT as i32)?;
     m.add("RET_STOP_ALL", PythonReturnCodes::RET_STOP_ALL as i32)?;
     m.add("RET_USAGE", PythonReturnCodes::RET_USAGE as i32)?;
-    m.add("PRI_HIGHEST", PythonPriorities::PRI_HIGHEST as i32)?;
-    m.add("PRI_HIGH", PythonPriorities::PRI_HIGH as i32)?;
-    m.add("PRI_NORMAL", PythonPriorities::PRI_NORMAL as i32)?;
-    m.add("PRI_LOW", PythonPriorities::PRI_LOW as i32)?;
-    m.add("PRI_LOWEST", PythonPriorities::PRI_LOWEST as i32)?;
+    m.add("PRI_HIGHEST", CommandPriorities::PRI_HIGHEST as i32)?;
+    m.add("PRI_HIGH", CommandPriorities::PRI_HIGH as i32)?;
+    m.add("PRI_NORMAL", CommandPriorities::PRI_NORMAL as i32)?;
+    m.add("PRI_LOW", CommandPriorities::PRI_LOW as i32)?;
+    m.add("PRI_LOWEST", CommandPriorities::PRI_LOWEST as i32)?;
 
     // Cvar flags.
     m.add("CVAR_ARCHIVE", cvar_flags::CVAR_ARCHIVE as i32)?;
@@ -1038,6 +1030,11 @@ fn pyshinqlx_module(py: Python<'_>, m: &PyModule) -> PyResult<()> {
         Py::new(py, ConsoleChannel::py_new())?.to_object(py),
     )?;
     m.add_class::<Command>()?;
+    m.add_class::<CommandInvoker>()?;
+    m.add(
+        "COMMANDS",
+        Py::new(py, CommandInvoker::py_new())?.to_object(py),
+    )?;
 
     // from _handlers.py
     let sched_module = py.import("sched")?;

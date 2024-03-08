@@ -174,6 +174,8 @@ try:
         SPECTATOR_CHAT_CHANNEL,
         CONSOLE_CHANNEL,
         Command,
+        CommandInvoker,
+        COMMANDS,
         PluginLoadError,
         PluginUnloadError,
         _map_title,
@@ -372,6 +374,8 @@ except ModuleNotFoundError:
         SPECTATOR_CHAT_CHANNEL,
         CONSOLE_CHANNEL,
         Command,
+        CommandInvoker,
+        COMMANDS,
         PluginLoadError,
         PluginUnloadError,
         _map_title,
@@ -448,10 +452,6 @@ from ._events import (
     PlayerItemsTossDispatcher,
     DamageDispatcher,
     EVENT_DISPATCHERS,
-)
-from ._commands import (
-    CommandInvoker,
-    COMMANDS,
 )
 
 __version__ = _shinqlx.__version__
@@ -648,6 +648,8 @@ __all__ = [
     "SPECTATOR_CHAT_CHANNEL",
     "CONSOLE_CHANNEL",
     "Command",
+    "CommandInvoker",
+    "COMMANDS",
     "StatsListener",
     "frame_tasks",
     "next_frame_tasks",
@@ -679,9 +681,6 @@ __all__ = [
     "late_init",
     # _plugin
     "Plugin",
-    # _commands
-    "CommandInvoker",
-    "COMMANDS",
     # _events
     "EventDispatcher",
     "EventDispatcherManager",

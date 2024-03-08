@@ -167,6 +167,8 @@ from ._shinqlx import (
     SPECTATOR_CHAT_CHANNEL,
     CONSOLE_CHANNEL,
     Command,
+    CommandInvoker,
+    COMMANDS,
     PluginLoadError,
     PluginUnloadError,
     _map_title,
@@ -281,10 +283,6 @@ from ._events import (
     EVENT_DISPATCHERS,
     UncancellableEventReturn,
     CancellableEventReturn,
-)
-from ._commands import (
-    CommandInvoker,
-    COMMANDS,
 )
 
 __version__: str
@@ -470,6 +468,8 @@ __all__ = [
     "SPECTATOR_CHAT_CHANNEL",
     "CONSOLE_CHANNEL",
     "Command",
+    "CommandInvoker",
+    "COMMANDS",
     "PluginLoadError",
     "PluginUnloadError",
     "StatsListener",
@@ -536,9 +536,6 @@ __all__ = [
     "DamageEntry",
     "SingleWeaponStatsEntry",
     "StatsData",
-    # _commands
-    "CommandInvoker",
-    "COMMANDS",
     # _events
     "EventDispatcher",
     "EventDispatcherManager",
