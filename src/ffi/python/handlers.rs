@@ -4,15 +4,17 @@ use crate::ffi::c::prelude::*;
 use super::{pyshinqlx_get_logger, set_map_subtitles};
 use crate::{quake_live_engine::GetConfigstring, MAIN_ENGINE};
 
+use alloc::sync::Arc;
 use arc_swap::ArcSwapOption;
 use core::sync::atomic::{AtomicBool, AtomicI32, Ordering};
 use itertools::Itertools;
 use once_cell::sync::Lazy;
-use pyo3::exceptions::PyValueError;
-use pyo3::intern;
-use pyo3::types::{IntoPyDict, PyDict};
+use pyo3::{
+    exceptions::PyValueError,
+    intern,
+    types::{IntoPyDict, PyDict},
+};
 use regex::{Regex, RegexBuilder};
-use std::sync::Arc;
 
 fn try_log_exception(py: Python<'_>, exception: PyErr) -> PyResult<()> {
     let logging_module = py.import(intern!(py, "logging"))?;
