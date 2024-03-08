@@ -1,5 +1,5 @@
 use super::prelude::*;
-use super::{owner, pyshinqlx_get_logger};
+use super::{owner, pyshinqlx_get_logger, PythonReturnCodes};
 
 use pyo3::prelude::*;
 use pyo3::{
@@ -13,7 +13,8 @@ use pyo3::{
 ///
 /// Has information about the command itself, its usage, when and who to call when
 /// action should be taken.
-#[pyclass(module = "_commands", name = "Command", get_all)]
+#[pyclass(module = "_commands", name = "Command", get_all, frozen)]
+#[derive(Clone)]
 pub(crate) struct Command {
     plugin: Py<PyAny>,
     name: Vec<String>,
@@ -43,7 +44,7 @@ impl Command {
         client_cmd_perm: i32,
         prefix: bool,
         usage: String,
-    ) -> PyResult<Command> {
+    ) -> PyResult<Self> {
         if !handler.as_ref(py).is_callable() {
             return Err(PyValueError::new_err(
                 "'handler' must be a callable function.",
@@ -273,5 +274,194 @@ impl Command {
             return player_perm >= client_cmd_perm;
         }
         player_perm >= perm
+    }
+}
+
+#[allow(non_camel_case_types)]
+pub(crate) enum CommandPriorities {
+    PRI_HIGHEST,
+    PRI_HIGH,
+    PRI_NORMAL,
+    PRI_LOW,
+    PRI_LOWEST,
+}
+
+/// Holds all commands and executes them whenever we get input and should execute.
+#[pyclass(module = "_commands", name = "CommandInvoker")]
+pub(crate) struct CommandInvoker {
+    commands: [Vec<Command>; 5],
+}
+
+#[pymethods]
+impl CommandInvoker {
+    #[new]
+    pub(crate) fn py_new() -> Self {
+        Self {
+            commands: [vec![], vec![], vec![], vec![], vec![]],
+        }
+    }
+
+    #[getter(commands)]
+    fn get_commands(&self) -> Vec<Command> {
+        let mut returned = vec![];
+        for index in 0..self.commands.len() {
+            returned.extend(self.commands[index].clone());
+        }
+        returned
+    }
+
+    /// Check if a command is already registed.
+    ///
+    /// Commands are unique by (command.name, command.handler).
+    fn is_registered(&self, py: Python<'_>, command: &Command) -> bool {
+        self.commands.iter().any(|prio_cmds| {
+            prio_cmds.iter().any(|cmd| {
+                cmd.name == command.name
+                    && cmd
+                        .handler
+                        .as_ref(py)
+                        .eq(command.handler.as_ref(py))
+                        .unwrap_or(false)
+            })
+        })
+    }
+
+    fn add_command(&mut self, py: Python<'_>, command: Command, priority: usize) -> PyResult<()> {
+        if self.is_registered(py, &command) {
+            return Err(PyValueError::new_err(
+                "Attempted to add an already registered command.",
+            ));
+        }
+        self.commands[priority].push(command);
+        Ok(())
+    }
+
+    fn remove_command(&mut self, py: Python<'_>, command: Command) -> PyResult<()> {
+        if !self.is_registered(py, &command) {
+            return Err(PyValueError::new_err(
+                "Attempted to add an already registered command.",
+            ));
+        }
+
+        for index in 0..self.commands.len() {
+            self.commands[index].retain(|cmd| {
+                cmd.name != command.name
+                    && cmd
+                        .handler
+                        .as_ref(py)
+                        .ne(command.handler.as_ref(py))
+                        .unwrap_or(true)
+            })
+        }
+
+        Ok(())
+    }
+
+    fn handle_input(
+        &self,
+        py: Python<'_>,
+        player: Player,
+        msg: String,
+        channel: PyObject,
+    ) -> PyResult<bool> {
+        if msg.trim().is_empty() {
+            return Ok(false);
+        }
+
+        let lower_case_name = msg.trim().to_lowercase();
+        let name = lower_case_name
+            .split_once(' ')
+            .unwrap_or_default()
+            .0
+            .to_string();
+        let Some(channel_name) = channel
+            .as_ref(py)
+            .str()
+            .ok()
+            .and_then(|channel_name_str| channel_name_str.extract::<String>().ok())
+        else {
+            return Ok(false);
+        };
+        let is_client_cmd = channel_name == "client_command";
+        let mut pass_through = true;
+
+        let shinqlx_module = py.import(intern!(py, "shinqlx"))?;
+        let event_dispatchers = shinqlx_module.getattr(intern!(py, "EVENT_DISPATCHERS"))?;
+        let command_dispatcher = event_dispatchers.get_item(intern!(py, "command"))?;
+
+        for priority_level in 0..self.commands.len() {
+            for cmd in &self.commands[priority_level] {
+                if !cmd.is_eligible_name(py, name.clone()) {
+                    continue;
+                }
+                if !cmd.is_eligible_channel(py, channel.as_ref(py).into_py(py)) {
+                    continue;
+                }
+                if !cmd.is_eligible_player(py, player.clone(), is_client_cmd) {
+                    continue;
+                }
+
+                if is_client_cmd {
+                    pass_through = cmd.client_cmd_pass;
+                }
+
+                let dispatcher_result = command_dispatcher.call_method1(
+                    intern!(py, "dispatch"),
+                    (player.clone(), (*cmd).clone(), msg.clone()),
+                )?;
+                if dispatcher_result
+                    .extract::<bool>()
+                    .is_ok_and(|value| !value)
+                {
+                    return Ok(true);
+                }
+
+                let cmd_result = cmd.execute(
+                    py,
+                    player.clone(),
+                    msg.clone(),
+                    channel.as_ref(py).into_py(py),
+                )?;
+                if cmd_result.is_none(py) {
+                    continue;
+                }
+                if cmd_result.extract::<i32>(py).is_ok_and(|value| {
+                    value == PythonReturnCodes::RET_STOP as i32
+                        || value == PythonReturnCodes::RET_STOP_ALL as i32
+                }) {
+                    return Ok(false);
+                }
+                if cmd_result
+                    .extract::<i32>(py)
+                    .is_ok_and(|value| value == PythonReturnCodes::RET_STOP_EVENT as i32)
+                {
+                    pass_through = false;
+                } else if cmd_result
+                    .extract::<i32>(py)
+                    .is_ok_and(|value| value == PythonReturnCodes::RET_STOP_EVENT as i32)
+                    && !cmd.usage.is_empty()
+                {
+                    let usage_msg = format!("^7Usage: ^6{} {}", name, cmd.usage);
+                    channel.call_method1(py, intern!(py, "reply"), (usage_msg,))?;
+                } else if cmd_result
+                    .extract::<i32>(py)
+                    .is_ok_and(|value| value != PythonReturnCodes::RET_NONE as i32)
+                {
+                    let logger = pyshinqlx_get_logger(py, None)?;
+                    let cmd_handler_name = cmd.handler.getattr(py, intern!(py, "__name__"))?;
+                    logger.call_method1(
+                        intern!(py, "warning"),
+                        (
+                            "Command '%s' with handler '%s' returned an unknown return value: %s",
+                            cmd.name.clone(),
+                            cmd_handler_name,
+                            cmd_result,
+                        ),
+                    )?;
+                }
+            }
+        }
+
+        Ok(pass_through)
     }
 }
