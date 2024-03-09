@@ -87,7 +87,7 @@ pub extern "C" fn cmd_slap() {
     }
 
     let dmg = if argc > 2 {
-        let passed_dmg = main_engine.cmd_argv(2).unwrap_or("0");
+        let passed_dmg = main_engine.cmd_argv(2).unwrap_or("0".into());
         passed_dmg.parse::<i32>().unwrap_or(0)
     } else {
         0
@@ -418,7 +418,7 @@ mod commands_tests {
         mock_engine
             .expect_cmd_argv()
             .with(predicate::eq(0))
-            .return_const(Some("!slap"))
+            .return_const(Some("!slap".into()))
             .times(1);
         mock_engine
             .expect_com_printf()
@@ -438,7 +438,7 @@ mod commands_tests {
         mock_engine
             .expect_cmd_argv()
             .with(predicate::eq(1))
-            .return_const(Some("2147483648"))
+            .return_const(Some("2147483648".into()))
             .times(1);
         mock_engine
             .expect_com_printf()
@@ -460,7 +460,7 @@ mod commands_tests {
         mock_engine
             .expect_cmd_argv()
             .with(predicate::eq(1))
-            .return_const(Some("-1"))
+            .return_const(Some("-1".into()))
             .times(1);
         mock_engine
             .expect_com_printf()
@@ -482,7 +482,7 @@ mod commands_tests {
         mock_engine
             .expect_cmd_argv()
             .with(predicate::eq(1))
-            .return_const(Some("42"))
+            .return_const(Some("42".into()))
             .times(1);
         mock_engine
             .expect_com_printf()
@@ -505,7 +505,7 @@ mod commands_tests {
         mock_engine
             .expect_cmd_argv()
             .with(predicate::eq(1))
-            .return_const(Some("2"))
+            .return_const(Some("2".into()))
             .times(1);
         mock_engine
             .expect_com_printf()
@@ -540,7 +540,7 @@ mod commands_tests {
         mock_engine
             .expect_cmd_argv()
             .with(predicate::eq(1))
-            .return_const(Some("2"))
+            .return_const(Some("2".into()))
             .times(1);
         mock_engine
             .expect_com_printf()
@@ -576,7 +576,7 @@ mod commands_tests {
         mock_engine
             .expect_cmd_argv()
             .with(predicate::eq(1))
-            .return_const(Some("2"))
+            .return_const(Some("2".into()))
             .times(1);
         mock_engine
             .expect_com_printf()
@@ -647,12 +647,12 @@ mod commands_tests {
         mock_engine
             .expect_cmd_argv()
             .with(predicate::eq(1))
-            .return_const(Some("2"))
+            .return_const(Some("2".into()))
             .times(1);
         mock_engine
             .expect_cmd_argv()
             .with(predicate::eq(2))
-            .return_const(Some("1"))
+            .return_const(Some("1".into()))
             .times(1);
         mock_engine
             .expect_com_printf()
@@ -728,12 +728,12 @@ mod commands_tests {
         mock_engine
             .expect_cmd_argv()
             .with(predicate::eq(1))
-            .return_const(Some("2"))
+            .return_const(Some("2".into()))
             .times(1);
         mock_engine
             .expect_cmd_argv()
             .with(predicate::eq(2))
-            .return_const(Some("666"))
+            .return_const(Some("666".into()))
             .times(1);
         mock_engine
             .expect_com_printf()
@@ -813,12 +813,12 @@ mod commands_tests {
         mock_engine
             .expect_cmd_argv()
             .with(predicate::eq(1))
-            .return_const(Some("2"))
+            .return_const(Some("2".into()))
             .times(1);
         mock_engine
             .expect_cmd_argv()
             .with(predicate::eq(2))
-            .return_const(Some("2147483648"))
+            .return_const(Some("2147483648".into()))
             .times(1);
         mock_engine
             .expect_com_printf()
@@ -895,7 +895,7 @@ mod commands_tests {
         mock_engine
             .expect_cmd_argv()
             .with(predicate::eq(0))
-            .return_const(Some("!slap"))
+            .return_const(Some("!slap".into()))
             .times(1);
         mock_engine
             .expect_com_printf()
@@ -915,7 +915,7 @@ mod commands_tests {
         mock_engine
             .expect_cmd_argv()
             .with(predicate::eq(1))
-            .return_const(Some("2147483648"))
+            .return_const(Some("2147483648".into()))
             .times(1);
         mock_engine
             .expect_com_printf()
@@ -937,7 +937,7 @@ mod commands_tests {
         mock_engine
             .expect_cmd_argv()
             .with(predicate::eq(1))
-            .return_const(Some("-1"))
+            .return_const(Some("-1".into()))
             .times(1);
         mock_engine
             .expect_com_printf()
@@ -959,7 +959,7 @@ mod commands_tests {
         mock_engine
             .expect_cmd_argv()
             .with(predicate::eq(1))
-            .return_const(Some("42"))
+            .return_const(Some("42".into()))
             .times(1);
         mock_engine
             .expect_com_printf()
@@ -982,7 +982,7 @@ mod commands_tests {
         mock_engine
             .expect_cmd_argv()
             .with(predicate::eq(1))
-            .return_const(Some("2"))
+            .return_const(Some("2".into()))
             .times(1);
         mock_engine
             .expect_com_printf()
@@ -1017,7 +1017,7 @@ mod commands_tests {
         mock_engine
             .expect_cmd_argv()
             .with(predicate::eq(1))
-            .return_const(Some("2"))
+            .return_const(Some("2".into()))
             .times(1);
         mock_engine
             .expect_com_printf()
@@ -1052,7 +1052,7 @@ mod commands_tests {
         mock_engine
             .expect_cmd_argv()
             .with(predicate::eq(1))
-            .return_const(Some("2"))
+            .return_const(Some("2".into()))
             .times(1);
         mock_engine
             .expect_com_printf()
