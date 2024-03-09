@@ -192,7 +192,7 @@ impl VmFunctions {
                         return false;
                     };
                     path.file_name()
-                        .is_some_and(|file_name| file_name.to_str() == Some(QAGAME))
+                        .is_some_and(|file_name| file_name.to_string_lossy() == QAGAME)
                 })
                 .collect();
 
@@ -514,7 +514,7 @@ impl QuakeLiveEngine {
                         return false;
                     };
                     path.file_name()
-                        .is_some_and(|file_name| file_name.to_str() == Some(QZERODED))
+                        .is_some_and(|file_name| file_name.to_string_lossy() == QZERODED)
                 })
                 .collect();
 
@@ -1706,11 +1706,11 @@ impl CmdArgc for QuakeLiveEngine {
 }
 
 pub(crate) trait CmdArgv<T: Into<c_int>> {
-    fn cmd_argv(&self, argno: T) -> Option<&'static str>;
+    fn cmd_argv(&self, argno: T) -> Option<String>;
 }
 
 impl<T: Into<c_int> + PartialOrd<c_int>> CmdArgv<T> for QuakeLiveEngine {
-    fn cmd_argv(&self, argno: T) -> Option<&'static str> {
+    fn cmd_argv(&self, argno: T) -> Option<String> {
         if argno < 0 {
             return None;
         }
@@ -1718,7 +1718,7 @@ impl<T: Into<c_int> + PartialOrd<c_int>> CmdArgv<T> for QuakeLiveEngine {
             .map(|original_func| original_func(argno.into()))
             .ok()
             .filter(|cmd_argv| !cmd_argv.is_null())
-            .and_then(|cmd_argv| unsafe { CStr::from_ptr(cmd_argv) }.to_str().ok())
+            .map(|cmd_argv| unsafe { CStr::from_ptr(cmd_argv) }.to_string_lossy().into())
     }
 }
 
@@ -2044,7 +2044,7 @@ mockall::mock! {
         fn cmd_argc(&self) -> i32;
     }
     impl CmdArgv<i32> for QuakeEngine {
-        fn cmd_argv(&self, argno: i32) -> Option<&'static str>;
+        fn cmd_argv(&self, argno: i32) -> Option<String>;
     }
     impl StartKamikaze<&mut crate::ffi::c::game_entity::GameEntity> for QuakeEngine {
         fn start_kamikaze(&self, mut gentity: &mut crate::ffi::c::game_entity::GameEntity);
