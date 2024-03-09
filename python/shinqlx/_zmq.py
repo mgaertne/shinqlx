@@ -1,8 +1,8 @@
 """Subscribes to the ZMQ stats protocol and calls the stats event dispatcher when
 we get stats from it."""
 
-
 import zmq
+import json
 
 import shinqlx
 from threading import Thread
@@ -118,7 +118,7 @@ class StatsListener(Thread):
             while True:  # Will throw an expcetion if no more data to get.
                 pending_events = dict(poller.poll(timeout=250))
                 for receiver in pending_events:
-                    stats = receiver.recv_json()
+                    stats = json.loads(receiver.recv().decode(errors="replace"))
                     dispatch_stats_event(stats)
 
                     if stats["TYPE"] == "MATCH_STARTED":
