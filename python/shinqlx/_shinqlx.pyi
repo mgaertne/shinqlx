@@ -1,6 +1,6 @@
 from datetime import timedelta
 from abc import abstractmethod
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, overload
 
 if TYPE_CHECKING:
     import sys
@@ -13,7 +13,6 @@ if TYPE_CHECKING:
     from typing import (
         Pattern,
         Callable,
-        Any,
         Iterable,
         Mapping,
         TypedDict,
@@ -220,8 +219,70 @@ def get_configstring(_config_id: int) -> str: ...
 def set_configstring(_config_id: int, _value: str) -> None: ...
 def force_vote(_pass: bool) -> bool: ...
 def add_console_command(_command: str) -> None: ...
+@overload
 def register_handler(
-    _event: str, _handler: Callable[[Any], Any] | None = ...
+    _event: Literal["rcon"], _handler: Callable[[str], bool | None] | None = ...
+) -> None: ...
+@overload
+def register_handler(
+    _event: Literal["client_command"],
+    _handler: Callable[[int, str], bool | str] | None = ...,
+) -> None: ...
+@overload
+def register_handler(
+    _event: Literal["server_command"],
+    _handler: Callable[[int, str], bool | str] | None = ...,
+) -> None: ...
+@overload
+def register_handler(
+    _event: Literal["new_game"], _handler: Callable[[bool], bool | None] | None = ...
+) -> None: ...
+@overload
+def register_handler(
+    _event: Literal["set_configstring"],
+    _handler: Callable[[int, str], bool | None] | None = ...,
+) -> None: ...
+@overload
+def register_handler(
+    _event: Literal["console_print"],
+    _handler: Callable[[str | None], bool | str | None] | None = ...,
+) -> None: ...
+@overload
+def register_handler(
+    _event: Literal["frame"], _handler: Callable[[], bool | None] | None = ...
+) -> None: ...
+@overload
+def register_handler(
+    _event: Literal["player_connect"],
+    _handler: Callable[[int, bool], bool | None] | None = ...,
+) -> None: ...
+@overload
+def register_handler(
+    _event: Literal["player_loaded"],
+    _handler: Callable[[int], bool | None] | None = ...,
+) -> None: ...
+@overload
+def register_handler(
+    _event: Literal["player_disconnect"],
+    _handler: Callable[[int, str | None], bool | None] | None = ...,
+) -> None: ...
+@overload
+def register_handler(
+    _event: Literal["player_spawn"], _handler: Callable[[int], bool | None] | None = ...
+) -> None: ...
+@overload
+def register_handler(
+    _event: Literal["kamikaze_use"], _handler: Callable[[int], bool | None] | None = ...
+) -> None: ...
+@overload
+def register_handler(
+    _event: Literal["kamikaze_explode"],
+    _handler: Callable[[int, bool], bool | None] | None = ...,
+) -> None: ...
+@overload
+def register_handler(
+    _event: Literal["damage"],
+    _handler: Callable[[int, int | None, int, int, int], bool | None] | None = ...,
 ) -> None: ...
 def player_state(_client_id: int) -> PlayerState | None: ...
 def player_stats(_client_id: int) -> PlayerStats | None: ...
@@ -868,7 +929,7 @@ class CommandInvoker:
     def remove_command(self, command: Command) -> None: ...
     def is_registered(self, command: Command) -> bool: ...
     def handle_input(
-            self, player: Player, msg: str, channel: AbstractChannel
+        self, player: Player, msg: str, channel: AbstractChannel
     ) -> bool: ...
 
 COMMANDS: CommandInvoker
