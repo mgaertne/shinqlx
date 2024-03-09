@@ -1117,7 +1117,7 @@ class Plugin:
     def add_command(
         self,
         name: str | Iterable[str],
-        handler: Callable[[Player, str, AbstractChannel], CancellableEventReturn],
+        handler: Callable[[Player, str | list[str], AbstractChannel], CancellableEventReturn],
         permission: int = ...,
         channels: Iterable[AbstractChannel] | None = ...,
         exclude_channels: Iterable[AbstractChannel] = ...,
