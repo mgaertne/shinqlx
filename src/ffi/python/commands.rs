@@ -364,16 +364,13 @@ impl CommandInvoker {
         msg: String,
         channel: PyObject,
     ) -> PyResult<bool> {
-        if msg.trim().is_empty() {
+        let Some(name) = msg
+            .split_whitespace()
+            .next()
+            .map(|value| value.to_lowercase().to_string())
+        else {
             return Ok(false);
-        }
-
-        let lower_case_name = msg.trim().to_lowercase();
-        let name = lower_case_name
-            .split_once(' ')
-            .unwrap_or_default()
-            .0
-            .to_string();
+        };
         let Some(channel_name) = channel
             .as_ref(py)
             .str()
