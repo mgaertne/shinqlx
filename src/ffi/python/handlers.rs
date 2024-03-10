@@ -522,7 +522,7 @@ fn try_handle_set_configstring(py: Python<'_>, index: u32, value: String) -> PyR
             }
             match (old_state, new_state) {
                 ("PRE_GAME", "IN_PROGRESS") => {}
-                ("PRE_GAME", "COUNTDOWN") => {
+                ("PRE_GAME", "COUNT_DOWN") => {
                     AD_ROUND_NUMBER.store(1, Ordering::SeqCst);
                     let game_countdown_dispatcher =
                         shinqlx_event_dispatchers.get_item(intern!(py, "game_countdown"))?;
