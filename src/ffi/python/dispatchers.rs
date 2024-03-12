@@ -401,8 +401,8 @@ mod pyshinqlx_dispatcher_tests {
         let is_initialized_context = pyshinqlx_is_initialized_context();
         is_initialized_context.expect().returning(|| true);
 
-        let pymodule: Py<PyModule> = Python::with_gil(|py| {
-            PyModule::from_code(
+        Python::with_gil(|py| {
+            let pymodule = PyModule::from_code_bound(
                 py,
                 r#"
 def handler(client_id, cmd):
@@ -411,19 +411,14 @@ def handler(client_id, cmd):
                 "",
                 "",
             )
-            .expect("this should not happen")
-            .into_py(py)
-        });
-        let client_command_handler = Python::with_gil(|py| {
-            pymodule
-                .getattr(py, "handler")
-                .expect("this should not happen")
-                .into_py(py)
-        });
-        CLIENT_COMMAND_HANDLER.store(Some(client_command_handler.into()));
+            .expect("this should not happen");
+            let client_command_handler =
+                pymodule.getattr("handler").expect("this should not happen");
+            CLIENT_COMMAND_HANDLER.store(Some(client_command_handler.into_py(py).into()));
 
-        let result = client_command_dispatcher(123, "asdf");
-        assert_eq!(result, Some("asdf".into()));
+            let result = client_command_dispatcher(123, "asdf");
+            assert_eq!(result, Some("asdf".into()));
+        });
     }
 
     #[rstest]
@@ -433,8 +428,8 @@ def handler(client_id, cmd):
         let is_initialized_context = pyshinqlx_is_initialized_context();
         is_initialized_context.expect().returning(|| true);
 
-        let pymodule: Py<PyModule> = Python::with_gil(|py| {
-            PyModule::from_code(
+        Python::with_gil(|py| {
+            let pymodule = PyModule::from_code_bound(
                 py,
                 r#"
 def handler(client_id, cmd):
@@ -443,19 +438,14 @@ def handler(client_id, cmd):
                 "",
                 "",
             )
-            .expect("this should not happen")
-            .into_py(py)
-        });
-        let client_command_handler = Python::with_gil(|py| {
-            pymodule
-                .getattr(py, "handler")
-                .expect("this should not happen")
-                .into_py(py)
-        });
-        CLIENT_COMMAND_HANDLER.store(Some(client_command_handler.into()));
+            .expect("this should not happen");
+            let client_command_handler =
+                pymodule.getattr("handler").expect("this should not happen");
+            CLIENT_COMMAND_HANDLER.store(Some(client_command_handler.into_py(py).into()));
 
-        let result = client_command_dispatcher(123, "asdf");
-        assert_eq!(result, Some("qwertz".into()));
+            let result = client_command_dispatcher(123, "asdf");
+            assert_eq!(result, Some("qwertz".into()));
+        });
     }
 
     #[rstest]
@@ -465,8 +455,8 @@ def handler(client_id, cmd):
         let is_initialized_context = pyshinqlx_is_initialized_context();
         is_initialized_context.expect().returning(|| true);
 
-        let pymodule: Py<PyModule> = Python::with_gil(|py| {
-            PyModule::from_code(
+        Python::with_gil(|py| {
+            let pymodule = PyModule::from_code_bound(
                 py,
                 r#"
 def handler(client_id, cmd):
@@ -475,19 +465,14 @@ def handler(client_id, cmd):
                 "",
                 "",
             )
-            .expect("this should not happen")
-            .into_py(py)
-        });
-        let client_command_handler = Python::with_gil(|py| {
-            pymodule
-                .getattr(py, "handler")
-                .expect("this should not happen")
-                .into_py(py)
-        });
-        CLIENT_COMMAND_HANDLER.store(Some(client_command_handler.into()));
+            .expect("this should not happen");
+            let client_command_handler =
+                pymodule.getattr("handler").expect("this should not happen");
+            CLIENT_COMMAND_HANDLER.store(Some(client_command_handler.into_py(py).into()));
 
-        let result = client_command_dispatcher(123, "asdf");
-        assert_eq!(result, Some("asdf".into()));
+            let result = client_command_dispatcher(123, "asdf");
+            assert_eq!(result, Some("asdf".into()));
+        });
     }
 
     #[rstest]
@@ -497,8 +482,8 @@ def handler(client_id, cmd):
         let is_initialized_context = pyshinqlx_is_initialized_context();
         is_initialized_context.expect().returning(|| true);
 
-        let pymodule: Py<PyModule> = Python::with_gil(|py| {
-            PyModule::from_code(
+        Python::with_gil(|py| {
+            let pymodule = PyModule::from_code_bound(
                 py,
                 r#"
 def handler(client_id, cmd):
@@ -507,19 +492,14 @@ def handler(client_id, cmd):
                 "",
                 "",
             )
-            .expect("this should not happen")
-            .into_py(py)
-        });
-        let client_command_handler = Python::with_gil(|py| {
-            pymodule
-                .getattr(py, "handler")
-                .expect("this should not happen")
-                .into_py(py)
-        });
-        CLIENT_COMMAND_HANDLER.store(Some(client_command_handler.into()));
+            .expect("this should not happen");
+            let client_command_handler =
+                pymodule.getattr("handler").expect("this should not happen");
+            CLIENT_COMMAND_HANDLER.store(Some(client_command_handler.into_py(py).into()));
 
-        let result = client_command_dispatcher(123, "asdf");
-        assert_eq!(result, None);
+            let result = client_command_dispatcher(123, "asdf");
+            assert_eq!(result, None);
+        });
     }
 
     #[rstest]
@@ -529,8 +509,8 @@ def handler(client_id, cmd):
         let is_initialized_context = pyshinqlx_is_initialized_context();
         is_initialized_context.expect().returning(|| true);
 
-        let pymodule: Py<PyModule> = Python::with_gil(|py| {
-            PyModule::from_code(
+        Python::with_gil(|py| {
+            let pymodule = PyModule::from_code_bound(
                 py,
                 r#"
 def handler(client_id, cmd):
@@ -539,19 +519,14 @@ def handler(client_id, cmd):
                 "",
                 "",
             )
-            .expect("this should not happen")
-            .into_py(py)
-        });
-        let client_command_handler = Python::with_gil(|py| {
-            pymodule
-                .getattr(py, "handler")
-                .expect("this should not happen")
-                .into_py(py)
-        });
-        CLIENT_COMMAND_HANDLER.store(Some(client_command_handler.into()));
+            .expect("this should not happen");
+            let client_command_handler =
+                pymodule.getattr("handler").expect("this should not happen");
+            CLIENT_COMMAND_HANDLER.store(Some(client_command_handler.into_py(py).into()));
 
-        let result = client_command_dispatcher(123, "asdf");
-        assert_eq!(result, Some("asdf".into()));
+            let result = client_command_dispatcher(123, "asdf");
+            assert_eq!(result, Some("asdf".into()));
+        });
     }
 
     #[rstest]
@@ -561,8 +536,8 @@ def handler(client_id, cmd):
         let is_initialized_context = pyshinqlx_is_initialized_context();
         is_initialized_context.expect().returning(|| true);
 
-        let pymodule: Py<PyModule> = Python::with_gil(|py| {
-            PyModule::from_code(
+        Python::with_gil(|py| {
+            let pymodule = PyModule::from_code_bound(
                 py,
                 r#"
 def handler(client_id, cmd):
@@ -571,19 +546,14 @@ def handler(client_id, cmd):
                 "",
                 "",
             )
-            .expect("this should not happen")
-            .into_py(py)
-        });
-        let client_command_handler = Python::with_gil(|py| {
-            pymodule
-                .getattr(py, "handler")
-                .expect("this should not happen")
-                .into_py(py)
-        });
-        CLIENT_COMMAND_HANDLER.store(Some(client_command_handler.into()));
+            .expect("this should not happen");
+            let client_command_handler =
+                pymodule.getattr("handler").expect("this should not happen");
+            CLIENT_COMMAND_HANDLER.store(Some(client_command_handler.into_py(py).into()));
 
-        let result = client_command_dispatcher(123, "asdf");
-        assert_eq!(result, Some("asdf".into()));
+            let result = client_command_dispatcher(123, "asdf");
+            assert_eq!(result, Some("asdf".into()));
+        });
     }
 
     #[test]
@@ -614,8 +584,8 @@ def handler(client_id, cmd):
         let is_initialized_context = pyshinqlx_is_initialized_context();
         is_initialized_context.expect().returning(|| true);
 
-        let pymodule: Py<PyModule> = Python::with_gil(|py| {
-            PyModule::from_code(
+        Python::with_gil(|py| {
+            let pymodule = PyModule::from_code_bound(
                 py,
                 r#"
 def handler(client_id, cmd):
@@ -624,19 +594,14 @@ def handler(client_id, cmd):
                 "",
                 "",
             )
-            .expect("this should not happen")
-            .into_py(py)
-        });
-        let server_command_handler = Python::with_gil(|py| {
-            pymodule
-                .getattr(py, "handler")
-                .expect("this should not happen")
-                .into_py(py)
-        });
-        SERVER_COMMAND_HANDLER.store(Some(server_command_handler.into()));
+            .expect("this should not happen");
+            let server_command_handler =
+                pymodule.getattr("handler").expect("this should not happen");
+            SERVER_COMMAND_HANDLER.store(Some(server_command_handler.into_py(py).into()));
 
-        let result = server_command_dispatcher(Some(123), "asdf");
-        assert_eq!(result, Some("asdf".into()));
+            let result = server_command_dispatcher(Some(123), "asdf");
+            assert_eq!(result, Some("asdf".into()));
+        });
     }
 
     #[rstest]
@@ -646,8 +611,8 @@ def handler(client_id, cmd):
         let is_initialized_context = pyshinqlx_is_initialized_context();
         is_initialized_context.expect().returning(|| true);
 
-        let pymodule: Py<PyModule> = Python::with_gil(|py| {
-            PyModule::from_code(
+        Python::with_gil(|py| {
+            let pymodule = PyModule::from_code_bound(
                 py,
                 r#"
 def handler(client_id, cmd):
@@ -656,19 +621,14 @@ def handler(client_id, cmd):
                 "",
                 "",
             )
-            .expect("this should not happen")
-            .into_py(py)
-        });
-        let server_command_handler = Python::with_gil(|py| {
-            pymodule
-                .getattr(py, "handler")
-                .expect("this should not happen")
-                .into_py(py)
-        });
-        SERVER_COMMAND_HANDLER.store(Some(server_command_handler.into()));
+            .expect("this should not happen");
+            let server_command_handler =
+                pymodule.getattr("handler").expect("this should not happen");
+            SERVER_COMMAND_HANDLER.store(Some(server_command_handler.into_py(py).into()));
 
-        let result = server_command_dispatcher(Some(123), "asdf");
-        assert_eq!(result, Some("qwertz".into()));
+            let result = server_command_dispatcher(Some(123), "asdf");
+            assert_eq!(result, Some("qwertz".into()));
+        });
     }
 
     #[rstest]
@@ -678,8 +638,8 @@ def handler(client_id, cmd):
         let is_initialized_context = pyshinqlx_is_initialized_context();
         is_initialized_context.expect().returning(|| true);
 
-        let pymodule: Py<PyModule> = Python::with_gil(|py| {
-            PyModule::from_code(
+        Python::with_gil(|py| {
+            let pymodule = PyModule::from_code_bound(
                 py,
                 r#"
 def handler(client_id, cmd):
@@ -688,19 +648,14 @@ def handler(client_id, cmd):
                 "",
                 "",
             )
-            .expect("this should not happen")
-            .into_py(py)
-        });
-        let server_command_handler = Python::with_gil(|py| {
-            pymodule
-                .getattr(py, "handler")
-                .expect("this should not happen")
-                .into_py(py)
-        });
-        SERVER_COMMAND_HANDLER.store(Some(server_command_handler.into()));
+            .expect("this should not happen");
+            let server_command_handler =
+                pymodule.getattr("handler").expect("this should not happen");
+            SERVER_COMMAND_HANDLER.store(Some(server_command_handler.into_py(py).into()));
 
-        let result = server_command_dispatcher(Some(123), "asdf");
-        assert_eq!(result, Some("asdf".into()));
+            let result = server_command_dispatcher(Some(123), "asdf");
+            assert_eq!(result, Some("asdf".into()));
+        });
     }
 
     #[rstest]
@@ -710,8 +665,8 @@ def handler(client_id, cmd):
         let is_initialized_context = pyshinqlx_is_initialized_context();
         is_initialized_context.expect().returning(|| true);
 
-        let pymodule: Py<PyModule> = Python::with_gil(|py| {
-            PyModule::from_code(
+        Python::with_gil(|py| {
+            let pymodule = PyModule::from_code_bound(
                 py,
                 r#"
 def handler(client_id, cmd):
@@ -720,19 +675,14 @@ def handler(client_id, cmd):
                 "",
                 "",
             )
-            .expect("this should not happen")
-            .into_py(py)
-        });
-        let server_command_handler = Python::with_gil(|py| {
-            pymodule
-                .getattr(py, "handler")
-                .expect("this should not happen")
-                .into_py(py)
-        });
-        SERVER_COMMAND_HANDLER.store(Some(server_command_handler.into()));
+            .expect("this should not happen");
+            let server_command_handler =
+                pymodule.getattr("handler").expect("this should not happen");
+            SERVER_COMMAND_HANDLER.store(Some(server_command_handler.into_py(py).into()));
 
-        let result = server_command_dispatcher(Some(123), "asdf");
-        assert_eq!(result, None);
+            let result = server_command_dispatcher(Some(123), "asdf");
+            assert_eq!(result, None);
+        });
     }
 
     #[rstest]
@@ -742,8 +692,8 @@ def handler(client_id, cmd):
         let is_initialized_context = pyshinqlx_is_initialized_context();
         is_initialized_context.expect().returning(|| true);
 
-        let pymodule: Py<PyModule> = Python::with_gil(|py| {
-            PyModule::from_code(
+        Python::with_gil(|py| {
+            let pymodule = PyModule::from_code_bound(
                 py,
                 r#"
 def handler(client_id, cmd):
@@ -752,19 +702,14 @@ def handler(client_id, cmd):
                 "",
                 "",
             )
-            .expect("this should not happen")
-            .into_py(py)
-        });
-        let server_command_handler = Python::with_gil(|py| {
-            pymodule
-                .getattr(py, "handler")
-                .expect("this should not happen")
-                .into_py(py)
-        });
-        SERVER_COMMAND_HANDLER.store(Some(server_command_handler.into()));
+            .expect("this should not happen");
+            let server_command_handler =
+                pymodule.getattr("handler").expect("this should not happen");
+            SERVER_COMMAND_HANDLER.store(Some(server_command_handler.into_py(py).into()));
 
-        let result = server_command_dispatcher(Some(123), "asdf");
-        assert_eq!(result, Some("asdf".into()));
+            let result = server_command_dispatcher(Some(123), "asdf");
+            assert_eq!(result, Some("asdf".into()));
+        });
     }
 
     #[rstest]
@@ -774,8 +719,8 @@ def handler(client_id, cmd):
         let is_initialized_context = pyshinqlx_is_initialized_context();
         is_initialized_context.expect().returning(|| true);
 
-        let pymodule: Py<PyModule> = Python::with_gil(|py| {
-            PyModule::from_code(
+        Python::with_gil(|py| {
+            let pymodule = PyModule::from_code_bound(
                 py,
                 r#"
 def handler(client_id, cmd):
@@ -784,19 +729,14 @@ def handler(client_id, cmd):
                 "",
                 "",
             )
-            .expect("this should not happen")
-            .into_py(py)
-        });
-        let server_command_handler = Python::with_gil(|py| {
-            pymodule
-                .getattr(py, "handler")
-                .expect("this should not happen")
-                .into_py(py)
-        });
-        SERVER_COMMAND_HANDLER.store(Some(server_command_handler.into()));
+            .expect("this should not happen");
+            let server_command_handler =
+                pymodule.getattr("handler").expect("this should not happen");
+            SERVER_COMMAND_HANDLER.store(Some(server_command_handler.into_py(py).into()));
 
-        let result = server_command_dispatcher(Some(123), "asdf");
-        assert_eq!(result, Some("asdf".into()));
+            let result = server_command_dispatcher(Some(123), "asdf");
+            assert_eq!(result, Some("asdf".into()));
+        });
     }
 
     #[test]
@@ -825,8 +765,8 @@ def handler(client_id, cmd):
         let is_initialized_context = pyshinqlx_is_initialized_context();
         is_initialized_context.expect().returning(|| true);
 
-        let pymodule: Py<PyModule> = Python::with_gil(|py| {
-            PyModule::from_code(
+        Python::with_gil(|py| {
+            let pymodule = PyModule::from_code_bound(
                 py,
                 r#"
 def handler():
@@ -835,18 +775,12 @@ def handler():
                 "",
                 "",
             )
-            .expect("this should not happen")
-            .into_py(py)
-        });
-        let frame_handler = Python::with_gil(|py| {
-            pymodule
-                .getattr(py, "handler")
-                .expect("this should not happen")
-                .into_py(py)
-        });
-        FRAME_HANDLER.store(Some(frame_handler.into()));
+            .expect("this should not happen");
+            let frame_handler = pymodule.getattr("handler").expect("this should not happen");
+            FRAME_HANDLER.store(Some(frame_handler.into_py(py).into()));
 
-        frame_dispatcher();
+            frame_dispatcher();
+        });
     }
 
     #[rstest]
@@ -856,8 +790,8 @@ def handler():
         let is_initialized_context = pyshinqlx_is_initialized_context();
         is_initialized_context.expect().returning(|| true);
 
-        let pymodule: Py<PyModule> = Python::with_gil(|py| {
-            PyModule::from_code(
+        Python::with_gil(|py| {
+            let pymodule = PyModule::from_code_bound(
                 py,
                 r#"
 def handler():
@@ -866,18 +800,12 @@ def handler():
                 "",
                 "",
             )
-            .expect("this should not happen")
-            .into_py(py)
-        });
-        let frame_handler = Python::with_gil(|py| {
-            pymodule
-                .getattr(py, "handler")
-                .expect("this should not happen")
-                .into_py(py)
-        });
-        FRAME_HANDLER.store(Some(frame_handler.into()));
+            .expect("this should not happen");
+            let frame_handler = pymodule.getattr("handler").expect("this should not happen");
+            FRAME_HANDLER.store(Some(frame_handler.into_py(py).into()));
 
-        frame_dispatcher();
+            frame_dispatcher();
+        });
     }
 
     #[test]
@@ -908,8 +836,8 @@ def handler():
         let is_initialized_context = pyshinqlx_is_initialized_context();
         is_initialized_context.expect().returning(|| true);
 
-        let pymodule: Py<PyModule> = Python::with_gil(|py| {
-            PyModule::from_code(
+        Python::with_gil(|py| {
+            let pymodule = PyModule::from_code_bound(
                 py,
                 r#"
 def handler(client_id, is_bot):
@@ -918,19 +846,14 @@ def handler(client_id, is_bot):
                 "",
                 "",
             )
-            .expect("this should not happen")
-            .into_py(py)
-        });
-        let client_connect_handler = Python::with_gil(|py| {
-            pymodule
-                .getattr(py, "handler")
-                .expect("this should not happen")
-                .into_py(py)
-        });
-        PLAYER_CONNECT_HANDLER.store(Some(client_connect_handler.into()));
+            .expect("this should not happen");
+            let client_connect_handler =
+                pymodule.getattr("handler").expect("this should not happen");
+            PLAYER_CONNECT_HANDLER.store(Some(client_connect_handler.into_py(py).into()));
 
-        let result = client_connect_dispatcher(42, false);
-        assert_eq!(result, Some("qwertz".into()));
+            let result = client_connect_dispatcher(42, false);
+            assert_eq!(result, Some("qwertz".into()));
+        });
     }
 
     #[rstest]
@@ -940,8 +863,8 @@ def handler(client_id, is_bot):
         let is_initialized_context = pyshinqlx_is_initialized_context();
         is_initialized_context.expect().returning(|| true);
 
-        let pymodule: Py<PyModule> = Python::with_gil(|py| {
-            PyModule::from_code(
+        Python::with_gil(|py| {
+            let pymodule = PyModule::from_code_bound(
                 py,
                 r#"
 def handler(client_id, is_bot):
@@ -950,19 +873,14 @@ def handler(client_id, is_bot):
                 "",
                 "",
             )
-            .expect("this should not happen")
-            .into_py(py)
-        });
-        let client_connect_handler = Python::with_gil(|py| {
-            pymodule
-                .getattr(py, "handler")
-                .expect("this should not happen")
-                .into_py(py)
-        });
-        PLAYER_CONNECT_HANDLER.store(Some(client_connect_handler.into()));
+            .expect("this should not happen");
+            let client_connect_handler =
+                pymodule.getattr("handler").expect("this should not happen");
+            PLAYER_CONNECT_HANDLER.store(Some(client_connect_handler.into_py(py).into()));
 
-        let result = client_connect_dispatcher(42, true);
-        assert_eq!(result, None);
+            let result = client_connect_dispatcher(42, true);
+            assert_eq!(result, None);
+        });
     }
 
     #[rstest]
@@ -972,8 +890,8 @@ def handler(client_id, is_bot):
         let is_initialized_context = pyshinqlx_is_initialized_context();
         is_initialized_context.expect().returning(|| true);
 
-        let pymodule: Py<PyModule> = Python::with_gil(|py| {
-            PyModule::from_code(
+        Python::with_gil(|py| {
+            let pymodule = PyModule::from_code_bound(
                 py,
                 r#"
 def handler(client_id, is_bot):
@@ -982,19 +900,14 @@ def handler(client_id, is_bot):
                 "",
                 "",
             )
-            .expect("this should not happen")
-            .into_py(py)
-        });
-        let client_connect_handler = Python::with_gil(|py| {
-            pymodule
-                .getattr(py, "handler")
-                .expect("this should not happen")
-                .into_py(py)
-        });
-        PLAYER_CONNECT_HANDLER.store(Some(client_connect_handler.into()));
+            .expect("this should not happen");
+            let client_connect_handler =
+                pymodule.getattr("handler").expect("this should not happen");
+            PLAYER_CONNECT_HANDLER.store(Some(client_connect_handler.into_py(py).into()));
 
-        let result = client_connect_dispatcher(42, true);
-        assert_eq!(result, Some("You are banned from this server.".into()));
+            let result = client_connect_dispatcher(42, true);
+            assert_eq!(result, Some("You are banned from this server.".into()));
+        });
     }
 
     #[rstest]
@@ -1004,8 +917,8 @@ def handler(client_id, is_bot):
         let is_initialized_context = pyshinqlx_is_initialized_context();
         is_initialized_context.expect().returning(|| true);
 
-        let pymodule: Py<PyModule> = Python::with_gil(|py| {
-            PyModule::from_code(
+        Python::with_gil(|py| {
+            let pymodule = PyModule::from_code_bound(
                 py,
                 r#"
 def handler(client_id, is_bot):
@@ -1014,19 +927,14 @@ def handler(client_id, is_bot):
                 "",
                 "",
             )
-            .expect("this should not happen")
-            .into_py(py)
-        });
-        let client_connect_handler = Python::with_gil(|py| {
-            pymodule
-                .getattr(py, "handler")
-                .expect("this should not happen")
-                .into_py(py)
-        });
-        PLAYER_CONNECT_HANDLER.store(Some(client_connect_handler.into()));
+            .expect("this should not happen");
+            let client_connect_handler =
+                pymodule.getattr("handler").expect("this should not happen");
+            PLAYER_CONNECT_HANDLER.store(Some(client_connect_handler.into_py(py).into()));
 
-        let result = client_connect_dispatcher(42, false);
-        assert_eq!(result, None);
+            let result = client_connect_dispatcher(42, false);
+            assert_eq!(result, None);
+        });
     }
 
     #[rstest]
@@ -1036,8 +944,8 @@ def handler(client_id, is_bot):
         let is_initialized_context = pyshinqlx_is_initialized_context();
         is_initialized_context.expect().returning(|| true);
 
-        let pymodule: Py<PyModule> = Python::with_gil(|py| {
-            PyModule::from_code(
+        Python::with_gil(|py| {
+            let pymodule = PyModule::from_code_bound(
                 py,
                 r#"
 def handler(client_id, is_bot):
@@ -1046,19 +954,14 @@ def handler(client_id, is_bot):
                 "",
                 "",
             )
-            .expect("this should not happen")
-            .into_py(py)
-        });
-        let player_connect_handler = Python::with_gil(|py| {
-            pymodule
-                .getattr(py, "handler")
-                .expect("this should not happen")
-                .into_py(py)
-        });
-        PLAYER_CONNECT_HANDLER.store(Some(player_connect_handler.into()));
+            .expect("this should not happen");
+            let player_connect_handler =
+                pymodule.getattr("handler").expect("this should not happen");
+            PLAYER_CONNECT_HANDLER.store(Some(player_connect_handler.into_py(py).into()));
 
-        let result = client_connect_dispatcher(42, false);
-        assert_eq!(result, None);
+            let result = client_connect_dispatcher(42, false);
+            assert_eq!(result, None);
+        });
     }
 
     #[test]
@@ -1087,8 +990,8 @@ def handler(client_id, is_bot):
         let is_initialized_context = pyshinqlx_is_initialized_context();
         is_initialized_context.expect().returning(|| true);
 
-        let pymodule: Py<PyModule> = Python::with_gil(|py| {
-            PyModule::from_code(
+        Python::with_gil(|py| {
+            let pymodule = PyModule::from_code_bound(
                 py,
                 r#"
 def handler(client_id, reason):
@@ -1097,18 +1000,13 @@ def handler(client_id, reason):
                 "",
                 "",
             )
-            .expect("this should not happen")
-            .into_py(py)
-        });
-        let client_disconnect_handler = Python::with_gil(|py| {
-            pymodule
-                .getattr(py, "handler")
-                .expect("this should not happen")
-                .into_py(py)
-        });
-        PLAYER_DISCONNECT_HANDLER.store(Some(client_disconnect_handler.into()));
+            .expect("this should not happen");
+            let client_disconnect_handler =
+                pymodule.getattr("handler").expect("this should not happen");
+            PLAYER_DISCONNECT_HANDLER.store(Some(client_disconnect_handler.into_py(py).into()));
 
-        client_disconnect_dispatcher(42, "ragequit");
+            client_disconnect_dispatcher(42, "ragequit");
+        });
     }
 
     #[rstest]
@@ -1118,8 +1016,8 @@ def handler(client_id, reason):
         let is_initialized_context = pyshinqlx_is_initialized_context();
         is_initialized_context.expect().returning(|| true);
 
-        let pymodule: Py<PyModule> = Python::with_gil(|py| {
-            PyModule::from_code(
+        Python::with_gil(|py| {
+            let pymodule = PyModule::from_code_bound(
                 py,
                 r#"
 def handler(client_id, reason):
@@ -1128,18 +1026,13 @@ def handler(client_id, reason):
                 "",
                 "",
             )
-            .expect("this should not happen")
-            .into_py(py)
-        });
-        let client_disconnect_handler = Python::with_gil(|py| {
-            pymodule
-                .getattr(py, "handler")
-                .expect("this should not happen")
-                .into_py(py)
-        });
-        PLAYER_DISCONNECT_HANDLER.store(Some(client_disconnect_handler.into()));
+            .expect("this should not happen");
+            let client_disconnect_handler =
+                pymodule.getattr("handler").expect("this should not happen");
+            PLAYER_DISCONNECT_HANDLER.store(Some(client_disconnect_handler.into_py(py).into()));
 
-        client_disconnect_dispatcher(42, "ragequit");
+            client_disconnect_dispatcher(42, "ragequit");
+        });
     }
 
     #[test]
@@ -1168,8 +1061,8 @@ def handler(client_id, reason):
         let is_initialized_context = pyshinqlx_is_initialized_context();
         is_initialized_context.expect().returning(|| true);
 
-        let pymodule: Py<PyModule> = Python::with_gil(|py| {
-            PyModule::from_code(
+        Python::with_gil(|py| {
+            let pymodule = PyModule::from_code_bound(
                 py,
                 r#"
 def handler(client_id):
@@ -1178,18 +1071,13 @@ def handler(client_id):
                 "",
                 "",
             )
-            .expect("this should not happen")
-            .into_py(py)
-        });
-        let client_loaded_handler = Python::with_gil(|py| {
-            pymodule
-                .getattr(py, "handler")
-                .expect("this should not happen")
-                .into_py(py)
-        });
-        PLAYER_LOADED_HANDLER.store(Some(client_loaded_handler.into()));
+            .expect("this should not happen");
+            let client_loaded_handler =
+                pymodule.getattr("handler").expect("this should not happen");
+            PLAYER_LOADED_HANDLER.store(Some(client_loaded_handler.into_py(py).into()));
 
-        client_loaded_dispatcher(123);
+            client_loaded_dispatcher(123);
+        });
     }
 
     #[rstest]
@@ -1199,8 +1087,8 @@ def handler(client_id):
         let is_initialized_context = pyshinqlx_is_initialized_context();
         is_initialized_context.expect().returning(|| true);
 
-        let pymodule: Py<PyModule> = Python::with_gil(|py| {
-            PyModule::from_code(
+        Python::with_gil(|py| {
+            let pymodule = PyModule::from_code_bound(
                 py,
                 r#"
 def handler(client_id):
@@ -1209,18 +1097,13 @@ def handler(client_id):
                 "",
                 "",
             )
-            .expect("this should not happen")
-            .into_py(py)
-        });
-        let client_loaded_handler = Python::with_gil(|py| {
-            pymodule
-                .getattr(py, "handler")
-                .expect("this should not happen")
-                .into_py(py)
-        });
-        PLAYER_LOADED_HANDLER.store(Some(client_loaded_handler.into()));
+            .expect("this should not happen");
+            let client_loaded_handler =
+                pymodule.getattr("handler").expect("this should not happen");
+            PLAYER_LOADED_HANDLER.store(Some(client_loaded_handler.into_py(py).into()));
 
-        client_loaded_dispatcher(123);
+            client_loaded_dispatcher(123);
+        });
     }
 
     #[test]
@@ -1249,8 +1132,8 @@ def handler(client_id):
         let is_initialized_context = pyshinqlx_is_initialized_context();
         is_initialized_context.expect().returning(|| true);
 
-        let pymodule: Py<PyModule> = Python::with_gil(|py| {
-            PyModule::from_code(
+        Python::with_gil(|py| {
+            let pymodule = PyModule::from_code_bound(
                 py,
                 r#"
 def handler(restart):
@@ -1259,18 +1142,12 @@ def handler(restart):
                 "",
                 "",
             )
-            .expect("this should not happen")
-            .into_py(py)
-        });
-        let new_game_handler = Python::with_gil(|py| {
-            pymodule
-                .getattr(py, "handler")
-                .expect("this should not happen")
-                .into_py(py)
-        });
-        NEW_GAME_HANDLER.store(Some(new_game_handler.into()));
+            .expect("this should not happen");
+            let new_game_handler = pymodule.getattr("handler").expect("this should not happen");
+            NEW_GAME_HANDLER.store(Some(new_game_handler.into_py(py).into()));
 
-        new_game_dispatcher(false);
+            new_game_dispatcher(false);
+        });
     }
 
     #[rstest]
@@ -1280,8 +1157,8 @@ def handler(restart):
         let is_initialized_context = pyshinqlx_is_initialized_context();
         is_initialized_context.expect().returning(|| true);
 
-        let pymodule: Py<PyModule> = Python::with_gil(|py| {
-            PyModule::from_code(
+        Python::with_gil(|py| {
+            let pymodule = PyModule::from_code_bound(
                 py,
                 r#"
 def handler(restart):
@@ -1290,18 +1167,12 @@ def handler(restart):
                 "",
                 "",
             )
-            .expect("this should not happen")
-            .into_py(py)
-        });
-        let new_game_handler = Python::with_gil(|py| {
-            pymodule
-                .getattr(py, "handler")
-                .expect("this should not happen")
-                .into_py(py)
-        });
-        NEW_GAME_HANDLER.store(Some(new_game_handler.into()));
+            .expect("this should not happen");
+            let new_game_handler = pymodule.getattr("handler").expect("this should not happen");
+            NEW_GAME_HANDLER.store(Some(new_game_handler.into_py(py).into()));
 
-        new_game_dispatcher(true);
+            new_game_dispatcher(true);
+        });
     }
 
     #[test]
@@ -1332,8 +1203,8 @@ def handler(restart):
         let is_initialized_context = pyshinqlx_is_initialized_context();
         is_initialized_context.expect().returning(|| true);
 
-        let pymodule: Py<PyModule> = Python::with_gil(|py| {
-            PyModule::from_code(
+        Python::with_gil(|py| {
+            let pymodule = PyModule::from_code_bound(
                 py,
                 r#"
 def handler(index, value):
@@ -1342,19 +1213,14 @@ def handler(index, value):
                 "",
                 "",
             )
-            .expect("this should not happen")
-            .into_py(py)
-        });
-        let set_configstring_handler = Python::with_gil(|py| {
-            pymodule
-                .getattr(py, "handler")
-                .expect("this should not happen")
-                .into_py(py)
-        });
-        SET_CONFIGSTRING_HANDLER.store(Some(set_configstring_handler.into()));
+            .expect("this should not happen");
+            let set_configstring_handler =
+                pymodule.getattr("handler").expect("this should not happen");
+            SET_CONFIGSTRING_HANDLER.store(Some(set_configstring_handler.into_py(py).into()));
 
-        let result = set_configstring_dispatcher(123u32, "asdf");
-        assert_eq!(result, Some("asdf".into()));
+            let result = set_configstring_dispatcher(123u32, "asdf");
+            assert_eq!(result, Some("asdf".into()));
+        });
     }
 
     #[rstest]
@@ -1364,8 +1230,8 @@ def handler(index, value):
         let is_initialized_context = pyshinqlx_is_initialized_context();
         is_initialized_context.expect().returning(|| true);
 
-        let pymodule: Py<PyModule> = Python::with_gil(|py| {
-            PyModule::from_code(
+        Python::with_gil(|py| {
+            let pymodule = PyModule::from_code_bound(
                 py,
                 r#"
 def handler(index, value):
@@ -1374,19 +1240,14 @@ def handler(index, value):
                 "",
                 "",
             )
-            .expect("this should not happen")
-            .into_py(py)
-        });
-        let set_configstring_handler = Python::with_gil(|py| {
-            pymodule
-                .getattr(py, "handler")
-                .expect("this should not happen")
-                .into_py(py)
-        });
-        SET_CONFIGSTRING_HANDLER.store(Some(set_configstring_handler.into()));
+            .expect("this should not happen");
+            let set_configstring_handler =
+                pymodule.getattr("handler").expect("this should not happen");
+            SET_CONFIGSTRING_HANDLER.store(Some(set_configstring_handler.into_py(py).into()));
 
-        let result = set_configstring_dispatcher(123u32, "asdf");
-        assert_eq!(result, Some("qwertz".into()));
+            let result = set_configstring_dispatcher(123u32, "asdf");
+            assert_eq!(result, Some("qwertz".into()));
+        });
     }
 
     #[rstest]
@@ -1396,8 +1257,8 @@ def handler(index, value):
         let is_initialized_context = pyshinqlx_is_initialized_context();
         is_initialized_context.expect().returning(|| true);
 
-        let pymodule: Py<PyModule> = Python::with_gil(|py| {
-            PyModule::from_code(
+        Python::with_gil(|py| {
+            let pymodule = PyModule::from_code_bound(
                 py,
                 r#"
 def handler(index, value):
@@ -1406,19 +1267,14 @@ def handler(index, value):
                 "",
                 "",
             )
-            .expect("this should not happen")
-            .into_py(py)
-        });
-        let set_configstring_handler = Python::with_gil(|py| {
-            pymodule
-                .getattr(py, "handler")
-                .expect("this should not happen")
-                .into_py(py)
-        });
-        SET_CONFIGSTRING_HANDLER.store(Some(set_configstring_handler.into()));
+            .expect("this should not happen");
+            let set_configstring_handler =
+                pymodule.getattr("handler").expect("this should not happen");
+            SET_CONFIGSTRING_HANDLER.store(Some(set_configstring_handler.into_py(py).into()));
 
-        let result = set_configstring_dispatcher(123u32, "asdf");
-        assert_eq!(result, Some("asdf".into()));
+            let result = set_configstring_dispatcher(123u32, "asdf");
+            assert_eq!(result, Some("asdf".into()));
+        });
     }
 
     #[rstest]
@@ -1428,8 +1284,8 @@ def handler(index, value):
         let is_initialized_context = pyshinqlx_is_initialized_context();
         is_initialized_context.expect().returning(|| true);
 
-        let pymodule: Py<PyModule> = Python::with_gil(|py| {
-            PyModule::from_code(
+        Python::with_gil(|py| {
+            let pymodule = PyModule::from_code_bound(
                 py,
                 r#"
 def handler(index, value):
@@ -1438,19 +1294,14 @@ def handler(index, value):
                 "",
                 "",
             )
-            .expect("this should not happen")
-            .into_py(py)
-        });
-        let set_configstring_handler = Python::with_gil(|py| {
-            pymodule
-                .getattr(py, "handler")
-                .expect("this should not happen")
-                .into_py(py)
-        });
-        SET_CONFIGSTRING_HANDLER.store(Some(set_configstring_handler.into()));
+            .expect("this should not happen");
+            let set_configstring_handler =
+                pymodule.getattr("handler").expect("this should not happen");
+            SET_CONFIGSTRING_HANDLER.store(Some(set_configstring_handler.into_py(py).into()));
 
-        let result = set_configstring_dispatcher(123u32, "asdf");
-        assert_eq!(result, None);
+            let result = set_configstring_dispatcher(123u32, "asdf");
+            assert_eq!(result, None);
+        })
     }
 
     #[rstest]
@@ -1460,8 +1311,8 @@ def handler(index, value):
         let is_initialized_context = pyshinqlx_is_initialized_context();
         is_initialized_context.expect().returning(|| true);
 
-        let pymodule: Py<PyModule> = Python::with_gil(|py| {
-            PyModule::from_code(
+        Python::with_gil(|py| {
+            let pymodule = PyModule::from_code_bound(
                 py,
                 r#"
 def handler(index, value):
@@ -1470,19 +1321,14 @@ def handler(index, value):
                 "",
                 "",
             )
-            .expect("this should not happen")
-            .into_py(py)
-        });
-        let set_configstring_handler = Python::with_gil(|py| {
-            pymodule
-                .getattr(py, "handler")
-                .expect("this should not happen")
-                .into_py(py)
-        });
-        SET_CONFIGSTRING_HANDLER.store(Some(set_configstring_handler.into()));
+            .expect("this should not happen");
+            let set_configstring_handler =
+                pymodule.getattr("handler").expect("this should not happen");
+            SET_CONFIGSTRING_HANDLER.store(Some(set_configstring_handler.into_py(py).into()));
 
-        let result = set_configstring_dispatcher(123u32, "asdf");
-        assert_eq!(result, Some("asdf".into()));
+            let result = set_configstring_dispatcher(123u32, "asdf");
+            assert_eq!(result, Some("asdf".into()));
+        });
     }
 
     #[rstest]
@@ -1492,8 +1338,8 @@ def handler(index, value):
         let is_initialized_context = pyshinqlx_is_initialized_context();
         is_initialized_context.expect().returning(|| true);
 
-        let pymodule: Py<PyModule> = Python::with_gil(|py| {
-            PyModule::from_code(
+        Python::with_gil(|py| {
+            let pymodule = PyModule::from_code_bound(
                 py,
                 r#"
 def handler(index, value):
@@ -1502,19 +1348,14 @@ def handler(index, value):
                 "",
                 "",
             )
-            .expect("this should not happen")
-            .into_py(py)
-        });
-        let set_configstring_handler = Python::with_gil(|py| {
-            pymodule
-                .getattr(py, "handler")
-                .expect("this should not happen")
-                .into_py(py)
-        });
-        SET_CONFIGSTRING_HANDLER.store(Some(set_configstring_handler.into()));
+            .expect("this should not happen");
+            let set_configstring_handler =
+                pymodule.getattr("handler").expect("this should not happen");
+            SET_CONFIGSTRING_HANDLER.store(Some(set_configstring_handler.into_py(py).into()));
 
-        let result = set_configstring_dispatcher(123u32, "asdf");
-        assert_eq!(result, Some("asdf".into()));
+            let result = set_configstring_dispatcher(123u32, "asdf");
+            assert_eq!(result, Some("asdf".into()));
+        });
     }
 
     #[test]
@@ -1543,8 +1384,8 @@ def handler(index, value):
         let is_initialized_context = pyshinqlx_is_initialized_context();
         is_initialized_context.expect().returning(|| true);
 
-        let pymodule: Py<PyModule> = Python::with_gil(|py| {
-            PyModule::from_code(
+        Python::with_gil(|py| {
+            let pymodule = PyModule::from_code_bound(
                 py,
                 r#"
 def handler(cmd):
@@ -1553,18 +1394,12 @@ def handler(cmd):
                 "",
                 "",
             )
-            .expect("this should not happen")
-            .into_py(py)
-        });
-        let rcon_handler = Python::with_gil(|py| {
-            pymodule
-                .getattr(py, "handler")
-                .expect("this should not happen")
-                .into_py(py)
-        });
-        RCON_HANDLER.store(Some(rcon_handler.into()));
+            .expect("this should not happen");
+            let rcon_handler = pymodule.getattr("handler").expect("this should not happen");
+            RCON_HANDLER.store(Some(rcon_handler.into_py(py).into()));
 
-        rcon_dispatcher("asdf");
+            rcon_dispatcher("asdf");
+        });
     }
 
     #[rstest]
@@ -1574,8 +1409,8 @@ def handler(cmd):
         let is_initialized_context = pyshinqlx_is_initialized_context();
         is_initialized_context.expect().returning(|| true);
 
-        let pymodule: Py<PyModule> = Python::with_gil(|py| {
-            PyModule::from_code(
+        Python::with_gil(|py| {
+            let pymodule = PyModule::from_code_bound(
                 py,
                 r#"
 def handler(cmd):
@@ -1584,18 +1419,12 @@ def handler(cmd):
                 "",
                 "",
             )
-            .expect("this should not happen")
-            .into_py(py)
-        });
-        let rcon_handler = Python::with_gil(|py| {
-            pymodule
-                .getattr(py, "handler")
-                .expect("this should not happen")
-                .into_py(py)
-        });
-        RCON_HANDLER.store(Some(rcon_handler.into()));
+            .expect("this should not happen");
+            let rcon_handler = pymodule.getattr("handler").expect("this should not happen");
+            RCON_HANDLER.store(Some(rcon_handler.into_py(py).into()));
 
-        rcon_dispatcher("asdf");
+            rcon_dispatcher("asdf");
+        });
     }
 
     #[test]
@@ -1626,8 +1455,8 @@ def handler(cmd):
         let is_initialized_context = pyshinqlx_is_initialized_context();
         is_initialized_context.expect().returning(|| true);
 
-        let pymodule: Py<PyModule> = Python::with_gil(|py| {
-            PyModule::from_code(
+        Python::with_gil(|py| {
+            let pymodule = PyModule::from_code_bound(
                 py,
                 r#"
 def handler(text):
@@ -1636,19 +1465,14 @@ def handler(text):
                 "",
                 "",
             )
-            .expect("this should not happen")
-            .into_py(py)
-        });
-        let console_print_handler = Python::with_gil(|py| {
-            pymodule
-                .getattr(py, "handler")
-                .expect("this should not happen")
-                .into_py(py)
-        });
-        CONSOLE_PRINT_HANDLER.store(Some(console_print_handler.into()));
+            .expect("this should not happen");
+            let console_print_handler =
+                pymodule.getattr("handler").expect("this should not happen");
+            CONSOLE_PRINT_HANDLER.store(Some(console_print_handler.into_py(py).into()));
 
-        let result = console_print_dispatcher("asdf");
-        assert_eq!(result, Some("asdf".into()));
+            let result = console_print_dispatcher("asdf");
+            assert_eq!(result, Some("asdf".into()));
+        });
     }
 
     #[rstest]
@@ -1658,8 +1482,8 @@ def handler(text):
         let is_initialized_context = pyshinqlx_is_initialized_context();
         is_initialized_context.expect().returning(|| true);
 
-        let pymodule: Py<PyModule> = Python::with_gil(|py| {
-            PyModule::from_code(
+        Python::with_gil(|py| {
+            let pymodule = PyModule::from_code_bound(
                 py,
                 r#"
 def handler(text):
@@ -1668,19 +1492,14 @@ def handler(text):
                 "",
                 "",
             )
-            .expect("this should not happen")
-            .into_py(py)
-        });
-        let console_print_handler = Python::with_gil(|py| {
-            pymodule
-                .getattr(py, "handler")
-                .expect("this should not happen")
-                .into_py(py)
-        });
-        CONSOLE_PRINT_HANDLER.store(Some(console_print_handler.into()));
+            .expect("this should not happen");
+            let console_print_handler =
+                pymodule.getattr("handler").expect("this should not happen");
+            CONSOLE_PRINT_HANDLER.store(Some(console_print_handler.into_py(py).into()));
 
-        let result = console_print_dispatcher("asdf");
-        assert_eq!(result, Some("qwertz".into()));
+            let result = console_print_dispatcher("asdf");
+            assert_eq!(result, Some("qwertz".into()));
+        });
     }
 
     #[rstest]
@@ -1690,8 +1509,8 @@ def handler(text):
         let is_initialized_context = pyshinqlx_is_initialized_context();
         is_initialized_context.expect().returning(|| true);
 
-        let pymodule: Py<PyModule> = Python::with_gil(|py| {
-            PyModule::from_code(
+        Python::with_gil(|py| {
+            let pymodule = PyModule::from_code_bound(
                 py,
                 r#"
 def handler(text):
@@ -1700,19 +1519,14 @@ def handler(text):
                 "",
                 "",
             )
-            .expect("this should not happen")
-            .into_py(py)
-        });
-        let console_print_handler = Python::with_gil(|py| {
-            pymodule
-                .getattr(py, "handler")
-                .expect("this should not happen")
-                .into_py(py)
-        });
-        CONSOLE_PRINT_HANDLER.store(Some(console_print_handler.into()));
+            .expect("this should not happen");
+            let console_print_handler =
+                pymodule.getattr("handler").expect("this should not happen");
+            CONSOLE_PRINT_HANDLER.store(Some(console_print_handler.into_py(py).into()));
 
-        let result = console_print_dispatcher("asdf");
-        assert_eq!(result, Some("asdf".into()));
+            let result = console_print_dispatcher("asdf");
+            assert_eq!(result, Some("asdf".into()));
+        });
     }
 
     #[rstest]
@@ -1722,8 +1536,8 @@ def handler(text):
         let is_initialized_context = pyshinqlx_is_initialized_context();
         is_initialized_context.expect().returning(|| true);
 
-        let pymodule: Py<PyModule> = Python::with_gil(|py| {
-            PyModule::from_code(
+        Python::with_gil(|py| {
+            let pymodule = PyModule::from_code_bound(
                 py,
                 r#"
 def handler(text):
@@ -1732,19 +1546,14 @@ def handler(text):
                 "",
                 "",
             )
-            .expect("this should not happen")
-            .into_py(py)
-        });
-        let console_print_handler = Python::with_gil(|py| {
-            pymodule
-                .getattr(py, "handler")
-                .expect("this should not happen")
-                .into_py(py)
-        });
-        CONSOLE_PRINT_HANDLER.store(Some(console_print_handler.into()));
+            .expect("this should not happen");
+            let console_print_handler =
+                pymodule.getattr("handler").expect("this should not happen");
+            CONSOLE_PRINT_HANDLER.store(Some(console_print_handler.into_py(py).into()));
 
-        let result = console_print_dispatcher("asdf");
-        assert_eq!(result, None);
+            let result = console_print_dispatcher("asdf");
+            assert_eq!(result, None);
+        });
     }
 
     #[rstest]
@@ -1754,8 +1563,8 @@ def handler(text):
         let is_initialized_context = pyshinqlx_is_initialized_context();
         is_initialized_context.expect().returning(|| true);
 
-        let pymodule: Py<PyModule> = Python::with_gil(|py| {
-            PyModule::from_code(
+        Python::with_gil(|py| {
+            let pymodule = PyModule::from_code_bound(
                 py,
                 r#"
 def handler(text):
@@ -1764,19 +1573,14 @@ def handler(text):
                 "",
                 "",
             )
-            .expect("this should not happen")
-            .into_py(py)
-        });
-        let console_print_handler = Python::with_gil(|py| {
-            pymodule
-                .getattr(py, "handler")
-                .expect("this should not happen")
-                .into_py(py)
-        });
-        CONSOLE_PRINT_HANDLER.store(Some(console_print_handler.into()));
+            .expect("this should not happen");
+            let console_print_handler =
+                pymodule.getattr("handler").expect("this should not happen");
+            CONSOLE_PRINT_HANDLER.store(Some(console_print_handler.into_py(py).into()));
 
-        let result = console_print_dispatcher("asdf");
-        assert_eq!(result, Some("asdf".into()));
+            let result = console_print_dispatcher("asdf");
+            assert_eq!(result, Some("asdf".into()));
+        });
     }
 
     #[rstest]
@@ -1786,8 +1590,8 @@ def handler(text):
         let is_initialized_context = pyshinqlx_is_initialized_context();
         is_initialized_context.expect().returning(|| true);
 
-        let pymodule: Py<PyModule> = Python::with_gil(|py| {
-            PyModule::from_code(
+        Python::with_gil(|py| {
+            let pymodule = PyModule::from_code_bound(
                 py,
                 r#"
 def handler(text):
@@ -1796,19 +1600,14 @@ def handler(text):
                 "",
                 "",
             )
-            .expect("this should not happen")
-            .into_py(py)
-        });
-        let console_print_handler = Python::with_gil(|py| {
-            pymodule
-                .getattr(py, "handler")
-                .expect("this should not happen")
-                .into_py(py)
-        });
-        CONSOLE_PRINT_HANDLER.store(Some(console_print_handler.into()));
+            .expect("this should not happen");
+            let console_print_handler =
+                pymodule.getattr("handler").expect("this should not happen");
+            CONSOLE_PRINT_HANDLER.store(Some(console_print_handler.into_py(py).into()));
 
-        let result = console_print_dispatcher("asdf");
-        assert_eq!(result, Some("asdf".into()));
+            let result = console_print_dispatcher("asdf");
+            assert_eq!(result, Some("asdf".into()));
+        });
     }
 
     #[test]
@@ -1837,8 +1636,8 @@ def handler(text):
         let is_initialized_context = pyshinqlx_is_initialized_context();
         is_initialized_context.expect().returning(|| true);
 
-        let pymodule: Py<PyModule> = Python::with_gil(|py| {
-            PyModule::from_code(
+        Python::with_gil(|py| {
+            let pymodule = PyModule::from_code_bound(
                 py,
                 r#"
 def handler(client_id):
@@ -1847,18 +1646,12 @@ def handler(client_id):
                 "",
                 "",
             )
-            .expect("this should not happen")
-            .into_py(py)
-        });
-        let client_spawn_handler = Python::with_gil(|py| {
-            pymodule
-                .getattr(py, "handler")
-                .expect("this should not happen")
-                .into_py(py)
-        });
-        PLAYER_SPAWN_HANDLER.store(Some(client_spawn_handler.into()));
+            .expect("this should not happen");
+            let client_spawn_handler = pymodule.getattr("handler").expect("this should not happen");
+            PLAYER_SPAWN_HANDLER.store(Some(client_spawn_handler.into_py(py).into()));
 
-        client_spawn_dispatcher(123);
+            client_spawn_dispatcher(123);
+        });
     }
 
     #[rstest]
@@ -1868,8 +1661,8 @@ def handler(client_id):
         let is_initialized_context = pyshinqlx_is_initialized_context();
         is_initialized_context.expect().returning(|| true);
 
-        let pymodule: Py<PyModule> = Python::with_gil(|py| {
-            PyModule::from_code(
+        Python::with_gil(|py| {
+            let pymodule = PyModule::from_code_bound(
                 py,
                 r#"
 def handler(client_id):
@@ -1878,18 +1671,12 @@ def handler(client_id):
                 "",
                 "",
             )
-            .expect("this should not happen")
-            .into_py(py)
-        });
-        let client_spawn_handler = Python::with_gil(|py| {
-            pymodule
-                .getattr(py, "handler")
-                .expect("this should not happen")
-                .into_py(py)
-        });
-        PLAYER_SPAWN_HANDLER.store(Some(client_spawn_handler.into()));
+            .expect("this should not happen");
+            let client_spawn_handler = pymodule.getattr("handler").expect("this should not happen");
+            PLAYER_SPAWN_HANDLER.store(Some(client_spawn_handler.into_py(py).into()));
 
-        client_spawn_dispatcher(123);
+            client_spawn_dispatcher(123);
+        });
     }
 
     #[test]
@@ -1918,8 +1705,8 @@ def handler(client_id):
         let is_initialized_context = pyshinqlx_is_initialized_context();
         is_initialized_context.expect().returning(|| true);
 
-        let pymodule: Py<PyModule> = Python::with_gil(|py| {
-            PyModule::from_code(
+        Python::with_gil(|py| {
+            let pymodule = PyModule::from_code_bound(
                 py,
                 r#"
 def handler(client_id):
@@ -1928,18 +1715,12 @@ def handler(client_id):
                 "",
                 "",
             )
-            .expect("this should not happen")
-            .into_py(py)
-        });
-        let kamikaze_use_handler = Python::with_gil(|py| {
-            pymodule
-                .getattr(py, "handler")
-                .expect("this should not happen")
-                .into_py(py)
-        });
-        KAMIKAZE_USE_HANDLER.store(Some(kamikaze_use_handler.into()));
+            .expect("this should not happen");
+            let kamikaze_use_handler = pymodule.getattr("handler").expect("this should not happen");
+            KAMIKAZE_USE_HANDLER.store(Some(kamikaze_use_handler.into_py(py).into()));
 
-        kamikaze_use_dispatcher(123);
+            kamikaze_use_dispatcher(123);
+        });
     }
 
     #[rstest]
@@ -1949,8 +1730,8 @@ def handler(client_id):
         let is_initialized_context = pyshinqlx_is_initialized_context();
         is_initialized_context.expect().returning(|| true);
 
-        let pymodule: Py<PyModule> = Python::with_gil(|py| {
-            PyModule::from_code(
+        Python::with_gil(|py| {
+            let pymodule = PyModule::from_code_bound(
                 py,
                 r#"
 def handler(client_id):
@@ -1959,18 +1740,12 @@ def handler(client_id):
                 "",
                 "",
             )
-            .expect("this should not happen")
-            .into_py(py)
-        });
-        let kamikaze_use_handler = Python::with_gil(|py| {
-            pymodule
-                .getattr(py, "handler")
-                .expect("this should not happen")
-                .into_py(py)
-        });
-        KAMIKAZE_USE_HANDLER.store(Some(kamikaze_use_handler.into()));
+            .expect("this should not happen");
+            let kamikaze_use_handler = pymodule.getattr("handler").expect("this should not happen");
+            KAMIKAZE_USE_HANDLER.store(Some(kamikaze_use_handler.into_py(py).into()));
 
-        kamikaze_use_dispatcher(123);
+            kamikaze_use_dispatcher(123);
+        });
     }
 
     #[test]
@@ -1999,8 +1774,8 @@ def handler(client_id):
         let is_initialized_context = pyshinqlx_is_initialized_context();
         is_initialized_context.expect().returning(|| true);
 
-        let pymodule: Py<PyModule> = Python::with_gil(|py| {
-            PyModule::from_code(
+        Python::with_gil(|py| {
+            let pymodule = PyModule::from_code_bound(
                 py,
                 r#"
 def handler(client_id, is_used_on_demand):
@@ -2009,18 +1784,13 @@ def handler(client_id, is_used_on_demand):
                 "",
                 "",
             )
-            .expect("this should not happen")
-            .into_py(py)
-        });
-        let kamikaze_explode_handler = Python::with_gil(|py| {
-            pymodule
-                .getattr(py, "handler")
-                .expect("this should not happen")
-                .into_py(py)
-        });
-        KAMIKAZE_EXPLODE_HANDLER.store(Some(kamikaze_explode_handler.into()));
+            .expect("this should not happen");
+            let kamikaze_explode_handler =
+                pymodule.getattr("handler").expect("this should not happen");
+            KAMIKAZE_EXPLODE_HANDLER.store(Some(kamikaze_explode_handler.into_py(py).into()));
 
-        kamikaze_explode_dispatcher(123, false);
+            kamikaze_explode_dispatcher(123, false);
+        });
     }
 
     #[rstest]
@@ -2030,8 +1800,8 @@ def handler(client_id, is_used_on_demand):
         let is_initialized_context = pyshinqlx_is_initialized_context();
         is_initialized_context.expect().returning(|| true);
 
-        let pymodule: Py<PyModule> = Python::with_gil(|py| {
-            PyModule::from_code(
+        Python::with_gil(|py| {
+            let pymodule = PyModule::from_code_bound(
                 py,
                 r#"
 def handler(client_id, is_used_on_demand):
@@ -2040,18 +1810,13 @@ def handler(client_id, is_used_on_demand):
                 "",
                 "",
             )
-            .expect("this should not happen")
-            .into_py(py)
-        });
-        let kamikaze_explode_handler = Python::with_gil(|py| {
-            pymodule
-                .getattr(py, "handler")
-                .expect("this should not happen")
-                .into_py(py)
-        });
-        KAMIKAZE_EXPLODE_HANDLER.store(Some(kamikaze_explode_handler.into()));
+            .expect("this should not happen");
+            let kamikaze_explode_handler =
+                pymodule.getattr("handler").expect("this should not happen");
+            KAMIKAZE_EXPLODE_HANDLER.store(Some(kamikaze_explode_handler.into_py(py).into()));
 
-        kamikaze_explode_dispatcher(123, true);
+            kamikaze_explode_dispatcher(123, true);
+        });
     }
 
     #[test]
@@ -2092,8 +1857,8 @@ def handler(client_id, is_used_on_demand):
         let is_initialized_context = pyshinqlx_is_initialized_context();
         is_initialized_context.expect().returning(|| true);
 
-        let pymodule: Py<PyModule> = Python::with_gil(|py| {
-            PyModule::from_code(
+        Python::with_gil(|py| {
+            let pymodule = PyModule::from_code_bound(
                 py,
                 r#"
 def handler(client_id, attacker_id, damage, dflags, means_of_death):
@@ -2102,24 +1867,18 @@ def handler(client_id, attacker_id, damage, dflags, means_of_death):
                 "",
                 "",
             )
-            .expect("this should not happen")
-            .into_py(py)
-        });
-        let damage_handler = Python::with_gil(|py| {
-            pymodule
-                .getattr(py, "handler")
-                .expect("this should not happen")
-                .into_py(py)
-        });
-        DAMAGE_HANDLER.store(Some(damage_handler.into()));
+            .expect("this should not happen");
+            let damage_handler = pymodule.getattr("handler").expect("this should not happen");
+            DAMAGE_HANDLER.store(Some(damage_handler.into_py(py).into()));
 
-        damage_dispatcher(
-            123,
-            Some(456),
-            100,
-            DAMAGE_NO_TEAM_PROTECTION as i32,
-            meansOfDeath_t::MOD_ROCKET as i32,
-        );
+            damage_dispatcher(
+                123,
+                Some(456),
+                100,
+                DAMAGE_NO_TEAM_PROTECTION as i32,
+                meansOfDeath_t::MOD_ROCKET as i32,
+            );
+        });
     }
 
     #[rstest]
@@ -2129,8 +1888,8 @@ def handler(client_id, attacker_id, damage, dflags, means_of_death):
         let is_initialized_context = pyshinqlx_is_initialized_context();
         is_initialized_context.expect().returning(|| true);
 
-        let pymodule: Py<PyModule> = Python::with_gil(|py| {
-            PyModule::from_code(
+        Python::with_gil(|py| {
+            let pymodule = PyModule::from_code_bound(
                 py,
                 r#"
 def handler(client_id, attacker_id, damage, dflags, means_of_death):
@@ -2139,23 +1898,17 @@ def handler(client_id, attacker_id, damage, dflags, means_of_death):
                 "",
                 "",
             )
-            .expect("this should not happen")
-            .into_py(py)
-        });
-        let damage_handler = Python::with_gil(|py| {
-            pymodule
-                .getattr(py, "handler")
-                .expect("this should not happen")
-                .into_py(py)
-        });
-        DAMAGE_HANDLER.store(Some(damage_handler.into()));
+            .expect("this should not happen");
+            let damage_handler = pymodule.getattr("handler").expect("this should not happen");
+            DAMAGE_HANDLER.store(Some(damage_handler.into_py(py).into()));
 
-        damage_dispatcher(
-            123,
-            None,
-            666,
-            DAMAGE_NO_PROTECTION as i32,
-            meansOfDeath_t::MOD_TRIGGER_HURT as i32,
-        );
+            damage_dispatcher(
+                123,
+                None,
+                666,
+                DAMAGE_NO_PROTECTION as i32,
+                meansOfDeath_t::MOD_TRIGGER_HURT as i32,
+            );
+        });
     }
 }

@@ -74,7 +74,6 @@ pub(crate) mod prelude {
 use crate::ffi::c::prelude::*;
 use prelude::*;
 
-use alloc::sync::Arc;
 use arc_swap::ArcSwapOption;
 use core::sync::atomic::{AtomicBool, AtomicU64, Ordering};
 use log::*;
@@ -83,36 +82,32 @@ use pyo3::{append_to_inittab, intern, prepare_freethreaded_python};
 
 pub(crate) static ALLOW_FREE_CLIENT: AtomicU64 = AtomicU64::new(0);
 
-pub(crate) static CLIENT_COMMAND_HANDLER: Lazy<Arc<ArcSwapOption<Py<PyAny>>>> =
-    Lazy::new(|| ArcSwapOption::empty().into());
-pub(crate) static SERVER_COMMAND_HANDLER: Lazy<Arc<ArcSwapOption<Py<PyAny>>>> =
-    Lazy::new(|| ArcSwapOption::empty().into());
-pub(crate) static FRAME_HANDLER: Lazy<Arc<ArcSwapOption<Py<PyAny>>>> =
-    Lazy::new(|| ArcSwapOption::empty().into());
-pub(crate) static PLAYER_CONNECT_HANDLER: Lazy<Arc<ArcSwapOption<Py<PyAny>>>> =
-    Lazy::new(|| ArcSwapOption::empty().into());
-pub(crate) static PLAYER_LOADED_HANDLER: Lazy<Arc<ArcSwapOption<Py<PyAny>>>> =
-    Lazy::new(|| ArcSwapOption::empty().into());
-pub(crate) static PLAYER_DISCONNECT_HANDLER: Lazy<Arc<ArcSwapOption<Py<PyAny>>>> =
-    Lazy::new(|| ArcSwapOption::empty().into());
-pub(crate) static CUSTOM_COMMAND_HANDLER: Lazy<Arc<ArcSwapOption<Py<PyAny>>>> =
-    Lazy::new(|| ArcSwapOption::empty().into());
-pub(crate) static NEW_GAME_HANDLER: Lazy<Arc<ArcSwapOption<Py<PyAny>>>> =
-    Lazy::new(|| ArcSwapOption::empty().into());
-pub(crate) static SET_CONFIGSTRING_HANDLER: Lazy<Arc<ArcSwapOption<Py<PyAny>>>> =
-    Lazy::new(|| ArcSwapOption::empty().into());
-pub(crate) static RCON_HANDLER: Lazy<Arc<ArcSwapOption<Py<PyAny>>>> =
-    Lazy::new(|| ArcSwapOption::empty().into());
-pub(crate) static CONSOLE_PRINT_HANDLER: Lazy<Arc<ArcSwapOption<Py<PyAny>>>> =
-    Lazy::new(|| ArcSwapOption::empty().into());
-pub(crate) static PLAYER_SPAWN_HANDLER: Lazy<Arc<ArcSwapOption<Py<PyAny>>>> =
-    Lazy::new(|| ArcSwapOption::empty().into());
-pub(crate) static KAMIKAZE_USE_HANDLER: Lazy<Arc<ArcSwapOption<Py<PyAny>>>> =
-    Lazy::new(|| ArcSwapOption::empty().into());
-pub(crate) static KAMIKAZE_EXPLODE_HANDLER: Lazy<Arc<ArcSwapOption<Py<PyAny>>>> =
-    Lazy::new(|| ArcSwapOption::empty().into());
-pub(crate) static DAMAGE_HANDLER: Lazy<Arc<ArcSwapOption<Py<PyAny>>>> =
-    Lazy::new(|| ArcSwapOption::empty().into());
+pub(crate) static CLIENT_COMMAND_HANDLER: Lazy<ArcSwapOption<PyObject>> =
+    Lazy::new(ArcSwapOption::empty);
+pub(crate) static SERVER_COMMAND_HANDLER: Lazy<ArcSwapOption<PyObject>> =
+    Lazy::new(ArcSwapOption::empty);
+pub(crate) static FRAME_HANDLER: Lazy<ArcSwapOption<PyObject>> = Lazy::new(ArcSwapOption::empty);
+pub(crate) static PLAYER_CONNECT_HANDLER: Lazy<ArcSwapOption<PyObject>> =
+    Lazy::new(ArcSwapOption::empty);
+pub(crate) static PLAYER_LOADED_HANDLER: Lazy<ArcSwapOption<PyObject>> =
+    Lazy::new(ArcSwapOption::empty);
+pub(crate) static PLAYER_DISCONNECT_HANDLER: Lazy<ArcSwapOption<PyObject>> =
+    Lazy::new(ArcSwapOption::empty);
+pub(crate) static CUSTOM_COMMAND_HANDLER: Lazy<ArcSwapOption<PyObject>> =
+    Lazy::new(ArcSwapOption::empty);
+pub(crate) static NEW_GAME_HANDLER: Lazy<ArcSwapOption<PyObject>> = Lazy::new(ArcSwapOption::empty);
+pub(crate) static SET_CONFIGSTRING_HANDLER: Lazy<ArcSwapOption<PyObject>> =
+    Lazy::new(ArcSwapOption::empty);
+pub(crate) static RCON_HANDLER: Lazy<ArcSwapOption<PyObject>> = Lazy::new(ArcSwapOption::empty);
+pub(crate) static CONSOLE_PRINT_HANDLER: Lazy<ArcSwapOption<PyObject>> =
+    Lazy::new(ArcSwapOption::empty);
+pub(crate) static PLAYER_SPAWN_HANDLER: Lazy<ArcSwapOption<PyObject>> =
+    Lazy::new(ArcSwapOption::empty);
+pub(crate) static KAMIKAZE_USE_HANDLER: Lazy<ArcSwapOption<PyObject>> =
+    Lazy::new(ArcSwapOption::empty);
+pub(crate) static KAMIKAZE_EXPLODE_HANDLER: Lazy<ArcSwapOption<PyObject>> =
+    Lazy::new(ArcSwapOption::empty);
+pub(crate) static DAMAGE_HANDLER: Lazy<ArcSwapOption<PyObject>> = Lazy::new(ArcSwapOption::empty);
 
 // Used primarily in Python, but defined here and added using PyModule_AddIntMacro().
 #[allow(non_camel_case_types)]
@@ -135,13 +130,13 @@ enum PythonPriorities {
 
 #[pymodule]
 #[pyo3(name = "shinqlx")]
-fn pyshinqlx_root_module(_py: Python<'_>, _m: &PyModule) -> PyResult<()> {
+fn pyshinqlx_root_module(_py: Python<'_>, _m: &Bound<'_, PyModule>) -> PyResult<()> {
     Ok(())
 }
 
 #[pymodule]
 #[pyo3(name = "_shinqlx")]
-fn pyshinqlx_module(_py: Python<'_>, m: &PyModule) -> PyResult<()> {
+fn pyshinqlx_module(_py: Python<'_>, m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(pyshinqlx_player_info, m)?)?;
     m.add_function(wrap_pyfunction!(pyshinqlx_players_info, m)?)?;
     m.add_function(wrap_pyfunction!(pyshinqlx_get_userinfo, m)?)?;
@@ -335,7 +330,7 @@ pub(crate) fn pyshinqlx_initialize() -> Result<(), PythonInitializationError> {
     append_to_inittab!(pyshinqlx_module);
     prepare_freethreaded_python();
     let init_result = Python::with_gil(|py| {
-        let shinqlx_module = py.import(intern!(py, "shinqlx"))?;
+        let shinqlx_module = py.import_bound(intern!(py, "shinqlx"))?;
         shinqlx_module.call_method0("initialize")?;
         Ok::<(), PyErr>(())
     });
@@ -381,8 +376,8 @@ pub(crate) fn pyshinqlx_reload() -> Result<(), PythonInitializationError> {
     .for_each(|&handler_lock| handler_lock.store(None));
 
     let reinit_result = Python::with_gil(|py| {
-        let importlib_module = py.import("importlib")?;
-        let shinqlx_module = py.import(intern!(py, "shinqlx"))?;
+        let importlib_module = py.import_bound("importlib")?;
+        let shinqlx_module = py.import_bound(intern!(py, "shinqlx"))?;
         let new_shinqlx_module = importlib_module.call_method1("reload", (shinqlx_module,))?;
         new_shinqlx_module.call_method0("initialize")?;
         Ok::<(), PyErr>(())
