@@ -45,7 +45,7 @@ impl Command {
         prefix: bool,
         usage: String,
     ) -> PyResult<Self> {
-        if !handler.as_ref(py).is_callable() {
+        if !handler.bind(py).is_callable() {
             return Err(PyValueError::new_err(
                 "'handler' must be a callable function.",
             ));
@@ -62,7 +62,7 @@ impl Command {
         }
 
         let mut names = vec![];
-        name.as_ref(py)
+        name.bind(py)
             .extract::<&PyList>()
             .ok()
             .iter()
@@ -75,7 +75,7 @@ impl Command {
                         .for_each(|alias| names.push(alias.clone()));
                 })
             });
-        name.as_ref(py)
+        name.bind(py)
             .extract::<&PyTuple>()
             .ok()
             .iter()
@@ -99,7 +99,7 @@ impl Command {
             vec![]
         } else {
             let mut collected = vec![];
-            if let Ok(mut iter) = channels.as_ref(py).iter() {
+            if let Ok(mut iter) = channels.bind(py).iter() {
                 while let Some(Ok(value)) = iter.next() {
                     collected.push(value.into_py(py));
                 }
@@ -110,7 +110,7 @@ impl Command {
             vec![]
         } else {
             let mut collected = vec![];
-            if let Ok(mut iter) = exclude_channels.as_ref(py).iter() {
+            if let Ok(mut iter) = exclude_channels.bind(py).iter() {
                 while let Some(Ok(value)) = iter.next() {
                     collected.push(value.into_py(py));
                 }
@@ -142,7 +142,7 @@ impl Command {
         let Some(command_name) = self.name.first() else {
             return Err(PyKeyError::new_err("command has no 'name'"));
         };
-        let plugin = self.plugin.as_ref(py).into_py(py);
+        let plugin = self.plugin.bind(py).into_py(py);
         let plugin_name = plugin.getattr(py, intern!(py, "name"))?;
         let logger = pyshinqlx_get_logger(py, Some(plugin))?;
         logger.call_method1(
@@ -158,7 +158,7 @@ impl Command {
 
         let msg_vec: Vec<&str> = msg.split(' ').collect();
         self.handler
-            .as_ref(py)
+            .bind(py)
             .into_py(py)
             .call1(py, (player, msg_vec, &channel))
     }
@@ -181,7 +181,7 @@ impl Command {
     /// Exclude takes precedence.
     fn is_eligible_channel(&self, py: Python<'_>, channel: PyObject) -> bool {
         let Some(channel_name) = channel
-            .as_ref(py)
+            .bind(py)
             .str()
             .ok()
             .and_then(|channel_name_str| channel_name_str.extract::<String>().ok())
@@ -319,8 +319,8 @@ impl CommandInvoker {
                 cmd.name == command.name
                     && cmd
                         .handler
-                        .as_ref(py)
-                        .eq(command.handler.as_ref(py))
+                        .bind(py)
+                        .eq(command.handler.bind(py))
                         .unwrap_or(false)
             })
         })
@@ -348,8 +348,8 @@ impl CommandInvoker {
                 cmd.name != command.name
                     && cmd
                         .handler
-                        .as_ref(py)
-                        .ne(command.handler.as_ref(py))
+                        .bind(py)
+                        .ne(command.handler.bind(py))
                         .unwrap_or(true)
             })
         }
@@ -372,7 +372,7 @@ impl CommandInvoker {
             return Ok(false);
         };
         let Some(channel_name) = channel
-            .as_ref(py)
+            .bind(py)
             .str()
             .ok()
             .and_then(|channel_name_str| channel_name_str.extract::<String>().ok())
@@ -382,7 +382,7 @@ impl CommandInvoker {
         let is_client_cmd = channel_name == "client_command";
         let mut pass_through = true;
 
-        let shinqlx_module = py.import(intern!(py, "shinqlx"))?;
+        let shinqlx_module = py.import_bound(intern!(py, "shinqlx"))?;
         let event_dispatchers = shinqlx_module.getattr(intern!(py, "EVENT_DISPATCHERS"))?;
         let command_dispatcher = event_dispatchers.get_item(intern!(py, "command"))?;
 
@@ -391,7 +391,7 @@ impl CommandInvoker {
                 if !cmd.is_eligible_name(py, name.clone()) {
                     continue;
                 }
-                if !cmd.is_eligible_channel(py, channel.as_ref(py).into_py(py)) {
+                if !cmd.is_eligible_channel(py, channel.bind(py).into_py(py)) {
                     continue;
                 }
                 if !cmd.is_eligible_player(py, player.clone(), is_client_cmd) {
@@ -417,7 +417,7 @@ impl CommandInvoker {
                     py,
                     player.clone(),
                     msg.clone(),
-                    channel.as_ref(py).into_py(py),
+                    channel.bind(py).into_py(py),
                 )?;
                 if cmd_result.is_none(py) {
                     continue;
