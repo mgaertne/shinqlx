@@ -115,7 +115,6 @@ use crate::MAIN_ENGINE;
 use crate::_INIT_TIME;
 use prelude::*;
 
-use alloc::sync::Arc;
 use arc_swap::ArcSwapOption;
 use commands::CommandPriorities;
 use core::{

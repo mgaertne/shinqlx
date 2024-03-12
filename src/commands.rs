@@ -248,7 +248,7 @@ pub extern "C" fn cmd_py_command() {
         };
 
         if result.is_err()
-            || result.is_ok_and(|value| value.is_true(py).is_ok_and(|result| !result))
+            || result.is_ok_and(|value| value.is_truthy(py).is_ok_and(|result| !result))
         {
             main_engine
                 .com_printf("The command failed to be executed. pyshinqlx found no handler.\n");
@@ -1170,8 +1170,8 @@ mod commands_tests {
         mock_engine.expect_com_printf().times(0);
         MAIN_ENGINE.store(Some(mock_engine.into()));
 
-        let pymodule: Py<PyModule> = Python::with_gil(|py| {
-            PyModule::from_code(
+        Python::with_gil(|py| {
+            let pymodule = PyModule::from_code_bound(
                 py,
                 r#"
 def handler(params):
@@ -1180,18 +1180,13 @@ def handler(params):
                 "",
                 "",
             )
-            .expect("this should not happen")
-            .into_py(py)
-        });
-        let custom_command_handler = Python::with_gil(|py| {
-            pymodule
-                .getattr(py, "handler")
-                .expect("this should not happen")
-                .into_py(py)
-        });
-        CUSTOM_COMMAND_HANDLER.store(Some(custom_command_handler.into()));
+            .expect("this should not happen");
+            let custom_command_handler =
+                pymodule.getattr("handler").expect("this should not happen");
+            CUSTOM_COMMAND_HANDLER.store(Some(custom_command_handler.into_py(py).into()));
 
-        cmd_py_command();
+            cmd_py_command();
+        });
     }
 
     #[rstest]
@@ -1203,8 +1198,8 @@ def handler(params):
         mock_engine.expect_com_printf().times(0);
         MAIN_ENGINE.store(Some(mock_engine.into()));
 
-        let pymodule: Py<PyModule> = Python::with_gil(|py| {
-            PyModule::from_code(
+        Python::with_gil(|py| {
+            let pymodule = PyModule::from_code_bound(
                 py,
                 r#"
 def handler():
@@ -1213,18 +1208,13 @@ def handler():
                 "",
                 "",
             )
-            .expect("this should not happen")
-            .into_py(py)
-        });
-        let custom_command_handler = Python::with_gil(|py| {
-            pymodule
-                .getattr(py, "handler")
-                .expect("this should not happen")
-                .into_py(py)
-        });
-        CUSTOM_COMMAND_HANDLER.store(Some(custom_command_handler.into()));
+            .expect("this should not happen");
+            let custom_command_handler =
+                pymodule.getattr("handler").expect("this should not happen");
+            CUSTOM_COMMAND_HANDLER.store(Some(custom_command_handler.into_py(py).into()));
 
-        cmd_py_command();
+            cmd_py_command();
+        });
     }
 
     #[rstest]
@@ -1241,8 +1231,8 @@ def handler():
             .times(1);
         MAIN_ENGINE.store(Some(mock_engine.into()));
 
-        let pymodule: Py<PyModule> = Python::with_gil(|py| {
-            PyModule::from_code(
+        Python::with_gil(|py| {
+            let pymodule = PyModule::from_code_bound(
                 py,
                 r#"
 def handler():
@@ -1251,18 +1241,13 @@ def handler():
                 "",
                 "",
             )
-            .expect("this should not happen")
-            .into_py(py)
-        });
-        let custom_command_handler = Python::with_gil(|py| {
-            pymodule
-                .getattr(py, "handler")
-                .expect("this should not happen")
-                .into_py(py)
-        });
-        CUSTOM_COMMAND_HANDLER.store(Some(custom_command_handler.into()));
+            .expect("this should not happen");
+            let custom_command_handler =
+                pymodule.getattr("handler").expect("this should not happen");
+            CUSTOM_COMMAND_HANDLER.store(Some(custom_command_handler.into_py(py).into()));
 
-        cmd_py_command();
+            cmd_py_command();
+        });
     }
 
     #[rstest]
@@ -1279,8 +1264,8 @@ def handler():
             .times(1);
         MAIN_ENGINE.store(Some(mock_engine.into()));
 
-        let pymodule: Py<PyModule> = Python::with_gil(|py| {
-            PyModule::from_code(
+        Python::with_gil(|py| {
+            let pymodule = PyModule::from_code_bound(
                 py,
                 r#"
 def handler():
@@ -1289,18 +1274,13 @@ def handler():
                 "",
                 "",
             )
-            .expect("this should not happen")
-            .into_py(py)
-        });
-        let custom_command_handler = Python::with_gil(|py| {
-            pymodule
-                .getattr(py, "handler")
-                .expect("this should not happen")
-                .into_py(py)
-        });
-        CUSTOM_COMMAND_HANDLER.store(Some(custom_command_handler.into()));
+            .expect("this should not happen");
+            let custom_command_handler =
+                pymodule.getattr("handler").expect("this should not happen");
+            CUSTOM_COMMAND_HANDLER.store(Some(custom_command_handler.into_py(py).into()));
 
-        cmd_py_command();
+            cmd_py_command();
+        });
     }
 
     #[test]

@@ -3,7 +3,7 @@ use crate::ffi::python::prelude::*;
 
 use pyo3::exceptions::PyValueError;
 
-fn determine_item_id(item: &PyAny) -> PyResult<i32> {
+fn determine_item_id(item: &Bound<PyAny>) -> PyResult<i32> {
     if let Ok(item_id) = item.extract::<i32>() {
         if !(0..GameItem::get_num_items()).contains(&item_id) {
             return Err(PyValueError::new_err(format!(
@@ -42,7 +42,7 @@ pub(crate) fn pyshinqlx_replace_items(
     item1: Py<PyAny>,
     item2: Py<PyAny>,
 ) -> PyResult<bool> {
-    let item2_id = determine_item_id(item2.as_ref(py))?;
+    let item2_id = determine_item_id(item2.bind(py))?;
     // Note: if item_id == 0 and item_classname == NULL, then item will be removed
 
     if let Ok(item1_id) = item1.extract::<i32>(py) {
