@@ -248,7 +248,7 @@ pub extern "C" fn cmd_py_command() {
         };
 
         if result.is_err()
-            || result.is_ok_and(|value| value.is_true(py).is_ok_and(|result| !result))
+            || result.is_ok_and(|value| value.is_truthy(py).is_ok_and(|result| !result))
         {
             main_engine
                 .com_printf("The command failed to be executed. pyshinqlx found no handler.\n");
