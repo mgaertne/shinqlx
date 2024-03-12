@@ -839,7 +839,10 @@ fn pyshinqlx_module(py: Python<'_>, m: &Bound<'_, PyModule>) -> PyResult<()> {
 
     // from _core.py
     m.add("PluginLoadError", py.get_type_bound::<PluginLoadError>())?;
-    m.add("PluginUnloadError", py.get_type_bound::<PluginUnloadError>())?;
+    m.add(
+        "PluginUnloadError",
+        py.get_type_bound::<PluginUnloadError>(),
+    )?;
 
     m.add(
         "TEAMS",
