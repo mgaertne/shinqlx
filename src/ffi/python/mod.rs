@@ -135,8 +135,8 @@ use regex::Regex;
 
 pub(crate) static ALLOW_FREE_CLIENT: AtomicU64 = AtomicU64::new(0);
 
-pub(crate) static CUSTOM_COMMAND_HANDLER: Lazy<Arc<ArcSwapOption<Py<PyAny>>>> =
-    Lazy::new(|| ArcSwapOption::empty().into());
+pub(crate) static CUSTOM_COMMAND_HANDLER: Lazy<ArcSwapOption<PyObject>> =
+    Lazy::new(ArcSwapOption::empty);
 
 // Used primarily in Python, but defined here and added using PyModule_AddIntMacro().
 #[allow(non_camel_case_types)]
@@ -209,6 +209,10 @@ impl From<ParsedVariables> for String {
 impl IntoPyDict for ParsedVariables {
     fn into_py_dict(self, py: Python<'_>) -> &PyDict {
         self.items.into_py_dict(py)
+    }
+
+    fn into_py_dict_bound(self, py: Python<'_>) -> Bound<'_, PyDict> {
+        self.items.into_py_dict_bound(py)
     }
 }
 

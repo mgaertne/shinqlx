@@ -95,7 +95,7 @@ impl Game {
     }
 
     fn __repr__(slf: &PyCell<Self>) -> String {
-        let Ok(classname) = slf.get_type().name() else {
+        let Ok(classname) = slf.get_type().qualname() else {
             return "Game(N/A@N/A)".into();
         };
         let Ok(factory_type) = slf.getattr("type") else {
