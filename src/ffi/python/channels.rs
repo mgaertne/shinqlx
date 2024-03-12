@@ -125,7 +125,7 @@ mod abstract_channel_tests {
     #[cfg_attr(miri, ignore)]
     fn abstract_channel_can_be_created_from_python(_pyshinqlx_setup: ()) {
         Python::with_gil(|py| {
-            let abstract_channel_constructor = py.run(
+            let abstract_channel_constructor = py.run_bound(
                 r#"
 import _shinqlx
 abstract_channel = _shinqlx.AbstractChannel("abstract")
@@ -141,7 +141,7 @@ abstract_channel = _shinqlx.AbstractChannel("abstract")
     #[cfg_attr(miri, ignore)]
     fn abstract_channel_repr_representation(_pyshinqlx_setup: ()) {
         Python::with_gil(|py| {
-            let abstract_channel_repr_assert = py.run(
+            let abstract_channel_repr_assert = py.run_bound(
                 r#"
 import _shinqlx
 abstract_channel = _shinqlx.AbstractChannel("abstract")
@@ -158,7 +158,7 @@ assert repr(abstract_channel) == "abstract"
     #[cfg_attr(miri, ignore)]
     fn abstract_channel_str_representation(_pyshinqlx_setup: ()) {
         Python::with_gil(|py| {
-            let abstract_channel_str_assert = py.run(
+            let abstract_channel_str_assert = py.run_bound(
                 r#"
 import _shinqlx
 abstract_channel = _shinqlx.AbstractChannel("abstract")
@@ -175,7 +175,7 @@ assert str(abstract_channel) == "abstract"
     #[cfg_attr(miri, ignore)]
     fn abstract_channel_eq_comparison(_pyshinqlx_setup: ()) {
         Python::with_gil(|py| {
-            let abstract_channel_eq_assert = py.run(
+            let abstract_channel_eq_assert = py.run_bound(
                 r#"
 import _shinqlx
 
@@ -200,7 +200,7 @@ assert not (_shinqlx.AbstractChannel("abstract") == NoReprClass())
     #[cfg_attr(miri, ignore)]
     fn abstract_channel_not_eq_comparison(_pyshinqlx_setup: ()) {
         Python::with_gil(|py| {
-            let abstract_channel_ne_assert = py.run(
+            let abstract_channel_ne_assert = py.run_bound(
                 r#"
 import _shinqlx
 
@@ -225,7 +225,7 @@ assert _shinqlx.AbstractChannel("abstract") != NoReprClass()
     #[cfg_attr(miri, ignore)]
     fn abstract_channel_does_not_support_other_comparisons(_pyshinqlx_setup: ()) {
         Python::with_gil(|py| {
-            let abstract_channel_cmp_assert = py.run(
+            let abstract_channel_cmp_assert = py.run_bound(
                 r#"
 import _shinqlx
 
@@ -254,7 +254,7 @@ _shinqlx.AbstractChannel("abstract") < 2
         Python::with_gil(|py| {
             let abstract_channel = Py::new(py, AbstractChannel::py_new("abstract".into())).unwrap();
             let result = AbstractChannel::reply(
-                abstract_channel.as_ref(py).borrow(),
+                abstract_channel.bind(py).borrow(),
                 "asdf".into(),
                 100,
                 " ".into(),
@@ -364,7 +364,7 @@ mod console_channel_tests {
     #[cfg_attr(miri, ignore)]
     fn console_channel_can_be_created_from_python(_pyshinqlx_setup: ()) {
         Python::with_gil(|py| {
-            let console_channel_constructor = py.run(
+            let console_channel_constructor = py.run_bound(
                 r#"
 import _shinqlx
 console_channel = _shinqlx.ConsoleChannel()
@@ -389,7 +389,7 @@ console_channel = _shinqlx.ConsoleChannel()
         let result = Python::with_gil(|py| {
             let console_channel = Py::new(py, ConsoleChannel::py_new()).unwrap();
             ConsoleChannel::reply(
-                console_channel.as_ref(py).borrow(),
+                console_channel.bind(py).borrow(),
                 py,
                 "asdf".into(),
                 100,
@@ -429,7 +429,7 @@ impl ChatChannel {
 
     #[pyo3(signature = (msg, limit=100, delimiter=" ".into()))]
     fn reply(
-        self_: &PyCell<Self>,
+        self_: &Bound<'_, Self>,
         py: Python<'_>,
         msg: String,
         limit: i32,
@@ -467,20 +467,20 @@ impl ChatChannel {
         for s in joined_msgs {
             let message = format!("{last_color}{s}");
             let server_command = py
-                .eval(
+                .eval_bound(
                     "fmt.format(message)",
                     None,
                     Some(
-                        [
+                        &[
                             (intern!(py, "fmt"), fmt.clone()),
                             (intern!(py, "message"), message.clone()),
                         ]
-                        .into_py_dict(py),
+                        .into_py_dict_bound(py),
                     ),
                 )?
                 .extract::<String>()?;
 
-            let next_frame_reply: Py<PyAny> = PyModule::from_code(
+            let next_frame_reply: Py<PyAny> = PyModule::from_code_bound(
                 py,
                 r#"
 import shinqlx
@@ -527,7 +527,7 @@ mod chat_channel_tests {
     #[cfg_attr(miri, ignore)]
     fn console_channel_can_be_created_from_python(_pyshinqlx_setup: ()) {
         Python::with_gil(|py| {
-            let chat_channel_constructor = py.run(
+            let chat_channel_constructor = py.run_bound(
                 r#"
 import _shinqlx
 chat_channel = _shinqlx.ChatChannel()
@@ -627,13 +627,13 @@ mod tell_channel_tests {
         let player = default_test_player();
 
         Python::with_gil(|py| {
-            let tell_channel_constructor = py.run(
+            let tell_channel_constructor = py.run_bound(
                 r#"
 import _shinqlx
 tell_channel = _shinqlx.TellChannel(player)
             "#,
                 None,
-                Some(vec![("player", player.into_py(py))].into_py_dict(py)),
+                Some(&vec![("player", player.into_py(py))].into_py_dict_bound(py)),
             );
             assert!(tell_channel_constructor.is_ok());
         });
@@ -767,7 +767,7 @@ mod team_chat_channel_tests {
     #[cfg_attr(miri, ignore)]
     fn team_chat_channel_can_be_created_from_python(_pyshinqlx_setup: ()) {
         Python::with_gil(|py| {
-            let team_chat_channel_constructor = py.run(
+            let team_chat_channel_constructor = py.run_bound(
                 r#"
 import _shinqlx
 tell_channel = _shinqlx.TeamChatChannel("all")
@@ -991,13 +991,13 @@ mod client_command_channel_tests {
         let player = default_test_player();
 
         Python::with_gil(|py| {
-            let client_command_channel_constructor = py.run(
+            let client_command_channel_constructor = py.run_bound(
                 r#"
 import _shinqlx
 tell_channel = _shinqlx.ClientCommandChannel(player)
             "#,
                 None,
-                Some(vec![("player", player.into_py(py))].into_py_dict(py)),
+                Some(&vec![("player", player.into_py(py))].into_py_dict_bound(py)),
             );
             assert!(client_command_channel_constructor.is_ok());
         });
