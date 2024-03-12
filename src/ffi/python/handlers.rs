@@ -423,7 +423,7 @@ static ZMQ_WARNING_ISSUED: AtomicBool = AtomicBool::new(false);
 static IS_FIRST_GAME: AtomicBool = AtomicBool::new(true);
 
 fn try_handle_new_game(py: Python<'_>, is_restart: bool) -> PyResult<()> {
-    let shinqlx_module = py.import(intern!(py, "shinqlx"))?;
+    let shinqlx_module = py.import_bound(intern!(py, "shinqlx"))?;
     if IS_FIRST_GAME.load(Ordering::SeqCst) {
         shinqlx_module.call_method0(intern!(py, "late_init"))?;
         IS_FIRST_GAME.store(false, Ordering::SeqCst);
@@ -440,7 +440,7 @@ fn try_handle_new_game(py: Python<'_>, is_restart: bool) -> PyResult<()> {
         }
     }
 
-    set_map_subtitles(shinqlx_module)?;
+    set_map_subtitles(&shinqlx_module)?;
 
     let event_dispatchers_module = shinqlx_module.getattr(intern!(py, "EVENT_DISPATCHERS"))?;
     if !is_restart {
