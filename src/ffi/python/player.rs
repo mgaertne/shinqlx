@@ -102,7 +102,7 @@ impl Player {
         })
     }
 
-    fn __repr__(slf: &PyCell<Self>) -> String {
+    fn __repr__(slf: &Bound<'_, Self>) -> String {
         let Ok(classname) = slf.get_type().qualname() else {
             return "NonexistentPlayer".into();
         };
@@ -213,18 +213,18 @@ impl Player {
     }
 
     #[getter(cvars)]
-    fn get_cvars<'a>(&self, py: Python<'a>) -> PyResult<&'a PyDict> {
+    fn get_cvars<'a>(&self, py: Python<'a>) -> PyResult<Bound<'a, PyDict>> {
         if !self.valid {
             return Err(NonexistentPlayerError::new_err(
                 "The player does not exist anymore. Did the player disconnect?",
             ));
         }
 
-        Ok(parse_variables(self.user_info.clone()).into_py_dict(py))
+        Ok(parse_variables(self.user_info.clone()).into_py_dict_bound(py))
     }
 
     #[setter(cvars)]
-    fn set_cvars(&mut self, py: Python<'_>, new_cvars: &PyDict) -> PyResult<()> {
+    fn set_cvars(&mut self, py: Python<'_>, new_cvars: Bound<'_, PyDict>) -> PyResult<()> {
         let new = new_cvars
             .iter()
             .map(|(key, value)| format!(r"\{key}\{value}"))
@@ -626,7 +626,12 @@ impl Player {
     }
 
     #[pyo3(signature = (reset = false, * * kwargs))]
-    fn position(&self, py: Python<'_>, reset: bool, kwargs: Option<&PyDict>) -> PyResult<PyObject> {
+    fn position(
+        &self,
+        py: Python<'_>,
+        reset: bool,
+        kwargs: Option<&Bound<'_, PyDict>>,
+    ) -> PyResult<PyObject> {
         let pos = if reset {
             Vector3(0, 0, 0)
         } else {
@@ -658,7 +663,12 @@ impl Player {
     }
 
     #[pyo3(signature = (reset = false, * * kwargs))]
-    fn velocity(&self, py: Python<'_>, reset: bool, kwargs: Option<&PyDict>) -> PyResult<PyObject> {
+    fn velocity(
+        &self,
+        py: Python<'_>,
+        reset: bool,
+        kwargs: Option<&Bound<'_, PyDict>>,
+    ) -> PyResult<PyObject> {
         let vel = if reset {
             Vector3(0, 0, 0)
         } else {
@@ -690,7 +700,12 @@ impl Player {
     }
 
     #[pyo3(signature = (reset = false, * * kwargs))]
-    fn weapons(&self, py: Python<'_>, reset: bool, kwargs: Option<&PyDict>) -> PyResult<PyObject> {
+    fn weapons(
+        &self,
+        py: Python<'_>,
+        reset: bool,
+        kwargs: Option<&Bound<'_, PyDict>>,
+    ) -> PyResult<PyObject> {
         let weaps = if reset {
             Weapons(0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0)
         } else {
@@ -801,7 +816,12 @@ impl Player {
     }
 
     #[pyo3(signature = (reset = false, * * kwargs))]
-    fn ammo(&self, py: Python<'_>, reset: bool, kwargs: Option<&PyDict>) -> PyResult<PyObject> {
+    fn ammo(
+        &self,
+        py: Python<'_>,
+        reset: bool,
+        kwargs: Option<&Bound<'_, PyDict>>,
+    ) -> PyResult<PyObject> {
         let ammos = if reset {
             Weapons(0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0)
         } else {
@@ -888,7 +908,12 @@ impl Player {
     }
 
     #[pyo3(signature = (reset = false, * * kwargs))]
-    fn powerups(&self, py: Python<'_>, reset: bool, kwargs: Option<&PyDict>) -> PyResult<PyObject> {
+    fn powerups(
+        &self,
+        py: Python<'_>,
+        reset: bool,
+        kwargs: Option<&Bound<'_, PyDict>>,
+    ) -> PyResult<PyObject> {
         let powerups = if reset {
             Powerups(0, 0, 0, 0, 0, 0)
         } else {
@@ -962,7 +987,7 @@ impl Player {
         &mut self,
         py: Python<'_>,
         reset: bool,
-        kwargs: Option<&PyDict>,
+        kwargs: Option<&Bound<'_, PyDict>>,
     ) -> PyResult<PyObject> {
         let opt_state = pyshinqlx_player_state(py, self.id)?;
         let init_flight = if !opt_state.as_ref().is_some_and(|state| {
@@ -1121,13 +1146,13 @@ impl Player {
         &self,
         py: Python<'py>,
         msg: String,
-        kwargs: Option<&'py PyDict>,
-    ) -> PyResult<PyObject> {
+        kwargs: Option<&Bound<'py, PyDict>>,
+    ) -> PyResult<Py<PyAny>> {
         let tell_channel = self.get_channel(py);
         if tell_channel.is_none(py) {
             return Err(PyNotImplementedError::new_err(""));
         }
-        tell_channel.call_method(py, intern!(py, "reply"), (msg,), kwargs)
+        tell_channel.call_method_bound(py, intern!(py, "reply"), (msg,), kwargs)
     }
 
     #[pyo3(signature = (reason = ""))]
@@ -1212,7 +1237,7 @@ impl Player {
     }
 
     #[classmethod]
-    fn all_players(_cls: &PyType, py: Python<'_>) -> PyResult<Vec<Player>> {
+    fn all_players(_cls: &Bound<'_, PyType>, py: Python<'_>) -> PyResult<Vec<Player>> {
         let players_info = pyshinqlx_players_info(py)?;
         Ok(players_info
             .iter()
@@ -1378,7 +1403,7 @@ mod pyshinqlx_player_tests {
     #[cfg_attr(miri, ignore)]
     fn repr_with_all_values_set() {
         let result = Python::with_gil(|py| {
-            let player = PyCell::new(
+            let player = Bound::new(
                 py,
                 Player {
                     player_info: PlayerInfo {
@@ -1390,7 +1415,7 @@ mod pyshinqlx_player_tests {
                 },
             )
             .expect("this should not happen");
-            Player::__repr__(player)
+            Player::__repr__(&player)
         });
         assert_eq!(result, "Player(2:'UnnamedPlayer':1234567890)");
     }
@@ -1554,7 +1579,7 @@ mod pyshinqlx_player_tests {
             ..default_test_player_info()
         };
         let result = Python::with_gil(|py| {
-            py.run(
+            py.run_bound(
                 r#"
 import _shinqlx
 assert(_shinqlx.Player(42, player_info) == _shinqlx.Player(42, player_info))
@@ -1562,11 +1587,11 @@ assert((_shinqlx.Player(42, player_info) == _shinqlx.Player(41, player_info2)) =
             "#,
                 None,
                 Some(
-                    [
+                    &[
                         ("player_info", player_info.into_py(py)),
                         ("player_info2", player_info2.into_py(py)),
                     ]
-                    .into_py_dict(py),
+                    .into_py_dict_bound(py),
                 ),
             )
         });
@@ -1582,7 +1607,7 @@ assert((_shinqlx.Player(42, player_info) == _shinqlx.Player(41, player_info2)) =
             ..default_test_player_info()
         };
         let result = Python::with_gil(|py| {
-            py.run(
+            py.run_bound(
                 r#"
 import _shinqlx
 assert(_shinqlx.Player(42, player_info) == 1234567890)
@@ -1590,7 +1615,7 @@ assert((_shinqlx.Player(42, player_info) == 1234567891) == False)
 assert((_shinqlx.Player(42, player_info) == "asdf") == False)
             "#,
                 None,
-                Some([("player_info", player_info.into_py(py))].into_py_dict(py)),
+                Some(&[("player_info", player_info.into_py(py))].into_py_dict_bound(py)),
             )
         });
         assert!(result.is_ok());
@@ -1610,7 +1635,7 @@ assert((_shinqlx.Player(42, player_info) == "asdf") == False)
             ..default_test_player_info()
         };
         let result = Python::with_gil(|py| {
-            py.run(
+            py.run_bound(
                 r#"
 import _shinqlx
 assert((_shinqlx.Player(42, player_info) != _shinqlx.Player(42, player_info)) == False)
@@ -1618,11 +1643,11 @@ assert(_shinqlx.Player(42, player_info) != _shinqlx.Player(41, player_info2))
             "#,
                 None,
                 Some(
-                    [
+                    &[
                         ("player_info", player_info.into_py(py)),
                         ("player_info2", player_info2.into_py(py)),
                     ]
-                    .into_py_dict(py),
+                    .into_py_dict_bound(py),
                 ),
             )
         });
@@ -1638,7 +1663,7 @@ assert(_shinqlx.Player(42, player_info) != _shinqlx.Player(41, player_info2))
             ..default_test_player_info()
         };
         let result = Python::with_gil(|py| {
-            py.run(
+            py.run_bound(
                 r#"
 import _shinqlx
 assert((_shinqlx.Player(42, player_info) != 1234567890) == False)
@@ -1646,7 +1671,7 @@ assert(_shinqlx.Player(42, player_info) != 1234567891)
 assert(_shinqlx.Player(42, player_info) != "asdf")
             "#,
                 None,
-                Some([("player_info", player_info.into_py(py))].into_py_dict(py)),
+                Some(&[("player_info", player_info.into_py(py))].into_py_dict_bound(py)),
             )
         });
         assert!(result.is_ok());
@@ -1744,13 +1769,13 @@ assert(_shinqlx.Player(42, player_info) != "asdf")
         };
 
         let result = Python::with_gil(|py| {
-            py.run(
+            py.run_bound(
                 r#"
 player.update()
 assert(player._valid)
             "#,
                 None,
-                Some([("player", player.into_py(py))].into_py_dict(py)),
+                Some(&[("player", player.into_py(py))].into_py_dict_bound(py)),
             )
         });
         assert!(result.is_ok());
@@ -1892,7 +1917,7 @@ assert(player._valid)
         let result = Python::with_gil(|py| {
             player.set_cvars(
                 py,
-                [("asdf", "qwertz"), ("name", "UnnamedPlayer")].into_py_dict(py),
+                [("asdf", "qwertz"), ("name", "UnnamedPlayer")].into_py_dict_bound(py),
             )
         });
         assert!(result.is_ok());
@@ -3435,7 +3460,7 @@ assert(player._valid)
             let result = player.position(
                 py,
                 false,
-                Some([("x", 4), ("y", 5), ("z", 6)].into_py_dict(py)),
+                Some(&[("x", 4), ("y", 5), ("z", 6)].into_py_dict_bound(py)),
             );
             assert_eq!(
                 result
@@ -3480,7 +3505,7 @@ assert(player._valid)
         let player = default_test_player();
 
         Python::with_gil(|py| {
-            let result = player.position(py, true, Some(position.into_py_dict(py)));
+            let result = player.position(py, true, Some(&position.into_py_dict_bound(py)));
             assert_eq!(
                 result
                     .expect("result was not Ok")
@@ -3514,7 +3539,7 @@ assert(player._valid)
             let result = player.position(
                 py,
                 false,
-                Some([("x", 4), ("y", 5), ("z", 6)].into_py_dict(py)),
+                Some(&[("x", 4), ("y", 5), ("z", 6)].into_py_dict_bound(py)),
             );
             assert_eq!(
                 result
@@ -3644,7 +3669,7 @@ assert(player._valid)
             let result = player.velocity(
                 py,
                 false,
-                Some([("x", 4), ("y", 5), ("z", 6)].into_py_dict(py)),
+                Some(&[("x", 4), ("y", 5), ("z", 6)].into_py_dict_bound(py)),
             );
             assert_eq!(
                 result
@@ -3689,7 +3714,7 @@ assert(player._valid)
         let player = default_test_player();
 
         Python::with_gil(|py| {
-            let result = player.velocity(py, true, Some(velocity.into_py_dict(py)));
+            let result = player.velocity(py, true, Some(&velocity.into_py_dict_bound(py)));
             assert_eq!(
                 result
                     .expect("result was not Ok")
@@ -3723,7 +3748,7 @@ assert(player._valid)
             let result = player.velocity(
                 py,
                 false,
-                Some([("x", 4), ("y", 5), ("z", 6)].into_py_dict(py)),
+                Some(&[("x", 4), ("y", 5), ("z", 6)].into_py_dict_bound(py)),
             );
             assert_eq!(
                 result
@@ -3854,7 +3879,7 @@ assert(player._valid)
                 py,
                 false,
                 Some(
-                    [
+                    &[
                         ("g", true),
                         ("mg", false),
                         ("sg", true),
@@ -3871,7 +3896,7 @@ assert(player._valid)
                         ("hmg", false),
                         ("hands", true),
                     ]
-                    .into_py_dict(py),
+                    .into_py_dict_bound(py),
                 ),
             );
             assert_eq!(
@@ -3929,7 +3954,7 @@ assert(player._valid)
         let player = default_test_player();
 
         Python::with_gil(|py| {
-            let result = player.weapons(py, true, Some(weapons.into_py_dict(py)));
+            let result = player.weapons(py, true, Some(&weapons.into_py_dict_bound(py)));
             assert_eq!(
                 result
                     .expect("result was not Ok")
@@ -3964,7 +3989,7 @@ assert(player._valid)
                 py,
                 false,
                 Some(
-                    [
+                    &[
                         ("g", true),
                         ("mg", false),
                         ("sg", true),
@@ -3981,7 +4006,7 @@ assert(player._valid)
                         ("hmg", false),
                         ("hands", true),
                     ]
-                    .into_py_dict(py),
+                    .into_py_dict_bound(py),
                 ),
             );
             assert_eq!(
@@ -4349,7 +4374,7 @@ assert(player._valid)
                 py,
                 false,
                 Some(
-                    [
+                    &[
                         ("g", 1),
                         ("mg", 2),
                         ("sg", 3),
@@ -4366,7 +4391,7 @@ assert(player._valid)
                         ("hmg", 14),
                         ("hands", 15),
                     ]
-                    .into_py_dict(py),
+                    .into_py_dict_bound(py),
                 ),
             );
             assert_eq!(
@@ -4424,7 +4449,7 @@ assert(player._valid)
         let player = default_test_player();
 
         Python::with_gil(|py| {
-            let result = player.ammo(py, true, Some(ammos.into_py_dict(py)));
+            let result = player.ammo(py, true, Some(&ammos.into_py_dict_bound(py)));
             assert_eq!(
                 result
                     .expect("result was not Ok")
@@ -4459,7 +4484,7 @@ assert(player._valid)
                 py,
                 false,
                 Some(
-                    [
+                    &[
                         ("g", 1),
                         ("mg", 2),
                         ("sg", 3),
@@ -4476,7 +4501,7 @@ assert(player._valid)
                         ("hmg", 14),
                         ("hands", 15),
                     ]
-                    .into_py_dict(py),
+                    .into_py_dict_bound(py),
                 ),
             );
             assert_eq!(
@@ -4608,7 +4633,7 @@ assert(player._valid)
                 py,
                 false,
                 Some(
-                    [
+                    &[
                         ("quad", 6.5),
                         ("battlesuit", 5.0),
                         ("haste", 4.25),
@@ -4616,7 +4641,7 @@ assert(player._valid)
                         ("regeneration", 2.125),
                         ("invulnerability", 1.0),
                     ]
-                    .into_py_dict(py),
+                    .into_py_dict_bound(py),
                 ),
             );
             assert_eq!(
@@ -4665,7 +4690,7 @@ assert(player._valid)
         let player = default_test_player();
 
         Python::with_gil(|py| {
-            let result = player.powerups(py, true, Some(powerups.into_py_dict(py)));
+            let result = player.powerups(py, true, Some(&powerups.into_py_dict_bound(py)));
             assert_eq!(
                 result
                     .expect("result was not Ok")
@@ -4700,7 +4725,7 @@ assert(player._valid)
                 py,
                 false,
                 Some(
-                    [
+                    &[
                         ("quad", 6),
                         ("battlesuit", 5),
                         ("haste", 4),
@@ -4708,7 +4733,7 @@ assert(player._valid)
                         ("regeneration", 2),
                         ("invulnerability", 1),
                     ]
-                    .into_py_dict(py),
+                    .into_py_dict_bound(py),
                 ),
             );
             assert_eq!(
@@ -5080,7 +5105,10 @@ assert(player._valid)
             let result = player.flight(
                 py,
                 false,
-                Some([("fuel", 5), ("max_fuel", 6), ("thrust", 7), ("refuel", 8)].into_py_dict(py)),
+                Some(
+                    &[("fuel", 5), ("max_fuel", 6), ("thrust", 7), ("refuel", 8)]
+                        .into_py_dict_bound(py),
+                ),
             );
             assert_eq!(
                 result
@@ -5172,7 +5200,7 @@ assert(player._valid)
         let mut player = default_test_player();
 
         Python::with_gil(|py| {
-            let result = player.flight(py, true, Some(flight_opts.into_py_dict(py)));
+            let result = player.flight(py, true, Some(&flight_opts.into_py_dict_bound(py)));
             assert_eq!(
                 result
                     .expect("result was not Ok")
@@ -5206,7 +5234,10 @@ assert(player._valid)
             let result = player.flight(
                 py,
                 false,
-                Some([("fuel", 5), ("max_fuel", 6), ("refuel", 8), ("thrust", 7)].into_py_dict(py)),
+                Some(
+                    &[("fuel", 5), ("max_fuel", 6), ("refuel", 8), ("thrust", 7)]
+                        .into_py_dict_bound(py),
+                ),
             );
             assert_eq!(
                 result
@@ -6816,7 +6847,8 @@ assert(player._valid)
             mock_game_entity
         });
 
-        let all_players = Python::with_gil(|py| Player::all_players(py.get_type::<Player>(), py));
+        let all_players =
+            Python::with_gil(|py| Player::all_players(&py.get_type_bound::<Player>(), py));
         assert_eq!(
             all_players.expect("result was not ok"),
             vec![
@@ -6941,7 +6973,7 @@ mod pyshinqlx_abstract_dummy_player_tests {
     #[cfg_attr(miri, ignore)]
     fn dummy_player_is_a_player_instance(_pyshinqlx_setup: ()) {
         let result = Python::with_gil(|py| {
-            py.run(
+            py.run_bound(
                 r#"
 import _shinqlx
 assert(isinstance(_shinqlx.AbstractDummyPlayer(), _shinqlx.Player))
@@ -6957,7 +6989,7 @@ assert(isinstance(_shinqlx.AbstractDummyPlayer(), _shinqlx.Player))
     #[cfg_attr(miri, ignore)]
     fn get_id_returns_attribute_error(_pyshinqlx_setup: ()) {
         Python::with_gil(|py| {
-            let result = py.run(
+            let result = py.run_bound(
                 r#"
 import _shinqlx
 _shinqlx.AbstractDummyPlayer().id
@@ -6973,7 +7005,7 @@ _shinqlx.AbstractDummyPlayer().id
     #[cfg_attr(miri, ignore)]
     fn get_steam_id_returns_not_implemented_error(_pyshinqlx_setup: ()) {
         Python::with_gil(|py| {
-            let result = py.run(
+            let result = py.run_bound(
                 r#"
 import _shinqlx
 _shinqlx.AbstractDummyPlayer().steam_id
@@ -6989,7 +7021,7 @@ _shinqlx.AbstractDummyPlayer().steam_id
     #[cfg_attr(miri, ignore)]
     fn update_does_nothing(_pyshinqlx_setup: ()) {
         Python::with_gil(|py| {
-            let result = py.run(
+            let result = py.run_bound(
                 r#"
 import _shinqlx
 _shinqlx.AbstractDummyPlayer().update()
@@ -7005,7 +7037,7 @@ _shinqlx.AbstractDummyPlayer().update()
     #[cfg_attr(miri, ignore)]
     fn get_channel_returns_not_implemented_error(_pyshinqlx_setup: ()) {
         Python::with_gil(|py| {
-            let result = py.run(
+            let result = py.run_bound(
                 r#"
 import _shinqlx
 _shinqlx.AbstractDummyPlayer().channel
@@ -7021,7 +7053,7 @@ _shinqlx.AbstractDummyPlayer().channel
     #[cfg_attr(miri, ignore)]
     fn tell_returns_not_implemented_error(_pyshinqlx_setup: ()) {
         Python::with_gil(|py| {
-            let result = py.run(
+            let result = py.run_bound(
                 r#"
 import _shinqlx
 _shinqlx.AbstractDummyPlayer().tell("asdf")
@@ -7053,8 +7085,8 @@ impl RconDummyPlayer {
     fn get_channel<'py>(
         #[allow(unused_variables)] slf: PyRef<'py, Self>,
         py: Python<'py>,
-    ) -> PyResult<&'py PyAny> {
-        let console_channel = PyModule::from_code(
+    ) -> PyResult<Bound<'py, PyAny>> {
+        let console_channel = PyModule::from_code_bound(
             py,
             r#"
 import shinqlx
@@ -7073,9 +7105,9 @@ console_channel = shinqlx.CONSOLE_CHANNEL"#,
         #[allow(unused_variables)] slf: PyRef<'py, Self>,
         py: Python<'py>,
         msg: String,
-        #[allow(unused_variables)] kwargs: Option<&PyDict>,
-    ) -> PyResult<&'py PyAny> {
-        let console_channel = PyModule::from_code(
+        #[allow(unused_variables)] kwargs: Option<&Bound<'py, PyDict>>,
+    ) -> PyResult<Bound<'py, PyAny>> {
+        let console_channel = PyModule::from_code_bound(
             py,
             r#"
 import shinqlx
@@ -7102,7 +7134,7 @@ mod pyshinqlx_rcon_dummy_player_tests {
     #[cfg_attr(miri, ignore)]
     fn dummy_player_is_a_player_instance(_pyshinqlx_setup: ()) {
         let result = Python::with_gil(|py| {
-            py.run(
+            py.run_bound(
                 r#"
 import _shinqlx
 assert(isinstance(_shinqlx.RconDummyPlayer(), _shinqlx.Player))
