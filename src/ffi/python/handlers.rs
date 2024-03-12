@@ -17,8 +17,8 @@ use pyo3::{
 use regex::{Regex, RegexBuilder};
 
 fn try_log_exception(py: Python<'_>, exception: PyErr) -> PyResult<()> {
-    let logging_module = py.import(intern!(py, "logging"))?;
-    let traceback_module = py.import(intern!(py, "traceback"))?;
+    let logging_module = py.import_bound(intern!(py, "logging"))?;
+    let traceback_module = py.import_bound(intern!(py, "traceback"))?;
 
     let py_logger =
         logging_module.call_method1(intern!(py, "getLogger"), (intern!(py, "shinqlx"),))?;
@@ -27,9 +27,9 @@ fn try_log_exception(py: Python<'_>, exception: PyErr) -> PyResult<()> {
         .call_method1(
             intern!(py, "format_exception"),
             (
-                exception.get_type(py),
-                exception.value(py),
-                exception.traceback(py),
+                exception.get_type_bound(py),
+                exception.value_bound(py),
+                exception.traceback_bound(py),
             ),
         )?
         .extract()?;
@@ -48,7 +48,7 @@ fn log_exception(py: Python<'_>, exception: PyErr) {
 fn try_handle_rcon(py: Python<'_>, cmd: String) -> PyResult<Option<bool>> {
     let rcon_dummy_player = Py::new(py, RconDummyPlayer::py_new())?;
 
-    let shinqlx_module = py.import(intern!(py, "shinqlx"))?;
+    let shinqlx_module = py.import_bound(intern!(py, "shinqlx"))?;
     let shinqlx_console_channel = shinqlx_module.getattr(intern!(py, "CONSOLE_CHANNEL"))?;
 
     let shinqlx_commands = shinqlx_module.getattr(intern!(py, "COMMANDS"))?;
@@ -124,7 +124,7 @@ fn is_vote_active() -> bool {
 fn try_handle_client_command(py: Python<'_>, client_id: i32, cmd: String) -> PyResult<PyObject> {
     let player = Player::py_new(client_id, None)?;
 
-    let shinqlx_module = py.import(intern!(py, "shinqlx"))?;
+    let shinqlx_module = py.import_bound(intern!(py, "shinqlx"))?;
     let shinqlx_event_dispatchers = shinqlx_module.getattr(intern!(py, "EVENT_DISPATCHERS"))?;
     let server_command_dispatcher =
         shinqlx_event_dispatchers.get_item(intern!(py, "client_command"))?;
@@ -268,14 +268,14 @@ fn try_handle_client_command(py: Python<'_>, client_id: i32, cmd: String) -> PyR
                     shinqlx_event_dispatchers.get_item(intern!(py, "userinfo"))?;
                 let result = userinfo_dispatcher.call_method1(
                     intern!(py, "dispatch"),
-                    (player.clone(), changed.into_py_dict(py)),
+                    (player.clone(), &changed.into_py_dict_bound(py)),
                 )?;
                 if result.extract::<bool>().is_ok_and(|value| !value) {
                     return Ok(false.into_py(py));
                 }
-                if let Ok(changed_values) = result.extract::<&PyDict>() {
-                    let updated_info = new_info.into_py_dict(py);
-                    updated_info.update(changed_values.as_mapping())?;
+                if let Ok(changed_values) = result.extract::<Bound<'_, PyDict>>() {
+                    let updated_info = new_info.into_py_dict_bound(py);
+                    updated_info.update(changed_values.to_owned().as_mapping())?;
                     let formatted_key_values = updated_info
                         .iter()
                         .map(|(key, value)| format!(r"\{key}\{value}"))
@@ -320,7 +320,7 @@ fn try_handle_server_command(py: Python<'_>, client_id: i32, cmd: String) -> PyR
         return Ok(true.into_py(py));
     };
 
-    let shinqlx_module = py.import(intern!(py, "shinqlx"))?;
+    let shinqlx_module = py.import_bound(intern!(py, "shinqlx"))?;
     let shinqlx_event_dispatchers = shinqlx_module.getattr(intern!(py, "EVENT_DISPATCHERS"))?;
     let server_command_dispatcher =
         shinqlx_event_dispatchers.get_item(intern!(py, "server_command"))?;
@@ -357,19 +357,19 @@ pub(crate) fn handle_server_command(py: Python<'_>, client_id: i32, cmd: String)
 }
 
 fn try_run_frame_tasks(py: Python<'_>) -> PyResult<()> {
-    let shinqlx_module = py.import(intern!(py, "shinqlx"))?;
+    let shinqlx_module = py.import_bound(intern!(py, "shinqlx"))?;
     let frame_tasks = shinqlx_module.getattr(intern!(py, "frame_tasks"))?;
     frame_tasks.call_method(
         intern!(py, "run"),
         (),
-        Some([(intern!(py, "blocking"), false)].into_py_dict(py)),
+        Some(&[(intern!(py, "blocking"), false)].into_py_dict_bound(py)),
     )?;
 
     Ok(())
 }
 
 fn try_handle_frame(py: Python<'_>) -> PyResult<()> {
-    let shinqlx_module = py.import(intern!(py, "shinqlx"))?;
+    let shinqlx_module = py.import_bound(intern!(py, "shinqlx"))?;
     let shinqlx_event_dispatchers = shinqlx_module.getattr(intern!(py, "EVENT_DISPATCHERS"))?;
     let frame_dispatcher = shinqlx_event_dispatchers.get_item(intern!(py, "frame"))?;
     frame_dispatcher.call_method0(intern!(py, "dispatch"))?;
@@ -378,7 +378,7 @@ fn try_handle_frame(py: Python<'_>) -> PyResult<()> {
 }
 
 fn run_next_frame_tasks(py: Python<'_>) {
-    match PyModule::from_code(
+    match PyModule::from_code_bound(
         py,
         r#"
 from shinqlx import next_frame_tasks, frame_tasks
@@ -469,7 +469,7 @@ pub(crate) fn handle_new_game(py: Python<'_>, is_restart: bool) -> Option<bool> 
 static AD_ROUND_NUMBER: AtomicI32 = AtomicI32::new(0);
 
 fn try_handle_set_configstring(py: Python<'_>, index: u32, value: String) -> PyResult<PyObject> {
-    let shinqlx_module = py.import(intern!(py, "shinqlx"))?;
+    let shinqlx_module = py.import_bound(intern!(py, "shinqlx"))?;
     let shinqlx_event_dispatchers = shinqlx_module.getattr(intern!(py, "EVENT_DISPATCHERS"))?;
 
     let set_confistring_dispatcher =
@@ -602,7 +602,7 @@ pub(crate) fn handle_set_configstring(py: Python<'_>, index: u32, value: String)
 fn try_handle_player_connect(py: Python<'_>, client_id: i32, _is_bot: bool) -> PyResult<PyObject> {
     let player = Player::py_new(client_id, None)?;
 
-    let shinqlx_module = py.import(intern!(py, "shinqlx"))?;
+    let shinqlx_module = py.import_bound(intern!(py, "shinqlx"))?;
     let shinqlx_event_dispatchers = shinqlx_module.getattr(intern!(py, "EVENT_DISPATCHERS"))?;
     let player_connect_dispatcher =
         shinqlx_event_dispatchers.get_item(intern!(py, "player_connect"))?;
@@ -626,7 +626,7 @@ pub(crate) fn handle_player_connect(py: Python<'_>, client_id: i32, is_bot: bool
 fn try_handle_player_loaded(py: Python<'_>, client_id: i32) -> PyResult<PyObject> {
     let player = Player::py_new(client_id, None)?;
 
-    let shinqlx_module = py.import(intern!(py, "shinqlx"))?;
+    let shinqlx_module = py.import_bound(intern!(py, "shinqlx"))?;
     let shinqlx_event_dispatchers = shinqlx_module.getattr(intern!(py, "EVENT_DISPATCHERS"))?;
     let player_loaded_dispatcher =
         shinqlx_event_dispatchers.get_item(intern!(py, "player_loaded"))?;
@@ -653,7 +653,7 @@ fn try_handle_player_disconnect(
 ) -> PyResult<PyObject> {
     let player = Player::py_new(client_id, None)?;
 
-    let shinqlx_module = py.import(intern!(py, "shinqlx"))?;
+    let shinqlx_module = py.import_bound(intern!(py, "shinqlx"))?;
     let shinqlx_event_dispatchers = shinqlx_module.getattr(intern!(py, "EVENT_DISPATCHERS"))?;
     let player_disconnect_dispatcher =
         shinqlx_event_dispatchers.get_item(intern!(py, "player_disconnect"))?;
@@ -678,7 +678,7 @@ pub(crate) fn handle_player_disconnect(
 fn try_handle_player_spawn(py: Python<'_>, client_id: i32) -> PyResult<PyObject> {
     let player = Player::py_new(client_id, None)?;
 
-    let shinqlx_module = py.import(intern!(py, "shinqlx"))?;
+    let shinqlx_module = py.import_bound(intern!(py, "shinqlx"))?;
     let shinqlx_event_dispatchers = shinqlx_module.getattr(intern!(py, "EVENT_DISPATCHERS"))?;
     let player_spawn_dispatcher =
         shinqlx_event_dispatchers.get_item(intern!(py, "player_spawn"))?;
@@ -701,7 +701,7 @@ pub(crate) fn handle_player_spawn(py: Python<'_>, client_id: i32) -> PyObject {
 fn try_handle_kamikaze_use(py: Python<'_>, client_id: i32) -> PyResult<PyObject> {
     let player = Player::py_new(client_id, None)?;
 
-    let shinqlx_module = py.import(intern!(py, "shinqlx"))?;
+    let shinqlx_module = py.import_bound(intern!(py, "shinqlx"))?;
     let shinqlx_event_dispatchers = shinqlx_module.getattr(intern!(py, "EVENT_DISPATCHERS"))?;
     let kamikaze_use_dispatcher =
         shinqlx_event_dispatchers.get_item(intern!(py, "kamikaze_use"))?;
@@ -726,7 +726,7 @@ fn try_handle_kamikaze_explode(
 ) -> PyResult<PyObject> {
     let player = Player::py_new(client_id, None)?;
 
-    let shinqlx_module = py.import(intern!(py, "shinqlx"))?;
+    let shinqlx_module = py.import_bound(intern!(py, "shinqlx"))?;
     let shinqlx_event_dispatchers = shinqlx_module.getattr(intern!(py, "EVENT_DISPATCHERS"))?;
     let kamikaze_explode_dispatcher =
         shinqlx_event_dispatchers.get_item(intern!(py, "kamikaze_explode"))?;
@@ -772,7 +772,7 @@ fn try_handle_damage(
         }
     });
 
-    let shinqlx_module = py.import(intern!(py, "shinqlx"))?;
+    let shinqlx_module = py.import_bound(intern!(py, "shinqlx"))?;
     let shinqlx_event_dispatchers = shinqlx_module.getattr(intern!(py, "EVENT_DISPATCHERS"))?;
     let damage_dispatcher = shinqlx_event_dispatchers.get_item(intern!(py, "damage"))?;
     let _ = damage_dispatcher.call_method1(
@@ -813,7 +813,7 @@ fn try_handle_console_print(py: Python<'_>, text: String) -> PyResult<PyObject> 
     let console_text = text.clone();
     logger.call_method1(intern!(py, "debug"), (console_text.trim_end_matches('\n'),))?;
 
-    let shinqlx_module = py.import(intern!(py, "shinqlx"))?;
+    let shinqlx_module = py.import_bound(intern!(py, "shinqlx"))?;
     let event_dispatchers = shinqlx_module.getattr(intern!(py, "EVENT_DISPATCHERS"))?;
     let console_print_dispatcher = event_dispatchers.get_item(intern!(py, "console_print"))?;
     let result = console_print_dispatcher.call_method1(intern!(py, "dispatch"), (console_text,))?;
@@ -857,7 +857,7 @@ pub(crate) struct PrintRedirector {
 impl PrintRedirector {
     #[new]
     fn py_new(py: Python<'_>, channel: PyObject) -> PyResult<PrintRedirector> {
-        if !channel.as_ref(py).is_instance_of::<AbstractChannel>() {
+        if !channel.bind(py).is_instance_of::<AbstractChannel>() {
             return Err(PyValueError::new_err(
                 "The redirection channel must be an instance of shinqlx.AbstractChannel.",
             ));
