@@ -7,7 +7,7 @@ use serde_json::Value;
 use zmq::{Context, SocketType, DONTWAIT, POLLIN};
 
 fn dispatch_stats_event(py: Python<'_>, stats: String) -> PyResult<()> {
-    PyModule::from_code(
+    PyModule::from_code_bound(
         py,
         r#"
 import json
@@ -26,7 +26,7 @@ def dispatch_stats_event(stats):
 }
 
 fn dispatch_game_start_event(py: Python<'_>, stats: String) -> PyResult<()> {
-    PyModule::from_code(
+    PyModule::from_code_bound(
         py,
         r#"
 import json
@@ -45,7 +45,7 @@ def dispatch_game_start_event(stats):
 }
 
 fn dispatch_round_end_event(py: Python<'_>, stats: String) -> PyResult<()> {
-    PyModule::from_code(
+    PyModule::from_code_bound(
         py,
         r#"
 import json
@@ -64,7 +64,7 @@ def dispatch_round_end_event(stats):
 }
 
 fn dispatch_game_end_event(py: Python<'_>, stats: String) -> PyResult<()> {
-    PyModule::from_code(
+    PyModule::from_code_bound(
         py,
         r#"
 import json
@@ -181,7 +181,7 @@ fn dispatch_player_death_events(
         None => opt_killer_name.and_then(|killer_name| player_by_name(py, &killer_name)),
     };
 
-    PyModule::from_code(
+    PyModule::from_code_bound(
         py,
         r#"
 import json
@@ -248,7 +248,7 @@ fn dispatch_team_switch_event(
         return Ok(());
     };
 
-    let dispatch_module = PyModule::from_code(
+    let dispatch_module = PyModule::from_code_bound(
         py,
         r#"
 import shinqlx
@@ -341,8 +341,8 @@ impl StatsListener {
     }
 
     /// Receives until 'self.done' is set to True.
-    fn keep_receiving(slf: &PyCell<Self>, py: Python<'_>) -> PyResult<()> {
-        PyModule::from_code(
+    fn keep_receiving(slf: &Bound<'_, Self>, py: Python<'_>) -> PyResult<()> {
+        PyModule::from_code_bound(
             py,
             r#"
 import threading
