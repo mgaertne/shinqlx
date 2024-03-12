@@ -103,7 +103,7 @@ impl Player {
     }
 
     fn __repr__(slf: &PyCell<Self>) -> String {
-        let Ok(classname) = slf.get_type().name() else {
+        let Ok(classname) = slf.get_type().qualname() else {
             return "NonexistentPlayer".into();
         };
         let Ok(id) = slf.getattr("id") else {
