@@ -98,11 +98,13 @@ class Game:
 
     @property
     def red_score(self):
-        return int(shinqlx.get_configstring(6))
+        configstring_value = shinqlx.get_configstring(6)
+        return int(configstring_value) if configstring_value.isdigit() else 0
 
     @property
     def blue_score(self):
-        return int(shinqlx.get_configstring(7))
+        configstring_value = shinqlx.get_configstring(7)
+        return int(configstring_value) if configstring_value.isdigit() else 0
 
     @property
     def state(self):
