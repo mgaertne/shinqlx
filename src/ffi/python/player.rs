@@ -1129,11 +1129,8 @@ impl Player {
     }
 
     #[getter(channel)]
-    fn get_channel(&self, py: Python<'_>) -> Py<PyAny> {
-        match Py::new(py, TellChannel::py_new(self)) {
-            Err(_) => py.None(),
-            Ok(tell_channel) => tell_channel.to_object(py),
-        }
+    fn get_channel(&self, py: Python<'_>) -> Option<Py<TellChannel>> {
+        Py::new(py, TellChannel::py_new(self)).ok()
     }
 
     fn center_print(&self, py: Python<'_>, msg: String) -> PyResult<()> {
@@ -1148,10 +1145,9 @@ impl Player {
         msg: String,
         kwargs: Option<&Bound<'py, PyDict>>,
     ) -> PyResult<Py<PyAny>> {
-        let tell_channel = self.get_channel(py);
-        if tell_channel.is_none(py) {
+        let Some(tell_channel) = self.get_channel(py) else {
             return Err(PyNotImplementedError::new_err(""));
-        }
+        };
         tell_channel.call_method_bound(py, intern!(py, "reply"), (msg,), kwargs)
     }
 
