@@ -625,7 +625,7 @@ impl Player {
             .map(|opt_stats| opt_stats.map(|stats| stats.ping).unwrap_or(999))
     }
 
-    #[pyo3(signature = (reset = false, * * kwargs))]
+    #[pyo3(signature = (reset = false, **kwargs))]
     fn position(
         &self,
         py: Python<'_>,
@@ -662,7 +662,7 @@ impl Player {
         }
     }
 
-    #[pyo3(signature = (reset = false, * * kwargs))]
+    #[pyo3(signature = (reset = false, **kwargs))]
     fn velocity(
         &self,
         py: Python<'_>,
@@ -699,7 +699,7 @@ impl Player {
         }
     }
 
-    #[pyo3(signature = (reset = false, * * kwargs))]
+    #[pyo3(signature = (reset = false, **kwargs))]
     fn weapons(
         &self,
         py: Python<'_>,
@@ -815,7 +815,7 @@ impl Player {
         pyshinqlx_set_weapon(py, self.id, converted_weapon as i32).map(|value| value.into_py(py))
     }
 
-    #[pyo3(signature = (reset = false, * * kwargs))]
+    #[pyo3(signature = (reset = false, **kwargs))]
     fn ammo(
         &self,
         py: Python<'_>,
@@ -907,7 +907,7 @@ impl Player {
         }
     }
 
-    #[pyo3(signature = (reset = false, * * kwargs))]
+    #[pyo3(signature = (reset = false, **kwargs))]
     fn powerups(
         &self,
         py: Python<'_>,
@@ -982,7 +982,7 @@ impl Player {
         Ok(())
     }
 
-    #[pyo3(signature = (reset = false, * * kwargs))]
+    #[pyo3(signature = (reset = false, **kwargs))]
     fn flight(
         &mut self,
         py: Python<'_>,
@@ -1141,7 +1141,7 @@ impl Player {
         pyshinqlx_send_server_command(py, Some(self.id), &cmd).map(|_| ())
     }
 
-    #[pyo3(signature = (msg, * * kwargs))]
+    #[pyo3(signature = (msg, **kwargs))]
     fn tell<'py>(
         &self,
         py: Python<'py>,
@@ -6950,7 +6950,7 @@ impl AbstractDummyPlayer {
         ))
     }
 
-    #[pyo3(signature = (msg, * * kwargs))]
+    #[pyo3(signature = (msg, **kwargs))]
     fn tell(
         &self,
         #[allow(unused_variables)] msg: String,
@@ -7100,7 +7100,7 @@ console_channel = shinqlx.CONSOLE_CHANNEL"#,
         console_channel.getattr("console_channel")
     }
 
-    #[pyo3(signature = (msg, * * kwargs))]
+    #[pyo3(signature = (msg, **kwargs))]
     fn tell<'py>(
         #[allow(unused_variables)] slf: PyRef<'py, Self>,
         py: Python<'py>,
