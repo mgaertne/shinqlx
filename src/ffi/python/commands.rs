@@ -419,30 +419,27 @@ impl CommandInvoker {
                     msg.clone(),
                     channel.bind(py).into_py(py),
                 )?;
-                if cmd_result.is_none(py) {
-                    continue;
-                }
-                if cmd_result.extract::<i32>(py).is_ok_and(|value| {
-                    value == PythonReturnCodes::RET_STOP as i32
-                        || value == PythonReturnCodes::RET_STOP_ALL as i32
+                let cmd_result_return_code = cmd_result.extract::<PythonReturnCodes>(py);
+                if cmd_result_return_code.as_ref().is_ok_and(|value| {
+                    [PythonReturnCodes::RET_STOP, PythonReturnCodes::RET_STOP_ALL].contains(value)
                 }) {
                     return Ok(false);
                 }
-                if cmd_result
-                    .extract::<i32>(py)
-                    .is_ok_and(|value| value == PythonReturnCodes::RET_STOP_EVENT as i32)
+                if cmd_result_return_code
+                    .as_ref()
+                    .is_ok_and(|&value| value == PythonReturnCodes::RET_STOP_EVENT)
                 {
                     pass_through = false;
-                } else if cmd_result
-                    .extract::<i32>(py)
-                    .is_ok_and(|value| value == PythonReturnCodes::RET_STOP_EVENT as i32)
+                } else if cmd_result_return_code
+                    .as_ref()
+                    .is_ok_and(|&value| value == PythonReturnCodes::RET_STOP_EVENT)
                     && !cmd.usage.is_empty()
                 {
                     let usage_msg = format!("^7Usage: ^6{} {}", name, cmd.usage);
                     channel.call_method1(py, intern!(py, "reply"), (usage_msg,))?;
-                } else if cmd_result
-                    .extract::<i32>(py)
-                    .is_ok_and(|value| value != PythonReturnCodes::RET_NONE as i32)
+                } else if cmd_result_return_code
+                    .as_ref()
+                    .is_ok_and(|&value| value != PythonReturnCodes::RET_NONE)
                 {
                     let logger = pyshinqlx_get_logger(py, None)?;
                     let cmd_handler_name = cmd.handler.getattr(py, intern!(py, "__name__"))?;

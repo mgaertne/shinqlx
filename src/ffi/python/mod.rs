@@ -2,6 +2,7 @@ mod channels;
 mod commands;
 mod dispatchers;
 mod embed;
+mod events;
 mod flight;
 mod game;
 mod handlers;
@@ -22,6 +23,17 @@ pub(crate) mod prelude {
     };
     pub(crate) use super::commands::{Command, CommandInvoker};
     pub(crate) use super::embed::*;
+    pub(crate) use super::events::{
+        ChatEventDispatcher, ClientCommandDispatcher, CommandDispatcher, ConsolePrintDispatcher,
+        DamageDispatcher, DeathDispatcher, EventDispatcher, FrameEventDispatcher,
+        GameCountdownDispatcher, GameEndDispatcher, GameStartDispatcher, KamikazeExplodeDispatcher,
+        KamikazeUseDispatcher, KillDispatcher, MapDispatcher, NewGameDispatcher,
+        PlayerConnectDispatcher, PlayerDisconnectDispatcher, PlayerLoadedDispatcher,
+        PlayerSpawnDispatcher, RoundCountdownDispatcher, RoundEndDispatcher, RoundStartDispatcher,
+        ServerCommandDispatcher, SetConfigstringDispatcher, StatsDispatcher,
+        TeamSwitchAttemptDispatcher, TeamSwitchDispatcher, UnloadDispatcher, UserinfoDispatcher,
+        VoteCalledDispatcher, VoteDispatcher, VoteEndedDispatcher, VoteStartedDispatcher,
+    };
     pub(crate) use super::flight::Flight;
     pub(crate) use super::game::{Game, NonexistentGameError};
     #[cfg(test)]
@@ -125,6 +137,7 @@ use core::{
 use itertools::Itertools;
 use log::*;
 use once_cell::sync::Lazy;
+use pyo3::exceptions::PyValueError;
 use pyo3::{
     append_to_inittab, create_exception,
     exceptions::{PyEnvironmentError, PyException},
@@ -140,6 +153,7 @@ pub(crate) static CUSTOM_COMMAND_HANDLER: Lazy<ArcSwapOption<PyObject>> =
 
 // Used primarily in Python, but defined here and added using PyModule_AddIntMacro().
 #[allow(non_camel_case_types)]
+#[derive(PartialEq, Clone, Copy)]
 pub(crate) enum PythonReturnCodes {
     RET_NONE,
     RET_STOP,
@@ -149,6 +163,47 @@ pub(crate) enum PythonReturnCodes {
     RET_STOP_ALL,
     // Stop execution at an engine level. SCARY STUFF!
     RET_USAGE, // Used for commands. Replies to the channel with a command's usage.
+}
+
+impl FromPyObject<'_> for PythonReturnCodes {
+    fn extract_bound(item: &Bound<'_, PyAny>) -> PyResult<Self> {
+        if item.is_none() {
+            return Ok(PythonReturnCodes::RET_NONE);
+        }
+        let item_i32 = item.extract::<i32>();
+        if item_i32
+            .as_ref()
+            .is_ok_and(|&value| value == PythonReturnCodes::RET_NONE as i32)
+        {
+            return Ok(PythonReturnCodes::RET_NONE);
+        }
+        if item_i32
+            .as_ref()
+            .is_ok_and(|&value| value == PythonReturnCodes::RET_STOP as i32)
+        {
+            return Ok(PythonReturnCodes::RET_STOP);
+        }
+        if item_i32
+            .as_ref()
+            .is_ok_and(|&value| value == PythonReturnCodes::RET_STOP_ALL as i32)
+        {
+            return Ok(PythonReturnCodes::RET_STOP_ALL);
+        }
+        if item_i32
+            .as_ref()
+            .is_ok_and(|&value| value == PythonReturnCodes::RET_STOP_EVENT as i32)
+        {
+            return Ok(PythonReturnCodes::RET_STOP_EVENT);
+        }
+        if item_i32
+            .as_ref()
+            .is_ok_and(|&value| value == PythonReturnCodes::RET_USAGE as i32)
+        {
+            return Ok(PythonReturnCodes::RET_USAGE);
+        }
+
+        Err(PyValueError::new_err("unsupported PythonReturnCode"))
+    }
 }
 
 create_exception!(pyshinqlx_module, PluginLoadError, PyException);
@@ -336,7 +391,10 @@ fn get_logger_name(py: Python<'_>, plugin: Option<PyObject>) -> String {
 #[pyfunction]
 #[pyo3(name = "get_logger")]
 #[pyo3(signature = (plugin = None))]
-fn pyshinqlx_get_logger(py: Python<'_>, plugin: Option<PyObject>) -> PyResult<Bound<'_, PyAny>> {
+pub(crate) fn pyshinqlx_get_logger(
+    py: Python<'_>,
+    plugin: Option<PyObject>,
+) -> PyResult<Bound<'_, PyAny>> {
     let logger_name = get_logger_name(py, plugin);
     PyModule::import_bound(py, intern!(py, "logging"))?
         .call_method1(intern!(py, "getLogger"), (logger_name,))
@@ -485,6 +543,35 @@ fn pyshinqlx_handle_threading_exception(py: Python<'_>, args: Py<PyAny>) -> PyRe
         args.getattr(py, intern!(py, "exc_value"))?,
         args.getattr(py, intern!(py, "exc_traceback"))?,
     )
+}
+
+fn try_log_exception(py: Python<'_>, exception: PyErr) -> PyResult<()> {
+    let logging_module = py.import_bound(intern!(py, "logging"))?;
+    let traceback_module = py.import_bound(intern!(py, "traceback"))?;
+
+    let py_logger =
+        logging_module.call_method1(intern!(py, "getLogger"), (intern!(py, "shinqlx"),))?;
+
+    let formatted_traceback: Vec<String> = traceback_module
+        .call_method1(
+            intern!(py, "format_exception"),
+            (
+                exception.get_type_bound(py),
+                exception.value_bound(py),
+                exception.traceback_bound(py),
+            ),
+        )?
+        .extract()?;
+
+    formatted_traceback.iter().for_each(|line| {
+        let _ = py_logger.call_method1(intern!(py, "error"), (line.trim_end(),));
+    });
+
+    Ok(())
+}
+
+pub(crate) fn log_exception(py: Python<'_>, exception: PyErr) {
+    let _ = try_log_exception(py, exception);
 }
 
 #[pyfunction]
@@ -1063,6 +1150,47 @@ fn pyshinqlx_module(py: Python<'_>, m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(handlers::redirect_print, m)?)?;
     m.add_class::<handlers::PrintRedirector>()?;
     m.add_function(wrap_pyfunction!(handlers::register_handlers, m)?)?;
+
+    // from _events.py
+    let regex_module = py.import_bound("re")?;
+    m.add(
+        "_re_vote",
+        regex_module.call_method1("compile", (r#"^(?P<cmd>[^ ]+)(?: "?(?P<args>.*?)"?)?$"#,))?,
+    )?;
+    m.add_class::<EventDispatcher>()?;
+    m.add_class::<ConsolePrintDispatcher>()?;
+    m.add_class::<CommandDispatcher>()?;
+    m.add_class::<ClientCommandDispatcher>()?;
+    m.add_class::<ServerCommandDispatcher>()?;
+    m.add_class::<FrameEventDispatcher>()?;
+    m.add_class::<SetConfigstringDispatcher>()?;
+    m.add_class::<ChatEventDispatcher>()?;
+    m.add_class::<UnloadDispatcher>()?;
+    m.add_class::<PlayerConnectDispatcher>()?;
+    m.add_class::<PlayerLoadedDispatcher>()?;
+    m.add_class::<PlayerDisconnectDispatcher>()?;
+    m.add_class::<PlayerSpawnDispatcher>()?;
+    m.add_class::<StatsDispatcher>()?;
+    m.add_class::<VoteCalledDispatcher>()?;
+    m.add_class::<VoteStartedDispatcher>()?;
+    m.add_class::<VoteEndedDispatcher>()?;
+    m.add_class::<VoteDispatcher>()?;
+    m.add_class::<GameCountdownDispatcher>()?;
+    m.add_class::<GameStartDispatcher>()?;
+    m.add_class::<GameEndDispatcher>()?;
+    m.add_class::<RoundCountdownDispatcher>()?;
+    m.add_class::<RoundStartDispatcher>()?;
+    m.add_class::<RoundEndDispatcher>()?;
+    m.add_class::<TeamSwitchDispatcher>()?;
+    m.add_class::<TeamSwitchAttemptDispatcher>()?;
+    m.add_class::<MapDispatcher>()?;
+    m.add_class::<NewGameDispatcher>()?;
+    m.add_class::<KillDispatcher>()?;
+    m.add_class::<DeathDispatcher>()?;
+    m.add_class::<UserinfoDispatcher>()?;
+    m.add_class::<KamikazeUseDispatcher>()?;
+    m.add_class::<KamikazeExplodeDispatcher>()?;
+    m.add_class::<DamageDispatcher>()?;
 
     // from _zmq.py
     m.add_class::<StatsListener>()?;

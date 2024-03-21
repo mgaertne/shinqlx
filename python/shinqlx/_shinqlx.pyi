@@ -1,4 +1,3 @@
-from datetime import timedelta
 from abc import abstractmethod
 from typing import TYPE_CHECKING, overload
 
@@ -20,11 +19,21 @@ if TYPE_CHECKING:
         Type,
         Protocol,
     )
+    from datetime import timedelta
     from queue import Queue
     from sched import scheduler
 
     from types import TracebackType
-    from shinqlx import Plugin
+    from shinqlx import (
+        Plugin,
+        StatsData,
+        GameStartData,
+        GameEndData,
+        RoundEndData,
+        KillData,
+        DeathData,
+        UserinfoEventInput,
+    )
 
 # from __init__.pyi
 _map_title: str | None
@@ -980,3 +989,159 @@ class PrintRedirector:
     ) -> None: ...
     def flush(self) -> None: ...
     def append(self, text: str) -> None: ...
+
+# from _events.pyi
+_re_vote: Pattern
+
+class EventDispatcher:
+    name: str
+    plugins: dict[
+        Plugin,
+        tuple[
+            Iterable[Callable],
+            Iterable[Callable],
+            Iterable[Callable],
+            Iterable[Callable],
+            Iterable[Callable],
+        ],
+    ]
+    _args: Iterable[str] | None
+    _return_value: str | bool | Iterable | None
+    no_debug: Iterable[str]
+    need_zmq_stats_enabled: bool
+
+    def __init__(self) -> None: ...
+    @property
+    def args(self) -> Iterable[str]: ...
+    @args.setter
+    def args(self, value: Iterable[str]) -> None: ...
+    @property
+    def return_value(self) -> str | bool | Iterable | None: ...
+    @return_value.setter
+    def return_value(self, value: str | bool | Iterable | None) -> None: ...
+    def dispatch(self, *args, **kwargs) -> str | bool | Iterable | None: ...  # type: ignore
+    def handle_return(
+        self, handler: Callable, value: int | str | None
+    ) -> str | None: ...
+    def add_hook(
+        self, plugin: Plugin | str, handler: Callable, priority: int = ...
+    ) -> None: ...
+    def remove_hook(
+        self, plugin: Plugin | str, handler: Callable, priority: int = ...
+    ) -> None: ...
+
+class ConsolePrintDispatcher(EventDispatcher):
+    def dispatch(self, text: str) -> str | bool: ...
+
+class CommandDispatcher(EventDispatcher):
+    def dispatch(self, caller: Player, command: Command, args: str) -> None: ...
+
+class ClientCommandDispatcher(EventDispatcher):
+    def dispatch(self, player: Player, cmd: str) -> str | bool: ...
+
+class ServerCommandDispatcher(EventDispatcher):
+    def dispatch(self, player: Player | None, cmd: str) -> str | bool: ...
+
+class FrameEventDispatcher(EventDispatcher):
+    def dispatch(self) -> bool: ...
+
+class SetConfigstringDispatcher(EventDispatcher):
+    def dispatch(self, index: int, value: str) -> str | bool: ...
+
+class ChatEventDispatcher(EventDispatcher):
+    def dispatch(
+        self, player: Player, msg: str, channel: AbstractChannel
+    ) -> str | bool: ...
+
+class UnloadDispatcher(EventDispatcher):
+    def dispatch(self, plugin: Plugin | str) -> None: ...
+
+class PlayerConnectDispatcher(EventDispatcher):
+    def dispatch(self, player: Player) -> str | bool: ...
+
+class PlayerLoadedDispatcher(EventDispatcher):
+    def dispatch(self, player: Player) -> bool: ...
+
+class PlayerDisconnectDispatcher(EventDispatcher):
+    def dispatch(self, player: Player, reason: str | None) -> bool: ...
+
+class PlayerSpawnDispatcher(EventDispatcher):
+    def dispatch(self, player: Player) -> bool: ...
+
+class StatsDispatcher(EventDispatcher):
+    def dispatch(self, stats: StatsData) -> bool: ...
+
+class VoteCalledDispatcher(EventDispatcher):
+    def dispatch(self, player: Player, vote: str, args: str | None) -> bool: ...
+
+class VoteStartedDispatcher(EventDispatcher):
+    _caller: Player | None
+
+    def __init__(self) -> None: ...
+    def dispatch(self, vote: str, args: str | None) -> bool: ...
+    def caller(self, player: Player | None) -> None: ...
+
+class VoteEndedDispatcher(EventDispatcher):
+    def dispatch(self, passed: bool) -> None: ...
+
+class VoteDispatcher(EventDispatcher):
+    def dispatch(self, player: Player, yes: bool) -> bool: ...
+
+class GameCountdownDispatcher(EventDispatcher):
+    def dispatch(self) -> bool: ...
+
+class GameStartDispatcher(EventDispatcher):
+    def dispatch(self, data: GameStartData) -> bool: ...
+
+class GameEndDispatcher(EventDispatcher):
+    def dispatch(self, data: GameEndData) -> bool: ...
+
+class RoundCountdownDispatcher(EventDispatcher):
+    def dispatch(self, round_number: int) -> bool: ...
+
+class RoundStartDispatcher(EventDispatcher):
+    def dispatch(self, round_number: int) -> bool: ...
+
+class RoundEndDispatcher(EventDispatcher):
+    def dispatch(self, data: RoundEndData) -> bool: ...
+
+class TeamSwitchDispatcher(EventDispatcher):
+    def dispatch(self, player: Player, old_team: str, new_team: str) -> bool: ...
+
+class TeamSwitchAttemptDispatcher(EventDispatcher):
+    def dispatch(self, player: Player, old_team: str, new_team: str) -> bool: ...
+
+class MapDispatcher(EventDispatcher):
+    def dispatch(self, mapname: str, factory: str) -> bool: ...
+
+class NewGameDispatcher(EventDispatcher):
+    def dispatch(self) -> bool: ...
+
+class KillDispatcher(EventDispatcher):
+    def dispatch(self, victim: Player, killer: Player, data: KillData) -> bool: ...
+
+class DeathDispatcher(EventDispatcher):
+    def dispatch(
+        self, victim: Player, killer: Player | None, data: DeathData
+    ) -> bool: ...
+
+class UserinfoDispatcher(EventDispatcher):
+    def dispatch(
+        self, playe: Player, changed: UserinfoEventInput
+    ) -> bool | UserinfoEventInput: ...
+
+class KamikazeUseDispatcher(EventDispatcher):
+    def dispatch(self, player: Player) -> bool: ...
+
+class KamikazeExplodeDispatcher(EventDispatcher):
+    def dispatch(self, player: Player, is_used_on_demand: bool) -> bool: ...
+
+class DamageDispatcher(EventDispatcher):
+    def dispatch(
+        self,
+        target: Player | int | None,
+        attacker: Player | int | None,
+        damage: int,
+        dflags: int,
+        means_of_death: int,
+    ) -> bool: ...
