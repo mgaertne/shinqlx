@@ -1,7 +1,7 @@
 use super::prelude::*;
 use crate::ffi::c::prelude::*;
 
-use super::{pyshinqlx_get_logger, set_map_subtitles};
+use super::{log_exception, pyshinqlx_get_logger, set_map_subtitles};
 use crate::{quake_live_engine::GetConfigstring, MAIN_ENGINE};
 
 use alloc::sync::Arc;
@@ -15,35 +15,6 @@ use pyo3::{
     types::{IntoPyDict, PyDict},
 };
 use regex::{Regex, RegexBuilder};
-
-fn try_log_exception(py: Python<'_>, exception: PyErr) -> PyResult<()> {
-    let logging_module = py.import_bound(intern!(py, "logging"))?;
-    let traceback_module = py.import_bound(intern!(py, "traceback"))?;
-
-    let py_logger =
-        logging_module.call_method1(intern!(py, "getLogger"), (intern!(py, "shinqlx"),))?;
-
-    let formatted_traceback: Vec<String> = traceback_module
-        .call_method1(
-            intern!(py, "format_exception"),
-            (
-                exception.get_type_bound(py),
-                exception.value_bound(py),
-                exception.traceback_bound(py),
-            ),
-        )?
-        .extract()?;
-
-    formatted_traceback.iter().for_each(|line| {
-        let _ = py_logger.call_method1(intern!(py, "error"), (line.trim_end(),));
-    });
-
-    Ok(())
-}
-
-fn log_exception(py: Python<'_>, exception: PyErr) {
-    let _ = try_log_exception(py, exception);
-}
 
 fn try_handle_rcon(py: Python<'_>, cmd: String) -> PyResult<Option<bool>> {
     let rcon_dummy_player = Py::new(py, RconDummyPlayer::py_new())?;
