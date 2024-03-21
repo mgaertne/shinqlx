@@ -25,14 +25,15 @@ pub(crate) mod prelude {
     pub(crate) use super::embed::*;
     pub(crate) use super::events::{
         ChatEventDispatcher, ClientCommandDispatcher, CommandDispatcher, ConsolePrintDispatcher,
-        DamageDispatcher, DeathDispatcher, EventDispatcher, FrameEventDispatcher,
-        GameCountdownDispatcher, GameEndDispatcher, GameStartDispatcher, KamikazeExplodeDispatcher,
-        KamikazeUseDispatcher, KillDispatcher, MapDispatcher, NewGameDispatcher,
-        PlayerConnectDispatcher, PlayerDisconnectDispatcher, PlayerLoadedDispatcher,
-        PlayerSpawnDispatcher, RoundCountdownDispatcher, RoundEndDispatcher, RoundStartDispatcher,
-        ServerCommandDispatcher, SetConfigstringDispatcher, StatsDispatcher,
-        TeamSwitchAttemptDispatcher, TeamSwitchDispatcher, UnloadDispatcher, UserinfoDispatcher,
-        VoteCalledDispatcher, VoteDispatcher, VoteEndedDispatcher, VoteStartedDispatcher,
+        DamageDispatcher, DeathDispatcher, EventDispatcher, EventDispatcherManager,
+        FrameEventDispatcher, GameCountdownDispatcher, GameEndDispatcher, GameStartDispatcher,
+        KamikazeExplodeDispatcher, KamikazeUseDispatcher, KillDispatcher, MapDispatcher,
+        NewGameDispatcher, PlayerConnectDispatcher, PlayerDisconnectDispatcher,
+        PlayerLoadedDispatcher, PlayerSpawnDispatcher, RoundCountdownDispatcher,
+        RoundEndDispatcher, RoundStartDispatcher, ServerCommandDispatcher,
+        SetConfigstringDispatcher, StatsDispatcher, TeamSwitchAttemptDispatcher,
+        TeamSwitchDispatcher, UnloadDispatcher, UserinfoDispatcher, VoteCalledDispatcher,
+        VoteDispatcher, VoteEndedDispatcher, VoteStartedDispatcher,
     };
     pub(crate) use super::flight::Flight;
     pub(crate) use super::game::{Game, NonexistentGameError};
@@ -1191,6 +1192,46 @@ fn pyshinqlx_module(py: Python<'_>, m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_class::<KamikazeUseDispatcher>()?;
     m.add_class::<KamikazeExplodeDispatcher>()?;
     m.add_class::<DamageDispatcher>()?;
+    m.add_class::<EventDispatcherManager>()?;
+
+    let mut event_dispatchers = EventDispatcherManager::default();
+    event_dispatchers.add_dispatcher(py, py.get_type_bound::<ConsolePrintDispatcher>())?;
+    event_dispatchers.add_dispatcher(py, py.get_type_bound::<CommandDispatcher>())?;
+    event_dispatchers.add_dispatcher(py, py.get_type_bound::<ClientCommandDispatcher>())?;
+    event_dispatchers.add_dispatcher(py, py.get_type_bound::<ServerCommandDispatcher>())?;
+    event_dispatchers.add_dispatcher(py, py.get_type_bound::<FrameEventDispatcher>())?;
+    event_dispatchers.add_dispatcher(py, py.get_type_bound::<SetConfigstringDispatcher>())?;
+    event_dispatchers.add_dispatcher(py, py.get_type_bound::<ChatEventDispatcher>())?;
+    event_dispatchers.add_dispatcher(py, py.get_type_bound::<UnloadDispatcher>())?;
+    event_dispatchers.add_dispatcher(py, py.get_type_bound::<PlayerConnectDispatcher>())?;
+    event_dispatchers.add_dispatcher(py, py.get_type_bound::<PlayerLoadedDispatcher>())?;
+    event_dispatchers.add_dispatcher(py, py.get_type_bound::<PlayerDisconnectDispatcher>())?;
+    event_dispatchers.add_dispatcher(py, py.get_type_bound::<PlayerSpawnDispatcher>())?;
+    event_dispatchers.add_dispatcher(py, py.get_type_bound::<KamikazeUseDispatcher>())?;
+    event_dispatchers.add_dispatcher(py, py.get_type_bound::<KamikazeExplodeDispatcher>())?;
+    event_dispatchers.add_dispatcher(py, py.get_type_bound::<StatsDispatcher>())?;
+    event_dispatchers.add_dispatcher(py, py.get_type_bound::<VoteCalledDispatcher>())?;
+    event_dispatchers.add_dispatcher(py, py.get_type_bound::<VoteStartedDispatcher>())?;
+    event_dispatchers.add_dispatcher(py, py.get_type_bound::<VoteEndedDispatcher>())?;
+    event_dispatchers.add_dispatcher(py, py.get_type_bound::<VoteDispatcher>())?;
+    event_dispatchers.add_dispatcher(py, py.get_type_bound::<GameCountdownDispatcher>())?;
+    event_dispatchers.add_dispatcher(py, py.get_type_bound::<GameStartDispatcher>())?;
+    event_dispatchers.add_dispatcher(py, py.get_type_bound::<GameEndDispatcher>())?;
+    event_dispatchers.add_dispatcher(py, py.get_type_bound::<RoundCountdownDispatcher>())?;
+    event_dispatchers.add_dispatcher(py, py.get_type_bound::<RoundStartDispatcher>())?;
+    event_dispatchers.add_dispatcher(py, py.get_type_bound::<RoundEndDispatcher>())?;
+    event_dispatchers.add_dispatcher(py, py.get_type_bound::<TeamSwitchDispatcher>())?;
+    event_dispatchers.add_dispatcher(py, py.get_type_bound::<TeamSwitchAttemptDispatcher>())?;
+    event_dispatchers.add_dispatcher(py, py.get_type_bound::<MapDispatcher>())?;
+    event_dispatchers.add_dispatcher(py, py.get_type_bound::<NewGameDispatcher>())?;
+    event_dispatchers.add_dispatcher(py, py.get_type_bound::<KillDispatcher>())?;
+    event_dispatchers.add_dispatcher(py, py.get_type_bound::<DeathDispatcher>())?;
+    event_dispatchers.add_dispatcher(py, py.get_type_bound::<UserinfoDispatcher>())?;
+    event_dispatchers.add_dispatcher(py, py.get_type_bound::<DamageDispatcher>())?;
+    m.add(
+        "EVENT_DISPATCHERS",
+        Py::new(py, event_dispatchers)?.to_object(py),
+    )?;
 
     // from _zmq.py
     m.add_class::<StatsListener>()?;

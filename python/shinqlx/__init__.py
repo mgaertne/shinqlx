@@ -235,6 +235,8 @@ try:
         KamikazeUseDispatcher,
         KamikazeExplodeDispatcher,
         DamageDispatcher,
+        EventDispatcherManager,
+        EVENT_DISPATCHERS,
     )
 except ModuleNotFoundError:
     _shinqlx = importlib.import_module(name="._shinqlx", package="shinqlx")
@@ -469,6 +471,8 @@ except ModuleNotFoundError:
         KamikazeUseDispatcher,
         KamikazeExplodeDispatcher,
         DamageDispatcher,
+        EventDispatcherManager,
+        EVENT_DISPATCHERS,
     )
 
 from ._core import (
@@ -482,10 +486,6 @@ from ._core import (
     late_init,
 )
 from ._plugin import Plugin
-from ._events import (
-    EventDispatcherManager,
-    EVENT_DISPATCHERS,
-)
 
 __version__ = _shinqlx.__version__
 __plugins_version__ = "NOT_SET"
@@ -737,6 +737,8 @@ __all__ = [
     "KamikazeUseDispatcher",
     "KamikazeExplodeDispatcher",
     "DamageDispatcher",
+    "EventDispatcherManager",
+    "EVENT_DISPATCHERS",
     # _core
     "stats_listener",
     "set_plugins_version",
@@ -748,7 +750,4 @@ __all__ = [
     "late_init",
     # _plugin
     "Plugin",
-    # _events
-    "EventDispatcherManager",
-    "EVENT_DISPATCHERS",
 ]

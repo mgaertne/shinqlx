@@ -230,6 +230,10 @@ from ._shinqlx import (
     KamikazeUseDispatcher,
     KamikazeExplodeDispatcher,
     DamageDispatcher,
+    EventDispatcherManager,
+    EVENT_DISPATCHERS,
+    UncancellableEventReturn,
+    CancellableEventReturn,
 )
 from ._core import (
     stats_listener,
@@ -276,12 +280,6 @@ from ._plugin import (
     DamageEntry,
     SingleWeaponStatsEntry,
     StatsData,
-)
-from ._events import (
-    EventDispatcherManager,
-    EVENT_DISPATCHERS,
-    UncancellableEventReturn,
-    CancellableEventReturn,
 )
 
 __version__: str
@@ -525,6 +523,10 @@ __all__ = [
     "KamikazeUseDispatcher",
     "KamikazeExplodeDispatcher",
     "DamageDispatcher",
+    "EventDispatcherManager",
+    "EVENT_DISPATCHERS",
+    "UncancellableEventReturn",
+    "CancellableEventReturn",
     # _core
     "stats_listener",
     "set_plugins_version",
@@ -569,9 +571,4 @@ __all__ = [
     "DamageEntry",
     "SingleWeaponStatsEntry",
     "StatsData",
-    # _events
-    "EventDispatcherManager",
-    "EVENT_DISPATCHERS",
-    "UncancellableEventReturn",
-    "CancellableEventReturn",
 ]

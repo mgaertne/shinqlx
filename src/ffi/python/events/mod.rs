@@ -80,12 +80,13 @@ pub(crate) use vote_ended_dispatcher::VoteEndedDispatcher;
 pub(crate) use vote_started_dispatcher::VoteStartedDispatcher;
 
 use pyo3::{
-    exceptions::{PyAssertionError, PyValueError},
-    types::PyTuple,
+    exceptions::{PyAssertionError, PyKeyError, PyValueError},
+    types::{PyDict, PyTuple, PyType},
 };
 
 use core::ops::Deref;
 use itertools::Itertools;
+use pyo3::types::IntoPyDict;
 
 pub(crate) fn log_unexpected_return_value(
     py: Python<'_>,
@@ -161,6 +162,11 @@ impl EventDispatcher {
     #[new]
     pub(crate) fn py_new(_py: Python<'_>) -> Self {
         Self::default()
+    }
+
+    #[getter(plugins)]
+    fn get_plugins<'py>(&'py self, py: Python<'py>) -> Bound<'py, PyDict> {
+        self.plugins.clone().into_py_dict_bound(py)
     }
 
     /// Calls all the handlers that have been registered when hooking this event.
@@ -355,6 +361,126 @@ impl EventDispatcher {
             item.call_method1(py, "__ne__", (&handler,))
                 .is_ok_and(|value| value.is_truthy(py).is_ok_and(|bool_value| bool_value))
         });
+
+        Ok(())
+    }
+}
+
+/// Holds all the event dispatchers and provides a way to access the dispatcher
+/// instances by accessing it like a dictionary using the event name as a key.
+/// Only one dispatcher can be used per event.
+#[pyclass(name = "EventDispatcherManager", module = "_events")]
+#[derive(Default)]
+pub(crate) struct EventDispatcherManager {
+    dispatchers: Vec<(String, PyObject)>,
+}
+
+#[pymethods]
+impl EventDispatcherManager {
+    #[new]
+    fn py_new(py: Python<'_>) -> Self {
+        py.allow_threads(Self::default)
+    }
+
+    #[getter(_dispatchers)]
+    fn get_dispatchers<'py>(&'py self, py: Python<'py>) -> Bound<'py, PyDict> {
+        self.dispatchers.clone().into_py_dict_bound(py)
+    }
+
+    fn __getitem__(&self, py: Python<'_>, key: String) -> PyResult<PyObject> {
+        self.dispatchers
+            .iter()
+            .find_map(|(event_name, dispatcher)| {
+                if &key != event_name {
+                    None
+                } else {
+                    Some(dispatcher)
+                }
+            })
+            .map_or_else(
+                || {
+                    let key_error = format!("'{}'", key);
+                    Err(PyKeyError::new_err(key_error))
+                },
+                |dispatcher| Ok(dispatcher.into_py(py)),
+            )
+    }
+
+    fn __contains__(&self, py: Python<'_>, key: String) -> bool {
+        py.allow_threads(|| {
+            self.dispatchers
+                .iter()
+                .find_map(|(event_name, dispatcher)| {
+                    if &key != event_name {
+                        None
+                    } else {
+                        Some(dispatcher)
+                    }
+                })
+                .is_some()
+        })
+    }
+
+    pub(crate) fn add_dispatcher(
+        &mut self,
+        py: Python<'_>,
+        dispatcher: Bound<'_, PyType>,
+    ) -> PyResult<()> {
+        let Ok(dispatcher_name_attr) = dispatcher.getattr("name") else {
+            return Err(PyValueError::new_err(
+                "Cannot add an event dispatcher with no name.",
+            ));
+        };
+        let Ok(dispatcher_name_str) = dispatcher_name_attr.extract::<String>() else {
+            return Err(PyValueError::new_err(
+                "Cannot add an event dispatcher with no name.",
+            ));
+        };
+        if self.__contains__(py, dispatcher_name_str.clone()) {
+            return Err(PyValueError::new_err("Event name already taken."));
+        }
+
+        if !dispatcher
+            .is_subclass_of::<EventDispatcher>()
+            .unwrap_or(false)
+        {
+            return Err(PyValueError::new_err(
+                "Cannot add an event dispatcher not based on EventDispatcher.",
+            ));
+        }
+
+        self.dispatchers
+            .push((dispatcher_name_str, dispatcher.call0()?.unbind()));
+
+        Ok(())
+    }
+
+    fn remove_dispatcher(&mut self, py: Python<'_>, dispatcher: PyObject) -> PyResult<()> {
+        let Ok(dispatcher_name_attr) = dispatcher.getattr(py, "name") else {
+            return Err(PyValueError::new_err(
+                "Cannot remove an event dispatcher with no name.",
+            ));
+        };
+        let Ok(dispatcher_name_str) = dispatcher_name_attr.extract::<String>(py) else {
+            return Err(PyValueError::new_err(
+                "Cannot remove an event dispatcher with no name.",
+            ));
+        };
+
+        self.remove_dispatcher_by_name(py, dispatcher_name_str)
+    }
+
+    fn remove_dispatcher_by_name(
+        &mut self,
+        py: Python<'_>,
+        dispatcher_name: String,
+    ) -> PyResult<()> {
+        if !self.__contains__(py, dispatcher_name.clone()) {
+            return Err(PyValueError::new_err("Event name not found."));
+        }
+
+        self.dispatchers
+            .retain(|(name, _)| name != &dispatcher_name);
 
         Ok(())
     }
