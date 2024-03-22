@@ -153,7 +153,11 @@ try:
         _thread_count,
         uptime,
         owner,
+        _stats,
+        stats_listener,
         initialize_cvars,
+        initialize,
+        late_init,
         Game,
         NonexistentGameError,
         Player,
@@ -389,7 +393,11 @@ except ModuleNotFoundError:
         _thread_count,
         uptime,
         owner,
+        _stats,
+        stats_listener,
         initialize_cvars,
+        initialize,
+        late_init,
         Game,
         NonexistentGameError,
         Player,
@@ -476,14 +484,11 @@ except ModuleNotFoundError:
     )
 
 from ._core import (
-    stats_listener,
     set_plugins_version,
     load_preset_plugins,
     load_plugin,
     unload_plugin,
     reload_plugin,
-    initialize,
-    late_init,
 )
 from ._plugin import Plugin
 
@@ -658,7 +663,11 @@ __all__ = [
     "_thread_count",
     "uptime",
     "owner",
+    "_stats",
+    "stats_listener",
     "initialize_cvars",
+    "initialize",
+    "late_init",
     "PluginLoadError",
     "PluginUnloadError",
     "Game",
@@ -740,14 +749,11 @@ __all__ = [
     "EventDispatcherManager",
     "EVENT_DISPATCHERS",
     # _core
-    "stats_listener",
     "set_plugins_version",
     "load_preset_plugins",
     "load_plugin",
     "unload_plugin",
     "reload_plugin",
-    "initialize",
-    "late_init",
     # _plugin
     "Plugin",
 ]

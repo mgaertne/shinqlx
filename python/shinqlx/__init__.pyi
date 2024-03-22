@@ -145,7 +145,11 @@ from ._shinqlx import (
     thread,
     uptime,
     owner,
+    _stats,
+    stats_listener,
     initialize_cvars,
+    initialize,
+    late_init,
     Game,
     NonexistentGameError,
     UserInfo,
@@ -236,14 +240,11 @@ from ._shinqlx import (
     CancellableEventReturn,
 )
 from ._core import (
-    stats_listener,
     set_plugins_version,
     load_preset_plugins,
     load_plugin,
     unload_plugin,
     reload_plugin,
-    initialize,
-    late_init,
 )
 from ._plugin import (
     Plugin,
@@ -443,7 +444,11 @@ __all__ = [
     "thread",
     "uptime",
     "owner",
+    "_stats",
+    "stats_listener",
     "initialize_cvars",
+    "initialize",
+    "late_init",
     "Game",
     "NonexistentGameError",
     "UserInfo",
@@ -528,14 +533,11 @@ __all__ = [
     "UncancellableEventReturn",
     "CancellableEventReturn",
     # _core
-    "stats_listener",
     "set_plugins_version",
     "load_preset_plugins",
     "load_plugin",
     "unload_plugin",
     "reload_plugin",
-    "initialize",
-    "late_init",
     # _plugin
     "Plugin",
     "GameStartData",
