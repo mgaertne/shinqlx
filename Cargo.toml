@@ -48,7 +48,7 @@ log4rs = { version = ">=1.3", default-features = false, features = ["console_app
 signal-hook = { version = ">=0.3", default-features = false }
 signal-hook-registry = { version = ">=1.4", default-features = false }
 itertools = { version = ">=0.12", default-features = false, features = ["use_alloc"] }
-regex = { version1 = ">=1.10", default-features = false, features = ["perf", "unicode"] }
+regex = { version = ">=1.10", default-features = false, features = ["perf", "unicode"] }
 arrayvec = { version = ">=0.7", default-features = false }
 cfg-if = { version = ">=1.0", default-features = false }
 zmq = { version = ">=0.10", default-features = false }
