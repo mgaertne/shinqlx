@@ -2,6 +2,7 @@ use super::prelude::*;
 use super::{owner, pyshinqlx_get_logger, PythonReturnCodes};
 
 use pyo3::prelude::*;
+use pyo3::types::IntoPyDict;
 use pyo3::{
     exceptions::PyKeyError,
     exceptions::PyValueError,
@@ -145,16 +146,22 @@ impl Command {
         let plugin = self.plugin.bind(py).into_py(py);
         let plugin_name = plugin.getattr(py, intern!(py, "name"))?;
         let logger = pyshinqlx_get_logger(py, Some(plugin))?;
-        logger.call_method1(
-            intern!(py, "debug"),
+        let logging_module = py.import_bound(intern!(py, "logging"))?;
+        let debug_level = logging_module.getattr(intern!(py, "DEBUG"))?;
+        let log_record = logger.call_method(
+            intern!(py, "makeRecord"),
             (
-                "%s executed: %s @ %s -> %s",
-                player.steam_id,
-                command_name,
-                plugin_name,
-                &channel,
+                intern!(py, "shinqlx"),
+                debug_level,
+                intern!(py, ""),
+                -1,
+                intern!(py, "%s executed: %s @ %s -> %s"),
+                (player.steam_id, command_name, plugin_name, &channel),
+                py.None(),
             ),
+            Some(&[(intern!(py, "func"), intern!(py, "execute"))].into_py_dict_bound(py)),
         )?;
+        logger.call_method1(intern!(py, "handle"), (log_record,))?;
 
         let msg_vec: Vec<&str> = msg.split(' ').collect();
         self.handler
@@ -443,15 +450,28 @@ impl CommandInvoker {
                 {
                     let logger = pyshinqlx_get_logger(py, None)?;
                     let cmd_handler_name = cmd.handler.getattr(py, intern!(py, "__name__"))?;
-                    logger.call_method1(
-                        intern!(py, "warning"),
+                    let logging_module = py.import_bound(intern!(py, "logging"))?;
+                    let warning_level = logging_module.getattr(intern!(py, "WARNING"))?;
+                    let log_record = logger.call_method(
+                        intern!(py, "makeRecord"),
                         (
-                            "Command '%s' with handler '%s' returned an unknown return value: %s",
-                            cmd.name.clone(),
-                            cmd_handler_name,
-                            cmd_result,
+                            intern!(py, "shinqlx"),
+                            warning_level,
+                            intern!(py, ""),
+                            -1,
+                            intern!(
+                            py,
+                            "Command '%s' with handler '%s' returned an unknown return value: %s"
+                        ),
+                            (cmd.name.clone(), cmd_handler_name, cmd_result),
+                            py.None(),
+                        ),
+                        Some(
+                            &[(intern!(py, "func"), intern!(py, "handle_input"))]
+                                .into_py_dict_bound(py),
                         ),
                     )?;
+                    logger.call_method1(intern!(py, "handle"), (log_record,))?;
                 }
             }
         }

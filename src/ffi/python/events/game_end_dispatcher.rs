@@ -24,16 +24,9 @@ impl GameEndDispatcher {
         let mut return_value = true;
 
         let super_class = slf.into_super();
-        if let Ok(logger) = pyshinqlx_get_logger(py, None) {
-            let mut dbgstr = format!("{}({})", super_class.name, &data);
-            if dbgstr.len() > 100 {
-                dbgstr.truncate(99);
-                dbgstr.push(')');
-            }
-            if let Err(e) = logger.call_method1(intern!(py, "debug"), (dbgstr,)) {
-                log_exception(py, e);
-            };
-        }
+        let dbgstr = format!("{}({})", super_class.name, &data);
+        dispatcher_debug_log(py, dbgstr);
+
         for i in 0..5 {
             for (_, handlers) in &super_class.plugins {
                 for handler in &handlers[i] {

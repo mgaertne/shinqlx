@@ -403,10 +403,25 @@ fn try_handle_new_game(py: Python<'_>, is_restart: bool) -> PyResult<()> {
         let zmq_enabled = zmq_enabled_cvar.is_some_and(|value| value != "0");
         if !zmq_enabled && !ZMQ_WARNING_ISSUED.load(Ordering::SeqCst) {
             let logger = pyshinqlx_get_logger(py, None)?;
-            logger.call_method1(
-                intern!(py, "warning"),
-                (intern!(py, r#"Some events will not work because ZMQ stats is not enabled. Launch the server with "zmq_stats_enable 1""#),)
+            let logging_module = py.import_bound(intern!(py, "logging"))?;
+            let warning_level = logging_module.getattr(intern!(py, "WARNING"))?;
+            let log_record = logger.call_method(
+                intern!(py, "makeRecord"),
+                (
+                    intern!(py, "shinqlx"),
+                    warning_level,
+                    intern!(py, ""),
+                    -1,
+                    intern!(py, r#"Some events will not work because ZMQ stats is not enabled. Launch the server with "zmq_stats_enable 1""#),
+                    py.None(),
+                    py.None(),
+                ),
+                Some(
+                    &[(intern!(py, "func"), intern!(py, "handle_new_game"))].into_py_dict_bound(py),
+                ),
             )?;
+            logger.call_method1(intern!(py, "handle"), (log_record,))?;
+
             ZMQ_WARNING_ISSUED.store(true, Ordering::SeqCst);
         }
     }
@@ -505,7 +520,25 @@ fn try_handle_set_configstring(py: Python<'_>, index: u32, value: String) -> PyR
                 _ => {
                     let logger = pyshinqlx_get_logger(py, None)?;
                     let warning = format!("UNKNOWN GAME STATES: {old_state} - {new_state}");
-                    logger.call_method1(intern!(py, "warning"), (warning,))?;
+                    let logging_module = py.import_bound(intern!(py, "logging"))?;
+                    let warning_level = logging_module.getattr(intern!(py, "WARNING"))?;
+                    let log_record = logger.call_method(
+                        intern!(py, "makeRecord"),
+                        (
+                            intern!(py, "shinqlx"),
+                            warning_level,
+                            intern!(py, ""),
+                            -1,
+                            warning,
+                            py.None(),
+                            py.None(),
+                        ),
+                        Some(
+                            &[(intern!(py, "func"), intern!(py, "handle_set_configstring"))]
+                                .into_py_dict_bound(py),
+                        ),
+                    )?;
+                    logger.call_method1(intern!(py, "handle"), (log_record,))?;
                 }
             }
             Ok(configstring_value.into_py(py))
@@ -782,7 +815,22 @@ static PRINT_REDIRECTION: Lazy<ArcSwapOption<Py<PyAny>>> = Lazy::new(ArcSwapOpti
 fn try_handle_console_print(py: Python<'_>, text: String) -> PyResult<PyObject> {
     let logger = pyshinqlx_get_logger(py, None)?;
     let console_text = text.clone();
-    logger.call_method1(intern!(py, "debug"), (console_text.trim_end_matches('\n'),))?;
+    let logging_module = py.import_bound(intern!(py, "logging"))?;
+    let debug_level = logging_module.getattr(intern!(py, "DEBUG"))?;
+    let log_record = logger.call_method(
+        intern!(py, "makeRecord"),
+        (
+            intern!(py, "shinqlx"),
+            debug_level,
+            intern!(py, ""),
+            -1,
+            console_text.trim_end_matches('\n'),
+            py.None(),
+            py.None(),
+        ),
+        Some(&[(intern!(py, "func"), intern!(py, "handle_console_print"))].into_py_dict_bound(py)),
+    )?;
+    logger.call_method1(intern!(py, "handle"), (log_record,))?;
 
     let shinqlx_module = py.import_bound(intern!(py, "shinqlx"))?;
     let event_dispatchers = shinqlx_module.getattr(intern!(py, "EVENT_DISPATCHERS"))?;
