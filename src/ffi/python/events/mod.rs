@@ -33,7 +33,7 @@ mod vote_ended_dispatcher;
 mod vote_started_dispatcher;
 
 mod prelude {
-    pub(crate) use super::{log_unexpected_return_value, EventDispatcher};
+    pub(crate) use super::{dispatcher_debug_log, log_unexpected_return_value, EventDispatcher};
 
     pub(crate) use super::super::{log_exception, pyshinqlx_get_logger, PythonReturnCodes};
 
@@ -88,29 +88,81 @@ use core::ops::Deref;
 use itertools::Itertools;
 use pyo3::types::IntoPyDict;
 
+fn try_dispatcher_debug_log(py: Python<'_>, debug_str: String) -> PyResult<()> {
+    let logging_module = py.import_bound(intern!(py, "logging"))?;
+    let warning_level = logging_module.getattr(intern!(py, "WARNING"))?;
+
+    let logger = pyshinqlx_get_logger(py, None)?;
+
+    let mut dbgstr = debug_str;
+    if dbgstr.len() > 100 {
+        dbgstr.truncate(99);
+        dbgstr.push(')');
+    }
+    let log_record = logger.call_method(
+        intern!(py, "makeRecord"),
+        (
+            intern!(py, "shinqlx"),
+            warning_level,
+            intern!(py, ""),
+            -1,
+            dbgstr,
+            py.None(),
+            py.None(),
+        ),
+        Some(&[(intern!(py, "func"), intern!(py, "dispatch"))].into_py_dict_bound(py)),
+    )?;
+    logger.call_method1(intern!(py, "handle"), (log_record,))?;
+
+    Ok(())
+}
+pub(crate) fn dispatcher_debug_log(py: Python<'_>, debug_str: String) {
+    if let Err(e) = try_dispatcher_debug_log(py, debug_str) {
+        log_exception(py, e);
+    }
+}
+
+fn try_log_unexpected_return_value(
+    py: Python<'_>,
+    event_name: &str,
+    result: &PyObject,
+    handler: &PyObject,
+) -> PyResult<()> {
+    let logging_module = py.import_bound(intern!(py, "logging"))?;
+    let warning_level = logging_module.getattr(intern!(py, "WARNING"))?;
+
+    let logger = pyshinqlx_get_logger(py, None)?;
+    let handler_name = handler.getattr(py, intern!(py, "__name__"))?;
+
+    let log_record = logger.call_method(
+        intern!(py, "makeRecord"),
+        (
+            intern!(py, "shinqlx"),
+            warning_level,
+            intern!(py, ""),
+            -1,
+            intern!(
+                py,
+                "Handler '%s' returned unknown value '%s' for event '%s'"
+            ),
+            (handler_name, result, event_name),
+            py.None(),
+        ),
+        Some(&[(intern!(py, "func"), intern!(py, "dispatch"))].into_py_dict_bound(py)),
+    )?;
+    logger.call_method1(intern!(py, "handle"), (log_record,))?;
+
+    Ok(())
+}
+
 pub(crate) fn log_unexpected_return_value(
     py: Python<'_>,
     event_name: &str,
     result: &PyObject,
     handler: &PyObject,
 ) {
-    if let Ok(logger) = pyshinqlx_get_logger(py, None) {
-        match handler.getattr(py, intern!(py, "__name__")) {
-            Err(e) => log_exception(py, e),
-            Ok(handler_name) => {
-                if let Err(e) = logger.call_method1(
-                    intern!(py, "warning"),
-                    (
-                        "Handler '%s' returned unknown value '%s' for event '%s'",
-                        handler_name,
-                        result,
-                        event_name,
-                    ),
-                ) {
-                    log_exception(py, e);
-                };
-            }
-        };
+    if let Err(e) = try_log_unexpected_return_value(py, event_name, result, handler) {
+        log_exception(py, e);
     }
 }
 
@@ -191,16 +243,8 @@ impl EventDispatcher {
         args: Bound<'_, PyTuple>,
     ) -> PyObject {
         if !NO_DEBUG.contains(&slf.name.as_str()) {
-            if let Ok(logger) = pyshinqlx_get_logger(py, None) {
-                let mut dbgstr = format!("{}{}", slf.name, &args);
-                if dbgstr.len() > 100 {
-                    dbgstr.truncate(99);
-                    dbgstr.push(')');
-                }
-                if let Err(e) = logger.call_method1(intern!(py, "debug"), (dbgstr,)) {
-                    log_exception(py, e);
-                };
-            }
+            let dbgstr = format!("{}{}", slf.name, &args);
+            dispatcher_debug_log(py, dbgstr);
         }
 
         let mut return_value = true.into_py(py);

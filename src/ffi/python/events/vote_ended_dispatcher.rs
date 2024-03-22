@@ -37,24 +37,16 @@ impl VoteEndedDispatcher {
         };
         let configstring = main_engine.get_configstring(CS_VOTE_STRING as u16);
         if configstring.is_empty() {
-            if let Ok(logger) = pyshinqlx_get_logger(py, None) {
-                if let Err(e) = logger.call_method1(
-                    intern!(py, "warning"),
-                    ("vote_ended went off without configstring CS_VOTE_STRING.",),
-                ) {
-                    log_exception(py, e);
-                };
-            }
+            dispatcher_debug_log(
+                py,
+                "vote_ended went off without configstring CS_VOTE_STRING.".into(),
+            );
             return;
         }
 
         let Some(captures) = RE_VOTE.captures(&configstring) else {
-            if let Ok(logger) = pyshinqlx_get_logger(py, None) {
-                let warning_str = format!("invalid vote called: {}", &configstring);
-                if let Err(e) = logger.call_method1(intern!(py, "warning"), (warning_str,)) {
-                    log_exception(py, e);
-                };
-            }
+            let warning_str = format!("invalid vote called: {}", &configstring);
+            dispatcher_debug_log(py, warning_str);
             return;
         };
         let vote = captures
@@ -75,19 +67,12 @@ impl VoteEndedDispatcher {
             .unwrap_or(0);
 
         let super_class = slf.into_super();
-        if let Ok(logger) = pyshinqlx_get_logger(py, None) {
-            let mut dbgstr = format!(
-                "{}(({}, {}), {}, {}, {})",
-                super_class.name, yes_votes, no_votes, vote, args, passed
-            );
-            if dbgstr.len() > 100 {
-                dbgstr.truncate(99);
-                dbgstr.push(')');
-            }
-            if let Err(e) = logger.call_method1(intern!(py, "debug"), (dbgstr,)) {
-                log_exception(py, e);
-            };
-        }
+        let dbgstr = format!(
+            "{}(({}, {}), {}, {}, {})",
+            super_class.name, yes_votes, no_votes, vote, args, passed
+        );
+        dispatcher_debug_log(py, dbgstr);
+
         for i in 0..5 {
             for (_, handlers) in &super_class.plugins {
                 for handler in &handlers[i] {
