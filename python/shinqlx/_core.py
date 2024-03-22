@@ -1,5 +1,4 @@
 import subprocess
-import threading
 import importlib
 import os
 import os.path
@@ -13,9 +12,6 @@ from shinqlx import (
     PluginUnloadError,
     get_logger,
     log_exception,
-    _configure_logger,
-    handle_exception,
-    threading_excepthook,
 )
 import shinqlx.database
 
@@ -26,14 +22,6 @@ if sys.version_info < (3, 7):
 # ====================================================================
 #                               HELPERS
 # ====================================================================
-_stats = None
-
-
-def stats_listener():
-    """Returns the :class:`shinqlx.StatsListener` instance used to listen for stats."""
-    return _stats
-
-
 def set_plugins_version(path) -> None:
     args_version = shlex.split("git describe --long --tags --dirty --always")
     args_branch = shlex.split("git rev-parse --abbrev-ref HEAD")
@@ -194,55 +182,3 @@ def reload_plugin(plugin):
     except:
         log_exception(plugin)
         raise
-
-
-# ====================================================================
-#                                 MAIN
-# ====================================================================
-def initialize():
-    shinqlx.register_handlers()
-
-
-def late_init():
-    """Initialization that needs to be called after QLDS has finished
-    its own initialization.
-
-    """
-    shinqlx.initialize_cvars()
-
-    # Set the default database plugins should use.
-    # TODO: Make Plugin.database setting generic.
-    database_cvar = shinqlx.get_cvar("qlx_database")
-    if database_cvar is not None and database_cvar.lower() == "redis":
-        shinqlx.Plugin.database = shinqlx.database.Redis
-
-    # Get the plugins path and set shinqlx.__plugins_version__.
-    plugins_path_cvar = shinqlx.get_cvar("qlx_pluginsPath")
-    if plugins_path_cvar is not None:
-        plugins_path = os.path.abspath(plugins_path_cvar)
-        set_plugins_version(plugins_path)
-
-        # Add the plugins path to PATH so that we can load plugins later.
-        sys.path.append(os.path.dirname(plugins_path))
-
-    # Initialize the logger now that we have fs_basepath.
-    _configure_logger()
-    logger = get_logger()
-    # Set our own exception handler so that we can log them if unhandled.
-    sys.excepthook = handle_exception
-
-    if sys.version_info >= (3, 8):
-        threading.excepthook = threading_excepthook
-
-    logger.info("Loading preset plugins...")
-    load_preset_plugins()
-
-    stats_enable_cvar = shinqlx.get_cvar("zmq_stats_enable")
-    if stats_enable_cvar is not None and bool(int(stats_enable_cvar)):
-        global _stats
-        _stats = shinqlx.StatsListener()
-        logger.info("Stats listener started on %s.", _stats.address)
-        # Start polling. Not blocking due to decorator magic. Aw yeah.
-        _stats.keep_receiving()
-
-    logger.info("We're good to go!")

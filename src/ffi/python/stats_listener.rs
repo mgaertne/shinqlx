@@ -289,7 +289,7 @@ pub(crate) struct StatsListener {
 #[pymethods]
 impl StatsListener {
     #[new]
-    fn py_new() -> PyResult<Self> {
+    pub(crate) fn py_new() -> PyResult<Self> {
         let Some(ref main_engine) = *MAIN_ENGINE.load() else {
             return Err(PyEnvironmentError::new_err(
                 "main quake live engine not set",

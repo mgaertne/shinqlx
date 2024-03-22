@@ -715,6 +715,13 @@ fn owner(py: Python<'_>) -> PyResult<Option<i64>> {
     Ok(Some(steam_id))
 }
 
+/// Returns the :class:`shinqlx.StatsListener` instance used to listen for stats.
+#[pyfunction(name = "stats_listener")]
+fn get_stats_listener(py: Python<'_>) -> PyResult<Bound<'_, PyAny>> {
+    let shinqlx_module = py.import_bound(intern!(py, "shinqlx"))?;
+    shinqlx_module.getattr(intern!(py, "_stats"))
+}
+
 static DEFAULT_PLUGINS: [&str; 10] = [
     "plugin_manager",
     "essentials",
@@ -742,6 +749,123 @@ fn initialize_cvars(py: Python<'_>) -> PyResult<()> {
     pyshinqlx_set_cvar_once(py, "qlx_redisDatabase", "0".into_py(py), 0)?;
     pyshinqlx_set_cvar_once(py, "qlx_redisUnixSocket", "0".into_py(py), 0)?;
     pyshinqlx_set_cvar_once(py, "qlx_redisPassword", "".into_py(py), 0)?;
+    Ok(())
+}
+
+#[pyfunction(name = "initialize")]
+fn initialize(_py: Python<'_>) {
+    register_handlers()
+}
+
+/// Initialization that needs to be called after QLDS has finished
+/// its own initialization.
+#[pyfunction(name = "late_init")]
+fn late_init(py: Python<'_>) -> PyResult<()> {
+    let shinqlx_module = py.import_bound(intern!(py, "shinqlx"))?;
+
+    initialize_cvars(py)?;
+
+    let Some(ref main_engine) = *MAIN_ENGINE.load() else {
+        return Err(PyEnvironmentError::new_err("no main engine found"));
+    };
+
+    let database_cvar = main_engine.find_cvar("qlx_database");
+    if database_cvar.is_some_and(|value| value.get_string().to_lowercase() == "redis") {
+        let database_module = shinqlx_module.getattr(intern!(py, "database"))?;
+        let redis_database_module = database_module.getattr(intern!(py, "Redis"))?;
+
+        let plugin_module = shinqlx_module.getattr(intern!(py, "Plugin"))?;
+        plugin_module.setattr(intern!(py, "database"), redis_database_module)?;
+    }
+
+    let sys_module = py.import_bound(intern!(py, "sys"))?;
+    if let Some(plugins_path_cvar) = main_engine.find_cvar("qlx_pluginsPath") {
+        let plugins_path = plugins_path_cvar.get_string();
+
+        let os_module = py.import_bound(intern!(py, "os"))?;
+        let os_path_module = os_module.getattr(intern!(py, "path"))?;
+        let plugins_path = os_path_module.call_method1(intern!(py, "abspath"), (&plugins_path,))?;
+
+        shinqlx_module.call_method1(intern!(py, "set_plugins_version"), (&plugins_path,))?;
+
+        let plugins_path_dirname =
+            os_path_module.call_method1(intern!(py, "dirname"), (&plugins_path,))?;
+        let sys_path_module = sys_module.getattr(intern!(py, "path"))?;
+        sys_path_module.call_method1(intern!(py, "append"), (&plugins_path_dirname,))?;
+    }
+
+    pyshinqlx_configure_logger(py)?;
+    let logger = pyshinqlx_get_logger(py, None)?;
+
+    let logging_module = py.import_bound(intern!(py, "logging"))?;
+    let info_level = logging_module.getattr(intern!(py, "INFO"))?;
+
+    let handle_exception = shinqlx_module.getattr(intern!(py, "handle_exception"))?;
+    sys_module.setattr(intern!(py, "excepthook"), handle_exception)?;
+
+    let threading_module = py.import_bound(intern!(py, "threading"))?;
+    let threading_except_hook = shinqlx_module.getattr(intern!(py, "threading_excepthook"))?;
+    threading_module.setattr(intern!(py, "excepthook"), threading_except_hook)?;
+
+    let log_record = logger.call_method(
+        intern!(py, "makeRecord"),
+        (
+            intern!(py, "shinqlx"),
+            &info_level,
+            intern!(py, ""),
+            -1,
+            intern!(py, "Loading preset plugins..."),
+            py.None(),
+            py.None(),
+        ),
+        Some(&[(intern!(py, "func"), intern!(py, "late_init"))].into_py_dict_bound(py)),
+    )?;
+    logger.call_method1(intern!(py, "handle"), (log_record,))?;
+
+    shinqlx_module.call_method0(intern!(py, "load_preset_plugins"))?;
+
+    let stats_enable_cvar = main_engine.find_cvar("zmq_stats_enable");
+    if stats_enable_cvar.is_some_and(|value| value.get_string() != "0") {
+        shinqlx_module.setattr(
+            intern!(py, "_stats"),
+            Py::new(py, StatsListener::py_new()?)?,
+        )?;
+        let stats_value = shinqlx_module.getattr(intern!(py, "_stats"))?;
+
+        let stats_address = stats_value.getattr(intern!(py, "address"))?;
+        let log_record = logger.call_method(
+            intern!(py, "makeRecord"),
+            (
+                intern!(py, "shinqlx"),
+                &info_level,
+                intern!(py, ""),
+                -1,
+                intern!(py, "Stats listener started on %s."),
+                (stats_address,),
+                py.None(),
+            ),
+            Some(&[(intern!(py, "func"), intern!(py, "late_init"))].into_py_dict_bound(py)),
+        )?;
+        logger.call_method1(intern!(py, "handle"), (log_record,))?;
+
+        stats_value.call_method0(intern!(py, "keep_receiving"))?;
+    }
+
+    let log_record = logger.call_method(
+        intern!(py, "makeRecord"),
+        (
+            intern!(py, "shinqlx"),
+            &info_level,
+            intern!(py, ""),
+            -1,
+            intern!(py, "We're good to go!"),
+            py.None(),
+            py.None(),
+        ),
+        Some(&[(intern!(py, "func"), intern!(py, "late_init"))].into_py_dict_bound(py)),
+    )?;
+    logger.call_method1(intern!(py, "handle"), (log_record,))?;
+
     Ok(())
 }
 
@@ -1017,6 +1141,8 @@ fn pyshinqlx_module(py: Python<'_>, m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add("_thread_count", 0)?;
     m.add("_thread_name", "shinqlxthread")?;
 
+    m.add("_stats", py.None())?;
+
     m.add_function(wrap_pyfunction!(pyshinqlx_parse_variables, m)?)?;
     m.add_function(wrap_pyfunction!(pyshinqlx_get_logger, m)?)?;
     m.add_function(wrap_pyfunction!(pyshinqlx_configure_logger, m)?)?;
@@ -1025,7 +1151,7 @@ fn pyshinqlx_module(py: Python<'_>, m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(pyshinqlx_handle_threading_exception, m)?)?;
     m.add_function(wrap_pyfunction!(uptime, m)?)?;
     m.add_function(wrap_pyfunction!(owner, m)?)?;
-
+    m.add_function(wrap_pyfunction!(get_stats_listener, m)?)?;
     m.add_function(wrap_pyfunction!(pyshinqlx_set_cvar_once, m)?)?;
     m.add_function(wrap_pyfunction!(pyshinqlx_set_cvar_limit_once, m)?)?;
 
@@ -1035,6 +1161,8 @@ fn pyshinqlx_module(py: Python<'_>, m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(delay, m)?)?;
     m.add_function(wrap_pyfunction!(thread, m)?)?;
     m.add_function(wrap_pyfunction!(initialize_cvars, m)?)?;
+    m.add_function(wrap_pyfunction!(initialize, m)?)?;
+    m.add_function(wrap_pyfunction!(late_init, m)?)?;
 
     // from _game.py
     m.add_class::<Game>()?;
