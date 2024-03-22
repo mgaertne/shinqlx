@@ -90,7 +90,7 @@ use pyo3::types::IntoPyDict;
 
 fn try_dispatcher_debug_log(py: Python<'_>, debug_str: String) -> PyResult<()> {
     let logging_module = py.import_bound(intern!(py, "logging"))?;
-    let warning_level = logging_module.getattr(intern!(py, "WARNING"))?;
+    let debug_level = logging_module.getattr(intern!(py, "DEBUG"))?;
 
     let logger = pyshinqlx_get_logger(py, None)?;
 
@@ -103,7 +103,7 @@ fn try_dispatcher_debug_log(py: Python<'_>, debug_str: String) -> PyResult<()> {
         intern!(py, "makeRecord"),
         (
             intern!(py, "shinqlx"),
-            warning_level,
+            debug_level,
             intern!(py, ""),
             -1,
             dbgstr,
