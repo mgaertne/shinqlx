@@ -158,6 +158,7 @@ try:
         stats_listener,
         _modules,
         load_plugin,
+        unload_plugin,
         initialize_cvars,
         initialize,
         late_init,
@@ -401,6 +402,7 @@ except ModuleNotFoundError:
         stats_listener,
         _modules,
         load_plugin,
+        unload_plugin,
         initialize_cvars,
         initialize,
         late_init,
@@ -491,7 +493,6 @@ except ModuleNotFoundError:
 
 from ._core import (
     load_preset_plugins,
-    unload_plugin,
     reload_plugin,
 )
 from ._plugin import Plugin
@@ -672,6 +673,7 @@ __all__ = [
     "stats_listener",
     "_modules",
     "load_plugin",
+    "unload_plugin",
     "initialize_cvars",
     "initialize",
     "late_init",
@@ -757,7 +759,6 @@ __all__ = [
     "EVENT_DISPATCHERS",
     # _core
     "load_preset_plugins",
-    "unload_plugin",
     "reload_plugin",
     # _plugin
     "Plugin",
