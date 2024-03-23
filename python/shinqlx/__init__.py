@@ -159,6 +159,7 @@ try:
         _modules,
         load_plugin,
         unload_plugin,
+        reload_plugin,
         initialize_cvars,
         initialize,
         late_init,
@@ -403,6 +404,7 @@ except ModuleNotFoundError:
         _modules,
         load_plugin,
         unload_plugin,
+        reload_plugin,
         initialize_cvars,
         initialize,
         late_init,
@@ -493,9 +495,10 @@ except ModuleNotFoundError:
 
 from ._core import (
     load_preset_plugins,
-    reload_plugin,
 )
 from ._plugin import Plugin
+
+from . import database
 
 __version__ = _shinqlx.__version__
 __plugins_version__ = "NOT_SET"
@@ -674,6 +677,7 @@ __all__ = [
     "_modules",
     "load_plugin",
     "unload_plugin",
+    "reload_plugin",
     "initialize_cvars",
     "initialize",
     "late_init",
@@ -759,7 +763,8 @@ __all__ = [
     "EVENT_DISPATCHERS",
     # _core
     "load_preset_plugins",
-    "reload_plugin",
     # _plugin
     "Plugin",
+    # databsse
+    "database",
 ]

@@ -941,6 +941,33 @@ fn unload_plugin(py: Python<'_>, plugin: String) -> PyResult<()> {
     plugin_unload_result
 }
 
+fn try_reload_plugin(py: Python, plugin: String) -> PyResult<()> {
+    let shinqlx_module = py.import_bound(intern!(py, "shinqlx"))?;
+    let loaded_modules = shinqlx_module.getattr(intern!(py, "_modules"))?;
+
+    if loaded_modules.contains(&plugin)? {
+        let loaded_plugin_module = loaded_modules.get_item(&plugin)?;
+
+        let importlib_module = py.import_bound(intern!(py, "importlib"))?;
+        importlib_module.call_method1(intern!(py, "reload"), (loaded_plugin_module,))?;
+    }
+
+    load_plugin(py, plugin)?;
+    Ok(())
+}
+
+#[pyfunction(name = "reload_plugin")]
+fn reload_plugin(py: Python<'_>, plugin: String) -> PyResult<()> {
+    let _ = unload_plugin(py, plugin.clone());
+
+    let plugin_reload_result = try_reload_plugin(py, plugin);
+    if let Err(ref e) = plugin_reload_result {
+        log_exception(py, e);
+    }
+
+    plugin_reload_result
+}
+
 #[pyfunction(name = "initialize_cvars")]
 fn initialize_cvars(py: Python<'_>) -> PyResult<()> {
     pyshinqlx_set_cvar_once(py, "qlx_owner", "-1".into_py(py), 0)?;
@@ -1391,6 +1418,7 @@ fn pyshinqlx_module(py: Python<'_>, m: &Bound<'_, PyModule>) -> PyResult<()> {
 
     m.add_function(wrap_pyfunction!(load_plugin, m)?)?;
     m.add_function(wrap_pyfunction!(unload_plugin, m)?)?;
+    m.add_function(wrap_pyfunction!(reload_plugin, m)?)?;
     m.add_function(wrap_pyfunction!(initialize_cvars, m)?)?;
     m.add_function(wrap_pyfunction!(initialize, m)?)?;
     m.add_function(wrap_pyfunction!(late_init, m)?)?;

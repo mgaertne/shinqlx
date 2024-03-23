@@ -1,19 +1,12 @@
-import importlib
 import os
 import os.path
 import sys
-from contextlib import suppress
 
 import shinqlx
 from shinqlx import (
     PluginLoadError,
-    PluginUnloadError,
-    log_exception,
     load_plugin,
-    unload_plugin,
-    _modules,
 )
-import shinqlx.database
 
 if sys.version_info < (3, 7):
     raise AssertionError("Only python 3.7 and later is supported by shinqlx")
@@ -53,16 +46,3 @@ def load_preset_plugins():
     plugins = [p for p in plugins if f"{plugins_dir}.{p}"]
     for p in plugins:
         load_plugin(p)
-
-
-def reload_plugin(plugin):
-    with suppress(PluginUnloadError):
-        unload_plugin(plugin)
-
-    try:
-        if plugin in _modules:  # Unloaded previously?
-            importlib.reload(_modules[plugin])
-        load_plugin(plugin)
-    except:
-        log_exception(plugin)
-        raise
