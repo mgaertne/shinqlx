@@ -722,6 +722,50 @@ fn get_stats_listener(py: Python<'_>) -> PyResult<Bound<'_, PyAny>> {
     shinqlx_module.getattr(intern!(py, "_stats"))
 }
 
+fn try_get_plugins_version(path: String) -> Result<String, git2::Error> {
+    let repository = git2::Repository::open(path)?;
+
+    let mut describe_options_binding = git2::DescribeOptions::default();
+    let describe_options = describe_options_binding
+        .describe_tags()
+        .show_commit_oid_as_fallback(true);
+    let describe = repository.describe(describe_options)?;
+    let mut describe_format_options_binding = git2::DescribeFormatOptions::default();
+    let desribe_format_options = describe_format_options_binding
+        .always_use_long_format(true)
+        .dirty_suffix("-dirty");
+    let plugins_version = describe.format(Some(desribe_format_options))?;
+
+    let Some(branch) = repository
+        .revparse_ext("HEAD")
+        .map(|(_, branch_option)| branch_option)
+        .ok()
+        .flatten()
+        else {
+            return Ok(plugins_version);
+        };
+
+    let Some(branch_name) = branch.shorthand() else {
+        return Ok(plugins_version);
+    };
+
+    let returned = format!("{}-{}", plugins_version, branch_name);
+    Ok(returned)
+}
+
+fn get_plugins_version(path: String) -> String {
+    try_get_plugins_version(path).unwrap_or("NOT_SET".into())
+}
+
+#[pyfunction(name = "set_plugins_version")]
+fn set_plugins_version(py: Python<'_>, path: String) {
+    let plugins_version = py.allow_threads(|| get_plugins_version(path));
+
+    if let Ok(shinqlx_module) = py.import_bound(intern!(py, "shinqlx")) {
+        let _ = shinqlx_module.setattr(intern!(py, "__plugins_version__"), plugins_version);
+    }
+}
+
 static DEFAULT_PLUGINS: [&str; 10] = [
     "plugin_manager",
     "essentials",
@@ -784,14 +828,14 @@ fn late_init(py: Python<'_>) -> PyResult<()> {
 
         let os_module = py.import_bound(intern!(py, "os"))?;
         let os_path_module = os_module.getattr(intern!(py, "path"))?;
-        let plugins_path = os_path_module.call_method1(intern!(py, "abspath"), (&plugins_path,))?;
-
-        shinqlx_module.call_method1(intern!(py, "set_plugins_version"), (&plugins_path,))?;
+        let py_plugins_path = os_path_module.call_method1(intern!(py, "abspath"), (&plugins_path,))?;
 
         let plugins_path_dirname =
-            os_path_module.call_method1(intern!(py, "dirname"), (&plugins_path,))?;
+            os_path_module.call_method1(intern!(py, "dirname"), (&py_plugins_path,))?;
         let sys_path_module = sys_module.getattr(intern!(py, "path"))?;
         sys_path_module.call_method1(intern!(py, "append"), (&plugins_path_dirname,))?;
+
+        set_plugins_version(py, plugins_path);
     }
 
     pyshinqlx_configure_logger(py)?;
@@ -868,6 +912,7 @@ fn late_init(py: Python<'_>) -> PyResult<()> {
 
     Ok(())
 }
+
 
 #[pymodule]
 #[pyo3(name = "shinqlx")]
@@ -1154,7 +1199,7 @@ fn pyshinqlx_module(py: Python<'_>, m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(get_stats_listener, m)?)?;
     m.add_function(wrap_pyfunction!(pyshinqlx_set_cvar_once, m)?)?;
     m.add_function(wrap_pyfunction!(pyshinqlx_set_cvar_limit_once, m)?)?;
-
+    m.add_function(wrap_pyfunction!(set_plugins_version, m)?)?;
     m.add_function(wrap_pyfunction!(set_map_subtitles, m)?)?;
 
     m.add_function(wrap_pyfunction!(next_frame, m)?)?;

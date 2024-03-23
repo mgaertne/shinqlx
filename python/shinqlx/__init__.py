@@ -139,6 +139,7 @@ try:
         get_targetting_entities,
         set_cvar_once,
         set_cvar_limit_once,
+        set_plugins_version,
         set_map_subtitles,
         parse_variables,
         get_logger,
@@ -379,6 +380,7 @@ except ModuleNotFoundError:
         get_targetting_entities,
         set_cvar_once,
         set_cvar_limit_once,
+        set_plugins_version,
         set_map_subtitles,
         parse_variables,
         get_logger,
@@ -484,7 +486,6 @@ except ModuleNotFoundError:
     )
 
 from ._core import (
-    set_plugins_version,
     load_preset_plugins,
     load_plugin,
     unload_plugin,
@@ -649,6 +650,7 @@ __all__ = [
     "get_targetting_entities",
     "set_cvar_once",
     "set_cvar_limit_once",
+    "set_plugins_version",
     "set_map_subtitles",
     "parse_variables",
     "get_logger",
@@ -749,7 +751,6 @@ __all__ = [
     "EventDispatcherManager",
     "EVENT_DISPATCHERS",
     # _core
-    "set_plugins_version",
     "load_preset_plugins",
     "load_plugin",
     "unload_plugin",
