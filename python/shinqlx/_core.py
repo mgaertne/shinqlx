@@ -1,8 +1,6 @@
-import subprocess
 import importlib
 import os
 import os.path
-import shlex
 import sys
 from contextlib import suppress
 
