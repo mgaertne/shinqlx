@@ -151,6 +151,7 @@ from ._shinqlx import (
     _modules,
     load_plugin,
     unload_plugin,
+    reload_plugin,
     initialize_cvars,
     initialize,
     late_init,
@@ -245,7 +246,6 @@ from ._shinqlx import (
 )
 from ._core import (
     load_preset_plugins,
-    reload_plugin,
 )
 from ._plugin import (
     Plugin,
@@ -283,6 +283,8 @@ from ._plugin import (
     SingleWeaponStatsEntry,
     StatsData,
 )
+
+from . import database
 
 __version__: str
 __plugins_version__: str
@@ -451,6 +453,7 @@ __all__ = [
     "_modules",
     "load_plugin",
     "unload_plugin",
+    "reload_plugin",
     "initialize_cvars",
     "initialize",
     "late_init",
@@ -539,7 +542,6 @@ __all__ = [
     "CancellableEventReturn",
     # _core
     "load_preset_plugins",
-    "reload_plugin",
     # _plugin
     "Plugin",
     "GameStartData",
@@ -575,4 +577,6 @@ __all__ = [
     "DamageEntry",
     "SingleWeaponStatsEntry",
     "StatsData",
+    # database
+    "database",
 ]
