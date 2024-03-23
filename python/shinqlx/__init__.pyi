@@ -148,6 +148,8 @@ from ._shinqlx import (
     owner,
     _stats,
     stats_listener,
+    _modules,
+    load_plugin,
     initialize_cvars,
     initialize,
     late_init,
@@ -242,7 +244,6 @@ from ._shinqlx import (
 )
 from ._core import (
     load_preset_plugins,
-    load_plugin,
     unload_plugin,
     reload_plugin,
 )
@@ -447,6 +448,8 @@ __all__ = [
     "owner",
     "_stats",
     "stats_listener",
+    "_modules",
+    "load_plugin",
     "initialize_cvars",
     "initialize",
     "late_init",
@@ -535,7 +538,6 @@ __all__ = [
     "CancellableEventReturn",
     # _core
     "load_preset_plugins",
-    "load_plugin",
     "unload_plugin",
     "reload_plugin",
     # _plugin

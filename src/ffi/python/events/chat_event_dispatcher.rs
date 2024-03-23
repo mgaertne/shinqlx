@@ -29,7 +29,7 @@ impl ChatEventDispatcher {
     ) -> PyObject {
         match try_handle_input(py, &player, &msg, &channel) {
             Err(e) => {
-                log_exception(py, e);
+                log_exception(py, &e);
             }
             Ok(handle_input_return) => {
                 if handle_input_return.is_truthy(py).is_ok_and(|value| !value) {
@@ -57,7 +57,7 @@ impl ChatEventDispatcher {
                 for handler in &handlers[i] {
                     match handler.call1(py, (&player, &forwarded_msg, &channel)) {
                         Err(e) => {
-                            log_exception(py, e);
+                            log_exception(py, &e);
                             continue;
                         }
                         Ok(res) => {

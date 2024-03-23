@@ -33,7 +33,7 @@ impl VoteDispatcher {
                 for handler in &handlers[i] {
                     match handler.call1(py, (&player, yes_no)) {
                         Err(e) => {
-                            log_exception(py, e);
+                            log_exception(py, &e);
                             continue;
                         }
                         Ok(res) => {

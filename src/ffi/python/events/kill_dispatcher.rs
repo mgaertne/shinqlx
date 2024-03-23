@@ -35,7 +35,7 @@ impl KillDispatcher {
                 for handler in &handlers[i] {
                     match handler.call1(py, (&victim, &killer, &data)) {
                         Err(e) => {
-                            log_exception(py, e);
+                            log_exception(py, &e);
                             continue;
                         }
                         Ok(res) => {

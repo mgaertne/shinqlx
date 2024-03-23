@@ -156,6 +156,8 @@ try:
         owner,
         _stats,
         stats_listener,
+        _modules,
+        load_plugin,
         initialize_cvars,
         initialize,
         late_init,
@@ -397,6 +399,8 @@ except ModuleNotFoundError:
         owner,
         _stats,
         stats_listener,
+        _modules,
+        load_plugin,
         initialize_cvars,
         initialize,
         late_init,
@@ -487,7 +491,6 @@ except ModuleNotFoundError:
 
 from ._core import (
     load_preset_plugins,
-    load_plugin,
     unload_plugin,
     reload_plugin,
 )
@@ -667,6 +670,8 @@ __all__ = [
     "owner",
     "_stats",
     "stats_listener",
+    "_modules",
+    "load_plugin",
     "initialize_cvars",
     "initialize",
     "late_init",
@@ -752,7 +757,6 @@ __all__ = [
     "EVENT_DISPATCHERS",
     # _core
     "load_preset_plugins",
-    "load_plugin",
     "unload_plugin",
     "reload_plugin",
     # _plugin
