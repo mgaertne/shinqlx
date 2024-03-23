@@ -94,7 +94,7 @@ class ChatChannel(AbstractChannel):
         self.fmt = fmt
 
     @abstractmethod
-    def receipients(self):
+    def recipients(self):
         pass
 
     @shinqlx.next_frame
@@ -105,7 +105,7 @@ class ChatChannel(AbstractChannel):
         msg = str(msg).replace('"', "'")
         # Can deal with all the below ChatChannel subclasses.
         last_color = ""
-        targets = self.receipients()
+        targets = self.recipients()
 
         split_msgs = self.split_long_lines(msg, limit, delimiter)
         # We've split messages, but we can still just join them up to 1000-ish
@@ -140,7 +140,7 @@ class TeamChatChannel(ChatChannel):
         super().__init__(name=name, fmt=fmt)
         self.team = team
 
-    def receipients(self):
+    def recipients(self):
         if self.team == "all":
             return None
 
@@ -164,7 +164,7 @@ class TellChannel(ChatChannel):
             return ""
         return f"tell {player.steam_id}"
 
-    def receipients(self):
+    def recipients(self):
         cid = shinqlx.Plugin.client_id(self.recipient)
         if cid is None:
             raise ValueError("Invalid recipient.")
