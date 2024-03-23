@@ -741,9 +741,9 @@ fn try_get_plugins_version(path: String) -> Result<String, git2::Error> {
         .map(|(_, branch_option)| branch_option)
         .ok()
         .flatten()
-        else {
-            return Ok(plugins_version);
-        };
+    else {
+        return Ok(plugins_version);
+    };
 
     let Some(branch_name) = branch.shorthand() else {
         return Ok(plugins_version);
@@ -828,7 +828,8 @@ fn late_init(py: Python<'_>) -> PyResult<()> {
 
         let os_module = py.import_bound(intern!(py, "os"))?;
         let os_path_module = os_module.getattr(intern!(py, "path"))?;
-        let py_plugins_path = os_path_module.call_method1(intern!(py, "abspath"), (&plugins_path,))?;
+        let py_plugins_path =
+            os_path_module.call_method1(intern!(py, "abspath"), (&plugins_path,))?;
 
         let plugins_path_dirname =
             os_path_module.call_method1(intern!(py, "dirname"), (&py_plugins_path,))?;
@@ -912,7 +913,6 @@ fn late_init(py: Python<'_>) -> PyResult<()> {
 
     Ok(())
 }
-
 
 #[pymodule]
 #[pyo3(name = "shinqlx")]
