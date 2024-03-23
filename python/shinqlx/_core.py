@@ -20,55 +20,6 @@ if sys.version_info < (3, 7):
 
 
 # ====================================================================
-#                               HELPERS
-# ====================================================================
-def set_plugins_version(path) -> None:
-    args_version = shlex.split("git describe --long --tags --dirty --always")
-    args_branch = shlex.split("git rev-parse --abbrev-ref HEAD")
-
-    # We keep environment variables, but remove LD_PRELOAD to avoid a warning the OS might throw.
-    env = dict(os.environ)
-    del env["LD_PRELOAD"]
-    try:
-        # Get the version using git describe.
-        with subprocess.Popen(
-            args_version,
-            stdout=subprocess.PIPE,
-            stderr=subprocess.PIPE,
-            cwd=path,
-            env=env,
-        ) as p:
-            p.wait(timeout=1)
-            if p.returncode != 0:
-                setattr(shinqlx, "__plugins_version__", "NOT_SET")
-                return
-
-            if p.stdout:
-                version = p.stdout.read().decode().strip()
-
-        # Get the branch using git rev-parse.
-        with subprocess.Popen(
-            args_branch,
-            stdout=subprocess.PIPE,
-            stderr=subprocess.PIPE,
-            cwd=path,
-            env=env,
-        ) as p:
-            p.wait(timeout=1)
-            if p.returncode != 0:
-                setattr(shinqlx, "__plugins_version__", version)
-                return
-
-            if p.stdout:
-                branch = p.stdout.read().decode().strip()
-    except (FileNotFoundError, subprocess.TimeoutExpired):
-        setattr(shinqlx, "__plugins_version__", "NOT_SET")
-        return
-
-    setattr(shinqlx, "__plugins_version__", f"{version}-{branch}")
-
-
-# ====================================================================
 #                       CONFIG AND PLUGIN LOADING
 # ====================================================================
 # We need to keep track of module instances for use with importlib.reload.
