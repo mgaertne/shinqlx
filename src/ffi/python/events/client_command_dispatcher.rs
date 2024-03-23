@@ -34,7 +34,7 @@ impl ClientCommandDispatcher {
                 for handler in &handlers[i] {
                     match handler.call1(py, (&player, &forwarded_cmd)) {
                         Err(e) => {
-                            log_exception(py, e);
+                            log_exception(py, &e);
                             continue;
                         }
                         Ok(res) => {
@@ -83,7 +83,7 @@ impl ClientCommandDispatcher {
 
         match try_handle_input(py, &player, &cmd) {
             Err(e) => {
-                log_exception(py, e);
+                log_exception(py, &e);
             }
             Ok(handle_input_return) => {
                 if handle_input_return.is_truthy(py).is_ok_and(|value| !value) {

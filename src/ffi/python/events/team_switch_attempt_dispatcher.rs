@@ -46,7 +46,7 @@ impl TeamSwitchAttemptDispatcher {
                 for handler in &handlers[i] {
                     match handler.call1(py, (&player, &old_team, &new_team)) {
                         Err(e) => {
-                            log_exception(py, e);
+                            log_exception(py, &e);
                             continue;
                         }
                         Ok(res) => {

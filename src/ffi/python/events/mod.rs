@@ -118,7 +118,7 @@ fn try_dispatcher_debug_log(py: Python<'_>, debug_str: String) -> PyResult<()> {
 }
 pub(crate) fn dispatcher_debug_log(py: Python<'_>, debug_str: String) {
     if let Err(e) = try_dispatcher_debug_log(py, debug_str) {
-        log_exception(py, e);
+        log_exception(py, &e);
     }
 }
 
@@ -162,7 +162,7 @@ pub(crate) fn log_unexpected_return_value(
     handler: &PyObject,
 ) {
     if let Err(e) = try_log_unexpected_return_value(py, event_name, result, handler) {
-        log_exception(py, e);
+        log_exception(py, &e);
     }
 }
 
@@ -255,7 +255,7 @@ impl EventDispatcher {
                     let handler_args = PyTuple::new_bound(py, &args);
                     match handler.call1(py, handler_args) {
                         Err(e) => {
-                            log_exception(py, e);
+                            log_exception(py, &e);
                             continue;
                         }
                         Ok(res) => {
@@ -288,7 +288,7 @@ impl EventDispatcher {
 
                             match Self::handle_return(slf.deref(), py, handler.into_py(py), res) {
                                 Err(e) => {
-                                    log_exception(py, e);
+                                    log_exception(py, &e);
                                     continue;
                                 }
                                 Ok(return_handler) => {

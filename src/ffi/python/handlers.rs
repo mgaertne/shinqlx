@@ -36,7 +36,7 @@ fn try_handle_rcon(py: Python<'_>, cmd: String) -> PyResult<Option<bool>> {
 #[pyfunction]
 pub(crate) fn handle_rcon(py: Python<'_>, cmd: String) -> Option<bool> {
     try_handle_rcon(py, cmd).unwrap_or_else(|e| {
-        log_exception(py, e);
+        log_exception(py, &e);
         Some(true)
     })
 }
@@ -268,7 +268,7 @@ fn try_handle_client_command(py: Python<'_>, client_id: i32, cmd: String) -> PyR
 #[pyfunction]
 pub(crate) fn handle_client_command(py: Python<'_>, client_id: i32, cmd: String) -> PyObject {
     try_handle_client_command(py, client_id, cmd).unwrap_or_else(|e| {
-        log_exception(py, e);
+        log_exception(py, &e);
         true.into_py(py)
     })
 }
@@ -322,7 +322,7 @@ fn try_handle_server_command(py: Python<'_>, client_id: i32, cmd: String) -> PyR
 #[pyfunction]
 pub(crate) fn handle_server_command(py: Python<'_>, client_id: i32, cmd: String) -> PyObject {
     try_handle_server_command(py, client_id, cmd).unwrap_or_else(|e| {
-        log_exception(py, e);
+        log_exception(py, &e);
         true.into_py(py)
     })
 }
@@ -362,10 +362,10 @@ def next_frame_tasks_runner():
         "",
         "",
     ) {
-        Err(e) => log_exception(py, e),
+        Err(e) => log_exception(py, &e),
         Ok(next_frame_tasks_runner) => {
             if let Err(e) = next_frame_tasks_runner.call_method0("next_frame_tasks_runner") {
-                log_exception(py, e);
+                log_exception(py, &e);
             }
         }
     }
@@ -377,11 +377,11 @@ def next_frame_tasks_runner():
 #[pyfunction]
 pub(crate) fn handle_frame(py: Python<'_>) -> Option<bool> {
     while let Err(e) = try_run_frame_tasks(py) {
-        log_exception(py, e);
+        log_exception(py, &e);
     }
 
     if let Err(e) = try_handle_frame(py) {
-        log_exception(py, e);
+        log_exception(py, &e);
         return Some(true);
     }
 
@@ -445,7 +445,7 @@ fn try_handle_new_game(py: Python<'_>, is_restart: bool) -> PyResult<()> {
 #[pyfunction]
 pub(crate) fn handle_new_game(py: Python<'_>, is_restart: bool) -> Option<bool> {
     if let Err(e) = try_handle_new_game(py, is_restart) {
-        log_exception(py, e);
+        log_exception(py, &e);
         return Some(true);
     }
 
@@ -598,7 +598,7 @@ fn try_handle_set_configstring(py: Python<'_>, index: u32, value: String) -> PyR
 #[pyfunction]
 pub(crate) fn handle_set_configstring(py: Python<'_>, index: u32, value: String) -> PyObject {
     try_handle_set_configstring(py, index, value).unwrap_or_else(|e| {
-        log_exception(py, e);
+        log_exception(py, &e);
         true.into_py(py)
     })
 }
@@ -622,7 +622,7 @@ fn try_handle_player_connect(py: Python<'_>, client_id: i32, _is_bot: bool) -> P
 #[pyfunction]
 pub(crate) fn handle_player_connect(py: Python<'_>, client_id: i32, is_bot: bool) -> PyObject {
     try_handle_player_connect(py, client_id, is_bot).unwrap_or_else(|e| {
-        log_exception(py, e);
+        log_exception(py, &e);
         true.into_py(py)
     })
 }
@@ -645,7 +645,7 @@ fn try_handle_player_loaded(py: Python<'_>, client_id: i32) -> PyResult<PyObject
 #[pyfunction]
 pub(crate) fn handle_player_loaded(py: Python<'_>, client_id: i32) -> PyObject {
     try_handle_player_loaded(py, client_id).unwrap_or_else(|e| {
-        log_exception(py, e);
+        log_exception(py, &e);
         true.into_py(py)
     })
 }
@@ -674,7 +674,7 @@ pub(crate) fn handle_player_disconnect(
     reason: Option<String>,
 ) -> PyObject {
     try_handle_player_disconnect(py, client_id, reason).unwrap_or_else(|e| {
-        log_exception(py, e);
+        log_exception(py, &e);
         true.into_py(py)
     })
 }
@@ -697,7 +697,7 @@ fn try_handle_player_spawn(py: Python<'_>, client_id: i32) -> PyResult<PyObject>
 #[pyfunction]
 pub(crate) fn handle_player_spawn(py: Python<'_>, client_id: i32) -> PyObject {
     try_handle_player_spawn(py, client_id).unwrap_or_else(|e| {
-        log_exception(py, e);
+        log_exception(py, &e);
         true.into_py(py)
     })
 }
@@ -718,7 +718,7 @@ fn try_handle_kamikaze_use(py: Python<'_>, client_id: i32) -> PyResult<PyObject>
 #[pyfunction]
 pub(crate) fn handle_kamikaze_use(py: Python<'_>, client_id: i32) -> PyObject {
     try_handle_kamikaze_use(py, client_id).unwrap_or_else(|e| {
-        log_exception(py, e);
+        log_exception(py, &e);
         true.into_py(py)
     })
 }
@@ -747,7 +747,7 @@ pub(crate) fn handle_kamikaze_explode(
     is_used_on_demand: bool,
 ) -> PyObject {
     try_handle_kamikaze_explode(py, client_id, is_used_on_demand).unwrap_or_else(|e| {
-        log_exception(py, e);
+        log_exception(py, &e);
         true.into_py(py)
     })
 }
@@ -804,7 +804,7 @@ pub(crate) fn handle_damage(
 ) -> Option<bool> {
     try_handle_damage(py, target_id, attacker_id, damage, dflags, means_of_death).unwrap_or_else(
         |e| {
-            log_exception(py, e);
+            log_exception(py, &e);
             Some(true)
         },
     )
@@ -845,7 +845,7 @@ fn try_handle_console_print(py: Python<'_>, text: String) -> PyResult<PyObject> 
         .iter()
         .for_each(|print_redirector| {
             if let Err(e) = print_redirector.call_method1(py, intern!(py, "append"), (&text,)) {
-                log_exception(py, e);
+                log_exception(py, &e);
             }
         });
 
@@ -861,7 +861,7 @@ pub(crate) fn handle_console_print(py: Python<'_>, text: String) -> PyObject {
     }
 
     try_handle_console_print(py, text).unwrap_or_else(|e| {
-        log_exception(py, e);
+        log_exception(py, &e);
         true.into_py(py)
     })
 }

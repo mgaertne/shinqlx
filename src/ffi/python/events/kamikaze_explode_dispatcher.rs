@@ -41,7 +41,7 @@ impl KamikazeExplodeDispatcher {
                 for handler in &handlers[i] {
                     match handler.call1(py, (&player, is_used_on_demand)) {
                         Err(e) => {
-                            log_exception(py, e);
+                            log_exception(py, &e);
                             continue;
                         }
                         Ok(res) => {

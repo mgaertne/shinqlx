@@ -138,14 +138,14 @@ use core::{
 use itertools::Itertools;
 use log::*;
 use once_cell::sync::Lazy;
-use pyo3::exceptions::PyValueError;
+use regex::Regex;
+
 use pyo3::{
     append_to_inittab, create_exception,
-    exceptions::{PyEnvironmentError, PyException},
+    exceptions::{PyEnvironmentError, PyException, PyValueError},
     intern, prepare_freethreaded_python,
-    types::{IntoPyDict, PyDelta, PyDict, PyFunction, PyTuple},
+    types::{IntoPyDict, PyDelta, PyDict, PyFunction, PyString, PyTuple},
 };
-use regex::Regex;
 
 pub(crate) static ALLOW_FREE_CLIENT: AtomicU64 = AtomicU64::new(0);
 
@@ -546,7 +546,7 @@ fn pyshinqlx_handle_threading_exception(py: Python<'_>, args: Py<PyAny>) -> PyRe
     )
 }
 
-fn try_log_exception(py: Python<'_>, exception: PyErr) -> PyResult<()> {
+fn try_log_exception(py: Python<'_>, exception: &PyErr) -> PyResult<()> {
     let logging_module = py.import_bound(intern!(py, "logging"))?;
     let traceback_module = py.import_bound(intern!(py, "traceback"))?;
 
@@ -571,7 +571,7 @@ fn try_log_exception(py: Python<'_>, exception: PyErr) -> PyResult<()> {
     Ok(())
 }
 
-pub(crate) fn log_exception(py: Python<'_>, exception: PyErr) {
+pub(crate) fn log_exception(py: Python<'_>, exception: &PyErr) {
     let _ = try_log_exception(py, exception);
 }
 
@@ -779,7 +779,105 @@ static DEFAULT_PLUGINS: [&str; 10] = [
     "workshop",
 ];
 
-#[pyfunction]
+fn try_load_plugin(py: Python<'_>, plugin: &String) -> PyResult<()> {
+    let plugins_path = try_get_plugins_path().map_err(PyEnvironmentError::new_err)?;
+
+    let os_module = py.import_bound(intern!(py, "os"))?;
+    let os_path_module = os_module.getattr(intern!(py, "path"))?;
+
+    let importlib_module = py.import_bound(intern!(py, "importlib"))?;
+    let plugins_dir = os_path_module.call_method1(intern!(py, "basename"), (&plugins_path,))?;
+
+    let plugin_import_path = format!("{}.{}", plugins_dir, &plugin);
+    let module =
+        importlib_module.call_method1(intern!(py, "import_module"), (plugin_import_path,))?;
+
+    let plugin_pystring = PyString::new_bound(py, plugin);
+    if !module.hasattr(&plugin_pystring)? {
+        return Err(PluginLoadError::new_err(
+            "The plugin needs to have a class with the exact name as the file, minus the .py.",
+        ));
+    }
+
+    let shinqlx_module = py.import_bound(intern!(py, "shinqlx"))?;
+    let shinqlx_plugin_module = shinqlx_module.getattr(intern!(py, "Plugin"))?;
+
+    let plugin_class = module.getattr(&plugin_pystring)?;
+    if !plugin_class
+        .get_type()
+        .is_subclass(&shinqlx_plugin_module.get_type())
+        .unwrap_or(false)
+    {
+        return Err(PluginLoadError::new_err(
+            "Attempted to load a plugin that is not a subclass of 'shinqlx.Plugin'.",
+        ));
+    }
+
+    let loaded_plugins = shinqlx_plugin_module.getattr(intern!(py, "_loaded_plugins"))?;
+    let loaded_plugin = plugin_class.call0()?;
+    loaded_plugins.call_method1(
+        intern!(py, "__setitem__"),
+        (&plugin_pystring, loaded_plugin),
+    )?;
+
+    let modules = shinqlx_module.getattr(intern!(py, "_modules"))?;
+    modules.call_method1(intern!(py, "__setitem__"), (&plugin_pystring, module))?;
+
+    Ok(())
+}
+
+#[pyfunction(name = "load_plugin")]
+fn load_plugin(py: Python<'_>, plugin: String) -> PyResult<()> {
+    let logger = pyshinqlx_get_logger(py, None)?;
+    let logging_module = py.import_bound(intern!(py, "logging"))?;
+    let info_level = logging_module.getattr(intern!(py, "INFO"))?;
+
+    let log_record = logger.call_method(
+        intern!(py, "makeRecord"),
+        (
+            intern!(py, "shinqlx"),
+            &info_level,
+            intern!(py, ""),
+            -1,
+            intern!(py, "Loading plugin '%s'..."),
+            (&plugin,),
+            py.None(),
+        ),
+        Some(&[(intern!(py, "func"), intern!(py, "load_plugin"))].into_py_dict_bound(py)),
+    )?;
+    logger.call_method1(intern!(py, "handle"), (log_record,))?;
+
+    let Ok(plugins_path) = try_get_plugins_path() else {
+        return Err(PluginLoadError::new_err(
+            "cvar qlx_pluginsPath misconfigured",
+        ));
+    };
+
+    let plugin_filename = format!("{}.py", &plugin);
+    let joined_path = plugins_path.join(plugin_filename);
+    if !joined_path.as_path().is_file() {
+        return Err(PluginLoadError::new_err("No such plugin exists."));
+    }
+
+    let shinqlx_module = py.import_bound(intern!(py, "shinqlx"))?;
+    let plugin_module = shinqlx_module.getattr(intern!(py, "Plugin"))?;
+    let loaded_plugins = plugin_module.getattr(intern!(py, "_loaded_plugins"))?;
+
+    let plugin_loaded = loaded_plugins.call_method1(intern!(py, "__contains__"), (&plugin,))?;
+    if plugin_loaded.is_truthy().unwrap_or(false) {
+        shinqlx_module.call_method1(intern!(py, "reload_plugin"), (&plugin,))?;
+        return Ok(());
+    }
+
+    let plugin_load_result = try_load_plugin(py, &plugin);
+    if let Err(ref e) = plugin_load_result {
+        log_exception(py, e);
+    }
+
+    plugin_load_result
+}
+
+#[pyfunction(name = "initialize_cvars")]
 fn initialize_cvars(py: Python<'_>) -> PyResult<()> {
     pyshinqlx_set_cvar_once(py, "qlx_owner", "-1".into_py(py), 0)?;
     pyshinqlx_set_cvar_once(py, "qlx_plugins", DEFAULT_PLUGINS.join(", ").into_py(py), 0)?;
@@ -793,12 +891,33 @@ fn initialize_cvars(py: Python<'_>) -> PyResult<()> {
     pyshinqlx_set_cvar_once(py, "qlx_redisDatabase", "0".into_py(py), 0)?;
     pyshinqlx_set_cvar_once(py, "qlx_redisUnixSocket", "0".into_py(py), 0)?;
     pyshinqlx_set_cvar_once(py, "qlx_redisPassword", "".into_py(py), 0)?;
+
     Ok(())
 }
 
 #[pyfunction(name = "initialize")]
 fn initialize(_py: Python<'_>) {
     register_handlers()
+}
+
+fn try_get_plugins_path() -> Result<std::path::PathBuf, &'static str> {
+    let Some(ref main_engine) = *MAIN_ENGINE.load() else {
+        return Err("no main engine found");
+    };
+
+    let Some(plugins_path_cvar) = main_engine.find_cvar("qlx_pluginsPath") else {
+        return Err("qlx_pluginsPath cvar not found");
+    };
+    let plugins_path_str = plugins_path_cvar.get_string();
+
+    let plugins_path = std::path::Path::new(&plugins_path_str);
+    if !plugins_path.is_dir() {
+        return Err("qlx_pluginsPath is not pointing to an existing directory");
+    }
+
+    plugins_path
+        .canonicalize()
+        .map_err(|_| "canonicalize returned an error")
 }
 
 /// Initialization that needs to be called after QLDS has finished
@@ -823,20 +942,20 @@ fn late_init(py: Python<'_>) -> PyResult<()> {
     }
 
     let sys_module = py.import_bound(intern!(py, "sys"))?;
-    if let Some(plugins_path_cvar) = main_engine.find_cvar("qlx_pluginsPath") {
-        let plugins_path = plugins_path_cvar.get_string();
 
-        let os_module = py.import_bound(intern!(py, "os"))?;
-        let os_path_module = os_module.getattr(intern!(py, "path"))?;
-        let py_plugins_path =
-            os_path_module.call_method1(intern!(py, "abspath"), (&plugins_path,))?;
+    if let Ok(real_plugins_path) = try_get_plugins_path() {
+        set_plugins_version(py, real_plugins_path.to_string_lossy().into());
 
-        let plugins_path_dirname =
-            os_path_module.call_method1(intern!(py, "dirname"), (&py_plugins_path,))?;
+        let Some(plugins_path_dirname) = real_plugins_path
+            .parent()
+            .map(|value| value.to_string_lossy())
+        else {
+            return Err(PyEnvironmentError::new_err(
+                "could not determine directory name of qlx_pluginsPath",
+            ));
+        };
         let sys_path_module = sys_module.getattr(intern!(py, "path"))?;
-        sys_path_module.call_method1(intern!(py, "append"), (&plugins_path_dirname,))?;
-
-        set_plugins_version(py, plugins_path);
+        sys_path_module.call_method1(intern!(py, "append"), (plugins_path_dirname,))?;
     }
 
     pyshinqlx_configure_logger(py)?;
@@ -1187,6 +1306,7 @@ fn pyshinqlx_module(py: Python<'_>, m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add("_thread_name", "shinqlxthread")?;
 
     m.add("_stats", py.None())?;
+    m.add("_modules", PyDict::new_bound(py))?;
 
     m.add_function(wrap_pyfunction!(pyshinqlx_parse_variables, m)?)?;
     m.add_function(wrap_pyfunction!(pyshinqlx_get_logger, m)?)?;
@@ -1201,10 +1321,11 @@ fn pyshinqlx_module(py: Python<'_>, m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(pyshinqlx_set_cvar_limit_once, m)?)?;
     m.add_function(wrap_pyfunction!(set_plugins_version, m)?)?;
     m.add_function(wrap_pyfunction!(set_map_subtitles, m)?)?;
-
     m.add_function(wrap_pyfunction!(next_frame, m)?)?;
     m.add_function(wrap_pyfunction!(delay, m)?)?;
     m.add_function(wrap_pyfunction!(thread, m)?)?;
+
+    m.add_function(wrap_pyfunction!(load_plugin, m)?)?;
     m.add_function(wrap_pyfunction!(initialize_cvars, m)?)?;
     m.add_function(wrap_pyfunction!(initialize, m)?)?;
     m.add_function(wrap_pyfunction!(late_init, m)?)?;

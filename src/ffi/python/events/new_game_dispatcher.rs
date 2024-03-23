@@ -32,7 +32,7 @@ impl NewGameDispatcher {
                 for handler in &handlers[i] {
                     match handler.call0(py) {
                         Err(e) => {
-                            log_exception(py, e);
+                            log_exception(py, &e);
                             continue;
                         }
                         Ok(res) => {

@@ -78,7 +78,7 @@ impl VoteEndedDispatcher {
                 for handler in &handlers[i] {
                     match handler.call1(py, ((yes_votes, no_votes), vote, args, passed)) {
                         Err(e) => {
-                            log_exception(py, e);
+                            log_exception(py, &e);
                             continue;
                         }
                         Ok(res) => {
