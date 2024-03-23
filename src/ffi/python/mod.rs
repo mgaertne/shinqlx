@@ -815,13 +815,10 @@ fn try_load_plugin(py: Python<'_>, plugin: &String) -> PyResult<()> {
 
     let loaded_plugins = shinqlx_plugin_module.getattr(intern!(py, "_loaded_plugins"))?;
     let loaded_plugin = plugin_class.call0()?;
-    loaded_plugins.call_method1(
-        intern!(py, "__setitem__"),
-        (&plugin_pystring, loaded_plugin),
-    )?;
+    loaded_plugins.set_item(&plugin_pystring, loaded_plugin)?;
 
     let modules = shinqlx_module.getattr(intern!(py, "_modules"))?;
-    modules.call_method1(intern!(py, "__setitem__"), (&plugin_pystring, module))?;
+    modules.set_item(&plugin_pystring, module)?;
 
     Ok(())
 }
@@ -863,8 +860,8 @@ fn load_plugin(py: Python<'_>, plugin: String) -> PyResult<()> {
     let plugin_module = shinqlx_module.getattr(intern!(py, "Plugin"))?;
     let loaded_plugins = plugin_module.getattr(intern!(py, "_loaded_plugins"))?;
 
-    let plugin_loaded = loaded_plugins.call_method1(intern!(py, "__contains__"), (&plugin,))?;
-    if plugin_loaded.is_truthy().unwrap_or(false) {
+    let plugin_loaded = loaded_plugins.contains(&plugin)?;
+    if plugin_loaded {
         shinqlx_module.call_method1(intern!(py, "reload_plugin"), (&plugin,))?;
         return Ok(());
     }
@@ -875,6 +872,73 @@ fn load_plugin(py: Python<'_>, plugin: String) -> PyResult<()> {
     }
 
     plugin_load_result
+}
+
+fn try_unload_plugin(py: Python<'_>, plugin: &String) -> PyResult<()> {
+    let shinqlx_module = py.import_bound(intern!(py, "shinqlx"))?;
+    let event_dispatchers = shinqlx_module.getattr(intern!(py, "EVENT_DISPATCHERS"))?;
+    let unload_dispatcher = event_dispatchers.get_item(intern!(py, "unload"))?;
+    unload_dispatcher.call_method1(intern!(py, "dispatch"), (plugin,))?;
+
+    let shinqlx_plugin_module = shinqlx_module.getattr(intern!(py, "Plugin"))?;
+    let loaded_plugins = shinqlx_plugin_module.getattr(intern!(py, "_loaded_plugins"))?;
+    let loaded_plugin = loaded_plugins.get_item(plugin)?;
+
+    let plugin_hooks = loaded_plugin.getattr(intern!(py, "hooks"))?;
+    for hook in plugin_hooks.iter()?.flatten() {
+        if let Ok(hook_tuple) = hook.extract::<&PyTuple>() {
+            loaded_plugin.call_method1(intern!(py, "remove_hook"), hook_tuple)?;
+        }
+    }
+
+    let plugin_commands = loaded_plugin.getattr(intern!(py, "commands"))?;
+    for cmd in plugin_commands.iter()?.flatten() {
+        let cmd_name = cmd.getattr(intern!(py, "name"))?;
+        let cmd_handler = cmd.getattr(intern!(py, "handler"))?;
+        loaded_plugin.call_method1(intern!(py, "remove_command"), (cmd_name, cmd_handler))?;
+    }
+
+    loaded_plugins.del_item(plugin)
+}
+
+#[pyfunction(name = "unload_plugin")]
+fn unload_plugin(py: Python<'_>, plugin: String) -> PyResult<()> {
+    let logger = pyshinqlx_get_logger(py, None)?;
+    let logging_module = py.import_bound(intern!(py, "logging"))?;
+    let info_level = logging_module.getattr(intern!(py, "INFO"))?;
+
+    let log_record = logger.call_method(
+        intern!(py, "makeRecord"),
+        (
+            intern!(py, "shinqlx"),
+            &info_level,
+            intern!(py, ""),
+            -1,
+            intern!(py, "Unloading plugin '%s'..."),
+            (&plugin,),
+            py.None(),
+        ),
+        Some(&[(intern!(py, "func"), intern!(py, "unload_plugin"))].into_py_dict_bound(py)),
+    )?;
+    logger.call_method1(intern!(py, "handle"), (log_record,))?;
+
+    let shinqlx_module = py.import_bound(intern!(py, "shinqlx"))?;
+    let plugin_module = shinqlx_module.getattr(intern!(py, "Plugin"))?;
+    let loaded_plugins = plugin_module.getattr(intern!(py, "_loaded_plugins"))?;
+
+    let plugin_loaded = loaded_plugins.contains(&plugin)?;
+    if !plugin_loaded {
+        return Err(PluginUnloadError::new_err(
+            "Attempted to unload a plugin that is not loaded.",
+        ));
+    }
+
+    let plugin_unload_result = try_unload_plugin(py, &plugin);
+    if let Err(ref e) = plugin_unload_result {
+        log_exception(py, e);
+    }
+
+    plugin_unload_result
 }
 
 #[pyfunction(name = "initialize_cvars")]
@@ -1326,6 +1390,7 @@ fn pyshinqlx_module(py: Python<'_>, m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(thread, m)?)?;
 
     m.add_function(wrap_pyfunction!(load_plugin, m)?)?;
+    m.add_function(wrap_pyfunction!(unload_plugin, m)?)?;
     m.add_function(wrap_pyfunction!(initialize_cvars, m)?)?;
     m.add_function(wrap_pyfunction!(initialize, m)?)?;
     m.add_function(wrap_pyfunction!(late_init, m)?)?;

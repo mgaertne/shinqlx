@@ -438,8 +438,7 @@ impl ChatChannel {
         let re_color_tag = Regex::new(r"\^[0-7]").unwrap();
         let fmt = self_.borrow().fmt.clone();
         let cleaned_msg = msg.replace('"', "'");
-        let targets: Option<Vec<i32>> =
-            self_.call_method0(intern!(py, "recipients"))?.extract()?;
+        let targets: Option<Vec<i32>> = self_.call_method0(intern!(py, "recipients"))?.extract()?;
 
         let split_msgs =
             self_
