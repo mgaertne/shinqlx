@@ -423,7 +423,7 @@ impl ChatChannel {
         PyClassInitializer::from(AbstractChannel::py_new(name)).add_subclass(Self { fmt })
     }
 
-    fn receipients(&self) -> PyResult<Option<Vec<i32>>> {
+    fn recipients(&self) -> PyResult<Option<Vec<i32>>> {
         Err(PyNotImplementedError::new_err(""))
     }
 
@@ -439,7 +439,7 @@ impl ChatChannel {
         let fmt = self_.borrow().fmt.clone();
         let cleaned_msg = msg.replace('"', "'");
         let targets: Option<Vec<i32>> =
-            self_.call_method0(intern!(py, "receipients"))?.extract()?;
+            self_.call_method0(intern!(py, "recipients"))?.extract()?;
 
         let split_msgs =
             self_
@@ -546,7 +546,7 @@ chat_channel = _shinqlx.ChatChannel()
             let chat_channel = ChatChannel {
                 fmt: "print\"{}\n\"\n".into(),
             };
-            let result = chat_channel.receipients();
+            let result = chat_channel.recipients();
             assert!(result.is_err_and(|err| err.is_instance_of::<PyNotImplementedError>(py)));
         });
     }
@@ -586,7 +586,7 @@ impl TellChannel {
         Player::py_new(self.client_id, None)
     }
 
-    fn receipients(&self) -> PyResult<Option<Vec<i32>>> {
+    fn recipients(&self) -> PyResult<Option<Vec<i32>>> {
         Ok(Some(vec![self.client_id]))
     }
 }
@@ -691,8 +691,8 @@ tell_channel = _shinqlx.TellChannel(player)
     fn receipients_returns_vec_with_client_id() {
         let tell_channel = TellChannel { client_id: 42 };
         assert!(tell_channel
-            .receipients()
-            .is_ok_and(|receipients| receipients == Some(vec![42,])));
+            .recipients()
+            .is_ok_and(|recipients| recipients == Some(vec![42,])));
     }
 }
 
@@ -719,7 +719,7 @@ impl TeamChatChannel {
             .add_subclass(Self { team })
     }
 
-    fn receipients(&self, py: Python<'_>) -> PyResult<Option<Vec<i32>>> {
+    fn recipients(&self, py: Python<'_>) -> PyResult<Option<Vec<i32>>> {
         if self.team == "all" {
             return Ok(None);
         }
@@ -835,7 +835,7 @@ tell_channel = _shinqlx.TeamChatChannel("all")
             });
 
         let team_chat_channel = TeamChatChannel { team };
-        let result = Python::with_gil(|py| team_chat_channel.receipients(py));
+        let result = Python::with_gil(|py| team_chat_channel.recipients(py));
         assert!(result.is_ok_and(|ids| ids == expected_ids));
     }
 
@@ -892,7 +892,7 @@ tell_channel = _shinqlx.TeamChatChannel("all")
         let team_chat_channel = TeamChatChannel {
             team: "invalid".into(),
         };
-        let result = Python::with_gil(|py| team_chat_channel.receipients(py));
+        let result = Python::with_gil(|py| team_chat_channel.recipients(py));
         assert!(result.is_ok_and(|ids| ids == Some(vec![])));
     }
 }
