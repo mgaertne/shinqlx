@@ -18,8 +18,8 @@ use pyo3::{
 #[derive(Clone)]
 pub(crate) struct Command {
     plugin: Py<PyAny>,
-    name: Vec<String>,
-    handler: Py<PyAny>,
+    pub(crate) name: Vec<String>,
+    pub(crate) handler: Py<PyAny>,
     permission: i32,
     channels: Vec<Py<PyAny>>,
     exclude_channels: Vec<Py<PyAny>>,
@@ -296,7 +296,7 @@ pub(crate) enum CommandPriorities {
 /// Holds all commands and executes them whenever we get input and should execute.
 #[pyclass(module = "_commands", name = "CommandInvoker")]
 pub(crate) struct CommandInvoker {
-    commands: [Vec<Command>; 5],
+    commands: parking_lot::RwLock<[Vec<Command>; 5]>,
 }
 
 #[pymethods]
@@ -304,16 +304,17 @@ impl CommandInvoker {
     #[new]
     pub(crate) fn py_new() -> Self {
         Self {
-            commands: [vec![], vec![], vec![], vec![], vec![]],
+            commands: parking_lot::RwLock::new([vec![], vec![], vec![], vec![], vec![]]),
         }
     }
 
     #[getter(commands)]
     fn get_commands(&self) -> Vec<Command> {
+        let commands = self.commands.read();
         let mut returned = vec![];
-        for index in 0..self.commands.len() {
-            returned.extend(self.commands[index].clone());
-        }
+        commands.iter().for_each(|commands| {
+            returned.extend(commands.clone());
+        });
         returned
     }
 
@@ -321,7 +322,8 @@ impl CommandInvoker {
     ///
     /// Commands are unique by (command.name, command.handler).
     fn is_registered(&self, py: Python<'_>, command: &Command) -> bool {
-        self.commands.iter().any(|prio_cmds| {
+        let commands = self.commands.read();
+        commands.iter().any(|prio_cmds| {
             prio_cmds.iter().any(|cmd| {
                 cmd.name == command.name
                     && cmd
@@ -333,24 +335,62 @@ impl CommandInvoker {
         })
     }
 
-    fn add_command(&mut self, py: Python<'_>, command: Command, priority: usize) -> PyResult<()> {
+    fn add_command(&self, py: Python<'_>, command: Command, priority: usize) -> PyResult<()> {
         if self.is_registered(py, &command) {
             return Err(PyValueError::new_err(
                 "Attempted to add an already registered command.",
             ));
         }
-        self.commands[priority].push(command);
+        let Some(mut commands) = self.commands.try_write() else {
+            let add_command_func = PyModule::from_code_bound(
+                py,
+                r#"
+import shinqlx
+
+
+@shinqlx.next_frame
+def add_command(cmd, priority):
+    shinqlx.COMMANDS.add_command(cmd, priority)
+        "#,
+                "",
+                "",
+            )?
+            .getattr(intern!(py, "add_command"))?;
+
+            add_command_func.call1((command, priority))?;
+            return Ok(());
+        };
+        commands[priority].push(command);
         Ok(())
     }
 
-    fn remove_command(&mut self, py: Python<'_>, command: Command) -> PyResult<()> {
+    fn remove_command(&self, py: Python<'_>, command: Command) -> PyResult<()> {
         if !self.is_registered(py, &command) {
             return Err(PyValueError::new_err(
                 "Attempted to remove a command that was never added.",
             ));
         }
 
-        self.commands.iter_mut().for_each(|commands| {
+        let Some(mut commands) = self.commands.try_write() else {
+            let remove_command_func = PyModule::from_code_bound(
+                py,
+                r#"
+import shinqlx
+
+
+@shinqlx.next_frame
+def remove_command(cmd):
+    shinqlx.COMMANDS.remove_command(cmd)
+        "#,
+                "",
+                "",
+            )?
+            .getattr(intern!(py, "remove_command"))?;
+
+            remove_command_func.call1((command,))?;
+            return Ok(());
+        };
+        commands.iter_mut().for_each(|commands| {
             commands.retain(|cmd| {
                 cmd.name != command.name
                     && cmd
@@ -358,7 +398,7 @@ impl CommandInvoker {
                         .bind(py)
                         .ne(command.handler.bind(py))
                         .unwrap_or(true)
-            })
+            });
         });
 
         Ok(())
@@ -393,8 +433,9 @@ impl CommandInvoker {
         let event_dispatchers = shinqlx_module.getattr(intern!(py, "EVENT_DISPATCHERS"))?;
         let command_dispatcher = event_dispatchers.get_item(intern!(py, "command"))?;
 
-        for priority_level in 0..self.commands.len() {
-            for cmd in &self.commands[priority_level] {
+        let commands = self.commands.read();
+        for priority_level in 0..commands.len() {
+            for cmd in commands[priority_level].iter() {
                 if !cmd.is_eligible_name(py, name.clone()) {
                     continue;
                 }
@@ -411,7 +452,7 @@ impl CommandInvoker {
 
                 let dispatcher_result = command_dispatcher.call_method1(
                     intern!(py, "dispatch"),
-                    (player.clone(), (*cmd).clone(), msg.clone()),
+                    (player.clone(), cmd.clone(), msg.clone()),
                 )?;
                 if dispatcher_result
                     .extract::<bool>()

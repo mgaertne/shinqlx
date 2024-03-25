@@ -24,8 +24,9 @@ impl StatsDispatcher {
         let mut return_value = true;
 
         let super_class = slf.into_super();
+        let plugins = super_class.plugins.read();
         for i in 0..5 {
-            for (_, handlers) in &super_class.plugins {
+            for (_, handlers) in plugins.iter() {
                 for handler in &handlers[i] {
                     match handler.call1(py, (&stats,)) {
                         Err(e) => {
