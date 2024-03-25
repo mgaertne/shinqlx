@@ -149,6 +149,7 @@ from ._shinqlx import (
     _stats,
     stats_listener,
     _modules,
+    load_preset_plugins,
     load_plugin,
     unload_plugin,
     reload_plugin,
@@ -243,9 +244,6 @@ from ._shinqlx import (
     EVENT_DISPATCHERS,
     UncancellableEventReturn,
     CancellableEventReturn,
-)
-from ._core import (
-    load_preset_plugins,
 )
 from ._plugin import (
     Plugin,
@@ -451,6 +449,7 @@ __all__ = [
     "_stats",
     "stats_listener",
     "_modules",
+    "load_preset_plugins",
     "load_plugin",
     "unload_plugin",
     "reload_plugin",
@@ -540,8 +539,6 @@ __all__ = [
     "EVENT_DISPATCHERS",
     "UncancellableEventReturn",
     "CancellableEventReturn",
-    # _core
-    "load_preset_plugins",
     # _plugin
     "Plugin",
     "GameStartData",

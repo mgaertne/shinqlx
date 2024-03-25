@@ -128,8 +128,9 @@ use crate::MAIN_ENGINE;
 use crate::_INIT_TIME;
 use prelude::*;
 
-use arc_swap::ArcSwapOption;
 use commands::CommandPriorities;
+
+use arc_swap::ArcSwapOption;
 use core::{
     ops::Deref,
     str::FromStr,
@@ -482,27 +483,37 @@ fn pyshinqlx_configure_logger(py: Python<'_>) -> PyResult<()> {
 #[pyo3(name = "log_exception")]
 #[pyo3(signature = (plugin = None))]
 fn pyshinqlx_log_exception(py: Python<'_>, plugin: Option<PyObject>) -> PyResult<()> {
+    let logging_module = py.import_bound(intern!(py, "logging"))?;
+    let error_level = logging_module.getattr(intern!(py, "ERROR"))?;
+    let sys_module = py.import_bound(intern!(py, "sys"))?;
+    let exc_info = sys_module.call_method0(intern!(py, "exc_info"))?;
+    let exc_tuple = exc_info.extract::<&PyTuple>()?;
+
+    let traceback_module = py.import_bound(intern!(py, "traceback"))?;
+    let formatted_traceback: Vec<String> = traceback_module
+        .call_method1(intern!(py, "format_exception"), exc_tuple)?
+        .extract()?;
+
     let logger_name = get_logger_name(py, plugin);
+    let py_logger = logging_module.call_method1(intern!(py, "getLogger"), (logger_name,))?;
 
-    let formatted_exception: Vec<String> = PyModule::from_code_bound(
-        py,
-        r#"
-import sys
-import traceback
+    for line in formatted_traceback {
+        let log_record = py_logger.call_method(
+            intern!(py, "makeRecord"),
+            (
+                intern!(py, "shinqlx"),
+                &error_level,
+                intern!(py, ""),
+                -1,
+                line.trim_end(),
+                py.None(),
+                py.None(),
+            ),
+            Some(&[(intern!(py, "func"), intern!(py, "log_exception"))].into_py_dict_bound(py)),
+        )?;
+        py_logger.call_method1(intern!(py, "handle"), (log_record,))?;
+    }
 
-formatted_exception = traceback.format_exception(*sys.exc_info())
-"#,
-        "",
-        "",
-    )?
-    .getattr(intern!(py, "formatted_exception"))?
-    .extract()?;
-
-    let py_logger = PyModule::import_bound(py, intern!(py, "logging"))?
-        .call_method1(intern!(py, "getLogger"), (logger_name,))?;
-    formatted_exception.iter().for_each(|line| {
-        let _ = py_logger.call_method1(intern!(py, "error"), (line.trim_end(),));
-    });
     Ok(())
 }
 
@@ -516,6 +527,7 @@ fn pyshinqlx_handle_exception(
     exc_traceback: Py<PyAny>,
 ) -> PyResult<()> {
     let logging_module = py.import_bound(intern!(py, "logging"))?;
+    let error_level = logging_module.getattr(intern!(py, "ERROR"))?;
     let traceback_module = py.import_bound(intern!(py, "traceback"))?;
 
     let py_logger =
@@ -528,9 +540,22 @@ fn pyshinqlx_handle_exception(
         )?
         .extract()?;
 
-    formatted_traceback.iter().for_each(|line| {
-        let _ = py_logger.call_method1(intern!(py, "error"), (line.trim_end(),));
-    });
+    for line in formatted_traceback {
+        let log_record = py_logger.call_method(
+            intern!(py, "makeRecord"),
+            (
+                intern!(py, "shinqlx"),
+                &error_level,
+                intern!(py, ""),
+                -1,
+                line.trim_end(),
+                py.None(),
+                py.None(),
+            ),
+            Some(&[(intern!(py, "func"), intern!(py, "log_exception"))].into_py_dict_bound(py)),
+        )?;
+        py_logger.call_method1(intern!(py, "handle"), (log_record,))?;
+    }
 
     Ok(())
 }
@@ -548,6 +573,7 @@ fn pyshinqlx_handle_threading_exception(py: Python<'_>, args: Py<PyAny>) -> PyRe
 
 fn try_log_exception(py: Python<'_>, exception: &PyErr) -> PyResult<()> {
     let logging_module = py.import_bound(intern!(py, "logging"))?;
+    let error_level = logging_module.getattr(intern!(py, "ERROR"))?;
     let traceback_module = py.import_bound(intern!(py, "traceback"))?;
 
     let py_logger =
@@ -564,9 +590,22 @@ fn try_log_exception(py: Python<'_>, exception: &PyErr) -> PyResult<()> {
         )?
         .extract()?;
 
-    formatted_traceback.iter().for_each(|line| {
-        let _ = py_logger.call_method1(intern!(py, "error"), (line.trim_end(),));
-    });
+    for line in formatted_traceback {
+        let log_record = py_logger.call_method(
+            intern!(py, "makeRecord"),
+            (
+                intern!(py, "shinqlx"),
+                &error_level,
+                intern!(py, ""),
+                -1,
+                line.trim_end(),
+                py.None(),
+                py.None(),
+            ),
+            Some(&[(intern!(py, "func"), intern!(py, "log_exception"))].into_py_dict_bound(py)),
+        )?;
+        py_logger.call_method1(intern!(py, "handle"), (log_record,))?;
+    }
 
     Ok(())
 }
@@ -779,6 +818,33 @@ static DEFAULT_PLUGINS: [&str; 10] = [
     "workshop",
 ];
 
+#[pyfunction(name = "load_preset_plugins")]
+fn load_preset_plugins(py: Python<'_>) -> PyResult<()> {
+    if let Err(e) = try_get_plugins_path() {
+        return Err(PluginLoadError::new_err(e));
+    }
+
+    let Some(ref main_engine) = *MAIN_ENGINE.load() else {
+        return Err(PluginLoadError::new_err("no main engine found"));
+    };
+
+    let Some(plugins_cvar) = main_engine.find_cvar("qlx_plugins") else {
+        return Ok(());
+    };
+
+    let plugins_str: String = plugins_cvar.get_string();
+    let mut plugins: Vec<&str> = plugins_str.split(',').map(|value| value.trim()).collect();
+    if plugins.contains(&"DEFAULT") {
+        plugins.extend_from_slice(&DEFAULT_PLUGINS);
+        plugins.retain(|&value| value != "DEFAULT");
+    }
+    for &plugin in plugins.iter().unique() {
+        load_plugin(py, plugin.into())?;
+    }
+
+    Ok(())
+}
+
 fn try_load_plugin(py: Python<'_>, plugin: &String) -> PyResult<()> {
     let plugins_path = try_get_plugins_path().map_err(PyEnvironmentError::new_err)?;
 
@@ -792,14 +858,17 @@ fn try_load_plugin(py: Python<'_>, plugin: &String) -> PyResult<()> {
     let module =
         importlib_module.call_method1(intern!(py, "import_module"), (plugin_import_path,))?;
 
+    let shinqlx_module = py.import_bound(intern!(py, "shinqlx"))?;
     let plugin_pystring = PyString::new_bound(py, plugin);
+    let modules = shinqlx_module.getattr(intern!(py, "_modules"))?;
+    modules.set_item(&plugin_pystring, &module)?;
+
     if !module.hasattr(&plugin_pystring)? {
         return Err(PluginLoadError::new_err(
             "The plugin needs to have a class with the exact name as the file, minus the .py.",
         ));
     }
 
-    let shinqlx_module = py.import_bound(intern!(py, "shinqlx"))?;
     let shinqlx_plugin_module = shinqlx_module.getattr(intern!(py, "Plugin"))?;
 
     let plugin_class = module.getattr(&plugin_pystring)?;
@@ -816,9 +885,6 @@ fn try_load_plugin(py: Python<'_>, plugin: &String) -> PyResult<()> {
     let loaded_plugins = shinqlx_plugin_module.getattr(intern!(py, "_loaded_plugins"))?;
     let loaded_plugin = plugin_class.call0()?;
     loaded_plugins.set_item(&plugin_pystring, loaded_plugin)?;
-
-    let modules = shinqlx_module.getattr(intern!(py, "_modules"))?;
-    modules.set_item(&plugin_pystring, module)?;
 
     Ok(())
 }
@@ -887,7 +953,7 @@ fn try_unload_plugin(py: Python<'_>, plugin: &String) -> PyResult<()> {
     let plugin_hooks = loaded_plugin.getattr(intern!(py, "hooks"))?;
     for hook in plugin_hooks.iter()?.flatten() {
         if let Ok(hook_tuple) = hook.extract::<&PyTuple>() {
-            loaded_plugin.call_method1(intern!(py, "remove_hook"), hook_tuple)?;
+            let _ = loaded_plugin.call_method1(intern!(py, "remove_hook"), hook_tuple);
         }
     }
 
@@ -895,10 +961,11 @@ fn try_unload_plugin(py: Python<'_>, plugin: &String) -> PyResult<()> {
     for cmd in plugin_commands.iter()?.flatten() {
         let cmd_name = cmd.getattr(intern!(py, "name"))?;
         let cmd_handler = cmd.getattr(intern!(py, "handler"))?;
-        loaded_plugin.call_method1(intern!(py, "remove_command"), (cmd_name, cmd_handler))?;
+        let _ = loaded_plugin.call_method1(intern!(py, "remove_command"), (cmd_name, cmd_handler));
     }
 
-    loaded_plugins.del_item(plugin)
+    loaded_plugins.del_item(plugin)?;
+    Ok(())
 }
 
 #[pyfunction(name = "unload_plugin")]
@@ -1415,7 +1482,7 @@ fn pyshinqlx_module(py: Python<'_>, m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(next_frame, m)?)?;
     m.add_function(wrap_pyfunction!(delay, m)?)?;
     m.add_function(wrap_pyfunction!(thread, m)?)?;
-
+    m.add_function(wrap_pyfunction!(load_preset_plugins, m)?)?;
     m.add_function(wrap_pyfunction!(load_plugin, m)?)?;
     m.add_function(wrap_pyfunction!(unload_plugin, m)?)?;
     m.add_function(wrap_pyfunction!(reload_plugin, m)?)?;
