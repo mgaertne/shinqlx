@@ -346,12 +346,12 @@ impl CommandInvoker {
     fn remove_command(&mut self, py: Python<'_>, command: Command) -> PyResult<()> {
         if !self.is_registered(py, &command) {
             return Err(PyValueError::new_err(
-                "Attempted to add an already registered command.",
+                "Attempted to remove a command that was never added.",
             ));
         }
 
-        for index in 0..self.commands.len() {
-            self.commands[index].retain(|cmd| {
+        self.commands.iter_mut().for_each(|commands| {
+            commands.retain(|cmd| {
                 cmd.name != command.name
                     && cmd
                         .handler
@@ -359,7 +359,7 @@ impl CommandInvoker {
                         .ne(command.handler.bind(py))
                         .unwrap_or(true)
             })
-        }
+        });
 
         Ok(())
     }
