@@ -349,9 +349,11 @@ impl EventDispatcher {
             return Err(PyAssertionError::new_err(error_description));
         }
 
-        let Some(plugin_hooks) = self.plugins.iter_mut().find(|(added_plugin, _)| {
-            added_plugin == &plugin
-        }) else {
+        let Some(plugin_hooks) = self
+            .plugins
+            .iter_mut()
+            .find(|(added_plugin, _)| added_plugin == &plugin)
+        else {
             let mut new_commands = (plugin, [vec![], vec![], vec![], vec![], vec![]]);
             new_commands.1[priority as usize].push(handler);
             self.plugins.push(new_commands);
@@ -359,9 +361,9 @@ impl EventDispatcher {
         };
 
         if plugin_hooks.1.iter().any(|registered_commands| {
-            registered_commands.iter().any(|hook| {
-                hook.bind(py).eq(handler.bind(py)).unwrap_or(false)
-            })
+            registered_commands
+                .iter()
+                .any(|hook| hook.bind(py).eq(handler.bind(py)).unwrap_or(false))
         }) {
             return Err(PyValueError::new_err(
                 "The event has already been hooked with the same handler and priority.",
@@ -381,25 +383,27 @@ impl EventDispatcher {
         handler: PyObject,
         priority: i32,
     ) -> PyResult<()> {
-        let Some(plugin_hooks) = self.plugins.iter_mut().find(|(added_plugin, _)| {
-            added_plugin == &plugin
-        }) else {
+        let Some(plugin_hooks) = self
+            .plugins
+            .iter_mut()
+            .find(|(added_plugin, _)| added_plugin == &plugin)
+        else {
             return Err(PyValueError::new_err(
                 "The event has not been hooked with the handler provided",
             ));
         };
 
-        if !plugin_hooks.1[priority as usize].iter().all(|item| {
-            item.bind(py).ne(handler.bind(py)).unwrap_or(true)
-        }) {
+        if !plugin_hooks.1[priority as usize]
+            .iter()
+            .all(|item| item.bind(py).ne(handler.bind(py)).unwrap_or(true))
+        {
             return Err(PyValueError::new_err(
                 "The event has not been hooked with the handler provided",
             ));
         }
 
-        plugin_hooks.1[priority as usize].retain(|item| {
-            item.bind(py).ne(handler.bind(py)).unwrap_or(true)
-        });
+        plugin_hooks.1[priority as usize]
+            .retain(|item| item.bind(py).ne(handler.bind(py)).unwrap_or(true));
 
         Ok(())
     }

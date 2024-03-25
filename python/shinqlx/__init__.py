@@ -157,6 +157,7 @@ try:
         _stats,
         stats_listener,
         _modules,
+        load_preset_plugins,
         load_plugin,
         unload_plugin,
         reload_plugin,
@@ -402,6 +403,7 @@ except ModuleNotFoundError:
         _stats,
         stats_listener,
         _modules,
+        load_preset_plugins,
         load_plugin,
         unload_plugin,
         reload_plugin,
@@ -493,9 +495,6 @@ except ModuleNotFoundError:
         EVENT_DISPATCHERS,
     )
 
-from ._core import (
-    load_preset_plugins,
-)
 from ._plugin import Plugin
 
 from . import database
@@ -675,6 +674,7 @@ __all__ = [
     "_stats",
     "stats_listener",
     "_modules",
+    "load_preset_plugins",
     "load_plugin",
     "unload_plugin",
     "reload_plugin",
@@ -761,8 +761,6 @@ __all__ = [
     "DamageDispatcher",
     "EventDispatcherManager",
     "EVENT_DISPATCHERS",
-    # _core
-    "load_preset_plugins",
     # _plugin
     "Plugin",
     # databsse
