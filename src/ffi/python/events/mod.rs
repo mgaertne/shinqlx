@@ -170,7 +170,7 @@ pub(crate) fn log_unexpected_return_value(
 pub(crate) struct EventDispatcher {
     name: String,
     need_zmq_stats_enabled: bool,
-    plugins: Vec<(PyObject, [Vec<PyObject>; 5])>,
+    plugins: Vec<(String, [Vec<PyObject>; 5])>,
 }
 
 const NO_DEBUG: [&str; 9] = [
@@ -330,7 +330,7 @@ impl EventDispatcher {
     fn add_hook(
         &mut self,
         py: Python<'_>,
-        plugin: PyObject,
+        plugin: String,
         handler: PyObject,
         priority: i32,
     ) -> PyResult<()> {
@@ -349,20 +349,18 @@ impl EventDispatcher {
             return Err(PyAssertionError::new_err(error_description));
         }
 
-        let Some(plugin_commands) = self.plugins.iter_mut().find(|(added_plugin, _)| {
-            let is_eq = added_plugin.call_method1(py, "__eq__", (&plugin,));
-            is_eq.is_ok_and(|result| result.is_truthy(py).is_ok_and(|value| value))
+        let Some(plugin_hooks) = self.plugins.iter_mut().find(|(added_plugin, _)| {
+            added_plugin == &plugin
         }) else {
-            let mut new_commands = (plugin.into_py(py), [vec![], vec![], vec![], vec![], vec![]]);
+            let mut new_commands = (plugin, [vec![], vec![], vec![], vec![], vec![]]);
             new_commands.1[priority as usize].push(handler);
             self.plugins.push(new_commands);
             return Ok(());
         };
 
-        if plugin_commands.1.iter().any(|registered_commands| {
+        if plugin_hooks.1.iter().any(|registered_commands| {
             registered_commands.iter().any(|hook| {
-                let handler_eq = hook.call_method1(py, "__eq__", (&handler,));
-                handler_eq.is_ok_and(|result| result.is_truthy(py).is_ok_and(|value| value))
+                hook.bind(py).eq(handler.bind(py)).unwrap_or(false)
             })
         }) {
             return Err(PyValueError::new_err(
@@ -370,7 +368,7 @@ impl EventDispatcher {
             ));
         }
 
-        plugin_commands.1[priority as usize].push(handler);
+        plugin_hooks.1[priority as usize].push(handler);
         Ok(())
     }
 
@@ -379,31 +377,28 @@ impl EventDispatcher {
     fn remove_hook(
         &mut self,
         py: Python<'_>,
-        plugin: PyObject,
+        plugin: String,
         handler: PyObject,
         priority: i32,
     ) -> PyResult<()> {
-        let Some(plugin_commands) = self.plugins.iter_mut().find(|(added_plugin, _)| {
-            let is_eq = added_plugin.call_method1(py, "__eq__", (&plugin,));
-            is_eq.is_ok_and(|result| result.is_truthy(py).is_ok_and(|value| value))
+        let Some(plugin_hooks) = self.plugins.iter_mut().find(|(added_plugin, _)| {
+            added_plugin == &plugin
         }) else {
             return Err(PyValueError::new_err(
                 "The event has not been hooked with the handler provided",
             ));
         };
 
-        if !plugin_commands.1[priority as usize].iter().all(|item| {
-            item.call_method1(py, "__ne__", (&handler,))
-                .is_ok_and(|value| value.is_truthy(py).is_ok_and(|bool_value| bool_value))
+        if !plugin_hooks.1[priority as usize].iter().all(|item| {
+            item.bind(py).ne(handler.bind(py)).unwrap_or(true)
         }) {
             return Err(PyValueError::new_err(
                 "The event has not been hooked with the handler provided",
             ));
         }
 
-        plugin_commands.1[priority as usize].retain(|item| {
-            item.call_method1(py, "__ne__", (&handler,))
-                .is_ok_and(|value| value.is_truthy(py).is_ok_and(|bool_value| bool_value))
+        plugin_hooks.1[priority as usize].retain(|item| {
+            item.bind(py).ne(handler.bind(py)).unwrap_or(true)
         });
 
         Ok(())
