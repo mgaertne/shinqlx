@@ -170,7 +170,7 @@ pub(crate) fn log_unexpected_return_value(
 pub(crate) struct EventDispatcher {
     name: String,
     need_zmq_stats_enabled: bool,
-    plugins: Vec<(String, [Vec<PyObject>; 5])>,
+    plugins: parking_lot::RwLock<Vec<(String, [Vec<PyObject>; 5])>>,
 }
 
 const NO_DEBUG: [&str; 9] = [
@@ -190,7 +190,7 @@ impl Default for EventDispatcher {
         Self {
             name: "".into(),
             need_zmq_stats_enabled: false,
-            plugins: Vec::new(),
+            plugins: parking_lot::RwLock::new(Vec::new()),
         }
     }
 }
@@ -218,7 +218,8 @@ impl EventDispatcher {
 
     #[getter(plugins)]
     fn get_plugins<'py>(&'py self, py: Python<'py>) -> Bound<'py, PyDict> {
-        self.plugins.clone().into_py_dict_bound(py)
+        let plugins = self.plugins.read();
+        plugins.clone().into_py_dict_bound(py)
     }
 
     /// Calls all the handlers that have been registered when hooking this event.
@@ -249,8 +250,9 @@ impl EventDispatcher {
 
         let mut return_value = true.into_py(py);
 
+        let plugins = slf.plugins.read();
         for i in 0..5 {
-            for (_, handlers) in &slf.plugins.clone() {
+            for (_, handlers) in plugins.clone() {
                 for handler in &handlers[i] {
                     let handler_args = PyTuple::new_bound(py, &args);
                     match handler.call1(py, handler_args) {
@@ -328,7 +330,7 @@ impl EventDispatcher {
     /// whenever the event is takes place.
     #[pyo3(signature = (plugin, handler, priority=CommandPriorities::PRI_NORMAL as i32))]
     fn add_hook(
-        &mut self,
+        &self,
         py: Python<'_>,
         plugin: String,
         handler: PyObject,
@@ -349,14 +351,32 @@ impl EventDispatcher {
             return Err(PyAssertionError::new_err(error_description));
         }
 
-        let Some(plugin_hooks) = self
-            .plugins
+        let Some(mut plugins) = self.plugins.try_write() else {
+            let add_hook_func = PyModule::from_code_bound(
+                py,
+                r#"
+import shinqlx
+
+
+@shinqlx.next_frame
+def add_hook(event, plugin, handler, priority):
+    shinqlx.EVENT_DISPATCHERS[event].add_hook(plugin, handler, priority)
+        "#,
+                "",
+                "",
+            )?
+            .getattr(intern!(py, "add_hook"))?;
+
+            add_hook_func.call1((&self.name, plugin, handler, priority))?;
+            return Ok(());
+        };
+        let Some(plugin_hooks) = plugins
             .iter_mut()
             .find(|(added_plugin, _)| added_plugin == &plugin)
         else {
             let mut new_commands = (plugin, [vec![], vec![], vec![], vec![], vec![]]);
             new_commands.1[priority as usize].push(handler);
-            self.plugins.push(new_commands);
+            plugins.push(new_commands);
             return Ok(());
         };
 
@@ -377,14 +397,32 @@ impl EventDispatcher {
     /// Removes a previously hooked event.
     #[pyo3(signature = (plugin, handler, priority=CommandPriorities::PRI_NORMAL as i32))]
     fn remove_hook(
-        &mut self,
+        &self,
         py: Python<'_>,
         plugin: String,
         handler: PyObject,
         priority: i32,
     ) -> PyResult<()> {
-        let Some(plugin_hooks) = self
-            .plugins
+        let Some(mut plugins) = self.plugins.try_write() else {
+            let remove_hook_func = PyModule::from_code_bound(
+                py,
+                r#"
+import shinqlx
+
+
+@shinqlx.next_frame
+def remove_hook(event, plugin, handler, priority):
+    shinqlx.EVENT_DISPATCHERS[event].remove_hook(plugin, handler, priority)
+        "#,
+                "",
+                "",
+            )?
+            .getattr(intern!(py, "remove_hook"))?;
+
+            remove_hook_func.call1((&self.name, plugin, handler, priority))?;
+            return Ok(());
+        };
+        let Some(plugin_hooks) = plugins
             .iter_mut()
             .find(|(added_plugin, _)| added_plugin == &plugin)
         else {
@@ -395,7 +433,7 @@ impl EventDispatcher {
 
         if !plugin_hooks.1[priority as usize]
             .iter()
-            .all(|item| item.bind(py).ne(handler.bind(py)).unwrap_or(true))
+            .any(|item| item.bind(py).eq(handler.bind(py)).unwrap_or(true))
         {
             return Err(PyValueError::new_err(
                 "The event has not been hooked with the handler provided",
@@ -415,7 +453,7 @@ impl EventDispatcher {
 #[pyclass(name = "EventDispatcherManager", module = "_events")]
 #[derive(Default)]
 pub(crate) struct EventDispatcherManager {
-    dispatchers: Vec<(String, PyObject)>,
+    dispatchers: parking_lot::RwLock<Vec<(String, PyObject)>>,
 }
 
 #[pymethods]
@@ -427,11 +465,13 @@ impl EventDispatcherManager {
 
     #[getter(_dispatchers)]
     fn get_dispatchers<'py>(&'py self, py: Python<'py>) -> Bound<'py, PyDict> {
-        self.dispatchers.clone().into_py_dict_bound(py)
+        let dispatchers = self.dispatchers.read();
+        dispatchers.clone().into_py_dict_bound(py)
     }
 
     fn __getitem__(&self, py: Python<'_>, key: String) -> PyResult<PyObject> {
-        self.dispatchers
+        let dispatchers = self.dispatchers.read();
+        dispatchers
             .iter()
             .find_map(|(event_name, dispatcher)| {
                 if &key != event_name {
@@ -451,7 +491,8 @@ impl EventDispatcherManager {
 
     fn __contains__(&self, py: Python<'_>, key: String) -> bool {
         py.allow_threads(|| {
-            self.dispatchers
+            let dispatchers = self.dispatchers.read();
+            dispatchers
                 .iter()
                 .find_map(|(event_name, dispatcher)| {
                     if &key != event_name {
@@ -465,7 +506,7 @@ impl EventDispatcherManager {
     }
 
     pub(crate) fn add_dispatcher(
-        &mut self,
+        &self,
         py: Python<'_>,
         dispatcher: Bound<'_, PyType>,
     ) -> PyResult<()> {
@@ -492,13 +533,13 @@ impl EventDispatcherManager {
             ));
         }
 
-        self.dispatchers
-            .push((dispatcher_name_str, dispatcher.call0()?.unbind()));
+        let mut dispatchers = self.dispatchers.write();
+        dispatchers.push((dispatcher_name_str, dispatcher.call0()?.unbind()));
 
         Ok(())
     }
 
-    fn remove_dispatcher(&mut self, py: Python<'_>, dispatcher: PyObject) -> PyResult<()> {
+    fn remove_dispatcher(&self, py: Python<'_>, dispatcher: PyObject) -> PyResult<()> {
         let Ok(dispatcher_name_attr) = dispatcher.getattr(py, "name") else {
             return Err(PyValueError::new_err(
                 "Cannot remove an event dispatcher with no name.",
@@ -513,17 +554,31 @@ impl EventDispatcherManager {
         self.remove_dispatcher_by_name(py, dispatcher_name_str)
     }
 
-    fn remove_dispatcher_by_name(
-        &mut self,
-        py: Python<'_>,
-        dispatcher_name: String,
-    ) -> PyResult<()> {
+    fn remove_dispatcher_by_name(&self, py: Python<'_>, dispatcher_name: String) -> PyResult<()> {
         if !self.__contains__(py, dispatcher_name.clone()) {
             return Err(PyValueError::new_err("Event name not found."));
         }
 
-        self.dispatchers
-            .retain(|(name, _)| name != &dispatcher_name);
+        let Some(mut dispatchers) = self.dispatchers.try_write() else {
+            let remove_dispatcher_by_name_func = PyModule::from_code_bound(
+                py,
+                r#"
+import shinqlx
+
+
+@shinqlx.next_frame
+def remove_dispatcher_by_name(dispatcher_name):
+    shinqlx.EVENT_DISPATCHERS.remove_dispatcher_by_name(dispatcher_name)
+        "#,
+                "",
+                "",
+            )?
+            .getattr(intern!(py, "remove_dispatcher_by_name"))?;
+
+            remove_dispatcher_by_name_func.call1((dispatcher_name,))?;
+            return Ok(());
+        };
+        dispatchers.retain(|(name, _)| name != &dispatcher_name);
 
         Ok(())
     }

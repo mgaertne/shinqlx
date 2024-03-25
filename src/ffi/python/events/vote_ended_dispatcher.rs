@@ -73,8 +73,9 @@ impl VoteEndedDispatcher {
         );
         dispatcher_debug_log(py, dbgstr);
 
+        let plugins = super_class.plugins.read();
         for i in 0..5 {
-            for (_, handlers) in &super_class.plugins {
+            for (_, handlers) in plugins.iter() {
                 for handler in &handlers[i] {
                     match handler.call1(py, ((yes_votes, no_votes), vote, args, passed)) {
                         Err(e) => {
