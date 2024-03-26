@@ -376,17 +376,23 @@ fn pyshinqlx_parse_variables(
     varstr: String,
     #[allow(unused_variables)] ordered: bool,
 ) -> Bound<'_, PyDict> {
-    parse_variables(varstr).into_py_dict_bound(py)
+    let parsed_variables = py.allow_threads(|| parse_variables(varstr));
+    parsed_variables.into_py_dict_bound(py)
 }
 
 fn get_logger_name(py: Python<'_>, plugin: Option<PyObject>) -> String {
-    match plugin {
-        None => "shinqlx".into(),
-        Some(req_plugin) => match req_plugin.call_method0(py, intern!(py, "__str__")) {
-            Err(_) => "shinqlx".into(),
-            Ok(plugin_name) => format!("shinqlx.{plugin_name}"),
-        },
-    }
+    let opt_plugin_name = plugin.and_then(|req_plugin| {
+        req_plugin
+            .bind(py)
+            .str()
+            .ok()
+            .map(|plugin_name| plugin_name.to_string())
+    });
+    py.allow_threads(|| {
+        opt_plugin_name
+            .map(|plugin_name| format!("shinqlx.{plugin_name}"))
+            .unwrap_or("shinqlx".to_owned())
+    })
 }
 
 /// Provides a logger that should be used by your plugin for debugging, info and error reporting. It will automatically output to both the server console as well as to a file.
@@ -483,8 +489,6 @@ fn pyshinqlx_configure_logger(py: Python<'_>) -> PyResult<()> {
 #[pyo3(name = "log_exception")]
 #[pyo3(signature = (plugin = None))]
 fn pyshinqlx_log_exception(py: Python<'_>, plugin: Option<PyObject>) -> PyResult<()> {
-    let logging_module = py.import_bound(intern!(py, "logging"))?;
-    let error_level = logging_module.getattr(intern!(py, "ERROR"))?;
     let sys_module = py.import_bound(intern!(py, "sys"))?;
     let exc_info = sys_module.call_method0(intern!(py, "exc_info"))?;
     let exc_tuple = exc_info.extract::<&PyTuple>()?;
@@ -494,25 +498,12 @@ fn pyshinqlx_log_exception(py: Python<'_>, plugin: Option<PyObject>) -> PyResult
         .call_method1(intern!(py, "format_exception"), exc_tuple)?
         .extract()?;
 
-    let logger_name = get_logger_name(py, plugin);
-    let py_logger = logging_module.call_method1(intern!(py, "getLogger"), (logger_name,))?;
-
-    for line in formatted_traceback {
-        let log_record = py_logger.call_method(
-            intern!(py, "makeRecord"),
-            (
-                intern!(py, "shinqlx"),
-                &error_level,
-                intern!(py, ""),
-                -1,
-                line.trim_end(),
-                py.None(),
-                py.None(),
-            ),
-            Some(&[(intern!(py, "func"), intern!(py, "log_exception"))].into_py_dict_bound(py)),
-        )?;
-        py_logger.call_method1(intern!(py, "handle"), (log_record,))?;
-    }
+    try_log_messages(
+        py,
+        plugin,
+        intern!(py, "log_exception"),
+        formatted_traceback,
+    )?;
 
     Ok(())
 }
@@ -526,12 +517,7 @@ fn pyshinqlx_handle_exception(
     exc_value: Py<PyAny>,
     exc_traceback: Py<PyAny>,
 ) -> PyResult<()> {
-    let logging_module = py.import_bound(intern!(py, "logging"))?;
-    let error_level = logging_module.getattr(intern!(py, "ERROR"))?;
     let traceback_module = py.import_bound(intern!(py, "traceback"))?;
-
-    let py_logger =
-        logging_module.call_method1(intern!(py, "getLogger"), (intern!(py, "shinqlx"),))?;
 
     let formatted_traceback: Vec<String> = traceback_module
         .call_method1(
@@ -540,22 +526,7 @@ fn pyshinqlx_handle_exception(
         )?
         .extract()?;
 
-    for line in formatted_traceback {
-        let log_record = py_logger.call_method(
-            intern!(py, "makeRecord"),
-            (
-                intern!(py, "shinqlx"),
-                &error_level,
-                intern!(py, ""),
-                -1,
-                line.trim_end(),
-                py.None(),
-                py.None(),
-            ),
-            Some(&[(intern!(py, "func"), intern!(py, "log_exception"))].into_py_dict_bound(py)),
-        )?;
-        py_logger.call_method1(intern!(py, "handle"), (log_record,))?;
-    }
+    try_log_messages(py, None, intern!(py, "log_exception"), formatted_traceback)?;
 
     Ok(())
 }
@@ -572,13 +543,7 @@ fn pyshinqlx_handle_threading_exception(py: Python<'_>, args: Py<PyAny>) -> PyRe
 }
 
 fn try_log_exception(py: Python<'_>, exception: &PyErr) -> PyResult<()> {
-    let logging_module = py.import_bound(intern!(py, "logging"))?;
-    let error_level = logging_module.getattr(intern!(py, "ERROR"))?;
     let traceback_module = py.import_bound(intern!(py, "traceback"))?;
-
-    let py_logger =
-        logging_module.call_method1(intern!(py, "getLogger"), (intern!(py, "shinqlx"),))?;
-
     let formatted_traceback: Vec<String> = traceback_module
         .call_method1(
             intern!(py, "format_exception"),
@@ -590,7 +555,27 @@ fn try_log_exception(py: Python<'_>, exception: &PyErr) -> PyResult<()> {
         )?
         .extract()?;
 
-    for line in formatted_traceback {
+    try_log_messages(py, None, intern!(py, "log_exception"), formatted_traceback)?;
+
+    Ok(())
+}
+
+pub(crate) fn log_exception(py: Python<'_>, exception: &PyErr) {
+    let _ = try_log_exception(py, exception);
+}
+
+fn try_log_messages(
+    py: Python<'_>,
+    plugin: Option<PyObject>,
+    function: &Bound<'_, PyString>,
+    messages: Vec<String>,
+) -> Result<(), PyErr> {
+    let logging_module = py.import_bound(intern!(py, "logging"))?;
+    let error_level = logging_module.getattr(intern!(py, "ERROR"))?;
+    let logger_name = get_logger_name(py, plugin);
+    let py_logger = logging_module.call_method1(intern!(py, "getLogger"), (logger_name,))?;
+
+    for line in messages {
         let log_record = py_logger.call_method(
             intern!(py, "makeRecord"),
             (
@@ -602,16 +587,11 @@ fn try_log_exception(py: Python<'_>, exception: &PyErr) -> PyResult<()> {
                 py.None(),
                 py.None(),
             ),
-            Some(&[(intern!(py, "func"), intern!(py, "log_exception"))].into_py_dict_bound(py)),
+            Some(&[(intern!(py, "func"), function)].into_py_dict_bound(py)),
         )?;
         py_logger.call_method1(intern!(py, "handle"), (log_record,))?;
     }
-
     Ok(())
-}
-
-pub(crate) fn log_exception(py: Python<'_>, exception: &PyErr) {
-    let _ = try_log_exception(py, exception);
 }
 
 #[pyfunction]
@@ -716,14 +696,17 @@ def thread(func, force=False):
 /// Returns a :class:`datetime.timedelta` instance of the time since initialized.
 #[pyfunction]
 fn uptime(py: Python<'_>) -> PyResult<Bound<'_, PyDelta>> {
-    let elapsed = _INIT_TIME.elapsed();
-    let elapsed_days: i32 = (elapsed.as_secs() / (24 * 60 * 60))
-        .try_into()
-        .unwrap_or_default();
-    let elapsed_seconds: i32 = (elapsed.as_secs() % (24 * 60 * 60))
-        .try_into()
-        .unwrap_or_default();
-    let elapsed_microseconds: i32 = elapsed.subsec_micros().try_into().unwrap_or_default();
+    let (elapsed_days, elapsed_seconds, elapsed_microseconds) = py.allow_threads(|| {
+        let elapsed = _INIT_TIME.elapsed();
+        let elapsed_days: i32 = (elapsed.as_secs() / (24 * 60 * 60))
+            .try_into()
+            .unwrap_or_default();
+        let elapsed_seconds: i32 = (elapsed.as_secs() % (24 * 60 * 60))
+            .try_into()
+            .unwrap_or_default();
+        let elapsed_microseconds: i32 = elapsed.subsec_micros().try_into().unwrap_or_default();
+        (elapsed_days, elapsed_seconds, elapsed_microseconds)
+    });
     PyDelta::new_bound(
         py,
         elapsed_days,
@@ -741,17 +724,19 @@ fn owner(py: Python<'_>) -> PyResult<Option<i64>> {
         return Ok(None);
     };
 
-    let Ok(steam_id) = owner_cvar.parse::<i64>() else {
-        error!(target: "shinqlx", "Failed to parse the Owner Steam ID. Make sure it's in SteamID64 format.");
-        return Ok(None);
-    };
+    py.allow_threads(|| {
+        let Ok(steam_id) = owner_cvar.parse::<i64>() else {
+            error!(target: "shinqlx", "Failed to parse the Owner Steam ID. Make sure it's in SteamID64 format.");
+            return Ok(None);
+        };
 
-    if steam_id < 0 {
-        error!(target: "shinqlx", "Failed to parse the Owner Steam ID. Make sure it's in SteamID64 format.");
-        return Ok(None);
-    }
+        if steam_id < 0 {
+            error!(target: "shinqlx", "Failed to parse the Owner Steam ID. Make sure it's in SteamID64 format.");
+            return Ok(None);
+        }
 
-    Ok(Some(steam_id))
+        Ok(Some(steam_id))
+    })
 }
 
 /// Returns the :class:`shinqlx.StatsListener` instance used to listen for stats.
