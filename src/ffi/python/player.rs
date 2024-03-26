@@ -150,7 +150,7 @@ impl Player {
         })
     }
 
-    fn __richcmp__(&self, other: &PyAny, op: CompareOp, py: Python<'_>) -> PyObject {
+    fn __richcmp__(&self, other: &Bound<'_, PyAny>, op: CompareOp, py: Python<'_>) -> PyObject {
         match op {
             CompareOp::Eq => {
                 if let Ok(other_player) = other.extract::<Self>() {
@@ -6950,7 +6950,7 @@ impl AbstractDummyPlayer {
     fn tell(
         &self,
         #[allow(unused_variables)] msg: String,
-        #[allow(unused_variables)] kwargs: Option<&PyDict>,
+        #[allow(unused_variables)] kwargs: Option<&Bound<'_, PyDict>>,
     ) -> PyResult<&PyAny> {
         Err(PyNotImplementedError::new_err(
             "tell() needs to be implemented.",
