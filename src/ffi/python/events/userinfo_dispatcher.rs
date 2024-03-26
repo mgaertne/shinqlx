@@ -1,6 +1,6 @@
 use super::prelude::*;
 
-use pyo3::types::PyDict;
+use pyo3::types::{IntoPyDict, PyDict};
 
 /// Event for clients changing their userinfo.
 #[pyclass(module = "_events", name = "UserinfoDispatcher", extends = EventDispatcher, frozen)]
@@ -25,14 +25,14 @@ impl UserinfoDispatcher {
         slf: PyRef<'_, Self>,
         py: Python<'_>,
         player: PyObject,
-        changed: &PyDict,
+        changed: &Bound<'_, PyDict>,
     ) -> PyObject {
-        let mut forwarded_userinfo = changed;
+        let mut forwarded_userinfo = changed.clone();
         let mut return_value = true.into_py(py);
 
         let super_class = slf.into_super();
-        if let Ok(player_str) = player.call_method0(py, intern!(py, "__repr__")) {
-            if let Ok(changed_str) = changed.call_method0(intern!(py, "__repr__")) {
+        if let Ok(player_str) = player.bind(py).repr() {
+            if let Ok(changed_str) = changed.repr() {
                 let dbgstr = format!("{}({}, {})", super_class.name, player_str, changed_str);
                 dispatcher_debug_log(py, dbgstr);
             }
@@ -42,7 +42,7 @@ impl UserinfoDispatcher {
         for i in 0..5 {
             for (_, handlers) in plugins.iter() {
                 for handler in &handlers[i] {
-                    match handler.call1(py, (&player, &forwarded_userinfo)) {
+                    match handler.call1(py, (&player, forwarded_userinfo.clone())) {
                         Err(e) => {
                             log_exception(py, &e);
                             continue;
@@ -79,7 +79,7 @@ impl UserinfoDispatcher {
                                 log_unexpected_return_value(py, Self::name, &res, handler);
                                 continue;
                             };
-                            forwarded_userinfo = changed_value;
+                            forwarded_userinfo = changed_value.into_py_dict_bound(py);
                             return_value = changed_value.into_py(py);
                         }
                     }

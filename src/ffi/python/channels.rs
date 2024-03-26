@@ -44,7 +44,7 @@ impl AbstractChannel {
         self.name.clone()
     }
 
-    fn __richcmp__(&self, other: &PyAny, op: CompareOp, py: Python<'_>) -> PyObject {
+    fn __richcmp__(&self, other: &Bound<'_, PyAny>, op: CompareOp, py: Python<'_>) -> PyObject {
         match op {
             CompareOp::Eq => {
                 if let Ok(other_channel) = other.extract::<String>() {

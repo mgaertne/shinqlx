@@ -21,7 +21,7 @@ impl From<Flight> for [i32; 4] {
 #[pymethods]
 impl Flight {
     #[new]
-    fn py_new(values: &PyTuple) -> PyResult<Self> {
+    fn py_new(values: &Bound<'_, PyTuple>) -> PyResult<Self> {
         if values.len() < 4 {
             return Err(PyValueError::new_err(
                 "tuple did not provide values for all 4 flight parameters",
