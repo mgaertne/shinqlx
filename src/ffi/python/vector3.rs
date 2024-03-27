@@ -31,7 +31,7 @@ pub(crate) struct Vector3(
 #[pymethods]
 impl Vector3 {
     #[new]
-    fn py_new(values: &PyTuple) -> PyResult<Self> {
+    fn py_new(values: &Bound<'_, PyTuple>) -> PyResult<Self> {
         if values.len() < 3 {
             return Err(PyValueError::new_err(
                 "tuple did not provide values for all three dimensions",

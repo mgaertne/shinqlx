@@ -45,7 +45,7 @@ impl From<Weapons> for [i32; 15] {
 #[pymethods]
 impl Weapons {
     #[new]
-    fn py_new(values: &PyTuple) -> PyResult<Self> {
+    fn py_new(values: &Bound<'_, PyTuple>) -> PyResult<Self> {
         if values.len() < 15 {
             return Err(PyValueError::new_err(
                 "tuple did not provide values for all 15 weapons",

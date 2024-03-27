@@ -30,7 +30,7 @@ impl From<Powerups> for [i32; 6] {
 #[pymethods]
 impl Powerups {
     #[new]
-    fn py_new(values: &PyTuple) -> PyResult<Self> {
+    fn py_new(values: &Bound<'_, PyTuple>) -> PyResult<Self> {
         if values.len() < 6 {
             return Err(PyValueError::new_err(
                 "tuple did not provide values for all 6 powerups",
