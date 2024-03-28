@@ -76,12 +76,11 @@ impl Vector3 {
         format!("Vector3(x={}, y={}, z={})", self.0, self.1, self.2)
     }
 
-    fn __iter__(slf: PyRef<'_, Self>) -> PyResult<Py<Vector3Iter>> {
+    fn __iter__(slf: PyRef<'_, Self>) -> Vector3Iter {
         let iter_array = [slf.0, slf.1, slf.2];
-        let iter = Vector3Iter {
+        Vector3Iter {
             iter: iter_array.into_iter(),
-        };
-        Py::new(slf.py(), iter)
+        }
     }
 }
 
