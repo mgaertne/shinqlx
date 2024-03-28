@@ -42,8 +42,8 @@ impl ChatEventDispatcher {
         let mut return_value = true.into_py(py);
 
         let super_class = slf.into_super();
-        if let Ok(player_str) = player.call_method0(py, intern!(py, "__repr__")) {
-            if let Ok(channel_str) = channel.call_method0(py, intern!(py, "__repr__")) {
+        if let Ok(player_str) = player.bind(py).repr() {
+            if let Ok(channel_str) = channel.bind(py).repr() {
                 let dbgstr = format!(
                     "{}({}, {}, {})",
                     super_class.name, player_str, msg, channel_str
