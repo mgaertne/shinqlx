@@ -10,41 +10,29 @@ use rand::Rng;
 
 #[no_mangle]
 pub extern "C" fn cmd_send_server_command() {
-    let Some(ref main_engine) = *MAIN_ENGINE.load() else {
-        return;
-    };
-
-    let Some(cmd_args) = main_engine.cmd_args() else {
-        return;
-    };
-
-    main_engine.send_server_command(None::<Client>, &format!("{}\n", cmd_args));
+    MAIN_ENGINE.load().iter().for_each(|main_engine| {
+        main_engine.cmd_args().iter().for_each(|cmd_args| {
+            main_engine.send_server_command(None::<Client>, &format!("{}\n", cmd_args));
+        });
+    });
 }
 
 #[no_mangle]
 pub extern "C" fn cmd_center_print() {
-    let Some(ref main_engine) = *MAIN_ENGINE.load() else {
-        return;
-    };
-
-    let Some(cmd_args) = main_engine.cmd_args() else {
-        return;
-    };
-
-    main_engine.send_server_command(None::<Client>, &format!("cp \"{}\"\n", cmd_args));
+    MAIN_ENGINE.load().iter().for_each(|main_engine| {
+        main_engine.cmd_args().iter().for_each(|cmd_args| {
+            main_engine.send_server_command(None::<Client>, &format!("cp \"{}\"\n", cmd_args));
+        });
+    });
 }
 
 #[no_mangle]
 pub extern "C" fn cmd_regular_print() {
-    let Some(ref main_engine) = *MAIN_ENGINE.load() else {
-        return;
-    };
-
-    let Some(cmd_args) = main_engine.cmd_args() else {
-        return;
-    };
-
-    main_engine.send_server_command(None::<Client>, &format!("print \"{}\n\"\n", cmd_args));
+    MAIN_ENGINE.load().iter().for_each(|main_engine| {
+        main_engine.cmd_args().iter().for_each(|cmd_args| {
+            main_engine.send_server_command(None::<Client>, &format!("print \"{}\n\"\n", cmd_args));
+        });
+    });
 }
 
 #[no_mangle]
@@ -218,69 +206,66 @@ pub extern "C" fn cmd_slay() {
 // Execute a pyshinqlx command as if it were the owner executing it.
 // Output will appear in the console.
 pub extern "C" fn cmd_py_rcon() {
-    let Some(ref main_engine) = *MAIN_ENGINE.load() else {
-        return;
-    };
-
-    let Some(commands) = main_engine.cmd_args() else {
-        return;
-    };
-
-    rcon_dispatcher(commands);
-}
-
-#[no_mangle]
-pub extern "C" fn cmd_py_command() {
-    let Some(ref custom_command_handler) = *CUSTOM_COMMAND_HANDLER.load() else {
-        return;
-    };
-
-    let Some(ref main_engine) = *MAIN_ENGINE.load() else {
-        return;
-    };
-
-    let cmd_args = main_engine.cmd_args();
-
-    Python::with_gil(|py| {
-        let result = match cmd_args {
-            None => custom_command_handler.call0(py),
-            Some(args) => custom_command_handler.call1(py, (args,)),
+    MAIN_ENGINE.load().iter().for_each(|main_engine| {
+        let Some(commands) = main_engine.cmd_args() else {
+            return;
         };
 
-        if result.is_err()
-            || result.is_ok_and(|value| value.is_truthy(py).is_ok_and(|result| !result))
-        {
-            main_engine
-                .com_printf("The command failed to be executed. pyshinqlx found no handler.\n");
-        }
+        rcon_dispatcher(commands);
     });
 }
 
 #[no_mangle]
+pub extern "C" fn cmd_py_command() {
+    CUSTOM_COMMAND_HANDLER
+        .load()
+        .iter()
+        .for_each(|custom_command_handler| {
+            MAIN_ENGINE.load().iter().for_each(|main_engine| {
+                let cmd_args = main_engine.cmd_args();
+
+                Python::with_gil(|py| {
+                    let result = match cmd_args {
+                        None => custom_command_handler.call0(py),
+                        Some(args) => custom_command_handler.call1(py, (args,)),
+                    };
+
+                    if result.is_err()
+                        || result.is_ok_and(|value| {
+                            value.bind(py).is_truthy().is_ok_and(|result| !result)
+                        })
+                    {
+                        main_engine.com_printf(
+                            "The command failed to be executed. pyshinqlx found no handler.\n",
+                        );
+                    }
+                });
+            });
+        });
+}
+
+#[no_mangle]
 pub extern "C" fn cmd_restart_python() {
-    let Some(ref main_engine) = *MAIN_ENGINE.load() else {
-        return;
-    };
+    MAIN_ENGINE.load().iter().for_each(|main_engine| {
+        main_engine.com_printf("Restarting Python...\n");
 
-    main_engine.com_printf("Restarting Python...\n");
-
-    if pyshinqlx_is_initialized() {
-        if pyshinqlx_reload().is_err() {
-            return;
-        };
-        // shinqlx initializes after the first new game starts, but since the game already
-        // start, we manually trigger the event to make it initialize properly.
-        new_game_dispatcher(false);
-        return;
-    }
-
-    if pyshinqlx_initialize().is_err() {
-        return;
-    };
-
-    // shinqlx initializes after the first new game starts, but since the game already
-    // start, we manually trigger the event to make it initialize properly.
-    new_game_dispatcher(false);
+        match pyshinqlx_is_initialized() {
+            true => {
+                pyshinqlx_reload().iter().for_each(|_| {
+                    // shinqlx initializes after the first new game starts, but since the game already
+                    // start, we manually trigger the event to make it initialize properly.
+                    new_game_dispatcher(false);
+                });
+            }
+            false => {
+                pyshinqlx_initialize().iter().for_each(|_| {
+                    // shinqlx initializes after the first new game starts, but since the game already
+                    // start, we manually trigger the event to make it initialize properly.
+                    new_game_dispatcher(false);
+                });
+            }
+        }
+    });
 }
 
 #[cfg(test)]
