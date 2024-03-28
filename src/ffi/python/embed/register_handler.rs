@@ -2,8 +2,6 @@ use crate::ffi::python::prelude::*;
 
 use pyo3::exceptions::{PyTypeError, PyValueError};
 
-use alloc::sync::Arc;
-
 /// Register an event handler. Can be called more than once per event, but only the last one will work.
 #[pyfunction]
 #[pyo3(name = "register_handler")]
@@ -39,7 +37,7 @@ pub(crate) fn pyshinqlx_register_handler(
         _ => return Err(PyValueError::new_err("Unsupported event.")),
     };
 
-    handler_lock.store(handler.map(|handler_func| Arc::new(handler_func.unbind())));
+    handler_lock.store(handler.map(|handler_func| handler_func.unbind().into()));
     Ok(())
 }
 
