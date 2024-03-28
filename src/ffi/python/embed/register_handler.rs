@@ -50,7 +50,7 @@ def handler():
             )
             .expect("this should not happen");
             let py_handler = pymodule.getattr("handler").expect("this should not happen");
-            handler.store(Some(py_handler.unbind().into()));
+            CUSTOM_COMMAND_HANDLER.store(Some(py_handler.unbind().into()));
 
             let result =
                 Python::with_gil(|py| pyshinqlx_register_handler(py, "custom_command", None));
