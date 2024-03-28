@@ -11,20 +11,23 @@ where
     }
 
     Python::with_gil(|py| {
-        let returned = handle_client_command(py, client_id, cmd.as_ref().to_string());
-        match returned.extract::<String>(py) {
-            Err(_) => match returned.extract::<bool>(py) {
-                Err(_) => Some(cmd.as_ref().into()),
-                Ok(result_bool) => {
-                    if !result_bool {
-                        None
-                    } else {
-                        Some(cmd.as_ref().into())
-                    }
+        let result = handle_client_command(py, client_id, cmd.as_ref().to_string());
+        result
+            .bind(py)
+            .extract::<bool>()
+            .map(|bool_value| {
+                if bool_value {
+                    Some(cmd.as_ref().into())
+                } else {
+                    None
                 }
-            },
-            Ok(result_string) => Some(result_string),
-        }
+            })
+            .unwrap_or(Some(
+                result
+                    .bind(py)
+                    .extract::<String>()
+                    .unwrap_or(cmd.as_ref().into()),
+            ))
     })
 }
 
@@ -37,20 +40,23 @@ where
     }
 
     Python::with_gil(|py| {
-        let returned = handle_server_command(py, client_id.unwrap_or(-1), cmd.as_ref().to_string());
-        match returned.extract::<String>(py) {
-            Err(_) => match returned.extract::<bool>(py) {
-                Err(_) => Some(cmd.as_ref().into()),
-                Ok(result_bool) => {
-                    if !result_bool {
-                        None
-                    } else {
-                        Some(cmd.as_ref().into())
-                    }
+        let result = handle_server_command(py, client_id.unwrap_or(-1), cmd.as_ref().to_string());
+        result
+            .bind(py)
+            .extract::<bool>()
+            .map(|bool_value| {
+                if bool_value {
+                    Some(cmd.as_ref().into())
+                } else {
+                    None
                 }
-            },
-            Ok(result_string) => Some(result_string),
-        }
+            })
+            .unwrap_or(Some(
+                result
+                    .bind(py)
+                    .extract::<String>()
+                    .unwrap_or(cmd.as_ref().into()),
+            ))
     })
 }
 
@@ -73,21 +79,19 @@ pub(crate) fn client_connect_dispatcher(client_id: i32, is_bot: bool) -> Option<
         ALLOW_FREE_CLIENT.store(allowed_clients | (1 << client_id as u64), Ordering::SeqCst);
     }
 
-    let result: Option<String> = Python::with_gil(|py| {
-        let returned = handle_player_connect(py, client_id, is_bot);
-        match returned.extract::<String>(py) {
-            Err(_) => match returned.extract::<bool>(py) {
-                Err(_) => None,
-                Ok(result_bool) => {
-                    if !result_bool {
-                        Some("You are banned from this server.".into())
-                    } else {
-                        None
-                    }
+    let returned: Option<String> = Python::with_gil(|py| {
+        let result = handle_player_connect(py, client_id, is_bot);
+        result
+            .bind(py)
+            .extract::<bool>()
+            .map(|bool_value| {
+                if !bool_value {
+                    Some("You are banned from this server.".into())
+                } else {
+                    None
                 }
-            },
-            Ok(result_string) => Some(result_string),
-        }
+            })
+            .unwrap_or(result.bind(py).extract::<String>().ok())
     });
 
     {
@@ -95,7 +99,7 @@ pub(crate) fn client_connect_dispatcher(client_id: i32, is_bot: bool) -> Option<
         ALLOW_FREE_CLIENT.store(allowed_clients & !(1 << client_id as u64), Ordering::SeqCst);
     }
 
-    result
+    returned
 }
 
 pub(crate) fn client_disconnect_dispatcher<T>(client_id: i32, reason: T)
@@ -145,20 +149,23 @@ where
     }
 
     Python::with_gil(|py| {
-        let returned = handle_set_configstring(py, index.into(), value.as_ref().to_string());
-        match returned.extract::<String>(py) {
-            Err(_) => match returned.extract::<bool>(py) {
-                Err(_) => Some(value.as_ref().into()),
-                Ok(result_bool) => {
-                    if !result_bool {
-                        None
-                    } else {
-                        Some(value.as_ref().into())
-                    }
+        let result = handle_set_configstring(py, index.into(), value.as_ref().to_string());
+        result
+            .bind(py)
+            .extract::<bool>()
+            .map(|bool_value| {
+                if bool_value {
+                    Some(value.as_ref().into())
+                } else {
+                    None
                 }
-            },
-            Ok(result_string) => Some(result_string),
-        }
+            })
+            .unwrap_or(Some(
+                result
+                    .bind(py)
+                    .extract::<String>()
+                    .unwrap_or(value.as_ref().into()),
+            ))
     })
 }
 
@@ -182,20 +189,23 @@ where
     }
 
     Python::with_gil(|py| {
-        let returned = handle_console_print(py, text.as_ref().into());
-        match returned.extract::<String>(py) {
-            Err(_) => match returned.extract::<bool>(py) {
-                Err(_) => Some(text.as_ref().into()),
-                Ok(result_bool) => {
-                    if !result_bool {
-                        None
-                    } else {
-                        Some(text.as_ref().into())
-                    }
+        let result = handle_console_print(py, text.as_ref().into());
+        result
+            .bind(py)
+            .extract::<bool>()
+            .map(|bool_value| {
+                if bool_value {
+                    Some(text.as_ref().into())
+                } else {
+                    None
                 }
-            },
-            Ok(result_string) => Some(result_string),
-        }
+            })
+            .unwrap_or(Some(
+                result
+                    .bind(py)
+                    .extract::<String>()
+                    .unwrap_or(text.as_ref().into()),
+            ))
     })
 }
 
