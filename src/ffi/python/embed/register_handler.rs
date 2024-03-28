@@ -9,7 +9,7 @@ use alloc::sync::Arc;
 #[pyo3(name = "register_handler")]
 #[pyo3(signature = (event, handler=None))]
 pub(crate) fn pyshinqlx_register_handler(
-    py: Python<'_>,
+    _py: Python<'_>,
     event: &str,
     handler: Option<Bound<'_, PyAny>>,
 ) -> PyResult<()> {
@@ -39,7 +39,7 @@ pub(crate) fn pyshinqlx_register_handler(
         _ => return Err(PyValueError::new_err("Unsupported event.")),
     };
 
-    handler_lock.store(handler.map(|handler_func| Arc::new(handler_func.into_py(py))));
+    handler_lock.store(handler.map(|handler_func| Arc::new(handler_func.unbind())));
     Ok(())
 }
 
