@@ -11,31 +11,35 @@ where
         return Some(cmd.as_ref().into());
     }
 
-    let Some(ref client_command_handler) = *CLIENT_COMMAND_HANDLER.load() else {
-        return Some(cmd.as_ref().into());
-    };
-
-    Python::with_gil(
-        |py| match client_command_handler.call1(py, (client_id, cmd.as_ref())) {
-            Err(_) => {
-                error!(target: "shinqlx", "client_command_handler returned an error.");
-                Some(cmd.as_ref().into())
-            }
-            Ok(returned) => match returned.extract::<String>(py) {
-                Err(_) => match returned.extract::<bool>(py) {
-                    Err(_) => Some(cmd.as_ref().into()),
-                    Ok(result_bool) => {
-                        if !result_bool {
-                            None
-                        } else {
+    CLIENT_COMMAND_HANDLER
+        .load()
+        .as_ref()
+        .map(|client_command_handler| {
+            Python::with_gil(|py| {
+                client_command_handler
+            .bind(py)
+            .call1((client_id, cmd.as_ref()))
+            .map(|returned| {
+                returned
+                    .extract::<bool>()
+                    .map(|bool_value| {
+                        if bool_value {
                             Some(cmd.as_ref().into())
+                        } else {
+                            None
                         }
-                    }
-                },
-                Ok(result_string) => Some(result_string),
-            },
-        },
-    )
+                    })
+                    .unwrap_or(Some(
+                        returned.extract::<String>().unwrap_or(cmd.as_ref().into()),
+                    ))
+            })
+            .unwrap_or_else(|e| {
+                error!(target: "shinqlx", "client_command_handler returned an error: {:?}.", e);
+                Some(cmd.as_ref().into())
+            })
+            })
+        })
+        .unwrap_or(Some(cmd.as_ref().into()))
 }
 
 pub(crate) fn server_command_dispatcher<T>(client_id: Option<i32>, cmd: T) -> Option<String>
@@ -46,31 +50,35 @@ where
         return Some(cmd.as_ref().into());
     }
 
-    let Some(ref server_command_handler) = *SERVER_COMMAND_HANDLER.load() else {
-        return Some(cmd.as_ref().into());
-    };
-
-    Python::with_gil(|py| {
-        match server_command_handler.call1(py, (client_id.unwrap_or(-1), cmd.as_ref())) {
-            Err(_) => {
-                error!(target: "shinqlx", "server_command_handler returned an error.");
-                Some(cmd.as_ref().into())
-            }
-            Ok(returned) => match returned.extract::<String>(py) {
-                Err(_) => match returned.extract::<bool>(py) {
-                    Err(_) => Some(cmd.as_ref().into()),
-                    Ok(result_bool) => {
-                        if !result_bool {
-                            None
-                        } else {
-                            Some(cmd.as_ref().into())
-                        }
-                    }
-                },
-                Ok(result_string) => Some(result_string),
-            },
-        }
-    })
+    SERVER_COMMAND_HANDLER
+        .load()
+        .as_ref()
+        .map(|server_command_handler| {
+            Python::with_gil(|py| {
+                server_command_handler
+                .bind(py)
+                .call1((client_id.unwrap_or(-1), cmd.as_ref()))
+                .map(|returned| {
+                    returned
+                        .extract::<bool>()
+                        .map(|bool_value| {
+                            if bool_value {
+                                Some(cmd.as_ref().into())
+                            } else {
+                                None
+                            }
+                        })
+                        .unwrap_or(Some(
+                            returned.extract::<String>().unwrap_or(cmd.as_ref().into()),
+                        ))
+                })
+                .unwrap_or_else(|e| {
+                    error!(target: "shinqlx", "server_command_handler returned an error: {:?}.", e);
+                    Some(cmd.as_ref().into())
+                })
+            })
+        })
+        .unwrap_or(Some(cmd.as_ref().into()))
 }
 
 pub(crate) fn frame_dispatcher() {
@@ -78,14 +86,13 @@ pub(crate) fn frame_dispatcher() {
         return;
     }
 
-    let Some(ref frame_handler) = *FRAME_HANDLER.load() else {
-        return;
-    };
-
-    let result = Python::with_gil(|py| frame_handler.call0(py));
-    if result.is_err() {
-        error!(target: "shinqlx", "frame_handler returned an error.");
-    }
+    FRAME_HANDLER.load().iter().for_each(|frame_handler| {
+        Python::with_gil(|py| {
+            if let Err(e) = frame_handler.bind(py).call0() {
+                error!(target: "shinqlx", "frame_handler returned an error: {:?}.", e);
+            }
+        });
+    });
 }
 
 #[allow(clippy::question_mark)]
@@ -94,41 +101,43 @@ pub(crate) fn client_connect_dispatcher(client_id: i32, is_bot: bool) -> Option<
         return None;
     }
 
-    let Some(ref client_connect_handler) = *PLAYER_CONNECT_HANDLER.load() else {
-        return None;
-    };
+    PLAYER_CONNECT_HANDLER
+        .load()
+        .as_ref()
+        .map(|client_connect_handler| {
+            {
+                let allowed_clients = ALLOW_FREE_CLIENT.load(Ordering::SeqCst);
+                ALLOW_FREE_CLIENT
+                    .store(allowed_clients | (1 << client_id as u64), Ordering::SeqCst);
+            }
 
-    {
-        let allowed_clients = ALLOW_FREE_CLIENT.load(Ordering::SeqCst);
-        ALLOW_FREE_CLIENT.store(allowed_clients | (1 << client_id as u64), Ordering::SeqCst);
-    }
+            let result = Python::with_gil(|py| {
+                client_connect_handler
+                    .bind(py)
+                    .call1((client_id, is_bot))
+                    .ok()
+                    .and_then(|returned| {
+                        returned
+                            .extract::<bool>()
+                            .map(|bool_value| {
+                                if !bool_value {
+                                    Some("You are banned from this server.".into())
+                                } else {
+                                    None
+                                }
+                            })
+                            .unwrap_or(returned.extract::<String>().ok())
+                    })
+            });
 
-    let result: Option<String> =
-        Python::with_gil(
-            |py| match client_connect_handler.call1(py, (client_id, is_bot)) {
-                Err(_) => None,
-                Ok(returned) => match returned.extract::<String>(py) {
-                    Err(_) => match returned.extract::<bool>(py) {
-                        Err(_) => None,
-                        Ok(result_bool) => {
-                            if !result_bool {
-                                Some("You are banned from this server.".into())
-                            } else {
-                                None
-                            }
-                        }
-                    },
-                    Ok(result_string) => Some(result_string),
-                },
-            },
-        );
-
-    {
-        let allowed_clients = ALLOW_FREE_CLIENT.load(Ordering::SeqCst);
-        ALLOW_FREE_CLIENT.store(allowed_clients & !(1 << client_id as u64), Ordering::SeqCst);
-    }
-
-    result
+            {
+                let allowed_clients = ALLOW_FREE_CLIENT.load(Ordering::SeqCst);
+                ALLOW_FREE_CLIENT
+                    .store(allowed_clients & !(1 << client_id as u64), Ordering::SeqCst);
+            }
+            result
+        })
+        .unwrap_or(None)
 }
 
 pub(crate) fn client_disconnect_dispatcher<T>(client_id: i32, reason: T)
@@ -139,25 +148,29 @@ where
         return;
     }
 
-    let Some(ref client_disconnect_handler) = *PLAYER_DISCONNECT_HANDLER.load() else {
-        return;
-    };
+    PLAYER_DISCONNECT_HANDLER
+        .load()
+        .iter()
+        .for_each(|client_disconnect_handler| {
+            {
+                let allowed_clients = ALLOW_FREE_CLIENT.load(Ordering::SeqCst);
+                ALLOW_FREE_CLIENT
+                    .store(allowed_clients | (1 << client_id as u64), Ordering::SeqCst);
+            }
 
-    {
-        let allowed_clients = ALLOW_FREE_CLIENT.load(Ordering::SeqCst);
-        ALLOW_FREE_CLIENT.store(allowed_clients | (1 << client_id as u64), Ordering::SeqCst);
-    }
+            let result = Python::with_gil(|py| {
+                client_disconnect_handler.call1(py, (client_id, reason.as_ref()))
+            });
+            if result.is_err() {
+                error!(target: "shinqlx", "client_disconnect_handler returned an error.");
+            }
 
-    let result =
-        Python::with_gil(|py| client_disconnect_handler.call1(py, (client_id, reason.as_ref())));
-    if result.is_err() {
-        error!(target: "shinqlx", "client_disconnect_handler returned an error.");
-    }
-
-    {
-        let allowed_clients = ALLOW_FREE_CLIENT.load(Ordering::SeqCst);
-        ALLOW_FREE_CLIENT.store(allowed_clients & !(1 << client_id as u64), Ordering::SeqCst);
-    }
+            {
+                let allowed_clients = ALLOW_FREE_CLIENT.load(Ordering::SeqCst);
+                ALLOW_FREE_CLIENT
+                    .store(allowed_clients & !(1 << client_id as u64), Ordering::SeqCst);
+            }
+        });
 }
 
 pub(crate) fn client_loaded_dispatcher(client_id: i32) {
@@ -165,14 +178,16 @@ pub(crate) fn client_loaded_dispatcher(client_id: i32) {
         return;
     }
 
-    let Some(ref client_loaded_handler) = *PLAYER_LOADED_HANDLER.load() else {
-        return;
-    };
-
-    let result = Python::with_gil(|py| client_loaded_handler.call1(py, (client_id,)));
-    if result.is_err() {
-        error!(target: "shinqlx", "client_loaded_handler returned an error.");
-    }
+    PLAYER_LOADED_HANDLER
+        .load()
+        .iter()
+        .for_each(|client_loaded_handler| {
+            Python::with_gil(|py| {
+                if let Err(e) = client_loaded_handler.bind(py).call1((client_id,)) {
+                    error!(target: "shinqlx", "client_loaded_handler returned an error: {:?}.", e);
+                }
+            });
+        });
 }
 
 pub(crate) fn new_game_dispatcher(restart: bool) {
@@ -180,14 +195,13 @@ pub(crate) fn new_game_dispatcher(restart: bool) {
         return;
     }
 
-    let Some(ref new_game_handler) = *NEW_GAME_HANDLER.load() else {
-        return;
-    };
-
-    let result = Python::with_gil(|py| new_game_handler.call1(py, (restart,)));
-    if result.is_err() {
-        error!(target: "shinqlx", "new_game_handler returned an error.");
-    }
+    NEW_GAME_HANDLER.load().iter().for_each(|new_game_handler| {
+        Python::with_gil(|py| {
+            if let Err(e) = new_game_handler.bind(py).call1((restart,)) {
+                error!(target: "shinqlx", "new_game_handler returned an error: {:?}.", e);
+            }
+        });
+    });
 }
 
 pub(crate) fn set_configstring_dispatcher<T, U>(index: T, value: U) -> Option<String>
@@ -199,31 +213,36 @@ where
         return Some(value.as_ref().into());
     }
 
-    let Some(ref set_configstring_handler) = *SET_CONFIGSTRING_HANDLER.load() else {
-        return Some(value.as_ref().into());
-    };
-
-    Python::with_gil(|py| {
-        match set_configstring_handler.call1(py, (index.into(), value.as_ref())) {
-            Err(_) => {
-                error!(target: "shinqlx", "set_configstring_handler returned an error.");
-                Some(value.as_ref().into())
-            }
-            Ok(returned) => match returned.extract::<String>(py) {
-                Err(_) => match returned.extract::<bool>(py) {
-                    Err(_) => Some(value.as_ref().into()),
-                    Ok(result_bool) => {
-                        if !result_bool {
-                            None
-                        } else {
-                            Some(value.as_ref().into())
-                        }
-                    }
-                },
-                Ok(result_string) => Some(result_string),
-            },
-        }
-    })
+    SET_CONFIGSTRING_HANDLER
+        .load()
+        .as_ref()
+        .map(|set_configstring_handler| {
+            Python::with_gil(|py| {
+                set_configstring_handler
+                    .bind(py)
+                    .call1((index.into(), value.as_ref()))
+                    .map(|returned| {
+                        returned
+                            .extract::<bool>()
+                            .map(|bool_value| {
+                                if bool_value {
+                                    Some(value.as_ref().into())
+                                } else {
+                                    None
+                                }
+                            })
+                            .unwrap_or(Some(
+                                returned
+                                    .extract::<String>()
+                                    .unwrap_or(value.as_ref().into()),
+                            ))
+                    })
+                    .unwrap_or_else(|e| {
+                        error!(target: "shinqlx", "set_configstring_handler returned an error: {:?}.", e);
+                        Some(value.as_ref().into())})
+            })
+        })
+        .unwrap_or(Some(value.as_ref().into()))
 }
 
 pub(crate) fn rcon_dispatcher<T>(cmd: T)
@@ -234,14 +253,13 @@ where
         return;
     }
 
-    let Some(ref rcon_handler) = *RCON_HANDLER.load() else {
-        return;
-    };
-
-    let result = Python::with_gil(|py| rcon_handler.call1(py, (cmd.as_ref(),)));
-    if result.is_err() {
-        error!(target: "shinqlx", "rcon_handler returned an error.");
-    }
+    RCON_HANDLER.load().iter().for_each(|rcon_handler| {
+        Python::with_gil(|py| {
+            if let Err(e) = rcon_handler.bind(py).call1((cmd.as_ref(),)) {
+                error!(target: "shinqlx", "rcon_handler returned an error: {:?}.", e);
+            }
+        });
+    });
 }
 
 pub(crate) fn console_print_dispatcher<T>(text: T) -> Option<String>
@@ -252,31 +270,30 @@ where
         return Some(text.as_ref().into());
     }
 
-    let Some(ref console_print_handler) = *CONSOLE_PRINT_HANDLER.load() else {
-        return Some(text.as_ref().into());
-    };
-
-    Python::with_gil(
-        |py| match console_print_handler.call1(py, (text.as_ref(),)) {
-            Err(_) => {
-                error!(target: "shinqlx", "console_print_handler returned an error.");
-                Some(text.as_ref().into())
-            }
-            Ok(returned) => match returned.extract::<String>(py) {
-                Err(_) => match returned.extract::<bool>(py) {
-                    Err(_) => Some(text.as_ref().into()),
-                    Ok(result_bool) => {
-                        if !result_bool {
-                            None
-                        } else {
-                            Some(text.as_ref().into())
-                        }
-                    }
+    CONSOLE_PRINT_HANDLER
+        .load()
+        .as_ref()
+        .map(|console_print_handler| {
+            Python::with_gil(
+                |py| {
+                    console_print_handler.bind(py).call1((text.as_ref(),)).map(|returned| {
+                        returned.extract::<bool>().map(|bool_value| {
+                            if bool_value {
+                                Some(text.as_ref().into())
+                            } else {
+                                None
+                            }
+                        }).unwrap_or({
+                            Some(returned.extract::<String>().unwrap_or(text.as_ref().into()))
+                        })
+                    }).unwrap_or_else(|e| {
+                        error!(target: "shinqlx", "console_print_handler returned an error: {:?}.", e);
+                        Some(text.as_ref().into())
+                    })
                 },
-                Ok(result_string) => Some(result_string),
-            },
-        },
-    )
+            )
+        })
+        .unwrap_or(Some(text.as_ref().into()))
 }
 
 pub(crate) fn client_spawn_dispatcher(client_id: i32) {
@@ -284,14 +301,16 @@ pub(crate) fn client_spawn_dispatcher(client_id: i32) {
         return;
     }
 
-    let Some(ref client_spawn_handler) = *PLAYER_SPAWN_HANDLER.load() else {
-        return;
-    };
-
-    let result = Python::with_gil(|py| client_spawn_handler.call1(py, (client_id,)));
-    if result.is_err() {
-        error!(target: "shinqlx", "client_spawn_handler returned an error.");
-    }
+    PLAYER_SPAWN_HANDLER
+        .load()
+        .iter()
+        .for_each(|client_spawn_handler| {
+            Python::with_gil(|py| {
+                if let Err(e) = client_spawn_handler.bind(py).call1((client_id,)) {
+                    error!(target: "shinqlx", "client_spawn_handler returned an error: {:?}.", e);
+                }
+            });
+        });
 }
 
 pub(crate) fn kamikaze_use_dispatcher(client_id: i32) {
@@ -299,14 +318,16 @@ pub(crate) fn kamikaze_use_dispatcher(client_id: i32) {
         return;
     }
 
-    let Some(ref kamikaze_use_handler) = *KAMIKAZE_USE_HANDLER.load() else {
-        return;
-    };
-
-    let result = Python::with_gil(|py| kamikaze_use_handler.call1(py, (client_id,)));
-    if result.is_err() {
-        error!(target: "shinqlx", "kamikaze_use_handler returned an error.");
-    }
+    KAMIKAZE_USE_HANDLER
+        .load()
+        .iter()
+        .for_each(|kamikaze_use_handler| {
+            Python::with_gil(|py| {
+                if let Err(e) = kamikaze_use_handler.bind(py).call1((client_id,)) {
+                    error!(target: "shinqlx", "kamikaze_use_handler returned an error: {:?}.", e);
+                }
+            });
+        });
 }
 
 pub(crate) fn kamikaze_explode_dispatcher(client_id: i32, is_used_on_demand: bool) {
@@ -314,15 +335,13 @@ pub(crate) fn kamikaze_explode_dispatcher(client_id: i32, is_used_on_demand: boo
         return;
     }
 
-    let Some(ref kamikaze_explode_handler) = *KAMIKAZE_EXPLODE_HANDLER.load() else {
-        return;
-    };
-
-    let result =
-        Python::with_gil(|py| kamikaze_explode_handler.call1(py, (client_id, is_used_on_demand)));
-    if result.is_err() {
-        error!(target: "shinqlx", "kamikaze_explode_handler returned an error.");
-    }
+    KAMIKAZE_EXPLODE_HANDLER.load().iter().for_each(|kamikaze_explode_handler| {
+        Python::with_gil(|py| {
+            if let Err(e) = kamikaze_explode_handler.bind(py).call1((client_id, is_used_on_demand)) {
+                error!(target: "shinqlx", "kamikaze_explode_handler returned an error: {:?}.", e);
+            }
+        });
+    });
 }
 
 pub(crate) fn damage_dispatcher(
@@ -336,25 +355,19 @@ pub(crate) fn damage_dispatcher(
         return;
     }
 
-    let Some(ref damage_handler) = *DAMAGE_HANDLER.load() else {
-        return;
-    };
-
-    let result = Python::with_gil(|py| {
-        damage_handler.call1(
-            py,
-            (
+    DAMAGE_HANDLER.load().iter().for_each(|damage_handler| {
+        Python::with_gil(|py| {
+            if let Err(e) = damage_handler.bind(py).call1((
                 target_client_id,
                 attacker_client_id,
                 damage,
                 dflags,
                 means_of_death,
-            ),
-        )
+            )) {
+                error!(target: "shinqlx", "damage_handler returned an error: {:?}.", e);
+            }
+        });
     });
-    if result.is_err() {
-        error!(target: "shinqlx", "damage_handler returned an error.");
-    }
 }
 
 #[cfg(test)]
