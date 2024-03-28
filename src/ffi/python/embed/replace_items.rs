@@ -39,13 +39,13 @@ fn determine_item_id(item: &Bound<PyAny>) -> PyResult<i32> {
 #[pyo3(signature = (item1, item2))]
 pub(crate) fn pyshinqlx_replace_items(
     py: Python<'_>,
-    item1: Py<PyAny>,
-    item2: Py<PyAny>,
+    item1: &Bound<'_, PyAny>,
+    item2: &Bound<'_, PyAny>,
 ) -> PyResult<bool> {
-    let item2_id = determine_item_id(item2.bind(py))?;
+    let item2_id = determine_item_id(item2)?;
     // Note: if item_id == 0 and item_classname == NULL, then item will be removed
 
-    if let Ok(item1_id) = item1.extract::<i32>(py) {
+    if let Ok(item1_id) = item1.extract::<i32>() {
         // replacing item by entity_id
 
         // entity_id checking
@@ -77,7 +77,7 @@ pub(crate) fn pyshinqlx_replace_items(
         });
     }
 
-    if let Ok(item1_classname) = item1.extract::<String>(py) {
+    if let Ok(item1_classname) = item1.extract::<String>() {
         return py.allow_threads(|| {
             #[cfg_attr(test, allow(clippy::unnecessary_fallible_conversions))]
             let mut matching_item1_entities: Vec<GameEntity> = (0..MAX_GENTITIES)
@@ -111,6 +111,7 @@ mod replace_items_tests {
     use mockall::predicate;
     use pretty_assertions::assert_eq;
     use pyo3::exceptions::PyValueError;
+    use pyo3::types::{PyString, PyTuple};
 
     #[test]
     #[cfg_attr(miri, ignore)]
@@ -122,8 +123,8 @@ mod replace_items_tests {
         Python::with_gil(|py| {
             let result = pyshinqlx_replace_items(
                 py,
-                <i32 as IntoPy<Py<PyAny>>>::into_py(-1, py),
-                1.into_py(py),
+                (-1i32).into_py(py).bind(py),
+                1i32.into_py(py).bind(py),
             );
             assert!(result.is_err_and(|err| err.is_instance_of::<PyValueError>(py)));
         });
@@ -137,7 +138,8 @@ mod replace_items_tests {
         get_num_items_ctx.expect().returning(|| 42);
 
         Python::with_gil(|py| {
-            let result = pyshinqlx_replace_items(py, 43.into_py(py), 1.into_py(py));
+            let result =
+                pyshinqlx_replace_items(py, 43i32.into_py(py).bind(py), 1i32.into_py(py).bind(py));
             assert!(result.is_err_and(|err| err.is_instance_of::<PyValueError>(py)));
         });
     }
@@ -152,8 +154,8 @@ mod replace_items_tests {
         Python::with_gil(|py| {
             let result = pyshinqlx_replace_items(
                 py,
-                1.into_py(py),
-                <i32 as IntoPy<Py<PyAny>>>::into_py(-1, py),
+                1i32.into_py(py).bind(py),
+                (-1i32).into_py(py).bind(py),
             );
             assert!(result.is_err_and(|err| err.is_instance_of::<PyValueError>(py)));
         });
@@ -167,7 +169,8 @@ mod replace_items_tests {
         get_num_items_ctx.expect().returning(|| 42);
 
         Python::with_gil(|py| {
-            let result = pyshinqlx_replace_items(py, 1.into_py(py), 43.into_py(py));
+            let result =
+                pyshinqlx_replace_items(py, 1i32.into_py(py).bind(py), 43i32.into_py(py).bind(py));
             assert!(result.is_err_and(|err| err.is_instance_of::<PyValueError>(py)));
         });
     }
@@ -180,7 +183,11 @@ mod replace_items_tests {
         get_num_items_ctx.expect().returning(|| 42);
 
         Python::with_gil(|py| {
-            let result = pyshinqlx_replace_items(py, (1, 2).into_py(py), 1.into_py(py));
+            let result = pyshinqlx_replace_items(
+                py,
+                PyTuple::new_bound(py, [1i32, 2i32]).as_ref(),
+                1i32.into_py(py).bind(py),
+            );
             assert!(result.is_err_and(|err| err.is_instance_of::<PyValueError>(py)));
         });
     }
@@ -193,7 +200,11 @@ mod replace_items_tests {
         get_num_items_ctx.expect().returning(|| 42);
 
         Python::with_gil(|py| {
-            let result = pyshinqlx_replace_items(py, 1.into_py(py), (1, 2).into_py(py));
+            let result = pyshinqlx_replace_items(
+                py,
+                1i32.into_py(py).bind(py),
+                PyTuple::new_bound(py, [1i32, 2i32]).as_ref(),
+            );
             assert!(result.is_err_and(|err| err.is_instance_of::<PyValueError>(py)));
         });
     }
@@ -220,7 +231,11 @@ mod replace_items_tests {
         });
 
         let result = Python::with_gil(|py| {
-            pyshinqlx_replace_items(py, "not existing classname".into_py(py), 1.into_py(py))
+            pyshinqlx_replace_items(
+                py,
+                PyString::new_bound(py, "not existing classname").as_ref(),
+                1i32.into_py(py).bind(py),
+            )
         });
         assert_eq!(result.expect("result was not OK"), false);
     }
@@ -242,8 +257,11 @@ mod replace_items_tests {
         });
 
         Python::with_gil(|py| {
-            let result =
-                pyshinqlx_replace_items(py, 1.into_py(py), "not existing classname".into_py(py));
+            let result = pyshinqlx_replace_items(
+                py,
+                1i32.into_py(py).bind(py),
+                PyString::new_bound(py, "not existing classname").as_ref(),
+            );
             assert!(result.is_err_and(|err| err.is_instance_of::<PyValueError>(py)));
         });
     }
@@ -266,7 +284,8 @@ mod replace_items_tests {
             });
 
         Python::with_gil(|py| {
-            let result = pyshinqlx_replace_items(py, 1.into_py(py), 2.into_py(py));
+            let result =
+                pyshinqlx_replace_items(py, 1i32.into_py(py).bind(py), 2i32.into_py(py).bind(py));
             assert!(result.is_err_and(|err| err.is_instance_of::<PyValueError>(py)));
         });
     }
@@ -293,7 +312,8 @@ mod replace_items_tests {
             });
 
         Python::with_gil(|py| {
-            let result = pyshinqlx_replace_items(py, 1.into_py(py), 2.into_py(py));
+            let result =
+                pyshinqlx_replace_items(py, 1i32.into_py(py).bind(py), 2i32.into_py(py).bind(py));
             assert!(result.is_err_and(|err| err.is_instance_of::<PyValueError>(py)));
         });
     }
@@ -323,8 +343,9 @@ mod replace_items_tests {
                 mock_game_entity
             });
 
-        let result =
-            Python::with_gil(|py| pyshinqlx_replace_items(py, 1.into_py(py), 2.into_py(py)));
+        let result = Python::with_gil(|py| {
+            pyshinqlx_replace_items(py, 1i32.into_py(py).bind(py), 2i32.into_py(py).bind(py))
+        });
         assert_eq!(result.expect("result was not OK"), true);
     }
 
@@ -373,7 +394,11 @@ mod replace_items_tests {
             });
 
         let result = Python::with_gil(|py| {
-            pyshinqlx_replace_items(py, 1.into_py(py), "weapon_bfg".into_py(py))
+            pyshinqlx_replace_items(
+                py,
+                1i32.into_py(py).bind(py),
+                PyString::new_bound(py, "weapon_bfg").as_ref(),
+            )
         });
         assert_eq!(result.expect("result was not OK"), true);
     }
@@ -487,7 +512,11 @@ mod replace_items_tests {
         });
 
         let result = Python::with_gil(|py| {
-            pyshinqlx_replace_items(py, "weapon_railgun".into_py(py), "weapon_bfg".into_py(py))
+            pyshinqlx_replace_items(
+                py,
+                PyString::new_bound(py, "weapon_railgun").as_ref(),
+                PyString::new_bound(py, "weapon_bfg").as_ref(),
+            )
         });
         assert_eq!(result.expect("result was not OK"), true);
     }
@@ -572,7 +601,11 @@ mod replace_items_tests {
         });
 
         let result = Python::with_gil(|py| {
-            pyshinqlx_replace_items(py, "weapon_railgun".into_py(py), "weapon_bfg".into_py(py))
+            pyshinqlx_replace_items(
+                py,
+                PyString::new_bound(py, "weapon_railgun").as_ref(),
+                PyString::new_bound(py, "weapon_bfg").as_ref(),
+            )
         });
         assert_eq!(result.expect("result was not OK"), true);
     }
