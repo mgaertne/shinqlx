@@ -1011,83 +1011,83 @@ impl QuakeLiveEngine {
 
     #[cfg_attr(test, allow(dead_code))]
     fn com_printf_orig(&self) -> Result<extern "C" fn(*const c_char, ...), QuakeLiveEngineError> {
-        let Some(static_functions) = self.static_functions.get() else {
-            return Err(QuakeLiveEngineError::StaticFunctionNotFound(
+        self.static_functions.get().map_or(
+            Err(QuakeLiveEngineError::StaticFunctionNotFound(
                 QuakeLiveFunction::Com_Printf,
-            ));
-        };
-        Ok(static_functions.com_printf_orig)
+            )),
+            |static_functions| Ok(static_functions.com_printf_orig),
+        )
     }
 
     #[cfg_attr(test, allow(dead_code))]
     fn cmd_addcommand_orig(
         &self,
     ) -> Result<fn(*const c_char, unsafe extern "C" fn()), QuakeLiveEngineError> {
-        let Some(static_functions) = self.static_functions.get() else {
-            return Err(QuakeLiveEngineError::StaticFunctionNotFound(
+        self.static_functions.get().map_or(
+            Err(QuakeLiveEngineError::StaticFunctionNotFound(
                 QuakeLiveFunction::Cmd_AddCommand,
-            ));
-        };
-        Ok(static_functions.cmd_addcommand_orig)
+            )),
+            |static_functions| Ok(static_functions.cmd_addcommand_orig),
+        )
     }
 
     fn cmd_args_orig(&self) -> Result<fn() -> *const c_char, QuakeLiveEngineError> {
-        let Some(static_functions) = self.static_functions.get() else {
-            return Err(QuakeLiveEngineError::StaticFunctionNotFound(
+        self.static_functions.get().map_or(
+            Err(QuakeLiveEngineError::StaticFunctionNotFound(
                 QuakeLiveFunction::Cmd_Args,
-            ));
-        };
-        Ok(static_functions.cmd_args_orig)
+            )),
+            |static_functions| Ok(static_functions.cmd_args_orig),
+        )
     }
 
     fn cmd_argv_orig(&self) -> Result<fn(c_int) -> *const c_char, QuakeLiveEngineError> {
-        let Some(static_functions) = self.static_functions.get() else {
-            return Err(QuakeLiveEngineError::StaticFunctionNotFound(
+        self.static_functions.get().map_or(
+            Err(QuakeLiveEngineError::StaticFunctionNotFound(
                 QuakeLiveFunction::Cmd_Argv,
-            ));
-        };
-        Ok(static_functions.cmd_argv_orig)
+            )),
+            |static_functions| Ok(static_functions.cmd_argv_orig),
+        )
     }
 
     #[allow(dead_code)]
     fn cmd_tokenizestring_orig(&self) -> Result<fn(*const c_char), QuakeLiveEngineError> {
-        let Some(static_functions) = self.static_functions.get() else {
-            return Err(QuakeLiveEngineError::StaticFunctionNotFound(
+        self.static_functions.get().map_or(
+            Err(QuakeLiveEngineError::StaticFunctionNotFound(
                 QuakeLiveFunction::Cmd_Tokenizestring,
-            ));
-        };
-        Ok(static_functions.cmd_tokenizestring_orig)
+            )),
+            |static_functions| Ok(static_functions.cmd_tokenizestring_orig),
+        )
     }
 
     #[allow(dead_code)]
     fn cbuf_executetext_orig(&self) -> Result<fn(cbufExec_t, *const c_char), QuakeLiveEngineError> {
-        let Some(static_functions) = self.static_functions.get() else {
-            return Err(QuakeLiveEngineError::StaticFunctionNotFound(
+        self.static_functions.get().map_or(
+            Err(QuakeLiveEngineError::StaticFunctionNotFound(
                 QuakeLiveFunction::Cbuf_ExecuteText,
-            ));
-        };
-        Ok(static_functions.cbuf_executetext_orig)
+            )),
+            |static_functions| Ok(static_functions.cbuf_executetext_orig),
+        )
     }
 
     fn cvar_findvar_orig(&self) -> Result<fn(*const c_char) -> *mut cvar_t, QuakeLiveEngineError> {
-        let Some(static_functions) = self.static_functions.get() else {
-            return Err(QuakeLiveEngineError::StaticFunctionNotFound(
+        self.static_functions.get().map_or(
+            Err(QuakeLiveEngineError::StaticFunctionNotFound(
                 QuakeLiveFunction::Cvar_FindVar,
-            ));
-        };
-        Ok(static_functions.cvar_findvar_orig)
+            )),
+            |static_functions| Ok(static_functions.cvar_findvar_orig),
+        )
     }
 
     #[allow(clippy::type_complexity)]
     fn cvar_get_orig(
         &self,
     ) -> Result<fn(*const c_char, *const c_char, c_int) -> *mut cvar_t, QuakeLiveEngineError> {
-        let Some(static_functions) = self.static_functions.get() else {
-            return Err(QuakeLiveEngineError::StaticFunctionNotFound(
+        self.static_functions.get().map_or(
+            Err(QuakeLiveEngineError::StaticFunctionNotFound(
                 QuakeLiveFunction::Cvar_Get,
-            ));
-        };
-        Ok(static_functions.cvar_get_orig)
+            )),
+            |static_functions| Ok(static_functions.cvar_get_orig),
+        )
     }
 
     #[allow(clippy::type_complexity)]
@@ -1097,12 +1097,12 @@ impl QuakeLiveEngine {
         fn(*const c_char, *const c_char, *const c_char, *const c_char, c_int) -> *mut cvar_t,
         QuakeLiveEngineError,
     > {
-        let Some(static_functions) = self.static_functions.get() else {
-            return Err(QuakeLiveEngineError::StaticFunctionNotFound(
+        self.static_functions.get().map_or(
+            Err(QuakeLiveEngineError::StaticFunctionNotFound(
                 QuakeLiveFunction::Cvar_GetLimit,
-            ));
-        };
-        Ok(static_functions.cvar_getlimit_orig)
+            )),
+            |static_functions| Ok(static_functions.cvar_getlimit_orig),
+        )
     }
 
     #[allow(clippy::type_complexity)]
@@ -1110,163 +1110,163 @@ impl QuakeLiveEngine {
         &self,
     ) -> Result<fn(*const c_char, *const c_char, qboolean) -> *mut cvar_t, QuakeLiveEngineError>
     {
-        let Some(static_functions) = self.static_functions.get() else {
-            return Err(QuakeLiveEngineError::StaticFunctionNotFound(
+        self.static_functions.get().map_or(
+            Err(QuakeLiveEngineError::StaticFunctionNotFound(
                 QuakeLiveFunction::Cvar_Set2,
-            ));
-        };
-        Ok(static_functions.cvar_set2_orig)
+            )),
+            |static_functions| Ok(static_functions.cvar_set2_orig),
+        )
     }
 
     #[cfg_attr(test, allow(dead_code))]
     fn sv_sendservercommand_orig(
         &self,
     ) -> Result<extern "C" fn(*mut client_t, *const c_char, ...), QuakeLiveEngineError> {
-        let Some(static_functions) = self.static_functions.get() else {
-            return Err(QuakeLiveEngineError::StaticFunctionNotFound(
+        self.static_functions.get().map_or(
+            Err(QuakeLiveEngineError::StaticFunctionNotFound(
                 QuakeLiveFunction::SV_SendServerCommand,
-            ));
-        };
-        Ok(static_functions.sv_sendservercommand_orig)
+            )),
+            |static_functions| Ok(static_functions.sv_sendservercommand_orig),
+        )
     }
 
     #[cfg_attr(test, allow(dead_code))]
     fn sv_executeclientcommand_orig(
         &self,
     ) -> Result<fn(*mut client_t, *const c_char, qboolean), QuakeLiveEngineError> {
-        let Some(static_functions) = self.static_functions.get() else {
-            return Err(QuakeLiveEngineError::StaticFunctionNotFound(
+        self.static_functions.get().map_or(
+            Err(QuakeLiveEngineError::StaticFunctionNotFound(
                 QuakeLiveFunction::SV_ExecuteClientCommand,
-            ));
-        };
-        Ok(static_functions.sv_executeclientcommand_orig)
+            )),
+            |static_functions| Ok(static_functions.sv_executeclientcommand_orig),
+        )
     }
 
     #[cfg_attr(test, allow(dead_code))]
     pub(crate) fn sv_shutdown_orig(&self) -> Result<fn(*const c_char), QuakeLiveEngineError> {
-        let Some(static_functions) = self.static_functions.get() else {
-            return Err(QuakeLiveEngineError::StaticFunctionNotFound(
+        self.static_functions.get().map_or(
+            Err(QuakeLiveEngineError::StaticFunctionNotFound(
                 QuakeLiveFunction::SV_Shutdown,
-            ));
-        };
-        Ok(static_functions.sv_shutdown_orig)
+            )),
+            |static_functions| Ok(static_functions.sv_shutdown_orig),
+        )
     }
 
     #[allow(dead_code)]
     fn sv_map_f_orig(&self) -> Result<fn(), QuakeLiveEngineError> {
-        let Some(static_functions) = self.static_functions.get() else {
-            return Err(QuakeLiveEngineError::StaticFunctionNotFound(
+        self.static_functions.get().map_or(
+            Err(QuakeLiveEngineError::StaticFunctionNotFound(
                 QuakeLiveFunction::SV_Map_f,
-            ));
-        };
-        Ok(static_functions.sv_map_f_orig)
+            )),
+            |static_functions| Ok(static_functions.sv_map_f_orig),
+        )
     }
 
     #[cfg_attr(test, allow(dead_code))]
     fn sv_cliententerworld_orig(
         &self,
     ) -> Result<fn(*mut client_t, *mut usercmd_t), QuakeLiveEngineError> {
-        let Some(static_functions) = self.static_functions.get() else {
-            return Err(QuakeLiveEngineError::StaticFunctionNotFound(
+        self.static_functions.get().map_or(
+            Err(QuakeLiveEngineError::StaticFunctionNotFound(
                 QuakeLiveFunction::SV_ClientEnterWorld,
-            ));
-        };
-        Ok(static_functions.sv_cliententerworld_orig)
+            )),
+            |static_functions| Ok(static_functions.sv_cliententerworld_orig),
+        )
     }
 
     #[cfg_attr(test, allow(dead_code))]
     fn sv_setconfigstring_orig(&self) -> Result<fn(c_int, *const c_char), QuakeLiveEngineError> {
-        let Some(static_functions) = self.static_functions.get() else {
-            return Err(QuakeLiveEngineError::StaticFunctionNotFound(
+        self.static_functions.get().map_or(
+            Err(QuakeLiveEngineError::StaticFunctionNotFound(
                 QuakeLiveFunction::SV_SetConfigstring,
-            ));
-        };
-        Ok(static_functions.sv_setconfigstring_orig)
+            )),
+            |static_functions| Ok(static_functions.sv_setconfigstring_orig),
+        )
     }
 
     fn sv_getconfigstring_orig(
         &self,
     ) -> Result<fn(c_int, *const c_char, c_int), QuakeLiveEngineError> {
-        let Some(static_functions) = self.static_functions.get() else {
-            return Err(QuakeLiveEngineError::StaticFunctionNotFound(
+        self.static_functions.get().map_or(
+            Err(QuakeLiveEngineError::StaticFunctionNotFound(
                 QuakeLiveFunction::SV_GetConfigstring,
-            ));
-        };
-        Ok(static_functions.sv_getconfigstring_orig)
+            )),
+            |static_functions| Ok(static_functions.sv_getconfigstring_orig),
+        )
     }
 
     #[cfg_attr(test, allow(dead_code))]
     fn sv_dropclient_orig(&self) -> Result<fn(*mut client_t, *const c_char), QuakeLiveEngineError> {
-        let Some(static_functions) = self.static_functions.get() else {
-            return Err(QuakeLiveEngineError::StaticFunctionNotFound(
+        self.static_functions.get().map_or(
+            Err(QuakeLiveEngineError::StaticFunctionNotFound(
                 QuakeLiveFunction::SV_DropClient,
-            ));
-        };
-        Ok(static_functions.sv_dropclient_orig)
+            )),
+            |static_functions| Ok(static_functions.sv_dropclient_orig),
+        )
     }
 
     #[cfg_attr(test, allow(dead_code))]
     fn sys_setmoduleoffset_orig(
         &self,
     ) -> Result<fn(*const c_char, unsafe extern "C" fn()), QuakeLiveEngineError> {
-        let Some(static_functions) = self.static_functions.get() else {
-            return Err(QuakeLiveEngineError::StaticFunctionNotFound(
+        self.static_functions.get().map_or(
+            Err(QuakeLiveEngineError::StaticFunctionNotFound(
                 QuakeLiveFunction::Sys_SetModuleOffset,
-            ));
-        };
-        Ok(static_functions.sys_setmoduleoffset_orig)
+            )),
+            |static_functions| Ok(static_functions.sys_setmoduleoffset_orig),
+        )
     }
 
     #[cfg_attr(test, allow(dead_code))]
     fn sv_spawnserver_orig(&self) -> Result<fn(*const c_char, qboolean), QuakeLiveEngineError> {
-        let Some(static_functions) = self.static_functions.get() else {
-            return Err(QuakeLiveEngineError::StaticFunctionNotFound(
+        self.static_functions.get().map_or(
+            Err(QuakeLiveEngineError::StaticFunctionNotFound(
                 QuakeLiveFunction::SV_SpawnServer,
-            ));
-        };
-        Ok(static_functions.sv_spawnserver_orig)
+            )),
+            |static_functions| Ok(static_functions.sv_spawnserver_orig),
+        )
     }
 
     fn cmd_executestring_orig(&self) -> Result<fn(*const c_char), QuakeLiveEngineError> {
-        let Some(static_functions) = self.static_functions.get() else {
-            return Err(QuakeLiveEngineError::StaticFunctionNotFound(
+        self.static_functions.get().map_or(
+            Err(QuakeLiveEngineError::StaticFunctionNotFound(
                 QuakeLiveFunction::Cmd_ExecuteString,
-            ));
-        };
-        Ok(static_functions.cmd_executestring_orig)
+            )),
+            |static_functions| Ok(static_functions.cmd_executestring_orig),
+        )
     }
 
     fn cmd_argc_orig(&self) -> Result<fn() -> c_int, QuakeLiveEngineError> {
-        let Some(static_functions) = self.static_functions.get() else {
-            return Err(QuakeLiveEngineError::StaticFunctionNotFound(
+        self.static_functions.get().map_or(
+            Err(QuakeLiveEngineError::StaticFunctionNotFound(
                 QuakeLiveFunction::Cmd_Argc,
-            ));
-        };
-        Ok(static_functions.cmd_argc_orig)
+            )),
+            |static_functions| Ok(static_functions.cmd_argc_orig),
+        )
     }
 
     fn cmd_addcommand_detour(
         &self,
     ) -> Result<&GenericDetour<fn(*const c_char, unsafe extern "C" fn())>, QuakeLiveEngineError>
     {
-        let Some(static_detours) = self.static_detours.get() else {
-            return Err(QuakeLiveEngineError::StaticDetourNotFound(
+        self.static_detours.get().map_or(
+            Err(QuakeLiveEngineError::StaticDetourNotFound(
                 QuakeLiveFunction::Cmd_AddCommand,
-            ));
-        };
-        Ok(&static_detours.cmd_addcommand_detour)
+            )),
+            |static_detours| Ok(&static_detours.cmd_addcommand_detour),
+        )
     }
 
     fn sys_setmoduleoffset_detour(
         &self,
     ) -> Result<&GenericDetour<fn(*const c_char, unsafe extern "C" fn())>, QuakeLiveEngineError>
     {
-        let Some(static_detours) = self.static_detours.get() else {
-            return Err(QuakeLiveEngineError::StaticDetourNotFound(
+        self.static_detours.get().map_or(
+            Err(QuakeLiveEngineError::StaticDetourNotFound(
                 QuakeLiveFunction::Sys_SetModuleOffset,
-            ));
-        };
-        Ok(&static_detours.sys_setmoduleoffset_detour)
+            )),
+            |static_detours| Ok(&static_detours.sys_setmoduleoffset_detour),
+        )
     }
 
     #[allow(clippy::type_complexity)]
@@ -1274,36 +1274,36 @@ impl QuakeLiveEngine {
         &self,
     ) -> Result<&GenericDetour<fn(*mut client_t, *const c_char, qboolean)>, QuakeLiveEngineError>
     {
-        let Some(static_detours) = self.static_detours.get() else {
-            return Err(QuakeLiveEngineError::StaticDetourNotFound(
+        self.static_detours.get().map_or(
+            Err(QuakeLiveEngineError::StaticDetourNotFound(
                 QuakeLiveFunction::SV_ExecuteClientCommand,
-            ));
-        };
-        Ok(&static_detours.sv_executeclientcommand_detour)
+            )),
+            |static_detours| Ok(&static_detours.sv_executeclientcommand_detour),
+        )
     }
 
     #[allow(clippy::type_complexity)]
     fn sv_cliententerworld_detour(
         &self,
     ) -> Result<&GenericDetour<fn(*mut client_t, *mut usercmd_t)>, QuakeLiveEngineError> {
-        let Some(static_detours) = self.static_detours.get() else {
-            return Err(QuakeLiveEngineError::StaticDetourNotFound(
+        self.static_detours.get().map_or(
+            Err(QuakeLiveEngineError::StaticDetourNotFound(
                 QuakeLiveFunction::SV_ClientEnterWorld,
-            ));
-        };
-        Ok(&static_detours.sv_cliententerworld_detour)
+            )),
+            |static_detours| Ok(&static_detours.sv_cliententerworld_detour),
+        )
     }
 
     #[allow(clippy::type_complexity)]
     fn sv_setconfgistring_detour(
         &self,
     ) -> Result<&GenericDetour<fn(c_int, *const c_char)>, QuakeLiveEngineError> {
-        let Some(static_detours) = self.static_detours.get() else {
-            return Err(QuakeLiveEngineError::StaticDetourNotFound(
+        self.static_detours.get().map_or(
+            Err(QuakeLiveEngineError::StaticDetourNotFound(
                 QuakeLiveFunction::SV_SetConfigstring,
-            ));
-        };
-        Ok(&static_detours.sv_setconfgistring_detour)
+            )),
+            |static_detours| Ok(&static_detours.sv_setconfgistring_detour),
+        )
     }
 
     #[cfg_attr(test, allow(dead_code))]
@@ -1311,111 +1311,112 @@ impl QuakeLiveEngine {
     pub(crate) fn sv_dropclient_detour(
         &self,
     ) -> Result<&GenericDetour<fn(*mut client_t, *const c_char)>, QuakeLiveEngineError> {
-        let Some(static_detours) = self.static_detours.get() else {
-            return Err(QuakeLiveEngineError::StaticDetourNotFound(
+        self.static_detours.get().map_or(
+            Err(QuakeLiveEngineError::StaticDetourNotFound(
                 QuakeLiveFunction::SV_DropClient,
-            ));
-        };
-        Ok(&static_detours.sv_dropclient_detour)
+            )),
+            |static_detours| Ok(&static_detours.sv_dropclient_detour),
+        )
     }
 
     #[allow(clippy::type_complexity)]
     fn sv_spawnserver_detour(
         &self,
     ) -> Result<&GenericDetour<fn(*const c_char, qboolean)>, QuakeLiveEngineError> {
-        let Some(static_detours) = self.static_detours.get() else {
-            return Err(QuakeLiveEngineError::StaticDetourNotFound(
+        self.static_detours.get().map_or(
+            Err(QuakeLiveEngineError::StaticDetourNotFound(
                 QuakeLiveFunction::SV_SpawnServer,
-            ));
-        };
-        Ok(&static_detours.sv_spawnserver_detour)
+            )),
+            |static_detours| Ok(&static_detours.sv_spawnserver_detour),
+        )
     }
 
     fn sv_sendservercommand_detour(&self) -> Result<&RawDetour, QuakeLiveEngineError> {
-        let Some(static_detours) = self.static_detours.get() else {
-            return Err(QuakeLiveEngineError::StaticDetourNotFound(
+        self.static_detours.get().map_or(
+            Err(QuakeLiveEngineError::StaticDetourNotFound(
                 QuakeLiveFunction::SV_SendServerCommand,
-            ));
-        };
-        Ok(&static_detours.sv_sendservercommand_detour)
+            )),
+            |static_detours| Ok(&static_detours.sv_sendservercommand_detour),
+        )
     }
 
     fn com_printf_detour(&self) -> Result<&RawDetour, QuakeLiveEngineError> {
-        let Some(static_detours) = self.static_detours.get() else {
-            return Err(QuakeLiveEngineError::StaticDetourNotFound(
+        self.static_detours.get().map_or(
+            Err(QuakeLiveEngineError::StaticDetourNotFound(
                 QuakeLiveFunction::Com_Printf,
-            ));
-        };
-        Ok(&static_detours.com_printf_detour)
+            )),
+            |static_detours| Ok(&static_detours.com_printf_detour),
+        )
     }
 
     pub(crate) fn g_init_game_orig(
         &self,
     ) -> Result<extern "C" fn(c_int, c_int, c_int), QuakeLiveEngineError> {
-        let g_init_game_orig = self.vm_functions.g_init_game_orig.load(Ordering::SeqCst);
-        if g_init_game_orig == 0 {
-            return Err(QuakeLiveEngineError::VmFunctionNotFound(
+        match self.vm_functions.g_init_game_orig.load(Ordering::SeqCst) {
+            0 => Err(QuakeLiveEngineError::VmFunctionNotFound(
                 QuakeLiveFunction::G_InitGame,
-            ));
+            )),
+            g_init_game_orig => {
+                let g_init_game_func = unsafe { mem::transmute(g_init_game_orig) };
+                Ok(g_init_game_func)
+            }
         }
-
-        let g_init_game_func = unsafe { mem::transmute(g_init_game_orig) };
-        Ok(g_init_game_func)
     }
 
     fn g_shutdown_game_orig(&self) -> Result<extern "C" fn(c_int), QuakeLiveEngineError> {
-        let g_shutdown_game_orig = self
+        match self
             .vm_functions
             .g_shutdown_game_orig
-            .load(Ordering::SeqCst);
-        if g_shutdown_game_orig == 0 {
-            return Err(QuakeLiveEngineError::VmFunctionNotFound(
+            .load(Ordering::SeqCst)
+        {
+            0 => Err(QuakeLiveEngineError::VmFunctionNotFound(
                 QuakeLiveFunction::G_ShutdownGame,
-            ));
+            )),
+            g_shutdown_game_orig => {
+                let g_shutdown_game_func = unsafe { mem::transmute(g_shutdown_game_orig) };
+                Ok(g_shutdown_game_func)
+            }
         }
-
-        let g_shutdown_game_func = unsafe { mem::transmute(g_shutdown_game_orig) };
-        Ok(g_shutdown_game_func)
     }
 
     pub(crate) fn g_run_frame_orig(&self) -> Result<extern "C" fn(c_int), QuakeLiveEngineError> {
-        let g_run_frame_orig = self.vm_functions.g_run_frame_orig.load(Ordering::SeqCst);
-        if g_run_frame_orig == 0 {
-            return Err(QuakeLiveEngineError::VmFunctionNotFound(
+        match self.vm_functions.g_run_frame_orig.load(Ordering::SeqCst) {
+            0 => Err(QuakeLiveEngineError::VmFunctionNotFound(
                 QuakeLiveFunction::G_RunFrame,
-            ));
+            )),
+            g_run_frame_orig => {
+                let g_run_frame_func = unsafe { mem::transmute(g_run_frame_orig) };
+                Ok(g_run_frame_func)
+            }
         }
-
-        let g_run_frame_func = unsafe { mem::transmute(g_run_frame_orig) };
-        Ok(g_run_frame_func)
     }
 
     fn g_addevent_orig(
         &self,
     ) -> Result<extern "C" fn(*mut gentity_t, entity_event_t, c_int), QuakeLiveEngineError> {
-        let g_addevent_orig = self.vm_functions.g_addevent_orig.load(Ordering::SeqCst);
-        if g_addevent_orig == 0 {
-            return Err(QuakeLiveEngineError::VmFunctionNotFound(
+        match self.vm_functions.g_addevent_orig.load(Ordering::SeqCst) {
+            0 => Err(QuakeLiveEngineError::VmFunctionNotFound(
                 QuakeLiveFunction::G_AddEvent,
-            ));
+            )),
+            g_addevent_orig => {
+                let g_addevent_func = unsafe { mem::transmute(g_addevent_orig) };
+                Ok(g_addevent_func)
+            }
         }
-
-        let g_addevent_func = unsafe { mem::transmute(g_addevent_orig) };
-        Ok(g_addevent_func)
     }
 
     pub(crate) fn g_free_entity_orig(
         &self,
     ) -> Result<extern "C" fn(*mut gentity_t), QuakeLiveEngineError> {
-        let g_free_entity_orig = self.vm_functions.g_free_entity_orig.load(Ordering::SeqCst);
-        if g_free_entity_orig == 0 {
-            return Err(QuakeLiveEngineError::VmFunctionNotFound(
+        match self.vm_functions.g_free_entity_orig.load(Ordering::SeqCst) {
+            0 => Err(QuakeLiveEngineError::VmFunctionNotFound(
                 QuakeLiveFunction::G_FreeEntity,
-            ));
+            )),
+            g_free_entity_orig => {
+                let g_free_entity_func = unsafe { mem::transmute(g_free_entity_orig) };
+                Ok(g_free_entity_func)
+            }
         }
-
-        let g_free_entity_func = unsafe { mem::transmute(g_free_entity_orig) };
-        Ok(g_free_entity_func)
     }
 
     #[allow(clippy::type_complexity)]
@@ -1425,15 +1426,15 @@ impl QuakeLiveEngine {
         extern "C" fn(*mut gitem_t, &mut vec3_t, &mut vec3_t) -> *mut gentity_t,
         QuakeLiveEngineError,
     > {
-        let launch_item_orig = self.vm_functions.launch_item_orig.load(Ordering::SeqCst);
-        if launch_item_orig == 0 {
-            return Err(QuakeLiveEngineError::VmFunctionNotFound(
+        match self.vm_functions.launch_item_orig.load(Ordering::SeqCst) {
+            0 => Err(QuakeLiveEngineError::VmFunctionNotFound(
                 QuakeLiveFunction::LaunchItem,
-            ));
+            )),
+            launch_item_orig => {
+                let launch_item_func = unsafe { mem::transmute(launch_item_orig) };
+                Ok(launch_item_func)
+            }
         }
-
-        let launch_item_func = unsafe { mem::transmute(launch_item_orig) };
-        Ok(launch_item_func)
     }
 
     #[cfg_attr(test, allow(dead_code))]
@@ -1441,15 +1442,15 @@ impl QuakeLiveEngine {
         &self,
     ) -> Result<extern "C" fn(*mut gentity_t, *mut gentity_t, *mut trace_t), QuakeLiveEngineError>
     {
-        let touch_item_orig = self.vm_functions.touch_item_orig.load(Ordering::SeqCst);
-        if touch_item_orig == 0 {
-            return Err(QuakeLiveEngineError::VmFunctionNotFound(
+        match self.vm_functions.touch_item_orig.load(Ordering::SeqCst) {
+            0 => Err(QuakeLiveEngineError::VmFunctionNotFound(
                 QuakeLiveFunction::Touch_Item,
-            ));
+            )),
+            touch_item_orig => {
+                let touch_item_func = unsafe { mem::transmute(touch_item_orig) };
+                Ok(touch_item_func)
+            }
         }
-
-        let touch_item_func = unsafe { mem::transmute(touch_item_orig) };
-        Ok(touch_item_func)
     }
 }
 
