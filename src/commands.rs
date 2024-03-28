@@ -1183,7 +1183,7 @@ def handler(params):
             .expect("this should not happen");
             let custom_command_handler =
                 pymodule.getattr("handler").expect("this should not happen");
-            CUSTOM_COMMAND_HANDLER.store(Some(custom_command_handler.into_py(py).into()));
+            CUSTOM_COMMAND_HANDLER.store(Some(custom_command_handler.unbind().into()));
 
             cmd_py_command();
         });
@@ -1211,7 +1211,7 @@ def handler():
             .expect("this should not happen");
             let custom_command_handler =
                 pymodule.getattr("handler").expect("this should not happen");
-            CUSTOM_COMMAND_HANDLER.store(Some(custom_command_handler.into_py(py).into()));
+            CUSTOM_COMMAND_HANDLER.store(Some(custom_command_handler.unbind().into()));
 
             cmd_py_command();
         });
@@ -1244,7 +1244,7 @@ def handler():
             .expect("this should not happen");
             let custom_command_handler =
                 pymodule.getattr("handler").expect("this should not happen");
-            CUSTOM_COMMAND_HANDLER.store(Some(custom_command_handler.into_py(py).into()));
+            CUSTOM_COMMAND_HANDLER.store(Some(custom_command_handler.unbind().into()));
 
             cmd_py_command();
         });
@@ -1277,7 +1277,7 @@ def handler():
             .expect("this should not happen");
             let custom_command_handler =
                 pymodule.getattr("handler").expect("this should not happen");
-            CUSTOM_COMMAND_HANDLER.store(Some(custom_command_handler.into_py(py).into()));
+            CUSTOM_COMMAND_HANDLER.store(Some(custom_command_handler.unbind().into()));
 
             cmd_py_command();
         });
