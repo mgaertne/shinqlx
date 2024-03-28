@@ -25,7 +25,7 @@ impl ClientCommandDispatcher {
         let mut return_value = true.into_py(py);
 
         let super_class = slf.into_super();
-        if let Ok(player_str) = player.call_method0(py, intern!(py, "__repr__")) {
+        if let Ok(player_str) = player.bind(py).repr() {
             let dbgstr = format!("{}({}, {})", super_class.name, player_str, cmd);
             dispatcher_debug_log(py, dbgstr);
         }
@@ -107,5 +107,5 @@ fn try_handle_input(py: Python<'_>, player: &PyObject, cmd: &String) -> PyResult
             intern!(py, "handle_input"),
             (player, cmd, client_command_channel),
         )
-        .map(|ret| ret.into_py(py))
+        .map(|ret| ret.unbind())
 }

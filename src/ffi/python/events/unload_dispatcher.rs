@@ -21,7 +21,7 @@ impl UnloadDispatcher {
 
     fn dispatch(slf: PyRef<'_, Self>, py: Python<'_>, plugin: PyObject) {
         let super_class = slf.into_super();
-        if let Ok(plugin_str) = plugin.call_method0(py, intern!(py, "__repr__")) {
+        if let Ok(plugin_str) = plugin.bind(py).repr() {
             let dbgstr = format!("{}({})", super_class.name, plugin_str);
             dispatcher_debug_log(py, dbgstr);
         }

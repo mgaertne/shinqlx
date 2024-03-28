@@ -23,7 +23,7 @@ impl KamikazeUseDispatcher {
         let mut return_value = true;
 
         let super_class = slf.into_super();
-        if let Ok(player_str) = player.call_method0(py, intern!(py, "__repr__")) {
+        if let Ok(player_str) = player.bind(py).repr() {
             let dbgstr = format!("{}({})", super_class.name, player_str);
             dispatcher_debug_log(py, dbgstr);
         }
