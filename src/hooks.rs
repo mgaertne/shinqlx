@@ -14,72 +14,64 @@ use core::{
 };
 
 pub(crate) fn shinqlx_cmd_addcommand(cmd: *const c_char, func: unsafe extern "C" fn()) {
-    let Some(ref main_engine) = *MAIN_ENGINE.load() else {
-        return;
-    };
-
-    if !main_engine.is_common_initialized() {
-        if let Err(err) = main_engine.initialize_static() {
-            error!(target: "shinqlx", "{:?}", err);
-            error!(target: "shinqlx", "Static initialization failed. Exiting.");
-            panic!("Static initialization failed. Exiting.");
+    MAIN_ENGINE.load().iter().for_each(|main_engine| {
+        if !main_engine.is_common_initialized() {
+            if let Err(err) = main_engine.initialize_static() {
+                error!(target: "shinqlx", "{:?}", err);
+                error!(target: "shinqlx", "Static initialization failed. Exiting.");
+                panic!("Static initialization failed. Exiting.");
+            }
         }
-    }
 
-    let command = unsafe { CStr::from_ptr(cmd) }.to_string_lossy();
-    if !command.is_empty() {
-        main_engine.add_command(&command, func);
-    }
+        let command = unsafe { CStr::from_ptr(cmd) }.to_string_lossy();
+        if !command.is_empty() {
+            main_engine.add_command(&command, func);
+        }
+    });
 }
 
 pub(crate) fn shinqlx_sys_setmoduleoffset(
     module_name: *const c_char,
     offset: unsafe extern "C" fn(),
 ) {
-    let Some(ref main_engine) = *MAIN_ENGINE.load() else {
-        return;
-    };
+    MAIN_ENGINE.load().iter().for_each(|main_engine| {
+        let converted_module_name = unsafe { CStr::from_ptr(module_name) }.to_string_lossy();
 
-    let converted_module_name = unsafe { CStr::from_ptr(module_name) }.to_string_lossy();
+        // We should be getting qagame, but check just in case.
+        if converted_module_name.as_ref() != "qagame" {
+            error!(target: "shinqlx", "Unknown module: {}", converted_module_name);
+        }
 
-    // We should be getting qagame, but check just in case.
-    if converted_module_name.as_ref() != "qagame" {
-        error!(target: "shinqlx", "Unknown module: {}", converted_module_name);
-    }
+        main_engine.set_module_offset(&converted_module_name, offset);
 
-    main_engine.set_module_offset(&converted_module_name, offset);
-
-    if let Err(err) = main_engine.initialize_vm(offset as usize) {
-        error!(target: "shinqlx", "{:?}", err);
-        error!(target: "shinqlx", "VM could not be initializied. Exiting.");
-        panic!("VM could not be initializied. Exiting.");
-    }
+        if let Err(err) = main_engine.initialize_vm(offset as usize) {
+            error!(target: "shinqlx", "{:?}", err);
+            error!(target: "shinqlx", "VM could not be initializied. Exiting.");
+            panic!("VM could not be initializied. Exiting.");
+        }
+    });
 }
 
 #[cfg_attr(test, allow(dead_code))]
 pub(crate) fn shinqlx_g_initgame(level_time: c_int, random_seed: c_int, restart: c_int) {
-    let Some(ref main_engine) = *MAIN_ENGINE.load() else {
-        return;
-    };
+    MAIN_ENGINE.load().iter().for_each(|main_engine| {
+        main_engine.init_game(level_time, random_seed, restart);
 
-    main_engine.init_game(level_time, random_seed, restart);
+        main_engine.set_tag();
+        main_engine.initialize_cvars();
 
-    main_engine.set_tag();
-    main_engine.initialize_cvars();
-
-    if restart != 0 {
-        new_game_dispatcher(true);
-    }
+        if restart != 0 {
+            new_game_dispatcher(true);
+        }
+    });
 }
 
 #[cfg_attr(test, allow(dead_code))]
 pub(crate) fn shinqlx_g_shutdowngame(restart: c_int) {
-    let Some(ref main_engine) = *MAIN_ENGINE.load() else {
-        return;
-    };
-
-    main_engine.unhook_vm(restart != 0);
-    main_engine.shutdown_game(restart);
+    MAIN_ENGINE.load().iter().for_each(|main_engine| {
+        main_engine.unhook_vm(restart != 0);
+        main_engine.shutdown_game(restart);
+    });
 }
 
 #[cfg_attr(test, allow(dead_code))]
@@ -205,24 +197,22 @@ where
 }
 
 pub(crate) fn shinqlx_sv_cliententerworld(client: *mut client_t, cmd: *mut usercmd_t) {
-    let Some(mut safe_client): Option<Client> = client.try_into().ok() else {
-        return;
-    };
+    MAIN_ENGINE.load().iter().for_each(|main_engine| {
+        let Some(mut safe_client) = Client::try_from(client).ok() else {
+            return;
+        };
 
-    let Some(ref main_engine) = *MAIN_ENGINE.load() else {
-        return;
-    };
+        let state = safe_client.get_state();
 
-    let state = safe_client.get_state();
+        main_engine.client_enter_world(&mut safe_client, cmd);
 
-    main_engine.client_enter_world(&mut safe_client, cmd);
-
-    // gentity is NULL if map changed.
-    // state is CS_PRIMED only if it's the first time they connect to the server,
-    // otherwise the dispatcher would also go off when a game starts and such.
-    if safe_client.has_gentity() && state == clientState_t::CS_PRIMED {
-        client_loaded_dispatcher(safe_client.get_client_id());
-    }
+        // gentity is NULL if map changed.
+        // state is CS_PRIMED only if it's the first time they connect to the server,
+        // otherwise the dispatcher would also go off when a game starts and such.
+        if safe_client.has_gentity() && state == clientState_t::CS_PRIMED {
+            client_loaded_dispatcher(safe_client.get_client_id());
+        }
+    });
 }
 
 #[cfg_attr(test, allow(dead_code))]
@@ -244,38 +234,35 @@ pub(crate) fn shinqlx_set_configstring<T>(index: T, value: &str)
 where
     T: TryInto<c_int> + Into<u32> + Copy,
 {
-    let Some(ref main_engine) = *MAIN_ENGINE.load() else {
-        return;
-    };
+    MAIN_ENGINE.load().iter().for_each(|main_engine| {
+        let Ok(c_index) = index.try_into() else {
+            return;
+        };
 
-    let Ok(c_index) = index.try_into() else {
-        return;
-    };
+        // Indices 16 and 66X are spammed a ton every frame for some reason,
+        // so we add some exceptions for those. I don't think we should have any
+        // use for those particular ones anyway. If we don't do this, we get
+        // like a 25% increase in CPU usage on an empty server.
+        if c_index == 16 || (662..670).contains(&c_index) {
+            main_engine.set_configstring(c_index, value.as_ref());
+            return;
+        }
 
-    // Indices 16 and 66X are spammed a ton every frame for some reason,
-    // so we add some exceptions for those. I don't think we should have any
-    // use for those particular ones anyway. If we don't do this, we get
-    // like a 25% increase in CPU usage on an empty server.
-    if c_index == 16 || (662..670).contains(&c_index) {
-        main_engine.set_configstring(c_index, value.as_ref());
-        return;
-    }
-
-    let Some(res) = set_configstring_dispatcher(index.into(), value) else {
-        return;
-    };
-    main_engine.set_configstring(c_index, &res);
+        let Some(res) = set_configstring_dispatcher(index.into(), value) else {
+            return;
+        };
+        main_engine.set_configstring(c_index, &res);
+    });
 }
 
 #[cfg_attr(test, allow(dead_code))]
 pub(crate) fn shinqlx_sv_dropclient(client: *mut client_t, reason: *const c_char) {
-    let Ok(mut safe_client) = Client::try_from(client) else {
-        return;
-    };
-    shinqlx_drop_client(
-        &mut safe_client,
-        unsafe { CStr::from_ptr(reason) }.to_string_lossy(),
-    );
+    Client::try_from(client).iter_mut().for_each(|safe_client| {
+        shinqlx_drop_client(
+            safe_client,
+            unsafe { CStr::from_ptr(reason) }.to_string_lossy(),
+        );
+    });
 }
 
 pub(crate) fn shinqlx_drop_client<T>(client: &mut Client, reason: T)
@@ -318,15 +305,13 @@ pub(crate) fn shinqlx_com_printf<T>(msg: T)
 where
     T: AsRef<str>,
 {
-    let Some(ref main_engine) = *MAIN_ENGINE.load() else {
-        return;
-    };
+    MAIN_ENGINE.load().iter().for_each(|main_engine| {
+        let Some(_) = console_print_dispatcher(msg.as_ref()) else {
+            return;
+        };
 
-    let Some(_res) = console_print_dispatcher(msg.as_ref()) else {
-        return;
-    };
-
-    main_engine.com_printf(msg.as_ref());
+        main_engine.com_printf(msg.as_ref());
+    });
 }
 
 pub(crate) fn shinqlx_sv_spawnserver(server: *const c_char, kill_bots: qboolean) {
@@ -335,26 +320,22 @@ pub(crate) fn shinqlx_sv_spawnserver(server: *const c_char, kill_bots: qboolean)
         return;
     }
 
-    let Some(ref main_engine) = *MAIN_ENGINE.load() else {
-        return;
-    };
+    MAIN_ENGINE.load().iter().for_each(|main_engine| {
+        main_engine.spawn_server(
+            server_str.as_ref(),
+            <qboolean as Into<bool>>::into(kill_bots),
+        );
 
-    main_engine.spawn_server(
-        server_str.as_ref(),
-        <qboolean as Into<bool>>::into(kill_bots),
-    );
-
-    new_game_dispatcher(false);
+        new_game_dispatcher(false);
+    });
 }
 
 pub(crate) fn shinqlx_g_runframe(time: c_int) {
-    let Some(ref main_engine) = *MAIN_ENGINE.load() else {
-        return;
-    };
+    MAIN_ENGINE.load().iter().for_each(|main_engine| {
+        frame_dispatcher();
 
-    frame_dispatcher();
-
-    main_engine.run_frame(time);
+        main_engine.run_frame(time);
+    });
 }
 
 static mut CLIENT_CONNECT_BUFFER: [[c_char; MAX_STRING_CHARS as usize]; MAX_CLIENTS as usize] =
@@ -396,25 +377,22 @@ pub(crate) fn shinqlx_client_connect(
 
 #[cfg_attr(test, allow(dead_code))]
 pub(crate) fn shinqlx_clientspawn(ent: *mut gentity_t) {
-    let Some(mut game_entity): Option<GameEntity> = ent.try_into().ok() else {
-        return;
-    };
-
-    shinqlx_client_spawn(&mut game_entity)
+    GameEntity::try_from(ent)
+        .ok()
+        .iter_mut()
+        .for_each(shinqlx_client_spawn);
 }
 
 #[cfg_attr(test, allow(dead_code))]
 pub(crate) fn shinqlx_client_spawn(game_entity: &mut GameEntity) {
-    let Some(ref main_engine) = *MAIN_ENGINE.load() else {
-        return;
-    };
+    MAIN_ENGINE.load().iter().for_each(|main_engine| {
+        main_engine.client_spawn(game_entity.borrow_mut());
 
-    main_engine.client_spawn(game_entity.borrow_mut());
-
-    // Since we won't ever stop the real function from being called,
-    // we trigger the event after calling the real one. This will allow
-    // us to set weapons and such without it getting overriden later.
-    client_spawn_dispatcher(game_entity.get_entity_id());
+        // Since we won't ever stop the real function from being called,
+        // we trigger the event after calling the real one. This will allow
+        // us to set weapons and such without it getting overriden later.
+        client_spawn_dispatcher(game_entity.get_entity_id());
+    });
 }
 
 pub(crate) fn shinqlx_g_startkamikaze(ent: *mut gentity_t) {
@@ -459,56 +437,52 @@ pub(crate) fn shinqlx_g_damage(
     // DAMAGE_NO_TEAM_PROTECTION	kills team mates
     means_of_death: c_int, // means_of_death indicator
 ) {
-    let Some(ref main_engine) = *MAIN_ENGINE.load() else {
-        return;
-    };
-
-    main_engine.register_damage(
-        target,
-        inflictor,
-        attacker,
-        dir,
-        pos,
-        damage,
-        dflags,
-        means_of_death,
-    );
-
-    let Ok(target_entity) = GameEntity::try_from(target) else {
-        return;
-    };
-
-    if attacker.is_null() {
-        damage_dispatcher(
-            target_entity.get_entity_id(),
-            None,
+    MAIN_ENGINE.load().iter().for_each(|main_engine| {
+        main_engine.register_damage(
+            target,
+            inflictor,
+            attacker,
+            dir,
+            pos,
             damage,
             dflags,
             means_of_death,
         );
-        return;
-    }
 
-    match GameEntity::try_from(attacker) {
-        Err(_) => {
-            damage_dispatcher(
-                target_entity.get_entity_id(),
-                None,
-                damage,
-                dflags,
-                means_of_death,
-            );
-        }
-        Ok(attacker_entity) => {
-            damage_dispatcher(
-                target_entity.get_entity_id(),
-                Some(attacker_entity.get_entity_id()),
-                damage,
-                dflags,
-                means_of_death,
-            );
-        }
-    }
+        GameEntity::try_from(target)
+            .iter()
+            .for_each(|target_entity| match attacker.is_null() {
+                true => {
+                    damage_dispatcher(
+                        target_entity.get_entity_id(),
+                        None,
+                        damage,
+                        dflags,
+                        means_of_death,
+                    );
+                }
+                false => match GameEntity::try_from(attacker) {
+                    Err(_) => {
+                        damage_dispatcher(
+                            target_entity.get_entity_id(),
+                            None,
+                            damage,
+                            dflags,
+                            means_of_death,
+                        );
+                    }
+                    Ok(attacker_entity) => {
+                        damage_dispatcher(
+                            target_entity.get_entity_id(),
+                            Some(attacker_entity.get_entity_id()),
+                            damage,
+                            dflags,
+                            means_of_death,
+                        );
+                    }
+                },
+            });
+    });
 }
 
 #[cfg(test)]
