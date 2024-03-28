@@ -427,7 +427,7 @@ def handler(client_id, cmd):
             .expect("this should not happen");
             let client_command_handler =
                 pymodule.getattr("handler").expect("this should not happen");
-            CLIENT_COMMAND_HANDLER.store(Some(client_command_handler.into_py(py).into()));
+            CLIENT_COMMAND_HANDLER.store(Some(client_command_handler.unbind().into()));
 
             let result = client_command_dispatcher(123, "asdf");
             assert_eq!(result, Some("asdf".into()));
@@ -454,7 +454,7 @@ def handler(client_id, cmd):
             .expect("this should not happen");
             let client_command_handler =
                 pymodule.getattr("handler").expect("this should not happen");
-            CLIENT_COMMAND_HANDLER.store(Some(client_command_handler.into_py(py).into()));
+            CLIENT_COMMAND_HANDLER.store(Some(client_command_handler.unbind().into()));
 
             let result = client_command_dispatcher(123, "asdf");
             assert_eq!(result, Some("qwertz".into()));
@@ -481,7 +481,7 @@ def handler(client_id, cmd):
             .expect("this should not happen");
             let client_command_handler =
                 pymodule.getattr("handler").expect("this should not happen");
-            CLIENT_COMMAND_HANDLER.store(Some(client_command_handler.into_py(py).into()));
+            CLIENT_COMMAND_HANDLER.store(Some(client_command_handler.unbind().into()));
 
             let result = client_command_dispatcher(123, "asdf");
             assert_eq!(result, Some("asdf".into()));
@@ -508,7 +508,7 @@ def handler(client_id, cmd):
             .expect("this should not happen");
             let client_command_handler =
                 pymodule.getattr("handler").expect("this should not happen");
-            CLIENT_COMMAND_HANDLER.store(Some(client_command_handler.into_py(py).into()));
+            CLIENT_COMMAND_HANDLER.store(Some(client_command_handler.unbind().into()));
 
             let result = client_command_dispatcher(123, "asdf");
             assert_eq!(result, None);
@@ -535,7 +535,7 @@ def handler(client_id, cmd):
             .expect("this should not happen");
             let client_command_handler =
                 pymodule.getattr("handler").expect("this should not happen");
-            CLIENT_COMMAND_HANDLER.store(Some(client_command_handler.into_py(py).into()));
+            CLIENT_COMMAND_HANDLER.store(Some(client_command_handler.unbind().into()));
 
             let result = client_command_dispatcher(123, "asdf");
             assert_eq!(result, Some("asdf".into()));
@@ -562,7 +562,7 @@ def handler(client_id, cmd):
             .expect("this should not happen");
             let client_command_handler =
                 pymodule.getattr("handler").expect("this should not happen");
-            CLIENT_COMMAND_HANDLER.store(Some(client_command_handler.into_py(py).into()));
+            CLIENT_COMMAND_HANDLER.store(Some(client_command_handler.unbind().into()));
 
             let result = client_command_dispatcher(123, "asdf");
             assert_eq!(result, Some("asdf".into()));
@@ -610,7 +610,7 @@ def handler(client_id, cmd):
             .expect("this should not happen");
             let server_command_handler =
                 pymodule.getattr("handler").expect("this should not happen");
-            SERVER_COMMAND_HANDLER.store(Some(server_command_handler.into_py(py).into()));
+            SERVER_COMMAND_HANDLER.store(Some(server_command_handler.unbind().into()));
 
             let result = server_command_dispatcher(Some(123), "asdf");
             assert_eq!(result, Some("asdf".into()));
@@ -637,7 +637,7 @@ def handler(client_id, cmd):
             .expect("this should not happen");
             let server_command_handler =
                 pymodule.getattr("handler").expect("this should not happen");
-            SERVER_COMMAND_HANDLER.store(Some(server_command_handler.into_py(py).into()));
+            SERVER_COMMAND_HANDLER.store(Some(server_command_handler.unbind().into()));
 
             let result = server_command_dispatcher(Some(123), "asdf");
             assert_eq!(result, Some("qwertz".into()));
@@ -664,7 +664,7 @@ def handler(client_id, cmd):
             .expect("this should not happen");
             let server_command_handler =
                 pymodule.getattr("handler").expect("this should not happen");
-            SERVER_COMMAND_HANDLER.store(Some(server_command_handler.into_py(py).into()));
+            SERVER_COMMAND_HANDLER.store(Some(server_command_handler.unbind().into()));
 
             let result = server_command_dispatcher(Some(123), "asdf");
             assert_eq!(result, Some("asdf".into()));
@@ -691,7 +691,7 @@ def handler(client_id, cmd):
             .expect("this should not happen");
             let server_command_handler =
                 pymodule.getattr("handler").expect("this should not happen");
-            SERVER_COMMAND_HANDLER.store(Some(server_command_handler.into_py(py).into()));
+            SERVER_COMMAND_HANDLER.store(Some(server_command_handler.unbind().into()));
 
             let result = server_command_dispatcher(Some(123), "asdf");
             assert_eq!(result, None);
@@ -718,7 +718,7 @@ def handler(client_id, cmd):
             .expect("this should not happen");
             let server_command_handler =
                 pymodule.getattr("handler").expect("this should not happen");
-            SERVER_COMMAND_HANDLER.store(Some(server_command_handler.into_py(py).into()));
+            SERVER_COMMAND_HANDLER.store(Some(server_command_handler.unbind().into()));
 
             let result = server_command_dispatcher(Some(123), "asdf");
             assert_eq!(result, Some("asdf".into()));
@@ -745,7 +745,7 @@ def handler(client_id, cmd):
             .expect("this should not happen");
             let server_command_handler =
                 pymodule.getattr("handler").expect("this should not happen");
-            SERVER_COMMAND_HANDLER.store(Some(server_command_handler.into_py(py).into()));
+            SERVER_COMMAND_HANDLER.store(Some(server_command_handler.unbind().into()));
 
             let result = server_command_dispatcher(Some(123), "asdf");
             assert_eq!(result, Some("asdf".into()));
@@ -790,7 +790,7 @@ def handler():
             )
             .expect("this should not happen");
             let frame_handler = pymodule.getattr("handler").expect("this should not happen");
-            FRAME_HANDLER.store(Some(frame_handler.into_py(py).into()));
+            FRAME_HANDLER.store(Some(frame_handler.unbind().into()));
 
             frame_dispatcher();
         });
@@ -815,7 +815,7 @@ def handler():
             )
             .expect("this should not happen");
             let frame_handler = pymodule.getattr("handler").expect("this should not happen");
-            FRAME_HANDLER.store(Some(frame_handler.into_py(py).into()));
+            FRAME_HANDLER.store(Some(frame_handler.unbind().into()));
 
             frame_dispatcher();
         });
@@ -862,7 +862,7 @@ def handler(client_id, is_bot):
             .expect("this should not happen");
             let client_connect_handler =
                 pymodule.getattr("handler").expect("this should not happen");
-            PLAYER_CONNECT_HANDLER.store(Some(client_connect_handler.into_py(py).into()));
+            PLAYER_CONNECT_HANDLER.store(Some(client_connect_handler.unbind().into()));
 
             let result = client_connect_dispatcher(42, false);
             assert_eq!(result, Some("qwertz".into()));
@@ -889,7 +889,7 @@ def handler(client_id, is_bot):
             .expect("this should not happen");
             let client_connect_handler =
                 pymodule.getattr("handler").expect("this should not happen");
-            PLAYER_CONNECT_HANDLER.store(Some(client_connect_handler.into_py(py).into()));
+            PLAYER_CONNECT_HANDLER.store(Some(client_connect_handler.unbind().into()));
 
             let result = client_connect_dispatcher(42, true);
             assert_eq!(result, None);
@@ -916,7 +916,7 @@ def handler(client_id, is_bot):
             .expect("this should not happen");
             let client_connect_handler =
                 pymodule.getattr("handler").expect("this should not happen");
-            PLAYER_CONNECT_HANDLER.store(Some(client_connect_handler.into_py(py).into()));
+            PLAYER_CONNECT_HANDLER.store(Some(client_connect_handler.unbind().into()));
 
             let result = client_connect_dispatcher(42, true);
             assert_eq!(result, Some("You are banned from this server.".into()));
@@ -943,7 +943,7 @@ def handler(client_id, is_bot):
             .expect("this should not happen");
             let client_connect_handler =
                 pymodule.getattr("handler").expect("this should not happen");
-            PLAYER_CONNECT_HANDLER.store(Some(client_connect_handler.into_py(py).into()));
+            PLAYER_CONNECT_HANDLER.store(Some(client_connect_handler.unbind().into()));
 
             let result = client_connect_dispatcher(42, false);
             assert_eq!(result, None);
@@ -970,7 +970,7 @@ def handler(client_id, is_bot):
             .expect("this should not happen");
             let player_connect_handler =
                 pymodule.getattr("handler").expect("this should not happen");
-            PLAYER_CONNECT_HANDLER.store(Some(player_connect_handler.into_py(py).into()));
+            PLAYER_CONNECT_HANDLER.store(Some(player_connect_handler.unbind().into()));
 
             let result = client_connect_dispatcher(42, false);
             assert_eq!(result, None);
@@ -1016,7 +1016,7 @@ def handler(client_id, reason):
             .expect("this should not happen");
             let client_disconnect_handler =
                 pymodule.getattr("handler").expect("this should not happen");
-            PLAYER_DISCONNECT_HANDLER.store(Some(client_disconnect_handler.into_py(py).into()));
+            PLAYER_DISCONNECT_HANDLER.store(Some(client_disconnect_handler.unbind().into()));
 
             client_disconnect_dispatcher(42, "ragequit");
         });
@@ -1042,7 +1042,7 @@ def handler(client_id, reason):
             .expect("this should not happen");
             let client_disconnect_handler =
                 pymodule.getattr("handler").expect("this should not happen");
-            PLAYER_DISCONNECT_HANDLER.store(Some(client_disconnect_handler.into_py(py).into()));
+            PLAYER_DISCONNECT_HANDLER.store(Some(client_disconnect_handler.unbind().into()));
 
             client_disconnect_dispatcher(42, "ragequit");
         });
@@ -1087,7 +1087,7 @@ def handler(client_id):
             .expect("this should not happen");
             let client_loaded_handler =
                 pymodule.getattr("handler").expect("this should not happen");
-            PLAYER_LOADED_HANDLER.store(Some(client_loaded_handler.into_py(py).into()));
+            PLAYER_LOADED_HANDLER.store(Some(client_loaded_handler.unbind().into()));
 
             client_loaded_dispatcher(123);
         });
@@ -1113,7 +1113,7 @@ def handler(client_id):
             .expect("this should not happen");
             let client_loaded_handler =
                 pymodule.getattr("handler").expect("this should not happen");
-            PLAYER_LOADED_HANDLER.store(Some(client_loaded_handler.into_py(py).into()));
+            PLAYER_LOADED_HANDLER.store(Some(client_loaded_handler.unbind().into()));
 
             client_loaded_dispatcher(123);
         });
@@ -1157,7 +1157,7 @@ def handler(restart):
             )
             .expect("this should not happen");
             let new_game_handler = pymodule.getattr("handler").expect("this should not happen");
-            NEW_GAME_HANDLER.store(Some(new_game_handler.into_py(py).into()));
+            NEW_GAME_HANDLER.store(Some(new_game_handler.unbind().into()));
 
             new_game_dispatcher(false);
         });
@@ -1182,7 +1182,7 @@ def handler(restart):
             )
             .expect("this should not happen");
             let new_game_handler = pymodule.getattr("handler").expect("this should not happen");
-            NEW_GAME_HANDLER.store(Some(new_game_handler.into_py(py).into()));
+            NEW_GAME_HANDLER.store(Some(new_game_handler.unbind().into()));
 
             new_game_dispatcher(true);
         });
@@ -1229,7 +1229,7 @@ def handler(index, value):
             .expect("this should not happen");
             let set_configstring_handler =
                 pymodule.getattr("handler").expect("this should not happen");
-            SET_CONFIGSTRING_HANDLER.store(Some(set_configstring_handler.into_py(py).into()));
+            SET_CONFIGSTRING_HANDLER.store(Some(set_configstring_handler.unbind().into()));
 
             let result = set_configstring_dispatcher(123u32, "asdf");
             assert_eq!(result, Some("asdf".into()));
@@ -1256,7 +1256,7 @@ def handler(index, value):
             .expect("this should not happen");
             let set_configstring_handler =
                 pymodule.getattr("handler").expect("this should not happen");
-            SET_CONFIGSTRING_HANDLER.store(Some(set_configstring_handler.into_py(py).into()));
+            SET_CONFIGSTRING_HANDLER.store(Some(set_configstring_handler.unbind().into()));
 
             let result = set_configstring_dispatcher(123u32, "asdf");
             assert_eq!(result, Some("qwertz".into()));
@@ -1283,7 +1283,7 @@ def handler(index, value):
             .expect("this should not happen");
             let set_configstring_handler =
                 pymodule.getattr("handler").expect("this should not happen");
-            SET_CONFIGSTRING_HANDLER.store(Some(set_configstring_handler.into_py(py).into()));
+            SET_CONFIGSTRING_HANDLER.store(Some(set_configstring_handler.unbind().into()));
 
             let result = set_configstring_dispatcher(123u32, "asdf");
             assert_eq!(result, Some("asdf".into()));
@@ -1310,7 +1310,7 @@ def handler(index, value):
             .expect("this should not happen");
             let set_configstring_handler =
                 pymodule.getattr("handler").expect("this should not happen");
-            SET_CONFIGSTRING_HANDLER.store(Some(set_configstring_handler.into_py(py).into()));
+            SET_CONFIGSTRING_HANDLER.store(Some(set_configstring_handler.unbind().into()));
 
             let result = set_configstring_dispatcher(123u32, "asdf");
             assert_eq!(result, None);
@@ -1337,7 +1337,7 @@ def handler(index, value):
             .expect("this should not happen");
             let set_configstring_handler =
                 pymodule.getattr("handler").expect("this should not happen");
-            SET_CONFIGSTRING_HANDLER.store(Some(set_configstring_handler.into_py(py).into()));
+            SET_CONFIGSTRING_HANDLER.store(Some(set_configstring_handler.unbind().into()));
 
             let result = set_configstring_dispatcher(123u32, "asdf");
             assert_eq!(result, Some("asdf".into()));
@@ -1364,7 +1364,7 @@ def handler(index, value):
             .expect("this should not happen");
             let set_configstring_handler =
                 pymodule.getattr("handler").expect("this should not happen");
-            SET_CONFIGSTRING_HANDLER.store(Some(set_configstring_handler.into_py(py).into()));
+            SET_CONFIGSTRING_HANDLER.store(Some(set_configstring_handler.unbind().into()));
 
             let result = set_configstring_dispatcher(123u32, "asdf");
             assert_eq!(result, Some("asdf".into()));
@@ -1409,7 +1409,7 @@ def handler(cmd):
             )
             .expect("this should not happen");
             let rcon_handler = pymodule.getattr("handler").expect("this should not happen");
-            RCON_HANDLER.store(Some(rcon_handler.into_py(py).into()));
+            RCON_HANDLER.store(Some(rcon_handler.unbind().into()));
 
             rcon_dispatcher("asdf");
         });
@@ -1434,7 +1434,7 @@ def handler(cmd):
             )
             .expect("this should not happen");
             let rcon_handler = pymodule.getattr("handler").expect("this should not happen");
-            RCON_HANDLER.store(Some(rcon_handler.into_py(py).into()));
+            RCON_HANDLER.store(Some(rcon_handler.unbind().into()));
 
             rcon_dispatcher("asdf");
         });
@@ -1481,7 +1481,7 @@ def handler(text):
             .expect("this should not happen");
             let console_print_handler =
                 pymodule.getattr("handler").expect("this should not happen");
-            CONSOLE_PRINT_HANDLER.store(Some(console_print_handler.into_py(py).into()));
+            CONSOLE_PRINT_HANDLER.store(Some(console_print_handler.unbind().into()));
 
             let result = console_print_dispatcher("asdf");
             assert_eq!(result, Some("asdf".into()));
@@ -1508,7 +1508,7 @@ def handler(text):
             .expect("this should not happen");
             let console_print_handler =
                 pymodule.getattr("handler").expect("this should not happen");
-            CONSOLE_PRINT_HANDLER.store(Some(console_print_handler.into_py(py).into()));
+            CONSOLE_PRINT_HANDLER.store(Some(console_print_handler.unbind().into()));
 
             let result = console_print_dispatcher("asdf");
             assert_eq!(result, Some("qwertz".into()));
@@ -1535,7 +1535,7 @@ def handler(text):
             .expect("this should not happen");
             let console_print_handler =
                 pymodule.getattr("handler").expect("this should not happen");
-            CONSOLE_PRINT_HANDLER.store(Some(console_print_handler.into_py(py).into()));
+            CONSOLE_PRINT_HANDLER.store(Some(console_print_handler.unbind().into()));
 
             let result = console_print_dispatcher("asdf");
             assert_eq!(result, Some("asdf".into()));
@@ -1562,7 +1562,7 @@ def handler(text):
             .expect("this should not happen");
             let console_print_handler =
                 pymodule.getattr("handler").expect("this should not happen");
-            CONSOLE_PRINT_HANDLER.store(Some(console_print_handler.into_py(py).into()));
+            CONSOLE_PRINT_HANDLER.store(Some(console_print_handler.unbind().into()));
 
             let result = console_print_dispatcher("asdf");
             assert_eq!(result, None);
@@ -1589,7 +1589,7 @@ def handler(text):
             .expect("this should not happen");
             let console_print_handler =
                 pymodule.getattr("handler").expect("this should not happen");
-            CONSOLE_PRINT_HANDLER.store(Some(console_print_handler.into_py(py).into()));
+            CONSOLE_PRINT_HANDLER.store(Some(console_print_handler.unbind().into()));
 
             let result = console_print_dispatcher("asdf");
             assert_eq!(result, Some("asdf".into()));
@@ -1616,7 +1616,7 @@ def handler(text):
             .expect("this should not happen");
             let console_print_handler =
                 pymodule.getattr("handler").expect("this should not happen");
-            CONSOLE_PRINT_HANDLER.store(Some(console_print_handler.into_py(py).into()));
+            CONSOLE_PRINT_HANDLER.store(Some(console_print_handler.unbind().into()));
 
             let result = console_print_dispatcher("asdf");
             assert_eq!(result, Some("asdf".into()));
@@ -1661,7 +1661,7 @@ def handler(client_id):
             )
             .expect("this should not happen");
             let client_spawn_handler = pymodule.getattr("handler").expect("this should not happen");
-            PLAYER_SPAWN_HANDLER.store(Some(client_spawn_handler.into_py(py).into()));
+            PLAYER_SPAWN_HANDLER.store(Some(client_spawn_handler.unbind().into()));
 
             client_spawn_dispatcher(123);
         });
@@ -1686,7 +1686,7 @@ def handler(client_id):
             )
             .expect("this should not happen");
             let client_spawn_handler = pymodule.getattr("handler").expect("this should not happen");
-            PLAYER_SPAWN_HANDLER.store(Some(client_spawn_handler.into_py(py).into()));
+            PLAYER_SPAWN_HANDLER.store(Some(client_spawn_handler.unbind().into()));
 
             client_spawn_dispatcher(123);
         });
@@ -1730,7 +1730,7 @@ def handler(client_id):
             )
             .expect("this should not happen");
             let kamikaze_use_handler = pymodule.getattr("handler").expect("this should not happen");
-            KAMIKAZE_USE_HANDLER.store(Some(kamikaze_use_handler.into_py(py).into()));
+            KAMIKAZE_USE_HANDLER.store(Some(kamikaze_use_handler.unbind().into()));
 
             kamikaze_use_dispatcher(123);
         });
@@ -1755,7 +1755,7 @@ def handler(client_id):
             )
             .expect("this should not happen");
             let kamikaze_use_handler = pymodule.getattr("handler").expect("this should not happen");
-            KAMIKAZE_USE_HANDLER.store(Some(kamikaze_use_handler.into_py(py).into()));
+            KAMIKAZE_USE_HANDLER.store(Some(kamikaze_use_handler.unbind().into()));
 
             kamikaze_use_dispatcher(123);
         });
@@ -1800,7 +1800,7 @@ def handler(client_id, is_used_on_demand):
             .expect("this should not happen");
             let kamikaze_explode_handler =
                 pymodule.getattr("handler").expect("this should not happen");
-            KAMIKAZE_EXPLODE_HANDLER.store(Some(kamikaze_explode_handler.into_py(py).into()));
+            KAMIKAZE_EXPLODE_HANDLER.store(Some(kamikaze_explode_handler.unbind().into()));
 
             kamikaze_explode_dispatcher(123, false);
         });
@@ -1826,7 +1826,7 @@ def handler(client_id, is_used_on_demand):
             .expect("this should not happen");
             let kamikaze_explode_handler =
                 pymodule.getattr("handler").expect("this should not happen");
-            KAMIKAZE_EXPLODE_HANDLER.store(Some(kamikaze_explode_handler.into_py(py).into()));
+            KAMIKAZE_EXPLODE_HANDLER.store(Some(kamikaze_explode_handler.unbind().into()));
 
             kamikaze_explode_dispatcher(123, true);
         });
@@ -1882,7 +1882,7 @@ def handler(client_id, attacker_id, damage, dflags, means_of_death):
             )
             .expect("this should not happen");
             let damage_handler = pymodule.getattr("handler").expect("this should not happen");
-            DAMAGE_HANDLER.store(Some(damage_handler.into_py(py).into()));
+            DAMAGE_HANDLER.store(Some(damage_handler.unbind().into()));
 
             damage_dispatcher(
                 123,
@@ -1913,7 +1913,7 @@ def handler(client_id, attacker_id, damage, dflags, means_of_death):
             )
             .expect("this should not happen");
             let damage_handler = pymodule.getattr("handler").expect("this should not happen");
-            DAMAGE_HANDLER.store(Some(damage_handler.into_py(py).into()));
+            DAMAGE_HANDLER.store(Some(damage_handler.unbind().into()));
 
             damage_dispatcher(
                 123,

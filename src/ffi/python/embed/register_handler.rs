@@ -87,7 +87,7 @@ def handler():
             )
             .expect("this should not happen");
             let py_handler = pymodule.getattr("handler").expect("this should not happen");
-            handler.store(Some(py_handler.into_py(py).into()));
+            handler.store(Some(py_handler.unbind().into()));
 
             let result = pyshinqlx_register_handler(py, event, None);
             assert!(result.is_ok());
