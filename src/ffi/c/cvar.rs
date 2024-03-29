@@ -14,14 +14,18 @@ impl TryFrom<*mut cvar_t> for CVar {
 
     fn try_from(cvar: *mut cvar_t) -> Result<Self, Self::Error> {
         unsafe { cvar.as_mut() }.map(|cvar| Self { cvar }).ok_or(
-            QuakeLiveEngineError::NullPointerPassed("null pointer passed".into()),
+            QuakeLiveEngineError::NullPointerPassed("null pointer passed".to_string()),
         )
     }
 }
 
 impl CVar {
     pub(crate) fn get_string(&self) -> String {
-        unsafe { CStr::from_ptr(self.cvar.string).to_string_lossy().into() }
+        unsafe {
+            CStr::from_ptr(self.cvar.string)
+                .to_string_lossy()
+                .to_string()
+        }
     }
 
     pub(crate) fn get_integer(&self) -> i32 {
@@ -43,7 +47,7 @@ mod cvar_tests {
         assert_eq!(
             CVar::try_from(ptr::null_mut() as *mut cvar_t),
             Err(QuakeLiveEngineError::NullPointerPassed(
-                "null pointer passed".into()
+                "null pointer passed".to_string()
             ))
         );
     }

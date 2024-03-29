@@ -8,7 +8,7 @@ where
     T: AsRef<str>,
 {
     if !pyshinqlx_is_initialized() {
-        return Some(cmd.as_ref().into());
+        return Some(cmd.as_ref().to_string());
     }
 
     CLIENT_COMMAND_HANDLER
@@ -24,22 +24,22 @@ where
                     .extract::<bool>()
                     .map(|bool_value| {
                         if bool_value {
-                            Some(cmd.as_ref().into())
+                            Some(cmd.as_ref().to_string())
                         } else {
                             None
                         }
                     })
                     .unwrap_or(Some(
-                        returned.extract::<String>().unwrap_or(cmd.as_ref().into()),
+                        returned.extract::<String>().unwrap_or(cmd.as_ref().to_string()),
                     ))
             })
             .unwrap_or_else(|e| {
                 error!(target: "shinqlx", "client_command_handler returned an error: {:?}.", e);
-                Some(cmd.as_ref().into())
+                Some(cmd.as_ref().to_string())
             })
             })
         })
-        .unwrap_or(Some(cmd.as_ref().into()))
+        .unwrap_or(Some(cmd.as_ref().to_string()))
 }
 
 pub(crate) fn server_command_dispatcher<T>(client_id: Option<i32>, cmd: T) -> Option<String>
@@ -47,7 +47,7 @@ where
     T: AsRef<str>,
 {
     if !pyshinqlx_is_initialized() {
-        return Some(cmd.as_ref().into());
+        return Some(cmd.as_ref().to_string());
     }
 
     SERVER_COMMAND_HANDLER
@@ -63,22 +63,22 @@ where
                         .extract::<bool>()
                         .map(|bool_value| {
                             if bool_value {
-                                Some(cmd.as_ref().into())
+                                Some(cmd.as_ref().to_string())
                             } else {
                                 None
                             }
                         })
                         .unwrap_or(Some(
-                            returned.extract::<String>().unwrap_or(cmd.as_ref().into()),
+                            returned.extract::<String>().unwrap_or(cmd.as_ref().to_string()),
                         ))
                 })
                 .unwrap_or_else(|e| {
                     error!(target: "shinqlx", "server_command_handler returned an error: {:?}.", e);
-                    Some(cmd.as_ref().into())
+                    Some(cmd.as_ref().to_string())
                 })
             })
         })
-        .unwrap_or(Some(cmd.as_ref().into()))
+        .unwrap_or(Some(cmd.as_ref().to_string()))
 }
 
 pub(crate) fn frame_dispatcher() {
@@ -121,7 +121,7 @@ pub(crate) fn client_connect_dispatcher(client_id: i32, is_bot: bool) -> Option<
                             .extract::<bool>()
                             .map(|bool_value| {
                                 if !bool_value {
-                                    Some("You are banned from this server.".into())
+                                    Some("You are banned from this server.".to_string())
                                 } else {
                                     None
                                 }
@@ -210,7 +210,7 @@ where
     U: AsRef<str>,
 {
     if !pyshinqlx_is_initialized() {
-        return Some(value.as_ref().into());
+        return Some(value.as_ref().to_string());
     }
 
     SET_CONFIGSTRING_HANDLER
@@ -226,7 +226,7 @@ where
                             .extract::<bool>()
                             .map(|bool_value| {
                                 if bool_value {
-                                    Some(value.as_ref().into())
+                                    Some(value.as_ref().to_string())
                                 } else {
                                     None
                                 }
@@ -234,15 +234,15 @@ where
                             .unwrap_or(Some(
                                 returned
                                     .extract::<String>()
-                                    .unwrap_or(value.as_ref().into()),
+                                    .unwrap_or(value.as_ref().to_string()),
                             ))
                     })
                     .unwrap_or_else(|e| {
                         error!(target: "shinqlx", "set_configstring_handler returned an error: {:?}.", e);
-                        Some(value.as_ref().into())})
+                        Some(value.as_ref().to_string())})
             })
         })
-        .unwrap_or(Some(value.as_ref().into()))
+        .unwrap_or(Some(value.as_ref().to_string()))
 }
 
 pub(crate) fn rcon_dispatcher<T>(cmd: T)
@@ -267,7 +267,7 @@ where
     T: AsRef<str>,
 {
     if !pyshinqlx_is_initialized() {
-        return Some(text.as_ref().into());
+        return Some(text.as_ref().to_string());
     }
 
     CONSOLE_PRINT_HANDLER
@@ -279,21 +279,21 @@ where
                     console_print_handler.bind(py).call1((text.as_ref(),)).map(|returned| {
                         returned.extract::<bool>().map(|bool_value| {
                             if bool_value {
-                                Some(text.as_ref().into())
+                                Some(text.as_ref().to_string())
                             } else {
                                 None
                             }
                         }).unwrap_or({
-                            Some(returned.extract::<String>().unwrap_or(text.as_ref().into()))
+                            Some(returned.extract::<String>().unwrap_or(text.as_ref().to_string()))
                         })
                     }).unwrap_or_else(|e| {
                         error!(target: "shinqlx", "console_print_handler returned an error: {:?}.", e);
-                        Some(text.as_ref().into())
+                        Some(text.as_ref().to_string())
                     })
                 },
             )
         })
-        .unwrap_or(Some(text.as_ref().into()))
+        .unwrap_or(Some(text.as_ref().to_string()))
 }
 
 pub(crate) fn client_spawn_dispatcher(client_id: i32) {
@@ -393,7 +393,7 @@ mod pyshinqlx_dispatcher_tests {
         is_initialized_context.expect().returning(|| false);
 
         let result = client_command_dispatcher(123, "asdf");
-        assert_eq!(result, Some("asdf".into()));
+        assert_eq!(result, Some("asdf".to_string()));
     }
 
     #[test]
@@ -404,7 +404,7 @@ mod pyshinqlx_dispatcher_tests {
         CLIENT_COMMAND_HANDLER.store(None);
 
         let result = client_command_dispatcher(123, "asdf");
-        assert_eq!(result, Some("asdf".into()));
+        assert_eq!(result, Some("asdf".to_string()));
     }
 
     #[rstest]
@@ -430,7 +430,7 @@ def handler(client_id, cmd):
             CLIENT_COMMAND_HANDLER.store(Some(client_command_handler.unbind().into()));
 
             let result = client_command_dispatcher(123, "asdf");
-            assert_eq!(result, Some("asdf".into()));
+            assert_eq!(result, Some("asdf".to_string()));
         });
     }
 
@@ -457,7 +457,7 @@ def handler(client_id, cmd):
             CLIENT_COMMAND_HANDLER.store(Some(client_command_handler.unbind().into()));
 
             let result = client_command_dispatcher(123, "asdf");
-            assert_eq!(result, Some("qwertz".into()));
+            assert_eq!(result, Some("qwertz".to_string()));
         });
     }
 
@@ -484,7 +484,7 @@ def handler(client_id, cmd):
             CLIENT_COMMAND_HANDLER.store(Some(client_command_handler.unbind().into()));
 
             let result = client_command_dispatcher(123, "asdf");
-            assert_eq!(result, Some("asdf".into()));
+            assert_eq!(result, Some("asdf".to_string()));
         });
     }
 
@@ -538,7 +538,7 @@ def handler(client_id, cmd):
             CLIENT_COMMAND_HANDLER.store(Some(client_command_handler.unbind().into()));
 
             let result = client_command_dispatcher(123, "asdf");
-            assert_eq!(result, Some("asdf".into()));
+            assert_eq!(result, Some("asdf".to_string()));
         });
     }
 
@@ -565,7 +565,7 @@ def handler(client_id, cmd):
             CLIENT_COMMAND_HANDLER.store(Some(client_command_handler.unbind().into()));
 
             let result = client_command_dispatcher(123, "asdf");
-            assert_eq!(result, Some("asdf".into()));
+            assert_eq!(result, Some("asdf".to_string()));
         });
     }
 
@@ -576,7 +576,7 @@ def handler(client_id, cmd):
         is_initialized_context.expect().returning(|| false);
 
         let result = server_command_dispatcher(Some(123), "asdf");
-        assert_eq!(result, Some("asdf".into()));
+        assert_eq!(result, Some("asdf".to_string()));
     }
 
     #[test]
@@ -587,7 +587,7 @@ def handler(client_id, cmd):
         SERVER_COMMAND_HANDLER.store(None);
 
         let result = server_command_dispatcher(Some(123), "asdf");
-        assert_eq!(result, Some("asdf".into()));
+        assert_eq!(result, Some("asdf".to_string()));
     }
 
     #[rstest]
@@ -613,7 +613,7 @@ def handler(client_id, cmd):
             SERVER_COMMAND_HANDLER.store(Some(server_command_handler.unbind().into()));
 
             let result = server_command_dispatcher(Some(123), "asdf");
-            assert_eq!(result, Some("asdf".into()));
+            assert_eq!(result, Some("asdf".to_string()));
         });
     }
 
@@ -640,7 +640,7 @@ def handler(client_id, cmd):
             SERVER_COMMAND_HANDLER.store(Some(server_command_handler.unbind().into()));
 
             let result = server_command_dispatcher(Some(123), "asdf");
-            assert_eq!(result, Some("qwertz".into()));
+            assert_eq!(result, Some("qwertz".to_string()));
         });
     }
 
@@ -667,7 +667,7 @@ def handler(client_id, cmd):
             SERVER_COMMAND_HANDLER.store(Some(server_command_handler.unbind().into()));
 
             let result = server_command_dispatcher(Some(123), "asdf");
-            assert_eq!(result, Some("asdf".into()));
+            assert_eq!(result, Some("asdf".to_string()));
         });
     }
 
@@ -721,7 +721,7 @@ def handler(client_id, cmd):
             SERVER_COMMAND_HANDLER.store(Some(server_command_handler.unbind().into()));
 
             let result = server_command_dispatcher(Some(123), "asdf");
-            assert_eq!(result, Some("asdf".into()));
+            assert_eq!(result, Some("asdf".to_string()));
         });
     }
 
@@ -748,7 +748,7 @@ def handler(client_id, cmd):
             SERVER_COMMAND_HANDLER.store(Some(server_command_handler.unbind().into()));
 
             let result = server_command_dispatcher(Some(123), "asdf");
-            assert_eq!(result, Some("asdf".into()));
+            assert_eq!(result, Some("asdf".to_string()));
         });
     }
 
@@ -865,7 +865,7 @@ def handler(client_id, is_bot):
             PLAYER_CONNECT_HANDLER.store(Some(client_connect_handler.unbind().into()));
 
             let result = client_connect_dispatcher(42, false);
-            assert_eq!(result, Some("qwertz".into()));
+            assert_eq!(result, Some("qwertz".to_string()));
         });
     }
 
@@ -919,7 +919,7 @@ def handler(client_id, is_bot):
             PLAYER_CONNECT_HANDLER.store(Some(client_connect_handler.unbind().into()));
 
             let result = client_connect_dispatcher(42, true);
-            assert_eq!(result, Some("You are banned from this server.".into()));
+            assert_eq!(result, Some("You are banned from this server.".to_string()));
         });
     }
 
@@ -1195,7 +1195,7 @@ def handler(restart):
         is_initialized_context.expect().returning(|| false);
 
         let result = set_configstring_dispatcher(666u32, "asdf");
-        assert_eq!(result, Some("asdf".into()));
+        assert_eq!(result, Some("asdf".to_string()));
     }
 
     #[test]
@@ -1206,7 +1206,7 @@ def handler(restart):
         SET_CONFIGSTRING_HANDLER.store(None);
 
         let result = set_configstring_dispatcher(666u32, "asdf");
-        assert_eq!(result, Some("asdf".into()));
+        assert_eq!(result, Some("asdf".to_string()));
     }
 
     #[rstest]
@@ -1232,7 +1232,7 @@ def handler(index, value):
             SET_CONFIGSTRING_HANDLER.store(Some(set_configstring_handler.unbind().into()));
 
             let result = set_configstring_dispatcher(123u32, "asdf");
-            assert_eq!(result, Some("asdf".into()));
+            assert_eq!(result, Some("asdf".to_string()));
         });
     }
 
@@ -1259,7 +1259,7 @@ def handler(index, value):
             SET_CONFIGSTRING_HANDLER.store(Some(set_configstring_handler.unbind().into()));
 
             let result = set_configstring_dispatcher(123u32, "asdf");
-            assert_eq!(result, Some("qwertz".into()));
+            assert_eq!(result, Some("qwertz".to_string()));
         });
     }
 
@@ -1286,7 +1286,7 @@ def handler(index, value):
             SET_CONFIGSTRING_HANDLER.store(Some(set_configstring_handler.unbind().into()));
 
             let result = set_configstring_dispatcher(123u32, "asdf");
-            assert_eq!(result, Some("asdf".into()));
+            assert_eq!(result, Some("asdf".to_string()));
         });
     }
 
@@ -1340,7 +1340,7 @@ def handler(index, value):
             SET_CONFIGSTRING_HANDLER.store(Some(set_configstring_handler.unbind().into()));
 
             let result = set_configstring_dispatcher(123u32, "asdf");
-            assert_eq!(result, Some("asdf".into()));
+            assert_eq!(result, Some("asdf".to_string()));
         });
     }
 
@@ -1367,7 +1367,7 @@ def handler(index, value):
             SET_CONFIGSTRING_HANDLER.store(Some(set_configstring_handler.unbind().into()));
 
             let result = set_configstring_dispatcher(123u32, "asdf");
-            assert_eq!(result, Some("asdf".into()));
+            assert_eq!(result, Some("asdf".to_string()));
         });
     }
 
@@ -1447,7 +1447,7 @@ def handler(cmd):
         is_initialized_context.expect().returning(|| false);
 
         let result = console_print_dispatcher("asdf");
-        assert_eq!(result, Some("asdf".into()));
+        assert_eq!(result, Some("asdf".to_string()));
     }
 
     #[test]
@@ -1458,7 +1458,7 @@ def handler(cmd):
         CONSOLE_PRINT_HANDLER.store(None);
 
         let result = console_print_dispatcher("asdf");
-        assert_eq!(result, Some("asdf".into()));
+        assert_eq!(result, Some("asdf".to_string()));
     }
 
     #[rstest]
@@ -1484,7 +1484,7 @@ def handler(text):
             CONSOLE_PRINT_HANDLER.store(Some(console_print_handler.unbind().into()));
 
             let result = console_print_dispatcher("asdf");
-            assert_eq!(result, Some("asdf".into()));
+            assert_eq!(result, Some("asdf".to_string()));
         });
     }
 
@@ -1511,7 +1511,7 @@ def handler(text):
             CONSOLE_PRINT_HANDLER.store(Some(console_print_handler.unbind().into()));
 
             let result = console_print_dispatcher("asdf");
-            assert_eq!(result, Some("qwertz".into()));
+            assert_eq!(result, Some("qwertz".to_string()));
         });
     }
 
@@ -1538,7 +1538,7 @@ def handler(text):
             CONSOLE_PRINT_HANDLER.store(Some(console_print_handler.unbind().into()));
 
             let result = console_print_dispatcher("asdf");
-            assert_eq!(result, Some("asdf".into()));
+            assert_eq!(result, Some("asdf".to_string()));
         });
     }
 
@@ -1592,7 +1592,7 @@ def handler(text):
             CONSOLE_PRINT_HANDLER.store(Some(console_print_handler.unbind().into()));
 
             let result = console_print_dispatcher("asdf");
-            assert_eq!(result, Some("asdf".into()));
+            assert_eq!(result, Some("asdf".to_string()));
         });
     }
 
@@ -1619,7 +1619,7 @@ def handler(text):
             CONSOLE_PRINT_HANDLER.store(Some(console_print_handler.unbind().into()));
 
             let result = console_print_dispatcher("asdf");
-            assert_eq!(result, Some("asdf".into()));
+            assert_eq!(result, Some("asdf".to_string()));
         });
     }
 

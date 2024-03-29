@@ -68,7 +68,7 @@ mod get_configstring_tests {
         mock_engine
             .expect_get_configstring()
             .with(predicate::eq(666))
-            .returning(|_| "asdf".into())
+            .returning(|_| "asdf".to_string())
             .times(1);
         MAIN_ENGINE.store(Some(mock_engine.into()));
 
