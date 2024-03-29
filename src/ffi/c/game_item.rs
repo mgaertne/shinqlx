@@ -3,6 +3,7 @@ use crate::prelude::*;
 use crate::quake_live_engine::{GameAddEvent, TryLaunchItem};
 use crate::MAIN_ENGINE;
 
+use alloc::borrow::Cow;
 use core::ffi::{c_float, CStr};
 
 #[derive(Debug, PartialEq)]
@@ -98,10 +99,8 @@ impl GameItem {
         bg_itemlist_ptr as *mut gitem_t
     }
 
-    pub(crate) fn get_classname(&self) -> String {
-        unsafe { CStr::from_ptr(self.gitem_t.classname) }
-            .to_string_lossy()
-            .to_string()
+    pub(crate) fn get_classname(&self) -> Cow<str> {
+        unsafe { CStr::from_ptr(self.gitem_t.classname) }.to_string_lossy()
     }
 
     pub(crate) fn spawn(&mut self, origin: (i32, i32, i32)) {
@@ -133,7 +132,7 @@ mockall::mock! {
     pub(crate) GameItem {
         pub(crate) fn get_mocked_item_list() -> *mut gitem_t;
         pub(crate) fn get_num_items() -> i32;
-        pub(crate) fn get_classname(&self) -> String;
+        pub(crate) fn get_classname(&self) -> Cow<'_, str>;
         pub(crate) fn spawn(&mut self, _origin: (i32, i32, i32));
     }
 
