@@ -1854,9 +1854,9 @@ impl<T: Into<c_int>> GetConfigstring<T> for QuakeLiveEngine {
                 CStr::from_bytes_until_nul(&buffer)
                     .unwrap_or_default()
                     .to_string_lossy()
-                    .to_string()
+                    .into()
             })
-            .unwrap_or("".to_string())
+            .unwrap_or("".into())
     }
 }
 

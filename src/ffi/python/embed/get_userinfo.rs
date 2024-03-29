@@ -16,7 +16,7 @@ pub(crate) fn pyshinqlx_get_userinfo(py: Python<'_>, client_id: i32) -> PyResult
             client.get_state() != clientState_t::CS_FREE
                 || allowed_free_clients & (1 << client_id as u64) != 0
         });
-        Ok(opt_client.map(|client| client.get_user_info()))
+        Ok(opt_client.map(|client| client.get_user_info().into()))
     })
 }
 
@@ -84,7 +84,7 @@ mod get_userinfo_tests {
                 .returning(|| clientState_t::CS_ACTIVE);
             mock_client
                 .expect_get_user_info()
-                .returning(|| "asdf".to_string());
+                .returning(|| "asdf".into());
             mock_client
         });
 
@@ -112,7 +112,7 @@ mod get_userinfo_tests {
                 .returning(|| clientState_t::CS_FREE);
             mock_client
                 .expect_get_user_info()
-                .returning(|| "asdf".to_string());
+                .returning(|| "asdf".into());
             mock_client
         });
 
@@ -137,7 +137,7 @@ mod get_userinfo_tests {
                 .returning(|| clientState_t::CS_FREE);
             mock_client
                 .expect_get_user_info()
-                .returning(|| "asdf".to_string());
+                .returning(|| "asdf".into());
             mock_client
         });
 

@@ -1,5 +1,6 @@
 use super::prelude::*;
 
+use alloc::borrow::Cow;
 use pyo3::{basic::CompareOp, exceptions::PyValueError, types::PyTuple};
 
 /// A struct sequence containing parameters for the flight holdable item.
@@ -59,18 +60,20 @@ impl Flight {
         }
     }
 
-    pub(crate) fn __str__(&self) -> String {
+    pub(crate) fn __str__(&self) -> Cow<str> {
         format!(
             "Flight(fuel={}, max_fuel={}, thrust={}, refuel={})",
             self.0, self.1, self.2, self.3
         )
+        .into()
     }
 
-    fn __repr__(&self) -> String {
+    fn __repr__(&self) -> Cow<str> {
         format!(
             "Flight(fuel={}, max_fuel={}, thrust={}, refuel={})",
             self.0, self.1, self.2, self.3
         )
+        .into()
     }
 }
 
@@ -207,6 +210,22 @@ assert(_shinqlx.Flight((0, 1, 2, 3)) < _shinqlx.Flight((3, 2, 1, 0)))
         );
     }
 
+    #[rstest]
+    #[cfg_attr(miri, ignore)]
+    fn flight_to_str_in_python(_pyshinqlx_setup: ()) {
+        Python::with_gil(|py| {
+            let result = py.run_bound(
+                r#"
+import _shinqlx
+assert(str(_shinqlx.Flight((1, 2, 3, 4))) == "Flight(fuel=1, max_fuel=2, thrust=3, refuel=4)")
+            "#,
+                None,
+                None,
+            );
+            assert!(result.is_ok());
+        });
+    }
+
     #[test]
     fn flight_repr() {
         let flight = Flight(1, 2, 3, 4);
@@ -214,5 +233,21 @@ assert(_shinqlx.Flight((0, 1, 2, 3)) < _shinqlx.Flight((3, 2, 1, 0)))
             flight.__repr__(),
             "Flight(fuel=1, max_fuel=2, thrust=3, refuel=4)"
         );
+    }
+
+    #[rstest]
+    #[cfg_attr(miri, ignore)]
+    fn flight_repr_in_python(_pyshinqlx_setup: ()) {
+        Python::with_gil(|py| {
+            let result = py.run_bound(
+                r#"
+import _shinqlx
+assert(repr(_shinqlx.Flight((1, 2, 3, 4))) == "Flight(fuel=1, max_fuel=2, thrust=3, refuel=4)")
+            "#,
+                None,
+                None,
+            );
+            assert!(result.is_ok());
+        });
     }
 }

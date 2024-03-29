@@ -1,5 +1,8 @@
 use super::prelude::*;
 
+use alloc::borrow::Cow;
+
+#[pyclass(frozen)]
 #[pyclass(module = "_shinqlx", name = "Holdable", frozen)]
 #[derive(PartialEq, Debug, Clone, Copy)]
 pub(crate) enum Holdable {
@@ -43,17 +46,17 @@ impl From<Holdable> for i32 {
     }
 }
 
-impl From<Holdable> for Option<String> {
+impl From<Holdable> for Option<Cow<'static, str>> {
     fn from(holdable: Holdable) -> Self {
         match holdable {
             Holdable::None => None,
-            Holdable::Teleporter => Some("teleporter".to_string()),
-            Holdable::MedKit => Some("medkit".to_string()),
-            Holdable::Kamikaze => Some("kamikaze".to_string()),
-            Holdable::Portal => Some("portal".to_string()),
-            Holdable::Invulnerability => Some("invulnerability".to_string()),
-            Holdable::Flight => Some("flight".to_string()),
-            Holdable::Unknown => Some("unknown".to_string()),
+            Holdable::Teleporter => Some("teleporter".into()),
+            Holdable::MedKit => Some("medkit".into()),
+            Holdable::Kamikaze => Some("kamikaze".into()),
+            Holdable::Portal => Some("portal".into()),
+            Holdable::Invulnerability => Some("invulnerability".into()),
+            Holdable::Flight => Some("flight".into()),
+            Holdable::Unknown => Some("unknown".into()),
         }
     }
 }
@@ -79,6 +82,8 @@ impl From<Option<String>> for Holdable {
 #[cfg(test)]
 mod holdable_tests {
     use super::Holdable;
+
+    use alloc::borrow::Cow;
 
     use pretty_assertions::assert_eq;
     use rstest::rstest;
@@ -111,18 +116,18 @@ mod holdable_tests {
 
     #[rstest]
     #[case(Holdable::None, None)]
-    #[case(Holdable::Teleporter, Some("teleporter".to_string()))]
-    #[case(Holdable::MedKit, Some("medkit".to_string()))]
-    #[case(Holdable::Flight, Some("flight".to_string()))]
-    #[case(Holdable::Kamikaze, Some("kamikaze".to_string()))]
-    #[case(Holdable::Portal, Some("portal".to_string()))]
-    #[case(Holdable::Invulnerability, Some("invulnerability".to_string()))]
-    #[case(Holdable::Unknown, Some("unknown".to_string()))]
+    #[case(Holdable::Teleporter, Some("teleporter".into()))]
+    #[case(Holdable::MedKit, Some("medkit".into()))]
+    #[case(Holdable::Flight, Some("flight".into()))]
+    #[case(Holdable::Kamikaze, Some("kamikaze".into()))]
+    #[case(Holdable::Portal, Some("portal".into()))]
+    #[case(Holdable::Invulnerability, Some("invulnerability".into()))]
+    #[case(Holdable::Unknown, Some("unknown".into()))]
     fn opt_string_from_holdable(
         #[case] holdable: Holdable,
-        #[case] expected_result: Option<String>,
+        #[case] expected_result: Option<Cow<'static, str>>,
     ) {
-        assert_eq!(Option::<String>::from(holdable), expected_result);
+        assert_eq!(Option::<Cow<'static, str>>::from(holdable), expected_result);
     }
 
     #[rstest]
