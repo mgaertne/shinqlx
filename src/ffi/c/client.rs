@@ -26,7 +26,7 @@ impl TryFrom<*mut client_t> for Client {
         unsafe { client.as_mut() }
             .map(|client_t| Self { client_t })
             .ok_or(QuakeLiveEngineError::NullPointerPassed(
-                "null pointer passed".into(),
+                "null pointer passed".to_string(),
             ))
     }
 }
@@ -38,7 +38,7 @@ impl TryFrom<i32> for Client {
         let server_static = ServerStatic::try_get()?;
         let client = unsafe { server_static.try_get_client_by_id(client_id) }?;
         Self::try_from(client)
-            .map_err(|_| QuakeLiveEngineError::ClientNotFound("client not found".into()))
+            .map_err(|_| QuakeLiveEngineError::ClientNotFound("client not found".to_string()))
     }
 }
 
@@ -89,13 +89,13 @@ impl Client {
     pub(crate) fn get_name(&self) -> String {
         unsafe { CStr::from_ptr(&self.client_t.name as *const c_char) }
             .to_string_lossy()
-            .into()
+            .to_string()
     }
 
     pub(crate) fn get_user_info(&self) -> String {
         unsafe { CStr::from_ptr(self.client_t.userinfo.as_ptr()) }
             .to_string_lossy()
-            .into()
+            .to_string()
     }
 
     pub(crate) fn get_steam_id(&self) -> u64 {
@@ -152,7 +152,7 @@ mod client_tests {
         assert_eq!(
             Client::try_from(ptr::null() as *const client_t),
             Err(QuakeLiveEngineError::NullPointerPassed(
-                "null pointer passed".into()
+                "null pointer passed".to_string()
             ))
         );
     }
@@ -218,7 +218,7 @@ mod client_tests {
         assert_eq!(
             Client::try_from(2),
             Err(QuakeLiveEngineError::ClientNotFound(
-                "client not found".into()
+                "client not found".to_string()
             ))
         );
     }

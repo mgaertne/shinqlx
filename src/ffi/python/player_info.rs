@@ -143,9 +143,9 @@ player_info = _shinqlx.PlayerInfo(
     fn player_info_python_string() {
         let player_info = PlayerInfo {
             client_id: 2,
-            name: "UnknownPlayer".into(),
+            name: "UnknownPlayer".to_string(),
             connection_state: clientState_t::CS_ACTIVE as i32,
-            userinfo: "asdf".into(),
+            userinfo: "asdf".to_string(),
             steam_id: 42,
             team: team_t::TEAM_SPECTATOR as i32,
             privileges: privileges_t::PRIV_NONE as i32,
@@ -162,9 +162,9 @@ player_info = _shinqlx.PlayerInfo(
     fn player_info_python_repr() {
         let player_info = PlayerInfo {
             client_id: 2,
-            name: "UnknownPlayer".into(),
+            name: "UnknownPlayer".to_string(),
             connection_state: clientState_t::CS_ACTIVE as i32,
-            userinfo: "asdf".into(),
+            userinfo: "asdf".to_string(),
             steam_id: 42,
             team: team_t::TEAM_SPECTATOR as i32,
             privileges: privileges_t::PRIV_NONE as i32,
@@ -185,7 +185,7 @@ player_info = _shinqlx.PlayerInfo(
             let mut mock_game_entity = MockGameEntity::new();
             mock_game_entity
                 .expect_get_player_name()
-                .returning(|| "UnknownPlayer".into());
+                .returning(|| "UnknownPlayer".to_string());
             mock_game_entity
                 .expect_get_team()
                 .returning(|| team_t::TEAM_SPECTATOR);
@@ -202,7 +202,7 @@ player_info = _shinqlx.PlayerInfo(
                 .returning(|| clientState_t::CS_ACTIVE);
             mock_client
                 .expect_get_user_info()
-                .returning(|| "asdf".into());
+                .returning(|| "asdf".to_string());
             mock_client.expect_get_steam_id().returning(|| 42);
             mock_client
         });
@@ -211,9 +211,9 @@ player_info = _shinqlx.PlayerInfo(
             PlayerInfo::from(2),
             PlayerInfo {
                 client_id: 2,
-                name: "UnknownPlayer".into(),
+                name: "UnknownPlayer".to_string(),
                 connection_state: clientState_t::CS_ACTIVE as i32,
-                userinfo: "asdf".into(),
+                userinfo: "asdf".to_string(),
                 steam_id: 42,
                 team: team_t::TEAM_SPECTATOR as i32,
                 privileges: privileges_t::PRIV_NONE as i32

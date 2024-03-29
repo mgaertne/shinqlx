@@ -82,6 +82,6 @@ mod get_cvar_tests {
         MAIN_ENGINE.store(Some(mock_engine.into()));
 
         let result = Python::with_gil(|py| pyshinqlx_get_cvar(py, "sv_maxclients"));
-        assert_eq!(result.expect("result was not OK"), Some("16".into()));
+        assert_eq!(result.expect("result was not OK"), Some("16".to_string()));
     }
 }

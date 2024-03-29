@@ -48,13 +48,13 @@ impl From<Holdable> for Option<String> {
     fn from(holdable: Holdable) -> Self {
         match holdable {
             Holdable::None => None,
-            Holdable::Teleporter => Some("teleporter".into()),
-            Holdable::MedKit => Some("medkit".into()),
-            Holdable::Kamikaze => Some("kamikaze".into()),
-            Holdable::Portal => Some("portal".into()),
-            Holdable::Invulnerability => Some("invulnerability".into()),
-            Holdable::Flight => Some("flight".into()),
-            Holdable::Unknown => Some("unknown".into()),
+            Holdable::Teleporter => Some("teleporter".to_string()),
+            Holdable::MedKit => Some("medkit".to_string()),
+            Holdable::Kamikaze => Some("kamikaze".to_string()),
+            Holdable::Portal => Some("portal".to_string()),
+            Holdable::Invulnerability => Some("invulnerability".to_string()),
+            Holdable::Flight => Some("flight".to_string()),
+            Holdable::Unknown => Some("unknown".to_string()),
         }
     }
 }
@@ -94,13 +94,13 @@ mod holdable_tests {
 
     #[rstest]
     #[case(Holdable::None, None)]
-    #[case(Holdable::Teleporter, Some("teleporter".into()))]
-    #[case(Holdable::MedKit, Some("medkit".into()))]
-    #[case(Holdable::Flight, Some("flight".into()))]
-    #[case(Holdable::Kamikaze, Some("kamikaze".into()))]
-    #[case(Holdable::Portal, Some("portal".into()))]
-    #[case(Holdable::Invulnerability, Some("invulnerability".into()))]
-    #[case(Holdable::Unknown, Some("unknown".into()))]
+    #[case(Holdable::Teleporter, Some("teleporter".to_string()))]
+    #[case(Holdable::MedKit, Some("medkit".to_string()))]
+    #[case(Holdable::Flight, Some("flight".to_string()))]
+    #[case(Holdable::Kamikaze, Some("kamikaze".to_string()))]
+    #[case(Holdable::Portal, Some("portal".to_string()))]
+    #[case(Holdable::Invulnerability, Some("invulnerability".to_string()))]
+    #[case(Holdable::Unknown, Some("unknown".to_string()))]
     fn opt_string_from_holdable(
         #[case] holdable: Holdable,
         #[case] expected_result: Option<String>,
