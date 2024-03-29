@@ -37,7 +37,7 @@ impl PlayerInfo {
         }
     }
 
-    fn __str__(&self) -> String {
+    fn __str__(&self) -> Cow<str> {
         format!("PlayerInfo(client_id={}, name={}, connection_state={}, userinfo={}, steam_id={}, team={}, privileges={})",
                 self.client_id,
                 self.name,
@@ -45,10 +45,10 @@ impl PlayerInfo {
                 self.userinfo,
                 self.steam_id,
                 self.team,
-                self.privileges)
+                self.privileges).into()
     }
 
-    fn __repr__(&self) -> String {
+    fn __repr__(&self) -> Cow<str> {
         format!("PlayerInfo(client_id={}, name={}, connection_state={}, userinfo={}, steam_id={}, team={}, privileges={})",
                 self.client_id,
                 self.name,
@@ -56,7 +56,7 @@ impl PlayerInfo {
                 self.userinfo,
                 self.steam_id,
                 self.team,
-                self.privileges)
+                self.privileges).into()
     }
 }
 
@@ -85,7 +85,7 @@ impl From<i32> for PlayerInfo {
         #[cfg_attr(test, allow(clippy::unnecessary_fallible_conversions))]
         Client::try_from(client_id).ok().iter().for_each(|client| {
             returned.connection_state = client.get_state() as i32;
-            returned.userinfo = client.get_user_info();
+            returned.userinfo = client.get_user_info().into();
             returned.steam_id = client.get_steam_id() as i64;
         });
 
@@ -130,17 +130,12 @@ player_info = _shinqlx.PlayerInfo(
                 None,
                 None,
             );
-            assert!(
-                player_info_constructor.is_ok(),
-                "{}",
-                player_info_constructor.expect_err("this should not happen")
-            );
+            assert!(player_info_constructor.is_ok());
         });
     }
 
-    #[test]
-    fn player_info_python_string() {
-        let player_info = PlayerInfo {
+    fn default_player_info() -> PlayerInfo {
+        PlayerInfo {
             client_id: 2,
             name: "UnknownPlayer".to_string(),
             connection_state: clientState_t::CS_ACTIVE as i32,
@@ -148,10 +143,13 @@ player_info = _shinqlx.PlayerInfo(
             steam_id: 42,
             team: team_t::TEAM_SPECTATOR as i32,
             privileges: privileges_t::PRIV_NONE as i32,
-        };
+        }
+    }
 
+    #[test]
+    fn player_info_python_string() {
         assert_eq!(
-            player_info.__str__(),
+            default_player_info().__str__(),
             "PlayerInfo(client_id=2, name=UnknownPlayer, connection_state=4, userinfo=asdf, \
             steam_id=42, team=3, privileges=0)"
         );
@@ -159,18 +157,8 @@ player_info = _shinqlx.PlayerInfo(
 
     #[test]
     fn player_info_python_repr() {
-        let player_info = PlayerInfo {
-            client_id: 2,
-            name: "UnknownPlayer".to_string(),
-            connection_state: clientState_t::CS_ACTIVE as i32,
-            userinfo: "asdf".to_string(),
-            steam_id: 42,
-            team: team_t::TEAM_SPECTATOR as i32,
-            privileges: privileges_t::PRIV_NONE as i32,
-        };
-
         assert_eq!(
-            player_info.__repr__(),
+            default_player_info().__repr__(),
             "PlayerInfo(client_id=2, name=UnknownPlayer, connection_state=4, userinfo=asdf, \
             steam_id=42, team=3, privileges=0)"
         );
@@ -201,22 +189,11 @@ player_info = _shinqlx.PlayerInfo(
                 .returning(|| clientState_t::CS_ACTIVE);
             mock_client
                 .expect_get_user_info()
-                .returning(|| "asdf".to_string());
+                .returning(|| "asdf".into());
             mock_client.expect_get_steam_id().returning(|| 42);
             mock_client
         });
 
-        assert_eq!(
-            PlayerInfo::from(2),
-            PlayerInfo {
-                client_id: 2,
-                name: "UnknownPlayer".to_string(),
-                connection_state: clientState_t::CS_ACTIVE as i32,
-                userinfo: "asdf".to_string(),
-                steam_id: 42,
-                team: team_t::TEAM_SPECTATOR as i32,
-                privileges: privileges_t::PRIV_NONE as i32,
-            }
-        );
+        assert_eq!(PlayerInfo::from(2), default_player_info());
     }
 }

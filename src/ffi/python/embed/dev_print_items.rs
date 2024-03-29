@@ -224,7 +224,7 @@ mod dev_print_items_tests {
                     .returning(move || entity_id);
                 mock_game_entity
                     .expect_get_classname()
-                    .returning(|| "super important entity".to_string());
+                    .returning(|| "super important entity".into());
                 mock_game_entity
             });
         game_entity_from_ctx.expect().returning(|_| {
@@ -277,7 +277,7 @@ mod dev_print_items_tests {
                 .returning(move || entity_id);
             mock_game_entity
                 .expect_get_classname()
-                .returning(move || format!("super important entity {}", entity_id));
+                .returning(move || format!("super important entity {}", entity_id).into());
             mock_game_entity
         });
 

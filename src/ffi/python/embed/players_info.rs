@@ -74,7 +74,7 @@ mod get_players_info_tests {
                     .returning(|| clientState_t::CS_ACTIVE);
                 mock_client
                     .expect_get_user_info()
-                    .returning(|| "asdf".to_string());
+                    .returning(|| "asdf".into());
                 mock_client.expect_get_steam_id().returning(|| 1234);
                 mock_client
             });
@@ -89,7 +89,7 @@ mod get_players_info_tests {
                     .returning(|| clientState_t::CS_FREE);
                 mock_client
                     .expect_get_user_info()
-                    .returning(|| "asdf".to_string());
+                    .returning(|| "asdf".into());
                 mock_client.expect_get_steam_id().returning(|| 1234);
                 mock_client
             });
@@ -105,7 +105,7 @@ mod get_players_info_tests {
                     .returning(|| clientState_t::CS_ACTIVE);
                 mock_client
                     .expect_get_user_info()
-                    .returning(|| "asdf".to_string());
+                    .returning(|| "asdf".into());
                 mock_client.expect_get_steam_id().returning(|| 1234);
                 mock_client
             });

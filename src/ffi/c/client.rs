@@ -2,7 +2,7 @@ use super::prelude::*;
 use crate::prelude::*;
 use crate::MAIN_ENGINE;
 
-use alloc::ffi::CString;
+use alloc::{borrow::Cow, ffi::CString};
 use core::ffi::{c_char, CStr};
 
 #[derive(Debug, PartialEq)]
@@ -86,16 +86,12 @@ impl Client {
         });
     }
 
-    pub(crate) fn get_name(&self) -> String {
-        unsafe { CStr::from_ptr(&self.client_t.name as *const c_char) }
-            .to_string_lossy()
-            .to_string()
+    pub(crate) fn get_name(&self) -> Cow<str> {
+        unsafe { CStr::from_ptr(&self.client_t.name as *const c_char) }.to_string_lossy()
     }
 
-    pub(crate) fn get_user_info(&self) -> String {
-        unsafe { CStr::from_ptr(self.client_t.userinfo.as_ptr()) }
-            .to_string_lossy()
-            .to_string()
+    pub(crate) fn get_user_info(&self) -> Cow<'_, str> {
+        unsafe { CStr::from_ptr(self.client_t.userinfo.as_ptr()) }.to_string_lossy()
     }
 
     pub(crate) fn get_steam_id(&self) -> u64 {
@@ -106,12 +102,12 @@ impl Client {
 #[cfg(test)]
 mockall::mock! {
     pub(crate) Client {
-        pub(crate) fn get_name(&self) -> String;
+        pub(crate) fn get_name(&self) -> Cow<'_, str>;
         pub(crate) fn has_gentity(&self) -> bool;
         pub(crate) fn get_client_id(&self) -> i32;
         pub(crate) fn get_state(&self) -> clientState_t;
         pub(crate) fn disconnect(&mut self, reason: &str);
-        pub(crate) fn get_user_info(&self) -> String;
+        pub(crate) fn get_user_info(&self) -> Cow<'_, str>;
         pub(crate) fn get_steam_id(&self) -> u64;
     }
 

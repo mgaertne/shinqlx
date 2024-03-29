@@ -1,6 +1,7 @@
 use super::prelude::*;
 use crate::prelude::*;
 
+use alloc::borrow::Cow;
 use core::ffi::{c_int, CStr};
 
 #[derive(Debug, PartialEq)]
@@ -32,10 +33,8 @@ impl GameClient {
         self.game_client.pers.connected
     }
 
-    pub(crate) fn get_player_name(&self) -> String {
-        unsafe { CStr::from_ptr(self.game_client.pers.netname.as_ptr()) }
-            .to_string_lossy()
-            .to_string()
+    pub(crate) fn get_player_name(&self) -> Cow<str> {
+        unsafe { CStr::from_ptr(self.game_client.pers.netname.as_ptr()) }.to_string_lossy()
     }
 
     pub(crate) fn get_team(&self) -> team_t {
@@ -328,7 +327,7 @@ mockall::mock! {
     pub(crate) GameClient {
         pub(crate) fn get_client_num(&self) -> i32;
         pub(crate) fn get_connection_state(&self) -> clientConnected_t;
-        pub(crate) fn get_player_name(&self) -> String;
+        pub(crate) fn get_player_name(&self) -> Cow<'_, str>;
         pub(crate) fn get_team(&self) -> team_t;
         pub(crate) fn get_privileges(&self) -> privileges_t;
         pub(crate) fn remove_kamikaze_flag(&mut self);

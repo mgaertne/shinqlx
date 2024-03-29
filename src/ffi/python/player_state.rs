@@ -1,6 +1,8 @@
 use super::prelude::*;
 use crate::ffi::c::prelude::*;
 
+use alloc::borrow::Cow;
+
 /// Information about a player's state in the game.
 #[pyclass(module = "_shinqlx", name = "PlayerState", frozen, get_all)]
 #[derive(Debug, PartialEq)]
@@ -26,7 +28,7 @@ pub(crate) struct PlayerState {
     ///The player's powerups.
     pub(crate) powerups: Powerups,
     /// The player's holdable item.
-    pub(crate) holdable: Option<String>,
+    pub(crate) holdable: Option<Cow<'static, str>>,
     /// A struct sequence with flight parameters.
     pub(crate) flight: Flight,
     /// Whether the player is currently chatting.
@@ -37,7 +39,7 @@ pub(crate) struct PlayerState {
 
 #[pymethods]
 impl PlayerState {
-    fn __str__(&self) -> String {
+    fn __str__(&self) -> Cow<str> {
         format!("PlayerState(is_alive={}, position={}, veclocity={}, health={}, armor={}, noclip={}, weapon={}, weapons={}, ammo={}, powerups={}, holdable={}, flight={}, is_chatting={}, is_frozen={})",
                 self.is_alive,
                 self.position.__str__(),
@@ -55,10 +57,10 @@ impl PlayerState {
                 },
                 self.flight.__str__(),
                 self.is_chatting,
-                self.is_frozen)
+                self.is_frozen).into()
     }
 
-    fn __repr__(&self) -> String {
+    fn __repr__(&self) -> Cow<str> {
         format!("PlayerState(is_alive={}, position={}, veclocity={}, health={}, armor={}, noclip={}, weapon={}, weapons={}, ammo={}, powerups={}, holdable={}, flight={}, is_chatting={}, is_frozen={})",
                 self.is_alive,
                 self.position.__str__(),
@@ -76,7 +78,7 @@ impl PlayerState {
                 },
                 self.flight.__str__(),
                 self.is_chatting,
-                self.is_frozen)
+                self.is_frozen).into()
     }
 }
 
@@ -116,6 +118,25 @@ mod player_state_tests {
     use crate::prelude::*;
 
     use pretty_assertions::assert_eq;
+
+    fn default_player_state() -> PlayerState {
+        PlayerState {
+            is_alive: true,
+            position: Vector3(1, 2, 3),
+            velocity: Vector3(4, 5, 6),
+            health: 123,
+            armor: 456,
+            noclip: true,
+            weapon: weapon_t::WP_NAILGUN.into(),
+            weapons: Weapons(1, 1, 1, 0, 0, 0, 1, 1, 1, 0, 0, 0, 1, 1, 1),
+            ammo: Weapons(1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15),
+            powerups: Powerups(12, 34, 56, 78, 90, 24),
+            holdable: Some("kamikaze".into()),
+            flight: Flight(12, 34, 56, 78),
+            is_chatting: true,
+            is_frozen: true,
+        }
+    }
 
     #[test]
     #[serial]
@@ -161,47 +182,13 @@ mod player_state_tests {
         });
         mock_game_entity.expect_get_health().returning(|| 123);
 
-        assert_eq!(
-            PlayerState::from(mock_game_entity),
-            PlayerState {
-                is_alive: true,
-                position: Vector3(1, 2, 3),
-                velocity: Vector3(4, 5, 6),
-                health: 123,
-                armor: 456,
-                noclip: true,
-                weapon: weapon_t::WP_NAILGUN.into(),
-                weapons: Weapons(1, 1, 1, 0, 0, 0, 1, 1, 1, 0, 0, 0, 1, 1, 1),
-                ammo: Weapons(1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15),
-                powerups: Powerups(12, 34, 56, 78, 90, 24),
-                holdable: Some("kamikaze".to_string()),
-                flight: Flight(12, 34, 56, 78),
-                is_chatting: true,
-                is_frozen: true,
-            }
-        );
+        assert_eq!(PlayerState::from(mock_game_entity), default_player_state());
     }
 
     #[test]
     fn player_state_to_str() {
-        let player_state = PlayerState {
-            is_alive: true,
-            position: Vector3(1, 2, 3),
-            velocity: Vector3(4, 5, 6),
-            health: 123,
-            armor: 456,
-            noclip: true,
-            weapon: weapon_t::WP_NAILGUN.into(),
-            weapons: Weapons(1, 1, 1, 0, 0, 0, 1, 1, 1, 0, 0, 0, 1, 1, 1),
-            ammo: Weapons(1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15),
-            powerups: Powerups(12, 34, 56, 78, 90, 24),
-            holdable: Some("kamikaze".to_string()),
-            flight: Flight(12, 34, 56, 78),
-            is_chatting: true,
-            is_frozen: true,
-        };
         assert_eq!(
-            player_state.__str__(),
+            default_player_state().__str__(),
             "PlayerState(\
             is_alive=true, \
             position=Vector3(x=1, y=2, z=3), \
@@ -222,25 +209,13 @@ mod player_state_tests {
     #[test]
     fn player_state_to_str_with_no_holdble() {
         let player_state = PlayerState {
-            is_alive: true,
-            position: Vector3(1, 2, 3),
-            velocity: Vector3(4, 5, 6),
-            health: 123,
-            armor: 456,
-            noclip: true,
-            weapon: weapon_t::WP_NAILGUN.into(),
-            weapons: Weapons(1, 1, 1, 0, 0, 0, 1, 1, 1, 0, 0, 0, 1, 1, 1),
-            ammo: Weapons(1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15),
-            powerups: Powerups(12, 34, 56, 78, 90, 24),
             holdable: None,
-            flight: Flight(12, 34, 56, 78),
-            is_chatting: true,
-            is_frozen: true,
+            ..default_player_state()
         };
 
         assert_eq!(
-                player_state.__str__(),
-                "PlayerState(\
+            player_state.__str__(),
+            "PlayerState(\
             is_alive=true, \
             position=Vector3(x=1, y=2, z=3), \
             veclocity=Vector3(x=4, y=5, z=6), \
@@ -259,25 +234,8 @@ mod player_state_tests {
 
     #[test]
     fn player_state_repr() {
-        let player_state = PlayerState {
-            is_alive: true,
-            position: Vector3(1, 2, 3),
-            velocity: Vector3(4, 5, 6),
-            health: 123,
-            armor: 456,
-            noclip: true,
-            weapon: weapon_t::WP_NAILGUN.into(),
-            weapons: Weapons(1, 1, 1, 0, 0, 0, 1, 1, 1, 0, 0, 0, 1, 1, 1),
-            ammo: Weapons(1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15),
-            powerups: Powerups(12, 34, 56, 78, 90, 24),
-            holdable: Some("kamikaze".to_string()),
-            flight: Flight(12, 34, 56, 78),
-            is_chatting: true,
-            is_frozen: true,
-        };
-
         assert_eq!(
-                player_state.__repr__(),
+                default_player_state().__repr__(),
                 "PlayerState(\
             is_alive=true, \
             position=Vector3(x=1, y=2, z=3), \
@@ -298,20 +256,8 @@ mod player_state_tests {
     #[test]
     fn player_state_repr_with_no_holdable() {
         let player_state = PlayerState {
-            is_alive: true,
-            position: Vector3(1, 2, 3),
-            velocity: Vector3(4, 5, 6),
-            health: 123,
-            armor: 456,
-            noclip: true,
-            weapon: weapon_t::WP_NAILGUN.into(),
-            weapons: Weapons(1, 1, 1, 0, 0, 0, 1, 1, 1, 0, 0, 0, 1, 1, 1),
-            ammo: Weapons(1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15),
-            powerups: Powerups(12, 34, 56, 78, 90, 24),
             holdable: None,
-            flight: Flight(12, 34, 56, 78),
-            is_chatting: true,
-            is_frozen: true,
+            ..default_player_state()
         };
 
         assert_eq!(
