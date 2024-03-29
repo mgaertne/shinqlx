@@ -108,7 +108,7 @@ fn handle_player_death_event(py: Python<'_>, stats: Value) -> PyResult<()> {
     dispatch_player_death_events(
         py,
         opt_victim_steam_id,
-        victim_name.into(),
+        victim_name.to_string(),
         opt_killer_steam_id,
         opt_killer_name,
         stats["DATA"].to_string(),
@@ -225,7 +225,7 @@ fn handle_team_switch_event(py: Python<'_>, stats: Value) -> PyResult<()> {
         dispatch_team_switch_event(
             py,
             opt_steam_id,
-            name.into(),
+            name.to_string(),
             old_team.to_lowercase(),
             new_team.to_lowercase(),
         )?;
@@ -315,7 +315,7 @@ impl StatsListener {
                     Some(host)
                 }
             })
-            .unwrap_or("127.0.0.1".into());
+            .unwrap_or("127.0.0.1".to_string());
         let port = match main_engine.find_cvar("zmq_stats_port") {
             None => main_engine
                 .find_cvar("net_port")

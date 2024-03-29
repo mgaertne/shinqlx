@@ -216,7 +216,7 @@ where
     T: AsRef<str>,
 {
     let re = Regex::new(r#"\^[0-7]"#).unwrap();
-    re.replace_all(text.as_ref(), "").into()
+    re.replace_all(text.as_ref(), "").to_string()
 }
 
 pub(crate) fn parse_variables(varstr: String) -> ParsedVariables {
@@ -241,7 +241,7 @@ impl FromStr for ParsedVariables {
 
         let varstr_vec: Vec<String> = stripped_varstr
             .split('\\')
-            .map(|value| value.into())
+            .map(|value| value.to_string())
             .collect();
 
         if varstr_vec.len() % 2 == 1 {
@@ -350,8 +350,8 @@ fn set_map_subtitles(module: &Bound<'_, PyModule>) -> PyResult<()> {
     map_subtitle1.push_str("^7 with plugins ^6");
     let plugins_version = module
         .getattr(intern!(module.py(), "__plugins_version__"))
-        .map(|value| value.extract::<String>().unwrap_or("NOT_SET".into()))
-        .unwrap_or("NOT_SET".into());
+        .map(|value| value.extract::<String>().unwrap_or("NOT_SET".to_string()))
+        .unwrap_or("NOT_SET".to_string());
     map_subtitle1.push_str(&plugins_version);
     map_subtitle1.push_str("^7.");
 
@@ -778,7 +778,7 @@ fn try_get_plugins_version(path: String) -> Result<String, git2::Error> {
 }
 
 fn get_plugins_version(path: String) -> String {
-    try_get_plugins_version(path).unwrap_or("NOT_SET".into())
+    try_get_plugins_version(path).unwrap_or("NOT_SET".to_string())
 }
 
 #[pyfunction(name = "set_plugins_version")]
@@ -824,7 +824,7 @@ fn load_preset_plugins(py: Python<'_>) -> PyResult<()> {
         plugins.retain(|&value| value != "DEFAULT");
     }
     plugins.iter().unique().for_each(|&plugin| {
-        let _ = load_plugin(py, plugin.into());
+        let _ = load_plugin(py, plugin.to_string());
     });
 
     Ok(())
@@ -1117,7 +1117,7 @@ fn late_init(py: Python<'_>) -> PyResult<()> {
     let sys_module = py.import_bound(intern!(py, "sys"))?;
 
     if let Ok(real_plugins_path) = try_get_plugins_path() {
-        set_plugins_version(py, real_plugins_path.to_string_lossy().into());
+        set_plugins_version(py, real_plugins_path.to_string_lossy().to_string());
 
         let Some(plugins_path_dirname) = real_plugins_path
             .parent()
@@ -1538,7 +1538,11 @@ fn pyshinqlx_module(py: Python<'_>, m: &Bound<'_, PyModule>) -> PyResult<()> {
         "CHAT_CHANNEL",
         Py::new(
             py,
-            TeamChatChannel::py_new("all".into(), "chat".into(), "print \"{}\n\"\n".into()),
+            TeamChatChannel::py_new(
+                "all".to_string(),
+                "chat".to_string(),
+                "print \"{}\n\"\n".to_string(),
+            ),
         )?
         .to_object(py),
     )?;
@@ -1547,9 +1551,9 @@ fn pyshinqlx_module(py: Python<'_>, m: &Bound<'_, PyModule>) -> PyResult<()> {
         Py::new(
             py,
             TeamChatChannel::py_new(
-                "red".into(),
-                "red_team_chat".into(),
-                "print \"{}\n\"\n".into(),
+                "red".to_string(),
+                "red_team_chat".to_string(),
+                "print \"{}\n\"\n".to_string(),
             ),
         )?
         .to_object(py),
@@ -1559,9 +1563,9 @@ fn pyshinqlx_module(py: Python<'_>, m: &Bound<'_, PyModule>) -> PyResult<()> {
         Py::new(
             py,
             TeamChatChannel::py_new(
-                "blue".into(),
-                "blue_team_chat".into(),
-                "print \"{}\n\"\n".into(),
+                "blue".to_string(),
+                "blue_team_chat".to_string(),
+                "print \"{}\n\"\n".to_string(),
             ),
         )?
         .to_object(py),
@@ -1570,7 +1574,11 @@ fn pyshinqlx_module(py: Python<'_>, m: &Bound<'_, PyModule>) -> PyResult<()> {
         "FREE_CHAT_CHANNEL",
         Py::new(
             py,
-            TeamChatChannel::py_new("free".into(), "free_chat".into(), "print \"{}\n\"\n".into()),
+            TeamChatChannel::py_new(
+                "free".to_string(),
+                "free_chat".to_string(),
+                "print \"{}\n\"\n".to_string(),
+            ),
         )?
         .to_object(py),
     )?;
@@ -1579,9 +1587,9 @@ fn pyshinqlx_module(py: Python<'_>, m: &Bound<'_, PyModule>) -> PyResult<()> {
         Py::new(
             py,
             TeamChatChannel::py_new(
-                "spectator".into(),
-                "spectator_chat".into(),
-                "print \"{}\n\"\n".into(),
+                "spectator".to_string(),
+                "spectator_chat".to_string(),
+                "print \"{}\n\"\n".to_string(),
             ),
         )?
         .to_object(py),

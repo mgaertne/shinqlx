@@ -127,15 +127,15 @@ mod holdable_tests {
 
     #[rstest]
     #[case(None, Holdable::None)]
-    #[case(Some("none".into()), Holdable::None)]
-    #[case(Some("teleporter".into()), Holdable::Teleporter)]
-    #[case(Some("medkit".into()), Holdable::MedKit)]
-    #[case(Some("flight".into()), Holdable::Flight)]
-    #[case(Some("kamikaze".into()), Holdable::Kamikaze)]
-    #[case(Some("portal".into()), Holdable::Portal)]
-    #[case(Some("invulnerability".into()), Holdable::Invulnerability)]
-    #[case(Some("unknown".into()), Holdable::Unknown)]
-    #[case(Some("asdf".into()), Holdable::Unknown)]
+    #[case(Some("none".to_string()), Holdable::None)]
+    #[case(Some("teleporter".to_string()), Holdable::Teleporter)]
+    #[case(Some("medkit".to_string()), Holdable::MedKit)]
+    #[case(Some("flight".to_string()), Holdable::Flight)]
+    #[case(Some("kamikaze".to_string()), Holdable::Kamikaze)]
+    #[case(Some("portal".to_string()), Holdable::Portal)]
+    #[case(Some("invulnerability".to_string()), Holdable::Invulnerability)]
+    #[case(Some("unknown".to_string()), Holdable::Unknown)]
+    #[case(Some("asdf".to_string()), Holdable::Unknown)]
     fn holdable_from_opt_string(
         #[case] holdable_str: Option<String>,
         #[case] expected_holdable: Holdable,

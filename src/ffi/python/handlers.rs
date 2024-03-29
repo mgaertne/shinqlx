@@ -221,7 +221,7 @@ fn try_handle_client_command(py: Python<'_>, client_id: i32, cmd: String) -> PyR
 
     if let Some(captures) = RE_USERINFO.captures(&updated_cmd) {
         if let Some(vars) = captures.name("vars") {
-            let new_info = parse_variables(vars.as_str().into());
+            let new_info = parse_variables(vars.as_str().to_string());
             let old_info = parse_variables(player.user_info.clone());
 
             let changed: Vec<&(String, String)> = new_info

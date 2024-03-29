@@ -75,7 +75,7 @@ impl AbstractChannel {
         self.name.clone()
     }
 
-    #[pyo3(signature = (msg, limit=100, delimiter=" ".into()))]
+    #[pyo3(signature = (msg, limit=100, delimiter=" ".to_string()))]
     fn reply(
         #[allow(unused_variables)] self_: PyRef<'_, Self>,
         #[allow(unused_variables)] msg: String,
@@ -85,7 +85,7 @@ impl AbstractChannel {
         Err(PyNotImplementedError::new_err("not implemented"))
     }
 
-    #[pyo3(signature = (msg, limit=100, delimiter=" ".into()))]
+    #[pyo3(signature = (msg, limit=100, delimiter=" ".to_string()))]
     fn split_long_lines(&self, msg: String, limit: i32, delimiter: String) -> Vec<String> {
         let split_string = msg.split('\n').flat_map(|value| {
             if value.len() <= limit as usize {
@@ -100,7 +100,7 @@ impl AbstractChannel {
                         if !next_string.is_empty() {
                             result.push(next_string);
                         }
-                        next_string = item.into();
+                        next_string = item.to_string();
                     }
                 }
                 if !next_string.is_empty() {
@@ -243,7 +243,7 @@ _shinqlx.AbstractChannel("abstract") < 2
     #[test]
     fn get_name() {
         let abstract_channel = AbstractChannel {
-            name: "abstract".into(),
+            name: "abstract".to_string(),
         };
         assert_eq!(abstract_channel.get_name(), "abstract");
     }
@@ -252,12 +252,13 @@ _shinqlx.AbstractChannel("abstract") < 2
     #[cfg_attr(miri, ignore)]
     fn reply_is_not_implemented() {
         Python::with_gil(|py| {
-            let abstract_channel = Py::new(py, AbstractChannel::py_new("abstract".into())).unwrap();
+            let abstract_channel =
+                Py::new(py, AbstractChannel::py_new("abstract".to_string())).unwrap();
             let result = AbstractChannel::reply(
                 abstract_channel.bind(py).borrow(),
-                "asdf".into(),
+                "asdf".to_string(),
                 100,
-                " ".into(),
+                " ".to_string(),
             );
             assert!(result.is_err_and(|err| err.is_instance_of::<PyNotImplementedError>(py)));
         });
@@ -266,9 +267,9 @@ _shinqlx.AbstractChannel("abstract") < 2
     #[test]
     fn split_long_lines_with_short_string() {
         let abstract_channel = AbstractChannel {
-            name: "abstract".into(),
+            name: "abstract".to_string(),
         };
-        let result = abstract_channel.split_long_lines("short".into(), 100, " ".into());
+        let result = abstract_channel.split_long_lines("short".to_string(), 100, " ".to_string());
 
         assert_eq!(result, vec!["short".to_string()]);
     }
@@ -276,12 +277,12 @@ _shinqlx.AbstractChannel("abstract") < 2
     #[test]
     fn split_long_lines_with_string_that_is_split() {
         let abstract_channel = AbstractChannel {
-            name: "abstract".into(),
+            name: "abstract".to_string(),
         };
         let result = abstract_channel.split_long_lines(
-            "asdf1 asdf2 asdf3 asdf4\nasdf5\nasdf6".into(),
+            "asdf1 asdf2 asdf3 asdf4\nasdf5\nasdf6".to_string(),
             5,
-            " ".into(),
+            " ".to_string(),
         );
 
         assert_eq!(
@@ -300,12 +301,12 @@ _shinqlx.AbstractChannel("abstract") < 2
     #[test]
     fn split_long_lines_with_string_with_multiple_chunks() {
         let abstract_channel = AbstractChannel {
-            name: "abstract".into(),
+            name: "abstract".to_string(),
         };
         let result = abstract_channel.split_long_lines(
-            "asdf1 asdf2 asdf3 asdf4\nasdf5\nasdf6".into(),
+            "asdf1 asdf2 asdf3 asdf4\nasdf5\nasdf6".to_string(),
             15,
-            " ".into(),
+            " ".to_string(),
         );
 
         assert_eq!(
@@ -335,10 +336,11 @@ pub(crate) struct ConsoleChannel {}
 impl ConsoleChannel {
     #[new]
     pub(crate) fn py_new() -> PyClassInitializer<Self> {
-        PyClassInitializer::from(AbstractChannel::py_new("console".into())).add_subclass(Self {})
+        PyClassInitializer::from(AbstractChannel::py_new("console".to_string()))
+            .add_subclass(Self {})
     }
 
-    #[pyo3(signature = (msg, limit=100, delimiter=" ".into()))]
+    #[pyo3(signature = (msg, limit=100, delimiter=" ".to_string()))]
     fn reply(
         #[allow(unused_variables)] self_: PyRef<'_, Self>,
         py: Python<'_>,
@@ -391,9 +393,9 @@ console_channel = _shinqlx.ConsoleChannel()
             ConsoleChannel::reply(
                 console_channel.bind(py).borrow(),
                 py,
-                "asdf".into(),
+                "asdf".to_string(),
                 100,
-                " ".into(),
+                " ".to_string(),
             )
         });
         assert!(result.is_ok());
@@ -418,7 +420,7 @@ pub(crate) struct ChatChannel {
 #[pymethods]
 impl ChatChannel {
     #[new]
-    #[pyo3(signature = (name = "chat".into(), fmt = "print \"{}\n\"\n".into()))]
+    #[pyo3(signature = (name = "chat".to_string(), fmt = "print \"{}\n\"\n".to_string()))]
     fn py_new(name: String, fmt: String) -> PyClassInitializer<Self> {
         PyClassInitializer::from(AbstractChannel::py_new(name)).add_subclass(Self { fmt })
     }
@@ -427,7 +429,7 @@ impl ChatChannel {
         Err(PyNotImplementedError::new_err(""))
     }
 
-    #[pyo3(signature = (msg, limit=100, delimiter=" ".into()))]
+    #[pyo3(signature = (msg, limit=100, delimiter=" ".to_string()))]
     fn reply(
         self_: &Bound<'_, Self>,
         py: Python<'_>,
@@ -507,7 +509,7 @@ def reply(targets, msg):
             }
 
             if let Some(color_tag) = re_color_tag.find_iter(&message).last() {
-                last_color = color_tag.as_str().into();
+                last_color = color_tag.as_str().to_string();
             }
         }
 
@@ -543,7 +545,7 @@ chat_channel = _shinqlx.ChatChannel()
     fn receipients_is_not_implemented() {
         Python::with_gil(|py| {
             let chat_channel = ChatChannel {
-                fmt: "print\"{}\n\"\n".into(),
+                fmt: "print\"{}\n\"\n".to_string(),
             };
             let result = chat_channel.recipients();
             assert!(result.is_err_and(|err| err.is_instance_of::<PyNotImplementedError>(py)));
@@ -567,9 +569,9 @@ pub(crate) struct TellChannel {
 impl TellChannel {
     #[new]
     pub(crate) fn py_new(player: &Player) -> PyClassInitializer<Self> {
-        PyClassInitializer::from(AbstractChannel::py_new("tell".into()))
+        PyClassInitializer::from(AbstractChannel::py_new("tell".to_string()))
             .add_subclass(ChatChannel {
-                fmt: "print \"{}\n\"\n".into(),
+                fmt: "print \"{}\n\"\n".to_string(),
             })
             .add_subclass(Self {
                 client_id: player.id,
@@ -607,16 +609,16 @@ mod tell_channel_tests {
             id: 2,
             player_info: PlayerInfo {
                 client_id: 2,
-                name: "".into(),
+                name: "".to_string(),
                 connection_state: clientState_t::CS_CONNECTED as i32,
-                userinfo: "".into(),
+                userinfo: "".to_string(),
                 steam_id: 1234567890,
                 team: team_t::TEAM_SPECTATOR as i32,
                 privileges: privileges_t::PRIV_NONE as i32,
             },
-            user_info: "".into(),
+            user_info: "".to_string(),
             steam_id: 1234567890,
-            name: "".into(),
+            name: "".to_string(),
         }
     }
 
@@ -711,7 +713,7 @@ pub(crate) struct TeamChatChannel {
 #[pymethods]
 impl TeamChatChannel {
     #[new]
-    #[pyo3(signature = (team="all".into(), name="chat".into(), fmt="print \"{}\n\"\n".into()))]
+    #[pyo3(signature = (team="all".to_string(), name="chat".to_string(), fmt="print \"{}\n\"\n".to_string()))]
     pub(crate) fn py_new(team: String, name: String, fmt: String) -> PyClassInitializer<Self> {
         PyClassInitializer::from(AbstractChannel::py_new(name))
             .add_subclass(ChatChannel { fmt })
@@ -779,11 +781,11 @@ tell_channel = _shinqlx.TeamChatChannel("all")
     }
 
     #[rstest]
-    #[case("all".into(), None)]
-    #[case("red".into(), Some(vec![1, 5]))]
-    #[case("blue".into(), Some(vec![2, 6]))]
-    #[case("spectator".into(), Some(vec![3, 7]))]
-    #[case("free".into(), Some(vec![0, 4]))]
+    #[case("all".to_string(), None)]
+    #[case("red".to_string(), Some(vec![1, 5]))]
+    #[case("blue".to_string(), Some(vec![2, 6]))]
+    #[case("spectator".to_string(), Some(vec![3, 7]))]
+    #[case("free".to_string(), Some(vec![0, 4]))]
     #[cfg_attr(miri, ignore)]
     #[serial]
     fn recipients_returns_client_ids(#[case] team: String, #[case] expected_ids: Option<Vec<i32>>) {
@@ -802,7 +804,7 @@ tell_channel = _shinqlx.TeamChatChannel("all")
                     .returning(|| clientState_t::CS_ACTIVE);
                 mock_client
                     .expect_get_user_info()
-                    .returning(|| "asdf".into());
+                    .returning(|| "asdf".to_string());
                 mock_client.expect_get_steam_id().returning(|| 1234);
                 mock_client
             });
@@ -815,7 +817,7 @@ tell_channel = _shinqlx.TeamChatChannel("all")
                 let mut mock_game_entity = MockGameEntity::new();
                 mock_game_entity
                     .expect_get_player_name()
-                    .returning(|| "Mocked Player".into());
+                    .returning(|| "Mocked Player".to_string());
                 mock_game_entity
                     .expect_get_team()
                     .returning(move || match client_id {
@@ -857,7 +859,7 @@ tell_channel = _shinqlx.TeamChatChannel("all")
                     .returning(|| clientState_t::CS_ACTIVE);
                 mock_client
                     .expect_get_user_info()
-                    .returning(|| "asdf".into());
+                    .returning(|| "asdf".to_string());
                 mock_client.expect_get_steam_id().returning(|| 1234);
                 mock_client
             });
@@ -870,7 +872,7 @@ tell_channel = _shinqlx.TeamChatChannel("all")
                 let mut mock_game_entity = MockGameEntity::new();
                 mock_game_entity
                     .expect_get_player_name()
-                    .returning(|| "Mocked Player".into());
+                    .returning(|| "Mocked Player".to_string());
                 mock_game_entity
                     .expect_get_team()
                     .returning(move || match client_id {
@@ -889,7 +891,7 @@ tell_channel = _shinqlx.TeamChatChannel("all")
             });
 
         let team_chat_channel = TeamChatChannel {
-            team: "invalid".into(),
+            team: "invalid".to_string(),
         };
         let result = Python::with_gil(|py| team_chat_channel.recipients(py));
         assert!(result.is_ok_and(|ids| ids == Some(vec![])));
@@ -913,11 +915,10 @@ pub(crate) struct ClientCommandChannel {
 impl ClientCommandChannel {
     #[new]
     pub(crate) fn py_new(player: &Player) -> PyClassInitializer<Self> {
-        PyClassInitializer::from(AbstractChannel::py_new("client_command".into())).add_subclass(
-            Self {
+        PyClassInitializer::from(AbstractChannel::py_new("client_command".to_string()))
+            .add_subclass(Self {
                 client_id: player.id,
-            },
-        )
+            })
     }
 
     fn __repr__(&self) -> String {
@@ -935,13 +936,13 @@ impl ClientCommandChannel {
         Py::new(py, TellChannel::py_new(&player))
     }
 
-    #[pyo3(signature = (msg, limit=100, delimiter="".into()))]
+    #[pyo3(signature = (msg, limit=100, delimiter="".to_string()))]
     fn reply(&self, py: Python<'_>, msg: String, limit: i32, delimiter: String) -> PyResult<()> {
         let tell_channel = Py::new(
             py,
-            PyClassInitializer::from(AbstractChannel::py_new("tell".into()))
+            PyClassInitializer::from(AbstractChannel::py_new("tell".to_string()))
                 .add_subclass(ChatChannel {
-                    fmt: "print \"{}\n\"\n".into(),
+                    fmt: "print \"{}\n\"\n".to_string(),
                 })
                 .add_subclass(TellChannel {
                     client_id: self.client_id,
@@ -971,16 +972,16 @@ mod client_command_channel_tests {
             id: 2,
             player_info: PlayerInfo {
                 client_id: 2,
-                name: "".into(),
+                name: "".to_string(),
                 connection_state: clientState_t::CS_CONNECTED as i32,
-                userinfo: "".into(),
+                userinfo: "".to_string(),
                 steam_id: 1234567890,
                 team: team_t::TEAM_SPECTATOR as i32,
                 privileges: privileges_t::PRIV_NONE as i32,
             },
-            user_info: "".into(),
+            user_info: "".to_string(),
             steam_id: 1234567890,
-            name: "".into(),
+            name: "".to_string(),
         }
     }
 

@@ -7,7 +7,7 @@ where
     T: AsRef<str>,
 {
     if !pyshinqlx_is_initialized() {
-        return Some(cmd.as_ref().into());
+        return Some(cmd.as_ref().to_string());
     }
 
     Python::with_gil(|py| {
@@ -17,7 +17,7 @@ where
             .extract::<bool>()
             .map(|bool_value| {
                 if bool_value {
-                    Some(cmd.as_ref().into())
+                    Some(cmd.as_ref().to_string())
                 } else {
                     None
                 }
@@ -26,7 +26,7 @@ where
                 result
                     .bind(py)
                     .extract::<String>()
-                    .unwrap_or(cmd.as_ref().into()),
+                    .unwrap_or(cmd.as_ref().to_string()),
             ))
     })
 }
@@ -36,7 +36,7 @@ where
     T: AsRef<str>,
 {
     if !pyshinqlx_is_initialized() {
-        return Some(cmd.as_ref().into());
+        return Some(cmd.as_ref().to_string());
     }
 
     Python::with_gil(|py| {
@@ -46,7 +46,7 @@ where
             .extract::<bool>()
             .map(|bool_value| {
                 if bool_value {
-                    Some(cmd.as_ref().into())
+                    Some(cmd.as_ref().to_string())
                 } else {
                     None
                 }
@@ -55,7 +55,7 @@ where
                 result
                     .bind(py)
                     .extract::<String>()
-                    .unwrap_or(cmd.as_ref().into()),
+                    .unwrap_or(cmd.as_ref().to_string()),
             ))
     })
 }
@@ -86,7 +86,7 @@ pub(crate) fn client_connect_dispatcher(client_id: i32, is_bot: bool) -> Option<
             .extract::<bool>()
             .map(|bool_value| {
                 if !bool_value {
-                    Some("You are banned from this server.".into())
+                    Some("You are banned from this server.".to_string())
                 } else {
                     None
                 }
@@ -115,7 +115,9 @@ where
         ALLOW_FREE_CLIENT.store(allowed_clients | (1 << client_id as u64), Ordering::SeqCst);
     }
 
-    Python::with_gil(|py| handle_player_disconnect(py, client_id, Some(reason.as_ref().into())));
+    Python::with_gil(|py| {
+        handle_player_disconnect(py, client_id, Some(reason.as_ref().to_string()))
+    });
 
     {
         let allowed_clients = ALLOW_FREE_CLIENT.load(Ordering::SeqCst);
@@ -145,7 +147,7 @@ where
     U: AsRef<str>,
 {
     if !pyshinqlx_is_initialized() {
-        return Some(value.as_ref().into());
+        return Some(value.as_ref().to_string());
     }
 
     Python::with_gil(|py| {
@@ -155,7 +157,7 @@ where
             .extract::<bool>()
             .map(|bool_value| {
                 if bool_value {
-                    Some(value.as_ref().into())
+                    Some(value.as_ref().to_string())
                 } else {
                     None
                 }
@@ -164,7 +166,7 @@ where
                 result
                     .bind(py)
                     .extract::<String>()
-                    .unwrap_or(value.as_ref().into()),
+                    .unwrap_or(value.as_ref().to_string()),
             ))
     })
 }
@@ -185,17 +187,17 @@ where
     T: AsRef<str>,
 {
     if !pyshinqlx_is_initialized() {
-        return Some(text.as_ref().into());
+        return Some(text.as_ref().to_string());
     }
 
     Python::with_gil(|py| {
-        let result = handle_console_print(py, text.as_ref().into());
+        let result = handle_console_print(py, text.as_ref().to_string());
         result
             .bind(py)
             .extract::<bool>()
             .map(|bool_value| {
                 if bool_value {
-                    Some(text.as_ref().into())
+                    Some(text.as_ref().to_string())
                 } else {
                     None
                 }
@@ -204,7 +206,7 @@ where
                 result
                     .bind(py)
                     .extract::<String>()
-                    .unwrap_or(text.as_ref().into()),
+                    .unwrap_or(text.as_ref().to_string()),
             ))
     })
 }
@@ -282,7 +284,7 @@ mod pyshinqlx_dispatcher_tests {
         handle_client_command_ctx.expect().times(0);
 
         let result = client_command_dispatcher(123, "asdf");
-        assert_eq!(result, Some("asdf".into()));
+        assert_eq!(result, Some("asdf".to_string()));
     }
 
     #[test]
@@ -298,7 +300,7 @@ mod pyshinqlx_dispatcher_tests {
             .returning(|py, _, cmd| cmd.into_py(py));
 
         let result = client_command_dispatcher(123, "asdf");
-        assert_eq!(result, Some("asdf".into()));
+        assert_eq!(result, Some("asdf".to_string()));
     }
 
     #[test]
@@ -314,7 +316,7 @@ mod pyshinqlx_dispatcher_tests {
             .returning(|py, _, _| "qwertz".into_py(py));
 
         let result = client_command_dispatcher(123, "asdf");
-        assert_eq!(result, Some("qwertz".into()));
+        assert_eq!(result, Some("qwertz".to_string()));
     }
 
     #[test]
@@ -330,7 +332,7 @@ mod pyshinqlx_dispatcher_tests {
             .returning(|py, _, _| true.into_py(py));
 
         let result = client_command_dispatcher(123, "asdf");
-        assert_eq!(result, Some("asdf".into()));
+        assert_eq!(result, Some("asdf".to_string()));
     }
 
     #[test]
@@ -362,7 +364,7 @@ mod pyshinqlx_dispatcher_tests {
             .returning(|py, _, _| (1, 2, 3).into_py(py));
 
         let result = client_command_dispatcher(123, "asdf");
-        assert_eq!(result, Some("asdf".into()));
+        assert_eq!(result, Some("asdf".to_string()));
     }
 
     #[test]
@@ -375,7 +377,7 @@ mod pyshinqlx_dispatcher_tests {
         handle_server_command_ctx.expect().times(0);
 
         let result = server_command_dispatcher(Some(123), "asdf");
-        assert_eq!(result, Some("asdf".into()));
+        assert_eq!(result, Some("asdf".to_string()));
     }
 
     #[test]
@@ -391,7 +393,7 @@ mod pyshinqlx_dispatcher_tests {
             .returning(|py, _, cmd| cmd.into_py(py));
 
         let result = server_command_dispatcher(Some(123), "asdf");
-        assert_eq!(result, Some("asdf".into()));
+        assert_eq!(result, Some("asdf".to_string()));
     }
 
     #[test]
@@ -407,7 +409,7 @@ mod pyshinqlx_dispatcher_tests {
             .returning(|py, _, _| "qwertz".into_py(py));
 
         let result = server_command_dispatcher(Some(123), "asdf");
-        assert_eq!(result, Some("qwertz".into()));
+        assert_eq!(result, Some("qwertz".to_string()));
     }
 
     #[test]
@@ -423,7 +425,7 @@ mod pyshinqlx_dispatcher_tests {
             .returning(|py, _, _| true.into_py(py));
 
         let result = server_command_dispatcher(Some(123), "asdf");
-        assert_eq!(result, Some("asdf".into()));
+        assert_eq!(result, Some("asdf".to_string()));
     }
 
     #[test]
@@ -455,7 +457,7 @@ mod pyshinqlx_dispatcher_tests {
             .returning(|py, _, _| (1, 2, 3).into_py(py));
 
         let result = server_command_dispatcher(Some(123), "asdf");
-        assert_eq!(result, Some("asdf".into()));
+        assert_eq!(result, Some("asdf".to_string()));
     }
 
     #[test]
@@ -509,7 +511,7 @@ mod pyshinqlx_dispatcher_tests {
             .returning(|py, _, _| "qwertz".into_py(py));
 
         let result = client_connect_dispatcher(42, false);
-        assert_eq!(result, Some("qwertz".into()));
+        assert_eq!(result, Some("qwertz".to_string()));
     }
 
     #[test]
@@ -541,7 +543,7 @@ mod pyshinqlx_dispatcher_tests {
             .returning(|py, _, _| false.into_py(py));
 
         let result = client_connect_dispatcher(42, true);
-        assert_eq!(result, Some("You are banned from this server.".into()));
+        assert_eq!(result, Some("You are banned from this server.".to_string()));
     }
 
     #[test]
@@ -695,7 +697,7 @@ mod pyshinqlx_dispatcher_tests {
         handle_set_configstring_ctx.expect().times(0);
 
         let result = set_configstring_dispatcher(666u32, "asdf");
-        assert_eq!(result, Some("asdf".into()));
+        assert_eq!(result, Some("asdf".to_string()));
     }
 
     #[test]
@@ -711,7 +713,7 @@ mod pyshinqlx_dispatcher_tests {
             .returning(|py, _, value| value.into_py(py));
 
         let result = set_configstring_dispatcher(123u32, "asdf");
-        assert_eq!(result, Some("asdf".into()));
+        assert_eq!(result, Some("asdf".to_string()));
     }
 
     #[test]
@@ -727,7 +729,7 @@ mod pyshinqlx_dispatcher_tests {
             .returning(|py, _, _| "qwertz".into_py(py));
 
         let result = set_configstring_dispatcher(123u32, "asdf");
-        assert_eq!(result, Some("qwertz".into()));
+        assert_eq!(result, Some("qwertz".to_string()));
     }
 
     #[test]
@@ -743,7 +745,7 @@ mod pyshinqlx_dispatcher_tests {
             .returning(|py, _, _| true.into_py(py));
 
         let result = set_configstring_dispatcher(123u32, "asdf");
-        assert_eq!(result, Some("asdf".into()));
+        assert_eq!(result, Some("asdf".to_string()));
     }
 
     #[test]
@@ -775,7 +777,7 @@ mod pyshinqlx_dispatcher_tests {
             .returning(|py, _, _| (1, 2, 3).into_py(py));
 
         let result = set_configstring_dispatcher(123u32, "asdf");
-        assert_eq!(result, Some("asdf".into()));
+        assert_eq!(result, Some("asdf".to_string()));
     }
 
     #[test]
@@ -813,7 +815,7 @@ mod pyshinqlx_dispatcher_tests {
         handle_console_print_ctx.expect().times(0);
 
         let result = console_print_dispatcher("asdf");
-        assert_eq!(result, Some("asdf".into()));
+        assert_eq!(result, Some("asdf".to_string()));
     }
 
     #[test]
@@ -829,7 +831,7 @@ mod pyshinqlx_dispatcher_tests {
             .returning(|py, text| text.into_py(py));
 
         let result = console_print_dispatcher("asdf");
-        assert_eq!(result, Some("asdf".into()));
+        assert_eq!(result, Some("asdf".to_string()));
     }
 
     #[test]
@@ -845,7 +847,7 @@ mod pyshinqlx_dispatcher_tests {
             .returning(|py, _| "qwertz".into_py(py));
 
         let result = console_print_dispatcher("asdf");
-        assert_eq!(result, Some("qwertz".into()));
+        assert_eq!(result, Some("qwertz".to_string()));
     }
 
     #[test]
@@ -861,7 +863,7 @@ mod pyshinqlx_dispatcher_tests {
             .returning(|py, _| true.into_py(py));
 
         let result = console_print_dispatcher("asdf");
-        assert_eq!(result, Some("asdf".into()));
+        assert_eq!(result, Some("asdf".to_string()));
     }
 
     #[test]
@@ -893,7 +895,7 @@ mod pyshinqlx_dispatcher_tests {
             .returning(|py, _| (1, 2, 3).into_py(py));
 
         let result = console_print_dispatcher("asdf");
-        assert_eq!(result, Some("asdf".into()));
+        assert_eq!(result, Some("asdf".to_string()));
     }
 
     #[test]
