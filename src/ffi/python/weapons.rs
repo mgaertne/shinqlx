@@ -5,8 +5,8 @@ use alloc::borrow::Cow;
 use pyo3::{basic::CompareOp, exceptions::PyValueError, types::PyTuple};
 
 /// A struct sequence containing all the weapons in the game.
-#[pyclass(frozen)]
-#[pyo3(module = "shinqlx", name = "Weapons", get_all)]
+#[pyclass]
+#[pyo3(module = "shinqlx", name = "Weapons", frozen, get_all)]
 #[derive(PartialEq, Eq, Debug, Clone, Copy)]
 pub(crate) struct Weapons(
     #[pyo3(name = "g")] pub(crate) i32,
