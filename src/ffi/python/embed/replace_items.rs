@@ -226,7 +226,7 @@ mod replace_items_tests {
                 .returning(|_| true);
             mock_game_entity
                 .expect_get_classname()
-                .returning(|| "available_classname".into());
+                .returning(|| "available_classname".to_string());
             mock_game_entity
         });
 
@@ -252,7 +252,7 @@ mod replace_items_tests {
             let mut mock_game_item = MockGameItem::new();
             mock_game_item
                 .expect_get_classname()
-                .returning(|| "available_classname".into());
+                .returning(|| "available_classname".to_string());
             mock_game_item
         });
 
@@ -364,14 +364,14 @@ mod replace_items_tests {
                 let mut mock_game_item = MockGameItem::new();
                 mock_game_item
                     .expect_get_classname()
-                    .returning(|| "weapon_bfg".into());
+                    .returning(|| "weapon_bfg".to_string());
                 mock_game_item
             });
         game_item_from_ctx.expect().returning(|_| {
             let mut mock_game_item = MockGameItem::new();
             mock_game_item
                 .expect_get_classname()
-                .returning(|| "available_classname".into());
+                .returning(|| "available_classname".to_string());
             mock_game_item
         });
 
@@ -418,14 +418,14 @@ mod replace_items_tests {
                 let mut mock_game_item = MockGameItem::new();
                 mock_game_item
                     .expect_get_classname()
-                    .returning(|| "weapon_bfg".into());
+                    .returning(|| "weapon_bfg".to_string());
                 mock_game_item
             });
         game_item_from_ctx.expect().returning(|_| {
             let mut mock_game_item = MockGameItem::new();
             mock_game_item
                 .expect_get_classname()
-                .returning(|| "available_classname".into());
+                .returning(|| "available_classname".to_string());
             mock_game_item
         });
 
@@ -442,7 +442,7 @@ mod replace_items_tests {
                     .returning(|_| true);
                 mock_game_entity
                     .expect_get_classname()
-                    .returning(|| "weapon_railgun".into());
+                    .returning(|| "weapon_railgun".to_string());
                 mock_game_entity.expect_replace_item().times(0);
                 mock_game_entity
             });
@@ -458,7 +458,7 @@ mod replace_items_tests {
                     .returning(|_| false);
                 mock_game_entity
                     .expect_get_classname()
-                    .returning(|| "weapon_railgun".into());
+                    .returning(|| "weapon_railgun".to_string());
                 mock_game_entity.expect_replace_item().times(0);
                 mock_game_entity
             });
@@ -474,7 +474,7 @@ mod replace_items_tests {
                     .returning(|_| true);
                 mock_game_entity
                     .expect_get_classname()
-                    .returning(|| "weapon_shotgun".into());
+                    .returning(|| "weapon_shotgun".to_string());
                 mock_game_entity.expect_replace_item().times(0);
                 mock_game_entity
             });
@@ -490,7 +490,7 @@ mod replace_items_tests {
                     .returning(|_| true);
                 mock_game_entity
                     .expect_get_classname()
-                    .returning(|| "weapon_railgun".into());
+                    .returning(|| "weapon_railgun".to_string());
                 mock_game_entity
                     .expect_replace_item()
                     .with(predicate::eq(2))
@@ -506,7 +506,7 @@ mod replace_items_tests {
                 .returning(|_| true);
             mock_game_entity
                 .expect_get_classname()
-                .returning(|| "other_classname".into());
+                .returning(|| "other_classname".to_string());
             mock_game_entity.expect_replace_item().times(0);
             mock_game_entity
         });
@@ -536,14 +536,14 @@ mod replace_items_tests {
                 let mut mock_game_item = MockGameItem::new();
                 mock_game_item
                     .expect_get_classname()
-                    .returning(|| "weapon_bfg".into());
+                    .returning(|| "weapon_bfg".to_string());
                 mock_game_item
             });
         game_item_from_ctx.expect().returning(|_| {
             let mut mock_game_item = MockGameItem::new();
             mock_game_item
                 .expect_get_classname()
-                .returning(|| "available_classname".into());
+                .returning(|| "available_classname".to_string());
             mock_game_item
         });
 
@@ -560,7 +560,7 @@ mod replace_items_tests {
                     .returning(|_| true);
                 mock_game_entity
                     .expect_get_classname()
-                    .returning(|| "weapon_railgun".into());
+                    .returning(|| "weapon_railgun".to_string());
                 mock_game_entity
                     .expect_replace_item()
                     .with(predicate::eq(2))
@@ -579,7 +579,7 @@ mod replace_items_tests {
                     .returning(|_| true);
                 mock_game_entity
                     .expect_get_classname()
-                    .returning(|| "weapon_railgun".into());
+                    .returning(|| "weapon_railgun".to_string());
                 mock_game_entity
                     .expect_replace_item()
                     .with(predicate::eq(2))
@@ -595,7 +595,7 @@ mod replace_items_tests {
                 .returning(|_| true);
             mock_game_entity
                 .expect_get_classname()
-                .returning(|| "other_classname".into());
+                .returning(|| "other_classname".to_string());
             mock_game_entity.expect_replace_item().times(0);
             mock_game_entity
         });

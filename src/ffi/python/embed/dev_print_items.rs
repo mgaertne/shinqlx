@@ -31,7 +31,7 @@ pub(crate) fn pyshinqlx_dev_print_items(py: Python<'_>) -> PyResult<()> {
                 str_length += item.len();
                 str_length < 1024
             })
-            .map(|item| item.into())
+            .map(|item| item.to_string())
             .collect();
 
         let Some(ref main_engine) = *MAIN_ENGINE.load() else {
@@ -53,7 +53,7 @@ pub(crate) fn pyshinqlx_dev_print_items(py: Python<'_>) -> PyResult<()> {
         let remaining_items: Vec<String> = formatted_items
             .iter()
             .skip(printed_items.len())
-            .map(|item| item.into())
+            .map(|item| item.to_string())
             .collect();
 
         if !remaining_items.is_empty() {
@@ -224,7 +224,7 @@ mod dev_print_items_tests {
                     .returning(move || entity_id);
                 mock_game_entity
                     .expect_get_classname()
-                    .returning(|| "super important entity".into());
+                    .returning(|| "super important entity".to_string());
                 mock_game_entity
             });
         game_entity_from_ctx.expect().returning(|_| {

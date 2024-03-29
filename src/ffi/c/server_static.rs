@@ -18,7 +18,7 @@ impl TryFrom<*mut serverStatic_t> for ServerStatic {
                 serverStatic_t: svs,
             })
             .ok_or(QuakeLiveEngineError::NullPointerPassed(
-                "null pointer passed".into(),
+                "null pointer passed".to_string(),
             ))
     }
 }
@@ -59,13 +59,13 @@ impl ServerStatic {
 
         if !(0..MAX_CLIENTS as isize).contains(&offset) {
             return Err(QuakeLiveEngineError::ClientNotFound(
-                "client not found".into(),
+                "client not found".to_string(),
             ));
         }
 
         offset
             .try_into()
-            .map_err(|_| QuakeLiveEngineError::ClientNotFound("client not found".into()))
+            .map_err(|_| QuakeLiveEngineError::ClientNotFound("client not found".to_string()))
     }
 }
 
@@ -103,7 +103,7 @@ mod server_static_tests {
         assert_eq!(
             ServerStatic::try_from(ptr::null_mut()),
             Err(QuakeLiveEngineError::NullPointerPassed(
-                "null pointer passed".into()
+                "null pointer passed".to_string()
             ))
         );
     }
@@ -234,7 +234,7 @@ mod server_static_tests {
         assert_eq!(
             unsafe { rust_server_static.try_determine_client_id(&client) },
             Err(QuakeLiveEngineError::ClientNotFound(
-                "client not found".into()
+                "client not found".to_string()
             ))
         );
     }

@@ -30,7 +30,7 @@ impl TryFrom<*mut gitem_t> for GameItem {
         unsafe { game_item.as_mut() }
             .map(|gitem| Self { gitem_t: gitem })
             .ok_or(QuakeLiveEngineError::NullPointerPassed(
-                "null pointer passed".into(),
+                "null pointer passed".to_string(),
             ))
     }
 }
@@ -44,7 +44,7 @@ impl TryFrom<i32> for GameItem {
         }
         let bg_itemlist = GameItem::get_item_list();
         Self::try_from(unsafe { bg_itemlist.offset(item_id as isize) as *mut gitem_t })
-            .map_err(|_| QuakeLiveEngineError::EntityNotFound("entity not found".into()))
+            .map_err(|_| QuakeLiveEngineError::EntityNotFound("entity not found".to_string()))
     }
 }
 
@@ -101,7 +101,7 @@ impl GameItem {
     pub(crate) fn get_classname(&self) -> String {
         unsafe { CStr::from_ptr(self.gitem_t.classname) }
             .to_string_lossy()
-            .into()
+            .to_string()
     }
 
     pub(crate) fn spawn(&mut self, origin: (i32, i32, i32)) {
@@ -172,7 +172,7 @@ mod game_item_tests {
         assert_eq!(
             GameItem::try_from(ptr::null_mut() as *mut gitem_t),
             Err(QuakeLiveEngineError::NullPointerPassed(
-                "null pointer passed".into()
+                "null pointer passed".to_string()
             ))
         );
     }

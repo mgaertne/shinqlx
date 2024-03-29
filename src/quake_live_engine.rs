@@ -171,18 +171,18 @@ impl VmFunctions {
     ) -> Result<(), QuakeLiveEngineError> {
         #[cfg(not(target_os = "linux"))]
         return Err(QuakeLiveEngineError::ProcessNotFound(
-            "could not find my own process\n".into(),
+            "could not find my own process\n".to_string(),
         ));
         #[cfg(target_os = "linux")]
         {
             let Ok(myself_process) = Process::myself() else {
                 return Err(QuakeLiveEngineError::ProcessNotFound(
-                    "could not find my own process\n".into(),
+                    "could not find my own process\n".to_string(),
                 ));
             };
             let Ok(myself_maps) = myself_process.maps() else {
                 return Err(QuakeLiveEngineError::NoMemoryMappingInformationFound(
-                    "no memory mapping information found\n".into(),
+                    "no memory mapping information found\n".to_string(),
                 ));
             };
             let qagame_maps: Vec<&MemoryMap> = myself_maps
@@ -493,18 +493,18 @@ impl QuakeLiveEngine {
     pub(crate) fn search_static_functions(&self) -> Result<(), QuakeLiveEngineError> {
         #[cfg(not(target_os = "linux"))]
         return Err(QuakeLiveEngineError::ProcessNotFound(
-            "could not find my own process\n".into(),
+            "could not find my own process\n".to_string(),
         ));
         #[cfg(target_os = "linux")]
         {
             let Ok(myself_process) = Process::myself() else {
                 return Err(QuakeLiveEngineError::ProcessNotFound(
-                    "could not find my own process\n".into(),
+                    "could not find my own process\n".to_string(),
                 ));
             };
             let Ok(myself_maps) = myself_process.maps() else {
                 return Err(QuakeLiveEngineError::NoMemoryMappingInformationFound(
-                    "no memory mapping information found\n".into(),
+                    "no memory mapping information found\n".to_string(),
                 ));
             };
             let qzeroded_maps: Vec<&MemoryMap> = myself_maps
@@ -521,7 +521,7 @@ impl QuakeLiveEngine {
             if qzeroded_maps.is_empty() {
                 error!(target: "shinqlx", "no memory mapping information for {} found", QZERODED);
                 return Err(QuakeLiveEngineError::NoMemoryMappingInformationFound(
-                    "no memory mapping information found\n".into(),
+                    "no memory mapping information found\n".to_string(),
                 ));
             }
 
@@ -938,7 +938,7 @@ impl QuakeLiveEngine {
         let new_tags = if sv_tags_string.len() > 2 {
             format!("{},{}", SV_TAGS_PREFIX, sv_tags_string)
         } else {
-            SV_TAGS_PREFIX.into()
+            SV_TAGS_PREFIX.to_string()
         };
         self.set_cvar_forced("sv_tags", new_tags, false);
     }
@@ -1854,9 +1854,9 @@ impl<T: Into<c_int>> GetConfigstring<T> for QuakeLiveEngine {
                 CStr::from_bytes_until_nul(&buffer)
                     .unwrap_or_default()
                     .to_string_lossy()
-                    .into()
+                    .to_string()
             })
-            .unwrap_or("".into())
+            .unwrap_or("".to_string())
     }
 }
 
