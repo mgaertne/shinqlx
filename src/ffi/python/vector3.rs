@@ -1,5 +1,6 @@
 use super::prelude::*;
 
+use alloc::borrow::Cow;
 use core::array;
 use pyo3::{basic::CompareOp, exceptions::PyValueError, types::PyTuple};
 
@@ -68,12 +69,12 @@ impl Vector3 {
         }
     }
 
-    pub(crate) fn __str__(&self) -> String {
-        format!("Vector3(x={}, y={}, z={})", self.0, self.1, self.2)
+    pub(crate) fn __str__(&self) -> Cow<str> {
+        format!("Vector3(x={}, y={}, z={})", self.0, self.1, self.2).into()
     }
 
-    fn __repr__(&self) -> String {
-        format!("Vector3(x={}, y={}, z={})", self.0, self.1, self.2)
+    fn __repr__(&self) -> Cow<str> {
+        format!("Vector3(x={}, y={}, z={})", self.0, self.1, self.2).into()
     }
 
     fn __iter__(slf: PyRef<'_, Self>) -> Vector3Iter {

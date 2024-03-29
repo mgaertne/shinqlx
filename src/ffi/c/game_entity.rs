@@ -6,7 +6,7 @@ use crate::quake_live_engine::{
 };
 use crate::MAIN_ENGINE;
 
-use alloc::vec;
+use alloc::{borrow::Cow, vec};
 use core::{
     f32::consts::PI,
     ffi::{c_char, c_float, c_int, CStr},
@@ -172,12 +172,12 @@ impl GameEntity {
 
     pub(crate) fn get_player_name(&self) -> String {
         match self.get_game_client() {
-            Err(_) => "".to_string(),
+            Err(_) => "".into(),
             Ok(game_client) => {
                 if game_client.get_connection_state() == clientConnected_t::CON_DISCONNECTED {
-                    "".to_string()
+                    "".into()
                 } else {
-                    game_client.get_player_name()
+                    game_client.get_player_name().into()
                 }
             }
         }
@@ -252,10 +252,8 @@ impl GameEntity {
         self.gentity_t.inuse.into()
     }
 
-    pub(crate) fn get_classname(&self) -> String {
-        unsafe { CStr::from_ptr(self.gentity_t.classname) }
-            .to_string_lossy()
-            .to_string()
+    pub(crate) fn get_classname(&self) -> Cow<str> {
+        unsafe { CStr::from_ptr(self.gentity_t.classname) }.to_string_lossy()
     }
 
     pub(crate) fn is_game_item(&self, item_type: entityType_t) -> bool {
@@ -355,7 +353,7 @@ impl GameEntity {
             self.gentity_t.item = gitem.as_ref();
 
             // this forces client to load new item
-            let mut items = main_engine.get_configstring(CS_ITEMS as u16);
+            let mut items = main_engine.get_configstring(CS_ITEMS as u16).to_string();
             items.replace_range(item_id as usize..=item_id as usize, "1");
             shinqlx_set_configstring(item_id as u32, &items);
         } else {
@@ -422,7 +420,7 @@ mockall::mock! {
         pub(crate) fn set_health(&mut self, new_health: i32);
         pub(crate) fn slay_with_mod(&mut self, mean_of_death: meansOfDeath_t);
         pub(crate) fn in_use(&self) -> bool;
-        pub(crate) fn get_classname(&self) -> String;
+        pub(crate) fn get_classname(&self) -> Cow<'_, str>;
         pub(crate) fn is_game_item(&self, item_type: entityType_t) -> bool;
         pub(crate) fn is_respawning_weapon(&self) -> bool;
         pub(crate) fn set_respawn_time(&mut self, respawn_time: i32);

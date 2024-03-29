@@ -1,5 +1,7 @@
 use super::prelude::*;
 
+use alloc::borrow::Cow;
+
 use pyo3::{basic::CompareOp, exceptions::PyValueError, types::PyTuple};
 
 /// A struct sequence containing all the powerups in the game.
@@ -71,14 +73,14 @@ impl Powerups {
         }
     }
 
-    pub(crate) fn __str__(&self) -> String {
+    pub(crate) fn __str__(&self) -> Cow<str> {
         format!("Powerups(quad={}, battlesuit={}, haste={}, invisibility={}, regeneration={}, invulnerability={})",
-                self.0, self.1, self.2, self.3, self.4, self.5)
+                self.0, self.1, self.2, self.3, self.4, self.5).into()
     }
 
-    fn __repr__(&self) -> String {
+    fn __repr__(&self) -> Cow<str> {
         format!("Powerups(quad={}, battlesuit={}, haste={}, invisibility={}, regeneration={}, invulnerability={})",
-                self.0, self.1, self.2, self.3, self.4, self.5)
+                self.0, self.1, self.2, self.3, self.4, self.5).into()
     }
 }
 

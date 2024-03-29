@@ -1,6 +1,8 @@
 use super::prelude::*;
 use crate::ffi::c::prelude::*;
 
+use alloc::borrow::Cow;
+
 /// A player's score and some basic stats.
 #[pyclass(frozen)]
 #[pyo3(module = "shinqlx", name = "PlayerStats", get_all)]
@@ -24,14 +26,14 @@ pub(crate) struct PlayerStats {
 
 #[pymethods]
 impl PlayerStats {
-    fn __str__(&self) -> String {
+    fn __str__(&self) -> Cow<str> {
         format!("PlayerStats(score={}, kills={}, deaths={}, damage_dealt={}, damage_taken={}, time={}, ping={})",
-                self.score, self.kills, self.deaths, self.damage_dealt, self.damage_taken, self.time, self.ping)
+                self.score, self.kills, self.deaths, self.damage_dealt, self.damage_taken, self.time, self.ping).into()
     }
 
-    fn __repr__(&self) -> String {
+    fn __repr__(&self) -> Cow<str> {
         format!("PlayerStats(score={}, kills={}, deaths={}, damage_dealt={}, damage_taken={}, time={}, ping={})",
-                self.score, self.kills, self.deaths, self.damage_dealt, self.damage_taken, self.time, self.ping)
+                self.score, self.kills, self.deaths, self.damage_dealt, self.damage_taken, self.time, self.ping).into()
     }
 }
 
@@ -57,9 +59,8 @@ mod player_stats_tests {
 
     use pretty_assertions::assert_eq;
 
-    #[test]
-    fn player_stats_to_str() {
-        let player_stats = PlayerStats {
+    fn default_player_stats() -> PlayerStats {
+        PlayerStats {
             score: 42,
             kills: 7,
             deaths: 9,
@@ -67,24 +68,17 @@ mod player_stats_tests {
             damage_taken: 4200,
             time: 123,
             ping: 9,
-        };
+        }
+    }
 
-        assert_eq!(player_stats.__str__(), "PlayerStats(score=42, kills=7, deaths=9, damage_dealt=5000, damage_taken=4200, time=123, ping=9)");
+    #[test]
+    fn player_stats_to_str() {
+        assert_eq!(default_player_stats().__str__(), "PlayerStats(score=42, kills=7, deaths=9, damage_dealt=5000, damage_taken=4200, time=123, ping=9)");
     }
 
     #[test]
     fn player_stats_repr() {
-        let player_stats = PlayerStats {
-            score: 42,
-            kills: 7,
-            deaths: 9,
-            damage_dealt: 5000,
-            damage_taken: 4200,
-            time: 123,
-            ping: 9,
-        };
-
-        assert_eq!(player_stats.__repr__(), "PlayerStats(score=42, kills=7, deaths=9, damage_dealt=5000, damage_taken=4200, time=123, ping=9)");
+        assert_eq!(default_player_stats().__repr__(), "PlayerStats(score=42, kills=7, deaths=9, damage_dealt=5000, damage_taken=4200, time=123, ping=9)");
     }
 
     #[test]
@@ -103,17 +97,6 @@ mod player_stats_tests {
         mock_game_client.expect_get_time_on_team().returning(|| 123);
         mock_game_client.expect_get_ping().returning(|| 9);
 
-        assert_eq!(
-            PlayerStats::from(mock_game_client),
-            PlayerStats {
-                score: 42,
-                kills: 7,
-                deaths: 9,
-                damage_dealt: 5000,
-                damage_taken: 4200,
-                time: 123,
-                ping: 9,
-            }
-        )
+        assert_eq!(PlayerStats::from(mock_game_client), default_player_stats())
     }
 }
