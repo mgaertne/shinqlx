@@ -32,88 +32,87 @@ impl VoteEndedDispatcher {
     }
 
     fn dispatch(slf: PyRef<'_, Self>, py: Python<'_>, passed: bool) {
-        let Some(ref main_engine) = *MAIN_ENGINE.load() else {
-            return;
-        };
-        let configstring = main_engine.get_configstring(CS_VOTE_STRING as u16);
-        if configstring.is_empty() {
-            dispatcher_debug_log(
-                py,
-                "vote_ended went off without configstring CS_VOTE_STRING.".into(),
-            );
-            return;
-        }
-
-        let Some(captures) = RE_VOTE.captures(&configstring) else {
-            let warning_str = format!("invalid vote called: {}", &configstring);
-            dispatcher_debug_log(py, warning_str);
-            return;
-        };
-        let vote = captures
-            .name("cmd")
-            .map(|value| value.as_str())
-            .unwrap_or("");
-        let args = captures
-            .name("args")
-            .map(|value| value.as_str())
-            .unwrap_or("");
-        let yes_votes = main_engine
-            .get_configstring(CS_VOTE_YES as u16)
-            .parse::<i32>()
-            .unwrap_or(0);
-        let no_votes = main_engine
-            .get_configstring(CS_VOTE_NO as u16)
-            .parse::<i32>()
-            .unwrap_or(0);
-
         let super_class = slf.into_super();
-        let dbgstr = format!(
-            "{}(({}, {}), {}, {}, {})",
-            super_class.name, yes_votes, no_votes, vote, args, passed
-        );
-        dispatcher_debug_log(py, dbgstr);
+        MAIN_ENGINE.load().iter().for_each(|main_engine| {
+            let configstring = main_engine.get_configstring(CS_VOTE_STRING as u16);
+            if configstring.is_empty() {
+                dispatcher_debug_log(
+                    py,
+                    "vote_ended went off without configstring CS_VOTE_STRING.".into(),
+                );
+                return;
+            }
 
-        let plugins = super_class.plugins.read();
-        for i in 0..5 {
-            for (_, handlers) in plugins.iter() {
-                for handler in &handlers[i] {
-                    match handler.call1(py, ((yes_votes, no_votes), vote, args, passed)) {
-                        Err(e) => {
-                            log_exception(py, &e);
-                            continue;
-                        }
-                        Ok(res) => {
-                            let res_i32 = res.extract::<PythonReturnCodes>(py);
-                            if res_i32
-                                .as_ref()
-                                .is_ok_and(|&value| value == PythonReturnCodes::RET_NONE)
-                            {
+            let Some(captures) = RE_VOTE.captures(&configstring) else {
+                let warning_str = format!("invalid vote called: {}", &configstring);
+                dispatcher_debug_log(py, warning_str);
+                return;
+            };
+            let vote = captures
+                .name("cmd")
+                .map(|value| value.as_str())
+                .unwrap_or("");
+            let args = captures
+                .name("args")
+                .map(|value| value.as_str())
+                .unwrap_or("");
+            let yes_votes = main_engine
+                .get_configstring(CS_VOTE_YES as u16)
+                .parse::<i32>()
+                .unwrap_or(0);
+            let no_votes = main_engine
+                .get_configstring(CS_VOTE_NO as u16)
+                .parse::<i32>()
+                .unwrap_or(0);
+
+            let dbgstr = format!(
+                "{}(({}, {}), {}, {}, {})",
+                super_class.name, yes_votes, no_votes, vote, args, passed
+            );
+            dispatcher_debug_log(py, dbgstr);
+
+            let plugins = super_class.plugins.read();
+            for i in 0..5 {
+                for (_, handlers) in plugins.iter() {
+                    for handler in &handlers[i] {
+                        match handler.call1(py, ((yes_votes, no_votes), vote, args, passed)) {
+                            Err(e) => {
+                                log_exception(py, &e);
                                 continue;
                             }
-                            if res_i32
-                                .as_ref()
-                                .is_ok_and(|&value| value == PythonReturnCodes::RET_STOP)
-                            {
-                                return;
-                            }
-                            if res_i32
-                                .as_ref()
-                                .is_ok_and(|&value| value == PythonReturnCodes::RET_STOP_EVENT)
-                            {
-                                continue;
-                            }
-                            if res_i32
-                                .as_ref()
-                                .is_ok_and(|&value| value == PythonReturnCodes::RET_STOP_ALL)
-                            {
-                                return;
-                            }
+                            Ok(res) => {
+                                let res_i32 = res.extract::<PythonReturnCodes>(py);
+                                if res_i32
+                                    .as_ref()
+                                    .is_ok_and(|&value| value == PythonReturnCodes::RET_NONE)
+                                {
+                                    continue;
+                                }
+                                if res_i32
+                                    .as_ref()
+                                    .is_ok_and(|&value| value == PythonReturnCodes::RET_STOP)
+                                {
+                                    return;
+                                }
+                                if res_i32
+                                    .as_ref()
+                                    .is_ok_and(|&value| value == PythonReturnCodes::RET_STOP_EVENT)
+                                {
+                                    continue;
+                                }
+                                if res_i32
+                                    .as_ref()
+                                    .is_ok_and(|&value| value == PythonReturnCodes::RET_STOP_ALL)
+                                {
+                                    return;
+                                }
 
-                            log_unexpected_return_value(py, Self::name, &res, handler);
+                                log_unexpected_return_value(py, Self::name, &res, handler);
+                            }
                         }
                     }
                 }
             }
-        }
+        });
     }
 }
