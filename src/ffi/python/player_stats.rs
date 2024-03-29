@@ -4,7 +4,8 @@ use crate::ffi::c::prelude::*;
 use alloc::borrow::Cow;
 
 /// A player's score and some basic stats.
-#[pyclass(module = "_shinqlx", name = "PlayerStats", frozen, get_all)]
+#[pyclass]
+#[pyo3(module = "_shinqlx", name = "PlayerStats", frozen, get_all)]
 #[derive(Debug, PartialEq)]
 pub(crate) struct PlayerStats {
     /// The player's primary score.
