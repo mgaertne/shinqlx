@@ -54,38 +54,36 @@ impl CurrentLevel {
     }
 
     pub(crate) fn callvote(&mut self, vote: &str, vote_disp: &str, vote_time: Option<i32>) {
-        let Some(ref main_engine) = *MAIN_ENGINE.load() else {
-            return;
-        };
+        MAIN_ENGINE.load().iter().for_each(|main_engine| {
+            let actual_vote_time = vote_time.unwrap_or(30);
 
-        let actual_vote_time = vote_time.unwrap_or(30);
+            let mut vote_bytes_iter = vote.bytes();
+            self.level.voteString[0..vote.len()]
+                .fill_with(|| vote_bytes_iter.next().unwrap() as c_char);
+            self.level.voteString[vote.len()..].fill(0 as c_char);
 
-        let mut vote_bytes_iter = vote.bytes();
-        self.level.voteString[0..vote.len()]
-            .fill_with(|| vote_bytes_iter.next().unwrap() as c_char);
-        self.level.voteString[vote.len()..].fill(0 as c_char);
+            let mut vote_disp_bytes_iter = vote_disp.bytes();
+            self.level.voteDisplayString[0..vote_disp.len()]
+                .fill_with(|| vote_disp_bytes_iter.next().unwrap() as c_char);
+            self.level.voteDisplayString[vote_disp.len()..].fill(0 as c_char);
 
-        let mut vote_disp_bytes_iter = vote_disp.bytes();
-        self.level.voteDisplayString[0..vote_disp.len()]
-            .fill_with(|| vote_disp_bytes_iter.next().unwrap() as c_char);
-        self.level.voteDisplayString[vote_disp.len()..].fill(0 as c_char);
+            self.level.voteTime = self.level.time - 30000 + actual_vote_time * 1000;
+            self.level.voteYes = 0;
+            self.level.voteNo = 0;
 
-        self.level.voteTime = self.level.time - 30000 + actual_vote_time * 1000;
-        self.level.voteYes = 0;
-        self.level.voteNo = 0;
+            let maxclients = main_engine.get_max_clients();
 
-        let maxclients = main_engine.get_max_clients();
+            #[cfg_attr(test, allow(clippy::unnecessary_fallible_conversions))]
+            (0..maxclients)
+                .filter_map(|client_id| GameEntity::try_from(client_id).ok())
+                .filter_map(|game_entity| game_entity.get_game_client().ok())
+                .for_each(|mut game_client| game_client.set_vote_pending());
 
-        #[cfg_attr(test, allow(clippy::unnecessary_fallible_conversions))]
-        (0..maxclients)
-            .filter_map(|client_id| GameEntity::try_from(client_id).ok())
-            .filter_map(|game_entity| game_entity.get_game_client().ok())
-            .for_each(|mut game_client| game_client.set_vote_pending());
-
-        shinqlx_set_configstring(CS_VOTE_STRING, vote_disp);
-        shinqlx_set_configstring(CS_VOTE_TIME, &format!("{}", self.level.voteTime));
-        shinqlx_set_configstring(CS_VOTE_YES, "0");
-        shinqlx_set_configstring(CS_VOTE_NO, "0");
+            shinqlx_set_configstring(CS_VOTE_STRING, vote_disp);
+            shinqlx_set_configstring(CS_VOTE_TIME, &format!("{}", self.level.voteTime));
+            shinqlx_set_configstring(CS_VOTE_YES, "0");
+            shinqlx_set_configstring(CS_VOTE_NO, "0");
+        });
     }
 
     pub(crate) fn set_training_map(&mut self, is_training_map: bool) {

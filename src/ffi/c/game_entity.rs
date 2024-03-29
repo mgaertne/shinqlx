@@ -86,49 +86,44 @@ pub(crate) extern "C" fn ShiNQlx_Touch_Item(
     other: *mut gentity_t,
     trace: *mut trace_t,
 ) {
-    let Some(ref main_engine) = *MAIN_ENGINE.load() else {
-        return;
-    };
-
-    let Ok(original_func) = main_engine.touch_item_orig() else {
-        return;
-    };
-
-    let Some(entity) = (unsafe { ent.as_ref() }) else {
-        return;
-    };
-
-    if entity.parent != other {
-        original_func(ent, other, trace);
-    }
+    MAIN_ENGINE.load().iter().for_each(|main_engine| {
+        main_engine
+            .touch_item_orig()
+            .iter()
+            .for_each(|original_func| {
+                (unsafe { ent.as_ref() }).iter().for_each(|entity| {
+                    if entity.parent != other {
+                        original_func(ent, other, trace);
+                    }
+                });
+            });
+    });
 }
 
 #[no_mangle]
 pub(crate) extern "C" fn ShiNQlx_Switch_Touch_Item(ent: *mut gentity_t) {
-    let Some(ref main_engine) = *MAIN_ENGINE.load() else {
-        return;
-    };
+    MAIN_ENGINE.load().iter().for_each(|main_engine| {
+        main_engine
+            .touch_item_orig()
+            .iter()
+            .for_each(|touch_item_func| {
+                main_engine
+                    .g_free_entity_orig()
+                    .iter()
+                    .for_each(|free_entity_func| {
+                        (unsafe { ent.as_mut() }).iter_mut().for_each(|mut_ent| {
+                            let level_time = CurrentLevel::try_get()
+                                .ok()
+                                .map(|current_level| current_level.get_leveltime())
+                                .unwrap_or_default();
 
-    let Ok(touch_item_func) = main_engine.touch_item_orig() else {
-        return;
-    };
-
-    let Ok(free_entity_func) = main_engine.g_free_entity_orig() else {
-        return;
-    };
-
-    let Some(mut_ent) = (unsafe { ent.as_mut() }) else {
-        return;
-    };
-
-    let level_time = CurrentLevel::try_get()
-        .ok()
-        .map(|current_level| current_level.get_leveltime())
-        .unwrap_or_default();
-
-    mut_ent.touch = Some(touch_item_func);
-    mut_ent.think = Some(free_entity_func);
-    mut_ent.nextthink = level_time + 29000;
+                            mut_ent.touch = Some(*touch_item_func);
+                            mut_ent.think = Some(*free_entity_func);
+                            mut_ent.nextthink = level_time + 29000;
+                        });
+                    });
+            });
+    });
 }
 
 const OFFSET_G_ENTITIES: usize = 0x11B;
