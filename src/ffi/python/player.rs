@@ -971,8 +971,9 @@ impl Player {
 
     #[getter(holdable)]
     fn get_holdable(&self, py: Python<'_>) -> PyResult<Option<String>> {
-        pyshinqlx_player_state(py, self.id)
-            .map(|opt_state| opt_state.and_then(|state| state.holdable))
+        pyshinqlx_player_state(py, self.id).map(|opt_state| {
+            opt_state.and_then(|state| state.holdable.map(|holdable| holdable.to_string()))
+        })
     }
 
     #[setter(holdable)]
@@ -3038,7 +3039,7 @@ assert(player._valid)
                 weapons: Weapons(1, 1, 1, 0, 0, 0, 1, 1, 1, 0, 0, 0, 1, 1, 1),
                 ammo: Weapons(1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15),
                 powerups: Powerups(12, 34, 56, 78, 90, 24),
-                holdable: Some("kamikaze".to_string()),
+                holdable: Some("kamikaze".into()),
                 flight: Flight(12, 34, 56, 78),
                 is_chatting: true,
                 is_frozen: true,
@@ -6805,7 +6806,7 @@ assert(player._valid)
                     .returning(|| clientState_t::CS_ACTIVE);
                 mock_client
                     .expect_get_user_info()
-                    .returning(|| "asdf".to_string());
+                    .returning(|| "asdf".into());
                 mock_client.expect_get_steam_id().returning(|| 1234);
                 mock_client
             });
@@ -6820,7 +6821,7 @@ assert(player._valid)
                     .returning(|| clientState_t::CS_FREE);
                 mock_client
                     .expect_get_user_info()
-                    .returning(|| "asdf".to_string());
+                    .returning(|| "asdf".into());
                 mock_client.expect_get_steam_id().returning(|| 1234);
                 mock_client
             });
@@ -6836,7 +6837,7 @@ assert(player._valid)
                     .returning(|| clientState_t::CS_ACTIVE);
                 mock_client
                     .expect_get_user_info()
-                    .returning(|| "asdf".to_string());
+                    .returning(|| "asdf".into());
                 mock_client.expect_get_steam_id().returning(|| 1234);
                 mock_client
             });

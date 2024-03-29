@@ -312,21 +312,21 @@ impl StatsListener {
                 if host.is_empty() {
                     None
                 } else {
-                    Some(host)
+                    Some(host.to_string())
                 }
             })
-            .unwrap_or("127.0.0.1".to_string());
+            .unwrap_or("127.0.0.1".into());
         let port = match main_engine.find_cvar("zmq_stats_port") {
             None => main_engine
                 .find_cvar("net_port")
-                .map(|cvar| cvar.get_string())
+                .map(|cvar| cvar.get_string().to_string())
                 .unwrap_or_default(),
-            Some(cvar) => cvar.get_string(),
+            Some(cvar) => cvar.get_string().to_string(),
         };
         let address = format!("tcp://{host}:{port}");
         let password = main_engine
             .find_cvar("zmq_stats_password")
-            .map(|cvar| cvar.get_string())
+            .map(|cvar| cvar.get_string().to_string())
             .unwrap_or_default();
 
         Ok(Self {
