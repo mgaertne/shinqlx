@@ -5,7 +5,7 @@ use alloc::borrow::Cow;
 
 /// Information about a player, such as Steam ID, name, client ID, and whatnot.
 #[pyclass(module = "_shinqlx", name = "PlayerInfo", frozen, get_all)]
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Clone)]
 #[allow(unused)]
 pub(crate) struct PlayerInfo {
     /// The player's client ID.
