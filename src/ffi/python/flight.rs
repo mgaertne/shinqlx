@@ -4,8 +4,7 @@ use alloc::borrow::Cow;
 use pyo3::{basic::CompareOp, exceptions::PyValueError, types::PyTuple};
 
 /// A struct sequence containing parameters for the flight holdable item.
-#[pyclass]
-#[pyo3(module = "shinqlx", name = "Flight", frozen, get_all)]
+#[pyclass(module = "_shinqlx", name = "Flight", frozen, get_all)]
 #[derive(PartialEq, Eq, Debug, Clone, Copy)]
 pub(crate) struct Flight(
     #[pyo3(name = "fuel")] pub(crate) i32,
