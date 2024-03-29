@@ -2,8 +2,7 @@ use super::prelude::*;
 
 use alloc::borrow::Cow;
 
-#[pyclass]
-#[pyo3(module = "_shinqlx", name = "Holdable", frozen)]
+#[pyclass(module = "_shinqlx", name = "Holdable", frozen)]
 #[derive(PartialEq, Debug, Clone, Copy)]
 pub(crate) enum Holdable {
     None = 0,
