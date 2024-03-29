@@ -628,7 +628,7 @@ impl TryFrom<usize> for powerup_t {
             3 => Ok(powerup_t::PW_INVIS),
             4 => Ok(powerup_t::PW_REGEN),
             5 => Ok(powerup_t::PW_INVULNERABILITY),
-            _ => Err("invalid power up".into()),
+            _ => Err("invalid power up".to_string()),
         }
     }
 }
@@ -647,7 +647,10 @@ pub(crate) mod powerup_t_tests {
         assert_eq!(powerup_t::try_from(3), Ok(powerup_t::PW_INVIS));
         assert_eq!(powerup_t::try_from(4), Ok(powerup_t::PW_REGEN));
         assert_eq!(powerup_t::try_from(5), Ok(powerup_t::PW_INVULNERABILITY));
-        assert_eq!(powerup_t::try_from(666), Err("invalid power up".into()));
+        assert_eq!(
+            powerup_t::try_from(666),
+            Err("invalid power up".to_string())
+        );
     }
 
     #[test]
@@ -663,7 +666,7 @@ pub(crate) mod powerup_t_tests {
         );
         assert_eq!(
             powerup_t::try_from(666usize),
-            Err("invalid power up".into())
+            Err("invalid power up".to_string())
         );
     }
 }
@@ -733,7 +736,7 @@ impl TryFrom<i32> for weapon_t {
             13 => Ok(weapon_t::WP_CHAINGUN),
             14 => Ok(weapon_t::WP_HMG),
             15 => Ok(weapon_t::WP_HANDS),
-            _ => Err("invalid weapon".into()),
+            _ => Err("invalid weapon".to_string()),
         }
     }
 }
@@ -783,9 +786,9 @@ pub(crate) mod weapon_t_tests {
         assert_eq!(weapon_t::try_from(13), Ok(weapon_t::WP_CHAINGUN));
         assert_eq!(weapon_t::try_from(14), Ok(weapon_t::WP_HMG));
         assert_eq!(weapon_t::try_from(15), Ok(weapon_t::WP_HANDS));
-        assert_eq!(weapon_t::try_from(16), Err("invalid weapon".into()));
-        assert_eq!(weapon_t::try_from(-1), Err("invalid weapon".into()));
-        assert_eq!(weapon_t::try_from(666), Err("invalid weapon".into()));
+        assert_eq!(weapon_t::try_from(16), Err("invalid weapon".to_string()));
+        assert_eq!(weapon_t::try_from(-1), Err("invalid weapon".to_string()));
+        assert_eq!(weapon_t::try_from(666), Err("invalid weapon".to_string()));
     }
 }
 
@@ -920,7 +923,7 @@ impl TryFrom<i32> for meansOfDeath_t {
             31 => Ok(meansOfDeath_t::MOD_LIGHTNING_DISCHARGE),
             32 => Ok(meansOfDeath_t::MOD_HMG),
             33 => Ok(meansOfDeath_t::MOD_RAILGUN_HEADSHOT),
-            _ => Err("invalid means of death".into()),
+            _ => Err("invalid means of death".to_string()),
         }
     }
 }
@@ -1029,11 +1032,11 @@ pub(crate) mod meansofdeath_t_tests {
         );
         assert_eq!(
             meansOfDeath_t::try_from(-1),
-            Err("invalid means of death".into())
+            Err("invalid means of death".to_string())
         );
         assert_eq!(
             meansOfDeath_t::try_from(666),
-            Err("invalid means of death".into())
+            Err("invalid means of death".to_string())
         );
     }
 }

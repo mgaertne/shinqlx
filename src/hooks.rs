@@ -234,23 +234,21 @@ where
     T: TryInto<c_int> + Into<u32> + Copy,
 {
     MAIN_ENGINE.load().iter().for_each(|main_engine| {
-        let Ok(c_index) = index.try_into() else {
-            return;
-        };
+        index.try_into().iter().for_each(|&c_index| {
+            // Indices 16 and 66X are spammed a ton every frame for some reason,
+            // so we add some exceptions for those. I don't think we should have any
+            // use for those particular ones anyway. If we don't do this, we get
+            // like a 25% increase in CPU usage on an empty server.
+            if c_index == 16 || (662..670).contains(&c_index) {
+                main_engine.set_configstring(c_index, value.as_ref());
+                return;
+            }
 
-        // Indices 16 and 66X are spammed a ton every frame for some reason,
-        // so we add some exceptions for those. I don't think we should have any
-        // use for those particular ones anyway. If we don't do this, we get
-        // like a 25% increase in CPU usage on an empty server.
-        if c_index == 16 || (662..670).contains(&c_index) {
-            main_engine.set_configstring(c_index, value.as_ref());
-            return;
-        }
-
-        let Some(res) = set_configstring_dispatcher(index.into(), value) else {
-            return;
-        };
-        main_engine.set_configstring(c_index, &res);
+            let Some(res) = set_configstring_dispatcher(index.into(), value) else {
+                return;
+            };
+            main_engine.set_configstring(c_index, &res);
+        })
     });
 }
 
@@ -395,7 +393,7 @@ pub(crate) fn shinqlx_client_spawn(game_entity: &mut GameEntity) {
 }
 
 pub(crate) fn shinqlx_g_startkamikaze(ent: *mut gentity_t) {
-    let Some(mut game_entity): Option<GameEntity> = ent.try_into().ok() else {
+    let Some(mut game_entity): Option<GameEntity> = GameEntity::try_from(ent).ok() else {
         return;
     };
 
@@ -819,7 +817,7 @@ mod hooks_tests {
         client_command_ctx
             .expect()
             .with(predicate::eq(42), predicate::eq("cp asdf".to_string()))
-            .return_const(Some("cp modified".into()))
+            .return_const(Some("cp modified".to_string()))
             .times(1);
 
         shinqlx_execute_client_command(Some(mock_client), "cp asdf", true);
@@ -840,7 +838,7 @@ mod hooks_tests {
         client_command_ctx
             .expect()
             .with(predicate::eq(42), predicate::eq("cp asdf".to_string()))
-            .return_const(Some("".into()))
+            .return_const(Some("".to_string()))
             .times(1);
 
         shinqlx_execute_client_command(Some(mock_client), "cp asdf", true);
@@ -882,7 +880,7 @@ mod hooks_tests {
         client_command_ctx
             .expect()
             .with(predicate::eq(None), predicate::eq("cp asdf".to_string()))
-            .return_const(Some("cp modified".into()))
+            .return_const(Some("cp modified".to_string()))
             .times(1);
         MAIN_ENGINE.store(Some(mock_engine.into()));
 
@@ -952,7 +950,7 @@ mod hooks_tests {
                 predicate::eq(Some(42)),
                 predicate::eq("cp asdf".to_string()),
             )
-            .return_const(Some("cp modified".into()))
+            .return_const(Some("cp modified".to_string()))
             .times(1);
 
         shinqlx_send_server_command(Some(mock_client), "cp asdf");
@@ -975,7 +973,7 @@ mod hooks_tests {
                 predicate::eq(Some(42)),
                 predicate::eq("cp asdf".to_string()),
             )
-            .return_const(Some("".into()))
+            .return_const(Some("".to_string()))
             .times(1);
 
         shinqlx_send_server_command(Some(mock_client), "cp asdf");
@@ -1189,7 +1187,7 @@ mod hooks_tests {
         set_configstring_dispatcher_ctx
             .expect()
             .with(predicate::eq(42), predicate::eq("some value"))
-            .return_const(Some("other value".into()))
+            .return_const(Some("other value".to_string()))
             .times(1);
 
         shinqlx_set_configstring(42u32, "some value");
@@ -1209,7 +1207,7 @@ mod hooks_tests {
         set_configstring_dispatcher_ctx
             .expect()
             .with(predicate::eq(42), predicate::eq("some value"))
-            .return_const(Some("some value".into()))
+            .return_const(Some("some value".to_string()))
             .times(1);
 
         shinqlx_set_configstring(42u32, "some value");
@@ -1271,7 +1269,7 @@ mod hooks_tests {
         mock_console_print_dispatcher_ctx
             .expect()
             .with(predicate::eq("Hello World!"))
-            .return_const(Some("Hello you!".into()))
+            .return_const(Some("Hello you!".to_string()))
             .times(1);
 
         shinqlx_com_printf("Hello World!");
@@ -1387,7 +1385,7 @@ mod hooks_tests {
         client_connect_dispatcher_ctx
             .expect()
             .with(predicate::eq(42), predicate::eq(false))
-            .return_const(Some("you are banned from this server".into()))
+            .return_const(Some("you are banned from this server".to_string()))
             .times(1);
 
         let result = shinqlx_client_connect(42, qboolean::qtrue, qboolean::qfalse);
@@ -1412,7 +1410,7 @@ mod hooks_tests {
         client_connect_dispatcher_ctx
             .expect()
             .with(predicate::eq(42), predicate::eq(true))
-            .return_const(Some("we don't like bots here".into()))
+            .return_const(Some("we don't like bots here".to_string()))
             .times(1);
 
         shinqlx_client_connect(42, qboolean::qtrue, qboolean::qtrue);

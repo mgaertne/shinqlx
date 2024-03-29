@@ -74,7 +74,7 @@ mod get_players_info_tests {
                     .returning(|| clientState_t::CS_ACTIVE);
                 mock_client
                     .expect_get_user_info()
-                    .returning(|| "asdf".into());
+                    .returning(|| "asdf".to_string());
                 mock_client.expect_get_steam_id().returning(|| 1234);
                 mock_client
             });
@@ -89,7 +89,7 @@ mod get_players_info_tests {
                     .returning(|| clientState_t::CS_FREE);
                 mock_client
                     .expect_get_user_info()
-                    .returning(|| "asdf".into());
+                    .returning(|| "asdf".to_string());
                 mock_client.expect_get_steam_id().returning(|| 1234);
                 mock_client
             });
@@ -105,7 +105,7 @@ mod get_players_info_tests {
                     .returning(|| clientState_t::CS_ACTIVE);
                 mock_client
                     .expect_get_user_info()
-                    .returning(|| "asdf".into());
+                    .returning(|| "asdf".to_string());
                 mock_client.expect_get_steam_id().returning(|| 1234);
                 mock_client
             });
@@ -115,7 +115,7 @@ mod get_players_info_tests {
             let mut mock_game_entity = MockGameEntity::new();
             mock_game_entity
                 .expect_get_player_name()
-                .returning(|| "Mocked Player".into());
+                .returning(|| "Mocked Player".to_string());
             mock_game_entity
                 .expect_get_team()
                 .returning(|| team_t::TEAM_RED);
@@ -131,18 +131,18 @@ mod get_players_info_tests {
             vec![
                 Some(PlayerInfo {
                     client_id: 0,
-                    name: "Mocked Player".into(),
+                    name: "Mocked Player".to_string(),
                     connection_state: clientState_t::CS_ACTIVE as i32,
-                    userinfo: "asdf".into(),
+                    userinfo: "asdf".to_string(),
                     steam_id: 1234,
                     team: team_t::TEAM_RED as i32,
                     privileges: privileges_t::PRIV_NONE as i32
                 }),
                 Some(PlayerInfo {
                     client_id: 2,
-                    name: "Mocked Player".into(),
+                    name: "Mocked Player".to_string(),
                     connection_state: clientState_t::CS_ACTIVE as i32,
-                    userinfo: "asdf".into(),
+                    userinfo: "asdf".to_string(),
                     steam_id: 1234,
                     team: team_t::TEAM_RED as i32,
                     privileges: privileges_t::PRIV_NONE as i32

@@ -31,7 +31,7 @@ impl TryFrom<*mut gentity_t> for GameEntity {
         unsafe { game_entity.as_mut() }
             .map(|gentity| Self { gentity_t: gentity })
             .ok_or(QuakeLiveEngineError::NullPointerPassed(
-                "null pointer passed".into(),
+                "null pointer passed".to_string(),
             ))
     }
 }
@@ -52,12 +52,12 @@ impl TryFrom<i32> for GameEntity {
         let g_entities = GameEntity::get_entities_list();
         if g_entities.is_null() {
             return Err(QuakeLiveEngineError::EntityNotFound(
-                "g_entities not initialized".into(),
+                "g_entities not initialized".to_string(),
             ));
         }
 
         Self::try_from(unsafe { g_entities.offset(entity_id as isize) })
-            .map_err(|_| QuakeLiveEngineError::EntityNotFound("entity not found".into()))
+            .map_err(|_| QuakeLiveEngineError::EntityNotFound("entity not found".to_string()))
     }
 }
 
@@ -71,12 +71,12 @@ impl TryFrom<u32> for GameEntity {
         let g_entities = GameEntity::get_entities_list();
         if g_entities.is_null() {
             return Err(QuakeLiveEngineError::EntityNotFound(
-                "g_entities not initialized".into(),
+                "g_entities not initialized".to_string(),
             ));
         }
 
         Self::try_from(unsafe { g_entities.offset(entity_id as isize) })
-            .map_err(|_| QuakeLiveEngineError::EntityNotFound("entity not found".into()))
+            .map_err(|_| QuakeLiveEngineError::EntityNotFound("entity not found".to_string()))
     }
 }
 
@@ -172,10 +172,10 @@ impl GameEntity {
 
     pub(crate) fn get_player_name(&self) -> String {
         match self.get_game_client() {
-            Err(_) => "".into(),
+            Err(_) => "".to_string(),
             Ok(game_client) => {
                 if game_client.get_connection_state() == clientConnected_t::CON_DISCONNECTED {
-                    "".into()
+                    "".to_string()
                 } else {
                     game_client.get_player_name()
                 }
@@ -255,7 +255,7 @@ impl GameEntity {
     pub(crate) fn get_classname(&self) -> String {
         unsafe { CStr::from_ptr(self.gentity_t.classname) }
             .to_string_lossy()
-            .into()
+            .to_string()
     }
 
     pub(crate) fn is_game_item(&self, item_type: entityType_t) -> bool {
@@ -693,7 +693,7 @@ mod game_entity_tests {
         assert_eq!(
             GameEntity::try_from(ptr::null_mut() as *mut gentity_t),
             Err(QuakeLiveEngineError::NullPointerPassed(
-                "null pointer passed".into()
+                "null pointer passed".to_string()
             ))
         );
     }
@@ -741,7 +741,7 @@ mod game_entity_tests {
         assert_eq!(
             GameEntity::try_from(42i32),
             Err(QuakeLiveEngineError::EntityNotFound(
-                "g_entities not initialized".into()
+                "g_entities not initialized".to_string()
             ))
         );
     }
@@ -797,7 +797,7 @@ mod game_entity_tests {
         assert_eq!(
             GameEntity::try_from(42u32),
             Err(QuakeLiveEngineError::EntityNotFound(
-                "g_entities not initialized".into()
+                "g_entities not initialized".to_string()
             ))
         );
     }

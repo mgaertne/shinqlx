@@ -14,7 +14,7 @@ impl TryFrom<*mut gentity_t> for Activator {
         unsafe { game_entity.as_ref() }
             .map(|gentity| Self { activator: gentity })
             .ok_or(QuakeLiveEngineError::NullPointerPassed(
-                "null pointer passed".into(),
+                "null pointer passed".to_string(),
             ))
     }
 }
@@ -50,7 +50,7 @@ mod activator_tests {
         assert_eq!(
             Activator::try_from(ptr::null_mut() as *mut gentity_t),
             Err(QuakeLiveEngineError::NullPointerPassed(
-                "null pointer passed".into()
+                "null pointer passed".to_string()
             ))
         );
     }
