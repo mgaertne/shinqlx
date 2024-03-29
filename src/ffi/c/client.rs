@@ -76,15 +76,14 @@ impl Client {
     {
         let c_reason = CString::new(reason.as_ref()).unwrap_or_else(|_| CString::new("").unwrap());
 
-        let Some(ref main_engine) = *MAIN_ENGINE.load() else {
-            return;
-        };
-
-        let Ok(detour) = main_engine.sv_dropclient_detour() else {
-            return;
-        };
-
-        detour.call(self.client_t, c_reason.as_ptr());
+        MAIN_ENGINE.load().iter().for_each(|main_engine| {
+            main_engine
+                .sv_dropclient_detour()
+                .iter()
+                .for_each(|detour| {
+                    detour.call(self.client_t, c_reason.as_ptr());
+                });
+        });
     }
 
     pub(crate) fn get_name(&self) -> String {
