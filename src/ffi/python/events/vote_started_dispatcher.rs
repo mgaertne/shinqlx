@@ -16,7 +16,7 @@ impl VoteStartedDispatcher {
     #[new]
     fn py_new(py: Python<'_>) -> (Self, EventDispatcher) {
         let super_class = EventDispatcher {
-            name: Self::name.into(),
+            name: Self::name.to_string(),
             ..EventDispatcher::default()
         };
         (Self { player: py.None() }, super_class)

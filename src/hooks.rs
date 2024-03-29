@@ -1115,7 +1115,7 @@ mod hooks_tests {
         set_configstring_dispatcher_ctx
             .expect()
             .with(predicate::eq(42), predicate::eq(r"\some\value"))
-            .return_const(Some(r"\some\value".into()))
+            .return_const(Some(r"\some\value".to_string()))
             .times(1);
 
         let value = CString::new(r"\some\value").expect("this should not happen");

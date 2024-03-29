@@ -25,7 +25,7 @@ impl VoteEndedDispatcher {
     #[new]
     fn py_new(_py: Python<'_>) -> (Self, EventDispatcher) {
         let super_class = EventDispatcher {
-            name: Self::name.into(),
+            name: Self::name.to_string(),
             ..EventDispatcher::default()
         };
         (Self {}, super_class)
@@ -38,7 +38,7 @@ impl VoteEndedDispatcher {
             if configstring.is_empty() {
                 dispatcher_debug_log(
                     py,
-                    "vote_ended went off without configstring CS_VOTE_STRING.".into(),
+                    "vote_ended went off without configstring CS_VOTE_STRING.".to_string(),
                 );
                 return;
             }

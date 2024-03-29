@@ -96,7 +96,7 @@ impl Game {
 
     fn __repr__(slf: &Bound<'_, Self>) -> String {
         let Ok(classname) = slf.get_type().qualname() else {
-            return "Game(N/A@N/A)".into();
+            return "Game(N/A@N/A)".to_string();
         };
         let Ok(factory_type) = slf.getattr("type") else {
             return format!("{}(N/A@N/A)", classname);
@@ -109,10 +109,10 @@ impl Game {
 
     fn __str__(&mut self, py: Python<'_>) -> String {
         let Ok(factory_type) = self.get_type(py) else {
-            return "Invalid game".into();
+            return "Invalid game".to_string();
         };
         let Ok(mapname) = self.get_map(py) else {
-            return "Invalid game".into();
+            return "Invalid game".to_string();
         };
         format!("{} on {}", factory_type, mapname)
     }
@@ -187,47 +187,47 @@ impl Game {
 
     #[getter]
     fn get_type(&mut self, py: Python<'_>) -> PyResult<String> {
-        let factory_type = self.__getitem__(py, "g_gametype".into())?;
+        let factory_type = self.__getitem__(py, "g_gametype".to_string())?;
         match factory_type.parse::<i32>() {
-            Ok(0) => Ok("Free for All".into()),
-            Ok(1) => Ok("Duel".into()),
-            Ok(2) => Ok("Race".into()),
-            Ok(3) => Ok("Team Deathmatch".into()),
-            Ok(4) => Ok("Clan Arena".into()),
-            Ok(5) => Ok("Capture the Flag".into()),
-            Ok(6) => Ok("One Flag".into()),
-            Ok(8) => Ok("Harvester".into()),
-            Ok(9) => Ok("Freeze Tag".into()),
-            Ok(10) => Ok("Domination".into()),
-            Ok(11) => Ok("Attack and Defend".into()),
-            Ok(12) => Ok("Red Rover".into()),
-            _ => Ok("unknown".into()),
+            Ok(0) => Ok("Free for All".to_string()),
+            Ok(1) => Ok("Duel".to_string()),
+            Ok(2) => Ok("Race".to_string()),
+            Ok(3) => Ok("Team Deathmatch".to_string()),
+            Ok(4) => Ok("Clan Arena".to_string()),
+            Ok(5) => Ok("Capture the Flag".to_string()),
+            Ok(6) => Ok("One Flag".to_string()),
+            Ok(8) => Ok("Harvester".to_string()),
+            Ok(9) => Ok("Freeze Tag".to_string()),
+            Ok(10) => Ok("Domination".to_string()),
+            Ok(11) => Ok("Attack and Defend".to_string()),
+            Ok(12) => Ok("Red Rover".to_string()),
+            _ => Ok("unknown".to_string()),
         }
     }
 
     #[getter(type_short)]
     fn get_type_short(&mut self, py: Python<'_>) -> PyResult<String> {
-        let factory_type = self.__getitem__(py, "g_gametype".into())?;
+        let factory_type = self.__getitem__(py, "g_gametype".to_string())?;
         match factory_type.parse::<i32>() {
-            Ok(0) => Ok("ffa".into()),
-            Ok(1) => Ok("duel".into()),
-            Ok(2) => Ok("race".into()),
-            Ok(3) => Ok("tdm".into()),
-            Ok(4) => Ok("ca".into()),
-            Ok(5) => Ok("ctf".into()),
-            Ok(6) => Ok("1f".into()),
-            Ok(8) => Ok("har".into()),
-            Ok(9) => Ok("ft".into()),
-            Ok(10) => Ok("dom".into()),
-            Ok(11) => Ok("ad".into()),
-            Ok(12) => Ok("rr".into()),
-            _ => Ok("N/A".into()),
+            Ok(0) => Ok("ffa".to_string()),
+            Ok(1) => Ok("duel".to_string()),
+            Ok(2) => Ok("race".to_string()),
+            Ok(3) => Ok("tdm".to_string()),
+            Ok(4) => Ok("ca".to_string()),
+            Ok(5) => Ok("ctf".to_string()),
+            Ok(6) => Ok("1f".to_string()),
+            Ok(8) => Ok("har".to_string()),
+            Ok(9) => Ok("ft".to_string()),
+            Ok(10) => Ok("dom".to_string()),
+            Ok(11) => Ok("ad".to_string()),
+            Ok(12) => Ok("rr".to_string()),
+            _ => Ok("N/A".to_string()),
         }
     }
 
     #[getter(map)]
     fn get_map(&mut self, py: Python<'_>) -> PyResult<String> {
-        self.__getitem__(py, "mapname".into())
+        self.__getitem__(py, "mapname".to_string())
     }
 
     #[setter(map)]
@@ -290,17 +290,17 @@ impl Game {
 
     #[getter(state)]
     fn get_state(&mut self, py: Python<'_>) -> PyResult<String> {
-        let game_state = self.__getitem__(py, "g_gameState".into())?;
+        let game_state = self.__getitem__(py, "g_gameState".to_string())?;
         if game_state == "PRE_GAME" {
-            return Ok("warmup".into());
+            return Ok("warmup".to_string());
         }
 
         if game_state == "COUNT_DOWN" {
-            return Ok("countdown".into());
+            return Ok("countdown".to_string());
         }
 
         if game_state == "IN_PROGRESS" {
-            return Ok("in_progress".into());
+            return Ok("in_progress".to_string());
         }
 
         warn!(target: "shinqlx", "Got unknown game state: {}", game_state);
@@ -310,7 +310,7 @@ impl Game {
 
     #[getter(factory)]
     fn get_factory(&mut self, py: Python<'_>) -> PyResult<String> {
-        self.__getitem__(py, "g_factory".into())
+        self.__getitem__(py, "g_factory".to_string())
     }
 
     #[setter(factory)]
@@ -321,7 +321,7 @@ impl Game {
 
     #[getter(hostname)]
     fn get_hostname(&mut self, py: Python<'_>) -> PyResult<String> {
-        self.__getitem__(py, "sv_hostname".into())
+        self.__getitem__(py, "sv_hostname".to_string())
     }
 
     #[setter(hostname)]
@@ -332,7 +332,7 @@ impl Game {
 
     #[getter(instagib)]
     fn get_instagib(&mut self, py: Python<'_>) -> PyResult<bool> {
-        let insta_cvar = self.__getitem__(py, "g_instagib".into())?;
+        let insta_cvar = self.__getitem__(py, "g_instagib".to_string())?;
         Ok(insta_cvar.parse::<i32>().is_ok_and(|value| value != 0))
     }
 
@@ -357,7 +357,7 @@ impl Game {
 
     #[getter(loadout)]
     fn get_loadout(&mut self, py: Python<'_>) -> PyResult<bool> {
-        let loadout_cvar = self.__getitem__(py, "g_loadout".into())?;
+        let loadout_cvar = self.__getitem__(py, "g_loadout".to_string())?;
         Ok(loadout_cvar.parse::<i32>().is_ok_and(|value| value != 0))
     }
 
@@ -382,7 +382,7 @@ impl Game {
 
     #[getter(maxclients)]
     fn get_maxclients(&mut self, py: Python<'_>) -> PyResult<i32> {
-        let maxclients_cvar = self.__getitem__(py, "sv_maxclients".into())?;
+        let maxclients_cvar = self.__getitem__(py, "sv_maxclients".to_string())?;
         Ok(maxclients_cvar.parse::<i32>().unwrap_or_default())
     }
 
@@ -395,7 +395,7 @@ impl Game {
 
     #[getter(timelimit)]
     fn get_timelimit(&mut self, py: Python<'_>) -> PyResult<i32> {
-        let timelimit_cvar = self.__getitem__(py, "timelimit".into())?;
+        let timelimit_cvar = self.__getitem__(py, "timelimit".to_string())?;
         Ok(timelimit_cvar.parse::<i32>().unwrap_or_default())
     }
 
@@ -408,7 +408,7 @@ impl Game {
 
     #[getter(fraglimit)]
     fn get_fraglimit(&mut self, py: Python<'_>) -> PyResult<i32> {
-        let fraglimit_cvar = self.__getitem__(py, "fraglimit".into())?;
+        let fraglimit_cvar = self.__getitem__(py, "fraglimit".to_string())?;
         Ok(fraglimit_cvar.parse::<i32>().unwrap_or_default())
     }
 
@@ -421,7 +421,7 @@ impl Game {
 
     #[getter(roundlimit)]
     fn get_roundlimit(&mut self, py: Python<'_>) -> PyResult<i32> {
-        let roundlimit_cvar = self.__getitem__(py, "roundlimit".into())?;
+        let roundlimit_cvar = self.__getitem__(py, "roundlimit".to_string())?;
         Ok(roundlimit_cvar.parse::<i32>().unwrap_or_default())
     }
 
@@ -434,7 +434,7 @@ impl Game {
 
     #[getter(roundtimelimit)]
     fn get_roundtimelimit(&mut self, py: Python<'_>) -> PyResult<i32> {
-        let roundtimelimit_cvar = self.__getitem__(py, "roundtimelimit".into())?;
+        let roundtimelimit_cvar = self.__getitem__(py, "roundtimelimit".to_string())?;
         Ok(roundtimelimit_cvar.parse::<i32>().unwrap_or_default())
     }
 
@@ -447,7 +447,7 @@ impl Game {
 
     #[getter(scorelimit)]
     fn get_scorelimit(&mut self, py: Python<'_>) -> PyResult<i32> {
-        let scorelimit_cvar = self.__getitem__(py, "scorelimit".into())?;
+        let scorelimit_cvar = self.__getitem__(py, "scorelimit".to_string())?;
         Ok(scorelimit_cvar.parse::<i32>().unwrap_or_default())
     }
 
@@ -460,7 +460,7 @@ impl Game {
 
     #[getter(capturelimit)]
     fn get_capturelimit(&mut self, py: Python<'_>) -> PyResult<i32> {
-        let capturelimit_cvar = self.__getitem__(py, "capturelimit".into())?;
+        let capturelimit_cvar = self.__getitem__(py, "capturelimit".to_string())?;
         Ok(capturelimit_cvar.parse::<i32>().unwrap_or_default())
     }
 
@@ -473,7 +473,7 @@ impl Game {
 
     #[getter(teamsize)]
     fn get_teamsize(&mut self, py: Python<'_>) -> PyResult<i32> {
-        let teamsize_cvar = self.__getitem__(py, "teamsize".into())?;
+        let teamsize_cvar = self.__getitem__(py, "teamsize".to_string())?;
         Ok(teamsize_cvar.parse::<i32>().unwrap_or_default())
     }
 
@@ -486,7 +486,7 @@ impl Game {
 
     #[getter(tags)]
     fn get_tags(&mut self, py: Python<'_>) -> PyResult<Vec<String>> {
-        let tags_cvar = self.__getitem__(py, "sv_tags".into())?;
+        let tags_cvar = self.__getitem__(py, "sv_tags".to_string())?;
         Ok(tags_cvar.split(',').map(|value| value.into()).collect())
     }
 
@@ -792,7 +792,7 @@ mod pyshinqlx_game_tests {
         mock_engine
             .expect_get_configstring()
             .with(predicate::eq(0))
-            .returning(|_| "".into());
+            .returning(|_| "".to_string());
         MAIN_ENGINE.store(Some(mock_engine.into()));
 
         Python::with_gil(|py| {
@@ -809,7 +809,7 @@ mod pyshinqlx_game_tests {
         mock_engine
             .expect_get_configstring()
             .with(predicate::eq(0))
-            .returning(|_| "asdf".into());
+            .returning(|_| "asdf".to_string());
         MAIN_ENGINE.store(Some(mock_engine.into()));
 
         let result = Python::with_gil(|py| Game::py_new(py, true));
@@ -850,7 +850,7 @@ mod pyshinqlx_game_tests {
         mock_engine
             .expect_get_configstring()
             .with(predicate::eq(0))
-            .returning(|_| "".into());
+            .returning(|_| "".to_string());
         MAIN_ENGINE.store(Some(mock_engine.into()));
 
         let result = Python::with_gil(|py| {
@@ -875,7 +875,7 @@ mod pyshinqlx_game_tests {
         mock_engine
             .expect_get_configstring()
             .with(predicate::eq(0))
-            .returning(|_| r"\g_gametype\4".into());
+            .returning(|_| r"\g_gametype\4".to_string());
         MAIN_ENGINE.store(Some(mock_engine.into()));
 
         let result = Python::with_gil(|py| {
@@ -900,7 +900,7 @@ mod pyshinqlx_game_tests {
         mock_engine
             .expect_get_configstring()
             .with(predicate::eq(0))
-            .returning(|_| r"\mapname\thunderstruck".into());
+            .returning(|_| r"\mapname\thunderstruck".to_string());
         MAIN_ENGINE.store(Some(mock_engine.into()));
 
         let result = Python::with_gil(|py| {
@@ -925,7 +925,7 @@ mod pyshinqlx_game_tests {
         mock_engine
             .expect_get_configstring()
             .with(predicate::eq(0))
-            .returning(|_| r"\mapname\thunderstruck\g_gametype\4".into());
+            .returning(|_| r"\mapname\thunderstruck\g_gametype\4".to_string());
         MAIN_ENGINE.store(Some(mock_engine.into()));
 
         let result = Python::with_gil(|py| {
@@ -966,7 +966,7 @@ mod pyshinqlx_game_tests {
         mock_engine
             .expect_get_configstring()
             .with(predicate::eq(0))
-            .returning(|_| "".into());
+            .returning(|_| "".to_string());
         MAIN_ENGINE.store(Some(mock_engine.into()));
 
         let result = Python::with_gil(|py| {
@@ -987,7 +987,7 @@ mod pyshinqlx_game_tests {
         mock_engine
             .expect_get_configstring()
             .with(predicate::eq(0))
-            .returning(|_| r"\g_gametype\4".into());
+            .returning(|_| r"\g_gametype\4".to_string());
         MAIN_ENGINE.store(Some(mock_engine.into()));
 
         let result = Python::with_gil(|py| {
@@ -1008,7 +1008,7 @@ mod pyshinqlx_game_tests {
         mock_engine
             .expect_get_configstring()
             .with(predicate::eq(0))
-            .returning(|_| r"\mapname\thunderstruck".into());
+            .returning(|_| r"\mapname\thunderstruck".to_string());
         MAIN_ENGINE.store(Some(mock_engine.into()));
 
         let result = Python::with_gil(|py| {
@@ -1029,7 +1029,7 @@ mod pyshinqlx_game_tests {
         mock_engine
             .expect_get_configstring()
             .with(predicate::eq(0))
-            .returning(|_| r"\mapname\thunderstruck\g_gametype\4".into());
+            .returning(|_| r"\mapname\thunderstruck\g_gametype\4".to_string());
         MAIN_ENGINE.store(Some(mock_engine.into()));
 
         let result = Python::with_gil(|py| {
@@ -1054,7 +1054,7 @@ mod pyshinqlx_game_tests {
                 valid: true,
             };
 
-            let result = game.__contains__(py, "asdf".into());
+            let result = game.__contains__(py, "asdf".to_string());
             assert!(result.is_err_and(|err| err.is_instance_of::<PyEnvironmentError>(py)),);
         });
     }
@@ -1067,7 +1067,7 @@ mod pyshinqlx_game_tests {
         mock_engine
             .expect_get_configstring()
             .with(predicate::eq(0))
-            .returning(|_| "".into());
+            .returning(|_| "".to_string());
         MAIN_ENGINE.store(Some(mock_engine.into()));
 
         Python::with_gil(|py| {
@@ -1076,7 +1076,7 @@ mod pyshinqlx_game_tests {
                 valid: true,
             };
 
-            let result = game.__contains__(py, "asdf".into());
+            let result = game.__contains__(py, "asdf".to_string());
             assert!(result.is_err_and(|err| err.is_instance_of::<NonexistentGameError>(py)));
         });
     }
@@ -1089,7 +1089,7 @@ mod pyshinqlx_game_tests {
         mock_engine
             .expect_get_configstring()
             .with(predicate::eq(0))
-            .returning(|_| r"\asdf\12".into());
+            .returning(|_| r"\asdf\12".to_string());
         MAIN_ENGINE.store(Some(mock_engine.into()));
 
         let result = Python::with_gil(|py| {
@@ -1098,7 +1098,7 @@ mod pyshinqlx_game_tests {
                 valid: true,
             };
 
-            game.__contains__(py, "asdf".into())
+            game.__contains__(py, "asdf".to_string())
         });
         assert_eq!(result.expect("result was not OK"), true);
     }
@@ -1111,7 +1111,7 @@ mod pyshinqlx_game_tests {
         mock_engine
             .expect_get_configstring()
             .with(predicate::eq(0))
-            .returning(|_| r"\asdf\12".into());
+            .returning(|_| r"\asdf\12".to_string());
         MAIN_ENGINE.store(Some(mock_engine.into()));
 
         let result = Python::with_gil(|py| {
@@ -1120,7 +1120,7 @@ mod pyshinqlx_game_tests {
                 valid: true,
             };
 
-            game.__contains__(py, "qwertz".into())
+            game.__contains__(py, "qwertz".to_string())
         });
         assert_eq!(result.expect("result was not OK"), false);
     }
@@ -1133,7 +1133,7 @@ mod pyshinqlx_game_tests {
         mock_engine
             .expect_get_configstring()
             .with(predicate::eq(0))
-            .returning(|_| r"\".into());
+            .returning(|_| r"\".to_string());
         MAIN_ENGINE.store(Some(mock_engine.into()));
 
         let result = Python::with_gil(|py| {
@@ -1142,7 +1142,7 @@ mod pyshinqlx_game_tests {
                 valid: true,
             };
 
-            game.__contains__(py, "asdf".into())
+            game.__contains__(py, "asdf".to_string())
         });
         assert_eq!(result.expect("result was not OK"), false);
     }
@@ -1155,7 +1155,7 @@ mod pyshinqlx_game_tests {
         mock_engine
             .expect_get_configstring()
             .with(predicate::eq(0))
-            .returning(|_| "qwertz".into());
+            .returning(|_| "qwertz".to_string());
         MAIN_ENGINE.store(Some(mock_engine.into()));
 
         let result = Python::with_gil(|py| {
@@ -1164,7 +1164,7 @@ mod pyshinqlx_game_tests {
                 valid: true,
             };
 
-            game.__contains__(py, "asdf".into())
+            game.__contains__(py, "asdf".to_string())
         });
         assert_eq!(result.expect("result was not OK"), false);
     }
@@ -1181,7 +1181,7 @@ mod pyshinqlx_game_tests {
                 valid: true,
             };
 
-            let result = game.__getitem__(py, "asdf".into());
+            let result = game.__getitem__(py, "asdf".to_string());
             assert!(result.is_err_and(|err| err.is_instance_of::<PyEnvironmentError>(py)),);
         });
     }
@@ -1194,7 +1194,7 @@ mod pyshinqlx_game_tests {
         mock_engine
             .expect_get_configstring()
             .with(predicate::eq(0))
-            .returning(|_| "".into());
+            .returning(|_| "".to_string());
         MAIN_ENGINE.store(Some(mock_engine.into()));
 
         Python::with_gil(|py| {
@@ -1203,7 +1203,7 @@ mod pyshinqlx_game_tests {
                 valid: true,
             };
 
-            let result = game.__getitem__(py, "asdf".into());
+            let result = game.__getitem__(py, "asdf".to_string());
             assert!(result.is_err_and(|err| err.is_instance_of::<NonexistentGameError>(py)));
         });
     }
@@ -1216,7 +1216,7 @@ mod pyshinqlx_game_tests {
         mock_engine
             .expect_get_configstring()
             .with(predicate::eq(0))
-            .returning(|_| r"\asdf\12".into());
+            .returning(|_| r"\asdf\12".to_string());
         MAIN_ENGINE.store(Some(mock_engine.into()));
 
         let result = Python::with_gil(|py| {
@@ -1225,7 +1225,7 @@ mod pyshinqlx_game_tests {
                 valid: true,
             };
 
-            game.__getitem__(py, "asdf".into())
+            game.__getitem__(py, "asdf".to_string())
         });
         assert_eq!(result.expect("result was not OK"), "12");
     }
@@ -1238,7 +1238,7 @@ mod pyshinqlx_game_tests {
         mock_engine
             .expect_get_configstring()
             .with(predicate::eq(0))
-            .returning(|_| r"\asdf\12".into());
+            .returning(|_| r"\asdf\12".to_string());
         MAIN_ENGINE.store(Some(mock_engine.into()));
 
         Python::with_gil(|py| {
@@ -1247,7 +1247,7 @@ mod pyshinqlx_game_tests {
                 valid: true,
             };
 
-            let result = game.__getitem__(py, "qwertz".into());
+            let result = game.__getitem__(py, "qwertz".to_string());
             assert!(result.is_err_and(|err| err.is_instance_of::<PyKeyError>(py)));
         });
     }
@@ -1260,7 +1260,7 @@ mod pyshinqlx_game_tests {
         mock_engine
             .expect_get_configstring()
             .with(predicate::eq(0))
-            .returning(|_| r"\".into());
+            .returning(|_| r"\".to_string());
         MAIN_ENGINE.store(Some(mock_engine.into()));
 
         Python::with_gil(|py| {
@@ -1269,7 +1269,7 @@ mod pyshinqlx_game_tests {
                 valid: true,
             };
 
-            let result = game.__getitem__(py, "asdf".into());
+            let result = game.__getitem__(py, "asdf".to_string());
             assert!(result.is_err_and(|err| err.is_instance_of::<PyKeyError>(py)));
         });
     }
@@ -1282,7 +1282,7 @@ mod pyshinqlx_game_tests {
         mock_engine
             .expect_get_configstring()
             .with(predicate::eq(0))
-            .returning(|_| "qwertz".into());
+            .returning(|_| "qwertz".to_string());
         MAIN_ENGINE.store(Some(mock_engine.into()));
 
         Python::with_gil(|py| {
@@ -1291,7 +1291,7 @@ mod pyshinqlx_game_tests {
                 valid: true,
             };
 
-            let result = game.__getitem__(py, "asdf".into());
+            let result = game.__getitem__(py, "asdf".to_string());
             assert!(result.is_err_and(|err| err.is_instance_of::<PyKeyError>(py)));
         });
     }
@@ -1321,7 +1321,7 @@ mod pyshinqlx_game_tests {
         mock_engine
             .expect_get_configstring()
             .with(predicate::eq(0))
-            .returning(|_| "".into());
+            .returning(|_| "".to_string());
         MAIN_ENGINE.store(Some(mock_engine.into()));
 
         Python::with_gil(|py| {
@@ -1343,7 +1343,7 @@ mod pyshinqlx_game_tests {
         mock_engine
             .expect_get_configstring()
             .with(predicate::eq(0))
-            .returning(|_| r"\asdf\42".into());
+            .returning(|_| r"\asdf\42".to_string());
         MAIN_ENGINE.store(Some(mock_engine.into()));
 
         Python::with_gil(|py| {
@@ -1388,7 +1388,7 @@ mod pyshinqlx_game_tests {
         mock_engine
             .expect_get_configstring()
             .with(predicate::eq(0))
-            .returning(|_| r"\g_gametype\asdf".into());
+            .returning(|_| r"\g_gametype\asdf".to_string());
         MAIN_ENGINE.store(Some(mock_engine.into()));
 
         Python::with_gil(|py| {
@@ -1466,7 +1466,7 @@ mod pyshinqlx_game_tests {
         mock_engine
             .expect_get_configstring()
             .with(predicate::eq(0))
-            .returning(|_| r"\g_gametype\asdf".into());
+            .returning(|_| r"\g_gametype\asdf".to_string());
         MAIN_ENGINE.store(Some(mock_engine.into()));
 
         Python::with_gil(|py| {
@@ -1527,7 +1527,7 @@ mod pyshinqlx_game_tests {
         mock_engine
             .expect_get_configstring()
             .with(predicate::eq(0))
-            .returning(|_| r"\mapname\thunderstruck".into());
+            .returning(|_| r"\mapname\thunderstruck".to_string());
         MAIN_ENGINE.store(Some(mock_engine.into()));
 
         Python::with_gil(|py| {
@@ -1558,7 +1558,7 @@ mod pyshinqlx_game_tests {
                 valid: true,
             };
 
-            game.set_map(py, "campgrounds".into())
+            game.set_map(py, "campgrounds".to_string())
                 .expect("this should not happen");
         });
     }
@@ -1666,7 +1666,7 @@ _shinqlx._map_subtitle2 = "Awesome map!"
         mock_engine
             .expect_get_configstring()
             .with(predicate::eq(6))
-            .returning(|_| "7".into());
+            .returning(|_| "7".to_string());
         MAIN_ENGINE.store(Some(mock_engine.into()));
 
         Python::with_gil(|py| {
@@ -1688,7 +1688,7 @@ _shinqlx._map_subtitle2 = "Awesome map!"
         mock_engine
             .expect_get_configstring()
             .with(predicate::eq(6))
-            .returning(|_| "asdf".into());
+            .returning(|_| "asdf".to_string());
         MAIN_ENGINE.store(Some(mock_engine.into()));
 
         Python::with_gil(|py| {
@@ -1727,7 +1727,7 @@ _shinqlx._map_subtitle2 = "Awesome map!"
         mock_engine
             .expect_get_configstring()
             .with(predicate::eq(7))
-            .returning(|_| "5".into());
+            .returning(|_| "5".to_string());
         MAIN_ENGINE.store(Some(mock_engine.into()));
 
         Python::with_gil(|py| {
@@ -1749,7 +1749,7 @@ _shinqlx._map_subtitle2 = "Awesome map!"
         mock_engine
             .expect_get_configstring()
             .with(predicate::eq(7))
-            .returning(|_| "asdf".into());
+            .returning(|_| "asdf".to_string());
         MAIN_ENGINE.store(Some(mock_engine.into()));
 
         Python::with_gil(|py| {
@@ -1834,7 +1834,7 @@ _shinqlx._map_subtitle2 = "Awesome map!"
         mock_engine
             .expect_get_configstring()
             .with(predicate::eq(0))
-            .returning(|_| r"\g_factory\ca".into());
+            .returning(|_| r"\g_factory\ca".to_string());
         MAIN_ENGINE.store(Some(mock_engine.into()));
 
         let result = Python::with_gil(|py| {
@@ -1856,7 +1856,7 @@ _shinqlx._map_subtitle2 = "Awesome map!"
         mock_engine
             .expect_get_configstring()
             .with(predicate::eq(0))
-            .returning(|_| r"\mapname\theatreofpain".into());
+            .returning(|_| r"\mapname\theatreofpain".to_string());
         mock_engine
             .expect_execute_console_command()
             .with(predicate::eq("map theatreofpain ffa"))
@@ -1869,7 +1869,7 @@ _shinqlx._map_subtitle2 = "Awesome map!"
                 valid: true,
             };
 
-            game.set_factory(py, "ffa".into())
+            game.set_factory(py, "ffa".to_string())
                 .expect("this should not happen");
         });
     }
@@ -1882,7 +1882,7 @@ _shinqlx._map_subtitle2 = "Awesome map!"
         mock_engine
             .expect_get_configstring()
             .with(predicate::eq(0))
-            .returning(|_| r"\sv_hostname\Awesome server!".into());
+            .returning(|_| r"\sv_hostname\Awesome server!".to_string());
         MAIN_ENGINE.store(Some(mock_engine.into()));
 
         let result = Python::with_gil(|py| {
@@ -1919,7 +1919,7 @@ _shinqlx._map_subtitle2 = "Awesome map!"
                 valid: true,
             };
 
-            game.set_hostname(py, "More awesome server!".into())
+            game.set_hostname(py, "More awesome server!".to_string())
                 .expect("this should not happen");
         });
     }
@@ -2152,7 +2152,7 @@ _shinqlx._map_subtitle2 = "Awesome map!"
         mock_engine
             .expect_get_configstring()
             .with(predicate::eq(0))
-            .returning(|_| r"\sv_maxclients\8".into());
+            .returning(|_| r"\sv_maxclients\8".to_string());
         MAIN_ENGINE.store(Some(mock_engine.into()));
 
         let result = Python::with_gil(|py| {
@@ -2199,7 +2199,7 @@ _shinqlx._map_subtitle2 = "Awesome map!"
         mock_engine
             .expect_get_configstring()
             .with(predicate::eq(0))
-            .returning(|_| r"\timelimit\20".into());
+            .returning(|_| r"\timelimit\20".to_string());
         MAIN_ENGINE.store(Some(mock_engine.into()));
 
         let result = Python::with_gil(|py| {
@@ -2246,7 +2246,7 @@ _shinqlx._map_subtitle2 = "Awesome map!"
         mock_engine
             .expect_get_configstring()
             .with(predicate::eq(0))
-            .returning(|_| r"\fraglimit\10".into());
+            .returning(|_| r"\fraglimit\10".to_string());
         MAIN_ENGINE.store(Some(mock_engine.into()));
 
         let result = Python::with_gil(|py| {
@@ -2293,7 +2293,7 @@ _shinqlx._map_subtitle2 = "Awesome map!"
         mock_engine
             .expect_get_configstring()
             .with(predicate::eq(0))
-            .returning(|_| r"\roundlimit\11".into());
+            .returning(|_| r"\roundlimit\11".to_string());
         MAIN_ENGINE.store(Some(mock_engine.into()));
 
         let result = Python::with_gil(|py| {
@@ -2340,7 +2340,7 @@ _shinqlx._map_subtitle2 = "Awesome map!"
         mock_engine
             .expect_get_configstring()
             .with(predicate::eq(0))
-            .returning(|_| r"\roundtimelimit\240".into());
+            .returning(|_| r"\roundtimelimit\240".to_string());
         MAIN_ENGINE.store(Some(mock_engine.into()));
 
         let result = Python::with_gil(|py| {
@@ -2390,7 +2390,7 @@ _shinqlx._map_subtitle2 = "Awesome map!"
         mock_engine
             .expect_get_configstring()
             .with(predicate::eq(0))
-            .returning(|_| r"\scorelimit\10".into());
+            .returning(|_| r"\scorelimit\10".to_string());
         MAIN_ENGINE.store(Some(mock_engine.into()));
 
         let result = Python::with_gil(|py| {
@@ -2437,7 +2437,7 @@ _shinqlx._map_subtitle2 = "Awesome map!"
         mock_engine
             .expect_get_configstring()
             .with(predicate::eq(0))
-            .returning(|_| r"\capturelimit\10".into());
+            .returning(|_| r"\capturelimit\10".to_string());
         MAIN_ENGINE.store(Some(mock_engine.into()));
 
         let result = Python::with_gil(|py| {
@@ -2485,7 +2485,7 @@ _shinqlx._map_subtitle2 = "Awesome map!"
         mock_engine
             .expect_get_configstring()
             .with(predicate::eq(0))
-            .returning(|_| r"\teamsize\4".into());
+            .returning(|_| r"\teamsize\4".to_string());
         MAIN_ENGINE.store(Some(mock_engine.into()));
 
         let result = Python::with_gil(|py| {
@@ -2532,7 +2532,7 @@ _shinqlx._map_subtitle2 = "Awesome map!"
         mock_engine
             .expect_get_configstring()
             .with(predicate::eq(0))
-            .returning(|_| r"\sv_tags\tag1,tag2,tag3".into());
+            .returning(|_| r"\sv_tags\tag1,tag2,tag3".to_string());
         MAIN_ENGINE.store(Some(mock_engine.into()));
 
         let result = Python::with_gil(|py| {
@@ -2639,7 +2639,7 @@ _shinqlx._map_subtitle2 = "Awesome map!"
         mock_engine
             .expect_get_configstring()
             .with(predicate::eq(715))
-            .returning(|_| "1234 5678 9101".into());
+            .returning(|_| "1234 5678 9101".to_string());
         MAIN_ENGINE.store(Some(mock_engine.into()));
 
         let result = Python::with_gil(|py| {
@@ -2797,7 +2797,7 @@ _shinqlx._map_subtitle2 = "Awesome map!"
             let result = Game::lock(
                 &py.get_type_bound::<Game>(),
                 py,
-                Some("invalid_team".into()),
+                Some("invalid_team".to_string()),
             );
             assert!(result.is_err_and(|err| err.is_instance_of::<PyValueError>(py)));
         });
@@ -2836,7 +2836,11 @@ _shinqlx._map_subtitle2 = "Awesome map!"
         MAIN_ENGINE.store(Some(mock_engine.into()));
 
         let result = Python::with_gil(|py| {
-            Game::lock(&py.get_type_bound::<Game>(), py, Some(locked_team.into()))
+            Game::lock(
+                &py.get_type_bound::<Game>(),
+                py,
+                Some(locked_team.to_string()),
+            )
         });
         assert!(result.is_ok());
     }
@@ -2851,7 +2855,7 @@ _shinqlx._map_subtitle2 = "Awesome map!"
             let result = Game::unlock(
                 &py.get_type_bound::<Game>(),
                 py,
-                Some("invalid_team".into()),
+                Some("invalid_team".to_string()),
             );
             assert!(result.is_err_and(|err| err.is_instance_of::<PyValueError>(py)));
         });
@@ -2890,7 +2894,11 @@ _shinqlx._map_subtitle2 = "Awesome map!"
         MAIN_ENGINE.store(Some(mock_engine.into()));
 
         let result = Python::with_gil(|py| {
-            Game::unlock(&py.get_type_bound::<Game>(), py, Some(locked_team.into()))
+            Game::unlock(
+                &py.get_type_bound::<Game>(),
+                py,
+                Some(locked_team.to_string()),
+            )
         });
         assert!(result.is_ok());
     }
@@ -2906,7 +2914,7 @@ _shinqlx._map_subtitle2 = "Awesome map!"
                 &py.get_type_bound::<Game>(),
                 py,
                 2.into_py(py),
-                "invalid team".into(),
+                "invalid team".to_string(),
             );
             assert!(result.is_err_and(|err| err.is_instance_of::<PyValueError>(py)));
         });
@@ -2923,7 +2931,7 @@ _shinqlx._map_subtitle2 = "Awesome map!"
                 &py.get_type_bound::<Game>(),
                 py,
                 2048.into_py(py),
-                "red".into(),
+                "red".to_string(),
             );
             assert!(result.is_err_and(|err| err.is_instance_of::<PyValueError>(py)));
         });
@@ -2951,7 +2959,7 @@ _shinqlx._map_subtitle2 = "Awesome map!"
                 &py.get_type_bound::<Game>(),
                 py,
                 2.into_py(py),
-                new_team.into(),
+                new_team.to_string(),
             )
         });
         assert!(result.is_ok());
@@ -3108,8 +3116,9 @@ _shinqlx._map_subtitle2 = "Awesome map!"
             .times(1);
         MAIN_ENGINE.store(Some(mock_engine.into()));
 
-        let result =
-            Python::with_gil(|py| Game::opsay(&py.get_type_bound::<Game>(), py, "asdf".into()));
+        let result = Python::with_gil(|py| {
+            Game::opsay(&py.get_type_bound::<Game>(), py, "asdf".to_string())
+        });
         assert!(result.is_ok());
     }
 
@@ -3248,8 +3257,12 @@ _shinqlx._map_subtitle2 = "Awesome map!"
         MAIN_ENGINE.store(None);
 
         Python::with_gil(|py| {
-            let result =
-                Game::addteamscore(&py.get_type_bound::<Game>(), py, "invalid_team".into(), 42);
+            let result = Game::addteamscore(
+                &py.get_type_bound::<Game>(),
+                py,
+                "invalid_team".to_string(),
+                42,
+            );
             assert!(result.is_err_and(|err| err.is_instance_of::<PyValueError>(py)));
         });
     }
@@ -3272,7 +3285,12 @@ _shinqlx._map_subtitle2 = "Awesome map!"
         MAIN_ENGINE.store(Some(mock_engine.into()));
 
         let result = Python::with_gil(|py| {
-            Game::addteamscore(&py.get_type_bound::<Game>(), py, locked_team.into(), 42)
+            Game::addteamscore(
+                &py.get_type_bound::<Game>(),
+                py,
+                locked_team.to_string(),
+                42,
+            )
         });
         assert!(result.is_ok());
     }

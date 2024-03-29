@@ -188,7 +188,7 @@ const NO_DEBUG: [&str; 9] = [
 impl Default for EventDispatcher {
     fn default() -> Self {
         Self {
-            name: "".into(),
+            name: "".to_string(),
             need_zmq_stats_enabled: false,
             plugins: parking_lot::RwLock::new(Vec::new()),
         }

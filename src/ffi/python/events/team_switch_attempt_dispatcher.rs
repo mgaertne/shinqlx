@@ -17,7 +17,7 @@ impl TeamSwitchAttemptDispatcher {
     #[new]
     fn py_new(_py: Python<'_>) -> (Self, EventDispatcher) {
         let super_class = EventDispatcher {
-            name: Self::name.into(),
+            name: Self::name.to_string(),
             ..EventDispatcher::default()
         };
         (Self {}, super_class)

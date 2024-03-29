@@ -13,7 +13,7 @@ impl GameStartDispatcher {
     #[new]
     fn py_new(_py: Python<'_>) -> (Self, EventDispatcher) {
         let super_class = EventDispatcher {
-            name: Self::name.into(),
+            name: Self::name.to_string(),
             need_zmq_stats_enabled: true,
             ..EventDispatcher::default()
         };
