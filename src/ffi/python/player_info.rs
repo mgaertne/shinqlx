@@ -4,8 +4,7 @@ use crate::ffi::c::prelude::*;
 use alloc::borrow::Cow;
 
 /// Information about a player, such as Steam ID, name, client ID, and whatnot.
-#[pyclass]
-#[pyo3(module = "shinqlx", name = "PlayerInfo", frozen, get_all)]
+#[pyclass(module = "_shinqlx", name = "PlayerInfo", frozen, get_all)]
 #[derive(Debug, PartialEq)]
 #[allow(unused)]
 pub(crate) struct PlayerInfo {

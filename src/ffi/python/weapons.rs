@@ -5,8 +5,7 @@ use alloc::borrow::Cow;
 use pyo3::{basic::CompareOp, exceptions::PyValueError, types::PyTuple};
 
 /// A struct sequence containing all the weapons in the game.
-#[pyclass]
-#[pyo3(module = "shinqlx", name = "Weapons", frozen, get_all)]
+#[pyclass(module = "_shinqlx", name = "Weapons", frozen, get_all)]
 #[derive(PartialEq, Eq, Debug, Clone, Copy)]
 pub(crate) struct Weapons(
     #[pyo3(name = "g")] pub(crate) i32,
@@ -264,6 +263,7 @@ weapons = _shinqlx.Weapons((0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14))
             );
         });
     }
+
     #[rstest]
     #[cfg_attr(miri, ignore)]
     fn ammo_py_constructor_with_too_few_values(_pyshinqlx_setup: ()) {

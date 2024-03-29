@@ -5,8 +5,7 @@ use alloc::borrow::Cow;
 use pyo3::{basic::CompareOp, exceptions::PyValueError, types::PyTuple};
 
 /// A struct sequence containing all the powerups in the game.
-#[pyclass]
-#[pyo3(module = "shinqlx", name = "Powerups", frozen, get_all)]
+#[pyclass(module = "_shinqlx", name = "Powerups", frozen, get_all)]
 #[derive(PartialEq, Eq, Debug, Clone, Copy)]
 pub(crate) struct Powerups(
     #[pyo3(name = "quad")] pub(crate) i32,
