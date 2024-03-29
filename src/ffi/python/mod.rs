@@ -416,7 +416,7 @@ fn pyshinqlx_configure_logger(py: Python<'_>) -> PyResult<()> {
     };
     let homepath = main_engine
         .find_cvar("fs_homepath")
-        .map(|homepath_cvar| homepath_cvar.get_string())
+        .map(|homepath_cvar| homepath_cvar.get_string().to_string())
         .unwrap_or_default();
     let num_max_logs = main_engine
         .find_cvar("qlx_logs")
@@ -817,7 +817,7 @@ fn load_preset_plugins(py: Python<'_>) -> PyResult<()> {
         return Ok(());
     };
 
-    let plugins_str: String = plugins_cvar.get_string();
+    let plugins_str = plugins_cvar.get_string();
     let mut plugins: Vec<&str> = plugins_str.split(',').map(|value| value.trim()).collect();
     if plugins.contains(&"DEFAULT") {
         plugins.extend_from_slice(&DEFAULT_PLUGINS);
@@ -1083,7 +1083,7 @@ fn try_get_plugins_path() -> Result<std::path::PathBuf, &'static str> {
     };
     let plugins_path_str = plugins_path_cvar.get_string();
 
-    let plugins_path = std::path::Path::new(&plugins_path_str);
+    let plugins_path = std::path::Path::new(plugins_path_str.as_ref());
     if !plugins_path.is_dir() {
         return Err("qlx_pluginsPath is not pointing to an existing directory");
     }

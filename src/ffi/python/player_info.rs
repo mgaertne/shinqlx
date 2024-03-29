@@ -1,6 +1,8 @@
 use super::prelude::*;
 use crate::ffi::c::prelude::*;
 
+use alloc::borrow::Cow;
+
 /// Information about a player, such as Steam ID, name, client ID, and whatnot.
 #[pyclass(module = "_shinqlx", name = "PlayerInfo", frozen, get_all)]
 #[derive(Debug, PartialEq, Eq, Clone)]

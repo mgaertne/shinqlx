@@ -804,7 +804,7 @@ tell_channel = _shinqlx.TeamChatChannel("all")
                     .returning(|| clientState_t::CS_ACTIVE);
                 mock_client
                     .expect_get_user_info()
-                    .returning(|| "asdf".to_string());
+                    .returning(|| "asdf".into());
                 mock_client.expect_get_steam_id().returning(|| 1234);
                 mock_client
             });
@@ -859,7 +859,7 @@ tell_channel = _shinqlx.TeamChatChannel("all")
                     .returning(|| clientState_t::CS_ACTIVE);
                 mock_client
                     .expect_get_user_info()
-                    .returning(|| "asdf".to_string());
+                    .returning(|| "asdf".into());
                 mock_client.expect_get_steam_id().returning(|| 1234);
                 mock_client
             });
