@@ -22,8 +22,8 @@ impl SetConfigstringDispatcher {
         (Self {}, super_class)
     }
 
-    fn dispatch(slf: PyRef<'_, Self>, py: Python<'_>, index: i32, value: String) -> PyObject {
-        let mut forwarded_value = value.clone();
+    fn dispatch(slf: PyRef<'_, Self>, py: Python<'_>, index: i32, value: &str) -> PyObject {
+        let mut forwarded_value = value.to_string();
         let mut return_value = true.into_py(py);
 
         let super_class = slf.into_super();

@@ -28,7 +28,7 @@ impl PlayerConnectDispatcher {
         let super_class = slf.into_super();
         if let Ok(player_str) = player.bind(py).repr() {
             let dbgstr = format!("{}({})", super_class.name, player_str);
-            dispatcher_debug_log(py, dbgstr);
+            dispatcher_debug_log(py, &dbgstr);
         }
 
         let plugins = super_class.plugins.read();

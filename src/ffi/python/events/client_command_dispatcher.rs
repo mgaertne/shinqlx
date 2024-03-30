@@ -20,14 +20,14 @@ impl ClientCommandDispatcher {
         (Self {}, super_class)
     }
 
-    fn dispatch(slf: PyRef<'_, Self>, py: Python<'_>, player: PyObject, cmd: String) -> PyObject {
-        let mut forwarded_cmd = cmd.clone();
+    fn dispatch(slf: PyRef<'_, Self>, py: Python<'_>, player: PyObject, cmd: &str) -> PyObject {
+        let mut forwarded_cmd = cmd.to_string();
         let mut return_value = true.into_py(py);
 
         let super_class = slf.into_super();
         if let Ok(player_str) = player.bind(py).repr() {
             let dbgstr = format!("{}({}, {})", super_class.name, player_str, cmd);
-            dispatcher_debug_log(py, dbgstr);
+            dispatcher_debug_log(py, &dbgstr);
         }
         let plugins = super_class.plugins.read();
         for i in 0..5 {
@@ -82,7 +82,7 @@ impl ClientCommandDispatcher {
             return false.into_py(py);
         }
 
-        match try_handle_input(py, &player, &cmd) {
+        match try_handle_input(py, &player, cmd) {
             Err(e) => {
                 log_exception(py, &e);
             }
@@ -97,7 +97,7 @@ impl ClientCommandDispatcher {
     }
 }
 
-fn try_handle_input(py: Python<'_>, player: &PyObject, cmd: &String) -> PyResult<PyObject> {
+fn try_handle_input(py: Python<'_>, player: &PyObject, cmd: &str) -> PyResult<PyObject> {
     let shinqlx_module = py.import_bound(intern!(py, "shinqlx"))?;
     let client_command_channel =
         shinqlx_module.call_method1(intern!(py, "ClientCommandChannel"), (player,))?;

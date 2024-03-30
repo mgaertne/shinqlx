@@ -22,21 +22,21 @@ impl VoteStartedDispatcher {
         (Self { player: py.None() }, super_class)
     }
 
-    fn dispatch(slf: PyRef<'_, Self>, py: Python<'_>, vote: String, args: PyObject) -> bool {
+    fn dispatch(slf: PyRef<'_, Self>, py: Python<'_>, vote: &str, args: PyObject) -> bool {
         let mut return_value = true;
 
         let player = (&slf.player).into_py(py);
         let super_class = slf.into_super();
         if let Ok(player_str) = player.bind(py).repr() {
-            let dbgstr = format!("{}({}, {}, {})", super_class.name, player_str, &vote, &args);
-            dispatcher_debug_log(py, dbgstr);
+            let dbgstr = format!("{}({}, {}, {})", super_class.name, player_str, vote, &args);
+            dispatcher_debug_log(py, &dbgstr);
         }
 
         let plugins = super_class.plugins.read();
         for i in 0..5 {
             for (_, handlers) in plugins.iter() {
                 for handler in &handlers[i] {
-                    match handler.call1(py, (&player, &vote, &args)) {
+                    match handler.call1(py, (&player, vote, &args)) {
                         Err(e) => {
                             log_exception(py, &e);
                             continue;

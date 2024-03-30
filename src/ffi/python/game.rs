@@ -117,7 +117,7 @@ impl Game {
         format!("{} on {}", factory_type, mapname)
     }
 
-    fn __contains__(&mut self, py: Python<'_>, item: String) -> PyResult<bool> {
+    fn __contains__(&mut self, py: Python<'_>, item: &str) -> PyResult<bool> {
         py.allow_threads(|| {
             let Some(ref main_engine) = *MAIN_ENGINE.load() else {
                 return Err(PyEnvironmentError::new_err(
@@ -134,11 +134,11 @@ impl Game {
                 ));
             }
 
-            Ok(parse_variables(configstring).get(item).is_some())
+            Ok(parse_variables(&configstring).get(item).is_some())
         })
     }
 
-    fn __getitem__(&mut self, py: Python<'_>, item: String) -> PyResult<String> {
+    fn __getitem__(&mut self, py: Python<'_>, item: &str) -> PyResult<String> {
         py.allow_threads(|| {
             let Some(ref main_engine) = *MAIN_ENGINE.load() else {
                 return Err(PyEnvironmentError::new_err(
@@ -155,8 +155,8 @@ impl Game {
                 ));
             }
 
-            parse_variables(configstring)
-                .get(&item)
+            parse_variables(&configstring)
+                .get(item)
                 .map_or_else(|| Err(PyKeyError::new_err(format!("'{}'", item))), Ok)
         })
     }
@@ -182,12 +182,12 @@ impl Game {
             ));
         }
 
-        Ok(parse_variables(configstring).into_py_dict_bound(py))
+        Ok(parse_variables(&configstring).into_py_dict_bound(py))
     }
 
     #[getter]
     fn get_type(&mut self, py: Python<'_>) -> PyResult<String> {
-        let factory_type = self.__getitem__(py, "g_gametype".to_string())?;
+        let factory_type = self.__getitem__(py, "g_gametype")?;
         match factory_type.parse::<i32>() {
             Ok(0) => Ok("Free for All".to_string()),
             Ok(1) => Ok("Duel".to_string()),
@@ -207,7 +207,7 @@ impl Game {
 
     #[getter(type_short)]
     fn get_type_short(&mut self, py: Python<'_>) -> PyResult<String> {
-        let factory_type = self.__getitem__(py, "g_gametype".to_string())?;
+        let factory_type = self.__getitem__(py, "g_gametype")?;
         match factory_type.parse::<i32>() {
             Ok(0) => Ok("ffa".to_string()),
             Ok(1) => Ok("duel".to_string()),
@@ -227,7 +227,7 @@ impl Game {
 
     #[getter(map)]
     fn get_map(&mut self, py: Python<'_>) -> PyResult<String> {
-        self.__getitem__(py, "mapname".to_string())
+        self.__getitem__(py, "mapname")
     }
 
     #[setter(map)]
@@ -290,7 +290,7 @@ impl Game {
 
     #[getter(state)]
     fn get_state(&mut self, py: Python<'_>) -> PyResult<String> {
-        let game_state = self.__getitem__(py, "g_gameState".to_string())?;
+        let game_state = self.__getitem__(py, "g_gameState")?;
         if game_state == "PRE_GAME" {
             return Ok("warmup".to_string());
         }
@@ -310,7 +310,7 @@ impl Game {
 
     #[getter(factory)]
     fn get_factory(&mut self, py: Python<'_>) -> PyResult<String> {
-        self.__getitem__(py, "g_factory".to_string())
+        self.__getitem__(py, "g_factory")
     }
 
     #[setter(factory)]
@@ -321,7 +321,7 @@ impl Game {
 
     #[getter(hostname)]
     fn get_hostname(&mut self, py: Python<'_>) -> PyResult<String> {
-        self.__getitem__(py, "sv_hostname".to_string())
+        self.__getitem__(py, "sv_hostname")
     }
 
     #[setter(hostname)]
@@ -332,7 +332,7 @@ impl Game {
 
     #[getter(instagib)]
     fn get_instagib(&mut self, py: Python<'_>) -> PyResult<bool> {
-        let insta_cvar = self.__getitem__(py, "g_instagib".to_string())?;
+        let insta_cvar = self.__getitem__(py, "g_instagib")?;
         Ok(insta_cvar.parse::<i32>().is_ok_and(|value| value != 0))
     }
 
@@ -357,7 +357,7 @@ impl Game {
 
     #[getter(loadout)]
     fn get_loadout(&mut self, py: Python<'_>) -> PyResult<bool> {
-        let loadout_cvar = self.__getitem__(py, "g_loadout".to_string())?;
+        let loadout_cvar = self.__getitem__(py, "g_loadout")?;
         Ok(loadout_cvar.parse::<i32>().is_ok_and(|value| value != 0))
     }
 
@@ -382,7 +382,7 @@ impl Game {
 
     #[getter(maxclients)]
     fn get_maxclients(&mut self, py: Python<'_>) -> PyResult<i32> {
-        let maxclients_cvar = self.__getitem__(py, "sv_maxclients".to_string())?;
+        let maxclients_cvar = self.__getitem__(py, "sv_maxclients")?;
         Ok(maxclients_cvar.parse::<i32>().unwrap_or_default())
     }
 
@@ -395,7 +395,7 @@ impl Game {
 
     #[getter(timelimit)]
     fn get_timelimit(&mut self, py: Python<'_>) -> PyResult<i32> {
-        let timelimit_cvar = self.__getitem__(py, "timelimit".to_string())?;
+        let timelimit_cvar = self.__getitem__(py, "timelimit")?;
         Ok(timelimit_cvar.parse::<i32>().unwrap_or_default())
     }
 
@@ -408,7 +408,7 @@ impl Game {
 
     #[getter(fraglimit)]
     fn get_fraglimit(&mut self, py: Python<'_>) -> PyResult<i32> {
-        let fraglimit_cvar = self.__getitem__(py, "fraglimit".to_string())?;
+        let fraglimit_cvar = self.__getitem__(py, "fraglimit")?;
         Ok(fraglimit_cvar.parse::<i32>().unwrap_or_default())
     }
 
@@ -421,7 +421,7 @@ impl Game {
 
     #[getter(roundlimit)]
     fn get_roundlimit(&mut self, py: Python<'_>) -> PyResult<i32> {
-        let roundlimit_cvar = self.__getitem__(py, "roundlimit".to_string())?;
+        let roundlimit_cvar = self.__getitem__(py, "roundlimit")?;
         Ok(roundlimit_cvar.parse::<i32>().unwrap_or_default())
     }
 
@@ -434,7 +434,7 @@ impl Game {
 
     #[getter(roundtimelimit)]
     fn get_roundtimelimit(&mut self, py: Python<'_>) -> PyResult<i32> {
-        let roundtimelimit_cvar = self.__getitem__(py, "roundtimelimit".to_string())?;
+        let roundtimelimit_cvar = self.__getitem__(py, "roundtimelimit")?;
         Ok(roundtimelimit_cvar.parse::<i32>().unwrap_or_default())
     }
 
@@ -447,7 +447,7 @@ impl Game {
 
     #[getter(scorelimit)]
     fn get_scorelimit(&mut self, py: Python<'_>) -> PyResult<i32> {
-        let scorelimit_cvar = self.__getitem__(py, "scorelimit".to_string())?;
+        let scorelimit_cvar = self.__getitem__(py, "scorelimit")?;
         Ok(scorelimit_cvar.parse::<i32>().unwrap_or_default())
     }
 
@@ -460,7 +460,7 @@ impl Game {
 
     #[getter(capturelimit)]
     fn get_capturelimit(&mut self, py: Python<'_>) -> PyResult<i32> {
-        let capturelimit_cvar = self.__getitem__(py, "capturelimit".to_string())?;
+        let capturelimit_cvar = self.__getitem__(py, "capturelimit")?;
         Ok(capturelimit_cvar.parse::<i32>().unwrap_or_default())
     }
 
@@ -473,7 +473,7 @@ impl Game {
 
     #[getter(teamsize)]
     fn get_teamsize(&mut self, py: Python<'_>) -> PyResult<i32> {
-        let teamsize_cvar = self.__getitem__(py, "teamsize".to_string())?;
+        let teamsize_cvar = self.__getitem__(py, "teamsize")?;
         Ok(teamsize_cvar.parse::<i32>().unwrap_or_default())
     }
 
@@ -486,7 +486,7 @@ impl Game {
 
     #[getter(tags)]
     fn get_tags(&mut self, py: Python<'_>) -> PyResult<Vec<String>> {
-        let tags_cvar = self.__getitem__(py, "sv_tags".to_string())?;
+        let tags_cvar = self.__getitem__(py, "sv_tags")?;
         Ok(tags_cvar.split(',').map(|value| value.into()).collect())
     }
 
@@ -618,7 +618,7 @@ impl Game {
         _cls: &Bound<'_, PyType>,
         py: Python<'_>,
         player: Py<PyAny>,
-        team: String,
+        team: &str,
     ) -> PyResult<()> {
         let Some(player_id) = client_id(py, player) else {
             return Err(PyValueError::new_err("Invalid player."));
@@ -683,7 +683,7 @@ impl Game {
     }
 
     #[classmethod]
-    fn opsay(_cls: &Bound<'_, PyType>, py: Python<'_>, msg: String) -> PyResult<()> {
+    fn opsay(_cls: &Bound<'_, PyType>, py: Python<'_>, msg: &str) -> PyResult<()> {
         let opsay_cmd = format!("opsay {}", msg);
         pyshinqlx_console_command(py, &opsay_cmd)
     }
@@ -742,7 +742,7 @@ impl Game {
     fn addteamscore(
         _cls: &Bound<'_, PyType>,
         py: Python<'_>,
-        team: String,
+        team: &str,
         score: i32,
     ) -> PyResult<()> {
         if !["free", "red", "blue", "spectator"].contains(&&*team.to_lowercase()) {
@@ -1054,7 +1054,7 @@ mod pyshinqlx_game_tests {
                 valid: true,
             };
 
-            let result = game.__contains__(py, "asdf".to_string());
+            let result = game.__contains__(py, "asdf");
             assert!(result.is_err_and(|err| err.is_instance_of::<PyEnvironmentError>(py)),);
         });
     }
@@ -1076,7 +1076,7 @@ mod pyshinqlx_game_tests {
                 valid: true,
             };
 
-            let result = game.__contains__(py, "asdf".to_string());
+            let result = game.__contains__(py, "asdf");
             assert!(result.is_err_and(|err| err.is_instance_of::<NonexistentGameError>(py)));
         });
     }
@@ -1098,7 +1098,7 @@ mod pyshinqlx_game_tests {
                 valid: true,
             };
 
-            game.__contains__(py, "asdf".to_string())
+            game.__contains__(py, "asdf")
         });
         assert_eq!(result.expect("result was not OK"), true);
     }
@@ -1120,7 +1120,7 @@ mod pyshinqlx_game_tests {
                 valid: true,
             };
 
-            game.__contains__(py, "qwertz".to_string())
+            game.__contains__(py, "qwertz")
         });
         assert_eq!(result.expect("result was not OK"), false);
     }
@@ -1142,7 +1142,7 @@ mod pyshinqlx_game_tests {
                 valid: true,
             };
 
-            game.__contains__(py, "asdf".to_string())
+            game.__contains__(py, "asdf")
         });
         assert_eq!(result.expect("result was not OK"), false);
     }
@@ -1164,7 +1164,7 @@ mod pyshinqlx_game_tests {
                 valid: true,
             };
 
-            game.__contains__(py, "asdf".to_string())
+            game.__contains__(py, "asdf")
         });
         assert_eq!(result.expect("result was not OK"), false);
     }
@@ -1181,7 +1181,7 @@ mod pyshinqlx_game_tests {
                 valid: true,
             };
 
-            let result = game.__getitem__(py, "asdf".to_string());
+            let result = game.__getitem__(py, "asdf");
             assert!(result.is_err_and(|err| err.is_instance_of::<PyEnvironmentError>(py)),);
         });
     }
@@ -1203,7 +1203,7 @@ mod pyshinqlx_game_tests {
                 valid: true,
             };
 
-            let result = game.__getitem__(py, "asdf".to_string());
+            let result = game.__getitem__(py, "asdf");
             assert!(result.is_err_and(|err| err.is_instance_of::<NonexistentGameError>(py)));
         });
     }
@@ -1225,7 +1225,7 @@ mod pyshinqlx_game_tests {
                 valid: true,
             };
 
-            game.__getitem__(py, "asdf".to_string())
+            game.__getitem__(py, "asdf")
         });
         assert_eq!(result.expect("result was not OK"), "12");
     }
@@ -1247,7 +1247,7 @@ mod pyshinqlx_game_tests {
                 valid: true,
             };
 
-            let result = game.__getitem__(py, "qwertz".to_string());
+            let result = game.__getitem__(py, "qwertz");
             assert!(result.is_err_and(|err| err.is_instance_of::<PyKeyError>(py)));
         });
     }
@@ -1269,7 +1269,7 @@ mod pyshinqlx_game_tests {
                 valid: true,
             };
 
-            let result = game.__getitem__(py, "asdf".to_string());
+            let result = game.__getitem__(py, "asdf");
             assert!(result.is_err_and(|err| err.is_instance_of::<PyKeyError>(py)));
         });
     }
@@ -1291,7 +1291,7 @@ mod pyshinqlx_game_tests {
                 valid: true,
             };
 
-            let result = game.__getitem__(py, "asdf".to_string());
+            let result = game.__getitem__(py, "asdf");
             assert!(result.is_err_and(|err| err.is_instance_of::<PyKeyError>(py)));
         });
     }
@@ -2914,7 +2914,7 @@ _shinqlx._map_subtitle2 = "Awesome map!"
                 &py.get_type_bound::<Game>(),
                 py,
                 2.into_py(py),
-                "invalid team".to_string(),
+                "invalid team",
             );
             assert!(result.is_err_and(|err| err.is_instance_of::<PyValueError>(py)));
         });
@@ -2927,12 +2927,7 @@ _shinqlx._map_subtitle2 = "Awesome map!"
         MAIN_ENGINE.store(None);
 
         Python::with_gil(|py| {
-            let result = Game::put(
-                &py.get_type_bound::<Game>(),
-                py,
-                2048.into_py(py),
-                "red".to_string(),
-            );
+            let result = Game::put(&py.get_type_bound::<Game>(), py, 2048.into_py(py), "red");
             assert!(result.is_err_and(|err| err.is_instance_of::<PyValueError>(py)));
         });
     }
@@ -2955,12 +2950,7 @@ _shinqlx._map_subtitle2 = "Awesome map!"
         MAIN_ENGINE.store(Some(mock_engine.into()));
 
         let result = Python::with_gil(|py| {
-            Game::put(
-                &py.get_type_bound::<Game>(),
-                py,
-                2.into_py(py),
-                new_team.to_string(),
-            )
+            Game::put(&py.get_type_bound::<Game>(), py, 2.into_py(py), new_team)
         });
         assert!(result.is_ok());
     }
@@ -3116,9 +3106,7 @@ _shinqlx._map_subtitle2 = "Awesome map!"
             .times(1);
         MAIN_ENGINE.store(Some(mock_engine.into()));
 
-        let result = Python::with_gil(|py| {
-            Game::opsay(&py.get_type_bound::<Game>(), py, "asdf".to_string())
-        });
+        let result = Python::with_gil(|py| Game::opsay(&py.get_type_bound::<Game>(), py, "asdf"));
         assert!(result.is_ok());
     }
 
@@ -3257,12 +3245,7 @@ _shinqlx._map_subtitle2 = "Awesome map!"
         MAIN_ENGINE.store(None);
 
         Python::with_gil(|py| {
-            let result = Game::addteamscore(
-                &py.get_type_bound::<Game>(),
-                py,
-                "invalid_team".to_string(),
-                42,
-            );
+            let result = Game::addteamscore(&py.get_type_bound::<Game>(), py, "invalid_team", 42);
             assert!(result.is_err_and(|err| err.is_instance_of::<PyValueError>(py)));
         });
     }
@@ -3285,12 +3268,7 @@ _shinqlx._map_subtitle2 = "Awesome map!"
         MAIN_ENGINE.store(Some(mock_engine.into()));
 
         let result = Python::with_gil(|py| {
-            Game::addteamscore(
-                &py.get_type_bound::<Game>(),
-                py,
-                locked_team.to_string(),
-                42,
-            )
+            Game::addteamscore(&py.get_type_bound::<Game>(), py, locked_team, 42)
         });
         assert!(result.is_ok());
     }

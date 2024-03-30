@@ -19,20 +19,25 @@ impl PlayerDisconnectDispatcher {
         (Self {}, super_class)
     }
 
-    fn dispatch(slf: PyRef<'_, Self>, py: Python<'_>, player: PyObject, reason: PyObject) -> bool {
+    fn dispatch(
+        slf: PyRef<'_, Self>,
+        py: Python<'_>,
+        player: PyObject,
+        reason: Option<&str>,
+    ) -> bool {
         let mut return_value = true;
 
         let super_class = slf.into_super();
         if let Ok(player_str) = player.bind(py).repr() {
-            let dbgstr = format!("{}({}, {})", super_class.name, player_str, &reason);
-            dispatcher_debug_log(py, dbgstr);
+            let dbgstr = format!("{}({}, {:?})", super_class.name, player_str, reason);
+            dispatcher_debug_log(py, &dbgstr);
         }
 
         let plugins = super_class.plugins.read();
         for i in 0..5 {
             for (_, handlers) in plugins.iter() {
                 for handler in &handlers[i] {
-                    match handler.call1(py, (&player, &reason)) {
+                    match handler.call1(py, (&player, reason)) {
                         Err(e) => {
                             log_exception(py, &e);
                             continue;

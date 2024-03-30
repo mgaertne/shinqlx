@@ -14,11 +14,11 @@ use pyo3::{
 
 create_exception!(pyshinqlx_module, NonexistentPlayerError, PyException);
 
-impl TryFrom<String> for privileges_t {
+impl TryFrom<&str> for privileges_t {
     type Error = &'static str;
 
-    fn try_from(value: String) -> Result<Self, Self::Error> {
-        match value.as_str() {
+    fn try_from(value: &str) -> Result<Self, Self::Error> {
+        match value {
             "none" => Ok(privileges_t::PRIV_NONE),
             "mod" => Ok(privileges_t::PRIV_MOD),
             "admin" => Ok(privileges_t::PRIV_ADMIN),
@@ -27,11 +27,11 @@ impl TryFrom<String> for privileges_t {
     }
 }
 
-impl TryFrom<String> for weapon_t {
+impl TryFrom<&str> for weapon_t {
     type Error = String;
 
-    fn try_from(value: String) -> Result<Self, Self::Error> {
-        match value.as_str() {
+    fn try_from(value: &str) -> Result<Self, Self::Error> {
+        match value {
             "g" => Ok(weapon_t::WP_GAUNTLET),
             "mg" => Ok(weapon_t::WP_MACHINEGUN),
             "sg" => Ok(weapon_t::WP_SHOTGUN),
@@ -86,7 +86,7 @@ impl Player {
         // When a player connects, the name field in the client struct has yet to be initialized,
         // so we fall back to the userinfo and try parse it ourselves to get the name if needed.
         let name = if player_info.name.is_empty() {
-            let cvars = parse_variables(player_info.userinfo.clone());
+            let cvars = parse_variables(&player_info.userinfo);
             cvars.get("name").unwrap_or_default()
         } else {
             player_info.name.clone()
@@ -122,7 +122,7 @@ impl Player {
         self.name.clone()
     }
 
-    fn __contains__(&self, py: Python<'_>, item: String) -> PyResult<bool> {
+    fn __contains__(&self, py: Python<'_>, item: &str) -> PyResult<bool> {
         if !self.valid {
             return Err(NonexistentPlayerError::new_err(
                 "The player does not exist anymore. Did the player disconnect?",
@@ -130,12 +130,12 @@ impl Player {
         }
 
         py.allow_threads(|| {
-            let cvars = parse_variables(self.user_info.clone());
+            let cvars = parse_variables(&self.user_info);
             Ok(cvars.get(item).is_some())
         })
     }
 
-    fn __getitem__(&self, py: Python<'_>, item: String) -> PyResult<String> {
+    fn __getitem__(&self, py: Python<'_>, item: &str) -> PyResult<String> {
         if !self.valid {
             return Err(NonexistentPlayerError::new_err(
                 "The player does not exist anymore. Did the player disconnect?",
@@ -143,9 +143,9 @@ impl Player {
         }
 
         py.allow_threads(|| {
-            let cvars = parse_variables(self.user_info.clone());
+            let cvars = parse_variables(&self.user_info);
             cvars
-                .get(&item)
+                .get(item)
                 .map_or_else(|| Err(PyKeyError::new_err(format!("'{item}'"))), Ok)
         })
     }
@@ -192,7 +192,7 @@ impl Player {
 
         py.allow_threads(|| {
             let name = if self.player_info.name.is_empty() {
-                let cvars = parse_variables(self.player_info.userinfo.clone());
+                let cvars = parse_variables(&self.player_info.userinfo);
                 cvars.get("name").unwrap_or_default()
             } else {
                 self.player_info.name.clone()
@@ -205,11 +205,11 @@ impl Player {
 
     #[pyo3(
     name = "_invalidate",
-    signature = (e = "The player does not exist anymore. Did the player disconnect?".to_string())
+    signature = (e = "The player does not exist anymore. Did the player disconnect?")
     )]
-    fn invalidate(&mut self, e: String) -> PyResult<()> {
+    fn invalidate(&mut self, e: &str) -> PyResult<()> {
         self.valid = false;
-        Err(NonexistentPlayerError::new_err(e))
+        Err(NonexistentPlayerError::new_err(e.to_string()))
     }
 
     #[getter(cvars)]
@@ -220,7 +220,7 @@ impl Player {
             ));
         }
 
-        Ok(parse_variables(self.user_info.clone()).into_py_dict_bound(py))
+        Ok(parse_variables(&self.user_info).into_py_dict_bound(py))
     }
 
     #[setter(cvars)]
@@ -247,7 +247,7 @@ impl Player {
     #[getter(ip)]
     fn get_ip(&self, py: Python<'_>) -> String {
         py.allow_threads(|| {
-            let cvars = parse_variables(self.user_info.clone());
+            let cvars = parse_variables(&self.user_info);
             cvars
                 .get("ip")
                 .map(|value| value.split(':').next().unwrap_or("").to_string())
@@ -266,7 +266,7 @@ impl Player {
             };
 
             let configstring = main_engine.get_configstring(CS_PLAYERS as u16 + self.id as u16);
-            let parsed_cs = parse_variables(configstring);
+            let parsed_cs = parse_variables(&configstring);
             parsed_cs.get("cn").unwrap_or("".to_string())
         })
     }
@@ -281,9 +281,9 @@ impl Player {
             let config_index = 529 + self.id as u16;
 
             let configstring = main_engine.get_configstring(config_index);
-            let mut parsed_variables = parse_variables(configstring);
-            parsed_variables.set("xcn".to_string(), tag.clone());
-            parsed_variables.set("cn".to_string(), tag.clone());
+            let mut parsed_variables = parse_variables(&configstring);
+            parsed_variables.set("xcn", &tag);
+            parsed_variables.set("cn", &tag);
 
             let new_configstring: String = parsed_variables.into();
             main_engine.set_configstring(config_index as i32, &new_configstring);
@@ -304,8 +304,8 @@ impl Player {
     #[setter(name)]
     fn set_name(&mut self, py: Python<'_>, value: String) -> PyResult<()> {
         let new: String = py.allow_threads(|| {
-            let mut new_cvars = parse_variables(self.user_info.clone());
-            new_cvars.set("name".to_string(), value);
+            let mut new_cvars = parse_variables(&self.user_info);
+            new_cvars.set("name", &value);
             new_cvars.into()
         });
 
@@ -323,7 +323,7 @@ impl Player {
     #[getter(qport)]
     fn get_qport(&self, py: Python<'_>) -> i32 {
         py.allow_threads(|| {
-            let cvars = parse_variables(self.user_info.clone());
+            let cvars = parse_variables(&self.user_info);
             cvars
                 .get("qport")
                 .map(|value| value.parse::<i32>().unwrap_or(-1))
@@ -355,7 +355,7 @@ impl Player {
     #[getter(colors)]
     fn get_colors(&self, py: Python<'_>) -> (f32, f32) {
         py.allow_threads(|| {
-            let cvars = parse_variables(self.user_info.clone());
+            let cvars = parse_variables(&self.user_info);
             let color1 = cvars
                 .get("color1")
                 .map(|value| value.parse::<f32>().unwrap_or(0.0))
@@ -371,9 +371,9 @@ impl Player {
     #[setter(colors)]
     fn set_colors(&mut self, py: Python<'_>, new: (i32, i32)) -> PyResult<()> {
         let new_cvars_string: String = py.allow_threads(|| {
-            let mut new_cvars = parse_variables(self.player_info.userinfo.clone());
-            new_cvars.set("color1".to_string(), format!("{}", new.0));
-            new_cvars.set("color2".to_string(), format!("{}", new.1));
+            let mut new_cvars = parse_variables(&self.player_info.userinfo);
+            new_cvars.set("color1", &format!("{}", new.0));
+            new_cvars.set("color2", &format!("{}", new.1));
             new_cvars.into()
         });
 
@@ -385,7 +385,7 @@ impl Player {
     #[getter(model)]
     fn get_model(&self, py: Python<'_>) -> PyResult<String> {
         py.allow_threads(|| {
-            let cvars = parse_variables(self.user_info.clone());
+            let cvars = parse_variables(&self.user_info);
             cvars
                 .get("model")
                 .map_or_else(|| Err(PyKeyError::new_err("'model'")), Ok)
@@ -395,8 +395,8 @@ impl Player {
     #[setter(model)]
     fn set_model(&mut self, py: Python<'_>, value: String) -> PyResult<()> {
         let new_cvars_string: String = py.allow_threads(|| {
-            let mut new_cvars = parse_variables(self.player_info.userinfo.clone());
-            new_cvars.set("model".to_string(), value);
+            let mut new_cvars = parse_variables(&self.player_info.userinfo);
+            new_cvars.set("model", &value);
             new_cvars.into()
         });
 
@@ -408,7 +408,7 @@ impl Player {
     #[getter(headmodel)]
     fn get_headmodel(&self, py: Python<'_>) -> PyResult<String> {
         py.allow_threads(|| {
-            let cvars = parse_variables(self.user_info.clone());
+            let cvars = parse_variables(&self.user_info);
             cvars
                 .get("headmodel")
                 .map_or_else(|| Err(PyKeyError::new_err("'headmodel'")), Ok)
@@ -418,8 +418,8 @@ impl Player {
     #[setter(headmodel)]
     fn set_headmodel(&mut self, py: Python<'_>, value: String) -> PyResult<()> {
         let new_cvars_string: String = py.allow_threads(|| {
-            let mut new_cvars = parse_variables(self.player_info.userinfo.clone());
-            new_cvars.set("headmodel".to_string(), value);
+            let mut new_cvars = parse_variables(&self.player_info.userinfo);
+            new_cvars.set("headmodel", &value);
             new_cvars.into()
         });
 
@@ -431,7 +431,7 @@ impl Player {
     #[getter(handicap)]
     fn get_handicap(&self, py: Python<'_>) -> PyResult<String> {
         py.allow_threads(|| {
-            let cvars = parse_variables(self.user_info.clone());
+            let cvars = parse_variables(&self.user_info);
             cvars
                 .get("handicap")
                 .map_or_else(|| Err(PyKeyError::new_err("'handicap'")), Ok)
@@ -441,8 +441,8 @@ impl Player {
     #[setter(handicap)]
     fn set_handicap(&mut self, py: Python<'_>, value: String) -> PyResult<()> {
         let new_cvars_string: String = py.allow_threads(|| {
-            let mut new_cvars = parse_variables(self.player_info.userinfo.clone());
-            new_cvars.set("handicap".to_string(), value);
+            let mut new_cvars = parse_variables(&self.player_info.userinfo);
+            new_cvars.set("handicap", &value);
             new_cvars.into()
         });
 
@@ -454,7 +454,7 @@ impl Player {
     #[getter(autohop)]
     fn get_autohop(&self, py: Python<'_>) -> PyResult<bool> {
         py.allow_threads(|| {
-            let cvars = parse_variables(self.user_info.clone());
+            let cvars = parse_variables(&self.user_info);
             cvars.get("autohop").map_or_else(
                 || Err(PyKeyError::new_err("'autohop'")),
                 |value| Ok(value != "0"),
@@ -465,15 +465,8 @@ impl Player {
     #[setter(autohop)]
     fn set_autohop(&mut self, py: Python<'_>, value: bool) -> PyResult<()> {
         let new_cvars_string: String = py.allow_threads(|| {
-            let mut new_cvars = parse_variables(self.player_info.userinfo.clone());
-            new_cvars.set(
-                "autohop".to_string(),
-                if value {
-                    "1".to_string()
-                } else {
-                    "0".to_string()
-                },
-            );
+            let mut new_cvars = parse_variables(&self.player_info.userinfo);
+            new_cvars.set("autohop", if value { "1" } else { "0" });
             new_cvars.into()
         });
 
@@ -485,7 +478,7 @@ impl Player {
     #[getter(autoaction)]
     fn get_autoaction(&self, py: Python<'_>) -> PyResult<bool> {
         py.allow_threads(|| {
-            let cvars = parse_variables(self.user_info.clone());
+            let cvars = parse_variables(&self.user_info);
             cvars.get("autoaction").map_or_else(
                 || Err(PyKeyError::new_err("'autoaction'")),
                 |value| Ok(value != "0"),
@@ -496,15 +489,8 @@ impl Player {
     #[setter(autoaction)]
     fn set_autoaction(&mut self, py: Python<'_>, value: bool) -> PyResult<()> {
         let new_cvars_string: String = py.allow_threads(|| {
-            let mut new_cvars = parse_variables(self.player_info.userinfo.clone());
-            new_cvars.set(
-                "autoaction".to_string(),
-                if value {
-                    "1".to_string()
-                } else {
-                    "0".to_string()
-                },
-            );
+            let mut new_cvars = parse_variables(&self.player_info.userinfo);
+            new_cvars.set("autoaction", if value { "1" } else { "0" });
             new_cvars.into()
         });
 
@@ -516,7 +502,7 @@ impl Player {
     #[getter(predictitems)]
     fn get_predictitems(&self, py: Python<'_>) -> PyResult<bool> {
         py.allow_threads(|| {
-            let cvars = parse_variables(self.user_info.clone());
+            let cvars = parse_variables(&self.user_info);
             cvars.get("cg_predictitems").map_or_else(
                 || Err(PyKeyError::new_err("'cg_predictitems'")),
                 |value| Ok(value != "0"),
@@ -527,15 +513,8 @@ impl Player {
     #[setter(predictitems)]
     fn set_predictitems(&mut self, py: Python<'_>, value: bool) -> PyResult<()> {
         let new_cvars_string: String = py.allow_threads(|| {
-            let mut new_cvars = parse_variables(self.player_info.userinfo.clone());
-            new_cvars.set(
-                "cg_predictitems".to_string(),
-                if value {
-                    "1".to_string()
-                } else {
-                    "0".to_string()
-                },
-            );
+            let mut new_cvars = parse_variables(&self.player_info.userinfo);
+            new_cvars.set("cg_predictitems", if value { "1" } else { "0" });
             new_cvars.into()
         });
 
@@ -586,8 +565,8 @@ impl Player {
 
     #[setter(privileges)]
     fn set_privileges(&mut self, py: Python<'_>, value: Option<String>) -> PyResult<()> {
-        let new_privileges =
-            py.allow_threads(|| privileges_t::try_from(value.unwrap_or("none".to_string())));
+        let new_privileges = py
+            .allow_threads(|| privileges_t::try_from(value.unwrap_or("none".to_string()).as_str()));
 
         new_privileges.map_or(
             Err(PyValueError::new_err("Invalid privilege level.")),
@@ -601,7 +580,7 @@ impl Player {
     #[getter(country)]
     fn get_country(&self, py: Python<'_>) -> PyResult<String> {
         py.allow_threads(|| {
-            let cvars = parse_variables(self.user_info.clone());
+            let cvars = parse_variables(&self.user_info);
             cvars
                 .get("country")
                 .map_or_else(|| Err(PyKeyError::new_err("'country'")), Ok)
@@ -611,8 +590,8 @@ impl Player {
     #[setter(country)]
     fn set_country(&mut self, py: Python<'_>, value: String) -> PyResult<()> {
         let new_cvars_string: String = py.allow_threads(|| {
-            let mut new_cvars = parse_variables(self.player_info.userinfo.clone());
-            new_cvars.set("country".to_string(), value);
+            let mut new_cvars = parse_variables(&self.player_info.userinfo.clone());
+            new_cvars.set("country", &value);
             new_cvars.into()
         });
 
@@ -817,7 +796,7 @@ impl Player {
         let Ok(converted_weapon) = (match weapon.extract::<i32>(py) {
             Ok(value) => weapon_t::try_from(value),
             Err(_) => match weapon.extract::<String>(py) {
-                Ok(value) => weapon_t::try_from(value),
+                Ok(value) => weapon_t::try_from(value.as_str()),
                 Err(_) => Err("invalid weapon".to_string()),
             },
         }) else {
@@ -1146,7 +1125,7 @@ impl Player {
         Py::new(py, TellChannel::py_new(self)).ok()
     }
 
-    fn center_print(&self, py: Python<'_>, msg: String) -> PyResult<()> {
+    fn center_print(&self, py: Python<'_>, msg: &str) -> PyResult<()> {
         let cmd = format!("cp \"{msg}\"");
         pyshinqlx_send_server_command(py, Some(self.id), &cmd).map(|_| ())
     }
@@ -1155,7 +1134,7 @@ impl Player {
     fn tell<'py>(
         &self,
         py: Python<'py>,
-        msg: String,
+        msg: &str,
         kwargs: Option<&Bound<'py, PyDict>>,
     ) -> PyResult<Py<PyAny>> {
         let Some(tell_channel) = self.get_channel(py) else {
@@ -1204,7 +1183,7 @@ impl Player {
         pyshinqlx_console_command(py, &unmute_cmd)
     }
 
-    fn put(&self, py: Python<'_>, team: String) -> PyResult<()> {
+    fn put(&self, py: Python<'_>, team: &str) -> PyResult<()> {
         if !["free", "red", "blue", "spectator"].contains(&&*team.to_lowercase()) {
             return Err(PyValueError::new_err("Invalid team."));
         }
@@ -1226,8 +1205,8 @@ impl Player {
             return Err(PyValueError::new_err("Both players are on the same team."));
         }
 
-        self.put(py, other_team)?;
-        other_player.put(py, own_team)
+        self.put(py, &other_team)?;
+        other_player.put(py, &own_team)
     }
 
     #[pyo3(signature = (damage = 0))]
@@ -1451,7 +1430,7 @@ mod pyshinqlx_player_tests {
         };
 
         Python::with_gil(|py| {
-            let result = player.__contains__(py, "asdf".to_string());
+            let result = player.__contains__(py, "asdf");
             assert!(result.is_err_and(|err| err.is_instance_of::<NonexistentPlayerError>(py)));
         });
     }
@@ -1468,7 +1447,7 @@ mod pyshinqlx_player_tests {
             ..default_test_player()
         };
 
-        let result = Python::with_gil(|py| player.__contains__(py, "asdf".to_string()));
+        let result = Python::with_gil(|py| player.__contains__(py, "asdf"));
         assert_eq!(result.expect("result was not OK"), true);
     }
 
@@ -1484,7 +1463,7 @@ mod pyshinqlx_player_tests {
             ..default_test_player()
         };
 
-        let result = Python::with_gil(|py| player.__contains__(py, "asdf".to_string()));
+        let result = Python::with_gil(|py| player.__contains__(py, "asdf"));
         assert_eq!(result.expect("result was not OK"), false);
     }
 
@@ -1497,7 +1476,7 @@ mod pyshinqlx_player_tests {
         };
 
         Python::with_gil(|py| {
-            let result = player.__getitem__(py, "asdf".to_string());
+            let result = player.__getitem__(py, "asdf");
             assert!(result.is_err_and(|err| err.is_instance_of::<NonexistentPlayerError>(py)));
         });
     }
@@ -1514,7 +1493,7 @@ mod pyshinqlx_player_tests {
             ..default_test_player()
         };
 
-        let result = Python::with_gil(|py| player.__getitem__(py, "asdf".to_string()));
+        let result = Python::with_gil(|py| player.__getitem__(py, "asdf"));
         assert_eq!(result.expect("result was not OK"), "some value");
     }
 
@@ -1531,7 +1510,7 @@ mod pyshinqlx_player_tests {
         };
 
         Python::with_gil(|py| {
-            let result = player.__getitem__(py, "asdf".to_string());
+            let result = player.__getitem__(py, "asdf");
             assert!(result.is_err_and(|err| err.is_instance_of::<PyKeyError>(py)))
         });
     }
@@ -1888,7 +1867,7 @@ assert(player._valid)
     #[cfg_attr(miri, ignore)]
     fn invalidate_invalidates_player() {
         let mut player = default_test_player();
-        let result = player.invalidate("invalid player".to_string());
+        let result = player.invalidate("invalid player");
         assert_eq!(player.valid, false);
         Python::with_gil(|py| {
             assert!(result.is_err_and(|err| err.is_instance_of::<NonexistentPlayerError>(py)));
@@ -4130,25 +4109,25 @@ assert(player._valid)
     }
 
     #[rstest]
-    #[case("g".to_string(), weapon_t::WP_GAUNTLET)]
-    #[case("mg".to_string(), weapon_t::WP_MACHINEGUN)]
-    #[case("sg".to_string(), weapon_t::WP_SHOTGUN)]
-    #[case("gl".to_string(), weapon_t::WP_GRENADE_LAUNCHER)]
-    #[case("rl".to_string(), weapon_t::WP_ROCKET_LAUNCHER)]
-    #[case("lg".to_string(), weapon_t::WP_LIGHTNING)]
-    #[case("rg".to_string(), weapon_t::WP_RAILGUN)]
-    #[case("pg".to_string(), weapon_t::WP_PLASMAGUN)]
-    #[case("bfg".to_string(), weapon_t::WP_BFG)]
-    #[case("gh".to_string(), weapon_t::WP_GRAPPLING_HOOK)]
-    #[case("ng".to_string(), weapon_t::WP_NAILGUN)]
-    #[case("pl".to_string(), weapon_t::WP_PROX_LAUNCHER)]
-    #[case("cg".to_string(), weapon_t::WP_CHAINGUN)]
-    #[case("hmg".to_string(), weapon_t::WP_HMG)]
-    #[case("hands".to_string(), weapon_t::WP_HANDS)]
+    #[case("g", weapon_t::WP_GAUNTLET)]
+    #[case("mg", weapon_t::WP_MACHINEGUN)]
+    #[case("sg", weapon_t::WP_SHOTGUN)]
+    #[case("gl", weapon_t::WP_GRENADE_LAUNCHER)]
+    #[case("rl", weapon_t::WP_ROCKET_LAUNCHER)]
+    #[case("lg", weapon_t::WP_LIGHTNING)]
+    #[case("rg", weapon_t::WP_RAILGUN)]
+    #[case("pg", weapon_t::WP_PLASMAGUN)]
+    #[case("bfg", weapon_t::WP_BFG)]
+    #[case("gh", weapon_t::WP_GRAPPLING_HOOK)]
+    #[case("ng", weapon_t::WP_NAILGUN)]
+    #[case("pl", weapon_t::WP_PROX_LAUNCHER)]
+    #[case("cg", weapon_t::WP_CHAINGUN)]
+    #[case("hmg", weapon_t::WP_HMG)]
+    #[case("hands", weapon_t::WP_HANDS)]
     #[cfg_attr(miri, ignore)]
     #[serial]
     fn weapon_sets_players_weapon_from_str(
-        #[case] weapon_str: String,
+        #[case] weapon_str: &str,
         #[case] expected_weapon: weapon_t,
     ) {
         let mut mock_engine = MockQuakeEngine::new();
@@ -6455,7 +6434,7 @@ assert(player._valid)
 
         let player = default_test_player();
 
-        let result = Python::with_gil(|py| player.center_print(py, "asdf".to_string()));
+        let result = Python::with_gil(|py| player.center_print(py, "asdf"));
         assert!(result.is_ok());
     }
 
@@ -6616,7 +6595,7 @@ assert(player._valid)
         let player = default_test_player();
 
         Python::with_gil(|py| {
-            let result = player.put(py, "invalid team".to_string());
+            let result = player.put(py, "invalid team");
             assert!(result.is_err_and(|err| err.is_instance_of::<PyValueError>(py)));
         });
     }
@@ -6639,7 +6618,7 @@ assert(player._valid)
         MAIN_ENGINE.store(Some(mock_engine.into()));
 
         let player = default_test_player();
-        let result = Python::with_gil(|py| player.put(py, new_team.to_string()));
+        let result = Python::with_gil(|py| player.put(py, new_team));
         assert!(result.is_ok());
     }
 
@@ -6920,11 +6899,11 @@ pub(crate) struct AbstractDummyPlayer;
 #[pymethods]
 impl AbstractDummyPlayer {
     #[new]
-    #[pyo3(signature = (name = "DummyPlayer".to_string()))]
-    fn py_new(name: String) -> PyClassInitializer<Self> {
+    #[pyo3(signature = (name = "DummyPlayer"))]
+    fn py_new(name: &str) -> PyClassInitializer<Self> {
         let player_info = PlayerInfo {
             client_id: -1,
-            name,
+            name: name.to_string(),
             connection_state: clientState_t::CS_CONNECTED as i32,
             userinfo: _DUMMY_USERINFO.to_string(),
             steam_id: 0,
@@ -6963,7 +6942,7 @@ impl AbstractDummyPlayer {
     #[pyo3(signature = (msg, **kwargs))]
     fn tell(
         &self,
-        #[allow(unused_variables)] msg: String,
+        #[allow(unused_variables)] msg: &str,
         #[allow(unused_variables)] kwargs: Option<&Bound<'_, PyDict>>,
     ) -> PyResult<&PyAny> {
         Err(PyNotImplementedError::new_err(
@@ -7083,7 +7062,7 @@ pub(crate) struct RconDummyPlayer;
 impl RconDummyPlayer {
     #[new]
     pub(crate) fn py_new() -> PyClassInitializer<Self> {
-        AbstractDummyPlayer::py_new("RconDummyPlayer".to_string()).add_subclass(RconDummyPlayer {})
+        AbstractDummyPlayer::py_new("RconDummyPlayer").add_subclass(RconDummyPlayer {})
     }
 
     #[getter(steam_id)]
@@ -7114,7 +7093,7 @@ console_channel = shinqlx.CONSOLE_CHANNEL"#,
     fn tell<'py>(
         #[allow(unused_variables)] slf: PyRef<'py, Self>,
         py: Python<'py>,
-        msg: String,
+        msg: &str,
         #[allow(unused_variables)] kwargs: Option<&Bound<'py, PyDict>>,
     ) -> PyResult<Bound<'py, PyAny>> {
         let console_channel = PyModule::from_code_bound(

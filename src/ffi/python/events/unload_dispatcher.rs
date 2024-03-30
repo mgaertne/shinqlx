@@ -23,7 +23,7 @@ impl UnloadDispatcher {
         let super_class = slf.into_super();
         if let Ok(plugin_str) = plugin.bind(py).repr() {
             let dbgstr = format!("{}({})", super_class.name, plugin_str);
-            dispatcher_debug_log(py, dbgstr);
+            dispatcher_debug_log(py, &dbgstr);
         }
 
         let plugins = super_class.plugins.read();

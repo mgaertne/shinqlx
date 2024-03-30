@@ -32,8 +32,10 @@ pub(crate) struct AbstractChannel {
 #[pymethods]
 impl AbstractChannel {
     #[new]
-    fn py_new(name: String) -> Self {
-        AbstractChannel { name }
+    fn py_new(name: &str) -> Self {
+        AbstractChannel {
+            name: name.to_string(),
+        }
     }
 
     fn __str__(&self) -> String {
@@ -75,18 +77,18 @@ impl AbstractChannel {
         self.name.clone()
     }
 
-    #[pyo3(signature = (msg, limit=100, delimiter=" ".to_string()))]
+    #[pyo3(signature = (msg, limit=100, delimiter=" "))]
     fn reply(
         #[allow(unused_variables)] self_: PyRef<'_, Self>,
-        #[allow(unused_variables)] msg: String,
+        #[allow(unused_variables)] msg: &str,
         #[allow(unused_variables)] limit: i32,
-        #[allow(unused_variables)] delimiter: String,
+        #[allow(unused_variables)] delimiter: &str,
     ) -> PyResult<()> {
         Err(PyNotImplementedError::new_err("not implemented"))
     }
 
-    #[pyo3(signature = (msg, limit=100, delimiter=" ".to_string()))]
-    fn split_long_lines(&self, msg: String, limit: i32, delimiter: String) -> Vec<String> {
+    #[pyo3(signature = (msg, limit=100, delimiter=" "))]
+    fn split_long_lines(&self, msg: &str, limit: i32, delimiter: &str) -> Vec<String> {
         let split_string = msg.split('\n').flat_map(|value| {
             if value.len() <= limit as usize {
                 vec![value.to_string()]
@@ -252,14 +254,9 @@ _shinqlx.AbstractChannel("abstract") < 2
     #[cfg_attr(miri, ignore)]
     fn reply_is_not_implemented() {
         Python::with_gil(|py| {
-            let abstract_channel =
-                Py::new(py, AbstractChannel::py_new("abstract".to_string())).unwrap();
-            let result = AbstractChannel::reply(
-                abstract_channel.bind(py).borrow(),
-                "asdf".to_string(),
-                100,
-                " ".to_string(),
-            );
+            let abstract_channel = Py::new(py, AbstractChannel::py_new("abstract")).unwrap();
+            let result =
+                AbstractChannel::reply(abstract_channel.bind(py).borrow(), "asdf", 100, " ");
             assert!(result.is_err_and(|err| err.is_instance_of::<PyNotImplementedError>(py)));
         });
     }
@@ -269,7 +266,7 @@ _shinqlx.AbstractChannel("abstract") < 2
         let abstract_channel = AbstractChannel {
             name: "abstract".to_string(),
         };
-        let result = abstract_channel.split_long_lines("short".to_string(), 100, " ".to_string());
+        let result = abstract_channel.split_long_lines("short", 100, " ");
 
         assert_eq!(result, vec!["short".to_string()]);
     }
@@ -279,11 +276,8 @@ _shinqlx.AbstractChannel("abstract") < 2
         let abstract_channel = AbstractChannel {
             name: "abstract".to_string(),
         };
-        let result = abstract_channel.split_long_lines(
-            "asdf1 asdf2 asdf3 asdf4\nasdf5\nasdf6".to_string(),
-            5,
-            " ".to_string(),
-        );
+        let result =
+            abstract_channel.split_long_lines("asdf1 asdf2 asdf3 asdf4\nasdf5\nasdf6", 5, " ");
 
         assert_eq!(
             result,
@@ -303,11 +297,8 @@ _shinqlx.AbstractChannel("abstract") < 2
         let abstract_channel = AbstractChannel {
             name: "abstract".to_string(),
         };
-        let result = abstract_channel.split_long_lines(
-            "asdf1 asdf2 asdf3 asdf4\nasdf5\nasdf6".to_string(),
-            15,
-            " ".to_string(),
-        );
+        let result =
+            abstract_channel.split_long_lines("asdf1 asdf2 asdf3 asdf4\nasdf5\nasdf6", 15, " ");
 
         assert_eq!(
             result,
@@ -336,19 +327,18 @@ pub(crate) struct ConsoleChannel {}
 impl ConsoleChannel {
     #[new]
     pub(crate) fn py_new() -> PyClassInitializer<Self> {
-        PyClassInitializer::from(AbstractChannel::py_new("console".to_string()))
-            .add_subclass(Self {})
+        PyClassInitializer::from(AbstractChannel::py_new("console")).add_subclass(Self {})
     }
 
-    #[pyo3(signature = (msg, limit=100, delimiter=" ".to_string()))]
+    #[pyo3(signature = (msg, limit=100, delimiter=" "))]
     fn reply(
         #[allow(unused_variables)] self_: PyRef<'_, Self>,
         py: Python<'_>,
-        msg: String,
+        msg: &str,
         #[allow(unused_variables)] limit: i32,
-        #[allow(unused_variables)] delimiter: String,
+        #[allow(unused_variables)] delimiter: &str,
     ) -> PyResult<()> {
-        pyshinqlx_console_print(py, &msg);
+        pyshinqlx_console_print(py, msg);
         Ok(())
     }
 }
@@ -390,13 +380,7 @@ console_channel = _shinqlx.ConsoleChannel()
 
         let result = Python::with_gil(|py| {
             let console_channel = Py::new(py, ConsoleChannel::py_new()).unwrap();
-            ConsoleChannel::reply(
-                console_channel.bind(py).borrow(),
-                py,
-                "asdf".to_string(),
-                100,
-                " ".to_string(),
-            )
+            ConsoleChannel::reply(console_channel.bind(py).borrow(), py, "asdf", 100, " ")
         });
         assert!(result.is_ok());
     }
@@ -420,22 +404,24 @@ pub(crate) struct ChatChannel {
 #[pymethods]
 impl ChatChannel {
     #[new]
-    #[pyo3(signature = (name = "chat".to_string(), fmt = "print \"{}\n\"\n".to_string()))]
-    fn py_new(name: String, fmt: String) -> PyClassInitializer<Self> {
-        PyClassInitializer::from(AbstractChannel::py_new(name)).add_subclass(Self { fmt })
+    #[pyo3(signature = (name = "chat", fmt = "print \"{}\n\"\n"))]
+    fn py_new(name: &str, fmt: &str) -> PyClassInitializer<Self> {
+        PyClassInitializer::from(AbstractChannel::py_new(name)).add_subclass(Self {
+            fmt: fmt.to_string(),
+        })
     }
 
     fn recipients(&self) -> PyResult<Option<Vec<i32>>> {
         Err(PyNotImplementedError::new_err(""))
     }
 
-    #[pyo3(signature = (msg, limit=100, delimiter=" ".to_string()))]
+    #[pyo3(signature = (msg, limit=100, delimiter=" "))]
     fn reply(
         self_: &Bound<'_, Self>,
         py: Python<'_>,
-        msg: String,
+        msg: &str,
         limit: i32,
-        delimiter: String,
+        delimiter: &str,
     ) -> PyResult<()> {
         let re_color_tag = Regex::new(r"\^[0-7]").unwrap();
         let fmt = self_.borrow().fmt.clone();
@@ -446,7 +432,7 @@ impl ChatChannel {
             self_
                 .borrow()
                 .into_super()
-                .split_long_lines(cleaned_msg, limit, delimiter);
+                .split_long_lines(&cleaned_msg, limit, delimiter);
 
         let mut joined_msgs = vec![];
         for s in split_msgs {
@@ -569,7 +555,7 @@ pub(crate) struct TellChannel {
 impl TellChannel {
     #[new]
     pub(crate) fn py_new(player: &Player) -> PyClassInitializer<Self> {
-        PyClassInitializer::from(AbstractChannel::py_new("tell".to_string()))
+        PyClassInitializer::from(AbstractChannel::py_new("tell"))
             .add_subclass(ChatChannel {
                 fmt: "print \"{}\n\"\n".to_string(),
             })
@@ -713,11 +699,15 @@ pub(crate) struct TeamChatChannel {
 #[pymethods]
 impl TeamChatChannel {
     #[new]
-    #[pyo3(signature = (team="all".to_string(), name="chat".to_string(), fmt="print \"{}\n\"\n".to_string()))]
-    pub(crate) fn py_new(team: String, name: String, fmt: String) -> PyClassInitializer<Self> {
+    #[pyo3(signature = (team="all", name="chat", fmt="print \"{}\n\"\n"))]
+    pub(crate) fn py_new(team: &str, name: &str, fmt: &str) -> PyClassInitializer<Self> {
         PyClassInitializer::from(AbstractChannel::py_new(name))
-            .add_subclass(ChatChannel { fmt })
-            .add_subclass(Self { team })
+            .add_subclass(ChatChannel {
+                fmt: fmt.to_string(),
+            })
+            .add_subclass(Self {
+                team: team.to_string(),
+            })
     }
 
     fn recipients(&self, py: Python<'_>) -> PyResult<Option<Vec<i32>>> {
@@ -781,14 +771,14 @@ tell_channel = _shinqlx.TeamChatChannel("all")
     }
 
     #[rstest]
-    #[case("all".to_string(), None)]
-    #[case("red".to_string(), Some(vec![1, 5]))]
-    #[case("blue".to_string(), Some(vec![2, 6]))]
-    #[case("spectator".to_string(), Some(vec![3, 7]))]
-    #[case("free".to_string(), Some(vec![0, 4]))]
+    #[case("all", None)]
+    #[case("red", Some(vec![1, 5]))]
+    #[case("blue", Some(vec![2, 6]))]
+    #[case("spectator", Some(vec![3, 7]))]
+    #[case("free", Some(vec![0, 4]))]
     #[cfg_attr(miri, ignore)]
     #[serial]
-    fn recipients_returns_client_ids(#[case] team: String, #[case] expected_ids: Option<Vec<i32>>) {
+    fn recipients_returns_client_ids(#[case] team: &str, #[case] expected_ids: Option<Vec<i32>>) {
         let mut mock_engine = MockQuakeEngine::new();
         mock_engine.expect_get_max_clients().returning(|| 8);
         MAIN_ENGINE.store(Some(mock_engine.into()));
@@ -835,7 +825,9 @@ tell_channel = _shinqlx.TeamChatChannel("all")
                 mock_game_entity
             });
 
-        let team_chat_channel = TeamChatChannel { team };
+        let team_chat_channel = TeamChatChannel {
+            team: team.to_string(),
+        };
         let result = Python::with_gil(|py| team_chat_channel.recipients(py));
         assert!(result.is_ok_and(|ids| ids == expected_ids));
     }
@@ -915,10 +907,9 @@ pub(crate) struct ClientCommandChannel {
 impl ClientCommandChannel {
     #[new]
     pub(crate) fn py_new(player: &Player) -> PyClassInitializer<Self> {
-        PyClassInitializer::from(AbstractChannel::py_new("client_command".to_string()))
-            .add_subclass(Self {
-                client_id: player.id,
-            })
+        PyClassInitializer::from(AbstractChannel::py_new("client_command")).add_subclass(Self {
+            client_id: player.id,
+        })
     }
 
     fn __repr__(&self) -> String {
@@ -936,11 +927,11 @@ impl ClientCommandChannel {
         Py::new(py, TellChannel::py_new(&player))
     }
 
-    #[pyo3(signature = (msg, limit=100, delimiter="".to_string()))]
-    fn reply(&self, py: Python<'_>, msg: String, limit: i32, delimiter: String) -> PyResult<()> {
+    #[pyo3(signature = (msg, limit=100, delimiter=""))]
+    fn reply(&self, py: Python<'_>, msg: &str, limit: i32, delimiter: &str) -> PyResult<()> {
         let tell_channel = Py::new(
             py,
-            PyClassInitializer::from(AbstractChannel::py_new("tell".to_string()))
+            PyClassInitializer::from(AbstractChannel::py_new("tell"))
                 .add_subclass(ChatChannel {
                     fmt: "print \"{}\n\"\n".to_string(),
                 })

@@ -6,7 +6,7 @@ use pyo3::{exceptions::PyEnvironmentError, intern};
 use serde_json::Value;
 use zmq::{Context, SocketType, DONTWAIT, POLLIN};
 
-fn dispatch_stats_event(py: Python<'_>, stats: String) -> PyResult<()> {
+fn dispatch_stats_event(py: Python<'_>, stats: &str) -> PyResult<()> {
     PyModule::from_code_bound(
         py,
         r#"
@@ -25,7 +25,7 @@ def dispatch_stats_event(stats):
     Ok(())
 }
 
-fn dispatch_game_start_event(py: Python<'_>, stats: String) -> PyResult<()> {
+fn dispatch_game_start_event(py: Python<'_>, stats: &str) -> PyResult<()> {
     PyModule::from_code_bound(
         py,
         r#"
@@ -44,7 +44,7 @@ def dispatch_game_start_event(stats):
     Ok(())
 }
 
-fn dispatch_round_end_event(py: Python<'_>, stats: String) -> PyResult<()> {
+fn dispatch_round_end_event(py: Python<'_>, stats: &str) -> PyResult<()> {
     PyModule::from_code_bound(
         py,
         r#"
@@ -63,7 +63,7 @@ def dispatch_round_end_event(stats):
     Ok(())
 }
 
-fn dispatch_game_end_event(py: Python<'_>, stats: String) -> PyResult<()> {
+fn dispatch_game_end_event(py: Python<'_>, stats: &str) -> PyResult<()> {
     PyModule::from_code_bound(
         py,
         r#"
@@ -108,10 +108,10 @@ fn handle_player_death_event(py: Python<'_>, stats: Value) -> PyResult<()> {
     dispatch_player_death_events(
         py,
         opt_victim_steam_id,
-        victim_name.to_string(),
+        victim_name,
         opt_killer_steam_id,
         opt_killer_name,
-        stats["DATA"].to_string(),
+        &stats["DATA"].to_string(),
     )?;
 
     Ok(())
@@ -139,7 +139,7 @@ fn player_by_steam_id(py: Python<'_>, steam_id: &i64) -> Option<Player> {
     })
 }
 
-fn player_by_name(py: Python<'_>, name: &String) -> Option<Player> {
+fn player_by_name(py: Python<'_>, name: &str) -> Option<Player> {
     let Ok(players_info) = pyshinqlx_players_info(py) else {
         return None;
     };
@@ -164,14 +164,14 @@ fn player_by_name(py: Python<'_>, name: &String) -> Option<Player> {
 fn dispatch_player_death_events(
     py: Python<'_>,
     opt_victim_steam_id: Option<i64>,
-    victim_name: String,
+    victim_name: &str,
     opt_killer_steam_id: Option<i64>,
     opt_killer_name: Option<String>,
-    stats: String,
+    stats: &str,
 ) -> PyResult<()> {
     let Some(victim) = (match opt_victim_steam_id {
         Some(victim_steam_id) => player_by_steam_id(py, &victim_steam_id),
-        None => player_by_name(py, &victim_name),
+        None => player_by_name(py, victim_name),
     }) else {
         return Ok(());
     };
@@ -225,9 +225,9 @@ fn handle_team_switch_event(py: Python<'_>, stats: Value) -> PyResult<()> {
         dispatch_team_switch_event(
             py,
             opt_steam_id,
-            name.to_string(),
-            old_team.to_lowercase(),
-            new_team.to_lowercase(),
+            name,
+            &old_team.to_lowercase(),
+            &new_team.to_lowercase(),
         )?;
     }
 
@@ -237,13 +237,13 @@ fn handle_team_switch_event(py: Python<'_>, stats: Value) -> PyResult<()> {
 fn dispatch_team_switch_event(
     py: Python<'_>,
     opt_steam_id: Option<i64>,
-    name: String,
-    old_team: String,
-    new_team: String,
+    name: &str,
+    old_team: &str,
+    new_team: &str,
 ) -> PyResult<()> {
     let Some(player) = (match opt_steam_id {
         Some(steam_id) => player_by_steam_id(py, &steam_id),
-        None => player_by_name(py, &name),
+        None => player_by_name(py, name),
     }) else {
         return Ok(());
     };
@@ -264,7 +264,7 @@ def dispatch_team_switch_event(player, old_team, new_team):
     let player_id = player.id;
     let py_result = dispatch_module.call_method1(
         intern!(py, "dispatch_team_switch_event"),
-        (player, &old_team, &new_team),
+        (player, old_team, new_team),
     )?;
     if py_result.extract::<bool>().is_ok_and(|value| !value) {
         let team_change_cmd = format!("put {} {}", player_id, &old_team);
@@ -388,18 +388,18 @@ def run_zmq_thread(poller):
                 let stats = serde_json::from_str::<Value>(message_str).ok()?;
                 Some(stats)
             }) {
-                dispatch_stats_event(py, stats.to_string())?;
+                dispatch_stats_event(py, &stats.to_string())?;
                 match stats["TYPE"].as_str() {
                     Some("MATCH_STARTED") => {
                         in_progress = true;
-                        dispatch_game_start_event(py, stats["DATA"].to_string())?;
+                        dispatch_game_start_event(py, &stats["DATA"].to_string())?;
                     }
                     Some("ROUND_OVER") => {
-                        dispatch_round_end_event(py, stats["DATA"].to_string())?;
+                        dispatch_round_end_event(py, &stats["DATA"].to_string())?;
                     }
                     Some("MATCH_REPORT") => {
                         if in_progress {
-                            dispatch_game_end_event(py, stats["DATA"].to_string())?;
+                            dispatch_game_end_event(py, &stats["DATA"].to_string())?;
                         }
                         in_progress = false;
                     }

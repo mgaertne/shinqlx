@@ -16,7 +16,7 @@ use pyo3::{
 };
 use regex::{Regex, RegexBuilder};
 
-fn try_handle_rcon(py: Python<'_>, cmd: String) -> PyResult<Option<bool>> {
+fn try_handle_rcon(py: Python<'_>, cmd: &str) -> PyResult<Option<bool>> {
     let rcon_dummy_player = Py::new(py, RconDummyPlayer::py_new())?;
 
     let shinqlx_module = py.import_bound(intern!(py, "shinqlx"))?;
@@ -34,7 +34,7 @@ fn try_handle_rcon(py: Python<'_>, cmd: String) -> PyResult<Option<bool>> {
 /// commands as if the owner executes it. This allows the owner to
 /// interact with the Python part of shinqlx without having to connect.
 #[pyfunction]
-pub(crate) fn handle_rcon(py: Python<'_>, cmd: String) -> Option<bool> {
+pub(crate) fn handle_rcon(py: Python<'_>, cmd: &str) -> Option<bool> {
     try_handle_rcon(py, cmd).unwrap_or_else(|e| {
         log_exception(py, &e);
         Some(true)
@@ -92,7 +92,7 @@ fn is_vote_active() -> bool {
         .is_empty()
 }
 
-fn try_handle_client_command(py: Python<'_>, client_id: i32, cmd: String) -> PyResult<PyObject> {
+fn try_handle_client_command(py: Python<'_>, client_id: i32, cmd: &str) -> PyResult<PyObject> {
     let player = Player::py_new(client_id, None)?;
 
     let shinqlx_module = py.import_bound(intern!(py, "shinqlx"))?;
@@ -100,15 +100,15 @@ fn try_handle_client_command(py: Python<'_>, client_id: i32, cmd: String) -> PyR
     let server_command_dispatcher =
         shinqlx_event_dispatchers.get_item(intern!(py, "client_command"))?;
 
-    let return_value = server_command_dispatcher
-        .call_method1(intern!(py, "dispatch"), (player.clone(), cmd.clone()))?;
+    let return_value =
+        server_command_dispatcher.call_method1(intern!(py, "dispatch"), (player.clone(), cmd))?;
     if return_value.extract::<bool>().is_ok_and(|value| !value) {
         return Ok(false.into_py(py));
     };
 
     let updated_cmd = match return_value.extract::<String>() {
         Ok(extracted_string) => extracted_string,
-        _ => cmd.clone(),
+        _ => cmd.to_string(),
     };
 
     if let Some(captures) = RE_SAY.captures(&updated_cmd) {
@@ -221,8 +221,8 @@ fn try_handle_client_command(py: Python<'_>, client_id: i32, cmd: String) -> PyR
 
     if let Some(captures) = RE_USERINFO.captures(&updated_cmd) {
         if let Some(vars) = captures.name("vars") {
-            let new_info = parse_variables(vars.as_str().to_string());
-            let old_info = parse_variables(player.user_info.clone());
+            let new_info = parse_variables(vars.as_str());
+            let old_info = parse_variables(&player.user_info);
 
             let changed: Vec<&(String, String)> = new_info
                 .items
@@ -266,7 +266,7 @@ fn try_handle_client_command(py: Python<'_>, client_id: i32, cmd: String) -> PyR
 /// "disconnect" and so on. This function parses those and passes it
 /// on to the event dispatcher.
 #[pyfunction]
-pub(crate) fn handle_client_command(py: Python<'_>, client_id: i32, cmd: String) -> PyObject {
+pub(crate) fn handle_client_command(py: Python<'_>, client_id: i32, cmd: &str) -> PyObject {
     try_handle_client_command(py, client_id, cmd).unwrap_or_else(|e| {
         log_exception(py, &e);
         true.into_py(py)
@@ -280,7 +280,7 @@ static RE_VOTE_ENDED: Lazy<Regex> = Lazy::new(|| {
         .unwrap()
 });
 
-fn try_handle_server_command(py: Python<'_>, client_id: i32, cmd: String) -> PyResult<PyObject> {
+fn try_handle_server_command(py: Python<'_>, client_id: i32, cmd: &str) -> PyResult<PyObject> {
     let Some(player) = (if (0..MAX_CLIENTS as i32).contains(&client_id) {
         Player::py_new(client_id, None)
             .map(|player| player.into_py(py))
@@ -297,14 +297,14 @@ fn try_handle_server_command(py: Python<'_>, client_id: i32, cmd: String) -> PyR
         shinqlx_event_dispatchers.get_item(intern!(py, "server_command"))?;
 
     let return_value =
-        server_command_dispatcher.call_method1(intern!(py, "dispatch"), (player, cmd.clone()))?;
+        server_command_dispatcher.call_method1(intern!(py, "dispatch"), (player, cmd))?;
     if return_value.extract::<bool>().is_ok_and(|value| !value) {
         return Ok(false.into_py(py));
     };
 
     let updated_cmd = match return_value.extract::<String>() {
         Ok(extracted_string) => extracted_string,
-        _ => cmd.clone(),
+        _ => cmd.to_string(),
     };
 
     if let Some(captures) = RE_VOTE_ENDED.captures(&updated_cmd) {
@@ -320,7 +320,7 @@ fn try_handle_server_command(py: Python<'_>, client_id: i32, cmd: String) -> PyR
 }
 
 #[pyfunction]
-pub(crate) fn handle_server_command(py: Python<'_>, client_id: i32, cmd: String) -> PyObject {
+pub(crate) fn handle_server_command(py: Python<'_>, client_id: i32, cmd: &str) -> PyObject {
     try_handle_server_command(py, client_id, cmd).unwrap_or_else(|e| {
         log_exception(py, &e);
         true.into_py(py)
@@ -454,16 +454,14 @@ pub(crate) fn handle_new_game(py: Python<'_>, is_restart: bool) -> Option<bool> 
 
 static AD_ROUND_NUMBER: AtomicI32 = AtomicI32::new(0);
 
-fn try_handle_set_configstring(py: Python<'_>, index: u32, value: String) -> PyResult<PyObject> {
+fn try_handle_set_configstring(py: Python<'_>, index: u32, value: &str) -> PyResult<PyObject> {
     let shinqlx_module = py.import_bound(intern!(py, "shinqlx"))?;
     let shinqlx_event_dispatchers = shinqlx_module.getattr(intern!(py, "EVENT_DISPATCHERS"))?;
 
     let set_confistring_dispatcher =
         shinqlx_event_dispatchers.get_item(intern!(py, "set_configstring"))?;
-    let result = set_confistring_dispatcher.call_method1(
-        intern!(py, "dispatch"),
-        (index.into_py(py), value.clone().into_py(py)),
-    )?;
+    let result = set_confistring_dispatcher
+        .call_method1(intern!(py, "dispatch"), (index.into_py(py), value))?;
 
     if result
         .extract::<bool>()
@@ -472,7 +470,7 @@ fn try_handle_set_configstring(py: Python<'_>, index: u32, value: String) -> PyR
         return Ok(false.into_py(py));
     }
 
-    let configstring_value = result.extract::<String>().unwrap_or(value.clone());
+    let configstring_value = result.extract::<String>().unwrap_or(value.to_string());
     match index {
         CS_VOTE_STRING => {
             if !configstring_value.is_empty() {
@@ -495,11 +493,11 @@ fn try_handle_set_configstring(py: Python<'_>, index: u32, value: String) -> PyR
             if old_configstring.is_empty() {
                 return Ok(py.None());
             }
-            let old_cvars = parse_variables(old_configstring);
+            let old_cvars = parse_variables(&old_configstring);
             let opt_old_state = old_cvars.get("g_gameState");
             let old_state = opt_old_state.as_deref().unwrap_or("");
 
-            let new_cvars = parse_variables(configstring_value.clone());
+            let new_cvars = parse_variables(&configstring_value);
             let opt_new_state = new_cvars.get("g_gameState");
             let new_state = opt_new_state.as_deref().unwrap_or("");
 
@@ -544,7 +542,7 @@ fn try_handle_set_configstring(py: Python<'_>, index: u32, value: String) -> PyR
             Ok(configstring_value.into_py(py))
         }
         CS_ROUND_STATUS => {
-            let cvars = parse_variables(configstring_value.clone());
+            let cvars = parse_variables(&configstring_value);
             if cvars.is_empty() {
                 return Ok(configstring_value.into_py(py));
             }
@@ -596,7 +594,7 @@ fn try_handle_set_configstring(py: Python<'_>, index: u32, value: String) -> PyR
 /// Called whenever the server tries to set a configstring. Can return
 /// False to stop the event.
 #[pyfunction]
-pub(crate) fn handle_set_configstring(py: Python<'_>, index: u32, value: String) -> PyObject {
+pub(crate) fn handle_set_configstring(py: Python<'_>, index: u32, value: &str) -> PyObject {
     try_handle_set_configstring(py, index, value).unwrap_or_else(|e| {
         log_exception(py, &e);
         true.into_py(py)
@@ -812,9 +810,9 @@ pub(crate) fn handle_damage(
 
 static PRINT_REDIRECTION: Lazy<ArcSwapOption<Py<PyAny>>> = Lazy::new(ArcSwapOption::empty);
 
-fn try_handle_console_print(py: Python<'_>, text: String) -> PyResult<PyObject> {
+fn try_handle_console_print(py: Python<'_>, text: &str) -> PyResult<PyObject> {
     let logger = pyshinqlx_get_logger(py, None)?;
-    let console_text = text.clone();
+    let console_text = text;
     let logging_module = py.import_bound(intern!(py, "logging"))?;
     let debug_level = logging_module.getattr(intern!(py, "DEBUG"))?;
     let log_record = logger.call_method(
@@ -844,18 +842,18 @@ fn try_handle_console_print(py: Python<'_>, text: String) -> PyResult<PyObject> 
         .load()
         .iter()
         .for_each(|print_redirector| {
-            if let Err(e) = print_redirector.call_method1(py, intern!(py, "append"), (&text,)) {
+            if let Err(e) = print_redirector.call_method1(py, intern!(py, "append"), (text,)) {
                 log_exception(py, &e);
             }
         });
 
-    let returned = result.extract::<String>().unwrap_or(text);
+    let returned = result.extract::<String>().unwrap_or(text.to_string());
     Ok(returned.into_py(py))
 }
 
 /// Called whenever the server prints something to the console and when rcon is used.
 #[pyfunction]
-pub(crate) fn handle_console_print(py: Python<'_>, text: String) -> PyObject {
+pub(crate) fn handle_console_print(py: Python<'_>, text: &str) -> PyObject {
     if text.is_empty() {
         return py.None();
     }
@@ -919,9 +917,9 @@ impl PrintRedirector {
         Ok(())
     }
 
-    fn append(&self, text: String) {
+    fn append(&self, text: &str) {
         let mut print_buffer_guard = self.print_buffer.write();
-        (*print_buffer_guard).push_str(&text);
+        (*print_buffer_guard).push_str(text);
     }
 }
 
@@ -950,7 +948,7 @@ pub(crate) mod handlers {
     use pyo3::prelude::*;
 
     #[allow(clippy::needless_lifetimes)]
-    pub(crate) fn handle_rcon<'a>(_py: Python<'a>, _cmd: String) -> Option<bool> {
+    pub(crate) fn handle_rcon<'a>(_py: Python<'a>, _cmd: &str) -> Option<bool> {
         None
     }
 
@@ -958,7 +956,7 @@ pub(crate) mod handlers {
     pub(crate) fn handle_client_command<'a>(
         py: Python<'a>,
         _client_id: i32,
-        _cmd: String,
+        _cmd: &str,
     ) -> PyObject {
         py.None()
     }
@@ -967,7 +965,7 @@ pub(crate) mod handlers {
     pub(crate) fn handle_server_command<'a>(
         py: Python<'a>,
         _client_id: i32,
-        _cmd: String,
+        _cmd: &str,
     ) -> PyObject {
         py.None()
     }
@@ -986,7 +984,7 @@ pub(crate) mod handlers {
     pub(crate) fn handle_set_configstring<'a>(
         py: Python<'a>,
         _index: u32,
-        _value: String,
+        _value: &str,
     ) -> PyObject {
         py.None()
     }
@@ -1046,7 +1044,7 @@ pub(crate) mod handlers {
     }
 
     #[allow(clippy::needless_lifetimes)]
-    pub(crate) fn handle_console_print<'a>(py: Python<'a>, _text: String) -> PyObject {
+    pub(crate) fn handle_console_print<'a>(py: Python<'a>, _text: &str) -> PyObject {
         py.None()
     }
 

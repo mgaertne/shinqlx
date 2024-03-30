@@ -34,7 +34,7 @@ impl UserinfoDispatcher {
         if let Ok(player_str) = player.bind(py).repr() {
             if let Ok(changed_str) = changed.repr() {
                 let dbgstr = format!("{}({}, {})", super_class.name, player_str, changed_str);
-                dispatcher_debug_log(py, dbgstr);
+                dispatcher_debug_log(py, &dbgstr);
             }
         }
 
