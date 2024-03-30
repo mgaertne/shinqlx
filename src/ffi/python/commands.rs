@@ -44,7 +44,7 @@ impl Command {
         client_cmd_pass: bool,
         client_cmd_perm: i32,
         prefix: bool,
-        usage: String,
+        usage: &str,
     ) -> PyResult<Self> {
         if !handler.bind(py).is_callable() {
             return Err(PyValueError::new_err(
@@ -129,7 +129,7 @@ impl Command {
             client_cmd_pass,
             client_cmd_perm,
             prefix,
-            usage,
+            usage: usage.into(),
         })
     }
 
@@ -137,7 +137,7 @@ impl Command {
         &self,
         py: Python<'_>,
         player: Player,
-        msg: String,
+        msg: &str,
         channel: PyObject,
     ) -> PyResult<PyObject> {
         let Some(command_name) = self.name.first() else {
@@ -170,9 +170,9 @@ impl Command {
             .call1(py, (player, msg_vec, &channel))
     }
 
-    fn is_eligible_name(&self, py: Python<'_>, name: String) -> bool {
+    fn is_eligible_name(&self, py: Python<'_>, name: &str) -> bool {
         let compared_name = if !self.prefix {
-            Some(name.as_str())
+            Some(name)
         } else {
             pyshinqlx_get_cvar(py, "qlx_commandPrefix")
                 .ok()
@@ -390,10 +390,10 @@ def remove_command(cmd):
             remove_command_func.call1((command,))?;
             return Ok(());
         };
-        commands.iter_mut().for_each(|commands| {
-            commands.retain(|cmd| {
+        commands.iter_mut().for_each(|prio_commands| {
+            prio_commands.retain(|cmd| {
                 cmd.name != command.name
-                    && cmd
+                    || cmd
                         .handler
                         .bind(py)
                         .ne(command.handler.bind(py))
@@ -408,13 +408,13 @@ def remove_command(cmd):
         &self,
         py: Python<'_>,
         player: Player,
-        msg: String,
+        msg: &str,
         channel: PyObject,
     ) -> PyResult<bool> {
         let Some(name) = msg
             .split_whitespace()
             .next()
-            .map(|value| value.to_lowercase().to_string())
+            .map(|value| value.to_lowercase())
         else {
             return Ok(false);
         };
@@ -436,7 +436,7 @@ def remove_command(cmd):
         let commands = self.commands.read();
         for priority_level in 0..commands.len() {
             for cmd in commands[priority_level].iter() {
-                if !cmd.is_eligible_name(py, name.clone()) {
+                if !cmd.is_eligible_name(py, &name) {
                     continue;
                 }
                 if !cmd.is_eligible_channel(py, channel.bind(py).into_py(py)) {
@@ -450,10 +450,8 @@ def remove_command(cmd):
                     pass_through = cmd.client_cmd_pass;
                 }
 
-                let dispatcher_result = command_dispatcher.call_method1(
-                    intern!(py, "dispatch"),
-                    (player.clone(), cmd.clone(), msg.clone()),
-                )?;
+                let dispatcher_result = command_dispatcher
+                    .call_method1(intern!(py, "dispatch"), (player.clone(), cmd.clone(), msg))?;
                 if dispatcher_result
                     .extract::<bool>()
                     .is_ok_and(|value| !value)
@@ -461,12 +459,8 @@ def remove_command(cmd):
                     return Ok(true);
                 }
 
-                let cmd_result = cmd.execute(
-                    py,
-                    player.clone(),
-                    msg.clone(),
-                    channel.bind(py).into_py(py),
-                )?;
+                let cmd_result =
+                    cmd.execute(py, player.clone(), msg, channel.bind(py).into_py(py))?;
                 let cmd_result_return_code = cmd_result.extract::<PythonReturnCodes>(py);
                 if cmd_result_return_code.as_ref().is_ok_and(|value| {
                     [PythonReturnCodes::RET_STOP, PythonReturnCodes::RET_STOP_ALL].contains(value)
