@@ -27,8 +27,8 @@ impl TeamSwitchAttemptDispatcher {
         slf: PyRef<'_, Self>,
         py: Python<'_>,
         player: PyObject,
-        old_team: String,
-        new_team: String,
+        old_team: &str,
+        new_team: &str,
     ) -> bool {
         let mut return_value = true;
 
@@ -36,16 +36,16 @@ impl TeamSwitchAttemptDispatcher {
         if let Ok(player_str) = player.bind(py).repr() {
             let dbgstr = format!(
                 "{}({}, {}, {})",
-                super_class.name, player_str, &old_team, &new_team
+                super_class.name, player_str, old_team, new_team
             );
-            dispatcher_debug_log(py, dbgstr);
+            dispatcher_debug_log(py, &dbgstr);
         }
 
         let plugins = super_class.plugins.read();
         for i in 0..5 {
             for (_, handlers) in plugins.iter() {
                 for handler in &handlers[i] {
-                    match handler.call1(py, (&player, &old_team, &new_team)) {
+                    match handler.call1(py, (&player, old_team, new_team)) {
                         Err(e) => {
                             log_exception(py, &e);
                             continue;

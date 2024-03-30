@@ -20,8 +20,8 @@ impl ConsolePrintDispatcher {
         (Self {}, super_class)
     }
 
-    fn dispatch(slf: PyRef<'_, Self>, py: Python<'_>, text: String) -> PyObject {
-        let mut forwarded_text = text.clone();
+    fn dispatch(slf: PyRef<'_, Self>, py: Python<'_>, text: &str) -> PyObject {
+        let mut forwarded_text = text.to_string();
         let mut return_value = true.into_py(py);
 
         let super_class = slf.into_super();

@@ -20,8 +20,8 @@ impl ServerCommandDispatcher {
         (Self {}, super_class)
     }
 
-    fn dispatch(slf: PyRef<'_, Self>, py: Python<'_>, player: PyObject, cmd: String) -> PyObject {
-        let mut forwarded_cmd = cmd.clone();
+    fn dispatch(slf: PyRef<'_, Self>, py: Python<'_>, player: PyObject, cmd: &str) -> PyObject {
+        let mut forwarded_cmd = cmd.to_string();
         let mut return_value = true.into_py(py);
 
         let super_class = slf.into_super();

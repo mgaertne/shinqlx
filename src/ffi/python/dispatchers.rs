@@ -11,7 +11,7 @@ where
     }
 
     Python::with_gil(|py| {
-        let result = handle_client_command(py, client_id, cmd.as_ref().to_string());
+        let result = handle_client_command(py, client_id, cmd.as_ref());
         result
             .bind(py)
             .extract::<bool>()
@@ -40,7 +40,7 @@ where
     }
 
     Python::with_gil(|py| {
-        let result = handle_server_command(py, client_id.unwrap_or(-1), cmd.as_ref().to_string());
+        let result = handle_server_command(py, client_id.unwrap_or(-1), cmd.as_ref());
         result
             .bind(py)
             .extract::<bool>()
@@ -151,7 +151,7 @@ where
     }
 
     Python::with_gil(|py| {
-        let result = handle_set_configstring(py, index.into(), value.as_ref().to_string());
+        let result = handle_set_configstring(py, index.into(), value.as_ref());
         result
             .bind(py)
             .extract::<bool>()
@@ -179,7 +179,7 @@ where
         return;
     }
 
-    Python::with_gil(|py| handle_rcon(py, cmd.as_ref().to_string()));
+    Python::with_gil(|py| handle_rcon(py, cmd.as_ref()));
 }
 
 pub(crate) fn console_print_dispatcher<T>(text: T) -> Option<String>
@@ -191,7 +191,7 @@ where
     }
 
     Python::with_gil(|py| {
-        let result = handle_console_print(py, text.as_ref().to_string());
+        let result = handle_console_print(py, text.as_ref());
         result
             .bind(py)
             .extract::<bool>()

@@ -219,7 +219,7 @@ where
     re.replace_all(text.as_ref(), "").to_string()
 }
 
-pub(crate) fn parse_variables(varstr: String) -> ParsedVariables {
+pub(crate) fn parse_variables(varstr: &str) -> ParsedVariables {
     varstr
         .parse::<ParsedVariables>()
         .unwrap_or(ParsedVariables { items: vec![] })
@@ -295,14 +295,14 @@ impl ParsedVariables {
             .cloned()
     }
 
-    pub fn set(&mut self, item: String, value: String) {
+    pub fn set(&mut self, item: &str, value: &str) {
         let mut new_items: Vec<(String, String)> = self
             .items
             .clone()
             .into_iter()
-            .filter(|(key, _value)| *key != item)
+            .filter(|(key, _value)| key != item)
             .collect();
-        new_items.push((item, value));
+        new_items.push((item.into(), value.into()));
         self.items = new_items;
     }
 }
@@ -371,11 +371,11 @@ fn set_map_subtitles(module: &Bound<'_, PyModule>) -> PyResult<()> {
 #[pyfunction]
 #[pyo3(name = "parse_variables")]
 #[pyo3(signature = (varstr, ordered = false))]
-fn pyshinqlx_parse_variables(
-    py: Python<'_>,
-    varstr: String,
+fn pyshinqlx_parse_variables<'py>(
+    py: Python<'py>,
+    varstr: &str,
     #[allow(unused_variables)] ordered: bool,
-) -> Bound<'_, PyDict> {
+) -> Bound<'py, PyDict> {
     let parsed_variables = py.allow_threads(|| parse_variables(varstr));
     parsed_variables.into_py_dict_bound(py)
 }
@@ -746,7 +746,7 @@ fn get_stats_listener(py: Python<'_>) -> PyResult<Bound<'_, PyAny>> {
     shinqlx_module.getattr(intern!(py, "_stats"))
 }
 
-fn try_get_plugins_version(path: String) -> Result<String, git2::Error> {
+fn try_get_plugins_version(path: &str) -> Result<String, git2::Error> {
     let repository = git2::Repository::open(path)?;
 
     let mut describe_options_binding = git2::DescribeOptions::default();
@@ -777,12 +777,12 @@ fn try_get_plugins_version(path: String) -> Result<String, git2::Error> {
     Ok(returned)
 }
 
-fn get_plugins_version(path: String) -> String {
+fn get_plugins_version(path: &str) -> String {
     try_get_plugins_version(path).unwrap_or("NOT_SET".to_string())
 }
 
 #[pyfunction(name = "set_plugins_version")]
-fn set_plugins_version(py: Python<'_>, path: String) {
+fn set_plugins_version(py: Python<'_>, path: &str) {
     let plugins_version = py.allow_threads(|| get_plugins_version(path));
 
     if let Ok(shinqlx_module) = py.import_bound(intern!(py, "shinqlx")) {
@@ -824,13 +824,13 @@ fn load_preset_plugins(py: Python<'_>) -> PyResult<()> {
         plugins.retain(|&value| value != "DEFAULT");
     }
     plugins.iter().unique().for_each(|&plugin| {
-        let _ = load_plugin(py, plugin.to_string());
+        let _ = load_plugin(py, plugin);
     });
 
     Ok(())
 }
 
-fn try_load_plugin(py: Python<'_>, plugin: &String) -> PyResult<()> {
+fn try_load_plugin(py: Python<'_>, plugin: &str) -> PyResult<()> {
     let plugins_path = try_get_plugins_path().map_err(PyEnvironmentError::new_err)?;
 
     let os_module = py.import_bound(intern!(py, "os"))?;
@@ -875,7 +875,7 @@ fn try_load_plugin(py: Python<'_>, plugin: &String) -> PyResult<()> {
 }
 
 #[pyfunction(name = "load_plugin")]
-fn load_plugin(py: Python<'_>, plugin: String) -> PyResult<()> {
+fn load_plugin(py: Python<'_>, plugin: &str) -> PyResult<()> {
     let logger = pyshinqlx_get_logger(py, None)?;
     let logging_module = py.import_bound(intern!(py, "logging"))?;
     let info_level = logging_module.getattr(intern!(py, "INFO"))?;
@@ -888,7 +888,7 @@ fn load_plugin(py: Python<'_>, plugin: String) -> PyResult<()> {
             intern!(py, ""),
             -1,
             intern!(py, "Loading plugin '%s'..."),
-            (&plugin,),
+            (plugin,),
             py.None(),
         ),
         Some(&[(intern!(py, "func"), intern!(py, "load_plugin"))].into_py_dict_bound(py)),
@@ -911,13 +911,13 @@ fn load_plugin(py: Python<'_>, plugin: String) -> PyResult<()> {
     let plugin_module = shinqlx_module.getattr(intern!(py, "Plugin"))?;
     let loaded_plugins = plugin_module.getattr(intern!(py, "_loaded_plugins"))?;
 
-    let plugin_loaded = loaded_plugins.contains(&plugin)?;
+    let plugin_loaded = loaded_plugins.contains(plugin)?;
     if plugin_loaded {
-        shinqlx_module.call_method1(intern!(py, "reload_plugin"), (&plugin,))?;
+        shinqlx_module.call_method1(intern!(py, "reload_plugin"), (plugin,))?;
         return Ok(());
     }
 
-    let plugin_load_result = try_load_plugin(py, &plugin);
+    let plugin_load_result = try_load_plugin(py, plugin);
     if let Err(ref e) = plugin_load_result {
         log_exception(py, e);
     }
@@ -925,7 +925,7 @@ fn load_plugin(py: Python<'_>, plugin: String) -> PyResult<()> {
     plugin_load_result
 }
 
-fn try_unload_plugin(py: Python<'_>, plugin: &String) -> PyResult<()> {
+fn try_unload_plugin(py: Python<'_>, plugin: &str) -> PyResult<()> {
     let shinqlx_module = py.import_bound(intern!(py, "shinqlx"))?;
     let event_dispatchers = shinqlx_module.getattr(intern!(py, "EVENT_DISPATCHERS"))?;
     let unload_dispatcher = event_dispatchers.get_item(intern!(py, "unload"))?;
@@ -981,7 +981,7 @@ fn try_unload_plugin(py: Python<'_>, plugin: &String) -> PyResult<()> {
 }
 
 #[pyfunction(name = "unload_plugin")]
-fn unload_plugin(py: Python<'_>, plugin: String) -> PyResult<()> {
+fn unload_plugin(py: Python<'_>, plugin: &str) -> PyResult<()> {
     let logger = pyshinqlx_get_logger(py, None)?;
     let logging_module = py.import_bound(intern!(py, "logging"))?;
     let info_level = logging_module.getattr(intern!(py, "INFO"))?;
@@ -994,7 +994,7 @@ fn unload_plugin(py: Python<'_>, plugin: String) -> PyResult<()> {
             intern!(py, ""),
             -1,
             intern!(py, "Unloading plugin '%s'..."),
-            (&plugin,),
+            (plugin,),
             py.None(),
         ),
         Some(&[(intern!(py, "func"), intern!(py, "unload_plugin"))].into_py_dict_bound(py)),
@@ -1004,7 +1004,7 @@ fn unload_plugin(py: Python<'_>, plugin: String) -> PyResult<()> {
     let shinqlx_module = py.import_bound(intern!(py, "shinqlx"))?;
     let plugin_module = shinqlx_module.getattr(intern!(py, "Plugin"))?;
     if let Ok(loaded_plugins) = plugin_module.getattr(intern!(py, "_loaded_plugins")) {
-        let plugin_loaded = loaded_plugins.contains(&plugin)?;
+        let plugin_loaded = loaded_plugins.contains(plugin)?;
         if !plugin_loaded {
             return Err(PluginUnloadError::new_err(
                 "Attempted to unload a plugin that is not loaded.",
@@ -1012,7 +1012,7 @@ fn unload_plugin(py: Python<'_>, plugin: String) -> PyResult<()> {
         }
     };
 
-    let plugin_unload_result = try_unload_plugin(py, &plugin);
+    let plugin_unload_result = try_unload_plugin(py, plugin);
     if let Err(ref e) = plugin_unload_result {
         log_exception(py, e);
     }
@@ -1020,18 +1020,18 @@ fn unload_plugin(py: Python<'_>, plugin: String) -> PyResult<()> {
     plugin_unload_result
 }
 
-fn try_reload_plugin(py: Python, plugin: String) -> PyResult<()> {
+fn try_reload_plugin(py: Python, plugin: &str) -> PyResult<()> {
     let shinqlx_module = py.import_bound(intern!(py, "shinqlx"))?;
 
     if let Ok(loaded_modules) = shinqlx_module.getattr(intern!(py, "_modules")) {
-        if loaded_modules.contains(&plugin)? {
-            let loaded_plugin_module = loaded_modules.get_item(&plugin)?;
+        if loaded_modules.contains(plugin)? {
+            let loaded_plugin_module = loaded_modules.get_item(plugin)?;
 
             let importlib_module = py.import_bound(intern!(py, "importlib"))?;
             let module =
                 importlib_module.call_method1(intern!(py, "reload"), (loaded_plugin_module,))?;
 
-            loaded_modules.set_item(&plugin, module)?;
+            loaded_modules.set_item(plugin, module)?;
         }
     };
     load_plugin(py, plugin)?;
@@ -1039,8 +1039,8 @@ fn try_reload_plugin(py: Python, plugin: String) -> PyResult<()> {
 }
 
 #[pyfunction(name = "reload_plugin")]
-fn reload_plugin(py: Python<'_>, plugin: String) -> PyResult<()> {
-    let _ = unload_plugin(py, plugin.clone());
+fn reload_plugin(py: Python<'_>, plugin: &str) -> PyResult<()> {
+    let _ = unload_plugin(py, plugin);
 
     let plugin_reload_result = try_reload_plugin(py, plugin);
     if let Err(ref e) = plugin_reload_result {
@@ -1117,7 +1117,7 @@ fn late_init(py: Python<'_>) -> PyResult<()> {
     let sys_module = py.import_bound(intern!(py, "sys"))?;
 
     if let Ok(real_plugins_path) = try_get_plugins_path() {
-        set_plugins_version(py, real_plugins_path.to_string_lossy().to_string());
+        set_plugins_version(py, &real_plugins_path.to_string_lossy());
 
         let Some(plugins_path_dirname) = real_plugins_path
             .parent()
@@ -1538,11 +1538,7 @@ fn pyshinqlx_module(py: Python<'_>, m: &Bound<'_, PyModule>) -> PyResult<()> {
         "CHAT_CHANNEL",
         Py::new(
             py,
-            TeamChatChannel::py_new(
-                "all".to_string(),
-                "chat".to_string(),
-                "print \"{}\n\"\n".to_string(),
-            ),
+            TeamChatChannel::py_new("all", "chat", "print \"{}\n\"\n"),
         )?
         .to_object(py),
     )?;
@@ -1550,11 +1546,7 @@ fn pyshinqlx_module(py: Python<'_>, m: &Bound<'_, PyModule>) -> PyResult<()> {
         "RED_TEAM_CHAT_CHANNEL",
         Py::new(
             py,
-            TeamChatChannel::py_new(
-                "red".to_string(),
-                "red_team_chat".to_string(),
-                "print \"{}\n\"\n".to_string(),
-            ),
+            TeamChatChannel::py_new("red", "red_team_chat", "print \"{}\n\"\n"),
         )?
         .to_object(py),
     )?;
@@ -1562,11 +1554,7 @@ fn pyshinqlx_module(py: Python<'_>, m: &Bound<'_, PyModule>) -> PyResult<()> {
         "BLUE_TEAM_CHAT_CHANNEL",
         Py::new(
             py,
-            TeamChatChannel::py_new(
-                "blue".to_string(),
-                "blue_team_chat".to_string(),
-                "print \"{}\n\"\n".to_string(),
-            ),
+            TeamChatChannel::py_new("blue", "blue_team_chat", "print \"{}\n\"\n"),
         )?
         .to_object(py),
     )?;
@@ -1574,11 +1562,7 @@ fn pyshinqlx_module(py: Python<'_>, m: &Bound<'_, PyModule>) -> PyResult<()> {
         "FREE_CHAT_CHANNEL",
         Py::new(
             py,
-            TeamChatChannel::py_new(
-                "free".to_string(),
-                "free_chat".to_string(),
-                "print \"{}\n\"\n".to_string(),
-            ),
+            TeamChatChannel::py_new("free", "free_chat", "print \"{}\n\"\n"),
         )?
         .to_object(py),
     )?;
@@ -1586,11 +1570,7 @@ fn pyshinqlx_module(py: Python<'_>, m: &Bound<'_, PyModule>) -> PyResult<()> {
         "SPECTATOR_CHAT_CHANNEL",
         Py::new(
             py,
-            TeamChatChannel::py_new(
-                "spectator".to_string(),
-                "spectator_chat".to_string(),
-                "print \"{}\n\"\n".to_string(),
-            ),
+            TeamChatChannel::py_new("spectator", "spectator_chat", "print \"{}\n\"\n"),
         )?
         .to_object(py),
     )?;

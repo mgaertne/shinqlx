@@ -88,13 +88,13 @@ use core::ops::Deref;
 use itertools::Itertools;
 use pyo3::types::IntoPyDict;
 
-fn try_dispatcher_debug_log(py: Python<'_>, debug_str: String) -> PyResult<()> {
+fn try_dispatcher_debug_log(py: Python<'_>, debug_str: &str) -> PyResult<()> {
     let logging_module = py.import_bound(intern!(py, "logging"))?;
     let debug_level = logging_module.getattr(intern!(py, "DEBUG"))?;
 
     let logger = pyshinqlx_get_logger(py, None)?;
 
-    let mut dbgstr = debug_str;
+    let mut dbgstr = debug_str.to_string();
     if dbgstr.len() > 100 {
         dbgstr.truncate(99);
         dbgstr.push(')');
@@ -116,7 +116,8 @@ fn try_dispatcher_debug_log(py: Python<'_>, debug_str: String) -> PyResult<()> {
 
     Ok(())
 }
-pub(crate) fn dispatcher_debug_log(py: Python<'_>, debug_str: String) {
+
+pub(crate) fn dispatcher_debug_log(py: Python<'_>, debug_str: &str) {
     if let Err(e) = try_dispatcher_debug_log(py, debug_str) {
         log_exception(py, &e);
     }
@@ -245,7 +246,7 @@ impl EventDispatcher {
     ) -> PyObject {
         if !NO_DEBUG.contains(&slf.name.as_str()) {
             let dbgstr = format!("{}{}", slf.name, &args);
-            dispatcher_debug_log(py, dbgstr);
+            dispatcher_debug_log(py, &dbgstr);
         }
 
         let mut return_value = true.into_py(py);
@@ -332,7 +333,7 @@ impl EventDispatcher {
     fn add_hook(
         &self,
         py: Python<'_>,
-        plugin: String,
+        plugin: &str,
         handler: PyObject,
         priority: i32,
     ) -> PyResult<()> {
@@ -372,9 +373,9 @@ def add_hook(event, plugin, handler, priority):
         };
         let Some(plugin_hooks) = plugins
             .iter_mut()
-            .find(|(added_plugin, _)| added_plugin == &plugin)
+            .find(|(added_plugin, _)| added_plugin == plugin)
         else {
-            let mut new_commands = (plugin, [vec![], vec![], vec![], vec![], vec![]]);
+            let mut new_commands = (plugin.to_string(), [vec![], vec![], vec![], vec![], vec![]]);
             new_commands.1[priority as usize].push(handler);
             plugins.push(new_commands);
             return Ok(());
@@ -399,7 +400,7 @@ def add_hook(event, plugin, handler, priority):
     fn remove_hook(
         &self,
         py: Python<'_>,
-        plugin: String,
+        plugin: &str,
         handler: PyObject,
         priority: i32,
     ) -> PyResult<()> {
@@ -424,7 +425,7 @@ def remove_hook(event, plugin, handler, priority):
         };
         let Some(plugin_hooks) = plugins
             .iter_mut()
-            .find(|(added_plugin, _)| added_plugin == &plugin)
+            .find(|(added_plugin, _)| added_plugin == plugin)
         else {
             return Err(PyValueError::new_err(
                 "The event has not been hooked with the handler provided",
@@ -469,12 +470,12 @@ impl EventDispatcherManager {
         dispatchers.clone().into_py_dict_bound(py)
     }
 
-    fn __getitem__(&self, py: Python<'_>, key: String) -> PyResult<PyObject> {
+    fn __getitem__(&self, py: Python<'_>, key: &str) -> PyResult<PyObject> {
         let dispatchers = self.dispatchers.read();
         dispatchers
             .iter()
             .find_map(|(event_name, dispatcher)| {
-                if &key != event_name {
+                if key != event_name {
                     None
                 } else {
                     Some(dispatcher)
@@ -489,13 +490,13 @@ impl EventDispatcherManager {
             )
     }
 
-    fn __contains__(&self, py: Python<'_>, key: String) -> bool {
+    fn __contains__(&self, py: Python<'_>, key: &str) -> bool {
         py.allow_threads(|| {
             let dispatchers = self.dispatchers.read();
             dispatchers
                 .iter()
                 .find_map(|(event_name, dispatcher)| {
-                    if &key != event_name {
+                    if key != event_name {
                         None
                     } else {
                         Some(dispatcher)
@@ -520,7 +521,7 @@ impl EventDispatcherManager {
                 "Cannot add an event dispatcher with no name.",
             ));
         };
-        if self.__contains__(py, dispatcher_name_str.clone()) {
+        if self.__contains__(py, &dispatcher_name_str) {
             return Err(PyValueError::new_err("Event name already taken."));
         }
 
@@ -551,11 +552,11 @@ impl EventDispatcherManager {
             ));
         };
 
-        self.remove_dispatcher_by_name(py, dispatcher_name_str)
+        self.remove_dispatcher_by_name(py, &dispatcher_name_str)
     }
 
-    fn remove_dispatcher_by_name(&self, py: Python<'_>, dispatcher_name: String) -> PyResult<()> {
-        if !self.__contains__(py, dispatcher_name.clone()) {
+    fn remove_dispatcher_by_name(&self, py: Python<'_>, dispatcher_name: &str) -> PyResult<()> {
+        if !self.__contains__(py, dispatcher_name) {
             return Err(PyValueError::new_err("Event name not found."));
         }
 
@@ -578,7 +579,7 @@ def remove_dispatcher_by_name(dispatcher_name):
             remove_dispatcher_by_name_func.call1((dispatcher_name,))?;
             return Ok(());
         };
-        dispatchers.retain(|(name, _)| name != &dispatcher_name);
+        dispatchers.retain(|(name, _)| name != dispatcher_name);
 
         Ok(())
     }

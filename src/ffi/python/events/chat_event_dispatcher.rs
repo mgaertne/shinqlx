@@ -24,10 +24,10 @@ impl ChatEventDispatcher {
         slf: PyRef<'_, Self>,
         py: Python<'_>,
         player: PyObject,
-        msg: String,
+        msg: &str,
         channel: PyObject,
     ) -> PyObject {
-        match try_handle_input(py, &player, &msg, &channel) {
+        match try_handle_input(py, &player, msg, &channel) {
             Err(e) => {
                 log_exception(py, &e);
             }
@@ -38,7 +38,7 @@ impl ChatEventDispatcher {
             }
         };
 
-        let mut forwarded_msg = msg.clone();
+        let mut forwarded_msg = msg.to_string();
         let mut return_value = true.into_py(py);
 
         let super_class = slf.into_super();
@@ -48,7 +48,7 @@ impl ChatEventDispatcher {
                     "{}({}, {}, {})",
                     super_class.name, player_str, msg, channel_str
                 );
-                dispatcher_debug_log(py, dbgstr);
+                dispatcher_debug_log(py, &dbgstr);
             }
         }
 
@@ -108,7 +108,7 @@ impl ChatEventDispatcher {
 fn try_handle_input(
     py: Python<'_>,
     player: &PyObject,
-    cmd: &String,
+    cmd: &str,
     channel: &PyObject,
 ) -> PyResult<PyObject> {
     let shinqlx_module = py.import_bound(intern!(py, "shinqlx"))?;

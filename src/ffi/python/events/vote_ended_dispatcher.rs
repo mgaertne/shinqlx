@@ -38,14 +38,14 @@ impl VoteEndedDispatcher {
             if configstring.is_empty() {
                 dispatcher_debug_log(
                     py,
-                    "vote_ended went off without configstring CS_VOTE_STRING.".to_string(),
+                    "vote_ended went off without configstring CS_VOTE_STRING.",
                 );
                 return;
             }
 
             let Some(captures) = RE_VOTE.captures(&configstring) else {
                 let warning_str = format!("invalid vote called: {}", &configstring);
-                dispatcher_debug_log(py, warning_str);
+                dispatcher_debug_log(py, &warning_str);
                 return;
             };
             let vote = captures
@@ -69,7 +69,7 @@ impl VoteEndedDispatcher {
                 "{}(({}, {}), {}, {}, {})",
                 super_class.name, yes_votes, no_votes, vote, args, passed
             );
-            dispatcher_debug_log(py, dbgstr);
+            dispatcher_debug_log(py, &dbgstr);
 
             let plugins = super_class.plugins.read();
             for i in 0..5 {

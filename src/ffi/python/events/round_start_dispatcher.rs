@@ -24,7 +24,7 @@ impl RoundStartDispatcher {
 
         let super_class = slf.into_super();
         let dbgstr = format!("{}({})", super_class.name, round_number);
-        dispatcher_debug_log(py, dbgstr);
+        dispatcher_debug_log(py, &dbgstr);
 
         let plugins = super_class.plugins.read();
         for i in 0..5 {

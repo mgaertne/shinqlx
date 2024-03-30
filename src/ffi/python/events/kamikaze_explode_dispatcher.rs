@@ -33,7 +33,7 @@ impl KamikazeExplodeDispatcher {
                 "{}({}, {})",
                 super_class.name, player_str, is_used_on_demand
             );
-            dispatcher_debug_log(py, dbgstr);
+            dispatcher_debug_log(py, &dbgstr);
         }
 
         let plugins = super_class.plugins.read();
