@@ -167,7 +167,7 @@ pub(crate) fn log_unexpected_return_value(
     }
 }
 
-#[pyclass(name = "EventDispatcher", module = "_events", subclass)]
+#[pyclass(name = "EventDispatcher", module = "_events", subclass, mapping)]
 pub(crate) struct EventDispatcher {
     name: String,
     need_zmq_stats_enabled: bool,
@@ -216,7 +216,7 @@ impl EventDispatcher {
     pub(crate) fn py_new(_py: Python<'_>) -> Self {
         Self::default()
     }
-
+    
     #[getter(plugins)]
     fn get_plugins<'py>(&'py self, py: Python<'py>) -> Bound<'py, PyDict> {
         let plugins = self.plugins.read();
