@@ -67,7 +67,12 @@ impl VoteEndedDispatcher {
 
             let dbgstr = format!(
                 "{}(({}, {}), {}, {}, {})",
-                Self::name, yes_votes, no_votes, vote, args, passed
+                Self::name,
+                yes_votes,
+                no_votes,
+                vote,
+                args,
+                passed
             );
             dispatcher_debug_log(py, &dbgstr);
 
