@@ -3,12 +3,7 @@ use super::{owner, pyshinqlx_get_logger, PythonReturnCodes};
 
 use pyo3::prelude::*;
 use pyo3::types::IntoPyDict;
-use pyo3::{
-    exceptions::PyKeyError,
-    exceptions::PyValueError,
-    intern,
-    types::{PyList, PyTuple},
-};
+use pyo3::{exceptions::PyKeyError, exceptions::PyValueError, intern, PyTraverseError, PyVisit, types::{PyList, PyTuple}};
 
 /// A class representing an input-triggered command.
 ///
@@ -131,6 +126,21 @@ impl Command {
             prefix,
             usage: usage.into(),
         })
+    }
+
+    fn __traverse__(&self, visit: PyVisit<'_>) -> Result<(), PyTraverseError> {
+        visit.call(&self.plugin)?;
+        visit.call(&self.handler)?;
+
+        for channel in &self.channels {
+            visit.call(channel)?;
+        }
+
+        for channel in &self.exclude_channels {
+            visit.call(channel)?;
+        }
+
+        Ok(())
     }
 
     fn execute(

@@ -9,11 +9,7 @@ use arc_swap::ArcSwapOption;
 use core::sync::atomic::{AtomicBool, AtomicI32, Ordering};
 use itertools::Itertools;
 use once_cell::sync::Lazy;
-use pyo3::{
-    exceptions::PyValueError,
-    intern,
-    types::{IntoPyDict, PyDict},
-};
+use pyo3::{exceptions::PyValueError, intern, PyTraverseError, PyVisit, types::{IntoPyDict, PyDict}};
 use regex::{Regex, RegexBuilder};
 
 fn try_handle_rcon(py: Python<'_>, cmd: &str) -> PyResult<Option<bool>> {
@@ -884,6 +880,11 @@ impl PrintRedirector {
             channel,
             print_buffer: parking_lot::RwLock::new(String::with_capacity(MAX_MSG_LENGTH as usize)),
         })
+    }
+
+    fn __traverse__(&self, visit: PyVisit<'_>) -> Result<(), PyTraverseError> {
+        visit.call(&self.channel)?;
+        Ok(())
     }
 
     #[pyo3(name = "__enter__")]
