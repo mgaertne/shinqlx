@@ -391,7 +391,7 @@ fn get_logger_name(py: Python<'_>, plugin: Option<PyObject>) -> String {
     py.allow_threads(|| {
         opt_plugin_name
             .map(|plugin_name| format!("shinqlx.{plugin_name}"))
-            .unwrap_or("shinqlx".to_owned())
+            .unwrap_or("shinqlx".to_string())
     })
 }
 
