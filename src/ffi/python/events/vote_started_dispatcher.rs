@@ -13,13 +13,13 @@ impl VoteStartedDispatcher {
     #[allow(non_upper_case_globals)]
     const name: &'static str = "vote_started";
 
+    #[classattr]
+    #[allow(non_upper_case_globals)]
+    const need_zmq_stats_enabled: bool = false;
+
     #[new]
     fn py_new(py: Python<'_>) -> (Self, EventDispatcher) {
-        let super_class = EventDispatcher {
-            name: Self::name.to_string(),
-            ..EventDispatcher::default()
-        };
-        (Self { player: py.None() }, super_class)
+        (Self { player: py.None() }, EventDispatcher::default())
     }
 
     fn dispatch(slf: PyRef<'_, Self>, py: Python<'_>, vote: &str, args: PyObject) -> bool {
@@ -28,7 +28,7 @@ impl VoteStartedDispatcher {
         let player = (&slf.player).into_py(py);
         let super_class = slf.into_super();
         if let Ok(player_str) = player.bind(py).repr() {
-            let dbgstr = format!("{}({}, {}, {})", super_class.name, player_str, vote, &args);
+            let dbgstr = format!("{}({}, {}, {})", Self::name, player_str, vote, &args);
             dispatcher_debug_log(py, &dbgstr);
         }
 

@@ -11,13 +11,13 @@ impl ChatEventDispatcher {
     #[allow(non_upper_case_globals)]
     const name: &'static str = "chat";
 
+    #[classattr]
+    #[allow(non_upper_case_globals)]
+    const need_zmq_stats_enabled: bool = false;
+
     #[new]
     fn py_new(_py: Python<'_>) -> (Self, EventDispatcher) {
-        let super_class = EventDispatcher {
-            name: Self::name.to_string(),
-            ..EventDispatcher::default()
-        };
-        (Self {}, super_class)
+        (Self {}, EventDispatcher::default())
     }
 
     fn dispatch(
@@ -46,7 +46,7 @@ impl ChatEventDispatcher {
             if let Ok(channel_str) = channel.bind(py).repr() {
                 let dbgstr = format!(
                     "{}({}, {}, {})",
-                    super_class.name, player_str, msg, channel_str
+                    Self::name, player_str, msg, channel_str
                 );
                 dispatcher_debug_log(py, &dbgstr);
             }

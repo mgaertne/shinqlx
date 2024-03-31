@@ -169,8 +169,6 @@ pub(crate) fn log_unexpected_return_value(
 
 #[pyclass(name = "EventDispatcher", module = "_events", subclass)]
 pub(crate) struct EventDispatcher {
-    name: String,
-    need_zmq_stats_enabled: bool,
     plugins: parking_lot::RwLock<Vec<(String, [Vec<PyObject>; 5])>>,
 }
 
@@ -189,8 +187,6 @@ const NO_DEBUG: [&str; 9] = [
 impl Default for EventDispatcher {
     fn default() -> Self {
         Self {
-            name: "".to_string(),
-            need_zmq_stats_enabled: false,
             plugins: parking_lot::RwLock::new(Vec::new()),
         }
     }
@@ -272,8 +268,14 @@ impl EventDispatcher {
         let Ok(event_dispatcher) = slf.try_borrow() else {
             return py.None();
         };
-        if !NO_DEBUG.contains(&event_dispatcher.name.as_str()) {
-            let dbgstr = format!("{}{}", event_dispatcher.name, &args);
+        let Ok(py_dispatcher_name) = slf.get_type().getattr(intern!(py, "name")) else {
+            return py.None();
+        };
+        let Ok(dispatcher_name) = py_dispatcher_name.extract::<String>() else {
+            return py.None();
+        };
+        if !NO_DEBUG.contains(&dispatcher_name.as_str()) {
+            let dbgstr = format!("{}{}", dispatcher_name, &args);
             dispatcher_debug_log(py, &dbgstr);
         }
 
@@ -351,9 +353,9 @@ impl EventDispatcher {
         handler: PyObject,
         value: PyObject,
     ) -> PyResult<PyObject> {
-        if let Ok(event_dispatcher) = slf.try_borrow() {
-            log_unexpected_return_value(py, &event_dispatcher.name, &value, &handler);
-        };
+        let dispatcher_name = slf.get_type().getattr(intern!(py, "name"))?.extract::<String>()?;
+        log_unexpected_return_value(py, &dispatcher_name, &value, &handler);
+
         Ok(py.None())
     }
 
@@ -361,7 +363,7 @@ impl EventDispatcher {
     /// whenever the event is takes place.
     #[pyo3(signature = (plugin, handler, priority=CommandPriorities::PRI_NORMAL as i32))]
     fn add_hook(
-        &self,
+        slf: &Bound<'_, Self>,
         py: Python<'_>,
         plugin: &str,
         handler: PyObject,
@@ -372,17 +374,23 @@ impl EventDispatcher {
             return Err(PyValueError::new_err(error_description));
         }
 
+        let Ok(event_dispatcher) = slf.try_borrow() else {
+            return Err(PyValueError::new_err("could not borrow event_dispatcher"));
+        };
+        let dispatcher_name = slf.get_type().getattr(intern!(py, "name"))?.extract::<String>()?;
+        let need_zmq_stats_enabled = slf.get_type().getattr(intern!(py, "need_zmq_stats_enabled"))?.extract::<bool>()?;
+
         let zmq_enabled_cvar = pyshinqlx_get_cvar(py, "zmq_stats_enable")?;
         let zmq_enabled = zmq_enabled_cvar.is_some_and(|value| value != "0");
-        if self.need_zmq_stats_enabled && !zmq_enabled {
+        if need_zmq_stats_enabled && !zmq_enabled {
             let error_description = format!(
                 "{} hook requires zmq_stats_enabled cvar to have nonzero value",
-                self.name.clone()
+                dispatcher_name
             );
             return Err(PyAssertionError::new_err(error_description));
         }
 
-        let Some(mut plugins) = self.plugins.try_write() else {
+        let Some(mut plugins) = event_dispatcher.plugins.try_write() else {
             let add_hook_func = PyModule::from_code_bound(
                 py,
                 r#"
@@ -398,7 +406,7 @@ def add_hook(event, plugin, handler, priority):
             )?
             .getattr(intern!(py, "add_hook"))?;
 
-            add_hook_func.call1((&self.name, plugin, handler, priority))?;
+            add_hook_func.call1((&dispatcher_name, plugin, handler, priority))?;
             return Ok(());
         };
         let Some(plugin_hooks) = plugins
@@ -428,13 +436,17 @@ def add_hook(event, plugin, handler, priority):
     /// Removes a previously hooked event.
     #[pyo3(signature = (plugin, handler, priority=CommandPriorities::PRI_NORMAL as i32))]
     fn remove_hook(
-        &self,
+        slf: &Bound<'_, Self>,
         py: Python<'_>,
         plugin: &str,
         handler: PyObject,
         priority: i32,
     ) -> PyResult<()> {
-        let Some(mut plugins) = self.plugins.try_write() else {
+        let Ok(event_dispatcher) = slf.try_borrow() else {
+            return Err(PyValueError::new_err("could not borrow event_dispatcher"));
+        };
+        let dispatcher_name = slf.get_type().getattr(intern!(py, "name"))?.extract::<String>()?;
+        let Some(mut plugins) = event_dispatcher.plugins.try_write() else {
             let remove_hook_func = PyModule::from_code_bound(
                 py,
                 r#"
@@ -450,7 +462,7 @@ def remove_hook(event, plugin, handler, priority):
             )?
             .getattr(intern!(py, "remove_hook"))?;
 
-            remove_hook_func.call1((&self.name, plugin, handler, priority))?;
+            remove_hook_func.call1((dispatcher_name, plugin, handler, priority))?;
             return Ok(());
         };
         let Some(plugin_hooks) = plugins
