@@ -79,12 +79,8 @@ pub(crate) use vote_dispatcher::VoteDispatcher;
 pub(crate) use vote_ended_dispatcher::VoteEndedDispatcher;
 pub(crate) use vote_started_dispatcher::VoteStartedDispatcher;
 
-use pyo3::{
-    exceptions::{PyAssertionError, PyKeyError, PyValueError},
-    types::{PyDict, PyTuple, PyType},
-};
+use pyo3::{exceptions::{PyAssertionError, PyKeyError, PyValueError}, PyTraverseError, PyVisit, types::{PyDict, PyTuple, PyType}};
 
-use core::ops::Deref;
 use itertools::Itertools;
 use pyo3::types::IntoPyDict;
 
@@ -167,7 +163,7 @@ pub(crate) fn log_unexpected_return_value(
     }
 }
 
-#[pyclass(name = "EventDispatcher", module = "_events", subclass, mapping)]
+#[pyclass(name = "EventDispatcher", module = "_events", subclass)]
 pub(crate) struct EventDispatcher {
     name: String,
     need_zmq_stats_enabled: bool,
@@ -216,10 +212,34 @@ impl EventDispatcher {
     pub(crate) fn py_new(_py: Python<'_>) -> Self {
         Self::default()
     }
-    
+
+    fn __traverse__(&self, visit: PyVisit<'_>) -> Result<(), PyTraverseError> {
+        let events = &(*self.plugins.read());
+        for (_, plugins) in events {
+            for prio_plugins in plugins {
+                for plugin in prio_plugins {
+                    visit.call(plugin)?;
+                }
+            }
+        }
+
+        Ok(())
+    }
+
+    fn __clear__(&mut self) {
+        let events = &mut (*self.plugins.write());
+        for (_, plugins) in events {
+            for prio_plugins in plugins {
+                prio_plugins.clear();
+            }
+        }
+
+    }
+
     #[getter(plugins)]
-    fn get_plugins<'py>(&'py self, py: Python<'py>) -> Bound<'py, PyDict> {
-        let plugins = self.plugins.read();
+    fn get_plugins<'py>(slf: Bound<'py, Self>, py: Python<'py>) -> Bound<'py, PyDict> {
+        let event_dispatcher = slf.borrow();
+        let plugins = event_dispatcher.plugins.read();
         plugins.clone().into_py_dict_bound(py)
     }
 
@@ -240,18 +260,19 @@ impl EventDispatcher {
     ///         special return values.
     #[pyo3(signature = (*args))]
     pub(crate) fn dispatch(
-        slf: PyRef<'_, Self>,
+        slf: &Bound<'_, Self>,
         py: Python<'_>,
         args: Bound<'_, PyTuple>,
     ) -> PyObject {
-        if !NO_DEBUG.contains(&slf.name.as_str()) {
-            let dbgstr = format!("{}{}", slf.name, &args);
+        let event_dispatcher = slf.borrow();
+        if !NO_DEBUG.contains(&event_dispatcher.name.as_str()) {
+            let dbgstr = format!("{}{}", event_dispatcher.name, &args);
             dispatcher_debug_log(py, &dbgstr);
         }
 
         let mut return_value = true.into_py(py);
 
-        let plugins = slf.plugins.read();
+        let plugins = event_dispatcher.plugins.read();
         for i in 0..5 {
             for (_, handlers) in plugins.clone() {
                 for handler in &handlers[i] {
@@ -289,7 +310,7 @@ impl EventDispatcher {
                                 return false.into_py(py);
                             }
 
-                            match Self::handle_return(slf.deref(), py, handler.into_py(py), res) {
+                            match Self::handle_return(slf, py, handler.into_py(py), res) {
                                 Err(e) => {
                                     log_exception(py, &e);
                                     continue;
@@ -318,12 +339,13 @@ impl EventDispatcher {
     /// is the return value that will be sent to the C-level handler if the
     /// event isn't stopped later along the road.
     pub(crate) fn handle_return(
-        &self,
+        slf: &Bound<'_, Self>,
         py: Python<'_>,
         handler: PyObject,
         value: PyObject,
     ) -> PyResult<PyObject> {
-        log_unexpected_return_value(py, &self.name, &value, &handler);
+        let event_dispatcher = slf.borrow();
+        log_unexpected_return_value(py, &event_dispatcher.name, &value, &handler);
         Ok(py.None())
     }
 
@@ -451,7 +473,7 @@ def remove_hook(event, plugin, handler, priority):
 /// Holds all the event dispatchers and provides a way to access the dispatcher
 /// instances by accessing it like a dictionary using the event name as a key.
 /// Only one dispatcher can be used per event.
-#[pyclass(name = "EventDispatcherManager", module = "_events")]
+#[pyclass(name = "EventDispatcherManager", module = "_events", mapping)]
 #[derive(Default)]
 pub(crate) struct EventDispatcherManager {
     dispatchers: parking_lot::RwLock<Vec<(String, PyObject)>>,
@@ -462,6 +484,20 @@ impl EventDispatcherManager {
     #[new]
     fn py_new(py: Python<'_>) -> Self {
         py.allow_threads(Self::default)
+    }
+
+    fn __traverse__(&self, visit: PyVisit<'_>) -> Result<(), PyTraverseError> {
+        let events = &(*self.dispatchers.read());
+        for (_, plugins) in events {
+            visit.call(plugins)?;
+        }
+
+        Ok(())
+    }
+
+    fn __clear__(&mut self) {
+        let events = &mut (*self.dispatchers.write());
+        events.clear();
     }
 
     #[getter(_dispatchers)]
