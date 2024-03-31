@@ -13,13 +13,13 @@ impl PlayerConnectDispatcher {
     #[allow(non_upper_case_globals)]
     const name: &'static str = "player_connect";
 
+    #[classattr]
+    #[allow(non_upper_case_globals)]
+    const need_zmq_stats_enabled: bool = false;
+
     #[new]
     fn py_new(_py: Python<'_>) -> (Self, EventDispatcher) {
-        let super_class = EventDispatcher {
-            name: Self::name.to_string(),
-            ..EventDispatcher::default()
-        };
-        (Self {}, super_class)
+        (Self {}, EventDispatcher::default())
     }
 
     fn dispatch(slf: PyRef<'_, Self>, py: Python<'_>, player: PyObject) -> PyObject {
@@ -27,7 +27,7 @@ impl PlayerConnectDispatcher {
 
         let super_class = slf.into_super();
         if let Ok(player_str) = player.bind(py).repr() {
-            let dbgstr = format!("{}({})", super_class.name, player_str);
+            let dbgstr = format!("{}({})", Self::name, player_str);
             dispatcher_debug_log(py, &dbgstr);
         }
 
