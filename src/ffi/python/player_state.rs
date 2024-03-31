@@ -4,7 +4,7 @@ use crate::ffi::c::prelude::*;
 use alloc::borrow::Cow;
 
 /// Information about a player's state in the game.
-#[pyclass(module = "_shinqlx", name = "PlayerState", frozen, get_all)]
+#[pyclass(module = "_shinqlx", name = "PlayerState", frozen, get_all, sequence)]
 #[derive(Debug, PartialEq)]
 pub(crate) struct PlayerState {
     /// Whether the player's alive or not.
