@@ -21,7 +21,7 @@ impl Vector3Iter {
 }
 
 /// A three-dimensional vector.
-#[pyclass(module = "_shinqlx", name = "Vector3", frozen, get_all)]
+#[pyclass(module = "_shinqlx", name = "Vector3", frozen, get_all, sequence)]
 #[derive(PartialEq, Debug, Clone, Copy, Default)]
 pub(crate) struct Vector3(
     #[pyo3(name = "x")] pub(crate) i32,
