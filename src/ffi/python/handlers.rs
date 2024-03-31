@@ -9,7 +9,12 @@ use arc_swap::ArcSwapOption;
 use core::sync::atomic::{AtomicBool, AtomicI32, Ordering};
 use itertools::Itertools;
 use once_cell::sync::Lazy;
-use pyo3::{exceptions::PyValueError, intern, PyTraverseError, PyVisit, types::{IntoPyDict, PyDict}};
+use pyo3::{
+    exceptions::PyValueError,
+    intern,
+    types::{IntoPyDict, PyDict},
+    PyTraverseError, PyVisit,
+};
 use regex::{Regex, RegexBuilder};
 
 fn try_handle_rcon(py: Python<'_>, cmd: &str) -> PyResult<Option<bool>> {

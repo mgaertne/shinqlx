@@ -79,7 +79,11 @@ pub(crate) use vote_dispatcher::VoteDispatcher;
 pub(crate) use vote_ended_dispatcher::VoteEndedDispatcher;
 pub(crate) use vote_started_dispatcher::VoteStartedDispatcher;
 
-use pyo3::{exceptions::{PyAssertionError, PyKeyError, PyValueError}, PyTraverseError, PyVisit, types::{PyDict, PyTuple, PyType}};
+use pyo3::{
+    exceptions::{PyAssertionError, PyKeyError, PyValueError},
+    types::{PyDict, PyTuple, PyType},
+    PyTraverseError, PyVisit,
+};
 
 use itertools::Itertools;
 use pyo3::types::IntoPyDict;
@@ -233,12 +237,13 @@ impl EventDispatcher {
                 prio_plugins.clear();
             }
         }
-
     }
 
     #[getter(plugins)]
     fn get_plugins<'py>(slf: Bound<'py, Self>, py: Python<'py>) -> Bound<'py, PyDict> {
-        let event_dispatcher = slf.borrow();
+        let Ok(event_dispatcher) = slf.try_borrow() else {
+            return PyDict::new_bound(py);
+        };
         let plugins = event_dispatcher.plugins.read();
         plugins.clone().into_py_dict_bound(py)
     }
@@ -264,7 +269,9 @@ impl EventDispatcher {
         py: Python<'_>,
         args: Bound<'_, PyTuple>,
     ) -> PyObject {
-        let event_dispatcher = slf.borrow();
+        let Ok(event_dispatcher) = slf.try_borrow() else {
+            return py.None();
+        };
         if !NO_DEBUG.contains(&event_dispatcher.name.as_str()) {
             let dbgstr = format!("{}{}", event_dispatcher.name, &args);
             dispatcher_debug_log(py, &dbgstr);
@@ -344,8 +351,9 @@ impl EventDispatcher {
         handler: PyObject,
         value: PyObject,
     ) -> PyResult<PyObject> {
-        let event_dispatcher = slf.borrow();
-        log_unexpected_return_value(py, &event_dispatcher.name, &value, &handler);
+        if let Ok(event_dispatcher) = slf.try_borrow() {
+            log_unexpected_return_value(py, &event_dispatcher.name, &value, &handler);
+        };
         Ok(py.None())
     }
 

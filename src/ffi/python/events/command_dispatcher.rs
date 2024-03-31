@@ -19,45 +19,4 @@ impl CommandDispatcher {
         };
         (Self {}, super_class)
     }
-
-    fn dispatch(
-        slf: PyRef<'_, Self>,
-        py: Python<'_>,
-        caller: PyObject,
-        command: PyObject,
-        args: PyObject,
-    ) {
-        let super_class = slf.into_super();
-        let plugins = super_class.plugins.read();
-        for i in 0..5 {
-            for (_, handlers) in plugins.iter() {
-                for handler in &handlers[i] {
-                    match handler.call1(py, (&caller, &command, &args)) {
-                        Err(e) => {
-                            log_exception(py, &e);
-                            continue;
-                        }
-                        Ok(res) => {
-                            let res_i32 = res.extract::<PythonReturnCodes>(py);
-                            if res_i32.as_ref().is_ok_and(|value| {
-                                [PythonReturnCodes::RET_STOP, PythonReturnCodes::RET_STOP_ALL]
-                                    .contains(value)
-                            }) {
-                                return;
-                            }
-                            if !res_i32.as_ref().is_ok_and(|value| {
-                                [
-                                    PythonReturnCodes::RET_NONE,
-                                    PythonReturnCodes::RET_STOP_EVENT,
-                                ]
-                                .contains(value)
-                            }) {
-                                log_unexpected_return_value(py, Self::name, &res, handler);
-                            }
-                        }
-                    }
-                }
-            }
-        }
-    }
 }
