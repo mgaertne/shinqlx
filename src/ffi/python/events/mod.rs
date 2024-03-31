@@ -353,7 +353,10 @@ impl EventDispatcher {
         handler: PyObject,
         value: PyObject,
     ) -> PyResult<PyObject> {
-        let dispatcher_name = slf.get_type().getattr(intern!(py, "name"))?.extract::<String>()?;
+        let dispatcher_name = slf
+            .get_type()
+            .getattr(intern!(py, "name"))?
+            .extract::<String>()?;
         log_unexpected_return_value(py, &dispatcher_name, &value, &handler);
 
         Ok(py.None())
@@ -377,8 +380,14 @@ impl EventDispatcher {
         let Ok(event_dispatcher) = slf.try_borrow() else {
             return Err(PyValueError::new_err("could not borrow event_dispatcher"));
         };
-        let dispatcher_name = slf.get_type().getattr(intern!(py, "name"))?.extract::<String>()?;
-        let need_zmq_stats_enabled = slf.get_type().getattr(intern!(py, "need_zmq_stats_enabled"))?.extract::<bool>()?;
+        let dispatcher_name = slf
+            .get_type()
+            .getattr(intern!(py, "name"))?
+            .extract::<String>()?;
+        let need_zmq_stats_enabled = slf
+            .get_type()
+            .getattr(intern!(py, "need_zmq_stats_enabled"))?
+            .extract::<bool>()?;
 
         let zmq_enabled_cvar = pyshinqlx_get_cvar(py, "zmq_stats_enable")?;
         let zmq_enabled = zmq_enabled_cvar.is_some_and(|value| value != "0");
@@ -445,7 +454,10 @@ def add_hook(event, plugin, handler, priority):
         let Ok(event_dispatcher) = slf.try_borrow() else {
             return Err(PyValueError::new_err("could not borrow event_dispatcher"));
         };
-        let dispatcher_name = slf.get_type().getattr(intern!(py, "name"))?.extract::<String>()?;
+        let dispatcher_name = slf
+            .get_type()
+            .getattr(intern!(py, "name"))?
+            .extract::<String>()?;
         let Some(mut plugins) = event_dispatcher.plugins.try_write() else {
             let remove_hook_func = PyModule::from_code_bound(
                 py,
