@@ -1,0 +1,1400 @@
+use super::prelude::*;
+
+use super::{commands::CommandPriorities, pyshinqlx_get_logger};
+#[cfg(test)]
+use crate::hooks::mock_hooks::shinqlx_com_printf;
+#[cfg(not(test))]
+use crate::hooks::shinqlx_com_printf;
+
+use crate::MAIN_ENGINE;
+use crate::{
+    ffi::c::prelude::{CS_VOTE_NO, CS_VOTE_STRING, CS_VOTE_YES},
+    quake_live_engine::{ConsoleCommand, FindCVar, GetCVar, GetConfigstring, SetCVarLimit},
+};
+
+use pyo3::prelude::*;
+use pyo3::{
+    exceptions::{PyEnvironmentError, PyValueError},
+    gc::PyVisit,
+    intern,
+    types::{PyDict, PyList, PySet, PyTuple, PyType},
+    PyTraverseError,
+};
+
+/// The base plugin class.
+///
+/// Every plugin must inherit this or a subclass of this. It does not support any database
+/// by itself, but it has a *database* static variable that must be a subclass of the
+/// abstract class :class:`shinqlx.database.AbstractDatabase`. This abstract class requires
+/// a few methods that deal with permissions. This will make sure that simple plugins that
+/// only care about permissions can work on any database. Abstraction beyond that is hard,
+/// so any use of the database past that point will be uncharted territory, meaning the
+/// plugin will likely be database-specific unless you abstract it yourself.
+///
+/// Permissions for commands can be overriden in the config. If you have a plugin called
+/// ``my_plugin`` with a command ``my_command``, you could override its permission
+/// requirement by adding ``perm_my_command: 3`` under a ``[my_plugin]`` header.
+/// This allows users to set custom permissions without having to edit the scripts.
+///
+/// .. warning::
+///     I/O is the bane of single-threaded applications. You do **not** want blocking operations
+///     in code called by commands or events. That could make players lag. Helper decorators
+///     like :func:`shinqlx.thread` can be useful.
+#[pyclass(name = "Plugin", module = "_plugin", subclass)]
+pub(crate) struct Plugin {
+    hooks: Vec<(String, PyObject, i32)>,
+    commands: parking_lot::RwLock<Vec<Command>>,
+    db_instance: PyObject,
+}
+
+#[pymethods]
+impl Plugin {
+    #[new]
+    fn py_new(py: Python<'_>) -> Self {
+        Self {
+            hooks: vec![],
+            commands: parking_lot::RwLock::new(vec![]),
+            db_instance: py.None(),
+        }
+    }
+
+    fn __traverse__(&self, visit: PyVisit<'_>) -> Result<(), PyTraverseError> {
+        for hook in &self.hooks {
+            visit.call(&hook.1)?;
+        }
+
+        visit.call(&self.db_instance)?;
+        Ok(())
+    }
+
+    fn __clear__(&mut self) {
+        self.hooks.clear();
+    }
+
+    fn __str__(slf: &Bound<'_, Self>) -> PyResult<String> {
+        slf.get_type().name().map(|value| value.to_string())
+    }
+
+    // placeholder for get_db
+
+    /// The name of the plugin.
+    #[getter(name)]
+    fn get_name(slf: &Bound<'_, Self>) -> PyResult<String> {
+        slf.get_type().name().map(|value| value.to_string())
+    }
+
+    // placeholder for get_plugins
+
+    /// A list of all the hooks this plugin has.
+    #[getter(hooks)]
+    fn get_hooks(&self) -> Vec<(String, PyObject, i32)> {
+        self.hooks.clone()
+    }
+
+    /// A list of all the commands this plugin has registered.
+    #[getter(commands)]
+    fn get_commands(&self) -> Vec<Command> {
+        let Some(commands) = self.commands.try_read() else {
+            return vec![];
+        };
+        let cloned_commands: Vec<Command> = commands.clone();
+        cloned_commands
+    }
+
+    /// A Game instance.
+    #[getter(game)]
+    fn get_game(&self, py: Python<'_>) -> Option<Game> {
+        Game::py_new(py, true).ok()
+    }
+
+    /// An instance of :class:`logging.Logger`, but initialized for this plugin.
+    #[getter(logger)]
+    fn get_logger<'a>(slf: &Bound<'a, Self>) -> PyResult<Bound<'a, PyAny>> {
+        let plugin_name = slf.get_type().name().map(|value| value.to_string())?;
+        pyshinqlx_get_logger(slf.py(), Some(plugin_name.into_py(slf.py())))
+    }
+
+    #[pyo3(signature = (event, handler, priority = CommandPriorities::PRI_NORMAL as i32))]
+    fn add_hook(
+        slf: &Bound<'_, Self>,
+        py: Python<'_>,
+        event: String,
+        handler: PyObject,
+        priority: i32,
+    ) -> PyResult<()> {
+        let shinqlx_module = py.import_bound(intern!(py, "shinqlx"))?;
+        let event_dispatchers = shinqlx_module.getattr(intern!(py, "EVENT_DISPATCHER"))?;
+        let event_dispatcher = event_dispatchers.get_item(&event)?;
+
+        let plugin_type = slf.get_type();
+        let plugin_name = plugin_type.name()?;
+        event_dispatcher
+            .call_method1(intern!(py, "add_hook"), (plugin_name, &handler, priority))?;
+
+        let Ok(mut plugin) = slf.try_borrow_mut() else {
+            return Err(PyEnvironmentError::new_err("cound not borrow plugin hooks"));
+        };
+        plugin.hooks.push((event.clone(), handler, priority));
+
+        Ok(())
+    }
+
+    #[pyo3(signature = (event, handler, priority = CommandPriorities::PRI_NORMAL as i32))]
+    fn remove_hook(
+        slf: &Bound<'_, Self>,
+        py: Python<'_>,
+        event: String,
+        handler: PyObject,
+        priority: i32,
+    ) -> PyResult<()> {
+        let shinqlx_module = py.import_bound(intern!(py, "shinqlx"))?;
+        let event_dispatchers = shinqlx_module.getattr(intern!(py, "EVENT_DISPATCHER"))?;
+        let event_dispatcher = event_dispatchers.get_item(&event)?;
+
+        let plugin_type = slf.get_type();
+        let plugin_name = plugin_type.name()?;
+        event_dispatcher.call_method1(
+            intern!(py, "remove_hook"),
+            (plugin_name, &handler, priority),
+        )?;
+
+        let Ok(mut plugin) = slf.try_borrow_mut() else {
+            return Err(PyEnvironmentError::new_err("cound not borrow plugin hooks"));
+        };
+        plugin
+            .hooks
+            .retain(|(hook_event, hook_handler, hook_priority)| {
+                hook_event == &event
+                    && hook_handler.bind(py).eq(handler.bind(py)).unwrap_or(true)
+                    && hook_priority == &priority
+            });
+
+        Ok(())
+    }
+
+    #[pyo3(signature = (
+        name,
+        handler,
+        permission = 0,
+        channels = None,
+        exclude_channels = None,
+        priority = CommandPriorities::PRI_NORMAL as i32,
+        client_cmd_pass = false,
+        client_cmd_perm = 0,
+        prefix = true,
+        usage = ""))]
+    #[allow(clippy::too_many_arguments)]
+    fn add_command(
+        slf: Bound<'_, Self>,
+        py: Python<'_>,
+        name: PyObject,
+        handler: PyObject,
+        permission: i32,
+        channels: Option<PyObject>,
+        exclude_channels: Option<PyObject>,
+        priority: i32,
+        client_cmd_pass: bool,
+        client_cmd_perm: i32,
+        prefix: bool,
+        usage: &str,
+    ) -> PyResult<()> {
+        let Ok(plugin) = slf.try_borrow() else {
+            return Err(PyEnvironmentError::new_err("cannot borrow plugin"));
+        };
+
+        let py_channels = channels.unwrap_or(py.None());
+        let py_exclude_channels = exclude_channels.unwrap_or(PyTuple::empty_bound(py).into_py(py));
+
+        let new_command = Command::py_new(
+            py,
+            slf.into_py(py),
+            name,
+            handler,
+            permission,
+            py_channels,
+            py_exclude_channels,
+            client_cmd_pass,
+            client_cmd_perm,
+            prefix,
+            usage,
+        )?;
+
+        let mut commands_guard = plugin.commands.write();
+        commands_guard.push(new_command.clone());
+
+        let shinqlx_module = py.import_bound(intern!(py, "shinqlx"))?;
+        let commands_invoker = shinqlx_module.getattr(intern!(py, "COMMANDS"))?;
+        commands_invoker.call_method1(intern!(py, "add_command"), (new_command, priority))?;
+
+        Ok(())
+    }
+
+    fn remove_command(&self, py: Python<'_>, name: PyObject, handler: PyObject) {
+        let mut names = vec![];
+        name.bind(py)
+            .extract::<&PyList>()
+            .ok()
+            .iter()
+            .for_each(|py_list| {
+                py_list.iter().for_each(|py_alias| {
+                    py_alias
+                        .extract::<String>()
+                        .ok()
+                        .iter()
+                        .for_each(|alias| names.push(alias.clone()));
+                })
+            });
+        name.bind(py)
+            .extract::<&PyTuple>()
+            .ok()
+            .iter()
+            .for_each(|py_tuple| {
+                py_tuple.iter().for_each(|py_alias| {
+                    py_alias
+                        .extract::<String>()
+                        .ok()
+                        .iter()
+                        .for_each(|alias| names.push(alias.clone()));
+                })
+            });
+        name.extract::<String>(py)
+            .ok()
+            .iter()
+            .for_each(|py_string| {
+                names.push(py_string.clone());
+            });
+
+        self.commands.write().retain(|existing_command| {
+            names
+                .iter()
+                .all(|name| existing_command.name.contains(name))
+                && existing_command
+                    .handler
+                    .bind(py)
+                    .ne(handler.bind(py))
+                    .unwrap_or(true)
+        });
+    }
+
+    /// Gets the value of a cvar as a string.
+    #[classmethod]
+    #[pyo3(signature = (name, return_type), text_signature = "(name, return_type=str)")]
+    fn get_cvar(
+        _cls: &Bound<'_, PyType>,
+        py: Python<'_>,
+        name: &str,
+        return_type: Option<PyObject>,
+    ) -> PyResult<PyObject> {
+        #[allow(clippy::question_mark)]
+        let cvar = py.allow_threads(|| {
+            let Some(ref main_engine) = *MAIN_ENGINE.load() else {
+                return None;
+            };
+            main_engine.find_cvar(name)
+        });
+
+        let cvar_string = cvar.as_ref().map(|value| value.get_string());
+
+        let Some(py_return_type) = return_type else {
+            return Ok(cvar_string.into_py(py));
+        };
+        let Ok(py_return_type_str) = py_return_type
+            .bind(py)
+            .getattr(intern!(py, "__name__"))
+            .map(|value| value.to_string())
+        else {
+            return Err(PyValueError::new_err("Invalid return type: None"));
+        };
+
+        match py_return_type_str.as_str() {
+            "str" => match cvar_string {
+                None => Ok(py.None()),
+                Some(value) => Ok(value.into_py(py)),
+            },
+            "int" => match cvar_string {
+                None => Ok(py.None()),
+                Some(value) => value
+                    .parse::<i128>()
+                    .map(|int| int.into_py(py))
+                    .map_err(|_| {
+                        let error_description =
+                            format!("invalid literal for int() with base 10: '{}'", value);
+                        PyValueError::new_err(error_description)
+                    }),
+            },
+            "float" => match cvar_string {
+                None => Ok(py.None()),
+                Some(value) => value
+                    .parse::<f64>()
+                    .map(|float| float.into_py(py))
+                    .map_err(|_| {
+                        let error_description =
+                            format!("could not convert string to float: '{}'", value);
+                        PyValueError::new_err(error_description)
+                    }),
+            },
+            "bool" => match cvar_string {
+                None => Ok(false.into_py(py)),
+                Some(value) => value
+                    .parse::<i128>()
+                    .map(|int| (int != 0).into_py(py))
+                    .map_err(|_| {
+                        let error_description =
+                            format!("invalid literal for int() with base 10: '{}'", value);
+                        PyValueError::new_err(error_description)
+                    }),
+            },
+            "list" => match cvar_string {
+                None => Ok(PyList::empty_bound(py).into_py(py)),
+                Some(value) => {
+                    let items: Vec<&str> = value.split(',').collect();
+                    let returned = PyList::new_bound(py, items);
+                    Ok(returned.into_py(py))
+                }
+            },
+            "set" => match cvar_string {
+                None => PySet::empty_bound(py).map(|set| set.into_py(py)),
+                Some(value) => {
+                    let items: Vec<String> =
+                        value.split(',').map(|item| item.to_string()).collect();
+                    let returned = PySet::new_bound::<String>(py, &items);
+                    returned.map(|set| set.into_py(py))
+                }
+            },
+            "tuple" => match cvar_string {
+                None => Ok(PyTuple::empty_bound(py).into_py(py)),
+                Some(value) => {
+                    let items: Vec<&str> = value.split(',').collect();
+                    let returned = PyTuple::new_bound(py, items);
+                    Ok(returned.into_py(py))
+                }
+            },
+            value => {
+                let error_description = format!("Invalid return type: {}", value);
+                Err(PyValueError::new_err(error_description))
+            }
+        }
+    }
+
+    /// Sets a cvar. If the cvar exists, it will be set as if set from the console,
+    /// otherwise create it.
+    #[classmethod]
+    #[pyo3(signature = (name, value, flags = 0))]
+    fn set_cvar(
+        _cls: &Bound<'_, PyType>,
+        py: Python<'_>,
+        name: &str,
+        value: PyObject,
+        flags: i32,
+    ) -> PyResult<bool> {
+        let value_str = value.bind(py).str()?.to_string();
+
+        py.allow_threads(|| {
+            let Some(ref main_engine) = *MAIN_ENGINE.load() else {
+                return Err(PyEnvironmentError::new_err("could not get main_engine"));
+            };
+            let cvar = main_engine.find_cvar(name);
+
+            if cvar.is_none() {
+                main_engine.get_cvar(name, value_str.as_str(), Some(flags));
+                Ok(true)
+            } else {
+                let console_cmd = format!(r#"{name} "{value_str}""#);
+                main_engine.execute_console_command(console_cmd.as_str());
+                Ok(false)
+            }
+        })
+    }
+
+    /// Sets a cvar with upper and lower limits. If the cvar exists, it will be set
+    /// as if set from the console, otherwise create it.
+    #[classmethod]
+    #[pyo3(signature = (name, value, minimum, maximum, flags = 0))]
+    fn set_cvar_limit(
+        _cls: &Bound<'_, PyType>,
+        py: Python<'_>,
+        name: &str,
+        value: PyObject,
+        minimum: PyObject,
+        maximum: PyObject,
+        flags: i32,
+    ) -> PyResult<bool> {
+        let value_str = value.bind(py).str()?.to_string();
+        let minimum_str = minimum.bind(py).str()?.to_string();
+        let maximum_str = maximum.bind(py).str()?.to_string();
+
+        py.allow_threads(|| {
+            let Some(ref main_engine) = *MAIN_ENGINE.load() else {
+                return Err(PyEnvironmentError::new_err("could not get main_engine"));
+            };
+            let cvar = main_engine.find_cvar(name);
+
+            main_engine.set_cvar_limit(
+                name,
+                value_str.as_str(),
+                minimum_str.as_str(),
+                maximum_str.as_str(),
+                Some(flags),
+            );
+
+            Ok(cvar.is_none())
+        })
+    }
+
+    /// Sets a cvar. If the cvar exists, do nothing.
+    #[classmethod]
+    #[pyo3(signature = (name, value, flags = 0))]
+    fn set_cvar_once(
+        _cls: &Bound<'_, PyType>,
+        py: Python<'_>,
+        name: &str,
+        value: PyObject,
+        flags: i32,
+    ) -> PyResult<bool> {
+        let value_str = value.bind(py).str()?.to_string();
+
+        py.allow_threads(|| {
+            let Some(ref main_engine) = *MAIN_ENGINE.load() else {
+                return Err(PyEnvironmentError::new_err("could not get main_engine"));
+            };
+            let cvar = main_engine.find_cvar(name);
+
+            if cvar.is_none() {
+                main_engine.get_cvar(name, value_str.as_str(), Some(flags));
+            }
+            Ok(cvar.is_none())
+        })
+    }
+
+    /// Sets a cvar with upper and lower limits. If the cvar exists, not do anything.
+    #[classmethod]
+    #[pyo3(signature = (name, value, minimum, maximum, flags = 0))]
+    fn set_cvar_limit_once(
+        _cls: &Bound<'_, PyType>,
+        py: Python<'_>,
+        name: &str,
+        value: PyObject,
+        minimum: PyObject,
+        maximum: PyObject,
+        flags: i32,
+    ) -> PyResult<bool> {
+        let value_str = value.bind(py).str()?.to_string();
+        let minimum_str = minimum.bind(py).str()?.to_string();
+        let maximum_str = maximum.bind(py).str()?.to_string();
+
+        py.allow_threads(|| {
+            let Some(ref main_engine) = *MAIN_ENGINE.load() else {
+                return Err(PyEnvironmentError::new_err("could not get main_engine"));
+            };
+            let cvar = main_engine.find_cvar(name);
+
+            if cvar.is_none() {
+                main_engine.set_cvar_limit(
+                    name,
+                    value_str.as_str(),
+                    minimum_str.as_str(),
+                    maximum_str.as_str(),
+                    Some(flags),
+                );
+            }
+
+            Ok(cvar.is_none())
+        })
+    }
+
+    /// Get a list of all the players on the server.
+    #[classmethod]
+    fn players(_cls: &Bound<'_, PyType>, py: Python<'_>) -> PyResult<Vec<Player>> {
+        Player::all_players(&py.get_type_bound::<Player>(), py)
+    }
+
+    /// Get a Player instance from the name, client ID,
+    /// or Steam ID. Assumes [0, 64) to be a client ID
+    /// and [64, inf) to be a Steam ID.
+    #[classmethod]
+    #[pyo3(signature = (name, player_list = None))]
+    fn player(
+        cls: &Bound<'_, PyType>,
+        py: Python<'_>,
+        name: PyObject,
+        player_list: Option<Vec<Player>>,
+    ) -> PyResult<Option<Player>> {
+        if let Ok(player) = name.extract::<Player>(py) {
+            return Ok(Some(player));
+        }
+
+        if let Ok(player_id) = name.extract::<i32>(py) {
+            if (0..64).contains(&player_id) {
+                return Player::py_new(player_id, None).map(Some);
+            }
+        }
+
+        let players = player_list.unwrap_or_else(|| Self::players(cls, py).unwrap_or_default());
+        if let Ok(player_steam_id) = name.extract::<i64>(py) {
+            return Ok(players
+                .into_iter()
+                .find(|player| player.steam_id == player_steam_id));
+        }
+
+        let Some(client_id) = Self::client_id(cls, py, name, Some(players.clone())) else {
+            return Ok(None);
+        };
+        Ok(players.into_iter().find(|player| player.id == client_id))
+    }
+
+    /// Send a message to the chat, or any other channel.
+    #[classmethod]
+    #[pyo3(signature = (msg, chat_channel, **kwargs),
+    text_signature = "(msg, chat_channel = \"chat\", **kwargs)")]
+    fn msg(
+        _cls: &Bound<'_, PyType>,
+        py: Python<'_>,
+        msg: &str,
+        chat_channel: Option<PyObject>,
+        kwargs: Option<&Bound<'_, PyDict>>,
+    ) -> PyResult<()> {
+        let shinqlx_module = py.import_bound(intern!(py, "shinqlx"))?;
+
+        match chat_channel {
+            None => {
+                let chat_channel = shinqlx_module.getattr(intern!(py, "CHAT_CHANNEL"))?;
+                chat_channel.call_method(intern!(py, "reply"), (msg,), kwargs)?;
+                return Ok(());
+            }
+            Some(channel) => {
+                let bound_channel = channel.bind(py);
+                if bound_channel.is_instance_of::<AbstractChannel>() {
+                    bound_channel.call_method(intern!(py, "reply"), (msg,), kwargs)?;
+                    return Ok(());
+                }
+
+                let shinqlx_chat_channel = shinqlx_module.getattr(intern!(py, "CHAT_CHANNEL"))?;
+                if shinqlx_chat_channel.eq(bound_channel)? {
+                    shinqlx_chat_channel.call_method(intern!(py, "reply"), (msg,), kwargs)?;
+                    return Ok(());
+                }
+
+                let red_team_chat_channel =
+                    shinqlx_module.getattr(intern!(py, "RED_TEAM_CHAT_CHANNEL"))?;
+                if red_team_chat_channel.eq(bound_channel)? {
+                    red_team_chat_channel.call_method(intern!(py, "reply"), (msg,), kwargs)?;
+                    return Ok(());
+                }
+
+                let blue_team_chat_channel =
+                    shinqlx_module.getattr(intern!(py, "BLUE_TEAM_CHAT_CHANNEL"))?;
+                if blue_team_chat_channel.eq(bound_channel)? {
+                    blue_team_chat_channel.call_method(intern!(py, "reply"), (msg,), kwargs)?;
+                    return Ok(());
+                }
+
+                let console_channel = shinqlx_module.getattr(intern!(py, "CONSOLE_CHANNEL"))?;
+                if console_channel.eq(bound_channel)? {
+                    console_channel.call_method(intern!(py, "reply"), (msg,), kwargs)?;
+                    return Ok(());
+                }
+            }
+        }
+        Err(PyValueError::new_err("Invalid channel."))
+    }
+
+    /// Prints text in the console.
+    #[classmethod]
+    fn console(_cls: &Bound<'_, PyType>, py: Python<'_>, text: PyObject) -> PyResult<()> {
+        let extracted_text = text.bind(py).str()?.to_string();
+        let printed_text = format!("{extracted_text}\n");
+        py.allow_threads(|| {
+            shinqlx_com_printf(&printed_text);
+            Ok(())
+        })
+    }
+
+    /// Removes color tags from text.
+    #[classmethod]
+    fn clean_text(_cls: &Bound<'_, PyType>, py: Python<'_>, text: &str) -> String {
+        py.allow_threads(|| clean_text(&text))
+    }
+
+    /// Get the colored name of a decolored name.
+    #[classmethod]
+    #[pyo3(signature = (name, player_list = None))]
+    fn colored_name(
+        cls: &Bound<'_, PyType>,
+        py: Python<'_>,
+        name: PyObject,
+        player_list: Option<Vec<Player>>,
+    ) -> Option<String> {
+        if let Ok(player) = name.extract::<Player>(py) {
+            return Some(player.name.clone());
+        }
+
+        let Ok(searched_name) = name.bind(py).extract::<String>() else {
+            return None;
+        };
+
+        let players = player_list.unwrap_or_else(|| Self::players(cls, py).unwrap_or_default());
+        let clean_name = clean_text(&searched_name).to_lowercase();
+
+        players
+            .iter()
+            .find(|&player| player.get_clean_name(py).to_lowercase() == clean_name)
+            .map(|found_player| found_player.name.clone())
+    }
+
+    /// Get a player's client id from the name, client ID,
+    /// Player instance, or Steam ID. Assumes [0, 64) to be
+    /// a client ID and [64, inf) to be a Steam ID.
+    #[classmethod]
+    #[pyo3(signature = (name, player_list = None))]
+    fn client_id(
+        cls: &Bound<'_, PyType>,
+        py: Python<'_>,
+        name: PyObject,
+        player_list: Option<Vec<Player>>,
+    ) -> Option<i32> {
+        if let Ok(player_id) = name.extract::<i32>(py) {
+            if (0..64).contains(&player_id) {
+                return Some(player_id);
+            }
+        }
+        if let Ok(player) = name.extract::<Player>(py) {
+            return Some(player.id);
+        }
+
+        let players = player_list.unwrap_or_else(|| Self::players(cls, py).unwrap_or_default());
+
+        if let Ok(player_steam_id) = name.extract::<i64>(py) {
+            return players
+                .iter()
+                .find(|&player| player.steam_id == player_steam_id)
+                .map(|player| player.id);
+        }
+
+        if let Ok(player_name) = name.extract::<String>(py) {
+            let clean_name = clean_text(&player_name).to_lowercase();
+            return players
+                .iter()
+                .find(|&player| clean_text(&player.name).to_lowercase() == clean_name)
+                .map(|player| player.id);
+        }
+
+        None
+    }
+
+    /// Find a player based on part of a players name.
+    #[classmethod]
+    #[pyo3(signature = (name, player_list = None))]
+    fn find_player(
+        cls: &Bound<'_, PyType>,
+        py: Python<'_>,
+        name: &str,
+        player_list: Option<Vec<Player>>,
+    ) -> Vec<Player> {
+        let players = player_list.unwrap_or_else(|| Self::players(cls, py).unwrap_or_default());
+
+        if name.is_empty() {
+            return players;
+        }
+
+        let cleaned_text = clean_text(&name).to_lowercase();
+        players
+            .into_iter()
+            .filter(|player| clean_text(&player.name).contains(&cleaned_text))
+            .collect()
+    }
+
+    /// Get a dictionary with the teams as keys and players as values.
+    #[classmethod]
+    #[pyo3(signature = (player_list = None))]
+    fn teams<'py>(
+        cls: &Bound<'py, PyType>,
+        py: Python<'py>,
+        player_list: Option<Vec<Player>>,
+    ) -> PyResult<Bound<'py, PyDict>> {
+        let players = player_list.unwrap_or_else(|| Self::players(cls, py).unwrap_or_default());
+
+        let result = PyDict::new_bound(py);
+
+        let filtered_frees: Vec<PyObject> = players
+            .clone()
+            .into_iter()
+            .filter(|player| player.get_team(py).is_ok_and(|team| team == "free"))
+            .map(|player| player.into_py(py))
+            .collect();
+        result.set_item(intern!(py, "free"), filtered_frees)?;
+
+        let filtered_reds: Vec<PyObject> = players
+            .clone()
+            .into_iter()
+            .filter(|player| player.get_team(py).is_ok_and(|team| team == "red"))
+            .map(|player| player.into_py(py))
+            .collect();
+        result.set_item(intern!(py, "red"), filtered_reds)?;
+
+        let filtered_blues: Vec<PyObject> = players
+            .clone()
+            .into_iter()
+            .filter(|player| player.get_team(py).is_ok_and(|team| team == "blue"))
+            .map(|player| player.into_py(py))
+            .collect();
+        result.set_item(intern!(py, "blue"), filtered_blues)?;
+
+        let filtered_specs: Vec<PyObject> = players
+            .clone()
+            .into_iter()
+            .filter(|player| player.get_team(py).is_ok_and(|team| team == "spectator"))
+            .map(|player| player.into_py(py))
+            .collect();
+        result.set_item(intern!(py, "spectator"), filtered_specs)?;
+
+        Ok(result)
+    }
+
+    #[classmethod]
+    #[pyo3(signature = (msg, recipient = None))]
+    fn center_print(
+        cls: &Bound<'_, PyType>,
+        py: Python<'_>,
+        msg: &str,
+        recipient: Option<PyObject>,
+    ) -> PyResult<()> {
+        let client_id = recipient.and_then(|recipient| Self::client_id(cls, py, recipient, None));
+
+        let center_printed_cmd = format!(r#"cp "{msg}""#);
+        pyshinqlx_send_server_command(py, client_id, &center_printed_cmd)?;
+
+        Ok(())
+    }
+
+    /// Send a tell (private message) to someone.
+    #[classmethod]
+    #[pyo3(signature = (msg, recipient, **kwargs))]
+    fn tell(
+        cls: &Bound<'_, PyType>,
+        py: Python<'_>,
+        msg: &str,
+        recipient: PyObject,
+        kwargs: Option<&Bound<'_, PyDict>>,
+    ) -> PyResult<()> {
+        let Some(recipient_client_id) = Self::client_id(cls, py, recipient, None) else {
+            return Err(PyValueError::new_err("could not find recipient"));
+        };
+        let recipient_player = Player::py_new(recipient_client_id, None)?;
+        let tell_channel = TellChannel::py_new(&recipient_player);
+
+        let tell_channel_py = Py::new(py, tell_channel)?;
+        tell_channel_py.call_method_bound(py, intern!(py, "reply"), (msg,), kwargs)?;
+
+        Ok(())
+    }
+
+    #[classmethod]
+    fn is_vote_active(_cls: &Bound<'_, PyType>, py: Python<'_>) -> bool {
+        py.allow_threads(|| {
+            let Some(ref main_engine) = *MAIN_ENGINE.load() else {
+                return false;
+            };
+
+            let vote_string = main_engine.get_configstring(CS_VOTE_STRING as u16);
+            !vote_string.is_empty()
+        })
+    }
+
+    #[classmethod]
+    fn current_vote_count(_cls: &Bound<'_, PyType>, py: Python<'_>) -> PyResult<PyObject> {
+        let Some(ref main_engine) = *MAIN_ENGINE.load() else {
+            return Ok(py.None());
+        };
+
+        let yes_votes = main_engine.get_configstring(CS_VOTE_YES as u16);
+        let no_votes = main_engine.get_configstring(CS_VOTE_NO as u16);
+
+        if yes_votes.is_empty() || no_votes.is_empty() {
+            return Ok(py.None());
+        }
+
+        let Ok(parsed_yes_votes) = yes_votes.parse::<i32>() else {
+            let error_msg = format!("invalid literal for int() with base 10: '{}'", yes_votes);
+            return Err(PyValueError::new_err(error_msg));
+        };
+        let Ok(parsed_no_votes) = no_votes.parse::<i32>() else {
+            let error_msg = format!("invalid literal for int() with base 10: '{}'", no_votes);
+            return Err(PyValueError::new_err(error_msg));
+        };
+
+        if yes_votes.is_empty() || no_votes.is_empty() {
+            return Ok(py.None());
+        }
+        Ok((parsed_yes_votes, parsed_no_votes).into_py(py))
+    }
+
+    #[classmethod]
+    #[pyo3(signature = (vote, display, time = 30))]
+    fn callvote(
+        cls: &Bound<'_, PyType>,
+        py: Python<'_>,
+        vote: &str,
+        display: &str,
+        time: i32,
+    ) -> PyResult<bool> {
+        if Self::is_vote_active(cls, py) {
+            return Ok(false);
+        }
+
+        let shinqlx_module = py.import_bound(intern!(py, "shinqlx"))?;
+        let event_dispatchers = shinqlx_module.getattr(intern!(py, "EVENT_DISPATCHERS"))?;
+        let vote_started_dispatcher = event_dispatchers.get_item(intern!(py, "vote_started"))?;
+        vote_started_dispatcher.call_method1(intern!(py, "caller"), (py.None(),))?;
+
+        pyshinqlx_callvote(py, vote, display, Some(time));
+
+        Ok(true)
+    }
+
+    #[classmethod]
+    fn force_vote(_cls: &Bound<'_, PyType>, py: Python<'_>, pass_it: PyObject) -> PyResult<bool> {
+        pass_it
+            .bind(py)
+            .is_truthy()
+            .map_err(|_| PyValueError::new_err("pass_it must be either True or False."))
+            .and_then(|vote_passed| pyshinqlx_force_vote(py, vote_passed))
+    }
+
+    #[classmethod]
+    fn teamsize(_cls: &Bound<'_, PyType>, py: Python<'_>, size: i32) -> PyResult<()> {
+        let mut game = Game::py_new(py, false)?;
+        game.set_teamsize(py, size)?;
+
+        Ok(())
+    }
+
+    #[classmethod]
+    #[pyo3(signature = (player, reason = ""))]
+    fn kick(
+        cls: &Bound<'_, PyType>,
+        py: Python<'_>,
+        player: PyObject,
+        reason: &str,
+    ) -> PyResult<()> {
+        let Some(client_id) = Self::client_id(cls, py, player, None) else {
+            return Err(PyValueError::new_err("Invalid player."));
+        };
+
+        let forwarded_reason = if reason.is_empty() {
+            None
+        } else {
+            Some(reason)
+        };
+
+        pyshinqlx_kick(py, client_id, forwarded_reason)?;
+
+        Ok(())
+    }
+
+    #[classmethod]
+    fn shuffle(_cls: &Bound<'_, PyType>, py: Python<'_>) -> PyResult<()> {
+        pyshinqlx_console_command(py, "forceshuffle")
+    }
+
+    #[classmethod]
+    fn cointoss(_cls: &Bound<'_, PyType>) {}
+
+    #[classmethod]
+    #[pyo3(signature = (new_map, factory = None))]
+    fn change_map(
+        _cls: &Bound<'_, PyType>,
+        py: Python,
+        new_map: &str,
+        factory: Option<&str>,
+    ) -> PyResult<()> {
+        let mapchange_command = match factory {
+            None => format!("map {}", new_map),
+            Some(game_factory) => format!("map {} {}", new_map, game_factory),
+        };
+        pyshinqlx_console_command(py, &mapchange_command)
+    }
+}
+
+#[cfg(test)]
+mod plugin_tests {
+    use super::Plugin;
+    use super::MAIN_ENGINE;
+    use crate::ffi::c::prelude::*;
+    use crate::ffi::python::prelude::*;
+    use crate::prelude::*;
+    use std::ffi::{c_char, CString};
+
+    use mockall::predicate;
+    use pretty_assertions::assert_eq;
+    use pyo3::exceptions::PyEnvironmentError;
+
+    #[test]
+    #[cfg_attr(miri, ignore)]
+    #[serial]
+    fn get_cvar_when_main_engine_not_initialized() {
+        MAIN_ENGINE.store(None);
+        Python::with_gil(|py| {
+            let result =
+                Plugin::get_cvar(&py.get_type_bound::<Plugin>(), py, "sv_maxclients", None);
+            assert!(result.is_ok_and(|value| value.is_none(py)));
+        });
+    }
+
+    #[test]
+    #[cfg_attr(miri, ignore)]
+    #[serial]
+    fn get_cvar_when_cvar_not_found() {
+        let mut mock_engine = MockQuakeEngine::new();
+        mock_engine
+            .expect_find_cvar()
+            .with(predicate::eq("asdf"))
+            .returning(|_| None)
+            .times(1);
+        MAIN_ENGINE.store(Some(mock_engine.into()));
+
+        Python::with_gil(|py| {
+            let result = Plugin::get_cvar(&py.get_type_bound::<Plugin>(), py, "asdf", None);
+            assert!(result.expect("result was not OK").is_none(py));
+        });
+    }
+
+    #[test]
+    #[cfg_attr(miri, ignore)]
+    #[serial]
+    fn get_cvar_when_cvar_is_found() {
+        let cvar_string = CString::new("16").expect("result was not OK");
+        let mut mock_engine = MockQuakeEngine::new();
+        mock_engine
+            .expect_find_cvar()
+            .with(predicate::eq("sv_maxclients"))
+            .returning(move |_| {
+                let mut raw_cvar = CVarBuilder::default()
+                    .string(cvar_string.as_ptr() as *mut c_char)
+                    .build()
+                    .expect("this should not happen");
+                CVar::try_from(&mut raw_cvar as *mut cvar_t).ok()
+            })
+            .times(1);
+        MAIN_ENGINE.store(Some(mock_engine.into()));
+
+        Python::with_gil(|py| {
+            let result =
+                Plugin::get_cvar(&py.get_type_bound::<Plugin>(), py, "sv_maxclients", None);
+            assert!(result
+                .expect("result was not OK")
+                .extract::<String>(py)
+                .is_ok_and(|value| value == "16"));
+        });
+    }
+
+    #[test]
+    #[cfg_attr(miri, ignore)]
+    #[serial]
+    fn set_cvar_when_main_engine_not_initialized() {
+        MAIN_ENGINE.store(None);
+        Python::with_gil(|py| {
+            let result = Plugin::set_cvar(
+                &py.get_type_bound::<Plugin>(),
+                py,
+                "sv_maxclients",
+                "64".into_py(py),
+                0,
+            );
+            assert!(result.is_err_and(|err| err.is_instance_of::<PyEnvironmentError>(py)));
+        });
+    }
+
+    #[test]
+    #[cfg_attr(miri, ignore)]
+    #[serial]
+    fn set_cvar_for_not_existing_cvar() {
+        let mut mock_engine = MockQuakeEngine::new();
+        mock_engine
+            .expect_find_cvar()
+            .with(predicate::eq("sv_maxclients"))
+            .returning(|_| None)
+            .times(1);
+        mock_engine
+            .expect_get_cvar()
+            .with(
+                predicate::eq("sv_maxclients"),
+                predicate::eq("64"),
+                predicate::eq(Some(cvar_flags::CVAR_ROM as i32)),
+            )
+            .times(1);
+        MAIN_ENGINE.store(Some(mock_engine.into()));
+
+        let result = Python::with_gil(|py| {
+            Plugin::set_cvar(
+                &py.get_type_bound::<Plugin>(),
+                py,
+                "sv_maxclients",
+                "64".into_py(py),
+                cvar_flags::CVAR_ROM as i32,
+            )
+        });
+        assert_eq!(result.expect("result was not OK"), true);
+    }
+
+    #[test]
+    #[cfg_attr(miri, ignore)]
+    #[serial]
+    fn set_cvar_for_already_existing_cvar() {
+        let mut mock_engine = MockQuakeEngine::new();
+        mock_engine
+            .expect_find_cvar()
+            .with(predicate::eq("sv_maxclients"))
+            .returning(|_| {
+                let mut raw_cvar = CVarBuilder::default()
+                    .build()
+                    .expect("this should not happen");
+                CVar::try_from(&mut raw_cvar as *mut cvar_t).ok()
+            })
+            .times(1);
+        mock_engine
+            .expect_execute_console_command()
+            .with(predicate::eq(r#"sv_maxclients "64""#))
+            .times(1);
+        MAIN_ENGINE.store(Some(mock_engine.into()));
+
+        let result = Python::with_gil(|py| {
+            Plugin::set_cvar(
+                &py.get_type_bound::<Plugin>(),
+                py,
+                "sv_maxclients",
+                "64".into_py(py),
+                cvar_flags::CVAR_ROM as i32,
+            )
+        });
+        assert_eq!(result.expect("result was not OK"), false);
+    }
+
+    #[test]
+    #[cfg_attr(miri, ignore)]
+    #[serial]
+    fn set_cvar_limit_when_main_engine_not_initialized() {
+        MAIN_ENGINE.store(None);
+        Python::with_gil(|py| {
+            let result = Plugin::set_cvar_limit(
+                &py.get_type_bound::<Plugin>(),
+                py,
+                "sv_maxclients",
+                64i32.into_py(py),
+                1i32.into_py(py),
+                64i32.into_py(py),
+                0,
+            );
+            assert!(result.is_err_and(|err| err.is_instance_of::<PyEnvironmentError>(py)));
+        });
+    }
+
+    #[test]
+    #[cfg_attr(miri, ignore)]
+    #[serial]
+    fn set_cvar_limit_forwards_parameters_to_main_engine_call() {
+        let mut mock_engine = MockQuakeEngine::new();
+        mock_engine
+            .expect_find_cvar()
+            .with(predicate::eq("sv_maxclients"))
+            .times(1);
+        mock_engine
+            .expect_set_cvar_limit()
+            .with(
+                predicate::eq("sv_maxclients"),
+                predicate::eq("64"),
+                predicate::eq("1"),
+                predicate::eq("64"),
+                predicate::eq(Some(cvar_flags::CVAR_CHEAT as i32)),
+            )
+            .times(1);
+        MAIN_ENGINE.store(Some(mock_engine.into()));
+
+        let result = Python::with_gil(|py| {
+            Plugin::set_cvar_limit(
+                &py.get_type_bound::<Plugin>(),
+                py,
+                "sv_maxclients",
+                64i32.into_py(py),
+                1i32.into_py(py),
+                64i32.into_py(py),
+                cvar_flags::CVAR_CHEAT as i32,
+            )
+        });
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    #[cfg_attr(miri, ignore)]
+    #[serial]
+    fn set_cvar_once_when_main_engine_not_initialized() {
+        MAIN_ENGINE.store(None);
+        Python::with_gil(|py| {
+            let result = Plugin::set_cvar_once(
+                &py.get_type_bound::<Plugin>(),
+                py,
+                "sv_maxclients",
+                "64".into_py(py),
+                0,
+            );
+            assert!(result.is_err_and(|err| err.is_instance_of::<PyEnvironmentError>(py)));
+        });
+    }
+
+    #[test]
+    #[cfg_attr(miri, ignore)]
+    #[serial]
+    fn set_cvar_once_for_not_existing_cvar() {
+        let mut mock_engine = MockQuakeEngine::new();
+        mock_engine
+            .expect_find_cvar()
+            .with(predicate::eq("sv_maxclients"))
+            .returning(|_| None)
+            .times(1);
+        mock_engine
+            .expect_get_cvar()
+            .with(
+                predicate::eq("sv_maxclients"),
+                predicate::eq("64"),
+                predicate::eq(Some(cvar_flags::CVAR_ROM as i32)),
+            )
+            .times(1);
+        MAIN_ENGINE.store(Some(mock_engine.into()));
+
+        let result = Python::with_gil(|py| {
+            Plugin::set_cvar_once(
+                &py.get_type_bound::<Plugin>(),
+                py,
+                "sv_maxclients",
+                64i32.into_py(py),
+                cvar_flags::CVAR_ROM as i32,
+            )
+        })
+        .unwrap();
+        assert_eq!(result, true);
+    }
+
+    #[test]
+    #[cfg_attr(miri, ignore)]
+    #[serial]
+    fn set_cvar_once_for_already_existing_cvar() {
+        let mut mock_engine = MockQuakeEngine::new();
+        mock_engine
+            .expect_find_cvar()
+            .with(predicate::eq("sv_maxclients"))
+            .returning(|_| {
+                let mut raw_cvar = CVarBuilder::default().build().unwrap();
+                CVar::try_from(&mut raw_cvar as *mut cvar_t).ok()
+            })
+            .times(1);
+        mock_engine.expect_get_cvar().times(0);
+        MAIN_ENGINE.store(Some(mock_engine.into()));
+
+        let result = Python::with_gil(|py| {
+            Plugin::set_cvar_once(
+                &py.get_type_bound::<Plugin>(),
+                py,
+                "sv_maxclients",
+                "64".into_py(py),
+                cvar_flags::CVAR_ROM as i32,
+            )
+        })
+        .unwrap();
+        assert_eq!(result, false);
+    }
+
+    #[test]
+    #[cfg_attr(miri, ignore)]
+    #[serial]
+    fn set_cvar_limit_once_when_main_engine_not_initialized() {
+        MAIN_ENGINE.store(None);
+        Python::with_gil(|py| {
+            let result = Plugin::set_cvar_limit_once(
+                &py.get_type_bound::<Plugin>(),
+                py,
+                "sv_maxclients",
+                "64".into_py(py),
+                "1".into_py(py),
+                "64".into_py(py),
+                0,
+            );
+            assert!(result.is_err_and(|err| err.is_instance_of::<PyEnvironmentError>(py)));
+        });
+    }
+
+    #[test]
+    #[cfg_attr(miri, ignore)]
+    #[serial]
+    fn set_cvar_limit_once_when_no_previous_value_is_set() {
+        let mut mock_engine = MockQuakeEngine::new();
+        mock_engine
+            .expect_find_cvar()
+            .with(predicate::eq("sv_maxclients"))
+            .returning(|_| None);
+        mock_engine
+            .expect_set_cvar_limit()
+            .with(
+                predicate::eq("sv_maxclients"),
+                predicate::eq("64"),
+                predicate::eq("1"),
+                predicate::eq("64"),
+                predicate::eq(Some(cvar_flags::CVAR_CHEAT as i32)),
+            )
+            .times(1);
+        MAIN_ENGINE.store(Some(mock_engine.into()));
+
+        let result = Python::with_gil(|py| {
+            Plugin::set_cvar_limit_once(
+                &py.get_type_bound::<Plugin>(),
+                py,
+                "sv_maxclients",
+                "64".into_py(py),
+                "1".into_py(py),
+                "64".into_py(py),
+                cvar_flags::CVAR_CHEAT as i32,
+            )
+        });
+        assert!(result.is_ok_and(|value| value));
+    }
+
+    #[test]
+    #[cfg_attr(miri, ignore)]
+    #[serial]
+    fn set_cvar_limit_once_for_already_existing_cvar() {
+        let mut mock_engine = MockQuakeEngine::new();
+        mock_engine
+            .expect_find_cvar()
+            .with(predicate::eq("sv_maxclients"))
+            .returning(|_| {
+                let mut raw_cvar = CVarBuilder::default().build().unwrap();
+                CVar::try_from(&mut raw_cvar as *mut cvar_t).ok()
+            })
+            .times(1);
+        mock_engine.expect_set_cvar_limit().times(0);
+        MAIN_ENGINE.store(Some(mock_engine.into()));
+
+        let result = Python::with_gil(|py| {
+            Plugin::set_cvar_limit_once(
+                &py.get_type_bound::<Plugin>(),
+                py,
+                "sv_maxclients",
+                "64".into_py(py),
+                "1".into_py(py),
+                "64".into_py(py),
+                cvar_flags::CVAR_ROM as i32,
+            )
+        })
+        .unwrap();
+        assert_eq!(result, false);
+    }
+
+    #[test]
+    #[serial]
+    #[cfg_attr(miri, ignore)]
+    fn all_players_for_existing_clients() {
+        let mut mock_engine = MockQuakeEngine::new();
+        mock_engine.expect_get_max_clients().returning(|| 3);
+        MAIN_ENGINE.store(Some(mock_engine.into()));
+
+        let client_try_from_ctx = MockClient::from_context();
+        client_try_from_ctx
+            .expect()
+            .with(predicate::eq(0))
+            .returning(|_client_id| {
+                let mut mock_client = MockClient::new();
+                mock_client
+                    .expect_get_state()
+                    .returning(|| clientState_t::CS_ACTIVE);
+                mock_client
+                    .expect_get_user_info()
+                    .returning(|| "asdf".into());
+                mock_client.expect_get_steam_id().returning(|| 1234);
+                mock_client
+            });
+
+        client_try_from_ctx
+            .expect()
+            .with(predicate::eq(1))
+            .returning(|_client_id| {
+                let mut mock_client = MockClient::new();
+                mock_client
+                    .expect_get_state()
+                    .returning(|| clientState_t::CS_FREE);
+                mock_client
+                    .expect_get_user_info()
+                    .returning(|| "asdf".into());
+                mock_client.expect_get_steam_id().returning(|| 1234);
+                mock_client
+            });
+
+        let client_try_from_ctx = MockClient::from_context();
+        client_try_from_ctx
+            .expect()
+            .with(predicate::eq(2))
+            .returning(|_client_id| {
+                let mut mock_client = MockClient::new();
+                mock_client
+                    .expect_get_state()
+                    .returning(|| clientState_t::CS_ACTIVE);
+                mock_client
+                    .expect_get_user_info()
+                    .returning(|| "asdf".into());
+                mock_client.expect_get_steam_id().returning(|| 1234);
+                mock_client
+            });
+
+        let game_entity_try_from_ctx = MockGameEntity::from_context();
+        game_entity_try_from_ctx.expect().returning(|_client_id| {
+            let mut mock_game_entity = MockGameEntity::new();
+            mock_game_entity
+                .expect_get_player_name()
+                .returning(|| "Mocked Player".to_string());
+            mock_game_entity
+                .expect_get_team()
+                .returning(|| team_t::TEAM_RED);
+            mock_game_entity
+                .expect_get_privileges()
+                .returning(|| privileges_t::PRIV_NONE);
+            mock_game_entity
+        });
+
+        let all_players =
+            Python::with_gil(|py| Plugin::players(&py.get_type_bound::<Plugin>(), py));
+        assert_eq!(
+            all_players.expect("result was not ok"),
+            vec![
+                Player {
+                    valid: true,
+                    id: 0,
+                    player_info: PlayerInfo {
+                        client_id: 0,
+                        name: "Mocked Player".to_string(),
+                        connection_state: clientState_t::CS_ACTIVE as i32,
+                        userinfo: "asdf".to_string(),
+                        steam_id: 1234,
+                        team: team_t::TEAM_RED as i32,
+                        privileges: 0,
+                    },
+                    name: "Mocked Player".to_string(),
+                    steam_id: 1234,
+                    user_info: "asdf".to_string(),
+                },
+                Player {
+                    valid: true,
+                    id: 2,
+                    player_info: PlayerInfo {
+                        client_id: 2,
+                        name: "Mocked Player".to_string(),
+                        connection_state: clientState_t::CS_ACTIVE as i32,
+                        userinfo: "asdf".to_string(),
+                        steam_id: 1234,
+                        team: team_t::TEAM_RED as i32,
+                        privileges: 0,
+                    },
+                    name: "Mocked Player".to_string(),
+                    steam_id: 1234,
+                    user_info: "asdf".to_string(),
+                },
+            ]
+        );
+    }
+}

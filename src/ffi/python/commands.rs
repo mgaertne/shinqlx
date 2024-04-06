@@ -34,7 +34,7 @@ pub(crate) struct Command {
 impl Command {
     #[new]
     #[allow(clippy::too_many_arguments)]
-    fn py_new(
+    pub(crate) fn py_new(
         py: Python<'_>,
         plugin: PyObject,
         name: PyObject,

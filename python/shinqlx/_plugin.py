@@ -432,7 +432,6 @@ class Plugin:
             return False
 
         # Tell vote_started's dispatcher that it's a vote called by the server.
-        # noinspection PyUnresolvedReferences
         shinqlx.EVENT_DISPATCHERS["vote_started"].caller(None)
         shinqlx.callvote(vote, display, time)
         return True

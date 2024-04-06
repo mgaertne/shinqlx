@@ -416,7 +416,7 @@ impl ChatChannel {
     }
 
     #[pyo3(signature = (msg, limit=100, delimiter=" "))]
-    fn reply(
+    pub(crate) fn reply(
         self_: &Bound<'_, Self>,
         py: Python<'_>,
         msg: &str,
