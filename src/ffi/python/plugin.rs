@@ -214,7 +214,7 @@ impl Plugin {
         priority: i32,
     ) -> PyResult<()> {
         let shinqlx_module = py.import_bound(intern!(py, "shinqlx"))?;
-        let event_dispatchers = shinqlx_module.getattr(intern!(py, "EVENT_DISPATCHER"))?;
+        let event_dispatchers = shinqlx_module.getattr(intern!(py, "EVENT_DISPATCHERS"))?;
         let event_dispatcher = event_dispatchers.get_item(&event)?;
 
         let plugin_type = slf.get_type();
@@ -239,7 +239,7 @@ impl Plugin {
         priority: i32,
     ) -> PyResult<()> {
         let shinqlx_module = py.import_bound(intern!(py, "shinqlx"))?;
-        let event_dispatchers = shinqlx_module.getattr(intern!(py, "EVENT_DISPATCHER"))?;
+        let event_dispatchers = shinqlx_module.getattr(intern!(py, "EVENT_DISPATCHERS"))?;
         let event_dispatcher = event_dispatchers.get_item(&event)?;
 
         let plugin_type = slf.get_type();
