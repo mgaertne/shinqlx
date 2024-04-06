@@ -70,11 +70,11 @@ pub(crate) mod prelude {
     pub(crate) use super::player_info::PlayerInfo;
     pub(crate) use super::player_state::PlayerState;
     pub(crate) use super::player_stats::PlayerStats;
+    pub(crate) use super::plugin::Plugin;
     pub(crate) use super::powerups::Powerups;
     pub(crate) use super::stats_listener::StatsListener;
     pub(crate) use super::vector3::Vector3;
     pub(crate) use super::weapons::Weapons;
-    pub(crate) use super::plugin::Plugin;
 
     pub(crate) use super::{clean_text, parse_variables};
 
