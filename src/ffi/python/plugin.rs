@@ -151,17 +151,14 @@ impl Plugin {
         slf.get_type().name().map(|value| value.to_string())
     }
 
-    #[classattr]
-    #[pyo3(name = "_loaded_plugins")]
-    fn get_loaded_plugins() -> PyObject {
-        Python::with_gil(|py| {
-            let Some(loaded_plugins_guard) = LOADED_PLUGINS.try_read() else {
-                return PyDict::new_bound(py).into_py(py);
-            };
+    #[getter(_loaded_plugins)]
+    fn get_loaded_plugins<'py>(_slf: PyRef<'py, Self>, py: Python<'py>) -> Bound<'py, PyDict> {
+        let Some(loaded_plugins_guard) = LOADED_PLUGINS.try_read() else {
+            return PyDict::new_bound(py);
+        };
 
-            let loaded_plugins: &Vec<(String, PyObject)> = loaded_plugins_guard.as_ref();
-            loaded_plugins.as_slice().into_py_dict_bound(py).into_py(py)
-        })
+        let loaded_plugins: &Vec<(String, PyObject)> = loaded_plugins_guard.as_ref();
+        loaded_plugins.into_py_dict_bound(py)
     }
 
     /// A dictionary containing plugin names as keys and plugin instances
