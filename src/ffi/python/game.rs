@@ -1558,7 +1558,7 @@ mod pyshinqlx_game_tests {
                 valid: true,
             };
 
-            game.set_map(py, "campgrounds".to_string())
+            game.set_map(py, "campgrounds")
                 .expect("this should not happen");
         });
     }
