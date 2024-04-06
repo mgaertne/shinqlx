@@ -247,6 +247,7 @@ try:
         DamageDispatcher,
         EventDispatcherManager,
         EVENT_DISPATCHERS,
+        Plugin
     )
 except ModuleNotFoundError:
     _shinqlx = importlib.import_module(name="._shinqlx", package="shinqlx")
@@ -493,9 +494,8 @@ except ModuleNotFoundError:
         DamageDispatcher,
         EventDispatcherManager,
         EVENT_DISPATCHERS,
+        Plugin
     )
-
-from ._plugin import Plugin
 
 from . import database
 
@@ -761,7 +761,6 @@ __all__ = [
     "DamageDispatcher",
     "EventDispatcherManager",
     "EVENT_DISPATCHERS",
-    # _plugin
     "Plugin",
     # databsse
     "database",
