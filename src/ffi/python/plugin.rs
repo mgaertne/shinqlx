@@ -1,7 +1,7 @@
 use super::prelude::*;
 
 use super::{
-    addadmin, addmod, addscore, addteamscore, ban, client_id, commands::CommandPriorities, demote,
+    set_teamsize, addadmin, addmod, addscore, addteamscore, ban, client_id, commands::CommandPriorities, demote,
     lock, mute, opsay, put, pyshinqlx_get_logger, tempban, unban, unlock, unmute,
 };
 #[cfg(test)]
@@ -839,10 +839,7 @@ impl Plugin {
 
     #[classmethod]
     fn teamsize(_cls: &Bound<'_, PyType>, py: Python<'_>, size: i32) -> PyResult<()> {
-        let mut game = Game::py_new(py, false)?;
-        game.set_teamsize(py, size)?;
-
-        Ok(())
+        set_teamsize(py, size)
     }
 
     #[classmethod]

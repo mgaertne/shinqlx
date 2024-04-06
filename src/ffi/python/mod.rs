@@ -361,6 +361,12 @@ pub(crate) fn client_id(
     None
 }
 
+pub(crate) fn set_teamsize(py: Python<'_>, value: i32) -> PyResult<()> {
+    let value_str = format!("{}", value);
+    pyshinqlx_set_cvar(py, "teamsize", &value_str, None)?;
+    Ok(())
+}
+
 pub(crate) fn lock(py: Python<'_>, team: Option<&str>) -> PyResult<()> {
     match team {
         None => pyshinqlx_console_command(py, "lock"),

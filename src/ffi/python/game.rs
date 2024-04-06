@@ -1,6 +1,6 @@
 use super::prelude::*;
 use super::{
-    addadmin, addmod, addscore, addteamscore, ban, demote, lock, mute, opsay, put, tempban, unban,
+    set_teamsize, addadmin, addmod, addscore, addteamscore, ban, demote, lock, mute, opsay, put, tempban, unban,
     unlock, unmute,
 };
 
@@ -445,10 +445,8 @@ impl Game {
     }
 
     #[setter(teamsize)]
-    pub(crate) fn set_teamsize(&mut self, py: Python<'_>, value: i32) -> PyResult<()> {
-        let value_str = format!("{}", value);
-        pyshinqlx_set_cvar(py, "teamsize", &value_str, None)?;
-        Ok(())
+    fn set_teamsize(&mut self, py: Python<'_>, value: i32) -> PyResult<()> {
+        set_teamsize(py, value)
     }
 
     #[getter(tags)]
