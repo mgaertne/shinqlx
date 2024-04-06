@@ -1,6 +1,9 @@
 use super::prelude::*;
 
-use super::{client_id, commands::CommandPriorities, pyshinqlx_get_logger};
+use super::{
+    addadmin, addmod, addscore, addteamscore, ban, client_id, commands::CommandPriorities, demote,
+    lock, mute, opsay, put, pyshinqlx_get_logger, tempban, unban, unlock, unmute,
+};
 #[cfg(test)]
 use crate::hooks::mock_hooks::shinqlx_com_printf;
 #[cfg(not(test))]
@@ -1017,7 +1020,7 @@ impl Plugin {
 
     #[classmethod]
     fn allready(_cls: &Bound<'_, PyType>, py: Python<'_>) -> PyResult<()> {
-        pyshinqlx_console_command(py, "already")
+        pyshinqlx_console_command(py, "allready")
     }
 
     #[classmethod]
@@ -1028,6 +1031,99 @@ impl Plugin {
     #[classmethod]
     fn unpause(_cls: &Bound<'_, PyType>, py: Python<'_>) -> PyResult<()> {
         pyshinqlx_console_command(py, "unpause")
+    }
+
+    #[classmethod]
+    #[pyo3(signature = (team = None))]
+    fn lock(_cls: &Bound<'_, PyType>, py: Python<'_>, team: Option<&str>) -> PyResult<()> {
+        lock(py, team)
+    }
+
+    #[classmethod]
+    #[pyo3(signature = (team = None))]
+    fn unlock(_cls: &Bound<'_, PyType>, py: Python<'_>, team: Option<&str>) -> PyResult<()> {
+        unlock(py, team)
+    }
+
+    #[classmethod]
+    fn put(_cls: &Bound<'_, PyType>, py: Python, player: PyObject, team: &str) -> PyResult<()> {
+        put(py, player, team)
+    }
+
+    #[classmethod]
+    fn mute(_cls: &Bound<'_, PyType>, py: Python<'_>, player: PyObject) -> PyResult<()> {
+        mute(py, player)
+    }
+
+    #[classmethod]
+    fn unmute(_cls: &Bound<'_, PyType>, py: Python<'_>, player: PyObject) -> PyResult<()> {
+        unmute(py, player)
+    }
+
+    #[classmethod]
+    fn tempban(_cls: &Bound<'_, PyType>, py: Python<'_>, player: PyObject) -> PyResult<()> {
+        tempban(py, player)
+    }
+
+    #[classmethod]
+    fn ban(_cls: &Bound<'_, PyType>, py: Python<'_>, player: PyObject) -> PyResult<()> {
+        ban(py, player)
+    }
+
+    #[classmethod]
+    fn unban(_cls: &Bound<'_, PyType>, py: Python<'_>, player: PyObject) -> PyResult<()> {
+        unban(py, player)
+    }
+
+    #[classmethod]
+    fn opsay(_cls: &Bound<'_, PyType>, py: Python<'_>, msg: &str) -> PyResult<()> {
+        opsay(py, msg)
+    }
+
+    #[classmethod]
+    fn addadmin(_cls: &Bound<'_, PyType>, py: Python<'_>, player: PyObject) -> PyResult<()> {
+        addadmin(py, player)
+    }
+
+    #[classmethod]
+    fn addmod(_cls: &Bound<'_, PyType>, py: Python<'_>, player: PyObject) -> PyResult<()> {
+        addmod(py, player)
+    }
+
+    #[classmethod]
+    fn demote(_cls: &Bound<'_, PyType>, py: Python<'_>, player: PyObject) -> PyResult<()> {
+        demote(py, player)
+    }
+
+    #[classmethod]
+    fn abort(_cls: &Bound<'_, PyType>, py: Python<'_>) -> PyResult<()> {
+        pyshinqlx_console_command(py, "map_restart")
+    }
+
+    #[classmethod]
+    fn addscore(
+        _cls: &Bound<'_, PyType>,
+        py: Python<'_>,
+        player: PyObject,
+        score: i32,
+    ) -> PyResult<()> {
+        addscore(py, player, score)
+    }
+
+    #[classmethod]
+    fn addteamscore(
+        _cls: &Bound<'_, PyType>,
+        py: Python<'_>,
+        team: &str,
+        score: i32,
+    ) -> PyResult<()> {
+        addteamscore(py, team, score)
+    }
+
+    #[classmethod]
+    fn setmatchtime(_cls: &Bound<'_, PyType>, py: Python<'_>, time: i32) -> PyResult<()> {
+        let setmatchtime_cmd = format!("setmatchtime {}", time);
+        pyshinqlx_console_command(py, &setmatchtime_cmd)
     }
 }
 
@@ -1042,7 +1138,8 @@ mod plugin_tests {
 
     use mockall::predicate;
     use pretty_assertions::assert_eq;
-    use pyo3::exceptions::PyEnvironmentError;
+    use pyo3::exceptions::{PyEnvironmentError, PyValueError};
+    use rstest::rstest;
 
     #[test]
     #[cfg_attr(miri, ignore)]
@@ -1512,5 +1609,589 @@ mod plugin_tests {
                 },
             ]
         );
+    }
+
+    #[test]
+    #[cfg_attr(miri, ignore)]
+    #[serial]
+    fn shuffle_forces_shuffle() {
+        let mut mock_engine = MockQuakeEngine::new();
+        mock_engine
+            .expect_execute_console_command()
+            .with(predicate::eq("forceshuffle"))
+            .times(1);
+        MAIN_ENGINE.store(Some(mock_engine.into()));
+
+        let result = Python::with_gil(|py| Plugin::shuffle(&py.get_type_bound::<Plugin>(), py));
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    #[cfg_attr(miri, ignore)]
+    #[serial]
+    fn timeout_pauses_game() {
+        let mut mock_engine = MockQuakeEngine::new();
+        mock_engine
+            .expect_execute_console_command()
+            .with(predicate::eq("timeout"))
+            .times(1);
+        MAIN_ENGINE.store(Some(mock_engine.into()));
+
+        let result = Python::with_gil(|py| Plugin::timeout(&py.get_type_bound::<Plugin>(), py));
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    #[cfg_attr(miri, ignore)]
+    #[serial]
+    fn timein_unpauses_game() {
+        let mut mock_engine = MockQuakeEngine::new();
+        mock_engine
+            .expect_execute_console_command()
+            .with(predicate::eq("timein"))
+            .times(1);
+        MAIN_ENGINE.store(Some(mock_engine.into()));
+
+        let result = Python::with_gil(|py| Plugin::timein(&py.get_type_bound::<Plugin>(), py));
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    #[cfg_attr(miri, ignore)]
+    #[serial]
+    fn allready_readies_all_players() {
+        let mut mock_engine = MockQuakeEngine::new();
+        mock_engine
+            .expect_execute_console_command()
+            .with(predicate::eq("allready"))
+            .times(1);
+        MAIN_ENGINE.store(Some(mock_engine.into()));
+
+        let result = Python::with_gil(|py| Plugin::allready(&py.get_type_bound::<Plugin>(), py));
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    #[cfg_attr(miri, ignore)]
+    #[serial]
+    fn pause_pauses_game() {
+        let mut mock_engine = MockQuakeEngine::new();
+        mock_engine
+            .expect_execute_console_command()
+            .with(predicate::eq("pause"))
+            .times(1);
+        MAIN_ENGINE.store(Some(mock_engine.into()));
+
+        let result = Python::with_gil(|py| Plugin::pause(&py.get_type_bound::<Plugin>(), py));
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    #[cfg_attr(miri, ignore)]
+    #[serial]
+    fn unpause_unpauses_game() {
+        let mut mock_engine = MockQuakeEngine::new();
+        mock_engine
+            .expect_execute_console_command()
+            .with(predicate::eq("unpause"))
+            .times(1);
+        MAIN_ENGINE.store(Some(mock_engine.into()));
+
+        let result = Python::with_gil(|py| Plugin::unpause(&py.get_type_bound::<Plugin>(), py));
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    #[cfg_attr(miri, ignore)]
+    #[serial]
+    fn lock_with_invalid_team() {
+        MAIN_ENGINE.store(None);
+
+        Python::with_gil(|py| {
+            let result = Plugin::lock(&py.get_type_bound::<Plugin>(), py, Some("invalid_team"));
+            assert!(result.is_err_and(|err| err.is_instance_of::<PyValueError>(py)));
+        });
+    }
+
+    #[test]
+    #[cfg_attr(miri, ignore)]
+    #[serial]
+    fn lock_with_no_team() {
+        let mut mock_engine = MockQuakeEngine::new();
+        mock_engine
+            .expect_execute_console_command()
+            .with(predicate::eq("lock"))
+            .times(1);
+        MAIN_ENGINE.store(Some(mock_engine.into()));
+
+        let result = Python::with_gil(|py| Plugin::lock(&py.get_type_bound::<Plugin>(), py, None));
+        assert!(result.is_ok());
+    }
+
+    #[rstest]
+    #[case("red")]
+    #[case("RED")]
+    #[case("free")]
+    #[case("blue")]
+    #[case("spectator")]
+    #[cfg_attr(miri, ignore)]
+    #[serial]
+    fn lock_a_specific_team(#[case] locked_team: &str) {
+        let lock_cmd = format!("lock {}", locked_team.to_lowercase());
+        let mut mock_engine = MockQuakeEngine::new();
+        mock_engine
+            .expect_execute_console_command()
+            .withf(move |cmd| cmd == lock_cmd)
+            .times(1);
+        MAIN_ENGINE.store(Some(mock_engine.into()));
+
+        let result = Python::with_gil(|py| {
+            Plugin::lock(&py.get_type_bound::<Plugin>(), py, Some(locked_team))
+        });
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    #[cfg_attr(miri, ignore)]
+    #[serial]
+    fn unlock_with_invalid_team() {
+        MAIN_ENGINE.store(None);
+
+        Python::with_gil(|py| {
+            let result = Plugin::unlock(&py.get_type_bound::<Plugin>(), py, Some("invalid_team"));
+            assert!(result.is_err_and(|err| err.is_instance_of::<PyValueError>(py)));
+        });
+    }
+
+    #[test]
+    #[cfg_attr(miri, ignore)]
+    #[serial]
+    fn unlock_with_no_team() {
+        let mut mock_engine = MockQuakeEngine::new();
+        mock_engine
+            .expect_execute_console_command()
+            .with(predicate::eq("unlock"))
+            .times(1);
+        MAIN_ENGINE.store(Some(mock_engine.into()));
+
+        let result =
+            Python::with_gil(|py| Plugin::unlock(&py.get_type_bound::<Plugin>(), py, None));
+        assert!(result.is_ok());
+    }
+
+    #[rstest]
+    #[case("red")]
+    #[case("RED")]
+    #[case("free")]
+    #[case("blue")]
+    #[case("spectator")]
+    #[cfg_attr(miri, ignore)]
+    #[serial]
+    fn unlock_a_specific_team(#[case] locked_team: &str) {
+        let unlock_cmd = format!("unlock {}", locked_team.to_lowercase());
+        let mut mock_engine = MockQuakeEngine::new();
+        mock_engine
+            .expect_execute_console_command()
+            .withf(move |cmd| cmd == unlock_cmd)
+            .times(1);
+        MAIN_ENGINE.store(Some(mock_engine.into()));
+
+        let result = Python::with_gil(|py| {
+            Plugin::unlock(&py.get_type_bound::<Plugin>(), py, Some(locked_team))
+        });
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    #[cfg_attr(miri, ignore)]
+    #[serial]
+    fn put_with_invalid_team() {
+        MAIN_ENGINE.store(None);
+
+        Python::with_gil(|py| {
+            let result = Plugin::put(
+                &py.get_type_bound::<Plugin>(),
+                py,
+                2.into_py(py),
+                "invalid team",
+            );
+            assert!(result.is_err_and(|err| err.is_instance_of::<PyValueError>(py)));
+        });
+    }
+
+    #[test]
+    #[cfg_attr(miri, ignore)]
+    #[serial]
+    fn put_with_invalid_player() {
+        MAIN_ENGINE.store(None);
+
+        Python::with_gil(|py| {
+            let result = Plugin::put(&py.get_type_bound::<Plugin>(), py, 2048.into_py(py), "red");
+            assert!(result.is_err_and(|err| err.is_instance_of::<PyValueError>(py)));
+        });
+    }
+
+    #[rstest]
+    #[case("red")]
+    #[case("RED")]
+    #[case("free")]
+    #[case("blue")]
+    #[case("spectator")]
+    #[cfg_attr(miri, ignore)]
+    #[serial]
+    fn put_put_player_on_a_specific_team(#[case] new_team: &str) {
+        let put_cmd = format!("put 2 {}", new_team.to_lowercase());
+        let mut mock_engine = MockQuakeEngine::new();
+        mock_engine
+            .expect_execute_console_command()
+            .withf(move |cmd| cmd == put_cmd)
+            .times(1);
+        MAIN_ENGINE.store(Some(mock_engine.into()));
+
+        let result = Python::with_gil(|py| {
+            Plugin::put(&py.get_type_bound::<Plugin>(), py, 2.into_py(py), new_team)
+        });
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    #[cfg_attr(miri, ignore)]
+    #[serial]
+    fn mute_with_invalid_player() {
+        MAIN_ENGINE.store(None);
+
+        Python::with_gil(|py| {
+            let result = Plugin::mute(&py.get_type_bound::<Plugin>(), py, 2048.into_py(py));
+            assert!(result.is_err_and(|err| err.is_instance_of::<PyValueError>(py)));
+        });
+    }
+
+    #[test]
+    #[cfg_attr(miri, ignore)]
+    #[serial]
+    fn mute_mutes_player() {
+        let mut mock_engine = MockQuakeEngine::new();
+        mock_engine
+            .expect_execute_console_command()
+            .with(predicate::eq("mute 2"))
+            .times(1);
+        MAIN_ENGINE.store(Some(mock_engine.into()));
+
+        let result =
+            Python::with_gil(|py| Plugin::mute(&py.get_type_bound::<Plugin>(), py, 2.into_py(py)));
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    #[cfg_attr(miri, ignore)]
+    #[serial]
+    fn unmute_with_invalid_player() {
+        MAIN_ENGINE.store(None);
+
+        Python::with_gil(|py| {
+            let result = Plugin::unmute(&py.get_type_bound::<Plugin>(), py, 2048.into_py(py));
+            assert!(result.is_err_and(|err| err.is_instance_of::<PyValueError>(py)));
+        });
+    }
+
+    #[test]
+    #[cfg_attr(miri, ignore)]
+    #[serial]
+    fn unmute_unmutes_player() {
+        let mut mock_engine = MockQuakeEngine::new();
+        mock_engine
+            .expect_execute_console_command()
+            .with(predicate::eq("unmute 2"))
+            .times(1);
+        MAIN_ENGINE.store(Some(mock_engine.into()));
+
+        let result = Python::with_gil(|py| {
+            Plugin::unmute(&py.get_type_bound::<Plugin>(), py, 2.into_py(py))
+        });
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    #[cfg_attr(miri, ignore)]
+    #[serial]
+    fn tempban_with_invalid_player() {
+        MAIN_ENGINE.store(None);
+
+        Python::with_gil(|py| {
+            let result = Plugin::tempban(&py.get_type_bound::<Plugin>(), py, 2048.into_py(py));
+            assert!(result.is_err_and(|err| err.is_instance_of::<PyValueError>(py)));
+        });
+    }
+
+    #[test]
+    #[cfg_attr(miri, ignore)]
+    #[serial]
+    fn tempban_tempbans_player() {
+        let mut mock_engine = MockQuakeEngine::new();
+        mock_engine
+            .expect_execute_console_command()
+            .with(predicate::eq("tempban 2"))
+            .times(1);
+        MAIN_ENGINE.store(Some(mock_engine.into()));
+
+        let result = Python::with_gil(|py| {
+            Plugin::tempban(&py.get_type_bound::<Plugin>(), py, 2.into_py(py))
+        });
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    #[cfg_attr(miri, ignore)]
+    #[serial]
+    fn ban_with_invalid_player() {
+        MAIN_ENGINE.store(None);
+
+        Python::with_gil(|py| {
+            let result = Plugin::ban(&py.get_type_bound::<Plugin>(), py, 2048.into_py(py));
+            assert!(result.is_err_and(|err| err.is_instance_of::<PyValueError>(py)));
+        });
+    }
+
+    #[test]
+    #[cfg_attr(miri, ignore)]
+    #[serial]
+    fn ban_bans_player() {
+        let mut mock_engine = MockQuakeEngine::new();
+        mock_engine
+            .expect_execute_console_command()
+            .with(predicate::eq("ban 2"))
+            .times(1);
+        MAIN_ENGINE.store(Some(mock_engine.into()));
+
+        let result =
+            Python::with_gil(|py| Plugin::ban(&py.get_type_bound::<Plugin>(), py, 2.into_py(py)));
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    #[cfg_attr(miri, ignore)]
+    #[serial]
+    fn unban_with_invalid_player() {
+        MAIN_ENGINE.store(None);
+
+        Python::with_gil(|py| {
+            let result = Plugin::unban(&py.get_type_bound::<Plugin>(), py, 2048.into_py(py));
+            assert!(result.is_err_and(|err| err.is_instance_of::<PyValueError>(py)));
+        });
+    }
+
+    #[test]
+    #[cfg_attr(miri, ignore)]
+    #[serial]
+    fn unban_unbans_player() {
+        let mut mock_engine = MockQuakeEngine::new();
+        mock_engine
+            .expect_execute_console_command()
+            .with(predicate::eq("unban 2"))
+            .times(1);
+        MAIN_ENGINE.store(Some(mock_engine.into()));
+
+        let result =
+            Python::with_gil(|py| Plugin::unban(&py.get_type_bound::<Plugin>(), py, 2.into_py(py)));
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    #[cfg_attr(miri, ignore)]
+    #[serial]
+    fn opsay_sends_op_message() {
+        let mut mock_engine = MockQuakeEngine::new();
+        mock_engine
+            .expect_execute_console_command()
+            .with(predicate::eq("opsay asdf"))
+            .times(1);
+        MAIN_ENGINE.store(Some(mock_engine.into()));
+
+        let result =
+            Python::with_gil(|py| Plugin::opsay(&py.get_type_bound::<Plugin>(), py, "asdf"));
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    #[cfg_attr(miri, ignore)]
+    #[serial]
+    fn addadmin_with_invalid_player() {
+        MAIN_ENGINE.store(None);
+
+        Python::with_gil(|py| {
+            let result = Plugin::addadmin(&py.get_type_bound::<Plugin>(), py, 2048.into_py(py));
+            assert!(result.is_err_and(|err| err.is_instance_of::<PyValueError>(py)));
+        });
+    }
+
+    #[test]
+    #[cfg_attr(miri, ignore)]
+    #[serial]
+    fn addadmin_adds_player_to_admins() {
+        let mut mock_engine = MockQuakeEngine::new();
+        mock_engine
+            .expect_execute_console_command()
+            .with(predicate::eq("addadmin 2"))
+            .times(1);
+        MAIN_ENGINE.store(Some(mock_engine.into()));
+
+        let result = Python::with_gil(|py| {
+            Plugin::addadmin(&py.get_type_bound::<Plugin>(), py, 2.into_py(py))
+        });
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    #[cfg_attr(miri, ignore)]
+    #[serial]
+    fn addmod_with_invalid_player() {
+        MAIN_ENGINE.store(None);
+
+        Python::with_gil(|py| {
+            let result = Plugin::addmod(&py.get_type_bound::<Plugin>(), py, 2048.into_py(py));
+            assert!(result.is_err_and(|err| err.is_instance_of::<PyValueError>(py)));
+        });
+    }
+
+    #[test]
+    #[cfg_attr(miri, ignore)]
+    #[serial]
+    fn addmod_adds_player_to_moderators() {
+        let mut mock_engine = MockQuakeEngine::new();
+        mock_engine
+            .expect_execute_console_command()
+            .with(predicate::eq("addmod 2"))
+            .times(1);
+        MAIN_ENGINE.store(Some(mock_engine.into()));
+
+        let result = Python::with_gil(|py| {
+            Plugin::addmod(&py.get_type_bound::<Plugin>(), py, 2.into_py(py))
+        });
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    #[cfg_attr(miri, ignore)]
+    #[serial]
+    fn demote_with_invalid_player() {
+        MAIN_ENGINE.store(None);
+
+        Python::with_gil(|py| {
+            let result = Plugin::demote(&py.get_type_bound::<Plugin>(), py, 2048.into_py(py));
+            assert!(result.is_err_and(|err| err.is_instance_of::<PyValueError>(py)));
+        });
+    }
+
+    #[test]
+    #[cfg_attr(miri, ignore)]
+    #[serial]
+    fn demote_demotes_player() {
+        let mut mock_engine = MockQuakeEngine::new();
+        mock_engine
+            .expect_execute_console_command()
+            .with(predicate::eq("demote 2"))
+            .times(1);
+        MAIN_ENGINE.store(Some(mock_engine.into()));
+
+        let result = Python::with_gil(|py| {
+            Plugin::demote(&py.get_type_bound::<Plugin>(), py, 2.into_py(py))
+        });
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    #[cfg_attr(miri, ignore)]
+    #[serial]
+    fn abort_aborts_game() {
+        let mut mock_engine = MockQuakeEngine::new();
+        mock_engine
+            .expect_execute_console_command()
+            .with(predicate::eq("map_restart"))
+            .times(1);
+        MAIN_ENGINE.store(Some(mock_engine.into()));
+
+        let result = Python::with_gil(|py| Plugin::abort(&py.get_type_bound::<Plugin>(), py));
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    #[cfg_attr(miri, ignore)]
+    #[serial]
+    fn addscore_with_invalid_player() {
+        MAIN_ENGINE.store(None);
+
+        Python::with_gil(|py| {
+            let result = Plugin::addscore(&py.get_type_bound::<Plugin>(), py, 2048.into_py(py), 42);
+            assert!(result.is_err_and(|err| err.is_instance_of::<PyValueError>(py)));
+        });
+    }
+
+    #[test]
+    #[cfg_attr(miri, ignore)]
+    #[serial]
+    fn addscore_adds_score_to_player() {
+        let mut mock_engine = MockQuakeEngine::new();
+        mock_engine
+            .expect_execute_console_command()
+            .with(predicate::eq("addscore 2 42"))
+            .times(1);
+        MAIN_ENGINE.store(Some(mock_engine.into()));
+
+        let result = Python::with_gil(|py| {
+            Plugin::addscore(&py.get_type_bound::<Plugin>(), py, 2.into_py(py), 42)
+        });
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    #[cfg_attr(miri, ignore)]
+    #[serial]
+    fn addteamscore_with_invalid_team() {
+        MAIN_ENGINE.store(None);
+
+        Python::with_gil(|py| {
+            let result =
+                Plugin::addteamscore(&py.get_type_bound::<Plugin>(), py, "invalid_team", 42);
+            assert!(result.is_err_and(|err| err.is_instance_of::<PyValueError>(py)));
+        });
+    }
+
+    #[rstest]
+    #[case("red")]
+    #[case("RED")]
+    #[case("free")]
+    #[case("blue")]
+    #[case("spectator")]
+    #[cfg_attr(miri, ignore)]
+    #[serial]
+    fn addteamscore_adds_score_to_team(#[case] locked_team: &str) {
+        let unlock_cmd = format!("addteamscore {} 42", locked_team.to_lowercase());
+        let mut mock_engine = MockQuakeEngine::new();
+        mock_engine
+            .expect_execute_console_command()
+            .withf(move |cmd| cmd == unlock_cmd)
+            .times(1);
+        MAIN_ENGINE.store(Some(mock_engine.into()));
+
+        let result = Python::with_gil(|py| {
+            Plugin::addteamscore(&py.get_type_bound::<Plugin>(), py, locked_team, 42)
+        });
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    #[cfg_attr(miri, ignore)]
+    #[serial]
+    fn setmatchtime_sets_match_time() {
+        let mut mock_engine = MockQuakeEngine::new();
+        mock_engine
+            .expect_execute_console_command()
+            .with(predicate::eq("setmatchtime 42"))
+            .times(1);
+        MAIN_ENGINE.store(Some(mock_engine.into()));
+
+        let result =
+            Python::with_gil(|py| Plugin::setmatchtime(&py.get_type_bound::<Plugin>(), py, 42));
+        assert!(result.is_ok());
     }
 }

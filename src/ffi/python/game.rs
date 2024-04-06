@@ -1,5 +1,8 @@
-use super::client_id;
 use super::prelude::*;
+use super::{
+    addadmin, addmod, addscore, addteamscore, ban, demote, lock, mute, opsay, put, tempban, unban,
+    unlock, unmute,
+};
 
 use crate::{
     ffi::c::prelude::{CS_SCORES1, CS_SCORES2, CS_SERVERINFO, CS_STEAM_WORKSHOP_IDS},
@@ -547,42 +550,14 @@ impl Game {
 
     #[classmethod]
     #[pyo3(signature = (team = None))]
-    pub(crate) fn lock(
-        _cls: &Bound<'_, PyType>,
-        py: Python<'_>,
-        team: Option<String>,
-    ) -> PyResult<()> {
-        match team {
-            None => pyshinqlx_console_command(py, "lock"),
-            Some(team_name) => {
-                if !["free", "red", "blue", "spectator"].contains(&&*team_name.to_lowercase()) {
-                    Err(PyValueError::new_err("Invalid team."))
-                } else {
-                    let lock_cmd = format!("lock {}", team_name.to_lowercase());
-                    pyshinqlx_console_command(py, &lock_cmd)
-                }
-            }
-        }
+    fn lock(_cls: &Bound<'_, PyType>, py: Python<'_>, team: Option<&str>) -> PyResult<()> {
+        lock(py, team)
     }
 
     #[classmethod]
     #[pyo3(signature = (team = None))]
-    pub(crate) fn unlock(
-        _cls: &Bound<'_, PyType>,
-        py: Python<'_>,
-        team: Option<String>,
-    ) -> PyResult<()> {
-        match team {
-            None => pyshinqlx_console_command(py, "unlock"),
-            Some(team_name) => {
-                if !["free", "red", "blue", "spectator"].contains(&&*team_name.to_lowercase()) {
-                    Err(PyValueError::new_err("Invalid team."))
-                } else {
-                    let unlock_cmd = format!("unlock {}", team_name.to_lowercase());
-                    pyshinqlx_console_command(py, &unlock_cmd)
-                }
-            }
-        }
+    fn unlock(_cls: &Bound<'_, PyType>, py: Python<'_>, team: Option<&str>) -> PyResult<()> {
+        unlock(py, team)
     }
 
     #[classmethod]
@@ -592,102 +567,52 @@ impl Game {
         player: Py<PyAny>,
         team: &str,
     ) -> PyResult<()> {
-        let Some(player_id) = client_id(py, player, None) else {
-            return Err(PyValueError::new_err("Invalid player."));
-        };
-
-        if !["free", "red", "blue", "spectator"].contains(&&*team.to_lowercase()) {
-            return Err(PyValueError::new_err("Invalid team."));
-        }
-
-        let team_change_cmd = format!("put {} {}", player_id, team.to_lowercase());
-        pyshinqlx_console_command(py, &team_change_cmd)
+        put(py, player, team)
     }
 
     #[classmethod]
-    fn mute(_cls: &Bound<'_, PyType>, py: Python<'_>, player: Py<PyAny>) -> PyResult<()> {
-        let Some(player_id) = client_id(py, player, None) else {
-            return Err(PyValueError::new_err("Invalid player."));
-        };
-
-        let mute_cmd = format!("mute {}", player_id);
-        pyshinqlx_console_command(py, &mute_cmd)
+    fn mute(_cls: &Bound<'_, PyType>, py: Python<'_>, player: PyObject) -> PyResult<()> {
+        mute(py, player)
     }
 
     #[classmethod]
-    fn unmute(_cls: &Bound<'_, PyType>, py: Python<'_>, player: Py<PyAny>) -> PyResult<()> {
-        let Some(player_id) = client_id(py, player, None) else {
-            return Err(PyValueError::new_err("Invalid player."));
-        };
-
-        let unmute_cmd = format!("unmute {}", player_id);
-        pyshinqlx_console_command(py, &unmute_cmd)
+    fn unmute(_cls: &Bound<'_, PyType>, py: Python<'_>, player: PyObject) -> PyResult<()> {
+        unmute(py, player)
     }
 
     #[classmethod]
-    fn tempban(_cls: &Bound<'_, PyType>, py: Python<'_>, player: Py<PyAny>) -> PyResult<()> {
-        let Some(player_id) = client_id(py, player, None) else {
-            return Err(PyValueError::new_err("Invalid player."));
-        };
-
-        let tempban_cmd = format!("tempban {}", player_id);
-        pyshinqlx_console_command(py, &tempban_cmd)
+    fn tempban(_cls: &Bound<'_, PyType>, py: Python<'_>, player: PyObject) -> PyResult<()> {
+        tempban(py, player)
     }
 
     #[classmethod]
-    fn ban(_cls: &Bound<'_, PyType>, py: Python<'_>, player: Py<PyAny>) -> PyResult<()> {
-        let Some(player_id) = client_id(py, player, None) else {
-            return Err(PyValueError::new_err("Invalid player."));
-        };
-
-        let ban_cmd = format!("ban {}", player_id);
-        pyshinqlx_console_command(py, &ban_cmd)
+    fn ban(_cls: &Bound<'_, PyType>, py: Python<'_>, player: PyObject) -> PyResult<()> {
+        ban(py, player)
     }
 
     #[classmethod]
-    fn unban(_cls: &Bound<'_, PyType>, py: Python<'_>, player: Py<PyAny>) -> PyResult<()> {
-        let Some(player_id) = client_id(py, player, None) else {
-            return Err(PyValueError::new_err("Invalid player."));
-        };
-
-        let unban_cmd = format!("unban {}", player_id);
-        pyshinqlx_console_command(py, &unban_cmd)
+    fn unban(_cls: &Bound<'_, PyType>, py: Python<'_>, player: PyObject) -> PyResult<()> {
+        unban(py, player)
     }
 
     #[classmethod]
     fn opsay(_cls: &Bound<'_, PyType>, py: Python<'_>, msg: &str) -> PyResult<()> {
-        let opsay_cmd = format!("opsay {}", msg);
-        pyshinqlx_console_command(py, &opsay_cmd)
+        opsay(py, msg)
     }
 
     #[classmethod]
-    fn addadmin(_cls: &Bound<'_, PyType>, py: Python<'_>, player: Py<PyAny>) -> PyResult<()> {
-        let Some(player_id) = client_id(py, player, None) else {
-            return Err(PyValueError::new_err("Invalid player."));
-        };
-
-        let addadmin_cmd = format!("addadmin {}", player_id);
-        pyshinqlx_console_command(py, &addadmin_cmd)
+    fn addadmin(_cls: &Bound<'_, PyType>, py: Python<'_>, player: PyObject) -> PyResult<()> {
+        addadmin(py, player)
     }
 
     #[classmethod]
-    fn addmod(_cls: &Bound<'_, PyType>, py: Python<'_>, player: Py<PyAny>) -> PyResult<()> {
-        let Some(player_id) = client_id(py, player, None) else {
-            return Err(PyValueError::new_err("Invalid player."));
-        };
-
-        let addmod_cmd = format!("addmod {}", player_id);
-        pyshinqlx_console_command(py, &addmod_cmd)
+    fn addmod(_cls: &Bound<'_, PyType>, py: Python<'_>, player: PyObject) -> PyResult<()> {
+        addmod(py, player)
     }
 
     #[classmethod]
-    fn demote(_cls: &Bound<'_, PyType>, py: Python<'_>, player: Py<PyAny>) -> PyResult<()> {
-        let Some(player_id) = client_id(py, player, None) else {
-            return Err(PyValueError::new_err("Invalid player."));
-        };
-
-        let demote_cmd = format!("demote {}", player_id);
-        pyshinqlx_console_command(py, &demote_cmd)
+    fn demote(_cls: &Bound<'_, PyType>, py: Python<'_>, player: PyObject) -> PyResult<()> {
+        demote(py, player)
     }
 
     #[classmethod]
@@ -699,15 +624,10 @@ impl Game {
     fn addscore(
         _cls: &Bound<'_, PyType>,
         py: Python<'_>,
-        player: Py<PyAny>,
+        player: PyObject,
         score: i32,
     ) -> PyResult<()> {
-        let Some(player_id) = client_id(py, player, None) else {
-            return Err(PyValueError::new_err("Invalid player."));
-        };
-
-        let addscore_cmd = format!("addscore {} {}", player_id, score);
-        pyshinqlx_console_command(py, &addscore_cmd)
+        addscore(py, player, score)
     }
 
     #[classmethod]
@@ -717,12 +637,7 @@ impl Game {
         team: &str,
         score: i32,
     ) -> PyResult<()> {
-        if !["free", "red", "blue", "spectator"].contains(&&*team.to_lowercase()) {
-            return Err(PyValueError::new_err("Invalid team."));
-        }
-
-        let addteamscore_cmd = format!("addteamscore {} {}", team.to_lowercase(), score);
-        pyshinqlx_console_command(py, &addteamscore_cmd)
+        addteamscore(py, team, score)
     }
 
     #[classmethod]
@@ -2766,11 +2681,7 @@ _shinqlx._map_subtitle2 = "Awesome map!"
         MAIN_ENGINE.store(None);
 
         Python::with_gil(|py| {
-            let result = Game::lock(
-                &py.get_type_bound::<Game>(),
-                py,
-                Some("invalid_team".to_string()),
-            );
+            let result = Game::lock(&py.get_type_bound::<Game>(), py, Some("invalid_team"));
             assert!(result.is_err_and(|err| err.is_instance_of::<PyValueError>(py)));
         });
     }
@@ -2807,13 +2718,8 @@ _shinqlx._map_subtitle2 = "Awesome map!"
             .times(1);
         MAIN_ENGINE.store(Some(mock_engine.into()));
 
-        let result = Python::with_gil(|py| {
-            Game::lock(
-                &py.get_type_bound::<Game>(),
-                py,
-                Some(locked_team.to_string()),
-            )
-        });
+        let result =
+            Python::with_gil(|py| Game::lock(&py.get_type_bound::<Game>(), py, Some(locked_team)));
         assert!(result.is_ok());
     }
 
@@ -2824,11 +2730,7 @@ _shinqlx._map_subtitle2 = "Awesome map!"
         MAIN_ENGINE.store(None);
 
         Python::with_gil(|py| {
-            let result = Game::unlock(
-                &py.get_type_bound::<Game>(),
-                py,
-                Some("invalid_team".to_string()),
-            );
+            let result = Game::unlock(&py.get_type_bound::<Game>(), py, Some("invalid_team"));
             assert!(result.is_err_and(|err| err.is_instance_of::<PyValueError>(py)));
         });
     }
@@ -2866,11 +2768,7 @@ _shinqlx._map_subtitle2 = "Awesome map!"
         MAIN_ENGINE.store(Some(mock_engine.into()));
 
         let result = Python::with_gil(|py| {
-            Game::unlock(
-                &py.get_type_bound::<Game>(),
-                py,
-                Some(locked_team.to_string()),
-            )
+            Game::unlock(&py.get_type_bound::<Game>(), py, Some(locked_team))
         });
         assert!(result.is_ok());
     }
