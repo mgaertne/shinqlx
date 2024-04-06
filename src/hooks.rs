@@ -13,7 +13,7 @@ use core::{
     ffi::{c_char, c_int, CStr, VaList, VaListImpl},
 };
 
-pub(crate) fn shinqlx_cmd_addcommand(cmd: *const c_char, func: unsafe extern "C" fn()) {
+pub(crate) extern "C" fn shinqlx_cmd_addcommand(cmd: *const c_char, func: unsafe extern "C" fn()) {
     MAIN_ENGINE.load().iter().for_each(|main_engine| {
         if !main_engine.is_common_initialized() {
             if let Err(err) = main_engine.initialize_static() {
@@ -30,7 +30,7 @@ pub(crate) fn shinqlx_cmd_addcommand(cmd: *const c_char, func: unsafe extern "C"
     });
 }
 
-pub(crate) fn shinqlx_sys_setmoduleoffset(
+pub(crate) extern "C" fn shinqlx_sys_setmoduleoffset(
     module_name: *const c_char,
     offset: unsafe extern "C" fn(),
 ) {
@@ -75,7 +75,7 @@ pub(crate) fn shinqlx_g_shutdowngame(restart: c_int) {
 }
 
 #[cfg_attr(test, allow(dead_code))]
-pub(crate) fn shinqlx_sv_executeclientcommand(
+pub(crate) extern "C" fn shinqlx_sv_executeclientcommand(
     client: *mut client_t,
     cmd: *const c_char,
     client_ok: qboolean,
@@ -196,7 +196,7 @@ where
     }
 }
 
-pub(crate) fn shinqlx_sv_cliententerworld(client: *mut client_t, cmd: *mut usercmd_t) {
+pub(crate) extern "C" fn shinqlx_sv_cliententerworld(client: *mut client_t, cmd: *mut usercmd_t) {
     MAIN_ENGINE.load().iter().for_each(|main_engine| {
         let Some(mut safe_client) = Client::try_from(client).ok() else {
             return;
@@ -216,7 +216,7 @@ pub(crate) fn shinqlx_sv_cliententerworld(client: *mut client_t, cmd: *mut userc
 }
 
 #[cfg_attr(test, allow(dead_code))]
-pub(crate) fn shinqlx_sv_setconfigstring(index: c_int, value: *const c_char) {
+pub(crate) extern "C" fn shinqlx_sv_setconfigstring(index: c_int, value: *const c_char) {
     let safe_value = if !value.is_null() {
         unsafe { CStr::from_ptr(value) }.to_string_lossy()
     } else {
@@ -254,7 +254,7 @@ where
 }
 
 #[cfg_attr(test, allow(dead_code))]
-pub(crate) fn shinqlx_sv_dropclient(client: *mut client_t, reason: *const c_char) {
+pub(crate) extern "C" fn shinqlx_sv_dropclient(client: *mut client_t, reason: *const c_char) {
     Client::try_from(client).iter_mut().for_each(|safe_client| {
         shinqlx_drop_client(
             safe_client,
@@ -312,7 +312,7 @@ where
     });
 }
 
-pub(crate) fn shinqlx_sv_spawnserver(server: *const c_char, kill_bots: qboolean) {
+pub(crate) extern "C" fn shinqlx_sv_spawnserver(server: *const c_char, kill_bots: qboolean) {
     let server_str = unsafe { CStr::from_ptr(server) }.to_string_lossy();
     if server_str.is_empty() {
         return;
@@ -349,7 +349,7 @@ unsafe fn to_return_string(client_id: i32, input: String) -> *const c_char {
     &CLIENT_CONNECT_BUFFER[client_id as usize] as *const c_char
 }
 
-pub(crate) fn shinqlx_client_connect(
+pub(crate) extern "C" fn shinqlx_client_connect(
     client_num: c_int,
     first_time: qboolean,
     is_bot: qboolean,
@@ -374,7 +374,7 @@ pub(crate) fn shinqlx_client_connect(
 }
 
 #[cfg_attr(test, allow(dead_code))]
-pub(crate) fn shinqlx_clientspawn(ent: *mut gentity_t) {
+pub(crate) extern "C" fn shinqlx_clientspawn(ent: *mut gentity_t) {
     GameEntity::try_from(ent)
         .ok()
         .iter_mut()
@@ -393,7 +393,7 @@ pub(crate) fn shinqlx_client_spawn(game_entity: &mut GameEntity) {
     });
 }
 
-pub(crate) fn shinqlx_g_startkamikaze(ent: *mut gentity_t) {
+pub(crate) extern "C" fn shinqlx_g_startkamikaze(ent: *mut gentity_t) {
     let Some(mut game_entity): Option<GameEntity> = GameEntity::try_from(ent).ok() else {
         return;
     };
@@ -420,7 +420,7 @@ pub(crate) fn shinqlx_g_startkamikaze(ent: *mut gentity_t) {
 }
 
 #[allow(clippy::too_many_arguments)]
-pub(crate) fn shinqlx_g_damage(
+pub(crate) extern "C" fn shinqlx_g_damage(
     target: *mut gentity_t,    // entity that is being damaged
     inflictor: *mut gentity_t, // entity that is causing the damage
     attacker: *mut gentity_t,  // entity that caused the inflictor to damage target
