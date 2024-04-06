@@ -1214,7 +1214,6 @@ impl Plugin {
 
 #[cfg(test)]
 mod plugin_tests {
-    use super::Plugin;
     use super::MAIN_ENGINE;
     use crate::ffi::c::prelude::*;
     use crate::ffi::python::prelude::*;
