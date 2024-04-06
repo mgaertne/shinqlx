@@ -369,7 +369,7 @@ impl Plugin {
 
     /// Gets the value of a cvar as a string.
     #[classmethod]
-    #[pyo3(signature = (name, return_type), text_signature = "(name, return_type=str)")]
+    #[pyo3(signature = (name, return_type = None), text_signature = "(name, return_type=str)")]
     fn get_cvar(
         _cls: &Bound<'_, PyType>,
         py: Python<'_>,
@@ -635,7 +635,7 @@ impl Plugin {
 
     /// Send a message to the chat, or any other channel.
     #[classmethod]
-    #[pyo3(signature = (msg, chat_channel, **kwargs),
+    #[pyo3(signature = (msg, chat_channel = None, **kwargs),
     text_signature = "(msg, chat_channel = \"chat\", **kwargs)")]
     fn msg(
         _cls: &Bound<'_, PyType>,
