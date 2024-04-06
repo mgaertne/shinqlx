@@ -1,6 +1,6 @@
 use super::prelude::*;
 
-use super::{commands::CommandPriorities, pyshinqlx_get_logger};
+use super::{client_id, commands::CommandPriorities, pyshinqlx_get_logger};
 #[cfg(test)]
 use crate::hooks::mock_hooks::shinqlx_com_printf;
 #[cfg(not(test))]
@@ -536,7 +536,7 @@ impl Plugin {
                 .find(|player| player.steam_id == player_steam_id));
         }
 
-        let Some(client_id) = Self::client_id(cls, py, name, Some(players.clone())) else {
+        let Some(client_id) = client_id(py, name, Some(players.clone())) else {
             return Ok(None);
         };
         Ok(players.into_iter().find(|player| player.id == client_id))
@@ -647,38 +647,12 @@ impl Plugin {
     #[classmethod]
     #[pyo3(signature = (name, player_list = None))]
     fn client_id(
-        cls: &Bound<'_, PyType>,
+        _cls: &Bound<'_, PyType>,
         py: Python<'_>,
         name: PyObject,
         player_list: Option<Vec<Player>>,
     ) -> Option<i32> {
-        if let Ok(player_id) = name.extract::<i32>(py) {
-            if (0..64).contains(&player_id) {
-                return Some(player_id);
-            }
-        }
-        if let Ok(player) = name.extract::<Player>(py) {
-            return Some(player.id);
-        }
-
-        let players = player_list.unwrap_or_else(|| Self::players(cls, py).unwrap_or_default());
-
-        if let Ok(player_steam_id) = name.extract::<i64>(py) {
-            return players
-                .iter()
-                .find(|&player| player.steam_id == player_steam_id)
-                .map(|player| player.id);
-        }
-
-        if let Ok(player_name) = name.extract::<String>(py) {
-            let clean_name = clean_text(&player_name).to_lowercase();
-            return players
-                .iter()
-                .find(|&player| clean_text(&player.name).to_lowercase() == clean_name)
-                .map(|player| player.id);
-        }
-
-        None
+        client_id(py, name, player_list)
     }
 
     /// Find a player based on part of a players name.
@@ -753,12 +727,12 @@ impl Plugin {
     #[classmethod]
     #[pyo3(signature = (msg, recipient = None))]
     fn center_print(
-        cls: &Bound<'_, PyType>,
+        _cls: &Bound<'_, PyType>,
         py: Python<'_>,
         msg: &str,
         recipient: Option<PyObject>,
     ) -> PyResult<()> {
-        let client_id = recipient.and_then(|recipient| Self::client_id(cls, py, recipient, None));
+        let client_id = recipient.and_then(|recipient| client_id(py, recipient, None));
 
         let center_printed_cmd = format!(r#"cp "{msg}""#);
         pyshinqlx_send_server_command(py, client_id, &center_printed_cmd)?;
@@ -770,13 +744,13 @@ impl Plugin {
     #[classmethod]
     #[pyo3(signature = (msg, recipient, **kwargs))]
     fn tell(
-        cls: &Bound<'_, PyType>,
+        _cls: &Bound<'_, PyType>,
         py: Python<'_>,
         msg: &str,
         recipient: PyObject,
         kwargs: Option<&Bound<'_, PyDict>>,
     ) -> PyResult<()> {
-        let Some(recipient_client_id) = Self::client_id(cls, py, recipient, None) else {
+        let Some(recipient_client_id) = client_id(py, recipient, None) else {
             return Err(PyValueError::new_err("could not find recipient"));
         };
         let recipient_player = Player::py_new(recipient_client_id, None)?;
@@ -871,12 +845,12 @@ impl Plugin {
     #[classmethod]
     #[pyo3(signature = (player, reason = ""))]
     fn kick(
-        cls: &Bound<'_, PyType>,
+        _cls: &Bound<'_, PyType>,
         py: Python<'_>,
         player: PyObject,
         reason: &str,
     ) -> PyResult<()> {
-        let Some(client_id) = Self::client_id(cls, py, player, None) else {
+        let Some(client_id) = client_id(py, player, None) else {
             return Err(PyValueError::new_err("Invalid player."));
         };
 
@@ -1004,12 +978,12 @@ impl Plugin {
     #[classmethod]
     #[pyo3(signature = (player, damage = 0))]
     fn slap(
-        cls: &Bound<'_, PyType>,
+        _cls: &Bound<'_, PyType>,
         py: Python<'_>,
         player: PyObject,
         damage: i32,
     ) -> PyResult<()> {
-        let Some(client_id) = Self::client_id(cls, py, player, None) else {
+        let Some(client_id) = client_id(py, player, None) else {
             return Err(PyValueError::new_err("Invalid player."));
         };
 
@@ -1020,8 +994,8 @@ impl Plugin {
     }
 
     #[classmethod]
-    fn slay(cls: &Bound<'_, PyType>, py: Python<'_>, player: PyObject) -> PyResult<()> {
-        let Some(client_id) = Self::client_id(cls, py, player, None) else {
+    fn slay(_cls: &Bound<'_, PyType>, py: Python<'_>, player: PyObject) -> PyResult<()> {
+        let Some(client_id) = client_id(py, player, None) else {
             return Err(PyValueError::new_err("Invalid player."));
         };
 
@@ -1029,6 +1003,31 @@ impl Plugin {
         pyshinqlx_console_command(py, &slay_cmd)?;
 
         Ok(())
+    }
+
+    #[classmethod]
+    fn timeout(_cls: &Bound<'_, PyType>, py: Python<'_>) -> PyResult<()> {
+        pyshinqlx_console_command(py, "timeout")
+    }
+
+    #[classmethod]
+    fn timein(_cls: &Bound<'_, PyType>, py: Python<'_>) -> PyResult<()> {
+        pyshinqlx_console_command(py, "timein")
+    }
+
+    #[classmethod]
+    fn allready(_cls: &Bound<'_, PyType>, py: Python<'_>) -> PyResult<()> {
+        pyshinqlx_console_command(py, "already")
+    }
+
+    #[classmethod]
+    fn pause(_cls: &Bound<'_, PyType>, py: Python<'_>) -> PyResult<()> {
+        pyshinqlx_console_command(py, "pause")
+    }
+
+    #[classmethod]
+    fn unpause(_cls: &Bound<'_, PyType>, py: Python<'_>) -> PyResult<()> {
+        pyshinqlx_console_command(py, "unpause")
     }
 }
 

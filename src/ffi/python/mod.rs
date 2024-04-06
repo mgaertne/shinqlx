@@ -324,6 +324,43 @@ mod parsed_variables_test {
     }
 }
 
+pub(crate) fn client_id(
+    py: Python<'_>,
+    name: PyObject,
+    player_list: Option<Vec<Player>>,
+) -> Option<i32> {
+    if let Ok(value) = name.extract::<i32>(py) {
+        if (0..64).contains(&value) {
+            return Some(value);
+        }
+    }
+
+    if let Ok(player) = name.extract::<Player>(py) {
+        return Some(player.id);
+    }
+
+    let all_players = player_list.unwrap_or_else(|| {
+        Player::all_players(&py.get_type_bound::<Player>(), py).unwrap_or_default()
+    });
+
+    if let Ok(steam_id) = name.extract::<i64>(py) {
+        return all_players
+            .iter()
+            .find(|&player| player.steam_id == steam_id)
+            .map(|player| player.id);
+    }
+
+    if let Ok(player_name) = name.extract::<String>(py) {
+        let clean_name = clean_text(&player_name).to_lowercase();
+        return all_players
+            .iter()
+            .find(|&player| clean_text(&player.name).to_lowercase() == clean_name)
+            .map(|player| player.id);
+    }
+
+    None
+}
+
 #[pyfunction]
 #[pyo3(pass_module)]
 fn set_map_subtitles(module: &Bound<'_, PyModule>) -> PyResult<()> {
