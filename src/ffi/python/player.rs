@@ -316,7 +316,7 @@ impl Player {
 
     /// Removes color tags from the name.
     #[getter(clean_name)]
-    fn get_clean_name(&self, py: Python<'_>) -> String {
+    pub(crate) fn get_clean_name(&self, py: Python<'_>) -> String {
         py.allow_threads(|| clean_text(&self.name))
     }
 
@@ -1225,21 +1225,23 @@ impl Player {
     }
 
     #[classmethod]
-    fn all_players(_cls: &Bound<'_, PyType>, py: Python<'_>) -> PyResult<Vec<Player>> {
+    pub(crate) fn all_players(_cls: &Bound<'_, PyType>, py: Python<'_>) -> PyResult<Vec<Player>> {
         let players_info = pyshinqlx_players_info(py)?;
-        Ok(players_info
-            .iter()
-            .filter_map(|opt_player_info| {
-                opt_player_info.as_ref().map(|player_info| Player {
-                    valid: true,
-                    id: player_info.client_id,
-                    user_info: player_info.userinfo.clone(),
-                    steam_id: player_info.steam_id,
-                    name: player_info.name.clone(),
-                    player_info: player_info.clone(),
+        py.allow_threads(|| {
+            Ok(players_info
+                .iter()
+                .filter_map(|opt_player_info| {
+                    opt_player_info.as_ref().map(|player_info| Player {
+                        valid: true,
+                        id: player_info.client_id,
+                        user_info: player_info.userinfo.clone(),
+                        steam_id: player_info.steam_id,
+                        name: player_info.name.clone(),
+                        player_info: player_info.clone(),
+                    })
                 })
-            })
-            .collect())
+                .collect())
+        })
     }
 }
 

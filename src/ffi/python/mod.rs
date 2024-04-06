@@ -11,6 +11,7 @@ mod player;
 mod player_info;
 mod player_state;
 mod player_stats;
+mod plugin;
 mod powerups;
 mod stats_listener;
 mod vector3;

@@ -71,7 +71,7 @@ pub(crate) struct Game {
 impl Game {
     #[new]
     #[pyo3(signature = (cached = true))]
-    fn py_new(py: Python<'_>, cached: bool) -> PyResult<Self> {
+    pub(crate) fn py_new(py: Python<'_>, cached: bool) -> PyResult<Self> {
         py.allow_threads(|| {
             let Some(ref main_engine) = *MAIN_ENGINE.load() else {
                 return Err(PyEnvironmentError::new_err(
@@ -231,7 +231,7 @@ impl Game {
     }
 
     #[setter(map)]
-    fn set_map(&mut self, py: Python<'_>, value: String) -> PyResult<()> {
+    fn set_map(&mut self, py: Python<'_>, value: &str) -> PyResult<()> {
         let mapchange_command = format!("map {}", value);
         pyshinqlx_console_command(py, &mapchange_command)
     }
@@ -478,7 +478,7 @@ impl Game {
     }
 
     #[setter(teamsize)]
-    fn set_teamsize(&mut self, py: Python<'_>, value: i32) -> PyResult<()> {
+    pub(crate) fn set_teamsize(&mut self, py: Python<'_>, value: i32) -> PyResult<()> {
         let value_str = format!("{}", value);
         pyshinqlx_set_cvar(py, "teamsize", &value_str, None)?;
         Ok(())
@@ -552,7 +552,7 @@ impl Game {
     }
 
     #[classmethod]
-    fn shuffle(_cls: &Bound<'_, PyType>, py: Python<'_>) -> PyResult<()> {
+    pub(crate) fn shuffle(_cls: &Bound<'_, PyType>, py: Python<'_>) -> PyResult<()> {
         pyshinqlx_console_command(py, "forceshuffle")
     }
 
