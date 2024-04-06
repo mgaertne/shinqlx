@@ -1,7 +1,8 @@
+use super::client_id;
 use super::prelude::*;
 
 use crate::{
-    ffi::c::prelude::{CS_SCORES1, CS_SCORES2, CS_SERVERINFO},
+    ffi::c::prelude::{CS_SCORES1, CS_SCORES2, CS_SERVERINFO, CS_STEAM_WORKSHOP_IDS},
     quake_live_engine::{GetConfigstring, SetConfigstring},
     MAIN_ENGINE,
 };
@@ -9,7 +10,6 @@ use crate::{
 use itertools::Itertools;
 use log::*;
 
-use crate::ffi::c::prelude::CS_STEAM_WORKSHOP_IDS;
 use pyo3::exceptions::PyEnvironmentError;
 use pyo3::{
     create_exception,
@@ -18,42 +18,6 @@ use pyo3::{
 };
 
 create_exception!(pyshinqlx_module, NonexistentGameError, PyException);
-
-fn client_id(py: Python<'_>, player: Py<PyAny>) -> Option<i32> {
-    if let Ok(value) = player.extract::<i32>(py) {
-        if (0..64).contains(&value) {
-            return Some(value);
-        }
-    }
-
-    if let Ok(player_object) = player.extract::<Player>(py) {
-        return Some(player_object.id);
-    }
-
-    let all_players = pyshinqlx_players_info(py).unwrap_or_default();
-
-    if let Ok(steam_id) = player.extract::<i64>(py) {
-        return all_players.iter().find_map(|opt_player_info| {
-            opt_player_info
-                .as_ref()
-                .filter(|&player_info| player_info.steam_id == steam_id)
-                .map(|player_info| player_info.client_id)
-        });
-    }
-
-    if let Ok(name) = player.extract::<String>(py) {
-        return all_players.iter().find_map(|opt_player_info| {
-            opt_player_info
-                .as_ref()
-                .filter(|&player_info| {
-                    clean_text(&player_info.name).to_lowercase() == clean_text(&name).to_lowercase()
-                })
-                .map(|player_info| player_info.client_id)
-        });
-    }
-
-    None
-}
 
 /// A class representing the game. That is, stuff like what map is being played,
 /// if it's in warmup, and so on. It also has methods to call in timeins, aborts,
@@ -583,7 +547,11 @@ impl Game {
 
     #[classmethod]
     #[pyo3(signature = (team = None))]
-    fn lock(_cls: &Bound<'_, PyType>, py: Python<'_>, team: Option<String>) -> PyResult<()> {
+    pub(crate) fn lock(
+        _cls: &Bound<'_, PyType>,
+        py: Python<'_>,
+        team: Option<String>,
+    ) -> PyResult<()> {
         match team {
             None => pyshinqlx_console_command(py, "lock"),
             Some(team_name) => {
@@ -599,7 +567,11 @@ impl Game {
 
     #[classmethod]
     #[pyo3(signature = (team = None))]
-    fn unlock(_cls: &Bound<'_, PyType>, py: Python<'_>, team: Option<String>) -> PyResult<()> {
+    pub(crate) fn unlock(
+        _cls: &Bound<'_, PyType>,
+        py: Python<'_>,
+        team: Option<String>,
+    ) -> PyResult<()> {
         match team {
             None => pyshinqlx_console_command(py, "unlock"),
             Some(team_name) => {
@@ -620,7 +592,7 @@ impl Game {
         player: Py<PyAny>,
         team: &str,
     ) -> PyResult<()> {
-        let Some(player_id) = client_id(py, player) else {
+        let Some(player_id) = client_id(py, player, None) else {
             return Err(PyValueError::new_err("Invalid player."));
         };
 
@@ -634,7 +606,7 @@ impl Game {
 
     #[classmethod]
     fn mute(_cls: &Bound<'_, PyType>, py: Python<'_>, player: Py<PyAny>) -> PyResult<()> {
-        let Some(player_id) = client_id(py, player) else {
+        let Some(player_id) = client_id(py, player, None) else {
             return Err(PyValueError::new_err("Invalid player."));
         };
 
@@ -644,7 +616,7 @@ impl Game {
 
     #[classmethod]
     fn unmute(_cls: &Bound<'_, PyType>, py: Python<'_>, player: Py<PyAny>) -> PyResult<()> {
-        let Some(player_id) = client_id(py, player) else {
+        let Some(player_id) = client_id(py, player, None) else {
             return Err(PyValueError::new_err("Invalid player."));
         };
 
@@ -654,7 +626,7 @@ impl Game {
 
     #[classmethod]
     fn tempban(_cls: &Bound<'_, PyType>, py: Python<'_>, player: Py<PyAny>) -> PyResult<()> {
-        let Some(player_id) = client_id(py, player) else {
+        let Some(player_id) = client_id(py, player, None) else {
             return Err(PyValueError::new_err("Invalid player."));
         };
 
@@ -664,7 +636,7 @@ impl Game {
 
     #[classmethod]
     fn ban(_cls: &Bound<'_, PyType>, py: Python<'_>, player: Py<PyAny>) -> PyResult<()> {
-        let Some(player_id) = client_id(py, player) else {
+        let Some(player_id) = client_id(py, player, None) else {
             return Err(PyValueError::new_err("Invalid player."));
         };
 
@@ -674,7 +646,7 @@ impl Game {
 
     #[classmethod]
     fn unban(_cls: &Bound<'_, PyType>, py: Python<'_>, player: Py<PyAny>) -> PyResult<()> {
-        let Some(player_id) = client_id(py, player) else {
+        let Some(player_id) = client_id(py, player, None) else {
             return Err(PyValueError::new_err("Invalid player."));
         };
 
@@ -690,7 +662,7 @@ impl Game {
 
     #[classmethod]
     fn addadmin(_cls: &Bound<'_, PyType>, py: Python<'_>, player: Py<PyAny>) -> PyResult<()> {
-        let Some(player_id) = client_id(py, player) else {
+        let Some(player_id) = client_id(py, player, None) else {
             return Err(PyValueError::new_err("Invalid player."));
         };
 
@@ -700,7 +672,7 @@ impl Game {
 
     #[classmethod]
     fn addmod(_cls: &Bound<'_, PyType>, py: Python<'_>, player: Py<PyAny>) -> PyResult<()> {
-        let Some(player_id) = client_id(py, player) else {
+        let Some(player_id) = client_id(py, player, None) else {
             return Err(PyValueError::new_err("Invalid player."));
         };
 
@@ -710,7 +682,7 @@ impl Game {
 
     #[classmethod]
     fn demote(_cls: &Bound<'_, PyType>, py: Python<'_>, player: Py<PyAny>) -> PyResult<()> {
-        let Some(player_id) = client_id(py, player) else {
+        let Some(player_id) = client_id(py, player, None) else {
             return Err(PyValueError::new_err("Invalid player."));
         };
 
@@ -730,7 +702,7 @@ impl Game {
         player: Py<PyAny>,
         score: i32,
     ) -> PyResult<()> {
-        let Some(player_id) = client_id(py, player) else {
+        let Some(player_id) = client_id(py, player, None) else {
             return Err(PyValueError::new_err("Invalid player."));
         };
 
