@@ -1183,7 +1183,7 @@ impl Player {
         pyshinqlx_console_command(py, &unmute_cmd)
     }
 
-    fn put(&self, py: Python<'_>, team: &str) -> PyResult<()> {
+    pub(crate) fn put(&self, py: Python<'_>, team: &str) -> PyResult<()> {
         if !["free", "red", "blue", "spectator"].contains(&&*team.to_lowercase()) {
             return Err(PyValueError::new_err("Invalid team."));
         }

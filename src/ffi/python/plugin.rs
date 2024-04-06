@@ -913,6 +913,123 @@ impl Plugin {
         };
         pyshinqlx_console_command(py, &mapchange_command)
     }
+
+    #[classmethod]
+    fn switch(
+        cls: &Bound<'_, PyType>,
+        py: Python<'_>,
+        player: PyObject,
+        other_player: PyObject,
+    ) -> PyResult<()> {
+        let Some(player1) = Self::player(cls, py, player, None)? else {
+            return Err(PyValueError::new_err("The first player is invalid."));
+        };
+        let Some(player2) = Self::player(cls, py, other_player, None)? else {
+            return Err(PyValueError::new_err("The second player is invalid."));
+        };
+
+        let team1 = player1.get_team(py)?;
+        let team2 = player2.get_team(py)?;
+
+        if team1 == team2 {
+            return Err(PyValueError::new_err("Both player are on the same team."));
+        }
+
+        player1.put(py, &team2)?;
+        player2.put(py, &team1)?;
+
+        Ok(())
+    }
+
+    #[classmethod]
+    #[pyo3(signature = (sound_path, player = None))]
+    fn play_sound(
+        _cls: &Bound<'_, PyType>,
+        py: Python<'_>,
+        sound_path: &str,
+        player: Option<Player>,
+    ) -> PyResult<bool> {
+        if sound_path.is_empty() || sound_path.contains("music/") {
+            return Ok(false);
+        }
+
+        let play_sound_cmd = format!("playSound {sound_path}");
+        pyshinqlx_send_server_command(py, player.map(|player| player.id), &play_sound_cmd)?;
+
+        Ok(true)
+    }
+
+    #[classmethod]
+    #[pyo3(signature = (music_path, player = None))]
+    fn play_music(
+        _cls: &Bound<'_, PyType>,
+        py: Python<'_>,
+        music_path: &str,
+        player: Option<Player>,
+    ) -> PyResult<bool> {
+        if music_path.is_empty() || music_path.contains("sound/") {
+            return Ok(false);
+        }
+
+        let play_music_cmd = format!("playMusic {music_path}");
+        pyshinqlx_send_server_command(py, player.map(|player| player.id), &play_music_cmd)?;
+
+        Ok(true)
+    }
+
+    #[classmethod]
+    #[pyo3(signature = (player = None))]
+    fn stop_sound(
+        _cls: &Bound<'_, PyType>,
+        py: Python<'_>,
+        player: Option<Player>,
+    ) -> PyResult<()> {
+        pyshinqlx_send_server_command(py, player.map(|player| player.id), "clearSounds")?;
+
+        Ok(())
+    }
+
+    #[classmethod]
+    #[pyo3(signature = (player = None))]
+    fn stop_music(
+        _cls: &Bound<'_, PyType>,
+        py: Python<'_>,
+        player: Option<Player>,
+    ) -> PyResult<()> {
+        pyshinqlx_send_server_command(py, player.map(|player| player.id), "stopMusic")?;
+
+        Ok(())
+    }
+
+    #[classmethod]
+    #[pyo3(signature = (player, damage = 0))]
+    fn slap(
+        cls: &Bound<'_, PyType>,
+        py: Python<'_>,
+        player: PyObject,
+        damage: i32,
+    ) -> PyResult<()> {
+        let Some(client_id) = Self::client_id(cls, py, player, None) else {
+            return Err(PyValueError::new_err("Invalid player."));
+        };
+
+        let slap_cmd = format!("slap {client_id} {damage}");
+        pyshinqlx_console_command(py, &slap_cmd)?;
+
+        Ok(())
+    }
+
+    #[classmethod]
+    fn slay(cls: &Bound<'_, PyType>, py: Python<'_>, player: PyObject) -> PyResult<()> {
+        let Some(client_id) = Self::client_id(cls, py, player, None) else {
+            return Err(PyValueError::new_err("Invalid player."));
+        };
+
+        let slay_cmd = format!("slay {client_id}");
+        pyshinqlx_console_command(py, &slay_cmd)?;
+
+        Ok(())
+    }
 }
 
 #[cfg(test)]
