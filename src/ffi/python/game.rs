@@ -1,7 +1,7 @@
 use super::prelude::*;
 use super::{
-    set_teamsize, addadmin, addmod, addscore, addteamscore, ban, demote, lock, mute, opsay, put, tempban, unban,
-    unlock, unmute,
+    addadmin, addmod, addscore, addteamscore, ban, demote, lock, mute, opsay, put, set_teamsize,
+    tempban, unban, unlock, unmute,
 };
 
 use crate::{

@@ -244,8 +244,6 @@ from ._shinqlx import (
     EVENT_DISPATCHERS,
     UncancellableEventReturn,
     CancellableEventReturn,
-)
-from ._plugin import (
     Plugin,
     GameStartData,
     GameEndData,
@@ -539,7 +537,6 @@ __all__ = [
     "EVENT_DISPATCHERS",
     "UncancellableEventReturn",
     "CancellableEventReturn",
-    # _plugin
     "Plugin",
     "GameStartData",
     "GameEndData",

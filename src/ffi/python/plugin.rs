@@ -1,8 +1,9 @@
 use super::prelude::*;
 
 use super::{
-    set_teamsize, addadmin, addmod, addscore, addteamscore, ban, client_id, commands::CommandPriorities, demote,
-    lock, mute, opsay, put, pyshinqlx_get_logger, tempban, unban, unlock, unmute,
+    addadmin, addmod, addscore, addteamscore, ban, client_id, commands::CommandPriorities, demote,
+    lock, mute, opsay, put, pyshinqlx_get_logger, set_teamsize, tempban, unban, unlock, unmute,
+    LOADED_PLUGINS, PLUGIN_DATABASE,
 };
 #[cfg(test)]
 use crate::hooks::mock_hooks::shinqlx_com_printf;
@@ -15,7 +16,9 @@ use crate::{
     quake_live_engine::{ConsoleCommand, FindCVar, GetCVar, GetConfigstring, SetCVarLimit},
 };
 
+use pyo3::exceptions::PyRuntimeError;
 use pyo3::prelude::*;
+use pyo3::types::IntoPyDict;
 use pyo3::{
     exceptions::{PyEnvironmentError, PyValueError},
     gc::PyVisit,
@@ -78,7 +81,69 @@ impl Plugin {
         slf.get_type().name().map(|value| value.to_string())
     }
 
-    // placeholder for get_db
+    #[classattr]
+    #[pyo3(name = "database")]
+    fn get_database() -> Option<PyObject> {
+        let database_class_guard = PLUGIN_DATABASE.try_read()?;
+
+        match database_class_guard.as_ref() {
+            None => None,
+            Some(db_class) => Python::with_gil(|py| Some(db_class.clone_ref(py))),
+        }
+    }
+
+    #[setter(database)]
+    fn set_database(slf: &Bound<'_, Self>, py: Python<'_>, _db: PyObject) -> PyResult<()> {
+        let plugin_type = slf.get_type();
+        let logger = pyshinqlx_get_logger(py, Some(plugin_type.name()?.into_py(py)))?;
+        let logging_module = py.import_bound(intern!(py, "logging"))?;
+        let warning_level = logging_module.getattr(intern!(py, "WARNING"))?;
+        let log_record = logger.call_method(
+            intern!(py, "makeRecord"),
+            (
+                intern!(py, "shinqlx"),
+                warning_level,
+                intern!(py, ""),
+                -1,
+                intern!(py, "Setting of class attribute 'database' unsupported. Plugin.database is initialized during Python initalization based on the configured cvars."),
+                py.None(),
+                py.None(),
+            ),
+            Some(
+                &[(intern!(py, "func"), intern!(py, "databse"))].into_py_dict_bound(py),
+            ),
+        )?;
+        logger.call_method1(intern!(py, "handle"), (log_record,))?;
+
+        Ok(())
+    }
+
+    /// The database instance.
+    #[getter(db)]
+    fn get_db(slf: &Bound<'_, Self>, py: Python<'_>) -> PyResult<PyObject> {
+        let Some(database_class_guard) = PLUGIN_DATABASE.try_read() else {
+            let plugin_name = Self::get_name(slf)?;
+            let error_msg = format!("Plugin '{plugin_name}' does not have a database driver.");
+            return Err(PyRuntimeError::new_err(error_msg));
+        };
+
+        let mut plugin = slf.borrow_mut();
+        match database_class_guard.as_ref() {
+            None => {
+                let plugin_name = Self::get_name(slf)?;
+                let error_msg = format!("Plugin '{plugin_name}' does not have a database driver.");
+                return Err(PyRuntimeError::new_err(error_msg));
+            }
+            Some(db_class) => {
+                if plugin.db_instance.bind(py).is_none() {
+                    let db_instance = db_class.call1(py, (slf,))?;
+                    plugin.db_instance = db_instance;
+                }
+            }
+        };
+
+        Ok(plugin.db_instance.clone_ref(py))
+    }
 
     /// The name of the plugin.
     #[getter(name)]
@@ -86,7 +151,30 @@ impl Plugin {
         slf.get_type().name().map(|value| value.to_string())
     }
 
-    // placeholder for get_plugins
+    #[classattr]
+    #[pyo3(name = "_loaded_plugins")]
+    fn get_loaded_plugins() -> PyObject {
+        Python::with_gil(|py| {
+            let Some(loaded_plugins_guard) = LOADED_PLUGINS.try_read() else {
+                return PyDict::new_bound(py).unbind().into();
+            };
+
+            let loaded_plugins: &Vec<(String, PyObject)> = loaded_plugins_guard.as_ref();
+            loaded_plugins.into_py_dict_bound(py).unbind().into()
+        })
+    }
+
+    /// A dictionary containing plugin names as keys and plugin instances
+    /// as values of all currently loaded plugins.
+    #[getter(plugins)]
+    fn get_plugins<'py>(&self, py: Python<'py>) -> Bound<'py, PyDict> {
+        let Some(loaded_plugins_guard) = LOADED_PLUGINS.try_read() else {
+            return PyDict::new_bound(py);
+        };
+
+        let loaded_plugins: &Vec<(String, PyObject)> = loaded_plugins_guard.as_ref();
+        loaded_plugins.into_py_dict_bound(py)
+    }
 
     /// A list of all the hooks this plugin has.
     #[getter(hooks)]

@@ -74,6 +74,7 @@ pub(crate) mod prelude {
     pub(crate) use super::stats_listener::StatsListener;
     pub(crate) use super::vector3::Vector3;
     pub(crate) use super::weapons::Weapons;
+    pub(crate) use super::plugin::Plugin;
 
     pub(crate) use super::{clean_text, parse_variables};
 
@@ -153,6 +154,12 @@ pub(crate) static ALLOW_FREE_CLIENT: AtomicU64 = AtomicU64::new(0);
 
 pub(crate) static CUSTOM_COMMAND_HANDLER: Lazy<ArcSwapOption<PyObject>> =
     Lazy::new(ArcSwapOption::empty);
+
+pub(crate) static PLUGIN_DATABASE: Lazy<parking_lot::RwLock<Option<PyObject>>> =
+    Lazy::new(|| parking_lot::RwLock::new(None));
+
+pub(crate) static LOADED_PLUGINS: Lazy<parking_lot::RwLock<Vec<(String, PyObject)>>> =
+    Lazy::new(parking_lot::RwLock::default);
 
 // Used primarily in Python, but defined here and added using PyModule_AddIntMacro().
 #[allow(non_camel_case_types)]
@@ -1047,9 +1054,9 @@ fn try_load_plugin(py: Python<'_>, plugin: &str) -> PyResult<()> {
         ));
     }
 
-    let loaded_plugins = shinqlx_plugin_module.getattr(intern!(py, "_loaded_plugins"))?;
     let loaded_plugin = plugin_class.call0()?;
-    loaded_plugins.set_item(&plugin_pystring, loaded_plugin)?;
+    let mut loaded_plugins = LOADED_PLUGINS.write();
+    loaded_plugins.push((plugin.to_string(), loaded_plugin.unbind()));
 
     Ok(())
 }
@@ -1290,8 +1297,8 @@ fn late_init(py: Python<'_>) -> PyResult<()> {
         let database_module = shinqlx_module.getattr(intern!(py, "database"))?;
         let redis_database_module = database_module.getattr(intern!(py, "Redis"))?;
 
-        let plugin_module = shinqlx_module.getattr(intern!(py, "Plugin"))?;
-        plugin_module.setattr(intern!(py, "database"), redis_database_module)?;
+        let mut plugin_database = PLUGIN_DATABASE.write();
+        *plugin_database = Some(redis_database_module.unbind());
     }
 
     let sys_module = py.import_bound(intern!(py, "sys"))?;
@@ -1872,6 +1879,9 @@ fn pyshinqlx_module(py: Python<'_>, m: &Bound<'_, PyModule>) -> PyResult<()> {
 
     // from _zmq.py
     m.add_class::<StatsListener>()?;
+
+    // from _plugin.py
+    m.add_class::<Plugin>()?;
 
     Ok(())
 }
