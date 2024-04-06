@@ -1055,9 +1055,9 @@ fn try_load_plugin(py: Python<'_>, plugin: &str) -> PyResult<()> {
     }
 
     let loaded_plugin = plugin_class.call0()?;
-    let mut loaded_plugins = LOADED_PLUGINS.write();
-    loaded_plugins.push((plugin.to_string(), loaded_plugin.unbind()));
-
+    LOADED_PLUGINS
+        .write()
+        .push((plugin.to_string(), loaded_plugin.unbind()));
     Ok(())
 }
 
@@ -1095,11 +1095,11 @@ fn load_plugin(py: Python<'_>, plugin: &str) -> PyResult<()> {
     }
 
     let shinqlx_module = py.import_bound(intern!(py, "shinqlx"))?;
-    let plugin_module = shinqlx_module.getattr(intern!(py, "Plugin"))?;
-    let loaded_plugins = plugin_module.getattr(intern!(py, "_loaded_plugins"))?;
-
-    let plugin_loaded = loaded_plugins.contains(plugin)?;
-    if plugin_loaded {
+    if LOADED_PLUGINS
+        .read()
+        .iter()
+        .any(|(plugin_name, _)| plugin_name == plugin)
+    {
         shinqlx_module.call_method1(intern!(py, "reload_plugin"), (plugin,))?;
         return Ok(());
     }
@@ -1118,52 +1118,63 @@ fn try_unload_plugin(py: Python<'_>, plugin: &str) -> PyResult<()> {
     let unload_dispatcher = event_dispatchers.get_item(intern!(py, "unload"))?;
     unload_dispatcher.call_method1(intern!(py, "dispatch"), (plugin,))?;
 
-    let shinqlx_plugin_module = shinqlx_module.getattr(intern!(py, "Plugin"))?;
-    let loaded_plugins = shinqlx_plugin_module.getattr(intern!(py, "_loaded_plugins"))?;
-    let loaded_plugin = loaded_plugins.get_item(plugin)?;
-
-    let shinqlx_event_dispatchers = shinqlx_module.getattr(intern!(py, "EVENT_DISPATCHERS"))?;
-    let plugin_hooks = loaded_plugin.getattr(intern!(py, "hooks"))?;
-    plugin_hooks.iter()?.flatten().for_each(|hook| {
-        if let Ok(hook_tuple) = hook.extract::<&PyTuple>() {
-            let Ok(event_name) = hook_tuple.get_item(0) else {
-                return;
-            };
-            let Ok(event_handler) = hook_tuple.get_item(1) else {
-                return;
-            };
-            let Ok(event_priority) = hook_tuple.get_item(2) else {
-                return;
-            };
-            let Ok(event_dispatcher) = shinqlx_event_dispatchers.get_item(event_name) else {
-                return;
-            };
-            let Ok(plugin_name) = loaded_plugin.getattr(intern!(py, "name")) else {
-                return;
-            };
-
-            if let Err(ref e) = event_dispatcher.call_method1(
-                intern!(py, "remove_hook"),
-                (plugin_name, event_handler, event_priority),
-            ) {
-                log_exception(py, e);
-            }
-        }
-    });
-
-    let shinqlx_commands = shinqlx_module.getattr(intern!(py, "COMMANDS"))?;
-    let plugin_commands = loaded_plugin.getattr(intern!(py, "commands"))?;
-    plugin_commands.iter()?.flatten().for_each(|cmd| {
-        if let Ok(py_cmd) = cmd.extract::<Command>() {
-            let result = shinqlx_commands.call_method1(intern!(py, "remove_command"), (py_cmd,));
-
-            if let Err(ref e) = result {
-                log_exception(py, e);
-            }
+    {
+        let loaded_plugins_guard = LOADED_PLUGINS.read();
+        let Some(loaded_plugin) = loaded_plugins_guard
+            .iter()
+            .find(|(plugin_name, _)| plugin_name == plugin)
+            .map(|(_, plugin)| plugin)
+        else {
+            let error_msg = format!("Attempted to unload a plugin '{plugin}' that is not loaded.");
+            return Err(PyValueError::new_err(error_msg));
         };
-    });
 
-    loaded_plugins.del_item(plugin)?;
+        let shinqlx_event_dispatchers = shinqlx_module.getattr(intern!(py, "EVENT_DISPATCHERS"))?;
+        let plugin_hooks = loaded_plugin.bind(py).getattr(intern!(py, "hooks"))?;
+        plugin_hooks.iter()?.flatten().for_each(|hook| {
+            if let Ok(hook_tuple) = hook.extract::<&PyTuple>() {
+                let Ok(event_name) = hook_tuple.get_item(0) else {
+                    return;
+                };
+                let Ok(event_handler) = hook_tuple.get_item(1) else {
+                    return;
+                };
+                let Ok(event_priority) = hook_tuple.get_item(2) else {
+                    return;
+                };
+                let Ok(event_dispatcher) = shinqlx_event_dispatchers.get_item(event_name) else {
+                    return;
+                };
+                let Ok(plugin_name) = loaded_plugin.bind(py).getattr(intern!(py, "name")) else {
+                    return;
+                };
+
+                if let Err(ref e) = event_dispatcher.call_method1(
+                    intern!(py, "remove_hook"),
+                    (plugin_name, event_handler, event_priority),
+                ) {
+                    log_exception(py, e);
+                }
+            }
+        });
+
+        let shinqlx_commands = shinqlx_module.getattr(intern!(py, "COMMANDS"))?;
+        let plugin_commands = loaded_plugin.bind(py).getattr(intern!(py, "commands"))?;
+        plugin_commands.iter()?.flatten().for_each(|cmd| {
+            if let Ok(py_cmd) = cmd.extract::<Command>() {
+                let result =
+                    shinqlx_commands.call_method1(intern!(py, "remove_command"), (py_cmd,));
+
+                if let Err(ref e) = result {
+                    log_exception(py, e);
+                }
+            };
+        });
+    }
+
+    LOADED_PLUGINS
+        .write()
+        .retain(|(plugin_name, _)| plugin_name != plugin);
     Ok(())
 }
 
@@ -1188,16 +1199,15 @@ fn unload_plugin(py: Python<'_>, plugin: &str) -> PyResult<()> {
     )?;
     logger.call_method1(intern!(py, "handle"), (log_record,))?;
 
-    let shinqlx_module = py.import_bound(intern!(py, "shinqlx"))?;
-    let plugin_module = shinqlx_module.getattr(intern!(py, "Plugin"))?;
-    if let Ok(loaded_plugins) = plugin_module.getattr(intern!(py, "_loaded_plugins")) {
-        let plugin_loaded = loaded_plugins.contains(plugin)?;
-        if !plugin_loaded {
-            return Err(PluginUnloadError::new_err(
-                "Attempted to unload a plugin that is not loaded.",
-            ));
-        }
-    };
+    if !LOADED_PLUGINS
+        .read()
+        .iter()
+        .any(|(plugin_name, _)| plugin_name == plugin)
+    {
+        return Err(PluginUnloadError::new_err(
+            "Attempted to unload a plugin that is not loaded.",
+        ));
+    }
 
     let plugin_unload_result = try_unload_plugin(py, plugin);
     if let Err(ref e) = plugin_unload_result {
