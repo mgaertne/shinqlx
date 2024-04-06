@@ -361,6 +361,142 @@ pub(crate) fn client_id(
     None
 }
 
+pub(crate) fn lock(py: Python<'_>, team: Option<&str>) -> PyResult<()> {
+    match team {
+        None => pyshinqlx_console_command(py, "lock"),
+        Some(team_name) => {
+            if !["free", "red", "blue", "spectator"].contains(&&*team_name.to_lowercase()) {
+                Err(PyValueError::new_err("Invalid team."))
+            } else {
+                let lock_cmd = format!("lock {}", team_name.to_lowercase());
+                pyshinqlx_console_command(py, &lock_cmd)
+            }
+        }
+    }
+}
+
+pub(crate) fn unlock(py: Python<'_>, team: Option<&str>) -> PyResult<()> {
+    match team {
+        None => pyshinqlx_console_command(py, "unlock"),
+        Some(team_name) => {
+            if !["free", "red", "blue", "spectator"].contains(&&*team_name.to_lowercase()) {
+                Err(PyValueError::new_err("Invalid team."))
+            } else {
+                let unlock_cmd = format!("unlock {}", team_name.to_lowercase());
+                pyshinqlx_console_command(py, &unlock_cmd)
+            }
+        }
+    }
+}
+
+pub(crate) fn put(py: Python<'_>, player: PyObject, team: &str) -> PyResult<()> {
+    let Some(player_id) = client_id(py, player, None) else {
+        return Err(PyValueError::new_err("Invalid player."));
+    };
+
+    if !["free", "red", "blue", "spectator"].contains(&&*team.to_lowercase()) {
+        return Err(PyValueError::new_err("Invalid team."));
+    }
+
+    let team_change_cmd = format!("put {} {}", player_id, team.to_lowercase());
+    pyshinqlx_console_command(py, &team_change_cmd)
+}
+
+pub(crate) fn mute(py: Python<'_>, player: PyObject) -> PyResult<()> {
+    let Some(player_id) = client_id(py, player, None) else {
+        return Err(PyValueError::new_err("Invalid player."));
+    };
+
+    let mute_cmd = format!("mute {}", player_id);
+    pyshinqlx_console_command(py, &mute_cmd)
+}
+
+pub(crate) fn unmute(py: Python<'_>, player: PyObject) -> PyResult<()> {
+    let Some(player_id) = client_id(py, player, None) else {
+        return Err(PyValueError::new_err("Invalid player."));
+    };
+
+    let unmute_cmd = format!("unmute {}", player_id);
+    pyshinqlx_console_command(py, &unmute_cmd)
+}
+
+pub(crate) fn tempban(py: Python<'_>, player: PyObject) -> PyResult<()> {
+    let Some(player_id) = client_id(py, player, None) else {
+        return Err(PyValueError::new_err("Invalid player."));
+    };
+
+    let tempban_cmd = format!("tempban {}", player_id);
+    pyshinqlx_console_command(py, &tempban_cmd)
+}
+
+pub(crate) fn ban(py: Python<'_>, player: PyObject) -> PyResult<()> {
+    let Some(player_id) = client_id(py, player, None) else {
+        return Err(PyValueError::new_err("Invalid player."));
+    };
+
+    let ban_cmd = format!("ban {}", player_id);
+    pyshinqlx_console_command(py, &ban_cmd)
+}
+
+pub(crate) fn unban(py: Python<'_>, player: PyObject) -> PyResult<()> {
+    let Some(player_id) = client_id(py, player, None) else {
+        return Err(PyValueError::new_err("Invalid player."));
+    };
+
+    let unban_cmd = format!("unban {}", player_id);
+    pyshinqlx_console_command(py, &unban_cmd)
+}
+
+pub(crate) fn opsay(py: Python<'_>, msg: &str) -> PyResult<()> {
+    let opsay_cmd = format!("opsay {}", msg);
+    pyshinqlx_console_command(py, &opsay_cmd)
+}
+
+pub(crate) fn addadmin(py: Python<'_>, player: PyObject) -> PyResult<()> {
+    let Some(player_id) = client_id(py, player, None) else {
+        return Err(PyValueError::new_err("Invalid player."));
+    };
+
+    let addadmin_cmd = format!("addadmin {}", player_id);
+    pyshinqlx_console_command(py, &addadmin_cmd)
+}
+
+pub(crate) fn addmod(py: Python<'_>, player: PyObject) -> PyResult<()> {
+    let Some(player_id) = client_id(py, player, None) else {
+        return Err(PyValueError::new_err("Invalid player."));
+    };
+
+    let addmod_cmd = format!("addmod {}", player_id);
+    pyshinqlx_console_command(py, &addmod_cmd)
+}
+
+pub(crate) fn demote(py: Python<'_>, player: PyObject) -> PyResult<()> {
+    let Some(player_id) = client_id(py, player, None) else {
+        return Err(PyValueError::new_err("Invalid player."));
+    };
+
+    let demote_cmd = format!("demote {}", player_id);
+    pyshinqlx_console_command(py, &demote_cmd)
+}
+
+pub(crate) fn addscore(py: Python<'_>, player: PyObject, score: i32) -> PyResult<()> {
+    let Some(player_id) = client_id(py, player, None) else {
+        return Err(PyValueError::new_err("Invalid player."));
+    };
+
+    let addscore_cmd = format!("addscore {} {}", player_id, score);
+    pyshinqlx_console_command(py, &addscore_cmd)
+}
+
+pub(crate) fn addteamscore(py: Python<'_>, team: &str, score: i32) -> PyResult<()> {
+    if !["free", "red", "blue", "spectator"].contains(&&*team.to_lowercase()) {
+        return Err(PyValueError::new_err("Invalid team."));
+    }
+
+    let addteamscore_cmd = format!("addteamscore {} {}", team.to_lowercase(), score);
+    pyshinqlx_console_command(py, &addteamscore_cmd)
+}
+
 #[pyfunction]
 #[pyo3(pass_module)]
 fn set_map_subtitles(module: &Bound<'_, PyModule>) -> PyResult<()> {
@@ -551,9 +687,9 @@ fn pyshinqlx_log_exception(py: Python<'_>, plugin: Option<PyObject>) -> PyResult
 #[pyo3(name = "handle_exception")]
 fn pyshinqlx_handle_exception(
     py: Python<'_>,
-    exc_type: Py<PyAny>,
-    exc_value: Py<PyAny>,
-    exc_traceback: Py<PyAny>,
+    exc_type: PyObject,
+    exc_value: PyObject,
+    exc_traceback: PyObject,
 ) -> PyResult<()> {
     let traceback_module = py.import_bound(intern!(py, "traceback"))?;
 
@@ -571,7 +707,7 @@ fn pyshinqlx_handle_exception(
 
 #[pyfunction]
 #[pyo3(name = "threading_excepthook")]
-fn pyshinqlx_handle_threading_exception(py: Python<'_>, args: Py<PyAny>) -> PyResult<()> {
+fn pyshinqlx_handle_threading_exception(py: Python<'_>, args: PyObject) -> PyResult<()> {
     pyshinqlx_handle_exception(
         py,
         args.getattr(py, intern!(py, "exc_type"))?,
