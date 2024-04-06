@@ -110,7 +110,7 @@ impl Plugin {
                 py.None(),
             ),
             Some(
-                &[(intern!(py, "func"), intern!(py, "databse"))].into_py_dict_bound(py),
+                &[(intern!(py, "func"), intern!(py, "database"))].into_py_dict_bound(py),
             ),
         )?;
         logger.call_method1(intern!(py, "handle"), (log_record,))?;
@@ -156,11 +156,11 @@ impl Plugin {
     fn get_loaded_plugins() -> PyObject {
         Python::with_gil(|py| {
             let Some(loaded_plugins_guard) = LOADED_PLUGINS.try_read() else {
-                return PyDict::new_bound(py).unbind().into();
+                return PyDict::new_bound(py).into_py(py);
             };
 
             let loaded_plugins: &Vec<(String, PyObject)> = loaded_plugins_guard.as_ref();
-            loaded_plugins.into_py_dict_bound(py).unbind().into()
+            loaded_plugins.as_slice().into_py_dict_bound(py).into_py(py)
         })
     }
 
@@ -764,7 +764,11 @@ impl Plugin {
         let cleaned_text = clean_text(&name).to_lowercase();
         players
             .into_iter()
-            .filter(|player| clean_text(&player.name).contains(&cleaned_text))
+            .filter(|player| {
+                clean_text(&player.name)
+                    .to_lowercase()
+                    .contains(&cleaned_text)
+            })
             .collect()
     }
 
