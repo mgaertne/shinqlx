@@ -155,12 +155,6 @@ pub(crate) static ALLOW_FREE_CLIENT: AtomicU64 = AtomicU64::new(0);
 pub(crate) static CUSTOM_COMMAND_HANDLER: Lazy<ArcSwapOption<PyObject>> =
     Lazy::new(ArcSwapOption::empty);
 
-pub(crate) static PLUGIN_DATABASE: Lazy<parking_lot::RwLock<Option<PyObject>>> =
-    Lazy::new(|| parking_lot::RwLock::new(None));
-
-pub(crate) static LOADED_PLUGINS: Lazy<parking_lot::RwLock<Vec<(String, PyObject)>>> =
-    Lazy::new(parking_lot::RwLock::default);
-
 // Used primarily in Python, but defined here and added using PyModule_AddIntMacro().
 #[allow(non_camel_case_types)]
 #[derive(PartialEq, Clone, Copy)]
@@ -1055,16 +1049,11 @@ fn try_load_plugin(py: Python<'_>, plugin: &str) -> PyResult<()> {
     }
 
     let loaded_plugin = plugin_class.call0()?;
-    LOADED_PLUGINS
-        .write()
-        .push((plugin.to_string(), loaded_plugin.unbind()));
-    if let Some(loaded_plugins_guard) = LOADED_PLUGINS.try_read() {
-        let loaded_plugins: &Vec<(String, PyObject)> = loaded_plugins_guard.as_ref();
-        Python::get_type_bound::<Plugin>(py).setattr(
-            intern!(py, "_loaded_plugins"),
-            loaded_plugins.into_py_dict_bound(py),
-        )?;
-    }
+
+    let loaded_plugins = Python::get_type_bound::<Plugin>(py)
+        .getattr(intern!(py, "_loaded_plugins"))?
+        .extract::<&PyDict>()?;
+    loaded_plugins.set_item(plugin, loaded_plugin)?;
 
     Ok(())
 }
@@ -1103,11 +1092,11 @@ fn load_plugin(py: Python<'_>, plugin: &str) -> PyResult<()> {
     }
 
     let shinqlx_module = py.import_bound(intern!(py, "shinqlx"))?;
-    if LOADED_PLUGINS
-        .try_read()
-        .map(|guard| guard.iter().any(|(plugin_name, _)| plugin_name == plugin))
-        .unwrap_or(false)
-    {
+    let loaded_plugins = Python::get_type_bound::<Plugin>(py)
+        .getattr(intern!(py, "_loaded_plugins"))?
+        .extract::<&PyDict>()?;
+
+    if loaded_plugins.contains(plugin)? {
         shinqlx_module.call_method1(intern!(py, "reload_plugin"), (plugin,))?;
         return Ok(());
     }
@@ -1126,70 +1115,57 @@ fn try_unload_plugin(py: Python<'_>, plugin: &str) -> PyResult<()> {
     let unload_dispatcher = event_dispatchers.get_item(intern!(py, "unload"))?;
     unload_dispatcher.call_method1(intern!(py, "dispatch"), (plugin,))?;
 
-    {
-        let loaded_plugins_guard = LOADED_PLUGINS.read();
-        let Some(loaded_plugin) = loaded_plugins_guard
-            .iter()
-            .find(|(plugin_name, _)| plugin_name == plugin)
-            .map(|(_, plugin)| plugin)
-        else {
-            let error_msg = format!("Attempted to unload a plugin '{plugin}' that is not loaded.");
-            return Err(PyValueError::new_err(error_msg));
-        };
+    let loaded_plugins = Python::get_type_bound::<Plugin>(py)
+        .getattr(intern!(py, "_loaded_plugins"))?
+        .extract::<&PyDict>()?;
 
-        let shinqlx_event_dispatchers = shinqlx_module.getattr(intern!(py, "EVENT_DISPATCHERS"))?;
-        let plugin_hooks = loaded_plugin.bind(py).getattr(intern!(py, "hooks"))?;
-        plugin_hooks.iter()?.flatten().for_each(|hook| {
-            if let Ok(hook_tuple) = hook.extract::<&PyTuple>() {
-                let Ok(event_name) = hook_tuple.get_item(0) else {
-                    return;
-                };
-                let Ok(event_handler) = hook_tuple.get_item(1) else {
-                    return;
-                };
-                let Ok(event_priority) = hook_tuple.get_item(2) else {
-                    return;
-                };
-                let Ok(event_dispatcher) = shinqlx_event_dispatchers.get_item(event_name) else {
-                    return;
-                };
-                let Ok(plugin_name) = loaded_plugin.bind(py).getattr(intern!(py, "name")) else {
-                    return;
-                };
+    let Some(loaded_plugin) = loaded_plugins.get_item(plugin)? else {
+        let error_msg = format!("Attempted to unload a plugin '{plugin}' that is not loaded.");
+        return Err(PyValueError::new_err(error_msg));
+    };
 
-                if let Err(ref e) = event_dispatcher.call_method1(
-                    intern!(py, "remove_hook"),
-                    (plugin_name, event_handler, event_priority),
-                ) {
-                    log_exception(py, e);
-                }
-            }
-        });
-
-        let shinqlx_commands = shinqlx_module.getattr(intern!(py, "COMMANDS"))?;
-        let plugin_commands = loaded_plugin.bind(py).getattr(intern!(py, "commands"))?;
-        plugin_commands.iter()?.flatten().for_each(|cmd| {
-            if let Ok(py_cmd) = cmd.extract::<Command>() {
-                let result =
-                    shinqlx_commands.call_method1(intern!(py, "remove_command"), (py_cmd,));
-
-                if let Err(ref e) = result {
-                    log_exception(py, e);
-                }
+    let shinqlx_event_dispatchers = shinqlx_module.getattr(intern!(py, "EVENT_DISPATCHERS"))?;
+    let plugin_hooks = loaded_plugin.getattr(intern!(py, "hooks"))?;
+    plugin_hooks.iter()?.flatten().for_each(|hook| {
+        if let Ok(hook_tuple) = hook.extract::<&PyTuple>() {
+            let Ok(event_name) = hook_tuple.get_item(0) else {
+                return;
             };
-        });
-    }
+            let Ok(event_handler) = hook_tuple.get_item(1) else {
+                return;
+            };
+            let Ok(event_priority) = hook_tuple.get_item(2) else {
+                return;
+            };
+            let Ok(event_dispatcher) = shinqlx_event_dispatchers.get_item(event_name) else {
+                return;
+            };
+            let Ok(plugin_name) = loaded_plugin.getattr(intern!(py, "name")) else {
+                return;
+            };
 
-    LOADED_PLUGINS
-        .write()
-        .retain(|(plugin_name, _)| plugin_name != plugin);
-    if let Some(loaded_plugins_guard) = LOADED_PLUGINS.try_read() {
-        let loaded_plugins: &Vec<(String, PyObject)> = loaded_plugins_guard.as_ref();
-        Python::get_type_bound::<Plugin>(py).setattr(
-            intern!(py, "_loaded_plugins"),
-            loaded_plugins.into_py_dict_bound(py),
-        )?;
-    }
+            if let Err(ref e) = event_dispatcher.call_method1(
+                intern!(py, "remove_hook"),
+                (plugin_name, event_handler, event_priority),
+            ) {
+                log_exception(py, e);
+            }
+        }
+    });
+
+    let shinqlx_commands = shinqlx_module.getattr(intern!(py, "COMMANDS"))?;
+    let plugin_commands = loaded_plugin.getattr(intern!(py, "commands"))?;
+    plugin_commands.iter()?.flatten().for_each(|cmd| {
+        if let Ok(py_cmd) = cmd.extract::<Command>() {
+            let result = shinqlx_commands.call_method1(intern!(py, "remove_command"), (py_cmd,));
+
+            if let Err(ref e) = result {
+                log_exception(py, e);
+            }
+        };
+    });
+
+    loaded_plugins.del_item(plugin)?;
 
     Ok(())
 }
@@ -1215,14 +1191,12 @@ fn unload_plugin(py: Python<'_>, plugin: &str) -> PyResult<()> {
     )?;
     logger.call_method1(intern!(py, "handle"), (log_record,))?;
 
-    if !LOADED_PLUGINS
-        .try_read()
-        .map(|guard| guard.iter().any(|(plugin_name, _)| plugin_name == plugin))
-        .unwrap_or(false)
-    {
-        return Err(PluginUnloadError::new_err(
-            "Attempted to unload a plugin that is not loaded.",
-        ));
+    let loaded_plugins = Python::get_type_bound::<Plugin>(py)
+        .getattr(intern!(py, "_loaded_plugins"))?
+        .extract::<&PyDict>()?;
+    if !loaded_plugins.contains(plugin)? {
+        let error_msg = format!("Attempted to unload a plugin '{plugin}' that is not loaded.");
+        return Err(PluginUnloadError::new_err(error_msg));
     }
 
     let plugin_unload_result = try_unload_plugin(py, plugin);
@@ -1323,10 +1297,8 @@ fn late_init(py: Python<'_>) -> PyResult<()> {
         let database_module = shinqlx_module.getattr(intern!(py, "database"))?;
         let redis_database_module = database_module.getattr(intern!(py, "Redis"))?;
 
-        Python::get_type_bound::<Plugin>(py).setattr(intern!(py, "database"), &redis_database_module)?;
-
-        let mut plugin_database = PLUGIN_DATABASE.write();
-        *plugin_database = Some(redis_database_module.unbind());
+        Python::get_type_bound::<Plugin>(py)
+            .setattr(intern!(py, "database"), &redis_database_module)?;
     }
 
     let sys_module = py.import_bound(intern!(py, "sys"))?;
@@ -1910,6 +1882,8 @@ fn pyshinqlx_module(py: Python<'_>, m: &Bound<'_, PyModule>) -> PyResult<()> {
 
     // from _plugin.py
     Python::get_type_bound::<Plugin>(py).setattr(intern!(py, "database"), py.None())?;
+    Python::get_type_bound::<Plugin>(py)
+        .setattr(intern!(py, "_loaded_plugins"), PyDict::new_bound(py))?;
     m.add_class::<Plugin>()?;
 
     Ok(())

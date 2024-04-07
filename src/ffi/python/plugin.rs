@@ -3,7 +3,6 @@ use super::prelude::*;
 use super::{
     addadmin, addmod, addscore, addteamscore, ban, client_id, commands::CommandPriorities, demote,
     lock, mute, opsay, put, pyshinqlx_get_logger, set_teamsize, tempban, unban, unlock, unmute,
-    LOADED_PLUGINS, PLUGIN_DATABASE,
 };
 #[cfg(test)]
 use crate::hooks::mock_hooks::shinqlx_com_printf;
@@ -84,26 +83,23 @@ impl Plugin {
     /// The database instance.
     #[getter(db)]
     fn get_db(slf: &Bound<'_, Self>, py: Python<'_>) -> PyResult<PyObject> {
-        let Some(database_class_guard) = PLUGIN_DATABASE.try_read() else {
-            let plugin_name = Self::get_name(slf)?;
+        let plugin_name = Self::get_name(slf)?;
+        let Ok(db_class) = Python::get_type_bound::<Plugin>(py).getattr(intern!(py, "database"))
+        else {
             let error_msg = format!("Plugin '{plugin_name}' does not have a database driver.");
             return Err(PyRuntimeError::new_err(error_msg));
         };
 
+        if db_class.is_none() {
+            let error_msg = format!("Plugin '{plugin_name}' does not have a database driver.");
+            return Err(PyRuntimeError::new_err(error_msg));
+        }
+
         let mut plugin = slf.borrow_mut();
-        match database_class_guard.as_ref() {
-            None => {
-                let plugin_name = Self::get_name(slf)?;
-                let error_msg = format!("Plugin '{plugin_name}' does not have a database driver.");
-                return Err(PyRuntimeError::new_err(error_msg));
-            }
-            Some(db_class) => {
-                if plugin.db_instance.bind(py).is_none() {
-                    let db_instance = db_class.call1(py, (slf,))?;
-                    plugin.db_instance = db_instance;
-                }
-            }
-        };
+        if plugin.db_instance.bind(py).is_none() {
+            let db_instance = db_class.call1((slf,))?;
+            plugin.db_instance = db_instance.unbind();
+        }
 
         Ok(plugin.db_instance.clone_ref(py))
     }
@@ -117,13 +113,12 @@ impl Plugin {
     /// A dictionary containing plugin names as keys and plugin instances
     /// as values of all currently loaded plugins.
     #[getter(plugins)]
-    fn get_plugins<'py>(&self, py: Python<'py>) -> Bound<'py, PyDict> {
-        let Some(loaded_plugins_guard) = LOADED_PLUGINS.try_read() else {
-            return PyDict::new_bound(py);
-        };
+    fn get_plugins<'py>(&self, py: Python<'py>) -> PyResult<Bound<'py, PyDict>> {
+        let loaded_plugins = Python::get_type_bound::<Plugin>(py)
+            .getattr(intern!(py, "_loaded_plugins"))?
+            .extract::<&PyDict>()?;
 
-        let loaded_plugins: &Vec<(String, PyObject)> = loaded_plugins_guard.as_ref();
-        loaded_plugins.into_py_dict_bound(py)
+        Ok(loaded_plugins.into_py_dict_bound(py))
     }
 
     /// A list of all the hooks this plugin has.
