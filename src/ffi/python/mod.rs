@@ -1058,6 +1058,14 @@ fn try_load_plugin(py: Python<'_>, plugin: &str) -> PyResult<()> {
     LOADED_PLUGINS
         .write()
         .push((plugin.to_string(), loaded_plugin.unbind()));
+    if let Some(loaded_plugins_guard) = LOADED_PLUGINS.try_read() {
+        let loaded_plugins: &Vec<(String, PyObject)> = loaded_plugins_guard.as_ref();
+        Python::get_type_bound::<Plugin>(py).setattr(
+            intern!(py, "_loaded_plugins"),
+            loaded_plugins.into_py_dict_bound(py),
+        )?;
+    }
+
     Ok(())
 }
 
@@ -1175,6 +1183,14 @@ fn try_unload_plugin(py: Python<'_>, plugin: &str) -> PyResult<()> {
     LOADED_PLUGINS
         .write()
         .retain(|(plugin_name, _)| plugin_name != plugin);
+    if let Some(loaded_plugins_guard) = LOADED_PLUGINS.try_read() {
+        let loaded_plugins: &Vec<(String, PyObject)> = loaded_plugins_guard.as_ref();
+        Python::get_type_bound::<Plugin>(py).setattr(
+            intern!(py, "_loaded_plugins"),
+            loaded_plugins.into_py_dict_bound(py),
+        )?;
+    }
+
     Ok(())
 }
 
@@ -1306,6 +1322,8 @@ fn late_init(py: Python<'_>) -> PyResult<()> {
     if database_cvar.is_some_and(|value| value.get_string().to_lowercase() == "redis") {
         let database_module = shinqlx_module.getattr(intern!(py, "database"))?;
         let redis_database_module = database_module.getattr(intern!(py, "Redis"))?;
+
+        Python::get_type_bound::<Plugin>(py).setattr(intern!(py, "database"), &redis_database_module)?;
 
         let mut plugin_database = PLUGIN_DATABASE.write();
         *plugin_database = Some(redis_database_module.unbind());
@@ -1891,6 +1909,7 @@ fn pyshinqlx_module(py: Python<'_>, m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_class::<StatsListener>()?;
 
     // from _plugin.py
+    Python::get_type_bound::<Plugin>(py).setattr(intern!(py, "database"), py.None())?;
     m.add_class::<Plugin>()?;
 
     Ok(())

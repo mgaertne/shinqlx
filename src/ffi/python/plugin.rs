@@ -81,43 +81,6 @@ impl Plugin {
         slf.get_type().name().map(|value| value.to_string())
     }
 
-    #[classattr]
-    #[pyo3(name = "database")]
-    fn get_database() -> Option<PyObject> {
-        let database_class_guard = PLUGIN_DATABASE.try_read()?;
-
-        match database_class_guard.as_ref() {
-            None => None,
-            Some(db_class) => Python::with_gil(|py| Some(db_class.clone_ref(py))),
-        }
-    }
-
-    #[setter(database)]
-    fn set_database(slf: &Bound<'_, Self>, py: Python<'_>, _db: PyObject) -> PyResult<()> {
-        let plugin_type = slf.get_type();
-        let logger = pyshinqlx_get_logger(py, Some(plugin_type.name()?.into_py(py)))?;
-        let logging_module = py.import_bound(intern!(py, "logging"))?;
-        let warning_level = logging_module.getattr(intern!(py, "WARNING"))?;
-        let log_record = logger.call_method(
-            intern!(py, "makeRecord"),
-            (
-                intern!(py, "shinqlx"),
-                warning_level,
-                intern!(py, ""),
-                -1,
-                intern!(py, "Setting of class attribute 'database' unsupported. Plugin.database is initialized during Python initalization based on the configured cvars."),
-                py.None(),
-                py.None(),
-            ),
-            Some(
-                &[(intern!(py, "func"), intern!(py, "database"))].into_py_dict_bound(py),
-            ),
-        )?;
-        logger.call_method1(intern!(py, "handle"), (log_record,))?;
-
-        Ok(())
-    }
-
     /// The database instance.
     #[getter(db)]
     fn get_db(slf: &Bound<'_, Self>, py: Python<'_>) -> PyResult<PyObject> {
@@ -149,16 +112,6 @@ impl Plugin {
     #[getter(name)]
     fn get_name(slf: &Bound<'_, Self>) -> PyResult<String> {
         slf.get_type().name().map(|value| value.to_string())
-    }
-
-    #[getter(_loaded_plugins)]
-    fn get_loaded_plugins<'py>(_slf: PyRef<'py, Self>, py: Python<'py>) -> Bound<'py, PyDict> {
-        let Some(loaded_plugins_guard) = LOADED_PLUGINS.try_read() else {
-            return PyDict::new_bound(py);
-        };
-
-        let loaded_plugins: &Vec<(String, PyObject)> = loaded_plugins_guard.as_ref();
-        loaded_plugins.into_py_dict_bound(py)
     }
 
     /// A dictionary containing plugin names as keys and plugin instances
