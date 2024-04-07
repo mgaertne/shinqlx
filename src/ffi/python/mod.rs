@@ -1096,9 +1096,9 @@ fn load_plugin(py: Python<'_>, plugin: &str) -> PyResult<()> {
 
     let shinqlx_module = py.import_bound(intern!(py, "shinqlx"))?;
     if LOADED_PLUGINS
-        .read()
-        .iter()
-        .any(|(plugin_name, _)| plugin_name == plugin)
+        .try_read()
+        .map(|guard| guard.iter().any(|(plugin_name, _)| plugin_name == plugin))
+        .unwrap_or(false)
     {
         shinqlx_module.call_method1(intern!(py, "reload_plugin"), (plugin,))?;
         return Ok(());
@@ -1200,9 +1200,9 @@ fn unload_plugin(py: Python<'_>, plugin: &str) -> PyResult<()> {
     logger.call_method1(intern!(py, "handle"), (log_record,))?;
 
     if !LOADED_PLUGINS
-        .read()
-        .iter()
-        .any(|(plugin_name, _)| plugin_name == plugin)
+        .try_read()
+        .map(|guard| guard.iter().any(|(plugin_name, _)| plugin_name == plugin))
+        .unwrap_or(false)
     {
         return Err(PluginUnloadError::new_err(
             "Attempted to unload a plugin that is not loaded.",
