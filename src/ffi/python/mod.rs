@@ -1736,7 +1736,7 @@ fn pyshinqlx_module(py: Python<'_>, m: &Bound<'_, PyModule>) -> PyResult<()> {
             py,
             TeamChatChannel::py_new("all", "chat", "print \"{}\n\"\n"),
         )?
-        .to_object(py),
+        .into_bound(py),
     )?;
     m.add(
         "RED_TEAM_CHAT_CHANNEL",
@@ -1744,7 +1744,7 @@ fn pyshinqlx_module(py: Python<'_>, m: &Bound<'_, PyModule>) -> PyResult<()> {
             py,
             TeamChatChannel::py_new("red", "red_team_chat", "print \"{}\n\"\n"),
         )?
-        .to_object(py),
+        .into_bound(py),
     )?;
     m.add(
         "BLUE_TEAM_CHAT_CHANNEL",
@@ -1752,7 +1752,7 @@ fn pyshinqlx_module(py: Python<'_>, m: &Bound<'_, PyModule>) -> PyResult<()> {
             py,
             TeamChatChannel::py_new("blue", "blue_team_chat", "print \"{}\n\"\n"),
         )?
-        .to_object(py),
+        .into_bound(py),
     )?;
     m.add(
         "FREE_CHAT_CHANNEL",
@@ -1760,7 +1760,7 @@ fn pyshinqlx_module(py: Python<'_>, m: &Bound<'_, PyModule>) -> PyResult<()> {
             py,
             TeamChatChannel::py_new("free", "free_chat", "print \"{}\n\"\n"),
         )?
-        .to_object(py),
+        .into_bound(py),
     )?;
     m.add(
         "SPECTATOR_CHAT_CHANNEL",
@@ -1768,17 +1768,17 @@ fn pyshinqlx_module(py: Python<'_>, m: &Bound<'_, PyModule>) -> PyResult<()> {
             py,
             TeamChatChannel::py_new("spectator", "spectator_chat", "print \"{}\n\"\n"),
         )?
-        .to_object(py),
+        .into_bound(py),
     )?;
     m.add(
         "CONSOLE_CHANNEL",
-        Py::new(py, ConsoleChannel::py_new())?.to_object(py),
+        Py::new(py, ConsoleChannel::py_new())?.into_bound(py),
     )?;
     m.add_class::<Command>()?;
     m.add_class::<CommandInvoker>()?;
     m.add(
         "COMMANDS",
-        Py::new(py, CommandInvoker::py_new())?.to_object(py),
+        Py::new(py, CommandInvoker::py_new())?.into_bound(py),
     )?;
 
     // from _handlers.py
@@ -1883,7 +1883,7 @@ fn pyshinqlx_module(py: Python<'_>, m: &Bound<'_, PyModule>) -> PyResult<()> {
     event_dispatchers.add_dispatcher(py, py.get_type_bound::<DamageDispatcher>())?;
     m.add(
         "EVENT_DISPATCHERS",
-        Py::new(py, event_dispatchers)?.to_object(py),
+        Py::new(py, event_dispatchers)?.into_bound(py),
     )?;
 
     // from _zmq.py

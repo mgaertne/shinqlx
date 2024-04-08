@@ -130,11 +130,13 @@ impl Plugin {
     /// A list of all the commands this plugin has registered.
     #[getter(commands)]
     fn get_commands(&self) -> Vec<Command> {
-        let Some(commands) = self.commands.try_read() else {
-            return vec![];
-        };
-        let cloned_commands: Vec<Command> = commands.clone();
-        cloned_commands
+        match self.commands.try_read() {
+            None => vec![],
+            Some(commands) => {
+                let cloned_commands: Vec<Command> = commands.clone();
+                cloned_commands
+            }
+        }
     }
 
     /// A Game instance.
@@ -255,8 +257,7 @@ impl Plugin {
             usage,
         )?;
 
-        let mut commands_guard = plugin.commands.write();
-        commands_guard.push(new_command.clone());
+        plugin.commands.write().push(new_command.clone());
 
         let shinqlx_module = py.import_bound(intern!(py, "shinqlx"))?;
         let commands_invoker = shinqlx_module.getattr(intern!(py, "COMMANDS"))?;
