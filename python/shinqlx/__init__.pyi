@@ -1,4 +1,7 @@
 from ._shinqlx import (
+    __version__,
+    __version_info__,
+    __plugins_version__,
     DEBUG,
     RET_NONE,
     RET_STOP,
@@ -281,11 +284,6 @@ from ._shinqlx import (
 )
 
 from . import database
-
-__version__: str
-__plugins_version__: str
-
-__version_info__: tuple[int, int, int]
 
 __all__ = [
     "__version__",
