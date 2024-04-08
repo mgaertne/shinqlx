@@ -21,7 +21,8 @@ class Redis(AbstractDatabase):
     _pass = ""
 
     def __init__(self, plugin):
-        super().__init__(plugin)
+        super().__init__()
+        self.plugin = plugin
         self.__class__._counter += 1
 
     def __del__(self):
