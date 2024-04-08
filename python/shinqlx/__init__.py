@@ -1,10 +1,12 @@
 # pylint: disable=C0413
-import re as _re
 import importlib
 
 try:
     _shinqlx = importlib.import_module(name="_shinqlx")
     from _shinqlx import (
+        __version__,
+        __version_info__,
+        __plugins_version__,
         DEBUG,
         RET_NONE,
         RET_STOP,
@@ -247,11 +249,14 @@ try:
         DamageDispatcher,
         EventDispatcherManager,
         EVENT_DISPATCHERS,
-        Plugin
+        Plugin,
     )
 except ModuleNotFoundError:
     _shinqlx = importlib.import_module(name="._shinqlx", package="shinqlx")
     from ._shinqlx import (
+        __version__,
+        __version_info__,
+        __plugins_version__,
         DEBUG,
         RET_NONE,
         RET_STOP,
@@ -494,24 +499,10 @@ except ModuleNotFoundError:
         DamageDispatcher,
         EventDispatcherManager,
         EVENT_DISPATCHERS,
-        Plugin
+        Plugin,
     )
 
 from . import database
-
-__version__ = _shinqlx.__version__
-__plugins_version__ = "NOT_SET"
-
-temp = _re.search(r"(\d+)\.(\d+)\.(\d+)", __version__)
-if temp is None:
-    __version_info__ = (999, 999, 999)
-else:
-    # noinspection PyBroadException
-    try:
-        __version_info__ = int(temp.group(1)), int(temp.group(2)), int(temp.group(3))
-    except:  # noqa: E722
-        __version_info__ = (999, 999, 999)
-del temp
 
 # Put everything into a single module.
 __all__ = [

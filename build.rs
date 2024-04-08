@@ -19,11 +19,7 @@ fn main() {
 
 fn gather_shinqlx_version() -> String {
     match Repository::discover(env!("CARGO_MANIFEST_DIR")) {
-        Err(_) => format!(
-            "\"v{}-{}\"",
-            env!("CARGO_PKG_VERSION"),
-            env!("CARGO_PKG_NAME")
-        ),
+        Err(_) => env!("CARGO_PKG_VERSION").to_string(),
         Ok(repository) => {
             println!(
                 "cargo:rerun-if-changed={}",
@@ -48,21 +44,12 @@ fn gather_shinqlx_version() -> String {
             };
 
             if modified {
-                format!(
-                    "\"v{}-{}-modified\"",
-                    env!("CARGO_PKG_VERSION"),
-                    env!("CARGO_PKG_NAME")
-                )
+                format!("{}+modified", env!("CARGO_PKG_VERSION"),)
             } else {
                 let head_commit = repository.head().unwrap().peel_to_commit().unwrap();
                 let head_commit_id_str =
                     head_commit.id().to_string()[..COMMIT_ID_SHORT_HASH_LENGTH].to_string();
-                format!(
-                    "\"v{}-{}-dev{}\"",
-                    env!("CARGO_PKG_VERSION"),
-                    env!("CARGO_PKG_NAME"),
-                    head_commit_id_str
-                )
+                format!("{}+dev{}", env!("CARGO_PKG_VERSION"), head_commit_id_str)
             }
         }
     }

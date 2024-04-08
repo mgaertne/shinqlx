@@ -55,6 +55,7 @@ zmq = { version = ">=0.10", default-features = false }
 serde_json = { version = ">=1.0.111", default-features = false, features = ["alloc"] }
 parking_lot = { version = ">=0.12", default-features = false }
 git2 = { version = ">=0.18", default-features = false }
+semver = { version = ">=1.0.22", default-features = false }
 
 region = { version = ">=3.0", default-features = false, optional = true }
 mimalloc = { version = ">=0.1.34", default-features = false, optional = true }

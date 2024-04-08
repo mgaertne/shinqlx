@@ -34,6 +34,8 @@ _map_subtitle2: str | None
 
 # from _shinqlx.pyi
 __version__: str
+__version_info__: tuple[int, int, int]
+__plugins_version__: str
 DEBUG: bool
 
 # Variables with simple values
@@ -1638,16 +1640,16 @@ PlayerStatsStats = TypedDict(
     "PlayerStatsStats", {"DATA": PlayerStatsEntry, "TYPE": Literal["PLAYER_STATS"]}
 )
 StatsData = (
-        PlayerKillStats
-        | PlayerDeathStats
-        | PlayerMedalStats
-        | RoundOverStats
-        | PlayerConnectStats
-        | PlayerDisconnectStats
-        | PlayerSwitchTeamStats
-        | MatchStartedStats
-        | MatchReportStats
-        | PlayerStatsStats
+    PlayerKillStats
+    | PlayerDeathStats
+    | PlayerMedalStats
+    | RoundOverStats
+    | PlayerConnectStats
+    | PlayerDisconnectStats
+    | PlayerSwitchTeamStats
+    | MatchStartedStats
+    | MatchReportStats
+    | PlayerStatsStats
 )
 
 class Plugin:
@@ -1678,45 +1680,45 @@ class Plugin:
     @classmethod
     @overload
     def get_cvar(
-            cls, name: str, return_type: Type[tuple]
+        cls, name: str, return_type: Type[tuple]
     ) -> tuple[str, ...] | None: ...
     @classmethod
     def set_cvar(
-            cls,
-            name: str,
-            value: str | bool | int | float | list | set | tuple,
-            flags: int = ...,
+        cls,
+        name: str,
+        value: str | bool | int | float | list | set | tuple,
+        flags: int = ...,
     ) -> bool: ...
     @classmethod
     def set_cvar_limit(
-            cls,
-            name: str,
-            value: int | float,
-            minimum: int | float,
-            maximum: int | float,
-            flags: int = ...,
+        cls,
+        name: str,
+        value: int | float,
+        minimum: int | float,
+        maximum: int | float,
+        flags: int = ...,
     ) -> bool: ...
     @classmethod
     def set_cvar_once(
-            cls,
-            name: str,
-            value: str | bool | int | float | list | set | tuple,
-            flags: int = ...,
+        cls,
+        name: str,
+        value: str | bool | int | float | list | set | tuple,
+        flags: int = ...,
     ) -> bool: ...
     @classmethod
     def set_cvar_limit_once(
-            cls,
-            name: str,
-            value: int | float,
-            minimum: int | float,
-            maximum: int | float,
-            flags: int = ...,
+        cls,
+        name: str,
+        value: int | float,
+        minimum: int | float,
+        maximum: int | float,
+        flags: int = ...,
     ) -> bool: ...
     @classmethod
     def players(cls) -> list[Player]: ...
     @classmethod
     def player(
-            cls, name: str | int | Player, player_list: Iterable[Player] | None = ...
+        cls, name: str | int | Player, player_list: Iterable[Player] | None = ...
     ) -> Player | None: ...
     @classmethod
     def msg(cls, msg: str, chat_channel: str = ..., **kwargs: str) -> None: ...
@@ -1726,23 +1728,23 @@ class Plugin:
     def clean_text(cls, text: str) -> str: ...
     @classmethod
     def colored_name(
-            cls, name: str | Player, player_list: Iterable[Player] | None = ...
+        cls, name: str | Player, player_list: Iterable[Player] | None = ...
     ) -> str | None: ...
     @classmethod
     def client_id(
-            cls, name: str | int | Player, player_list: Iterable[Player] | None = ...
+        cls, name: str | int | Player, player_list: Iterable[Player] | None = ...
     ) -> int | None: ...
     @classmethod
     def find_player(
-            cls, name: str, player_list: Iterable[Player] | None = ...
+        cls, name: str, player_list: Iterable[Player] | None = ...
     ) -> list[Player]: ...
     @classmethod
     def teams(
-            cls, player_list: Iterable[Player] | None = ...
+        cls, player_list: Iterable[Player] | None = ...
     ) -> Mapping[str, list[Player]]: ...
     @classmethod
     def center_print(
-            cls, msg: str, recipient: str | int | Player | None = ...
+        cls, msg: str, recipient: str | int | Player | None = ...
     ) -> None: ...
     @classmethod
     def tell(cls, msg: str, recipient: str | int | Player, **kwargs: str) -> None: ...
@@ -1838,507 +1840,509 @@ class Plugin:
     def logger(self) -> Logger: ...
     @overload
     def add_hook(
-            self,
-            event: Literal["console_print"],
-            handler: Callable[
-                [str],
-                str | CancellableEventReturn,
-            ],
-            priority: int = ...,
+        self,
+        event: Literal["console_print"],
+        handler: Callable[
+            [str],
+            str | CancellableEventReturn,
+        ],
+        priority: int = ...,
     ) -> None: ...
     @overload
     def add_hook(
-            self,
-            event: Literal["command"],
-            handler: Callable[
-                [Player, Command, str],
-                CancellableEventReturn,
-            ],
-            priority: int = ...,
+        self,
+        event: Literal["command"],
+        handler: Callable[
+            [Player, Command, str],
+            CancellableEventReturn,
+        ],
+        priority: int = ...,
     ) -> None: ...
     @overload
     def add_hook(
-            self,
-            event: Literal["client_command"],
-            handler: Callable[[Player | None, str], str | bool | CancellableEventReturn],
-            priority: int = ...,
+        self,
+        event: Literal["client_command"],
+        handler: Callable[[Player | None, str], str | bool | CancellableEventReturn],
+        priority: int = ...,
     ) -> None: ...
     @overload
     def add_hook(
-            self,
-            event: Literal["server_command"],
-            handler: Callable[[Player | None, str], str | CancellableEventReturn],
-            priority: int = ...,
+        self,
+        event: Literal["server_command"],
+        handler: Callable[[Player | None, str], str | CancellableEventReturn],
+        priority: int = ...,
     ) -> None: ...
     @overload
     def add_hook(
-            self,
-            event: Literal["frame"],
-            handler: Callable[[], UncancellableEventReturn],
-            priority: int = ...,
+        self,
+        event: Literal["frame"],
+        handler: Callable[[], UncancellableEventReturn],
+        priority: int = ...,
     ) -> None: ...
     @overload
     def add_hook(
-            self,
-            event: Literal["set_configstring"],
-            handler: Callable[[int, str], str | CancellableEventReturn],
-            priority: int = ...,
+        self,
+        event: Literal["set_configstring"],
+        handler: Callable[[int, str], str | CancellableEventReturn],
+        priority: int = ...,
     ) -> None: ...
     @overload
     def add_hook(
-            self,
-            event: Literal["chat"],
-            handler: Callable[[Player, str, AbstractChannel], str | CancellableEventReturn],
-            priority: int = ...,
+        self,
+        event: Literal["chat"],
+        handler: Callable[[Player, str, AbstractChannel], str | CancellableEventReturn],
+        priority: int = ...,
     ) -> None: ...
     @overload
     def add_hook(
-            self,
-            event: Literal["unload"],
-            handler: Callable[[Plugin], UncancellableEventReturn],
-            priority: int = ...,
+        self,
+        event: Literal["unload"],
+        handler: Callable[[Plugin], UncancellableEventReturn],
+        priority: int = ...,
     ) -> None: ...
     @overload
     def add_hook(
-            self,
-            event: Literal["player_connect"],
-            handler: Callable[[Player], str | CancellableEventReturn],
-            priority: int = ...,
+        self,
+        event: Literal["player_connect"],
+        handler: Callable[[Player], str | CancellableEventReturn],
+        priority: int = ...,
     ) -> None: ...
     @overload
     def add_hook(
-            self,
-            event: Literal["player_loaded"],
-            handler: Callable[[Player], UncancellableEventReturn],
-            priority: int = ...,
+        self,
+        event: Literal["player_loaded"],
+        handler: Callable[[Player], UncancellableEventReturn],
+        priority: int = ...,
     ) -> None: ...
     @overload
     def add_hook(
-            self,
-            event: Literal["player_disconnect"],
-            handler: Callable[[Player, str | None], UncancellableEventReturn],
-            priority: int = ...,
+        self,
+        event: Literal["player_disconnect"],
+        handler: Callable[[Player, str | None], UncancellableEventReturn],
+        priority: int = ...,
     ) -> None: ...
     @overload
     def add_hook(
-            self,
-            event: Literal["player_spawn"],
-            handler: Callable[[Player], UncancellableEventReturn],
-            priority: int = ...,
+        self,
+        event: Literal["player_spawn"],
+        handler: Callable[[Player], UncancellableEventReturn],
+        priority: int = ...,
     ) -> None: ...
     @overload
     def add_hook(
-            self,
-            event: Literal["stats"],
-            handler: Callable[[StatsData], UncancellableEventReturn],
-            priority: int = ...,
+        self,
+        event: Literal["stats"],
+        handler: Callable[[StatsData], UncancellableEventReturn],
+        priority: int = ...,
     ) -> None: ...
     @overload
     def add_hook(
-            self,
-            event: Literal["vote_called"],
-            handler: Callable[[Player, str, str | None], CancellableEventReturn],
-            priority: int = ...,
+        self,
+        event: Literal["vote_called"],
+        handler: Callable[[Player, str, str | None], CancellableEventReturn],
+        priority: int = ...,
     ) -> None: ...
     @overload
     def add_hook(
-            self,
-            event: Literal["vote_started"],
-            handler: Callable[[Player, str, str | None], CancellableEventReturn],
-            priority: int = ...,
+        self,
+        event: Literal["vote_started"],
+        handler: Callable[[Player, str, str | None], CancellableEventReturn],
+        priority: int = ...,
     ) -> None: ...
     @overload
     def add_hook(
-            self,
-            event: Literal["vote_ended"],
-            handler: Callable[
-                [tuple[int, int], str, str | None, bool], CancellableEventReturn
-            ],
-            priority: int = ...,
+        self,
+        event: Literal["vote_ended"],
+        handler: Callable[
+            [tuple[int, int], str, str | None, bool], CancellableEventReturn
+        ],
+        priority: int = ...,
     ) -> None: ...
     @overload
     def add_hook(
-            self,
-            event: Literal["vote"],
-            handler: Callable[[Player, bool], CancellableEventReturn],
-            priority: int = ...,
+        self,
+        event: Literal["vote"],
+        handler: Callable[[Player, bool], CancellableEventReturn],
+        priority: int = ...,
     ) -> None: ...
     @overload
     def add_hook(
-            self,
-            event: Literal["game_countdown"],
-            handler: Callable[[], CancellableEventReturn],
-            priority: int = ...,
+        self,
+        event: Literal["game_countdown"],
+        handler: Callable[[], CancellableEventReturn],
+        priority: int = ...,
     ) -> None: ...
     @overload
     def add_hook(
-            self,
-            event: Literal["game_start"],
-            handler: Callable[[GameStartData], CancellableEventReturn],
-            priority: int = ...,
+        self,
+        event: Literal["game_start"],
+        handler: Callable[[GameStartData], CancellableEventReturn],
+        priority: int = ...,
     ) -> None: ...
     @overload
     def add_hook(
-            self,
-            event: Literal["game_end"],
-            handler: Callable[[GameEndData], CancellableEventReturn],
-            priority: int = ...,
+        self,
+        event: Literal["game_end"],
+        handler: Callable[[GameEndData], CancellableEventReturn],
+        priority: int = ...,
     ) -> None: ...
     @overload
     def add_hook(
-            self,
-            event: Literal["round_countdown"],
-            handler: Callable[[int], CancellableEventReturn],
-            priority: int = ...,
+        self,
+        event: Literal["round_countdown"],
+        handler: Callable[[int], CancellableEventReturn],
+        priority: int = ...,
     ) -> None: ...
     @overload
     def add_hook(
-            self,
-            event: Literal["round_start"],
-            handler: Callable[[int], CancellableEventReturn],
-            priority: int = ...,
+        self,
+        event: Literal["round_start"],
+        handler: Callable[[int], CancellableEventReturn],
+        priority: int = ...,
     ) -> None: ...
     @overload
     def add_hook(
-            self,
-            event: Literal["round_end"],
-            handler: Callable[[RoundEndData], CancellableEventReturn],
-            priority: int = ...,
+        self,
+        event: Literal["round_end"],
+        handler: Callable[[RoundEndData], CancellableEventReturn],
+        priority: int = ...,
     ) -> None: ...
     @overload
     def add_hook(
-            self,
-            event: Literal["team_switch"],
-            handler: Callable[[Player, str, str], CancellableEventReturn],
-            priority: int = ...,
+        self,
+        event: Literal["team_switch"],
+        handler: Callable[[Player, str, str], CancellableEventReturn],
+        priority: int = ...,
     ) -> None: ...
     @overload
     def add_hook(
-            self,
-            event: Literal["team_switch_attempt"],
-            handler: Callable[[Player, str, str], CancellableEventReturn],
-            priority: int = ...,
+        self,
+        event: Literal["team_switch_attempt"],
+        handler: Callable[[Player, str, str], CancellableEventReturn],
+        priority: int = ...,
     ) -> None: ...
     @overload
     def add_hook(
-            self,
-            event: Literal["map"],
-            handler: Callable[[str, str], CancellableEventReturn],
-            priority: int = ...,
+        self,
+        event: Literal["map"],
+        handler: Callable[[str, str], CancellableEventReturn],
+        priority: int = ...,
     ) -> None: ...
     @overload
     def add_hook(
-            self,
-            event: Literal["new_game"],
-            handler: Callable[[], CancellableEventReturn],
-            priority: int = ...,
+        self,
+        event: Literal["new_game"],
+        handler: Callable[[], CancellableEventReturn],
+        priority: int = ...,
     ) -> None: ...
     @overload
     def add_hook(
-            self,
-            event: Literal["kill"],
-            handler: Callable[[Player, Player, KillData], CancellableEventReturn],
-            priority: int = ...,
+        self,
+        event: Literal["kill"],
+        handler: Callable[[Player, Player, KillData], CancellableEventReturn],
+        priority: int = ...,
     ) -> None: ...
     @overload
     def add_hook(
-            self,
-            event: Literal["death"],
-            handler: Callable[[Player, Player | None, DeathData], CancellableEventReturn],
-            priority: int = ...,
+        self,
+        event: Literal["death"],
+        handler: Callable[[Player, Player | None, DeathData], CancellableEventReturn],
+        priority: int = ...,
     ) -> None: ...
     @overload
     def add_hook(
-            self,
-            event: Literal["userinfo"],
-            handler: Callable[
-                [Player, UserinfoEventInput], UserInfo | CancellableEventReturn
-            ],
-            priority: int = ...,
+        self,
+        event: Literal["userinfo"],
+        handler: Callable[
+            [Player, UserinfoEventInput], UserInfo | CancellableEventReturn
+        ],
+        priority: int = ...,
     ) -> None: ...
     @overload
     def add_hook(
-            self,
-            event: Literal["kamikaze_use"],
-            handler: Callable[[Player], CancellableEventReturn],
-            priority: int = ...,
+        self,
+        event: Literal["kamikaze_use"],
+        handler: Callable[[Player], CancellableEventReturn],
+        priority: int = ...,
     ) -> None: ...
     @overload
     def add_hook(
-            self,
-            event: Literal["kamikaze_explde"],
-            handler: Callable[[Player, bool], CancellableEventReturn],
-            priority: int = ...,
+        self,
+        event: Literal["kamikaze_explde"],
+        handler: Callable[[Player, bool], CancellableEventReturn],
+        priority: int = ...,
     ) -> None: ...
     @overload
     def add_hook(
-            self,
-            event: Literal["damage"],
-            handler: Callable[
-                [Player | int | None, Player | int | None, int, int, int],
-                UncancellableEventReturn,
-            ],
-            priority: int = ...,
+        self,
+        event: Literal["damage"],
+        handler: Callable[
+            [Player | int | None, Player | int | None, int, int, int],
+            UncancellableEventReturn,
+        ],
+        priority: int = ...,
     ) -> None: ...
     @overload
     def remove_hook(
-            self,
-            event: Literal["console_print"],
-            handler: Callable[
-                [str],
-                str | CancellableEventReturn,
-            ],
-            priority: int = ...,
+        self,
+        event: Literal["console_print"],
+        handler: Callable[
+            [str],
+            str | CancellableEventReturn,
+        ],
+        priority: int = ...,
     ) -> None: ...
     @overload
     def remove_hook(
-            self,
-            event: Literal["command"],
-            handler: Callable[
-                [Player, Command, str],
-                CancellableEventReturn,
-            ],
-            priority: int = ...,
+        self,
+        event: Literal["command"],
+        handler: Callable[
+            [Player, Command, str],
+            CancellableEventReturn,
+        ],
+        priority: int = ...,
     ) -> None: ...
     @overload
     def remove_hook(
-            self,
-            event: Literal["client_command"],
-            handler: Callable[[Player | None, str], str | bool | CancellableEventReturn],
-            priority: int = ...,
+        self,
+        event: Literal["client_command"],
+        handler: Callable[[Player | None, str], str | bool | CancellableEventReturn],
+        priority: int = ...,
     ) -> None: ...
     @overload
     def remove_hook(
-            self,
-            event: Literal["server_command"],
-            handler: Callable[[Player | None, str], str | CancellableEventReturn],
-            priority: int = ...,
+        self,
+        event: Literal["server_command"],
+        handler: Callable[[Player | None, str], str | CancellableEventReturn],
+        priority: int = ...,
     ) -> None: ...
     @overload
     def remove_hook(
-            self,
-            event: Literal["frame"],
-            handler: Callable[[], UncancellableEventReturn],
-            priority: int = ...,
+        self,
+        event: Literal["frame"],
+        handler: Callable[[], UncancellableEventReturn],
+        priority: int = ...,
     ) -> None: ...
     @overload
     def remove_hook(
-            self,
-            event: Literal["set_configstring"],
-            handler: Callable[[int, str], str | CancellableEventReturn],
-            priority: int = ...,
+        self,
+        event: Literal["set_configstring"],
+        handler: Callable[[int, str], str | CancellableEventReturn],
+        priority: int = ...,
     ) -> None: ...
     @overload
     def remove_hook(
-            self,
-            event: Literal["chat"],
-            handler: Callable[[Player, str, AbstractChannel], str | CancellableEventReturn],
-            priority: int = ...,
+        self,
+        event: Literal["chat"],
+        handler: Callable[[Player, str, AbstractChannel], str | CancellableEventReturn],
+        priority: int = ...,
     ) -> None: ...
     @overload
     def remove_hook(
-            self,
-            event: Literal["unload"],
-            handler: Callable[[Plugin], UncancellableEventReturn],
-            priority: int = ...,
+        self,
+        event: Literal["unload"],
+        handler: Callable[[Plugin], UncancellableEventReturn],
+        priority: int = ...,
     ) -> None: ...
     @overload
     def remove_hook(
-            self,
-            event: Literal["player_connect"],
-            handler: Callable[[Player], str | CancellableEventReturn],
-            priority: int = ...,
+        self,
+        event: Literal["player_connect"],
+        handler: Callable[[Player], str | CancellableEventReturn],
+        priority: int = ...,
     ) -> None: ...
     @overload
     def remove_hook(
-            self,
-            event: Literal["player_loaded"],
-            handler: Callable[[Player], UncancellableEventReturn],
-            priority: int = ...,
+        self,
+        event: Literal["player_loaded"],
+        handler: Callable[[Player], UncancellableEventReturn],
+        priority: int = ...,
     ) -> None: ...
     @overload
     def remove_hook(
-            self,
-            event: Literal["player_disconnect"],
-            handler: Callable[[Player, str | None], UncancellableEventReturn],
-            priority: int = ...,
+        self,
+        event: Literal["player_disconnect"],
+        handler: Callable[[Player, str | None], UncancellableEventReturn],
+        priority: int = ...,
     ) -> None: ...
     @overload
     def remove_hook(
-            self,
-            event: Literal["player_spawn"],
-            handler: Callable[[Player], UncancellableEventReturn],
-            priority: int = ...,
+        self,
+        event: Literal["player_spawn"],
+        handler: Callable[[Player], UncancellableEventReturn],
+        priority: int = ...,
     ) -> None: ...
     @overload
     def remove_hook(
-            self,
-            event: Literal["stats"],
-            handler: Callable[[StatsData], UncancellableEventReturn],
-            priority: int = ...,
+        self,
+        event: Literal["stats"],
+        handler: Callable[[StatsData], UncancellableEventReturn],
+        priority: int = ...,
     ) -> None: ...
     @overload
     def remove_hook(
-            self,
-            event: Literal["vote_called"],
-            handler: Callable[[Player, str, str | None], CancellableEventReturn],
-            priority: int = ...,
+        self,
+        event: Literal["vote_called"],
+        handler: Callable[[Player, str, str | None], CancellableEventReturn],
+        priority: int = ...,
     ) -> None: ...
     @overload
     def remove_hook(
-            self,
-            event: Literal["vote_started"],
-            handler: Callable[[Player, str, str | None], CancellableEventReturn],
-            priority: int = ...,
+        self,
+        event: Literal["vote_started"],
+        handler: Callable[[Player, str, str | None], CancellableEventReturn],
+        priority: int = ...,
     ) -> None: ...
     @overload
     def remove_hook(
-            self,
-            event: Literal["vote_ended"],
-            handler: Callable[
-                [tuple[int, int], str, str | None, bool], CancellableEventReturn
-            ],
-            priority: int = ...,
+        self,
+        event: Literal["vote_ended"],
+        handler: Callable[
+            [tuple[int, int], str, str | None, bool], CancellableEventReturn
+        ],
+        priority: int = ...,
     ) -> None: ...
     @overload
     def remove_hook(
-            self,
-            event: Literal["vote"],
-            handler: Callable[[Player, bool], CancellableEventReturn],
-            priority: int = ...,
+        self,
+        event: Literal["vote"],
+        handler: Callable[[Player, bool], CancellableEventReturn],
+        priority: int = ...,
     ) -> None: ...
     @overload
     def remove_hook(
-            self,
-            event: Literal["game_countdown"],
-            handler: Callable[[], CancellableEventReturn],
-            priority: int = ...,
+        self,
+        event: Literal["game_countdown"],
+        handler: Callable[[], CancellableEventReturn],
+        priority: int = ...,
     ) -> None: ...
     @overload
     def remove_hook(
-            self,
-            event: Literal["game_start"],
-            handler: Callable[[GameStartData], CancellableEventReturn],
-            priority: int = ...,
+        self,
+        event: Literal["game_start"],
+        handler: Callable[[GameStartData], CancellableEventReturn],
+        priority: int = ...,
     ) -> None: ...
     @overload
     def remove_hook(
-            self,
-            event: Literal["game_end"],
-            handler: Callable[[GameEndData], CancellableEventReturn],
-            priority: int = ...,
+        self,
+        event: Literal["game_end"],
+        handler: Callable[[GameEndData], CancellableEventReturn],
+        priority: int = ...,
     ) -> None: ...
     @overload
     def remove_hook(
-            self,
-            event: Literal["round_countdown"],
-            handler: Callable[[int], CancellableEventReturn],
-            priority: int = ...,
+        self,
+        event: Literal["round_countdown"],
+        handler: Callable[[int], CancellableEventReturn],
+        priority: int = ...,
     ) -> None: ...
     @overload
     def remove_hook(
-            self,
-            event: Literal["round_start"],
-            handler: Callable[[int], CancellableEventReturn],
-            priority: int = ...,
+        self,
+        event: Literal["round_start"],
+        handler: Callable[[int], CancellableEventReturn],
+        priority: int = ...,
     ) -> None: ...
     @overload
     def remove_hook(
-            self,
-            event: Literal["round_end"],
-            handler: Callable[[RoundEndData], CancellableEventReturn],
-            priority: int = ...,
+        self,
+        event: Literal["round_end"],
+        handler: Callable[[RoundEndData], CancellableEventReturn],
+        priority: int = ...,
     ) -> None: ...
     @overload
     def remove_hook(
-            self,
-            event: Literal["team_switch"],
-            handler: Callable[[Player, str, str], CancellableEventReturn],
-            priority: int = ...,
+        self,
+        event: Literal["team_switch"],
+        handler: Callable[[Player, str, str], CancellableEventReturn],
+        priority: int = ...,
     ) -> None: ...
     @overload
     def remove_hook(
-            self,
-            event: Literal["team_switch_attempt"],
-            handler: Callable[[Player, str, str], CancellableEventReturn],
-            priority: int = ...,
+        self,
+        event: Literal["team_switch_attempt"],
+        handler: Callable[[Player, str, str], CancellableEventReturn],
+        priority: int = ...,
     ) -> None: ...
     @overload
     def remove_hook(
-            self,
-            event: Literal["map"],
-            handler: Callable[[str, str], CancellableEventReturn],
-            priority: int = ...,
+        self,
+        event: Literal["map"],
+        handler: Callable[[str, str], CancellableEventReturn],
+        priority: int = ...,
     ) -> None: ...
     @overload
     def remove_hook(
-            self,
-            event: Literal["new_game"],
-            handler: Callable[[], CancellableEventReturn],
-            priority: int = ...,
+        self,
+        event: Literal["new_game"],
+        handler: Callable[[], CancellableEventReturn],
+        priority: int = ...,
     ) -> None: ...
     @overload
     def remove_hook(
-            self,
-            event: Literal["kill"],
-            handler: Callable[[Player, Player, KillData], CancellableEventReturn],
-            priority: int = ...,
+        self,
+        event: Literal["kill"],
+        handler: Callable[[Player, Player, KillData], CancellableEventReturn],
+        priority: int = ...,
     ) -> None: ...
     @overload
     def remove_hook(
-            self,
-            event: Literal["death"],
-            handler: Callable[[Player, Player | None, DeathData], CancellableEventReturn],
-            priority: int = ...,
+        self,
+        event: Literal["death"],
+        handler: Callable[[Player, Player | None, DeathData], CancellableEventReturn],
+        priority: int = ...,
     ) -> None: ...
     @overload
     def remove_hook(
-            self,
-            event: Literal["userinfo"],
-            handler: Callable[
-                [Player, UserinfoEventInput], UserInfo | CancellableEventReturn
-            ],
-            priority: int = ...,
+        self,
+        event: Literal["userinfo"],
+        handler: Callable[
+            [Player, UserinfoEventInput], UserInfo | CancellableEventReturn
+        ],
+        priority: int = ...,
     ) -> None: ...
     @overload
     def remove_hook(
-            self,
-            event: Literal["kamikaze_use"],
-            handler: Callable[[Player], CancellableEventReturn],
-            priority: int = ...,
+        self,
+        event: Literal["kamikaze_use"],
+        handler: Callable[[Player], CancellableEventReturn],
+        priority: int = ...,
     ) -> None: ...
     @overload
     def remove_hook(
-            self,
-            event: Literal["kamikaze_explde"],
-            handler: Callable[[Player, bool], CancellableEventReturn],
-            priority: int = ...,
+        self,
+        event: Literal["kamikaze_explde"],
+        handler: Callable[[Player, bool], CancellableEventReturn],
+        priority: int = ...,
     ) -> None: ...
     @overload
     def remove_hook(
-            self,
-            event: Literal["damage"],
-            handler: Callable[
-                [Player | int | None, Player | int | None, int, int, int],
-                UncancellableEventReturn,
-            ],
-            priority: int = ...,
+        self,
+        event: Literal["damage"],
+        handler: Callable[
+            [Player | int | None, Player | int | None, int, int, int],
+            UncancellableEventReturn,
+        ],
+        priority: int = ...,
     ) -> None: ...
     def add_command(
-            self,
-            name: str | Iterable[str],
-            handler: Callable[[Player, str | list[str], AbstractChannel], CancellableEventReturn],
-            permission: int = ...,
-            channels: Iterable[AbstractChannel] | None = ...,
-            exclude_channels: Iterable[AbstractChannel] = ...,
-            priority: int = ...,
-            client_cmd_pass: bool = ...,
-            client_cmd_perm: int = ...,
-            prefix: bool = ...,
-            usage: str = ...,
+        self,
+        name: str | Iterable[str],
+        handler: Callable[
+            [Player, str | list[str], AbstractChannel], CancellableEventReturn
+        ],
+        permission: int = ...,
+        channels: Iterable[AbstractChannel] | None = ...,
+        exclude_channels: Iterable[AbstractChannel] = ...,
+        priority: int = ...,
+        client_cmd_pass: bool = ...,
+        client_cmd_perm: int = ...,
+        prefix: bool = ...,
+        usage: str = ...,
     ) -> None: ...
     def remove_command(
-            self,
-            name: Iterable[str],
-            handler: Callable[[Player, str, AbstractChannel], CancellableEventReturn],
+        self,
+        name: Iterable[str],
+        handler: Callable[[Player, str, AbstractChannel], CancellableEventReturn],
     ) -> None: ...

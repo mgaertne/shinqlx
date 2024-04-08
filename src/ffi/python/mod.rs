@@ -526,7 +526,7 @@ fn set_map_subtitles(module: &Bound<'_, PyModule>) -> PyResult<()> {
         map_subtitle1.push_str(" - ");
     }
 
-    map_subtitle1.push_str("Running shinqlx ^6");
+    map_subtitle1.push_str("Running shinqlx ^6v");
     map_subtitle1.push_str(env!("SHINQLX_VERSION"));
     map_subtitle1.push_str("^7 with plugins ^6");
     let plugins_version = module
@@ -1403,12 +1403,21 @@ fn pyshinqlx_root_module(_py: Python<'_>, _m: &Bound<'_, PyModule>) -> PyResult<
 #[pyo3(name = "_shinqlx")]
 fn pyshinqlx_module(py: Python<'_>, m: &Bound<'_, PyModule>) -> PyResult<()> {
     // from __init__.py
+    let shinqlx_version = env!("SHINQLX_VERSION");
+    m.add("__version__", shinqlx_version)?;
+
+    let version_info = match semver::Version::parse(shinqlx_version) {
+        Err(_) => (999, 999, 999),
+        Ok(version) => (version.major, version.minor, version.patch),
+    };
+    m.add("__version_info__", version_info)?;
+    m.add("__plugins_version__", "NOT_SET")?;
+
     m.add("_map_title", "")?;
     m.add("_map_subtitle1", "")?;
     m.add("_map_subtitle2", "")?;
 
     // from _shinqlx.pyi
-    m.add("__version__", env!("SHINQLX_VERSION"))?;
     m.add("DEBUG", cfg!(debug_assertions))?;
 
     // Set a bunch of constants. We set them here because if you define functions in Python that use module
