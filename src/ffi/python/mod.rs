@@ -1,5 +1,6 @@
 mod channels;
 mod commands;
+mod database;
 mod dispatchers;
 mod embed;
 mod events;
@@ -23,6 +24,7 @@ pub(crate) mod prelude {
         TellChannel, MAX_MSG_LENGTH,
     };
     pub(crate) use super::commands::{Command, CommandInvoker};
+    pub(crate) use super::database::AbstractDatabase;
     pub(crate) use super::embed::*;
     pub(crate) use super::events::{
         ChatEventDispatcher, ClientCommandDispatcher, CommandDispatcher, ConsolePrintDispatcher,
@@ -1894,6 +1896,9 @@ fn pyshinqlx_module(py: Python<'_>, m: &Bound<'_, PyModule>) -> PyResult<()> {
     Python::get_type_bound::<Plugin>(py)
         .setattr(intern!(py, "_loaded_plugins"), PyDict::new_bound(py))?;
     m.add_class::<Plugin>()?;
+
+    // from database.py
+    m.add_class::<AbstractDatabase>()?;
 
     Ok(())
 }

@@ -2,96 +2,7 @@ from datetime import timedelta
 import redis
 
 import shinqlx
-
-
-# ====================================================================
-#                          AbstractDatabase
-# ====================================================================
-# noinspection PyProtectedMember
-class AbstractDatabase:
-    # An instance counter. Useful for closing connections.
-    _counter = 0
-
-    def __init__(self, plugin):
-        self.plugin = plugin
-        self.__class__._counter += 1
-
-    def __del__(self):
-        self.__class__._counter -= 1
-
-    @property
-    def logger(self):
-        return shinqlx.get_logger(self.plugin)
-
-    def set_permission(self, player, level):
-        """Abstract method. Should set the permission of a player.
-
-        :raises: NotImplementedError
-
-        """
-        raise NotImplementedError("The base plugin can't do database actions.")
-
-    def get_permission(self, player):
-        """Abstract method. Should return the permission of a player.
-
-        :returns: int
-        :raises: NotImplementedError
-
-        """
-        raise NotImplementedError("The base plugin can't do database actions.")
-
-    def has_permission(self, player, level=5):
-        """Abstract method. Should return whether or not a player has more than or equal
-        to a certain permission level. Should only take a value of 0 to 5, where 0 is
-        always True.
-
-        :returns: bool
-        :raises: NotImplementedError
-
-        """
-        raise NotImplementedError("The base plugin can't do database actions.")
-
-    def set_flag(self, player, flag, value=True):
-        """Abstract method. Should set specified player flag to value.
-
-        :raises: NotImplementedError
-
-        """
-        raise NotImplementedError("The base plugin can't do database actions.")
-
-    def clear_flag(self, player, flag):
-        """Should clear specified player flag."""
-        return self.set_flag(player, flag, False)
-
-    def get_flag(self, player, flag, default=False):
-        """Abstract method. Should return specified player flag
-
-        :returns: bool
-        :raises: NotImplementedError
-
-        """
-        raise NotImplementedError("The base plugin can't do database actions.")
-
-    def connect(self):
-        """Abstract method. Should return a connection to the database. Exactly what a
-        "connection" obviously depends on the database, so the specifics will be up
-        to the implementation.
-
-        A :class:`shinqlx.Plugin` subclass can set
-
-        :raises: NotImplementedError
-
-        """
-        raise NotImplementedError("The base plugin can't do database actions.")
-
-    def close(self):
-        """Abstract method. If the database has a connection state, this method should
-        close the connection.
-
-        :raises: NotImplementedError
-
-        """
-        raise NotImplementedError("The base plugin can't do database actions.")
+from shinqlx import AbstractDatabase
 
 
 # ====================================================================
@@ -101,13 +12,20 @@ class AbstractDatabase:
 class Redis(AbstractDatabase):
     """A subclass of :class:`shinqlx.AbstractDatabase` providing support for Redis."""
 
+    # An instance counter. Useful for closing connections.
+    _counter = 0
+
     # We only use the instance-level ones if we override the URI from the config.
     _conn = None
     _pool = None
     _pass = ""
 
+    def __init__(self, plugin):
+        super().__init__(plugin)
+        self.__class__._counter += 1
+
     def __del__(self):
-        super().__del__()
+        self.__class__._counter -= 1
         self.close()
 
     def __contains__(self, key):

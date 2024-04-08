@@ -281,6 +281,7 @@ from ._shinqlx import (
     DamageEntry,
     SingleWeaponStatsEntry,
     StatsData,
+    AbstractDatabase,
 )
 
 from . import database
@@ -569,6 +570,7 @@ __all__ = [
     "DamageEntry",
     "SingleWeaponStatsEntry",
     "StatsData",
+    "AbstractDatabase",
     # database
     "database",
 ]

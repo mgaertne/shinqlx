@@ -467,7 +467,6 @@ __all__ = [
     "UserinfoDispatcher",
     "KamikazeUseDispatcher",
     "KamikazeExplodeDispatcher",
-    "PlayerItemsTossDispatcher",
     "DamageDispatcher",
     "EVENT_DISPATCHERS",
     "frame_tasks",

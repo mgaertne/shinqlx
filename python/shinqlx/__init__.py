@@ -250,6 +250,7 @@ try:
         EventDispatcherManager,
         EVENT_DISPATCHERS,
         Plugin,
+        AbstractDatabase,
     )
 except ModuleNotFoundError:
     _shinqlx = importlib.import_module(name="._shinqlx", package="shinqlx")
@@ -500,6 +501,7 @@ except ModuleNotFoundError:
         EventDispatcherManager,
         EVENT_DISPATCHERS,
         Plugin,
+        AbstractDatabase,
     )
 
 from . import database
@@ -753,6 +755,7 @@ __all__ = [
     "EventDispatcherManager",
     "EVENT_DISPATCHERS",
     "Plugin",
+    "AbstractDatabase",
     # databsse
     "database",
 ]
