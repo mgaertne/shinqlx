@@ -147,7 +147,7 @@ impl Plugin {
 
     /// An instance of :class:`logging.Logger`, but initialized for this plugin.
     #[getter(logger)]
-    fn get_logger<'a>(slf: &Bound<'a, Self>) -> PyResult<Bound<'a, PyAny>> {
+    pub(crate) fn get_logger<'a>(slf: &Bound<'a, Self>) -> PyResult<Bound<'a, PyAny>> {
         let plugin_name = slf.get_type().name().map(|value| value.to_string())?;
         pyshinqlx_get_logger(slf.py(), Some(plugin_name.into_py(slf.py())))
     }

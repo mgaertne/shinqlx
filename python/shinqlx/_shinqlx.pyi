@@ -1,4 +1,4 @@
-from abc import abstractmethod
+from abc import abstractmethod, ABC
 from typing import TYPE_CHECKING, overload, ClassVar
 
 if TYPE_CHECKING:
@@ -26,6 +26,7 @@ if TYPE_CHECKING:
     from types import TracebackType, ModuleType
 
     from shinqlx.database import Redis
+    from redis import Redis as redisRedis
 
 # from __init__.pyi
 _map_title: str | None
@@ -2346,3 +2347,30 @@ class Plugin:
         name: Iterable[str],
         handler: Callable[[Player, str, AbstractChannel], CancellableEventReturn],
     ) -> None: ...
+
+# from databse.py
+class AbstractDatabase(ABC):
+    plugin: Plugin
+
+    def __init__(self, plugin: Plugin) -> None: ...
+    @property
+    def logger(self) -> Logger: ...
+    @abstractmethod
+    def set_permission(self, player: Player | int | str, level: int) -> None: ...
+    @abstractmethod
+    def get_permission(self, player: Player | int | str) -> int: ...
+    @abstractmethod
+    def has_permission(self, player: Player | int | str, level: int = ...) -> bool: ...
+    @abstractmethod
+    def set_flag(
+        self, player: Player | int | str, flag: str, value: bool = ...
+    ) -> None: ...
+    def clear_flag(self, player: Player | int | str, flag: str) -> None: ...
+    @abstractmethod
+    def get_flag(
+        self, player: Player | int | str, flag: str, default: bool = ...
+    ) -> bool: ...
+    @abstractmethod
+    def connect(self) -> redisRedis | None: ...
+    @abstractmethod
+    def close(self) -> None: ...
