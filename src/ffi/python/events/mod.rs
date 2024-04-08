@@ -377,17 +377,24 @@ impl EventDispatcher {
             return Err(PyValueError::new_err(error_description));
         }
 
-        let Ok(event_dispatcher) = slf.try_borrow() else {
-            return Err(PyValueError::new_err("could not borrow event_dispatcher"));
-        };
+        let event_dispatcher = slf
+            .try_borrow()
+            .map_err(|_| PyValueError::new_err("could not borrow event_dispatcher"))?;
         let dispatcher_name = slf
             .get_type()
             .getattr(intern!(py, "name"))?
-            .extract::<String>()?;
+            .extract::<String>()
+            .map_err(|_| {
+                PyValueError::new_err("Cannot add a hook from an event dispatcher with no name.")
+            })?;
+
         let need_zmq_stats_enabled = slf
             .get_type()
             .getattr(intern!(py, "need_zmq_stats_enabled"))?
-            .extract::<bool>()?;
+            .extract::<bool>()
+            .map_err(|_| {
+                PyValueError::new_err("Cannot add a hook from an event dispatcher with no need_zmq_stats_enabled flag.")
+            })?;
 
         let zmq_enabled_cvar = pyshinqlx_get_cvar(py, "zmq_stats_enable")?;
         let zmq_enabled = zmq_enabled_cvar.is_some_and(|value| value != "0");
@@ -399,10 +406,11 @@ impl EventDispatcher {
             return Err(PyAssertionError::new_err(error_description));
         }
 
-        let Some(mut plugins) = event_dispatcher.plugins.try_write() else {
-            let add_hook_func = PyModule::from_code_bound(
-                py,
-                r#"
+        match event_dispatcher.plugins.try_write() {
+            None => {
+                let add_hook_func = PyModule::from_code_bound(
+                    py,
+                    r#"
 import shinqlx
 
 
@@ -410,35 +418,38 @@ import shinqlx
 def add_hook(event, plugin, handler, priority):
     shinqlx.EVENT_DISPATCHERS[event].add_hook(plugin, handler, priority)
         "#,
-                "",
-                "",
-            )?
-            .getattr(intern!(py, "add_hook"))?;
+                    "",
+                    "",
+                )?
+                .getattr(intern!(py, "add_hook"))?;
 
-            add_hook_func.call1((&dispatcher_name, plugin, handler, priority))?;
-            return Ok(());
-        };
-        let Some(plugin_hooks) = plugins
-            .iter_mut()
-            .find(|(added_plugin, _)| added_plugin == plugin)
-        else {
-            let mut new_commands = (plugin.to_string(), [vec![], vec![], vec![], vec![], vec![]]);
-            new_commands.1[priority as usize].push(handler);
-            plugins.push(new_commands);
-            return Ok(());
-        };
+                add_hook_func.call1((&dispatcher_name, plugin, handler, priority))?;
+            }
+            Some(mut plugins) => {
+                let Some(plugin_hooks) = plugins
+                    .iter_mut()
+                    .find(|(added_plugin, _)| added_plugin == plugin)
+                else {
+                    let mut new_commands =
+                        (plugin.to_string(), [vec![], vec![], vec![], vec![], vec![]]);
+                    new_commands.1[priority as usize].push(handler);
+                    plugins.push(new_commands);
+                    return Ok(());
+                };
 
-        if plugin_hooks.1.iter().any(|registered_commands| {
-            registered_commands
-                .iter()
-                .any(|hook| hook.bind(py).eq(handler.bind(py)).unwrap_or(false))
-        }) {
-            return Err(PyValueError::new_err(
-                "The event has already been hooked with the same handler and priority.",
-            ));
+                if plugin_hooks.1.iter().any(|registered_commands| {
+                    registered_commands
+                        .iter()
+                        .any(|hook| hook.bind(py).eq(handler.bind(py)).unwrap_or(false))
+                }) {
+                    return Err(PyValueError::new_err(
+                        "The event has already been hooked with the same handler and priority.",
+                    ));
+                }
+
+                plugin_hooks.1[priority as usize].push(handler);
+            }
         }
-
-        plugin_hooks.1[priority as usize].push(handler);
         Ok(())
     }
 
@@ -451,17 +462,21 @@ def add_hook(event, plugin, handler, priority):
         handler: PyObject,
         priority: i32,
     ) -> PyResult<()> {
-        let Ok(event_dispatcher) = slf.try_borrow() else {
-            return Err(PyValueError::new_err("could not borrow event_dispatcher"));
-        };
+        let event_dispatcher = slf
+            .try_borrow()
+            .map_err(|_| PyValueError::new_err("could not borrow event_dispatcher"))?;
         let dispatcher_name = slf
             .get_type()
             .getattr(intern!(py, "name"))?
-            .extract::<String>()?;
-        let Some(mut plugins) = event_dispatcher.plugins.try_write() else {
-            let remove_hook_func = PyModule::from_code_bound(
-                py,
-                r#"
+            .extract::<String>()
+            .map_err(|_| {
+                PyValueError::new_err("Cannot remove a hook from an event dispatcher with no name.")
+            })?;
+        match event_dispatcher.plugins.try_write() {
+            None => {
+                let remove_hook_func = PyModule::from_code_bound(
+                    py,
+                    r#"
 import shinqlx
 
 
@@ -469,35 +484,35 @@ import shinqlx
 def remove_hook(event, plugin, handler, priority):
     shinqlx.EVENT_DISPATCHERS[event].remove_hook(plugin, handler, priority)
         "#,
-                "",
-                "",
-            )?
-            .getattr(intern!(py, "remove_hook"))?;
+                    "",
+                    "",
+                )?
+                .getattr(intern!(py, "remove_hook"))?;
+                remove_hook_func.call1((dispatcher_name, plugin, handler, priority))?;
+            }
+            Some(mut plugins) => {
+                let Some(plugin_hooks) = plugins
+                    .iter_mut()
+                    .find(|(added_plugin, _)| added_plugin == plugin)
+                else {
+                    return Err(PyValueError::new_err(
+                        "The event has not been hooked with the handler provided",
+                    ));
+                };
 
-            remove_hook_func.call1((dispatcher_name, plugin, handler, priority))?;
-            return Ok(());
-        };
-        let Some(plugin_hooks) = plugins
-            .iter_mut()
-            .find(|(added_plugin, _)| added_plugin == plugin)
-        else {
-            return Err(PyValueError::new_err(
-                "The event has not been hooked with the handler provided",
-            ));
-        };
+                if !plugin_hooks.1[priority as usize]
+                    .iter()
+                    .any(|item| item.bind(py).eq(handler.bind(py)).unwrap_or(true))
+                {
+                    return Err(PyValueError::new_err(
+                        "The event has not been hooked with the handler provided",
+                    ));
+                }
 
-        if !plugin_hooks.1[priority as usize]
-            .iter()
-            .any(|item| item.bind(py).eq(handler.bind(py)).unwrap_or(true))
-        {
-            return Err(PyValueError::new_err(
-                "The event has not been hooked with the handler provided",
-            ));
+                plugin_hooks.1[priority as usize]
+                    .retain(|item| item.bind(py).ne(handler.bind(py)).unwrap_or(true));
+            }
         }
-
-        plugin_hooks.1[priority as usize]
-            .retain(|item| item.bind(py).ne(handler.bind(py)).unwrap_or(true));
-
         Ok(())
     }
 }
@@ -539,38 +554,25 @@ impl EventDispatcherManager {
     }
 
     fn __getitem__(&self, py: Python<'_>, key: &str) -> PyResult<PyObject> {
-        let dispatchers = self.dispatchers.read();
-        dispatchers
+        self.dispatchers
+            .read()
             .iter()
-            .find_map(|(event_name, dispatcher)| {
-                if key != event_name {
-                    None
-                } else {
-                    Some(dispatcher)
-                }
-            })
+            .find(|(event_name, _)| key == event_name)
             .map_or_else(
                 || {
                     let key_error = format!("'{}'", key);
                     Err(PyKeyError::new_err(key_error))
                 },
-                |dispatcher| Ok(dispatcher.into_py(py)),
+                |(_, dispatcher)| Ok(dispatcher.into_py(py)),
             )
     }
 
     fn __contains__(&self, py: Python<'_>, key: &str) -> bool {
         py.allow_threads(|| {
-            let dispatchers = self.dispatchers.read();
-            dispatchers
+            self.dispatchers
+                .read()
                 .iter()
-                .find_map(|(event_name, dispatcher)| {
-                    if key != event_name {
-                        None
-                    } else {
-                        Some(dispatcher)
-                    }
-                })
-                .is_some()
+                .any(|(event_name, _)| key == event_name)
         })
     }
 
@@ -579,16 +581,12 @@ impl EventDispatcherManager {
         py: Python<'_>,
         dispatcher: Bound<'_, PyType>,
     ) -> PyResult<()> {
-        let Ok(dispatcher_name_attr) = dispatcher.getattr("name") else {
-            return Err(PyValueError::new_err(
-                "Cannot add an event dispatcher with no name.",
-            ));
-        };
-        let Ok(dispatcher_name_str) = dispatcher_name_attr.extract::<String>() else {
-            return Err(PyValueError::new_err(
-                "Cannot add an event dispatcher with no name.",
-            ));
-        };
+        let dispatcher_name_attr = dispatcher
+            .getattr("name")
+            .map_err(|_| PyValueError::new_err("Cannot add an event dispatcher with no name."))?;
+        let dispatcher_name_str = dispatcher_name_attr
+            .extract::<String>()
+            .map_err(|_| PyValueError::new_err("Cannot add an event dispatcher with no name."))?;
         if self.__contains__(py, &dispatcher_name_str) {
             return Err(PyValueError::new_err("Event name already taken."));
         }
@@ -602,23 +600,20 @@ impl EventDispatcherManager {
             ));
         }
 
-        let mut dispatchers = self.dispatchers.write();
-        dispatchers.push((dispatcher_name_str, dispatcher.call0()?.unbind()));
+        self.dispatchers
+            .write()
+            .push((dispatcher_name_str, dispatcher.call0()?.unbind()));
 
         Ok(())
     }
 
     fn remove_dispatcher(&self, py: Python<'_>, dispatcher: PyObject) -> PyResult<()> {
-        let Ok(dispatcher_name_attr) = dispatcher.getattr(py, "name") else {
-            return Err(PyValueError::new_err(
-                "Cannot remove an event dispatcher with no name.",
-            ));
-        };
-        let Ok(dispatcher_name_str) = dispatcher_name_attr.extract::<String>(py) else {
-            return Err(PyValueError::new_err(
-                "Cannot remove an event dispatcher with no name.",
-            ));
-        };
+        let dispatcher_name_attr = dispatcher.getattr(py, "name").map_err(|_| {
+            PyValueError::new_err("Cannot remove an event dispatcher with no name.")
+        })?;
+        let dispatcher_name_str = dispatcher_name_attr.extract::<String>(py).map_err(|_| {
+            PyValueError::new_err("Cannot remove an event dispatcher with no name.")
+        })?;
 
         self.remove_dispatcher_by_name(py, &dispatcher_name_str)
     }
@@ -628,10 +623,11 @@ impl EventDispatcherManager {
             return Err(PyValueError::new_err("Event name not found."));
         }
 
-        let Some(mut dispatchers) = self.dispatchers.try_write() else {
-            let remove_dispatcher_by_name_func = PyModule::from_code_bound(
-                py,
-                r#"
+        match self.dispatchers.try_write() {
+            None => {
+                let remove_dispatcher_by_name_func = PyModule::from_code_bound(
+                    py,
+                    r#"
 import shinqlx
 
 
@@ -639,15 +635,17 @@ import shinqlx
 def remove_dispatcher_by_name(dispatcher_name):
     shinqlx.EVENT_DISPATCHERS.remove_dispatcher_by_name(dispatcher_name)
         "#,
-                "",
-                "",
-            )?
-            .getattr(intern!(py, "remove_dispatcher_by_name"))?;
+                    "",
+                    "",
+                )?
+                .getattr(intern!(py, "remove_dispatcher_by_name"))?;
 
-            remove_dispatcher_by_name_func.call1((dispatcher_name,))?;
-            return Ok(());
+                remove_dispatcher_by_name_func.call1((dispatcher_name,))?;
+            }
+            Some(mut dispatchers) => {
+                dispatchers.retain(|(name, _)| name != dispatcher_name);
+            }
         };
-        dispatchers.retain(|(name, _)| name != dispatcher_name);
 
         Ok(())
     }
