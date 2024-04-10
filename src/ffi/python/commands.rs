@@ -182,8 +182,8 @@ impl Command {
         let msg_vec: Vec<&str> = msg.split(' ').collect();
         self.handler
             .bind(py)
-            .into_py(py)
-            .call1(py, (player, msg_vec, &channel))
+            .call1((player, msg_vec, &channel))
+            .map(|return_value| return_value.into_py(py))
     }
 
     fn is_eligible_name(&self, py: Python<'_>, name: &str) -> bool {
