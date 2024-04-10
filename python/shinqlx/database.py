@@ -18,7 +18,6 @@ class Redis(AbstractDatabase):
     # We only use the instance-level ones if we override the URI from the config.
     _conn = None
     _pool = None
-    _pass = ""
 
     def __init__(self, plugin):
         super().__init__()
@@ -184,12 +183,11 @@ class Redis(AbstractDatabase):
                 password_cvar = shinqlx.get_cvar("qlx_redisPassword")
                 if password_cvar is None:
                     raise ValueError("cvar qlx_redisPassword misconfigured")
-                Redis._pass = password_cvar
                 if cvar_unixsocket:
                     Redis._conn = redis.StrictRedis(
                         unix_socket_path=cvar_host,
                         db=cvar_db,
-                        password=Redis._pass,
+                        password=password_cvar,
                         decode_responses=True,
                     )
                 else:
@@ -199,7 +197,7 @@ class Redis(AbstractDatabase):
                         host=split_host[0],
                         port=port,
                         db=cvar_db,
-                        password=Redis._pass,
+                        password=password_cvar,
                         decode_responses=True,
                     )
                     Redis._conn = redis.StrictRedis(
