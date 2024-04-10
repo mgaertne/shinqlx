@@ -1039,7 +1039,7 @@ fn try_load_plugin(py: Python<'_>, plugin: &str) -> PyResult<()> {
     let plugin_class = module.getattr(&plugin_pystring)?;
     if !plugin_class
         .get_type()
-        .is_subclass(&py.get_type_bound::<Plugin>().into_any())
+        .is_subclass(&py.get_type_bound::<Plugin>().get_type())
         .unwrap_or(false)
     {
         return Err(PluginLoadError::new_err(
