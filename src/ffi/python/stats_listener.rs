@@ -281,7 +281,7 @@ pub(crate) struct StatsListener {
     #[pyo3(name = "done")]
     done: bool,
     #[pyo3(name = "address")]
-    address: String,
+    pub(crate) address: String,
     #[pyo3(name = "password")]
     password: String,
 }
@@ -341,7 +341,7 @@ impl StatsListener {
     }
 
     /// Receives until 'self.done' is set to True.
-    fn keep_receiving(slf: &Bound<'_, Self>, py: Python<'_>) -> PyResult<()> {
+    pub(crate) fn keep_receiving(slf: &Bound<'_, Self>, py: Python<'_>) -> PyResult<()> {
         PyModule::from_code_bound(
             py,
             r#"

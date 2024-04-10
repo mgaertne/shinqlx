@@ -774,6 +774,7 @@ fn try_log_messages(
         )?;
         py_logger.call_method1(intern!(py, "handle"), (log_record,))?;
     }
+
     Ok(())
 }
 
@@ -924,9 +925,9 @@ fn owner(py: Python<'_>) -> PyResult<Option<i64>> {
 
 /// Returns the :class:`shinqlx.StatsListener` instance used to listen for stats.
 #[pyfunction(name = "stats_listener")]
-fn get_stats_listener(py: Python<'_>) -> PyResult<Bound<'_, PyAny>> {
-    let shinqlx_module = py.import_bound(intern!(py, "shinqlx"))?;
-    shinqlx_module.getattr(intern!(py, "_stats"))
+#[pyo3(pass_module)]
+fn get_stats_listener<'py>(module: &Bound<'py, PyModule>) -> PyResult<Bound<'py, PyAny>> {
+    module.getattr(intern!(module.py(), "_stats"))
 }
 
 fn try_get_plugins_version(path: &str) -> Result<String, git2::Error> {
@@ -964,13 +965,11 @@ fn get_plugins_version(path: &str) -> String {
     try_get_plugins_version(path).unwrap_or("NOT_SET".to_string())
 }
 
-#[pyfunction(name = "set_plugins_version")]
-fn set_plugins_version(py: Python<'_>, path: &str) {
+#[pyfunction(name = "set_plugins_version", pass_module)]
+fn set_plugins_version(module: &Bound<'_, PyModule>, py: Python<'_>, path: &str) {
     let plugins_version = py.allow_threads(|| get_plugins_version(path));
 
-    if let Ok(shinqlx_module) = py.import_bound(intern!(py, "shinqlx")) {
-        let _ = shinqlx_module.setattr(intern!(py, "__plugins_version__"), plugins_version);
-    }
+    let _ = module.setattr(intern!(py, "__plugins_version__"), plugins_version);
 }
 
 static DEFAULT_PLUGINS: [&str; 10] = [
@@ -1037,12 +1036,10 @@ fn try_load_plugin(py: Python<'_>, plugin: &str) -> PyResult<()> {
         ));
     }
 
-    let shinqlx_plugin_module = shinqlx_module.getattr(intern!(py, "Plugin"))?;
-
     let plugin_class = module.getattr(&plugin_pystring)?;
     if !plugin_class
         .get_type()
-        .is_subclass(&shinqlx_plugin_module.get_type())
+        .is_subclass(&py.get_type_bound::<Plugin>().into_any())
         .unwrap_or(false)
     {
         return Err(PluginLoadError::new_err(
@@ -1093,13 +1090,12 @@ fn load_plugin(py: Python<'_>, plugin: &str) -> PyResult<()> {
         return Err(PluginLoadError::new_err("No such plugin exists."));
     }
 
-    let shinqlx_module = py.import_bound(intern!(py, "shinqlx"))?;
     let loaded_plugins = Python::get_type_bound::<Plugin>(py)
         .getattr(intern!(py, "_loaded_plugins"))?
         .extract::<&PyDict>()?;
 
     if loaded_plugins.contains(plugin)? {
-        shinqlx_module.call_method1(intern!(py, "reload_plugin"), (plugin,))?;
+        reload_plugin(py, plugin)?;
         return Ok(());
     }
 
@@ -1284,10 +1280,8 @@ fn try_get_plugins_path() -> Result<std::path::PathBuf, &'static str> {
 
 /// Initialization that needs to be called after QLDS has finished
 /// its own initialization.
-#[pyfunction(name = "late_init")]
-fn late_init(py: Python<'_>) -> PyResult<()> {
-    let shinqlx_module = py.import_bound(intern!(py, "shinqlx"))?;
-
+#[pyfunction(name = "late_init", pass_module)]
+fn late_init(module: Bound<'_, PyModule>, py: Python<'_>) -> PyResult<()> {
     initialize_cvars(py)?;
 
     let Some(ref main_engine) = *MAIN_ENGINE.load() else {
@@ -1296,6 +1290,7 @@ fn late_init(py: Python<'_>) -> PyResult<()> {
 
     let database_cvar = main_engine.find_cvar("qlx_database");
     if database_cvar.is_some_and(|value| value.get_string().to_lowercase() == "redis") {
+        let shinqlx_module = py.import_bound(intern!(py, "shinqlx"))?;
         let database_module = shinqlx_module.getattr(intern!(py, "database"))?;
         let redis_database_module = database_module.getattr(intern!(py, "Redis"))?;
 
@@ -1306,7 +1301,7 @@ fn late_init(py: Python<'_>) -> PyResult<()> {
     let sys_module = py.import_bound(intern!(py, "sys"))?;
 
     if let Ok(real_plugins_path) = try_get_plugins_path() {
-        set_plugins_version(py, &real_plugins_path.to_string_lossy());
+        set_plugins_version(&module, py, &real_plugins_path.to_string_lossy());
 
         let Some(plugins_path_dirname) = real_plugins_path
             .parent()
@@ -1326,11 +1321,11 @@ fn late_init(py: Python<'_>) -> PyResult<()> {
     let logging_module = py.import_bound(intern!(py, "logging"))?;
     let info_level = logging_module.getattr(intern!(py, "INFO"))?;
 
-    let handle_exception = shinqlx_module.getattr(intern!(py, "handle_exception"))?;
+    let handle_exception = module.getattr(intern!(py, "handle_exception"))?;
     sys_module.setattr(intern!(py, "excepthook"), handle_exception)?;
 
     let threading_module = py.import_bound(intern!(py, "threading"))?;
-    let threading_except_hook = shinqlx_module.getattr(intern!(py, "threading_excepthook"))?;
+    let threading_except_hook = module.getattr(intern!(py, "threading_excepthook"))?;
     threading_module.setattr(intern!(py, "excepthook"), threading_except_hook)?;
 
     let log_record = logger.call_method(
@@ -1348,17 +1343,13 @@ fn late_init(py: Python<'_>) -> PyResult<()> {
     )?;
     logger.call_method1(intern!(py, "handle"), (log_record,))?;
 
-    shinqlx_module.call_method0(intern!(py, "load_preset_plugins"))?;
+    module.call_method0(intern!(py, "load_preset_plugins"))?;
 
     let stats_enable_cvar = main_engine.find_cvar("zmq_stats_enable");
     if stats_enable_cvar.is_some_and(|value| value.get_string() != "0") {
-        shinqlx_module.setattr(
-            intern!(py, "_stats"),
-            Py::new(py, StatsListener::py_new()?)?,
-        )?;
-        let stats_value = shinqlx_module.getattr(intern!(py, "_stats"))?;
+        let stats_value = Py::new(py, StatsListener::py_new()?)?.into_bound(py);
+        module.setattr(intern!(py, "_stats"), &stats_value)?;
 
-        let stats_address = stats_value.getattr(intern!(py, "address"))?;
         let log_record = logger.call_method(
             intern!(py, "makeRecord"),
             (
@@ -1367,14 +1358,14 @@ fn late_init(py: Python<'_>) -> PyResult<()> {
                 intern!(py, ""),
                 -1,
                 intern!(py, "Stats listener started on %s."),
-                (stats_address,),
+                (&stats_value.borrow().address,),
                 py.None(),
             ),
             Some(&[(intern!(py, "func"), intern!(py, "late_init"))].into_py_dict_bound(py)),
         )?;
         logger.call_method1(intern!(py, "handle"), (log_record,))?;
 
-        stats_value.call_method0(intern!(py, "keep_receiving"))?;
+        StatsListener::keep_receiving(&stats_value, py)?;
     }
 
     let log_record = logger.call_method(
