@@ -3,6 +3,7 @@ use super::prelude::*;
 use super::{
     addadmin, addmod, addscore, addteamscore, ban, client_id, commands::CommandPriorities, demote,
     lock, mute, opsay, put, pyshinqlx_get_logger, set_teamsize, tempban, unban, unlock, unmute,
+    BLUE_TEAM_CHAT_CHANNEL, CHAT_CHANNEL, CONSOLE_CHANNEL, RED_TEAM_CHAT_CHANNEL,
 };
 #[cfg(test)]
 use crate::hooks::mock_hooks::shinqlx_com_printf;
@@ -590,12 +591,29 @@ impl Plugin {
         chat_channel: Option<PyObject>,
         kwargs: Option<&Bound<'_, PyDict>>,
     ) -> PyResult<()> {
-        let shinqlx_module = py.import_bound(intern!(py, "shinqlx"))?;
+        let limit = kwargs.map_or(100i32, |pydict| {
+            pydict
+                .get_item("limit")
+                .ok()
+                .flatten()
+                .and_then(|value| value.extract::<i32>().ok())
+                .unwrap_or(100i32)
+        });
+        let delimiter = kwargs.map_or(" ".to_owned(), |pydict| {
+            pydict
+                .get_item("delimiter")
+                .ok()
+                .flatten()
+                .and_then(|value| value.extract::<String>().ok())
+                .unwrap_or(" ".to_owned())
+        });
 
         match chat_channel {
             None => {
-                let chat_channel = shinqlx_module.getattr(intern!(py, "CHAT_CHANNEL"))?;
-                chat_channel.call_method(intern!(py, "reply"), (msg,), kwargs)?;
+                if let Some(ref main_chat_channel) = *CHAT_CHANNEL.load() {
+                    let main_channel = main_chat_channel.borrow(py).into_super();
+                    ChatChannel::reply(main_channel, py, msg, limit, &delimiter)?;
+                }
                 return Ok(());
             }
             Some(channel) => {
@@ -605,30 +623,26 @@ impl Plugin {
                     return Ok(());
                 }
 
-                let shinqlx_chat_channel = shinqlx_module.getattr(intern!(py, "CHAT_CHANNEL"))?;
-                if shinqlx_chat_channel.eq(bound_channel)? {
-                    shinqlx_chat_channel.call_method(intern!(py, "reply"), (msg,), kwargs)?;
-                    return Ok(());
+                for global_channel in [
+                    &CHAT_CHANNEL,
+                    &RED_TEAM_CHAT_CHANNEL,
+                    &BLUE_TEAM_CHAT_CHANNEL,
+                ] {
+                    if let Some(ref main_chat_channel) = *global_channel.load() {
+                        if main_chat_channel.bind(py).eq(bound_channel)? {
+                            let main_channel = main_chat_channel.borrow(py).into_super();
+                            ChatChannel::reply(main_channel, py, msg, limit, &delimiter)?;
+                            return Ok(());
+                        }
+                    }
                 }
 
-                let red_team_chat_channel =
-                    shinqlx_module.getattr(intern!(py, "RED_TEAM_CHAT_CHANNEL"))?;
-                if red_team_chat_channel.eq(bound_channel)? {
-                    red_team_chat_channel.call_method(intern!(py, "reply"), (msg,), kwargs)?;
-                    return Ok(());
-                }
-
-                let blue_team_chat_channel =
-                    shinqlx_module.getattr(intern!(py, "BLUE_TEAM_CHAT_CHANNEL"))?;
-                if blue_team_chat_channel.eq(bound_channel)? {
-                    blue_team_chat_channel.call_method(intern!(py, "reply"), (msg,), kwargs)?;
-                    return Ok(());
-                }
-
-                let console_channel = shinqlx_module.getattr(intern!(py, "CONSOLE_CHANNEL"))?;
-                if console_channel.eq(bound_channel)? {
-                    console_channel.call_method(intern!(py, "reply"), (msg,), kwargs)?;
-                    return Ok(());
+                if let Some(ref main_console_channel) = *CONSOLE_CHANNEL.load() {
+                    if main_console_channel.bind(py).eq(bound_channel)? {
+                        let console_channel = main_console_channel.borrow(py);
+                        ConsoleChannel::reply(console_channel, py, msg, limit, &delimiter)?;
+                        return Ok(());
+                    }
                 }
             }
         }

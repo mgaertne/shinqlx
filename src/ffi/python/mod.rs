@@ -157,6 +157,19 @@ pub(crate) static ALLOW_FREE_CLIENT: AtomicU64 = AtomicU64::new(0);
 pub(crate) static CUSTOM_COMMAND_HANDLER: Lazy<ArcSwapOption<PyObject>> =
     Lazy::new(ArcSwapOption::empty);
 
+pub(crate) static CHAT_CHANNEL: Lazy<ArcSwapOption<Py<TeamChatChannel>>> =
+    Lazy::new(ArcSwapOption::empty);
+pub(crate) static RED_TEAM_CHAT_CHANNEL: Lazy<ArcSwapOption<Py<TeamChatChannel>>> =
+    Lazy::new(ArcSwapOption::empty);
+pub(crate) static BLUE_TEAM_CHAT_CHANNEL: Lazy<ArcSwapOption<Py<TeamChatChannel>>> =
+    Lazy::new(ArcSwapOption::empty);
+pub(crate) static FREE_CHAT_CHANNEL: Lazy<ArcSwapOption<Py<TeamChatChannel>>> =
+    Lazy::new(ArcSwapOption::empty);
+pub(crate) static SPECTATOR_CHAT_CHANNEL: Lazy<ArcSwapOption<Py<TeamChatChannel>>> =
+    Lazy::new(ArcSwapOption::empty);
+pub(crate) static CONSOLE_CHANNEL: Lazy<ArcSwapOption<Py<ConsoleChannel>>> =
+    Lazy::new(ArcSwapOption::empty);
+
 // Used primarily in Python, but defined here and added using PyModule_AddIntMacro().
 #[allow(non_camel_case_types)]
 #[derive(PartialEq, Clone, Copy)]
@@ -1723,49 +1736,78 @@ fn pyshinqlx_module(py: Python<'_>, m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_class::<TellChannel>()?;
     m.add_class::<ConsoleChannel>()?;
     m.add_class::<ClientCommandChannel>()?;
-    m.add(
-        "CHAT_CHANNEL",
+
+    CHAT_CHANNEL.store(Some(
         Py::new(
             py,
             TeamChatChannel::py_new("all", "chat", "print \"{}\n\"\n"),
         )?
-        .into_bound(py),
-    )?;
+        .into(),
+    ));
     m.add(
-        "RED_TEAM_CHAT_CHANNEL",
+        "CHAT_CHANNEL",
+        (*CHAT_CHANNEL.load())
+            .as_ref()
+            .map(|channel| channel.as_ref().into_py(py)),
+    )?;
+    RED_TEAM_CHAT_CHANNEL.store(Some(
         Py::new(
             py,
             TeamChatChannel::py_new("red", "red_team_chat", "print \"{}\n\"\n"),
         )?
-        .into_bound(py),
-    )?;
+        .into(),
+    ));
     m.add(
-        "BLUE_TEAM_CHAT_CHANNEL",
+        "RED_TEAM_CHAT_CHANNEL",
+        (*RED_TEAM_CHAT_CHANNEL.load())
+            .as_ref()
+            .map(|channel| channel.as_ref().into_py(py)),
+    )?;
+    BLUE_TEAM_CHAT_CHANNEL.store(Some(
         Py::new(
             py,
             TeamChatChannel::py_new("blue", "blue_team_chat", "print \"{}\n\"\n"),
         )?
-        .into_bound(py),
-    )?;
+        .into(),
+    ));
     m.add(
-        "FREE_CHAT_CHANNEL",
+        "BLUE_TEAM_CHAT_CHANNEL",
+        (*BLUE_TEAM_CHAT_CHANNEL.load())
+            .as_ref()
+            .map(|channel| channel.as_ref().into_py(py)),
+    )?;
+    FREE_CHAT_CHANNEL.store(Some(
         Py::new(
             py,
             TeamChatChannel::py_new("free", "free_chat", "print \"{}\n\"\n"),
         )?
-        .into_bound(py),
-    )?;
+        .into(),
+    ));
     m.add(
-        "SPECTATOR_CHAT_CHANNEL",
+        "FREE_CHAT_CHANNEL",
+        (*FREE_CHAT_CHANNEL.load())
+            .as_ref()
+            .map(|channel| channel.as_ref().into_py(py)),
+    )?;
+    SPECTATOR_CHAT_CHANNEL.store(Some(
         Py::new(
             py,
             TeamChatChannel::py_new("spectator", "spectator_chat", "print \"{}\n\"\n"),
         )?
-        .into_bound(py),
+        .into(),
+    ));
+    m.add(
+        "SPECTATOR_CHAT_CHANNEL",
+        (*SPECTATOR_CHAT_CHANNEL.load())
+            .as_ref()
+            .map(|channel| channel.as_ref().into_py(py)),
     )?;
+    CONSOLE_CHANNEL.store(Some(Py::new(py, ConsoleChannel::py_new())?.into()));
     m.add(
         "CONSOLE_CHANNEL",
-        Py::new(py, ConsoleChannel::py_new())?.into_bound(py),
+        (*CONSOLE_CHANNEL.load())
+            .as_ref()
+            .map(|channel| channel.as_ref().into_py(py)),
     )?;
     m.add_class::<Command>()?;
     m.add_class::<CommandInvoker>()?;

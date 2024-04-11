@@ -1,5 +1,6 @@
 use super::prelude::*;
 use crate::ffi::c::prelude::*;
+use std::ops::Deref;
 
 use pyo3::{basic::CompareOp, exceptions::PyNotImplementedError, intern, types::IntoPyDict};
 use regex::Regex;
@@ -331,7 +332,7 @@ impl ConsoleChannel {
     }
 
     #[pyo3(signature = (msg, limit=100, delimiter=" "))]
-    fn reply(
+    pub(crate) fn reply(
         #[allow(unused_variables)] self_: PyRef<'_, Self>,
         py: Python<'_>,
         msg: &str,
@@ -417,21 +418,21 @@ impl ChatChannel {
 
     #[pyo3(signature = (msg, limit=100, delimiter=" "))]
     pub(crate) fn reply(
-        self_: &Bound<'_, Self>,
+        self_: PyRef<'_, Self>,
         py: Python<'_>,
         msg: &str,
         limit: i32,
         delimiter: &str,
     ) -> PyResult<()> {
         let re_color_tag = Regex::new(r"\^[0-7]").unwrap();
-        let fmt = self_.borrow().fmt.clone();
+        let fmt = self_.fmt.clone();
         let cleaned_msg = msg.replace('"', "'");
-        let targets: Option<Vec<i32>> = self_.call_method0(intern!(py, "recipients"))?.extract()?;
+        let targets: Option<Vec<i32>> = self_.deref().recipients()?;
 
         let split_msgs =
             self_
-                .borrow()
                 .into_super()
+                .deref()
                 .split_long_lines(&cleaned_msg, limit, delimiter);
 
         let mut joined_msgs = vec![];
