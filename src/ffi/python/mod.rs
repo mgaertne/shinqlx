@@ -170,6 +170,9 @@ pub(crate) static SPECTATOR_CHAT_CHANNEL: Lazy<ArcSwapOption<Py<TeamChatChannel>
 pub(crate) static CONSOLE_CHANNEL: Lazy<ArcSwapOption<Py<ConsoleChannel>>> =
     Lazy::new(ArcSwapOption::empty);
 
+pub(crate) static COMMANDS: Lazy<ArcSwapOption<Py<CommandInvoker>>> =
+    Lazy::new(ArcSwapOption::empty);
+
 // Used primarily in Python, but defined here and added using PyModule_AddIntMacro().
 #[allow(non_camel_case_types)]
 #[derive(PartialEq, Clone, Copy)]
@@ -1164,14 +1167,13 @@ fn try_unload_plugin(py: Python<'_>, plugin: &str) -> PyResult<()> {
         }
     });
 
-    let shinqlx_commands = shinqlx_module.getattr(intern!(py, "COMMANDS"))?;
     let plugin_commands = loaded_plugin.getattr(intern!(py, "commands"))?;
     plugin_commands.iter()?.flatten().for_each(|cmd| {
         if let Ok(py_cmd) = cmd.extract::<Command>() {
-            let result = shinqlx_commands.call_method1(intern!(py, "remove_command"), (py_cmd,));
-
-            if let Err(ref e) = result {
-                log_exception(py, e);
+            if let Some(ref commands) = *COMMANDS.load() {
+                if let Err(ref e) = commands.borrow(py).remove_command(py, py_cmd) {
+                    log_exception(py, e);
+                }
             }
         };
     });
@@ -1811,9 +1813,12 @@ fn pyshinqlx_module(py: Python<'_>, m: &Bound<'_, PyModule>) -> PyResult<()> {
     )?;
     m.add_class::<Command>()?;
     m.add_class::<CommandInvoker>()?;
+    COMMANDS.store(Some(Py::new(py, CommandInvoker::py_new())?.into()));
     m.add(
         "COMMANDS",
-        Py::new(py, CommandInvoker::py_new())?.into_bound(py),
+        (*COMMANDS.load())
+            .as_ref()
+            .map(|commands| commands.as_ref().into_py(py)),
     )?;
 
     // from _handlers.py

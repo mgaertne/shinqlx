@@ -1,7 +1,9 @@
 use super::prelude::*;
 use crate::ffi::c::prelude::*;
 
-use super::{log_exception, pyshinqlx_get_logger, set_map_subtitles, CHAT_CHANNEL};
+use super::{
+    log_exception, pyshinqlx_get_logger, set_map_subtitles, CHAT_CHANNEL, COMMANDS, CONSOLE_CHANNEL,
+};
 use crate::{quake_live_engine::GetConfigstring, MAIN_ENGINE};
 
 use alloc::sync::Arc;
@@ -19,15 +21,17 @@ use regex::{Regex, RegexBuilder};
 
 fn try_handle_rcon(py: Python<'_>, cmd: &str) -> PyResult<Option<bool>> {
     let rcon_dummy_player = Py::new(py, RconDummyPlayer::py_new())?;
+    let player = rcon_dummy_player.borrow(py).into_super().into_super();
 
-    let shinqlx_module = py.import_bound(intern!(py, "shinqlx"))?;
-    let shinqlx_console_channel = shinqlx_module.getattr(intern!(py, "CONSOLE_CHANNEL"))?;
+    let shinqlx_console_channel = (CONSOLE_CHANNEL.load())
+        .as_ref()
+        .map_or(py.None(), |channel| channel.bind(py).into_py(py));
 
-    let shinqlx_commands = shinqlx_module.getattr(intern!(py, "COMMANDS"))?;
-    let _ = shinqlx_commands.call_method1(
-        intern!(py, "handle_input"),
-        (rcon_dummy_player, cmd, shinqlx_console_channel),
-    )?;
+    if let Some(ref commands) = *COMMANDS.load() {
+        commands
+            .borrow(py)
+            .handle_input(py, &player, cmd, shinqlx_console_channel)?;
+    }
     Ok(None)
 }
 

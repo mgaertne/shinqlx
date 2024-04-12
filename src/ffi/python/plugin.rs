@@ -3,7 +3,7 @@ use super::prelude::*;
 use super::{
     addadmin, addmod, addscore, addteamscore, ban, client_id, commands::CommandPriorities, demote,
     lock, mute, opsay, put, pyshinqlx_get_logger, set_teamsize, tempban, unban, unlock, unmute,
-    BLUE_TEAM_CHAT_CHANNEL, CHAT_CHANNEL, CONSOLE_CHANNEL, RED_TEAM_CHAT_CHANNEL,
+    BLUE_TEAM_CHAT_CHANNEL, CHAT_CHANNEL, COMMANDS, CONSOLE_CHANNEL, RED_TEAM_CHAT_CHANNEL,
 };
 #[cfg(test)]
 use crate::hooks::mock_hooks::shinqlx_com_printf;
@@ -218,7 +218,7 @@ impl Plugin {
         permission = 0,
         channels = None,
         exclude_channels = None,
-        priority = CommandPriorities::PRI_NORMAL as i32,
+        priority = CommandPriorities::PRI_NORMAL as u32,
         client_cmd_pass = false,
         client_cmd_perm = 0,
         prefix = true,
@@ -233,7 +233,7 @@ impl Plugin {
         permission: i32,
         channels: Option<PyObject>,
         exclude_channels: Option<PyObject>,
-        priority: i32,
+        priority: u32,
         client_cmd_pass: bool,
         client_cmd_perm: i32,
         prefix: bool,
@@ -262,9 +262,11 @@ impl Plugin {
 
         plugin.commands.write().push(new_command.clone());
 
-        let shinqlx_module = py.import_bound(intern!(py, "shinqlx"))?;
-        let commands_invoker = shinqlx_module.getattr(intern!(py, "COMMANDS"))?;
-        commands_invoker.call_method1(intern!(py, "add_command"), (new_command, priority))?;
+        if let Some(ref commands) = *COMMANDS.load() {
+            commands
+                .borrow(py)
+                .add_command(py, new_command, priority as usize)?;
+        }
 
         Ok(())
     }

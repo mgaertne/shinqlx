@@ -1,4 +1,7 @@
 use super::prelude::*;
+use pyo3::exceptions::PyEnvironmentError;
+
+use super::super::{Player, COMMANDS};
 
 /// Event that triggers with the "say" command. If the handler cancels it,
 /// the message will also be cancelled.
@@ -23,16 +26,16 @@ impl ChatEventDispatcher {
     fn dispatch(
         slf: PyRef<'_, Self>,
         py: Python<'_>,
-        player: PyObject,
+        player: Player,
         msg: &str,
         channel: PyObject,
     ) -> PyObject {
-        match try_handle_input(py, &player, msg, &channel) {
+        match try_handle_input(py, &player, msg, channel.clone_ref(py)) {
             Err(e) => {
                 log_exception(py, &e);
             }
             Ok(handle_input_return) => {
-                if handle_input_return.is_truthy(py).is_ok_and(|value| !value) {
+                if !handle_input_return {
                     return false.into_py(py);
                 }
             }
@@ -42,18 +45,18 @@ impl ChatEventDispatcher {
         let mut return_value = true.into_py(py);
 
         let super_class = slf.into_super();
-        if let Ok(player_str) = player.bind(py).repr() {
-            if let Ok(channel_str) = channel.bind(py).repr() {
-                let dbgstr = format!("{}({}, {}, {})", Self::name, player_str, msg, channel_str);
-                dispatcher_debug_log(py, &dbgstr);
-            }
+        let player_str = &player.name;
+        if let Ok(channel_str) = channel.bind(py).repr() {
+            let dbgstr = format!("{}({}, {}, {})", Self::name, player_str, msg, channel_str);
+            dispatcher_debug_log(py, &dbgstr);
         }
 
         let plugins = super_class.plugins.read();
+        let py_player = player.into_py(py);
         for i in 0..5 {
             for (_, handlers) in plugins.iter() {
                 for handler in &handlers[i] {
-                    match handler.call1(py, (&player, &forwarded_msg, &channel)) {
+                    match handler.call1(py, (&py_player, &forwarded_msg, &channel)) {
                         Err(e) => {
                             log_exception(py, &e);
                             continue;
@@ -104,13 +107,14 @@ impl ChatEventDispatcher {
 
 fn try_handle_input(
     py: Python<'_>,
-    player: &PyObject,
+    player: &Player,
     cmd: &str,
-    channel: &PyObject,
-) -> PyResult<PyObject> {
-    let shinqlx_module = py.import_bound(intern!(py, "shinqlx"))?;
-    let commands = shinqlx_module.getattr(intern!(py, "COMMANDS"))?;
-    commands
-        .call_method1(intern!(py, "handle_input"), (player, cmd, channel))
-        .map(|ret| ret.into_py(py))
+    channel: PyObject,
+) -> PyResult<bool> {
+    COMMANDS.load().as_ref().map_or(
+        Err(PyEnvironmentError::new_err(
+            "could not get access to COMMANDS",
+        )),
+        |commands| commands.borrow(py).handle_input(py, player, cmd, channel),
+    )
 }

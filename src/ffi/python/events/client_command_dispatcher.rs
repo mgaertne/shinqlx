@@ -1,4 +1,7 @@
+use super::super::{Player, COMMANDS};
 use super::prelude::*;
+use crate::ffi::python::channels::ClientCommandChannel;
+use pyo3::exceptions::PyEnvironmentError;
 
 /// Event that triggers with any client command. This overlaps with
 /// other events, such as "chat".
@@ -20,20 +23,21 @@ impl ClientCommandDispatcher {
         (Self {}, EventDispatcher::default())
     }
 
-    fn dispatch(slf: PyRef<'_, Self>, py: Python<'_>, player: PyObject, cmd: &str) -> PyObject {
+    fn dispatch(slf: PyRef<'_, Self>, py: Python<'_>, player: Player, cmd: &str) -> PyObject {
         let mut forwarded_cmd = cmd.to_string();
         let mut return_value = true.into_py(py);
 
         let super_class = slf.into_super();
-        if let Ok(player_str) = player.bind(py).repr() {
-            let dbgstr = format!("{}({}, {})", Self::name, player_str, cmd);
-            dispatcher_debug_log(py, &dbgstr);
-        }
+        let player_str = &player.name;
+        let dbgstr = format!("{}({}, {})", Self::name, player_str, cmd);
+        dispatcher_debug_log(py, &dbgstr);
         let plugins = super_class.plugins.read();
+
+        let py_player = player.clone().into_py(py);
         for i in 0..5 {
             for (_, handlers) in plugins.iter() {
                 for handler in &handlers[i] {
-                    match handler.call1(py, (&player, &forwarded_cmd)) {
+                    match handler.call1(py, (&py_player, &forwarded_cmd)) {
                         Err(e) => {
                             log_exception(py, &e);
                             continue;
@@ -87,7 +91,7 @@ impl ClientCommandDispatcher {
                 log_exception(py, &e);
             }
             Ok(handle_input_return) => {
-                if handle_input_return.is_truthy(py).is_ok_and(|value| !value) {
+                if !handle_input_return {
                     return false.into_py(py);
                 }
             }
@@ -97,15 +101,16 @@ impl ClientCommandDispatcher {
     }
 }
 
-fn try_handle_input(py: Python<'_>, player: &PyObject, cmd: &str) -> PyResult<PyObject> {
-    let shinqlx_module = py.import_bound(intern!(py, "shinqlx"))?;
-    let client_command_channel =
-        shinqlx_module.call_method1(intern!(py, "ClientCommandChannel"), (player,))?;
-    let commands = shinqlx_module.getattr(intern!(py, "COMMANDS"))?;
-    commands
-        .call_method1(
-            intern!(py, "handle_input"),
-            (player, cmd, client_command_channel),
-        )
-        .map(|ret| ret.unbind())
+fn try_handle_input(py: Python<'_>, player: &Player, cmd: &str) -> PyResult<bool> {
+    let client_command_channel = Py::new(py, ClientCommandChannel::py_new(player))?;
+    COMMANDS.load().as_ref().map_or(
+        Err(PyEnvironmentError::new_err(
+            "could not get access to COMMANDS",
+        )),
+        |commands| {
+            commands
+                .borrow(py)
+                .handle_input(py, player, cmd, client_command_channel.into_py(py))
+        },
+    )
 }
