@@ -1191,7 +1191,9 @@ mod plugin_tests {
     use crate::ffi::c::prelude::*;
     use crate::ffi::python::prelude::*;
     use crate::prelude::*;
-    use std::ffi::{c_char, CString};
+
+    use alloc::ffi::CString;
+    use core::ffi::c_char;
 
     use mockall::predicate;
     use pretty_assertions::assert_eq;
