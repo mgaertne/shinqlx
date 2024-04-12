@@ -1136,11 +1136,35 @@ impl Player {
         py: Python<'py>,
         msg: &str,
         kwargs: Option<&Bound<'py, PyDict>>,
-    ) -> PyResult<Py<PyAny>> {
+    ) -> PyResult<()> {
         let Some(tell_channel) = self.get_channel(py) else {
-            return Err(PyNotImplementedError::new_err(""));
+            return Err(PyNotImplementedError::new_err("Player TellChannel"));
         };
-        tell_channel.call_method_bound(py, intern!(py, "reply"), (msg,), kwargs)
+
+        let limit = kwargs.map_or(100i32, |pydict| {
+            pydict
+                .get_item("limit")
+                .ok()
+                .flatten()
+                .and_then(|value| value.extract::<i32>().ok())
+                .unwrap_or(100i32)
+        });
+        let delimiter = kwargs.map_or(" ".to_owned(), |pydict| {
+            pydict
+                .get_item("delimiter")
+                .ok()
+                .flatten()
+                .and_then(|value| value.extract::<String>().ok())
+                .unwrap_or(" ".to_owned())
+        });
+
+        ChatChannel::reply(
+            tell_channel.bind(py).borrow().into_super(),
+            py,
+            msg,
+            limit,
+            &delimiter,
+        )
     }
 
     #[pyo3(signature = (reason = ""))]

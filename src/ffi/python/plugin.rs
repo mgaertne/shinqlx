@@ -618,7 +618,11 @@ impl Plugin {
             }
             Some(channel) => {
                 let bound_channel = channel.bind(py);
-                if bound_channel.is_instance_of::<AbstractChannel>() {
+                if bound_channel
+                    .get_type()
+                    .is_subclass(&py.get_type_bound::<AbstractChannel>().get_type())
+                    .unwrap_or(false)
+                {
                     bound_channel.call_method(intern!(py, "reply"), (msg,), kwargs)?;
                     return Ok(());
                 }
@@ -639,8 +643,13 @@ impl Plugin {
 
                 if let Some(ref main_console_channel) = *CONSOLE_CHANNEL.load() {
                     if main_console_channel.bind(py).eq(bound_channel)? {
-                        let console_channel = main_console_channel.borrow(py);
-                        ConsoleChannel::reply(console_channel, py, msg, limit, &delimiter)?;
+                        ConsoleChannel::reply(
+                            main_console_channel.get(),
+                            py,
+                            msg,
+                            limit,
+                            &delimiter,
+                        )?;
                         return Ok(());
                     }
                 }
