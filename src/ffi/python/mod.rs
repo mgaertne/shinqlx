@@ -157,6 +157,7 @@ pub(crate) static ALLOW_FREE_CLIENT: AtomicU64 = AtomicU64::new(0);
 pub(crate) static CUSTOM_COMMAND_HANDLER: Lazy<ArcSwapOption<PyObject>> =
     Lazy::new(ArcSwapOption::empty);
 
+pub(crate) static MODULES: Lazy<ArcSwapOption<Py<PyDict>>> = Lazy::new(ArcSwapOption::empty);
 pub(crate) static CHAT_CHANNEL: Lazy<ArcSwapOption<Py<TeamChatChannel>>> =
     Lazy::new(ArcSwapOption::empty);
 pub(crate) static RED_TEAM_CHAT_CHANNEL: Lazy<ArcSwapOption<Py<TeamChatChannel>>> =
@@ -171,6 +172,9 @@ pub(crate) static CONSOLE_CHANNEL: Lazy<ArcSwapOption<Py<ConsoleChannel>>> =
     Lazy::new(ArcSwapOption::empty);
 
 pub(crate) static COMMANDS: Lazy<ArcSwapOption<Py<CommandInvoker>>> =
+    Lazy::new(ArcSwapOption::empty);
+
+pub(crate) static EVENT_DISPATCHERS: Lazy<ArcSwapOption<Py<EventDispatcherManager>>> =
     Lazy::new(ArcSwapOption::empty);
 
 // Used primarily in Python, but defined here and added using PyModule_AddIntMacro().
@@ -1041,10 +1045,10 @@ fn try_load_plugin(py: Python<'_>, plugin: &str) -> PyResult<()> {
     let module =
         importlib_module.call_method1(intern!(py, "import_module"), (plugin_import_path,))?;
 
-    let shinqlx_module = py.import_bound(intern!(py, "shinqlx"))?;
     let plugin_pystring = PyString::new_bound(py, plugin);
-    let modules = shinqlx_module.getattr(intern!(py, "_modules"))?;
-    modules.set_item(&plugin_pystring, &module)?;
+    if let Some(modules) = (*MODULES.load()).as_ref() {
+        modules.bind(py).set_item(&plugin_pystring, &module)?;
+    }
 
     if !module.hasattr(&plugin_pystring)? {
         return Err(PluginLoadError::new_err(
@@ -1221,17 +1225,15 @@ fn unload_plugin(py: Python<'_>, plugin: &str) -> PyResult<()> {
 }
 
 fn try_reload_plugin(py: Python, plugin: &str) -> PyResult<()> {
-    let shinqlx_module = py.import_bound(intern!(py, "shinqlx"))?;
-
-    if let Ok(loaded_modules) = shinqlx_module.getattr(intern!(py, "_modules")) {
-        if loaded_modules.contains(plugin)? {
-            let loaded_plugin_module = loaded_modules.get_item(plugin)?;
+    if let Some(loaded_modules) = (*MODULES.load()).as_ref() {
+        if loaded_modules.bind(py).contains(plugin)? {
+            let loaded_plugin_module = loaded_modules.bind(py).get_item(plugin)?;
 
             let importlib_module = py.import_bound(intern!(py, "importlib"))?;
             let module =
                 importlib_module.call_method1(intern!(py, "reload"), (loaded_plugin_module,))?;
 
-            loaded_modules.set_item(plugin, module)?;
+            loaded_modules.bind(py).set_item(plugin, module)?;
         }
     };
     load_plugin(py, plugin)?;
@@ -1683,7 +1685,13 @@ fn pyshinqlx_module(py: Python<'_>, m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add("_thread_name", "shinqlxthread")?;
 
     m.add("_stats", py.None())?;
-    m.add("_modules", PyDict::new_bound(py))?;
+    MODULES.store(Some(PyDict::new_bound(py).unbind().into()));
+    m.add(
+        "_modules",
+        (*MODULES.load())
+            .as_ref()
+            .map(|modules| modules.as_ref().into_py(py)),
+    )?;
 
     m.add_function(wrap_pyfunction!(pyshinqlx_parse_variables, m)?)?;
     m.add_function(wrap_pyfunction!(pyshinqlx_get_logger, m)?)?;
@@ -1887,43 +1895,112 @@ fn pyshinqlx_module(py: Python<'_>, m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_class::<DamageDispatcher>()?;
     m.add_class::<EventDispatcherManager>()?;
 
-    let event_dispatchers = EventDispatcherManager::default();
-    event_dispatchers.add_dispatcher(py, py.get_type_bound::<ConsolePrintDispatcher>())?;
-    event_dispatchers.add_dispatcher(py, py.get_type_bound::<CommandDispatcher>())?;
-    event_dispatchers.add_dispatcher(py, py.get_type_bound::<ClientCommandDispatcher>())?;
-    event_dispatchers.add_dispatcher(py, py.get_type_bound::<ServerCommandDispatcher>())?;
-    event_dispatchers.add_dispatcher(py, py.get_type_bound::<FrameEventDispatcher>())?;
-    event_dispatchers.add_dispatcher(py, py.get_type_bound::<SetConfigstringDispatcher>())?;
-    event_dispatchers.add_dispatcher(py, py.get_type_bound::<ChatEventDispatcher>())?;
-    event_dispatchers.add_dispatcher(py, py.get_type_bound::<UnloadDispatcher>())?;
-    event_dispatchers.add_dispatcher(py, py.get_type_bound::<PlayerConnectDispatcher>())?;
-    event_dispatchers.add_dispatcher(py, py.get_type_bound::<PlayerLoadedDispatcher>())?;
-    event_dispatchers.add_dispatcher(py, py.get_type_bound::<PlayerDisconnectDispatcher>())?;
-    event_dispatchers.add_dispatcher(py, py.get_type_bound::<PlayerSpawnDispatcher>())?;
-    event_dispatchers.add_dispatcher(py, py.get_type_bound::<KamikazeUseDispatcher>())?;
-    event_dispatchers.add_dispatcher(py, py.get_type_bound::<KamikazeExplodeDispatcher>())?;
-    event_dispatchers.add_dispatcher(py, py.get_type_bound::<StatsDispatcher>())?;
-    event_dispatchers.add_dispatcher(py, py.get_type_bound::<VoteCalledDispatcher>())?;
-    event_dispatchers.add_dispatcher(py, py.get_type_bound::<VoteStartedDispatcher>())?;
-    event_dispatchers.add_dispatcher(py, py.get_type_bound::<VoteEndedDispatcher>())?;
-    event_dispatchers.add_dispatcher(py, py.get_type_bound::<VoteDispatcher>())?;
-    event_dispatchers.add_dispatcher(py, py.get_type_bound::<GameCountdownDispatcher>())?;
-    event_dispatchers.add_dispatcher(py, py.get_type_bound::<GameStartDispatcher>())?;
-    event_dispatchers.add_dispatcher(py, py.get_type_bound::<GameEndDispatcher>())?;
-    event_dispatchers.add_dispatcher(py, py.get_type_bound::<RoundCountdownDispatcher>())?;
-    event_dispatchers.add_dispatcher(py, py.get_type_bound::<RoundStartDispatcher>())?;
-    event_dispatchers.add_dispatcher(py, py.get_type_bound::<RoundEndDispatcher>())?;
-    event_dispatchers.add_dispatcher(py, py.get_type_bound::<TeamSwitchDispatcher>())?;
-    event_dispatchers.add_dispatcher(py, py.get_type_bound::<TeamSwitchAttemptDispatcher>())?;
-    event_dispatchers.add_dispatcher(py, py.get_type_bound::<MapDispatcher>())?;
-    event_dispatchers.add_dispatcher(py, py.get_type_bound::<NewGameDispatcher>())?;
-    event_dispatchers.add_dispatcher(py, py.get_type_bound::<KillDispatcher>())?;
-    event_dispatchers.add_dispatcher(py, py.get_type_bound::<DeathDispatcher>())?;
-    event_dispatchers.add_dispatcher(py, py.get_type_bound::<UserinfoDispatcher>())?;
-    event_dispatchers.add_dispatcher(py, py.get_type_bound::<DamageDispatcher>())?;
+    let event_dispatchers = Py::new(py, EventDispatcherManager::default())?;
+    event_dispatchers
+        .borrow(py)
+        .add_dispatcher(py, py.get_type_bound::<ConsolePrintDispatcher>())?;
+    event_dispatchers
+        .borrow(py)
+        .add_dispatcher(py, py.get_type_bound::<CommandDispatcher>())?;
+    event_dispatchers
+        .borrow(py)
+        .add_dispatcher(py, py.get_type_bound::<ClientCommandDispatcher>())?;
+    event_dispatchers
+        .borrow(py)
+        .add_dispatcher(py, py.get_type_bound::<ServerCommandDispatcher>())?;
+    event_dispatchers
+        .borrow(py)
+        .add_dispatcher(py, py.get_type_bound::<FrameEventDispatcher>())?;
+    event_dispatchers
+        .borrow(py)
+        .add_dispatcher(py, py.get_type_bound::<SetConfigstringDispatcher>())?;
+    event_dispatchers
+        .borrow(py)
+        .add_dispatcher(py, py.get_type_bound::<ChatEventDispatcher>())?;
+    event_dispatchers
+        .borrow(py)
+        .add_dispatcher(py, py.get_type_bound::<UnloadDispatcher>())?;
+    event_dispatchers
+        .borrow(py)
+        .add_dispatcher(py, py.get_type_bound::<PlayerConnectDispatcher>())?;
+    event_dispatchers
+        .borrow(py)
+        .add_dispatcher(py, py.get_type_bound::<PlayerLoadedDispatcher>())?;
+    event_dispatchers
+        .borrow(py)
+        .add_dispatcher(py, py.get_type_bound::<PlayerDisconnectDispatcher>())?;
+    event_dispatchers
+        .borrow(py)
+        .add_dispatcher(py, py.get_type_bound::<PlayerSpawnDispatcher>())?;
+    event_dispatchers
+        .borrow(py)
+        .add_dispatcher(py, py.get_type_bound::<KamikazeUseDispatcher>())?;
+    event_dispatchers
+        .borrow(py)
+        .add_dispatcher(py, py.get_type_bound::<KamikazeExplodeDispatcher>())?;
+    event_dispatchers
+        .borrow(py)
+        .add_dispatcher(py, py.get_type_bound::<StatsDispatcher>())?;
+    event_dispatchers
+        .borrow(py)
+        .add_dispatcher(py, py.get_type_bound::<VoteCalledDispatcher>())?;
+    event_dispatchers
+        .borrow(py)
+        .add_dispatcher(py, py.get_type_bound::<VoteStartedDispatcher>())?;
+    event_dispatchers
+        .borrow(py)
+        .add_dispatcher(py, py.get_type_bound::<VoteEndedDispatcher>())?;
+    event_dispatchers
+        .borrow(py)
+        .add_dispatcher(py, py.get_type_bound::<VoteDispatcher>())?;
+    event_dispatchers
+        .borrow(py)
+        .add_dispatcher(py, py.get_type_bound::<GameCountdownDispatcher>())?;
+    event_dispatchers
+        .borrow(py)
+        .add_dispatcher(py, py.get_type_bound::<GameStartDispatcher>())?;
+    event_dispatchers
+        .borrow(py)
+        .add_dispatcher(py, py.get_type_bound::<GameEndDispatcher>())?;
+    event_dispatchers
+        .borrow(py)
+        .add_dispatcher(py, py.get_type_bound::<RoundCountdownDispatcher>())?;
+    event_dispatchers
+        .borrow(py)
+        .add_dispatcher(py, py.get_type_bound::<RoundStartDispatcher>())?;
+    event_dispatchers
+        .borrow(py)
+        .add_dispatcher(py, py.get_type_bound::<RoundEndDispatcher>())?;
+    event_dispatchers
+        .borrow(py)
+        .add_dispatcher(py, py.get_type_bound::<TeamSwitchDispatcher>())?;
+    event_dispatchers
+        .borrow(py)
+        .add_dispatcher(py, py.get_type_bound::<TeamSwitchAttemptDispatcher>())?;
+    event_dispatchers
+        .borrow(py)
+        .add_dispatcher(py, py.get_type_bound::<MapDispatcher>())?;
+    event_dispatchers
+        .borrow(py)
+        .add_dispatcher(py, py.get_type_bound::<NewGameDispatcher>())?;
+    event_dispatchers
+        .borrow(py)
+        .add_dispatcher(py, py.get_type_bound::<KillDispatcher>())?;
+    event_dispatchers
+        .borrow(py)
+        .add_dispatcher(py, py.get_type_bound::<DeathDispatcher>())?;
+    event_dispatchers
+        .borrow(py)
+        .add_dispatcher(py, py.get_type_bound::<UserinfoDispatcher>())?;
+    event_dispatchers
+        .borrow(py)
+        .add_dispatcher(py, py.get_type_bound::<DamageDispatcher>())?;
+    EVENT_DISPATCHERS.store(Some(event_dispatchers.into()));
     m.add(
         "EVENT_DISPATCHERS",
-        Py::new(py, event_dispatchers)?.into_bound(py),
+        (*EVENT_DISPATCHERS.load())
+            .as_ref()
+            .map(|event_dispatchers| event_dispatchers.as_ref().into_py(py)),
     )?;
 
     // from _zmq.py
