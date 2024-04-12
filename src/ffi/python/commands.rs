@@ -351,7 +351,12 @@ impl CommandInvoker {
         })
     }
 
-    fn add_command(&self, py: Python<'_>, command: Command, priority: usize) -> PyResult<()> {
+    pub(crate) fn add_command(
+        &self,
+        py: Python<'_>,
+        command: Command,
+        priority: usize,
+    ) -> PyResult<()> {
         if self.is_registered(py, &command) {
             return Err(PyValueError::new_err(
                 "Attempted to add an already registered command.",
@@ -380,7 +385,7 @@ def add_command(cmd, priority):
         Ok(())
     }
 
-    fn remove_command(&self, py: Python<'_>, command: Command) -> PyResult<()> {
+    pub(crate) fn remove_command(&self, py: Python<'_>, command: Command) -> PyResult<()> {
         if !self.is_registered(py, &command) {
             return Err(PyValueError::new_err(
                 "Attempted to remove a command that was never added.",
@@ -420,10 +425,10 @@ def remove_command(cmd):
         Ok(())
     }
 
-    fn handle_input(
+    pub(crate) fn handle_input(
         &self,
         py: Python<'_>,
-        player: Player,
+        player: &Player,
         msg: &str,
         channel: PyObject,
     ) -> PyResult<bool> {
