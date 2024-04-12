@@ -566,7 +566,7 @@ fn set_map_subtitles(module: &Bound<'_, PyModule>) -> PyResult<()> {
 /// them into a dictionary.
 #[pyfunction]
 #[pyo3(name = "parse_variables")]
-#[pyo3(signature = (varstr, ordered = false))]
+#[pyo3(signature = (varstr, ordered = false), text_signature = "(varstr, ordered = false)")]
 fn pyshinqlx_parse_variables<'py>(
     py: Python<'py>,
     varstr: &str,
@@ -594,7 +594,7 @@ fn get_logger_name(py: Python<'_>, plugin: Option<PyObject>) -> String {
 /// Provides a logger that should be used by your plugin for debugging, info and error reporting. It will automatically output to both the server console as well as to a file.
 #[pyfunction]
 #[pyo3(name = "get_logger")]
-#[pyo3(signature = (plugin = None))]
+#[pyo3(signature = (plugin = None), text_signature = "(plugin = None)")]
 pub(crate) fn pyshinqlx_get_logger(
     py: Python<'_>,
     plugin: Option<PyObject>,
@@ -683,7 +683,7 @@ fn pyshinqlx_configure_logger(py: Python<'_>) -> PyResult<()> {
 /// Logs an exception using :func:`get_logger`. Call this in an except block.
 #[pyfunction]
 #[pyo3(name = "log_exception")]
-#[pyo3(signature = (plugin = None))]
+#[pyo3(signature = (plugin = None), text_signature = "(plugin = None)")]
 fn pyshinqlx_log_exception(py: Python<'_>, plugin: Option<PyObject>) -> PyResult<()> {
     let sys_module = py.import_bound(intern!(py, "sys"))?;
     let exc_info = sys_module.call_method0(intern!(py, "exc_info"))?;
@@ -854,7 +854,7 @@ def delay(time):
 /// with this is called within a function also decorated, it will **not** create a second
 /// thread unless told to do so with the *force* keyword.
 #[pyfunction]
-#[pyo3(signature = (func, force = false))]
+#[pyo3(signature = (func, force = false), text_signature = "(func, force = false)")]
 fn thread(py: Python<'_>, func: Py<PyFunction>, force: bool) -> PyResult<Bound<'_, PyAny>> {
     let thread_func = PyModule::from_code_bound(
         py,

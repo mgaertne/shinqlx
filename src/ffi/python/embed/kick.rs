@@ -12,7 +12,7 @@ use pyo3::exceptions::PyValueError;
 /// Kick a player and allowing the admin to supply a reason for it.
 #[pyfunction]
 #[pyo3(name = "kick")]
-#[pyo3(signature = (client_id, reason=None))]
+#[pyo3(signature = (client_id, reason=None), text_signature = "(client_id, reason=None)")]
 pub(crate) fn pyshinqlx_kick(py: Python<'_>, client_id: i32, reason: Option<&str>) -> PyResult<()> {
     validate_client_id(py, client_id)?;
 

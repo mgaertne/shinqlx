@@ -37,7 +37,7 @@ pub(crate) struct Game {
 #[pymethods]
 impl Game {
     #[new]
-    #[pyo3(signature = (cached = true))]
+    #[pyo3(signature = (cached = true), text_signature = "(cached = true)")]
     pub(crate) fn py_new(py: Python<'_>, cached: bool) -> PyResult<Self> {
         py.allow_threads(|| {
             let Some(ref main_engine) = *MAIN_ENGINE.load() else {
@@ -547,13 +547,13 @@ impl Game {
     }
 
     #[classmethod]
-    #[pyo3(signature = (team = None))]
+    #[pyo3(signature = (team = None), text_signature = "(team = None)")]
     fn lock(_cls: &Bound<'_, PyType>, py: Python<'_>, team: Option<&str>) -> PyResult<()> {
         lock(py, team)
     }
 
     #[classmethod]
-    #[pyo3(signature = (team = None))]
+    #[pyo3(signature = (team = None), text_signature = "(team = None)")]
     fn unlock(_cls: &Bound<'_, PyType>, py: Python<'_>, team: Option<&str>) -> PyResult<()> {
         unlock(py, team)
     }

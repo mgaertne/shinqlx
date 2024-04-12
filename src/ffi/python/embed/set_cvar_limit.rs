@@ -7,7 +7,7 @@ use pyo3::exceptions::PyEnvironmentError;
 /// Sets a non-string cvar with a minimum and maximum value.
 #[pyfunction]
 #[pyo3(name = "set_cvar_limit")]
-#[pyo3(signature = (cvar, value, min, max, flags=None))]
+#[pyo3(signature = (cvar, value, min, max, flags=None), text_signature = "(cvar, value, min, max, flags=None)")]
 pub(crate) fn pyshinqlx_set_cvar_limit(
     py: Python<'_>,
     cvar: &str,

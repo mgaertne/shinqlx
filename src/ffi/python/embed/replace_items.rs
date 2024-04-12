@@ -36,7 +36,6 @@ fn determine_item_id(item: &Bound<PyAny>) -> PyResult<i32> {
 /// Replaces target entity's item with specified one.
 #[pyfunction]
 #[pyo3(name = "replace_items")]
-#[pyo3(signature = (item1, item2))]
 pub(crate) fn pyshinqlx_replace_items(
     py: Python<'_>,
     item1: &Bound<'_, PyAny>,

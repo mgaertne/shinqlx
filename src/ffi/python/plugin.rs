@@ -153,7 +153,7 @@ impl Plugin {
         pyshinqlx_get_logger(slf.py(), Some(plugin_name.into_py(slf.py())))
     }
 
-    #[pyo3(signature = (event, handler, priority = CommandPriorities::PRI_NORMAL as i32))]
+    #[pyo3(signature = (event, handler, priority = CommandPriorities::PRI_NORMAL as i32), text_signature = "(event, handler, priority = PRI_NORMAL)")]
     fn add_hook(
         slf: &Bound<'_, Self>,
         py: Python<'_>,
@@ -178,7 +178,7 @@ impl Plugin {
         Ok(())
     }
 
-    #[pyo3(signature = (event, handler, priority = CommandPriorities::PRI_NORMAL as i32))]
+    #[pyo3(signature = (event, handler, priority = CommandPriorities::PRI_NORMAL as i32), text_signature = "(event, handler, priority = PRI_NORMAL)")]
     fn remove_hook(
         slf: &Bound<'_, Self>,
         py: Python<'_>,
@@ -211,7 +211,8 @@ impl Plugin {
         Ok(())
     }
 
-    #[pyo3(signature = (
+    #[pyo3(
+    signature = (
         name,
         handler,
         permission = 0,
@@ -221,7 +222,8 @@ impl Plugin {
         client_cmd_pass = false,
         client_cmd_perm = 0,
         prefix = true,
-        usage = ""))]
+        usage = ""),
+    text_signature = "(name, handler, permission = 0, channels = None, exclude_channels = None, priority = PRI_NORMAL, client_cmd_pass = false, client_cmd_perm = 0, prefix = true, usage = \"\")")]
     #[allow(clippy::too_many_arguments)]
     fn add_command(
         slf: Bound<'_, Self>,
@@ -417,7 +419,7 @@ impl Plugin {
     /// Sets a cvar. If the cvar exists, it will be set as if set from the console,
     /// otherwise create it.
     #[classmethod]
-    #[pyo3(signature = (name, value, flags = 0))]
+    #[pyo3(signature = (name, value, flags = 0), text_signature = "(name, value, flags = 0)")]
     fn set_cvar(
         _cls: &Bound<'_, PyType>,
         py: Python<'_>,
@@ -447,7 +449,7 @@ impl Plugin {
     /// Sets a cvar with upper and lower limits. If the cvar exists, it will be set
     /// as if set from the console, otherwise create it.
     #[classmethod]
-    #[pyo3(signature = (name, value, minimum, maximum, flags = 0))]
+    #[pyo3(signature = (name, value, minimum, maximum, flags = 0), text_signature = "(name, value, minimum, maximum, flags = 0)")]
     fn set_cvar_limit(
         _cls: &Bound<'_, PyType>,
         py: Python<'_>,
@@ -481,7 +483,7 @@ impl Plugin {
 
     /// Sets a cvar. If the cvar exists, do nothing.
     #[classmethod]
-    #[pyo3(signature = (name, value, flags = 0))]
+    #[pyo3(signature = (name, value, flags = 0), text_signature = "(name, value, flags = 0)")]
     fn set_cvar_once(
         _cls: &Bound<'_, PyType>,
         py: Python<'_>,
@@ -506,7 +508,7 @@ impl Plugin {
 
     /// Sets a cvar with upper and lower limits. If the cvar exists, not do anything.
     #[classmethod]
-    #[pyo3(signature = (name, value, minimum, maximum, flags = 0))]
+    #[pyo3(signature = (name, value, minimum, maximum, flags = 0), text_signature = "(name, value, minimum, maximum, flags = 0)")]
     fn set_cvar_limit_once(
         _cls: &Bound<'_, PyType>,
         py: Python<'_>,
@@ -550,7 +552,7 @@ impl Plugin {
     /// or Steam ID. Assumes [0, 64) to be a client ID
     /// and [64, inf) to be a Steam ID.
     #[classmethod]
-    #[pyo3(signature = (name, player_list = None))]
+    #[pyo3(signature = (name, player_list = None), text_signature = "(name, player_list = None)")]
     fn player(
         cls: &Bound<'_, PyType>,
         py: Python<'_>,
@@ -677,7 +679,7 @@ impl Plugin {
 
     /// Get the colored name of a decolored name.
     #[classmethod]
-    #[pyo3(signature = (name, player_list = None))]
+    #[pyo3(signature = (name, player_list = None), text_signature = "(name, player_list = None)")]
     fn colored_name(
         cls: &Bound<'_, PyType>,
         py: Python<'_>,
@@ -705,7 +707,7 @@ impl Plugin {
     /// Player instance, or Steam ID. Assumes [0, 64) to be
     /// a client ID and [64, inf) to be a Steam ID.
     #[classmethod]
-    #[pyo3(signature = (name, player_list = None))]
+    #[pyo3(signature = (name, player_list = None), text_signature = "(name, player_list = None)")]
     fn client_id(
         _cls: &Bound<'_, PyType>,
         py: Python<'_>,
@@ -717,7 +719,7 @@ impl Plugin {
 
     /// Find a player based on part of a players name.
     #[classmethod]
-    #[pyo3(signature = (name, player_list = None))]
+    #[pyo3(signature = (name, player_list = None), text_signature = "(name, player_list = None)")]
     fn find_player(
         cls: &Bound<'_, PyType>,
         py: Python<'_>,
@@ -743,7 +745,7 @@ impl Plugin {
 
     /// Get a dictionary with the teams as keys and players as values.
     #[classmethod]
-    #[pyo3(signature = (player_list = None))]
+    #[pyo3(signature = (player_list = None), text_signature = "(player_list = None)")]
     fn teams<'py>(
         cls: &Bound<'py, PyType>,
         py: Python<'py>,
@@ -789,7 +791,7 @@ impl Plugin {
     }
 
     #[classmethod]
-    #[pyo3(signature = (msg, recipient = None))]
+    #[pyo3(signature = (msg, recipient = None), text_signature = "(msg, recipient = None)")]
     fn center_print(
         _cls: &Bound<'_, PyType>,
         py: Python<'_>,
@@ -867,7 +869,7 @@ impl Plugin {
     }
 
     #[classmethod]
-    #[pyo3(signature = (vote, display, time = 30))]
+    #[pyo3(signature = (vote, display, time = 30), text_signature = "(vote, display, time = 30)")]
     fn callvote(
         cls: &Bound<'_, PyType>,
         py: Python<'_>,
@@ -904,7 +906,7 @@ impl Plugin {
     }
 
     #[classmethod]
-    #[pyo3(signature = (player, reason = ""))]
+    #[pyo3(signature = (player, reason = ""), text_signature = "(player, reason = \"\")")]
     fn kick(
         _cls: &Bound<'_, PyType>,
         py: Python<'_>,
@@ -935,7 +937,7 @@ impl Plugin {
     fn cointoss(_cls: &Bound<'_, PyType>) {}
 
     #[classmethod]
-    #[pyo3(signature = (new_map, factory = None))]
+    #[pyo3(signature = (new_map, factory = None), text_signature = "(new_map, factory = None)")]
     fn change_map(
         _cls: &Bound<'_, PyType>,
         py: Python,
@@ -977,7 +979,7 @@ impl Plugin {
     }
 
     #[classmethod]
-    #[pyo3(signature = (sound_path, player = None))]
+    #[pyo3(signature = (sound_path, player = None), text_signature = "(sound_path, player = None)")]
     fn play_sound(
         _cls: &Bound<'_, PyType>,
         py: Python<'_>,
@@ -995,7 +997,7 @@ impl Plugin {
     }
 
     #[classmethod]
-    #[pyo3(signature = (music_path, player = None))]
+    #[pyo3(signature = (music_path, player = None), text_signature = "(music_path, player = None)")]
     fn play_music(
         _cls: &Bound<'_, PyType>,
         py: Python<'_>,
@@ -1013,7 +1015,7 @@ impl Plugin {
     }
 
     #[classmethod]
-    #[pyo3(signature = (player = None))]
+    #[pyo3(signature = (player = None), text_signature = "(player = None)")]
     fn stop_sound(
         _cls: &Bound<'_, PyType>,
         py: Python<'_>,
@@ -1025,7 +1027,7 @@ impl Plugin {
     }
 
     #[classmethod]
-    #[pyo3(signature = (player = None))]
+    #[pyo3(signature = (player = None), text_signature = "(player = None)")]
     fn stop_music(
         _cls: &Bound<'_, PyType>,
         py: Python<'_>,
@@ -1037,7 +1039,7 @@ impl Plugin {
     }
 
     #[classmethod]
-    #[pyo3(signature = (player, damage = 0))]
+    #[pyo3(signature = (player, damage = 0), text_signature = "(player, damage = 0)")]
     fn slap(
         _cls: &Bound<'_, PyType>,
         py: Python<'_>,
@@ -1092,13 +1094,13 @@ impl Plugin {
     }
 
     #[classmethod]
-    #[pyo3(signature = (team = None))]
+    #[pyo3(signature = (team = None), text_signature = "(team = None)")]
     fn lock(_cls: &Bound<'_, PyType>, py: Python<'_>, team: Option<&str>) -> PyResult<()> {
         lock(py, team)
     }
 
     #[classmethod]
-    #[pyo3(signature = (team = None))]
+    #[pyo3(signature = (team = None), text_signature = "(team = None)")]
     fn unlock(_cls: &Bound<'_, PyType>, py: Python<'_>, team: Option<&str>) -> PyResult<()> {
         unlock(py, team)
     }

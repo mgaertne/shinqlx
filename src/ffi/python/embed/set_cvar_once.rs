@@ -7,7 +7,7 @@ use pyo3::exceptions::PyEnvironmentError;
 /// Sets a cvar.
 #[pyfunction]
 #[pyo3(name = "set_cvar_once")]
-#[pyo3(signature = (cvar, value, flags=0))]
+#[pyo3(signature = (cvar, value, flags=0), text_signature = "(cvar, value, flags=0)")]
 pub(crate) fn pyshinqlx_set_cvar_once(
     py: Python<'_>,
     cvar: &str,

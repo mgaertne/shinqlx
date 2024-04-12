@@ -5,7 +5,7 @@ use pyo3::exceptions::{PyTypeError, PyValueError};
 /// Register an event handler. Can be called more than once per event, but only the last one will work.
 #[pyfunction]
 #[pyo3(name = "register_handler")]
-#[pyo3(signature = (event, handler=None))]
+#[pyo3(signature = (event, handler=None), text_signature = "(event, handler=None)")]
 pub(crate) fn pyshinqlx_register_handler(
     _py: Python<'_>,
     event: &str,

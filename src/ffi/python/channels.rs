@@ -83,7 +83,7 @@ impl AbstractChannel {
         self.name.clone()
     }
 
-    #[pyo3(signature = (msg, *, limit=100, delimiter=" "), text_signature = "(msg, limit=100, delimiter=\" \")")]
+    #[pyo3(signature = (msg, limit=100, delimiter=" "), text_signature = "(msg, limit=100, delimiter=\" \")")]
     fn reply(
         &self,
         #[allow(unused_variables)] msg: &str,
@@ -94,7 +94,7 @@ impl AbstractChannel {
     }
 
     #[classmethod]
-    #[pyo3(signature = (msg, limit=100, delimiter=" "))]
+    #[pyo3(signature = (msg, limit=100, delimiter=" "), text_signature = "(msg, limit=100, delimiter=\" \")")]
     fn split_long_lines(
         _cls: &Bound<'_, PyType>,
         msg: &str,
@@ -354,7 +354,7 @@ impl ConsoleChannel {
         PyClassInitializer::from(AbstractChannel::py_new("console")).add_subclass(Self {})
     }
 
-    #[pyo3(signature = (msg, *, limit=100, delimiter=" "), text_signature = "(msg, *, limit=100, delimiter=\" \")")]
+    #[pyo3(signature = (msg, limit=100, delimiter=" "), text_signature = "(msg, limit=100, delimiter=\" \")")]
     pub(crate) fn reply(
         &self,
         py: Python<'_>,
@@ -431,7 +431,7 @@ pub(crate) struct ChatChannel {
 #[pymethods]
 impl ChatChannel {
     #[new]
-    #[pyo3(signature = (name = "chat", fmt = "print \"{}\n\"\n"))]
+    #[pyo3(signature = (name = "chat", fmt = "print \"{}\n\"\n"), text_signature = "(name = \"chat\", fmt = \"print \"{}\n\"\n\")")]
     fn py_new(name: &str, fmt: &str) -> PyClassInitializer<Self> {
         PyClassInitializer::from(AbstractChannel::py_new(name)).add_subclass(Self {
             fmt: fmt.to_string(),
@@ -442,7 +442,7 @@ impl ChatChannel {
         Err(PyNotImplementedError::new_err("ChatChannel recipients"))
     }
 
-    #[pyo3(signature = (msg, *, limit=100, delimiter=" "), text_signature = "(msg, *, limit=100, delimiter=\" \")")]
+    #[pyo3(signature = (msg, limit=100, delimiter=" "), text_signature = "(msg, limit=100, delimiter=\" \")")]
     pub(crate) fn reply(
         slf_: PyRef<'_, Self>,
         py: Python<'_>,
@@ -762,7 +762,7 @@ pub(crate) struct TeamChatChannel {
 #[pymethods]
 impl TeamChatChannel {
     #[new]
-    #[pyo3(signature = (team="all", name="chat", fmt="print \"{}\n\"\n"))]
+    #[pyo3(signature = (team="all", name="chat", fmt="print \"{}\n\"\n"), text_signature = "(team=\"all\", name=\"chat\", fmt=\"print \"{}\n\"\n\")")]
     pub(crate) fn py_new(team: &str, name: &str, fmt: &str) -> PyClassInitializer<Self> {
         PyClassInitializer::from(AbstractChannel::py_new(name))
             .add_subclass(ChatChannel {
@@ -990,7 +990,7 @@ impl ClientCommandChannel {
         Py::new(py, TellChannel::py_new(&player))
     }
 
-    #[pyo3(signature = (msg, *, limit=100, delimiter=" "), text_signature = "(msg, *, limit=100, delimiter=\" \")")]
+    #[pyo3(signature = (msg, limit=100, delimiter=" "), text_signature = "(msg, limit=100, delimiter=\" \")")]
     fn reply(&self, py: Python<'_>, msg: &str, limit: i32, delimiter: &str) -> PyResult<()> {
         let tell_channel = Py::new(
             py,
