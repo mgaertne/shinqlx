@@ -46,7 +46,7 @@ impl AbstractDatabase {
     /// to a certain permission level. Should only take a value of 0 to 5, where 0 is
     /// always True.
     #[allow(unused_variables)]
-    #[pyo3(signature = (player, level=5))]
+    #[pyo3(signature = (player, level=5), text_signature = "(player, level=5)")]
     fn has_permission(&self, player: PyObject, level: i32) -> PyResult<bool> {
         Err(PyNotImplementedError::new_err(
             "The abstract base database can't do database actions.",
@@ -55,7 +55,7 @@ impl AbstractDatabase {
 
     /// Abstract method. Should set specified player flag to value.
     #[allow(unused_variables)]
-    #[pyo3(signature = (player, flag, value=true))]
+    #[pyo3(signature = (player, flag, value=true), text_signature = "(player, flag, value=true)")]
     fn set_flag(&self, player: PyObject, flag: &str, value: bool) -> PyResult<bool> {
         Err(PyNotImplementedError::new_err(
             "The abstract base database can't do database actions.",
@@ -70,7 +70,7 @@ impl AbstractDatabase {
 
     /// Abstract method. Should return specified player flag
     #[allow(unused_variables)]
-    #[pyo3(signature = (player, flag, default=false))]
+    #[pyo3(signature = (player, flag, default=false), text_signature = "(player, flag, default=false)")]
     fn get_flag(&self, player: PyObject, flag: &str, default: bool) -> PyResult<bool> {
         Err(PyNotImplementedError::new_err(
             "The abstract base database can't do database actions.",

@@ -79,7 +79,7 @@ pub(crate) struct Player {
 #[pymethods]
 impl Player {
     #[new]
-    #[pyo3(signature = (client_id, info = None))]
+    #[pyo3(signature = (client_id, info = None), text_signature = "(client_id, info = None)")]
     pub(crate) fn py_new(client_id: i32, info: Option<PlayerInfo>) -> PyResult<Self> {
         let player_info = info.unwrap_or_else(|| PlayerInfo::from(client_id));
 
@@ -205,7 +205,8 @@ impl Player {
 
     #[pyo3(
     name = "_invalidate",
-    signature = (e = "The player does not exist anymore. Did the player disconnect?")
+    signature = (e = "The player does not exist anymore. Did the player disconnect?"),
+    text_signature = "(e = \"The player does not exist anymore. Did the player disconnect?\")"
     )]
     fn invalidate(&mut self, e: &str) -> PyResult<()> {
         self.valid = false;
@@ -616,7 +617,7 @@ impl Player {
             .map(|opt_stats| opt_stats.map(|stats| stats.ping).unwrap_or(999))
     }
 
-    #[pyo3(signature = (reset = false, **kwargs))]
+    #[pyo3(signature = (reset = false, **kwargs), text_signature = "(reset = false, **kwargs)")]
     fn position(
         &self,
         py: Python<'_>,
@@ -653,7 +654,7 @@ impl Player {
         }
     }
 
-    #[pyo3(signature = (reset = false, **kwargs))]
+    #[pyo3(signature = (reset = false, **kwargs), text_signature = "(reset = false, **kwargs)")]
     fn velocity(
         &self,
         py: Python<'_>,
@@ -690,7 +691,7 @@ impl Player {
         }
     }
 
-    #[pyo3(signature = (reset = false, **kwargs))]
+    #[pyo3(signature = (reset = false, **kwargs), text_signature = "(reset = false, **kwargs)")]
     fn weapons(
         &self,
         py: Python<'_>,
@@ -782,7 +783,7 @@ impl Player {
         }
     }
 
-    #[pyo3(signature = (new_weapon = None))]
+    #[pyo3(signature = (new_weapon = None), text_signature = "(new_weapon = None)")]
     fn weapon(&self, py: Python<'_>, new_weapon: Option<PyObject>) -> PyResult<PyObject> {
         let Some(weapon) = new_weapon else {
             let weapon = match pyshinqlx_player_state(py, self.id)? {
@@ -806,7 +807,7 @@ impl Player {
         pyshinqlx_set_weapon(py, self.id, converted_weapon as i32).map(|value| value.into_py(py))
     }
 
-    #[pyo3(signature = (reset = false, **kwargs))]
+    #[pyo3(signature = (reset = false, **kwargs), text_signature = "(reset = false, **kwargs)")]
     fn ammo(
         &self,
         py: Python<'_>,
@@ -898,7 +899,7 @@ impl Player {
         }
     }
 
-    #[pyo3(signature = (reset = false, **kwargs))]
+    #[pyo3(signature = (reset = false, **kwargs), text_signature = "(reset = false, **kwargs)")]
     fn powerups(
         &self,
         py: Python<'_>,
@@ -974,7 +975,7 @@ impl Player {
         Ok(())
     }
 
-    #[pyo3(signature = (reset = false, **kwargs))]
+    #[pyo3(signature = (reset = false, **kwargs), text_signature = "(reset = false, **kwargs)")]
     fn flight(
         &mut self,
         py: Python<'_>,
@@ -1167,7 +1168,7 @@ impl Player {
         )
     }
 
-    #[pyo3(signature = (reason = ""))]
+    #[pyo3(signature = (reason = ""), text_signature = "(reason = \"\")")]
     fn kick(&self, py: Python<'_>, reason: &str) -> PyResult<()> {
         pyshinqlx_kick(py, self.id, Some(reason))
     }
@@ -1233,7 +1234,7 @@ impl Player {
         other_player.put(py, &own_team)
     }
 
-    #[pyo3(signature = (damage = 0))]
+    #[pyo3(signature = (damage = 0), text_signature = "(damage = 0)")]
     fn slap(&self, py: Python<'_>, damage: i32) -> PyResult<()> {
         let slap_cmd = format!("slap {} {}", self.id, damage);
         pyshinqlx_console_command(py, &slap_cmd)
@@ -6925,7 +6926,7 @@ pub(crate) struct AbstractDummyPlayer;
 #[pymethods]
 impl AbstractDummyPlayer {
     #[new]
-    #[pyo3(signature = (name = "DummyPlayer"))]
+    #[pyo3(signature = (name = "DummyPlayer"), text_signature = "(name = \"DummyPlayer\")")]
     fn py_new(name: &str) -> PyClassInitializer<Self> {
         let player_info = PlayerInfo {
             client_id: -1,

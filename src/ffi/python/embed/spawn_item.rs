@@ -6,7 +6,6 @@ use pyo3::exceptions::PyValueError;
 /// Spawns item with specified coordinates.
 #[pyfunction]
 #[pyo3(name = "spawn_item")]
-#[pyo3(signature = (item_id, x, y, z))]
 pub(crate) fn pyshinqlx_spawn_item(
     py: Python<'_>,
     item_id: i32,

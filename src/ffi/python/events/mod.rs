@@ -364,7 +364,7 @@ impl EventDispatcher {
 
     /// Hook the event, making the handler get called with relevant arguments
     /// whenever the event is takes place.
-    #[pyo3(signature = (plugin, handler, priority=CommandPriorities::PRI_NORMAL as i32))]
+    #[pyo3(signature = (plugin, handler, priority=CommandPriorities::PRI_NORMAL as i32), text_signature = "(plugin, handler, priority=PRI_NORMAL)")]
     fn add_hook(
         slf: &Bound<'_, Self>,
         py: Python<'_>,
@@ -454,7 +454,7 @@ def add_hook(event, plugin, handler, priority):
     }
 
     /// Removes a previously hooked event.
-    #[pyo3(signature = (plugin, handler, priority=CommandPriorities::PRI_NORMAL as i32))]
+    #[pyo3(signature = (plugin, handler, priority=CommandPriorities::PRI_NORMAL as i32), text_signature = "(plugin, handler, priority=PRI_NORMAL)")]
     fn remove_hook(
         slf: &Bound<'_, Self>,
         py: Python<'_>,
