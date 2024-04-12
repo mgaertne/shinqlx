@@ -1,7 +1,7 @@
 use super::prelude::*;
 use crate::ffi::c::prelude::*;
 
-use super::{log_exception, pyshinqlx_get_logger, set_map_subtitles};
+use super::{log_exception, pyshinqlx_get_logger, set_map_subtitles, CHAT_CHANNEL};
 use crate::{quake_live_engine::GetConfigstring, MAIN_ENGINE};
 
 use alloc::sync::Arc;
@@ -115,14 +115,15 @@ fn try_handle_client_command(py: Python<'_>, client_id: i32, cmd: &str) -> PyRes
     if let Some(captures) = RE_SAY.captures(&updated_cmd) {
         if let Some(msg) = captures.name("msg") {
             let reformatted_msg = msg.as_str().replace('"', "");
-            let channel = shinqlx_module.getattr(intern!(py, "CHAT_CHANNEL"))?;
-            let chat_dispatcher = shinqlx_event_dispatchers.get_item(intern!(py, "chat"))?;
-            let result = chat_dispatcher.call_method1(
-                intern!(py, "dispatch"),
-                (player.clone(), reformatted_msg, channel),
-            )?;
-            if result.extract::<bool>().is_ok_and(|value| !value) {
-                return Ok(false.into_py(py));
+            if let Some(ref main_chat_channel) = *CHAT_CHANNEL.load() {
+                let chat_dispatcher = shinqlx_event_dispatchers.get_item(intern!(py, "chat"))?;
+                let result = chat_dispatcher.call_method1(
+                    intern!(py, "dispatch"),
+                    (player.clone(), reformatted_msg, main_chat_channel.as_ref()),
+                )?;
+                if result.extract::<bool>().is_ok_and(|value| !value) {
+                    return Ok(false.into_py(py));
+                }
             }
         }
         return Ok(updated_cmd.into_py(py));

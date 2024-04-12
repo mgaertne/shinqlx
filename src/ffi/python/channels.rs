@@ -1,8 +1,13 @@
 use super::prelude::*;
 use crate::ffi::c::prelude::*;
-use std::ops::Deref;
 
-use pyo3::{basic::CompareOp, exceptions::PyNotImplementedError, intern, types::IntoPyDict};
+use pyo3::{
+    basic::CompareOp,
+    exceptions::PyNotImplementedError,
+    intern,
+    types::{IntoPyDict, PyType},
+};
+
 use regex::Regex;
 
 /// An abstract class of a chat channel. A chat channel being a source of a message.
@@ -78,9 +83,9 @@ impl AbstractChannel {
         self.name.clone()
     }
 
-    #[pyo3(signature = (msg, limit=100, delimiter=" "))]
+    #[pyo3(signature = (msg, *, limit=100, delimiter=" "), text_signature = "(msg, limit=100, delimiter=\" \")")]
     fn reply(
-        #[allow(unused_variables)] self_: PyRef<'_, Self>,
+        &self,
         #[allow(unused_variables)] msg: &str,
         #[allow(unused_variables)] limit: i32,
         #[allow(unused_variables)] delimiter: &str,
@@ -88,8 +93,14 @@ impl AbstractChannel {
         Err(PyNotImplementedError::new_err("not implemented"))
     }
 
+    #[classmethod]
     #[pyo3(signature = (msg, limit=100, delimiter=" "))]
-    fn split_long_lines(&self, msg: &str, limit: i32, delimiter: &str) -> Vec<String> {
+    fn split_long_lines(
+        _cls: &Bound<'_, PyType>,
+        msg: &str,
+        limit: i32,
+        delimiter: &str,
+    ) -> Vec<String> {
         let split_string = msg.split('\n').flat_map(|value| {
             if value.len() <= limit as usize {
                 vec![value.to_string()]
@@ -256,29 +267,37 @@ _shinqlx.AbstractChannel("abstract") < 2
     fn reply_is_not_implemented() {
         Python::with_gil(|py| {
             let abstract_channel = Py::new(py, AbstractChannel::py_new("abstract")).unwrap();
-            let result =
-                AbstractChannel::reply(abstract_channel.bind(py).borrow(), "asdf", 100, " ");
+            let result = abstract_channel.bind(py).borrow().reply("asdf", 100, " ");
             assert!(result.is_err_and(|err| err.is_instance_of::<PyNotImplementedError>(py)));
         });
     }
 
     #[test]
+    #[cfg_attr(miri, ignore)]
     fn split_long_lines_with_short_string() {
-        let abstract_channel = AbstractChannel {
-            name: "abstract".to_string(),
-        };
-        let result = abstract_channel.split_long_lines("short", 100, " ");
+        let result = Python::with_gil(|py| {
+            AbstractChannel::split_long_lines(
+                &py.get_type_bound::<AbstractChannel>(),
+                "short",
+                100,
+                " ",
+            )
+        });
 
         assert_eq!(result, vec!["short".to_string()]);
     }
 
     #[test]
+    #[cfg_attr(miri, ignore)]
     fn split_long_lines_with_string_that_is_split() {
-        let abstract_channel = AbstractChannel {
-            name: "abstract".to_string(),
-        };
-        let result =
-            abstract_channel.split_long_lines("asdf1 asdf2 asdf3 asdf4\nasdf5\nasdf6", 5, " ");
+        let result = Python::with_gil(|py| {
+            AbstractChannel::split_long_lines(
+                &py.get_type_bound::<AbstractChannel>(),
+                "asdf1 asdf2 asdf3 asdf4\nasdf5\nasdf6",
+                5,
+                " ",
+            )
+        });
 
         assert_eq!(
             result,
@@ -294,12 +313,16 @@ _shinqlx.AbstractChannel("abstract") < 2
     }
 
     #[test]
+    #[cfg_attr(miri, ignore)]
     fn split_long_lines_with_string_with_multiple_chunks() {
-        let abstract_channel = AbstractChannel {
-            name: "abstract".to_string(),
-        };
-        let result =
-            abstract_channel.split_long_lines("asdf1 asdf2 asdf3 asdf4\nasdf5\nasdf6", 15, " ");
+        let result = Python::with_gil(|py| {
+            AbstractChannel::split_long_lines(
+                &py.get_type_bound::<AbstractChannel>(),
+                "asdf1 asdf2 asdf3 asdf4\nasdf5\nasdf6",
+                15,
+                " ",
+            )
+        });
 
         assert_eq!(
             result,
@@ -331,9 +354,9 @@ impl ConsoleChannel {
         PyClassInitializer::from(AbstractChannel::py_new("console")).add_subclass(Self {})
     }
 
-    #[pyo3(signature = (msg, limit=100, delimiter=" "))]
+    #[pyo3(signature = (msg, *, limit=100, delimiter=" "), text_signature = "(msg, *, limit=100, delimiter=\" \")")]
     pub(crate) fn reply(
-        #[allow(unused_variables)] self_: PyRef<'_, Self>,
+        &self,
         py: Python<'_>,
         msg: &str,
         #[allow(unused_variables)] limit: i32,
@@ -381,7 +404,10 @@ console_channel = _shinqlx.ConsoleChannel()
 
         let result = Python::with_gil(|py| {
             let console_channel = Py::new(py, ConsoleChannel::py_new()).unwrap();
-            ConsoleChannel::reply(console_channel.bind(py).borrow(), py, "asdf", 100, " ")
+            console_channel
+                .bind(py)
+                .borrow()
+                .reply(py, "asdf", 100, " ")
         });
         assert!(result.is_ok());
     }
@@ -412,28 +438,33 @@ impl ChatChannel {
         })
     }
 
-    fn recipients(&self) -> PyResult<Option<Vec<i32>>> {
-        Err(PyNotImplementedError::new_err(""))
+    fn recipients(_slf: PyRef<'_, Self>) -> PyResult<Option<Vec<i32>>> {
+        Err(PyNotImplementedError::new_err("ChatChannel recipients"))
     }
 
-    #[pyo3(signature = (msg, limit=100, delimiter=" "))]
+    #[pyo3(signature = (msg, *, limit=100, delimiter=" "), text_signature = "(msg, *, limit=100, delimiter=\" \")")]
     pub(crate) fn reply(
-        self_: PyRef<'_, Self>,
+        slf_: PyRef<'_, Self>,
         py: Python<'_>,
         msg: &str,
         limit: i32,
         delimiter: &str,
     ) -> PyResult<()> {
         let re_color_tag = Regex::new(r"\^[0-7]").unwrap();
-        let fmt = self_.fmt.clone();
+        let fmt = slf_.fmt.clone();
         let cleaned_msg = msg.replace('"', "'");
-        let targets: Option<Vec<i32>> = self_.deref().recipients()?;
+        let targets: Option<Vec<i32>> = slf_
+            .into_py(py)
+            .bind(py)
+            .call_method0(intern!(py, "recipients"))?
+            .extract()?;
 
-        let split_msgs =
-            self_
-                .into_super()
-                .deref()
-                .split_long_lines(&cleaned_msg, limit, delimiter);
+        let split_msgs = AbstractChannel::split_long_lines(
+            &py.get_type_bound::<AbstractChannel>(),
+            &cleaned_msg,
+            limit,
+            delimiter,
+        );
 
         let mut joined_msgs = vec![];
         for s in split_msgs {
@@ -508,12 +539,12 @@ def reply(targets, msg):
 mod chat_channel_tests {
     use crate::ffi::python::prelude::*;
 
-    use pyo3::exceptions::PyNotImplementedError;
+    use pyo3::exceptions::{PyNotImplementedError, PyValueError};
     use rstest::*;
 
     #[rstest]
     #[cfg_attr(miri, ignore)]
-    fn console_channel_can_be_created_from_python(_pyshinqlx_setup: ()) {
+    fn chat_channel_can_be_created_from_python(_pyshinqlx_setup: ()) {
         Python::with_gil(|py| {
             let chat_channel_constructor = py.run_bound(
                 r#"
@@ -531,11 +562,38 @@ chat_channel = _shinqlx.ChatChannel()
     #[cfg_attr(miri, ignore)]
     fn receipients_is_not_implemented() {
         Python::with_gil(|py| {
-            let chat_channel = ChatChannel {
-                fmt: "print\"{}\n\"\n".to_string(),
-            };
-            let result = chat_channel.recipients();
+            let chat_channel = Py::new(py, ChatChannel::py_new("asdf", "print\"{}\n\"\n"))
+                .expect("this should not happen");
+            let result = ChatChannel::recipients(chat_channel.bind(py).borrow());
             assert!(result.is_err_and(|err| err.is_instance_of::<PyNotImplementedError>(py)));
+        });
+    }
+
+    #[rstest]
+    #[cfg_attr(miri, ignore)]
+    fn chat_channel_subclasses_can_overwrite_recipients(_pyshinqlx_setup: ()) {
+        Python::with_gil(|py| {
+            let test_reply_to_recipients = py.run_bound(
+                r#"
+import _shinqlx
+
+class TestChatChannel(_shinqlx.ChatChannel):
+    def recipients(self):
+        raise ValueError("asdf")
+
+test_channel = TestChatChannel()
+test_channel.reply("asdf")
+            "#,
+                None,
+                None,
+            );
+            assert!(
+                test_reply_to_recipients
+                    .as_ref()
+                    .is_err_and(|err| err.is_instance_of::<PyValueError>(py)),
+                "{:?}",
+                test_reply_to_recipients.as_ref()
+            );
         });
     }
 }
@@ -574,8 +632,8 @@ impl TellChannel {
         Player::py_new(self.client_id, None)
     }
 
-    fn recipients(&self) -> PyResult<Option<Vec<i32>>> {
-        Ok(Some(vec![self.client_id]))
+    fn recipients(slf_: PyRef<'_, Self>) -> PyResult<Option<Vec<i32>>> {
+        Ok(Some(vec![slf_.client_id]))
     }
 }
 
@@ -676,11 +734,15 @@ tell_channel = _shinqlx.TellChannel(player)
     }
 
     #[test]
+    #[cfg_attr(miri, ignore)]
     fn receipients_returns_vec_with_client_id() {
-        let tell_channel = TellChannel { client_id: 42 };
-        assert!(tell_channel
-            .recipients()
-            .is_ok_and(|recipients| recipients == Some(vec![42,])));
+        let player = default_test_player();
+        Python::with_gil(|py| {
+            let py_tell_channel =
+                Py::new(py, TellChannel::py_new(&player)).expect("this should not happen");
+            assert!(TellChannel::recipients(py_tell_channel.bind(py).borrow())
+                .is_ok_and(|recipients| recipients == Some(vec![2,])));
+        });
     }
 }
 
@@ -928,7 +990,7 @@ impl ClientCommandChannel {
         Py::new(py, TellChannel::py_new(&player))
     }
 
-    #[pyo3(signature = (msg, limit=100, delimiter=""))]
+    #[pyo3(signature = (msg, *, limit=100, delimiter=" "), text_signature = "(msg, *, limit=100, delimiter=\" \")")]
     fn reply(&self, py: Python<'_>, msg: &str, limit: i32, delimiter: &str) -> PyResult<()> {
         let tell_channel = Py::new(
             py,
