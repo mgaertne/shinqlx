@@ -1,11 +1,10 @@
 use super::prelude::*;
-use super::{owner, pyshinqlx_get_logger, PythonReturnCodes};
+use super::{owner, pyshinqlx_get_logger, PythonReturnCodes, EVENT_DISPATCHERS};
 
 use pyo3::prelude::*;
 use pyo3::types::IntoPyDict;
 use pyo3::{
-    exceptions::PyKeyError,
-    exceptions::PyValueError,
+    exceptions::{PyEnvironmentError, PyKeyError, PyValueError},
     intern,
     types::{PyList, PyTuple},
     PyTraverseError, PyVisit,
@@ -450,9 +449,15 @@ def remove_command(cmd):
         let is_client_cmd = channel_name == "client_command";
         let mut pass_through = true;
 
-        let shinqlx_module = py.import_bound(intern!(py, "shinqlx"))?;
-        let event_dispatchers = shinqlx_module.getattr(intern!(py, "EVENT_DISPATCHERS"))?;
-        let command_dispatcher = event_dispatchers.get_item(intern!(py, "command"))?;
+        let Some(command_dispatcher) = EVENT_DISPATCHERS
+            .load()
+            .as_ref()
+            .and_then(|event_dispatchers| event_dispatchers.bind(py).get_item("command").ok())
+        else {
+            return Err(PyEnvironmentError::new_err(
+                "could not get access to command dispatcher",
+            ));
+        };
 
         let commands = self.commands.read();
         for priority_level in 0..commands.len() {
