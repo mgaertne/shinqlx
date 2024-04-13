@@ -2,7 +2,9 @@ use super::prelude::*;
 use crate::ffi::c::prelude::*;
 
 use super::{
-    log_exception, pyshinqlx_get_logger, set_map_subtitles, CHAT_CHANNEL, COMMANDS, CONSOLE_CHANNEL,
+    late_init, log_exception, pyshinqlx_get_logger, set_map_subtitles, BLUE_TEAM_CHAT_CHANNEL,
+    CHAT_CHANNEL, COMMANDS, CONSOLE_CHANNEL, EVENT_DISPATCHERS, FREE_CHAT_CHANNEL,
+    RED_TEAM_CHAT_CHANNEL, SPECTATOR_CHAT_CHANNEL,
 };
 use crate::{quake_live_engine::GetConfigstring, MAIN_ENGINE};
 
@@ -12,7 +14,7 @@ use core::sync::atomic::{AtomicBool, AtomicI32, Ordering};
 use itertools::Itertools;
 use once_cell::sync::Lazy;
 use pyo3::{
-    exceptions::PyValueError,
+    exceptions::{PyEnvironmentError, PyValueError},
     intern,
     types::{IntoPyDict, PyDict},
     PyTraverseError, PyVisit,
@@ -23,7 +25,8 @@ fn try_handle_rcon(py: Python<'_>, cmd: &str) -> PyResult<Option<bool>> {
     let rcon_dummy_player = Py::new(py, RconDummyPlayer::py_new())?;
     let player = rcon_dummy_player.borrow(py).into_super().into_super();
 
-    let shinqlx_console_channel = (CONSOLE_CHANNEL.load())
+    let shinqlx_console_channel = CONSOLE_CHANNEL
+        .load()
         .as_ref()
         .map_or(py.None(), |channel| channel.bind(py).into_py(py));
 
@@ -100,10 +103,15 @@ fn is_vote_active() -> bool {
 fn try_handle_client_command(py: Python<'_>, client_id: i32, cmd: &str) -> PyResult<PyObject> {
     let player = Player::py_new(client_id, None)?;
 
-    let shinqlx_module = py.import_bound(intern!(py, "shinqlx"))?;
-    let shinqlx_event_dispatchers = shinqlx_module.getattr(intern!(py, "EVENT_DISPATCHERS"))?;
-    let server_command_dispatcher =
-        shinqlx_event_dispatchers.get_item(intern!(py, "client_command"))?;
+    let Some(server_command_dispatcher) = EVENT_DISPATCHERS
+        .load()
+        .as_ref()
+        .and_then(|event_dispatchers| event_dispatchers.bind(py).get_item("client_command").ok())
+    else {
+        return Err(PyEnvironmentError::new_err(
+            "could not get access to client command dispatcher",
+        ));
+    };
 
     let return_value =
         server_command_dispatcher.call_method1(intern!(py, "dispatch"), (player.clone(), cmd))?;
@@ -120,7 +128,15 @@ fn try_handle_client_command(py: Python<'_>, client_id: i32, cmd: &str) -> PyRes
         if let Some(msg) = captures.name("msg") {
             let reformatted_msg = msg.as_str().replace('"', "");
             if let Some(ref main_chat_channel) = *CHAT_CHANNEL.load() {
-                let chat_dispatcher = shinqlx_event_dispatchers.get_item(intern!(py, "chat"))?;
+                let Some(chat_dispatcher) = EVENT_DISPATCHERS
+                    .load()
+                    .as_ref()
+                    .and_then(|event_dispatchers| event_dispatchers.bind(py).get_item("chat").ok())
+                else {
+                    return Err(PyEnvironmentError::new_err(
+                        "could not get access to chat dispatcher",
+                    ));
+                };
                 let result = chat_dispatcher.call_method1(
                     intern!(py, "dispatch"),
                     (player.clone(), reformatted_msg, main_chat_channel.as_ref()),
@@ -137,15 +153,28 @@ fn try_handle_client_command(py: Python<'_>, client_id: i32, cmd: &str) -> PyRes
         if let Some(msg) = captures.name("msg") {
             let reformatted_msg = msg.as_str().replace('"', "");
             let channel = match player.get_team(py)?.as_str() {
-                "free" => shinqlx_module.getattr(intern!(py, "FREE_CHAT_CHANNEL"))?,
-                "red" => shinqlx_module.getattr(intern!(py, "RED_TEAM_CHAT_CHANNEL"))?,
-                "blue" => shinqlx_module.getattr(intern!(py, "BLUE_TEAM_CHAT_CHANNEL"))?,
-                _ => shinqlx_module.getattr(intern!(py, "SPECTATOR_CHAT_CHANNEL"))?,
+                "free" => &FREE_CHAT_CHANNEL,
+                "red" => &RED_TEAM_CHAT_CHANNEL,
+                "blue" => &BLUE_TEAM_CHAT_CHANNEL,
+                _ => &SPECTATOR_CHAT_CHANNEL,
             };
-            let chat_dispatcher = shinqlx_event_dispatchers.get_item(intern!(py, "chat"))?;
+            let Some(chat_dispatcher) = EVENT_DISPATCHERS
+                .load()
+                .as_ref()
+                .and_then(|event_dispatchers| event_dispatchers.bind(py).get_item("chat").ok())
+            else {
+                return Err(PyEnvironmentError::new_err(
+                    "could not get access to chat dispatcher",
+                ));
+            };
+            let Some(ref chat_channel) = *channel.load() else {
+                return Err(PyEnvironmentError::new_err(
+                    "could not get access to team chat channel",
+                ));
+            };
             let result = chat_dispatcher.call_method1(
                 intern!(py, "dispatch"),
-                (player.clone(), reformatted_msg, channel),
+                (player.clone(), reformatted_msg, chat_channel.bind(py)),
             )?;
             if result.extract::<bool>().is_ok_and(|value| !value) {
                 return Ok(false.into_py(py));
@@ -161,11 +190,31 @@ fn try_handle_client_command(py: Python<'_>, client_id: i32, cmd: &str) -> PyRes
                     .name("args")
                     .map(|matched| matched.as_str())
                     .unwrap_or("");
-                let vote_started_dispatcher =
-                    shinqlx_event_dispatchers.get_item(intern!(py, "vote_started"))?;
+                let Some(vote_started_dispatcher) =
+                    EVENT_DISPATCHERS
+                        .load()
+                        .as_ref()
+                        .and_then(|event_dispatchers| {
+                            event_dispatchers.bind(py).get_item("vote_started").ok()
+                        })
+                else {
+                    return Err(PyEnvironmentError::new_err(
+                        "could not get access to vote started dispatcher",
+                    ));
+                };
                 vote_started_dispatcher.call_method1(intern!(py, "caller"), (player.clone(),))?;
-                let vote_called_dispatcher =
-                    shinqlx_event_dispatchers.get_item(intern!(py, "vote_called"))?;
+                let Some(vote_called_dispatcher) =
+                    EVENT_DISPATCHERS
+                        .load()
+                        .as_ref()
+                        .and_then(|event_dispatchers| {
+                            event_dispatchers.bind(py).get_item("vote_called").ok()
+                        })
+                else {
+                    return Err(PyEnvironmentError::new_err(
+                        "could not get access to vote called dispatcher",
+                    ));
+                };
                 let result = vote_called_dispatcher.call_method1(
                     intern!(py, "dispatch"),
                     (player.clone(), vote.as_str(), args),
@@ -183,8 +232,18 @@ fn try_handle_client_command(py: Python<'_>, client_id: i32, cmd: &str) -> PyRes
             if let Some(arg) = captures.name("arg") {
                 if ["y", "Y", "1", "n", "N", "2"].contains(&arg.as_str()) {
                     let vote = ["y", "Y", "1"].contains(&arg.as_str());
-                    let vote_dispatcher =
-                        shinqlx_event_dispatchers.get_item(intern!(py, "vote"))?;
+                    let Some(vote_dispatcher) =
+                        EVENT_DISPATCHERS
+                            .load()
+                            .as_ref()
+                            .and_then(|event_dispatchers| {
+                                event_dispatchers.bind(py).get_item("vote").ok()
+                            })
+                    else {
+                        return Err(PyEnvironmentError::new_err(
+                            "could not get access to vote dispatcher",
+                        ));
+                    };
                     let result = vote_dispatcher
                         .call_method1(intern!(py, "dispatch"), (player.clone(), vote))?;
                     if result.extract::<bool>().is_ok_and(|value| !value) {
@@ -212,8 +271,21 @@ fn try_handle_client_command(py: Python<'_>, client_id: i32, cmd: &str) -> PyRes
                 "s" => "spectator",
                 _ => "any",
             };
-            let team_switch_attempt_dispatcher =
-                shinqlx_event_dispatchers.get_item(intern!(py, "team_switch_attempt"))?;
+            let Some(team_switch_attempt_dispatcher) =
+                EVENT_DISPATCHERS
+                    .load()
+                    .as_ref()
+                    .and_then(|event_dispatchers| {
+                        event_dispatchers
+                            .bind(py)
+                            .get_item("team_switch_attempt")
+                            .ok()
+                    })
+            else {
+                return Err(PyEnvironmentError::new_err(
+                    "could not get access to team switch attempt dispatcher",
+                ));
+            };
             let result = team_switch_attempt_dispatcher.call_method1(
                 intern!(py, "dispatch"),
                 (player.clone(), current_team, target_team),
@@ -241,8 +313,18 @@ fn try_handle_client_command(py: Python<'_>, client_id: i32, cmd: &str) -> PyRes
                 .collect();
 
             if !changed.is_empty() {
-                let userinfo_dispatcher =
-                    shinqlx_event_dispatchers.get_item(intern!(py, "userinfo"))?;
+                let Some(userinfo_dispatcher) =
+                    EVENT_DISPATCHERS
+                        .load()
+                        .as_ref()
+                        .and_then(|event_dispatchers| {
+                            event_dispatchers.bind(py).get_item("userinfo").ok()
+                        })
+                else {
+                    return Err(PyEnvironmentError::new_err(
+                        "could not get access to userinfo dispatcher",
+                    ));
+                };
                 let result = userinfo_dispatcher.call_method1(
                     intern!(py, "dispatch"),
                     (player.clone(), &changed.into_py_dict_bound(py)),
@@ -297,10 +379,15 @@ fn try_handle_server_command(py: Python<'_>, client_id: i32, cmd: &str) -> PyRes
         return Ok(true.into_py(py));
     };
 
-    let shinqlx_module = py.import_bound(intern!(py, "shinqlx"))?;
-    let shinqlx_event_dispatchers = shinqlx_module.getattr(intern!(py, "EVENT_DISPATCHERS"))?;
-    let server_command_dispatcher =
-        shinqlx_event_dispatchers.get_item(intern!(py, "server_command"))?;
+    let Some(server_command_dispatcher) = EVENT_DISPATCHERS
+        .load()
+        .as_ref()
+        .and_then(|event_dispatchers| event_dispatchers.bind(py).get_item("server_command").ok())
+    else {
+        return Err(PyEnvironmentError::new_err(
+            "could not get access to server command dispatcher",
+        ));
+    };
 
     let return_value =
         server_command_dispatcher.call_method1(intern!(py, "dispatch"), (player, cmd))?;
@@ -317,8 +404,16 @@ fn try_handle_server_command(py: Python<'_>, client_id: i32, cmd: &str) -> PyRes
         let vote_passed = captures
             .name("result")
             .is_some_and(|value| value.as_str() == "passed");
-        let vote_ended_dispatcher =
-            shinqlx_event_dispatchers.get_item(intern!(py, "vote_ended"))?;
+        let Some(vote_ended_dispatcher) = EVENT_DISPATCHERS
+            .load()
+            .as_ref()
+            .and_then(|event_dispatchers| event_dispatchers.bind(py).get_item("vote_ended").ok())
+        else {
+            return Err(PyEnvironmentError::new_err(
+                "could not get access to vote ended dispatcher",
+            ));
+        };
+
         let _ = vote_ended_dispatcher.call_method1(intern!(py, "dispatch"), (vote_passed,))?;
     }
 
@@ -346,9 +441,15 @@ fn try_run_frame_tasks(py: Python<'_>) -> PyResult<()> {
 }
 
 fn try_handle_frame(py: Python<'_>) -> PyResult<()> {
-    let shinqlx_module = py.import_bound(intern!(py, "shinqlx"))?;
-    let shinqlx_event_dispatchers = shinqlx_module.getattr(intern!(py, "EVENT_DISPATCHERS"))?;
-    let frame_dispatcher = shinqlx_event_dispatchers.get_item(intern!(py, "frame"))?;
+    let Some(frame_dispatcher) = EVENT_DISPATCHERS
+        .load()
+        .as_ref()
+        .and_then(|event_dispatchers| event_dispatchers.bind(py).get_item("frame").ok())
+    else {
+        return Err(PyEnvironmentError::new_err(
+            "could not get access to frame dispatcher",
+        ));
+    };
     frame_dispatcher.call_method0(intern!(py, "dispatch"))?;
 
     Ok(())
@@ -402,7 +503,7 @@ static IS_FIRST_GAME: AtomicBool = AtomicBool::new(true);
 fn try_handle_new_game(py: Python<'_>, is_restart: bool) -> PyResult<()> {
     let shinqlx_module = py.import_bound(intern!(py, "shinqlx"))?;
     if IS_FIRST_GAME.load(Ordering::SeqCst) {
-        shinqlx_module.call_method0(intern!(py, "late_init"))?;
+        late_init(&shinqlx_module, py)?;
         IS_FIRST_GAME.store(false, Ordering::SeqCst);
 
         let zmq_enabled_cvar = pyshinqlx_get_cvar(py, "zmq_stats_enable")?;
@@ -434,15 +535,30 @@ fn try_handle_new_game(py: Python<'_>, is_restart: bool) -> PyResult<()> {
 
     set_map_subtitles(&shinqlx_module)?;
 
-    let event_dispatchers_module = shinqlx_module.getattr(intern!(py, "EVENT_DISPATCHERS"))?;
     if !is_restart {
         let map_name = pyshinqlx_get_cvar(py, "mapname")?;
         let factory_name = pyshinqlx_get_cvar(py, "g_factory")?;
-        let map_dispatcher = event_dispatchers_module.get_item(intern!(py, "map"))?;
+        let Some(map_dispatcher) = EVENT_DISPATCHERS
+            .load()
+            .as_ref()
+            .and_then(|event_dispatchers| event_dispatchers.bind(py).get_item("map").ok())
+        else {
+            return Err(PyEnvironmentError::new_err(
+                "could not get access to map dispatcher",
+            ));
+        };
         map_dispatcher.call_method1(intern!(py, "dispatch"), (map_name, factory_name))?;
     }
 
-    let new_game_dispatcher = event_dispatchers_module.get_item(intern!(py, "new_game"))?;
+    let Some(new_game_dispatcher) = EVENT_DISPATCHERS
+        .load()
+        .as_ref()
+        .and_then(|event_dispatchers| event_dispatchers.bind(py).get_item("new_game").ok())
+    else {
+        return Err(PyEnvironmentError::new_err(
+            "could not get access to new game dispatcher",
+        ));
+    };
     new_game_dispatcher.call_method0(intern!(py, "dispatch"))?;
 
     Ok(())

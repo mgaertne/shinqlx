@@ -1298,7 +1298,7 @@ fn try_get_plugins_path() -> Result<std::path::PathBuf, &'static str> {
 /// Initialization that needs to be called after QLDS has finished
 /// its own initialization.
 #[pyfunction(name = "late_init", pass_module)]
-fn late_init(module: Bound<'_, PyModule>, py: Python<'_>) -> PyResult<()> {
+fn late_init(module: &Bound<'_, PyModule>, py: Python<'_>) -> PyResult<()> {
     initialize_cvars(py)?;
 
     let Some(ref main_engine) = *MAIN_ENGINE.load() else {
@@ -1318,7 +1318,7 @@ fn late_init(module: Bound<'_, PyModule>, py: Python<'_>) -> PyResult<()> {
     let sys_module = py.import_bound(intern!(py, "sys"))?;
 
     if let Ok(real_plugins_path) = try_get_plugins_path() {
-        set_plugins_version(&module, py, &real_plugins_path.to_string_lossy());
+        set_plugins_version(module, py, &real_plugins_path.to_string_lossy());
 
         let Some(plugins_path_dirname) = real_plugins_path
             .parent()
