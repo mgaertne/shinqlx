@@ -1,4 +1,4 @@
-on: [push, pull_request]
+on: [ push, pull_request ]
 
 env:
   CARGO_TERM_COLOR: always
@@ -32,7 +32,7 @@ jobs:
   documentation:
     name: documentation
     runs-on: ubuntu-latest
-    needs: [check, clippy]
+    needs: [ check, clippy ]
     steps:
       - name: Checkout sources
         uses: actions/checkout@v4
@@ -45,7 +45,7 @@ jobs:
   python-checks:
     name: Python checks
     runs-on: ubuntu-latest
-    needs: [check, clippy]
+    needs: [ check, clippy ]
     steps:
       - name: Checkout sources
         uses: actions/checkout@v4
@@ -68,10 +68,10 @@ jobs:
   build:
     name: build & test
     runs-on: ubuntu-latest
-    needs: [check, clippy]
+    needs: [ check, clippy ]
     strategy:
       matrix:
-        python-version: ['3.8', '3.9', '3.10', '3.11', '3.12']
+        python-version: [ '3.8', '3.9', '3.10', '3.11', '3.12' ]
     steps:
       - name: Checkout sources
         uses: actions/checkout@v4
@@ -89,10 +89,10 @@ jobs:
   minimal_build:
     name: build & test with minimal versions
     runs-on: ubuntu-latest
-    needs: [check, clippy]
+    needs: [ check, clippy ]
     strategy:
       matrix:
-        python-version: ['3.8', '3.9', '3.10', '3.11', '3.12']
+        python-version: [ '3.8', '3.9', '3.10', '3.11', '3.12' ]
     steps:
       - name: Checkout sources
         uses: actions/checkout@v4
@@ -109,7 +109,7 @@ jobs:
 
   tarpaulin-coverage:
     runs-on: ubuntu-latest
-    needs: [build]
+    needs: [ build ]
     continue-on-error: true
     steps:
       - name: Checkout sources
@@ -123,7 +123,7 @@ jobs:
         with:
           toolchain: nightly
           components: "llvm-tools"
-      - run: cargo install --git https://github.com/xd009642/tarpaulin --branch feat/profparsers-update cargo-tarpaulin
+      - run: cargo install cargo-tarpaulin
       - run: cargo tarpaulin
       - name: Upload to codecov.io
         uses: codecov/codecov-action@v4
@@ -137,7 +137,7 @@ jobs:
 
   llvm-cov-coverage:
     runs-on: ubuntu-latest
-    needs: [build]
+    needs: [ build ]
     steps:
       - name: Checkout sources
         uses: actions/checkout@v4
@@ -152,16 +152,16 @@ jobs:
           components: "llvm-tools"
       - run: cargo install cargo-llvm-cov
       - run: cargo llvm-cov --lcov --output-path lcov.info
-#      - name: Upload to codecov.io
-#        uses: codecov/codecov-action@v4
-#        with:
-#          token: ${{secrets.CODECOV_TOKEN}}
-#          files: lcov.info
+  #      - name: Upload to codecov.io
+  #        uses: codecov/codecov-action@v4
+  #        with:
+  #          token: ${{secrets.CODECOV_TOKEN}}
+  #          files: lcov.info
 
   miri:
     name: miri
     runs-on: ubuntu-latest
-    needs: [build]
+    needs: [ build ]
     steps:
       - name: Checkout sources
         uses: actions/checkout@v4
