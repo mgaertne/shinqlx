@@ -1128,9 +1128,20 @@ fn load_plugin(py: Python<'_>, plugin: &str) -> PyResult<()> {
 }
 
 fn try_unload_plugin(py: Python<'_>, plugin: &str) -> PyResult<()> {
-    let shinqlx_module = py.import_bound(intern!(py, "shinqlx"))?;
-    let event_dispatchers = shinqlx_module.getattr(intern!(py, "EVENT_DISPATCHERS"))?;
-    let unload_dispatcher = event_dispatchers.get_item(intern!(py, "unload"))?;
+    let Some(unload_dispatcher) = EVENT_DISPATCHERS
+        .load()
+        .as_ref()
+        .and_then(|event_dispatchers| {
+            event_dispatchers
+                .bind(py)
+                .get_item(intern!(py, "unload"))
+                .ok()
+        })
+    else {
+        return Err(PyEnvironmentError::new_err(
+            "could not get access to unload dispatcher",
+        ));
+    };
     unload_dispatcher.call_method1(intern!(py, "dispatch"), (plugin,))?;
 
     let loaded_plugins = Python::get_type_bound::<Plugin>(py)
@@ -1142,7 +1153,6 @@ fn try_unload_plugin(py: Python<'_>, plugin: &str) -> PyResult<()> {
         return Err(PyValueError::new_err(error_msg));
     };
 
-    let shinqlx_event_dispatchers = shinqlx_module.getattr(intern!(py, "EVENT_DISPATCHERS"))?;
     let plugin_hooks = loaded_plugin.getattr(intern!(py, "hooks"))?;
     plugin_hooks.iter()?.flatten().for_each(|hook| {
         if let Ok(hook_tuple) = hook.extract::<&PyTuple>() {
@@ -1155,7 +1165,11 @@ fn try_unload_plugin(py: Python<'_>, plugin: &str) -> PyResult<()> {
             let Ok(event_priority) = hook_tuple.get_item(2) else {
                 return;
             };
-            let Ok(event_dispatcher) = shinqlx_event_dispatchers.get_item(event_name) else {
+            let Some(event_dispatcher) = EVENT_DISPATCHERS
+                .load()
+                .as_ref()
+                .and_then(|event_dispatchers| event_dispatchers.bind(py).get_item(event_name).ok())
+            else {
                 return;
             };
             let Ok(plugin_name) = loaded_plugin.getattr(intern!(py, "name")) else {

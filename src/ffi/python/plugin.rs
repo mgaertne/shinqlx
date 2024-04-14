@@ -3,7 +3,8 @@ use super::prelude::*;
 use super::{
     addadmin, addmod, addscore, addteamscore, ban, client_id, commands::CommandPriorities, demote,
     lock, mute, opsay, put, pyshinqlx_get_logger, set_teamsize, tempban, unban, unlock, unmute,
-    BLUE_TEAM_CHAT_CHANNEL, CHAT_CHANNEL, COMMANDS, CONSOLE_CHANNEL, RED_TEAM_CHAT_CHANNEL,
+    BLUE_TEAM_CHAT_CHANNEL, CHAT_CHANNEL, COMMANDS, CONSOLE_CHANNEL, EVENT_DISPATCHERS,
+    RED_TEAM_CHAT_CHANNEL,
 };
 #[cfg(test)]
 use crate::hooks::mock_hooks::shinqlx_com_printf;
@@ -16,14 +17,12 @@ use crate::{
     quake_live_engine::{ConsoleCommand, FindCVar, GetCVar, GetConfigstring, SetCVarLimit},
 };
 
-use pyo3::exceptions::PyRuntimeError;
 use pyo3::prelude::*;
-use pyo3::types::IntoPyDict;
 use pyo3::{
-    exceptions::{PyEnvironmentError, PyValueError},
+    exceptions::{PyEnvironmentError, PyRuntimeError, PyValueError},
     gc::PyVisit,
     intern,
-    types::{PyDict, PyList, PySet, PyTuple, PyType},
+    types::{IntoPyDict, PyDict, PyList, PySet, PyTuple, PyType},
     PyTraverseError,
 };
 
@@ -161,9 +160,15 @@ impl Plugin {
         handler: PyObject,
         priority: i32,
     ) -> PyResult<()> {
-        let shinqlx_module = py.import_bound(intern!(py, "shinqlx"))?;
-        let event_dispatchers = shinqlx_module.getattr(intern!(py, "EVENT_DISPATCHERS"))?;
-        let event_dispatcher = event_dispatchers.get_item(&event)?;
+        let Some(event_dispatcher) = EVENT_DISPATCHERS
+            .load()
+            .as_ref()
+            .and_then(|event_dispatchers| event_dispatchers.bind(py).get_item(&event).ok())
+        else {
+            return Err(PyEnvironmentError::new_err(
+                "could not get access to event dispatcher",
+            ));
+        };
 
         let plugin_type = slf.get_type();
         let plugin_name = plugin_type.name()?;
@@ -186,9 +191,15 @@ impl Plugin {
         handler: PyObject,
         priority: i32,
     ) -> PyResult<()> {
-        let shinqlx_module = py.import_bound(intern!(py, "shinqlx"))?;
-        let event_dispatchers = shinqlx_module.getattr(intern!(py, "EVENT_DISPATCHERS"))?;
-        let event_dispatcher = event_dispatchers.get_item(&event)?;
+        let Some(event_dispatcher) = EVENT_DISPATCHERS
+            .load()
+            .as_ref()
+            .and_then(|event_dispatchers| event_dispatchers.bind(py).get_item(&event).ok())
+        else {
+            return Err(PyEnvironmentError::new_err(
+                "could not get access to console print dispatcher",
+            ));
+        };
 
         let plugin_type = slf.get_type();
         let plugin_name = plugin_type.name()?;
@@ -883,9 +894,21 @@ impl Plugin {
             return Ok(false);
         }
 
-        let shinqlx_module = py.import_bound(intern!(py, "shinqlx"))?;
-        let event_dispatchers = shinqlx_module.getattr(intern!(py, "EVENT_DISPATCHERS"))?;
-        let vote_started_dispatcher = event_dispatchers.get_item(intern!(py, "vote_started"))?;
+        let Some(vote_started_dispatcher) =
+            EVENT_DISPATCHERS
+                .load()
+                .as_ref()
+                .and_then(|event_dispatchers| {
+                    event_dispatchers
+                        .bind(py)
+                        .get_item(intern!(py, "vote_started"))
+                        .ok()
+                })
+        else {
+            return Err(PyEnvironmentError::new_err(
+                "could not get access to console print dispatcher",
+            ));
+        };
         vote_started_dispatcher.call_method1(intern!(py, "caller"), (py.None(),))?;
 
         pyshinqlx_callvote(py, vote, display, Some(time));

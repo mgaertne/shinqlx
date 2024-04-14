@@ -2,11 +2,10 @@ use super::prelude::*;
 use super::{owner, pyshinqlx_get_logger, PythonReturnCodes, EVENT_DISPATCHERS};
 
 use pyo3::prelude::*;
-use pyo3::types::IntoPyDict;
 use pyo3::{
     exceptions::{PyEnvironmentError, PyKeyError, PyValueError},
     intern,
-    types::{PyList, PyTuple},
+    types::{IntoPyDict, PyList, PyTuple},
     PyTraverseError, PyVisit,
 };
 
@@ -449,10 +448,16 @@ def remove_command(cmd):
         let is_client_cmd = channel_name == "client_command";
         let mut pass_through = true;
 
-        let Some(command_dispatcher) = EVENT_DISPATCHERS
-            .load()
-            .as_ref()
-            .and_then(|event_dispatchers| event_dispatchers.bind(py).get_item("command").ok())
+        let Some(command_dispatcher) =
+            EVENT_DISPATCHERS
+                .load()
+                .as_ref()
+                .and_then(|event_dispatchers| {
+                    event_dispatchers
+                        .bind(py)
+                        .get_item(intern!(py, "command"))
+                        .ok()
+                })
         else {
             return Err(PyEnvironmentError::new_err(
                 "could not get access to command dispatcher",
