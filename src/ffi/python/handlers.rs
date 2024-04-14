@@ -793,22 +793,16 @@ fn try_handle_set_configstring(py: Python<'_>, index: u32, value: &str) -> PyRes
                     None => intern!(py, "round_start"),
                 };
 
-                let Some(round_discpatcher) =
-                    EVENT_DISPATCHERS
-                        .load()
-                        .as_ref()
-                        .and_then(|event_dispatchers| {
-                            event_dispatchers
-                                .bind(py)
-                                .get_item(intern!(py, "game_countdown"))
-                                .ok()
-                        })
+                let Some(round_discpatcher) = EVENT_DISPATCHERS
+                    .load()
+                    .as_ref()
+                    .and_then(|event_dispatchers| event_dispatchers.bind(py).get_item(event).ok())
                 else {
                     return Err(PyEnvironmentError::new_err(
                         "could not get access to round countdown/start dispatcher",
                     ));
                 };
-                round_discpatcher.call_method1(event, (round_number,))?;
+                round_discpatcher.call_method1(intern!(py, "dispatch"), (round_number,))?;
                 return Ok(py.None());
             }
 
