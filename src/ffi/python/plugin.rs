@@ -1223,7 +1223,6 @@ mod plugin_tests {
     use core::ffi::c_char;
 
     use mockall::predicate;
-    use parking_lot::RwLock;
     use pretty_assertions::assert_eq;
     use pyo3::{
         exceptions::{PyEnvironmentError, PyRuntimeError, PyValueError},
