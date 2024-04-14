@@ -771,14 +771,14 @@ fn try_handle_set_configstring(py: Python<'_>, index: u32, value: &str) -> PyRes
             let opt_round_number = if opt_turn.is_some() {
                 if cvars
                     .get("state")
-                    .is_some_and(|value| value.parse::<i32>().is_ok_and(|value| value == 0))
+                    .and_then(|value| value.parse::<i32>().ok())
+                    .is_some_and(|value| value == 0)
                 {
                     return Ok(py.None());
                 }
 
-                if opt_round.is_some() {
-                    let ad_round_number =
-                        opt_round.unwrap_or_default() * 2 + 1 + opt_turn.unwrap_or_default();
+                if let Some(round_number) = opt_round {
+                    let ad_round_number = round_number * 2 + 1 + opt_turn.unwrap_or_default();
                     AD_ROUND_NUMBER.store(ad_round_number, Ordering::SeqCst);
                 }
                 Some(AD_ROUND_NUMBER.load(Ordering::SeqCst))
@@ -786,8 +786,7 @@ fn try_handle_set_configstring(py: Python<'_>, index: u32, value: &str) -> PyRes
                 opt_round
             };
 
-            if opt_round_number.is_some() {
-                let round_number = opt_round_number.unwrap();
+            if let Some(round_number) = opt_round_number {
                 let event = match opt_time {
                     Some(_) => intern!(py, "round_countdown"),
                     None => intern!(py, "round_start"),
