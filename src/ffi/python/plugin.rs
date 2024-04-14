@@ -1223,9 +1223,142 @@ mod plugin_tests {
     use core::ffi::c_char;
 
     use mockall::predicate;
+    use parking_lot::RwLock;
     use pretty_assertions::assert_eq;
-    use pyo3::exceptions::{PyEnvironmentError, PyValueError};
+    use pyo3::{
+        exceptions::{PyEnvironmentError, PyRuntimeError, PyValueError},
+        types::PyDict,
+    };
     use rstest::rstest;
+
+    fn test_plugin(py: Python) -> Result<Bound<PyAny>, PyErr> {
+        let extended_plugin = PyModule::from_code_bound(
+            py,
+            r#"
+from _shinqlx import Plugin
+
+
+class subplugin(Plugin):
+    def __init__(self):
+        super().__init__()
+"#,
+            "",
+            "",
+        )?
+        .getattr("subplugin")?;
+        Ok(extended_plugin)
+    }
+
+    #[rstest]
+    #[cfg_attr(miri, ignore)]
+    fn plugin_can_be_subclassed_from_python(_pyshinqlx_setup: ()) {
+        let result: PyResult<()> = Python::with_gil(|py| {
+            let extended_plugin = test_plugin(py)?;
+            extended_plugin.call0()?;
+            Ok(())
+        });
+        assert!(result.is_ok());
+    }
+
+    #[rstest]
+    #[cfg_attr(miri, ignore)]
+    fn str_returns_plugin_typename(_pyshinqlx_setup: ()) {
+        let res: PyResult<()> = Python::with_gil(|py| {
+            let extended_plugin = test_plugin(py)?;
+            let plugin_instance = extended_plugin.call0()?;
+            let plugin_str = plugin_instance.call_method0("__str__")?;
+            assert_eq!(plugin_str.extract::<&str>()?, "subplugin");
+            Ok(())
+        });
+        assert!(res.is_ok());
+    }
+
+    #[rstest]
+    #[cfg_attr(miri, ignore)]
+    fn get_db_when_no_db_type_set(_pyshinqlx_setup: ()) {
+        let res: PyResult<()> = Python::with_gil(|py| {
+            py.get_type_bound::<Plugin>().delattr("database")?;
+            let extended_plugin = test_plugin(py)?;
+            let plugin_instance = extended_plugin.call0()?;
+            let result = plugin_instance.getattr("db");
+            assert!(result.is_err_and(|err| err.is_instance_of::<PyRuntimeError>(py)),);
+            Ok(())
+        });
+        assert!(res.is_ok());
+    }
+
+    #[rstest]
+    #[cfg_attr(miri, ignore)]
+    fn get_db_when_no_db_set(_pyshinqlx_setup: ()) {
+        let res: PyResult<()> = Python::with_gil(|py| {
+            py.get_type_bound::<Plugin>()
+                .setattr("databsse", py.None())?;
+            let extended_plugin = test_plugin(py)?;
+            let plugin_instance = extended_plugin.call0()?;
+            let result = plugin_instance.getattr("db");
+            assert!(result.is_err_and(|err| err.is_instance_of::<PyRuntimeError>(py)),);
+            Ok(())
+        });
+        assert!(res.is_ok());
+    }
+
+    #[rstest]
+    #[cfg_attr(miri, ignore)]
+    fn name_property_returns_plugin_typename(_pyshinqlx_setup: ()) {
+        let res: PyResult<()> = Python::with_gil(|py| {
+            let extended_plugin = test_plugin(py)?;
+            let plugin_instance = extended_plugin.call0()?;
+            let plugin_str = plugin_instance.getattr("name")?;
+            assert_eq!(plugin_str.extract::<&str>()?, "subplugin");
+            Ok(())
+        });
+        assert!(res.is_ok());
+    }
+
+    #[rstest]
+    #[cfg_attr(miri, ignore)]
+    fn plugins_property_returns_loaded_plugins(_pyshinqlx_setup: ()) {
+        let res: PyResult<()> = Python::with_gil(|py| {
+            let loaded_plugins = Python::get_type_bound::<Plugin>(py)
+                .getattr("_loaded_plugins")?
+                .extract::<&PyDict>()?;
+            loaded_plugins.set_item("asdf", "asdfplugin")?;
+            loaded_plugins.set_item("qwertz", "qwertzplugin")?;
+
+            let extended_plugin = test_plugin(py)?;
+            let plugin_instance = extended_plugin.call0()?;
+            let plugins = plugin_instance.getattr("plugins")?.extract::<&PyDict>()?;
+            assert!(plugins.eq(loaded_plugins)?);
+            Ok(())
+        });
+        assert!(res.is_ok());
+    }
+
+    #[rstest]
+    #[cfg_attr(miri, ignore)]
+    fn hooks_property_returns_plugin_hooks(_pyshinqlx_setup: ()) {
+        Python::with_gil(|py| {
+            let plugin = Plugin {
+                hooks: vec![
+                    ("asdf".to_string(), py.None(), 1),
+                    ("qwertz".to_string(), py.None(), 0),
+                ],
+                commands: Default::default(),
+                db_instance: py.None(),
+            };
+
+            let hooks = plugin.get_hooks();
+            assert_eq!(hooks.len(), 2);
+            let elem1 = hooks.first();
+            assert!(elem1.is_some_and(|(hook1, pyobj1, prio1)| hook1 == "asdf"
+                && pyobj1.is_none(py)
+                && prio1 == &1));
+            let elem2 = hooks.get(1);
+            assert!(elem2.is_some_and(|(hook2, pyobj2, prio2)| hook2 == "qwertz"
+                && pyobj2.is_none(py)
+                && prio2 == &0));
+        });
+    }
 
     #[test]
     #[cfg_attr(miri, ignore)]
