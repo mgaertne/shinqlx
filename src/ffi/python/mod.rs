@@ -24,7 +24,7 @@ pub(crate) mod prelude {
         TellChannel, MAX_MSG_LENGTH,
     };
     pub(crate) use super::commands::{Command, CommandInvoker};
-    pub(crate) use super::database::AbstractDatabase;
+    pub(crate) use super::database::{AbstractDatabase, Redis};
     pub(crate) use super::embed::*;
     pub(crate) use super::events::{
         ChatEventDispatcher, ClientCommandDispatcher, CommandDispatcher, ConsolePrintDispatcher,
@@ -1322,8 +1322,7 @@ fn late_init(module: &Bound<'_, PyModule>, py: Python<'_>) -> PyResult<()> {
     let database_cvar = main_engine.find_cvar("qlx_database");
     if database_cvar.is_some_and(|value| value.get_string().to_lowercase() == "redis") {
         let shinqlx_module = py.import_bound(intern!(py, "shinqlx"))?;
-        let database_module = shinqlx_module.getattr(intern!(py, "database"))?;
-        let redis_database_module = database_module.getattr(intern!(py, "Redis"))?;
+        let redis_database_module = shinqlx_module.getattr(intern!(py, "Redis"))?;
 
         Python::get_type_bound::<Plugin>(py)
             .setattr(intern!(py, "database"), &redis_database_module)?;
@@ -2028,6 +2027,10 @@ fn pyshinqlx_module(py: Python<'_>, m: &Bound<'_, PyModule>) -> PyResult<()> {
 
     // from database.py
     m.add_class::<AbstractDatabase>()?;
+    let redis_type = Python::get_type_bound::<Redis>(py);
+    let key_type_function = redis_type.getattr("key_type")?;
+    Python::get_type_bound::<Redis>(py).setattr("type", key_type_function)?;
+    m.add_class::<Redis>()?;
 
     Ok(())
 }
