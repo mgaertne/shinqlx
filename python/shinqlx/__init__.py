@@ -251,6 +251,7 @@ try:
         EVENT_DISPATCHERS,
         Plugin,
         AbstractDatabase,
+        Redis,
     )
 except ModuleNotFoundError:
     _shinqlx = importlib.import_module(name="._shinqlx", package="shinqlx")
@@ -502,9 +503,8 @@ except ModuleNotFoundError:
         EVENT_DISPATCHERS,
         Plugin,
         AbstractDatabase,
+        Redis,
     )
-
-from . import database
 
 # Put everything into a single module.
 __all__ = [
@@ -756,6 +756,5 @@ __all__ = [
     "EVENT_DISPATCHERS",
     "Plugin",
     "AbstractDatabase",
-    # databsse
-    "database",
+    "Redis",
 ]

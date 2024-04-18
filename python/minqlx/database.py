@@ -1,5 +1,4 @@
-from shinqlx import AbstractDatabase
-from shinqlx.database import Redis
+from shinqlx import AbstractDatabase, Redis
 
 __all__ = [
     "AbstractDatabase",

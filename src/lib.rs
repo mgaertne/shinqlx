@@ -9,6 +9,7 @@
 #![warn(missing_docs)]
 
 extern crate alloc;
+extern crate core;
 
 #[cfg(all(feature = "alloc", not(miri)))]
 cfg_if::cfg_if! {

@@ -282,9 +282,8 @@ from ._shinqlx import (
     SingleWeaponStatsEntry,
     StatsData,
     AbstractDatabase,
+    Redis,
 )
-
-from . import database
 
 __all__ = [
     "__version__",
@@ -571,6 +570,5 @@ __all__ = [
     "SingleWeaponStatsEntry",
     "StatsData",
     "AbstractDatabase",
-    # database
-    "database",
+    "Redis",
 ]

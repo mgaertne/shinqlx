@@ -1,8 +1,9 @@
 from abc import abstractmethod, ABC
-from typing import TYPE_CHECKING, overload, ClassVar
+from typing import TYPE_CHECKING, overload
 
 if TYPE_CHECKING:
     import sys
+    import builtins
     from logging import Logger
 
     if sys.version_info >= (3, 11):
@@ -18,15 +19,14 @@ if TYPE_CHECKING:
         Literal,
         Type,
         Protocol,
+        Iterator,
+        ClassVar,
     )
     from datetime import timedelta
     from queue import Queue
     from sched import scheduler
 
     from types import TracebackType, ModuleType
-
-    from shinqlx.database import Redis
-    from redis import Redis as redisRedis
 
 # from __init__.pyi
 _map_title: str | None
@@ -128,16 +128,19 @@ DAMAGE_NO_KNOCKBACK: int
 DAMAGE_NO_PROTECTION: int
 DAMAGE_NO_TEAM_PROTECTION: int
 
+
 class Vector3(tuple):
     x: int
     y: int
     z: int
+
 
 class Flight(tuple):
     fuel: int
     max_fuel: int
     thrust: int
     refuel: int
+
 
 class Powerups(tuple):
     quad: int
@@ -146,6 +149,7 @@ class Powerups(tuple):
     invisibility: int
     regeneration: int
     invulnerability: int
+
 
 class Weapons(tuple):
     g: int
@@ -164,22 +168,31 @@ class Weapons(tuple):
     hmg: int
     hands: int
 
+
 class PlayerInfo(tuple):
     def __init__(self, tuple: tuple[int, str, int, str, int, int, int]) -> None: ...
+
     @property
     def client_id(self) -> int: ...
+
     @property
     def name(self) -> str: ...
+
     @property
     def connection_state(self) -> int: ...
+
     @property
     def userinfo(self) -> str: ...
+
     @property
     def steam_id(self) -> int: ...
+
     @property
     def team(self) -> int: ...
+
     @property
     def privileges(self) -> int: ...
+
 
 class PlayerState(tuple):
     is_alive: bool
@@ -197,6 +210,7 @@ class PlayerState(tuple):
     is_chatting: bool
     is_frozen: bool
 
+
 class PlayerStats(tuple):
     score: int
     kills: int
@@ -206,120 +220,237 @@ class PlayerStats(tuple):
     time: int
     ping: int
 
+
 def player_info(_client_id: int) -> PlayerInfo | None: ...
+
+
 def players_info() -> Iterable[PlayerInfo]: ...
+
+
 def get_userinfo(_client_id: int) -> str | None: ...
+
+
 def send_server_command(_client_id: int | None, _cmd: str) -> bool | None: ...
+
+
 def client_command(_client_id: int, _cmd: str) -> bool | None: ...
+
+
 def console_command(_cmd: str) -> None: ...
+
+
 def get_cvar(_cvar: str) -> str | None: ...
+
+
 def set_cvar(_cvar: str, _value: str, _flags: int | None = ...) -> bool: ...
+
+
 def set_cvar_limit(
-    _name: str, _value: int | float, _min: int | float, _max: int | float, _flags: int
+        _name: str, _value: int | float, _min: int | float, _max: int | float, _flags: int
 ) -> None: ...
+
+
 def kick(_client_id: int, _reason: str | None = None) -> None: ...
+
+
 def console_print(_text: str) -> None: ...
+
+
 def get_configstring(_config_id: int) -> str: ...
+
+
 def set_configstring(_config_id: int, _value: str) -> None: ...
+
+
 def force_vote(_pass: bool) -> bool: ...
+
+
 def add_console_command(_command: str) -> None: ...
+
+
 @overload
 def register_handler(
-    _event: Literal["rcon"], _handler: Callable[[str], bool | None] | None = ...
+        _event: Literal["rcon"], _handler: Callable[[str], bool | None] | None = ...
 ) -> None: ...
+
+
 @overload
 def register_handler(
-    _event: Literal["client_command"],
-    _handler: Callable[[int, str], bool | str] | None = ...,
+        _event: Literal["client_command"],
+        _handler: Callable[[int, str], bool | str] | None = ...,
 ) -> None: ...
+
+
 @overload
 def register_handler(
-    _event: Literal["server_command"],
-    _handler: Callable[[int, str], bool | str] | None = ...,
+        _event: Literal["server_command"],
+        _handler: Callable[[int, str], bool | str] | None = ...,
 ) -> None: ...
+
+
 @overload
 def register_handler(
-    _event: Literal["new_game"], _handler: Callable[[bool], bool | None] | None = ...
+        _event: Literal["new_game"], _handler: Callable[[bool], bool | None] | None = ...
 ) -> None: ...
+
+
 @overload
 def register_handler(
-    _event: Literal["set_configstring"],
-    _handler: Callable[[int, str], bool | None] | None = ...,
+        _event: Literal["set_configstring"],
+        _handler: Callable[[int, str], bool | None] | None = ...,
 ) -> None: ...
+
+
 @overload
 def register_handler(
-    _event: Literal["console_print"],
-    _handler: Callable[[str | None], bool | str | None] | None = ...,
+        _event: Literal["console_print"],
+        _handler: Callable[[str | None], bool | str | None] | None = ...,
 ) -> None: ...
+
+
 @overload
 def register_handler(
-    _event: Literal["frame"], _handler: Callable[[], bool | None] | None = ...
+        _event: Literal["frame"], _handler: Callable[[], bool | None] | None = ...
 ) -> None: ...
+
+
 @overload
 def register_handler(
-    _event: Literal["player_connect"],
-    _handler: Callable[[int, bool], bool | None] | None = ...,
+        _event: Literal["player_connect"],
+        _handler: Callable[[int, bool], bool | None] | None = ...,
 ) -> None: ...
+
+
 @overload
 def register_handler(
-    _event: Literal["player_loaded"],
-    _handler: Callable[[int], bool | None] | None = ...,
+        _event: Literal["player_loaded"],
+        _handler: Callable[[int], bool | None] | None = ...,
 ) -> None: ...
+
+
 @overload
 def register_handler(
-    _event: Literal["player_disconnect"],
-    _handler: Callable[[int, str | None], bool | None] | None = ...,
+        _event: Literal["player_disconnect"],
+        _handler: Callable[[int, str | None], bool | None] | None = ...,
 ) -> None: ...
+
+
 @overload
 def register_handler(
-    _event: Literal["player_spawn"], _handler: Callable[[int], bool | None] | None = ...
+        _event: Literal["player_spawn"], _handler: Callable[[int], bool | None] | None = ...
 ) -> None: ...
+
+
 @overload
 def register_handler(
-    _event: Literal["kamikaze_use"], _handler: Callable[[int], bool | None] | None = ...
+        _event: Literal["kamikaze_use"], _handler: Callable[[int], bool | None] | None = ...
 ) -> None: ...
+
+
 @overload
 def register_handler(
-    _event: Literal["kamikaze_explode"],
-    _handler: Callable[[int, bool], bool | None] | None = ...,
+        _event: Literal["kamikaze_explode"],
+        _handler: Callable[[int, bool], bool | None] | None = ...,
 ) -> None: ...
+
+
 @overload
 def register_handler(
-    _event: Literal["damage"],
-    _handler: Callable[[int, int | None, int, int, int], bool | None] | None = ...,
+        _event: Literal["damage"],
+        _handler: Callable[[int, int | None, int, int, int], bool | None] | None = ...,
 ) -> None: ...
+
+
 def player_state(_client_id: int) -> PlayerState | None: ...
+
+
 def player_stats(_client_id: int) -> PlayerStats | None: ...
+
+
 def set_position(_client_id: int, _position: Vector3) -> bool: ...
+
+
 def set_velocity(_client_id: int, _velocity: Vector3) -> bool: ...
+
+
 def noclip(_client_id: int, _activate: bool) -> bool: ...
+
+
 def set_health(_client_id: int, _health: int) -> bool: ...
+
+
 def set_armor(_client_id: int, _armor: int) -> bool: ...
+
+
 def set_weapons(_client_id: int, _weapons: Weapons) -> bool: ...
+
+
 def set_weapon(_client_id: int, _weapon: int) -> bool: ...
+
+
 def set_ammo(_client_id: int, _ammo: Weapons) -> bool: ...
+
+
 def set_powerups(_client_id: int, _powerups: Powerups) -> bool: ...
+
+
 def set_holdable(_client_id: int, _powerup: int) -> bool: ...
+
+
 def drop_holdable(_client_id: int) -> bool: ...
+
+
 def set_flight(_client_id: int, _flight: Flight) -> bool: ...
+
+
 def set_invulnerability(_client_id: int, _time: int) -> bool: ...
+
+
 def set_score(_client_id: int, _score: int) -> bool: ...
+
+
 def callvote(_vote: str, _vote_display: str, _vote_time: int | None = ...) -> None: ...
+
+
 def allow_single_player(_allow: bool) -> None: ...
+
+
 def player_spawn(_client_id: int) -> bool: ...
+
+
 def set_privileges(_client_id: int, _privileges: int) -> bool: ...
+
+
 def destroy_kamikaze_timers() -> bool: ...
+
+
 def spawn_item(_item_id: int, _x: int, _y: int, _z: int) -> bool: ...
+
+
 def remove_dropped_items() -> bool: ...
+
+
 def slay_with_mod(_client_id: int, _mod: int) -> bool: ...
+
+
 def replace_items(_item1: int | str, _item2: int | str) -> bool: ...
+
+
 def dev_print_items() -> None: ...
+
+
 def force_weapon_respawn_time(_respawn_time: int) -> bool: ...
+
+
 def get_targetting_entities(_entity_id: int) -> list[int]: ...
+
 
 # from _core.pyi
 class PluginLoadError(Exception): ...
+
+
 class PluginUnloadError(Exception): ...
+
 
 TEAMS: dict[int, str]
 
@@ -335,188 +466,302 @@ DEFAULT_PLUGINS: tuple[str, ...]
 _thread_count: int
 _thread_name: str
 
+
 def parse_variables(varstr: str, ordered: bool = False) -> dict[str, str]: ...
+
+
 def get_logger(plugin: Plugin | str | None = ...) -> Logger: ...
+
+
 def _configure_logger() -> None: ...
+
+
 def log_exception(plugin: Plugin | str | None = ...) -> None: ...
+
+
 def handle_exception(
-    exc_type: Type[BaseException],
-    exc_value: BaseException,
-    exc_traceback: TracebackType | None,
+        exc_type: Type[BaseException],
+        exc_value: BaseException,
+        exc_traceback: TracebackType | None,
 ) -> None: ...
+
 
 class ExceptHookArgs(Protocol):
     exc_traceback: TracebackType
     exc_type: Type[BaseException]
     exc_value: BaseException
 
+
 def threading_excepthook(args: ExceptHookArgs) -> None: ...
+
+
 def uptime() -> timedelta: ...
+
+
 def owner() -> int | None: ...
+
 
 _stats: StatsListener | None
 
+
 def stats_listener() -> StatsListener: ...
+
+
 def set_cvar_once(name: str, value: str, flags: int = ...) -> bool: ...
+
+
 def set_cvar_limit_once(
-    name: str,
-    value: int | float,
-    minimum: int | float,
-    maximum: int | float,
-    flags: int = ...,
+        name: str,
+        value: int | float,
+        minimum: int | float,
+        maximum: int | float,
+        flags: int = ...,
 ) -> bool: ...
+
+
 def set_plugins_version(path: str) -> None: ...
+
+
 def set_map_subtitles() -> None: ...
+
+
 def next_frame(func: Callable) -> Callable: ...
+
+
 def delay(time: float) -> Callable: ...
+
+
 def thread(func: Callable, force: bool = ...) -> Callable: ...
+
 
 _modules: dict[str, ModuleType]
 
+
 def load_preset_plugins() -> None: ...
+
+
 def load_plugin(plugin: str) -> None: ...
+
+
 def unload_plugin(plugin: str) -> None: ...
+
+
 def reload_plugin(plugin: str) -> None: ...
+
+
 def initialize_cvars() -> None: ...
+
+
 def initialize() -> None: ...
+
+
 def late_init() -> None: ...
+
 
 # from _game.pyi
 class NonexistentGameError(Exception): ...
+
 
 class Game:
     cached: bool
     _valid: bool
 
     def __init__(self, cached: bool = ...) -> None: ...
+
     def __repr__(self) -> str: ...
+
     def __str__(self) -> str: ...
+
     def __contains__(self, key: str) -> bool: ...
+
     def __getitem__(self, key: str) -> str: ...
+
     @property
     def cvars(self) -> Mapping[str, str]: ...
+
     @property
     def type(self) -> str: ...
+
     @property
     def type_short(self) -> str: ...
+
     @property
     def map(self) -> str: ...
+
     @map.setter
     def map(self, value: str) -> None: ...
+
     @property
     def map_title(self) -> str | None: ...
+
     @property
     def map_subtitle1(self) -> str | None: ...
+
     @property
     def map_subtitle2(self) -> str | None: ...
+
     @property
     def red_score(self) -> int: ...
+
     @property
     def blue_score(self) -> int: ...
+
     @property
     def state(self) -> str: ...
+
     @property
     def factory(self) -> str: ...
+
     @factory.setter
     def factory(self, value: str) -> None: ...
+
     @property
     def factory_title(self) -> str: ...
+
     @property
     def hostname(self) -> str: ...
+
     @hostname.setter
     def hostname(self, value: str) -> None: ...
+
     @property
     def instagib(self) -> bool: ...
+
     @instagib.setter
     def instagib(self, value: bool | int) -> None: ...
+
     @property
     def loadout(self) -> bool: ...
+
     @loadout.setter
     def loadout(self, value: bool | int) -> None: ...
+
     @property
     def maxclients(self) -> int: ...
+
     @maxclients.setter
     def maxclients(self, new_limit: int) -> None: ...
+
     @property
     def timelimit(self) -> int: ...
+
     @timelimit.setter
     def timelimit(self, new_limit: int) -> None: ...
+
     @property
     def fraglimit(self) -> int: ...
+
     @fraglimit.setter
     def fraglimit(self, new_limit: int) -> None: ...
+
     @property
     def roundlimit(self) -> int: ...
+
     @roundlimit.setter
     def roundlimit(self, new_limit: int) -> None: ...
+
     @property
     def roundtimelimit(self) -> int: ...
+
     @roundtimelimit.setter
     def roundtimelimit(self, new_limit: int) -> None: ...
+
     @property
     def scorelimit(self) -> int: ...
+
     @scorelimit.setter
     def scorelimit(self, new_limit: int) -> None: ...
+
     @property
     def capturelimit(self) -> int: ...
+
     @capturelimit.setter
     def capturelimit(self, new_limit: int) -> None: ...
+
     @property
     def teamsize(self) -> int: ...
+
     @teamsize.setter
     def teamsize(self, new_size: int) -> None: ...
+
     @property
     def tags(self) -> Iterable[str]: ...
+
     @tags.setter
     def tags(self, new_tags: str | Iterable[str]) -> None: ...
+
     @property
     def workshop_items(self) -> Iterable[int]: ...
+
     @workshop_items.setter
     def workshop_items(self, new_items: Iterable[int]) -> None: ...
+
     @classmethod
     def shuffle(cls) -> None: ...
+
     @classmethod
     def timeout(cls) -> None: ...
+
     @classmethod
     def timein(cls) -> None: ...
+
     @classmethod
     def allready(cls) -> None: ...
+
     @classmethod
     def pause(cls) -> None: ...
+
     @classmethod
     def unpause(cls) -> None: ...
+
     @classmethod
     def lock(cls, team: str | None = ...) -> None: ...
+
     @classmethod
     def unlock(cls, team: str | None = ...) -> None: ...
+
     @classmethod
     def put(cls, player: Player, team: str) -> None: ...
+
     @classmethod
     def mute(cls, player: Player) -> None: ...
+
     @classmethod
     def unmute(cls, player: Player) -> None: ...
+
     @classmethod
     def tempban(cls, player: Player) -> None: ...
+
     @classmethod
     def ban(cls, player: Player) -> None: ...
+
     @classmethod
     def unban(cls, player: Player) -> None: ...
+
     @classmethod
     def opsay(cls, msg: str) -> None: ...
+
     @classmethod
     def addadmin(cls, player: Player) -> None: ...
+
     @classmethod
     def addmod(cls, player: Player) -> None: ...
+
     @classmethod
     def demote(cls, player: Player) -> None: ...
+
     @classmethod
     def abort(cls) -> None: ...
+
     @classmethod
     def addscore(cls, player: Player, score: int) -> None: ...
+
     @classmethod
     def addteamscore(cls, team: str, score: int) -> None: ...
+
     @classmethod
     def setmatchtime(cls, time: int) -> None: ...
+
 
 # from _player.pyi
 UserInfo = TypedDict(
@@ -615,7 +860,9 @@ FlightKwargs = TypedDict(
     },
 )
 
+
 class NonexistentPlayerError(Exception): ...
+
 
 class Player:
     @classmethod
@@ -629,274 +876,391 @@ class Player:
     _name: str
 
     def __init__(self, client_id: int, info: PlayerInfo | None = ...) -> None: ...
+
     def __repr__(self) -> str: ...
+
     def __str__(self) -> str: ...
+
     def __contains__(self, key: str) -> bool: ...
+
     def __getitem__(self, key: str) -> str: ...
+
     def __eq__(self, other: object) -> bool: ...
+
     def __ne__(self, other: object) -> bool: ...
+
     def update(self) -> None: ...
+
     def _invalidate(self, e: str = ...) -> None: ...
+
     @property
     def cvars(self) -> dict[str, str | int]: ...
+
     @cvars.setter
     def cvars(self, new_cvars: dict[str, str | int]) -> None: ...
+
     @property
     def steam_id(self) -> int: ...
+
     @property
     def id(self) -> int: ...
+
     @property
     def ip(self) -> str: ...
+
     @property
     def clan(self) -> str: ...
+
     @clan.setter
     def clan(self, tag: str) -> None: ...
+
     @property
     def name(self) -> str: ...
+
     @name.setter
     def name(self, value: str) -> None: ...
+
     @property
     def clean_name(self) -> str: ...
+
     @property
     def qport(self) -> int: ...
+
     @property
     def team(self) -> Literal["free", "red", "blue", "spectator"]: ...
+
     @team.setter
     def team(self, new_team: Literal["free", "red", "blue", "spectator"]) -> None: ...
+
     @property
     def colors(self) -> tuple[float, float]: ...
+
     @colors.setter
     def colors(self, value: tuple[float, float]) -> None: ...
+
     @property
     def model(self) -> str: ...
+
     @model.setter
     def model(self, value: str) -> None: ...
+
     @property
     def headmodel(self) -> str: ...
+
     @headmodel.setter
     def headmodel(self, value: str) -> None: ...
+
     @property
     def handicap(self) -> str: ...
+
     @handicap.setter
     def handicap(self, value: str) -> None: ...
+
     @property
     def autohop(self) -> bool: ...
+
     @autohop.setter
     def autohop(self, value: bool) -> None: ...
+
     @property
     def autoaction(self) -> bool: ...
+
     @autoaction.setter
     def autoaction(self, value: bool) -> None: ...
+
     @property
     def predictitems(self) -> bool: ...
+
     @predictitems.setter
     def predictitems(self, value: bool) -> None: ...
+
     @property
     def connection_state(
-        self,
+            self,
     ) -> Literal["free", "zombie", "connected", "primed", "active"]: ...
+
     @property
     def state(self) -> PlayerState | None: ...
+
     @property
     def privileges(self) -> Literal["mod", "admin", "root", "banned"]: ...
+
     @privileges.setter
     def privileges(self, value: None | Literal["none", "mod", "admin"]) -> None: ...
+
     @property
     def country(self) -> str: ...
+
     @country.setter
     def country(self, value: str) -> None: ...
+
     @property
     def valid(self) -> bool: ...
+
     @property
     def stats(self) -> PlayerStats | None: ...
+
     @property
     def ping(self) -> int: ...
+
     def position(
-        self, reset: bool = ..., **kwargs: Unpack[Vector3Kwargs]
+            self, reset: bool = ..., **kwargs: Unpack[Vector3Kwargs]
     ) -> Vector3 | bool: ...
+
     def velocity(
-        self, reset: bool = ..., **kwargs: Unpack[Vector3Kwargs]
+            self, reset: bool = ..., **kwargs: Unpack[Vector3Kwargs]
     ) -> bool | Vector3: ...
+
     def weapons(
-        self, reset: bool = ..., **kwargs: Unpack[WeaponsKwargs]
+            self, reset: bool = ..., **kwargs: Unpack[WeaponsKwargs]
     ) -> bool | Weapons: ...
+
     def weapon(
-        self,
-        new_weapon: (
-            Literal[1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15]
-            | Literal[
-                "g",
-                "mg",
-                "sg",
-                "gl",
-                "rl",
-                "lg",
-                "rg",
-                "pg",
-                "bfg",
-                "gh",
-                "ng",
-                "pl",
-                "cg",
-                "hmg",
-                "hands",
-            ]
-            | None
-        ) = ...,
+            self,
+            new_weapon: (
+                    Literal[1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15]
+                    | Literal[
+                        "g",
+                        "mg",
+                        "sg",
+                        "gl",
+                        "rl",
+                        "lg",
+                        "rg",
+                        "pg",
+                        "bfg",
+                        "gh",
+                        "ng",
+                        "pl",
+                        "cg",
+                        "hmg",
+                        "hands",
+                    ]
+                    | None
+            ) = ...,
     ) -> bool | Literal[1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15]: ...
+
     def ammo(
-        self, reset: bool = ..., **kwargs: Unpack[AmmoKwargs]
+            self, reset: bool = ..., **kwargs: Unpack[AmmoKwargs]
     ) -> bool | Weapons: ...
+
     def powerups(
-        self, reset: bool = ..., **kwargs: Unpack[PowerupsKwargs]
+            self, reset: bool = ..., **kwargs: Unpack[PowerupsKwargs]
     ) -> bool | Powerups: ...
+
     @property
     def holdable(
-        self,
+            self,
     ) -> (
-        None
-        | Literal[
-            "teleporter", "medkit", "flight", "kamikaze", "portal", "invulnerability"
-        ]
-    ): ...
-    @holdable.setter
-    def holdable(
-        self,
-        value: (
             None
             | Literal[
-                "teleporter",
-                "medkit",
-                "flight",
-                "kamikaze",
-                "portal",
-                "invulnerability",
-                "none",
+                "teleporter", "medkit", "flight", "kamikaze", "portal", "invulnerability"
             ]
-        ),
+    ): ...
+
+    @holdable.setter
+    def holdable(
+            self,
+            value: (
+                    None
+                    | Literal[
+                        "teleporter",
+                        "medkit",
+                        "flight",
+                        "kamikaze",
+                        "portal",
+                        "invulnerability",
+                        "none",
+                    ]
+            ),
     ) -> None: ...
+
     def drop_holdable(self) -> None: ...
+
     def flight(
-        self, reset: bool = ..., **kwargs: Unpack[FlightKwargs]
+            self, reset: bool = ..., **kwargs: Unpack[FlightKwargs]
     ) -> bool | Flight: ...
+
     @property
     def noclip(self) -> bool: ...
+
     @noclip.setter
     def noclip(self, value: bool | int | str) -> None: ...
+
     @property
     def health(self) -> int: ...
+
     @health.setter
     def health(self, value: int) -> None: ...
+
     @property
     def armor(self) -> int: ...
+
     @armor.setter
     def armor(self, value: int) -> None: ...
+
     @property
     def is_alive(self) -> bool: ...
+
     @is_alive.setter
     def is_alive(self, value: bool) -> None: ...
+
     @property
     def is_frozen(self) -> bool: ...
+
     @property
     def is_chatting(self) -> bool: ...
+
     @property
     def score(self) -> int: ...
+
     @score.setter
     def score(self, value: int) -> None: ...
+
     @property
     def channel(self) -> AbstractChannel: ...
+
     def center_print(self, msg: str) -> None: ...
+
     def tell(self, msg: str, **kwargs: str) -> None: ...
+
     def kick(self, reason: str = ...) -> None: ...
+
     def ban(self) -> None: ...
+
     def tempban(self) -> None: ...
+
     def addadmin(self) -> None: ...
+
     def addmod(self) -> None: ...
+
     def demote(self) -> None: ...
+
     def mute(self) -> None: ...
+
     def unmute(self) -> None: ...
+
     def put(self, team: Literal["free", "red", "blue", "spectator"]) -> None: ...
+
     def addscore(self, score: int) -> None: ...
+
     def switch(self, other_player: Player) -> None: ...
+
     def slap(self, damage: int = ...) -> None: ...
+
     def slay(self) -> None: ...
+
     def slay_with_mod(self, mod: int) -> bool: ...
+
 
 _DUMMY_USERINFO: Iterable[str]
 
+
 class AbstractDummyPlayer(Player):
     def __init__(self, name: str = ...) -> None: ...
+
     @property
     def id(self) -> int: ...
+
     @property
     def steam_id(self) -> int: ...
+
     def update(self) -> None: ...
+
     @property
     def channel(self) -> AbstractChannel: ...
+
     def tell(self, msg: str, **kwargs: str) -> None: ...
+
 
 class RconDummyPlayer(AbstractDummyPlayer):
     def __init__(self) -> None: ...
+
     @property
     def steam_id(self) -> int: ...
+
     @property
     def channel(self) -> AbstractChannel: ...
+
     def tell(self, msg: str, **kwargs: str) -> None: ...
+
 
 # from _commands.pyi
 MAX_MSG_LENGTH: int
 
 re_color_tag: Pattern
 
+
 class AbstractChannel(ABC):
     _name: str
 
     def __init__(self, name: str) -> None: ...
+
     def __str__(self) -> str: ...
+
     def __repr__(self) -> str: ...
+
     def __eq__(self, other: object) -> bool: ...
+
     def __ne__(self, other: object) -> bool: ...
+
     @property
     def name(self) -> str: ...
+
     @abstractmethod
     def reply(self, msg: str, limit: int = ..., delimiter: str = ...) -> None: ...
+
     @classmethod
     def split_long_lines(
-        cls, msg: str, limit: int = ..., delimiter: str = ...
+            cls, msg: str, limit: int = ..., delimiter: str = ...
     ) -> list[str]: ...
+
 
 class ChatChannel(AbstractChannel):
     fmt: str
 
     def __init__(self, name: str = ..., fmt: str = ...) -> None: ...
+
     @abstractmethod
     def recipients(self) -> list[int] | None: ...
+
     def reply(self, msg: str, limit: int = ..., delimiter: str = ...) -> None: ...
+
 
 class TeamChatChannel(ChatChannel):
     team: str
 
     def __init__(self, team: str = ..., name: str = ..., fmt: str = ...) -> None: ...
+
     def recipients(self) -> list[int] | None: ...
+
 
 class TellChannel(ChatChannel):
     recipient: str | int | Player
 
     def __init__(self, player: str | int | Player) -> None: ...
+
     def __repr__(self) -> str: ...
+
     def recipients(self) -> list[int] | None: ...
+
 
 class ConsoleChannel(AbstractChannel):
     def __init__(self) -> None: ...
+
     def reply(self, msg: str, limit: int = ..., delimiter: str = ...) -> None: ...
+
 
 class ClientCommandChannel(AbstractChannel):
     recipient: Player
     tell_channel: ChatChannel
 
     def __init__(self, player: Player) -> None: ...
+
     def __repr__(self) -> str: ...
+
     def reply(self, msg: str, limit: int = ..., delimiter: str = ...) -> None: ...
+
 
 CHAT_CHANNEL: AbstractChannel
 RED_TEAM_CHAT_CHANNEL: AbstractChannel
@@ -904,6 +1268,7 @@ BLUE_TEAM_CHAT_CHANNEL: AbstractChannel
 FREE_CHAT_CHANNEL: AbstractChannel
 SPECTATOR_CHAT_CHANNEL: AbstractChannel
 CONSOLE_CHANNEL: AbstractChannel
+
 
 class Command:
     name: list[str]
@@ -918,24 +1283,29 @@ class Command:
     usage: str
 
     def __init__(
-        self,
-        plugin: Plugin,
-        name: str | Iterable[str],
-        handler: Callable,
-        permission: int,
-        channels: Iterable[AbstractChannel] | None,
-        exclude_channels: Iterable[AbstractChannel] | None,
-        client_cmd_pass: bool,
-        client_cmd_perm: int,
-        prefix: bool,
-        usage: str,
+            self,
+            plugin: Plugin,
+            name: str | Iterable[str],
+            handler: Callable,
+            permission: int,
+            channels: Iterable[AbstractChannel] | None,
+            exclude_channels: Iterable[AbstractChannel] | None,
+            client_cmd_pass: bool,
+            client_cmd_perm: int,
+            prefix: bool,
+            usage: str,
     ) -> None: ...
+
     def execute(
-        self, player: Player, msg: str, channel: AbstractChannel
+            self, player: Player, msg: str, channel: AbstractChannel
     ) -> int | None: ...
+
     def is_eligible_name(self, name: str) -> bool: ...
+
     def is_eligible_channel(self, channel: AbstractChannel) -> bool: ...
+
     def is_eligible_player(self, player: Player, is_client_cmd: bool) -> bool: ...
+
 
 class CommandInvoker:
     _commands: tuple[
@@ -943,16 +1313,23 @@ class CommandInvoker:
     ]
 
     def __init__(self) -> None: ...
+
     @property
     def commands(self) -> list[Command]: ...
+
     def add_command(self, command: Command, priority: int) -> None: ...
+
     def remove_command(self, command: Command) -> None: ...
+
     def is_registered(self, command: Command) -> bool: ...
+
     def handle_input(
-        self, player: Player, msg: str, channel: AbstractChannel
+            self, player: Player, msg: str, channel: AbstractChannel
     ) -> bool: ...
 
+
 COMMANDS: CommandInvoker
+
 
 # from _zmq.pyi
 class StatsListener:
@@ -961,48 +1338,89 @@ class StatsListener:
     password: str | None
 
     def __init__(self) -> None: ...
+
     def keep_receiving(self) -> None: ...
+
     def stop(self) -> None: ...
+
 
 # from _handlers.pyi
 frame_tasks: scheduler
 next_frame_tasks: Queue
 
+
 def handle_rcon(cmd: str) -> bool | None: ...
+
+
 def handle_client_command(client_id: int, cmd: str) -> bool | str: ...
+
+
 def handle_server_command(client_id: int, cmd: str) -> bool | str: ...
+
+
 def handle_frame() -> bool | None: ...
+
+
 def handle_new_game(is_restart: bool) -> bool | None: ...
+
+
 def handle_set_configstring(index: int, value: str) -> bool | None: ...
+
+
 def handle_player_connect(client_id: int, _is_bot: bool) -> bool | str | None: ...
+
+
 def handle_player_loaded(client_id: int) -> bool | None: ...
+
+
 def handle_player_disconnect(client_id: int, reason: str | None) -> bool | None: ...
+
+
 def handle_player_spawn(client_id: int) -> bool | None: ...
+
+
 def handle_kamikaze_use(client_id: int) -> bool | None: ...
+
+
 def handle_kamikaze_explode(client_id: int, is_used_on_demand: bool) -> bool | None: ...
+
+
 def handle_damage(
-    target_id: int, attacker_id: int | None, damage: int, dflags: int, mod: int
+        target_id: int, attacker_id: int | None, damage: int, dflags: int, mod: int
 ) -> bool | None: ...
+
+
 def handle_console_print(text: str | None) -> bool | str | None: ...
+
+
 def redirect_print(channel: AbstractChannel) -> PrintRedirector: ...
+
+
 def register_handlers() -> None: ...
+
 
 class PrintRedirector:
     channel: AbstractChannel
 
     def __init__(self, _channel: AbstractChannel) -> None: ...
+
     def __enter__(self) -> None: ...
+
     def __exit__(
-        self,
-        exc_type: Type[BaseException],
-        exc_value: BaseException,
-        exc_traceback: TracebackType | None,
+            self,
+            exc_type: Type[BaseException],
+            exc_value: BaseException,
+            exc_traceback: TracebackType | None,
     ) -> None: ...
+
     def flush(self) -> None: ...
+
     def append(self, text: str) -> None: ...
+
 
 # from _events.pyi
 _re_vote: Pattern
+
 
 class EventDispatcher:
     name: str
@@ -1022,229 +1440,311 @@ class EventDispatcher:
     need_zmq_stats_enabled: bool
 
     def __init__(self) -> None: ...
+
     @property
     def args(self) -> Iterable[str]: ...
+
     @args.setter
     def args(self, value: Iterable[str]) -> None: ...
+
     @property
     def return_value(self) -> str | bool | Iterable | None: ...
+
     @return_value.setter
     def return_value(self, value: str | bool | Iterable | None) -> None: ...
+
     def dispatch(self, *args, **kwargs) -> str | bool | Iterable | None: ...  # type: ignore
+
     def handle_return(
-        self, handler: Callable, value: int | str | None
+            self, handler: Callable, value: int | str | None
     ) -> str | None: ...
+
     def add_hook(self, plugin: str, handler: Callable, priority: int = ...) -> None: ...
+
     def remove_hook(
-        self, plugin: str, handler: Callable, priority: int = ...
+            self, plugin: str, handler: Callable, priority: int = ...
     ) -> None: ...
+
 
 class ConsolePrintDispatcher(EventDispatcher):
     def dispatch(self, text: str) -> str | bool: ...
 
+
 class CommandDispatcher(EventDispatcher):
     def dispatch(self, caller: Player, command: Command, args: str) -> None: ...
+
 
 class ClientCommandDispatcher(EventDispatcher):
     def dispatch(self, player: Player, cmd: str) -> str | bool: ...
 
+
 class ServerCommandDispatcher(EventDispatcher):
     def dispatch(self, player: Player | None, cmd: str) -> str | bool: ...
+
 
 class FrameEventDispatcher(EventDispatcher):
     def dispatch(self) -> bool: ...
 
+
 class SetConfigstringDispatcher(EventDispatcher):
     def dispatch(self, index: int, value: str) -> str | bool: ...
 
+
 class ChatEventDispatcher(EventDispatcher):
     def dispatch(
-        self, player: Player, msg: str, channel: AbstractChannel
+            self, player: Player, msg: str, channel: AbstractChannel
     ) -> str | bool: ...
+
 
 class UnloadDispatcher(EventDispatcher):
     def dispatch(self, plugin: Plugin | str) -> None: ...
 
+
 class PlayerConnectDispatcher(EventDispatcher):
     def dispatch(self, player: Player) -> str | bool: ...
+
 
 class PlayerLoadedDispatcher(EventDispatcher):
     def dispatch(self, player: Player) -> bool: ...
 
+
 class PlayerDisconnectDispatcher(EventDispatcher):
     def dispatch(self, player: Player, reason: str | None) -> bool: ...
+
 
 class PlayerSpawnDispatcher(EventDispatcher):
     def dispatch(self, player: Player) -> bool: ...
 
+
 class StatsDispatcher(EventDispatcher):
     def dispatch(self, stats: StatsData) -> bool: ...
 
+
 class VoteCalledDispatcher(EventDispatcher):
     def dispatch(self, player: Player, vote: str, args: str | None) -> bool: ...
+
 
 class VoteStartedDispatcher(EventDispatcher):
     _caller: Player | None
 
     def __init__(self) -> None: ...
+
     def dispatch(self, vote: str, args: str | None) -> bool: ...
+
     def caller(self, player: Player | None) -> None: ...
+
 
 class VoteEndedDispatcher(EventDispatcher):
     def dispatch(self, passed: bool) -> None: ...
 
+
 class VoteDispatcher(EventDispatcher):
     def dispatch(self, player: Player, yes: bool) -> bool: ...
+
 
 class GameCountdownDispatcher(EventDispatcher):
     def dispatch(self) -> bool: ...
 
+
 class GameStartDispatcher(EventDispatcher):
     def dispatch(self, data: GameStartData) -> bool: ...
+
 
 class GameEndDispatcher(EventDispatcher):
     def dispatch(self, data: GameEndData) -> bool: ...
 
+
 class RoundCountdownDispatcher(EventDispatcher):
     def dispatch(self, round_number: int) -> bool: ...
+
 
 class RoundStartDispatcher(EventDispatcher):
     def dispatch(self, round_number: int) -> bool: ...
 
+
 class RoundEndDispatcher(EventDispatcher):
     def dispatch(self, data: RoundEndData) -> bool: ...
+
 
 class TeamSwitchDispatcher(EventDispatcher):
     def dispatch(self, player: Player, old_team: str, new_team: str) -> bool: ...
 
+
 class TeamSwitchAttemptDispatcher(EventDispatcher):
     def dispatch(self, player: Player, old_team: str, new_team: str) -> bool: ...
+
 
 class MapDispatcher(EventDispatcher):
     def dispatch(self, mapname: str, factory: str) -> bool: ...
 
+
 class NewGameDispatcher(EventDispatcher):
     def dispatch(self) -> bool: ...
+
 
 class KillDispatcher(EventDispatcher):
     def dispatch(self, victim: Player, killer: Player, data: KillData) -> bool: ...
 
+
 class DeathDispatcher(EventDispatcher):
     def dispatch(
-        self, victim: Player, killer: Player | None, data: DeathData
+            self, victim: Player, killer: Player | None, data: DeathData
     ) -> bool: ...
+
 
 class UserinfoDispatcher(EventDispatcher):
     def dispatch(
-        self, playe: Player, changed: UserinfoEventInput
+            self, playe: Player, changed: UserinfoEventInput
     ) -> bool | UserinfoEventInput: ...
+
 
 class KamikazeUseDispatcher(EventDispatcher):
     def dispatch(self, player: Player) -> bool: ...
 
+
 class KamikazeExplodeDispatcher(EventDispatcher):
     def dispatch(self, player: Player, is_used_on_demand: bool) -> bool: ...
 
+
 class DamageDispatcher(EventDispatcher):
     def dispatch(
-        self,
-        target: Player | int | None,
-        attacker: Player | int | None,
-        damage: int,
-        dflags: int,
-        means_of_death: int,
+            self,
+            target: Player | int | None,
+            attacker: Player | int | None,
+            damage: int,
+            dflags: int,
+            means_of_death: int,
     ) -> bool: ...
+
 
 class EventDispatcherManager:
     def __init__(self) -> None: ...
+
     @overload
     def __getitem__(self, key: Literal["console_print"]) -> ConsolePrintDispatcher: ...
+
     @overload
     def __getitem__(self, key: Literal["command"]) -> CommandDispatcher: ...
+
     @overload
     def __getitem__(
-        self, key: Literal["client_command"]
+            self, key: Literal["client_command"]
     ) -> ClientCommandDispatcher: ...
+
     @overload
     def __getitem__(
-        self, key: Literal["server_command"]
+            self, key: Literal["server_command"]
     ) -> ServerCommandDispatcher: ...
+
     @overload
     def __getitem__(self, key: Literal["frame"]) -> FrameEventDispatcher: ...
+
     @overload
     def __getitem__(
-        self, key: Literal["set_configstring"]
+            self, key: Literal["set_configstring"]
     ) -> SetConfigstringDispatcher: ...
+
     @overload
     def __getitem__(self, key: Literal["chat"]) -> ChatEventDispatcher: ...
+
     @overload
     def __getitem__(self, key: Literal["unload"]) -> UnloadDispatcher: ...
+
     @overload
     def __getitem__(
-        self, key: Literal["player_connect"]
+            self, key: Literal["player_connect"]
     ) -> PlayerConnectDispatcher: ...
+
     @overload
     def __getitem__(self, key: Literal["player_loaded"]) -> PlayerLoadedDispatcher: ...
+
     @overload
     def __getitem__(
-        self, key: Literal["player_disconnect"]
+            self, key: Literal["player_disconnect"]
     ) -> PlayerDisconnectDispatcher: ...
+
     @overload
     def __getitem__(self, key: Literal["player_spawn"]) -> PlayerSpawnDispatcher: ...
+
     @overload
     def __getitem__(self, key: Literal["stats"]) -> StatsDispatcher: ...
+
     @overload
     def __getitem__(self, key: Literal["vote_called"]) -> VoteCalledDispatcher: ...
+
     @overload
     def __getitem__(self, key: Literal["vote_started"]) -> VoteStartedDispatcher: ...
+
     @overload
     def __getitem__(self, key: Literal["vote_ended"]) -> VoteEndedDispatcher: ...
+
     @overload
     def __getitem__(self, key: Literal["vote"]) -> VoteDispatcher: ...
+
     @overload
     def __getitem__(
-        self, key: Literal["game_countdown"]
+            self, key: Literal["game_countdown"]
     ) -> GameCountdownDispatcher: ...
+
     @overload
     def __getitem__(self, key: Literal["game_start"]) -> GameStartDispatcher: ...
+
     @overload
     def __getitem__(self, key: Literal["game_end"]) -> GameEndDispatcher: ...
+
     @overload
     def __getitem__(
-        self, key: Literal["round_countdown"]
+            self, key: Literal["round_countdown"]
     ) -> RoundCountdownDispatcher: ...
+
     @overload
     def __getitem__(self, key: Literal["round_start"]) -> RoundStartDispatcher: ...
+
     @overload
     def __getitem__(self, key: Literal["round_end"]) -> RoundEndDispatcher: ...
+
     @overload
     def __getitem__(self, key: Literal["team_switch"]) -> TeamSwitchDispatcher: ...
+
     @overload
     def __getitem__(
-        self, key: Literal["team_switch_attempt"]
+            self, key: Literal["team_switch_attempt"]
     ) -> TeamSwitchAttemptDispatcher: ...
+
     @overload
     def __getitem__(self, key: Literal["map"]) -> MapDispatcher: ...
+
     @overload
     def __getitem__(self, key: Literal["new_game"]) -> NewGameDispatcher: ...
+
     @overload
     def __getitem__(self, key: Literal["kill"]) -> KillDispatcher: ...
+
     @overload
     def __getitem__(self, key: Literal["death"]) -> DeathDispatcher: ...
+
     @overload
     def __getitem__(self, key: Literal["userinfo"]) -> UserinfoDispatcher: ...
+
     @overload
     def __getitem__(self, key: Literal["kamikaze_use"]) -> KamikazeUseDispatcher: ...
+
     @overload
     def __getitem__(
-        self, key: Literal["kamikaze_explode"]
+            self, key: Literal["kamikaze_explode"]
     ) -> KamikazeExplodeDispatcher: ...
+
     @overload
     def __getitem__(self, key: Literal["damage"]) -> DamageDispatcher: ...
+
     def __contains__(self, key: str) -> bool: ...
+
     def add_dispatcher(self, dispatcher: Type[EventDispatcher]) -> None: ...
+
     def remove_dispatcher(self, dispatcher: Type[EventDispatcher]) -> None: ...
+
     def remove_dispatcher_by_name(self, event_name: str) -> None: ...
+
 
 EVENT_DISPATCHERS: EventDispatcherManager
 
@@ -1643,17 +2143,18 @@ PlayerStatsStats = TypedDict(
     "PlayerStatsStats", {"DATA": PlayerStatsEntry, "TYPE": Literal["PLAYER_STATS"]}
 )
 StatsData = (
-    PlayerKillStats
-    | PlayerDeathStats
-    | PlayerMedalStats
-    | RoundOverStats
-    | PlayerConnectStats
-    | PlayerDisconnectStats
-    | PlayerSwitchTeamStats
-    | MatchStartedStats
-    | MatchReportStats
-    | PlayerStatsStats
+        PlayerKillStats
+        | PlayerDeathStats
+        | PlayerMedalStats
+        | RoundOverStats
+        | PlayerConnectStats
+        | PlayerDisconnectStats
+        | PlayerSwitchTeamStats
+        | MatchStartedStats
+        | MatchReportStats
+        | PlayerStatsStats
 )
+
 
 class Plugin:
     _loaded_plugins: ClassVar[dict[str, Plugin]] = ...
@@ -1665,714 +2166,1150 @@ class Plugin:
     @classmethod
     @overload
     def get_cvar(cls, name: str, return_type: Type[str] = ...) -> str | None: ...
+
     @classmethod
     @overload
     def get_cvar(cls, name: str, return_type: Type[bool]) -> bool | None: ...
+
     @classmethod
     @overload
     def get_cvar(cls, name: str, return_type: Type[int]) -> int | None: ...
+
     @classmethod
     @overload
     def get_cvar(cls, name: str, return_type: Type[float]) -> float | None: ...
+
     @classmethod
     @overload
     def get_cvar(cls, name: str, return_type: Type[list]) -> list[str] | None: ...
+
     @classmethod
     @overload
     def get_cvar(cls, name: str, return_type: Type[set]) -> set[str] | None: ...
+
     @classmethod
     @overload
     def get_cvar(
-        cls, name: str, return_type: Type[tuple]
+            cls, name: str, return_type: Type[tuple]
     ) -> tuple[str, ...] | None: ...
+
     @classmethod
     def set_cvar(
-        cls,
-        name: str,
-        value: str | bool | int | float | list | set | tuple,
-        flags: int = ...,
+            cls,
+            name: str,
+            value: str | bool | int | float | list | set | tuple,
+            flags: int = ...,
     ) -> bool: ...
+
     @classmethod
     def set_cvar_limit(
-        cls,
-        name: str,
-        value: int | float,
-        minimum: int | float,
-        maximum: int | float,
-        flags: int = ...,
+            cls,
+            name: str,
+            value: int | float,
+            minimum: int | float,
+            maximum: int | float,
+            flags: int = ...,
     ) -> bool: ...
+
     @classmethod
     def set_cvar_once(
-        cls,
-        name: str,
-        value: str | bool | int | float | list | set | tuple,
-        flags: int = ...,
+            cls,
+            name: str,
+            value: str | bool | int | float | list | set | tuple,
+            flags: int = ...,
     ) -> bool: ...
+
     @classmethod
     def set_cvar_limit_once(
-        cls,
-        name: str,
-        value: int | float,
-        minimum: int | float,
-        maximum: int | float,
-        flags: int = ...,
+            cls,
+            name: str,
+            value: int | float,
+            minimum: int | float,
+            maximum: int | float,
+            flags: int = ...,
     ) -> bool: ...
+
     @classmethod
     def players(cls) -> list[Player]: ...
+
     @classmethod
     def player(
-        cls, name: str | int | Player, player_list: Iterable[Player] | None = ...
+            cls, name: str | int | Player, player_list: Iterable[Player] | None = ...
     ) -> Player | None: ...
+
     @classmethod
     def msg(cls, msg: str, chat_channel: str = ..., **kwargs: str) -> None: ...
+
     @classmethod
     def console(cls, text: str) -> None: ...
+
     @classmethod
     def clean_text(cls, text: str) -> str: ...
+
     @classmethod
     def colored_name(
-        cls, name: str | Player, player_list: Iterable[Player] | None = ...
+            cls, name: str | Player, player_list: Iterable[Player] | None = ...
     ) -> str | None: ...
+
     @classmethod
     def client_id(
-        cls, name: str | int | Player, player_list: Iterable[Player] | None = ...
+            cls, name: str | int | Player, player_list: Iterable[Player] | None = ...
     ) -> int | None: ...
+
     @classmethod
     def find_player(
-        cls, name: str, player_list: Iterable[Player] | None = ...
+            cls, name: str, player_list: Iterable[Player] | None = ...
     ) -> list[Player]: ...
+
     @classmethod
     def teams(
-        cls, player_list: Iterable[Player] | None = ...
+            cls, player_list: Iterable[Player] | None = ...
     ) -> Mapping[str, list[Player]]: ...
+
     @classmethod
     def center_print(
-        cls, msg: str, recipient: str | int | Player | None = ...
+            cls, msg: str, recipient: str | int | Player | None = ...
     ) -> None: ...
+
     @classmethod
     def tell(cls, msg: str, recipient: str | int | Player, **kwargs: str) -> None: ...
+
     @classmethod
     def is_vote_active(cls) -> bool: ...
+
     @classmethod
     def current_vote_count(cls) -> tuple[int, int] | None: ...
+
     @classmethod
     def callvote(cls, vote: str, display: str, time: int = ...) -> bool: ...
+
     @classmethod
     def force_vote(cls, pass_it: bool) -> bool: ...
+
     @classmethod
     def teamsize(cls, size: int) -> None: ...
+
     @classmethod
     def kick(cls, player: str | int | Player, reason: str = ...) -> None: ...
+
     @classmethod
     def shuffle(cls) -> None: ...
+
     @classmethod
     def cointoss(cls) -> None: ...
+
     @classmethod
     def change_map(cls, new_map: str, factory: str | None = ...) -> None: ...
+
     @classmethod
     def switch(cls, player: Player, other_player: Player) -> None: ...
+
     @classmethod
     def play_sound(cls, sound_path: str, player: Player | None = ...) -> bool: ...
+
     @classmethod
     def play_music(cls, music_path: str, player: Player | None = ...) -> bool: ...
+
     @classmethod
     def stop_sound(cls, player: Player | None = ...) -> None: ...
+
     @classmethod
     def stop_music(cls, player: Player | None = ...) -> None: ...
+
     @classmethod
     def slap(cls, player: str | int | Player, damage: int = ...) -> None: ...
+
     @classmethod
     def slay(cls, player: str | int | Player) -> None: ...
+
     @classmethod
     def timeout(cls) -> None: ...
+
     @classmethod
     def timein(cls) -> None: ...
+
     @classmethod
     def allready(cls) -> None: ...
+
     @classmethod
     def pause(cls) -> None: ...
+
     @classmethod
     def unpause(cls) -> None: ...
+
     @classmethod
     def lock(cls, team: str | None = ...) -> None: ...
+
     @classmethod
     def unlock(cls, team: str | None = ...) -> None: ...
+
     @classmethod
     def put(cls, player: Player, team: str) -> None: ...
+
     @classmethod
     def mute(cls, player: Player) -> None: ...
+
     @classmethod
     def unmute(cls, player: Player) -> None: ...
+
     @classmethod
     def tempban(cls, player: Player) -> None: ...
+
     @classmethod
     def ban(cls, player: Player) -> None: ...
+
     @classmethod
     def unban(cls, player: Player) -> None: ...
+
     @classmethod
     def opsay(cls, msg: str) -> None: ...
+
     @classmethod
     def addadmin(cls, player: Player) -> None: ...
+
     @classmethod
     def addmod(cls, player: Player) -> None: ...
+
     @classmethod
     def demote(cls, player: Player) -> None: ...
+
     @classmethod
     def abort(cls) -> None: ...
+
     @classmethod
     def addscore(cls, player: Player, score: int) -> None: ...
+
     @classmethod
     def addteamscore(cls, team: str, score: int) -> None: ...
+
     @classmethod
     def setmatchtime(cls, time: int) -> None: ...
+
     def __init__(self) -> None: ...
+
     def __str__(self) -> str: ...
+
     @property
     def db(self) -> Redis | None: ...
+
     @property
     def name(self) -> str: ...
+
     @property
     def plugins(self) -> Mapping[str, Plugin]: ...
+
     @property
     def hooks(self) -> Iterable[tuple[str, Callable, int]]: ...
+
     @property
     def commands(self) -> Iterable[Command]: ...
+
     @property
     def game(self) -> Game | None: ...
+
     @property
     def logger(self) -> Logger: ...
+
     @overload
     def add_hook(
-        self,
-        event: Literal["console_print"],
-        handler: Callable[
-            [str],
-            str | CancellableEventReturn,
-        ],
-        priority: int = ...,
+            self,
+            event: Literal["console_print"],
+            handler: Callable[
+                [str],
+                str | CancellableEventReturn,
+            ],
+            priority: int = ...,
     ) -> None: ...
+
     @overload
     def add_hook(
-        self,
-        event: Literal["command"],
-        handler: Callable[
-            [Player, Command, str],
-            CancellableEventReturn,
-        ],
-        priority: int = ...,
+            self,
+            event: Literal["command"],
+            handler: Callable[
+                [Player, Command, str],
+                CancellableEventReturn,
+            ],
+            priority: int = ...,
     ) -> None: ...
+
     @overload
     def add_hook(
-        self,
-        event: Literal["client_command"],
-        handler: Callable[[Player | None, str], str | bool | CancellableEventReturn],
-        priority: int = ...,
+            self,
+            event: Literal["client_command"],
+            handler: Callable[[Player | None, str], str | bool | CancellableEventReturn],
+            priority: int = ...,
     ) -> None: ...
+
     @overload
     def add_hook(
-        self,
-        event: Literal["server_command"],
-        handler: Callable[[Player | None, str], str | CancellableEventReturn],
-        priority: int = ...,
+            self,
+            event: Literal["server_command"],
+            handler: Callable[[Player | None, str], str | CancellableEventReturn],
+            priority: int = ...,
     ) -> None: ...
+
     @overload
     def add_hook(
-        self,
-        event: Literal["frame"],
-        handler: Callable[[], UncancellableEventReturn],
-        priority: int = ...,
+            self,
+            event: Literal["frame"],
+            handler: Callable[[], UncancellableEventReturn],
+            priority: int = ...,
     ) -> None: ...
+
     @overload
     def add_hook(
-        self,
-        event: Literal["set_configstring"],
-        handler: Callable[[int, str], str | CancellableEventReturn],
-        priority: int = ...,
+            self,
+            event: Literal["set_configstring"],
+            handler: Callable[[int, str], str | CancellableEventReturn],
+            priority: int = ...,
     ) -> None: ...
+
     @overload
     def add_hook(
-        self,
-        event: Literal["chat"],
-        handler: Callable[[Player, str, AbstractChannel], str | CancellableEventReturn],
-        priority: int = ...,
+            self,
+            event: Literal["chat"],
+            handler: Callable[[Player, str, AbstractChannel], str | CancellableEventReturn],
+            priority: int = ...,
     ) -> None: ...
+
     @overload
     def add_hook(
-        self,
-        event: Literal["unload"],
-        handler: Callable[[Plugin], UncancellableEventReturn],
-        priority: int = ...,
+            self,
+            event: Literal["unload"],
+            handler: Callable[[Plugin], UncancellableEventReturn],
+            priority: int = ...,
     ) -> None: ...
+
     @overload
     def add_hook(
-        self,
-        event: Literal["player_connect"],
-        handler: Callable[[Player], str | CancellableEventReturn],
-        priority: int = ...,
+            self,
+            event: Literal["player_connect"],
+            handler: Callable[[Player], str | CancellableEventReturn],
+            priority: int = ...,
     ) -> None: ...
+
     @overload
     def add_hook(
-        self,
-        event: Literal["player_loaded"],
-        handler: Callable[[Player], UncancellableEventReturn],
-        priority: int = ...,
+            self,
+            event: Literal["player_loaded"],
+            handler: Callable[[Player], UncancellableEventReturn],
+            priority: int = ...,
     ) -> None: ...
+
     @overload
     def add_hook(
-        self,
-        event: Literal["player_disconnect"],
-        handler: Callable[[Player, str | None], UncancellableEventReturn],
-        priority: int = ...,
+            self,
+            event: Literal["player_disconnect"],
+            handler: Callable[[Player, str | None], UncancellableEventReturn],
+            priority: int = ...,
     ) -> None: ...
+
     @overload
     def add_hook(
-        self,
-        event: Literal["player_spawn"],
-        handler: Callable[[Player], UncancellableEventReturn],
-        priority: int = ...,
+            self,
+            event: Literal["player_spawn"],
+            handler: Callable[[Player], UncancellableEventReturn],
+            priority: int = ...,
     ) -> None: ...
+
     @overload
     def add_hook(
-        self,
-        event: Literal["stats"],
-        handler: Callable[[StatsData], UncancellableEventReturn],
-        priority: int = ...,
+            self,
+            event: Literal["stats"],
+            handler: Callable[[StatsData], UncancellableEventReturn],
+            priority: int = ...,
     ) -> None: ...
+
     @overload
     def add_hook(
-        self,
-        event: Literal["vote_called"],
-        handler: Callable[[Player, str, str | None], CancellableEventReturn],
-        priority: int = ...,
+            self,
+            event: Literal["vote_called"],
+            handler: Callable[[Player, str, str | None], CancellableEventReturn],
+            priority: int = ...,
     ) -> None: ...
+
     @overload
     def add_hook(
-        self,
-        event: Literal["vote_started"],
-        handler: Callable[[Player, str, str | None], CancellableEventReturn],
-        priority: int = ...,
+            self,
+            event: Literal["vote_started"],
+            handler: Callable[[Player, str, str | None], CancellableEventReturn],
+            priority: int = ...,
     ) -> None: ...
+
     @overload
     def add_hook(
-        self,
-        event: Literal["vote_ended"],
-        handler: Callable[
-            [tuple[int, int], str, str | None, bool], CancellableEventReturn
-        ],
-        priority: int = ...,
+            self,
+            event: Literal["vote_ended"],
+            handler: Callable[
+                [tuple[int, int], str, str | None, bool], CancellableEventReturn
+            ],
+            priority: int = ...,
     ) -> None: ...
+
     @overload
     def add_hook(
-        self,
-        event: Literal["vote"],
-        handler: Callable[[Player, bool], CancellableEventReturn],
-        priority: int = ...,
+            self,
+            event: Literal["vote"],
+            handler: Callable[[Player, bool], CancellableEventReturn],
+            priority: int = ...,
     ) -> None: ...
+
     @overload
     def add_hook(
-        self,
-        event: Literal["game_countdown"],
-        handler: Callable[[], CancellableEventReturn],
-        priority: int = ...,
+            self,
+            event: Literal["game_countdown"],
+            handler: Callable[[], CancellableEventReturn],
+            priority: int = ...,
     ) -> None: ...
+
     @overload
     def add_hook(
-        self,
-        event: Literal["game_start"],
-        handler: Callable[[GameStartData], CancellableEventReturn],
-        priority: int = ...,
+            self,
+            event: Literal["game_start"],
+            handler: Callable[[GameStartData], CancellableEventReturn],
+            priority: int = ...,
     ) -> None: ...
+
     @overload
     def add_hook(
-        self,
-        event: Literal["game_end"],
-        handler: Callable[[GameEndData], CancellableEventReturn],
-        priority: int = ...,
+            self,
+            event: Literal["game_end"],
+            handler: Callable[[GameEndData], CancellableEventReturn],
+            priority: int = ...,
     ) -> None: ...
+
     @overload
     def add_hook(
-        self,
-        event: Literal["round_countdown"],
-        handler: Callable[[int], CancellableEventReturn],
-        priority: int = ...,
+            self,
+            event: Literal["round_countdown"],
+            handler: Callable[[int], CancellableEventReturn],
+            priority: int = ...,
     ) -> None: ...
+
     @overload
     def add_hook(
-        self,
-        event: Literal["round_start"],
-        handler: Callable[[int], CancellableEventReturn],
-        priority: int = ...,
+            self,
+            event: Literal["round_start"],
+            handler: Callable[[int], CancellableEventReturn],
+            priority: int = ...,
     ) -> None: ...
+
     @overload
     def add_hook(
-        self,
-        event: Literal["round_end"],
-        handler: Callable[[RoundEndData], CancellableEventReturn],
-        priority: int = ...,
+            self,
+            event: Literal["round_end"],
+            handler: Callable[[RoundEndData], CancellableEventReturn],
+            priority: int = ...,
     ) -> None: ...
+
     @overload
     def add_hook(
-        self,
-        event: Literal["team_switch"],
-        handler: Callable[[Player, str, str], CancellableEventReturn],
-        priority: int = ...,
+            self,
+            event: Literal["team_switch"],
+            handler: Callable[[Player, str, str], CancellableEventReturn],
+            priority: int = ...,
     ) -> None: ...
+
     @overload
     def add_hook(
-        self,
-        event: Literal["team_switch_attempt"],
-        handler: Callable[[Player, str, str], CancellableEventReturn],
-        priority: int = ...,
+            self,
+            event: Literal["team_switch_attempt"],
+            handler: Callable[[Player, str, str], CancellableEventReturn],
+            priority: int = ...,
     ) -> None: ...
+
     @overload
     def add_hook(
-        self,
-        event: Literal["map"],
-        handler: Callable[[str, str], CancellableEventReturn],
-        priority: int = ...,
+            self,
+            event: Literal["map"],
+            handler: Callable[[str, str], CancellableEventReturn],
+            priority: int = ...,
     ) -> None: ...
+
     @overload
     def add_hook(
-        self,
-        event: Literal["new_game"],
-        handler: Callable[[], CancellableEventReturn],
-        priority: int = ...,
+            self,
+            event: Literal["new_game"],
+            handler: Callable[[], CancellableEventReturn],
+            priority: int = ...,
     ) -> None: ...
+
     @overload
     def add_hook(
-        self,
-        event: Literal["kill"],
-        handler: Callable[[Player, Player, KillData], CancellableEventReturn],
-        priority: int = ...,
+            self,
+            event: Literal["kill"],
+            handler: Callable[[Player, Player, KillData], CancellableEventReturn],
+            priority: int = ...,
     ) -> None: ...
+
     @overload
     def add_hook(
-        self,
-        event: Literal["death"],
-        handler: Callable[[Player, Player | None, DeathData], CancellableEventReturn],
-        priority: int = ...,
+            self,
+            event: Literal["death"],
+            handler: Callable[[Player, Player | None, DeathData], CancellableEventReturn],
+            priority: int = ...,
     ) -> None: ...
+
     @overload
     def add_hook(
-        self,
-        event: Literal["userinfo"],
-        handler: Callable[
-            [Player, UserinfoEventInput], UserInfo | CancellableEventReturn
-        ],
-        priority: int = ...,
+            self,
+            event: Literal["userinfo"],
+            handler: Callable[
+                [Player, UserinfoEventInput], UserInfo | CancellableEventReturn
+            ],
+            priority: int = ...,
     ) -> None: ...
+
     @overload
     def add_hook(
-        self,
-        event: Literal["kamikaze_use"],
-        handler: Callable[[Player], CancellableEventReturn],
-        priority: int = ...,
+            self,
+            event: Literal["kamikaze_use"],
+            handler: Callable[[Player], CancellableEventReturn],
+            priority: int = ...,
     ) -> None: ...
+
     @overload
     def add_hook(
-        self,
-        event: Literal["kamikaze_explde"],
-        handler: Callable[[Player, bool], CancellableEventReturn],
-        priority: int = ...,
+            self,
+            event: Literal["kamikaze_explde"],
+            handler: Callable[[Player, bool], CancellableEventReturn],
+            priority: int = ...,
     ) -> None: ...
+
     @overload
     def add_hook(
-        self,
-        event: Literal["damage"],
-        handler: Callable[
-            [Player | int | None, Player | int | None, int, int, int],
-            UncancellableEventReturn,
-        ],
-        priority: int = ...,
+            self,
+            event: Literal["damage"],
+            handler: Callable[
+                [Player | int | None, Player | int | None, int, int, int],
+                UncancellableEventReturn,
+            ],
+            priority: int = ...,
     ) -> None: ...
+
     @overload
     def remove_hook(
-        self,
-        event: Literal["console_print"],
-        handler: Callable[
-            [str],
-            str | CancellableEventReturn,
-        ],
-        priority: int = ...,
+            self,
+            event: Literal["console_print"],
+            handler: Callable[
+                [str],
+                str | CancellableEventReturn,
+            ],
+            priority: int = ...,
     ) -> None: ...
+
     @overload
     def remove_hook(
-        self,
-        event: Literal["command"],
-        handler: Callable[
-            [Player, Command, str],
-            CancellableEventReturn,
-        ],
-        priority: int = ...,
+            self,
+            event: Literal["command"],
+            handler: Callable[
+                [Player, Command, str],
+                CancellableEventReturn,
+            ],
+            priority: int = ...,
     ) -> None: ...
+
     @overload
     def remove_hook(
-        self,
-        event: Literal["client_command"],
-        handler: Callable[[Player | None, str], str | bool | CancellableEventReturn],
-        priority: int = ...,
+            self,
+            event: Literal["client_command"],
+            handler: Callable[[Player | None, str], str | bool | CancellableEventReturn],
+            priority: int = ...,
     ) -> None: ...
+
     @overload
     def remove_hook(
-        self,
-        event: Literal["server_command"],
-        handler: Callable[[Player | None, str], str | CancellableEventReturn],
-        priority: int = ...,
+            self,
+            event: Literal["server_command"],
+            handler: Callable[[Player | None, str], str | CancellableEventReturn],
+            priority: int = ...,
     ) -> None: ...
+
     @overload
     def remove_hook(
-        self,
-        event: Literal["frame"],
-        handler: Callable[[], UncancellableEventReturn],
-        priority: int = ...,
+            self,
+            event: Literal["frame"],
+            handler: Callable[[], UncancellableEventReturn],
+            priority: int = ...,
     ) -> None: ...
+
     @overload
     def remove_hook(
-        self,
-        event: Literal["set_configstring"],
-        handler: Callable[[int, str], str | CancellableEventReturn],
-        priority: int = ...,
+            self,
+            event: Literal["set_configstring"],
+            handler: Callable[[int, str], str | CancellableEventReturn],
+            priority: int = ...,
     ) -> None: ...
+
     @overload
     def remove_hook(
-        self,
-        event: Literal["chat"],
-        handler: Callable[[Player, str, AbstractChannel], str | CancellableEventReturn],
-        priority: int = ...,
+            self,
+            event: Literal["chat"],
+            handler: Callable[[Player, str, AbstractChannel], str | CancellableEventReturn],
+            priority: int = ...,
     ) -> None: ...
+
     @overload
     def remove_hook(
-        self,
-        event: Literal["unload"],
-        handler: Callable[[Plugin], UncancellableEventReturn],
-        priority: int = ...,
+            self,
+            event: Literal["unload"],
+            handler: Callable[[Plugin], UncancellableEventReturn],
+            priority: int = ...,
     ) -> None: ...
+
     @overload
     def remove_hook(
-        self,
-        event: Literal["player_connect"],
-        handler: Callable[[Player], str | CancellableEventReturn],
-        priority: int = ...,
+            self,
+            event: Literal["player_connect"],
+            handler: Callable[[Player], str | CancellableEventReturn],
+            priority: int = ...,
     ) -> None: ...
+
     @overload
     def remove_hook(
-        self,
-        event: Literal["player_loaded"],
-        handler: Callable[[Player], UncancellableEventReturn],
-        priority: int = ...,
+            self,
+            event: Literal["player_loaded"],
+            handler: Callable[[Player], UncancellableEventReturn],
+            priority: int = ...,
     ) -> None: ...
+
     @overload
     def remove_hook(
-        self,
-        event: Literal["player_disconnect"],
-        handler: Callable[[Player, str | None], UncancellableEventReturn],
-        priority: int = ...,
+            self,
+            event: Literal["player_disconnect"],
+            handler: Callable[[Player, str | None], UncancellableEventReturn],
+            priority: int = ...,
     ) -> None: ...
+
     @overload
     def remove_hook(
-        self,
-        event: Literal["player_spawn"],
-        handler: Callable[[Player], UncancellableEventReturn],
-        priority: int = ...,
+            self,
+            event: Literal["player_spawn"],
+            handler: Callable[[Player], UncancellableEventReturn],
+            priority: int = ...,
     ) -> None: ...
+
     @overload
     def remove_hook(
-        self,
-        event: Literal["stats"],
-        handler: Callable[[StatsData], UncancellableEventReturn],
-        priority: int = ...,
+            self,
+            event: Literal["stats"],
+            handler: Callable[[StatsData], UncancellableEventReturn],
+            priority: int = ...,
     ) -> None: ...
+
     @overload
     def remove_hook(
-        self,
-        event: Literal["vote_called"],
-        handler: Callable[[Player, str, str | None], CancellableEventReturn],
-        priority: int = ...,
+            self,
+            event: Literal["vote_called"],
+            handler: Callable[[Player, str, str | None], CancellableEventReturn],
+            priority: int = ...,
     ) -> None: ...
+
     @overload
     def remove_hook(
-        self,
-        event: Literal["vote_started"],
-        handler: Callable[[Player, str, str | None], CancellableEventReturn],
-        priority: int = ...,
+            self,
+            event: Literal["vote_started"],
+            handler: Callable[[Player, str, str | None], CancellableEventReturn],
+            priority: int = ...,
     ) -> None: ...
+
     @overload
     def remove_hook(
-        self,
-        event: Literal["vote_ended"],
-        handler: Callable[
-            [tuple[int, int], str, str | None, bool], CancellableEventReturn
-        ],
-        priority: int = ...,
+            self,
+            event: Literal["vote_ended"],
+            handler: Callable[
+                [tuple[int, int], str, str | None, bool], CancellableEventReturn
+            ],
+            priority: int = ...,
     ) -> None: ...
+
     @overload
     def remove_hook(
-        self,
-        event: Literal["vote"],
-        handler: Callable[[Player, bool], CancellableEventReturn],
-        priority: int = ...,
+            self,
+            event: Literal["vote"],
+            handler: Callable[[Player, bool], CancellableEventReturn],
+            priority: int = ...,
     ) -> None: ...
+
     @overload
     def remove_hook(
-        self,
-        event: Literal["game_countdown"],
-        handler: Callable[[], CancellableEventReturn],
-        priority: int = ...,
+            self,
+            event: Literal["game_countdown"],
+            handler: Callable[[], CancellableEventReturn],
+            priority: int = ...,
     ) -> None: ...
+
     @overload
     def remove_hook(
-        self,
-        event: Literal["game_start"],
-        handler: Callable[[GameStartData], CancellableEventReturn],
-        priority: int = ...,
+            self,
+            event: Literal["game_start"],
+            handler: Callable[[GameStartData], CancellableEventReturn],
+            priority: int = ...,
     ) -> None: ...
+
     @overload
     def remove_hook(
-        self,
-        event: Literal["game_end"],
-        handler: Callable[[GameEndData], CancellableEventReturn],
-        priority: int = ...,
+            self,
+            event: Literal["game_end"],
+            handler: Callable[[GameEndData], CancellableEventReturn],
+            priority: int = ...,
     ) -> None: ...
+
     @overload
     def remove_hook(
-        self,
-        event: Literal["round_countdown"],
-        handler: Callable[[int], CancellableEventReturn],
-        priority: int = ...,
+            self,
+            event: Literal["round_countdown"],
+            handler: Callable[[int], CancellableEventReturn],
+            priority: int = ...,
     ) -> None: ...
+
     @overload
     def remove_hook(
-        self,
-        event: Literal["round_start"],
-        handler: Callable[[int], CancellableEventReturn],
-        priority: int = ...,
+            self,
+            event: Literal["round_start"],
+            handler: Callable[[int], CancellableEventReturn],
+            priority: int = ...,
     ) -> None: ...
+
     @overload
     def remove_hook(
-        self,
-        event: Literal["round_end"],
-        handler: Callable[[RoundEndData], CancellableEventReturn],
-        priority: int = ...,
+            self,
+            event: Literal["round_end"],
+            handler: Callable[[RoundEndData], CancellableEventReturn],
+            priority: int = ...,
     ) -> None: ...
+
     @overload
     def remove_hook(
-        self,
-        event: Literal["team_switch"],
-        handler: Callable[[Player, str, str], CancellableEventReturn],
-        priority: int = ...,
+            self,
+            event: Literal["team_switch"],
+            handler: Callable[[Player, str, str], CancellableEventReturn],
+            priority: int = ...,
     ) -> None: ...
+
     @overload
     def remove_hook(
-        self,
-        event: Literal["team_switch_attempt"],
-        handler: Callable[[Player, str, str], CancellableEventReturn],
-        priority: int = ...,
+            self,
+            event: Literal["team_switch_attempt"],
+            handler: Callable[[Player, str, str], CancellableEventReturn],
+            priority: int = ...,
     ) -> None: ...
+
     @overload
     def remove_hook(
-        self,
-        event: Literal["map"],
-        handler: Callable[[str, str], CancellableEventReturn],
-        priority: int = ...,
+            self,
+            event: Literal["map"],
+            handler: Callable[[str, str], CancellableEventReturn],
+            priority: int = ...,
     ) -> None: ...
+
     @overload
     def remove_hook(
-        self,
-        event: Literal["new_game"],
-        handler: Callable[[], CancellableEventReturn],
-        priority: int = ...,
+            self,
+            event: Literal["new_game"],
+            handler: Callable[[], CancellableEventReturn],
+            priority: int = ...,
     ) -> None: ...
+
     @overload
     def remove_hook(
-        self,
-        event: Literal["kill"],
-        handler: Callable[[Player, Player, KillData], CancellableEventReturn],
-        priority: int = ...,
+            self,
+            event: Literal["kill"],
+            handler: Callable[[Player, Player, KillData], CancellableEventReturn],
+            priority: int = ...,
     ) -> None: ...
+
     @overload
     def remove_hook(
-        self,
-        event: Literal["death"],
-        handler: Callable[[Player, Player | None, DeathData], CancellableEventReturn],
-        priority: int = ...,
+            self,
+            event: Literal["death"],
+            handler: Callable[[Player, Player | None, DeathData], CancellableEventReturn],
+            priority: int = ...,
     ) -> None: ...
+
     @overload
     def remove_hook(
-        self,
-        event: Literal["userinfo"],
-        handler: Callable[
-            [Player, UserinfoEventInput], UserInfo | CancellableEventReturn
-        ],
-        priority: int = ...,
+            self,
+            event: Literal["userinfo"],
+            handler: Callable[
+                [Player, UserinfoEventInput], UserInfo | CancellableEventReturn
+            ],
+            priority: int = ...,
     ) -> None: ...
+
     @overload
     def remove_hook(
-        self,
-        event: Literal["kamikaze_use"],
-        handler: Callable[[Player], CancellableEventReturn],
-        priority: int = ...,
+            self,
+            event: Literal["kamikaze_use"],
+            handler: Callable[[Player], CancellableEventReturn],
+            priority: int = ...,
     ) -> None: ...
+
     @overload
     def remove_hook(
-        self,
-        event: Literal["kamikaze_explde"],
-        handler: Callable[[Player, bool], CancellableEventReturn],
-        priority: int = ...,
+            self,
+            event: Literal["kamikaze_explde"],
+            handler: Callable[[Player, bool], CancellableEventReturn],
+            priority: int = ...,
     ) -> None: ...
+
     @overload
     def remove_hook(
-        self,
-        event: Literal["damage"],
-        handler: Callable[
-            [Player | int | None, Player | int | None, int, int, int],
-            UncancellableEventReturn,
-        ],
-        priority: int = ...,
+            self,
+            event: Literal["damage"],
+            handler: Callable[
+                [Player | int | None, Player | int | None, int, int, int],
+                UncancellableEventReturn,
+            ],
+            priority: int = ...,
     ) -> None: ...
+
     def add_command(
-        self,
-        name: str | Iterable[str],
-        handler: Callable[
-            [Player, str | list[str], AbstractChannel], CancellableEventReturn
-        ],
-        permission: int = ...,
-        channels: Iterable[AbstractChannel] | None = ...,
-        exclude_channels: Iterable[AbstractChannel] = ...,
-        priority: int = ...,
-        client_cmd_pass: bool = ...,
-        client_cmd_perm: int = ...,
-        prefix: bool = ...,
-        usage: str = ...,
+            self,
+            name: str | Iterable[str],
+            handler: Callable[
+                [Player, str | list[str], AbstractChannel], CancellableEventReturn
+            ],
+            permission: int = ...,
+            channels: Iterable[AbstractChannel] | None = ...,
+            exclude_channels: Iterable[AbstractChannel] = ...,
+            priority: int = ...,
+            client_cmd_pass: bool = ...,
+            client_cmd_perm: int = ...,
+            prefix: bool = ...,
+            usage: str = ...,
     ) -> None: ...
+
     def remove_command(
-        self,
-        name: Iterable[str],
-        handler: Callable[[Player, str, AbstractChannel], CancellableEventReturn],
+            self,
+            name: Iterable[str],
+            handler: Callable[[Player, str, AbstractChannel], CancellableEventReturn],
     ) -> None: ...
+
 
 # from databse.py
 class AbstractDatabase(ABC):
     plugin: Plugin
 
-    def __new__(self, plugin: Plugin) -> AbstractDatabase: ...
+    def __new__(cls, plugin: Plugin) -> AbstractDatabase: ...
+
     @property
     def logger(self) -> Logger: ...
+
     @abstractmethod
     def set_permission(self, player: Player | int | str, level: int) -> None: ...
+
     @abstractmethod
     def get_permission(self, player: Player | int | str) -> int: ...
+
     @abstractmethod
     def has_permission(self, player: Player | int | str, level: int = ...) -> bool: ...
+
     @abstractmethod
     def set_flag(
-        self, player: Player | int | str, flag: str, value: bool = ...
+            self, player: Player | int | str, flag: str, value: bool = ...
     ) -> None: ...
+
     def clear_flag(self, player: Player | int | str, flag: str) -> None: ...
+
     @abstractmethod
     def get_flag(
-        self, player: Player | int | str, flag: str, default: bool = ...
+            self, player: Player | int | str, flag: str, default: bool = ...
     ) -> bool: ...
+
     @abstractmethod
-    def connect(self) -> redisRedis | None: ...
+    def connect(self) -> None: ...
+
     @abstractmethod
     def close(self) -> None: ...
+
+
+class Redis(AbstractDatabase):
+    _counter: ClassVar[int]
+
+    def __init__(self, plugin: Plugin) -> None: ...
+
+    def __del__(self) -> None: ...
+
+    def __contains__(self, key: str) -> bool: ...
+
+    def __getitem__(self, key: str) -> str: ...
+
+    def __setitem__(self, key: str, item: str | int) -> None: ...
+
+    def __delitem__(self, key: str) -> None: ...
+
+    def __getattr__(self, attr: str) -> str: ...
+
+    def set_permission(self, player: Player | int | str, level: int) -> None: ...
+
+    def get_permission(self, player: Player | int | str) -> int: ...
+
+    def has_permission(self, player: Player | int | str, level: int = ...) -> bool: ...
+
+    def set_flag(
+            self, player: Player | int | str, flag: str, value: bool = ...
+    ) -> None: ...
+
+    def get_flag(
+            self, player: Player | int | str, flag: str, default: bool = False
+    ) -> bool: ...
+
+    def connect(
+            self,
+            host: str | None = ...,
+            database: int = ...,
+            unix_socket: bool = ...,
+            password: str | None = ...,
+    ) -> None: ...
+
+    def close(self) -> None: ...
+
+    def delete(self, *names: str) -> int: ...
+
+    def exists(self, *names: str) -> int: ...
+
+    def keys(self, pattern: str = "*") -> list[str]: ...
+
+    def scan_iter(self, pattern: str) -> Iterator[str]: ...
+
+    def key_type(self, name: str) -> str: ...
+
+    def decr(self, name: str, amount: int = 1) -> int: ...
+
+    def decrby(self, name: str, amount: int = 1) -> int: ...
+
+    def get(self, name: str) -> str | None: ...
+
+    def incr(self, name: str, amount: int = 1) -> int: ...
+
+    def incrby(self, name: str, amount: int = 1) -> int: ...
+
+    def set(
+            self,
+            name: str,
+            value: str,
+            ex: int | None = None,
+            px: int | None = None,
+            nx: bool = False,
+            xx: bool = False,
+    ) -> bool | None: ...
+
+    def lindex(self, name: str, index: int) -> str | None: ...
+
+    def llen(self, name: str) -> int: ...
+
+    def lpop(self, name: str, count: int | None = None) -> str: ...
+
+    def lpush(self, name: str, *values: str) -> int: ...
+
+    def lpushx(self, name: str, value: str) -> int: ...
+
+    def lrange(self, name: str, start: int, end: int) -> list[str]: ...
+
+    def lrem(self, name: str, count: int, value: str) -> int: ...
+
+    def lset(self, name: str, index: int, value: str) -> bool: ...
+
+    def ltrim(self, name: str, start: int, end: int) -> bool: ...
+
+    def rpop(self, name: str, count: int | None = None) -> str: ...
+
+    def rpush(self, name: str, *values: str) -> int: ...
+
+    def rpushx(self, name: str, value: str) -> int: ...
+
+    def sadd(self, name: str, *values: str) -> int: ...
+
+    def scard(self, name: str) -> int: ...
+
+    def sismember(self, name: str, value: str) -> bool: ...
+
+    def smembers(self, name: str) -> builtins.set[str]: ...
+
+    def srem(self, name: str, *values: str) -> int: ...
+
+    def hdel(self, name: str, *keys: str) -> int: ...
+
+    def hexists(self, name: str, key: str) -> bool: ...
+
+    def hget(self, name: str, key: str) -> str | None: ...
+
+    def hgetall(self, name: str) -> dict[str, str]: ...
+
+    def hincrby(self, name: str, key: str, amount: int = 1) -> int: ...
+
+    def hkeys(self, name: str) -> list[str]: ...
+
+    def hlen(self, name: str) -> int: ...
+
+    def hset(self, name: str, key: str, value: str) -> int: ...
+
+    def hsetnx(self, name: str, key: str, value: str) -> int: ...
+
+    def hmset(self, name: str, mapping: Mapping[str, str]) -> bool: ...
+
+    def hmget(self, name: str, *keys: str) -> list[str | None]: ...
+
+    def zadd(
+            self,
+            name: str,
+            *args: str | int | float,
+            **kwargs: int | float,
+    ) -> int: ...
+
+    def zcard(self, name: str) -> int: ...
+
+    def zincrby(self, name: str, value: str, amount: int | float = ...) -> float: ...
+
+    @overload
+    def zrange(
+            self,
+            name: str,
+            start: int,
+            end: int,
+            *,
+            withscores: Literal[True],
+    ) -> list[tuple[str, float]]: ...
+
+    @overload
+    def zrange(
+            self, name: str, start: int, end: int, *, withscores: Literal[False] = False
+    ) -> list[str]: ...
+
+    @overload
+    def zrangebyscore(
+            self,
+            name: str,
+            min: int | str,
+            max: int | str,
+            start: int | None = None,
+            num: int | None = None,
+            *,
+            withscores: Literal[True],
+    ) -> list[tuple[str, float]]: ...
+
+    @overload
+    def zrangebyscore(
+            self,
+            name: str,
+            min: int | str,
+            max: int | str,
+            start: int | None = None,
+            num: int | None = None,
+            *,
+            withscores: Literal[False] = False,
+    ) -> list[str]: ...
+
+    def zrem(self, name: str, *values: str) -> int: ...
+
+    def zremrangebyscore(self, name: str, min: float, max: float) -> int: ...
+
+    @overload
+    def zrevrange(
+            self, name: str, start: int, end: int, withscores: Literal[True]
+    ) -> list[tuple[str, float]]: ...
+
+    @overload
+    def zrevrange(
+            self, name: str, start: int, end: int, withscores: Literal[False] = False
+    ) -> list[str]: ...
+
+    @overload
+    def zrevrangebyscore(
+            self,
+            name: str,
+            min: int | str,
+            max: int | str,
+            start: int | None = None,
+            num: int | None = None,
+            *,
+            withscores: Literal[True],
+    ) -> list[tuple[str, float]]: ...
+
+    @overload
+    def zrevrangebyscore(
+            self,
+            name: str,
+            min: int | str,
+            max: int | str,
+            start: int | None = None,
+            num: int | None = None,
+            *,
+            withscores: Literal[False] = False,
+    ) -> list[str]: ...
+
+    def zscore(self, name: str, value: str) -> float | None: ...
+
+    def pipeline(self) -> RedisPipeline: ...
+
+
+class RedisPipeline:
+    def execute(self) -> None: ...
+
+    def delete(self, *names: str) -> None: ...
+
+    def decr(self, name: str, amount: int = 1) -> None: ...
+
+    def decrby(self, name: str, amount: int = 1) -> None: ...
+
+    def incr(self, name: str, amount: int = 1) -> None: ...
+
+    def incrby(self, name: str, amount: int = 1) -> None: ...
+
+    def set(
+            self,
+            name: str,
+            value: str,
+            ex: int | None = None,
+            px: int | None = None,
+            nx: bool = False,
+            xx: bool = False,
+    ) -> None: ...
+
+    def lpop(self, name: str, count: int | None = None) -> None: ...
+
+    def lpush(self, name: str, *values: str) -> None: ...
+
+    def lpushx(self, name: str, value: str) -> None: ...
+
+    def lrange(self, name: str, start: int, end: int) -> list[str]: ...
+
+    def lrem(self, name: str, count: int, value: str) -> None: ...
+
+    def lset(self, name: str, index: int, value: str) -> None: ...
+
+    def ltrim(self, name: str, start: int, end: int) -> None: ...
+
+    def rpop(self, name: str, count: int | None = None) -> None: ...
+
+    def rpush(self, name: str, *values: str) -> None: ...
+
+    def rpushx(self, name: str, value: str) -> None: ...
+
+    def sadd(self, name: str, *values: str) -> None: ...
+
+    def srem(self, name: str, *values: str) -> None: ...
+
+    def hdel(self, name: str, *keys: str) -> None: ...
+
+    def hincrby(self, name: str, key: str, amount: int = 1) -> None: ...
+
+    def hset(self, name: str, key: str, value: str) -> None: ...
+
+    def hsetnx(self, name: str, key: str, value: str) -> None: ...
+
+    def hmset(self, name: str, mapping: Mapping[str, str]) -> None: ...
+
+    def zadd(
+            self,
+            name: str,
+            *args: str | int | float,
+            **kwargs: int | float,
+    ) -> None: ...
+
+    def zincrby(self, name: str, value: str, amount: int | float = ...) -> None: ...
+
+    def zrem(self, name: str, *values: str) -> None: ...
+
+    def zremrangebyscore(self, name: str, min: float, max: float) -> None: ...
