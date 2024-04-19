@@ -2027,9 +2027,12 @@ fn pyshinqlx_module(py: Python<'_>, m: &Bound<'_, PyModule>) -> PyResult<()> {
 
     // from database.py
     m.add_class::<AbstractDatabase>()?;
-    let redis_type = Python::get_type_bound::<Redis>(py);
-    let key_type_function = redis_type.getattr("key_type")?;
-    Python::get_type_bound::<Redis>(py).setattr("type", key_type_function)?;
+    #[cfg(feature = "rust-redis")]
+    {
+        let redis_type = Python::get_type_bound::<Redis>(py);
+        let key_type_function = redis_type.getattr("key_type")?;
+        Python::get_type_bound::<Redis>(py).setattr("type", key_type_function)?;
+    }
     m.add_class::<Redis>()?;
 
     Ok(())
