@@ -31,7 +31,7 @@ use core::cmp::max;
 use core::num::NonZeroUsize;
 use itertools::Itertools;
 
-#[pyclass(name = "AbstractDatabase", module = "database", sequence, subclass)]
+#[pyclass(name = "AbstractDatabase", module = "database", subclass)]
 pub(crate) struct AbstractDatabase {
     plugin: PyObject,
 }
@@ -133,7 +133,7 @@ impl AbstractDatabase {
 }
 
 /// A subclass of :class:`shinqlx.AbstractDatabase` providing support for Redis.
-#[pyclass(name = "Redis", module = "database", extends = AbstractDatabase)]
+#[pyclass(name = "Redis", module = "database", extends = AbstractDatabase, dict)]
 #[cfg(not(feature = "rust-redis"))]
 pub(crate) struct Redis {}
 
@@ -173,7 +173,7 @@ impl Redis {
         let redis_connection = Self::get_redis(slf_, py)?;
         redis_connection
             .call_method1(py, intern!(py, "exists"), (key,))
-            .and_then(|value| value.extract::<bool>(py))
+            .map(|value| value.to_string() != "0")
     }
 
     fn __getitem__(slf_: &Bound<'_, Self>, py: Python<'_>, key: &str) -> PyResult<PyObject> {
@@ -220,6 +220,9 @@ impl Redis {
     }
 
     fn __getattr__(slf_: &Bound<'_, Self>, py: Python<'_>, attr: &str) -> PyResult<PyObject> {
+        if ["_conn", "_pool"].contains(&attr) {
+            return Ok(py.None());
+        }
         let redis_connection = Self::get_redis(slf_, py)?;
         redis_connection.getattr(py, attr)
     }
@@ -395,7 +398,7 @@ impl Redis {
                         PyTuple::empty_bound(py),
                         Some(
                             &[
-                                ("host", cvar_host.get_string().into_py(py)),
+                                ("unix_socket_path", cvar_host.get_string().into_py(py)),
                                 ("db", redis_db_cvar.into_py(py)),
                                 ("password", password_cvar.get_string().into_py(py)),
                                 ("decode_responses", true.into_py(py)),
@@ -448,7 +451,7 @@ impl Redis {
                         PyTuple::empty_bound(py),
                         Some(
                             &[
-                                ("host", hostname.into_py(py)),
+                                ("unix_socket_path", hostname.into_py(py)),
                                 ("db", database.into_py(py)),
                                 ("password", password.into_py(py)),
                                 ("decode_responses", true.into_py(py)),
