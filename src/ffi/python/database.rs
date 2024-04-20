@@ -5,12 +5,15 @@ use crate::quake_live_engine::FindCVar;
 use crate::MAIN_ENGINE;
 
 use pyo3::prelude::*;
-#[cfg(not(feature = "rust-redis"))]
-use pyo3::types::{IntoPyDict, PyDelta, PyFloat, PyInt};
 #[cfg(feature = "rust-redis")]
 use pyo3::{
     exceptions::PyConnectionError,
     types::{PyMapping, PySet},
+};
+#[cfg(not(feature = "rust-redis"))]
+use pyo3::{
+    exceptions::PyRuntimeError,
+    types::{IntoPyDict, PyDelta, PyFloat, PyInt},
 };
 use pyo3::{
     exceptions::{PyEnvironmentError, PyKeyError, PyNotImplementedError, PyValueError},
@@ -180,9 +183,13 @@ impl Redis {
         let redis_connection = Self::get_redis(slf_, py)?;
         redis_connection
             .call_method1(py, intern!(py, "get"), (key,))
-            .map_err(|_| {
-                let error_msg = format!("The key '{key}' is not present in the database.");
-                PyKeyError::new_err(error_msg)
+            .and_then(|value| {
+                if value.is_none(py) {
+                    let error_msg = format!("The key '{key}' is not present in the database.");
+                    Err(PyKeyError::new_err(error_msg))
+                } else {
+                    Ok(value)
+                }
             })
     }
 
@@ -198,8 +205,7 @@ impl Redis {
             .and_then(|value| value.extract::<bool>(py))?;
 
         if !returned {
-            let error_msg = format!("The key '{key}' is not present in the database.");
-            return Err(PyKeyError::new_err(error_msg));
+            return Err(PyRuntimeError::new_err("The database assignment failed."));
         }
 
         Ok(())
@@ -209,9 +215,9 @@ impl Redis {
         let redis_connection = Self::get_redis(slf_, py)?;
         let returned = redis_connection
             .call_method1(py, intern!(py, "delete"), (key,))
-            .and_then(|value| value.extract::<bool>(py))?;
+            .and_then(|value| value.extract::<i32>(py))?;
 
-        if !returned {
+        if returned == 0 {
             let error_msg = format!("The key '{key}' is not present in the database.");
             return Err(PyKeyError::new_err(error_msg));
         }
@@ -269,7 +275,12 @@ impl Redis {
         if !Self::__contains__(slf_, py, &key)? {
             return Ok(0);
         }
-        Self::__getitem__(slf_, py, &key).and_then(|value| value.extract::<i32>(py))
+        Self::__getitem__(slf_, py, &key).and_then(|value| {
+            value.to_string().parse::<i32>().map_err(|_| {
+                let error_msg = format!("invalid literal for int() with base 10: '{value}",);
+                PyValueError::new_err(error_msg)
+            })
+        })
     }
 
     /// Checks if the player has higher than or equal to *level*.
@@ -322,11 +333,7 @@ impl Redis {
             return Ok(default);
         }
 
-        Self::__getitem__(slf_, py, &key).map(|value| {
-            value
-                .extract::<i32>(py)
-                .is_ok_and(|extracted| extracted != 0)
-        })
+        Self::__getitem__(slf_, py, &key).map(|value| value.to_string() != "0")
     }
 
     /// Returns a connection to a Redis database. If *host* is None, it will
@@ -603,17 +610,22 @@ impl Redis {
         redis_connection.call_method1(py, intern!(py, "msetnx"), (mapping,))
     }
 
-    #[pyo3(name = "zadd", signature = (*args, **kwargs))]
+    #[pyo3(name = "zadd", signature = (name, *args, **kwargs))]
     fn zadd(
         slf_: &Bound<'_, Self>,
         py: Python<'_>,
+        name: &str,
         args: &Bound<'_, PyTuple>,
         kwargs: Option<&Bound<'_, PyDict>>,
     ) -> PyResult<PyObject> {
         let redis_connection = Self::get_redis(slf_, py)?;
 
-        if args.len() == 1 && args.get_item(0)?.extract::<Bound<'_, PyDict>>().is_ok() {
-            return redis_connection.call_method_bound(py, intern!(py, "zadd"), args, kwargs);
+        if args.len() == 1 && args.get_item(0)?.is_instance_of::<PyDict>() {
+            let args_tuple = PyTuple::new_bound(py, [name].iter())
+                .as_sequence()
+                .concat(args.as_sequence())?
+                .to_tuple()?;
+            return redis_connection.call_method_bound(py, intern!(py, "zadd"), args_tuple, kwargs);
         }
 
         let redis_module = py.import_bound(intern!(py, "redis"))?;
@@ -629,7 +641,7 @@ impl Redis {
         let pieces: Vec<(String, String)> =
             args.iter().map(|item| item.to_string()).tuples().collect();
 
-        redis_connection.call_method_bound(py, intern!(py, "zadd"), (pieces,), kwargs)
+        redis_connection.call_method_bound(py, intern!(py, "zadd"), (name, pieces), kwargs)
     }
 
     fn zincrby(
