@@ -1596,9 +1596,9 @@ mod pyshinqlx_player_tests {
         let result = Python::with_gil(|py| {
             py.run_bound(
                 r#"
-import _shinqlx
-assert(_shinqlx.Player(42, player_info) == _shinqlx.Player(42, player_info))
-assert((_shinqlx.Player(42, player_info) == _shinqlx.Player(41, player_info2)) == False)
+import shinqlx
+assert(shinqlx.Player(42, player_info) == shinqlx.Player(42, player_info))
+assert((shinqlx.Player(42, player_info) == shinqlx.Player(41, player_info2)) == False)
             "#,
                 None,
                 Some(
@@ -1624,10 +1624,10 @@ assert((_shinqlx.Player(42, player_info) == _shinqlx.Player(41, player_info2)) =
         let result = Python::with_gil(|py| {
             py.run_bound(
                 r#"
-import _shinqlx
-assert(_shinqlx.Player(42, player_info) == 1234567890)
-assert((_shinqlx.Player(42, player_info) == 1234567891) == False)
-assert((_shinqlx.Player(42, player_info) == "asdf") == False)
+import shinqlx
+assert(shinqlx.Player(42, player_info) == 1234567890)
+assert((shinqlx.Player(42, player_info) == 1234567891) == False)
+assert((shinqlx.Player(42, player_info) == "asdf") == False)
             "#,
                 None,
                 Some(&[("player_info", player_info.into_py(py))].into_py_dict_bound(py)),
@@ -1652,9 +1652,9 @@ assert((_shinqlx.Player(42, player_info) == "asdf") == False)
         let result = Python::with_gil(|py| {
             py.run_bound(
                 r#"
-import _shinqlx
-assert((_shinqlx.Player(42, player_info) != _shinqlx.Player(42, player_info)) == False)
-assert(_shinqlx.Player(42, player_info) != _shinqlx.Player(41, player_info2))
+import shinqlx
+assert((shinqlx.Player(42, player_info) != shinqlx.Player(42, player_info)) == False)
+assert(shinqlx.Player(42, player_info) != shinqlx.Player(41, player_info2))
             "#,
                 None,
                 Some(
@@ -1680,10 +1680,10 @@ assert(_shinqlx.Player(42, player_info) != _shinqlx.Player(41, player_info2))
         let result = Python::with_gil(|py| {
             py.run_bound(
                 r#"
-import _shinqlx
-assert((_shinqlx.Player(42, player_info) != 1234567890) == False)
-assert(_shinqlx.Player(42, player_info) != 1234567891)
-assert(_shinqlx.Player(42, player_info) != "asdf")
+import shinqlx
+assert((shinqlx.Player(42, player_info) != 1234567890) == False)
+assert(shinqlx.Player(42, player_info) != 1234567891)
+assert(shinqlx.Player(42, player_info) != "asdf")
             "#,
                 None,
                 Some(&[("player_info", player_info.into_py(py))].into_py_dict_bound(py)),
@@ -6991,8 +6991,8 @@ mod pyshinqlx_abstract_dummy_player_tests {
         let result = Python::with_gil(|py| {
             py.run_bound(
                 r#"
-import _shinqlx
-assert(isinstance(_shinqlx.AbstractDummyPlayer(), _shinqlx.Player))
+import shinqlx
+assert(isinstance(shinqlx.AbstractDummyPlayer(), shinqlx.Player))
             "#,
                 None,
                 None,
@@ -7007,8 +7007,8 @@ assert(isinstance(_shinqlx.AbstractDummyPlayer(), _shinqlx.Player))
         Python::with_gil(|py| {
             let result = py.run_bound(
                 r#"
-import _shinqlx
-_shinqlx.AbstractDummyPlayer().id
+import shinqlx
+shinqlx.AbstractDummyPlayer().id
             "#,
                 None,
                 None,
@@ -7023,8 +7023,8 @@ _shinqlx.AbstractDummyPlayer().id
         Python::with_gil(|py| {
             let result = py.run_bound(
                 r#"
-import _shinqlx
-_shinqlx.AbstractDummyPlayer().steam_id
+import shinqlx
+shinqlx.AbstractDummyPlayer().steam_id
             "#,
                 None,
                 None,
@@ -7039,8 +7039,8 @@ _shinqlx.AbstractDummyPlayer().steam_id
         Python::with_gil(|py| {
             let result = py.run_bound(
                 r#"
-import _shinqlx
-_shinqlx.AbstractDummyPlayer().update()
+import shinqlx
+shinqlx.AbstractDummyPlayer().update()
             "#,
                 None,
                 None,
@@ -7055,8 +7055,8 @@ _shinqlx.AbstractDummyPlayer().update()
         Python::with_gil(|py| {
             let result = py.run_bound(
                 r#"
-import _shinqlx
-_shinqlx.AbstractDummyPlayer().channel
+import shinqlx
+shinqlx.AbstractDummyPlayer().channel
             "#,
                 None,
                 None,
@@ -7071,8 +7071,8 @@ _shinqlx.AbstractDummyPlayer().channel
         Python::with_gil(|py| {
             let result = py.run_bound(
                 r#"
-import _shinqlx
-_shinqlx.AbstractDummyPlayer().tell("asdf")
+import shinqlx
+shinqlx.AbstractDummyPlayer().tell("asdf")
             "#,
                 None,
                 None,
@@ -7152,9 +7152,9 @@ mod pyshinqlx_rcon_dummy_player_tests {
         let result = Python::with_gil(|py| {
             py.run_bound(
                 r#"
-import _shinqlx
-assert(isinstance(_shinqlx.RconDummyPlayer(), _shinqlx.Player))
-assert(isinstance(_shinqlx.RconDummyPlayer(), _shinqlx.AbstractDummyPlayer))
+import shinqlx
+assert(isinstance(shinqlx.RconDummyPlayer(), shinqlx.Player))
+assert(isinstance(shinqlx.RconDummyPlayer(), shinqlx.AbstractDummyPlayer))
             "#,
                 None,
                 None,

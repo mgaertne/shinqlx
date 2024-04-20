@@ -110,8 +110,8 @@ mod weapons_tests {
     fn weapons_can_be_created_from_python(_pyshinqlx_setup: ()) {
         Python::with_gil(|py| {
             let weapons_constructor =py.run_bound(r#"
-import _shinqlx
-weapons = _shinqlx.Weapons((False, False, False, False, False, False, False, False, False, False, False, False, False, False, False))
+import shinqlx
+weapons = shinqlx.Weapons((False, False, False, False, False, False, False, False, False, False, False, False, False, False, False))
             "#, None, None);
             assert!(
                 weapons_constructor.is_ok(),
@@ -127,8 +127,8 @@ weapons = _shinqlx.Weapons((False, False, False, False, False, False, False, Fal
         Python::with_gil(|py| {
             let weapons_constructor = py.run_bound(
                 r#"
-import _shinqlx
-powerups = _shinqlx.Weapons((False, False, False, False, False, False, False, False, False, False, False, False, False, False))
+import shinqlx
+powerups = shinqlx.Weapons((False, False, False, False, False, False, False, False, False, False, False, False, False, False))
             "#,
                 None,
                 None,
@@ -143,8 +143,8 @@ powerups = _shinqlx.Weapons((False, False, False, False, False, False, False, Fa
         Python::with_gil(|py| {
             let weapons_constructor = py.run_bound(
                 r#"
-import _shinqlx
-powerups = _shinqlx.Weapons((False, False, False, False, False, False, False, False, False, False, False, False, False, False, False, True))
+import shinqlx
+powerups = shinqlx.Weapons((False, False, False, False, False, False, False, False, False, False, False, False, False, False, False, True))
             "#,
                 None,
                 None,
@@ -159,8 +159,8 @@ powerups = _shinqlx.Weapons((False, False, False, False, False, False, False, Fa
         Python::with_gil(|py| {
             let weapons_constructor = py.run_bound(
                 r#"
-import _shinqlx
-powerups = _shinqlx.Weapons(("asdf", True, (1, 2, 3), [], {}, set(), 6, 7, 8, 9, 10, 11, 12, 13, 14))
+import shinqlx
+powerups = shinqlx.Weapons(("asdf", True, (1, 2, 3), [], {}, set(), 6, 7, 8, 9, 10, 11, 12, 13, 14))
             "#,
                 None,
                 None,
@@ -175,8 +175,8 @@ powerups = _shinqlx.Weapons(("asdf", True, (1, 2, 3), [], {}, set(), 6, 7, 8, 9,
         let result = Python::with_gil(|py| {
             py.run_bound(
                 r#"
-import _shinqlx
-assert(_shinqlx.Weapons((False, False, False, False, False, False, False, False, False, False, False, False, False, False, False)) == _shinqlx.Weapons((False, False, False, False, False, False, False, False, False, False, False, False, False, False, False)))
+import shinqlx
+assert(shinqlx.Weapons((False, False, False, False, False, False, False, False, False, False, False, False, False, False, False)) == shinqlx.Weapons((False, False, False, False, False, False, False, False, False, False, False, False, False, False, False)))
             "#,
                 None,
                 None,
@@ -191,8 +191,8 @@ assert(_shinqlx.Weapons((False, False, False, False, False, False, False, False,
         let result = Python::with_gil(|py| {
             py.run_bound(
                 r#"
-import _shinqlx
-assert(_shinqlx.Weapons((False, False, False, False, False, False, False, False, False, False, False, False, False, False, False)) != _shinqlx.Weapons((True, True, True, True, True, True, True, True, True, True, True, True, True, True, True)))
+import shinqlx
+assert(shinqlx.Weapons((False, False, False, False, False, False, False, False, False, False, False, False, False, False, False)) != shinqlx.Weapons((True, True, True, True, True, True, True, True, True, True, True, True, True, True, True)))
             "#,
                 None,
                 None,
@@ -207,8 +207,8 @@ assert(_shinqlx.Weapons((False, False, False, False, False, False, False, False,
         Python::with_gil(|py| {
             let result = py.run_bound(
                 r#"
-import _shinqlx
-assert(_shinqlx.Weapons((False, False, False, False, False, False, False, False, False, False, False, False, False, False, False)) < _shinqlx.Weapons((False, False, False, False, False, False, False, False, False, False, False, False, False, False, False)))
+import shinqlx
+assert(shinqlx.Weapons((False, False, False, False, False, False, False, False, False, False, False, False, False, False, False)) < shinqlx.Weapons((False, False, False, False, False, False, False, False, False, False, False, False, False, False, False)))
             "#,
                 None,
                 None,
@@ -250,8 +250,8 @@ mod ammo_tests {
         Python::with_gil(|py| {
             let ammo_constructor = py.run_bound(
                 r#"
-import _shinqlx
-weapons = _shinqlx.Weapons((0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14))
+import shinqlx
+weapons = shinqlx.Weapons((0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14))
             "#,
                 None,
                 None,
@@ -270,8 +270,8 @@ weapons = _shinqlx.Weapons((0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14))
         Python::with_gil(|py| {
             let ammo_constructor = py.run_bound(
                 r#"
-import _shinqlx
-powerups = _shinqlx.Weapons((0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13))
+import shinqlx
+powerups = shinqlx.Weapons((0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13))
             "#,
                 None,
                 None,
@@ -286,8 +286,8 @@ powerups = _shinqlx.Weapons((0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13))
         Python::with_gil(|py| {
             let ammo_constructor = py.run_bound(
                 r#"
-import _shinqlx
-powerups = _shinqlx.Weapons((0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15))
+import shinqlx
+powerups = shinqlx.Weapons((0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15))
             "#,
                 None,
                 None,
@@ -302,8 +302,8 @@ powerups = _shinqlx.Weapons((0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 1
         Python::with_gil(|py| {
             let ammo_constructor = py.run_bound(
                 r#"
-import _shinqlx
-powerups = _shinqlx.Weapons(("asdf", True, (1, 2, 3), [], {}, set(), 6, 7, 8, 9, 10, 11, 12, 13, 14))
+import shinqlx
+powerups = shinqlx.Weapons(("asdf", True, (1, 2, 3), [], {}, set(), 6, 7, 8, 9, 10, 11, 12, 13, 14))
             "#,
                 None,
                 None,
@@ -318,8 +318,8 @@ powerups = _shinqlx.Weapons(("asdf", True, (1, 2, 3), [], {}, set(), 6, 7, 8, 9,
         let result = Python::with_gil(|py| {
             py.run_bound(
                 r#"
-import _shinqlx
-assert(_shinqlx.Weapons((0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14)) == _shinqlx.Weapons((0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14)))
+import shinqlx
+assert(shinqlx.Weapons((0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14)) == shinqlx.Weapons((0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14)))
             "#,
                 None,
                 None,
@@ -334,8 +334,8 @@ assert(_shinqlx.Weapons((0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14)) == _
         let result = Python::with_gil(|py| {
             py.run_bound(
                 r#"
-import _shinqlx
-assert(_shinqlx.Weapons((0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14)) != _shinqlx.Weapons((14, 13, 12, 11, 10, 9, 8, 7, 6, 5, 4, 3, 2, 1, 0)))
+import shinqlx
+assert(shinqlx.Weapons((0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14)) != shinqlx.Weapons((14, 13, 12, 11, 10, 9, 8, 7, 6, 5, 4, 3, 2, 1, 0)))
             "#,
                 None,
                 None,
@@ -350,8 +350,8 @@ assert(_shinqlx.Weapons((0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14)) != _
         Python::with_gil(|py| {
             let result = py.run_bound(
                 r#"
-import _shinqlx
-assert(_shinqlx.Weapons((0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14)) < _shinqlx.Weapons((0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14)))
+import shinqlx
+assert(shinqlx.Weapons((0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14)) < shinqlx.Weapons((0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14)))
             "#,
                 None,
                 None,

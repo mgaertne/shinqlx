@@ -1234,7 +1234,7 @@ mod plugin_tests {
         let extended_plugin = PyModule::from_code_bound(
             py,
             r#"
-from _shinqlx import Plugin
+from shinqlx import Plugin
 
 
 class subplugin(Plugin):

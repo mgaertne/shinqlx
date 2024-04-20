@@ -113,8 +113,8 @@ mod powerups_tests {
         Python::with_gil(|py| {
             let powerups_constructor = py.run_bound(
                 r#"
-import _shinqlx
-powerups = _shinqlx.Powerups((0, 1, 2, 3, 4, 5))
+import shinqlx
+powerups = shinqlx.Powerups((0, 1, 2, 3, 4, 5))
             "#,
                 None,
                 None,
@@ -133,8 +133,8 @@ powerups = _shinqlx.Powerups((0, 1, 2, 3, 4, 5))
         Python::with_gil(|py| {
             let powerups_constructor = py.run_bound(
                 r#"
-import _shinqlx
-powerups = _shinqlx.Powerups((0, 1, 2, 3, 4))
+import shinqlx
+powerups = shinqlx.Powerups((0, 1, 2, 3, 4))
             "#,
                 None,
                 None,
@@ -149,8 +149,8 @@ powerups = _shinqlx.Powerups((0, 1, 2, 3, 4))
         Python::with_gil(|py| {
             let powerups_constructor = py.run_bound(
                 r#"
-import _shinqlx
-powerups = _shinqlx.Powerups((0, 1, 2, 3, 4, 5, 6))
+import shinqlx
+powerups = shinqlx.Powerups((0, 1, 2, 3, 4, 5, 6))
             "#,
                 None,
                 None,
@@ -165,8 +165,8 @@ powerups = _shinqlx.Powerups((0, 1, 2, 3, 4, 5, 6))
         Python::with_gil(|py| {
             let powerups_constructor = py.run_bound(
                 r#"
-import _shinqlx
-powerups = _shinqlx.Powerups(("asdf", True, (1, 2, 3), [], {}, set()))
+import shinqlx
+powerups = shinqlx.Powerups(("asdf", True, (1, 2, 3), [], {}, set()))
             "#,
                 None,
                 None,
@@ -181,8 +181,8 @@ powerups = _shinqlx.Powerups(("asdf", True, (1, 2, 3), [], {}, set()))
         let result = Python::with_gil(|py| {
             py.run_bound(
                 r#"
-import _shinqlx
-assert(_shinqlx.Powerups((0, 1, 2, 3, 4, 5)) == _shinqlx.Powerups((0, 1, 2, 3, 4, 5)))
+import shinqlx
+assert(shinqlx.Powerups((0, 1, 2, 3, 4, 5)) == shinqlx.Powerups((0, 1, 2, 3, 4, 5)))
             "#,
                 None,
                 None,
@@ -197,8 +197,8 @@ assert(_shinqlx.Powerups((0, 1, 2, 3, 4, 5)) == _shinqlx.Powerups((0, 1, 2, 3, 4
         let result = Python::with_gil(|py| {
             py.run_bound(
                 r#"
-import _shinqlx
-assert(_shinqlx.Powerups((0, 1, 2, 3, 4, 5)) != _shinqlx.Powerups((5, 4, 3, 2, 1, 0)))
+import shinqlx
+assert(shinqlx.Powerups((0, 1, 2, 3, 4, 5)) != shinqlx.Powerups((5, 4, 3, 2, 1, 0)))
             "#,
                 None,
                 None,
@@ -213,8 +213,8 @@ assert(_shinqlx.Powerups((0, 1, 2, 3, 4, 5)) != _shinqlx.Powerups((5, 4, 3, 2, 1
         Python::with_gil(|py| {
             let result = py.run_bound(
                 r#"
-import _shinqlx
-assert(_shinqlx.Powerups((0, 1, 2, 3, 4, 5)) < _shinqlx.Powerups((5, 4, 3, 2, 1, 0)))
+import shinqlx
+assert(shinqlx.Powerups((0, 1, 2, 3, 4, 5)) < shinqlx.Powerups((5, 4, 3, 2, 1, 0)))
             "#,
                 None,
                 None,

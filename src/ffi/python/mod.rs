@@ -1321,11 +1321,9 @@ fn late_init(module: &Bound<'_, PyModule>, py: Python<'_>) -> PyResult<()> {
 
     let database_cvar = main_engine.find_cvar("qlx_database");
     if database_cvar.is_some_and(|value| value.get_string().to_lowercase() == "redis") {
-        let shinqlx_module = py.import_bound(intern!(py, "shinqlx"))?;
-        let redis_database_module = shinqlx_module.getattr(intern!(py, "Redis"))?;
-
+        let redis_database_class = Python::get_type_bound::<Redis>(py);
         Python::get_type_bound::<Plugin>(py)
-            .setattr(intern!(py, "database"), &redis_database_module)?;
+            .setattr(intern!(py, "database"), &redis_database_class)?;
     }
 
     let sys_module = py.import_bound(intern!(py, "sys"))?;
@@ -1418,14 +1416,7 @@ fn late_init(module: &Bound<'_, PyModule>, py: Python<'_>) -> PyResult<()> {
 
 #[pymodule]
 #[pyo3(name = "shinqlx")]
-fn pyshinqlx_root_module(_py: Python<'_>, _m: &Bound<'_, PyModule>) -> PyResult<()> {
-    Ok(())
-}
-
-#[pymodule]
-#[pyo3(name = "_shinqlx")]
-fn pyshinqlx_module(py: Python<'_>, m: &Bound<'_, PyModule>) -> PyResult<()> {
-    // from __init__.py
+fn pyshinqlx_module(m: &Bound<'_, PyModule>) -> PyResult<()> {
     let shinqlx_version = env!("SHINQLX_VERSION");
     m.add("__version__", shinqlx_version)?;
 
@@ -1439,10 +1430,23 @@ fn pyshinqlx_module(py: Python<'_>, m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add("_map_title", "")?;
     m.add("_map_subtitle1", "")?;
     m.add("_map_subtitle2", "")?;
-
-    // from _shinqlx.pyi
     m.add("DEBUG", cfg!(debug_assertions))?;
 
+    register_shinqlx_module(m)?;
+    register_core_module(m)?;
+    register_game_module(m)?;
+    register_player_module(m)?;
+    register_commands_module(m)?;
+    register_handlers_module(m)?;
+    register_events_module(m)?;
+    register_zmq_module(m)?;
+    register_plugin_module(m)?;
+    register_database_submodule(m)?;
+
+    Ok(())
+}
+
+fn register_shinqlx_module(m: &Bound<'_, PyModule>) -> PyResult<()> {
     // Set a bunch of constants. We set them here because if you define functions in Python that use module
     // constants as keyword defaults, we have to always make sure they're exported first, and fuck that.
     m.add("RET_NONE", PythonReturnCodes::RET_NONE as i32)?;
@@ -1605,11 +1609,17 @@ fn pyshinqlx_module(py: Python<'_>, m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(pyshinqlx_force_weapon_respawn_time, m)?)?;
     m.add_function(wrap_pyfunction!(pyshinqlx_get_entity_targets, m)?)?;
 
-    // from _core.py
-    m.add("PluginLoadError", py.get_type_bound::<PluginLoadError>())?;
+    Ok(())
+}
+
+fn register_core_module(m: &Bound<'_, PyModule>) -> PyResult<()> {
+    m.add(
+        "PluginLoadError",
+        m.py().get_type_bound::<PluginLoadError>(),
+    )?;
     m.add(
         "PluginUnloadError",
-        py.get_type_bound::<PluginUnloadError>(),
+        m.py().get_type_bound::<PluginUnloadError>(),
     )?;
 
     m.add(
@@ -1620,7 +1630,7 @@ fn pyshinqlx_module(py: Python<'_>, m: &Bound<'_, PyModule>) -> PyResult<()> {
             (team_t::TEAM_BLUE as i32, "blue"),
             (team_t::TEAM_SPECTATOR as i32, "spectator"),
         ]
-        .into_py_dict_bound(py),
+        .into_py_dict_bound(m.py()),
     )?;
     // Game types
     m.add(
@@ -1639,7 +1649,7 @@ fn pyshinqlx_module(py: Python<'_>, m: &Bound<'_, PyModule>) -> PyResult<()> {
             (11, "Attack and Defend"),
             (12, "Red Rover"),
         ]
-        .into_py_dict_bound(py),
+        .into_py_dict_bound(m.py()),
     )?;
     m.add(
         "GAMETYPES_SHORT",
@@ -1657,7 +1667,7 @@ fn pyshinqlx_module(py: Python<'_>, m: &Bound<'_, PyModule>) -> PyResult<()> {
             (11, "ad"),
             (12, "rr"),
         ]
-        .into_py_dict_bound(py),
+        .into_py_dict_bound(m.py()),
     )?;
     m.add(
         "CONNECTION_STATES",
@@ -1668,7 +1678,7 @@ fn pyshinqlx_module(py: Python<'_>, m: &Bound<'_, PyModule>) -> PyResult<()> {
             (clientState_t::CS_PRIMED as i32, "primed"),
             (clientState_t::CS_ACTIVE as i32, "active"),
         ]
-        .into_py_dict_bound(py),
+        .into_py_dict_bound(m.py()),
     )?;
     // Weapons
     m.add(
@@ -1690,20 +1700,23 @@ fn pyshinqlx_module(py: Python<'_>, m: &Bound<'_, PyModule>) -> PyResult<()> {
             (weapon_t::WP_HMG as i32, "hmg"),
             (weapon_t::WP_HANDS as i32, "hands"),
         ]
-        .into_py_dict_bound(py),
+        .into_py_dict_bound(m.py()),
     )?;
-    m.add("DEFAULT_PLUGINS", PyTuple::new_bound(py, DEFAULT_PLUGINS))?;
+    m.add(
+        "DEFAULT_PLUGINS",
+        PyTuple::new_bound(m.py(), DEFAULT_PLUGINS),
+    )?;
 
     m.add("_thread_count", 0)?;
     m.add("_thread_name", "shinqlxthread")?;
 
-    m.add("_stats", py.None())?;
-    MODULES.store(Some(PyDict::new_bound(py).unbind().into()));
+    m.add("_stats", m.py().None())?;
+    MODULES.store(Some(PyDict::new_bound(m.py()).unbind().into()));
     m.add(
         "_modules",
         (*MODULES.load())
             .as_ref()
-            .map(|modules| modules.as_ref().into_py(py)),
+            .map(|modules| modules.as_ref().into_py(m.py())),
     )?;
 
     m.add_function(wrap_pyfunction!(pyshinqlx_parse_variables, m)?)?;
@@ -1730,25 +1743,34 @@ fn pyshinqlx_module(py: Python<'_>, m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(initialize, m)?)?;
     m.add_function(wrap_pyfunction!(late_init, m)?)?;
 
-    // from _game.py
+    Ok(())
+}
+
+fn register_game_module(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_class::<Game>()?;
     m.add(
         "NonexistentGameError",
-        py.get_type_bound::<NonexistentGameError>(),
+        m.py().get_type_bound::<NonexistentGameError>(),
     )?;
 
-    // from _player.py
+    Ok(())
+}
+
+fn register_player_module(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_class::<Player>()?;
     m.add(
         "NonexistentPlayerError",
-        py.get_type_bound::<NonexistentPlayerError>(),
+        m.py().get_type_bound::<NonexistentPlayerError>(),
     )?;
     m.add_class::<AbstractDummyPlayer>()?;
     m.add_class::<RconDummyPlayer>()?;
 
-    // from _commands.py
+    Ok(())
+}
+
+fn register_commands_module(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add("MAX_MSG_LENGTH", MAX_MSG_LENGTH)?;
-    let regex_module = py.import_bound("re")?;
+    let regex_module = m.py().import_bound("re")?;
     m.add(
         "re_color_tag",
         regex_module.call_method1("compile", (r"\^[0-7]",))?,
@@ -1762,7 +1784,7 @@ fn pyshinqlx_module(py: Python<'_>, m: &Bound<'_, PyModule>) -> PyResult<()> {
 
     CHAT_CHANNEL.store(Some(
         Py::new(
-            py,
+            m.py(),
             TeamChatChannel::py_new("all", "chat", "print \"{}\n\"\n"),
         )?
         .into(),
@@ -1771,11 +1793,11 @@ fn pyshinqlx_module(py: Python<'_>, m: &Bound<'_, PyModule>) -> PyResult<()> {
         "CHAT_CHANNEL",
         (*CHAT_CHANNEL.load())
             .as_ref()
-            .map(|channel| channel.as_ref().into_py(py)),
+            .map(|channel| channel.as_ref().into_py(m.py())),
     )?;
     RED_TEAM_CHAT_CHANNEL.store(Some(
         Py::new(
-            py,
+            m.py(),
             TeamChatChannel::py_new("red", "red_team_chat", "print \"{}\n\"\n"),
         )?
         .into(),
@@ -1784,11 +1806,11 @@ fn pyshinqlx_module(py: Python<'_>, m: &Bound<'_, PyModule>) -> PyResult<()> {
         "RED_TEAM_CHAT_CHANNEL",
         (*RED_TEAM_CHAT_CHANNEL.load())
             .as_ref()
-            .map(|channel| channel.as_ref().into_py(py)),
+            .map(|channel| channel.as_ref().into_py(m.py())),
     )?;
     BLUE_TEAM_CHAT_CHANNEL.store(Some(
         Py::new(
-            py,
+            m.py(),
             TeamChatChannel::py_new("blue", "blue_team_chat", "print \"{}\n\"\n"),
         )?
         .into(),
@@ -1797,11 +1819,11 @@ fn pyshinqlx_module(py: Python<'_>, m: &Bound<'_, PyModule>) -> PyResult<()> {
         "BLUE_TEAM_CHAT_CHANNEL",
         (*BLUE_TEAM_CHAT_CHANNEL.load())
             .as_ref()
-            .map(|channel| channel.as_ref().into_py(py)),
+            .map(|channel| channel.as_ref().into_py(m.py())),
     )?;
     FREE_CHAT_CHANNEL.store(Some(
         Py::new(
-            py,
+            m.py(),
             TeamChatChannel::py_new("free", "free_chat", "print \"{}\n\"\n"),
         )?
         .into(),
@@ -1810,11 +1832,11 @@ fn pyshinqlx_module(py: Python<'_>, m: &Bound<'_, PyModule>) -> PyResult<()> {
         "FREE_CHAT_CHANNEL",
         (*FREE_CHAT_CHANNEL.load())
             .as_ref()
-            .map(|channel| channel.as_ref().into_py(py)),
+            .map(|channel| channel.as_ref().into_py(m.py())),
     )?;
     SPECTATOR_CHAT_CHANNEL.store(Some(
         Py::new(
-            py,
+            m.py(),
             TeamChatChannel::py_new("spectator", "spectator_chat", "print \"{}\n\"\n"),
         )?
         .into(),
@@ -1823,29 +1845,32 @@ fn pyshinqlx_module(py: Python<'_>, m: &Bound<'_, PyModule>) -> PyResult<()> {
         "SPECTATOR_CHAT_CHANNEL",
         (*SPECTATOR_CHAT_CHANNEL.load())
             .as_ref()
-            .map(|channel| channel.as_ref().into_py(py)),
+            .map(|channel| channel.as_ref().into_py(m.py())),
     )?;
-    CONSOLE_CHANNEL.store(Some(Py::new(py, ConsoleChannel::py_new())?.into()));
+    CONSOLE_CHANNEL.store(Some(Py::new(m.py(), ConsoleChannel::py_new())?.into()));
     m.add(
         "CONSOLE_CHANNEL",
         (*CONSOLE_CHANNEL.load())
             .as_ref()
-            .map(|channel| channel.as_ref().into_py(py)),
+            .map(|channel| channel.as_ref().into_py(m.py())),
     )?;
     m.add_class::<Command>()?;
     m.add_class::<CommandInvoker>()?;
-    COMMANDS.store(Some(Py::new(py, CommandInvoker::py_new())?.into()));
+    COMMANDS.store(Some(Py::new(m.py(), CommandInvoker::py_new())?.into()));
     m.add(
         "COMMANDS",
         (*COMMANDS.load())
             .as_ref()
-            .map(|commands| commands.as_ref().into_py(py)),
+            .map(|commands| commands.as_ref().into_py(m.py())),
     )?;
 
-    // from _handlers.py
-    let sched_module = py.import_bound("sched")?;
+    Ok(())
+}
+
+fn register_handlers_module(m: &Bound<'_, PyModule>) -> PyResult<()> {
+    let sched_module = m.py().import_bound("sched")?;
     m.add("frame_tasks", sched_module.call_method0("scheduler")?)?;
-    let queue_module = py.import_bound("queue")?;
+    let queue_module = m.py().import_bound("queue")?;
     m.add("next_frame_tasks", queue_module.call_method0("Queue")?)?;
 
     m.add_function(wrap_pyfunction!(handlers::handle_rcon, m)?)?;
@@ -1866,8 +1891,11 @@ fn pyshinqlx_module(py: Python<'_>, m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_class::<handlers::PrintRedirector>()?;
     m.add_function(wrap_pyfunction!(handlers::register_handlers, m)?)?;
 
-    // from _events.py
-    let regex_module = py.import_bound("re")?;
+    Ok(())
+}
+
+fn register_events_module(m: &Bound<'_, PyModule>) -> PyResult<()> {
+    let regex_module = m.py().import_bound("re")?;
     m.add(
         "_re_vote",
         regex_module.call_method1("compile", (r#"^(?P<cmd>[^ ]+)(?: "?(?P<args>.*?)"?)?$"#,))?,
@@ -1908,132 +1936,153 @@ fn pyshinqlx_module(py: Python<'_>, m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_class::<DamageDispatcher>()?;
     m.add_class::<EventDispatcherManager>()?;
 
-    let event_dispatchers = Py::new(py, EventDispatcherManager::default())?;
+    let event_dispatchers = Py::new(m.py(), EventDispatcherManager::default())?;
     event_dispatchers
-        .borrow(py)
-        .add_dispatcher(py, py.get_type_bound::<ConsolePrintDispatcher>())?;
+        .borrow(m.py())
+        .add_dispatcher(m.py(), m.py().get_type_bound::<ConsolePrintDispatcher>())?;
     event_dispatchers
-        .borrow(py)
-        .add_dispatcher(py, py.get_type_bound::<CommandDispatcher>())?;
+        .borrow(m.py())
+        .add_dispatcher(m.py(), m.py().get_type_bound::<CommandDispatcher>())?;
     event_dispatchers
-        .borrow(py)
-        .add_dispatcher(py, py.get_type_bound::<ClientCommandDispatcher>())?;
+        .borrow(m.py())
+        .add_dispatcher(m.py(), m.py().get_type_bound::<ClientCommandDispatcher>())?;
     event_dispatchers
-        .borrow(py)
-        .add_dispatcher(py, py.get_type_bound::<ServerCommandDispatcher>())?;
+        .borrow(m.py())
+        .add_dispatcher(m.py(), m.py().get_type_bound::<ServerCommandDispatcher>())?;
     event_dispatchers
-        .borrow(py)
-        .add_dispatcher(py, py.get_type_bound::<FrameEventDispatcher>())?;
+        .borrow(m.py())
+        .add_dispatcher(m.py(), m.py().get_type_bound::<FrameEventDispatcher>())?;
     event_dispatchers
-        .borrow(py)
-        .add_dispatcher(py, py.get_type_bound::<SetConfigstringDispatcher>())?;
+        .borrow(m.py())
+        .add_dispatcher(m.py(), m.py().get_type_bound::<SetConfigstringDispatcher>())?;
     event_dispatchers
-        .borrow(py)
-        .add_dispatcher(py, py.get_type_bound::<ChatEventDispatcher>())?;
+        .borrow(m.py())
+        .add_dispatcher(m.py(), m.py().get_type_bound::<ChatEventDispatcher>())?;
     event_dispatchers
-        .borrow(py)
-        .add_dispatcher(py, py.get_type_bound::<UnloadDispatcher>())?;
+        .borrow(m.py())
+        .add_dispatcher(m.py(), m.py().get_type_bound::<UnloadDispatcher>())?;
     event_dispatchers
-        .borrow(py)
-        .add_dispatcher(py, py.get_type_bound::<PlayerConnectDispatcher>())?;
+        .borrow(m.py())
+        .add_dispatcher(m.py(), m.py().get_type_bound::<PlayerConnectDispatcher>())?;
     event_dispatchers
-        .borrow(py)
-        .add_dispatcher(py, py.get_type_bound::<PlayerLoadedDispatcher>())?;
+        .borrow(m.py())
+        .add_dispatcher(m.py(), m.py().get_type_bound::<PlayerLoadedDispatcher>())?;
+    event_dispatchers.borrow(m.py()).add_dispatcher(
+        m.py(),
+        m.py().get_type_bound::<PlayerDisconnectDispatcher>(),
+    )?;
     event_dispatchers
-        .borrow(py)
-        .add_dispatcher(py, py.get_type_bound::<PlayerDisconnectDispatcher>())?;
+        .borrow(m.py())
+        .add_dispatcher(m.py(), m.py().get_type_bound::<PlayerSpawnDispatcher>())?;
     event_dispatchers
-        .borrow(py)
-        .add_dispatcher(py, py.get_type_bound::<PlayerSpawnDispatcher>())?;
+        .borrow(m.py())
+        .add_dispatcher(m.py(), m.py().get_type_bound::<KamikazeUseDispatcher>())?;
     event_dispatchers
-        .borrow(py)
-        .add_dispatcher(py, py.get_type_bound::<KamikazeUseDispatcher>())?;
+        .borrow(m.py())
+        .add_dispatcher(m.py(), m.py().get_type_bound::<KamikazeExplodeDispatcher>())?;
     event_dispatchers
-        .borrow(py)
-        .add_dispatcher(py, py.get_type_bound::<KamikazeExplodeDispatcher>())?;
+        .borrow(m.py())
+        .add_dispatcher(m.py(), m.py().get_type_bound::<StatsDispatcher>())?;
     event_dispatchers
-        .borrow(py)
-        .add_dispatcher(py, py.get_type_bound::<StatsDispatcher>())?;
+        .borrow(m.py())
+        .add_dispatcher(m.py(), m.py().get_type_bound::<VoteCalledDispatcher>())?;
     event_dispatchers
-        .borrow(py)
-        .add_dispatcher(py, py.get_type_bound::<VoteCalledDispatcher>())?;
+        .borrow(m.py())
+        .add_dispatcher(m.py(), m.py().get_type_bound::<VoteStartedDispatcher>())?;
     event_dispatchers
-        .borrow(py)
-        .add_dispatcher(py, py.get_type_bound::<VoteStartedDispatcher>())?;
+        .borrow(m.py())
+        .add_dispatcher(m.py(), m.py().get_type_bound::<VoteEndedDispatcher>())?;
     event_dispatchers
-        .borrow(py)
-        .add_dispatcher(py, py.get_type_bound::<VoteEndedDispatcher>())?;
+        .borrow(m.py())
+        .add_dispatcher(m.py(), m.py().get_type_bound::<VoteDispatcher>())?;
     event_dispatchers
-        .borrow(py)
-        .add_dispatcher(py, py.get_type_bound::<VoteDispatcher>())?;
+        .borrow(m.py())
+        .add_dispatcher(m.py(), m.py().get_type_bound::<GameCountdownDispatcher>())?;
     event_dispatchers
-        .borrow(py)
-        .add_dispatcher(py, py.get_type_bound::<GameCountdownDispatcher>())?;
+        .borrow(m.py())
+        .add_dispatcher(m.py(), m.py().get_type_bound::<GameStartDispatcher>())?;
     event_dispatchers
-        .borrow(py)
-        .add_dispatcher(py, py.get_type_bound::<GameStartDispatcher>())?;
+        .borrow(m.py())
+        .add_dispatcher(m.py(), m.py().get_type_bound::<GameEndDispatcher>())?;
     event_dispatchers
-        .borrow(py)
-        .add_dispatcher(py, py.get_type_bound::<GameEndDispatcher>())?;
+        .borrow(m.py())
+        .add_dispatcher(m.py(), m.py().get_type_bound::<RoundCountdownDispatcher>())?;
     event_dispatchers
-        .borrow(py)
-        .add_dispatcher(py, py.get_type_bound::<RoundCountdownDispatcher>())?;
+        .borrow(m.py())
+        .add_dispatcher(m.py(), m.py().get_type_bound::<RoundStartDispatcher>())?;
     event_dispatchers
-        .borrow(py)
-        .add_dispatcher(py, py.get_type_bound::<RoundStartDispatcher>())?;
+        .borrow(m.py())
+        .add_dispatcher(m.py(), m.py().get_type_bound::<RoundEndDispatcher>())?;
     event_dispatchers
-        .borrow(py)
-        .add_dispatcher(py, py.get_type_bound::<RoundEndDispatcher>())?;
+        .borrow(m.py())
+        .add_dispatcher(m.py(), m.py().get_type_bound::<TeamSwitchDispatcher>())?;
+    event_dispatchers.borrow(m.py()).add_dispatcher(
+        m.py(),
+        m.py().get_type_bound::<TeamSwitchAttemptDispatcher>(),
+    )?;
     event_dispatchers
-        .borrow(py)
-        .add_dispatcher(py, py.get_type_bound::<TeamSwitchDispatcher>())?;
+        .borrow(m.py())
+        .add_dispatcher(m.py(), m.py().get_type_bound::<MapDispatcher>())?;
     event_dispatchers
-        .borrow(py)
-        .add_dispatcher(py, py.get_type_bound::<TeamSwitchAttemptDispatcher>())?;
+        .borrow(m.py())
+        .add_dispatcher(m.py(), m.py().get_type_bound::<NewGameDispatcher>())?;
     event_dispatchers
-        .borrow(py)
-        .add_dispatcher(py, py.get_type_bound::<MapDispatcher>())?;
+        .borrow(m.py())
+        .add_dispatcher(m.py(), m.py().get_type_bound::<KillDispatcher>())?;
     event_dispatchers
-        .borrow(py)
-        .add_dispatcher(py, py.get_type_bound::<NewGameDispatcher>())?;
+        .borrow(m.py())
+        .add_dispatcher(m.py(), m.py().get_type_bound::<DeathDispatcher>())?;
     event_dispatchers
-        .borrow(py)
-        .add_dispatcher(py, py.get_type_bound::<KillDispatcher>())?;
+        .borrow(m.py())
+        .add_dispatcher(m.py(), m.py().get_type_bound::<UserinfoDispatcher>())?;
     event_dispatchers
-        .borrow(py)
-        .add_dispatcher(py, py.get_type_bound::<DeathDispatcher>())?;
-    event_dispatchers
-        .borrow(py)
-        .add_dispatcher(py, py.get_type_bound::<UserinfoDispatcher>())?;
-    event_dispatchers
-        .borrow(py)
-        .add_dispatcher(py, py.get_type_bound::<DamageDispatcher>())?;
+        .borrow(m.py())
+        .add_dispatcher(m.py(), m.py().get_type_bound::<DamageDispatcher>())?;
     EVENT_DISPATCHERS.store(Some(event_dispatchers.into()));
     m.add(
         "EVENT_DISPATCHERS",
         (*EVENT_DISPATCHERS.load())
             .as_ref()
-            .map(|event_dispatchers| event_dispatchers.as_ref().into_py(py)),
+            .map(|event_dispatchers| event_dispatchers.as_ref().into_py(m.py())),
     )?;
 
-    // from _zmq.py
+    Ok(())
+}
+
+fn register_zmq_module(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_class::<StatsListener>()?;
 
-    // from _plugin.py
-    Python::get_type_bound::<Plugin>(py).setattr(intern!(py, "database"), py.None())?;
-    Python::get_type_bound::<Plugin>(py)
-        .setattr(intern!(py, "_loaded_plugins"), PyDict::new_bound(py))?;
+    Ok(())
+}
+
+fn register_plugin_module(m: &Bound<'_, PyModule>) -> PyResult<()> {
+    Python::get_type_bound::<Plugin>(m.py()).setattr(intern!(m.py(), "database"), m.py().None())?;
+    Python::get_type_bound::<Plugin>(m.py()).setattr(
+        intern!(m.py(), "_loaded_plugins"),
+        PyDict::new_bound(m.py()),
+    )?;
     m.add_class::<Plugin>()?;
 
-    // from database.py
-    m.add_class::<AbstractDatabase>()?;
+    Ok(())
+}
+
+fn register_database_submodule(m: &Bound<'_, PyModule>) -> PyResult<()> {
+    let database_module = PyModule::new_bound(m.py(), "database")?;
+
+    database_module.add_class::<AbstractDatabase>()?;
     #[cfg(feature = "rust-redis")]
     {
-        let redis_type = Python::get_type_bound::<Redis>(py);
+        let redis_type = Python::get_type_bound::<Redis>(m.py());
         let key_type_function = redis_type.getattr("key_type")?;
-        Python::get_type_bound::<Redis>(py).setattr("type", key_type_function)?;
+        Python::get_type_bound::<Redis>(m.py()).setattr("type", key_type_function)?;
     }
-    m.add_class::<Redis>()?;
+    database_module.add_class::<Redis>()?;
+    m.add_submodule(&database_module)?;
+
+    m.py()
+        .import_bound(intern!(m.py(), "sys"))?
+        .getattr(intern!(m.py(), "modules"))?
+        .set_item("shinqlx.database", database_module)?;
 
     Ok(())
 }
