@@ -206,7 +206,7 @@ impl Game {
     /// The full name of the map. Ex.: ``Longest Yard``.
     #[getter(map_title)]
     fn get_map_title(&self, py: Python<'_>) -> PyResult<String> {
-        let base_module = py.import_bound("_shinqlx")?;
+        let base_module = py.import_bound("shinqlx")?;
         let map_title = base_module.getattr("_map_title")?;
         map_title.extract::<String>()
     }
@@ -214,7 +214,7 @@ impl Game {
     /// The map's subtitle. Usually either empty or has the author's name.
     #[getter(map_subtitle1)]
     fn get_map_subtitle1(&self, py: Python<'_>) -> PyResult<String> {
-        let base_module = py.import_bound("_shinqlx")?;
+        let base_module = py.import_bound("shinqlx")?;
         let map_title = base_module.getattr("_map_subtitle1")?;
         map_title.extract::<String>()
     }
@@ -222,7 +222,7 @@ impl Game {
     /// The map's second subtitle. Usually either empty or has the author's name.
     #[getter(map_subtitle2)]
     fn get_map_subtitle2(&self, py: Python<'_>) -> PyResult<String> {
-        let base_module = py.import_bound("_shinqlx")?;
+        let base_module = py.import_bound("shinqlx")?;
         let map_title = base_module.getattr("_map_subtitle2")?;
         map_title.extract::<String>()
     }
@@ -1455,8 +1455,8 @@ mod pyshinqlx_game_tests {
         Python::with_gil(|py| {
             py.run_bound(
                 r#"
-import _shinqlx
-_shinqlx._map_title = "eyetoeye"
+import shinqlx
+shinqlx._map_title = "eyetoeye"
             "#,
                 None,
                 None,
@@ -1481,8 +1481,8 @@ _shinqlx._map_title = "eyetoeye"
         Python::with_gil(|py| {
             py.run_bound(
                 r#"
-import _shinqlx
-_shinqlx._map_subtitle1 = "Clan Arena"
+import shinqlx
+shinqlx._map_subtitle1 = "Clan Arena"
             "#,
                 None,
                 None,
@@ -1507,8 +1507,8 @@ _shinqlx._map_subtitle1 = "Clan Arena"
         Python::with_gil(|py| {
             py.run_bound(
                 r#"
-import _shinqlx
-_shinqlx._map_subtitle2 = "Awesome map!"
+import shinqlx
+shinqlx._map_subtitle2 = "Awesome map!"
             "#,
                 None,
                 None,

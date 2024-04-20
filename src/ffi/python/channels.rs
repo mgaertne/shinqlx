@@ -141,8 +141,8 @@ mod abstract_channel_tests {
         Python::with_gil(|py| {
             let abstract_channel_constructor = py.run_bound(
                 r#"
-import _shinqlx
-abstract_channel = _shinqlx.AbstractChannel("abstract")
+import shinqlx
+abstract_channel = shinqlx.AbstractChannel("abstract")
             "#,
                 None,
                 None,
@@ -157,8 +157,8 @@ abstract_channel = _shinqlx.AbstractChannel("abstract")
         Python::with_gil(|py| {
             let abstract_channel_repr_assert = py.run_bound(
                 r#"
-import _shinqlx
-abstract_channel = _shinqlx.AbstractChannel("abstract")
+import shinqlx
+abstract_channel = shinqlx.AbstractChannel("abstract")
 assert repr(abstract_channel) == "abstract"
             "#,
                 None,
@@ -174,8 +174,8 @@ assert repr(abstract_channel) == "abstract"
         Python::with_gil(|py| {
             let abstract_channel_str_assert = py.run_bound(
                 r#"
-import _shinqlx
-abstract_channel = _shinqlx.AbstractChannel("abstract")
+import shinqlx
+abstract_channel = shinqlx.AbstractChannel("abstract")
 assert str(abstract_channel) == "abstract"
             "#,
                 None,
@@ -191,17 +191,17 @@ assert str(abstract_channel) == "abstract"
         Python::with_gil(|py| {
             let abstract_channel_eq_assert = py.run_bound(
                 r#"
-import _shinqlx
+import shinqlx
 
-assert _shinqlx.AbstractChannel("abstract") == "abstract"
-assert _shinqlx.AbstractChannel("abstract") == _shinqlx.AbstractChannel("abstract")
-assert not (_shinqlx.AbstractChannel("abstract1") == _shinqlx.AbstractChannel("abstract2"))
+assert shinqlx.AbstractChannel("abstract") == "abstract"
+assert shinqlx.AbstractChannel("abstract") == shinqlx.AbstractChannel("abstract")
+assert not (shinqlx.AbstractChannel("abstract1") == shinqlx.AbstractChannel("abstract2"))
 
 class NoReprClass():
     def __repr__(self):
         raise NotImplementedError()
         
-assert not (_shinqlx.AbstractChannel("abstract") == NoReprClass())
+assert not (shinqlx.AbstractChannel("abstract") == NoReprClass())
             "#,
                 None,
                 None,
@@ -216,17 +216,17 @@ assert not (_shinqlx.AbstractChannel("abstract") == NoReprClass())
         Python::with_gil(|py| {
             let abstract_channel_ne_assert = py.run_bound(
                 r#"
-import _shinqlx
+import shinqlx
 
-assert _shinqlx.AbstractChannel("abstract1") != "abstract2"
-assert _shinqlx.AbstractChannel("abstract1") != _shinqlx.AbstractChannel("abstract2")
-assert not (_shinqlx.AbstractChannel("abstract") != _shinqlx.AbstractChannel("abstract"))
+assert shinqlx.AbstractChannel("abstract1") != "abstract2"
+assert shinqlx.AbstractChannel("abstract1") != shinqlx.AbstractChannel("abstract2")
+assert not (shinqlx.AbstractChannel("abstract") != shinqlx.AbstractChannel("abstract"))
 
 class NoReprClass():
     def __repr__(self):
         raise NotImplementedError()
         
-assert _shinqlx.AbstractChannel("abstract") != NoReprClass()
+assert shinqlx.AbstractChannel("abstract") != NoReprClass()
             "#,
                 None,
                 None,
@@ -241,9 +241,9 @@ assert _shinqlx.AbstractChannel("abstract") != NoReprClass()
         Python::with_gil(|py| {
             let abstract_channel_cmp_assert = py.run_bound(
                 r#"
-import _shinqlx
+import shinqlx
 
-_shinqlx.AbstractChannel("abstract") < 2
+shinqlx.AbstractChannel("abstract") < 2
             "#,
                 None,
                 None,
@@ -382,8 +382,8 @@ mod console_channel_tests {
         Python::with_gil(|py| {
             let console_channel_constructor = py.run_bound(
                 r#"
-import _shinqlx
-console_channel = _shinqlx.ConsoleChannel()
+import shinqlx
+console_channel = shinqlx.ConsoleChannel()
             "#,
                 None,
                 None,
@@ -548,8 +548,8 @@ mod chat_channel_tests {
         Python::with_gil(|py| {
             let chat_channel_constructor = py.run_bound(
                 r#"
-import _shinqlx
-chat_channel = _shinqlx.ChatChannel()
+import shinqlx
+chat_channel = shinqlx.ChatChannel()
             "#,
                 None,
                 None,
@@ -575,9 +575,9 @@ chat_channel = _shinqlx.ChatChannel()
         Python::with_gil(|py| {
             let test_reply_to_recipients = py.run_bound(
                 r#"
-import _shinqlx
+import shinqlx
 
-class TestChatChannel(_shinqlx.ChatChannel):
+class TestChatChannel(shinqlx.ChatChannel):
     def recipients(self):
         raise ValueError("asdf")
 
@@ -675,8 +675,8 @@ mod tell_channel_tests {
         Python::with_gil(|py| {
             let tell_channel_constructor = py.run_bound(
                 r#"
-import _shinqlx
-tell_channel = _shinqlx.TellChannel(player)
+import shinqlx
+tell_channel = shinqlx.TellChannel(player)
             "#,
                 None,
                 Some(&vec![("player", player.into_py(py))].into_py_dict_bound(py)),
@@ -823,8 +823,8 @@ mod team_chat_channel_tests {
         Python::with_gil(|py| {
             let team_chat_channel_constructor = py.run_bound(
                 r#"
-import _shinqlx
-tell_channel = _shinqlx.TeamChatChannel("all")
+import shinqlx
+tell_channel = shinqlx.TeamChatChannel("all")
             "#,
                 None,
                 None,
@@ -1047,8 +1047,8 @@ mod client_command_channel_tests {
         Python::with_gil(|py| {
             let client_command_channel_constructor = py.run_bound(
                 r#"
-import _shinqlx
-tell_channel = _shinqlx.ClientCommandChannel(player)
+import shinqlx
+tell_channel = shinqlx.ClientCommandChannel(player)
             "#,
                 None,
                 Some(&vec![("player", player.into_py(py))].into_py_dict_bound(py)),

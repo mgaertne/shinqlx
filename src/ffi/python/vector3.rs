@@ -103,7 +103,7 @@ mod vector3_tests {
     #[cfg_attr(miri, ignore)]
     fn vector3_tuple_test(_pyshinqlx_setup: ()) {
         Python::with_gil(|py| {
-            let shinqlx_module = py.import_bound("_shinqlx").expect("this should not happen");
+            let shinqlx_module = py.import_bound("shinqlx").expect("this should not happen");
             let vector3 = shinqlx_module
                 .getattr("Vector3")
                 .expect("this should not happen");
@@ -124,8 +124,8 @@ mod vector3_tests {
         Python::with_gil(|py| {
             let vector3_constructor = py.run_bound(
                 r#"
-import _shinqlx
-weapons = _shinqlx.Vector3((0, 42, 666))
+import shinqlx
+weapons = shinqlx.Vector3((0, 42, 666))
             "#,
                 None,
                 None,
@@ -144,8 +144,8 @@ weapons = _shinqlx.Vector3((0, 42, 666))
         Python::with_gil(|py| {
             let vector3_constructor = py.run_bound(
                 r#"
-import _shinqlx
-powerups = _shinqlx.Vector3((0, 1))
+import shinqlx
+powerups = shinqlx.Vector3((0, 1))
             "#,
                 None,
                 None,
@@ -160,8 +160,8 @@ powerups = _shinqlx.Vector3((0, 1))
         Python::with_gil(|py| {
             let vector3_constructor = py.run_bound(
                 r#"
-import _shinqlx
-powerups = _shinqlx.Vector3((0, 1, 2, 3))
+import shinqlx
+powerups = shinqlx.Vector3((0, 1, 2, 3))
             "#,
                 None,
                 None,
@@ -176,8 +176,8 @@ powerups = _shinqlx.Vector3((0, 1, 2, 3))
         Python::with_gil(|py| {
             let vector3_constructor = py.run_bound(
                 r#"
-import _shinqlx
-powerups = _shinqlx.Vector3(("asdf", True, (1, 2, 3)))
+import shinqlx
+powerups = shinqlx.Vector3(("asdf", True, (1, 2, 3)))
             "#,
                 None,
                 None,
@@ -192,8 +192,8 @@ powerups = _shinqlx.Vector3(("asdf", True, (1, 2, 3)))
         let result = Python::with_gil(|py| {
             py.run_bound(
                 r#"
-import _shinqlx
-assert(_shinqlx.Vector3((0, 1, 2)) == _shinqlx.Vector3((0, 1, 2)))
+import shinqlx
+assert(shinqlx.Vector3((0, 1, 2)) == shinqlx.Vector3((0, 1, 2)))
             "#,
                 None,
                 None,
@@ -208,8 +208,8 @@ assert(_shinqlx.Vector3((0, 1, 2)) == _shinqlx.Vector3((0, 1, 2)))
         let result = Python::with_gil(|py| {
             py.run_bound(
                 r#"
-import _shinqlx
-assert(_shinqlx.Vector3((0, 1, 2)) != _shinqlx.Vector3((2, 1, 0)))
+import shinqlx
+assert(shinqlx.Vector3((0, 1, 2)) != shinqlx.Vector3((2, 1, 0)))
             "#,
                 None,
                 None,
@@ -224,8 +224,8 @@ assert(_shinqlx.Vector3((0, 1, 2)) != _shinqlx.Vector3((2, 1, 0)))
         Python::with_gil(|py| {
             let result = py.run_bound(
                 r#"
-import _shinqlx
-assert(_shinqlx.Vector3((0, 1, 2)) < _shinqlx.Vector3((2, 1, 0)))
+import shinqlx
+assert(shinqlx.Vector3((0, 1, 2)) < shinqlx.Vector3((2, 1, 0)))
             "#,
                 None,
                 None,
@@ -240,8 +240,8 @@ assert(_shinqlx.Vector3((0, 1, 2)) < _shinqlx.Vector3((2, 1, 0)))
         let result = Python::with_gil(|py| {
             py.run_bound(
                 r#"
-import _shinqlx
-vector3 = _shinqlx.Vector3((0, 1, 2))
+import shinqlx
+vector3 = shinqlx.Vector3((0, 1, 2))
 vec_iter = iter(iter(vector3))
 assert(next(vec_iter) == 0)
 assert(next(vec_iter) == 1)

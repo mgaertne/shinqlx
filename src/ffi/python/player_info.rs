@@ -110,22 +110,22 @@ mod player_info_tests {
         Python::with_gil(|py| {
             let player_info_constructor = py.run_bound(
                 r#"
-import _shinqlx
+import shinqlx
 _DUMMY_USERINFO = (
     r"ui_singlePlayerActive\0\cg_autoAction\1\cg_autoHop\0"
     r"\cg_predictItems\1\model\bitterman/sport_blue\headmodel\crash/red"
     r"\handicap\100\cl_anonymous\0\color1\4\color2\23\sex\male"
     r"\teamtask\0\rate\25000\country\NO"
 )
-player_info = _shinqlx.PlayerInfo(
+player_info = shinqlx.PlayerInfo(
             (
                 -1,
                 "asdf",
-                _shinqlx.CS_CONNECTED,
+                shinqlx.CS_CONNECTED,
                 _DUMMY_USERINFO,
                 -1,
-                _shinqlx.TEAM_SPECTATOR,
-                _shinqlx.PRIV_NONE,
+                shinqlx.TEAM_SPECTATOR,
+                shinqlx.PRIV_NONE,
             )
         )
             "#,

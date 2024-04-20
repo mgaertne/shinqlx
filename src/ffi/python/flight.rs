@@ -91,8 +91,8 @@ mod flight_tests {
         Python::with_gil(|py| {
             let flight_constructor = py.run_bound(
                 r#"
-import _shinqlx
-flight = _shinqlx.Flight((0, 1, 2, 3))
+import shinqlx
+flight = shinqlx.Flight((0, 1, 2, 3))
             "#,
                 None,
                 None,
@@ -111,8 +111,8 @@ flight = _shinqlx.Flight((0, 1, 2, 3))
         Python::with_gil(|py| {
             let flight_constructor = py.run_bound(
                 r#"
-import _shinqlx
-flight = _shinqlx.Flight((0, 1, 2))
+import shinqlx
+flight = shinqlx.Flight((0, 1, 2))
             "#,
                 None,
                 None,
@@ -127,8 +127,8 @@ flight = _shinqlx.Flight((0, 1, 2))
         Python::with_gil(|py| {
             let flight_constructor = py.run_bound(
                 r#"
-import _shinqlx
-flight = _shinqlx.Flight((0, 1, 2, 3, 4))
+import shinqlx
+flight = shinqlx.Flight((0, 1, 2, 3, 4))
             "#,
                 None,
                 None,
@@ -143,8 +143,8 @@ flight = _shinqlx.Flight((0, 1, 2, 3, 4))
         Python::with_gil(|py| {
             let flight_constructor = py.run_bound(
                 r#"
-import _shinqlx
-flight = _shinqlx.Flight(("asdf", True, (1, 2, 3), []))
+import shinqlx
+flight = shinqlx.Flight(("asdf", True, (1, 2, 3), []))
             "#,
                 None,
                 None,
@@ -159,8 +159,8 @@ flight = _shinqlx.Flight(("asdf", True, (1, 2, 3), []))
         let result = Python::with_gil(|py| {
             py.run_bound(
                 r#"
-import _shinqlx
-assert(_shinqlx.Flight((0, 1, 2, 3)) == _shinqlx.Flight((0, 1, 2, 3)))
+import shinqlx
+assert(shinqlx.Flight((0, 1, 2, 3)) == shinqlx.Flight((0, 1, 2, 3)))
             "#,
                 None,
                 None,
@@ -175,8 +175,8 @@ assert(_shinqlx.Flight((0, 1, 2, 3)) == _shinqlx.Flight((0, 1, 2, 3)))
         let result = Python::with_gil(|py| {
             py.run_bound(
                 r#"
-import _shinqlx
-assert(_shinqlx.Flight((0, 1, 2, 3)) != _shinqlx.Flight((3, 2, 1, 0)))
+import shinqlx
+assert(shinqlx.Flight((0, 1, 2, 3)) != shinqlx.Flight((3, 2, 1, 0)))
             "#,
                 None,
                 None,
@@ -191,8 +191,8 @@ assert(_shinqlx.Flight((0, 1, 2, 3)) != _shinqlx.Flight((3, 2, 1, 0)))
         Python::with_gil(|py| {
             let result = py.run_bound(
                 r#"
-import _shinqlx
-assert(_shinqlx.Flight((0, 1, 2, 3)) < _shinqlx.Flight((3, 2, 1, 0)))
+import shinqlx
+assert(shinqlx.Flight((0, 1, 2, 3)) < shinqlx.Flight((3, 2, 1, 0)))
             "#,
                 None,
                 None,
@@ -216,8 +216,8 @@ assert(_shinqlx.Flight((0, 1, 2, 3)) < _shinqlx.Flight((3, 2, 1, 0)))
         Python::with_gil(|py| {
             let result = py.run_bound(
                 r#"
-import _shinqlx
-assert(str(_shinqlx.Flight((1, 2, 3, 4))) == "Flight(fuel=1, max_fuel=2, thrust=3, refuel=4)")
+import shinqlx
+assert(str(shinqlx.Flight((1, 2, 3, 4))) == "Flight(fuel=1, max_fuel=2, thrust=3, refuel=4)")
             "#,
                 None,
                 None,
@@ -241,8 +241,8 @@ assert(str(_shinqlx.Flight((1, 2, 3, 4))) == "Flight(fuel=1, max_fuel=2, thrust=
         Python::with_gil(|py| {
             let result = py.run_bound(
                 r#"
-import _shinqlx
-assert(repr(_shinqlx.Flight((1, 2, 3, 4))) == "Flight(fuel=1, max_fuel=2, thrust=3, refuel=4)")
+import shinqlx
+assert(repr(shinqlx.Flight((1, 2, 3, 4))) == "Flight(fuel=1, max_fuel=2, thrust=3, refuel=4)")
             "#,
                 None,
                 None,
