@@ -392,7 +392,7 @@ pub(crate) fn handle_client_command(py: Python<'_>, client_id: i32, cmd: &str) -
 }
 
 static RE_VOTE_ENDED: Lazy<Regex> = Lazy::new(|| {
-    RegexBuilder::new("^print \"Vote (?P<result>passed|failed)\\.\n\"$")
+    RegexBuilder::new(r#"^print "Vote (?P<result>passed|failed)\.\n"$"#)
         .multi_line(true)
         .build()
         .unwrap()
