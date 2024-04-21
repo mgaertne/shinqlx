@@ -783,30 +783,28 @@ fn try_handle_set_configstring(py: Python<'_>, index: u32, value: &str) -> PyRes
                 }
                 Some(AD_ROUND_NUMBER.load(Ordering::SeqCst))
             } else {
+                if opt_round.is_some_and(|value| value == 0) {
+                    return Ok(configstring_value.into_py(py));
+                }
                 opt_round
             };
 
             if let Some(round_number) = opt_round_number {
-                if round_number != 0 {
-                    let event = match opt_time {
-                        Some(_) => intern!(py, "round_countdown"),
-                        None => intern!(py, "round_start"),
-                    };
+                let event = match opt_time {
+                    Some(_) => intern!(py, "round_countdown"),
+                    None => intern!(py, "round_start"),
+                };
 
-                    let Some(round_discpatcher) =
-                        EVENT_DISPATCHERS
-                            .load()
-                            .as_ref()
-                            .and_then(|event_dispatchers| {
-                                event_dispatchers.bind(py).get_item(event).ok()
-                            })
-                    else {
-                        return Err(PyEnvironmentError::new_err(
-                            "could not get access to round countdown/start dispatcher",
-                        ));
-                    };
-                    round_discpatcher.call_method1(intern!(py, "dispatch"), (round_number,))?;
-                }
+                let Some(round_discpatcher) = EVENT_DISPATCHERS
+                    .load()
+                    .as_ref()
+                    .and_then(|event_dispatchers| event_dispatchers.bind(py).get_item(event).ok())
+                else {
+                    return Err(PyEnvironmentError::new_err(
+                        "could not get access to round countdown/start dispatcher",
+                    ));
+                };
+                round_discpatcher.call_method1(intern!(py, "dispatch"), (round_number,))?;
                 return Ok(py.None());
             }
 
