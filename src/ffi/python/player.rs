@@ -459,21 +459,33 @@ impl Player {
     }
 
     #[getter(autohop)]
-    fn get_autohop(&self, py: Python<'_>) -> PyResult<bool> {
+    fn get_autohop(&self, py: Python<'_>) -> PyResult<i32> {
         py.allow_threads(|| {
             let cvars = parse_variables(&self.user_info);
             cvars.get("autohop").map_or_else(
                 || Err(PyKeyError::new_err("'autohop'")),
-                |value| Ok(value != "0"),
+                |value| {
+                    value.parse::<i32>().map_err(|_| {
+                        let error_msg =
+                            format!("invalid literal for int() with base 10: '{value}'");
+                        PyValueError::new_err(error_msg)
+                    })
+                },
             )
         })
     }
 
     #[setter(autohop)]
-    fn set_autohop(&mut self, py: Python<'_>, value: bool) -> PyResult<()> {
+    fn set_autohop(&mut self, py: Python<'_>, value: PyObject) -> PyResult<()> {
+        let new_autohop = value.bind(py).str()?.to_string();
+        if new_autohop.parse::<i32>().is_err() {
+            let error_msg = format!("invalid literal for int() with base 10: '{new_autohop}'");
+            return Err(PyValueError::new_err(error_msg));
+        }
+
         let new_cvars_string: String = py.allow_threads(|| {
             let mut new_cvars = parse_variables(&self.player_info.userinfo);
-            new_cvars.set("autohop", if value { "1" } else { "0" });
+            new_cvars.set("autohop", &new_autohop);
             new_cvars.into()
         });
 
@@ -483,21 +495,33 @@ impl Player {
     }
 
     #[getter(autoaction)]
-    fn get_autoaction(&self, py: Python<'_>) -> PyResult<bool> {
+    fn get_autoaction(&self, py: Python<'_>) -> PyResult<i32> {
         py.allow_threads(|| {
             let cvars = parse_variables(&self.user_info);
             cvars.get("autoaction").map_or_else(
                 || Err(PyKeyError::new_err("'autoaction'")),
-                |value| Ok(value != "0"),
+                |value| {
+                    value.parse::<i32>().map_err(|_| {
+                        let error_msg =
+                            format!("invalid literal for int() with base 10: '{value}'");
+                        PyValueError::new_err(error_msg)
+                    })
+                },
             )
         })
     }
 
     #[setter(autoaction)]
-    fn set_autoaction(&mut self, py: Python<'_>, value: bool) -> PyResult<()> {
+    fn set_autoaction(&mut self, py: Python<'_>, value: PyObject) -> PyResult<()> {
+        let new_autoaction = value.bind(py).str()?.to_string();
+        if new_autoaction.parse::<i32>().is_err() {
+            let error_msg = format!("invalid literal for int() with base 10: '{new_autoaction}'");
+            return Err(PyValueError::new_err(error_msg));
+        }
+
         let new_cvars_string: String = py.allow_threads(|| {
             let mut new_cvars = parse_variables(&self.player_info.userinfo);
-            new_cvars.set("autoaction", if value { "1" } else { "0" });
+            new_cvars.set("autoaction", &new_autoaction);
             new_cvars.into()
         });
 
@@ -507,21 +531,33 @@ impl Player {
     }
 
     #[getter(predictitems)]
-    fn get_predictitems(&self, py: Python<'_>) -> PyResult<bool> {
+    fn get_predictitems(&self, py: Python<'_>) -> PyResult<i32> {
         py.allow_threads(|| {
             let cvars = parse_variables(&self.user_info);
             cvars.get("cg_predictitems").map_or_else(
                 || Err(PyKeyError::new_err("'cg_predictitems'")),
-                |value| Ok(value != "0"),
+                |value| {
+                    value.parse::<i32>().map_err(|_| {
+                        let error_msg =
+                            format!("invalid literal for int() with base 10: '{value}'");
+                        PyValueError::new_err(error_msg)
+                    })
+                },
             )
         })
     }
 
     #[setter(predictitems)]
-    fn set_predictitems(&mut self, py: Python<'_>, value: bool) -> PyResult<()> {
+    fn set_predictitems(&mut self, py: Python<'_>, value: PyObject) -> PyResult<()> {
+        let new_predictitems = value.bind(py).str()?.to_string();
+        if new_predictitems.parse::<i32>().is_err() {
+            let error_msg = format!("invalid literal for int() with base 10: '{new_predictitems}'");
+            return Err(PyValueError::new_err(error_msg));
+        }
+
         let new_cvars_string: String = py.allow_threads(|| {
             let mut new_cvars = parse_variables(&self.player_info.userinfo);
-            new_cvars.set("cg_predictitems", if value { "1" } else { "0" });
+            new_cvars.set("cg_predictitems", &new_predictitems);
             new_cvars.into()
         });
 
@@ -2660,7 +2696,7 @@ assert(player._valid)
         };
 
         let result = Python::with_gil(|py| player.get_autohop(py));
-        assert_eq!(result.expect("result was not OK"), true);
+        assert_eq!(result.expect("result was not OK"), 1);
     }
 
     #[test]
@@ -2676,7 +2712,7 @@ assert(player._valid)
         };
 
         let result = Python::with_gil(|py| player.get_autohop(py));
-        assert_eq!(result.expect("result was not OK"), false);
+        assert_eq!(result.expect("result was not OK"), 0);
     }
 
     #[test]
@@ -2715,7 +2751,7 @@ assert(player._valid)
             ..default_test_player()
         };
 
-        let result = Python::with_gil(|py| player.set_autohop(py, false));
+        let result = Python::with_gil(|py| player.set_autohop(py, 0.into_py(py)));
         assert!(result.is_ok());
     }
 
@@ -2750,7 +2786,7 @@ assert(player._valid)
         };
 
         let result = Python::with_gil(|py| player.get_autoaction(py));
-        assert_eq!(result.expect("result was not OK"), true);
+        assert_eq!(result.expect("result was not OK"), 1);
     }
 
     #[test]
@@ -2766,7 +2802,7 @@ assert(player._valid)
         };
 
         let result = Python::with_gil(|py| player.get_autoaction(py));
-        assert_eq!(result.expect("result was not OK"), false);
+        assert_eq!(result.expect("result was not OK"), 0);
     }
 
     #[test]
@@ -2805,7 +2841,7 @@ assert(player._valid)
             ..default_test_player()
         };
 
-        let result = Python::with_gil(|py| player.set_autoaction(py, false));
+        let result = Python::with_gil(|py| player.set_autoaction(py, 0.into_py(py)));
         assert!(result.is_ok());
     }
 
@@ -2840,7 +2876,7 @@ assert(player._valid)
         };
 
         let result = Python::with_gil(|py| player.get_predictitems(py));
-        assert_eq!(result.expect("result was not OK"), true);
+        assert_eq!(result.expect("result was not OK"), 1);
     }
 
     #[test]
@@ -2856,7 +2892,7 @@ assert(player._valid)
         };
 
         let result = Python::with_gil(|py| player.get_predictitems(py));
-        assert_eq!(result.expect("result was not OK"), false);
+        assert_eq!(result.expect("result was not OK"), 0);
     }
 
     #[test]
@@ -2895,7 +2931,7 @@ assert(player._valid)
             ..default_test_player()
         };
 
-        let result = Python::with_gil(|py| player.set_predictitems(py, false));
+        let result = Python::with_gil(|py| player.set_predictitems(py, 0.into_py(py)));
         assert!(result.is_ok());
     }
 
