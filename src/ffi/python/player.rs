@@ -440,10 +440,16 @@ impl Player {
     }
 
     #[setter(handicap)]
-    fn set_handicap(&mut self, py: Python<'_>, value: String) -> PyResult<()> {
+    fn set_handicap(&mut self, py: Python<'_>, value: PyObject) -> PyResult<()> {
+        let new_handicap = value.bind(py).str()?.to_string();
+        if new_handicap.parse::<i32>().is_err() {
+            let error_msg = format!("invalid literal for int() with base 10: '{new_handicap}'");
+            return Err(PyValueError::new_err(error_msg));
+        }
+
         let new_cvars_string: String = py.allow_threads(|| {
             let mut new_cvars = parse_variables(&self.player_info.userinfo);
-            new_cvars.set("handicap", &value);
+            new_cvars.set("handicap", &new_handicap);
             new_cvars.into()
         });
 
@@ -2619,7 +2625,7 @@ assert(player._valid)
             ..default_test_player()
         };
 
-        let result = Python::with_gil(|py| player.set_handicap(py, "50".to_string()));
+        let result = Python::with_gil(|py| player.set_handicap(py, "50".into_py(py)));
         assert!(result.is_ok());
     }
 
