@@ -103,7 +103,7 @@ fn is_vote_active() -> bool {
 fn try_handle_client_command(py: Python<'_>, client_id: i32, cmd: &str) -> PyResult<PyObject> {
     let player = Player::py_new(client_id, None)?;
 
-    let Some(server_command_dispatcher) =
+    let Some(client_command_dispatcher) =
         EVENT_DISPATCHERS
             .load()
             .as_ref()
@@ -120,7 +120,7 @@ fn try_handle_client_command(py: Python<'_>, client_id: i32, cmd: &str) -> PyRes
     };
 
     let return_value =
-        server_command_dispatcher.call_method1(intern!(py, "dispatch"), (player.clone(), cmd))?;
+        client_command_dispatcher.call_method1(intern!(py, "dispatch"), (player.clone(), cmd))?;
     if return_value.extract::<bool>().is_ok_and(|value| !value) {
         return Ok(false.into_py(py));
     };

@@ -55,7 +55,7 @@ impl AbstractChannel {
     fn __richcmp__(&self, other: &Bound<'_, PyAny>, op: CompareOp, py: Python<'_>) -> PyObject {
         match op {
             CompareOp::Eq => {
-                if let Ok(other_channel) = other.extract::<String>() {
+                if let Ok(other_channel) = other.str().map(|other_str| other_str.to_string()) {
                     (self.name == other_channel).into_py(py)
                 } else {
                     let Ok(other_repr) = other.repr() else {
@@ -65,7 +65,7 @@ impl AbstractChannel {
                 }
             }
             CompareOp::Ne => {
-                if let Ok(other_channel) = other.extract::<String>() {
+                if let Ok(other_channel) = other.str().map(|other_str| other_str.to_string()) {
                     (self.name != other_channel).into_py(py)
                 } else {
                     let Ok(other_repr) = other.repr() else {

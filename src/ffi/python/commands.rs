@@ -201,11 +201,10 @@ impl Command {
     ///
     /// Exclude takes precedence.
     fn is_eligible_channel(&self, py: Python<'_>, channel: PyObject) -> bool {
-        let Some(channel_name) = channel
+        let Ok(channel_name) = channel
             .bind(py)
             .str()
-            .ok()
-            .and_then(|channel_name_str| channel_name_str.extract::<String>().ok())
+            .map(|channel_name_str| channel_name_str.to_string())
         else {
             return false;
         };
@@ -213,7 +212,13 @@ impl Command {
         let exclude_channel_names: Vec<String> = self
             .exclude_channels
             .iter()
-            .flat_map(|channel| channel.extract::<String>(py).ok())
+            .flat_map(|channel| {
+                channel
+                    .bind(py)
+                    .str()
+                    .map(|channel_str| channel_str.to_string())
+                    .ok()
+            })
             .collect();
         if exclude_channel_names.contains(&channel_name) {
             return false;
@@ -222,7 +227,13 @@ impl Command {
         let channel_names: Vec<String> = self
             .channels
             .iter()
-            .flat_map(|channel| channel.extract::<String>(py).ok())
+            .flat_map(|allowed_channel| {
+                allowed_channel
+                    .bind(py)
+                    .str()
+                    .map(|allowed_channel_str| allowed_channel_str.to_string())
+                    .ok()
+            })
             .collect();
         channel_names.is_empty() || channel_names.contains(&channel_name)
     }
@@ -437,11 +448,10 @@ def remove_command(cmd):
         else {
             return Ok(false);
         };
-        let Some(channel_name) = channel
+        let Ok(channel_name) = channel
             .bind(py)
             .str()
-            .ok()
-            .and_then(|channel_name_str| channel_name_str.extract::<String>().ok())
+            .map(|channel_name_str| channel_name_str.to_string())
         else {
             return Ok(false);
         };
@@ -505,7 +515,7 @@ def remove_command(cmd):
                     pass_through = false;
                 } else if cmd_result_return_code
                     .as_ref()
-                    .is_ok_and(|&value| value == PythonReturnCodes::RET_STOP_EVENT)
+                    .is_ok_and(|&value| value == PythonReturnCodes::RET_USAGE)
                     && !cmd.usage.is_empty()
                 {
                     let usage_msg = format!("^7Usage: ^6{} {}", name, cmd.usage);

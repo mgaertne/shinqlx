@@ -149,7 +149,7 @@ use pyo3::{
     append_to_inittab, create_exception,
     exceptions::{PyEnvironmentError, PyException, PyValueError},
     intern, prepare_freethreaded_python,
-    types::{IntoPyDict, PyDelta, PyDict, PyFunction, PyString, PyTuple},
+    types::{IntoPyDict, PyBool, PyDelta, PyDict, PyFunction, PyString, PyTuple},
 };
 
 pub(crate) static ALLOW_FREE_CLIENT: AtomicU64 = AtomicU64::new(0);
@@ -195,6 +195,9 @@ impl FromPyObject<'_> for PythonReturnCodes {
     fn extract_bound(item: &Bound<'_, PyAny>) -> PyResult<Self> {
         if item.is_none() {
             return Ok(PythonReturnCodes::RET_NONE);
+        }
+        if item.is_instance_of::<PyBool>() {
+            return Err(PyValueError::new_err("unsupported PythonReturnCode"));
         }
         let item_i32 = item.extract::<i32>();
         if item_i32
@@ -1371,7 +1374,7 @@ fn late_init(module: &Bound<'_, PyModule>, py: Python<'_>) -> PyResult<()> {
     )?;
     logger.call_method1(intern!(py, "handle"), (log_record,))?;
 
-    module.call_method0(intern!(py, "load_preset_plugins"))?;
+    load_preset_plugins(py)?;
 
     let stats_enable_cvar = main_engine.find_cvar("zmq_stats_enable");
     if stats_enable_cvar.is_some_and(|value| value.get_string() != "0") {
