@@ -14,7 +14,7 @@ use pyo3::{
 /// Has information about the command itself, its usage, when and who to call when
 /// action should be taken.
 #[pyclass(module = "_commands", name = "Command", get_all, frozen)]
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub(crate) struct Command {
     plugin: Py<PyAny>,
     pub(crate) name: Vec<String>,

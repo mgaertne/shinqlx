@@ -1072,7 +1072,8 @@ fn try_load_plugin(py: Python<'_>, plugin: &str) -> PyResult<()> {
 
     let loaded_plugin = plugin_class.call0()?;
 
-    let loaded_plugins = Python::get_type_bound::<Plugin>(py)
+    let loaded_plugins = py
+        .get_type_bound::<Plugin>()
         .getattr(intern!(py, "_loaded_plugins"))?
         .extract::<&PyDict>()?;
     loaded_plugins.set_item(plugin, loaded_plugin)?;
@@ -1113,7 +1114,8 @@ fn load_plugin(py: Python<'_>, plugin: &str) -> PyResult<()> {
         return Err(PluginLoadError::new_err("No such plugin exists."));
     }
 
-    let loaded_plugins = Python::get_type_bound::<Plugin>(py)
+    let loaded_plugins = py
+        .get_type_bound::<Plugin>()
         .getattr(intern!(py, "_loaded_plugins"))?
         .extract::<&PyDict>()?;
 
@@ -1147,7 +1149,8 @@ fn try_unload_plugin(py: Python<'_>, plugin: &str) -> PyResult<()> {
     };
     unload_dispatcher.call_method1(intern!(py, "dispatch"), (plugin,))?;
 
-    let loaded_plugins = Python::get_type_bound::<Plugin>(py)
+    let loaded_plugins = py
+        .get_type_bound::<Plugin>()
         .getattr(intern!(py, "_loaded_plugins"))?
         .extract::<&PyDict>()?;
 
@@ -1225,7 +1228,8 @@ fn unload_plugin(py: Python<'_>, plugin: &str) -> PyResult<()> {
     )?;
     logger.call_method1(intern!(py, "handle"), (log_record,))?;
 
-    let loaded_plugins = Python::get_type_bound::<Plugin>(py)
+    let loaded_plugins = py
+        .get_type_bound::<Plugin>()
         .getattr(intern!(py, "_loaded_plugins"))?
         .extract::<&PyDict>()?;
     if !loaded_plugins.contains(plugin)? {
@@ -1324,8 +1328,8 @@ fn late_init(module: &Bound<'_, PyModule>, py: Python<'_>) -> PyResult<()> {
 
     let database_cvar = main_engine.find_cvar("qlx_database");
     if database_cvar.is_some_and(|value| value.get_string().to_lowercase() == "redis") {
-        let redis_database_class = Python::get_type_bound::<Redis>(py);
-        Python::get_type_bound::<Plugin>(py)
+        let redis_database_class = py.get_type_bound::<Redis>();
+        py.get_type_bound::<Plugin>()
             .setattr(intern!(py, "database"), &redis_database_class)?;
     }
 
@@ -2059,8 +2063,10 @@ fn register_zmq_module(m: &Bound<'_, PyModule>) -> PyResult<()> {
 }
 
 fn register_plugin_module(m: &Bound<'_, PyModule>) -> PyResult<()> {
-    Python::get_type_bound::<Plugin>(m.py()).setattr(intern!(m.py(), "database"), m.py().None())?;
-    Python::get_type_bound::<Plugin>(m.py()).setattr(
+    m.py()
+        .get_type_bound::<Plugin>()
+        .setattr(intern!(m.py(), "database"), m.py().None())?;
+    m.py().get_type_bound::<Plugin>().setattr(
         intern!(m.py(), "_loaded_plugins"),
         PyDict::new_bound(m.py()),
     )?;
@@ -2075,9 +2081,11 @@ fn register_database_submodule(m: &Bound<'_, PyModule>) -> PyResult<()> {
     database_module.add_class::<AbstractDatabase>()?;
     #[cfg(feature = "rust-redis")]
     {
-        let redis_type = Python::get_type_bound::<Redis>(m.py());
+        let redis_type = m.py().get_type_bound::<Redis>();
         let key_type_function = redis_type.getattr("key_type")?;
-        Python::get_type_bound::<Redis>(m.py()).setattr("type", key_type_function)?;
+        m.py()
+            .get_type_bound::<Redis>()
+            .setattr("type", key_type_function)?;
     }
     database_module.add_class::<Redis>()?;
     m.add_submodule(&database_module)?;
