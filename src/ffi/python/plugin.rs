@@ -18,6 +18,7 @@ use crate::{
 };
 
 use pyo3::prelude::*;
+use pyo3::types::PyBool;
 use pyo3::{
     exceptions::{PyEnvironmentError, PyRuntimeError, PyValueError},
     gc::PyVisit,
@@ -437,15 +438,14 @@ impl Plugin {
     #[classmethod]
     #[pyo3(signature = (name, value, flags = 0), text_signature = "(name, value, flags = 0)")]
     fn set_cvar(
-        _cls: &Bound<'_, PyType>,
-        py: Python<'_>,
+        cls: &Bound<'_, PyType>,
         name: &str,
         value: PyObject,
         flags: i32,
     ) -> PyResult<bool> {
-        let value_str = value.bind(py).str()?.to_string();
+        let value_str = value.bind(cls.py()).str()?.to_string();
 
-        py.allow_threads(|| {
+        cls.py().allow_threads(|| {
             let Some(ref main_engine) = *MAIN_ENGINE.load() else {
                 return Err(PyEnvironmentError::new_err("could not get main_engine"));
             };
@@ -467,19 +467,18 @@ impl Plugin {
     #[classmethod]
     #[pyo3(signature = (name, value, minimum, maximum, flags = 0), text_signature = "(name, value, minimum, maximum, flags = 0)")]
     fn set_cvar_limit(
-        _cls: &Bound<'_, PyType>,
-        py: Python<'_>,
+        cls: &Bound<'_, PyType>,
         name: &str,
         value: PyObject,
         minimum: PyObject,
         maximum: PyObject,
         flags: i32,
     ) -> PyResult<bool> {
-        let value_str = value.bind(py).str()?.to_string();
-        let minimum_str = minimum.bind(py).str()?.to_string();
-        let maximum_str = maximum.bind(py).str()?.to_string();
+        let value_str = value.bind(cls.py()).str()?.to_string();
+        let minimum_str = minimum.bind(cls.py()).str()?.to_string();
+        let maximum_str = maximum.bind(cls.py()).str()?.to_string();
 
-        py.allow_threads(|| {
+        cls.py().allow_threads(|| {
             let Some(ref main_engine) = *MAIN_ENGINE.load() else {
                 return Err(PyEnvironmentError::new_err("could not get main_engine"));
             };
@@ -501,15 +500,14 @@ impl Plugin {
     #[classmethod]
     #[pyo3(signature = (name, value, flags = 0), text_signature = "(name, value, flags = 0)")]
     fn set_cvar_once(
-        _cls: &Bound<'_, PyType>,
-        py: Python<'_>,
+        cls: &Bound<'_, PyType>,
         name: &str,
         value: PyObject,
         flags: i32,
     ) -> PyResult<bool> {
-        let value_str = value.bind(py).str()?.to_string();
+        let value_str = value.bind(cls.py()).str()?.to_string();
 
-        py.allow_threads(|| {
+        cls.py().allow_threads(|| {
             let Some(ref main_engine) = *MAIN_ENGINE.load() else {
                 return Err(PyEnvironmentError::new_err("could not get main_engine"));
             };
@@ -526,19 +524,18 @@ impl Plugin {
     #[classmethod]
     #[pyo3(signature = (name, value, minimum, maximum, flags = 0), text_signature = "(name, value, minimum, maximum, flags = 0)")]
     fn set_cvar_limit_once(
-        _cls: &Bound<'_, PyType>,
-        py: Python<'_>,
+        cls: &Bound<'_, PyType>,
         name: &str,
         value: PyObject,
         minimum: PyObject,
         maximum: PyObject,
         flags: i32,
     ) -> PyResult<bool> {
-        let value_str = value.bind(py).str()?.to_string();
-        let minimum_str = minimum.bind(py).str()?.to_string();
-        let maximum_str = maximum.bind(py).str()?.to_string();
+        let value_str = value.bind(cls.py()).str()?.to_string();
+        let minimum_str = minimum.bind(cls.py()).str()?.to_string();
+        let maximum_str = maximum.bind(cls.py()).str()?.to_string();
 
-        py.allow_threads(|| {
+        cls.py().allow_threads(|| {
             let Some(ref main_engine) = *MAIN_ENGINE.load() else {
                 return Err(PyEnvironmentError::new_err("could not get main_engine"));
             };
@@ -560,8 +557,8 @@ impl Plugin {
 
     /// Get a list of all the players on the server.
     #[classmethod]
-    fn players(_cls: &Bound<'_, PyType>, py: Python<'_>) -> PyResult<Vec<Player>> {
-        Player::all_players(&py.get_type_bound::<Player>(), py)
+    fn players(cls: &Bound<'_, PyType>) -> PyResult<Vec<Player>> {
+        Player::all_players(&cls.py().get_type_bound::<Player>(), cls.py())
     }
 
     /// Get a Player instance from the name, client ID,
@@ -571,28 +568,27 @@ impl Plugin {
     #[pyo3(signature = (name, player_list = None), text_signature = "(name, player_list = None)")]
     fn player(
         cls: &Bound<'_, PyType>,
-        py: Python<'_>,
         name: PyObject,
         player_list: Option<Vec<Player>>,
     ) -> PyResult<Option<Player>> {
-        if let Ok(player) = name.extract::<Player>(py) {
+        if let Ok(player) = name.extract::<Player>(cls.py()) {
             return Ok(Some(player));
         }
 
-        if let Ok(player_id) = name.extract::<i32>(py) {
+        if let Ok(player_id) = name.extract::<i32>(cls.py()) {
             if (0..64).contains(&player_id) {
                 return Player::py_new(player_id, None).map(Some);
             }
         }
 
-        let players = player_list.unwrap_or_else(|| Self::players(cls, py).unwrap_or_default());
-        if let Ok(player_steam_id) = name.extract::<i64>(py) {
+        let players = player_list.unwrap_or_else(|| Self::players(cls).unwrap_or_default());
+        if let Ok(player_steam_id) = name.extract::<i64>(cls.py()) {
             return Ok(players
                 .into_iter()
                 .find(|player| player.steam_id == player_steam_id));
         }
 
-        let Some(client_id) = client_id(py, name, Some(players.clone())) else {
+        let Some(client_id) = client_id(cls.py(), name, Some(players.clone())) else {
             return Ok(None);
         };
         Ok(players.into_iter().find(|player| player.id == client_id))
@@ -603,8 +599,7 @@ impl Plugin {
     #[pyo3(signature = (msg, chat_channel = None, **kwargs),
     text_signature = "(msg, chat_channel = \"chat\", **kwargs)")]
     fn msg(
-        _cls: &Bound<'_, PyType>,
-        py: Python<'_>,
+        cls: &Bound<'_, PyType>,
         msg: &str,
         chat_channel: Option<PyObject>,
         kwargs: Option<&Bound<'_, PyDict>>,
@@ -629,19 +624,19 @@ impl Plugin {
         match chat_channel {
             None => {
                 if let Some(ref main_chat_channel) = *CHAT_CHANNEL.load() {
-                    let main_channel = main_chat_channel.borrow(py).into_super();
-                    ChatChannel::reply(main_channel, py, msg, limit, &delimiter)?;
+                    let main_channel = main_chat_channel.borrow(cls.py()).into_super();
+                    ChatChannel::reply(main_channel, cls.py(), msg, limit, &delimiter)?;
                 }
                 return Ok(());
             }
             Some(channel) => {
-                let bound_channel = channel.bind(py);
+                let bound_channel = channel.bind(cls.py());
                 if bound_channel
                     .get_type()
-                    .is_subclass(&py.get_type_bound::<AbstractChannel>().get_type())
+                    .is_subclass(&cls.py().get_type_bound::<AbstractChannel>().get_type())
                     .unwrap_or(false)
                 {
-                    bound_channel.call_method(intern!(py, "reply"), (msg,), kwargs)?;
+                    bound_channel.call_method(intern!(cls.py(), "reply"), (msg,), kwargs)?;
                     return Ok(());
                 }
 
@@ -651,19 +646,19 @@ impl Plugin {
                     &BLUE_TEAM_CHAT_CHANNEL,
                 ] {
                     if let Some(ref main_chat_channel) = *global_channel.load() {
-                        if main_chat_channel.bind(py).eq(bound_channel)? {
-                            let main_channel = main_chat_channel.borrow(py).into_super();
-                            ChatChannel::reply(main_channel, py, msg, limit, &delimiter)?;
+                        if main_chat_channel.bind(cls.py()).eq(bound_channel)? {
+                            let main_channel = main_chat_channel.borrow(cls.py()).into_super();
+                            ChatChannel::reply(main_channel, cls.py(), msg, limit, &delimiter)?;
                             return Ok(());
                         }
                     }
                 }
 
                 if let Some(ref main_console_channel) = *CONSOLE_CHANNEL.load() {
-                    if main_console_channel.bind(py).eq(bound_channel)? {
+                    if main_console_channel.bind(cls.py()).eq(bound_channel)? {
                         ConsoleChannel::reply(
                             main_console_channel.get(),
-                            py,
+                            cls.py(),
                             msg,
                             limit,
                             &delimiter,
@@ -678,10 +673,10 @@ impl Plugin {
 
     /// Prints text in the console.
     #[classmethod]
-    fn console(_cls: &Bound<'_, PyType>, py: Python<'_>, text: PyObject) -> PyResult<()> {
-        let extracted_text = text.bind(py).str()?.to_string();
+    fn console(cls: &Bound<'_, PyType>, text: PyObject) -> PyResult<()> {
+        let extracted_text = text.bind(cls.py()).str()?.to_string();
         let printed_text = format!("{extracted_text}\n");
-        py.allow_threads(|| {
+        cls.py().allow_threads(|| {
             shinqlx_com_printf(&printed_text);
             Ok(())
         })
@@ -689,8 +684,8 @@ impl Plugin {
 
     /// Removes color tags from text.
     #[classmethod]
-    fn clean_text(_cls: &Bound<'_, PyType>, py: Python<'_>, text: &str) -> String {
-        py.allow_threads(|| clean_text(&text))
+    fn clean_text(cls: &Bound<'_, PyType>, text: &str) -> String {
+        cls.py().allow_threads(|| clean_text(&text))
     }
 
     /// Get the colored name of a decolored name.
@@ -698,24 +693,23 @@ impl Plugin {
     #[pyo3(signature = (name, player_list = None), text_signature = "(name, player_list = None)")]
     fn colored_name(
         cls: &Bound<'_, PyType>,
-        py: Python<'_>,
         name: PyObject,
         player_list: Option<Vec<Player>>,
     ) -> Option<String> {
-        if let Ok(player) = name.extract::<Player>(py) {
+        if let Ok(player) = name.extract::<Player>(cls.py()) {
             return Some(player.name.clone());
         }
 
-        let Ok(searched_name) = name.bind(py).extract::<String>() else {
+        let Ok(searched_name) = name.bind(cls.py()).extract::<String>() else {
             return None;
         };
 
-        let players = player_list.unwrap_or_else(|| Self::players(cls, py).unwrap_or_default());
+        let players = player_list.unwrap_or_else(|| Self::players(cls).unwrap_or_default());
         let clean_name = clean_text(&searched_name).to_lowercase();
 
         players
             .iter()
-            .find(|&player| player.get_clean_name(py).to_lowercase() == clean_name)
+            .find(|&player| player.get_clean_name(cls.py()).to_lowercase() == clean_name)
             .map(|found_player| found_player.name.clone())
     }
 
@@ -725,12 +719,11 @@ impl Plugin {
     #[classmethod]
     #[pyo3(signature = (name, player_list = None), text_signature = "(name, player_list = None)")]
     fn client_id(
-        _cls: &Bound<'_, PyType>,
-        py: Python<'_>,
+        cls: &Bound<'_, PyType>,
         name: PyObject,
         player_list: Option<Vec<Player>>,
     ) -> Option<i32> {
-        client_id(py, name, player_list)
+        client_id(cls.py(), name, player_list)
     }
 
     /// Find a player based on part of a players name.
@@ -738,25 +731,26 @@ impl Plugin {
     #[pyo3(signature = (name, player_list = None), text_signature = "(name, player_list = None)")]
     fn find_player(
         cls: &Bound<'_, PyType>,
-        py: Python<'_>,
         name: &str,
         player_list: Option<Vec<Player>>,
     ) -> Vec<Player> {
-        let players = player_list.unwrap_or_else(|| Self::players(cls, py).unwrap_or_default());
+        let players = player_list.unwrap_or_else(|| Self::players(cls).unwrap_or_default());
 
-        if name.is_empty() {
-            return players;
-        }
+        cls.py().allow_threads(|| {
+            if name.is_empty() {
+                return players;
+            }
 
-        let cleaned_text = clean_text(&name).to_lowercase();
-        players
-            .into_iter()
-            .filter(|player| {
-                clean_text(&player.name)
-                    .to_lowercase()
-                    .contains(&cleaned_text)
-            })
-            .collect()
+            let cleaned_text = clean_text(&name).to_lowercase();
+            players
+                .into_iter()
+                .filter(|player| {
+                    clean_text(&player.name)
+                        .to_lowercase()
+                        .contains(&cleaned_text)
+                })
+                .collect()
+        })
     }
 
     /// Get a dictionary with the teams as keys and players as values.
@@ -764,44 +758,47 @@ impl Plugin {
     #[pyo3(signature = (player_list = None), text_signature = "(player_list = None)")]
     fn teams<'py>(
         cls: &Bound<'py, PyType>,
-        py: Python<'py>,
         player_list: Option<Vec<Player>>,
     ) -> PyResult<Bound<'py, PyDict>> {
-        let players = player_list.unwrap_or_else(|| Self::players(cls, py).unwrap_or_default());
+        let players = player_list.unwrap_or_else(|| Self::players(cls).unwrap_or_default());
 
-        let result = PyDict::new_bound(py);
+        let result = PyDict::new_bound(cls.py());
 
         let filtered_frees: Vec<PyObject> = players
             .clone()
             .into_iter()
-            .filter(|player| player.get_team(py).is_ok_and(|team| team == "free"))
-            .map(|player| player.into_py(py))
+            .filter(|player| player.get_team(cls.py()).is_ok_and(|team| team == "free"))
+            .map(|player| player.into_py(cls.py()))
             .collect();
-        result.set_item(intern!(py, "free"), filtered_frees)?;
+        result.set_item(intern!(cls.py(), "free"), filtered_frees)?;
 
         let filtered_reds: Vec<PyObject> = players
             .clone()
             .into_iter()
-            .filter(|player| player.get_team(py).is_ok_and(|team| team == "red"))
-            .map(|player| player.into_py(py))
+            .filter(|player| player.get_team(cls.py()).is_ok_and(|team| team == "red"))
+            .map(|player| player.into_py(cls.py()))
             .collect();
-        result.set_item(intern!(py, "red"), filtered_reds)?;
+        result.set_item(intern!(cls.py(), "red"), filtered_reds)?;
 
         let filtered_blues: Vec<PyObject> = players
             .clone()
             .into_iter()
-            .filter(|player| player.get_team(py).is_ok_and(|team| team == "blue"))
-            .map(|player| player.into_py(py))
+            .filter(|player| player.get_team(cls.py()).is_ok_and(|team| team == "blue"))
+            .map(|player| player.into_py(cls.py()))
             .collect();
-        result.set_item(intern!(py, "blue"), filtered_blues)?;
+        result.set_item(intern!(cls.py(), "blue"), filtered_blues)?;
 
         let filtered_specs: Vec<PyObject> = players
             .clone()
             .into_iter()
-            .filter(|player| player.get_team(py).is_ok_and(|team| team == "spectator"))
-            .map(|player| player.into_py(py))
+            .filter(|player| {
+                player
+                    .get_team(cls.py())
+                    .is_ok_and(|team| team == "spectator")
+            })
+            .map(|player| player.into_py(cls.py()))
             .collect();
-        result.set_item(intern!(py, "spectator"), filtered_specs)?;
+        result.set_item(intern!(cls.py(), "spectator"), filtered_specs)?;
 
         Ok(result)
     }
@@ -809,15 +806,14 @@ impl Plugin {
     #[classmethod]
     #[pyo3(signature = (msg, recipient = None), text_signature = "(msg, recipient = None)")]
     fn center_print(
-        _cls: &Bound<'_, PyType>,
-        py: Python<'_>,
+        cls: &Bound<'_, PyType>,
         msg: &str,
         recipient: Option<PyObject>,
     ) -> PyResult<()> {
-        let client_id = recipient.and_then(|recipient| client_id(py, recipient, None));
+        let client_id = recipient.and_then(|recipient| client_id(cls.py(), recipient, None));
 
         let center_printed_cmd = format!(r#"cp "{msg}""#);
-        pyshinqlx_send_server_command(py, client_id, &center_printed_cmd)?;
+        pyshinqlx_send_server_command(cls.py(), client_id, &center_printed_cmd)?;
 
         Ok(())
     }
@@ -826,27 +822,26 @@ impl Plugin {
     #[classmethod]
     #[pyo3(signature = (msg, recipient, **kwargs))]
     fn tell(
-        _cls: &Bound<'_, PyType>,
-        py: Python<'_>,
+        cls: &Bound<'_, PyType>,
         msg: &str,
         recipient: PyObject,
         kwargs: Option<&Bound<'_, PyDict>>,
     ) -> PyResult<()> {
-        let Some(recipient_client_id) = client_id(py, recipient, None) else {
+        let Some(recipient_client_id) = client_id(cls.py(), recipient, None) else {
             return Err(PyValueError::new_err("could not find recipient"));
         };
         let recipient_player = Player::py_new(recipient_client_id, None)?;
         let tell_channel = TellChannel::py_new(&recipient_player);
 
-        let tell_channel_py = Py::new(py, tell_channel)?;
-        tell_channel_py.call_method_bound(py, intern!(py, "reply"), (msg,), kwargs)?;
+        let tell_channel_py = Py::new(cls.py(), tell_channel)?;
+        tell_channel_py.call_method_bound(cls.py(), intern!(cls.py(), "reply"), (msg,), kwargs)?;
 
         Ok(())
     }
 
     #[classmethod]
-    fn is_vote_active(_cls: &Bound<'_, PyType>, py: Python<'_>) -> bool {
-        py.allow_threads(|| {
+    fn is_vote_active(cls: &Bound<'_, PyType>) -> bool {
+        cls.py().allow_threads(|| {
             let Some(ref main_engine) = *MAIN_ENGINE.load() else {
                 return false;
             };
@@ -857,16 +852,16 @@ impl Plugin {
     }
 
     #[classmethod]
-    fn current_vote_count(_cls: &Bound<'_, PyType>, py: Python<'_>) -> PyResult<PyObject> {
+    fn current_vote_count(cls: &Bound<'_, PyType>) -> PyResult<PyObject> {
         let Some(ref main_engine) = *MAIN_ENGINE.load() else {
-            return Ok(py.None());
+            return Ok(cls.py().None());
         };
 
         let yes_votes = main_engine.get_configstring(CS_VOTE_YES as u16);
         let no_votes = main_engine.get_configstring(CS_VOTE_NO as u16);
 
         if yes_votes.is_empty() || no_votes.is_empty() {
-            return Ok(py.None());
+            return Ok(cls.py().None());
         }
 
         let Ok(parsed_yes_votes) = yes_votes.parse::<i32>() else {
@@ -879,21 +874,15 @@ impl Plugin {
         };
 
         if yes_votes.is_empty() || no_votes.is_empty() {
-            return Ok(py.None());
+            return Ok(cls.py().None());
         }
-        Ok((parsed_yes_votes, parsed_no_votes).into_py(py))
+        Ok((parsed_yes_votes, parsed_no_votes).into_py(cls.py()))
     }
 
     #[classmethod]
     #[pyo3(signature = (vote, display, time = 30), text_signature = "(vote, display, time = 30)")]
-    fn callvote(
-        cls: &Bound<'_, PyType>,
-        py: Python<'_>,
-        vote: &str,
-        display: &str,
-        time: i32,
-    ) -> PyResult<bool> {
-        if Self::is_vote_active(cls, py) {
+    fn callvote(cls: &Bound<'_, PyType>, vote: &str, display: &str, time: i32) -> PyResult<bool> {
+        if Self::is_vote_active(cls) {
             return Ok(false);
         }
 
@@ -903,8 +892,8 @@ impl Plugin {
                 .as_ref()
                 .and_then(|event_dispatchers| {
                     event_dispatchers
-                        .bind(py)
-                        .get_item(intern!(py, "vote_started"))
+                        .bind(cls.py())
+                        .get_item(intern!(cls.py(), "vote_started"))
                         .ok()
                 })
         else {
@@ -912,36 +901,30 @@ impl Plugin {
                 "could not get access to console print dispatcher",
             ));
         };
-        vote_started_dispatcher.call_method1(intern!(py, "caller"), (py.None(),))?;
+        vote_started_dispatcher.call_method1(intern!(cls.py(), "caller"), (cls.py().None(),))?;
 
-        pyshinqlx_callvote(py, vote, display, Some(time));
+        pyshinqlx_callvote(cls.py(), vote, display, Some(time));
 
         Ok(true)
     }
 
     #[classmethod]
-    fn force_vote(_cls: &Bound<'_, PyType>, py: Python<'_>, pass_it: PyObject) -> PyResult<bool> {
+    fn force_vote(cls: &Bound<'_, PyType>, pass_it: PyObject) -> PyResult<bool> {
         pass_it
-            .bind(py)
-            .is_truthy()
+            .downcast_bound::<PyBool>(cls.py())
             .map_err(|_| PyValueError::new_err("pass_it must be either True or False."))
-            .and_then(|vote_passed| pyshinqlx_force_vote(py, vote_passed))
+            .and_then(|vote_passed| pyshinqlx_force_vote(cls.py(), vote_passed.is_true()))
     }
 
     #[classmethod]
-    fn teamsize(_cls: &Bound<'_, PyType>, py: Python<'_>, size: i32) -> PyResult<()> {
-        set_teamsize(py, size)
+    fn teamsize(cls: &Bound<'_, PyType>, size: i32) -> PyResult<()> {
+        set_teamsize(cls.py(), size)
     }
 
     #[classmethod]
     #[pyo3(signature = (player, reason = ""), text_signature = "(player, reason = \"\")")]
-    fn kick(
-        _cls: &Bound<'_, PyType>,
-        py: Python<'_>,
-        player: PyObject,
-        reason: &str,
-    ) -> PyResult<()> {
-        let Some(client_id) = client_id(py, player, None) else {
+    fn kick(cls: &Bound<'_, PyType>, player: PyObject, reason: &str) -> PyResult<()> {
+        let Some(client_id) = client_id(cls.py(), player, None) else {
             return Err(PyValueError::new_err("Invalid player."));
         };
 
@@ -951,14 +934,14 @@ impl Plugin {
             Some(reason)
         };
 
-        pyshinqlx_kick(py, client_id, forwarded_reason)?;
+        pyshinqlx_kick(cls.py(), client_id, forwarded_reason)?;
 
         Ok(())
     }
 
     #[classmethod]
-    fn shuffle(_cls: &Bound<'_, PyType>, py: Python<'_>) -> PyResult<()> {
-        pyshinqlx_console_command(py, "forceshuffle")
+    fn shuffle(cls: &Bound<'_, PyType>) -> PyResult<()> {
+        pyshinqlx_console_command(cls.py(), "forceshuffle")
     }
 
     #[classmethod]
@@ -966,42 +949,32 @@ impl Plugin {
 
     #[classmethod]
     #[pyo3(signature = (new_map, factory = None), text_signature = "(new_map, factory = None)")]
-    fn change_map(
-        _cls: &Bound<'_, PyType>,
-        py: Python,
-        new_map: &str,
-        factory: Option<&str>,
-    ) -> PyResult<()> {
+    fn change_map(cls: &Bound<'_, PyType>, new_map: &str, factory: Option<&str>) -> PyResult<()> {
         let mapchange_command = match factory {
             None => format!("map {}", new_map),
             Some(game_factory) => format!("map {} {}", new_map, game_factory),
         };
-        pyshinqlx_console_command(py, &mapchange_command)
+        pyshinqlx_console_command(cls.py(), &mapchange_command)
     }
 
     #[classmethod]
-    fn switch(
-        cls: &Bound<'_, PyType>,
-        py: Python<'_>,
-        player: PyObject,
-        other_player: PyObject,
-    ) -> PyResult<()> {
-        let Some(player1) = Self::player(cls, py, player, None)? else {
+    fn switch(cls: &Bound<'_, PyType>, player: PyObject, other_player: PyObject) -> PyResult<()> {
+        let Some(player1) = Self::player(cls, player, None)? else {
             return Err(PyValueError::new_err("The first player is invalid."));
         };
-        let Some(player2) = Self::player(cls, py, other_player, None)? else {
+        let Some(player2) = Self::player(cls, other_player, None)? else {
             return Err(PyValueError::new_err("The second player is invalid."));
         };
 
-        let team1 = player1.get_team(py)?;
-        let team2 = player2.get_team(py)?;
+        let team1 = player1.get_team(cls.py())?;
+        let team2 = player2.get_team(cls.py())?;
 
         if team1 == team2 {
             return Err(PyValueError::new_err("Both player are on the same team."));
         }
 
-        player1.put(py, &team2)?;
-        player2.put(py, &team1)?;
+        player1.put(cls.py(), &team2)?;
+        player2.put(cls.py(), &team1)?;
 
         Ok(())
     }
@@ -1009,8 +982,7 @@ impl Plugin {
     #[classmethod]
     #[pyo3(signature = (sound_path, player = None), text_signature = "(sound_path, player = None)")]
     fn play_sound(
-        _cls: &Bound<'_, PyType>,
-        py: Python<'_>,
+        cls: &Bound<'_, PyType>,
         sound_path: &str,
         player: Option<Player>,
     ) -> PyResult<bool> {
@@ -1019,7 +991,7 @@ impl Plugin {
         }
 
         let play_sound_cmd = format!("playSound {sound_path}");
-        pyshinqlx_send_server_command(py, player.map(|player| player.id), &play_sound_cmd)?;
+        pyshinqlx_send_server_command(cls.py(), player.map(|player| player.id), &play_sound_cmd)?;
 
         Ok(true)
     }
@@ -1027,8 +999,7 @@ impl Plugin {
     #[classmethod]
     #[pyo3(signature = (music_path, player = None), text_signature = "(music_path, player = None)")]
     fn play_music(
-        _cls: &Bound<'_, PyType>,
-        py: Python<'_>,
+        cls: &Bound<'_, PyType>,
         music_path: &str,
         player: Option<Player>,
     ) -> PyResult<bool> {
@@ -1037,181 +1008,158 @@ impl Plugin {
         }
 
         let play_music_cmd = format!("playMusic {music_path}");
-        pyshinqlx_send_server_command(py, player.map(|player| player.id), &play_music_cmd)?;
+        pyshinqlx_send_server_command(cls.py(), player.map(|player| player.id), &play_music_cmd)?;
 
         Ok(true)
     }
 
     #[classmethod]
     #[pyo3(signature = (player = None), text_signature = "(player = None)")]
-    fn stop_sound(
-        _cls: &Bound<'_, PyType>,
-        py: Python<'_>,
-        player: Option<Player>,
-    ) -> PyResult<()> {
-        pyshinqlx_send_server_command(py, player.map(|player| player.id), "clearSounds")?;
+    fn stop_sound(cls: &Bound<'_, PyType>, player: Option<Player>) -> PyResult<()> {
+        pyshinqlx_send_server_command(cls.py(), player.map(|player| player.id), "clearSounds")?;
 
         Ok(())
     }
 
     #[classmethod]
     #[pyo3(signature = (player = None), text_signature = "(player = None)")]
-    fn stop_music(
-        _cls: &Bound<'_, PyType>,
-        py: Python<'_>,
-        player: Option<Player>,
-    ) -> PyResult<()> {
-        pyshinqlx_send_server_command(py, player.map(|player| player.id), "stopMusic")?;
+    fn stop_music(cls: &Bound<'_, PyType>, player: Option<Player>) -> PyResult<()> {
+        pyshinqlx_send_server_command(cls.py(), player.map(|player| player.id), "stopMusic")?;
 
         Ok(())
     }
 
     #[classmethod]
     #[pyo3(signature = (player, damage = 0), text_signature = "(player, damage = 0)")]
-    fn slap(
-        _cls: &Bound<'_, PyType>,
-        py: Python<'_>,
-        player: PyObject,
-        damage: i32,
-    ) -> PyResult<()> {
-        let Some(client_id) = client_id(py, player, None) else {
+    fn slap(cls: &Bound<'_, PyType>, player: PyObject, damage: i32) -> PyResult<()> {
+        let Some(client_id) = client_id(cls.py(), player, None) else {
             return Err(PyValueError::new_err("Invalid player."));
         };
 
         let slap_cmd = format!("slap {client_id} {damage}");
-        pyshinqlx_console_command(py, &slap_cmd)?;
+        pyshinqlx_console_command(cls.py(), &slap_cmd)?;
 
         Ok(())
     }
 
     #[classmethod]
-    fn slay(_cls: &Bound<'_, PyType>, py: Python<'_>, player: PyObject) -> PyResult<()> {
-        let Some(client_id) = client_id(py, player, None) else {
+    fn slay(cls: &Bound<'_, PyType>, player: PyObject) -> PyResult<()> {
+        let Some(client_id) = client_id(cls.py(), player, None) else {
             return Err(PyValueError::new_err("Invalid player."));
         };
 
         let slay_cmd = format!("slay {client_id}");
-        pyshinqlx_console_command(py, &slay_cmd)?;
+        pyshinqlx_console_command(cls.py(), &slay_cmd)?;
 
         Ok(())
     }
 
     #[classmethod]
-    fn timeout(_cls: &Bound<'_, PyType>, py: Python<'_>) -> PyResult<()> {
-        pyshinqlx_console_command(py, "timeout")
+    fn timeout(cls: &Bound<'_, PyType>) -> PyResult<()> {
+        pyshinqlx_console_command(cls.py(), "timeout")
     }
 
     #[classmethod]
-    fn timein(_cls: &Bound<'_, PyType>, py: Python<'_>) -> PyResult<()> {
-        pyshinqlx_console_command(py, "timein")
+    fn timein(cls: &Bound<'_, PyType>) -> PyResult<()> {
+        pyshinqlx_console_command(cls.py(), "timein")
     }
 
     #[classmethod]
-    fn allready(_cls: &Bound<'_, PyType>, py: Python<'_>) -> PyResult<()> {
-        pyshinqlx_console_command(py, "allready")
+    fn allready(cls: &Bound<'_, PyType>) -> PyResult<()> {
+        pyshinqlx_console_command(cls.py(), "allready")
     }
 
     #[classmethod]
-    fn pause(_cls: &Bound<'_, PyType>, py: Python<'_>) -> PyResult<()> {
-        pyshinqlx_console_command(py, "pause")
+    fn pause(cls: &Bound<'_, PyType>) -> PyResult<()> {
+        pyshinqlx_console_command(cls.py(), "pause")
     }
 
     #[classmethod]
-    fn unpause(_cls: &Bound<'_, PyType>, py: Python<'_>) -> PyResult<()> {
-        pyshinqlx_console_command(py, "unpause")
-    }
-
-    #[classmethod]
-    #[pyo3(signature = (team = None), text_signature = "(team = None)")]
-    fn lock(_cls: &Bound<'_, PyType>, py: Python<'_>, team: Option<&str>) -> PyResult<()> {
-        lock(py, team)
+    fn unpause(cls: &Bound<'_, PyType>) -> PyResult<()> {
+        pyshinqlx_console_command(cls.py(), "unpause")
     }
 
     #[classmethod]
     #[pyo3(signature = (team = None), text_signature = "(team = None)")]
-    fn unlock(_cls: &Bound<'_, PyType>, py: Python<'_>, team: Option<&str>) -> PyResult<()> {
-        unlock(py, team)
+    fn lock(cls: &Bound<'_, PyType>, team: Option<&str>) -> PyResult<()> {
+        lock(cls.py(), team)
     }
 
     #[classmethod]
-    fn put(_cls: &Bound<'_, PyType>, py: Python, player: PyObject, team: &str) -> PyResult<()> {
-        put(py, player, team)
+    #[pyo3(signature = (team = None), text_signature = "(team = None)")]
+    fn unlock(cls: &Bound<'_, PyType>, team: Option<&str>) -> PyResult<()> {
+        unlock(cls.py(), team)
     }
 
     #[classmethod]
-    fn mute(_cls: &Bound<'_, PyType>, py: Python<'_>, player: PyObject) -> PyResult<()> {
-        mute(py, player)
+    fn put(cls: &Bound<'_, PyType>, player: PyObject, team: &str) -> PyResult<()> {
+        put(cls.py(), player, team)
     }
 
     #[classmethod]
-    fn unmute(_cls: &Bound<'_, PyType>, py: Python<'_>, player: PyObject) -> PyResult<()> {
-        unmute(py, player)
+    fn mute(cls: &Bound<'_, PyType>, player: PyObject) -> PyResult<()> {
+        mute(cls.py(), player)
     }
 
     #[classmethod]
-    fn tempban(_cls: &Bound<'_, PyType>, py: Python<'_>, player: PyObject) -> PyResult<()> {
-        tempban(py, player)
+    fn unmute(cls: &Bound<'_, PyType>, player: PyObject) -> PyResult<()> {
+        unmute(cls.py(), player)
     }
 
     #[classmethod]
-    fn ban(_cls: &Bound<'_, PyType>, py: Python<'_>, player: PyObject) -> PyResult<()> {
-        ban(py, player)
+    fn tempban(cls: &Bound<'_, PyType>, player: PyObject) -> PyResult<()> {
+        tempban(cls.py(), player)
     }
 
     #[classmethod]
-    fn unban(_cls: &Bound<'_, PyType>, py: Python<'_>, player: PyObject) -> PyResult<()> {
-        unban(py, player)
+    fn ban(cls: &Bound<'_, PyType>, player: PyObject) -> PyResult<()> {
+        ban(cls.py(), player)
     }
 
     #[classmethod]
-    fn opsay(_cls: &Bound<'_, PyType>, py: Python<'_>, msg: &str) -> PyResult<()> {
-        opsay(py, msg)
+    fn unban(cls: &Bound<'_, PyType>, player: PyObject) -> PyResult<()> {
+        unban(cls.py(), player)
     }
 
     #[classmethod]
-    fn addadmin(_cls: &Bound<'_, PyType>, py: Python<'_>, player: PyObject) -> PyResult<()> {
-        addadmin(py, player)
+    fn opsay(cls: &Bound<'_, PyType>, msg: &str) -> PyResult<()> {
+        opsay(cls.py(), msg)
     }
 
     #[classmethod]
-    fn addmod(_cls: &Bound<'_, PyType>, py: Python<'_>, player: PyObject) -> PyResult<()> {
-        addmod(py, player)
+    fn addadmin(cls: &Bound<'_, PyType>, player: PyObject) -> PyResult<()> {
+        addadmin(cls.py(), player)
     }
 
     #[classmethod]
-    fn demote(_cls: &Bound<'_, PyType>, py: Python<'_>, player: PyObject) -> PyResult<()> {
-        demote(py, player)
+    fn addmod(cls: &Bound<'_, PyType>, player: PyObject) -> PyResult<()> {
+        addmod(cls.py(), player)
     }
 
     #[classmethod]
-    fn abort(_cls: &Bound<'_, PyType>, py: Python<'_>) -> PyResult<()> {
-        pyshinqlx_console_command(py, "map_restart")
+    fn demote(cls: &Bound<'_, PyType>, player: PyObject) -> PyResult<()> {
+        demote(cls.py(), player)
     }
 
     #[classmethod]
-    fn addscore(
-        _cls: &Bound<'_, PyType>,
-        py: Python<'_>,
-        player: PyObject,
-        score: i32,
-    ) -> PyResult<()> {
-        addscore(py, player, score)
+    fn abort(cls: &Bound<'_, PyType>) -> PyResult<()> {
+        pyshinqlx_console_command(cls.py(), "map_restart")
     }
 
     #[classmethod]
-    fn addteamscore(
-        _cls: &Bound<'_, PyType>,
-        py: Python<'_>,
-        team: &str,
-        score: i32,
-    ) -> PyResult<()> {
-        addteamscore(py, team, score)
+    fn addscore(cls: &Bound<'_, PyType>, player: PyObject, score: i32) -> PyResult<()> {
+        addscore(cls.py(), player, score)
     }
 
     #[classmethod]
-    fn setmatchtime(_cls: &Bound<'_, PyType>, py: Python<'_>, time: i32) -> PyResult<()> {
+    fn addteamscore(cls: &Bound<'_, PyType>, team: &str, score: i32) -> PyResult<()> {
+        addteamscore(cls.py(), team, score)
+    }
+
+    #[classmethod]
+    fn setmatchtime(cls: &Bound<'_, PyType>, time: i32) -> PyResult<()> {
         let setmatchtime_cmd = format!("setmatchtime {}", time);
-        pyshinqlx_console_command(py, &setmatchtime_cmd)
+        pyshinqlx_console_command(cls.py(), &setmatchtime_cmd)
     }
 }
 
@@ -2067,7 +2015,6 @@ class subplugin(Plugin):
         Python::with_gil(|py| {
             let result = Plugin::set_cvar(
                 &py.get_type_bound::<Plugin>(),
-                py,
                 "sv_maxclients",
                 "64".into_py(py),
                 0,
@@ -2099,7 +2046,6 @@ class subplugin(Plugin):
         let result = Python::with_gil(|py| {
             Plugin::set_cvar(
                 &py.get_type_bound::<Plugin>(),
-                py,
                 "sv_maxclients",
                 "64".into_py(py),
                 cvar_flags::CVAR_ROM as i32,
@@ -2132,7 +2078,6 @@ class subplugin(Plugin):
         let result = Python::with_gil(|py| {
             Plugin::set_cvar(
                 &py.get_type_bound::<Plugin>(),
-                py,
                 "sv_maxclients",
                 "64".into_py(py),
                 cvar_flags::CVAR_ROM as i32,
@@ -2149,7 +2094,6 @@ class subplugin(Plugin):
         Python::with_gil(|py| {
             let result = Plugin::set_cvar_limit(
                 &py.get_type_bound::<Plugin>(),
-                py,
                 "sv_maxclients",
                 64i32.into_py(py),
                 1i32.into_py(py),
@@ -2184,7 +2128,6 @@ class subplugin(Plugin):
         let result = Python::with_gil(|py| {
             Plugin::set_cvar_limit(
                 &py.get_type_bound::<Plugin>(),
-                py,
                 "sv_maxclients",
                 64i32.into_py(py),
                 1i32.into_py(py),
@@ -2203,7 +2146,6 @@ class subplugin(Plugin):
         Python::with_gil(|py| {
             let result = Plugin::set_cvar_once(
                 &py.get_type_bound::<Plugin>(),
-                py,
                 "sv_maxclients",
                 "64".into_py(py),
                 0,
@@ -2235,7 +2177,6 @@ class subplugin(Plugin):
         let result = Python::with_gil(|py| {
             Plugin::set_cvar_once(
                 &py.get_type_bound::<Plugin>(),
-                py,
                 "sv_maxclients",
                 64i32.into_py(py),
                 cvar_flags::CVAR_ROM as i32,
@@ -2264,7 +2205,6 @@ class subplugin(Plugin):
         let result = Python::with_gil(|py| {
             Plugin::set_cvar_once(
                 &py.get_type_bound::<Plugin>(),
-                py,
                 "sv_maxclients",
                 "64".into_py(py),
                 cvar_flags::CVAR_ROM as i32,
@@ -2282,7 +2222,6 @@ class subplugin(Plugin):
         Python::with_gil(|py| {
             let result = Plugin::set_cvar_limit_once(
                 &py.get_type_bound::<Plugin>(),
-                py,
                 "sv_maxclients",
                 "64".into_py(py),
                 "1".into_py(py),
@@ -2317,7 +2256,6 @@ class subplugin(Plugin):
         let result = Python::with_gil(|py| {
             Plugin::set_cvar_limit_once(
                 &py.get_type_bound::<Plugin>(),
-                py,
                 "sv_maxclients",
                 "64".into_py(py),
                 "1".into_py(py),
@@ -2347,7 +2285,6 @@ class subplugin(Plugin):
         let result = Python::with_gil(|py| {
             Plugin::set_cvar_limit_once(
                 &py.get_type_bound::<Plugin>(),
-                py,
                 "sv_maxclients",
                 "64".into_py(py),
                 "1".into_py(py),
@@ -2429,8 +2366,7 @@ class subplugin(Plugin):
             mock_game_entity
         });
 
-        let all_players =
-            Python::with_gil(|py| Plugin::players(&py.get_type_bound::<Plugin>(), py));
+        let all_players = Python::with_gil(|py| Plugin::players(&py.get_type_bound::<Plugin>()));
         assert_eq!(
             all_players.expect("result was not ok"),
             vec![
@@ -2481,7 +2417,7 @@ class subplugin(Plugin):
             .times(1);
         MAIN_ENGINE.store(Some(mock_engine.into()));
 
-        let result = Python::with_gil(|py| Plugin::shuffle(&py.get_type_bound::<Plugin>(), py));
+        let result = Python::with_gil(|py| Plugin::shuffle(&py.get_type_bound::<Plugin>()));
         assert!(result.is_ok());
     }
 
@@ -2496,7 +2432,7 @@ class subplugin(Plugin):
             .times(1);
         MAIN_ENGINE.store(Some(mock_engine.into()));
 
-        let result = Python::with_gil(|py| Plugin::timeout(&py.get_type_bound::<Plugin>(), py));
+        let result = Python::with_gil(|py| Plugin::timeout(&py.get_type_bound::<Plugin>()));
         assert!(result.is_ok());
     }
 
@@ -2511,7 +2447,7 @@ class subplugin(Plugin):
             .times(1);
         MAIN_ENGINE.store(Some(mock_engine.into()));
 
-        let result = Python::with_gil(|py| Plugin::timein(&py.get_type_bound::<Plugin>(), py));
+        let result = Python::with_gil(|py| Plugin::timein(&py.get_type_bound::<Plugin>()));
         assert!(result.is_ok());
     }
 
@@ -2526,7 +2462,7 @@ class subplugin(Plugin):
             .times(1);
         MAIN_ENGINE.store(Some(mock_engine.into()));
 
-        let result = Python::with_gil(|py| Plugin::allready(&py.get_type_bound::<Plugin>(), py));
+        let result = Python::with_gil(|py| Plugin::allready(&py.get_type_bound::<Plugin>()));
         assert!(result.is_ok());
     }
 
@@ -2541,7 +2477,7 @@ class subplugin(Plugin):
             .times(1);
         MAIN_ENGINE.store(Some(mock_engine.into()));
 
-        let result = Python::with_gil(|py| Plugin::pause(&py.get_type_bound::<Plugin>(), py));
+        let result = Python::with_gil(|py| Plugin::pause(&py.get_type_bound::<Plugin>()));
         assert!(result.is_ok());
     }
 
@@ -2556,7 +2492,7 @@ class subplugin(Plugin):
             .times(1);
         MAIN_ENGINE.store(Some(mock_engine.into()));
 
-        let result = Python::with_gil(|py| Plugin::unpause(&py.get_type_bound::<Plugin>(), py));
+        let result = Python::with_gil(|py| Plugin::unpause(&py.get_type_bound::<Plugin>()));
         assert!(result.is_ok());
     }
 
@@ -2567,7 +2503,7 @@ class subplugin(Plugin):
         MAIN_ENGINE.store(None);
 
         Python::with_gil(|py| {
-            let result = Plugin::lock(&py.get_type_bound::<Plugin>(), py, Some("invalid_team"));
+            let result = Plugin::lock(&py.get_type_bound::<Plugin>(), Some("invalid_team"));
             assert!(result.is_err_and(|err| err.is_instance_of::<PyValueError>(py)));
         });
     }
@@ -2583,7 +2519,7 @@ class subplugin(Plugin):
             .times(1);
         MAIN_ENGINE.store(Some(mock_engine.into()));
 
-        let result = Python::with_gil(|py| Plugin::lock(&py.get_type_bound::<Plugin>(), py, None));
+        let result = Python::with_gil(|py| Plugin::lock(&py.get_type_bound::<Plugin>(), None));
         assert!(result.is_ok());
     }
 
@@ -2604,9 +2540,8 @@ class subplugin(Plugin):
             .times(1);
         MAIN_ENGINE.store(Some(mock_engine.into()));
 
-        let result = Python::with_gil(|py| {
-            Plugin::lock(&py.get_type_bound::<Plugin>(), py, Some(locked_team))
-        });
+        let result =
+            Python::with_gil(|py| Plugin::lock(&py.get_type_bound::<Plugin>(), Some(locked_team)));
         assert!(result.is_ok());
     }
 
@@ -2617,7 +2552,7 @@ class subplugin(Plugin):
         MAIN_ENGINE.store(None);
 
         Python::with_gil(|py| {
-            let result = Plugin::unlock(&py.get_type_bound::<Plugin>(), py, Some("invalid_team"));
+            let result = Plugin::unlock(&py.get_type_bound::<Plugin>(), Some("invalid_team"));
             assert!(result.is_err_and(|err| err.is_instance_of::<PyValueError>(py)));
         });
     }
@@ -2633,8 +2568,7 @@ class subplugin(Plugin):
             .times(1);
         MAIN_ENGINE.store(Some(mock_engine.into()));
 
-        let result =
-            Python::with_gil(|py| Plugin::unlock(&py.get_type_bound::<Plugin>(), py, None));
+        let result = Python::with_gil(|py| Plugin::unlock(&py.get_type_bound::<Plugin>(), None));
         assert!(result.is_ok());
     }
 
@@ -2656,7 +2590,7 @@ class subplugin(Plugin):
         MAIN_ENGINE.store(Some(mock_engine.into()));
 
         let result = Python::with_gil(|py| {
-            Plugin::unlock(&py.get_type_bound::<Plugin>(), py, Some(locked_team))
+            Plugin::unlock(&py.get_type_bound::<Plugin>(), Some(locked_team))
         });
         assert!(result.is_ok());
     }
@@ -2670,7 +2604,6 @@ class subplugin(Plugin):
         Python::with_gil(|py| {
             let result = Plugin::put(
                 &py.get_type_bound::<Plugin>(),
-                py,
                 2.into_py(py),
                 "invalid team",
             );
@@ -2685,7 +2618,7 @@ class subplugin(Plugin):
         MAIN_ENGINE.store(None);
 
         Python::with_gil(|py| {
-            let result = Plugin::put(&py.get_type_bound::<Plugin>(), py, 2048.into_py(py), "red");
+            let result = Plugin::put(&py.get_type_bound::<Plugin>(), 2048.into_py(py), "red");
             assert!(result.is_err_and(|err| err.is_instance_of::<PyValueError>(py)));
         });
     }
@@ -2708,7 +2641,7 @@ class subplugin(Plugin):
         MAIN_ENGINE.store(Some(mock_engine.into()));
 
         let result = Python::with_gil(|py| {
-            Plugin::put(&py.get_type_bound::<Plugin>(), py, 2.into_py(py), new_team)
+            Plugin::put(&py.get_type_bound::<Plugin>(), 2.into_py(py), new_team)
         });
         assert!(result.is_ok());
     }
@@ -2720,7 +2653,7 @@ class subplugin(Plugin):
         MAIN_ENGINE.store(None);
 
         Python::with_gil(|py| {
-            let result = Plugin::mute(&py.get_type_bound::<Plugin>(), py, 2048.into_py(py));
+            let result = Plugin::mute(&py.get_type_bound::<Plugin>(), 2048.into_py(py));
             assert!(result.is_err_and(|err| err.is_instance_of::<PyValueError>(py)));
         });
     }
@@ -2737,7 +2670,7 @@ class subplugin(Plugin):
         MAIN_ENGINE.store(Some(mock_engine.into()));
 
         let result =
-            Python::with_gil(|py| Plugin::mute(&py.get_type_bound::<Plugin>(), py, 2.into_py(py)));
+            Python::with_gil(|py| Plugin::mute(&py.get_type_bound::<Plugin>(), 2.into_py(py)));
         assert!(result.is_ok());
     }
 
@@ -2748,7 +2681,7 @@ class subplugin(Plugin):
         MAIN_ENGINE.store(None);
 
         Python::with_gil(|py| {
-            let result = Plugin::unmute(&py.get_type_bound::<Plugin>(), py, 2048.into_py(py));
+            let result = Plugin::unmute(&py.get_type_bound::<Plugin>(), 2048.into_py(py));
             assert!(result.is_err_and(|err| err.is_instance_of::<PyValueError>(py)));
         });
     }
@@ -2764,9 +2697,8 @@ class subplugin(Plugin):
             .times(1);
         MAIN_ENGINE.store(Some(mock_engine.into()));
 
-        let result = Python::with_gil(|py| {
-            Plugin::unmute(&py.get_type_bound::<Plugin>(), py, 2.into_py(py))
-        });
+        let result =
+            Python::with_gil(|py| Plugin::unmute(&py.get_type_bound::<Plugin>(), 2.into_py(py)));
         assert!(result.is_ok());
     }
 
@@ -2777,7 +2709,7 @@ class subplugin(Plugin):
         MAIN_ENGINE.store(None);
 
         Python::with_gil(|py| {
-            let result = Plugin::tempban(&py.get_type_bound::<Plugin>(), py, 2048.into_py(py));
+            let result = Plugin::tempban(&py.get_type_bound::<Plugin>(), 2048.into_py(py));
             assert!(result.is_err_and(|err| err.is_instance_of::<PyValueError>(py)));
         });
     }
@@ -2793,9 +2725,8 @@ class subplugin(Plugin):
             .times(1);
         MAIN_ENGINE.store(Some(mock_engine.into()));
 
-        let result = Python::with_gil(|py| {
-            Plugin::tempban(&py.get_type_bound::<Plugin>(), py, 2.into_py(py))
-        });
+        let result =
+            Python::with_gil(|py| Plugin::tempban(&py.get_type_bound::<Plugin>(), 2.into_py(py)));
         assert!(result.is_ok());
     }
 
@@ -2806,7 +2737,7 @@ class subplugin(Plugin):
         MAIN_ENGINE.store(None);
 
         Python::with_gil(|py| {
-            let result = Plugin::ban(&py.get_type_bound::<Plugin>(), py, 2048.into_py(py));
+            let result = Plugin::ban(&py.get_type_bound::<Plugin>(), 2048.into_py(py));
             assert!(result.is_err_and(|err| err.is_instance_of::<PyValueError>(py)));
         });
     }
@@ -2823,7 +2754,7 @@ class subplugin(Plugin):
         MAIN_ENGINE.store(Some(mock_engine.into()));
 
         let result =
-            Python::with_gil(|py| Plugin::ban(&py.get_type_bound::<Plugin>(), py, 2.into_py(py)));
+            Python::with_gil(|py| Plugin::ban(&py.get_type_bound::<Plugin>(), 2.into_py(py)));
         assert!(result.is_ok());
     }
 
@@ -2834,7 +2765,7 @@ class subplugin(Plugin):
         MAIN_ENGINE.store(None);
 
         Python::with_gil(|py| {
-            let result = Plugin::unban(&py.get_type_bound::<Plugin>(), py, 2048.into_py(py));
+            let result = Plugin::unban(&py.get_type_bound::<Plugin>(), 2048.into_py(py));
             assert!(result.is_err_and(|err| err.is_instance_of::<PyValueError>(py)));
         });
     }
@@ -2851,7 +2782,7 @@ class subplugin(Plugin):
         MAIN_ENGINE.store(Some(mock_engine.into()));
 
         let result =
-            Python::with_gil(|py| Plugin::unban(&py.get_type_bound::<Plugin>(), py, 2.into_py(py)));
+            Python::with_gil(|py| Plugin::unban(&py.get_type_bound::<Plugin>(), 2.into_py(py)));
         assert!(result.is_ok());
     }
 
@@ -2866,8 +2797,7 @@ class subplugin(Plugin):
             .times(1);
         MAIN_ENGINE.store(Some(mock_engine.into()));
 
-        let result =
-            Python::with_gil(|py| Plugin::opsay(&py.get_type_bound::<Plugin>(), py, "asdf"));
+        let result = Python::with_gil(|py| Plugin::opsay(&py.get_type_bound::<Plugin>(), "asdf"));
         assert!(result.is_ok());
     }
 
@@ -2878,7 +2808,7 @@ class subplugin(Plugin):
         MAIN_ENGINE.store(None);
 
         Python::with_gil(|py| {
-            let result = Plugin::addadmin(&py.get_type_bound::<Plugin>(), py, 2048.into_py(py));
+            let result = Plugin::addadmin(&py.get_type_bound::<Plugin>(), 2048.into_py(py));
             assert!(result.is_err_and(|err| err.is_instance_of::<PyValueError>(py)));
         });
     }
@@ -2894,9 +2824,8 @@ class subplugin(Plugin):
             .times(1);
         MAIN_ENGINE.store(Some(mock_engine.into()));
 
-        let result = Python::with_gil(|py| {
-            Plugin::addadmin(&py.get_type_bound::<Plugin>(), py, 2.into_py(py))
-        });
+        let result =
+            Python::with_gil(|py| Plugin::addadmin(&py.get_type_bound::<Plugin>(), 2.into_py(py)));
         assert!(result.is_ok());
     }
 
@@ -2907,7 +2836,7 @@ class subplugin(Plugin):
         MAIN_ENGINE.store(None);
 
         Python::with_gil(|py| {
-            let result = Plugin::addmod(&py.get_type_bound::<Plugin>(), py, 2048.into_py(py));
+            let result = Plugin::addmod(&py.get_type_bound::<Plugin>(), 2048.into_py(py));
             assert!(result.is_err_and(|err| err.is_instance_of::<PyValueError>(py)));
         });
     }
@@ -2923,9 +2852,8 @@ class subplugin(Plugin):
             .times(1);
         MAIN_ENGINE.store(Some(mock_engine.into()));
 
-        let result = Python::with_gil(|py| {
-            Plugin::addmod(&py.get_type_bound::<Plugin>(), py, 2.into_py(py))
-        });
+        let result =
+            Python::with_gil(|py| Plugin::addmod(&py.get_type_bound::<Plugin>(), 2.into_py(py)));
         assert!(result.is_ok());
     }
 
@@ -2936,7 +2864,7 @@ class subplugin(Plugin):
         MAIN_ENGINE.store(None);
 
         Python::with_gil(|py| {
-            let result = Plugin::demote(&py.get_type_bound::<Plugin>(), py, 2048.into_py(py));
+            let result = Plugin::demote(&py.get_type_bound::<Plugin>(), 2048.into_py(py));
             assert!(result.is_err_and(|err| err.is_instance_of::<PyValueError>(py)));
         });
     }
@@ -2952,9 +2880,8 @@ class subplugin(Plugin):
             .times(1);
         MAIN_ENGINE.store(Some(mock_engine.into()));
 
-        let result = Python::with_gil(|py| {
-            Plugin::demote(&py.get_type_bound::<Plugin>(), py, 2.into_py(py))
-        });
+        let result =
+            Python::with_gil(|py| Plugin::demote(&py.get_type_bound::<Plugin>(), 2.into_py(py)));
         assert!(result.is_ok());
     }
 
@@ -2969,7 +2896,7 @@ class subplugin(Plugin):
             .times(1);
         MAIN_ENGINE.store(Some(mock_engine.into()));
 
-        let result = Python::with_gil(|py| Plugin::abort(&py.get_type_bound::<Plugin>(), py));
+        let result = Python::with_gil(|py| Plugin::abort(&py.get_type_bound::<Plugin>()));
         assert!(result.is_ok());
     }
 
@@ -2980,7 +2907,7 @@ class subplugin(Plugin):
         MAIN_ENGINE.store(None);
 
         Python::with_gil(|py| {
-            let result = Plugin::addscore(&py.get_type_bound::<Plugin>(), py, 2048.into_py(py), 42);
+            let result = Plugin::addscore(&py.get_type_bound::<Plugin>(), 2048.into_py(py), 42);
             assert!(result.is_err_and(|err| err.is_instance_of::<PyValueError>(py)));
         });
     }
@@ -2997,7 +2924,7 @@ class subplugin(Plugin):
         MAIN_ENGINE.store(Some(mock_engine.into()));
 
         let result = Python::with_gil(|py| {
-            Plugin::addscore(&py.get_type_bound::<Plugin>(), py, 2.into_py(py), 42)
+            Plugin::addscore(&py.get_type_bound::<Plugin>(), 2.into_py(py), 42)
         });
         assert!(result.is_ok());
     }
@@ -3009,8 +2936,7 @@ class subplugin(Plugin):
         MAIN_ENGINE.store(None);
 
         Python::with_gil(|py| {
-            let result =
-                Plugin::addteamscore(&py.get_type_bound::<Plugin>(), py, "invalid_team", 42);
+            let result = Plugin::addteamscore(&py.get_type_bound::<Plugin>(), "invalid_team", 42);
             assert!(result.is_err_and(|err| err.is_instance_of::<PyValueError>(py)));
         });
     }
@@ -3033,7 +2959,7 @@ class subplugin(Plugin):
         MAIN_ENGINE.store(Some(mock_engine.into()));
 
         let result = Python::with_gil(|py| {
-            Plugin::addteamscore(&py.get_type_bound::<Plugin>(), py, locked_team, 42)
+            Plugin::addteamscore(&py.get_type_bound::<Plugin>(), locked_team, 42)
         });
         assert!(result.is_ok());
     }
@@ -3050,7 +2976,7 @@ class subplugin(Plugin):
         MAIN_ENGINE.store(Some(mock_engine.into()));
 
         let result =
-            Python::with_gil(|py| Plugin::setmatchtime(&py.get_type_bound::<Plugin>(), py, 42));
+            Python::with_gil(|py| Plugin::setmatchtime(&py.get_type_bound::<Plugin>(), 42));
         assert!(result.is_ok());
     }
 }
