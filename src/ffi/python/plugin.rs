@@ -82,26 +82,29 @@ impl Plugin {
 
     /// The database instance.
     #[getter(db)]
-    fn get_db(slf: &Bound<'_, Self>, py: Python<'_>) -> PyResult<PyObject> {
+    fn get_db(slf: &Bound<'_, Self>) -> PyResult<PyObject> {
         let plugin_name = Self::get_name(slf)?;
-        let Ok(db_class) = Python::get_type_bound::<Plugin>(py).getattr(intern!(py, "database"))
+        let Ok(db_class) = slf
+            .py()
+            .get_type_bound::<Plugin>()
+            .getattr(intern!(slf.py(), "database"))
         else {
-            let error_msg = format!("Plugin '{plugin_name}' does not have a database driver.");
+            let error_msg = format!("a Plugin '{plugin_name}' does not have a database driver.");
             return Err(PyRuntimeError::new_err(error_msg));
         };
 
         if db_class.is_none() {
-            let error_msg = format!("Plugin '{plugin_name}' does not have a database driver.");
+            let error_msg = format!("b Plugin '{plugin_name}' does not have a database driver.");
             return Err(PyRuntimeError::new_err(error_msg));
         }
 
         let mut plugin = slf.borrow_mut();
-        if plugin.db_instance.bind(py).is_none() {
+        if plugin.db_instance.bind(slf.py()).is_none() {
             let db_instance = db_class.call1((slf,))?;
             plugin.db_instance = db_instance.unbind();
         }
 
-        Ok(plugin.db_instance.clone_ref(py))
+        Ok(plugin.db_instance.clone_ref(slf.py()))
     }
 
     /// The name of the plugin.
@@ -114,7 +117,8 @@ impl Plugin {
     /// as values of all currently loaded plugins.
     #[getter(plugins)]
     fn get_plugins<'py>(&self, py: Python<'py>) -> PyResult<Bound<'py, PyDict>> {
-        let loaded_plugins = Python::get_type_bound::<Plugin>(py)
+        let loaded_plugins = py
+            .get_type_bound::<Plugin>()
             .getattr(intern!(py, "_loaded_plugins"))?
             .extract::<&PyDict>()?;
 
@@ -123,20 +127,19 @@ impl Plugin {
 
     /// A list of all the hooks this plugin has.
     #[getter(hooks)]
-    fn get_hooks(&self) -> Vec<(String, PyObject, i32)> {
-        self.hooks.clone()
+    fn get_hooks(&self, py: Python<'_>) -> Vec<(String, PyObject, i32)> {
+        py.allow_threads(|| self.hooks.clone())
     }
 
     /// A list of all the commands this plugin has registered.
     #[getter(commands)]
-    fn get_commands(&self) -> Vec<Command> {
-        match self.commands.try_read() {
-            None => vec![],
-            Some(commands) => {
-                let cloned_commands: Vec<Command> = commands.clone();
-                cloned_commands
-            }
-        }
+    fn get_commands(&self, py: Python<'_>) -> Vec<Command> {
+        py.allow_threads(|| {
+            self.commands
+                .try_read()
+                .map(|commands| commands.clone())
+                .unwrap_or_default()
+        })
     }
 
     /// A Game instance.
@@ -155,7 +158,6 @@ impl Plugin {
     #[pyo3(signature = (event, handler, priority = CommandPriorities::PRI_NORMAL as i32), text_signature = "(event, handler, priority = PRI_NORMAL)")]
     fn add_hook(
         slf: &Bound<'_, Self>,
-        py: Python<'_>,
         event: String,
         handler: PyObject,
         priority: i32,
@@ -163,7 +165,7 @@ impl Plugin {
         let Some(event_dispatcher) = EVENT_DISPATCHERS
             .load()
             .as_ref()
-            .and_then(|event_dispatchers| event_dispatchers.bind(py).get_item(&event).ok())
+            .and_then(|event_dispatchers| event_dispatchers.bind(slf.py()).get_item(&event).ok())
         else {
             return Err(PyEnvironmentError::new_err(
                 "could not get access to event dispatcher",
@@ -172,8 +174,10 @@ impl Plugin {
 
         let plugin_type = slf.get_type();
         let plugin_name = plugin_type.name()?;
-        event_dispatcher
-            .call_method1(intern!(py, "add_hook"), (plugin_name, &handler, priority))?;
+        event_dispatcher.call_method1(
+            intern!(slf.py(), "add_hook"),
+            (plugin_name, &handler, priority),
+        )?;
 
         let Ok(mut plugin) = slf.try_borrow_mut() else {
             return Err(PyEnvironmentError::new_err("cound not borrow plugin hooks"));
@@ -186,7 +190,6 @@ impl Plugin {
     #[pyo3(signature = (event, handler, priority = CommandPriorities::PRI_NORMAL as i32), text_signature = "(event, handler, priority = PRI_NORMAL)")]
     fn remove_hook(
         slf: &Bound<'_, Self>,
-        py: Python<'_>,
         event: String,
         handler: PyObject,
         priority: i32,
@@ -194,7 +197,7 @@ impl Plugin {
         let Some(event_dispatcher) = EVENT_DISPATCHERS
             .load()
             .as_ref()
-            .and_then(|event_dispatchers| event_dispatchers.bind(py).get_item(&event).ok())
+            .and_then(|event_dispatchers| event_dispatchers.bind(slf.py()).get_item(&event).ok())
         else {
             return Err(PyEnvironmentError::new_err(
                 "could not get access to console print dispatcher",
@@ -204,7 +207,7 @@ impl Plugin {
         let plugin_type = slf.get_type();
         let plugin_name = plugin_type.name()?;
         event_dispatcher.call_method1(
-            intern!(py, "remove_hook"),
+            intern!(slf.py(), "remove_hook"),
             (plugin_name, &handler, priority),
         )?;
 
@@ -215,7 +218,10 @@ impl Plugin {
             .hooks
             .retain(|(hook_event, hook_handler, hook_priority)| {
                 hook_event == &event
-                    && hook_handler.bind(py).eq(handler.bind(py)).unwrap_or(true)
+                    && hook_handler
+                        .bind(slf.py())
+                        .eq(handler.bind(slf.py()))
+                        .unwrap_or(true)
                     && hook_priority == &priority
             });
 
@@ -238,7 +244,6 @@ impl Plugin {
     #[allow(clippy::too_many_arguments)]
     fn add_command(
         slf: Bound<'_, Self>,
-        py: Python<'_>,
         name: PyObject,
         handler: PyObject,
         permission: i32,
@@ -254,12 +259,13 @@ impl Plugin {
             return Err(PyEnvironmentError::new_err("cannot borrow plugin"));
         };
 
-        let py_channels = channels.unwrap_or(py.None());
-        let py_exclude_channels = exclude_channels.unwrap_or(PyTuple::empty_bound(py).into_py(py));
+        let py_channels = channels.unwrap_or(slf.py().None());
+        let py_exclude_channels =
+            exclude_channels.unwrap_or(PyTuple::empty_bound(slf.py()).into_py(slf.py()));
 
         let new_command = Command::py_new(
-            py,
-            slf.into_py(py),
+            slf.py(),
+            slf.as_ref().into_py(slf.py()),
             name,
             handler,
             permission,
@@ -275,8 +281,8 @@ impl Plugin {
 
         if let Some(ref commands) = *COMMANDS.load() {
             commands
-                .borrow(py)
-                .add_command(py, new_command, priority as usize)?;
+                .borrow(slf.py())
+                .add_command(slf.py(), new_command, priority as usize)?;
         }
 
         Ok(())
@@ -333,13 +339,12 @@ impl Plugin {
     #[classmethod]
     #[pyo3(signature = (name, return_type = None), text_signature = "(name, return_type=str)")]
     fn get_cvar(
-        _cls: &Bound<'_, PyType>,
-        py: Python<'_>,
+        cls: &Bound<'_, PyType>,
         name: &str,
-        return_type: Option<PyObject>,
+        return_type: Option<Py<PyType>>,
     ) -> PyResult<PyObject> {
         #[allow(clippy::question_mark)]
-        let cvar = py.allow_threads(|| {
+        let cvar = cls.py().allow_threads(|| {
             let Some(ref main_engine) = *MAIN_ENGINE.load() else {
                 return None;
             };
@@ -349,26 +354,24 @@ impl Plugin {
         let cvar_string = cvar.as_ref().map(|value| value.get_string());
 
         let Some(py_return_type) = return_type else {
-            return Ok(cvar_string.into_py(py));
+            return Ok(cvar_string.into_py(cls.py()));
         };
-        let Ok(py_return_type_str) = py_return_type
-            .bind(py)
-            .getattr(intern!(py, "__name__"))
-            .map(|value| value.to_string())
-        else {
-            return Err(PyValueError::new_err("Invalid return type: None"));
-        };
+        let py_return_type_str = py_return_type
+            .bind(cls.py())
+            .getattr(intern!(cls.py(), "__name__"))
+            .and_then(|value| value.extract::<String>())
+            .unwrap_or("Python type without __name__".into());
 
         match py_return_type_str.as_str() {
             "str" => match cvar_string {
-                None => Ok(py.None()),
-                Some(value) => Ok(value.into_py(py)),
+                None => Ok(cls.py().None()),
+                Some(value) => Ok(value.into_py(cls.py())),
             },
             "int" => match cvar_string {
-                None => Ok(py.None()),
+                None => Ok(cls.py().None()),
                 Some(value) => value
                     .parse::<i128>()
-                    .map(|int| int.into_py(py))
+                    .map(|int| int.into_py(cls.py()))
                     .map_err(|_| {
                         let error_description =
                             format!("invalid literal for int() with base 10: '{}'", value);
@@ -376,10 +379,10 @@ impl Plugin {
                     }),
             },
             "float" => match cvar_string {
-                None => Ok(py.None()),
+                None => Ok(cls.py().None()),
                 Some(value) => value
                     .parse::<f64>()
-                    .map(|float| float.into_py(py))
+                    .map(|float| float.into_py(cls.py()))
                     .map_err(|_| {
                         let error_description =
                             format!("could not convert string to float: '{}'", value);
@@ -387,10 +390,10 @@ impl Plugin {
                     }),
             },
             "bool" => match cvar_string {
-                None => Ok(false.into_py(py)),
+                None => Ok(false.into_py(cls.py())),
                 Some(value) => value
                     .parse::<i128>()
-                    .map(|int| (int != 0).into_py(py))
+                    .map(|int| (int != 0).into_py(cls.py()))
                     .map_err(|_| {
                         let error_description =
                             format!("invalid literal for int() with base 10: '{}'", value);
@@ -398,28 +401,28 @@ impl Plugin {
                     }),
             },
             "list" => match cvar_string {
-                None => Ok(PyList::empty_bound(py).into_py(py)),
+                None => Ok(PyList::empty_bound(cls.py()).into_py(cls.py())),
                 Some(value) => {
                     let items: Vec<&str> = value.split(',').collect();
-                    let returned = PyList::new_bound(py, items);
-                    Ok(returned.into_py(py))
+                    let returned = PyList::new_bound(cls.py(), items);
+                    Ok(returned.into_py(cls.py()))
                 }
             },
             "set" => match cvar_string {
-                None => PySet::empty_bound(py).map(|set| set.into_py(py)),
+                None => PySet::empty_bound(cls.py()).map(|set| set.into_py(cls.py())),
                 Some(value) => {
                     let items: Vec<String> =
                         value.split(',').map(|item| item.to_string()).collect();
-                    let returned = PySet::new_bound::<String>(py, &items);
-                    returned.map(|set| set.into_py(py))
+                    let returned = PySet::new_bound::<String>(cls.py(), &items);
+                    returned.map(|set| set.into_py(cls.py()))
                 }
             },
             "tuple" => match cvar_string {
-                None => Ok(PyTuple::empty_bound(py).into_py(py)),
+                None => Ok(PyTuple::empty_bound(cls.py()).into_py(cls.py())),
                 Some(value) => {
                     let items: Vec<&str> = value.split(',').collect();
-                    let returned = PyTuple::new_bound(py, items);
-                    Ok(returned.into_py(py))
+                    let returned = PyTuple::new_bound(cls.py(), items);
+                    Ok(returned.into_py(cls.py()))
                 }
             },
             value => {
@@ -1226,7 +1229,7 @@ mod plugin_tests {
     use pretty_assertions::assert_eq;
     use pyo3::{
         exceptions::{PyEnvironmentError, PyRuntimeError, PyValueError},
-        types::PyDict,
+        types::{PyBool, PyDate, PyDict, PyFloat, PyInt, PyList, PySet, PyString, PyTuple},
     };
     use rstest::rstest;
 
@@ -1251,54 +1254,71 @@ class subplugin(Plugin):
     #[rstest]
     #[cfg_attr(miri, ignore)]
     fn plugin_can_be_subclassed_from_python(_pyshinqlx_setup: ()) {
-        let result: PyResult<()> = Python::with_gil(|py| {
+        Python::with_gil(|py| {
             let extended_plugin = test_plugin(py)?;
             extended_plugin.call0()?;
-            Ok(())
-        });
-        assert!(result.is_ok());
+            Ok::<(), PyErr>(())
+        })
+        .unwrap();
     }
 
     #[rstest]
     #[cfg_attr(miri, ignore)]
     fn str_returns_plugin_typename(_pyshinqlx_setup: ()) {
-        let res: PyResult<()> = Python::with_gil(|py| {
+        Python::with_gil(|py| {
             let extended_plugin = test_plugin(py)?;
             let plugin_instance = extended_plugin.call0()?;
-            let plugin_str = plugin_instance.call_method0("__str__")?;
-            assert_eq!(plugin_str.extract::<&str>()?, "subplugin");
-            Ok(())
-        });
-        assert!(res.is_ok());
+            let plugin_str = plugin_instance.str()?;
+            assert_eq!(plugin_str.to_string(), "subplugin");
+            Ok::<(), PyErr>(())
+        })
+        .unwrap();
     }
 
     #[rstest]
     #[cfg_attr(miri, ignore)]
     fn get_db_when_no_db_type_set(_pyshinqlx_setup: ()) {
-        let res: PyResult<()> = Python::with_gil(|py| {
+        Python::with_gil(|py| {
             py.get_type_bound::<Plugin>().delattr("database")?;
             let extended_plugin = test_plugin(py)?;
             let plugin_instance = extended_plugin.call0()?;
             let result = plugin_instance.getattr("db");
             assert!(result.is_err_and(|err| err.is_instance_of::<PyRuntimeError>(py)),);
-            Ok(())
-        });
-        assert!(res.is_ok());
+            Ok::<(), PyErr>(())
+        })
+        .unwrap();
     }
 
     #[rstest]
     #[cfg_attr(miri, ignore)]
     fn get_db_when_no_db_set(_pyshinqlx_setup: ()) {
-        let res: PyResult<()> = Python::with_gil(|py| {
+        Python::with_gil(|py| {
             py.get_type_bound::<Plugin>()
-                .setattr("databsse", py.None())?;
+                .setattr("database", py.None())?;
             let extended_plugin = test_plugin(py)?;
             let plugin_instance = extended_plugin.call0()?;
             let result = plugin_instance.getattr("db");
             assert!(result.is_err_and(|err| err.is_instance_of::<PyRuntimeError>(py)),);
-            Ok(())
-        });
-        assert!(res.is_ok());
+            Ok::<(), PyErr>(())
+        })
+        .unwrap();
+    }
+
+    #[rstest]
+    #[cfg_attr(miri, ignore)]
+    fn get_db_when_db_set_to_redis(_pyshinqlx_setup: ()) {
+        Python::with_gil(|py| {
+            let redis_type = py.get_type_bound::<Redis>();
+            py.get_type_bound::<Plugin>()
+                .setattr("database", (&redis_type).into_py(py))?;
+
+            let extended_plugin = test_plugin(py)?;
+            let plugin_instance = extended_plugin.call0()?;
+            let result = plugin_instance.getattr("db");
+            assert!(result.is_ok_and(|db| db.is_instance(&redis_type).unwrap()),);
+            Ok::<(), PyErr>(())
+        })
+        .unwrap();
     }
 
     #[rstest]
@@ -1318,7 +1338,8 @@ class subplugin(Plugin):
     #[cfg_attr(miri, ignore)]
     fn plugins_property_returns_loaded_plugins(_pyshinqlx_setup: ()) {
         let res: PyResult<()> = Python::with_gil(|py| {
-            let loaded_plugins = Python::get_type_bound::<Plugin>(py)
+            let loaded_plugins = py
+                .get_type_bound::<Plugin>()
                 .getattr("_loaded_plugins")?
                 .extract::<&PyDict>()?;
             loaded_plugins.set_item("asdf", "asdfplugin")?;
@@ -1346,7 +1367,7 @@ class subplugin(Plugin):
                 db_instance: py.None(),
             };
 
-            let hooks = plugin.get_hooks();
+            let hooks = plugin.get_hooks(py);
             assert_eq!(hooks.len(), 2);
             let elem1 = hooks.first();
             assert!(elem1.is_some_and(|(hook1, pyobj1, prio1)| hook1 == "asdf"
@@ -1359,14 +1380,85 @@ class subplugin(Plugin):
         });
     }
 
+    #[rstest]
+    #[cfg_attr(miri, ignore)]
+    fn commands_property_when_no_commands_exist(_pyshinqlx_setup: ()) {
+        Python::with_gil(|py| {
+            let plugin = Plugin {
+                hooks: Default::default(),
+                commands: Default::default(),
+                db_instance: py.None(),
+            };
+
+            assert_eq!(plugin.get_commands(py).len(), 0);
+        });
+    }
+
+    #[rstest]
+    #[cfg_attr(miri, ignore)]
+    #[serial]
+    fn game_property_when_no_game_running(_pyshinqlx_setup: ()) {
+        MAIN_ENGINE.store(None);
+
+        Python::with_gil(|py| {
+            let plugin = Plugin {
+                hooks: Default::default(),
+                commands: Default::default(),
+                db_instance: py.None(),
+            };
+
+            assert!(plugin.get_game(py).is_none());
+        });
+    }
+
+    #[rstest]
+    #[cfg_attr(miri, ignore)]
+    #[serial]
+    fn game_property_when_a_game_exists(_pyshinqlx_setup: ()) {
+        let mut mock_engine = MockQuakeEngine::new();
+        mock_engine
+            .expect_get_configstring()
+            .with(predicate::eq(0))
+            .returning(|_| "asdf".to_string());
+        MAIN_ENGINE.store(Some(mock_engine.into()));
+
+        Python::with_gil(|py| {
+            let plugin = Plugin {
+                hooks: Default::default(),
+                commands: Default::default(),
+                db_instance: py.None(),
+            };
+
+            assert!(plugin.get_game(py).is_some());
+        });
+    }
+
+    #[rstest]
+    #[cfg_attr(miri, ignore)]
+    fn get_logger(_pyshinqlx_setup: ()) {
+        Python::with_gil(|py| {
+            let logger_type = py.import_bound("logging")?.getattr("Logger")?;
+
+            let extended_plugin = test_plugin(py)?;
+            let plugin_instance = extended_plugin.call0()?;
+            let result = plugin_instance.getattr("logger");
+            assert!(result
+                .as_ref()
+                .is_ok_and(|logger| logger.is_instance(&logger_type).unwrap()
+                    && logger.getattr("name").unwrap().str().unwrap().to_string()
+                        == "shinqlx.subplugin"),);
+            Ok::<(), PyErr>(())
+        })
+        .unwrap();
+    }
+
     #[test]
     #[cfg_attr(miri, ignore)]
     #[serial]
     fn get_cvar_when_main_engine_not_initialized() {
         MAIN_ENGINE.store(None);
         Python::with_gil(|py| {
-            let result =
-                Plugin::get_cvar(&py.get_type_bound::<Plugin>(), py, "sv_maxclients", None);
+            let result = Plugin::get_cvar(&py.get_type_bound::<Plugin>(), "sv_maxclients", None);
             assert!(result.is_ok_and(|value| value.is_none(py)));
         });
     }
@@ -1384,7 +1476,7 @@ class subplugin(Plugin):
         MAIN_ENGINE.store(Some(mock_engine.into()));
 
         Python::with_gil(|py| {
-            let result = Plugin::get_cvar(&py.get_type_bound::<Plugin>(), py, "asdf", None);
+            let result = Plugin::get_cvar(&py.get_type_bound::<Plugin>(), "asdf", None);
             assert!(result.expect("result was not OK").is_none(py));
         });
     }
@@ -1409,12 +1501,561 @@ class subplugin(Plugin):
         MAIN_ENGINE.store(Some(mock_engine.into()));
 
         Python::with_gil(|py| {
-            let result =
-                Plugin::get_cvar(&py.get_type_bound::<Plugin>(), py, "sv_maxclients", None);
+            let result = Plugin::get_cvar(&py.get_type_bound::<Plugin>(), "sv_maxclients", None);
             assert!(result
                 .expect("result was not OK")
                 .extract::<String>(py)
                 .is_ok_and(|value| value == "16"));
+        });
+    }
+
+    #[test]
+    #[cfg_attr(miri, ignore)]
+    #[serial]
+    fn get_cvar_converts_to_str() {
+        let cvar_string = CString::new("16").expect("result was not OK");
+        let mut mock_engine = MockQuakeEngine::new();
+        mock_engine
+            .expect_find_cvar()
+            .with(predicate::eq("sv_maxclients"))
+            .returning(move |_| {
+                let mut raw_cvar = CVarBuilder::default()
+                    .string(cvar_string.as_ptr() as *mut c_char)
+                    .build()
+                    .expect("this should not happen");
+                CVar::try_from(&mut raw_cvar as *mut cvar_t).ok()
+            })
+            .times(1);
+        MAIN_ENGINE.store(Some(mock_engine.into()));
+
+        Python::with_gil(|py| {
+            let py_str_type = py.get_type_bound::<PyString>();
+            let result = Plugin::get_cvar(
+                &py.get_type_bound::<Plugin>(),
+                "sv_maxclients",
+                Some(py_str_type.unbind()),
+            );
+            assert!(result
+                .expect("result was not OK")
+                .extract::<String>(py)
+                .is_ok_and(|value| value == "16"));
+        });
+    }
+
+    #[test]
+    #[cfg_attr(miri, ignore)]
+    #[serial]
+    fn get_cvar_str_when_no_cvar_found() {
+        let mut mock_engine = MockQuakeEngine::new();
+        mock_engine
+            .expect_find_cvar()
+            .with(predicate::eq("sv_maxclients"))
+            .returning(|_| None)
+            .times(1);
+        MAIN_ENGINE.store(Some(mock_engine.into()));
+
+        Python::with_gil(|py| {
+            let py_str_type = py.get_type_bound::<PyString>();
+            let result = Plugin::get_cvar(
+                &py.get_type_bound::<Plugin>(),
+                "sv_maxclients",
+                Some(py_str_type.unbind()),
+            );
+            assert!(result.expect("result was not OK").is_none(py));
+        });
+    }
+
+    #[test]
+    #[cfg_attr(miri, ignore)]
+    #[serial]
+    fn get_cvar_converts_to_int() {
+        let cvar_string = CString::new("16").expect("result was not OK");
+        let mut mock_engine = MockQuakeEngine::new();
+        mock_engine
+            .expect_find_cvar()
+            .with(predicate::eq("sv_maxclients"))
+            .returning(move |_| {
+                let mut raw_cvar = CVarBuilder::default()
+                    .string(cvar_string.as_ptr() as *mut c_char)
+                    .build()
+                    .expect("this should not happen");
+                CVar::try_from(&mut raw_cvar as *mut cvar_t).ok()
+            })
+            .times(1);
+        MAIN_ENGINE.store(Some(mock_engine.into()));
+
+        Python::with_gil(|py| {
+            let py_str_type = py.get_type_bound::<PyInt>();
+            let result = Plugin::get_cvar(
+                &py.get_type_bound::<Plugin>(),
+                "sv_maxclients",
+                Some(py_str_type.unbind()),
+            );
+            assert!(result
+                .expect("result was not OK")
+                .extract::<i32>(py)
+                .is_ok_and(|value| value == 16));
+        });
+    }
+
+    #[test]
+    #[cfg_attr(miri, ignore)]
+    #[serial]
+    fn get_cvar_int_when_cvar_cannot_be_converted_to_int() {
+        let cvar_string = CString::new("asdf").expect("result was not OK");
+        let mut mock_engine = MockQuakeEngine::new();
+        mock_engine
+            .expect_find_cvar()
+            .with(predicate::eq("sv_maxclients"))
+            .returning(move |_| {
+                let mut raw_cvar = CVarBuilder::default()
+                    .string(cvar_string.as_ptr() as *mut c_char)
+                    .build()
+                    .expect("this should not happen");
+                CVar::try_from(&mut raw_cvar as *mut cvar_t).ok()
+            })
+            .times(1);
+        MAIN_ENGINE.store(Some(mock_engine.into()));
+
+        Python::with_gil(|py| {
+            let py_str_type = py.get_type_bound::<PyInt>();
+            let result = Plugin::get_cvar(
+                &py.get_type_bound::<Plugin>(),
+                "sv_maxclients",
+                Some(py_str_type.unbind()),
+            );
+            assert!(result.is_err_and(|err| err.is_instance_of::<PyValueError>(py)));
+        });
+    }
+
+    #[test]
+    #[cfg_attr(miri, ignore)]
+    #[serial]
+    fn get_cvar_int_when_no_cvar_found() {
+        let mut mock_engine = MockQuakeEngine::new();
+        mock_engine
+            .expect_find_cvar()
+            .with(predicate::eq("sv_maxclients"))
+            .returning(|_| None)
+            .times(1);
+        MAIN_ENGINE.store(Some(mock_engine.into()));
+
+        Python::with_gil(|py| {
+            let py_str_type = py.get_type_bound::<PyInt>();
+            let result = Plugin::get_cvar(
+                &py.get_type_bound::<Plugin>(),
+                "sv_maxclients",
+                Some(py_str_type.unbind()),
+            );
+            assert!(result.expect("result was not OK").is_none(py));
+        });
+    }
+
+    #[test]
+    #[cfg_attr(miri, ignore)]
+    #[serial]
+    fn get_cvar_converts_to_float() {
+        let cvar_string = CString::new("16").expect("result was not OK");
+        let mut mock_engine = MockQuakeEngine::new();
+        mock_engine
+            .expect_find_cvar()
+            .with(predicate::eq("sv_maxclients"))
+            .returning(move |_| {
+                let mut raw_cvar = CVarBuilder::default()
+                    .string(cvar_string.as_ptr() as *mut c_char)
+                    .build()
+                    .expect("this should not happen");
+                CVar::try_from(&mut raw_cvar as *mut cvar_t).ok()
+            })
+            .times(1);
+        MAIN_ENGINE.store(Some(mock_engine.into()));
+
+        Python::with_gil(|py| {
+            let py_str_type = py.get_type_bound::<PyFloat>();
+            let result = Plugin::get_cvar(
+                &py.get_type_bound::<Plugin>(),
+                "sv_maxclients",
+                Some(py_str_type.unbind()),
+            );
+            assert!(result
+                .expect("result was not OK")
+                .extract::<f64>(py)
+                .is_ok_and(|value| value == 16.0));
+        });
+    }
+
+    #[test]
+    #[cfg_attr(miri, ignore)]
+    #[serial]
+    fn get_cvar_float_when_cvar_cannot_be_converted_to_float() {
+        let cvar_string = CString::new("asdf").expect("result was not OK");
+        let mut mock_engine = MockQuakeEngine::new();
+        mock_engine
+            .expect_find_cvar()
+            .with(predicate::eq("sv_maxclients"))
+            .returning(move |_| {
+                let mut raw_cvar = CVarBuilder::default()
+                    .string(cvar_string.as_ptr() as *mut c_char)
+                    .build()
+                    .expect("this should not happen");
+                CVar::try_from(&mut raw_cvar as *mut cvar_t).ok()
+            })
+            .times(1);
+        MAIN_ENGINE.store(Some(mock_engine.into()));
+
+        Python::with_gil(|py| {
+            let py_str_type = py.get_type_bound::<PyFloat>();
+            let result = Plugin::get_cvar(
+                &py.get_type_bound::<Plugin>(),
+                "sv_maxclients",
+                Some(py_str_type.unbind()),
+            );
+            assert!(result.is_err_and(|err| err.is_instance_of::<PyValueError>(py)));
+        });
+    }
+
+    #[test]
+    #[cfg_attr(miri, ignore)]
+    #[serial]
+    fn get_cvar_float_when_no_cvar_found() {
+        let mut mock_engine = MockQuakeEngine::new();
+        mock_engine
+            .expect_find_cvar()
+            .with(predicate::eq("sv_maxclients"))
+            .returning(|_| None)
+            .times(1);
+        MAIN_ENGINE.store(Some(mock_engine.into()));
+
+        Python::with_gil(|py| {
+            let py_str_type = py.get_type_bound::<PyFloat>();
+            let result = Plugin::get_cvar(
+                &py.get_type_bound::<Plugin>(),
+                "sv_maxclients",
+                Some(py_str_type.unbind()),
+            );
+            assert!(result.expect("result was not OK").is_none(py));
+        });
+    }
+
+    #[test]
+    #[cfg_attr(miri, ignore)]
+    #[serial]
+    fn get_cvar_converts_to_bool() {
+        let cvar_string = CString::new("16").expect("result was not OK");
+        let mut mock_engine = MockQuakeEngine::new();
+        mock_engine
+            .expect_find_cvar()
+            .with(predicate::eq("sv_maxclients"))
+            .returning(move |_| {
+                let mut raw_cvar = CVarBuilder::default()
+                    .string(cvar_string.as_ptr() as *mut c_char)
+                    .build()
+                    .expect("this should not happen");
+                CVar::try_from(&mut raw_cvar as *mut cvar_t).ok()
+            })
+            .times(1);
+        MAIN_ENGINE.store(Some(mock_engine.into()));
+
+        Python::with_gil(|py| {
+            let py_str_type = py.get_type_bound::<PyBool>();
+            let result = Plugin::get_cvar(
+                &py.get_type_bound::<Plugin>(),
+                "sv_maxclients",
+                Some(py_str_type.unbind()),
+            )
+            .expect("result was not OK");
+            assert!(
+                result.bind(py).is_instance_of::<PyBool>()
+                    && result.extract::<bool>(py).is_ok_and(|value| value)
+            );
+        });
+    }
+
+    #[test]
+    #[cfg_attr(miri, ignore)]
+    #[serial]
+    fn get_cvar_bool_when_no_cvar_found() {
+        let mut mock_engine = MockQuakeEngine::new();
+        mock_engine
+            .expect_find_cvar()
+            .with(predicate::eq("sv_maxclients"))
+            .returning(|_| None)
+            .times(1);
+        MAIN_ENGINE.store(Some(mock_engine.into()));
+
+        Python::with_gil(|py| {
+            let py_str_type = py.get_type_bound::<PyBool>();
+            let result = Plugin::get_cvar(
+                &py.get_type_bound::<Plugin>(),
+                "sv_maxclients",
+                Some(py_str_type.unbind()),
+            )
+            .expect("result was not OK");
+
+            assert!(
+                result.bind(py).is_instance_of::<PyBool>()
+                    && result.extract::<bool>(py).is_ok_and(|value| !value)
+            );
+        });
+    }
+
+    #[test]
+    #[cfg_attr(miri, ignore)]
+    #[serial]
+    fn get_cvar_bool_when_cvar_cannot_be_converted_to_int() {
+        let cvar_string = CString::new("asdf").expect("result was not OK");
+        let mut mock_engine = MockQuakeEngine::new();
+        mock_engine
+            .expect_find_cvar()
+            .with(predicate::eq("sv_maxclients"))
+            .returning(move |_| {
+                let mut raw_cvar = CVarBuilder::default()
+                    .string(cvar_string.as_ptr() as *mut c_char)
+                    .build()
+                    .expect("this should not happen");
+                CVar::try_from(&mut raw_cvar as *mut cvar_t).ok()
+            })
+            .times(1);
+        MAIN_ENGINE.store(Some(mock_engine.into()));
+
+        Python::with_gil(|py| {
+            let py_str_type = py.get_type_bound::<PyBool>();
+            let result = Plugin::get_cvar(
+                &py.get_type_bound::<Plugin>(),
+                "sv_maxclients",
+                Some(py_str_type.unbind()),
+            );
+
+            assert!(result.is_err_and(|err| err.is_instance_of::<PyValueError>(py)));
+        });
+    }
+
+    #[test]
+    #[cfg_attr(miri, ignore)]
+    #[serial]
+    fn get_cvar_converts_to_list() {
+        let cvar_string = CString::new("2, 4, 6, 8, 10").expect("result was not OK");
+        let mut mock_engine = MockQuakeEngine::new();
+        mock_engine
+            .expect_find_cvar()
+            .with(predicate::eq("sv_maxclients"))
+            .returning(move |_| {
+                let mut raw_cvar = CVarBuilder::default()
+                    .string(cvar_string.as_ptr() as *mut c_char)
+                    .build()
+                    .expect("this should not happen");
+                CVar::try_from(&mut raw_cvar as *mut cvar_t).ok()
+            })
+            .times(1);
+        MAIN_ENGINE.store(Some(mock_engine.into()));
+
+        Python::with_gil(|py| {
+            let py_str_type = py.get_type_bound::<PyList>();
+            let result = Plugin::get_cvar(
+                &py.get_type_bound::<Plugin>(),
+                "sv_maxclients",
+                Some(py_str_type.unbind()),
+            )
+            .expect("result was not OK");
+            assert!(
+                result.bind(py).is_instance_of::<PyList>()
+                    && result
+                        .downcast_bound::<PyList>(py)
+                        .is_ok_and(|value| value.len() == 5)
+            );
+        });
+    }
+
+    #[test]
+    #[cfg_attr(miri, ignore)]
+    #[serial]
+    fn get_cvar_list_when_no_cvar_found() {
+        let mut mock_engine = MockQuakeEngine::new();
+        mock_engine
+            .expect_find_cvar()
+            .with(predicate::eq("sv_maxclients"))
+            .returning(|_| None)
+            .times(1);
+        MAIN_ENGINE.store(Some(mock_engine.into()));
+
+        Python::with_gil(|py| {
+            let py_str_type = py.get_type_bound::<PyList>();
+            let result = Plugin::get_cvar(
+                &py.get_type_bound::<Plugin>(),
+                "sv_maxclients",
+                Some(py_str_type.unbind()),
+            )
+            .expect("result was not OK");
+
+            assert!(
+                result.bind(py).is_instance_of::<PyList>()
+                    && result
+                        .downcast_bound::<PyList>(py)
+                        .is_ok_and(|value| value.is_empty())
+            );
+        });
+    }
+
+    #[test]
+    #[cfg_attr(miri, ignore)]
+    #[serial]
+    fn get_cvar_converts_to_set() {
+        let cvar_string = CString::new("2, 4, 6, 8, 10").expect("result was not OK");
+        let mut mock_engine = MockQuakeEngine::new();
+        mock_engine
+            .expect_find_cvar()
+            .with(predicate::eq("sv_maxclients"))
+            .returning(move |_| {
+                let mut raw_cvar = CVarBuilder::default()
+                    .string(cvar_string.as_ptr() as *mut c_char)
+                    .build()
+                    .expect("this should not happen");
+                CVar::try_from(&mut raw_cvar as *mut cvar_t).ok()
+            })
+            .times(1);
+        MAIN_ENGINE.store(Some(mock_engine.into()));
+
+        Python::with_gil(|py| {
+            let py_str_type = py.get_type_bound::<PySet>();
+            let result = Plugin::get_cvar(
+                &py.get_type_bound::<Plugin>(),
+                "sv_maxclients",
+                Some(py_str_type.unbind()),
+            )
+            .expect("result was not OK");
+            assert!(
+                result.bind(py).is_instance_of::<PySet>()
+                    && result
+                        .downcast_bound::<PySet>(py)
+                        .is_ok_and(|value| value.len() == 5)
+            );
+        });
+    }
+
+    #[test]
+    #[cfg_attr(miri, ignore)]
+    #[serial]
+    fn get_cvar_set_when_no_cvar_found() {
+        let mut mock_engine = MockQuakeEngine::new();
+        mock_engine
+            .expect_find_cvar()
+            .with(predicate::eq("sv_maxclients"))
+            .returning(|_| None)
+            .times(1);
+        MAIN_ENGINE.store(Some(mock_engine.into()));
+
+        Python::with_gil(|py| {
+            let py_str_type = py.get_type_bound::<PySet>();
+            let result = Plugin::get_cvar(
+                &py.get_type_bound::<Plugin>(),
+                "sv_maxclients",
+                Some(py_str_type.unbind()),
+            )
+            .expect("result was not OK");
+
+            assert!(
+                result.bind(py).is_instance_of::<PySet>()
+                    && result
+                        .downcast_bound::<PySet>(py)
+                        .is_ok_and(|value| value.is_empty())
+            );
+        });
+    }
+
+    #[test]
+    #[cfg_attr(miri, ignore)]
+    #[serial]
+    fn get_cvar_converts_to_tuple() {
+        let cvar_string = CString::new("2, 4, 6, 8, 10").expect("result was not OK");
+        let mut mock_engine = MockQuakeEngine::new();
+        mock_engine
+            .expect_find_cvar()
+            .with(predicate::eq("sv_maxclients"))
+            .returning(move |_| {
+                let mut raw_cvar = CVarBuilder::default()
+                    .string(cvar_string.as_ptr() as *mut c_char)
+                    .build()
+                    .expect("this should not happen");
+                CVar::try_from(&mut raw_cvar as *mut cvar_t).ok()
+            })
+            .times(1);
+        MAIN_ENGINE.store(Some(mock_engine.into()));
+
+        Python::with_gil(|py| {
+            let py_str_type = py.get_type_bound::<PyTuple>();
+            let result = Plugin::get_cvar(
+                &py.get_type_bound::<Plugin>(),
+                "sv_maxclients",
+                Some(py_str_type.unbind()),
+            )
+            .expect("result was not OK");
+            assert!(
+                result.bind(py).is_instance_of::<PyTuple>()
+                    && result
+                        .downcast_bound::<PyTuple>(py)
+                        .is_ok_and(|value| value.len() == 5)
+            );
+        });
+    }
+
+    #[test]
+    #[cfg_attr(miri, ignore)]
+    #[serial]
+    fn get_cvar_tuple_when_no_cvar_found() {
+        let mut mock_engine = MockQuakeEngine::new();
+        mock_engine
+            .expect_find_cvar()
+            .with(predicate::eq("sv_maxclients"))
+            .returning(|_| None)
+            .times(1);
+        MAIN_ENGINE.store(Some(mock_engine.into()));
+
+        Python::with_gil(|py| {
+            let py_str_type = py.get_type_bound::<PyTuple>();
+            let result = Plugin::get_cvar(
+                &py.get_type_bound::<Plugin>(),
+                "sv_maxclients",
+                Some(py_str_type.unbind()),
+            )
+            .expect("result was not OK");
+
+            assert!(
+                result.bind(py).is_instance_of::<PyTuple>()
+                    && result
+                        .downcast_bound::<PyTuple>(py)
+                        .is_ok_and(|value| value.is_empty())
+            );
+        });
+    }
+
+    #[test]
+    #[cfg_attr(miri, ignore)]
+    #[serial]
+    fn get_cvar_with_invalid_type_conversion() {
+        let cvar_string = CString::new("16").expect("result was not OK");
+        let mut mock_engine = MockQuakeEngine::new();
+        mock_engine
+            .expect_find_cvar()
+            .with(predicate::eq("sv_maxclients"))
+            .returning(move |_| {
+                let mut raw_cvar = CVarBuilder::default()
+                    .string(cvar_string.as_ptr() as *mut c_char)
+                    .build()
+                    .expect("this should not happen");
+                CVar::try_from(&mut raw_cvar as *mut cvar_t).ok()
+            })
+            .times(1);
+        MAIN_ENGINE.store(Some(mock_engine.into()));
+
+        Python::with_gil(|py| {
+            let py_str_type = py.get_type_bound::<PyDate>();
+            let result = Plugin::get_cvar(
+                &py.get_type_bound::<Plugin>(),
+                "sv_maxclients",
+                Some(py_str_type.unbind()),
+            );
+
+            assert!(result.is_err_and(|err| err.is_instance_of::<PyValueError>(py)));
         });
     }
 
