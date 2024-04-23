@@ -517,131 +517,116 @@ impl Game {
     }
 
     #[classmethod]
-    pub(crate) fn shuffle(_cls: &Bound<'_, PyType>, py: Python<'_>) -> PyResult<()> {
-        pyshinqlx_console_command(py, "forceshuffle")
+    pub(crate) fn shuffle(cls: &Bound<'_, PyType>) -> PyResult<()> {
+        pyshinqlx_console_command(cls.py(), "forceshuffle")
     }
 
     #[classmethod]
-    fn timeout(_cls: &Bound<'_, PyType>, py: Python<'_>) -> PyResult<()> {
-        pyshinqlx_console_command(py, "timeout")
+    fn timeout(cls: &Bound<'_, PyType>) -> PyResult<()> {
+        pyshinqlx_console_command(cls.py(), "timeout")
     }
 
     #[classmethod]
-    fn timein(_cls: &Bound<'_, PyType>, py: Python<'_>) -> PyResult<()> {
-        pyshinqlx_console_command(py, "timein")
+    fn timein(cls: &Bound<'_, PyType>) -> PyResult<()> {
+        pyshinqlx_console_command(cls.py(), "timein")
     }
 
     #[classmethod]
-    fn allready(_cls: &Bound<'_, PyType>, py: Python<'_>) -> PyResult<()> {
-        pyshinqlx_console_command(py, "allready")
+    fn allready(cls: &Bound<'_, PyType>) -> PyResult<()> {
+        pyshinqlx_console_command(cls.py(), "allready")
     }
 
     #[classmethod]
-    fn pause(_cls: &Bound<'_, PyType>, py: Python<'_>) -> PyResult<()> {
-        pyshinqlx_console_command(py, "pause")
+    fn pause(cls: &Bound<'_, PyType>) -> PyResult<()> {
+        pyshinqlx_console_command(cls.py(), "pause")
     }
 
     #[classmethod]
-    fn unpause(_cls: &Bound<'_, PyType>, py: Python<'_>) -> PyResult<()> {
-        pyshinqlx_console_command(py, "unpause")
-    }
-
-    #[classmethod]
-    #[pyo3(signature = (team = None), text_signature = "(team = None)")]
-    fn lock(_cls: &Bound<'_, PyType>, py: Python<'_>, team: Option<&str>) -> PyResult<()> {
-        lock(py, team)
+    fn unpause(cls: &Bound<'_, PyType>) -> PyResult<()> {
+        pyshinqlx_console_command(cls.py(), "unpause")
     }
 
     #[classmethod]
     #[pyo3(signature = (team = None), text_signature = "(team = None)")]
-    fn unlock(_cls: &Bound<'_, PyType>, py: Python<'_>, team: Option<&str>) -> PyResult<()> {
-        unlock(py, team)
+    fn lock(cls: &Bound<'_, PyType>, team: Option<&str>) -> PyResult<()> {
+        lock(cls.py(), team)
     }
 
     #[classmethod]
-    fn put(
-        _cls: &Bound<'_, PyType>,
-        py: Python<'_>,
-        player: Py<PyAny>,
-        team: &str,
-    ) -> PyResult<()> {
-        put(py, player, team)
+    #[pyo3(signature = (team = None), text_signature = "(team = None)")]
+    fn unlock(cls: &Bound<'_, PyType>, team: Option<&str>) -> PyResult<()> {
+        unlock(cls.py(), team)
     }
 
     #[classmethod]
-    fn mute(_cls: &Bound<'_, PyType>, py: Python<'_>, player: PyObject) -> PyResult<()> {
-        mute(py, player)
+    fn put(cls: &Bound<'_, PyType>, player: Py<PyAny>, team: &str) -> PyResult<()> {
+        put(cls.py(), player, team)
     }
 
     #[classmethod]
-    fn unmute(_cls: &Bound<'_, PyType>, py: Python<'_>, player: PyObject) -> PyResult<()> {
-        unmute(py, player)
+    fn mute(cls: &Bound<'_, PyType>, player: PyObject) -> PyResult<()> {
+        mute(cls.py(), player)
     }
 
     #[classmethod]
-    fn tempban(_cls: &Bound<'_, PyType>, py: Python<'_>, player: PyObject) -> PyResult<()> {
-        tempban(py, player)
+    fn unmute(cls: &Bound<'_, PyType>, player: PyObject) -> PyResult<()> {
+        unmute(cls.py(), player)
     }
 
     #[classmethod]
-    fn ban(_cls: &Bound<'_, PyType>, py: Python<'_>, player: PyObject) -> PyResult<()> {
-        ban(py, player)
+    fn tempban(cls: &Bound<'_, PyType>, player: PyObject) -> PyResult<()> {
+        tempban(cls.py(), player)
     }
 
     #[classmethod]
-    fn unban(_cls: &Bound<'_, PyType>, py: Python<'_>, player: PyObject) -> PyResult<()> {
-        unban(py, player)
+    fn ban(cls: &Bound<'_, PyType>, player: PyObject) -> PyResult<()> {
+        ban(cls.py(), player)
     }
 
     #[classmethod]
-    fn opsay(_cls: &Bound<'_, PyType>, py: Python<'_>, msg: &str) -> PyResult<()> {
-        opsay(py, msg)
+    fn unban(cls: &Bound<'_, PyType>, player: PyObject) -> PyResult<()> {
+        unban(cls.py(), player)
     }
 
     #[classmethod]
-    fn addadmin(_cls: &Bound<'_, PyType>, py: Python<'_>, player: PyObject) -> PyResult<()> {
-        addadmin(py, player)
+    fn opsay(cls: &Bound<'_, PyType>, msg: &str) -> PyResult<()> {
+        opsay(cls.py(), msg)
     }
 
     #[classmethod]
-    fn addmod(_cls: &Bound<'_, PyType>, py: Python<'_>, player: PyObject) -> PyResult<()> {
-        addmod(py, player)
+    fn addadmin(cls: &Bound<'_, PyType>, player: PyObject) -> PyResult<()> {
+        addadmin(cls.py(), player)
     }
 
     #[classmethod]
-    fn demote(_cls: &Bound<'_, PyType>, py: Python<'_>, player: PyObject) -> PyResult<()> {
-        demote(py, player)
+    fn addmod(cls: &Bound<'_, PyType>, player: PyObject) -> PyResult<()> {
+        addmod(cls.py(), player)
     }
 
     #[classmethod]
-    fn abort(_cls: &Bound<'_, PyType>, py: Python<'_>) -> PyResult<()> {
-        pyshinqlx_console_command(py, "map_restart")
+    fn demote(cls: &Bound<'_, PyType>, player: PyObject) -> PyResult<()> {
+        demote(cls.py(), player)
     }
 
     #[classmethod]
-    fn addscore(
-        _cls: &Bound<'_, PyType>,
-        py: Python<'_>,
-        player: PyObject,
-        score: i32,
-    ) -> PyResult<()> {
-        addscore(py, player, score)
+    fn abort(cls: &Bound<'_, PyType>) -> PyResult<()> {
+        pyshinqlx_console_command(cls.py(), "map_restart")
     }
 
     #[classmethod]
-    fn addteamscore(
-        _cls: &Bound<'_, PyType>,
-        py: Python<'_>,
-        team: &str,
-        score: i32,
-    ) -> PyResult<()> {
-        addteamscore(py, team, score)
+    fn addscore(cls: &Bound<'_, PyType>, player: PyObject, score: i32) -> PyResult<()> {
+        addscore(cls.py(), player, score)
     }
 
     #[classmethod]
-    fn setmatchtime(_cls: &Bound<'_, PyType>, py: Python<'_>, time: i32) -> PyResult<()> {
+    fn addteamscore(cls: &Bound<'_, PyType>, team: &str, score: i32) -> PyResult<()> {
+        addteamscore(cls.py(), team, score)
+    }
+
+    #[classmethod]
+    fn setmatchtime(cls: &Bound<'_, PyType>, time: i32) -> PyResult<()> {
         let setmatchtime_cmd = format!("setmatchtime {}", time);
-        pyshinqlx_console_command(py, &setmatchtime_cmd)
+        pyshinqlx_console_command(cls.py(), &setmatchtime_cmd)
     }
 }
 
@@ -2593,7 +2578,7 @@ shinqlx._map_subtitle2 = "Awesome map!"
             .times(1);
         MAIN_ENGINE.store(Some(mock_engine.into()));
 
-        let result = Python::with_gil(|py| Game::shuffle(&py.get_type_bound::<Game>(), py));
+        let result = Python::with_gil(|py| Game::shuffle(&py.get_type_bound::<Game>()));
         assert!(result.is_ok());
     }
 
@@ -2608,7 +2593,7 @@ shinqlx._map_subtitle2 = "Awesome map!"
             .times(1);
         MAIN_ENGINE.store(Some(mock_engine.into()));
 
-        let result = Python::with_gil(|py| Game::timeout(&py.get_type_bound::<Game>(), py));
+        let result = Python::with_gil(|py| Game::timeout(&py.get_type_bound::<Game>()));
         assert!(result.is_ok());
     }
 
@@ -2623,7 +2608,7 @@ shinqlx._map_subtitle2 = "Awesome map!"
             .times(1);
         MAIN_ENGINE.store(Some(mock_engine.into()));
 
-        let result = Python::with_gil(|py| Game::timein(&py.get_type_bound::<Game>(), py));
+        let result = Python::with_gil(|py| Game::timein(&py.get_type_bound::<Game>()));
         assert!(result.is_ok());
     }
 
@@ -2638,7 +2623,7 @@ shinqlx._map_subtitle2 = "Awesome map!"
             .times(1);
         MAIN_ENGINE.store(Some(mock_engine.into()));
 
-        let result = Python::with_gil(|py| Game::allready(&py.get_type_bound::<Game>(), py));
+        let result = Python::with_gil(|py| Game::allready(&py.get_type_bound::<Game>()));
         assert!(result.is_ok());
     }
 
@@ -2653,7 +2638,7 @@ shinqlx._map_subtitle2 = "Awesome map!"
             .times(1);
         MAIN_ENGINE.store(Some(mock_engine.into()));
 
-        let result = Python::with_gil(|py| Game::pause(&py.get_type_bound::<Game>(), py));
+        let result = Python::with_gil(|py| Game::pause(&py.get_type_bound::<Game>()));
         assert!(result.is_ok());
     }
 
@@ -2668,7 +2653,7 @@ shinqlx._map_subtitle2 = "Awesome map!"
             .times(1);
         MAIN_ENGINE.store(Some(mock_engine.into()));
 
-        let result = Python::with_gil(|py| Game::unpause(&py.get_type_bound::<Game>(), py));
+        let result = Python::with_gil(|py| Game::unpause(&py.get_type_bound::<Game>()));
         assert!(result.is_ok());
     }
 
@@ -2679,7 +2664,7 @@ shinqlx._map_subtitle2 = "Awesome map!"
         MAIN_ENGINE.store(None);
 
         Python::with_gil(|py| {
-            let result = Game::lock(&py.get_type_bound::<Game>(), py, Some("invalid_team"));
+            let result = Game::lock(&py.get_type_bound::<Game>(), Some("invalid_team"));
             assert!(result.is_err_and(|err| err.is_instance_of::<PyValueError>(py)));
         });
     }
@@ -2695,7 +2680,7 @@ shinqlx._map_subtitle2 = "Awesome map!"
             .times(1);
         MAIN_ENGINE.store(Some(mock_engine.into()));
 
-        let result = Python::with_gil(|py| Game::lock(&py.get_type_bound::<Game>(), py, None));
+        let result = Python::with_gil(|py| Game::lock(&py.get_type_bound::<Game>(), None));
         assert!(result.is_ok());
     }
 
@@ -2717,7 +2702,7 @@ shinqlx._map_subtitle2 = "Awesome map!"
         MAIN_ENGINE.store(Some(mock_engine.into()));
 
         let result =
-            Python::with_gil(|py| Game::lock(&py.get_type_bound::<Game>(), py, Some(locked_team)));
+            Python::with_gil(|py| Game::lock(&py.get_type_bound::<Game>(), Some(locked_team)));
         assert!(result.is_ok());
     }
 
@@ -2728,7 +2713,7 @@ shinqlx._map_subtitle2 = "Awesome map!"
         MAIN_ENGINE.store(None);
 
         Python::with_gil(|py| {
-            let result = Game::unlock(&py.get_type_bound::<Game>(), py, Some("invalid_team"));
+            let result = Game::unlock(&py.get_type_bound::<Game>(), Some("invalid_team"));
             assert!(result.is_err_and(|err| err.is_instance_of::<PyValueError>(py)));
         });
     }
@@ -2744,7 +2729,7 @@ shinqlx._map_subtitle2 = "Awesome map!"
             .times(1);
         MAIN_ENGINE.store(Some(mock_engine.into()));
 
-        let result = Python::with_gil(|py| Game::unlock(&py.get_type_bound::<Game>(), py, None));
+        let result = Python::with_gil(|py| Game::unlock(&py.get_type_bound::<Game>(), None));
         assert!(result.is_ok());
     }
 
@@ -2765,9 +2750,8 @@ shinqlx._map_subtitle2 = "Awesome map!"
             .times(1);
         MAIN_ENGINE.store(Some(mock_engine.into()));
 
-        let result = Python::with_gil(|py| {
-            Game::unlock(&py.get_type_bound::<Game>(), py, Some(locked_team))
-        });
+        let result =
+            Python::with_gil(|py| Game::unlock(&py.get_type_bound::<Game>(), Some(locked_team)));
         assert!(result.is_ok());
     }
 
@@ -2778,12 +2762,7 @@ shinqlx._map_subtitle2 = "Awesome map!"
         MAIN_ENGINE.store(None);
 
         Python::with_gil(|py| {
-            let result = Game::put(
-                &py.get_type_bound::<Game>(),
-                py,
-                2.into_py(py),
-                "invalid team",
-            );
+            let result = Game::put(&py.get_type_bound::<Game>(), 2.into_py(py), "invalid team");
             assert!(result.is_err_and(|err| err.is_instance_of::<PyValueError>(py)));
         });
     }
@@ -2795,7 +2774,7 @@ shinqlx._map_subtitle2 = "Awesome map!"
         MAIN_ENGINE.store(None);
 
         Python::with_gil(|py| {
-            let result = Game::put(&py.get_type_bound::<Game>(), py, 2048.into_py(py), "red");
+            let result = Game::put(&py.get_type_bound::<Game>(), 2048.into_py(py), "red");
             assert!(result.is_err_and(|err| err.is_instance_of::<PyValueError>(py)));
         });
     }
@@ -2817,9 +2796,8 @@ shinqlx._map_subtitle2 = "Awesome map!"
             .times(1);
         MAIN_ENGINE.store(Some(mock_engine.into()));
 
-        let result = Python::with_gil(|py| {
-            Game::put(&py.get_type_bound::<Game>(), py, 2.into_py(py), new_team)
-        });
+        let result =
+            Python::with_gil(|py| Game::put(&py.get_type_bound::<Game>(), 2.into_py(py), new_team));
         assert!(result.is_ok());
     }
 
@@ -2830,7 +2808,7 @@ shinqlx._map_subtitle2 = "Awesome map!"
         MAIN_ENGINE.store(None);
 
         Python::with_gil(|py| {
-            let result = Game::mute(&py.get_type_bound::<Game>(), py, 2048.into_py(py));
+            let result = Game::mute(&py.get_type_bound::<Game>(), 2048.into_py(py));
             assert!(result.is_err_and(|err| err.is_instance_of::<PyValueError>(py)));
         });
     }
@@ -2846,8 +2824,7 @@ shinqlx._map_subtitle2 = "Awesome map!"
             .times(1);
         MAIN_ENGINE.store(Some(mock_engine.into()));
 
-        let result =
-            Python::with_gil(|py| Game::mute(&py.get_type_bound::<Game>(), py, 2.into_py(py)));
+        let result = Python::with_gil(|py| Game::mute(&py.get_type_bound::<Game>(), 2.into_py(py)));
         assert!(result.is_ok());
     }
 
@@ -2858,7 +2835,7 @@ shinqlx._map_subtitle2 = "Awesome map!"
         MAIN_ENGINE.store(None);
 
         Python::with_gil(|py| {
-            let result = Game::unmute(&py.get_type_bound::<Game>(), py, 2048.into_py(py));
+            let result = Game::unmute(&py.get_type_bound::<Game>(), 2048.into_py(py));
             assert!(result.is_err_and(|err| err.is_instance_of::<PyValueError>(py)));
         });
     }
@@ -2875,7 +2852,7 @@ shinqlx._map_subtitle2 = "Awesome map!"
         MAIN_ENGINE.store(Some(mock_engine.into()));
 
         let result =
-            Python::with_gil(|py| Game::unmute(&py.get_type_bound::<Game>(), py, 2.into_py(py)));
+            Python::with_gil(|py| Game::unmute(&py.get_type_bound::<Game>(), 2.into_py(py)));
         assert!(result.is_ok());
     }
 
@@ -2886,7 +2863,7 @@ shinqlx._map_subtitle2 = "Awesome map!"
         MAIN_ENGINE.store(None);
 
         Python::with_gil(|py| {
-            let result = Game::tempban(&py.get_type_bound::<Game>(), py, 2048.into_py(py));
+            let result = Game::tempban(&py.get_type_bound::<Game>(), 2048.into_py(py));
             assert!(result.is_err_and(|err| err.is_instance_of::<PyValueError>(py)));
         });
     }
@@ -2903,7 +2880,7 @@ shinqlx._map_subtitle2 = "Awesome map!"
         MAIN_ENGINE.store(Some(mock_engine.into()));
 
         let result =
-            Python::with_gil(|py| Game::tempban(&py.get_type_bound::<Game>(), py, 2.into_py(py)));
+            Python::with_gil(|py| Game::tempban(&py.get_type_bound::<Game>(), 2.into_py(py)));
         assert!(result.is_ok());
     }
 
@@ -2914,7 +2891,7 @@ shinqlx._map_subtitle2 = "Awesome map!"
         MAIN_ENGINE.store(None);
 
         Python::with_gil(|py| {
-            let result = Game::ban(&py.get_type_bound::<Game>(), py, 2048.into_py(py));
+            let result = Game::ban(&py.get_type_bound::<Game>(), 2048.into_py(py));
             assert!(result.is_err_and(|err| err.is_instance_of::<PyValueError>(py)));
         });
     }
@@ -2930,8 +2907,7 @@ shinqlx._map_subtitle2 = "Awesome map!"
             .times(1);
         MAIN_ENGINE.store(Some(mock_engine.into()));
 
-        let result =
-            Python::with_gil(|py| Game::ban(&py.get_type_bound::<Game>(), py, 2.into_py(py)));
+        let result = Python::with_gil(|py| Game::ban(&py.get_type_bound::<Game>(), 2.into_py(py)));
         assert!(result.is_ok());
     }
 
@@ -2942,7 +2918,7 @@ shinqlx._map_subtitle2 = "Awesome map!"
         MAIN_ENGINE.store(None);
 
         Python::with_gil(|py| {
-            let result = Game::unban(&py.get_type_bound::<Game>(), py, 2048.into_py(py));
+            let result = Game::unban(&py.get_type_bound::<Game>(), 2048.into_py(py));
             assert!(result.is_err_and(|err| err.is_instance_of::<PyValueError>(py)));
         });
     }
@@ -2959,7 +2935,7 @@ shinqlx._map_subtitle2 = "Awesome map!"
         MAIN_ENGINE.store(Some(mock_engine.into()));
 
         let result =
-            Python::with_gil(|py| Game::unban(&py.get_type_bound::<Game>(), py, 2.into_py(py)));
+            Python::with_gil(|py| Game::unban(&py.get_type_bound::<Game>(), 2.into_py(py)));
         assert!(result.is_ok());
     }
 
@@ -2974,7 +2950,7 @@ shinqlx._map_subtitle2 = "Awesome map!"
             .times(1);
         MAIN_ENGINE.store(Some(mock_engine.into()));
 
-        let result = Python::with_gil(|py| Game::opsay(&py.get_type_bound::<Game>(), py, "asdf"));
+        let result = Python::with_gil(|py| Game::opsay(&py.get_type_bound::<Game>(), "asdf"));
         assert!(result.is_ok());
     }
 
@@ -2985,7 +2961,7 @@ shinqlx._map_subtitle2 = "Awesome map!"
         MAIN_ENGINE.store(None);
 
         Python::with_gil(|py| {
-            let result = Game::addadmin(&py.get_type_bound::<Game>(), py, 2048.into_py(py));
+            let result = Game::addadmin(&py.get_type_bound::<Game>(), 2048.into_py(py));
             assert!(result.is_err_and(|err| err.is_instance_of::<PyValueError>(py)));
         });
     }
@@ -3002,7 +2978,7 @@ shinqlx._map_subtitle2 = "Awesome map!"
         MAIN_ENGINE.store(Some(mock_engine.into()));
 
         let result =
-            Python::with_gil(|py| Game::addadmin(&py.get_type_bound::<Game>(), py, 2.into_py(py)));
+            Python::with_gil(|py| Game::addadmin(&py.get_type_bound::<Game>(), 2.into_py(py)));
         assert!(result.is_ok());
     }
 
@@ -3013,7 +2989,7 @@ shinqlx._map_subtitle2 = "Awesome map!"
         MAIN_ENGINE.store(None);
 
         Python::with_gil(|py| {
-            let result = Game::addmod(&py.get_type_bound::<Game>(), py, 2048.into_py(py));
+            let result = Game::addmod(&py.get_type_bound::<Game>(), 2048.into_py(py));
             assert!(result.is_err_and(|err| err.is_instance_of::<PyValueError>(py)));
         });
     }
@@ -3030,7 +3006,7 @@ shinqlx._map_subtitle2 = "Awesome map!"
         MAIN_ENGINE.store(Some(mock_engine.into()));
 
         let result =
-            Python::with_gil(|py| Game::addmod(&py.get_type_bound::<Game>(), py, 2.into_py(py)));
+            Python::with_gil(|py| Game::addmod(&py.get_type_bound::<Game>(), 2.into_py(py)));
         assert!(result.is_ok());
     }
 
@@ -3041,7 +3017,7 @@ shinqlx._map_subtitle2 = "Awesome map!"
         MAIN_ENGINE.store(None);
 
         Python::with_gil(|py| {
-            let result = Game::demote(&py.get_type_bound::<Game>(), py, 2048.into_py(py));
+            let result = Game::demote(&py.get_type_bound::<Game>(), 2048.into_py(py));
             assert!(result.is_err_and(|err| err.is_instance_of::<PyValueError>(py)));
         });
     }
@@ -3058,7 +3034,7 @@ shinqlx._map_subtitle2 = "Awesome map!"
         MAIN_ENGINE.store(Some(mock_engine.into()));
 
         let result =
-            Python::with_gil(|py| Game::demote(&py.get_type_bound::<Game>(), py, 2.into_py(py)));
+            Python::with_gil(|py| Game::demote(&py.get_type_bound::<Game>(), 2.into_py(py)));
         assert!(result.is_ok());
     }
 
@@ -3073,7 +3049,7 @@ shinqlx._map_subtitle2 = "Awesome map!"
             .times(1);
         MAIN_ENGINE.store(Some(mock_engine.into()));
 
-        let result = Python::with_gil(|py| Game::abort(&py.get_type_bound::<Game>(), py));
+        let result = Python::with_gil(|py| Game::abort(&py.get_type_bound::<Game>()));
         assert!(result.is_ok());
     }
 
@@ -3084,7 +3060,7 @@ shinqlx._map_subtitle2 = "Awesome map!"
         MAIN_ENGINE.store(None);
 
         Python::with_gil(|py| {
-            let result = Game::addscore(&py.get_type_bound::<Game>(), py, 2048.into_py(py), 42);
+            let result = Game::addscore(&py.get_type_bound::<Game>(), 2048.into_py(py), 42);
             assert!(result.is_err_and(|err| err.is_instance_of::<PyValueError>(py)));
         });
     }
@@ -3100,9 +3076,8 @@ shinqlx._map_subtitle2 = "Awesome map!"
             .times(1);
         MAIN_ENGINE.store(Some(mock_engine.into()));
 
-        let result = Python::with_gil(|py| {
-            Game::addscore(&py.get_type_bound::<Game>(), py, 2.into_py(py), 42)
-        });
+        let result =
+            Python::with_gil(|py| Game::addscore(&py.get_type_bound::<Game>(), 2.into_py(py), 42));
         assert!(result.is_ok());
     }
 
@@ -3113,7 +3088,7 @@ shinqlx._map_subtitle2 = "Awesome map!"
         MAIN_ENGINE.store(None);
 
         Python::with_gil(|py| {
-            let result = Game::addteamscore(&py.get_type_bound::<Game>(), py, "invalid_team", 42);
+            let result = Game::addteamscore(&py.get_type_bound::<Game>(), "invalid_team", 42);
             assert!(result.is_err_and(|err| err.is_instance_of::<PyValueError>(py)));
         });
     }
@@ -3136,7 +3111,7 @@ shinqlx._map_subtitle2 = "Awesome map!"
         MAIN_ENGINE.store(Some(mock_engine.into()));
 
         let result = Python::with_gil(|py| {
-            Game::addteamscore(&py.get_type_bound::<Game>(), py, locked_team, 42)
+            Game::addteamscore(&py.get_type_bound::<Game>(), locked_team, 42)
         });
         assert!(result.is_ok());
     }
@@ -3152,8 +3127,7 @@ shinqlx._map_subtitle2 = "Awesome map!"
             .times(1);
         MAIN_ENGINE.store(Some(mock_engine.into()));
 
-        let result =
-            Python::with_gil(|py| Game::setmatchtime(&py.get_type_bound::<Game>(), py, 42));
+        let result = Python::with_gil(|py| Game::setmatchtime(&py.get_type_bound::<Game>(), 42));
         assert!(result.is_ok());
     }
 }
