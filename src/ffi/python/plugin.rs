@@ -2408,6 +2408,99 @@ class subplugin(Plugin):
 
     #[test]
     #[cfg_attr(miri, ignore)]
+    fn player_for_provided_player() {
+        let player = Player {
+            valid: true,
+            id: 0,
+            player_info: PlayerInfo {
+                client_id: 0,
+                name: "Mocked Player".to_string(),
+                connection_state: clientState_t::CS_ACTIVE as i32,
+                userinfo: "asdf".to_string(),
+                steam_id: 1234,
+                team: team_t::TEAM_RED as i32,
+                privileges: 0,
+            },
+            name: "Mocked Player".to_string(),
+            steam_id: 1234,
+            user_info: "asdf".to_string(),
+        };
+
+        Python::with_gil(|py| {
+            let result = Plugin::player(
+                &py.get_type_bound::<Plugin>(),
+                player.clone().into_py(py),
+                None,
+            );
+            assert!(result
+                .expect("result was not ok")
+                .is_some_and(|result_player| player == result_player));
+        });
+    }
+
+    #[test]
+    #[cfg_attr(miri, ignore)]
+    fn player_for_player_id() {
+        let client_try_from_ctx = MockClient::from_context();
+        client_try_from_ctx
+            .expect()
+            .with(predicate::eq(42))
+            .returning(|_client_id| {
+                let mut mock_client = MockClient::new();
+                mock_client
+                    .expect_get_state()
+                    .returning(|| clientState_t::CS_ACTIVE);
+                mock_client
+                    .expect_get_user_info()
+                    .returning(|| "asdf".into());
+                mock_client.expect_get_steam_id().returning(|| 1234);
+                mock_client
+            });
+
+        let game_entity_try_from_ctx = MockGameEntity::from_context();
+        game_entity_try_from_ctx
+            .expect()
+            .with(predicate::eq(42))
+            .returning(|_client_id| {
+                let mut mock_game_entity = MockGameEntity::new();
+                mock_game_entity
+                    .expect_get_player_name()
+                    .returning(|| "Mocked Player".to_string());
+                mock_game_entity
+                    .expect_get_team()
+                    .returning(|| team_t::TEAM_RED);
+                mock_game_entity
+                    .expect_get_privileges()
+                    .returning(|| privileges_t::PRIV_NONE);
+                mock_game_entity
+            });
+
+        Python::with_gil(|py| {
+            let result = Plugin::player(&py.get_type_bound::<Plugin>(), 42i32.into_py(py), None);
+            assert!(result
+                .expect("result was not ok")
+                .is_some_and(|player| player
+                    == Player {
+                        valid: true,
+                        id: 42,
+                        player_info: PlayerInfo {
+                            client_id: 42,
+                            name: "Mocked Player".to_string(),
+                            connection_state: clientState_t::CS_ACTIVE as i32,
+                            userinfo: "asdf".to_string(),
+                            steam_id: 1234,
+                            team: team_t::TEAM_RED as i32,
+                            privileges: 0,
+                        },
+                        name: "Mocked Player".to_string(),
+                        steam_id: 1234,
+                        user_info: "asdf".to_string(),
+                    },),);
+        });
+    }
+
+    #[test]
+    #[cfg_attr(miri, ignore)]
     #[serial]
     fn shuffle_forces_shuffle() {
         let mut mock_engine = MockQuakeEngine::new();
