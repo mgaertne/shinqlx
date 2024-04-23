@@ -700,7 +700,7 @@ impl Plugin {
             return Some(player.name.clone());
         }
 
-        let Ok(searched_name) = name.bind(cls.py()).extract::<String>() else {
+        let Ok(searched_name) = name.bind(cls.py()).str().map(|value| value.to_string()) else {
             return None;
         };
 
@@ -1173,6 +1173,7 @@ mod plugin_tests {
     use alloc::ffi::CString;
     use core::ffi::c_char;
 
+    use crate::hooks::mock_hooks::shinqlx_com_printf_context;
     use mockall::predicate;
     use pretty_assertions::assert_eq;
     use pyo3::{
@@ -2297,8 +2298,8 @@ class subplugin(Plugin):
     }
 
     #[test]
-    #[serial]
     #[cfg_attr(miri, ignore)]
+    #[serial]
     fn all_players_for_existing_clients() {
         let mut mock_engine = MockQuakeEngine::new();
         mock_engine.expect_get_max_clients().returning(|| 3);
@@ -2440,6 +2441,7 @@ class subplugin(Plugin):
 
     #[test]
     #[cfg_attr(miri, ignore)]
+    #[serial]
     fn player_for_player_id() {
         let client_try_from_ctx = MockClient::from_context();
         client_try_from_ctx
@@ -2496,6 +2498,289 @@ class subplugin(Plugin):
                         steam_id: 1234,
                         user_info: "asdf".to_string(),
                     },),);
+        });
+    }
+
+    #[test]
+    #[cfg_attr(miri, ignore)]
+    fn player_for_provided_steam_id_from_player_list() {
+        let player = Player {
+            valid: true,
+            id: 0,
+            player_info: PlayerInfo {
+                client_id: 0,
+                name: "Mocked Player".to_string(),
+                connection_state: clientState_t::CS_ACTIVE as i32,
+                userinfo: "asdf".to_string(),
+                steam_id: 1234,
+                team: team_t::TEAM_RED as i32,
+                privileges: 0,
+            },
+            name: "Mocked Player".to_string(),
+            steam_id: 1234,
+            user_info: "asdf".to_string(),
+        };
+
+        Python::with_gil(|py| {
+            let result = Plugin::player(
+                &py.get_type_bound::<Plugin>(),
+                1234.into_py(py),
+                Some(vec![player.clone()]),
+            );
+            assert!(result
+                .expect("result was not ok")
+                .is_some_and(|result_player| player == result_player));
+        });
+    }
+
+    #[test]
+    #[cfg_attr(miri, ignore)]
+    fn player_for_provided_steam_id_not_in_provided_player_list() {
+        let player = Player {
+            valid: true,
+            id: 0,
+            player_info: PlayerInfo {
+                client_id: 0,
+                name: "Mocked Player".to_string(),
+                connection_state: clientState_t::CS_ACTIVE as i32,
+                userinfo: "asdf".to_string(),
+                steam_id: 1234,
+                team: team_t::TEAM_RED as i32,
+                privileges: 0,
+            },
+            name: "Mocked Player".to_string(),
+            steam_id: 1234,
+            user_info: "asdf".to_string(),
+        };
+
+        Python::with_gil(|py| {
+            let result = Plugin::player(
+                &py.get_type_bound::<Plugin>(),
+                4321.into_py(py),
+                Some(vec![player.clone()]),
+            );
+            assert!(result.expect("result was not ok").is_none());
+        });
+    }
+
+    #[test]
+    #[cfg_attr(miri, ignore)]
+    fn player_for_provided_name_from_player_list() {
+        let player = Player {
+            valid: true,
+            id: 0,
+            player_info: PlayerInfo {
+                client_id: 0,
+                name: "Mocked Player".to_string(),
+                connection_state: clientState_t::CS_ACTIVE as i32,
+                userinfo: "asdf".to_string(),
+                steam_id: 1234,
+                team: team_t::TEAM_RED as i32,
+                privileges: 0,
+            },
+            name: "Mocked Player".to_string(),
+            steam_id: 1234,
+            user_info: "asdf".to_string(),
+        };
+
+        Python::with_gil(|py| {
+            let result = Plugin::player(
+                &py.get_type_bound::<Plugin>(),
+                "Mocked Player".into_py(py),
+                Some(vec![player.clone()]),
+            );
+            assert!(result
+                .expect("result was not ok")
+                .is_some_and(|result_player| player == result_player));
+        });
+    }
+
+    #[test]
+    #[cfg_attr(miri, ignore)]
+    fn player_for_provided_name_not_in_provided_player_list() {
+        let player = Player {
+            valid: true,
+            id: 0,
+            player_info: PlayerInfo {
+                client_id: 0,
+                name: "Mocked Player".to_string(),
+                connection_state: clientState_t::CS_ACTIVE as i32,
+                userinfo: "asdf".to_string(),
+                steam_id: 1234,
+                team: team_t::TEAM_RED as i32,
+                privileges: 0,
+            },
+            name: "Mocked Player".to_string(),
+            steam_id: 1234,
+            user_info: "asdf".to_string(),
+        };
+
+        Python::with_gil(|py| {
+            let result = Plugin::player(
+                &py.get_type_bound::<Plugin>(),
+                "disconnected".into_py(py),
+                Some(vec![player.clone()]),
+            );
+            assert!(result.expect("result was not ok").is_none());
+        });
+    }
+
+    #[test]
+    #[cfg_attr(miri, ignore)]
+    fn msg_for_invalid_channel() {
+        Python::with_gil(|py| {
+            let result = Plugin::msg(
+                &py.get_type_bound::<Plugin>(),
+                "asdf",
+                Some("asdf".into_py(py)),
+                None,
+            );
+            assert!(result.is_err_and(|err| err.is_instance_of::<PyValueError>(py)));
+        });
+    }
+
+    #[test]
+    #[cfg_attr(miri, ignore)]
+    #[serial]
+    fn console_prints_to_console() {
+        let com_printf_ctx = shinqlx_com_printf_context();
+        com_printf_ctx
+            .expect()
+            .with(predicate::eq("asdf\n"))
+            .times(1);
+
+        Python::with_gil(|py| {
+            let result = Plugin::console(&py.get_type_bound::<Plugin>(), "asdf".into_py(py));
+            assert!(result.as_ref().is_ok(), "{:?}", result.as_ref());
+        });
+    }
+
+    #[test]
+    #[cfg_attr(miri, ignore)]
+    fn clean_text_cleans_text_from_color_tags() {
+        Python::with_gil(|py| {
+            let result = Plugin::clean_text(
+                &py.get_type_bound::<Plugin>(),
+                "^0a^1b^2c^3d^4e^5f^6g^7h^8i^9j",
+            );
+            assert_eq!(result, "abcdefgh^8i^9j");
+        });
+    }
+
+    #[test]
+    #[cfg_attr(miri, ignore)]
+    fn colored_name_for_provided_player() {
+        let player = Player {
+            valid: true,
+            id: 0,
+            player_info: PlayerInfo {
+                client_id: 0,
+                name: "Mocked Player".to_string(),
+                connection_state: clientState_t::CS_ACTIVE as i32,
+                userinfo: "asdf".to_string(),
+                steam_id: 1234,
+                team: team_t::TEAM_RED as i32,
+                privileges: 0,
+            },
+            name: "Mocked Player".to_string(),
+            steam_id: 1234,
+            user_info: "asdf".to_string(),
+        };
+
+        Python::with_gil(|py| {
+            let result =
+                Plugin::colored_name(&py.get_type_bound::<Plugin>(), player.into_py(py), None);
+            assert_eq!(result.expect("result was none"), "Mocked Player");
+        });
+    }
+
+    #[test]
+    #[cfg_attr(miri, ignore)]
+    fn colored_name_for_player_in_provided_playerlist() {
+        let player = Player {
+            valid: true,
+            id: 0,
+            player_info: PlayerInfo {
+                client_id: 0,
+                name: "Mocked Player".to_string(),
+                connection_state: clientState_t::CS_ACTIVE as i32,
+                userinfo: "asdf".to_string(),
+                steam_id: 1234,
+                team: team_t::TEAM_RED as i32,
+                privileges: 0,
+            },
+            name: "Mocked Player".to_string(),
+            steam_id: 1234,
+            user_info: "asdf".to_string(),
+        };
+
+        Python::with_gil(|py| {
+            let result = Plugin::colored_name(
+                &py.get_type_bound::<Plugin>(),
+                "Mocked Player".into_py(py),
+                Some(vec![player]),
+            );
+            assert_eq!(result.expect("result was none"), "Mocked Player");
+        });
+    }
+
+    #[test]
+    #[cfg_attr(miri, ignore)]
+    fn colored_name_for_player_with_colored_name_in_provided_playerlist() {
+        let player = Player {
+            valid: true,
+            id: 0,
+            player_info: PlayerInfo {
+                client_id: 0,
+                name: "^1Mocked ^4Player".to_string(),
+                connection_state: clientState_t::CS_ACTIVE as i32,
+                userinfo: "asdf".to_string(),
+                steam_id: 1234,
+                team: team_t::TEAM_RED as i32,
+                privileges: 0,
+            },
+            name: "^1Mocked ^4Player".to_string(),
+            steam_id: 1234,
+            user_info: "asdf".to_string(),
+        };
+
+        Python::with_gil(|py| {
+            let result = Plugin::colored_name(
+                &py.get_type_bound::<Plugin>(),
+                "Mocked Player".into_py(py),
+                Some(vec![player]),
+            );
+            assert_eq!(result.expect("result was none"), "^1Mocked ^4Player");
+        });
+    }
+
+    #[test]
+    #[cfg_attr(miri, ignore)]
+    fn colored_name_for_unavailable_player() {
+        let player = Player {
+            valid: true,
+            id: 0,
+            player_info: PlayerInfo {
+                client_id: 0,
+                name: "^1Mocked ^4Player".to_string(),
+                connection_state: clientState_t::CS_ACTIVE as i32,
+                userinfo: "asdf".to_string(),
+                steam_id: 1234,
+                team: team_t::TEAM_RED as i32,
+                privileges: 0,
+            },
+            name: "^1Mocked ^4Player".to_string(),
+            steam_id: 1234,
+            user_info: "asdf".to_string(),
+        };
+
+        Python::with_gil(|py| {
+            let result = Plugin::colored_name(
+                &py.get_type_bound::<Plugin>(),
+                "disconnected Player".into_py(py),
+                Some(vec![player]),
+            );
+            assert!(result.is_none());
         });
     }
 
