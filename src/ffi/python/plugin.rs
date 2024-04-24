@@ -2972,6 +2972,112 @@ class subplugin(Plugin):
 
     #[test]
     #[cfg_attr(miri, ignore)]
+    fn find_player_with_empty_str_returns_player_list() {
+        let player1 = Player {
+            valid: true,
+            id: 21,
+            player_info: PlayerInfo {
+                client_id: 21,
+                name: "Mocked Player".to_string(),
+                connection_state: clientState_t::CS_ACTIVE as i32,
+                userinfo: "asdf".to_string(),
+                steam_id: 1234,
+                team: team_t::TEAM_RED as i32,
+                privileges: 0,
+            },
+            name: "Mocked Player".to_string(),
+            steam_id: 1234,
+            user_info: "asdf".to_string(),
+        };
+        let player2 = Player {
+            valid: true,
+            id: 0,
+            player_info: PlayerInfo {
+                client_id: 0,
+                name: "Mocked Player".to_string(),
+                connection_state: clientState_t::CS_ACTIVE as i32,
+                userinfo: "asdf".to_string(),
+                steam_id: 1235,
+                team: team_t::TEAM_RED as i32,
+                privileges: 0,
+            },
+            name: "Mocked Player".to_string(),
+            steam_id: 1235,
+            user_info: "asdf".to_string(),
+        };
+        Python::with_gil(|py| {
+            let result = Plugin::find_player(
+                &py.get_type_bound::<Plugin>(),
+                "",
+                Some(vec![player1, player2]),
+            );
+            assert_eq!(result.len(), 2);
+        });
+    }
+
+    #[test]
+    #[cfg_attr(miri, ignore)]
+    fn find_players_by_matching_provided_names() {
+        let player1 = Player {
+            valid: true,
+            id: 21,
+            player_info: PlayerInfo {
+                client_id: 21,
+                name: "^1Found ^4Player".to_string(),
+                connection_state: clientState_t::CS_ACTIVE as i32,
+                userinfo: "asdf".to_string(),
+                steam_id: 1234,
+                team: team_t::TEAM_RED as i32,
+                privileges: 0,
+            },
+            name: "^1Found ^4Player".to_string(),
+            steam_id: 1234,
+            user_info: "asdf".to_string(),
+        };
+        let player2 = Player {
+            valid: true,
+            id: 0,
+            player_info: PlayerInfo {
+                client_id: 0,
+                name: "non-matching Player".to_string(),
+                connection_state: clientState_t::CS_ACTIVE as i32,
+                userinfo: "asdf".to_string(),
+                steam_id: 1235,
+                team: team_t::TEAM_RED as i32,
+                privileges: 0,
+            },
+            name: "non-matching Player".to_string(),
+            steam_id: 1235,
+            user_info: "asdf".to_string(),
+        };
+        let player3 = Player {
+            valid: true,
+            id: 5,
+            player_info: PlayerInfo {
+                client_id: 5,
+                name: "found Player".to_string(),
+                connection_state: clientState_t::CS_ACTIVE as i32,
+                userinfo: "asdf".to_string(),
+                steam_id: 1235,
+                team: team_t::TEAM_RED as i32,
+                privileges: 0,
+            },
+            name: "found Player".to_string(),
+            steam_id: 1235,
+            user_info: "asdf".to_string(),
+        };
+        Python::with_gil(|py| {
+            let result = Plugin::find_player(
+                &py.get_type_bound::<Plugin>(),
+                "foU^3nd",
+                Some(vec![player1, player2, player3]),
+            );
+            assert_eq!(result.len(), 2);
+        });
+    }
+
+    #[test]
+    #[cfg_attr(miri, ignore)]
     #[serial]
     fn shuffle_forces_shuffle() {
         let mut mock_engine = MockQuakeEngine::new();
