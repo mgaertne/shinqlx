@@ -2786,6 +2786,192 @@ class subplugin(Plugin):
 
     #[test]
     #[cfg_attr(miri, ignore)]
+    fn client_id_for_integer_in_client_id_range() {
+        Python::with_gil(|py| {
+            let result = Plugin::client_id(&py.get_type_bound::<Plugin>(), 42i32.into_py(py), None);
+            assert!(result.is_some_and(|value| value == 42));
+        });
+    }
+
+    #[test]
+    #[cfg_attr(miri, ignore)]
+    fn client_id_for_player() {
+        let player = Player {
+            valid: true,
+            id: 21,
+            player_info: PlayerInfo {
+                client_id: 21,
+                name: "Mocked Player".to_string(),
+                connection_state: clientState_t::CS_ACTIVE as i32,
+                userinfo: "asdf".to_string(),
+                steam_id: 1234,
+                team: team_t::TEAM_RED as i32,
+                privileges: 0,
+            },
+            name: "Mocked Player".to_string(),
+            steam_id: 1234,
+            user_info: "asdf".to_string(),
+        };
+
+        Python::with_gil(|py| {
+            let result =
+                Plugin::client_id(&py.get_type_bound::<Plugin>(), player.into_py(py), None);
+            assert!(result.is_some_and(|value| value == 21));
+        });
+    }
+
+    #[test]
+    #[cfg_attr(miri, ignore)]
+    fn client_id_for_steam_id() {
+        let player = Player {
+            valid: true,
+            id: 21,
+            player_info: PlayerInfo {
+                client_id: 21,
+                name: "Mocked Player".to_string(),
+                connection_state: clientState_t::CS_ACTIVE as i32,
+                userinfo: "asdf".to_string(),
+                steam_id: 1234,
+                team: team_t::TEAM_RED as i32,
+                privileges: 0,
+            },
+            name: "Mocked Player".to_string(),
+            steam_id: 1234,
+            user_info: "asdf".to_string(),
+        };
+
+        Python::with_gil(|py| {
+            let result = Plugin::client_id(
+                &py.get_type_bound::<Plugin>(),
+                1234i64.into_py(py),
+                Some(vec![player]),
+            );
+            assert!(result.is_some_and(|value| value == 21));
+        });
+    }
+
+    #[test]
+    #[cfg_attr(miri, ignore)]
+    fn client_id_for_steam_id_not_in_player_list() {
+        let player = Player {
+            valid: true,
+            id: 21,
+            player_info: PlayerInfo {
+                client_id: 21,
+                name: "Mocked Player".to_string(),
+                connection_state: clientState_t::CS_ACTIVE as i32,
+                userinfo: "asdf".to_string(),
+                steam_id: 1234,
+                team: team_t::TEAM_RED as i32,
+                privileges: 0,
+            },
+            name: "Mocked Player".to_string(),
+            steam_id: 1234,
+            user_info: "asdf".to_string(),
+        };
+
+        Python::with_gil(|py| {
+            let result = Plugin::client_id(
+                &py.get_type_bound::<Plugin>(),
+                4321i64.into_py(py),
+                Some(vec![player]),
+            );
+            assert!(result.is_none());
+        });
+    }
+
+    #[test]
+    #[cfg_attr(miri, ignore)]
+    fn client_id_for_player_name() {
+        let player = Player {
+            valid: true,
+            id: 21,
+            player_info: PlayerInfo {
+                client_id: 21,
+                name: "Mocked Player".to_string(),
+                connection_state: clientState_t::CS_ACTIVE as i32,
+                userinfo: "asdf".to_string(),
+                steam_id: 1234,
+                team: team_t::TEAM_RED as i32,
+                privileges: 0,
+            },
+            name: "Mocked Player".to_string(),
+            steam_id: 1234,
+            user_info: "asdf".to_string(),
+        };
+
+        Python::with_gil(|py| {
+            let result = Plugin::client_id(
+                &py.get_type_bound::<Plugin>(),
+                "Mocked Player".into_py(py),
+                Some(vec![player]),
+            );
+            assert!(result.is_some_and(|value| value == 21));
+        });
+    }
+
+    #[test]
+    #[cfg_attr(miri, ignore)]
+    fn client_id_for_player_name_not_in_player_list() {
+        let player = Player {
+            valid: true,
+            id: 21,
+            player_info: PlayerInfo {
+                client_id: 21,
+                name: "Mocked Player".to_string(),
+                connection_state: clientState_t::CS_ACTIVE as i32,
+                userinfo: "asdf".to_string(),
+                steam_id: 1234,
+                team: team_t::TEAM_RED as i32,
+                privileges: 0,
+            },
+            name: "Mocked Player".to_string(),
+            steam_id: 1234,
+            user_info: "asdf".to_string(),
+        };
+
+        Python::with_gil(|py| {
+            let result = Plugin::client_id(
+                &py.get_type_bound::<Plugin>(),
+                "UnknownPlayer".into_py(py),
+                Some(vec![player]),
+            );
+            assert!(result.is_none());
+        });
+    }
+
+    #[test]
+    #[cfg_attr(miri, ignore)]
+    fn client_id_for_unsupported_search_criteria() {
+        let player = Player {
+            valid: true,
+            id: 21,
+            player_info: PlayerInfo {
+                client_id: 21,
+                name: "Mocked Player".to_string(),
+                connection_state: clientState_t::CS_ACTIVE as i32,
+                userinfo: "asdf".to_string(),
+                steam_id: 1234,
+                team: team_t::TEAM_RED as i32,
+                privileges: 0,
+            },
+            name: "Mocked Player".to_string(),
+            steam_id: 1234,
+            user_info: "asdf".to_string(),
+        };
+
+        Python::with_gil(|py| {
+            let result = Plugin::client_id(
+                &py.get_type_bound::<Plugin>(),
+                3.42f64.into_py(py),
+                Some(vec![player]),
+            );
+            assert!(result.is_none());
+        });
+    }
+
+    #[test]
+    #[cfg_attr(miri, ignore)]
     #[serial]
     fn shuffle_forces_shuffle() {
         let mut mock_engine = MockQuakeEngine::new();
