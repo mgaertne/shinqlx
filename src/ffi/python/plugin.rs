@@ -3138,6 +3138,185 @@ class subplugin(Plugin):
     }
 
     #[test]
+    #[cfg_attr(iri, ignore)]
+    fn teams_when_no_player_in_player_list() {
+        Python::with_gil(|py| {
+            let result = Plugin::teams(&py.get_type_bound::<Plugin>(), Some(vec![]));
+            assert!(result
+                .as_ref()
+                .expect("result was not ok")
+                .get_item("free")
+                .expect("result contained no free team information")
+                .expect("result contained no free team information")
+                .downcast::<PyList>()
+                .expect("free team was not a list")
+                .is_empty());
+            assert!(result
+                .as_ref()
+                .expect("result was not ok")
+                .get_item("red")
+                .expect("result contained no red team information")
+                .expect("result contained no red team information")
+                .downcast::<PyList>()
+                .expect("red team was not a list")
+                .is_empty());
+            assert!(result
+                .as_ref()
+                .expect("result was not ok")
+                .get_item("blue")
+                .expect("result contained no blue team information")
+                .expect("result contained no blue team information")
+                .downcast::<PyList>()
+                .expect("blue team was not a list")
+                .is_empty());
+            assert!(result
+                .as_ref()
+                .expect("result was not ok")
+                .get_item("spectator")
+                .expect("result contained no spectator team information")
+                .expect("result contained no spectator team information")
+                .downcast::<PyList>()
+                .expect("spectator was not a list")
+                .is_empty());
+        });
+    }
+
+    #[test]
+    #[cfg_attr(iri, ignore)]
+    fn teams_when_every_team_has_one_player() {
+        let player1 = Player {
+            valid: true,
+            id: 0,
+            player_info: PlayerInfo {
+                client_id: 0,
+                name: "Mocked Player".to_string(),
+                connection_state: clientState_t::CS_ACTIVE as i32,
+                userinfo: "asdf".to_string(),
+                steam_id: 1234,
+                team: team_t::TEAM_FREE as i32,
+                privileges: 0,
+            },
+            name: "Mocked Player".to_string(),
+            steam_id: 1234,
+            user_info: "asdf".to_string(),
+        };
+        let player2 = Player {
+            valid: true,
+            id: 1,
+            player_info: PlayerInfo {
+                client_id: 1,
+                name: "Mocked Player".to_string(),
+                connection_state: clientState_t::CS_ACTIVE as i32,
+                userinfo: "asdf".to_string(),
+                steam_id: 1234,
+                team: team_t::TEAM_RED as i32,
+                privileges: 0,
+            },
+            name: "Mocked Player".to_string(),
+            steam_id: 1234,
+            user_info: "asdf".to_string(),
+        };
+        let player3 = Player {
+            valid: true,
+            id: 2,
+            player_info: PlayerInfo {
+                client_id: 2,
+                name: "Mocked Player".to_string(),
+                connection_state: clientState_t::CS_ACTIVE as i32,
+                userinfo: "asdf".to_string(),
+                steam_id: 1234,
+                team: team_t::TEAM_BLUE as i32,
+                privileges: 0,
+            },
+            name: "Mocked Player".to_string(),
+            steam_id: 1234,
+            user_info: "asdf".to_string(),
+        };
+        let player4 = Player {
+            valid: true,
+            id: 3,
+            player_info: PlayerInfo {
+                client_id: 3,
+                name: "Mocked Player".to_string(),
+                connection_state: clientState_t::CS_ACTIVE as i32,
+                userinfo: "asdf".to_string(),
+                steam_id: 1234,
+                team: team_t::TEAM_SPECTATOR as i32,
+                privileges: 0,
+            },
+            name: "Mocked Player".to_string(),
+            steam_id: 1234,
+            user_info: "asdf".to_string(),
+        };
+        Python::with_gil(|py| {
+            let result = Plugin::teams(
+                &py.get_type_bound::<Plugin>(),
+                Some(vec![player4, player3, player2, player1]),
+            );
+            assert!(result
+                .as_ref()
+                .expect("result was not ok")
+                .get_item("free")
+                .expect("result contained no free team information")
+                .expect("result contained no free team information")
+                .downcast::<PyList>()
+                .expect("free team was not a list")
+                .get_item(0)
+                .expect("free team 0 item was not filled")
+                .getattr("id")
+                .is_ok_and(|value| value
+                    .extract::<i32>()
+                    .expect("id did not return a valid integer")
+                    == 0));
+            assert!(result
+                .as_ref()
+                .expect("result was not ok")
+                .get_item("red")
+                .expect("result contained no red team information")
+                .expect("result contained no red team information")
+                .downcast::<PyList>()
+                .expect("red team was not a list")
+                .get_item(0)
+                .expect("red team 0 item was not filled")
+                .getattr("id")
+                .is_ok_and(|value| value
+                    .extract::<i32>()
+                    .expect("id did not return a valid integer")
+                    == 1));
+            assert!(result
+                .as_ref()
+                .expect("result was not ok")
+                .get_item("blue")
+                .expect("result contained no blue team information")
+                .expect("result contained no blue team information")
+                .downcast::<PyList>()
+                .expect("blue team was not a list")
+                .get_item(0)
+                .expect("blue team 0 item was not filled")
+                .getattr("id")
+                .is_ok_and(|value| value
+                    .extract::<i32>()
+                    .expect("id did not return a valid integer")
+                    == 2));
+            assert!(result
+                .as_ref()
+                .expect("result was not ok")
+                .get_item("spectator")
+                .expect("result contained no spectator team information")
+                .expect("result contained no spectator team information")
+                .downcast::<PyList>()
+                .expect("spectator was not a list")
+                .get_item(0)
+                .expect("spectator team 0 item was not filled")
+                .getattr("id")
+                .is_ok_and(|value| value
+                    .extract::<i32>()
+                    .expect("id did not return a valid integer")
+                    == 3));
+        });
+    }
+
+    #[test]
     #[cfg_attr(miri, ignore)]
     #[serial]
     fn shuffle_forces_shuffle() {
