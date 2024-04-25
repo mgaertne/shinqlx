@@ -1169,7 +1169,7 @@ impl Player {
     }
 
     fn center_print(&self, py: Python<'_>, msg: &str) -> PyResult<()> {
-        let cmd = format!("cp \"{msg}\"");
+        let cmd = format!(r#"cp "{msg}""#);
         pyshinqlx_send_server_command(py, Some(self.id), &cmd).map(|_| ())
     }
 
@@ -6481,7 +6481,7 @@ assert(player._valid)
     #[test]
     #[serial]
     #[cfg_attr(miri, ignore)]
-    fn center_print_send_center_print_server_command() {
+    fn center_print_sends_center_print_server_command() {
         let mut mock_engine = MockQuakeEngine::new();
         mock_engine.expect_get_max_clients().returning(|| 16);
         MAIN_ENGINE.store(Some(mock_engine.into()));

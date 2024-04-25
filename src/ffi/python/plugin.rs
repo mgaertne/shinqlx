@@ -834,7 +834,9 @@ impl Plugin {
         let tell_channel = TellChannel::py_new(&recipient_player);
 
         let tell_channel_py = Py::new(cls.py(), tell_channel)?;
-        tell_channel_py.call_method_bound(cls.py(), intern!(cls.py(), "reply"), (msg,), kwargs)?;
+        tell_channel_py
+            .bind(cls.py())
+            .call_method(intern!(cls.py(), "reply"), (msg,), kwargs)?;
 
         Ok(())
     }
@@ -842,12 +844,15 @@ impl Plugin {
     #[classmethod]
     fn is_vote_active(cls: &Bound<'_, PyType>) -> bool {
         cls.py().allow_threads(|| {
-            let Some(ref main_engine) = *MAIN_ENGINE.load() else {
-                return false;
-            };
-
-            let vote_string = main_engine.get_configstring(CS_VOTE_STRING as u16);
-            !vote_string.is_empty()
+            MAIN_ENGINE
+                .load()
+                .as_ref()
+                .map(|main_engine| {
+                    !main_engine
+                        .get_configstring(CS_VOTE_STRING as u16)
+                        .is_empty()
+                })
+                .unwrap_or(false)
         })
     }
 
@@ -873,9 +878,6 @@ impl Plugin {
             return Err(PyValueError::new_err(error_msg));
         };
 
-        if yes_votes.is_empty() || no_votes.is_empty() {
-            return Ok(cls.py().None());
-        }
         Ok((parsed_yes_votes, parsed_no_votes).into_py(cls.py()))
     }
 
@@ -898,7 +900,7 @@ impl Plugin {
                 })
         else {
             return Err(PyEnvironmentError::new_err(
-                "could not get access to console print dispatcher",
+                "could not get access to vote started dispatcher",
             ));
         };
         vote_started_dispatcher.call_method1(intern!(cls.py(), "caller"), (cls.py().None(),))?;
@@ -1173,14 +1175,43 @@ mod plugin_tests {
     use alloc::ffi::CString;
     use core::ffi::c_char;
 
-    use crate::hooks::mock_hooks::shinqlx_com_printf_context;
+    use crate::ffi::python::pyshinqlx_test_support::run_all_frame_tasks;
+    use crate::hooks::mock_hooks::{
+        shinqlx_com_printf_context, shinqlx_send_server_command_context,
+    };
+
     use mockall::predicate;
     use pretty_assertions::assert_eq;
     use pyo3::{
         exceptions::{PyEnvironmentError, PyRuntimeError, PyValueError},
-        types::{PyBool, PyDate, PyDict, PyFloat, PyInt, PyList, PySet, PyString, PyTuple},
+        types::{
+            IntoPyDict, PyBool, PyDate, PyDict, PyFloat, PyInt, PyList, PySet, PyString, PyTuple,
+        },
     };
     use rstest::rstest;
+
+    fn default_test_player_info() -> PlayerInfo {
+        PlayerInfo {
+            client_id: 0,
+            name: "Mocked Player".to_string(),
+            connection_state: clientState_t::CS_ACTIVE as i32,
+            userinfo: "asdf".to_string(),
+            steam_id: 1234,
+            team: team_t::TEAM_RED as i32,
+            privileges: 0,
+        }
+    }
+
+    fn default_test_player() -> Player {
+        Player {
+            valid: true,
+            id: 0,
+            player_info: default_test_player_info(),
+            name: "Mocked Player".to_string(),
+            steam_id: 1234,
+            user_info: "asdf".to_string(),
+        }
+    }
 
     fn test_plugin(py: Python) -> Result<Bound<PyAny>, PyErr> {
         let extended_plugin = PyModule::from_code_bound(
@@ -2371,37 +2402,14 @@ class subplugin(Plugin):
         assert_eq!(
             all_players.expect("result was not ok"),
             vec![
+                default_test_player(),
                 Player {
-                    valid: true,
-                    id: 0,
-                    player_info: PlayerInfo {
-                        client_id: 0,
-                        name: "Mocked Player".to_string(),
-                        connection_state: clientState_t::CS_ACTIVE as i32,
-                        userinfo: "asdf".to_string(),
-                        steam_id: 1234,
-                        team: team_t::TEAM_RED as i32,
-                        privileges: 0,
-                    },
-                    name: "Mocked Player".to_string(),
-                    steam_id: 1234,
-                    user_info: "asdf".to_string(),
-                },
-                Player {
-                    valid: true,
                     id: 2,
                     player_info: PlayerInfo {
                         client_id: 2,
-                        name: "Mocked Player".to_string(),
-                        connection_state: clientState_t::CS_ACTIVE as i32,
-                        userinfo: "asdf".to_string(),
-                        steam_id: 1234,
-                        team: team_t::TEAM_RED as i32,
-                        privileges: 0,
+                        ..default_test_player_info()
                     },
-                    name: "Mocked Player".to_string(),
-                    steam_id: 1234,
-                    user_info: "asdf".to_string(),
+                    ..default_test_player()
                 },
             ]
         );
@@ -2410,32 +2418,15 @@ class subplugin(Plugin):
     #[test]
     #[cfg_attr(miri, ignore)]
     fn player_for_provided_player() {
-        let player = Player {
-            valid: true,
-            id: 0,
-            player_info: PlayerInfo {
-                client_id: 0,
-                name: "Mocked Player".to_string(),
-                connection_state: clientState_t::CS_ACTIVE as i32,
-                userinfo: "asdf".to_string(),
-                steam_id: 1234,
-                team: team_t::TEAM_RED as i32,
-                privileges: 0,
-            },
-            name: "Mocked Player".to_string(),
-            steam_id: 1234,
-            user_info: "asdf".to_string(),
-        };
-
         Python::with_gil(|py| {
             let result = Plugin::player(
                 &py.get_type_bound::<Plugin>(),
-                player.clone().into_py(py),
+                default_test_player().clone().into_py(py),
                 None,
             );
             assert!(result
                 .expect("result was not ok")
-                .is_some_and(|result_player| player == result_player));
+                .is_some_and(|result_player| default_test_player() == result_player));
         });
     }
 
@@ -2483,20 +2474,12 @@ class subplugin(Plugin):
                 .expect("result was not ok")
                 .is_some_and(|player| player
                     == Player {
-                        valid: true,
                         id: 42,
                         player_info: PlayerInfo {
                             client_id: 42,
-                            name: "Mocked Player".to_string(),
-                            connection_state: clientState_t::CS_ACTIVE as i32,
-                            userinfo: "asdf".to_string(),
-                            steam_id: 1234,
-                            team: team_t::TEAM_RED as i32,
-                            privileges: 0,
+                            ..default_test_player_info()
                         },
-                        name: "Mocked Player".to_string(),
-                        steam_id: 1234,
-                        user_info: "asdf".to_string(),
+                        ..default_test_player()
                     },),);
         });
     }
@@ -2504,60 +2487,26 @@ class subplugin(Plugin):
     #[test]
     #[cfg_attr(miri, ignore)]
     fn player_for_provided_steam_id_from_player_list() {
-        let player = Player {
-            valid: true,
-            id: 0,
-            player_info: PlayerInfo {
-                client_id: 0,
-                name: "Mocked Player".to_string(),
-                connection_state: clientState_t::CS_ACTIVE as i32,
-                userinfo: "asdf".to_string(),
-                steam_id: 1234,
-                team: team_t::TEAM_RED as i32,
-                privileges: 0,
-            },
-            name: "Mocked Player".to_string(),
-            steam_id: 1234,
-            user_info: "asdf".to_string(),
-        };
-
         Python::with_gil(|py| {
             let result = Plugin::player(
                 &py.get_type_bound::<Plugin>(),
                 1234.into_py(py),
-                Some(vec![player.clone()]),
+                Some(vec![default_test_player()]),
             );
             assert!(result
                 .expect("result was not ok")
-                .is_some_and(|result_player| player == result_player));
+                .is_some_and(|result_player| result_player == default_test_player()));
         });
     }
 
     #[test]
     #[cfg_attr(miri, ignore)]
     fn player_for_provided_steam_id_not_in_provided_player_list() {
-        let player = Player {
-            valid: true,
-            id: 0,
-            player_info: PlayerInfo {
-                client_id: 0,
-                name: "Mocked Player".to_string(),
-                connection_state: clientState_t::CS_ACTIVE as i32,
-                userinfo: "asdf".to_string(),
-                steam_id: 1234,
-                team: team_t::TEAM_RED as i32,
-                privileges: 0,
-            },
-            name: "Mocked Player".to_string(),
-            steam_id: 1234,
-            user_info: "asdf".to_string(),
-        };
-
         Python::with_gil(|py| {
             let result = Plugin::player(
                 &py.get_type_bound::<Plugin>(),
                 4321.into_py(py),
-                Some(vec![player.clone()]),
+                Some(vec![default_test_player()]),
             );
             assert!(result.expect("result was not ok").is_none());
         });
@@ -2566,60 +2515,26 @@ class subplugin(Plugin):
     #[test]
     #[cfg_attr(miri, ignore)]
     fn player_for_provided_name_from_player_list() {
-        let player = Player {
-            valid: true,
-            id: 0,
-            player_info: PlayerInfo {
-                client_id: 0,
-                name: "Mocked Player".to_string(),
-                connection_state: clientState_t::CS_ACTIVE as i32,
-                userinfo: "asdf".to_string(),
-                steam_id: 1234,
-                team: team_t::TEAM_RED as i32,
-                privileges: 0,
-            },
-            name: "Mocked Player".to_string(),
-            steam_id: 1234,
-            user_info: "asdf".to_string(),
-        };
-
         Python::with_gil(|py| {
             let result = Plugin::player(
                 &py.get_type_bound::<Plugin>(),
                 "Mocked Player".into_py(py),
-                Some(vec![player.clone()]),
+                Some(vec![default_test_player()]),
             );
             assert!(result
                 .expect("result was not ok")
-                .is_some_and(|result_player| player == result_player));
+                .is_some_and(|result_player| result_player == default_test_player()));
         });
     }
 
     #[test]
     #[cfg_attr(miri, ignore)]
     fn player_for_provided_name_not_in_provided_player_list() {
-        let player = Player {
-            valid: true,
-            id: 0,
-            player_info: PlayerInfo {
-                client_id: 0,
-                name: "Mocked Player".to_string(),
-                connection_state: clientState_t::CS_ACTIVE as i32,
-                userinfo: "asdf".to_string(),
-                steam_id: 1234,
-                team: team_t::TEAM_RED as i32,
-                privileges: 0,
-            },
-            name: "Mocked Player".to_string(),
-            steam_id: 1234,
-            user_info: "asdf".to_string(),
-        };
-
         Python::with_gil(|py| {
             let result = Plugin::player(
                 &py.get_type_bound::<Plugin>(),
                 "disconnected".into_py(py),
-                Some(vec![player.clone()]),
+                Some(vec![default_test_player()]),
             );
             assert!(result.expect("result was not ok").is_none());
         });
@@ -2670,26 +2585,12 @@ class subplugin(Plugin):
     #[test]
     #[cfg_attr(miri, ignore)]
     fn colored_name_for_provided_player() {
-        let player = Player {
-            valid: true,
-            id: 0,
-            player_info: PlayerInfo {
-                client_id: 0,
-                name: "Mocked Player".to_string(),
-                connection_state: clientState_t::CS_ACTIVE as i32,
-                userinfo: "asdf".to_string(),
-                steam_id: 1234,
-                team: team_t::TEAM_RED as i32,
-                privileges: 0,
-            },
-            name: "Mocked Player".to_string(),
-            steam_id: 1234,
-            user_info: "asdf".to_string(),
-        };
-
         Python::with_gil(|py| {
-            let result =
-                Plugin::colored_name(&py.get_type_bound::<Plugin>(), player.into_py(py), None);
+            let result = Plugin::colored_name(
+                &py.get_type_bound::<Plugin>(),
+                default_test_player().into_py(py),
+                None,
+            );
             assert_eq!(result.expect("result was none"), "Mocked Player");
         });
     }
@@ -2697,28 +2598,11 @@ class subplugin(Plugin):
     #[test]
     #[cfg_attr(miri, ignore)]
     fn colored_name_for_player_in_provided_playerlist() {
-        let player = Player {
-            valid: true,
-            id: 0,
-            player_info: PlayerInfo {
-                client_id: 0,
-                name: "Mocked Player".to_string(),
-                connection_state: clientState_t::CS_ACTIVE as i32,
-                userinfo: "asdf".to_string(),
-                steam_id: 1234,
-                team: team_t::TEAM_RED as i32,
-                privileges: 0,
-            },
-            name: "Mocked Player".to_string(),
-            steam_id: 1234,
-            user_info: "asdf".to_string(),
-        };
-
         Python::with_gil(|py| {
             let result = Plugin::colored_name(
                 &py.get_type_bound::<Plugin>(),
                 "Mocked Player".into_py(py),
-                Some(vec![player]),
+                Some(vec![default_test_player()]),
             );
             assert_eq!(result.expect("result was none"), "Mocked Player");
         });
@@ -2728,20 +2612,12 @@ class subplugin(Plugin):
     #[cfg_attr(miri, ignore)]
     fn colored_name_for_player_with_colored_name_in_provided_playerlist() {
         let player = Player {
-            valid: true,
-            id: 0,
             player_info: PlayerInfo {
-                client_id: 0,
                 name: "^1Mocked ^4Player".to_string(),
-                connection_state: clientState_t::CS_ACTIVE as i32,
-                userinfo: "asdf".to_string(),
-                steam_id: 1234,
-                team: team_t::TEAM_RED as i32,
-                privileges: 0,
+                ..default_test_player_info()
             },
             name: "^1Mocked ^4Player".to_string(),
-            steam_id: 1234,
-            user_info: "asdf".to_string(),
+            ..default_test_player()
         };
 
         Python::with_gil(|py| {
@@ -2758,20 +2634,12 @@ class subplugin(Plugin):
     #[cfg_attr(miri, ignore)]
     fn colored_name_for_unavailable_player() {
         let player = Player {
-            valid: true,
-            id: 0,
             player_info: PlayerInfo {
-                client_id: 0,
                 name: "^1Mocked ^4Player".to_string(),
-                connection_state: clientState_t::CS_ACTIVE as i32,
-                userinfo: "asdf".to_string(),
-                steam_id: 1234,
-                team: team_t::TEAM_RED as i32,
-                privileges: 0,
+                ..default_test_player_info()
             },
             name: "^1Mocked ^4Player".to_string(),
-            steam_id: 1234,
-            user_info: "asdf".to_string(),
+            ..default_test_player()
         };
 
         Python::with_gil(|py| {
@@ -2797,20 +2665,12 @@ class subplugin(Plugin):
     #[cfg_attr(miri, ignore)]
     fn client_id_for_player() {
         let player = Player {
-            valid: true,
             id: 21,
             player_info: PlayerInfo {
                 client_id: 21,
-                name: "Mocked Player".to_string(),
-                connection_state: clientState_t::CS_ACTIVE as i32,
-                userinfo: "asdf".to_string(),
-                steam_id: 1234,
-                team: team_t::TEAM_RED as i32,
-                privileges: 0,
+                ..default_test_player_info()
             },
-            name: "Mocked Player".to_string(),
-            steam_id: 1234,
-            user_info: "asdf".to_string(),
+            ..default_test_player()
         };
 
         Python::with_gil(|py| {
@@ -2824,20 +2684,14 @@ class subplugin(Plugin):
     #[cfg_attr(miri, ignore)]
     fn client_id_for_steam_id() {
         let player = Player {
-            valid: true,
             id: 21,
+            steam_id: 1234,
             player_info: PlayerInfo {
                 client_id: 21,
-                name: "Mocked Player".to_string(),
-                connection_state: clientState_t::CS_ACTIVE as i32,
-                userinfo: "asdf".to_string(),
                 steam_id: 1234,
-                team: team_t::TEAM_RED as i32,
-                privileges: 0,
+                ..default_test_player_info()
             },
-            name: "Mocked Player".to_string(),
-            steam_id: 1234,
-            user_info: "asdf".to_string(),
+            ..default_test_player()
         };
 
         Python::with_gil(|py| {
@@ -2854,20 +2708,12 @@ class subplugin(Plugin):
     #[cfg_attr(miri, ignore)]
     fn client_id_for_steam_id_not_in_player_list() {
         let player = Player {
-            valid: true,
-            id: 21,
-            player_info: PlayerInfo {
-                client_id: 21,
-                name: "Mocked Player".to_string(),
-                connection_state: clientState_t::CS_ACTIVE as i32,
-                userinfo: "asdf".to_string(),
-                steam_id: 1234,
-                team: team_t::TEAM_RED as i32,
-                privileges: 0,
-            },
-            name: "Mocked Player".to_string(),
             steam_id: 1234,
-            user_info: "asdf".to_string(),
+            player_info: PlayerInfo {
+                steam_id: 1234,
+                ..default_test_player_info()
+            },
+            ..default_test_player()
         };
 
         Python::with_gil(|py| {
@@ -2884,20 +2730,14 @@ class subplugin(Plugin):
     #[cfg_attr(miri, ignore)]
     fn client_id_for_player_name() {
         let player = Player {
-            valid: true,
             id: 21,
+            name: "Mocked Player".to_string(),
             player_info: PlayerInfo {
                 client_id: 21,
                 name: "Mocked Player".to_string(),
-                connection_state: clientState_t::CS_ACTIVE as i32,
-                userinfo: "asdf".to_string(),
-                steam_id: 1234,
-                team: team_t::TEAM_RED as i32,
-                privileges: 0,
+                ..default_test_player_info()
             },
-            name: "Mocked Player".to_string(),
-            steam_id: 1234,
-            user_info: "asdf".to_string(),
+            ..default_test_player()
         };
 
         Python::with_gil(|py| {
@@ -2914,20 +2754,12 @@ class subplugin(Plugin):
     #[cfg_attr(miri, ignore)]
     fn client_id_for_player_name_not_in_player_list() {
         let player = Player {
-            valid: true,
-            id: 21,
             player_info: PlayerInfo {
-                client_id: 21,
                 name: "Mocked Player".to_string(),
-                connection_state: clientState_t::CS_ACTIVE as i32,
-                userinfo: "asdf".to_string(),
-                steam_id: 1234,
-                team: team_t::TEAM_RED as i32,
-                privileges: 0,
+                ..default_test_player_info()
             },
             name: "Mocked Player".to_string(),
-            steam_id: 1234,
-            user_info: "asdf".to_string(),
+            ..default_test_player()
         };
 
         Python::with_gil(|py| {
@@ -2943,28 +2775,11 @@ class subplugin(Plugin):
     #[test]
     #[cfg_attr(miri, ignore)]
     fn client_id_for_unsupported_search_criteria() {
-        let player = Player {
-            valid: true,
-            id: 21,
-            player_info: PlayerInfo {
-                client_id: 21,
-                name: "Mocked Player".to_string(),
-                connection_state: clientState_t::CS_ACTIVE as i32,
-                userinfo: "asdf".to_string(),
-                steam_id: 1234,
-                team: team_t::TEAM_RED as i32,
-                privileges: 0,
-            },
-            name: "Mocked Player".to_string(),
-            steam_id: 1234,
-            user_info: "asdf".to_string(),
-        };
-
         Python::with_gil(|py| {
             let result = Plugin::client_id(
                 &py.get_type_bound::<Plugin>(),
                 3.42f64.into_py(py),
-                Some(vec![player]),
+                Some(vec![default_test_player()]),
             );
             assert!(result.is_none());
         });
@@ -2974,44 +2789,32 @@ class subplugin(Plugin):
     #[cfg_attr(miri, ignore)]
     fn find_player_with_empty_str_returns_player_list() {
         let player1 = Player {
-            valid: true,
             id: 21,
+            steam_id: 1234,
             player_info: PlayerInfo {
                 client_id: 21,
-                name: "Mocked Player".to_string(),
-                connection_state: clientState_t::CS_ACTIVE as i32,
-                userinfo: "asdf".to_string(),
                 steam_id: 1234,
-                team: team_t::TEAM_RED as i32,
-                privileges: 0,
+                ..default_test_player_info()
             },
-            name: "Mocked Player".to_string(),
-            steam_id: 1234,
-            user_info: "asdf".to_string(),
+            ..default_test_player()
         };
         let player2 = Player {
-            valid: true,
             id: 0,
+            steam_id: 1235,
             player_info: PlayerInfo {
                 client_id: 0,
-                name: "Mocked Player".to_string(),
-                connection_state: clientState_t::CS_ACTIVE as i32,
-                userinfo: "asdf".to_string(),
                 steam_id: 1235,
-                team: team_t::TEAM_RED as i32,
-                privileges: 0,
+                ..default_test_player_info()
             },
-            name: "Mocked Player".to_string(),
-            steam_id: 1235,
-            user_info: "asdf".to_string(),
+            ..default_test_player()
         };
         Python::with_gil(|py| {
             let result = Plugin::find_player(
                 &py.get_type_bound::<Plugin>(),
                 "",
-                Some(vec![player1, player2]),
+                Some(vec![player1.clone(), player2.clone()]),
             );
-            assert_eq!(result.len(), 2);
+            assert_eq!(result, vec![player1, player2]);
         });
     }
 
@@ -3019,60 +2822,48 @@ class subplugin(Plugin):
     #[cfg_attr(miri, ignore)]
     fn find_players_by_matching_provided_names() {
         let player1 = Player {
-            valid: true,
             id: 21,
+            name: "^1Found ^4Player".to_string(),
+            steam_id: 1234,
             player_info: PlayerInfo {
                 client_id: 21,
                 name: "^1Found ^4Player".to_string(),
-                connection_state: clientState_t::CS_ACTIVE as i32,
-                userinfo: "asdf".to_string(),
                 steam_id: 1234,
-                team: team_t::TEAM_RED as i32,
-                privileges: 0,
+                ..default_test_player_info()
             },
-            name: "^1Found ^4Player".to_string(),
-            steam_id: 1234,
-            user_info: "asdf".to_string(),
+            ..default_test_player()
         };
         let player2 = Player {
-            valid: true,
             id: 0,
+            name: "non-matching Player".to_string(),
+            steam_id: 1235,
             player_info: PlayerInfo {
                 client_id: 0,
                 name: "non-matching Player".to_string(),
-                connection_state: clientState_t::CS_ACTIVE as i32,
-                userinfo: "asdf".to_string(),
                 steam_id: 1235,
-                team: team_t::TEAM_RED as i32,
-                privileges: 0,
+                ..default_test_player_info()
             },
-            name: "non-matching Player".to_string(),
-            steam_id: 1235,
-            user_info: "asdf".to_string(),
+            ..default_test_player()
         };
         let player3 = Player {
-            valid: true,
             id: 5,
+            name: "found Player".to_string(),
+            steam_id: 1236,
             player_info: PlayerInfo {
                 client_id: 5,
                 name: "found Player".to_string(),
-                connection_state: clientState_t::CS_ACTIVE as i32,
-                userinfo: "asdf".to_string(),
-                steam_id: 1235,
-                team: team_t::TEAM_RED as i32,
-                privileges: 0,
+                steam_id: 1236,
+                ..default_test_player_info()
             },
-            name: "found Player".to_string(),
-            steam_id: 1235,
-            user_info: "asdf".to_string(),
+            ..default_test_player()
         };
         Python::with_gil(|py| {
             let result = Plugin::find_player(
                 &py.get_type_bound::<Plugin>(),
                 "foU^3nd",
-                Some(vec![player1, player2, player3]),
+                Some(vec![player1.clone(), player2.clone(), player3.clone()]),
             );
-            assert_eq!(result.len(), 2);
+            assert_eq!(result, vec![player1, player3]);
         });
     }
 
@@ -3080,52 +2871,40 @@ class subplugin(Plugin):
     #[cfg_attr(miri, ignore)]
     fn find_players_when_no_player_matches() {
         let player1 = Player {
-            valid: true,
             id: 21,
+            name: "^1non-matching ^4Player".to_string(),
+            steam_id: 1234,
             player_info: PlayerInfo {
                 client_id: 21,
                 name: "^1non-matching ^4Player".to_string(),
-                connection_state: clientState_t::CS_ACTIVE as i32,
-                userinfo: "asdf".to_string(),
                 steam_id: 1234,
-                team: team_t::TEAM_RED as i32,
-                privileges: 0,
+                ..default_test_player_info()
             },
-            name: "^1non-matching ^4Player".to_string(),
-            steam_id: 1234,
-            user_info: "asdf".to_string(),
+            ..default_test_player()
         };
         let player2 = Player {
-            valid: true,
             id: 0,
+            name: "non-matching Player".to_string(),
+            steam_id: 1235,
             player_info: PlayerInfo {
                 client_id: 0,
                 name: "non-matching Player".to_string(),
-                connection_state: clientState_t::CS_ACTIVE as i32,
-                userinfo: "asdf".to_string(),
                 steam_id: 1235,
-                team: team_t::TEAM_RED as i32,
-                privileges: 0,
+                ..default_test_player_info()
             },
-            name: "non-matching Player".to_string(),
-            steam_id: 1235,
-            user_info: "asdf".to_string(),
+            ..default_test_player()
         };
         let player3 = Player {
-            valid: true,
             id: 5,
+            name: "non-matching Player".to_string(),
+            steam_id: 1236,
             player_info: PlayerInfo {
                 client_id: 5,
                 name: "non-matching Player".to_string(),
-                connection_state: clientState_t::CS_ACTIVE as i32,
-                userinfo: "asdf".to_string(),
-                steam_id: 1235,
-                team: team_t::TEAM_RED as i32,
-                privileges: 0,
+                steam_id: 1236,
+                ..default_test_player_info()
             },
-            name: "non-matching Player".to_string(),
-            steam_id: 1235,
-            user_info: "asdf".to_string(),
+            ..default_test_player()
         };
         Python::with_gil(|py| {
             let result = Plugin::find_player(
@@ -3143,41 +2922,15 @@ class subplugin(Plugin):
         Python::with_gil(|py| {
             let result = Plugin::teams(&py.get_type_bound::<Plugin>(), Some(vec![]));
             assert!(result
-                .as_ref()
                 .expect("result was not ok")
-                .get_item("free")
-                .expect("result contained no free team information")
-                .expect("result contained no free team information")
-                .downcast::<PyList>()
-                .expect("free team was not a list")
-                .is_empty());
-            assert!(result
-                .as_ref()
-                .expect("result was not ok")
-                .get_item("red")
-                .expect("result contained no red team information")
-                .expect("result contained no red team information")
-                .downcast::<PyList>()
-                .expect("red team was not a list")
-                .is_empty());
-            assert!(result
-                .as_ref()
-                .expect("result was not ok")
-                .get_item("blue")
-                .expect("result contained no blue team information")
-                .expect("result contained no blue team information")
-                .downcast::<PyList>()
-                .expect("blue team was not a list")
-                .is_empty());
-            assert!(result
-                .as_ref()
-                .expect("result was not ok")
-                .get_item("spectator")
-                .expect("result contained no spectator team information")
-                .expect("result contained no spectator team information")
-                .downcast::<PyList>()
-                .expect("spectator was not a list")
-                .is_empty());
+                .eq([
+                    ("free".to_string().into_py(py), PyList::empty_bound(py)),
+                    ("red".into_py(py), PyList::empty_bound(py)),
+                    ("blue".into_py(py), PyList::empty_bound(py)),
+                    ("spectator".into_py(py), PyList::empty_bound(py))
+                ]
+                .into_py_dict_bound(py))
+                .expect("comparison was not ok"),);
         });
     }
 
@@ -3185,134 +2938,410 @@ class subplugin(Plugin):
     #[cfg_attr(iri, ignore)]
     fn teams_when_every_team_has_one_player() {
         let player1 = Player {
-            valid: true,
             id: 0,
+            steam_id: 1234,
             player_info: PlayerInfo {
                 client_id: 0,
-                name: "Mocked Player".to_string(),
-                connection_state: clientState_t::CS_ACTIVE as i32,
-                userinfo: "asdf".to_string(),
                 steam_id: 1234,
                 team: team_t::TEAM_FREE as i32,
-                privileges: 0,
+                ..default_test_player_info()
             },
-            name: "Mocked Player".to_string(),
-            steam_id: 1234,
-            user_info: "asdf".to_string(),
+            ..default_test_player()
         };
         let player2 = Player {
-            valid: true,
             id: 1,
+            steam_id: 1235,
             player_info: PlayerInfo {
                 client_id: 1,
-                name: "Mocked Player".to_string(),
-                connection_state: clientState_t::CS_ACTIVE as i32,
-                userinfo: "asdf".to_string(),
-                steam_id: 1234,
-                team: team_t::TEAM_RED as i32,
-                privileges: 0,
+                steam_id: 1235,
+                ..default_test_player_info()
             },
-            name: "Mocked Player".to_string(),
-            steam_id: 1234,
-            user_info: "asdf".to_string(),
+            ..default_test_player()
         };
         let player3 = Player {
-            valid: true,
             id: 2,
+            steam_id: 1236,
             player_info: PlayerInfo {
                 client_id: 2,
-                name: "Mocked Player".to_string(),
-                connection_state: clientState_t::CS_ACTIVE as i32,
-                userinfo: "asdf".to_string(),
-                steam_id: 1234,
+                steam_id: 1236,
                 team: team_t::TEAM_BLUE as i32,
-                privileges: 0,
+                ..default_test_player_info()
             },
-            name: "Mocked Player".to_string(),
-            steam_id: 1234,
-            user_info: "asdf".to_string(),
+            ..default_test_player()
         };
         let player4 = Player {
-            valid: true,
             id: 3,
+            steam_id: 1237,
             player_info: PlayerInfo {
                 client_id: 3,
-                name: "Mocked Player".to_string(),
-                connection_state: clientState_t::CS_ACTIVE as i32,
-                userinfo: "asdf".to_string(),
                 steam_id: 1234,
                 team: team_t::TEAM_SPECTATOR as i32,
-                privileges: 0,
+                ..default_test_player_info()
             },
-            name: "Mocked Player".to_string(),
-            steam_id: 1234,
-            user_info: "asdf".to_string(),
+            ..default_test_player()
         };
         Python::with_gil(|py| {
             let result = Plugin::teams(
                 &py.get_type_bound::<Plugin>(),
-                Some(vec![player4, player3, player2, player1]),
+                Some(vec![
+                    player4.clone(),
+                    player3.clone(),
+                    player2.clone(),
+                    player1.clone(),
+                ]),
             );
             assert!(result
-                .as_ref()
                 .expect("result was not ok")
-                .get_item("free")
-                .expect("result contained no free team information")
-                .expect("result contained no free team information")
-                .downcast::<PyList>()
-                .expect("free team was not a list")
-                .get_item(0)
-                .expect("free team 0 item was not filled")
-                .getattr("id")
-                .is_ok_and(|value| value
-                    .extract::<i32>()
-                    .expect("id did not return a valid integer")
-                    == 0));
+                .eq([
+                    ("free".to_string().into_py(py), vec![player1].into_py(py)),
+                    ("red".into_py(py), vec![player2].into_py(py)),
+                    ("blue".into_py(py), vec![player3].into_py(py)),
+                    ("spectator".into_py(py), vec![player4].into_py(py))
+                ]
+                .into_py_dict_bound(py))
+                .expect("comparison was not ok"),);
+        });
+    }
+
+    #[test]
+    #[serial]
+    #[cfg_attr(miri, ignore)]
+    fn center_print_to_all_players_sends_center_print_server_command() {
+        let mut mock_engine = MockQuakeEngine::new();
+        mock_engine.expect_get_max_clients().returning(|| 16);
+        MAIN_ENGINE.store(Some(mock_engine.into()));
+
+        let send_server_cmd_ctx = shinqlx_send_server_command_context();
+        send_server_cmd_ctx
+            .expect()
+            .withf(|recipients, cmd| recipients.is_none() && cmd == "cp \"asdf\"")
+            .times(1);
+
+        let result = Python::with_gil(|py| {
+            Plugin::center_print(&py.get_type_bound::<Plugin>(), "asdf", None)
+        });
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    #[serial]
+    #[cfg_attr(miri, ignore)]
+    fn center_print_to_paetticular_player_sends_center_print_server_command() {
+        let mut mock_engine = MockQuakeEngine::new();
+        mock_engine.expect_get_max_clients().returning(|| 16);
+        MAIN_ENGINE.store(Some(mock_engine.into()));
+
+        let client_from_ctx = MockClient::from_context();
+        client_from_ctx.expect().returning(|_| {
+            let mut mock_client = MockClient::new();
+            mock_client
+                .expect_get_state()
+                .returning(|| clientState_t::CS_ACTIVE);
+            mock_client
+        });
+
+        let send_server_cmd_ctx = shinqlx_send_server_command_context();
+        send_server_cmd_ctx
+            .expect()
+            .withf(|recipients, cmd| recipients.is_some() && cmd == "cp \"asdf\"")
+            .times(1);
+
+        let player = default_test_player();
+
+        let result = Python::with_gil(|py| {
+            Plugin::center_print(
+                &py.get_type_bound::<Plugin>(),
+                "asdf",
+                Some(player.into_py(py)),
+            )
+        });
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    #[cfg_attr(miri, ignore)]
+    #[serial]
+    fn tell_sends_msg_to_player() {
+        let mut mock_engine = MockQuakeEngine::new();
+        mock_engine.expect_get_max_clients().returning(|| 16);
+        MAIN_ENGINE.store(Some(mock_engine.into()));
+
+        let client_try_from_ctx = MockClient::from_context();
+        client_try_from_ctx
+            .expect()
+            .with(predicate::eq(0))
+            .returning(|_client_id| {
+                let mut mock_client = MockClient::new();
+                mock_client
+                    .expect_get_state()
+                    .returning(|| clientState_t::CS_ACTIVE);
+                mock_client
+                    .expect_get_user_info()
+                    .returning(|| "asdf".into());
+                mock_client.expect_get_steam_id().returning(|| 1234);
+                mock_client
+            });
+
+        let send_server_command_ctx = shinqlx_send_server_command_context();
+        send_server_command_ctx
+            .expect()
+            .withf(|client, cmd| client.is_some() && cmd == "print \"asdf\n\"\n");
+
+        let game_entity_try_from_ctx = MockGameEntity::from_context();
+        game_entity_try_from_ctx
+            .expect()
+            .with(predicate::eq(0))
+            .returning(|_client_id| {
+                let mut mock_game_entity = MockGameEntity::new();
+                mock_game_entity
+                    .expect_get_player_name()
+                    .returning(|| "Mocked Player".to_string());
+                mock_game_entity
+                    .expect_get_team()
+                    .returning(|| team_t::TEAM_RED);
+                mock_game_entity
+                    .expect_get_privileges()
+                    .returning(|| privileges_t::PRIV_NONE);
+                mock_game_entity
+            });
+
+        Python::with_gil(|py| {
+            let result = Plugin::tell(
+                &py.get_type_bound::<Plugin>(),
+                "asdf",
+                default_test_player().into_py(py),
+                None,
+            );
+            assert!(result.is_ok());
+            run_all_frame_tasks(py).expect("running frame tasks returned an error");
+        });
+    }
+
+    #[test]
+    #[cfg_attr(miri, ignore)]
+    #[serial]
+    fn is_vote_active_when_configstring_set() {
+        let mut mock_engine = MockQuakeEngine::new();
+        mock_engine
+            .expect_get_configstring()
+            .with(predicate::eq(CS_VOTE_STRING as u16))
+            .return_const("vote is active");
+        MAIN_ENGINE.store(Some(mock_engine.into()));
+
+        Python::with_gil(|py| {
+            assert_eq!(Plugin::is_vote_active(&py.get_type_bound::<Plugin>()), true);
+        });
+    }
+
+    #[test]
+    #[cfg_attr(miri, ignore)]
+    #[serial]
+    fn is_vote_active_when_configstring_empty() {
+        let mut mock_engine = MockQuakeEngine::new();
+        mock_engine
+            .expect_get_configstring()
+            .with(predicate::eq(CS_VOTE_STRING as u16))
+            .return_const("");
+        MAIN_ENGINE.store(Some(mock_engine.into()));
+
+        Python::with_gil(|py| {
+            assert_eq!(
+                Plugin::is_vote_active(&py.get_type_bound::<Plugin>()),
+                false
+            );
+        });
+    }
+
+    #[test]
+    #[cfg_attr(miri, ignore)]
+    #[serial]
+    fn is_vote_active_when_main_engine_not_set() {
+        MAIN_ENGINE.store(None);
+
+        Python::with_gil(|py| {
+            assert_eq!(
+                Plugin::is_vote_active(&py.get_type_bound::<Plugin>()),
+                false
+            );
+        });
+    }
+
+    #[test]
+    #[cfg_attr(miri, ignore)]
+    #[serial]
+    fn current_vote_count_when_main_engine_not_set() {
+        MAIN_ENGINE.store(None);
+
+        Python::with_gil(|py| {
+            let result = Plugin::current_vote_count(&py.get_type_bound::<Plugin>());
+            assert!(result.is_ok_and(|value| value.is_none(py)))
+        });
+    }
+
+    #[test]
+    #[cfg_attr(miri, ignore)]
+    #[serial]
+    fn current_vote_count_when_yes_votes_are_empty() {
+        let mut mock_engine = MockQuakeEngine::new();
+        mock_engine
+            .expect_get_configstring()
+            .with(predicate::eq(CS_VOTE_YES as u16))
+            .return_const("");
+        mock_engine
+            .expect_get_configstring()
+            .with(predicate::eq(CS_VOTE_NO as u16))
+            .return_const("42");
+        MAIN_ENGINE.store(Some(mock_engine.into()));
+
+        Python::with_gil(|py| {
+            let result = Plugin::current_vote_count(&py.get_type_bound::<Plugin>());
+            assert!(result.is_ok_and(|value| value.is_none(py)));
+        });
+    }
+
+    #[test]
+    #[cfg_attr(miri, ignore)]
+    #[serial]
+    fn current_vote_count_when_no_votes_are_empty() {
+        let mut mock_engine = MockQuakeEngine::new();
+        mock_engine
+            .expect_get_configstring()
+            .with(predicate::eq(CS_VOTE_YES as u16))
+            .return_const("42");
+        mock_engine
+            .expect_get_configstring()
+            .with(predicate::eq(CS_VOTE_NO as u16))
+            .return_const("");
+        MAIN_ENGINE.store(Some(mock_engine.into()));
+
+        Python::with_gil(|py| {
+            let result = Plugin::current_vote_count(&py.get_type_bound::<Plugin>());
+            assert!(result.is_ok_and(|value| value.is_none(py)));
+        });
+    }
+
+    #[test]
+    #[cfg_attr(miri, ignore)]
+    #[serial]
+    fn current_vote_count_with_proper_vote_counts() {
+        let mut mock_engine = MockQuakeEngine::new();
+        mock_engine
+            .expect_get_configstring()
+            .with(predicate::eq(CS_VOTE_YES as u16))
+            .return_const("42");
+        mock_engine
+            .expect_get_configstring()
+            .with(predicate::eq(CS_VOTE_NO as u16))
+            .return_const("21");
+        MAIN_ENGINE.store(Some(mock_engine.into()));
+
+        Python::with_gil(|py| {
+            let result = Plugin::current_vote_count(&py.get_type_bound::<Plugin>());
             assert!(result
-                .as_ref()
                 .expect("result was not ok")
-                .get_item("red")
-                .expect("result contained no red team information")
-                .expect("result contained no red team information")
-                .downcast::<PyList>()
-                .expect("red team was not a list")
-                .get_item(0)
-                .expect("red team 0 item was not filled")
-                .getattr("id")
-                .is_ok_and(|value| value
-                    .extract::<i32>()
-                    .expect("id did not return a valid integer")
-                    == 1));
-            assert!(result
-                .as_ref()
-                .expect("result was not ok")
-                .get_item("blue")
-                .expect("result contained no blue team information")
-                .expect("result contained no blue team information")
-                .downcast::<PyList>()
-                .expect("blue team was not a list")
-                .get_item(0)
-                .expect("blue team 0 item was not filled")
-                .getattr("id")
-                .is_ok_and(|value| value
-                    .extract::<i32>()
-                    .expect("id did not return a valid integer")
-                    == 2));
-            assert!(result
-                .as_ref()
-                .expect("result was not ok")
-                .get_item("spectator")
-                .expect("result contained no spectator team information")
-                .expect("result contained no spectator team information")
-                .downcast::<PyList>()
-                .expect("spectator was not a list")
-                .get_item(0)
-                .expect("spectator team 0 item was not filled")
-                .getattr("id")
-                .is_ok_and(|value| value
-                    .extract::<i32>()
-                    .expect("id did not return a valid integer")
-                    == 3));
+                .bind(py)
+                .eq(PyTuple::new_bound(py, vec![42, 21]))
+                .expect("comparison was not ok"));
+        });
+    }
+
+    #[test]
+    #[cfg_attr(miri, ignore)]
+    #[serial]
+    fn current_vote_count_with_unparseable_yes_vote_counts() {
+        let mut mock_engine = MockQuakeEngine::new();
+        mock_engine
+            .expect_get_configstring()
+            .with(predicate::eq(CS_VOTE_YES as u16))
+            .return_const("asdf");
+        mock_engine
+            .expect_get_configstring()
+            .with(predicate::eq(CS_VOTE_NO as u16))
+            .return_const("21");
+        MAIN_ENGINE.store(Some(mock_engine.into()));
+
+        Python::with_gil(|py| {
+            let result = Plugin::current_vote_count(&py.get_type_bound::<Plugin>());
+            assert!(result.is_err_and(|err| err.is_instance_of::<PyValueError>(py)));
+        });
+    }
+
+    #[test]
+    #[cfg_attr(miri, ignore)]
+    #[serial]
+    fn current_vote_count_with_unparseable_no_vote_counts() {
+        let mut mock_engine = MockQuakeEngine::new();
+        mock_engine
+            .expect_get_configstring()
+            .with(predicate::eq(CS_VOTE_YES as u16))
+            .return_const("42");
+        mock_engine
+            .expect_get_configstring()
+            .with(predicate::eq(CS_VOTE_NO as u16))
+            .return_const("asdf");
+        MAIN_ENGINE.store(Some(mock_engine.into()));
+
+        Python::with_gil(|py| {
+            let result = Plugin::current_vote_count(&py.get_type_bound::<Plugin>());
+            assert!(result.is_err_and(|err| err.is_instance_of::<PyValueError>(py)));
+        });
+    }
+
+    #[test]
+    #[cfg_attr(miri, ignore)]
+    #[serial]
+    fn callvote_when_vote_is_active() {
+        let mut mock_engine = MockQuakeEngine::new();
+        mock_engine
+            .expect_get_configstring()
+            .with(predicate::eq(CS_VOTE_STRING as u16))
+            .return_const("map overkill ca");
+        MAIN_ENGINE.store(Some(mock_engine.into()));
+
+        Python::with_gil(|py| {
+            let result = Plugin::callvote(
+                &py.get_type_bound::<Plugin>(),
+                "map thunderstruck ca",
+                "map thunderstruck ca",
+                30,
+            );
+            assert!(result.is_ok_and(|value| !value));
+        });
+    }
+
+    #[test]
+    #[cfg_attr(miri, ignore)]
+    #[serial]
+    fn callvote_calls_vote() {
+        let mut mock_engine = MockQuakeEngine::new();
+        mock_engine
+            .expect_get_configstring()
+            .with(predicate::eq(CS_VOTE_STRING as u16))
+            .return_const("");
+        MAIN_ENGINE.store(Some(mock_engine.into()));
+
+        let current_level_ctx = MockTestCurrentLevel::try_get_context();
+        current_level_ctx.expect().returning(|| {
+            let mut mock_level = MockTestCurrentLevel::new();
+            mock_level
+                .expect_callvote()
+                .withf(|vote_str, vote_disp_str, opt_time| {
+                    vote_str == "map thunderstruck ca"
+                        && vote_disp_str == "map thunderstruck ca"
+                        && opt_time.is_some_and(|value| value == 30)
+                })
+                .times(1);
+            Ok(mock_level)
+        });
+
+        Python::with_gil(|py| {
+            let result = Plugin::callvote(
+                &py.get_type_bound::<Plugin>(),
+                "map thunderstruck ca",
+                "map thunderstruck ca",
+                30,
+            );
+            assert!(result.is_ok_and(|value| value));
         });
     }
 
