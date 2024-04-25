@@ -2170,6 +2170,26 @@ pub(crate) fn pyshinqlx_reload() -> Result<(), PythonInitializationError> {
 }
 
 #[cfg(test)]
+pub(crate) mod pyshinqlx_test_support {
+    use pyo3::prelude::*;
+
+    pub(crate) fn run_all_frame_tasks(py: Python<'_>) -> PyResult<()> {
+        py.run_bound(
+            r#"
+import shinqlx
+
+while not shinqlx.next_frame_tasks.empty():
+    func, args, kwargs = shinqlx.next_frame_tasks.get(block=False)
+    func(*args, **kwargs)
+"#,
+            None,
+            None,
+        )?;
+        Ok(())
+    }
+}
+
+#[cfg(test)]
 #[cfg_attr(test, mockall::automock)]
 #[allow(dead_code)]
 pub(crate) mod python_tests {
