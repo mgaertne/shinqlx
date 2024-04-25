@@ -1172,13 +1172,13 @@ mod plugin_tests {
     use crate::ffi::python::prelude::*;
     use crate::prelude::*;
 
-    use alloc::ffi::CString;
-    use core::ffi::c_char;
-
-    use crate::ffi::python::pyshinqlx_test_support::run_all_frame_tasks;
+    use crate::ffi::python::{pyshinqlx_test_support::run_all_frame_tasks, EVENT_DISPATCHERS};
     use crate::hooks::mock_hooks::{
         shinqlx_com_printf_context, shinqlx_send_server_command_context,
     };
+
+    use alloc::ffi::CString;
+    use core::ffi::c_char;
 
     use mockall::predicate;
     use pretty_assertions::assert_eq;
@@ -3342,6 +3342,161 @@ class subplugin(Plugin):
                 30,
             );
             assert!(result.is_ok_and(|value| value));
+        });
+    }
+
+    #[test]
+    #[cfg_attr(miri, ignore)]
+    #[serial]
+    fn callvote_when_event_dispatcher_not_available() {
+        EVENT_DISPATCHERS.store(None);
+
+        let mut mock_engine = MockQuakeEngine::new();
+        mock_engine
+            .expect_get_configstring()
+            .with(predicate::eq(CS_VOTE_STRING as u16))
+            .return_const("");
+        MAIN_ENGINE.store(Some(mock_engine.into()));
+
+        Python::with_gil(|py| {
+            let result = Plugin::callvote(
+                &py.get_type_bound::<Plugin>(),
+                "map thunderstruck ca",
+                "map thunderstruck ca",
+                30,
+            );
+            assert!(result.is_err_and(|err| err.is_instance_of::<PyEnvironmentError>(py)));
+        });
+    }
+
+    #[test]
+    #[cfg_attr(miri, ignore)]
+    #[serial]
+    fn force_vote_with_unparseable_value() {
+        Python::with_gil(|py| {
+            let result = Plugin::force_vote(&py.get_type_bound::<Plugin>(), "asdf".into_py(py));
+            assert!(result.is_err_and(|err| err.is_instance_of::<PyValueError>(py)));
+        });
+    }
+
+    #[test]
+    #[cfg_attr(miri, ignore)]
+    #[serial]
+    fn force_vote_forces_vote_passed() {
+        let current_level_try_get_ctx = MockTestCurrentLevel::try_get_context();
+        current_level_try_get_ctx.expect().returning(|| {
+            let mut mock_level = MockTestCurrentLevel::new();
+            mock_level.expect_get_vote_time().return_const(21);
+            Ok(mock_level)
+        });
+
+        let mut mock_engine = MockQuakeEngine::new();
+        mock_engine.expect_get_max_clients().return_const(1);
+        MAIN_ENGINE.store(Some(mock_engine.into()));
+
+        let client_from_ctx = MockClient::from_context();
+        client_from_ctx
+            .expect()
+            .with(predicate::eq(0))
+            .returning(move |_| {
+                let mut mock_client = MockClient::new();
+                mock_client
+                    .expect_get_state()
+                    .return_const(clientState_t::CS_ACTIVE);
+                mock_client
+            });
+
+        let game_entity_from_ctx = MockGameEntity::from_context();
+        game_entity_from_ctx
+            .expect()
+            .with(predicate::eq(0))
+            .returning(|_| {
+                let mut mock_game_entity = MockGameEntity::new();
+                mock_game_entity.expect_get_game_client().returning(|| {
+                    let mut mock_game_client = MockGameClient::new();
+                    mock_game_client
+                        .expect_set_vote_state()
+                        .with(predicate::eq(true))
+                        .times(1);
+                    Ok(mock_game_client)
+                });
+                mock_game_entity
+            });
+
+        Python::with_gil(|py| {
+            let result = Plugin::force_vote(&py.get_type_bound::<Plugin>(), true.into_py(py));
+            assert!(result.is_ok_and(|value| value),);
+        });
+    }
+
+    #[test]
+    #[cfg_attr(miri, ignore)]
+    #[serial]
+    fn teamsize_sets_teamsize() {
+        let mut mock_engine = MockQuakeEngine::new();
+        mock_engine
+            .expect_find_cvar()
+            .with(predicate::eq("teamsize"))
+            .times(1);
+        mock_engine
+            .expect_get_cvar()
+            .withf(|cvar, value, flags| cvar == "teamsize" && value == "42" && flags.is_none())
+            .times(1);
+        MAIN_ENGINE.store(Some(mock_engine.into()));
+
+        Python::with_gil(|py| {
+            let result = Plugin::teamsize(&py.get_type_bound::<Plugin>(), 42);
+            assert!(result.is_ok());
+        });
+    }
+
+    #[test]
+    #[cfg_attr(miri, ignore)]
+    #[serial]
+    fn force_vote_forces_vote_fail() {
+        let current_level_try_get_ctx = MockTestCurrentLevel::try_get_context();
+        current_level_try_get_ctx.expect().returning(|| {
+            let mut mock_level = MockTestCurrentLevel::new();
+            mock_level.expect_get_vote_time().return_const(21);
+            Ok(mock_level)
+        });
+
+        let mut mock_engine = MockQuakeEngine::new();
+        mock_engine.expect_get_max_clients().return_const(1);
+        MAIN_ENGINE.store(Some(mock_engine.into()));
+
+        let client_from_ctx = MockClient::from_context();
+        client_from_ctx
+            .expect()
+            .with(predicate::eq(0))
+            .returning(move |_| {
+                let mut mock_client = MockClient::new();
+                mock_client
+                    .expect_get_state()
+                    .return_const(clientState_t::CS_ACTIVE);
+                mock_client
+            });
+
+        let game_entity_from_ctx = MockGameEntity::from_context();
+        game_entity_from_ctx
+            .expect()
+            .with(predicate::eq(0))
+            .returning(|_| {
+                let mut mock_game_entity = MockGameEntity::new();
+                mock_game_entity.expect_get_game_client().returning(|| {
+                    let mut mock_game_client = MockGameClient::new();
+                    mock_game_client
+                        .expect_set_vote_state()
+                        .with(predicate::eq(false))
+                        .times(1);
+                    Ok(mock_game_client)
+                });
+                mock_game_entity
+            });
+
+        Python::with_gil(|py| {
+            let result = Plugin::force_vote(&py.get_type_bound::<Plugin>(), false.into_py(py));
+            assert!(result.is_ok_and(|value| value),);
         });
     }
 
