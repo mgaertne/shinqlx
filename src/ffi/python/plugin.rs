@@ -3312,7 +3312,7 @@ class subplugin(Plugin):
     #[test]
     #[cfg_attr(miri, ignore)]
     #[serial]
-    fn locallvote_calls_vote() {
+    fn callvote_calls_vote() {
         let mut mock_engine = MockQuakeEngine::new();
         mock_engine
             .expect_get_configstring()
