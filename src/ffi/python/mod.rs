@@ -355,6 +355,10 @@ pub(crate) fn client_id(
     name: PyObject,
     player_list: Option<Vec<Player>>,
 ) -> Option<i32> {
+    if name.is_none(py) {
+        return None;
+    }
+
     if let Ok(value) = name.extract::<i32>(py) {
         if (0..64).contains(&value) {
             return Some(value);

@@ -1174,7 +1174,8 @@ mod plugin_tests {
 
     use crate::ffi::python::{pyshinqlx_test_support::run_all_frame_tasks, EVENT_DISPATCHERS};
     use crate::hooks::mock_hooks::{
-        shinqlx_com_printf_context, shinqlx_send_server_command_context,
+        shinqlx_com_printf_context, shinqlx_drop_client_context,
+        shinqlx_send_server_command_context,
     };
 
     use alloc::ffi::CString;
@@ -3351,11 +3352,7 @@ class subplugin(Plugin):
                 "map thunderstruck ca",
                 30,
             );
-            assert!(
-                result.as_ref().is_ok_and(|&value| value),
-                "{:?}",
-                result.as_ref()
-            );
+            assert!(result.is_ok_and(|value| value),);
         });
     }
 
@@ -3446,27 +3443,6 @@ class subplugin(Plugin):
     #[test]
     #[cfg_attr(miri, ignore)]
     #[serial]
-    fn teamsize_sets_teamsize() {
-        let mut mock_engine = MockQuakeEngine::new();
-        mock_engine
-            .expect_find_cvar()
-            .with(predicate::eq("teamsize"))
-            .times(1);
-        mock_engine
-            .expect_get_cvar()
-            .withf(|cvar, value, flags| cvar == "teamsize" && value == "42" && flags.is_none())
-            .times(1);
-        MAIN_ENGINE.store(Some(mock_engine.into()));
-
-        Python::with_gil(|py| {
-            let result = Plugin::teamsize(&py.get_type_bound::<Plugin>(), 42);
-            assert!(result.is_ok());
-        });
-    }
-
-    #[test]
-    #[cfg_attr(miri, ignore)]
-    #[serial]
     fn force_vote_forces_vote_fail() {
         let current_level_try_get_ctx = MockTestCurrentLevel::try_get_context();
         current_level_try_get_ctx.expect().returning(|| {
@@ -3517,6 +3493,111 @@ class subplugin(Plugin):
     #[test]
     #[cfg_attr(miri, ignore)]
     #[serial]
+    fn teamsize_sets_teamsize() {
+        let mut mock_engine = MockQuakeEngine::new();
+        mock_engine
+            .expect_find_cvar()
+            .with(predicate::eq("teamsize"))
+            .times(1);
+        mock_engine
+            .expect_get_cvar()
+            .withf(|cvar, value, flags| cvar == "teamsize" && value == "42" && flags.is_none())
+            .times(1);
+        MAIN_ENGINE.store(Some(mock_engine.into()));
+
+        Python::with_gil(|py| {
+            let result = Plugin::teamsize(&py.get_type_bound::<Plugin>(), 42);
+            assert!(result.is_ok());
+        });
+    }
+
+    #[test]
+    #[cfg_attr(miri, ignore)]
+    #[serial]
+    fn kick_for_unknown_player() {
+        MAIN_ENGINE.store(None);
+
+        Python::with_gil(|py| {
+            let result = Plugin::kick(&py.get_type_bound::<Plugin>(), 1.23.into_py(py), "");
+            assert!(result.is_err_and(|err| err.is_instance_of::<PyValueError>(py)));
+        });
+    }
+
+    #[test]
+    #[cfg_attr(miri, ignore)]
+    #[serial]
+    fn kick_for_existing_player_without_reason() {
+        let mut mock_engine = MockQuakeEngine::new();
+        mock_engine.expect_get_max_clients().returning(|| 16);
+        MAIN_ENGINE.store(Some(mock_engine.into()));
+
+        let client_try_from_ctx = MockClient::from_context();
+        client_try_from_ctx
+            .expect()
+            .with(predicate::eq(0))
+            .returning(move |_| {
+                let mut mock_client = MockClient::new();
+                mock_client
+                    .expect_get_state()
+                    .return_const(clientState_t::CS_ACTIVE);
+                mock_client
+            });
+
+        let drop_client_ctx = shinqlx_drop_client_context();
+        drop_client_ctx
+            .expect()
+            .withf(|_client, reason| reason == "was kicked.")
+            .times(1);
+
+        Python::with_gil(|py| {
+            let result = Plugin::kick(
+                &py.get_type_bound::<Plugin>(),
+                default_test_player().into_py(py),
+                "",
+            );
+            assert!(result.as_ref().is_ok(), "{:?}", result.as_ref());
+        });
+    }
+
+    #[test]
+    #[cfg_attr(miri, ignore)]
+    #[serial]
+    fn kick_for_existing_player_with_reason() {
+        let mut mock_engine = MockQuakeEngine::new();
+        mock_engine.expect_get_max_clients().returning(|| 16);
+        MAIN_ENGINE.store(Some(mock_engine.into()));
+
+        let client_try_from_ctx = MockClient::from_context();
+        client_try_from_ctx
+            .expect()
+            .with(predicate::eq(0))
+            .returning(move |_| {
+                let mut mock_client = MockClient::new();
+                mock_client
+                    .expect_get_state()
+                    .return_const(clientState_t::CS_ACTIVE);
+                mock_client
+            });
+
+        let drop_client_ctx = shinqlx_drop_client_context();
+        drop_client_ctx
+            .expect()
+            .withf(|_client, reason| reason == "All your base are belong to us!")
+            .times(1);
+
+        Python::with_gil(|py| {
+            let result = Plugin::kick(
+                &py.get_type_bound::<Plugin>(),
+                default_test_player().into_py(py),
+                "All your base are belong to us!",
+            );
+            assert!(result.is_ok());
+        });
+    }
+
+    #[test]
+    #[cfg_attr(miri, ignore)]
+    #[serial]
     fn shuffle_forces_shuffle() {
         let mut mock_engine = MockQuakeEngine::new();
         mock_engine
@@ -3527,6 +3608,479 @@ class subplugin(Plugin):
 
         let result = Python::with_gil(|py| Plugin::shuffle(&py.get_type_bound::<Plugin>()));
         assert!(result.is_ok());
+    }
+
+    #[test]
+    #[cfg_attr(miri, ignore)]
+    fn cointoss_does_nothing() {
+        Python::with_gil(|py| {
+            Plugin::cointoss(&py.get_type_bound::<Plugin>());
+        });
+    }
+
+    #[test]
+    #[cfg_attr(miri, ignore)]
+    #[serial]
+    fn change_map_with_no_factory() {
+        let mut mock_engine = MockQuakeEngine::new();
+        mock_engine
+            .expect_execute_console_command()
+            .with(predicate::eq("map thunderstruck"))
+            .times(1);
+        MAIN_ENGINE.store(Some(mock_engine.into()));
+
+        Python::with_gil(|py| {
+            let result = Plugin::change_map(&py.get_type_bound::<Plugin>(), "thunderstruck", None);
+            assert!(result.is_ok());
+        });
+    }
+
+    #[test]
+    #[cfg_attr(miri, ignore)]
+    #[serial]
+    fn change_map_with_factory() {
+        let mut mock_engine = MockQuakeEngine::new();
+        mock_engine
+            .expect_execute_console_command()
+            .with(predicate::eq("map thunderstruck ffa"))
+            .times(1);
+        MAIN_ENGINE.store(Some(mock_engine.into()));
+
+        Python::with_gil(|py| {
+            let result =
+                Plugin::change_map(&py.get_type_bound::<Plugin>(), "thunderstruck", Some("ffa"));
+            assert!(result.is_ok());
+        });
+    }
+
+    #[test]
+    #[cfg_attr(miri, ignore)]
+    #[serial]
+    fn change_map_when_no_main_engine_set() {
+        MAIN_ENGINE.store(None);
+
+        Python::with_gil(|py| {
+            let result =
+                Plugin::change_map(&py.get_type_bound::<Plugin>(), "thunderstruck", Some("ffa"));
+            assert!(result.is_err_and(|err| err.is_instance_of::<PyEnvironmentError>(py)));
+        });
+    }
+
+    #[test]
+    #[cfg_attr(miri, ignore)]
+    #[serial]
+    fn switch_with_invalid_player1() {
+        MAIN_ENGINE.store(None);
+
+        Python::with_gil(|py| {
+            let result = Plugin::switch(
+                &py.get_type_bound::<Plugin>(),
+                1.23.into_py(py),
+                default_test_player().into_py(py),
+            );
+            assert!(result.is_err_and(|err| err.is_instance_of::<PyValueError>(py)));
+        });
+    }
+
+    #[test]
+    #[cfg_attr(miri, ignore)]
+    #[serial]
+    fn switch_with_invalid_player2() {
+        MAIN_ENGINE.store(None);
+
+        Python::with_gil(|py| {
+            let result = Plugin::switch(
+                &py.get_type_bound::<Plugin>(),
+                default_test_player().into_py(py),
+                1.23.into_py(py),
+            );
+            assert!(result.is_err_and(|err| err.is_instance_of::<PyValueError>(py)));
+        });
+    }
+
+    #[test]
+    #[cfg_attr(miri, ignore)]
+    #[serial]
+    fn switch_with_players_on_same_team() {
+        MAIN_ENGINE.store(None);
+
+        let player1 = Player {
+            id: 0,
+            player_info: PlayerInfo {
+                client_id: 0,
+                team: team_t::TEAM_RED as i32,
+                ..default_test_player_info()
+            },
+            ..default_test_player()
+        };
+        let player2 = Player {
+            id: 1,
+            player_info: PlayerInfo {
+                client_id: 1,
+                team: team_t::TEAM_RED as i32,
+                ..default_test_player_info()
+            },
+            ..default_test_player()
+        };
+
+        Python::with_gil(|py| {
+            let result = Plugin::switch(
+                &py.get_type_bound::<Plugin>(),
+                player1.into_py(py),
+                player2.into_py(py),
+            );
+            assert!(result.is_err_and(|err| err.is_instance_of::<PyValueError>(py)));
+        });
+    }
+
+    #[test]
+    #[cfg_attr(miri, ignore)]
+    #[serial]
+    fn switch_with_players_on_different_team() {
+        let mut mock_engine = MockQuakeEngine::new();
+        mock_engine
+            .expect_execute_console_command()
+            .with(predicate::eq("put 0 blue"))
+            .times(1);
+        mock_engine
+            .expect_execute_console_command()
+            .with(predicate::eq("put 1 red"))
+            .times(1);
+        MAIN_ENGINE.store(Some(mock_engine.into()));
+
+        let player1 = Player {
+            id: 0,
+            player_info: PlayerInfo {
+                client_id: 0,
+                team: team_t::TEAM_RED as i32,
+                ..default_test_player_info()
+            },
+            ..default_test_player()
+        };
+        let player2 = Player {
+            id: 1,
+            player_info: PlayerInfo {
+                client_id: 1,
+                team: team_t::TEAM_BLUE as i32,
+                ..default_test_player_info()
+            },
+            ..default_test_player()
+        };
+
+        Python::with_gil(|py| {
+            let result = Plugin::switch(
+                &py.get_type_bound::<Plugin>(),
+                player1.into_py(py),
+                player2.into_py(py),
+            );
+            assert!(result.is_ok());
+        });
+    }
+
+    #[test]
+    #[cfg_attr(miri, ignore)]
+    #[serial]
+    fn play_sound_to_all_players() {
+        let send_server_command_ctx = shinqlx_send_server_command_context();
+        send_server_command_ctx
+            .expect()
+            .withf(|client, cmd| client.is_none() && cmd == "playSound sound/vo/midair.ogg")
+            .times(1);
+
+        Python::with_gil(|py| {
+            let result =
+                Plugin::play_sound(&py.get_type_bound::<Plugin>(), "sound/vo/midair.ogg", None);
+            assert!(result.is_ok_and(|value| value),);
+        });
+    }
+
+    #[test]
+    #[cfg_attr(miri, ignore)]
+    #[serial]
+    fn play_sound_to_a_specific_player() {
+        let player = default_test_player();
+
+        let mut mock_engine = MockQuakeEngine::new();
+        mock_engine.expect_get_max_clients().return_const(16);
+        MAIN_ENGINE.store(Some(mock_engine.into()));
+
+        let client_try_from_ctx = MockClient::from_context();
+        client_try_from_ctx
+            .expect()
+            .with(predicate::eq(0))
+            .returning(move |_| {
+                let mut mock_client = MockClient::new();
+                mock_client
+                    .expect_get_state()
+                    .return_const(clientState_t::CS_ACTIVE);
+                mock_client
+            });
+
+        let send_server_command_ctx = shinqlx_send_server_command_context();
+        send_server_command_ctx
+            .expect()
+            .withf(|client, cmd| client.is_some() && cmd == "playSound sound/vo/midair.ogg")
+            .times(1);
+
+        Python::with_gil(|py| {
+            let result = Plugin::play_sound(
+                &py.get_type_bound::<Plugin>(),
+                "sound/vo/midair.ogg",
+                Some(player),
+            );
+            assert!(result.is_ok_and(|value| value),);
+        });
+    }
+
+    #[test]
+    #[cfg_attr(miri, ignore)]
+    #[serial]
+    fn play_sound_with_empty_soundpath() {
+        Python::with_gil(|py| {
+            let result = Plugin::play_sound(&py.get_type_bound::<Plugin>(), "", None);
+            assert!(result.is_ok_and(|value| !value),);
+        });
+    }
+
+    #[test]
+    #[cfg_attr(miri, ignore)]
+    #[serial]
+    fn play_sound_for_sound_containing_music() {
+        Python::with_gil(|py| {
+            let result =
+                Plugin::play_sound(&py.get_type_bound::<Plugin>(), "music/sonic1.ogg", None);
+            assert!(result.is_ok_and(|value| !value),);
+        });
+    }
+
+    #[test]
+    #[cfg_attr(miri, ignore)]
+    #[serial]
+    fn play_music_to_all_players() {
+        let send_server_command_ctx = shinqlx_send_server_command_context();
+        send_server_command_ctx
+            .expect()
+            .withf(|client, cmd| client.is_none() && cmd == "playMusic music/sonic1.ogg")
+            .times(1);
+
+        Python::with_gil(|py| {
+            let result =
+                Plugin::play_music(&py.get_type_bound::<Plugin>(), "music/sonic1.ogg", None);
+            assert!(result.is_ok_and(|value| value),);
+        });
+    }
+
+    #[test]
+    #[cfg_attr(miri, ignore)]
+    #[serial]
+    fn play_music_to_a_specific_player() {
+        let player = default_test_player();
+
+        let mut mock_engine = MockQuakeEngine::new();
+        mock_engine.expect_get_max_clients().return_const(16);
+        MAIN_ENGINE.store(Some(mock_engine.into()));
+
+        let client_try_from_ctx = MockClient::from_context();
+        client_try_from_ctx
+            .expect()
+            .with(predicate::eq(0))
+            .returning(move |_| {
+                let mut mock_client = MockClient::new();
+                mock_client
+                    .expect_get_state()
+                    .return_const(clientState_t::CS_ACTIVE);
+                mock_client
+            });
+
+        let send_server_command_ctx = shinqlx_send_server_command_context();
+        send_server_command_ctx
+            .expect()
+            .withf(|client, cmd| client.is_some() && cmd == "playMusic music/sonic1.ogg")
+            .times(1);
+
+        Python::with_gil(|py| {
+            let result = Plugin::play_music(
+                &py.get_type_bound::<Plugin>(),
+                "music/sonic1.ogg",
+                Some(player),
+            );
+            assert!(result.is_ok_and(|value| value),);
+        });
+    }
+
+    #[test]
+    #[cfg_attr(miri, ignore)]
+    #[serial]
+    fn play_music_with_empty_musicpath() {
+        Python::with_gil(|py| {
+            let result = Plugin::play_music(&py.get_type_bound::<Plugin>(), "", None);
+            assert!(result.is_ok_and(|value| !value),);
+        });
+    }
+
+    #[test]
+    #[cfg_attr(miri, ignore)]
+    #[serial]
+    fn play_music_for_music_containing_sound() {
+        Python::with_gil(|py| {
+            let result =
+                Plugin::play_music(&py.get_type_bound::<Plugin>(), "sound/vo/midair.ogg", None);
+            assert!(result.is_ok_and(|value| !value),);
+        });
+    }
+
+    #[test]
+    #[cfg_attr(miri, ignore)]
+    #[serial]
+    fn stop_sound_for_all_players() {
+        let send_server_command_ctx = shinqlx_send_server_command_context();
+        send_server_command_ctx
+            .expect()
+            .withf(|client, cmd| client.is_none() && cmd == "clearSounds")
+            .times(1);
+
+        Python::with_gil(|py| {
+            let result = Plugin::stop_sound(&py.get_type_bound::<Plugin>(), None);
+            assert!(result.is_ok());
+        });
+    }
+
+    #[test]
+    #[cfg_attr(miri, ignore)]
+    #[serial]
+    fn stop_sound_for_a_specific_player() {
+        let player = default_test_player();
+
+        let mut mock_engine = MockQuakeEngine::new();
+        mock_engine.expect_get_max_clients().return_const(16);
+        MAIN_ENGINE.store(Some(mock_engine.into()));
+
+        let client_try_from_ctx = MockClient::from_context();
+        client_try_from_ctx
+            .expect()
+            .with(predicate::eq(0))
+            .returning(move |_| {
+                let mut mock_client = MockClient::new();
+                mock_client
+                    .expect_get_state()
+                    .return_const(clientState_t::CS_ACTIVE);
+                mock_client
+            });
+
+        let send_server_command_ctx = shinqlx_send_server_command_context();
+        send_server_command_ctx
+            .expect()
+            .withf(|client, cmd| client.is_some() && cmd == "clearSounds")
+            .times(1);
+
+        Python::with_gil(|py| {
+            let result = Plugin::stop_sound(&py.get_type_bound::<Plugin>(), Some(player));
+            assert!(result.is_ok());
+        });
+    }
+
+    #[test]
+    #[cfg_attr(miri, ignore)]
+    #[serial]
+    fn stop_music_for_all_players() {
+        let send_server_command_ctx = shinqlx_send_server_command_context();
+        send_server_command_ctx
+            .expect()
+            .withf(|client, cmd| client.is_none() && cmd == "stopMusic")
+            .times(1);
+
+        Python::with_gil(|py| {
+            let result = Plugin::stop_music(&py.get_type_bound::<Plugin>(), None);
+            assert!(result.is_ok());
+        });
+    }
+
+    #[test]
+    #[cfg_attr(miri, ignore)]
+    #[serial]
+    fn stop_music_for_a_specific_player() {
+        let player = default_test_player();
+
+        let mut mock_engine = MockQuakeEngine::new();
+        mock_engine.expect_get_max_clients().return_const(16);
+        MAIN_ENGINE.store(Some(mock_engine.into()));
+
+        let client_try_from_ctx = MockClient::from_context();
+        client_try_from_ctx
+            .expect()
+            .with(predicate::eq(0))
+            .returning(move |_| {
+                let mut mock_client = MockClient::new();
+                mock_client
+                    .expect_get_state()
+                    .return_const(clientState_t::CS_ACTIVE);
+                mock_client
+            });
+
+        let send_server_command_ctx = shinqlx_send_server_command_context();
+        send_server_command_ctx
+            .expect()
+            .withf(|client, cmd| client.is_some() && cmd == "stopMusic")
+            .times(1);
+
+        Python::with_gil(|py| {
+            let result = Plugin::stop_music(&py.get_type_bound::<Plugin>(), Some(player));
+            assert!(result.is_ok());
+        });
+    }
+
+    #[test]
+    #[cfg_attr(miri, ignore)]
+    #[serial]
+    fn slap_for_invalid_player() {
+        Python::with_gil(|py| {
+            let result = Plugin::slap(&py.get_type_bound::<Plugin>(), py.None(), 42);
+            assert!(result.is_err_and(|err| err.is_instance_of::<PyValueError>(py)));
+        });
+    }
+
+    #[test]
+    #[cfg_attr(miri, ignore)]
+    #[serial]
+    fn slap_for_player() {
+        let mut mock_engine = MockQuakeEngine::new();
+        mock_engine
+            .expect_execute_console_command()
+            .with(predicate::eq("slap 21 42"))
+            .times(1);
+        MAIN_ENGINE.store(Some(mock_engine.into()));
+
+        Python::with_gil(|py| {
+            let result = Plugin::slap(&py.get_type_bound::<Plugin>(), 21.into_py(py), 42);
+            assert!(result.is_ok());
+        });
+    }
+
+    #[test]
+    #[cfg_attr(miri, ignore)]
+    #[serial]
+    fn slay_for_invalid_player() {
+        Python::with_gil(|py| {
+            let result = Plugin::slay(&py.get_type_bound::<Plugin>(), py.None());
+            assert!(result.is_err_and(|err| err.is_instance_of::<PyValueError>(py)));
+        });
+    }
+
+    #[test]
+    #[cfg_attr(miri, ignore)]
+    #[serial]
+    fn slay_for_player() {
+        let mut mock_engine = MockQuakeEngine::new();
+        mock_engine
+            .expect_execute_console_command()
+            .with(predicate::eq("slay 21"))
+            .times(1);
+        MAIN_ENGINE.store(Some(mock_engine.into()));
+
+        Python::with_gil(|py| {
+            let result = Plugin::slay(&py.get_type_bound::<Plugin>(), 21.into_py(py));
+            assert!(result.is_ok());
+        });
     }
 
     #[test]
