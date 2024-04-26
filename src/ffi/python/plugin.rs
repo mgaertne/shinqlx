@@ -3312,7 +3312,7 @@ class subplugin(Plugin):
     #[test]
     #[cfg_attr(miri, ignore)]
     #[serial]
-    fn callvote_calls_vote() {
+    fn locallvote_calls_vote() {
         let mut mock_engine = MockQuakeEngine::new();
         mock_engine
             .expect_get_configstring()
@@ -3335,13 +3335,27 @@ class subplugin(Plugin):
         });
 
         Python::with_gil(|py| {
+            let event_dispatcher = EventDispatcherManager::default();
+            event_dispatcher
+                .add_dispatcher(py, py.get_type_bound::<VoteStartedDispatcher>())
+                .expect("could not add vote_started dispatcher");
+            EVENT_DISPATCHERS.store(Some(
+                Py::new(py, event_dispatcher)
+                    .expect("could not create event dispatcher manager in python")
+                    .into(),
+            ));
+
             let result = Plugin::callvote(
                 &py.get_type_bound::<Plugin>(),
                 "map thunderstruck ca",
                 "map thunderstruck ca",
                 30,
             );
-            assert!(result.is_ok_and(|value| value));
+            assert!(
+                result.as_ref().is_ok_and(|&value| value),
+                "{:?}",
+                result.as_ref()
+            );
         });
     }
 
