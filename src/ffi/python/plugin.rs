@@ -18,12 +18,11 @@ use crate::{
 };
 
 use pyo3::prelude::*;
-use pyo3::types::PyBool;
 use pyo3::{
     exceptions::{PyEnvironmentError, PyRuntimeError, PyValueError},
     gc::PyVisit,
     intern,
-    types::{IntoPyDict, PyDict, PyList, PySet, PyTuple, PyType},
+    types::{IntoPyDict, PyBool, PyDict, PyList, PySet, PyTuple, PyType},
     PyTraverseError,
 };
 
@@ -181,7 +180,7 @@ impl Plugin {
         )?;
 
         let Ok(mut plugin) = slf.try_borrow_mut() else {
-            return Err(PyEnvironmentError::new_err("cound not borrow plugin hooks"));
+            return Err(PyEnvironmentError::new_err("could not borrow plugin hooks"));
         };
         plugin.hooks.push((event.clone(), handler, priority));
 
@@ -633,7 +632,7 @@ impl Plugin {
                 let bound_channel = channel.bind(cls.py());
                 if bound_channel
                     .get_type()
-                    .is_subclass(&cls.py().get_type_bound::<AbstractChannel>().get_type())
+                    .is_subclass(&cls.py().get_type_bound::<AbstractChannel>())
                     .unwrap_or(false)
                 {
                     bound_channel.call_method(intern!(cls.py(), "reply"), (msg,), kwargs)?;
@@ -645,19 +644,19 @@ impl Plugin {
                     &RED_TEAM_CHAT_CHANNEL,
                     &BLUE_TEAM_CHAT_CHANNEL,
                 ] {
-                    if let Some(ref main_chat_channel) = *global_channel.load() {
-                        if main_chat_channel.bind(cls.py()).eq(bound_channel)? {
-                            let main_channel = main_chat_channel.borrow(cls.py()).into_super();
+                    if let Some(ref global_chat_channel) = *global_channel.load() {
+                        if global_chat_channel.bind(cls.py()).eq(bound_channel)? {
+                            let main_channel = global_chat_channel.borrow(cls.py()).into_super();
                             ChatChannel::reply(main_channel, cls.py(), msg, limit, &delimiter)?;
                             return Ok(());
                         }
                     }
                 }
 
-                if let Some(ref main_console_channel) = *CONSOLE_CHANNEL.load() {
-                    if main_console_channel.bind(cls.py()).eq(bound_channel)? {
+                if let Some(ref console_channel) = *CONSOLE_CHANNEL.load() {
+                    if console_channel.bind(cls.py()).eq(bound_channel)? {
                         ConsoleChannel::reply(
-                            main_console_channel.get(),
+                            console_channel.get(),
                             cls.py(),
                             msg,
                             limit,
@@ -1172,7 +1171,10 @@ mod plugin_tests {
     use crate::ffi::python::prelude::*;
     use crate::prelude::*;
 
-    use crate::ffi::python::{pyshinqlx_test_support::run_all_frame_tasks, EVENT_DISPATCHERS};
+    use crate::ffi::python::{
+        pyshinqlx_test_support::run_all_frame_tasks, BLUE_TEAM_CHAT_CHANNEL, CHAT_CHANNEL,
+        CONSOLE_CHANNEL, EVENT_DISPATCHERS, RED_TEAM_CHAT_CHANNEL,
+    };
     use crate::hooks::mock_hooks::{
         shinqlx_com_printf_context, shinqlx_drop_client_context,
         shinqlx_send_server_command_context,
@@ -1418,7 +1420,10 @@ class subplugin(Plugin):
     #[cfg_attr(miri, ignore)]
     fn get_logger(_pyshinqlx_setup: ()) {
         Python::with_gil(|py| {
-            let logger_type = py.import_bound("logging")?.getattr("Logger")?;
+            let logger_type = py
+                .import_bound("logging")?
+                .getattr("Logger")
+                .expect("could not get logging.Logger");
 
             let extended_plugin = test_plugin(py)?;
             let plugin_instance = extended_plugin.call0()?;
@@ -1426,11 +1431,16 @@ class subplugin(Plugin):
             assert!(result
                 .as_ref()
                 .is_ok_and(|logger| logger.is_instance(&logger_type).unwrap()
-                    && logger.getattr("name").unwrap().str().unwrap().to_string()
+                    && logger
+                        .getattr("name")
+                        .expect("could not get logger name")
+                        .str()
+                        .unwrap()
+                        .to_string()
                         == "shinqlx.subplugin"),);
             Ok::<(), PyErr>(())
         })
-        .unwrap();
+        .expect("python result was not ok.");
     }
 
     #[test]
@@ -2552,6 +2562,296 @@ class subplugin(Plugin):
                 None,
             );
             assert!(result.is_err_and(|err| err.is_instance_of::<PyValueError>(py)));
+        });
+    }
+
+    #[test]
+    #[cfg_attr(miri, ignore)]
+    #[serial]
+    fn msg_for_default_channel() {
+        let send_server_command_ctx = shinqlx_send_server_command_context();
+        send_server_command_ctx
+            .expect()
+            .withf(|client, cmd| client.is_none() && cmd == "print \"asdf\n\"\n")
+            .times(1);
+
+        Python::with_gil(|py| {
+            CHAT_CHANNEL.store(Some(
+                Py::new(
+                    py,
+                    TeamChatChannel::py_new("all", "chat", "print \"{}\n\"\n"),
+                )
+                .expect("creating new chat channel failed.")
+                .into(),
+            ));
+
+            let result = Plugin::msg(&py.get_type_bound::<Plugin>(), "asdf", None, None);
+            assert!(result.is_ok());
+            run_all_frame_tasks(py).expect("running frame tasks returned an error");
+        });
+    }
+
+    #[test]
+    #[cfg_attr(miri, ignore)]
+    #[serial]
+    fn msg_for_chat_channel_with_kwargs() {
+        let send_server_command_ctx = shinqlx_send_server_command_context();
+        send_server_command_ctx
+            .expect()
+            .withf(|client, cmd| client.is_none() && cmd == "print \"asdf qwertz\n\"\n")
+            .times(1);
+
+        Python::with_gil(|py| {
+            CHAT_CHANNEL.store(Some(
+                Py::new(
+                    py,
+                    TeamChatChannel::py_new("all", "chat", "print \"{}\n\"\n"),
+                )
+                .expect("creating new chat channel failed.")
+                .into(),
+            ));
+
+            let result = Plugin::msg(
+                &py.get_type_bound::<Plugin>(),
+                "asdf qwertz",
+                Some("chat".into_py(py)),
+                Some(
+                    &[("limit", 23i32.into_py(py)), ("delimiter", "_".into_py(py))]
+                        .into_py_dict_bound(py),
+                ),
+            );
+            assert!(result.is_ok());
+            run_all_frame_tasks(py).expect("running frame tasks returned an error");
+        });
+    }
+
+    #[test]
+    #[cfg_attr(miri, ignore)]
+    #[serial]
+    fn msg_for_red_team_chat_channel() {
+        let mut mock_engine = MockQuakeEngine::new();
+        mock_engine.expect_get_max_clients().returning(|| 8);
+        MAIN_ENGINE.store(Some(mock_engine.into()));
+
+        let client_try_from_ctx = MockClient::from_context();
+        client_try_from_ctx
+            .expect()
+            .withf(|client_id| (0..8).contains(client_id))
+            .returning(|_client_id| {
+                let mut mock_client = MockClient::new();
+                mock_client
+                    .expect_get_state()
+                    .returning(|| clientState_t::CS_ACTIVE);
+                mock_client
+                    .expect_get_user_info()
+                    .returning(|| "asdf".into());
+                mock_client.expect_get_steam_id().returning(|| 1234);
+                mock_client
+            });
+
+        let game_entity_try_from_ctx = MockGameEntity::from_context();
+        game_entity_try_from_ctx
+            .expect()
+            .withf(|client_id| (0..8).contains(client_id))
+            .returning(|client_id| {
+                let mut mock_game_entity = MockGameEntity::new();
+                mock_game_entity
+                    .expect_get_player_name()
+                    .returning(|| "Mocked Player".to_string());
+                mock_game_entity
+                    .expect_get_team()
+                    .returning(move || match client_id {
+                        0 => team_t::TEAM_FREE,
+                        1 => team_t::TEAM_RED,
+                        2 => team_t::TEAM_BLUE,
+                        4 => team_t::TEAM_FREE,
+                        5 => team_t::TEAM_RED,
+                        6 => team_t::TEAM_BLUE,
+                        _ => team_t::TEAM_SPECTATOR,
+                    });
+                mock_game_entity
+                    .expect_get_privileges()
+                    .returning(|| privileges_t::PRIV_NONE);
+                mock_game_entity
+            });
+
+        let send_server_command_ctx = shinqlx_send_server_command_context();
+        send_server_command_ctx
+            .expect()
+            .withf(|client, cmd| client.is_some() && cmd == "print \"asdf qwertz\n\"\n")
+            .times(2);
+
+        Python::with_gil(|py| {
+            RED_TEAM_CHAT_CHANNEL.store(Some(
+                Py::new(
+                    py,
+                    TeamChatChannel::py_new("red", "red_team_chat", "print \"{}\n\"\n"),
+                )
+                .expect("creating new chat channel failed.")
+                .into(),
+            ));
+
+            let result = Plugin::msg(
+                &py.get_type_bound::<Plugin>(),
+                "asdf qwertz",
+                Some("red_team_chat".into_py(py)),
+                None,
+            );
+            assert!(result.is_ok());
+            run_all_frame_tasks(py).expect("running frame tasks returned an error");
+        });
+    }
+
+    #[test]
+    #[cfg_attr(miri, ignore)]
+    #[serial]
+    fn msg_for_blue_team_chat_channel() {
+        let mut mock_engine = MockQuakeEngine::new();
+        mock_engine.expect_get_max_clients().returning(|| 8);
+        MAIN_ENGINE.store(Some(mock_engine.into()));
+
+        let client_try_from_ctx = MockClient::from_context();
+        client_try_from_ctx
+            .expect()
+            .withf(|client_id| (0..8).contains(client_id))
+            .returning(|_client_id| {
+                let mut mock_client = MockClient::new();
+                mock_client
+                    .expect_get_state()
+                    .returning(|| clientState_t::CS_ACTIVE);
+                mock_client
+                    .expect_get_user_info()
+                    .returning(|| "asdf".into());
+                mock_client.expect_get_steam_id().returning(|| 1234);
+                mock_client
+            });
+
+        let game_entity_try_from_ctx = MockGameEntity::from_context();
+        game_entity_try_from_ctx
+            .expect()
+            .withf(|client_id| (0..8).contains(client_id))
+            .returning(|client_id| {
+                let mut mock_game_entity = MockGameEntity::new();
+                mock_game_entity
+                    .expect_get_player_name()
+                    .returning(|| "Mocked Player".to_string());
+                mock_game_entity
+                    .expect_get_team()
+                    .returning(move || match client_id {
+                        0 => team_t::TEAM_FREE,
+                        1 => team_t::TEAM_RED,
+                        2 => team_t::TEAM_BLUE,
+                        4 => team_t::TEAM_FREE,
+                        5 => team_t::TEAM_RED,
+                        6 => team_t::TEAM_BLUE,
+                        _ => team_t::TEAM_SPECTATOR,
+                    });
+                mock_game_entity
+                    .expect_get_privileges()
+                    .returning(|| privileges_t::PRIV_NONE);
+                mock_game_entity
+            });
+
+        let send_server_command_ctx = shinqlx_send_server_command_context();
+        send_server_command_ctx
+            .expect()
+            .withf(|client, cmd| client.is_some() && cmd == "print \"asdf qwertz\n\"\n")
+            .times(2);
+
+        Python::with_gil(|py| {
+            BLUE_TEAM_CHAT_CHANNEL.store(Some(
+                Py::new(
+                    py,
+                    TeamChatChannel::py_new("blue", "blue_team_chat", "print \"{}\n\"\n"),
+                )
+                .expect("creating new chat channel failed.")
+                .into(),
+            ));
+
+            let result = Plugin::msg(
+                &py.get_type_bound::<Plugin>(),
+                "asdf qwertz",
+                Some("blue_team_chat".into_py(py)),
+                None,
+            );
+            assert!(result.is_ok());
+            run_all_frame_tasks(py).expect("running frame tasks returned an error");
+        });
+    }
+
+    #[test]
+    #[cfg_attr(miri, ignore)]
+    #[serial]
+    fn msg_for_console_channel() {
+        let com_printf_ctx = shinqlx_com_printf_context();
+        com_printf_ctx
+            .expect()
+            .withf(|msg| msg == "asdf\n")
+            .times(1);
+
+        Python::with_gil(|py| {
+            CONSOLE_CHANNEL.store(Some(
+                Py::new(py, ConsoleChannel::py_new())
+                    .expect("creating new console channel failed.")
+                    .into(),
+            ));
+
+            let result = Plugin::msg(
+                &py.get_type_bound::<Plugin>(),
+                "asdf",
+                Some("console".into_py(py)),
+                None,
+            );
+            assert!(result.is_ok());
+            run_all_frame_tasks(py).expect("running frame tasks returned an error");
+        });
+    }
+
+    #[test]
+    #[cfg_attr(miri, ignore)]
+    #[serial]
+    fn msg_for_provided_channel() {
+        let mut mock_engine = MockQuakeEngine::new();
+        mock_engine.expect_get_max_clients().returning(|| 16);
+        MAIN_ENGINE.store(Some(mock_engine.into()));
+
+        let client_try_from_ctx = MockClient::from_context();
+        client_try_from_ctx
+            .expect()
+            .with(predicate::eq(0))
+            .returning(|_client_id| {
+                let mut mock_client = MockClient::new();
+                mock_client
+                    .expect_get_state()
+                    .returning(|| clientState_t::CS_ACTIVE);
+                mock_client
+                    .expect_get_user_info()
+                    .returning(|| "asdf".into());
+                mock_client.expect_get_steam_id().returning(|| 1234);
+                mock_client
+            });
+
+        let channel = TellChannel::py_new(&default_test_player());
+
+        let send_server_command_ctx = shinqlx_send_server_command_context();
+        send_server_command_ctx
+            .expect()
+            .withf(|client, cmd| client.is_some() && cmd == "print \"asdf qwertz\n\"\n")
+            .times(1);
+
+        Python::with_gil(|py| {
+            let result = Plugin::msg(
+                &py.get_type_bound::<Plugin>(),
+                "asdf qwertz",
+                Some(
+                    Py::new(py, channel)
+                        .expect("could not create tell channel")
+                        .into_py(py),
+                ),
+                None,
+            );
+            assert!(result.is_ok());
+            run_all_frame_tasks(py).expect("running frame tasks returned an error");
         });
     }
 
