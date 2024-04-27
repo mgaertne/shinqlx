@@ -200,7 +200,7 @@ impl Plugin {
             .and_then(|event_dispatchers| event_dispatchers.bind(slf.py()).get_item(&event).ok())
         else {
             return Err(PyEnvironmentError::new_err(
-                "could not get access to console print dispatcher",
+                "could not get access to event dispatchers",
             ));
         };
 
@@ -1183,6 +1183,7 @@ mod plugin_tests {
     use alloc::ffi::CString;
     use core::ffi::c_char;
 
+    use crate::ffi::python::commands::CommandPriorities;
     use mockall::predicate;
     use pretty_assertions::assert_eq;
     use pyo3::{
@@ -1441,6 +1442,98 @@ class subplugin(Plugin):
             Ok::<(), PyErr>(())
         })
         .expect("python result was not ok.");
+    }
+
+    #[test]
+    #[cfg_attr(miri, ignore)]
+    #[serial]
+    fn add_hook_with_no_event_dispatchers() {
+        EVENT_DISPATCHERS.store(None);
+
+        Python::with_gil(|py| {
+            let extended_plugin = test_plugin(py).expect("could not get extended test plugin");
+            let plugin_instance = extended_plugin
+                .call0()
+                .expect("could not create plugin instance");
+
+            let result = Plugin::add_hook(
+                plugin_instance
+                    .downcast::<Plugin>()
+                    .expect("could not downcast instance to plugin"),
+                "team_switch".to_string(),
+                py.None(),
+                CommandPriorities::PRI_NORMAL as i32,
+            );
+            assert!(result.is_err_and(|err| err.is_instance_of::<PyEnvironmentError>(py)));
+        });
+    }
+
+    #[test]
+    #[cfg_attr(miri, ignore)]
+    #[serial]
+    fn add_hook_adds_hook_to_event_dispatchers() {
+        let mut mock_engine = MockQuakeEngine::new();
+        mock_engine
+            .expect_find_cvar()
+            .with(predicate::eq("zmq_stats_enable"))
+            .returning(|_| {
+                let mut raw_cvar = CVarBuilder::default()
+                    .string("0".as_ptr() as *mut c_char)
+                    .build()
+                    .expect("this should not happen");
+                CVar::try_from(&mut raw_cvar as *mut cvar_t).ok()
+            });
+        MAIN_ENGINE.store(Some(mock_engine.into()));
+
+        Python::with_gil(|py| {
+            let event_dispatcher = EventDispatcherManager::default();
+            event_dispatcher
+                .add_dispatcher(py, py.get_type_bound::<TeamSwitchAttemptDispatcher>())
+                .expect("could not add vote_started dispatcher");
+            EVENT_DISPATCHERS.store(Some(
+                Py::new(py, event_dispatcher)
+                    .expect("could not create event dispatcher manager in python")
+                    .into(),
+            ));
+
+            let extended_plugin = test_plugin(py).expect("could not get extended test plugin");
+            let plugin_instance = extended_plugin
+                .call0()
+                .expect("could not create plugin instance");
+
+            let result = Plugin::add_hook(
+                plugin_instance
+                    .downcast::<Plugin>()
+                    .expect("could not downcast instance to plugin"),
+                "team_switch_attempt".to_string(),
+                py.None(),
+                CommandPriorities::PRI_NORMAL as i32,
+            );
+            assert!(result.is_ok());
+            assert!(EVENT_DISPATCHERS
+                .load()
+                .as_ref()
+                .expect("could not get access to event dispatchers")
+                .getattr(py, "_dispatchers")
+                .expect("could not get dispatchers")
+                .downcast_bound::<PyDict>(py)
+                .expect("could not downcast to dict")
+                .get_item("team_switch_attempt")
+                .expect("could not get team switch attempt dispatcher")
+                .is_some_and(
+                    |team_switch_attempt_dispatcher| team_switch_attempt_dispatcher
+                        .getattr("plugins")
+                        .expect("could not get plugins")
+                        .downcast::<PyDict>()
+                        .expect("could not downcast to dict")
+                        .get_item("subplugin")
+                        .is_ok_and(|opt_plugin| opt_plugin.is_some_and(|plugin| plugin
+                            .get_item(CommandPriorities::PRI_NORMAL as i32)
+                            .is_ok_and(|normal_hooks| normal_hooks
+                                .len()
+                                .is_ok_and(|len| len == 1))))
+                ));
+        });
     }
 
     #[test]
