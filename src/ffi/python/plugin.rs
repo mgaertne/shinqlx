@@ -878,9 +878,8 @@ impl Plugin {
         let tell_channel_py = Py::new(cls.py(), tell_channel)?;
         tell_channel_py
             .bind(cls.py())
-            .call_method(intern!(cls.py(), "reply"), (msg,), kwargs)?;
-
-        Ok(())
+            .call_method(intern!(cls.py(), "reply"), (msg,), kwargs)
+            .map(|_| ())
     }
 
     #[classmethod]
@@ -978,9 +977,7 @@ impl Plugin {
             Some(reason)
         };
 
-        pyshinqlx_kick(cls.py(), client_id, forwarded_reason)?;
-
-        Ok(())
+        pyshinqlx_kick(cls.py(), client_id, forwarded_reason).map(|_| ())
     }
 
     #[classmethod]
@@ -1081,9 +1078,7 @@ impl Plugin {
         };
 
         let slap_cmd = format!("slap {client_id} {damage}");
-        pyshinqlx_console_command(cls.py(), &slap_cmd)?;
-
-        Ok(())
+        pyshinqlx_console_command(cls.py(), &slap_cmd).map(|_| ())
     }
 
     #[classmethod]
@@ -1093,9 +1088,7 @@ impl Plugin {
         };
 
         let slay_cmd = format!("slay {client_id}");
-        pyshinqlx_console_command(cls.py(), &slay_cmd)?;
-
-        Ok(())
+        pyshinqlx_console_command(cls.py(), &slay_cmd).map(|_| ())
     }
 
     #[classmethod]
