@@ -678,8 +678,9 @@ impl Plugin {
                     .is_subclass(&cls.py().get_type_bound::<AbstractChannel>())
                     .unwrap_or(false)
                 {
-                    bound_channel.call_method(intern!(cls.py(), "reply"), (msg,), kwargs)?;
-                    return Ok(());
+                    return bound_channel
+                        .call_method(intern!(cls.py(), "reply"), (msg,), kwargs)
+                        .map(|_| ());
                 }
 
                 for global_channel in [
@@ -690,22 +691,26 @@ impl Plugin {
                     if let Some(ref global_chat_channel) = *global_channel.load() {
                         if global_chat_channel.bind(cls.py()).eq(bound_channel)? {
                             let main_channel = global_chat_channel.borrow(cls.py()).into_super();
-                            ChatChannel::reply(main_channel, cls.py(), msg, limit, &delimiter)?;
-                            return Ok(());
+                            return ChatChannel::reply(
+                                main_channel,
+                                cls.py(),
+                                msg,
+                                limit,
+                                &delimiter,
+                            );
                         }
                     }
                 }
 
                 if let Some(ref console_channel) = *CONSOLE_CHANNEL.load() {
                     if console_channel.bind(cls.py()).eq(bound_channel)? {
-                        ConsoleChannel::reply(
+                        return ConsoleChannel::reply(
                             console_channel.get(),
                             cls.py(),
                             msg,
                             limit,
                             &delimiter,
-                        )?;
-                        return Ok(());
+                        );
                     }
                 }
             }
@@ -855,9 +860,7 @@ impl Plugin {
         let client_id = recipient.and_then(|recipient| client_id(cls.py(), recipient, None));
 
         let center_printed_cmd = format!(r#"cp "{msg}""#);
-        pyshinqlx_send_server_command(cls.py(), client_id, &center_printed_cmd)?;
-
-        Ok(())
+        pyshinqlx_send_server_command(cls.py(), client_id, &center_printed_cmd).map(|_| ())
     }
 
     /// Send a tell (private message) to someone.
@@ -1015,9 +1018,7 @@ impl Plugin {
         }
 
         player1.put(cls.py(), &team2)?;
-        player2.put(cls.py(), &team1)?;
-
-        Ok(())
+        player2.put(cls.py(), &team1).map(|_| ())
     }
 
     #[classmethod]
@@ -1032,9 +1033,8 @@ impl Plugin {
         }
 
         let play_sound_cmd = format!("playSound {sound_path}");
-        pyshinqlx_send_server_command(cls.py(), player.map(|player| player.id), &play_sound_cmd)?;
-
-        Ok(true)
+        pyshinqlx_send_server_command(cls.py(), player.map(|player| player.id), &play_sound_cmd)
+            .map(|_| true)
     }
 
     #[classmethod]
@@ -1049,25 +1049,22 @@ impl Plugin {
         }
 
         let play_music_cmd = format!("playMusic {music_path}");
-        pyshinqlx_send_server_command(cls.py(), player.map(|player| player.id), &play_music_cmd)?;
-
-        Ok(true)
+        pyshinqlx_send_server_command(cls.py(), player.map(|player| player.id), &play_music_cmd)
+            .map(|_| true)
     }
 
     #[classmethod]
     #[pyo3(signature = (player = None), text_signature = "(player = None)")]
     fn stop_sound(cls: &Bound<'_, PyType>, player: Option<Player>) -> PyResult<()> {
-        pyshinqlx_send_server_command(cls.py(), player.map(|player| player.id), "clearSounds")?;
-
-        Ok(())
+        pyshinqlx_send_server_command(cls.py(), player.map(|player| player.id), "clearSounds")
+            .map(|_| ())
     }
 
     #[classmethod]
     #[pyo3(signature = (player = None), text_signature = "(player = None)")]
     fn stop_music(cls: &Bound<'_, PyType>, player: Option<Player>) -> PyResult<()> {
-        pyshinqlx_send_server_command(cls.py(), player.map(|player| player.id), "stopMusic")?;
-
-        Ok(())
+        pyshinqlx_send_server_command(cls.py(), player.map(|player| player.id), "stopMusic")
+            .map(|_| ())
     }
 
     #[classmethod]
