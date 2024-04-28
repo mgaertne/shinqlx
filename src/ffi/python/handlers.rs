@@ -4,9 +4,9 @@ use super::prelude::{
     parse_variables, pyshinqlx_get_cvar, AbstractChannel, Player, RconDummyPlayer, MAX_MSG_LENGTH,
 };
 use super::{
-    late_init, log_exception, pyshinqlx_get_logger, set_map_subtitles, BLUE_TEAM_CHAT_CHANNEL,
-    CHAT_CHANNEL, COMMANDS, CONSOLE_CHANNEL, EVENT_DISPATCHERS, FREE_CHAT_CHANNEL,
-    RED_TEAM_CHAT_CHANNEL, SPECTATOR_CHAT_CHANNEL,
+    is_vote_active, late_init, log_exception, pyshinqlx_get_logger, set_map_subtitles,
+    BLUE_TEAM_CHAT_CHANNEL, CHAT_CHANNEL, COMMANDS, CONSOLE_CHANNEL, EVENT_DISPATCHERS,
+    FREE_CHAT_CHANNEL, RED_TEAM_CHAT_CHANNEL, SPECTATOR_CHAT_CHANNEL,
 };
 use crate::{quake_live_engine::GetConfigstring, MAIN_ENGINE};
 
@@ -61,7 +61,7 @@ mod handle_rcon_tests {
     use crate::ffi::python::prelude::*;
     use crate::ffi::python::{
         commands::{Command, CommandPriorities},
-        COMMANDS,
+        COMMANDS, EVENT_DISPATCHERS,
     };
 
     use crate::MAIN_ENGINE;
@@ -70,11 +70,45 @@ mod handle_rcon_tests {
 
     use crate::prelude::serial;
 
+    pub(super) fn test_handler_module(py: Python<'_>) -> Bound<'_, PyModule> {
+        PyModule::from_code_bound(
+            py,
+            r#"
+called = False
+
+def handler(player, msg, channel):
+    global called
+    called = True
+        "#,
+            "",
+            "",
+        )
+        .expect("could create test handler module")
+    }
+
+    pub(super) fn failing_test_handler_module(py: Python<'_>) -> Bound<'_, PyModule> {
+        PyModule::from_code_bound(
+            py,
+            r#"
+called = False
+
+def handler(player, msg, channel):
+    global called
+    called = True
+    raise Exception("please ignore this")
+        "#,
+            "",
+            "",
+        )
+        .expect("could create test handler module")
+    }
+
     #[test]
     #[cfg_attr(miri, ignore)]
     #[serial]
     fn try_handle_rcon_with_no_commands() {
         COMMANDS.store(None);
+        EVENT_DISPATCHERS.store(None);
 
         Python::with_gil(|py| {
             let result = try_handle_rcon(py, "asdf");
@@ -118,9 +152,18 @@ mod handle_rcon_tests {
                     .expect("could not create CommandInvoker in Python")
                     .into(),
             ));
+            let event_dispatcher = EventDispatcherManager::default();
+            event_dispatcher
+                .add_dispatcher(py, py.get_type_bound::<CommandDispatcher>())
+                .expect("could not add command dispatcher");
+            EVENT_DISPATCHERS.store(Some(
+                Py::new(py, event_dispatcher)
+                    .expect("could not create event dispatcher manager in python")
+                    .into(),
+            ));
 
             let result = try_handle_rcon(py, "asdf");
-            assert!(result.is_ok_and(|value| value.is_none()),);
+            assert!(result.is_ok_and(|value| value.is_none()));
             assert!(cmd_handler_module
                 .getattr("called")
                 .expect("could not get called evaluator")
@@ -134,6 +177,7 @@ mod handle_rcon_tests {
     #[serial]
     fn handle_rcon_with_no_main_engine() {
         MAIN_ENGINE.store(None);
+        EVENT_DISPATCHERS.store(None);
 
         let command_invoker = CommandInvoker::py_new();
 
@@ -213,15 +257,6 @@ static RE_USERINFO: Lazy<Regex> = Lazy::new(|| {
         .build()
         .unwrap()
 });
-
-fn is_vote_active() -> bool {
-    let Some(ref main_engine) = *MAIN_ENGINE.load() else {
-        return false;
-    };
-    !main_engine
-        .get_configstring(CS_VOTE_STRING as u16)
-        .is_empty()
-}
 
 fn try_handle_client_command(py: Python<'_>, client_id: i32, cmd: &str) -> PyResult<PyObject> {
     let player = Player::py_new(client_id, None)?;
@@ -512,6 +547,80 @@ pub(crate) fn handle_client_command(py: Python<'_>, client_id: i32, cmd: &str) -
         log_exception(py, &e);
         true.into_py(py)
     })
+}
+
+#[cfg(test)]
+mod handle_client_command_tests {
+    use super::try_handle_client_command;
+    use crate::ffi::c::{
+        game_entity::MockGameEntity,
+        prelude::{clientState_t, privileges_t, team_t, MockClient},
+    };
+    use crate::ffi::python::{
+        events::{ClientCommandDispatcher, EventDispatcherManager},
+        EVENT_DISPATCHERS,
+    };
+    use crate::prelude::serial;
+
+    use mockall::predicate;
+
+    use pyo3::prelude::*;
+
+    #[test]
+    #[cfg_attr(miri, ignore)]
+    #[serial]
+    fn try_handle_client_command_for_client_command_only() {
+        let client_try_from_ctx = MockClient::from_context();
+        client_try_from_ctx
+            .expect()
+            .with(predicate::eq(42))
+            .returning(|_client_id| {
+                let mut mock_client = MockClient::new();
+                mock_client
+                    .expect_get_state()
+                    .returning(|| clientState_t::CS_ACTIVE);
+                mock_client
+                    .expect_get_user_info()
+                    .returning(|| "asdf".into());
+                mock_client.expect_get_steam_id().returning(|| 1234);
+                mock_client
+            });
+
+        let game_entity_try_from_ctx = MockGameEntity::from_context();
+        game_entity_try_from_ctx
+            .expect()
+            .with(predicate::eq(42))
+            .returning(|_client_id| {
+                let mut mock_game_entity = MockGameEntity::new();
+                mock_game_entity
+                    .expect_get_player_name()
+                    .returning(|| "Mocked Player".to_string());
+                mock_game_entity
+                    .expect_get_team()
+                    .returning(|| team_t::TEAM_RED);
+                mock_game_entity
+                    .expect_get_privileges()
+                    .returning(|| privileges_t::PRIV_NONE);
+                mock_game_entity
+            });
+
+        Python::with_gil(|py| {
+            let event_dispatcher = EventDispatcherManager::default();
+            event_dispatcher
+                .add_dispatcher(py, py.get_type_bound::<ClientCommandDispatcher>())
+                .expect("could not add client_command dispatcher");
+            EVENT_DISPATCHERS.store(Some(
+                Py::new(py, event_dispatcher)
+                    .expect("could not create event dispatcher manager in python")
+                    .into(),
+            ));
+
+            let result = try_handle_client_command(py, 42, "cp \"asdf\"");
+            assert!(result.is_ok_and(|value| value
+                .extract::<String>(py)
+                .is_ok_and(|str_value| str_value == "cp \"asdf\"")));
+        });
+    }
 }
 
 static RE_VOTE_ENDED: Lazy<Regex> = Lazy::new(|| {
@@ -1510,38 +1619,5 @@ class test_plugin(shinqlx.Plugin):
         .expect("coult not create test plugin")
         .getattr("test_plugin")
         .expect("could not get test plugin")
-    }
-
-    pub(super) fn test_handler_module(py: Python<'_>) -> Bound<'_, PyModule> {
-        PyModule::from_code_bound(
-            py,
-            r#"
-called = False
-
-def handler(player, msg, channel):
-    global called
-    called = True
-        "#,
-            "",
-            "",
-        )
-        .expect("could create test handler module")
-    }
-
-    pub(super) fn failing_test_handler_module(py: Python<'_>) -> Bound<'_, PyModule> {
-        PyModule::from_code_bound(
-            py,
-            r#"
-called = False
-
-def handler(player, msg, channel):
-    global called
-    called = True
-    raise Exception("please ignore this")
-        "#,
-            "",
-            "",
-        )
-        .expect("could create test handler module")
     }
 }

@@ -2,9 +2,9 @@ use super::prelude::*;
 
 use super::{
     addadmin, addmod, addscore, addteamscore, ban, client_id, commands::CommandPriorities, demote,
-    lock, mute, opsay, put, pyshinqlx_get_logger, set_teamsize, tempban, unban, unlock, unmute,
-    BLUE_TEAM_CHAT_CHANNEL, CHAT_CHANNEL, COMMANDS, CONSOLE_CHANNEL, EVENT_DISPATCHERS,
-    RED_TEAM_CHAT_CHANNEL,
+    is_vote_active, lock, mute, opsay, put, pyshinqlx_get_logger, set_teamsize, tempban, unban,
+    unlock, unmute, BLUE_TEAM_CHAT_CHANNEL, CHAT_CHANNEL, COMMANDS, CONSOLE_CHANNEL,
+    EVENT_DISPATCHERS, RED_TEAM_CHAT_CHANNEL,
 };
 #[cfg(test)]
 use crate::hooks::mock_hooks::shinqlx_com_printf;
@@ -13,7 +13,7 @@ use crate::hooks::shinqlx_com_printf;
 
 use crate::MAIN_ENGINE;
 use crate::{
-    ffi::c::prelude::{CS_VOTE_NO, CS_VOTE_STRING, CS_VOTE_YES},
+    ffi::c::prelude::{CS_VOTE_NO, CS_VOTE_YES},
     quake_live_engine::{ConsoleCommand, FindCVar, GetCVar, GetConfigstring, SetCVarLimit},
 };
 
@@ -887,17 +887,7 @@ impl Plugin {
 
     #[classmethod]
     fn is_vote_active(cls: &Bound<'_, PyType>) -> bool {
-        cls.py().allow_threads(|| {
-            MAIN_ENGINE
-                .load()
-                .as_ref()
-                .map(|main_engine| {
-                    !main_engine
-                        .get_configstring(CS_VOTE_STRING as u16)
-                        .is_empty()
-                })
-                .unwrap_or(false)
-        })
+        cls.py().allow_threads(is_vote_active)
     }
 
     #[classmethod]
