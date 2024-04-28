@@ -127,7 +127,7 @@ pub(crate) mod prelude {
 }
 
 use crate::ffi::c::prelude::*;
-use crate::quake_live_engine::FindCVar;
+use crate::quake_live_engine::{FindCVar, GetConfigstring};
 use crate::MAIN_ENGINE;
 use crate::_INIT_TIME;
 use prelude::*;
@@ -531,6 +531,18 @@ pub(crate) fn addteamscore(py: Python<'_>, team: &str, score: i32) -> PyResult<(
 
     let addteamscore_cmd = format!("addteamscore {} {}", team.to_lowercase(), score);
     pyshinqlx_console_command(py, &addteamscore_cmd)
+}
+
+pub(crate) fn is_vote_active() -> bool {
+    MAIN_ENGINE
+        .load()
+        .as_ref()
+        .map(|main_engine| {
+            !main_engine
+                .get_configstring(CS_VOTE_STRING as u16)
+                .is_empty()
+        })
+        .unwrap_or(false)
 }
 
 #[pyfunction]
