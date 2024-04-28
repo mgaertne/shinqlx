@@ -430,18 +430,22 @@ def add_hook(event, plugin, handler, priority):
                     .iter_mut()
                     .find(|(added_plugin, _)| added_plugin == plugin)
                 else {
-                    let mut new_commands =
+                    let mut new_hooks =
                         (plugin.to_string(), [vec![], vec![], vec![], vec![], vec![]]);
-                    new_commands.1[priority as usize].push(handler);
-                    plugins.push(new_commands);
+                    new_hooks.1[priority as usize].push(handler);
+                    plugins.push(new_hooks);
                     return Ok(());
                 };
 
-                if plugin_hooks.1.iter().any(|registered_commands| {
-                    registered_commands
-                        .iter()
-                        .any(|hook| hook.bind(py).eq(handler.bind(py)).unwrap_or(false))
-                }) {
+                if plugin_hooks.1[priority as usize]
+                    .iter()
+                    .any(|registered_command| {
+                        registered_command
+                            .bind(py)
+                            .eq(handler.bind(py))
+                            .unwrap_or(false)
+                    })
+                {
                     return Err(PyValueError::new_err(
                         "The event has already been hooked with the same handler and priority.",
                     ));

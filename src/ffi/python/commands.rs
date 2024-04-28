@@ -350,7 +350,8 @@ impl CommandInvoker {
         let commands = self.commands.read();
         commands.iter().any(|prio_cmds| {
             prio_cmds.iter().any(|cmd| {
-                cmd.name == command.name
+                cmd.name.len() == command.name.len()
+                    && cmd.name.iter().all(|name| command.name.contains(name))
                     && cmd
                         .handler
                         .bind(py)
@@ -422,7 +423,8 @@ def remove_command(cmd):
         };
         commands.iter_mut().for_each(|prio_commands| {
             prio_commands.retain(|cmd| {
-                cmd.name != command.name
+                cmd.name.len() != command.name.len()
+                    || !command.name.iter().all(|name| cmd.name.contains(name))
                     || cmd
                         .handler
                         .bind(py)
