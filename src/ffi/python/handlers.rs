@@ -1,6 +1,8 @@
-use super::prelude::*;
 use crate::ffi::c::prelude::*;
 
+use super::prelude::{
+    parse_variables, pyshinqlx_get_cvar, AbstractChannel, Player, RconDummyPlayer, MAX_MSG_LENGTH,
+};
 use super::{
     late_init, log_exception, pyshinqlx_get_logger, set_map_subtitles, BLUE_TEAM_CHAT_CHANNEL,
     CHAT_CHANNEL, COMMANDS, CONSOLE_CHANNEL, EVENT_DISPATCHERS, FREE_CHAT_CHANNEL,
@@ -8,34 +10,36 @@ use super::{
 };
 use crate::{quake_live_engine::GetConfigstring, MAIN_ENGINE};
 
-use alloc::sync::Arc;
-use arc_swap::ArcSwapOption;
-use core::sync::atomic::{AtomicBool, AtomicI32, Ordering};
-use itertools::Itertools;
-use once_cell::sync::Lazy;
+use pyo3::prelude::*;
 use pyo3::{
     exceptions::{PyEnvironmentError, PyValueError},
     intern,
     types::{IntoPyDict, PyDict},
     PyTraverseError, PyVisit,
 };
+
+use alloc::sync::Arc;
+use arc_swap::ArcSwapOption;
+use core::sync::atomic::{AtomicBool, AtomicI32, Ordering};
+use itertools::Itertools;
+use once_cell::sync::Lazy;
 use regex::{Regex, RegexBuilder};
 
 fn try_handle_rcon(py: Python<'_>, cmd: &str) -> PyResult<Option<bool>> {
-    let rcon_dummy_player = Py::new(py, RconDummyPlayer::py_new())?;
-    let player = rcon_dummy_player.borrow(py).into_super().into_super();
+    COMMANDS.load().as_ref().map_or(Ok(None), |commands| {
+        let rcon_dummy_player = Py::new(py, RconDummyPlayer::py_new())?;
+        let player = rcon_dummy_player.borrow(py).into_super().into_super();
 
-    let shinqlx_console_channel = CONSOLE_CHANNEL
-        .load()
-        .as_ref()
-        .map_or(py.None(), |channel| channel.bind(py).into_py(py));
+        let shinqlx_console_channel = CONSOLE_CHANNEL
+            .load()
+            .as_ref()
+            .map_or(py.None(), |channel| channel.bind(py).into_py(py));
 
-    if let Some(ref commands) = *COMMANDS.load() {
         commands
             .borrow(py)
-            .handle_input(py, &player, cmd, shinqlx_console_channel)?;
-    }
-    Ok(None)
+            .handle_input(py, &player, cmd, shinqlx_console_channel)
+            .map(|_| None)
+    })
 }
 
 /// Console commands that are to be processed as regular pyshinqlx
@@ -47,6 +51,125 @@ pub(crate) fn handle_rcon(py: Python<'_>, cmd: &str) -> Option<bool> {
         log_exception(py, &e);
         Some(true)
     })
+}
+
+#[cfg(test)]
+mod handle_rcon_tests {
+    use super::handler_test_support::*;
+    use super::{handle_rcon, try_handle_rcon};
+
+    use crate::ffi::python::prelude::*;
+    use crate::ffi::python::{
+        commands::{Command, CommandPriorities},
+        COMMANDS,
+    };
+
+    use crate::MAIN_ENGINE;
+
+    use pyo3::prelude::*;
+
+    use crate::prelude::serial;
+
+    #[test]
+    #[cfg_attr(miri, ignore)]
+    #[serial]
+    fn try_handle_rcon_with_no_commands() {
+        COMMANDS.store(None);
+
+        Python::with_gil(|py| {
+            let result = try_handle_rcon(py, "asdf");
+            assert!(result.is_ok_and(|value| value.is_none()));
+        })
+    }
+
+    #[test]
+    #[cfg_attr(miri, ignore)]
+    #[serial]
+    fn try_handle_rcon_with_command_invoker_in_place() {
+        MAIN_ENGINE.store(None);
+
+        let command_invoker = CommandInvoker::py_new();
+
+        Python::with_gil(|py| {
+            let plugin = test_plugin(py);
+            let cmd_handler_module = test_handler_module(py);
+            let cmd_handler = cmd_handler_module
+                .getattr("handler")
+                .expect("could not get handler from test module");
+            let command = Command::py_new(
+                py,
+                plugin.unbind(),
+                "asdf".into_py(py),
+                cmd_handler.unbind(),
+                0,
+                py.None(),
+                py.None(),
+                false,
+                0,
+                false,
+                "",
+            )
+            .expect("could not create command");
+            command_invoker
+                .add_command(py, command, CommandPriorities::PRI_NORMAL as usize)
+                .expect("could not add command to command invoker");
+            COMMANDS.store(Some(
+                Py::new(py, command_invoker)
+                    .expect("could not create CommandInvoker in Python")
+                    .into(),
+            ));
+
+            let result = try_handle_rcon(py, "asdf");
+            assert!(result.is_ok_and(|value| value.is_none()),);
+            assert!(cmd_handler_module
+                .getattr("called")
+                .expect("could not get called evaluator")
+                .eq(true.into_py(py))
+                .expect("could not compare called attribute"),)
+        })
+    }
+
+    #[test]
+    #[cfg_attr(miri, ignore)]
+    #[serial]
+    fn handle_rcon_with_no_main_engine() {
+        MAIN_ENGINE.store(None);
+
+        let command_invoker = CommandInvoker::py_new();
+
+        Python::with_gil(|py| {
+            let plugin = test_plugin(py);
+            let cmd_handler_module = failing_test_handler_module(py);
+            let cmd_handler = cmd_handler_module
+                .getattr("handler")
+                .expect("could not get handler from test module");
+            let command = Command::py_new(
+                py,
+                plugin.unbind(),
+                "asdf".into_py(py),
+                cmd_handler.unbind(),
+                0,
+                py.None(),
+                py.None(),
+                false,
+                0,
+                false,
+                "",
+            )
+            .expect("could not create command");
+            command_invoker
+                .add_command(py, command, CommandPriorities::PRI_NORMAL as usize)
+                .expect("could not add command to command invoker");
+            COMMANDS.store(Some(
+                Py::new(py, command_invoker)
+                    .expect("could not create CommandInvoker in Python")
+                    .into(),
+            ));
+
+            let result = handle_rcon(py, "asdf");
+            assert!(result.is_some_and(|value| value));
+        });
+    }
 }
 
 static RE_SAY: Lazy<Regex> = Lazy::new(|| {
@@ -1366,4 +1489,59 @@ pub(crate) mod handlers {
     }
 
     pub(crate) fn register_handlers() {}
+}
+
+#[cfg(test)]
+mod handler_test_support {
+    use pyo3::prelude::*;
+
+    pub(super) fn test_plugin(py: Python<'_>) -> Bound<'_, PyAny> {
+        PyModule::from_code_bound(
+            py,
+            r#"
+import shinqlx
+
+class test_plugin(shinqlx.Plugin):
+    pass
+"#,
+            "",
+            "",
+        )
+        .expect("coult not create test plugin")
+        .getattr("test_plugin")
+        .expect("could not get test plugin")
+    }
+
+    pub(super) fn test_handler_module(py: Python<'_>) -> Bound<'_, PyModule> {
+        PyModule::from_code_bound(
+            py,
+            r#"
+called = False
+
+def handler(player, msg, channel):
+    global called
+    called = True
+        "#,
+            "",
+            "",
+        )
+        .expect("could create test handler module")
+    }
+
+    pub(super) fn failing_test_handler_module(py: Python<'_>) -> Bound<'_, PyModule> {
+        PyModule::from_code_bound(
+            py,
+            r#"
+called = False
+
+def handler(player, msg, channel):
+    global called
+    called = True
+    raise Exception("please ignore this")
+        "#,
+            "",
+            "",
+        )
+        .expect("could create test handler module")
+    }
 }
