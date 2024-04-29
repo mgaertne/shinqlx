@@ -557,10 +557,7 @@ mod handle_client_command_tests {
         prelude::{clientState_t, cvar_t, privileges_t, team_t, CVar, CVarBuilder, MockClient},
     };
     use crate::ffi::python::{
-        commands::CommandPriorities,
-        events::{ClientCommandDispatcher, EventDispatcherManager},
-        pyshinqlx_setup_fixture::pyshinqlx_setup,
-        EVENT_DISPATCHERS,
+        commands::CommandPriorities, pyshinqlx_setup_fixture::pyshinqlx_setup, EVENT_DISPATCHERS,
     };
     use crate::prelude::{serial, MockQuakeEngine};
     use crate::MAIN_ENGINE;
@@ -576,10 +573,10 @@ mod handle_client_command_tests {
     use pyo3::exceptions::PyEnvironmentError;
     use pyo3::prelude::*;
 
-    #[test]
+    #[rstest]
     #[cfg_attr(miri, ignore)]
     #[serial]
-    fn try_handle_client_command_for_client_command_only() {
+    fn try_handle_client_command_for_client_command_only(_pyshinqlx_setup: ()) {
         let client_try_from_ctx = MockClient::from_context();
         client_try_from_ctx
             .expect()
@@ -615,16 +612,6 @@ mod handle_client_command_tests {
             });
 
         Python::with_gil(|py| {
-            let event_dispatcher = EventDispatcherManager::default();
-            event_dispatcher
-                .add_dispatcher(py, py.get_type_bound::<ClientCommandDispatcher>())
-                .expect("could not add client_command dispatcher");
-            EVENT_DISPATCHERS.store(Some(
-                Py::new(py, event_dispatcher)
-                    .expect("could not create event dispatcher manager in python")
-                    .into(),
-            ));
-
             let result = try_handle_client_command(py, 42, "cp \"asdf\"");
             assert!(result.is_ok_and(|value| value
                 .extract::<String>(py)
@@ -632,10 +619,12 @@ mod handle_client_command_tests {
         });
     }
 
-    #[test]
+    #[rstest]
     #[cfg_attr(miri, ignore)]
     #[serial]
-    fn try_handle_client_command_for_client_command_with_no_event_dispatchers() {
+    fn try_handle_client_command_for_client_command_with_no_event_dispatchers(
+        _pyshinqlx_setup: (),
+    ) {
         let client_try_from_ctx = MockClient::from_context();
         client_try_from_ctx
             .expect()
@@ -732,16 +721,6 @@ mod handle_client_command_tests {
             });
 
         Python::with_gil(|py| {
-            let event_dispatcher = EventDispatcherManager::default();
-            event_dispatcher
-                .add_dispatcher(py, py.get_type_bound::<ClientCommandDispatcher>())
-                .expect("could not add client_command dispatcher");
-            EVENT_DISPATCHERS.store(Some(
-                Py::new(py, event_dispatcher)
-                    .expect("could not create event dispatcher manager in python")
-                    .into(),
-            ));
-
             let client_command_dispatcher = EVENT_DISPATCHERS
                 .load()
                 .as_ref()
@@ -825,16 +804,6 @@ mod handle_client_command_tests {
             });
 
         Python::with_gil(|py| {
-            let event_dispatcher = EventDispatcherManager::default();
-            event_dispatcher
-                .add_dispatcher(py, py.get_type_bound::<ClientCommandDispatcher>())
-                .expect("could not add client_command dispatcher");
-            EVENT_DISPATCHERS.store(Some(
-                Py::new(py, event_dispatcher)
-                    .expect("could not create event dispatcher manager in python")
-                    .into(),
-            ));
-
             let client_command_dispatcher = EVENT_DISPATCHERS
                 .load()
                 .as_ref()
