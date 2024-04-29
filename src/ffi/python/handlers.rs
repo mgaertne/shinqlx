@@ -554,17 +554,24 @@ mod handle_client_command_tests {
     use super::try_handle_client_command;
     use crate::ffi::c::{
         game_entity::MockGameEntity,
-        prelude::{clientState_t, privileges_t, team_t, MockClient},
+        prelude::{clientState_t, cvar_t, privileges_t, team_t, CVar, CVarBuilder, MockClient},
     };
     use crate::ffi::python::{
+        commands::CommandPriorities,
         events::{ClientCommandDispatcher, EventDispatcherManager},
+        pyshinqlx_setup_fixture::pyshinqlx_setup,
         EVENT_DISPATCHERS,
     };
-    use crate::prelude::serial;
+    use crate::prelude::{serial, MockQuakeEngine};
+    use crate::MAIN_ENGINE;
+
+    use core::ffi::c_char;
 
     use mockall::predicate;
 
+    use pyo3::exceptions::PyEnvironmentError;
     use pyo3::prelude::*;
+    use rstest::rstest;
 
     #[test]
     #[cfg_attr(miri, ignore)]
@@ -619,6 +626,164 @@ mod handle_client_command_tests {
             assert!(result.is_ok_and(|value| value
                 .extract::<String>(py)
                 .is_ok_and(|str_value| str_value == "cp \"asdf\"")));
+        });
+    }
+
+    #[test]
+    #[cfg_attr(miri, ignore)]
+    #[serial]
+    fn try_handle_client_command_for_client_command_with_no_event_dispatchers() {
+        let client_try_from_ctx = MockClient::from_context();
+        client_try_from_ctx
+            .expect()
+            .with(predicate::eq(42))
+            .returning(|_client_id| {
+                let mut mock_client = MockClient::new();
+                mock_client
+                    .expect_get_state()
+                    .returning(|| clientState_t::CS_ACTIVE);
+                mock_client
+                    .expect_get_user_info()
+                    .returning(|| "asdf".into());
+                mock_client.expect_get_steam_id().returning(|| 1234);
+                mock_client
+            });
+
+        let game_entity_try_from_ctx = MockGameEntity::from_context();
+        game_entity_try_from_ctx
+            .expect()
+            .with(predicate::eq(42))
+            .returning(|_client_id| {
+                let mut mock_game_entity = MockGameEntity::new();
+                mock_game_entity
+                    .expect_get_player_name()
+                    .returning(|| "Mocked Player".to_string());
+                mock_game_entity
+                    .expect_get_team()
+                    .returning(|| team_t::TEAM_RED);
+                mock_game_entity
+                    .expect_get_privileges()
+                    .returning(|| privileges_t::PRIV_NONE);
+                mock_game_entity
+            });
+
+        Python::with_gil(|py| {
+            EVENT_DISPATCHERS.store(None);
+
+            let result = try_handle_client_command(py, 42, "cp \"asdf\"");
+            assert!(result.is_err_and(|err| err.is_instance_of::<PyEnvironmentError>(py)));
+        });
+    }
+
+    #[rstest]
+    #[cfg_attr(miri, ignore)]
+    #[serial]
+    fn try_handle_client_command_for_client_command_only_when_dispatcher_returns_false(
+        _pyshinqlx_setup: (),
+    ) {
+        let mut mock_engine = MockQuakeEngine::new();
+        mock_engine
+            .expect_find_cvar()
+            .with(predicate::eq("zmq_stats_enable"))
+            .returning(|_| {
+                let mut raw_cvar = CVarBuilder::default()
+                    .string("1".as_ptr() as *mut c_char)
+                    .build()
+                    .expect("this should not happen");
+                CVar::try_from(&mut raw_cvar as *mut cvar_t).ok()
+            });
+        MAIN_ENGINE.store(Some(mock_engine.into()));
+
+        let client_try_from_ctx = MockClient::from_context();
+        client_try_from_ctx
+            .expect()
+            .with(predicate::eq(42))
+            .returning(|_client_id| {
+                let mut mock_client = MockClient::new();
+                mock_client
+                    .expect_get_state()
+                    .returning(|| clientState_t::CS_ACTIVE);
+                mock_client
+                    .expect_get_user_info()
+                    .returning(|| "asdf".into());
+                mock_client.expect_get_steam_id().returning(|| 1234);
+                mock_client
+            });
+
+        let game_entity_try_from_ctx = MockGameEntity::from_context();
+        game_entity_try_from_ctx
+            .expect()
+            .with(predicate::eq(42))
+            .returning(|_client_id| {
+                let mut mock_game_entity = MockGameEntity::new();
+                mock_game_entity
+                    .expect_get_player_name()
+                    .returning(|| "Mocked Player".to_string());
+                mock_game_entity
+                    .expect_get_team()
+                    .returning(|| team_t::TEAM_RED);
+                mock_game_entity
+                    .expect_get_privileges()
+                    .returning(|| privileges_t::PRIV_NONE);
+                mock_game_entity
+            });
+
+        Python::with_gil(|py| {
+            let event_dispatcher = EventDispatcherManager::default();
+            event_dispatcher
+                .add_dispatcher(py, py.get_type_bound::<ClientCommandDispatcher>())
+                .expect("could not add client_command dispatcher");
+            EVENT_DISPATCHERS.store(Some(
+                Py::new(py, event_dispatcher)
+                    .expect("could not create event dispatcher manager in python")
+                    .into(),
+            ));
+
+            let client_command_dispatcher = EVENT_DISPATCHERS
+                .load()
+                .as_ref()
+                .map(|event_dispatcher| {
+                    event_dispatcher
+                        .bind(py)
+                        .get_item("client_command")
+                        .expect("could not get client_command dispatcher")
+                })
+                .expect("could not get client_command dispatcher");
+
+            let returning_false_module = PyModule::from_code_bound(
+                py,
+                r#"
+import shinqlx
+
+def returning_false_hook(*args, **kwargs):
+    return shinqlx.RET_STOP_EVENT
+            "#,
+                "",
+                "",
+            )
+            .expect("could not create returning false module");
+            let returning_false_handler = returning_false_module
+                .getattr("returning_false_hook")
+                .expect("could not get returning_false_hook function");
+            client_command_dispatcher
+                .call_method1(
+                    "add_hook",
+                    (
+                        "asdf",
+                        returning_false_handler,
+                        CommandPriorities::PRI_NORMAL as i32,
+                    ),
+                )
+                .expect("could not add hook to client_command dispatcher");
+
+            let result = try_handle_client_command(py, 42, "cp \"asdf\"");
+            assert!(
+                result.as_ref().is_ok_and(|value| value
+                    .extract::<bool>(py)
+                    .is_ok_and(|bool_value| !bool_value)),
+                "{:?}",
+                result.as_ref().map(|value| value.bind(py))
+            );
         });
     }
 }
