@@ -236,7 +236,7 @@ impl EventDispatcher {
     }
 
     #[getter(plugins)]
-    fn get_plugins<'py>(slf: Bound<'py, Self>) -> Bound<'py, PyDict> {
+    fn get_plugins(slf: Bound<'_, Self>) -> Bound<'_, PyDict> {
         let Ok(event_dispatcher) = slf.try_borrow() else {
             return PyDict::new_bound(slf.py());
         };
