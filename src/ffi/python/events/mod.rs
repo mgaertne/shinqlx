@@ -236,12 +236,12 @@ impl EventDispatcher {
     }
 
     #[getter(plugins)]
-    fn get_plugins<'py>(slf: Bound<'py, Self>, py: Python<'py>) -> Bound<'py, PyDict> {
+    fn get_plugins<'py>(slf: Bound<'py, Self>) -> Bound<'py, PyDict> {
         let Ok(event_dispatcher) = slf.try_borrow() else {
-            return PyDict::new_bound(py);
+            return PyDict::new_bound(slf.py());
         };
         let plugins = event_dispatcher.plugins.read();
-        plugins.clone().into_py_dict_bound(py)
+        plugins.clone().into_py_dict_bound(slf.py())
     }
 
     /// Calls all the handlers that have been registered when hooking this event.
@@ -260,39 +260,35 @@ impl EventDispatcher {
     ///         being returned. Can be overridden so that events can have their own
     ///         special return values.
     #[pyo3(signature = (*args))]
-    pub(crate) fn dispatch(
-        slf: &Bound<'_, Self>,
-        py: Python<'_>,
-        args: Bound<'_, PyTuple>,
-    ) -> PyObject {
+    pub(crate) fn dispatch(slf: &Bound<'_, Self>, args: Bound<'_, PyTuple>) -> PyObject {
         let Ok(event_dispatcher) = slf.try_borrow() else {
-            return py.None();
+            return slf.py().None();
         };
-        let Ok(py_dispatcher_name) = slf.get_type().getattr(intern!(py, "name")) else {
-            return py.None();
+        let Ok(py_dispatcher_name) = slf.get_type().getattr(intern!(slf.py(), "name")) else {
+            return slf.py().None();
         };
         let Ok(dispatcher_name) = py_dispatcher_name.extract::<String>() else {
-            return py.None();
+            return slf.py().None();
         };
         if !NO_DEBUG.contains(&dispatcher_name.as_str()) {
             let dbgstr = format!("{}{}", dispatcher_name, &args);
-            dispatcher_debug_log(py, &dbgstr);
+            dispatcher_debug_log(slf.py(), &dbgstr);
         }
 
-        let mut return_value = true.into_py(py);
+        let mut return_value = true.into_py(slf.py());
 
         let plugins = event_dispatcher.plugins.read();
         for i in 0..5 {
             for (_, handlers) in plugins.clone() {
                 for handler in &handlers[i] {
-                    let handler_args = PyTuple::new_bound(py, &args);
-                    match handler.call1(py, handler_args) {
+                    let handler_args = PyTuple::new_bound(slf.py(), &args);
+                    match handler.call1(slf.py(), handler_args) {
                         Err(e) => {
-                            log_exception(py, &e);
+                            log_exception(slf.py(), &e);
                             continue;
                         }
                         Ok(res) => {
-                            let res_i32 = res.extract::<PythonReturnCodes>(py);
+                            let res_i32 = res.extract::<PythonReturnCodes>(slf.py());
                             if res_i32
                                 .as_ref()
                                 .is_ok_and(|&value| value == PythonReturnCodes::RET_NONE)
@@ -303,29 +299,29 @@ impl EventDispatcher {
                                 .as_ref()
                                 .is_ok_and(|&value| value == PythonReturnCodes::RET_STOP)
                             {
-                                return true.into_py(py);
+                                return true.into_py(slf.py());
                             }
                             if res_i32
                                 .as_ref()
                                 .is_ok_and(|&value| value == PythonReturnCodes::RET_STOP_EVENT)
                             {
-                                return_value = false.into_py(py);
+                                return_value = false.into_py(slf.py());
                                 continue;
                             }
                             if res_i32
                                 .as_ref()
                                 .is_ok_and(|&value| value == PythonReturnCodes::RET_STOP_ALL)
                             {
-                                return false.into_py(py);
+                                return false.into_py(slf.py());
                             }
 
-                            match Self::handle_return(slf, py, handler.into_py(py), res) {
+                            match Self::handle_return(slf, handler.into_py(slf.py()), res) {
                                 Err(e) => {
-                                    log_exception(py, &e);
+                                    log_exception(slf.py(), &e);
                                     continue;
                                 }
                                 Ok(return_handler) => {
-                                    if !return_handler.is_none(py) {
+                                    if !return_handler.is_none(slf.py()) {
                                         return return_handler;
                                     }
                                 }
@@ -349,25 +345,23 @@ impl EventDispatcher {
     /// event isn't stopped later along the road.
     pub(crate) fn handle_return(
         slf: &Bound<'_, Self>,
-        py: Python<'_>,
         handler: PyObject,
         value: PyObject,
     ) -> PyResult<PyObject> {
         let dispatcher_name = slf
             .get_type()
-            .getattr(intern!(py, "name"))?
+            .getattr(intern!(slf.py(), "name"))?
             .extract::<String>()?;
-        log_unexpected_return_value(py, &dispatcher_name, &value, &handler);
+        log_unexpected_return_value(slf.py(), &dispatcher_name, &value, &handler);
 
-        Ok(py.None())
+        Ok(slf.py().None())
     }
 
     /// Hook the event, making the handler get called with relevant arguments
     /// whenever the event is takes place.
     #[pyo3(signature = (plugin, handler, priority=CommandPriorities::PRI_NORMAL as i32), text_signature = "(plugin, handler, priority=PRI_NORMAL)")]
-    fn add_hook(
+    pub(crate) fn add_hook(
         slf: &Bound<'_, Self>,
-        py: Python<'_>,
         plugin: &str,
         handler: PyObject,
         priority: i32,
@@ -382,7 +376,7 @@ impl EventDispatcher {
             .map_err(|_| PyValueError::new_err("could not borrow event_dispatcher"))?;
         let dispatcher_name = slf
             .get_type()
-            .getattr(intern!(py, "name"))?
+            .getattr(intern!(slf.py(), "name"))?
             .extract::<String>()
             .map_err(|_| {
                 PyValueError::new_err("Cannot add a hook from an event dispatcher with no name.")
@@ -390,13 +384,13 @@ impl EventDispatcher {
 
         let need_zmq_stats_enabled = slf
             .get_type()
-            .getattr(intern!(py, "need_zmq_stats_enabled"))?
+            .getattr(intern!(slf.py(), "need_zmq_stats_enabled"))?
             .extract::<bool>()
             .map_err(|_| {
                 PyValueError::new_err("Cannot add a hook from an event dispatcher with no need_zmq_stats_enabled flag.")
             })?;
 
-        let zmq_enabled_cvar = pyshinqlx_get_cvar(py, "zmq_stats_enable")?;
+        let zmq_enabled_cvar = pyshinqlx_get_cvar(slf.py(), "zmq_stats_enable")?;
         let zmq_enabled = zmq_enabled_cvar.is_some_and(|value| value != "0");
         if need_zmq_stats_enabled && !zmq_enabled {
             let error_description = format!(
@@ -409,7 +403,7 @@ impl EventDispatcher {
         match event_dispatcher.plugins.try_write() {
             None => {
                 let add_hook_func = PyModule::from_code_bound(
-                    py,
+                    slf.py(),
                     r#"
 import shinqlx
 
@@ -421,7 +415,7 @@ def add_hook(event, plugin, handler, priority):
                     "",
                     "",
                 )?
-                .getattr(intern!(py, "add_hook"))?;
+                .getattr(intern!(slf.py(), "add_hook"))?;
 
                 add_hook_func.call1((&dispatcher_name, plugin, handler, priority))?;
             }
@@ -441,8 +435,8 @@ def add_hook(event, plugin, handler, priority):
                     .iter()
                     .any(|registered_command| {
                         registered_command
-                            .bind(py)
-                            .eq(handler.bind(py))
+                            .bind(slf.py())
+                            .eq(handler.bind(slf.py()))
                             .unwrap_or(false)
                     })
                 {
@@ -461,7 +455,6 @@ def add_hook(event, plugin, handler, priority):
     #[pyo3(signature = (plugin, handler, priority=CommandPriorities::PRI_NORMAL as i32), text_signature = "(plugin, handler, priority=PRI_NORMAL)")]
     fn remove_hook(
         slf: &Bound<'_, Self>,
-        py: Python<'_>,
         plugin: &str,
         handler: PyObject,
         priority: i32,
@@ -471,7 +464,7 @@ def add_hook(event, plugin, handler, priority):
             .map_err(|_| PyValueError::new_err("could not borrow event_dispatcher"))?;
         let dispatcher_name = slf
             .get_type()
-            .getattr(intern!(py, "name"))?
+            .getattr(intern!(slf.py(), "name"))?
             .extract::<String>()
             .map_err(|_| {
                 PyValueError::new_err("Cannot remove a hook from an event dispatcher with no name.")
@@ -479,7 +472,7 @@ def add_hook(event, plugin, handler, priority):
         match event_dispatcher.plugins.try_write() {
             None => {
                 let remove_hook_func = PyModule::from_code_bound(
-                    py,
+                    slf.py(),
                     r#"
 import shinqlx
 
@@ -491,7 +484,7 @@ def remove_hook(event, plugin, handler, priority):
                     "",
                     "",
                 )?
-                .getattr(intern!(py, "remove_hook"))?;
+                .getattr(intern!(slf.py(), "remove_hook"))?;
                 remove_hook_func.call1((dispatcher_name, plugin, handler, priority))?;
             }
             Some(mut plugins) => {
@@ -504,17 +497,21 @@ def remove_hook(event, plugin, handler, priority):
                     ));
                 };
 
-                if !plugin_hooks.1[priority as usize]
-                    .iter()
-                    .any(|item| item.bind(py).eq(handler.bind(py)).unwrap_or(true))
-                {
+                if !plugin_hooks.1[priority as usize].iter().any(|item| {
+                    item.bind(slf.py())
+                        .eq(handler.bind(slf.py()))
+                        .unwrap_or(true)
+                }) {
                     return Err(PyValueError::new_err(
                         "The event has not been hooked with the handler provided",
                     ));
                 }
 
-                plugin_hooks.1[priority as usize]
-                    .retain(|item| item.bind(py).ne(handler.bind(py)).unwrap_or(true));
+                plugin_hooks.1[priority as usize].retain(|item| {
+                    item.bind(slf.py())
+                        .ne(handler.bind(slf.py()))
+                        .unwrap_or(true)
+                });
             }
         }
         Ok(())
