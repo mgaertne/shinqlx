@@ -771,11 +771,10 @@ mod handle_client_command_tests {
         });
     }
 
-    #[rstest]
+    #[test]
     #[cfg_attr(miri, ignore)]
     #[serial]
     fn try_handle_client_command_for_client_command_only_when_dispatcher_returns_other_client_command(
-        _pyshinqlx_setup: (),
     ) {
         let mut mock_engine = MockQuakeEngine::new();
         mock_engine
