@@ -272,7 +272,7 @@ fn try_handle_client_command(py: Python<'_>, client_id: i32, cmd: &str) -> PyRes
 
     if let Some(captures) = RE_SAY.captures(&updated_cmd) {
         if let Some(msg) = captures.name("msg") {
-            let reformatted_msg = msg.as_str().replace('"', "'");
+            let reformatted_msg = msg.as_str().replace('"', "'").replace('%', "％");
             if let Some(ref main_chat_channel) = *CHAT_CHANNEL.load() {
                 let Some(chat_dispatcher) =
                     EVENT_DISPATCHERS
@@ -305,7 +305,7 @@ fn try_handle_client_command(py: Python<'_>, client_id: i32, cmd: &str) -> PyRes
 
     if let Some(captures) = RE_SAY_TEAM.captures(&updated_cmd) {
         if let Some(msg) = captures.name("msg") {
-            let reformatted_msg = msg.as_str().replace('"', "'");
+            let reformatted_msg = msg.as_str().replace('"', "'").replace('%', "％");
             let channel = match player.get_team(py)?.as_str() {
                 "free" => &FREE_CHAT_CHANNEL,
                 "red" => &RED_TEAM_CHAT_CHANNEL,
