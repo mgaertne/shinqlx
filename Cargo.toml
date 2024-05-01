@@ -2,7 +2,7 @@ cargo-features = ["profile-rustflags"]
 
 [package]
 name = "shinqlx"
-version = "0.5.7"
+version = "0.5.8"
 authors = ["Markus 'ShiN0' Gaertner"]
 edition = "2021"
 readme = "README.md"
@@ -39,7 +39,7 @@ rustflags = ["-Zlocation-detail=none"]
 ctor = { version = ">=0.2", features = ["used_linker"] }
 rand = { version = ">=0.9.0-alpha.1", default-features = false, features = ["getrandom"] }
 pyo3 = { version = ">=0.21", features = ["pyo3-macros", "extension-module", "nightly"] }
-retour = {  version = ">=0.4.0-alpha.2", default-features = false, features = ["nightly"] }
+retour = { version = ">=0.4.0-alpha.2", default-features = false, features = ["nightly"] }
 derive_builder = { version = ">=0.20", default-features = false, features = ["clippy", "alloc"] }
 once_cell = { version = ">=1.19", default-features = false }
 arc-swap = { version = ">=1.7", default-features = false }
