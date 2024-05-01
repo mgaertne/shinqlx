@@ -199,14 +199,14 @@ def handler(*args):
 }
 
 static RE_SAY: Lazy<Regex> = Lazy::new(|| {
-    RegexBuilder::new(r#"^say +"?(?P<msg>.+)"?$"#)
+    RegexBuilder::new(r#"^say +"?(?P<msg>.+)"$"#)
         .case_insensitive(true)
         .multi_line(true)
         .build()
         .unwrap()
 });
 static RE_SAY_TEAM: Lazy<Regex> = Lazy::new(|| {
-    RegexBuilder::new(r#"^say_team +"?(?P<msg>.+)"?$"#)
+    RegexBuilder::new(r#"^say_team +"?(?P<msg>.+)"$"#)
         .case_insensitive(true)
         .multi_line(true)
         .build()
@@ -272,7 +272,6 @@ fn try_handle_client_command(py: Python<'_>, client_id: i32, cmd: &str) -> PyRes
 
     if let Some(captures) = RE_SAY.captures(&updated_cmd) {
         if let Some(msg) = captures.name("msg") {
-            let reformatted_msg = msg.as_str().replace('"', "");
             if let Some(ref main_chat_channel) = *CHAT_CHANNEL.load() {
                 let Some(chat_dispatcher) =
                     EVENT_DISPATCHERS
@@ -291,7 +290,7 @@ fn try_handle_client_command(py: Python<'_>, client_id: i32, cmd: &str) -> PyRes
                 };
                 let result = chat_dispatcher.call_method1(
                     intern!(py, "dispatch"),
-                    (player.clone(), reformatted_msg, main_chat_channel.as_ref()),
+                    (player.clone(), msg.as_str(), main_chat_channel.as_ref()),
                 )?;
                 if result.extract::<bool>().is_ok_and(|value| !value) {
                     return Ok(false.into_py(py));
@@ -303,7 +302,6 @@ fn try_handle_client_command(py: Python<'_>, client_id: i32, cmd: &str) -> PyRes
 
     if let Some(captures) = RE_SAY_TEAM.captures(&updated_cmd) {
         if let Some(msg) = captures.name("msg") {
-            let reformatted_msg = msg.as_str().replace('"', "");
             let channel = match player.get_team(py)?.as_str() {
                 "free" => &FREE_CHAT_CHANNEL,
                 "red" => &RED_TEAM_CHAT_CHANNEL,
@@ -332,7 +330,7 @@ fn try_handle_client_command(py: Python<'_>, client_id: i32, cmd: &str) -> PyRes
             };
             let result = chat_dispatcher.call_method1(
                 intern!(py, "dispatch"),
-                (player.clone(), reformatted_msg, chat_channel.bind(py)),
+                (player.clone(), msg.as_str(), chat_channel.bind(py)),
             )?;
             if result.extract::<bool>().is_ok_and(|value| !value) {
                 return Ok(false.into_py(py));
@@ -997,7 +995,7 @@ mod handle_client_command_tests {
             assert!(capturing_hook
                 .call_method1(
                     "assert_called_with",
-                    ("_", "test with quotation marks", "_"),
+                    ("_", "test with \"quotation marks\"", "_"),
                 )
                 .is_ok());
         });
@@ -1285,7 +1283,7 @@ mod handle_client_command_tests {
             assert!(capturing_hook
                 .call_method1(
                     "assert_called_with",
-                    ("_", "test with quotation marks", "_"),
+                    ("_", "test with \"quotation marks\"", "_"),
                 )
                 .is_ok());
         });
