@@ -8,8 +8,8 @@ import shinqlx
 #                        REGULAR EXPRESSIONS
 # ====================================================================
 
-_re_say = re.compile(r"^say +\"?(?P<msg>.+)\"?$", flags=re.IGNORECASE)
-_re_say_team = re.compile(r"^say_team +\"?(?P<msg>.+)\"?$", flags=re.IGNORECASE)
+_re_say = re.compile(r"^say +\"?(?P<msg>.+)\"$", flags=re.IGNORECASE)
+_re_say_team = re.compile(r"^say_team +\"?(?P<msg>.+)\"$", flags=re.IGNORECASE)
 _re_callvote = re.compile(
     r"^(?:cv|callvote) +(?P<cmd>[^ ]+)(?: \"?(?P<args>.+?)\"?)?$", flags=re.IGNORECASE
 )
@@ -63,18 +63,18 @@ def handle_client_command(client_id, cmd):
 
         res = _re_say.match(cmd)
         if res:
-            msg = res.group("msg").replace('"', "")
+            msg = res.group("msg").replace('"', "'")
             channel = shinqlx.CHAT_CHANNEL
             if (
                 shinqlx.EVENT_DISPATCHERS["chat"].dispatch(player, msg, channel)
                 is False
             ):
                 return False
-            return cmd
+            return f'say "{msg}"'
 
         res = _re_say_team.match(cmd)
         if res:
-            msg = res.group("msg").replace('"', "")
+            msg = res.group("msg").replace('"', "'")
             if (
                 player.team == "free"
             ):  # I haven't tried this, but I don't think it's even possible.
@@ -90,7 +90,7 @@ def handle_client_command(client_id, cmd):
                 is False
             ):
                 return False
-            return cmd
+            return f'say_team "{msg}"'
 
         res = _re_callvote.match(cmd)
         if res and not shinqlx.Plugin.is_vote_active():
