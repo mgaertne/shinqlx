@@ -3,6 +3,7 @@ use super::prelude::*;
 /// Event that goes off whenever a vote starts. A vote started with Plugin.callvote()
 /// will have the caller set to None.
 #[pyclass(module = "_events", name = "VoteStartedDispatcher", extends = EventDispatcher)]
+#[derive(Clone)]
 pub(crate) struct VoteStartedDispatcher {
     player: PyObject,
 }
@@ -79,7 +80,7 @@ impl VoteStartedDispatcher {
         return_value
     }
 
-    fn caller(&mut self, _py: Python<'_>, player: PyObject) {
+    pub(crate) fn caller(&mut self, _py: Python<'_>, player: PyObject) {
         self.player = player;
     }
 }
