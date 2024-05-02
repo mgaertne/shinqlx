@@ -8,8 +8,8 @@ import shinqlx
 #                        REGULAR EXPRESSIONS
 # ====================================================================
 
-_re_say = re.compile(r"^say +(\"?)(?P<msg>.+)\1$", flags=re.IGNORECASE)
-_re_say_team = re.compile(r"^say_team +(\"?)(?P<msg>.+)\1$", flags=re.IGNORECASE)
+_re_say = re.compile(r"^say +(?P<quote>\"?)(?P<msg>.+)(?P=quote)$", flags=re.IGNORECASE)
+_re_say_team = re.compile(r"^say_team +(?P<quote>\"?)(?P<msg>.+)(?P=quote)$", flags=re.IGNORECASE)
 _re_callvote = re.compile(
     r"^(?:cv|callvote) +(?P<cmd>[^ ]+)(?: \"?(?P<args>.+?)\"?)?$", flags=re.IGNORECASE
 )
