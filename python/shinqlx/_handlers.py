@@ -8,8 +8,8 @@ import shinqlx
 #                        REGULAR EXPRESSIONS
 # ====================================================================
 
-_re_say = re.compile(r"^say +\"?(?P<msg>.+)\"$", flags=re.IGNORECASE)
-_re_say_team = re.compile(r"^say_team +\"?(?P<msg>.+)\"$", flags=re.IGNORECASE)
+_re_say = re.compile(r"^say +(\"?)(?P<msg>.+)\1$", flags=re.IGNORECASE)
+_re_say_team = re.compile(r"^say_team +(\"?)(?P<msg>.+)\1$", flags=re.IGNORECASE)
 _re_callvote = re.compile(
     r"^(?:cv|callvote) +(?P<cmd>[^ ]+)(?: \"?(?P<args>.+?)\"?)?$", flags=re.IGNORECASE
 )
@@ -66,8 +66,8 @@ def handle_client_command(client_id, cmd):
             msg = res.group("msg").replace('"', "'")
             channel = shinqlx.CHAT_CHANNEL
             if (
-                shinqlx.EVENT_DISPATCHERS["chat"].dispatch(player, msg, channel)
-                is False
+                    shinqlx.EVENT_DISPATCHERS["chat"].dispatch(player, msg, channel)
+                    is False
             ):
                 return False
             return f'say "{msg}"'
@@ -76,7 +76,7 @@ def handle_client_command(client_id, cmd):
         if res:
             msg = res.group("msg").replace('"', "'")
             if (
-                player.team == "free"
+                    player.team == "free"
             ):  # I haven't tried this, but I don't think it's even possible.
                 channel = shinqlx.FREE_CHAT_CHANNEL
             elif player.team == "red":
@@ -86,8 +86,8 @@ def handle_client_command(client_id, cmd):
             else:
                 channel = shinqlx.SPECTATOR_CHAT_CHANNEL
             if (
-                shinqlx.EVENT_DISPATCHERS["chat"].dispatch(player, msg, channel)
-                is False
+                    shinqlx.EVENT_DISPATCHERS["chat"].dispatch(player, msg, channel)
+                    is False
             ):
                 return False
             return f'say_team "{msg}"'
@@ -100,8 +100,8 @@ def handle_client_command(client_id, cmd):
             # noinspection PyUnresolvedReferences
             shinqlx.EVENT_DISPATCHERS["vote_started"].caller(player)
             if (
-                shinqlx.EVENT_DISPATCHERS["vote_called"].dispatch(player, vote, args)
-                is False
+                    shinqlx.EVENT_DISPATCHERS["vote_called"].dispatch(player, vote, args)
+                    is False
             ):
                 return False
             return cmd
@@ -110,13 +110,13 @@ def handle_client_command(client_id, cmd):
         if res and shinqlx.Plugin.is_vote_active():
             arg = res.group("arg").lower()
             if (
-                arg in ["y", "1"]
-                and shinqlx.EVENT_DISPATCHERS["vote"].dispatch(player, True) is False
+                    arg in ["y", "1"]
+                    and shinqlx.EVENT_DISPATCHERS["vote"].dispatch(player, True) is False
             ):
                 return False
             if (
-                arg in ["n", "2"]
-                and shinqlx.EVENT_DISPATCHERS["vote"].dispatch(player, False) is False
+                    arg in ["n", "2"]
+                    and shinqlx.EVENT_DISPATCHERS["vote"].dispatch(player, False) is False
             ):
                 return False
             return cmd
@@ -140,11 +140,11 @@ def handle_client_command(client_id, cmd):
                 target_team = "any"
 
             if (
-                target_team
-                and shinqlx.EVENT_DISPATCHERS["team_switch_attempt"].dispatch(
-                    player, player.team, target_team
-                )
-                is False
+                    target_team
+                    and shinqlx.EVENT_DISPATCHERS["team_switch_attempt"].dispatch(
+                player, player.team, target_team
+            )
+                    is False
             ):
                 return False
             return cmd
@@ -259,7 +259,7 @@ def handle_new_game(is_restart):
         global _zmq_warning_issued
         stats_enabled_cvar = shinqlx.get_cvar("zmq_stats_enable")
         if (
-            stats_enabled_cvar is None or not bool(int(stats_enabled_cvar))
+                stats_enabled_cvar is None or not bool(int(stats_enabled_cvar))
         ) and not _zmq_warning_issued:
             logger = shinqlx.get_logger()
             logger.warning(
@@ -326,12 +326,12 @@ def handle_set_configstring(index, value):
                     _ad_round_number = 1
                     shinqlx.EVENT_DISPATCHERS["game_countdown"].dispatch()
                 elif (old_state == "COUNT_DOWN" and new_state == "IN_PROGRESS") or (
-                    new_state == "PRE_GAME"
-                    and old_state
-                    in [
-                        "IN_PROGRESS",
-                        "COUNT_DOWN",
-                    ]
+                        new_state == "PRE_GAME"
+                        and old_state
+                        in [
+                            "IN_PROGRESS",
+                            "COUNT_DOWN",
+                        ]
                 ):
                     pass
                 else:
