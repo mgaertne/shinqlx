@@ -567,7 +567,7 @@ mod handle_client_command_tests {
     use rstest::rstest;
 
     use crate::ffi::c::prelude::CS_VOTE_STRING;
-    use crate::ffi::python::events::{VoteCalledDispatcher, VoteStartedDispatcher};
+    use crate::ffi::python::events::{VoteCalledDispatcher, VoteDispatcher, VoteStartedDispatcher};
     use pyo3::exceptions::{PyAssertionError, PyEnvironmentError};
     use pyo3::prelude::*;
 
@@ -1734,9 +1734,9 @@ mod handle_client_command_tests {
                     event_dispatcher
                         .bind(py)
                         .get_item("vote_called")
-                        .expect("could not get chat dispatcher")
+                        .expect("could not get vote_called dispatcher")
                 })
-                .expect("could not get chat dispatcher");
+                .expect("could not get vote_called dispatcher");
 
             vote_called_dispatcher
                 .call_method1(
@@ -1749,7 +1749,7 @@ mod handle_client_command_tests {
                         CommandPriorities::PRI_NORMAL as i32,
                     ),
                 )
-                .expect("could not add hook to client_command dispatcher");
+                .expect("could not add hook to vote_called dispatcher");
 
             let result = try_handle_client_command(py, 42, "callvote map \"thunderstruck\"");
             assert!(result.is_ok_and(|value| value
@@ -1985,6 +1985,402 @@ mod handle_client_command_tests {
                 .expect("could not add hook to client_command dispatcher");
 
             let result = try_handle_client_command(py, 42, "callvote map \"thunderstruck\"");
+            assert!(result.is_ok_and(|value| value
+                .extract::<bool>(py)
+                .is_ok_and(|bool_value| !bool_value)));
+        });
+    }
+
+    #[rstest]
+    #[case("y", true)]
+    #[case("Y", true)]
+    #[case("1", true)]
+    #[case("n", false)]
+    #[case("N", false)]
+    #[case("2", false)]
+    #[cfg_attr(miri, ignore)]
+    #[serial]
+    fn try_handle_client_command_for_vote_command(#[case] vote_arg: &str, #[case] vote: bool) {
+        let mut mock_engine = MockQuakeEngine::new();
+        mock_engine
+            .expect_find_cvar()
+            .with(predicate::eq("zmq_stats_enable"))
+            .returning(|_| {
+                let mut raw_cvar = CVarBuilder::default()
+                    .string("1".as_ptr() as *mut c_char)
+                    .build()
+                    .expect("this should not happen");
+                CVar::try_from(&mut raw_cvar as *mut cvar_t).ok()
+            })
+            .times(1);
+        mock_engine
+            .expect_get_configstring()
+            .with(predicate::eq(CS_VOTE_STRING as u16))
+            .returning(|_| "map thunderstruck".into());
+        MAIN_ENGINE.store(Some(mock_engine.into()));
+
+        let client_try_from_ctx = MockClient::from_context();
+        client_try_from_ctx
+            .expect()
+            .with(predicate::eq(42))
+            .returning(|_client_id| {
+                let mut mock_client = MockClient::new();
+                mock_client
+                    .expect_get_state()
+                    .returning(|| clientState_t::CS_ACTIVE);
+                mock_client
+                    .expect_get_user_info()
+                    .returning(|| "asdf".into());
+                mock_client.expect_get_steam_id().returning(|| 1234);
+                mock_client
+            });
+
+        let game_entity_try_from_ctx = MockGameEntity::from_context();
+        game_entity_try_from_ctx
+            .expect()
+            .with(predicate::eq(42))
+            .returning(|_client_id| {
+                let mut mock_game_entity = MockGameEntity::new();
+                mock_game_entity
+                    .expect_get_player_name()
+                    .returning(|| "Mocked Player".to_string());
+                mock_game_entity
+                    .expect_get_team()
+                    .returning(|| team_t::TEAM_RED);
+                mock_game_entity
+                    .expect_get_privileges()
+                    .returning(|| privileges_t::PRIV_NONE);
+                mock_game_entity
+            });
+
+        Python::with_gil(|py| {
+            let event_dispatcher = EventDispatcherManager::default();
+            event_dispatcher
+                .add_dispatcher(py, py.get_type_bound::<ClientCommandDispatcher>())
+                .expect("could not add client_command dispatcher");
+            event_dispatcher
+                .add_dispatcher(py, py.get_type_bound::<VoteDispatcher>())
+                .expect("could not add vote dispatcher");
+            EVENT_DISPATCHERS.store(Some(
+                Py::new(py, event_dispatcher)
+                    .expect("could not create event dispatcher manager in python")
+                    .into(),
+            ));
+
+            let capturing_hook = capturing_hook(py);
+            let vote_dispatcher = EVENT_DISPATCHERS
+                .load()
+                .as_ref()
+                .map(|event_dispatcher| {
+                    event_dispatcher
+                        .bind(py)
+                        .get_item("vote")
+                        .expect("could not get vote dispatcher")
+                })
+                .expect("could not get vote dispatcher");
+
+            vote_dispatcher
+                .call_method1(
+                    "add_hook",
+                    (
+                        "asdf",
+                        capturing_hook
+                            .getattr("hook")
+                            .expect("could not get hook from capturing hook"),
+                        CommandPriorities::PRI_NORMAL as i32,
+                    ),
+                )
+                .expect("could not add hook to vote dispatcher");
+
+            let client_command = format!("vote {vote_arg}");
+            let result = try_handle_client_command(py, 42, &client_command);
+            assert!(result.is_ok_and(|value| value
+                .extract::<String>(py)
+                .is_ok_and(|str_value| str_value == client_command)),);
+            assert!(capturing_hook
+                .call_method1("assert_called_with", ("_", vote,))
+                .is_ok());
+        });
+    }
+
+    #[rstest]
+    #[case("y", true)]
+    #[case("Y", true)]
+    #[case("1", true)]
+    #[case("n", false)]
+    #[case("N", false)]
+    #[case("2", false)]
+    #[cfg_attr(miri, ignore)]
+    #[serial]
+    fn try_handle_client_command_for_vote_command_when_no_vote_running(
+        #[case] vote_arg: &str,
+        #[case] vote: bool,
+    ) {
+        let mut mock_engine = MockQuakeEngine::new();
+        mock_engine
+            .expect_find_cvar()
+            .with(predicate::eq("zmq_stats_enable"))
+            .returning(|_| {
+                let mut raw_cvar = CVarBuilder::default()
+                    .string("1".as_ptr() as *mut c_char)
+                    .build()
+                    .expect("this should not happen");
+                CVar::try_from(&mut raw_cvar as *mut cvar_t).ok()
+            })
+            .times(1);
+        mock_engine
+            .expect_get_configstring()
+            .with(predicate::eq(CS_VOTE_STRING as u16))
+            .returning(|_| "".into());
+        MAIN_ENGINE.store(Some(mock_engine.into()));
+
+        let client_try_from_ctx = MockClient::from_context();
+        client_try_from_ctx
+            .expect()
+            .with(predicate::eq(42))
+            .returning(|_client_id| {
+                let mut mock_client = MockClient::new();
+                mock_client
+                    .expect_get_state()
+                    .returning(|| clientState_t::CS_ACTIVE);
+                mock_client
+                    .expect_get_user_info()
+                    .returning(|| "asdf".into());
+                mock_client.expect_get_steam_id().returning(|| 1234);
+                mock_client
+            });
+
+        let game_entity_try_from_ctx = MockGameEntity::from_context();
+        game_entity_try_from_ctx
+            .expect()
+            .with(predicate::eq(42))
+            .returning(|_client_id| {
+                let mut mock_game_entity = MockGameEntity::new();
+                mock_game_entity
+                    .expect_get_player_name()
+                    .returning(|| "Mocked Player".to_string());
+                mock_game_entity
+                    .expect_get_team()
+                    .returning(|| team_t::TEAM_RED);
+                mock_game_entity
+                    .expect_get_privileges()
+                    .returning(|| privileges_t::PRIV_NONE);
+                mock_game_entity
+            });
+
+        Python::with_gil(|py| {
+            let event_dispatcher = EventDispatcherManager::default();
+            event_dispatcher
+                .add_dispatcher(py, py.get_type_bound::<ClientCommandDispatcher>())
+                .expect("could not add client_command dispatcher");
+            event_dispatcher
+                .add_dispatcher(py, py.get_type_bound::<VoteDispatcher>())
+                .expect("could not add vote dispatcher");
+            EVENT_DISPATCHERS.store(Some(
+                Py::new(py, event_dispatcher)
+                    .expect("could not create event dispatcher manager in python")
+                    .into(),
+            ));
+
+            let capturing_hook = capturing_hook(py);
+            let vote_dispatcher = EVENT_DISPATCHERS
+                .load()
+                .as_ref()
+                .map(|event_dispatcher| {
+                    event_dispatcher
+                        .bind(py)
+                        .get_item("vote")
+                        .expect("could not get vote dispatcher")
+                })
+                .expect("could not get vote dispatcher");
+
+            vote_dispatcher
+                .call_method1(
+                    "add_hook",
+                    (
+                        "asdf",
+                        capturing_hook
+                            .getattr("hook")
+                            .expect("could not get hook from capturing hook"),
+                        CommandPriorities::PRI_NORMAL as i32,
+                    ),
+                )
+                .expect("could not add hook to vote dispatcher");
+
+            let client_command = format!("vote {vote_arg}");
+            let result = try_handle_client_command(py, 42, &client_command);
+            assert!(result.is_ok_and(|value| value
+                .extract::<String>(py)
+                .is_ok_and(|str_value| str_value == client_command)),);
+            assert!(capturing_hook
+                .call_method1("assert_called_with", ("_", vote,))
+                .is_err_and(|err| err.is_instance_of::<PyAssertionError>(py)));
+        });
+    }
+
+    #[test]
+    #[cfg_attr(miri, ignore)]
+    #[serial]
+    fn try_handle_client_command_for_vote_command_with_no_vote_dispatcher() {
+        let mut mock_engine = MockQuakeEngine::new();
+        mock_engine
+            .expect_get_configstring()
+            .with(predicate::eq(CS_VOTE_STRING as u16))
+            .returning(|_| "map thunderstruck".into());
+        MAIN_ENGINE.store(Some(mock_engine.into()));
+
+        let client_try_from_ctx = MockClient::from_context();
+        client_try_from_ctx
+            .expect()
+            .with(predicate::eq(42))
+            .returning(|_client_id| {
+                let mut mock_client = MockClient::new();
+                mock_client
+                    .expect_get_state()
+                    .returning(|| clientState_t::CS_ACTIVE);
+                mock_client
+                    .expect_get_user_info()
+                    .returning(|| "asdf".into());
+                mock_client.expect_get_steam_id().returning(|| 1234);
+                mock_client
+            });
+
+        let game_entity_try_from_ctx = MockGameEntity::from_context();
+        game_entity_try_from_ctx
+            .expect()
+            .with(predicate::eq(42))
+            .returning(|_client_id| {
+                let mut mock_game_entity = MockGameEntity::new();
+                mock_game_entity
+                    .expect_get_player_name()
+                    .returning(|| "Mocked Player".to_string());
+                mock_game_entity
+                    .expect_get_team()
+                    .returning(|| team_t::TEAM_RED);
+                mock_game_entity
+                    .expect_get_privileges()
+                    .returning(|| privileges_t::PRIV_NONE);
+                mock_game_entity
+            });
+
+        Python::with_gil(|py| {
+            let event_dispatcher = EventDispatcherManager::default();
+            event_dispatcher
+                .add_dispatcher(py, py.get_type_bound::<ClientCommandDispatcher>())
+                .expect("could not add client_command dispatcher");
+            EVENT_DISPATCHERS.store(Some(
+                Py::new(py, event_dispatcher)
+                    .expect("could not create event dispatcher manager in python")
+                    .into(),
+            ));
+
+            let result = try_handle_client_command(py, 42, "vote 1");
+            assert!(result.is_err_and(|err| err.is_instance_of::<PyEnvironmentError>(py)));
+        });
+    }
+
+    #[rstest]
+    #[case("y")]
+    #[case("Y")]
+    #[case("1")]
+    #[case("n")]
+    #[case("N")]
+    #[case("2")]
+    #[cfg_attr(miri, ignore)]
+    #[serial]
+    fn try_handle_client_command_for_vote_command_when_dispatcher_returns_false(
+        #[case] vote_arg: &str,
+    ) {
+        let mut mock_engine = MockQuakeEngine::new();
+        mock_engine
+            .expect_find_cvar()
+            .with(predicate::eq("zmq_stats_enable"))
+            .returning(|_| {
+                let mut raw_cvar = CVarBuilder::default()
+                    .string("1".as_ptr() as *mut c_char)
+                    .build()
+                    .expect("this should not happen");
+                CVar::try_from(&mut raw_cvar as *mut cvar_t).ok()
+            })
+            .times(1);
+        mock_engine
+            .expect_get_configstring()
+            .with(predicate::eq(CS_VOTE_STRING as u16))
+            .returning(|_| "map thunderstruck".into());
+        MAIN_ENGINE.store(Some(mock_engine.into()));
+
+        let client_try_from_ctx = MockClient::from_context();
+        client_try_from_ctx
+            .expect()
+            .with(predicate::eq(42))
+            .returning(|_client_id| {
+                let mut mock_client = MockClient::new();
+                mock_client
+                    .expect_get_state()
+                    .returning(|| clientState_t::CS_ACTIVE);
+                mock_client
+                    .expect_get_user_info()
+                    .returning(|| "asdf".into());
+                mock_client.expect_get_steam_id().returning(|| 1234);
+                mock_client
+            });
+
+        let game_entity_try_from_ctx = MockGameEntity::from_context();
+        game_entity_try_from_ctx
+            .expect()
+            .with(predicate::eq(42))
+            .returning(|_client_id| {
+                let mut mock_game_entity = MockGameEntity::new();
+                mock_game_entity
+                    .expect_get_player_name()
+                    .returning(|| "Mocked Player".to_string());
+                mock_game_entity
+                    .expect_get_team()
+                    .returning(|| team_t::TEAM_RED);
+                mock_game_entity
+                    .expect_get_privileges()
+                    .returning(|| privileges_t::PRIV_NONE);
+                mock_game_entity
+            });
+
+        Python::with_gil(|py| {
+            let event_dispatcher = EventDispatcherManager::default();
+            event_dispatcher
+                .add_dispatcher(py, py.get_type_bound::<ClientCommandDispatcher>())
+                .expect("could not add client_command dispatcher");
+            event_dispatcher
+                .add_dispatcher(py, py.get_type_bound::<VoteDispatcher>())
+                .expect("could not add vote dispatcher");
+            EVENT_DISPATCHERS.store(Some(
+                Py::new(py, event_dispatcher)
+                    .expect("could not create event dispatcher manager in python")
+                    .into(),
+            ));
+
+            let vote_dispatcher = EVENT_DISPATCHERS
+                .load()
+                .as_ref()
+                .map(|event_dispatcher| {
+                    event_dispatcher
+                        .bind(py)
+                        .get_item("vote")
+                        .expect("could not get vote dispatcher")
+                })
+                .expect("could not get vote dispatcher");
+
+            vote_dispatcher
+                .call_method1(
+                    "add_hook",
+                    (
+                        "asdf",
+                        returning_false_hook(py),
+                        CommandPriorities::PRI_NORMAL as i32,
+                    ),
+                )
+                .expect("could not add hook to vote dispatcher");
+
+            let client_command = format!("vote {vote_arg}");
+            let result = try_handle_client_command(py, 42, &client_command);
             assert!(result.is_ok_and(|value| value
                 .extract::<bool>(py)
                 .is_ok_and(|bool_value| !bool_value)));
