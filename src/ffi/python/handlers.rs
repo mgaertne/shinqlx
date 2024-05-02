@@ -200,14 +200,14 @@ def handler(*args):
 }
 
 static RE_SAY: Lazy<Regex> = Lazy::new(|| {
-    RegexBuilder::new(r#"^say +"?(?P<msg>.+)"$"#)
+    RegexBuilder::new(r#"^say +(?P<quote>"?)(?P<msg>.+)$"#)
         .case_insensitive(true)
         .multi_line(true)
         .build()
         .unwrap()
 });
 static RE_SAY_TEAM: Lazy<Regex> = Lazy::new(|| {
-    RegexBuilder::new(r#"^say_team +"?(?P<msg>.+)"$"#)
+    RegexBuilder::new(r#"^say_team +(?P<quote>"?)(?P<msg>.+)$"#)
         .case_insensitive(true)
         .multi_line(true)
         .build()
@@ -273,7 +273,16 @@ fn try_handle_client_command(py: Python<'_>, client_id: i32, cmd: &str) -> PyRes
 
     if let Some(captures) = RE_SAY.captures(&updated_cmd) {
         if let Some(msg) = captures.name("msg") {
-            let reformatted_msg = msg.as_str().replace('"', "'");
+            let reformatted_msg = captures
+                .name("quote")
+                .filter(|value| !value.as_str().is_empty())
+                .map(|quote| {
+                    msg.as_str()
+                        .strip_suffix(quote.as_str())
+                        .unwrap_or(msg.as_str())
+                })
+                .unwrap_or(msg.as_str())
+                .replace('"', "'");
             if let Some(ref main_chat_channel) = *CHAT_CHANNEL.load() {
                 let Some(chat_dispatcher) =
                     EVENT_DISPATCHERS
@@ -305,7 +314,16 @@ fn try_handle_client_command(py: Python<'_>, client_id: i32, cmd: &str) -> PyRes
 
     if let Some(captures) = RE_SAY_TEAM.captures(&updated_cmd) {
         if let Some(msg) = captures.name("msg") {
-            let reformatted_msg = msg.as_str().replace('"', "'");
+            let reformatted_msg = captures
+                .name("quote")
+                .filter(|value| !value.as_str().is_empty())
+                .map(|quote| {
+                    msg.as_str()
+                        .strip_suffix(quote.as_str())
+                        .unwrap_or(msg.as_str())
+                })
+                .unwrap_or(msg.as_str())
+                .replace('"', "'");
             let channel = match player.get_team(py)?.as_str() {
                 "free" => &FREE_CHAT_CHANNEL,
                 "red" => &RED_TEAM_CHAT_CHANNEL,
@@ -1292,9 +1310,11 @@ mod handle_client_command_tests {
 
             let result =
                 try_handle_client_command(py, 42, "say_team \"test with \"quotation marks\"\"");
-            assert!(result.is_ok_and(|value| value
-                .extract::<String>(py)
-                .is_ok_and(|str_value| str_value == "say_team \"test with 'quotation marks'\"")));
+            assert!(result.is_ok_and(|value| {
+                value
+                    .extract::<String>(py)
+                    .is_ok_and(|str_value| str_value == "say_team \"test with 'quotation marks'\"")
+            }));
             assert!(capturing_hook
                 .call_method1(
                     "assert_called_with",
