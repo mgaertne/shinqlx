@@ -3493,10 +3493,15 @@ pub(crate) fn handle_server_command(py: Python<'_>, client_id: i32, cmd: &str) -
 
 #[cfg(test)]
 mod handle_server_command_tests {
-    use super::handler_test_support::capturing_hook;
+    use super::handler_test_support::{
+        capturing_hook, returning_false_hook, returning_other_string_hook,
+    };
     use super::try_handle_server_command;
 
-    use crate::ffi::c::prelude::{cvar_t, CVar, CVarBuilder};
+    use crate::ffi::c::{
+        game_entity::MockGameEntity,
+        prelude::{clientState_t, cvar_t, privileges_t, team_t, CVar, CVarBuilder, MockClient},
+    };
     use crate::prelude::{serial, MockQuakeEngine};
     use crate::MAIN_ENGINE;
 
@@ -3509,6 +3514,7 @@ mod handle_server_command_tests {
     use core::ffi::c_char;
     use mockall::predicate;
 
+    use pyo3::exceptions::PyEnvironmentError;
     use pyo3::prelude::*;
 
     #[test]
@@ -3570,6 +3576,225 @@ mod handle_server_command_tests {
             assert!(capturing_hook
                 .call_method1("assert_called_with", (py.None(), "cp \"asdf\"",))
                 .is_ok());
+        });
+    }
+
+    #[test]
+    #[cfg_attr(miri, ignore)]
+    #[serial]
+    fn handle_server_command_for_dedicated_player_server_command() {
+        let mut mock_engine = MockQuakeEngine::new();
+        mock_engine
+            .expect_find_cvar()
+            .with(predicate::eq("zmq_stats_enable"))
+            .returning(|_| {
+                let mut raw_cvar = CVarBuilder::default()
+                    .string("1".as_ptr() as *mut c_char)
+                    .build()
+                    .expect("this should not happen");
+                CVar::try_from(&mut raw_cvar as *mut cvar_t).ok()
+            });
+        MAIN_ENGINE.store(Some(mock_engine.into()));
+
+        let client_try_from_ctx = MockClient::from_context();
+        client_try_from_ctx
+            .expect()
+            .with(predicate::eq(42))
+            .returning(|_client_id| {
+                let mut mock_client = MockClient::new();
+                mock_client
+                    .expect_get_state()
+                    .returning(|| clientState_t::CS_ACTIVE);
+                mock_client
+                    .expect_get_user_info()
+                    .returning(|| r"\name\Mocked Player\sex\male".into());
+                mock_client.expect_get_steam_id().returning(|| 1234);
+                mock_client
+            });
+        let game_entity_try_from_ctx = MockGameEntity::from_context();
+        game_entity_try_from_ctx
+            .expect()
+            .with(predicate::eq(42))
+            .returning(move |_client_id| {
+                let mut mock_game_entity = MockGameEntity::new();
+                mock_game_entity
+                    .expect_get_player_name()
+                    .returning(|| "Mocked Player".to_string());
+                mock_game_entity
+                    .expect_get_team()
+                    .returning(move || team_t::TEAM_RED);
+                mock_game_entity
+                    .expect_get_privileges()
+                    .returning(|| privileges_t::PRIV_NONE);
+                mock_game_entity
+            });
+
+        Python::with_gil(|py| {
+            let event_dispatcher = EventDispatcherManager::default();
+            event_dispatcher
+                .add_dispatcher(py, py.get_type_bound::<ServerCommandDispatcher>())
+                .expect("could not add server_command dispatcher");
+            EVENT_DISPATCHERS.store(Some(
+                Py::new(py, event_dispatcher)
+                    .expect("could not create event dispatcher manager in python")
+                    .into(),
+            ));
+
+            let capturing_hook = capturing_hook(py);
+            let server_command_dispatcher = EVENT_DISPATCHERS
+                .load()
+                .as_ref()
+                .map(|event_dispatcher| {
+                    event_dispatcher
+                        .bind(py)
+                        .get_item("server_command")
+                        .expect("could not get server_command dispatcher")
+                })
+                .expect("could not get server_command dispatcher");
+            server_command_dispatcher
+                .call_method1(
+                    "add_hook",
+                    (
+                        "asdf",
+                        capturing_hook
+                            .getattr("hook")
+                            .expect("could not get capturing hook"),
+                        CommandPriorities::PRI_NORMAL as i32,
+                    ),
+                )
+                .expect("could not add hook to server_command dispatcher");
+
+            let result = try_handle_server_command(py, 42, "cp \"asdf\"");
+            assert!(result.is_ok_and(|value| value
+                .extract::<String>(py)
+                .is_ok_and(|str_value| str_value == "cp \"asdf\"")));
+            assert!(capturing_hook
+                .call_method1("assert_called_with", ("_", "cp \"asdf\"",))
+                .is_ok());
+        });
+    }
+
+    #[test]
+    #[cfg_attr(miri, ignore)]
+    #[serial]
+    fn handle_server_command_for_server_command_with_no_event_dispatcher() {
+        EVENT_DISPATCHERS.store(None);
+
+        Python::with_gil(|py| {
+            let result = try_handle_server_command(py, -1, "cp \"asdf\"");
+            assert!(result.is_err_and(|err| err.is_instance_of::<PyEnvironmentError>(py)));
+        });
+    }
+
+    #[test]
+    #[cfg_attr(miri, ignore)]
+    #[serial]
+    fn handle_server_command_for_server_command_returning_false() {
+        let mut mock_engine = MockQuakeEngine::new();
+        mock_engine
+            .expect_find_cvar()
+            .with(predicate::eq("zmq_stats_enable"))
+            .returning(|_| {
+                let mut raw_cvar = CVarBuilder::default()
+                    .string("1".as_ptr() as *mut c_char)
+                    .build()
+                    .expect("this should not happen");
+                CVar::try_from(&mut raw_cvar as *mut cvar_t).ok()
+            });
+        MAIN_ENGINE.store(Some(mock_engine.into()));
+
+        Python::with_gil(|py| {
+            let event_dispatcher = EventDispatcherManager::default();
+            event_dispatcher
+                .add_dispatcher(py, py.get_type_bound::<ServerCommandDispatcher>())
+                .expect("could not add server_command dispatcher");
+            EVENT_DISPATCHERS.store(Some(
+                Py::new(py, event_dispatcher)
+                    .expect("could not create event dispatcher manager in python")
+                    .into(),
+            ));
+
+            let server_command_dispatcher = EVENT_DISPATCHERS
+                .load()
+                .as_ref()
+                .map(|event_dispatcher| {
+                    event_dispatcher
+                        .bind(py)
+                        .get_item("server_command")
+                        .expect("could not get server_command dispatcher")
+                })
+                .expect("could not get server_command dispatcher");
+            server_command_dispatcher
+                .call_method1(
+                    "add_hook",
+                    (
+                        "asdf",
+                        returning_false_hook(py),
+                        CommandPriorities::PRI_NORMAL as i32,
+                    ),
+                )
+                .expect("could not add hook to server_command dispatcher");
+
+            let result = try_handle_server_command(py, -1, "cp \"asdf\"");
+            assert!(result.is_ok_and(|value| value
+                .extract::<bool>(py)
+                .is_ok_and(|bool_value| !bool_value)));
+        });
+    }
+
+    #[test]
+    #[cfg_attr(miri, ignore)]
+    #[serial]
+    fn handle_server_command_for_server_command_returning_other_string() {
+        let mut mock_engine = MockQuakeEngine::new();
+        mock_engine
+            .expect_find_cvar()
+            .with(predicate::eq("zmq_stats_enable"))
+            .returning(|_| {
+                let mut raw_cvar = CVarBuilder::default()
+                    .string("1".as_ptr() as *mut c_char)
+                    .build()
+                    .expect("this should not happen");
+                CVar::try_from(&mut raw_cvar as *mut cvar_t).ok()
+            });
+        MAIN_ENGINE.store(Some(mock_engine.into()));
+
+        Python::with_gil(|py| {
+            let event_dispatcher = EventDispatcherManager::default();
+            event_dispatcher
+                .add_dispatcher(py, py.get_type_bound::<ServerCommandDispatcher>())
+                .expect("could not add server_command dispatcher");
+            EVENT_DISPATCHERS.store(Some(
+                Py::new(py, event_dispatcher)
+                    .expect("could not create event dispatcher manager in python")
+                    .into(),
+            ));
+
+            let server_command_dispatcher = EVENT_DISPATCHERS
+                .load()
+                .as_ref()
+                .map(|event_dispatcher| {
+                    event_dispatcher
+                        .bind(py)
+                        .get_item("server_command")
+                        .expect("could not get server_command dispatcher")
+                })
+                .expect("could not get server_command dispatcher");
+            server_command_dispatcher
+                .call_method1(
+                    "add_hook",
+                    (
+                        "asdf",
+                        returning_other_string_hook(py),
+                        CommandPriorities::PRI_NORMAL as i32,
+                    ),
+                )
+                .expect("could not add hook to server_command dispatcher");
+
+            let result = try_handle_server_command(py, -1, "cp \"asdf\"");
+            assert!(result.is_ok_and(|value| value
+                .extract::<String>(py)
+                .is_ok_and(|str_value| str_value == "quit")));
         });
     }
 }
