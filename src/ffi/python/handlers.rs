@@ -64,29 +64,10 @@ mod handle_rcon_tests {
         commands::{Command, CommandPriorities},
         COMMANDS, EVENT_DISPATCHERS,
     };
-
+    use crate::prelude::serial;
     use crate::MAIN_ENGINE;
 
     use pyo3::prelude::*;
-
-    use crate::prelude::serial;
-
-    pub(super) fn failing_test_handler_module(py: Python<'_>) -> Bound<'_, PyModule> {
-        PyModule::from_code_bound(
-            py,
-            r#"
-called = False
-
-def handler(*args):
-    global called
-    called = True
-    raise Exception("please ignore this")
-        "#,
-            "",
-            "",
-        )
-        .expect("could create test handler module")
-    }
 
     #[test]
     #[cfg_attr(miri, ignore)]
@@ -162,37 +143,7 @@ def handler(*args):
         MAIN_ENGINE.store(None);
         EVENT_DISPATCHERS.store(None);
 
-        let command_invoker = CommandInvoker::py_new();
-
         Python::with_gil(|py| {
-            let plugin = test_plugin(py);
-            let cmd_handler_module = failing_test_handler_module(py);
-            let cmd_handler = cmd_handler_module
-                .getattr("handler")
-                .expect("could not get handler from test module");
-            let command = Command::py_new(
-                py,
-                plugin.unbind(),
-                "asdf".into_py(py),
-                cmd_handler.unbind(),
-                0,
-                py.None(),
-                py.None(),
-                false,
-                0,
-                false,
-                "",
-            )
-            .expect("could not create command");
-            command_invoker
-                .add_command(py, command, CommandPriorities::PRI_NORMAL as usize)
-                .expect("could not add command to command invoker");
-            COMMANDS.store(Some(
-                Py::new(py, command_invoker)
-                    .expect("could not create CommandInvoker in Python")
-                    .into(),
-            ));
-
             let result = handle_rcon(py, "asdf");
             assert!(result.is_some_and(|value| value));
         });
@@ -538,7 +489,6 @@ fn try_handle_client_command(py: Python<'_>, client_id: i32, cmd: &str) -> PyRes
                 }
             }
         }
-        return Ok(updated_cmd.into_py(py));
     }
 
     Ok(updated_cmd.into_py(py))
@@ -560,7 +510,7 @@ mod handle_client_command_tests {
     use super::handler_test_support::{
         capturing_hook, returning_false_hook, returning_other_string_hook,
     };
-    use super::try_handle_client_command;
+    use super::{handle_client_command, try_handle_client_command};
 
     use crate::ffi::c::{
         game_entity::MockGameEntity,
@@ -574,7 +524,7 @@ mod handle_client_command_tests {
         commands::CommandPriorities,
         events::{
             ChatEventDispatcher, ClientCommandDispatcher, EventDispatcherManager,
-            TeamSwitchAttemptDispatcher, VoteCalledDispatcher, VoteDispatcher,
+            TeamSwitchAttemptDispatcher, UserinfoDispatcher, VoteCalledDispatcher, VoteDispatcher,
             VoteStartedDispatcher,
         },
         pyshinqlx_setup_fixture::pyshinqlx_setup,
@@ -591,8 +541,11 @@ mod handle_client_command_tests {
     use mockall::predicate;
     use rstest::rstest;
 
-    use pyo3::exceptions::{PyAssertionError, PyEnvironmentError};
     use pyo3::prelude::*;
+    use pyo3::{
+        exceptions::{PyAssertionError, PyEnvironmentError},
+        types::{IntoPyDict, PyBool},
+    };
 
     #[test]
     #[cfg_attr(miri, ignore)]
@@ -2993,6 +2946,468 @@ mod handle_client_command_tests {
             assert!(result.is_ok_and(|value| value
                 .extract::<bool>(py)
                 .is_ok_and(|bool_value| !bool_value)));
+        });
+    }
+
+    #[test]
+    #[cfg_attr(miri, ignore)]
+    #[serial]
+    fn try_handle_client_command_for_userinfo_change_when_nothing_changed() {
+        let client_try_from_ctx = MockClient::from_context();
+        client_try_from_ctx
+            .expect()
+            .with(predicate::eq(42))
+            .returning(|_client_id| {
+                let mut mock_client = MockClient::new();
+                mock_client
+                    .expect_get_state()
+                    .returning(|| clientState_t::CS_ACTIVE);
+                mock_client
+                    .expect_get_user_info()
+                    .returning(|| r"\name\Mocked Player\sex\male".into());
+                mock_client.expect_get_steam_id().returning(|| 1234);
+                mock_client
+            });
+
+        let game_entity_try_from_ctx = MockGameEntity::from_context();
+        game_entity_try_from_ctx
+            .expect()
+            .with(predicate::eq(42))
+            .returning(move |_client_id| {
+                let mut mock_game_entity = MockGameEntity::new();
+                mock_game_entity
+                    .expect_get_player_name()
+                    .returning(|| "Mocked Player".to_string());
+                mock_game_entity
+                    .expect_get_team()
+                    .returning(move || team_t::TEAM_RED);
+                mock_game_entity
+                    .expect_get_privileges()
+                    .returning(|| privileges_t::PRIV_NONE);
+                mock_game_entity
+            });
+
+        Python::with_gil(|py| {
+            let event_dispatcher = EventDispatcherManager::default();
+            event_dispatcher
+                .add_dispatcher(py, py.get_type_bound::<ClientCommandDispatcher>())
+                .expect("could not add client_command dispatcher");
+            event_dispatcher
+                .add_dispatcher(py, py.get_type_bound::<UserinfoDispatcher>())
+                .expect("could not add userinfo dispatcher");
+            EVENT_DISPATCHERS.store(Some(
+                Py::new(py, event_dispatcher)
+                    .expect("could not create event dispatcher manager in python")
+                    .into(),
+            ));
+
+            let capturing_hook = capturing_hook(py);
+            let userinfo_dispatcher = EVENT_DISPATCHERS
+                .load()
+                .as_ref()
+                .map(|event_dispatcher| {
+                    event_dispatcher
+                        .bind(py)
+                        .get_item("userinfo")
+                        .expect("could not get userinfo dispatcher")
+                })
+                .expect("could not get userinfo dispatcher");
+
+            userinfo_dispatcher
+                .call_method1(
+                    "add_hook",
+                    (
+                        "asdf",
+                        capturing_hook
+                            .getattr("hook")
+                            .expect("could not get hook from capturing hook"),
+                        CommandPriorities::PRI_NORMAL as i32,
+                    ),
+                )
+                .expect("could not add hook to userinfo dispatcher");
+
+            let result =
+                try_handle_client_command(py, 42, r#"userinfo "\name\Mocked Player\sex\male""#);
+            assert!(result.is_ok_and(|value| value
+                .extract::<String>(py)
+                .is_ok_and(|str_value| str_value == r#"userinfo "\name\Mocked Player\sex\male""#)),);
+            assert!(capturing_hook
+                .call_method1("assert_called_with", ("_", "_",))
+                .is_err_and(|err| err.is_instance_of::<PyAssertionError>(py)));
+        });
+    }
+
+    #[test]
+    #[cfg_attr(miri, ignore)]
+    #[serial]
+    fn try_handle_client_command_for_userinfo_change_with_changes() {
+        let client_try_from_ctx = MockClient::from_context();
+        client_try_from_ctx
+            .expect()
+            .with(predicate::eq(42))
+            .returning(|_client_id| {
+                let mut mock_client = MockClient::new();
+                mock_client
+                    .expect_get_state()
+                    .returning(|| clientState_t::CS_ACTIVE);
+                mock_client
+                    .expect_get_user_info()
+                    .returning(|| r"\name\Mocked Player\sex\male".into());
+                mock_client.expect_get_steam_id().returning(|| 1234);
+                mock_client
+            });
+
+        let game_entity_try_from_ctx = MockGameEntity::from_context();
+        game_entity_try_from_ctx
+            .expect()
+            .with(predicate::eq(42))
+            .returning(move |_client_id| {
+                let mut mock_game_entity = MockGameEntity::new();
+                mock_game_entity
+                    .expect_get_player_name()
+                    .returning(|| "Mocked Player".to_string());
+                mock_game_entity
+                    .expect_get_team()
+                    .returning(move || team_t::TEAM_RED);
+                mock_game_entity
+                    .expect_get_privileges()
+                    .returning(|| privileges_t::PRIV_NONE);
+                mock_game_entity
+            });
+
+        Python::with_gil(|py| {
+            let event_dispatcher = EventDispatcherManager::default();
+            event_dispatcher
+                .add_dispatcher(py, py.get_type_bound::<ClientCommandDispatcher>())
+                .expect("could not add client_command dispatcher");
+            event_dispatcher
+                .add_dispatcher(py, py.get_type_bound::<UserinfoDispatcher>())
+                .expect("could not add userinfo dispatcher");
+            EVENT_DISPATCHERS.store(Some(
+                Py::new(py, event_dispatcher)
+                    .expect("could not create event dispatcher manager in python")
+                    .into(),
+            ));
+
+            let capturing_hook = capturing_hook(py);
+            let userinfo_dispatcher = EVENT_DISPATCHERS
+                .load()
+                .as_ref()
+                .map(|event_dispatcher| {
+                    event_dispatcher
+                        .bind(py)
+                        .get_item("userinfo")
+                        .expect("could not get userinfo dispatcher")
+                })
+                .expect("could not get userinfo dispatcher");
+
+            userinfo_dispatcher
+                .call_method1(
+                    "add_hook",
+                    (
+                        "asdf",
+                        capturing_hook
+                            .getattr("hook")
+                            .expect("could not get hook from capturing hook"),
+                        CommandPriorities::PRI_NORMAL as i32,
+                    ),
+                )
+                .expect("could not add hook to userinfo dispatcher");
+
+            let result =
+                try_handle_client_command(py, 42, r#"userinfo "\name\Mocked Player\sex\female""#);
+            assert!(
+                result.is_ok_and(|value| value.extract::<String>(py).is_ok_and(
+                    |str_value| str_value == r#"userinfo "\name\Mocked Player\sex\female""#
+                )),
+            );
+            assert!(capturing_hook
+                .call_method1(
+                    "assert_called_with",
+                    ("_", [("sex", "female"),].into_py_dict_bound(py),)
+                )
+                .is_ok());
+        });
+    }
+
+    #[test]
+    #[cfg_attr(miri, ignore)]
+    #[serial]
+    fn try_handle_client_command_for_userinfo_change_with_no_event_dispatcher() {
+        let client_try_from_ctx = MockClient::from_context();
+        client_try_from_ctx
+            .expect()
+            .with(predicate::eq(42))
+            .returning(|_client_id| {
+                let mut mock_client = MockClient::new();
+                mock_client
+                    .expect_get_state()
+                    .returning(|| clientState_t::CS_ACTIVE);
+                mock_client
+                    .expect_get_user_info()
+                    .returning(|| r"\name\Mocked Player\sex\male".into());
+                mock_client.expect_get_steam_id().returning(|| 1234);
+                mock_client
+            });
+
+        let game_entity_try_from_ctx = MockGameEntity::from_context();
+        game_entity_try_from_ctx
+            .expect()
+            .with(predicate::eq(42))
+            .returning(move |_client_id| {
+                let mut mock_game_entity = MockGameEntity::new();
+                mock_game_entity
+                    .expect_get_player_name()
+                    .returning(|| "Mocked Player".to_string());
+                mock_game_entity
+                    .expect_get_team()
+                    .returning(move || team_t::TEAM_RED);
+                mock_game_entity
+                    .expect_get_privileges()
+                    .returning(|| privileges_t::PRIV_NONE);
+                mock_game_entity
+            });
+
+        Python::with_gil(|py| {
+            let event_dispatcher = EventDispatcherManager::default();
+            event_dispatcher
+                .add_dispatcher(py, py.get_type_bound::<ClientCommandDispatcher>())
+                .expect("could not add client_command dispatcher");
+            EVENT_DISPATCHERS.store(Some(
+                Py::new(py, event_dispatcher)
+                    .expect("could not create event dispatcher manager in python")
+                    .into(),
+            ));
+
+            let result =
+                try_handle_client_command(py, 42, r#"userinfo "\name\Mocked Player\sex\female""#);
+            assert!(result.is_err_and(|err| err.is_instance_of::<PyEnvironmentError>(py)));
+        });
+    }
+
+    #[test]
+    #[cfg_attr(miri, ignore)]
+    #[serial]
+    fn try_handle_client_command_for_userinfo_change_with_dispatcher_returns_false() {
+        let client_try_from_ctx = MockClient::from_context();
+        client_try_from_ctx
+            .expect()
+            .with(predicate::eq(42))
+            .returning(|_client_id| {
+                let mut mock_client = MockClient::new();
+                mock_client
+                    .expect_get_state()
+                    .returning(|| clientState_t::CS_ACTIVE);
+                mock_client
+                    .expect_get_user_info()
+                    .returning(|| r"\name\Mocked Player\sex\male".into());
+                mock_client.expect_get_steam_id().returning(|| 1234);
+                mock_client
+            });
+
+        let game_entity_try_from_ctx = MockGameEntity::from_context();
+        game_entity_try_from_ctx
+            .expect()
+            .with(predicate::eq(42))
+            .returning(move |_client_id| {
+                let mut mock_game_entity = MockGameEntity::new();
+                mock_game_entity
+                    .expect_get_player_name()
+                    .returning(|| "Mocked Player".to_string());
+                mock_game_entity
+                    .expect_get_team()
+                    .returning(move || team_t::TEAM_RED);
+                mock_game_entity
+                    .expect_get_privileges()
+                    .returning(|| privileges_t::PRIV_NONE);
+                mock_game_entity
+            });
+
+        Python::with_gil(|py| {
+            let event_dispatcher = EventDispatcherManager::default();
+            event_dispatcher
+                .add_dispatcher(py, py.get_type_bound::<ClientCommandDispatcher>())
+                .expect("could not add client_command dispatcher");
+            event_dispatcher
+                .add_dispatcher(py, py.get_type_bound::<UserinfoDispatcher>())
+                .expect("could not add userinfo dispatcher");
+            EVENT_DISPATCHERS.store(Some(
+                Py::new(py, event_dispatcher)
+                    .expect("could not create event dispatcher manager in python")
+                    .into(),
+            ));
+
+            let userinfo_dispatcher = EVENT_DISPATCHERS
+                .load()
+                .as_ref()
+                .map(|event_dispatcher| {
+                    event_dispatcher
+                        .bind(py)
+                        .get_item("userinfo")
+                        .expect("could not get userinfo dispatcher")
+                })
+                .expect("could not get userinfo dispatcher");
+
+            userinfo_dispatcher
+                .call_method1(
+                    "add_hook",
+                    (
+                        "asdf",
+                        returning_false_hook(py),
+                        CommandPriorities::PRI_NORMAL as i32,
+                    ),
+                )
+                .expect("could not add hook to userinfo dispatcher");
+
+            let result =
+                try_handle_client_command(py, 42, r#"userinfo "\name\Mocked Player\sex\female""#);
+            assert!(result.is_ok_and(|value| value
+                .extract::<bool>(py)
+                .is_ok_and(|bool_value| !bool_value)));
+        });
+    }
+
+    #[test]
+    #[cfg_attr(miri, ignore)]
+    #[serial]
+    fn try_handle_client_command_for_userinfo_change_with_dispatcher_returns_other_userinfo() {
+        let client_try_from_ctx = MockClient::from_context();
+        client_try_from_ctx
+            .expect()
+            .with(predicate::eq(42))
+            .returning(|_client_id| {
+                let mut mock_client = MockClient::new();
+                mock_client
+                    .expect_get_state()
+                    .returning(|| clientState_t::CS_ACTIVE);
+                mock_client
+                    .expect_get_user_info()
+                    .returning(|| r"\name\Mocked Player\sex\male".into());
+                mock_client.expect_get_steam_id().returning(|| 1234);
+                mock_client
+            });
+
+        let game_entity_try_from_ctx = MockGameEntity::from_context();
+        game_entity_try_from_ctx
+            .expect()
+            .with(predicate::eq(42))
+            .returning(move |_client_id| {
+                let mut mock_game_entity = MockGameEntity::new();
+                mock_game_entity
+                    .expect_get_player_name()
+                    .returning(|| "Mocked Player".to_string());
+                mock_game_entity
+                    .expect_get_team()
+                    .returning(move || team_t::TEAM_RED);
+                mock_game_entity
+                    .expect_get_privileges()
+                    .returning(|| privileges_t::PRIV_NONE);
+                mock_game_entity
+            });
+
+        Python::with_gil(|py| {
+            let event_dispatcher = EventDispatcherManager::default();
+            event_dispatcher
+                .add_dispatcher(py, py.get_type_bound::<ClientCommandDispatcher>())
+                .expect("could not add client_command dispatcher");
+            event_dispatcher
+                .add_dispatcher(py, py.get_type_bound::<UserinfoDispatcher>())
+                .expect("could not add userinfo dispatcher");
+            EVENT_DISPATCHERS.store(Some(
+                Py::new(py, event_dispatcher)
+                    .expect("could not create event dispatcher manager in python")
+                    .into(),
+            ));
+
+            let returning_other_userinfo_module = PyModule::from_code_bound(
+                py,
+                r#"
+def returning_other_userinfo_hook(*args, **kwargs):
+    return {"name": "Changed Player", "sex": "male", "country": "GB"}
+                "#,
+                "",
+                "",
+            )
+            .expect("could not create returning other userinfo module");
+            let returning_other_userinfo = returning_other_userinfo_module
+                .getattr("returning_other_userinfo_hook")
+                .expect("could not get returning_other_userinfo_hook function");
+            let userinfo_dispatcher = EVENT_DISPATCHERS
+                .load()
+                .as_ref()
+                .map(|event_dispatcher| {
+                    event_dispatcher
+                        .bind(py)
+                        .get_item("userinfo")
+                        .expect("could not get userinfo dispatcher")
+                })
+                .expect("could not get userinfo dispatcher");
+
+            userinfo_dispatcher
+                .call_method1(
+                    "add_hook",
+                    (
+                        "asdf",
+                        returning_other_userinfo,
+                        CommandPriorities::PRI_NORMAL as i32,
+                    ),
+                )
+                .expect("could not add hook to userinfo dispatcher");
+
+            let result =
+                try_handle_client_command(py, 42, r#"userinfo "\name\Mocked Player\sex\female""#);
+            assert!(result.is_ok_and(|value| value
+                .extract::<String>(py)
+                .is_ok_and(|str_value| str_value
+                    == r#"userinfo "\name\Changed Player\sex\male\country\GB""#)),);
+        });
+    }
+
+    #[test]
+    #[cfg_attr(miri, ignore)]
+    #[serial]
+    fn handle_client_command_with_no_event_dispatchers() {
+        let client_try_from_ctx = MockClient::from_context();
+        client_try_from_ctx
+            .expect()
+            .with(predicate::eq(42))
+            .returning(|_client_id| {
+                let mut mock_client = MockClient::new();
+                mock_client
+                    .expect_get_state()
+                    .returning(|| clientState_t::CS_ACTIVE);
+                mock_client
+                    .expect_get_user_info()
+                    .returning(|| r"\name\Mocked Player\sex\male".into());
+                mock_client.expect_get_steam_id().returning(|| 1234);
+                mock_client
+            });
+
+        let game_entity_try_from_ctx = MockGameEntity::from_context();
+        game_entity_try_from_ctx
+            .expect()
+            .with(predicate::eq(42))
+            .returning(move |_client_id| {
+                let mut mock_game_entity = MockGameEntity::new();
+                mock_game_entity
+                    .expect_get_player_name()
+                    .returning(|| "Mocked Player".to_string());
+                mock_game_entity
+                    .expect_get_team()
+                    .returning(move || team_t::TEAM_RED);
+                mock_game_entity
+                    .expect_get_privileges()
+                    .returning(|| privileges_t::PRIV_NONE);
+                mock_game_entity
+            });
+
+        EVENT_DISPATCHERS.store(None);
+
+        Python::with_gil(|py| {
+            let result = handle_client_command(py, 42, "asdf");
+            assert!(result
+                .downcast_bound::<PyBool>(py)
+                .is_ok_and(|value| value.is_true()));
         });
     }
 }
