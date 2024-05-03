@@ -3491,6 +3491,89 @@ pub(crate) fn handle_server_command(py: Python<'_>, client_id: i32, cmd: &str) -
     })
 }
 
+#[cfg(test)]
+mod handle_server_command_tests {
+    use super::handler_test_support::capturing_hook;
+    use super::try_handle_server_command;
+
+    use crate::ffi::c::prelude::{cvar_t, CVar, CVarBuilder};
+    use crate::prelude::{serial, MockQuakeEngine};
+    use crate::MAIN_ENGINE;
+
+    use crate::ffi::python::{
+        commands::CommandPriorities,
+        events::{EventDispatcherManager, ServerCommandDispatcher},
+        EVENT_DISPATCHERS,
+    };
+
+    use core::ffi::c_char;
+    use mockall::predicate;
+
+    use pyo3::prelude::*;
+
+    #[test]
+    #[cfg_attr(miri, ignore)]
+    #[serial]
+    fn handle_server_command_for_general_server_command() {
+        let mut mock_engine = MockQuakeEngine::new();
+        mock_engine
+            .expect_find_cvar()
+            .with(predicate::eq("zmq_stats_enable"))
+            .returning(|_| {
+                let mut raw_cvar = CVarBuilder::default()
+                    .string("1".as_ptr() as *mut c_char)
+                    .build()
+                    .expect("this should not happen");
+                CVar::try_from(&mut raw_cvar as *mut cvar_t).ok()
+            });
+        MAIN_ENGINE.store(Some(mock_engine.into()));
+
+        Python::with_gil(|py| {
+            let event_dispatcher = EventDispatcherManager::default();
+            event_dispatcher
+                .add_dispatcher(py, py.get_type_bound::<ServerCommandDispatcher>())
+                .expect("could not add server_command dispatcher");
+            EVENT_DISPATCHERS.store(Some(
+                Py::new(py, event_dispatcher)
+                    .expect("could not create event dispatcher manager in python")
+                    .into(),
+            ));
+
+            let capturing_hook = capturing_hook(py);
+            let server_command_dispatcher = EVENT_DISPATCHERS
+                .load()
+                .as_ref()
+                .map(|event_dispatcher| {
+                    event_dispatcher
+                        .bind(py)
+                        .get_item("server_command")
+                        .expect("could not get server_command dispatcher")
+                })
+                .expect("could not get server_command dispatcher");
+            server_command_dispatcher
+                .call_method1(
+                    "add_hook",
+                    (
+                        "asdf",
+                        capturing_hook
+                            .getattr("hook")
+                            .expect("could not get capturing hook"),
+                        CommandPriorities::PRI_NORMAL as i32,
+                    ),
+                )
+                .expect("could not add hook to server_command dispatcher");
+
+            let result = try_handle_server_command(py, -1, "cp \"asdf\"");
+            assert!(result.is_ok_and(|value| value
+                .extract::<String>(py)
+                .is_ok_and(|str_value| str_value == "cp \"asdf\"")));
+            assert!(capturing_hook
+                .call_method1("assert_called_with", (py.None(), "cp \"asdf\"",))
+                .is_ok());
+        });
+    }
+}
+
 fn try_run_frame_tasks(py: Python<'_>) -> PyResult<()> {
     let shinqlx_module = py.import_bound(intern!(py, "shinqlx"))?;
     let frame_tasks = shinqlx_module.getattr(intern!(py, "frame_tasks"))?;
