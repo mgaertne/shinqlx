@@ -3496,26 +3496,29 @@ mod handle_server_command_tests {
     use super::handler_test_support::{
         capturing_hook, returning_false_hook, returning_other_string_hook,
     };
-    use super::try_handle_server_command;
+    use super::{handle_server_command, try_handle_server_command};
 
     use crate::ffi::c::{
         game_entity::MockGameEntity,
-        prelude::{clientState_t, cvar_t, privileges_t, team_t, CVar, CVarBuilder, MockClient},
+        prelude::{
+            clientState_t, cvar_t, privileges_t, team_t, CVar, CVarBuilder, MockClient, CS_VOTE_NO,
+            CS_VOTE_STRING, CS_VOTE_YES,
+        },
     };
     use crate::prelude::{serial, MockQuakeEngine};
     use crate::MAIN_ENGINE;
 
     use crate::ffi::python::{
         commands::CommandPriorities,
-        events::{EventDispatcherManager, ServerCommandDispatcher},
+        events::{EventDispatcherManager, ServerCommandDispatcher, VoteEndedDispatcher},
         EVENT_DISPATCHERS,
     };
 
     use core::ffi::c_char;
     use mockall::predicate;
 
-    use pyo3::exceptions::PyEnvironmentError;
     use pyo3::prelude::*;
+    use pyo3::{exceptions::PyEnvironmentError, types::PyBool};
 
     #[test]
     #[cfg_attr(miri, ignore)]
@@ -3795,6 +3798,212 @@ mod handle_server_command_tests {
             assert!(result.is_ok_and(|value| value
                 .extract::<String>(py)
                 .is_ok_and(|str_value| str_value == "quit")));
+        });
+    }
+
+    #[test]
+    #[cfg_attr(miri, ignore)]
+    #[serial]
+    fn handle_server_command_indicating_vote_passed() {
+        let mut mock_engine = MockQuakeEngine::new();
+        mock_engine
+            .expect_find_cvar()
+            .with(predicate::eq("zmq_stats_enable"))
+            .returning(|_| {
+                let mut raw_cvar = CVarBuilder::default()
+                    .string("1".as_ptr() as *mut c_char)
+                    .build()
+                    .expect("this should not happen");
+                CVar::try_from(&mut raw_cvar as *mut cvar_t).ok()
+            });
+        mock_engine
+            .expect_get_configstring()
+            .with(predicate::eq(CS_VOTE_STRING as u16))
+            .returning(|_| "map thunderstruck".into());
+        mock_engine
+            .expect_get_configstring()
+            .with(predicate::eq(CS_VOTE_YES as u16))
+            .returning(|_| "42".into());
+        mock_engine
+            .expect_get_configstring()
+            .with(predicate::eq(CS_VOTE_NO as u16))
+            .returning(|_| "1".into());
+        MAIN_ENGINE.store(Some(mock_engine.into()));
+
+        Python::with_gil(|py| {
+            let event_dispatcher = EventDispatcherManager::default();
+            event_dispatcher
+                .add_dispatcher(py, py.get_type_bound::<ServerCommandDispatcher>())
+                .expect("could not add server_command dispatcher");
+            event_dispatcher
+                .add_dispatcher(py, py.get_type_bound::<VoteEndedDispatcher>())
+                .expect("could not add vote_ended dispatcher");
+            EVENT_DISPATCHERS.store(Some(
+                Py::new(py, event_dispatcher)
+                    .expect("could not create event dispatcher manager in python")
+                    .into(),
+            ));
+
+            let capturing_hook = capturing_hook(py);
+            let server_command_dispatcher = EVENT_DISPATCHERS
+                .load()
+                .as_ref()
+                .map(|event_dispatcher| {
+                    event_dispatcher
+                        .bind(py)
+                        .get_item("vote_ended")
+                        .expect("could not get vote_ended dispatcher")
+                })
+                .expect("could not get vote_ended dispatcher");
+            server_command_dispatcher
+                .call_method1(
+                    "add_hook",
+                    (
+                        "asdf",
+                        capturing_hook
+                            .getattr("hook")
+                            .expect("could not get capturing hook"),
+                        CommandPriorities::PRI_NORMAL as i32,
+                    ),
+                )
+                .expect("could not add hook to vote_enede dispatcher");
+
+            let result = try_handle_server_command(py, -1, "print \"Vote passed.\n\"");
+            assert!(result.is_ok_and(|value| value
+                .extract::<String>(py)
+                .is_ok_and(|str_value| str_value == "print \"Vote passed.\n\"")));
+            assert!(capturing_hook
+                .call_method1(
+                    "assert_called_with",
+                    ((42, 1), "map", "thunderstruck", true,)
+                )
+                .is_ok());
+        });
+    }
+
+    #[test]
+    #[cfg_attr(miri, ignore)]
+    #[serial]
+    fn handle_server_command_indicating_vote_failed() {
+        let mut mock_engine = MockQuakeEngine::new();
+        mock_engine
+            .expect_find_cvar()
+            .with(predicate::eq("zmq_stats_enable"))
+            .returning(|_| {
+                let mut raw_cvar = CVarBuilder::default()
+                    .string("1".as_ptr() as *mut c_char)
+                    .build()
+                    .expect("this should not happen");
+                CVar::try_from(&mut raw_cvar as *mut cvar_t).ok()
+            });
+        mock_engine
+            .expect_get_configstring()
+            .with(predicate::eq(CS_VOTE_STRING as u16))
+            .returning(|_| "map thunderstruck".into());
+        mock_engine
+            .expect_get_configstring()
+            .with(predicate::eq(CS_VOTE_YES as u16))
+            .returning(|_| "1".into());
+        mock_engine
+            .expect_get_configstring()
+            .with(predicate::eq(CS_VOTE_NO as u16))
+            .returning(|_| "42".into());
+        MAIN_ENGINE.store(Some(mock_engine.into()));
+
+        Python::with_gil(|py| {
+            let event_dispatcher = EventDispatcherManager::default();
+            event_dispatcher
+                .add_dispatcher(py, py.get_type_bound::<ServerCommandDispatcher>())
+                .expect("could not add server_command dispatcher");
+            event_dispatcher
+                .add_dispatcher(py, py.get_type_bound::<VoteEndedDispatcher>())
+                .expect("could not add vote_ended dispatcher");
+            EVENT_DISPATCHERS.store(Some(
+                Py::new(py, event_dispatcher)
+                    .expect("could not create event dispatcher manager in python")
+                    .into(),
+            ));
+
+            let capturing_hook = capturing_hook(py);
+            let server_command_dispatcher = EVENT_DISPATCHERS
+                .load()
+                .as_ref()
+                .map(|event_dispatcher| {
+                    event_dispatcher
+                        .bind(py)
+                        .get_item("vote_ended")
+                        .expect("could not get vote_ended dispatcher")
+                })
+                .expect("could not get vote_ended dispatcher");
+            server_command_dispatcher
+                .call_method1(
+                    "add_hook",
+                    (
+                        "asdf",
+                        capturing_hook
+                            .getattr("hook")
+                            .expect("could not get capturing hook"),
+                        CommandPriorities::PRI_NORMAL as i32,
+                    ),
+                )
+                .expect("could not add hook to vote_enede dispatcher");
+
+            let result = try_handle_server_command(py, -1, "print \"Vote failed.\n\"");
+            assert!(result.is_ok_and(|value| value
+                .extract::<String>(py)
+                .is_ok_and(|str_value| str_value == "print \"Vote failed.\n\"")));
+            assert!(capturing_hook
+                .call_method1(
+                    "assert_called_with",
+                    ((1, 42), "map", "thunderstruck", false,)
+                )
+                .is_ok());
+        });
+    }
+
+    #[test]
+    #[cfg_attr(miri, ignore)]
+    #[serial]
+    fn handle_server_command_for_vote_ended_with_no_dispatcher() {
+        let mut mock_engine = MockQuakeEngine::new();
+        mock_engine
+            .expect_find_cvar()
+            .with(predicate::eq("zmq_stats_enable"))
+            .returning(|_| {
+                let mut raw_cvar = CVarBuilder::default()
+                    .string("1".as_ptr() as *mut c_char)
+                    .build()
+                    .expect("this should not happen");
+                CVar::try_from(&mut raw_cvar as *mut cvar_t).ok()
+            });
+        MAIN_ENGINE.store(Some(mock_engine.into()));
+
+        Python::with_gil(|py| {
+            let event_dispatcher = EventDispatcherManager::default();
+            event_dispatcher
+                .add_dispatcher(py, py.get_type_bound::<ServerCommandDispatcher>())
+                .expect("could not add server_command dispatcher");
+            EVENT_DISPATCHERS.store(Some(
+                Py::new(py, event_dispatcher)
+                    .expect("could not create event dispatcher manager in python")
+                    .into(),
+            ));
+
+            let result = try_handle_server_command(py, -1, "print \"Vote passed.\n\"");
+            assert!(result.is_err_and(|err| err.is_instance_of::<PyEnvironmentError>(py)));
+        });
+    }
+
+    #[test]
+    #[cfg_attr(miri, ignore)]
+    #[serial]
+    fn handle_server_command_with_no_event_dispatchers() {
+        EVENT_DISPATCHERS.store(None);
+        Python::with_gil(|py| {
+            let result = handle_server_command(py, -1, "asdf");
+            assert!(result
+                .downcast_bound::<PyBool>(py)
+                .is_ok_and(|value| value.is_true()));
         });
     }
 }
