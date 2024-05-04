@@ -3965,19 +3965,6 @@ mod handle_server_command_tests {
     #[cfg_attr(miri, ignore)]
     #[serial]
     fn handle_server_command_for_vote_ended_with_no_dispatcher() {
-        let mut mock_engine = MockQuakeEngine::new();
-        mock_engine
-            .expect_find_cvar()
-            .with(predicate::eq("zmq_stats_enable"))
-            .returning(|_| {
-                let mut raw_cvar = CVarBuilder::default()
-                    .string("1".as_ptr() as *mut c_char)
-                    .build()
-                    .expect("this should not happen");
-                CVar::try_from(&mut raw_cvar as *mut cvar_t).ok()
-            });
-        MAIN_ENGINE.store(Some(mock_engine.into()));
-
         Python::with_gil(|py| {
             let event_dispatcher = EventDispatcherManager::default();
             event_dispatcher
