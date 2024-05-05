@@ -4027,7 +4027,7 @@ fn try_handle_frame(py: Python<'_>) -> PyResult<()> {
     Ok(())
 }
 
-fn run_next_frame_tasks(py: Python<'_>) {
+fn transfer_next_frame_tasks(py: Python<'_>) {
     match PyModule::from_code_bound(
         py,
         r#"
@@ -4064,9 +4064,74 @@ pub(crate) fn handle_frame(py: Python<'_>) -> Option<bool> {
         return Some(true);
     }
 
-    run_next_frame_tasks(py);
+    transfer_next_frame_tasks(py);
 
     None
+}
+
+#[cfg(test)]
+mod handle_run_frame_tests {
+    use super::try_run_frame_tasks;
+
+    use crate::ffi::python::prelude::pyshinqlx_setup;
+
+    use crate::prelude::serial;
+
+    use rstest::rstest;
+
+    use pyo3::exceptions::PyValueError;
+    use pyo3::prelude::*;
+    use pyo3::types::IntoPyDict;
+
+    #[rstest]
+    #[cfg_attr(miri, ignore)]
+    #[serial]
+    fn try_run_frame_tasks_with_no_pending_tasks(_pyshinqlx_setup: ()) {
+        Python::with_gil(|py| {
+            let shinqlx_module = py.import_bound("shinqlx").expect("this should not happen");
+            let frame_tasks = shinqlx_module
+                .getattr("frame_tasks")
+                .expect("this should not happen");
+            py.run_bound(
+                r#"
+for event in frame_tasks.queue:
+    frame_tasks.cancel(event)
+"#,
+                None,
+                Some(&[("frame_tasks", frame_tasks)].into_py_dict_bound(py)),
+            )
+            .expect("this should not happend");
+
+            let result = try_run_frame_tasks(py);
+            assert!(result.is_ok());
+        })
+    }
+
+    #[rstest]
+    #[cfg_attr(miri, ignore)]
+    #[serial]
+    fn try_run_frame_tasks_pending_task_throws_exception(_pyshinqlx_setup: ()) {
+        Python::with_gil(|py| {
+            let shinqlx_module = py.import_bound("shinqlx").expect("this should not happen");
+            let frame_tasks = shinqlx_module
+                .getattr("frame_tasks")
+                .expect("this should not happen");
+            py.run_bound(
+                r#"
+def throws_exception():
+    raise ValueError("stop calling me!")
+
+frame_tasks.enter(0, 1, throws_exception, (), {})
+"#,
+                None,
+                Some(&[("frame_tasks", frame_tasks)].into_py_dict_bound(py)),
+            )
+            .expect("this should not happend");
+
+            let result = try_run_frame_tasks(py);
+            assert!(result.is_err_and(|err| err.is_instance_of::<PyValueError>(py)));
+        })
+    }
 }
 
 static ZMQ_WARNING_ISSUED: AtomicBool = AtomicBool::new(false);
