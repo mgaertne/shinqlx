@@ -4071,17 +4071,29 @@ pub(crate) fn handle_frame(py: Python<'_>) -> Option<bool> {
 
 #[cfg(test)]
 mod handle_run_frame_tests {
-    use super::try_run_frame_tasks;
+    use super::handler_test_support::capturing_hook;
+    use super::{try_handle_frame, try_run_frame_tasks};
 
-    use crate::ffi::python::prelude::pyshinqlx_setup;
+    use crate::ffi::python::{
+        commands::CommandPriorities, events::FrameEventDispatcher, pyshinqlx_setup,
+        EventDispatcherManager, EVENT_DISPATCHERS,
+    };
 
-    use crate::prelude::serial;
+    use crate::ffi::c::prelude::{cvar_t, CVar, CVarBuilder};
+
+    use crate::prelude::{serial, MockQuakeEngine};
+    use crate::MAIN_ENGINE;
+
+    use core::ffi::c_char;
+    use mockall::predicate;
 
     use rstest::rstest;
 
-    use pyo3::exceptions::PyValueError;
     use pyo3::prelude::*;
-    use pyo3::types::IntoPyDict;
+    use pyo3::{
+        exceptions::{PyEnvironmentError, PyValueError},
+        types::IntoPyDict,
+    };
 
     #[rstest]
     #[cfg_attr(miri, ignore)]
@@ -4104,7 +4116,7 @@ for event in frame_tasks.queue:
 
             let result = try_run_frame_tasks(py);
             assert!(result.is_ok());
-        })
+        });
     }
 
     #[rstest]
@@ -4130,7 +4142,120 @@ frame_tasks.enter(0, 1, throws_exception, (), {})
 
             let result = try_run_frame_tasks(py);
             assert!(result.is_err_and(|err| err.is_instance_of::<PyValueError>(py)));
-        })
+        });
+    }
+
+    #[rstest]
+    #[cfg_attr(miri, ignore)]
+    #[serial]
+    fn try_run_frame_tasks_pending_task_succeeds(_pyshinqlx_setup: ()) {
+        Python::with_gil(|py| {
+            let capturing_hook = capturing_hook(py);
+            let shinqlx_module = py.import_bound("shinqlx").expect("this should not happen");
+            let frame_tasks = shinqlx_module
+                .getattr("frame_tasks")
+                .expect("this should not happen");
+            py.run_bound(
+                r#"
+def throws_exception():
+    raise ValueError("stop calling me!")
+
+frame_tasks.enter(0, 1, capturing_hook, ("asdf", 42), {})
+"#,
+                None,
+                Some(
+                    &[
+                        ("frame_tasks", frame_tasks),
+                        (
+                            "capturing_hook",
+                            capturing_hook
+                                .getattr("hook")
+                                .expect("could not get capturing hook"),
+                        ),
+                    ]
+                    .into_py_dict_bound(py),
+                ),
+            )
+            .expect("this should not happend");
+
+            let result = try_run_frame_tasks(py);
+            assert!(result.is_ok());
+            assert!(capturing_hook
+                .call_method1("assert_called_with", ("asdf", 42,))
+                .is_ok());
+        });
+    }
+
+    #[test]
+    #[cfg_attr(miri, ignore)]
+    #[serial]
+    fn try_handle_frame_with_hook() {
+        let mut mock_engine = MockQuakeEngine::new();
+        mock_engine
+            .expect_find_cvar()
+            .with(predicate::eq("zmq_stats_enable"))
+            .returning(|_| {
+                let mut raw_cvar = CVarBuilder::default()
+                    .string("1".as_ptr() as *mut c_char)
+                    .build()
+                    .expect("this should not happen");
+                CVar::try_from(&mut raw_cvar as *mut cvar_t).ok()
+            });
+        MAIN_ENGINE.store(Some(mock_engine.into()));
+
+        Python::with_gil(|py| {
+            let event_dispatcher = EventDispatcherManager::default();
+            event_dispatcher
+                .add_dispatcher(py, py.get_type_bound::<FrameEventDispatcher>())
+                .expect("could not add frame dispatcher");
+            EVENT_DISPATCHERS.store(Some(
+                Py::new(py, event_dispatcher)
+                    .expect("could not create event dispatcher manager in python")
+                    .into(),
+            ));
+
+            let capturing_hook = capturing_hook(py);
+            let server_command_dispatcher = EVENT_DISPATCHERS
+                .load()
+                .as_ref()
+                .map(|event_dispatcher| {
+                    event_dispatcher
+                        .bind(py)
+                        .get_item("frame")
+                        .expect("could not get frame dispatcher")
+                })
+                .expect("could not get frame dispatcher");
+            server_command_dispatcher
+                .call_method1(
+                    "add_hook",
+                    (
+                        "asdf",
+                        capturing_hook
+                            .getattr("hook")
+                            .expect("could not get capturing hook"),
+                        CommandPriorities::PRI_NORMAL as i32,
+                    ),
+                )
+                .expect("could not add hook to frame dispatcher");
+
+            let result = try_handle_frame(py);
+            assert!(result.is_ok());
+            assert!(capturing_hook
+                .call_method1("assert_called_with", ())
+                .is_ok());
+        });
+    }
+
+    #[test]
+    #[cfg_attr(miri, ignore)]
+    #[serial]
+    fn try_handle_frame_with_no_event_dispatchers() {
+        Python::with_gil(|py| {
+            EVENT_DISPATCHERS.store(None);
+
+            let result = try_handle_frame(py);
+            assert!(result.is_err_and(|err| err.is_instance_of::<PyEnvironmentError>(py)));
+        });
     }
 }
 
