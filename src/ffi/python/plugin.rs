@@ -4029,7 +4029,7 @@ def handler():
     }
 
     #[test]
-    #[cfg_attr(iri, ignore)]
+    #[cfg_attr(miri, ignore)]
     fn teams_when_no_player_in_player_list() {
         Python::with_gil(|py| {
             let result = Plugin::teams(&py.get_type_bound::<Plugin>(), Some(vec![]));
@@ -4047,7 +4047,7 @@ def handler():
     }
 
     #[test]
-    #[cfg_attr(iri, ignore)]
+    #[cfg_attr(miri, ignore)]
     fn teams_when_every_team_has_one_player() {
         let player1 = Player {
             id: 0,
