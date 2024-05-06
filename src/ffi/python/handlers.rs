@@ -220,14 +220,11 @@ fn try_handle_client_command(py: Python<'_>, client_id: i32, cmd: &str) -> PyRes
         return Ok(false.into_py(py));
     };
 
-    let updated_cmd = match return_value.extract::<String>() {
-        Ok(extracted_string) => extracted_string,
-        _ => cmd.to_string(),
-    };
+    let updated_cmd = return_value.extract::<&str>().unwrap_or(cmd);
 
-    if let Some(captures) = RE_SAY.captures(&updated_cmd) {
-        if let Some(msg) = captures.name("msg") {
-            let reformatted_msg = captures
+    if let Some(reformatted_msg) = RE_SAY.captures(updated_cmd).and_then(|captures| {
+        captures.name("msg").map(|msg| {
+            captures
                 .name("quote")
                 .filter(|value| !value.as_str().is_empty())
                 .map(|quote| {
@@ -236,49 +233,48 @@ fn try_handle_client_command(py: Python<'_>, client_id: i32, cmd: &str) -> PyRes
                         .unwrap_or(msg.as_str())
                 })
                 .unwrap_or(msg.as_str())
-                .replace('"', "'");
+                .replace('"', "'")
+        })
+    }) {
+        let result = EVENT_DISPATCHERS
+            .load()
+            .as_ref()
+            .and_then(|event_dispatchers| {
+                event_dispatchers
+                    .bind(py)
+                    .get_item(intern!(py, "chat"))
+                    .ok()
+            })
+            .map_or(
+                Err(PyEnvironmentError::new_err(
+                    "could not get access to chat dispatcher",
+                )),
+                |chat_dispatcher| {
+                    let Some(ref main_chat_channel) = *CHAT_CHANNEL.load() else {
+                        return Err(PyEnvironmentError::new_err(
+                            "could not get access to main chat channel",
+                        ));
+                    };
 
-            let result = EVENT_DISPATCHERS
-                .load()
-                .as_ref()
-                .and_then(|event_dispatchers| {
-                    event_dispatchers
-                        .bind(py)
-                        .get_item(intern!(py, "chat"))
-                        .ok()
-                })
-                .map_or(
-                    Err(PyEnvironmentError::new_err(
-                        "could not get access to chat dispatcher",
-                    )),
-                    |chat_dispatcher| {
-                        let Some(ref main_chat_channel) = *CHAT_CHANNEL.load() else {
-                            return Err(PyEnvironmentError::new_err(
-                                "could not get access to main chat channel",
-                            ));
-                        };
+                    chat_dispatcher.call_method1(
+                        intern!(py, "dispatch"),
+                        (player.clone(), &reformatted_msg, main_chat_channel.as_ref()),
+                    )
+                },
+            )?;
 
-                        chat_dispatcher.call_method1(
-                            intern!(py, "dispatch"),
-                            (player.clone(), &reformatted_msg, main_chat_channel.as_ref()),
-                        )
-                    },
-                )?;
-
-            if result
-                .extract::<&PyBool>()
-                .is_ok_and(|value| !value.is_true())
-            {
-                return Ok(false.into_py(py));
-            }
-            let forwarded_cmd = format!("say \"{reformatted_msg}\"");
-            return Ok(forwarded_cmd.into_py(py));
+        if result
+            .extract::<&PyBool>()
+            .is_ok_and(|value| !value.is_true())
+        {
+            return Ok(false.into_py(py));
         }
+        return Ok(format!("say \"{reformatted_msg}\"").into_py(py));
     }
 
-    if let Some(captures) = RE_SAY_TEAM.captures(&updated_cmd) {
-        if let Some(msg) = captures.name("msg") {
-            let reformatted_msg = captures
+    if let Some(reformatted_msg) = RE_SAY_TEAM.captures(updated_cmd).and_then(|captures| {
+        captures.name("msg").map(|msg| {
+            captures
                 .name("quote")
                 .filter(|value| !value.as_str().is_empty())
                 .map(|quote| {
@@ -287,174 +283,97 @@ fn try_handle_client_command(py: Python<'_>, client_id: i32, cmd: &str) -> PyRes
                         .unwrap_or(msg.as_str())
                 })
                 .unwrap_or(msg.as_str())
-                .replace('"', "'");
-            let result = EVENT_DISPATCHERS
-                .load()
-                .as_ref()
-                .and_then(|event_dispatchers| {
-                    event_dispatchers
-                        .bind(py)
-                        .get_item(intern!(py, "chat"))
-                        .ok()
-                })
-                .map_or(
-                    Err(PyEnvironmentError::new_err(
-                        "could not get access to chat dispatcher",
-                    )),
-                    |chat_dispatcher| {
-                        let channel = match player.get_team(py)?.as_str() {
-                            "free" => &FREE_CHAT_CHANNEL,
-                            "red" => &RED_TEAM_CHAT_CHANNEL,
-                            "blue" => &BLUE_TEAM_CHAT_CHANNEL,
-                            _ => &SPECTATOR_CHAT_CHANNEL,
-                        };
-                        let Some(ref chat_channel) = *channel.load() else {
-                            return Err(PyEnvironmentError::new_err(
-                                "could not get access to team chat channel",
-                            ));
-                        };
-                        chat_dispatcher.call_method1(
-                            intern!(py, "dispatch"),
-                            (player.clone(), &reformatted_msg, chat_channel.bind(py)),
-                        )
-                    },
-                )?;
-            if result
-                .extract::<&PyBool>()
-                .is_ok_and(|value| !value.is_true())
-            {
-                return Ok(false.into_py(py));
-            }
-            let forwarded_cmd = format!("say_team \"{reformatted_msg}\"");
-            return Ok(forwarded_cmd.into_py(py));
+                .replace('"', "'")
+        })
+    }) {
+        let result = EVENT_DISPATCHERS
+            .load()
+            .as_ref()
+            .and_then(|event_dispatchers| {
+                event_dispatchers
+                    .bind(py)
+                    .get_item(intern!(py, "chat"))
+                    .ok()
+            })
+            .map_or(
+                Err(PyEnvironmentError::new_err(
+                    "could not get access to chat dispatcher",
+                )),
+                |chat_dispatcher| {
+                    let channel = match player.get_team(py)?.as_str() {
+                        "free" => &FREE_CHAT_CHANNEL,
+                        "red" => &RED_TEAM_CHAT_CHANNEL,
+                        "blue" => &BLUE_TEAM_CHAT_CHANNEL,
+                        _ => &SPECTATOR_CHAT_CHANNEL,
+                    };
+                    let Some(ref chat_channel) = *channel.load() else {
+                        return Err(PyEnvironmentError::new_err(
+                            "could not get access to team chat channel",
+                        ));
+                    };
+                    chat_dispatcher.call_method1(
+                        intern!(py, "dispatch"),
+                        (player.clone(), &reformatted_msg, chat_channel.bind(py)),
+                    )
+                },
+            )?;
+        if result
+            .extract::<&PyBool>()
+            .is_ok_and(|value| !value.is_true())
+        {
+            return Ok(false.into_py(py));
         }
+        return Ok(format!("say_team \"{reformatted_msg}\"").into_py(py));
     }
 
-    if let Some(captures) = RE_CALLVOTE.captures(&updated_cmd) {
-        if !is_vote_active() {
-            if let Some(vote) = captures.name("cmd") {
-                let args = captures
+    if let Some((vote, args)) = RE_CALLVOTE.captures(updated_cmd).and_then(|captures| {
+        captures.name("cmd").map(|vote_cmd| {
+            (
+                vote_cmd,
+                captures
                     .name("args")
                     .map(|matched| matched.as_str())
-                    .unwrap_or("");
-                EVENT_DISPATCHERS
-                    .load()
-                    .as_ref()
-                    .and_then(|event_dispatchers| {
-                        event_dispatchers
-                            .bind(py)
-                            .get_item(intern!(py, "vote_started"))
-                            .and_then(|dispatcher| dispatcher.extract::<VoteStartedDispatcher>())
-                            .ok()
-                    })
-                    .map_or(
-                        Err(PyEnvironmentError::new_err(
-                            "could not get access to vote started dispatcher",
-                        )),
-                        |mut vote_started_dispatcher| {
-                            vote_started_dispatcher.caller(py, player.clone().into_py(py));
-                            Ok(())
-                        },
-                    )?;
-                let result = EVENT_DISPATCHERS
-                    .load()
-                    .as_ref()
-                    .and_then(|event_dispatchers| {
-                        event_dispatchers
-                            .bind(py)
-                            .get_item(intern!(py, "vote_called"))
-                            .ok()
-                    })
-                    .map_or(
-                        Err(PyEnvironmentError::new_err(
-                            "could not get access to vote called dispatcher",
-                        )),
-                        |vote_called_dispatcher| {
-                            vote_called_dispatcher.call_method1(
-                                intern!(py, "dispatch"),
-                                (player.clone(), vote.as_str(), args),
-                            )
-                        },
-                    )?;
-                if result
-                    .extract::<&PyBool>()
-                    .is_ok_and(|value| !value.is_true())
-                {
-                    return Ok(false.into_py(py));
-                }
-            }
-        }
-        return Ok(updated_cmd.into_py(py));
-    }
-
-    if let Some(captures) = RE_VOTE.captures(&updated_cmd) {
-        if is_vote_active() {
-            if let Some(arg) = captures.name("arg") {
-                if ["y", "Y", "1", "n", "N", "2"].contains(&arg.as_str()) {
-                    let vote = ["y", "Y", "1"].contains(&arg.as_str());
-                    let result = EVENT_DISPATCHERS
-                        .load()
-                        .as_ref()
-                        .and_then(|event_dispatchers| {
-                            event_dispatchers
-                                .bind(py)
-                                .get_item(intern!(py, "vote"))
-                                .ok()
-                        })
-                        .map_or(
-                            Err(PyEnvironmentError::new_err(
-                                "could not get access to vote dispatcher",
-                            )),
-                            |vote_dispatcher| {
-                                vote_dispatcher
-                                    .call_method1(intern!(py, "dispatch"), (player.clone(), vote))
-                            },
-                        )?;
-                    if result
-                        .extract::<&PyBool>()
-                        .is_ok_and(|value| !value.is_true())
-                    {
-                        return Ok(false.into_py(py));
-                    }
-                }
-            }
-        }
-        return Ok(updated_cmd.into_py(py));
-    }
-
-    if let Some(captures) = RE_TEAM.captures(&updated_cmd) {
-        if let Some(arg) = captures.name("arg") {
-            let current_team = player.get_team(py)?;
-            if !["f", "r", "b", "s", "a"].contains(&arg.as_str())
-                || current_team.starts_with(arg.as_str())
-            {
-                return Ok(updated_cmd.into_py(py));
-            }
-
-            let target_team = match arg.as_str() {
-                "f" => "free",
-                "r" => "red",
-                "b" => "blue",
-                "s" => "spectator",
-                _ => "any",
-            };
+                    .unwrap_or(""),
+            )
+        })
+    }) {
+        if !is_vote_active() {
+            EVENT_DISPATCHERS
+                .load()
+                .as_ref()
+                .and_then(|event_dispatchers| {
+                    event_dispatchers
+                        .bind(py)
+                        .get_item(intern!(py, "vote_started"))
+                        .and_then(|dispatcher| dispatcher.extract::<VoteStartedDispatcher>())
+                        .ok()
+                })
+                .map_or(
+                    Err(PyEnvironmentError::new_err(
+                        "could not get access to vote started dispatcher",
+                    )),
+                    |mut vote_started_dispatcher| {
+                        vote_started_dispatcher.caller(py, player.clone().into_py(py));
+                        Ok(())
+                    },
+                )?;
             let result = EVENT_DISPATCHERS
                 .load()
                 .as_ref()
                 .and_then(|event_dispatchers| {
                     event_dispatchers
                         .bind(py)
-                        .get_item(intern!(py, "team_switch_attempt"))
+                        .get_item(intern!(py, "vote_called"))
                         .ok()
                 })
                 .map_or(
                     Err(PyEnvironmentError::new_err(
-                        "could not get access to team switch attempt dispatcher",
+                        "could not get access to vote called dispatcher",
                     )),
-                    |team_switch_attempt_dispatcher| {
-                        team_switch_attempt_dispatcher.call_method1(
+                    |vote_called_dispatcher| {
+                        vote_called_dispatcher.call_method1(
                             intern!(py, "dispatch"),
-                            (player.clone(), current_team, target_team),
+                            (player.clone(), vote.as_str(), args),
                         )
                     },
                 )?;
@@ -468,58 +387,140 @@ fn try_handle_client_command(py: Python<'_>, client_id: i32, cmd: &str) -> PyRes
         return Ok(updated_cmd.into_py(py));
     }
 
-    if let Some(captures) = RE_USERINFO.captures(&updated_cmd) {
-        if let Some(vars) = captures.name("vars") {
-            let new_info = parse_variables(vars.as_str());
-            let old_info = parse_variables(&player.user_info);
-
-            let changed: Vec<&(String, String)> = new_info
-                .items
-                .iter()
-                .filter(|(key, new_value)| {
-                    let opt_old_value = old_info.get(key);
-                    opt_old_value.is_none()
-                        || opt_old_value.is_some_and(|old_value| old_value != *new_value)
+    if let Some(arg) = RE_VOTE
+        .captures(updated_cmd)
+        .and_then(|captures| captures.name("arg"))
+    {
+        if is_vote_active() && ["y", "Y", "1", "n", "N", "2"].contains(&arg.as_str()) {
+            let vote = ["y", "Y", "1"].contains(&arg.as_str());
+            let result = EVENT_DISPATCHERS
+                .load()
+                .as_ref()
+                .and_then(|event_dispatchers| {
+                    event_dispatchers
+                        .bind(py)
+                        .get_item(intern!(py, "vote"))
+                        .ok()
                 })
-                .collect();
+                .map_or(
+                    Err(PyEnvironmentError::new_err(
+                        "could not get access to vote dispatcher",
+                    )),
+                    |vote_dispatcher| {
+                        vote_dispatcher
+                            .call_method1(intern!(py, "dispatch"), (player.clone(), vote))
+                    },
+                )?;
+            if result
+                .extract::<&PyBool>()
+                .is_ok_and(|value| !value.is_true())
+            {
+                return Ok(false.into_py(py));
+            }
+        }
+        return Ok(updated_cmd.into_py(py));
+    }
 
-            if !changed.is_empty() {
-                let result = EVENT_DISPATCHERS
-                    .load()
-                    .as_ref()
-                    .and_then(|event_dispatchers| {
-                        event_dispatchers
-                            .bind(py)
-                            .get_item(intern!(py, "userinfo"))
-                            .ok()
-                    })
-                    .map_or(
-                        Err(PyEnvironmentError::new_err(
-                            "could not get access to userinfo dispatcher",
-                        )),
-                        |userinfo_dispatcher| {
-                            userinfo_dispatcher.call_method1(
-                                intern!(py, "dispatch"),
-                                (player.clone(), &changed.into_py_dict_bound(py)),
-                            )
-                        },
-                    )?;
-                if result
-                    .extract::<&PyBool>()
-                    .is_ok_and(|value| !value.is_true())
-                {
-                    return Ok(false.into_py(py));
-                }
-                if let Ok(changed_values) = result.extract::<Bound<'_, PyDict>>() {
-                    let updated_info = new_info.into_py_dict_bound(py);
-                    updated_info.update(changed_values.to_owned().as_mapping())?;
-                    let formatted_key_values = updated_info
-                        .iter()
-                        .map(|(key, value)| format!(r"\{key}\{value}"))
-                        .join("");
+    if let Some(arg) = RE_TEAM
+        .captures(updated_cmd)
+        .and_then(|captures| captures.name("arg"))
+    {
+        let current_team = player.get_team(py)?;
+        if !["f", "r", "b", "s", "a"].contains(&arg.as_str())
+            || current_team.starts_with(arg.as_str())
+        {
+            return Ok(updated_cmd.into_py(py));
+        }
 
-                    return Ok(format!(r#"userinfo "{formatted_key_values}""#).into_py(py));
-                }
+        let target_team = match arg.as_str() {
+            "f" => "free",
+            "r" => "red",
+            "b" => "blue",
+            "s" => "spectator",
+            _ => "any",
+        };
+        let result = EVENT_DISPATCHERS
+            .load()
+            .as_ref()
+            .and_then(|event_dispatchers| {
+                event_dispatchers
+                    .bind(py)
+                    .get_item(intern!(py, "team_switch_attempt"))
+                    .ok()
+            })
+            .map_or(
+                Err(PyEnvironmentError::new_err(
+                    "could not get access to team switch attempt dispatcher",
+                )),
+                |team_switch_attempt_dispatcher| {
+                    team_switch_attempt_dispatcher.call_method1(
+                        intern!(py, "dispatch"),
+                        (player.clone(), current_team, target_team),
+                    )
+                },
+            )?;
+        if result
+            .extract::<&PyBool>()
+            .is_ok_and(|value| !value.is_true())
+        {
+            return Ok(false.into_py(py));
+        }
+        return Ok(updated_cmd.into_py(py));
+    }
+
+    if let Some(vars) = RE_USERINFO
+        .captures(updated_cmd)
+        .and_then(|captures| captures.name("vars"))
+    {
+        let new_info = parse_variables(vars.as_str());
+        let old_info = parse_variables(&player.user_info);
+
+        let changed: Vec<&(String, String)> = new_info
+            .items
+            .iter()
+            .filter(|(key, new_value)| {
+                let opt_old_value = old_info.get(key);
+                opt_old_value.is_none()
+                    || opt_old_value.is_some_and(|old_value| old_value != *new_value)
+            })
+            .collect();
+
+        if !changed.is_empty() {
+            let result = EVENT_DISPATCHERS
+                .load()
+                .as_ref()
+                .and_then(|event_dispatchers| {
+                    event_dispatchers
+                        .bind(py)
+                        .get_item(intern!(py, "userinfo"))
+                        .ok()
+                })
+                .map_or(
+                    Err(PyEnvironmentError::new_err(
+                        "could not get access to userinfo dispatcher",
+                    )),
+                    |userinfo_dispatcher| {
+                        userinfo_dispatcher.call_method1(
+                            intern!(py, "dispatch"),
+                            (player.clone(), &changed.into_py_dict_bound(py)),
+                        )
+                    },
+                )?;
+            if result
+                .extract::<&PyBool>()
+                .is_ok_and(|value| !value.is_true())
+            {
+                return Ok(false.into_py(py));
+            }
+            if let Ok(changed_values) = result.extract::<Bound<'_, PyDict>>() {
+                let updated_info = new_info.into_py_dict_bound(py);
+                updated_info.update(changed_values.to_owned().as_mapping())?;
+                let formatted_key_values = updated_info
+                    .iter()
+                    .map(|(key, value)| format!(r"\{key}\{value}"))
+                    .join("");
+
+                return Ok(format!(r#"userinfo "{formatted_key_values}""#).into_py(py));
             }
         }
     }
@@ -3512,13 +3513,12 @@ static RE_VOTE_ENDED: Lazy<Regex> = Lazy::new(|| {
 });
 
 fn try_handle_server_command(py: Python<'_>, client_id: i32, cmd: &str) -> PyResult<PyObject> {
-    let Some(player) = (if (0..MAX_CLIENTS as i32).contains(&client_id) {
-        Player::py_new(client_id, None)
-            .map(|player| player.into_py(py))
-            .ok()
-    } else {
-        Some(py.None())
-    }) else {
+    let Ok(player) = (0..MAX_CLIENTS as i32)
+        .find(|&id| id == client_id)
+        .map_or(Ok(py.None()), |id| {
+            Player::py_new(id, None).map(|player| player.into_py(py))
+        })
+    else {
         return Ok(true.into_py(py));
     };
 
@@ -3546,35 +3546,33 @@ fn try_handle_server_command(py: Python<'_>, client_id: i32, cmd: &str) -> PyRes
         return Ok(false.into_py(py));
     };
 
-    let updated_cmd = match return_value.extract::<String>() {
-        Ok(extracted_string) => extracted_string,
-        _ => cmd.to_string(),
-    };
+    let updated_cmd = return_value.extract::<&str>().unwrap_or(cmd);
 
-    if let Some(captures) = RE_VOTE_ENDED.captures(&updated_cmd) {
-        let _ = EVENT_DISPATCHERS
-            .load()
-            .as_ref()
-            .and_then(|event_dispatchers| {
-                event_dispatchers
-                    .bind(py)
-                    .get_item(intern!(py, "vote_ended"))
-                    .ok()
-            })
-            .map_or(
-                Err(PyEnvironmentError::new_err(
-                    "could not get access to vote ended dispatcher",
-                )),
-                |vote_ended_dispatcher| {
-                    let vote_passed = captures
-                        .name("result")
-                        .is_some_and(|value| value.as_str() == "passed");
-                    vote_ended_dispatcher.call_method1(intern!(py, "dispatch"), (vote_passed,))
-                },
-            )?;
-    }
-
-    Ok(updated_cmd.into_py(py))
+    RE_VOTE_ENDED
+        .captures(updated_cmd)
+        .map_or(Ok(updated_cmd.into_py(py)), |captures| {
+            EVENT_DISPATCHERS
+                .load()
+                .as_ref()
+                .and_then(|event_dispatchers| {
+                    event_dispatchers
+                        .bind(py)
+                        .get_item(intern!(py, "vote_ended"))
+                        .ok()
+                })
+                .map_or(
+                    Err(PyEnvironmentError::new_err(
+                        "could not get access to vote ended dispatcher",
+                    )),
+                    |vote_ended_dispatcher| {
+                        let vote_passed = captures
+                            .name("result")
+                            .is_some_and(|value| value.as_str() == "passed");
+                        vote_ended_dispatcher.call_method1(intern!(py, "dispatch"), (vote_passed,))
+                    },
+                )?;
+            Ok(updated_cmd.into_py(py))
+        })
 }
 
 #[pyfunction]
