@@ -696,16 +696,16 @@ PlayerStatsStats = TypedDict(
     "PlayerStatsStats", {"DATA": PlayerStatsEntry, "TYPE": Literal["PLAYER_STATS"]}
 )
 StatsData = (
-    PlayerKillStats
-    | PlayerDeathStats
-    | PlayerMedalStats
-    | RoundOverStats
-    | PlayerConnectStats
-    | PlayerDisconnectStats
-    | PlayerSwitchTeamStats
-    | MatchStartedStats
-    | MatchReportStats
-    | PlayerStatsStats
+        PlayerKillStats
+        | PlayerDeathStats
+        | PlayerMedalStats
+        | RoundOverStats
+        | PlayerConnectStats
+        | PlayerDisconnectStats
+        | PlayerSwitchTeamStats
+        | MatchStartedStats
+        | MatchReportStats
+        | PlayerStatsStats
 )
 
 __all__ = [
@@ -999,7 +999,7 @@ __all__ = [
     "force_weapon_respawn_time",
     "register_handler",
     "get_targetting_entities",
-    # from _zmq.öyi
+    # from _zmq.pyi
     "StatsListener",
     # from database.pyi
     "database",
