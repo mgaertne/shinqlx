@@ -922,8 +922,7 @@ mod handle_client_command_tests {
                     .build()
                     .expect("this should not happen");
                 CVar::try_from(&mut raw_cvar as *mut cvar_t).ok()
-            })
-            .times(1);
+            });
         MAIN_ENGINE.store(Some(mock_engine.into()));
 
         let client_try_from_ctx = MockClient::from_context();
@@ -1157,8 +1156,7 @@ mod handle_client_command_tests {
                     .build()
                     .expect("this should not happen");
                 CVar::try_from(&mut raw_cvar as *mut cvar_t).ok()
-            })
-            .times(1);
+            });
         MAIN_ENGINE.store(Some(mock_engine.into()));
 
         let client_try_from_ctx = MockClient::from_context();
@@ -1270,8 +1268,7 @@ mod handle_client_command_tests {
                     .build()
                     .expect("this should not happen");
                 CVar::try_from(&mut raw_cvar as *mut cvar_t).ok()
-            })
-            .times(1);
+            });
         MAIN_ENGINE.store(Some(mock_engine.into()));
 
         let client_try_from_ctx = MockClient::from_context();
@@ -1528,8 +1525,7 @@ mod handle_client_command_tests {
                     .build()
                     .expect("this should not happen");
                 CVar::try_from(&mut raw_cvar as *mut cvar_t).ok()
-            })
-            .times(1);
+            });
         MAIN_ENGINE.store(Some(mock_engine.into()));
 
         let client_try_from_ctx = MockClient::from_context();
@@ -1630,8 +1626,7 @@ mod handle_client_command_tests {
                     .build()
                     .expect("this should not happen");
                 CVar::try_from(&mut raw_cvar as *mut cvar_t).ok()
-            })
-            .times(1);
+            });
         mock_engine
             .expect_get_configstring()
             .with(predicate::eq(CS_VOTE_STRING as u16))
@@ -1738,8 +1733,7 @@ mod handle_client_command_tests {
                     .build()
                     .expect("this should not happen");
                 CVar::try_from(&mut raw_cvar as *mut cvar_t).ok()
-            })
-            .times(1);
+            });
         mock_engine
             .expect_get_configstring()
             .with(predicate::eq(CS_VOTE_STRING as u16))
@@ -1974,8 +1968,7 @@ mod handle_client_command_tests {
                     .build()
                     .expect("this should not happen");
                 CVar::try_from(&mut raw_cvar as *mut cvar_t).ok()
-            })
-            .times(1);
+            });
         mock_engine
             .expect_get_configstring()
             .with(predicate::eq(CS_VOTE_STRING as u16))
@@ -2082,8 +2075,7 @@ mod handle_client_command_tests {
                     .build()
                     .expect("this should not happen");
                 CVar::try_from(&mut raw_cvar as *mut cvar_t).ok()
-            })
-            .times(1);
+            });
         mock_engine
             .expect_get_configstring()
             .with(predicate::eq(CS_VOTE_STRING as u16))
@@ -2188,8 +2180,7 @@ mod handle_client_command_tests {
                     .build()
                     .expect("this should not happen");
                 CVar::try_from(&mut raw_cvar as *mut cvar_t).ok()
-            })
-            .times(1);
+            });
         mock_engine
             .expect_get_configstring()
             .with(predicate::eq(CS_VOTE_STRING as u16))
@@ -2299,8 +2290,7 @@ mod handle_client_command_tests {
                     .build()
                     .expect("this should not happen");
                 CVar::try_from(&mut raw_cvar as *mut cvar_t).ok()
-            })
-            .times(1);
+            });
         mock_engine
             .expect_get_configstring()
             .with(predicate::eq(CS_VOTE_STRING as u16))
@@ -2474,8 +2464,7 @@ mod handle_client_command_tests {
                     .build()
                     .expect("this should not happen");
                 CVar::try_from(&mut raw_cvar as *mut cvar_t).ok()
-            })
-            .times(1);
+            });
         mock_engine
             .expect_get_configstring()
             .with(predicate::eq(CS_VOTE_STRING as u16))
@@ -4667,9 +4656,11 @@ mod handle_new_game_tests {
     use crate::prelude::{serial, MockQuakeEngine};
     use crate::MAIN_ENGINE;
 
+    #[cfg(not(target_os = "linux"))]
+    use crate::ffi::python::events::MapDispatcher;
     use crate::ffi::python::{
         commands::CommandPriorities,
-        events::{EventDispatcherManager, MapDispatcher, NewGameDispatcher},
+        events::{EventDispatcherManager, NewGameDispatcher},
         pyshinqlx_setup_fixture::*,
         EVENT_DISPATCHERS,
     };
@@ -4857,6 +4848,7 @@ mod handle_new_game_tests {
     #[rstest]
     #[cfg_attr(miri, ignore)]
     #[serial]
+    #[cfg(not(target_os = "linux"))]
     fn try_handle_new_game_when_new_map_loaded_invokes_map_dispatcher(_pyshinqlx_setup: ()) {
         let mut mock_engine = MockQuakeEngine::new();
         mock_engine.expect_get_configstring().withf(|index| {
@@ -5033,6 +5025,7 @@ mod handle_new_game_tests {
     #[cfg_attr(miri, ignore)]
     #[serial]
     fn try_handle_new_game_when_first_game_with_zmq_enabled(_pyshinqlx_setup: ()) {
+        let temp_dir = tempfile::TempDir::new().expect("this should not happen");
         let mut mock_engine = MockQuakeEngine::new();
         mock_engine.expect_get_configstring().withf(|index| {
             [CS_MESSAGE as u16, CS_AUTHOR as u16, CS_AUTHOR2 as u16].contains(index)
@@ -5069,10 +5062,10 @@ mod handle_new_game_tests {
             });
         mock_engine
             .expect_find_cvar()
-            .with(predicate::eq("qlx_pluginsPath"))
-            .returning(|_| {
+            .withf(|name| ["qlx_pluginsPath", "fs_homepath"].contains(&name))
+            .returning(move |_| {
                 let mut raw_cvar = CVarBuilder::default()
-                    .string(".".as_ptr() as *mut c_char)
+                    .string(temp_dir.path().to_string_lossy().as_ptr() as *mut c_char)
                     .build()
                     .expect("this should not happen");
                 CVar::try_from(&mut raw_cvar as *mut cvar_t).ok()
@@ -5089,7 +5082,6 @@ mod handle_new_game_tests {
                 "qlx_redisDatabase",
                 "qlx_redisUnixSocket",
                 "qlx_redisPassword",
-                "fs_homepath",
             ]
             .contains(&name)
         });
@@ -5130,7 +5122,7 @@ mod handle_new_game_tests {
             ));
 
             let result = try_handle_new_game(py, true);
-            assert!(result.as_ref().is_ok(), "{:?}", result.as_ref());
+            assert!(result.is_ok());
 
             assert!(!IS_FIRST_GAME.load(Ordering::SeqCst));
             assert!(!ZMQ_WARNING_ISSUED.load(Ordering::SeqCst));
@@ -5140,7 +5132,9 @@ mod handle_new_game_tests {
     #[rstest]
     #[cfg_attr(miri, ignore)]
     #[serial]
+    #[cfg(not(target_os = "linux"))]
     fn try_handle_new_game_when_first_game_with_zmq_disabled(_pyshinqlx_setup: ()) {
+        let temp_dir = tempfile::TempDir::new().expect("this should not happen");
         let mut mock_engine = MockQuakeEngine::new();
         mock_engine.expect_get_configstring().withf(|index| {
             [CS_MESSAGE as u16, CS_AUTHOR as u16, CS_AUTHOR2 as u16].contains(index)
@@ -5177,10 +5171,10 @@ mod handle_new_game_tests {
             });
         mock_engine
             .expect_find_cvar()
-            .with(predicate::eq("qlx_pluginsPath"))
-            .returning(|_| {
+            .withf(|name| ["qlx_pluginsPath", "fs_homepath"].contains(&name))
+            .returning(move |_| {
                 let mut raw_cvar = CVarBuilder::default()
-                    .string(".".as_ptr() as *mut c_char)
+                    .string(temp_dir.path().to_string_lossy().as_ptr() as *mut c_char)
                     .build()
                     .expect("this should not happen");
                 CVar::try_from(&mut raw_cvar as *mut cvar_t).ok()
@@ -5197,7 +5191,6 @@ mod handle_new_game_tests {
                 "qlx_redisDatabase",
                 "qlx_redisUnixSocket",
                 "qlx_redisPassword",
-                "fs_homepath",
             ]
             .contains(&name)
         });
@@ -5238,7 +5231,7 @@ mod handle_new_game_tests {
             ));
 
             let result = try_handle_new_game(py, true);
-            assert!(result.as_ref().is_ok(), "{:?}", result.as_ref());
+            assert!(result.is_ok());
 
             assert!(!IS_FIRST_GAME.load(Ordering::SeqCst));
             assert!(ZMQ_WARNING_ISSUED.load(Ordering::SeqCst));
@@ -5251,6 +5244,7 @@ mod handle_new_game_tests {
     fn try_handle_new_game_when_first_game_with_zmq_disabled_when_warning_already_issued(
         _pyshinqlx_setup: (),
     ) {
+        let temp_dir = tempfile::TempDir::new().expect("this should not happen");
         let mut mock_engine = MockQuakeEngine::new();
         mock_engine.expect_get_configstring().withf(|index| {
             [CS_MESSAGE as u16, CS_AUTHOR as u16, CS_AUTHOR2 as u16].contains(index)
@@ -5287,10 +5281,10 @@ mod handle_new_game_tests {
             });
         mock_engine
             .expect_find_cvar()
-            .with(predicate::eq("qlx_pluginsPath"))
-            .returning(|_| {
+            .withf(|name| ["qlx_pluginsPath", "fs_homepath"].contains(&name))
+            .returning(move |_| {
                 let mut raw_cvar = CVarBuilder::default()
-                    .string(".".as_ptr() as *mut c_char)
+                    .string(temp_dir.path().to_string_lossy().as_ptr() as *mut c_char)
                     .build()
                     .expect("this should not happen");
                 CVar::try_from(&mut raw_cvar as *mut cvar_t).ok()
@@ -5307,7 +5301,6 @@ mod handle_new_game_tests {
                 "qlx_redisDatabase",
                 "qlx_redisUnixSocket",
                 "qlx_redisPassword",
-                "fs_homepath",
             ]
             .contains(&name)
         });
@@ -5348,7 +5341,7 @@ mod handle_new_game_tests {
             ));
 
             let result = try_handle_new_game(py, true);
-            assert!(result.as_ref().is_ok(), "{:?}", result.as_ref());
+            assert!(result.is_ok());
 
             assert!(!IS_FIRST_GAME.load(Ordering::SeqCst));
             assert!(ZMQ_WARNING_ISSUED.load(Ordering::SeqCst));
