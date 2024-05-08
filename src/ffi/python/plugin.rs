@@ -1500,8 +1500,9 @@ class subplugin(Plugin):
             .expect_find_cvar()
             .with(predicate::eq("zmq_stats_enable"))
             .returning(|_| {
+                let cvar_string = CString::new("0").expect("this should not happen");
                 let mut raw_cvar = CVarBuilder::default()
-                    .string("0".as_ptr() as *mut c_char)
+                    .string(cvar_string.as_ptr() as *mut c_char)
                     .build()
                     .expect("this should not happen");
                 CVar::try_from(&mut raw_cvar as *mut cvar_t).ok()
@@ -1554,8 +1555,9 @@ class subplugin(Plugin):
             .expect_find_cvar()
             .with(predicate::eq("zmq_stats_enable"))
             .returning(|_| {
+                let cvar_string = CString::new("0").expect("this should not happen");
                 let mut raw_cvar = CVarBuilder::default()
-                    .string("0".as_ptr() as *mut c_char)
+                    .string(cvar_string.as_ptr() as *mut c_char)
                     .build()
                     .expect("this should not happen");
                 CVar::try_from(&mut raw_cvar as *mut cvar_t).ok()
@@ -1646,8 +1648,9 @@ class subplugin(Plugin):
             .expect_find_cvar()
             .with(predicate::eq("zmq_stats_enable"))
             .returning(|_| {
+                let cvar_string = CString::new("1").expect("this should not happen");
                 let mut raw_cvar = CVarBuilder::default()
-                    .string("0".as_ptr() as *mut c_char)
+                    .string(cvar_string.as_ptr() as *mut c_char)
                     .build()
                     .expect("this should not happen");
                 CVar::try_from(&mut raw_cvar as *mut cvar_t).ok()
@@ -1724,8 +1727,9 @@ class subplugin(Plugin):
             .expect_find_cvar()
             .with(predicate::eq("zmq_stats_enable"))
             .returning(|_| {
+                let cvar_string = CString::new("0").expect("this should not happen");
                 let mut raw_cvar = CVarBuilder::default()
-                    .string("0".as_ptr() as *mut c_char)
+                    .string(cvar_string.as_ptr() as *mut c_char)
                     .build()
                     .expect("this should not happen");
                 CVar::try_from(&mut raw_cvar as *mut cvar_t).ok()
@@ -1785,8 +1789,9 @@ class subplugin(Plugin):
             .expect_find_cvar()
             .with(predicate::eq("zmq_stats_enable"))
             .returning(|_| {
+                let cvar_string = CString::new("0").expect("this should not happen");
                 let mut raw_cvar = CVarBuilder::default()
-                    .string("0".as_ptr() as *mut c_char)
+                    .string(cvar_string.as_ptr() as *mut c_char)
                     .build()
                     .expect("this should not happen");
                 CVar::try_from(&mut raw_cvar as *mut cvar_t).ok()
