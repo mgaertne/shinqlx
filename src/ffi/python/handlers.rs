@@ -5075,28 +5075,6 @@ mod handle_new_game_tests {
             });
         mock_engine
             .expect_find_cvar()
-            .with(predicate::eq("mapname"))
-            .returning(|_| {
-                let cvar_string = CString::new("campgrounds").expect("this should not happen");
-                let mut raw_cvar = CVarBuilder::default()
-                    .string(cvar_string.as_ptr() as *mut c_char)
-                    .build()
-                    .expect("this should not happen");
-                CVar::try_from(&mut raw_cvar as *mut cvar_t).ok()
-            });
-        mock_engine
-            .expect_find_cvar()
-            .with(predicate::eq("g_factory"))
-            .returning(|_| {
-                let cvar_string = CString::new("ffa").expect("this should not happen");
-                let mut raw_cvar = CVarBuilder::default()
-                    .string(cvar_string.as_ptr() as *mut c_char)
-                    .build()
-                    .expect("this should not happen");
-                CVar::try_from(&mut raw_cvar as *mut cvar_t).ok()
-            });
-        mock_engine
-            .expect_find_cvar()
             .withf(|name| ["qlx_pluginsPath", "fs_homepath"].contains(&name))
             .returning(move |_| {
                 let mut raw_cvar = CVarBuilder::default()
@@ -5185,28 +5163,6 @@ mod handle_new_game_tests {
             });
         mock_engine
             .expect_find_cvar()
-            .with(predicate::eq("mapname"))
-            .returning(|_| {
-                let cvar_string = CString::new("campgrounds").expect("this should not happen");
-                let mut raw_cvar = CVarBuilder::default()
-                    .string(cvar_string.as_ptr() as *mut c_char)
-                    .build()
-                    .expect("this should not happen");
-                CVar::try_from(&mut raw_cvar as *mut cvar_t).ok()
-            });
-        mock_engine
-            .expect_find_cvar()
-            .with(predicate::eq("g_factory"))
-            .returning(|_| {
-                let cvar_string = CString::new("ffa").expect("this should not happen");
-                let mut raw_cvar = CVarBuilder::default()
-                    .string(cvar_string.as_ptr() as *mut c_char)
-                    .build()
-                    .expect("this should not happen");
-                CVar::try_from(&mut raw_cvar as *mut cvar_t).ok()
-            });
-        mock_engine
-            .expect_find_cvar()
             .withf(|name| ["qlx_pluginsPath", "fs_homepath"].contains(&name))
             .returning(move |_| {
                 let mut raw_cvar = CVarBuilder::default()
@@ -5288,28 +5244,6 @@ mod handle_new_game_tests {
             .with(predicate::eq("zmq_stats_enable"))
             .returning(|_| {
                 let cvar_string = CString::new("0").expect("this should not happen");
-                let mut raw_cvar = CVarBuilder::default()
-                    .string(cvar_string.as_ptr() as *mut c_char)
-                    .build()
-                    .expect("this should not happen");
-                CVar::try_from(&mut raw_cvar as *mut cvar_t).ok()
-            });
-        mock_engine
-            .expect_find_cvar()
-            .with(predicate::eq("mapname"))
-            .returning(|_| {
-                let cvar_string = CString::new("campgrounds").expect("this should not happen");
-                let mut raw_cvar = CVarBuilder::default()
-                    .string(cvar_string.as_ptr() as *mut c_char)
-                    .build()
-                    .expect("this should not happen");
-                CVar::try_from(&mut raw_cvar as *mut cvar_t).ok()
-            });
-        mock_engine
-            .expect_find_cvar()
-            .with(predicate::eq("g_factory"))
-            .returning(|_| {
-                let cvar_string = CString::new("ffa").expect("this should not happen");
                 let mut raw_cvar = CVarBuilder::default()
                     .string(cvar_string.as_ptr() as *mut c_char)
                     .build()
@@ -5424,17 +5358,6 @@ mod handle_new_game_tests {
         mock_engine.expect_get_configstring().withf(|index| {
             [CS_MESSAGE as u16, CS_AUTHOR as u16, CS_AUTHOR2 as u16].contains(index)
         });
-        mock_engine
-            .expect_find_cvar()
-            .with(predicate::eq("zmq_stats_enable"))
-            .returning(|_| {
-                let cvar_string = CString::new("1").expect("this should not happen");
-                let mut raw_cvar = CVarBuilder::default()
-                    .string(cvar_string.as_ptr() as *mut c_char)
-                    .build()
-                    .expect("this should not happen");
-                CVar::try_from(&mut raw_cvar as *mut cvar_t).ok()
-            });
         MAIN_ENGINE.store(Some(mock_engine.into()));
 
         let set_configstring_ctx = shinqlx_set_configstring_context();
