@@ -4607,7 +4607,7 @@ fn try_handle_new_game(py: Python<'_>, is_restart: bool) -> PyResult<()> {
             pyshinqlx_get_logger(py, None).and_then(|logger| {
                 let logging_module = py.import_bound(intern!(py, "logging"))?;
                 let warning_level = logging_module.getattr(intern!(py, "WARNING"))?;
-                let log_record = logger.call_method(
+                logger.call_method(
                     intern!(py, "makeRecord"),
                     (
                         intern!(py, "shinqlx"),
@@ -4621,9 +4621,7 @@ fn try_handle_new_game(py: Python<'_>, is_restart: bool) -> PyResult<()> {
                     Some(
                         &[(intern!(py, "func"), intern!(py, "handle_new_game"))].into_py_dict_bound(py),
                     ),
-                )?;
-                logger.call_method1(intern!(py, "handle"), (log_record,))?;
-                Ok(())
+                ).and_then(|log_record| logger.call_method1(intern!(py, "handle"), (log_record,)))
             })?;
 
             ZMQ_WARNING_ISSUED.store(true, Ordering::SeqCst);
@@ -5494,27 +5492,31 @@ fn try_handle_set_configstring(py: Python<'_>, index: u32, value: &str) -> PyRes
             ]
             .contains(&(old_state, new_state))
             {
-                let logger = pyshinqlx_get_logger(py, None)?;
-                let warning = format!("UNKNOWN GAME STATES: {old_state} - {new_state}");
-                let logging_module = py.import_bound(intern!(py, "logging"))?;
-                let warning_level = logging_module.getattr(intern!(py, "WARNING"))?;
-                let log_record = logger.call_method(
-                    intern!(py, "makeRecord"),
-                    (
-                        intern!(py, "shinqlx"),
-                        warning_level,
-                        intern!(py, ""),
-                        -1,
-                        warning,
-                        py.None(),
-                        py.None(),
-                    ),
-                    Some(
-                        &[(intern!(py, "func"), intern!(py, "handle_set_configstring"))]
-                            .into_py_dict_bound(py),
-                    ),
-                )?;
-                logger.call_method1(intern!(py, "handle"), (log_record,))?;
+                pyshinqlx_get_logger(py, None).and_then(|logger| {
+                    let warning = format!("UNKNOWN GAME STATES: {old_state} - {new_state}");
+                    let logging_module = py.import_bound(intern!(py, "logging"))?;
+                    let warning_level = logging_module.getattr(intern!(py, "WARNING"))?;
+                    logger
+                        .call_method(
+                            intern!(py, "makeRecord"),
+                            (
+                                intern!(py, "shinqlx"),
+                                warning_level,
+                                intern!(py, ""),
+                                -1,
+                                warning,
+                                py.None(),
+                                py.None(),
+                            ),
+                            Some(
+                                &[(intern!(py, "func"), intern!(py, "handle_set_configstring"))]
+                                    .into_py_dict_bound(py),
+                            ),
+                        )
+                        .and_then(|log_record| {
+                            logger.call_method1(intern!(py, "handle"), (log_record,))
+                        })
+                })?;
             }
             Ok(configstring_value.into_py(py))
         }
@@ -5621,6 +5623,7 @@ mod handle_set_configstring_tests {
         exceptions::{PyAssertionError, PyEnvironmentError},
         types::PyBool,
     };
+    use rstest::rstest;
 
     #[test]
     #[cfg_attr(miri, ignore)]
@@ -6167,6 +6170,7 @@ mod handle_set_configstring_tests {
                 )
                 .expect("could not add hook to game_countdown dispatcher");
 
+            AD_ROUND_NUMBER.store(42, Ordering::SeqCst);
             let result = try_handle_set_configstring(py, CS_SERVERINFO, r"\g_gameState\COUNT_DOWN");
             assert!(result.is_ok_and(|value| value
                 .extract::<String>(py)
@@ -6175,6 +6179,121 @@ mod handle_set_configstring_tests {
                 .call_method1("assert_called_with", ())
                 .is_ok());
             assert_eq!(AD_ROUND_NUMBER.load(Ordering::SeqCst), 1);
+        });
+    }
+
+    #[rstest]
+    #[case("PRE_GAME", "IN_PROGRESS")]
+    #[case("COUNT_DOWN", "IN_PROGRESS")]
+    #[case("IN_PROGRESS", "PRE_GAME")]
+    #[case("COUNT_DOWN", "PRE_GAME")]
+    #[cfg_attr(miri, ignore)]
+    #[serial]
+    fn try_set_configstring_for_valid_changes(#[case] old_state: &str, #[case] new_state: &str) {
+        let old_configstring = format!(r"\g_gameState\{old_state}");
+        let new_configstring = format!(r"\g_gameState\{new_state}");
+        let mut mock_engine = MockQuakeEngine::new();
+        mock_engine
+            .expect_get_configstring()
+            .with(predicate::eq(CS_SERVERINFO as u16))
+            .returning(move |_| old_configstring.clone());
+        mock_engine
+            .expect_find_cvar()
+            .with(predicate::eq("zmq_stats_enable"))
+            .returning(|_| {
+                let cvar_string = CString::new("1").expect("this should not happen");
+                let mut raw_cvar = CVarBuilder::default()
+                    .string(cvar_string.as_ptr() as *mut c_char)
+                    .build()
+                    .expect("this should not happen");
+                CVar::try_from(&mut raw_cvar as *mut cvar_t).ok()
+            });
+        MAIN_ENGINE.store(Some(mock_engine.into()));
+
+        Python::with_gil(|py| {
+            let event_dispatcher = EventDispatcherManager::default();
+            event_dispatcher
+                .add_dispatcher(py, py.get_type_bound::<SetConfigstringDispatcher>())
+                .expect("could not add set_configstring dispatcher");
+            EVENT_DISPATCHERS.store(Some(
+                Py::new(py, event_dispatcher)
+                    .expect("could not create event dispatcher manager in python")
+                    .into(),
+            ));
+
+            let result = try_handle_set_configstring(py, CS_SERVERINFO, &new_configstring);
+            assert!(result.is_ok_and(|value| value
+                .extract::<String>(py)
+                .is_ok_and(|str_value| str_value == new_configstring)));
+        });
+    }
+
+    #[test]
+    #[cfg_attr(miri, ignore)]
+    #[serial]
+    fn try_set_configstring_for_game_countdown_change_with_missing_countdown_dispatcher() {
+        let mut mock_engine = MockQuakeEngine::new();
+        mock_engine
+            .expect_get_configstring()
+            .with(predicate::eq(CS_SERVERINFO as u16))
+            .returning(|_| r"\g_gameState\PRE_GAME".into());
+        MAIN_ENGINE.store(Some(mock_engine.into()));
+
+        Python::with_gil(|py| {
+            let event_dispatcher = EventDispatcherManager::default();
+            event_dispatcher
+                .add_dispatcher(py, py.get_type_bound::<SetConfigstringDispatcher>())
+                .expect("could not add set_configstring dispatcher");
+            EVENT_DISPATCHERS.store(Some(
+                Py::new(py, event_dispatcher)
+                    .expect("could not create event dispatcher manager in python")
+                    .into(),
+            ));
+
+            AD_ROUND_NUMBER.store(42, Ordering::SeqCst);
+            let result = try_handle_set_configstring(py, CS_SERVERINFO, r"\g_gameState\COUNT_DOWN");
+            assert!(result.is_err_and(|err| err.is_instance_of::<PyEnvironmentError>(py)));
+            assert_eq!(AD_ROUND_NUMBER.load(Ordering::SeqCst), 1);
+        });
+    }
+
+    #[test]
+    #[cfg_attr(miri, ignore)]
+    #[serial]
+    fn try_set_configstring_for_invalid_state_change() {
+        let mut mock_engine = MockQuakeEngine::new();
+        mock_engine
+            .expect_get_configstring()
+            .with(predicate::eq(CS_SERVERINFO as u16))
+            .returning(|_| r"\g_gameState\IN_PROGRESS".into());
+        mock_engine
+            .expect_find_cvar()
+            .with(predicate::eq("zmq_stats_enable"))
+            .returning(|_| {
+                let cvar_string = CString::new("1").expect("this should not happen");
+                let mut raw_cvar = CVarBuilder::default()
+                    .string(cvar_string.as_ptr() as *mut c_char)
+                    .build()
+                    .expect("this should not happen");
+                CVar::try_from(&mut raw_cvar as *mut cvar_t).ok()
+            });
+        MAIN_ENGINE.store(Some(mock_engine.into()));
+
+        Python::with_gil(|py| {
+            let event_dispatcher = EventDispatcherManager::default();
+            event_dispatcher
+                .add_dispatcher(py, py.get_type_bound::<SetConfigstringDispatcher>())
+                .expect("could not add set_configstring dispatcher");
+            EVENT_DISPATCHERS.store(Some(
+                Py::new(py, event_dispatcher)
+                    .expect("could not create event dispatcher manager in python")
+                    .into(),
+            ));
+
+            let result = try_handle_set_configstring(py, CS_SERVERINFO, r"\g_gameState\COUNT_DOWN");
+            assert!(result.is_ok_and(|value| value
+                .extract::<String>(py)
+                .is_ok_and(|str_value| str_value == r"\g_gameState\COUNT_DOWN")));
         });
     }
 }
