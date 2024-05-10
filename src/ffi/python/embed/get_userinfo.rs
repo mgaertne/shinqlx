@@ -30,11 +30,12 @@ mod get_userinfo_tests {
     use core::sync::atomic::Ordering;
     use pretty_assertions::assert_eq;
     use pyo3::exceptions::{PyEnvironmentError, PyValueError};
+    use rstest::*;
 
-    #[test]
+    #[rstest]
     #[cfg_attr(miri, ignore)]
     #[serial]
-    fn get_userinfo_when_main_engine_not_initialized() {
+    fn get_userinfo_when_main_engine_not_initialized(_pyshinqlx_setup: ()) {
         MAIN_ENGINE.store(None);
         Python::with_gil(|py| {
             let result = pyshinqlx_get_userinfo(py, 0);
@@ -42,10 +43,10 @@ mod get_userinfo_tests {
         });
     }
 
-    #[test]
+    #[rstest]
     #[cfg_attr(miri, ignore)]
     #[serial]
-    fn get_userinfo_for_client_id_below_zero() {
+    fn get_userinfo_for_client_id_below_zero(_pyshinqlx_setup: ()) {
         let mut mock_engine = MockQuakeEngine::new();
         mock_engine.expect_get_max_clients().returning(|| 16);
         MAIN_ENGINE.store(Some(mock_engine.into()));
@@ -55,10 +56,10 @@ mod get_userinfo_tests {
         });
     }
 
-    #[test]
+    #[rstest]
     #[cfg_attr(miri, ignore)]
     #[serial]
-    fn get_userinfo_for_client_id_above_max_clients() {
+    fn get_userinfo_for_client_id_above_max_clients(_pyshinqlx_setup: ()) {
         let mut mock_engine = MockQuakeEngine::new();
         mock_engine.expect_get_max_clients().returning(|| 16);
         MAIN_ENGINE.store(Some(mock_engine.into()));
@@ -68,10 +69,10 @@ mod get_userinfo_tests {
         });
     }
 
-    #[test]
+    #[rstest]
     #[cfg_attr(miri, ignore)]
     #[serial]
-    fn get_userinfo_for_existing_client() {
+    fn get_userinfo_for_existing_client(_pyshinqlx_setup: ()) {
         let mut mock_engine = MockQuakeEngine::new();
         mock_engine.expect_get_max_clients().returning(|| 16);
         MAIN_ENGINE.store(Some(mock_engine.into()));
@@ -95,10 +96,10 @@ mod get_userinfo_tests {
         );
     }
 
-    #[test]
+    #[rstest]
     #[cfg_attr(miri, ignore)]
     #[serial]
-    fn get_userinfo_for_non_allowed_free_client() {
+    fn get_userinfo_for_non_allowed_free_client(_pyshinqlx_setup: ()) {
         let mut mock_engine = MockQuakeEngine::new();
         mock_engine.expect_get_max_clients().returning(|| 16);
         MAIN_ENGINE.store(Some(mock_engine.into()));
@@ -120,10 +121,10 @@ mod get_userinfo_tests {
         assert_eq!(userinfo.expect("result was not OK"), None);
     }
 
-    #[test]
+    #[rstest]
     #[cfg_attr(miri, ignore)]
     #[serial]
-    fn get_userinfo_for_allowed_free_client() {
+    fn get_userinfo_for_allowed_free_client(_pyshinqlx_setup: ()) {
         let mut mock_engine = MockQuakeEngine::new();
         mock_engine.expect_get_max_clients().returning(|| 16);
         MAIN_ENGINE.store(Some(mock_engine.into()));

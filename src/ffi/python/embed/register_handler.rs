@@ -33,11 +33,12 @@ mod register_handler_tests {
     use crate::prelude::*;
 
     use pyo3::exceptions::{PyTypeError, PyValueError};
+    use rstest::*;
 
-    #[test]
+    #[rstest]
     #[cfg_attr(miri, ignore)]
     #[serial]
-    fn register_custom_command_handler_setting_handler_to_none() {
+    fn register_custom_command_handler_setting_handler_to_none(_pyshinqlx_setup: ()) {
         Python::with_gil(|py| {
             let pymodule = PyModule::from_code_bound(
                 py,
@@ -61,10 +62,10 @@ def handler():
         });
     }
 
-    #[test]
+    #[rstest]
     #[cfg_attr(miri, ignore)]
     #[serial]
-    fn register_custom_command_handler_setting_handler_to_some_handler() {
+    fn register_custom_command_handler_setting_handler_to_some_handler(_pyshinqlx_setup: ()) {
         Python::with_gil(|py| {
             let pymodule = PyModule::from_code_bound(
                 py,
@@ -89,10 +90,10 @@ def handler():
         });
     }
 
-    #[test]
+    #[rstest]
     #[cfg_attr(miri, ignore)]
     #[serial]
-    fn register_handler_for_some_unknown_event() {
+    fn register_handler_for_some_unknown_event(_pyshinqlx_setup: ()) {
         Python::with_gil(|py| {
             let pymodule = PyModule::from_code_bound(
                 py,
@@ -111,10 +112,10 @@ def handler():
         });
     }
 
-    #[test]
+    #[rstest]
     #[cfg_attr(miri, ignore)]
     #[serial]
-    fn register_handler_for_uncallable_handler() {
+    fn register_handler_for_uncallable_handler(_pyshinqlx_setup: ()) {
         Python::with_gil(|py| {
             let pymodule = PyModule::from_code_bound(
                 py,

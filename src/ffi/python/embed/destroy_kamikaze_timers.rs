@@ -35,11 +35,12 @@ mod destroy_kamikaze_timers_tests {
 
     use mockall::predicate;
     use pretty_assertions::assert_eq;
+    use rstest::*;
 
-    #[test]
+    #[rstest]
     #[cfg_attr(miri, ignore)]
     #[serial]
-    fn destroy_kamikaze_timers_for_not_in_use_game_entity() {
+    fn destroy_kamikaze_timers_for_not_in_use_game_entity(_pyshinqlx_setup: ()) {
         let game_entity_from_ctx = MockGameEntity::from_context();
         game_entity_from_ctx
             .expect()
@@ -74,10 +75,10 @@ mod destroy_kamikaze_timers_tests {
         assert_eq!(result.expect("result was not OK"), true);
     }
 
-    #[test]
+    #[rstest]
     #[cfg_attr(miri, ignore)]
     #[serial]
-    fn destroy_kamikaze_timers_for_in_use_non_kamikaze_timer() {
+    fn destroy_kamikaze_timers_for_in_use_non_kamikaze_timer(_pyshinqlx_setup: ()) {
         let game_entity_from_ctx = MockGameEntity::from_context();
         game_entity_from_ctx
             .expect()
@@ -112,10 +113,10 @@ mod destroy_kamikaze_timers_tests {
         assert_eq!(result.expect("result was not OK"), true);
     }
 
-    #[test]
+    #[rstest]
     #[cfg_attr(miri, ignore)]
     #[serial]
-    fn destroy_kamikaze_timers_for_in_use_kamikaze_timer_with_health() {
+    fn destroy_kamikaze_timers_for_in_use_kamikaze_timer_with_health(_pyshinqlx_setup: ()) {
         let game_entity_from_ctx = MockGameEntity::from_context();
         game_entity_from_ctx
             .expect()
@@ -150,10 +151,12 @@ mod destroy_kamikaze_timers_tests {
         assert_eq!(result.expect("result was not OK"), true);
     }
 
-    #[test]
+    #[rstest]
     #[cfg_attr(miri, ignore)]
     #[serial]
-    fn destroy_kamikaze_timers_for_in_use_kamikaze_timer_with_no_health_but_no_game_client() {
+    fn destroy_kamikaze_timers_for_in_use_kamikaze_timer_with_no_health_but_no_game_client(
+        _pyshinqlx_setup: (),
+    ) {
         let game_entity_from_ctx = MockGameEntity::from_context();
         game_entity_from_ctx
             .expect()
@@ -190,10 +193,12 @@ mod destroy_kamikaze_timers_tests {
         assert_eq!(result.expect("result was not OK"), true);
     }
 
-    #[test]
+    #[rstest]
     #[cfg_attr(miri, ignore)]
     #[serial]
-    fn destroy_kamikaze_timers_for_in_use_kamikaze_timer_with_no_health_but_game_client() {
+    fn destroy_kamikaze_timers_for_in_use_kamikaze_timer_with_no_health_but_game_client(
+        _pyshinqlx_setup: (),
+    ) {
         let game_entity_from_ctx = MockGameEntity::from_context();
         game_entity_from_ctx.expect().returning(|_| {
             let mut mock_game_entity = MockGameEntity::new();

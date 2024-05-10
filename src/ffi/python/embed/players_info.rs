@@ -43,11 +43,12 @@ mod get_players_info_tests {
     use mockall::predicate;
     use pretty_assertions::assert_eq;
     use pyo3::exceptions::PyEnvironmentError;
+    use rstest::*;
 
-    #[test]
+    #[rstest]
     #[cfg_attr(miri, ignore)]
     #[serial]
-    fn get_players_info_when_main_engine_not_initialized() {
+    fn get_players_info_when_main_engine_not_initialized(_pyshinqlx_setup: ()) {
         MAIN_ENGINE.store(None);
         Python::with_gil(|py| {
             let result = pyshinqlx_players_info(py);
@@ -55,10 +56,10 @@ mod get_players_info_tests {
         });
     }
 
-    #[test]
+    #[rstest]
     #[cfg_attr(miri, ignore)]
     #[serial]
-    fn get_players_info_for_existing_clients() {
+    fn get_players_info_for_existing_clients(_pyshinqlx_setup: ()) {
         let mut mock_engine = MockQuakeEngine::new();
         mock_engine.expect_get_max_clients().returning(|| 3);
         MAIN_ENGINE.store(Some(mock_engine.into()));

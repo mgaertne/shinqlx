@@ -37,21 +37,22 @@ mod set_configstring_tests {
 
     use mockall::predicate;
     use pyo3::exceptions::PyValueError;
+    use rstest::*;
 
-    #[test]
+    #[rstest]
     #[cfg_attr(miri, ignore)]
     #[serial]
-    fn set_configstring_with_index_out_of_bounds() {
+    fn set_configstring_with_index_out_of_bounds(_pyshinqlx_setup: ()) {
         Python::with_gil(|py| {
             let result = pyshinqlx_set_configstring(py, 2048, "asdf");
             assert!(result.is_err_and(|err| err.is_instance_of::<PyValueError>(py)));
         });
     }
 
-    #[test]
+    #[rstest]
     #[cfg_attr(miri, ignore)]
     #[serial]
-    fn set_configstring_with_proper_index() {
+    fn set_configstring_with_proper_index(_pyshinqlx_setup: ()) {
         let set_configstring_ctx = shinqlx_set_configstring_context();
         set_configstring_ctx
             .expect()

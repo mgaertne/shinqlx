@@ -642,10 +642,10 @@ mod pyshinqlx_game_tests {
     use pyo3::exceptions::{PyEnvironmentError, PyKeyError, PyValueError};
     use rstest::rstest;
 
-    #[test]
+    #[rstest]
     #[cfg_attr(miri, ignore)]
     #[serial]
-    fn pyconstructor_when_no_main_engine_loaded() {
+    fn pyconstructor_when_no_main_engine_loaded(_pyshinqlx_setup: ()) {
         MAIN_ENGINE.store(None);
 
         Python::with_gil(|py| {
@@ -654,10 +654,10 @@ mod pyshinqlx_game_tests {
         });
     }
 
-    #[test]
+    #[rstest]
     #[cfg_attr(miri, ignore)]
     #[serial]
-    fn pyconstructor_with_empty_configstring() {
+    fn pyconstructor_with_empty_configstring(_pyshinqlx_setup: ()) {
         let mut mock_engine = MockQuakeEngine::new();
         mock_engine
             .expect_get_configstring()
@@ -671,10 +671,10 @@ mod pyshinqlx_game_tests {
         });
     }
 
-    #[test]
+    #[rstest]
     #[cfg_attr(miri, ignore)]
     #[serial]
-    fn pyconstructor_with_nonempty_configstring() {
+    fn pyconstructor_with_nonempty_configstring(_pyshinqlx_setup: ()) {
         let mut mock_engine = MockQuakeEngine::new();
         mock_engine
             .expect_get_configstring()
@@ -692,10 +692,10 @@ mod pyshinqlx_game_tests {
         );
     }
 
-    #[test]
+    #[rstest]
     #[cfg_attr(miri, ignore)]
     #[serial]
-    fn repr_when_no_main_engine_loaded() {
+    fn repr_when_no_main_engine_loaded(_pyshinqlx_setup: ()) {
         MAIN_ENGINE.store(None);
 
         let result = Python::with_gil(|py| {
@@ -712,10 +712,10 @@ mod pyshinqlx_game_tests {
         assert_eq!(result, "Game(N/A@N/A)");
     }
 
-    #[test]
+    #[rstest]
     #[cfg_attr(miri, ignore)]
     #[serial]
-    fn repr_with_empty_configstring() {
+    fn repr_with_empty_configstring(_pyshinqlx_setup: ()) {
         let mut mock_engine = MockQuakeEngine::new();
         mock_engine
             .expect_get_configstring()
@@ -737,10 +737,10 @@ mod pyshinqlx_game_tests {
         assert_eq!(result, "Game(N/A@N/A)");
     }
 
-    #[test]
+    #[rstest]
     #[cfg_attr(miri, ignore)]
     #[serial]
-    fn repr_with_empty_map_configstring() {
+    fn repr_with_empty_map_configstring(_pyshinqlx_setup: ()) {
         let mut mock_engine = MockQuakeEngine::new();
         mock_engine
             .expect_get_configstring()
@@ -762,10 +762,10 @@ mod pyshinqlx_game_tests {
         assert_eq!(result, "Game(N/A@N/A)");
     }
 
-    #[test]
+    #[rstest]
     #[cfg_attr(miri, ignore)]
     #[serial]
-    fn repr_with_empty_gametype_configstring() {
+    fn repr_with_empty_gametype_configstring(_pyshinqlx_setup: ()) {
         let mut mock_engine = MockQuakeEngine::new();
         mock_engine
             .expect_get_configstring()
@@ -787,10 +787,10 @@ mod pyshinqlx_game_tests {
         assert_eq!(result, "Game(N/A@N/A)");
     }
 
-    #[test]
+    #[rstest]
     #[cfg_attr(miri, ignore)]
     #[serial]
-    fn repr_with_nonempty_configstring() {
+    fn repr_with_nonempty_configstring(_pyshinqlx_setup: ()) {
         let mut mock_engine = MockQuakeEngine::new();
         mock_engine
             .expect_get_configstring()
@@ -812,10 +812,10 @@ mod pyshinqlx_game_tests {
         assert_eq!(result, "Game(Clan Arena@thunderstruck)");
     }
 
-    #[test]
+    #[rstest]
     #[cfg_attr(miri, ignore)]
     #[serial]
-    fn str_when_no_main_engine_loaded() {
+    fn str_when_no_main_engine_loaded(_pyshinqlx_setup: ()) {
         MAIN_ENGINE.store(None);
 
         let result = Python::with_gil(|py| {
@@ -828,10 +828,10 @@ mod pyshinqlx_game_tests {
         assert_eq!(result, "Invalid game");
     }
 
-    #[test]
+    #[rstest]
     #[cfg_attr(miri, ignore)]
     #[serial]
-    fn str_with_empty_configstring() {
+    fn str_with_empty_configstring(_pyshinqlx_setup: ()) {
         let mut mock_engine = MockQuakeEngine::new();
         mock_engine
             .expect_get_configstring()
@@ -849,10 +849,10 @@ mod pyshinqlx_game_tests {
         assert_eq!(result, "Invalid game");
     }
 
-    #[test]
+    #[rstest]
     #[cfg_attr(miri, ignore)]
     #[serial]
-    fn str_with_empty_map_configstring() {
+    fn str_with_empty_map_configstring(_pyshinqlx_setup: ()) {
         let mut mock_engine = MockQuakeEngine::new();
         mock_engine
             .expect_get_configstring()
@@ -870,10 +870,10 @@ mod pyshinqlx_game_tests {
         assert_eq!(result, "Invalid game");
     }
 
-    #[test]
+    #[rstest]
     #[cfg_attr(miri, ignore)]
     #[serial]
-    fn str_with_empty_gametype_configstring() {
+    fn str_with_empty_gametype_configstring(_pyshinqlx_setup: ()) {
         let mut mock_engine = MockQuakeEngine::new();
         mock_engine
             .expect_get_configstring()
@@ -891,10 +891,10 @@ mod pyshinqlx_game_tests {
         assert_eq!(result, "Invalid game");
     }
 
-    #[test]
+    #[rstest]
     #[cfg_attr(miri, ignore)]
     #[serial]
-    fn str_with_nonempty_configstring() {
+    fn str_with_nonempty_configstring(_pyshinqlx_setup: ()) {
         let mut mock_engine = MockQuakeEngine::new();
         mock_engine
             .expect_get_configstring()
@@ -912,10 +912,10 @@ mod pyshinqlx_game_tests {
         assert_eq!(result, "Clan Arena on thunderstruck");
     }
 
-    #[test]
+    #[rstest]
     #[cfg_attr(miri, ignore)]
     #[serial]
-    fn contains_with_no_main_engine() {
+    fn contains_with_no_main_engine(_pyshinqlx_setup: ()) {
         MAIN_ENGINE.store(None);
 
         Python::with_gil(|py| {
@@ -929,10 +929,10 @@ mod pyshinqlx_game_tests {
         });
     }
 
-    #[test]
+    #[rstest]
     #[cfg_attr(miri, ignore)]
     #[serial]
-    fn contains_when_configstring_variables_are_unparseable() {
+    fn contains_when_configstring_variables_are_unparseable(_pyshinqlx_setup: ()) {
         let mut mock_engine = MockQuakeEngine::new();
         mock_engine
             .expect_get_configstring()
@@ -951,10 +951,10 @@ mod pyshinqlx_game_tests {
         });
     }
 
-    #[test]
+    #[rstest]
     #[cfg_attr(miri, ignore)]
     #[serial]
-    fn contains_when_value_is_in_configstring_variables() {
+    fn contains_when_value_is_in_configstring_variables(_pyshinqlx_setup: ()) {
         let mut mock_engine = MockQuakeEngine::new();
         mock_engine
             .expect_get_configstring()
@@ -973,10 +973,10 @@ mod pyshinqlx_game_tests {
         assert_eq!(result.expect("result was not OK"), true);
     }
 
-    #[test]
+    #[rstest]
     #[cfg_attr(miri, ignore)]
     #[serial]
-    fn contains_when_value_is_not_in_configstring_variables() {
+    fn contains_when_value_is_not_in_configstring_variables(_pyshinqlx_setup: ()) {
         let mut mock_engine = MockQuakeEngine::new();
         mock_engine
             .expect_get_configstring()
@@ -995,10 +995,10 @@ mod pyshinqlx_game_tests {
         assert_eq!(result.expect("result was not OK"), false);
     }
 
-    #[test]
+    #[rstest]
     #[cfg_attr(miri, ignore)]
     #[serial]
-    fn contains_when_configstring_parses_empty() {
+    fn contains_when_configstring_parses_empty(_pyshinqlx_setup: ()) {
         let mut mock_engine = MockQuakeEngine::new();
         mock_engine
             .expect_get_configstring()
@@ -1017,10 +1017,10 @@ mod pyshinqlx_game_tests {
         assert_eq!(result.expect("result was not OK"), false);
     }
 
-    #[test]
+    #[rstest]
     #[cfg_attr(miri, ignore)]
     #[serial]
-    fn contains_when_configstring_parses_to_none() {
+    fn contains_when_configstring_parses_to_none(_pyshinqlx_setup: ()) {
         let mut mock_engine = MockQuakeEngine::new();
         mock_engine
             .expect_get_configstring()
@@ -1039,10 +1039,10 @@ mod pyshinqlx_game_tests {
         assert_eq!(result.expect("result was not OK"), false);
     }
 
-    #[test]
+    #[rstest]
     #[cfg_attr(miri, ignore)]
     #[serial]
-    fn getitem_with_no_main_engine() {
+    fn getitem_with_no_main_engine(_pyshinqlx_setup: ()) {
         MAIN_ENGINE.store(None);
 
         Python::with_gil(|py| {
@@ -1056,10 +1056,10 @@ mod pyshinqlx_game_tests {
         });
     }
 
-    #[test]
+    #[rstest]
     #[cfg_attr(miri, ignore)]
     #[serial]
-    fn getitem_when_configstring_variables_are_unparseable() {
+    fn getitem_when_configstring_variables_are_unparseable(_pyshinqlx_setup: ()) {
         let mut mock_engine = MockQuakeEngine::new();
         mock_engine
             .expect_get_configstring()
@@ -1078,10 +1078,10 @@ mod pyshinqlx_game_tests {
         });
     }
 
-    #[test]
+    #[rstest]
     #[cfg_attr(miri, ignore)]
     #[serial]
-    fn getitem_when_value_is_in_configstring_variables() {
+    fn getitem_when_value_is_in_configstring_variables(_pyshinqlx_setup: ()) {
         let mut mock_engine = MockQuakeEngine::new();
         mock_engine
             .expect_get_configstring()
@@ -1100,10 +1100,10 @@ mod pyshinqlx_game_tests {
         assert_eq!(result.expect("result was not OK"), "12");
     }
 
-    #[test]
+    #[rstest]
     #[cfg_attr(miri, ignore)]
     #[serial]
-    fn getitem_when_value_is_not_in_configstring_variables() {
+    fn getitem_when_value_is_not_in_configstring_variables(_pyshinqlx_setup: ()) {
         let mut mock_engine = MockQuakeEngine::new();
         mock_engine
             .expect_get_configstring()
@@ -1122,10 +1122,10 @@ mod pyshinqlx_game_tests {
         });
     }
 
-    #[test]
+    #[rstest]
     #[cfg_attr(miri, ignore)]
     #[serial]
-    fn getitem_when_configstring_parses_empty() {
+    fn getitem_when_configstring_parses_empty(_pyshinqlx_setup: ()) {
         let mut mock_engine = MockQuakeEngine::new();
         mock_engine
             .expect_get_configstring()
@@ -1144,10 +1144,10 @@ mod pyshinqlx_game_tests {
         });
     }
 
-    #[test]
+    #[rstest]
     #[cfg_attr(miri, ignore)]
     #[serial]
-    fn getitems_when_configstring_parses_to_none() {
+    fn getitems_when_configstring_parses_to_none(_pyshinqlx_setup: ()) {
         let mut mock_engine = MockQuakeEngine::new();
         mock_engine
             .expect_get_configstring()
@@ -1166,10 +1166,10 @@ mod pyshinqlx_game_tests {
         });
     }
 
-    #[test]
+    #[rstest]
     #[cfg_attr(miri, ignore)]
     #[serial]
-    fn cvars_with_no_main_engine() {
+    fn cvars_with_no_main_engine(_pyshinqlx_setup: ()) {
         MAIN_ENGINE.store(None);
 
         Python::with_gil(|py| {
@@ -1183,10 +1183,10 @@ mod pyshinqlx_game_tests {
         });
     }
 
-    #[test]
+    #[rstest]
     #[cfg_attr(miri, ignore)]
     #[serial]
-    fn cvars_with_empty_configstring() {
+    fn cvars_with_empty_configstring(_pyshinqlx_setup: ()) {
         let mut mock_engine = MockQuakeEngine::new();
         mock_engine
             .expect_get_configstring()
@@ -1205,10 +1205,10 @@ mod pyshinqlx_game_tests {
         });
     }
 
-    #[test]
+    #[rstest]
     #[cfg_attr(miri, ignore)]
     #[serial]
-    fn cvars_contains_parsed_configstring_zero() {
+    fn cvars_contains_parsed_configstring_zero(_pyshinqlx_setup: ()) {
         let mut mock_engine = MockQuakeEngine::new();
         mock_engine
             .expect_get_configstring()
@@ -1233,10 +1233,10 @@ mod pyshinqlx_game_tests {
         });
     }
 
-    #[test]
+    #[rstest]
     #[cfg_attr(miri, ignore)]
     #[serial]
-    fn get_type_with_no_main_engine() {
+    fn get_type_with_no_main_engine(_pyshinqlx_setup: ()) {
         MAIN_ENGINE.store(None);
 
         Python::with_gil(|py| {
@@ -1250,10 +1250,10 @@ mod pyshinqlx_game_tests {
         });
     }
 
-    #[test]
+    #[rstest]
     #[cfg_attr(miri, ignore)]
     #[serial]
-    fn get_type_for_unparseable_gametype() {
+    fn get_type_for_unparseable_gametype(_pyshinqlx_setup: ()) {
         let mut mock_engine = MockQuakeEngine::new();
         mock_engine
             .expect_get_configstring()
@@ -1290,6 +1290,7 @@ mod pyshinqlx_game_tests {
     #[cfg_attr(miri, ignore)]
     #[serial]
     fn get_type_returns_parsed_long_factory_name(
+        _pyshinqlx_setup: (),
         #[case] g_gametype: i32,
         #[case] expected_string: &str,
     ) {
@@ -1311,10 +1312,10 @@ mod pyshinqlx_game_tests {
         });
     }
 
-    #[test]
+    #[rstest]
     #[cfg_attr(miri, ignore)]
     #[serial]
-    fn get_type_short_with_no_main_engine() {
+    fn get_type_short_with_no_main_engine(_pyshinqlx_setup: ()) {
         MAIN_ENGINE.store(None);
 
         Python::with_gil(|py| {
@@ -1328,10 +1329,10 @@ mod pyshinqlx_game_tests {
         });
     }
 
-    #[test]
+    #[rstest]
     #[cfg_attr(miri, ignore)]
     #[serial]
-    fn get_type_short_for_unparseable_gametype() {
+    fn get_type_short_for_unparseable_gametype(_pyshinqlx_setup: ()) {
         let mut mock_engine = MockQuakeEngine::new();
         mock_engine
             .expect_get_configstring()
@@ -1368,6 +1369,7 @@ mod pyshinqlx_game_tests {
     #[cfg_attr(miri, ignore)]
     #[serial]
     fn get_type_short_returns_parsed_long_factory_name(
+        _pyshinqlx_setup: (),
         #[case] g_gametype: i32,
         #[case] expected_string: &str,
     ) {
@@ -1389,10 +1391,10 @@ mod pyshinqlx_game_tests {
         });
     }
 
-    #[test]
+    #[rstest]
     #[cfg_attr(miri, ignore)]
     #[serial]
-    fn get_map_returns_current_map() {
+    fn get_map_returns_current_map(_pyshinqlx_setup: ()) {
         let mut mock_engine = MockQuakeEngine::new();
         mock_engine
             .expect_get_configstring()
@@ -1411,10 +1413,10 @@ mod pyshinqlx_game_tests {
         });
     }
 
-    #[test]
+    #[rstest]
     #[cfg_attr(miri, ignore)]
     #[serial]
-    fn set_map_changes_current_map() {
+    fn set_map_changes_current_map(_pyshinqlx_setup: ()) {
         let mut mock_engine = MockQuakeEngine::new();
         mock_engine
             .expect_execute_console_command()
@@ -1511,10 +1513,10 @@ shinqlx._map_subtitle2 = "Awesome map!"
         });
     }
 
-    #[test]
+    #[rstest]
     #[cfg_attr(miri, ignore)]
     #[serial]
-    fn get_red_score_with_no_main_engine() {
+    fn get_red_score_with_no_main_engine(_pyshinqlx_setup: ()) {
         MAIN_ENGINE.store(None);
 
         Python::with_gil(|py| {
@@ -1528,10 +1530,10 @@ shinqlx._map_subtitle2 = "Awesome map!"
         });
     }
 
-    #[test]
+    #[rstest]
     #[cfg_attr(miri, ignore)]
     #[serial]
-    fn get_red_score_returns_red_score() {
+    fn get_red_score_returns_red_score(_pyshinqlx_setup: ()) {
         let mut mock_engine = MockQuakeEngine::new();
         mock_engine
             .expect_get_configstring()
@@ -1550,10 +1552,10 @@ shinqlx._map_subtitle2 = "Awesome map!"
         });
     }
 
-    #[test]
+    #[rstest]
     #[cfg_attr(miri, ignore)]
     #[serial]
-    fn get_red_score_defaults_when_unpareable() {
+    fn get_red_score_defaults_when_unpareable(_pyshinqlx_setup: ()) {
         let mut mock_engine = MockQuakeEngine::new();
         mock_engine
             .expect_get_configstring()
@@ -1572,10 +1574,10 @@ shinqlx._map_subtitle2 = "Awesome map!"
         });
     }
 
-    #[test]
+    #[rstest]
     #[cfg_attr(miri, ignore)]
     #[serial]
-    fn get_blue_score_with_no_main_engine() {
+    fn get_blue_score_with_no_main_engine(_pyshinqlx_setup: ()) {
         MAIN_ENGINE.store(None);
 
         Python::with_gil(|py| {
@@ -1589,10 +1591,10 @@ shinqlx._map_subtitle2 = "Awesome map!"
         });
     }
 
-    #[test]
+    #[rstest]
     #[cfg_attr(miri, ignore)]
     #[serial]
-    fn get_blue_score_returns_blue_score() {
+    fn get_blue_score_returns_blue_score(_pyshinqlx_setup: ()) {
         let mut mock_engine = MockQuakeEngine::new();
         mock_engine
             .expect_get_configstring()
@@ -1611,10 +1613,10 @@ shinqlx._map_subtitle2 = "Awesome map!"
         });
     }
 
-    #[test]
+    #[rstest]
     #[cfg_attr(miri, ignore)]
     #[serial]
-    fn get_blue_score_defaults_when_unparsable() {
+    fn get_blue_score_defaults_when_unparsable(_pyshinqlx_setup: ()) {
         let mut mock_engine = MockQuakeEngine::new();
         mock_engine
             .expect_get_configstring()
@@ -1633,10 +1635,10 @@ shinqlx._map_subtitle2 = "Awesome map!"
         });
     }
 
-    #[test]
+    #[rstest]
     #[cfg_attr(miri, ignore)]
     #[serial]
-    fn get_state_with_no_main_engine() {
+    fn get_state_with_no_main_engine(_pyshinqlx_setup: ()) {
         MAIN_ENGINE.store(None);
 
         Python::with_gil(|py| {
@@ -1658,6 +1660,7 @@ shinqlx._map_subtitle2 = "Awesome map!"
     #[cfg_attr(miri, ignore)]
     #[serial]
     fn get_state_converts_gamestate_cvar(
+        _pyshinqlx_setup: (),
         #[case] cvar_value: String,
         #[case] expected_return: &str,
     ) {
@@ -1679,10 +1682,10 @@ shinqlx._map_subtitle2 = "Awesome map!"
         assert_eq!(result.expect("result was not OK"), expected_return);
     }
 
-    #[test]
+    #[rstest]
     #[cfg_attr(miri, ignore)]
     #[serial]
-    fn get_factory_with_no_main_engine() {
+    fn get_factory_with_no_main_engine(_pyshinqlx_setup: ()) {
         MAIN_ENGINE.store(None);
 
         Python::with_gil(|py| {
@@ -1696,10 +1699,10 @@ shinqlx._map_subtitle2 = "Awesome map!"
         });
     }
 
-    #[test]
+    #[rstest]
     #[cfg_attr(miri, ignore)]
     #[serial]
-    fn get_factory_returns_factory() {
+    fn get_factory_returns_factory(_pyshinqlx_setup: ()) {
         let mut mock_engine = MockQuakeEngine::new();
         mock_engine
             .expect_get_configstring()
@@ -1718,10 +1721,10 @@ shinqlx._map_subtitle2 = "Awesome map!"
         assert_eq!(result.expect("result was not OK"), "ca");
     }
 
-    #[test]
+    #[rstest]
     #[cfg_attr(miri, ignore)]
     #[serial]
-    fn set_factory_sets_factory_and_reloads() {
+    fn set_factory_sets_factory_and_reloads(_pyshinqlx_setup: ()) {
         let mut mock_engine = MockQuakeEngine::new();
         mock_engine
             .expect_get_configstring()
@@ -1744,10 +1747,10 @@ shinqlx._map_subtitle2 = "Awesome map!"
         });
     }
 
-    #[test]
+    #[rstest]
     #[cfg_attr(miri, ignore)]
     #[serial]
-    fn get_hostname_returns_hostname() {
+    fn get_hostname_returns_hostname(_pyshinqlx_setup: ()) {
         let mut mock_engine = MockQuakeEngine::new();
         mock_engine
             .expect_get_configstring()
@@ -1766,10 +1769,10 @@ shinqlx._map_subtitle2 = "Awesome map!"
         assert_eq!(result.expect("result was not OK"), "Awesome server!");
     }
 
-    #[test]
+    #[rstest]
     #[cfg_attr(miri, ignore)]
     #[serial]
-    fn set_hostname_sets_new_hostname() {
+    fn set_hostname_sets_new_hostname(_pyshinqlx_setup: ()) {
         let mut mock_engine = MockQuakeEngine::new();
         mock_engine
             .expect_find_cvar()
@@ -1799,7 +1802,11 @@ shinqlx._map_subtitle2 = "Awesome map!"
     #[case(1, true)]
     #[cfg_attr(miri, ignore)]
     #[serial]
-    fn get_instagib_returns_instagib_setting(#[case] mode: i32, #[case] expected: bool) {
+    fn get_instagib_returns_instagib_setting(
+        _pyshinqlx_setup: (),
+        #[case] mode: i32,
+        #[case] expected: bool,
+    ) {
         let mut mock_engine = MockQuakeEngine::new();
         mock_engine
             .expect_get_configstring()
@@ -1823,7 +1830,11 @@ shinqlx._map_subtitle2 = "Awesome map!"
     #[case("1", true)]
     #[cfg_attr(miri, ignore)]
     #[serial]
-    fn set_instagib_with_bool_value(#[case] instagib: &'static str, #[case] value_set: bool) {
+    fn set_instagib_with_bool_value(
+        _pyshinqlx_setup: (),
+        #[case] instagib: &'static str,
+        #[case] value_set: bool,
+    ) {
         let mut mock_engine = MockQuakeEngine::new();
         mock_engine
             .expect_find_cvar()
@@ -1853,7 +1864,11 @@ shinqlx._map_subtitle2 = "Awesome map!"
     #[case("1", 1)]
     #[cfg_attr(miri, ignore)]
     #[serial]
-    fn set_instagib_with_integer_value(#[case] instagib: &'static str, #[case] value_set: i32) {
+    fn set_instagib_with_integer_value(
+        _pyshinqlx_setup: (),
+        #[case] instagib: &'static str,
+        #[case] value_set: i32,
+    ) {
         let mut mock_engine = MockQuakeEngine::new();
         mock_engine
             .expect_find_cvar()
@@ -1878,10 +1893,10 @@ shinqlx._map_subtitle2 = "Awesome map!"
         });
     }
 
-    #[test]
+    #[rstest]
     #[cfg_attr(miri, ignore)]
     #[serial]
-    fn set_instagib_with_invalid_value() {
+    fn set_instagib_with_invalid_value(_pyshinqlx_setup: ()) {
         let mut mock_engine = MockQuakeEngine::new();
         mock_engine
             .expect_find_cvar()
@@ -1909,7 +1924,11 @@ shinqlx._map_subtitle2 = "Awesome map!"
     #[case(1, true)]
     #[cfg_attr(miri, ignore)]
     #[serial]
-    fn get_loadout_returns_instagib_setting(#[case] mode: i32, #[case] expected: bool) {
+    fn get_loadout_returns_instagib_setting(
+        _pyshinqlx_setup: (),
+        #[case] mode: i32,
+        #[case] expected: bool,
+    ) {
         let mut mock_engine = MockQuakeEngine::new();
         mock_engine
             .expect_get_configstring()
@@ -1933,7 +1952,11 @@ shinqlx._map_subtitle2 = "Awesome map!"
     #[case("1", true)]
     #[cfg_attr(miri, ignore)]
     #[serial]
-    fn set_loadout_with_bool_value(#[case] loadout: &'static str, #[case] value_set: bool) {
+    fn set_loadout_with_bool_value(
+        _pyshinqlx_setup: (),
+        #[case] loadout: &'static str,
+        #[case] value_set: bool,
+    ) {
         let mut mock_engine = MockQuakeEngine::new();
         mock_engine
             .expect_find_cvar()
@@ -1963,7 +1986,11 @@ shinqlx._map_subtitle2 = "Awesome map!"
     #[case("1", 1)]
     #[cfg_attr(miri, ignore)]
     #[serial]
-    fn set_loadout_with_integer_value(#[case] loadout: &'static str, #[case] value_set: i32) {
+    fn set_loadout_with_integer_value(
+        _pyshinqlx_setup: (),
+        #[case] loadout: &'static str,
+        #[case] value_set: i32,
+    ) {
         let mut mock_engine = MockQuakeEngine::new();
         mock_engine
             .expect_find_cvar()
@@ -1988,10 +2015,10 @@ shinqlx._map_subtitle2 = "Awesome map!"
         });
     }
 
-    #[test]
+    #[rstest]
     #[cfg_attr(miri, ignore)]
     #[serial]
-    fn set_loadout_with_invalid_value() {
+    fn set_loadout_with_invalid_value(_pyshinqlx_setup: ()) {
         let mut mock_engine = MockQuakeEngine::new();
         mock_engine
             .expect_find_cvar()
@@ -2014,10 +2041,10 @@ shinqlx._map_subtitle2 = "Awesome map!"
         });
     }
 
-    #[test]
+    #[rstest]
     #[cfg_attr(miri, ignore)]
     #[serial]
-    fn get_maxclients_returns_maxclients() {
+    fn get_maxclients_returns_maxclients(_pyshinqlx_setup: ()) {
         let mut mock_engine = MockQuakeEngine::new();
         mock_engine
             .expect_get_configstring()
@@ -2036,10 +2063,10 @@ shinqlx._map_subtitle2 = "Awesome map!"
         assert_eq!(result.expect("result was not OK"), 8);
     }
 
-    #[test]
+    #[rstest]
     #[cfg_attr(miri, ignore)]
     #[serial]
-    fn set_maxclients_sets_new_maxclients_value() {
+    fn set_maxclients_sets_new_maxclients_value(_pyshinqlx_setup: ()) {
         let mut mock_engine = MockQuakeEngine::new();
         mock_engine
             .expect_find_cvar()
@@ -2061,10 +2088,10 @@ shinqlx._map_subtitle2 = "Awesome map!"
         });
     }
 
-    #[test]
+    #[rstest]
     #[cfg_attr(miri, ignore)]
     #[serial]
-    fn get_timelimit_returns_timelimit() {
+    fn get_timelimit_returns_timelimit(_pyshinqlx_setup: ()) {
         let mut mock_engine = MockQuakeEngine::new();
         mock_engine
             .expect_get_configstring()
@@ -2083,10 +2110,10 @@ shinqlx._map_subtitle2 = "Awesome map!"
         assert_eq!(result.expect("result was not OK"), 20);
     }
 
-    #[test]
+    #[rstest]
     #[cfg_attr(miri, ignore)]
     #[serial]
-    fn set_timelimit_sets_new_timelimit_value() {
+    fn set_timelimit_sets_new_timelimit_value(_pyshinqlx_setup: ()) {
         let mut mock_engine = MockQuakeEngine::new();
         mock_engine
             .expect_find_cvar()
@@ -2108,10 +2135,10 @@ shinqlx._map_subtitle2 = "Awesome map!"
         });
     }
 
-    #[test]
+    #[rstest]
     #[cfg_attr(miri, ignore)]
     #[serial]
-    fn get_fraglimit_returns_fraglimit() {
+    fn get_fraglimit_returns_fraglimit(_pyshinqlx_setup: ()) {
         let mut mock_engine = MockQuakeEngine::new();
         mock_engine
             .expect_get_configstring()
@@ -2130,10 +2157,10 @@ shinqlx._map_subtitle2 = "Awesome map!"
         assert_eq!(result.expect("result was not OK"), 10);
     }
 
-    #[test]
+    #[rstest]
     #[cfg_attr(miri, ignore)]
     #[serial]
-    fn set_fraglimit_sets_new_fraglimit() {
+    fn set_fraglimit_sets_new_fraglimit(_pyshinqlx_setup: ()) {
         let mut mock_engine = MockQuakeEngine::new();
         mock_engine
             .expect_find_cvar()
@@ -2155,10 +2182,10 @@ shinqlx._map_subtitle2 = "Awesome map!"
         });
     }
 
-    #[test]
+    #[rstest]
     #[cfg_attr(miri, ignore)]
     #[serial]
-    fn get_roundlimit_returns_roundlimit() {
+    fn get_roundlimit_returns_roundlimit(_pyshinqlx_setup: ()) {
         let mut mock_engine = MockQuakeEngine::new();
         mock_engine
             .expect_get_configstring()
@@ -2177,10 +2204,10 @@ shinqlx._map_subtitle2 = "Awesome map!"
         assert_eq!(result.expect("result was not OK"), 11);
     }
 
-    #[test]
+    #[rstest]
     #[cfg_attr(miri, ignore)]
     #[serial]
-    fn set_roundlimit_sets_new_roundlimit() {
+    fn set_roundlimit_sets_new_roundlimit(_pyshinqlx_setup: ()) {
         let mut mock_engine = MockQuakeEngine::new();
         mock_engine
             .expect_find_cvar()
@@ -2202,10 +2229,10 @@ shinqlx._map_subtitle2 = "Awesome map!"
         });
     }
 
-    #[test]
+    #[rstest]
     #[cfg_attr(miri, ignore)]
     #[serial]
-    fn get_roundtimelimit_returns_roundtimelimit() {
+    fn get_roundtimelimit_returns_roundtimelimit(_pyshinqlx_setup: ()) {
         let mut mock_engine = MockQuakeEngine::new();
         mock_engine
             .expect_get_configstring()
@@ -2224,10 +2251,10 @@ shinqlx._map_subtitle2 = "Awesome map!"
         assert_eq!(result.expect("result was not OK"), 240);
     }
 
-    #[test]
+    #[rstest]
     #[cfg_attr(miri, ignore)]
     #[serial]
-    fn set_roundtimelimit_sets_new_roundtimelimit() {
+    fn set_roundtimelimit_sets_new_roundtimelimit(_pyshinqlx_setup: ()) {
         let mut mock_engine = MockQuakeEngine::new();
         mock_engine
             .expect_find_cvar()
@@ -2252,10 +2279,10 @@ shinqlx._map_subtitle2 = "Awesome map!"
         });
     }
 
-    #[test]
+    #[rstest]
     #[cfg_attr(miri, ignore)]
     #[serial]
-    fn get_scorelimit_returns_scorelimit() {
+    fn get_scorelimit_returns_scorelimit(_pyshinqlx_setup: ()) {
         let mut mock_engine = MockQuakeEngine::new();
         mock_engine
             .expect_get_configstring()
@@ -2274,10 +2301,10 @@ shinqlx._map_subtitle2 = "Awesome map!"
         assert_eq!(result.expect("result was not OK"), 10);
     }
 
-    #[test]
+    #[rstest]
     #[cfg_attr(miri, ignore)]
     #[serial]
-    fn set_scorelimit_sets_new_scorelimit() {
+    fn set_scorelimit_sets_new_scorelimit(_pyshinqlx_setup: ()) {
         let mut mock_engine = MockQuakeEngine::new();
         mock_engine
             .expect_find_cvar()
@@ -2299,10 +2326,10 @@ shinqlx._map_subtitle2 = "Awesome map!"
         });
     }
 
-    #[test]
+    #[rstest]
     #[cfg_attr(miri, ignore)]
     #[serial]
-    fn get_capturelimit_returns_capturelimit() {
+    fn get_capturelimit_returns_capturelimit(_pyshinqlx_setup: ()) {
         let mut mock_engine = MockQuakeEngine::new();
         mock_engine
             .expect_get_configstring()
@@ -2321,10 +2348,10 @@ shinqlx._map_subtitle2 = "Awesome map!"
         assert_eq!(result.expect("result was not OK"), 10);
     }
 
-    #[test]
+    #[rstest]
     #[cfg_attr(miri, ignore)]
     #[serial]
-    fn set_capturelimit_sets_new_capturelimit() {
+    fn set_capturelimit_sets_new_capturelimit(_pyshinqlx_setup: ()) {
         let mut mock_engine = MockQuakeEngine::new();
         mock_engine
             .expect_find_cvar()
@@ -2347,10 +2374,10 @@ shinqlx._map_subtitle2 = "Awesome map!"
         });
     }
 
-    #[test]
+    #[rstest]
     #[cfg_attr(miri, ignore)]
     #[serial]
-    fn get_teamsize_returns_teamsize() {
+    fn get_teamsize_returns_teamsize(_pyshinqlx_setup: ()) {
         let mut mock_engine = MockQuakeEngine::new();
         mock_engine
             .expect_get_configstring()
@@ -2369,10 +2396,10 @@ shinqlx._map_subtitle2 = "Awesome map!"
         assert_eq!(result.expect("result was not OK"), 4);
     }
 
-    #[test]
+    #[rstest]
     #[cfg_attr(miri, ignore)]
     #[serial]
-    fn set_teamsize_sets_new_teamsize() {
+    fn set_teamsize_sets_new_teamsize(_pyshinqlx_setup: ()) {
         let mut mock_engine = MockQuakeEngine::new();
         mock_engine
             .expect_find_cvar()
@@ -2394,10 +2421,10 @@ shinqlx._map_subtitle2 = "Awesome map!"
         });
     }
 
-    #[test]
+    #[rstest]
     #[cfg_attr(miri, ignore)]
     #[serial]
-    fn get_tags_returns_tags() {
+    fn get_tags_returns_tags(_pyshinqlx_setup: ()) {
         let mut mock_engine = MockQuakeEngine::new();
         mock_engine
             .expect_get_configstring()
@@ -2419,10 +2446,10 @@ shinqlx._map_subtitle2 = "Awesome map!"
         );
     }
 
-    #[test]
+    #[rstest]
     #[cfg_attr(miri, ignore)]
     #[serial]
-    fn set_tags_with_string_tags() {
+    fn set_tags_with_string_tags(_pyshinqlx_setup: ()) {
         let mut mock_engine = MockQuakeEngine::new();
         mock_engine
             .expect_find_cvar()
@@ -2447,10 +2474,10 @@ shinqlx._map_subtitle2 = "Awesome map!"
         });
     }
 
-    #[test]
+    #[rstest]
     #[cfg_attr(miri, ignore)]
     #[serial]
-    fn set_tags_with_iterable_tags() {
+    fn set_tags_with_iterable_tags(_pyshinqlx_setup: ()) {
         let mut mock_engine = MockQuakeEngine::new();
         mock_engine
             .expect_find_cvar()
@@ -2475,10 +2502,10 @@ shinqlx._map_subtitle2 = "Awesome map!"
         });
     }
 
-    #[test]
+    #[rstest]
     #[cfg_attr(miri, ignore)]
     #[serial]
-    fn set_tags_with_invalid_value() {
+    fn set_tags_with_invalid_value(_pyshinqlx_setup: ()) {
         let mut mock_engine = MockQuakeEngine::new();
         mock_engine
             .expect_find_cvar()
@@ -2501,10 +2528,10 @@ shinqlx._map_subtitle2 = "Awesome map!"
         });
     }
 
-    #[test]
+    #[rstest]
     #[cfg_attr(miri, ignore)]
     #[serial]
-    fn get_workshop_items_returns_workshop_items() {
+    fn get_workshop_items_returns_workshop_items(_pyshinqlx_setup: ()) {
         let mut mock_engine = MockQuakeEngine::new();
         mock_engine
             .expect_get_configstring()
@@ -2523,10 +2550,10 @@ shinqlx._map_subtitle2 = "Awesome map!"
         assert_eq!(result.expect("result was not OK"), vec![1234, 5678, 9101]);
     }
 
-    #[test]
+    #[rstest]
     #[cfg_attr(miri, ignore)]
     #[serial]
-    fn set_workshop_items_with_iterable_items() {
+    fn set_workshop_items_with_iterable_items(_pyshinqlx_setup: ()) {
         let mut mock_engine = MockQuakeEngine::new();
         mock_engine
             .expect_set_configstring()
@@ -2545,10 +2572,10 @@ shinqlx._map_subtitle2 = "Awesome map!"
         });
     }
 
-    #[test]
+    #[rstest]
     #[cfg_attr(miri, ignore)]
     #[serial]
-    fn set_workshop_items_with_invalid_value() {
+    fn set_workshop_items_with_invalid_value(_pyshinqlx_setup: ()) {
         let mut mock_engine = MockQuakeEngine::new();
         mock_engine
             .expect_set_configstring()
@@ -2567,10 +2594,10 @@ shinqlx._map_subtitle2 = "Awesome map!"
         });
     }
 
-    #[test]
+    #[rstest]
     #[cfg_attr(miri, ignore)]
     #[serial]
-    fn shuffle_forces_shuffle() {
+    fn shuffle_forces_shuffle(_pyshinqlx_setup: ()) {
         let mut mock_engine = MockQuakeEngine::new();
         mock_engine
             .expect_execute_console_command()
@@ -2582,10 +2609,10 @@ shinqlx._map_subtitle2 = "Awesome map!"
         assert!(result.is_ok());
     }
 
-    #[test]
+    #[rstest]
     #[cfg_attr(miri, ignore)]
     #[serial]
-    fn timeout_pauses_game() {
+    fn timeout_pauses_game(_pyshinqlx_setup: ()) {
         let mut mock_engine = MockQuakeEngine::new();
         mock_engine
             .expect_execute_console_command()
@@ -2597,10 +2624,10 @@ shinqlx._map_subtitle2 = "Awesome map!"
         assert!(result.is_ok());
     }
 
-    #[test]
+    #[rstest]
     #[cfg_attr(miri, ignore)]
     #[serial]
-    fn timein_unpauses_game() {
+    fn timein_unpauses_game(_pyshinqlx_setup: ()) {
         let mut mock_engine = MockQuakeEngine::new();
         mock_engine
             .expect_execute_console_command()
@@ -2612,10 +2639,10 @@ shinqlx._map_subtitle2 = "Awesome map!"
         assert!(result.is_ok());
     }
 
-    #[test]
+    #[rstest]
     #[cfg_attr(miri, ignore)]
     #[serial]
-    fn allready_readies_all_players() {
+    fn allready_readies_all_players(_pyshinqlx_setup: ()) {
         let mut mock_engine = MockQuakeEngine::new();
         mock_engine
             .expect_execute_console_command()
@@ -2627,10 +2654,10 @@ shinqlx._map_subtitle2 = "Awesome map!"
         assert!(result.is_ok());
     }
 
-    #[test]
+    #[rstest]
     #[cfg_attr(miri, ignore)]
     #[serial]
-    fn pause_pauses_game() {
+    fn pause_pauses_game(_pyshinqlx_setup: ()) {
         let mut mock_engine = MockQuakeEngine::new();
         mock_engine
             .expect_execute_console_command()
@@ -2642,10 +2669,10 @@ shinqlx._map_subtitle2 = "Awesome map!"
         assert!(result.is_ok());
     }
 
-    #[test]
+    #[rstest]
     #[cfg_attr(miri, ignore)]
     #[serial]
-    fn unpause_unpauses_game() {
+    fn unpause_unpauses_game(_pyshinqlx_setup: ()) {
         let mut mock_engine = MockQuakeEngine::new();
         mock_engine
             .expect_execute_console_command()
@@ -2657,10 +2684,10 @@ shinqlx._map_subtitle2 = "Awesome map!"
         assert!(result.is_ok());
     }
 
-    #[test]
+    #[rstest]
     #[cfg_attr(miri, ignore)]
     #[serial]
-    fn lock_with_invalid_team() {
+    fn lock_with_invalid_team(_pyshinqlx_setup: ()) {
         MAIN_ENGINE.store(None);
 
         Python::with_gil(|py| {
@@ -2669,10 +2696,10 @@ shinqlx._map_subtitle2 = "Awesome map!"
         });
     }
 
-    #[test]
+    #[rstest]
     #[cfg_attr(miri, ignore)]
     #[serial]
-    fn lock_with_no_team() {
+    fn lock_with_no_team(_pyshinqlx_setup: ()) {
         let mut mock_engine = MockQuakeEngine::new();
         mock_engine
             .expect_execute_console_command()
@@ -2692,7 +2719,7 @@ shinqlx._map_subtitle2 = "Awesome map!"
     #[case("spectator")]
     #[cfg_attr(miri, ignore)]
     #[serial]
-    fn lock_a_specific_team(#[case] locked_team: &str) {
+    fn lock_a_specific_team(_pyshinqlx_setup: (), #[case] locked_team: &str) {
         let lock_cmd = format!("lock {}", locked_team.to_lowercase());
         let mut mock_engine = MockQuakeEngine::new();
         mock_engine
@@ -2706,10 +2733,10 @@ shinqlx._map_subtitle2 = "Awesome map!"
         assert!(result.is_ok());
     }
 
-    #[test]
+    #[rstest]
     #[cfg_attr(miri, ignore)]
     #[serial]
-    fn unlock_with_invalid_team() {
+    fn unlock_with_invalid_team(_pyshinqlx_setup: ()) {
         MAIN_ENGINE.store(None);
 
         Python::with_gil(|py| {
@@ -2718,10 +2745,10 @@ shinqlx._map_subtitle2 = "Awesome map!"
         });
     }
 
-    #[test]
+    #[rstest]
     #[cfg_attr(miri, ignore)]
     #[serial]
-    fn unlock_with_no_team() {
+    fn unlock_with_no_team(_pyshinqlx_setup: ()) {
         let mut mock_engine = MockQuakeEngine::new();
         mock_engine
             .expect_execute_console_command()
@@ -2741,7 +2768,7 @@ shinqlx._map_subtitle2 = "Awesome map!"
     #[case("spectator")]
     #[cfg_attr(miri, ignore)]
     #[serial]
-    fn unlock_a_specific_team(#[case] locked_team: &str) {
+    fn unlock_a_specific_team(_pyshinqlx_setup: (), #[case] locked_team: &str) {
         let unlock_cmd = format!("unlock {}", locked_team.to_lowercase());
         let mut mock_engine = MockQuakeEngine::new();
         mock_engine
@@ -2755,10 +2782,10 @@ shinqlx._map_subtitle2 = "Awesome map!"
         assert!(result.is_ok());
     }
 
-    #[test]
+    #[rstest]
     #[cfg_attr(miri, ignore)]
     #[serial]
-    fn put_with_invalid_team() {
+    fn put_with_invalid_team(_pyshinqlx_setup: ()) {
         MAIN_ENGINE.store(None);
 
         Python::with_gil(|py| {
@@ -2767,10 +2794,10 @@ shinqlx._map_subtitle2 = "Awesome map!"
         });
     }
 
-    #[test]
+    #[rstest]
     #[cfg_attr(miri, ignore)]
     #[serial]
-    fn put_with_invalid_player() {
+    fn put_with_invalid_player(_pyshinqlx_setup: ()) {
         MAIN_ENGINE.store(None);
 
         Python::with_gil(|py| {
@@ -2787,7 +2814,7 @@ shinqlx._map_subtitle2 = "Awesome map!"
     #[case("spectator")]
     #[cfg_attr(miri, ignore)]
     #[serial]
-    fn put_put_player_on_a_specific_team(#[case] new_team: &str) {
+    fn put_put_player_on_a_specific_team(_pyshinqlx_setup: (), #[case] new_team: &str) {
         let put_cmd = format!("put 2 {}", new_team.to_lowercase());
         let mut mock_engine = MockQuakeEngine::new();
         mock_engine
@@ -2801,10 +2828,10 @@ shinqlx._map_subtitle2 = "Awesome map!"
         assert!(result.is_ok());
     }
 
-    #[test]
+    #[rstest]
     #[cfg_attr(miri, ignore)]
     #[serial]
-    fn mute_with_invalid_player() {
+    fn mute_with_invalid_player(_pyshinqlx_setup: ()) {
         MAIN_ENGINE.store(None);
 
         Python::with_gil(|py| {
@@ -2813,10 +2840,10 @@ shinqlx._map_subtitle2 = "Awesome map!"
         });
     }
 
-    #[test]
+    #[rstest]
     #[cfg_attr(miri, ignore)]
     #[serial]
-    fn mute_mutes_player() {
+    fn mute_mutes_player(_pyshinqlx_setup: ()) {
         let mut mock_engine = MockQuakeEngine::new();
         mock_engine
             .expect_execute_console_command()
@@ -2828,10 +2855,10 @@ shinqlx._map_subtitle2 = "Awesome map!"
         assert!(result.is_ok());
     }
 
-    #[test]
+    #[rstest]
     #[cfg_attr(miri, ignore)]
     #[serial]
-    fn unmute_with_invalid_player() {
+    fn unmute_with_invalid_player(_pyshinqlx_setup: ()) {
         MAIN_ENGINE.store(None);
 
         Python::with_gil(|py| {
@@ -2840,10 +2867,10 @@ shinqlx._map_subtitle2 = "Awesome map!"
         });
     }
 
-    #[test]
+    #[rstest]
     #[cfg_attr(miri, ignore)]
     #[serial]
-    fn unmute_unmutes_player() {
+    fn unmute_unmutes_player(_pyshinqlx_setup: ()) {
         let mut mock_engine = MockQuakeEngine::new();
         mock_engine
             .expect_execute_console_command()
@@ -2856,10 +2883,10 @@ shinqlx._map_subtitle2 = "Awesome map!"
         assert!(result.is_ok());
     }
 
-    #[test]
+    #[rstest]
     #[cfg_attr(miri, ignore)]
     #[serial]
-    fn tempban_with_invalid_player() {
+    fn tempban_with_invalid_player(_pyshinqlx_setup: ()) {
         MAIN_ENGINE.store(None);
 
         Python::with_gil(|py| {
@@ -2868,10 +2895,10 @@ shinqlx._map_subtitle2 = "Awesome map!"
         });
     }
 
-    #[test]
+    #[rstest]
     #[cfg_attr(miri, ignore)]
     #[serial]
-    fn tempban_tempbans_player() {
+    fn tempban_tempbans_player(_pyshinqlx_setup: ()) {
         let mut mock_engine = MockQuakeEngine::new();
         mock_engine
             .expect_execute_console_command()
@@ -2884,10 +2911,10 @@ shinqlx._map_subtitle2 = "Awesome map!"
         assert!(result.is_ok());
     }
 
-    #[test]
+    #[rstest]
     #[cfg_attr(miri, ignore)]
     #[serial]
-    fn ban_with_invalid_player() {
+    fn ban_with_invalid_player(_pyshinqlx_setup: ()) {
         MAIN_ENGINE.store(None);
 
         Python::with_gil(|py| {
@@ -2896,10 +2923,10 @@ shinqlx._map_subtitle2 = "Awesome map!"
         });
     }
 
-    #[test]
+    #[rstest]
     #[cfg_attr(miri, ignore)]
     #[serial]
-    fn ban_bans_player() {
+    fn ban_bans_player(_pyshinqlx_setup: ()) {
         let mut mock_engine = MockQuakeEngine::new();
         mock_engine
             .expect_execute_console_command()
@@ -2911,10 +2938,10 @@ shinqlx._map_subtitle2 = "Awesome map!"
         assert!(result.is_ok());
     }
 
-    #[test]
+    #[rstest]
     #[cfg_attr(miri, ignore)]
     #[serial]
-    fn unban_with_invalid_player() {
+    fn unban_with_invalid_player(_pyshinqlx_setup: ()) {
         MAIN_ENGINE.store(None);
 
         Python::with_gil(|py| {
@@ -2923,10 +2950,10 @@ shinqlx._map_subtitle2 = "Awesome map!"
         });
     }
 
-    #[test]
+    #[rstest]
     #[cfg_attr(miri, ignore)]
     #[serial]
-    fn unban_unbans_player() {
+    fn unban_unbans_player(_pyshinqlx_setup: ()) {
         let mut mock_engine = MockQuakeEngine::new();
         mock_engine
             .expect_execute_console_command()
@@ -2939,10 +2966,10 @@ shinqlx._map_subtitle2 = "Awesome map!"
         assert!(result.is_ok());
     }
 
-    #[test]
+    #[rstest]
     #[cfg_attr(miri, ignore)]
     #[serial]
-    fn opsay_sends_op_message() {
+    fn opsay_sends_op_message(_pyshinqlx_setup: ()) {
         let mut mock_engine = MockQuakeEngine::new();
         mock_engine
             .expect_execute_console_command()
@@ -2954,10 +2981,10 @@ shinqlx._map_subtitle2 = "Awesome map!"
         assert!(result.is_ok());
     }
 
-    #[test]
+    #[rstest]
     #[cfg_attr(miri, ignore)]
     #[serial]
-    fn addadmin_with_invalid_player() {
+    fn addadmin_with_invalid_player(_pyshinqlx_setup: ()) {
         MAIN_ENGINE.store(None);
 
         Python::with_gil(|py| {
@@ -2966,10 +2993,10 @@ shinqlx._map_subtitle2 = "Awesome map!"
         });
     }
 
-    #[test]
+    #[rstest]
     #[cfg_attr(miri, ignore)]
     #[serial]
-    fn addadmin_adds_player_to_admins() {
+    fn addadmin_adds_player_to_admins(_pyshinqlx_setup: ()) {
         let mut mock_engine = MockQuakeEngine::new();
         mock_engine
             .expect_execute_console_command()
@@ -2982,10 +3009,10 @@ shinqlx._map_subtitle2 = "Awesome map!"
         assert!(result.is_ok());
     }
 
-    #[test]
+    #[rstest]
     #[cfg_attr(miri, ignore)]
     #[serial]
-    fn addmod_with_invalid_player() {
+    fn addmod_with_invalid_player(_pyshinqlx_setup: ()) {
         MAIN_ENGINE.store(None);
 
         Python::with_gil(|py| {
@@ -2994,10 +3021,10 @@ shinqlx._map_subtitle2 = "Awesome map!"
         });
     }
 
-    #[test]
+    #[rstest]
     #[cfg_attr(miri, ignore)]
     #[serial]
-    fn addmod_adds_player_to_moderators() {
+    fn addmod_adds_player_to_moderators(_pyshinqlx_setup: ()) {
         let mut mock_engine = MockQuakeEngine::new();
         mock_engine
             .expect_execute_console_command()
@@ -3010,10 +3037,10 @@ shinqlx._map_subtitle2 = "Awesome map!"
         assert!(result.is_ok());
     }
 
-    #[test]
+    #[rstest]
     #[cfg_attr(miri, ignore)]
     #[serial]
-    fn demote_with_invalid_player() {
+    fn demote_with_invalid_player(_pyshinqlx_setup: ()) {
         MAIN_ENGINE.store(None);
 
         Python::with_gil(|py| {
@@ -3022,10 +3049,10 @@ shinqlx._map_subtitle2 = "Awesome map!"
         });
     }
 
-    #[test]
+    #[rstest]
     #[cfg_attr(miri, ignore)]
     #[serial]
-    fn demote_demotes_player() {
+    fn demote_demotes_player(_pyshinqlx_setup: ()) {
         let mut mock_engine = MockQuakeEngine::new();
         mock_engine
             .expect_execute_console_command()
@@ -3038,10 +3065,10 @@ shinqlx._map_subtitle2 = "Awesome map!"
         assert!(result.is_ok());
     }
 
-    #[test]
+    #[rstest]
     #[cfg_attr(miri, ignore)]
     #[serial]
-    fn abort_aborts_game() {
+    fn abort_aborts_game(_pyshinqlx_setup: ()) {
         let mut mock_engine = MockQuakeEngine::new();
         mock_engine
             .expect_execute_console_command()
@@ -3053,10 +3080,10 @@ shinqlx._map_subtitle2 = "Awesome map!"
         assert!(result.is_ok());
     }
 
-    #[test]
+    #[rstest]
     #[cfg_attr(miri, ignore)]
     #[serial]
-    fn addscore_with_invalid_player() {
+    fn addscore_with_invalid_player(_pyshinqlx_setup: ()) {
         MAIN_ENGINE.store(None);
 
         Python::with_gil(|py| {
@@ -3065,10 +3092,10 @@ shinqlx._map_subtitle2 = "Awesome map!"
         });
     }
 
-    #[test]
+    #[rstest]
     #[cfg_attr(miri, ignore)]
     #[serial]
-    fn addscore_adds_score_to_player() {
+    fn addscore_adds_score_to_player(_pyshinqlx_setup: ()) {
         let mut mock_engine = MockQuakeEngine::new();
         mock_engine
             .expect_execute_console_command()
@@ -3081,10 +3108,10 @@ shinqlx._map_subtitle2 = "Awesome map!"
         assert!(result.is_ok());
     }
 
-    #[test]
+    #[rstest]
     #[cfg_attr(miri, ignore)]
     #[serial]
-    fn addteamscore_with_invalid_team() {
+    fn addteamscore_with_invalid_team(_pyshinqlx_setup: ()) {
         MAIN_ENGINE.store(None);
 
         Python::with_gil(|py| {
@@ -3101,7 +3128,7 @@ shinqlx._map_subtitle2 = "Awesome map!"
     #[case("spectator")]
     #[cfg_attr(miri, ignore)]
     #[serial]
-    fn addteamscore_adds_score_to_team(#[case] locked_team: &str) {
+    fn addteamscore_adds_score_to_team(_pyshinqlx_setup: (), #[case] locked_team: &str) {
         let unlock_cmd = format!("addteamscore {} 42", locked_team.to_lowercase());
         let mut mock_engine = MockQuakeEngine::new();
         mock_engine
@@ -3116,10 +3143,10 @@ shinqlx._map_subtitle2 = "Awesome map!"
         assert!(result.is_ok());
     }
 
-    #[test]
+    #[rstest]
     #[cfg_attr(miri, ignore)]
     #[serial]
-    fn setmatchtime_sets_match_time() {
+    fn setmatchtime_sets_match_time(_pyshinqlx_setup: ()) {
         let mut mock_engine = MockQuakeEngine::new();
         mock_engine
             .expect_execute_console_command()

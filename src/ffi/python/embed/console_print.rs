@@ -21,11 +21,12 @@ mod console_print_tests {
     use crate::prelude::*;
 
     use mockall::predicate;
+    use rstest::*;
 
-    #[test]
+    #[rstest]
     #[cfg_attr(miri, ignore)]
     #[serial]
-    fn console_print_forwards_to_ql_engine() {
+    fn console_print_forwards_to_ql_engine(_pyshinqlx_setup: ()) {
         let com_printf_ctx = shinqlx_com_printf_context();
         com_printf_ctx.expect().with(predicate::eq("asdf\n"));
 

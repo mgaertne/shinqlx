@@ -262,9 +262,9 @@ shinqlx.AbstractChannel("abstract") < 2
         assert_eq!(abstract_channel.get_name(), "abstract");
     }
 
-    #[test]
+    #[rstest]
     #[cfg_attr(miri, ignore)]
-    fn reply_is_not_implemented() {
+    fn reply_is_not_implemented(_pyshinqlx_setup: ()) {
         Python::with_gil(|py| {
             let abstract_channel = Py::new(py, AbstractChannel::py_new("abstract")).unwrap();
             let result = abstract_channel.bind(py).borrow().reply("asdf", 100, " ");
@@ -272,9 +272,9 @@ shinqlx.AbstractChannel("abstract") < 2
         });
     }
 
-    #[test]
+    #[rstest]
     #[cfg_attr(miri, ignore)]
-    fn split_long_lines_with_short_string() {
+    fn split_long_lines_with_short_string(_pyshinqlx_setup: ()) {
         let result = Python::with_gil(|py| {
             AbstractChannel::split_long_lines(
                 &py.get_type_bound::<AbstractChannel>(),
@@ -287,9 +287,9 @@ shinqlx.AbstractChannel("abstract") < 2
         assert_eq!(result, vec!["short".to_string()]);
     }
 
-    #[test]
+    #[rstest]
     #[cfg_attr(miri, ignore)]
-    fn split_long_lines_with_string_that_is_split() {
+    fn split_long_lines_with_string_that_is_split(_pyshinqlx_setup: ()) {
         let result = Python::with_gil(|py| {
             AbstractChannel::split_long_lines(
                 &py.get_type_bound::<AbstractChannel>(),
@@ -312,9 +312,9 @@ shinqlx.AbstractChannel("abstract") < 2
         );
     }
 
-    #[test]
+    #[rstest]
     #[cfg_attr(miri, ignore)]
-    fn split_long_lines_with_string_with_multiple_chunks() {
+    fn split_long_lines_with_string_with_multiple_chunks(_pyshinqlx_setup: ()) {
         let result = Python::with_gil(|py| {
             AbstractChannel::split_long_lines(
                 &py.get_type_bound::<AbstractChannel>(),
@@ -392,10 +392,10 @@ console_channel = shinqlx.ConsoleChannel()
         });
     }
 
-    #[test]
+    #[rstest]
     #[cfg_attr(miri, ignore)]
     #[serial]
-    fn reply_prints_text_to_console() {
+    fn reply_prints_text_to_console(_pyshinqlx_setup: ()) {
         let com_printf_ctx = shinqlx_com_printf_context();
         com_printf_ctx
             .expect()
@@ -558,9 +558,9 @@ chat_channel = shinqlx.ChatChannel()
         });
     }
 
-    #[test]
+    #[rstest]
     #[cfg_attr(miri, ignore)]
-    fn receipients_is_not_implemented() {
+    fn receipients_is_not_implemented(_pyshinqlx_setup: ()) {
         Python::with_gil(|py| {
             let chat_channel = Py::new(py, ChatChannel::py_new("asdf", "print\"{}\n\"\n"))
                 .expect("this should not happen");
@@ -733,9 +733,9 @@ tell_channel = shinqlx.TellChannel(player)
             .is_ok_and(|player| player.id == 42));
     }
 
-    #[test]
+    #[rstest]
     #[cfg_attr(miri, ignore)]
-    fn receipients_returns_vec_with_client_id() {
+    fn recipients_returns_vec_with_client_id(_pyshinqlx_setup: ()) {
         let player = default_test_player();
         Python::with_gil(|py| {
             let py_tell_channel =
@@ -841,7 +841,11 @@ tell_channel = shinqlx.TeamChatChannel("all")
     #[case("free", Some(vec![0, 4]))]
     #[cfg_attr(miri, ignore)]
     #[serial]
-    fn recipients_returns_client_ids(#[case] team: &str, #[case] expected_ids: Option<Vec<i32>>) {
+    fn recipients_returns_client_ids(
+        _pyshinqlx_setup: (),
+        #[case] team: &str,
+        #[case] expected_ids: Option<Vec<i32>>,
+    ) {
         let mut mock_engine = MockQuakeEngine::new();
         mock_engine.expect_get_max_clients().returning(|| 8);
         MAIN_ENGINE.store(Some(mock_engine.into()));
@@ -895,10 +899,10 @@ tell_channel = shinqlx.TeamChatChannel("all")
         assert!(result.is_ok_and(|ids| ids == expected_ids));
     }
 
-    #[test]
+    #[rstest]
     #[cfg_attr(miri, ignore)]
     #[serial]
-    fn recipients_for_invalid_team_chat_channel_name() {
+    fn recipients_for_invalid_team_chat_channel_name(_pyshinqlx_setup: ()) {
         let mut mock_engine = MockQuakeEngine::new();
         mock_engine.expect_get_max_clients().returning(|| 8);
         MAIN_ENGINE.store(Some(mock_engine.into()));
@@ -1105,10 +1109,10 @@ tell_channel = shinqlx.ClientCommandChannel(player)
             .is_ok_and(|player| player.id == 42));
     }
 
-    #[test]
+    #[rstest]
     #[serial]
     #[cfg_attr(miri, ignore)]
-    fn get_tell_channel_returns_tell_channel_with_client_id() {
+    fn get_tell_channel_returns_tell_channel_with_client_id(_pyshinqlx_setup: ()) {
         let game_entity_from_ctx = MockGameEntity::from_context();
         game_entity_from_ctx
             .expect()

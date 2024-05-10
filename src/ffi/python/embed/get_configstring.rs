@@ -37,11 +37,12 @@ mod get_configstring_tests {
     use mockall::predicate;
     use pretty_assertions::assert_eq;
     use pyo3::exceptions::{PyEnvironmentError, PyValueError};
+    use rstest::*;
 
-    #[test]
+    #[rstest]
     #[cfg_attr(miri, ignore)]
     #[serial]
-    fn get_configstring_for_too_large_configstring_id() {
+    fn get_configstring_for_too_large_configstring_id(_pyshinqlx_setup: ()) {
         MAIN_ENGINE.store(None);
         Python::with_gil(|py| {
             let result = pyshinqlx_get_configstring(py, MAX_CONFIGSTRINGS + 1);
@@ -49,10 +50,10 @@ mod get_configstring_tests {
         });
     }
 
-    #[test]
+    #[rstest]
     #[cfg_attr(miri, ignore)]
     #[serial]
-    fn get_configstring_when_main_engine_not_initialized() {
+    fn get_configstring_when_main_engine_not_initialized(_pyshinqlx_setup: ()) {
         MAIN_ENGINE.store(None);
         Python::with_gil(|py| {
             let result = pyshinqlx_get_configstring(py, 666);
@@ -60,10 +61,10 @@ mod get_configstring_tests {
         });
     }
 
-    #[test]
+    #[rstest]
     #[cfg_attr(miri, ignore)]
     #[serial]
-    fn get_configstring_forwards_call_to_engine() {
+    fn get_configstring_forwards_call_to_engine(_pyshinqlx_setup: ()) {
         let mut mock_engine = MockQuakeEngine::new();
         mock_engine
             .expect_get_configstring()

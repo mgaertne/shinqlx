@@ -33,11 +33,12 @@ mod get_cvar_tests {
     use mockall::predicate;
     use pretty_assertions::assert_eq;
     use pyo3::exceptions::PyEnvironmentError;
+    use rstest::*;
 
-    #[test]
+    #[rstest]
     #[cfg_attr(miri, ignore)]
     #[serial]
-    fn get_cvar_when_main_engine_not_initialized() {
+    fn get_cvar_when_main_engine_not_initialized(_pyshinqlx_setup: ()) {
         MAIN_ENGINE.store(None);
         Python::with_gil(|py| {
             let result = pyshinqlx_get_cvar(py, "sv_maxclients");
@@ -45,10 +46,10 @@ mod get_cvar_tests {
         });
     }
 
-    #[test]
+    #[rstest]
     #[cfg_attr(miri, ignore)]
     #[serial]
-    fn get_cvar_when_cvar_not_found() {
+    fn get_cvar_when_cvar_not_found(_pyshinqlx_setup: ()) {
         let mut mock_engine = MockQuakeEngine::new();
         mock_engine
             .expect_find_cvar()
@@ -61,10 +62,10 @@ mod get_cvar_tests {
         assert_eq!(result.expect("result was not OK"), None);
     }
 
-    #[test]
+    #[rstest]
     #[cfg_attr(miri, ignore)]
     #[serial]
-    fn get_cvar_when_cvar_is_found() {
+    fn get_cvar_when_cvar_is_found(_pyshinqlx_setup: ()) {
         let cvar_string = CString::new("16").expect("result was not OK");
         let mut mock_engine = MockQuakeEngine::new();
         mock_engine

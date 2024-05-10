@@ -79,11 +79,12 @@ mod dev_print_items_tests {
 
     use mockall::predicate;
     use pyo3::exceptions::PyEnvironmentError;
+    use rstest::*;
 
-    #[test]
+    #[rstest]
     #[cfg_attr(miri, ignore)]
     #[serial]
-    fn dev_print_items_with_no_main_engine() {
+    fn dev_print_items_with_no_main_engine(_pyshinqlx_setup: ()) {
         MAIN_ENGINE.store(None);
 
         let game_entity_from_ctx = MockGameEntity::from_context();
@@ -115,10 +116,10 @@ mod dev_print_items_tests {
         });
     }
 
-    #[test]
+    #[rstest]
     #[cfg_attr(miri, ignore)]
     #[serial]
-    fn dev_print_items_for_unused_game_item() {
+    fn dev_print_items_for_unused_game_item(_pyshinqlx_setup: ()) {
         let mut mock_engine = MockQuakeEngine::new();
         mock_engine
             .expect_send_server_command()
@@ -155,10 +156,10 @@ mod dev_print_items_tests {
         assert!(result.is_ok());
     }
 
-    #[test]
+    #[rstest]
     #[cfg_attr(miri, ignore)]
     #[serial]
-    fn dev_print_items_for_non_et_item() {
+    fn dev_print_items_for_non_et_item(_pyshinqlx_setup: ()) {
         let mut mock_engine = MockQuakeEngine::new();
         mock_engine
             .expect_send_server_command()
@@ -195,10 +196,10 @@ mod dev_print_items_tests {
         assert!(result.is_ok());
     }
 
-    #[test]
+    #[rstest]
     #[cfg_attr(miri, ignore)]
     #[serial]
-    fn dev_print_items_prints_single_item() {
+    fn dev_print_items_prints_single_item(_pyshinqlx_setup: ()) {
         let mut mock_engine = MockQuakeEngine::new();
         mock_engine
             .expect_send_server_command()
@@ -241,10 +242,12 @@ mod dev_print_items_tests {
         assert!(result.is_ok());
     }
 
-    #[test]
+    #[rstest]
     #[cfg_attr(miri, ignore)]
     #[serial]
-    fn dev_print_items_with_too_many_items_notifies_players_and_prints_remaining_items() {
+    fn dev_print_items_with_too_many_items_notifies_players_and_prints_remaining_items(
+        _pyshinqlx_setup: (),
+    ) {
         let mut mock_engine = MockQuakeEngine::new();
         mock_engine
             .expect_send_server_command()

@@ -45,10 +45,10 @@ mod drop_holdable_tests {
     use pyo3::exceptions::{PyEnvironmentError, PyValueError};
     use rstest::rstest;
 
-    #[test]
+    #[rstest]
     #[cfg_attr(miri, ignore)]
     #[serial]
-    fn drop_holdable_when_main_engine_not_initialized() {
+    fn drop_holdable_when_main_engine_not_initialized(_pyshinqlx_setup: ()) {
         MAIN_ENGINE.store(None);
         Python::with_gil(|py| {
             let result = pyshinqlx_drop_holdable(py, 21);
@@ -56,10 +56,10 @@ mod drop_holdable_tests {
         });
     }
 
-    #[test]
+    #[rstest]
     #[cfg_attr(miri, ignore)]
     #[serial]
-    fn drop_holdable_for_client_id_too_small() {
+    fn drop_holdable_for_client_id_too_small(_pyshinqlx_setup: ()) {
         let mut mock_engine = MockQuakeEngine::new();
         mock_engine.expect_get_max_clients().returning(|| 16);
         MAIN_ENGINE.store(Some(mock_engine.into()));
@@ -70,10 +70,10 @@ mod drop_holdable_tests {
         });
     }
 
-    #[test]
+    #[rstest]
     #[cfg_attr(miri, ignore)]
     #[serial]
-    fn drop_holdable_for_client_id_too_large() {
+    fn drop_holdable_for_client_id_too_large(_pyshinqlx_setup: ()) {
         let mut mock_engine = MockQuakeEngine::new();
         mock_engine.expect_get_max_clients().returning(|| 16);
         MAIN_ENGINE.store(Some(mock_engine.into()));
@@ -84,10 +84,10 @@ mod drop_holdable_tests {
         });
     }
 
-    #[test]
+    #[rstest]
     #[cfg_attr(miri, ignore)]
     #[serial]
-    fn drop_holdable_for_entity_with_no_game_client() {
+    fn drop_holdable_for_entity_with_no_game_client(_pyshinqlx_setup: ()) {
         let mut mock_engine = MockQuakeEngine::new();
         mock_engine.expect_get_max_clients().returning(|| 16);
         MAIN_ENGINE.store(Some(mock_engine.into()));
@@ -105,10 +105,10 @@ mod drop_holdable_tests {
         assert_eq!(result.expect("result was not OK"), false);
     }
 
-    #[test]
+    #[rstest]
     #[cfg_attr(miri, ignore)]
     #[serial]
-    fn drop_holdable_for_entity_with_no_holdable() {
+    fn drop_holdable_for_entity_with_no_holdable(_pyshinqlx_setup: ()) {
         let mut mock_engine = MockQuakeEngine::new();
         mock_engine.expect_get_max_clients().returning(|| 16);
         MAIN_ENGINE.store(Some(mock_engine.into()));
@@ -159,7 +159,10 @@ mod drop_holdable_tests {
     #[case(&Holdable::Flight)]
     #[cfg_attr(miri, ignore)]
     #[serial]
-    fn drop_holdable_for_entity_with_holdable_dropped(#[case] holdable: &'static Holdable) {
+    fn drop_holdable_for_entity_with_holdable_dropped(
+        _pyshinqlx_setup: (),
+        #[case] holdable: &'static Holdable,
+    ) {
         let mut mock_engine = MockQuakeEngine::new();
         mock_engine.expect_get_max_clients().returning(|| 16);
         MAIN_ENGINE.store(Some(mock_engine.into()));

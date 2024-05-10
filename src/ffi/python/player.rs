@@ -1456,9 +1456,9 @@ mod pyshinqlx_player_tests {
         );
     }
 
-    #[test]
+    #[rstest]
     #[cfg_attr(miri, ignore)]
-    fn repr_with_all_values_set() {
+    fn repr_with_all_values_set(_pyshinqlx_setup: ()) {
         let result = Python::with_gil(|py| {
             let player = Bound::new(
                 py,
@@ -1490,9 +1490,9 @@ mod pyshinqlx_player_tests {
         assert_eq!(player.__str__(), "^1Unnamed^2Player");
     }
 
-    #[test]
+    #[rstest]
     #[cfg_attr(miri, ignore)]
-    fn contains_with_invalid_player() {
+    fn contains_with_invalid_player(_pyshinqlx_setup: ()) {
         let player = Player {
             valid: false,
             ..default_test_player()
@@ -1504,9 +1504,9 @@ mod pyshinqlx_player_tests {
         });
     }
 
-    #[test]
+    #[rstest]
     #[cfg_attr(miri, ignore)]
-    fn contains_where_value_is_part_of_userinfo() {
+    fn contains_where_value_is_part_of_userinfo(_pyshinqlx_setup: ()) {
         let player = Player {
             player_info: PlayerInfo {
                 userinfo: r"\asdf\some value".to_string(),
@@ -1520,9 +1520,9 @@ mod pyshinqlx_player_tests {
         assert_eq!(result.expect("result was not OK"), true);
     }
 
-    #[test]
+    #[rstest]
     #[cfg_attr(miri, ignore)]
-    fn contains_where_value_is_not_in_userinfo() {
+    fn contains_where_value_is_not_in_userinfo(_pyshinqlx_setup: ()) {
         let player = Player {
             player_info: PlayerInfo {
                 userinfo: r"\name\^1Unnamed^2Player".to_string(),
@@ -1536,9 +1536,9 @@ mod pyshinqlx_player_tests {
         assert_eq!(result.expect("result was not OK"), false);
     }
 
-    #[test]
+    #[rstest]
     #[cfg_attr(miri, ignore)]
-    fn getitem_with_invalid_player() {
+    fn getitem_with_invalid_player(_pyshinqlx_setup: ()) {
         let player = Player {
             valid: false,
             ..default_test_player()
@@ -1550,9 +1550,9 @@ mod pyshinqlx_player_tests {
         });
     }
 
-    #[test]
+    #[rstest]
     #[cfg_attr(miri, ignore)]
-    fn getitem_where_value_is_part_of_userinfo() {
+    fn getitem_where_value_is_part_of_userinfo(_pyshinqlx_setup: ()) {
         let player = Player {
             player_info: PlayerInfo {
                 userinfo: r"\asdf\some value".to_string(),
@@ -1566,9 +1566,9 @@ mod pyshinqlx_player_tests {
         assert_eq!(result.expect("result was not OK"), "some value");
     }
 
-    #[test]
+    #[rstest]
     #[cfg_attr(miri, ignore)]
-    fn getitem_where_value_is_not_in_userinfo() {
+    fn getitem_where_value_is_not_in_userinfo(_pyshinqlx_setup: ()) {
         let player = Player {
             player_info: PlayerInfo {
                 userinfo: r"\name\^1Unnamed^2Player".to_string(),
@@ -1584,9 +1584,9 @@ mod pyshinqlx_player_tests {
         });
     }
 
-    #[test]
+    #[rstest]
     #[cfg_attr(miri, ignore)]
-    fn cvars_with_invalid_player() {
+    fn cvars_with_invalid_player(_pyshinqlx_setup: ()) {
         let player = Player {
             valid: false,
             ..default_test_player()
@@ -1598,9 +1598,9 @@ mod pyshinqlx_player_tests {
         });
     }
 
-    #[test]
+    #[rstest]
     #[cfg_attr(miri, ignore)]
-    fn cvars_where_value_is_part_of_userinfo() {
+    fn cvars_where_value_is_part_of_userinfo(_pyshinqlx_setup: ()) {
         let player = Player {
             player_info: PlayerInfo {
                 userinfo: r"\asdf\some value".to_string(),
@@ -1734,10 +1734,10 @@ assert(shinqlx.Player(42, player_info) != "asdf")
         assert!(result.is_ok());
     }
 
-    #[test]
+    #[rstest]
     #[serial]
     #[cfg_attr(miri, ignore)]
-    fn update_with_different_steam_id() {
+    fn update_with_different_steam_id(_pyshinqlx_setup: ()) {
         let game_entity_from_ctx = MockGameEntity::from_context();
         game_entity_from_ctx
             .expect()
@@ -1783,10 +1783,10 @@ assert(shinqlx.Player(42, player_info) != "asdf")
         assert_eq!(player.valid, false);
     }
 
-    #[test]
+    #[rstest]
     #[serial]
     #[cfg_attr(miri, ignore)]
-    fn update_can_be_called_from_python() {
+    fn update_can_be_called_from_python(_pyshinqlx_setup: ()) {
         let game_entity_from_ctx = MockGameEntity::from_context();
         game_entity_from_ctx
             .expect()
@@ -1838,10 +1838,10 @@ assert(player._valid)
         assert!(result.is_ok());
     }
 
-    #[test]
+    #[rstest]
     #[serial]
     #[cfg_attr(miri, ignore)]
-    fn update_updates_new_player_name() {
+    fn update_updates_new_player_name(_pyshinqlx_setup: ()) {
         let game_entity_from_ctx = MockGameEntity::from_context();
         game_entity_from_ctx
             .expect()
@@ -1885,10 +1885,10 @@ assert(player._valid)
         assert_eq!(player.name, "NewUnnamedPlayer");
     }
 
-    #[test]
+    #[rstest]
     #[serial]
     #[cfg_attr(miri, ignore)]
-    fn update_updates_new_player_name_from_userinfo() {
+    fn update_updates_new_player_name_from_userinfo(_pyshinqlx_setup: ()) {
         let game_entity_from_ctx = MockGameEntity::from_context();
         game_entity_from_ctx
             .expect()
@@ -1932,9 +1932,9 @@ assert(player._valid)
         assert_eq!(player.name, "NewUnnamedPlayer");
     }
 
-    #[test]
+    #[rstest]
     #[cfg_attr(miri, ignore)]
-    fn invalidate_invalidates_player() {
+    fn invalidate_invalidates_player(_pyshinqlx_setup: ()) {
         let mut player = default_test_player();
         let result = player.invalidate("invalid player");
         assert_eq!(player.valid, false);
@@ -1943,10 +1943,10 @@ assert(player._valid)
         });
     }
 
-    #[test]
+    #[rstest]
     #[cfg_attr(miri, ignore)]
     #[serial]
-    fn set_cvars_sets_client_cvars() {
+    fn set_cvars_sets_client_cvars(_pyshinqlx_setup: ()) {
         let mut mock_engine = MockQuakeEngine::new();
         mock_engine.expect_get_max_clients().returning(|| 16);
         MAIN_ENGINE.store(Some(mock_engine.into()));
@@ -1980,9 +1980,9 @@ assert(player._valid)
         assert!(result.is_ok());
     }
 
-    #[test]
+    #[rstest]
     #[cfg_attr(miri, ignore)]
-    fn get_ip_where_no_ip_is_set() {
+    fn get_ip_where_no_ip_is_set(_pyshinqlx_setup: ()) {
         let player = Player {
             user_info: "".to_string(),
             player_info: PlayerInfo {
@@ -1994,9 +1994,9 @@ assert(player._valid)
         assert_eq!(Python::with_gil(|py| player.get_ip(py)), "");
     }
 
-    #[test]
+    #[rstest]
     #[cfg_attr(miri, ignore)]
-    fn get_ip_for_ip_with_no_port() {
+    fn get_ip_for_ip_with_no_port(_pyshinqlx_setup: ()) {
         let player = Player {
             user_info: r"\ip\127.0.0.1".to_string(),
             player_info: PlayerInfo {
@@ -2009,9 +2009,9 @@ assert(player._valid)
         assert_eq!(Python::with_gil(|py| player.get_ip(py)), "127.0.0.1");
     }
 
-    #[test]
+    #[rstest]
     #[cfg_attr(miri, ignore)]
-    fn get_ip_for_ip_with_port() {
+    fn get_ip_for_ip_with_port(_pyshinqlx_setup: ()) {
         let player = Player {
             user_info: r"\ip\127.0.0.1:27666".to_string(),
             player_info: PlayerInfo {
@@ -2024,20 +2024,20 @@ assert(player._valid)
         assert_eq!(Python::with_gil(|py| player.get_ip(py)), "127.0.0.1");
     }
 
-    #[test]
+    #[rstest]
     #[cfg_attr(miri, ignore)]
     #[serial]
-    fn get_clan_with_no_main_engine() {
+    fn get_clan_with_no_main_engine(_pyshinqlx_setup: ()) {
         MAIN_ENGINE.store(None);
         let player = default_test_player();
         let result = Python::with_gil(|py| player.get_clan(py));
         assert_eq!(result, "");
     }
 
-    #[test]
+    #[rstest]
     #[cfg_attr(miri, ignore)]
     #[serial]
-    fn get_clan_with_no_clan_set() {
+    fn get_clan_with_no_clan_set(_pyshinqlx_setup: ()) {
         let mut mock_engine = MockQuakeEngine::new();
         mock_engine
             .expect_get_configstring()
@@ -2050,10 +2050,10 @@ assert(player._valid)
         assert_eq!(result, "");
     }
 
-    #[test]
+    #[rstest]
     #[cfg_attr(miri, ignore)]
     #[serial]
-    fn get_clan_with_clan_set() {
+    fn get_clan_with_clan_set(_pyshinqlx_setup: ()) {
         let mut mock_engine = MockQuakeEngine::new();
         mock_engine
             .expect_get_configstring()
@@ -2066,19 +2066,19 @@ assert(player._valid)
         assert_eq!(result, "asdf");
     }
 
-    #[test]
+    #[rstest]
     #[cfg_attr(miri, ignore)]
     #[serial]
-    fn set_clan_with_no_main_engine() {
+    fn set_clan_with_no_main_engine(_pyshinqlx_setup: ()) {
         MAIN_ENGINE.store(None);
         let mut player = default_test_player();
         Python::with_gil(|py| player.set_clan(py, "asdf".to_string()));
     }
 
-    #[test]
+    #[rstest]
     #[cfg_attr(miri, ignore)]
     #[serial]
-    fn set_clan_with_no_clan_set() {
+    fn set_clan_with_no_clan_set(_pyshinqlx_setup: ()) {
         let mut mock_engine = MockQuakeEngine::new();
         mock_engine
             .expect_get_configstring()
@@ -2096,10 +2096,10 @@ assert(player._valid)
         Python::with_gil(|py| player.set_clan(py, "clan".to_string()));
     }
 
-    #[test]
+    #[rstest]
     #[cfg_attr(miri, ignore)]
     #[serial]
-    fn set_clan_with_clan_set() {
+    fn set_clan_with_clan_set(_pyshinqlx_setup: ()) {
         let mut mock_engine = MockQuakeEngine::new();
         mock_engine
             .expect_get_configstring()
@@ -2121,9 +2121,9 @@ assert(player._valid)
         Python::with_gil(|py| player.set_clan(py, "clan".to_string()));
     }
 
-    #[test]
+    #[rstest]
     #[cfg_attr(miri, ignore)]
-    fn get_name_for_color_terminated_name() {
+    fn get_name_for_color_terminated_name(_pyshinqlx_setup: ()) {
         let player = Player {
             name: "UnnamedPlayer^7".to_string(),
             player_info: PlayerInfo {
@@ -2139,9 +2139,9 @@ assert(player._valid)
         );
     }
 
-    #[test]
+    #[rstest]
     #[cfg_attr(miri, ignore)]
-    fn get_name_for_color_unterminated_name() {
+    fn get_name_for_color_unterminated_name(_pyshinqlx_setup: ()) {
         let player = Player {
             name: "UnnamedPlayer".to_string(),
             player_info: PlayerInfo {
@@ -2157,10 +2157,10 @@ assert(player._valid)
         );
     }
 
-    #[test]
+    #[rstest]
     #[cfg_attr(miri, ignore)]
     #[serial]
-    fn set_name_updated_client_cvars() {
+    fn set_name_updated_client_cvars(_pyshinqlx_setup: ()) {
         let mut mock_engine = MockQuakeEngine::new();
         mock_engine.expect_get_max_clients().returning(|| 16);
         MAIN_ENGINE.store(Some(mock_engine.into()));
@@ -2197,9 +2197,9 @@ assert(player._valid)
         assert!(result.is_ok());
     }
 
-    #[test]
+    #[rstest]
     #[cfg_attr(miri, ignore)]
-    fn get_clean_name_returns_cleaned_name() {
+    fn get_clean_name_returns_cleaned_name(_pyshinqlx_setup: ()) {
         let player = Player {
             name: "^7^1S^3hi^4N^10^7".to_string(),
             ..default_test_player()
@@ -2209,9 +2209,9 @@ assert(player._valid)
         assert_eq!(result, "ShiN0");
     }
 
-    #[test]
+    #[rstest]
     #[cfg_attr(miri, ignore)]
-    fn get_qport_where_no_port_is_set() {
+    fn get_qport_where_no_port_is_set(_pyshinqlx_setup: ()) {
         let player = Player {
             user_info: "".to_string(),
             player_info: PlayerInfo {
@@ -2226,9 +2226,9 @@ assert(player._valid)
         });
     }
 
-    #[test]
+    #[rstest]
     #[cfg_attr(miri, ignore)]
-    fn get_qport_for_port_set() {
+    fn get_qport_for_port_set(_pyshinqlx_setup: ()) {
         let player = Player {
             user_info: r"\qport\27666".to_string(),
             player_info: PlayerInfo {
@@ -2243,9 +2243,9 @@ assert(player._valid)
         });
     }
 
-    #[test]
+    #[rstest]
     #[cfg_attr(miri, ignore)]
-    fn get_qport_for_invalid_port_set() {
+    fn get_qport_for_invalid_port_set(_pyshinqlx_setup: ()) {
         let player = Player {
             user_info: r"\qport\asdf".to_string(),
             player_info: PlayerInfo {
@@ -2266,7 +2266,11 @@ assert(player._valid)
     #[case(team_t::TEAM_BLUE, "blue")]
     #[case(team_t::TEAM_SPECTATOR, "spectator")]
     #[cfg_attr(miri, ignore)]
-    fn get_team_for_team_t_values(#[case] team: team_t, #[case] return_value: &str) {
+    fn get_team_for_team_t_values(
+        _pyshinqlx_setup: (),
+        #[case] team: team_t,
+        #[case] return_value: &str,
+    ) {
         let player = Player {
             player_info: PlayerInfo {
                 team: team as i32,
@@ -2283,9 +2287,9 @@ assert(player._valid)
         });
     }
 
-    #[test]
+    #[rstest]
     #[cfg_attr(miri, ignore)]
-    fn get_team_for_invalid_team() {
+    fn get_team_for_invalid_team(_pyshinqlx_setup: ()) {
         let player = Player {
             player_info: PlayerInfo {
                 team: 42,
@@ -2301,10 +2305,10 @@ assert(player._valid)
         });
     }
 
-    #[test]
+    #[rstest]
     #[cfg_attr(miri, ignore)]
     #[serial]
-    fn set_team_with_invalid_team() {
+    fn set_team_with_invalid_team(_pyshinqlx_setup: ()) {
         MAIN_ENGINE.store(None);
 
         Python::with_gil(|py| {
@@ -2321,7 +2325,7 @@ assert(player._valid)
     #[case("spectator")]
     #[cfg_attr(miri, ignore)]
     #[serial]
-    fn set_team_puts_player_on_a_specific_team(#[case] new_team: &str) {
+    fn set_team_puts_player_on_a_specific_team(_pyshinqlx_setup: (), #[case] new_team: &str) {
         let put_cmd = format!("put 2 {}", new_team.to_lowercase());
         let mut mock_engine = MockQuakeEngine::new();
         mock_engine
@@ -2335,9 +2339,9 @@ assert(player._valid)
         assert!(result.is_ok());
     }
 
-    #[test]
+    #[rstest]
     #[cfg_attr(miri, ignore)]
-    fn get_colors_where_no_colors_are_set() {
+    fn get_colors_where_no_colors_are_set(_pyshinqlx_setup: ()) {
         let player = Player {
             user_info: "".to_string(),
             player_info: PlayerInfo {
@@ -2352,9 +2356,9 @@ assert(player._valid)
         });
     }
 
-    #[test]
+    #[rstest]
     #[cfg_attr(miri, ignore)]
-    fn get_colors_for_colors_set() {
+    fn get_colors_for_colors_set(_pyshinqlx_setup: ()) {
         let player = Player {
             user_info: r"\color1\42\color2\21".to_string(),
             player_info: PlayerInfo {
@@ -2369,9 +2373,9 @@ assert(player._valid)
         });
     }
 
-    #[test]
+    #[rstest]
     #[cfg_attr(miri, ignore)]
-    fn get_colors_for_invalid_color1_set() {
+    fn get_colors_for_invalid_color1_set(_pyshinqlx_setup: ()) {
         let player = Player {
             user_info: r"\color1\asdf\color2\42".to_string(),
             player_info: PlayerInfo {
@@ -2386,9 +2390,9 @@ assert(player._valid)
         });
     }
 
-    #[test]
+    #[rstest]
     #[cfg_attr(miri, ignore)]
-    fn get_colors_for_invalid_color2_set() {
+    fn get_colors_for_invalid_color2_set(_pyshinqlx_setup: ()) {
         let player = Player {
             user_info: r"\color1\42\color2\asdf".to_string(),
             player_info: PlayerInfo {
@@ -2403,10 +2407,10 @@ assert(player._valid)
         });
     }
 
-    #[test]
+    #[rstest]
     #[cfg_attr(miri, ignore)]
     #[serial]
-    fn set_colors_updates_client_cvars() {
+    fn set_colors_updates_client_cvars(_pyshinqlx_setup: ()) {
         let mut mock_engine = MockQuakeEngine::new();
         mock_engine.expect_get_max_clients().returning(|| 16);
         MAIN_ENGINE.store(Some(mock_engine.into()));
@@ -2443,9 +2447,9 @@ assert(player._valid)
         assert!(result.is_ok());
     }
 
-    #[test]
+    #[rstest]
     #[cfg_attr(miri, ignore)]
-    fn get_model_when_no_model_is_set() {
+    fn get_model_when_no_model_is_set(_pyshinqlx_setup: ()) {
         let player = Player {
             user_info: "".to_string(),
             player_info: PlayerInfo {
@@ -2461,9 +2465,9 @@ assert(player._valid)
         });
     }
 
-    #[test]
+    #[rstest]
     #[cfg_attr(miri, ignore)]
-    fn get_model_when_model_is_set() {
+    fn get_model_when_model_is_set(_pyshinqlx_setup: ()) {
         let player = Player {
             user_info: r"\model\asdf".to_string(),
             player_info: PlayerInfo {
@@ -2477,10 +2481,10 @@ assert(player._valid)
         assert_eq!(result.expect("result was not OK"), "asdf");
     }
 
-    #[test]
+    #[rstest]
     #[cfg_attr(miri, ignore)]
     #[serial]
-    fn set_model_updates_client_cvars() {
+    fn set_model_updates_client_cvars(_pyshinqlx_setup: ()) {
         let mut mock_engine = MockQuakeEngine::new();
         mock_engine.expect_get_max_clients().returning(|| 16);
         MAIN_ENGINE.store(Some(mock_engine.into()));
@@ -2517,9 +2521,9 @@ assert(player._valid)
         assert!(result.is_ok());
     }
 
-    #[test]
+    #[rstest]
     #[cfg_attr(miri, ignore)]
-    fn get_headmodel_when_no_headmodel_is_set() {
+    fn get_headmodel_when_no_headmodel_is_set(_pyshinqlx_setup: ()) {
         let player = Player {
             user_info: "".to_string(),
             player_info: PlayerInfo {
@@ -2535,9 +2539,9 @@ assert(player._valid)
         });
     }
 
-    #[test]
+    #[rstest]
     #[cfg_attr(miri, ignore)]
-    fn get_headmodel_when_headmodel_is_set() {
+    fn get_headmodel_when_headmodel_is_set(_pyshinqlx_setup: ()) {
         let player = Player {
             user_info: r"\headmodel\asdf".to_string(),
             player_info: PlayerInfo {
@@ -2551,10 +2555,10 @@ assert(player._valid)
         assert_eq!(result.expect("result was not OK"), "asdf");
     }
 
-    #[test]
+    #[rstest]
     #[cfg_attr(miri, ignore)]
     #[serial]
-    fn set_headmodel_updates_client_cvars() {
+    fn set_headmodel_updates_client_cvars(_pyshinqlx_setup: ()) {
         let mut mock_engine = MockQuakeEngine::new();
         mock_engine.expect_get_max_clients().returning(|| 16);
         MAIN_ENGINE.store(Some(mock_engine.into()));
@@ -2591,9 +2595,9 @@ assert(player._valid)
         assert!(result.is_ok());
     }
 
-    #[test]
+    #[rstest]
     #[cfg_attr(miri, ignore)]
-    fn get_handicap_when_no_handicap_is_set() {
+    fn get_handicap_when_no_handicap_is_set(_pyshinqlx_setup: ()) {
         let player = Player {
             user_info: "".to_string(),
             player_info: PlayerInfo {
@@ -2609,9 +2613,9 @@ assert(player._valid)
         });
     }
 
-    #[test]
+    #[rstest]
     #[cfg_attr(miri, ignore)]
-    fn get_handicap_when_handicap_is_set() {
+    fn get_handicap_when_handicap_is_set(_pyshinqlx_setup: ()) {
         let player = Player {
             user_info: r"\handicap\42".to_string(),
             player_info: PlayerInfo {
@@ -2625,10 +2629,10 @@ assert(player._valid)
         assert_eq!(result.expect("result was not OK"), "42");
     }
 
-    #[test]
+    #[rstest]
     #[cfg_attr(miri, ignore)]
     #[serial]
-    fn set_handicap_updates_client_cvars() {
+    fn set_handicap_updates_client_cvars(_pyshinqlx_setup: ()) {
         let mut mock_engine = MockQuakeEngine::new();
         mock_engine.expect_get_max_clients().returning(|| 16);
         MAIN_ENGINE.store(Some(mock_engine.into()));
@@ -2665,9 +2669,9 @@ assert(player._valid)
         assert!(result.is_ok());
     }
 
-    #[test]
+    #[rstest]
     #[cfg_attr(miri, ignore)]
-    fn get_autohop_when_no_autohop_is_set() {
+    fn get_autohop_when_no_autohop_is_set(_pyshinqlx_setup: ()) {
         let player = Player {
             user_info: "".to_string(),
             player_info: PlayerInfo {
@@ -2683,9 +2687,9 @@ assert(player._valid)
         });
     }
 
-    #[test]
+    #[rstest]
     #[cfg_attr(miri, ignore)]
-    fn get_autohop_when_autohop_is_set() {
+    fn get_autohop_when_autohop_is_set(_pyshinqlx_setup: ()) {
         let player = Player {
             user_info: r"\autohop\1".to_string(),
             player_info: PlayerInfo {
@@ -2699,9 +2703,9 @@ assert(player._valid)
         assert_eq!(result.expect("result was not OK"), 1);
     }
 
-    #[test]
+    #[rstest]
     #[cfg_attr(miri, ignore)]
-    fn get_autohop_when_autohop_is_disabled() {
+    fn get_autohop_when_autohop_is_disabled(_pyshinqlx_setup: ()) {
         let player = Player {
             user_info: r"\autohop\0".to_string(),
             player_info: PlayerInfo {
@@ -2715,10 +2719,10 @@ assert(player._valid)
         assert_eq!(result.expect("result was not OK"), 0);
     }
 
-    #[test]
+    #[rstest]
     #[cfg_attr(miri, ignore)]
     #[serial]
-    fn set_autohop_updates_client_cvars() {
+    fn set_autohop_updates_client_cvars(_pyshinqlx_setup: ()) {
         let mut mock_engine = MockQuakeEngine::new();
         mock_engine.expect_get_max_clients().returning(|| 16);
         MAIN_ENGINE.store(Some(mock_engine.into()));
@@ -2755,9 +2759,9 @@ assert(player._valid)
         assert!(result.is_ok());
     }
 
-    #[test]
+    #[rstest]
     #[cfg_attr(miri, ignore)]
-    fn get_autoaction_when_no_autoaction_is_set() {
+    fn get_autoaction_when_no_autoaction_is_set(_pyshinqlx_setup: ()) {
         let player = Player {
             user_info: "".to_string(),
             player_info: PlayerInfo {
@@ -2773,9 +2777,9 @@ assert(player._valid)
         });
     }
 
-    #[test]
+    #[rstest]
     #[cfg_attr(miri, ignore)]
-    fn get_autoaction_when_autohop_is_set() {
+    fn get_autoaction_when_autohop_is_set(_pyshinqlx_setup: ()) {
         let player = Player {
             user_info: r"\autoaction\1".to_string(),
             player_info: PlayerInfo {
@@ -2789,9 +2793,9 @@ assert(player._valid)
         assert_eq!(result.expect("result was not OK"), 1);
     }
 
-    #[test]
+    #[rstest]
     #[cfg_attr(miri, ignore)]
-    fn get_autoaction_when_autoaction_is_disabled() {
+    fn get_autoaction_when_autoaction_is_disabled(_pyshinqlx_setup: ()) {
         let player = Player {
             user_info: r"\autoaction\0".to_string(),
             player_info: PlayerInfo {
@@ -2805,10 +2809,10 @@ assert(player._valid)
         assert_eq!(result.expect("result was not OK"), 0);
     }
 
-    #[test]
+    #[rstest]
     #[cfg_attr(miri, ignore)]
     #[serial]
-    fn set_autoaction_updates_client_cvars() {
+    fn set_autoaction_updates_client_cvars(_pyshinqlx_setup: ()) {
         let mut mock_engine = MockQuakeEngine::new();
         mock_engine.expect_get_max_clients().returning(|| 16);
         MAIN_ENGINE.store(Some(mock_engine.into()));
@@ -2845,9 +2849,9 @@ assert(player._valid)
         assert!(result.is_ok());
     }
 
-    #[test]
+    #[rstest]
     #[cfg_attr(miri, ignore)]
-    fn get_predictitems_when_no_predictitems_is_set() {
+    fn get_predictitems_when_no_predictitems_is_set(_pyshinqlx_setup: ()) {
         let player = Player {
             user_info: "".to_string(),
             player_info: PlayerInfo {
@@ -2863,9 +2867,9 @@ assert(player._valid)
         });
     }
 
-    #[test]
+    #[rstest]
     #[cfg_attr(miri, ignore)]
-    fn get_predictitems_when_predictitems_is_set() {
+    fn get_predictitems_when_predictitems_is_set(_pyshinqlx_setup: ()) {
         let player = Player {
             user_info: r"\cg_predictitems\1".to_string(),
             player_info: PlayerInfo {
@@ -2879,9 +2883,9 @@ assert(player._valid)
         assert_eq!(result.expect("result was not OK"), 1);
     }
 
-    #[test]
+    #[rstest]
     #[cfg_attr(miri, ignore)]
-    fn get_predititems_when_predictitems_is_disabled() {
+    fn get_predititems_when_predictitems_is_disabled(_pyshinqlx_setup: ()) {
         let player = Player {
             user_info: r"\cg_predictitems\0".to_string(),
             player_info: PlayerInfo {
@@ -2895,10 +2899,10 @@ assert(player._valid)
         assert_eq!(result.expect("result was not OK"), 0);
     }
 
-    #[test]
+    #[rstest]
     #[cfg_attr(miri, ignore)]
     #[serial]
-    fn set_predictitems_updates_client_cvars() {
+    fn set_predictitems_updates_client_cvars(_pyshinqlx_setup: ()) {
         let mut mock_engine = MockQuakeEngine::new();
         mock_engine.expect_get_max_clients().returning(|| 16);
         MAIN_ENGINE.store(Some(mock_engine.into()));
@@ -2943,6 +2947,7 @@ assert(player._valid)
     #[case(clientState_t::CS_ACTIVE, "active")]
     #[cfg_attr(miri, ignore)]
     fn get_connection_state_for_valid_values(
+        _pyshinqlx_setup: (),
         #[case] client_state: clientState_t,
         #[case] expected_value: &str,
     ) {
@@ -2958,9 +2963,9 @@ assert(player._valid)
         assert_eq!(result.expect("result was not Ok"), expected_value);
     }
 
-    #[test]
+    #[rstest]
     #[cfg_attr(miri, ignore)]
-    fn get_connection_state_for_invalid_value() {
+    fn get_connection_state_for_invalid_value(_pyshinqlx_setup: ()) {
         let player = Player {
             player_info: PlayerInfo {
                 connection_state: 42,
@@ -2975,10 +2980,10 @@ assert(player._valid)
         });
     }
 
-    #[test]
+    #[rstest]
     #[serial]
     #[cfg_attr(miri, ignore)]
-    fn get_state_when_main_engine_not_initialized() {
+    fn get_state_when_main_engine_not_initialized(_pyshinqlx_setup: ()) {
         MAIN_ENGINE.store(None);
 
         let player = default_test_player();
@@ -2989,10 +2994,10 @@ assert(player._valid)
         });
     }
 
-    #[test]
+    #[rstest]
     #[serial]
     #[cfg_attr(miri, ignore)]
-    fn get_state_for_client_without_game_client() {
+    fn get_state_for_client_without_game_client(_pyshinqlx_setup: ()) {
         let mut mock_engine = MockQuakeEngine::new();
         mock_engine.expect_get_max_clients().returning(|| 16);
         MAIN_ENGINE.store(Some(mock_engine.into()));
@@ -3015,10 +3020,10 @@ assert(player._valid)
         assert_eq!(result.expect("result was not OK"), None);
     }
 
-    #[test]
+    #[rstest]
     #[serial]
     #[cfg_attr(miri, ignore)]
-    fn get_state_transforms_from_game_client() {
+    fn get_state_transforms_from_game_client(_pyshinqlx_setup: ()) {
         let mut mock_engine = MockQuakeEngine::new();
         mock_engine.expect_get_max_clients().returning(|| 16);
         MAIN_ENGINE.store(Some(mock_engine.into()));
@@ -3104,6 +3109,7 @@ assert(player._valid)
     #[case(42, None)]
     #[cfg_attr(miri, ignore)]
     fn get_privileges_various_values(
+        _pyshinqlx_setup: (),
         #[case] privileges: i32,
         #[case] expected_value: Option<String>,
     ) {
@@ -3127,6 +3133,7 @@ assert(player._valid)
     #[serial]
     #[cfg_attr(miri, ignore)]
     fn set_privileges_for_valid_values(
+        _pyshinqlx_setup: (),
         #[case] opt_priv: Option<String>,
         #[case] privileges: &'static privileges_t,
     ) {
@@ -3154,9 +3161,9 @@ assert(player._valid)
         assert!(result.is_ok());
     }
 
-    #[test]
+    #[rstest]
     #[cfg_attr(miri, ignore)]
-    fn set_privileges_for_invalid_string() {
+    fn set_privileges_for_invalid_string(_pyshinqlx_setup: ()) {
         let mut player = default_test_player();
 
         Python::with_gil(|py| {
@@ -3165,9 +3172,9 @@ assert(player._valid)
         });
     }
 
-    #[test]
+    #[rstest]
     #[cfg_attr(miri, ignore)]
-    fn get_country_when_country_is_set() {
+    fn get_country_when_country_is_set(_pyshinqlx_setup: ()) {
         let player = Player {
             user_info: r"\country\de".to_string(),
             player_info: PlayerInfo {
@@ -3181,10 +3188,10 @@ assert(player._valid)
         assert_eq!(result.expect("result was not OK"), "de");
     }
 
-    #[test]
+    #[rstest]
     #[cfg_attr(miri, ignore)]
     #[serial]
-    fn set_country_updates_client_cvars() {
+    fn set_country_updates_client_cvars(_pyshinqlx_setup: ()) {
         let mut mock_engine = MockQuakeEngine::new();
         mock_engine.expect_get_max_clients().returning(|| 16);
         MAIN_ENGINE.store(Some(mock_engine.into()));
@@ -3221,9 +3228,9 @@ assert(player._valid)
         assert!(result.is_ok());
     }
 
-    #[test]
+    #[rstest]
     #[cfg_attr(miri, ignore)]
-    fn get_valid_for_valid_player() {
+    fn get_valid_for_valid_player(_pyshinqlx_setup: ()) {
         let player = Player {
             valid: true,
             ..default_test_player()
@@ -3231,9 +3238,9 @@ assert(player._valid)
         Python::with_gil(|py| assert_eq!(player.get_valid(py), true));
     }
 
-    #[test]
+    #[rstest]
     #[cfg_attr(miri, ignore)]
-    fn get_valid_for_invalid_player() {
+    fn get_valid_for_invalid_player(_pyshinqlx_setup: ()) {
         let player = Player {
             valid: false,
             ..default_test_player()
@@ -3241,10 +3248,10 @@ assert(player._valid)
         Python::with_gil(|py| assert_eq!(player.get_valid(py), false));
     }
 
-    #[test]
+    #[rstest]
     #[serial]
     #[cfg_attr(miri, ignore)]
-    fn get_stats_when_main_engine_not_initialized() {
+    fn get_stats_when_main_engine_not_initialized(_pyshinqlx_setup: ()) {
         MAIN_ENGINE.store(None);
 
         let player = default_test_player();
@@ -3255,10 +3262,10 @@ assert(player._valid)
         });
     }
 
-    #[test]
+    #[rstest]
     #[serial]
     #[cfg_attr(miri, ignore)]
-    fn get_stats_for_game_client() {
+    fn get_stats_for_game_client(_pyshinqlx_setup: ()) {
         let mut mock_engine = MockQuakeEngine::new();
         mock_engine.expect_get_max_clients().returning(|| 16);
         MAIN_ENGINE.store(Some(mock_engine.into()));
@@ -3303,10 +3310,10 @@ assert(player._valid)
         );
     }
 
-    #[test]
+    #[rstest]
     #[serial]
     #[cfg_attr(miri, ignore)]
-    fn get_stats_for_game_entiy_with_no_game_client() {
+    fn get_stats_for_game_entiy_with_no_game_client(_pyshinqlx_setup: ()) {
         let mut mock_engine = MockQuakeEngine::new();
         mock_engine.expect_get_max_clients().returning(|| 16);
         MAIN_ENGINE.store(Some(mock_engine.into()));
@@ -3327,10 +3334,10 @@ assert(player._valid)
         assert_eq!(result.expect("result was not OK"), None);
     }
 
-    #[test]
+    #[rstest]
     #[serial]
     #[cfg_attr(miri, ignore)]
-    fn get_ping_when_main_engine_not_initialized() {
+    fn get_ping_when_main_engine_not_initialized(_pyshinqlx_setup: ()) {
         MAIN_ENGINE.store(None);
 
         let player = default_test_player();
@@ -3341,10 +3348,10 @@ assert(player._valid)
         });
     }
 
-    #[test]
+    #[rstest]
     #[serial]
     #[cfg_attr(miri, ignore)]
-    fn get_ping_for_game_client() {
+    fn get_ping_for_game_client(_pyshinqlx_setup: ()) {
         let mut mock_engine = MockQuakeEngine::new();
         mock_engine.expect_get_max_clients().returning(|| 16);
         MAIN_ENGINE.store(Some(mock_engine.into()));
@@ -3376,10 +3383,10 @@ assert(player._valid)
         assert_eq!(result.expect("result was not OK"), 42);
     }
 
-    #[test]
+    #[rstest]
     #[serial]
     #[cfg_attr(miri, ignore)]
-    fn get_ping_for_game_entiy_with_no_game_client() {
+    fn get_ping_for_game_entiy_with_no_game_client(_pyshinqlx_setup: ()) {
         let mut mock_engine = MockQuakeEngine::new();
         mock_engine.expect_get_max_clients().returning(|| 16);
         MAIN_ENGINE.store(Some(mock_engine.into()));
@@ -3400,10 +3407,10 @@ assert(player._valid)
         assert_eq!(result.expect("result was not OK"), 999);
     }
 
-    #[test]
+    #[rstest]
     #[cfg_attr(miri, ignore)]
     #[serial]
-    fn position_gathers_players_position_with_no_kwargs() {
+    fn position_gathers_players_position_with_no_kwargs(_pyshinqlx_setup: ()) {
         let mut mock_engine = MockQuakeEngine::new();
         mock_engine.expect_get_max_clients().returning(|| 16);
         MAIN_ENGINE.store(Some(mock_engine.into()));
@@ -3450,10 +3457,10 @@ assert(player._valid)
         });
     }
 
-    #[test]
+    #[rstest]
     #[cfg_attr(miri, ignore)]
     #[serial]
-    fn position_sets_players_position_when_provided() {
+    fn position_sets_players_position_when_provided(_pyshinqlx_setup: ()) {
         let mut mock_engine = MockQuakeEngine::new();
         mock_engine.expect_get_max_clients().returning(|| 16);
         MAIN_ENGINE.store(Some(mock_engine.into()));
@@ -3537,6 +3544,7 @@ assert(player._valid)
     #[cfg_attr(miri, ignore)]
     #[serial]
     fn position_resets_players_position_with_single_value(
+        _pyshinqlx_setup: (),
         #[case] position: [(String, i32); 1],
         #[case] expected_position: (f32, f32, f32),
     ) {
@@ -3574,10 +3582,10 @@ assert(player._valid)
         });
     }
 
-    #[test]
+    #[rstest]
     #[cfg_attr(miri, ignore)]
     #[serial]
-    fn position_sets_players_position_with_no_game_client() {
+    fn position_sets_players_position_with_no_game_client(_pyshinqlx_setup: ()) {
         let mut mock_engine = MockQuakeEngine::new();
         mock_engine.expect_get_max_clients().returning(|| 16);
         MAIN_ENGINE.store(Some(mock_engine.into()));
@@ -3609,10 +3617,10 @@ assert(player._valid)
         });
     }
 
-    #[test]
+    #[rstest]
     #[cfg_attr(miri, ignore)]
     #[serial]
-    fn velocity_gathers_players_velocity_with_no_kwargs() {
+    fn velocity_gathers_players_velocity_with_no_kwargs(_pyshinqlx_setup: ()) {
         let mut mock_engine = MockQuakeEngine::new();
         mock_engine.expect_get_max_clients().returning(|| 16);
         MAIN_ENGINE.store(Some(mock_engine.into()));
@@ -3659,10 +3667,10 @@ assert(player._valid)
         });
     }
 
-    #[test]
+    #[rstest]
     #[cfg_attr(miri, ignore)]
     #[serial]
-    fn velocity_sets_players_velocity_when_provided() {
+    fn velocity_sets_players_velocity_when_provided(_pyshinqlx_setup: ()) {
         let mut mock_engine = MockQuakeEngine::new();
         mock_engine.expect_get_max_clients().returning(|| 16);
         MAIN_ENGINE.store(Some(mock_engine.into()));
@@ -3746,6 +3754,7 @@ assert(player._valid)
     #[cfg_attr(miri, ignore)]
     #[serial]
     fn velocity_resets_players_veloity_with_single_value(
+        _pyshinqlx_setup: (),
         #[case] velocity: [(String, i32); 1],
         #[case] expected_velocity: (f32, f32, f32),
     ) {
@@ -3783,10 +3792,10 @@ assert(player._valid)
         });
     }
 
-    #[test]
+    #[rstest]
     #[cfg_attr(miri, ignore)]
     #[serial]
-    fn velocity_sets_players_velocity_with_no_game_client() {
+    fn velocity_sets_players_velocity_with_no_game_client(_pyshinqlx_setup: ()) {
         let mut mock_engine = MockQuakeEngine::new();
         mock_engine.expect_get_max_clients().returning(|| 16);
         MAIN_ENGINE.store(Some(mock_engine.into()));
@@ -3818,10 +3827,10 @@ assert(player._valid)
         });
     }
 
-    #[test]
+    #[rstest]
     #[cfg_attr(miri, ignore)]
     #[serial]
-    fn weapons_gathers_players_weapons_with_no_kwargs() {
+    fn weapons_gathers_players_weapons_with_no_kwargs(_pyshinqlx_setup: ()) {
         let mut mock_engine = MockQuakeEngine::new();
         mock_engine.expect_get_max_clients().returning(|| 16);
         MAIN_ENGINE.store(Some(mock_engine.into()));
@@ -3868,10 +3877,10 @@ assert(player._valid)
         });
     }
 
-    #[test]
+    #[rstest]
     #[cfg_attr(miri, ignore)]
     #[serial]
-    fn weapons_sets_players_weapons_when_provided() {
+    fn weapons_sets_players_weapons_when_provided(_pyshinqlx_setup: ()) {
         let mut mock_engine = MockQuakeEngine::new();
         mock_engine.expect_get_max_clients().returning(|| 16);
         MAIN_ENGINE.store(Some(mock_engine.into()));
@@ -3986,6 +3995,7 @@ assert(player._valid)
     #[cfg_attr(miri, ignore)]
     #[serial]
     fn weapons_resets_players_weapons_with_single_value(
+        _pyshinqlx_setup: (),
         #[case] weapons: [(String, i32); 1],
         #[case] expected_weapons: [i32; 15],
     ) {
@@ -4023,10 +4033,10 @@ assert(player._valid)
         });
     }
 
-    #[test]
+    #[rstest]
     #[cfg_attr(miri, ignore)]
     #[serial]
-    fn weapons_sets_players_weapons_with_no_game_client() {
+    fn weapons_sets_players_weapons_with_no_game_client(_pyshinqlx_setup: ()) {
         let mut mock_engine = MockQuakeEngine::new();
         mock_engine.expect_get_max_clients().returning(|| 16);
         MAIN_ENGINE.store(Some(mock_engine.into()));
@@ -4095,7 +4105,7 @@ assert(player._valid)
     #[case(weapon_t::WP_HANDS)]
     #[cfg_attr(miri, ignore)]
     #[serial]
-    fn weapon_gets_currently_held_weapon(#[case] weapon: weapon_t) {
+    fn weapon_gets_currently_held_weapon(_pyshinqlx_setup: (), #[case] weapon: weapon_t) {
         let mut mock_engine = MockQuakeEngine::new();
         mock_engine.expect_get_max_clients().returning(|| 16);
         MAIN_ENGINE.store(Some(mock_engine.into()));
@@ -4145,10 +4155,10 @@ assert(player._valid)
         });
     }
 
-    #[test]
+    #[rstest]
     #[cfg_attr(miri, ignore)]
     #[serial]
-    fn weapon_gets_currently_held_weapon_with_no_game_client() {
+    fn weapon_gets_currently_held_weapon_with_no_game_client(_pyshinqlx_setup: ()) {
         let mut mock_engine = MockQuakeEngine::new();
         mock_engine.expect_get_max_clients().returning(|| 16);
         MAIN_ENGINE.store(Some(mock_engine.into()));
@@ -4196,6 +4206,7 @@ assert(player._valid)
     #[cfg_attr(miri, ignore)]
     #[serial]
     fn weapon_sets_players_weapon_from_str(
+        _pyshinqlx_setup: (),
         #[case] weapon_str: &str,
         #[case] expected_weapon: weapon_t,
     ) {
@@ -4234,9 +4245,9 @@ assert(player._valid)
         });
     }
 
-    #[test]
+    #[rstest]
     #[cfg_attr(miri, ignore)]
-    fn weapon_sets_players_weapon_from_invalid_str() {
+    fn weapon_sets_players_weapon_from_invalid_str(_pyshinqlx_setup: ()) {
         let player = default_test_player();
 
         Python::with_gil(|py| {
@@ -4264,6 +4275,7 @@ assert(player._valid)
     #[cfg_attr(miri, ignore)]
     #[serial]
     fn weapon_sets_players_weapon_from_int(
+        _pyshinqlx_setup: (),
         #[case] weapon_index: i32,
         #[case] expected_weapon: weapon_t,
     ) {
@@ -4302,9 +4314,9 @@ assert(player._valid)
         });
     }
 
-    #[test]
+    #[rstest]
     #[cfg_attr(miri, ignore)]
-    fn weapon_sets_players_weapon_from_invalid_int() {
+    fn weapon_sets_players_weapon_from_invalid_int(_pyshinqlx_setup: ()) {
         let player = default_test_player();
 
         Python::with_gil(|py| {
@@ -4313,10 +4325,10 @@ assert(player._valid)
         });
     }
 
-    #[test]
+    #[rstest]
     #[cfg_attr(miri, ignore)]
     #[serial]
-    fn ammo_gathers_players_ammo_with_no_kwargs() {
+    fn ammo_gathers_players_ammo_with_no_kwargs(_pyshinqlx_setup: ()) {
         let mut mock_engine = MockQuakeEngine::new();
         mock_engine.expect_get_max_clients().returning(|| 16);
         MAIN_ENGINE.store(Some(mock_engine.into()));
@@ -4363,10 +4375,10 @@ assert(player._valid)
         });
     }
 
-    #[test]
+    #[rstest]
     #[cfg_attr(miri, ignore)]
     #[serial]
-    fn ammo_sets_players_ammo_when_provided() {
+    fn ammo_sets_players_ammo_when_provided(_pyshinqlx_setup: ()) {
         let mut mock_engine = MockQuakeEngine::new();
         mock_engine.expect_get_max_clients().returning(|| 16);
         MAIN_ENGINE.store(Some(mock_engine.into()));
@@ -4481,6 +4493,7 @@ assert(player._valid)
     #[cfg_attr(miri, ignore)]
     #[serial]
     fn ammo_resets_players_ammos_with_single_value(
+        _pyshinqlx_setup: (),
         #[case] ammos: [(String, i32); 1],
         #[case] expected_ammos: [i32; 15],
     ) {
@@ -4518,10 +4531,10 @@ assert(player._valid)
         });
     }
 
-    #[test]
+    #[rstest]
     #[cfg_attr(miri, ignore)]
     #[serial]
-    fn ammo_sets_players_ammo_with_no_game_client() {
+    fn ammo_sets_players_ammo_with_no_game_client(_pyshinqlx_setup: ()) {
         let mut mock_engine = MockQuakeEngine::new();
         mock_engine.expect_get_max_clients().returning(|| 16);
         MAIN_ENGINE.store(Some(mock_engine.into()));
@@ -4572,10 +4585,10 @@ assert(player._valid)
         });
     }
 
-    #[test]
+    #[rstest]
     #[cfg_attr(miri, ignore)]
     #[serial]
-    fn powerups_gathers_players_powerups_with_no_kwargs() {
+    fn powerups_gathers_players_powerups_with_no_kwargs(_pyshinqlx_setup: ()) {
         let mut mock_engine = MockQuakeEngine::new();
         mock_engine.expect_get_max_clients().returning(|| 16);
         MAIN_ENGINE.store(Some(mock_engine.into()));
@@ -4622,10 +4635,10 @@ assert(player._valid)
         });
     }
 
-    #[test]
+    #[rstest]
     #[cfg_attr(miri, ignore)]
     #[serial]
-    fn powerups_sets_players_powerups_when_provided() {
+    fn powerups_sets_players_powerups_when_provided(_pyshinqlx_setup: ()) {
         let mut mock_engine = MockQuakeEngine::new();
         mock_engine.expect_get_max_clients().returning(|| 16);
         MAIN_ENGINE.store(Some(mock_engine.into()));
@@ -4722,6 +4735,7 @@ assert(player._valid)
     #[cfg_attr(miri, ignore)]
     #[serial]
     fn powerups_resets_players_powerups_with_single_value(
+        _pyshinqlx_setup: (),
         #[case] powerups: [(String, i32); 1],
         #[case] expected_powerups: [i32; 6],
     ) {
@@ -4759,10 +4773,10 @@ assert(player._valid)
         });
     }
 
-    #[test]
+    #[rstest]
     #[cfg_attr(miri, ignore)]
     #[serial]
-    fn powerups_sets_players_powerups_with_no_game_client() {
+    fn powerups_sets_players_powerups_with_no_game_client(_pyshinqlx_setup: ()) {
         let mut mock_engine = MockQuakeEngine::new();
         mock_engine.expect_get_max_clients().returning(|| 16);
         MAIN_ENGINE.store(Some(mock_engine.into()));
@@ -4804,10 +4818,10 @@ assert(player._valid)
         });
     }
 
-    #[test]
+    #[rstest]
     #[serial]
     #[cfg_attr(miri, ignore)]
-    fn get_holdable_when_main_engine_not_initialized() {
+    fn get_holdable_when_main_engine_not_initialized(_pyshinqlx_setup: ()) {
         MAIN_ENGINE.store(None);
 
         let player = default_test_player();
@@ -4829,6 +4843,7 @@ assert(player._valid)
     #[serial]
     #[cfg_attr(miri, ignore)]
     fn get_holdable_with_various_values(
+        _pyshinqlx_setup: (),
         #[case] holdable: Holdable,
         #[case] expected_result: Option<String>,
     ) {
@@ -4875,10 +4890,10 @@ assert(player._valid)
         assert_eq!(result.expect("result was not Ok"), expected_result);
     }
 
-    #[test]
+    #[rstest]
     #[cfg_attr(miri, ignore)]
     #[serial]
-    fn set_holdable_with_no_main_engine() {
+    fn set_holdable_with_no_main_engine(_pyshinqlx_setup: ()) {
         MAIN_ENGINE.store(None);
 
         let mut player = default_test_player();
@@ -4894,7 +4909,7 @@ assert(player._valid)
     #[case("asdf")]
     #[cfg_attr(miri, ignore)]
     #[serial]
-    fn set_holdable_for_unknown_values(#[case] invalid_str: &str) {
+    fn set_holdable_for_unknown_values(_pyshinqlx_setup: (), #[case] invalid_str: &str) {
         let mut player = default_test_player();
 
         Python::with_gil(|py| {
@@ -4914,6 +4929,7 @@ assert(player._valid)
     #[cfg_attr(miri, ignore)]
     #[serial]
     fn set_holdable_for_various_values(
+        _pyshinqlx_setup: (),
         #[case] new_holdable: Option<String>,
         #[case] expected_holdable: Holdable,
     ) {
@@ -4943,10 +4959,10 @@ assert(player._valid)
         assert!(result.is_ok());
     }
 
-    #[test]
+    #[rstest]
     #[cfg_attr(miri, ignore)]
     #[serial]
-    fn set_holdable_for_flight() {
+    fn set_holdable_for_flight(_pyshinqlx_setup: ()) {
         let mut mock_engine = MockQuakeEngine::new();
         mock_engine.expect_get_max_clients().returning(|| 16);
         MAIN_ENGINE.store(Some(mock_engine.into()));
@@ -4994,10 +5010,10 @@ assert(player._valid)
         assert!(result.is_ok());
     }
 
-    #[test]
+    #[rstest]
     #[cfg_attr(miri, ignore)]
     #[serial]
-    fn drop_holdable_when_player_holds_one() {
+    fn drop_holdable_when_player_holds_one(_pyshinqlx_setup: ()) {
         let mut mock_engine = MockQuakeEngine::new();
         mock_engine.expect_get_max_clients().returning(|| 16);
         MAIN_ENGINE.store(Some(mock_engine.into()));
@@ -5042,10 +5058,10 @@ assert(player._valid)
         assert!(result.is_ok());
     }
 
-    #[test]
+    #[rstest]
     #[cfg_attr(miri, ignore)]
     #[serial]
-    fn flight_gathers_players_flight_parameters_with_no_kwargs() {
+    fn flight_gathers_players_flight_parameters_with_no_kwargs(_pyshinqlx_setup: ()) {
         let mut mock_engine = MockQuakeEngine::new();
         mock_engine.expect_get_max_clients().returning(|| 16);
         MAIN_ENGINE.store(Some(mock_engine.into()));
@@ -5096,10 +5112,10 @@ assert(player._valid)
         });
     }
 
-    #[test]
+    #[rstest]
     #[cfg_attr(miri, ignore)]
     #[serial]
-    fn flight_sets_players_flight_when_provided() {
+    fn flight_sets_players_flight_when_provided(_pyshinqlx_setup: ()) {
         let mut mock_engine = MockQuakeEngine::new();
         mock_engine.expect_get_max_clients().returning(|| 16);
         MAIN_ENGINE.store(Some(mock_engine.into()));
@@ -5186,6 +5202,7 @@ assert(player._valid)
     #[cfg_attr(miri, ignore)]
     #[serial]
     fn flight_resets_players_flight_with_single_value(
+        _pyshinqlx_setup: (),
         #[case] flight_opts: [(String, i32); 1],
         #[case] expected_flight: Flight,
     ) {
@@ -5269,10 +5286,10 @@ assert(player._valid)
         });
     }
 
-    #[test]
+    #[rstest]
     #[cfg_attr(miri, ignore)]
     #[serial]
-    fn flight_sets_players_flight_with_no_game_client() {
+    fn flight_sets_players_flight_with_no_game_client(_pyshinqlx_setup: ()) {
         let mut mock_engine = MockQuakeEngine::new();
         mock_engine.expect_get_max_clients().returning(|| 16);
         MAIN_ENGINE.store(Some(mock_engine.into()));
@@ -5312,7 +5329,7 @@ assert(player._valid)
     #[case(false)]
     #[cfg_attr(miri, ignore)]
     #[serial]
-    fn get_noclip_returns_players_noclip_state(#[case] noclip_state: bool) {
+    fn get_noclip_returns_players_noclip_state(_pyshinqlx_setup: (), #[case] noclip_state: bool) {
         let mut mock_engine = MockQuakeEngine::new();
         mock_engine.expect_get_max_clients().returning(|| 16);
         MAIN_ENGINE.store(Some(mock_engine.into()));
@@ -5356,10 +5373,10 @@ assert(player._valid)
         assert_eq!(result.expect("result was not Ok"), noclip_state.clone());
     }
 
-    #[test]
+    #[rstest]
     #[cfg_attr(miri, ignore)]
     #[serial]
-    fn get_noclip_for_player_without_game_client() {
+    fn get_noclip_for_player_without_game_client(_pyshinqlx_setup: ()) {
         let mut mock_engine = MockQuakeEngine::new();
         mock_engine.expect_get_max_clients().returning(|| 16);
         MAIN_ENGINE.store(Some(mock_engine.into()));
@@ -5379,10 +5396,10 @@ assert(player._valid)
         assert_eq!(result.expect("result was not Ok"), false);
     }
 
-    #[test]
+    #[rstest]
     #[cfg_attr(miri, ignore)]
     #[serial]
-    fn get_noclip_with_no_main_engine() {
+    fn get_noclip_with_no_main_engine(_pyshinqlx_setup: ()) {
         MAIN_ENGINE.store(None);
 
         let player = default_test_player();
@@ -5398,7 +5415,10 @@ assert(player._valid)
     #[case(false)]
     #[cfg_attr(miri, ignore)]
     #[serial]
-    fn set_noclip_set_players_noclip_value_by_bool(#[case] noclip_value: bool) {
+    fn set_noclip_set_players_noclip_value_by_bool(
+        _pyshinqlx_setup: (),
+        #[case] noclip_value: bool,
+    ) {
         let mut mock_engine = MockQuakeEngine::new();
         mock_engine.expect_get_max_clients().returning(|| 16);
         MAIN_ENGINE.store(Some(mock_engine.into()));
@@ -5453,6 +5473,7 @@ assert(player._valid)
     #[cfg_attr(miri, ignore)]
     #[serial]
     fn set_noclip_set_players_noclip_value_by_integer(
+        _pyshinqlx_setup: (),
         #[case] noclip_value: i32,
         #[case] expected_noclip: bool,
     ) {
@@ -5510,6 +5531,7 @@ assert(player._valid)
     #[cfg_attr(miri, ignore)]
     #[serial]
     fn set_noclip_set_players_noclip_value_by_string(
+        _pyshinqlx_setup: (),
         #[case] noclip_value: &'static str,
         #[case] expected_noclip: bool,
     ) {
@@ -5561,10 +5583,10 @@ assert(player._valid)
         assert!(result.as_ref().is_ok(), "{:?}", result.err());
     }
 
-    #[test]
+    #[rstest]
     #[cfg_attr(miri, ignore)]
     #[serial]
-    fn set_noclip_set_players_noclip_value_by_none() {
+    fn set_noclip_set_players_noclip_value_by_none(_pyshinqlx_setup: ()) {
         let mut mock_engine = MockQuakeEngine::new();
         mock_engine.expect_get_max_clients().returning(|| 16);
         MAIN_ENGINE.store(Some(mock_engine.into()));
@@ -5611,10 +5633,10 @@ assert(player._valid)
         assert!(result.as_ref().is_ok(), "{:?}", result.err());
     }
 
-    #[test]
+    #[rstest]
     #[cfg_attr(miri, ignore)]
     #[serial]
-    fn get_health_returns_players_health_state() {
+    fn get_health_returns_players_health_state(_pyshinqlx_setup: ()) {
         let mut mock_engine = MockQuakeEngine::new();
         mock_engine.expect_get_max_clients().returning(|| 16);
         MAIN_ENGINE.store(Some(mock_engine.into()));
@@ -5654,10 +5676,10 @@ assert(player._valid)
         assert_eq!(result.expect("result was not Ok"), 42);
     }
 
-    #[test]
+    #[rstest]
     #[cfg_attr(miri, ignore)]
     #[serial]
-    fn get_health_for_player_without_game_client() {
+    fn get_health_for_player_without_game_client(_pyshinqlx_setup: ()) {
         let mut mock_engine = MockQuakeEngine::new();
         mock_engine.expect_get_max_clients().returning(|| 16);
         MAIN_ENGINE.store(Some(mock_engine.into()));
@@ -5677,10 +5699,10 @@ assert(player._valid)
         assert_eq!(result.expect("result was not Ok"), 0);
     }
 
-    #[test]
+    #[rstest]
     #[cfg_attr(miri, ignore)]
     #[serial]
-    fn get_health_with_no_main_engine() {
+    fn get_health_with_no_main_engine(_pyshinqlx_setup: ()) {
         MAIN_ENGINE.store(None);
 
         let player = default_test_player();
@@ -5691,10 +5713,10 @@ assert(player._valid)
         });
     }
 
-    #[test]
+    #[rstest]
     #[cfg_attr(miri, ignore)]
     #[serial]
-    fn set_health_set_players_health() {
+    fn set_health_set_players_health(_pyshinqlx_setup: ()) {
         let mut mock_engine = MockQuakeEngine::new();
         mock_engine.expect_get_max_clients().returning(|| 16);
         MAIN_ENGINE.store(Some(mock_engine.into()));
@@ -5716,10 +5738,10 @@ assert(player._valid)
         assert!(result.is_ok());
     }
 
-    #[test]
+    #[rstest]
     #[cfg_attr(miri, ignore)]
     #[serial]
-    fn get_armor_returns_players_armor_state() {
+    fn get_armor_returns_players_armor_state(_pyshinqlx_setup: ()) {
         let mut mock_engine = MockQuakeEngine::new();
         mock_engine.expect_get_max_clients().returning(|| 16);
         MAIN_ENGINE.store(Some(mock_engine.into()));
@@ -5759,10 +5781,10 @@ assert(player._valid)
         assert_eq!(result.expect("result was not Ok"), 42);
     }
 
-    #[test]
+    #[rstest]
     #[cfg_attr(miri, ignore)]
     #[serial]
-    fn get_armor_for_player_without_game_client() {
+    fn get_armor_for_player_without_game_client(_pyshinqlx_setup: ()) {
         let mut mock_engine = MockQuakeEngine::new();
         mock_engine.expect_get_max_clients().returning(|| 16);
         MAIN_ENGINE.store(Some(mock_engine.into()));
@@ -5782,10 +5804,10 @@ assert(player._valid)
         assert_eq!(result.expect("result was not Ok"), 0);
     }
 
-    #[test]
+    #[rstest]
     #[cfg_attr(miri, ignore)]
     #[serial]
-    fn get_armor_with_no_main_engine() {
+    fn get_armor_with_no_main_engine(_pyshinqlx_setup: ()) {
         MAIN_ENGINE.store(None);
 
         let player = default_test_player();
@@ -5796,10 +5818,10 @@ assert(player._valid)
         });
     }
 
-    #[test]
+    #[rstest]
     #[cfg_attr(miri, ignore)]
     #[serial]
-    fn set_armor_set_players_armor() {
+    fn set_armor_set_players_armor(_pyshinqlx_setup: ()) {
         let mut mock_engine = MockQuakeEngine::new();
         mock_engine.expect_get_max_clients().returning(|| 16);
         MAIN_ENGINE.store(Some(mock_engine.into()));
@@ -5849,7 +5871,7 @@ assert(player._valid)
     #[case(false)]
     #[cfg_attr(miri, ignore)]
     #[serial]
-    fn get_is_alive_returns_players_is_alive_state(#[case] is_alive: bool) {
+    fn get_is_alive_returns_players_is_alive_state(_pyshinqlx_setup: (), #[case] is_alive: bool) {
         let mut mock_engine = MockQuakeEngine::new();
         mock_engine.expect_get_max_clients().returning(|| 16);
         MAIN_ENGINE.store(Some(mock_engine.into()));
@@ -5893,10 +5915,10 @@ assert(player._valid)
         assert_eq!(result.expect("result was not Ok"), is_alive);
     }
 
-    #[test]
+    #[rstest]
     #[cfg_attr(miri, ignore)]
     #[serial]
-    fn get_is_alive_for_player_without_game_client() {
+    fn get_is_alive_for_player_without_game_client(_pyshinqlx_setup: ()) {
         let mut mock_engine = MockQuakeEngine::new();
         mock_engine.expect_get_max_clients().returning(|| 16);
         MAIN_ENGINE.store(Some(mock_engine.into()));
@@ -5916,10 +5938,10 @@ assert(player._valid)
         assert_eq!(result.expect("result was not Ok"), false);
     }
 
-    #[test]
+    #[rstest]
     #[cfg_attr(miri, ignore)]
     #[serial]
-    fn get_is_alive_with_no_main_engine() {
+    fn get_is_alive_with_no_main_engine(_pyshinqlx_setup: ()) {
         MAIN_ENGINE.store(None);
 
         let player = default_test_player();
@@ -5930,10 +5952,10 @@ assert(player._valid)
         });
     }
 
-    #[test]
+    #[rstest]
     #[cfg_attr(miri, ignore)]
     #[serial]
-    fn set_is_alive_with_no_main_engine() {
+    fn set_is_alive_with_no_main_engine(_pyshinqlx_setup: ()) {
         MAIN_ENGINE.store(None);
 
         let player = default_test_player();
@@ -5944,10 +5966,10 @@ assert(player._valid)
         });
     }
 
-    #[test]
+    #[rstest]
     #[cfg_attr(miri, ignore)]
     #[serial]
-    fn set_is_alive_for_alive_player_with_false() {
+    fn set_is_alive_for_alive_player_with_false(_pyshinqlx_setup: ()) {
         let mut mock_engine = MockQuakeEngine::new();
         mock_engine.expect_get_max_clients().returning(|| 16);
         MAIN_ENGINE.store(Some(mock_engine.into()));
@@ -6005,10 +6027,10 @@ assert(player._valid)
         assert!(result.is_ok());
     }
 
-    #[test]
+    #[rstest]
     #[cfg_attr(miri, ignore)]
     #[serial]
-    fn set_is_alive_for_dead_player_with_false() {
+    fn set_is_alive_for_dead_player_with_false(_pyshinqlx_setup: ()) {
         let mut mock_engine = MockQuakeEngine::new();
         mock_engine.expect_get_max_clients().returning(|| 16);
         MAIN_ENGINE.store(Some(mock_engine.into()));
@@ -6047,10 +6069,10 @@ assert(player._valid)
         assert!(result.is_ok());
     }
 
-    #[test]
+    #[rstest]
     #[cfg_attr(miri, ignore)]
     #[serial]
-    fn set_is_alive_for_alive_player_with_true() {
+    fn set_is_alive_for_alive_player_with_true(_pyshinqlx_setup: ()) {
         let mut mock_engine = MockQuakeEngine::new();
         mock_engine.expect_get_max_clients().returning(|| 16);
         MAIN_ENGINE.store(Some(mock_engine.into()));
@@ -6090,10 +6112,10 @@ assert(player._valid)
         assert!(result.is_ok());
     }
 
-    #[test]
+    #[rstest]
     #[cfg_attr(miri, ignore)]
     #[serial]
-    fn set_is_alive_for_dead_player_with_true() {
+    fn set_is_alive_for_dead_player_with_true(_pyshinqlx_setup: ()) {
         let mut mock_engine = MockQuakeEngine::new();
         mock_engine.expect_get_max_clients().returning(|| 16);
         MAIN_ENGINE.store(Some(mock_engine.into()));
@@ -6174,7 +6196,10 @@ assert(player._valid)
     #[case(false)]
     #[cfg_attr(miri, ignore)]
     #[serial]
-    fn get_is_frozen_returns_players_is_frozen_state(#[case] is_frozen: bool) {
+    fn get_is_frozen_returns_players_is_frozen_state(
+        _pyshinqlx_setup: (),
+        #[case] is_frozen: bool,
+    ) {
         let mut mock_engine = MockQuakeEngine::new();
         mock_engine.expect_get_max_clients().returning(|| 16);
         MAIN_ENGINE.store(Some(mock_engine.into()));
@@ -6218,10 +6243,10 @@ assert(player._valid)
         assert_eq!(result.expect("result was not Ok"), is_frozen);
     }
 
-    #[test]
+    #[rstest]
     #[cfg_attr(miri, ignore)]
     #[serial]
-    fn get_is_frozen_for_player_without_game_client() {
+    fn get_is_frozen_for_player_without_game_client(_pyshinqlx_setup: ()) {
         let mut mock_engine = MockQuakeEngine::new();
         mock_engine.expect_get_max_clients().returning(|| 16);
         MAIN_ENGINE.store(Some(mock_engine.into()));
@@ -6241,10 +6266,10 @@ assert(player._valid)
         assert_eq!(result.expect("result was not Ok"), false);
     }
 
-    #[test]
+    #[rstest]
     #[cfg_attr(miri, ignore)]
     #[serial]
-    fn get_is_frozen_with_no_main_engine() {
+    fn get_is_frozen_with_no_main_engine(_pyshinqlx_setup: ()) {
         MAIN_ENGINE.store(None);
 
         let player = default_test_player();
@@ -6260,7 +6285,10 @@ assert(player._valid)
     #[case(false)]
     #[cfg_attr(miri, ignore)]
     #[serial]
-    fn get_is_chatting_returns_players_is_chatting_state(#[case] is_chatting: bool) {
+    fn get_is_chatting_returns_players_is_chatting_state(
+        _pyshinqlx_setup: (),
+        #[case] is_chatting: bool,
+    ) {
         let mut mock_engine = MockQuakeEngine::new();
         mock_engine.expect_get_max_clients().returning(|| 16);
         MAIN_ENGINE.store(Some(mock_engine.into()));
@@ -6304,10 +6332,10 @@ assert(player._valid)
         assert_eq!(result.expect("result was not Ok"), is_chatting);
     }
 
-    #[test]
+    #[rstest]
     #[cfg_attr(miri, ignore)]
     #[serial]
-    fn get_is_chatting_for_player_without_game_client() {
+    fn get_is_chatting_for_player_without_game_client(_pyshinqlx_setup: ()) {
         let mut mock_engine = MockQuakeEngine::new();
         mock_engine.expect_get_max_clients().returning(|| 16);
         MAIN_ENGINE.store(Some(mock_engine.into()));
@@ -6327,10 +6355,10 @@ assert(player._valid)
         assert_eq!(result.expect("result was not Ok"), false);
     }
 
-    #[test]
+    #[rstest]
     #[cfg_attr(miri, ignore)]
     #[serial]
-    fn get_is_chatting_with_no_main_engine() {
+    fn get_is_chatting_with_no_main_engine(_pyshinqlx_setup: ()) {
         MAIN_ENGINE.store(None);
 
         let player = default_test_player();
@@ -6341,10 +6369,10 @@ assert(player._valid)
         });
     }
 
-    #[test]
+    #[rstest]
     #[serial]
     #[cfg_attr(miri, ignore)]
-    fn get_score_when_main_engine_not_initialized() {
+    fn get_score_when_main_engine_not_initialized(_pyshinqlx_setup: ()) {
         MAIN_ENGINE.store(None);
 
         let player = default_test_player();
@@ -6355,10 +6383,10 @@ assert(player._valid)
         });
     }
 
-    #[test]
+    #[rstest]
     #[serial]
     #[cfg_attr(miri, ignore)]
-    fn get_score_for_game_client() {
+    fn get_score_for_game_client(_pyshinqlx_setup: ()) {
         let mut mock_engine = MockQuakeEngine::new();
         mock_engine.expect_get_max_clients().returning(|| 16);
         MAIN_ENGINE.store(Some(mock_engine.into()));
@@ -6390,10 +6418,10 @@ assert(player._valid)
         assert_eq!(result.expect("result was not OK"), 42);
     }
 
-    #[test]
+    #[rstest]
     #[serial]
     #[cfg_attr(miri, ignore)]
-    fn get_score_for_game_entiy_with_no_game_client() {
+    fn get_score_for_game_entiy_with_no_game_client(_pyshinqlx_setup: ()) {
         let mut mock_engine = MockQuakeEngine::new();
         mock_engine.expect_get_max_clients().returning(|| 16);
         MAIN_ENGINE.store(Some(mock_engine.into()));
@@ -6413,10 +6441,10 @@ assert(player._valid)
         assert_eq!(result.expect("result was not OK"), 0);
     }
 
-    #[test]
+    #[rstest]
     #[serial]
     #[cfg_attr(miri, ignore)]
-    fn set_score_when_main_engine_not_initialized() {
+    fn set_score_when_main_engine_not_initialized(_pyshinqlx_setup: ()) {
         MAIN_ENGINE.store(None);
 
         let player = default_test_player();
@@ -6427,10 +6455,10 @@ assert(player._valid)
         });
     }
 
-    #[test]
+    #[rstest]
     #[serial]
     #[cfg_attr(miri, ignore)]
-    fn set_score_for_game_client() {
+    fn set_score_for_game_client(_pyshinqlx_setup: ()) {
         let mut mock_engine = MockQuakeEngine::new();
         mock_engine.expect_get_max_clients().returning(|| 16);
         MAIN_ENGINE.store(Some(mock_engine.into()));
@@ -6455,10 +6483,10 @@ assert(player._valid)
         assert!(result.is_ok());
     }
 
-    #[test]
+    #[rstest]
     #[serial]
     #[cfg_attr(miri, ignore)]
-    fn set_score_for_game_entiy_with_no_game_client() {
+    fn set_score_for_game_entiy_with_no_game_client(_pyshinqlx_setup: ()) {
         let mut mock_engine = MockQuakeEngine::new();
         mock_engine.expect_get_max_clients().returning(|| 16);
         MAIN_ENGINE.store(Some(mock_engine.into()));
@@ -6478,10 +6506,10 @@ assert(player._valid)
         assert!(result.is_ok());
     }
 
-    #[test]
+    #[rstest]
     #[serial]
     #[cfg_attr(miri, ignore)]
-    fn center_print_sends_center_print_server_command() {
+    fn center_print_sends_center_print_server_command(_pyshinqlx_setup: ()) {
         let mut mock_engine = MockQuakeEngine::new();
         mock_engine.expect_get_max_clients().returning(|| 16);
         MAIN_ENGINE.store(Some(mock_engine.into()));
@@ -6507,10 +6535,10 @@ assert(player._valid)
         assert!(result.is_ok());
     }
 
-    #[test]
+    #[rstest]
     #[serial]
     #[cfg_attr(miri, ignore)]
-    fn kick_kicks_player() {
+    fn kick_kicks_player(_pyshinqlx_setup: ()) {
         let mut mock_engine = MockQuakeEngine::new();
         mock_engine.expect_get_max_clients().returning(|| 16);
         MAIN_ENGINE.store(Some(mock_engine.into()));
@@ -6536,10 +6564,10 @@ assert(player._valid)
         assert!(result.is_ok());
     }
 
-    #[test]
+    #[rstest]
     #[serial]
     #[cfg_attr(miri, ignore)]
-    fn ban_bans_player() {
+    fn ban_bans_player(_pyshinqlx_setup: ()) {
         let mut mock_engine = MockQuakeEngine::new();
         mock_engine
             .expect_execute_console_command()
@@ -6553,10 +6581,10 @@ assert(player._valid)
         assert!(result.is_ok());
     }
 
-    #[test]
+    #[rstest]
     #[serial]
     #[cfg_attr(miri, ignore)]
-    fn tempban_tempbans_player() {
+    fn tempban_tempbans_player(_pyshinqlx_setup: ()) {
         let mut mock_engine = MockQuakeEngine::new();
         mock_engine
             .expect_execute_console_command()
@@ -6570,10 +6598,10 @@ assert(player._valid)
         assert!(result.is_ok());
     }
 
-    #[test]
+    #[rstest]
     #[serial]
     #[cfg_attr(miri, ignore)]
-    fn addadmin_adds_player_to_admins() {
+    fn addadmin_adds_player_to_admins(_pyshinqlx_setup: ()) {
         let mut mock_engine = MockQuakeEngine::new();
         mock_engine
             .expect_execute_console_command()
@@ -6587,10 +6615,10 @@ assert(player._valid)
         assert!(result.is_ok());
     }
 
-    #[test]
+    #[rstest]
     #[serial]
     #[cfg_attr(miri, ignore)]
-    fn addmod_adds_player_to_mods() {
+    fn addmod_adds_player_to_mods(_pyshinqlx_setup: ()) {
         let mut mock_engine = MockQuakeEngine::new();
         mock_engine
             .expect_execute_console_command()
@@ -6604,10 +6632,10 @@ assert(player._valid)
         assert!(result.is_ok());
     }
 
-    #[test]
+    #[rstest]
     #[serial]
     #[cfg_attr(miri, ignore)]
-    fn demote_demotes_player() {
+    fn demote_demotes_player(_pyshinqlx_setup: ()) {
         let mut mock_engine = MockQuakeEngine::new();
         mock_engine
             .expect_execute_console_command()
@@ -6621,10 +6649,10 @@ assert(player._valid)
         assert!(result.is_ok());
     }
 
-    #[test]
+    #[rstest]
     #[serial]
     #[cfg_attr(miri, ignore)]
-    fn mute_mutes_player() {
+    fn mute_mutes_player(_pyshinqlx_setup: ()) {
         let mut mock_engine = MockQuakeEngine::new();
         mock_engine
             .expect_execute_console_command()
@@ -6638,10 +6666,10 @@ assert(player._valid)
         assert!(result.is_ok());
     }
 
-    #[test]
+    #[rstest]
     #[serial]
     #[cfg_attr(miri, ignore)]
-    fn unmute_unmutes_player() {
+    fn unmute_unmutes_player(_pyshinqlx_setup: ()) {
         let mut mock_engine = MockQuakeEngine::new();
         mock_engine
             .expect_execute_console_command()
@@ -6655,10 +6683,10 @@ assert(player._valid)
         assert!(result.is_ok());
     }
 
-    #[test]
+    #[rstest]
     #[serial]
     #[cfg_attr(miri, ignore)]
-    fn put_with_invalid_team() {
+    fn put_with_invalid_team(_pyshinqlx_setup: ()) {
         MAIN_ENGINE.store(None);
 
         let player = default_test_player();
@@ -6677,7 +6705,7 @@ assert(player._valid)
     #[case("spectator")]
     #[serial]
     #[cfg_attr(miri, ignore)]
-    fn put_put_player_on_a_specific_team(#[case] new_team: &str) {
+    fn put_put_player_on_a_specific_team(_pyshinqlx_setup: (), #[case] new_team: &str) {
         let put_cmd = format!("put 2 {}", new_team.to_lowercase());
         let mut mock_engine = MockQuakeEngine::new();
         mock_engine
@@ -6691,10 +6719,10 @@ assert(player._valid)
         assert!(result.is_ok());
     }
 
-    #[test]
+    #[rstest]
     #[serial]
     #[cfg_attr(miri, ignore)]
-    fn addscore_adds_score_to_player() {
+    fn addscore_adds_score_to_player(_pyshinqlx_setup: ()) {
         let mut mock_engine = MockQuakeEngine::new();
         mock_engine
             .expect_execute_console_command()
@@ -6708,10 +6736,10 @@ assert(player._valid)
         assert!(result.is_ok());
     }
 
-    #[test]
+    #[rstest]
     #[serial]
     #[cfg_attr(miri, ignore)]
-    fn switch_with_player_on_same_team() {
+    fn switch_with_player_on_same_team(_pyshinqlx_setup: ()) {
         MAIN_ENGINE.store(None);
 
         let player = Player {
@@ -6737,10 +6765,10 @@ assert(player._valid)
         });
     }
 
-    #[test]
+    #[rstest]
     #[serial]
     #[cfg_attr(miri, ignore)]
-    fn switch_with_player_on_different_team() {
+    fn switch_with_player_on_different_team(_pyshinqlx_setup: ()) {
         let mut mock_engine = MockQuakeEngine::new();
         mock_engine
             .expect_execute_console_command()
@@ -6773,10 +6801,10 @@ assert(player._valid)
         assert!(result.as_ref().is_ok(), "{:?}", result.as_ref().unwrap());
     }
 
-    #[test]
+    #[rstest]
     #[serial]
     #[cfg_attr(miri, ignore)]
-    fn slap_slaps_player() {
+    fn slap_slaps_player(_pyshinqlx_setup: ()) {
         let mut mock_engine = MockQuakeEngine::new();
         mock_engine
             .expect_execute_console_command()
@@ -6790,10 +6818,10 @@ assert(player._valid)
         assert!(result.is_ok());
     }
 
-    #[test]
+    #[rstest]
     #[serial]
     #[cfg_attr(miri, ignore)]
-    fn slay_slays_player() {
+    fn slay_slays_player(_pyshinqlx_setup: ()) {
         let mut mock_engine = MockQuakeEngine::new();
         mock_engine
             .expect_execute_console_command()
@@ -6807,10 +6835,10 @@ assert(player._valid)
         assert!(result.is_ok());
     }
 
-    #[test]
+    #[rstest]
     #[serial]
     #[cfg_attr(miri, ignore)]
-    fn slay_with_mod_slays_with_mod() {
+    fn slay_with_mod_slays_with_mod(_pyshinqlx_setup: ()) {
         let mut mock_engine = MockQuakeEngine::new();
         mock_engine.expect_get_max_clients().returning(|| 16);
         MAIN_ENGINE.store(Some(mock_engine.into()));
@@ -6835,10 +6863,10 @@ assert(player._valid)
         assert!(result.is_ok());
     }
 
-    #[test]
+    #[rstest]
     #[serial]
     #[cfg_attr(miri, ignore)]
-    fn all_players_for_existing_clients() {
+    fn all_players_for_existing_clients(_pyshinqlx_setup: ()) {
         let mut mock_engine = MockQuakeEngine::new();
         mock_engine.expect_get_max_clients().returning(|| 3);
         MAIN_ENGINE.store(Some(mock_engine.into()));
