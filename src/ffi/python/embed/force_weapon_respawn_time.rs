@@ -36,20 +36,21 @@ mod force_weapon_respawn_time_tests {
     use mockall::predicate;
     use pretty_assertions::assert_eq;
     use pyo3::exceptions::PyValueError;
+    use rstest::*;
 
-    #[test]
+    #[rstest]
     #[cfg_attr(miri, ignore)]
-    fn force_weapon_respawn_time_with_too_small_respawn_time() {
+    fn force_weapon_respawn_time_with_too_small_respawn_time(_pyshinqlx_setup: ()) {
         Python::with_gil(|py| {
             let result = pyshinqlx_force_weapon_respawn_time(py, -1);
             assert!(result.is_err_and(|err| err.is_instance_of::<PyValueError>(py)));
         });
     }
 
-    #[test]
+    #[rstest]
     #[cfg_attr(miri, ignore)]
     #[serial]
-    fn force_weapon_respawn_time_with_non_in_use_weapon() {
+    fn force_weapon_respawn_time_with_non_in_use_weapon(_pyshinqlx_setup: ()) {
         let game_entity_from_ctx = MockGameEntity::from_context();
         game_entity_from_ctx
             .expect()
@@ -77,10 +78,10 @@ mod force_weapon_respawn_time_tests {
         assert_eq!(result.expect("result was not OK"), true);
     }
 
-    #[test]
+    #[rstest]
     #[cfg_attr(miri, ignore)]
     #[serial]
-    fn force_weapon_respawn_time_with_non_respawning_weapon() {
+    fn force_weapon_respawn_time_with_non_respawning_weapon(_pyshinqlx_setup: ()) {
         let game_entity_from_ctx = MockGameEntity::from_context();
         game_entity_from_ctx
             .expect()
@@ -108,10 +109,12 @@ mod force_weapon_respawn_time_tests {
         assert_eq!(result.expect("result was not OK"), true);
     }
 
-    #[test]
+    #[rstest]
     #[cfg_attr(miri, ignore)]
     #[serial]
-    fn force_weapon_respawn_time_sets_respawn_time_on_in_use_respawning_weapons() {
+    fn force_weapon_respawn_time_sets_respawn_time_on_in_use_respawning_weapons(
+        _pyshinqlx_setup: (),
+    ) {
         let game_entity_from_ctx = MockGameEntity::from_context();
         game_entity_from_ctx.expect().returning(|_| {
             let mut mock_game_entity = MockGameEntity::new();

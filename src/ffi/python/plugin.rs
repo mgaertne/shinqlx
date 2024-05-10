@@ -89,12 +89,12 @@ impl Plugin {
             .get_type_bound::<Plugin>()
             .getattr(intern!(slf.py(), "database"))
         else {
-            let error_msg = format!("a Plugin '{plugin_name}' does not have a database driver.");
+            let error_msg = format!("Plugin '{plugin_name}' does not have a database driver.");
             return Err(PyRuntimeError::new_err(error_msg));
         };
 
         if db_class.is_none() {
-            let error_msg = format!("b Plugin '{plugin_name}' does not have a database driver.");
+            let error_msg = format!("Plugin '{plugin_name}' does not have a database driver.");
             return Err(PyRuntimeError::new_err(error_msg));
         }
 
@@ -212,7 +212,7 @@ impl Plugin {
             )?;
 
         slf.try_borrow_mut().map_or(
-            Err(PyEnvironmentError::new_err("cound not borrow plugin hooks")),
+            Err(PyEnvironmentError::new_err("could not borrow plugin hooks")),
             |mut plugin| {
                 plugin
                     .hooks
@@ -1286,8 +1286,10 @@ class subplugin(Plugin):
     #[cfg_attr(miri, ignore)]
     fn get_db_when_no_db_type_set(_pyshinqlx_setup: ()) {
         Python::with_gil(|py| {
-            py.get_type_bound::<Plugin>().delattr("database")?;
             let extended_plugin = test_plugin(py)?;
+
+            let _ = py.get_type_bound::<Plugin>().delattr("database");
+
             let plugin_instance = extended_plugin.call0()?;
             let result = plugin_instance.getattr("db");
             assert!(result.is_err_and(|err| err.is_instance_of::<PyRuntimeError>(py)),);
@@ -1300,9 +1302,11 @@ class subplugin(Plugin):
     #[cfg_attr(miri, ignore)]
     fn get_db_when_no_db_set(_pyshinqlx_setup: ()) {
         Python::with_gil(|py| {
+            let extended_plugin = test_plugin(py)?;
+
             py.get_type_bound::<Plugin>()
                 .setattr("database", py.None())?;
-            let extended_plugin = test_plugin(py)?;
+
             let plugin_instance = extended_plugin.call0()?;
             let result = plugin_instance.getattr("db");
             assert!(result.is_err_and(|err| err.is_instance_of::<PyRuntimeError>(py)),);
@@ -1315,14 +1319,15 @@ class subplugin(Plugin):
     #[cfg_attr(miri, ignore)]
     fn get_db_when_db_set_to_redis(_pyshinqlx_setup: ()) {
         Python::with_gil(|py| {
+            let extended_plugin = test_plugin(py)?;
+
             let redis_type = py.get_type_bound::<Redis>();
             py.get_type_bound::<Plugin>()
-                .setattr("database", (&redis_type).into_py(py))?;
+                .setattr("database", redis_type.as_ref().into_py(py))?;
 
-            let extended_plugin = test_plugin(py)?;
             let plugin_instance = extended_plugin.call0()?;
             let result = plugin_instance.getattr("db");
-            assert!(result.is_ok_and(|db| db.is_instance(&redis_type).unwrap()),);
+            assert!(result.is_ok_and(|db| db.is_instance(&redis_type).unwrap()));
             Ok::<(), PyErr>(())
         })
         .unwrap();
@@ -1345,14 +1350,15 @@ class subplugin(Plugin):
     #[cfg_attr(miri, ignore)]
     fn plugins_property_returns_loaded_plugins(_pyshinqlx_setup: ()) {
         let res: PyResult<()> = Python::with_gil(|py| {
-            let loaded_plugins = py
-                .get_type_bound::<Plugin>()
-                .getattr("_loaded_plugins")?
-                .extract::<&PyDict>()?;
+            let extended_plugin = test_plugin(py)?;
+
+            let loaded_plugins = PyDict::new_bound(py);
             loaded_plugins.set_item("asdf", "asdfplugin")?;
             loaded_plugins.set_item("qwertz", "qwertzplugin")?;
+            let _ = py
+                .get_type_bound::<Plugin>()
+                .setattr("_loaded_plugins", &loaded_plugins);
 
-            let extended_plugin = test_plugin(py)?;
             let plugin_instance = extended_plugin.call0()?;
             let plugins = plugin_instance.getattr("plugins")?.extract::<&PyDict>()?;
             assert!(plugins.eq(loaded_plugins)?);
@@ -1467,10 +1473,10 @@ class subplugin(Plugin):
         .expect("python result was not ok.");
     }
 
-    #[test]
+    #[rstest]
     #[cfg_attr(miri, ignore)]
     #[serial]
-    fn add_hook_with_no_event_dispatchers() {
+    fn add_hook_with_no_event_dispatchers(_pyshinqlx_setup: ()) {
         EVENT_DISPATCHERS.store(None);
 
         Python::with_gil(|py| {
@@ -1491,10 +1497,10 @@ class subplugin(Plugin):
         });
     }
 
-    #[test]
+    #[rstest]
     #[cfg_attr(miri, ignore)]
     #[serial]
-    fn add_hook_adds_hook_to_plugin_hooks() {
+    fn add_hook_adds_hook_to_plugin_hooks(_pyshinqlx_setup: ()) {
         let mut mock_engine = MockQuakeEngine::new();
         mock_engine
             .expect_find_cvar()
@@ -1546,10 +1552,10 @@ class subplugin(Plugin):
         });
     }
 
-    #[test]
+    #[rstest]
     #[cfg_attr(miri, ignore)]
     #[serial]
-    fn add_hook_adds_hook_to_event_dispatchers() {
+    fn add_hook_adds_hook_to_event_dispatchers(_pyshinqlx_setup: ()) {
         let mut mock_engine = MockQuakeEngine::new();
         mock_engine
             .expect_find_cvar()
@@ -1615,14 +1621,15 @@ class subplugin(Plugin):
         });
     }
 
-    #[test]
+    #[rstest]
     #[cfg_attr(miri, ignore)]
     #[serial]
-    fn remove_hook_with_no_event_dispatchers() {
-        EVENT_DISPATCHERS.store(None);
-
+    fn remove_hook_with_no_event_dispatchers(_pyshinqlx_setup: ()) {
         Python::with_gil(|py| {
             let extended_plugin = test_plugin(py).expect("could not get extended test plugin");
+
+            EVENT_DISPATCHERS.store(None);
+
             let plugin_instance = extended_plugin
                 .call0()
                 .expect("could not create plugin instance");
@@ -1639,10 +1646,10 @@ class subplugin(Plugin):
         });
     }
 
-    #[test]
+    #[rstest]
     #[cfg_attr(miri, ignore)]
     #[serial]
-    fn remove_hook_removes_hook_from_event_dispatchers() {
+    fn remove_hook_removes_hook_from_event_dispatchers(_pyshinqlx_setup: ()) {
         let mut mock_engine = MockQuakeEngine::new();
         mock_engine
             .expect_find_cvar()
@@ -1718,10 +1725,10 @@ class subplugin(Plugin):
         });
     }
 
-    #[test]
+    #[rstest]
     #[cfg_attr(miri, ignore)]
     #[serial]
-    fn remove_hook_removes_hook_from_plugin_instance() {
+    fn remove_hook_removes_hook_from_plugin_instance(_pyshinqlx_setup: ()) {
         let mut mock_engine = MockQuakeEngine::new();
         mock_engine
             .expect_find_cvar()
@@ -1780,10 +1787,12 @@ class subplugin(Plugin):
         });
     }
 
-    #[test]
+    #[rstest]
     #[cfg_attr(miri, ignore)]
     #[serial]
-    fn remove_hook_removes_hook_when_other_hook_with_different_priority_exists() {
+    fn remove_hook_removes_hook_when_other_hook_with_different_priority_exists(
+        _pyshinqlx_setup: (),
+    ) {
         let mut mock_engine = MockQuakeEngine::new();
         mock_engine
             .expect_find_cvar()
@@ -1855,10 +1864,10 @@ class subplugin(Plugin):
         });
     }
 
-    #[test]
+    #[rstest]
     #[cfg_attr(miri, ignore)]
     #[serial]
-    fn add_command_adds_a_new_command() {
+    fn add_command_adds_a_new_command(_pyshinqlx_setup: ()) {
         Python::with_gil(|py| {
             let command_handler = PyModule::from_code_bound(
                 py,
@@ -1919,10 +1928,10 @@ def handler():
         });
     }
 
-    #[test]
+    #[rstest]
     #[cfg_attr(miri, ignore)]
     #[serial]
-    fn add_command_stores_command_in_plugin() {
+    fn add_command_stores_command_in_plugin(_pyshinqlx_setup: ()) {
         Python::with_gil(|py| {
             let command_handler = PyModule::from_code_bound(
                 py,
@@ -1976,10 +1985,10 @@ def handler():
         });
     }
 
-    #[test]
+    #[rstest]
     #[cfg_attr(miri, ignore)]
     #[serial]
-    fn remove_command_removes_command() {
+    fn remove_command_removes_command(_pyshinqlx_setup: ()) {
         Python::with_gil(|py| {
             let command_handler = PyModule::from_code_bound(
                 py,
@@ -2042,10 +2051,10 @@ def handler():
         });
     }
 
-    #[test]
+    #[rstest]
     #[cfg_attr(miri, ignore)]
     #[serial]
-    fn remove_command_removes_command_with_other_cmd_left_in_place() {
+    fn remove_command_removes_command_with_other_cmd_left_in_place(_pyshinqlx_setup: ()) {
         Python::with_gil(|py| {
             let command_handler = PyModule::from_code_bound(
                 py,
@@ -2129,10 +2138,10 @@ def handler():
         });
     }
 
-    #[test]
+    #[rstest]
     #[cfg_attr(miri, ignore)]
     #[serial]
-    fn remove_command_for_list_of_command_names() {
+    fn remove_command_for_list_of_command_names(_pyshinqlx_setup: ()) {
         Python::with_gil(|py| {
             let command_handler = PyModule::from_code_bound(
                 py,
@@ -2196,10 +2205,10 @@ def handler():
         });
     }
 
-    #[test]
+    #[rstest]
     #[cfg_attr(miri, ignore)]
     #[serial]
-    fn remove_command_removes_command_in_plugin_instance() {
+    fn remove_command_removes_command_in_plugin_instance(_pyshinqlx_setup: ()) {
         Python::with_gil(|py| {
             let command_handler = PyModule::from_code_bound(
                 py,
@@ -2259,10 +2268,10 @@ def handler():
         });
     }
 
-    #[test]
+    #[rstest]
     #[cfg_attr(miri, ignore)]
     #[serial]
-    fn get_cvar_when_main_engine_not_initialized() {
+    fn get_cvar_when_main_engine_not_initialized(_pyshinqlx_setup: ()) {
         MAIN_ENGINE.store(None);
         Python::with_gil(|py| {
             let result = Plugin::get_cvar(&py.get_type_bound::<Plugin>(), "sv_maxclients", None);
@@ -2270,10 +2279,10 @@ def handler():
         });
     }
 
-    #[test]
+    #[rstest]
     #[cfg_attr(miri, ignore)]
     #[serial]
-    fn get_cvar_when_cvar_not_found() {
+    fn get_cvar_when_cvar_not_found(_pyshinqlx_setup: ()) {
         let mut mock_engine = MockQuakeEngine::new();
         mock_engine
             .expect_find_cvar()
@@ -2288,10 +2297,10 @@ def handler():
         });
     }
 
-    #[test]
+    #[rstest]
     #[cfg_attr(miri, ignore)]
     #[serial]
-    fn get_cvar_when_cvar_is_found() {
+    fn get_cvar_when_cvar_is_found(_pyshinqlx_setup: ()) {
         let cvar_string = CString::new("16").expect("result was not OK");
         let mut mock_engine = MockQuakeEngine::new();
         mock_engine
@@ -2316,10 +2325,10 @@ def handler():
         });
     }
 
-    #[test]
+    #[rstest]
     #[cfg_attr(miri, ignore)]
     #[serial]
-    fn get_cvar_converts_to_str() {
+    fn get_cvar_converts_to_str(_pyshinqlx_setup: ()) {
         let cvar_string = CString::new("16").expect("result was not OK");
         let mut mock_engine = MockQuakeEngine::new();
         mock_engine
@@ -2349,10 +2358,10 @@ def handler():
         });
     }
 
-    #[test]
+    #[rstest]
     #[cfg_attr(miri, ignore)]
     #[serial]
-    fn get_cvar_str_when_no_cvar_found() {
+    fn get_cvar_str_when_no_cvar_found(_pyshinqlx_setup: ()) {
         let mut mock_engine = MockQuakeEngine::new();
         mock_engine
             .expect_find_cvar()
@@ -2372,10 +2381,10 @@ def handler():
         });
     }
 
-    #[test]
+    #[rstest]
     #[cfg_attr(miri, ignore)]
     #[serial]
-    fn get_cvar_converts_to_int() {
+    fn get_cvar_converts_to_int(_pyshinqlx_setup: ()) {
         let cvar_string = CString::new("16").expect("result was not OK");
         let mut mock_engine = MockQuakeEngine::new();
         mock_engine
@@ -2405,10 +2414,10 @@ def handler():
         });
     }
 
-    #[test]
+    #[rstest]
     #[cfg_attr(miri, ignore)]
     #[serial]
-    fn get_cvar_int_when_cvar_cannot_be_converted_to_int() {
+    fn get_cvar_int_when_cvar_cannot_be_converted_to_int(_pyshinqlx_setup: ()) {
         let cvar_string = CString::new("asdf").expect("result was not OK");
         let mut mock_engine = MockQuakeEngine::new();
         mock_engine
@@ -2435,10 +2444,10 @@ def handler():
         });
     }
 
-    #[test]
+    #[rstest]
     #[cfg_attr(miri, ignore)]
     #[serial]
-    fn get_cvar_int_when_no_cvar_found() {
+    fn get_cvar_int_when_no_cvar_found(_pyshinqlx_setup: ()) {
         let mut mock_engine = MockQuakeEngine::new();
         mock_engine
             .expect_find_cvar()
@@ -2458,10 +2467,10 @@ def handler():
         });
     }
 
-    #[test]
+    #[rstest]
     #[cfg_attr(miri, ignore)]
     #[serial]
-    fn get_cvar_converts_to_float() {
+    fn get_cvar_converts_to_float(_pyshinqlx_setup: ()) {
         let cvar_string = CString::new("16").expect("result was not OK");
         let mut mock_engine = MockQuakeEngine::new();
         mock_engine
@@ -2491,10 +2500,10 @@ def handler():
         });
     }
 
-    #[test]
+    #[rstest]
     #[cfg_attr(miri, ignore)]
     #[serial]
-    fn get_cvar_float_when_cvar_cannot_be_converted_to_float() {
+    fn get_cvar_float_when_cvar_cannot_be_converted_to_float(_pyshinqlx_setup: ()) {
         let cvar_string = CString::new("asdf").expect("result was not OK");
         let mut mock_engine = MockQuakeEngine::new();
         mock_engine
@@ -2521,10 +2530,10 @@ def handler():
         });
     }
 
-    #[test]
+    #[rstest]
     #[cfg_attr(miri, ignore)]
     #[serial]
-    fn get_cvar_float_when_no_cvar_found() {
+    fn get_cvar_float_when_no_cvar_found(_pyshinqlx_setup: ()) {
         let mut mock_engine = MockQuakeEngine::new();
         mock_engine
             .expect_find_cvar()
@@ -2544,10 +2553,10 @@ def handler():
         });
     }
 
-    #[test]
+    #[rstest]
     #[cfg_attr(miri, ignore)]
     #[serial]
-    fn get_cvar_converts_to_bool() {
+    fn get_cvar_converts_to_bool(_pyshinqlx_setup: ()) {
         let cvar_string = CString::new("16").expect("result was not OK");
         let mut mock_engine = MockQuakeEngine::new();
         mock_engine
@@ -2578,10 +2587,10 @@ def handler():
         });
     }
 
-    #[test]
+    #[rstest]
     #[cfg_attr(miri, ignore)]
     #[serial]
-    fn get_cvar_bool_when_no_cvar_found() {
+    fn get_cvar_bool_when_no_cvar_found(_pyshinqlx_setup: ()) {
         let mut mock_engine = MockQuakeEngine::new();
         mock_engine
             .expect_find_cvar()
@@ -2606,10 +2615,10 @@ def handler():
         });
     }
 
-    #[test]
+    #[rstest]
     #[cfg_attr(miri, ignore)]
     #[serial]
-    fn get_cvar_bool_when_cvar_cannot_be_converted_to_int() {
+    fn get_cvar_bool_when_cvar_cannot_be_converted_to_int(_pyshinqlx_setup: ()) {
         let cvar_string = CString::new("asdf").expect("result was not OK");
         let mut mock_engine = MockQuakeEngine::new();
         mock_engine
@@ -2637,10 +2646,10 @@ def handler():
         });
     }
 
-    #[test]
+    #[rstest]
     #[cfg_attr(miri, ignore)]
     #[serial]
-    fn get_cvar_converts_to_list() {
+    fn get_cvar_converts_to_list(_pyshinqlx_setup: ()) {
         let cvar_string = CString::new("2, 4, 6, 8, 10").expect("result was not OK");
         let mut mock_engine = MockQuakeEngine::new();
         mock_engine
@@ -2673,10 +2682,10 @@ def handler():
         });
     }
 
-    #[test]
+    #[rstest]
     #[cfg_attr(miri, ignore)]
     #[serial]
-    fn get_cvar_list_when_no_cvar_found() {
+    fn get_cvar_list_when_no_cvar_found(_pyshinqlx_setup: ()) {
         let mut mock_engine = MockQuakeEngine::new();
         mock_engine
             .expect_find_cvar()
@@ -2703,10 +2712,10 @@ def handler():
         });
     }
 
-    #[test]
+    #[rstest]
     #[cfg_attr(miri, ignore)]
     #[serial]
-    fn get_cvar_converts_to_set() {
+    fn get_cvar_converts_to_set(_pyshinqlx_setup: ()) {
         let cvar_string = CString::new("2, 4, 6, 8, 10").expect("result was not OK");
         let mut mock_engine = MockQuakeEngine::new();
         mock_engine
@@ -2739,10 +2748,10 @@ def handler():
         });
     }
 
-    #[test]
+    #[rstest]
     #[cfg_attr(miri, ignore)]
     #[serial]
-    fn get_cvar_set_when_no_cvar_found() {
+    fn get_cvar_set_when_no_cvar_found(_pyshinqlx_setup: ()) {
         let mut mock_engine = MockQuakeEngine::new();
         mock_engine
             .expect_find_cvar()
@@ -2769,10 +2778,10 @@ def handler():
         });
     }
 
-    #[test]
+    #[rstest]
     #[cfg_attr(miri, ignore)]
     #[serial]
-    fn get_cvar_converts_to_tuple() {
+    fn get_cvar_converts_to_tuple(_pyshinqlx_setup: ()) {
         let cvar_string = CString::new("2, 4, 6, 8, 10").expect("result was not OK");
         let mut mock_engine = MockQuakeEngine::new();
         mock_engine
@@ -2805,10 +2814,10 @@ def handler():
         });
     }
 
-    #[test]
+    #[rstest]
     #[cfg_attr(miri, ignore)]
     #[serial]
-    fn get_cvar_tuple_when_no_cvar_found() {
+    fn get_cvar_tuple_when_no_cvar_found(_pyshinqlx_setup: ()) {
         let mut mock_engine = MockQuakeEngine::new();
         mock_engine
             .expect_find_cvar()
@@ -2835,10 +2844,10 @@ def handler():
         });
     }
 
-    #[test]
+    #[rstest]
     #[cfg_attr(miri, ignore)]
     #[serial]
-    fn get_cvar_with_invalid_type_conversion() {
+    fn get_cvar_with_invalid_type_conversion(_pyshinqlx_setup: ()) {
         let cvar_string = CString::new("16").expect("result was not OK");
         let mut mock_engine = MockQuakeEngine::new();
         mock_engine
@@ -2866,10 +2875,10 @@ def handler():
         });
     }
 
-    #[test]
+    #[rstest]
     #[cfg_attr(miri, ignore)]
     #[serial]
-    fn set_cvar_when_main_engine_not_initialized() {
+    fn set_cvar_when_main_engine_not_initialized(_pyshinqlx_setup: ()) {
         MAIN_ENGINE.store(None);
         Python::with_gil(|py| {
             let result = Plugin::set_cvar(
@@ -2882,10 +2891,10 @@ def handler():
         });
     }
 
-    #[test]
+    #[rstest]
     #[cfg_attr(miri, ignore)]
     #[serial]
-    fn set_cvar_for_not_existing_cvar() {
+    fn set_cvar_for_not_existing_cvar(_pyshinqlx_setup: ()) {
         let mut mock_engine = MockQuakeEngine::new();
         mock_engine
             .expect_find_cvar()
@@ -2913,10 +2922,10 @@ def handler():
         assert_eq!(result.expect("result was not OK"), true);
     }
 
-    #[test]
+    #[rstest]
     #[cfg_attr(miri, ignore)]
     #[serial]
-    fn set_cvar_for_already_existing_cvar() {
+    fn set_cvar_for_already_existing_cvar(_pyshinqlx_setup: ()) {
         let mut mock_engine = MockQuakeEngine::new();
         mock_engine
             .expect_find_cvar()
@@ -2945,10 +2954,10 @@ def handler():
         assert_eq!(result.expect("result was not OK"), false);
     }
 
-    #[test]
+    #[rstest]
     #[cfg_attr(miri, ignore)]
     #[serial]
-    fn set_cvar_limit_when_main_engine_not_initialized() {
+    fn set_cvar_limit_when_main_engine_not_initialized(_pyshinqlx_setup: ()) {
         MAIN_ENGINE.store(None);
         Python::with_gil(|py| {
             let result = Plugin::set_cvar_limit(
@@ -2963,10 +2972,10 @@ def handler():
         });
     }
 
-    #[test]
+    #[rstest]
     #[cfg_attr(miri, ignore)]
     #[serial]
-    fn set_cvar_limit_forwards_parameters_to_main_engine_call() {
+    fn set_cvar_limit_forwards_parameters_to_main_engine_call(_pyshinqlx_setup: ()) {
         let mut mock_engine = MockQuakeEngine::new();
         mock_engine
             .expect_find_cvar()
@@ -2997,10 +3006,10 @@ def handler():
         assert!(result.is_ok());
     }
 
-    #[test]
+    #[rstest]
     #[cfg_attr(miri, ignore)]
     #[serial]
-    fn set_cvar_once_when_main_engine_not_initialized() {
+    fn set_cvar_once_when_main_engine_not_initialized(_pyshinqlx_setup: ()) {
         MAIN_ENGINE.store(None);
         Python::with_gil(|py| {
             let result = Plugin::set_cvar_once(
@@ -3013,10 +3022,10 @@ def handler():
         });
     }
 
-    #[test]
+    #[rstest]
     #[cfg_attr(miri, ignore)]
     #[serial]
-    fn set_cvar_once_for_not_existing_cvar() {
+    fn set_cvar_once_for_not_existing_cvar(_pyshinqlx_setup: ()) {
         let mut mock_engine = MockQuakeEngine::new();
         mock_engine
             .expect_find_cvar()
@@ -3045,10 +3054,10 @@ def handler():
         assert_eq!(result, true);
     }
 
-    #[test]
+    #[rstest]
     #[cfg_attr(miri, ignore)]
     #[serial]
-    fn set_cvar_once_for_already_existing_cvar() {
+    fn set_cvar_once_for_already_existing_cvar(_pyshinqlx_setup: ()) {
         let mut mock_engine = MockQuakeEngine::new();
         mock_engine
             .expect_find_cvar()
@@ -3073,10 +3082,10 @@ def handler():
         assert_eq!(result, false);
     }
 
-    #[test]
+    #[rstest]
     #[cfg_attr(miri, ignore)]
     #[serial]
-    fn set_cvar_limit_once_when_main_engine_not_initialized() {
+    fn set_cvar_limit_once_when_main_engine_not_initialized(_pyshinqlx_setup: ()) {
         MAIN_ENGINE.store(None);
         Python::with_gil(|py| {
             let result = Plugin::set_cvar_limit_once(
@@ -3091,10 +3100,10 @@ def handler():
         });
     }
 
-    #[test]
+    #[rstest]
     #[cfg_attr(miri, ignore)]
     #[serial]
-    fn set_cvar_limit_once_when_no_previous_value_is_set() {
+    fn set_cvar_limit_once_when_no_previous_value_is_set(_pyshinqlx_setup: ()) {
         let mut mock_engine = MockQuakeEngine::new();
         mock_engine
             .expect_find_cvar()
@@ -3125,10 +3134,10 @@ def handler():
         assert!(result.is_ok_and(|value| value));
     }
 
-    #[test]
+    #[rstest]
     #[cfg_attr(miri, ignore)]
     #[serial]
-    fn set_cvar_limit_once_for_already_existing_cvar() {
+    fn set_cvar_limit_once_for_already_existing_cvar(_pyshinqlx_setup: ()) {
         let mut mock_engine = MockQuakeEngine::new();
         mock_engine
             .expect_find_cvar()
@@ -3155,10 +3164,10 @@ def handler():
         assert_eq!(result, false);
     }
 
-    #[test]
+    #[rstest]
     #[cfg_attr(miri, ignore)]
     #[serial]
-    fn all_players_for_existing_clients() {
+    fn all_players_for_existing_clients(_pyshinqlx_setup: ()) {
         let mut mock_engine = MockQuakeEngine::new();
         mock_engine.expect_get_max_clients().returning(|| 3);
         MAIN_ENGINE.store(Some(mock_engine.into()));
@@ -3242,9 +3251,9 @@ def handler():
         );
     }
 
-    #[test]
+    #[rstest]
     #[cfg_attr(miri, ignore)]
-    fn player_for_provided_player() {
+    fn player_for_provided_player(_pyshinqlx_setup: ()) {
         Python::with_gil(|py| {
             let result = Plugin::player(
                 &py.get_type_bound::<Plugin>(),
@@ -3257,10 +3266,10 @@ def handler():
         });
     }
 
-    #[test]
+    #[rstest]
     #[cfg_attr(miri, ignore)]
     #[serial]
-    fn player_for_player_id() {
+    fn player_for_player_id(_pyshinqlx_setup: ()) {
         let client_try_from_ctx = MockClient::from_context();
         client_try_from_ctx
             .expect()
@@ -3311,9 +3320,9 @@ def handler():
         });
     }
 
-    #[test]
+    #[rstest]
     #[cfg_attr(miri, ignore)]
-    fn player_for_provided_steam_id_from_player_list() {
+    fn player_for_provided_steam_id_from_player_list(_pyshinqlx_setup: ()) {
         Python::with_gil(|py| {
             let result = Plugin::player(
                 &py.get_type_bound::<Plugin>(),
@@ -3326,9 +3335,9 @@ def handler():
         });
     }
 
-    #[test]
+    #[rstest]
     #[cfg_attr(miri, ignore)]
-    fn player_for_provided_steam_id_not_in_provided_player_list() {
+    fn player_for_provided_steam_id_not_in_provided_player_list(_pyshinqlx_setup: ()) {
         Python::with_gil(|py| {
             let result = Plugin::player(
                 &py.get_type_bound::<Plugin>(),
@@ -3339,9 +3348,9 @@ def handler():
         });
     }
 
-    #[test]
+    #[rstest]
     #[cfg_attr(miri, ignore)]
-    fn player_for_provided_name_from_player_list() {
+    fn player_for_provided_name_from_player_list(_pyshinqlx_setup: ()) {
         Python::with_gil(|py| {
             let result = Plugin::player(
                 &py.get_type_bound::<Plugin>(),
@@ -3354,9 +3363,9 @@ def handler():
         });
     }
 
-    #[test]
+    #[rstest]
     #[cfg_attr(miri, ignore)]
-    fn player_for_provided_name_not_in_provided_player_list() {
+    fn player_for_provided_name_not_in_provided_player_list(_pyshinqlx_setup: ()) {
         Python::with_gil(|py| {
             let result = Plugin::player(
                 &py.get_type_bound::<Plugin>(),
@@ -3367,9 +3376,9 @@ def handler():
         });
     }
 
-    #[test]
+    #[rstest]
     #[cfg_attr(miri, ignore)]
-    fn msg_for_invalid_channel() {
+    fn msg_for_invalid_channel(_pyshinqlx_setup: ()) {
         Python::with_gil(|py| {
             let result = Plugin::msg(
                 &py.get_type_bound::<Plugin>(),
@@ -3381,10 +3390,10 @@ def handler():
         });
     }
 
-    #[test]
+    #[rstest]
     #[cfg_attr(miri, ignore)]
     #[serial]
-    fn msg_for_default_channel() {
+    fn msg_for_default_channel(_pyshinqlx_setup: ()) {
         let send_server_command_ctx = shinqlx_send_server_command_context();
         send_server_command_ctx
             .expect()
@@ -3407,10 +3416,10 @@ def handler():
         });
     }
 
-    #[test]
+    #[rstest]
     #[cfg_attr(miri, ignore)]
     #[serial]
-    fn msg_for_chat_channel_with_kwargs() {
+    fn msg_for_chat_channel_with_kwargs(_pyshinqlx_setup: ()) {
         let send_server_command_ctx = shinqlx_send_server_command_context();
         send_server_command_ctx
             .expect()
@@ -3441,10 +3450,10 @@ def handler():
         });
     }
 
-    #[test]
+    #[rstest]
     #[cfg_attr(miri, ignore)]
     #[serial]
-    fn msg_for_red_team_chat_channel() {
+    fn msg_for_red_team_chat_channel(_pyshinqlx_setup: ()) {
         let mut mock_engine = MockQuakeEngine::new();
         mock_engine.expect_get_max_clients().returning(|| 8);
         MAIN_ENGINE.store(Some(mock_engine.into()));
@@ -3518,10 +3527,10 @@ def handler():
         });
     }
 
-    #[test]
+    #[rstest]
     #[cfg_attr(miri, ignore)]
     #[serial]
-    fn msg_for_blue_team_chat_channel() {
+    fn msg_for_blue_team_chat_channel(_pyshinqlx_setup: ()) {
         let mut mock_engine = MockQuakeEngine::new();
         mock_engine.expect_get_max_clients().returning(|| 8);
         MAIN_ENGINE.store(Some(mock_engine.into()));
@@ -3595,10 +3604,10 @@ def handler():
         });
     }
 
-    #[test]
+    #[rstest]
     #[cfg_attr(miri, ignore)]
     #[serial]
-    fn msg_for_console_channel() {
+    fn msg_for_console_channel(_pyshinqlx_setup: ()) {
         let com_printf_ctx = shinqlx_com_printf_context();
         com_printf_ctx
             .expect()
@@ -3623,10 +3632,10 @@ def handler():
         });
     }
 
-    #[test]
+    #[rstest]
     #[cfg_attr(miri, ignore)]
     #[serial]
-    fn msg_for_provided_channel() {
+    fn msg_for_provided_channel(_pyshinqlx_setup: ()) {
         let mut mock_engine = MockQuakeEngine::new();
         mock_engine.expect_get_max_clients().returning(|| 16);
         MAIN_ENGINE.store(Some(mock_engine.into()));
@@ -3671,10 +3680,10 @@ def handler():
         });
     }
 
-    #[test]
+    #[rstest]
     #[cfg_attr(miri, ignore)]
     #[serial]
-    fn console_prints_to_console() {
+    fn console_prints_to_console(_pyshinqlx_setup: ()) {
         let com_printf_ctx = shinqlx_com_printf_context();
         com_printf_ctx
             .expect()
@@ -3687,9 +3696,9 @@ def handler():
         });
     }
 
-    #[test]
+    #[rstest]
     #[cfg_attr(miri, ignore)]
-    fn clean_text_cleans_text_from_color_tags() {
+    fn clean_text_cleans_text_from_color_tags(_pyshinqlx_setup: ()) {
         Python::with_gil(|py| {
             let result = Plugin::clean_text(
                 &py.get_type_bound::<Plugin>(),
@@ -3699,9 +3708,9 @@ def handler():
         });
     }
 
-    #[test]
+    #[rstest]
     #[cfg_attr(miri, ignore)]
-    fn colored_name_for_provided_player() {
+    fn colored_name_for_provided_player(_pyshinqlx_setup: ()) {
         Python::with_gil(|py| {
             let result = Plugin::colored_name(
                 &py.get_type_bound::<Plugin>(),
@@ -3712,9 +3721,9 @@ def handler():
         });
     }
 
-    #[test]
+    #[rstest]
     #[cfg_attr(miri, ignore)]
-    fn colored_name_for_player_in_provided_playerlist() {
+    fn colored_name_for_player_in_provided_playerlist(_pyshinqlx_setup: ()) {
         Python::with_gil(|py| {
             let result = Plugin::colored_name(
                 &py.get_type_bound::<Plugin>(),
@@ -3725,9 +3734,9 @@ def handler():
         });
     }
 
-    #[test]
+    #[rstest]
     #[cfg_attr(miri, ignore)]
-    fn colored_name_for_player_with_colored_name_in_provided_playerlist() {
+    fn colored_name_for_player_with_colored_name_in_provided_playerlist(_pyshinqlx_setup: ()) {
         let player = Player {
             player_info: PlayerInfo {
                 name: "^1Mocked ^4Player".to_string(),
@@ -3747,9 +3756,9 @@ def handler():
         });
     }
 
-    #[test]
+    #[rstest]
     #[cfg_attr(miri, ignore)]
-    fn colored_name_for_unavailable_player() {
+    fn colored_name_for_unavailable_player(_pyshinqlx_setup: ()) {
         let player = Player {
             player_info: PlayerInfo {
                 name: "^1Mocked ^4Player".to_string(),
@@ -3769,18 +3778,18 @@ def handler():
         });
     }
 
-    #[test]
+    #[rstest]
     #[cfg_attr(miri, ignore)]
-    fn client_id_for_integer_in_client_id_range() {
+    fn client_id_for_integer_in_client_id_range(_pyshinqlx_setup: ()) {
         Python::with_gil(|py| {
             let result = Plugin::client_id(&py.get_type_bound::<Plugin>(), 42i32.into_py(py), None);
             assert!(result.is_some_and(|value| value == 42));
         });
     }
 
-    #[test]
+    #[rstest]
     #[cfg_attr(miri, ignore)]
-    fn client_id_for_player() {
+    fn client_id_for_player(_pyshinqlx_setup: ()) {
         let player = Player {
             id: 21,
             player_info: PlayerInfo {
@@ -3797,9 +3806,9 @@ def handler():
         });
     }
 
-    #[test]
+    #[rstest]
     #[cfg_attr(miri, ignore)]
-    fn client_id_for_steam_id() {
+    fn client_id_for_steam_id(_pyshinqlx_setup: ()) {
         let player = Player {
             id: 21,
             steam_id: 1234,
@@ -3821,9 +3830,9 @@ def handler():
         });
     }
 
-    #[test]
+    #[rstest]
     #[cfg_attr(miri, ignore)]
-    fn client_id_for_steam_id_not_in_player_list() {
+    fn client_id_for_steam_id_not_in_player_list(_pyshinqlx_setup: ()) {
         let player = Player {
             steam_id: 1234,
             player_info: PlayerInfo {
@@ -3843,9 +3852,9 @@ def handler():
         });
     }
 
-    #[test]
+    #[rstest]
     #[cfg_attr(miri, ignore)]
-    fn client_id_for_player_name() {
+    fn client_id_for_player_name(_pyshinqlx_setup: ()) {
         let player = Player {
             id: 21,
             name: "Mocked Player".to_string(),
@@ -3867,9 +3876,9 @@ def handler():
         });
     }
 
-    #[test]
+    #[rstest]
     #[cfg_attr(miri, ignore)]
-    fn client_id_for_player_name_not_in_player_list() {
+    fn client_id_for_player_name_not_in_player_list(_pyshinqlx_setup: ()) {
         let player = Player {
             player_info: PlayerInfo {
                 name: "Mocked Player".to_string(),
@@ -3889,9 +3898,9 @@ def handler():
         });
     }
 
-    #[test]
+    #[rstest]
     #[cfg_attr(miri, ignore)]
-    fn client_id_for_unsupported_search_criteria() {
+    fn client_id_for_unsupported_search_criteria(_pyshinqlx_setup: ()) {
         Python::with_gil(|py| {
             let result = Plugin::client_id(
                 &py.get_type_bound::<Plugin>(),
@@ -3902,9 +3911,9 @@ def handler():
         });
     }
 
-    #[test]
+    #[rstest]
     #[cfg_attr(miri, ignore)]
-    fn find_player_with_empty_str_returns_player_list() {
+    fn find_player_with_empty_str_returns_player_list(_pyshinqlx_setup: ()) {
         let player1 = Player {
             id: 21,
             steam_id: 1234,
@@ -3935,9 +3944,9 @@ def handler():
         });
     }
 
-    #[test]
+    #[rstest]
     #[cfg_attr(miri, ignore)]
-    fn find_players_by_matching_provided_names() {
+    fn find_players_by_matching_provided_names(_pyshinqlx_setup: ()) {
         let player1 = Player {
             id: 21,
             name: "^1Found ^4Player".to_string(),
@@ -3984,9 +3993,9 @@ def handler():
         });
     }
 
-    #[test]
+    #[rstest]
     #[cfg_attr(miri, ignore)]
-    fn find_players_when_no_player_matches() {
+    fn find_players_when_no_player_matches(_pyshinqlx_setup: ()) {
         let player1 = Player {
             id: 21,
             name: "^1non-matching ^4Player".to_string(),
@@ -4033,9 +4042,9 @@ def handler():
         });
     }
 
-    #[test]
+    #[rstest]
     #[cfg_attr(miri, ignore)]
-    fn teams_when_no_player_in_player_list() {
+    fn teams_when_no_player_in_player_list(_pyshinqlx_setup: ()) {
         Python::with_gil(|py| {
             let result = Plugin::teams(&py.get_type_bound::<Plugin>(), Some(vec![]));
             assert!(result
@@ -4051,9 +4060,9 @@ def handler():
         });
     }
 
-    #[test]
+    #[rstest]
     #[cfg_attr(miri, ignore)]
-    fn teams_when_every_team_has_one_player() {
+    fn teams_when_every_team_has_one_player(_pyshinqlx_setup: ()) {
         let player1 = Player {
             id: 0,
             steam_id: 1234,
@@ -4120,10 +4129,10 @@ def handler():
         });
     }
 
-    #[test]
+    #[rstest]
     #[serial]
     #[cfg_attr(miri, ignore)]
-    fn center_print_to_all_players_sends_center_print_server_command() {
+    fn center_print_to_all_players_sends_center_print_server_command(_pyshinqlx_setup: ()) {
         let mut mock_engine = MockQuakeEngine::new();
         mock_engine.expect_get_max_clients().returning(|| 16);
         MAIN_ENGINE.store(Some(mock_engine.into()));
@@ -4140,10 +4149,10 @@ def handler():
         assert!(result.is_ok());
     }
 
-    #[test]
+    #[rstest]
     #[serial]
     #[cfg_attr(miri, ignore)]
-    fn center_print_to_paetticular_player_sends_center_print_server_command() {
+    fn center_print_to_paetticular_player_sends_center_print_server_command(_pyshinqlx_setup: ()) {
         let mut mock_engine = MockQuakeEngine::new();
         mock_engine.expect_get_max_clients().returning(|| 16);
         MAIN_ENGINE.store(Some(mock_engine.into()));
@@ -4175,10 +4184,10 @@ def handler():
         assert!(result.is_ok());
     }
 
-    #[test]
+    #[rstest]
     #[cfg_attr(miri, ignore)]
     #[serial]
-    fn tell_sends_msg_to_player() {
+    fn tell_sends_msg_to_player(_pyshinqlx_setup: ()) {
         let mut mock_engine = MockQuakeEngine::new();
         mock_engine.expect_get_max_clients().returning(|| 16);
         MAIN_ENGINE.store(Some(mock_engine.into()));
@@ -4234,10 +4243,10 @@ def handler():
         });
     }
 
-    #[test]
+    #[rstest]
     #[cfg_attr(miri, ignore)]
     #[serial]
-    fn is_vote_active_when_configstring_set() {
+    fn is_vote_active_when_configstring_set(_pyshinqlx_setup: ()) {
         let mut mock_engine = MockQuakeEngine::new();
         mock_engine
             .expect_get_configstring()
@@ -4250,10 +4259,10 @@ def handler():
         });
     }
 
-    #[test]
+    #[rstest]
     #[cfg_attr(miri, ignore)]
     #[serial]
-    fn is_vote_active_when_configstring_empty() {
+    fn is_vote_active_when_configstring_empty(_pyshinqlx_setup: ()) {
         let mut mock_engine = MockQuakeEngine::new();
         mock_engine
             .expect_get_configstring()
@@ -4269,10 +4278,10 @@ def handler():
         });
     }
 
-    #[test]
+    #[rstest]
     #[cfg_attr(miri, ignore)]
     #[serial]
-    fn is_vote_active_when_main_engine_not_set() {
+    fn is_vote_active_when_main_engine_not_set(_pyshinqlx_setup: ()) {
         MAIN_ENGINE.store(None);
 
         Python::with_gil(|py| {
@@ -4283,10 +4292,10 @@ def handler():
         });
     }
 
-    #[test]
+    #[rstest]
     #[cfg_attr(miri, ignore)]
     #[serial]
-    fn current_vote_count_when_main_engine_not_set() {
+    fn current_vote_count_when_main_engine_not_set(_pyshinqlx_setup: ()) {
         MAIN_ENGINE.store(None);
 
         Python::with_gil(|py| {
@@ -4295,10 +4304,10 @@ def handler():
         });
     }
 
-    #[test]
+    #[rstest]
     #[cfg_attr(miri, ignore)]
     #[serial]
-    fn current_vote_count_when_yes_votes_are_empty() {
+    fn current_vote_count_when_yes_votes_are_empty(_pyshinqlx_setup: ()) {
         let mut mock_engine = MockQuakeEngine::new();
         mock_engine
             .expect_get_configstring()
@@ -4316,10 +4325,10 @@ def handler():
         });
     }
 
-    #[test]
+    #[rstest]
     #[cfg_attr(miri, ignore)]
     #[serial]
-    fn current_vote_count_when_no_votes_are_empty() {
+    fn current_vote_count_when_no_votes_are_empty(_pyshinqlx_setup: ()) {
         let mut mock_engine = MockQuakeEngine::new();
         mock_engine
             .expect_get_configstring()
@@ -4337,10 +4346,10 @@ def handler():
         });
     }
 
-    #[test]
+    #[rstest]
     #[cfg_attr(miri, ignore)]
     #[serial]
-    fn current_vote_count_with_proper_vote_counts() {
+    fn current_vote_count_with_proper_vote_counts(_pyshinqlx_setup: ()) {
         let mut mock_engine = MockQuakeEngine::new();
         mock_engine
             .expect_get_configstring()
@@ -4362,10 +4371,10 @@ def handler():
         });
     }
 
-    #[test]
+    #[rstest]
     #[cfg_attr(miri, ignore)]
     #[serial]
-    fn current_vote_count_with_unparseable_yes_vote_counts() {
+    fn current_vote_count_with_unparseable_yes_vote_counts(_pyshinqlx_setup: ()) {
         let mut mock_engine = MockQuakeEngine::new();
         mock_engine
             .expect_get_configstring()
@@ -4383,10 +4392,10 @@ def handler():
         });
     }
 
-    #[test]
+    #[rstest]
     #[cfg_attr(miri, ignore)]
     #[serial]
-    fn current_vote_count_with_unparseable_no_vote_counts() {
+    fn current_vote_count_with_unparseable_no_vote_counts(_pyshinqlx_setup: ()) {
         let mut mock_engine = MockQuakeEngine::new();
         mock_engine
             .expect_get_configstring()
@@ -4404,10 +4413,10 @@ def handler():
         });
     }
 
-    #[test]
+    #[rstest]
     #[cfg_attr(miri, ignore)]
     #[serial]
-    fn callvote_when_vote_is_active() {
+    fn callvote_when_vote_is_active(_pyshinqlx_setup: ()) {
         let mut mock_engine = MockQuakeEngine::new();
         mock_engine
             .expect_get_configstring()
@@ -4426,10 +4435,10 @@ def handler():
         });
     }
 
-    #[test]
+    #[rstest]
     #[cfg_attr(miri, ignore)]
     #[serial]
-    fn callvote_calls_vote() {
+    fn callvote_calls_vote(_pyshinqlx_setup: ()) {
         let mut mock_engine = MockQuakeEngine::new();
         mock_engine
             .expect_get_configstring()
@@ -4472,10 +4481,10 @@ def handler():
         });
     }
 
-    #[test]
+    #[rstest]
     #[cfg_attr(miri, ignore)]
     #[serial]
-    fn callvote_when_event_dispatcher_not_available() {
+    fn callvote_when_event_dispatcher_not_available(_pyshinqlx_setup: ()) {
         EVENT_DISPATCHERS.store(None);
 
         let mut mock_engine = MockQuakeEngine::new();
@@ -4496,20 +4505,20 @@ def handler():
         });
     }
 
-    #[test]
+    #[rstest]
     #[cfg_attr(miri, ignore)]
     #[serial]
-    fn force_vote_with_unparseable_value() {
+    fn force_vote_with_unparseable_value(_pyshinqlx_setup: ()) {
         Python::with_gil(|py| {
             let result = Plugin::force_vote(&py.get_type_bound::<Plugin>(), "asdf".into_py(py));
             assert!(result.is_err_and(|err| err.is_instance_of::<PyValueError>(py)));
         });
     }
 
-    #[test]
+    #[rstest]
     #[cfg_attr(miri, ignore)]
     #[serial]
-    fn force_vote_forces_vote_passed() {
+    fn force_vote_forces_vote_passed(_pyshinqlx_setup: ()) {
         let current_level_try_get_ctx = MockTestCurrentLevel::try_get_context();
         current_level_try_get_ctx.expect().returning(|| {
             let mut mock_level = MockTestCurrentLevel::new();
@@ -4556,10 +4565,10 @@ def handler():
         });
     }
 
-    #[test]
+    #[rstest]
     #[cfg_attr(miri, ignore)]
     #[serial]
-    fn force_vote_forces_vote_fail() {
+    fn force_vote_forces_vote_fail(_pyshinqlx_setup: ()) {
         let current_level_try_get_ctx = MockTestCurrentLevel::try_get_context();
         current_level_try_get_ctx.expect().returning(|| {
             let mut mock_level = MockTestCurrentLevel::new();
@@ -4606,10 +4615,10 @@ def handler():
         });
     }
 
-    #[test]
+    #[rstest]
     #[cfg_attr(miri, ignore)]
     #[serial]
-    fn teamsize_sets_teamsize() {
+    fn teamsize_sets_teamsize(_pyshinqlx_setup: ()) {
         let mut mock_engine = MockQuakeEngine::new();
         mock_engine
             .expect_find_cvar()
@@ -4627,10 +4636,10 @@ def handler():
         });
     }
 
-    #[test]
+    #[rstest]
     #[cfg_attr(miri, ignore)]
     #[serial]
-    fn kick_for_unknown_player() {
+    fn kick_for_unknown_player(_pyshinqlx_setup: ()) {
         MAIN_ENGINE.store(None);
 
         Python::with_gil(|py| {
@@ -4639,10 +4648,10 @@ def handler():
         });
     }
 
-    #[test]
+    #[rstest]
     #[cfg_attr(miri, ignore)]
     #[serial]
-    fn kick_for_existing_player_without_reason() {
+    fn kick_for_existing_player_without_reason(_pyshinqlx_setup: ()) {
         let mut mock_engine = MockQuakeEngine::new();
         mock_engine.expect_get_max_clients().returning(|| 16);
         MAIN_ENGINE.store(Some(mock_engine.into()));
@@ -4675,10 +4684,10 @@ def handler():
         });
     }
 
-    #[test]
+    #[rstest]
     #[cfg_attr(miri, ignore)]
     #[serial]
-    fn kick_for_existing_player_with_reason() {
+    fn kick_for_existing_player_with_reason(_pyshinqlx_setup: ()) {
         let mut mock_engine = MockQuakeEngine::new();
         mock_engine.expect_get_max_clients().returning(|| 16);
         MAIN_ENGINE.store(Some(mock_engine.into()));
@@ -4711,10 +4720,10 @@ def handler():
         });
     }
 
-    #[test]
+    #[rstest]
     #[cfg_attr(miri, ignore)]
     #[serial]
-    fn shuffle_forces_shuffle() {
+    fn shuffle_forces_shuffle(_pyshinqlx_setup: ()) {
         let mut mock_engine = MockQuakeEngine::new();
         mock_engine
             .expect_execute_console_command()
@@ -4726,18 +4735,18 @@ def handler():
         assert!(result.is_ok());
     }
 
-    #[test]
+    #[rstest]
     #[cfg_attr(miri, ignore)]
-    fn cointoss_does_nothing() {
+    fn cointoss_does_nothing(_pyshinqlx_setup: ()) {
         Python::with_gil(|py| {
             Plugin::cointoss(&py.get_type_bound::<Plugin>());
         });
     }
 
-    #[test]
+    #[rstest]
     #[cfg_attr(miri, ignore)]
     #[serial]
-    fn change_map_with_no_factory() {
+    fn change_map_with_no_factory(_pyshinqlx_setup: ()) {
         let mut mock_engine = MockQuakeEngine::new();
         mock_engine
             .expect_execute_console_command()
@@ -4751,10 +4760,10 @@ def handler():
         });
     }
 
-    #[test]
+    #[rstest]
     #[cfg_attr(miri, ignore)]
     #[serial]
-    fn change_map_with_factory() {
+    fn change_map_with_factory(_pyshinqlx_setup: ()) {
         let mut mock_engine = MockQuakeEngine::new();
         mock_engine
             .expect_execute_console_command()
@@ -4769,10 +4778,10 @@ def handler():
         });
     }
 
-    #[test]
+    #[rstest]
     #[cfg_attr(miri, ignore)]
     #[serial]
-    fn change_map_when_no_main_engine_set() {
+    fn change_map_when_no_main_engine_set(_pyshinqlx_setup: ()) {
         MAIN_ENGINE.store(None);
 
         Python::with_gil(|py| {
@@ -4782,10 +4791,10 @@ def handler():
         });
     }
 
-    #[test]
+    #[rstest]
     #[cfg_attr(miri, ignore)]
     #[serial]
-    fn switch_with_invalid_player1() {
+    fn switch_with_invalid_player1(_pyshinqlx_setup: ()) {
         MAIN_ENGINE.store(None);
 
         Python::with_gil(|py| {
@@ -4798,10 +4807,10 @@ def handler():
         });
     }
 
-    #[test]
+    #[rstest]
     #[cfg_attr(miri, ignore)]
     #[serial]
-    fn switch_with_invalid_player2() {
+    fn switch_with_invalid_player2(_pyshinqlx_setup: ()) {
         MAIN_ENGINE.store(None);
 
         Python::with_gil(|py| {
@@ -4814,10 +4823,10 @@ def handler():
         });
     }
 
-    #[test]
+    #[rstest]
     #[cfg_attr(miri, ignore)]
     #[serial]
-    fn switch_with_players_on_same_team() {
+    fn switch_with_players_on_same_team(_pyshinqlx_setup: ()) {
         MAIN_ENGINE.store(None);
 
         let player1 = Player {
@@ -4849,10 +4858,10 @@ def handler():
         });
     }
 
-    #[test]
+    #[rstest]
     #[cfg_attr(miri, ignore)]
     #[serial]
-    fn switch_with_players_on_different_team() {
+    fn switch_with_players_on_different_team(_pyshinqlx_setup: ()) {
         let mut mock_engine = MockQuakeEngine::new();
         mock_engine
             .expect_execute_console_command()
@@ -4893,10 +4902,10 @@ def handler():
         });
     }
 
-    #[test]
+    #[rstest]
     #[cfg_attr(miri, ignore)]
     #[serial]
-    fn play_sound_to_all_players() {
+    fn play_sound_to_all_players(_pyshinqlx_setup: ()) {
         let send_server_command_ctx = shinqlx_send_server_command_context();
         send_server_command_ctx
             .expect()
@@ -4910,10 +4919,10 @@ def handler():
         });
     }
 
-    #[test]
+    #[rstest]
     #[cfg_attr(miri, ignore)]
     #[serial]
-    fn play_sound_to_a_specific_player() {
+    fn play_sound_to_a_specific_player(_pyshinqlx_setup: ()) {
         let player = default_test_player();
 
         let mut mock_engine = MockQuakeEngine::new();
@@ -4948,20 +4957,20 @@ def handler():
         });
     }
 
-    #[test]
+    #[rstest]
     #[cfg_attr(miri, ignore)]
     #[serial]
-    fn play_sound_with_empty_soundpath() {
+    fn play_sound_with_empty_soundpath(_pyshinqlx_setup: ()) {
         Python::with_gil(|py| {
             let result = Plugin::play_sound(&py.get_type_bound::<Plugin>(), "", None);
             assert!(result.is_ok_and(|value| !value),);
         });
     }
 
-    #[test]
+    #[rstest]
     #[cfg_attr(miri, ignore)]
     #[serial]
-    fn play_sound_for_sound_containing_music() {
+    fn play_sound_for_sound_containing_music(_pyshinqlx_setup: ()) {
         Python::with_gil(|py| {
             let result =
                 Plugin::play_sound(&py.get_type_bound::<Plugin>(), "music/sonic1.ogg", None);
@@ -4969,10 +4978,10 @@ def handler():
         });
     }
 
-    #[test]
+    #[rstest]
     #[cfg_attr(miri, ignore)]
     #[serial]
-    fn play_music_to_all_players() {
+    fn play_music_to_all_players(_pyshinqlx_setup: ()) {
         let send_server_command_ctx = shinqlx_send_server_command_context();
         send_server_command_ctx
             .expect()
@@ -4986,10 +4995,10 @@ def handler():
         });
     }
 
-    #[test]
+    #[rstest]
     #[cfg_attr(miri, ignore)]
     #[serial]
-    fn play_music_to_a_specific_player() {
+    fn play_music_to_a_specific_player(_pyshinqlx_setup: ()) {
         let player = default_test_player();
 
         let mut mock_engine = MockQuakeEngine::new();
@@ -5024,20 +5033,20 @@ def handler():
         });
     }
 
-    #[test]
+    #[rstest]
     #[cfg_attr(miri, ignore)]
     #[serial]
-    fn play_music_with_empty_musicpath() {
+    fn play_music_with_empty_musicpath(_pyshinqlx_setup: ()) {
         Python::with_gil(|py| {
             let result = Plugin::play_music(&py.get_type_bound::<Plugin>(), "", None);
             assert!(result.is_ok_and(|value| !value),);
         });
     }
 
-    #[test]
+    #[rstest]
     #[cfg_attr(miri, ignore)]
     #[serial]
-    fn play_music_for_music_containing_sound() {
+    fn play_music_for_music_containing_sound(_pyshinqlx_setup: ()) {
         Python::with_gil(|py| {
             let result =
                 Plugin::play_music(&py.get_type_bound::<Plugin>(), "sound/vo/midair.ogg", None);
@@ -5045,10 +5054,10 @@ def handler():
         });
     }
 
-    #[test]
+    #[rstest]
     #[cfg_attr(miri, ignore)]
     #[serial]
-    fn stop_sound_for_all_players() {
+    fn stop_sound_for_all_players(_pyshinqlx_setup: ()) {
         let send_server_command_ctx = shinqlx_send_server_command_context();
         send_server_command_ctx
             .expect()
@@ -5061,10 +5070,10 @@ def handler():
         });
     }
 
-    #[test]
+    #[rstest]
     #[cfg_attr(miri, ignore)]
     #[serial]
-    fn stop_sound_for_a_specific_player() {
+    fn stop_sound_for_a_specific_player(_pyshinqlx_setup: ()) {
         let player = default_test_player();
 
         let mut mock_engine = MockQuakeEngine::new();
@@ -5095,10 +5104,10 @@ def handler():
         });
     }
 
-    #[test]
+    #[rstest]
     #[cfg_attr(miri, ignore)]
     #[serial]
-    fn stop_music_for_all_players() {
+    fn stop_music_for_all_players(_pyshinqlx_setup: ()) {
         let send_server_command_ctx = shinqlx_send_server_command_context();
         send_server_command_ctx
             .expect()
@@ -5111,10 +5120,10 @@ def handler():
         });
     }
 
-    #[test]
+    #[rstest]
     #[cfg_attr(miri, ignore)]
     #[serial]
-    fn stop_music_for_a_specific_player() {
+    fn stop_music_for_a_specific_player(_pyshinqlx_setup: ()) {
         let player = default_test_player();
 
         let mut mock_engine = MockQuakeEngine::new();
@@ -5145,20 +5154,20 @@ def handler():
         });
     }
 
-    #[test]
+    #[rstest]
     #[cfg_attr(miri, ignore)]
     #[serial]
-    fn slap_for_invalid_player() {
+    fn slap_for_invalid_player(_pyshinqlx_setup: ()) {
         Python::with_gil(|py| {
             let result = Plugin::slap(&py.get_type_bound::<Plugin>(), py.None(), 42);
             assert!(result.is_err_and(|err| err.is_instance_of::<PyValueError>(py)));
         });
     }
 
-    #[test]
+    #[rstest]
     #[cfg_attr(miri, ignore)]
     #[serial]
-    fn slap_for_player() {
+    fn slap_for_player(_pyshinqlx_setup: ()) {
         let mut mock_engine = MockQuakeEngine::new();
         mock_engine
             .expect_execute_console_command()
@@ -5172,20 +5181,20 @@ def handler():
         });
     }
 
-    #[test]
+    #[rstest]
     #[cfg_attr(miri, ignore)]
     #[serial]
-    fn slay_for_invalid_player() {
+    fn slay_for_invalid_player(_pyshinqlx_setup: ()) {
         Python::with_gil(|py| {
             let result = Plugin::slay(&py.get_type_bound::<Plugin>(), py.None());
             assert!(result.is_err_and(|err| err.is_instance_of::<PyValueError>(py)));
         });
     }
 
-    #[test]
+    #[rstest]
     #[cfg_attr(miri, ignore)]
     #[serial]
-    fn slay_for_player() {
+    fn slay_for_player(_pyshinqlx_setup: ()) {
         let mut mock_engine = MockQuakeEngine::new();
         mock_engine
             .expect_execute_console_command()
@@ -5199,10 +5208,10 @@ def handler():
         });
     }
 
-    #[test]
+    #[rstest]
     #[cfg_attr(miri, ignore)]
     #[serial]
-    fn timeout_pauses_game() {
+    fn timeout_pauses_game(_pyshinqlx_setup: ()) {
         let mut mock_engine = MockQuakeEngine::new();
         mock_engine
             .expect_execute_console_command()
@@ -5214,10 +5223,10 @@ def handler():
         assert!(result.is_ok());
     }
 
-    #[test]
+    #[rstest]
     #[cfg_attr(miri, ignore)]
     #[serial]
-    fn timein_unpauses_game() {
+    fn timein_unpauses_game(_pyshinqlx_setup: ()) {
         let mut mock_engine = MockQuakeEngine::new();
         mock_engine
             .expect_execute_console_command()
@@ -5229,10 +5238,10 @@ def handler():
         assert!(result.is_ok());
     }
 
-    #[test]
+    #[rstest]
     #[cfg_attr(miri, ignore)]
     #[serial]
-    fn allready_readies_all_players() {
+    fn allready_readies_all_players(_pyshinqlx_setup: ()) {
         let mut mock_engine = MockQuakeEngine::new();
         mock_engine
             .expect_execute_console_command()
@@ -5244,10 +5253,10 @@ def handler():
         assert!(result.is_ok());
     }
 
-    #[test]
+    #[rstest]
     #[cfg_attr(miri, ignore)]
     #[serial]
-    fn pause_pauses_game() {
+    fn pause_pauses_game(_pyshinqlx_setup: ()) {
         let mut mock_engine = MockQuakeEngine::new();
         mock_engine
             .expect_execute_console_command()
@@ -5259,10 +5268,10 @@ def handler():
         assert!(result.is_ok());
     }
 
-    #[test]
+    #[rstest]
     #[cfg_attr(miri, ignore)]
     #[serial]
-    fn unpause_unpauses_game() {
+    fn unpause_unpauses_game(_pyshinqlx_setup: ()) {
         let mut mock_engine = MockQuakeEngine::new();
         mock_engine
             .expect_execute_console_command()
@@ -5274,10 +5283,10 @@ def handler():
         assert!(result.is_ok());
     }
 
-    #[test]
+    #[rstest]
     #[cfg_attr(miri, ignore)]
     #[serial]
-    fn lock_with_invalid_team() {
+    fn lock_with_invalid_team(_pyshinqlx_setup: ()) {
         MAIN_ENGINE.store(None);
 
         Python::with_gil(|py| {
@@ -5286,10 +5295,10 @@ def handler():
         });
     }
 
-    #[test]
+    #[rstest]
     #[cfg_attr(miri, ignore)]
     #[serial]
-    fn lock_with_no_team() {
+    fn lock_with_no_team(_pyshinqlx_setup: ()) {
         let mut mock_engine = MockQuakeEngine::new();
         mock_engine
             .expect_execute_console_command()
@@ -5309,7 +5318,7 @@ def handler():
     #[case("spectator")]
     #[cfg_attr(miri, ignore)]
     #[serial]
-    fn lock_a_specific_team(#[case] locked_team: &str) {
+    fn lock_a_specific_team(_pyshinqlx_setup: (), #[case] locked_team: &str) {
         let lock_cmd = format!("lock {}", locked_team.to_lowercase());
         let mut mock_engine = MockQuakeEngine::new();
         mock_engine
@@ -5323,10 +5332,10 @@ def handler():
         assert!(result.is_ok());
     }
 
-    #[test]
+    #[rstest]
     #[cfg_attr(miri, ignore)]
     #[serial]
-    fn unlock_with_invalid_team() {
+    fn unlock_with_invalid_team(_pyshinqlx_setup: ()) {
         MAIN_ENGINE.store(None);
 
         Python::with_gil(|py| {
@@ -5335,10 +5344,10 @@ def handler():
         });
     }
 
-    #[test]
+    #[rstest]
     #[cfg_attr(miri, ignore)]
     #[serial]
-    fn unlock_with_no_team() {
+    fn unlock_with_no_team(_pyshinqlx_setup: ()) {
         let mut mock_engine = MockQuakeEngine::new();
         mock_engine
             .expect_execute_console_command()
@@ -5358,7 +5367,7 @@ def handler():
     #[case("spectator")]
     #[cfg_attr(miri, ignore)]
     #[serial]
-    fn unlock_a_specific_team(#[case] locked_team: &str) {
+    fn unlock_a_specific_team(_pyshinqlx_setup: (), #[case] locked_team: &str) {
         let unlock_cmd = format!("unlock {}", locked_team.to_lowercase());
         let mut mock_engine = MockQuakeEngine::new();
         mock_engine
@@ -5373,10 +5382,10 @@ def handler():
         assert!(result.is_ok());
     }
 
-    #[test]
+    #[rstest]
     #[cfg_attr(miri, ignore)]
     #[serial]
-    fn put_with_invalid_team() {
+    fn put_with_invalid_team(_pyshinqlx_setup: ()) {
         MAIN_ENGINE.store(None);
 
         Python::with_gil(|py| {
@@ -5389,10 +5398,10 @@ def handler():
         });
     }
 
-    #[test]
+    #[rstest]
     #[cfg_attr(miri, ignore)]
     #[serial]
-    fn put_with_invalid_player() {
+    fn put_with_invalid_player(_pyshinqlx_setup: ()) {
         MAIN_ENGINE.store(None);
 
         Python::with_gil(|py| {
@@ -5409,7 +5418,7 @@ def handler():
     #[case("spectator")]
     #[cfg_attr(miri, ignore)]
     #[serial]
-    fn put_put_player_on_a_specific_team(#[case] new_team: &str) {
+    fn put_put_player_on_a_specific_team(_pyshinqlx_setup: (), #[case] new_team: &str) {
         let put_cmd = format!("put 2 {}", new_team.to_lowercase());
         let mut mock_engine = MockQuakeEngine::new();
         mock_engine
@@ -5424,10 +5433,10 @@ def handler():
         assert!(result.is_ok());
     }
 
-    #[test]
+    #[rstest]
     #[cfg_attr(miri, ignore)]
     #[serial]
-    fn mute_with_invalid_player() {
+    fn mute_with_invalid_player(_pyshinqlx_setup: ()) {
         MAIN_ENGINE.store(None);
 
         Python::with_gil(|py| {
@@ -5436,10 +5445,10 @@ def handler():
         });
     }
 
-    #[test]
+    #[rstest]
     #[cfg_attr(miri, ignore)]
     #[serial]
-    fn mute_mutes_player() {
+    fn mute_mutes_player(_pyshinqlx_setup: ()) {
         let mut mock_engine = MockQuakeEngine::new();
         mock_engine
             .expect_execute_console_command()
@@ -5452,10 +5461,10 @@ def handler():
         assert!(result.is_ok());
     }
 
-    #[test]
+    #[rstest]
     #[cfg_attr(miri, ignore)]
     #[serial]
-    fn unmute_with_invalid_player() {
+    fn unmute_with_invalid_player(_pyshinqlx_setup: ()) {
         MAIN_ENGINE.store(None);
 
         Python::with_gil(|py| {
@@ -5464,10 +5473,10 @@ def handler():
         });
     }
 
-    #[test]
+    #[rstest]
     #[cfg_attr(miri, ignore)]
     #[serial]
-    fn unmute_unmutes_player() {
+    fn unmute_unmutes_player(_pyshinqlx_setup: ()) {
         let mut mock_engine = MockQuakeEngine::new();
         mock_engine
             .expect_execute_console_command()
@@ -5480,10 +5489,10 @@ def handler():
         assert!(result.is_ok());
     }
 
-    #[test]
+    #[rstest]
     #[cfg_attr(miri, ignore)]
     #[serial]
-    fn tempban_with_invalid_player() {
+    fn tempban_with_invalid_player(_pyshinqlx_setup: ()) {
         MAIN_ENGINE.store(None);
 
         Python::with_gil(|py| {
@@ -5492,10 +5501,10 @@ def handler():
         });
     }
 
-    #[test]
+    #[rstest]
     #[cfg_attr(miri, ignore)]
     #[serial]
-    fn tempban_tempbans_player() {
+    fn tempban_tempbans_player(_pyshinqlx_setup: ()) {
         let mut mock_engine = MockQuakeEngine::new();
         mock_engine
             .expect_execute_console_command()
@@ -5508,10 +5517,10 @@ def handler():
         assert!(result.is_ok());
     }
 
-    #[test]
+    #[rstest]
     #[cfg_attr(miri, ignore)]
     #[serial]
-    fn ban_with_invalid_player() {
+    fn ban_with_invalid_player(_pyshinqlx_setup: ()) {
         MAIN_ENGINE.store(None);
 
         Python::with_gil(|py| {
@@ -5520,10 +5529,10 @@ def handler():
         });
     }
 
-    #[test]
+    #[rstest]
     #[cfg_attr(miri, ignore)]
     #[serial]
-    fn ban_bans_player() {
+    fn ban_bans_player(_pyshinqlx_setup: ()) {
         let mut mock_engine = MockQuakeEngine::new();
         mock_engine
             .expect_execute_console_command()
@@ -5536,10 +5545,10 @@ def handler():
         assert!(result.is_ok());
     }
 
-    #[test]
+    #[rstest]
     #[cfg_attr(miri, ignore)]
     #[serial]
-    fn unban_with_invalid_player() {
+    fn unban_with_invalid_player(_pyshinqlx_setup: ()) {
         MAIN_ENGINE.store(None);
 
         Python::with_gil(|py| {
@@ -5548,10 +5557,10 @@ def handler():
         });
     }
 
-    #[test]
+    #[rstest]
     #[cfg_attr(miri, ignore)]
     #[serial]
-    fn unban_unbans_player() {
+    fn unban_unbans_player(_pyshinqlx_setup: ()) {
         let mut mock_engine = MockQuakeEngine::new();
         mock_engine
             .expect_execute_console_command()
@@ -5564,10 +5573,10 @@ def handler():
         assert!(result.is_ok());
     }
 
-    #[test]
+    #[rstest]
     #[cfg_attr(miri, ignore)]
     #[serial]
-    fn opsay_sends_op_message() {
+    fn opsay_sends_op_message(_pyshinqlx_setup: ()) {
         let mut mock_engine = MockQuakeEngine::new();
         mock_engine
             .expect_execute_console_command()
@@ -5579,10 +5588,10 @@ def handler():
         assert!(result.is_ok());
     }
 
-    #[test]
+    #[rstest]
     #[cfg_attr(miri, ignore)]
     #[serial]
-    fn addadmin_with_invalid_player() {
+    fn addadmin_with_invalid_player(_pyshinqlx_setup: ()) {
         MAIN_ENGINE.store(None);
 
         Python::with_gil(|py| {
@@ -5591,10 +5600,10 @@ def handler():
         });
     }
 
-    #[test]
+    #[rstest]
     #[cfg_attr(miri, ignore)]
     #[serial]
-    fn addadmin_adds_player_to_admins() {
+    fn addadmin_adds_player_to_admins(_pyshinqlx_setup: ()) {
         let mut mock_engine = MockQuakeEngine::new();
         mock_engine
             .expect_execute_console_command()
@@ -5607,10 +5616,10 @@ def handler():
         assert!(result.is_ok());
     }
 
-    #[test]
+    #[rstest]
     #[cfg_attr(miri, ignore)]
     #[serial]
-    fn addmod_with_invalid_player() {
+    fn addmod_with_invalid_player(_pyshinqlx_setup: ()) {
         MAIN_ENGINE.store(None);
 
         Python::with_gil(|py| {
@@ -5619,10 +5628,10 @@ def handler():
         });
     }
 
-    #[test]
+    #[rstest]
     #[cfg_attr(miri, ignore)]
     #[serial]
-    fn addmod_adds_player_to_moderators() {
+    fn addmod_adds_player_to_moderators(_pyshinqlx_setup: ()) {
         let mut mock_engine = MockQuakeEngine::new();
         mock_engine
             .expect_execute_console_command()
@@ -5635,10 +5644,10 @@ def handler():
         assert!(result.is_ok());
     }
 
-    #[test]
+    #[rstest]
     #[cfg_attr(miri, ignore)]
     #[serial]
-    fn demote_with_invalid_player() {
+    fn demote_with_invalid_player(_pyshinqlx_setup: ()) {
         MAIN_ENGINE.store(None);
 
         Python::with_gil(|py| {
@@ -5647,10 +5656,10 @@ def handler():
         });
     }
 
-    #[test]
+    #[rstest]
     #[cfg_attr(miri, ignore)]
     #[serial]
-    fn demote_demotes_player() {
+    fn demote_demotes_player(_pyshinqlx_setup: ()) {
         let mut mock_engine = MockQuakeEngine::new();
         mock_engine
             .expect_execute_console_command()
@@ -5663,10 +5672,10 @@ def handler():
         assert!(result.is_ok());
     }
 
-    #[test]
+    #[rstest]
     #[cfg_attr(miri, ignore)]
     #[serial]
-    fn abort_aborts_game() {
+    fn abort_aborts_game(_pyshinqlx_setup: ()) {
         let mut mock_engine = MockQuakeEngine::new();
         mock_engine
             .expect_execute_console_command()
@@ -5678,10 +5687,10 @@ def handler():
         assert!(result.is_ok());
     }
 
-    #[test]
+    #[rstest]
     #[cfg_attr(miri, ignore)]
     #[serial]
-    fn addscore_with_invalid_player() {
+    fn addscore_with_invalid_player(_pyshinqlx_setup: ()) {
         MAIN_ENGINE.store(None);
 
         Python::with_gil(|py| {
@@ -5690,10 +5699,10 @@ def handler():
         });
     }
 
-    #[test]
+    #[rstest]
     #[cfg_attr(miri, ignore)]
     #[serial]
-    fn addscore_adds_score_to_player() {
+    fn addscore_adds_score_to_player(_pyshinqlx_setup: ()) {
         let mut mock_engine = MockQuakeEngine::new();
         mock_engine
             .expect_execute_console_command()
@@ -5707,10 +5716,10 @@ def handler():
         assert!(result.is_ok());
     }
 
-    #[test]
+    #[rstest]
     #[cfg_attr(miri, ignore)]
     #[serial]
-    fn addteamscore_with_invalid_team() {
+    fn addteamscore_with_invalid_team(_pyshinqlx_setup: ()) {
         MAIN_ENGINE.store(None);
 
         Python::with_gil(|py| {
@@ -5727,25 +5736,24 @@ def handler():
     #[case("spectator")]
     #[cfg_attr(miri, ignore)]
     #[serial]
-    fn addteamscore_adds_score_to_team(#[case] locked_team: &str) {
-        let unlock_cmd = format!("addteamscore {} 42", locked_team.to_lowercase());
+    fn addteamscore_adds_score_to_team(_pyshinqlx_setup: (), #[case] team: &str) {
+        let addteamscore_cmd = format!("addteamscore {} 42", team.to_lowercase());
         let mut mock_engine = MockQuakeEngine::new();
         mock_engine
             .expect_execute_console_command()
-            .withf(move |cmd| cmd == unlock_cmd)
+            .withf(move |cmd| cmd == addteamscore_cmd)
             .times(1);
         MAIN_ENGINE.store(Some(mock_engine.into()));
 
-        let result = Python::with_gil(|py| {
-            Plugin::addteamscore(&py.get_type_bound::<Plugin>(), locked_team, 42)
-        });
+        let result =
+            Python::with_gil(|py| Plugin::addteamscore(&py.get_type_bound::<Plugin>(), team, 42));
         assert!(result.is_ok());
     }
 
-    #[test]
+    #[rstest]
     #[cfg_attr(miri, ignore)]
     #[serial]
-    fn setmatchtime_sets_match_time() {
+    fn setmatchtime_sets_match_time(_pyshinqlx_setup: ()) {
         let mut mock_engine = MockQuakeEngine::new();
         mock_engine
             .expect_execute_console_command()

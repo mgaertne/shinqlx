@@ -49,10 +49,10 @@ mod kick_tests {
     use pyo3::exceptions::{PyEnvironmentError, PyValueError};
     use rstest::rstest;
 
-    #[test]
+    #[rstest]
     #[cfg_attr(miri, ignore)]
     #[serial]
-    fn kick_when_main_engine_not_initialized() {
+    fn kick_when_main_engine_not_initialized(_pyshinqlx_setup: ()) {
         MAIN_ENGINE.store(None);
         Python::with_gil(|py| {
             let result = pyshinqlx_kick(py, 0, None);
@@ -60,10 +60,10 @@ mod kick_tests {
         });
     }
 
-    #[test]
+    #[rstest]
     #[cfg_attr(miri, ignore)]
     #[serial]
-    fn kick_with_client_id_below_zero() {
+    fn kick_with_client_id_below_zero(_pyshinqlx_setup: ()) {
         let mut mock_engine = MockQuakeEngine::new();
         mock_engine.expect_get_max_clients().returning(|| 16);
         MAIN_ENGINE.store(Some(mock_engine.into()));
@@ -74,10 +74,10 @@ mod kick_tests {
         });
     }
 
-    #[test]
+    #[rstest]
     #[cfg_attr(miri, ignore)]
     #[serial]
-    fn kick_with_client_id_too_large() {
+    fn kick_with_client_id_too_large(_pyshinqlx_setup: ()) {
         let mut mock_engine = MockQuakeEngine::new();
         mock_engine.expect_get_max_clients().returning(|| 16);
         MAIN_ENGINE.store(Some(mock_engine.into()));
@@ -95,7 +95,10 @@ mod kick_tests {
     #[case(clientState_t::CS_ZOMBIE)]
     #[cfg_attr(miri, ignore)]
     #[serial]
-    fn kick_with_client_id_for_non_active_client(#[case] clientstate: clientState_t) {
+    fn kick_with_client_id_for_non_active_client(
+        _pyshinqlx_setup: (),
+        #[case] clientstate: clientState_t,
+    ) {
         let mut mock_engine = MockQuakeEngine::new();
         mock_engine.expect_get_max_clients().returning(|| 16);
         MAIN_ENGINE.store(Some(mock_engine.into()));
@@ -116,10 +119,10 @@ mod kick_tests {
         });
     }
 
-    #[test]
+    #[rstest]
     #[cfg_attr(miri, ignore)]
     #[serial]
-    fn kick_with_client_id_for_active_client_without_kick_reason() {
+    fn kick_with_client_id_for_active_client_without_kick_reason(_pyshinqlx_setup: ()) {
         let mut mock_engine = MockQuakeEngine::new();
         mock_engine.expect_get_max_clients().returning(|| 16);
         MAIN_ENGINE.store(Some(mock_engine.into()));
@@ -146,10 +149,10 @@ mod kick_tests {
         assert!(result.is_ok());
     }
 
-    #[test]
+    #[rstest]
     #[cfg_attr(miri, ignore)]
     #[serial]
-    fn kick_with_client_id_for_active_client_with_kick_reason() {
+    fn kick_with_client_id_for_active_client_with_kick_reason(_pyshinqlx_setup: ()) {
         let mut mock_engine = MockQuakeEngine::new();
         mock_engine.expect_get_max_clients().returning(|| 16);
         MAIN_ENGINE.store(Some(mock_engine.into()));
@@ -176,10 +179,10 @@ mod kick_tests {
         assert!(result.is_ok());
     }
 
-    #[test]
+    #[rstest]
     #[cfg_attr(miri, ignore)]
     #[serial]
-    fn kick_with_client_id_for_active_client_with_empty_kick_reason() {
+    fn kick_with_client_id_for_active_client_with_empty_kick_reason(_pyshinqlx_setup: ()) {
         let mut mock_engine = MockQuakeEngine::new();
         mock_engine.expect_get_max_clients().returning(|| 16);
         MAIN_ENGINE.store(Some(mock_engine.into()));

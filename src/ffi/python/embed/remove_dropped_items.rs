@@ -26,11 +26,12 @@ mod remove_dropped_items_tests {
 
     use mockall::predicate;
     use pretty_assertions::assert_eq;
+    use rstest::*;
 
-    #[test]
+    #[rstest]
     #[cfg_attr(miri, ignore)]
     #[serial]
-    fn remove_dropped_items_for_unused_entity() {
+    fn remove_dropped_items_for_unused_entity(_pyshinqlx_setup: ()) {
         let game_entity_from_ctx = MockGameEntity::from_context();
         game_entity_from_ctx
             .expect()
@@ -58,10 +59,10 @@ mod remove_dropped_items_tests {
         assert_eq!(result.expect("result was not OK"), true);
     }
 
-    #[test]
+    #[rstest]
     #[cfg_attr(miri, ignore)]
     #[serial]
-    fn remove_dropped_items_for_entity_without_flags() {
+    fn remove_dropped_items_for_entity_without_flags(_pyshinqlx_setup: ()) {
         let game_entity_from_ctx = MockGameEntity::from_context();
         game_entity_from_ctx
             .expect()
@@ -89,10 +90,10 @@ mod remove_dropped_items_tests {
         assert_eq!(result.expect("result was not OK"), true);
     }
 
-    #[test]
+    #[rstest]
     #[cfg_attr(miri, ignore)]
     #[serial]
-    fn remove_dropped_items_for_non_dropped_entity() {
+    fn remove_dropped_items_for_non_dropped_entity(_pyshinqlx_setup: ()) {
         let game_entity_from_ctx = MockGameEntity::from_context();
         game_entity_from_ctx
             .expect()
@@ -122,10 +123,10 @@ mod remove_dropped_items_tests {
         assert_eq!(result.expect("result was not OK"), true);
     }
 
-    #[test]
+    #[rstest]
     #[cfg_attr(miri, ignore)]
     #[serial]
-    fn remove_dropped_items_for_removable_dropped_entities() {
+    fn remove_dropped_items_for_removable_dropped_entities(_pyshinqlx_setup: ()) {
         let game_entity_from_ctx = MockGameEntity::from_context();
         game_entity_from_ctx.expect().returning(|_| {
             let mut mock_game_entity = MockGameEntity::new();

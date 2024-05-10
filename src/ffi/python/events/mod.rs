@@ -554,7 +554,7 @@ impl EventDispatcherManager {
         dispatchers.clone().into_py_dict_bound(py)
     }
 
-    fn __getitem__(&self, py: Python<'_>, key: &str) -> PyResult<PyObject> {
+    pub(crate) fn __getitem__(&self, py: Python<'_>, key: &str) -> PyResult<PyObject> {
         self.dispatchers
             .read()
             .iter()
@@ -564,7 +564,7 @@ impl EventDispatcherManager {
                     let key_error = format!("'{}'", key);
                     Err(PyKeyError::new_err(key_error))
                 },
-                |(_, dispatcher)| Ok(dispatcher.into_py(py)),
+                |(_, dispatcher)| Ok(dispatcher.clone_ref(py)),
             )
     }
 

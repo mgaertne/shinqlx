@@ -41,10 +41,10 @@ mod client_command_tests {
     use pyo3::exceptions::{PyEnvironmentError, PyValueError};
     use rstest::*;
 
-    #[test]
+    #[rstest]
     #[cfg_attr(miri, ignore)]
     #[serial]
-    fn client_command_when_main_engine_not_initialized() {
+    fn client_command_when_main_engine_not_initialized(_pyshinqlx_setup: ()) {
         MAIN_ENGINE.store(None);
         Python::with_gil(|py| {
             let result = pyshinqlx_client_command(py, 0, "asdf");
@@ -52,10 +52,10 @@ mod client_command_tests {
         });
     }
 
-    #[test]
+    #[rstest]
     #[cfg_attr(miri, ignore)]
     #[serial]
-    fn client_command_for_client_id_below_zero() {
+    fn client_command_for_client_id_below_zero(_pyshinqlx_setup: ()) {
         let mut mock_engine = MockQuakeEngine::new();
         mock_engine.expect_get_max_clients().returning(|| 16);
         MAIN_ENGINE.store(Some(mock_engine.into()));
@@ -69,10 +69,10 @@ mod client_command_tests {
         });
     }
 
-    #[test]
+    #[rstest]
     #[cfg_attr(miri, ignore)]
     #[serial]
-    fn client_command_for_client_id_above_max_clients() {
+    fn client_command_for_client_id_above_max_clients(_pyshinqlx_setup: ()) {
         let mut mock_engine = MockQuakeEngine::new();
         mock_engine.expect_get_max_clients().returning(|| 16);
         MAIN_ENGINE.store(Some(mock_engine.into()));
@@ -92,7 +92,10 @@ mod client_command_tests {
     #[case(clientState_t::CS_PRIMED)]
     #[cfg_attr(miri, ignore)]
     #[serial]
-    fn send_server_command_for_active_client(#[case] clientstate: clientState_t) {
+    fn send_server_command_for_active_client(
+        _pyshinqlx_setup: (),
+        #[case] clientstate: clientState_t,
+    ) {
         let mut mock_engine = MockQuakeEngine::new();
         mock_engine.expect_get_max_clients().returning(|| 16);
         MAIN_ENGINE.store(Some(mock_engine.into()));
@@ -119,7 +122,10 @@ mod client_command_tests {
     #[case(clientState_t::CS_ZOMBIE)]
     #[cfg_attr(miri, ignore)]
     #[serial]
-    fn send_server_command_for_non_active_free_client(#[case] clientstate: clientState_t) {
+    fn send_server_command_for_non_active_free_client(
+        _pyshinqlx_setup: (),
+        #[case] clientstate: clientState_t,
+    ) {
         let mut mock_engine = MockQuakeEngine::new();
         mock_engine.expect_get_max_clients().returning(|| 16);
         MAIN_ENGINE.store(Some(mock_engine.into()));

@@ -29,11 +29,12 @@ mod console_command_tests {
 
     use mockall::predicate;
     use pyo3::exceptions::PyEnvironmentError;
+    use rstest::*;
 
-    #[test]
+    #[rstest]
     #[cfg_attr(miri, ignore)]
     #[serial]
-    fn console_command_when_main_engine_not_initialized() {
+    fn console_command_when_main_engine_not_initialized(_pyshinqlx_setup: ()) {
         MAIN_ENGINE.store(None);
         Python::with_gil(|py| {
             let result = pyshinqlx_console_command(py, "asdf");
@@ -41,10 +42,10 @@ mod console_command_tests {
         });
     }
 
-    #[test]
+    #[rstest]
     #[cfg_attr(miri, ignore)]
     #[serial]
-    fn console_command_with_main_engine_set() {
+    fn console_command_with_main_engine_set(_pyshinqlx_setup: ()) {
         let mut mock_engine = MockQuakeEngine::new();
         mock_engine
             .expect_execute_console_command()
