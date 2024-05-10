@@ -27,6 +27,7 @@ use arc_swap::ArcSwapOption;
 use core::sync::atomic::{AtomicBool, AtomicI32, Ordering};
 use itertools::Itertools;
 use once_cell::sync::Lazy;
+use pyo3::exceptions::PyKeyError;
 use regex::{Regex, RegexBuilder};
 
 fn try_handle_rcon(py: Python<'_>, cmd: &str) -> PyResult<Option<bool>> {
@@ -610,10 +611,10 @@ mod handle_client_command_tests {
     use crate::prelude::{serial, MockQuakeEngine};
     use crate::MAIN_ENGINE;
 
+    use alloc::ffi::CString;
     use arc_swap::ArcSwapOption;
     use core::ffi::c_char;
     use once_cell::sync::Lazy;
-    use std::ffi::CString;
 
     use mockall::predicate;
     use rstest::rstest;
@@ -4107,9 +4108,9 @@ mod handle_run_frame_tests {
     use crate::prelude::{serial, MockQuakeEngine};
     use crate::MAIN_ENGINE;
 
+    use alloc::ffi::CString;
     use core::ffi::c_char;
     use mockall::predicate;
-    use std::ffi::CString;
 
     use rstest::rstest;
 
@@ -4592,9 +4593,9 @@ mod handle_new_game_tests {
     use crate::ffi::c::prelude::{cvar_t, CVar, CVarBuilder, CS_AUTHOR, CS_AUTHOR2, CS_MESSAGE};
     use crate::hooks::mock_hooks::shinqlx_set_configstring_context;
 
+    use alloc::ffi::CString;
     use core::ffi::c_char;
     use core::sync::atomic::Ordering;
-    use std::ffi::CString;
 
     use mockall::predicate;
     use rstest::*;
@@ -5398,55 +5399,71 @@ fn try_handle_set_configstring(py: Python<'_>, index: u32, value: &str) -> PyRes
                 return Ok(configstring_value.into_py(py));
             }
 
-            let opt_round = cvars
-                .get("round")
-                .and_then(|value| value.parse::<i32>().ok());
-            let opt_turn = cvars
-                .get("turn")
-                .and_then(|value| value.parse::<i32>().ok());
-            let opt_time = cvars.get("time");
-
-            let opt_round_number = if opt_turn.is_some() {
-                if cvars
-                    .get("state")
-                    .and_then(|value| value.parse::<i32>().ok())
-                    .is_some_and(|value| value == 0)
-                {
+            let cs_round_number =
+                cvars
+                    .get("round")
+                    .map_or(Err(PyKeyError::new_err("'round'")), |round_str| {
+                        round_str.parse::<i32>().map_err(|_| {
+                            let error_msg =
+                                format!("invalid literal for int() with base 10: {round_str}");
+                            PyValueError::new_err(error_msg)
+                        })
+                    })?;
+            let round_number = if cvars.contains("turn") {
+                let cs_state = cvars.get("state").map_or(
+                    Err(PyKeyError::new_err("'state'")),
+                    |state_str| {
+                        state_str.parse::<i32>().map_err(|_| {
+                            let error_msg =
+                                format!("invalid literal for int() with base 10: {state_str}");
+                            PyValueError::new_err(error_msg)
+                        })
+                    },
+                )?;
+                if cs_state == 0 {
                     return Ok(py.None());
                 }
 
-                if let Some(round_number) = opt_round {
-                    let ad_round_number = round_number * 2 + 1 + opt_turn.unwrap_or_default();
-                    AD_ROUND_NUMBER.store(ad_round_number, Ordering::SeqCst);
-                }
-                Some(AD_ROUND_NUMBER.load(Ordering::SeqCst))
+                let cs_turn =
+                    cvars
+                        .get("turn")
+                        .map_or(Err(PyKeyError::new_err("'turn'")), |turn_str| {
+                            turn_str.parse::<i32>().map_err(|_| {
+                                let error_msg =
+                                    format!("invalid literal for int() with base 10: {turn_str}");
+                                PyValueError::new_err(error_msg)
+                            })
+                        })?;
+                let ad_round_number = cs_round_number * 2 + 1 + cs_turn;
+                AD_ROUND_NUMBER.store(ad_round_number, Ordering::SeqCst);
+                AD_ROUND_NUMBER.load(Ordering::SeqCst)
             } else {
-                if opt_round.is_some_and(|value| value == 0) {
+                if cs_round_number == 0 {
                     return Ok(configstring_value.into_py(py));
                 }
-                opt_round
+                cs_round_number
             };
 
-            if let Some(round_number) = opt_round_number {
-                let event = match opt_time {
-                    Some(_) => intern!(py, "round_countdown"),
-                    None => intern!(py, "round_start"),
-                };
+            let event = if cvars.contains("time") {
+                intern!(py, "round_countdown")
+            } else {
+                intern!(py, "round_start")
+            };
 
-                let Some(round_discpatcher) = EVENT_DISPATCHERS
-                    .load()
-                    .as_ref()
-                    .and_then(|event_dispatchers| event_dispatchers.bind(py).get_item(event).ok())
-                else {
-                    return Err(PyEnvironmentError::new_err(
+            return EVENT_DISPATCHERS
+                .load()
+                .as_ref()
+                .and_then(|event_dispatchers| event_dispatchers.bind(py).get_item(event).ok())
+                .map_or(
+                    Err(PyEnvironmentError::new_err(
                         "could not get access to round countdown/start dispatcher",
-                    ));
-                };
-                round_discpatcher.call_method1(intern!(py, "dispatch"), (round_number,))?;
-                return Ok(py.None());
-            }
-
-            Ok(configstring_value.into_py(py))
+                    )),
+                    |round_dispatcher| {
+                        round_dispatcher
+                            .call_method1(intern!(py, "dispatch"), (round_number,))
+                            .map(|_| py.None())
+                    },
+                );
         }
         _ => Ok(configstring_value.into_py(py)),
     }
@@ -5465,13 +5482,17 @@ pub(crate) fn handle_set_configstring(py: Python<'_>, index: u32, value: &str) -
 #[cfg(test)]
 mod handle_set_configstring_tests {
     use super::{
+        handle_set_configstring,
         handler_test_support::{capturing_hook, returning_false_hook, returning_other_string_hook},
         try_handle_set_configstring, AD_ROUND_NUMBER,
     };
 
     use crate::ffi::python::{
         commands::CommandPriorities,
-        events::{EventDispatcherManager, SetConfigstringDispatcher, VoteStartedDispatcher},
+        events::{
+            EventDispatcherManager, GameCountdownDispatcher, RoundCountdownDispatcher,
+            RoundStartDispatcher, SetConfigstringDispatcher, VoteStartedDispatcher,
+        },
         pyshinqlx_setup, EVENT_DISPATCHERS,
     };
 
@@ -5479,23 +5500,23 @@ mod handle_set_configstring_tests {
     use crate::MAIN_ENGINE;
 
     use crate::ffi::c::prelude::{
-        cvar_t, CVar, CVarBuilder, CS_AUTHOR, CS_ROUND_STATUS, CS_SERVERINFO, CS_VOTE_STRING,
+        cvar_t, CVar, CVarBuilder, CS_ALLREADY_TIME, CS_AUTHOR, CS_ROUND_STATUS, CS_SERVERINFO,
+        CS_VOTE_STRING,
     };
 
+    use alloc::ffi::CString;
     use core::ffi::c_char;
     use core::sync::atomic::Ordering;
-    use std::ffi::CString;
 
     use mockall::predicate;
     use pretty_assertions::assert_eq;
+    use rstest::rstest;
 
-    use crate::ffi::python::events::{GameCountdownDispatcher, RoundStartDispatcher};
     use pyo3::prelude::*;
     use pyo3::{
-        exceptions::{PyAssertionError, PyEnvironmentError},
+        exceptions::{PyAssertionError, PyEnvironmentError, PyKeyError, PyValueError},
         types::PyBool,
     };
-    use rstest::rstest;
 
     #[rstest]
     #[cfg_attr(miri, ignore)]
@@ -6187,6 +6208,466 @@ mod handle_set_configstring_tests {
             assert!(capturing_hook
                 .call_method1("assert_called_with", (7,))
                 .is_ok());
+        });
+    }
+
+    #[rstest]
+    #[cfg_attr(miri, ignore)]
+    #[serial]
+    fn try_set_configstring_for_round_status_change_for_ad_triggering_round_start(
+        _pyshinqlx_setup: (),
+    ) {
+        let mut mock_engine = MockQuakeEngine::new();
+        mock_engine
+            .expect_find_cvar()
+            .with(predicate::eq("zmq_stats_enable"))
+            .returning(|_| {
+                let cvar_string = CString::new("1").expect("this should not happen");
+                let mut raw_cvar = CVarBuilder::default()
+                    .string(cvar_string.as_ptr() as *mut c_char)
+                    .build()
+                    .expect("this should not happen");
+                CVar::try_from(&mut raw_cvar as *mut cvar_t).ok()
+            });
+        MAIN_ENGINE.store(Some(mock_engine.into()));
+
+        Python::with_gil(|py| {
+            let event_dispatcher = EventDispatcherManager::default();
+            event_dispatcher
+                .add_dispatcher(py, py.get_type_bound::<SetConfigstringDispatcher>())
+                .expect("could not add set_configstring dispatcher");
+            event_dispatcher
+                .add_dispatcher(py, py.get_type_bound::<RoundStartDispatcher>())
+                .expect("could not add round_start dispatcher");
+            let capturing_hook = capturing_hook(py);
+            event_dispatcher
+                .__getitem__(py, "round_start")
+                .and_then(|round_start_dispatcher| {
+                    round_start_dispatcher.call_method1(
+                        py,
+                        "add_hook",
+                        (
+                            "asdf",
+                            capturing_hook
+                                .getattr("hook")
+                                .expect("could not get capturing hook"),
+                            CommandPriorities::PRI_NORMAL as i32,
+                        ),
+                    )
+                })
+                .expect("could not add hook to round_start dispatcher");
+            EVENT_DISPATCHERS.store(Some(
+                Py::new(py, event_dispatcher)
+                    .expect("could not create event dispatcher manager in python")
+                    .into(),
+            ));
+
+            let result =
+                try_handle_set_configstring(py, CS_ROUND_STATUS, r"\round\7\turn\3\state\1");
+            assert!(result.is_ok_and(|value| value.is_none(py)));
+            assert!(capturing_hook
+                .call_method1("assert_called_with", (18,))
+                .is_ok());
+            assert_eq!(AD_ROUND_NUMBER.load(Ordering::SeqCst), 18);
+        });
+    }
+
+    #[rstest]
+    #[cfg_attr(miri, ignore)]
+    #[serial]
+    fn try_set_configstring_for_round_status_change_with_no_turn_in_value_triggering_round_countdown(
+        _pyshinqlx_setup: (),
+    ) {
+        let mut mock_engine = MockQuakeEngine::new();
+        mock_engine
+            .expect_find_cvar()
+            .with(predicate::eq("zmq_stats_enable"))
+            .returning(|_| {
+                let cvar_string = CString::new("1").expect("this should not happen");
+                let mut raw_cvar = CVarBuilder::default()
+                    .string(cvar_string.as_ptr() as *mut c_char)
+                    .build()
+                    .expect("this should not happen");
+                CVar::try_from(&mut raw_cvar as *mut cvar_t).ok()
+            });
+        MAIN_ENGINE.store(Some(mock_engine.into()));
+
+        Python::with_gil(|py| {
+            let event_dispatcher = EventDispatcherManager::default();
+            event_dispatcher
+                .add_dispatcher(py, py.get_type_bound::<SetConfigstringDispatcher>())
+                .expect("could not add set_configstring dispatcher");
+            event_dispatcher
+                .add_dispatcher(py, py.get_type_bound::<RoundCountdownDispatcher>())
+                .expect("could not add round_countdown dispatcher");
+            let capturing_hook = capturing_hook(py);
+            event_dispatcher
+                .__getitem__(py, "round_countdown")
+                .and_then(|round_countdown_dispatcher| {
+                    round_countdown_dispatcher.call_method1(
+                        py,
+                        "add_hook",
+                        (
+                            "asdf",
+                            capturing_hook
+                                .getattr("hook")
+                                .expect("could not get capturing hook"),
+                            CommandPriorities::PRI_NORMAL as i32,
+                        ),
+                    )
+                })
+                .expect("could not add hook to round_countdown dispatcher");
+            EVENT_DISPATCHERS.store(Some(
+                Py::new(py, event_dispatcher)
+                    .expect("could not create event dispatcher manager in python")
+                    .into(),
+            ));
+
+            let result = try_handle_set_configstring(py, CS_ROUND_STATUS, r"\round\7\time\11");
+            assert!(result.is_ok_and(|value| value.is_none(py)));
+            assert!(capturing_hook
+                .call_method1("assert_called_with", (7,))
+                .is_ok());
+        });
+    }
+
+    #[rstest]
+    #[cfg_attr(miri, ignore)]
+    #[serial]
+    fn try_set_configstring_for_round_status_change_ad_triggering_round_countdown(
+        _pyshinqlx_setup: (),
+    ) {
+        let mut mock_engine = MockQuakeEngine::new();
+        mock_engine
+            .expect_find_cvar()
+            .with(predicate::eq("zmq_stats_enable"))
+            .returning(|_| {
+                let cvar_string = CString::new("1").expect("this should not happen");
+                let mut raw_cvar = CVarBuilder::default()
+                    .string(cvar_string.as_ptr() as *mut c_char)
+                    .build()
+                    .expect("this should not happen");
+                CVar::try_from(&mut raw_cvar as *mut cvar_t).ok()
+            });
+        MAIN_ENGINE.store(Some(mock_engine.into()));
+
+        Python::with_gil(|py| {
+            let event_dispatcher = EventDispatcherManager::default();
+            event_dispatcher
+                .add_dispatcher(py, py.get_type_bound::<SetConfigstringDispatcher>())
+                .expect("could not add set_configstring dispatcher");
+            event_dispatcher
+                .add_dispatcher(py, py.get_type_bound::<RoundCountdownDispatcher>())
+                .expect("could not add round_countdown dispatcher");
+            let capturing_hook = capturing_hook(py);
+            event_dispatcher
+                .__getitem__(py, "round_countdown")
+                .and_then(|round_countdown_dispatcher| {
+                    round_countdown_dispatcher.call_method1(
+                        py,
+                        "add_hook",
+                        (
+                            "asdf",
+                            capturing_hook
+                                .getattr("hook")
+                                .expect("could not get capturing hook"),
+                            CommandPriorities::PRI_NORMAL as i32,
+                        ),
+                    )
+                })
+                .expect("could not add hook to round_countdown dispatcher");
+            EVENT_DISPATCHERS.store(Some(
+                Py::new(py, event_dispatcher)
+                    .expect("could not create event dispatcher manager in python")
+                    .into(),
+            ));
+
+            let result = try_handle_set_configstring(
+                py,
+                CS_ROUND_STATUS,
+                r"\round\3\turn\1\state\3\time\11",
+            );
+            assert!(result.is_ok_and(|value| value.is_none(py)));
+            assert!(capturing_hook
+                .call_method1("assert_called_with", (8,))
+                .is_ok());
+            assert_eq!(AD_ROUND_NUMBER.load(Ordering::SeqCst), 8);
+        });
+    }
+
+    #[rstest]
+    #[cfg_attr(miri, ignore)]
+    #[serial]
+    fn try_set_configstring_for_round_status_change_with_no_turn_in_value_triggering_round_countdown_with_no_dispatcher(
+        _pyshinqlx_setup: (),
+    ) {
+        Python::with_gil(|py| {
+            let event_dispatcher = EventDispatcherManager::default();
+            event_dispatcher
+                .add_dispatcher(py, py.get_type_bound::<SetConfigstringDispatcher>())
+                .expect("could not add set_configstring dispatcher");
+            EVENT_DISPATCHERS.store(Some(
+                Py::new(py, event_dispatcher)
+                    .expect("could not create event dispatcher manager in python")
+                    .into(),
+            ));
+
+            let result = try_handle_set_configstring(py, CS_ROUND_STATUS, r"\round\7\time\11");
+            assert!(result.is_err_and(|err| err.is_instance_of::<PyEnvironmentError>(py)));
+        });
+    }
+
+    #[rstest]
+    #[cfg_attr(miri, ignore)]
+    #[serial]
+    fn try_set_configstring_for_round_status_change_for_ad_triggering_round_countdown_with_no_dispatcher(
+        _pyshinqlx_setup: (),
+    ) {
+        Python::with_gil(|py| {
+            let event_dispatcher = EventDispatcherManager::default();
+            event_dispatcher
+                .add_dispatcher(py, py.get_type_bound::<SetConfigstringDispatcher>())
+                .expect("could not add set_configstring dispatcher");
+            EVENT_DISPATCHERS.store(Some(
+                Py::new(py, event_dispatcher)
+                    .expect("could not create event dispatcher manager in python")
+                    .into(),
+            ));
+
+            let result = try_handle_set_configstring(
+                py,
+                CS_ROUND_STATUS,
+                r"\round\7\turn\1\state\2\time\11",
+            );
+            assert!(result.is_err_and(|err| err.is_instance_of::<PyEnvironmentError>(py)));
+        });
+    }
+
+    #[rstest]
+    #[cfg_attr(miri, ignore)]
+    #[serial]
+    fn try_set_configstring_for_round_status_change_with_no_turn_in_value_triggering_round_start_with_no_dispatcher(
+        _pyshinqlx_setup: (),
+    ) {
+        Python::with_gil(|py| {
+            let event_dispatcher = EventDispatcherManager::default();
+            event_dispatcher
+                .add_dispatcher(py, py.get_type_bound::<SetConfigstringDispatcher>())
+                .expect("could not add set_configstring dispatcher");
+            EVENT_DISPATCHERS.store(Some(
+                Py::new(py, event_dispatcher)
+                    .expect("could not create event dispatcher manager in python")
+                    .into(),
+            ));
+
+            let result = try_handle_set_configstring(py, CS_ROUND_STATUS, r"\round\7");
+            assert!(result.is_err_and(|err| err.is_instance_of::<PyEnvironmentError>(py)));
+        });
+    }
+
+    #[rstest]
+    #[cfg_attr(miri, ignore)]
+    #[serial]
+    fn try_set_configstring_for_round_status_change_for_ad_triggering_round_start_with_no_dispatcher(
+        _pyshinqlx_setup: (),
+    ) {
+        Python::with_gil(|py| {
+            let event_dispatcher = EventDispatcherManager::default();
+            event_dispatcher
+                .add_dispatcher(py, py.get_type_bound::<SetConfigstringDispatcher>())
+                .expect("could not add set_configstring dispatcher");
+            EVENT_DISPATCHERS.store(Some(
+                Py::new(py, event_dispatcher)
+                    .expect("could not create event dispatcher manager in python")
+                    .into(),
+            ));
+
+            let result =
+                try_handle_set_configstring(py, CS_ROUND_STATUS, r"\round\7\turn\2\state\5");
+            assert!(result.is_err_and(|err| err.is_instance_of::<PyEnvironmentError>(py)));
+        });
+    }
+
+    #[rstest]
+    #[cfg_attr(miri, ignore)]
+    #[serial]
+    fn try_set_configstring_for_round_status_change_with_empty_string(_pyshinqlx_setup: ()) {
+        Python::with_gil(|py| {
+            let event_dispatcher = EventDispatcherManager::default();
+            event_dispatcher
+                .add_dispatcher(py, py.get_type_bound::<SetConfigstringDispatcher>())
+                .expect("could not add set_configstring dispatcher");
+            EVENT_DISPATCHERS.store(Some(
+                Py::new(py, event_dispatcher)
+                    .expect("could not create event dispatcher manager in python")
+                    .into(),
+            ));
+
+            let result = try_handle_set_configstring(py, CS_ROUND_STATUS, "");
+            assert!(result.is_ok_and(|value| value
+                .extract::<String>(py)
+                .is_ok_and(|str_value| str_value.is_empty())));
+        });
+    }
+
+    #[rstest]
+    #[cfg_attr(miri, ignore)]
+    #[serial]
+    fn try_set_configstring_for_round_status_change_for_round_zero(_pyshinqlx_setup: ()) {
+        Python::with_gil(|py| {
+            let event_dispatcher = EventDispatcherManager::default();
+            event_dispatcher
+                .add_dispatcher(py, py.get_type_bound::<SetConfigstringDispatcher>())
+                .expect("could not add set_configstring dispatcher");
+            EVENT_DISPATCHERS.store(Some(
+                Py::new(py, event_dispatcher)
+                    .expect("could not create event dispatcher manager in python")
+                    .into(),
+            ));
+
+            let result = try_handle_set_configstring(py, CS_ROUND_STATUS, r"\round\0");
+            assert!(result.is_ok_and(|value| value
+                .extract::<String>(py)
+                .is_ok_and(|str_value| str_value == r"\round\0")));
+        });
+    }
+
+    #[rstest]
+    #[cfg_attr(miri, ignore)]
+    #[serial]
+    fn try_set_configstring_for_round_status_change_for_ad_state_zero(_pyshinqlx_setup: ()) {
+        Python::with_gil(|py| {
+            let event_dispatcher = EventDispatcherManager::default();
+            event_dispatcher
+                .add_dispatcher(py, py.get_type_bound::<SetConfigstringDispatcher>())
+                .expect("could not add set_configstring dispatcher");
+            EVENT_DISPATCHERS.store(Some(
+                Py::new(py, event_dispatcher)
+                    .expect("could not create event dispatcher manager in python")
+                    .into(),
+            ));
+
+            let result =
+                try_handle_set_configstring(py, CS_ROUND_STATUS, r"\round\0\turn\0\state\0");
+            assert!(result.is_ok_and(|value| value.is_none(py)));
+        });
+    }
+
+    #[rstest]
+    #[cfg_attr(miri, ignore)]
+    #[serial]
+    fn try_set_configstring_for_round_status_change_for_unparseable_round_number(
+        _pyshinqlx_setup: (),
+    ) {
+        Python::with_gil(|py| {
+            let event_dispatcher = EventDispatcherManager::default();
+            event_dispatcher
+                .add_dispatcher(py, py.get_type_bound::<SetConfigstringDispatcher>())
+                .expect("could not add set_configstring dispatcher");
+            EVENT_DISPATCHERS.store(Some(
+                Py::new(py, event_dispatcher)
+                    .expect("could not create event dispatcher manager in python")
+                    .into(),
+            ));
+
+            let result = try_handle_set_configstring(py, CS_ROUND_STATUS, r"\round\asdf");
+            assert!(result.is_err_and(|err| err.is_instance_of::<PyValueError>(py)));
+        });
+    }
+
+    #[rstest]
+    #[cfg_attr(miri, ignore)]
+    #[serial]
+    fn try_set_configstring_for_round_status_change_for_unparseable_state(_pyshinqlx_setup: ()) {
+        Python::with_gil(|py| {
+            let event_dispatcher = EventDispatcherManager::default();
+            event_dispatcher
+                .add_dispatcher(py, py.get_type_bound::<SetConfigstringDispatcher>())
+                .expect("could not add set_configstring dispatcher");
+            EVENT_DISPATCHERS.store(Some(
+                Py::new(py, event_dispatcher)
+                    .expect("could not create event dispatcher manager in python")
+                    .into(),
+            ));
+
+            let result =
+                try_handle_set_configstring(py, CS_ROUND_STATUS, r"\round\1\turn\1\state\asdf");
+            assert!(result.is_err_and(|err| err.is_instance_of::<PyValueError>(py)));
+        });
+    }
+
+    #[rstest]
+    #[cfg_attr(miri, ignore)]
+    #[serial]
+    fn try_set_configstring_for_round_status_change_for_unparseable_turn(_pyshinqlx_setup: ()) {
+        Python::with_gil(|py| {
+            let event_dispatcher = EventDispatcherManager::default();
+            event_dispatcher
+                .add_dispatcher(py, py.get_type_bound::<SetConfigstringDispatcher>())
+                .expect("could not add set_configstring dispatcher");
+            EVENT_DISPATCHERS.store(Some(
+                Py::new(py, event_dispatcher)
+                    .expect("could not create event dispatcher manager in python")
+                    .into(),
+            ));
+
+            let result =
+                try_handle_set_configstring(py, CS_ROUND_STATUS, r"\round\1\turn\asdf\state\1");
+            assert!(result.is_err_and(|err| err.is_instance_of::<PyValueError>(py)));
+        });
+    }
+
+    #[rstest]
+    #[cfg_attr(miri, ignore)]
+    #[serial]
+    fn try_set_configstring_for_round_status_change_with_no_round_number(_pyshinqlx_setup: ()) {
+        Python::with_gil(|py| {
+            let event_dispatcher = EventDispatcherManager::default();
+            event_dispatcher
+                .add_dispatcher(py, py.get_type_bound::<SetConfigstringDispatcher>())
+                .expect("could not add set_configstring dispatcher");
+            EVENT_DISPATCHERS.store(Some(
+                Py::new(py, event_dispatcher)
+                    .expect("could not create event dispatcher manager in python")
+                    .into(),
+            ));
+
+            let result = try_handle_set_configstring(py, CS_ROUND_STATUS, r"\asdf\asdf");
+            assert!(result.is_err_and(|err| err.is_instance_of::<PyKeyError>(py)));
+        });
+    }
+
+    #[rstest]
+    #[cfg_attr(miri, ignore)]
+    #[serial]
+    fn try_set_configstring_for_round_status_change_with_no_state(_pyshinqlx_setup: ()) {
+        Python::with_gil(|py| {
+            let event_dispatcher = EventDispatcherManager::default();
+            event_dispatcher
+                .add_dispatcher(py, py.get_type_bound::<SetConfigstringDispatcher>())
+                .expect("could not add set_configstring dispatcher");
+            EVENT_DISPATCHERS.store(Some(
+                Py::new(py, event_dispatcher)
+                    .expect("could not create event dispatcher manager in python")
+                    .into(),
+            ));
+
+            let result = try_handle_set_configstring(py, CS_ROUND_STATUS, r"\asdf\1\turn\1");
+            assert!(result.is_err_and(|err| err.is_instance_of::<PyKeyError>(py)));
+        });
+    }
+
+    #[rstest]
+    #[cfg_attr(miri, ignore)]
+    #[serial]
+    fn handle_set_configstring_with_no_event_dispatchers(_pyshinqlx_setup: ()) {
+        EVENT_DISPATCHERS.store(None);
+
+        Python::with_gil(|py| {
+            let result = handle_set_configstring(py, CS_ALLREADY_TIME, "42");
+            assert!(result
+                .extract::<&PyBool>(py)
+                .is_ok_and(|bool_value| bool_value.is_true()));
         });
     }
 }
