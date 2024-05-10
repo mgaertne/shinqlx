@@ -310,6 +310,13 @@ impl Deref for ParsedVariables {
 }
 
 impl ParsedVariables {
+    pub(crate) fn contains<T>(&self, item: T) -> bool
+    where
+        T: AsRef<str>,
+    {
+        self.items.iter().any(|(key, _value)| *key == item.as_ref())
+    }
+
     pub fn get<T>(&self, item: T) -> Option<String>
     where
         T: AsRef<str>,
