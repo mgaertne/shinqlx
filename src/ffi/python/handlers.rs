@@ -9034,41 +9034,46 @@ mod handle_damage_tests {
 static PRINT_REDIRECTION: Lazy<ArcSwapOption<Py<PyAny>>> = Lazy::new(ArcSwapOption::empty);
 
 fn try_handle_console_print(py: Python<'_>, text: &str) -> PyResult<PyObject> {
-    let logger = pyshinqlx_get_logger(py, None)?;
-    let console_text = text;
-    let logging_module = py.import_bound(intern!(py, "logging"))?;
-    let debug_level = logging_module.getattr(intern!(py, "DEBUG"))?;
-    let log_record = logger.call_method(
-        intern!(py, "makeRecord"),
-        (
-            intern!(py, "shinqlx"),
-            debug_level,
-            intern!(py, ""),
-            -1,
-            console_text.trim_end_matches('\n'),
-            py.None(),
-            py.None(),
-        ),
-        Some(&[(intern!(py, "func"), intern!(py, "handle_console_print"))].into_py_dict_bound(py)),
-    )?;
-    logger.call_method1(intern!(py, "handle"), (log_record,))?;
+    pyshinqlx_get_logger(py, None).and_then(|logger| {
+        let logging_module = py.import_bound(intern!(py, "logging"))?;
+        let debug_level = logging_module.getattr(intern!(py, "DEBUG"))?;
+        logger
+            .call_method(
+                intern!(py, "makeRecord"),
+                (
+                    intern!(py, "shinqlx"),
+                    debug_level,
+                    intern!(py, ""),
+                    -1,
+                    text.trim_end_matches('\n'),
+                    py.None(),
+                    py.None(),
+                ),
+                Some(
+                    &[(intern!(py, "func"), intern!(py, "handle_console_print"))]
+                        .into_py_dict_bound(py),
+                ),
+            )
+            .and_then(|log_record| logger.call_method1(intern!(py, "handle"), (log_record,)))
+    })?;
 
-    let Some(console_print_dispatcher) =
-        EVENT_DISPATCHERS
-            .load()
-            .as_ref()
-            .and_then(|event_dispatchers| {
-                event_dispatchers
-                    .bind(py)
-                    .get_item(intern!(py, "console_print"))
-                    .ok()
-            })
-    else {
-        return Err(PyEnvironmentError::new_err(
-            "could not get access to console print dispatcher",
-        ));
-    };
-    let result = console_print_dispatcher.call_method1(intern!(py, "dispatch"), (console_text,))?;
+    let result = EVENT_DISPATCHERS
+        .load()
+        .as_ref()
+        .and_then(|event_dispatchers| {
+            event_dispatchers
+                .bind(py)
+                .get_item(intern!(py, "console_print"))
+                .ok()
+        })
+        .map_or(
+            Err(PyEnvironmentError::new_err(
+                "could not get access to console print dispatcher",
+            )),
+            |console_print_dispatcher| {
+                console_print_dispatcher.call_method1(intern!(py, "dispatch"), (text,))
+            },
+        )?;
     if result
         .extract::<&PyBool>()
         .is_ok_and(|value| !value.is_true())
@@ -9100,6 +9105,248 @@ pub(crate) fn handle_console_print(py: Python<'_>, text: &str) -> PyObject {
         log_exception(py, &e);
         true.into_py(py)
     })
+}
+
+#[cfg(test)]
+mod handle_console_print_tests {
+    use super::{
+        handle_console_print,
+        handler_test_support::{capturing_hook, returning_false_hook, returning_other_string_hook},
+        try_handle_console_print, PRINT_REDIRECTION,
+    };
+
+    use crate::ffi::python::{
+        commands::CommandPriorities,
+        events::{ConsolePrintDispatcher, EventDispatcherManager},
+        pyshinqlx_setup_fixture::pyshinqlx_setup,
+        EVENT_DISPATCHERS,
+    };
+
+    use crate::prelude::{serial, MockQuakeEngine};
+    use crate::MAIN_ENGINE;
+
+    use crate::ffi::c::prelude::{cvar_t, CVar, CVarBuilder};
+
+    use alloc::ffi::CString;
+    use core::ffi::c_char;
+
+    use mockall::predicate;
+    use rstest::*;
+
+    use pyo3::prelude::*;
+    use pyo3::{exceptions::PyEnvironmentError, types::PyBool};
+
+    #[rstest]
+    #[cfg_attr(miri, ignore)]
+    #[serial]
+    fn try_handle_console_print_forwards_to_python(_pyshinqlx_setup: ()) {
+        let mut mock_engine = MockQuakeEngine::new();
+        mock_engine
+            .expect_find_cvar()
+            .with(predicate::eq("zmq_stats_enable"))
+            .returning(|_| {
+                let cvar_string = CString::new("1").expect("this should not happen");
+                let mut raw_cvar = CVarBuilder::default()
+                    .string(cvar_string.as_ptr() as *mut c_char)
+                    .build()
+                    .expect("this should not happen");
+                CVar::try_from(&mut raw_cvar as *mut cvar_t).ok()
+            });
+        MAIN_ENGINE.store(Some(mock_engine.into()));
+
+        PRINT_REDIRECTION.store(None);
+
+        Python::with_gil(|py| {
+            let event_dispatcher = EventDispatcherManager::default();
+            event_dispatcher
+                .add_dispatcher(py, py.get_type_bound::<ConsolePrintDispatcher>())
+                .expect("could not add console_print dispatcher");
+            let capturing_hook = capturing_hook(py);
+            event_dispatcher
+                .__getitem__(py, "console_print")
+                .and_then(|console_print_dispatcher| {
+                    console_print_dispatcher.call_method1(
+                        py,
+                        "add_hook",
+                        (
+                            "asdf",
+                            capturing_hook
+                                .getattr("hook")
+                                .expect("could not get capturing hook"),
+                            CommandPriorities::PRI_NORMAL as i32,
+                        ),
+                    )
+                })
+                .expect("could not add hook to console_print dispatcher");
+            EVENT_DISPATCHERS.store(Some(
+                Py::new(py, event_dispatcher)
+                    .expect("could not create event dispatcher manager in python")
+                    .into(),
+            ));
+
+            let result = try_handle_console_print(py, "asdf");
+            assert!(result.is_ok_and(|value| value
+                .extract::<String>(py)
+                .is_ok_and(|str_value| str_value == "asdf")));
+            assert!(capturing_hook
+                .call_method1("assert_called_with", ("asdf",))
+                .is_ok());
+        });
+    }
+
+    #[rstest]
+    #[cfg_attr(miri, ignore)]
+    #[serial]
+    fn try_handle_console_print_when_dispatcher_returns_false(_pyshinqlx_setup: ()) {
+        let mut mock_engine = MockQuakeEngine::new();
+        mock_engine
+            .expect_find_cvar()
+            .with(predicate::eq("zmq_stats_enable"))
+            .returning(|_| {
+                let cvar_string = CString::new("1").expect("this should not happen");
+                let mut raw_cvar = CVarBuilder::default()
+                    .string(cvar_string.as_ptr() as *mut c_char)
+                    .build()
+                    .expect("this should not happen");
+                CVar::try_from(&mut raw_cvar as *mut cvar_t).ok()
+            });
+        MAIN_ENGINE.store(Some(mock_engine.into()));
+
+        PRINT_REDIRECTION.store(None);
+
+        Python::with_gil(|py| {
+            let event_dispatcher = EventDispatcherManager::default();
+            event_dispatcher
+                .add_dispatcher(py, py.get_type_bound::<ConsolePrintDispatcher>())
+                .expect("could not add console_print dispatcher");
+            event_dispatcher
+                .__getitem__(py, "console_print")
+                .and_then(|console_print_dispatcher| {
+                    console_print_dispatcher.call_method1(
+                        py,
+                        "add_hook",
+                        (
+                            "asdf",
+                            returning_false_hook(py),
+                            CommandPriorities::PRI_NORMAL as i32,
+                        ),
+                    )
+                })
+                .expect("could not add hook to console_print dispatcher");
+            EVENT_DISPATCHERS.store(Some(
+                Py::new(py, event_dispatcher)
+                    .expect("could not create event dispatcher manager in python")
+                    .into(),
+            ));
+
+            let result = try_handle_console_print(py, "asdf");
+            assert!(result.is_ok_and(|value| value
+                .extract::<&PyBool>(py)
+                .is_ok_and(|bool_value| !bool_value.is_true())));
+        });
+    }
+
+    #[rstest]
+    #[cfg_attr(miri, ignore)]
+    #[serial]
+    fn try_handle_console_print_when_dispatcher_returns_other_string(_pyshinqlx_setup: ()) {
+        let mut mock_engine = MockQuakeEngine::new();
+        mock_engine
+            .expect_find_cvar()
+            .with(predicate::eq("zmq_stats_enable"))
+            .returning(|_| {
+                let cvar_string = CString::new("1").expect("this should not happen");
+                let mut raw_cvar = CVarBuilder::default()
+                    .string(cvar_string.as_ptr() as *mut c_char)
+                    .build()
+                    .expect("this should not happen");
+                CVar::try_from(&mut raw_cvar as *mut cvar_t).ok()
+            });
+        MAIN_ENGINE.store(Some(mock_engine.into()));
+
+        PRINT_REDIRECTION.store(None);
+
+        Python::with_gil(|py| {
+            let event_dispatcher = EventDispatcherManager::default();
+            event_dispatcher
+                .add_dispatcher(py, py.get_type_bound::<ConsolePrintDispatcher>())
+                .expect("could not add console_print dispatcher");
+            event_dispatcher
+                .__getitem__(py, "console_print")
+                .and_then(|console_print_dispatcher| {
+                    console_print_dispatcher.call_method1(
+                        py,
+                        "add_hook",
+                        (
+                            "asdf",
+                            returning_other_string_hook(py),
+                            CommandPriorities::PRI_NORMAL as i32,
+                        ),
+                    )
+                })
+                .expect("could not add hook to console_print dispatcher");
+            EVENT_DISPATCHERS.store(Some(
+                Py::new(py, event_dispatcher)
+                    .expect("could not create event dispatcher manager in python")
+                    .into(),
+            ));
+
+            let result = try_handle_console_print(py, "asdf");
+            assert!(result.is_ok_and(|value| value
+                .extract::<String>(py)
+                .is_ok_and(|str_value| str_value == "quit")));
+        });
+    }
+
+    #[rstest]
+    #[cfg_attr(miri, ignore)]
+    #[serial]
+    fn try_handle_console_print_with_no_dispatcher(_pyshinqlx_setup: ()) {
+        PRINT_REDIRECTION.store(None);
+
+        Python::with_gil(|py| {
+            let event_dispatcher = EventDispatcherManager::default();
+            EVENT_DISPATCHERS.store(Some(
+                Py::new(py, event_dispatcher)
+                    .expect("could not create event dispatcher manager in python")
+                    .into(),
+            ));
+
+            let result = try_handle_console_print(py, "asdf");
+            assert!(result.is_err_and(|err| err.is_instance_of::<PyEnvironmentError>(py)));
+        });
+    }
+
+    #[rstest]
+    #[cfg_attr(miri, ignore)]
+    #[serial]
+    fn handle_console_print_with_empty_text(_pyshinqlx_setup: ()) {
+        Python::with_gil(|py| {
+            let result = handle_console_print(py, "");
+            assert!(result.is_none(py));
+        });
+    }
+
+    #[rstest]
+    #[cfg_attr(miri, ignore)]
+    #[serial]
+    fn handle_console_print_with_no_dispatcher(_pyshinqlx_setup: ()) {
+        PRINT_REDIRECTION.store(None);
+
+        Python::with_gil(|py| {
+            let event_dispatcher = EventDispatcherManager::default();
+            EVENT_DISPATCHERS.store(Some(
+                Py::new(py, event_dispatcher)
+                    .expect("could not create event dispatcher manager in python")
+                    .into(),
+            ));
+
+            let result = handle_console_print(py, "asdf");
+            assert!(result
+                .extract::<&PyBool>(py)
+                .is_ok_and(|bool_value| bool_value.is_true()));
+        });
+    }
 }
 
 #[pyclass(module = "_handlers", name = "PrintRedirector")]
