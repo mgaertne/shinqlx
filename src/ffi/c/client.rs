@@ -102,29 +102,51 @@ impl Client {
 #[cfg(test)]
 mockall::mock! {
     pub(crate) Client {
+        #[allow(unused_attributes)]
+        #[cfg(not(tarpaulin_include))]
         pub(crate) fn get_name(&self) -> Cow<'_, str>;
+        #[allow(unused_attributes)]
+        #[cfg(not(tarpaulin_include))]
         pub(crate) fn has_gentity(&self) -> bool;
+        #[allow(unused_attributes)]
+        #[cfg(not(tarpaulin_include))]
         pub(crate) fn get_client_id(&self) -> i32;
+        #[allow(unused_attributes)]
+        #[cfg(not(tarpaulin_include))]
         pub(crate) fn get_state(&self) -> clientState_t;
+        #[allow(unused_attributes)]
+        #[cfg(not(tarpaulin_include))]
         pub(crate) fn disconnect(&mut self, reason: &str);
+        #[allow(unused_attributes)]
+        #[cfg(not(tarpaulin_include))]
         pub(crate) fn get_user_info(&self) -> Cow<'_, str>;
+        #[allow(unused_attributes)]
+        #[cfg(not(tarpaulin_include))]
         pub(crate) fn get_steam_id(&self) -> u64;
     }
 
     impl TryFrom<*mut client_t> for Client {
         type Error = QuakeLiveEngineError;
+        #[allow(unused_attributes)]
+        #[cfg(not(tarpaulin_include))]
         fn try_from(client: *mut client_t) -> Result<Self, QuakeLiveEngineError>;
     }
 
     impl From<i32> for Client {
+        #[allow(unused_attributes)]
+        #[cfg(not(tarpaulin_include))]
         fn from(entity_id: i32) -> Self;
     }
 
     impl AsRef<client_t> for Client {
+        #[allow(unused_attributes)]
+        #[cfg(not(tarpaulin_include))]
         fn as_ref(&self) -> &client_t;
     }
 
     impl AsMut<client_t> for Client {
+        #[allow(unused_attributes)]
+        #[cfg(not(tarpaulin_include))]
         fn as_mut(&mut self) -> &mut client_t;
     }
 
@@ -348,7 +370,11 @@ mod client_tests {
 
     mockall::mock! {
        SV_DropcClient {
+            #[allow(unused_attributes)]
+            #[cfg(not(tarpaulin_include))]
             fn original_func(_client: *mut client_t, _reason: *const c_char);
+            #[allow(unused_attributes)]
+            #[cfg(not(tarpaulin_include))]
             fn replacement_func(_client: *mut client_t, _reason: *const c_char);
         }
     }

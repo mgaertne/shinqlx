@@ -2218,16 +2218,25 @@ while not shinqlx.next_frame_tasks.empty():
 pub(crate) mod python_tests {
     use super::PythonInitializationError;
 
+    #[allow(unused_attributes)]
+    #[cfg_attr(coverage_nightly, coverage(off))]
+    #[cfg(not(tarpaulin_include))]
     pub(crate) fn rcon_dispatcher<T>(_cmd: T)
     where
         T: AsRef<str> + 'static,
     {
     }
 
+    #[allow(unused_attributes)]
+    #[cfg_attr(coverage_nightly, coverage(off))]
+    #[cfg(not(tarpaulin_include))]
     pub(crate) fn client_command_dispatcher(_client_id: i32, _cmd: String) -> Option<String> {
         None
     }
 
+    #[allow(unused_attributes)]
+    #[cfg_attr(coverage_nightly, coverage(off))]
+    #[cfg(not(tarpaulin_include))]
     pub(crate) fn server_command_dispatcher(
         _client_id: Option<i32>,
         _cmd: String,
@@ -2235,32 +2244,65 @@ pub(crate) mod python_tests {
         None
     }
 
+    #[allow(unused_attributes)]
+    #[cfg_attr(coverage_nightly, coverage(off))]
+    #[cfg(not(tarpaulin_include))]
     pub(crate) fn client_loaded_dispatcher(_client_id: i32) {}
 
+    #[allow(unused_attributes)]
+    #[cfg_attr(coverage_nightly, coverage(off))]
+    #[cfg(not(tarpaulin_include))]
     pub(crate) fn set_configstring_dispatcher(_index: u32, _value: &str) -> Option<String> {
         None
     }
 
+    #[allow(unused_attributes)]
+    #[cfg_attr(coverage_nightly, coverage(off))]
+    #[cfg(not(tarpaulin_include))]
     pub(crate) fn client_disconnect_dispatcher(_client_id: i32, _reason: &str) {}
 
+    #[allow(unused_attributes)]
+    #[cfg_attr(coverage_nightly, coverage(off))]
+    #[cfg(not(tarpaulin_include))]
     pub(crate) fn console_print_dispatcher(_msg: &str) -> Option<String> {
         None
     }
 
+    #[allow(unused_attributes)]
+    #[cfg_attr(coverage_nightly, coverage(off))]
+    #[cfg(not(tarpaulin_include))]
     pub(crate) fn new_game_dispatcher(_restart: bool) {}
 
+    #[allow(unused_attributes)]
+    #[cfg_attr(coverage_nightly, coverage(off))]
+    #[cfg(not(tarpaulin_include))]
     pub(crate) fn frame_dispatcher() {}
 
+    #[allow(unused_attributes)]
+    #[cfg_attr(coverage_nightly, coverage(off))]
+    #[cfg(not(tarpaulin_include))]
     pub(crate) fn client_connect_dispatcher(_client_id: i32, _is_bot: bool) -> Option<String> {
         None
     }
 
+    #[allow(unused_attributes)]
+    #[cfg_attr(coverage_nightly, coverage(off))]
+    #[cfg(not(tarpaulin_include))]
     pub(crate) fn client_spawn_dispatcher(_client_id: i32) {}
 
+    #[allow(unused_attributes)]
+    #[cfg_attr(coverage_nightly, coverage(off))]
+    #[cfg(not(tarpaulin_include))]
     pub(crate) fn kamikaze_use_dispatcher(_client_id: i32) {}
 
+    #[allow(unused_attributes)]
+    #[cfg_attr(coverage_nightly, coverage(off))]
+    #[cfg(not(tarpaulin_include))]
     pub(crate) fn kamikaze_explode_dispatcher(_client_id: i32, _is_used_on_demand: bool) {}
 
+    #[allow(unused_attributes)]
+    #[cfg_attr(coverage_nightly, coverage(off))]
+    #[cfg(not(tarpaulin_include))]
     pub(crate) fn damage_dispatcher(
         _target_client_id: i32,
         _attacker_client_id: Option<i32>,
@@ -2270,14 +2312,23 @@ pub(crate) mod python_tests {
     ) {
     }
 
+    #[allow(unused_attributes)]
+    #[cfg_attr(coverage_nightly, coverage(off))]
+    #[cfg(not(tarpaulin_include))]
     pub(crate) fn pyshinqlx_is_initialized() -> bool {
         false
     }
 
+    #[allow(unused_attributes)]
+    #[cfg_attr(coverage_nightly, coverage(off))]
+    #[cfg(not(tarpaulin_include))]
     pub(crate) fn pyshinqlx_initialize() -> Result<(), PythonInitializationError> {
         Ok(())
     }
 
+    #[allow(unused_attributes)]
+    #[cfg_attr(coverage_nightly, coverage(off))]
+    #[cfg(not(tarpaulin_include))]
     pub(crate) fn pyshinqlx_reload() -> Result<(), PythonInitializationError> {
         Ok(())
     }
