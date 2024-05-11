@@ -9112,7 +9112,7 @@ mod handle_console_print_tests {
     use super::{
         handle_console_print,
         handler_test_support::{capturing_hook, returning_false_hook, returning_other_string_hook},
-        try_handle_console_print, PRINT_REDIRECTION,
+        try_handle_console_print, PrintRedirector, PRINT_REDIRECTION,
     };
 
     use crate::ffi::python::{
@@ -9133,6 +9133,8 @@ mod handle_console_print_tests {
     use mockall::predicate;
     use rstest::*;
 
+    use crate::ffi::python::prelude::ConsoleChannel;
+    use crate::hooks::mock_hooks::shinqlx_com_printf_context;
     use pyo3::prelude::*;
     use pyo3::{exceptions::PyEnvironmentError, types::PyBool};
 
@@ -9295,6 +9297,60 @@ mod handle_console_print_tests {
             assert!(result.is_ok_and(|value| value
                 .extract::<String>(py)
                 .is_ok_and(|str_value| str_value == "quit")));
+        });
+    }
+
+    #[rstest]
+    #[cfg_attr(miri, ignore)]
+    #[serial]
+    fn try_handle_console_print_when_print_is_redirected(_pyshinqlx_setup: ()) {
+        let com_printf_ctx = shinqlx_com_printf_context();
+        com_printf_ctx
+            .expect()
+            .with(predicate::eq("asdf\n"))
+            .times(1);
+
+        let mut mock_engine = MockQuakeEngine::new();
+        mock_engine
+            .expect_find_cvar()
+            .with(predicate::eq("zmq_stats_enable"))
+            .returning(|_| {
+                let cvar_string = CString::new("1").expect("this should not happen");
+                let mut raw_cvar = CVarBuilder::default()
+                    .string(cvar_string.as_ptr() as *mut c_char)
+                    .build()
+                    .expect("this should not happen");
+                CVar::try_from(&mut raw_cvar as *mut cvar_t).ok()
+            });
+        MAIN_ENGINE.store(Some(mock_engine.into()));
+
+        Python::with_gil(|py| {
+            let console_channel =
+                Py::new(py, ConsoleChannel::py_new()).expect("this should not happen");
+            let print_redirector = PrintRedirector::py_new(py, console_channel.into_py(py))
+                .expect("this should not happen");
+            PRINT_REDIRECTION.store(Some(print_redirector.into_py(py).into()));
+
+            let event_dispatcher = EventDispatcherManager::default();
+            event_dispatcher
+                .add_dispatcher(py, py.get_type_bound::<ConsolePrintDispatcher>())
+                .expect("could not add console_print dispatcher");
+            EVENT_DISPATCHERS.store(Some(
+                Py::new(py, event_dispatcher)
+                    .expect("could not create event dispatcher manager in python")
+                    .into(),
+            ));
+
+            let result = try_handle_console_print(py, "asdf");
+            assert!(result.is_ok_and(|value| value
+                .extract::<String>(py)
+                .is_ok_and(|str_value| str_value == "asdf")));
+
+            PRINT_REDIRECTION.load().as_ref().map(|redirector| {
+                redirector
+                    .call_method0(py, "flush")
+                    .expect("this should not happen")
+            });
         });
     }
 
