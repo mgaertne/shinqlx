@@ -325,71 +325,163 @@ impl GameClient {
 #[cfg(test)]
 mockall::mock! {
     pub(crate) GameClient {
+        #[allow(unused_attributes)]
+        #[cfg(not(tarpaulin_include))]
         pub(crate) fn get_client_num(&self) -> i32;
+        #[allow(unused_attributes)]
+        #[cfg(not(tarpaulin_include))]
         pub(crate) fn get_connection_state(&self) -> clientConnected_t;
+        #[allow(unused_attributes)]
+        #[cfg(not(tarpaulin_include))]
         pub(crate) fn get_player_name(&self) -> Cow<'_, str>;
+        #[allow(unused_attributes)]
+        #[cfg(not(tarpaulin_include))]
         pub(crate) fn get_team(&self) -> team_t;
+        #[allow(unused_attributes)]
+        #[cfg(not(tarpaulin_include))]
         pub(crate) fn get_privileges(&self) -> privileges_t;
+        #[allow(unused_attributes)]
+        #[cfg(not(tarpaulin_include))]
         pub(crate) fn remove_kamikaze_flag(&mut self);
+        #[allow(unused_attributes)]
+        #[cfg(not(tarpaulin_include))]
         pub(crate) fn set_privileges<T>(&mut self, privileges: T)
         where
             T: Into<privileges_t> + 'static;
+        #[allow(unused_attributes)]
+        #[cfg(not(tarpaulin_include))]
         pub(crate) fn is_alive(&self) -> bool;
+        #[allow(unused_attributes)]
+        #[cfg(not(tarpaulin_include))]
         pub(crate) fn get_position(&self) -> (f32, f32, f32);
+        #[allow(unused_attributes)]
+        #[cfg(not(tarpaulin_include))]
         pub(crate) fn set_position<T>(&mut self, position: T)
         where
             T: Into<[f32; 3]> + 'static;
+        #[allow(unused_attributes)]
+        #[cfg(not(tarpaulin_include))]
         pub(crate) fn get_velocity(&self) -> (f32, f32, f32);
+        #[allow(unused_attributes)]
+        #[cfg(not(tarpaulin_include))]
         pub(crate) fn set_velocity<T>(&mut self, velocity: T)
         where
             T: Into<[f32; 3]> + 'static;
+        #[allow(unused_attributes)]
+        #[cfg(not(tarpaulin_include))]
         pub(crate) fn get_armor(&self) -> i32;
+        #[allow(unused_attributes)]
+        #[cfg(not(tarpaulin_include))]
         pub(crate) fn set_armor<T>(&mut self, armor: T)
         where
             T: Into<i32> + 'static;
+        #[allow(unused_attributes)]
+        #[cfg(not(tarpaulin_include))]
         pub(crate) fn get_noclip(&self) -> bool;
+        #[allow(unused_attributes)]
+        #[cfg(not(tarpaulin_include))]
         pub(crate) fn set_noclip<T>(&mut self, activate: T)
         where
             T: Into<qboolean> + 'static;
+        #[allow(unused_attributes)]
+        #[cfg(not(tarpaulin_include))]
         pub(crate) fn get_weapon(&self) -> weapon_t;
+        #[allow(unused_attributes)]
+        #[cfg(not(tarpaulin_include))]
         pub(crate) fn set_weapon<T>(&mut self, weapon: T)
         where
             T: Into<c_int> + 'static;
+        #[allow(unused_attributes)]
+        #[cfg(not(tarpaulin_include))]
         pub(crate) fn get_weapons(&self) -> [i32; 15];
+        #[allow(unused_attributes)]
+        #[cfg(not(tarpaulin_include))]
         pub(crate) fn set_weapons(&mut self, weapons: [i32; 15]);
+        #[allow(unused_attributes)]
+        #[cfg(not(tarpaulin_include))]
         pub(crate) fn get_ammos(&self) -> [i32; 15];
+        #[allow(unused_attributes)]
+        #[cfg(not(tarpaulin_include))]
         pub(crate) fn set_ammos(&mut self, ammos: [i32; 15]);
+        #[allow(unused_attributes)]
+        #[cfg(not(tarpaulin_include))]
         pub(crate) fn get_powerups(&self) -> [i32; 6];
+        #[allow(unused_attributes)]
+        #[cfg(not(tarpaulin_include))]
         pub(crate) fn set_powerups(&mut self, powerups: [i32; 6]);
+        #[allow(unused_attributes)]
+        #[cfg(not(tarpaulin_include))]
         pub(crate) fn get_holdable(&self) -> i32;
+        #[allow(unused_attributes)]
+        #[cfg(not(tarpaulin_include))]
         pub(crate) fn set_holdable<T>(&mut self, holdable: T)
         where
             T: Into<i32> + 'static;
+        #[allow(unused_attributes)]
+        #[cfg(not(tarpaulin_include))]
         pub(crate) fn get_current_flight_fuel(&self) -> i32;
+        #[allow(unused_attributes)]
+        #[cfg(not(tarpaulin_include))]
         pub(crate) fn get_max_flight_fuel(&self) -> i32;
+        #[allow(unused_attributes)]
+        #[cfg(not(tarpaulin_include))]
         pub(crate) fn get_flight_thrust(&self) -> i32;
+        #[allow(unused_attributes)]
+        #[cfg(not(tarpaulin_include))]
         pub(crate) fn get_flight_refuel(&self) -> i32;
+        #[allow(unused_attributes)]
+        #[cfg(not(tarpaulin_include))]
         pub(crate) fn set_flight<T>(&mut self, flight_params: T)
         where
             T: Into<[i32; 4]> + 'static;
+        #[allow(unused_attributes)]
+        #[cfg(not(tarpaulin_include))]
         pub(crate) fn set_invulnerability(&mut self, time: i32);
+        #[allow(unused_attributes)]
+        #[cfg(not(tarpaulin_include))]
         pub(crate) fn is_chatting(&self) -> bool;
+        #[allow(unused_attributes)]
+        #[cfg(not(tarpaulin_include))]
         pub(crate) fn is_frozen(&self) -> bool;
+        #[allow(unused_attributes)]
+        #[cfg(not(tarpaulin_include))]
         pub(crate) fn get_score(&self) -> i32;
+        #[allow(unused_attributes)]
+        #[cfg(not(tarpaulin_include))]
         pub(crate) fn set_score(&mut self, score: i32);
+        #[allow(unused_attributes)]
+        #[cfg(not(tarpaulin_include))]
         pub(crate) fn get_kills(&self) -> i32;
+        #[allow(unused_attributes)]
+        #[cfg(not(tarpaulin_include))]
         pub(crate) fn get_deaths(&self) -> i32;
+        #[allow(unused_attributes)]
+        #[cfg(not(tarpaulin_include))]
         pub(crate) fn get_damage_dealt(&self) -> i32;
+        #[allow(unused_attributes)]
+        #[cfg(not(tarpaulin_include))]
         pub(crate) fn get_damage_taken(&self) -> i32;
+        #[allow(unused_attributes)]
+        #[cfg(not(tarpaulin_include))]
         pub(crate) fn get_time_on_team(&self) -> i32;
+        #[allow(unused_attributes)]
+        #[cfg(not(tarpaulin_include))]
         pub(crate) fn get_ping(&self) -> i32;
+        #[allow(unused_attributes)]
+        #[cfg(not(tarpaulin_include))]
         pub(crate) fn set_vote_pending(&mut self);
+        #[allow(unused_attributes)]
+        #[cfg(not(tarpaulin_include))]
         pub(crate) fn set_vote_state(&mut self, yes_or_no: bool);
+        #[allow(unused_attributes)]
+        #[cfg(not(tarpaulin_include))]
         pub(crate) fn spawn(&mut self);
     }
 
     impl TryFrom<*mut gclient_t> for GameClient {
         type Error = QuakeLiveEngineError;
+        #[allow(unused_attributes)]
+        #[cfg(not(tarpaulin_include))]
         fn try_from(game_client: *mut gclient_t) -> Result<Self, QuakeLiveEngineError>;
     }
 }

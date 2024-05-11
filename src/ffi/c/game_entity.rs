@@ -408,50 +408,114 @@ impl GameEntity {
 #[cfg(test)]
 mockall::mock! {
     pub(crate) GameEntity {
+        #[allow(unused_attributes)]
+        #[cfg(not(tarpaulin_include))]
         pub(crate) fn get_entities_list() -> *mut gentity_t;
+        #[allow(unused_attributes)]
+        #[cfg(not(tarpaulin_include))]
         pub(crate) fn get_entity_id(&self) -> i32;
+        #[allow(unused_attributes)]
+        #[cfg(not(tarpaulin_include))]
         pub(crate) fn start_kamikaze(&mut self);
+        #[allow(unused_attributes)]
+        #[cfg(not(tarpaulin_include))]
         pub(crate) fn get_player_name(&self) -> String;
+        #[allow(unused_attributes)]
+        #[cfg(not(tarpaulin_include))]
         pub(crate) fn get_team(&self) -> team_t;
+        #[allow(unused_attributes)]
+        #[cfg(not(tarpaulin_include))]
         pub(crate) fn get_privileges(&self) -> privileges_t;
+        #[allow(unused_attributes)]
+        #[cfg(not(tarpaulin_include))]
         pub(crate) fn get_game_client(&self) -> Result<GameClient, QuakeLiveEngineError>;
+        #[allow(unused_attributes)]
+        #[cfg(not(tarpaulin_include))]
         pub(crate) fn get_activator(&self) -> Result<Activator, QuakeLiveEngineError>;
+        #[allow(unused_attributes)]
+        #[cfg(not(tarpaulin_include))]
         pub(crate) fn get_health(&self) -> i32;
+        #[allow(unused_attributes)]
+        #[cfg(not(tarpaulin_include))]
         pub(crate) fn set_health(&mut self, new_health: i32);
+        #[allow(unused_attributes)]
+        #[cfg(not(tarpaulin_include))]
         pub(crate) fn slay_with_mod(&mut self, mean_of_death: meansOfDeath_t);
+        #[allow(unused_attributes)]
+        #[cfg(not(tarpaulin_include))]
         pub(crate) fn in_use(&self) -> bool;
+        #[allow(unused_attributes)]
+        #[cfg(not(tarpaulin_include))]
         pub(crate) fn get_classname(&self) -> Cow<'_, str>;
+        #[allow(unused_attributes)]
+        #[cfg(not(tarpaulin_include))]
         pub(crate) fn is_game_item(&self, item_type: entityType_t) -> bool;
+        #[allow(unused_attributes)]
+        #[cfg(not(tarpaulin_include))]
         pub(crate) fn is_respawning_weapon(&self) -> bool;
+        #[allow(unused_attributes)]
+        #[cfg(not(tarpaulin_include))]
         pub(crate) fn set_respawn_time(&mut self, respawn_time: i32);
+        #[allow(unused_attributes)]
+        #[cfg(not(tarpaulin_include))]
         pub(crate) fn has_flags(&self) -> bool;
+        #[allow(unused_attributes)]
+        #[cfg(not(tarpaulin_include))]
         pub(crate) fn is_dropped_item(&self) -> bool;
+        #[allow(unused_attributes)]
+        #[cfg(not(tarpaulin_include))]
         pub(crate) fn get_client_number(&self) -> i32;
+        #[allow(unused_attributes)]
+        #[cfg(not(tarpaulin_include))]
         pub(crate) fn drop_holdable(&mut self);
+        #[allow(unused_attributes)]
+        #[cfg(not(tarpaulin_include))]
         pub(crate) fn is_kamikaze_timer(&self) -> bool;
+        #[allow(unused_attributes)]
+        #[cfg(not(tarpaulin_include))]
         pub(crate) fn free_entity(&mut self);
+        #[allow(unused_attributes)]
+        #[cfg(not(tarpaulin_include))]
         pub(crate) fn replace_item(&mut self, item_id: i32);
+        #[allow(unused_attributes)]
+        #[cfg(not(tarpaulin_include))]
         pub(crate) fn get_targetting_entity_ids(&self) -> Vec<u32>;
+        #[allow(unused_attributes)]
+        #[cfg(not(tarpaulin_include))]
         pub(crate) fn set_next_think(&mut self, next_think: i32);
+        #[allow(unused_attributes)]
+        #[cfg(not(tarpaulin_include))]
         pub(crate) fn set_think(&mut self, think: Option<unsafe extern "C" fn(*mut gentity_t)>);
+        #[allow(unused_attributes)]
+        #[cfg(not(tarpaulin_include))]
         pub(crate) fn set_touch(
             &mut self,
             touch: Option<unsafe extern "C" fn(*mut gentity_t, *mut gentity_t, *mut trace_t)>,
         );
+        #[allow(unused_attributes)]
+        #[cfg(not(tarpaulin_include))]
         pub(crate) fn set_parent(&mut self, parent: &mut gentity_t);
+        #[allow(unused_attributes)]
+        #[cfg(not(tarpaulin_include))]
         pub(crate) fn set_position_trace_time(&mut self, trace_time: i32);
     }
 
     impl AsMut<gentity_t> for GameEntity {
+        #[allow(unused_attributes)]
+        #[cfg(not(tarpaulin_include))]
         fn as_mut(&mut self) -> &mut gentity_t;
     }
 
     impl From<i32> for GameEntity {
+        #[allow(unused_attributes)]
+        #[cfg(not(tarpaulin_include))]
         fn from(entity_id: i32) -> Self;
     }
 
     impl TryFrom<*mut gentity_t> for GameEntity {
         type Error = QuakeLiveEngineError;
+        #[allow(unused_attributes)]
+        #[cfg(not(tarpaulin_include))]
         fn try_from(gentity: *mut gentity_t) -> Result<Self, QuakeLiveEngineError>;
     }
 }
@@ -459,7 +523,11 @@ mockall::mock! {
 #[cfg(test)]
 mockall::mock! {
     StaticFunc {
+        #[allow(unused_attributes)]
+        #[cfg(not(tarpaulin_include))]
         pub(crate) extern "C" fn touch_item(entity: *mut gentity_t, other: *mut gentity_t, trace: *mut trace_t);
+        #[allow(unused_attributes)]
+        #[cfg(not(tarpaulin_include))]
         pub(crate) extern "C" fn g_free_entity(entity: *mut gentity_t);
     }
 }

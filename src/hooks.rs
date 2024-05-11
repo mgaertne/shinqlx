@@ -490,6 +490,9 @@ pub(crate) mod hooks {
     use super::Client;
     use super::GameEntity;
 
+    #[allow(unused_attributes)]
+    #[cfg_attr(coverage_nightly, coverage(off))]
+    #[cfg(not(tarpaulin_include))]
     pub(crate) fn shinqlx_execute_client_command(
         _client: Option<Client>,
         _cmd: &str,
@@ -497,14 +500,29 @@ pub(crate) mod hooks {
     ) {
     }
 
+    #[allow(unused_attributes)]
+    #[cfg_attr(coverage_nightly, coverage(off))]
+    #[cfg(not(tarpaulin_include))]
     pub(crate) fn shinqlx_send_server_command(_client: Option<Client>, _cmd: &str) {}
 
+    #[allow(unused_attributes)]
+    #[cfg_attr(coverage_nightly, coverage(off))]
+    #[cfg(not(tarpaulin_include))]
     pub(crate) fn shinqlx_drop_client(_client: &mut Client, _reason: &str) {}
 
+    #[allow(unused_attributes)]
+    #[cfg_attr(coverage_nightly, coverage(off))]
+    #[cfg(not(tarpaulin_include))]
     pub(crate) fn shinqlx_client_spawn(_game_entity: &mut GameEntity) {}
 
+    #[allow(unused_attributes)]
+    #[cfg_attr(coverage_nightly, coverage(off))]
+    #[cfg(not(tarpaulin_include))]
     pub(crate) fn shinqlx_set_configstring(_index: u32, _value: &str) {}
 
+    #[allow(unused_attributes)]
+    #[cfg_attr(coverage_nightly, coverage(off))]
+    #[cfg(not(tarpaulin_include))]
     pub(crate) fn shinqlx_com_printf(_msg: &str) {}
 }
 

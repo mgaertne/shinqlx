@@ -2096,25 +2096,53 @@ impl<T: AsMut<gentity_t>> StartKamikaze<T> for QuakeLiveEngine {
 #[cfg(test)]
 mockall::mock! {
     pub(crate) QuakeEngine{
+        #[allow(unused_attributes)]
+        #[cfg(not(tarpaulin_include))]
         pub(crate) fn search_static_functions(&self) -> Result<(), QuakeLiveEngineError>;
+        #[allow(unused_attributes)]
+        #[cfg(not(tarpaulin_include))]
         pub(crate) fn hook_static(&self) -> Result<(), QuakeLiveEngineError>;
+        #[allow(unused_attributes)]
+        #[cfg(not(tarpaulin_include))]
         pub(crate) fn is_common_initialized(&self) -> bool;
+        #[allow(unused_attributes)]
+        #[cfg(not(tarpaulin_include))]
         pub(crate) fn get_max_clients(&self) -> i32;
+        #[allow(unused_attributes)]
+        #[cfg(not(tarpaulin_include))]
         pub(crate) fn initialize_static(&self) -> Result<(), QuakeLiveEngineError>;
+        #[allow(unused_attributes)]
+        #[cfg(not(tarpaulin_include))]
         pub(crate) fn initialize_vm(&self, module_offset: usize) -> Result<(), QuakeLiveEngineError>;
+        #[allow(unused_attributes)]
+        #[cfg(not(tarpaulin_include))]
         pub(crate) fn set_tag(&self);
+        #[allow(unused_attributes)]
+        #[cfg(not(tarpaulin_include))]
         pub(crate) fn initialize_cvars(&self);
+        #[allow(unused_attributes)]
+        #[cfg(not(tarpaulin_include))]
         pub(crate) fn unhook_vm(&self, restart: bool);
+        #[allow(unused_attributes)]
+        #[cfg(not(tarpaulin_include))]
         pub(crate) fn g_init_game_orig(
             &self,
         ) -> Result<extern "C" fn(c_int, c_int, c_int), QuakeLiveEngineError>;
+        #[allow(unused_attributes)]
+        #[cfg(not(tarpaulin_include))]
         pub(crate) fn touch_item_orig(
             &self,
         ) -> Result<extern "C" fn(*mut gentity_t, *mut gentity_t, *mut trace_t), QuakeLiveEngineError>;
+        #[allow(unused_attributes)]
+        #[cfg(not(tarpaulin_include))]
         pub(crate) fn g_free_entity_orig(
             &self,
         ) -> Result<extern "C" fn(*mut gentity_t), QuakeLiveEngineError>;
+        #[allow(unused_attributes)]
+        #[cfg(not(tarpaulin_include))]
         pub(crate) fn g_run_frame_orig(&self) -> Result<extern "C" fn(c_int), QuakeLiveEngineError>;
+        #[allow(unused_attributes)]
+        #[cfg(not(tarpaulin_include))]
         pub(crate) fn launch_item_orig(
             &self,
         ) -> Result<
@@ -2122,89 +2150,147 @@ mockall::mock! {
             QuakeLiveEngineError,
         >;
         #[allow(clippy::type_complexity)]
+        #[allow(unused_attributes)]
+        #[cfg(not(tarpaulin_include))]
         pub(crate) fn sv_dropclient_detour(&self) -> Result<&'static GenericDetour<fn(*mut client_t, *const c_char)>, QuakeLiveEngineError>;
+        #[allow(unused_attributes)]
+        #[cfg(not(tarpaulin_include))]
         pub(crate) fn sv_shutdown_orig(&self) -> Result<fn(*const c_char), QuakeLiveEngineError>;
     }
     impl AddCommand<&str> for QuakeEngine {
+        #[allow(unused_attributes)]
+        #[cfg(not(tarpaulin_include))]
         fn add_command(&self, cmd: &str, func: unsafe extern "C" fn());
     }
     impl SetModuleOffset<&str> for QuakeEngine {
+        #[allow(unused_attributes)]
+        #[cfg(not(tarpaulin_include))]
         fn set_module_offset(&self, module_name: &str, offset: unsafe extern "C" fn());
     }
     impl InitGame<c_int, c_int, c_int> for QuakeEngine {
+        #[allow(unused_attributes)]
+        #[cfg(not(tarpaulin_include))]
         fn init_game(&self, level_time: c_int, random_seed: c_int, restart: c_int);
     }
     impl ShutdownGame<c_int> for QuakeEngine {
+        #[allow(unused_attributes)]
+        #[cfg(not(tarpaulin_include))]
         fn shutdown_game(&self, restart: c_int);
     }
     impl ExecuteClientCommand<Client, String, qboolean> for QuakeEngine {
+        #[allow(unused_attributes)]
+        #[cfg(not(tarpaulin_include))]
         fn execute_client_command(&self, client: Option<Client>, cmd: String, client_ok: qboolean);
     }
     impl SendServerCommand<Client> for QuakeEngine {
+        #[allow(unused_attributes)]
+        #[cfg(not(tarpaulin_include))]
         fn send_server_command(&self, client: Option <Client>, cmd: &str);
     }
     impl ClientEnterWorld<&mut Client> for QuakeEngine {
+        #[allow(unused_attributes)]
+        #[cfg(not(tarpaulin_include))]
         fn client_enter_world(&self, client: &mut Client, cmd: * mut usercmd_t);
     }
     impl SetConfigstring<c_int> for QuakeEngine {
+        #[allow(unused_attributes)]
+        #[cfg(not(tarpaulin_include))]
         fn set_configstring(&self, index: c_int, value: &str);
     }
     impl ComPrintf for QuakeEngine {
+        #[allow(unused_attributes)]
+        #[cfg(not(tarpaulin_include))]
         fn com_printf(&self, msg: &str);
     }
     impl SpawnServer<&str, bool> for QuakeEngine {
+        #[allow(unused_attributes)]
+        #[cfg(not(tarpaulin_include))]
         fn spawn_server(&self, server_str: &str, kill_bots: bool);
     }
     impl RunFrame<c_int> for QuakeEngine {
+        #[allow(unused_attributes)]
+        #[cfg(not(tarpaulin_include))]
         fn run_frame(&self, time: c_int);
     }
     impl ClientConnect<c_int, bool, bool> for QuakeEngine {
+        #[allow(unused_attributes)]
+        #[cfg(not(tarpaulin_include))]
         fn client_connect(&self, client_num: c_int, first_time: bool, is_bot: bool) -> *const c_char;
     }
     impl ClientSpawn<&mut GameEntity> for QuakeEngine {
+        #[allow(unused_attributes)]
+        #[cfg(not(tarpaulin_include))]
         fn client_spawn(&self, ent: &mut GameEntity);
     }
     impl RegisterDamage<c_int, c_int, c_int> for QuakeEngine {
         #[allow(clippy::too_many_arguments)]
+        #[allow(unused_attributes)]
+        #[cfg(not(tarpaulin_include))]
         fn register_damage(&self, target: *mut gentity_t, inflictor: *mut gentity_t, attacker: *mut gentity_t, dir: *mut vec3_t, pos: *mut vec3_t, damage: c_int, dflags: c_int, means_of_death: c_int);
     }
     impl TryLaunchItem<&mut crate::ffi::c::game_item::GameItem> for QuakeEngine {
+        #[allow(unused_attributes)]
+        #[cfg(not(tarpaulin_include))]
         fn try_launch_item<'a>(&self, gitem: &'a mut crate::ffi::c::game_item::GameItem, origin: &mut vec3_t, velocity: &mut vec3_t) -> Result<GameEntity, QuakeLiveEngineError>;
     }
     impl GameAddEvent<&mut GameEntity, i32> for QuakeEngine {
+        #[allow(unused_attributes)]
+        #[cfg(not(tarpaulin_include))]
         fn game_add_event(&self, game_entity: &mut GameEntity, event: entity_event_t, event_param: i32);
     }
     impl CmdArgs for QuakeEngine {
+        #[allow(unused_attributes)]
+        #[cfg(not(tarpaulin_include))]
         fn cmd_args(&self) -> Option<String>;
     }
     impl CmdArgc for QuakeEngine {
+        #[allow(unused_attributes)]
+        #[cfg(not(tarpaulin_include))]
         fn cmd_argc(&self) -> i32;
     }
     impl CmdArgv<i32> for QuakeEngine {
+        #[allow(unused_attributes)]
+        #[cfg(not(tarpaulin_include))]
         fn cmd_argv(&self, argno: i32) -> Option<String>;
     }
     impl StartKamikaze<&mut crate::ffi::c::game_entity::GameEntity> for QuakeEngine {
+        #[allow(unused_attributes)]
+        #[cfg(not(tarpaulin_include))]
         fn start_kamikaze(&self, mut gentity: &mut crate::ffi::c::game_entity::GameEntity);
     }
     impl FreeEntity<&mut crate::ffi::c::game_entity::GameEntity> for QuakeEngine {
+        #[allow(unused_attributes)]
+        #[cfg(not(tarpaulin_include))]
         fn free_entity(&self, mut gentity: &mut crate::ffi::c::game_entity::GameEntity);
     }
     impl GetConfigstring<u16> for QuakeEngine {
+        #[allow(unused_attributes)]
+        #[cfg(not(tarpaulin_include))]
         fn get_configstring(&self, index: u16) -> String;
     }
     impl ConsoleCommand<&str> for QuakeEngine {
+        #[allow(unused_attributes)]
+        #[cfg(not(tarpaulin_include))]
         fn execute_console_command(&self, cmd: &str);
     }
     impl FindCVar<&str> for QuakeEngine {
+        #[allow(unused_attributes)]
+        #[cfg(not(tarpaulin_include))]
         fn find_cvar(&self, name: &str) -> Option<CVar>;
     }
     impl GetCVar<&str, &str, i32> for QuakeEngine {
+        #[allow(unused_attributes)]
+        #[cfg(not(tarpaulin_include))]
         fn get_cvar(&self, name: &str, value: &str, flags: Option<i32>) -> Option<CVar>;
     }
     impl SetCVarForced<&str, &str, bool> for QuakeEngine {
+        #[allow(unused_attributes)]
+        #[cfg(not(tarpaulin_include))]
         fn set_cvar_forced(&self, name: &str, value: &str, forced: bool) -> Option<CVar>;
     }
     impl SetCVarLimit<&str, &str, &str, &str, i32> for QuakeEngine {
+        #[allow(unused_attributes)]
+        #[cfg(not(tarpaulin_include))]
         fn set_cvar_limit(&self, name: &str, value: &str, min: &str, max: &str, flags: Option<i32>) -> Option<CVar>;
     }
 }
