@@ -9454,8 +9454,10 @@ impl PrintRedirector {
     }
 
     #[pyo3(name = "__enter__")]
-    fn context_manager_enter(slf: PyRef<'_, Self>, py: Python<'_>) {
-        PRINT_REDIRECTION.store(Some(Arc::new(slf.into_py(py))));
+    fn context_manager_enter(slf: PyRef<'_, Self>, py: Python<'_>) -> PyObject {
+        let returned = slf.into_py(py);
+        PRINT_REDIRECTION.store(Some(Arc::new(returned.clone_ref(py))));
+        returned
     }
 
     #[pyo3(name = "__exit__")]
@@ -9487,6 +9489,77 @@ impl PrintRedirector {
     fn append(&self, text: &str) {
         let mut print_buffer_guard = self.print_buffer.write();
         (*print_buffer_guard).push_str(text);
+    }
+}
+
+#[cfg(test)]
+mod print_redirector_tests {
+    use super::PrintRedirector;
+
+    use crate::ffi::python::{prelude::ChatChannel, pyshinqlx_setup_fixture::*};
+
+    use rstest::*;
+
+    use pyo3::exceptions::PyValueError;
+    use pyo3::prelude::*;
+
+    #[rstest]
+    #[cfg_attr(miri, ignore)]
+    fn constructor_with_wrong_type(_pyshinqlx_setup: ()) {
+        Python::with_gil(|py| {
+            let result = PrintRedirector::py_new(py, py.None());
+            assert!(result.is_err_and(|err| err.is_instance_of::<PyValueError>(py)));
+        });
+    }
+
+    #[rstest]
+    #[cfg_attr(miri, ignore)]
+    fn constructor_with_subclass_of_abstract_channel(_pyshinqlx_setup: ()) {
+        Python::with_gil(|py| {
+            let channel = Py::new(py, ChatChannel::py_new("chat", "print \"{}\n\"\n"))
+                .expect("this should not happen");
+            let result = PrintRedirector::py_new(py, channel.into_py(py));
+            assert!(result.is_ok());
+        });
+    }
+
+    #[rstest]
+    #[cfg_attr(miri, ignore)]
+    fn python_context_manager_interaction(_pyshinqlx_setup: ()) {
+        Python::with_gil(|py| {
+            let sample_module = PyModule::from_code_bound(
+                py,
+                r#"
+from shinqlx import AbstractChannel, redirect_print
+
+
+captured_text = ""
+
+
+class CapturingChannel(AbstractChannel):
+    def __new__(cls):
+        return super().__new__(cls, "capturing")
+
+    def reply(self, msg):
+        global captured_text
+        captured_text += msg
+
+
+def test_function():
+    channel = CapturingChannel()
+    with redirect_print(channel) as redirect:
+        redirect.append("this should be printed\n")
+        redirect.append("second line should be printed\n")
+
+    assert(captured_text == "this should be printed\nsecond line should be printed\n")
+                "#,
+                "print_redirector_sample.py",
+                "print_redirector_sample",
+            )
+            .expect("this should not happen");
+            let result = sample_module.call_method0("test_function");
+            assert!(result.is_ok());
+        });
     }
 }
 
