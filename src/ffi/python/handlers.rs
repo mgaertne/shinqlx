@@ -4936,11 +4936,26 @@ mod handle_new_game_tests {
         });
     }
 
+    const TEMP_DIR: once_cell::sync::Lazy<tempfile::TempDir> = once_cell::sync::Lazy::new(|| {
+        tempfile::Builder::new()
+            .tempdir_in("./")
+            .expect("this should not happen")
+    });
+
     #[rstest]
     #[cfg_attr(miri, ignore)]
+    #[cfg_attr(target_os = "macos", ignore)]
     #[serial]
     fn try_handle_new_game_when_first_game_with_zmq_enabled(_pyshinqlx_setup: ()) {
-        let temp_dir = tempfile::TempDir::new().expect("this should not happen");
+        let temp_path = CString::new(TEMP_DIR.as_ref().to_string_lossy().to_string())
+            .expect("this should not happen");
+        let permissions = TEMP_DIR
+            .as_ref()
+            .metadata()
+            .expect("this should not happen")
+            .permissions();
+        use std::os::unix::fs::PermissionsExt;
+        println!("permissions: {:o}", permissions.mode() & !0o170000);
         let mut mock_engine = MockQuakeEngine::new();
         mock_engine.expect_get_configstring().withf(|index| {
             [CS_MESSAGE as u16, CS_AUTHOR as u16, CS_AUTHOR2 as u16].contains(index)
@@ -4961,7 +4976,7 @@ mod handle_new_game_tests {
             .withf(|name| ["qlx_pluginsPath", "fs_homepath"].contains(&name))
             .returning(move |_| {
                 let mut raw_cvar = CVarBuilder::default()
-                    .string(temp_dir.path().to_string_lossy().as_ptr() as *mut c_char)
+                    .string(temp_path.as_ptr() as *mut c_char)
                     .build()
                     .expect("this should not happen");
                 CVar::try_from(&mut raw_cvar as *mut cvar_t).ok()
@@ -5030,9 +5045,11 @@ mod handle_new_game_tests {
 
     #[rstest]
     #[cfg_attr(miri, ignore)]
+    #[cfg_attr(target_os = "macos", ignore)]
     #[serial]
     fn try_handle_new_game_when_first_game_with_zmq_disabled(_pyshinqlx_setup: ()) {
-        let temp_dir = tempfile::TempDir::new().expect("this should not happen");
+        let temp_path = CString::new(TEMP_DIR.as_ref().to_string_lossy().to_string())
+            .expect("this should not happen");
         let mut mock_engine = MockQuakeEngine::new();
         mock_engine.expect_get_configstring().withf(|index| {
             [CS_MESSAGE as u16, CS_AUTHOR as u16, CS_AUTHOR2 as u16].contains(index)
@@ -5053,7 +5070,7 @@ mod handle_new_game_tests {
             .withf(|name| ["qlx_pluginsPath", "fs_homepath"].contains(&name))
             .returning(move |_| {
                 let mut raw_cvar = CVarBuilder::default()
-                    .string(temp_dir.path().to_string_lossy().as_ptr() as *mut c_char)
+                    .string(temp_path.as_ptr() as *mut c_char)
                     .build()
                     .expect("this should not happen");
                 CVar::try_from(&mut raw_cvar as *mut cvar_t).ok()
@@ -5122,11 +5139,13 @@ mod handle_new_game_tests {
 
     #[rstest]
     #[cfg_attr(miri, ignore)]
+    #[cfg_attr(target_os = "macos", ignore)]
     #[serial]
     fn try_handle_new_game_when_first_game_with_zmq_disabled_when_warning_already_issued(
         _pyshinqlx_setup: (),
     ) {
-        let temp_dir = tempfile::TempDir::new().expect("this should not happen");
+        let temp_path = CString::new(TEMP_DIR.as_ref().to_string_lossy().to_string())
+            .expect("this should not happen");
         let mut mock_engine = MockQuakeEngine::new();
         mock_engine.expect_get_configstring().withf(|index| {
             [CS_MESSAGE as u16, CS_AUTHOR as u16, CS_AUTHOR2 as u16].contains(index)
@@ -5147,7 +5166,7 @@ mod handle_new_game_tests {
             .withf(|name| ["qlx_pluginsPath", "fs_homepath"].contains(&name))
             .returning(move |_| {
                 let mut raw_cvar = CVarBuilder::default()
-                    .string(temp_dir.path().to_string_lossy().as_ptr() as *mut c_char)
+                    .string(temp_path.as_ptr() as *mut c_char)
                     .build()
                     .expect("this should not happen");
                 CVar::try_from(&mut raw_cvar as *mut cvar_t).ok()
