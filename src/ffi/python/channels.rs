@@ -432,7 +432,7 @@ pub(crate) struct ChatChannel {
 impl ChatChannel {
     #[new]
     #[pyo3(signature = (name = "chat", fmt = "print \"{}\n\"\n"), text_signature = "(name = \"chat\", fmt = \"print \"{}\n\"\n\")")]
-    fn py_new(name: &str, fmt: &str) -> PyClassInitializer<Self> {
+    pub(crate) fn py_new(name: &str, fmt: &str) -> PyClassInitializer<Self> {
         PyClassInitializer::from(AbstractChannel::py_new(name)).add_subclass(Self {
             fmt: fmt.to_string(),
         })
