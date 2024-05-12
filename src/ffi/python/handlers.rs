@@ -4094,7 +4094,7 @@ pub(crate) fn handle_frame(py: Python<'_>) -> Option<bool> {
 }
 
 #[cfg(test)]
-mod handle_run_frame_tests {
+mod handle_frame_tests {
     use super::handler_test_support::capturing_hook;
     use super::{handle_frame, transfer_next_frame_tasks, try_handle_frame, try_run_frame_tasks};
 
@@ -9492,8 +9492,40 @@ pub(crate) fn redirect_print(py: Python<'_>, channel: PyObject) -> PyResult<Prin
     PrintRedirector::py_new(py, channel)
 }
 
+#[cfg(test)]
+mod redirect_print_tests {
+    use super::redirect_print;
+
+    use crate::ffi::python::{prelude::ChatChannel, pyshinqlx_setup_fixture::*};
+
+    use rstest::*;
+
+    use pyo3::prelude::*;
+
+    #[rstest]
+    #[cfg_attr(miri, ignore)]
+    fn redirect_print_returns_print_redirector(_pyshinqlx_setup: ()) {
+        Python::with_gil(|py| {
+            let channel = Py::new(py, ChatChannel::py_new("chat", "print \"{}\n\"\n"))
+                .expect("this should not happen");
+            let result = redirect_print(py, channel.into_py(py));
+            assert!(result.is_ok());
+        });
+    }
+}
+
 #[pyfunction]
 pub(crate) fn register_handlers() {}
+
+#[cfg(test)]
+mod register_handlers_tests {
+    use super::register_handlers;
+
+    #[test]
+    fn register_handlers_does_nothing() {
+        register_handlers();
+    }
+}
 
 #[cfg(test)]
 #[cfg_attr(test, mockall::automock)]
