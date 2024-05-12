@@ -5018,6 +5018,9 @@ mod handle_new_game_tests {
             ));
 
             let result = try_handle_new_game(py, true);
+            let _ = py
+                .import_bound("shinqlx")
+                .and_then(|module| module.setattr("_stats", py.None()));
             assert!(result.is_ok());
 
             assert!(!IS_FIRST_GAME.load(Ordering::SeqCst));
@@ -5107,6 +5110,9 @@ mod handle_new_game_tests {
             ));
 
             let result = try_handle_new_game(py, true);
+            let _ = py
+                .import_bound("shinqlx")
+                .and_then(|module| module.setattr("_stats", py.None()));
             assert!(result.is_ok());
 
             assert!(!IS_FIRST_GAME.load(Ordering::SeqCst));
@@ -5198,6 +5204,9 @@ mod handle_new_game_tests {
             ));
 
             let result = try_handle_new_game(py, true);
+            let _ = py
+                .import_bound("shinqlx")
+                .and_then(|module| module.setattr("_stats", py.None()));
             assert!(result.is_ok());
 
             assert!(!IS_FIRST_GAME.load(Ordering::SeqCst));
