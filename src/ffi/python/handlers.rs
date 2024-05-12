@@ -9769,7 +9769,7 @@ pub(crate) mod handlers {
 }
 
 #[cfg(test)]
-mod handler_test_support {
+pub(crate) mod handler_test_support {
     use pyo3::prelude::*;
 
     pub(super) fn test_plugin(py: Python<'_>) -> Bound<'_, PyAny> {
@@ -9789,7 +9789,7 @@ class test_plugin(shinqlx.Plugin):
         .expect("could not get test plugin")
     }
 
-    pub(super) fn capturing_hook(py: Python<'_>) -> Bound<'_, PyModule> {
+    pub(crate) fn capturing_hook(py: Python<'_>) -> Bound<'_, PyModule> {
         PyModule::from_code_bound(
             py,
             r#"
