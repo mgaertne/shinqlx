@@ -25,6 +25,86 @@ def dispatch_stats_event(stats):
     Ok(())
 }
 
+#[cfg(test)]
+mod dispatch_stats_tests {
+    use super::dispatch_stats_event;
+
+    use crate::ffi::python::{
+        commands::CommandPriorities, handlers::handler_test_support::capturing_hook,
+        pyshinqlx_setup_fixture::*, pyshinqlx_test_support::run_all_frame_tasks,
+    };
+
+    use crate::{
+        prelude::{serial, MockQuakeEngine},
+        MAIN_ENGINE,
+    };
+
+    use crate::ffi::c::prelude::{cvar_t, CVar, CVarBuilder};
+
+    use alloc::ffi::CString;
+    use core::ffi::c_char;
+
+    use mockall::predicate;
+    use rstest::*;
+
+    use pyo3::prelude::*;
+
+    #[rstest]
+    #[cfg_attr(miri, ignore)]
+    #[serial]
+    fn dispatches_stats_event(_pyshinqlx_setup: ()) {
+        let stats_data = r#"{"MATCH_GUID": "cb00164b-ef2e-49db-a345-07e9c980e515", "ROUND": 10, "TEAM_WON": "RED", "TIME": 539, "WARMUP": false}"#;
+
+        let mut mock_engine = MockQuakeEngine::new();
+        mock_engine
+            .expect_find_cvar()
+            .with(predicate::eq("zmq_stats_enable"))
+            .returning(|_| {
+                let cvar_string = CString::new("1").expect("this should not happen");
+                let mut raw_cvar = CVarBuilder::default()
+                    .string(cvar_string.as_ptr() as *mut c_char)
+                    .build()
+                    .expect("this should not happen");
+                CVar::try_from(&mut raw_cvar as *mut cvar_t).ok()
+            });
+        MAIN_ENGINE.store(Some(mock_engine.into()));
+
+        Python::with_gil(|py| {
+            let capturing_hook = capturing_hook(py);
+            py.import_bound("shinqlx")
+                .and_then(|pyshinqlx_module| {
+                    pyshinqlx_module
+                        .getattr("EVENT_DISPATCHERS")
+                        .and_then(|event_dispatchers| {
+                            event_dispatchers
+                                .get_item("stats")
+                                .and_then(|stats_dispatcher| {
+                                    stats_dispatcher.call_method1(
+                                        "add_hook",
+                                        (
+                                            "asdf",
+                                            capturing_hook
+                                                .getattr("hook")
+                                                .expect("could not get capturing hook"),
+                                            CommandPriorities::PRI_NORMAL as i32,
+                                        ),
+                                    )
+                                })
+                        })
+                })
+                .expect("this should not happen");
+
+            let result = dispatch_stats_event(py, stats_data);
+            assert!(result.is_ok());
+
+            run_all_frame_tasks(py).expect("this should not happen");
+
+            let asdf = capturing_hook.call_method1("assert_called_with", ("_",));
+            assert!(asdf.as_ref().is_ok());
+        });
+    }
+}
+
 fn dispatch_game_start_event(py: Python<'_>, stats: &str) -> PyResult<()> {
     PyModule::from_code_bound(
         py,
