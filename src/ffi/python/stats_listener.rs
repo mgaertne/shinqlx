@@ -1,28 +1,58 @@
 use super::prelude::*;
+use super::EVENT_DISPATCHERS;
+
 use crate::quake_live_engine::FindCVar;
 use crate::MAIN_ENGINE;
 
 use pyo3::{exceptions::PyEnvironmentError, intern};
+
 use serde_json::Value;
 use zmq::{Context, SocketType, DONTWAIT, POLLIN};
 
-fn dispatch_stats_event(py: Python<'_>, stats: &str) -> PyResult<()> {
+fn to_py_json_data<'py>(py: Python<'py>, json_str: &str) -> PyResult<Bound<'py, PyAny>> {
+    py.import_bound("json")
+        .and_then(|json_module| json_module.call_method1(intern!(py, "loads"), (json_str,)))
+}
+
+fn dispatch_thread_safe(py: Python<'_>) -> PyResult<Bound<'_, PyAny>> {
     PyModule::from_code_bound(
         py,
         r#"
-import json
 import shinqlx
 
+
 @shinqlx.next_frame
-def dispatch_stats_event(stats):
-    data = json.loads(stats)
-    shinqlx.EVENT_DISPATCHERS["stats"].dispatch(data)
-        "#,
+def thread_safe_dispatch(dispatcher, *args):
+    dispatcher.dispatch(*args)
+    "#,
         "",
         "",
-    )?
-    .call_method1(intern!(py, "dispatch_stats_event"), (stats,))?;
-    Ok(())
+    )
+    .and_then(|module| module.getattr(intern!(py, "thread_safe_dispatch")))
+}
+
+fn dispatch_stats_event(py: Python<'_>, stats: &str) -> PyResult<()> {
+    let json_data = to_py_json_data(py, stats)?;
+    EVENT_DISPATCHERS
+        .load()
+        .as_ref()
+        .and_then(|event_dispatchers| {
+            event_dispatchers
+                .bind(py)
+                .get_item(intern!(py, "stats"))
+                .ok()
+        })
+        .map_or(
+            Err(PyEnvironmentError::new_err(
+                "could not get access to stats dispatcher",
+            )),
+            |stats_dispatcher| {
+                dispatch_thread_safe(py).and_then(|thread_safe_dispatcher| {
+                    thread_safe_dispatcher.call1((stats_dispatcher, json_data))
+                })?;
+                Ok(())
+            },
+        )
 }
 
 #[cfg(test)]
@@ -30,8 +60,12 @@ mod dispatch_stats_tests {
     use super::dispatch_stats_event;
 
     use crate::ffi::python::{
-        commands::CommandPriorities, handlers::handler_test_support::capturing_hook,
-        pyshinqlx_setup_fixture::*, pyshinqlx_test_support::run_all_frame_tasks,
+        commands::CommandPriorities,
+        events::{EventDispatcherManager, StatsDispatcher},
+        handlers::handler_test_support::capturing_hook,
+        pyshinqlx_setup_fixture::*,
+        pyshinqlx_test_support::run_all_frame_tasks,
+        EVENT_DISPATCHERS,
     };
 
     use crate::{
@@ -47,12 +81,13 @@ mod dispatch_stats_tests {
     use mockall::predicate;
     use rstest::*;
 
+    use pyo3::exceptions::PyEnvironmentError;
     use pyo3::prelude::*;
 
     #[rstest]
     #[cfg_attr(miri, ignore)]
     #[serial]
-    fn dispatches_stats_event(_pyshinqlx_setup: ()) {
+    fn dispatch_stats_event_forwards_to_next_frame_runner(_pyshinqlx_setup: ()) {
         let stats_data = r#"{"MATCH_GUID": "cb00164b-ef2e-49db-a345-07e9c980e515", "ROUND": 10, "TEAM_WON": "RED", "TIME": 539, "WARMUP": false}"#;
 
         let mut mock_engine = MockQuakeEngine::new();
@@ -70,29 +105,32 @@ mod dispatch_stats_tests {
         MAIN_ENGINE.store(Some(mock_engine.into()));
 
         Python::with_gil(|py| {
+            let event_dispatcher = EventDispatcherManager::default();
+            event_dispatcher
+                .add_dispatcher(py, py.get_type_bound::<StatsDispatcher>())
+                .expect("could not add stats dispatcher");
             let capturing_hook = capturing_hook(py);
-            py.import_bound("shinqlx")
-                .and_then(|pyshinqlx_module| {
-                    pyshinqlx_module
-                        .getattr("EVENT_DISPATCHERS")
-                        .and_then(|event_dispatchers| {
-                            event_dispatchers
-                                .get_item("stats")
-                                .and_then(|stats_dispatcher| {
-                                    stats_dispatcher.call_method1(
-                                        "add_hook",
-                                        (
-                                            "asdf",
-                                            capturing_hook
-                                                .getattr("hook")
-                                                .expect("could not get capturing hook"),
-                                            CommandPriorities::PRI_NORMAL as i32,
-                                        ),
-                                    )
-                                })
-                        })
+            event_dispatcher
+                .__getitem__(py, "stats")
+                .and_then(|stats_dispatcher| {
+                    stats_dispatcher.call_method1(
+                        py,
+                        "add_hook",
+                        (
+                            "asdf",
+                            capturing_hook
+                                .getattr("hook")
+                                .expect("could not get capturing hook"),
+                            CommandPriorities::PRI_NORMAL as i32,
+                        ),
+                    )
                 })
-                .expect("this should not happen");
+                .expect("could not add hook to stats dispatcher");
+            EVENT_DISPATCHERS.store(Some(
+                Py::new(py, event_dispatcher)
+                    .expect("could not create event dispatcher manager in python")
+                    .into(),
+            ));
 
             let result = dispatch_stats_event(py, stats_data);
             assert!(result.is_ok());
@@ -101,6 +139,25 @@ mod dispatch_stats_tests {
 
             let asdf = capturing_hook.call_method1("assert_called_with", ("_",));
             assert!(asdf.as_ref().is_ok());
+        });
+    }
+
+    #[rstest]
+    #[cfg_attr(miri, ignore)]
+    #[serial]
+    fn dispatch_stats_event_with_no_stats_dispatcher(_pyshinqlx_setup: ()) {
+        let stats_data = r#"{"MATCH_GUID": "cb00164b-ef2e-49db-a345-07e9c980e515", "ROUND": 10, "TEAM_WON": "RED", "TIME": 539, "WARMUP": false}"#;
+
+        Python::with_gil(|py| {
+            let event_dispatcher = EventDispatcherManager::default();
+            EVENT_DISPATCHERS.store(Some(
+                Py::new(py, event_dispatcher)
+                    .expect("could not create event dispatcher manager in python")
+                    .into(),
+            ));
+
+            let result = dispatch_stats_event(py, stats_data);
+            assert!(result.is_err_and(|err| err.is_instance_of::<PyEnvironmentError>(py)));
         });
     }
 }
