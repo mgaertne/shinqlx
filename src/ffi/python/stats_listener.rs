@@ -489,7 +489,7 @@ mod dispatch_game_end_tests {
     #[cfg_attr(miri, ignore)]
     #[serial]
     fn dispatch_game_end_event_forwards_to_next_frame_runner(_pyshinqlx_setup: ()) {
-        let game_end_data = r#"{"MATCH_GUID": "cb00164b-ef2e-49db-a345-07e9c980e515", "ROUND": 10, "TEAM_WON": "RED", "TIME": 539, "WARMUP": false}"#;
+        let game_end_data = r#"{"ABORTED": false, "CAPTURE_LIMIT": 8, "EXIT_MSG": "Roundlimit hit.", "FACTORY": "ca8", "FACTORY_TITLE": "Clan Arena", "FIRST_SCORER": "sst13", "FRAG_LIMIT": 50, "GAME_LENGTH": 590, "GAME_TYPE": "CA", "INFECTED": 0, "INSTAGIB": 0, "LAST_LEAD_CHANGE_TIME": 41300, "LAST_SCORER": "skepp", "LAST_TEAMSCORER": "none", "MAP": "x0r3", "MATCH_GUID": "cb00164b-ef2e-49db-a345-07e9c980e515", "MERCY_LIMIT": 0, "QUADHOG": 0, "RESTARTED": 0, "ROUND_LIMIT": 8, "SCORE_LIMIT": 150, "SERVER_TITLE": "<E2><9D><A4><E2><9D><A4><E2><9D><A4> THE BUS STATION <E2><9D><A<A4><E2><9D><A4><E2><9D><A4>  discord.gg/AF9ufrcu7B", "TIME_LIMIT": 0, "TRAINING": 0, "TSCORE0": 3, "TSCORE1": 8}"#;
 
         let mut mock_engine = MockQuakeEngine::new();
         mock_engine
@@ -549,8 +549,8 @@ mod dispatch_game_end_tests {
     #[rstest]
     #[cfg_attr(miri, ignore)]
     #[serial]
-    fn dispatch_round_end_event_with_no_stats_dispatcher(_pyshinqlx_setup: ()) {
-        let game_end_data = r#"{"MATCH_GUID": "cb00164b-ef2e-49db-a345-07e9c980e515", "ROUND": 10, "TEAM_WON": "RED", "TIME": 539, "WARMUP": false}"#;
+    fn dispatch_game_end_event_with_no_stats_dispatcher(_pyshinqlx_setup: ()) {
+        let game_end_data = r#"{"ABORTED": false, "CAPTURE_LIMIT": 8, "EXIT_MSG": "Roundlimit hit.", "FACTORY": "ca8", "FACTORY_TITLE": "Clan Arena", "FIRST_SCORER": "sst13", "FRAG_LIMIT": 50, "GAME_LENGTH": 590, "GAME_TYPE": "CA", "INFECTED": 0, "INSTAGIB": 0, "LAST_LEAD_CHANGE_TIME": 41300, "LAST_SCORER": "skepp", "LAST_TEAMSCORER": "none", "MAP": "x0r3", "MATCH_GUID": "cb00164b-ef2e-49db-a345-07e9c980e515", "MERCY_LIMIT": 0, "QUADHOG": 0, "RESTARTED": 0, "ROUND_LIMIT": 8, "SCORE_LIMIT": 150, "SERVER_TITLE": "<E2><9D><A4><E2><9D><A4><E2><9D><A4> THE BUS STATION <E2><9D><A<A4><E2><9D><A4><E2><9D><A4>  discord.gg/AF9ufrcu7B", "TIME_LIMIT": 0, "TRAINING": 0, "TSCORE0": 3, "TSCORE1": 8}"#;
 
         Python::with_gil(|py| {
             let event_dispatcher = EventDispatcherManager::default();
