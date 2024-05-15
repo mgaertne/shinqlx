@@ -526,6 +526,7 @@ fn try_handle_zmq_msg(py: Python<'_>, zmq_msg: &str) -> PyResult<()> {
         _ => Ok(()),
     }
 }
+
 fn handle_zmq_msg(py: Python<'_>, zmq_msg: &str) {
     if let Err(e) = try_handle_zmq_msg(py, zmq_msg) {
         log_exception(py, &e);
@@ -539,8 +540,8 @@ mod handle_zmq_msg_tests {
     use crate::ffi::python::{
         commands::CommandPriorities,
         events::{
-            EventDispatcherManager, GameEndDispatcher, GameStartDispatcher, RoundEndDispatcher,
-            StatsDispatcher,
+            DeathDispatcher, EventDispatcherManager, GameEndDispatcher, GameStartDispatcher,
+            KillDispatcher, RoundEndDispatcher, StatsDispatcher,
         },
         handlers::handler_test_support::capturing_hook,
         pyshinqlx_setup_fixture::*,
@@ -553,7 +554,9 @@ mod handle_zmq_msg_tests {
         MAIN_ENGINE,
     };
 
-    use crate::ffi::c::prelude::{cvar_t, CVar, CVarBuilder};
+    use crate::ffi::c::prelude::{
+        clientState_t, cvar_t, privileges_t, team_t, CVar, CVarBuilder, MockClient, MockGameEntity,
+    };
 
     use alloc::ffi::CString;
     use core::ffi::c_char;
@@ -1079,6 +1082,1142 @@ mod handle_zmq_msg_tests {
             IN_PROGRESS.store(true, Ordering::SeqCst);
 
             let result = try_handle_zmq_msg(py, game_end_data);
+            assert!(result.is_err_and(|err| err.is_instance_of::<PyEnvironmentError>(py)));
+        });
+    }
+
+    #[rstest]
+    #[cfg_attr(miri, ignore)]
+    #[serial]
+    fn try_handle_player_death_msg_with_malformed_victim(_pyshinqlx_setup: ()) {
+        let player_death_data =
+            r#"{"DATA": {"KILLER": null, "MOD": "HURT", "VICTIM": {}}, "TYPE": "PLAYER_DEATH"}"#;
+        let mut mock_engine = MockQuakeEngine::new();
+        mock_engine
+            .expect_find_cvar()
+            .with(predicate::eq("zmq_stats_enable"))
+            .returning(|_| {
+                let cvar_string = CString::new("1").expect("this should not happen");
+                let mut raw_cvar = CVarBuilder::default()
+                    .string(cvar_string.as_ptr() as *mut c_char)
+                    .build()
+                    .expect("this should not happen");
+                CVar::try_from(&mut raw_cvar as *mut cvar_t).ok()
+            });
+        MAIN_ENGINE.store(Some(mock_engine.into()));
+
+        Python::with_gil(|py| {
+            let event_dispatcher = EventDispatcherManager::default();
+            event_dispatcher
+                .add_dispatcher(py, py.get_type_bound::<StatsDispatcher>())
+                .expect("could not add stats dispatcher");
+            let capturing_hook = capturing_hook(py);
+            event_dispatcher
+                .__getitem__(py, "stats")
+                .and_then(|stats_dispatcher| {
+                    stats_dispatcher.call_method1(
+                        py,
+                        "add_hook",
+                        (
+                            "asdf",
+                            capturing_hook
+                                .getattr("hook")
+                                .expect("could not get capturing hook"),
+                            CommandPriorities::PRI_NORMAL as i32,
+                        ),
+                    )
+                })
+                .expect("could not add hook to stats dispatcher");
+            EVENT_DISPATCHERS.store(Some(
+                Py::new(py, event_dispatcher)
+                    .expect("could not create event dispatcher manager in python")
+                    .into(),
+            ));
+
+            let result = try_handle_zmq_msg(py, player_death_data);
+            assert!(result.is_ok());
+
+            run_all_frame_tasks(py).expect("this should not happen");
+
+            let expected_json_data =
+                to_py_json_data(py, player_death_data).expect("this should not happen");
+            assert!(capturing_hook
+                .call_method1("assert_called_with", (expected_json_data.clone(),))
+                .is_ok());
+        });
+    }
+
+    #[rstest]
+    #[cfg_attr(miri, ignore)]
+    #[serial]
+    fn try_handle_player_death_msg_from_trigger_hurt_entity_with_steam_id(_pyshinqlx_setup: ()) {
+        let player_death_data = r#"{"DATA": {"KILLER": null, "MOD": "HURT", "VICTIM": {"NAME": "player1", "STEAM_ID": "1234"}}, "TYPE": "PLAYER_DEATH"}"#;
+        let mut mock_engine = MockQuakeEngine::new();
+        mock_engine
+            .expect_find_cvar()
+            .with(predicate::eq("zmq_stats_enable"))
+            .returning(|_| {
+                let cvar_string = CString::new("1").expect("this should not happen");
+                let mut raw_cvar = CVarBuilder::default()
+                    .string(cvar_string.as_ptr() as *mut c_char)
+                    .build()
+                    .expect("this should not happen");
+                CVar::try_from(&mut raw_cvar as *mut cvar_t).ok()
+            });
+        mock_engine.expect_get_max_clients().returning(|| 16);
+        MAIN_ENGINE.store(Some(mock_engine.into()));
+
+        let client_try_from_ctx = MockClient::from_context();
+        client_try_from_ctx
+            .expect()
+            .with(predicate::eq(2))
+            .returning(|_client_id| {
+                let mut mock_client = MockClient::new();
+                mock_client
+                    .expect_get_state()
+                    .returning(|| clientState_t::CS_ACTIVE);
+                mock_client
+                    .expect_get_user_info()
+                    .returning(|| r"\name\player1".into());
+                mock_client.expect_get_steam_id().returning(|| 1234);
+                mock_client
+            });
+        client_try_from_ctx
+            .expect()
+            .with(predicate::ne(2))
+            .returning(|_client_id| {
+                let mut mock_client = MockClient::new();
+                mock_client
+                    .expect_get_state()
+                    .returning(|| clientState_t::CS_ACTIVE);
+                mock_client
+                    .expect_get_user_info()
+                    .returning(|| r"\name\Mocked Player".into());
+                mock_client.expect_get_steam_id().returning(|| 1235);
+                mock_client
+            });
+        let game_entity_try_from_ctx = MockGameEntity::from_context();
+        game_entity_try_from_ctx
+            .expect()
+            .with(predicate::eq(2))
+            .returning(|_client_id| {
+                let mut mock_game_entity = MockGameEntity::new();
+                mock_game_entity
+                    .expect_get_player_name()
+                    .returning(|| "player1".to_string());
+                mock_game_entity
+                    .expect_get_team()
+                    .returning(|| team_t::TEAM_RED);
+                mock_game_entity
+                    .expect_get_privileges()
+                    .returning(|| privileges_t::PRIV_NONE);
+                mock_game_entity
+            });
+        game_entity_try_from_ctx
+            .expect()
+            .with(predicate::ne(2))
+            .returning(|_client_id| {
+                let mut mock_game_entity = MockGameEntity::new();
+                mock_game_entity
+                    .expect_get_player_name()
+                    .returning(|| "Mocked Player".to_string());
+                mock_game_entity
+                    .expect_get_team()
+                    .returning(|| team_t::TEAM_RED);
+                mock_game_entity
+                    .expect_get_privileges()
+                    .returning(|| privileges_t::PRIV_NONE);
+                mock_game_entity
+            });
+
+        Python::with_gil(|py| {
+            let event_dispatcher = EventDispatcherManager::default();
+            event_dispatcher
+                .add_dispatcher(py, py.get_type_bound::<StatsDispatcher>())
+                .expect("could not add stats dispatcher");
+            event_dispatcher
+                .add_dispatcher(py, py.get_type_bound::<DeathDispatcher>())
+                .expect("could not add death dispatcher");
+            let capturing_hook = capturing_hook(py);
+            event_dispatcher
+                .__getitem__(py, "stats")
+                .and_then(|stats_dispatcher| {
+                    stats_dispatcher.call_method1(
+                        py,
+                        "add_hook",
+                        (
+                            "asdf",
+                            capturing_hook
+                                .getattr("hook")
+                                .expect("could not get capturing hook"),
+                            CommandPriorities::PRI_NORMAL as i32,
+                        ),
+                    )
+                })
+                .expect("could not add hook to stats dispatcher");
+            event_dispatcher
+                .__getitem__(py, "death")
+                .and_then(|death_dispatcher| {
+                    death_dispatcher.call_method1(
+                        py,
+                        "add_hook",
+                        (
+                            "asdf",
+                            capturing_hook
+                                .getattr("hook")
+                                .expect("could not get capturing hook"),
+                            CommandPriorities::PRI_NORMAL as i32,
+                        ),
+                    )
+                })
+                .expect("could not add hook to death dispatcher");
+            EVENT_DISPATCHERS.store(Some(
+                Py::new(py, event_dispatcher)
+                    .expect("could not create event dispatcher manager in python")
+                    .into(),
+            ));
+
+            let result = try_handle_zmq_msg(py, player_death_data);
+            assert!(result.is_ok());
+
+            run_all_frame_tasks(py).expect("this should not happen");
+
+            let expected_json_data =
+                to_py_json_data(py, player_death_data).expect("this should not happen");
+            assert!(capturing_hook
+                .call_method1("assert_called_with", (expected_json_data.clone(),))
+                .is_ok());
+            assert!(capturing_hook
+                .call_method1(
+                    "assert_called_with",
+                    (
+                        "_",
+                        py.None(),
+                        expected_json_data
+                            .get_item("DATA")
+                            .expect("this should not happen"),
+                    )
+                )
+                .is_ok());
+        });
+    }
+
+    #[rstest]
+    #[cfg_attr(miri, ignore)]
+    #[serial]
+    fn try_handle_player_death_msg_from_trigger_hurt_entity_with_name_only(_pyshinqlx_setup: ()) {
+        let player_death_data = r#"{"DATA": {"KILLER": null, "MOD": "HURT", "VICTIM": {"NAME": "player1", "STEAM_ID": "-1"}}, "TYPE": "PLAYER_DEATH"}"#;
+        let mut mock_engine = MockQuakeEngine::new();
+        mock_engine
+            .expect_find_cvar()
+            .with(predicate::eq("zmq_stats_enable"))
+            .returning(|_| {
+                let cvar_string = CString::new("1").expect("this should not happen");
+                let mut raw_cvar = CVarBuilder::default()
+                    .string(cvar_string.as_ptr() as *mut c_char)
+                    .build()
+                    .expect("this should not happen");
+                CVar::try_from(&mut raw_cvar as *mut cvar_t).ok()
+            });
+        mock_engine.expect_get_max_clients().returning(|| 16);
+        MAIN_ENGINE.store(Some(mock_engine.into()));
+
+        let client_try_from_ctx = MockClient::from_context();
+        client_try_from_ctx
+            .expect()
+            .with(predicate::eq(2))
+            .returning(|_client_id| {
+                let mut mock_client = MockClient::new();
+                mock_client
+                    .expect_get_state()
+                    .returning(|| clientState_t::CS_ACTIVE);
+                mock_client
+                    .expect_get_user_info()
+                    .returning(|| r"\name\player1".into());
+                mock_client.expect_get_steam_id().returning(|| 1234);
+                mock_client
+            });
+        client_try_from_ctx
+            .expect()
+            .with(predicate::ne(2))
+            .returning(|_client_id| {
+                let mut mock_client = MockClient::new();
+                mock_client
+                    .expect_get_state()
+                    .returning(|| clientState_t::CS_ACTIVE);
+                mock_client
+                    .expect_get_user_info()
+                    .returning(|| r"\name\Mocked Player".into());
+                mock_client.expect_get_steam_id().returning(|| 1235);
+                mock_client
+            });
+        let game_entity_try_from_ctx = MockGameEntity::from_context();
+        game_entity_try_from_ctx
+            .expect()
+            .with(predicate::eq(2))
+            .returning(|_client_id| {
+                let mut mock_game_entity = MockGameEntity::new();
+                mock_game_entity
+                    .expect_get_player_name()
+                    .returning(|| "player1".to_string());
+                mock_game_entity
+                    .expect_get_team()
+                    .returning(|| team_t::TEAM_RED);
+                mock_game_entity
+                    .expect_get_privileges()
+                    .returning(|| privileges_t::PRIV_NONE);
+                mock_game_entity
+            });
+        game_entity_try_from_ctx
+            .expect()
+            .with(predicate::ne(2))
+            .returning(|_client_id| {
+                let mut mock_game_entity = MockGameEntity::new();
+                mock_game_entity
+                    .expect_get_player_name()
+                    .returning(|| "Mocked Player".to_string());
+                mock_game_entity
+                    .expect_get_team()
+                    .returning(|| team_t::TEAM_RED);
+                mock_game_entity
+                    .expect_get_privileges()
+                    .returning(|| privileges_t::PRIV_NONE);
+                mock_game_entity
+            });
+
+        Python::with_gil(|py| {
+            let event_dispatcher = EventDispatcherManager::default();
+            event_dispatcher
+                .add_dispatcher(py, py.get_type_bound::<StatsDispatcher>())
+                .expect("could not add stats dispatcher");
+            event_dispatcher
+                .add_dispatcher(py, py.get_type_bound::<DeathDispatcher>())
+                .expect("could not add death dispatcher");
+            let capturing_hook = capturing_hook(py);
+            event_dispatcher
+                .__getitem__(py, "stats")
+                .and_then(|stats_dispatcher| {
+                    stats_dispatcher.call_method1(
+                        py,
+                        "add_hook",
+                        (
+                            "asdf",
+                            capturing_hook
+                                .getattr("hook")
+                                .expect("could not get capturing hook"),
+                            CommandPriorities::PRI_NORMAL as i32,
+                        ),
+                    )
+                })
+                .expect("could not add hook to stats dispatcher");
+            event_dispatcher
+                .__getitem__(py, "death")
+                .and_then(|death_dispatcher| {
+                    death_dispatcher.call_method1(
+                        py,
+                        "add_hook",
+                        (
+                            "asdf",
+                            capturing_hook
+                                .getattr("hook")
+                                .expect("could not get capturing hook"),
+                            CommandPriorities::PRI_NORMAL as i32,
+                        ),
+                    )
+                })
+                .expect("could not add hook to death dispatcher");
+            EVENT_DISPATCHERS.store(Some(
+                Py::new(py, event_dispatcher)
+                    .expect("could not create event dispatcher manager in python")
+                    .into(),
+            ));
+
+            let result = try_handle_zmq_msg(py, player_death_data);
+            assert!(result.is_ok());
+
+            run_all_frame_tasks(py).expect("this should not happen");
+
+            let expected_json_data =
+                to_py_json_data(py, player_death_data).expect("this should not happen");
+            assert!(capturing_hook
+                .call_method1("assert_called_with", (expected_json_data.clone(),))
+                .is_ok());
+            assert!(capturing_hook
+                .call_method1(
+                    "assert_called_with",
+                    (
+                        "_",
+                        py.None(),
+                        expected_json_data
+                            .get_item("DATA")
+                            .expect("this should not happen"),
+                    )
+                )
+                .is_ok());
+        });
+    }
+
+    #[rstest]
+    #[cfg_attr(miri, ignore)]
+    #[serial]
+    fn try_handle_player_death_msg_from_trigger_hurt_entity_when_player_cannot_be_found(
+        _pyshinqlx_setup: (),
+    ) {
+        let player_death_data = r#"{"DATA": {"KILLER": null, "MOD": "HURT", "VICTIM": {"NAME": "player1", "STEAM_ID": "1234"}}, "TYPE": "PLAYER_DEATH"}"#;
+        let mut mock_engine = MockQuakeEngine::new();
+        mock_engine
+            .expect_find_cvar()
+            .with(predicate::eq("zmq_stats_enable"))
+            .returning(|_| {
+                let cvar_string = CString::new("1").expect("this should not happen");
+                let mut raw_cvar = CVarBuilder::default()
+                    .string(cvar_string.as_ptr() as *mut c_char)
+                    .build()
+                    .expect("this should not happen");
+                CVar::try_from(&mut raw_cvar as *mut cvar_t).ok()
+            });
+        mock_engine.expect_get_max_clients().returning(|| 16);
+        MAIN_ENGINE.store(Some(mock_engine.into()));
+
+        let client_try_from_ctx = MockClient::from_context();
+        client_try_from_ctx
+            .expect()
+            .with(predicate::always())
+            .returning(|_client_id| {
+                let mut mock_client = MockClient::new();
+                mock_client
+                    .expect_get_state()
+                    .returning(|| clientState_t::CS_ACTIVE);
+                mock_client
+                    .expect_get_user_info()
+                    .returning(|| r"\name\Mocked Player".into());
+                mock_client.expect_get_steam_id().returning(|| 1235);
+                mock_client
+            });
+        let game_entity_try_from_ctx = MockGameEntity::from_context();
+        game_entity_try_from_ctx
+            .expect()
+            .with(predicate::always())
+            .returning(|_client_id| {
+                let mut mock_game_entity = MockGameEntity::new();
+                mock_game_entity
+                    .expect_get_player_name()
+                    .returning(|| "Mocked Player".to_string());
+                mock_game_entity
+                    .expect_get_team()
+                    .returning(|| team_t::TEAM_RED);
+                mock_game_entity
+                    .expect_get_privileges()
+                    .returning(|| privileges_t::PRIV_NONE);
+                mock_game_entity
+            });
+
+        Python::with_gil(|py| {
+            let event_dispatcher = EventDispatcherManager::default();
+            event_dispatcher
+                .add_dispatcher(py, py.get_type_bound::<StatsDispatcher>())
+                .expect("could not add stats dispatcher");
+            let capturing_hook = capturing_hook(py);
+            event_dispatcher
+                .__getitem__(py, "stats")
+                .and_then(|stats_dispatcher| {
+                    stats_dispatcher.call_method1(
+                        py,
+                        "add_hook",
+                        (
+                            "asdf",
+                            capturing_hook
+                                .getattr("hook")
+                                .expect("could not get capturing hook"),
+                            CommandPriorities::PRI_NORMAL as i32,
+                        ),
+                    )
+                })
+                .expect("could not add hook to stats dispatcher");
+            EVENT_DISPATCHERS.store(Some(
+                Py::new(py, event_dispatcher)
+                    .expect("could not create event dispatcher manager in python")
+                    .into(),
+            ));
+
+            let result = try_handle_zmq_msg(py, player_death_data);
+            assert!(result.is_ok());
+
+            run_all_frame_tasks(py).expect("this should not happen");
+
+            let expected_json_data =
+                to_py_json_data(py, player_death_data).expect("this should not happen");
+            assert!(capturing_hook
+                .call_method1("assert_called_with", (expected_json_data.clone(),))
+                .is_ok());
+        });
+    }
+
+    #[rstest]
+    #[cfg_attr(miri, ignore)]
+    #[serial]
+    fn try_handle_player_death_msg_from_trigger_hurt_entity_with_no_dispatcher(
+        _pyshinqlx_setup: (),
+    ) {
+        let player_death_data = r#"{"DATA": {"KILLER": null, "MOD": "HURT", "VICTIM": {"NAME": "player1", "STEAM_ID": "1234"}}, "TYPE": "PLAYER_DEATH"}"#;
+        let mut mock_engine = MockQuakeEngine::new();
+        mock_engine
+            .expect_find_cvar()
+            .with(predicate::eq("zmq_stats_enable"))
+            .returning(|_| {
+                let cvar_string = CString::new("1").expect("this should not happen");
+                let mut raw_cvar = CVarBuilder::default()
+                    .string(cvar_string.as_ptr() as *mut c_char)
+                    .build()
+                    .expect("this should not happen");
+                CVar::try_from(&mut raw_cvar as *mut cvar_t).ok()
+            });
+        mock_engine.expect_get_max_clients().returning(|| 16);
+        MAIN_ENGINE.store(Some(mock_engine.into()));
+
+        let client_try_from_ctx = MockClient::from_context();
+        client_try_from_ctx
+            .expect()
+            .with(predicate::eq(2))
+            .returning(|_client_id| {
+                let mut mock_client = MockClient::new();
+                mock_client
+                    .expect_get_state()
+                    .returning(|| clientState_t::CS_ACTIVE);
+                mock_client
+                    .expect_get_user_info()
+                    .returning(|| r"\name\player1".into());
+                mock_client.expect_get_steam_id().returning(|| 1234);
+                mock_client
+            });
+        client_try_from_ctx
+            .expect()
+            .with(predicate::ne(2))
+            .returning(|_client_id| {
+                let mut mock_client = MockClient::new();
+                mock_client
+                    .expect_get_state()
+                    .returning(|| clientState_t::CS_ACTIVE);
+                mock_client
+                    .expect_get_user_info()
+                    .returning(|| r"\name\Mocked Player".into());
+                mock_client.expect_get_steam_id().returning(|| 1235);
+                mock_client
+            });
+        let game_entity_try_from_ctx = MockGameEntity::from_context();
+        game_entity_try_from_ctx
+            .expect()
+            .with(predicate::eq(2))
+            .returning(|_client_id| {
+                let mut mock_game_entity = MockGameEntity::new();
+                mock_game_entity
+                    .expect_get_player_name()
+                    .returning(|| "player1".to_string());
+                mock_game_entity
+                    .expect_get_team()
+                    .returning(|| team_t::TEAM_RED);
+                mock_game_entity
+                    .expect_get_privileges()
+                    .returning(|| privileges_t::PRIV_NONE);
+                mock_game_entity
+            });
+        game_entity_try_from_ctx
+            .expect()
+            .with(predicate::ne(2))
+            .returning(|_client_id| {
+                let mut mock_game_entity = MockGameEntity::new();
+                mock_game_entity
+                    .expect_get_player_name()
+                    .returning(|| "Mocked Player".to_string());
+                mock_game_entity
+                    .expect_get_team()
+                    .returning(|| team_t::TEAM_RED);
+                mock_game_entity
+                    .expect_get_privileges()
+                    .returning(|| privileges_t::PRIV_NONE);
+                mock_game_entity
+            });
+
+        Python::with_gil(|py| {
+            let event_dispatcher = EventDispatcherManager::default();
+            event_dispatcher
+                .add_dispatcher(py, py.get_type_bound::<StatsDispatcher>())
+                .expect("could not add stats dispatcher");
+            EVENT_DISPATCHERS.store(Some(
+                Py::new(py, event_dispatcher)
+                    .expect("could not create event dispatcher manager in python")
+                    .into(),
+            ));
+
+            let result = try_handle_zmq_msg(py, player_death_data);
+            run_all_frame_tasks(py).expect("this should not happen");
+
+            assert!(result.is_err_and(|err| err.is_instance_of::<PyEnvironmentError>(py)));
+        });
+    }
+
+    #[rstest]
+    #[cfg_attr(miri, ignore)]
+    #[serial]
+    fn try_handle_player_death_msg_from_other_player_with_steam_id(_pyshinqlx_setup: ()) {
+        let player_death_data = r#"{"DATA": {"KILLER": {"NAME": "player2", "STEAM_ID": "5678"}, "MOD": "HURT", "VICTIM": {"NAME": "player1", "STEAM_ID": "1234"}}, "TYPE": "PLAYER_DEATH"}"#;
+        let mut mock_engine = MockQuakeEngine::new();
+        mock_engine
+            .expect_find_cvar()
+            .with(predicate::eq("zmq_stats_enable"))
+            .returning(|_| {
+                let cvar_string = CString::new("1").expect("this should not happen");
+                let mut raw_cvar = CVarBuilder::default()
+                    .string(cvar_string.as_ptr() as *mut c_char)
+                    .build()
+                    .expect("this should not happen");
+                CVar::try_from(&mut raw_cvar as *mut cvar_t).ok()
+            });
+        mock_engine.expect_get_max_clients().returning(|| 16);
+        MAIN_ENGINE.store(Some(mock_engine.into()));
+
+        let client_try_from_ctx = MockClient::from_context();
+        client_try_from_ctx
+            .expect()
+            .with(predicate::eq(2))
+            .returning(|_client_id| {
+                let mut mock_client = MockClient::new();
+                mock_client
+                    .expect_get_state()
+                    .returning(|| clientState_t::CS_ACTIVE);
+                mock_client
+                    .expect_get_user_info()
+                    .returning(|| r"\name\player1".into());
+                mock_client.expect_get_steam_id().returning(|| 1234);
+                mock_client
+            });
+        client_try_from_ctx
+            .expect()
+            .with(predicate::eq(4))
+            .returning(|_client_id| {
+                let mut mock_client = MockClient::new();
+                mock_client
+                    .expect_get_state()
+                    .returning(|| clientState_t::CS_ACTIVE);
+                mock_client
+                    .expect_get_user_info()
+                    .returning(|| r"\name\player2".into());
+                mock_client.expect_get_steam_id().returning(|| 5678);
+                mock_client
+            });
+        client_try_from_ctx
+            .expect()
+            .withf(|client_id| ![2, 4].contains(client_id))
+            .returning(|_client_id| {
+                let mut mock_client = MockClient::new();
+                mock_client
+                    .expect_get_state()
+                    .returning(|| clientState_t::CS_ACTIVE);
+                mock_client
+                    .expect_get_user_info()
+                    .returning(|| r"\name\Mocked Player".into());
+                mock_client.expect_get_steam_id().returning(|| 1235);
+                mock_client
+            });
+        let game_entity_try_from_ctx = MockGameEntity::from_context();
+        game_entity_try_from_ctx
+            .expect()
+            .with(predicate::eq(2))
+            .returning(|_client_id| {
+                let mut mock_game_entity = MockGameEntity::new();
+                mock_game_entity
+                    .expect_get_player_name()
+                    .returning(|| "player1".to_string());
+                mock_game_entity
+                    .expect_get_team()
+                    .returning(|| team_t::TEAM_RED);
+                mock_game_entity
+                    .expect_get_privileges()
+                    .returning(|| privileges_t::PRIV_NONE);
+                mock_game_entity
+            });
+        game_entity_try_from_ctx
+            .expect()
+            .with(predicate::eq(4))
+            .returning(|_client_id| {
+                let mut mock_game_entity = MockGameEntity::new();
+                mock_game_entity
+                    .expect_get_player_name()
+                    .returning(|| "player2".to_string());
+                mock_game_entity
+                    .expect_get_team()
+                    .returning(|| team_t::TEAM_BLUE);
+                mock_game_entity
+                    .expect_get_privileges()
+                    .returning(|| privileges_t::PRIV_NONE);
+                mock_game_entity
+            });
+        game_entity_try_from_ctx
+            .expect()
+            .withf(|client_id| ![2, 4].contains(client_id))
+            .returning(|_client_id| {
+                let mut mock_game_entity = MockGameEntity::new();
+                mock_game_entity
+                    .expect_get_player_name()
+                    .returning(|| "Mocked Player".to_string());
+                mock_game_entity
+                    .expect_get_team()
+                    .returning(|| team_t::TEAM_RED);
+                mock_game_entity
+                    .expect_get_privileges()
+                    .returning(|| privileges_t::PRIV_NONE);
+                mock_game_entity
+            });
+
+        Python::with_gil(|py| {
+            let event_dispatcher = EventDispatcherManager::default();
+            event_dispatcher
+                .add_dispatcher(py, py.get_type_bound::<StatsDispatcher>())
+                .expect("could not add stats dispatcher");
+            event_dispatcher
+                .add_dispatcher(py, py.get_type_bound::<DeathDispatcher>())
+                .expect("could not add death dispatcher");
+            event_dispatcher
+                .add_dispatcher(py, py.get_type_bound::<KillDispatcher>())
+                .expect("could not add kill dispatcher");
+            let capturing_hook = capturing_hook(py);
+            event_dispatcher
+                .__getitem__(py, "stats")
+                .and_then(|stats_dispatcher| {
+                    stats_dispatcher.call_method1(
+                        py,
+                        "add_hook",
+                        (
+                            "asdf",
+                            capturing_hook
+                                .getattr("hook")
+                                .expect("could not get capturing hook"),
+                            CommandPriorities::PRI_NORMAL as i32,
+                        ),
+                    )
+                })
+                .expect("could not add hook to stats dispatcher");
+            event_dispatcher
+                .__getitem__(py, "death")
+                .and_then(|death_dispatcher| {
+                    death_dispatcher.call_method1(
+                        py,
+                        "add_hook",
+                        (
+                            "asdf",
+                            capturing_hook
+                                .getattr("hook")
+                                .expect("could not get capturing hook"),
+                            CommandPriorities::PRI_NORMAL as i32,
+                        ),
+                    )
+                })
+                .expect("could not add hook to death dispatcher");
+            event_dispatcher
+                .__getitem__(py, "kill")
+                .and_then(|death_dispatcher| {
+                    death_dispatcher.call_method1(
+                        py,
+                        "add_hook",
+                        (
+                            "asdf",
+                            capturing_hook
+                                .getattr("hook")
+                                .expect("could not get capturing hook"),
+                            CommandPriorities::PRI_NORMAL as i32,
+                        ),
+                    )
+                })
+                .expect("could not add hook to kill dispatcher");
+            EVENT_DISPATCHERS.store(Some(
+                Py::new(py, event_dispatcher)
+                    .expect("could not create event dispatcher manager in python")
+                    .into(),
+            ));
+
+            let result = try_handle_zmq_msg(py, player_death_data);
+            assert!(result.is_ok());
+
+            run_all_frame_tasks(py).expect("this should not happen");
+
+            let expected_json_data =
+                to_py_json_data(py, player_death_data).expect("this should not happen");
+            assert!(capturing_hook
+                .call_method1("assert_called_with", (expected_json_data.clone(),))
+                .is_ok());
+            assert!(capturing_hook
+                .call_method1(
+                    "assert_called_with",
+                    (
+                        "_",
+                        "_",
+                        expected_json_data
+                            .get_item("DATA")
+                            .expect("this should not happen"),
+                    )
+                )
+                .is_ok());
+            assert!(capturing_hook
+                .call_method1(
+                    "assert_called_with",
+                    (
+                        "_",
+                        "_",
+                        expected_json_data
+                            .get_item("DATA")
+                            .expect("this should not happen"),
+                    )
+                )
+                .is_ok());
+        });
+    }
+
+    #[rstest]
+    #[cfg_attr(miri, ignore)]
+    #[serial]
+    fn try_handle_player_death_msg_from_other_player_with_name_only(_pyshinqlx_setup: ()) {
+        let player_death_data = r#"{"DATA": {"KILLER": {"NAME": "player2"}, "MOD": "HURT", "VICTIM": {"NAME": "player1", "STEAM_ID": "1234"}}, "TYPE": "PLAYER_DEATH"}"#;
+        let mut mock_engine = MockQuakeEngine::new();
+        mock_engine
+            .expect_find_cvar()
+            .with(predicate::eq("zmq_stats_enable"))
+            .returning(|_| {
+                let cvar_string = CString::new("1").expect("this should not happen");
+                let mut raw_cvar = CVarBuilder::default()
+                    .string(cvar_string.as_ptr() as *mut c_char)
+                    .build()
+                    .expect("this should not happen");
+                CVar::try_from(&mut raw_cvar as *mut cvar_t).ok()
+            });
+        mock_engine.expect_get_max_clients().returning(|| 16);
+        MAIN_ENGINE.store(Some(mock_engine.into()));
+
+        let client_try_from_ctx = MockClient::from_context();
+        client_try_from_ctx
+            .expect()
+            .with(predicate::eq(2))
+            .returning(|_client_id| {
+                let mut mock_client = MockClient::new();
+                mock_client
+                    .expect_get_state()
+                    .returning(|| clientState_t::CS_ACTIVE);
+                mock_client
+                    .expect_get_user_info()
+                    .returning(|| r"\name\player1".into());
+                mock_client.expect_get_steam_id().returning(|| 1234);
+                mock_client
+            });
+        client_try_from_ctx
+            .expect()
+            .with(predicate::eq(4))
+            .returning(|_client_id| {
+                let mut mock_client = MockClient::new();
+                mock_client
+                    .expect_get_state()
+                    .returning(|| clientState_t::CS_ACTIVE);
+                mock_client
+                    .expect_get_user_info()
+                    .returning(|| r"\name\player2".into());
+                mock_client.expect_get_steam_id().returning(|| 5678);
+                mock_client
+            });
+        client_try_from_ctx
+            .expect()
+            .withf(|client_id| ![2, 4].contains(client_id))
+            .returning(|_client_id| {
+                let mut mock_client = MockClient::new();
+                mock_client
+                    .expect_get_state()
+                    .returning(|| clientState_t::CS_ACTIVE);
+                mock_client
+                    .expect_get_user_info()
+                    .returning(|| r"\name\Mocked Player".into());
+                mock_client.expect_get_steam_id().returning(|| 1235);
+                mock_client
+            });
+        let game_entity_try_from_ctx = MockGameEntity::from_context();
+        game_entity_try_from_ctx
+            .expect()
+            .with(predicate::eq(2))
+            .returning(|_client_id| {
+                let mut mock_game_entity = MockGameEntity::new();
+                mock_game_entity
+                    .expect_get_player_name()
+                    .returning(|| "player1".to_string());
+                mock_game_entity
+                    .expect_get_team()
+                    .returning(|| team_t::TEAM_RED);
+                mock_game_entity
+                    .expect_get_privileges()
+                    .returning(|| privileges_t::PRIV_NONE);
+                mock_game_entity
+            });
+        game_entity_try_from_ctx
+            .expect()
+            .with(predicate::eq(4))
+            .returning(|_client_id| {
+                let mut mock_game_entity = MockGameEntity::new();
+                mock_game_entity
+                    .expect_get_player_name()
+                    .returning(|| "player2".to_string());
+                mock_game_entity
+                    .expect_get_team()
+                    .returning(|| team_t::TEAM_BLUE);
+                mock_game_entity
+                    .expect_get_privileges()
+                    .returning(|| privileges_t::PRIV_NONE);
+                mock_game_entity
+            });
+        game_entity_try_from_ctx
+            .expect()
+            .withf(|client_id| ![2, 4].contains(client_id))
+            .returning(|_client_id| {
+                let mut mock_game_entity = MockGameEntity::new();
+                mock_game_entity
+                    .expect_get_player_name()
+                    .returning(|| "Mocked Player".to_string());
+                mock_game_entity
+                    .expect_get_team()
+                    .returning(|| team_t::TEAM_RED);
+                mock_game_entity
+                    .expect_get_privileges()
+                    .returning(|| privileges_t::PRIV_NONE);
+                mock_game_entity
+            });
+
+        Python::with_gil(|py| {
+            let event_dispatcher = EventDispatcherManager::default();
+            event_dispatcher
+                .add_dispatcher(py, py.get_type_bound::<StatsDispatcher>())
+                .expect("could not add stats dispatcher");
+            event_dispatcher
+                .add_dispatcher(py, py.get_type_bound::<DeathDispatcher>())
+                .expect("could not add death dispatcher");
+            event_dispatcher
+                .add_dispatcher(py, py.get_type_bound::<KillDispatcher>())
+                .expect("could not add kill dispatcher");
+            let capturing_hook = capturing_hook(py);
+            event_dispatcher
+                .__getitem__(py, "stats")
+                .and_then(|stats_dispatcher| {
+                    stats_dispatcher.call_method1(
+                        py,
+                        "add_hook",
+                        (
+                            "asdf",
+                            capturing_hook
+                                .getattr("hook")
+                                .expect("could not get capturing hook"),
+                            CommandPriorities::PRI_NORMAL as i32,
+                        ),
+                    )
+                })
+                .expect("could not add hook to stats dispatcher");
+            event_dispatcher
+                .__getitem__(py, "death")
+                .and_then(|death_dispatcher| {
+                    death_dispatcher.call_method1(
+                        py,
+                        "add_hook",
+                        (
+                            "asdf",
+                            capturing_hook
+                                .getattr("hook")
+                                .expect("could not get capturing hook"),
+                            CommandPriorities::PRI_NORMAL as i32,
+                        ),
+                    )
+                })
+                .expect("could not add hook to death dispatcher");
+            event_dispatcher
+                .__getitem__(py, "kill")
+                .and_then(|death_dispatcher| {
+                    death_dispatcher.call_method1(
+                        py,
+                        "add_hook",
+                        (
+                            "asdf",
+                            capturing_hook
+                                .getattr("hook")
+                                .expect("could not get capturing hook"),
+                            CommandPriorities::PRI_NORMAL as i32,
+                        ),
+                    )
+                })
+                .expect("could not add hook to kill dispatcher");
+            EVENT_DISPATCHERS.store(Some(
+                Py::new(py, event_dispatcher)
+                    .expect("could not create event dispatcher manager in python")
+                    .into(),
+            ));
+
+            let result = try_handle_zmq_msg(py, player_death_data);
+            assert!(result.is_ok());
+
+            run_all_frame_tasks(py).expect("this should not happen");
+
+            let expected_json_data =
+                to_py_json_data(py, player_death_data).expect("this should not happen");
+            assert!(capturing_hook
+                .call_method1("assert_called_with", (expected_json_data.clone(),))
+                .is_ok());
+            assert!(capturing_hook
+                .call_method1(
+                    "assert_called_with",
+                    (
+                        "_",
+                        "_",
+                        expected_json_data
+                            .get_item("DATA")
+                            .expect("this should not happen"),
+                    )
+                )
+                .is_ok());
+            assert!(capturing_hook
+                .call_method1(
+                    "assert_called_with",
+                    (
+                        "_",
+                        "_",
+                        expected_json_data
+                            .get_item("DATA")
+                            .expect("this should not happen"),
+                    )
+                )
+                .is_ok());
+        });
+    }
+
+    #[rstest]
+    #[cfg_attr(miri, ignore)]
+    #[serial]
+    fn try_handle_player_death_msg_from_other_player_with_no_dispatcher(_pyshinqlx_setup: ()) {
+        let player_death_data = r#"{"DATA": {"KILLER": {"NAME": "player2", "STEAM_ID": "5678"}, "MOD": "HURT", "VICTIM": {"NAME": "player1", "STEAM_ID": "1234"}}, "TYPE": "PLAYER_DEATH"}"#;
+        let mut mock_engine = MockQuakeEngine::new();
+        mock_engine
+            .expect_find_cvar()
+            .with(predicate::eq("zmq_stats_enable"))
+            .returning(|_| {
+                let cvar_string = CString::new("1").expect("this should not happen");
+                let mut raw_cvar = CVarBuilder::default()
+                    .string(cvar_string.as_ptr() as *mut c_char)
+                    .build()
+                    .expect("this should not happen");
+                CVar::try_from(&mut raw_cvar as *mut cvar_t).ok()
+            });
+        mock_engine.expect_get_max_clients().returning(|| 16);
+        MAIN_ENGINE.store(Some(mock_engine.into()));
+
+        let client_try_from_ctx = MockClient::from_context();
+        client_try_from_ctx
+            .expect()
+            .with(predicate::eq(2))
+            .returning(|_client_id| {
+                let mut mock_client = MockClient::new();
+                mock_client
+                    .expect_get_state()
+                    .returning(|| clientState_t::CS_ACTIVE);
+                mock_client
+                    .expect_get_user_info()
+                    .returning(|| r"\name\player1".into());
+                mock_client.expect_get_steam_id().returning(|| 1234);
+                mock_client
+            });
+        client_try_from_ctx
+            .expect()
+            .with(predicate::eq(4))
+            .returning(|_client_id| {
+                let mut mock_client = MockClient::new();
+                mock_client
+                    .expect_get_state()
+                    .returning(|| clientState_t::CS_ACTIVE);
+                mock_client
+                    .expect_get_user_info()
+                    .returning(|| r"\name\player2".into());
+                mock_client.expect_get_steam_id().returning(|| 5678);
+                mock_client
+            });
+        client_try_from_ctx
+            .expect()
+            .withf(|client_id| ![2, 4].contains(client_id))
+            .returning(|_client_id| {
+                let mut mock_client = MockClient::new();
+                mock_client
+                    .expect_get_state()
+                    .returning(|| clientState_t::CS_ACTIVE);
+                mock_client
+                    .expect_get_user_info()
+                    .returning(|| r"\name\Mocked Player".into());
+                mock_client.expect_get_steam_id().returning(|| 1235);
+                mock_client
+            });
+        let game_entity_try_from_ctx = MockGameEntity::from_context();
+        game_entity_try_from_ctx
+            .expect()
+            .with(predicate::eq(2))
+            .returning(|_client_id| {
+                let mut mock_game_entity = MockGameEntity::new();
+                mock_game_entity
+                    .expect_get_player_name()
+                    .returning(|| "player1".to_string());
+                mock_game_entity
+                    .expect_get_team()
+                    .returning(|| team_t::TEAM_RED);
+                mock_game_entity
+                    .expect_get_privileges()
+                    .returning(|| privileges_t::PRIV_NONE);
+                mock_game_entity
+            });
+        game_entity_try_from_ctx
+            .expect()
+            .with(predicate::eq(4))
+            .returning(|_client_id| {
+                let mut mock_game_entity = MockGameEntity::new();
+                mock_game_entity
+                    .expect_get_player_name()
+                    .returning(|| "player2".to_string());
+                mock_game_entity
+                    .expect_get_team()
+                    .returning(|| team_t::TEAM_BLUE);
+                mock_game_entity
+                    .expect_get_privileges()
+                    .returning(|| privileges_t::PRIV_NONE);
+                mock_game_entity
+            });
+        game_entity_try_from_ctx
+            .expect()
+            .withf(|client_id| ![2, 4].contains(client_id))
+            .returning(|_client_id| {
+                let mut mock_game_entity = MockGameEntity::new();
+                mock_game_entity
+                    .expect_get_player_name()
+                    .returning(|| "Mocked Player".to_string());
+                mock_game_entity
+                    .expect_get_team()
+                    .returning(|| team_t::TEAM_RED);
+                mock_game_entity
+                    .expect_get_privileges()
+                    .returning(|| privileges_t::PRIV_NONE);
+                mock_game_entity
+            });
+
+        Python::with_gil(|py| {
+            let event_dispatcher = EventDispatcherManager::default();
+            event_dispatcher
+                .add_dispatcher(py, py.get_type_bound::<StatsDispatcher>())
+                .expect("could not add stats dispatcher");
+            event_dispatcher
+                .add_dispatcher(py, py.get_type_bound::<DeathDispatcher>())
+                .expect("could not add death dispatcher");
+            EVENT_DISPATCHERS.store(Some(
+                Py::new(py, event_dispatcher)
+                    .expect("could not create event dispatcher manager in python")
+                    .into(),
+            ));
+
+            let result = try_handle_zmq_msg(py, player_death_data);
+            run_all_frame_tasks(py).expect("this should not happen");
+
             assert!(result.is_err_and(|err| err.is_instance_of::<PyEnvironmentError>(py)));
         });
     }
