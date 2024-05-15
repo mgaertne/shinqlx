@@ -9816,7 +9816,7 @@ def assert_called_with(*args):
         .expect("could create test handler module")
     }
 
-    pub(super) fn returning_false_hook(py: Python<'_>) -> Bound<'_, PyAny> {
+    pub(crate) fn returning_false_hook(py: Python<'_>) -> Bound<'_, PyAny> {
         let returning_false_module = PyModule::from_code_bound(
             py,
             r#"
