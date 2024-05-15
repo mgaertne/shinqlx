@@ -3017,7 +3017,7 @@ mod handle_client_command_tests {
                     .returning(|| "Mocked Player".to_string());
                 mock_game_entity
                     .expect_get_team()
-                    .returning(move || team_t::TEAM_RED);
+                    .returning(|| team_t::TEAM_RED);
                 mock_game_entity
                     .expect_get_privileges()
                     .returning(|| privileges_t::PRIV_NONE);
@@ -3111,7 +3111,7 @@ mod handle_client_command_tests {
                     .returning(|| "Mocked Player".to_string());
                 mock_game_entity
                     .expect_get_team()
-                    .returning(move || team_t::TEAM_RED);
+                    .returning(|| team_t::TEAM_RED);
                 mock_game_entity
                     .expect_get_privileges()
                     .returning(|| privileges_t::PRIV_NONE);
@@ -3198,7 +3198,7 @@ mod handle_client_command_tests {
                     .returning(|| "Mocked Player".to_string());
                 mock_game_entity
                     .expect_get_team()
-                    .returning(move || team_t::TEAM_RED);
+                    .returning(|| team_t::TEAM_RED);
                 mock_game_entity
                     .expect_get_privileges()
                     .returning(|| privileges_t::PRIV_NONE);
@@ -3269,7 +3269,7 @@ mod handle_client_command_tests {
                     .returning(|| "Mocked Player".to_string());
                 mock_game_entity
                     .expect_get_team()
-                    .returning(move || team_t::TEAM_RED);
+                    .returning(|| team_t::TEAM_RED);
                 mock_game_entity
                     .expect_get_privileges()
                     .returning(|| privileges_t::PRIV_NONE);
@@ -3359,7 +3359,7 @@ mod handle_client_command_tests {
                     .returning(|| "Mocked Player".to_string());
                 mock_game_entity
                     .expect_get_team()
-                    .returning(move || team_t::TEAM_RED);
+                    .returning(|| team_t::TEAM_RED);
                 mock_game_entity
                     .expect_get_privileges()
                     .returning(|| privileges_t::PRIV_NONE);
@@ -3446,7 +3446,7 @@ def returning_other_userinfo_hook(*args, **kwargs):
                     .returning(|| "Mocked Player".to_string());
                 mock_game_entity
                     .expect_get_team()
-                    .returning(move || team_t::TEAM_RED);
+                    .returning(|| team_t::TEAM_RED);
                 mock_game_entity
                     .expect_get_privileges()
                     .returning(|| privileges_t::PRIV_NONE);
@@ -3675,7 +3675,7 @@ mod handle_server_command_tests {
                     .returning(|| "Mocked Player".to_string());
                 mock_game_entity
                     .expect_get_team()
-                    .returning(move || team_t::TEAM_RED);
+                    .returning(|| team_t::TEAM_RED);
                 mock_game_entity
                     .expect_get_privileges()
                     .returning(|| privileges_t::PRIV_NONE);
