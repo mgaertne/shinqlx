@@ -377,6 +377,7 @@ static IN_PROGRESS: Lazy<AtomicBool> = Lazy::new(AtomicBool::default);
 /// Subscribes to the ZMQ stats protocol and calls the stats event dispatcher when
 /// we get stats from it.
 #[pyclass(module = "_zmq", name = "StatsListener", get_all)]
+#[derive(Debug, PartialEq)]
 pub(crate) struct StatsListener {
     #[pyo3(name = "done")]
     done: bool,
@@ -494,6 +495,216 @@ def run_zmq_thread(poller):
                 }
             }
         }
+    }
+}
+
+#[cfg(test)]
+mod stats_listener_tests {
+    use super::StatsListener;
+    use mockall::predicate;
+
+    use crate::prelude::{serial, MockQuakeEngine};
+    use crate::MAIN_ENGINE;
+
+    use crate::ffi::c::prelude::{cvar_t, CVar, CVarBuilder};
+
+    use alloc::ffi::CString;
+    use core::ffi::c_char;
+
+    use pretty_assertions::assert_eq;
+
+    use pyo3::exceptions::PyEnvironmentError;
+    use pyo3::prelude::*;
+
+    #[test]
+    #[cfg_attr(miri, ignore)]
+    #[serial]
+    fn constructor_with_no_main_engine() {
+        MAIN_ENGINE.store(None);
+
+        Python::with_gil(|py| {
+            let result = StatsListener::py_new();
+            assert!(result.is_err_and(|err| err.is_instance_of::<PyEnvironmentError>(py)));
+        });
+    }
+
+    #[test]
+    #[serial]
+    fn constructor_with_disabled_zmq_cvar() {
+        let mut mock_engine = MockQuakeEngine::new();
+        mock_engine
+            .expect_find_cvar()
+            .with(predicate::eq("zmq_stats_enable"))
+            .returning(|_| {
+                let cvar_string = CString::new("0").expect("this should not happen");
+                let mut raw_cvar = CVarBuilder::default()
+                    .string(cvar_string.as_ptr() as *mut c_char)
+                    .integer(0)
+                    .build()
+                    .expect("this should not happen");
+                CVar::try_from(&mut raw_cvar as *mut cvar_t).ok()
+            });
+        MAIN_ENGINE.store(Some(mock_engine.into()));
+
+        let result = StatsListener::py_new();
+        assert_eq!(
+            result.expect("this should not happen"),
+            StatsListener {
+                done: true,
+                address: "".into(),
+                password: "".into()
+            }
+        );
+    }
+
+    #[test]
+    #[serial]
+    fn constructor_with_defaulted_cvars() {
+        let zmq_ip = CString::new("").expect("this should not happen");
+        let zmq_password = CString::new("").expect("this should not happen");
+        let net_port = CString::new("27960").expect("this should not happen");
+
+        let mut mock_engine = MockQuakeEngine::new();
+        mock_engine
+            .expect_find_cvar()
+            .with(predicate::eq("zmq_stats_enable"))
+            .returning(|_| {
+                let mut raw_cvar = CVarBuilder::default()
+                    .integer(1)
+                    .build()
+                    .expect("this should not happen");
+                CVar::try_from(&mut raw_cvar as *mut cvar_t).ok()
+            });
+        mock_engine
+            .expect_find_cvar()
+            .with(predicate::eq("zmq_stats_ip"))
+            .returning(move |_| {
+                let mut raw_cvar = CVarBuilder::default()
+                    .string(zmq_ip.as_ptr() as *mut c_char)
+                    .build()
+                    .expect("this should not happen");
+                CVar::try_from(&mut raw_cvar as *mut cvar_t).ok()
+            });
+        mock_engine
+            .expect_find_cvar()
+            .with(predicate::eq("zmq_stats_port"))
+            .returning(|_| None);
+        mock_engine
+            .expect_find_cvar()
+            .with(predicate::eq("zmq_stats_password"))
+            .returning(move |_| {
+                let mut raw_cvar = CVarBuilder::default()
+                    .string(zmq_password.as_ptr() as *mut c_char)
+                    .build()
+                    .expect("this should not happen");
+                CVar::try_from(&mut raw_cvar as *mut cvar_t).ok()
+            });
+        mock_engine
+            .expect_find_cvar()
+            .with(predicate::eq("net_port"))
+            .returning(move |_| {
+                let mut raw_cvar = CVarBuilder::default()
+                    .string(net_port.as_ptr() as *mut c_char)
+                    .build()
+                    .expect("this should not happen");
+                CVar::try_from(&mut raw_cvar as *mut cvar_t).ok()
+            });
+        MAIN_ENGINE.store(Some(mock_engine.into()));
+
+        let result = StatsListener::py_new();
+        assert_eq!(
+            result.expect("this should not happen"),
+            StatsListener {
+                done: false,
+                address: "tcp://127.0.0.1:27960".into(),
+                password: "".into()
+            }
+        );
+    }
+
+    #[test]
+    #[serial]
+    fn constructor_with_configured_cvars() {
+        let zmq_ip = CString::new("192.168.0.1").expect("this should not happen");
+        let zmq_port = CString::new("28960").expect("this should not happen");
+        let zmq_password = CString::new("p4ssw0rd").expect("this should not happen");
+        let net_port = CString::new("27960").expect("this should not happen");
+
+        let mut mock_engine = MockQuakeEngine::new();
+        mock_engine
+            .expect_find_cvar()
+            .with(predicate::eq("zmq_stats_enable"))
+            .returning(|_| {
+                let mut raw_cvar = CVarBuilder::default()
+                    .integer(1)
+                    .build()
+                    .expect("this should not happen");
+                CVar::try_from(&mut raw_cvar as *mut cvar_t).ok()
+            });
+        mock_engine
+            .expect_find_cvar()
+            .with(predicate::eq("zmq_stats_ip"))
+            .returning(move |_| {
+                let mut raw_cvar = CVarBuilder::default()
+                    .string(zmq_ip.as_ptr() as *mut c_char)
+                    .build()
+                    .expect("this should not happen");
+                CVar::try_from(&mut raw_cvar as *mut cvar_t).ok()
+            });
+        mock_engine
+            .expect_find_cvar()
+            .with(predicate::eq("zmq_stats_port"))
+            .returning(move |_| {
+                let mut raw_cvar = CVarBuilder::default()
+                    .string(zmq_port.as_ptr() as *mut c_char)
+                    .build()
+                    .expect("this should not happen");
+                CVar::try_from(&mut raw_cvar as *mut cvar_t).ok()
+            });
+        mock_engine
+            .expect_find_cvar()
+            .with(predicate::eq("zmq_stats_password"))
+            .returning(move |_| {
+                let mut raw_cvar = CVarBuilder::default()
+                    .string(zmq_password.as_ptr() as *mut c_char)
+                    .build()
+                    .expect("this should not happen");
+                CVar::try_from(&mut raw_cvar as *mut cvar_t).ok()
+            });
+        mock_engine
+            .expect_find_cvar()
+            .with(predicate::eq("net_port"))
+            .returning(move |_| {
+                let mut raw_cvar = CVarBuilder::default()
+                    .string(net_port.as_ptr() as *mut c_char)
+                    .build()
+                    .expect("this should not happen");
+                CVar::try_from(&mut raw_cvar as *mut cvar_t).ok()
+            });
+        MAIN_ENGINE.store(Some(mock_engine.into()));
+
+        let result = StatsListener::py_new();
+        assert_eq!(
+            result.expect("this should not happen"),
+            StatsListener {
+                done: false,
+                address: "tcp://192.168.0.1:28960".into(),
+                password: "p4ssw0rd".into()
+            }
+        );
+    }
+
+    #[test]
+    fn stop_sets_done_field() {
+        let mut listener = StatsListener {
+            done: false,
+            address: "".into(),
+            password: "".into(),
+        };
+
+        listener.stop();
+
+        assert_eq!(listener.done, true);
     }
 }
 
