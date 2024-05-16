@@ -529,14 +529,15 @@ mod stats_listener_tests {
     }
 
     #[test]
+    #[cfg_attr(miri, ignore)]
     #[serial]
     fn constructor_with_disabled_zmq_cvar() {
         let mut mock_engine = MockQuakeEngine::new();
+        let cvar_string = CString::new("0").expect("this should not happen");
         mock_engine
             .expect_find_cvar()
             .with(predicate::eq("zmq_stats_enable"))
-            .returning(|_| {
-                let cvar_string = CString::new("0").expect("this should not happen");
+            .returning(move |_| {
                 let mut raw_cvar = CVarBuilder::default()
                     .string(cvar_string.as_ptr() as *mut c_char)
                     .integer(0)
@@ -558,6 +559,7 @@ mod stats_listener_tests {
     }
 
     #[test]
+    #[cfg_attr(miri, ignore)]
     #[serial]
     fn constructor_with_defaulted_cvars() {
         let zmq_ip = CString::new("").expect("this should not happen");
@@ -623,6 +625,7 @@ mod stats_listener_tests {
     }
 
     #[test]
+    #[cfg_attr(miri, ignore)]
     #[serial]
     fn constructor_with_configured_cvars() {
         let zmq_ip = CString::new("192.168.0.1").expect("this should not happen");
@@ -805,11 +808,11 @@ mod handle_zmq_msg_tests {
         let stats_msg = r#"{"DATA": {}, "TYPE": "STATS"}"#;
 
         let mut mock_engine = MockQuakeEngine::new();
+        let cvar_string = CString::new("1").expect("this should not happen");
         mock_engine
             .expect_find_cvar()
             .with(predicate::eq("zmq_stats_enable"))
-            .returning(|_| {
-                let cvar_string = CString::new("1").expect("this should not happen");
+            .returning(move |_| {
                 let mut raw_cvar = CVarBuilder::default()
                     .string(cvar_string.as_ptr() as *mut c_char)
                     .build()
@@ -884,11 +887,11 @@ mod handle_zmq_msg_tests {
         let game_start_data = r#"{"DATA": {"CAPTURE_LIMIT": 8, "FACTORY": "ca", "FACTORY_TITLE": "Clan Arena", "FRAG_LIMIT": 50, "GAME_TYPE": "CA", "INFECTED": 0, "INSTAGIB": 0, "MAP": "thunderstruck", "MATCH_GUID": "asdf", "MERCY_LIMIT": 0, "PLAYERS": [{"NAME": "player1", "STEAM_ID": "1234", "TEAM": 1}, {"NAME": "player2", "STEAM_ID": "5678", "TEAM": 2}], "QUADHOG": 0, "ROUND_LIMIT": 8, "SCORE_LIMIT": 150, "SERVER_TITLE": "shinqlx test server", "TIME_LIMIT": 0, "TRAINING": 0}, "TYPE": "MATCH_STARTED"}"#;
 
         let mut mock_engine = MockQuakeEngine::new();
+        let cvar_string = CString::new("1").expect("this should not happen");
         mock_engine
             .expect_find_cvar()
             .with(predicate::eq("zmq_stats_enable"))
-            .returning(|_| {
-                let cvar_string = CString::new("1").expect("this should not happen");
+            .returning(move |_| {
                 let mut raw_cvar = CVarBuilder::default()
                     .string(cvar_string.as_ptr() as *mut c_char)
                     .build()
@@ -995,11 +998,11 @@ mod handle_zmq_msg_tests {
         let round_end_data = r#"{"DATA": {"MATCH_GUID": "asdf", "ROUND": 10, "TEAM_WON": "RED", "TIME": 539, "WARMUP": false}, "TYPE": "ROUND_OVER"}"#;
 
         let mut mock_engine = MockQuakeEngine::new();
+        let cvar_string = CString::new("1").expect("this should not happen");
         mock_engine
             .expect_find_cvar()
             .with(predicate::eq("zmq_stats_enable"))
-            .returning(|_| {
-                let cvar_string = CString::new("1").expect("this should not happen");
+            .returning(move |_| {
                 let mut raw_cvar = CVarBuilder::default()
                     .string(cvar_string.as_ptr() as *mut c_char)
                     .build()
@@ -1105,11 +1108,11 @@ mod handle_zmq_msg_tests {
         let game_end_data = r#"{"DATA": {"ABORTED": false, "CAPTURE_LIMIT": 8, "EXIT_MSG": "Roundlimit hit.", "FACTORY": "ca", "FACTORY_TITLE": "Clan Arena", "FIRST_SCORER": "player1", "FRAG_LIMIT": 50, "GAME_LENGTH": 590, "GAME_TYPE": "CA", "INFECTED": 0, "INSTAGIB": 0, "LAST_LEAD_CHANGE_TIME": 41300, "LAST_SCORER": "skepp", "LAST_TEAMSCORER": "none", "MAP": "x0r3", "MATCH_GUID": "asdf", "MERCY_LIMIT": 0, "QUADHOG": 0, "RESTARTED": 0, "ROUND_LIMIT": 8, "SCORE_LIMIT": 150, "SERVER_TITLE": "shinqlx test server", "TIME_LIMIT": 0, "TRAINING": 0, "TSCORE0": 3, "TSCORE1": 8}, "TYPE": "MATCH_REPORT"}"#;
 
         let mut mock_engine = MockQuakeEngine::new();
+        let cvar_string = CString::new("1").expect("this should not happen");
         mock_engine
             .expect_find_cvar()
             .with(predicate::eq("zmq_stats_enable"))
-            .returning(|_| {
-                let cvar_string = CString::new("1").expect("this should not happen");
+            .returning(move |_| {
                 let mut raw_cvar = CVarBuilder::default()
                     .string(cvar_string.as_ptr() as *mut c_char)
                     .build()
@@ -1196,11 +1199,11 @@ mod handle_zmq_msg_tests {
         let game_end_data = r#"{"DATA": {"ABORTED": false, "CAPTURE_LIMIT": 8, "EXIT_MSG": "Roundlimit hit.", "FACTORY": "ca", "FACTORY_TITLE": "Clan Arena", "FIRST_SCORER": "player1", "FRAG_LIMIT": 50, "GAME_LENGTH": 590, "GAME_TYPE": "CA", "INFECTED": 0, "INSTAGIB": 0, "LAST_LEAD_CHANGE_TIME": 41300, "LAST_SCORER": "skepp", "LAST_TEAMSCORER": "none", "MAP": "x0r3", "MATCH_GUID": "asdf", "MERCY_LIMIT": 0, "QUADHOG": 0, "RESTARTED": 0, "ROUND_LIMIT": 8, "SCORE_LIMIT": 150, "SERVER_TITLE": "shinqlx test server", "TIME_LIMIT": 0, "TRAINING": 0, "TSCORE0": 3, "TSCORE1": 8}, "TYPE": "MATCH_REPORT"}"#;
 
         let mut mock_engine = MockQuakeEngine::new();
+        let cvar_string = CString::new("1").expect("this should not happen");
         mock_engine
             .expect_find_cvar()
             .with(predicate::eq("zmq_stats_enable"))
-            .returning(|_| {
-                let cvar_string = CString::new("1").expect("this should not happen");
+            .returning(move |_| {
                 let mut raw_cvar = CVarBuilder::default()
                     .string(cvar_string.as_ptr() as *mut c_char)
                     .build()
@@ -1311,11 +1314,11 @@ mod handle_zmq_msg_tests {
         let player_death_data =
             r#"{"DATA": {"KILLER": null, "MOD": "HURT", "VICTIM": {}}, "TYPE": "PLAYER_DEATH"}"#;
         let mut mock_engine = MockQuakeEngine::new();
+        let cvar_string = CString::new("1").expect("this should not happen");
         mock_engine
             .expect_find_cvar()
             .with(predicate::eq("zmq_stats_enable"))
-            .returning(|_| {
-                let cvar_string = CString::new("1").expect("this should not happen");
+            .returning(move |_| {
                 let mut raw_cvar = CVarBuilder::default()
                     .string(cvar_string.as_ptr() as *mut c_char)
                     .build()
@@ -1371,11 +1374,11 @@ mod handle_zmq_msg_tests {
     fn try_handle_player_death_msg_from_trigger_hurt_entity_with_steam_id(_pyshinqlx_setup: ()) {
         let player_death_data = r#"{"DATA": {"KILLER": null, "MOD": "HURT", "VICTIM": {"NAME": "player1", "STEAM_ID": "1234"}}, "TYPE": "PLAYER_DEATH"}"#;
         let mut mock_engine = MockQuakeEngine::new();
+        let cvar_string = CString::new("1").expect("this should not happen");
         mock_engine
             .expect_find_cvar()
             .with(predicate::eq("zmq_stats_enable"))
-            .returning(|_| {
-                let cvar_string = CString::new("1").expect("this should not happen");
+            .returning(move |_| {
                 let mut raw_cvar = CVarBuilder::default()
                     .string(cvar_string.as_ptr() as *mut c_char)
                     .build()
@@ -1526,11 +1529,11 @@ mod handle_zmq_msg_tests {
     fn try_handle_player_death_msg_from_trigger_hurt_entity_with_name_only(_pyshinqlx_setup: ()) {
         let player_death_data = r#"{"DATA": {"KILLER": null, "MOD": "HURT", "VICTIM": {"NAME": "player1", "STEAM_ID": "-1"}}, "TYPE": "PLAYER_DEATH"}"#;
         let mut mock_engine = MockQuakeEngine::new();
+        let cvar_string = CString::new("1").expect("this should not happen");
         mock_engine
             .expect_find_cvar()
             .with(predicate::eq("zmq_stats_enable"))
-            .returning(|_| {
-                let cvar_string = CString::new("1").expect("this should not happen");
+            .returning(move |_| {
                 let mut raw_cvar = CVarBuilder::default()
                     .string(cvar_string.as_ptr() as *mut c_char)
                     .build()
@@ -1683,11 +1686,11 @@ mod handle_zmq_msg_tests {
     ) {
         let player_death_data = r#"{"DATA": {"KILLER": null, "MOD": "HURT", "VICTIM": {"NAME": "player1", "STEAM_ID": "1234"}}, "TYPE": "PLAYER_DEATH"}"#;
         let mut mock_engine = MockQuakeEngine::new();
+        let cvar_string = CString::new("1").expect("this should not happen");
         mock_engine
             .expect_find_cvar()
             .with(predicate::eq("zmq_stats_enable"))
-            .returning(|_| {
-                let cvar_string = CString::new("1").expect("this should not happen");
+            .returning(move |_| {
                 let mut raw_cvar = CVarBuilder::default()
                     .string(cvar_string.as_ptr() as *mut c_char)
                     .build()
@@ -1779,11 +1782,11 @@ mod handle_zmq_msg_tests {
     ) {
         let player_death_data = r#"{"DATA": {"KILLER": null, "MOD": "HURT", "VICTIM": {"NAME": "player1", "STEAM_ID": "1234"}}, "TYPE": "PLAYER_DEATH"}"#;
         let mut mock_engine = MockQuakeEngine::new();
+        let cvar_string = CString::new("1").expect("this should not happen");
         mock_engine
             .expect_find_cvar()
             .with(predicate::eq("zmq_stats_enable"))
-            .returning(|_| {
-                let cvar_string = CString::new("1").expect("this should not happen");
+            .returning(move |_| {
                 let mut raw_cvar = CVarBuilder::default()
                     .string(cvar_string.as_ptr() as *mut c_char)
                     .build()
@@ -1880,11 +1883,11 @@ mod handle_zmq_msg_tests {
     fn try_handle_player_death_msg_from_other_player_with_steam_id(_pyshinqlx_setup: ()) {
         let player_death_data = r#"{"DATA": {"KILLER": {"NAME": "player2", "STEAM_ID": "5678"}, "MOD": "HURT", "VICTIM": {"NAME": "player1", "STEAM_ID": "1234"}}, "TYPE": "PLAYER_DEATH"}"#;
         let mut mock_engine = MockQuakeEngine::new();
+        let cvar_string = CString::new("1").expect("this should not happen");
         mock_engine
             .expect_find_cvar()
             .with(predicate::eq("zmq_stats_enable"))
-            .returning(|_| {
-                let cvar_string = CString::new("1").expect("this should not happen");
+            .returning(move |_| {
                 let mut raw_cvar = CVarBuilder::default()
                     .string(cvar_string.as_ptr() as *mut c_char)
                     .build()
@@ -2096,11 +2099,11 @@ mod handle_zmq_msg_tests {
     fn try_handle_player_death_msg_from_other_player_with_name_only(_pyshinqlx_setup: ()) {
         let player_death_data = r#"{"DATA": {"KILLER": {"NAME": "player2"}, "MOD": "HURT", "VICTIM": {"NAME": "player1", "STEAM_ID": "1234"}}, "TYPE": "PLAYER_DEATH"}"#;
         let mut mock_engine = MockQuakeEngine::new();
+        let cvar_string = CString::new("1").expect("this should not happen");
         mock_engine
             .expect_find_cvar()
             .with(predicate::eq("zmq_stats_enable"))
-            .returning(|_| {
-                let cvar_string = CString::new("1").expect("this should not happen");
+            .returning(move |_| {
                 let mut raw_cvar = CVarBuilder::default()
                     .string(cvar_string.as_ptr() as *mut c_char)
                     .build()
@@ -2312,11 +2315,11 @@ mod handle_zmq_msg_tests {
     fn try_handle_player_death_msg_from_other_player_with_no_dispatcher(_pyshinqlx_setup: ()) {
         let player_death_data = r#"{"DATA": {"KILLER": {"NAME": "player2", "STEAM_ID": "5678"}, "MOD": "HURT", "VICTIM": {"NAME": "player1", "STEAM_ID": "1234"}}, "TYPE": "PLAYER_DEATH"}"#;
         let mut mock_engine = MockQuakeEngine::new();
+        let cvar_string = CString::new("1").expect("this should not happen");
         mock_engine
             .expect_find_cvar()
             .with(predicate::eq("zmq_stats_enable"))
-            .returning(|_| {
-                let cvar_string = CString::new("1").expect("this should not happen");
+            .returning(move |_| {
                 let mut raw_cvar = CVarBuilder::default()
                     .string(cvar_string.as_ptr() as *mut c_char)
                     .build()
@@ -2446,11 +2449,11 @@ mod handle_zmq_msg_tests {
     fn try_handle_team_switch_msg_matching_with_steam_id(_pyshinqlx_setup: ()) {
         let player_teamswitch_data = r#"{"DATA": {"KILLER": {"NAME": "player1", "OLD_TEAM": "SPECTATOR", "STEAM_ID": "1234", "TEAM": "BLUE"}}, "TYPE": "PLAYER_SWITCHTEAM"}"#;
         let mut mock_engine = MockQuakeEngine::new();
+        let cvar_string = CString::new("1").expect("this should not happen");
         mock_engine
             .expect_find_cvar()
             .with(predicate::eq("zmq_stats_enable"))
-            .returning(|_| {
-                let cvar_string = CString::new("1").expect("this should not happen");
+            .returning(move |_| {
                 let mut raw_cvar = CVarBuilder::default()
                     .string(cvar_string.as_ptr() as *mut c_char)
                     .build()
@@ -2592,11 +2595,11 @@ mod handle_zmq_msg_tests {
     fn try_handle_team_switch_msg_matching_with_name_only(_pyshinqlx_setup: ()) {
         let player_teamswitch_data = r#"{"DATA": {"KILLER": {"NAME": "player1", "OLD_TEAM": "SPECTATOR", "STEAM_ID": "-1", "TEAM": "BLUE"}}, "TYPE": "PLAYER_SWITCHTEAM"}"#;
         let mut mock_engine = MockQuakeEngine::new();
+        let cvar_string = CString::new("1").expect("this should not happen");
         mock_engine
             .expect_find_cvar()
             .with(predicate::eq("zmq_stats_enable"))
-            .returning(|_| {
-                let cvar_string = CString::new("1").expect("this should not happen");
+            .returning(move |_| {
                 let mut raw_cvar = CVarBuilder::default()
                     .string(cvar_string.as_ptr() as *mut c_char)
                     .build()
@@ -2740,11 +2743,11 @@ mod handle_zmq_msg_tests {
     ) {
         let player_teamswitch_data = r#"{"DATA": {"KILLER": {"NAME": "player1", "OLD_TEAM": "SPECTATOR", "STEAM_ID": "1234", "TEAM": "SPECTATOR"}}, "TYPE": "PLAYER_SWITCHTEAM"}"#;
         let mut mock_engine = MockQuakeEngine::new();
+        let cvar_string = CString::new("1").expect("this should not happen");
         mock_engine
             .expect_find_cvar()
             .with(predicate::eq("zmq_stats_enable"))
-            .returning(|_| {
-                let cvar_string = CString::new("1").expect("this should not happen");
+            .returning(move |_| {
                 let mut raw_cvar = CVarBuilder::default()
                     .string(cvar_string.as_ptr() as *mut c_char)
                     .build()
@@ -2864,11 +2867,11 @@ mod handle_zmq_msg_tests {
     fn try_handle_team_switch_msg_matching_with_no_old_team(_pyshinqlx_setup: ()) {
         let player_teamswitch_data = r#"{"DATA": {"KILLER": {"NAME": "player1", "STEAM_ID": "1234", "TEAM": "BLUE"}}, "TYPE": "PLAYER_SWITCHTEAM"}"#;
         let mut mock_engine = MockQuakeEngine::new();
+        let cvar_string = CString::new("1").expect("this should not happen");
         mock_engine
             .expect_find_cvar()
             .with(predicate::eq("zmq_stats_enable"))
-            .returning(|_| {
-                let cvar_string = CString::new("1").expect("this should not happen");
+            .returning(move |_| {
                 let mut raw_cvar = CVarBuilder::default()
                     .string(cvar_string.as_ptr() as *mut c_char)
                     .build()
@@ -2988,11 +2991,11 @@ mod handle_zmq_msg_tests {
     fn try_handle_team_switch_msg_matching_with_no_new_team(_pyshinqlx_setup: ()) {
         let player_teamswitch_data = r#"{"DATA": {"KILLER": {"NAME": "player1", "OLD_TEAM": "SPECTATOR", "STEAM_ID": "1234"}}, "TYPE": "PLAYER_SWITCHTEAM"}"#;
         let mut mock_engine = MockQuakeEngine::new();
+        let cvar_string = CString::new("1").expect("this should not happen");
         mock_engine
             .expect_find_cvar()
             .with(predicate::eq("zmq_stats_enable"))
-            .returning(|_| {
-                let cvar_string = CString::new("1").expect("this should not happen");
+            .returning(move |_| {
                 let mut raw_cvar = CVarBuilder::default()
                     .string(cvar_string.as_ptr() as *mut c_char)
                     .build()
@@ -3112,11 +3115,11 @@ mod handle_zmq_msg_tests {
     fn try_handle_team_switch_msg_matching_with_no_name(_pyshinqlx_setup: ()) {
         let player_teamswitch_data = r#"{"DATA": {"KILLER": {"OLD_TEAM": "SPECTATOR", "STEAM_ID": "-1", "TEAM": "BLUE"}}, "TYPE": "PLAYER_SWITCHTEAM"}"#;
         let mut mock_engine = MockQuakeEngine::new();
+        let cvar_string = CString::new("1").expect("this should not happen");
         mock_engine
             .expect_find_cvar()
             .with(predicate::eq("zmq_stats_enable"))
-            .returning(|_| {
-                let cvar_string = CString::new("1").expect("this should not happen");
+            .returning(move |_| {
                 let mut raw_cvar = CVarBuilder::default()
                     .string(cvar_string.as_ptr() as *mut c_char)
                     .build()
@@ -3236,11 +3239,11 @@ mod handle_zmq_msg_tests {
     fn try_handle_team_switch_msg_when_player_cannot_be_found(_pyshinqlx_setup: ()) {
         let player_teamswitch_data = r#"{"DATA": {"KILLER": {"NAME": "player1", "OLD_TEAM": "SPECTATOR", "STEAM_ID": "1234", "TEAM": "BLUE"}}, "TYPE": "PLAYER_SWITCHTEAM"}"#;
         let mut mock_engine = MockQuakeEngine::new();
+        let cvar_string = CString::new("1").expect("this should not happen");
         mock_engine
             .expect_find_cvar()
             .with(predicate::eq("zmq_stats_enable"))
-            .returning(|_| {
-                let cvar_string = CString::new("1").expect("this should not happen");
+            .returning(move |_| {
                 let mut raw_cvar = CVarBuilder::default()
                     .string(cvar_string.as_ptr() as *mut c_char)
                     .build()
@@ -3330,11 +3333,11 @@ mod handle_zmq_msg_tests {
     fn try_handle_team_switch_msg_matching_with_no_dispatcher(_pyshinqlx_setup: ()) {
         let player_teamswitch_data = r#"{"DATA": {"KILLER": {"NAME": "player1", "OLD_TEAM": "SPECTATOR", "STEAM_ID": "1234", "TEAM": "BLUE"}}, "TYPE": "PLAYER_SWITCHTEAM"}"#;
         let mut mock_engine = MockQuakeEngine::new();
+        let cvar_string = CString::new("1").expect("this should not happen");
         mock_engine
             .expect_find_cvar()
             .with(predicate::eq("zmq_stats_enable"))
-            .returning(|_| {
-                let cvar_string = CString::new("1").expect("this should not happen");
+            .returning(move |_| {
                 let mut raw_cvar = CVarBuilder::default()
                     .string(cvar_string.as_ptr() as *mut c_char)
                     .build()
@@ -3431,11 +3434,11 @@ mod handle_zmq_msg_tests {
     fn try_handle_team_switch_msg_when_dispatcher_returns_false(_pyshinqlx_setup: ()) {
         let player_teamswitch_data = r#"{"DATA": {"KILLER": {"NAME": "player1", "OLD_TEAM": "SPECTATOR", "STEAM_ID": "1234", "TEAM": "BLUE"}}, "TYPE": "PLAYER_SWITCHTEAM"}"#;
         let mut mock_engine = MockQuakeEngine::new();
+        let cvar_string = CString::new("1").expect("this should not happen");
         mock_engine
             .expect_find_cvar()
             .with(predicate::eq("zmq_stats_enable"))
-            .returning(|_| {
-                let cvar_string = CString::new("1").expect("this should not happen");
+            .returning(move |_| {
                 let mut raw_cvar = CVarBuilder::default()
                     .string(cvar_string.as_ptr() as *mut c_char)
                     .build()
