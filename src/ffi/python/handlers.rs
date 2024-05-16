@@ -630,11 +630,11 @@ mod handle_client_command_tests {
     #[serial]
     fn try_handle_client_command_for_client_command_only(_pyshinqlx_setup: ()) {
         let mut mock_engine = MockQuakeEngine::new();
+        let cvar_string = CString::new("1").expect("this should not happen");
         mock_engine
             .expect_find_cvar()
             .with(predicate::eq("zmq_stats_enable"))
-            .returning(|_| {
-                let cvar_string = CString::new("1").expect("this should not happen");
+            .returning(move |_| {
                 let mut raw_cvar = CVarBuilder::default()
                     .string(cvar_string.as_ptr() as *mut c_char)
                     .build()
@@ -770,11 +770,11 @@ mod handle_client_command_tests {
         _pyshinqlx_setup: (),
     ) {
         let mut mock_engine = MockQuakeEngine::new();
+        let cvar_string = CString::new("1").expect("this should not happen");
         mock_engine
             .expect_find_cvar()
             .with(predicate::eq("zmq_stats_enable"))
-            .returning(|_| {
-                let cvar_string = CString::new("1").expect("this should not happen");
+            .returning(move |_| {
                 let mut raw_cvar = CVarBuilder::default()
                     .string(cvar_string.as_ptr() as *mut c_char)
                     .build()
@@ -856,11 +856,11 @@ mod handle_client_command_tests {
         _pyshinqlx_setup: (),
     ) {
         let mut mock_engine = MockQuakeEngine::new();
+        let cvar_string = CString::new("1").expect("this should not happen");
         mock_engine
             .expect_find_cvar()
             .with(predicate::eq("zmq_stats_enable"))
-            .returning(|_| {
-                let cvar_string = CString::new("1").expect("this should not happen");
+            .returning(move |_| {
                 let mut raw_cvar = CVarBuilder::default()
                     .string(cvar_string.as_ptr() as *mut c_char)
                     .build()
@@ -940,11 +940,11 @@ mod handle_client_command_tests {
     #[serial]
     fn try_handle_client_command_for_msg_send(_pyshinqlx_setup: ()) {
         let mut mock_engine = MockQuakeEngine::new();
+        let cvar_string = CString::new("1").expect("this should not happen");
         mock_engine
             .expect_find_cvar()
             .with(predicate::eq("zmq_stats_enable"))
-            .returning(|_| {
-                let cvar_string = CString::new("1").expect("this should not happen");
+            .returning(move |_| {
                 let mut raw_cvar = CVarBuilder::default()
                     .string(cvar_string.as_ptr() as *mut c_char)
                     .build()
@@ -1167,11 +1167,11 @@ mod handle_client_command_tests {
     #[serial]
     fn try_handle_client_command_for_msg_when_dispatcher_returns_false(_pyshinqlx_setup: ()) {
         let mut mock_engine = MockQuakeEngine::new();
+        let cvar_string = CString::new("1").expect("this should not happen");
         mock_engine
             .expect_find_cvar()
             .with(predicate::eq("zmq_stats_enable"))
-            .returning(|_| {
-                let cvar_string = CString::new("1").expect("this should not happen");
+            .returning(move |_| {
                 let mut raw_cvar = CVarBuilder::default()
                     .string(cvar_string.as_ptr() as *mut c_char)
                     .build()
@@ -1273,11 +1273,11 @@ mod handle_client_command_tests {
         #[case] channel: &Lazy<ArcSwapOption<Py<TeamChatChannel>>>,
     ) {
         let mut mock_engine = MockQuakeEngine::new();
+        let cvar_string = CString::new("1").expect("this should not happen");
         mock_engine
             .expect_find_cvar()
             .with(predicate::eq("zmq_stats_enable"))
-            .returning(|_| {
-                let cvar_string = CString::new("1").expect("this should not happen");
+            .returning(move |_| {
                 let mut raw_cvar = CVarBuilder::default()
                     .string(cvar_string.as_ptr() as *mut c_char)
                     .build()
@@ -1526,11 +1526,11 @@ mod handle_client_command_tests {
         #[case] channel: &Lazy<ArcSwapOption<Py<TeamChatChannel>>>,
     ) {
         let mut mock_engine = MockQuakeEngine::new();
+        let cvar_string = CString::new("1").expect("this should not happen");
         mock_engine
             .expect_find_cvar()
             .with(predicate::eq("zmq_stats_enable"))
-            .returning(|_| {
-                let cvar_string = CString::new("1").expect("this should not happen");
+            .returning(move |_| {
                 let mut raw_cvar = CVarBuilder::default()
                     .string(cvar_string.as_ptr() as *mut c_char)
                     .build()
@@ -1620,11 +1620,11 @@ mod handle_client_command_tests {
     #[serial]
     fn try_handle_client_command_for_callvote(_pyshinqlx_setup: ()) {
         let mut mock_engine = MockQuakeEngine::new();
+        let cvar_string = CString::new("1").expect("this should not happen");
         mock_engine
             .expect_find_cvar()
             .with(predicate::eq("zmq_stats_enable"))
-            .returning(|_| {
-                let cvar_string = CString::new("1").expect("this should not happen");
+            .returning(move |_| {
                 let mut raw_cvar = CVarBuilder::default()
                     .string(cvar_string.as_ptr() as *mut c_char)
                     .build()
@@ -1720,11 +1720,11 @@ mod handle_client_command_tests {
     #[serial]
     fn try_handle_client_command_for_callvote_when_vote_is_already_running(_pyshinqlx_setup: ()) {
         let mut mock_engine = MockQuakeEngine::new();
+        let cvar_string = CString::new("1").expect("this should not happen");
         mock_engine
             .expect_find_cvar()
             .with(predicate::eq("zmq_stats_enable"))
-            .returning(|_| {
-                let cvar_string = CString::new("1").expect("this should not happen");
+            .returning(move |_| {
                 let mut raw_cvar = CVarBuilder::default()
                     .string(cvar_string.as_ptr() as *mut c_char)
                     .build()
@@ -1950,11 +1950,11 @@ mod handle_client_command_tests {
     #[serial]
     fn try_handle_client_command_for_callvote_when_dispatcher_returns_false(_pyshinqlx_setup: ()) {
         let mut mock_engine = MockQuakeEngine::new();
+        let cvar_string = CString::new("1").expect("this should not happen");
         mock_engine
             .expect_find_cvar()
             .with(predicate::eq("zmq_stats_enable"))
-            .returning(|_| {
-                let cvar_string = CString::new("1").expect("this should not happen");
+            .returning(move |_| {
                 let mut raw_cvar = CVarBuilder::default()
                     .string(cvar_string.as_ptr() as *mut c_char)
                     .build()
@@ -2054,11 +2054,11 @@ mod handle_client_command_tests {
         #[case] vote: bool,
     ) {
         let mut mock_engine = MockQuakeEngine::new();
+        let cvar_string = CString::new("1").expect("this should not happen");
         mock_engine
             .expect_find_cvar()
             .with(predicate::eq("zmq_stats_enable"))
-            .returning(|_| {
-                let cvar_string = CString::new("1").expect("this should not happen");
+            .returning(move |_| {
                 let mut raw_cvar = CVarBuilder::default()
                     .string(cvar_string.as_ptr() as *mut c_char)
                     .build()
@@ -2152,11 +2152,11 @@ mod handle_client_command_tests {
     #[serial]
     fn try_handle_client_command_for_vote_command_for_unhandled_vote(_pyshinqlx_setup: ()) {
         let mut mock_engine = MockQuakeEngine::new();
+        let cvar_string = CString::new("1").expect("this should not happen");
         mock_engine
             .expect_find_cvar()
             .with(predicate::eq("zmq_stats_enable"))
-            .returning(|_| {
-                let cvar_string = CString::new("1").expect("this should not happen");
+            .returning(move |_| {
                 let mut raw_cvar = CVarBuilder::default()
                     .string(cvar_string.as_ptr() as *mut c_char)
                     .build()
@@ -2258,11 +2258,11 @@ mod handle_client_command_tests {
         #[case] vote_arg: &str,
     ) {
         let mut mock_engine = MockQuakeEngine::new();
+        let cvar_string = CString::new("1").expect("this should not happen");
         mock_engine
             .expect_find_cvar()
             .with(predicate::eq("zmq_stats_enable"))
-            .returning(|_| {
-                let cvar_string = CString::new("1").expect("this should not happen");
+            .returning(move |_| {
                 let mut raw_cvar = CVarBuilder::default()
                     .string(cvar_string.as_ptr() as *mut c_char)
                     .build()
@@ -2426,11 +2426,11 @@ mod handle_client_command_tests {
         #[case] vote_arg: &str,
     ) {
         let mut mock_engine = MockQuakeEngine::new();
+        let cvar_string = CString::new("1").expect("this should not happen");
         mock_engine
             .expect_find_cvar()
             .with(predicate::eq("zmq_stats_enable"))
-            .returning(|_| {
-                let cvar_string = CString::new("1").expect("this should not happen");
+            .returning(move |_| {
                 let mut raw_cvar = CVarBuilder::default()
                     .string(cvar_string.as_ptr() as *mut c_char)
                     .build()
@@ -2528,11 +2528,11 @@ mod handle_client_command_tests {
         #[case] player_team: team_t,
     ) {
         let mut mock_engine = MockQuakeEngine::new();
+        let cvar_string = CString::new("1").expect("this should not happen");
         mock_engine
             .expect_find_cvar()
             .with(predicate::eq("zmq_stats_enable"))
-            .returning(|_| {
-                let cvar_string = CString::new("1").expect("this should not happen");
+            .returning(move |_| {
                 let mut raw_cvar = CVarBuilder::default()
                     .string(cvar_string.as_ptr() as *mut c_char)
                     .build()
@@ -2629,11 +2629,11 @@ mod handle_client_command_tests {
     #[serial]
     fn try_handle_client_command_for_team_switch_for_unhandled_team(_pyshinqlx_setup: ()) {
         let mut mock_engine = MockQuakeEngine::new();
+        let cvar_string = CString::new("1").expect("this should not happen");
         mock_engine
             .expect_find_cvar()
             .with(predicate::eq("zmq_stats_enable"))
-            .returning(|_| {
-                let cvar_string = CString::new("1").expect("this should not happen");
+            .returning(move |_| {
                 let mut raw_cvar = CVarBuilder::default()
                     .string(cvar_string.as_ptr() as *mut c_char)
                     .build()
@@ -2730,11 +2730,11 @@ mod handle_client_command_tests {
         #[case] player_team: team_t,
     ) {
         let mut mock_engine = MockQuakeEngine::new();
+        let cvar_string = CString::new("1").expect("this should not happen");
         mock_engine
             .expect_find_cvar()
             .with(predicate::eq("zmq_stats_enable"))
-            .returning(|_| {
-                let cvar_string = CString::new("1").expect("this should not happen");
+            .returning(move |_| {
                 let mut raw_cvar = CVarBuilder::default()
                     .string(cvar_string.as_ptr() as *mut c_char)
                     .build()
@@ -2889,11 +2889,11 @@ mod handle_client_command_tests {
         #[case] player_team: team_t,
     ) {
         let mut mock_engine = MockQuakeEngine::new();
+        let cvar_string = CString::new("1").expect("this should not happen");
         mock_engine
             .expect_find_cvar()
             .with(predicate::eq("zmq_stats_enable"))
-            .returning(|_| {
-                let cvar_string = CString::new("1").expect("this should not happen");
+            .returning(move |_| {
                 let mut raw_cvar = CVarBuilder::default()
                     .string(cvar_string.as_ptr() as *mut c_char)
                     .build()
@@ -2977,11 +2977,11 @@ mod handle_client_command_tests {
     #[serial]
     fn try_handle_client_command_for_userinfo_change_when_nothing_changed(_pyshinqlx_setup: ()) {
         let mut mock_engine = MockQuakeEngine::new();
+        let cvar_string = CString::new("1").expect("this should not happen");
         mock_engine
             .expect_find_cvar()
             .with(predicate::eq("zmq_stats_enable"))
-            .returning(|_| {
-                let cvar_string = CString::new("1").expect("this should not happen");
+            .returning(move |_| {
                 let mut raw_cvar = CVarBuilder::default()
                     .string(cvar_string.as_ptr() as *mut c_char)
                     .build()
@@ -3071,11 +3071,11 @@ mod handle_client_command_tests {
     #[serial]
     fn try_handle_client_command_for_userinfo_change_with_changes(_pyshinqlx_setup: ()) {
         let mut mock_engine = MockQuakeEngine::new();
+        let cvar_string = CString::new("1").expect("this should not happen");
         mock_engine
             .expect_find_cvar()
             .with(predicate::eq("zmq_stats_enable"))
-            .returning(|_| {
-                let cvar_string = CString::new("1").expect("this should not happen");
+            .returning(move |_| {
                 let mut raw_cvar = CVarBuilder::default()
                     .string(cvar_string.as_ptr() as *mut c_char)
                     .build()
@@ -3229,11 +3229,11 @@ mod handle_client_command_tests {
         _pyshinqlx_setup: (),
     ) {
         let mut mock_engine = MockQuakeEngine::new();
+        let cvar_string = CString::new("1").expect("this should not happen");
         mock_engine
             .expect_find_cvar()
             .with(predicate::eq("zmq_stats_enable"))
-            .returning(|_| {
-                let cvar_string = CString::new("1").expect("this should not happen");
+            .returning(move |_| {
                 let mut raw_cvar = CVarBuilder::default()
                     .string(cvar_string.as_ptr() as *mut c_char)
                     .build()
@@ -3319,11 +3319,11 @@ mod handle_client_command_tests {
         _pyshinqlx_setup: (),
     ) {
         let mut mock_engine = MockQuakeEngine::new();
+        let cvar_string = CString::new("1").expect("this should not happen");
         mock_engine
             .expect_find_cvar()
             .with(predicate::eq("zmq_stats_enable"))
-            .returning(|_| {
-                let cvar_string = CString::new("1").expect("this should not happen");
+            .returning(move |_| {
                 let mut raw_cvar = CVarBuilder::default()
                     .string(cvar_string.as_ptr() as *mut c_char)
                     .build()
@@ -3580,11 +3580,11 @@ mod handle_server_command_tests {
     #[serial]
     fn handle_server_command_for_general_server_command(_pyshinqlx_setup: ()) {
         let mut mock_engine = MockQuakeEngine::new();
+        let cvar_string = CString::new("1").expect("this should not happen");
         mock_engine
             .expect_find_cvar()
             .with(predicate::eq("zmq_stats_enable"))
-            .returning(|_| {
-                let cvar_string = CString::new("1").expect("this should not happen");
+            .returning(move |_| {
                 let mut raw_cvar = CVarBuilder::default()
                     .string(cvar_string.as_ptr() as *mut c_char)
                     .build()
@@ -3636,11 +3636,11 @@ mod handle_server_command_tests {
     #[serial]
     fn handle_server_command_for_dedicated_player_server_command(_pyshinqlx_setup: ()) {
         let mut mock_engine = MockQuakeEngine::new();
+        let cvar_string = CString::new("1").expect("this should not happen");
         mock_engine
             .expect_find_cvar()
             .with(predicate::eq("zmq_stats_enable"))
-            .returning(|_| {
-                let cvar_string = CString::new("1").expect("this should not happen");
+            .returning(move |_| {
                 let mut raw_cvar = CVarBuilder::default()
                     .string(cvar_string.as_ptr() as *mut c_char)
                     .build()
@@ -3737,11 +3737,11 @@ mod handle_server_command_tests {
     #[serial]
     fn handle_server_command_for_server_command_returning_false(_pyshinqlx_setup: ()) {
         let mut mock_engine = MockQuakeEngine::new();
+        let cvar_string = CString::new("1").expect("this should not happen");
         mock_engine
             .expect_find_cvar()
             .with(predicate::eq("zmq_stats_enable"))
-            .returning(|_| {
-                let cvar_string = CString::new("1").expect("this should not happen");
+            .returning(move |_| {
                 let mut raw_cvar = CVarBuilder::default()
                     .string(cvar_string.as_ptr() as *mut c_char)
                     .build()
@@ -3787,11 +3787,11 @@ mod handle_server_command_tests {
     #[serial]
     fn handle_server_command_for_server_command_returning_other_string(_pyshinqlx_setup: ()) {
         let mut mock_engine = MockQuakeEngine::new();
+        let cvar_string = CString::new("1").expect("this should not happen");
         mock_engine
             .expect_find_cvar()
             .with(predicate::eq("zmq_stats_enable"))
-            .returning(|_| {
-                let cvar_string = CString::new("1").expect("this should not happen");
+            .returning(move |_| {
                 let mut raw_cvar = CVarBuilder::default()
                     .string(cvar_string.as_ptr() as *mut c_char)
                     .build()
@@ -3837,11 +3837,11 @@ mod handle_server_command_tests {
     #[serial]
     fn handle_server_command_indicating_vote_passed(_pyshinqlx_setup: ()) {
         let mut mock_engine = MockQuakeEngine::new();
+        let cvar_string = CString::new("1").expect("this should not happen");
         mock_engine
             .expect_find_cvar()
             .with(predicate::eq("zmq_stats_enable"))
-            .returning(|_| {
-                let cvar_string = CString::new("1").expect("this should not happen");
+            .returning(move |_| {
                 let mut raw_cvar = CVarBuilder::default()
                     .string(cvar_string.as_ptr() as *mut c_char)
                     .build()
@@ -3911,11 +3911,11 @@ mod handle_server_command_tests {
     #[serial]
     fn handle_server_command_indicating_vote_failed(_pyshinqlx_setup: ()) {
         let mut mock_engine = MockQuakeEngine::new();
+        let cvar_string = CString::new("1").expect("this should not happen");
         mock_engine
             .expect_find_cvar()
             .with(predicate::eq("zmq_stats_enable"))
-            .returning(|_| {
-                let cvar_string = CString::new("1").expect("this should not happen");
+            .returning(move |_| {
                 let mut raw_cvar = CVarBuilder::default()
                     .string(cvar_string.as_ptr() as *mut c_char)
                     .build()
@@ -4219,11 +4219,11 @@ frame_tasks.enter(0, 1, capturing_hook, ("asdf", 42), {})
     #[serial]
     fn try_handle_frame_with_hook(_pyshinqlx_setup: ()) {
         let mut mock_engine = MockQuakeEngine::new();
+        let cvar_string = CString::new("1").expect("this should not happen");
         mock_engine
             .expect_find_cvar()
             .with(predicate::eq("zmq_stats_enable"))
-            .returning(|_| {
-                let cvar_string = CString::new("1").expect("this should not happen");
+            .returning(move |_| {
                 let mut raw_cvar = CVarBuilder::default()
                     .string(cvar_string.as_ptr() as *mut c_char)
                     .build()
@@ -4386,11 +4386,11 @@ for event in frame_tasks.queue:
     #[serial]
     fn handle_frame_when_frame_tasks_throws_exception(_pyshinqlx_setup: ()) {
         let mut mock_engine = MockQuakeEngine::new();
+        let cvar_string = CString::new("1").expect("this should not happen");
         mock_engine
             .expect_find_cvar()
             .with(predicate::eq("zmq_stats_enable"))
-            .returning(|_| {
-                let cvar_string = CString::new("1").expect("this should not happen");
+            .returning(move |_| {
                 let mut raw_cvar = CVarBuilder::default()
                     .string(cvar_string.as_ptr() as *mut c_char)
                     .build()
@@ -4675,11 +4675,11 @@ mod handle_new_game_tests {
         mock_engine.expect_get_configstring().withf(|index| {
             [CS_MESSAGE as u16, CS_AUTHOR as u16, CS_AUTHOR2 as u16].contains(index)
         });
+        let cvar_string = CString::new("1").expect("this should not happen");
         mock_engine
             .expect_find_cvar()
             .with(predicate::eq("zmq_stats_enable"))
-            .returning(|_| {
-                let cvar_string = CString::new("1").expect("this should not happen");
+            .returning(move |_| {
                 let mut raw_cvar = CVarBuilder::default()
                     .string(cvar_string.as_ptr() as *mut c_char)
                     .build()
@@ -4776,11 +4776,11 @@ mod handle_new_game_tests {
         mock_engine.expect_get_configstring().withf(|index| {
             [CS_MESSAGE as u16, CS_AUTHOR as u16, CS_AUTHOR2 as u16].contains(index)
         });
+        let cvar_string = CString::new("1").expect("this should not happen");
         mock_engine
             .expect_find_cvar()
             .with(predicate::eq("zmq_stats_enable"))
-            .returning(|_| {
-                let cvar_string = CString::new("1").expect("this should not happen");
+            .returning(move |_| {
                 let mut raw_cvar = CVarBuilder::default()
                     .string(cvar_string.as_ptr() as *mut c_char)
                     .build()
@@ -4887,24 +4887,24 @@ mod handle_new_game_tests {
         mock_engine.expect_get_configstring().withf(|index| {
             [CS_MESSAGE as u16, CS_AUTHOR as u16, CS_AUTHOR2 as u16].contains(index)
         });
+        let map_string = CString::new("campgrounds").expect("this should not happen");
         mock_engine
             .expect_find_cvar()
             .with(predicate::eq("mapname"))
-            .returning(|_| {
-                let cvar_string = CString::new("campgrounds").expect("this should not happen");
+            .returning(move |_| {
                 let mut raw_cvar = CVarBuilder::default()
-                    .string(cvar_string.as_ptr() as *mut c_char)
+                    .string(map_string.as_ptr() as *mut c_char)
                     .build()
                     .expect("this should not happen");
                 CVar::try_from(&mut raw_cvar as *mut cvar_t).ok()
             });
+        let g_factory_string = CString::new("ffa").expect("this should not happen");
         mock_engine
             .expect_find_cvar()
             .with(predicate::eq("g_factory"))
-            .returning(|_| {
-                let cvar_string = CString::new("ffa").expect("this should not happen");
+            .returning(move |_| {
                 let mut raw_cvar = CVarBuilder::default()
-                    .string(cvar_string.as_ptr() as *mut c_char)
+                    .string(g_factory_string.as_ptr() as *mut c_char)
                     .build()
                     .expect("this should not happen");
                 CVar::try_from(&mut raw_cvar as *mut cvar_t).ok()
@@ -4953,11 +4953,11 @@ mod handle_new_game_tests {
         mock_engine.expect_get_configstring().withf(|index| {
             [CS_MESSAGE as u16, CS_AUTHOR as u16, CS_AUTHOR2 as u16].contains(index)
         });
+        let cvar_string = CString::new("1").expect("this should not happen");
         mock_engine
             .expect_find_cvar()
             .with(predicate::eq("zmq_stats_enable"))
-            .returning(|_| {
-                let cvar_string = CString::new("1").expect("this should not happen");
+            .returning(move |_| {
                 let mut raw_cvar = CVarBuilder::default()
                     .string(cvar_string.as_ptr() as *mut c_char)
                     .build()
@@ -5143,11 +5143,11 @@ mod handle_new_game_tests {
         mock_engine.expect_get_configstring().withf(|index| {
             [CS_MESSAGE as u16, CS_AUTHOR as u16, CS_AUTHOR2 as u16].contains(index)
         });
+        let cvar_string = CString::new("0").expect("this should not happen");
         mock_engine
             .expect_find_cvar()
             .with(predicate::eq("zmq_stats_enable"))
-            .returning(|_| {
-                let cvar_string = CString::new("0").expect("this should not happen");
+            .returning(move |_| {
                 let mut raw_cvar = CVarBuilder::default()
                     .string(cvar_string.as_ptr() as *mut c_char)
                     .build()
@@ -5544,11 +5544,11 @@ mod handle_set_configstring_tests {
     #[serial]
     fn try_set_configstring_forwards_to_python(_pyshinqlx_setup: ()) {
         let mut mock_engine = MockQuakeEngine::new();
+        let cvar_string = CString::new("1").expect("this should not happen");
         mock_engine
             .expect_find_cvar()
             .with(predicate::eq("zmq_stats_enable"))
-            .returning(|_| {
-                let cvar_string = CString::new("1").expect("this should not happen");
+            .returning(move |_| {
                 let mut raw_cvar = CVarBuilder::default()
                     .string(cvar_string.as_ptr() as *mut c_char)
                     .build()
@@ -5600,11 +5600,11 @@ mod handle_set_configstring_tests {
     #[serial]
     fn try_set_configstring_when_dispatcher_returns_false(_pyshinqlx_setup: ()) {
         let mut mock_engine = MockQuakeEngine::new();
+        let cvar_string = CString::new("1").expect("this should not happen");
         mock_engine
             .expect_find_cvar()
             .with(predicate::eq("zmq_stats_enable"))
-            .returning(|_| {
-                let cvar_string = CString::new("1").expect("this should not happen");
+            .returning(move |_| {
                 let mut raw_cvar = CVarBuilder::default()
                     .string(cvar_string.as_ptr() as *mut c_char)
                     .build()
@@ -5667,11 +5667,11 @@ mod handle_set_configstring_tests {
     #[serial]
     fn try_set_configstring_when_dispatcher_returns_other_value(_pyshinqlx_setup: ()) {
         let mut mock_engine = MockQuakeEngine::new();
+        let cvar_string = CString::new("1").expect("this should not happen");
         mock_engine
             .expect_find_cvar()
             .with(predicate::eq("zmq_stats_enable"))
-            .returning(|_| {
-                let cvar_string = CString::new("1").expect("this should not happen");
+            .returning(move |_| {
                 let mut raw_cvar = CVarBuilder::default()
                     .string(cvar_string.as_ptr() as *mut c_char)
                     .build()
@@ -5717,11 +5717,11 @@ mod handle_set_configstring_tests {
     #[serial]
     fn try_set_configstring_for_vote_string_change_with_one_word_vote(_pyshinqlx_setup: ()) {
         let mut mock_engine = MockQuakeEngine::new();
+        let cvar_string = CString::new("1").expect("this should not happen");
         mock_engine
             .expect_find_cvar()
             .with(predicate::eq("zmq_stats_enable"))
-            .returning(|_| {
-                let cvar_string = CString::new("1").expect("this should not happen");
+            .returning(move |_| {
                 let mut raw_cvar = CVarBuilder::default()
                     .string(cvar_string.as_ptr() as *mut c_char)
                     .build()
@@ -5774,11 +5774,11 @@ mod handle_set_configstring_tests {
     #[serial]
     fn try_set_configstring_for_vote_string_change_with_multiword_vote(_pyshinqlx_setup: ()) {
         let mut mock_engine = MockQuakeEngine::new();
+        let cvar_string = CString::new("1").expect("this should not happen");
         mock_engine
             .expect_find_cvar()
             .with(predicate::eq("zmq_stats_enable"))
-            .returning(|_| {
-                let cvar_string = CString::new("1").expect("this should not happen");
+            .returning(move |_| {
                 let mut raw_cvar = CVarBuilder::default()
                     .string(cvar_string.as_ptr() as *mut c_char)
                     .build()
@@ -5831,11 +5831,11 @@ mod handle_set_configstring_tests {
     #[serial]
     fn try_set_configstring_for_vote_string_change_with_empty_votestring(_pyshinqlx_setup: ()) {
         let mut mock_engine = MockQuakeEngine::new();
+        let cvar_string = CString::new("1").expect("this should not happen");
         mock_engine
             .expect_find_cvar()
             .with(predicate::eq("zmq_stats_enable"))
-            .returning(|_| {
-                let cvar_string = CString::new("1").expect("this should not happen");
+            .returning(move |_| {
                 let mut raw_cvar = CVarBuilder::default()
                     .string(cvar_string.as_ptr() as *mut c_char)
                     .build()
@@ -5996,11 +5996,11 @@ mod handle_set_configstring_tests {
             .expect_get_configstring()
             .with(predicate::eq(CS_SERVERINFO as u16))
             .returning(|_| r"\g_gameState\PRE_GAME".into());
+        let cvar_string = CString::new("1").expect("this should not happen");
         mock_engine
             .expect_find_cvar()
             .with(predicate::eq("zmq_stats_enable"))
-            .returning(|_| {
-                let cvar_string = CString::new("1").expect("this should not happen");
+            .returning(move |_| {
                 let mut raw_cvar = CVarBuilder::default()
                     .string(cvar_string.as_ptr() as *mut c_char)
                     .build()
@@ -6071,11 +6071,11 @@ mod handle_set_configstring_tests {
             .expect_get_configstring()
             .with(predicate::eq(CS_SERVERINFO as u16))
             .returning(move |_| old_configstring.clone());
+        let cvar_string = CString::new("1").expect("this should not happen");
         mock_engine
             .expect_find_cvar()
             .with(predicate::eq("zmq_stats_enable"))
-            .returning(|_| {
-                let cvar_string = CString::new("1").expect("this should not happen");
+            .returning(move |_| {
                 let mut raw_cvar = CVarBuilder::default()
                     .string(cvar_string.as_ptr() as *mut c_char)
                     .build()
@@ -6142,11 +6142,11 @@ mod handle_set_configstring_tests {
             .expect_get_configstring()
             .with(predicate::eq(CS_SERVERINFO as u16))
             .returning(|_| r"\g_gameState\IN_PROGRESS".into());
+        let cvar_string = CString::new("1").expect("this should not happen");
         mock_engine
             .expect_find_cvar()
             .with(predicate::eq("zmq_stats_enable"))
-            .returning(|_| {
-                let cvar_string = CString::new("1").expect("this should not happen");
+            .returning(move |_| {
                 let mut raw_cvar = CVarBuilder::default()
                     .string(cvar_string.as_ptr() as *mut c_char)
                     .build()
@@ -6180,11 +6180,11 @@ mod handle_set_configstring_tests {
         _pyshinqlx_setup: (),
     ) {
         let mut mock_engine = MockQuakeEngine::new();
+        let cvar_string = CString::new("1").expect("this should not happen");
         mock_engine
             .expect_find_cvar()
             .with(predicate::eq("zmq_stats_enable"))
-            .returning(|_| {
-                let cvar_string = CString::new("1").expect("this should not happen");
+            .returning(move |_| {
                 let mut raw_cvar = CVarBuilder::default()
                     .string(cvar_string.as_ptr() as *mut c_char)
                     .build()
@@ -6239,11 +6239,11 @@ mod handle_set_configstring_tests {
         _pyshinqlx_setup: (),
     ) {
         let mut mock_engine = MockQuakeEngine::new();
+        let cvar_string = CString::new("1").expect("this should not happen");
         mock_engine
             .expect_find_cvar()
             .with(predicate::eq("zmq_stats_enable"))
-            .returning(|_| {
-                let cvar_string = CString::new("1").expect("this should not happen");
+            .returning(move |_| {
                 let mut raw_cvar = CVarBuilder::default()
                     .string(cvar_string.as_ptr() as *mut c_char)
                     .build()
@@ -6300,11 +6300,11 @@ mod handle_set_configstring_tests {
         _pyshinqlx_setup: (),
     ) {
         let mut mock_engine = MockQuakeEngine::new();
+        let cvar_string = CString::new("1").expect("this should not happen");
         mock_engine
             .expect_find_cvar()
             .with(predicate::eq("zmq_stats_enable"))
-            .returning(|_| {
-                let cvar_string = CString::new("1").expect("this should not happen");
+            .returning(move |_| {
                 let mut raw_cvar = CVarBuilder::default()
                     .string(cvar_string.as_ptr() as *mut c_char)
                     .build()
@@ -6359,11 +6359,11 @@ mod handle_set_configstring_tests {
         _pyshinqlx_setup: (),
     ) {
         let mut mock_engine = MockQuakeEngine::new();
+        let cvar_string = CString::new("1").expect("this should not happen");
         mock_engine
             .expect_find_cvar()
             .with(predicate::eq("zmq_stats_enable"))
-            .returning(|_| {
-                let cvar_string = CString::new("1").expect("this should not happen");
+            .returning(move |_| {
                 let mut raw_cvar = CVarBuilder::default()
                     .string(cvar_string.as_ptr() as *mut c_char)
                     .build()
@@ -6766,11 +6766,11 @@ mod handle_player_connect_tests {
     #[serial]
     fn try_handle_player_connect_forwards_to_dispatcher(_pyshinqlx_setup: ()) {
         let mut mock_engine = MockQuakeEngine::new();
+        let cvar_string = CString::new("1").expect("this should not happen");
         mock_engine
             .expect_find_cvar()
             .with(predicate::eq("zmq_stats_enable"))
-            .returning(|_| {
-                let cvar_string = CString::new("1").expect("this should not happen");
+            .returning(move |_| {
                 let mut raw_cvar = CVarBuilder::default()
                     .string(cvar_string.as_ptr() as *mut c_char)
                     .build()
@@ -6907,11 +6907,11 @@ mod handle_player_connect_tests {
     #[serial]
     fn try_handle_player_connect_when_dispatcher_returns_other_string(_pyshinqlx_setup: ()) {
         let mut mock_engine = MockQuakeEngine::new();
+        let cvar_string = CString::new("1").expect("this should not happen");
         mock_engine
             .expect_find_cvar()
             .with(predicate::eq("zmq_stats_enable"))
-            .returning(|_| {
-                let cvar_string = CString::new("1").expect("this should not happen");
+            .returning(move |_| {
                 let mut raw_cvar = CVarBuilder::default()
                     .string(cvar_string.as_ptr() as *mut c_char)
                     .build()
@@ -6991,11 +6991,11 @@ mod handle_player_connect_tests {
     #[serial]
     fn handle_player_connect_when_dispatcher_throws_exception(_pyshinqlx_setup: ()) {
         let mut mock_engine = MockQuakeEngine::new();
+        let cvar_string = CString::new("1").expect("this should not happen");
         mock_engine
             .expect_find_cvar()
             .with(predicate::eq("zmq_stats_enable"))
-            .returning(|_| {
-                let cvar_string = CString::new("1").expect("this should not happen");
+            .returning(move |_| {
                 let mut raw_cvar = CVarBuilder::default()
                     .string(cvar_string.as_ptr() as *mut c_char)
                     .build()
@@ -7124,11 +7124,11 @@ mod handle_player_loaded_tests {
     #[serial]
     fn try_handle_player_loaded_forwards_to_dispatcher(_pyshinqlx_setup: ()) {
         let mut mock_engine = MockQuakeEngine::new();
+        let cvar_string = CString::new("1").expect("this should not happen");
         mock_engine
             .expect_find_cvar()
             .with(predicate::eq("zmq_stats_enable"))
-            .returning(|_| {
-                let cvar_string = CString::new("1").expect("this should not happen");
+            .returning(move |_| {
                 let mut raw_cvar = CVarBuilder::default()
                     .string(cvar_string.as_ptr() as *mut c_char)
                     .build()
@@ -7265,11 +7265,11 @@ mod handle_player_loaded_tests {
     #[serial]
     fn handle_player_loaded_when_dispatcher_throws_exception(_pyshinqlx_setup: ()) {
         let mut mock_engine = MockQuakeEngine::new();
+        let cvar_string = CString::new("1").expect("this should not happen");
         mock_engine
             .expect_find_cvar()
             .with(predicate::eq("zmq_stats_enable"))
-            .returning(|_| {
-                let cvar_string = CString::new("1").expect("this should not happen");
+            .returning(move |_| {
                 let mut raw_cvar = CVarBuilder::default()
                     .string(cvar_string.as_ptr() as *mut c_char)
                     .build()
@@ -7405,11 +7405,11 @@ mod handle_player_disconnect_tests {
     #[serial]
     fn try_handle_player_disconnect_forwards_to_dispatcher(_pyshinqlx_setup: ()) {
         let mut mock_engine = MockQuakeEngine::new();
+        let cvar_string = CString::new("1").expect("this should not happen");
         mock_engine
             .expect_find_cvar()
             .with(predicate::eq("zmq_stats_enable"))
-            .returning(|_| {
-                let cvar_string = CString::new("1").expect("this should not happen");
+            .returning(move |_| {
                 let mut raw_cvar = CVarBuilder::default()
                     .string(cvar_string.as_ptr() as *mut c_char)
                     .build()
@@ -7546,11 +7546,11 @@ mod handle_player_disconnect_tests {
     #[serial]
     fn handle_player_disconnect_when_dispatcher_throws_exception(_pyshinqlx_setup: ()) {
         let mut mock_engine = MockQuakeEngine::new();
+        let cvar_string = CString::new("1").expect("this should not happen");
         mock_engine
             .expect_find_cvar()
             .with(predicate::eq("zmq_stats_enable"))
-            .returning(|_| {
-                let cvar_string = CString::new("1").expect("this should not happen");
+            .returning(move |_| {
                 let mut raw_cvar = CVarBuilder::default()
                     .string(cvar_string.as_ptr() as *mut c_char)
                     .build()
@@ -7679,11 +7679,11 @@ mod handle_player_spawn_tests {
     #[serial]
     fn try_handle_player_spawn_forwards_to_dispatcher(_pyshinqlx_setup: ()) {
         let mut mock_engine = MockQuakeEngine::new();
+        let cvar_string = CString::new("1").expect("this should not happen");
         mock_engine
             .expect_find_cvar()
             .with(predicate::eq("zmq_stats_enable"))
-            .returning(|_| {
-                let cvar_string = CString::new("1").expect("this should not happen");
+            .returning(move |_| {
                 let mut raw_cvar = CVarBuilder::default()
                     .string(cvar_string.as_ptr() as *mut c_char)
                     .build()
@@ -7820,11 +7820,11 @@ mod handle_player_spawn_tests {
     #[serial]
     fn handle_player_spawn_when_dispatcher_throws_exception(_pyshinqlx_setup: ()) {
         let mut mock_engine = MockQuakeEngine::new();
+        let cvar_string = CString::new("1").expect("this should not happen");
         mock_engine
             .expect_find_cvar()
             .with(predicate::eq("zmq_stats_enable"))
-            .returning(|_| {
-                let cvar_string = CString::new("1").expect("this should not happen");
+            .returning(move |_| {
                 let mut raw_cvar = CVarBuilder::default()
                     .string(cvar_string.as_ptr() as *mut c_char)
                     .build()
@@ -7951,11 +7951,11 @@ mod handle_kamikaze_use_tests {
     #[serial]
     fn try_handle_kamikaze_use_forwards_to_dispatcher(_pyshinqlx_setup: ()) {
         let mut mock_engine = MockQuakeEngine::new();
+        let cvar_string = CString::new("1").expect("this should not happen");
         mock_engine
             .expect_find_cvar()
             .with(predicate::eq("zmq_stats_enable"))
-            .returning(|_| {
-                let cvar_string = CString::new("1").expect("this should not happen");
+            .returning(move |_| {
                 let mut raw_cvar = CVarBuilder::default()
                     .string(cvar_string.as_ptr() as *mut c_char)
                     .build()
@@ -8092,11 +8092,11 @@ mod handle_kamikaze_use_tests {
     #[serial]
     fn handle_kamikaze_use_when_dispatcher_throws_exception(_pyshinqlx_setup: ()) {
         let mut mock_engine = MockQuakeEngine::new();
+        let cvar_string = CString::new("1").expect("this should not happen");
         mock_engine
             .expect_find_cvar()
             .with(predicate::eq("zmq_stats_enable"))
-            .returning(|_| {
-                let cvar_string = CString::new("1").expect("this should not happen");
+            .returning(move |_| {
                 let mut raw_cvar = CVarBuilder::default()
                     .string(cvar_string.as_ptr() as *mut c_char)
                     .build()
@@ -8230,11 +8230,11 @@ mod handle_kamikaze_explode_tests {
     #[serial]
     fn try_handle_kamikaze_explode_forwards_to_dispatcher(_pyshinqlx_setup: ()) {
         let mut mock_engine = MockQuakeEngine::new();
+        let cvar_string = CString::new("1").expect("this should not happen");
         mock_engine
             .expect_find_cvar()
             .with(predicate::eq("zmq_stats_enable"))
-            .returning(|_| {
-                let cvar_string = CString::new("1").expect("this should not happen");
+            .returning(move |_| {
                 let mut raw_cvar = CVarBuilder::default()
                     .string(cvar_string.as_ptr() as *mut c_char)
                     .build()
@@ -8320,11 +8320,11 @@ mod handle_kamikaze_explode_tests {
     #[serial]
     fn try_handle_kamikaze_explode_used_on_demand_forwards_to_dispatcher(_pyshinqlx_setup: ()) {
         let mut mock_engine = MockQuakeEngine::new();
+        let cvar_string = CString::new("1").expect("this should not happen");
         mock_engine
             .expect_find_cvar()
             .with(predicate::eq("zmq_stats_enable"))
-            .returning(|_| {
-                let cvar_string = CString::new("1").expect("this should not happen");
+            .returning(move |_| {
                 let mut raw_cvar = CVarBuilder::default()
                     .string(cvar_string.as_ptr() as *mut c_char)
                     .build()
@@ -8461,11 +8461,11 @@ mod handle_kamikaze_explode_tests {
     #[serial]
     fn handle_kamikaze_explode_when_dispatcher_throws_exception(_pyshinqlx_setup: ()) {
         let mut mock_engine = MockQuakeEngine::new();
+        let cvar_string = CString::new("1").expect("this should not happen");
         mock_engine
             .expect_find_cvar()
             .with(predicate::eq("zmq_stats_enable"))
-            .returning(|_| {
-                let cvar_string = CString::new("1").expect("this should not happen");
+            .returning(move |_| {
                 let mut raw_cvar = CVarBuilder::default()
                     .string(cvar_string.as_ptr() as *mut c_char)
                     .build()
@@ -8632,11 +8632,11 @@ mod handle_damage_tests {
     #[serial]
     fn try_handle_damage_forwards_to_dispatcher(_pyshinqlx_setup: ()) {
         let mut mock_engine = MockQuakeEngine::new();
+        let cvar_string = CString::new("1").expect("this should not happen");
         mock_engine
             .expect_find_cvar()
             .with(predicate::eq("zmq_stats_enable"))
-            .returning(|_| {
-                let cvar_string = CString::new("1").expect("this should not happen");
+            .returning(move |_| {
                 let mut raw_cvar = CVarBuilder::default()
                     .string(cvar_string.as_ptr() as *mut c_char)
                     .build()
@@ -8730,11 +8730,11 @@ mod handle_damage_tests {
     #[serial]
     fn try_handle_damage_forwards_to_dispatcher_with_entity_target(_pyshinqlx_setup: ()) {
         let mut mock_engine = MockQuakeEngine::new();
+        let cvar_string = CString::new("1").expect("this should not happen");
         mock_engine
             .expect_find_cvar()
             .with(predicate::eq("zmq_stats_enable"))
-            .returning(|_| {
-                let cvar_string = CString::new("1").expect("this should not happen");
+            .returning(move |_| {
                 let mut raw_cvar = CVarBuilder::default()
                     .string(cvar_string.as_ptr() as *mut c_char)
                     .build()
@@ -8828,11 +8828,11 @@ mod handle_damage_tests {
     #[serial]
     fn try_handle_damage_forwards_to_dispatcher_with_entity_attacking(_pyshinqlx_setup: ()) {
         let mut mock_engine = MockQuakeEngine::new();
+        let cvar_string = CString::new("1").expect("this should not happen");
         mock_engine
             .expect_find_cvar()
             .with(predicate::eq("zmq_stats_enable"))
-            .returning(|_| {
-                let cvar_string = CString::new("1").expect("this should not happen");
+            .returning(move |_| {
                 let mut raw_cvar = CVarBuilder::default()
                     .string(cvar_string.as_ptr() as *mut c_char)
                     .build()
@@ -8984,11 +8984,11 @@ mod handle_damage_tests {
     #[serial]
     fn handle_damage_when_dispatcher_throws_exception(_pyshinqlx_setup: ()) {
         let mut mock_engine = MockQuakeEngine::new();
+        let cvar_string = CString::new("1").expect("this should not happen");
         mock_engine
             .expect_find_cvar()
             .with(predicate::eq("zmq_stats_enable"))
-            .returning(|_| {
-                let cvar_string = CString::new("1").expect("this should not happen");
+            .returning(move |_| {
                 let mut raw_cvar = CVarBuilder::default()
                     .string(cvar_string.as_ptr() as *mut c_char)
                     .build()
@@ -9164,11 +9164,11 @@ mod handle_console_print_tests {
     #[serial]
     fn try_handle_console_print_forwards_to_python(_pyshinqlx_setup: ()) {
         let mut mock_engine = MockQuakeEngine::new();
+        let cvar_string = CString::new("1").expect("this should not happen");
         mock_engine
             .expect_find_cvar()
             .with(predicate::eq("zmq_stats_enable"))
-            .returning(|_| {
-                let cvar_string = CString::new("1").expect("this should not happen");
+            .returning(move |_| {
                 let mut raw_cvar = CVarBuilder::default()
                     .string(cvar_string.as_ptr() as *mut c_char)
                     .build()
@@ -9222,11 +9222,11 @@ mod handle_console_print_tests {
     #[serial]
     fn try_handle_console_print_when_dispatcher_returns_false(_pyshinqlx_setup: ()) {
         let mut mock_engine = MockQuakeEngine::new();
+        let cvar_string = CString::new("1").expect("this should not happen");
         mock_engine
             .expect_find_cvar()
             .with(predicate::eq("zmq_stats_enable"))
-            .returning(|_| {
-                let cvar_string = CString::new("1").expect("this should not happen");
+            .returning(move |_| {
                 let mut raw_cvar = CVarBuilder::default()
                     .string(cvar_string.as_ptr() as *mut c_char)
                     .build()
@@ -9274,11 +9274,11 @@ mod handle_console_print_tests {
     #[serial]
     fn try_handle_console_print_when_dispatcher_returns_other_string(_pyshinqlx_setup: ()) {
         let mut mock_engine = MockQuakeEngine::new();
+        let cvar_string = CString::new("1").expect("this should not happen");
         mock_engine
             .expect_find_cvar()
             .with(predicate::eq("zmq_stats_enable"))
-            .returning(|_| {
-                let cvar_string = CString::new("1").expect("this should not happen");
+            .returning(move |_| {
                 let mut raw_cvar = CVarBuilder::default()
                     .string(cvar_string.as_ptr() as *mut c_char)
                     .build()
@@ -9332,11 +9332,11 @@ mod handle_console_print_tests {
             .times(1);
 
         let mut mock_engine = MockQuakeEngine::new();
+        let cvar_string = CString::new("1").expect("this should not happen");
         mock_engine
             .expect_find_cvar()
             .with(predicate::eq("zmq_stats_enable"))
-            .returning(|_| {
-                let cvar_string = CString::new("1").expect("this should not happen");
+            .returning(move |_| {
                 let mut raw_cvar = CVarBuilder::default()
                     .string(cvar_string.as_ptr() as *mut c_char)
                     .build()

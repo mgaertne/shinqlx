@@ -1502,11 +1502,11 @@ class subplugin(Plugin):
     #[serial]
     fn add_hook_adds_hook_to_plugin_hooks(_pyshinqlx_setup: ()) {
         let mut mock_engine = MockQuakeEngine::new();
+        let cvar_string = CString::new("0").expect("this should not happen");
         mock_engine
             .expect_find_cvar()
             .with(predicate::eq("zmq_stats_enable"))
-            .returning(|_| {
-                let cvar_string = CString::new("0").expect("this should not happen");
+            .returning(move |_| {
                 let mut raw_cvar = CVarBuilder::default()
                     .string(cvar_string.as_ptr() as *mut c_char)
                     .build()
@@ -1557,11 +1557,11 @@ class subplugin(Plugin):
     #[serial]
     fn add_hook_adds_hook_to_event_dispatchers(_pyshinqlx_setup: ()) {
         let mut mock_engine = MockQuakeEngine::new();
+        let cvar_string = CString::new("0").expect("this should not happen");
         mock_engine
             .expect_find_cvar()
             .with(predicate::eq("zmq_stats_enable"))
-            .returning(|_| {
-                let cvar_string = CString::new("0").expect("this should not happen");
+            .returning(move |_| {
                 let mut raw_cvar = CVarBuilder::default()
                     .string(cvar_string.as_ptr() as *mut c_char)
                     .build()
@@ -1651,11 +1651,11 @@ class subplugin(Plugin):
     #[serial]
     fn remove_hook_removes_hook_from_event_dispatchers(_pyshinqlx_setup: ()) {
         let mut mock_engine = MockQuakeEngine::new();
+        let cvar_string = CString::new("1").expect("this should not happen");
         mock_engine
             .expect_find_cvar()
             .with(predicate::eq("zmq_stats_enable"))
-            .returning(|_| {
-                let cvar_string = CString::new("1").expect("this should not happen");
+            .returning(move |_| {
                 let mut raw_cvar = CVarBuilder::default()
                     .string(cvar_string.as_ptr() as *mut c_char)
                     .build()
@@ -1730,11 +1730,11 @@ class subplugin(Plugin):
     #[serial]
     fn remove_hook_removes_hook_from_plugin_instance(_pyshinqlx_setup: ()) {
         let mut mock_engine = MockQuakeEngine::new();
+        let cvar_string = CString::new("0").expect("this should not happen");
         mock_engine
             .expect_find_cvar()
             .with(predicate::eq("zmq_stats_enable"))
-            .returning(|_| {
-                let cvar_string = CString::new("0").expect("this should not happen");
+            .returning(move |_| {
                 let mut raw_cvar = CVarBuilder::default()
                     .string(cvar_string.as_ptr() as *mut c_char)
                     .build()
@@ -1794,11 +1794,11 @@ class subplugin(Plugin):
         _pyshinqlx_setup: (),
     ) {
         let mut mock_engine = MockQuakeEngine::new();
+        let cvar_string = CString::new("0").expect("this should not happen");
         mock_engine
             .expect_find_cvar()
             .with(predicate::eq("zmq_stats_enable"))
-            .returning(|_| {
-                let cvar_string = CString::new("0").expect("this should not happen");
+            .returning(move |_| {
                 let mut raw_cvar = CVarBuilder::default()
                     .string(cvar_string.as_ptr() as *mut c_char)
                     .build()
