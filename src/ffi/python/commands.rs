@@ -309,6 +309,98 @@ impl Command {
     }
 }
 
+#[cfg(test)]
+mod command_tests {
+    use super::Command;
+
+    use crate::ffi::python::prelude::ChatChannel;
+    use pyo3::exceptions::PyValueError;
+    use pyo3::prelude::*;
+
+    fn test_handler(py: Python<'_>) -> PyResult<PyObject> {
+        PyModule::from_code_bound(
+            py,
+            r#"
+def handler(*args, **kwargs):
+    pass
+        "#,
+            "",
+            "",
+        )
+        .and_then(|py_module| py_module.getattr("handler"))
+        .map(|handler| handler.unbind())
+    }
+
+    #[test]
+    #[cfg_attr(miri, ignore)]
+    fn constructor_with_uncallable_handler() {
+        Python::with_gil(|py| {
+            let command = Command::py_new(
+                py,
+                py.None(),
+                py.None(),
+                true.into_py(py),
+                0,
+                py.None(),
+                py.None(),
+                true,
+                0,
+                true,
+                "",
+            );
+            assert!(command.is_err_and(|err| err.is_instance_of::<PyValueError>(py)));
+        });
+    }
+
+    #[test]
+    #[cfg_attr(miri, ignore)]
+    fn constructor_with_wrong_channel_type() {
+        Python::with_gil(|py| {
+            let chat_channel = Py::new(py, ChatChannel::py_new("chat", "print \"{}\n\"\n"))
+                .expect("this should not happen");
+
+            let command = Command::py_new(
+                py,
+                py.None(),
+                py.None(),
+                test_handler(py).expect("this should not happen"),
+                0,
+                chat_channel.into_any(),
+                py.None(),
+                true,
+                0,
+                true,
+                "",
+            );
+            assert!(command.is_err_and(|err| err.is_instance_of::<PyValueError>(py)));
+        });
+    }
+
+    #[test]
+    #[cfg_attr(miri, ignore)]
+    fn constructor_with_wrong_exclude_channel_type() {
+        Python::with_gil(|py| {
+            let chat_channel = Py::new(py, ChatChannel::py_new("chat", "print \"{}\n\"\n"))
+                .expect("this should not happen");
+
+            let command = Command::py_new(
+                py,
+                py.None(),
+                py.None(),
+                test_handler(py).expect("this should not happen"),
+                0,
+                py.None(),
+                chat_channel.into_any(),
+                true,
+                0,
+                true,
+                "",
+            );
+            assert!(command.is_err_and(|err| err.is_instance_of::<PyValueError>(py)));
+        });
+    }
+}
+
 #[allow(non_camel_case_types)]
 pub(crate) enum CommandPriorities {
     PRI_HIGHEST,
