@@ -313,9 +313,13 @@ impl Command {
 mod command_tests {
     use super::Command;
 
-    use crate::ffi::python::prelude::ChatChannel;
-    use pyo3::exceptions::PyValueError;
+    use crate::ffi::python::prelude::{ChatChannel, ConsoleChannel};
+
     use pyo3::prelude::*;
+    use pyo3::{
+        exceptions::PyValueError,
+        types::{PyList, PyTuple},
+    };
 
     fn test_handler(py: Python<'_>) -> PyResult<PyObject> {
         PyModule::from_code_bound(
@@ -397,6 +401,165 @@ def handler(*args, **kwargs):
                 "",
             );
             assert!(command.is_err_and(|err| err.is_instance_of::<PyValueError>(py)));
+        });
+    }
+
+    #[test]
+    #[cfg_attr(miri, ignore)]
+    fn constructor_with_names_in_pylist() {
+        Python::with_gil(|py| {
+            let names_vec = vec![
+                "name1".to_string(),
+                "name2".to_string(),
+                "name3".to_string(),
+            ];
+            let names_pylist = PyList::new_bound(py, &names_vec);
+
+            let command = Command::py_new(
+                py,
+                py.None(),
+                names_pylist.into_py(py),
+                test_handler(py).expect("this should not happen"),
+                0,
+                py.None(),
+                py.None(),
+                true,
+                0,
+                true,
+                "",
+            );
+            assert!(command.is_ok_and(|cmd| cmd.name == names_vec));
+        });
+    }
+
+    #[test]
+    #[cfg_attr(miri, ignore)]
+    fn constructor_with_names_in_pytuple() {
+        Python::with_gil(|py| {
+            let names_vec = vec![
+                "name1".to_string(),
+                "name2".to_string(),
+                "name3".to_string(),
+            ];
+            let names_pylist = PyTuple::new_bound(py, &names_vec);
+
+            let command = Command::py_new(
+                py,
+                py.None(),
+                names_pylist.into_py(py),
+                test_handler(py).expect("this should not happen"),
+                0,
+                py.None(),
+                py.None(),
+                true,
+                0,
+                true,
+                "",
+            );
+            assert!(command.is_ok_and(|cmd| cmd.name == names_vec));
+        });
+    }
+
+    #[test]
+    #[cfg_attr(miri, ignore)]
+    fn constructor_with_single_name_as_string() {
+        Python::with_gil(|py| {
+            let command = Command::py_new(
+                py,
+                py.None(),
+                "cmd_name".into_py(py),
+                test_handler(py).expect("this should not happen"),
+                0,
+                py.None(),
+                py.None(),
+                true,
+                0,
+                true,
+                "",
+            );
+            assert!(command.is_ok_and(|cmd| cmd.name == vec!["cmd_name".to_string()]));
+        });
+    }
+
+    #[test]
+    #[cfg_attr(miri, ignore)]
+    fn constructor_with_multiple_whitelist_channels() {
+        Python::with_gil(|py| {
+            let chat_channel = Py::new(py, ChatChannel::py_new("chat", "print \"{}\n\"\n"))
+                .expect("this should not happen");
+            let console_channel =
+                Py::new(py, ConsoleChannel::py_new()).expect("this should not happen");
+
+            let command = Command::py_new(
+                py,
+                py.None(),
+                "cmd_name".into_py(py),
+                test_handler(py).expect("this should not happen"),
+                0,
+                vec![
+                    chat_channel.clone().into_py(py),
+                    console_channel.clone().into_py(py),
+                ]
+                .into_py(py),
+                py.None(),
+                true,
+                0,
+                true,
+                "",
+            );
+            assert!(command.is_ok_and(|cmd| cmd
+                .channels
+                .clone()
+                .into_py(py)
+                .bind(py)
+                .eq(vec![
+                    chat_channel.clone().into_py(py),
+                    console_channel.clone().into_py(py)
+                ]
+                .into_py(py)
+                .bind(py))
+                .expect("this should not happen")));
+        });
+    }
+
+    #[test]
+    #[cfg_attr(miri, ignore)]
+    fn constructor_with_multiple_exclude_channels() {
+        Python::with_gil(|py| {
+            let chat_channel = Py::new(py, ChatChannel::py_new("chat", "print \"{}\n\"\n"))
+                .expect("this should not happen");
+            let console_channel =
+                Py::new(py, ConsoleChannel::py_new()).expect("this should not happen");
+
+            let command = Command::py_new(
+                py,
+                py.None(),
+                "cmd_name".into_py(py),
+                test_handler(py).expect("this should not happen"),
+                0,
+                py.None(),
+                vec![
+                    chat_channel.clone().into_py(py),
+                    console_channel.clone().into_py(py),
+                ]
+                .into_py(py),
+                true,
+                0,
+                true,
+                "",
+            );
+            assert!(command.is_ok_and(|cmd| cmd
+                .exclude_channels
+                .clone()
+                .into_py(py)
+                .bind(py)
+                .eq(vec![
+                    chat_channel.clone().into_py(py),
+                    console_channel.clone().into_py(py)
+                ]
+                .into_py(py)
+                .bind(py))
+                .expect("this should not happen")));
         });
     }
 }
