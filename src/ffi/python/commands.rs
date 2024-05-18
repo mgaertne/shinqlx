@@ -1,6 +1,9 @@
 use super::prelude::*;
 use super::{owner, pyshinqlx_get_logger, PythonReturnCodes, EVENT_DISPATCHERS};
 
+use crate::quake_live_engine::FindCVar;
+use crate::MAIN_ENGINE;
+
 use pyo3::prelude::*;
 use pyo3::{
     exceptions::{PyEnvironmentError, PyKeyError, PyValueError},
@@ -72,7 +75,7 @@ impl Command {
                         .extract::<String>()
                         .ok()
                         .iter()
-                        .for_each(|alias| names.push(alias.clone()));
+                        .for_each(|alias| names.push(alias.to_lowercase()));
                 })
             });
         name.bind(py)
@@ -85,7 +88,7 @@ impl Command {
                         .extract::<String>()
                         .ok()
                         .iter()
-                        .for_each(|alias| names.push(alias.clone()));
+                        .for_each(|alias| names.push(alias.to_lowercase()));
                 })
             });
         name.extract::<String>(py)
@@ -157,44 +160,52 @@ impl Command {
         let Some(command_name) = self.name.first() else {
             return Err(PyKeyError::new_err("command has no 'name'"));
         };
+
         let plugin = self.plugin.clone_ref(py);
         let plugin_name = plugin.getattr(py, intern!(py, "name"))?;
-        let logger = pyshinqlx_get_logger(py, Some(plugin))?;
-        let logging_module = py.import_bound(intern!(py, "logging"))?;
-        let debug_level = logging_module.getattr(intern!(py, "DEBUG"))?;
-        let log_record = logger.call_method(
-            intern!(py, "makeRecord"),
-            (
-                intern!(py, "shinqlx"),
-                debug_level,
-                intern!(py, ""),
-                -1,
-                intern!(py, "%s executed: %s @ %s -> %s"),
-                (player.steam_id, command_name, plugin_name, &channel),
-                py.None(),
-            ),
-            Some(&[(intern!(py, "func"), intern!(py, "execute"))].into_py_dict_bound(py)),
-        )?;
-        logger.call_method1(intern!(py, "handle"), (log_record,))?;
+        pyshinqlx_get_logger(py, Some(plugin)).and_then(|logger| {
+            let logging_module = py.import_bound(intern!(py, "logging"))?;
+            let debug_level = logging_module.getattr(intern!(py, "DEBUG"))?;
+            logger
+                .call_method(
+                    intern!(py, "makeRecord"),
+                    (
+                        intern!(py, "shinqlx"),
+                        debug_level,
+                        intern!(py, ""),
+                        -1,
+                        intern!(py, "%s executed: %s @ %s -> %s"),
+                        (player.steam_id, command_name, plugin_name, &channel),
+                        py.None(),
+                    ),
+                    Some(&[(intern!(py, "func"), intern!(py, "execute"))].into_py_dict_bound(py)),
+                )
+                .and_then(|log_record| logger.call_method1(intern!(py, "handle"), (log_record,)))
+        })?;
 
         let msg_vec: Vec<&str> = msg.split(' ').collect();
         self.handler
             .bind(py)
             .call1((player, msg_vec, &channel))
-            .map(|return_value| return_value.into_py(py))
+            .map(|return_value| return_value.unbind())
     }
 
     fn is_eligible_name(&self, py: Python<'_>, name: &str) -> bool {
-        let compared_name = if !self.prefix {
-            Some(name)
-        } else {
-            pyshinqlx_get_cvar(py, "qlx_commandPrefix")
-                .ok()
-                .flatten()
-                .and_then(|prefix| name.strip_prefix(prefix.as_str()))
-        };
+        py.allow_threads(|| {
+            let compared_name = if !self.prefix {
+                Some(name)
+            } else {
+                MAIN_ENGINE.load().as_ref().and_then(|main_engine| {
+                    main_engine
+                        .find_cvar("qlx_commandPrefix")
+                        .and_then(|cvar_prefix| {
+                            name.strip_prefix(cvar_prefix.get_string().as_ref())
+                        })
+                })
+            };
 
-        compared_name.is_some_and(|name| self.name.contains(&name.to_lowercase()))
+            compared_name.is_some_and(|name| self.name.contains(&name.to_lowercase()))
+        })
     }
 
     /// Check if a chat channel is one this command should execute in.
@@ -313,12 +324,21 @@ impl Command {
 mod command_tests {
     use super::Command;
 
+    use crate::ffi::c::prelude::{cvar_t, CVar, CVarBuilder};
     use crate::ffi::python::{
         prelude::{ChatChannel, ConsoleChannel},
         pyshinqlx_setup_fixture::pyshinqlx_setup,
         pyshinqlx_test_support::*,
     };
+    use crate::{
+        prelude::{serial, MockQuakeEngine},
+        MAIN_ENGINE,
+    };
 
+    use alloc::ffi::CString;
+    use core::ffi::c_char;
+
+    use mockall::predicate;
     use rstest::*;
 
     use pyo3::prelude::*;
@@ -624,6 +644,74 @@ def handler(*args, **kwargs):
 
             let result = command.execute(py, default_test_player(), "cmd", py.None());
             assert!(result.is_err_and(|err| err.is_instance_of::<PyKeyError>(py)));
+        });
+    }
+
+    #[test]
+    #[cfg_attr(miri, ignore)]
+    fn is_eligible_name_with_no_prefix() {
+        Python::with_gil(|py| {
+            let capturing_hook = capturing_hook(py);
+            let command = Command {
+                plugin: test_plugin(py).unbind(),
+                name: vec!["cmd_name".into()],
+                handler: capturing_hook
+                    .getattr("hook")
+                    .expect("could not get capturing hook")
+                    .unbind(),
+                permission: 0,
+                channels: vec![],
+                exclude_channels: vec![],
+                client_cmd_pass: false,
+                client_cmd_perm: 0,
+                prefix: false,
+                usage: "".to_string(),
+            };
+
+            assert!(command.is_eligible_name(py, "cmd_name"));
+            assert!(!command.is_eligible_name(py, "unmatched_cmd_name"));
+            assert!(!command.is_eligible_name(py, "!cmd_name"));
+        });
+    }
+
+    #[test]
+    #[cfg_attr(miri, ignore)]
+    #[serial]
+    fn is_eligible_name_with_prefix() {
+        let mut mock_engine = MockQuakeEngine::new();
+        let cvar_string = CString::new("!").expect("this should not happen");
+        mock_engine
+            .expect_find_cvar()
+            .with(predicate::eq("qlx_commandPrefix"))
+            .returning(move |_| {
+                let mut raw_cvar = CVarBuilder::default()
+                    .string(cvar_string.as_ptr() as *mut c_char)
+                    .build()
+                    .expect("this should not happen");
+                CVar::try_from(&mut raw_cvar as *mut cvar_t).ok()
+            });
+        MAIN_ENGINE.store(Some(mock_engine.into()));
+        Python::with_gil(|py| {
+            let capturing_hook = capturing_hook(py);
+            let command = Command {
+                plugin: test_plugin(py).unbind(),
+                name: vec!["cmd_name".into()],
+                handler: capturing_hook
+                    .getattr("hook")
+                    .expect("could not get capturing hook")
+                    .unbind(),
+                permission: 0,
+                channels: vec![],
+                exclude_channels: vec![],
+                client_cmd_pass: false,
+                client_cmd_perm: 0,
+                prefix: true,
+                usage: "".to_string(),
+            };
+
+            assert!(!command.is_eligible_name(py, "cmd_name"));
+            assert!(!command.is_eligible_name(py, "!unmatched_cmd_name"));
+            assert!(command.is_eligible_name(py, "!cmd_name"));
         });
     }
 }
