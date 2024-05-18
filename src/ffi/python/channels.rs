@@ -641,31 +641,13 @@ impl TellChannel {
 mod tell_channel_tests {
     use crate::ffi::c::prelude::*;
     use crate::ffi::python::prelude::*;
+    use crate::ffi::python::pyshinqlx_test_support::*;
     use crate::prelude::*;
 
     use mockall::predicate;
     use pretty_assertions::assert_eq;
     use pyo3::types::IntoPyDict;
     use rstest::rstest;
-
-    fn default_test_player() -> Player {
-        Player {
-            valid: true,
-            id: 2,
-            player_info: PlayerInfo {
-                client_id: 2,
-                name: "".to_string(),
-                connection_state: clientState_t::CS_CONNECTED as i32,
-                userinfo: "".to_string(),
-                steam_id: 1234567890,
-                team: team_t::TEAM_SPECTATOR as i32,
-                privileges: privileges_t::PRIV_NONE as i32,
-            },
-            user_info: "".to_string(),
-            steam_id: 1234567890,
-            name: "".to_string(),
-        }
-    }
 
     #[rstest]
     #[cfg_attr(miri, ignore)]
@@ -1017,31 +999,13 @@ impl ClientCommandChannel {
 mod client_command_channel_tests {
     use crate::ffi::c::prelude::*;
     use crate::ffi::python::prelude::*;
+    use crate::ffi::python::pyshinqlx_test_support::*;
     use crate::prelude::*;
 
     use mockall::predicate;
     use pretty_assertions::assert_eq;
     use pyo3::types::IntoPyDict;
     use rstest::rstest;
-
-    fn default_test_player() -> Player {
-        Player {
-            valid: true,
-            id: 2,
-            player_info: PlayerInfo {
-                client_id: 2,
-                name: "".to_string(),
-                connection_state: clientState_t::CS_CONNECTED as i32,
-                userinfo: "".to_string(),
-                steam_id: 1234567890,
-                team: team_t::TEAM_SPECTATOR as i32,
-                privileges: privileges_t::PRIV_NONE as i32,
-            },
-            user_info: "".to_string(),
-            steam_id: 1234567890,
-            name: "".to_string(),
-        }
-    }
 
     #[rstest]
     #[cfg_attr(miri, ignore)]

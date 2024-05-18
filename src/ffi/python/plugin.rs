@@ -1195,8 +1195,8 @@ mod plugin_tests {
     use crate::prelude::*;
 
     use crate::ffi::python::{
-        pyshinqlx_test_support::run_all_frame_tasks, BLUE_TEAM_CHAT_CHANNEL, CHAT_CHANNEL,
-        COMMANDS, CONSOLE_CHANNEL, EVENT_DISPATCHERS, RED_TEAM_CHAT_CHANNEL,
+        pyshinqlx_test_support::*, BLUE_TEAM_CHAT_CHANNEL, CHAT_CHANNEL, COMMANDS, CONSOLE_CHANNEL,
+        EVENT_DISPATCHERS, RED_TEAM_CHAT_CHANNEL,
     };
     use crate::hooks::mock_hooks::{
         shinqlx_com_printf_context, shinqlx_drop_client_context,
@@ -1217,52 +1217,11 @@ mod plugin_tests {
     };
     use rstest::rstest;
 
-    fn default_test_player_info() -> PlayerInfo {
-        PlayerInfo {
-            client_id: 0,
-            name: "Mocked Player".to_string(),
-            connection_state: clientState_t::CS_ACTIVE as i32,
-            userinfo: "asdf".to_string(),
-            steam_id: 1234,
-            team: team_t::TEAM_RED as i32,
-            privileges: 0,
-        }
-    }
-
-    fn default_test_player() -> Player {
-        Player {
-            valid: true,
-            id: 0,
-            player_info: default_test_player_info(),
-            name: "Mocked Player".to_string(),
-            steam_id: 1234,
-            user_info: "asdf".to_string(),
-        }
-    }
-
-    fn test_plugin(py: Python) -> Result<Bound<PyAny>, PyErr> {
-        let extended_plugin = PyModule::from_code_bound(
-            py,
-            r#"
-from shinqlx import Plugin
-
-
-class subplugin(Plugin):
-    def __init__(self):
-        super().__init__()
-"#,
-            "",
-            "",
-        )?
-        .getattr("subplugin")?;
-        Ok(extended_plugin)
-    }
-
     #[rstest]
     #[cfg_attr(miri, ignore)]
     fn plugin_can_be_subclassed_from_python(_pyshinqlx_setup: ()) {
         Python::with_gil(|py| {
-            let extended_plugin = test_plugin(py)?;
+            let extended_plugin = test_plugin(py);
             extended_plugin.call0()?;
             Ok::<(), PyErr>(())
         })
@@ -1273,10 +1232,10 @@ class subplugin(Plugin):
     #[cfg_attr(miri, ignore)]
     fn str_returns_plugin_typename(_pyshinqlx_setup: ()) {
         Python::with_gil(|py| {
-            let extended_plugin = test_plugin(py)?;
+            let extended_plugin = test_plugin(py);
             let plugin_instance = extended_plugin.call0()?;
             let plugin_str = plugin_instance.str()?;
-            assert_eq!(plugin_str.to_string(), "subplugin");
+            assert_eq!(plugin_str.to_string(), "test_plugin");
             Ok::<(), PyErr>(())
         })
         .unwrap();
@@ -1286,7 +1245,7 @@ class subplugin(Plugin):
     #[cfg_attr(miri, ignore)]
     fn get_db_when_no_db_type_set(_pyshinqlx_setup: ()) {
         Python::with_gil(|py| {
-            let extended_plugin = test_plugin(py)?;
+            let extended_plugin = test_plugin(py);
 
             let _ = py.get_type_bound::<Plugin>().delattr("database");
 
@@ -1302,7 +1261,7 @@ class subplugin(Plugin):
     #[cfg_attr(miri, ignore)]
     fn get_db_when_no_db_set(_pyshinqlx_setup: ()) {
         Python::with_gil(|py| {
-            let extended_plugin = test_plugin(py)?;
+            let extended_plugin = test_plugin(py);
 
             py.get_type_bound::<Plugin>()
                 .setattr("database", py.None())?;
@@ -1319,7 +1278,7 @@ class subplugin(Plugin):
     #[cfg_attr(miri, ignore)]
     fn get_db_when_db_set_to_redis(_pyshinqlx_setup: ()) {
         Python::with_gil(|py| {
-            let extended_plugin = test_plugin(py)?;
+            let extended_plugin = test_plugin(py);
 
             let redis_type = py.get_type_bound::<Redis>();
             py.get_type_bound::<Plugin>()
@@ -1337,10 +1296,10 @@ class subplugin(Plugin):
     #[cfg_attr(miri, ignore)]
     fn name_property_returns_plugin_typename(_pyshinqlx_setup: ()) {
         let res: PyResult<()> = Python::with_gil(|py| {
-            let extended_plugin = test_plugin(py)?;
+            let extended_plugin = test_plugin(py);
             let plugin_instance = extended_plugin.call0()?;
             let plugin_str = plugin_instance.getattr("name")?;
-            assert_eq!(plugin_str.extract::<&str>()?, "subplugin");
+            assert_eq!(plugin_str.extract::<&str>()?, "test_plugin");
             Ok(())
         });
         assert!(res.is_ok());
@@ -1350,7 +1309,7 @@ class subplugin(Plugin):
     #[cfg_attr(miri, ignore)]
     fn plugins_property_returns_loaded_plugins(_pyshinqlx_setup: ()) {
         let res: PyResult<()> = Python::with_gil(|py| {
-            let extended_plugin = test_plugin(py)?;
+            let extended_plugin = test_plugin(py);
 
             let loaded_plugins = PyDict::new_bound(py);
             loaded_plugins.set_item("asdf", "asdfplugin")?;
@@ -1455,7 +1414,7 @@ class subplugin(Plugin):
                 .getattr("Logger")
                 .expect("could not get logging.Logger");
 
-            let extended_plugin = test_plugin(py)?;
+            let extended_plugin = test_plugin(py);
             let plugin_instance = extended_plugin.call0()?;
             let result = plugin_instance.getattr("logger");
             assert!(result
@@ -1467,7 +1426,7 @@ class subplugin(Plugin):
                         .str()
                         .unwrap()
                         .to_string()
-                        == "shinqlx.subplugin"),);
+                        == "shinqlx.test_plugin"),);
             Ok::<(), PyErr>(())
         })
         .expect("python result was not ok.");
@@ -1480,7 +1439,7 @@ class subplugin(Plugin):
         EVENT_DISPATCHERS.store(None);
 
         Python::with_gil(|py| {
-            let extended_plugin = test_plugin(py).expect("could not get extended test plugin");
+            let extended_plugin = test_plugin(py);
             let plugin_instance = extended_plugin
                 .call0()
                 .expect("could not create plugin instance");
@@ -1526,7 +1485,7 @@ class subplugin(Plugin):
                     .into(),
             ));
 
-            let extended_plugin = test_plugin(py).expect("could not get extended test plugin");
+            let extended_plugin = test_plugin(py);
             let plugin_instance = extended_plugin
                 .call0()
                 .expect("could not create plugin instance");
@@ -1581,7 +1540,7 @@ class subplugin(Plugin):
                     .into(),
             ));
 
-            let extended_plugin = test_plugin(py).expect("could not get extended test plugin");
+            let extended_plugin = test_plugin(py);
             let plugin_instance = extended_plugin
                 .call0()
                 .expect("could not create plugin instance");
@@ -1611,7 +1570,7 @@ class subplugin(Plugin):
                         .expect("could not get plugins")
                         .downcast::<PyDict>()
                         .expect("could not downcast to dict")
-                        .get_item("subplugin")
+                        .get_item("test_plugin")
                         .is_ok_and(|opt_plugin| opt_plugin.is_some_and(|plugin| plugin
                             .get_item(CommandPriorities::PRI_NORMAL as i32)
                             .is_ok_and(|normal_hooks| normal_hooks
@@ -1626,7 +1585,7 @@ class subplugin(Plugin):
     #[serial]
     fn remove_hook_with_no_event_dispatchers(_pyshinqlx_setup: ()) {
         Python::with_gil(|py| {
-            let extended_plugin = test_plugin(py).expect("could not get extended test plugin");
+            let extended_plugin = test_plugin(py);
 
             EVENT_DISPATCHERS.store(None);
 
@@ -1675,7 +1634,7 @@ class subplugin(Plugin):
                     .into(),
             ));
 
-            let extended_plugin = test_plugin(py).expect("could not get extended test plugin");
+            let extended_plugin = test_plugin(py);
             let plugin_instance = extended_plugin
                 .call0()
                 .expect("could not create plugin instance");
@@ -1715,7 +1674,7 @@ class subplugin(Plugin):
                         .expect("could not get plugins")
                         .downcast::<PyDict>()
                         .expect("could not downcast to dict")
-                        .get_item("subplugin")
+                        .get_item("test_plugin")
                         .is_ok_and(|opt_plugin| opt_plugin.is_some_and(|plugin| plugin
                             .get_item(CommandPriorities::PRI_NORMAL as i32)
                             .is_ok_and(|normal_hooks| normal_hooks
@@ -1754,7 +1713,7 @@ class subplugin(Plugin):
                     .into(),
             ));
 
-            let extended_plugin = test_plugin(py).expect("could not get extended test plugin");
+            let extended_plugin = test_plugin(py);
             let plugin_instance = extended_plugin
                 .call0()
                 .expect("could not create plugin instance");
@@ -1818,7 +1777,7 @@ class subplugin(Plugin):
                     .into(),
             ));
 
-            let extended_plugin = test_plugin(py).expect("could not get extended test plugin");
+            let extended_plugin = test_plugin(py);
             let plugin_instance = extended_plugin
                 .call0()
                 .expect("could not create plugin instance");
@@ -1888,7 +1847,7 @@ def handler():
                     .into(),
             ));
 
-            let extended_plugin = test_plugin(py).expect("could not get extended test plugin");
+            let extended_plugin = test_plugin(py);
             let plugin_instance = extended_plugin
                 .call0()
                 .expect("could not create plugin instance");
@@ -1952,7 +1911,7 @@ def handler():
                     .into(),
             ));
 
-            let extended_plugin = test_plugin(py).expect("could not get extended test plugin");
+            let extended_plugin = test_plugin(py);
             let plugin_instance = extended_plugin
                 .call0()
                 .expect("could not create plugin instance");
@@ -2009,7 +1968,7 @@ def handler():
                     .into(),
             ));
 
-            let extended_plugin = test_plugin(py).expect("could not get extended test plugin");
+            let extended_plugin = test_plugin(py);
             let plugin_instance = extended_plugin
                 .call0()
                 .expect("could not create plugin instance");
@@ -2075,7 +2034,7 @@ def handler():
                     .into(),
             ));
 
-            let extended_plugin = test_plugin(py).expect("could not get extended test plugin");
+            let extended_plugin = test_plugin(py);
             let plugin_instance = extended_plugin
                 .call0()
                 .expect("could not create plugin instance");
@@ -2162,7 +2121,7 @@ def handler():
                     .into(),
             ));
 
-            let extended_plugin = test_plugin(py).expect("could not get extended test plugin");
+            let extended_plugin = test_plugin(py);
             let plugin_instance = extended_plugin
                 .call0()
                 .expect("could not create plugin instance");
@@ -2229,7 +2188,7 @@ def handler():
                     .into(),
             ));
 
-            let extended_plugin = test_plugin(py).expect("could not get extended test plugin");
+            let extended_plugin = test_plugin(py);
             let plugin_instance = extended_plugin
                 .call0()
                 .expect("could not create plugin instance");
@@ -3238,13 +3197,36 @@ def handler():
         assert_eq!(
             all_players.expect("result was not ok"),
             vec![
-                default_test_player(),
+                Player {
+                    id: 0,
+                    player_info: PlayerInfo {
+                        client_id: 0,
+                        name: "Mocked Player".into(),
+                        connection_state: clientState_t::CS_ACTIVE as i32,
+                        userinfo: "asdf".into(),
+                        steam_id: 1234,
+                        team: team_t::TEAM_RED as i32,
+                        ..default_test_player_info()
+                    },
+                    user_info: "asdf".into(),
+                    steam_id: 1234,
+                    name: "Mocked Player".into(),
+                    ..default_test_player()
+                },
                 Player {
                     id: 2,
                     player_info: PlayerInfo {
                         client_id: 2,
+                        name: "Mocked Player".into(),
+                        connection_state: clientState_t::CS_ACTIVE as i32,
+                        userinfo: "asdf".into(),
+                        steam_id: 1234,
+                        team: team_t::TEAM_RED as i32,
                         ..default_test_player_info()
                     },
+                    user_info: "asdf".into(),
+                    steam_id: 1234,
+                    name: "Mocked Player".into(),
                     ..default_test_player()
                 },
             ]
@@ -3311,12 +3293,20 @@ def handler():
                 .is_some_and(|player| player
                     == Player {
                         id: 42,
+                        name: "Mocked Player".into(),
+                        steam_id: 1234,
+                        user_info: "asdf".into(),
                         player_info: PlayerInfo {
                             client_id: 42,
+                            name: "Mocked Player".into(),
+                            team: team_t::TEAM_RED as i32,
+                            steam_id: 1234,
+                            userinfo: "asdf".into(),
+                            connection_state: clientState_t::CS_ACTIVE as i32,
                             ..default_test_player_info()
                         },
                         ..default_test_player()
-                    },),);
+                    }));
         });
     }
 
@@ -3324,14 +3314,22 @@ def handler():
     #[cfg_attr(miri, ignore)]
     fn player_for_provided_steam_id_from_player_list(_pyshinqlx_setup: ()) {
         Python::with_gil(|py| {
+            let player = Player {
+                steam_id: 1234,
+                player_info: PlayerInfo {
+                    steam_id: 1234,
+                    ..default_test_player_info()
+                },
+                ..default_test_player()
+            };
             let result = Plugin::player(
                 &py.get_type_bound::<Plugin>(),
                 1234.into_py(py),
-                Some(vec![default_test_player()]),
+                Some(vec![player.clone()]),
             );
             assert!(result
                 .expect("result was not ok")
-                .is_some_and(|result_player| result_player == default_test_player()));
+                .is_some_and(|result_player| result_player == player));
         });
     }
 
@@ -3352,14 +3350,22 @@ def handler():
     #[cfg_attr(miri, ignore)]
     fn player_for_provided_name_from_player_list(_pyshinqlx_setup: ()) {
         Python::with_gil(|py| {
+            let player = Player {
+                name: "Mocked Player".into(),
+                player_info: PlayerInfo {
+                    name: "Mocked Player".into(),
+                    ..default_test_player_info()
+                },
+                ..default_test_player()
+            };
             let result = Plugin::player(
                 &py.get_type_bound::<Plugin>(),
                 "Mocked Player".into_py(py),
-                Some(vec![default_test_player()]),
+                Some(vec![player.clone()]),
             );
             assert!(result
                 .expect("result was not ok")
-                .is_some_and(|result_player| result_player == default_test_player()));
+                .is_some_and(|result_player| result_player == player));
         });
     }
 
@@ -3643,7 +3649,7 @@ def handler():
         let client_try_from_ctx = MockClient::from_context();
         client_try_from_ctx
             .expect()
-            .with(predicate::eq(0))
+            .with(predicate::eq(2))
             .returning(|_client_id| {
                 let mut mock_client = MockClient::new();
                 mock_client
@@ -3712,11 +3718,12 @@ def handler():
     #[cfg_attr(miri, ignore)]
     fn colored_name_for_provided_player(_pyshinqlx_setup: ()) {
         Python::with_gil(|py| {
-            let result = Plugin::colored_name(
-                &py.get_type_bound::<Plugin>(),
-                default_test_player().into_py(py),
-                None,
-            );
+            let player = Player {
+                name: "Mocked Player".into(),
+                ..default_test_player()
+            };
+            let result =
+                Plugin::colored_name(&py.get_type_bound::<Plugin>(), player.into_py(py), None);
             assert_eq!(result.expect("result was none"), "Mocked Player");
         });
     }
@@ -3725,10 +3732,14 @@ def handler():
     #[cfg_attr(miri, ignore)]
     fn colored_name_for_player_in_provided_playerlist(_pyshinqlx_setup: ()) {
         Python::with_gil(|py| {
+            let player = Player {
+                name: "Mocked Player".into(),
+                ..default_test_player()
+            };
             let result = Plugin::colored_name(
                 &py.get_type_bound::<Plugin>(),
                 "Mocked Player".into_py(py),
-                Some(vec![default_test_player()]),
+                Some(vec![player]),
             );
             assert_eq!(result.expect("result was none"), "Mocked Player");
         });
@@ -4080,6 +4091,7 @@ def handler():
             player_info: PlayerInfo {
                 client_id: 1,
                 steam_id: 1235,
+                team: team_t::TEAM_RED as i32,
                 ..default_test_player_info()
             },
             ..default_test_player()
@@ -4125,7 +4137,7 @@ def handler():
                     ("spectator".into_py(py), vec![player4].into_py(py))
                 ]
                 .into_py_dict_bound(py))
-                .expect("comparison was not ok"),);
+                .expect("comparison was not ok"));
         });
     }
 
@@ -4195,7 +4207,7 @@ def handler():
         let client_try_from_ctx = MockClient::from_context();
         client_try_from_ctx
             .expect()
-            .with(predicate::eq(0))
+            .with(predicate::eq(2))
             .returning(|_client_id| {
                 let mut mock_client = MockClient::new();
                 mock_client
@@ -4216,7 +4228,7 @@ def handler():
         let game_entity_try_from_ctx = MockGameEntity::from_context();
         game_entity_try_from_ctx
             .expect()
-            .with(predicate::eq(0))
+            .with(predicate::eq(2))
             .returning(|_client_id| {
                 let mut mock_game_entity = MockGameEntity::new();
                 mock_game_entity
@@ -4659,7 +4671,7 @@ def handler():
         let client_try_from_ctx = MockClient::from_context();
         client_try_from_ctx
             .expect()
-            .with(predicate::eq(0))
+            .with(predicate::eq(2))
             .returning(move |_| {
                 let mut mock_client = MockClient::new();
                 mock_client
@@ -4695,7 +4707,7 @@ def handler():
         let client_try_from_ctx = MockClient::from_context();
         client_try_from_ctx
             .expect()
-            .with(predicate::eq(0))
+            .with(predicate::eq(2))
             .returning(move |_| {
                 let mut mock_client = MockClient::new();
                 mock_client
@@ -4932,7 +4944,7 @@ def handler():
         let client_try_from_ctx = MockClient::from_context();
         client_try_from_ctx
             .expect()
-            .with(predicate::eq(0))
+            .with(predicate::eq(2))
             .returning(move |_| {
                 let mut mock_client = MockClient::new();
                 mock_client
@@ -5008,7 +5020,7 @@ def handler():
         let client_try_from_ctx = MockClient::from_context();
         client_try_from_ctx
             .expect()
-            .with(predicate::eq(0))
+            .with(predicate::eq(2))
             .returning(move |_| {
                 let mut mock_client = MockClient::new();
                 mock_client
@@ -5083,7 +5095,7 @@ def handler():
         let client_try_from_ctx = MockClient::from_context();
         client_try_from_ctx
             .expect()
-            .with(predicate::eq(0))
+            .with(predicate::eq(2))
             .returning(move |_| {
                 let mut mock_client = MockClient::new();
                 mock_client
@@ -5133,7 +5145,7 @@ def handler():
         let client_try_from_ctx = MockClient::from_context();
         client_try_from_ctx
             .expect()
-            .with(predicate::eq(0))
+            .with(predicate::eq(2))
             .returning(move |_| {
                 let mut mock_client = MockClient::new();
                 mock_client

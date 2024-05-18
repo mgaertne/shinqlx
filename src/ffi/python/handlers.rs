@@ -60,12 +60,12 @@ pub(crate) fn handle_rcon(py: Python<'_>, cmd: &str) -> Option<bool> {
 
 #[cfg(test)]
 mod handle_rcon_tests {
-    use super::handler_test_support::*;
     use super::{handle_rcon, try_handle_rcon};
 
     use crate::ffi::python::prelude::*;
     use crate::ffi::python::{
         commands::{Command, CommandPriorities},
+        pyshinqlx_test_support::*,
         COMMANDS, EVENT_DISPATCHERS,
     };
     use crate::prelude::serial;
@@ -584,9 +584,6 @@ pub(crate) fn handle_client_command(py: Python<'_>, client_id: i32, cmd: &str) -
 
 #[cfg(test)]
 mod handle_client_command_tests {
-    use super::handler_test_support::{
-        capturing_hook, returning_false_hook, returning_other_string_hook,
-    };
     use super::{handle_client_command, try_handle_client_command};
 
     use crate::ffi::c::{
@@ -605,6 +602,7 @@ mod handle_client_command_tests {
             VoteStartedDispatcher,
         },
         pyshinqlx_setup_fixture::pyshinqlx_setup,
+        pyshinqlx_test_support::*,
         BLUE_TEAM_CHAT_CHANNEL, CHAT_CHANNEL, EVENT_DISPATCHERS, FREE_CHAT_CHANNEL,
         RED_TEAM_CHAT_CHANNEL, SPECTATOR_CHAT_CHANNEL,
     };
@@ -3544,9 +3542,6 @@ pub(crate) fn handle_server_command(py: Python<'_>, client_id: i32, cmd: &str) -
 
 #[cfg(test)]
 mod handle_server_command_tests {
-    use super::handler_test_support::{
-        capturing_hook, returning_false_hook, returning_other_string_hook,
-    };
     use super::{handle_server_command, try_handle_server_command};
 
     use crate::ffi::c::{
@@ -3563,6 +3558,7 @@ mod handle_server_command_tests {
         commands::CommandPriorities,
         events::{EventDispatcherManager, ServerCommandDispatcher, VoteEndedDispatcher},
         pyshinqlx_setup_fixture::*,
+        pyshinqlx_test_support::*,
         EVENT_DISPATCHERS,
     };
 
@@ -4095,12 +4091,11 @@ pub(crate) fn handle_frame(py: Python<'_>) -> Option<bool> {
 
 #[cfg(test)]
 mod handle_frame_tests {
-    use super::handler_test_support::capturing_hook;
     use super::{handle_frame, transfer_next_frame_tasks, try_handle_frame, try_run_frame_tasks};
 
     use crate::ffi::python::{
         commands::CommandPriorities, events::FrameEventDispatcher, pyshinqlx_setup,
-        EventDispatcherManager, EVENT_DISPATCHERS,
+        pyshinqlx_test_support::*, EventDispatcherManager, EVENT_DISPATCHERS,
     };
 
     use crate::ffi::c::prelude::{cvar_t, CVar, CVarBuilder};
@@ -4576,10 +4571,7 @@ pub(crate) fn handle_new_game(py: Python<'_>, is_restart: bool) -> Option<bool> 
 
 #[cfg(test)]
 mod handle_new_game_tests {
-    use super::{
-        handle_new_game, handler_test_support::capturing_hook, try_handle_new_game, IS_FIRST_GAME,
-        ZMQ_WARNING_ISSUED,
-    };
+    use super::{handle_new_game, try_handle_new_game, IS_FIRST_GAME, ZMQ_WARNING_ISSUED};
 
     use crate::prelude::{serial, MockQuakeEngine};
     use crate::MAIN_ENGINE;
@@ -4587,7 +4579,9 @@ mod handle_new_game_tests {
     use crate::ffi::python::{
         commands::CommandPriorities,
         events::{EventDispatcherManager, MapDispatcher, NewGameDispatcher},
-        pyshinqlx_setup, EVENT_DISPATCHERS,
+        pyshinqlx_setup,
+        pyshinqlx_test_support::*,
+        EVENT_DISPATCHERS,
     };
 
     use crate::ffi::c::prelude::{cvar_t, CVar, CVarBuilder, CS_AUTHOR, CS_AUTHOR2, CS_MESSAGE};
@@ -5502,11 +5496,7 @@ pub(crate) fn handle_set_configstring(py: Python<'_>, index: u32, value: &str) -
 
 #[cfg(test)]
 mod handle_set_configstring_tests {
-    use super::{
-        handle_set_configstring,
-        handler_test_support::{capturing_hook, returning_false_hook, returning_other_string_hook},
-        try_handle_set_configstring, AD_ROUND_NUMBER,
-    };
+    use super::{handle_set_configstring, try_handle_set_configstring, AD_ROUND_NUMBER};
 
     use crate::ffi::python::{
         commands::CommandPriorities,
@@ -5514,7 +5504,9 @@ mod handle_set_configstring_tests {
             EventDispatcherManager, GameCountdownDispatcher, RoundCountdownDispatcher,
             RoundStartDispatcher, SetConfigstringDispatcher, VoteStartedDispatcher,
         },
-        pyshinqlx_setup, EVENT_DISPATCHERS,
+        pyshinqlx_setup,
+        pyshinqlx_test_support::*,
+        EVENT_DISPATCHERS,
     };
 
     use crate::prelude::{serial, MockQuakeEngine};
@@ -6731,16 +6723,13 @@ pub(crate) fn handle_player_connect(py: Python<'_>, client_id: i32, is_bot: bool
 
 #[cfg(test)]
 mod handle_player_connect_tests {
-    use super::{
-        handle_player_connect,
-        handler_test_support::{capturing_hook, returning_other_string_hook},
-        try_handle_player_connect,
-    };
+    use super::{handle_player_connect, try_handle_player_connect};
 
     use crate::ffi::python::{
         commands::CommandPriorities,
         events::{EventDispatcherManager, PlayerConnectDispatcher},
         pyshinqlx_setup_fixture::pyshinqlx_setup,
+        pyshinqlx_test_support::*,
         EVENT_DISPATCHERS,
     };
 
@@ -7091,14 +7080,13 @@ pub(crate) fn handle_player_loaded(py: Python<'_>, client_id: i32) -> PyObject {
 
 #[cfg(test)]
 mod handle_player_loaded_tests {
-    use super::{
-        handle_player_loaded, handler_test_support::capturing_hook, try_handle_player_loaded,
-    };
+    use super::{handle_player_loaded, try_handle_player_loaded};
 
     use crate::ffi::python::{
         commands::CommandPriorities,
         events::{EventDispatcherManager, PlayerLoadedDispatcher},
         pyshinqlx_setup_fixture::pyshinqlx_setup,
+        pyshinqlx_test_support::*,
         EVENT_DISPATCHERS,
     };
 
@@ -7371,15 +7359,13 @@ pub(crate) fn handle_player_disconnect(
 
 #[cfg(test)]
 mod handle_player_disconnect_tests {
-    use super::{
-        handle_player_disconnect, handler_test_support::capturing_hook,
-        try_handle_player_disconnect,
-    };
+    use super::{handle_player_disconnect, try_handle_player_disconnect};
 
     use crate::ffi::python::{
         commands::CommandPriorities,
         events::{EventDispatcherManager, PlayerDisconnectDispatcher},
         pyshinqlx_setup_fixture::pyshinqlx_setup,
+        pyshinqlx_test_support::*,
         EVENT_DISPATCHERS,
     };
 
@@ -7646,14 +7632,13 @@ pub(crate) fn handle_player_spawn(py: Python<'_>, client_id: i32) -> PyObject {
 
 #[cfg(test)]
 mod handle_player_spawn_tests {
-    use super::{
-        handle_player_spawn, handler_test_support::capturing_hook, try_handle_player_spawn,
-    };
+    use super::{handle_player_spawn, try_handle_player_spawn};
 
     use crate::ffi::python::{
         commands::CommandPriorities,
         events::{EventDispatcherManager, PlayerSpawnDispatcher},
         pyshinqlx_setup_fixture::pyshinqlx_setup,
+        pyshinqlx_test_support::*,
         EVENT_DISPATCHERS,
     };
 
@@ -7918,14 +7903,13 @@ pub(crate) fn handle_kamikaze_use(py: Python<'_>, client_id: i32) -> PyObject {
 
 #[cfg(test)]
 mod handle_kamikaze_use_tests {
-    use super::{
-        handle_kamikaze_use, handler_test_support::capturing_hook, try_handle_kamikaze_use,
-    };
+    use super::{handle_kamikaze_use, try_handle_kamikaze_use};
 
     use crate::ffi::python::{
         commands::CommandPriorities,
         events::{EventDispatcherManager, KamikazeUseDispatcher},
         pyshinqlx_setup_fixture::pyshinqlx_setup,
+        pyshinqlx_test_support::*,
         EVENT_DISPATCHERS,
     };
 
@@ -8197,14 +8181,13 @@ pub(crate) fn handle_kamikaze_explode(
 
 #[cfg(test)]
 mod handle_kamikaze_explode_tests {
-    use super::{
-        handle_kamikaze_explode, handler_test_support::capturing_hook, try_handle_kamikaze_explode,
-    };
+    use super::{handle_kamikaze_explode, try_handle_kamikaze_explode};
 
     use crate::ffi::python::{
         commands::CommandPriorities,
         events::{EventDispatcherManager, KamikazeExplodeDispatcher},
         pyshinqlx_setup_fixture::pyshinqlx_setup,
+        pyshinqlx_test_support::*,
         EVENT_DISPATCHERS,
     };
 
@@ -8598,12 +8581,13 @@ pub(crate) fn handle_damage(
 
 #[cfg(test)]
 mod handle_damage_tests {
-    use super::{handle_damage, handler_test_support::capturing_hook, try_handle_damage};
+    use super::{handle_damage, try_handle_damage};
 
     use crate::ffi::python::{
         commands::CommandPriorities,
         events::{DamageDispatcher, EventDispatcherManager},
         pyshinqlx_setup_fixture::pyshinqlx_setup,
+        pyshinqlx_test_support::*,
         EVENT_DISPATCHERS,
     };
 
@@ -9131,15 +9115,14 @@ pub(crate) fn handle_console_print(py: Python<'_>, text: &str) -> PyObject {
 #[cfg(test)]
 mod handle_console_print_tests {
     use super::{
-        handle_console_print,
-        handler_test_support::{capturing_hook, returning_false_hook, returning_other_string_hook},
-        try_handle_console_print, PrintRedirector, PRINT_REDIRECTION,
+        handle_console_print, try_handle_console_print, PrintRedirector, PRINT_REDIRECTION,
     };
 
     use crate::ffi::python::{
         commands::CommandPriorities,
         events::{ConsolePrintDispatcher, EventDispatcherManager},
         pyshinqlx_setup_fixture::pyshinqlx_setup,
+        pyshinqlx_test_support::*,
         EVENT_DISPATCHERS,
     };
 
@@ -9766,87 +9749,4 @@ pub(crate) mod handlers {
     #[cfg_attr(coverage_nightly, coverage(off))]
     #[cfg(not(tarpaulin_include))]
     pub(crate) fn register_handlers() {}
-}
-
-#[cfg(test)]
-pub(crate) mod handler_test_support {
-    use pyo3::prelude::*;
-
-    pub(super) fn test_plugin(py: Python<'_>) -> Bound<'_, PyAny> {
-        PyModule::from_code_bound(
-            py,
-            r#"
-import shinqlx
-
-class test_plugin(shinqlx.Plugin):
-    pass
-"#,
-            "",
-            "",
-        )
-        .expect("coult not create test plugin")
-        .getattr("test_plugin")
-        .expect("could not get test plugin")
-    }
-
-    pub(crate) fn capturing_hook(py: Python<'_>) -> Bound<'_, PyModule> {
-        PyModule::from_code_bound(
-            py,
-            r#"
-_args = []
-
-def hook(*args):
-    global _args
-    _args.append(args)
-
-def assert_called_with(*args):
-    global _args
-    assert(len(_args) > 0), f"{_args = }"
-
-    called_with = _args.pop(0)
-    assert len(args) == len(called_with), f"{args = } {len(args) = } == {called_with = } {len(called_with) = }"
-    for (expected, actual) in zip(args, called_with):
-        if expected == "_":
-            continue
-        assert expected == actual, f"{expected = } == {actual = }"
-        "#,
-            "",
-            "",
-        )
-        .expect("could create test handler module")
-    }
-
-    pub(crate) fn returning_false_hook(py: Python<'_>) -> Bound<'_, PyAny> {
-        let returning_false_module = PyModule::from_code_bound(
-            py,
-            r#"
-import shinqlx
-
-def returning_false_hook(*args, **kwargs):
-    return shinqlx.RET_STOP_EVENT
-            "#,
-            "",
-            "",
-        )
-        .expect("could not create returning false module");
-        returning_false_module
-            .getattr("returning_false_hook")
-            .expect("could not get returning_false_hook function")
-    }
-
-    pub(super) fn returning_other_string_hook(py: Python<'_>) -> Bound<'_, PyAny> {
-        let returning_other_string_module = PyModule::from_code_bound(
-            py,
-            r#"
-def returning_other_string(*args, **kwargs):
-    return "quit"
-            "#,
-            "",
-            "",
-        )
-        .expect("could not create returning false module");
-        returning_other_string_module
-            .getattr("returning_other_string")
-            .expect("could not get returning_false_hook function")
-    }
 }

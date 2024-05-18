@@ -157,7 +157,7 @@ impl Command {
         let Some(command_name) = self.name.first() else {
             return Err(PyKeyError::new_err("command has no 'name'"));
         };
-        let plugin = self.plugin.bind(py).into_py(py);
+        let plugin = self.plugin.clone_ref(py);
         let plugin_name = plugin.getattr(py, intern!(py, "name"))?;
         let logger = pyshinqlx_get_logger(py, Some(plugin))?;
         let logging_module = py.import_bound(intern!(py, "logging"))?;
@@ -313,11 +313,17 @@ impl Command {
 mod command_tests {
     use super::Command;
 
-    use crate::ffi::python::prelude::{ChatChannel, ConsoleChannel};
+    use crate::ffi::python::{
+        prelude::{ChatChannel, ConsoleChannel},
+        pyshinqlx_setup_fixture::pyshinqlx_setup,
+        pyshinqlx_test_support::*,
+    };
+
+    use rstest::*;
 
     use pyo3::prelude::*;
     use pyo3::{
-        exceptions::PyValueError,
+        exceptions::{PyKeyError, PyValueError},
         types::{PyList, PyTuple},
     };
 
@@ -341,7 +347,7 @@ def handler(*args, **kwargs):
         Python::with_gil(|py| {
             let command = Command::py_new(
                 py,
-                py.None(),
+                test_plugin(py).unbind(),
                 py.None(),
                 true.into_py(py),
                 0,
@@ -365,7 +371,7 @@ def handler(*args, **kwargs):
 
             let command = Command::py_new(
                 py,
-                py.None(),
+                test_plugin(py).unbind(),
                 py.None(),
                 test_handler(py).expect("this should not happen"),
                 0,
@@ -389,7 +395,7 @@ def handler(*args, **kwargs):
 
             let command = Command::py_new(
                 py,
-                py.None(),
+                test_plugin(py).unbind(),
                 py.None(),
                 test_handler(py).expect("this should not happen"),
                 0,
@@ -417,7 +423,7 @@ def handler(*args, **kwargs):
 
             let command = Command::py_new(
                 py,
-                py.None(),
+                test_plugin(py).unbind(),
                 names_pylist.into_py(py),
                 test_handler(py).expect("this should not happen"),
                 0,
@@ -445,7 +451,7 @@ def handler(*args, **kwargs):
 
             let command = Command::py_new(
                 py,
-                py.None(),
+                test_plugin(py).unbind(),
                 names_pylist.into_py(py),
                 test_handler(py).expect("this should not happen"),
                 0,
@@ -466,7 +472,7 @@ def handler(*args, **kwargs):
         Python::with_gil(|py| {
             let command = Command::py_new(
                 py,
-                py.None(),
+                test_plugin(py).unbind(),
                 "cmd_name".into_py(py),
                 test_handler(py).expect("this should not happen"),
                 0,
@@ -492,7 +498,7 @@ def handler(*args, **kwargs):
 
             let command = Command::py_new(
                 py,
-                py.None(),
+                test_plugin(py).unbind(),
                 "cmd_name".into_py(py),
                 test_handler(py).expect("this should not happen"),
                 0,
@@ -533,7 +539,7 @@ def handler(*args, **kwargs):
 
             let command = Command::py_new(
                 py,
-                py.None(),
+                test_plugin(py).unbind(),
                 "cmd_name".into_py(py),
                 test_handler(py).expect("this should not happen"),
                 0,
@@ -560,6 +566,64 @@ def handler(*args, **kwargs):
                 .into_py(py)
                 .bind(py))
                 .expect("this should not happen")));
+        });
+    }
+
+    #[rstest]
+    #[cfg_attr(miri, ignore)]
+    fn execute_calls_handler(_pyshinqlx_setup: ()) {
+        Python::with_gil(|py| {
+            let capturing_hook = capturing_hook(py);
+            let command = Command {
+                plugin: test_plugin(py).unbind(),
+                name: vec!["cmd".to_string()],
+                handler: capturing_hook
+                    .getattr("hook")
+                    .expect("could not get capturing hook")
+                    .unbind(),
+                permission: 0,
+                channels: vec![],
+                exclude_channels: vec![],
+                client_cmd_pass: false,
+                client_cmd_perm: 0,
+                prefix: false,
+                usage: "".to_string(),
+            };
+
+            let result = command.execute(py, default_test_player(), "cmd", py.None());
+            assert!(result.is_ok());
+            assert!(capturing_hook
+                .call_method1(
+                    "assert_called_with",
+                    (default_test_player(), ["cmd"], py.None(),)
+                )
+                .is_ok());
+        });
+    }
+
+    #[rstest]
+    #[cfg_attr(miri, ignore)]
+    fn execute_when_name_is_empty(_pyshinqlx_setup: ()) {
+        Python::with_gil(|py| {
+            let capturing_hook = capturing_hook(py);
+            let command = Command {
+                plugin: test_plugin(py).unbind(),
+                name: vec![],
+                handler: capturing_hook
+                    .getattr("hook")
+                    .expect("could not get capturing hook")
+                    .unbind(),
+                permission: 0,
+                channels: vec![],
+                exclude_channels: vec![],
+                client_cmd_pass: false,
+                client_cmd_perm: 0,
+                prefix: false,
+                usage: "".to_string(),
+            };
+
+            let result = command.execute(py, default_test_player(), "cmd", py.None());
+            assert!(result.is_err_and(|err| err.is_instance_of::<PyKeyError>(py)));
         });
     }
 }
