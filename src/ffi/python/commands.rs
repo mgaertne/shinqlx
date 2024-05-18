@@ -212,41 +212,22 @@ impl Command {
     ///
     /// Exclude takes precedence.
     fn is_eligible_channel(&self, py: Python<'_>, channel: PyObject) -> bool {
-        let Ok(channel_name) = channel
-            .bind(py)
-            .str()
-            .map(|channel_name_str| channel_name_str.to_string())
-        else {
-            return false;
-        };
-
-        let exclude_channel_names: Vec<String> = self
-            .exclude_channels
-            .iter()
-            .flat_map(|channel| {
-                channel
-                    .bind(py)
-                    .str()
-                    .map(|channel_str| channel_str.to_string())
-                    .ok()
-            })
-            .collect();
-        if exclude_channel_names.contains(&channel_name) {
+        if self.exclude_channels.iter().any(|exclude_channel| {
+            exclude_channel
+                .bind(py)
+                .eq(channel.bind(py))
+                .unwrap_or(false)
+        }) {
             return false;
         }
 
-        let channel_names: Vec<String> = self
-            .channels
-            .iter()
-            .flat_map(|allowed_channel| {
+        self.channels.is_empty()
+            || self.channels.iter().any(|allowed_channel| {
                 allowed_channel
                     .bind(py)
-                    .str()
-                    .map(|allowed_channel_str| allowed_channel_str.to_string())
-                    .ok()
+                    .eq(channel.bind(py))
+                    .unwrap_or(false)
             })
-            .collect();
-        channel_names.is_empty() || channel_names.contains(&channel_name)
     }
 
     /// Check if a player has the rights to execute the command.
@@ -326,7 +307,7 @@ mod command_tests {
 
     use crate::ffi::c::prelude::{cvar_t, CVar, CVarBuilder};
     use crate::ffi::python::{
-        prelude::{ChatChannel, ConsoleChannel},
+        prelude::{ChatChannel, ConsoleChannel, TeamChatChannel},
         pyshinqlx_setup_fixture::pyshinqlx_setup,
         pyshinqlx_test_support::*,
     };
@@ -361,9 +342,9 @@ def handler(*args, **kwargs):
         .map(|handler| handler.unbind())
     }
 
-    #[test]
+    #[rstest]
     #[cfg_attr(miri, ignore)]
-    fn constructor_with_uncallable_handler() {
+    fn constructor_with_uncallable_handler(_pyshinqlx_setup: ()) {
         Python::with_gil(|py| {
             let command = Command::py_new(
                 py,
@@ -382,9 +363,9 @@ def handler(*args, **kwargs):
         });
     }
 
-    #[test]
+    #[rstest]
     #[cfg_attr(miri, ignore)]
-    fn constructor_with_wrong_channel_type() {
+    fn constructor_with_wrong_channel_type(_pyshinqlx_setup: ()) {
         Python::with_gil(|py| {
             let chat_channel = Py::new(py, ChatChannel::py_new("chat", "print \"{}\n\"\n"))
                 .expect("this should not happen");
@@ -406,9 +387,9 @@ def handler(*args, **kwargs):
         });
     }
 
-    #[test]
+    #[rstest]
     #[cfg_attr(miri, ignore)]
-    fn constructor_with_wrong_exclude_channel_type() {
+    fn constructor_with_wrong_exclude_channel_type(_pyshinqlx_setup: ()) {
         Python::with_gil(|py| {
             let chat_channel = Py::new(py, ChatChannel::py_new("chat", "print \"{}\n\"\n"))
                 .expect("this should not happen");
@@ -430,9 +411,9 @@ def handler(*args, **kwargs):
         });
     }
 
-    #[test]
+    #[rstest]
     #[cfg_attr(miri, ignore)]
-    fn constructor_with_names_in_pylist() {
+    fn constructor_with_names_in_pylist(_pyshinqlx_setup: ()) {
         Python::with_gil(|py| {
             let names_vec = vec![
                 "name1".to_string(),
@@ -458,9 +439,9 @@ def handler(*args, **kwargs):
         });
     }
 
-    #[test]
+    #[rstest]
     #[cfg_attr(miri, ignore)]
-    fn constructor_with_names_in_pytuple() {
+    fn constructor_with_names_in_pytuple(_pyshinqlx_setup: ()) {
         Python::with_gil(|py| {
             let names_vec = vec![
                 "name1".to_string(),
@@ -486,9 +467,9 @@ def handler(*args, **kwargs):
         });
     }
 
-    #[test]
+    #[rstest]
     #[cfg_attr(miri, ignore)]
-    fn constructor_with_single_name_as_string() {
+    fn constructor_with_single_name_as_string(_pyshinqlx_setup: ()) {
         Python::with_gil(|py| {
             let command = Command::py_new(
                 py,
@@ -507,9 +488,9 @@ def handler(*args, **kwargs):
         });
     }
 
-    #[test]
+    #[rstest]
     #[cfg_attr(miri, ignore)]
-    fn constructor_with_multiple_whitelist_channels() {
+    fn constructor_with_multiple_whitelist_channels(_pyshinqlx_setup: ()) {
         Python::with_gil(|py| {
             let chat_channel = Py::new(py, ChatChannel::py_new("chat", "print \"{}\n\"\n"))
                 .expect("this should not happen");
@@ -548,9 +529,9 @@ def handler(*args, **kwargs):
         });
     }
 
-    #[test]
+    #[rstest]
     #[cfg_attr(miri, ignore)]
-    fn constructor_with_multiple_exclude_channels() {
+    fn constructor_with_multiple_exclude_channels(_pyshinqlx_setup: ()) {
         Python::with_gil(|py| {
             let chat_channel = Py::new(py, ChatChannel::py_new("chat", "print \"{}\n\"\n"))
                 .expect("this should not happen");
@@ -647,9 +628,9 @@ def handler(*args, **kwargs):
         });
     }
 
-    #[test]
+    #[rstest]
     #[cfg_attr(miri, ignore)]
-    fn is_eligible_name_with_no_prefix() {
+    fn is_eligible_name_with_no_prefix(_pyshinqlx_setup: ()) {
         Python::with_gil(|py| {
             let capturing_hook = capturing_hook(py);
             let command = Command {
@@ -674,10 +655,10 @@ def handler(*args, **kwargs):
         });
     }
 
-    #[test]
+    #[rstest]
     #[cfg_attr(miri, ignore)]
     #[serial]
-    fn is_eligible_name_with_prefix() {
+    fn is_eligible_name_with_prefix(_pyshinqlx_setup: ()) {
         let mut mock_engine = MockQuakeEngine::new();
         let cvar_string = CString::new("!").expect("this should not happen");
         mock_engine
@@ -712,6 +693,125 @@ def handler(*args, **kwargs):
             assert!(!command.is_eligible_name(py, "cmd_name"));
             assert!(!command.is_eligible_name(py, "!unmatched_cmd_name"));
             assert!(command.is_eligible_name(py, "!cmd_name"));
+        });
+    }
+
+    #[rstest]
+    #[cfg_attr(miri, ignore)]
+    fn is_eligilble_channel_when_none_are_configured(_pyshinqlx_setup: ()) {
+        Python::with_gil(|py| {
+            let capturing_hook = capturing_hook(py);
+            let command = Command {
+                plugin: test_plugin(py).unbind(),
+                name: vec!["cmd_name".into()],
+                handler: capturing_hook
+                    .getattr("hook")
+                    .expect("could not get capturing hook")
+                    .unbind(),
+                permission: 0,
+                channels: vec![],
+                exclude_channels: vec![],
+                client_cmd_pass: false,
+                client_cmd_perm: 0,
+                prefix: true,
+                usage: "".to_string(),
+            };
+
+            let chat_channel = Py::new(py, ChatChannel::py_new("chat", "print \"{}\n\"\n"))
+                .expect("this should not happen");
+            assert!(command.is_eligible_channel(py, chat_channel.into_py(py)));
+        });
+    }
+
+    #[rstest]
+    #[cfg_attr(miri, ignore)]
+    fn is_eligilble_channel_with_configured_allowed_channels(_pyshinqlx_setup: ()) {
+        Python::with_gil(|py| {
+            let console_channel =
+                Py::new(py, ConsoleChannel::py_new()).expect("this should not happen");
+            let chat_channel = Py::new(py, ChatChannel::py_new("chat", "print \"{}\n\"\n"))
+                .expect("this should not happen");
+            let red_team_chat_channel = Py::new(
+                py,
+                TeamChatChannel::py_new("red", "red_team", "print \"{}\n\"\n"),
+            )
+            .expect("this should not happen");
+
+            let capturing_hook = capturing_hook(py);
+            let command = Command {
+                plugin: test_plugin(py).unbind(),
+                name: vec!["cmd_name".into()],
+                handler: capturing_hook
+                    .getattr("hook")
+                    .expect("could not get capturing hook")
+                    .unbind(),
+                permission: 0,
+                channels: vec![
+                    console_channel.clone_ref(py).into_py(py),
+                    chat_channel.clone_ref(py).into_py(py),
+                ],
+                exclude_channels: vec![],
+                client_cmd_pass: false,
+                client_cmd_perm: 0,
+                prefix: true,
+                usage: "".to_string(),
+            };
+
+            assert!(command.is_eligible_channel(py, chat_channel.into_py(py)));
+            assert!(command.is_eligible_channel(py, console_channel.into_py(py)));
+            assert!(!command.is_eligible_channel(py, red_team_chat_channel.into_py(py)));
+        });
+    }
+
+    #[rstest]
+    #[cfg_attr(miri, ignore)]
+    fn is_eligilble_channel_with_configured_allowed_and_exclude_channels(_pyshinqlx_setup: ()) {
+        Python::with_gil(|py| {
+            let console_channel =
+                Py::new(py, ConsoleChannel::py_new()).expect("this should not happen");
+            let chat_channel = Py::new(
+                py,
+                TeamChatChannel::py_new("all", "chat", "print \"{}\n\"\n"),
+            )
+            .expect("this should not happen");
+            let red_team_chat_channel = Py::new(
+                py,
+                TeamChatChannel::py_new("red", "red_team", "print \"{}\n\"\n"),
+            )
+            .expect("this should not happen");
+            let blue_team_chat_channel = Py::new(
+                py,
+                TeamChatChannel::py_new("blue", "blue_team", "print \"{}\n\"\n"),
+            )
+            .expect("this should not happen");
+
+            let capturing_hook = capturing_hook(py);
+            let command = Command {
+                plugin: test_plugin(py).unbind(),
+                name: vec!["cmd_name".into()],
+                handler: capturing_hook
+                    .getattr("hook")
+                    .expect("could not get capturing hook")
+                    .unbind(),
+                permission: 0,
+                channels: vec![
+                    console_channel.clone_ref(py).into_py(py),
+                    chat_channel.clone_ref(py).into_py(py),
+                ],
+                exclude_channels: vec![
+                    red_team_chat_channel.clone_ref(py).into_py(py),
+                    blue_team_chat_channel.clone_ref(py).into_py(py),
+                ],
+                client_cmd_pass: false,
+                client_cmd_perm: 0,
+                prefix: true,
+                usage: "".to_string(),
+            };
+
+            assert!(command.is_eligible_channel(py, chat_channel.into_py(py)));
+            assert!(command.is_eligible_channel(py, console_channel.into_py(py)));
+            assert!(!command.is_eligible_channel(py, red_team_chat_channel.into_py(py)));
+            assert!(!command.is_eligible_channel(py, blue_team_chat_channel.into_py(py)));
         });
     }
 }
