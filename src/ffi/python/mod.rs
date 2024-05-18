@@ -2194,6 +2194,10 @@ pub(crate) fn pyshinqlx_reload() -> Result<(), PythonInitializationError> {
 
 #[cfg(test)]
 pub(crate) mod pyshinqlx_test_support {
+    use super::{player::Player, player_info::PlayerInfo};
+
+    use crate::ffi::c::prelude::{clientState_t, privileges_t, team_t};
+
     use pyo3::prelude::*;
 
     pub(crate) fn run_all_frame_tasks(py: Python<'_>) -> PyResult<()> {
@@ -2209,6 +2213,107 @@ while not shinqlx.next_frame_tasks.empty():
             None,
         )?;
         Ok(())
+    }
+
+    pub(crate) fn default_test_player_info() -> PlayerInfo {
+        PlayerInfo {
+            client_id: 2,
+            name: "".to_string(),
+            connection_state: clientState_t::CS_CONNECTED as i32,
+            userinfo: "".to_string(),
+            steam_id: 1234567890,
+            team: team_t::TEAM_SPECTATOR as i32,
+            privileges: privileges_t::PRIV_NONE as i32,
+        }
+    }
+
+    pub(crate) fn default_test_player() -> Player {
+        Player {
+            valid: true,
+            id: 2,
+            player_info: default_test_player_info(),
+            user_info: "".to_string(),
+            steam_id: 1234567890,
+            name: "".to_string(),
+        }
+    }
+
+    pub(super) fn test_plugin(py: Python<'_>) -> Bound<'_, PyAny> {
+        PyModule::from_code_bound(
+            py,
+            r#"
+import shinqlx
+
+class test_plugin(shinqlx.Plugin):
+    pass
+"#,
+            "",
+            "",
+        )
+        .expect("coult not create test plugin")
+        .getattr("test_plugin")
+        .expect("could not get test plugin")
+    }
+
+    pub(crate) fn capturing_hook(py: Python<'_>) -> Bound<'_, PyModule> {
+        PyModule::from_code_bound(
+            py,
+            r#"
+_args = []
+
+def hook(*args):
+    global _args
+    _args.append(args)
+
+def assert_called_with(*args):
+    global _args
+    assert(len(_args) > 0), f"{_args = }"
+
+    called_with = _args.pop(0)
+    assert len(args) == len(called_with), f"{args = } {len(args) = } == {called_with = } {len(called_with) = }"
+    for (expected, actual) in zip(args, called_with):
+        if expected == "_":
+            continue
+        assert expected == actual, f"{expected = } == {actual = }"
+        "#,
+            "",
+            "",
+        )
+            .expect("could create test handler module")
+    }
+
+    pub(crate) fn returning_false_hook(py: Python<'_>) -> Bound<'_, PyAny> {
+        let returning_false_module = PyModule::from_code_bound(
+            py,
+            r#"
+import shinqlx
+
+def returning_false_hook(*args, **kwargs):
+    return shinqlx.RET_STOP_EVENT
+            "#,
+            "",
+            "",
+        )
+        .expect("could not create returning false module");
+        returning_false_module
+            .getattr("returning_false_hook")
+            .expect("could not get returning_false_hook function")
+    }
+
+    pub(super) fn returning_other_string_hook(py: Python<'_>) -> Bound<'_, PyAny> {
+        let returning_other_string_module = PyModule::from_code_bound(
+            py,
+            r#"
+def returning_other_string(*args, **kwargs):
+    return "quit"
+            "#,
+            "",
+            "",
+        )
+        .expect("could not create returning false module");
+        returning_other_string_module
+            .getattr("returning_other_string")
+            .expect("could not get returning_false_hook function")
     }
 }
 

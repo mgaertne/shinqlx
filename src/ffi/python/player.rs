@@ -1318,6 +1318,7 @@ mod pyshinqlx_player_tests {
     use super::MAIN_ENGINE;
     use crate::ffi::c::prelude::*;
     use crate::ffi::python::prelude::*;
+    use crate::ffi::python::pyshinqlx_test_support::*;
     use crate::hooks::mock_hooks::{
         shinqlx_client_spawn_context, shinqlx_drop_client_context,
         shinqlx_execute_client_command_context, shinqlx_send_server_command_context,
@@ -1331,29 +1332,6 @@ mod pyshinqlx_player_tests {
         types::IntoPyDict,
     };
     use rstest::rstest;
-
-    fn default_test_player_info() -> PlayerInfo {
-        PlayerInfo {
-            client_id: 2,
-            name: "".to_string(),
-            connection_state: clientState_t::CS_CONNECTED as i32,
-            userinfo: "".to_string(),
-            steam_id: 1234567890,
-            team: team_t::TEAM_SPECTATOR as i32,
-            privileges: privileges_t::PRIV_NONE as i32,
-        }
-    }
-
-    fn default_test_player() -> Player {
-        Player {
-            valid: true,
-            id: 2,
-            player_info: default_test_player_info(),
-            user_info: "".to_string(),
-            steam_id: 1234567890,
-            name: "".to_string(),
-        }
-    }
 
     #[test]
     #[serial]

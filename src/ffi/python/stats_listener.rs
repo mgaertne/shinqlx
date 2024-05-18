@@ -755,9 +755,9 @@ mod handle_zmq_msg_tests {
             DeathDispatcher, EventDispatcherManager, GameEndDispatcher, GameStartDispatcher,
             KillDispatcher, RoundEndDispatcher, StatsDispatcher, TeamSwitchDispatcher,
         },
-        handlers::handler_test_support::{capturing_hook, returning_false_hook},
         pyshinqlx_setup_fixture::*,
         pyshinqlx_test_support::run_all_frame_tasks,
+        pyshinqlx_test_support::*,
         EVENT_DISPATCHERS,
     };
 
