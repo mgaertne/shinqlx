@@ -232,8 +232,22 @@ impl Command {
 
     /// Check if a player has the rights to execute the command.
     fn is_eligible_player(&self, py: Python<'_>, player: Player, is_client_cmd: bool) -> bool {
+        if owner(py)
+            .unwrap_or_default()
+            .is_some_and(|owner_steam_id| player.steam_id == owner_steam_id)
+        {
+            return true;
+        }
+
         let perm = if is_client_cmd {
-            self.client_cmd_perm
+            let client_cmd_permission_cvar = format!(
+                "qlx_ccmd_perm_{}",
+                self.name.first().unwrap_or(&"invalid".to_string())
+            );
+            pyshinqlx_get_cvar(py, &client_cmd_permission_cvar)
+                .unwrap_or_default()
+                .and_then(|value| value.parse::<i32>().ok())
+                .unwrap_or(self.client_cmd_perm)
         } else {
             let cmd_permission_cvar = format!(
                 "qlx_perm_{}",
@@ -241,63 +255,26 @@ impl Command {
             );
             let configured_cmd_permission = pyshinqlx_get_cvar(py, &cmd_permission_cvar);
             configured_cmd_permission
-                .ok()
-                .and_then(|opt_permission| {
-                    opt_permission.and_then(|value| value.parse::<i32>().ok())
-                })
+                .unwrap_or_default()
+                .and_then(|value| value.parse::<i32>().ok())
                 .unwrap_or(self.permission)
         };
 
-        let client_cmd_perm = if is_client_cmd {
-            let client_cmd_permission_cvar = format!(
-                "qlx_ccmd_perm_{}",
-                self.name.first().unwrap_or(&"invalid".to_string())
-            );
-            let configured_client_cmd_permission =
-                pyshinqlx_get_cvar(py, &client_cmd_permission_cvar);
-            configured_client_cmd_permission
-                .ok()
-                .and_then(|opt_permission| {
-                    opt_permission.and_then(|value| value.parse::<i32>().ok())
-                })
-                .unwrap_or(self.permission)
-        } else {
-            self.permission
-        };
-
-        let owner_steam_id = owner(py).unwrap_or_default().unwrap_or_default();
-        if player.steam_id == owner_steam_id {
+        if perm == 0 {
             return true;
         }
 
-        if !is_client_cmd && perm == 0 {
-            return true;
-        }
-
-        if is_client_cmd && client_cmd_perm == 0 {
-            return true;
-        }
-
-        let Ok(plugin_db) = self.plugin.getattr(py, intern!(py, "db")) else {
-            return false;
-        };
-        if plugin_db.is_none(py) {
-            return false;
-        }
-
-        let Ok(player_perm_result) =
-            plugin_db.call_method1(py, intern!(py, "get_permission"), (player,))
-        else {
-            return false;
-        };
-        let Ok(player_perm) = player_perm_result.extract::<i32>(py) else {
-            return false;
-        };
-
-        if is_client_cmd {
-            return player_perm >= client_cmd_perm;
-        }
-        player_perm >= perm
+        self.plugin
+            .getattr(py, intern!(py, "db"))
+            .ok()
+            .filter(|value| !value.is_none(py))
+            .and_then(|plugin_db| {
+                plugin_db
+                    .call_method1(py, intern!(py, "get_permission"), (player,))
+                    .ok()
+            })
+            .and_then(|player_perm_result| player_perm_result.extract::<i32>(py).ok())
+            .is_some_and(|player_perm| player_perm >= perm)
     }
 }
 
@@ -812,6 +789,396 @@ def handler(*args, **kwargs):
             assert!(command.is_eligible_channel(py, console_channel.into_py(py)));
             assert!(!command.is_eligible_channel(py, red_team_chat_channel.into_py(py)));
             assert!(!command.is_eligible_channel(py, blue_team_chat_channel.into_py(py)));
+        });
+    }
+
+    #[rstest]
+    #[cfg_attr(miri, ignore)]
+    #[serial]
+    fn is_eligilble_player_for_regular_cmd_and_owner(_pyshinqlx_setup: ()) {
+        let mut mock_engine = MockQuakeEngine::new();
+        let owner = CString::new("1234567890").expect("this should not happen");
+        mock_engine
+            .expect_find_cvar()
+            .with(predicate::eq("qlx_owner"))
+            .returning(move |_| {
+                let mut raw_cvar = CVarBuilder::default()
+                    .string(owner.as_ptr() as *mut c_char)
+                    .build()
+                    .expect("this should not happen");
+                CVar::try_from(&mut raw_cvar as *mut cvar_t).ok()
+            });
+        mock_engine
+            .expect_find_cvar()
+            .with(predicate::ne("qlx_owner"))
+            .returning(|_| None);
+        MAIN_ENGINE.store(Some(mock_engine.into()));
+
+        Python::with_gil(|py| {
+            let capturing_hook = capturing_hook(py);
+            let command = Command {
+                plugin: test_plugin(py).unbind(),
+                name: vec!["cmd_name".into()],
+                handler: capturing_hook
+                    .getattr("hook")
+                    .expect("could not get capturing hook")
+                    .unbind(),
+                permission: 5,
+                channels: vec![],
+                exclude_channels: vec![],
+                client_cmd_pass: false,
+                client_cmd_perm: 5,
+                prefix: true,
+                usage: "".to_string(),
+            };
+
+            let player = default_test_player();
+
+            assert!(command.is_eligible_player(py, player, false));
+        });
+    }
+
+    #[rstest]
+    #[cfg_attr(miri, ignore)]
+    #[serial]
+    fn is_eligilble_player_for_client_cmd_and_owner(_pyshinqlx_setup: ()) {
+        let mut mock_engine = MockQuakeEngine::new();
+        let owner = CString::new("1234567890").expect("this should not happen");
+        mock_engine
+            .expect_find_cvar()
+            .with(predicate::eq("qlx_owner"))
+            .returning(move |_| {
+                let mut raw_cvar = CVarBuilder::default()
+                    .string(owner.as_ptr() as *mut c_char)
+                    .build()
+                    .expect("this should not happen");
+                CVar::try_from(&mut raw_cvar as *mut cvar_t).ok()
+            });
+        mock_engine
+            .expect_find_cvar()
+            .with(predicate::ne("qlx_owner"))
+            .returning(|_| None);
+        MAIN_ENGINE.store(Some(mock_engine.into()));
+
+        Python::with_gil(|py| {
+            let capturing_hook = capturing_hook(py);
+            let command = Command {
+                plugin: test_plugin(py).unbind(),
+                name: vec!["cmd_name".into()],
+                handler: capturing_hook
+                    .getattr("hook")
+                    .expect("could not get capturing hook")
+                    .unbind(),
+                permission: 5,
+                channels: vec![],
+                exclude_channels: vec![],
+                client_cmd_pass: false,
+                client_cmd_perm: 5,
+                prefix: true,
+                usage: "".to_string(),
+            };
+
+            let player = default_test_player();
+
+            assert!(command.is_eligible_player(py, player, true));
+        });
+    }
+
+    #[rstest]
+    #[cfg_attr(miri, ignore)]
+    #[serial]
+    fn is_eligilble_player_for_regular_cmd_with_configured_cvar(_pyshinqlx_setup: ()) {
+        let mut mock_engine = MockQuakeEngine::new();
+        let cmd_perm = CString::new("0").expect("this should not happen");
+        let owner = CString::new("9876543210").expect("this should not happen");
+        mock_engine
+            .expect_find_cvar()
+            .with(predicate::eq("qlx_perm_cmd_name"))
+            .returning(move |_| {
+                let mut raw_cvar = CVarBuilder::default()
+                    .string(cmd_perm.as_ptr() as *mut c_char)
+                    .build()
+                    .expect("this should not happen");
+                CVar::try_from(&mut raw_cvar as *mut cvar_t).ok()
+            });
+        mock_engine
+            .expect_find_cvar()
+            .with(predicate::eq("qlx_owner"))
+            .returning(move |_| {
+                let mut raw_cvar = CVarBuilder::default()
+                    .string(owner.as_ptr() as *mut c_char)
+                    .build()
+                    .expect("this should not happen");
+                CVar::try_from(&mut raw_cvar as *mut cvar_t).ok()
+            });
+        MAIN_ENGINE.store(Some(mock_engine.into()));
+
+        Python::with_gil(|py| {
+            let capturing_hook = capturing_hook(py);
+            let command = Command {
+                plugin: test_plugin(py).unbind(),
+                name: vec!["cmd_name".into()],
+                handler: capturing_hook
+                    .getattr("hook")
+                    .expect("could not get capturing hook")
+                    .unbind(),
+                permission: 5,
+                channels: vec![],
+                exclude_channels: vec![],
+                client_cmd_pass: false,
+                client_cmd_perm: 5,
+                prefix: true,
+                usage: "".to_string(),
+            };
+
+            let player = default_test_player();
+
+            assert!(command.is_eligible_player(py, player, false));
+        });
+    }
+
+    #[rstest]
+    #[cfg_attr(miri, ignore)]
+    #[serial]
+    fn is_eligilble_player_for_regular_cmd_with_no_configured_cvar(_pyshinqlx_setup: ()) {
+        let mut mock_engine = MockQuakeEngine::new();
+        let owner = CString::new("9876543210").expect("this should not happen");
+        mock_engine
+            .expect_find_cvar()
+            .with(predicate::eq("qlx_owner"))
+            .returning(move |_| {
+                let mut raw_cvar = CVarBuilder::default()
+                    .string(owner.as_ptr() as *mut c_char)
+                    .build()
+                    .expect("this should not happen");
+                CVar::try_from(&mut raw_cvar as *mut cvar_t).ok()
+            });
+        mock_engine
+            .expect_find_cvar()
+            .with(predicate::ne("qlx_owner"))
+            .returning(|_| None);
+        MAIN_ENGINE.store(Some(mock_engine.into()));
+
+        Python::with_gil(|py| {
+            let capturing_hook = capturing_hook(py);
+            let command = Command {
+                plugin: test_plugin(py).unbind(),
+                name: vec!["cmd_name".into()],
+                handler: capturing_hook
+                    .getattr("hook")
+                    .expect("could not get capturing hook")
+                    .unbind(),
+                permission: 0,
+                channels: vec![],
+                exclude_channels: vec![],
+                client_cmd_pass: false,
+                client_cmd_perm: 0,
+                prefix: true,
+                usage: "".to_string(),
+            };
+
+            let player = default_test_player();
+
+            assert!(command.is_eligible_player(py, player, false));
+        });
+    }
+
+    #[rstest]
+    #[cfg_attr(miri, ignore)]
+    #[serial]
+    fn is_eligilble_player_for_client_cmd_with_configured_cvar(_pyshinqlx_setup: ()) {
+        let mut mock_engine = MockQuakeEngine::new();
+        let cmd_perm = CString::new("0").expect("this should not happen");
+        let owner = CString::new("9876543210").expect("this should not happen");
+        mock_engine
+            .expect_find_cvar()
+            .with(predicate::eq("qlx_ccmd_perm_cmd_name"))
+            .returning(move |_| {
+                let mut raw_cvar = CVarBuilder::default()
+                    .string(cmd_perm.as_ptr() as *mut c_char)
+                    .build()
+                    .expect("this should not happen");
+                CVar::try_from(&mut raw_cvar as *mut cvar_t).ok()
+            });
+        mock_engine
+            .expect_find_cvar()
+            .with(predicate::eq("qlx_owner"))
+            .returning(move |_| {
+                let mut raw_cvar = CVarBuilder::default()
+                    .string(owner.as_ptr() as *mut c_char)
+                    .build()
+                    .expect("this should not happen");
+                CVar::try_from(&mut raw_cvar as *mut cvar_t).ok()
+            });
+        MAIN_ENGINE.store(Some(mock_engine.into()));
+
+        Python::with_gil(|py| {
+            let capturing_hook = capturing_hook(py);
+            let command = Command {
+                plugin: test_plugin(py).unbind(),
+                name: vec!["cmd_name".into()],
+                handler: capturing_hook
+                    .getattr("hook")
+                    .expect("could not get capturing hook")
+                    .unbind(),
+                permission: 5,
+                channels: vec![],
+                exclude_channels: vec![],
+                client_cmd_pass: false,
+                client_cmd_perm: 5,
+                prefix: true,
+                usage: "".to_string(),
+            };
+
+            let player = default_test_player();
+
+            assert!(command.is_eligible_player(py, player, true));
+        });
+    }
+
+    #[rstest]
+    #[cfg_attr(miri, ignore)]
+    #[serial]
+    fn is_eligilble_player_for_client_cmd_with_no_configured_cvar(_pyshinqlx_setup: ()) {
+        let mut mock_engine = MockQuakeEngine::new();
+        let owner = CString::new("9876543210").expect("this should not happen");
+        mock_engine
+            .expect_find_cvar()
+            .with(predicate::eq("qlx_owner"))
+            .returning(move |_| {
+                let mut raw_cvar = CVarBuilder::default()
+                    .string(owner.as_ptr() as *mut c_char)
+                    .build()
+                    .expect("this should not happen");
+                CVar::try_from(&mut raw_cvar as *mut cvar_t).ok()
+            });
+        mock_engine
+            .expect_find_cvar()
+            .with(predicate::ne("qlx_owner"))
+            .returning(|_| None);
+        MAIN_ENGINE.store(Some(mock_engine.into()));
+
+        Python::with_gil(|py| {
+            let capturing_hook = capturing_hook(py);
+            let command = Command {
+                plugin: test_plugin(py).unbind(),
+                name: vec!["cmd_name".into()],
+                handler: capturing_hook
+                    .getattr("hook")
+                    .expect("could not get capturing hook")
+                    .unbind(),
+                permission: 0,
+                channels: vec![],
+                exclude_channels: vec![],
+                client_cmd_pass: false,
+                client_cmd_perm: 0,
+                prefix: true,
+                usage: "".to_string(),
+            };
+
+            let player = default_test_player();
+
+            assert!(command.is_eligible_player(py, player, true));
+        });
+    }
+
+    #[rstest]
+    #[cfg_attr(miri, ignore)]
+    #[serial]
+    fn is_eligilble_player_for_regular_cmd_when_plugin_has_no_db(_pyshinqlx_setup: ()) {
+        let mut mock_engine = MockQuakeEngine::new();
+        let owner = CString::new("9876543210").expect("this should not happen");
+        mock_engine
+            .expect_find_cvar()
+            .with(predicate::eq("qlx_owner"))
+            .returning(move |_| {
+                let mut raw_cvar = CVarBuilder::default()
+                    .string(owner.as_ptr() as *mut c_char)
+                    .build()
+                    .expect("this should not happen");
+                CVar::try_from(&mut raw_cvar as *mut cvar_t).ok()
+            });
+        mock_engine
+            .expect_find_cvar()
+            .with(predicate::ne("qlx_owner"))
+            .returning(|_| None);
+        MAIN_ENGINE.store(Some(mock_engine.into()));
+
+        Python::with_gil(|py| {
+            let capturing_hook = capturing_hook(py);
+            let test_plugin = test_plugin(py);
+            test_plugin
+                .setattr("db", py.None())
+                .expect("this should not happen");
+            let command = Command {
+                plugin: test_plugin.unbind(),
+                name: vec!["cmd_name".into()],
+                handler: capturing_hook
+                    .getattr("hook")
+                    .expect("could not get capturing hook")
+                    .unbind(),
+                permission: 5,
+                channels: vec![],
+                exclude_channels: vec![],
+                client_cmd_pass: false,
+                client_cmd_perm: 5,
+                prefix: true,
+                usage: "".to_string(),
+            };
+
+            let player = default_test_player();
+
+            assert!(!command.is_eligible_player(py, player, false));
+        });
+    }
+
+    #[rstest]
+    #[cfg_attr(miri, ignore)]
+    #[serial]
+    fn is_eligilble_player_for_client_cmd_when_plugin_has_no_db(_pyshinqlx_setup: ()) {
+        let mut mock_engine = MockQuakeEngine::new();
+        let owner = CString::new("9876543210").expect("this should not happen");
+        mock_engine
+            .expect_find_cvar()
+            .with(predicate::eq("qlx_owner"))
+            .returning(move |_| {
+                let mut raw_cvar = CVarBuilder::default()
+                    .string(owner.as_ptr() as *mut c_char)
+                    .build()
+                    .expect("this should not happen");
+                CVar::try_from(&mut raw_cvar as *mut cvar_t).ok()
+            });
+        mock_engine
+            .expect_find_cvar()
+            .with(predicate::ne("qlx_owner"))
+            .returning(|_| None);
+        MAIN_ENGINE.store(Some(mock_engine.into()));
+
+        Python::with_gil(|py| {
+            let capturing_hook = capturing_hook(py);
+            let test_plugin = test_plugin(py);
+            test_plugin
+                .setattr("db", py.None())
+                .expect("this should not happen");
+            let command = Command {
+                plugin: test_plugin.unbind(),
+                name: vec!["cmd_name".into()],
+                handler: capturing_hook
+                    .getattr("hook")
+                    .expect("could not get capturing hook")
+                    .unbind(),
+                permission: 5,
+                channels: vec![],
+                exclude_channels: vec![],
+                client_cmd_pass: false,
+                client_cmd_perm: 5,
+                prefix: true,
+                usage: "".to_string(),
+            };
+
+            let player = default_test_player();
+
+            assert!(!command.is_eligible_player(py, player, true));
         });
     }
 }
