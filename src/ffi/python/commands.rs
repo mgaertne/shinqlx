@@ -305,18 +305,21 @@ mod command_tests {
         types::{PyList, PyTuple},
     };
 
-    fn test_handler(py: Python<'_>) -> PyResult<PyObject> {
-        PyModule::from_code_bound(
+    fn test_plugin_with_permission_db(py: Python<'_>) -> PyResult<Bound<'_, PyAny>> {
+        let test_plugin = test_plugin(py);
+        let db_stub = PyModule::from_code_bound(
             py,
             r#"
-def handler(*args, **kwargs):
-    pass
-        "#,
+class mocked_db:
+    def get_permission(*args):
+        return 2
+            "#,
             "",
             "",
-        )
-        .and_then(|py_module| py_module.getattr("handler"))
-        .map(|handler| handler.unbind())
+        )?;
+        let db_instance = db_stub.getattr("mocked_db")?.call0()?;
+        test_plugin.setattr("db", db_instance.unbind())?;
+        Ok(test_plugin)
     }
 
     #[rstest]
@@ -344,6 +347,8 @@ def handler(*args, **kwargs):
     #[cfg_attr(miri, ignore)]
     fn constructor_with_wrong_channel_type(_pyshinqlx_setup: ()) {
         Python::with_gil(|py| {
+            let capturing_hook = capturing_hook(py);
+
             let chat_channel = Py::new(py, ChatChannel::py_new("chat", "print \"{}\n\"\n"))
                 .expect("this should not happen");
 
@@ -351,7 +356,10 @@ def handler(*args, **kwargs):
                 py,
                 test_plugin(py).unbind(),
                 py.None(),
-                test_handler(py).expect("this should not happen"),
+                capturing_hook
+                    .getattr("hook")
+                    .expect("could not get capturing hook")
+                    .unbind(),
                 0,
                 chat_channel.into_any(),
                 py.None(),
@@ -368,6 +376,8 @@ def handler(*args, **kwargs):
     #[cfg_attr(miri, ignore)]
     fn constructor_with_wrong_exclude_channel_type(_pyshinqlx_setup: ()) {
         Python::with_gil(|py| {
+            let capturing_hook = capturing_hook(py);
+
             let chat_channel = Py::new(py, ChatChannel::py_new("chat", "print \"{}\n\"\n"))
                 .expect("this should not happen");
 
@@ -375,7 +385,10 @@ def handler(*args, **kwargs):
                 py,
                 test_plugin(py).unbind(),
                 py.None(),
-                test_handler(py).expect("this should not happen"),
+                capturing_hook
+                    .getattr("hook")
+                    .expect("could not get capturing hook")
+                    .unbind(),
                 0,
                 py.None(),
                 chat_channel.into_any(),
@@ -392,6 +405,8 @@ def handler(*args, **kwargs):
     #[cfg_attr(miri, ignore)]
     fn constructor_with_names_in_pylist(_pyshinqlx_setup: ()) {
         Python::with_gil(|py| {
+            let capturing_hook = capturing_hook(py);
+
             let names_vec = vec![
                 "name1".to_string(),
                 "name2".to_string(),
@@ -403,7 +418,10 @@ def handler(*args, **kwargs):
                 py,
                 test_plugin(py).unbind(),
                 names_pylist.into_py(py),
-                test_handler(py).expect("this should not happen"),
+                capturing_hook
+                    .getattr("hook")
+                    .expect("could not get capturing hook")
+                    .unbind(),
                 0,
                 py.None(),
                 py.None(),
@@ -420,6 +438,8 @@ def handler(*args, **kwargs):
     #[cfg_attr(miri, ignore)]
     fn constructor_with_names_in_pytuple(_pyshinqlx_setup: ()) {
         Python::with_gil(|py| {
+            let capturing_hook = capturing_hook(py);
+
             let names_vec = vec![
                 "name1".to_string(),
                 "name2".to_string(),
@@ -431,7 +451,10 @@ def handler(*args, **kwargs):
                 py,
                 test_plugin(py).unbind(),
                 names_pylist.into_py(py),
-                test_handler(py).expect("this should not happen"),
+                capturing_hook
+                    .getattr("hook")
+                    .expect("could not get capturing hook")
+                    .unbind(),
                 0,
                 py.None(),
                 py.None(),
@@ -448,11 +471,16 @@ def handler(*args, **kwargs):
     #[cfg_attr(miri, ignore)]
     fn constructor_with_single_name_as_string(_pyshinqlx_setup: ()) {
         Python::with_gil(|py| {
+            let capturing_hook = capturing_hook(py);
+
             let command = Command::py_new(
                 py,
                 test_plugin(py).unbind(),
                 "cmd_name".into_py(py),
-                test_handler(py).expect("this should not happen"),
+                capturing_hook
+                    .getattr("hook")
+                    .expect("could not get capturing hook")
+                    .unbind(),
                 0,
                 py.None(),
                 py.None(),
@@ -469,6 +497,8 @@ def handler(*args, **kwargs):
     #[cfg_attr(miri, ignore)]
     fn constructor_with_multiple_whitelist_channels(_pyshinqlx_setup: ()) {
         Python::with_gil(|py| {
+            let capturing_hook = capturing_hook(py);
+
             let chat_channel = Py::new(py, ChatChannel::py_new("chat", "print \"{}\n\"\n"))
                 .expect("this should not happen");
             let console_channel =
@@ -478,7 +508,10 @@ def handler(*args, **kwargs):
                 py,
                 test_plugin(py).unbind(),
                 "cmd_name".into_py(py),
-                test_handler(py).expect("this should not happen"),
+                capturing_hook
+                    .getattr("hook")
+                    .expect("could not get capturing hook")
+                    .unbind(),
                 0,
                 vec![
                     chat_channel.clone().into_py(py),
@@ -510,6 +543,8 @@ def handler(*args, **kwargs):
     #[cfg_attr(miri, ignore)]
     fn constructor_with_multiple_exclude_channels(_pyshinqlx_setup: ()) {
         Python::with_gil(|py| {
+            let capturing_hook = capturing_hook(py);
+
             let chat_channel = Py::new(py, ChatChannel::py_new("chat", "print \"{}\n\"\n"))
                 .expect("this should not happen");
             let console_channel =
@@ -519,7 +554,10 @@ def handler(*args, **kwargs):
                 py,
                 test_plugin(py).unbind(),
                 "cmd_name".into_py(py),
-                test_handler(py).expect("this should not happen"),
+                capturing_hook
+                    .getattr("hook")
+                    .expect("could not get capturing hook")
+                    .unbind(),
                 0,
                 py.None(),
                 vec![
@@ -1172,6 +1210,202 @@ def handler(*args, **kwargs):
                 exclude_channels: vec![],
                 client_cmd_pass: false,
                 client_cmd_perm: 5,
+                prefix: true,
+                usage: "".to_string(),
+            };
+
+            let player = default_test_player();
+
+            assert!(!command.is_eligible_player(py, player, true));
+        });
+    }
+
+    #[rstest]
+    #[cfg_attr(miri, ignore)]
+    #[serial]
+    fn is_eligilble_player_for_regular_cmd_when_plugin_db_returns_higher_permission(
+        _pyshinqlx_setup: (),
+    ) {
+        let mut mock_engine = MockQuakeEngine::new();
+        let owner = CString::new("9876543210").expect("this should not happen");
+        mock_engine
+            .expect_find_cvar()
+            .with(predicate::eq("qlx_owner"))
+            .returning(move |_| {
+                let mut raw_cvar = CVarBuilder::default()
+                    .string(owner.as_ptr() as *mut c_char)
+                    .build()
+                    .expect("this should not happen");
+                CVar::try_from(&mut raw_cvar as *mut cvar_t).ok()
+            });
+        mock_engine
+            .expect_find_cvar()
+            .with(predicate::ne("qlx_owner"))
+            .returning(|_| None);
+        MAIN_ENGINE.store(Some(mock_engine.into()));
+
+        Python::with_gil(|py| {
+            let capturing_hook = capturing_hook(py);
+            let test_plugin = test_plugin_with_permission_db(py).expect("this should not happend");
+            let command = Command {
+                plugin: test_plugin.unbind(),
+                name: vec!["cmd_name".into()],
+                handler: capturing_hook
+                    .getattr("hook")
+                    .expect("could not get capturing hook")
+                    .unbind(),
+                permission: 1,
+                channels: vec![],
+                exclude_channels: vec![],
+                client_cmd_pass: false,
+                client_cmd_perm: 1,
+                prefix: true,
+                usage: "".to_string(),
+            };
+
+            let player = default_test_player();
+
+            assert!(command.is_eligible_player(py, player, false));
+        });
+    }
+
+    #[rstest]
+    #[cfg_attr(miri, ignore)]
+    #[serial]
+    fn is_eligilble_player_for_regular_cmd_when_plugin_db_returns_lower_permission(
+        _pyshinqlx_setup: (),
+    ) {
+        let mut mock_engine = MockQuakeEngine::new();
+        let owner = CString::new("9876543210").expect("this should not happen");
+        mock_engine
+            .expect_find_cvar()
+            .with(predicate::eq("qlx_owner"))
+            .returning(move |_| {
+                let mut raw_cvar = CVarBuilder::default()
+                    .string(owner.as_ptr() as *mut c_char)
+                    .build()
+                    .expect("this should not happen");
+                CVar::try_from(&mut raw_cvar as *mut cvar_t).ok()
+            });
+        mock_engine
+            .expect_find_cvar()
+            .with(predicate::ne("qlx_owner"))
+            .returning(|_| None);
+        MAIN_ENGINE.store(Some(mock_engine.into()));
+
+        Python::with_gil(|py| {
+            let capturing_hook = capturing_hook(py);
+            let test_plugin = test_plugin_with_permission_db(py).expect("this should not happend");
+            let command = Command {
+                plugin: test_plugin.unbind(),
+                name: vec!["cmd_name".into()],
+                handler: capturing_hook
+                    .getattr("hook")
+                    .expect("could not get capturing hook")
+                    .unbind(),
+                permission: 3,
+                channels: vec![],
+                exclude_channels: vec![],
+                client_cmd_pass: false,
+                client_cmd_perm: 3,
+                prefix: true,
+                usage: "".to_string(),
+            };
+
+            let player = default_test_player();
+
+            assert!(!command.is_eligible_player(py, player, false));
+        });
+    }
+
+    #[rstest]
+    #[cfg_attr(miri, ignore)]
+    #[serial]
+    fn is_eligilble_player_for_client_cmd_when_plugin_db_returns_higher_permission(
+        _pyshinqlx_setup: (),
+    ) {
+        let mut mock_engine = MockQuakeEngine::new();
+        let owner = CString::new("9876543210").expect("this should not happen");
+        mock_engine
+            .expect_find_cvar()
+            .with(predicate::eq("qlx_owner"))
+            .returning(move |_| {
+                let mut raw_cvar = CVarBuilder::default()
+                    .string(owner.as_ptr() as *mut c_char)
+                    .build()
+                    .expect("this should not happen");
+                CVar::try_from(&mut raw_cvar as *mut cvar_t).ok()
+            });
+        mock_engine
+            .expect_find_cvar()
+            .with(predicate::ne("qlx_owner"))
+            .returning(|_| None);
+        MAIN_ENGINE.store(Some(mock_engine.into()));
+
+        Python::with_gil(|py| {
+            let capturing_hook = capturing_hook(py);
+            let test_plugin = test_plugin_with_permission_db(py).expect("this should not happend");
+            let command = Command {
+                plugin: test_plugin.unbind(),
+                name: vec!["cmd_name".into()],
+                handler: capturing_hook
+                    .getattr("hook")
+                    .expect("could not get capturing hook")
+                    .unbind(),
+                permission: 1,
+                channels: vec![],
+                exclude_channels: vec![],
+                client_cmd_pass: false,
+                client_cmd_perm: 1,
+                prefix: true,
+                usage: "".to_string(),
+            };
+
+            let player = default_test_player();
+
+            assert!(command.is_eligible_player(py, player, true));
+        });
+    }
+
+    #[rstest]
+    #[cfg_attr(miri, ignore)]
+    #[serial]
+    fn is_eligilble_player_for_client_cmd_when_plugin_db_returns_lower_permission(
+        _pyshinqlx_setup: (),
+    ) {
+        let mut mock_engine = MockQuakeEngine::new();
+        let owner = CString::new("9876543210").expect("this should not happen");
+        mock_engine
+            .expect_find_cvar()
+            .with(predicate::eq("qlx_owner"))
+            .returning(move |_| {
+                let mut raw_cvar = CVarBuilder::default()
+                    .string(owner.as_ptr() as *mut c_char)
+                    .build()
+                    .expect("this should not happen");
+                CVar::try_from(&mut raw_cvar as *mut cvar_t).ok()
+            });
+        mock_engine
+            .expect_find_cvar()
+            .with(predicate::ne("qlx_owner"))
+            .returning(|_| None);
+        MAIN_ENGINE.store(Some(mock_engine.into()));
+
+        Python::with_gil(|py| {
+            let capturing_hook = capturing_hook(py);
+            let test_plugin = test_plugin_with_permission_db(py).expect("this should not happend");
+            let command = Command {
+                plugin: test_plugin.unbind(),
+                name: vec!["cmd_name".into()],
+                handler: capturing_hook
+                    .getattr("hook")
+                    .expect("could not get capturing hook")
+                    .unbind(),
+                permission: 3,
+                channels: vec![],
+                exclude_channels: vec![],
+                client_cmd_pass: false,
+                client_cmd_perm: 3,
                 prefix: true,
                 usage: "".to_string(),
             };
