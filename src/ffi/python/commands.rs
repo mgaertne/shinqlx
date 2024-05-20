@@ -589,6 +589,47 @@ class mocked_db:
 
     #[rstest]
     #[cfg_attr(miri, ignore)]
+    fn command_can_be_traversed_for_garbage_collector(_pyshinqlx_setup: ()) {
+        Python::with_gil(|py| {
+            let capturing_hook = capturing_hook(py);
+
+            let chat_channel = Py::new(py, ChatChannel::py_new("chat", "print \"{}\n\"\n"))
+                .expect("this should not happen");
+            let console_channel =
+                Py::new(py, ConsoleChannel::py_new()).expect("this should not happen");
+
+            let command = Command::py_new(
+                py,
+                test_plugin(py).unbind(),
+                "cmd_name".into_py(py),
+                capturing_hook
+                    .getattr("hook")
+                    .expect("could not get capturing hook")
+                    .unbind(),
+                0,
+                py.None(),
+                vec![
+                    chat_channel.clone().into_py(py),
+                    console_channel.clone().into_py(py),
+                ]
+                .into_py(py),
+                true,
+                0,
+                true,
+                "",
+            )
+            .expect("this should not happen");
+            let _py_command = Py::new(py, command).expect("this should not happen");
+
+            let result = py
+                .import_bound("gc")
+                .and_then(|gc| gc.call_method0("collect"));
+            assert!(result.is_ok());
+        });
+    }
+
+    #[rstest]
+    #[cfg_attr(miri, ignore)]
     fn execute_calls_handler(_pyshinqlx_setup: ()) {
         Python::with_gil(|py| {
             let capturing_hook = capturing_hook(py);
