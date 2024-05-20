@@ -146,8 +146,12 @@ impl Plugin {
     /// An instance of :class:`logging.Logger`, but initialized for this plugin.
     #[getter(logger)]
     pub(crate) fn get_logger<'a>(slf: &Bound<'a, Self>) -> PyResult<Bound<'a, PyAny>> {
-        let plugin_name = slf.get_type().name().map(|value| value.to_string())?;
-        pyshinqlx_get_logger(slf.py(), Some(plugin_name.into_py(slf.py())))
+        slf.get_type()
+            .name()
+            .map(|value| value.to_string())
+            .and_then(|plugin_name| {
+                pyshinqlx_get_logger(slf.py(), Some(plugin_name.into_py(slf.py())))
+            })
     }
 
     #[pyo3(signature = (event, handler, priority = CommandPriorities::PRI_NORMAL as i32), text_signature = "(event, handler, priority = PRI_NORMAL)")]
@@ -688,8 +692,16 @@ impl Plugin {
                     &RED_TEAM_CHAT_CHANNEL,
                     &BLUE_TEAM_CHAT_CHANNEL,
                 ] {
-                    if let Some(ref global_chat_channel) = *global_channel.load() {
-                        if global_chat_channel.bind(cls.py()).eq(bound_channel)? {
+                    if let Some(result) = global_channel
+                        .load()
+                        .as_ref()
+                        .filter(|global_chat_channel| {
+                            global_chat_channel
+                                .bind(cls.py())
+                                .eq(bound_channel)
+                                .unwrap_or(false)
+                        })
+                        .map(|global_chat_channel| {
                             let main_channel = global_chat_channel.borrow(cls.py()).into_super();
                             return ChatChannel::reply(
                                 main_channel,
@@ -698,20 +710,32 @@ impl Plugin {
                                 limit,
                                 &delimiter,
                             );
-                        }
+                        })
+                    {
+                        return result;
                     }
                 }
 
-                if let Some(ref console_channel) = *CONSOLE_CHANNEL.load() {
-                    if console_channel.bind(cls.py()).eq(bound_channel)? {
-                        return ConsoleChannel::reply(
+                if let Some(result) = CONSOLE_CHANNEL
+                    .load()
+                    .as_ref()
+                    .filter(|console_channel| {
+                        console_channel
+                            .bind(cls.py())
+                            .eq(bound_channel)
+                            .unwrap_or(false)
+                    })
+                    .map(|console_channel| {
+                        ConsoleChannel::reply(
                             console_channel.get(),
                             cls.py(),
                             msg,
                             limit,
                             &delimiter,
-                        );
-                    }
+                        )
+                    })
+                {
+                    return result;
                 }
             }
         }
@@ -811,41 +835,24 @@ impl Plugin {
 
         let result = PyDict::new_bound(cls.py());
 
-        let filtered_frees: Vec<PyObject> = players
-            .clone()
-            .into_iter()
-            .filter(|player| player.get_team(cls.py()).is_ok_and(|team| team == "free"))
-            .map(|player| player.into_py(cls.py()))
-            .collect();
-        result.set_item(intern!(cls.py(), "free"), filtered_frees)?;
-
-        let filtered_reds: Vec<PyObject> = players
-            .clone()
-            .into_iter()
-            .filter(|player| player.get_team(cls.py()).is_ok_and(|team| team == "red"))
-            .map(|player| player.into_py(cls.py()))
-            .collect();
-        result.set_item(intern!(cls.py(), "red"), filtered_reds)?;
-
-        let filtered_blues: Vec<PyObject> = players
-            .clone()
-            .into_iter()
-            .filter(|player| player.get_team(cls.py()).is_ok_and(|team| team == "blue"))
-            .map(|player| player.into_py(cls.py()))
-            .collect();
-        result.set_item(intern!(cls.py(), "blue"), filtered_blues)?;
-
-        let filtered_specs: Vec<PyObject> = players
-            .clone()
-            .into_iter()
-            .filter(|player| {
-                player
-                    .get_team(cls.py())
-                    .is_ok_and(|team| team == "spectator")
-            })
-            .map(|player| player.into_py(cls.py()))
-            .collect();
-        result.set_item(intern!(cls.py(), "spectator"), filtered_specs)?;
+        for team_str in [
+            intern!(cls.py(), "free"),
+            intern!(cls.py(), "red"),
+            intern!(cls.py(), "blue"),
+            intern!(cls.py(), "spectator"),
+        ] {
+            let filtered_players: Vec<PyObject> = players
+                .clone()
+                .into_iter()
+                .filter(|player| {
+                    player
+                        .get_team(cls.py())
+                        .is_ok_and(|team| team == team_str.to_string())
+                })
+                .map(|player| player.into_py(cls.py()))
+                .collect();
+            result.set_item(team_str, filtered_players)?;
+        }
 
         Ok(result)
     }
@@ -922,22 +929,24 @@ impl Plugin {
             return Ok(false);
         }
 
-        let Some(vote_started_dispatcher) =
-            EVENT_DISPATCHERS
-                .load()
-                .as_ref()
-                .and_then(|event_dispatchers| {
-                    event_dispatchers
-                        .bind(cls.py())
-                        .get_item(intern!(cls.py(), "vote_started"))
-                        .ok()
-                })
-        else {
-            return Err(PyEnvironmentError::new_err(
-                "could not get access to vote started dispatcher",
-            ));
-        };
-        vote_started_dispatcher.call_method1(intern!(cls.py(), "caller"), (cls.py().None(),))?;
+        EVENT_DISPATCHERS
+            .load()
+            .as_ref()
+            .and_then(|event_dispatchers| {
+                event_dispatchers
+                    .bind(cls.py())
+                    .get_item(intern!(cls.py(), "vote_started"))
+                    .ok()
+            })
+            .map_or(
+                Err(PyEnvironmentError::new_err(
+                    "could not get access to vote started dispatcher",
+                )),
+                |vote_started_dispatcher| {
+                    vote_started_dispatcher
+                        .call_method1(intern!(cls.py(), "caller"), (cls.py().None(),))
+                },
+            )?;
 
         pyshinqlx_callvote(cls.py(), vote, display, Some(time));
 
@@ -1226,6 +1235,57 @@ mod plugin_tests {
             Ok::<(), PyErr>(())
         })
         .unwrap();
+    }
+
+    #[rstest]
+    #[cfg_attr(miri, ignore)]
+    #[serial]
+    fn plugin_can_be_traversed_for_garbage_collector(_pyshinqlx_setup: ()) {
+        let mut mock_engine = MockQuakeEngine::new();
+        let cvar_string = CString::new("1").expect("this should not happen");
+        mock_engine
+            .expect_find_cvar()
+            .with(predicate::eq("zmq_stats_enable"))
+            .returning(move |_| {
+                let mut raw_cvar = CVarBuilder::default()
+                    .string(cvar_string.as_ptr() as *mut c_char)
+                    .build()
+                    .expect("this should not happen");
+                CVar::try_from(&mut raw_cvar as *mut cvar_t).ok()
+            });
+        MAIN_ENGINE.store(Some(mock_engine.into()));
+
+        Python::with_gil(|py| {
+            let event_dispatcher = EventDispatcherManager::default();
+            event_dispatcher
+                .add_dispatcher(py, py.get_type_bound::<TeamSwitchAttemptDispatcher>())
+                .expect("could not add vote_started dispatcher");
+            EVENT_DISPATCHERS.store(Some(
+                Py::new(py, event_dispatcher)
+                    .expect("could not create event dispatcher manager in python")
+                    .into(),
+            ));
+
+            let extended_plugin = test_plugin(py);
+            let plugin_instance = extended_plugin
+                .call0()
+                .expect("could not create plugin instance");
+
+            Plugin::add_hook(
+                plugin_instance
+                    .downcast::<Plugin>()
+                    .expect("could not downcast instance to plugin"),
+                "team_switch_attempt".to_string(),
+                py.None(),
+                CommandPriorities::PRI_NORMAL as i32,
+            )
+            .expect("this should not happen");
+
+            let result = py
+                .import_bound("gc")
+                .and_then(|gc| gc.call_method0("collect"));
+            assert!(result.is_ok());
+        });
     }
 
     #[rstest]
