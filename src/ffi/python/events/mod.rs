@@ -89,30 +89,32 @@ use itertools::Itertools;
 use pyo3::types::IntoPyDict;
 
 fn try_dispatcher_debug_log(py: Python<'_>, debug_str: &str) -> PyResult<()> {
-    let logging_module = py.import_bound(intern!(py, "logging"))?;
-    let debug_level = logging_module.getattr(intern!(py, "DEBUG"))?;
+    pyshinqlx_get_logger(py, None).and_then(|logger| {
+        let debug_level = py
+            .import_bound(intern!(py, "logging"))
+            .and_then(|logging_module| logging_module.getattr(intern!(py, "DEBUG")))?;
 
-    let logger = pyshinqlx_get_logger(py, None)?;
-
-    let mut dbgstr = debug_str.to_string();
-    if dbgstr.len() > 100 {
-        dbgstr.truncate(99);
-        dbgstr.push(')');
-    }
-    let log_record = logger.call_method(
-        intern!(py, "makeRecord"),
-        (
-            intern!(py, "shinqlx"),
-            debug_level,
-            intern!(py, ""),
-            -1,
-            dbgstr,
-            py.None(),
-            py.None(),
-        ),
-        Some(&[(intern!(py, "func"), intern!(py, "dispatch"))].into_py_dict_bound(py)),
-    )?;
-    logger.call_method1(intern!(py, "handle"), (log_record,))?;
+        let mut dbgstr = debug_str.to_string();
+        if dbgstr.len() > 100 {
+            dbgstr.truncate(99);
+            dbgstr.push(')');
+        }
+        logger
+            .call_method(
+                intern!(py, "makeRecord"),
+                (
+                    intern!(py, "shinqlx"),
+                    debug_level,
+                    intern!(py, ""),
+                    -1,
+                    dbgstr,
+                    py.None(),
+                    py.None(),
+                ),
+                Some(&[(intern!(py, "func"), intern!(py, "dispatch"))].into_py_dict_bound(py)),
+            )
+            .and_then(|log_record| logger.call_method1(intern!(py, "handle"), (log_record,)))
+    })?;
 
     Ok(())
 }
@@ -129,29 +131,31 @@ fn try_log_unexpected_return_value(
     result: &PyObject,
     handler: &PyObject,
 ) -> PyResult<()> {
-    let logging_module = py.import_bound(intern!(py, "logging"))?;
-    let warning_level = logging_module.getattr(intern!(py, "WARNING"))?;
+    pyshinqlx_get_logger(py, None).and_then(|logger| {
+        let warning_level = py
+            .import_bound(intern!(py, "logging"))
+            .and_then(|logging_module| logging_module.getattr(intern!(py, "WARNING")))?;
+        let handler_name = handler.getattr(py, intern!(py, "__name__"))?;
 
-    let logger = pyshinqlx_get_logger(py, None)?;
-    let handler_name = handler.getattr(py, intern!(py, "__name__"))?;
-
-    let log_record = logger.call_method(
-        intern!(py, "makeRecord"),
-        (
-            intern!(py, "shinqlx"),
-            warning_level,
-            intern!(py, ""),
-            -1,
-            intern!(
-                py,
-                "Handler '%s' returned unknown value '%s' for event '%s'"
-            ),
-            (handler_name, result, event_name),
-            py.None(),
-        ),
-        Some(&[(intern!(py, "func"), intern!(py, "dispatch"))].into_py_dict_bound(py)),
-    )?;
-    logger.call_method1(intern!(py, "handle"), (log_record,))?;
+        logger
+            .call_method(
+                intern!(py, "makeRecord"),
+                (
+                    intern!(py, "shinqlx"),
+                    warning_level,
+                    intern!(py, ""),
+                    -1,
+                    intern!(
+                        py,
+                        "Handler '%s' returned unknown value '%s' for event '%s'"
+                    ),
+                    (handler_name, result, event_name),
+                    py.None(),
+                ),
+                Some(&[(intern!(py, "func"), intern!(py, "dispatch"))].into_py_dict_bound(py)),
+            )
+            .and_then(|log_record| logger.call_method1(intern!(py, "handle"), (log_record,)))
+    })?;
 
     Ok(())
 }

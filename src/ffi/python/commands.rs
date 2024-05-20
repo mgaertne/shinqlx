@@ -164,8 +164,9 @@ impl Command {
         let plugin = self.plugin.clone_ref(py);
         let plugin_name = plugin.getattr(py, intern!(py, "name"))?;
         pyshinqlx_get_logger(py, Some(plugin)).and_then(|logger| {
-            let logging_module = py.import_bound(intern!(py, "logging"))?;
-            let debug_level = logging_module.getattr(intern!(py, "DEBUG"))?;
+            let debug_level = py
+                .import_bound(intern!(py, "logging"))
+                .and_then(|logging_module| logging_module.getattr(intern!(py, "DEBUG")))?;
             logger
                 .call_method(
                     intern!(py, "makeRecord"),

@@ -802,26 +802,30 @@ fn try_log_messages(
     let logging_module = py.import_bound(intern!(py, "logging"))?;
     let error_level = logging_module.getattr(intern!(py, "ERROR"))?;
     let logger_name = get_logger_name(py, plugin);
-    let py_logger = logging_module.call_method1(intern!(py, "getLogger"), (logger_name,))?;
-
-    for line in messages {
-        let log_record = py_logger.call_method(
-            intern!(py, "makeRecord"),
-            (
-                intern!(py, "shinqlx"),
-                &error_level,
-                intern!(py, ""),
-                -1,
-                line.trim_end(),
-                py.None(),
-                py.None(),
-            ),
-            Some(&[(intern!(py, "func"), function)].into_py_dict_bound(py)),
-        )?;
-        py_logger.call_method1(intern!(py, "handle"), (log_record,))?;
-    }
-
-    Ok(())
+    logging_module
+        .call_method1(intern!(py, "getLogger"), (logger_name,))
+        .and_then(|py_logger| {
+            for line in messages {
+                py_logger
+                    .call_method(
+                        intern!(py, "makeRecord"),
+                        (
+                            intern!(py, "shinqlx"),
+                            &error_level,
+                            intern!(py, ""),
+                            -1,
+                            line.trim_end(),
+                            py.None(),
+                            py.None(),
+                        ),
+                        Some(&[(intern!(py, "func"), function)].into_py_dict_bound(py)),
+                    )
+                    .and_then(|log_record| {
+                        py_logger.call_method1(intern!(py, "handle"), (log_record,))
+                    })?;
+            }
+            Ok(())
+        })
 }
 
 #[pyfunction]
@@ -1106,24 +1110,26 @@ fn try_load_plugin(py: Python<'_>, plugin: &str) -> PyResult<()> {
 
 #[pyfunction(name = "load_plugin")]
 fn load_plugin(py: Python<'_>, plugin: &str) -> PyResult<()> {
-    let logger = pyshinqlx_get_logger(py, None)?;
-    let logging_module = py.import_bound(intern!(py, "logging"))?;
-    let info_level = logging_module.getattr(intern!(py, "INFO"))?;
-
-    let log_record = logger.call_method(
-        intern!(py, "makeRecord"),
-        (
-            intern!(py, "shinqlx"),
-            &info_level,
-            intern!(py, ""),
-            -1,
-            intern!(py, "Loading plugin '%s'..."),
-            (plugin,),
-            py.None(),
-        ),
-        Some(&[(intern!(py, "func"), intern!(py, "load_plugin"))].into_py_dict_bound(py)),
-    )?;
-    logger.call_method1(intern!(py, "handle"), (log_record,))?;
+    pyshinqlx_get_logger(py, None).and_then(|logger| {
+        let info_level = py
+            .import_bound(intern!(py, "logging"))
+            .and_then(|logging_module| logging_module.getattr(intern!(py, "INFO")))?;
+        logger
+            .call_method(
+                intern!(py, "makeRecord"),
+                (
+                    intern!(py, "shinqlx"),
+                    &info_level,
+                    intern!(py, ""),
+                    -1,
+                    intern!(py, "Loading plugin '%s'..."),
+                    (plugin,),
+                    py.None(),
+                ),
+                Some(&[(intern!(py, "func"), intern!(py, "load_plugin"))].into_py_dict_bound(py)),
+            )
+            .and_then(|log_record| logger.call_method1(intern!(py, "handle"), (log_record,)))
+    })?;
 
     let Ok(plugins_path) = try_get_plugins_path() else {
         return Err(PluginLoadError::new_err(
@@ -1232,24 +1238,27 @@ fn try_unload_plugin(py: Python<'_>, plugin: &str) -> PyResult<()> {
 
 #[pyfunction(name = "unload_plugin")]
 fn unload_plugin(py: Python<'_>, plugin: &str) -> PyResult<()> {
-    let logger = pyshinqlx_get_logger(py, None)?;
-    let logging_module = py.import_bound(intern!(py, "logging"))?;
-    let info_level = logging_module.getattr(intern!(py, "INFO"))?;
+    pyshinqlx_get_logger(py, None).and_then(|logger| {
+        let info_level = py
+            .import_bound(intern!(py, "logging"))
+            .and_then(|logging_module| logging_module.getattr(intern!(py, "INFO")))?;
 
-    let log_record = logger.call_method(
-        intern!(py, "makeRecord"),
-        (
-            intern!(py, "shinqlx"),
-            &info_level,
-            intern!(py, ""),
-            -1,
-            intern!(py, "Unloading plugin '%s'..."),
-            (plugin,),
-            py.None(),
-        ),
-        Some(&[(intern!(py, "func"), intern!(py, "unload_plugin"))].into_py_dict_bound(py)),
-    )?;
-    logger.call_method1(intern!(py, "handle"), (log_record,))?;
+        logger
+            .call_method(
+                intern!(py, "makeRecord"),
+                (
+                    intern!(py, "shinqlx"),
+                    &info_level,
+                    intern!(py, ""),
+                    -1,
+                    intern!(py, "Unloading plugin '%s'..."),
+                    (plugin,),
+                    py.None(),
+                ),
+                Some(&[(intern!(py, "func"), intern!(py, "unload_plugin"))].into_py_dict_bound(py)),
+            )
+            .and_then(|log_record| logger.call_method1(intern!(py, "handle"), (log_record,)))
+    })?;
 
     let loaded_plugins = py
         .get_type_bound::<Plugin>()
@@ -1376,8 +1385,9 @@ fn late_init(module: &Bound<'_, PyModule>, py: Python<'_>) -> PyResult<()> {
     pyshinqlx_configure_logger(py)?;
     let logger = pyshinqlx_get_logger(py, None)?;
 
-    let logging_module = py.import_bound(intern!(py, "logging"))?;
-    let info_level = logging_module.getattr(intern!(py, "INFO"))?;
+    let info_level = py
+        .import_bound(intern!(py, "logging"))
+        .and_then(|logging_module| logging_module.getattr(intern!(py, "INFO")))?;
 
     let handle_exception = module.getattr(intern!(py, "handle_exception"))?;
     sys_module.setattr(intern!(py, "excepthook"), handle_exception)?;
@@ -1386,20 +1396,21 @@ fn late_init(module: &Bound<'_, PyModule>, py: Python<'_>) -> PyResult<()> {
     let threading_except_hook = module.getattr(intern!(py, "threading_excepthook"))?;
     threading_module.setattr(intern!(py, "excepthook"), threading_except_hook)?;
 
-    let log_record = logger.call_method(
-        intern!(py, "makeRecord"),
-        (
-            intern!(py, "shinqlx"),
-            &info_level,
-            intern!(py, ""),
-            -1,
-            intern!(py, "Loading preset plugins..."),
-            py.None(),
-            py.None(),
-        ),
-        Some(&[(intern!(py, "func"), intern!(py, "late_init"))].into_py_dict_bound(py)),
-    )?;
-    logger.call_method1(intern!(py, "handle"), (log_record,))?;
+    logger
+        .call_method(
+            intern!(py, "makeRecord"),
+            (
+                intern!(py, "shinqlx"),
+                &info_level,
+                intern!(py, ""),
+                -1,
+                intern!(py, "Loading preset plugins..."),
+                py.None(),
+                py.None(),
+            ),
+            Some(&[(intern!(py, "func"), intern!(py, "late_init"))].into_py_dict_bound(py)),
+        )
+        .and_then(|log_record| logger.call_method1(intern!(py, "handle"), (log_record,)))?;
 
     load_preset_plugins(py)?;
 
@@ -1408,38 +1419,40 @@ fn late_init(module: &Bound<'_, PyModule>, py: Python<'_>) -> PyResult<()> {
         let stats_value = Py::new(py, StatsListener::py_new()?)?.into_bound(py);
         module.setattr(intern!(py, "_stats"), &stats_value)?;
 
-        let log_record = logger.call_method(
+        logger
+            .call_method(
+                intern!(py, "makeRecord"),
+                (
+                    intern!(py, "shinqlx"),
+                    &info_level,
+                    intern!(py, ""),
+                    -1,
+                    intern!(py, "Stats listener started on %s."),
+                    (&stats_value.borrow().address,),
+                    py.None(),
+                ),
+                Some(&[(intern!(py, "func"), intern!(py, "late_init"))].into_py_dict_bound(py)),
+            )
+            .and_then(|log_record| logger.call_method1(intern!(py, "handle"), (log_record,)))?;
+
+        StatsListener::keep_receiving(&stats_value, py)?;
+    }
+
+    logger
+        .call_method(
             intern!(py, "makeRecord"),
             (
                 intern!(py, "shinqlx"),
                 &info_level,
                 intern!(py, ""),
                 -1,
-                intern!(py, "Stats listener started on %s."),
-                (&stats_value.borrow().address,),
+                intern!(py, "We're good to go!"),
+                py.None(),
                 py.None(),
             ),
             Some(&[(intern!(py, "func"), intern!(py, "late_init"))].into_py_dict_bound(py)),
-        )?;
-        logger.call_method1(intern!(py, "handle"), (log_record,))?;
-
-        StatsListener::keep_receiving(&stats_value, py)?;
-    }
-
-    let log_record = logger.call_method(
-        intern!(py, "makeRecord"),
-        (
-            intern!(py, "shinqlx"),
-            &info_level,
-            intern!(py, ""),
-            -1,
-            intern!(py, "We're good to go!"),
-            py.None(),
-            py.None(),
-        ),
-        Some(&[(intern!(py, "func"), intern!(py, "late_init"))].into_py_dict_bound(py)),
-    )?;
-    logger.call_method1(intern!(py, "handle"), (log_record,))?;
+        )
+        .and_then(|log_record| logger.call_method1(intern!(py, "handle"), (log_record,)))?;
 
     Ok(())
 }
