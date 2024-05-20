@@ -4496,8 +4496,7 @@ fn try_handle_new_game(py: Python<'_>, is_restart: bool) -> PyResult<()> {
         });
         if !zmq_enabled && !ZMQ_WARNING_ISSUED.load(Ordering::SeqCst) {
             pyshinqlx_get_logger(py, None).and_then(|logger| {
-                let logging_module = py.import_bound(intern!(py, "logging"))?;
-                let warning_level = logging_module.getattr(intern!(py, "WARNING"))?;
+                let warning_level = py.import_bound(intern!(py, "logging")).and_then(|logging_module| logging_module.getattr(intern!(py, "WARNING")))?;
                 logger.call_method(
                     intern!(py, "makeRecord"),
                     (
@@ -5382,8 +5381,11 @@ fn try_handle_set_configstring(py: Python<'_>, index: u32, value: &str) -> PyRes
             {
                 pyshinqlx_get_logger(py, None).and_then(|logger| {
                     let warning = format!("UNKNOWN GAME STATES: {old_state} - {new_state}");
-                    let logging_module = py.import_bound(intern!(py, "logging"))?;
-                    let warning_level = logging_module.getattr(intern!(py, "WARNING"))?;
+                    let warning_level =
+                        py.import_bound(intern!(py, "logging"))
+                            .and_then(|logging_module| {
+                                logging_module.getattr(intern!(py, "WARNING"))
+                            })?;
                     logger
                         .call_method(
                             intern!(py, "makeRecord"),
@@ -9040,8 +9042,9 @@ static PRINT_REDIRECTION: Lazy<ArcSwapOption<Py<PyAny>>> = Lazy::new(ArcSwapOpti
 
 fn try_handle_console_print(py: Python<'_>, text: &str) -> PyResult<PyObject> {
     pyshinqlx_get_logger(py, None).and_then(|logger| {
-        let logging_module = py.import_bound(intern!(py, "logging"))?;
-        let debug_level = logging_module.getattr(intern!(py, "DEBUG"))?;
+        let debug_level = py
+            .import_bound(intern!(py, "logging"))
+            .and_then(|logging_module| logging_module.getattr(intern!(py, "DEBUG")))?;
         logger
             .call_method(
                 intern!(py, "makeRecord"),
