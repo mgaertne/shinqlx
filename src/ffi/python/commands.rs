@@ -1669,13 +1669,24 @@ def remove_command(cmd):
 #[cfg(test)]
 mod command_invoker_tests {
     use super::{Command, CommandInvoker, CommandPriorities};
+    use mockall::predicate;
+    use std::ffi::{c_char, CString};
 
+    use crate::ffi::python::channels::{ChatChannel, ClientCommandChannel};
+    use crate::ffi::python::events::{CommandDispatcher, EventDispatcherManager};
     use crate::ffi::python::pyshinqlx_setup_fixture::*;
-    use crate::ffi::python::pyshinqlx_test_support::{capturing_hook, test_plugin};
+    use crate::ffi::python::pyshinqlx_test_support::{
+        capturing_hook, default_test_player, test_plugin,
+    };
+    use crate::ffi::python::EVENT_DISPATCHERS;
+
+    use crate::prelude::{serial, MockQuakeEngine};
 
     use rstest::*;
 
-    use pyo3::exceptions::PyValueError;
+    use crate::ffi::c::prelude::{cvar_t, CVar, CVarBuilder};
+    use crate::MAIN_ENGINE;
+    use pyo3::exceptions::{PyEnvironmentError, PyValueError};
     use pyo3::prelude::*;
 
     #[rstest]
@@ -1913,6 +1924,276 @@ mod command_invoker_tests {
             let result = command_invoker.remove_command(py, command.clone());
             assert!(result.is_ok());
             assert!(command_invoker.get_commands(py).is_empty());
+        });
+    }
+
+    #[rstest]
+    #[cfg_attr(miri, ignore)]
+    fn handle_input_for_empty_input(_pyshinqlx_setup: ()) {
+        Python::with_gil(|py| {
+            let player = default_test_player();
+            let chat_channel = Py::new(py, ChatChannel::py_new("chat", "print \"{}\n\"\n"))
+                .expect("this should not happen");
+
+            let command_invoker = CommandInvoker::py_new();
+
+            let result = command_invoker.handle_input(py, &player, " ", chat_channel.into_any());
+            assert!(result.is_ok_and(|value| !value));
+        });
+    }
+
+    #[rstest]
+    #[cfg_attr(miri, ignore)]
+    #[serial]
+    fn handle_input_with_no_event_dispatcher(_pyshinqlx_setup: ()) {
+        Python::with_gil(|py| {
+            let player = default_test_player();
+            let chat_channel = Py::new(py, ChatChannel::py_new("chat", "print \"{}\n\"\n"))
+                .expect("this should not happen");
+
+            EVENT_DISPATCHERS.store(None);
+
+            let command_invoker = CommandInvoker::py_new();
+
+            let result =
+                command_invoker.handle_input(py, &player, "cmd_name", chat_channel.into_any());
+            assert!(result.is_err_and(|err| err.is_instance_of::<PyEnvironmentError>(py)));
+        });
+    }
+
+    #[rstest]
+    #[cfg_attr(miri, ignore)]
+    #[serial]
+    fn handle_input_with_non_eligible_cmd_name(_pyshinqlx_setup: ()) {
+        Python::with_gil(|py| {
+            let player = default_test_player();
+            let chat_channel = Py::new(py, ChatChannel::py_new("chat", "print \"{}\n\"\n"))
+                .expect("this should not happen");
+
+            let event_dispatcher = EventDispatcherManager::default();
+            event_dispatcher
+                .add_dispatcher(py, py.get_type_bound::<CommandDispatcher>())
+                .expect("could not add command dispatcher");
+            EVENT_DISPATCHERS.store(Some(
+                Py::new(py, event_dispatcher)
+                    .expect("could not create event dispatcher manager in python")
+                    .into(),
+            ));
+
+            let capturing_hook = capturing_hook(py);
+            let command = Command {
+                plugin: test_plugin(py).unbind(),
+                name: vec!["cmd_name".into()],
+                handler: capturing_hook
+                    .getattr("hook")
+                    .expect("could not get capturing hook")
+                    .unbind(),
+                permission: 0,
+                channels: vec![],
+                exclude_channels: vec![],
+                client_cmd_pass: false,
+                client_cmd_perm: 0,
+                prefix: false,
+                usage: "".to_string(),
+            };
+
+            let command_invoker = CommandInvoker::py_new();
+            command_invoker
+                .add_command(py, command.clone(), CommandPriorities::PRI_NORMAL as usize)
+                .expect("this should not happen");
+
+            let result =
+                command_invoker.handle_input(py, &player, "other_name", chat_channel.into_any());
+            assert!(result.is_ok_and(|pass_through| pass_through));
+        });
+    }
+
+    #[rstest]
+    #[cfg_attr(miri, ignore)]
+    #[serial]
+    fn handle_input_with_non_eligible_channel(_pyshinqlx_setup: ()) {
+        Python::with_gil(|py| {
+            let player = default_test_player();
+            let chat_channel = Py::new(py, ChatChannel::py_new("chat", "print \"{}\n\"\n"))
+                .expect("this should not happen");
+
+            let event_dispatcher = EventDispatcherManager::default();
+            event_dispatcher
+                .add_dispatcher(py, py.get_type_bound::<CommandDispatcher>())
+                .expect("could not add command dispatcher");
+            EVENT_DISPATCHERS.store(Some(
+                Py::new(py, event_dispatcher)
+                    .expect("could not create event dispatcher manager in python")
+                    .into(),
+            ));
+
+            let capturing_hook = capturing_hook(py);
+            let command = Command {
+                plugin: test_plugin(py).unbind(),
+                name: vec!["cmd_name".into()],
+                handler: capturing_hook
+                    .getattr("hook")
+                    .expect("could not get capturing hook")
+                    .unbind(),
+                permission: 0,
+                channels: vec![],
+                exclude_channels: vec![chat_channel.clone_ref(py).into_any()],
+                client_cmd_pass: false,
+                client_cmd_perm: 0,
+                prefix: false,
+                usage: "".to_string(),
+            };
+
+            let command_invoker = CommandInvoker::py_new();
+            command_invoker
+                .add_command(py, command.clone(), CommandPriorities::PRI_NORMAL as usize)
+                .expect("this should not happen");
+
+            let result =
+                command_invoker.handle_input(py, &player, "cmd_name", chat_channel.into_any());
+            assert!(result.is_ok_and(|pass_through| pass_through));
+        });
+    }
+
+    #[rstest]
+    #[cfg_attr(miri, ignore)]
+    #[serial]
+    fn handle_input_with_non_eligible_player(_pyshinqlx_setup: ()) {
+        let mut mock_engine = MockQuakeEngine::new();
+        let owner = CString::new("9876543210").expect("this should not happen");
+        mock_engine
+            .expect_find_cvar()
+            .with(predicate::eq("qlx_owner"))
+            .returning(move |_| {
+                let mut raw_cvar = CVarBuilder::default()
+                    .string(owner.as_ptr() as *mut c_char)
+                    .build()
+                    .expect("this should not happen");
+                CVar::try_from(&mut raw_cvar as *mut cvar_t).ok()
+            });
+        mock_engine
+            .expect_find_cvar()
+            .with(predicate::ne("qlx_owner"))
+            .returning(|_| None);
+        MAIN_ENGINE.store(Some(mock_engine.into()));
+
+        Python::with_gil(|py| {
+            let player = default_test_player();
+            let chat_channel = Py::new(py, ChatChannel::py_new("chat", "print \"{}\n\"\n"))
+                .expect("this should not happen");
+
+            let event_dispatcher = EventDispatcherManager::default();
+            event_dispatcher
+                .add_dispatcher(py, py.get_type_bound::<CommandDispatcher>())
+                .expect("could not add command dispatcher");
+            EVENT_DISPATCHERS.store(Some(
+                Py::new(py, event_dispatcher)
+                    .expect("could not create event dispatcher manager in python")
+                    .into(),
+            ));
+
+            let capturing_hook = capturing_hook(py);
+            let command = Command {
+                plugin: test_plugin(py).unbind(),
+                name: vec!["cmd_name".into()],
+                handler: capturing_hook
+                    .getattr("hook")
+                    .expect("could not get capturing hook")
+                    .unbind(),
+                permission: 5,
+                channels: vec![],
+                exclude_channels: vec![],
+                client_cmd_pass: false,
+                client_cmd_perm: 0,
+                prefix: false,
+                usage: "".to_string(),
+            };
+
+            let command_invoker = CommandInvoker::py_new();
+            command_invoker
+                .add_command(py, command.clone(), CommandPriorities::PRI_NORMAL as usize)
+                .expect("this should not happen");
+
+            let result =
+                command_invoker.handle_input(py, &player, "cmd_name", chat_channel.into_any());
+            assert!(result.is_ok_and(|pass_through| pass_through));
+        });
+    }
+
+    #[rstest]
+    #[case(true)]
+    #[case(false)]
+    #[cfg_attr(miri, ignore)]
+    #[serial]
+    fn handle_input_for_client_cmd_with_pass_through(
+        #[case] pass_through: bool,
+        _pyshinqlx_setup: (),
+    ) {
+        let mut mock_engine = MockQuakeEngine::new();
+        let owner = CString::new("9876543210").expect("this should not happen");
+        mock_engine
+            .expect_find_cvar()
+            .with(predicate::eq("qlx_owner"))
+            .returning(move |_| {
+                let mut raw_cvar = CVarBuilder::default()
+                    .string(owner.as_ptr() as *mut c_char)
+                    .build()
+                    .expect("this should not happen");
+                CVar::try_from(&mut raw_cvar as *mut cvar_t).ok()
+            });
+        mock_engine
+            .expect_find_cvar()
+            .with(predicate::ne("qlx_owner"))
+            .returning(|_| None);
+        MAIN_ENGINE.store(Some(mock_engine.into()));
+
+        Python::with_gil(|py| {
+            let player = default_test_player();
+            let client_command_channel =
+                Py::new(py, ClientCommandChannel::py_new(&player)).expect("this should not happen");
+
+            let event_dispatcher = EventDispatcherManager::default();
+            event_dispatcher
+                .add_dispatcher(py, py.get_type_bound::<CommandDispatcher>())
+                .expect("could not add command dispatcher");
+            EVENT_DISPATCHERS.store(Some(
+                Py::new(py, event_dispatcher)
+                    .expect("could not create event dispatcher manager in python")
+                    .into(),
+            ));
+
+            let capturing_hook = capturing_hook(py);
+            let command = Command {
+                plugin: test_plugin(py).unbind(),
+                name: vec!["cmd_name".into()],
+                handler: capturing_hook
+                    .getattr("hook")
+                    .expect("could not get capturing hook")
+                    .unbind(),
+                permission: 0,
+                channels: vec![],
+                exclude_channels: vec![],
+                client_cmd_pass: pass_through,
+                client_cmd_perm: 0,
+                prefix: false,
+                usage: "".to_string(),
+            };
+
+            let command_invoker = CommandInvoker::py_new();
+            command_invoker
+                .add_command(py, command.clone(), CommandPriorities::PRI_NORMAL as usize)
+                .expect("this should not happen");
+
+            let result = command_invoker.handle_input(
+                py,
+                &player,
+                "cmd_name",
+                client_command_channel.into_any(),
+            );
+            assert!(result.is_ok_and(|actual_pass_through| actual_pass_through == pass_through));
+            assert!(capturing_hook
+                .call_method1("assert_called_with", ("_", ["cmd_name"], "_"))
+                .is_ok());
         });
     }
 }
