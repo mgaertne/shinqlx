@@ -503,6 +503,8 @@ mod stats_listener_tests {
     use super::StatsListener;
     use mockall::predicate;
 
+    use crate::ffi::python::pyshinqlx_setup_fixture::*;
+
     use crate::prelude::{serial, MockQuakeEngine};
     use crate::MAIN_ENGINE;
 
@@ -512,14 +514,15 @@ mod stats_listener_tests {
     use core::ffi::c_char;
 
     use pretty_assertions::assert_eq;
+    use rstest::*;
 
     use pyo3::exceptions::PyEnvironmentError;
     use pyo3::prelude::*;
 
-    #[test]
+    #[rstest]
     #[cfg_attr(miri, ignore)]
     #[serial]
-    fn constructor_with_no_main_engine() {
+    fn constructor_with_no_main_engine(_pyshinqlx_setup: ()) {
         MAIN_ENGINE.store(None);
 
         Python::with_gil(|py| {
