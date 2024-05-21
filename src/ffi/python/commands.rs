@@ -607,12 +607,8 @@ class mocked_db:
                     .expect("could not get capturing hook")
                     .unbind(),
                 0,
-                py.None(),
-                vec![
-                    chat_channel.clone().into_py(py),
-                    console_channel.clone().into_py(py),
-                ]
-                .into_py(py),
+                vec![chat_channel.into_py(py)].into_py(py),
+                vec![console_channel.into_py(py)].into_py(py),
                 true,
                 0,
                 true,
