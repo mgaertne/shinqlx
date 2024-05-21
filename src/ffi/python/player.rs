@@ -454,8 +454,7 @@ impl Player {
         });
 
         let client_command = format!("userinfo \"{new_cvars_string}\"");
-        pyshinqlx_client_command(py, self.id, &client_command)?;
-        Ok(())
+        pyshinqlx_client_command(py, self.id, &client_command).map(|_| ())
     }
 
     #[getter(autohop)]
@@ -490,8 +489,7 @@ impl Player {
         });
 
         let client_command = format!("userinfo \"{new_cvars_string}\"");
-        pyshinqlx_client_command(py, self.id, &client_command)?;
-        Ok(())
+        pyshinqlx_client_command(py, self.id, &client_command).map(|_| ())
     }
 
     #[getter(autoaction)]
@@ -526,8 +524,7 @@ impl Player {
         });
 
         let client_command = format!("userinfo \"{new_cvars_string}\"");
-        pyshinqlx_client_command(py, self.id, &client_command)?;
-        Ok(())
+        pyshinqlx_client_command(py, self.id, &client_command).map(|_| ())
     }
 
     #[getter(predictitems)]
@@ -562,8 +559,7 @@ impl Player {
         });
 
         let client_command = format!("userinfo \"{new_cvars_string}\"");
-        pyshinqlx_client_command(py, self.id, &client_command)?;
-        Ok(())
+        pyshinqlx_client_command(py, self.id, &client_command).map(|_| ())
     }
 
     /// A string describing the connection state of a player.
@@ -1090,8 +1086,7 @@ impl Player {
                 },
             },
         };
-        pyshinqlx_noclip(py, self.id, noclip_value)?;
-        Ok(())
+        pyshinqlx_noclip(py, self.id, noclip_value).map(|_| ())
     }
 
     #[getter(health)]
