@@ -40,24 +40,25 @@ impl Game {
     #[pyo3(signature = (cached = true), text_signature = "(cached = true)")]
     pub(crate) fn py_new(py: Python<'_>, cached: bool) -> PyResult<Self> {
         py.allow_threads(|| {
-            let Some(ref main_engine) = *MAIN_ENGINE.load() else {
-                return Err(PyEnvironmentError::new_err(
+            MAIN_ENGINE.load().as_ref().map_or(
+                Err(PyEnvironmentError::new_err(
                     "main quake live engine not set",
-                ));
-            };
+                )),
+                |main_engine| {
+                    let configstring = main_engine.get_configstring(CS_SERVERINFO as u16);
 
-            let configstring = main_engine.get_configstring(CS_SERVERINFO as u16);
+                    if configstring.is_empty() {
+                        return Err(NonexistentGameError::new_err(
+                            "Tried to instantiate a game while no game is active.",
+                        ));
+                    }
 
-            if configstring.is_empty() {
-                return Err(NonexistentGameError::new_err(
-                    "Tried to instantiate a game while no game is active.",
-                ));
-            }
-
-            Ok(Game {
-                cached,
-                valid: true,
-            })
+                    Ok(Game {
+                        cached,
+                        valid: true,
+                    })
+                },
+            )
         })
     }
 
@@ -86,45 +87,47 @@ impl Game {
 
     fn __contains__(&mut self, py: Python<'_>, item: &str) -> PyResult<bool> {
         py.allow_threads(|| {
-            let Some(ref main_engine) = *MAIN_ENGINE.load() else {
-                return Err(PyEnvironmentError::new_err(
+            MAIN_ENGINE.load().as_ref().map_or(
+                Err(PyEnvironmentError::new_err(
                     "main quake live engine not set",
-                ));
-            };
+                )),
+                |main_engine| {
+                    let configstring = main_engine.get_configstring(CS_SERVERINFO as u16);
 
-            let configstring = main_engine.get_configstring(CS_SERVERINFO as u16);
+                    if configstring.is_empty() {
+                        self.valid = false;
+                        return Err(NonexistentGameError::new_err(
+                            "Invalid game. Is the server loading a new map?",
+                        ));
+                    }
 
-            if configstring.is_empty() {
-                self.valid = false;
-                return Err(NonexistentGameError::new_err(
-                    "Invalid game. Is the server loading a new map?",
-                ));
-            }
-
-            Ok(parse_variables(&configstring).get(item).is_some())
+                    Ok(parse_variables(&configstring).get(item).is_some())
+                },
+            )
         })
     }
 
     fn __getitem__(&mut self, py: Python<'_>, item: &str) -> PyResult<String> {
         py.allow_threads(|| {
-            let Some(ref main_engine) = *MAIN_ENGINE.load() else {
-                return Err(PyEnvironmentError::new_err(
+            MAIN_ENGINE.load().as_ref().map_or(
+                Err(PyEnvironmentError::new_err(
                     "main quake live engine not set",
-                ));
-            };
+                )),
+                |main_engine| {
+                    let configstring = main_engine.get_configstring(CS_SERVERINFO as u16);
 
-            let configstring = main_engine.get_configstring(CS_SERVERINFO as u16);
+                    if configstring.is_empty() {
+                        self.valid = false;
+                        return Err(NonexistentGameError::new_err(
+                            "Invalid game. Is the server loading a new map?",
+                        ));
+                    }
 
-            if configstring.is_empty() {
-                self.valid = false;
-                return Err(NonexistentGameError::new_err(
-                    "Invalid game. Is the server loading a new map?",
-                ));
-            }
-
-            parse_variables(&configstring)
-                .get(item)
-                .map_or_else(|| Err(PyKeyError::new_err(format!("'{}'", item))), Ok)
+                    parse_variables(&configstring)
+                        .get(item)
+                        .map_or_else(|| Err(PyKeyError::new_err(format!("'{}'", item))), Ok)
+                },
+            )
         })
     }
 
@@ -132,24 +135,24 @@ impl Game {
     /// might not have attributes on this class, this could be useful.
     #[getter(cvars)]
     fn get_cvars<'b>(&mut self, py: Python<'b>) -> PyResult<Bound<'b, PyDict>> {
-        let configstring = py.allow_threads(|| {
-            let Some(ref main_engine) = *MAIN_ENGINE.load() else {
-                return Err(PyEnvironmentError::new_err(
+        py.allow_threads(|| {
+            MAIN_ENGINE.load().as_ref().map_or(
+                Err(PyEnvironmentError::new_err(
                     "main quake live engine not set",
-                ));
-            };
-
-            Ok(main_engine.get_configstring(CS_SERVERINFO as u16))
-        })?;
-
-        if configstring.is_empty() {
-            self.valid = false;
-            return Err(NonexistentGameError::new_err(
-                "Invalid game. Is the server loading a new map?",
-            ));
-        }
-
-        Ok(parse_variables(&configstring).into_py_dict_bound(py))
+                )),
+                |main_engine| {
+                    let configstring = main_engine.get_configstring(CS_SERVERINFO as u16);
+                    if configstring.is_empty() {
+                        self.valid = false;
+                        return Err(NonexistentGameError::new_err(
+                            "Invalid game. Is the server loading a new map?",
+                        ));
+                    }
+                    Ok(parse_variables(&configstring))
+                },
+            )
+        })
+        .map(|parsed_variables| parsed_variables.into_py_dict_bound(py))
     }
 
     #[getter]
@@ -230,28 +233,30 @@ impl Game {
     #[getter(red_score)]
     fn get_red_score(&self, py: Python<'_>) -> PyResult<i32> {
         py.allow_threads(|| {
-            let Some(ref main_engine) = *MAIN_ENGINE.load() else {
-                return Err(PyEnvironmentError::new_err(
+            MAIN_ENGINE.load().as_ref().map_or(
+                Err(PyEnvironmentError::new_err(
                     "main quake live engine not set",
-                ));
-            };
-
-            let configstring = main_engine.get_configstring(CS_SCORES1 as u16);
-            Ok(configstring.parse::<i32>().unwrap_or_default())
+                )),
+                |main_engine| {
+                    let configstring = main_engine.get_configstring(CS_SCORES1 as u16);
+                    Ok(configstring.parse::<i32>().unwrap_or_default())
+                },
+            )
         })
     }
 
     #[getter(blue_score)]
     fn get_blue_score(&self, py: Python<'_>) -> PyResult<i32> {
         py.allow_threads(|| {
-            let Some(ref main_engine) = *MAIN_ENGINE.load() else {
-                return Err(PyEnvironmentError::new_err(
+            MAIN_ENGINE.load().as_ref().map_or(
+                Err(PyEnvironmentError::new_err(
                     "main quake live engine not set",
-                ));
-            };
-
-            let configstring = main_engine.get_configstring(CS_SCORES2 as u16);
-            Ok(configstring.parse::<i32>().unwrap_or_default())
+                )),
+                |main_engine| {
+                    let configstring = main_engine.get_configstring(CS_SCORES2 as u16);
+                    Ok(configstring.parse::<i32>().unwrap_or_default())
+                },
+            )
         })
     }
 
@@ -318,8 +323,7 @@ impl Game {
                 }
             },
         };
-        pyshinqlx_set_cvar(py, "g_instagib", string_cvar_value, None)?;
-        Ok(())
+        pyshinqlx_set_cvar(py, "g_instagib", string_cvar_value, None).map(|_| ())
     }
 
     #[getter(loadout)]
@@ -343,8 +347,7 @@ impl Game {
                 }
             },
         };
-        pyshinqlx_set_cvar(py, "g_loadout", string_cvar_value, None)?;
-        Ok(())
+        pyshinqlx_set_cvar(py, "g_loadout", string_cvar_value, None).map(|_| ())
     }
 
     #[getter(maxclients)]
@@ -471,24 +474,24 @@ impl Game {
                 }
             },
         };
-        pyshinqlx_set_cvar(py, "sv_tags", &string_cvar_value, None)?;
-        Ok(())
+        pyshinqlx_set_cvar(py, "sv_tags", &string_cvar_value, None).map(|_| ())
     }
 
     #[getter(workshop_items)]
     fn get_workshop_items(&self, py: Python<'_>) -> PyResult<Vec<u64>> {
         py.allow_threads(|| {
-            let Some(ref main_engine) = *MAIN_ENGINE.load() else {
-                return Err(PyEnvironmentError::new_err(
+            MAIN_ENGINE.load().as_ref().map_or(
+                Err(PyEnvironmentError::new_err(
                     "main quake live engine not set",
-                ));
-            };
-
-            let configstring = main_engine.get_configstring(CS_STEAM_WORKSHOP_IDS as u16);
-            Ok(configstring
-                .split(' ')
-                .filter_map(|value| value.parse::<u64>().ok())
-                .collect())
+                )),
+                |main_engine| {
+                    let configstring = main_engine.get_configstring(CS_STEAM_WORKSHOP_IDS as u16);
+                    Ok(configstring
+                        .split(' ')
+                        .filter_map(|value| value.parse::<u64>().ok())
+                        .collect())
+                },
+            )
         })
     }
 
@@ -505,14 +508,15 @@ impl Game {
         };
 
         py.allow_threads(|| {
-            let Some(ref main_engine) = *MAIN_ENGINE.load() else {
-                return Err(PyEnvironmentError::new_err(
+            MAIN_ENGINE.load().as_ref().map_or(
+                Err(PyEnvironmentError::new_err(
                     "main quake live engine not set",
-                ));
-            };
-
-            main_engine.set_configstring(CS_STEAM_WORKSHOP_IDS as i32, &workshop_items_str);
-            Ok(())
+                )),
+                |main_engine| {
+                    main_engine.set_configstring(CS_STEAM_WORKSHOP_IDS as i32, &workshop_items_str);
+                    Ok(())
+                },
+            )
         })
     }
 
