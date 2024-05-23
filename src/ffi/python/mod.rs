@@ -1667,7 +1667,7 @@ fn register_core_module(m: &Bound<'_, PyModule>) -> PyResult<()> {
 
     m.add(
         "TEAMS",
-        &[
+        [
             (team_t::TEAM_FREE as i32, "free"),
             (team_t::TEAM_RED as i32, "red"),
             (team_t::TEAM_BLUE as i32, "blue"),
@@ -1678,7 +1678,7 @@ fn register_core_module(m: &Bound<'_, PyModule>) -> PyResult<()> {
     // Game types
     m.add(
         "GAMETYPES",
-        &[
+        [
             (0, "Free for All"),
             (1, "Duel"),
             (2, "Race"),
@@ -1696,7 +1696,7 @@ fn register_core_module(m: &Bound<'_, PyModule>) -> PyResult<()> {
     )?;
     m.add(
         "GAMETYPES_SHORT",
-        &[
+        [
             (0, "ffa"),
             (1, "duel"),
             (2, "race"),
@@ -1714,7 +1714,7 @@ fn register_core_module(m: &Bound<'_, PyModule>) -> PyResult<()> {
     )?;
     m.add(
         "CONNECTION_STATES",
-        &[
+        [
             (clientState_t::CS_FREE as i32, "free"),
             (clientState_t::CS_ZOMBIE as i32, "zombie"),
             (clientState_t::CS_CONNECTED as i32, "connected"),
@@ -1726,7 +1726,7 @@ fn register_core_module(m: &Bound<'_, PyModule>) -> PyResult<()> {
     // Weapons
     m.add(
         "WEAPONS",
-        &[
+        [
             (weapon_t::WP_GAUNTLET as i32, "g"),
             (weapon_t::WP_MACHINEGUN as i32, "mg"),
             (weapon_t::WP_SHOTGUN as i32, "sg"),
