@@ -2644,6 +2644,25 @@ assert(player._valid)
 
     #[rstest]
     #[cfg_attr(miri, ignore)]
+    #[serial]
+    fn set_handicap_for_unparseable_value(_pyshinqlx_setup: ()) {
+        let mut player = Player {
+            user_info: r"\asdf\qwertz\handicap\100\name\UnnamedPlayer".to_string(),
+            player_info: PlayerInfo {
+                userinfo: r"\asdf\qwertz\handicap\100\name\UnnamedPlayer".to_string(),
+                ..default_test_player_info()
+            },
+            ..default_test_player()
+        };
+
+        Python::with_gil(|py| {
+            let result = player.set_handicap(py, "asdf".into_py(py));
+            assert!(result.is_err_and(|err| err.is_instance_of::<PyValueError>(py)));
+        });
+    }
+
+    #[rstest]
+    #[cfg_attr(miri, ignore)]
     fn get_autohop_when_no_autohop_is_set(_pyshinqlx_setup: ()) {
         let player = Player {
             user_info: "".to_string(),
@@ -2694,6 +2713,24 @@ assert(player._valid)
 
     #[rstest]
     #[cfg_attr(miri, ignore)]
+    fn get_autohop_when_autohop_cannot_be_parsed(_pyshinqlx_setup: ()) {
+        let player = Player {
+            user_info: r"\autohop\asdf".to_string(),
+            player_info: PlayerInfo {
+                userinfo: r"\autohop\asdf".to_string(),
+                ..default_test_player_info()
+            },
+            ..default_test_player()
+        };
+
+        Python::with_gil(|py| {
+            let result = player.get_autohop(py);
+            assert!(result.is_err_and(|err| err.is_instance_of::<PyValueError>(py)));
+        });
+    }
+
+    #[rstest]
+    #[cfg_attr(miri, ignore)]
     #[serial]
     fn set_autohop_updates_client_cvars(_pyshinqlx_setup: ()) {
         let mut mock_engine = MockQuakeEngine::new();
@@ -2730,6 +2767,25 @@ assert(player._valid)
 
         let result = Python::with_gil(|py| player.set_autohop(py, 0.into_py(py)));
         assert!(result.is_ok());
+    }
+
+    #[rstest]
+    #[cfg_attr(miri, ignore)]
+    #[serial]
+    fn set_autohop_for_unparseable_value(_pyshinqlx_setup: ()) {
+        let mut player = Player {
+            user_info: r"\asdf\qwertz\autohop\1\name\UnnamedPlayer".to_string(),
+            player_info: PlayerInfo {
+                userinfo: r"\asdf\qwertz\autohop\1\name\UnnamedPlayer".to_string(),
+                ..default_test_player_info()
+            },
+            ..default_test_player()
+        };
+
+        Python::with_gil(|py| {
+            let result = player.set_autohop(py, "asdf".into_py(py));
+            assert!(result.is_err_and(|err| err.is_instance_of::<PyValueError>(py)));
+        });
     }
 
     #[rstest]
@@ -2784,6 +2840,24 @@ assert(player._valid)
 
     #[rstest]
     #[cfg_attr(miri, ignore)]
+    fn get_autoaction_when_autoaction_cannot_be_parsed(_pyshinqlx_setup: ()) {
+        let player = Player {
+            user_info: r"\autoaction\asdf".to_string(),
+            player_info: PlayerInfo {
+                userinfo: r"\autoaction\asdf".to_string(),
+                ..default_test_player_info()
+            },
+            ..default_test_player()
+        };
+
+        Python::with_gil(|py| {
+            let result = player.get_autoaction(py);
+            assert!(result.is_err_and(|err| err.is_instance_of::<PyValueError>(py)));
+        });
+    }
+
+    #[rstest]
+    #[cfg_attr(miri, ignore)]
     #[serial]
     fn set_autoaction_updates_client_cvars(_pyshinqlx_setup: ()) {
         let mut mock_engine = MockQuakeEngine::new();
@@ -2820,6 +2894,25 @@ assert(player._valid)
 
         let result = Python::with_gil(|py| player.set_autoaction(py, 0.into_py(py)));
         assert!(result.is_ok());
+    }
+
+    #[rstest]
+    #[cfg_attr(miri, ignore)]
+    #[serial]
+    fn set_autoaction_with_unparseable_value(_pyshinqlx_setup: ()) {
+        let mut player = Player {
+            user_info: r"\asdf\qwertz\autoaction\1\name\UnnamedPlayer".to_string(),
+            player_info: PlayerInfo {
+                userinfo: r"\asdf\qwertz\autoaction\1\name\UnnamedPlayer".to_string(),
+                ..default_test_player_info()
+            },
+            ..default_test_player()
+        };
+
+        Python::with_gil(|py| {
+            let result = player.set_autoaction(py, "asdf".into_py(py));
+            assert!(result.is_err_and(|err| err.is_instance_of::<PyValueError>(py)));
+        });
     }
 
     #[rstest]
@@ -2874,6 +2967,24 @@ assert(player._valid)
 
     #[rstest]
     #[cfg_attr(miri, ignore)]
+    fn get_predititems_when_predictitems_is_unparseable(_pyshinqlx_setup: ()) {
+        let player = Player {
+            user_info: r"\cg_predictitems\asdf".to_string(),
+            player_info: PlayerInfo {
+                userinfo: r"\cg_predictitems\asdf".to_string(),
+                ..default_test_player_info()
+            },
+            ..default_test_player()
+        };
+
+        Python::with_gil(|py| {
+            let result = player.get_predictitems(py);
+            assert!(result.is_err_and(|err| err.is_instance_of::<PyValueError>(py)));
+        });
+    }
+
+    #[rstest]
+    #[cfg_attr(miri, ignore)]
     #[serial]
     fn set_predictitems_updates_client_cvars(_pyshinqlx_setup: ()) {
         let mut mock_engine = MockQuakeEngine::new();
@@ -2910,6 +3021,25 @@ assert(player._valid)
 
         let result = Python::with_gil(|py| player.set_predictitems(py, 0.into_py(py)));
         assert!(result.is_ok());
+    }
+
+    #[rstest]
+    #[cfg_attr(miri, ignore)]
+    #[serial]
+    fn set_predictitems_with_unparseable_value(_pyshinqlx_setup: ()) {
+        let mut player = Player {
+            user_info: r"\asdf\qwertz\cg_predictitems\1\name\UnnamedPlayer".to_string(),
+            player_info: PlayerInfo {
+                userinfo: r"\asdf\qwertz\cg_predictitems\1\name\UnnamedPlayer".to_string(),
+                ..default_test_player_info()
+            },
+            ..default_test_player()
+        };
+
+        Python::with_gil(|py| {
+            let result = player.set_predictitems(py, "asdf".into_py(py));
+            assert!(result.is_err_and(|err| err.is_instance_of::<PyValueError>(py)));
+        });
     }
 
     #[rstest]
