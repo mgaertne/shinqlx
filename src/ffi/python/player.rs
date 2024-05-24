@@ -1175,33 +1175,35 @@ impl Player {
         msg: &str,
         kwargs: Option<&Bound<'py, PyDict>>,
     ) -> PyResult<()> {
-        let Some(tell_channel) = self.get_channel(py) else {
-            return Err(PyNotImplementedError::new_err("Player TellChannel"));
-        };
+        self.get_channel(py).map_or(
+            Err(PyNotImplementedError::new_err("Player TellChannel")),
+            |tell_channel| {
+                let limit = kwargs.map_or(100i32, |pydict| {
+                    pydict
+                        .get_item("limit")
+                        .ok()
+                        .flatten()
+                        .and_then(|value| value.extract::<i32>().ok())
+                        .unwrap_or(100i32)
+                });
 
-        let limit = kwargs.map_or(100i32, |pydict| {
-            pydict
-                .get_item("limit")
-                .ok()
-                .flatten()
-                .and_then(|value| value.extract::<i32>().ok())
-                .unwrap_or(100i32)
-        });
-        let delimiter = kwargs.map_or(" ".to_owned(), |pydict| {
-            pydict
-                .get_item("delimiter")
-                .ok()
-                .flatten()
-                .and_then(|value| value.extract::<String>().ok())
-                .unwrap_or(" ".to_owned())
-        });
+                let delimiter = kwargs.map_or(" ".to_owned(), |pydict| {
+                    pydict
+                        .get_item("delimiter")
+                        .ok()
+                        .flatten()
+                        .and_then(|value| value.extract::<String>().ok())
+                        .unwrap_or(" ".to_owned())
+                });
 
-        ChatChannel::reply(
-            tell_channel.bind(py).borrow().into_super(),
-            py,
-            msg,
-            limit,
-            &delimiter,
+                ChatChannel::reply(
+                    tell_channel.bind(py).borrow().into_super(),
+                    py,
+                    msg,
+                    limit,
+                    &delimiter,
+                )
+            },
         )
     }
 
@@ -6610,6 +6612,17 @@ assert(player._valid)
     }
 
     #[rstest]
+    #[cfg_attr(miri, ignore)]
+    fn get_channel_returns_tell_channel(_pyshinqlx_setup: ()) {
+        let player = default_test_player();
+
+        Python::with_gil(|py| {
+            let result = player.get_channel(py);
+            assert!(result.is_some());
+        });
+    }
+
+    #[rstest]
     #[serial]
     #[cfg_attr(miri, ignore)]
     fn center_print_sends_center_print_server_command(_pyshinqlx_setup: ()) {
@@ -6636,6 +6649,39 @@ assert(player._valid)
 
         let result = Python::with_gil(|py| player.center_print(py, "asdf"));
         assert!(result.is_ok());
+    }
+
+    #[rstest]
+    #[serial]
+    #[cfg_attr(miri, ignore)]
+    fn tell_with_no_keywords(_pyshinqlx_setup: ()) {
+        let mut mock_engine = MockQuakeEngine::new();
+        mock_engine.expect_get_max_clients().returning(|| 16);
+        MAIN_ENGINE.store(Some(mock_engine.into()));
+
+        let client_from_ctx = MockClient::from_context();
+        client_from_ctx.expect().returning(|_| {
+            let mut mock_client = MockClient::new();
+            mock_client
+                .expect_get_state()
+                .returning(|| clientState_t::CS_ACTIVE);
+            mock_client
+        });
+
+        let send_server_cmd_ctx = shinqlx_send_server_command_context();
+        send_server_cmd_ctx
+            .expect()
+            .withf(|_client, msg| msg == "print \"asdf\n\"\n")
+            .times(1);
+
+        let player = default_test_player();
+
+        Python::with_gil(|py| {
+            let result = player.tell(py, "asdf", None);
+            assert!(result.is_ok());
+
+            let _ = run_all_frame_tasks(py);
+        });
     }
 
     #[rstest]
