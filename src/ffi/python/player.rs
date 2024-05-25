@@ -6732,12 +6732,31 @@ assert(player._valid)
         mock_engine.expect_get_max_clients().returning(|| 16);
         MAIN_ENGINE.store(Some(mock_engine.into()));
 
+        let game_entity_from_ctx = MockGameEntity::from_context();
+        game_entity_from_ctx.expect().returning(|_| {
+            let mut mock_entity = MockGameEntity::new();
+            mock_entity
+                .expect_get_player_name()
+                .return_const("UnnamedPlayer");
+            mock_entity
+                .expect_get_team()
+                .return_const(team_t::TEAM_SPECTATOR);
+            mock_entity
+                .expect_get_privileges()
+                .return_const(privileges_t::PRIV_NONE);
+            mock_entity
+        });
+
         let client_from_ctx = MockClient::from_context();
         client_from_ctx.expect().returning(|_| {
             let mut mock_client = MockClient::new();
             mock_client
                 .expect_get_state()
                 .returning(|| clientState_t::CS_ACTIVE);
+            mock_client.expect_get_user_info().return_const("");
+            mock_client
+                .expect_get_steam_id()
+                .return_const(1234567890u64);
             mock_client
         });
 
@@ -6747,7 +6766,13 @@ assert(player._valid)
             .withf(|_client, msg| msg == "print \"These \nare \nfour \nlines\n\"\n")
             .times(1);
 
-        let player = default_test_player();
+        let player = Player {
+            player_info: PlayerInfo {
+                connection_state: clientState_t::CS_ACTIVE as i32,
+                ..default_test_player_info()
+            },
+            ..default_test_player()
+        };
 
         Python::with_gil(|py| {
             let result = player.tell(
@@ -6769,12 +6794,31 @@ assert(player._valid)
         mock_engine.expect_get_max_clients().returning(|| 16);
         MAIN_ENGINE.store(Some(mock_engine.into()));
 
+        let game_entity_from_ctx = MockGameEntity::from_context();
+        game_entity_from_ctx.expect().returning(|_| {
+            let mut mock_entity = MockGameEntity::new();
+            mock_entity
+                .expect_get_player_name()
+                .return_const("UnnamedPlayer");
+            mock_entity
+                .expect_get_team()
+                .return_const(team_t::TEAM_SPECTATOR);
+            mock_entity
+                .expect_get_privileges()
+                .return_const(privileges_t::PRIV_NONE);
+            mock_entity
+        });
+
         let client_from_ctx = MockClient::from_context();
         client_from_ctx.expect().returning(|_| {
             let mut mock_client = MockClient::new();
             mock_client
                 .expect_get_state()
                 .returning(|| clientState_t::CS_ACTIVE);
+            mock_client.expect_get_user_info().return_const("");
+            mock_client
+                .expect_get_steam_id()
+                .return_const(1234567890u64);
             mock_client
         });
 
@@ -6784,7 +6828,13 @@ assert(player._valid)
             .withf(|_client, msg| msg == "print \"These_\nare_\nfour_\nlines\n\"\n")
             .times(1);
 
-        let player = default_test_player();
+        let player = Player {
+            player_info: PlayerInfo {
+                connection_state: clientState_t::CS_ACTIVE as i32,
+                ..default_test_player_info()
+            },
+            ..default_test_player()
+        };
 
         Python::with_gil(|py| {
             let result = player.tell(
@@ -6809,12 +6859,31 @@ assert(player._valid)
         mock_engine.expect_get_max_clients().returning(|| 16);
         MAIN_ENGINE.store(Some(mock_engine.into()));
 
+        let game_entity_from_ctx = MockGameEntity::from_context();
+        game_entity_from_ctx.expect().returning(|_| {
+            let mut mock_entity = MockGameEntity::new();
+            mock_entity
+                .expect_get_player_name()
+                .return_const("UnnamedPlayer");
+            mock_entity
+                .expect_get_team()
+                .return_const(team_t::TEAM_SPECTATOR);
+            mock_entity
+                .expect_get_privileges()
+                .return_const(privileges_t::PRIV_NONE);
+            mock_entity
+        });
+
         let client_from_ctx = MockClient::from_context();
         client_from_ctx.expect().returning(|_| {
             let mut mock_client = MockClient::new();
             mock_client
                 .expect_get_state()
                 .returning(|| clientState_t::CS_ACTIVE);
+            mock_client.expect_get_user_info().return_const("");
+            mock_client
+                .expect_get_steam_id()
+                .return_const(1234567890u64);
             mock_client
         });
 
@@ -6824,7 +6893,13 @@ assert(player._valid)
             .withf(|_client, reason| reason == "you stink, go away!")
             .times(1);
 
-        let player = default_test_player();
+        let player = Player {
+            player_info: PlayerInfo {
+                connection_state: clientState_t::CS_ACTIVE as i32,
+                ..default_test_player_info()
+            },
+            ..default_test_player()
+        };
 
         let result = Python::with_gil(|py| player.kick(py, "you stink, go away!"));
         assert!(result.is_ok());
