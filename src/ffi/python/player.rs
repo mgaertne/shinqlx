@@ -1330,11 +1330,12 @@ mod pyshinqlx_player_tests {
 
     use mockall::{predicate, Sequence};
     use pretty_assertions::assert_eq;
+    use rstest::rstest;
+
     use pyo3::{
-        exceptions::{PyEnvironmentError, PyKeyError, PyValueError},
+        exceptions::{PyEnvironmentError, PyKeyError, PyTypeError, PyValueError},
         types::IntoPyDict,
     };
-    use rstest::rstest;
 
     #[test]
     #[serial]
@@ -1713,6 +1714,39 @@ assert(shinqlx.Player(42, player_info) != "asdf")
             )
         });
         assert!(result.is_ok());
+    }
+
+    #[rstest]
+    #[cfg_attr(miri, ignore)]
+    fn player_can_not_be_compared_for_larger_than(_pyshinqlx_setup: ()) {
+        let player_info = PlayerInfo {
+            client_id: 42,
+            steam_id: 1234567890,
+            ..default_test_player_info()
+        };
+        let player_info2 = PlayerInfo {
+            client_id: 42,
+            steam_id: 41,
+            ..default_test_player_info()
+        };
+
+        Python::with_gil(|py| {
+            let result = py.run_bound(
+                r#"
+import shinqlx
+shinqlx.Player(42, player_info) < shinqlx.Player(42, player_info)
+            "#,
+                None,
+                Some(
+                    &[
+                        ("player_info", player_info.into_py(py)),
+                        ("player_info2", player_info2.into_py(py)),
+                    ]
+                    .into_py_dict_bound(py),
+                ),
+            );
+            assert!(result.is_err_and(|err| err.is_instance_of::<PyTypeError>(py)));
+        });
     }
 
     #[rstest]
