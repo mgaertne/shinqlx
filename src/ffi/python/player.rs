@@ -1,4 +1,6 @@
 use super::prelude::*;
+use super::{owner, CONSOLE_CHANNEL};
+
 use crate::ffi::c::prelude::*;
 use crate::quake_live_engine::{GetConfigstring, SetConfigstring};
 use crate::MAIN_ENGINE;
@@ -7,8 +9,10 @@ use itertools::Itertools;
 use pyo3::{
     basic::CompareOp,
     create_exception,
-    exceptions::{PyAttributeError, PyException, PyKeyError, PyNotImplementedError, PyValueError},
-    intern,
+    exceptions::{
+        PyAttributeError, PyEnvironmentError, PyException, PyKeyError, PyNotImplementedError,
+        PyValueError,
+    },
     types::{IntoPyDict, PyDict, PyType},
 };
 
@@ -1178,23 +1182,25 @@ impl Player {
         self.get_channel(py).map_or(
             Err(PyNotImplementedError::new_err("Player TellChannel")),
             |tell_channel| {
-                let limit = kwargs.map_or(100i32, |pydict| {
-                    pydict
-                        .get_item("limit")
-                        .ok()
-                        .flatten()
-                        .and_then(|value| value.extract::<i32>().ok())
-                        .unwrap_or(100i32)
-                });
+                let limit = kwargs
+                    .and_then(|pydict| {
+                        pydict
+                            .get_item("limit")
+                            .ok()
+                            .flatten()
+                            .and_then(|value| value.extract::<i32>().ok())
+                    })
+                    .unwrap_or(100i32);
 
-                let delimiter = kwargs.map_or(" ".to_owned(), |pydict| {
-                    pydict
-                        .get_item("delimiter")
-                        .ok()
-                        .flatten()
-                        .and_then(|value| value.extract::<String>().ok())
-                        .unwrap_or(" ".to_owned())
-                });
+                let delimiter = kwargs
+                    .and_then(|pydict| {
+                        pydict
+                            .get_item("delimiter")
+                            .ok()
+                            .flatten()
+                            .and_then(|value| value.extract::<String>().ok())
+                    })
+                    .unwrap_or(" ".to_owned());
 
                 ChatChannel::reply(
                     tell_channel.bind(py).borrow().into_super(),
@@ -6687,6 +6693,83 @@ assert(player._valid)
     #[rstest]
     #[serial]
     #[cfg_attr(miri, ignore)]
+    fn tell_with_limit_keyword(_pyshinqlx_setup: ()) {
+        let mut mock_engine = MockQuakeEngine::new();
+        mock_engine.expect_get_max_clients().returning(|| 16);
+        MAIN_ENGINE.store(Some(mock_engine.into()));
+
+        let client_from_ctx = MockClient::from_context();
+        client_from_ctx.expect().returning(|_| {
+            let mut mock_client = MockClient::new();
+            mock_client
+                .expect_get_state()
+                .returning(|| clientState_t::CS_ACTIVE);
+            mock_client
+        });
+
+        let send_server_cmd_ctx = shinqlx_send_server_command_context();
+        send_server_cmd_ctx
+            .expect()
+            .withf(|_client, msg| msg == "print \"These \nare \nfour \nlines\n\"\n")
+            .times(1);
+
+        let player = default_test_player();
+
+        Python::with_gil(|py| {
+            let result = player.tell(
+                py,
+                "These are four lines",
+                Some(&[("limit", 5)].into_py_dict_bound(py)),
+            );
+            assert!(result.is_ok());
+
+            let _ = run_all_frame_tasks(py);
+        });
+    }
+
+    #[rstest]
+    #[serial]
+    #[cfg_attr(miri, ignore)]
+    fn tell_with_delimiter_keyword(_pyshinqlx_setup: ()) {
+        let mut mock_engine = MockQuakeEngine::new();
+        mock_engine.expect_get_max_clients().returning(|| 16);
+        MAIN_ENGINE.store(Some(mock_engine.into()));
+
+        let client_from_ctx = MockClient::from_context();
+        client_from_ctx.expect().returning(|_| {
+            let mut mock_client = MockClient::new();
+            mock_client
+                .expect_get_state()
+                .returning(|| clientState_t::CS_ACTIVE);
+            mock_client
+        });
+
+        let send_server_cmd_ctx = shinqlx_send_server_command_context();
+        send_server_cmd_ctx
+            .expect()
+            .withf(|_client, msg| msg == "print \"These_\nare_\nfour_\nlines\n\"\n")
+            .times(1);
+
+        let player = default_test_player();
+
+        Python::with_gil(|py| {
+            let result = player.tell(
+                py,
+                "These_are_four_lines",
+                Some(
+                    &[("limit", 5.into_py(py)), ("delimiter", "_".into_py(py))]
+                        .into_py_dict_bound(py),
+                ),
+            );
+            assert!(result.is_ok());
+
+            let _ = run_all_frame_tasks(py);
+        });
+    }
+
+    #[rstest]
+    #[serial]
+    #[cfg_attr(miri, ignore)]
     fn kick_kicks_player(_pyshinqlx_setup: ()) {
         let mut mock_engine = MockQuakeEngine::new();
         mock_engine.expect_get_max_clients().returning(|| 16);
@@ -7308,62 +7391,65 @@ pub(crate) struct RconDummyPlayer;
 impl RconDummyPlayer {
     #[new]
     pub(crate) fn py_new() -> PyClassInitializer<Self> {
-        AbstractDummyPlayer::py_new("RconDummyPlayer").add_subclass(RconDummyPlayer {})
+        AbstractDummyPlayer::py_new("RconDummyPlayer").add_subclass(Self {})
     }
 
     #[getter(steam_id)]
     fn get_steam_id(&self, py: Python<'_>) -> PyResult<i64> {
-        super::owner(py).map(|opt_value| opt_value.unwrap_or_default())
+        owner(py).map(|opt_value| opt_value.unwrap_or_default())
     }
 
     #[getter(channel)]
-    fn get_channel<'py>(
-        #[allow(unused_variables)] slf: PyRef<'py, Self>,
-        py: Python<'py>,
-    ) -> PyResult<Bound<'py, PyAny>> {
-        let console_channel = PyModule::from_code_bound(
-            py,
-            r#"
-import shinqlx
-
-console_channel = shinqlx.CONSOLE_CHANNEL"#,
-            "",
-            "",
+    fn get_channel(slf: PyRef<'_, Self>) -> PyResult<Py<ConsoleChannel>> {
+        CONSOLE_CHANNEL.load().as_ref().map_or(
+            Err(PyEnvironmentError::new_err(
+                "could not get access to CONSOLE_CHANNEL",
+            )),
+            |console_channel| Ok(console_channel.clone_ref(slf.py())),
         )
-        .expect("this should not happen");
-
-        console_channel.getattr("console_channel")
     }
 
     #[pyo3(signature = (msg, **kwargs))]
-    fn tell<'py>(
-        #[allow(unused_variables)] slf: PyRef<'py, Self>,
-        py: Python<'py>,
+    fn tell(
+        slf: PyRef<'_, Self>,
         msg: &str,
-        #[allow(unused_variables)] kwargs: Option<&Bound<'py, PyDict>>,
-    ) -> PyResult<Bound<'py, PyAny>> {
-        let console_channel = PyModule::from_code_bound(
-            py,
-            r#"
-import shinqlx
-
-console_channel = shinqlx.CONSOLE_CHANNEL"#,
-            "",
-            "",
+        #[allow(unused_variables)] kwargs: Option<&Bound<'_, PyDict>>,
+    ) -> PyResult<()> {
+        CONSOLE_CHANNEL.load().as_ref().map_or(
+            Err(PyEnvironmentError::new_err(
+                "could not get access to CONSOLE_CHANNEL",
+            )),
+            |console_channel| {
+                console_channel
+                    .bind(slf.py())
+                    .borrow()
+                    .reply(slf.py(), msg, 100, " ")
+            },
         )
-        .expect("this should not happen");
-
-        console_channel
-            .getattr(intern!(py, "console_channel"))?
-            .call_method1(intern!(py, "reply"), (msg,))
     }
 }
 
 #[cfg(test)]
 mod pyshinqlx_rcon_dummy_player_tests {
-    use crate::ffi::python::prelude::*;
+    use super::RconDummyPlayer;
 
+    use crate::ffi::python::prelude::*;
+    use crate::ffi::python::CONSOLE_CHANNEL;
+
+    use crate::ffi::c::prelude::{cvar_t, CVar, CVarBuilder};
+
+    use crate::hooks::mock_hooks::shinqlx_com_printf_context;
+    use crate::prelude::{serial, MockQuakeEngine};
+    use crate::MAIN_ENGINE;
+
+    use alloc::ffi::CString;
+    use core::ffi::c_char;
+
+    use mockall::predicate;
     use rstest::*;
+
+    use pyo3::exceptions::PyEnvironmentError;
+    use pyo3::prelude::*;
 
     #[rstest]
     #[cfg_attr(miri, ignore)]
@@ -7380,5 +7466,106 @@ assert(isinstance(shinqlx.RconDummyPlayer(), shinqlx.AbstractDummyPlayer))
             )
         });
         assert!(result.is_ok());
+    }
+
+    #[rstest]
+    #[cfg_attr(miri, ignore)]
+    #[serial]
+    fn steam_id_return_owner_id(_pyshinqlx_setup: ()) {
+        let mut mock_engine = MockQuakeEngine::new();
+        let owner = CString::new("1234567890").expect("this should not happen");
+        mock_engine
+            .expect_find_cvar()
+            .with(predicate::eq("qlx_owner"))
+            .returning(move |_| {
+                let mut raw_cvar = CVarBuilder::default()
+                    .string(owner.as_ptr() as *mut c_char)
+                    .build()
+                    .expect("this should not happen");
+                CVar::try_from(&mut raw_cvar as *mut cvar_t).ok()
+            });
+        mock_engine
+            .expect_find_cvar()
+            .with(predicate::ne("qlx_owner"))
+            .returning(|_| None);
+        MAIN_ENGINE.store(Some(mock_engine.into()));
+
+        Python::with_gil(|py| {
+            let rcon_dummy_player =
+                Py::new(py, RconDummyPlayer::py_new()).expect("this should not happen");
+
+            let result = rcon_dummy_player.bind(py).borrow().get_steam_id(py);
+            assert!(result.is_ok_and(|value| value == 1234567890));
+        });
+    }
+
+    #[rstest]
+    #[cfg_attr(miri, ignore)]
+    #[serial]
+    fn get_channel_with_no_console_channel_initialized(_pyshinqlx_setup: ()) {
+        CONSOLE_CHANNEL.store(None);
+
+        Python::with_gil(|py| {
+            let rcon_dummy_player =
+                Py::new(py, RconDummyPlayer::py_new()).expect("this should not happen");
+
+            let result = RconDummyPlayer::get_channel(rcon_dummy_player.bind(py).borrow());
+            assert!(result.is_err_and(|err| err.is_instance_of::<PyEnvironmentError>(py)));
+        });
+    }
+
+    #[rstest]
+    #[cfg_attr(miri, ignore)]
+    #[serial]
+    fn get_channel_with_console_channel_properly_initialized(_pyshinqlx_setup: ()) {
+        Python::with_gil(|py| {
+            let console_channel =
+                Py::new(py, ConsoleChannel::py_new()).expect("this should not happen");
+            CONSOLE_CHANNEL.store(Some(console_channel.into()));
+
+            let rcon_dummy_player =
+                Py::new(py, RconDummyPlayer::py_new()).expect("this should not happen");
+
+            let result = RconDummyPlayer::get_channel(rcon_dummy_player.bind(py).borrow());
+            assert!(result.is_ok());
+        });
+    }
+
+    #[rstest]
+    #[cfg_attr(miri, ignore)]
+    #[serial]
+    fn tell_with_no_console_channel_initialized(_pyshinqlx_setup: ()) {
+        CONSOLE_CHANNEL.store(None);
+
+        Python::with_gil(|py| {
+            let rcon_dummy_player =
+                Py::new(py, RconDummyPlayer::py_new()).expect("this should not happen");
+
+            let result = RconDummyPlayer::tell(rcon_dummy_player.bind(py).borrow(), "asdf", None);
+            assert!(result.is_err_and(|err| err.is_instance_of::<PyEnvironmentError>(py)));
+        });
+    }
+
+    #[rstest]
+    #[cfg_attr(miri, ignore)]
+    #[serial]
+    fn tell_with_console_channel_properly_initialized(_pyshinqlx_setup: ()) {
+        let com_printf_ctx = shinqlx_com_printf_context();
+        com_printf_ctx
+            .expect()
+            .with(predicate::eq("asdf\n"))
+            .times(1);
+
+        Python::with_gil(|py| {
+            let console_channel =
+                Py::new(py, ConsoleChannel::py_new()).expect("this should not happen");
+            CONSOLE_CHANNEL.store(Some(console_channel.into()));
+
+            let rcon_dummy_player =
+                Py::new(py, RconDummyPlayer::py_new()).expect("this should not happen");
+
+            let result = RconDummyPlayer::tell(rcon_dummy_player.bind(py).borrow(), "asdf", None);
+            assert!(result.is_ok());
+        });
     }
 }
