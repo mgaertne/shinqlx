@@ -557,13 +557,16 @@ fn try_handle_client_command(py: Python<'_>, client_id: i32, cmd: &str) -> PyRes
             }
             if let Ok(changed_values) = result.extract::<Bound<'_, PyDict>>() {
                 let updated_info = new_info.into_py_dict_bound(py);
-                updated_info.update(changed_values.to_owned().as_mapping())?;
-                let formatted_key_values = updated_info
-                    .iter()
-                    .map(|(key, value)| format!(r"\{key}\{value}"))
-                    .join("");
+                return updated_info
+                    .update(changed_values.to_owned().as_mapping())
+                    .map(|_| {
+                        let formatted_key_values = updated_info
+                            .iter()
+                            .map(|(key, value)| format!(r"\{key}\{value}"))
+                            .join("");
 
-                return Ok(format!(r#"userinfo "{formatted_key_values}""#).into_py(py));
+                        format!(r#"userinfo "{formatted_key_values}""#).into_py(py)
+                    });
             }
         }
     }
@@ -9435,8 +9438,7 @@ impl PrintRedirector {
     }
 
     fn __traverse__(&self, visit: PyVisit<'_>) -> Result<(), PyTraverseError> {
-        visit.call(&self.channel)?;
-        Ok(())
+        visit.call(&self.channel).map(|_| ())
     }
 
     #[pyo3(name = "__enter__")]
@@ -9505,6 +9507,23 @@ mod print_redirector_tests {
             let channel = Py::new(py, ChatChannel::py_new("chat", "print \"{}\n\"\n"))
                 .expect("this should not happen");
             let result = PrintRedirector::py_new(py, channel.into_py(py));
+            assert!(result.is_ok());
+        });
+    }
+
+    #[rstest]
+    #[cfg_attr(miri, ignore)]
+    fn print_redirector_can_be_traversed_for_garbage_collector(_pyshinqlx_setup: ()) {
+        Python::with_gil(|py| {
+            let channel = Py::new(py, ChatChannel::py_new("chat", "print \"{}\n\"\n"))
+                .expect("this should not happen");
+            let print_redirector =
+                PrintRedirector::py_new(py, channel.into_py(py)).expect("this should not happen");
+            let _py_command = Py::new(py, print_redirector).expect("this should not happen");
+
+            let result = py
+                .import_bound("gc")
+                .and_then(|gc| gc.call_method0("collect"));
             assert!(result.is_ok());
         });
     }

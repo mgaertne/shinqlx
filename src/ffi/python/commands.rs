@@ -139,13 +139,15 @@ impl Command {
         visit.call(&self.plugin)?;
         visit.call(&self.handler)?;
 
-        for channel in &self.channels {
-            visit.call(channel)?;
-        }
+        self.channels
+            .iter()
+            .map(|channel| visit.call(channel))
+            .collect::<Result<Vec<_>, PyTraverseError>>()?;
 
-        for channel in &self.exclude_channels {
-            visit.call(channel)?;
-        }
+        self.exclude_channels
+            .iter()
+            .map(|channel| visit.call(channel))
+            .collect::<Result<Vec<_>, PyTraverseError>>()?;
 
         Ok(())
     }
