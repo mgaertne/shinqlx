@@ -1343,11 +1343,16 @@ impl ClientCommandChannel {
                 .add_subclass(TellChannel {
                     client_id: self.client_id,
                 }),
-        )?
-        .to_object(py);
+        )?;
 
-        tell_channel.call_method1(py, intern!(py, "reply"), (msg, limit, delimiter))?;
-        Ok(())
+        ChatChannel::reply(
+            tell_channel.bind(py).borrow().into_super(),
+            py,
+            msg,
+            limit,
+            delimiter,
+        )
+        .map(|_| ())
     }
 }
 
@@ -1358,6 +1363,8 @@ mod client_command_channel_tests {
     use crate::ffi::python::pyshinqlx_test_support::*;
     use crate::prelude::*;
 
+    use crate::hooks::mock_hooks::shinqlx_send_server_command_context;
+    use crate::MAIN_ENGINE;
     use mockall::predicate;
     use pretty_assertions::assert_eq;
     use pyo3::types::IntoPyDict;
@@ -1469,5 +1476,86 @@ tell_channel = shinqlx.ClientCommandChannel(player)
         let client_command_channel = ClientCommandChannel { client_id: 42 };
         let result = Python::with_gil(|py| client_command_channel.get_tell_channel(py));
         assert!(result.is_ok_and(|tell_channel| tell_channel.get().client_id == 42));
+    }
+
+    #[rstest]
+    #[serial]
+    #[cfg_attr(miri, ignore)]
+    fn reply_with_default_limit_and_delimiter(_pyshinqlx_setup: ()) {
+        let mut mock_engine = MockQuakeEngine::new();
+        mock_engine.expect_get_max_clients().returning(|| 16);
+        MAIN_ENGINE.store(Some(mock_engine.into()));
+
+        let game_entity_from_ctx = MockGameEntity::from_context();
+        game_entity_from_ctx
+            .expect()
+            .with(predicate::eq(2))
+            .returning(|_| {
+                let mut mock_entity = MockGameEntity::new();
+                mock_entity
+                    .expect_get_player_name()
+                    .return_const("UnnamedPlayer");
+                mock_entity
+                    .expect_get_team()
+                    .return_const(team_t::TEAM_SPECTATOR);
+                mock_entity
+                    .expect_get_privileges()
+                    .return_const(privileges_t::PRIV_NONE);
+                mock_entity
+            });
+
+        let game_entity_from_ctx = MockGameEntity::from_context();
+        game_entity_from_ctx.expect().returning(|_| {
+            let mut mock_entity = MockGameEntity::new();
+            mock_entity
+                .expect_get_player_name()
+                .return_const("UnnamedPlayer");
+            mock_entity
+                .expect_get_team()
+                .return_const(team_t::TEAM_SPECTATOR);
+            mock_entity
+                .expect_get_privileges()
+                .return_const(privileges_t::PRIV_NONE);
+            mock_entity
+        });
+
+        let client_from_ctx = MockClient::from_context();
+        client_from_ctx.expect().returning(|_| {
+            let mut mock_client = MockClient::new();
+            mock_client
+                .expect_get_state()
+                .returning(|| clientState_t::CS_ACTIVE);
+            mock_client.expect_get_user_info().return_const("");
+            mock_client
+                .expect_get_steam_id()
+                .return_const(1234567890u64);
+            mock_client
+        });
+
+        let send_server_cmd_ctx = shinqlx_send_server_command_context();
+        send_server_cmd_ctx
+            .expect()
+            .withf(|_client, msg| _client.is_some() && msg == "print \"asdf\n\"\n")
+            .times(1);
+
+        let player = Player {
+            player_info: PlayerInfo {
+                connection_state: clientState_t::CS_ACTIVE as i32,
+                ..default_test_player_info()
+            },
+            ..default_test_player()
+        };
+
+        Python::with_gil(|py| {
+            let client_command_channel =
+                Py::new(py, ClientCommandChannel::py_new(&player)).expect("this should not happen");
+
+            let result = client_command_channel
+                .borrow(py)
+                .reply(py, "asdf", 100, " ");
+            assert!(result.is_ok());
+
+            let _ = run_all_frame_tasks(py);
+        });
     }
 }
