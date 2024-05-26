@@ -64,9 +64,10 @@ impl Plugin {
     }
 
     fn __traverse__(&self, visit: PyVisit<'_>) -> Result<(), PyTraverseError> {
-        for hook in &self.hooks {
-            visit.call(&hook.1)?;
-        }
+        self.hooks
+            .iter()
+            .map(|hook| visit.call(&hook.1))
+            .collect::<Result<Vec<_>, PyTraverseError>>()?;
 
         visit.call(&self.db_instance)?;
         Ok(())
