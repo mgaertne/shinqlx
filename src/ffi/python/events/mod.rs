@@ -219,15 +219,21 @@ impl EventDispatcher {
 
     fn __traverse__(&self, visit: PyVisit<'_>) -> Result<(), PyTraverseError> {
         let events = &(*self.plugins.read());
-        for (_, plugins) in events {
-            for prio_plugins in plugins {
-                for plugin in prio_plugins {
-                    visit.call(plugin)?;
-                }
-            }
-        }
-
-        Ok(())
+        events
+            .iter()
+            .map(|(_, plugins)| {
+                plugins
+                    .iter()
+                    .map(|prio_plugins| {
+                        prio_plugins
+                            .iter()
+                            .map(|plugin| visit.call(plugin))
+                            .collect::<Result<Vec<_>, PyTraverseError>>()
+                    })
+                    .collect::<Result<Vec<_>, PyTraverseError>>()
+            })
+            .collect::<Result<Vec<_>, PyTraverseError>>()
+            .map(|_| ())
     }
 
     fn __clear__(&mut self) {
@@ -540,11 +546,11 @@ impl EventDispatcherManager {
 
     fn __traverse__(&self, visit: PyVisit<'_>) -> Result<(), PyTraverseError> {
         let events = &(*self.dispatchers.read());
-        for (_, plugins) in events {
-            visit.call(plugins)?;
-        }
-
-        Ok(())
+        events
+            .iter()
+            .map(|(_, plugins)| visit.call(plugins))
+            .collect::<Result<Vec<_>, PyTraverseError>>()
+            .map(|_| ())
     }
 
     fn __clear__(&mut self) {
