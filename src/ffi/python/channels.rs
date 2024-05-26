@@ -512,9 +512,9 @@ def reply(targets, msg):
                     next_frame_reply.call1(py, (py.None(), &server_command))?;
                 }
                 Some(ref cids) => {
-                    for &cid in cids {
-                        next_frame_reply.call1(py, (cid, &server_command))?;
-                    }
+                    cids.iter()
+                        .map(|&cid| next_frame_reply.call1(py, (cid, &server_command)))
+                        .collect::<PyResult<Vec<_>>>()?;
                 }
             }
 
@@ -812,6 +812,140 @@ test_channel.reply("asdf")
                 "These_are_four_lines",
                 5,
                 "_",
+            );
+            assert!(result.is_ok());
+
+            let _ = run_all_frame_tasks(py);
+        });
+    }
+
+    #[rstest]
+    #[serial]
+    #[cfg_attr(miri, ignore)]
+    fn reply_with_various_color_tags(_pyshinqlx_setup: ()) {
+        let mut mock_engine = MockQuakeEngine::new();
+        mock_engine.expect_get_max_clients().returning(|| 16);
+        MAIN_ENGINE.store(Some(mock_engine.into()));
+
+        let game_entity_from_ctx = MockGameEntity::from_context();
+        game_entity_from_ctx.expect().returning(|_| {
+            let mut mock_entity = MockGameEntity::new();
+            mock_entity
+                .expect_get_player_name()
+                .return_const("UnnamedPlayer");
+            mock_entity
+                .expect_get_team()
+                .return_const(team_t::TEAM_SPECTATOR);
+            mock_entity
+                .expect_get_privileges()
+                .return_const(privileges_t::PRIV_NONE);
+            mock_entity
+        });
+
+        let client_from_ctx = MockClient::from_context();
+        client_from_ctx.expect().returning(|_| {
+            let mut mock_client = MockClient::new();
+            mock_client
+                .expect_get_state()
+                .returning(|| clientState_t::CS_ACTIVE);
+            mock_client.expect_get_user_info().return_const("");
+            mock_client
+                .expect_get_steam_id()
+                .return_const(1234567890u64);
+            mock_client
+        });
+
+        let send_server_cmd_ctx = shinqlx_send_server_command_context();
+        send_server_cmd_ctx
+            .expect()
+            .withf(|_client, msg| {
+                msg == "print \"^0Lorem ipsum dolor sit amet, consectetuer \
+            adipiscing elit. ^1Aenean commodo ligula eget dolor. \n^2Aenean massa. ^3Cum sociis \
+            natoque penatibus et magnis dis parturient montes, nascetur ridiculus \nmus. ^4Donec \
+            quam felis, ultricies nec, pellentesque eu, pretium quis, sem. ^5Nulla consequat massa \
+            \nquis enim. ^6Donec pede justo, fringilla vel, aliquet nec, vulputate eget, arcu. \
+            ^6In enim justo, \nrhoncus ut, imperdiet a, venenatis vitae, justo. ^7Nullam dictum \
+            felis eu pede mollis pretium. \n^0Integer tincidunt. ^1Cras dapibus. ^2Vivamus \
+            elementum semper nisi. ^3Aenean vulputate eleifend \ntellus. ^4Aenean leo ligula, \
+            porttitor eu, consequat vitae, eleifend ac, enim. ^5Aliquam lorem \nante, dapibus in, \
+            viverra quis, feugiat a, tellus. ^6Phasellus viverra nulla ut metus varius \nlaoreet. \
+            Quisque rutrum. ^7Aenean imperdiet. ^0Etiam ultricies nisi vel augue. ^1Curabitur \
+            \nullamcorper ultricies nisi. ^2Nam eget dui. ^3Etiam rhoncus. Maecenas tempus, \
+            tellus eget \n\"\n"
+            })
+            .times(1);
+        send_server_cmd_ctx
+            .expect()
+            .withf(|_client, msg| {
+                msg == "print \"^3condimentum rhoncus, sem quam semper libero, sit amet adipiscing \
+                sem neque sed ipsum. ^4Nam quam \nnunc, blandit vel, luctus pulvinar, hendrerit \
+                id, lorem. ^5Maecenas nec odio et ante tincidunt \ntempus. ^6Donec vitae sapien ut \
+                libero venenatis faucibus. ^7Nullam quis ante. ^0Etiam sit amet \norci eget eros \
+                faucibus tincidunt. ^1Duis leo. ^2Sed fringilla mauris sit amet nibh. ^3Donec \
+                \nsodales sagittis magna. ^4Sed consequat, leo eget bibendum sodales, augue velit \
+                cursus nunc, quis \ngravida magna mi a libero. ^5Fusce vulputate eleifend sapien. \
+                ^6Vestibulum purus quam, scelerisque \nut, mollis sed, nonummy id, metus. ^7Nullam \
+                accumsan lorem in dui. ^0Cras ultricies mi eu turpis \nhendrerit fringilla. \
+                ^1Vestibulum ante ipsum primis in faucibus orci luctus et ultrices posuere \
+                \ncubilia Curae; In ac dui quis mi consectetuer lacinia. ^2Nam pretium turpis et \
+                arcu. ^3Duis arcu \ntortor, suscipit eget, imperdiet nec, imperdiet iaculis, \
+                ipsum. ^4Sed aliquam ultrices mauris. \n\"\n"
+            })
+            .times(1);
+        send_server_cmd_ctx
+            .expect()
+            .withf(|_client, msg| {
+                msg == "print \"^4^5Integer ante arcu, accumsan a, consectetuer eget, posuere ut, \
+                mauris. ^6Praesent adipiscing. \n^7Phasellus ullamcorper ipsum rutrum nunc. ^0Nunc \
+                nonummy metus. ^1Vestibulum volutpat pretium \nlibero. ^2Cras id dui. ^3Aenea\n\"\n"
+            })
+            .times(1);
+
+        let player = Player {
+            player_info: PlayerInfo {
+                connection_state: clientState_t::CS_ACTIVE as i32,
+                ..default_test_player_info()
+            },
+            ..default_test_player()
+        };
+
+        Python::with_gil(|py| {
+            let chat_channel =
+                Py::new(py, TellChannel::py_new(&player)).expect("this should not happen");
+
+            let result = ChatChannel::reply(
+                chat_channel.borrow(py).into_super(),
+                py,
+                "^0Lorem ipsum dolor sit amet, consectetuer adipiscing elit. \
+                ^1Aenean commodo ligula eget dolor. ^2Aenean massa. ^3Cum sociis natoque penatibus \
+                et magnis dis parturient montes, nascetur ridiculus mus. ^4Donec quam felis, \
+                ultricies nec, pellentesque eu, pretium quis, sem. ^5Nulla consequat massa quis \
+                enim. ^6Donec pede justo, fringilla vel, aliquet nec, vulputate eget, arcu. \
+                ^6In enim justo, rhoncus ut, imperdiet a, venenatis vitae, justo. ^7Nullam dictum \
+                felis eu pede mollis pretium. ^0Integer tincidunt. ^1Cras dapibus. ^2Vivamus \
+                elementum semper nisi. ^3Aenean vulputate eleifend tellus. ^4Aenean leo ligula, \
+                porttitor eu, consequat vitae, eleifend ac, enim. ^5Aliquam lorem ante, dapibus \
+                in, viverra quis, feugiat a, tellus. ^6Phasellus viverra nulla ut metus varius \
+                laoreet. Quisque rutrum. ^7Aenean imperdiet. ^0Etiam ultricies nisi vel augue. \
+                ^1Curabitur ullamcorper ultricies nisi. ^2Nam eget dui. ^3Etiam rhoncus. Maecenas \
+                tempus, tellus eget condimentum rhoncus, sem quam semper libero, sit amet \
+                adipiscing sem neque sed ipsum. ^4Nam quam nunc, blandit vel, luctus pulvinar, \
+                hendrerit id, lorem. ^5Maecenas nec odio et ante tincidunt tempus. ^6Donec vitae \
+                sapien ut libero venenatis faucibus. ^7Nullam quis ante. ^0Etiam sit amet orci \
+                eget eros faucibus tincidunt. ^1Duis leo. ^2Sed fringilla mauris sit amet nibh. \
+                ^3Donec sodales sagittis magna. ^4Sed consequat, leo eget bibendum sodales, augue \
+                velit cursus nunc, quis gravida magna mi a libero. ^5Fusce vulputate eleifend \
+                sapien. ^6Vestibulum purus quam, scelerisque ut, mollis sed, nonummy id, metus. \
+                ^7Nullam accumsan lorem in dui. ^0Cras ultricies mi eu turpis hendrerit fringilla. \
+                ^1Vestibulum ante ipsum primis in faucibus orci luctus et ultrices posuere cubilia \
+                Curae; In ac dui quis mi consectetuer lacinia. ^2Nam pretium turpis et arcu. \
+                ^3Duis arcu tortor, suscipit eget, imperdiet nec, imperdiet iaculis, ipsum. ^4Sed \
+                aliquam ultrices mauris. ^5Integer ante arcu, accumsan a, consectetuer eget, \
+                posuere ut, mauris. ^6Praesent adipiscing. ^7Phasellus ullamcorper ipsum rutrum \
+                nunc. ^0Nunc nonummy metus. ^1Vestibulum volutpat pretium libero. ^2Cras id dui. \
+                ^3Aenea",
+                100,
+                " ",
             );
             assert!(result.is_ok());
 
