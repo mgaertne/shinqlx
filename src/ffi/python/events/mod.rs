@@ -661,3 +661,61 @@ def remove_dispatcher_by_name(dispatcher_name):
         Ok(())
     }
 }
+
+#[cfg(test)]
+mod event_dispatcher_manager_tests {
+    use super::{
+        EventDispatcherManager, GameCountdownDispatcher, GameEndDispatcher, GameStartDispatcher,
+    };
+
+    use crate::ffi::python::pyshinqlx_setup_fixture::*;
+
+    use rstest::*;
+
+    use pyo3::prelude::*;
+
+    #[rstest]
+    #[cfg_attr(miri, ignore)]
+    fn get_dispatchers_when_no_dispatchers_added(_pyshinqlx_setup: ()) {
+        Python::with_gil(|py| {
+            let event_dispatchers = EventDispatcherManager::py_new(py);
+
+            let result = event_dispatchers.get_dispatchers(py);
+            assert!(result.is_empty());
+        });
+    }
+
+    #[rstest]
+    #[cfg_attr(miri, ignore)]
+    fn get_dispatchers_with_added_dispatchers(_pyshinqlx_setup: ()) {
+        Python::with_gil(|py| {
+            let event_dispatchers = EventDispatcherManager::py_new(py);
+            event_dispatchers
+                .add_dispatcher(py, py.get_type_bound::<GameCountdownDispatcher>())
+                .expect("could not add game_countdown dispatcher");
+            event_dispatchers
+                .add_dispatcher(py, py.get_type_bound::<GameStartDispatcher>())
+                .expect("could not add game_start dispatcher");
+            event_dispatchers
+                .add_dispatcher(py, py.get_type_bound::<GameEndDispatcher>())
+                .expect("could not add game_end dispatcher");
+
+            let result = event_dispatchers.get_dispatchers(py);
+            assert!(result
+                .get_item("game_countdown")
+                .is_ok_and(|opt_dispatcher| opt_dispatcher.is_some_and(|dispatcher| {
+                    dispatcher.is_instance_of::<GameCountdownDispatcher>()
+                })));
+            assert!(result
+                .get_item("game_start")
+                .is_ok_and(|opt_dispatcher| opt_dispatcher.is_some_and(|dispatcher| {
+                    dispatcher.is_instance_of::<GameStartDispatcher>()
+                })));
+            assert!(result
+                .get_item("game_end")
+                .is_ok_and(|opt_dispatcher| opt_dispatcher.is_some_and(|dispatcher| {
+                    dispatcher.is_instance_of::<GameEndDispatcher>()
+                })));
+        });
+    }
+}
