@@ -291,6 +291,11 @@ impl Game {
         pyshinqlx_console_command(py, &mapchange_command)
     }
 
+    #[getter(factory_title)]
+    fn get_factory_title(&mut self, py: Python<'_>) -> PyResult<String> {
+        self.__getitem__(py, "g_factoryTitle")
+    }
+
     #[getter(hostname)]
     fn get_hostname(&mut self, py: Python<'_>) -> PyResult<String> {
         self.__getitem__(py, "sv_hostname")
@@ -1749,6 +1754,45 @@ shinqlx._map_subtitle2 = "Awesome map!"
             game.set_factory(py, "ffa".to_string())
                 .expect("this should not happen");
         });
+    }
+
+    #[rstest]
+    #[cfg_attr(miri, ignore)]
+    #[serial]
+    fn get_factory_title_with_no_main_engine(_pyshinqlx_setup: ()) {
+        MAIN_ENGINE.store(None);
+
+        Python::with_gil(|py| {
+            let mut game = Game {
+                cached: true,
+                valid: true,
+            };
+
+            let result = game.get_factory_title(py);
+            assert!(result.is_err_and(|err| err.is_instance_of::<PyEnvironmentError>(py)));
+        });
+    }
+
+    #[rstest]
+    #[cfg_attr(miri, ignore)]
+    #[serial]
+    fn get_factory_title_returns_factory_title(_pyshinqlx_setup: ()) {
+        let mut mock_engine = MockQuakeEngine::new();
+        mock_engine
+            .expect_get_configstring()
+            .with(predicate::eq(0))
+            .returning(|_| r"\g_factoryTitle\Clan Arena".to_string());
+        MAIN_ENGINE.store(Some(mock_engine.into()));
+
+        let result = Python::with_gil(|py| {
+            let mut game = Game {
+                cached: true,
+                valid: true,
+            };
+
+            game.get_factory_title(py)
+        });
+        assert_eq!(result.expect("result was not OK"), "Clan Arena");
     }
 
     #[rstest]
