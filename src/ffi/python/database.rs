@@ -641,7 +641,12 @@ impl Redis {
         let pieces: Vec<(String, String)> =
             args.iter().map(|item| item.to_string()).tuples().collect();
 
-        redis_connection.call_method_bound(py, intern!(py, "zadd"), (name, pieces), kwargs)
+        redis_connection.call_method_bound(
+            py,
+            intern!(py, "zadd"),
+            (name, pieces.into_py_dict_bound(py)),
+            kwargs,
+        )
     }
 
     fn zincrby(
