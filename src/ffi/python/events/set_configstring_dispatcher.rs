@@ -22,22 +22,22 @@ impl SetConfigstringDispatcher {
         (Self {}, EventDispatcher::default())
     }
 
-    fn dispatch(slf: PyRef<'_, Self>, py: Python<'_>, index: i32, value: &str) -> PyObject {
+    fn dispatch(slf: &Bound<'_, Self>, index: i32, value: &str) -> PyObject {
         let mut forwarded_value = value.to_string();
-        let mut return_value = true.into_py(py);
+        let mut return_value = true.into_py(slf.py());
 
-        let super_class = slf.into_super();
+        let super_class = slf.borrow().into_super();
         let plugins = super_class.plugins.read();
         for i in 0..5 {
             for (_, handlers) in plugins.iter() {
                 for handler in &handlers[i] {
-                    match handler.call1(py, (index, &forwarded_value)) {
+                    match handler.call1(slf.py(), (index, &forwarded_value)) {
                         Err(e) => {
-                            log_exception(py, &e);
+                            log_exception(slf.py(), &e);
                             continue;
                         }
                         Ok(res) => {
-                            let res_i32 = res.extract::<PythonReturnCodes>(py);
+                            let res_i32 = res.extract::<PythonReturnCodes>(slf.py());
                             if res_i32
                                 .as_ref()
                                 .is_ok_and(|&value| value == PythonReturnCodes::RET_NONE)
@@ -48,28 +48,28 @@ impl SetConfigstringDispatcher {
                                 .as_ref()
                                 .is_ok_and(|&value| value == PythonReturnCodes::RET_STOP)
                             {
-                                return true.into_py(py);
+                                return true.into_py(slf.py());
                             }
                             if res_i32
                                 .as_ref()
                                 .is_ok_and(|&value| value == PythonReturnCodes::RET_STOP_EVENT)
                             {
-                                return_value = false.into_py(py);
+                                return_value = false.into_py(slf.py());
                                 continue;
                             }
                             if res_i32
                                 .as_ref()
                                 .is_ok_and(|&value| value == PythonReturnCodes::RET_STOP_ALL)
                             {
-                                return false.into_py(py);
+                                return false.into_py(slf.py());
                             }
 
-                            let Ok(str_value) = res.extract::<String>(py) else {
-                                log_unexpected_return_value(py, Self::name, &res, handler);
+                            let Ok(str_value) = res.extract::<String>(slf.py()) else {
+                                log_unexpected_return_value(slf.py(), Self::name, &res, handler);
                                 continue;
                             };
                             forwarded_value.clone_from(&str_value);
-                            return_value = str_value.clone().into_py(py);
+                            return_value = str_value.clone().into_py(slf.py());
                         }
                     }
                 }
