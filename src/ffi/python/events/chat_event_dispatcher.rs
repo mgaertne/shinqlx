@@ -23,46 +23,40 @@ impl ChatEventDispatcher {
         (Self {}, EventDispatcher::default())
     }
 
-    fn dispatch(
-        slf: PyRef<'_, Self>,
-        py: Python<'_>,
-        player: Player,
-        msg: &str,
-        channel: PyObject,
-    ) -> PyObject {
-        match try_handle_input(py, &player, msg, channel.clone_ref(py)) {
+    fn dispatch(slf: &Bound<'_, Self>, player: Player, msg: &str, channel: PyObject) -> PyObject {
+        match try_handle_input(slf.py(), &player, msg, channel.clone_ref(slf.py())) {
             Err(e) => {
-                log_exception(py, &e);
+                log_exception(slf.py(), &e);
             }
             Ok(handle_input_return) => {
                 if !handle_input_return {
-                    return false.into_py(py);
+                    return false.into_py(slf.py());
                 }
             }
         };
 
         let mut forwarded_msg = msg.to_string();
-        let mut return_value = true.into_py(py);
+        let mut return_value = true.into_py(slf.py());
 
-        let super_class = slf.into_super();
+        let super_class = slf.borrow().into_super();
         let player_str = &player.name;
-        if let Ok(channel_str) = channel.bind(py).repr() {
+        if let Ok(channel_str) = channel.bind(slf.py()).repr() {
             let dbgstr = format!("{}({}, {}, {})", Self::name, player_str, msg, channel_str);
-            dispatcher_debug_log(py, &dbgstr);
+            dispatcher_debug_log(slf.py(), &dbgstr);
         }
 
         let plugins = super_class.plugins.read();
-        let py_player = player.into_py(py);
+        let py_player = player.into_py(slf.py());
         for i in 0..5 {
             for (_, handlers) in plugins.iter() {
                 for handler in &handlers[i] {
-                    match handler.call1(py, (&py_player, &forwarded_msg, &channel)) {
+                    match handler.call1(slf.py(), (&py_player, &forwarded_msg, &channel)) {
                         Err(e) => {
-                            log_exception(py, &e);
+                            log_exception(slf.py(), &e);
                             continue;
                         }
                         Ok(res) => {
-                            let res_i32 = res.extract::<PythonReturnCodes>(py);
+                            let res_i32 = res.extract::<PythonReturnCodes>(slf.py());
                             if res_i32
                                 .as_ref()
                                 .is_ok_and(|&value| value == PythonReturnCodes::RET_NONE)
@@ -73,28 +67,28 @@ impl ChatEventDispatcher {
                                 .as_ref()
                                 .is_ok_and(|&value| value == PythonReturnCodes::RET_STOP)
                             {
-                                return true.into_py(py);
+                                return true.into_py(slf.py());
                             }
                             if res_i32
                                 .as_ref()
                                 .is_ok_and(|&value| value == PythonReturnCodes::RET_STOP_EVENT)
                             {
-                                return_value = false.into_py(py);
+                                return_value = false.into_py(slf.py());
                                 continue;
                             }
                             if res_i32
                                 .as_ref()
                                 .is_ok_and(|&value| value == PythonReturnCodes::RET_STOP_ALL)
                             {
-                                return false.into_py(py);
+                                return false.into_py(slf.py());
                             }
 
-                            let Ok(str_value) = res.extract::<String>(py) else {
-                                log_unexpected_return_value(py, Self::name, &res, handler);
+                            let Ok(str_value) = res.extract::<String>(slf.py()) else {
+                                log_unexpected_return_value(slf.py(), Self::name, &res, handler);
                                 continue;
                             };
                             forwarded_msg.clone_from(&str_value);
-                            return_value = str_value.clone().into_py(py);
+                            return_value = str_value.clone().into_py(slf.py());
                         }
                     }
                 }

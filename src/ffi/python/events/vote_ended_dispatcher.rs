@@ -31,13 +31,13 @@ impl VoteEndedDispatcher {
         (Self {}, EventDispatcher::default())
     }
 
-    fn dispatch(slf: PyRef<'_, Self>, py: Python<'_>, passed: bool) {
-        let super_class = slf.into_super();
+    fn dispatch(slf: &Bound<'_, Self>, passed: bool) {
+        let super_class = slf.borrow().into_super();
         MAIN_ENGINE.load().iter().for_each(|main_engine| {
             let configstring = main_engine.get_configstring(CS_VOTE_STRING as u16);
             if configstring.is_empty() {
                 dispatcher_debug_log(
-                    py,
+                    slf.py(),
                     "vote_ended went off without configstring CS_VOTE_STRING.",
                 );
                 return;
@@ -45,7 +45,7 @@ impl VoteEndedDispatcher {
 
             let Some(captures) = RE_VOTE.captures(&configstring) else {
                 let warning_str = format!("invalid vote called: {}", &configstring);
-                dispatcher_debug_log(py, &warning_str);
+                dispatcher_debug_log(slf.py(), &warning_str);
                 return;
             };
             let vote = captures
@@ -74,19 +74,19 @@ impl VoteEndedDispatcher {
                 args,
                 passed
             );
-            dispatcher_debug_log(py, &dbgstr);
+            dispatcher_debug_log(slf.py(), &dbgstr);
 
             let plugins = super_class.plugins.read();
             for i in 0..5 {
                 for (_, handlers) in plugins.iter() {
                     for handler in &handlers[i] {
-                        match handler.call1(py, ((yes_votes, no_votes), vote, args, passed)) {
+                        match handler.call1(slf.py(), ((yes_votes, no_votes), vote, args, passed)) {
                             Err(e) => {
-                                log_exception(py, &e);
+                                log_exception(slf.py(), &e);
                                 continue;
                             }
                             Ok(res) => {
-                                let res_i32 = res.extract::<PythonReturnCodes>(py);
+                                let res_i32 = res.extract::<PythonReturnCodes>(slf.py());
                                 if res_i32
                                     .as_ref()
                                     .is_ok_and(|&value| value == PythonReturnCodes::RET_NONE)
@@ -112,7 +112,7 @@ impl VoteEndedDispatcher {
                                     return;
                                 }
 
-                                log_unexpected_return_value(py, Self::name, &res, handler);
+                                log_unexpected_return_value(slf.py(), Self::name, &res, handler);
                             }
                         }
                     }
