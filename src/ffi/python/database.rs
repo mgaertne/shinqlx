@@ -638,8 +638,12 @@ impl Redis {
             ),))?;
             return Err(PyErr::from_value_bound(error));
         }
-        let pieces: Vec<(String, String)> =
-            args.iter().map(|item| item.to_string()).tuples().collect();
+        let pieces: Vec<(String, String)> = args
+            .iter()
+            .map(|item| item.to_string())
+            .tuples()
+            .map(|(a, b)| (b, a))
+            .collect();
 
         redis_connection.call_method_bound(
             py,
