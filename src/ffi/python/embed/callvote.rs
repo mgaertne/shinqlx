@@ -2,8 +2,7 @@ use crate::ffi::c::prelude::*;
 use crate::ffi::python::prelude::*;
 
 /// Calls a vote as if started by the server and not a player.
-#[pyfunction]
-#[pyo3(name = "callvote")]
+#[pyfunction(name = "callvote", signature = (vote, vote_disp, vote_time=None), text_signature = "(vote, vote_disp, vote_time=None)")]
 pub(crate) fn pyshinqlx_callvote(
     py: Python<'_>,
     vote: &str,
