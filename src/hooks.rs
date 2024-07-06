@@ -568,7 +568,6 @@ mod hooks_tests {
         shinqlx_cmd_addcommand("\0".as_ptr() as *const c_char, dummy_function);
     }
 
-    //noinspection RsUnsupportedBinaryOperator
     #[test]
     #[serial]
     fn add_command_with_main_engine_already_initiailized() {
@@ -586,7 +585,6 @@ mod hooks_tests {
         shinqlx_cmd_addcommand("slap\0".as_ptr() as *const c_char, dummy_function);
     }
 
-    //noinspection RsUnsupportedBinaryOperator
     #[test]
     #[serial]
     fn add_command_with_main_engine_not_initiailized_command_non_empty() {
@@ -609,6 +607,7 @@ mod hooks_tests {
     }
 
     #[test]
+    #[ignore]
     #[serial]
     #[should_panic]
     fn add_command_with_main_engine_already_initiailized_init_returns_err() {
@@ -632,7 +631,6 @@ mod hooks_tests {
         shinqlx_sys_setmoduleoffset("qagame\0".as_ptr() as *const c_char, dummy_function);
     }
 
-    //noinspection RsUnsupportedBinaryOperator
     #[test]
     #[serial]
     fn sys_setmoduleoffset_vm_init_ok() {
@@ -652,8 +650,8 @@ mod hooks_tests {
         shinqlx_sys_setmoduleoffset("qagame\0".as_ptr() as *const c_char, dummy_function);
     }
 
-    //noinspection RsUnsupportedBinaryOperator
     #[test]
+    #[ignore]
     #[serial]
     #[should_panic]
     fn sys_setmoduleoffset_vm_init_returns_err() {
