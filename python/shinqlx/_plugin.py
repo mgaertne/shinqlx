@@ -106,17 +106,17 @@ class Plugin:
         self._hooks.remove((event, handler, priority))
 
     def add_command(
-        self,
-        name,
-        handler,
-        permission=0,
-        channels=None,
-        exclude_channels=(),
-        priority=shinqlx.PRI_NORMAL,
-        client_cmd_pass=False,
-        client_cmd_perm=5,
-        prefix=True,
-        usage="",
+            self,
+            name,
+            handler,
+            permission=0,
+            channels=None,
+            exclude_channels=(),
+            priority=shinqlx.PRI_NORMAL,
+            client_cmd_pass=False,
+            client_cmd_perm=5,
+            prefix=True,
+            usage="",
     ):
         if not hasattr(self, "_commands"):
             self._commands = []
@@ -156,19 +156,19 @@ class Plugin:
 
         """
         res = shinqlx.get_cvar(name)
-        if return_type == str:
+        if return_type is str:
             return res
-        if return_type == int:
+        if return_type is int:
             return int(res) if res else None
-        if return_type == float:
+        if return_type is float:
             return float(res) if res else None
-        if return_type == bool:
+        if return_type is bool:
             return bool(int(res)) if res else False
-        if return_type == list:
+        if return_type is list:
             return [s.strip() for s in res.split(",")] if res else []
-        if return_type == set:
+        if return_type is set:
             return {s.strip() for s in res.split(",")} if res else set()
-        if return_type == tuple:
+        if return_type is tuple:
             return ([s.strip() for s in res.split(",")]) if res else ()
 
         raise ValueError(f"Invalid return type: {return_type}")
