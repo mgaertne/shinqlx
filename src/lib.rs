@@ -4,6 +4,8 @@
 
 #![cfg_attr(not(test), no_main)]
 #![feature(arbitrary_self_types, c_variadic, auto_traits, negative_impls)]
+#![allow(unexpected_cfgs)]
+#![cfg_attr(coverage_nightly, feature(coverage_attribute))]
 #![deny(rustdoc::broken_intra_doc_links)]
 #![warn(missing_docs)]
 

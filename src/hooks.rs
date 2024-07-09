@@ -215,7 +215,6 @@ pub(crate) extern "C" fn shinqlx_sv_cliententerworld(client: *mut client_t, cmd:
     });
 }
 
-#[cfg_attr(test, allow(dead_code))]
 pub(crate) extern "C" fn shinqlx_sv_setconfigstring(index: c_int, value: *const c_char) {
     let safe_value = if !value.is_null() {
         unsafe { CStr::from_ptr(value) }.to_string_lossy()
@@ -491,16 +490,33 @@ pub(crate) mod hooks {
     use super::Client;
     use super::GameEntity;
 
+    #[allow(unused_attributes)]
+    #[cfg(not(tarpaulin_include))]
     pub(crate) fn shinqlx_execute_client_command(
         _client: Option<Client>,
         _cmd: &str,
         _client_ok: bool,
     ) {
     }
+
+    #[allow(unused_attributes)]
+    #[cfg(not(tarpaulin_include))]
     pub(crate) fn shinqlx_send_server_command(_client: Option<Client>, _cmd: &str) {}
+
+    #[allow(unused_attributes)]
+    #[cfg(not(tarpaulin_include))]
     pub(crate) fn shinqlx_drop_client(_client: &mut Client, _reason: &str) {}
+
+    #[allow(unused_attributes)]
+    #[cfg(not(tarpaulin_include))]
     pub(crate) fn shinqlx_client_spawn(_game_entity: &mut GameEntity) {}
+
+    #[allow(unused_attributes)]
+    #[cfg(not(tarpaulin_include))]
     pub(crate) fn shinqlx_set_configstring(_index: u32, _value: &str) {}
+
+    #[allow(unused_attributes)]
+    #[cfg(not(tarpaulin_include))]
     pub(crate) fn shinqlx_com_printf(_msg: &str) {}
 }
 
@@ -512,30 +528,33 @@ mod hooks_tests {
         shinqlx_drop_client, shinqlx_execute_client_command, shinqlx_g_damage, shinqlx_g_initgame,
         shinqlx_g_runframe, shinqlx_g_shutdowngame, shinqlx_g_startkamikaze,
         shinqlx_send_server_command, shinqlx_set_configstring, shinqlx_sv_cliententerworld,
-        shinqlx_sv_spawnserver, shinqlx_sys_setmoduleoffset,
+        shinqlx_sv_setconfigstring, shinqlx_sv_spawnserver, shinqlx_sys_setmoduleoffset,
     };
     use crate::ffi::c::prelude::*;
     use crate::ffi::python::prelude::*;
     use crate::prelude::*;
 
     use alloc::ffi::CString;
-    use core::ffi::{c_char, CStr};
+    use core::ffi::{c_char, c_int, CStr};
     use mockall::predicate;
     use pretty_assertions::assert_eq;
     use rstest::*;
 
     unsafe extern "C" fn dummy_function() {}
+    static DUMMY_FN: unsafe extern "C" fn() = dummy_function;
 
     #[test]
     #[serial]
     fn add_command_with_no_main_engine() {
+        let cmd_string = CString::new("").expect("this should not happen");
         MAIN_ENGINE.store(None);
-        shinqlx_cmd_addcommand("\0".as_ptr() as *const c_char, dummy_function);
+        shinqlx_cmd_addcommand(cmd_string.as_ptr(), DUMMY_FN);
     }
 
     #[test]
     #[serial]
     fn add_command_with_main_engine_already_initiailized_command_empty() {
+        let cmd_string = CString::new("").expect("this should not happen");
         let mut mock_engine = MockQuakeEngine::new();
         mock_engine
             .expect_is_common_initialized()
@@ -543,29 +562,30 @@ mod hooks_tests {
         mock_engine.expect_add_command().times(0);
         MAIN_ENGINE.store(Some(mock_engine.into()));
 
-        shinqlx_cmd_addcommand("\0".as_ptr() as *const c_char, dummy_function);
+        shinqlx_cmd_addcommand(cmd_string.as_ptr(), DUMMY_FN);
     }
 
     #[test]
     #[serial]
-    fn add_command_with_main_engine_already_initiailized() {
+    fn add_command_with_main_engine_already_initialized() {
+        let cmd_string = CString::new("slap").expect("this should not happen");
         let mut mock_engine = MockQuakeEngine::new();
         mock_engine
             .expect_is_common_initialized()
             .return_const(true);
-        #[allow(clippy::fn_address_comparisons)]
         mock_engine
             .expect_add_command()
-            .withf(|cmd, &func| cmd == "slap" && func == dummy_function)
+            .withf(|cmd, &func| cmd == "slap" && func == DUMMY_FN)
             .times(1);
         MAIN_ENGINE.store(Some(mock_engine.into()));
 
-        shinqlx_cmd_addcommand("slap\0".as_ptr() as *const c_char, dummy_function);
+        shinqlx_cmd_addcommand(cmd_string.as_ptr(), DUMMY_FN);
     }
 
     #[test]
     #[serial]
     fn add_command_with_main_engine_not_initiailized_command_non_empty() {
+        let cmd_string = CString::new("slap").expect("this should not happen");
         let mut mock_engine = MockQuakeEngine::new();
         mock_engine
             .expect_is_common_initialized()
@@ -574,21 +594,21 @@ mod hooks_tests {
             .expect_initialize_static()
             .returning(|| Ok(()))
             .times(1);
-        #[allow(clippy::fn_address_comparisons)]
         mock_engine
             .expect_add_command()
-            .withf(|cmd, &func| cmd == "slap" && func == dummy_function)
+            .withf(|cmd, &func| cmd == "slap" && func == DUMMY_FN)
             .times(1);
         MAIN_ENGINE.store(Some(mock_engine.into()));
 
-        shinqlx_cmd_addcommand("slap\0".as_ptr() as *const c_char, dummy_function);
+        shinqlx_cmd_addcommand(cmd_string.as_ptr(), DUMMY_FN);
     }
 
     #[test]
+    #[should_panic]
     #[ignore]
     #[serial]
-    #[should_panic]
     fn add_command_with_main_engine_already_initiailized_init_returns_err() {
+        let cmd_string = CString::new("slap").expect("this should not happen");
         let mut mock_engine = MockQuakeEngine::new();
         mock_engine
             .expect_is_common_initialized()
@@ -599,54 +619,55 @@ mod hooks_tests {
             .times(1);
         MAIN_ENGINE.store(Some(mock_engine.into()));
 
-        shinqlx_cmd_addcommand("slap\0".as_ptr() as *const c_char, dummy_function);
+        shinqlx_cmd_addcommand(cmd_string.as_ptr(), DUMMY_FN);
     }
 
     #[test]
     #[serial]
     fn sys_setmoduleoffset_no_main_engine() {
+        let module_string = CString::new("qagame").expect("this should not happen");
         MAIN_ENGINE.store(None);
-        shinqlx_sys_setmoduleoffset("qagame\0".as_ptr() as *const c_char, dummy_function);
+        shinqlx_sys_setmoduleoffset(module_string.as_ptr(), DUMMY_FN);
     }
 
     #[test]
     #[serial]
     fn sys_setmoduleoffset_vm_init_ok() {
+        let module_string = CString::new("qagame").expect("this should not happen");
         let mut mock_engine = MockQuakeEngine::new();
-        #[allow(clippy::fn_address_comparisons)]
         mock_engine
             .expect_set_module_offset()
-            .withf(|module_name, &offset| module_name == "qagame" && offset == dummy_function)
+            .withf(|module_name, &offset| module_name == "qagame" && offset == DUMMY_FN)
             .times(1);
         mock_engine
             .expect_initialize_vm()
-            .withf(|&offset| offset == dummy_function as usize)
+            .withf(|&offset| offset == DUMMY_FN as usize)
             .returning(|_offset| Ok(()))
             .times(1);
         MAIN_ENGINE.store(Some(mock_engine.into()));
 
-        shinqlx_sys_setmoduleoffset("qagame\0".as_ptr() as *const c_char, dummy_function);
+        shinqlx_sys_setmoduleoffset(module_string.as_ptr(), DUMMY_FN);
     }
 
     #[test]
     #[ignore]
-    #[serial]
     #[should_panic]
+    #[serial]
     fn sys_setmoduleoffset_vm_init_returns_err() {
+        let module_string = CString::new("qagame").expect("this should not happen");
         let mut mock_engine = MockQuakeEngine::new();
-        #[allow(clippy::fn_address_comparisons)]
         mock_engine
             .expect_set_module_offset()
-            .withf(|module_name, &offset| module_name == "qagame" && offset == dummy_function)
+            .withf(|module_name, &offset| module_name == "qagame" && offset == DUMMY_FN)
             .times(1);
         mock_engine
             .expect_initialize_vm()
-            .withf(|&offset| offset == dummy_function as usize)
+            .with(predicate::eq(DUMMY_FN as usize))
             .returning(|_offset| Err(QuakeLiveEngineError::MainEngineNotInitialized))
             .times(1);
         MAIN_ENGINE.store(Some(mock_engine.into()));
 
-        shinqlx_sys_setmoduleoffset("qagame\0".as_ptr() as *const c_char, dummy_function);
+        shinqlx_sys_setmoduleoffset(module_string.as_ptr(), DUMMY_FN);
     }
 
     #[test]
@@ -1093,6 +1114,27 @@ mod hooks_tests {
             .expect("this should not happen");
 
         shinqlx_sv_cliententerworld(&mut client, &mut usercmd as *mut usercmd_t);
+    }
+
+    #[test]
+    #[serial]
+    fn sv_set_configstring_with_parseable_variable() {
+        let mut mock_engine = MockQuakeEngine::new();
+        mock_engine
+            .expect_set_configstring()
+            .with(predicate::eq(42), predicate::eq(r"\some\value"))
+            .times(1);
+        MAIN_ENGINE.store(Some(mock_engine.into()));
+
+        let set_configstring_dispatcher_ctx = set_configstring_dispatcher_context();
+        set_configstring_dispatcher_ctx
+            .expect()
+            .with(predicate::eq(42), predicate::eq(r"\some\value"))
+            .return_const(Some(r"\some\value".to_string()))
+            .times(1);
+
+        let value = CString::new(r"\some\value").expect("this should not happen");
+        shinqlx_sv_setconfigstring(42 as c_int, value.as_ptr());
     }
 
     #[test]
