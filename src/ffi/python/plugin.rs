@@ -22,7 +22,7 @@ use pyo3::{
     exceptions::{PyEnvironmentError, PyRuntimeError, PyValueError},
     gc::PyVisit,
     intern,
-    types::{IntoPyDict, PyBool, PyDict, PyList, PySet, PyTuple, PyType},
+    types::{PyBool, PyDict, PyList, PySet, PyTuple, PyType},
     PyTraverseError,
 };
 
@@ -48,7 +48,7 @@ use pyo3::{
 #[pyclass(name = "Plugin", module = "_plugin", subclass)]
 pub(crate) struct Plugin {
     hooks: Vec<(String, PyObject, i32)>,
-    commands: Vec<Command>,
+    commands: Vec<Py<Command>>,
     db_instance: PyObject,
 }
 
@@ -121,21 +121,27 @@ impl Plugin {
         let loaded_plugins = py
             .get_type_bound::<Plugin>()
             .getattr(intern!(py, "_loaded_plugins"))?
-            .extract::<&PyDict>()?;
+            .extract::<Bound<'_, PyDict>>()?;
 
-        Ok(loaded_plugins.into_py_dict_bound(py))
+        Ok(loaded_plugins)
     }
 
     /// A list of all the hooks this plugin has.
     #[getter(hooks)]
     fn get_hooks(&self, py: Python<'_>) -> Vec<(String, PyObject, i32)> {
-        py.allow_threads(|| self.hooks.clone())
+        self.hooks
+            .iter()
+            .map(|(name, handler, permission)| (name.clone(), handler.clone_ref(py), *permission))
+            .collect()
     }
 
     /// A list of all the commands this plugin has registered.
     #[getter(commands)]
-    fn get_commands(&self, py: Python<'_>) -> Vec<Command> {
-        py.allow_threads(|| self.commands.clone())
+    fn get_commands(&self, py: Python<'_>) -> Vec<Py<Command>> {
+        self.commands
+            .iter()
+            .map(|command| command.clone_ref(py))
+            .collect()
     }
 
     /// A Game instance.
@@ -268,36 +274,39 @@ impl Plugin {
         let new_command = Command::py_new(
             slf.py(),
             slf.as_ref().into_py(slf.py()),
-            name,
-            handler,
+            name.clone_ref(slf.py()),
+            handler.clone_ref(slf.py()),
             permission,
-            py_channels,
-            py_exclude_channels,
+            py_channels.clone_ref(slf.py()),
+            py_exclude_channels.clone_ref(slf.py()),
             client_cmd_pass,
             client_cmd_perm,
             prefix,
             usage,
         )?;
+        let py_command = Py::new(slf.py(), new_command)?;
 
         slf.try_borrow_mut().map_or(
             Err(PyEnvironmentError::new_err("cound not borrow plugin hooks")),
             |mut plugin| {
-                plugin.commands.push(new_command.clone());
+                plugin.commands.push(py_command.clone_ref(slf.py()));
                 Ok(())
             },
         )?;
 
         COMMANDS.load().as_ref().map_or(Ok(()), |commands| {
-            commands
-                .borrow(slf.py())
-                .add_command(slf.py(), new_command, priority as usize)
+            commands.borrow(slf.py()).add_command(
+                slf.py(),
+                py_command.into_bound(slf.py()),
+                priority as usize,
+            )
         })
     }
 
     fn remove_command(slf: &Bound<'_, Self>, name: PyObject, handler: PyObject) -> PyResult<()> {
         let mut names = vec![];
         name.bind(slf.py())
-            .extract::<&PyList>()
+            .extract::<Bound<'_, PyList>>()
             .ok()
             .iter()
             .for_each(|py_list| {
@@ -310,7 +319,7 @@ impl Plugin {
                 })
             });
         name.bind(slf.py())
-            .extract::<&PyTuple>()
+            .extract::<Bound<'_, PyTuple>>()
             .ok()
             .iter()
             .for_each(|py_tuple| {
@@ -334,12 +343,16 @@ impl Plugin {
             .commands
             .iter()
             .find(|&existing_command| {
-                existing_command.name.len() == names.len()
+                existing_command.bind(slf.py()).borrow().name.len() == names.len()
                     && existing_command
+                        .bind(slf.py())
+                        .borrow()
                         .name
                         .iter()
                         .all(|name| names.contains(name))
                     && existing_command
+                        .bind(slf.py())
+                        .borrow()
                         .handler
                         .bind(slf.py())
                         .eq(handler.bind(slf.py()))
@@ -354,7 +367,7 @@ impl Plugin {
                         commands.call_method1(
                             slf.py(),
                             intern!(slf.py(), "remove_command"),
-                            (command.clone(),),
+                            (command,),
                         )
                     },
                 )
@@ -364,12 +377,16 @@ impl Plugin {
             Err(PyEnvironmentError::new_err("cound not borrow plugin hooks")),
             |mut plugin| {
                 plugin.commands.retain(|existing_command| {
-                    existing_command.name.len() != names.len()
+                    existing_command.bind(slf.py()).borrow().name.len() != names.len()
                         || !existing_command
+                            .bind(slf.py())
+                            .borrow()
                             .name
                             .iter()
                             .all(|name| names.contains(name))
                         || existing_command
+                            .bind(slf.py())
+                            .borrow()
                             .handler
                             .bind(slf.py())
                             .ne(handler.bind(slf.py()))
@@ -1380,7 +1397,9 @@ mod plugin_tests {
                 .setattr("_loaded_plugins", &loaded_plugins);
 
             let plugin_instance = extended_plugin.call0()?;
-            let plugins = plugin_instance.getattr("plugins")?.extract::<&PyDict>()?;
+            let plugins = plugin_instance
+                .getattr("plugins")?
+                .extract::<Bound<'_, PyDict>>()?;
             assert!(plugins.eq(loaded_plugins)?);
             Ok(())
         });
@@ -1486,7 +1505,6 @@ mod plugin_tests {
                         .expect("could not get logger name")
                         .str()
                         .unwrap()
-                        .to_string()
                         == "shinqlx.test_plugin"),);
             Ok::<(), PyErr>(())
         })
@@ -1944,7 +1962,7 @@ def handler():
                 .get_item(0)
                 .expect("could not get first name of command")
                 .str()
-                .is_ok_and(|value| value.to_string() == "slap"));
+                .is_ok_and(|value| value == "slap"));
         });
     }
 
