@@ -115,8 +115,14 @@ mod handle_rcon_tests {
                 "",
             )
             .expect("could not create command");
+            let py_command = Py::new(py, command).expect("this should not happen");
+
             command_invoker
-                .add_command(py, command, CommandPriorities::PRI_NORMAL as usize)
+                .add_command(
+                    py,
+                    py_command.into_bound(py),
+                    CommandPriorities::PRI_NORMAL as usize,
+                )
                 .expect("could not add command to command invoker");
             COMMANDS.store(Some(
                 Py::new(py, command_invoker)
@@ -178,9 +184,15 @@ def raising_exception_hook(*args, **kwargs):
                 "",
             )
             .expect("could not create command");
+            let py_command = Py::new(py, command).expect("this should not happen");
+
             let command_invoker = CommandInvoker::py_new();
             command_invoker
-                .add_command(py, command, CommandPriorities::PRI_NORMAL as usize)
+                .add_command(
+                    py,
+                    py_command.into_bound(py),
+                    CommandPriorities::PRI_NORMAL as usize,
+                )
                 .expect("could not add command to command invoker");
             COMMANDS.store(Some(
                 Py::new(py, command_invoker)
@@ -258,7 +270,7 @@ fn try_handle_client_command(py: Python<'_>, client_id: i32, cmd: &str) -> PyRes
             },
         )?;
     if return_value
-        .extract::<&PyBool>()
+        .extract::<Bound<'_, PyBool>>()
         .is_ok_and(|value| !value.is_true())
     {
         return Ok(false.into_py(py));
@@ -308,7 +320,7 @@ fn try_handle_client_command(py: Python<'_>, client_id: i32, cmd: &str) -> PyRes
             )?;
 
         if result
-            .extract::<&PyBool>()
+            .extract::<Bound<'_, PyBool>>()
             .is_ok_and(|value| !value.is_true())
         {
             return Ok(false.into_py(py));
@@ -362,7 +374,7 @@ fn try_handle_client_command(py: Python<'_>, client_id: i32, cmd: &str) -> PyRes
                 },
             )?;
         if result
-            .extract::<&PyBool>()
+            .extract::<Bound<'_, PyBool>>()
             .is_ok_and(|value| !value.is_true())
         {
             return Ok(false.into_py(py));
@@ -388,15 +400,19 @@ fn try_handle_client_command(py: Python<'_>, client_id: i32, cmd: &str) -> PyRes
                     event_dispatchers
                         .bind(py)
                         .get_item(intern!(py, "vote_started"))
-                        .and_then(|dispatcher| dispatcher.extract::<VoteStartedDispatcher>())
+                        .and_then(|dispatcher| {
+                            dispatcher.extract::<Bound<'_, VoteStartedDispatcher>>()
+                        })
                         .ok()
                 })
                 .map_or(
                     Err(PyEnvironmentError::new_err(
                         "could not get access to vote started dispatcher",
                     )),
-                    |mut vote_started_dispatcher| {
-                        vote_started_dispatcher.caller(py, player.clone().into_py(py));
+                    |vote_started_dispatcher| {
+                        vote_started_dispatcher
+                            .borrow_mut()
+                            .caller(py, player.clone().into_py(py));
                         Ok(())
                     },
                 )?;
@@ -421,7 +437,7 @@ fn try_handle_client_command(py: Python<'_>, client_id: i32, cmd: &str) -> PyRes
                     },
                 )?;
             if result
-                .extract::<&PyBool>()
+                .extract::<Bound<'_, PyBool>>()
                 .is_ok_and(|value| !value.is_true())
             {
                 return Ok(false.into_py(py));
@@ -455,7 +471,7 @@ fn try_handle_client_command(py: Python<'_>, client_id: i32, cmd: &str) -> PyRes
                     },
                 )?;
             if result
-                .extract::<&PyBool>()
+                .extract::<Bound<'_, PyBool>>()
                 .is_ok_and(|value| !value.is_true())
             {
                 return Ok(false.into_py(py));
@@ -503,7 +519,7 @@ fn try_handle_client_command(py: Python<'_>, client_id: i32, cmd: &str) -> PyRes
                 },
             )?;
         if result
-            .extract::<&PyBool>()
+            .extract::<Bound<'_, PyBool>>()
             .is_ok_and(|value| !value.is_true())
         {
             return Ok(false.into_py(py));
@@ -550,7 +566,7 @@ fn try_handle_client_command(py: Python<'_>, client_id: i32, cmd: &str) -> PyRes
                     },
                 )?;
             if result
-                .extract::<&PyBool>()
+                .extract::<Bound<'_, PyBool>>()
                 .is_ok_and(|value| !value.is_true())
             {
                 return Ok(false.into_py(py));
@@ -845,7 +861,7 @@ mod handle_client_command_tests {
 
             let result = try_handle_client_command(py, 42, "cp \"asdf\"");
             assert!(result.is_ok_and(|value| value
-                .extract::<&PyBool>(py)
+                .extract::<Bound<'_, PyBool>>(py)
                 .is_ok_and(|bool_value| !bool_value.is_true())));
         });
     }
@@ -1254,7 +1270,7 @@ mod handle_client_command_tests {
 
             let result = try_handle_client_command(py, 42, "say \"hi @all\"");
             assert!(result.is_ok_and(|value| value
-                .extract::<&PyBool>(py)
+                .extract::<Bound<'_, PyBool>>(py)
                 .is_ok_and(|bool_value| !bool_value.is_true())));
         });
     }
@@ -1611,7 +1627,7 @@ mod handle_client_command_tests {
 
             let result = try_handle_client_command(py, 42, "say_team \"hi @all\"");
             assert!(result.is_ok_and(|value| value
-                .extract::<&PyBool>(py)
+                .extract::<Bound<'_, PyBool>>(py)
                 .is_ok_and(|bool_value| !bool_value.is_true())));
         });
     }
@@ -2035,7 +2051,7 @@ mod handle_client_command_tests {
 
             let result = try_handle_client_command(py, 42, "callvote map \"thunderstruck\"");
             assert!(result.is_ok_and(|value| value
-                .extract::<&PyBool>(py)
+                .extract::<Bound<'_, PyBool>>(py)
                 .is_ok_and(|bool_value| !bool_value.is_true())));
         });
     }
@@ -2509,7 +2525,7 @@ mod handle_client_command_tests {
             let client_command = format!("vote {vote_arg}");
             let result = try_handle_client_command(py, 42, &client_command);
             assert!(result.is_ok_and(|value| value
-                .extract::<&PyBool>(py)
+                .extract::<Bound<'_, PyBool>>(py)
                 .is_ok_and(|bool_value| !bool_value.is_true())));
         });
     }
@@ -2968,7 +2984,7 @@ mod handle_client_command_tests {
             let client_command = format!("team {team_char}");
             let result = try_handle_client_command(py, 42, &client_command);
             assert!(result.is_ok_and(|value| value
-                .extract::<&PyBool>(py)
+                .extract::<Bound<'_, PyBool>>(py)
                 .is_ok_and(|bool_value| !bool_value.is_true())));
         });
     }
@@ -3308,7 +3324,7 @@ mod handle_client_command_tests {
             let result =
                 try_handle_client_command(py, 42, r#"userinfo "\name\Mocked Player\sex\female""#);
             assert!(result.is_ok_and(|value| value
-                .extract::<&PyBool>(py)
+                .extract::<Bound<'_, PyBool>>(py)
                 .is_ok_and(|bool_value| !bool_value.is_true())));
         });
     }
@@ -3500,7 +3516,7 @@ fn try_handle_server_command(py: Python<'_>, client_id: i32, cmd: &str) -> PyRes
             },
         )?;
     if return_value
-        .extract::<&PyBool>()
+        .extract::<Bound<'_, PyBool>>()
         .is_ok_and(|value| !value.is_true())
     {
         return Ok(false.into_py(py));
@@ -3776,7 +3792,7 @@ mod handle_server_command_tests {
 
             let result = try_handle_server_command(py, -1, "cp \"asdf\"");
             assert!(result.is_ok_and(|value| value
-                .extract::<&PyBool>(py)
+                .extract::<Bound<'_, PyBool>>(py)
                 .is_ok_and(|bool_value| !bool_value.is_true())));
         });
     }
@@ -4311,13 +4327,13 @@ for event in frame_tasks.queue:
 
             transfer_next_frame_tasks(py);
             assert!(frame_tasks.call_method0("empty").is_ok_and(|value| value
-                .extract::<&PyBool>()
+                .extract::<Bound<'_, PyBool>>()
                 .expect("this should not happen")
                 .is_true()));
             assert!(next_frame_tasks
                 .call_method0("empty")
                 .is_ok_and(|value| value
-                    .extract::<&PyBool>()
+                    .extract::<Bound<'_, PyBool>>()
                     .expect("this should not happen")
                     .is_true()));
             py.run_bound(
@@ -4367,13 +4383,13 @@ for event in frame_tasks.queue:
 
             transfer_next_frame_tasks(py);
             assert!(frame_tasks.call_method0("empty").is_ok_and(|value| !value
-                .extract::<&PyBool>()
+                .extract::<Bound<'_, PyBool>>()
                 .expect("this should not happen")
                 .is_true()));
             assert!(next_frame_tasks
                 .call_method0("empty")
                 .is_ok_and(|value| value
-                    .extract::<&PyBool>()
+                    .extract::<Bound<'_, PyBool>>()
                     .expect("this should not happen")
                     .is_true()));
         });
@@ -5296,7 +5312,7 @@ fn try_handle_set_configstring(py: Python<'_>, index: u32, value: &str) -> PyRes
         )?;
 
     if result
-        .extract::<&PyBool>()
+        .extract::<Bound<'_, PyBool>>()
         .is_ok_and(|result_value| !result_value.is_true())
     {
         return Ok(false.into_py(py));
@@ -5637,7 +5653,7 @@ mod handle_set_configstring_tests {
 
             let result = try_handle_set_configstring(py, CS_AUTHOR, "ShiN0");
             assert!(result.is_ok_and(|value| value
-                .extract::<&PyBool>(py)
+                .extract::<Bound<'_, PyBool>>(py)
                 .is_ok_and(|bool_value| !bool_value.is_true())));
         });
     }
@@ -6684,7 +6700,7 @@ mod handle_set_configstring_tests {
         Python::with_gil(|py| {
             let result = handle_set_configstring(py, CS_ALLREADY_TIME, "42");
             assert!(result
-                .extract::<&PyBool>(py)
+                .extract::<Bound<'_, PyBool>>(py)
                 .is_ok_and(|bool_value| bool_value.is_true()));
         });
     }
@@ -6837,7 +6853,7 @@ mod handle_player_connect_tests {
 
             let result = try_handle_player_connect(py, 42, false);
             assert!(result.as_ref().is_ok_and(|value| value
-                .extract::<&PyBool>(py)
+                .extract::<Bound<'_, PyBool>>(py)
                 .is_ok_and(|bool_value| bool_value.is_true())));
             assert!(capturing_hook
                 .call_method1("assert_called_with", ("_",))
@@ -7042,7 +7058,7 @@ mod handle_player_connect_tests {
 
             let result = handle_player_connect(py, 42, false);
             assert!(result
-                .extract::<&PyBool>(py)
+                .extract::<Bound<'_, PyBool>>(py)
                 .is_ok_and(|bool_value| bool_value.is_true()));
         });
     }
@@ -7194,7 +7210,7 @@ mod handle_player_loaded_tests {
 
             let result = try_handle_player_loaded(py, 42);
             assert!(result.as_ref().is_ok_and(|value| value
-                .extract::<&PyBool>(py)
+                .extract::<Bound<'_, PyBool>>(py)
                 .is_ok_and(|bool_value| bool_value.is_true())));
             assert!(capturing_hook
                 .call_method1("assert_called_with", ("_",))
@@ -7315,7 +7331,7 @@ mod handle_player_loaded_tests {
 
             let result = handle_player_loaded(py, 42);
             assert!(result
-                .extract::<&PyBool>(py)
+                .extract::<Bound<'_, PyBool>>(py)
                 .is_ok_and(|bool_value| bool_value.is_true()));
         });
     }
@@ -7351,6 +7367,7 @@ fn try_handle_player_disconnect(
 
 /// This will be called whenever a player disconnects.
 #[pyfunction]
+#[pyo3(signature = (client_id, reason=None), text_signature = "(client_id, reason=None)")]
 pub(crate) fn handle_player_disconnect(
     py: Python<'_>,
     client_id: i32,
@@ -7473,7 +7490,7 @@ mod handle_player_disconnect_tests {
 
             let result = try_handle_player_disconnect(py, 42, None);
             assert!(result.as_ref().is_ok_and(|value| value
-                .extract::<&PyBool>(py)
+                .extract::<Bound<'_, PyBool>>(py)
                 .is_ok_and(|bool_value| bool_value.is_true())));
             assert!(capturing_hook
                 .call_method1("assert_called_with", ("_", "_"))
@@ -7594,7 +7611,7 @@ mod handle_player_disconnect_tests {
 
             let result = handle_player_disconnect(py, 42, None);
             assert!(result
-                .extract::<&PyBool>(py)
+                .extract::<Bound<'_, PyBool>>(py)
                 .is_ok_and(|bool_value| bool_value.is_true()));
         });
     }
@@ -7746,7 +7763,7 @@ mod handle_player_spawn_tests {
 
             let result = try_handle_player_spawn(py, 42);
             assert!(result.as_ref().is_ok_and(|value| value
-                .extract::<&PyBool>(py)
+                .extract::<Bound<'_, PyBool>>(py)
                 .is_ok_and(|bool_value| bool_value.is_true())));
             assert!(capturing_hook
                 .call_method1("assert_called_with", ("_",))
@@ -7867,7 +7884,7 @@ mod handle_player_spawn_tests {
 
             let result = handle_player_spawn(py, 42);
             assert!(result
-                .extract::<&PyBool>(py)
+                .extract::<Bound<'_, PyBool>>(py)
                 .is_ok_and(|bool_value| bool_value.is_true()));
         });
     }
@@ -8017,7 +8034,7 @@ mod handle_kamikaze_use_tests {
 
             let result = try_handle_kamikaze_use(py, 42);
             assert!(result.as_ref().is_ok_and(|value| value
-                .extract::<&PyBool>(py)
+                .extract::<Bound<'_, PyBool>>(py)
                 .is_ok_and(|bool_value| bool_value.is_true())));
             assert!(capturing_hook
                 .call_method1("assert_called_with", ("_",))
@@ -8138,7 +8155,7 @@ mod handle_kamikaze_use_tests {
 
             let result = handle_kamikaze_use(py, 42);
             assert!(result
-                .extract::<&PyBool>(py)
+                .extract::<Bound<'_, PyBool>>(py)
                 .is_ok_and(|bool_value| bool_value.is_true()));
         });
     }
@@ -8295,7 +8312,7 @@ mod handle_kamikaze_explode_tests {
 
             let result = try_handle_kamikaze_explode(py, 42, false);
             assert!(result.as_ref().is_ok_and(|value| value
-                .extract::<&PyBool>(py)
+                .extract::<Bound<'_, PyBool>>(py)
                 .is_ok_and(|bool_value| bool_value.is_true())));
             assert!(capturing_hook
                 .call_method1("assert_called_with", ("_", false))
@@ -8385,7 +8402,7 @@ mod handle_kamikaze_explode_tests {
 
             let result = try_handle_kamikaze_explode(py, 42, true);
             assert!(result.as_ref().is_ok_and(|value| value
-                .extract::<&PyBool>(py)
+                .extract::<Bound<'_, PyBool>>(py)
                 .is_ok_and(|bool_value| bool_value.is_true())));
             assert!(capturing_hook
                 .call_method1("assert_called_with", ("_", true))
@@ -8506,7 +8523,7 @@ mod handle_kamikaze_explode_tests {
 
             let result = handle_kamikaze_explode(py, 42, false);
             assert!(result
-                .extract::<&PyBool>(py)
+                .extract::<Bound<'_, PyBool>>(py)
                 .is_ok_and(|bool_value| bool_value.is_true()));
         });
     }
@@ -9086,7 +9103,7 @@ fn try_handle_console_print(py: Python<'_>, text: &str) -> PyResult<PyObject> {
             },
         )?;
     if result
-        .extract::<&PyBool>()
+        .extract::<Bound<'_, PyBool>>()
         .is_ok_and(|value| !value.is_true())
     {
         return Ok(false.into_py(py));
@@ -9253,7 +9270,7 @@ mod handle_console_print_tests {
 
             let result = try_handle_console_print(py, "asdf");
             assert!(result.is_ok_and(|value| value
-                .extract::<&PyBool>(py)
+                .extract::<Bound<'_, PyBool>>(py)
                 .is_ok_and(|bool_value| !bool_value.is_true())));
         });
     }
@@ -9409,7 +9426,7 @@ mod handle_console_print_tests {
 
             let result = handle_console_print(py, "asdf");
             assert!(result
-                .extract::<&PyBool>(py)
+                .extract::<Bound<'_, PyBool>>(py)
                 .is_ok_and(|bool_value| bool_value.is_true()));
         });
     }
@@ -9626,7 +9643,6 @@ pub(crate) mod handlers {
 
     #[allow(clippy::needless_lifetimes)]
     #[allow(unused_attributes)]
-    #[cfg_attr(coverage_nightly, coverage(off))]
     #[cfg(not(tarpaulin_include))]
     pub(crate) fn handle_rcon<'a>(_py: Python<'a>, _cmd: &str) -> Option<bool> {
         None
@@ -9634,7 +9650,6 @@ pub(crate) mod handlers {
 
     #[allow(clippy::needless_lifetimes)]
     #[allow(unused_attributes)]
-    #[cfg_attr(coverage_nightly, coverage(off))]
     #[cfg(not(tarpaulin_include))]
     pub(crate) fn handle_client_command<'a>(
         py: Python<'a>,
@@ -9646,7 +9661,6 @@ pub(crate) mod handlers {
 
     #[allow(clippy::needless_lifetimes)]
     #[allow(unused_attributes)]
-    #[cfg_attr(coverage_nightly, coverage(off))]
     #[cfg(not(tarpaulin_include))]
     pub(crate) fn handle_server_command<'a>(
         py: Python<'a>,
@@ -9658,7 +9672,6 @@ pub(crate) mod handlers {
 
     #[allow(clippy::needless_lifetimes)]
     #[allow(unused_attributes)]
-    #[cfg_attr(coverage_nightly, coverage(off))]
     #[cfg(not(tarpaulin_include))]
     pub(crate) fn handle_frame<'a>(_py: Python<'a>) -> Option<bool> {
         None
@@ -9666,7 +9679,6 @@ pub(crate) mod handlers {
 
     #[allow(clippy::needless_lifetimes)]
     #[allow(unused_attributes)]
-    #[cfg_attr(coverage_nightly, coverage(off))]
     #[cfg(not(tarpaulin_include))]
     pub(crate) fn handle_new_game<'a>(_py: Python<'a>, _is_restart: bool) -> Option<bool> {
         None
@@ -9674,7 +9686,6 @@ pub(crate) mod handlers {
 
     #[allow(clippy::needless_lifetimes)]
     #[allow(unused_attributes)]
-    #[cfg_attr(coverage_nightly, coverage(off))]
     #[cfg(not(tarpaulin_include))]
     pub(crate) fn handle_set_configstring<'a>(
         py: Python<'a>,
@@ -9686,7 +9697,6 @@ pub(crate) mod handlers {
 
     #[allow(clippy::needless_lifetimes)]
     #[allow(unused_attributes)]
-    #[cfg_attr(coverage_nightly, coverage(off))]
     #[cfg(not(tarpaulin_include))]
     pub(crate) fn handle_player_connect<'a>(
         py: Python<'a>,
@@ -9698,7 +9708,6 @@ pub(crate) mod handlers {
 
     #[allow(clippy::needless_lifetimes)]
     #[allow(unused_attributes)]
-    #[cfg_attr(coverage_nightly, coverage(off))]
     #[cfg(not(tarpaulin_include))]
     pub(crate) fn handle_player_loaded<'a>(py: Python<'a>, _client_id: i32) -> PyObject {
         py.None()
@@ -9706,7 +9715,6 @@ pub(crate) mod handlers {
 
     #[allow(clippy::needless_lifetimes)]
     #[allow(unused_attributes)]
-    #[cfg_attr(coverage_nightly, coverage(off))]
     #[cfg(not(tarpaulin_include))]
     pub(crate) fn handle_player_disconnect<'a>(
         py: Python<'a>,
@@ -9718,7 +9726,6 @@ pub(crate) mod handlers {
 
     #[allow(clippy::needless_lifetimes)]
     #[allow(unused_attributes)]
-    #[cfg_attr(coverage_nightly, coverage(off))]
     #[cfg(not(tarpaulin_include))]
     pub(crate) fn handle_player_spawn<'a>(py: Python<'a>, _client_id: i32) -> PyObject {
         py.None()
@@ -9726,7 +9733,6 @@ pub(crate) mod handlers {
 
     #[allow(clippy::needless_lifetimes)]
     #[allow(unused_attributes)]
-    #[cfg_attr(coverage_nightly, coverage(off))]
     #[cfg(not(tarpaulin_include))]
     pub(crate) fn handle_kamikaze_use<'a>(py: Python<'a>, _client_id: i32) -> PyObject {
         py.None()
@@ -9734,7 +9740,6 @@ pub(crate) mod handlers {
 
     #[allow(clippy::needless_lifetimes)]
     #[allow(unused_attributes)]
-    #[cfg_attr(coverage_nightly, coverage(off))]
     #[cfg(not(tarpaulin_include))]
     pub(crate) fn handle_kamikaze_explode<'a>(
         py: Python<'a>,
@@ -9746,7 +9751,6 @@ pub(crate) mod handlers {
 
     #[allow(clippy::needless_lifetimes)]
     #[allow(unused_attributes)]
-    #[cfg_attr(coverage_nightly, coverage(off))]
     #[cfg(not(tarpaulin_include))]
     pub(crate) fn handle_damage<'a>(
         _py: Python<'a>,
@@ -9761,14 +9765,12 @@ pub(crate) mod handlers {
 
     #[allow(clippy::needless_lifetimes)]
     #[allow(unused_attributes)]
-    #[cfg_attr(coverage_nightly, coverage(off))]
     #[cfg(not(tarpaulin_include))]
     pub(crate) fn handle_console_print<'a>(py: Python<'a>, _text: &str) -> PyObject {
         py.None()
     }
 
     #[allow(unused_attributes)]
-    #[cfg_attr(coverage_nightly, coverage(off))]
     #[cfg(not(tarpaulin_include))]
     pub(crate) fn register_handlers() {}
 }

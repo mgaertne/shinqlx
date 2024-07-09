@@ -17,7 +17,7 @@ use pyo3::{
 /// Has information about the command itself, its usage, when and who to call when
 /// action should be taken.
 #[pyclass(module = "_commands", name = "Command", get_all, frozen)]
-#[derive(Clone, Debug)]
+#[derive(Debug)]
 pub(crate) struct Command {
     plugin: Py<PyAny>,
     pub(crate) name: Vec<String>,
@@ -65,8 +65,7 @@ impl Command {
         }
 
         let mut names = vec![];
-        name.bind(py)
-            .extract::<&PyList>()
+        name.extract::<Bound<'_, PyList>>(py)
             .ok()
             .iter()
             .for_each(|py_list| {
@@ -78,8 +77,7 @@ impl Command {
                         .for_each(|alias| names.push(alias.to_lowercase()));
                 })
             });
-        name.bind(py)
-            .extract::<&PyTuple>()
+        name.extract::<Bound<'_, PyTuple>>(py)
             .ok()
             .iter()
             .for_each(|py_tuple| {
@@ -518,8 +516,8 @@ class mocked_db:
                     .unbind(),
                 0,
                 vec![
-                    chat_channel.clone().into_py(py),
-                    console_channel.clone().into_py(py),
+                    chat_channel.clone_ref(py).into_py(py),
+                    console_channel.clone_ref(py).into_py(py),
                 ]
                 .into_py(py),
                 py.None(),
@@ -530,12 +528,14 @@ class mocked_db:
             );
             assert!(command.is_ok_and(|cmd| cmd
                 .channels
-                .clone()
+                .iter()
+                .map(|channel| channel.clone_ref(py))
+                .collect::<Vec<PyObject>>()
                 .into_py(py)
                 .bind(py)
                 .eq(vec![
-                    chat_channel.clone().into_py(py),
-                    console_channel.clone().into_py(py)
+                    chat_channel.clone_ref(py).into_py(py),
+                    console_channel.clone_ref(py).into_py(py)
                 ]
                 .into_py(py)
                 .bind(py))
@@ -565,8 +565,8 @@ class mocked_db:
                 0,
                 py.None(),
                 vec![
-                    chat_channel.clone().into_py(py),
-                    console_channel.clone().into_py(py),
+                    chat_channel.clone_ref(py).into_py(py),
+                    console_channel.clone_ref(py).into_py(py),
                 ]
                 .into_py(py),
                 true,
@@ -576,12 +576,14 @@ class mocked_db:
             );
             assert!(command.is_ok_and(|cmd| cmd
                 .exclude_channels
-                .clone()
+                .iter()
+                .map(|channel| channel.clone_ref(py))
+                .collect::<Vec<PyObject>>()
                 .into_py(py)
                 .bind(py)
                 .eq(vec![
-                    chat_channel.clone().into_py(py),
-                    console_channel.clone().into_py(py)
+                    chat_channel.clone_ref(py).into_py(py),
+                    console_channel.clone_ref(py).into_py(py)
                 ]
                 .into_py(py)
                 .bind(py))
@@ -1470,7 +1472,7 @@ pub(crate) enum CommandPriorities {
 /// Holds all commands and executes them whenever we get input and should execute.
 #[pyclass(module = "_commands", name = "CommandInvoker")]
 pub(crate) struct CommandInvoker {
-    commands: parking_lot::RwLock<[Vec<Command>; 5]>,
+    commands: parking_lot::RwLock<[Vec<Py<Command>>; 5]>,
 }
 
 #[pymethods]
@@ -1484,29 +1486,61 @@ impl CommandInvoker {
 
     #[getter(commands)]
     fn get_commands(&self, py: Python<'_>) -> Vec<Command> {
-        py.allow_threads(|| {
-            let commands = self.commands.read();
-            let mut returned = vec![];
-            commands.iter().for_each(|commands| {
-                returned.extend(commands.clone());
-            });
-            returned
-        })
+        let commands = self.commands.read();
+        let mut returned = vec![];
+        commands.iter().for_each(|cmds| {
+            returned.extend(
+                cmds.iter()
+                    .map(|command| Command {
+                        plugin: command.bind(py).borrow().plugin.clone_ref(py),
+                        name: command.bind(py).borrow().name.clone(),
+                        handler: command.bind(py).borrow().handler.clone_ref(py),
+                        permission: command.bind(py).borrow().permission,
+                        channels: command
+                            .bind(py)
+                            .borrow()
+                            .channels
+                            .iter()
+                            .map(|channel| channel.clone_ref(py))
+                            .collect(),
+                        exclude_channels: command
+                            .bind(py)
+                            .borrow()
+                            .exclude_channels
+                            .iter()
+                            .map(|channel| channel.clone_ref(py))
+                            .collect(),
+                        client_cmd_pass: command.bind(py).borrow().client_cmd_pass,
+                        client_cmd_perm: command.bind(py).borrow().client_cmd_perm,
+                        prefix: command.bind(py).borrow().prefix,
+                        usage: command.bind(py).borrow().usage.clone(),
+                    })
+                    .collect::<Vec<Command>>(),
+            );
+        });
+        returned
     }
 
     /// Check if a command is already registed.
     ///
     /// Commands are unique by (command.name, command.handler).
-    fn is_registered(&self, py: Python<'_>, command: &Command) -> bool {
+    fn is_registered(&self, py: Python<'_>, command: &Bound<'_, Command>) -> bool {
         let commands = self.commands.read();
         commands.iter().any(|prio_cmds| {
             prio_cmds.iter().any(|cmd| {
-                cmd.name.len() == command.name.len()
-                    && cmd.name.iter().all(|name| command.name.contains(name))
+                cmd.bind(py).borrow().name.len() == command.borrow().name.len()
                     && cmd
+                        .bind(py)
+                        .borrow()
+                        .name
+                        .iter()
+                        .all(|name| command.borrow().name.contains(name))
+                    && cmd
+                        .bind(py)
+                        .borrow()
                         .handler
                         .bind(py)
-                        .eq(command.handler.bind(py))
+                        .eq(command.borrow().handler.bind(py))
                         .unwrap_or(false)
             })
         })
@@ -1515,7 +1549,7 @@ impl CommandInvoker {
     pub(crate) fn add_command(
         &self,
         py: Python<'_>,
-        command: Command,
+        command: Bound<'_, Command>,
         priority: usize,
     ) -> PyResult<()> {
         if self.is_registered(py, &command) {
@@ -1537,15 +1571,21 @@ def add_command(cmd, priority):
                 "",
                 "",
             )
-            .and_then(|module| module.call_method1(intern!(py, "add_command"), (command, priority)))
+            .and_then(|module| {
+                module.call_method1(intern!(py, "add_command"), (&command, priority))
+            })
             .map(|_| ());
         };
 
-        commands[priority].push(command);
+        commands[priority].push(command.unbind());
         Ok(())
     }
 
-    pub(crate) fn remove_command(&self, py: Python<'_>, command: Command) -> PyResult<()> {
+    pub(crate) fn remove_command(
+        &self,
+        py: Python<'_>,
+        command: Bound<'_, Command>,
+    ) -> PyResult<()> {
         if !self.is_registered(py, &command) {
             return Err(PyValueError::new_err(
                 "Attempted to remove a command that was never added.",
@@ -1571,12 +1611,18 @@ def remove_command(cmd):
         };
         commands.iter_mut().for_each(|prio_commands| {
             prio_commands.retain(|cmd| {
-                cmd.name.len() != command.name.len()
-                    || !command.name.iter().all(|name| cmd.name.contains(name))
+                cmd.bind(py).borrow().name.len() != command.borrow().name.len()
+                    || !command
+                        .borrow()
+                        .name
+                        .iter()
+                        .all(|name| cmd.bind(py).borrow().name.contains(name))
                     || cmd
+                        .bind(py)
+                        .borrow()
                         .handler
                         .bind(py)
-                        .ne(command.handler.bind(py))
+                        .ne(command.borrow().handler.bind(py))
                         .unwrap_or(true)
             });
         });
@@ -1627,22 +1673,55 @@ def remove_command(cmd):
         let commands = self.commands.read();
         for priority_level in 0..commands.len() {
             for cmd in commands[priority_level].iter() {
-                if !cmd.is_eligible_name(py, &name) {
+                if !cmd.bind(py).borrow().is_eligible_name(py, &name) {
                     continue;
                 }
-                if !cmd.is_eligible_channel(py, channel.bind(py).into_py(py)) {
+                if !cmd
+                    .bind(py)
+                    .borrow()
+                    .is_eligible_channel(py, channel.bind(py).into_py(py))
+                {
                     continue;
                 }
-                if !cmd.is_eligible_player(py, player.clone(), is_client_cmd) {
+                if !cmd
+                    .bind(py)
+                    .borrow()
+                    .is_eligible_player(py, player.clone(), is_client_cmd)
+                {
                     continue;
                 }
 
                 if is_client_cmd {
-                    pass_through = cmd.client_cmd_pass;
+                    pass_through = cmd.bind(py).borrow().client_cmd_pass;
                 }
 
+                let cmd_copy = Command {
+                    plugin: cmd.bind(py).borrow().plugin.clone_ref(py),
+                    name: cmd.bind(py).borrow().name.clone(),
+                    handler: cmd.bind(py).borrow().handler.clone_ref(py),
+                    permission: cmd.bind(py).borrow().permission,
+                    channels: cmd
+                        .bind(py)
+                        .borrow()
+                        .channels
+                        .iter()
+                        .map(|channel| channel.clone_ref(py))
+                        .collect(),
+                    exclude_channels: cmd
+                        .bind(py)
+                        .borrow()
+                        .exclude_channels
+                        .iter()
+                        .map(|channel| channel.clone_ref(py))
+                        .collect(),
+                    client_cmd_pass: cmd.bind(py).borrow().client_cmd_pass,
+                    client_cmd_perm: cmd.bind(py).borrow().client_cmd_perm,
+                    prefix: cmd.bind(py).borrow().prefix,
+                    usage: cmd.bind(py).borrow().usage.clone(),
+                };
+
                 let dispatcher_result = command_dispatcher
-                    .call_method1(intern!(py, "dispatch"), (player.clone(), cmd.clone(), msg))?;
+                    .call_method1(intern!(py, "dispatch"), (player.clone(), cmd_copy, msg))?;
                 if dispatcher_result
                     .extract::<bool>()
                     .is_ok_and(|value| !value)
@@ -1650,8 +1729,12 @@ def remove_command(cmd):
                     return Ok(true);
                 }
 
-                let cmd_result =
-                    cmd.execute(py, player.clone(), msg, channel.bind(py).into_py(py))?;
+                let cmd_result = cmd.bind(py).borrow().execute(
+                    py,
+                    player.clone(),
+                    msg,
+                    channel.bind(py).into_py(py),
+                )?;
                 let cmd_result_return_code = cmd_result.extract::<PythonReturnCodes>(py);
                 if cmd_result_return_code.as_ref().is_ok_and(|value| {
                     [PythonReturnCodes::RET_STOP, PythonReturnCodes::RET_STOP_ALL].contains(value)
@@ -1667,8 +1750,9 @@ def remove_command(cmd):
                     .as_ref()
                     .is_ok_and(|&value| value == PythonReturnCodes::RET_USAGE)
                 {
-                    if !cmd.usage.is_empty() {
-                        let usage_msg = format!("^7Usage: ^6{} {}", name, cmd.usage);
+                    if !cmd.bind(py).borrow().usage.is_empty() {
+                        let usage_msg =
+                            format!("^7Usage: ^6{} {}", name, cmd.bind(py).borrow().usage);
                         channel.call_method1(py, intern!(py, "reply"), (usage_msg,))?;
                     }
                 } else if !cmd_result_return_code
@@ -1676,7 +1760,11 @@ def remove_command(cmd):
                     .is_ok_and(|&value| value == PythonReturnCodes::RET_NONE)
                 {
                     pyshinqlx_get_logger(py, None).and_then(|logger| {
-                        let cmd_handler_name = cmd.handler.getattr(py, intern!(py, "__name__"))?;
+                        let cmd_handler_name = cmd
+                            .bind(py)
+                            .borrow()
+                            .handler
+                            .getattr(py, intern!(py, "__name__"))?;
                         let warning_level =
                             py.import_bound(intern!(py, "logging"))
                                 .and_then(|logging_module| {
@@ -1694,7 +1782,11 @@ def remove_command(cmd):
                             py,
                             "Command '%s' with handler '%s' returned an unknown return value: %s"
                         ),
-                                    (cmd.name.clone(), cmd_handler_name, cmd_result),
+                                    (
+                                        cmd.bind(py).borrow().name.clone(),
+                                        cmd_handler_name,
+                                        cmd_result,
+                                    ),
                                     py.None(),
                                 ),
                                 Some(
@@ -1741,6 +1833,25 @@ mod command_invoker_tests {
     use pyo3::exceptions::{PyEnvironmentError, PyValueError};
     use pyo3::prelude::*;
 
+    fn default_command(py: Python<'_>) -> Command {
+        let capturing_hook = capturing_hook(py);
+        Command {
+            plugin: test_plugin(py).unbind(),
+            name: vec!["cmd_name".into()],
+            handler: capturing_hook
+                .getattr("hook")
+                .expect("could not get capturing hook")
+                .unbind(),
+            permission: 0,
+            channels: vec![],
+            exclude_channels: vec![],
+            client_cmd_pass: false,
+            client_cmd_perm: 0,
+            prefix: true,
+            usage: "".to_string(),
+        }
+    }
+
     #[rstest]
     #[cfg_attr(miri, ignore)]
     fn emoty_command_invoker_has_empty_commands(_pyshinqlx_setup: ()) {
@@ -1755,24 +1866,9 @@ mod command_invoker_tests {
     fn is_registered_for_unregistered_command(_pyshinqlx_setup: ()) {
         Python::with_gil(|py| {
             let command_invoker = CommandInvoker::py_new();
-            let capturing_hook = capturing_hook(py);
-            let command = Command {
-                plugin: test_plugin(py).unbind(),
-                name: vec!["cmd_name".into()],
-                handler: capturing_hook
-                    .getattr("hook")
-                    .expect("could not get capturing hook")
-                    .unbind(),
-                permission: 0,
-                channels: vec![],
-                exclude_channels: vec![],
-                client_cmd_pass: false,
-                client_cmd_perm: 0,
-                prefix: true,
-                usage: "".to_string(),
-            };
 
-            assert!(!command_invoker.is_registered(py, &command));
+            let py_command = Py::new(py, default_command(py)).expect("this should not happen");
+            assert!(!command_invoker.is_registered(py, py_command.bind(py)));
         });
     }
 
@@ -1781,43 +1877,36 @@ mod command_invoker_tests {
     fn is_registered_with_variations_of_registered_command(_pyshinqlx_setup: ()) {
         Python::with_gil(|py| {
             let command_invoker = CommandInvoker::py_new();
-            let capturing_hook = capturing_hook(py);
-            let command = Command {
-                plugin: test_plugin(py).unbind(),
-                name: vec!["cmd_name".into()],
-                handler: capturing_hook
-                    .getattr("hook")
-                    .expect("could not get capturing hook")
-                    .unbind(),
-                permission: 0,
-                channels: vec![],
-                exclude_channels: vec![],
-                client_cmd_pass: false,
-                client_cmd_perm: 0,
-                prefix: true,
-                usage: "".to_string(),
-            };
+            let py_command = Py::new(py, default_command(py))
+                .expect("this should not happen")
+                .into_bound(py);
             command_invoker
-                .add_command(py, command.clone(), CommandPriorities::PRI_NORMAL as usize)
+                .add_command(py, py_command, CommandPriorities::PRI_NORMAL as usize)
                 .expect("this should not happen");
 
             let unregistered_command1 = Command {
                 handler: py.None(),
-                ..command.clone()
+                ..default_command(py)
             };
-            assert!(!command_invoker.is_registered(py, &unregistered_command1));
+            let py_unregistered_command1 =
+                Py::new(py, unregistered_command1).expect("this should not happen");
+            assert!(!command_invoker.is_registered(py, py_unregistered_command1.bind(py)));
 
             let unregistered_command2 = Command {
                 name: vec!["cmd_name".into(), "cmd_alias1".into(), "cmd_alias2".into()],
-                ..command.clone()
+                ..default_command(py)
             };
-            assert!(!command_invoker.is_registered(py, &unregistered_command2));
+            let py_unregistered_command2 =
+                Py::new(py, unregistered_command2).expect("this should not happen");
+            assert!(!command_invoker.is_registered(py, py_unregistered_command2.bind(py)));
 
             let unregistered_command3 = Command {
                 name: vec!["mismatched_cmd_name".into()],
-                ..command.clone()
+                ..default_command(py)
             };
-            assert!(!command_invoker.is_registered(py, &unregistered_command3));
+            let py_unregistered_command3 =
+                Py::new(py, unregistered_command3).expect("this should not happen");
+            assert!(!command_invoker.is_registered(py, py_unregistered_command3.bind(py)));
         });
     }
 
@@ -1826,27 +1915,16 @@ mod command_invoker_tests {
     fn is_registered_for_registered_command(_pyshinqlx_setup: ()) {
         Python::with_gil(|py| {
             let command_invoker = CommandInvoker::py_new();
-            let capturing_hook = capturing_hook(py);
-            let command = Command {
-                plugin: test_plugin(py).unbind(),
-                name: vec!["cmd_name".into()],
-                handler: capturing_hook
-                    .getattr("hook")
-                    .expect("could not get capturing hook")
-                    .unbind(),
-                permission: 0,
-                channels: vec![],
-                exclude_channels: vec![],
-                client_cmd_pass: false,
-                client_cmd_perm: 0,
-                prefix: true,
-                usage: "".to_string(),
-            };
+            let py_command = Py::new(py, default_command(py)).expect("this should not happen");
             command_invoker
-                .add_command(py, command.clone(), CommandPriorities::PRI_NORMAL as usize)
+                .add_command(
+                    py,
+                    py_command.clone_ref(py).into_bound(py),
+                    CommandPriorities::PRI_NORMAL as usize,
+                )
                 .expect("this should not happen");
 
-            assert!(command_invoker.is_registered(py, &command));
+            assert!(command_invoker.is_registered(py, py_command.bind(py)));
         });
     }
 
@@ -1855,26 +1933,11 @@ mod command_invoker_tests {
     fn add_command_adds_command(_pyshinqlx_setup: ()) {
         Python::with_gil(|py| {
             let command_invoker = CommandInvoker::py_new();
-            let capturing_hook = capturing_hook(py);
-            let command = Command {
-                plugin: test_plugin(py).unbind(),
-                name: vec!["cmd_name".into()],
-                handler: capturing_hook
-                    .getattr("hook")
-                    .expect("could not get capturing hook")
-                    .unbind(),
-                permission: 0,
-                channels: vec![],
-                exclude_channels: vec![],
-                client_cmd_pass: false,
-                client_cmd_perm: 0,
-                prefix: true,
-                usage: "".to_string(),
-            };
+            let py_command = Py::new(py, default_command(py)).expect("this should not happen");
 
             let result = command_invoker.add_command(
                 py,
-                command.clone(),
+                py_command.into_bound(py),
                 CommandPriorities::PRI_NORMAL as usize,
             );
             assert!(result.is_ok());
@@ -1890,30 +1953,19 @@ mod command_invoker_tests {
     fn add_command_for_already_added_command(_pyshinqlx_setup: ()) {
         Python::with_gil(|py| {
             let command_invoker = CommandInvoker::py_new();
-            let capturing_hook = capturing_hook(py);
-            let command = Command {
-                plugin: test_plugin(py).unbind(),
-                name: vec!["cmd_name".into()],
-                handler: capturing_hook
-                    .getattr("hook")
-                    .expect("could not get capturing hook")
-                    .unbind(),
-                permission: 0,
-                channels: vec![],
-                exclude_channels: vec![],
-                client_cmd_pass: false,
-                client_cmd_perm: 0,
-                prefix: true,
-                usage: "".to_string(),
-            };
+            let py_command = Py::new(py, default_command(py)).expect("this should not happen");
 
             command_invoker
-                .add_command(py, command.clone(), CommandPriorities::PRI_NORMAL as usize)
+                .add_command(
+                    py,
+                    py_command.clone_ref(py).into_bound(py),
+                    CommandPriorities::PRI_NORMAL as usize,
+                )
                 .expect("this should not happen");
 
             let result = command_invoker.add_command(
                 py,
-                command.clone(),
+                py_command.into_bound(py),
                 CommandPriorities::PRI_NORMAL as usize,
             );
             assert!(result.is_err_and(|err| err.is_instance_of::<PyValueError>(py)));
@@ -1925,24 +1977,9 @@ mod command_invoker_tests {
     fn remove_command_for_command_not_added(_pyshinqlx_setup: ()) {
         Python::with_gil(|py| {
             let command_invoker = CommandInvoker::py_new();
-            let capturing_hook = capturing_hook(py);
-            let command = Command {
-                plugin: test_plugin(py).unbind(),
-                name: vec!["cmd_name".into()],
-                handler: capturing_hook
-                    .getattr("hook")
-                    .expect("could not get capturing hook")
-                    .unbind(),
-                permission: 0,
-                channels: vec![],
-                exclude_channels: vec![],
-                client_cmd_pass: false,
-                client_cmd_perm: 0,
-                prefix: true,
-                usage: "".to_string(),
-            };
+            let py_command = Py::new(py, default_command(py)).expect("this should not happen");
 
-            let result = command_invoker.remove_command(py, command.clone());
+            let result = command_invoker.remove_command(py, py_command.into_bound(py));
             assert!(result.is_err_and(|err| err.is_instance_of::<PyValueError>(py)));
         });
     }
@@ -1952,28 +1989,17 @@ mod command_invoker_tests {
     fn remove_command_removes_command(_pyshinqlx_setup: ()) {
         Python::with_gil(|py| {
             let command_invoker = CommandInvoker::py_new();
-            let capturing_hook = capturing_hook(py);
-            let command = Command {
-                plugin: test_plugin(py).unbind(),
-                name: vec!["cmd_name".into()],
-                handler: capturing_hook
-                    .getattr("hook")
-                    .expect("could not get capturing hook")
-                    .unbind(),
-                permission: 0,
-                channels: vec![],
-                exclude_channels: vec![],
-                client_cmd_pass: false,
-                client_cmd_perm: 0,
-                prefix: true,
-                usage: "".to_string(),
-            };
+            let py_command = Py::new(py, default_command(py)).expect("this should not happen");
 
             command_invoker
-                .add_command(py, command.clone(), CommandPriorities::PRI_NORMAL as usize)
+                .add_command(
+                    py,
+                    py_command.clone_ref(py).into_bound(py),
+                    CommandPriorities::PRI_NORMAL as usize,
+                )
                 .expect("this should not happen");
 
-            let result = command_invoker.remove_command(py, command.clone());
+            let result = command_invoker.remove_command(py, py_command.into_bound(py));
             assert!(result.is_ok());
             assert!(command_invoker.get_commands(py).is_empty());
         });
@@ -2032,26 +2058,15 @@ mod command_invoker_tests {
                     .into(),
             ));
 
-            let capturing_hook = capturing_hook(py);
-            let command = Command {
-                plugin: test_plugin(py).unbind(),
-                name: vec!["cmd_name".into()],
-                handler: capturing_hook
-                    .getattr("hook")
-                    .expect("could not get capturing hook")
-                    .unbind(),
-                permission: 0,
-                channels: vec![],
-                exclude_channels: vec![],
-                client_cmd_pass: false,
-                client_cmd_perm: 0,
-                prefix: false,
-                usage: "".to_string(),
-            };
+            let py_command = Py::new(py, default_command(py)).expect("this should not happen");
 
             let command_invoker = CommandInvoker::py_new();
             command_invoker
-                .add_command(py, command.clone(), CommandPriorities::PRI_NORMAL as usize)
+                .add_command(
+                    py,
+                    py_command.into_bound(py),
+                    CommandPriorities::PRI_NORMAL as usize,
+                )
                 .expect("this should not happen");
 
             let result =
@@ -2079,26 +2094,15 @@ mod command_invoker_tests {
                     .into(),
             ));
 
-            let capturing_hook = capturing_hook(py);
-            let command = Command {
-                plugin: test_plugin(py).unbind(),
-                name: vec!["cmd_name".into()],
-                handler: capturing_hook
-                    .getattr("hook")
-                    .expect("could not get capturing hook")
-                    .unbind(),
-                permission: 0,
-                channels: vec![],
-                exclude_channels: vec![chat_channel.clone_ref(py).into_any()],
-                client_cmd_pass: false,
-                client_cmd_perm: 0,
-                prefix: false,
-                usage: "".to_string(),
-            };
+            let py_command = Py::new(py, default_command(py)).expect("this should not happen");
 
             let command_invoker = CommandInvoker::py_new();
             command_invoker
-                .add_command(py, command.clone(), CommandPriorities::PRI_NORMAL as usize)
+                .add_command(
+                    py,
+                    py_command.into_bound(py),
+                    CommandPriorities::PRI_NORMAL as usize,
+                )
                 .expect("this should not happen");
 
             let result =
@@ -2144,26 +2148,15 @@ mod command_invoker_tests {
                     .into(),
             ));
 
-            let capturing_hook = capturing_hook(py);
-            let command = Command {
-                plugin: test_plugin(py).unbind(),
-                name: vec!["cmd_name".into()],
-                handler: capturing_hook
-                    .getattr("hook")
-                    .expect("could not get capturing hook")
-                    .unbind(),
-                permission: 5,
-                channels: vec![],
-                exclude_channels: vec![],
-                client_cmd_pass: false,
-                client_cmd_perm: 0,
-                prefix: false,
-                usage: "".to_string(),
-            };
+            let py_command = Py::new(py, default_command(py)).expect("this should not happen");
 
             let command_invoker = CommandInvoker::py_new();
             command_invoker
-                .add_command(py, command.clone(), CommandPriorities::PRI_NORMAL as usize)
+                .add_command(
+                    py,
+                    py_command.into_bound(py),
+                    CommandPriorities::PRI_NORMAL as usize,
+                )
                 .expect("this should not happen");
 
             let result =
@@ -2215,25 +2208,27 @@ mod command_invoker_tests {
             ));
 
             let capturing_hook = capturing_hook(py);
-            let command = Command {
-                plugin: test_plugin(py).unbind(),
-                name: vec!["cmd_name".into()],
-                handler: capturing_hook
-                    .getattr("hook")
-                    .expect("could not get capturing hook")
-                    .unbind(),
-                permission: 0,
-                channels: vec![],
-                exclude_channels: vec![],
-                client_cmd_pass: pass_through,
-                client_cmd_perm: 0,
-                prefix: false,
-                usage: "".to_string(),
-            };
+            let py_command = Py::new(
+                py,
+                Command {
+                    handler: capturing_hook
+                        .getattr("hook")
+                        .expect("could not get capturing hook")
+                        .unbind(),
+                    client_cmd_pass: pass_through,
+                    prefix: false,
+                    ..default_command(py)
+                },
+            )
+            .expect("this should not happen");
 
             let command_invoker = CommandInvoker::py_new();
             command_invoker
-                .add_command(py, command.clone(), CommandPriorities::PRI_NORMAL as usize)
+                .add_command(
+                    py,
+                    py_command.into_bound(py),
+                    CommandPriorities::PRI_NORMAL as usize,
+                )
                 .expect("this should not happen");
 
             let result = command_invoker.handle_input(
@@ -2300,26 +2295,15 @@ mod command_invoker_tests {
                     .into(),
             ));
 
-            let capturing_hook = capturing_hook(py);
-            let command = Command {
-                plugin: test_plugin(py).unbind(),
-                name: vec!["cmd_name".into()],
-                handler: capturing_hook
-                    .getattr("hook")
-                    .expect("could not get capturing hook")
-                    .unbind(),
-                permission: 0,
-                channels: vec![],
-                exclude_channels: vec![],
-                client_cmd_pass: false,
-                client_cmd_perm: 0,
-                prefix: false,
-                usage: "".to_string(),
-            };
+            let py_command = Py::new(py, default_command(py)).expect("this should not happen");
 
             let command_invoker = CommandInvoker::py_new();
             command_invoker
-                .add_command(py, command.clone(), CommandPriorities::PRI_NORMAL as usize)
+                .add_command(
+                    py,
+                    py_command.into_bound(py),
+                    CommandPriorities::PRI_NORMAL as usize,
+                )
                 .expect("this should not happen");
 
             let result = command_invoker.handle_input(
@@ -2387,21 +2371,19 @@ def cmd_handler(*args, **kwargs):
                 .and_then(|result| result.getattr("cmd_handler"))
                 .expect("this should not happen");
             let command = Command {
-                plugin: test_plugin(py).unbind(),
-                name: vec!["cmd_name".into()],
                 handler: handler.unbind(),
-                permission: 0,
-                channels: vec![],
-                exclude_channels: vec![],
-                client_cmd_pass: false,
-                client_cmd_perm: 0,
                 prefix: false,
-                usage: "".to_string(),
+                ..default_command(py)
             };
+            let py_command = Py::new(py, command).expect("this should not happen");
 
             let command_invoker = CommandInvoker::py_new();
             command_invoker
-                .add_command(py, command.clone(), CommandPriorities::PRI_NORMAL as usize)
+                .add_command(
+                    py,
+                    py_command.into_bound(py),
+                    CommandPriorities::PRI_NORMAL as usize,
+                )
                 .expect("this should not happen");
 
             let result = command_invoker.handle_input(
@@ -2468,21 +2450,19 @@ def cmd_handler(*args, **kwargs):
                 .and_then(|result| result.getattr("cmd_handler"))
                 .expect("this should not happen");
             let command = Command {
-                plugin: test_plugin(py).unbind(),
-                name: vec!["cmd_name".into()],
                 handler: handler.unbind(),
-                permission: 0,
-                channels: vec![],
-                exclude_channels: vec![],
-                client_cmd_pass: false,
-                client_cmd_perm: 0,
                 prefix: false,
-                usage: "".to_string(),
+                ..default_command(py)
             };
+            let py_command = Py::new(py, command).expect("this should not happen");
 
             let command_invoker = CommandInvoker::py_new();
             command_invoker
-                .add_command(py, command.clone(), CommandPriorities::PRI_NORMAL as usize)
+                .add_command(
+                    py,
+                    py_command.into_bound(py),
+                    CommandPriorities::PRI_NORMAL as usize,
+                )
                 .expect("this should not happen");
 
             let result =
@@ -2553,21 +2533,20 @@ def cmd_handler(*args, **kwargs):
                 .and_then(|result| result.getattr("cmd_handler"))
                 .expect("this should not happen");
             let command = Command {
-                plugin: test_plugin(py).unbind(),
-                name: vec!["cmd_name".into()],
                 handler: handler.unbind(),
-                permission: 0,
-                channels: vec![],
-                exclude_channels: vec![],
-                client_cmd_pass: false,
-                client_cmd_perm: 0,
                 prefix: false,
                 usage: "how to use me".to_string(),
+                ..default_command(py)
             };
+            let py_command = Py::new(py, command).expect("this should not happen");
 
             let command_invoker = CommandInvoker::py_new();
             command_invoker
-                .add_command(py, command.clone(), CommandPriorities::PRI_NORMAL as usize)
+                .add_command(
+                    py,
+                    py_command.into_bound(py),
+                    CommandPriorities::PRI_NORMAL as usize,
+                )
                 .expect("this should not happen");
 
             let result =
@@ -2630,21 +2609,18 @@ def cmd_handler(*args, **kwargs):
             .and_then(|result| result.getattr("cmd_handler"))
             .expect("this should not happen");
             let command = Command {
-                plugin: test_plugin(py).unbind(),
-                name: vec!["cmd_name".into()],
                 handler: handler.unbind(),
-                permission: 0,
-                channels: vec![],
-                exclude_channels: vec![],
-                client_cmd_pass: false,
-                client_cmd_perm: 0,
-                prefix: false,
-                usage: "".to_string(),
+                ..default_command(py)
             };
+            let py_command = Py::new(py, command).expect("this should not happen");
 
             let command_invoker = CommandInvoker::py_new();
             command_invoker
-                .add_command(py, command.clone(), CommandPriorities::PRI_NORMAL as usize)
+                .add_command(
+                    py,
+                    py_command.into_bound(py),
+                    CommandPriorities::PRI_NORMAL as usize,
+                )
                 .expect("this should not happen");
 
             let result =
