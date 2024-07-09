@@ -38,7 +38,7 @@ rustflags = ["-Zlocation-detail=none"]
 [dependencies]
 ctor = { version = ">=0.2", default-features = false, features = ["used_linker"] }
 rand = { version = ">=0.9.0-alpha.1", default-features = false, features = ["getrandom"] }
-pyo3 = { version = ">=0.21.1", default-features = false, features = ["macros", "extension-module", "nightly"] }
+pyo3 = { version = ">=0.22, <0.23", default-features = false, features = ["macros", "extension-module", "nightly"] }
 retour = { version = ">=0.4.0-alpha.2", default-features = false, features = ["nightly"] }
 derive_builder = { version = ">=0.20", default-features = false, features = ["clippy", "alloc"] }
 once_cell = { version = ">=1.19", default-features = false }
@@ -54,7 +54,7 @@ cfg-if = { version = ">=1.0", default-features = false }
 zmq = { version = ">=0.10", default-features = false }
 serde_json = { version = ">=1.0.111", default-features = false, features = ["alloc"] }
 parking_lot = { version = ">=0.12", default-features = false }
-git2 = { version = ">=0.18", default-features = false }
+git2 = { version = ">=0.19", default-features = false }
 semver = { version = ">=1.0.22", default-features = false }
 redis = { version = ">=0.25", default-features = false, optional = true }
 
@@ -69,12 +69,12 @@ procfs-core = { version = ">=0.16", default-features = false }
 tikv-jemallocator = { version = ">=0.5", default-features = false, optional = true }
 
 [build-dependencies]
-pyo3-build-config = { version = ">=0.21.1", default-features = false, features = ["resolve-config"] }
-git2 = { version = ">=0.18", default-features = false }
+pyo3-build-config = { version = ">=0.22, <0.23", default-features = false, features = ["resolve-config"] }
+git2 = { version = ">=0.19", default-features = false }
 
 [dev-dependencies]
 pretty_assertions = { version = ">=1.4", default-features = false, features = ["alloc"] }
-rstest = { version = ">=0.19", default-features = false }
+rstest = { version = ">=0.21", default-features = false }
 mockall = { version = ">=0.12", default-features = false, features = ["nightly"] }
 serial_test = { version = ">=3.1", default-features = false }
 tempfile = { version = ">=3.10", default-features = false }

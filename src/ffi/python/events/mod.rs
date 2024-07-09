@@ -251,7 +251,24 @@ impl EventDispatcher {
             return PyDict::new_bound(slf.py());
         };
         let plugins = event_dispatcher.plugins.read();
-        plugins.clone().into_py_dict_bound(slf.py())
+        plugins
+            .iter()
+            .map(|(plugin_name, hooks)| {
+                (
+                    plugin_name.clone(),
+                    hooks
+                        .iter()
+                        .map(|prio_hooks| {
+                            prio_hooks
+                                .iter()
+                                .map(|hook| hook.clone_ref(slf.py()))
+                                .collect()
+                        })
+                        .collect(),
+                )
+            })
+            .collect::<Vec<(String, Vec<Vec<PyObject>>)>>()
+            .into_py_dict_bound(slf.py())
     }
 
     /// Calls all the handlers that have been registered when hooking this event.
@@ -289,7 +306,7 @@ impl EventDispatcher {
 
         let plugins = event_dispatcher.plugins.read();
         for i in 0..5 {
-            for (_, handlers) in plugins.clone() {
+            for (_, handlers) in &*plugins {
                 for handler in &handlers[i] {
                     let handler_args = PyTuple::new_bound(slf.py(), &args);
                     match handler.call1(slf.py(), handler_args) {
@@ -342,7 +359,7 @@ impl EventDispatcher {
             }
         }
 
-        return_value.clone()
+        return_value.clone_ref(slf.py())
     }
 
     /// Handle an unknown return value. If this returns anything but None,
@@ -560,7 +577,16 @@ impl EventDispatcherManager {
     #[getter(_dispatchers)]
     fn get_dispatchers<'py>(&'py self, py: Python<'py>) -> Bound<'py, PyDict> {
         let dispatchers = self.dispatchers.read();
-        dispatchers.clone().into_py_dict_bound(py)
+        dispatchers
+            .iter()
+            .map(|(dispatcher_name, dispatch_function)| {
+                (
+                    dispatcher_name.clone(),
+                    dispatch_function.bind(py).as_unbound(),
+                )
+            })
+            .collect::<Vec<(String, &PyObject)>>()
+            .into_py_dict_bound(py)
     }
 
     pub(crate) fn __getitem__(&self, py: Python<'_>, key: &str) -> PyResult<PyObject> {
