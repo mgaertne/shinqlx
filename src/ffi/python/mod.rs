@@ -291,11 +291,6 @@ impl From<ParsedVariables> for String {
 }
 
 impl IntoPyDict for ParsedVariables {
-    fn into_py_dict(self, py: Python<'_>) -> &PyDict {
-        #[allow(deprecated)]
-        self.items.into_py_dict(py)
-    }
-
     fn into_py_dict_bound(self, py: Python<'_>) -> Bound<'_, PyDict> {
         self.items.into_py_dict_bound(py)
     }
@@ -720,7 +715,7 @@ fn pyshinqlx_configure_logger(py: Python<'_>) -> PyResult<()> {
 fn pyshinqlx_log_exception(py: Python<'_>, plugin: Option<PyObject>) -> PyResult<()> {
     let sys_module = py.import_bound(intern!(py, "sys"))?;
     let exc_info = sys_module.call_method0(intern!(py, "exc_info"))?;
-    let exc_tuple = exc_info.extract::<&PyTuple>()?;
+    let exc_tuple = exc_info.extract::<Bound<'_, PyTuple>>()?;
 
     let traceback_module = py.import_bound(intern!(py, "traceback"))?;
     let formatted_traceback: Vec<String> = traceback_module
@@ -1102,7 +1097,7 @@ fn try_load_plugin(py: Python<'_>, plugin: &str) -> PyResult<()> {
     let loaded_plugins = py
         .get_type_bound::<Plugin>()
         .getattr(intern!(py, "_loaded_plugins"))?
-        .extract::<&PyDict>()?;
+        .extract::<Bound<'_, PyDict>>()?;
     loaded_plugins.set_item(plugin, loaded_plugin)?;
 
     Ok(())
@@ -1146,7 +1141,7 @@ fn load_plugin(py: Python<'_>, plugin: &str) -> PyResult<()> {
     let loaded_plugins = py
         .get_type_bound::<Plugin>()
         .getattr(intern!(py, "_loaded_plugins"))?
-        .extract::<&PyDict>()?;
+        .extract::<Bound<'_, PyDict>>()?;
 
     if loaded_plugins.contains(plugin)? {
         reload_plugin(py, plugin)?;
@@ -1181,7 +1176,7 @@ fn try_unload_plugin(py: Python<'_>, plugin: &str) -> PyResult<()> {
     let loaded_plugins = py
         .get_type_bound::<Plugin>()
         .getattr(intern!(py, "_loaded_plugins"))?
-        .extract::<&PyDict>()?;
+        .extract::<Bound<'_, PyDict>>()?;
 
     let Some(loaded_plugin) = loaded_plugins.get_item(plugin)? else {
         let error_msg = format!("Attempted to unload a plugin '{plugin}' that is not loaded.");
@@ -1190,7 +1185,7 @@ fn try_unload_plugin(py: Python<'_>, plugin: &str) -> PyResult<()> {
 
     let plugin_hooks = loaded_plugin.getattr(intern!(py, "hooks"))?;
     plugin_hooks.iter()?.flatten().for_each(|hook| {
-        if let Ok(hook_tuple) = hook.extract::<&PyTuple>() {
+        if let Ok(hook_tuple) = hook.extract::<Bound<'_, PyTuple>>() {
             let Ok(event_name) = hook_tuple.get_item(0) else {
                 return;
             };
@@ -1222,7 +1217,7 @@ fn try_unload_plugin(py: Python<'_>, plugin: &str) -> PyResult<()> {
 
     let plugin_commands = loaded_plugin.getattr(intern!(py, "commands"))?;
     plugin_commands.iter()?.flatten().for_each(|cmd| {
-        if let Ok(py_cmd) = cmd.extract::<Command>() {
+        if let Ok(py_cmd) = cmd.extract::<Bound<'_, Command>>() {
             if let Some(ref commands) = *COMMANDS.load() {
                 if let Err(ref e) = commands.borrow(py).remove_command(py, py_cmd) {
                     log_exception(py, e);
@@ -1263,7 +1258,7 @@ fn unload_plugin(py: Python<'_>, plugin: &str) -> PyResult<()> {
     let loaded_plugins = py
         .get_type_bound::<Plugin>()
         .getattr(intern!(py, "_loaded_plugins"))?
-        .extract::<&PyDict>()?;
+        .extract::<Bound<'_, PyDict>>()?;
     if !loaded_plugins.contains(plugin)? {
         let error_msg = format!("Attempted to unload a plugin '{plugin}' that is not loaded.");
         return Err(PluginUnloadError::new_err(error_msg));
@@ -2337,7 +2332,6 @@ pub(crate) mod python_tests {
     use super::PythonInitializationError;
 
     #[allow(unused_attributes)]
-    #[cfg_attr(coverage_nightly, coverage(off))]
     #[cfg(not(tarpaulin_include))]
     pub(crate) fn rcon_dispatcher<T>(_cmd: T)
     where
@@ -2346,14 +2340,12 @@ pub(crate) mod python_tests {
     }
 
     #[allow(unused_attributes)]
-    #[cfg_attr(coverage_nightly, coverage(off))]
     #[cfg(not(tarpaulin_include))]
     pub(crate) fn client_command_dispatcher(_client_id: i32, _cmd: String) -> Option<String> {
         None
     }
 
     #[allow(unused_attributes)]
-    #[cfg_attr(coverage_nightly, coverage(off))]
     #[cfg(not(tarpaulin_include))]
     pub(crate) fn server_command_dispatcher(
         _client_id: Option<i32>,
@@ -2363,63 +2355,52 @@ pub(crate) mod python_tests {
     }
 
     #[allow(unused_attributes)]
-    #[cfg_attr(coverage_nightly, coverage(off))]
     #[cfg(not(tarpaulin_include))]
     pub(crate) fn client_loaded_dispatcher(_client_id: i32) {}
 
     #[allow(unused_attributes)]
-    #[cfg_attr(coverage_nightly, coverage(off))]
     #[cfg(not(tarpaulin_include))]
     pub(crate) fn set_configstring_dispatcher(_index: u32, _value: &str) -> Option<String> {
         None
     }
 
     #[allow(unused_attributes)]
-    #[cfg_attr(coverage_nightly, coverage(off))]
     #[cfg(not(tarpaulin_include))]
     pub(crate) fn client_disconnect_dispatcher(_client_id: i32, _reason: &str) {}
 
     #[allow(unused_attributes)]
-    #[cfg_attr(coverage_nightly, coverage(off))]
     #[cfg(not(tarpaulin_include))]
     pub(crate) fn console_print_dispatcher(_msg: &str) -> Option<String> {
         None
     }
 
     #[allow(unused_attributes)]
-    #[cfg_attr(coverage_nightly, coverage(off))]
     #[cfg(not(tarpaulin_include))]
     pub(crate) fn new_game_dispatcher(_restart: bool) {}
 
     #[allow(unused_attributes)]
-    #[cfg_attr(coverage_nightly, coverage(off))]
     #[cfg(not(tarpaulin_include))]
     pub(crate) fn frame_dispatcher() {}
 
     #[allow(unused_attributes)]
-    #[cfg_attr(coverage_nightly, coverage(off))]
     #[cfg(not(tarpaulin_include))]
     pub(crate) fn client_connect_dispatcher(_client_id: i32, _is_bot: bool) -> Option<String> {
         None
     }
 
     #[allow(unused_attributes)]
-    #[cfg_attr(coverage_nightly, coverage(off))]
     #[cfg(not(tarpaulin_include))]
     pub(crate) fn client_spawn_dispatcher(_client_id: i32) {}
 
     #[allow(unused_attributes)]
-    #[cfg_attr(coverage_nightly, coverage(off))]
     #[cfg(not(tarpaulin_include))]
     pub(crate) fn kamikaze_use_dispatcher(_client_id: i32) {}
 
     #[allow(unused_attributes)]
-    #[cfg_attr(coverage_nightly, coverage(off))]
     #[cfg(not(tarpaulin_include))]
     pub(crate) fn kamikaze_explode_dispatcher(_client_id: i32, _is_used_on_demand: bool) {}
 
     #[allow(unused_attributes)]
-    #[cfg_attr(coverage_nightly, coverage(off))]
     #[cfg(not(tarpaulin_include))]
     pub(crate) fn damage_dispatcher(
         _target_client_id: i32,
@@ -2431,21 +2412,18 @@ pub(crate) mod python_tests {
     }
 
     #[allow(unused_attributes)]
-    #[cfg_attr(coverage_nightly, coverage(off))]
     #[cfg(not(tarpaulin_include))]
     pub(crate) fn pyshinqlx_is_initialized() -> bool {
         false
     }
 
     #[allow(unused_attributes)]
-    #[cfg_attr(coverage_nightly, coverage(off))]
     #[cfg(not(tarpaulin_include))]
     pub(crate) fn pyshinqlx_initialize() -> Result<(), PythonInitializationError> {
         Ok(())
     }
 
     #[allow(unused_attributes)]
-    #[cfg_attr(coverage_nightly, coverage(off))]
     #[cfg(not(tarpaulin_include))]
     pub(crate) fn pyshinqlx_reload() -> Result<(), PythonInitializationError> {
         Ok(())

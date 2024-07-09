@@ -70,11 +70,12 @@ impl UserinfoDispatcher {
                                 return false.into_py(slf.py());
                             }
 
-                            let Ok(changed_value) = res.extract::<&PyDict>(slf.py()) else {
+                            let Ok(changed_value) = res.extract::<Bound<'_, PyDict>>(slf.py())
+                            else {
                                 log_unexpected_return_value(slf.py(), Self::name, &res, handler);
                                 continue;
                             };
-                            forwarded_userinfo = changed_value.into_py_dict_bound(slf.py());
+                            forwarded_userinfo = changed_value.clone().into_py_dict_bound(slf.py());
                             return_value = changed_value.into_py(slf.py());
                         }
                     }

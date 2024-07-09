@@ -686,6 +686,10 @@ mod game_entity_tests {
         ShiNQlx_Switch_Touch_Item(&mut entity);
     }
 
+    static MOCK_TOUCH_ITEM_FN: extern "C" fn(*mut gentity_t, *mut gentity_t, *mut trace_t) =
+        MockStaticFunc::touch_item;
+    static MOCK_FREE_ENTITY_FN: extern "C" fn(*mut gentity_t) = MockStaticFunc::g_free_entity;
+
     #[test]
     #[serial]
     fn shinqlx_switch_touch_item_with_partially_intialized_main_engine() {
@@ -696,7 +700,7 @@ mod game_entity_tests {
         let mut mock_engine = MockQuakeEngine::new();
         mock_engine
             .expect_touch_item_orig()
-            .returning(|| Ok(MockStaticFunc::touch_item));
+            .returning(|| Ok(MOCK_TOUCH_ITEM_FN));
         mock_engine
             .expect_g_free_entity_orig()
             .returning(|| Err(QuakeLiveEngineError::MainEngineNotInitialized));
@@ -711,10 +715,10 @@ mod game_entity_tests {
         let mut mock_engine = MockQuakeEngine::new();
         mock_engine
             .expect_touch_item_orig()
-            .returning(|| Ok(MockStaticFunc::touch_item));
+            .returning(|| Ok(MOCK_TOUCH_ITEM_FN));
         mock_engine
             .expect_g_free_entity_orig()
-            .returning(|| Ok(MockStaticFunc::g_free_entity));
+            .returning(|| Ok(MOCK_FREE_ENTITY_FN));
 
         MAIN_ENGINE.store(Some(mock_engine.into()));
         ShiNQlx_Switch_Touch_Item(ptr::null_mut() as *mut gentity_t);
@@ -730,10 +734,10 @@ mod game_entity_tests {
         let mut mock_engine = MockQuakeEngine::new();
         mock_engine
             .expect_touch_item_orig()
-            .returning(|| Ok(MockStaticFunc::touch_item));
+            .returning(|| Ok(MOCK_TOUCH_ITEM_FN));
         mock_engine
             .expect_g_free_entity_orig()
-            .returning(|| Ok(MockStaticFunc::g_free_entity));
+            .returning(|| Ok(MOCK_FREE_ENTITY_FN));
 
         let current_level_ctx = MockTestCurrentLevel::try_get_context();
         current_level_ctx.expect().returning(|| {
@@ -747,10 +751,10 @@ mod game_entity_tests {
 
         assert!(entity
             .touch
-            .is_some_and(|func| func as usize == MockStaticFunc::touch_item as usize));
+            .is_some_and(|func| func as usize == MOCK_TOUCH_ITEM_FN as usize));
         assert!(entity
             .think
-            .is_some_and(|func| func as usize == MockStaticFunc::g_free_entity as usize));
+            .is_some_and(|func| func as usize == MOCK_FREE_ENTITY_FN as usize));
         assert_eq!(entity.nextthink, 30234);
     }
 
@@ -868,7 +872,6 @@ mod game_entity_tests {
         );
     }
 
-    //noinspection DuplicatedCode
     #[test]
     #[serial]
     #[cfg_attr(miri, ignore)]
@@ -1239,7 +1242,6 @@ mod game_entity_tests {
         game_entity.slay_with_mod(meansOfDeath_t::MOD_CRUSH);
     }
 
-    //noinspection DuplicatedCode
     #[test]
     #[serial]
     fn game_entity_slay_with_mod() {
@@ -1272,7 +1274,6 @@ mod game_entity_tests {
         game_entity.slay_with_mod(meansOfDeath_t::MOD_CRUSH);
     }
 
-    //noinspection DuplicatedCode
     #[test]
     #[serial]
     fn game_entity_slay_with_kamikaze() {
@@ -1662,10 +1663,12 @@ mod game_entity_tests {
         assert_eq!(gentity.nextthink, 1337);
     }
 
+    static SWITCH_TOUCH_ITEM_FN: unsafe extern "C" fn(*mut gentity_t) = ShiNQlx_Switch_Touch_Item;
+
     #[test]
     fn game_entity_set_think_to_none() {
         let mut gentity = GEntityBuilder::default()
-            .think(Some(ShiNQlx_Switch_Touch_Item))
+            .think(Some(SWITCH_TOUCH_ITEM_FN))
             .build()
             .expect("this should not happen");
         let mut game_entity =
@@ -1683,17 +1686,20 @@ mod game_entity_tests {
             .expect("this should not happen");
         let mut game_entity =
             GameEntity::try_from(&mut gentity as *mut gentity_t).expect("this should not happen");
-        game_entity.set_think(Some(ShiNQlx_Switch_Touch_Item));
+        game_entity.set_think(Some(SWITCH_TOUCH_ITEM_FN));
 
         assert!(gentity
             .think
-            .is_some_and(|func| func as usize == ShiNQlx_Switch_Touch_Item as usize));
+            .is_some_and(|func| func as usize == SWITCH_TOUCH_ITEM_FN as usize));
     }
+
+    static TOUCH_ITEM_FN: unsafe extern "C" fn(*mut gentity_t, *mut gentity_t, *mut trace_t) =
+        ShiNQlx_Touch_Item;
 
     #[test]
     fn game_entity_set_touch_to_none() {
         let mut gentity = GEntityBuilder::default()
-            .touch(Some(ShiNQlx_Touch_Item))
+            .touch(Some(TOUCH_ITEM_FN))
             .build()
             .expect("this should not happen");
         let mut game_entity =
@@ -1711,11 +1717,11 @@ mod game_entity_tests {
             .expect("this should not happen");
         let mut game_entity =
             GameEntity::try_from(&mut gentity as *mut gentity_t).expect("this should not happen");
-        game_entity.set_touch(Some(ShiNQlx_Touch_Item));
+        game_entity.set_touch(Some(TOUCH_ITEM_FN));
 
         assert!(gentity
             .touch
-            .is_some_and(|func| func as usize == ShiNQlx_Touch_Item as usize));
+            .is_some_and(|func| func as usize == TOUCH_ITEM_FN as usize));
     }
 
     #[test]
