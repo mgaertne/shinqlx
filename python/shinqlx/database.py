@@ -1,4 +1,3 @@
-from datetime import timedelta
 import redis
 
 import shinqlx
@@ -372,38 +371,11 @@ class Redis(AbstractDatabase):
 
         return self.r.zadd(name, mapping, **kwargs)
 
-    def zincrby(self, name, value_or_amount, amount_or_value=1):
-        if not isinstance(value_or_amount, (int, float)):
-            value = value_or_amount
-            amount = amount_or_value
-        else:
-            value = amount_or_value
-            amount = value_or_amount
+    def zincrby(self, name, *, value, amount=1):
+        return self.r.zincrby(name, value=value, amount=amount)
 
-        if redis.VERSION < (3, 0):
-            return self.r.zincrby(name, value, amount)
-        return self.r.zincrby(name, amount, value)
+    def setex(self, name, *, value, time):
+        return self.r.setex(name, value=value, time=time)
 
-    def setex(self, name, value_or_time, time_or_value):
-        if not isinstance(value_or_time, (int, timedelta)):
-            value = value_or_time
-            time = time_or_value
-        else:
-            value = time_or_value
-            time = value_or_time
-
-        if redis.VERSION < (3, 0):
-            return self.r.setex(name, time, value)
-        return self.r.setex(name, value, time)
-
-    def lrem(self, name, value_or_count, num_or_value=0):
-        if not isinstance(value_or_count, int):
-            value = value_or_count
-            count = num_or_value
-        else:
-            value = num_or_value
-            count = value_or_count
-
-        if redis.VERSION < (3, 0):
-            return self.r.lrem(name, count, value)
-        return self.r.lrem(name, value, count)
+    def lrem(self, name, value, count=0):
+        return self.r.lrem(name, value=value, count=count)
