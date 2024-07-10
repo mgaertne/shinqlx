@@ -106,17 +106,17 @@ class Plugin:
         self._hooks.remove((event, handler, priority))
 
     def add_command(
-            self,
-            name,
-            handler,
-            permission=0,
-            channels=None,
-            exclude_channels=(),
-            priority=shinqlx.PRI_NORMAL,
-            client_cmd_pass=False,
-            client_cmd_perm=5,
-            prefix=True,
-            usage="",
+        self,
+        name,
+        handler,
+        permission=0,
+        channels=None,
+        exclude_channels=(),
+        priority=shinqlx.PRI_NORMAL,
+        client_cmd_pass=False,
+        client_cmd_perm=5,
+        prefix=True,
+        usage="",
     ):
         if not hasattr(self, "_commands"):
             self._commands = []
