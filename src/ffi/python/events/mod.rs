@@ -697,6 +697,7 @@ mod event_dispatcher_manager_tests {
 
     use rstest::*;
 
+    use pyo3::exceptions::PyKeyError;
     use pyo3::prelude::*;
 
     #[rstest]
@@ -763,6 +764,33 @@ mod event_dispatcher_manager_tests {
                 .is_ok_and(|opt_dispatcher| opt_dispatcher.is_some_and(|dispatcher| {
                     dispatcher.is_instance_of::<GameEndDispatcher>()
                 })));
+        });
+    }
+
+    #[rstest]
+    #[cfg_attr(miri, ignore)]
+    fn get_item_from_empty_dispatchers(_pyshinqlx_setup: ()) {
+        Python::with_gil(|py| {
+            let event_dispatchers = EventDispatcherManager::py_new(py);
+
+            let result = event_dispatchers.__getitem__(py, "game_start");
+            assert!(result.is_err_and(|err| err.is_instance_of::<PyKeyError>(py)));
+        })
+    }
+
+    #[rstest]
+    #[cfg_attr(miri, ignore)]
+    fn get_item_for_existing_dispatcher(_pyshinqlx_setup: ()) {
+        Python::with_gil(|py| {
+            let event_dispatchers = EventDispatcherManager::py_new(py);
+            event_dispatchers
+                .add_dispatcher(py, py.get_type_bound::<GameStartDispatcher>())
+                .expect("could not add game_start dispatcher");
+
+            let result = event_dispatchers.__getitem__(py, "game_start");
+            assert!(result.is_ok_and(|dispatcher| dispatcher
+                .bind(py)
+                .is_instance_of::<GameStartDispatcher>()));
         });
     }
 
