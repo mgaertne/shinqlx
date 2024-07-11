@@ -19,3 +19,29 @@ impl GameCountdownDispatcher {
         (Self {}, EventDispatcher::default())
     }
 }
+
+#[cfg(test)]
+mod game_countdown_dispatcher_tests {
+    use super::GameCountdownDispatcher;
+
+    use crate::ffi::python::pyshinqlx_setup;
+
+    use rstest::rstest;
+
+    use pyo3::intern;
+    use pyo3::prelude::*;
+    use pyo3::types::PyTuple;
+
+    #[rstest]
+    #[cfg_attr(miri, ignore)]
+    fn dispatch_with_no_plugins_registered(_pyshinqlx_setup: ()) {
+        Python::with_gil(|py| {
+            let dispatcher =
+                Py::new(py, GameCountdownDispatcher::py_new(py)).expect("this should not happen");
+
+            let result =
+                dispatcher.call_method1(py, intern!(py, "dispatch"), PyTuple::empty_bound(py));
+            assert!(result.is_ok());
+        });
+    }
+}

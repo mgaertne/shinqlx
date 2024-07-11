@@ -291,10 +291,11 @@ impl EventDispatcher {
         let Ok(event_dispatcher) = slf.try_borrow() else {
             return slf.py().None();
         };
-        let Ok(py_dispatcher_name) = slf.get_type().getattr(intern!(slf.py(), "name")) else {
-            return slf.py().None();
-        };
-        let Ok(dispatcher_name) = py_dispatcher_name.extract::<String>() else {
+        let Ok(dispatcher_name) = slf
+            .get_type()
+            .getattr(intern!(slf.py(), "name"))
+            .and_then(|py_dispatcher_name| py_dispatcher_name.extract::<String>())
+        else {
             return slf.py().None();
         };
         if !NO_DEBUG.contains(&dispatcher_name.as_str()) {
@@ -308,8 +309,7 @@ impl EventDispatcher {
         for i in 0..5 {
             for (_, handlers) in &*plugins {
                 for handler in &handlers[i] {
-                    let handler_args = PyTuple::new_bound(slf.py(), &args);
-                    match handler.call1(slf.py(), handler_args) {
+                    match handler.call1(slf.py(), args.clone()) {
                         Err(e) => {
                             log_exception(slf.py(), &e);
                             continue;
