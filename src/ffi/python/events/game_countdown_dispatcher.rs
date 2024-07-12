@@ -384,4 +384,60 @@ def returns_stop_all_hook(*args, **kwargs):
                 .is_ok_and(|value| !value.bind(py).is_truthy().expect("this should not happen")));
         });
     }
+
+    #[rstest]
+    #[cfg_attr(miri, ignore)]
+    #[serial]
+    fn dispatch_when_handler_returns_string(_pyshinqlx_setup: ()) {
+        let mut mock_engine = MockQuakeEngine::new();
+        let cvar_string = CString::new("1").expect("this should not happen");
+        mock_engine
+            .expect_find_cvar()
+            .with(predicate::eq("zmq_stats_enable"))
+            .returning(move |_| {
+                let mut raw_cvar = CVarBuilder::default()
+                    .string(cvar_string.as_ptr() as *mut c_char)
+                    .build()
+                    .expect("this should not happen");
+                CVar::try_from(&mut raw_cvar as *mut cvar_t).ok()
+            });
+        MAIN_ENGINE.store(Some(mock_engine.into()));
+
+        Python::with_gil(|py| {
+            let dispatcher =
+                Py::new(py, GameCountdownDispatcher::py_new(py)).expect("this should not happen");
+
+            let returns_string_hook = PyModule::from_code_bound(
+                py,
+                r#"
+import shinqlx
+
+def returns_string_hook(*args, **kwargs):
+    return "return string"
+            "#,
+                "",
+                "",
+            )
+            .expect("this should not happen")
+            .getattr("returns_string_hook")
+            .expect("this should not happen");
+
+            dispatcher
+                .call_method1(
+                    py,
+                    intern!(py, "add_hook"),
+                    (
+                        "test_plugin",
+                        returns_string_hook.unbind(),
+                        CommandPriorities::PRI_NORMAL as i32,
+                    ),
+                )
+                .expect("this should not happen");
+
+            let result =
+                dispatcher.call_method1(py, intern!(py, "dispatch"), PyTuple::empty_bound(py));
+            assert!(result
+                .is_ok_and(|value| value.bind(py).is_truthy().expect("this should not happen")));
+        });
+    }
 }
