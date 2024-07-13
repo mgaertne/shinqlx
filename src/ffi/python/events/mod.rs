@@ -247,28 +247,31 @@ impl EventDispatcher {
 
     #[getter(plugins)]
     fn get_plugins(slf: Bound<'_, Self>) -> Bound<'_, PyDict> {
-        let Ok(event_dispatcher) = slf.try_borrow() else {
-            return PyDict::new_bound(slf.py());
-        };
-        let plugins = event_dispatcher.plugins.read();
-        plugins
-            .iter()
-            .map(|(plugin_name, hooks)| {
-                (
-                    plugin_name.clone(),
-                    hooks
+        slf.try_borrow()
+            .ok()
+            .and_then(|event_dispatcher| {
+                event_dispatcher.plugins.try_read().map(|plugins| {
+                    plugins
                         .iter()
-                        .map(|prio_hooks| {
-                            prio_hooks
-                                .iter()
-                                .map(|hook| hook.clone_ref(slf.py()))
-                                .collect()
+                        .map(|(plugin_name, hooks)| {
+                            (
+                                plugin_name.clone(),
+                                hooks
+                                    .iter()
+                                    .map(|prio_hooks| {
+                                        prio_hooks
+                                            .iter()
+                                            .map(|hook| hook.clone_ref(slf.py()))
+                                            .collect()
+                                    })
+                                    .collect(),
+                            )
                         })
-                        .collect(),
-                )
+                        .collect::<Vec<(String, Vec<Vec<PyObject>>)>>()
+                        .into_py_dict_bound(slf.py())
+                })
             })
-            .collect::<Vec<(String, Vec<Vec<PyObject>>)>>()
-            .into_py_dict_bound(slf.py())
+            .unwrap_or(PyDict::new_bound(slf.py()))
     }
 
     /// Calls all the handlers that have been registered when hooking this event.
@@ -542,6 +545,515 @@ def remove_hook(event, plugin, handler, priority):
             }
         }
         Ok(())
+    }
+}
+
+#[cfg(test)]
+mod event_dispatcher_tests {
+    use crate::ffi::c::prelude::{cvar_t, CVar, CVarBuilder};
+    use crate::ffi::python::commands::CommandPriorities;
+    use crate::ffi::python::pyshinqlx_setup_fixture::*;
+    use crate::prelude::*;
+    use crate::MAIN_ENGINE;
+
+    use alloc::ffi::CString;
+    use core::ffi::c_char;
+
+    use mockall::predicate;
+    use rstest::*;
+
+    use pyo3::intern;
+    use pyo3::prelude::*;
+    use pyo3::types::{PyDict, PyTuple};
+
+    fn custom_dispatcher(py: Python<'_>) -> Bound<'_, PyAny> {
+        PyModule::from_code_bound(
+            py,
+            r#"
+import shinqlx
+
+class CustomDispatcher(shinqlx.EventDispatcher):
+    name = "custom_event"
+    need_zmq_stats_enabled = False 
+    
+    def __init__(self):
+        super().__init__()
+        "#,
+            "",
+            "",
+        )
+        .expect("this should not happen")
+        .getattr("CustomDispatcher")
+        .expect("this should not happen")
+        .call0()
+        .expect("this should not happen")
+    }
+
+    fn custom_hook(py: Python<'_>) -> Bound<'_, PyAny> {
+        PyModule::from_code_bound(
+            py,
+            r#"
+def custom_hook(*args, **kwargs):
+    pass
+        "#,
+            "",
+            "",
+        )
+        .expect("this should not happen")
+        .getattr("custom_hook")
+        .expect("this should not happen")
+    }
+
+    #[rstest]
+    #[cfg_attr(miri, ignore)]
+    #[serial]
+    fn get_plugins_when_none_are_registered(_pyshinqlx_setup: ()) {
+        Python::with_gil(|py| {
+            let dispatcher = custom_dispatcher(py);
+
+            let result = dispatcher.getattr("plugins");
+            assert!(result.is_ok_and(|value| value
+                .extract::<Bound<'_, PyDict>>()
+                .is_ok_and(|dict| dict.is_empty())));
+        });
+    }
+
+    #[rstest]
+    #[cfg_attr(miri, ignore)]
+    #[serial]
+    fn get_plugins_with_plugins_registered(_pyshinqlx_setup: ()) {
+        Python::with_gil(|py| {
+            let dispatcher = custom_dispatcher(py);
+            dispatcher
+                .call_method1(
+                    "add_hook",
+                    (
+                        "prio5_plugin",
+                        custom_hook(py),
+                        CommandPriorities::PRI_LOWEST as i32,
+                    ),
+                )
+                .expect("this should not happen");
+            dispatcher
+                .call_method1(
+                    "add_hook",
+                    (
+                        "prio4_plugin",
+                        custom_hook(py),
+                        CommandPriorities::PRI_LOW as i32,
+                    ),
+                )
+                .expect("this should not happen");
+
+            dispatcher
+                .call_method1(
+                    "add_hook",
+                    (
+                        "prio3_plugin",
+                        custom_hook(py),
+                        CommandPriorities::PRI_NORMAL as i32,
+                    ),
+                )
+                .expect("this should not happen");
+
+            dispatcher
+                .call_method1(
+                    "add_hook",
+                    (
+                        "prio2_plugin",
+                        custom_hook(py),
+                        CommandPriorities::PRI_HIGH as i32,
+                    ),
+                )
+                .expect("this should not happen");
+
+            dispatcher
+                .call_method1(
+                    "add_hook",
+                    (
+                        "prio1_plugin",
+                        custom_hook(py),
+                        CommandPriorities::PRI_HIGHEST as i32,
+                    ),
+                )
+                .expect("this should not happen");
+
+            let result = dispatcher.getattr("plugins");
+            assert!(result.is_ok_and(|value| value
+                .extract::<Bound<'_, PyDict>>()
+                .is_ok_and(|dict| dict.len() == 5)));
+        });
+    }
+
+    #[rstest]
+    #[cfg_attr(miri, ignore)]
+    fn dispatch_with_no_handlers_registered(_pyshinqlx_setup: ()) {
+        Python::with_gil(|py| {
+            let dispatcher = custom_dispatcher(py);
+
+            let result = dispatcher.call_method1(intern!(py, "dispatch"), PyTuple::empty_bound(py));
+            assert!(result.is_ok_and(|value| value.is_truthy().expect("this should not happen")));
+        });
+    }
+
+    #[rstest]
+    #[cfg_attr(miri, ignore)]
+    #[serial]
+    fn dispatch_when_handler_returns_exception(_pyshinqlx_setup: ()) {
+        let mut mock_engine = MockQuakeEngine::new();
+        let cvar_string = CString::new("1").expect("this should not happen");
+        mock_engine
+            .expect_find_cvar()
+            .with(predicate::eq("zmq_stats_enable"))
+            .returning(move |_| {
+                let mut raw_cvar = CVarBuilder::default()
+                    .string(cvar_string.as_ptr() as *mut c_char)
+                    .build()
+                    .expect("this should not happen");
+                CVar::try_from(&mut raw_cvar as *mut cvar_t).ok()
+            });
+        MAIN_ENGINE.store(Some(mock_engine.into()));
+
+        Python::with_gil(|py| {
+            let dispatcher = custom_dispatcher(py);
+
+            let throws_exception_hook = PyModule::from_code_bound(
+                py,
+                r#"
+def throws_exception_hook(*args, **kwargs):
+    raise ValueError("asdf")
+            "#,
+                "",
+                "",
+            )
+            .expect("this should not happen")
+            .getattr("throws_exception_hook")
+            .expect("this should not happen");
+
+            dispatcher
+                .call_method1(
+                    intern!(py, "add_hook"),
+                    (
+                        "test_plugin",
+                        throws_exception_hook.unbind(),
+                        CommandPriorities::PRI_NORMAL as i32,
+                    ),
+                )
+                .expect("this should not happen");
+
+            let result = dispatcher.call_method1(intern!(py, "dispatch"), PyTuple::empty_bound(py));
+            assert!(result.is_ok_and(|value| value.is_truthy().expect("this should not happen")));
+        });
+    }
+
+    #[rstest]
+    #[cfg_attr(miri, ignore)]
+    #[serial]
+    fn dispatch_when_handler_returns_none(_pyshinqlx_setup: ()) {
+        let mut mock_engine = MockQuakeEngine::new();
+        let cvar_string = CString::new("1").expect("this should not happen");
+        mock_engine
+            .expect_find_cvar()
+            .with(predicate::eq("zmq_stats_enable"))
+            .returning(move |_| {
+                let mut raw_cvar = CVarBuilder::default()
+                    .string(cvar_string.as_ptr() as *mut c_char)
+                    .build()
+                    .expect("this should not happen");
+                CVar::try_from(&mut raw_cvar as *mut cvar_t).ok()
+            });
+        MAIN_ENGINE.store(Some(mock_engine.into()));
+
+        Python::with_gil(|py| {
+            let dispatcher = custom_dispatcher(py);
+
+            let returns_none_hook = PyModule::from_code_bound(
+                py,
+                r#"
+def returns_none_hook(*args, **kwargs):
+    return None
+            "#,
+                "",
+                "",
+            )
+            .expect("this should not happen")
+            .getattr("returns_none_hook")
+            .expect("this should not happen");
+
+            dispatcher
+                .call_method1(
+                    intern!(py, "add_hook"),
+                    (
+                        "test_plugin",
+                        returns_none_hook.unbind(),
+                        CommandPriorities::PRI_NORMAL as i32,
+                    ),
+                )
+                .expect("this should not happen");
+
+            let result = dispatcher.call_method1(intern!(py, "dispatch"), PyTuple::empty_bound(py));
+            assert!(result.is_ok_and(|value| value.is_truthy().expect("this should not happen")));
+        });
+    }
+
+    #[rstest]
+    #[cfg_attr(miri, ignore)]
+    #[serial]
+    fn dispatch_when_handler_returns_ret_none(_pyshinqlx_setup: ()) {
+        let mut mock_engine = MockQuakeEngine::new();
+        let cvar_string = CString::new("1").expect("this should not happen");
+        mock_engine
+            .expect_find_cvar()
+            .with(predicate::eq("zmq_stats_enable"))
+            .returning(move |_| {
+                let mut raw_cvar = CVarBuilder::default()
+                    .string(cvar_string.as_ptr() as *mut c_char)
+                    .build()
+                    .expect("this should not happen");
+                CVar::try_from(&mut raw_cvar as *mut cvar_t).ok()
+            });
+        MAIN_ENGINE.store(Some(mock_engine.into()));
+
+        Python::with_gil(|py| {
+            let dispatcher = custom_dispatcher(py);
+
+            let returns_none_hook = PyModule::from_code_bound(
+                py,
+                r#"
+import shinqlx
+
+def returns_none_hook(*args, **kwargs):
+    return shinqlx.RET_NONE
+            "#,
+                "",
+                "",
+            )
+            .expect("this should not happen")
+            .getattr("returns_none_hook")
+            .expect("this should not happen");
+
+            dispatcher
+                .call_method1(
+                    intern!(py, "add_hook"),
+                    (
+                        "test_plugin",
+                        returns_none_hook.unbind(),
+                        CommandPriorities::PRI_NORMAL as i32,
+                    ),
+                )
+                .expect("this should not happen");
+
+            let result = dispatcher.call_method1(intern!(py, "dispatch"), PyTuple::empty_bound(py));
+            assert!(result.is_ok_and(|value| value.is_truthy().expect("this should not happen")));
+        });
+    }
+
+    #[rstest]
+    #[cfg_attr(miri, ignore)]
+    #[serial]
+    fn dispatch_when_handler_returns_ret_stop(_pyshinqlx_setup: ()) {
+        let mut mock_engine = MockQuakeEngine::new();
+        let cvar_string = CString::new("1").expect("this should not happen");
+        mock_engine
+            .expect_find_cvar()
+            .with(predicate::eq("zmq_stats_enable"))
+            .returning(move |_| {
+                let mut raw_cvar = CVarBuilder::default()
+                    .string(cvar_string.as_ptr() as *mut c_char)
+                    .build()
+                    .expect("this should not happen");
+                CVar::try_from(&mut raw_cvar as *mut cvar_t).ok()
+            });
+        MAIN_ENGINE.store(Some(mock_engine.into()));
+
+        Python::with_gil(|py| {
+            let dispatcher = custom_dispatcher(py);
+
+            let returns_stop_hook = PyModule::from_code_bound(
+                py,
+                r#"
+import shinqlx
+
+def returns_stop_hook(*args, **kwargs):
+    return shinqlx.RET_STOP
+            "#,
+                "",
+                "",
+            )
+            .expect("this should not happen")
+            .getattr("returns_stop_hook")
+            .expect("this should not happen");
+
+            dispatcher
+                .call_method1(
+                    intern!(py, "add_hook"),
+                    (
+                        "test_plugin",
+                        returns_stop_hook.unbind(),
+                        CommandPriorities::PRI_NORMAL as i32,
+                    ),
+                )
+                .expect("this should not happen");
+
+            let result = dispatcher.call_method1(intern!(py, "dispatch"), PyTuple::empty_bound(py));
+            assert!(result.is_ok_and(|value| value.is_truthy().expect("this should not happen")));
+        });
+    }
+
+    #[rstest]
+    #[cfg_attr(miri, ignore)]
+    #[serial]
+    fn dispatch_when_handler_returns_ret_stop_event(_pyshinqlx_setup: ()) {
+        let mut mock_engine = MockQuakeEngine::new();
+        let cvar_string = CString::new("1").expect("this should not happen");
+        mock_engine
+            .expect_find_cvar()
+            .with(predicate::eq("zmq_stats_enable"))
+            .returning(move |_| {
+                let mut raw_cvar = CVarBuilder::default()
+                    .string(cvar_string.as_ptr() as *mut c_char)
+                    .build()
+                    .expect("this should not happen");
+                CVar::try_from(&mut raw_cvar as *mut cvar_t).ok()
+            });
+        MAIN_ENGINE.store(Some(mock_engine.into()));
+
+        Python::with_gil(|py| {
+            let dispatcher = custom_dispatcher(py);
+
+            let returns_stop_event_hook = PyModule::from_code_bound(
+                py,
+                r#"
+import shinqlx
+
+def returns_stop_event_hook(*args, **kwargs):
+    return shinqlx.RET_STOP_EVENT
+            "#,
+                "",
+                "",
+            )
+            .expect("this should not happen")
+            .getattr("returns_stop_event_hook")
+            .expect("this should not happen");
+
+            dispatcher
+                .call_method1(
+                    intern!(py, "add_hook"),
+                    (
+                        "test_plugin",
+                        returns_stop_event_hook.unbind(),
+                        CommandPriorities::PRI_NORMAL as i32,
+                    ),
+                )
+                .expect("this should not happen");
+
+            let result = dispatcher.call_method1(intern!(py, "dispatch"), PyTuple::empty_bound(py));
+            assert!(result.is_ok_and(|value| !value.is_truthy().expect("this should not happen")));
+        });
+    }
+
+    #[rstest]
+    #[cfg_attr(miri, ignore)]
+    #[serial]
+    fn dispatch_when_handler_returns_ret_stop_all(_pyshinqlx_setup: ()) {
+        let mut mock_engine = MockQuakeEngine::new();
+        let cvar_string = CString::new("1").expect("this should not happen");
+        mock_engine
+            .expect_find_cvar()
+            .with(predicate::eq("zmq_stats_enable"))
+            .returning(move |_| {
+                let mut raw_cvar = CVarBuilder::default()
+                    .string(cvar_string.as_ptr() as *mut c_char)
+                    .build()
+                    .expect("this should not happen");
+                CVar::try_from(&mut raw_cvar as *mut cvar_t).ok()
+            });
+        MAIN_ENGINE.store(Some(mock_engine.into()));
+
+        Python::with_gil(|py| {
+            let dispatcher = custom_dispatcher(py);
+
+            let returns_stop_all_hook = PyModule::from_code_bound(
+                py,
+                r#"
+import shinqlx
+
+def returns_stop_all_hook(*args, **kwargs):
+    return shinqlx.RET_STOP_ALL
+            "#,
+                "",
+                "",
+            )
+            .expect("this should not happen")
+            .getattr("returns_stop_all_hook")
+            .expect("this should not happen");
+
+            dispatcher
+                .call_method1(
+                    intern!(py, "add_hook"),
+                    (
+                        "test_plugin",
+                        returns_stop_all_hook.unbind(),
+                        CommandPriorities::PRI_NORMAL as i32,
+                    ),
+                )
+                .expect("this should not happen");
+
+            let result = dispatcher.call_method1(intern!(py, "dispatch"), PyTuple::empty_bound(py));
+            assert!(result.is_ok_and(|value| !value.is_truthy().expect("this should not happen")));
+        });
+    }
+
+    #[rstest]
+    #[cfg_attr(miri, ignore)]
+    #[serial]
+    fn dispatch_when_handler_returns_string(_pyshinqlx_setup: ()) {
+        let mut mock_engine = MockQuakeEngine::new();
+        let cvar_string = CString::new("1").expect("this should not happen");
+        mock_engine
+            .expect_find_cvar()
+            .with(predicate::eq("zmq_stats_enable"))
+            .returning(move |_| {
+                let mut raw_cvar = CVarBuilder::default()
+                    .string(cvar_string.as_ptr() as *mut c_char)
+                    .build()
+                    .expect("this should not happen");
+                CVar::try_from(&mut raw_cvar as *mut cvar_t).ok()
+            });
+        MAIN_ENGINE.store(Some(mock_engine.into()));
+
+        Python::with_gil(|py| {
+            let dispatcher = custom_dispatcher(py);
+
+            let returns_string_hook = PyModule::from_code_bound(
+                py,
+                r#"
+import shinqlx
+
+def returns_string_hook(*args, **kwargs):
+    return "return string"
+            "#,
+                "",
+                "",
+            )
+            .expect("this should not happen")
+            .getattr("returns_string_hook")
+            .expect("this should not happen");
+
+            dispatcher
+                .call_method1(
+                    intern!(py, "add_hook"),
+                    (
+                        "test_plugin",
+                        returns_string_hook.unbind(),
+                        CommandPriorities::PRI_NORMAL as i32,
+                    ),
+                )
+                .expect("this should not happen");
+
+            let result = dispatcher.call_method1(intern!(py, "dispatch"), PyTuple::empty_bound(py));
+            assert!(result.is_ok_and(|value| value.is_truthy().expect("this should not happen")));
+        });
     }
 }
 
