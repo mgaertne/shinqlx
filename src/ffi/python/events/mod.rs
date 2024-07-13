@@ -1275,6 +1275,50 @@ def default_hook(*args, **kwargs):
     #[rstest]
     #[cfg_attr(miri, ignore)]
     #[serial]
+    fn add_hook_when_handler_already_was_added(_pyshinqlx_setup: ()) {
+        Python::with_gil(|py| {
+            let dispatcher = custom_dispatcher(py);
+
+            let default_hook = PyModule::from_code_bound(
+                py,
+                r#"
+def default_hook(*args, **kwargs):
+    pass
+            "#,
+                "",
+                "",
+            )
+            .expect("this should not happen")
+            .getattr("default_hook")
+            .expect("this should not happen");
+
+            dispatcher
+                .call_method1(
+                    intern!(py, "add_hook"),
+                    (
+                        "test_plugin",
+                        default_hook.clone().unbind(),
+                        CommandPriorities::PRI_NORMAL as i32,
+                    ),
+                )
+                .expect("this should not happen");
+
+            let result = dispatcher.call_method1(
+                intern!(py, "add_hook"),
+                (
+                    "test_plugin",
+                    default_hook.unbind(),
+                    CommandPriorities::PRI_NORMAL as i32,
+                ),
+            );
+
+            assert!(result.is_err_and(|err| err.is_instance_of::<PyValueError>(py)));
+        });
+    }
+
+    #[rstest]
+    #[cfg_attr(miri, ignore)]
+    #[serial]
     fn remove_hook_for_dispatcher_with_no_name(_pyshinqlx_setup: ()) {
         Python::with_gil(|py| {
             let nameless_dispatcher = PyModule::from_code_bound(
