@@ -606,7 +606,7 @@ impl Player {
         })
     }
 
-    #[pyo3(name = "privileges", signature = (value = None), text_signature = "(value=None)")]
+    #[setter(privileges)]
     fn set_privileges(&mut self, py: Python<'_>, value: Option<String>) -> PyResult<()> {
         let new_privileges = py
             .allow_threads(|| privileges_t::try_from(value.unwrap_or("none".to_string()).as_str()));
@@ -998,7 +998,7 @@ impl Player {
         })
     }
 
-    #[pyo3(name = "holdable", signature = (holdable=None), text_signature = "(holdable=None)")]
+    #[setter(holdable)]
     fn set_holdable(&mut self, py: Python<'_>, holdable: Option<String>) -> PyResult<()> {
         match Holdable::from(holdable) {
             Holdable::Unknown => Err(PyValueError::new_err("Invalid holdable item.")),
