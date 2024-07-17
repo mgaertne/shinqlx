@@ -537,8 +537,6 @@ def returns_stop_all_hook(*args, **kwargs):
             let returns_string_hook = PyModule::from_code_bound(
                 py,
                 r#"
-import shinqlx
-
 def returns_string_hook(*args, **kwargs):
     return "return string"
             "#,
@@ -599,8 +597,6 @@ def returns_string_hook(*args, **kwargs):
             let returns_string_hook = PyModule::from_code_bound(
                 py,
                 r#"
-import shinqlx
-
 class NonStringObject:
     def __str__(self):
         raise NotImplemented("__str__ not implemented")
