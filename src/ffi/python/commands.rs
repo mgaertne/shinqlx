@@ -5,6 +5,7 @@ use crate::quake_live_engine::FindCVar;
 use crate::MAIN_ENGINE;
 
 use pyo3::prelude::*;
+use pyo3::types::PyBool;
 use pyo3::{
     exceptions::{PyEnvironmentError, PyKeyError, PyValueError},
     intern,
@@ -1723,8 +1724,8 @@ def remove_command(cmd):
                 let dispatcher_result = command_dispatcher
                     .call_method1(intern!(py, "dispatch"), (player.clone(), cmd_copy, msg))?;
                 if dispatcher_result
-                    .extract::<bool>()
-                    .is_ok_and(|value| !value)
+                    .extract::<Bound<'_, PyBool>>()
+                    .is_ok_and(|value| !value.is_true())
                 {
                     return Ok(true);
                 }
@@ -2621,6 +2622,7 @@ def cmd_handler(*args, **kwargs):
             .expect("this should not happen");
             let command = Command {
                 handler: handler.unbind(),
+                prefix: false,
                 ..default_command(py)
             };
             let py_command = Py::new(py, command).expect("this should not happen");
