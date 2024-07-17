@@ -2117,12 +2117,23 @@ mod command_invoker_tests {
     fn handle_input_with_non_eligible_player(_pyshinqlx_setup: ()) {
         let mut mock_engine = MockQuakeEngine::new();
         let owner = CString::new("9876543210").expect("this should not happen");
+        let prefix = CString::new("!").expect("this should not happen");
         mock_engine
             .expect_find_cvar()
             .with(predicate::eq("qlx_owner"))
             .returning(move |_| {
                 let mut raw_cvar = CVarBuilder::default()
                     .string(owner.as_ptr() as *mut c_char)
+                    .build()
+                    .expect("this should not happen");
+                CVar::try_from(&mut raw_cvar as *mut cvar_t).ok()
+            });
+        mock_engine
+            .expect_find_cvar()
+            .with(predicate::eq("qlx_commandPrefix"))
+            .returning(move |_| {
+                let mut raw_cvar = CVarBuilder::default()
+                    .string(prefix.as_ptr() as *mut c_char)
                     .build()
                     .expect("this should not happen");
                 CVar::try_from(&mut raw_cvar as *mut cvar_t).ok()
