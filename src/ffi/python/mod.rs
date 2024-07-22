@@ -865,84 +865,179 @@ pub(crate) fn pyshinqlx_get_logger(
     plugin: Option<PyObject>,
 ) -> PyResult<Bound<'_, PyAny>> {
     let logger_name = get_logger_name(py, plugin);
-    PyModule::import_bound(py, intern!(py, "logging"))?
-        .call_method1(intern!(py, "getLogger"), (logger_name,))
+    PyModule::import_bound(py, intern!(py, "logging")).and_then(|logging_module| {
+        logging_module.call_method1(intern!(py, "getLogger"), (logger_name,))
+    })
 }
 
 #[pyfunction]
 #[pyo3(name = "_configure_logger")]
 fn pyshinqlx_configure_logger(py: Python<'_>) -> PyResult<()> {
-    let Some(ref main_engine) = *MAIN_ENGINE.load() else {
-        return Err(PyEnvironmentError::new_err("no main engine found"));
-    };
-    let homepath = main_engine
-        .find_cvar("fs_homepath")
-        .map(|homepath_cvar| homepath_cvar.get_string().to_string())
-        .unwrap_or_default();
-    let num_max_logs = main_engine
-        .find_cvar("qlx_logs")
-        .map(|max_logs_cvar| max_logs_cvar.get_integer())
-        .unwrap_or_default();
-    let max_logsize = main_engine
-        .find_cvar("qlx_logsSize")
-        .map(|max_logsize_cvar| max_logsize_cvar.get_integer())
-        .unwrap_or_default();
-
-    let logging_module = py.import_bound(intern!(py, "logging"))?;
-    let debug_level = logging_module.getattr(intern!(py, "DEBUG"))?;
-    let info_level = logging_module.getattr(intern!(py, "INFO"))?;
-    let logger =
-        logging_module.call_method1(intern!(py, "getLogger"), (intern!(py, "shinqlx"),))?;
-    logger.call_method1(intern!(py, "setLevel"), (debug_level.clone(),))?;
-
-    let console_fmt = logging_module.call_method1(
-        intern!(py, "Formatter"),
-        (
-            "[%(name)s.%(funcName)s] %(levelname)s: %(message)s",
-            "%H:%M:%S",
-        ),
+    let (homepath, num_max_logs, max_logssize) = MAIN_ENGINE.load().as_ref().map_or(
+        Err(PyEnvironmentError::new_err("no main engine found")),
+        |ref main_engine| {
+            let homepath = main_engine
+                .find_cvar("fs_homepath")
+                .map(|homepath_cvar| homepath_cvar.get_string().to_string())
+                .unwrap_or_default();
+            let num_max_logs = main_engine
+                .find_cvar("qlx_logs")
+                .map(|max_logs_cvar| max_logs_cvar.get_integer())
+                .unwrap_or_default();
+            let max_logsize = main_engine
+                .find_cvar("qlx_logsSize")
+                .map(|max_logsize_cvar| max_logsize_cvar.get_integer())
+                .unwrap_or_default();
+            Ok((homepath, num_max_logs, max_logsize))
+        },
     )?;
 
-    let console_handler = logging_module.call_method0("StreamHandler")?;
-    console_handler.call_method1(intern!(py, "setLevel"), (info_level,))?;
-    console_handler.call_method1(intern!(py, "setFormatter"), (console_fmt,))?;
-    logger.call_method1(intern!(py, "addHandler"), (console_handler,))?;
+    py.import_bound(intern!(py, "logging")).and_then(|logging_module| {
+        let debug_level = logging_module.getattr(intern!(py, "DEBUG"))?;
+        let info_level = logging_module.getattr(intern!(py, "INFO"))?;
+        logging_module
+            .call_method1(intern!(py, "getLogger"), (intern!(py, "shinqlx"),))
+            .and_then(|logger| {
+                logger.call_method1(intern!(py, "setLevel"), (&debug_level,))?;
+                let console_fmt = logging_module.call_method1(
+                    intern!(py, "Formatter"),
+                    (
+                        "[%(name)s.%(funcName)s] %(levelname)s: %(message)s",
+                        "%H:%M:%S",
+                    ),
+                )?;
 
-    let file_fmt = logging_module.call_method1(
-        intern!(py, "Formatter"),
-        (
-            "(%(asctime)s) [%(levelname)s @ %(name)s.%(funcName)s] %(message)s",
-            "%H:%M:%S",
-        ),
-    )?;
-    let file_path = format!("{homepath}/shinqlx.log");
-    let handlers_submodule = py.import_bound("logging.handlers")?;
-    let file_handler = handlers_submodule.call_method(
-        "RotatingFileHandler",
-        (file_path,),
-        Some(
-            &[
-                ("encoding", "utf-8".into_py(py)),
-                ("maxBytes", max_logsize.into_py(py)),
-                ("backupCount", num_max_logs.into_py(py)),
-            ]
-            .into_py_dict_bound(py),
-        ),
-    )?;
-    file_handler.call_method1(intern!(py, "setLevel"), (debug_level,))?;
-    file_handler.call_method1(intern!(py, "setFormatter"), (file_fmt,))?;
-    logger.call_method1(intern!(py, "addHandler"), (file_handler,))?;
+                logging_module
+                    .call_method0("StreamHandler")
+                    .and_then(|console_handler| {
+                        console_handler.call_method1(intern!(py, "setLevel"), (&info_level,))?;
+                        console_handler.call_method1(intern!(py, "setFormatter"), (console_fmt,))?;
+                        logger.call_method1(intern!(py, "addHandler"), (console_handler,))
+                    })?;
 
-    let datetime_module = py.import_bound("datetime")?;
-    let datetime_now = datetime_module.getattr("datetime")?.call_method0("now")?;
-    logger.call_method1(
-        intern!(py, "info"),
-        (
-            "============================= shinqlx run @ %s =============================",
-            datetime_now,
-        ),
-    )?;
-    Ok(())
+                let file_fmt = logging_module.call_method1(
+                    intern!(py, "Formatter"),
+                    (
+                        "(%(asctime)s) [%(levelname)s @ %(name)s.%(funcName)s] %(message)s",
+                        "%H:%M:%S",
+                    ),
+                )?;
+                py.import_bound("logging.handlers").and_then(|handlers_submodule| {
+                    handlers_submodule
+                        .call_method(
+                            "RotatingFileHandler",
+                            (format!("{homepath}/shinqlx.log"),),
+                            Some(
+                                &[
+                                    ("encoding", "utf-8".into_py(py)),
+                                    ("maxBytes", max_logssize.into_py(py)),
+                                    ("backupCount", num_max_logs.into_py(py)),
+                                ]
+                                .into_py_dict_bound(py),
+                            ),
+                        )
+                        .and_then(|file_handler| {
+                            file_handler.call_method1(intern!(py, "setLevel"), (&debug_level,))?;
+                            file_handler.call_method1(intern!(py, "setFormatter"), (file_fmt,))?;
+                            logger.call_method1(intern!(py, "addHandler"), (file_handler,))
+                        })
+                })?;
+
+                let datetime_now = py.import_bound("datetime").and_then(|datetime_module| {
+                    datetime_module
+                        .getattr("datetime")
+                        .and_then(|datetime_object| datetime_object.call_method0("now"))
+                })?;
+                logger
+                    .call_method1(
+                        intern!(py, "info"),
+                        (
+                            "============================= shinqlx run @ %s =============================",
+                            datetime_now,
+                        ),
+                    )
+                    .map(|_| ())
+        })
+    })
+}
+
+#[cfg(test)]
+mod pyshinqlx_configure_logger_tests {
+    use super::pyshinqlx_configure_logger;
+
+    use super::pyshinqlx_setup_fixture::*;
+
+    use crate::ffi::c::prelude::{cvar_t, CVar, CVarBuilder};
+    use crate::prelude::{serial, MockQuakeEngine};
+    use crate::MAIN_ENGINE;
+
+    use alloc::ffi::CString;
+    use core::ffi::c_char;
+
+    use mockall::predicate;
+    use rstest::rstest;
+
+    use pyo3::exceptions::PyEnvironmentError;
+    use pyo3::prelude::*;
+
+    #[rstest]
+    #[cfg_attr(miri, ignore)]
+    #[serial]
+    fn configure_logger_with_no_main_engine(_pyshinqlx_setup: ()) {
+        MAIN_ENGINE.store(None);
+
+        Python::with_gil(|py| {
+            let result = pyshinqlx_configure_logger(py);
+            assert!(result.is_err_and(|err| err.is_instance_of::<PyEnvironmentError>(py)));
+        });
+    }
+
+    #[rstest]
+    #[cfg_attr(miri, ignore)]
+    #[serial]
+    fn configure_logger_with_cvars_in_main_engine(_pyshinqlx_setup: ()) {
+        let mut mock_engine = MockQuakeEngine::new();
+        let cvar_string = CString::new(".").expect("this should not happen");
+        mock_engine
+            .expect_find_cvar()
+            .with(predicate::eq("fs_homepath"))
+            .returning(move |_| {
+                let mut raw_cvar = CVarBuilder::default()
+                    .string(cvar_string.as_ptr() as *mut c_char)
+                    .build()
+                    .expect("this should not happen");
+                CVar::try_from(&mut raw_cvar as *mut cvar_t).ok()
+            })
+            .times(1);
+        mock_engine
+            .expect_find_cvar()
+            .with(predicate::eq("qlx_logs"))
+            .returning(move |_| {
+                let mut raw_cvar = CVarBuilder::default()
+                    .integer(10)
+                    .build()
+                    .expect("this should not happen");
+                CVar::try_from(&mut raw_cvar as *mut cvar_t).ok()
+            })
+            .times(1);
+        mock_engine
+            .expect_find_cvar()
+            .with(predicate::eq("qlx_logsSize"))
+            .returning(move |_| {
+                let mut raw_cvar = CVarBuilder::default()
+                    .integer(1024)
+                    .build()
+                    .expect("this should not happen");
+                CVar::try_from(&mut raw_cvar as *mut cvar_t).ok()
+            })
+            .times(1);
+        MAIN_ENGINE.store(Some(mock_engine.into()));
+
+        Python::with_gil(|py| {
+            let result = pyshinqlx_configure_logger(py);
+            assert!(result.is_ok());
+        });
+    }
 }
 
 /// Logs an exception using :func:`get_logger`. Call this in an except block.
