@@ -1080,9 +1080,7 @@ fn pyshinqlx_handle_exception(
         )?
         .extract()?;
 
-    try_log_messages(py, None, intern!(py, "log_exception"), formatted_traceback)?;
-
-    Ok(())
+    try_log_messages(py, None, intern!(py, "log_exception"), formatted_traceback)
 }
 
 #[pyfunction]
@@ -1109,9 +1107,7 @@ fn try_log_exception(py: Python<'_>, exception: &PyErr) -> PyResult<()> {
         )?
         .extract()?;
 
-    try_log_messages(py, None, intern!(py, "log_exception"), formatted_traceback)?;
-
-    Ok(())
+    try_log_messages(py, None, intern!(py, "log_exception"), formatted_traceback)
 }
 
 pub(crate) fn log_exception(py: Python<'_>, exception: &PyErr) {
@@ -1124,32 +1120,34 @@ fn try_log_messages(
     function: &Bound<'_, PyString>,
     messages: Vec<String>,
 ) -> Result<(), PyErr> {
-    let logging_module = py.import_bound(intern!(py, "logging"))?;
-    let error_level = logging_module.getattr(intern!(py, "ERROR"))?;
-    let logger_name = get_logger_name(py, plugin);
-    logging_module
-        .call_method1(intern!(py, "getLogger"), (logger_name,))
-        .and_then(|py_logger| {
-            for line in messages {
-                py_logger
-                    .call_method(
-                        intern!(py, "makeRecord"),
-                        (
-                            intern!(py, "shinqlx"),
-                            &error_level,
-                            intern!(py, ""),
-                            -1,
-                            line.trim_end(),
-                            py.None(),
-                            py.None(),
-                        ),
-                        Some(&[(intern!(py, "func"), function)].into_py_dict_bound(py)),
-                    )
-                    .and_then(|log_record| {
-                        py_logger.call_method1(intern!(py, "handle"), (log_record,))
-                    })?;
-            }
-            Ok(())
+    py.import_bound(intern!(py, "logging"))
+        .and_then(|logging_module| {
+            let error_level = logging_module.getattr(intern!(py, "ERROR"))?;
+            let logger_name = get_logger_name(py, plugin);
+            logging_module
+                .call_method1(intern!(py, "getLogger"), (logger_name,))
+                .and_then(|py_logger| {
+                    for line in messages {
+                        py_logger
+                            .call_method(
+                                intern!(py, "makeRecord"),
+                                (
+                                    intern!(py, "shinqlx"),
+                                    &error_level,
+                                    intern!(py, ""),
+                                    -1,
+                                    line.trim_end(),
+                                    py.None(),
+                                    py.None(),
+                                ),
+                                Some(&[(intern!(py, "func"), function)].into_py_dict_bound(py)),
+                            )
+                            .and_then(|log_record| {
+                                py_logger.call_method1(intern!(py, "handle"), (log_record,))
+                            })?;
+                    }
+                    Ok(())
+                })
         })
 }
 
