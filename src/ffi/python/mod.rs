@@ -235,6 +235,94 @@ impl FromPyObject<'_> for PythonReturnCodes {
     }
 }
 
+#[cfg(test)]
+mod python_return_codes_tests {
+    use super::PythonReturnCodes;
+    use pyo3::exceptions::PyValueError;
+
+    use super::pyshinqlx_setup_fixture::*;
+
+    use rstest::rstest;
+
+    use pyo3::prelude::*;
+    use pyo3::types::PyString;
+
+    #[rstest]
+    #[cfg_attr(miri, ignore)]
+    fn extract_from_none(_pyshinqlx_setup: ()) {
+        Python::with_gil(|py| {
+            assert!(PythonReturnCodes::extract_bound(&py.None().into_bound(py))
+                .is_ok_and(|value| value == PythonReturnCodes::RET_NONE));
+        });
+    }
+
+    #[rstest]
+    #[cfg_attr(miri, ignore)]
+    fn extract_from_bool_true(_pyshinqlx_setup: ()) {
+        Python::with_gil(|py| {
+            assert!(
+                PythonReturnCodes::extract_bound(&true.into_py(py).into_bound(py))
+                    .is_err_and(|err| err.is_instance_of::<PyValueError>(py))
+            );
+        });
+    }
+
+    #[rstest]
+    #[cfg_attr(miri, ignore)]
+    fn extract_from_bool_false(_pyshinqlx_setup: ()) {
+        Python::with_gil(|py| {
+            assert!(
+                PythonReturnCodes::extract_bound(&false.into_py(py).into_bound(py))
+                    .is_err_and(|err| err.is_instance_of::<PyValueError>(py))
+            );
+        });
+    }
+
+    #[rstest]
+    #[case(0, PythonReturnCodes::RET_NONE)]
+    #[case(1, PythonReturnCodes::RET_STOP)]
+    #[case(2, PythonReturnCodes::RET_STOP_EVENT)]
+    #[case(3, PythonReturnCodes::RET_STOP_ALL)]
+    #[case(4, PythonReturnCodes::RET_USAGE)]
+    #[cfg_attr(miri, ignore)]
+    fn extract_from_ok_value(
+        #[case] python_value: i32,
+        #[case] expected_value: PythonReturnCodes,
+        _pyshinqlx_setup: (),
+    ) {
+        Python::with_gil(|py| {
+            assert!(
+                PythonReturnCodes::extract_bound(&python_value.into_py(py).into_bound(py))
+                    .is_ok_and(|value| value == expected_value)
+            );
+        });
+    }
+
+    #[rstest]
+    #[case(-1)]
+    #[case(5)]
+    #[cfg_attr(miri, ignore)]
+    fn extract_from_invalid_value(#[case] wrong_value: i32, _pyshinqlx_setup: ()) {
+        Python::with_gil(|py| {
+            assert!(
+                PythonReturnCodes::extract_bound(&wrong_value.into_py(py).into_bound(py))
+                    .is_err_and(|err| err.is_instance_of::<PyValueError>(py))
+            );
+        });
+    }
+
+    #[rstest]
+    #[cfg_attr(miri, ignore)]
+    fn extract_from_str(_pyshinqlx_setup: ()) {
+        Python::with_gil(|py| {
+            assert!(
+                PythonReturnCodes::extract_bound(&PyString::new_bound(py, "asdf"))
+                    .is_err_and(|err| err.is_instance_of::<PyValueError>(py))
+            );
+        });
+    }
+}
+
 create_exception!(pyshinqlx_module, PluginLoadError, PyException);
 create_exception!(pyshinqlx_module, PluginUnloadError, PyException);
 
@@ -337,12 +425,12 @@ impl ParsedVariables {
 }
 
 #[cfg(test)]
-mod parsed_variables_test {
+mod parsed_variables_tests {
     use super::ParsedVariables;
     use core::str::FromStr;
 
     #[test]
-    fn test_parse_variables_with_space() {
+    fn parse_variables_with_space() {
         let variables = ParsedVariables::from_str(r"\name\Unnamed Player\country\de")
             .expect("this should not happen");
         assert!(variables
@@ -550,44 +638,167 @@ pub(crate) fn is_vote_active() -> bool {
 #[pyfunction]
 #[pyo3(pass_module)]
 fn set_map_subtitles(module: &Bound<'_, PyModule>) -> PyResult<()> {
-    let map_title = pyshinqlx_get_configstring(module.py(), CS_MESSAGE)?;
-    module.setattr(intern!(module.py(), "_map_title"), map_title)?;
+    pyshinqlx_get_configstring(module.py(), CS_MESSAGE)
+        .and_then(|map_title| module.setattr(intern!(module.py(), "_map_title"), map_title))?;
 
-    let mut map_subtitle1 = pyshinqlx_get_configstring(module.py(), CS_AUTHOR)?;
-    module.setattr(
-        intern!(module.py(), "_map_subtitle1"),
-        map_subtitle1.clone(),
-    )?;
+    pyshinqlx_get_configstring(module.py(), CS_AUTHOR).and_then(|mut map_subtitle1| {
+        module.setattr(intern!(module.py(), "_map_subtitle1"), &map_subtitle1)?;
 
-    let mut map_subtitle2 = pyshinqlx_get_configstring(module.py(), CS_AUTHOR2)?;
-    module.setattr(
-        intern!(module.py(), "_map_subtitle2"),
-        map_subtitle2.clone(),
-    )?;
+        if !map_subtitle1.is_empty() {
+            map_subtitle1.push_str(" - ");
+        }
 
-    if !map_subtitle1.is_empty() {
-        map_subtitle1.push_str(" - ");
+        map_subtitle1.push_str("Running shinqlx ^6v");
+        map_subtitle1.push_str(env!("SHINQLX_VERSION"));
+        map_subtitle1.push_str("^7 with plugins ^6");
+        let plugins_version = module
+            .getattr(intern!(module.py(), "__plugins_version__"))
+            .and_then(|value| value.extract::<String>())
+            .unwrap_or("NOT_SET".to_string());
+        map_subtitle1.push_str(&plugins_version);
+        map_subtitle1.push_str("^7.");
+
+        pyshinqlx_set_configstring(module.py(), CS_AUTHOR, &map_subtitle1)
+    })?;
+
+    pyshinqlx_get_configstring(module.py(), CS_AUTHOR2).and_then(|mut map_subtitle2| {
+        module.setattr(intern!(module.py(), "_map_subtitle2"), &map_subtitle2)?;
+
+        if !map_subtitle2.is_empty() {
+            map_subtitle2.push_str(" - ");
+        }
+        map_subtitle2.push_str("Check ^6https://github.com/mgaertne/shinqlx^7 for more details.");
+        pyshinqlx_set_configstring(module.py(), CS_AUTHOR2, &map_subtitle2)
+    })
+}
+
+#[cfg(test)]
+mod set_map_subtitles_tests {
+    use super::set_map_subtitles;
+
+    use super::pyshinqlx_setup_fixture::*;
+
+    use crate::ffi::c::prelude::{CS_AUTHOR, CS_AUTHOR2, CS_MESSAGE};
+    use crate::hooks::mock_hooks::shinqlx_set_configstring_context;
+    use crate::prelude::{serial, MockQuakeEngine};
+    use crate::MAIN_ENGINE;
+
+    use mockall::predicate;
+    use rstest::rstest;
+
+    use pyo3::intern;
+    use pyo3::prelude::*;
+
+    #[rstest]
+    #[cfg_attr(miri, ignore)]
+    #[serial]
+    fn set_map_subtitles_sets_map_title_attribute(_pyshinqlx_setup: ()) {
+        let mut mock_engine = MockQuakeEngine::new();
+        mock_engine
+            .expect_get_configstring()
+            .with(predicate::eq(CS_MESSAGE as u16))
+            .returning(|_| "thunderstruck".into());
+        mock_engine
+            .expect_get_configstring()
+            .with(predicate::eq(CS_AUTHOR as u16))
+            .returning(|_| "Till 'Firestarter' Merker".into());
+        mock_engine
+            .expect_get_configstring()
+            .with(predicate::eq(CS_AUTHOR2 as u16))
+            .returning(|_| "Second author would go here".into());
+        MAIN_ENGINE.store(Some(mock_engine.into()));
+
+        let map_subtitle1 = format!(
+            "Till 'Firestarter' Merker - Running shinqlx ^6v{}^7 with plugins ^61.3.3.7^7.",
+            env!("SHINQLX_VERSION")
+        );
+        let map_subtitle2 =
+            "Second author would go here - Check ^6https://github.com/mgaertne/shinqlx^7 for more details.";
+        let set_configstring_ctx = shinqlx_set_configstring_context();
+        set_configstring_ctx
+            .expect()
+            .with(predicate::eq(CS_AUTHOR), predicate::eq(map_subtitle1))
+            .times(1);
+        set_configstring_ctx
+            .expect()
+            .with(predicate::eq(CS_AUTHOR2), predicate::eq(map_subtitle2))
+            .times(1);
+
+        Python::with_gil(|py| {
+            let shinqlx_module = py
+                .import_bound(intern!(py, "shinqlx"))
+                .expect("this should not happen");
+            shinqlx_module
+                .setattr(intern!(py, "__plugins_version__"), "1.3.3.7")
+                .expect("this should not happen");
+            let result = set_map_subtitles(&shinqlx_module);
+            assert!(result.is_ok());
+            assert!(shinqlx_module
+                .getattr(intern!(py, "_map_title"))
+                .is_ok_and(|value| value.to_string() == "thunderstruck"));
+            assert!(shinqlx_module
+                .getattr(intern!(py, "_map_subtitle1"))
+                .is_ok_and(|value| value.to_string() == "Till 'Firestarter' Merker"));
+            assert!(shinqlx_module
+                .getattr(intern!(py, "_map_subtitle2"))
+                .is_ok_and(|value| value.to_string() == "Second author would go here"));
+        });
     }
 
-    map_subtitle1.push_str("Running shinqlx ^6v");
-    map_subtitle1.push_str(env!("SHINQLX_VERSION"));
-    map_subtitle1.push_str("^7 with plugins ^6");
-    let plugins_version = module
-        .getattr(intern!(module.py(), "__plugins_version__"))
-        .map(|value| value.extract::<String>().unwrap_or("NOT_SET".to_string()))
-        .unwrap_or("NOT_SET".to_string());
-    map_subtitle1.push_str(&plugins_version);
-    map_subtitle1.push_str("^7.");
+    #[rstest]
+    #[cfg_attr(miri, ignore)]
+    #[serial]
+    fn set_map_subtitles_with_empty_authors(_pyshinqlx_setup: ()) {
+        let mut mock_engine = MockQuakeEngine::new();
+        mock_engine
+            .expect_get_configstring()
+            .with(predicate::eq(CS_MESSAGE as u16))
+            .returning(|_| "thunderstruck".into());
+        mock_engine
+            .expect_get_configstring()
+            .with(predicate::eq(CS_AUTHOR as u16))
+            .returning(|_| "".into());
+        mock_engine
+            .expect_get_configstring()
+            .with(predicate::eq(CS_AUTHOR2 as u16))
+            .returning(|_| "".into());
+        MAIN_ENGINE.store(Some(mock_engine.into()));
 
-    pyshinqlx_set_configstring(module.py(), CS_AUTHOR, &map_subtitle1)?;
+        let map_subtitle1 = format!(
+            "Running shinqlx ^6v{}^7 with plugins ^6NOT_SET^7.",
+            env!("SHINQLX_VERSION")
+        );
+        let map_subtitle2 = "Check ^6https://github.com/mgaertne/shinqlx^7 for more details.";
+        let set_configstring_ctx = shinqlx_set_configstring_context();
+        set_configstring_ctx
+            .expect()
+            .with(predicate::eq(CS_AUTHOR), predicate::eq(map_subtitle1))
+            .times(1);
+        set_configstring_ctx
+            .expect()
+            .with(predicate::eq(CS_AUTHOR2), predicate::eq(map_subtitle2))
+            .times(1);
 
-    if !map_subtitle2.is_empty() {
-        map_subtitle2.push_str(" - ");
+        Python::with_gil(|py| {
+            let shinqlx_module = py
+                .import_bound(intern!(py, "shinqlx"))
+                .expect("this should not happen");
+            shinqlx_module
+                .delattr(intern!(py, "__plugins_version__"))
+                .expect("this should not happen");
+            let result = set_map_subtitles(&shinqlx_module);
+            assert!(result.is_ok());
+            assert!(shinqlx_module
+                .getattr(intern!(py, "_map_title"))
+                .is_ok_and(|value| value.to_string() == "thunderstruck"));
+            assert!(shinqlx_module
+                .getattr(intern!(py, "_map_subtitle1"))
+                .is_ok_and(|value| value.to_string() == ""));
+            assert!(shinqlx_module
+                .getattr(intern!(py, "_map_subtitle2"))
+                .is_ok_and(|value| value.to_string() == ""));
+        });
     }
-    map_subtitle2.push_str("Check ^6https://github.com/mgaertne/shinqlx^7 for more details.");
-    pyshinqlx_set_configstring(module.py(), CS_AUTHOR2, &map_subtitle2)?;
-
-    Ok(())
 }
 
 /// Parses strings of key-value pairs delimited by r"\" and puts
@@ -602,6 +813,32 @@ fn pyshinqlx_parse_variables<'py>(
 ) -> Bound<'py, PyDict> {
     let parsed_variables = py.allow_threads(|| parse_variables(varstr));
     parsed_variables.into_py_dict_bound(py)
+}
+
+#[cfg(test)]
+mod pyshinqlx_parse_variables_test {
+    use super::pyshinqlx_parse_variables;
+
+    use super::pyshinqlx_setup_fixture::*;
+
+    use rstest::rstest;
+
+    use pyo3::prelude::*;
+
+    #[rstest]
+    #[cfg_attr(miri, ignore)]
+    fn parse_variables_with_space(_pyshinqlx_setup: ()) {
+        Python::with_gil(|py| {
+            let variables = pyshinqlx_parse_variables(py, r"\name\Unnamed Player\country\de", true);
+            assert!(variables
+                .get_item("name")
+                .is_ok_and(|value| value
+                    .is_some_and(|str_value| str_value.to_string() == "Unnamed Player")));
+            assert!(variables
+                .get_item("country")
+                .is_ok_and(|value| value.is_some_and(|str_value| str_value.to_string() == "de")));
+        });
+    }
 }
 
 fn get_logger_name(py: Python<'_>, plugin: Option<PyObject>) -> String {
