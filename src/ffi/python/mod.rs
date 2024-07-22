@@ -875,7 +875,7 @@ pub(crate) fn pyshinqlx_get_logger(
 fn pyshinqlx_configure_logger(py: Python<'_>) -> PyResult<()> {
     let (homepath, num_max_logs, max_logssize) = MAIN_ENGINE.load().as_ref().map_or(
         Err(PyEnvironmentError::new_err("no main engine found")),
-        |ref main_engine| {
+        |main_engine| {
             let homepath = main_engine
                 .find_cvar("fs_homepath")
                 .map(|homepath_cvar| homepath_cvar.get_string().to_string())
@@ -1059,9 +1059,7 @@ fn pyshinqlx_log_exception(py: Python<'_>, plugin: Option<PyObject>) -> PyResult
         plugin,
         intern!(py, "log_exception"),
         formatted_traceback,
-    )?;
-
-    Ok(())
+    )
 }
 
 /// A handler for unhandled exceptions.
