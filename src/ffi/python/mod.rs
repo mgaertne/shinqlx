@@ -980,6 +980,21 @@ mod pyshinqlx_configure_logger_tests {
     use pyo3::intern;
     use pyo3::prelude::*;
 
+    fn clear_logger(py: Python<'_>) {
+        let logging_module = py
+            .import_bound(intern!(py, "logging"))
+            .expect("this should not happen");
+        let shinqlx_logger = logging_module
+            .call_method1(intern!(py, "getLogger"), ("shinqlx",))
+            .expect("this should not happen");
+        let shinqlx_handlers = shinqlx_logger
+            .getattr(intern!(py, "handlers"))
+            .expect("this should not happen");
+        shinqlx_handlers.iter().into_iter().for_each(|handler| {
+            let _ = shinqlx_logger.call_method1(intern!(py, "removeHandler"), (handler,));
+        });
+    }
+
     #[rstest]
     #[cfg_attr(miri, ignore)]
     #[serial]
@@ -992,12 +1007,20 @@ mod pyshinqlx_configure_logger_tests {
         });
     }
 
+    static TEMP_LOG_DIR: once_cell::sync::Lazy<tempfile::TempDir> =
+        once_cell::sync::Lazy::new(|| {
+            tempfile::Builder::new()
+                .tempdir()
+                .expect("this should not happen")
+        });
+
     #[rstest]
     #[cfg_attr(miri, ignore)]
     #[serial]
     fn configure_logger_with_cvars_in_main_engine(_pyshinqlx_setup: ()) {
         let mut mock_engine = MockQuakeEngine::new();
-        let cvar_string = CString::new(".").expect("this should not happen");
+        let cvar_string = CString::new(TEMP_LOG_DIR.path().to_string_lossy().to_string())
+            .expect("this should not happen");
         mock_engine
             .expect_find_cvar()
             .with(predicate::eq("fs_homepath"))
@@ -1047,13 +1070,8 @@ mod pyshinqlx_configure_logger_tests {
                 .call_method1(intern!(py, "getLogger"), ("shinqlx",))
                 .expect("this should not happen");
             let log_level = shinqlx_logger.getattr(intern!(py, "level"));
-            assert!(
-                log_level
-                    .as_ref()
-                    .is_ok_and(|value| value.eq(&debug_level).expect("this should not happen")),
-                "{:?}",
-                log_level.as_ref()
-            );
+            assert!(log_level
+                .is_ok_and(|value| value.eq(&debug_level).expect("this should not happen")),);
 
             let info_level = logging_module
                 .getattr(intern!(py, "INFO"))
@@ -1090,6 +1108,8 @@ mod pyshinqlx_configure_logger_tests {
                         .is_ok_and(|log_level| log_level
                             .eq(&debug_level)
                             .expect("this should not happen"))));
+
+            clear_logger(py);
         });
     }
 
@@ -1098,10 +1118,18 @@ mod pyshinqlx_configure_logger_tests {
     #[serial]
     fn configure_logger_with_no_cvars_configured_in_main_engine(_pyshinqlx_setup: ()) {
         let mut mock_engine = MockQuakeEngine::new();
+        let cvar_string = CString::new(TEMP_LOG_DIR.path().to_string_lossy().to_string())
+            .expect("this should not happen");
         mock_engine
             .expect_find_cvar()
             .with(predicate::eq("fs_homepath"))
-            .returning(|_| None)
+            .returning(move |_| {
+                let mut raw_cvar = CVarBuilder::default()
+                    .string(cvar_string.as_ptr() as *mut c_char)
+                    .build()
+                    .expect("this should not happen");
+                CVar::try_from(&mut raw_cvar as *mut cvar_t).ok()
+            })
             .times(1);
         mock_engine
             .expect_find_cvar()
@@ -1129,13 +1157,8 @@ mod pyshinqlx_configure_logger_tests {
                 .call_method1(intern!(py, "getLogger"), ("shinqlx",))
                 .expect("this should not happen");
             let log_level = shinqlx_logger.getattr(intern!(py, "level"));
-            assert!(
-                log_level
-                    .as_ref()
-                    .is_ok_and(|value| value.eq(&debug_level).expect("this should not happen")),
-                "{:?}",
-                log_level.as_ref()
-            );
+            assert!(log_level
+                .is_ok_and(|value| value.eq(&debug_level).expect("this should not happen")),);
 
             let info_level = logging_module
                 .getattr(intern!(py, "INFO"))
@@ -1172,6 +1195,8 @@ mod pyshinqlx_configure_logger_tests {
                         .is_ok_and(|log_level| log_level
                             .eq(&debug_level)
                             .expect("this should not happen"))));
+
+            clear_logger(py);
         });
     }
 }
