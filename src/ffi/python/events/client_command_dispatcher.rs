@@ -752,14 +752,10 @@ def returns_none_hook(*args, **kwargs):
                 intern!(py, "dispatch"),
                 (default_test_player(), "asdf"),
             );
-            assert!(
-                result.as_ref().is_ok_and(|value| value
-                    .bind(py)
-                    .extract::<Bound<'_, PyBool>>()
-                    .is_ok_and(|value| !value.is_true())),
-                "{:?}",
-                result.as_ref().map(|value| value.bind(py))
-            );
+            assert!(result.is_ok_and(|value| value
+                .bind(py)
+                .extract::<Bound<'_, PyBool>>()
+                .is_ok_and(|value| !value.is_true())));
         });
     }
 }

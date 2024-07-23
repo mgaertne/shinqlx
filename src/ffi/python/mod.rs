@@ -979,6 +979,7 @@ mod pyshinqlx_configure_logger_tests {
     use pyo3::exceptions::PyEnvironmentError;
     use pyo3::intern;
     use pyo3::prelude::*;
+    use pyo3::types::PyBool;
 
     fn clear_logger(py: Python<'_>) {
         let logging_module = py
@@ -987,12 +988,24 @@ mod pyshinqlx_configure_logger_tests {
         let shinqlx_logger = logging_module
             .call_method1(intern!(py, "getLogger"), ("shinqlx",))
             .expect("this should not happen");
-        let shinqlx_handlers = shinqlx_logger
-            .getattr(intern!(py, "handlers"))
-            .expect("this should not happen");
-        shinqlx_handlers.iter().into_iter().for_each(|handler| {
-            let _ = shinqlx_logger.call_method1(intern!(py, "removeHandler"), (handler,));
-        });
+        while shinqlx_logger
+            .call_method0(intern!(py, "hasHandlers"))
+            .is_ok_and(|value| {
+                value
+                    .extract::<Bound<'_, PyBool>>()
+                    .is_ok_and(|bool_value| bool_value.is_true())
+            })
+        {
+            let shinqlx_handlers = shinqlx_logger
+                .getattr(intern!(py, "handlers"))
+                .expect("this should not happen");
+            let _ = shinqlx_logger.call_method1(
+                intern!(py, "removeHandler"),
+                (shinqlx_handlers
+                    .get_item(0)
+                    .expect("this should not happen"),),
+            );
+        }
     }
 
     #[rstest]
