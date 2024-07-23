@@ -879,7 +879,7 @@ fn pyshinqlx_configure_logger(py: Python<'_>) -> PyResult<()> {
             let homepath = main_engine
                 .find_cvar("fs_homepath")
                 .map(|homepath_cvar| homepath_cvar.get_string().to_string())
-                .unwrap_or_default();
+                .unwrap_or(".".into());
             let num_max_logs = main_engine
                 .find_cvar("qlx_logs")
                 .map(|max_logs_cvar| max_logs_cvar.get_integer())
