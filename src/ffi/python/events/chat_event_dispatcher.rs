@@ -75,8 +75,9 @@ mod chat_event_dispatcher_tests {
 
     use crate::ffi::c::prelude::{cvar_t, CVar, CVarBuilder};
     use crate::ffi::python::channels::TeamChatChannel;
+    use crate::ffi::python::commands::{Command, CommandInvoker, CommandPriorities};
     use crate::ffi::python::pyshinqlx_test_support::{default_test_player, test_plugin};
-    use crate::ffi::python::{commands::CommandPriorities, pyshinqlx_setup, COMMANDS};
+    use crate::ffi::python::{pyshinqlx_setup, COMMANDS};
     use crate::prelude::{serial, MockQuakeEngine};
     use crate::MAIN_ENGINE;
 
@@ -86,9 +87,9 @@ mod chat_event_dispatcher_tests {
     use mockall::predicate;
     use rstest::rstest;
 
-    use crate::ffi::python::commands::{Command, CommandInvoker};
     use pyo3::intern;
     use pyo3::prelude::*;
+    use pyo3::types::PyBool;
 
     fn default_channel(py: Python<'_>) -> PyObject {
         Py::new(
@@ -115,8 +116,10 @@ mod chat_event_dispatcher_tests {
                 intern!(py, "dispatch"),
                 (default_test_player(), "asdf", default_channel(py)),
             );
-            assert!(result
-                .is_ok_and(|value| value.bind(py).is_truthy().expect("this should not happen")));
+            assert!(result.is_ok_and(|value| value
+                .bind(py)
+                .extract::<Bound<'_, PyBool>>()
+                .is_ok_and(|bool_value| bool_value.is_true())));
         });
     }
 
@@ -173,8 +176,10 @@ def throws_exception_hook(*args, **kwargs):
                 intern!(py, "dispatch"),
                 (default_test_player(), "asdf", default_channel(py)),
             );
-            assert!(result
-                .is_ok_and(|value| value.bind(py).is_truthy().expect("this should not happen")));
+            assert!(result.is_ok_and(|value| value
+                .bind(py)
+                .extract::<Bound<'_, PyBool>>()
+                .is_ok_and(|bool_value| bool_value.is_true())));
         });
     }
 
@@ -231,8 +236,10 @@ def returns_none_hook(*args, **kwargs):
                 intern!(py, "dispatch"),
                 (default_test_player(), "asdf", default_channel(py)),
             );
-            assert!(result
-                .is_ok_and(|value| value.bind(py).is_truthy().expect("this should not happen")));
+            assert!(result.is_ok_and(|value| value
+                .bind(py)
+                .extract::<Bound<'_, PyBool>>()
+                .is_ok_and(|bool_value| bool_value.is_true())));
         });
     }
 
@@ -291,8 +298,10 @@ def returns_none_hook(*args, **kwargs):
                 intern!(py, "dispatch"),
                 (default_test_player(), "asdf", default_channel(py)),
             );
-            assert!(result
-                .is_ok_and(|value| value.bind(py).is_truthy().expect("this should not happen")));
+            assert!(result.is_ok_and(|value| value
+                .bind(py)
+                .extract::<Bound<'_, PyBool>>()
+                .is_ok_and(|bool_value| bool_value.is_true())));
         });
     }
 
@@ -351,8 +360,10 @@ def returns_stop_hook(*args, **kwargs):
                 intern!(py, "dispatch"),
                 (default_test_player(), "asdf", default_channel(py)),
             );
-            assert!(result
-                .is_ok_and(|value| value.bind(py).is_truthy().expect("this should not happen")));
+            assert!(result.is_ok_and(|value| value
+                .bind(py)
+                .extract::<Bound<'_, PyBool>>()
+                .is_ok_and(|bool_value| bool_value.is_true())));
         });
     }
 
@@ -411,8 +422,10 @@ def returns_stop_event_hook(*args, **kwargs):
                 intern!(py, "dispatch"),
                 (default_test_player(), "asdf", default_channel(py)),
             );
-            assert!(result
-                .is_ok_and(|value| !value.bind(py).is_truthy().expect("this should not happen")));
+            assert!(result.is_ok_and(|value| value
+                .bind(py)
+                .extract::<Bound<'_, PyBool>>()
+                .is_ok_and(|bool_value| !bool_value.is_true())));
         });
     }
 
@@ -471,8 +484,10 @@ def returns_stop_all_hook(*args, **kwargs):
                 intern!(py, "dispatch"),
                 (default_test_player(), "asdf", default_channel(py)),
             );
-            assert!(result
-                .is_ok_and(|value| !value.bind(py).is_truthy().expect("this should not happen")));
+            assert!(result.is_ok_and(|value| value
+                .bind(py)
+                .extract::<Bound<'_, PyBool>>()
+                .is_ok_and(|bool_value| !bool_value.is_true())));
         });
     }
 
@@ -529,8 +544,10 @@ def returns_string_hook(*args, **kwargs):
                 intern!(py, "dispatch"),
                 (default_test_player(), "asdf", default_channel(py)),
             );
-            assert!(result
-                .is_ok_and(|value| value.bind(py).is_truthy().expect("this should not happen")));
+            assert!(result.is_ok_and(|value| value
+                .bind(py)
+                .extract::<Bound<'_, PyBool>>()
+                .is_ok_and(|bool_value| bool_value.is_true())));
         });
     }
 
@@ -631,8 +648,14 @@ def returns_none_hook(*args, **kwargs):
                 intern!(py, "dispatch"),
                 (default_test_player(), "asdf", default_channel(py)),
             );
-            assert!(result
-                .is_ok_and(|value| !value.bind(py).is_truthy().expect("this should not happen")));
+            assert!(
+                result.as_ref().is_ok_and(|value| value
+                    .bind(py)
+                    .extract::<Bound<'_, PyBool>>()
+                    .is_ok_and(|value| !value.is_true())),
+                "{:?}",
+                result.as_ref().map(|value| value.bind(py))
+            );
         });
     }
 }

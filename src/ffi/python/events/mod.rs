@@ -573,7 +573,7 @@ mod event_dispatcher_tests {
     use pyo3::exceptions::{PyAssertionError, PyAttributeError, PyValueError};
     use pyo3::intern;
     use pyo3::prelude::*;
-    use pyo3::types::{PyDict, PyTuple};
+    use pyo3::types::{PyBool, PyDict, PyTuple};
 
     fn custom_dispatcher(py: Python<'_>) -> Bound<'_, PyAny> {
         PyModule::from_code_bound(
@@ -701,7 +701,9 @@ def custom_hook(*args, **kwargs):
             let dispatcher = custom_dispatcher(py);
 
             let result = dispatcher.call_method1(intern!(py, "dispatch"), PyTuple::empty_bound(py));
-            assert!(result.is_ok_and(|value| value.is_truthy().expect("this should not happen")));
+            assert!(result.is_ok_and(|value| value
+                .extract::<Bound<'_, PyBool>>()
+                .is_ok_and(|bool_value| bool_value.is_true())));
         });
     }
 
@@ -737,7 +739,9 @@ def throws_exception_hook(*args, **kwargs):
                 .expect("this should not happen");
 
             let result = dispatcher.call_method1(intern!(py, "dispatch"), PyTuple::empty_bound(py));
-            assert!(result.is_ok_and(|value| value.is_truthy().expect("this should not happen")));
+            assert!(result.is_ok_and(|value| value
+                .extract::<Bound<'_, PyBool>>()
+                .is_ok_and(|bool_value| bool_value.is_true())));
         });
     }
 
@@ -773,7 +777,9 @@ def returns_none_hook(*args, **kwargs):
                 .expect("this should not happen");
 
             let result = dispatcher.call_method1(intern!(py, "dispatch"), PyTuple::empty_bound(py));
-            assert!(result.is_ok_and(|value| value.is_truthy().expect("this should not happen")));
+            assert!(result.is_ok_and(|value| value
+                .extract::<Bound<'_, PyBool>>()
+                .is_ok_and(|bool_value| bool_value.is_true())));
         });
     }
 
@@ -811,7 +817,9 @@ def returns_none_hook(*args, **kwargs):
                 .expect("this should not happen");
 
             let result = dispatcher.call_method1(intern!(py, "dispatch"), PyTuple::empty_bound(py));
-            assert!(result.is_ok_and(|value| value.is_truthy().expect("this should not happen")));
+            assert!(result.is_ok_and(|value| value
+                .extract::<Bound<'_, PyBool>>()
+                .is_ok_and(|bool_value| bool_value.is_true())));
         });
     }
 
@@ -849,7 +857,9 @@ def returns_stop_hook(*args, **kwargs):
                 .expect("this should not happen");
 
             let result = dispatcher.call_method1(intern!(py, "dispatch"), PyTuple::empty_bound(py));
-            assert!(result.is_ok_and(|value| value.is_truthy().expect("this should not happen")));
+            assert!(result.is_ok_and(|value| value
+                .extract::<Bound<'_, PyBool>>()
+                .is_ok_and(|bool_value| bool_value.is_true())));
         });
     }
 
@@ -887,7 +897,9 @@ def returns_stop_event_hook(*args, **kwargs):
                 .expect("this should not happen");
 
             let result = dispatcher.call_method1(intern!(py, "dispatch"), PyTuple::empty_bound(py));
-            assert!(result.is_ok_and(|value| !value.is_truthy().expect("this should not happen")));
+            assert!(result.is_ok_and(|value| value
+                .extract::<Bound<'_, PyBool>>()
+                .is_ok_and(|bool_value| !bool_value.is_true())));
         });
     }
 
@@ -925,7 +937,9 @@ def returns_stop_all_hook(*args, **kwargs):
                 .expect("this should not happen");
 
             let result = dispatcher.call_method1(intern!(py, "dispatch"), PyTuple::empty_bound(py));
-            assert!(result.is_ok_and(|value| !value.is_truthy().expect("this should not happen")));
+            assert!(result.is_ok_and(|value| value
+                .extract::<Bound<'_, PyBool>>()
+                .is_ok_and(|bool_value| !bool_value.is_true())));
         });
     }
 
@@ -961,7 +975,9 @@ def returns_string_hook(*args, **kwargs):
                 .expect("this should not happen");
 
             let result = dispatcher.call_method1(intern!(py, "dispatch"), PyTuple::empty_bound(py));
-            assert!(result.is_ok_and(|value| value.is_truthy().expect("this should not happen")));
+            assert!(result.is_ok_and(|value| value
+                .extract::<Bound<'_, PyBool>>()
+                .is_ok_and(|bool_value| bool_value.is_true())));
         });
     }
 
@@ -1014,7 +1030,9 @@ def returns_string_hook(*args, **kwargs):
                 .expect("this should not happen");
 
             let result = dispatcher.call_method1(intern!(py, "dispatch"), PyTuple::empty_bound(py));
-            assert!(result.is_ok_and(|value| value.is_truthy().expect("this should not happen")));
+            assert!(result.is_ok_and(|value| value
+                .extract::<Bound<'_, PyBool>>()
+                .is_ok_and(|bool_value| bool_value.is_true())));
         });
     }
 
