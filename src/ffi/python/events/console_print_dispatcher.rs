@@ -95,6 +95,7 @@ mod console_print_dispatcher_tests {
 
     use pyo3::intern;
     use pyo3::prelude::*;
+    use pyo3::types::PyBool;
 
     #[rstest]
     #[cfg_attr(miri, ignore)]
@@ -104,8 +105,10 @@ mod console_print_dispatcher_tests {
                 Py::new(py, ConsolePrintDispatcher::py_new(py)).expect("this should not happen");
 
             let result = dispatcher.call_method1(py, intern!(py, "dispatch"), ("asdf",));
-            assert!(result
-                .is_ok_and(|value| value.bind(py).is_truthy().expect("this should not happen")));
+            assert!(result.is_ok_and(|value| value
+                .bind(py)
+                .extract::<Bound<'_, PyBool>>()
+                .is_ok_and(|bool_value| bool_value.is_true())));
         });
     }
 
@@ -157,8 +160,10 @@ def throws_exception_hook(*args, **kwargs):
                 .expect("this should not happen");
 
             let result = dispatcher.call_method1(py, intern!(py, "dispatch"), ("asdf",));
-            assert!(result
-                .is_ok_and(|value| value.bind(py).is_truthy().expect("this should not happen")));
+            assert!(result.is_ok_and(|value| value
+                .bind(py)
+                .extract::<Bound<'_, PyBool>>()
+                .is_ok_and(|bool_value| bool_value.is_true())));
         });
     }
 
@@ -210,8 +215,10 @@ def returns_none_hook(*args, **kwargs):
                 .expect("this should not happen");
 
             let result = dispatcher.call_method1(py, intern!(py, "dispatch"), ("asdf",));
-            assert!(result
-                .is_ok_and(|value| value.bind(py).is_truthy().expect("this should not happen")));
+            assert!(result.is_ok_and(|value| value
+                .bind(py)
+                .extract::<Bound<'_, PyBool>>()
+                .is_ok_and(|bool_value| bool_value.is_true())));
         });
     }
 
@@ -265,8 +272,10 @@ def returns_none_hook(*args, **kwargs):
                 .expect("this should not happen");
 
             let result = dispatcher.call_method1(py, intern!(py, "dispatch"), ("asdf",));
-            assert!(result
-                .is_ok_and(|value| value.bind(py).is_truthy().expect("this should not happen")));
+            assert!(result.is_ok_and(|value| value
+                .bind(py)
+                .extract::<Bound<'_, PyBool>>()
+                .is_ok_and(|bool_value| bool_value.is_true())));
         });
     }
 
@@ -320,8 +329,10 @@ def returns_stop_hook(*args, **kwargs):
                 .expect("this should not happen");
 
             let result = dispatcher.call_method1(py, intern!(py, "dispatch"), ("asdf",));
-            assert!(result
-                .is_ok_and(|value| value.bind(py).is_truthy().expect("this should not happen")));
+            assert!(result.is_ok_and(|value| value
+                .bind(py)
+                .extract::<Bound<'_, PyBool>>()
+                .is_ok_and(|bool_value| bool_value.is_true())));
         });
     }
 
@@ -375,8 +386,10 @@ def returns_stop_event_hook(*args, **kwargs):
                 .expect("this should not happen");
 
             let result = dispatcher.call_method1(py, intern!(py, "dispatch"), ("asdf",));
-            assert!(result
-                .is_ok_and(|value| !value.bind(py).is_truthy().expect("this should not happen")));
+            assert!(result.is_ok_and(|value| value
+                .bind(py)
+                .extract::<Bound<'_, PyBool>>()
+                .is_ok_and(|bool_value| !bool_value.is_true())));
         });
     }
 
@@ -430,8 +443,10 @@ def returns_stop_all_hook(*args, **kwargs):
                 .expect("this should not happen");
 
             let result = dispatcher.call_method1(py, intern!(py, "dispatch"), ("asdf",));
-            assert!(result
-                .is_ok_and(|value| !value.bind(py).is_truthy().expect("this should not happen")));
+            assert!(result.is_ok_and(|value| value
+                .bind(py)
+                .extract::<Bound<'_, PyBool>>()
+                .is_ok_and(|bool_value| !bool_value.is_true())));
         });
     }
 
@@ -542,8 +557,10 @@ def returns_string_hook(*args, **kwargs):
                 .expect("this should not happen");
 
             let result = dispatcher.call_method1(py, intern!(py, "dispatch"), ("asdf",));
-            assert!(result
-                .is_ok_and(|value| value.bind(py).is_truthy().expect("this should not happen")));
+            assert!(result.is_ok_and(|value| value
+                .bind(py)
+                .extract::<Bound<'_, PyBool>>()
+                .is_ok_and(|bool_value| bool_value.is_true())));
         });
     }
 }

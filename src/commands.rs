@@ -8,6 +8,8 @@ use crate::MAIN_ENGINE;
 
 use rand::Rng;
 
+use pyo3::types::PyBool;
+
 #[no_mangle]
 pub extern "C" fn cmd_send_server_command() {
     MAIN_ENGINE.load().iter().for_each(|main_engine| {
@@ -234,7 +236,10 @@ pub extern "C" fn cmd_py_command() {
 
                     if result.is_err()
                         || result.is_ok_and(|value| {
-                            value.bind(py).is_truthy().is_ok_and(|result| !result)
+                            value
+                                .bind(py)
+                                .extract::<Bound<'_, PyBool>>()
+                                .is_ok_and(|bool_value| !bool_value.is_true())
                         })
                     {
                         main_engine.com_printf(

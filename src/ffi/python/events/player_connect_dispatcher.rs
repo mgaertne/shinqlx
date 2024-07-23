@@ -56,6 +56,7 @@ mod player_connect_dispatcher_tests {
     use crate::ffi::python::pyshinqlx_test_support::default_test_player;
     use pyo3::intern;
     use pyo3::prelude::*;
+    use pyo3::types::PyBool;
 
     #[rstest]
     #[cfg_attr(miri, ignore)]
@@ -66,8 +67,10 @@ mod player_connect_dispatcher_tests {
 
             let result =
                 dispatcher.call_method1(py, intern!(py, "dispatch"), (default_test_player(),));
-            assert!(result
-                .is_ok_and(|value| value.bind(py).is_truthy().expect("this should not happen")));
+            assert!(result.is_ok_and(|value| value
+                .bind(py)
+                .extract::<Bound<'_, PyBool>>()
+                .is_ok_and(|bool_value| bool_value.is_true())));
         });
     }
 
@@ -120,8 +123,10 @@ def throws_exception_hook(*args, **kwargs):
 
             let result =
                 dispatcher.call_method1(py, intern!(py, "dispatch"), (default_test_player(),));
-            assert!(result
-                .is_ok_and(|value| value.bind(py).is_truthy().expect("this should not happen")));
+            assert!(result.is_ok_and(|value| value
+                .bind(py)
+                .extract::<Bound<'_, PyBool>>()
+                .is_ok_and(|bool_value| bool_value.is_true())));
         });
     }
 
@@ -174,8 +179,10 @@ def returns_none_hook(*args, **kwargs):
 
             let result =
                 dispatcher.call_method1(py, intern!(py, "dispatch"), (default_test_player(),));
-            assert!(result
-                .is_ok_and(|value| value.bind(py).is_truthy().expect("this should not happen")));
+            assert!(result.is_ok_and(|value| value
+                .bind(py)
+                .extract::<Bound<'_, PyBool>>()
+                .is_ok_and(|bool_value| bool_value.is_true())));
         });
     }
 
@@ -230,8 +237,10 @@ def returns_none_hook(*args, **kwargs):
 
             let result =
                 dispatcher.call_method1(py, intern!(py, "dispatch"), (default_test_player(),));
-            assert!(result
-                .is_ok_and(|value| value.bind(py).is_truthy().expect("this should not happen")));
+            assert!(result.is_ok_and(|value| value
+                .bind(py)
+                .extract::<Bound<'_, PyBool>>()
+                .is_ok_and(|bool_value| bool_value.is_true())));
         });
     }
 
@@ -286,8 +295,10 @@ def returns_stop_hook(*args, **kwargs):
 
             let result =
                 dispatcher.call_method1(py, intern!(py, "dispatch"), (default_test_player(),));
-            assert!(result
-                .is_ok_and(|value| value.bind(py).is_truthy().expect("this should not happen")));
+            assert!(result.is_ok_and(|value| value
+                .bind(py)
+                .extract::<Bound<'_, PyBool>>()
+                .is_ok_and(|bool_value| bool_value.is_true())));
         });
     }
 
@@ -342,8 +353,10 @@ def returns_stop_event_hook(*args, **kwargs):
 
             let result =
                 dispatcher.call_method1(py, intern!(py, "dispatch"), (default_test_player(),));
-            assert!(result
-                .is_ok_and(|value| !value.bind(py).is_truthy().expect("this should not happen")));
+            assert!(result.is_ok_and(|value| value
+                .bind(py)
+                .extract::<Bound<'_, PyBool>>()
+                .is_ok_and(|bool_value| !bool_value.is_true())));
         });
     }
 
@@ -398,8 +411,10 @@ def returns_stop_all_hook(*args, **kwargs):
 
             let result =
                 dispatcher.call_method1(py, intern!(py, "dispatch"), (default_test_player(),));
-            assert!(result
-                .is_ok_and(|value| !value.bind(py).is_truthy().expect("this should not happen")));
+            assert!(result.is_ok_and(|value| value
+                .bind(py)
+                .extract::<Bound<'_, PyBool>>()
+                .is_ok_and(|bool_value| !bool_value.is_true())));
         });
     }
 
@@ -508,8 +523,10 @@ def returns_string_hook(*args, **kwargs):
 
             let result =
                 dispatcher.call_method1(py, intern!(py, "dispatch"), (default_test_player(),));
-            assert!(result
-                .is_ok_and(|value| value.bind(py).is_truthy().expect("this should not happen")));
+            assert!(result.is_ok_and(|value| value
+                .bind(py)
+                .extract::<Bound<'_, PyBool>>()
+                .is_ok_and(|bool_value| bool_value.is_true())));
         });
     }
 }

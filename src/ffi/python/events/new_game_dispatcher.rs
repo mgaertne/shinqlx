@@ -38,7 +38,7 @@ mod new_game_dispatcher_tests {
 
     use pyo3::intern;
     use pyo3::prelude::*;
-    use pyo3::types::PyTuple;
+    use pyo3::types::{PyBool, PyTuple};
 
     #[rstest]
     #[cfg_attr(miri, ignore)]
@@ -49,8 +49,10 @@ mod new_game_dispatcher_tests {
 
             let result =
                 dispatcher.call_method1(py, intern!(py, "dispatch"), PyTuple::empty_bound(py));
-            assert!(result
-                .is_ok_and(|value| value.bind(py).is_truthy().expect("this should not happen")));
+            assert!(result.is_ok_and(|value| value
+                .bind(py)
+                .extract::<Bound<'_, PyBool>>()
+                .is_ok_and(|bool_value| bool_value.is_true())));
         });
     }
 
@@ -103,8 +105,10 @@ def throws_exception_hook(*args, **kwargs):
 
             let result =
                 dispatcher.call_method1(py, intern!(py, "dispatch"), PyTuple::empty_bound(py));
-            assert!(result
-                .is_ok_and(|value| value.bind(py).is_truthy().expect("this should not happen")));
+            assert!(result.is_ok_and(|value| value
+                .bind(py)
+                .extract::<Bound<'_, PyBool>>()
+                .is_ok_and(|bool_value| bool_value.is_true())));
         });
     }
 
@@ -157,8 +161,10 @@ def returns_none_hook(*args, **kwargs):
 
             let result =
                 dispatcher.call_method1(py, intern!(py, "dispatch"), PyTuple::empty_bound(py));
-            assert!(result
-                .is_ok_and(|value| value.bind(py).is_truthy().expect("this should not happen")));
+            assert!(result.is_ok_and(|value| value
+                .bind(py)
+                .extract::<Bound<'_, PyBool>>()
+                .is_ok_and(|bool_value| bool_value.is_true())));
         });
     }
 
@@ -213,8 +219,10 @@ def returns_none_hook(*args, **kwargs):
 
             let result =
                 dispatcher.call_method1(py, intern!(py, "dispatch"), PyTuple::empty_bound(py));
-            assert!(result
-                .is_ok_and(|value| value.bind(py).is_truthy().expect("this should not happen")));
+            assert!(result.is_ok_and(|value| value
+                .bind(py)
+                .extract::<Bound<'_, PyBool>>()
+                .is_ok_and(|bool_value| bool_value.is_true())));
         });
     }
 
@@ -269,8 +277,10 @@ def returns_stop_hook(*args, **kwargs):
 
             let result =
                 dispatcher.call_method1(py, intern!(py, "dispatch"), PyTuple::empty_bound(py));
-            assert!(result
-                .is_ok_and(|value| value.bind(py).is_truthy().expect("this should not happen")));
+            assert!(result.is_ok_and(|value| value
+                .bind(py)
+                .extract::<Bound<'_, PyBool>>()
+                .is_ok_and(|bool_value| bool_value.is_true())));
         });
     }
 
@@ -325,8 +335,10 @@ def returns_stop_event_hook(*args, **kwargs):
 
             let result =
                 dispatcher.call_method1(py, intern!(py, "dispatch"), PyTuple::empty_bound(py));
-            assert!(result
-                .is_ok_and(|value| !value.bind(py).is_truthy().expect("this should not happen")));
+            assert!(result.is_ok_and(|value| value
+                .bind(py)
+                .extract::<Bound<'_, PyBool>>()
+                .is_ok_and(|bool_value| !bool_value.is_true())));
         });
     }
 
@@ -381,8 +393,10 @@ def returns_stop_all_hook(*args, **kwargs):
 
             let result =
                 dispatcher.call_method1(py, intern!(py, "dispatch"), PyTuple::empty_bound(py));
-            assert!(result
-                .is_ok_and(|value| !value.bind(py).is_truthy().expect("this should not happen")));
+            assert!(result.is_ok_and(|value| value
+                .bind(py)
+                .extract::<Bound<'_, PyBool>>()
+                .is_ok_and(|bool_value| !bool_value.is_true())));
         });
     }
 
@@ -435,8 +449,10 @@ def returns_string_hook(*args, **kwargs):
 
             let result =
                 dispatcher.call_method1(py, intern!(py, "dispatch"), PyTuple::empty_bound(py));
-            assert!(result
-                .is_ok_and(|value| value.bind(py).is_truthy().expect("this should not happen")));
+            assert!(result.is_ok_and(|value| value
+                .bind(py)
+                .extract::<Bound<'_, PyBool>>()
+                .is_ok_and(|bool_value| bool_value.is_true())));
         });
     }
 }
