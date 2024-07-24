@@ -1873,6 +1873,69 @@ fn get_stats_listener<'py>(module: &Bound<'py, PyModule>) -> PyResult<Bound<'py,
     module.getattr(intern!(module.py(), "_stats"))
 }
 
+#[cfg(test)]
+mod stats_listener_tests {
+    use super::get_stats_listener;
+    use mockall::predicate;
+    use std::ffi::{c_char, CString};
+
+    use super::pyshinqlx_setup_fixture::*;
+    use super::stats_listener::StatsListener;
+
+    use rstest::rstest;
+
+    use crate::ffi::c::prelude::{cvar_t, CVar, CVarBuilder};
+    use crate::prelude::MockQuakeEngine;
+    use crate::MAIN_ENGINE;
+    use pyo3::intern;
+    use pyo3::prelude::*;
+
+    #[rstest]
+    #[cfg_attr(miri, ignore)]
+    fn get_stats_listener_returns_none(_pyshinqlx_setup: ()) {
+        Python::with_gil(|py| {
+            let shinqlx_module = py
+                .import_bound(intern!(py, "shinqlx"))
+                .expect("this should not happen");
+
+            let result = get_stats_listener(&shinqlx_module);
+            assert!(result.is_ok_and(|value| value.is_none()));
+        });
+    }
+
+    #[rstest]
+    #[cfg_attr(miri, ignore)]
+    fn get_stats_listener_returns_stats_listener(_pyshinqlx_setup: ()) {
+        let mut mock_engine = MockQuakeEngine::new();
+        let cvar_string = CString::new("0").expect("this should not happen");
+        mock_engine
+            .expect_find_cvar()
+            .with(predicate::eq("zmq_stats_enable"))
+            .returning(move |_| {
+                let mut raw_cvar = CVarBuilder::default()
+                    .string(cvar_string.as_ptr() as *mut c_char)
+                    .integer(0)
+                    .build()
+                    .expect("this should not happen");
+                CVar::try_from(&mut raw_cvar as *mut cvar_t).ok()
+            });
+        MAIN_ENGINE.store(Some(mock_engine.into()));
+
+        Python::with_gil(|py| {
+            let shinqlx_module = py
+                .import_bound(intern!(py, "shinqlx"))
+                .expect("this should not happen");
+            let stats_listener = StatsListener::py_new().expect("this should not happen");
+            shinqlx_module
+                .setattr(intern!(py, "_stats"), stats_listener.into_py(py))
+                .expect("this should not happen");
+
+            let result = get_stats_listener(&shinqlx_module);
+            assert!(result.is_ok_and(|value| value.is_instance_of::<StatsListener>()));
+        });
+    }
+}
+
 fn try_get_plugins_version(path: &str) -> Result<String, git2::Error> {
     let repository = git2::Repository::open(path)?;
 
