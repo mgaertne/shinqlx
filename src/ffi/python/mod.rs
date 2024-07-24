@@ -1227,15 +1227,18 @@ fn pyshinqlx_log_exception(py: Python<'_>, plugin: Option<PyObject>) -> PyResult
                 py.import_bound(intern!(py, "traceback"))
                     .and_then(|traceback_module| {
                         traceback_module
-                            .call_method1(intern!(py, "format_exception"), exc_tuple)?
-                            .extract::<Vec<String>>()
-                            .and_then(|formatted_traceback| {
-                                try_log_messages(
-                                    py,
-                                    plugin,
-                                    intern!(py, "log_exception"),
-                                    formatted_traceback,
-                                )
+                            .call_method1(intern!(py, "format_exception"), exc_tuple)
+                            .and_then(|value| {
+                                value
+                                    .extract::<Vec<String>>()
+                                    .and_then(|formatted_traceback| {
+                                        try_log_messages(
+                                            py,
+                                            plugin,
+                                            intern!(py, "log_exception"),
+                                            formatted_traceback,
+                                        )
+                                    })
                             })
                     })
             })
@@ -1291,16 +1294,66 @@ fn pyshinqlx_handle_exception(
     exc_value: PyObject,
     exc_traceback: PyObject,
 ) -> PyResult<()> {
-    let traceback_module = py.import_bound(intern!(py, "traceback"))?;
+    py.import_bound(intern!(py, "traceback"))
+        .and_then(|traceback_module| {
+            traceback_module
+                .call_method1(
+                    intern!(py, "format_exception"),
+                    (exc_type, exc_value, exc_traceback),
+                )
+                .and_then(|value| {
+                    value
+                        .extract::<Vec<String>>()
+                        .and_then(|formatted_traceback| {
+                            try_log_messages(
+                                py,
+                                None,
+                                intern!(py, "log_exception"),
+                                formatted_traceback,
+                            )
+                        })
+                })
+        })
+}
 
-    let formatted_traceback: Vec<String> = traceback_module
-        .call_method1(
-            intern!(py, "format_exception"),
-            (exc_type, exc_value, exc_traceback),
-        )?
-        .extract()?;
+#[cfg(test)]
+mod pyshinqlx_handle_exception_tests {
+    use super::pyshinqlx_handle_exception;
 
-    try_log_messages(py, None, intern!(py, "log_exception"), formatted_traceback)
+    use super::pyshinqlx_setup_fixture::*;
+
+    use rstest::rstest;
+
+    use pyo3::prelude::*;
+
+    #[rstest]
+    #[cfg_attr(miri, ignore)]
+    fn handle_exception_with_no_exception_pending(_pyshinqlx_setup: ()) {
+        Python::with_gil(|py| {
+            let result = pyshinqlx_handle_exception(py, py.None(), py.None(), py.None());
+            assert!(result.is_ok());
+        });
+    }
+
+    #[rstest]
+    #[cfg_attr(miri, ignore)]
+    fn handle_exception_with_pending_exception(_pyshinqlx_setup: ()) {
+        Python::with_gil(|py| {
+            let result = py.run_bound(
+                r#"
+import shinqlx
+
+try:
+    raise ValueError("asdf")
+except ValueError as e:
+    shinqlx.handle_exception(type(e), e, e.__traceback__)
+"#,
+                None,
+                None,
+            );
+            assert!(result.is_ok());
+        });
+    }
 }
 
 #[pyfunction]
@@ -1314,20 +1367,58 @@ fn pyshinqlx_handle_threading_exception(py: Python<'_>, args: PyObject) -> PyRes
     )
 }
 
-fn try_log_exception(py: Python<'_>, exception: &PyErr) -> PyResult<()> {
-    let traceback_module = py.import_bound(intern!(py, "traceback"))?;
-    let formatted_traceback: Vec<String> = traceback_module
-        .call_method1(
-            intern!(py, "format_exception"),
-            (
-                exception.get_type_bound(py),
-                exception.value_bound(py),
-                exception.traceback_bound(py),
-            ),
-        )?
-        .extract()?;
+#[cfg(test)]
+mod pyshinqlx_handle_threading_exception_tests {
+    use super::pyshinqlx_setup_fixture::*;
 
-    try_log_messages(py, None, intern!(py, "log_exception"), formatted_traceback)
+    use rstest::rstest;
+
+    use pyo3::prelude::*;
+
+    #[rstest]
+    #[cfg_attr(miri, ignore)]
+    fn handle_threading_exception_with_pending_exception(_pyshinqlx_setup: ()) {
+        Python::with_gil(|py| {
+            let result = py.run_bound(
+                r#"
+import shinqlx
+
+class ExceptHookArgs:
+    def __init__(self, exc_type, exc_value, exc_traceback):
+        self.exc_type = exc_type
+        self.exc_value = exc_value
+        self.exc_traceback = exc_traceback
+
+try:
+    raise ValueError("asdf")
+except ValueError as e:
+    shinqlx.threading_excepthook(ExceptHookArgs(type(e), e, e.__traceback__))
+"#,
+                None,
+                None,
+            );
+            assert!(result.is_ok());
+        });
+    }
+}
+
+fn try_log_exception(py: Python<'_>, exception: &PyErr) -> PyResult<()> {
+    py.import_bound(intern!(py, "traceback"))
+        .and_then(|traceback_module| {
+            traceback_module
+                .call_method1(
+                    intern!(py, "format_exception"),
+                    (
+                        exception.get_type_bound(py),
+                        exception.value_bound(py),
+                        exception.traceback_bound(py),
+                    ),
+                )?
+                .extract::<Vec<String>>()
+                .and_then(|formatted_traceback| {
+                    try_log_messages(py, None, intern!(py, "log_exception"), formatted_traceback)
+                })
+        })
 }
 
 pub(crate) fn log_exception(py: Python<'_>, exception: &PyErr) {
@@ -1373,7 +1464,7 @@ fn try_log_messages(
 
 #[pyfunction]
 fn next_frame(py: Python<'_>, func: Py<PyFunction>) -> PyResult<Bound<'_, PyAny>> {
-    let next_frame_func = PyModule::from_code_bound(
+    PyModule::from_code_bound(
         py,
         r#"
 from functools import wraps
@@ -1390,10 +1481,64 @@ def next_frame(func):
         "#,
         "",
         "",
-    )?
-    .getattr(intern!(py, "next_frame"))?;
+    )
+    .and_then(|next_frame_def| next_frame_def.getattr(intern!(py, "next_frame")))
+    .and_then(|next_frame_func| next_frame_func.call1((func.into_py(py),)))
+}
 
-    next_frame_func.call1((func.into_py(py),))
+#[cfg(test)]
+mod next_frame_tests {
+    use super::pyshinqlx_setup_fixture::*;
+
+    use crate::prelude::serial;
+
+    use rstest::rstest;
+
+    use pyo3::intern;
+    use pyo3::prelude::*;
+    use pyo3::types::PyBool;
+
+    #[rstest]
+    #[cfg_attr(miri, ignore)]
+    #[serial]
+    fn next_frame_enqueues_function_call(_pyshinqlx_setup: ()) {
+        Python::with_gil(|py| {
+            let result = py.run_bound(
+                r#"
+import shinqlx
+
+@shinqlx.next_frame
+def test_func():
+    pass
+
+test_func()
+"#,
+                None,
+                None,
+            );
+            assert!(result.is_ok());
+
+            let shinqlx_module = py
+                .import_bound(intern!(py, "shinqlx"))
+                .expect("this should not happen");
+            let next_frame_tasks = shinqlx_module
+                .getattr(intern!(py, "next_frame_tasks"))
+                .expect("this should not happen");
+            assert!(next_frame_tasks
+                .call_method0(intern!(py, "empty"))
+                .is_ok_and(|value| value
+                    .extract::<Bound<'_, PyBool>>()
+                    .is_ok_and(|bool_value| !bool_value.is_true())));
+            assert!(next_frame_tasks
+                .call_method0(intern!(py, "get_nowait"))
+                .is_ok());
+            assert!(next_frame_tasks
+                .call_method0(intern!(py, "empty"))
+                .is_ok_and(|value| value
+                    .extract::<Bound<'_, PyBool>>()
+                    .is_ok_and(|bool_value| bool_value.is_true())));
+        });
+    }
 }
 
 /// Delay a function call a certain amount of time.
@@ -1404,7 +1549,7 @@ def next_frame(func):
 ///         you can expect it to be called practically as soon as it expires.
 #[pyfunction]
 fn delay(py: Python<'_>, time: f32) -> PyResult<Bound<'_, PyAny>> {
-    let delay_func = PyModule::from_code_bound(
+    PyModule::from_code_bound(
         py,
         r#"
 from functools import wraps
@@ -1424,10 +1569,68 @@ def delay(time):
     "#,
         "",
         "",
-    )?
-    .getattr(intern!(py, "delay"))?;
+    )
+    .and_then(|delay_def| delay_def.getattr(intern!(py, "delay")))
+    .and_then(|delay_func| delay_func.call1((time.into_py(py),)))
+}
 
-    delay_func.call1((time.into_py(py),))
+#[cfg(test)]
+mod delay_tests {
+    use super::pyshinqlx_setup_fixture::*;
+
+    use crate::prelude::serial;
+
+    use pretty_assertions::assert_eq;
+    use rstest::rstest;
+
+    use pyo3::intern;
+    use pyo3::prelude::*;
+    use pyo3::types::PyBool;
+
+    #[rstest]
+    #[cfg_attr(miri, ignore)]
+    #[serial]
+    fn next_frame_enqueues_function_call(_pyshinqlx_setup: ()) {
+        Python::with_gil(|py| {
+            let result = py.run_bound(
+                r#"
+import shinqlx
+
+@shinqlx.delay(10)
+def test_func():
+    pass
+
+test_func()
+"#,
+                None,
+                None,
+            );
+            assert!(result.is_ok());
+
+            let shinqlx_module = py
+                .import_bound(intern!(py, "shinqlx"))
+                .expect("this should not happen");
+            let frame_tasks = shinqlx_module
+                .getattr(intern!(py, "frame_tasks"))
+                .expect("this should not happen");
+            assert!(frame_tasks
+                .call_method0(intern!(py, "empty"))
+                .is_ok_and(|value| value
+                    .extract::<Bound<'_, PyBool>>()
+                    .is_ok_and(|bool_value| !bool_value.is_true())));
+            let scheduler_queue = frame_tasks
+                .getattr("queue")
+                .expect("this should not happen");
+            assert_eq!(scheduler_queue.len().expect("this should not happen"), 1);
+            let queue_entry = scheduler_queue.get_item(0).expect("this should not happen");
+            let _ = frame_tasks.call_method1("cancel", (queue_entry,));
+            assert!(frame_tasks
+                .call_method0(intern!(py, "empty"))
+                .is_ok_and(|value| value
+                    .extract::<Bound<'_, PyBool>>()
+                    .is_ok_and(|bool_value| bool_value.is_true())));
+        });
+    }
 }
 
 /// Starts a thread with the function passed as its target. If a function decorated
@@ -1436,7 +1639,7 @@ def delay(time):
 #[pyfunction]
 #[pyo3(signature = (func, force = false), text_signature = "(func, force = false)")]
 fn thread(py: Python<'_>, func: Py<PyFunction>, force: bool) -> PyResult<Bound<'_, PyAny>> {
-    let thread_func = PyModule::from_code_bound(
+    PyModule::from_code_bound(
         py,
         r#"
 import threading
@@ -1464,10 +1667,9 @@ def thread(func, force=False):
         "#,
         "",
         "",
-    )?
-    .getattr(intern!(py, "thread"))?;
-
-    thread_func.call1((func.into_py(py), force.into_py(py)))
+    )
+    .and_then(|thread_def| thread_def.getattr(intern!(py, "thread")))
+    .and_then(|thread_func| thread_func.call1((func.into_py(py), force.into_py(py))))
 }
 
 /// Returns a :class:`datetime.timedelta` instance of the time since initialized.
@@ -2457,7 +2659,10 @@ fn register_handlers_module(m: &Bound<'_, PyModule>) -> PyResult<()> {
     let sched_module = m.py().import_bound("sched")?;
     m.add("frame_tasks", sched_module.call_method0("scheduler")?)?;
     let queue_module = m.py().import_bound("queue")?;
-    m.add("next_frame_tasks", queue_module.call_method0("Queue")?)?;
+    m.add(
+        "next_frame_tasks",
+        queue_module.call_method0("SimpleQueue")?,
+    )?;
 
     m.add_function(wrap_pyfunction!(handlers::handle_rcon, m)?)?;
     m.add_function(wrap_pyfunction!(handlers::handle_client_command, m)?)?;
