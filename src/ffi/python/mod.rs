@@ -1695,27 +1695,175 @@ fn uptime(py: Python<'_>) -> PyResult<Bound<'_, PyDelta>> {
     )
 }
 
+#[cfg(test)]
+mod uptime_tests {
+    use super::uptime;
+
+    use super::pyshinqlx_setup_fixture::*;
+
+    use crate::prelude::serial;
+    use rstest::rstest;
+
+    use crate::_INIT_TIME;
+    use pyo3::prelude::*;
+    use pyo3::types::PyDeltaAccess;
+
+    #[rstest]
+    #[cfg_attr(miri, ignore)]
+    #[serial]
+    fn uptime_returns_uptime(_pyshinqlx_setup: ()) {
+        let _ = _INIT_TIME.elapsed();
+
+        Python::with_gil(|py| {
+            let result = uptime(py);
+            assert!(
+                result.is_ok_and(|time_delta| time_delta.get_microseconds() > 0
+                    || time_delta.get_seconds() > 0
+                    || time_delta.get_days() > 0)
+            );
+        });
+    }
+}
+
 /// Returns the SteamID64 of the owner. This is set in the config.
 #[pyfunction]
 fn owner(py: Python<'_>) -> PyResult<Option<i64>> {
-    let Ok(Some(owner_cvar)) = pyshinqlx_get_cvar(py, "qlx_owner") else {
-        error!(target: "shinqlx", "Failed to parse the Owner Steam ID. Make sure it's in SteamID64 format.");
-        return Ok(None);
-    };
-
-    py.allow_threads(|| {
-        let Ok(steam_id) = owner_cvar.parse::<i64>() else {
-            error!(target: "shinqlx", "Failed to parse the Owner Steam ID. Make sure it's in SteamID64 format.");
-            return Ok(None);
-        };
-
-        if steam_id < 0 {
-            error!(target: "shinqlx", "Failed to parse the Owner Steam ID. Make sure it's in SteamID64 format.");
-            return Ok(None);
-        }
-
-        Ok(Some(steam_id))
+    pyshinqlx_get_cvar(py, "qlx_owner").map(|opt_value| {
+        py.allow_threads(|| {
+            let result = opt_value.and_then(|value| value.parse::<i64>().ok()).filter(|&int_value| int_value >= 0);
+            if result.is_none() {
+                error!(target: "shinqlx", "Failed to parse the Owner Steam ID. Make sure it's in SteamID64 format.");
+                return None;
+            }
+            result
+        })
     })
+}
+
+#[cfg(test)]
+mod owner_tests {
+    use super::owner;
+
+    use super::pyshinqlx_setup_fixture::*;
+
+    use crate::ffi::c::prelude::{cvar_t, CVar, CVarBuilder};
+    use crate::prelude::{serial, MockQuakeEngine};
+    use crate::MAIN_ENGINE;
+
+    use alloc::ffi::CString;
+    use core::ffi::c_char;
+
+    use mockall::predicate;
+    use rstest::rstest;
+
+    use pyo3::exceptions::PyEnvironmentError;
+    use pyo3::prelude::*;
+
+    #[rstest]
+    #[cfg_attr(miri, ignore)]
+    #[serial]
+    fn owner_with_no_main_engine(_pyshinqlx_setup: ()) {
+        MAIN_ENGINE.store(None);
+
+        Python::with_gil(|py| {
+            let result = owner(py);
+            assert!(result.is_err_and(|err| err.is_instance_of::<PyEnvironmentError>(py)));
+        });
+    }
+
+    #[rstest]
+    #[cfg_attr(miri, ignore)]
+    #[serial]
+    fn owner_with_no_cvar(_pyshinqlx_setup: ()) {
+        let mut mock_engine = MockQuakeEngine::new();
+        mock_engine
+            .expect_find_cvar()
+            .with(predicate::eq("qlx_owner"))
+            .returning(|_| None);
+        MAIN_ENGINE.store(Some(mock_engine.into()));
+
+        Python::with_gil(|py| {
+            let result = owner(py);
+            assert!(result.is_ok_and(|opt_value| opt_value.is_none()));
+        });
+    }
+
+    #[rstest]
+    #[cfg_attr(miri, ignore)]
+    #[serial]
+    fn owner_with_unparseable_cvar(_pyshinqlx_setup: ()) {
+        let cvar_string = CString::new("asdf").expect("this should not happen");
+
+        let mut mock_engine = MockQuakeEngine::new();
+        mock_engine
+            .expect_find_cvar()
+            .with(predicate::eq("qlx_owner"))
+            .returning(move |_| {
+                let mut raw_cvar = CVarBuilder::default()
+                    .string(cvar_string.as_ptr() as *mut c_char)
+                    .build()
+                    .expect("this should not happen");
+                CVar::try_from(&mut raw_cvar as *mut cvar_t).ok()
+            });
+        MAIN_ENGINE.store(Some(mock_engine.into()));
+
+        Python::with_gil(|py| {
+            let result = owner(py);
+            assert!(result.is_ok_and(|opt_value| opt_value.is_none()));
+        });
+    }
+
+    #[rstest]
+    #[cfg_attr(miri, ignore)]
+    #[serial]
+    fn owner_with_negative_cvar(_pyshinqlx_setup: ()) {
+        let cvar_string = CString::new("-42").expect("this should not happen");
+
+        let mut mock_engine = MockQuakeEngine::new();
+        mock_engine
+            .expect_find_cvar()
+            .with(predicate::eq("qlx_owner"))
+            .returning(move |_| {
+                let mut raw_cvar = CVarBuilder::default()
+                    .string(cvar_string.as_ptr() as *mut c_char)
+                    .build()
+                    .expect("this should not happen");
+                CVar::try_from(&mut raw_cvar as *mut cvar_t).ok()
+            });
+        MAIN_ENGINE.store(Some(mock_engine.into()));
+
+        Python::with_gil(|py| {
+            let result = owner(py);
+            assert!(result.is_ok_and(|opt_value| opt_value.is_none()));
+        });
+    }
+
+    #[rstest]
+    #[cfg_attr(miri, ignore)]
+    #[serial]
+    fn owner_with_parseable_cvar(_pyshinqlx_setup: ()) {
+        let cvar_string = CString::new("1234567890").expect("this should not happen");
+
+        let mut mock_engine = MockQuakeEngine::new();
+        mock_engine
+            .expect_find_cvar()
+            .with(predicate::eq("qlx_owner"))
+            .returning(move |_| {
+                let mut raw_cvar = CVarBuilder::default()
+                    .string(cvar_string.as_ptr() as *mut c_char)
+                    .build()
+                    .expect("this should not happen");
+                CVar::try_from(&mut raw_cvar as *mut cvar_t).ok()
+            });
+        MAIN_ENGINE.store(Some(mock_engine.into()));
+
+        Python::with_gil(|py| {
+            let result = owner(py);
+            assert!(
+                result.is_ok_and(|opt_value| opt_value.is_some_and(|value| value == 1234567890))
+            );
+        });
+    }
 }
 
 /// Returns the :class:`shinqlx.StatsListener` instance used to listen for stats.
