@@ -1876,26 +1876,33 @@ fn get_stats_listener<'py>(module: &Bound<'py, PyModule>) -> PyResult<Bound<'py,
 #[cfg(test)]
 mod stats_listener_tests {
     use super::get_stats_listener;
-    use mockall::predicate;
-    use std::ffi::{c_char, CString};
 
     use super::pyshinqlx_setup_fixture::*;
     use super::stats_listener::StatsListener;
 
+    use crate::ffi::c::prelude::{cvar_t, CVar, CVarBuilder};
+    use crate::prelude::{serial, MockQuakeEngine};
+    use crate::MAIN_ENGINE;
+
+    use alloc::ffi::CString;
+    use core::ffi::c_char;
+
+    use mockall::predicate;
     use rstest::rstest;
 
-    use crate::ffi::c::prelude::{cvar_t, CVar, CVarBuilder};
-    use crate::prelude::MockQuakeEngine;
-    use crate::MAIN_ENGINE;
     use pyo3::intern;
     use pyo3::prelude::*;
 
     #[rstest]
     #[cfg_attr(miri, ignore)]
+    #[serial]
     fn get_stats_listener_returns_none(_pyshinqlx_setup: ()) {
         Python::with_gil(|py| {
             let shinqlx_module = py
                 .import_bound(intern!(py, "shinqlx"))
+                .expect("this should not happen");
+            shinqlx_module
+                .setattr(intern!(py, "_stats"), py.None())
                 .expect("this should not happen");
 
             let result = get_stats_listener(&shinqlx_module);
@@ -1905,6 +1912,7 @@ mod stats_listener_tests {
 
     #[rstest]
     #[cfg_attr(miri, ignore)]
+    #[serial]
     fn get_stats_listener_returns_stats_listener(_pyshinqlx_setup: ()) {
         let mut mock_engine = MockQuakeEngine::new();
         let cvar_string = CString::new("0").expect("this should not happen");
