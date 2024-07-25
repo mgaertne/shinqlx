@@ -696,16 +696,16 @@ PlayerStatsStats = TypedDict(
     "PlayerStatsStats", {"DATA": PlayerStatsEntry, "TYPE": Literal["PLAYER_STATS"]}
 )
 StatsData = (
-        PlayerKillStats
-        | PlayerDeathStats
-        | PlayerMedalStats
-        | RoundOverStats
-        | PlayerConnectStats
-        | PlayerDisconnectStats
-        | PlayerSwitchTeamStats
-        | MatchStartedStats
-        | MatchReportStats
-        | PlayerStatsStats
+    PlayerKillStats
+    | PlayerDeathStats
+    | PlayerMedalStats
+    | RoundOverStats
+    | PlayerConnectStats
+    | PlayerDisconnectStats
+    | PlayerSwitchTeamStats
+    | MatchStartedStats
+    | MatchReportStats
+    | PlayerStatsStats
 )
 
 __all__ = [
