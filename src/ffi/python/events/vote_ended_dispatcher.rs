@@ -109,6 +109,7 @@ mod vote_ended_dispatcher_tests {
 
     #[rstest]
     #[cfg_attr(miri, ignore)]
+    #[serial]
     fn dispatch_with_no_handlers_registered(_pyshinqlx_setup: ()) {
         let mut mock_engine = MockQuakeEngine::new();
         let cvar_string = CString::new("1").expect("this should not happen");
