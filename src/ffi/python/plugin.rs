@@ -981,7 +981,7 @@ impl Plugin {
 
     #[classmethod]
     fn teamsize(cls: &Bound<'_, PyType>, size: i32) -> PyResult<()> {
-        set_teamsize(cls.py(), size)
+        cls.py().allow_threads(|| set_teamsize(size))
     }
 
     #[classmethod]
@@ -1133,13 +1133,13 @@ impl Plugin {
     #[classmethod]
     #[pyo3(signature = (team = None), text_signature = "(team = None)")]
     fn lock(cls: &Bound<'_, PyType>, team: Option<&str>) -> PyResult<()> {
-        lock(cls.py(), team)
+        cls.py().allow_threads(|| lock(team))
     }
 
     #[classmethod]
     #[pyo3(signature = (team = None), text_signature = "(team = None)")]
     fn unlock(cls: &Bound<'_, PyType>, team: Option<&str>) -> PyResult<()> {
-        unlock(cls.py(), team)
+        cls.py().allow_threads(|| unlock(team))
     }
 
     #[classmethod]
@@ -5378,7 +5378,8 @@ def handler():
     #[cfg_attr(miri, ignore)]
     #[serial]
     fn lock_with_invalid_team(_pyshinqlx_setup: ()) {
-        MAIN_ENGINE.store(None);
+        let mock_engine = MockQuakeEngine::new();
+        MAIN_ENGINE.store(Some(mock_engine.into()));
 
         Python::with_gil(|py| {
             let result = Plugin::lock(&py.get_type_bound::<Plugin>(), Some("invalid_team"));
@@ -5427,7 +5428,8 @@ def handler():
     #[cfg_attr(miri, ignore)]
     #[serial]
     fn unlock_with_invalid_team(_pyshinqlx_setup: ()) {
-        MAIN_ENGINE.store(None);
+        let mock_engine = MockQuakeEngine::new();
+        MAIN_ENGINE.store(Some(mock_engine.into()));
 
         Python::with_gil(|py| {
             let result = Plugin::unlock(&py.get_type_bound::<Plugin>(), Some("invalid_team"));
