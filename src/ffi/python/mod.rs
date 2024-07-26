@@ -127,7 +127,7 @@ pub(crate) mod prelude {
 }
 
 use crate::ffi::c::prelude::*;
-use crate::quake_live_engine::{FindCVar, GetConfigstring};
+use crate::quake_live_engine::{ConsoleCommand, FindCVar, GetCVar, GetConfigstring, SetCVarForced};
 use crate::MAIN_ENGINE;
 use crate::_INIT_TIME;
 use prelude::*;
@@ -136,6 +136,7 @@ use commands::CommandPriorities;
 
 use arc_swap::ArcSwapOption;
 use core::{
+    ffi::c_int,
     ops::Deref,
     str::FromStr,
     sync::atomic::{AtomicBool, AtomicU64, Ordering},
@@ -455,8 +456,8 @@ pub(crate) fn client_id(
         }
     }
 
-    if let Ok(player) = name.extract::<Player>(py) {
-        return Some(player.id);
+    if let Ok(player) = name.extract::<Bound<'_, Player>>(py) {
+        return Some(player.borrow().id);
     }
 
     let all_players = player_list.unwrap_or_else(|| {
@@ -481,38 +482,75 @@ pub(crate) fn client_id(
     None
 }
 
-pub(crate) fn set_teamsize(py: Python<'_>, value: i32) -> PyResult<()> {
+pub(crate) fn set_teamsize(value: i32) -> PyResult<()> {
     let value_str = format!("{}", value);
-    pyshinqlx_set_cvar(py, "teamsize", &value_str, None)?;
-    Ok(())
+    MAIN_ENGINE.load().as_ref().map_or(
+        Err(PyEnvironmentError::new_err(
+            "main quake live engine not set",
+        )),
+        |main_engine| {
+            main_engine
+                .find_cvar("teamsize")
+                .as_ref()
+                .map_or_else(
+                    || {
+                        main_engine.get_cvar("teamsize", &value_str, None::<c_int>);
+                        Ok(true)
+                    },
+                    |_| {
+                        main_engine.set_cvar_forced("teamsize", &value_str, false);
+                        Ok(false)
+                    },
+                )
+                .map(|_| ())
+        },
+    )
 }
 
-pub(crate) fn lock(py: Python<'_>, team: Option<&str>) -> PyResult<()> {
-    match team {
-        None => pyshinqlx_console_command(py, "lock"),
-        Some(team_name) => {
-            if !["free", "red", "blue", "spectator"].contains(&&*team_name.to_lowercase()) {
-                Err(PyValueError::new_err("Invalid team."))
-            } else {
-                let lock_cmd = format!("lock {}", team_name.to_lowercase());
-                pyshinqlx_console_command(py, &lock_cmd)
+pub(crate) fn lock(team: Option<&str>) -> PyResult<()> {
+    MAIN_ENGINE.load().as_ref().map_or(
+        Err(PyEnvironmentError::new_err(
+            "main quake live engine not set",
+        )),
+        |main_engine| match team {
+            None => {
+                main_engine.execute_console_command("lock");
+                Ok(())
             }
-        }
-    }
+            Some(team_name) => {
+                if !["free", "red", "blue", "spectator"].contains(&&*team_name.to_lowercase()) {
+                    Err(PyValueError::new_err("Invalid team."))
+                } else {
+                    let lock_cmd = format!("lock {}", team_name.to_lowercase());
+                    main_engine.execute_console_command(&lock_cmd);
+                    Ok(())
+                }
+            }
+        },
+    )
 }
 
-pub(crate) fn unlock(py: Python<'_>, team: Option<&str>) -> PyResult<()> {
-    match team {
-        None => pyshinqlx_console_command(py, "unlock"),
-        Some(team_name) => {
-            if !["free", "red", "blue", "spectator"].contains(&&*team_name.to_lowercase()) {
-                Err(PyValueError::new_err("Invalid team."))
-            } else {
-                let unlock_cmd = format!("unlock {}", team_name.to_lowercase());
-                pyshinqlx_console_command(py, &unlock_cmd)
+pub(crate) fn unlock(team: Option<&str>) -> PyResult<()> {
+    MAIN_ENGINE.load().as_ref().map_or(
+        Err(PyEnvironmentError::new_err(
+            "main quake live engine not set",
+        )),
+        |main_engine| match team {
+            None => {
+                main_engine.execute_console_command("unlock");
+                Ok(())
             }
-        }
-    }
+            Some(team_name) => {
+                if !["free", "red", "blue", "spectator"].contains(&&*team_name.to_lowercase()) {
+                    Err(PyValueError::new_err("Invalid team."))
+                } else {
+                    let lock_cmd = format!("unlock {}", team_name.to_lowercase());
+                    main_engine.execute_console_command(&lock_cmd);
+                    Ok(())
+                }
+            }
+        },
+    )
 }
 
 pub(crate) fn put(py: Python<'_>, player: PyObject, team: &str) -> PyResult<()> {
