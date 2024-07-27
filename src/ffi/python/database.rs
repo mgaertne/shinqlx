@@ -257,7 +257,7 @@ impl Redis {
             ))
         }?;
 
-        if Some(steam_id) == owner(slf_.py())? {
+        if Some(steam_id) == owner()? {
             return Ok(5);
         }
 
@@ -846,7 +846,7 @@ impl Redis {
             ))
         }?;
 
-        if Some(steam_id) == owner(py)? {
+        if Some(steam_id) == owner()? {
             return Ok(5);
         }
 

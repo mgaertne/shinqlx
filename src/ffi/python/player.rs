@@ -7529,7 +7529,7 @@ impl RconDummyPlayer {
 
     #[getter(steam_id)]
     fn get_steam_id(&self, py: Python<'_>) -> PyResult<i64> {
-        owner(py).map(|opt_value| opt_value.unwrap_or_default())
+        py.allow_threads(|| owner().map(|opt_value| opt_value.unwrap_or_default()))
     }
 
     #[getter(channel)]
