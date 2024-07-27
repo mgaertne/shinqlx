@@ -1,5 +1,5 @@
 use super::prelude::*;
-use super::{owner, CONSOLE_CHANNEL};
+use super::{console_command, owner, CONSOLE_CHANNEL};
 
 use crate::ffi::c::prelude::*;
 use crate::quake_live_engine::{GetConfigstring, SetConfigstring};
@@ -349,12 +349,14 @@ impl Player {
 
     #[setter(team)]
     fn set_team(&mut self, py: Python<'_>, new_team: String) -> PyResult<()> {
-        if !["free", "red", "blue", "spectator"].contains(&&*new_team.to_lowercase()) {
-            return Err(PyValueError::new_err("Invalid team."));
-        }
+        py.allow_threads(|| {
+            if !["free", "red", "blue", "spectator"].contains(&&*new_team.to_lowercase()) {
+                return Err(PyValueError::new_err("Invalid team."));
+            }
 
-        let team_change_cmd = format!("put {} {}", self.id, new_team.to_lowercase());
-        pyshinqlx_console_command(py, &team_change_cmd)
+            let team_change_cmd = format!("put {} {}", self.id, new_team.to_lowercase());
+            console_command(&team_change_cmd)
+        })
     }
 
     #[getter(colors)]
@@ -1219,52 +1221,70 @@ impl Player {
     }
 
     fn ban(&self, py: Python<'_>) -> PyResult<()> {
-        let ban_cmd = format!("ban {}", self.id);
-        pyshinqlx_console_command(py, &ban_cmd)
+        py.allow_threads(|| {
+            let ban_cmd = format!("ban {}", self.id);
+            console_command(&ban_cmd)
+        })
     }
 
     fn tempban(&self, py: Python<'_>) -> PyResult<()> {
-        let tempban_cmd = format!("tempban {}", self.id);
-        pyshinqlx_console_command(py, &tempban_cmd)
+        py.allow_threads(|| {
+            let tempban_cmd = format!("tempban {}", self.id);
+            console_command(&tempban_cmd)
+        })
     }
 
     fn addadmin(&self, py: Python<'_>) -> PyResult<()> {
-        let addadmin_cmd = format!("addadmin {}", self.id);
-        pyshinqlx_console_command(py, &addadmin_cmd)
+        py.allow_threads(|| {
+            let addadmin_cmd = format!("addadmin {}", self.id);
+            console_command(&addadmin_cmd)
+        })
     }
 
     fn addmod(&self, py: Python<'_>) -> PyResult<()> {
-        let addmod_cmd = format!("addmod {}", self.id);
-        pyshinqlx_console_command(py, &addmod_cmd)
+        py.allow_threads(|| {
+            let addmod_cmd = format!("addmod {}", self.id);
+            console_command(&addmod_cmd)
+        })
     }
 
     fn demote(&self, py: Python<'_>) -> PyResult<()> {
-        let demote_cmd = format!("demote {}", self.id);
-        pyshinqlx_console_command(py, &demote_cmd)
+        py.allow_threads(|| {
+            let demote_cmd = format!("demote {}", self.id);
+            console_command(&demote_cmd)
+        })
     }
 
     fn mute(&self, py: Python<'_>) -> PyResult<()> {
-        let mute_cmd = format!("mute {}", self.id);
-        pyshinqlx_console_command(py, &mute_cmd)
+        py.allow_threads(|| {
+            let mute_cmd = format!("mute {}", self.id);
+            console_command(&mute_cmd)
+        })
     }
 
     fn unmute(&self, py: Python<'_>) -> PyResult<()> {
-        let unmute_cmd = format!("unmute {}", self.id);
-        pyshinqlx_console_command(py, &unmute_cmd)
+        py.allow_threads(|| {
+            let unmute_cmd = format!("unmute {}", self.id);
+            console_command(&unmute_cmd)
+        })
     }
 
     pub(crate) fn put(&self, py: Python<'_>, team: &str) -> PyResult<()> {
-        if !["free", "red", "blue", "spectator"].contains(&&*team.to_lowercase()) {
-            return Err(PyValueError::new_err("Invalid team."));
-        }
+        py.allow_threads(|| {
+            if !["free", "red", "blue", "spectator"].contains(&&*team.to_lowercase()) {
+                return Err(PyValueError::new_err("Invalid team."));
+            }
 
-        let team_change_cmd = format!("put {} {}", self.id, team.to_lowercase());
-        pyshinqlx_console_command(py, &team_change_cmd)
+            let team_change_cmd = format!("put {} {}", self.id, team.to_lowercase());
+            console_command(&team_change_cmd)
+        })
     }
 
     fn addscore(&self, py: Python<'_>, score: i32) -> PyResult<()> {
-        let addscore_cmd = format!("addscore {} {}", self.id, score);
-        pyshinqlx_console_command(py, &addscore_cmd)
+        py.allow_threads(|| {
+            let addscore_cmd = format!("addscore {} {}", self.id, score);
+            console_command(&addscore_cmd)
+        })
     }
 
     fn switch(&self, py: Python<'_>, other_player: Player) -> PyResult<()> {
@@ -1281,13 +1301,17 @@ impl Player {
 
     #[pyo3(signature = (damage = 0), text_signature = "(damage = 0)")]
     fn slap(&self, py: Python<'_>, damage: i32) -> PyResult<()> {
-        let slap_cmd = format!("slap {} {}", self.id, damage);
-        pyshinqlx_console_command(py, &slap_cmd)
+        py.allow_threads(|| {
+            let slap_cmd = format!("slap {} {}", self.id, damage);
+            console_command(&slap_cmd)
+        })
     }
 
     fn slay(&self, py: Python<'_>) -> PyResult<()> {
-        let slay_cmd = format!("slay {}", self.id);
-        pyshinqlx_console_command(py, &slay_cmd)
+        py.allow_threads(|| {
+            let slay_cmd = format!("slay {}", self.id);
+            console_command(&slay_cmd)
+        })
     }
 
     fn slay_with_mod(&self, py: Python<'_>, means_of_death: i32) -> PyResult<()> {
