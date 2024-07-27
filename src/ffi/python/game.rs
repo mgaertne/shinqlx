@@ -202,8 +202,10 @@ impl Game {
 
     #[setter(map)]
     fn set_map(&mut self, py: Python<'_>, value: &str) -> PyResult<()> {
-        let mapchange_command = format!("map {}", value);
-        pyshinqlx_console_command(py, &mapchange_command)
+        py.allow_threads(|| {
+            let mapchange_command = format!("map {}", value);
+            console_command(&mapchange_command)
+        })
     }
 
     /// The full name of the map. Ex.: ``Longest Yard``.
@@ -287,8 +289,11 @@ impl Game {
 
     #[setter(factory)]
     fn set_factory(&mut self, py: Python<'_>, value: String) -> PyResult<()> {
-        let mapchange_command = format!("map {} {}", self.get_map(py)?, value);
-        pyshinqlx_console_command(py, &mapchange_command)
+        let mapname = self.get_map(py)?;
+        py.allow_threads(|| {
+            let mapchange_command = format!("map {mapname} {value}");
+            console_command(&mapchange_command)
+        })
     }
 
     #[getter(factory_title)]
@@ -527,32 +532,32 @@ impl Game {
 
     #[classmethod]
     pub(crate) fn shuffle(cls: &Bound<'_, PyType>) -> PyResult<()> {
-        pyshinqlx_console_command(cls.py(), "forceshuffle")
+        cls.py().allow_threads(|| console_command("forceshuffle"))
     }
 
     #[classmethod]
     fn timeout(cls: &Bound<'_, PyType>) -> PyResult<()> {
-        pyshinqlx_console_command(cls.py(), "timeout")
+        cls.py().allow_threads(|| console_command("timeout"))
     }
 
     #[classmethod]
     fn timein(cls: &Bound<'_, PyType>) -> PyResult<()> {
-        pyshinqlx_console_command(cls.py(), "timein")
+        cls.py().allow_threads(|| console_command("timein"))
     }
 
     #[classmethod]
     fn allready(cls: &Bound<'_, PyType>) -> PyResult<()> {
-        pyshinqlx_console_command(cls.py(), "allready")
+        cls.py().allow_threads(|| console_command("allready"))
     }
 
     #[classmethod]
     fn pause(cls: &Bound<'_, PyType>) -> PyResult<()> {
-        pyshinqlx_console_command(cls.py(), "pause")
+        cls.py().allow_threads(|| console_command("pause"))
     }
 
     #[classmethod]
     fn unpause(cls: &Bound<'_, PyType>) -> PyResult<()> {
-        pyshinqlx_console_command(cls.py(), "unpause")
+        cls.py().allow_threads(|| console_command("unpause"))
     }
 
     #[classmethod]
@@ -619,7 +624,7 @@ impl Game {
 
     #[classmethod]
     fn abort(cls: &Bound<'_, PyType>) -> PyResult<()> {
-        pyshinqlx_console_command(cls.py(), "map_restart")
+        cls.py().allow_threads(|| console_command("map_restart"))
     }
 
     #[classmethod]

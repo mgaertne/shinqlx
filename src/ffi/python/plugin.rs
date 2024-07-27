@@ -1002,7 +1002,7 @@ impl Plugin {
 
     #[classmethod]
     fn shuffle(cls: &Bound<'_, PyType>) -> PyResult<()> {
-        pyshinqlx_console_command(cls.py(), "forceshuffle")
+        cls.py().allow_threads(|| console_command("forceshuffle"))
     }
 
     #[classmethod]
@@ -1011,11 +1011,13 @@ impl Plugin {
     #[classmethod]
     #[pyo3(signature = (new_map, factory = None), text_signature = "(new_map, factory = None)")]
     fn change_map(cls: &Bound<'_, PyType>, new_map: &str, factory: Option<&str>) -> PyResult<()> {
-        let mapchange_command = match factory {
-            None => format!("map {}", new_map),
-            Some(game_factory) => format!("map {} {}", new_map, game_factory),
-        };
-        pyshinqlx_console_command(cls.py(), &mapchange_command)
+        cls.py().allow_threads(|| {
+            let mapchange_command = match factory {
+                None => format!("map {}", new_map),
+                Some(game_factory) => format!("map {} {}", new_map, game_factory),
+            };
+            console_command(&mapchange_command)
+        })
     }
 
     #[classmethod]
@@ -1087,47 +1089,53 @@ impl Plugin {
     #[classmethod]
     #[pyo3(signature = (player, damage = 0), text_signature = "(player, damage = 0)")]
     fn slap(cls: &Bound<'_, PyType>, player: PyObject, damage: i32) -> PyResult<()> {
-        let Some(client_id) = client_id(cls.py(), player, None) else {
-            return Err(PyValueError::new_err("Invalid player."));
-        };
-
-        let slap_cmd = format!("slap {client_id} {damage}");
-        pyshinqlx_console_command(cls.py(), &slap_cmd).map(|_| ())
+        client_id(cls.py(), player, None).map_or(
+            Err(PyValueError::new_err("Invalid player.")),
+            |client_id| {
+                cls.py().allow_threads(|| {
+                    let slap_cmd = format!("slap {client_id} {damage}");
+                    console_command(&slap_cmd).map(|_| ())
+                })
+            },
+        )
     }
 
     #[classmethod]
     fn slay(cls: &Bound<'_, PyType>, player: PyObject) -> PyResult<()> {
-        let Some(client_id) = client_id(cls.py(), player, None) else {
-            return Err(PyValueError::new_err("Invalid player."));
-        };
-
-        let slay_cmd = format!("slay {client_id}");
-        pyshinqlx_console_command(cls.py(), &slay_cmd).map(|_| ())
+        client_id(cls.py(), player, None).map_or(
+            Err(PyValueError::new_err("Invalid player.")),
+            |client_id| {
+                cls.py().allow_threads(|| {
+                    let slay_cmd = format!("slay {client_id}");
+                    console_command(&slay_cmd).map(|_| ())
+                })
+            },
+        )
     }
 
     #[classmethod]
     fn timeout(cls: &Bound<'_, PyType>) -> PyResult<()> {
-        pyshinqlx_console_command(cls.py(), "timeout")
+        cls.py().allow_threads(|| console_command("timeout"))
     }
 
     #[classmethod]
     fn timein(cls: &Bound<'_, PyType>) -> PyResult<()> {
-        pyshinqlx_console_command(cls.py(), "timein")
+        cls.py().allow_threads(|| console_command("timein"))
     }
 
     #[classmethod]
     fn allready(cls: &Bound<'_, PyType>) -> PyResult<()> {
-        pyshinqlx_console_command(cls.py(), "allready")
+        cls.py().allow_threads(|| console_command("allready"))
     }
 
     #[classmethod]
     fn pause(cls: &Bound<'_, PyType>) -> PyResult<()> {
-        pyshinqlx_console_command(cls.py(), "pause")
+        cls.py().allow_threads(|| console_command("pause"))
     }
 
     #[classmethod]
     fn unpause(cls: &Bound<'_, PyType>) -> PyResult<()> {
-        pyshinqlx_console_command(cls.py(), "unpause")
+        cls.py().allow_threads(|| console_command("unpause"))
     }
 
     #[classmethod]
@@ -1194,7 +1202,7 @@ impl Plugin {
 
     #[classmethod]
     fn abort(cls: &Bound<'_, PyType>) -> PyResult<()> {
-        pyshinqlx_console_command(cls.py(), "map_restart")
+        cls.py().allow_threads(|| console_command("map_restart"))
     }
 
     #[classmethod]
