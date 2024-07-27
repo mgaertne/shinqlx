@@ -1,15 +1,14 @@
 use super::prelude::*;
-use super::{owner, pyshinqlx_get_logger, PythonReturnCodes, EVENT_DISPATCHERS};
+use super::{get_cvar, owner, pyshinqlx_get_logger, PythonReturnCodes, EVENT_DISPATCHERS};
 
 use crate::quake_live_engine::FindCVar;
 use crate::MAIN_ENGINE;
 
 use pyo3::prelude::*;
-use pyo3::types::PyBool;
 use pyo3::{
     exceptions::{PyEnvironmentError, PyKeyError, PyValueError},
     intern,
-    types::{IntoPyDict, PyList, PyTuple},
+    types::{IntoPyDict, PyBool, PyList, PyTuple},
     PyTraverseError, PyVisit,
 };
 
@@ -246,7 +245,7 @@ impl Command {
                 "qlx_ccmd_perm_{}",
                 self.name.first().unwrap_or(&"invalid".to_string())
             );
-            pyshinqlx_get_cvar(py, &client_cmd_permission_cvar)
+            get_cvar(&client_cmd_permission_cvar)
                 .unwrap_or_default()
                 .and_then(|value| value.parse::<i32>().ok())
                 .unwrap_or(self.client_cmd_perm)
@@ -255,7 +254,7 @@ impl Command {
                 "qlx_perm_{}",
                 self.name.first().unwrap_or(&"invalid".to_string())
             );
-            let configured_cmd_permission = pyshinqlx_get_cvar(py, &cmd_permission_cvar);
+            let configured_cmd_permission = get_cvar(&cmd_permission_cvar);
             configured_cmd_permission
                 .unwrap_or_default()
                 .and_then(|value| value.parse::<i32>().ok())

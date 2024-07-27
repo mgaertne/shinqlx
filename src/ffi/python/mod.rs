@@ -485,6 +485,19 @@ pub(crate) fn client_id(
     None
 }
 
+fn get_cvar(cvar: &str) -> PyResult<Option<String>> {
+    MAIN_ENGINE.load().as_ref().map_or(
+        Err(PyEnvironmentError::new_err(
+            "main quake live engine not set",
+        )),
+        |main_engine| {
+            Ok(main_engine
+                .find_cvar(cvar)
+                .map(|cvar_result| cvar_result.get_string().into()))
+        },
+    )
+}
+
 fn set_cvar(cvar: &str, value: &str, flags: Option<i32>) -> PyResult<bool> {
     MAIN_ENGINE.load().as_ref().map_or(
         Err(PyEnvironmentError::new_err(
@@ -698,38 +711,53 @@ fn is_vote_active() -> bool {
 #[pyfunction]
 #[pyo3(pass_module)]
 fn set_map_subtitles(module: &Bound<'_, PyModule>) -> PyResult<()> {
-    get_configstring(CS_MESSAGE as u16)
+    module
+        .py()
+        .allow_threads(|| get_configstring(CS_MESSAGE as u16))
         .and_then(|map_title| module.setattr(intern!(module.py(), "_map_title"), map_title))?;
 
-    get_configstring(CS_AUTHOR as u16).and_then(|mut map_subtitle1| {
-        module.setattr(intern!(module.py(), "_map_subtitle1"), &map_subtitle1)?;
+    module
+        .py()
+        .allow_threads(|| get_configstring(CS_AUTHOR as u16))
+        .and_then(|mut map_subtitle1| {
+            module.setattr(intern!(module.py(), "_map_subtitle1"), &map_subtitle1)?;
 
-        if !map_subtitle1.is_empty() {
-            map_subtitle1.push_str(" - ");
-        }
+            module.py().allow_threads(|| {
+                if !map_subtitle1.is_empty() {
+                    map_subtitle1.push_str(" - ");
+                }
 
-        map_subtitle1.push_str("Running shinqlx ^6v");
-        map_subtitle1.push_str(env!("SHINQLX_VERSION"));
-        map_subtitle1.push_str("^7 with plugins ^6");
-        let plugins_version = module
-            .getattr(intern!(module.py(), "__plugins_version__"))
-            .and_then(|value| value.extract::<String>())
-            .unwrap_or("NOT_SET".to_string());
-        map_subtitle1.push_str(&plugins_version);
-        map_subtitle1.push_str("^7.");
+                map_subtitle1.push_str("Running shinqlx ^6v");
+                map_subtitle1.push_str(env!("SHINQLX_VERSION"));
+                map_subtitle1.push_str("^7 with plugins ^6");
+            });
+            let plugins_version = module
+                .getattr(intern!(module.py(), "__plugins_version__"))
+                .and_then(|value| value.extract::<String>())
+                .unwrap_or("NOT_SET".to_string());
+            module.py().allow_threads(|| {
+                map_subtitle1.push_str(&plugins_version);
+                map_subtitle1.push_str("^7.");
 
-        set_configstring(CS_AUTHOR as u16, &map_subtitle1)
-    })?;
+                set_configstring(CS_AUTHOR as u16, &map_subtitle1)
+            })
+        })?;
 
-    get_configstring(CS_AUTHOR2 as u16).and_then(|mut map_subtitle2| {
-        module.setattr(intern!(module.py(), "_map_subtitle2"), &map_subtitle2)?;
+    module
+        .py()
+        .allow_threads(|| get_configstring(CS_AUTHOR2 as u16))
+        .and_then(|mut map_subtitle2| {
+            module.setattr(intern!(module.py(), "_map_subtitle2"), &map_subtitle2)?;
 
-        if !map_subtitle2.is_empty() {
-            map_subtitle2.push_str(" - ");
-        }
-        map_subtitle2.push_str("Check ^6https://github.com/mgaertne/shinqlx^7 for more details.");
-        set_configstring(CS_AUTHOR2 as u16, &map_subtitle2)
-    })
+            module.py().allow_threads(|| {
+                if !map_subtitle2.is_empty() {
+                    map_subtitle2.push_str(" - ");
+                }
+                map_subtitle2
+                    .push_str("Check ^6https://github.com/mgaertne/shinqlx^7 for more details.");
+                set_configstring(CS_AUTHOR2 as u16, &map_subtitle2)
+            })
+        })
 }
 
 #[cfg(test)]
@@ -906,13 +934,13 @@ fn get_logger_name(py: Python<'_>, plugin: Option<PyObject>) -> String {
         req_plugin
             .bind(py)
             .str()
-            .ok()
             .map(|plugin_name| plugin_name.to_string())
+            .ok()
     });
     py.allow_threads(|| {
-        opt_plugin_name
-            .map(|plugin_name| format!("shinqlx.{plugin_name}"))
-            .unwrap_or("shinqlx".to_string())
+        opt_plugin_name.map_or("shinqlx".into(), |plugin_name| {
+            format!("shinqlx.{plugin_name}")
+        })
     })
 }
 
@@ -938,16 +966,15 @@ fn pyshinqlx_configure_logger(py: Python<'_>) -> PyResult<()> {
         |main_engine| {
             let homepath = main_engine
                 .find_cvar("fs_homepath")
-                .map(|homepath_cvar| homepath_cvar.get_string().to_string())
-                .unwrap_or(".".into());
+                .map_or(".".into(), |homepath_cvar| {
+                    homepath_cvar.get_string().to_string()
+                });
             let num_max_logs = main_engine
                 .find_cvar("qlx_logs")
-                .map(|max_logs_cvar| max_logs_cvar.get_integer())
-                .unwrap_or_default();
+                .map_or(0, |max_logs_cvar| max_logs_cvar.get_integer());
             let max_logsize = main_engine
                 .find_cvar("qlx_logsSize")
-                .map(|max_logsize_cvar| max_logsize_cvar.get_integer())
-                .unwrap_or_default();
+                .map_or(0, |max_logsize_cvar| max_logsize_cvar.get_integer());
             Ok((homepath, num_max_logs, max_logsize))
         },
     )?;
@@ -1788,8 +1815,8 @@ mod uptime_tests {
 /// Returns the SteamID64 of the owner. This is set in the config.
 #[pyfunction]
 fn owner(py: Python<'_>) -> PyResult<Option<i64>> {
-    pyshinqlx_get_cvar(py, "qlx_owner").map(|opt_value| {
-        py.allow_threads(|| {
+    py.allow_threads(|| {
+        get_cvar("qlx_owner").map(|opt_value| {
             let result = opt_value.and_then(|value| value.parse::<i64>().ok()).filter(|&int_value| int_value >= 0);
             if result.is_none() {
                 error!(target: "shinqlx", "Failed to parse the Owner Steam ID. Make sure it's in SteamID64 format.");

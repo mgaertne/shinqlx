@@ -1,32 +1,20 @@
 use crate::ffi::python::prelude::*;
-use crate::quake_live_engine::FindCVar;
-use crate::MAIN_ENGINE;
 
-use pyo3::exceptions::PyEnvironmentError;
+use crate::ffi::python::get_cvar;
 
 /// Gets a cvar.
 #[pyfunction]
 #[pyo3(name = "get_cvar")]
 pub(crate) fn pyshinqlx_get_cvar(py: Python<'_>, cvar: &str) -> PyResult<Option<String>> {
-    py.allow_threads(|| {
-        let Some(ref main_engine) = *MAIN_ENGINE.load() else {
-            return Err(PyEnvironmentError::new_err(
-                "main quake live engine not set",
-            ));
-        };
-
-        Ok(main_engine
-            .find_cvar(cvar)
-            .map(|cvar_result| cvar_result.get_string().into()))
-    })
+    py.allow_threads(|| get_cvar(cvar))
 }
 
 #[cfg(test)]
 mod get_cvar_tests {
-    use super::MAIN_ENGINE;
     use crate::ffi::c::prelude::*;
     use crate::ffi::python::prelude::*;
     use crate::prelude::*;
+    use crate::MAIN_ENGINE;
 
     use alloc::ffi::CString;
     use core::ffi::c_char;
