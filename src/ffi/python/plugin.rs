@@ -1,11 +1,11 @@
 use super::prelude::*;
-
 use super::{
-    addadmin, addmod, addscore, addteamscore, ban, client_id, commands::CommandPriorities, demote,
-    is_vote_active, lock, mute, opsay, put, pyshinqlx_get_logger, set_teamsize, tempban, unban,
-    unlock, unmute, BLUE_TEAM_CHAT_CHANNEL, CHAT_CHANNEL, COMMANDS, CONSOLE_CHANNEL,
-    EVENT_DISPATCHERS, RED_TEAM_CHAT_CHANNEL,
+    addadmin, addmod, addscore, addteamscore, ban, client_id, commands::CommandPriorities,
+    console_command, demote, is_vote_active, lock, mute, opsay, put, pyshinqlx_get_logger,
+    set_teamsize, tempban, unban, unlock, unmute, BLUE_TEAM_CHAT_CHANNEL, CHAT_CHANNEL, COMMANDS,
+    CONSOLE_CHANNEL, EVENT_DISPATCHERS, RED_TEAM_CHAT_CHANNEL,
 };
+
 #[cfg(test)]
 use crate::hooks::mock_hooks::shinqlx_com_printf;
 #[cfg(not(test))]
@@ -1174,7 +1174,7 @@ impl Plugin {
 
     #[classmethod]
     fn opsay(cls: &Bound<'_, PyType>, msg: &str) -> PyResult<()> {
-        opsay(cls.py(), msg)
+        cls.py().allow_threads(|| opsay(msg))
     }
 
     #[classmethod]
@@ -1204,13 +1204,15 @@ impl Plugin {
 
     #[classmethod]
     fn addteamscore(cls: &Bound<'_, PyType>, team: &str, score: i32) -> PyResult<()> {
-        addteamscore(cls.py(), team, score)
+        cls.py().allow_threads(|| addteamscore(team, score))
     }
 
     #[classmethod]
     fn setmatchtime(cls: &Bound<'_, PyType>, time: i32) -> PyResult<()> {
-        let setmatchtime_cmd = format!("setmatchtime {}", time);
-        pyshinqlx_console_command(cls.py(), &setmatchtime_cmd)
+        cls.py().allow_threads(|| {
+            let setmatchtime_cmd = format!("setmatchtime {}", time);
+            console_command(&setmatchtime_cmd)
+        })
     }
 }
 

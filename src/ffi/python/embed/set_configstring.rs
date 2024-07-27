@@ -1,32 +1,16 @@
-use crate::ffi::c::prelude::*;
 use crate::ffi::python::prelude::*;
-#[cfg(test)]
-use crate::hooks::mock_hooks::shinqlx_set_configstring;
-#[cfg(not(test))]
-use crate::hooks::shinqlx_set_configstring;
 
-use pyo3::exceptions::PyValueError;
+use crate::ffi::python::set_configstring;
 
 /// Sets a configstring and sends it to all the players on the server.
 #[pyfunction]
 #[pyo3(name = "set_configstring")]
 pub(crate) fn pyshinqlx_set_configstring(
     py: Python<'_>,
-    config_id: u32,
+    config_id: u16,
     value: &str,
 ) -> PyResult<()> {
-    py.allow_threads(|| {
-        if !(0..MAX_CONFIGSTRINGS).contains(&config_id) {
-            return Err(PyValueError::new_err(format!(
-                "index needs to be a number from 0 to {}.",
-                MAX_CONFIGSTRINGS - 1
-            )));
-        }
-
-        shinqlx_set_configstring(config_id, value);
-
-        Ok(())
-    })
+    py.allow_threads(|| set_configstring(config_id, value))
 }
 
 #[cfg(test)]

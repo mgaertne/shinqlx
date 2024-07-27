@@ -1,31 +1,18 @@
+use crate::ffi::python::console_command;
 use crate::ffi::python::prelude::*;
-use crate::quake_live_engine::ConsoleCommand;
-use crate::MAIN_ENGINE;
-
-use pyo3::exceptions::PyEnvironmentError;
 
 /// Executes a command as if it was executed from the server console.
 #[pyfunction]
 #[pyo3(name = "console_command")]
 pub(crate) fn pyshinqlx_console_command(py: Python<'_>, cmd: &str) -> PyResult<()> {
-    py.allow_threads(|| {
-        let Some(ref main_engine) = *MAIN_ENGINE.load() else {
-            return Err(PyEnvironmentError::new_err(
-                "main quake live engine not set",
-            ));
-        };
-
-        main_engine.execute_console_command(cmd);
-
-        Ok(())
-    })
+    py.allow_threads(|| console_command(cmd))
 }
 
 #[cfg(test)]
 mod console_command_tests {
-    use super::MAIN_ENGINE;
     use crate::ffi::python::prelude::*;
     use crate::prelude::*;
+    use crate::MAIN_ENGINE;
 
     use mockall::predicate;
     use pyo3::exceptions::PyEnvironmentError;
