@@ -1813,23 +1813,25 @@ mod uptime_tests {
 }
 
 /// Returns the SteamID64 of the owner. This is set in the config.
-#[pyfunction]
-fn owner(py: Python<'_>) -> PyResult<Option<i64>> {
-    py.allow_threads(|| {
-        get_cvar("qlx_owner").map(|opt_value| {
-            let result = opt_value.and_then(|value| value.parse::<i64>().ok()).filter(|&int_value| int_value >= 0);
-            if result.is_none() {
-                error!(target: "shinqlx", "Failed to parse the Owner Steam ID. Make sure it's in SteamID64 format.");
-                return None;
-            }
-            result
-        })
+#[pyfunction(name = "owner")]
+fn pyshinqlx_owner(py: Python<'_>) -> PyResult<Option<i64>> {
+    py.allow_threads(|| owner())
+}
+
+fn owner() -> PyResult<Option<i64>> {
+    get_cvar("qlx_owner").map(|opt_value| {
+        let result = opt_value.and_then(|value| value.parse::<i64>().ok()).filter(|&int_value| int_value >= 0);
+        if result.is_none() {
+            error!(target: "shinqlx", "Failed to parse the Owner Steam ID. Make sure it's in SteamID64 format.");
+            return None;
+        }
+        result
     })
 }
 
 #[cfg(test)]
 mod owner_tests {
-    use super::owner;
+    use super::pyshinqlx_owner;
 
     use super::pyshinqlx_setup_fixture::*;
 
@@ -1853,7 +1855,7 @@ mod owner_tests {
         MAIN_ENGINE.store(None);
 
         Python::with_gil(|py| {
-            let result = owner(py);
+            let result = pyshinqlx_owner(py);
             assert!(result.is_err_and(|err| err.is_instance_of::<PyEnvironmentError>(py)));
         });
     }
@@ -1870,7 +1872,7 @@ mod owner_tests {
         MAIN_ENGINE.store(Some(mock_engine.into()));
 
         Python::with_gil(|py| {
-            let result = owner(py);
+            let result = pyshinqlx_owner(py);
             assert!(result.is_ok_and(|opt_value| opt_value.is_none()));
         });
     }
@@ -1895,7 +1897,7 @@ mod owner_tests {
         MAIN_ENGINE.store(Some(mock_engine.into()));
 
         Python::with_gil(|py| {
-            let result = owner(py);
+            let result = pyshinqlx_owner(py);
             assert!(result.is_ok_and(|opt_value| opt_value.is_none()));
         });
     }
@@ -1920,7 +1922,7 @@ mod owner_tests {
         MAIN_ENGINE.store(Some(mock_engine.into()));
 
         Python::with_gil(|py| {
-            let result = owner(py);
+            let result = pyshinqlx_owner(py);
             assert!(result.is_ok_and(|opt_value| opt_value.is_none()));
         });
     }
@@ -1945,7 +1947,7 @@ mod owner_tests {
         MAIN_ENGINE.store(Some(mock_engine.into()));
 
         Python::with_gil(|py| {
-            let result = owner(py);
+            let result = pyshinqlx_owner(py);
             assert!(
                 result.is_ok_and(|opt_value| opt_value.is_some_and(|value| value == 1234567890))
             );
@@ -2820,7 +2822,7 @@ fn register_core_module(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(pyshinqlx_handle_exception, m)?)?;
     m.add_function(wrap_pyfunction!(pyshinqlx_handle_threading_exception, m)?)?;
     m.add_function(wrap_pyfunction!(uptime, m)?)?;
-    m.add_function(wrap_pyfunction!(owner, m)?)?;
+    m.add_function(wrap_pyfunction!(pyshinqlx_owner, m)?)?;
     m.add_function(wrap_pyfunction!(get_stats_listener, m)?)?;
     m.add_function(wrap_pyfunction!(pyshinqlx_set_cvar_once, m)?)?;
     m.add_function(wrap_pyfunction!(pyshinqlx_set_cvar_limit_once, m)?)?;

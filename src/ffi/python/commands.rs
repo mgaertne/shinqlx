@@ -233,7 +233,7 @@ impl Command {
 
     /// Check if a player has the rights to execute the command.
     fn is_eligible_player(&self, py: Python<'_>, player: Player, is_client_cmd: bool) -> bool {
-        if owner(py)
+        if owner()
             .unwrap_or_default()
             .is_some_and(|owner_steam_id| player.steam_id == owner_steam_id)
         {
