@@ -711,53 +711,43 @@ fn is_vote_active() -> bool {
 #[pyfunction]
 #[pyo3(pass_module)]
 fn set_map_subtitles(module: &Bound<'_, PyModule>) -> PyResult<()> {
-    module
-        .py()
-        .allow_threads(|| get_configstring(CS_MESSAGE as u16))
+    get_configstring(CS_MESSAGE as u16)
         .and_then(|map_title| module.setattr(intern!(module.py(), "_map_title"), map_title))?;
 
-    module
-        .py()
-        .allow_threads(|| get_configstring(CS_AUTHOR as u16))
-        .and_then(|mut map_subtitle1| {
-            module.setattr(intern!(module.py(), "_map_subtitle1"), &map_subtitle1)?;
+    get_configstring(CS_AUTHOR as u16).and_then(|mut map_subtitle1| {
+        module.setattr(intern!(module.py(), "_map_subtitle1"), &map_subtitle1)?;
 
-            module.py().allow_threads(|| {
-                if !map_subtitle1.is_empty() {
-                    map_subtitle1.push_str(" - ");
-                }
+        if !map_subtitle1.is_empty() {
+            map_subtitle1.push_str(" - ");
+        }
 
-                map_subtitle1.push_str("Running shinqlx ^6v");
-                map_subtitle1.push_str(env!("SHINQLX_VERSION"));
-                map_subtitle1.push_str("^7 with plugins ^6");
-            });
-            let plugins_version = module
-                .getattr(intern!(module.py(), "__plugins_version__"))
-                .and_then(|value| value.extract::<String>())
-                .unwrap_or("NOT_SET".to_string());
-            module.py().allow_threads(|| {
-                map_subtitle1.push_str(&plugins_version);
-                map_subtitle1.push_str("^7.");
+        map_subtitle1.push_str("Running shinqlx ^6v");
+        map_subtitle1.push_str(env!("SHINQLX_VERSION"));
+        map_subtitle1.push_str("^7 with plugins ^6");
 
-                set_configstring(CS_AUTHOR as u16, &map_subtitle1)
-            })
-        })?;
+        let plugins_version = module
+            .getattr(intern!(module.py(), "__plugins_version__"))
+            .and_then(|value| value.extract::<String>())
+            .unwrap_or("NOT_SET".to_string());
 
-    module
-        .py()
-        .allow_threads(|| get_configstring(CS_AUTHOR2 as u16))
-        .and_then(|mut map_subtitle2| {
-            module.setattr(intern!(module.py(), "_map_subtitle2"), &map_subtitle2)?;
+        map_subtitle1.push_str(&plugins_version);
+        map_subtitle1.push_str("^7.");
 
-            module.py().allow_threads(|| {
-                if !map_subtitle2.is_empty() {
-                    map_subtitle2.push_str(" - ");
-                }
-                map_subtitle2
-                    .push_str("Check ^6https://github.com/mgaertne/shinqlx^7 for more details.");
-                set_configstring(CS_AUTHOR2 as u16, &map_subtitle2)
-            })
+        set_configstring(CS_AUTHOR as u16, &map_subtitle1)
+    })?;
+
+    get_configstring(CS_AUTHOR2 as u16).and_then(|mut map_subtitle2| {
+        module.setattr(intern!(module.py(), "_map_subtitle2"), &map_subtitle2)?;
+
+        module.py().allow_threads(|| {
+            if !map_subtitle2.is_empty() {
+                map_subtitle2.push_str(" - ");
+            }
+            map_subtitle2
+                .push_str("Check ^6https://github.com/mgaertne/shinqlx^7 for more details.");
+            set_configstring(CS_AUTHOR2 as u16, &map_subtitle2)
         })
+    })
 }
 
 #[cfg(test)]
