@@ -43,7 +43,7 @@ mod prelude {
 
 use prelude::*;
 
-use super::{commands::CommandPriorities, embed::pyshinqlx_get_cvar};
+use super::{commands::CommandPriorities, get_cvar};
 
 pub(crate) use chat_event_dispatcher::ChatEventDispatcher;
 pub(crate) use client_command_dispatcher::ClientCommandDispatcher;
@@ -426,7 +426,7 @@ impl EventDispatcher {
                 PyAttributeError::new_err("Cannot add a hook from an event dispatcher with no need_zmq_stats_enabled flag.")
             })?;
 
-        let zmq_enabled_cvar = pyshinqlx_get_cvar(slf.py(), "zmq_stats_enable")?;
+        let zmq_enabled_cvar = get_cvar("zmq_stats_enable")?;
         let zmq_enabled = zmq_enabled_cvar.is_some_and(|value| value != "0");
         if need_zmq_stats_enabled && !zmq_enabled {
             let error_description = format!(

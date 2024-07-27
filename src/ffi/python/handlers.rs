@@ -1,11 +1,11 @@
 use crate::ffi::c::prelude::*;
 
 use super::prelude::{
-    parse_variables, pyshinqlx_get_cvar, AbstractChannel, Player, RconDummyPlayer,
-    VoteStartedDispatcher, MAX_MSG_LENGTH,
+    parse_variables, AbstractChannel, Player, RconDummyPlayer, VoteStartedDispatcher,
+    MAX_MSG_LENGTH,
 };
 use super::{
-    is_vote_active, late_init, log_exception, pyshinqlx_get_logger, set_map_subtitles,
+    get_cvar, is_vote_active, late_init, log_exception, pyshinqlx_get_logger, set_map_subtitles,
     BLUE_TEAM_CHAT_CHANNEL, CHAT_CHANNEL, COMMANDS, CONSOLE_CHANNEL, EVENT_DISPATCHERS,
     FREE_CHAT_CHANNEL, RED_TEAM_CHAT_CHANNEL, SPECTATOR_CHAT_CHANNEL,
 };
@@ -4540,8 +4540,8 @@ fn try_handle_new_game(py: Python<'_>, is_restart: bool) -> PyResult<()> {
     set_map_subtitles(&shinqlx_module)?;
 
     if !is_restart {
-        let map_name = pyshinqlx_get_cvar(py, "mapname")?;
-        let factory_name = pyshinqlx_get_cvar(py, "g_factory")?;
+        let map_name = get_cvar("mapname")?;
+        let factory_name = get_cvar("g_factory")?;
         EVENT_DISPATCHERS
             .load()
             .as_ref()
