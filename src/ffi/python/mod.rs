@@ -924,11 +924,11 @@ fn get_logger_name(py: Python<'_>, plugin: Option<PyObject>) -> String {
         req_plugin
             .bind(py)
             .str()
-            .map(|plugin_name| plugin_name.to_string())
             .ok()
+            .map(|plugin_name| plugin_name.to_string())
     });
     py.allow_threads(|| {
-        opt_plugin_name.map_or("shinqlx".into(), |plugin_name| {
+        opt_plugin_name.map_or("shinqlx".to_string(), |plugin_name| {
             format!("shinqlx.{plugin_name}")
         })
     })
@@ -956,15 +956,16 @@ fn pyshinqlx_configure_logger(py: Python<'_>) -> PyResult<()> {
         |main_engine| {
             let homepath = main_engine
                 .find_cvar("fs_homepath")
-                .map_or(".".into(), |homepath_cvar| {
-                    homepath_cvar.get_string().to_string()
-                });
+                .map(|homepath_cvar| homepath_cvar.get_string().to_string())
+                .unwrap_or(".".into());
             let num_max_logs = main_engine
                 .find_cvar("qlx_logs")
-                .map_or(0, |max_logs_cvar| max_logs_cvar.get_integer());
+                .map(|max_logs_cvar| max_logs_cvar.get_integer())
+                .unwrap_or_default();
             let max_logsize = main_engine
                 .find_cvar("qlx_logsSize")
-                .map_or(0, |max_logsize_cvar| max_logsize_cvar.get_integer());
+                .map(|max_logsize_cvar| max_logsize_cvar.get_integer())
+                .unwrap_or_default();
             Ok((homepath, num_max_logs, max_logsize))
         },
     )?;
