@@ -1,8 +1,5 @@
 use crate::ffi::python::prelude::*;
-use crate::quake_live_engine::{FindCVar, GetCVar, SetCVarForced};
-use crate::MAIN_ENGINE;
-
-use pyo3::exceptions::PyEnvironmentError;
+use crate::ffi::python::set_cvar;
 
 /// Sets a cvar.
 #[pyfunction]
@@ -14,36 +11,15 @@ pub(crate) fn pyshinqlx_set_cvar(
     value: &str,
     flags: Option<i32>,
 ) -> PyResult<bool> {
-    py.allow_threads(|| {
-        let Some(ref main_engine) = *MAIN_ENGINE.load() else {
-            return Err(PyEnvironmentError::new_err(
-                "main quake live engine not set",
-            ));
-        };
-
-        match main_engine.find_cvar(cvar) {
-            None => {
-                main_engine.get_cvar(cvar, value, flags);
-                Ok(true)
-            }
-            Some(_) => {
-                main_engine.set_cvar_forced(
-                    cvar,
-                    value,
-                    flags.is_some_and(|unwrapped_flags| unwrapped_flags == -1),
-                );
-                Ok(false)
-            }
-        }
-    })
+    py.allow_threads(|| set_cvar(cvar, value, flags))
 }
 
 #[cfg(test)]
 mod set_cvar_tests {
-    use super::MAIN_ENGINE;
     use crate::ffi::c::prelude::*;
     use crate::ffi::python::prelude::*;
     use crate::prelude::*;
+    use crate::MAIN_ENGINE;
 
     use mockall::predicate;
     use pretty_assertions::assert_eq;

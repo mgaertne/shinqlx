@@ -127,6 +127,10 @@ pub(crate) mod prelude {
 }
 
 use crate::ffi::c::prelude::*;
+#[cfg(test)]
+use crate::hooks::mock_hooks::shinqlx_set_configstring;
+#[cfg(not(test))]
+use crate::hooks::shinqlx_set_configstring;
 use crate::quake_live_engine::{ConsoleCommand, FindCVar, GetCVar, GetConfigstring, SetCVarForced};
 use crate::MAIN_ENGINE;
 use crate::_INIT_TIME;
@@ -136,7 +140,6 @@ use commands::CommandPriorities;
 
 use arc_swap::ArcSwapOption;
 use core::{
-    ffi::c_int,
     ops::Deref,
     str::FromStr,
     sync::atomic::{AtomicBool, AtomicU64, Ordering},
@@ -482,204 +485,223 @@ pub(crate) fn client_id(
     None
 }
 
-pub(crate) fn set_teamsize(value: i32) -> PyResult<()> {
-    let value_str = format!("{}", value);
+fn set_cvar(cvar: &str, value: &str, flags: Option<i32>) -> PyResult<bool> {
     MAIN_ENGINE.load().as_ref().map_or(
         Err(PyEnvironmentError::new_err(
             "main quake live engine not set",
         )),
         |main_engine| {
-            main_engine
-                .find_cvar("teamsize")
-                .as_ref()
-                .map_or_else(
-                    || {
-                        main_engine.get_cvar("teamsize", &value_str, None::<c_int>);
-                        Ok(true)
-                    },
-                    |_| {
-                        main_engine.set_cvar_forced("teamsize", &value_str, false);
-                        Ok(false)
-                    },
-                )
-                .map(|_| ())
+            main_engine.find_cvar(cvar).as_ref().map_or_else(
+                || {
+                    main_engine.get_cvar(cvar, value, flags);
+                    Ok(true)
+                },
+                |_| {
+                    main_engine.set_cvar_forced(
+                        cvar,
+                        value,
+                        flags.is_some_and(|unwrapped_flags| unwrapped_flags == -1),
+                    );
+                    Ok(false)
+                },
+            )
         },
     )
 }
 
-pub(crate) fn lock(team: Option<&str>) -> PyResult<()> {
+fn console_command(cmd: &str) -> PyResult<()> {
     MAIN_ENGINE.load().as_ref().map_or(
         Err(PyEnvironmentError::new_err(
             "main quake live engine not set",
         )),
-        |main_engine| match team {
-            None => {
-                main_engine.execute_console_command("lock");
-                Ok(())
-            }
-            Some(team_name) => {
-                if !["free", "red", "blue", "spectator"].contains(&&*team_name.to_lowercase()) {
-                    Err(PyValueError::new_err("Invalid team."))
-                } else {
-                    let lock_cmd = format!("lock {}", team_name.to_lowercase());
-                    main_engine.execute_console_command(&lock_cmd);
-                    Ok(())
-                }
-            }
+        |main_engine| {
+            main_engine.execute_console_command(cmd);
+            Ok(())
         },
     )
 }
 
-pub(crate) fn unlock(team: Option<&str>) -> PyResult<()> {
-    MAIN_ENGINE.load().as_ref().map_or(
-        Err(PyEnvironmentError::new_err(
-            "main quake live engine not set",
-        )),
-        |main_engine| match team {
-            None => {
-                main_engine.execute_console_command("unlock");
-                Ok(())
-            }
-            Some(team_name) => {
-                if !["free", "red", "blue", "spectator"].contains(&&*team_name.to_lowercase()) {
-                    Err(PyValueError::new_err("Invalid team."))
-                } else {
-                    let lock_cmd = format!("unlock {}", team_name.to_lowercase());
-                    main_engine.execute_console_command(&lock_cmd);
-                    Ok(())
-                }
-            }
-        },
-    )
-}
-
-pub(crate) fn put(py: Python<'_>, player: PyObject, team: &str) -> PyResult<()> {
-    let Some(player_id) = client_id(py, player, None) else {
-        return Err(PyValueError::new_err("Invalid player."));
-    };
-
-    if !["free", "red", "blue", "spectator"].contains(&&*team.to_lowercase()) {
-        return Err(PyValueError::new_err("Invalid team."));
+fn get_configstring(index: u16) -> PyResult<String> {
+    if !(0..MAX_CONFIGSTRINGS as u16).contains(&index) {
+        return Err(PyValueError::new_err(format!(
+            "index needs to be a number from 0 to {}.",
+            MAX_CONFIGSTRINGS - 1
+        )));
     }
 
-    let team_change_cmd = format!("put {} {}", player_id, team.to_lowercase());
-    pyshinqlx_console_command(py, &team_change_cmd)
+    MAIN_ENGINE.load().as_ref().map_or(
+        Err(PyEnvironmentError::new_err(
+            "main quake live engine not set",
+        )),
+        |main_engine| Ok(main_engine.get_configstring(index)),
+    )
 }
 
-pub(crate) fn mute(py: Python<'_>, player: PyObject) -> PyResult<()> {
-    let Some(player_id) = client_id(py, player, None) else {
-        return Err(PyValueError::new_err("Invalid player."));
-    };
+fn set_configstring(index: u16, value: &str) -> PyResult<()> {
+    if !(0..MAX_CONFIGSTRINGS as u16).contains(&index) {
+        return Err(PyValueError::new_err(format!(
+            "index needs to be a number from 0 to {}.",
+            MAX_CONFIGSTRINGS - 1
+        )));
+    }
 
-    let mute_cmd = format!("mute {}", player_id);
-    pyshinqlx_console_command(py, &mute_cmd)
+    shinqlx_set_configstring(index.into(), value);
+
+    Ok(())
 }
 
-pub(crate) fn unmute(py: Python<'_>, player: PyObject) -> PyResult<()> {
-    let Some(player_id) = client_id(py, player, None) else {
-        return Err(PyValueError::new_err("Invalid player."));
-    };
-
-    let unmute_cmd = format!("unmute {}", player_id);
-    pyshinqlx_console_command(py, &unmute_cmd)
+fn set_teamsize(value: i32) -> PyResult<()> {
+    let value_str = format!("{}", value);
+    set_cvar("teamsize", &value_str, None).map(|_| ())
 }
 
-pub(crate) fn tempban(py: Python<'_>, player: PyObject) -> PyResult<()> {
-    let Some(player_id) = client_id(py, player, None) else {
-        return Err(PyValueError::new_err("Invalid player."));
-    };
-
-    let tempban_cmd = format!("tempban {}", player_id);
-    pyshinqlx_console_command(py, &tempban_cmd)
+fn lock(team: Option<&str>) -> PyResult<()> {
+    team.map_or_else(
+        || console_command("lock"),
+        |team_name| {
+            if !["free", "red", "blue", "spectator"].contains(&&*team_name.to_lowercase()) {
+                Err(PyValueError::new_err("Invalid team."))
+            } else {
+                let lock_cmd = format!("lock {}", team_name.to_lowercase());
+                console_command(&lock_cmd)
+            }
+        },
+    )
 }
 
-pub(crate) fn ban(py: Python<'_>, player: PyObject) -> PyResult<()> {
-    let Some(player_id) = client_id(py, player, None) else {
-        return Err(PyValueError::new_err("Invalid player."));
-    };
-
-    let ban_cmd = format!("ban {}", player_id);
-    pyshinqlx_console_command(py, &ban_cmd)
+fn unlock(team: Option<&str>) -> PyResult<()> {
+    team.map_or_else(
+        || console_command("unlock"),
+        |team_name| {
+            if !["free", "red", "blue", "spectator"].contains(&&*team_name.to_lowercase()) {
+                Err(PyValueError::new_err("Invalid team."))
+            } else {
+                let unlock_cmd = format!("unlock {}", team_name.to_lowercase());
+                console_command(&unlock_cmd)
+            }
+        },
+    )
 }
 
-pub(crate) fn unban(py: Python<'_>, player: PyObject) -> PyResult<()> {
-    let Some(player_id) = client_id(py, player, None) else {
-        return Err(PyValueError::new_err("Invalid player."));
-    };
+fn put(py: Python<'_>, player: PyObject, team: &str) -> PyResult<()> {
+    client_id(py, player, None).map_or(Err(PyValueError::new_err("Invalid player.")), |player_id| {
+        py.allow_threads(|| {
+            if !["free", "red", "blue", "spectator"].contains(&&*team.to_lowercase()) {
+                return Err(PyValueError::new_err("Invalid team."));
+            }
 
-    let unban_cmd = format!("unban {}", player_id);
-    pyshinqlx_console_command(py, &unban_cmd)
+            let team_change_cmd = format!("put {} {}", player_id, team.to_lowercase());
+            console_command(&team_change_cmd)
+        })
+    })
 }
 
-pub(crate) fn opsay(py: Python<'_>, msg: &str) -> PyResult<()> {
+fn mute(py: Python<'_>, player: PyObject) -> PyResult<()> {
+    client_id(py, player, None).map_or(Err(PyValueError::new_err("Invalid player.")), |player_id| {
+        py.allow_threads(|| {
+            let mute_cmd = format!("mute {}", player_id);
+            console_command(&mute_cmd)
+        })
+    })
+}
+
+fn unmute(py: Python<'_>, player: PyObject) -> PyResult<()> {
+    client_id(py, player, None).map_or(Err(PyValueError::new_err("Invalid player.")), |player_id| {
+        py.allow_threads(|| {
+            let unmute_cmd = format!("unmute {}", player_id);
+            console_command(&unmute_cmd)
+        })
+    })
+}
+
+fn tempban(py: Python<'_>, player: PyObject) -> PyResult<()> {
+    client_id(py, player, None).map_or(Err(PyValueError::new_err("Invalid player.")), |player_id| {
+        py.allow_threads(|| {
+            let tempban_cmd = format!("tempban {}", player_id);
+            console_command(&tempban_cmd)
+        })
+    })
+}
+
+fn ban(py: Python<'_>, player: PyObject) -> PyResult<()> {
+    client_id(py, player, None).map_or(Err(PyValueError::new_err("Invalid player.")), |player_id| {
+        py.allow_threads(|| {
+            let ban_cmd = format!("ban {}", player_id);
+            console_command(&ban_cmd)
+        })
+    })
+}
+
+fn unban(py: Python<'_>, player: PyObject) -> PyResult<()> {
+    client_id(py, player, None).map_or(Err(PyValueError::new_err("Invalid player.")), |player_id| {
+        py.allow_threads(|| {
+            let unban_cmd = format!("unban {}", player_id);
+            console_command(&unban_cmd)
+        })
+    })
+}
+
+fn opsay(msg: &str) -> PyResult<()> {
     let opsay_cmd = format!("opsay {}", msg);
-    pyshinqlx_console_command(py, &opsay_cmd)
+    console_command(&opsay_cmd)
 }
 
-pub(crate) fn addadmin(py: Python<'_>, player: PyObject) -> PyResult<()> {
-    let Some(player_id) = client_id(py, player, None) else {
-        return Err(PyValueError::new_err("Invalid player."));
-    };
-
-    let addadmin_cmd = format!("addadmin {}", player_id);
-    pyshinqlx_console_command(py, &addadmin_cmd)
+fn addadmin(py: Python<'_>, player: PyObject) -> PyResult<()> {
+    client_id(py, player, None).map_or(Err(PyValueError::new_err("Invalid player.")), |player_id| {
+        py.allow_threads(|| {
+            let addadmin_cmd = format!("addadmin {}", player_id);
+            console_command(&addadmin_cmd)
+        })
+    })
 }
 
-pub(crate) fn addmod(py: Python<'_>, player: PyObject) -> PyResult<()> {
-    let Some(player_id) = client_id(py, player, None) else {
-        return Err(PyValueError::new_err("Invalid player."));
-    };
-
-    let addmod_cmd = format!("addmod {}", player_id);
-    pyshinqlx_console_command(py, &addmod_cmd)
+fn addmod(py: Python<'_>, player: PyObject) -> PyResult<()> {
+    client_id(py, player, None).map_or(Err(PyValueError::new_err("Invalid player.")), |player_id| {
+        py.allow_threads(|| {
+            let addmod_cmd = format!("addmod {}", player_id);
+            console_command(&addmod_cmd)
+        })
+    })
 }
 
-pub(crate) fn demote(py: Python<'_>, player: PyObject) -> PyResult<()> {
-    let Some(player_id) = client_id(py, player, None) else {
-        return Err(PyValueError::new_err("Invalid player."));
-    };
-
-    let demote_cmd = format!("demote {}", player_id);
-    pyshinqlx_console_command(py, &demote_cmd)
+fn demote(py: Python<'_>, player: PyObject) -> PyResult<()> {
+    client_id(py, player, None).map_or(Err(PyValueError::new_err("Invalid player.")), |player_id| {
+        py.allow_threads(|| {
+            let demote_cmd = format!("demote {}", player_id);
+            console_command(&demote_cmd)
+        })
+    })
 }
 
-pub(crate) fn addscore(py: Python<'_>, player: PyObject, score: i32) -> PyResult<()> {
-    let Some(player_id) = client_id(py, player, None) else {
-        return Err(PyValueError::new_err("Invalid player."));
-    };
-
-    let addscore_cmd = format!("addscore {} {}", player_id, score);
-    pyshinqlx_console_command(py, &addscore_cmd)
+fn addscore(py: Python<'_>, player: PyObject, score: i32) -> PyResult<()> {
+    client_id(py, player, None).map_or(Err(PyValueError::new_err("Invalid player.")), |player_id| {
+        py.allow_threads(|| {
+            let addscore_cmd = format!("addscore {} {}", player_id, score);
+            console_command(&addscore_cmd)
+        })
+    })
 }
 
-pub(crate) fn addteamscore(py: Python<'_>, team: &str, score: i32) -> PyResult<()> {
+fn addteamscore(team: &str, score: i32) -> PyResult<()> {
     if !["free", "red", "blue", "spectator"].contains(&&*team.to_lowercase()) {
         return Err(PyValueError::new_err("Invalid team."));
     }
 
     let addteamscore_cmd = format!("addteamscore {} {}", team.to_lowercase(), score);
-    pyshinqlx_console_command(py, &addteamscore_cmd)
+    console_command(&addteamscore_cmd)
 }
 
-pub(crate) fn is_vote_active() -> bool {
-    MAIN_ENGINE
-        .load()
-        .as_ref()
-        .map(|main_engine| {
-            !main_engine
-                .get_configstring(CS_VOTE_STRING as u16)
-                .is_empty()
-        })
-        .unwrap_or(false)
+fn is_vote_active() -> bool {
+    get_configstring(CS_VOTE_STRING as u16).is_ok_and(|vote_string| !vote_string.is_empty())
 }
 
 #[pyfunction]
 #[pyo3(pass_module)]
 fn set_map_subtitles(module: &Bound<'_, PyModule>) -> PyResult<()> {
-    pyshinqlx_get_configstring(module.py(), CS_MESSAGE)
+    get_configstring(CS_MESSAGE as u16)
         .and_then(|map_title| module.setattr(intern!(module.py(), "_map_title"), map_title))?;
 
-    pyshinqlx_get_configstring(module.py(), CS_AUTHOR).and_then(|mut map_subtitle1| {
+    get_configstring(CS_AUTHOR as u16).and_then(|mut map_subtitle1| {
         module.setattr(intern!(module.py(), "_map_subtitle1"), &map_subtitle1)?;
 
         if !map_subtitle1.is_empty() {
@@ -696,17 +718,17 @@ fn set_map_subtitles(module: &Bound<'_, PyModule>) -> PyResult<()> {
         map_subtitle1.push_str(&plugins_version);
         map_subtitle1.push_str("^7.");
 
-        pyshinqlx_set_configstring(module.py(), CS_AUTHOR, &map_subtitle1)
+        set_configstring(CS_AUTHOR as u16, &map_subtitle1)
     })?;
 
-    pyshinqlx_get_configstring(module.py(), CS_AUTHOR2).and_then(|mut map_subtitle2| {
+    get_configstring(CS_AUTHOR2 as u16).and_then(|mut map_subtitle2| {
         module.setattr(intern!(module.py(), "_map_subtitle2"), &map_subtitle2)?;
 
         if !map_subtitle2.is_empty() {
             map_subtitle2.push_str(" - ");
         }
         map_subtitle2.push_str("Check ^6https://github.com/mgaertne/shinqlx^7 for more details.");
-        pyshinqlx_set_configstring(module.py(), CS_AUTHOR2, &map_subtitle2)
+        set_configstring(CS_AUTHOR2 as u16, &map_subtitle2)
     })
 }
 
