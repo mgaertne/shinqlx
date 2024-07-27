@@ -545,7 +545,7 @@ fn set_configstring(index: u16, value: &str) -> PyResult<()> {
         )));
     }
 
-    shinqlx_set_configstring(index.into(), value);
+    shinqlx_set_configstring(Into::<u32>::into(index), value);
 
     Ok(())
 }
