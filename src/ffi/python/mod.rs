@@ -1815,7 +1815,7 @@ mod uptime_tests {
 /// Returns the SteamID64 of the owner. This is set in the config.
 #[pyfunction(name = "owner")]
 fn pyshinqlx_owner(py: Python<'_>) -> PyResult<Option<i64>> {
-    py.allow_threads(|| owner())
+    py.allow_threads(owner)
 }
 
 fn owner() -> PyResult<Option<i64>> {
