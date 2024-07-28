@@ -4505,7 +4505,7 @@ static IS_FIRST_GAME: AtomicBool = AtomicBool::new(true);
 fn try_handle_new_game(py: Python<'_>, is_restart: bool) -> PyResult<()> {
     let shinqlx_module = py.import_bound(intern!(py, "shinqlx"))?;
     if IS_FIRST_GAME.load(Ordering::SeqCst) {
-        late_init(&shinqlx_module, py)?;
+        late_init(&shinqlx_module)?;
         IS_FIRST_GAME.store(false, Ordering::SeqCst);
 
         let zmq_enabled = MAIN_ENGINE.load().as_ref().is_some_and(|main_engine| {

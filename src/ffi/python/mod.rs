@@ -2025,34 +2025,34 @@ mod stats_listener_tests {
 }
 
 fn try_get_plugins_version(path: &str) -> Result<String, git2::Error> {
-    let repository = git2::Repository::open(path)?;
+    git2::Repository::open(path).and_then(|repository| {
+        let mut describe_options_binding = git2::DescribeOptions::default();
+        let describe_options = describe_options_binding
+            .describe_tags()
+            .show_commit_oid_as_fallback(true);
 
-    let mut describe_options_binding = git2::DescribeOptions::default();
-    let describe_options = describe_options_binding
-        .describe_tags()
-        .show_commit_oid_as_fallback(true);
-    let describe = repository.describe(describe_options)?;
-    let mut describe_format_options_binding = git2::DescribeFormatOptions::default();
-    let desribe_format_options = describe_format_options_binding
-        .always_use_long_format(true)
-        .dirty_suffix("-dirty");
-    let plugins_version = describe.format(Some(desribe_format_options))?;
+        let plugins_version = repository.describe(describe_options).and_then(|describe| {
+            let mut describe_format_options_binding = git2::DescribeFormatOptions::default();
+            let desribe_format_options = describe_format_options_binding
+                .always_use_long_format(true)
+                .dirty_suffix("-dirty");
 
-    let Some(branch) = repository
-        .revparse_ext("HEAD")
-        .map(|(_, branch_option)| branch_option)
-        .ok()
-        .flatten()
-    else {
-        return Ok(plugins_version);
-    };
+            describe.format(Some(desribe_format_options))
+        })?;
 
-    let Some(branch_name) = branch.shorthand() else {
-        return Ok(plugins_version);
-    };
-
-    let returned = format!("{}-{}", plugins_version, branch_name);
-    Ok(returned)
+        repository
+            .revparse_ext("HEAD")
+            .ok()
+            .and_then(|(_, branch_option)| branch_option)
+            .map_or(Ok(plugins_version.clone()), |branch| {
+                branch
+                    .shorthand()
+                    .map_or(Ok(plugins_version.clone()), |branch_name| {
+                        let returned = format!("{}-{}", &plugins_version, branch_name);
+                        Ok(returned)
+                    })
+            })
+    })
 }
 
 fn get_plugins_version(path: &str) -> String {
@@ -2081,46 +2081,48 @@ static DEFAULT_PLUGINS: [&str; 10] = [
 
 #[pyfunction(name = "load_preset_plugins")]
 fn load_preset_plugins(py: Python<'_>) -> PyResult<()> {
-    if let Err(e) = try_get_plugins_path() {
-        return Err(PluginLoadError::new_err(e));
-    }
+    try_get_plugins_path().map_err(PluginLoadError::new_err)?;
 
-    let Some(ref main_engine) = *MAIN_ENGINE.load() else {
-        return Err(PluginLoadError::new_err("no main engine found"));
-    };
+    MAIN_ENGINE.load().as_ref().map_or(
+        Err(PluginLoadError::new_err("no main engine found")),
+        |main_engine| {
+            if let Some(plugins_cvar) = main_engine.find_cvar("qlx_plugins") {
+                let plugins_str = plugins_cvar.get_string();
+                let mut plugins: Vec<&str> =
+                    plugins_str.split(',').map(|value| value.trim()).collect();
+                if plugins.contains(&"DEFAULT") {
+                    plugins.extend_from_slice(&DEFAULT_PLUGINS);
+                    plugins.retain(|&value| value != "DEFAULT");
+                }
+                plugins.iter().unique().for_each(|&plugin| {
+                    let _ = load_plugin(py, plugin);
+                });
+            };
 
-    let Some(plugins_cvar) = main_engine.find_cvar("qlx_plugins") else {
-        return Ok(());
-    };
-
-    let plugins_str = plugins_cvar.get_string();
-    let mut plugins: Vec<&str> = plugins_str.split(',').map(|value| value.trim()).collect();
-    if plugins.contains(&"DEFAULT") {
-        plugins.extend_from_slice(&DEFAULT_PLUGINS);
-        plugins.retain(|&value| value != "DEFAULT");
-    }
-    plugins.iter().unique().for_each(|&plugin| {
-        let _ = load_plugin(py, plugin);
-    });
-
-    Ok(())
+            Ok(())
+        },
+    )
 }
 
 fn try_load_plugin(py: Python<'_>, plugin: &str) -> PyResult<()> {
     let plugins_path = try_get_plugins_path().map_err(PyEnvironmentError::new_err)?;
 
-    let os_module = py.import_bound(intern!(py, "os"))?;
-    let os_path_module = os_module.getattr(intern!(py, "path"))?;
-
-    let importlib_module = py.import_bound(intern!(py, "importlib"))?;
-    let plugins_dir = os_path_module.call_method1(intern!(py, "basename"), (&plugins_path,))?;
+    let plugins_dir = py
+        .import_bound(intern!(py, "os"))
+        .and_then(|os_module| os_module.getattr(intern!(py, "path")))
+        .and_then(|os_path_module| {
+            os_path_module.call_method1(intern!(py, "basename"), (&plugins_path,))
+        })?;
 
     let plugin_import_path = format!("{}.{}", plugins_dir, &plugin);
-    let module =
-        importlib_module.call_method1(intern!(py, "import_module"), (plugin_import_path,))?;
+    let module = py
+        .import_bound(intern!(py, "importlib"))
+        .and_then(|importlib_module| {
+            importlib_module.call_method1(intern!(py, "import_module"), (plugin_import_path,))
+        })?;
 
     let plugin_pystring = PyString::new_bound(py, plugin);
-    if let Some(modules) = (*MODULES.load()).as_ref() {
+    if let Some(modules) = MODULES.load().as_ref() {
         modules.bind(py).set_item(&plugin_pystring, &module)?;
     }
 
@@ -2141,15 +2143,13 @@ fn try_load_plugin(py: Python<'_>, plugin: &str) -> PyResult<()> {
         ));
     }
 
-    let loaded_plugin = plugin_class.call0()?;
-
-    let loaded_plugins = py
-        .get_type_bound::<Plugin>()
-        .getattr(intern!(py, "_loaded_plugins"))?
-        .extract::<Bound<'_, PyDict>>()?;
-    loaded_plugins.set_item(plugin, loaded_plugin)?;
-
-    Ok(())
+    plugin_class.call0().and_then(|loaded_plugin| {
+        let loaded_plugins = py
+            .get_type_bound::<Plugin>()
+            .getattr(intern!(py, "_loaded_plugins"))?
+            .extract::<Bound<'_, PyDict>>()?;
+        loaded_plugins.set_item(plugin, loaded_plugin)
+    })
 }
 
 #[pyfunction(name = "load_plugin")]
@@ -2175,38 +2175,39 @@ fn load_plugin(py: Python<'_>, plugin: &str) -> PyResult<()> {
             .and_then(|log_record| logger.call_method1(intern!(py, "handle"), (log_record,)))
     })?;
 
-    let Ok(plugins_path) = try_get_plugins_path() else {
-        return Err(PluginLoadError::new_err(
+    try_get_plugins_path().map_or(
+        Err(PluginLoadError::new_err(
             "cvar qlx_pluginsPath misconfigured",
-        ));
-    };
+        )),
+        |plugins_path| {
+            let plugin_filename = format!("{}.py", &plugin);
+            let joined_path = plugins_path.join(plugin_filename);
+            if !joined_path.as_path().is_file() {
+                return Err(PluginLoadError::new_err("No such plugin exists."));
+            }
 
-    let plugin_filename = format!("{}.py", &plugin);
-    let joined_path = plugins_path.join(plugin_filename);
-    if !joined_path.as_path().is_file() {
-        return Err(PluginLoadError::new_err("No such plugin exists."));
-    }
+            let loaded_plugins = py
+                .get_type_bound::<Plugin>()
+                .getattr(intern!(py, "_loaded_plugins"))?
+                .extract::<Bound<'_, PyDict>>()?;
 
-    let loaded_plugins = py
-        .get_type_bound::<Plugin>()
-        .getattr(intern!(py, "_loaded_plugins"))?
-        .extract::<Bound<'_, PyDict>>()?;
+            if loaded_plugins.contains(plugin)? {
+                reload_plugin(py, plugin)?;
+                return Ok(());
+            }
 
-    if loaded_plugins.contains(plugin)? {
-        reload_plugin(py, plugin)?;
-        return Ok(());
-    }
+            let plugin_load_result = try_load_plugin(py, plugin);
+            if let Err(e) = plugin_load_result.as_ref() {
+                log_exception(py, e);
+            }
 
-    let plugin_load_result = try_load_plugin(py, plugin);
-    if let Err(ref e) = plugin_load_result {
-        log_exception(py, e);
-    }
-
-    plugin_load_result
+            plugin_load_result
+        },
+    )
 }
 
 fn try_unload_plugin(py: Python<'_>, plugin: &str) -> PyResult<()> {
-    let Some(unload_dispatcher) = EVENT_DISPATCHERS
+    EVENT_DISPATCHERS
         .load()
         .as_ref()
         .and_then(|event_dispatchers| {
@@ -2215,69 +2216,79 @@ fn try_unload_plugin(py: Python<'_>, plugin: &str) -> PyResult<()> {
                 .get_item(intern!(py, "unload"))
                 .ok()
         })
-    else {
-        return Err(PyEnvironmentError::new_err(
-            "could not get access to unload dispatcher",
-        ));
-    };
-    unload_dispatcher.call_method1(intern!(py, "dispatch"), (plugin,))?;
+        .map_or(
+            Err(PyEnvironmentError::new_err(
+                "could not get access to unload dispatcher",
+            )),
+            |unload_dispatcher| unload_dispatcher.call_method1(intern!(py, "dispatch"), (plugin,)),
+        )?;
 
     let loaded_plugins = py
         .get_type_bound::<Plugin>()
         .getattr(intern!(py, "_loaded_plugins"))?
         .extract::<Bound<'_, PyDict>>()?;
 
-    let Some(loaded_plugin) = loaded_plugins.get_item(plugin)? else {
-        let error_msg = format!("Attempted to unload a plugin '{plugin}' that is not loaded.");
-        return Err(PyValueError::new_err(error_msg));
-    };
+    loaded_plugins.get_item(plugin)?.map_or_else(
+        || {
+            let error_msg = format!("Attempted to unload a plugin '{plugin}' that is not loaded.");
+            Err(PyValueError::new_err(error_msg))
+        },
+        |loaded_plugin| {
+            loaded_plugin
+                .getattr(intern!(py, "hooks"))?
+                .iter()?
+                .flatten()
+                .for_each(|hook| {
+                    if let Ok(hook_tuple) = hook.extract::<Bound<'_, PyTuple>>() {
+                        let Ok(event_name) = hook_tuple.get_item(0) else {
+                            return;
+                        };
+                        let Ok(event_handler) = hook_tuple.get_item(1) else {
+                            return;
+                        };
+                        let Ok(event_priority) = hook_tuple.get_item(2) else {
+                            return;
+                        };
+                        let Some(event_dispatcher) =
+                            EVENT_DISPATCHERS
+                                .load()
+                                .as_ref()
+                                .and_then(|event_dispatchers| {
+                                    event_dispatchers.bind(py).get_item(event_name).ok()
+                                })
+                        else {
+                            return;
+                        };
+                        let Ok(plugin_name) = loaded_plugin.getattr(intern!(py, "name")) else {
+                            return;
+                        };
 
-    let plugin_hooks = loaded_plugin.getattr(intern!(py, "hooks"))?;
-    plugin_hooks.iter()?.flatten().for_each(|hook| {
-        if let Ok(hook_tuple) = hook.extract::<Bound<'_, PyTuple>>() {
-            let Ok(event_name) = hook_tuple.get_item(0) else {
-                return;
-            };
-            let Ok(event_handler) = hook_tuple.get_item(1) else {
-                return;
-            };
-            let Ok(event_priority) = hook_tuple.get_item(2) else {
-                return;
-            };
-            let Some(event_dispatcher) = EVENT_DISPATCHERS
-                .load()
-                .as_ref()
-                .and_then(|event_dispatchers| event_dispatchers.bind(py).get_item(event_name).ok())
-            else {
-                return;
-            };
-            let Ok(plugin_name) = loaded_plugin.getattr(intern!(py, "name")) else {
-                return;
-            };
+                        if let Err(ref e) = event_dispatcher.call_method1(
+                            intern!(py, "remove_hook"),
+                            (plugin_name, event_handler, event_priority),
+                        ) {
+                            log_exception(py, e);
+                        }
+                    }
+                });
 
-            if let Err(ref e) = event_dispatcher.call_method1(
-                intern!(py, "remove_hook"),
-                (plugin_name, event_handler, event_priority),
-            ) {
-                log_exception(py, e);
-            }
-        }
-    });
+            loaded_plugin
+                .getattr(intern!(py, "commands"))?
+                .iter()?
+                .flatten()
+                .for_each(|cmd| {
+                    if let Ok(py_cmd) = cmd.extract::<Bound<'_, Command>>() {
+                        if let Some(ref commands) = *COMMANDS.load() {
+                            if let Err(ref e) = commands.borrow(py).remove_command(py, py_cmd) {
+                                log_exception(py, e);
+                            }
+                        }
+                    };
+                });
 
-    let plugin_commands = loaded_plugin.getattr(intern!(py, "commands"))?;
-    plugin_commands.iter()?.flatten().for_each(|cmd| {
-        if let Ok(py_cmd) = cmd.extract::<Bound<'_, Command>>() {
-            if let Some(ref commands) = *COMMANDS.load() {
-                if let Err(ref e) = commands.borrow(py).remove_command(py, py_cmd) {
-                    log_exception(py, e);
-                }
-            }
-        };
-    });
-
-    loaded_plugins.del_item(plugin)?;
-
-    Ok(())
+            loaded_plugins.del_item(plugin).map(|_| ())
+        },
+    )
 }
 
 #[pyfunction(name = "unload_plugin")]
@@ -2322,7 +2333,7 @@ fn unload_plugin(py: Python<'_>, plugin: &str) -> PyResult<()> {
 }
 
 fn try_reload_plugin(py: Python, plugin: &str) -> PyResult<()> {
-    if let Some(loaded_modules) = (*MODULES.load()).as_ref() {
+    if let Some(loaded_modules) = MODULES.load().as_ref() {
         if loaded_modules.bind(py).contains(plugin)? {
             let loaded_plugin_module = loaded_modules.bind(py).get_item(plugin)?;
 
@@ -2333,8 +2344,7 @@ fn try_reload_plugin(py: Python, plugin: &str) -> PyResult<()> {
             loaded_modules.bind(py).set_item(plugin, module)?;
         }
     };
-    load_plugin(py, plugin)?;
-    Ok(())
+    load_plugin(py, plugin).map(|_| ())
 }
 
 #[pyfunction(name = "reload_plugin")]
@@ -2362,143 +2372,181 @@ fn initialize_cvars(py: Python<'_>) -> PyResult<()> {
     pyshinqlx_set_cvar_once(py, "qlx_redisAddress", "127.0.0.1".into_py(py), 0)?;
     pyshinqlx_set_cvar_once(py, "qlx_redisDatabase", "0".into_py(py), 0)?;
     pyshinqlx_set_cvar_once(py, "qlx_redisUnixSocket", "0".into_py(py), 0)?;
-    pyshinqlx_set_cvar_once(py, "qlx_redisPassword", "".into_py(py), 0)?;
-
-    Ok(())
+    pyshinqlx_set_cvar_once(py, "qlx_redisPassword", "".into_py(py), 0).map(|_| ())
 }
 
 #[pyfunction(name = "initialize")]
-fn initialize(_py: Python<'_>) {
-    register_handlers()
+fn initialize(py: Python<'_>) {
+    py.allow_threads(register_handlers)
 }
 
 fn try_get_plugins_path() -> Result<std::path::PathBuf, &'static str> {
-    let Some(ref main_engine) = *MAIN_ENGINE.load() else {
-        return Err("no main engine found");
-    };
+    MAIN_ENGINE
+        .load()
+        .as_ref()
+        .map_or(Err("no main engine found"), |main_engine| {
+            main_engine.find_cvar("qlx_pluginsPath").map_or(
+                Err("qlx_pluginsPath cvar not found"),
+                |plugins_path_cvar| {
+                    let plugins_path_str = plugins_path_cvar.get_string();
 
-    let Some(plugins_path_cvar) = main_engine.find_cvar("qlx_pluginsPath") else {
-        return Err("qlx_pluginsPath cvar not found");
-    };
-    let plugins_path_str = plugins_path_cvar.get_string();
+                    let plugins_path = std::path::Path::new(plugins_path_str.as_ref());
+                    if !plugins_path.is_dir() {
+                        return Err("qlx_pluginsPath is not pointing to an existing directory");
+                    }
 
-    let plugins_path = std::path::Path::new(plugins_path_str.as_ref());
-    if !plugins_path.is_dir() {
-        return Err("qlx_pluginsPath is not pointing to an existing directory");
-    }
-
-    plugins_path
-        .canonicalize()
-        .map_err(|_| "canonicalize returned an error")
+                    plugins_path
+                        .canonicalize()
+                        .map_err(|_| "canonicalize returned an error")
+                },
+            )
+        })
 }
 
 /// Initialization that needs to be called after QLDS has finished
 /// its own initialization.
 #[pyfunction(name = "late_init", pass_module)]
-fn late_init(module: &Bound<'_, PyModule>, py: Python<'_>) -> PyResult<()> {
-    initialize_cvars(py)?;
+fn late_init(module: &Bound<'_, PyModule>) -> PyResult<()> {
+    initialize_cvars(module.py())?;
 
-    let Some(ref main_engine) = *MAIN_ENGINE.load() else {
-        return Err(PyEnvironmentError::new_err("no main engine found"));
-    };
+    MAIN_ENGINE.load().as_ref().map_or(
+        Err(PyEnvironmentError::new_err("no main engine found")),
+        |main_engine| {
+            let database_cvar = main_engine.find_cvar("qlx_database");
+            if database_cvar.is_some_and(|value| value.get_string().to_lowercase() == "redis") {
+                let redis_database_class = module.py().get_type_bound::<Redis>();
+                module
+                    .py()
+                    .get_type_bound::<Plugin>()
+                    .setattr(intern!(module.py(), "database"), &redis_database_class)?;
+            }
 
-    let database_cvar = main_engine.find_cvar("qlx_database");
-    if database_cvar.is_some_and(|value| value.get_string().to_lowercase() == "redis") {
-        let redis_database_class = py.get_type_bound::<Redis>();
-        py.get_type_bound::<Plugin>()
-            .setattr(intern!(py, "database"), &redis_database_class)?;
-    }
+            let sys_module = module.py().import_bound(intern!(module.py(), "sys"))?;
 
-    let sys_module = py.import_bound(intern!(py, "sys"))?;
+            if let Ok(real_plugins_path) = try_get_plugins_path() {
+                set_plugins_version(module, module.py(), &real_plugins_path.to_string_lossy());
 
-    if let Ok(real_plugins_path) = try_get_plugins_path() {
-        set_plugins_version(module, py, &real_plugins_path.to_string_lossy());
+                real_plugins_path
+                    .parent()
+                    .map(|value| value.to_string_lossy())
+                    .map_or(
+                        Err(PyEnvironmentError::new_err(
+                            "could not determine directory name of qlx_pluginsPath",
+                        )),
+                        |plugins_path_dirname| {
+                            let sys_path_module =
+                                sys_module.getattr(intern!(module.py(), "path"))?;
+                            sys_path_module.call_method1(
+                                intern!(module.py(), "append"),
+                                (plugins_path_dirname,),
+                            )
+                        },
+                    )?;
+            }
 
-        let Some(plugins_path_dirname) = real_plugins_path
-            .parent()
-            .map(|value| value.to_string_lossy())
-        else {
-            return Err(PyEnvironmentError::new_err(
-                "could not determine directory name of qlx_pluginsPath",
-            ));
-        };
-        let sys_path_module = sys_module.getattr(intern!(py, "path"))?;
-        sys_path_module.call_method1(intern!(py, "append"), (plugins_path_dirname,))?;
-    }
+            pyshinqlx_configure_logger(module.py())?;
+            let logger = pyshinqlx_get_logger(module.py(), None)?;
 
-    pyshinqlx_configure_logger(py)?;
-    let logger = pyshinqlx_get_logger(py, None)?;
+            let info_level = module
+                .py()
+                .import_bound(intern!(module.py(), "logging"))
+                .and_then(|logging_module| logging_module.getattr(intern!(module.py(), "INFO")))?;
 
-    let info_level = py
-        .import_bound(intern!(py, "logging"))
-        .and_then(|logging_module| logging_module.getattr(intern!(py, "INFO")))?;
+            let handle_exception = module.getattr(intern!(module.py(), "handle_exception"))?;
+            sys_module.setattr(intern!(module.py(), "excepthook"), handle_exception)?;
 
-    let handle_exception = module.getattr(intern!(py, "handle_exception"))?;
-    sys_module.setattr(intern!(py, "excepthook"), handle_exception)?;
+            let threading_module = module
+                .py()
+                .import_bound(intern!(module.py(), "threading"))?;
+            let threading_except_hook =
+                module.getattr(intern!(module.py(), "threading_excepthook"))?;
+            threading_module.setattr(intern!(module.py(), "excepthook"), threading_except_hook)?;
 
-    let threading_module = py.import_bound(intern!(py, "threading"))?;
-    let threading_except_hook = module.getattr(intern!(py, "threading_excepthook"))?;
-    threading_module.setattr(intern!(py, "excepthook"), threading_except_hook)?;
+            logger
+                .call_method(
+                    intern!(module.py(), "makeRecord"),
+                    (
+                        intern!(module.py(), "shinqlx"),
+                        &info_level,
+                        intern!(module.py(), ""),
+                        -1,
+                        intern!(module.py(), "Loading preset plugins..."),
+                        module.py().None(),
+                        module.py().None(),
+                    ),
+                    Some(
+                        &[(
+                            intern!(module.py(), "func"),
+                            intern!(module.py(), "late_init"),
+                        )]
+                        .into_py_dict_bound(module.py()),
+                    ),
+                )
+                .and_then(|log_record| {
+                    logger.call_method1(intern!(module.py(), "handle"), (log_record,))
+                })?;
 
-    logger
-        .call_method(
-            intern!(py, "makeRecord"),
-            (
-                intern!(py, "shinqlx"),
-                &info_level,
-                intern!(py, ""),
-                -1,
-                intern!(py, "Loading preset plugins..."),
-                py.None(),
-                py.None(),
-            ),
-            Some(&[(intern!(py, "func"), intern!(py, "late_init"))].into_py_dict_bound(py)),
-        )
-        .and_then(|log_record| logger.call_method1(intern!(py, "handle"), (log_record,)))?;
+            load_preset_plugins(module.py())?;
 
-    load_preset_plugins(py)?;
+            let stats_enable_cvar = main_engine.find_cvar("zmq_stats_enable");
+            if stats_enable_cvar.is_some_and(|value| value.get_string() != "0") {
+                let stats_value =
+                    Py::new(module.py(), StatsListener::py_new()?)?.into_bound(module.py());
+                module.setattr(intern!(module.py(), "_stats"), &stats_value)?;
 
-    let stats_enable_cvar = main_engine.find_cvar("zmq_stats_enable");
-    if stats_enable_cvar.is_some_and(|value| value.get_string() != "0") {
-        let stats_value = Py::new(py, StatsListener::py_new()?)?.into_bound(py);
-        module.setattr(intern!(py, "_stats"), &stats_value)?;
+                logger
+                    .call_method(
+                        intern!(module.py(), "makeRecord"),
+                        (
+                            intern!(module.py(), "shinqlx"),
+                            &info_level,
+                            intern!(module.py(), ""),
+                            -1,
+                            intern!(module.py(), "Stats listener started on %s."),
+                            (&stats_value.borrow().address,),
+                            module.py().None(),
+                        ),
+                        Some(
+                            &[(
+                                intern!(module.py(), "func"),
+                                intern!(module.py(), "late_init"),
+                            )]
+                            .into_py_dict_bound(module.py()),
+                        ),
+                    )
+                    .and_then(|log_record| {
+                        logger.call_method1(intern!(module.py(), "handle"), (log_record,))
+                    })?;
 
-        logger
-            .call_method(
-                intern!(py, "makeRecord"),
-                (
-                    intern!(py, "shinqlx"),
-                    &info_level,
-                    intern!(py, ""),
-                    -1,
-                    intern!(py, "Stats listener started on %s."),
-                    (&stats_value.borrow().address,),
-                    py.None(),
-                ),
-                Some(&[(intern!(py, "func"), intern!(py, "late_init"))].into_py_dict_bound(py)),
-            )
-            .and_then(|log_record| logger.call_method1(intern!(py, "handle"), (log_record,)))?;
+                StatsListener::keep_receiving(&stats_value, module.py())?;
+            }
 
-        StatsListener::keep_receiving(&stats_value, py)?;
-    }
-
-    logger
-        .call_method(
-            intern!(py, "makeRecord"),
-            (
-                intern!(py, "shinqlx"),
-                &info_level,
-                intern!(py, ""),
-                -1,
-                intern!(py, "We're good to go!"),
-                py.None(),
-                py.None(),
-            ),
-            Some(&[(intern!(py, "func"), intern!(py, "late_init"))].into_py_dict_bound(py)),
-        )
-        .and_then(|log_record| logger.call_method1(intern!(py, "handle"), (log_record,)))?;
-
-    Ok(())
+            logger
+                .call_method(
+                    intern!(module.py(), "makeRecord"),
+                    (
+                        intern!(module.py(), "shinqlx"),
+                        &info_level,
+                        intern!(module.py(), ""),
+                        -1,
+                        intern!(module.py(), "We're good to go!"),
+                        module.py().None(),
+                        module.py().None(),
+                    ),
+                    Some(
+                        &[(
+                            intern!(module.py(), "func"),
+                            intern!(module.py(), "late_init"),
+                        )]
+                        .into_py_dict_bound(module.py()),
+                    ),
+                )
+                .and_then(|log_record| {
+                    logger.call_method1(intern!(module.py(), "handle"), (log_record,))
+                })
+                .map(|_| ())
+        },
+    )
 }
 
 #[pymodule]
