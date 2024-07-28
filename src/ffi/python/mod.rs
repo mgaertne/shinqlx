@@ -2060,10 +2060,41 @@ fn get_plugins_version(path: &str) -> String {
 }
 
 #[pyfunction(name = "set_plugins_version", pass_module)]
-fn set_plugins_version(module: &Bound<'_, PyModule>, py: Python<'_>, path: &str) {
-    let plugins_version = py.allow_threads(|| get_plugins_version(path));
+fn set_plugins_version(module: &Bound<'_, PyModule>, path: &str) {
+    let plugins_version = module.py().allow_threads(|| get_plugins_version(path));
 
-    let _ = module.setattr(intern!(py, "__plugins_version__"), plugins_version);
+    let _ = module.setattr(intern!(module.py(), "__plugins_version__"), plugins_version);
+}
+
+#[cfg(test)]
+mod plugins_version_tests {
+    use super::get_plugins_version;
+
+    use pretty_assertions::assert_eq;
+
+    #[test]
+    #[cfg_attr(miri, ignore)]
+    fn get_plugins_version_of_folder_not_in_version_control() {
+        let tempdir = tempfile::Builder::new()
+            .tempdir()
+            .expect("this should not happen");
+
+        let result = get_plugins_version(&tempdir.path().to_string_lossy());
+        assert_eq!(result, "NOT_SET");
+    }
+
+    #[test]
+    #[cfg_attr(miri, ignore)]
+    fn get_plugins_version_of_empty_folder_in_version_control() {
+        let tempdir = tempfile::Builder::new()
+            .tempdir()
+            .expect("this should not happen");
+
+        git2::Repository::init(&tempdir).expect("this should not happen");
+
+        let result = get_plugins_version(&tempdir.path().to_string_lossy());
+        assert_eq!(result, "NOT_SET");
+    }
 }
 
 static DEFAULT_PLUGINS: [&str; 10] = [
@@ -2424,7 +2455,7 @@ fn late_init(module: &Bound<'_, PyModule>) -> PyResult<()> {
             let sys_module = module.py().import_bound(intern!(module.py(), "sys"))?;
 
             if let Ok(real_plugins_path) = try_get_plugins_path() {
-                set_plugins_version(module, module.py(), &real_plugins_path.to_string_lossy());
+                set_plugins_version(module, &real_plugins_path.to_string_lossy());
 
                 real_plugins_path
                     .parent()
