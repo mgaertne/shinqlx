@@ -2098,7 +2098,7 @@ mod plugins_version_tests {
     }
 
     fn create_initial_commit(repo: &git2::Repository) -> Result<(), git2::Error> {
-        let signature = repo.signature()?;
+        let signature = git2::Signature::now("testUser", "test@me.com")?;
         let oid = repo.index()?.write_tree()?;
         let tree = repo.find_tree(oid)?;
         repo.commit(
