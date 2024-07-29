@@ -2034,6 +2034,7 @@ fn try_get_plugins_version(path: &str) -> Result<String, git2::Error> {
         let plugins_version = repository.describe(describe_options).and_then(|describe| {
             let mut describe_format_options_binding = git2::DescribeFormatOptions::default();
             let desribe_format_options = describe_format_options_binding
+                .abbreviated_size(8)
                 .always_use_long_format(true)
                 .dirty_suffix("-dirty");
 
@@ -2094,6 +2095,37 @@ mod plugins_version_tests {
 
         let result = get_plugins_version(&tempdir.path().to_string_lossy());
         assert_eq!(result, "NOT_SET");
+    }
+
+    fn create_initial_commit(repo: &git2::Repository) -> Result<(), git2::Error> {
+        let signature = repo.signature()?;
+        let oid = repo.index()?.write_tree()?;
+        let tree = repo.find_tree(oid)?;
+        repo.commit(
+            Some("HEAD"),
+            &signature,
+            &signature,
+            "Initial commit",
+            &tree,
+            &[],
+        )
+        .map(|_| ())
+    }
+
+    #[test]
+    #[cfg_attr(miri, ignore)]
+    fn get_plugins_version_of_empty_folder_in_version_control_with_initial_commit_oid_fallback() {
+        let tempdir = tempfile::Builder::new()
+            .tempdir()
+            .expect("this should not happen");
+
+        git2::Repository::init(&tempdir)
+            .and_then(|repository| create_initial_commit(&repository))
+            .expect("this should not happen");
+
+        let result = get_plugins_version(&tempdir.path().to_string_lossy());
+        assert_eq!(result.len(), 15);
+        assert!(result.ends_with("-master"));
     }
 }
 
