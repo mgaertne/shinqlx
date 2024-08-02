@@ -37,7 +37,7 @@ rustflags = ["-Zlocation-detail=none"]
 
 [dependencies]
 ctor = { version = ">=0.2", default-features = false, features = ["used_linker"] }
-rand = { version = ">=0.9.0-alpha.1, <0.9.0-alpha.2", default-features = false, features = ["getrandom"] }
+rand = { version = ">=0.9.0-alpha.2", default-features = false, features = ["std", "std_rng", "getrandom"] }
 pyo3 = { version = ">=0.22.1, <0.23", default-features = false, features = ["macros", "extension-module", "nightly"] }
 retour = { version = ">=0.4.0-alpha.2", default-features = false, features = ["nightly"] }
 derive_builder = { version = ">=0.20", default-features = false, features = ["clippy", "alloc"] }
