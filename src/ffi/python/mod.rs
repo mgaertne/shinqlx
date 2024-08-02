@@ -3046,7 +3046,7 @@ fn try_get_plugins_path() -> Result<std::path::PathBuf, &'static str> {
                 |plugins_path_cvar| {
                     let plugins_path_str = plugins_path_cvar.get_string();
 
-                    let plugins_path = std::path::Path::new(plugins_path_str.as_ref());
+                    let plugins_path = Path::new(plugins_path_str.as_ref());
                     if !plugins_path.is_dir() {
                         return Err("qlx_pluginsPath is not pointing to an existing directory");
                     }
