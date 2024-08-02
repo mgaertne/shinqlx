@@ -3111,6 +3111,99 @@ fn initialize_cvars(py: Python<'_>) -> PyResult<()> {
     pyshinqlx_set_cvar_once(py, "qlx_redisPassword", "".into_py(py), 0).map(|_| ())
 }
 
+fn register_handlers_module(m: &Bound<'_, PyModule>) -> PyResult<()> {
+    let sched_module = m.py().import_bound("sched")?;
+    m.add("frame_tasks", sched_module.call_method0("scheduler")?)?;
+    let queue_module = m.py().import_bound("queue")?;
+    m.add(
+        "next_frame_tasks",
+        queue_module.call_method0("SimpleQueue")?,
+    )?;
+
+    m.add_function(wrap_pyfunction!(handlers::handle_rcon, m)?)?;
+    m.add_function(wrap_pyfunction!(handlers::handle_client_command, m)?)?;
+    m.add_function(wrap_pyfunction!(handlers::handle_server_command, m)?)?;
+    m.add_function(wrap_pyfunction!(handlers::handle_frame, m)?)?;
+    m.add_function(wrap_pyfunction!(handlers::handle_new_game, m)?)?;
+    m.add_function(wrap_pyfunction!(handlers::handle_set_configstring, m)?)?;
+    m.add_function(wrap_pyfunction!(handlers::handle_player_connect, m)?)?;
+    m.add_function(wrap_pyfunction!(handlers::handle_player_loaded, m)?)?;
+    m.add_function(wrap_pyfunction!(handlers::handle_player_disconnect, m)?)?;
+    m.add_function(wrap_pyfunction!(handlers::handle_player_spawn, m)?)?;
+    m.add_function(wrap_pyfunction!(handlers::handle_kamikaze_use, m)?)?;
+    m.add_function(wrap_pyfunction!(handlers::handle_kamikaze_explode, m)?)?;
+    m.add_function(wrap_pyfunction!(handlers::handle_damage, m)?)?;
+    m.add_function(wrap_pyfunction!(handlers::handle_console_print, m)?)?;
+    m.add_function(wrap_pyfunction!(handlers::redirect_print, m)?)?;
+    m.add_class::<handlers::PrintRedirector>()?;
+    m.add_function(wrap_pyfunction!(handlers::register_handlers, m)?)?;
+
+    Ok(())
+}
+
+#[cfg(test)]
+mod initialize_cvars_tests {
+    use super::initialize_cvars;
+
+    use super::pyshinqlx_setup_fixture::*;
+
+    use crate::prelude::{serial, MockQuakeEngine};
+    use crate::MAIN_ENGINE;
+
+    use mockall::predicate;
+    use rstest::rstest;
+
+    use pyo3::prelude::*;
+
+    #[rstest]
+    #[case("qlx_owner", "-1")]
+    #[case(
+        "qlx_plugins",
+        "plugin_manager, essentials, motd, permission, ban, silence, clan, names, log, workshop"
+    )]
+    #[case("qlx_pluginsPath", "shinqlx-plugins")]
+    #[case("qlx_database", "Redis")]
+    #[case("qlx_commandPrefix", "!")]
+    #[case("qlx_logs", "2")]
+    #[case("qlx_logsSize", "3000000")]
+    #[case("qlx_redisAddress", "127.0.0.1")]
+    #[case("qlx_redisDatabase", "0")]
+    #[case("qlx_redisUnixSocket", "0")]
+    #[case("qlx_redisPassword", "")]
+    #[cfg_attr(miri, ignore)]
+    #[serial]
+    fn initialize_cvars_initializes_cvar_if_not_set(
+        #[case] cvar_name: &'static str,
+        #[case] cvar_value: &'static str,
+        _pyshinqlx_setup: (),
+    ) {
+        let mut mock_engine = MockQuakeEngine::new();
+        mock_engine
+            .expect_find_cvar()
+            .with(predicate::always())
+            .returning(|_| None);
+        mock_engine
+            .expect_get_cvar()
+            .with(
+                predicate::eq(cvar_name),
+                predicate::eq(cvar_value),
+                predicate::eq(Some(0)),
+            )
+            .times(1);
+        mock_engine.expect_get_cvar().with(
+            predicate::ne(cvar_name),
+            predicate::always(),
+            predicate::always(),
+        );
+        MAIN_ENGINE.store(Some(mock_engine.into()));
+
+        Python::with_gil(|py| {
+            let result = initialize_cvars(py);
+            assert!(result.is_ok());
+        });
+    }
+}
+
 #[pyfunction(name = "initialize")]
 fn initialize(py: Python<'_>) {
     py.allow_threads(register_handlers)
@@ -3734,36 +3827,6 @@ fn register_commands_module(m: &Bound<'_, PyModule>) -> PyResult<()> {
             .as_ref()
             .map(|commands| commands.as_ref().into_py(m.py())),
     )?;
-
-    Ok(())
-}
-
-fn register_handlers_module(m: &Bound<'_, PyModule>) -> PyResult<()> {
-    let sched_module = m.py().import_bound("sched")?;
-    m.add("frame_tasks", sched_module.call_method0("scheduler")?)?;
-    let queue_module = m.py().import_bound("queue")?;
-    m.add(
-        "next_frame_tasks",
-        queue_module.call_method0("SimpleQueue")?,
-    )?;
-
-    m.add_function(wrap_pyfunction!(handlers::handle_rcon, m)?)?;
-    m.add_function(wrap_pyfunction!(handlers::handle_client_command, m)?)?;
-    m.add_function(wrap_pyfunction!(handlers::handle_server_command, m)?)?;
-    m.add_function(wrap_pyfunction!(handlers::handle_frame, m)?)?;
-    m.add_function(wrap_pyfunction!(handlers::handle_new_game, m)?)?;
-    m.add_function(wrap_pyfunction!(handlers::handle_set_configstring, m)?)?;
-    m.add_function(wrap_pyfunction!(handlers::handle_player_connect, m)?)?;
-    m.add_function(wrap_pyfunction!(handlers::handle_player_loaded, m)?)?;
-    m.add_function(wrap_pyfunction!(handlers::handle_player_disconnect, m)?)?;
-    m.add_function(wrap_pyfunction!(handlers::handle_player_spawn, m)?)?;
-    m.add_function(wrap_pyfunction!(handlers::handle_kamikaze_use, m)?)?;
-    m.add_function(wrap_pyfunction!(handlers::handle_kamikaze_explode, m)?)?;
-    m.add_function(wrap_pyfunction!(handlers::handle_damage, m)?)?;
-    m.add_function(wrap_pyfunction!(handlers::handle_console_print, m)?)?;
-    m.add_function(wrap_pyfunction!(handlers::redirect_print, m)?)?;
-    m.add_class::<handlers::PrintRedirector>()?;
-    m.add_function(wrap_pyfunction!(handlers::register_handlers, m)?)?;
 
     Ok(())
 }
