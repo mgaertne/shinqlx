@@ -2350,7 +2350,7 @@ fn try_unload_plugin(py: Python<'_>, plugin: &str) -> PyResult<()> {
                     };
                 });
 
-            loaded_plugins.del_item(plugin).map(|_| ())
+            loaded_plugins.del_item(plugin)
         },
     )
 }
@@ -2399,16 +2399,20 @@ fn unload_plugin(py: Python<'_>, plugin: &str) -> PyResult<()> {
 fn try_reload_plugin(py: Python, plugin: &str) -> PyResult<()> {
     if let Some(loaded_modules) = MODULES.load().as_ref() {
         if loaded_modules.bind(py).contains(plugin)? {
-            let loaded_plugin_module = loaded_modules.bind(py).get_item(plugin)?;
-
-            let importlib_module = py.import_bound(intern!(py, "importlib"))?;
-            let module =
-                importlib_module.call_method1(intern!(py, "reload"), (loaded_plugin_module,))?;
-
-            loaded_modules.bind(py).set_item(plugin, module)?;
+            loaded_modules
+                .bind(py)
+                .get_item(plugin)
+                .and_then(|loaded_plugin_module| {
+                    py.import_bound(intern!(py, "importlib"))
+                        .and_then(|importlib_module| {
+                            importlib_module
+                                .call_method1(intern!(py, "reload"), (loaded_plugin_module,))
+                        })
+                        .and_then(|module| loaded_modules.bind(py).set_item(plugin, module))
+                })?;
         }
     };
-    load_plugin(py, plugin).map(|_| ())
+    load_plugin(py, plugin)
 }
 
 #[pyfunction(name = "reload_plugin")]
@@ -2426,7 +2430,8 @@ fn reload_plugin(py: Python<'_>, plugin: &str) -> PyResult<()> {
 #[cfg(test)]
 mod pyshinqlx_plugins_tests {
     use super::{
-        load_plugin, unload_plugin, PluginLoadError, PluginUnloadError, EVENT_DISPATCHERS,
+        load_plugin, reload_plugin, unload_plugin, PluginLoadError, PluginUnloadError,
+        EVENT_DISPATCHERS,
     };
 
     use super::pyshinqlx_setup_fixture::*;
@@ -3010,6 +3015,81 @@ class test_plugin(shinqlx.Plugin):
             load_plugin(py, "test_plugin").expect("this should not happen");
 
             let result = unload_plugin(py, "test_plugin");
+            assert!(result.is_ok());
+        });
+    }
+
+    #[rstest]
+    #[cfg_attr(miri, ignore)]
+    #[serial]
+    fn reload_plugin_reloads_already_loaded_test_plugin(_pyshinqlx_setup: ()) {
+        let tempdir = tempfile::Builder::new()
+            .tempdir()
+            .expect("this should not happen");
+        let py_tempdir_str = tempdir.as_ref().to_string_lossy();
+
+        let mut plugins_dir_path = tempdir.as_ref().to_path_buf();
+        plugins_dir_path.push("shinqlx-plugins");
+
+        std::fs::DirBuilder::new()
+            .create(plugins_dir_path.as_path())
+            .expect("this should not happen");
+        let cvar_tempdir_str = plugins_dir_path.to_string_lossy().to_string();
+
+        let mut test_plugin_path = plugins_dir_path.to_path_buf();
+        test_plugin_path.push("test_plugin");
+        test_plugin_path.set_extension("py");
+
+        let mut test_plugin =
+            std::fs::File::create(test_plugin_path).expect("this should not happen");
+        test_plugin
+            .write_all(
+                br#"
+import shinqlx
+
+class test_plugin(shinqlx.Plugin):
+    pass
+        "#,
+            )
+            .expect("this should not happen");
+
+        let mut mock_engine = MockQuakeEngine::new();
+        mock_engine
+            .expect_find_cvar()
+            .with(predicate::eq("qlx_pluginsPath"))
+            .returning(move |_| {
+                let mut raw_cvar = CVarBuilder::default()
+                    .string(cvar_tempdir_str.as_ptr() as *mut c_char)
+                    .build()
+                    .expect("this should not happen");
+                CVar::try_from(&mut raw_cvar as *mut cvar_t).ok()
+            });
+        MAIN_ENGINE.store(Some(mock_engine.into()));
+
+        Python::with_gil(|py| {
+            let event_dispatcher = EventDispatcherManager::default();
+            event_dispatcher
+                .add_dispatcher(py, py.get_type_bound::<UnloadDispatcher>())
+                .expect("could not add unload dispatcher");
+            EVENT_DISPATCHERS.store(Some(
+                Py::new(py, event_dispatcher)
+                    .expect("could not create event dispatcher manager in python")
+                    .into(),
+            ));
+
+            py.import_bound(intern!(py, "sys"))
+                .and_then(|sys_module| {
+                    sys_module
+                        .getattr(intern!(py, "path"))
+                        .and_then(|sys_path_module| {
+                            sys_path_module.call_method1(intern!(py, "append"), (py_tempdir_str,))
+                        })
+                })
+                .expect("this should not happen");
+
+            load_plugin(py, "test_plugin").expect("this should not happen");
+
+            let result = reload_plugin(py, "test_plugin");
             assert!(result.is_ok());
         });
     }
