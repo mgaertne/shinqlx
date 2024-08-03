@@ -124,7 +124,7 @@ jobs:
           toolchain: nightly
           components: "llvm-tools"
       - run: cargo install cargo-tarpaulin
-      #      - run: cargo tarpaulin
+      - run: cargo tarpaulin
       #      - name: Upload to codecov.io
       #        uses: codecov/codecov-action@v4
       #        with:
@@ -132,7 +132,7 @@ jobs:
       - name: Archive code coverage results
         uses: actions/upload-artifact@v4
         with:
-          name: code-coverage-report
+          name: tarpaulin-coverage-report
           path: cobertura.xml
 
   llvm-cov-coverage:
@@ -157,6 +157,11 @@ jobs:
         with:
           token: ${{secrets.CODECOV_TOKEN}}
           files: lcov.info
+      - name: Archive code coverage results
+        uses: actions/upload-artifact@v4
+        with:
+          name: llvm-coverage-report
+          path: lcov.info
 
   miri:
     name: miri
