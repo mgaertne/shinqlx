@@ -2460,8 +2460,8 @@ mod pyshinqlx_plugins_tests {
     });
 
     #[rstest]
-    #[cfg_attr(miri, ignore)]
     #[serial]
+    #[cfg_attr(miri, ignore)]
     fn load_plugin_with_main_engine_missing(_pyshinqlx_setup: ()) {
         MAIN_ENGINE.store(None);
 
@@ -2472,8 +2472,8 @@ mod pyshinqlx_plugins_tests {
     }
 
     #[rstest]
-    #[cfg_attr(miri, ignore)]
     #[serial]
+    #[cfg_attr(miri, ignore)]
     fn load_plugin_with_misconfigured_plugin_path_cvar(_pyshinqlx_setup: ()) {
         let mut mock_engine = MockQuakeEngine::new();
         mock_engine
@@ -2489,8 +2489,8 @@ mod pyshinqlx_plugins_tests {
     }
 
     #[rstest]
-    #[cfg_attr(miri, ignore)]
     #[serial]
+    #[cfg_attr(miri, ignore)]
     fn load_plugin_with_not_existing_plugin(_pyshinqlx_setup: ()) {
         let mut plugins_dir_path = TEMP_DIR.as_ref().to_path_buf();
         plugins_dir_path.push("shinqlx-plugins");
@@ -2535,8 +2535,8 @@ mod pyshinqlx_plugins_tests {
     }
 
     #[rstest]
-    #[cfg_attr(miri, ignore)]
     #[serial]
+    #[cfg_attr(miri, ignore)]
     fn load_plugin_with_test_plugin_with_no_class(_pyshinqlx_setup: ()) {
         let mut plugins_dir_path = TEMP_DIR.as_ref().to_path_buf();
         plugins_dir_path.push("shinqlx-plugins");
@@ -2589,8 +2589,8 @@ mod pyshinqlx_plugins_tests {
     }
 
     #[rstest]
-    #[cfg_attr(miri, ignore)]
     #[serial]
+    #[cfg_attr(miri, ignore)]
     fn load_plugin_with_test_plugin_with_no_subclass_of_plugin(_pyshinqlx_setup: ()) {
         let mut plugins_dir_path = TEMP_DIR.as_ref().to_path_buf();
         plugins_dir_path.push("shinqlx-plugins");
@@ -2651,8 +2651,8 @@ class nosubclass_plugin:
     }
 
     #[rstest]
-    #[cfg_attr(miri, ignore)]
     #[serial]
+    #[cfg_attr(miri, ignore)]
     fn load_plugin_loads_valid_test_plugin(_pyshinqlx_setup: ()) {
         let mut plugins_dir_path = TEMP_DIR.as_ref().to_path_buf();
         plugins_dir_path.push("shinqlx-plugins");
@@ -2715,8 +2715,8 @@ class test_plugin(shinqlx.Plugin):
     }
 
     #[rstest]
-    #[cfg_attr(miri, ignore)]
     #[serial]
+    #[cfg_attr(miri, ignore)]
     fn load_plugin_reloads_already_loaded_test_plugin(_pyshinqlx_setup: ()) {
         let mut plugins_dir_path = TEMP_DIR.as_ref().to_path_buf();
         plugins_dir_path.push("shinqlx-plugins");
@@ -2791,8 +2791,8 @@ class test_reload_plugin(shinqlx.Plugin):
     }
 
     #[rstest]
-    #[cfg_attr(miri, ignore)]
     #[serial]
+    #[cfg_attr(miri, ignore)]
     fn unloading_a_non_loaded_plugin(_pyshinqlx_setup: ()) {
         Python::with_gil(|py| {
             let result = unload_plugin(py, "non_loaded_plugin");
@@ -2879,8 +2879,8 @@ class test_plugin(shinqlx.Plugin):
     }
 
     #[rstest]
-    #[cfg_attr(miri, ignore)]
     #[serial]
+    #[cfg_attr(miri, ignore)]
     fn unloading_loaded_plugin_that_is_not_stored_in_loaded_plugins(_pyshinqlx_setup: ()) {
         let mut plugins_dir_path = TEMP_DIR.as_ref().to_path_buf();
         plugins_dir_path.push("shinqlx-plugins");
@@ -2959,8 +2959,8 @@ class test_plugin(shinqlx.Plugin):
     }
 
     #[rstest]
-    #[cfg_attr(miri, ignore)]
     #[serial]
+    #[cfg_attr(miri, ignore)]
     fn unloading_loaded_plugin_unloads_plugin(_pyshinqlx_setup: ()) {
         let mut plugins_dir_path = TEMP_DIR.as_ref().to_path_buf();
         plugins_dir_path.push("shinqlx-plugins");
@@ -3035,8 +3035,8 @@ class test_plugin(shinqlx.Plugin):
     }
 
     #[rstest]
-    #[cfg_attr(miri, ignore)]
     #[serial]
+    #[cfg_attr(miri, ignore)]
     fn reload_plugin_reloads_already_loaded_test_plugin(_pyshinqlx_setup: ()) {
         let mut plugins_dir_path = TEMP_DIR.as_ref().to_path_buf();
         plugins_dir_path.push("shinqlx-plugins");

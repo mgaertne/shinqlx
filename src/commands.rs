@@ -288,7 +288,6 @@ mod commands_tests {
 
     use mockall::predicate;
     use rstest::rstest;
-    use serial_test::serial;
 
     #[test]
     #[serial]
