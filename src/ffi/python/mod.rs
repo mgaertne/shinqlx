@@ -2785,7 +2785,7 @@ class test_reload_plugin(shinqlx.Plugin):
 
             load_plugin(py, "test_reload_plugin").expect("this should not happen");
 
-            let result = load_plugin(py, "test_plugin");
+            let result = load_plugin(py, "test_reload_plugin");
             assert!(result.is_ok());
         });
     }
