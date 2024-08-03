@@ -2471,23 +2471,17 @@ mod pyshinqlx_plugins_tests {
                 .create(plugins_dir_path.as_path())
                 .expect("this should not happen");
         }
-        plugins_dir_path.to_string_lossy().to_string()
-    }
+        let plugins_dir = plugins_dir_path.to_string_lossy().to_string();
 
-    #[fixture]
-    fn noclass_plugin(plugins_dir: String) -> () {
-        let mut noclass_plugin_path = PathBuf::from(plugins_dir);
+        let mut noclass_plugin_path = PathBuf::from(&plugins_dir);
         noclass_plugin_path.push("noclass_plugin");
         noclass_plugin_path.set_extension("py");
 
         if !noclass_plugin_path.exists() {
             File::create(noclass_plugin_path).expect("this should not happen");
         }
-    }
 
-    #[fixture]
-    fn nosubclass_plugin(plugins_dir: String) -> () {
-        let mut nosubclass_plugin_path = PathBuf::from(plugins_dir);
+        let mut nosubclass_plugin_path = PathBuf::from(&plugins_dir);
         nosubclass_plugin_path.push("nosubclass_plugin");
         nosubclass_plugin_path.set_extension("py");
 
@@ -2503,11 +2497,8 @@ class nosubclass_plugin:
                 )
                 .expect("this should not happen");
         }
-    }
 
-    #[fixture]
-    fn test_plugin(plugins_dir: String) -> () {
-        let mut test_plugin_path = PathBuf::from(plugins_dir);
+        let mut test_plugin_path = PathBuf::from(&plugins_dir);
         test_plugin_path.push("test_plugin");
         test_plugin_path.set_extension("py");
 
@@ -2524,6 +2515,8 @@ class test_plugin(shinqlx.Plugin):
                 )
                 .expect("this should not happen");
         }
+
+        plugins_dir_path.to_string_lossy().to_string()
     }
 
     #[rstest]
@@ -2599,11 +2592,7 @@ class test_plugin(shinqlx.Plugin):
     #[rstest]
     #[serial]
     #[cfg_attr(miri, ignore)]
-    fn load_plugin_with_test_plugin_with_no_class(
-        _pyshinqlx_setup: (),
-        plugins_dir: String,
-        _noclass_plugin: (),
-    ) {
+    fn load_plugin_with_test_plugin_with_no_class(_pyshinqlx_setup: (), plugins_dir: String) {
         let cvar_tempdir_str = CString::new(plugins_dir).expect("this should not happen");
 
         let mut mock_engine = MockQuakeEngine::new();
@@ -2648,7 +2637,6 @@ class test_plugin(shinqlx.Plugin):
     fn load_plugin_with_test_plugin_with_no_subclass_of_plugin(
         _pyshinqlx_setup: (),
         plugins_dir: String,
-        _nosubclass_plugin: (),
     ) {
         let cvar_tempdir_str = CString::new(plugins_dir).expect("this should not happen");
 
@@ -2691,11 +2679,7 @@ class test_plugin(shinqlx.Plugin):
     #[rstest]
     #[serial]
     #[cfg_attr(miri, ignore)]
-    fn load_plugin_loads_valid_test_plugin(
-        _pyshinqlx_setup: (),
-        plugins_dir: String,
-        _test_plugin: (),
-    ) {
+    fn load_plugin_loads_valid_test_plugin(_pyshinqlx_setup: (), plugins_dir: String) {
         let cvar_tempdir_str = CString::new(plugins_dir).expect("this should not happen");
 
         let mut mock_engine = MockQuakeEngine::new();
@@ -2737,11 +2721,7 @@ class test_plugin(shinqlx.Plugin):
     #[rstest]
     #[serial]
     #[cfg_attr(miri, ignore)]
-    fn load_plugin_reloads_already_loaded_test_plugin(
-        _pyshinqlx_setup: (),
-        plugins_dir: String,
-        _test_plugin: (),
-    ) {
+    fn load_plugin_reloads_already_loaded_test_plugin(_pyshinqlx_setup: (), plugins_dir: String) {
         let cvar_tempdir_str = CString::new(plugins_dir).expect("this should not happen");
 
         let mut mock_engine = MockQuakeEngine::new();
@@ -2808,7 +2788,6 @@ class test_plugin(shinqlx.Plugin):
     fn unloading_loaded_plugin_with_no_event_dispatchers(
         _pyshinqlx_setup: (),
         plugins_dir: String,
-        _test_plugin: (),
     ) {
         let cvar_tempdir_str = CString::new(plugins_dir).expect("this should not happen");
 
@@ -2868,7 +2847,6 @@ class test_plugin(shinqlx.Plugin):
     fn unloading_loaded_plugin_that_is_not_stored_in_loaded_plugins(
         _pyshinqlx_setup: (),
         plugins_dir: String,
-        _test_plugin: (),
     ) {
         let cvar_tempdir_str = CString::new(plugins_dir).expect("this should not happen");
 
@@ -2927,11 +2905,7 @@ class test_plugin(shinqlx.Plugin):
     #[rstest]
     #[serial]
     #[cfg_attr(miri, ignore)]
-    fn unloading_loaded_plugin_unloads_plugin(
-        _pyshinqlx_setup: (),
-        plugins_dir: String,
-        _test_plugin: (),
-    ) {
+    fn unloading_loaded_plugin_unloads_plugin(_pyshinqlx_setup: (), plugins_dir: String) {
         let cvar_tempdir_str = CString::new(plugins_dir).expect("this should not happen");
 
         let mut mock_engine = MockQuakeEngine::new();
@@ -2985,11 +2959,7 @@ class test_plugin(shinqlx.Plugin):
     #[rstest]
     #[serial]
     #[cfg_attr(miri, ignore)]
-    fn reload_plugin_reloads_already_loaded_test_plugin(
-        _pyshinqlx_setup: (),
-        plugins_dir: String,
-        _test_plugin: (),
-    ) {
+    fn reload_plugin_reloads_already_loaded_test_plugin(_pyshinqlx_setup: (), plugins_dir: String) {
         let cvar_tempdir_str = CString::new(plugins_dir).expect("this should not happen");
 
         let mut mock_engine = MockQuakeEngine::new();
