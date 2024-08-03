@@ -2441,12 +2441,14 @@ mod pyshinqlx_plugins_tests {
     use crate::prelude::{serial, MockQuakeEngine};
     use crate::MAIN_ENGINE;
 
+    use alloc::ffi::CString;
     use core::ffi::c_char;
     use std::fs::{DirBuilder, File};
     use std::io::Write;
+    use std::path::PathBuf;
 
     use mockall::predicate;
-    use rstest::rstest;
+    use rstest::*;
 
     use pyo3::exceptions::PyEnvironmentError;
     use pyo3::intern;
@@ -2458,6 +2460,71 @@ mod pyshinqlx_plugins_tests {
             .tempdir()
             .expect("this should not happen")
     });
+
+    #[fixture]
+    fn plugins_dir() -> String {
+        let mut plugins_dir_path = PathBuf::from(TEMP_DIR.as_ref());
+        plugins_dir_path.push("shinqlx-plugins");
+
+        if !plugins_dir_path.exists() {
+            DirBuilder::new()
+                .create(plugins_dir_path.as_path())
+                .expect("this should not happen");
+        }
+        plugins_dir_path.to_string_lossy().to_string()
+    }
+
+    #[fixture]
+    fn noclass_plugin(plugins_dir: String) -> () {
+        let mut noclass_plugin_path = PathBuf::from(plugins_dir);
+        noclass_plugin_path.push("noclass_plugin");
+        noclass_plugin_path.set_extension("py");
+
+        if !noclass_plugin_path.exists() {
+            File::create(noclass_plugin_path).expect("this should not happen");
+        }
+    }
+
+    #[fixture]
+    fn nosubclass_plugin(plugins_dir: String) -> () {
+        let mut nosubclass_plugin_path = PathBuf::from(plugins_dir);
+        nosubclass_plugin_path.push("nosubclass_plugin");
+        nosubclass_plugin_path.set_extension("py");
+
+        if !nosubclass_plugin_path.exists() {
+            let mut test_plugin =
+                File::create(nosubclass_plugin_path).expect("this should not happen");
+            test_plugin
+                .write_all(
+                    br#"
+class nosubclass_plugin:
+    pass
+        "#,
+                )
+                .expect("this should not happen");
+        }
+    }
+
+    #[fixture]
+    fn test_plugin(plugins_dir: String) -> () {
+        let mut test_plugin_path = PathBuf::from(plugins_dir);
+        test_plugin_path.push("test_plugin");
+        test_plugin_path.set_extension("py");
+
+        if !test_plugin_path.exists() {
+            let mut test_plugin = File::create(test_plugin_path).expect("this should not happen");
+            test_plugin
+                .write_all(
+                    br#"
+import shinqlx
+
+class test_plugin(shinqlx.Plugin):
+    pass
+        "#,
+                )
+                .expect("this should not happen");
+        }
+    }
 
     #[rstest]
     #[serial]
@@ -2491,17 +2558,8 @@ mod pyshinqlx_plugins_tests {
     #[rstest]
     #[serial]
     #[cfg_attr(miri, ignore)]
-    fn load_plugin_with_not_existing_plugin(_pyshinqlx_setup: ()) {
-        let mut plugins_dir_path = TEMP_DIR.as_ref().to_path_buf();
-        plugins_dir_path.push("shinqlx-plugins");
-
-        if !plugins_dir_path.exists() {
-            DirBuilder::new()
-                .create(plugins_dir_path.as_path())
-                .expect("this should not happen");
-        }
-        let cvar_tempdir_str = plugins_dir_path.to_string_lossy().to_string();
-
+    fn load_plugin_with_not_existing_plugin(_pyshinqlx_setup: (), plugins_dir: String) {
+        let cvar_tempdir_str = CString::new(plugins_dir).expect("this should not happen");
         let mut mock_engine = MockQuakeEngine::new();
         mock_engine
             .expect_find_cvar()
@@ -2518,12 +2576,16 @@ mod pyshinqlx_plugins_tests {
         Python::with_gil(|py| {
             py.import_bound(intern!(py, "sys"))
                 .and_then(|sys_module| {
+                    let full_temp_dir = TEMP_DIR
+                        .path()
+                        .canonicalize()
+                        .expect("this should not happen");
                     sys_module
                         .getattr(intern!(py, "path"))
                         .and_then(|sys_path_module| {
                             sys_path_module.call_method1(
                                 intern!(py, "append"),
-                                (TEMP_DIR.as_ref().to_string_lossy(),),
+                                (full_temp_dir.to_string_lossy(),),
                             )
                         })
                 })
@@ -2537,24 +2599,12 @@ mod pyshinqlx_plugins_tests {
     #[rstest]
     #[serial]
     #[cfg_attr(miri, ignore)]
-    fn load_plugin_with_test_plugin_with_no_class(_pyshinqlx_setup: ()) {
-        let mut plugins_dir_path = TEMP_DIR.as_ref().to_path_buf();
-        plugins_dir_path.push("shinqlx-plugins");
-
-        if !plugins_dir_path.exists() {
-            DirBuilder::new()
-                .create(plugins_dir_path.as_path())
-                .expect("this should not happen");
-        }
-        let cvar_tempdir_str = plugins_dir_path.to_string_lossy().to_string();
-
-        let mut test_plugin_path = plugins_dir_path.to_path_buf();
-        test_plugin_path.push("noclass_plugin");
-        test_plugin_path.set_extension("py");
-
-        if !test_plugin_path.exists() {
-            File::create(test_plugin_path).expect("this should not happen");
-        }
+    fn load_plugin_with_test_plugin_with_no_class(
+        _pyshinqlx_setup: (),
+        plugins_dir: String,
+        _noclass_plugin: (),
+    ) {
+        let cvar_tempdir_str = CString::new(plugins_dir).expect("this should not happen");
 
         let mut mock_engine = MockQuakeEngine::new();
         mock_engine
@@ -2572,12 +2622,16 @@ mod pyshinqlx_plugins_tests {
         Python::with_gil(|py| {
             py.import_bound(intern!(py, "sys"))
                 .and_then(|sys_module| {
+                    let full_temp_dir = TEMP_DIR
+                        .path()
+                        .canonicalize()
+                        .expect("this should not happen");
                     sys_module
                         .getattr(intern!(py, "path"))
                         .and_then(|sys_path_module| {
                             sys_path_module.call_method1(
                                 intern!(py, "append"),
-                                (TEMP_DIR.as_ref().to_string_lossy(),),
+                                (full_temp_dir.to_string_lossy(),),
                             )
                         })
                 })
@@ -2591,32 +2645,12 @@ mod pyshinqlx_plugins_tests {
     #[rstest]
     #[serial]
     #[cfg_attr(miri, ignore)]
-    fn load_plugin_with_test_plugin_with_no_subclass_of_plugin(_pyshinqlx_setup: ()) {
-        let mut plugins_dir_path = TEMP_DIR.as_ref().to_path_buf();
-        plugins_dir_path.push("shinqlx-plugins");
-
-        if !plugins_dir_path.exists() {
-            DirBuilder::new()
-                .create(plugins_dir_path.as_path())
-                .expect("this should not happen");
-        }
-        let cvar_tempdir_str = plugins_dir_path.to_string_lossy().to_string();
-
-        let mut test_plugin_path = plugins_dir_path.to_path_buf();
-        test_plugin_path.push("nosubclass_plugin");
-        test_plugin_path.set_extension("py");
-
-        if !test_plugin_path.exists() {
-            let mut test_plugin = File::create(test_plugin_path).expect("this should not happen");
-            test_plugin
-                .write_all(
-                    br#"
-class nosubclass_plugin:
-    pass
-        "#,
-                )
-                .expect("this should not happen");
-        }
+    fn load_plugin_with_test_plugin_with_no_subclass_of_plugin(
+        _pyshinqlx_setup: (),
+        plugins_dir: String,
+        _nosubclass_plugin: (),
+    ) {
+        let cvar_tempdir_str = CString::new(plugins_dir).expect("this should not happen");
 
         let mut mock_engine = MockQuakeEngine::new();
         mock_engine
@@ -2634,12 +2668,16 @@ class nosubclass_plugin:
         Python::with_gil(|py| {
             py.import_bound(intern!(py, "sys"))
                 .and_then(|sys_module| {
+                    let full_temp_dir = TEMP_DIR
+                        .path()
+                        .canonicalize()
+                        .expect("this should not happen");
                     sys_module
                         .getattr(intern!(py, "path"))
                         .and_then(|sys_path_module| {
                             sys_path_module.call_method1(
                                 intern!(py, "append"),
-                                (TEMP_DIR.as_ref().to_string_lossy(),),
+                                (full_temp_dir.to_string_lossy(),),
                             )
                         })
                 })
@@ -2653,34 +2691,12 @@ class nosubclass_plugin:
     #[rstest]
     #[serial]
     #[cfg_attr(miri, ignore)]
-    fn load_plugin_loads_valid_test_plugin(_pyshinqlx_setup: ()) {
-        let mut plugins_dir_path = TEMP_DIR.as_ref().to_path_buf();
-        plugins_dir_path.push("shinqlx-plugins");
-
-        if !plugins_dir_path.exists() {
-            DirBuilder::new()
-                .create(plugins_dir_path.as_path())
-                .expect("this should not happen");
-        }
-        let cvar_tempdir_str = plugins_dir_path.to_string_lossy().to_string();
-
-        let mut test_plugin_path = plugins_dir_path.to_path_buf();
-        test_plugin_path.push("test_plugin");
-        test_plugin_path.set_extension("py");
-
-        if !test_plugin_path.exists() {
-            let mut test_plugin = File::create(test_plugin_path).expect("this should not happen");
-            test_plugin
-                .write_all(
-                    br#"
-import shinqlx
-
-class test_plugin(shinqlx.Plugin):
-    pass
-        "#,
-                )
-                .expect("this should not happen");
-        }
+    fn load_plugin_loads_valid_test_plugin(
+        _pyshinqlx_setup: (),
+        plugins_dir: String,
+        _test_plugin: (),
+    ) {
+        let cvar_tempdir_str = CString::new(plugins_dir).expect("this should not happen");
 
         let mut mock_engine = MockQuakeEngine::new();
         mock_engine
@@ -2698,12 +2714,16 @@ class test_plugin(shinqlx.Plugin):
         Python::with_gil(|py| {
             py.import_bound(intern!(py, "sys"))
                 .and_then(|sys_module| {
+                    let full_temp_dir = TEMP_DIR
+                        .path()
+                        .canonicalize()
+                        .expect("this should not happen");
                     sys_module
                         .getattr(intern!(py, "path"))
                         .and_then(|sys_path_module| {
                             sys_path_module.call_method1(
                                 intern!(py, "append"),
-                                (TEMP_DIR.as_ref().to_string_lossy(),),
+                                (full_temp_dir.to_string_lossy(),),
                             )
                         })
                 })
@@ -2717,34 +2737,12 @@ class test_plugin(shinqlx.Plugin):
     #[rstest]
     #[serial]
     #[cfg_attr(miri, ignore)]
-    fn load_plugin_reloads_already_loaded_test_plugin(_pyshinqlx_setup: ()) {
-        let mut plugins_dir_path = TEMP_DIR.as_ref().to_path_buf();
-        plugins_dir_path.push("shinqlx-plugins");
-
-        if !plugins_dir_path.exists() {
-            DirBuilder::new()
-                .create(plugins_dir_path.as_path())
-                .expect("this should not happen");
-        }
-        let cvar_tempdir_str = plugins_dir_path.to_string_lossy().to_string();
-
-        let mut test_plugin_path = plugins_dir_path.to_path_buf();
-        test_plugin_path.push("test_reload_plugin");
-        test_plugin_path.set_extension("py");
-
-        if !test_plugin_path.exists() {
-            let mut test_plugin = File::create(test_plugin_path).expect("this should not happen");
-            test_plugin
-                .write_all(
-                    br#"
-import shinqlx
-
-class test_reload_plugin(shinqlx.Plugin):
-    pass
-        "#,
-                )
-                .expect("this should not happen");
-        }
+    fn load_plugin_reloads_already_loaded_test_plugin(
+        _pyshinqlx_setup: (),
+        plugins_dir: String,
+        _test_plugin: (),
+    ) {
+        let cvar_tempdir_str = CString::new(plugins_dir).expect("this should not happen");
 
         let mut mock_engine = MockQuakeEngine::new();
         mock_engine
@@ -2772,20 +2770,24 @@ class test_reload_plugin(shinqlx.Plugin):
 
             py.import_bound(intern!(py, "sys"))
                 .and_then(|sys_module| {
+                    let full_temp_dir = TEMP_DIR
+                        .path()
+                        .canonicalize()
+                        .expect("this should not happen");
                     sys_module
                         .getattr(intern!(py, "path"))
                         .and_then(|sys_path_module| {
                             sys_path_module.call_method1(
                                 intern!(py, "append"),
-                                (TEMP_DIR.as_ref().to_string_lossy(),),
+                                (full_temp_dir.to_string_lossy(),),
                             )
                         })
                 })
                 .expect("this should not happen");
 
-            load_plugin(py, "test_reload_plugin").expect("this should not happen");
+            load_plugin(py, "test_plugin").expect("this should not happen");
 
-            let result = load_plugin(py, "test_reload_plugin");
+            let result = load_plugin(py, "test_plugin");
             assert!(result.is_ok());
         });
     }
@@ -2803,34 +2805,12 @@ class test_reload_plugin(shinqlx.Plugin):
     #[rstest]
     #[cfg_attr(miri, ignore)]
     #[serial]
-    fn unloading_loaded_plugin_with_no_event_dispatchers(_pyshinqlx_setup: ()) {
-        let mut plugins_dir_path = TEMP_DIR.as_ref().to_path_buf();
-        plugins_dir_path.push("shinqlx-plugins");
-
-        if !plugins_dir_path.exists() {
-            DirBuilder::new()
-                .create(plugins_dir_path.as_path())
-                .expect("this should not happen");
-        }
-        let cvar_tempdir_str = plugins_dir_path.to_string_lossy().to_string();
-
-        let mut test_plugin_path = plugins_dir_path.to_path_buf();
-        test_plugin_path.push("test_plugin");
-        test_plugin_path.set_extension("py");
-
-        if !test_plugin_path.exists() {
-            let mut test_plugin = File::create(test_plugin_path).expect("this should not happen");
-            test_plugin
-                .write_all(
-                    br#"
-import shinqlx
-
-class test_plugin(shinqlx.Plugin):
-    pass
-        "#,
-                )
-                .expect("this should not happen");
-        }
+    fn unloading_loaded_plugin_with_no_event_dispatchers(
+        _pyshinqlx_setup: (),
+        plugins_dir: String,
+        _test_plugin: (),
+    ) {
+        let cvar_tempdir_str = CString::new(plugins_dir).expect("this should not happen");
 
         let mut mock_engine = MockQuakeEngine::new();
         mock_engine
@@ -2858,12 +2838,16 @@ class test_plugin(shinqlx.Plugin):
 
             py.import_bound(intern!(py, "sys"))
                 .and_then(|sys_module| {
+                    let full_temp_dir = TEMP_DIR
+                        .path()
+                        .canonicalize()
+                        .expect("this should not happen");
                     sys_module
                         .getattr(intern!(py, "path"))
                         .and_then(|sys_path_module| {
                             sys_path_module.call_method1(
                                 intern!(py, "append"),
-                                (TEMP_DIR.as_ref().to_string_lossy(),),
+                                (full_temp_dir.to_string_lossy(),),
                             )
                         })
                 })
@@ -2881,34 +2865,12 @@ class test_plugin(shinqlx.Plugin):
     #[rstest]
     #[serial]
     #[cfg_attr(miri, ignore)]
-    fn unloading_loaded_plugin_that_is_not_stored_in_loaded_plugins(_pyshinqlx_setup: ()) {
-        let mut plugins_dir_path = TEMP_DIR.as_ref().to_path_buf();
-        plugins_dir_path.push("shinqlx-plugins");
-
-        if !plugins_dir_path.exists() {
-            DirBuilder::new()
-                .create(plugins_dir_path.as_path())
-                .expect("this should not happen");
-        }
-        let cvar_tempdir_str = plugins_dir_path.to_string_lossy().to_string();
-
-        let mut test_plugin_path = plugins_dir_path.to_path_buf();
-        test_plugin_path.push("test_plugin");
-        test_plugin_path.set_extension("py");
-
-        if !test_plugin_path.exists() {
-            let mut test_plugin = File::create(test_plugin_path).expect("this should not happen");
-            test_plugin
-                .write_all(
-                    br#"
-import shinqlx
-
-class test_plugin(shinqlx.Plugin):
-    pass
-        "#,
-                )
-                .expect("this should not happen");
-        }
+    fn unloading_loaded_plugin_that_is_not_stored_in_loaded_plugins(
+        _pyshinqlx_setup: (),
+        plugins_dir: String,
+        _test_plugin: (),
+    ) {
+        let cvar_tempdir_str = CString::new(plugins_dir).expect("this should not happen");
 
         let mut mock_engine = MockQuakeEngine::new();
         mock_engine
@@ -2936,12 +2898,16 @@ class test_plugin(shinqlx.Plugin):
 
             py.import_bound(intern!(py, "sys"))
                 .and_then(|sys_module| {
+                    let full_temp_dir = TEMP_DIR
+                        .path()
+                        .canonicalize()
+                        .expect("this should not happen");
                     sys_module
                         .getattr(intern!(py, "path"))
                         .and_then(|sys_path_module| {
                             sys_path_module.call_method1(
                                 intern!(py, "append"),
-                                (TEMP_DIR.as_ref().to_string_lossy(),),
+                                (full_temp_dir.to_string_lossy(),),
                             )
                         })
                 })
@@ -2961,34 +2927,12 @@ class test_plugin(shinqlx.Plugin):
     #[rstest]
     #[serial]
     #[cfg_attr(miri, ignore)]
-    fn unloading_loaded_plugin_unloads_plugin(_pyshinqlx_setup: ()) {
-        let mut plugins_dir_path = TEMP_DIR.as_ref().to_path_buf();
-        plugins_dir_path.push("shinqlx-plugins");
-
-        if !plugins_dir_path.exists() {
-            DirBuilder::new()
-                .create(plugins_dir_path.as_path())
-                .expect("this should not happen");
-        }
-        let cvar_tempdir_str = plugins_dir_path.to_string_lossy().to_string();
-
-        let mut test_plugin_path = plugins_dir_path.to_path_buf();
-        test_plugin_path.push("test_plugin");
-        test_plugin_path.set_extension("py");
-
-        if !test_plugin_path.exists() {
-            let mut test_plugin = File::create(test_plugin_path).expect("this should not happen");
-            test_plugin
-                .write_all(
-                    br#"
-import shinqlx
-
-class test_plugin(shinqlx.Plugin):
-    pass
-        "#,
-                )
-                .expect("this should not happen");
-        }
+    fn unloading_loaded_plugin_unloads_plugin(
+        _pyshinqlx_setup: (),
+        plugins_dir: String,
+        _test_plugin: (),
+    ) {
+        let cvar_tempdir_str = CString::new(plugins_dir).expect("this should not happen");
 
         let mut mock_engine = MockQuakeEngine::new();
         mock_engine
@@ -3016,12 +2960,16 @@ class test_plugin(shinqlx.Plugin):
 
             py.import_bound(intern!(py, "sys"))
                 .and_then(|sys_module| {
+                    let full_temp_dir = TEMP_DIR
+                        .path()
+                        .canonicalize()
+                        .expect("this should not happen");
                     sys_module
                         .getattr(intern!(py, "path"))
                         .and_then(|sys_path_module| {
                             sys_path_module.call_method1(
                                 intern!(py, "append"),
-                                (TEMP_DIR.as_ref().to_string_lossy(),),
+                                (full_temp_dir.to_string_lossy(),),
                             )
                         })
                 })
@@ -3037,34 +2985,12 @@ class test_plugin(shinqlx.Plugin):
     #[rstest]
     #[serial]
     #[cfg_attr(miri, ignore)]
-    fn reload_plugin_reloads_already_loaded_test_plugin(_pyshinqlx_setup: ()) {
-        let mut plugins_dir_path = TEMP_DIR.as_ref().to_path_buf();
-        plugins_dir_path.push("shinqlx-plugins");
-
-        if !plugins_dir_path.exists() {
-            DirBuilder::new()
-                .create(plugins_dir_path.as_path())
-                .expect("this should not happen");
-        }
-        let cvar_tempdir_str = plugins_dir_path.to_string_lossy().to_string();
-
-        let mut test_plugin_path = plugins_dir_path.to_path_buf();
-        test_plugin_path.push("test_plugin");
-        test_plugin_path.set_extension("py");
-
-        if !test_plugin_path.exists() {
-            let mut test_plugin = File::create(test_plugin_path).expect("this should not happen");
-            test_plugin
-                .write_all(
-                    br#"
-import shinqlx
-
-class test_plugin(shinqlx.Plugin):
-    pass
-        "#,
-                )
-                .expect("this should not happen");
-        }
+    fn reload_plugin_reloads_already_loaded_test_plugin(
+        _pyshinqlx_setup: (),
+        plugins_dir: String,
+        _test_plugin: (),
+    ) {
+        let cvar_tempdir_str = CString::new(plugins_dir).expect("this should not happen");
 
         let mut mock_engine = MockQuakeEngine::new();
         mock_engine
@@ -3092,12 +3018,16 @@ class test_plugin(shinqlx.Plugin):
 
             py.import_bound(intern!(py, "sys"))
                 .and_then(|sys_module| {
+                    let full_temp_dir = TEMP_DIR
+                        .path()
+                        .canonicalize()
+                        .expect("this should not happen");
                     sys_module
                         .getattr(intern!(py, "path"))
                         .and_then(|sys_path_module| {
                             sys_path_module.call_method1(
                                 intern!(py, "append"),
-                                (TEMP_DIR.as_ref().to_string_lossy(),),
+                                (full_temp_dir.to_string_lossy(),),
                             )
                         })
                 })
