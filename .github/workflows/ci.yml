@@ -123,12 +123,12 @@ jobs:
         with:
           toolchain: nightly
           components: "llvm-tools"
-      - run: cargo install cargo-tarpaulin
+      - run: cargo install --git https://github.com/xd009642/tarpaulin --branch update/llvm-profparsers cargo-tarpaulin
       - run: cargo tarpaulin
-      #      - name: Upload to codecov.io
-      #        uses: codecov/codecov-action@v4
-      #        with:
-      #          token: ${{secrets.CODECOV_TOKEN}}
+      - name: Upload to codecov.io
+        uses: codecov/codecov-action@v4
+        with:
+          token: ${{secrets.CODECOV_TOKEN}}
       - name: Archive code coverage results
         uses: actions/upload-artifact@v4
         with:
@@ -152,11 +152,11 @@ jobs:
           components: "llvm-tools"
       - run: cargo install cargo-llvm-cov
       - run: cargo llvm-cov --lcov --output-path lcov.info
-      - name: Upload to codecov.io
-        uses: codecov/codecov-action@v4
-        with:
-          token: ${{secrets.CODECOV_TOKEN}}
-          files: lcov.info
+      #      - name: Upload to codecov.io
+      #        uses: codecov/codecov-action@v4
+      #        with:
+      #          token: ${{secrets.CODECOV_TOKEN}}
+      #          files: lcov.info
       - name: Archive code coverage results
         uses: actions/upload-artifact@v4
         with:
@@ -185,7 +185,7 @@ jobs:
     name: Release
     runs-on: ubuntu-latest
     if: "startsWith(github.ref, 'refs/tags/')"
-    needs: [ check, clippy, documentation, miri, llvm-cov-coverage, build, python-checks ]
+    needs: [ check, clippy, documentation, miri, tarpaulin-coverage, build, python-checks ]
     steps:
       - name: Checkout sources
         uses: actions/checkout@v4
