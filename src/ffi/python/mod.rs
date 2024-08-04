@@ -148,8 +148,9 @@ use itertools::Itertools;
 use log::*;
 use once_cell::sync::Lazy;
 use regex::Regex;
-use std::path::Path;
+use std::path::{Path, PathBuf};
 
+use pyo3::exceptions::PyAttributeError;
 use pyo3::{
     append_to_inittab, create_exception,
     exceptions::{PyEnvironmentError, PyException, PyValueError},
@@ -2303,36 +2304,34 @@ fn try_unload_plugin(py: Python<'_>, plugin: &str) -> PyResult<()> {
                 .iter()?
                 .flatten()
                 .for_each(|hook| {
-                    if let Ok(hook_tuple) = hook.extract::<Bound<'_, PyTuple>>() {
-                        let Ok(event_name) = hook_tuple.get_item(0) else {
-                            return;
-                        };
-                        let Ok(event_handler) = hook_tuple.get_item(1) else {
-                            return;
-                        };
-                        let Ok(event_priority) = hook_tuple.get_item(2) else {
-                            return;
-                        };
-                        let Some(event_dispatcher) =
+                    if let Err(ref err) =
+                        hook.extract::<Bound<'_, PyTuple>>().and_then(|hook_tuple| {
+                            let event_name = hook_tuple.get_item(0)?;
+                            let event_handler = hook_tuple.get_item(1)?;
+                            let event_priority = hook_tuple.get_item(2)?;
                             EVENT_DISPATCHERS
                                 .load()
                                 .as_ref()
                                 .and_then(|event_dispatchers| {
-                                    event_dispatchers.bind(py).get_item(event_name).ok()
+                                    event_dispatchers.bind(py).get_item(&event_name).ok()
                                 })
-                        else {
-                            return;
-                        };
-                        let Ok(plugin_name) = loaded_plugin.getattr(intern!(py, "name")) else {
-                            return;
-                        };
+                                .map_or(
+                                    Err(PyAttributeError::new_err(event_name.to_string())),
+                                    |event_dispatcher| {
+                                        let plugin_name =
+                                            loaded_plugin.getattr(intern!(py, "name"))?;
 
-                        if let Err(ref e) = event_dispatcher.call_method1(
-                            intern!(py, "remove_hook"),
-                            (plugin_name, event_handler, event_priority),
-                        ) {
-                            log_exception(py, e);
-                        }
+                                        event_dispatcher
+                                            .call_method1(
+                                                intern!(py, "remove_hook"),
+                                                (plugin_name, event_handler, event_priority),
+                                            )
+                                            .map(|_| ())
+                                    },
+                                )
+                        })
+                    {
+                        log_exception(py, err);
                     }
                 });
 
@@ -2341,12 +2340,15 @@ fn try_unload_plugin(py: Python<'_>, plugin: &str) -> PyResult<()> {
                 .iter()?
                 .flatten()
                 .for_each(|cmd| {
-                    if let Ok(py_cmd) = cmd.extract::<Bound<'_, Command>>() {
-                        if let Some(ref commands) = *COMMANDS.load() {
-                            if let Err(ref e) = commands.borrow(py).remove_command(py, py_cmd) {
-                                log_exception(py, e);
-                            }
-                        }
+                    if let Err(ref err) = cmd.extract::<Bound<'_, Command>>().and_then(|py_cmd| {
+                        COMMANDS.load().as_ref().map_or(
+                            Err(PyEnvironmentError::new_err(
+                                "could not get access to commands",
+                            )),
+                            |commands| commands.borrow(py).remove_command(py, py_cmd),
+                        )
+                    }) {
+                        log_exception(py, err);
                     };
                 });
 
@@ -2435,7 +2437,7 @@ mod pyshinqlx_plugins_tests {
     };
 
     use super::pyshinqlx_setup_fixture::*;
-    use super::{EventDispatcherManager, Plugin, UnloadDispatcher};
+    use super::{EventDispatcherManager, GameEndDispatcher, Plugin, UnloadDispatcher};
 
     use crate::ffi::c::prelude::{cvar_t, CVar, CVarBuilder};
     use crate::prelude::{serial, MockQuakeEngine};
@@ -2511,6 +2513,34 @@ import shinqlx
 
 class test_plugin(shinqlx.Plugin):
     pass
+        "#,
+                )
+                .expect("this should not happen");
+        }
+
+        let mut test_cmd_hook_plugin_path = PathBuf::from(&plugins_dir);
+        test_cmd_hook_plugin_path.push("test_cmd_hook_plugin");
+        test_cmd_hook_plugin_path.set_extension("py");
+
+        if !test_cmd_hook_plugin_path.exists() {
+            let mut test_plugin =
+                File::create(test_cmd_hook_plugin_path).expect("this should not happen");
+            test_plugin
+                .write_all(
+                    br#"
+import shinqlx
+
+class test_cmd_hook_plugin(shinqlx.Plugin):
+    def __init__(self):
+        self.add_command("asdf", self.cmd_asdf)
+
+        self.add_hook("game_end", self.handle_game_end)
+
+    def cmd_asdf(self, *args, **kwargs):
+        pass
+
+    def handle_game_end(self, *args, **kwargs):
+        pass
         "#,
                 )
                 .expect("this should not happen");
@@ -2959,6 +2989,77 @@ class test_plugin(shinqlx.Plugin):
     #[rstest]
     #[serial]
     #[cfg_attr(miri, ignore)]
+    fn unloading_loaded_plugin_unregisters_hooks_and_commands(
+        _pyshinqlx_setup: (),
+        plugins_dir: String,
+    ) {
+        let cvar_tempdir_str = CString::new(plugins_dir).expect("this should not happen");
+        let zmq_cvar_str = CString::new("1").expect("this should not happen");
+
+        let mut mock_engine = MockQuakeEngine::new();
+        mock_engine
+            .expect_find_cvar()
+            .with(predicate::eq("qlx_pluginsPath"))
+            .returning(move |_| {
+                let mut raw_cvar = CVarBuilder::default()
+                    .string(cvar_tempdir_str.as_ptr() as *mut c_char)
+                    .build()
+                    .expect("this should not happen");
+                CVar::try_from(&mut raw_cvar as *mut cvar_t).ok()
+            });
+        mock_engine
+            .expect_find_cvar()
+            .with(predicate::eq("zmq_stats_enable"))
+            .returning(move |_| {
+                let mut raw_cvar = CVarBuilder::default()
+                    .string(zmq_cvar_str.as_ptr() as *mut c_char)
+                    .build()
+                    .expect("this should not happen");
+                CVar::try_from(&mut raw_cvar as *mut cvar_t).ok()
+            });
+        MAIN_ENGINE.store(Some(mock_engine.into()));
+
+        Python::with_gil(|py| {
+            let event_dispatcher = EventDispatcherManager::default();
+            event_dispatcher
+                .add_dispatcher(py, py.get_type_bound::<UnloadDispatcher>())
+                .expect("could not add unload dispatcher");
+            event_dispatcher
+                .add_dispatcher(py, py.get_type_bound::<GameEndDispatcher>())
+                .expect("could not add unload dispatcher");
+            EVENT_DISPATCHERS.store(Some(
+                Py::new(py, event_dispatcher)
+                    .expect("could not create event dispatcher manager in python")
+                    .into(),
+            ));
+
+            py.import_bound(intern!(py, "sys"))
+                .and_then(|sys_module| {
+                    let full_temp_dir = TEMP_DIR
+                        .path()
+                        .canonicalize()
+                        .expect("this should not happen");
+                    sys_module
+                        .getattr(intern!(py, "path"))
+                        .and_then(|sys_path_module| {
+                            sys_path_module.call_method1(
+                                intern!(py, "append"),
+                                (full_temp_dir.to_string_lossy(),),
+                            )
+                        })
+                })
+                .expect("this should not happen");
+
+            load_plugin(py, "test_cmd_hook_plugin").expect("this should not happen");
+
+            let result = unload_plugin(py, "test_cmd_hook_plugin");
+            assert!(result.is_ok());
+        });
+    }
+
+    #[rstest]
+    #[serial]
+    #[cfg_attr(miri, ignore)]
     fn reload_plugin_reloads_already_loaded_test_plugin(_pyshinqlx_setup: (), plugins_dir: String) {
         let cvar_tempdir_str = CString::new(plugins_dir).expect("this should not happen");
 
@@ -3125,7 +3226,7 @@ fn initialize(py: Python<'_>) {
     py.allow_threads(register_handlers)
 }
 
-fn try_get_plugins_path() -> Result<std::path::PathBuf, &'static str> {
+fn try_get_plugins_path() -> Result<PathBuf, &'static str> {
     MAIN_ENGINE
         .load()
         .as_ref()
@@ -3146,6 +3247,100 @@ fn try_get_plugins_path() -> Result<std::path::PathBuf, &'static str> {
                 },
             )
         })
+}
+
+#[cfg(test)]
+mod try_get_plugins_path_tests {
+    use super::try_get_plugins_path;
+
+    use crate::ffi::c::prelude::{cvar_t, CVar, CVarBuilder};
+    use crate::prelude::{serial, MockQuakeEngine};
+    use crate::MAIN_ENGINE;
+
+    use alloc::ffi::CString;
+    use core::ffi::c_char;
+
+    use mockall::predicate;
+
+    static TEMP_DIR: once_cell::sync::Lazy<tempfile::TempDir> = once_cell::sync::Lazy::new(|| {
+        tempfile::Builder::new()
+            .tempdir()
+            .expect("this should not happen")
+    });
+
+    #[test]
+    #[serial]
+    fn try_get_plugins_path_with_no_main_engine() {
+        MAIN_ENGINE.store(None);
+
+        let result = try_get_plugins_path();
+        assert!(result.is_err_and(|err| err == "no main engine found"));
+    }
+
+    #[test]
+    #[serial]
+    fn try_get_plugins_path_with_no_cvar_set() {
+        let mut mock_engine = MockQuakeEngine::new();
+        mock_engine
+            .expect_find_cvar()
+            .with(predicate::eq("qlx_pluginsPath"))
+            .returning(|_| None);
+        MAIN_ENGINE.store(Some(mock_engine.into()));
+
+        let result = try_get_plugins_path();
+        assert!(result.is_err_and(|err| err == "qlx_pluginsPath cvar not found"));
+    }
+
+    #[test]
+    #[serial]
+    fn try_get_plugins_path_with_cvar_pointing_to_non_existent_directory() {
+        let cvar_tempdir_str =
+            CString::new("non-existing-directory").expect("this should not happen");
+
+        let mut mock_engine = MockQuakeEngine::new();
+        mock_engine
+            .expect_find_cvar()
+            .with(predicate::eq("qlx_pluginsPath"))
+            .returning(move |_| {
+                let mut raw_cvar = CVarBuilder::default()
+                    .string(cvar_tempdir_str.as_ptr() as *mut c_char)
+                    .build()
+                    .expect("this should not happen");
+                CVar::try_from(&mut raw_cvar as *mut cvar_t).ok()
+            });
+        MAIN_ENGINE.store(Some(mock_engine.into()));
+
+        let result = try_get_plugins_path();
+        assert!(result
+            .is_err_and(|err| err == "qlx_pluginsPath is not pointing to an existing directory"));
+    }
+
+    #[test]
+    #[serial]
+    fn try_get_plugins_path_with_cvar_pointing_to_existing_directory() {
+        let cvar_tempdir_str = CString::new(TEMP_DIR.path().to_string_lossy().to_string())
+            .expect("this should not happen");
+
+        let mut mock_engine = MockQuakeEngine::new();
+        mock_engine
+            .expect_find_cvar()
+            .with(predicate::eq("qlx_pluginsPath"))
+            .returning(move |_| {
+                let mut raw_cvar = CVarBuilder::default()
+                    .string(cvar_tempdir_str.as_ptr() as *mut c_char)
+                    .build()
+                    .expect("this should not happen");
+                CVar::try_from(&mut raw_cvar as *mut cvar_t).ok()
+            });
+        MAIN_ENGINE.store(Some(mock_engine.into()));
+
+        let result = try_get_plugins_path();
+        assert!(result.is_ok_and(|path| path
+            == TEMP_DIR
+                .as_ref()
+                .canonicalize()
+                .expect("this should not happen")));
+    }
 }
 
 /// Initialization that needs to be called after QLDS has finished
