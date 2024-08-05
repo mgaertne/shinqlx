@@ -10,7 +10,8 @@ work out of the box.
 
 Some limitations apply for certain minqlx functions maybe used in plugins.
 
-* 32-bit implementation may not work. It's untested.
+* 32-bit is unsupported. Earlier versions included support for it, but after too long of being untests, we dropped
+  support for that older CPU types.
 * Some compatibility might not work, as this implementation is not yet fully tested.
 * plugins that use db.zincrby, db.lrem or db.setex need to provide the value and amount parameters through keyword
   arguments. This might be a breaking change for some plugins, but ensures Python redis 2.0 compatibility for these
