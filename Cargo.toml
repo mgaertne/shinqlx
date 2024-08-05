@@ -37,7 +37,7 @@ rustflags = ["-Zlocation-detail=none"]
 
 [dependencies]
 ctor = { version = ">=0.2", features = ["used_linker"] }
-rand = { version = ">=0.9.0-alpha.1", default-features = false, features = ["getrandom"] }
+rand = { version = ">=0.9.0-alpha.2", default-features = false, features = ["std", "std_rng", "getrandom"] }
 pyo3 = { version = ">=0.22, <0.23", features = ["pyo3-macros", "extension-module", "nightly"] }
 retour = { version = ">=0.4.0-alpha.2", default-features = false, features = ["nightly"] }
 derive_builder = { version = ">=0.20", default-features = false, features = ["clippy", "alloc"] }
@@ -60,7 +60,7 @@ procfs = { version = ">=0.16", default-features = false }
 procfs-core = { version = ">=0.16", default-features = false }
 
 [target."cfg(not(target_os=\"windows\"))".dependencies]
-tikv-jemallocator = { version = ">=0.5", default-features = false, optional = true }
+tikv-jemallocator = { version = ">=0.6", default-features = false, optional = true }
 
 [build-dependencies]
 pyo3-build-config = { version = ">=0.22, <0.23", default-features = false, features = ["resolve-config"] }
@@ -68,8 +68,8 @@ git2 = { version = ">=0.19", default-features = false }
 
 [dev-dependencies]
 pretty_assertions = { version = ">=1.4", default-features = false, features = ["alloc"] }
-rstest = { version = ">=0.21", default-features = false }
-mockall = { version = ">=0.12", default-features = false, features = ["nightly"] }
+rstest = { version = ">=0.22", default-features = false }
+mockall = { version = ">=0.13", default-features = false, features = ["nightly"] }
 serial_test = { version = ">=3.1", default-features = false }
 
 [features]
