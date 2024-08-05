@@ -65,11 +65,7 @@ use signal_hook::consts::SIGSEGV;
 use std::time::Instant;
 
 #[allow(dead_code)]
-#[cfg(target_pointer_width = "64")]
 pub(crate) const QZERODED: &str = "qzeroded.x64";
-#[allow(dead_code)]
-#[cfg(target_pointer_width = "32")]
-pub(crate) const QZERODED: &str = "qzeroded.x86";
 
 pub(crate) static MAIN_LOGGER: OnceCell<Handle> = OnceCell::new();
 pub(crate) static MAIN_ENGINE: Lazy<Arc<ArcSwapOption<QuakeLiveEngine>>> =

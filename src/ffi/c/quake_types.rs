@@ -1769,12 +1769,8 @@ pub struct client_s {
     pub netchan_end_queue: *mut *mut netchan_buffer_t,
     // Mino: Holy crap. A bunch of data was added. I have no idea where it actually goes,
     // but this will at least correct sizeof(client_t).
-    #[cfg(target_pointer_width = "64")]
     #[builder(default = "[0; 36808usize]")]
     pub _unknown2: [u8; 36808usize],
-    #[cfg(target_pointer_width = "32")]
-    #[builder(default = "[0; 36836usize]")]
-    pub _unknown2: [u8; 36836usize], // TODO: Outdated.
     // Mino: Woohoo! How nice of them to put the SteamID last.
     #[builder(default)]
     pub steam_id: u64,
