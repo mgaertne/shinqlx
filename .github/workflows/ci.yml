@@ -123,7 +123,7 @@ jobs:
         with:
           toolchain: nightly
           components: "llvm-tools"
-      - run: cargo install --git https://github.com/xd009642/tarpaulin --branch update/llvm-profparsers cargo-tarpaulin
+      - run: cargo install cargo-tarpaulin
       - run: cargo tarpaulin
       - name: Upload to codecov.io
         uses: codecov/codecov-action@v4
