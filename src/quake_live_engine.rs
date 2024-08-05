@@ -34,11 +34,7 @@ use procfs::process::{MMapPath, MemoryMap, Process};
 use retour::{GenericDetour, RawDetour};
 
 #[allow(dead_code)]
-#[cfg(target_pointer_width = "64")]
 const QAGAME: &str = "qagamex64.so";
-#[allow(dead_code)]
-#[cfg(target_pointer_width = "32")]
-const QAGAME: &str = "qagamei386.so";
 
 #[derive(Debug, PartialEq, Eq)]
 pub(crate) enum QuakeLiveEngineError {
