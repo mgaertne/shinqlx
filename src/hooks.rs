@@ -31,7 +31,7 @@ pub(crate) extern "C" fn shinqlx_cmd_addcommand(cmd: *const c_char, func: unsafe
 }
 
 pub(crate) extern "C" fn shinqlx_sys_setmoduleoffset(
-    module_name: *const c_char,
+    module_name: *mut c_char,
     offset: unsafe extern "C" fn(),
 ) {
     MAIN_ENGINE.load().iter().for_each(|main_engine| {
@@ -311,7 +311,7 @@ where
     });
 }
 
-pub(crate) extern "C" fn shinqlx_sv_spawnserver(server: *const c_char, kill_bots: qboolean) {
+pub(crate) extern "C" fn shinqlx_sv_spawnserver(server: *mut c_char, kill_bots: qboolean) {
     let server_str = unsafe { CStr::from_ptr(server) }.to_string_lossy();
     if server_str.is_empty() {
         return;
@@ -627,7 +627,7 @@ mod hooks_tests {
     fn sys_setmoduleoffset_no_main_engine() {
         let module_string = CString::new("qagame").expect("this should not happen");
         MAIN_ENGINE.store(None);
-        shinqlx_sys_setmoduleoffset(module_string.as_ptr(), DUMMY_FN);
+        shinqlx_sys_setmoduleoffset(module_string.as_ptr() as *mut c_char, DUMMY_FN);
     }
 
     #[test]
@@ -646,7 +646,7 @@ mod hooks_tests {
             .times(1);
         MAIN_ENGINE.store(Some(mock_engine.into()));
 
-        shinqlx_sys_setmoduleoffset(module_string.as_ptr(), DUMMY_FN);
+        shinqlx_sys_setmoduleoffset(module_string.as_ptr() as *mut c_char, DUMMY_FN);
     }
 
     #[test]
@@ -667,7 +667,7 @@ mod hooks_tests {
             .times(1);
         MAIN_ENGINE.store(Some(mock_engine.into()));
 
-        shinqlx_sys_setmoduleoffset(module_string.as_ptr(), DUMMY_FN);
+        shinqlx_sys_setmoduleoffset(module_string.as_ptr() as *mut c_char, DUMMY_FN);
     }
 
     #[test]
@@ -1295,7 +1295,7 @@ mod hooks_tests {
     fn sv_spawnserver_with_no_main_engine() {
         MAIN_ENGINE.store(None);
         let server_str = CString::new("l33t ql server").expect("this should not happen");
-        shinqlx_sv_spawnserver(server_str.as_ptr(), qboolean::qtrue);
+        shinqlx_sv_spawnserver(server_str.as_ptr() as *mut c_char, qboolean::qtrue);
     }
 
     #[test]
@@ -1316,7 +1316,7 @@ mod hooks_tests {
 
         let server_str = CString::new("l33t ql server").expect("this should not happen");
 
-        shinqlx_sv_spawnserver(server_str.as_ptr(), qboolean::qtrue);
+        shinqlx_sv_spawnserver(server_str.as_ptr() as *mut c_char, qboolean::qtrue);
     }
 
     #[test]
