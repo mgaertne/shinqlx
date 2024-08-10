@@ -59,7 +59,6 @@ pub(crate) enum QuakeLiveEngineError {
 struct StaticFunctions {
     #[cfg_attr(test, allow(dead_code))]
     com_printf_orig: unsafe extern "C" fn(*const c_char, ...),
-    #[cfg_attr(test, allow(dead_code))]
     cmd_addcommand_orig: extern "C" fn(*const c_char, unsafe extern "C" fn()),
     cmd_args_orig: extern "C" fn() -> *const c_char,
     cmd_argv_orig: extern "C" fn(c_int) -> *const c_char,
@@ -91,7 +90,6 @@ struct StaticFunctions {
     sv_getconfigstring_orig: extern "C" fn(c_int, *mut c_char, c_int),
     #[cfg_attr(test, allow(dead_code))]
     sv_dropclient_orig: extern "C" fn(*mut client_t, *const c_char),
-    #[cfg_attr(test, allow(dead_code))]
     sys_setmoduleoffset_orig: extern "C" fn(*mut c_char, unsafe extern "C" fn()),
     #[cfg_attr(test, allow(dead_code))]
     sv_spawnserver_orig: extern "C" fn(*mut c_char, qboolean),
@@ -1098,7 +1096,6 @@ impl QuakeLiveEngine {
         )
     }
 
-    #[cfg_attr(test, allow(dead_code))]
     fn cmd_addcommand_orig(
         &self,
     ) -> Result<extern "C" fn(*const c_char, unsafe extern "C" fn()), QuakeLiveEngineError> {
@@ -1307,7 +1304,6 @@ impl QuakeLiveEngine {
         )
     }
 
-    #[cfg_attr(test, allow(dead_code))]
     fn sys_setmoduleoffset_orig(
         &self,
     ) -> Result<extern "C" fn(*mut c_char, unsafe extern "C" fn()), QuakeLiveEngineError> {
@@ -1720,6 +1716,9 @@ mod quake_live_engine_test_helpers {
             current_vm: Default::default(),
         }
     }
+
+    #[cfg(not(tarpaulin_include))]
+    pub(crate) unsafe extern "C" fn test_func() {}
 }
 
 pub(crate) trait FindCVar<T: AsRef<str>> {
@@ -1836,9 +1835,6 @@ mod add_command_quake_live_engine_tests {
 
     use core::ffi::CStr;
 
-    #[cfg(not(tarpaulin_include))]
-    unsafe extern "C" fn test_func() {}
-
     #[test]
     fn add_command_with_no_detour_set() {
         let quake_engine = default_quake_engine();
@@ -1874,12 +1870,51 @@ pub(crate) trait SetModuleOffset<T: AsRef<str>> {
 
 impl<T: AsRef<str>> SetModuleOffset<T> for QuakeLiveEngine {
     fn set_module_offset(&self, module_name: T, offset: unsafe extern "C" fn()) {
-        let Ok(c_module_name) = CString::new(module_name.as_ref()) else {
-            return;
+        if let Ok(detour) = self.sys_setmoduleoffset_detour() {
+            if let Ok(c_module_name) = CString::new(module_name.as_ref()) {
+                detour.call(c_module_name.as_ptr() as *mut c_char, offset);
+            }
+        }
+    }
+}
+
+#[cfg(test)]
+mod set_module_offset_quake_live_engine_tests {
+    use super::{QuakeLiveEngine, SetModuleOffset};
+
+    use super::mock_quake_functions::Sys_SetModuleOffset_context;
+    use super::quake_live_engine_test_helpers::*;
+
+    use crate::prelude::serial;
+
+    use core::ffi::CStr;
+
+    #[test]
+    fn set_module_offset_with_no_detour_set() {
+        let quake_engine = default_quake_engine();
+
+        quake_engine.set_module_offset("qagame", test_func);
+    }
+
+    #[test]
+    #[cfg_attr(miri, ignore)]
+    #[serial]
+    fn set_module_offset_with_valid_function() {
+        let set_module_offset_ctx = Sys_SetModuleOffset_context();
+        set_module_offset_ctx
+            .expect()
+            .withf(|&cvar_name, _| {
+                unsafe { CStr::from_ptr(cvar_name) }.to_string_lossy() == "qagame"
+            })
+            .times(1);
+
+        let quake_engine = QuakeLiveEngine {
+            static_functions: default_static_functions().into(),
+            static_detours: default_static_detours().into(),
+            ..default_quake_engine()
         };
-        self.sys_setmoduleoffset_detour()
-            .iter()
-            .for_each(|detour| detour.call(c_module_name.as_ptr() as *mut c_char, offset));
+
+        quake_engine.set_module_offset("qagame", test_func);
     }
 }
 
@@ -1895,6 +1930,49 @@ impl<T: Into<c_int>, U: Into<c_int>, V: Into<c_int>> InitGame<T, U, V> for Quake
         self.g_init_game_orig().iter().for_each(|original_func| {
             original_func(level_time_param, random_seed_param, restart_param)
         });
+    }
+}
+
+#[cfg(test)]
+mod init_game_quake_live_engine_tests {
+    use super::{InitGame, QuakeLiveEngine};
+
+    use super::quake_live_engine_test_helpers::*;
+    use crate::quake_live_engine::mock_quake_functions::{G_InitGame, G_InitGame_context};
+
+    use crate::prelude::serial;
+
+    use core::sync::atomic::Ordering;
+    use mockall::predicate;
+
+    #[test]
+    fn init_game_with_no_detour_set() {
+        let quake_engine = default_quake_engine();
+
+        quake_engine.init_game(42, 21, 0);
+    }
+
+    #[test]
+    #[cfg_attr(miri, ignore)]
+    #[serial]
+    fn init_game_with_valid_function() {
+        let g_init_game_ctx = G_InitGame_context();
+        g_init_game_ctx
+            .expect()
+            .with(predicate::eq(42), predicate::eq(21), predicate::eq(1))
+            .times(1);
+
+        let quake_engine = QuakeLiveEngine {
+            static_functions: default_static_functions().into(),
+            static_detours: default_static_detours().into(),
+            ..default_quake_engine()
+        };
+        quake_engine
+            .vm_functions
+            .g_init_game_orig
+            .store(G_InitGame as usize, Ordering::SeqCst);
+
+        quake_engine.init_game(42, 21, 1);
     }
 }
 
@@ -2662,4 +2740,8 @@ mod quake_functions {
     pub(crate) extern "C" fn Cmd_Argc() -> c_int {
         0
     }
+
+    #[allow(unused_attributes, non_snake_case)]
+    #[cfg(not(tarpaulin_include))]
+    pub(crate) extern "C" fn G_InitGame(_level_time: c_int, _random_see: c_int, _restart: c_int) {}
 }
