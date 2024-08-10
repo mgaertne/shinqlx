@@ -1586,36 +1586,19 @@ impl QuakeLiveEngine {
     }
 }
 
-pub(crate) trait FindCVar<T: AsRef<str>> {
-    fn find_cvar(&self, name: T) -> Option<CVar>;
-}
-
-impl<T: AsRef<str>> FindCVar<T> for QuakeLiveEngine {
-    fn find_cvar(&self, name: T) -> Option<CVar> {
-        CString::new(name.as_ref()).ok().and_then(|c_name| {
-            self.cvar_findvar_orig()
-                .map(|original_func| original_func(c_name.as_ptr()))
-                .and_then(CVar::try_from)
-                .ok()
-        })
-    }
-}
-
 #[cfg(test)]
-mod find_cvar_quake_live_engine_tests {
-    use super::{FindCVar, QuakeLiveEngine, StaticFunctions, VmFunctions};
-
+mod quake_live_engine_test_helpers {
     use super::mock_quake_functions::*;
+    use super::{QuakeLiveEngine, StaticDetours, StaticFunctions, VmFunctions};
 
-    use crate::ffi::c::prelude::CVarBuilder;
-
-    use crate::prelude::serial;
+    use crate::ffi::c::prelude::{client_t, qboolean, usercmd_t};
 
     use alloc::sync::Arc;
-    use core::ffi::CStr;
-    use core::ptr;
+    use core::ffi::{c_char, c_int};
 
-    fn default_static_functions() -> StaticFunctions {
+    use retour::{GenericDetour, RawDetour};
+
+    pub(crate) fn default_static_functions() -> StaticFunctions {
         StaticFunctions {
             com_printf_orig: Com_Printf,
             cmd_addcommand_orig: Cmd_AddCommand,
@@ -1642,7 +1625,73 @@ mod find_cvar_quake_live_engine_tests {
         }
     }
 
-    fn default_quake_engine() -> QuakeLiveEngine {
+    pub(crate) fn default_static_detours() -> StaticDetours {
+        StaticDetours {
+            cmd_addcommand_detour: unsafe {
+                GenericDetour::new(
+                    Cmd_AddCommand as extern "C" fn(*const c_char, unsafe extern "C" fn()),
+                    detoured_Cmd_AddCommand,
+                )
+            }
+            .expect("this should not happen"),
+            sys_setmoduleoffset_detour: unsafe {
+                GenericDetour::new(
+                    Sys_SetModuleOffset as extern "C" fn(*mut c_char, unsafe extern "C" fn()),
+                    detoured_Sys_SetModuleOffset,
+                )
+            }
+            .expect("this should not happen"),
+            sv_executeclientcommand_detour: unsafe {
+                GenericDetour::new(
+                    SV_ExecuteClientCommand
+                        as extern "C" fn(*mut client_t, *const c_char, qboolean),
+                    detoured_SV_ExecuteClientCommand,
+                )
+            }
+            .expect("this should not happen"),
+            sv_cliententerworld_detour: unsafe {
+                GenericDetour::new(
+                    SV_ClientEnterWorld as extern "C" fn(*mut client_t, *mut usercmd_t),
+                    detoured_SV_ClientEnterWorld,
+                )
+            }
+            .expect("this should not happen"),
+            sv_setconfgistring_detour: unsafe {
+                GenericDetour::new(
+                    SV_SetConfigstring as extern "C" fn(c_int, *const c_char),
+                    detoured_SV_SetConfigstring,
+                )
+            }
+            .expect("this should not happen"),
+            sv_dropclient_detour: unsafe {
+                GenericDetour::new(
+                    SV_DropClient as extern "C" fn(*mut client_t, *const c_char),
+                    detoured_SV_DropClient,
+                )
+            }
+            .expect("this should not happen"),
+            sv_spawnserver_detour: unsafe {
+                GenericDetour::new(
+                    SV_SpawnServer as extern "C" fn(*mut c_char, qboolean),
+                    detoured_SV_SpawnServer,
+                )
+            }
+            .expect("this should not happen"),
+            sv_sendservercommand_detour: unsafe {
+                RawDetour::new(
+                    SV_SendServerCommand as *const (),
+                    detoured_SV_SendServerCommand as *const (),
+                )
+            }
+            .expect("this should not happen"),
+            com_printf_detour: unsafe {
+                RawDetour::new(Com_Printf as *const (), detoured_Com_Printf as *const ())
+            }
+            .expect("this should not happen"),
+        }
+    }
+
+    pub(crate) fn default_quake_engine() -> QuakeLiveEngine {
         QuakeLiveEngine {
             static_functions: Default::default(),
             static_detours: Default::default(),
@@ -1671,6 +1720,38 @@ mod find_cvar_quake_live_engine_tests {
             current_vm: Default::default(),
         }
     }
+}
+
+pub(crate) trait FindCVar<T: AsRef<str>> {
+    fn find_cvar(&self, name: T) -> Option<CVar>;
+}
+
+impl<T: AsRef<str>> FindCVar<T> for QuakeLiveEngine {
+    fn find_cvar(&self, name: T) -> Option<CVar> {
+        self.cvar_findvar_orig()
+            .ok()
+            .and_then(|original_func| {
+                CString::new(name.as_ref())
+                    .ok()
+                    .map(|c_name| original_func(c_name.as_ptr()))
+            })
+            .and_then(|cvar| CVar::try_from(cvar).ok())
+    }
+}
+
+#[cfg(test)]
+mod find_cvar_quake_live_engine_tests {
+    use super::{FindCVar, QuakeLiveEngine};
+
+    use super::mock_quake_functions::Cvar_FindVar_context;
+    use super::quake_live_engine_test_helpers::*;
+
+    use crate::ffi::c::prelude::CVarBuilder;
+
+    use crate::prelude::serial;
+
+    use core::ffi::CStr;
+    use core::ptr;
 
     #[test]
     fn find_cvar_with_no_original_func() {
@@ -1736,12 +1817,54 @@ pub(crate) trait AddCommand<T: AsRef<str>> {
 
 impl<T: AsRef<str>> AddCommand<T> for QuakeLiveEngine {
     fn add_command(&self, cmd: T, func: unsafe extern "C" fn()) {
-        let Ok(c_cmd) = CString::new(cmd.as_ref()) else {
-            return;
+        if let Ok(detour) = self.cmd_addcommand_detour() {
+            if let Ok(c_cmd) = CString::new(cmd.as_ref()) {
+                detour.call(c_cmd.as_ptr(), func)
+            }
+        }
+    }
+}
+
+#[cfg(test)]
+mod add_command_quake_live_engine_tests {
+    use super::{AddCommand, QuakeLiveEngine};
+
+    use super::mock_quake_functions::Cmd_AddCommand_context;
+    use super::quake_live_engine_test_helpers::*;
+
+    use crate::prelude::serial;
+
+    use core::ffi::CStr;
+
+    #[cfg(not(tarpaulin_include))]
+    unsafe extern "C" fn test_func() {}
+
+    #[test]
+    fn add_command_with_no_detour_set() {
+        let quake_engine = default_quake_engine();
+
+        quake_engine.add_command("spank", test_func);
+    }
+
+    #[test]
+    #[cfg_attr(miri, ignore)]
+    #[serial]
+    fn add_command_with_valid_function() {
+        let add_command_ctx = Cmd_AddCommand_context();
+        add_command_ctx
+            .expect()
+            .withf(|&cvar_name, _| {
+                unsafe { CStr::from_ptr(cvar_name) }.to_string_lossy() == "spank"
+            })
+            .times(1);
+
+        let quake_engine = QuakeLiveEngine {
+            static_functions: default_static_functions().into(),
+            static_detours: default_static_detours().into(),
+            ..default_quake_engine()
         };
-        self.cmd_addcommand_detour()
-            .iter()
-            .for_each(|detour| detour.call(c_cmd.as_ptr(), func));
+
+        quake_engine.add_command("spank", test_func);
     }
 }
 
@@ -2349,9 +2472,21 @@ mod quake_functions {
     #[cfg(not(tarpaulin_include))]
     pub(crate) unsafe extern "C" fn Com_Printf(_fmt: *const c_char, ...) {}
 
+    #[allow(unused_attributes, clippy::just_underscores_and_digits, non_snake_case)]
+    #[cfg(not(tarpaulin_include))]
+    pub(crate) unsafe extern "C" fn detoured_Com_Printf(_fmt: *const c_char, ...) {}
+
     #[allow(unused_attributes, non_snake_case)]
     #[cfg(not(tarpaulin_include))]
     pub(crate) extern "C" fn Cmd_AddCommand(_cmd: *const c_char, _func: unsafe extern "C" fn()) {}
+
+    #[allow(unused_attributes, non_snake_case)]
+    #[cfg(not(tarpaulin_include))]
+    pub(crate) extern "C" fn detoured_Cmd_AddCommand(
+        _cmd: *const c_char,
+        _func: unsafe extern "C" fn(),
+    ) {
+    }
 
     #[allow(unused_attributes, non_snake_case)]
     #[cfg(not(tarpaulin_include))]
@@ -2422,9 +2557,27 @@ mod quake_functions {
     ) {
     }
 
+    #[allow(unused_attributes, clippy::just_underscores_and_digits, non_snake_case)]
+    #[cfg(not(tarpaulin_include))]
+    pub(crate) unsafe extern "C" fn detoured_SV_SendServerCommand(
+        _cl: *mut client_t,
+        _fmt: *const c_char,
+        ...
+    ) {
+    }
+
     #[allow(unused_attributes, non_snake_case)]
     #[cfg(not(tarpaulin_include))]
     pub(crate) extern "C" fn SV_ExecuteClientCommand(
+        _cl: *mut client_t,
+        _s: *const c_char,
+        _clientOK: qboolean,
+    ) {
+    }
+
+    #[allow(unused_attributes, non_snake_case)]
+    #[cfg(not(tarpaulin_include))]
+    pub(crate) extern "C" fn detoured_SV_ExecuteClientCommand(
         _cl: *mut client_t,
         _s: *const c_char,
         _clientOK: qboolean,
@@ -2445,7 +2598,19 @@ mod quake_functions {
 
     #[allow(unused_attributes, non_snake_case)]
     #[cfg(not(tarpaulin_include))]
+    pub(crate) extern "C" fn detoured_SV_ClientEnterWorld(
+        _client: *mut client_t,
+        _cmd: *mut usercmd_t,
+    ) {
+    }
+
+    #[allow(unused_attributes, non_snake_case)]
+    #[cfg(not(tarpaulin_include))]
     pub(crate) extern "C" fn SV_SetConfigstring(_index: c_int, _value: *const c_char) {}
+
+    #[allow(unused_attributes, non_snake_case)]
+    #[cfg(not(tarpaulin_include))]
+    pub(crate) extern "C" fn detoured_SV_SetConfigstring(_index: c_int, _value: *const c_char) {}
 
     #[allow(unused_attributes, non_snake_case)]
     #[cfg(not(tarpaulin_include))]
@@ -2462,6 +2627,10 @@ mod quake_functions {
 
     #[allow(unused_attributes, non_snake_case)]
     #[cfg(not(tarpaulin_include))]
+    pub(crate) extern "C" fn detoured_SV_DropClient(_drop: *mut client_t, _reason: *const c_char) {}
+
+    #[allow(unused_attributes, non_snake_case)]
+    #[cfg(not(tarpaulin_include))]
     pub(crate) extern "C" fn Sys_SetModuleOffset(
         _moduleName: *mut c_char,
         _offset: unsafe extern "C" fn(),
@@ -2470,7 +2639,19 @@ mod quake_functions {
 
     #[allow(unused_attributes, non_snake_case)]
     #[cfg(not(tarpaulin_include))]
+    pub(crate) extern "C" fn detoured_Sys_SetModuleOffset(
+        _moduleName: *mut c_char,
+        _offset: unsafe extern "C" fn(),
+    ) {
+    }
+
+    #[allow(unused_attributes, non_snake_case)]
+    #[cfg(not(tarpaulin_include))]
     pub(crate) extern "C" fn SV_SpawnServer(_server: *mut c_char, _killBots: qboolean) {}
+
+    #[allow(unused_attributes, non_snake_case)]
+    #[cfg(not(tarpaulin_include))]
+    pub(crate) extern "C" fn detoured_SV_SpawnServer(_server: *mut c_char, _killBots: qboolean) {}
 
     #[allow(unused_attributes, non_snake_case)]
     #[cfg(not(tarpaulin_include))]
