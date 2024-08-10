@@ -610,8 +610,9 @@ impl QuakeLiveEngine {
                 ));
             };
             debug!(target: "shinqlx", "{}: {:#X}", &QuakeLiveFunction::Cmd_Tokenizestring, result);
-            let cmd_tokenizestring_orig =
-                unsafe { mem::transmute::<usize, extern "C" fn(*const c_char)>(result) };
+            let cmd_tokenizestring_orig = unsafe {
+                mem::transmute::<usize, extern "C" fn(*const c_char) -> *const c_char>(result)
+            };
 
             let Some(result) =
                 pattern_search_module(&qzeroded_maps, QuakeLiveFunction::Cbuf_ExecuteText)
@@ -802,7 +803,7 @@ impl QuakeLiveEngine {
             };
             debug!(target: "shinqlx", "{}: {:#X}", &QuakeLiveFunction::SV_GetConfigstring, result);
             let sv_getconfigstring_orig = unsafe {
-                mem::transmute::<usize, extern "C" fn(c_int, *const c_char, c_int)>(result)
+                mem::transmute::<usize, extern "C" fn(c_int, *mut c_char, c_int)>(result)
             };
 
             let Some(result) =
@@ -831,9 +832,7 @@ impl QuakeLiveEngine {
             };
             debug!(target: "shinqlx", "{}: {:#X}", &QuakeLiveFunction::Sys_SetModuleOffset, result);
             let sys_setmoduleoffset_orig = unsafe {
-                mem::transmute::<usize, extern "C" fn(*const c_char, unsafe extern "C" fn())>(
-                    result,
-                )
+                mem::transmute::<usize, extern "C" fn(*mut c_char, unsafe extern "C" fn())>(result)
             };
 
             let Some(result) =
@@ -846,7 +845,7 @@ impl QuakeLiveEngine {
             };
             debug!(target: "shinqlx", "{}: {:#X}", &QuakeLiveFunction::SV_SpawnServer, result);
             let sv_spawnserver_orig =
-                unsafe { mem::transmute::<usize, extern "C" fn(*const c_char, qboolean)>(result) };
+                unsafe { mem::transmute::<usize, extern "C" fn(*mut c_char, qboolean)>(result) };
 
             let Some(result) =
                 pattern_search_module(&qzeroded_maps, QuakeLiveFunction::Cmd_ExecuteString)
