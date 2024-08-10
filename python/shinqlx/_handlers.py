@@ -211,7 +211,7 @@ def handle_server_command(client_id, cmd):
 # weird behavior if you were to use threading. This list will act as a task queue.
 # Tasks can be added by simply adding the @shinqlx.next_frame decorator to functions.
 frame_tasks = sched.scheduler()
-next_frame_tasks = queue.Queue()  # type: ignore
+next_frame_tasks = queue.SimpleQueue()  # type: ignore
 
 
 def handle_frame():

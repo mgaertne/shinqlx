@@ -1,6 +1,8 @@
+import atexit
 import collections
 import subprocess
 import threading
+import queue
 import traceback
 import importlib
 import datetime
@@ -146,7 +148,6 @@ def _configure_logger():
     console_handler = logging.StreamHandler()
     console_handler.setLevel(logging.INFO)
     console_handler.setFormatter(console_fmt)
-    logger.addHandler(console_handler)
 
     # File
     homepath_cvar = shinqlx.get_cvar("fs_homepath")
@@ -167,7 +168,18 @@ def _configure_logger():
     )
     file_handler.setLevel(logging.DEBUG)
     file_handler.setFormatter(file_fmt)
-    logger.addHandler(file_handler)
+
+    logging_queue = queue.SimpleQueue()
+    queue_listener = logging.handlers.QueueListener(
+        logging_queue, console_handler, file_handler, respect_handler_level=True
+    )
+    queue_handler = logging.handlers.QueueHandler(logging_queue)
+    queue_handler.setLevel(logging.DEBUG)
+    queue_listener.start()
+    atexit.register(queue_listener.stop)
+
+    logger.addHandler(queue_handler)
+
     logger.info(
         "============================= shinqlx run @ %s =============================",
         datetime.datetime.now(),
