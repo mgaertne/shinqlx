@@ -58,13 +58,13 @@ pub(crate) enum QuakeLiveEngineError {
 #[derive(Debug)]
 struct StaticFunctions {
     #[cfg_attr(test, allow(dead_code))]
-    com_printf_orig: extern "C" fn(*const c_char, ...),
+    com_printf_orig: unsafe extern "C" fn(*const c_char, ...),
     #[cfg_attr(test, allow(dead_code))]
     cmd_addcommand_orig: extern "C" fn(*const c_char, unsafe extern "C" fn()),
     cmd_args_orig: extern "C" fn() -> *const c_char,
     cmd_argv_orig: extern "C" fn(c_int) -> *const c_char,
     #[allow(dead_code)]
-    cmd_tokenizestring_orig: extern "C" fn(*const c_char),
+    cmd_tokenizestring_orig: extern "C" fn(*const c_char) -> *const c_char,
     #[allow(dead_code)]
     cbuf_executetext_orig: extern "C" fn(cbufExec_t, *const c_char),
     cvar_findvar_orig: extern "C" fn(*const c_char) -> *mut cvar_t,
@@ -78,7 +78,7 @@ struct StaticFunctions {
     ) -> *mut cvar_t,
     cvar_set2_orig: extern "C" fn(*const c_char, *const c_char, qboolean) -> *mut cvar_t,
     #[cfg_attr(test, allow(dead_code))]
-    sv_sendservercommand_orig: extern "C" fn(*mut client_t, *const c_char, ...),
+    sv_sendservercommand_orig: unsafe extern "C" fn(*mut client_t, *const c_char, ...),
     #[cfg_attr(test, allow(dead_code))]
     sv_executeclientcommand_orig: extern "C" fn(*mut client_t, *const c_char, qboolean),
     #[cfg_attr(test, allow(dead_code))]
@@ -88,13 +88,13 @@ struct StaticFunctions {
     sv_cliententerworld_orig: extern "C" fn(*mut client_t, *mut usercmd_t),
     #[cfg_attr(test, allow(dead_code))]
     sv_setconfigstring_orig: extern "C" fn(c_int, *const c_char),
-    sv_getconfigstring_orig: extern "C" fn(c_int, *const c_char, c_int),
+    sv_getconfigstring_orig: extern "C" fn(c_int, *mut c_char, c_int),
     #[cfg_attr(test, allow(dead_code))]
     sv_dropclient_orig: extern "C" fn(*mut client_t, *const c_char),
     #[cfg_attr(test, allow(dead_code))]
-    sys_setmoduleoffset_orig: extern "C" fn(*const c_char, unsafe extern "C" fn()),
+    sys_setmoduleoffset_orig: extern "C" fn(*mut c_char, unsafe extern "C" fn()),
     #[cfg_attr(test, allow(dead_code))]
-    sv_spawnserver_orig: extern "C" fn(*const c_char, qboolean),
+    sv_spawnserver_orig: extern "C" fn(*mut c_char, qboolean),
     cmd_executestring_orig: extern "C" fn(*const c_char),
     cmd_argc_orig: extern "C" fn() -> c_int,
 }
@@ -102,14 +102,14 @@ struct StaticFunctions {
 #[derive(Debug)]
 struct StaticDetours {
     cmd_addcommand_detour: GenericDetour<extern "C" fn(*const c_char, unsafe extern "C" fn())>,
-    sys_setmoduleoffset_detour: GenericDetour<extern "C" fn(*const c_char, unsafe extern "C" fn())>,
+    sys_setmoduleoffset_detour: GenericDetour<extern "C" fn(*mut c_char, unsafe extern "C" fn())>,
     sv_executeclientcommand_detour:
         GenericDetour<extern "C" fn(*mut client_t, *const c_char, qboolean)>,
     sv_cliententerworld_detour: GenericDetour<extern "C" fn(*mut client_t, *mut usercmd_t)>,
     sv_setconfgistring_detour: GenericDetour<extern "C" fn(c_int, *const c_char)>,
     #[cfg_attr(test, allow(dead_code))]
     sv_dropclient_detour: GenericDetour<extern "C" fn(*mut client_t, *const c_char)>,
-    sv_spawnserver_detour: GenericDetour<extern "C" fn(*const c_char, qboolean)>,
+    sv_spawnserver_detour: GenericDetour<extern "C" fn(*mut c_char, qboolean)>,
     sv_sendservercommand_detour: RawDetour,
     com_printf_detour: RawDetour,
 }
@@ -1024,12 +1024,12 @@ impl QuakeLiveEngine {
     // Called after the game is initialized.
     #[cfg_attr(test, allow(dead_code))]
     pub(crate) fn initialize_cvars(&self) {
-        let Some(maxclients) = self.find_cvar("sv_maxclients") else {
-            return;
-        };
-
-        self.sv_maxclients
-            .store(maxclients.get_integer(), Ordering::SeqCst);
+        self.find_cvar("sv_maxclients")
+            .iter()
+            .for_each(|maxclients| {
+                self.sv_maxclients
+                    .store(maxclients.get_integer(), Ordering::SeqCst);
+            })
     }
 
     #[cfg_attr(test, allow(dead_code))]
@@ -1088,7 +1088,9 @@ impl QuakeLiveEngine {
     }
 
     #[cfg_attr(test, allow(dead_code))]
-    fn com_printf_orig(&self) -> Result<extern "C" fn(*const c_char, ...), QuakeLiveEngineError> {
+    fn com_printf_orig(
+        &self,
+    ) -> Result<unsafe extern "C" fn(*const c_char, ...), QuakeLiveEngineError> {
         self.static_functions.get().map_or(
             Err(QuakeLiveEngineError::StaticFunctionNotFound(
                 QuakeLiveFunction::Com_Printf,
@@ -1130,7 +1132,7 @@ impl QuakeLiveEngine {
     #[allow(dead_code)]
     fn cmd_tokenizestring_orig(
         &self,
-    ) -> Result<extern "C" fn(*const c_char), QuakeLiveEngineError> {
+    ) -> Result<extern "C" fn(*const c_char) -> *const c_char, QuakeLiveEngineError> {
         self.static_functions.get().map_or(
             Err(QuakeLiveEngineError::StaticFunctionNotFound(
                 QuakeLiveFunction::Cmd_Tokenizestring,
@@ -1216,7 +1218,7 @@ impl QuakeLiveEngine {
     #[cfg_attr(test, allow(dead_code))]
     fn sv_sendservercommand_orig(
         &self,
-    ) -> Result<extern "C" fn(*mut client_t, *const c_char, ...), QuakeLiveEngineError> {
+    ) -> Result<unsafe extern "C" fn(*mut client_t, *const c_char, ...), QuakeLiveEngineError> {
         self.static_functions.get().map_or(
             Err(QuakeLiveEngineError::StaticFunctionNotFound(
                 QuakeLiveFunction::SV_SendServerCommand,
@@ -1285,7 +1287,7 @@ impl QuakeLiveEngine {
 
     fn sv_getconfigstring_orig(
         &self,
-    ) -> Result<extern "C" fn(c_int, *const c_char, c_int), QuakeLiveEngineError> {
+    ) -> Result<extern "C" fn(c_int, *mut c_char, c_int), QuakeLiveEngineError> {
         self.static_functions.get().map_or(
             Err(QuakeLiveEngineError::StaticFunctionNotFound(
                 QuakeLiveFunction::SV_GetConfigstring,
@@ -1309,7 +1311,7 @@ impl QuakeLiveEngine {
     #[cfg_attr(test, allow(dead_code))]
     fn sys_setmoduleoffset_orig(
         &self,
-    ) -> Result<extern "C" fn(*const c_char, unsafe extern "C" fn()), QuakeLiveEngineError> {
+    ) -> Result<extern "C" fn(*mut c_char, unsafe extern "C" fn()), QuakeLiveEngineError> {
         self.static_functions.get().map_or(
             Err(QuakeLiveEngineError::StaticFunctionNotFound(
                 QuakeLiveFunction::Sys_SetModuleOffset,
@@ -1321,7 +1323,7 @@ impl QuakeLiveEngine {
     #[cfg_attr(test, allow(dead_code))]
     fn sv_spawnserver_orig(
         &self,
-    ) -> Result<extern "C" fn(*const c_char, qboolean), QuakeLiveEngineError> {
+    ) -> Result<extern "C" fn(*mut c_char, qboolean), QuakeLiveEngineError> {
         self.static_functions.get().map_or(
             Err(QuakeLiveEngineError::StaticFunctionNotFound(
                 QuakeLiveFunction::SV_SpawnServer,
@@ -1365,7 +1367,7 @@ impl QuakeLiveEngine {
     fn sys_setmoduleoffset_detour(
         &self,
     ) -> Result<
-        &GenericDetour<extern "C" fn(*const c_char, unsafe extern "C" fn())>,
+        &GenericDetour<extern "C" fn(*mut c_char, unsafe extern "C" fn())>,
         QuakeLiveEngineError,
     > {
         self.static_detours.get().map_or(
@@ -1433,7 +1435,7 @@ impl QuakeLiveEngine {
     #[allow(clippy::type_complexity)]
     fn sv_spawnserver_detour(
         &self,
-    ) -> Result<&GenericDetour<extern "C" fn(*const c_char, qboolean)>, QuakeLiveEngineError> {
+    ) -> Result<&GenericDetour<extern "C" fn(*mut c_char, qboolean)>, QuakeLiveEngineError> {
         self.static_detours.get().map_or(
             Err(QuakeLiveEngineError::StaticDetourNotFound(
                 QuakeLiveFunction::SV_SpawnServer,
@@ -1591,11 +1593,141 @@ pub(crate) trait FindCVar<T: AsRef<str>> {
 
 impl<T: AsRef<str>> FindCVar<T> for QuakeLiveEngine {
     fn find_cvar(&self, name: T) -> Option<CVar> {
-        let c_name = CString::new(name.as_ref()).ok()?;
-        self.cvar_findvar_orig()
-            .map(|original_func| original_func(c_name.as_ptr()))
-            .and_then(CVar::try_from)
-            .ok()
+        CString::new(name.as_ref()).ok().and_then(|c_name| {
+            self.cvar_findvar_orig()
+                .map(|original_func| original_func(c_name.as_ptr()))
+                .and_then(CVar::try_from)
+                .ok()
+        })
+    }
+}
+
+#[cfg(test)]
+mod find_cvar_quake_live_engine_tests {
+    use super::{FindCVar, QuakeLiveEngine, StaticFunctions, VmFunctions};
+
+    use super::mock_quake_functions::*;
+
+    use crate::ffi::c::prelude::CVarBuilder;
+
+    use crate::prelude::serial;
+
+    use alloc::sync::Arc;
+    use core::ffi::CStr;
+    use core::ptr;
+
+    fn default_static_functions() -> StaticFunctions {
+        StaticFunctions {
+            com_printf_orig: Com_Printf,
+            cmd_addcommand_orig: Cmd_AddCommand,
+            cmd_args_orig: Cmd_Args,
+            cmd_argv_orig: Cmd_Argv,
+            cmd_tokenizestring_orig: Cmd_Tokenizestring,
+            cbuf_executetext_orig: Cbuf_ExecuteText,
+            cvar_findvar_orig: Cvar_FindVar,
+            cvar_get_orig: Cvar_Get,
+            cvar_getlimit_orig: Cvar_GetLimit,
+            cvar_set2_orig: Cvar_Set2,
+            sv_sendservercommand_orig: SV_SendServerCommand,
+            sv_executeclientcommand_orig: SV_ExecuteClientCommand,
+            sv_shutdown_orig: SV_Shutdown,
+            sv_map_f_orig: SV_Map_f,
+            sv_cliententerworld_orig: SV_ClientEnterWorld,
+            sv_setconfigstring_orig: SV_SetConfigstring,
+            sv_getconfigstring_orig: SV_GetConfigstring,
+            sv_dropclient_orig: SV_DropClient,
+            sys_setmoduleoffset_orig: Sys_SetModuleOffset,
+            sv_spawnserver_orig: SV_SpawnServer,
+            cmd_executestring_orig: Cmd_ExecuteString,
+            cmd_argc_orig: Cmd_Argc,
+        }
+    }
+
+    fn default_quake_engine() -> QuakeLiveEngine {
+        QuakeLiveEngine {
+            static_functions: Default::default(),
+            static_detours: Default::default(),
+            sv_maxclients: Default::default(),
+            common_initialized: Default::default(),
+            vm_functions: VmFunctions {
+                vm_call_table: Default::default(),
+                g_addevent_orig: Default::default(),
+                check_privileges_orig: Default::default(),
+                client_connect_orig: Default::default(),
+                client_spawn_orig: Default::default(),
+                g_damage_orig: Default::default(),
+                touch_item_orig: Default::default(),
+                launch_item_orig: Default::default(),
+                drop_item_orig: Default::default(),
+                g_start_kamikaze_orig: Default::default(),
+                g_free_entity_orig: Default::default(),
+                g_init_game_orig: Default::default(),
+                g_shutdown_game_orig: Default::default(),
+                g_run_frame_orig: Default::default(),
+                client_spawn_detour: Arc::new(Default::default()),
+                client_connect_detour: Arc::new(Default::default()),
+                g_start_kamikaze_detour: Arc::new(Default::default()),
+                g_damage_detour: Arc::new(Default::default()),
+            },
+            current_vm: Default::default(),
+        }
+    }
+
+    #[test]
+    fn find_cvar_with_no_original_func() {
+        let quake_engine = default_quake_engine();
+
+        let result = quake_engine.find_cvar("sv_maxclients");
+        assert!(result.is_none());
+    }
+
+    #[test]
+    #[cfg_attr(miri, ignore)]
+    #[serial]
+    fn find_cvar_when_function_returns_valid_cvar() {
+        let find_cvar_ctx = Cvar_FindVar_context();
+        find_cvar_ctx
+            .expect()
+            .withf(|&cvar_name| {
+                unsafe { CStr::from_ptr(cvar_name) }.to_string_lossy() == "sv_maxclients"
+            })
+            .returning(|_| {
+                let mut cvar = CVarBuilder::default()
+                    .build()
+                    .expect("this should not happen");
+                &mut cvar
+            })
+            .times(1);
+
+        let quake_engine = QuakeLiveEngine {
+            static_functions: default_static_functions().into(),
+            ..default_quake_engine()
+        };
+
+        let result = quake_engine.find_cvar("sv_maxclients");
+        assert!(result.is_some());
+    }
+
+    #[test]
+    #[cfg_attr(miri, ignore)]
+    #[serial]
+    fn find_cvar_when_function_returns_null_ptr() {
+        let find_cvar_ctx = Cvar_FindVar_context();
+        find_cvar_ctx
+            .expect()
+            .withf(|&cvar_name| {
+                unsafe { CStr::from_ptr(cvar_name) }.to_string_lossy() == "sv_maxclients"
+            })
+            .returning(|_| ptr::null_mut())
+            .times(1);
+
+        let quake_engine = QuakeLiveEngine {
+            static_functions: default_static_functions().into(),
+            ..default_quake_engine()
+        };
+
+        let result = quake_engine.find_cvar("sv_maxclients");
+        assert!(result.is_none());
     }
 }
 
@@ -1625,7 +1757,7 @@ impl<T: AsRef<str>> SetModuleOffset<T> for QuakeLiveEngine {
         };
         self.sys_setmoduleoffset_detour()
             .iter()
-            .for_each(|detour| detour.call(c_module_name.as_ptr(), offset));
+            .for_each(|detour| detour.call(c_module_name.as_ptr() as *mut c_char, offset));
     }
 }
 
@@ -1764,7 +1896,7 @@ impl<T: AsRef<str>, U: Into<qboolean>> SpawnServer<T, U> for QuakeLiveEngine {
         let kill_bots_param = kill_bots.into();
         self.sv_spawnserver_detour()
             .iter()
-            .for_each(|detour| detour.call(c_server.as_ptr(), kill_bots_param));
+            .for_each(|detour| detour.call(c_server.as_ptr() as *mut c_char, kill_bots_param));
     }
 }
 
@@ -2202,5 +2334,152 @@ mockall::mock! {
     }
     impl SetCVarLimit<&str, &str, &str, &str, i32> for QuakeEngine {
         fn set_cvar_limit(&self, name: &str, value: &str, min: &str, max: &str, flags: Option<i32>) -> Option<CVar>;
+    }
+}
+
+#[cfg(test)]
+#[cfg_attr(test, mockall::automock)]
+#[allow(dead_code)]
+mod quake_functions {
+    use crate::ffi::c::prelude::{cbufExec_t, client_t, cvar_t, qboolean, usercmd_t};
+
+    use core::ffi::{c_char, c_int};
+    use core::ptr;
+
+    #[allow(unused_attributes, clippy::just_underscores_and_digits, non_snake_case)]
+    #[cfg(not(tarpaulin_include))]
+    pub(crate) unsafe extern "C" fn Com_Printf(_fmt: *const c_char, ...) {}
+
+    #[allow(unused_attributes, non_snake_case)]
+    #[cfg(not(tarpaulin_include))]
+    pub(crate) extern "C" fn Cmd_AddCommand(_cmd: *const c_char, _func: unsafe extern "C" fn()) {}
+
+    #[allow(unused_attributes, non_snake_case)]
+    #[cfg(not(tarpaulin_include))]
+    pub(crate) extern "C" fn Cmd_Args() -> *const c_char {
+        ptr::null()
+    }
+
+    #[allow(unused_attributes, non_snake_case)]
+    #[cfg(not(tarpaulin_include))]
+    pub(crate) extern "C" fn Cmd_Argv(_arg: c_int) -> *const c_char {
+        ptr::null()
+    }
+
+    #[allow(unused_attributes, non_snake_case)]
+    #[cfg(not(tarpaulin_include))]
+    pub(crate) extern "C" fn Cmd_Tokenizestring(_text_in: *const c_char) -> *const c_char {
+        ptr::null()
+    }
+
+    #[allow(unused_attributes, non_snake_case)]
+    #[cfg(not(tarpaulin_include))]
+    pub(crate) extern "C" fn Cbuf_ExecuteText(_exec_when: cbufExec_t, _text: *const c_char) {}
+
+    #[allow(unused_attributes, non_snake_case)]
+    #[cfg(not(tarpaulin_include))]
+    pub(crate) extern "C" fn Cvar_FindVar(_var_name: *const c_char) -> *mut cvar_t {
+        ptr::null_mut()
+    }
+
+    #[allow(unused_attributes, non_snake_case)]
+    #[cfg(not(tarpaulin_include))]
+    pub(crate) extern "C" fn Cvar_Get(
+        _var_name: *const c_char,
+        _var_value: *const c_char,
+        _flags: c_int,
+    ) -> *mut cvar_t {
+        ptr::null_mut()
+    }
+
+    #[allow(unused_attributes, non_snake_case)]
+    #[cfg(not(tarpaulin_include))]
+    pub(crate) extern "C" fn Cvar_GetLimit(
+        _var_name: *const c_char,
+        _var_value: *const c_char,
+        _min: *const c_char,
+        _max: *const c_char,
+        _flags: c_int,
+    ) -> *mut cvar_t {
+        ptr::null_mut()
+    }
+
+    #[allow(unused_attributes, non_snake_case)]
+    #[cfg(not(tarpaulin_include))]
+    pub(crate) extern "C" fn Cvar_Set2(
+        _var_name: *const c_char,
+        _value: *const c_char,
+        _force: qboolean,
+    ) -> *mut cvar_t {
+        ptr::null_mut()
+    }
+
+    #[allow(unused_attributes, clippy::just_underscores_and_digits, non_snake_case)]
+    #[cfg(not(tarpaulin_include))]
+    pub(crate) unsafe extern "C" fn SV_SendServerCommand(
+        _cl: *mut client_t,
+        _fmt: *const c_char,
+        ...
+    ) {
+    }
+
+    #[allow(unused_attributes, non_snake_case)]
+    #[cfg(not(tarpaulin_include))]
+    pub(crate) extern "C" fn SV_ExecuteClientCommand(
+        _cl: *mut client_t,
+        _s: *const c_char,
+        _clientOK: qboolean,
+    ) {
+    }
+
+    #[allow(unused_attributes, non_snake_case)]
+    #[cfg(not(tarpaulin_include))]
+    pub(crate) extern "C" fn SV_Shutdown(_finalmsg: *const c_char) {}
+
+    #[allow(unused_attributes, non_snake_case)]
+    #[cfg(not(tarpaulin_include))]
+    pub(crate) extern "C" fn SV_Map_f() {}
+
+    #[allow(unused_attributes, non_snake_case)]
+    #[cfg(not(tarpaulin_include))]
+    pub(crate) extern "C" fn SV_ClientEnterWorld(_client: *mut client_t, _cmd: *mut usercmd_t) {}
+
+    #[allow(unused_attributes, non_snake_case)]
+    #[cfg(not(tarpaulin_include))]
+    pub(crate) extern "C" fn SV_SetConfigstring(_index: c_int, _value: *const c_char) {}
+
+    #[allow(unused_attributes, non_snake_case)]
+    #[cfg(not(tarpaulin_include))]
+    pub(crate) extern "C" fn SV_GetConfigstring(
+        _index: c_int,
+        _buffer: *mut c_char,
+        _bufferSize: c_int,
+    ) {
+    }
+
+    #[allow(unused_attributes, non_snake_case)]
+    #[cfg(not(tarpaulin_include))]
+    pub(crate) extern "C" fn SV_DropClient(_drop: *mut client_t, _reason: *const c_char) {}
+
+    #[allow(unused_attributes, non_snake_case)]
+    #[cfg(not(tarpaulin_include))]
+    pub(crate) extern "C" fn Sys_SetModuleOffset(
+        _moduleName: *mut c_char,
+        _offset: unsafe extern "C" fn(),
+    ) {
+    }
+
+    #[allow(unused_attributes, non_snake_case)]
+    #[cfg(not(tarpaulin_include))]
+    pub(crate) extern "C" fn SV_SpawnServer(_server: *mut c_char, _killBots: qboolean) {}
+
+    #[allow(unused_attributes, non_snake_case)]
+    #[cfg(not(tarpaulin_include))]
+    pub(crate) extern "C" fn Cmd_ExecuteString(_text: *const c_char) {}
+
+    #[allow(unused_attributes, non_snake_case)]
+    #[cfg(not(tarpaulin_include))]
+    pub(crate) extern "C" fn Cmd_Argc() -> c_int {
+        0
     }
 }
