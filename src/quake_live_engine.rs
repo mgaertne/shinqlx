@@ -482,10 +482,10 @@ impl QuakeLiveEngine {
                 g_run_frame_orig: Default::default(),
                 #[cfg(feature = "patches")]
                 cmd_callvote_f_orig: Default::default(),
-                client_spawn_detour: ArcSwapOption::empty().into(),
-                client_connect_detour: ArcSwapOption::empty().into(),
-                g_start_kamikaze_detour: ArcSwapOption::empty().into(),
-                g_damage_detour: ArcSwapOption::empty().into(),
+                client_spawn_detour: ArcSwapOption::empty(),
+                client_connect_detour: ArcSwapOption::empty(),
+                g_start_kamikaze_detour: ArcSwapOption::empty(),
+                g_damage_detour: ArcSwapOption::empty(),
             },
             current_vm: AtomicUsize::new(0),
         }
