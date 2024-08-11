@@ -1937,8 +1937,8 @@ impl<T: Into<c_int>, U: Into<c_int>, V: Into<c_int>> InitGame<T, U, V> for Quake
 mod init_game_quake_live_engine_tests {
     use super::{InitGame, QuakeLiveEngine};
 
+    use super::mock_quake_functions::{G_InitGame, G_InitGame_context};
     use super::quake_live_engine_test_helpers::*;
-    use crate::quake_live_engine::mock_quake_functions::{G_InitGame, G_InitGame_context};
 
     use crate::prelude::serial;
 
@@ -1946,7 +1946,7 @@ mod init_game_quake_live_engine_tests {
     use mockall::predicate;
 
     #[test]
-    fn init_game_with_no_detour_set() {
+    fn init_game_with_no_function_pointer_set() {
         let quake_engine = default_quake_engine();
 
         quake_engine.init_game(42, 21, 0);
@@ -1989,28 +1989,145 @@ impl<T: Into<c_int>> ShutdownGame<T> for QuakeLiveEngine {
     }
 }
 
+#[cfg(test)]
+mod shutdown_game_quake_live_engine_tests {
+    use super::{QuakeLiveEngine, ShutdownGame};
+
+    use super::mock_quake_functions::{G_ShutdownGame, G_ShutdownGame_context};
+    use super::quake_live_engine_test_helpers::*;
+
+    use crate::prelude::serial;
+
+    use core::sync::atomic::Ordering;
+    use mockall::predicate;
+
+    #[test]
+    fn shutdown_game_with_function_pointer_set() {
+        let quake_engine = default_quake_engine();
+
+        quake_engine.shutdown_game(0);
+    }
+
+    #[test]
+    #[cfg_attr(miri, ignore)]
+    #[serial]
+    fn shutdown_game_with_valid_function() {
+        let g_shutdown_game_ctx = G_ShutdownGame_context();
+        g_shutdown_game_ctx.expect().with(predicate::eq(1)).times(1);
+
+        let quake_engine = QuakeLiveEngine {
+            static_functions: default_static_functions().into(),
+            static_detours: default_static_detours().into(),
+            ..default_quake_engine()
+        };
+        quake_engine
+            .vm_functions
+            .g_shutdown_game_orig
+            .store(G_ShutdownGame as usize, Ordering::SeqCst);
+
+        quake_engine.shutdown_game(1);
+    }
+}
+
 pub(crate) trait ExecuteClientCommand<T: AsMut<client_t>, U: AsRef<str>, V: Into<qboolean>> {
-    #[allow(clippy::needless_lifetimes)]
     fn execute_client_command(&self, client: Option<T>, cmd: U, client_ok: V);
 }
 
 impl<T: AsMut<client_t>, U: AsRef<str>, V: Into<qboolean>> ExecuteClientCommand<T, U, V>
     for QuakeLiveEngine
 {
-    fn execute_client_command(&self, mut client: Option<T>, cmd: U, client_ok: V) {
-        let Ok(c_command) = CString::new(cmd.as_ref()) else {
-            return;
+    fn execute_client_command(&self, client: Option<T>, cmd: U, client_ok: V) {
+        if let Ok(detour) = self.sv_executeclientcommand_detour() {
+            if let Ok(c_command) = CString::new(cmd.as_ref()) {
+                let safe_client = client.map_or(ptr::null_mut(), |mut asdf| asdf.as_mut());
+                detour.call(safe_client, c_command.as_ptr(), client_ok.into());
+            }
+        }
+    }
+}
+
+#[cfg(test)]
+mod execute_client_command_quake_live_engine_tests {
+    use super::{ExecuteClientCommand, QuakeLiveEngine};
+
+    use super::mock_quake_functions::SV_ExecuteClientCommand_context;
+    use super::quake_live_engine_test_helpers::*;
+
+    use crate::ffi::c::prelude::{client_t, Client, ClientBuilder, MockClient};
+    use crate::prelude::serial;
+
+    use core::ffi::CStr;
+
+    #[test]
+    fn execute_client_command_with_no_detour_set() {
+        let quake_engine = default_quake_engine();
+
+        quake_engine.execute_client_command(None::<Client>, "asdf", false);
+    }
+
+    #[test]
+    #[cfg_attr(miri, ignore)]
+    #[serial]
+    fn execute_client_command_with_valid_detour_function_and_no_client() {
+        let sv_execute_client_command_ctx = SV_ExecuteClientCommand_context();
+        sv_execute_client_command_ctx
+            .expect()
+            .withf(|&client, &cmd, &client_ok| {
+                client.is_null()
+                    && unsafe { CStr::from_ptr(cmd) }.to_string_lossy() == "asdf"
+                    && client_ok.into()
+            })
+            .times(1);
+
+        let quake_engine = QuakeLiveEngine {
+            static_functions: default_static_functions().into(),
+            static_detours: default_static_detours().into(),
+            ..default_quake_engine()
         };
 
-        let client_ok_param = client_ok.into();
-        self.sv_executeclientcommand_detour()
-            .iter()
-            .for_each(|detour| match &mut client {
-                Some(ref mut safe_client) => {
-                    detour.call(safe_client.as_mut(), c_command.as_ptr(), client_ok_param)
-                }
-                None => detour.call(ptr::null_mut(), c_command.as_ptr(), client_ok_param),
+        quake_engine.execute_client_command(None::<Client>, "asdf", true);
+    }
+
+    #[test]
+    #[cfg_attr(miri, ignore)]
+    #[serial]
+    fn execute_client_command_with_valid_detour_function_and_valid_client() {
+        let mut client = ClientBuilder::default()
+            .build()
+            .expect("this should not happen");
+
+        let client_try_from_ctx = MockClient::try_from_context();
+        client_try_from_ctx.expect().returning(|_| {
+            let mut client_mock = MockClient::default();
+            client_mock.expect_as_mut().returning(|| {
+                ClientBuilder::default()
+                    .build()
+                    .expect("this should not happen")
             });
+            Ok(client_mock)
+        });
+
+        let sv_execute_client_command_ctx = SV_ExecuteClientCommand_context();
+        sv_execute_client_command_ctx
+            .expect()
+            .withf(|&client, &cmd, &client_ok| {
+                !client.is_null()
+                    && unsafe { CStr::from_ptr(cmd) }.to_string_lossy() == "asdf"
+                    && client_ok.into()
+            })
+            .times(1);
+
+        let quake_engine = QuakeLiveEngine {
+            static_functions: default_static_functions().into(),
+            static_detours: default_static_detours().into(),
+            ..default_quake_engine()
+        };
+
+        quake_engine.execute_client_command(
+            Client::try_from(&mut client as *mut client_t).ok(),
+            "asdf",
+            true,
+        );
     }
 }
 
@@ -2744,4 +2861,8 @@ mod quake_functions {
     #[allow(unused_attributes, non_snake_case)]
     #[cfg(not(tarpaulin_include))]
     pub(crate) extern "C" fn G_InitGame(_level_time: c_int, _random_see: c_int, _restart: c_int) {}
+
+    #[allow(unused_attributes, non_snake_case)]
+    #[cfg(not(tarpaulin_include))]
+    pub(crate) extern "C" fn G_ShutdownGame(_restart: c_int) {}
 }
