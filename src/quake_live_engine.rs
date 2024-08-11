@@ -20,7 +20,7 @@ use crate::quake_live_functions::QuakeLiveFunction;
 #[cfg(target_os = "linux")]
 use crate::QZERODED;
 
-use alloc::{ffi::CString, sync::Arc};
+use alloc::ffi::CString;
 use arc_swap::ArcSwapOption;
 #[cfg(target_os = "linux")]
 use arrayvec::ArrayVec;
@@ -46,7 +46,6 @@ pub(crate) enum QuakeLiveEngineError {
     #[cfg(target_os = "linux")]
     NoMemoryMappingInformationFound(String),
     StaticFunctionNotFound(QuakeLiveFunction),
-    #[cfg_attr(test, allow(dead_code))]
     PythonInitializationFailed(PythonInitializationError),
     DetourCouldNotBeCreated(QuakeLiveFunction),
     DetourCouldNotBeEnabled(QuakeLiveFunction),
@@ -57,15 +56,11 @@ pub(crate) enum QuakeLiveEngineError {
 
 #[derive(Debug)]
 struct StaticFunctions {
-    #[cfg_attr(test, allow(dead_code))]
-    com_printf_orig: extern "C" fn(*const c_char, ...),
-    #[cfg_attr(test, allow(dead_code))]
+    com_printf_orig: unsafe extern "C" fn(*const c_char, ...),
     cmd_addcommand_orig: extern "C" fn(*const c_char, unsafe extern "C" fn()),
     cmd_args_orig: extern "C" fn() -> *const c_char,
     cmd_argv_orig: extern "C" fn(c_int) -> *const c_char,
-    #[allow(dead_code)]
-    cmd_tokenizestring_orig: extern "C" fn(*const c_char),
-    #[allow(dead_code)]
+    cmd_tokenizestring_orig: extern "C" fn(*const c_char) -> *const c_char,
     cbuf_executetext_orig: extern "C" fn(cbufExec_t, *const c_char),
     cvar_findvar_orig: extern "C" fn(*const c_char) -> *mut cvar_t,
     cvar_get_orig: extern "C" fn(*const c_char, *const c_char, c_int) -> *mut cvar_t,
@@ -77,24 +72,16 @@ struct StaticFunctions {
         c_int,
     ) -> *mut cvar_t,
     cvar_set2_orig: extern "C" fn(*const c_char, *const c_char, qboolean) -> *mut cvar_t,
-    #[cfg_attr(test, allow(dead_code))]
-    sv_sendservercommand_orig: extern "C" fn(*mut client_t, *const c_char, ...),
-    #[cfg_attr(test, allow(dead_code))]
+    sv_sendservercommand_orig: unsafe extern "C" fn(*mut client_t, *const c_char, ...),
     sv_executeclientcommand_orig: extern "C" fn(*mut client_t, *const c_char, qboolean),
-    #[cfg_attr(test, allow(dead_code))]
     sv_shutdown_orig: extern "C" fn(*const c_char),
     sv_map_f_orig: extern "C" fn(),
-    #[cfg_attr(test, allow(dead_code))]
     sv_cliententerworld_orig: extern "C" fn(*mut client_t, *mut usercmd_t),
-    #[cfg_attr(test, allow(dead_code))]
     sv_setconfigstring_orig: extern "C" fn(c_int, *const c_char),
-    sv_getconfigstring_orig: extern "C" fn(c_int, *const c_char, c_int),
-    #[cfg_attr(test, allow(dead_code))]
+    sv_getconfigstring_orig: extern "C" fn(c_int, *mut c_char, c_int),
     sv_dropclient_orig: extern "C" fn(*mut client_t, *const c_char),
-    #[cfg_attr(test, allow(dead_code))]
-    sys_setmoduleoffset_orig: extern "C" fn(*const c_char, unsafe extern "C" fn()),
-    #[cfg_attr(test, allow(dead_code))]
-    sv_spawnserver_orig: extern "C" fn(*const c_char, qboolean),
+    sys_setmoduleoffset_orig: extern "C" fn(*mut c_char, unsafe extern "C" fn()),
+    sv_spawnserver_orig: extern "C" fn(*mut c_char, qboolean),
     cmd_executestring_orig: extern "C" fn(*const c_char),
     cmd_argc_orig: extern "C" fn() -> c_int,
 }
@@ -102,14 +89,13 @@ struct StaticFunctions {
 #[derive(Debug)]
 struct StaticDetours {
     cmd_addcommand_detour: GenericDetour<extern "C" fn(*const c_char, unsafe extern "C" fn())>,
-    sys_setmoduleoffset_detour: GenericDetour<extern "C" fn(*const c_char, unsafe extern "C" fn())>,
+    sys_setmoduleoffset_detour: GenericDetour<extern "C" fn(*mut c_char, unsafe extern "C" fn())>,
     sv_executeclientcommand_detour:
         GenericDetour<extern "C" fn(*mut client_t, *const c_char, qboolean)>,
     sv_cliententerworld_detour: GenericDetour<extern "C" fn(*mut client_t, *mut usercmd_t)>,
     sv_setconfgistring_detour: GenericDetour<extern "C" fn(c_int, *const c_char)>,
-    #[cfg_attr(test, allow(dead_code))]
     sv_dropclient_detour: GenericDetour<extern "C" fn(*mut client_t, *const c_char)>,
-    sv_spawnserver_detour: GenericDetour<extern "C" fn(*const c_char, qboolean)>,
+    sv_spawnserver_detour: GenericDetour<extern "C" fn(*mut c_char, qboolean)>,
     sv_sendservercommand_detour: RawDetour,
     com_printf_detour: RawDetour,
 }
@@ -131,19 +117,16 @@ type GDamageDetourType = GenericDetour<
     ),
 >;
 
-#[cfg_attr(test, allow(dead_code))]
 struct VmFunctions {
     vm_call_table: AtomicUsize,
 
     g_addevent_orig: AtomicUsize,
-    #[allow(dead_code)]
     check_privileges_orig: AtomicUsize,
     client_connect_orig: AtomicUsize,
     client_spawn_orig: AtomicUsize,
     g_damage_orig: AtomicUsize,
     touch_item_orig: AtomicUsize,
     launch_item_orig: AtomicUsize,
-    #[allow(dead_code)]
     drop_item_orig: AtomicUsize,
     g_start_kamikaze_orig: AtomicUsize,
     g_free_entity_orig: AtomicUsize,
@@ -153,10 +136,10 @@ struct VmFunctions {
     #[cfg(feature = "patches")]
     cmd_callvote_f_orig: AtomicUsize,
 
-    client_spawn_detour: Arc<ArcSwapOption<ClientSpawnDetourType>>,
-    client_connect_detour: Arc<ArcSwapOption<ClientConnectDetourType>>,
-    g_start_kamikaze_detour: Arc<ArcSwapOption<GStartKamikazeDetourType>>,
-    g_damage_detour: Arc<ArcSwapOption<GDamageDetourType>>,
+    client_spawn_detour: ArcSwapOption<ClientSpawnDetourType>,
+    client_connect_detour: ArcSwapOption<ClientConnectDetourType>,
+    g_start_kamikaze_detour: ArcSwapOption<GStartKamikazeDetourType>,
+    g_damage_detour: ArcSwapOption<GDamageDetourType>,
 }
 
 #[allow(dead_code)]
@@ -167,7 +150,6 @@ const OFFSET_INITGAME: usize = 0x18;
 const OFFSET_RUNFRAME: usize = 0x8;
 
 impl VmFunctions {
-    #[cfg_attr(test, allow(dead_code))]
     pub(crate) fn try_initialize_from(
         &self,
         #[allow(unused_variables)] module_offset: usize,
@@ -283,7 +265,6 @@ impl VmFunctions {
      *
      * PROTIP: If you can, ALWAYS use VM_Call table hooks instead of using Hook().
      */
-    #[cfg_attr(test, allow(dead_code))]
     pub(crate) fn hook(&self) -> Result<(), QuakeLiveEngineError> {
         let vm_call_table = self.vm_call_table.load(Ordering::SeqCst);
 
@@ -395,7 +376,6 @@ impl VmFunctions {
         patch_callvote_f(cmd_callvote_f_orig);
     }
 
-    #[cfg_attr(test, allow(dead_code))]
     pub(crate) fn unhook(&self) {
         [
             &self.vm_call_table,
@@ -466,11 +446,9 @@ pub(crate) struct QuakeLiveEngine {
     static_detours: OnceCell<StaticDetours>,
 
     pub(crate) sv_maxclients: AtomicI32,
-    #[cfg_attr(test, allow(dead_code))]
     common_initialized: OnceBool,
 
     vm_functions: VmFunctions,
-    #[cfg_attr(test, allow(dead_code))]
     current_vm: AtomicUsize,
 }
 
@@ -610,8 +588,9 @@ impl QuakeLiveEngine {
                 ));
             };
             debug!(target: "shinqlx", "{}: {:#X}", &QuakeLiveFunction::Cmd_Tokenizestring, result);
-            let cmd_tokenizestring_orig =
-                unsafe { mem::transmute::<usize, extern "C" fn(*const c_char)>(result) };
+            let cmd_tokenizestring_orig = unsafe {
+                mem::transmute::<usize, extern "C" fn(*const c_char) -> *const c_char>(result)
+            };
 
             let Some(result) =
                 pattern_search_module(&qzeroded_maps, QuakeLiveFunction::Cbuf_ExecuteText)
@@ -802,7 +781,7 @@ impl QuakeLiveEngine {
             };
             debug!(target: "shinqlx", "{}: {:#X}", &QuakeLiveFunction::SV_GetConfigstring, result);
             let sv_getconfigstring_orig = unsafe {
-                mem::transmute::<usize, extern "C" fn(c_int, *const c_char, c_int)>(result)
+                mem::transmute::<usize, extern "C" fn(c_int, *mut c_char, c_int)>(result)
             };
 
             let Some(result) =
@@ -831,9 +810,7 @@ impl QuakeLiveEngine {
             };
             debug!(target: "shinqlx", "{}: {:#X}", &QuakeLiveFunction::Sys_SetModuleOffset, result);
             let sys_setmoduleoffset_orig = unsafe {
-                mem::transmute::<usize, extern "C" fn(*const c_char, unsafe extern "C" fn())>(
-                    result,
-                )
+                mem::transmute::<usize, extern "C" fn(*mut c_char, unsafe extern "C" fn())>(result)
             };
 
             let Some(result) =
@@ -846,7 +823,7 @@ impl QuakeLiveEngine {
             };
             debug!(target: "shinqlx", "{}: {:#X}", &QuakeLiveFunction::SV_SpawnServer, result);
             let sv_spawnserver_orig =
-                unsafe { mem::transmute::<usize, extern "C" fn(*const c_char, qboolean)>(result) };
+                unsafe { mem::transmute::<usize, extern "C" fn(*mut c_char, qboolean)>(result) };
 
             let Some(result) =
                 pattern_search_module(&qzeroded_maps, QuakeLiveFunction::Cmd_ExecuteString)
@@ -1024,12 +1001,12 @@ impl QuakeLiveEngine {
     // Called after the game is initialized.
     #[cfg_attr(test, allow(dead_code))]
     pub(crate) fn initialize_cvars(&self) {
-        let Some(maxclients) = self.find_cvar("sv_maxclients") else {
-            return;
-        };
-
-        self.sv_maxclients
-            .store(maxclients.get_integer(), Ordering::SeqCst);
+        self.find_cvar("sv_maxclients")
+            .iter()
+            .for_each(|maxclients| {
+                self.sv_maxclients
+                    .store(maxclients.get_integer(), Ordering::SeqCst);
+            })
     }
 
     #[cfg_attr(test, allow(dead_code))]
@@ -1087,8 +1064,9 @@ impl QuakeLiveEngine {
         }
     }
 
-    #[cfg_attr(test, allow(dead_code))]
-    fn com_printf_orig(&self) -> Result<extern "C" fn(*const c_char, ...), QuakeLiveEngineError> {
+    fn com_printf_orig(
+        &self,
+    ) -> Result<unsafe extern "C" fn(*const c_char, ...), QuakeLiveEngineError> {
         self.static_functions.get().map_or(
             Err(QuakeLiveEngineError::StaticFunctionNotFound(
                 QuakeLiveFunction::Com_Printf,
@@ -1097,7 +1075,6 @@ impl QuakeLiveEngine {
         )
     }
 
-    #[cfg_attr(test, allow(dead_code))]
     fn cmd_addcommand_orig(
         &self,
     ) -> Result<extern "C" fn(*const c_char, unsafe extern "C" fn()), QuakeLiveEngineError> {
@@ -1130,7 +1107,7 @@ impl QuakeLiveEngine {
     #[allow(dead_code)]
     fn cmd_tokenizestring_orig(
         &self,
-    ) -> Result<extern "C" fn(*const c_char), QuakeLiveEngineError> {
+    ) -> Result<extern "C" fn(*const c_char) -> *const c_char, QuakeLiveEngineError> {
         self.static_functions.get().map_or(
             Err(QuakeLiveEngineError::StaticFunctionNotFound(
                 QuakeLiveFunction::Cmd_Tokenizestring,
@@ -1213,10 +1190,9 @@ impl QuakeLiveEngine {
         )
     }
 
-    #[cfg_attr(test, allow(dead_code))]
     fn sv_sendservercommand_orig(
         &self,
-    ) -> Result<extern "C" fn(*mut client_t, *const c_char, ...), QuakeLiveEngineError> {
+    ) -> Result<unsafe extern "C" fn(*mut client_t, *const c_char, ...), QuakeLiveEngineError> {
         self.static_functions.get().map_or(
             Err(QuakeLiveEngineError::StaticFunctionNotFound(
                 QuakeLiveFunction::SV_SendServerCommand,
@@ -1225,7 +1201,6 @@ impl QuakeLiveEngine {
         )
     }
 
-    #[cfg_attr(test, allow(dead_code))]
     fn sv_executeclientcommand_orig(
         &self,
     ) -> Result<extern "C" fn(*mut client_t, *const c_char, qboolean), QuakeLiveEngineError> {
@@ -1259,7 +1234,6 @@ impl QuakeLiveEngine {
         )
     }
 
-    #[cfg_attr(test, allow(dead_code))]
     fn sv_cliententerworld_orig(
         &self,
     ) -> Result<extern "C" fn(*mut client_t, *mut usercmd_t), QuakeLiveEngineError> {
@@ -1271,7 +1245,6 @@ impl QuakeLiveEngine {
         )
     }
 
-    #[cfg_attr(test, allow(dead_code))]
     fn sv_setconfigstring_orig(
         &self,
     ) -> Result<extern "C" fn(c_int, *const c_char), QuakeLiveEngineError> {
@@ -1285,7 +1258,7 @@ impl QuakeLiveEngine {
 
     fn sv_getconfigstring_orig(
         &self,
-    ) -> Result<extern "C" fn(c_int, *const c_char, c_int), QuakeLiveEngineError> {
+    ) -> Result<extern "C" fn(c_int, *mut c_char, c_int), QuakeLiveEngineError> {
         self.static_functions.get().map_or(
             Err(QuakeLiveEngineError::StaticFunctionNotFound(
                 QuakeLiveFunction::SV_GetConfigstring,
@@ -1306,10 +1279,9 @@ impl QuakeLiveEngine {
         )
     }
 
-    #[cfg_attr(test, allow(dead_code))]
     fn sys_setmoduleoffset_orig(
         &self,
-    ) -> Result<extern "C" fn(*const c_char, unsafe extern "C" fn()), QuakeLiveEngineError> {
+    ) -> Result<extern "C" fn(*mut c_char, unsafe extern "C" fn()), QuakeLiveEngineError> {
         self.static_functions.get().map_or(
             Err(QuakeLiveEngineError::StaticFunctionNotFound(
                 QuakeLiveFunction::Sys_SetModuleOffset,
@@ -1318,10 +1290,9 @@ impl QuakeLiveEngine {
         )
     }
 
-    #[cfg_attr(test, allow(dead_code))]
     fn sv_spawnserver_orig(
         &self,
-    ) -> Result<extern "C" fn(*const c_char, qboolean), QuakeLiveEngineError> {
+    ) -> Result<extern "C" fn(*mut c_char, qboolean), QuakeLiveEngineError> {
         self.static_functions.get().map_or(
             Err(QuakeLiveEngineError::StaticFunctionNotFound(
                 QuakeLiveFunction::SV_SpawnServer,
@@ -1365,7 +1336,7 @@ impl QuakeLiveEngine {
     fn sys_setmoduleoffset_detour(
         &self,
     ) -> Result<
-        &GenericDetour<extern "C" fn(*const c_char, unsafe extern "C" fn())>,
+        &GenericDetour<extern "C" fn(*mut c_char, unsafe extern "C" fn())>,
         QuakeLiveEngineError,
     > {
         self.static_detours.get().map_or(
@@ -1433,7 +1404,7 @@ impl QuakeLiveEngine {
     #[allow(clippy::type_complexity)]
     fn sv_spawnserver_detour(
         &self,
-    ) -> Result<&GenericDetour<extern "C" fn(*const c_char, qboolean)>, QuakeLiveEngineError> {
+    ) -> Result<&GenericDetour<extern "C" fn(*mut c_char, qboolean)>, QuakeLiveEngineError> {
         self.static_detours.get().map_or(
             Err(QuakeLiveEngineError::StaticDetourNotFound(
                 QuakeLiveFunction::SV_SpawnServer,
@@ -1585,17 +1556,230 @@ impl QuakeLiveEngine {
     }
 }
 
+#[cfg(test)]
+mod quake_live_engine_test_helpers {
+    use super::mock_quake_functions::*;
+    use super::{QuakeLiveEngine, StaticDetours, StaticFunctions, VmFunctions};
+
+    use crate::ffi::c::prelude::{client_t, qboolean, usercmd_t};
+
+    use core::ffi::{c_char, c_int};
+
+    use retour::{GenericDetour, RawDetour};
+
+    pub(crate) fn default_static_functions() -> StaticFunctions {
+        StaticFunctions {
+            com_printf_orig: Com_Printf,
+            cmd_addcommand_orig: Cmd_AddCommand,
+            cmd_args_orig: Cmd_Args,
+            cmd_argv_orig: Cmd_Argv,
+            cmd_tokenizestring_orig: Cmd_Tokenizestring,
+            cbuf_executetext_orig: Cbuf_ExecuteText,
+            cvar_findvar_orig: Cvar_FindVar,
+            cvar_get_orig: Cvar_Get,
+            cvar_getlimit_orig: Cvar_GetLimit,
+            cvar_set2_orig: Cvar_Set2,
+            sv_sendservercommand_orig: SV_SendServerCommand,
+            sv_executeclientcommand_orig: SV_ExecuteClientCommand,
+            sv_shutdown_orig: SV_Shutdown,
+            sv_map_f_orig: SV_Map_f,
+            sv_cliententerworld_orig: SV_ClientEnterWorld,
+            sv_setconfigstring_orig: SV_SetConfigstring,
+            sv_getconfigstring_orig: SV_GetConfigstring,
+            sv_dropclient_orig: SV_DropClient,
+            sys_setmoduleoffset_orig: Sys_SetModuleOffset,
+            sv_spawnserver_orig: SV_SpawnServer,
+            cmd_executestring_orig: Cmd_ExecuteString,
+            cmd_argc_orig: Cmd_Argc,
+        }
+    }
+
+    pub(crate) fn default_static_detours() -> StaticDetours {
+        StaticDetours {
+            cmd_addcommand_detour: unsafe {
+                GenericDetour::new(
+                    Cmd_AddCommand as extern "C" fn(*const c_char, unsafe extern "C" fn()),
+                    detoured_Cmd_AddCommand,
+                )
+            }
+            .expect("this should not happen"),
+            sys_setmoduleoffset_detour: unsafe {
+                GenericDetour::new(
+                    Sys_SetModuleOffset as extern "C" fn(*mut c_char, unsafe extern "C" fn()),
+                    detoured_Sys_SetModuleOffset,
+                )
+            }
+            .expect("this should not happen"),
+            sv_executeclientcommand_detour: unsafe {
+                GenericDetour::new(
+                    SV_ExecuteClientCommand
+                        as extern "C" fn(*mut client_t, *const c_char, qboolean),
+                    detoured_SV_ExecuteClientCommand,
+                )
+            }
+            .expect("this should not happen"),
+            sv_cliententerworld_detour: unsafe {
+                GenericDetour::new(
+                    SV_ClientEnterWorld as extern "C" fn(*mut client_t, *mut usercmd_t),
+                    detoured_SV_ClientEnterWorld,
+                )
+            }
+            .expect("this should not happen"),
+            sv_setconfgistring_detour: unsafe {
+                GenericDetour::new(
+                    SV_SetConfigstring as extern "C" fn(c_int, *const c_char),
+                    detoured_SV_SetConfigstring,
+                )
+            }
+            .expect("this should not happen"),
+            sv_dropclient_detour: unsafe {
+                GenericDetour::new(
+                    SV_DropClient as extern "C" fn(*mut client_t, *const c_char),
+                    detoured_SV_DropClient,
+                )
+            }
+            .expect("this should not happen"),
+            sv_spawnserver_detour: unsafe {
+                GenericDetour::new(
+                    SV_SpawnServer as extern "C" fn(*mut c_char, qboolean),
+                    detoured_SV_SpawnServer,
+                )
+            }
+            .expect("this should not happen"),
+            sv_sendservercommand_detour: unsafe {
+                RawDetour::new(
+                    SV_SendServerCommand as *const (),
+                    detoured_SV_SendServerCommand as *const (),
+                )
+            }
+            .expect("this should not happen"),
+            com_printf_detour: unsafe {
+                RawDetour::new(Com_Printf as *const (), detoured_Com_Printf as *const ())
+            }
+            .expect("this should not happen"),
+        }
+    }
+
+    pub(crate) fn default_quake_engine() -> QuakeLiveEngine {
+        QuakeLiveEngine {
+            static_functions: Default::default(),
+            static_detours: Default::default(),
+            sv_maxclients: Default::default(),
+            common_initialized: Default::default(),
+            vm_functions: VmFunctions {
+                vm_call_table: Default::default(),
+                g_addevent_orig: Default::default(),
+                check_privileges_orig: Default::default(),
+                client_connect_orig: Default::default(),
+                client_spawn_orig: Default::default(),
+                g_damage_orig: Default::default(),
+                touch_item_orig: Default::default(),
+                launch_item_orig: Default::default(),
+                drop_item_orig: Default::default(),
+                g_start_kamikaze_orig: Default::default(),
+                g_free_entity_orig: Default::default(),
+                g_init_game_orig: Default::default(),
+                g_shutdown_game_orig: Default::default(),
+                g_run_frame_orig: Default::default(),
+                client_spawn_detour: Default::default(),
+                client_connect_detour: Default::default(),
+                g_start_kamikaze_detour: Default::default(),
+                g_damage_detour: Default::default(),
+            },
+            current_vm: Default::default(),
+        }
+    }
+
+    #[cfg(not(tarpaulin_include))]
+    pub(crate) unsafe extern "C" fn test_func() {}
+}
+
 pub(crate) trait FindCVar<T: AsRef<str>> {
     fn find_cvar(&self, name: T) -> Option<CVar>;
 }
 
 impl<T: AsRef<str>> FindCVar<T> for QuakeLiveEngine {
     fn find_cvar(&self, name: T) -> Option<CVar> {
-        let c_name = CString::new(name.as_ref()).ok()?;
         self.cvar_findvar_orig()
-            .map(|original_func| original_func(c_name.as_ptr()))
-            .and_then(CVar::try_from)
             .ok()
+            .and_then(|original_func| {
+                CString::new(name.as_ref())
+                    .ok()
+                    .map(|c_name| original_func(c_name.as_ptr()))
+            })
+            .and_then(|cvar| CVar::try_from(cvar).ok())
+    }
+}
+
+#[cfg(test)]
+mod find_cvar_quake_live_engine_tests {
+    use super::{FindCVar, QuakeLiveEngine};
+
+    use super::mock_quake_functions::Cvar_FindVar_context;
+    use super::quake_live_engine_test_helpers::*;
+
+    use crate::ffi::c::prelude::CVarBuilder;
+
+    use crate::prelude::serial;
+
+    use core::ffi::CStr;
+    use core::ptr;
+
+    #[test]
+    fn find_cvar_with_no_original_func() {
+        let quake_engine = default_quake_engine();
+
+        let result = quake_engine.find_cvar("sv_maxclients");
+        assert!(result.is_none());
+    }
+
+    #[test]
+    #[cfg_attr(miri, ignore)]
+    #[serial]
+    fn find_cvar_when_function_returns_valid_cvar() {
+        let find_cvar_ctx = Cvar_FindVar_context();
+        find_cvar_ctx
+            .expect()
+            .withf(|&cvar_name| {
+                unsafe { CStr::from_ptr(cvar_name) }.to_string_lossy() == "sv_maxclients"
+            })
+            .returning(|_| {
+                let mut cvar = CVarBuilder::default()
+                    .build()
+                    .expect("this should not happen");
+                &mut cvar
+            })
+            .times(1);
+
+        let quake_engine = QuakeLiveEngine {
+            static_functions: default_static_functions().into(),
+            ..default_quake_engine()
+        };
+
+        let result = quake_engine.find_cvar("sv_maxclients");
+        assert!(result.is_some());
+    }
+
+    #[test]
+    #[cfg_attr(miri, ignore)]
+    #[serial]
+    fn find_cvar_when_function_returns_null_ptr() {
+        let find_cvar_ctx = Cvar_FindVar_context();
+        find_cvar_ctx
+            .expect()
+            .withf(|&cvar_name| {
+                unsafe { CStr::from_ptr(cvar_name) }.to_string_lossy() == "sv_maxclients"
+            })
+            .returning(|_| ptr::null_mut())
+            .times(1);
+
+        let quake_engine = QuakeLiveEngine {
+            static_functions: default_static_functions().into(),
+            ..default_quake_engine()
+        };
+
+        let result = quake_engine.find_cvar("sv_maxclients");
+        assert!(result.is_none());
     }
 }
 
@@ -1605,12 +1789,51 @@ pub(crate) trait AddCommand<T: AsRef<str>> {
 
 impl<T: AsRef<str>> AddCommand<T> for QuakeLiveEngine {
     fn add_command(&self, cmd: T, func: unsafe extern "C" fn()) {
-        let Ok(c_cmd) = CString::new(cmd.as_ref()) else {
-            return;
+        if let Ok(detour) = self.cmd_addcommand_detour() {
+            if let Ok(c_cmd) = CString::new(cmd.as_ref()) {
+                detour.call(c_cmd.as_ptr(), func)
+            }
+        }
+    }
+}
+
+#[cfg(test)]
+mod add_command_quake_live_engine_tests {
+    use super::{AddCommand, QuakeLiveEngine};
+
+    use super::mock_quake_functions::Cmd_AddCommand_context;
+    use super::quake_live_engine_test_helpers::*;
+
+    use crate::prelude::serial;
+
+    use core::ffi::CStr;
+
+    #[test]
+    fn add_command_with_no_detour_set() {
+        let quake_engine = default_quake_engine();
+
+        quake_engine.add_command("spank", test_func);
+    }
+
+    #[test]
+    #[cfg_attr(miri, ignore)]
+    #[serial]
+    fn add_command_with_valid_function() {
+        let add_command_ctx = Cmd_AddCommand_context();
+        add_command_ctx
+            .expect()
+            .withf(|&cvar_name, _| {
+                unsafe { CStr::from_ptr(cvar_name) }.to_string_lossy() == "spank"
+            })
+            .times(1);
+
+        let quake_engine = QuakeLiveEngine {
+            static_functions: default_static_functions().into(),
+            static_detours: default_static_detours().into(),
+            ..default_quake_engine()
         };
-        self.cmd_addcommand_detour()
-            .iter()
-            .for_each(|detour| detour.call(c_cmd.as_ptr(), func));
+
+        quake_engine.add_command("spank", test_func);
     }
 }
 
@@ -1620,12 +1843,51 @@ pub(crate) trait SetModuleOffset<T: AsRef<str>> {
 
 impl<T: AsRef<str>> SetModuleOffset<T> for QuakeLiveEngine {
     fn set_module_offset(&self, module_name: T, offset: unsafe extern "C" fn()) {
-        let Ok(c_module_name) = CString::new(module_name.as_ref()) else {
-            return;
+        if let Ok(detour) = self.sys_setmoduleoffset_detour() {
+            if let Ok(c_module_name) = CString::new(module_name.as_ref()) {
+                detour.call(c_module_name.as_ptr() as *mut c_char, offset);
+            }
+        }
+    }
+}
+
+#[cfg(test)]
+mod set_module_offset_quake_live_engine_tests {
+    use super::{QuakeLiveEngine, SetModuleOffset};
+
+    use super::mock_quake_functions::Sys_SetModuleOffset_context;
+    use super::quake_live_engine_test_helpers::*;
+
+    use crate::prelude::serial;
+
+    use core::ffi::CStr;
+
+    #[test]
+    fn set_module_offset_with_no_detour_set() {
+        let quake_engine = default_quake_engine();
+
+        quake_engine.set_module_offset("qagame", test_func);
+    }
+
+    #[test]
+    #[cfg_attr(miri, ignore)]
+    #[serial]
+    fn set_module_offset_with_valid_function() {
+        let set_module_offset_ctx = Sys_SetModuleOffset_context();
+        set_module_offset_ctx
+            .expect()
+            .withf(|&cvar_name, _| {
+                unsafe { CStr::from_ptr(cvar_name) }.to_string_lossy() == "qagame"
+            })
+            .times(1);
+
+        let quake_engine = QuakeLiveEngine {
+            static_functions: default_static_functions().into(),
+            static_detours: default_static_detours().into(),
+            ..default_quake_engine()
         };
-        self.sys_setmoduleoffset_detour()
-            .iter()
-            .for_each(|detour| detour.call(c_module_name.as_ptr(), offset));
+
+        quake_engine.set_module_offset("qagame", test_func);
     }
 }
 
@@ -1639,8 +1901,51 @@ impl<T: Into<c_int>, U: Into<c_int>, V: Into<c_int>> InitGame<T, U, V> for Quake
         let random_seed_param = random_seed.into();
         let restart_param = restart.into();
         self.g_init_game_orig().iter().for_each(|original_func| {
-            original_func(level_time_param, random_seed_param, restart_param)
+            original_func(level_time_param, random_seed_param, restart_param);
         });
+    }
+}
+
+#[cfg(test)]
+mod init_game_quake_live_engine_tests {
+    use super::{InitGame, QuakeLiveEngine};
+
+    use super::mock_quake_functions::{G_InitGame, G_InitGame_context};
+    use super::quake_live_engine_test_helpers::*;
+
+    use crate::prelude::serial;
+
+    use core::sync::atomic::Ordering;
+    use mockall::predicate;
+
+    #[test]
+    fn init_game_with_no_function_pointer_set() {
+        let quake_engine = default_quake_engine();
+
+        quake_engine.init_game(42, 21, 0);
+    }
+
+    #[test]
+    #[cfg_attr(miri, ignore)]
+    #[serial]
+    fn init_game_with_valid_function() {
+        let g_init_game_ctx = G_InitGame_context();
+        g_init_game_ctx
+            .expect()
+            .with(predicate::eq(42), predicate::eq(21), predicate::eq(1))
+            .times(1);
+
+        let quake_engine = QuakeLiveEngine {
+            static_functions: default_static_functions().into(),
+            static_detours: default_static_detours().into(),
+            ..default_quake_engine()
+        };
+        quake_engine
+            .vm_functions
+            .g_init_game_orig
+            .store(G_InitGame as usize, Ordering::SeqCst);
+
+        quake_engine.init_game(42, 21, 1);
     }
 }
 
@@ -1653,32 +1958,151 @@ impl<T: Into<c_int>> ShutdownGame<T> for QuakeLiveEngine {
         let restart_param = restart.into();
         self.g_shutdown_game_orig()
             .iter()
-            .for_each(|original_func| original_func(restart_param));
+            .for_each(|original_func| {
+                original_func(restart_param);
+            });
+    }
+}
+
+#[cfg(test)]
+mod shutdown_game_quake_live_engine_tests {
+    use super::{QuakeLiveEngine, ShutdownGame};
+
+    use super::mock_quake_functions::{G_ShutdownGame, G_ShutdownGame_context};
+    use super::quake_live_engine_test_helpers::*;
+
+    use crate::prelude::serial;
+
+    use core::sync::atomic::Ordering;
+    use mockall::predicate;
+
+    #[test]
+    fn shutdown_game_with_function_pointer_set() {
+        let quake_engine = default_quake_engine();
+
+        quake_engine.shutdown_game(0);
+    }
+
+    #[test]
+    #[cfg_attr(miri, ignore)]
+    #[serial]
+    fn shutdown_game_with_valid_function() {
+        let g_shutdown_game_ctx = G_ShutdownGame_context();
+        g_shutdown_game_ctx.expect().with(predicate::eq(1)).times(1);
+
+        let quake_engine = QuakeLiveEngine {
+            static_functions: default_static_functions().into(),
+            static_detours: default_static_detours().into(),
+            ..default_quake_engine()
+        };
+        quake_engine
+            .vm_functions
+            .g_shutdown_game_orig
+            .store(G_ShutdownGame as usize, Ordering::SeqCst);
+
+        quake_engine.shutdown_game(1);
     }
 }
 
 pub(crate) trait ExecuteClientCommand<T: AsMut<client_t>, U: AsRef<str>, V: Into<qboolean>> {
-    #[allow(clippy::needless_lifetimes)]
     fn execute_client_command(&self, client: Option<T>, cmd: U, client_ok: V);
 }
 
 impl<T: AsMut<client_t>, U: AsRef<str>, V: Into<qboolean>> ExecuteClientCommand<T, U, V>
     for QuakeLiveEngine
 {
-    fn execute_client_command(&self, mut client: Option<T>, cmd: U, client_ok: V) {
-        let Ok(c_command) = CString::new(cmd.as_ref()) else {
-            return;
+    fn execute_client_command(&self, client: Option<T>, cmd: U, client_ok: V) {
+        if let Ok(detour) = self.sv_executeclientcommand_detour() {
+            if let Ok(c_command) = CString::new(cmd.as_ref()) {
+                let raw_client = client.map_or(ptr::null_mut(), |mut c_client| c_client.as_mut());
+                detour.call(raw_client, c_command.as_ptr(), client_ok.into());
+            }
+        }
+    }
+}
+
+#[cfg(test)]
+mod execute_client_command_quake_live_engine_tests {
+    use super::{ExecuteClientCommand, QuakeLiveEngine};
+
+    use super::mock_quake_functions::SV_ExecuteClientCommand_context;
+    use super::quake_live_engine_test_helpers::*;
+
+    use crate::ffi::c::prelude::{client_t, Client, ClientBuilder, MockClient};
+    use crate::prelude::serial;
+
+    use core::ffi::CStr;
+
+    #[test]
+    fn execute_client_command_with_no_detour_set() {
+        let quake_engine = default_quake_engine();
+
+        quake_engine.execute_client_command(None::<Client>, "asdf", false);
+    }
+
+    #[test]
+    #[cfg_attr(miri, ignore)]
+    #[serial]
+    fn execute_client_command_with_valid_detour_function_and_no_client() {
+        let sv_execute_client_command_ctx = SV_ExecuteClientCommand_context();
+        sv_execute_client_command_ctx
+            .expect()
+            .withf(|&client, &cmd, &client_ok| {
+                client.is_null()
+                    && unsafe { CStr::from_ptr(cmd) }.to_string_lossy() == "asdf"
+                    && client_ok.into()
+            })
+            .times(1);
+
+        let quake_engine = QuakeLiveEngine {
+            static_functions: default_static_functions().into(),
+            static_detours: default_static_detours().into(),
+            ..default_quake_engine()
         };
 
-        let client_ok_param = client_ok.into();
-        self.sv_executeclientcommand_detour()
-            .iter()
-            .for_each(|detour| match &mut client {
-                Some(ref mut safe_client) => {
-                    detour.call(safe_client.as_mut(), c_command.as_ptr(), client_ok_param)
-                }
-                None => detour.call(ptr::null_mut(), c_command.as_ptr(), client_ok_param),
+        quake_engine.execute_client_command(None::<Client>, "asdf", true);
+    }
+
+    #[test]
+    #[cfg_attr(miri, ignore)]
+    #[serial]
+    fn execute_client_command_with_valid_detour_function_and_valid_client() {
+        let mut client = ClientBuilder::default()
+            .build()
+            .expect("this should not happen");
+
+        let client_try_from_ctx = MockClient::try_from_context();
+        client_try_from_ctx.expect().returning(|_| {
+            let mut client_mock = MockClient::default();
+            client_mock.expect_as_mut().returning(|| {
+                ClientBuilder::default()
+                    .build()
+                    .expect("this should not happen")
             });
+            Ok(client_mock)
+        });
+
+        let sv_execute_client_command_ctx = SV_ExecuteClientCommand_context();
+        sv_execute_client_command_ctx
+            .expect()
+            .withf(|&client, &cmd, &client_ok| {
+                !client.is_null()
+                    && unsafe { CStr::from_ptr(cmd) }.to_string_lossy() == "asdf"
+                    && client_ok.into()
+            })
+            .times(1);
+
+        let quake_engine = QuakeLiveEngine {
+            static_functions: default_static_functions().into(),
+            static_detours: default_static_detours().into(),
+            ..default_quake_engine()
+        };
+
+        quake_engine.execute_client_command(
+            Client::try_from(&mut client as *mut client_t).ok(),
+            "asdf",
+            true,
+        );
     }
 }
 
@@ -1688,21 +2112,94 @@ pub(crate) trait SendServerCommand<T: AsRef<client_t>> {
 
 impl<T: AsRef<client_t>> SendServerCommand<T> for QuakeLiveEngine {
     fn send_server_command(&self, client: Option<T>, command: &str) {
-        let Ok(c_command) = CString::new(command) else {
-            return;
+        if let Ok(original_func) = self.sv_sendservercommand_detour().map(|detour| unsafe {
+            mem::transmute::<&(), extern "C" fn(*const client_t, *const c_char, ...)>(
+                detour.trampoline(),
+            )
+        }) {
+            if let Ok(c_command) = CString::new(command) {
+                let raw_client = client.map_or(ptr::null(), |c_client| c_client.as_ref());
+                original_func(raw_client, c_command.as_ptr());
+            }
+        }
+    }
+}
+
+#[cfg(test)]
+mod send_server_command_quake_live_engine_tests {
+    use super::{QuakeLiveEngine, SendServerCommand};
+
+    use super::mock_quake_functions::SV_SendServerCommand_context;
+    use super::quake_live_engine_test_helpers::*;
+
+    use crate::ffi::c::prelude::{client_t, Client, ClientBuilder, MockClient};
+    use crate::prelude::serial;
+
+    use core::ffi::CStr;
+
+    #[test]
+    fn send_server_command_with_no_detour_set() {
+        let quake_engine = default_quake_engine();
+
+        quake_engine.send_server_command(None::<Client>, "asdf");
+    }
+
+    #[test]
+    #[cfg_attr(miri, ignore)]
+    #[serial]
+    fn send_server_command_with_valid_detour_function_and_no_client() {
+        let sv_send_server_command_ctx = SV_SendServerCommand_context();
+        sv_send_server_command_ctx
+            .expect()
+            .withf(|&client, &cmd| {
+                client.is_null() && unsafe { CStr::from_ptr(cmd) }.to_string_lossy() == "asdf"
+            })
+            .times(1);
+
+        let quake_engine = QuakeLiveEngine {
+            static_functions: default_static_functions().into(),
+            static_detours: default_static_detours().into(),
+            ..default_quake_engine()
         };
 
-        self.sv_sendservercommand_detour()
-            .map(|detour| unsafe {
-                mem::transmute::<&(), extern "C" fn(*const client_t, *const c_char, ...)>(
-                    detour.trampoline(),
-                )
+        quake_engine.send_server_command(None::<Client>, "asdf");
+    }
+
+    #[test]
+    #[cfg_attr(miri, ignore)]
+    #[serial]
+    fn send_server_command_with_valid_detour_function_and_valid_client() {
+        let mut client = ClientBuilder::default()
+            .build()
+            .expect("this should not happen");
+
+        let client_try_from_ctx = MockClient::try_from_context();
+        client_try_from_ctx.expect().returning(|_| {
+            let mut client_mock = MockClient::default();
+            client_mock.expect_as_ref().return_const(
+                ClientBuilder::default()
+                    .build()
+                    .expect("this should not happen"),
+            );
+            Ok(client_mock)
+        });
+
+        let sv_send_server_command_ctx = SV_SendServerCommand_context();
+        sv_send_server_command_ctx
+            .expect()
+            .withf(|&client, &cmd| {
+                !client.is_null() && unsafe { CStr::from_ptr(cmd) }.to_string_lossy() == "asdf"
             })
-            .iter()
-            .for_each(|original_func| match &client {
-                Some(ref safe_client) => original_func(safe_client.as_ref(), c_command.as_ptr()),
-                None => original_func(ptr::null(), c_command.as_ptr()),
-            });
+            .times(1);
+
+        let quake_engine = QuakeLiveEngine {
+            static_functions: default_static_functions().into(),
+            static_detours: default_static_detours().into(),
+            ..default_quake_engine()
+        };
+
+        quake_engine
+            .send_server_command(Client::try_from(&mut client as *mut client_t).ok(), "asdf");
     }
 }
 
@@ -1712,9 +2209,87 @@ pub(crate) trait ClientEnterWorld<T: AsMut<client_t>> {
 
 impl<T: AsMut<client_t>> ClientEnterWorld<T> for QuakeLiveEngine {
     fn client_enter_world(&self, mut client: T, cmd: *mut usercmd_t) {
-        self.sv_cliententerworld_detour()
-            .iter()
-            .for_each(|detour| detour.call(client.as_mut(), cmd));
+        self.sv_cliententerworld_detour().iter().for_each(|detour| {
+            detour.call(client.as_mut(), cmd);
+        });
+    }
+}
+
+#[cfg(test)]
+mod client_enter_world_quake_live_engine_tests {
+    use super::{ClientEnterWorld, QuakeLiveEngine};
+
+    use super::mock_quake_functions::SV_ClientEnterWorld_context;
+    use super::quake_live_engine_test_helpers::*;
+
+    use crate::ffi::c::prelude::{
+        client_t, usercmd_t, Client, ClientBuilder, MockClient, UserCmdBuilder,
+    };
+    use crate::prelude::serial;
+
+    #[test]
+    #[cfg_attr(miri, ignore)]
+    #[serial]
+    fn client_enter_world_with_no_detour_set() {
+        let mut client = ClientBuilder::default()
+            .build()
+            .expect("this should not happen");
+
+        let client_try_from_ctx = MockClient::try_from_context();
+        client_try_from_ctx.expect().returning(|_| {
+            let client_mock = MockClient::default();
+            Ok(client_mock)
+        });
+
+        let mut usercmd = UserCmdBuilder::default()
+            .build()
+            .expect("this should not happen");
+        let quake_engine = default_quake_engine();
+
+        quake_engine.client_enter_world(
+            Client::try_from(&mut client as *mut client_t).expect("this should not happen"),
+            &mut usercmd as *mut usercmd_t,
+        );
+    }
+
+    #[test]
+    #[cfg_attr(miri, ignore)]
+    #[serial]
+    fn client_enter_world_with_valid_detour_function() {
+        let mut client = ClientBuilder::default()
+            .build()
+            .expect("this should not happen");
+
+        let client_try_from_ctx = MockClient::try_from_context();
+        client_try_from_ctx.expect().returning(|_| {
+            let mut client_mock = MockClient::default();
+            client_mock.expect_as_mut().returning(|| {
+                ClientBuilder::default()
+                    .build()
+                    .expect("this should not happen")
+            });
+            Ok(client_mock)
+        });
+        let mut usercmd = UserCmdBuilder::default()
+            .build()
+            .expect("this should not happen");
+
+        let sv_client_enter_world_ctx = SV_ClientEnterWorld_context();
+        sv_client_enter_world_ctx
+            .expect()
+            .withf(|&client, _| !client.is_null())
+            .times(1);
+
+        let quake_engine = QuakeLiveEngine {
+            static_functions: default_static_functions().into(),
+            static_detours: default_static_detours().into(),
+            ..default_quake_engine()
+        };
+
+        quake_engine.client_enter_world(
+            Client::try_from(&mut client as *mut client_t).expect("this should not happen"),
+            &mut usercmd as *mut usercmd_t,
+        );
     }
 }
 
@@ -1724,13 +2299,51 @@ pub(crate) trait SetConfigstring<T: Into<c_int>> {
 
 impl<T: Into<c_int>> SetConfigstring<T> for QuakeLiveEngine {
     fn set_configstring(&self, index: T, value: &str) {
-        let Ok(c_value) = CString::new(value) else {
-            return;
+        if let Ok(detour) = self.sv_setconfgistring_detour() {
+            if let Ok(c_value) = CString::new(value) {
+                detour.call(index.into(), c_value.as_ptr());
+            }
+        }
+    }
+}
+
+#[cfg(test)]
+mod set_confgistring_quake_live_engine_tests {
+    use super::{QuakeLiveEngine, SetConfigstring};
+
+    use super::mock_quake_functions::SV_SetConfigstring_context;
+    use super::quake_live_engine_test_helpers::*;
+
+    use crate::prelude::serial;
+
+    use core::ffi::CStr;
+
+    #[test]
+    fn set_configstring_with_no_detour_set() {
+        let quake_engine = default_quake_engine();
+
+        quake_engine.set_configstring(42, "asdf");
+    }
+
+    #[test]
+    #[cfg_attr(miri, ignore)]
+    #[serial]
+    fn set_configstring_with_valid_detour_function() {
+        let sv_set_configstring_ctx = SV_SetConfigstring_context();
+        sv_set_configstring_ctx
+            .expect()
+            .withf(|&index, &value| {
+                index == 42 && unsafe { CStr::from_ptr(value) }.to_string_lossy() == "asdf"
+            })
+            .times(1);
+
+        let quake_engine = QuakeLiveEngine {
+            static_functions: default_static_functions().into(),
+            static_detours: default_static_detours().into(),
+            ..default_quake_engine()
         };
-        let index_param = index.into();
-        self.sv_setconfgistring_detour()
-            .iter()
-            .for_each(|detour| detour.call(index_param, c_value.as_ptr()));
+
+        quake_engine.set_configstring(42, "asdf");
     }
 }
 
@@ -1740,15 +2353,51 @@ pub(crate) trait ComPrintf {
 
 impl ComPrintf for QuakeLiveEngine {
     fn com_printf(&self, msg: &str) {
-        let Ok(c_msg) = CString::new(msg) else {
-            return;
+        if let Ok(original_func) = self.com_printf_detour().map(|detour| unsafe {
+            mem::transmute::<&(), extern "C" fn(*const c_char, ...)>(detour.trampoline())
+        }) {
+            if let Ok(c_msg) = CString::new(msg) {
+                original_func(c_msg.as_ptr());
+            }
+        }
+    }
+}
+
+#[cfg(test)]
+mod com_printf_quake_live_engine_tests {
+    use super::{ComPrintf, QuakeLiveEngine};
+
+    use super::mock_quake_functions::Com_Printf_context;
+    use super::quake_live_engine_test_helpers::*;
+
+    use crate::prelude::serial;
+
+    use core::ffi::CStr;
+
+    #[test]
+    fn com_printf_with_no_detour_set() {
+        let quake_engine = default_quake_engine();
+
+        quake_engine.com_printf("asdf");
+    }
+
+    #[test]
+    #[cfg_attr(miri, ignore)]
+    #[serial]
+    fn com_printf_with_valid_detour_function() {
+        let com_printf_ctx = Com_Printf_context();
+        com_printf_ctx
+            .expect()
+            .withf(|&value| unsafe { CStr::from_ptr(value) }.to_string_lossy() == "asdf")
+            .times(1);
+
+        let quake_engine = QuakeLiveEngine {
+            static_functions: default_static_functions().into(),
+            static_detours: default_static_detours().into(),
+            ..default_quake_engine()
         };
-        self.com_printf_detour().iter().for_each(|detour| {
-            let original_func = unsafe {
-                mem::transmute::<&(), extern "C" fn(*const c_char, ...)>(detour.trampoline())
-            };
-            original_func(c_msg.as_ptr())
-        });
+
+        quake_engine.com_printf("asdf");
     }
 }
 
@@ -1758,13 +2407,52 @@ pub(crate) trait SpawnServer<T: AsRef<str>, U: Into<qboolean>> {
 
 impl<T: AsRef<str>, U: Into<qboolean>> SpawnServer<T, U> for QuakeLiveEngine {
     fn spawn_server(&self, server: T, kill_bots: U) {
-        let Ok(c_server) = CString::new(server.as_ref()) else {
-            return;
+        if let Ok(detour) = self.sv_spawnserver_detour() {
+            if let Ok(c_server) = CString::new(server.as_ref()) {
+                detour.call(c_server.as_ptr() as *mut c_char, kill_bots.into());
+            }
+        }
+    }
+}
+
+#[cfg(test)]
+mod spawn_server_quake_live_engine_tests {
+    use super::{QuakeLiveEngine, SpawnServer};
+
+    use super::mock_quake_functions::SV_SpawnServer_context;
+    use super::quake_live_engine_test_helpers::*;
+
+    use crate::prelude::serial;
+
+    use core::ffi::CStr;
+
+    #[test]
+    fn spawn_server_with_no_detour_set() {
+        let quake_engine = default_quake_engine();
+
+        quake_engine.spawn_server("asdf", false);
+    }
+
+    #[test]
+    #[cfg_attr(miri, ignore)]
+    #[serial]
+    fn com_printf_with_valid_detour_function() {
+        let sv_spawn_server_ctx = SV_SpawnServer_context();
+        sv_spawn_server_ctx
+            .expect()
+            .withf(|&server_name, &kill_bots| {
+                unsafe { CStr::from_ptr(server_name) }.to_string_lossy() == "asdf"
+                    && kill_bots.into()
+            })
+            .times(1);
+
+        let quake_engine = QuakeLiveEngine {
+            static_functions: default_static_functions().into(),
+            static_detours: default_static_detours().into(),
+            ..default_quake_engine()
         };
-        let kill_bots_param = kill_bots.into();
-        self.sv_spawnserver_detour()
-            .iter()
-            .for_each(|detour| detour.call(c_server.as_ptr(), kill_bots_param));
+
+        quake_engine.spawn_server("asdf", true);
     }
 }
 
@@ -1775,9 +2463,47 @@ pub(crate) trait RunFrame<T: Into<c_int>> {
 impl<T: Into<c_int>> RunFrame<T> for QuakeLiveEngine {
     fn run_frame(&self, time: T) {
         let time_param = time.into();
-        self.g_run_frame_orig()
-            .iter()
-            .for_each(|original_func| original_func(time_param));
+        self.g_run_frame_orig().iter().for_each(|original_func| {
+            original_func(time_param);
+        });
+    }
+}
+
+#[cfg(test)]
+mod run_frame_quake_live_engine_tests {
+    use super::{QuakeLiveEngine, RunFrame};
+    use std::sync::atomic::Ordering;
+
+    use super::mock_quake_functions::{G_RunFrame, G_RunFrame_context};
+    use super::quake_live_engine_test_helpers::*;
+
+    use crate::prelude::serial;
+
+    #[test]
+    fn run_frame_with_no_detour_set() {
+        let quake_engine = default_quake_engine();
+
+        quake_engine.run_frame(21);
+    }
+
+    #[test]
+    #[cfg_attr(miri, ignore)]
+    #[serial]
+    fn run_frame_with_valid_detour_function() {
+        let g_run_frame_ctx = G_RunFrame_context();
+        g_run_frame_ctx.expect().withf(|&time| time == 42).times(1);
+
+        let quake_engine = QuakeLiveEngine {
+            static_functions: default_static_functions().into(),
+            static_detours: default_static_detours().into(),
+            ..default_quake_engine()
+        };
+        quake_engine
+            .vm_functions
+            .g_run_frame_orig
+            .store(G_RunFrame as usize, Ordering::SeqCst);
+
+        quake_engine.run_frame(42);
     }
 }
 
@@ -1793,8 +2519,75 @@ impl<T: Into<c_int>, U: Into<qboolean>, V: Into<qboolean>> ClientConnect<T, U, V
             .client_connect_detour
             .load()
             .as_ref()
-            .map(|detour| detour.call(client_num.into(), first_time.into(), is_bot.into()))
-            .unwrap_or_else(ptr::null)
+            .map_or(ptr::null(), |detour| {
+                detour.call(client_num.into(), first_time.into(), is_bot.into())
+            })
+    }
+}
+
+#[cfg(test)]
+mod client_connect_quake_live_engine_tests {
+    use super::{ClientConnect, QuakeLiveEngine};
+
+    use super::mock_quake_functions::{
+        detoured_ClientConnect, ClientConnect, ClientConnect_context,
+    };
+    use super::quake_live_engine_test_helpers::*;
+
+    use crate::ffi::c::prelude::qboolean;
+
+    use crate::prelude::serial;
+    use pretty_assertions::assert_eq;
+
+    use retour::GenericDetour;
+
+    use alloc::ffi::CString;
+    use core::ffi::{c_char, c_int, CStr};
+
+    #[test]
+    fn client_connect_with_no_detour_set() {
+        let quake_engine = default_quake_engine();
+
+        let result = quake_engine.client_connect(21, false, true);
+        assert!(result.is_null());
+    }
+
+    #[test]
+    #[cfg_attr(miri, ignore)]
+    #[serial]
+    fn client_connect_with_valid_detour_function() {
+        let returned = CString::new("expected connect return").expect("this should not happen");
+
+        let client_connect_ctx = ClientConnect_context();
+        client_connect_ctx
+            .expect()
+            .withf(|&client_num, &first_time, &is_bot| {
+                client_num == 42 && first_time.into() && !<qboolean as Into<bool>>::into(is_bot)
+            })
+            .returning(move |_, _, _| returned.as_ptr())
+            .times(1);
+
+        let quake_engine = QuakeLiveEngine {
+            static_functions: default_static_functions().into(),
+            static_detours: default_static_detours().into(),
+            ..default_quake_engine()
+        };
+        quake_engine.vm_functions.client_connect_detour.store(Some(
+            unsafe {
+                GenericDetour::new(
+                    ClientConnect as extern "C" fn(c_int, qboolean, qboolean) -> *const c_char,
+                    detoured_ClientConnect,
+                )
+            }
+            .expect("this should not happen")
+            .into(),
+        ));
+
+        let result = quake_engine.client_connect(42, true, false);
+        assert_eq!(
+            unsafe { CStr::from_ptr(result) }.to_string_lossy(),
+            "expected connect return"
+        );
     }
 }
 
@@ -2288,5 +3081,242 @@ mockall::mock! {
         #[allow(unused_attributes)]
         #[cfg(not(tarpaulin_include))]
         fn set_cvar_limit(&self, name: &str, value: &str, min: &str, max: &str, flags: Option<i32>) -> Option<CVar>;
+    }
+}
+
+#[cfg(test)]
+#[cfg_attr(test, mockall::automock)]
+#[allow(dead_code)]
+mod quake_functions {
+    use crate::ffi::c::prelude::{cbufExec_t, client_t, cvar_t, qboolean, usercmd_t};
+
+    use core::ffi::{c_char, c_int};
+    use core::ptr;
+
+    #[allow(unused_attributes, clippy::just_underscores_and_digits, non_snake_case)]
+    #[cfg(not(tarpaulin_include))]
+    pub(crate) unsafe extern "C" fn Com_Printf(_fmt: *const c_char, ...) {}
+
+    #[allow(unused_attributes, clippy::just_underscores_and_digits, non_snake_case)]
+    #[cfg(not(tarpaulin_include))]
+    pub(crate) unsafe extern "C" fn detoured_Com_Printf(_fmt: *const c_char, ...) {}
+
+    #[allow(unused_attributes, non_snake_case)]
+    #[cfg(not(tarpaulin_include))]
+    pub(crate) extern "C" fn Cmd_AddCommand(_cmd: *const c_char, _func: unsafe extern "C" fn()) {}
+
+    #[allow(unused_attributes, non_snake_case)]
+    #[cfg(not(tarpaulin_include))]
+    pub(crate) extern "C" fn detoured_Cmd_AddCommand(
+        _cmd: *const c_char,
+        _func: unsafe extern "C" fn(),
+    ) {
+    }
+
+    #[allow(unused_attributes, non_snake_case)]
+    #[cfg(not(tarpaulin_include))]
+    pub(crate) extern "C" fn Cmd_Args() -> *const c_char {
+        ptr::null()
+    }
+
+    #[allow(unused_attributes, non_snake_case)]
+    #[cfg(not(tarpaulin_include))]
+    pub(crate) extern "C" fn Cmd_Argv(_arg: c_int) -> *const c_char {
+        ptr::null()
+    }
+
+    #[allow(unused_attributes, non_snake_case)]
+    #[cfg(not(tarpaulin_include))]
+    pub(crate) extern "C" fn Cmd_Tokenizestring(_text_in: *const c_char) -> *const c_char {
+        ptr::null()
+    }
+
+    #[allow(unused_attributes, non_snake_case)]
+    #[cfg(not(tarpaulin_include))]
+    pub(crate) extern "C" fn Cbuf_ExecuteText(_exec_when: cbufExec_t, _text: *const c_char) {}
+
+    #[allow(unused_attributes, non_snake_case)]
+    #[cfg(not(tarpaulin_include))]
+    pub(crate) extern "C" fn Cvar_FindVar(_var_name: *const c_char) -> *mut cvar_t {
+        ptr::null_mut()
+    }
+
+    #[allow(unused_attributes, non_snake_case)]
+    #[cfg(not(tarpaulin_include))]
+    pub(crate) extern "C" fn Cvar_Get(
+        _var_name: *const c_char,
+        _var_value: *const c_char,
+        _flags: c_int,
+    ) -> *mut cvar_t {
+        ptr::null_mut()
+    }
+
+    #[allow(unused_attributes, non_snake_case)]
+    #[cfg(not(tarpaulin_include))]
+    pub(crate) extern "C" fn Cvar_GetLimit(
+        _var_name: *const c_char,
+        _var_value: *const c_char,
+        _min: *const c_char,
+        _max: *const c_char,
+        _flags: c_int,
+    ) -> *mut cvar_t {
+        ptr::null_mut()
+    }
+
+    #[allow(unused_attributes, non_snake_case)]
+    #[cfg(not(tarpaulin_include))]
+    pub(crate) extern "C" fn Cvar_Set2(
+        _var_name: *const c_char,
+        _value: *const c_char,
+        _force: qboolean,
+    ) -> *mut cvar_t {
+        ptr::null_mut()
+    }
+
+    #[allow(unused_attributes, clippy::just_underscores_and_digits, non_snake_case)]
+    #[cfg(not(tarpaulin_include))]
+    pub(crate) unsafe extern "C" fn SV_SendServerCommand(
+        _cl: *mut client_t,
+        _fmt: *const c_char,
+        ...
+    ) {
+    }
+
+    #[allow(unused_attributes, clippy::just_underscores_and_digits, non_snake_case)]
+    #[cfg(not(tarpaulin_include))]
+    pub(crate) unsafe extern "C" fn detoured_SV_SendServerCommand(
+        _cl: *mut client_t,
+        _fmt: *const c_char,
+        ...
+    ) {
+    }
+
+    #[allow(unused_attributes, non_snake_case)]
+    #[cfg(not(tarpaulin_include))]
+    pub(crate) extern "C" fn SV_ExecuteClientCommand(
+        _cl: *mut client_t,
+        _s: *const c_char,
+        _clientOK: qboolean,
+    ) {
+    }
+
+    #[allow(unused_attributes, non_snake_case)]
+    #[cfg(not(tarpaulin_include))]
+    pub(crate) extern "C" fn detoured_SV_ExecuteClientCommand(
+        _cl: *mut client_t,
+        _s: *const c_char,
+        _clientOK: qboolean,
+    ) {
+    }
+
+    #[allow(unused_attributes, non_snake_case)]
+    #[cfg(not(tarpaulin_include))]
+    pub(crate) extern "C" fn SV_Shutdown(_finalmsg: *const c_char) {}
+
+    #[allow(unused_attributes, non_snake_case)]
+    #[cfg(not(tarpaulin_include))]
+    pub(crate) extern "C" fn SV_Map_f() {}
+
+    #[allow(unused_attributes, non_snake_case)]
+    #[cfg(not(tarpaulin_include))]
+    pub(crate) extern "C" fn SV_ClientEnterWorld(_client: *mut client_t, _cmd: *mut usercmd_t) {}
+
+    #[allow(unused_attributes, non_snake_case)]
+    #[cfg(not(tarpaulin_include))]
+    pub(crate) extern "C" fn detoured_SV_ClientEnterWorld(
+        _client: *mut client_t,
+        _cmd: *mut usercmd_t,
+    ) {
+    }
+
+    #[allow(unused_attributes, non_snake_case)]
+    #[cfg(not(tarpaulin_include))]
+    pub(crate) extern "C" fn SV_SetConfigstring(_index: c_int, _value: *const c_char) {}
+
+    #[allow(unused_attributes, non_snake_case)]
+    #[cfg(not(tarpaulin_include))]
+    pub(crate) extern "C" fn detoured_SV_SetConfigstring(_index: c_int, _value: *const c_char) {}
+
+    #[allow(unused_attributes, non_snake_case)]
+    #[cfg(not(tarpaulin_include))]
+    pub(crate) extern "C" fn SV_GetConfigstring(
+        _index: c_int,
+        _buffer: *mut c_char,
+        _bufferSize: c_int,
+    ) {
+    }
+
+    #[allow(unused_attributes, non_snake_case)]
+    #[cfg(not(tarpaulin_include))]
+    pub(crate) extern "C" fn SV_DropClient(_drop: *mut client_t, _reason: *const c_char) {}
+
+    #[allow(unused_attributes, non_snake_case)]
+    #[cfg(not(tarpaulin_include))]
+    pub(crate) extern "C" fn detoured_SV_DropClient(_drop: *mut client_t, _reason: *const c_char) {}
+
+    #[allow(unused_attributes, non_snake_case)]
+    #[cfg(not(tarpaulin_include))]
+    pub(crate) extern "C" fn Sys_SetModuleOffset(
+        _moduleName: *mut c_char,
+        _offset: unsafe extern "C" fn(),
+    ) {
+    }
+
+    #[allow(unused_attributes, non_snake_case)]
+    #[cfg(not(tarpaulin_include))]
+    pub(crate) extern "C" fn detoured_Sys_SetModuleOffset(
+        _moduleName: *mut c_char,
+        _offset: unsafe extern "C" fn(),
+    ) {
+    }
+
+    #[allow(unused_attributes, non_snake_case)]
+    #[cfg(not(tarpaulin_include))]
+    pub(crate) extern "C" fn SV_SpawnServer(_server: *mut c_char, _killBots: qboolean) {}
+
+    #[allow(unused_attributes, non_snake_case)]
+    #[cfg(not(tarpaulin_include))]
+    pub(crate) extern "C" fn detoured_SV_SpawnServer(_server: *mut c_char, _killBots: qboolean) {}
+
+    #[allow(unused_attributes, non_snake_case)]
+    #[cfg(not(tarpaulin_include))]
+    pub(crate) extern "C" fn Cmd_ExecuteString(_text: *const c_char) {}
+
+    #[allow(unused_attributes, non_snake_case)]
+    #[cfg(not(tarpaulin_include))]
+    pub(crate) extern "C" fn Cmd_Argc() -> c_int {
+        0
+    }
+
+    #[allow(unused_attributes, non_snake_case)]
+    #[cfg(not(tarpaulin_include))]
+    pub(crate) extern "C" fn G_InitGame(_level_time: c_int, _random_see: c_int, _restart: c_int) {}
+
+    #[allow(unused_attributes, non_snake_case)]
+    #[cfg(not(tarpaulin_include))]
+    pub(crate) extern "C" fn G_ShutdownGame(_restart: c_int) {}
+
+    #[allow(unused_attributes, non_snake_case)]
+    #[cfg(not(tarpaulin_include))]
+    pub(crate) extern "C" fn G_RunFrame(_time: c_int) {}
+
+    #[allow(unused_attributes, non_snake_case)]
+    #[cfg(not(tarpaulin_include))]
+    pub(crate) extern "C" fn ClientConnect(
+        _client_num: c_int,
+        _first_time: qboolean,
+        _is_bot: qboolean,
+    ) -> *const c_char {
+        ptr::null()
+    }
+
+    #[allow(unused_attributes, non_snake_case)]
+    #[cfg(not(tarpaulin_include))]
+    pub(crate) extern "C" fn detoured_ClientConnect(
+        _client_num: c_int,
+        _first_time: qboolean,
+        _is_bot: qboolean,
+    ) -> *const c_char {
+        ptr::null()
     }
 }
