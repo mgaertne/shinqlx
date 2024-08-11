@@ -83,7 +83,10 @@ pub extern "C" fn cmd_slap() {
         0
     };
 
-    #[cfg_attr(test, allow(clippy::unnecessary_fallible_conversions))]
+    #[cfg_attr(
+        test,
+        allow(clippy::unnecessary_fallible_conversions, irrefutable_let_patterns)
+    )]
     let Ok(mut client_entity) = GameEntity::try_from(client_id) else {
         return;
     };
@@ -94,7 +97,10 @@ pub extern "C" fn cmd_slap() {
 
     main_engine.com_printf("Slapping...\n");
 
-    #[cfg_attr(test, allow(clippy::unnecessary_fallible_conversions))]
+    #[cfg_attr(
+        test,
+        allow(clippy::unnecessary_fallible_conversions, irrefutable_let_patterns)
+    )]
     let Ok(client) = Client::try_from(client_id) else {
         return;
     };
@@ -174,7 +180,10 @@ pub extern "C" fn cmd_slay() {
         return;
     }
 
-    #[cfg_attr(test, allow(clippy::unnecessary_fallible_conversions))]
+    #[cfg_attr(
+        test,
+        allow(clippy::unnecessary_fallible_conversions, irrefutable_let_patterns)
+    )]
     let Ok(mut client_entity) = GameEntity::try_from(client_id) else {
         return;
     };
@@ -185,7 +194,10 @@ pub extern "C" fn cmd_slay() {
 
     main_engine.com_printf("Slaying player...\n");
 
-    #[cfg_attr(test, allow(clippy::unnecessary_fallible_conversions))]
+    #[cfg_attr(
+        test,
+        allow(clippy::unnecessary_fallible_conversions, irrefutable_let_patterns)
+    )]
     let Ok(client) = Client::try_from(client_id) else {
         return;
     };
