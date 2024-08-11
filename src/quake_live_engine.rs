@@ -20,7 +20,7 @@ use crate::quake_live_functions::QuakeLiveFunction;
 #[cfg(target_os = "linux")]
 use crate::QZERODED;
 
-use alloc::{ffi::CString, sync::Arc};
+use alloc::ffi::CString;
 use arc_swap::ArcSwapOption;
 #[cfg(target_os = "linux")]
 use arrayvec::ArrayVec;
@@ -136,10 +136,10 @@ struct VmFunctions {
     #[cfg(feature = "patches")]
     cmd_callvote_f_orig: AtomicUsize,
 
-    client_spawn_detour: Arc<ArcSwapOption<ClientSpawnDetourType>>,
-    client_connect_detour: Arc<ArcSwapOption<ClientConnectDetourType>>,
-    g_start_kamikaze_detour: Arc<ArcSwapOption<GStartKamikazeDetourType>>,
-    g_damage_detour: Arc<ArcSwapOption<GDamageDetourType>>,
+    client_spawn_detour: ArcSwapOption<ClientSpawnDetourType>,
+    client_connect_detour: ArcSwapOption<ClientConnectDetourType>,
+    g_start_kamikaze_detour: ArcSwapOption<GStartKamikazeDetourType>,
+    g_damage_detour: ArcSwapOption<GDamageDetourType>,
 }
 
 #[allow(dead_code)]
@@ -1563,7 +1563,6 @@ mod quake_live_engine_test_helpers {
 
     use crate::ffi::c::prelude::{client_t, qboolean, usercmd_t};
 
-    use alloc::sync::Arc;
     use core::ffi::{c_char, c_int};
 
     use retour::{GenericDetour, RawDetour};
@@ -1682,10 +1681,10 @@ mod quake_live_engine_test_helpers {
                 g_init_game_orig: Default::default(),
                 g_shutdown_game_orig: Default::default(),
                 g_run_frame_orig: Default::default(),
-                client_spawn_detour: Arc::new(Default::default()),
-                client_connect_detour: Arc::new(Default::default()),
-                g_start_kamikaze_detour: Arc::new(Default::default()),
-                g_damage_detour: Arc::new(Default::default()),
+                client_spawn_detour: Default::default(),
+                client_connect_detour: Default::default(),
+                g_start_kamikaze_detour: Default::default(),
+                g_damage_detour: Default::default(),
             },
             current_vm: Default::default(),
         }
@@ -2520,8 +2519,75 @@ impl<T: Into<c_int>, U: Into<qboolean>, V: Into<qboolean>> ClientConnect<T, U, V
             .client_connect_detour
             .load()
             .as_ref()
-            .map(|detour| detour.call(client_num.into(), first_time.into(), is_bot.into()))
-            .unwrap_or_else(ptr::null)
+            .map_or(ptr::null(), |detour| {
+                detour.call(client_num.into(), first_time.into(), is_bot.into())
+            })
+    }
+}
+
+#[cfg(test)]
+mod client_connect_quake_live_engine_tests {
+    use super::{ClientConnect, QuakeLiveEngine};
+
+    use super::mock_quake_functions::{
+        detoured_ClientConnect, ClientConnect, ClientConnect_context,
+    };
+    use super::quake_live_engine_test_helpers::*;
+
+    use crate::ffi::c::prelude::qboolean;
+
+    use crate::prelude::serial;
+    use pretty_assertions::assert_eq;
+
+    use retour::GenericDetour;
+
+    use alloc::ffi::CString;
+    use core::ffi::{c_char, c_int, CStr};
+
+    #[test]
+    fn client_connect_with_no_detour_set() {
+        let quake_engine = default_quake_engine();
+
+        let result = quake_engine.client_connect(21, false, true);
+        assert!(result.is_null());
+    }
+
+    #[test]
+    #[cfg_attr(miri, ignore)]
+    #[serial]
+    fn client_connect_with_valid_detour_function() {
+        let returned = CString::new("expected connect return").expect("this should not happen");
+
+        let client_connect_ctx = ClientConnect_context();
+        client_connect_ctx
+            .expect()
+            .withf(|&client_num, &first_time, &is_bot| {
+                client_num == 42 && first_time.into() && !<qboolean as Into<bool>>::into(is_bot)
+            })
+            .returning(move |_, _, _| returned.as_ptr())
+            .times(1);
+
+        let quake_engine = QuakeLiveEngine {
+            static_functions: default_static_functions().into(),
+            static_detours: default_static_detours().into(),
+            ..default_quake_engine()
+        };
+        quake_engine.vm_functions.client_connect_detour.store(Some(
+            unsafe {
+                GenericDetour::new(
+                    ClientConnect as extern "C" fn(c_int, qboolean, qboolean) -> *const c_char,
+                    detoured_ClientConnect,
+                )
+            }
+            .expect("this should not happen")
+            .into(),
+        ));
+
+        let result = quake_engine.client_connect(42, true, false);
+        assert_eq!(
+            unsafe { CStr::from_ptr(result) }.to_string_lossy(),
+            "expected connect return"
+        );
     }
 }
 
@@ -3147,4 +3213,24 @@ mod quake_functions {
     #[allow(unused_attributes, non_snake_case)]
     #[cfg(not(tarpaulin_include))]
     pub(crate) extern "C" fn G_RunFrame(_time: c_int) {}
+
+    #[allow(unused_attributes, non_snake_case)]
+    #[cfg(not(tarpaulin_include))]
+    pub(crate) extern "C" fn ClientConnect(
+        _client_num: c_int,
+        _first_time: qboolean,
+        _is_bot: qboolean,
+    ) -> *const c_char {
+        ptr::null()
+    }
+
+    #[allow(unused_attributes, non_snake_case)]
+    #[cfg(not(tarpaulin_include))]
+    pub(crate) extern "C" fn detoured_ClientConnect(
+        _client_num: c_int,
+        _first_time: qboolean,
+        _is_bot: qboolean,
+    ) -> *const c_char {
+        ptr::null()
+    }
 }
