@@ -25,7 +25,7 @@ impl CVar {
         if self.cvar.string.is_null() {
             return "".into();
         }
-        unsafe { CStr::from_ptr(self.cvar.string).to_string_lossy() }
+        unsafe { CStr::from_ptr(self.cvar.string) }.to_string_lossy()
     }
 
     pub(crate) fn get_integer(&self) -> i32 {
