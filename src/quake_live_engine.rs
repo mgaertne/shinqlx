@@ -2605,6 +2605,84 @@ impl<T: AsMut<gentity_t>> ClientSpawn<T> for QuakeLiveEngine {
     }
 }
 
+#[cfg(test)]
+mod client_spawn_quake_live_engine_tests {
+    use super::{ClientSpawn, QuakeLiveEngine};
+
+    use super::mock_quake_functions::{detoured_ClientSpawn, ClientSpawn, ClientSpawn_context};
+    use super::quake_live_engine_test_helpers::*;
+
+    use crate::ffi::c::prelude::{gentity_t, GEntityBuilder, GameEntity, MockGameEntity};
+
+    use crate::prelude::serial;
+
+    use retour::GenericDetour;
+
+    #[test]
+    fn client_spawn_with_no_detour_set() {
+        let mut gentity = GEntityBuilder::default()
+            .build()
+            .expect("this should not happen");
+        let gentity_try_from_ctx = MockGameEntity::try_from_context();
+        gentity_try_from_ctx
+            .expect()
+            .returning(|_| Ok(MockGameEntity::default()));
+
+        let mut client_entity =
+            GameEntity::try_from(&mut gentity as *mut gentity_t).expect("this should not happen");
+
+        let quake_engine = default_quake_engine();
+
+        quake_engine.client_spawn(&mut client_entity);
+    }
+
+    #[test]
+    #[cfg_attr(miri, ignore)]
+    #[serial]
+    fn client_spawn_with_valid_detour_function() {
+        let mut gentity = GEntityBuilder::default()
+            .build()
+            .expect("this should not happen");
+        let gentity_try_from_ctx = MockGameEntity::try_from_context();
+        gentity_try_from_ctx.expect().returning(|_| {
+            let mut mock_game_entity = MockGameEntity::default();
+            mock_game_entity.expect_as_mut().returning(|| {
+                GEntityBuilder::default()
+                    .build()
+                    .expect("this should not happen")
+            });
+            Ok(mock_game_entity)
+        });
+
+        let mut client_entity =
+            GameEntity::try_from(&mut gentity as *mut gentity_t).expect("this should not happen");
+
+        let client_spawn_ctx = ClientSpawn_context();
+        client_spawn_ctx
+            .expect()
+            .withf(|&client| !client.is_null())
+            .times(1);
+
+        let quake_engine = QuakeLiveEngine {
+            static_functions: default_static_functions().into(),
+            static_detours: default_static_detours().into(),
+            ..default_quake_engine()
+        };
+        quake_engine.vm_functions.client_spawn_detour.store(Some(
+            unsafe {
+                GenericDetour::new(
+                    ClientSpawn as extern "C" fn(*mut gentity_t),
+                    detoured_ClientSpawn,
+                )
+            }
+            .expect("this should not happen")
+            .into(),
+        ));
+
+        quake_engine.client_spawn(&mut client_entity);
+    }
+}
+
 pub(crate) trait CmdArgs {
     fn cmd_args(&self) -> Option<String>;
 }
@@ -2612,10 +2690,78 @@ pub(crate) trait CmdArgs {
 impl CmdArgs for QuakeLiveEngine {
     fn cmd_args(&self) -> Option<String> {
         self.cmd_args_orig()
-            .ok()
             .map(|original_func| original_func())
+            .ok()
             .filter(|cmd_args| !cmd_args.is_null())
             .map(|cmd_args| unsafe { CStr::from_ptr(cmd_args) }.to_string_lossy().into())
+    }
+}
+
+#[cfg(test)]
+mod cmd_args_quake_live_engine_tests {
+    use super::{CmdArgs, QuakeLiveEngine, StaticFunctions};
+
+    use super::mock_quake_functions::{Cmd_Args, Cmd_Args_context};
+    use super::quake_live_engine_test_helpers::*;
+
+    use crate::prelude::serial;
+
+    use alloc::ffi::CString;
+    use core::ptr;
+
+    #[test]
+    fn cmd_args_with_no_original_function_set() {
+        let quake_engine = default_quake_engine();
+
+        let result = quake_engine.cmd_args();
+        assert!(result.is_none());
+    }
+
+    #[test]
+    #[cfg_attr(miri, ignore)]
+    #[serial]
+    fn cmd_args_with_valid_ogirinal_function() {
+        let returned = CString::new("expected cmd_args return").expect("this should not happen");
+
+        let cmd_args_ctx = Cmd_Args_context();
+        cmd_args_ctx
+            .expect()
+            .returning(move || returned.as_ptr())
+            .times(1);
+
+        let quake_engine = QuakeLiveEngine {
+            static_functions: StaticFunctions {
+                cmd_args_orig: Cmd_Args,
+                ..default_static_functions()
+            }
+            .into(),
+            static_detours: default_static_detours().into(),
+            ..default_quake_engine()
+        };
+
+        let result = quake_engine.cmd_args();
+        assert!(result.is_some_and(|args| args == "expected cmd_args return"))
+    }
+
+    #[test]
+    #[cfg_attr(miri, ignore)]
+    #[serial]
+    fn cmd_args_when_original_function_returns_null() {
+        let cmd_args_ctx = Cmd_Args_context();
+        cmd_args_ctx.expect().returning(ptr::null).times(1);
+
+        let quake_engine = QuakeLiveEngine {
+            static_functions: StaticFunctions {
+                cmd_args_orig: Cmd_Args,
+                ..default_static_functions()
+            }
+            .into(),
+            static_detours: default_static_detours().into(),
+            ..default_quake_engine()
+        };
+
+        let result = quake_engine.cmd_args();
+        assert!(result.is_none());
     }
 }
 
@@ -2626,8 +2772,47 @@ pub(crate) trait CmdArgc {
 impl CmdArgc for QuakeLiveEngine {
     fn cmd_argc(&self) -> i32 {
         self.cmd_argc_orig()
-            .map(|original_func| original_func())
-            .unwrap_or(0)
+            .map_or(0, |original_func| original_func())
+    }
+}
+
+#[cfg(test)]
+mod cmd_argc_quake_live_engine_tests {
+    use super::{CmdArgc, QuakeLiveEngine, StaticFunctions};
+
+    use super::mock_quake_functions::{Cmd_Argc, Cmd_Argc_context};
+    use super::quake_live_engine_test_helpers::*;
+
+    use crate::prelude::serial;
+    use pretty_assertions::assert_eq;
+
+    #[test]
+    fn cmd_argc_with_no_original_function_set() {
+        let quake_engine = default_quake_engine();
+
+        let result = quake_engine.cmd_argc();
+        assert_eq!(result, 0);
+    }
+
+    #[test]
+    #[cfg_attr(miri, ignore)]
+    #[serial]
+    fn cmd_argc_with_valid_original_function() {
+        let cmd_argc_ctx = Cmd_Argc_context();
+        cmd_argc_ctx.expect().returning(|| 42).times(1);
+
+        let quake_engine = QuakeLiveEngine {
+            static_functions: StaticFunctions {
+                cmd_argc_orig: Cmd_Argc,
+                ..default_static_functions()
+            }
+            .into(),
+            static_detours: default_static_detours().into(),
+            ..default_quake_engine()
+        };
+
+        let result = quake_engine.cmd_argc();
+        assert_eq!(result, 42);
     }
 }
 
@@ -2648,6 +2833,101 @@ impl<T: Into<c_int> + PartialOrd<c_int>> CmdArgv<T> for QuakeLiveEngine {
     }
 }
 
+#[cfg(test)]
+mod cmd_argv_quake_live_engine_tests {
+    use super::{CmdArgv, QuakeLiveEngine, StaticFunctions};
+
+    use super::mock_quake_functions::{Cmd_Argv, Cmd_Argv_context};
+    use super::quake_live_engine_test_helpers::*;
+
+    use crate::prelude::serial;
+
+    use alloc::ffi::CString;
+    use core::ptr;
+    use mockall::predicate;
+
+    #[test]
+    fn cmd_argv_with_no_original_function_set() {
+        let quake_engine = default_quake_engine();
+
+        let result = quake_engine.cmd_argv(1);
+        assert!(result.is_none());
+    }
+
+    #[test]
+    #[cfg_attr(miri, ignore)]
+    #[serial]
+    fn cmd_argv_with_valid_ogirinal_function() {
+        let returned = CString::new("expected cmd_argv return").expect("this should not happen");
+
+        let cmd_argv_ctx = Cmd_Argv_context();
+        cmd_argv_ctx
+            .expect()
+            .with(predicate::eq(2))
+            .returning(move |_| returned.as_ptr())
+            .times(1);
+
+        let quake_engine = QuakeLiveEngine {
+            static_functions: StaticFunctions {
+                cmd_argv_orig: Cmd_Argv,
+                ..default_static_functions()
+            }
+            .into(),
+            static_detours: default_static_detours().into(),
+            ..default_quake_engine()
+        };
+
+        let result = quake_engine.cmd_argv(2);
+        assert!(result.is_some_and(|args| args == "expected cmd_argv return"))
+    }
+
+    #[test]
+    #[cfg_attr(miri, ignore)]
+    #[serial]
+    fn cmd_argv_when_original_function_returns_null() {
+        let cmd_argv_ctx = Cmd_Argv_context();
+        cmd_argv_ctx
+            .expect()
+            .with(predicate::eq(1))
+            .returning(|_| ptr::null())
+            .times(1);
+
+        let quake_engine = QuakeLiveEngine {
+            static_functions: StaticFunctions {
+                cmd_argv_orig: Cmd_Argv,
+                ..default_static_functions()
+            }
+            .into(),
+            static_detours: default_static_detours().into(),
+            ..default_quake_engine()
+        };
+
+        let result = quake_engine.cmd_argv(1);
+        assert!(result.is_none());
+    }
+
+    #[test]
+    #[cfg_attr(miri, ignore)]
+    #[serial]
+    fn cmd_argv_for_negative_argument_number() {
+        let cmd_argv_ctx = Cmd_Argv_context();
+        cmd_argv_ctx.expect().times(0);
+
+        let quake_engine = QuakeLiveEngine {
+            static_functions: StaticFunctions {
+                cmd_argv_orig: Cmd_Argv,
+                ..default_static_functions()
+            }
+            .into(),
+            static_detours: default_static_detours().into(),
+            ..default_quake_engine()
+        };
+
+        let result = quake_engine.cmd_argv(-1);
+        assert!(result.is_none());
+    }
+}
+
 pub(crate) trait GameAddEvent<T: AsMut<gentity_t>, U: Into<c_int>> {
     fn game_add_event(&self, game_entity: T, event: entity_event_t, event_param: U);
 }
@@ -2661,18 +2941,139 @@ impl<T: AsMut<gentity_t>, U: Into<c_int>> GameAddEvent<T, U> for QuakeLiveEngine
     }
 }
 
+#[cfg(test)]
+mod game_add_event_quake_live_engine_tests {
+    use super::{GameAddEvent, QuakeLiveEngine};
+
+    use super::mock_quake_functions::{G_AddEvent, G_AddEvent_context};
+    use super::quake_live_engine_test_helpers::*;
+
+    use crate::ffi::c::prelude::{
+        entity_event_t, gentity_t, GEntityBuilder, GameEntity, MockGameEntity,
+    };
+
+    use crate::prelude::serial;
+
+    use core::sync::atomic::Ordering;
+
+    #[test]
+    fn game_add_event_with_no_original_function_set() {
+        let mut gentity = GEntityBuilder::default()
+            .build()
+            .expect("this should not happen");
+        let gentity_try_from_ctx = MockGameEntity::try_from_context();
+        gentity_try_from_ctx
+            .expect()
+            .returning(|_| Ok(MockGameEntity::default()));
+
+        let mut client_entity =
+            GameEntity::try_from(&mut gentity as *mut gentity_t).expect("this should not happen");
+
+        let quake_engine = default_quake_engine();
+
+        quake_engine.game_add_event(
+            &mut client_entity,
+            entity_event_t::EV_LIGHTNING_DISCHARGE,
+            1,
+        );
+    }
+
+    #[test]
+    #[cfg_attr(miri, ignore)]
+    #[serial]
+    fn game_add_event_with_valid_original_function() {
+        let mut gentity = GEntityBuilder::default()
+            .build()
+            .expect("this should not happen");
+        let gentity_try_from_ctx = MockGameEntity::try_from_context();
+        gentity_try_from_ctx.expect().returning(|_| {
+            let mut mock_game_entity = MockGameEntity::default();
+            mock_game_entity.expect_as_mut().returning(|| {
+                GEntityBuilder::default()
+                    .build()
+                    .expect("this should not happen")
+            });
+            Ok(mock_game_entity)
+        });
+
+        let mut client_entity =
+            GameEntity::try_from(&mut gentity as *mut gentity_t).expect("this should not happen");
+
+        let g_add_event_ctx = G_AddEvent_context();
+        g_add_event_ctx
+            .expect()
+            .withf(|&ent, &event, &parm| {
+                !ent.is_null() && event == entity_event_t::EV_KAMIKAZE && parm == 42
+            })
+            .times(1);
+
+        let quake_engine = QuakeLiveEngine {
+            static_functions: default_static_functions().into(),
+            static_detours: default_static_detours().into(),
+            ..default_quake_engine()
+        };
+        quake_engine
+            .vm_functions
+            .g_addevent_orig
+            .store(G_AddEvent as usize, Ordering::SeqCst);
+
+        quake_engine.game_add_event(&mut client_entity, entity_event_t::EV_KAMIKAZE, 42);
+    }
+}
+
 pub(crate) trait ConsoleCommand<T: AsRef<str>> {
     fn execute_console_command(&self, cmd: T);
 }
 
 impl<T: AsRef<str>> ConsoleCommand<T> for QuakeLiveEngine {
     fn execute_console_command(&self, cmd: T) {
-        let Ok(c_cmd) = CString::new(cmd.as_ref()) else {
-            return;
+        if let Ok(original_func) = self.cmd_executestring_orig() {
+            if let Ok(c_cmd) = CString::new(cmd.as_ref()) {
+                original_func(c_cmd.as_ptr());
+            }
+        }
+    }
+}
+
+#[cfg(test)]
+mod console_command_quake_live_engine_tests {
+    use super::{ConsoleCommand, QuakeLiveEngine, StaticFunctions};
+
+    use super::mock_quake_functions::{Cmd_ExecuteString, Cmd_ExecuteString_context};
+    use super::quake_live_engine_test_helpers::*;
+
+    use crate::prelude::serial;
+
+    use core::ffi::CStr;
+
+    #[test]
+    fn execute_console_command_with_no_original_function_set() {
+        let quake_engine = default_quake_engine();
+
+        quake_engine.execute_console_command("!slap 0 100");
+    }
+
+    #[test]
+    #[cfg_attr(miri, ignore)]
+    #[serial]
+    fn execute_console_command_with_valid_original_function() {
+        let cmd_execute_string_ctx = Cmd_ExecuteString_context();
+        cmd_execute_string_ctx
+            .expect()
+            .withf(|&cmd| unsafe { CStr::from_ptr(cmd) }.to_string_lossy() == "!slap 0 100")
+            .times(1);
+
+        let quake_engine = QuakeLiveEngine {
+            static_functions: StaticFunctions {
+                cmd_executestring_orig: Cmd_ExecuteString,
+                ..default_static_functions()
+            }
+            .into(),
+            static_detours: default_static_detours().into(),
+            ..default_quake_engine()
         };
-        self.cmd_executestring_orig()
-            .iter()
-            .for_each(|original_func| original_func(c_cmd.as_ptr()));
+
+        quake_engine.execute_console_command("!slap 0 100");
     }
 }
 
@@ -2682,22 +3083,121 @@ pub(crate) trait GetCVar<T: AsRef<str>, U: AsRef<str>, V: Into<c_int>> {
 
 impl<T: AsRef<str>, U: AsRef<str>, V: Into<c_int> + Default> GetCVar<T, U, V> for QuakeLiveEngine {
     fn get_cvar(&self, name: T, value: U, flags: Option<V>) -> Option<CVar> {
-        let Ok(c_name) = CString::new(name.as_ref()) else {
-            return None;
-        };
-        let Ok(c_value) = CString::new(value.as_ref()) else {
-            return None;
-        };
         self.cvar_get_orig()
-            .map(|original_func| {
-                original_func(
-                    c_name.as_ptr(),
-                    c_value.as_ptr(),
-                    flags.unwrap_or_default().into(),
-                )
-            })
-            .and_then(CVar::try_from)
             .ok()
+            .and_then(|original_func| {
+                CString::new(name.as_ref()).ok().and_then(|c_name| {
+                    CString::new(value.as_ref()).ok().map(|c_value| {
+                        original_func(
+                            c_name.as_ptr(),
+                            c_value.as_ptr(),
+                            flags.unwrap_or_default().into(),
+                        )
+                    })
+                })
+            })
+            .and_then(|cvar| CVar::try_from(cvar).ok())
+    }
+}
+
+#[cfg(test)]
+mod get_cvar_quake_live_engine_tests {
+    use super::{GetCVar, QuakeLiveEngine, StaticFunctions};
+
+    use super::mock_quake_functions::{Cvar_Get, Cvar_Get_context};
+    use super::quake_live_engine_test_helpers::*;
+
+    use crate::ffi::c::prelude::cvar_flags::CVAR_CHEAT;
+    use crate::ffi::c::prelude::CVarBuilder;
+    use crate::prelude::serial;
+
+    use alloc::ffi::CString;
+    use core::ffi::{c_char, c_int, CStr};
+
+    #[test]
+    fn get_cvar_with_no_original_function_set() {
+        let quake_engine = default_quake_engine();
+
+        let result = quake_engine.get_cvar("sv_maxclients", "16", None::<c_int>);
+        assert!(result.is_none());
+    }
+
+    #[test]
+    #[cfg_attr(miri, ignore)]
+    #[serial]
+    fn get_cvar_with_valid_original_function() {
+        let cvar_name = CString::new("sv_maxclients").expect("this should not happen");
+        let cvar_value = CString::new("16").expect("this should not happen");
+
+        let cvar_get_ctx = Cvar_Get_context();
+        cvar_get_ctx
+            .expect()
+            .withf(|&cvar, &value, &flags| {
+                unsafe { CStr::from_ptr(cvar) }.to_string_lossy() == "sv_maxclients"
+                    && unsafe { CStr::from_ptr(value) }.to_string_lossy() == "16"
+                    && flags == CVAR_CHEAT as c_int
+            })
+            .returning(move |_, _, _| {
+                let mut result = CVarBuilder::default()
+                    .name(cvar_name.as_ptr() as *mut c_char)
+                    .string(cvar_value.as_ptr() as *mut c_char)
+                    .build()
+                    .expect("this should not happen");
+                &mut result
+            })
+            .times(1);
+
+        let quake_engine = QuakeLiveEngine {
+            static_functions: StaticFunctions {
+                cvar_get_orig: Cvar_Get,
+                ..default_static_functions()
+            }
+            .into(),
+            static_detours: default_static_detours().into(),
+            ..default_quake_engine()
+        };
+
+        let result = quake_engine.get_cvar("sv_maxclients", "16", Some(CVAR_CHEAT as c_int));
+        assert!(result.is_some_and(|cvar| cvar.get_string() == "16"));
+    }
+
+    #[test]
+    #[cfg_attr(miri, ignore)]
+    #[serial]
+    fn get_cvar_with_valid_original_function_and_defaulted_flags() {
+        let cvar_name = CString::new("sv_maxclients").expect("this should not happen");
+        let cvar_value = CString::new("16").expect("this should not happen");
+
+        let cvar_get_ctx = Cvar_Get_context();
+        cvar_get_ctx
+            .expect()
+            .withf(|&cvar, &value, &flags| {
+                unsafe { CStr::from_ptr(cvar) }.to_string_lossy() == "sv_maxclients"
+                    && unsafe { CStr::from_ptr(value) }.to_string_lossy() == "16"
+                    && flags == 0
+            })
+            .returning(move |_, _, _| {
+                let mut result = CVarBuilder::default()
+                    .name(cvar_name.as_ptr() as *mut c_char)
+                    .string(cvar_value.as_ptr() as *mut c_char)
+                    .build()
+                    .expect("this should not happen");
+                &mut result
+            })
+            .times(1);
+
+        let quake_engine = QuakeLiveEngine {
+            static_functions: StaticFunctions {
+                cvar_get_orig: Cvar_Get,
+                ..default_static_functions()
+            }
+            .into(),
+            static_detours: default_static_detours().into(),
+            ..default_quake_engine()
+        };
+
+        let result = quake_engine.get_cvar("sv_maxclients", "16", None::<c_int>);
+        assert!(result.is_some_and(|cvar| cvar.get_string() == "16"));
     }
 }
 
@@ -2707,16 +3207,77 @@ pub(crate) trait SetCVarForced<T: AsRef<str>, U: AsRef<str>, V: Into<qboolean>> 
 
 impl<T: AsRef<str>, U: AsRef<str>, V: Into<qboolean>> SetCVarForced<T, U, V> for QuakeLiveEngine {
     fn set_cvar_forced(&self, name: T, value: U, forced: V) -> Option<CVar> {
-        let Ok(c_name) = CString::new(name.as_ref()) else {
-            return None;
-        };
-        let Ok(c_value) = CString::new(value.as_ref()) else {
-            return None;
-        };
         self.cvar_set2_orig()
-            .map(|original_func| original_func(c_name.as_ptr(), c_value.as_ptr(), forced.into()))
-            .and_then(CVar::try_from)
             .ok()
+            .and_then(|original_func| {
+                CString::new(name.as_ref()).ok().and_then(|c_name| {
+                    CString::new(value.as_ref()).ok().map(|c_value| {
+                        original_func(c_name.as_ptr(), c_value.as_ptr(), forced.into())
+                    })
+                })
+            })
+            .and_then(|cvar| CVar::try_from(cvar).ok())
+    }
+}
+
+#[cfg(test)]
+mod set_cvar_forced_quake_live_engine_tests {
+    use super::{QuakeLiveEngine, SetCVarForced, StaticFunctions};
+
+    use super::mock_quake_functions::{Cvar_Set2, Cvar_Set2_context};
+    use super::quake_live_engine_test_helpers::*;
+
+    use crate::ffi::c::prelude::CVarBuilder;
+    use crate::prelude::serial;
+
+    use alloc::ffi::CString;
+    use core::ffi::{c_char, CStr};
+
+    #[test]
+    fn set_cvar_forced_with_no_original_function_set() {
+        let quake_engine = default_quake_engine();
+
+        let result = quake_engine.set_cvar_forced("sv_maxclients", "16", false);
+        assert!(result.is_none());
+    }
+
+    #[test]
+    #[cfg_attr(miri, ignore)]
+    #[serial]
+    fn set_cvar_forced_with_valid_original_function() {
+        let cvar_name = CString::new("sv_maxclients").expect("this should not happen");
+        let cvar_value = CString::new("16").expect("this should not happen");
+
+        let cvar_set2_ctx = Cvar_Set2_context();
+        cvar_set2_ctx
+            .expect()
+            .withf(|&cvar, &value, &forced| {
+                unsafe { CStr::from_ptr(cvar) }.to_string_lossy() == "sv_maxclients"
+                    && unsafe { CStr::from_ptr(value) }.to_string_lossy() == "16"
+                    && forced.into()
+            })
+            .returning(move |_, _, _| {
+                let mut result = CVarBuilder::default()
+                    .name(cvar_name.as_ptr() as *mut c_char)
+                    .string(cvar_value.as_ptr() as *mut c_char)
+                    .build()
+                    .expect("this should not happen");
+                &mut result
+            })
+            .times(1);
+
+        let quake_engine = QuakeLiveEngine {
+            static_functions: StaticFunctions {
+                cvar_set2_orig: Cvar_Set2,
+                ..default_static_functions()
+            }
+            .into(),
+            static_detours: default_static_detours().into(),
+            ..default_quake_engine()
+        };
+
+        let result = quake_engine.set_cvar_forced("sv_maxclients", "16", true);
+        assert!(result.is_some_and(|cvar| cvar.get_string() == "16"));
     }
 }
 
@@ -2735,30 +3296,133 @@ impl<T: AsRef<str>, U: AsRef<str>, V: AsRef<str>, W: AsRef<str>, X: Into<c_int> 
     SetCVarLimit<T, U, V, W, X> for QuakeLiveEngine
 {
     fn set_cvar_limit(&self, name: T, value: U, min: V, max: W, flags: Option<X>) -> Option<CVar> {
-        let Ok(c_name) = CString::new(name.as_ref()) else {
-            return None;
-        };
-        let Ok(c_value) = CString::new(value.as_ref()) else {
-            return None;
-        };
-        let Ok(c_min) = CString::new(min.as_ref()) else {
-            return None;
-        };
-        let Ok(c_max) = CString::new(max.as_ref()) else {
-            return None;
-        };
         self.cvar_getlimit_orig()
-            .map(|original_func| {
-                original_func(
-                    c_name.as_ptr(),
-                    c_value.as_ptr(),
-                    c_min.as_ptr(),
-                    c_max.as_ptr(),
-                    flags.unwrap_or_default().into(),
-                )
-            })
-            .and_then(CVar::try_from)
             .ok()
+            .and_then(|original_func| {
+                CString::new(name.as_ref()).ok().and_then(|c_name| {
+                    CString::new(value.as_ref()).ok().and_then(|c_value| {
+                        CString::new(min.as_ref()).ok().and_then(|c_min| {
+                            CString::new(max.as_ref()).ok().map(|c_max| {
+                                original_func(
+                                    c_name.as_ptr(),
+                                    c_value.as_ptr(),
+                                    c_min.as_ptr(),
+                                    c_max.as_ptr(),
+                                    flags.unwrap_or_default().into(),
+                                )
+                            })
+                        })
+                    })
+                })
+            })
+            .and_then(|cvar| CVar::try_from(cvar).ok())
+    }
+}
+
+#[cfg(test)]
+mod set_cvar_limit_quake_live_engine_tests {
+    use super::{QuakeLiveEngine, SetCVarLimit, StaticFunctions};
+
+    use super::mock_quake_functions::{Cvar_GetLimit, Cvar_GetLimit_context};
+    use super::quake_live_engine_test_helpers::*;
+
+    use crate::ffi::c::prelude::cvar_flags::CVAR_CHEAT;
+    use crate::ffi::c::prelude::CVarBuilder;
+
+    use crate::prelude::serial;
+
+    use alloc::ffi::CString;
+    use core::ffi::{c_char, c_int, CStr};
+
+    #[test]
+    fn set_cvar_limit_with_no_original_function_set() {
+        let quake_engine = default_quake_engine();
+
+        let result = quake_engine.set_cvar_limit("sv_maxclients", "16", "2", "64", None::<c_int>);
+        assert!(result.is_none());
+    }
+
+    #[test]
+    #[cfg_attr(miri, ignore)]
+    #[serial]
+    fn set_cvar_limit_with_valid_original_function() {
+        let cvar_name = CString::new("sv_maxclients").expect("this should not happen");
+        let cvar_value = CString::new("16").expect("this should not happen");
+
+        let cvar_get_limit_ctx = Cvar_GetLimit_context();
+        cvar_get_limit_ctx
+            .expect()
+            .withf(|&cvar, &value, &min, &max, &flags| {
+                unsafe { CStr::from_ptr(cvar) }.to_string_lossy() == "sv_maxclients"
+                    && unsafe { CStr::from_ptr(value) }.to_string_lossy() == "16"
+                    && unsafe { CStr::from_ptr(min) }.to_string_lossy() == "2"
+                    && unsafe { CStr::from_ptr(max) }.to_string_lossy() == "64"
+                    && flags == CVAR_CHEAT as i32
+            })
+            .returning(move |_, _, _, _, _| {
+                let mut result = CVarBuilder::default()
+                    .name(cvar_name.as_ptr() as *mut c_char)
+                    .string(cvar_value.as_ptr() as *mut c_char)
+                    .build()
+                    .expect("this should not happen");
+                &mut result
+            })
+            .times(1);
+
+        let quake_engine = QuakeLiveEngine {
+            static_functions: StaticFunctions {
+                cvar_getlimit_orig: Cvar_GetLimit,
+                ..default_static_functions()
+            }
+            .into(),
+            static_detours: default_static_detours().into(),
+            ..default_quake_engine()
+        };
+
+        let result =
+            quake_engine.set_cvar_limit("sv_maxclients", "16", "2", "64", Some(CVAR_CHEAT as i32));
+        assert!(result.is_some_and(|cvar| cvar.get_string() == "16"));
+    }
+
+    #[test]
+    #[cfg_attr(miri, ignore)]
+    #[serial]
+    fn set_cvar_limit_with_valid_original_function_and_defaulting_flags() {
+        let cvar_name = CString::new("sv_maxclients").expect("this should not happen");
+        let cvar_value = CString::new("16").expect("this should not happen");
+
+        let cvar_get_limit_ctx = Cvar_GetLimit_context();
+        cvar_get_limit_ctx
+            .expect()
+            .withf(|&cvar, &value, &min, &max, &flags| {
+                unsafe { CStr::from_ptr(cvar) }.to_string_lossy() == "sv_maxclients"
+                    && unsafe { CStr::from_ptr(value) }.to_string_lossy() == "16"
+                    && unsafe { CStr::from_ptr(min) }.to_string_lossy() == "2"
+                    && unsafe { CStr::from_ptr(max) }.to_string_lossy() == "64"
+                    && flags == 0
+            })
+            .returning(move |_, _, _, _, _| {
+                let mut result = CVarBuilder::default()
+                    .name(cvar_name.as_ptr() as *mut c_char)
+                    .string(cvar_value.as_ptr() as *mut c_char)
+                    .build()
+                    .expect("this should not happen");
+                &mut result
+            })
+            .times(1);
+
+        let quake_engine = QuakeLiveEngine {
+            static_functions: StaticFunctions {
+                cvar_getlimit_orig: Cvar_GetLimit,
+                ..default_static_functions()
+            }
+            .into(),
+            static_detours: default_static_detours().into(),
+            ..default_quake_engine()
+        };
+
+        let result = quake_engine.set_cvar_limit("sv_maxclients", "16", "2", "64", None::<c_int>);
+        assert!(result.is_some_and(|cvar| cvar.get_string() == "16"));
     }
 }
 
@@ -2769,7 +3433,7 @@ pub(crate) trait GetConfigstring<T: Into<c_int>> {
 impl<T: Into<c_int>> GetConfigstring<T> for QuakeLiveEngine {
     fn get_configstring(&self, index: T) -> String {
         self.sv_getconfigstring_orig()
-            .map(|original_func| {
+            .map_or("".into(), |original_func| {
                 let mut buffer: [u8; MAX_STRING_CHARS as usize] = [0; MAX_STRING_CHARS as usize];
                 original_func(
                     index.into(),
@@ -2781,7 +3445,55 @@ impl<T: Into<c_int>> GetConfigstring<T> for QuakeLiveEngine {
                     .to_string_lossy()
                     .into()
             })
-            .unwrap_or("".into())
+    }
+}
+
+#[cfg(test)]
+mod get_configstring_quake_live_engine_tests {
+    use super::{GetConfigstring, QuakeLiveEngine, StaticFunctions};
+
+    use super::mock_quake_functions::{SV_GetConfigstring, SV_GetConfigstring_context};
+    use super::quake_live_engine_test_helpers::*;
+
+    use crate::prelude::serial;
+    use pretty_assertions::assert_eq;
+
+    use alloc::ffi::CString;
+
+    #[test]
+    fn get_configstring_with_no_original_function_set() {
+        let quake_engine = default_quake_engine();
+
+        let result = quake_engine.get_configstring(42);
+        assert_eq!(result, "");
+    }
+
+    #[test]
+    #[cfg_attr(miri, ignore)]
+    #[serial]
+    fn get_configstring_with_valid_original_function() {
+        let sv_get_configstring_ctx = SV_GetConfigstring_context();
+        sv_get_configstring_ctx
+            .expect()
+            .withf(|&index, &_buffer, &_buffer_len| index == 42)
+            .returning(|_, buffer, _| {
+                let returned = CString::new("asdf").expect("this should not happen");
+                unsafe { buffer.copy_from(returned.as_ptr(), 5usize) };
+            })
+            .times(1);
+
+        let quake_engine = QuakeLiveEngine {
+            static_functions: StaticFunctions {
+                sv_getconfigstring_orig: SV_GetConfigstring,
+                ..default_static_functions()
+            }
+            .into(),
+            static_detours: default_static_detours().into(),
+            ..default_quake_engine()
+        };
+
+        let result = quake_engine.get_configstring(42);
+        assert_eq!(result, "asdf");
     }
 }
 
@@ -3002,7 +3714,9 @@ mockall::mock! {
 #[cfg_attr(test, mockall::automock)]
 #[allow(dead_code)]
 mod quake_functions {
-    use crate::ffi::c::prelude::{cbufExec_t, client_t, cvar_t, qboolean, usercmd_t};
+    use crate::ffi::c::prelude::{
+        cbufExec_t, client_t, cvar_t, entity_event_t, gentity_t, qboolean, usercmd_t,
+    };
 
     use core::ffi::{c_char, c_int};
     use core::ptr;
@@ -3232,5 +3946,22 @@ mod quake_functions {
         _is_bot: qboolean,
     ) -> *const c_char {
         ptr::null()
+    }
+
+    #[allow(unused_attributes, non_snake_case)]
+    #[cfg(not(tarpaulin_include))]
+    pub(crate) extern "C" fn ClientSpawn(_client: *mut gentity_t) {}
+
+    #[allow(unused_attributes, non_snake_case)]
+    #[cfg(not(tarpaulin_include))]
+    pub(crate) extern "C" fn detoured_ClientSpawn(_client: *mut gentity_t) {}
+
+    #[allow(unused_attributes, non_snake_case)]
+    #[cfg(not(tarpaulin_include))]
+    pub(crate) extern "C" fn G_AddEvent(
+        _ent: *mut gentity_t,
+        _event: entity_event_t,
+        _eventParm: c_int,
+    ) {
     }
 }
