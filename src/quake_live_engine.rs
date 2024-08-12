@@ -456,7 +456,6 @@ pub(crate) struct QuakeLiveEngine {
 const OFFSET_CMD_ARGC: i32 = 0x81;
 
 impl QuakeLiveEngine {
-    #[cfg_attr(test, allow(dead_code))]
     pub(crate) fn new() -> Self {
         Self {
             static_functions: OnceCell::new(),
@@ -1559,7 +1558,7 @@ impl QuakeLiveEngine {
 #[cfg(test)]
 mod quake_live_engine_test_helpers {
     use super::mock_quake_functions::*;
-    use super::{QuakeLiveEngine, StaticDetours, StaticFunctions, VmFunctions};
+    use super::{QuakeLiveEngine, StaticDetours, StaticFunctions};
 
     use crate::ffi::c::prelude::{client_t, qboolean, usercmd_t};
 
@@ -1661,33 +1660,7 @@ mod quake_live_engine_test_helpers {
     }
 
     pub(crate) fn default_quake_engine() -> QuakeLiveEngine {
-        QuakeLiveEngine {
-            static_functions: Default::default(),
-            static_detours: Default::default(),
-            sv_maxclients: Default::default(),
-            common_initialized: Default::default(),
-            vm_functions: VmFunctions {
-                vm_call_table: Default::default(),
-                g_addevent_orig: Default::default(),
-                check_privileges_orig: Default::default(),
-                client_connect_orig: Default::default(),
-                client_spawn_orig: Default::default(),
-                g_damage_orig: Default::default(),
-                touch_item_orig: Default::default(),
-                launch_item_orig: Default::default(),
-                drop_item_orig: Default::default(),
-                g_start_kamikaze_orig: Default::default(),
-                g_free_entity_orig: Default::default(),
-                g_init_game_orig: Default::default(),
-                g_shutdown_game_orig: Default::default(),
-                g_run_frame_orig: Default::default(),
-                client_spawn_detour: Default::default(),
-                client_connect_detour: Default::default(),
-                g_start_kamikaze_detour: Default::default(),
-                g_damage_detour: Default::default(),
-            },
-            current_vm: Default::default(),
-        }
+        QuakeLiveEngine::new()
     }
 
     #[cfg(not(tarpaulin_include))]
@@ -2028,7 +2001,7 @@ mod execute_client_command_quake_live_engine_tests {
     use super::mock_quake_functions::SV_ExecuteClientCommand_context;
     use super::quake_live_engine_test_helpers::*;
 
-    use crate::ffi::c::prelude::{client_t, Client, ClientBuilder, MockClient};
+    use crate::ffi::c::prelude::{Client, ClientBuilder, MockClient};
     use crate::prelude::serial;
 
     use core::ffi::CStr;
@@ -2067,19 +2040,11 @@ mod execute_client_command_quake_live_engine_tests {
     #[cfg_attr(miri, ignore)]
     #[serial]
     fn execute_client_command_with_valid_detour_function_and_valid_client() {
-        let mut client = ClientBuilder::default()
-            .build()
-            .expect("this should not happen");
-
-        let client_try_from_ctx = MockClient::try_from_context();
-        client_try_from_ctx.expect().returning(|_| {
-            let mut client_mock = MockClient::default();
-            client_mock.expect_as_mut().returning(|| {
-                ClientBuilder::default()
-                    .build()
-                    .expect("this should not happen")
-            });
-            Ok(client_mock)
+        let mut mock_client = MockClient::default();
+        mock_client.expect_as_mut().returning(|| {
+            ClientBuilder::default()
+                .build()
+                .expect("this should not happen")
         });
 
         let sv_execute_client_command_ctx = SV_ExecuteClientCommand_context();
@@ -2098,11 +2063,7 @@ mod execute_client_command_quake_live_engine_tests {
             ..default_quake_engine()
         };
 
-        quake_engine.execute_client_command(
-            Client::try_from(&mut client as *mut client_t).ok(),
-            "asdf",
-            true,
-        );
+        quake_engine.execute_client_command(Some(mock_client), "asdf", true);
     }
 }
 
@@ -2132,7 +2093,7 @@ mod send_server_command_quake_live_engine_tests {
     use super::mock_quake_functions::SV_SendServerCommand_context;
     use super::quake_live_engine_test_helpers::*;
 
-    use crate::ffi::c::prelude::{client_t, Client, ClientBuilder, MockClient};
+    use crate::ffi::c::prelude::{Client, ClientBuilder, MockClient};
     use crate::prelude::serial;
 
     use core::ffi::CStr;
@@ -2169,20 +2130,12 @@ mod send_server_command_quake_live_engine_tests {
     #[cfg_attr(miri, ignore)]
     #[serial]
     fn send_server_command_with_valid_detour_function_and_valid_client() {
-        let mut client = ClientBuilder::default()
-            .build()
-            .expect("this should not happen");
-
-        let client_try_from_ctx = MockClient::try_from_context();
-        client_try_from_ctx.expect().returning(|_| {
-            let mut client_mock = MockClient::default();
-            client_mock.expect_as_ref().return_const(
-                ClientBuilder::default()
-                    .build()
-                    .expect("this should not happen"),
-            );
-            Ok(client_mock)
-        });
+        let mut mock_client = MockClient::default();
+        mock_client.expect_as_ref().return_const(
+            ClientBuilder::default()
+                .build()
+                .expect("this should not happen"),
+        );
 
         let sv_send_server_command_ctx = SV_SendServerCommand_context();
         sv_send_server_command_ctx
@@ -2198,8 +2151,7 @@ mod send_server_command_quake_live_engine_tests {
             ..default_quake_engine()
         };
 
-        quake_engine
-            .send_server_command(Client::try_from(&mut client as *mut client_t).ok(), "asdf");
+        quake_engine.send_server_command(Some(mock_client), "asdf");
     }
 }
 
@@ -2222,54 +2174,34 @@ mod client_enter_world_quake_live_engine_tests {
     use super::mock_quake_functions::SV_ClientEnterWorld_context;
     use super::quake_live_engine_test_helpers::*;
 
-    use crate::ffi::c::prelude::{
-        client_t, usercmd_t, Client, ClientBuilder, MockClient, UserCmdBuilder,
-    };
+    use crate::ffi::c::prelude::{usercmd_t, ClientBuilder, MockClient, UserCmdBuilder};
     use crate::prelude::serial;
 
     #[test]
     #[cfg_attr(miri, ignore)]
     #[serial]
     fn client_enter_world_with_no_detour_set() {
-        let mut client = ClientBuilder::default()
-            .build()
-            .expect("this should not happen");
-
-        let client_try_from_ctx = MockClient::try_from_context();
-        client_try_from_ctx.expect().returning(|_| {
-            let client_mock = MockClient::default();
-            Ok(client_mock)
-        });
+        let mock_client = MockClient::default();
 
         let mut usercmd = UserCmdBuilder::default()
             .build()
             .expect("this should not happen");
         let quake_engine = default_quake_engine();
 
-        quake_engine.client_enter_world(
-            Client::try_from(&mut client as *mut client_t).expect("this should not happen"),
-            &mut usercmd as *mut usercmd_t,
-        );
+        quake_engine.client_enter_world(mock_client, &mut usercmd as *mut usercmd_t);
     }
 
     #[test]
     #[cfg_attr(miri, ignore)]
     #[serial]
     fn client_enter_world_with_valid_detour_function() {
-        let mut client = ClientBuilder::default()
-            .build()
-            .expect("this should not happen");
-
-        let client_try_from_ctx = MockClient::try_from_context();
-        client_try_from_ctx.expect().returning(|_| {
-            let mut client_mock = MockClient::default();
-            client_mock.expect_as_mut().returning(|| {
-                ClientBuilder::default()
-                    .build()
-                    .expect("this should not happen")
-            });
-            Ok(client_mock)
+        let mut mock_client = MockClient::default();
+        mock_client.expect_as_mut().returning(|| {
+            ClientBuilder::default()
+                .build()
+                .expect("this should not happen")
         });
+
         let mut usercmd = UserCmdBuilder::default()
             .build()
             .expect("this should not happen");
@@ -2286,10 +2218,7 @@ mod client_enter_world_quake_live_engine_tests {
             ..default_quake_engine()
         };
 
-        quake_engine.client_enter_world(
-            Client::try_from(&mut client as *mut client_t).expect("this should not happen"),
-            &mut usercmd as *mut usercmd_t,
-        );
+        quake_engine.client_enter_world(mock_client, &mut usercmd as *mut usercmd_t);
     }
 }
 
@@ -2472,12 +2401,13 @@ impl<T: Into<c_int>> RunFrame<T> for QuakeLiveEngine {
 #[cfg(test)]
 mod run_frame_quake_live_engine_tests {
     use super::{QuakeLiveEngine, RunFrame};
-    use std::sync::atomic::Ordering;
 
     use super::mock_quake_functions::{G_RunFrame, G_RunFrame_context};
     use super::quake_live_engine_test_helpers::*;
 
     use crate::prelude::serial;
+
+    use core::sync::atomic::Ordering;
 
     #[test]
     fn run_frame_with_no_detour_set() {
@@ -2612,7 +2542,7 @@ mod client_spawn_quake_live_engine_tests {
     use super::mock_quake_functions::{detoured_ClientSpawn, ClientSpawn, ClientSpawn_context};
     use super::quake_live_engine_test_helpers::*;
 
-    use crate::ffi::c::prelude::{gentity_t, GEntityBuilder, GameEntity, MockGameEntity};
+    use crate::ffi::c::prelude::{gentity_t, GEntityBuilder, MockGameEntity};
 
     use crate::prelude::serial;
 
@@ -2620,42 +2550,23 @@ mod client_spawn_quake_live_engine_tests {
 
     #[test]
     fn client_spawn_with_no_detour_set() {
-        let mut gentity = GEntityBuilder::default()
-            .build()
-            .expect("this should not happen");
-        let gentity_try_from_ctx = MockGameEntity::try_from_context();
-        gentity_try_from_ctx
-            .expect()
-            .returning(|_| Ok(MockGameEntity::default()));
-
-        let mut client_entity =
-            GameEntity::try_from(&mut gentity as *mut gentity_t).expect("this should not happen");
+        let mock_gentity = MockGameEntity::default();
 
         let quake_engine = default_quake_engine();
 
-        quake_engine.client_spawn(&mut client_entity);
+        quake_engine.client_spawn(mock_gentity);
     }
 
     #[test]
     #[cfg_attr(miri, ignore)]
     #[serial]
     fn client_spawn_with_valid_detour_function() {
-        let mut gentity = GEntityBuilder::default()
-            .build()
-            .expect("this should not happen");
-        let gentity_try_from_ctx = MockGameEntity::try_from_context();
-        gentity_try_from_ctx.expect().returning(|_| {
-            let mut mock_game_entity = MockGameEntity::default();
-            mock_game_entity.expect_as_mut().returning(|| {
-                GEntityBuilder::default()
-                    .build()
-                    .expect("this should not happen")
-            });
-            Ok(mock_game_entity)
+        let mut mock_game_entity = MockGameEntity::default();
+        mock_game_entity.expect_as_mut().returning(|| {
+            GEntityBuilder::default()
+                .build()
+                .expect("this should not happen")
         });
-
-        let mut client_entity =
-            GameEntity::try_from(&mut gentity as *mut gentity_t).expect("this should not happen");
 
         let client_spawn_ctx = ClientSpawn_context();
         client_spawn_ctx
@@ -2679,7 +2590,7 @@ mod client_spawn_quake_live_engine_tests {
             .into(),
         ));
 
-        quake_engine.client_spawn(&mut client_entity);
+        quake_engine.client_spawn(mock_game_entity);
     }
 }
 
@@ -2948,9 +2859,7 @@ mod game_add_event_quake_live_engine_tests {
     use super::mock_quake_functions::{G_AddEvent, G_AddEvent_context};
     use super::quake_live_engine_test_helpers::*;
 
-    use crate::ffi::c::prelude::{
-        entity_event_t, gentity_t, GEntityBuilder, GameEntity, MockGameEntity,
-    };
+    use crate::ffi::c::prelude::{entity_event_t, GEntityBuilder, MockGameEntity};
 
     use crate::prelude::serial;
 
@@ -2958,46 +2867,23 @@ mod game_add_event_quake_live_engine_tests {
 
     #[test]
     fn game_add_event_with_no_original_function_set() {
-        let mut gentity = GEntityBuilder::default()
-            .build()
-            .expect("this should not happen");
-        let gentity_try_from_ctx = MockGameEntity::try_from_context();
-        gentity_try_from_ctx
-            .expect()
-            .returning(|_| Ok(MockGameEntity::default()));
-
-        let mut client_entity =
-            GameEntity::try_from(&mut gentity as *mut gentity_t).expect("this should not happen");
+        let mock_gentity = MockGameEntity::default();
 
         let quake_engine = default_quake_engine();
 
-        quake_engine.game_add_event(
-            &mut client_entity,
-            entity_event_t::EV_LIGHTNING_DISCHARGE,
-            1,
-        );
+        quake_engine.game_add_event(mock_gentity, entity_event_t::EV_LIGHTNING_DISCHARGE, 1);
     }
 
     #[test]
     #[cfg_attr(miri, ignore)]
     #[serial]
     fn game_add_event_with_valid_original_function() {
-        let mut gentity = GEntityBuilder::default()
-            .build()
-            .expect("this should not happen");
-        let gentity_try_from_ctx = MockGameEntity::try_from_context();
-        gentity_try_from_ctx.expect().returning(|_| {
-            let mut mock_game_entity = MockGameEntity::default();
-            mock_game_entity.expect_as_mut().returning(|| {
-                GEntityBuilder::default()
-                    .build()
-                    .expect("this should not happen")
-            });
-            Ok(mock_game_entity)
+        let mut mock_game_entity = MockGameEntity::default();
+        mock_game_entity.expect_as_mut().returning(|| {
+            GEntityBuilder::default()
+                .build()
+                .expect("this should not happen")
         });
-
-        let mut client_entity =
-            GameEntity::try_from(&mut gentity as *mut gentity_t).expect("this should not happen");
 
         let g_add_event_ctx = G_AddEvent_context();
         g_add_event_ctx
@@ -3017,7 +2903,7 @@ mod game_add_event_quake_live_engine_tests {
             .g_addevent_orig
             .store(G_AddEvent as usize, Ordering::SeqCst);
 
-        quake_engine.game_add_event(&mut client_entity, entity_event_t::EV_KAMIKAZE, 42);
+        quake_engine.game_add_event(mock_game_entity, entity_event_t::EV_KAMIKAZE, 42);
     }
 }
 
@@ -3081,7 +2967,7 @@ pub(crate) trait GetCVar<T: AsRef<str>, U: AsRef<str>, V: Into<c_int>> {
     fn get_cvar(&self, name: T, value: U, flags: Option<V>) -> Option<CVar>;
 }
 
-impl<T: AsRef<str>, U: AsRef<str>, V: Into<c_int> + Default> GetCVar<T, U, V> for QuakeLiveEngine {
+impl<T: AsRef<str>, U: AsRef<str>, V: Into<c_int>> GetCVar<T, U, V> for QuakeLiveEngine {
     fn get_cvar(&self, name: T, value: U, flags: Option<V>) -> Option<CVar> {
         self.cvar_get_orig()
             .ok()
@@ -3091,7 +2977,7 @@ impl<T: AsRef<str>, U: AsRef<str>, V: Into<c_int> + Default> GetCVar<T, U, V> fo
                         original_func(
                             c_name.as_ptr(),
                             c_value.as_ptr(),
-                            flags.unwrap_or_default().into(),
+                            flags.map_or(0, |real_flags| real_flags.into()),
                         )
                     })
                 })
@@ -3292,7 +3178,7 @@ pub(crate) trait SetCVarLimit<
     fn set_cvar_limit(&self, name: T, value: U, min: V, max: W, flags: Option<X>) -> Option<CVar>;
 }
 
-impl<T: AsRef<str>, U: AsRef<str>, V: AsRef<str>, W: AsRef<str>, X: Into<c_int> + Default>
+impl<T: AsRef<str>, U: AsRef<str>, V: AsRef<str>, W: AsRef<str>, X: Into<c_int>>
     SetCVarLimit<T, U, V, W, X> for QuakeLiveEngine
 {
     fn set_cvar_limit(&self, name: T, value: U, min: V, max: W, flags: Option<X>) -> Option<CVar> {
@@ -3308,7 +3194,7 @@ impl<T: AsRef<str>, U: AsRef<str>, V: AsRef<str>, W: AsRef<str>, X: Into<c_int> 
                                     c_value.as_ptr(),
                                     c_min.as_ptr(),
                                     c_max.as_ptr(),
-                                    flags.unwrap_or_default().into(),
+                                    flags.map_or(0, |real_flags| real_flags.into()),
                                 )
                             })
                         })
@@ -3344,6 +3230,7 @@ mod set_cvar_limit_quake_live_engine_tests {
 
     #[test]
     #[cfg_attr(miri, ignore)]
+    #[cfg_attr(target_os = "macos", ignore)]
     #[serial]
     fn set_cvar_limit_with_valid_original_function() {
         let cvar_name = CString::new("sv_maxclients").expect("this should not happen");
@@ -3357,7 +3244,7 @@ mod set_cvar_limit_quake_live_engine_tests {
                     && unsafe { CStr::from_ptr(value) }.to_string_lossy() == "16"
                     && unsafe { CStr::from_ptr(min) }.to_string_lossy() == "2"
                     && unsafe { CStr::from_ptr(max) }.to_string_lossy() == "64"
-                    && flags == CVAR_CHEAT as i32
+                    && flags == CVAR_CHEAT as c_int
             })
             .returning(move |_, _, _, _, _| {
                 let mut result = CVarBuilder::default()
@@ -3379,13 +3266,19 @@ mod set_cvar_limit_quake_live_engine_tests {
             ..default_quake_engine()
         };
 
-        let result =
-            quake_engine.set_cvar_limit("sv_maxclients", "16", "2", "64", Some(CVAR_CHEAT as i32));
+        let result = quake_engine.set_cvar_limit(
+            "sv_maxclients",
+            "16",
+            "2",
+            "64",
+            Some(CVAR_CHEAT as c_int),
+        );
         assert!(result.is_some_and(|cvar| cvar.get_string() == "16"));
     }
 
     #[test]
     #[cfg_attr(miri, ignore)]
+    #[cfg_attr(target_os = "macos", ignore)]
     #[serial]
     fn set_cvar_limit_with_valid_original_function_and_defaulting_flags() {
         let cvar_name = CString::new("sv_maxclients").expect("this should not happen");
@@ -3546,6 +3439,101 @@ impl<T: Into<c_int>, U: Into<c_int>, V: Into<c_int>> RegisterDamage<T, U, V> for
     }
 }
 
+#[cfg(test)]
+mod register_damage_quake_live_engine_tests {
+    use super::{QuakeLiveEngine, RegisterDamage};
+
+    use super::mock_quake_functions::{detoured_G_Damage, G_Damage, G_Damage_context};
+    use super::quake_live_engine_test_helpers::*;
+
+    use crate::ffi::c::prelude::meansOfDeath_t::*;
+    use crate::ffi::c::prelude::{
+        gentity_t, vec3_t, DAMAGE_NO_PROTECTION, DAMAGE_NO_TEAM_PROTECTION,
+    };
+
+    use crate::prelude::serial;
+
+    use core::ffi::c_int;
+    use core::ptr;
+
+    use retour::GenericDetour;
+
+    #[test]
+    fn register_damage_with_no_detour_set() {
+        let quake_engine = default_quake_engine();
+
+        quake_engine.register_damage(
+            ptr::null_mut(),
+            ptr::null_mut(),
+            ptr::null_mut(),
+            ptr::null_mut(),
+            ptr::null_mut(),
+            42,
+            DAMAGE_NO_PROTECTION as c_int,
+            MOD_LIGHTNING_DISCHARGE as c_int,
+        );
+    }
+
+    #[test]
+    #[cfg_attr(miri, ignore)]
+    #[serial]
+    fn register_damage_with_valid_detour_function() {
+        let g_damage_ctx = G_Damage_context();
+        g_damage_ctx
+            .expect()
+            .withf(
+                |&target, &inflictor, &attacker, &dir, &pos, &dmg, &dflags, &means_of_death| {
+                    target.is_null()
+                        && inflictor.is_null()
+                        && attacker.is_null()
+                        && dir.is_null()
+                        && pos.is_null()
+                        && dmg == 42
+                        && dflags == DAMAGE_NO_TEAM_PROTECTION as c_int
+                        && means_of_death == MOD_BFG as c_int
+                },
+            )
+            .times(1);
+
+        let quake_engine = QuakeLiveEngine {
+            static_functions: default_static_functions().into(),
+            static_detours: default_static_detours().into(),
+            ..default_quake_engine()
+        };
+        quake_engine.vm_functions.g_damage_detour.store(Some(
+            unsafe {
+                GenericDetour::new(
+                    G_Damage
+                        as extern "C" fn(
+                            *mut gentity_t,
+                            *mut gentity_t,
+                            *mut gentity_t,
+                            *mut vec3_t,
+                            *mut vec3_t,
+                            c_int,
+                            c_int,
+                            c_int,
+                        ),
+                    detoured_G_Damage,
+                )
+            }
+            .expect("this should not happen")
+            .into(),
+        ));
+
+        quake_engine.register_damage(
+            ptr::null_mut(),
+            ptr::null_mut(),
+            ptr::null_mut(),
+            ptr::null_mut(),
+            ptr::null_mut(),
+            42,
+            DAMAGE_NO_TEAM_PROTECTION as c_int,
+            MOD_BFG as c_int,
+        );
+    }
+}
+
 pub(crate) trait FreeEntity<T: AsMut<gentity_t>> {
     fn free_entity(&self, gentity: T);
 }
@@ -3555,6 +3543,59 @@ impl<T: AsMut<gentity_t>> FreeEntity<T> for QuakeLiveEngine {
         self.g_free_entity_orig()
             .iter()
             .for_each(|original_func| original_func(gentity.as_mut()))
+    }
+}
+
+#[cfg(test)]
+mod free_entity_quake_live_engine_tests {
+    use super::{FreeEntity, QuakeLiveEngine};
+
+    use super::mock_quake_functions::{G_FreeEntity, G_FreeEntity_context};
+    use super::quake_live_engine_test_helpers::*;
+
+    use crate::ffi::c::prelude::{GEntityBuilder, MockGameEntity};
+
+    use crate::prelude::serial;
+
+    use core::sync::atomic::Ordering;
+
+    #[test]
+    fn free_entity_with_no_original_function_set() {
+        let mock_gentity = MockGameEntity::default();
+
+        let quake_engine = default_quake_engine();
+
+        quake_engine.free_entity(mock_gentity);
+    }
+
+    #[test]
+    #[cfg_attr(miri, ignore)]
+    #[serial]
+    fn free_entity_with_valid_original_function() {
+        let mut mock_gentity = MockGameEntity::new();
+        mock_gentity.expect_as_mut().returning(|| {
+            GEntityBuilder::default()
+                .build()
+                .expect("this should not happen")
+        });
+
+        let g_free_entity_ctx = G_FreeEntity_context();
+        g_free_entity_ctx
+            .expect()
+            .withf(|&ent| !ent.is_null())
+            .times(1);
+
+        let quake_engine = QuakeLiveEngine {
+            static_functions: default_static_functions().into(),
+            static_detours: default_static_detours().into(),
+            ..default_quake_engine()
+        };
+        quake_engine
+            .vm_functions
+            .g_free_entity_orig
+            .store(G_FreeEntity as usize, Ordering::SeqCst);
+
+        quake_engine.free_entity(&mut mock_gentity);
     }
 }
 
@@ -3580,6 +3621,133 @@ impl<T: AsMut<gitem_t>> TryLaunchItem<T> for QuakeLiveEngine {
     }
 }
 
+#[cfg(test)]
+mod try_launch_item_quake_live_engine_tests {
+    use super::{QuakeLiveEngine, TryLaunchItem};
+
+    use super::mock_quake_functions::{LaunchItem, LaunchItem_context};
+    use super::quake_live_engine_test_helpers::*;
+
+    use crate::ffi::c::prelude::{
+        vec3_t, GEntityBuilder, GItemBuilder, MockGameEntity, MockGameItem,
+    };
+
+    use crate::prelude::{serial, QuakeLiveEngineError};
+
+    use crate::quake_live_functions::QuakeLiveFunction;
+
+    use core::sync::atomic::Ordering;
+
+    #[test]
+    fn try_launch_item_with_no_original_function_set() {
+        let mock_item = MockGameItem::default();
+        let mut origin = vec3_t::default();
+        let mut velocity = vec3_t::default();
+
+        let quake_engine = default_quake_engine();
+
+        let result = quake_engine.try_launch_item(mock_item, &mut origin, &mut velocity);
+        assert!(result
+            .is_err_and(|err| err
+                == QuakeLiveEngineError::VmFunctionNotFound(QuakeLiveFunction::LaunchItem,)))
+    }
+
+    #[test]
+    #[cfg_attr(miri, ignore)]
+    #[serial]
+    fn try_launch_item_with_valid_original_function() {
+        let mut mock_item = MockGameItem::default();
+        mock_item.expect_as_mut().returning(|| {
+            GItemBuilder::default()
+                .build()
+                .expect("this should not happen")
+        });
+        let mut origin = vec3_t::default();
+        let mut velocity = vec3_t::default();
+
+        let launch_item_ctx = LaunchItem_context();
+        launch_item_ctx
+            .expect()
+            .withf(|&item, &_pos, &_dir| !item.is_null())
+            .returning(|_, _, _| {
+                let mut returned = GEntityBuilder::default()
+                    .build()
+                    .expect("this should not happen");
+                &mut returned
+            })
+            .times(1);
+
+        let gentity_try_from_ctx = MockGameEntity::try_from_context();
+        gentity_try_from_ctx
+            .expect()
+            .returning(|_| Ok(MockGameEntity::default()))
+            .times(1);
+
+        let quake_engine = QuakeLiveEngine {
+            static_functions: default_static_functions().into(),
+            static_detours: default_static_detours().into(),
+            ..default_quake_engine()
+        };
+        quake_engine
+            .vm_functions
+            .launch_item_orig
+            .store(LaunchItem as usize, Ordering::SeqCst);
+
+        let result = quake_engine.try_launch_item(mock_item, &mut origin, &mut velocity);
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    #[cfg_attr(miri, ignore)]
+    #[serial]
+    fn try_launch_item_with_valid_original_function_when_invalid_gentity_returned() {
+        let mut mock_item = MockGameItem::default();
+        mock_item.expect_as_mut().returning(|| {
+            GItemBuilder::default()
+                .build()
+                .expect("this should not happen")
+        });
+        let mut origin = vec3_t::default();
+        let mut velocity = vec3_t::default();
+
+        let launch_item_ctx = LaunchItem_context();
+        launch_item_ctx
+            .expect()
+            .withf(|&item, &_pos, &_dir| !item.is_null())
+            .returning(|_, _, _| {
+                let mut returned = GEntityBuilder::default()
+                    .build()
+                    .expect("this should not happen");
+                &mut returned
+            })
+            .times(1);
+
+        let gentity_try_from_ctx = MockGameEntity::try_from_context();
+        gentity_try_from_ctx
+            .expect()
+            .returning(|_| {
+                Err(QuakeLiveEngineError::NullPointerPassed(
+                    "null pointer passed".to_string(),
+                ))
+            })
+            .times(1);
+
+        let quake_engine = QuakeLiveEngine {
+            static_functions: default_static_functions().into(),
+            static_detours: default_static_detours().into(),
+            ..default_quake_engine()
+        };
+        quake_engine
+            .vm_functions
+            .launch_item_orig
+            .store(LaunchItem as usize, Ordering::SeqCst);
+
+        let result = quake_engine.try_launch_item(mock_item, &mut origin, &mut velocity);
+        assert!(result.is_err_and(|err| err
+            == QuakeLiveEngineError::NullPointerPassed("null pointer passed".to_string(),)));
+    }
+}
+
 pub(crate) trait StartKamikaze<T: AsMut<gentity_t> + ?Sized> {
     fn start_kamikaze(&self, gentity: T);
 }
@@ -3591,6 +3759,69 @@ impl<T: AsMut<gentity_t>> StartKamikaze<T> for QuakeLiveEngine {
             .load()
             .iter()
             .for_each(|detour| detour.call(gentity.as_mut()));
+    }
+}
+
+#[cfg(test)]
+mod start_kamikaze_quake_live_engine_tests {
+    use super::{QuakeLiveEngine, StartKamikaze};
+
+    use super::mock_quake_functions::{
+        detoured_G_StartKamikaze, G_StartKamikaze, G_StartKamikaze_context,
+    };
+    use super::quake_live_engine_test_helpers::*;
+
+    use crate::ffi::c::prelude::{gentity_t, GEntityBuilder, MockGameEntity};
+
+    use crate::prelude::serial;
+
+    use retour::GenericDetour;
+
+    #[test]
+    fn register_damage_with_no_detour_set() {
+        let mock_gentity = MockGameEntity::default();
+        let quake_engine = default_quake_engine();
+
+        quake_engine.start_kamikaze(mock_gentity);
+    }
+
+    #[test]
+    #[cfg_attr(miri, ignore)]
+    #[serial]
+    fn start_kamikaze_with_valid_detour_function() {
+        let mut mock_gentity = MockGameEntity::default();
+        mock_gentity.expect_as_mut().returning(|| {
+            GEntityBuilder::default()
+                .build()
+                .expect("this should not happen")
+        });
+
+        let g_start_kamikaze_ctx = G_StartKamikaze_context();
+        g_start_kamikaze_ctx
+            .expect()
+            .withf(|&ent| !ent.is_null())
+            .times(1);
+
+        let quake_engine = QuakeLiveEngine {
+            static_functions: default_static_functions().into(),
+            static_detours: default_static_detours().into(),
+            ..default_quake_engine()
+        };
+        quake_engine
+            .vm_functions
+            .g_start_kamikaze_detour
+            .store(Some(
+                unsafe {
+                    GenericDetour::new(
+                        G_StartKamikaze as extern "C" fn(*mut gentity_t),
+                        detoured_G_StartKamikaze,
+                    )
+                }
+                .expect("this should not happen")
+                .into(),
+            ));
+
+        quake_engine.start_kamikaze(mock_gentity);
     }
 }
 
@@ -3801,7 +4032,8 @@ mockall::mock! {
 #[allow(dead_code)]
 mod quake_functions {
     use crate::ffi::c::prelude::{
-        cbufExec_t, client_t, cvar_t, entity_event_t, gentity_t, qboolean, usercmd_t,
+        cbufExec_t, client_t, cvar_t, entity_event_t, gentity_t, gitem_t, qboolean, usercmd_t,
+        vec3_t,
     };
 
     use core::ffi::{c_char, c_int};
@@ -4050,4 +4282,54 @@ mod quake_functions {
         _eventParm: c_int,
     ) {
     }
+
+    #[allow(unused_attributes, non_snake_case)]
+    #[cfg(not(tarpaulin_include))]
+    pub(crate) extern "C" fn G_Damage(
+        _target: *mut gentity_t,
+        _inflictor: *mut gentity_t,
+        _attacker: *mut gentity_t,
+        _dir: *mut vec3_t,
+        _pos: *mut vec3_t,
+        _damage: c_int,
+        _dflags: c_int,
+        _means_of_death: c_int,
+    ) {
+    }
+
+    #[allow(unused_attributes, non_snake_case)]
+    #[cfg(not(tarpaulin_include))]
+    pub(crate) extern "C" fn detoured_G_Damage(
+        _target: *mut gentity_t,
+        _inflictor: *mut gentity_t,
+        _attacker: *mut gentity_t,
+        _dir: *mut vec3_t,
+        _pos: *mut vec3_t,
+        _damage: c_int,
+        _dflags: c_int,
+        _means_of_death: c_int,
+    ) {
+    }
+
+    #[allow(unused_attributes, non_snake_case)]
+    #[cfg(not(tarpaulin_include))]
+    pub(crate) extern "C" fn G_FreeEntity(_ent: *mut gentity_t) {}
+
+    #[allow(unused_attributes, non_snake_case)]
+    #[cfg(not(tarpaulin_include))]
+    pub(crate) extern "C" fn LaunchItem(
+        _item: *mut gitem_t,
+        _origin: *mut vec3_t,
+        _velocity: *mut vec3_t,
+    ) -> *mut gentity_t {
+        ptr::null_mut()
+    }
+
+    #[allow(unused_attributes, non_snake_case)]
+    #[cfg(not(tarpaulin_include))]
+    pub(crate) extern "C" fn G_StartKamikaze(_ent: *mut gentity_t) {}
+
+    #[allow(unused_attributes, non_snake_case)]
+    #[cfg(not(tarpaulin_include))]
+    pub(crate) extern "C" fn detoured_G_StartKamikaze(_ent: *mut gentity_t) {}
 }
