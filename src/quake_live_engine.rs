@@ -975,26 +975,28 @@ impl QuakeLiveEngine {
         Ok(())
     }
 
-    #[cfg_attr(test, allow(dead_code))]
     pub(crate) fn set_tag(&self) {
         const SV_TAGS_PREFIX: &str = "shinqlx";
 
-        let Some(sv_tags) = self.find_cvar("sv_tags") else {
-            return;
-        };
-
-        let sv_tags_string = sv_tags.get_string();
-
-        if sv_tags_string.split(',').any(|x| x == SV_TAGS_PREFIX) {
-            return;
-        }
-
-        let new_tags = if sv_tags_string.len() > 2 {
-            format!("{},{}", SV_TAGS_PREFIX, sv_tags_string)
-        } else {
-            SV_TAGS_PREFIX.to_string()
-        };
-        self.set_cvar_forced("sv_tags", new_tags, false);
+        self.find_cvar("sv_tags")
+            .filter(|sv_tags| {
+                sv_tags
+                    .get_string()
+                    .split(',')
+                    .all(|tag| tag != SV_TAGS_PREFIX)
+            })
+            .map(|sv_tags| {
+                let sv_tags_string = sv_tags.get_string();
+                if sv_tags_string.len() > 2 {
+                    format!("{},{}", SV_TAGS_PREFIX, sv_tags_string)
+                } else {
+                    SV_TAGS_PREFIX.to_string()
+                }
+            })
+            .iter()
+            .for_each(|new_tags| {
+                self.set_cvar_forced("sv_tags", new_tags, false);
+            });
     }
 
     // Called after the game is initialized.
@@ -1552,6 +1554,163 @@ impl QuakeLiveEngine {
                 Ok(touch_item_func)
             }
         }
+    }
+}
+
+#[cfg(test)]
+mod quake_live_engine_tests {
+    use super::{QuakeLiveEngine, StaticFunctions};
+
+    use super::mock_quake_functions::{
+        Cvar_FindVar, Cvar_FindVar_context, Cvar_Set2, Cvar_Set2_context,
+    };
+    use super::quake_live_engine_test_helpers::{
+        default_quake_engine, default_static_detours, default_static_functions,
+    };
+
+    use crate::ffi::c::prelude::{qboolean, CVarBuilder};
+
+    use crate::prelude::serial;
+
+    use alloc::ffi::CString;
+    use core::ffi::CStr;
+
+    #[test]
+    fn set_tag_with_no_cvar() {
+        let quake_engine = default_quake_engine();
+
+        quake_engine.set_tag();
+    }
+
+    #[test]
+    #[cfg_attr(miri, ignore)]
+    #[serial]
+    fn set_tag_when_tag_already_inserted() {
+        let existing_tags = CString::new("shinqlx,ca,elo").expect("this should not happen");
+
+        let cvar_find_var_ctx = Cvar_FindVar_context();
+        cvar_find_var_ctx
+            .expect()
+            .withf(|&cvar_name| unsafe { CStr::from_ptr(cvar_name) }.to_string_lossy() == "sv_tags")
+            .returning(move |_| {
+                let mut returned = CVarBuilder::default()
+                    .string(existing_tags.as_ptr().cast_mut())
+                    .build()
+                    .expect("this should not happen");
+                &mut returned
+            })
+            .times(1);
+
+        let quake_engine = QuakeLiveEngine {
+            static_functions: StaticFunctions {
+                cvar_findvar_orig: Cvar_FindVar,
+                cvar_set2_orig: Cvar_Set2,
+                ..default_static_functions()
+            }
+            .into(),
+            static_detours: default_static_detours().into(),
+            ..default_quake_engine()
+        };
+
+        quake_engine.set_tag();
+    }
+
+    #[test]
+    #[cfg_attr(miri, ignore)]
+    #[serial]
+    fn set_tag_when_tag_not_inserted_yet_with_other_values() {
+        let existing_tags = CString::new("ca,elo").expect("this should not happen");
+
+        let cvar_find_var_ctx = Cvar_FindVar_context();
+        cvar_find_var_ctx
+            .expect()
+            .withf(|&cvar_name| unsafe { CStr::from_ptr(cvar_name) }.to_string_lossy() == "sv_tags")
+            .returning(move |_| {
+                let mut returned = CVarBuilder::default()
+                    .string(existing_tags.as_ptr().cast_mut())
+                    .build()
+                    .expect("this should not happen");
+                &mut returned
+            })
+            .times(1);
+
+        let cvar_set2_ctx = Cvar_Set2_context();
+        cvar_set2_ctx
+            .expect()
+            .withf(|&cvar_name, &cvar_value, &forced| {
+                unsafe { CStr::from_ptr(cvar_name) }.to_string_lossy() == "sv_tags"
+                    && unsafe { CStr::from_ptr(cvar_value) }.to_string_lossy() == "shinqlx,ca,elo"
+                    && !<qboolean as Into<bool>>::into(forced)
+            })
+            .returning(|_, _, _| {
+                let mut returned = CVarBuilder::default()
+                    .build()
+                    .expect("this should not happen");
+                &mut returned
+            })
+            .times(1);
+
+        let quake_engine = QuakeLiveEngine {
+            static_functions: StaticFunctions {
+                cvar_findvar_orig: Cvar_FindVar,
+                cvar_set2_orig: Cvar_Set2,
+                ..default_static_functions()
+            }
+            .into(),
+            static_detours: default_static_detours().into(),
+            ..default_quake_engine()
+        };
+
+        quake_engine.set_tag();
+    }
+
+    #[test]
+    #[cfg_attr(miri, ignore)]
+    #[serial]
+    fn set_tag_when_tag_not_inserted_yet_with_empty_original_tags() {
+        let existing_tags = CString::new("").expect("this should not happen");
+
+        let cvar_find_var_ctx = Cvar_FindVar_context();
+        cvar_find_var_ctx
+            .expect()
+            .withf(|&cvar_name| unsafe { CStr::from_ptr(cvar_name) }.to_string_lossy() == "sv_tags")
+            .returning(move |_| {
+                let mut returned = CVarBuilder::default()
+                    .string(existing_tags.as_ptr().cast_mut())
+                    .build()
+                    .expect("this should not happen");
+                &mut returned
+            })
+            .times(1);
+
+        let cvar_set2_ctx = Cvar_Set2_context();
+        cvar_set2_ctx
+            .expect()
+            .withf(|&cvar_name, &cvar_value, &forced| {
+                unsafe { CStr::from_ptr(cvar_name) }.to_string_lossy() == "sv_tags"
+                    && unsafe { CStr::from_ptr(cvar_value) }.to_string_lossy() == "shinqlx"
+                    && !<qboolean as Into<bool>>::into(forced)
+            })
+            .returning(|_, _, _| {
+                let mut returned = CVarBuilder::default()
+                    .build()
+                    .expect("this should not happen");
+                &mut returned
+            })
+            .times(1);
+
+        let quake_engine = QuakeLiveEngine {
+            static_functions: StaticFunctions {
+                cvar_findvar_orig: Cvar_FindVar,
+                cvar_set2_orig: Cvar_Set2,
+                ..default_static_functions()
+            }
+            .into(),
+            static_detours: default_static_detours().into(),
+            ..default_quake_engine()
+        };
+
+        quake_engine.set_tag();
     }
 }
 
