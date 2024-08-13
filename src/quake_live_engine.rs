@@ -981,8 +981,8 @@ impl QuakeLiveEngine {
         self.find_cvar("sv_tags")
             .map(|cvar| {
                 let cvar_str = cvar.get_string();
-                error!(target: "shinqlx", "asdf debug: {:?}", cvar_str);
-                error!(target: "shinqlx", "asdf debug: {:?}", cvar_str.split(',').all(|tag| tag != SV_TAGS_PREFIX));
+                eprintln!(target: "shinqlx", "asdf debug: {:?}", cvar_str);
+                eprintln!(target: "shinqlx", "asdf debug: {:?}", cvar_str.split(',').all(|tag| tag != SV_TAGS_PREFIX));
                 cvar_str.into_owned()
             })
             .filter(|sv_tags_string| sv_tags_string.split(',').all(|tag| tag != SV_TAGS_PREFIX))
