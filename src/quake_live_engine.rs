@@ -986,7 +986,7 @@ impl QuakeLiveEngine {
                     "asdf debug: {:?}",
                     cvar_str.split(',').all(|tag| tag != SV_TAGS_PREFIX)
                 );
-                cvar_str.into_owned()
+                cvar_str
             })
             .filter(|sv_tags_string| sv_tags_string.split(',').all(|tag| tag != SV_TAGS_PREFIX))
             .map(|mut sv_tags_string| {
