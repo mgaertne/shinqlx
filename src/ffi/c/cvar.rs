@@ -27,7 +27,7 @@ impl CVar {
         }
         unsafe { CStr::from_ptr(self.cvar.string) }
             .to_string_lossy()
-            .to_owned()
+            .clone()
     }
 
     pub(crate) fn get_integer(&self) -> i32 {
