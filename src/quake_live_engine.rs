@@ -995,7 +995,6 @@ impl QuakeLiveEngine {
     }
 
     // Called after the game is initialized.
-    #[cfg_attr(test, allow(dead_code))]
     pub(crate) fn initialize_cvars(&self) {
         self.find_cvar("sv_maxclients")
             .iter()
@@ -1005,7 +1004,6 @@ impl QuakeLiveEngine {
             })
     }
 
-    #[cfg_attr(test, allow(dead_code))]
     pub(crate) fn get_max_clients(&self) -> i32 {
         self.sv_maxclients.load(Ordering::SeqCst)
     }
@@ -1013,7 +1011,6 @@ impl QuakeLiveEngine {
     // Currently called by My_Cmd_AddCommand(), since it's called at a point where we
     // can safely do whatever we do below. It'll segfault if we do it at the entry
     // point, since functions like Cmd_AddCommand need initialization first.
-    #[cfg_attr(test, allow(dead_code))]
     pub(crate) fn initialize_static(&self) -> Result<(), QuakeLiveEngineError> {
         debug!(target: "shinqlx", "Initializing...");
         self.add_command("cmd", cmd_send_server_command);
@@ -1025,16 +1022,16 @@ impl QuakeLiveEngine {
         self.add_command("pycmd", cmd_py_command);
         self.add_command("pyrestart", cmd_restart_python);
 
-        if let Err(err) = pyshinqlx_initialize() {
+        pyshinqlx_initialize().map_err(|err| {
             error!(target: "shinqlx", "Python initialization failed.");
-            return Err(QuakeLiveEngineError::PythonInitializationFailed(err));
-        };
+            QuakeLiveEngineError::PythonInitializationFailed(err)
+        })?;
 
-        self.common_initialized.set(true).unwrap();
-        Ok(())
+        self.common_initialized
+            .set(true)
+            .map_err(|_| QuakeLiveEngineError::MainEngineNotInitialized)
     }
 
-    #[cfg_attr(test, allow(dead_code))]
     pub(crate) fn is_common_initialized(&self) -> bool {
         self.common_initialized
             .get()
@@ -1556,17 +1553,30 @@ impl QuakeLiveEngine {
 mod quake_live_engine_tests {
     use super::QuakeLiveEngine;
 
-    use super::mock_quake_functions::{Cvar_FindVar_context, Cvar_Set2_context};
+    use super::mock_quake_functions::{
+        Cmd_AddCommand_context, Cvar_FindVar_context, Cvar_Set2_context,
+    };
     use super::quake_live_engine_test_helpers::{
         default_quake_engine, default_static_detours, default_static_functions,
     };
 
+    use crate::commands::{
+        cmd_center_print, cmd_py_command, cmd_py_rcon, cmd_regular_print, cmd_restart_python,
+        cmd_send_server_command, cmd_slap, cmd_slay,
+    };
+
     use crate::ffi::c::prelude::{qboolean, CVarBuilder};
 
-    use crate::prelude::serial;
+    use crate::prelude::{serial, QuakeLiveEngineError};
+    use pretty_assertions::assert_eq;
 
+    use crate::ffi::python::prelude::pyshinqlx_initialize_context;
+    use crate::ffi::python::PythonInitializationError;
     use alloc::ffi::CString;
     use core::ffi::CStr;
+    use core::ptr;
+    use core::sync::atomic::Ordering;
+    use mockall::predicate;
 
     #[test]
     fn set_tag_with_no_cvar() {
@@ -1702,6 +1712,250 @@ mod quake_live_engine_tests {
         };
 
         quake_engine.set_tag();
+    }
+
+    #[test]
+    #[cfg_attr(miri, ignore)]
+    #[serial]
+    fn initialize_cvars_with_no_cvar_returned() {
+        let cvar_find_var_ctx = Cvar_FindVar_context();
+        cvar_find_var_ctx
+            .expect()
+            .withf_st(|&cvar_name| {
+                !cvar_name.is_null()
+                    && unsafe { CStr::from_ptr(cvar_name) }.to_string_lossy() == "sv_maxclients"
+            })
+            .returning_st(move |_| ptr::null_mut())
+            .times(1);
+
+        let quake_engine = QuakeLiveEngine {
+            static_functions: default_static_functions().into(),
+            static_detours: default_static_detours().into(),
+            ..default_quake_engine()
+        };
+
+        quake_engine.initialize_cvars();
+
+        assert_eq!(quake_engine.sv_maxclients.load(Ordering::SeqCst), 0);
+    }
+
+    #[test]
+    #[cfg_attr(miri, ignore)]
+    #[serial]
+    fn initialize_cvars_caches_cvar_value_for_maxclients() {
+        let mut returned = CVarBuilder::default()
+            .integer(16)
+            .build()
+            .expect("this should not happen");
+
+        let cvar_find_var_ctx = Cvar_FindVar_context();
+        cvar_find_var_ctx
+            .expect()
+            .withf_st(|&cvar_name| {
+                !cvar_name.is_null()
+                    && unsafe { CStr::from_ptr(cvar_name) }.to_string_lossy() == "sv_maxclients"
+            })
+            .returning_st(move |_| &mut returned)
+            .times(1);
+
+        let quake_engine = QuakeLiveEngine {
+            static_functions: default_static_functions().into(),
+            static_detours: default_static_detours().into(),
+            ..default_quake_engine()
+        };
+
+        quake_engine.initialize_cvars();
+
+        assert_eq!(quake_engine.sv_maxclients.load(Ordering::SeqCst), 16);
+    }
+
+    #[test]
+    fn get_maxclients_returns_stored_value() {
+        let quake_engine = default_quake_engine();
+
+        quake_engine.sv_maxclients.store(42, Ordering::SeqCst);
+
+        assert_eq!(quake_engine.get_max_clients(), 42);
+    }
+
+    #[test]
+    #[cfg_attr(miri, ignore)]
+    #[serial]
+    fn initialize_static_initializes_everything_successfully() {
+        let add_cmd_ctx = Cmd_AddCommand_context();
+        #[allow(clippy::fn_address_comparisons)]
+        add_cmd_ctx
+            .expect()
+            .withf(|&cmd, &func| {
+                !cmd.is_null()
+                    && unsafe { CStr::from_ptr(cmd) }.to_string_lossy() == "cmd"
+                    && func == cmd_send_server_command
+            })
+            .times(1);
+        #[allow(clippy::fn_address_comparisons)]
+        add_cmd_ctx
+            .expect()
+            .withf(|&cmd, &func| {
+                !cmd.is_null()
+                    && unsafe { CStr::from_ptr(cmd) }.to_string_lossy() == "cp"
+                    && func == cmd_center_print
+            })
+            .times(1);
+        #[allow(clippy::fn_address_comparisons)]
+        add_cmd_ctx
+            .expect()
+            .withf(|&cmd, &func| {
+                !cmd.is_null()
+                    && unsafe { CStr::from_ptr(cmd) }.to_string_lossy() == "print"
+                    && func == cmd_regular_print
+            })
+            .times(1);
+        #[allow(clippy::fn_address_comparisons)]
+        add_cmd_ctx
+            .expect()
+            .withf(|&cmd, &func| {
+                !cmd.is_null()
+                    && unsafe { CStr::from_ptr(cmd) }.to_string_lossy() == "slap"
+                    && func == cmd_slap
+            })
+            .times(1);
+        #[allow(clippy::fn_address_comparisons)]
+        add_cmd_ctx
+            .expect()
+            .withf(|&cmd, &func| {
+                !cmd.is_null()
+                    && unsafe { CStr::from_ptr(cmd) }.to_string_lossy() == "slay"
+                    && func == cmd_slay
+            })
+            .times(1);
+        #[allow(clippy::fn_address_comparisons)]
+        add_cmd_ctx
+            .expect()
+            .withf(|&cmd, &func| {
+                !cmd.is_null()
+                    && unsafe { CStr::from_ptr(cmd) }.to_string_lossy() == "qlx"
+                    && func == cmd_py_rcon
+            })
+            .times(1);
+        #[allow(clippy::fn_address_comparisons)]
+        add_cmd_ctx
+            .expect()
+            .withf(|&cmd, &func| {
+                !cmd.is_null()
+                    && unsafe { CStr::from_ptr(cmd) }.to_string_lossy() == "pycmd"
+                    && func == cmd_py_command
+            })
+            .times(1);
+        #[allow(clippy::fn_address_comparisons)]
+        add_cmd_ctx
+            .expect()
+            .withf(|&cmd, &func| {
+                !cmd.is_null()
+                    && unsafe { CStr::from_ptr(cmd) }.to_string_lossy() == "pyrestart"
+                    && func == cmd_restart_python
+            })
+            .times(1);
+
+        let pyshinqlx_init_ctx = pyshinqlx_initialize_context();
+        pyshinqlx_init_ctx.expect().returning(|| Ok(())).times(1);
+
+        let quake_engine = QuakeLiveEngine {
+            static_functions: default_static_functions().into(),
+            static_detours: default_static_detours().into(),
+            ..default_quake_engine()
+        };
+
+        let result = quake_engine.initialize_static();
+        assert!(result.is_ok());
+
+        assert!(quake_engine.is_common_initialized());
+    }
+
+    #[test]
+    #[cfg_attr(miri, ignore)]
+    #[serial]
+    fn initialize_static_when_python_init_fails() {
+        let add_cmd_ctx = Cmd_AddCommand_context();
+        add_cmd_ctx
+            .expect()
+            .with(predicate::always(), predicate::always());
+
+        let pyshinqlx_init_ctx = pyshinqlx_initialize_context();
+        pyshinqlx_init_ctx
+            .expect()
+            .returning(|| Err(PythonInitializationError::MainScriptError))
+            .times(1);
+
+        let quake_engine = QuakeLiveEngine {
+            static_functions: default_static_functions().into(),
+            static_detours: default_static_detours().into(),
+            ..default_quake_engine()
+        };
+
+        let result = quake_engine.initialize_static();
+        assert!(result.is_err_and(|err| err
+            == QuakeLiveEngineError::PythonInitializationFailed(
+                PythonInitializationError::MainScriptError
+            )));
+
+        assert!(!quake_engine.is_common_initialized());
+    }
+
+    #[test]
+    #[cfg_attr(miri, ignore)]
+    #[serial]
+    fn initialize_static_when_common_already_initiailized() {
+        let add_cmd_ctx = Cmd_AddCommand_context();
+        add_cmd_ctx
+            .expect()
+            .with(predicate::always(), predicate::always());
+
+        let pyshinqlx_init_ctx = pyshinqlx_initialize_context();
+        pyshinqlx_init_ctx.expect().returning(|| Ok(())).times(1);
+
+        let quake_engine = QuakeLiveEngine {
+            static_functions: default_static_functions().into(),
+            static_detours: default_static_detours().into(),
+            ..default_quake_engine()
+        };
+        quake_engine
+            .common_initialized
+            .set(true)
+            .expect("this should not happen");
+
+        let result = quake_engine.initialize_static();
+        assert!(result.is_err_and(|err| err == QuakeLiveEngineError::MainEngineNotInitialized));
+
+        assert!(quake_engine.is_common_initialized());
+    }
+
+    #[test]
+    fn is_common_initialized_when_not_initialized() {
+        let quake_engine = default_quake_engine();
+
+        assert!(!quake_engine.is_common_initialized());
+    }
+
+    #[test]
+    fn is_common_initialized_when_initialized_is_set_to_false() {
+        let quake_engine = default_quake_engine();
+        quake_engine
+            .common_initialized
+            .set(false)
+            .expect("this should not happen");
+
+        assert!(!quake_engine.is_common_initialized());
+    }
+
+    #[test]
+    fn is_common_initialized_when_initialized_is_set_to_true() {
+        let quake_engine = default_quake_engine();
+        quake_engine
+            .common_initialized
+            .set(true)
+            .expect("this should not happen");
+
+        assert!(quake_engine.is_common_initialized());
     }
 }
 
