@@ -979,7 +979,7 @@ impl QuakeLiveEngine {
         const SV_TAGS_PREFIX: &str = "shinqlx";
 
         self.find_cvar("sv_tags")
-            .map(|cvar| cvar.get_string().to_string())
+            .map(|cvar| cvar.get_string().into_owned())
             .filter(|sv_tags_string| sv_tags_string.split(',').all(|tag| tag != SV_TAGS_PREFIX))
             .map(|sv_tags_string| {
                 if sv_tags_string.len() > 2 {
