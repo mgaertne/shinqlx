@@ -988,7 +988,7 @@ impl QuakeLiveEngine {
             .filter(|sv_tags_string| sv_tags_string.split(',').all(|tag| tag != SV_TAGS_PREFIX))
             .map(|mut sv_tags_string| {
                 if sv_tags_string.len() > 2 {
-                    sv_tags_string.insert_str(0, ",");
+                    sv_tags_string.insert(0, ',');
                 }
                 sv_tags_string.insert_str(0, SV_TAGS_PREFIX);
                 sv_tags_string
