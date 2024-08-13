@@ -84,7 +84,7 @@ jobs:
         with:
           python-version: ${{ matrix.python-version }}
       - run: cargo build --verbose
-      - run: cargo test --verbose
+      - run: cargo test --verbose -- --nocapture
 
   minimal_build:
     name: build & test with minimal versions
@@ -105,7 +105,7 @@ jobs:
         with:
           python-version: ${{ matrix.python-version }}
       - run: cargo build -Z minimal-versions --verbose
-      - run: cargo test -Z minimal-versions --verbose
+      - run: cargo test -Z minimal-versions --verbose -- --nocapture
 
   tarpaulin-coverage:
     runs-on: ubuntu-latest
