@@ -1591,7 +1591,10 @@ mod quake_live_engine_tests {
         let cvar_find_var_ctx = Cvar_FindVar_context();
         cvar_find_var_ctx
             .expect()
-            .withf(|&cvar_name| unsafe { CStr::from_ptr(cvar_name) }.to_string_lossy() == "sv_tags")
+            .withf(|&cvar_name| {
+                !cvar_name.is_null()
+                    && unsafe { CStr::from_ptr(cvar_name) }.to_string_lossy() == "sv_tags"
+            })
             .returning(move |_| {
                 let mut returned = CVarBuilder::default()
                     .string(existing_tags.as_ptr().cast_mut())
@@ -1624,7 +1627,10 @@ mod quake_live_engine_tests {
         let cvar_find_var_ctx = Cvar_FindVar_context();
         cvar_find_var_ctx
             .expect()
-            .withf(|&cvar_name| unsafe { CStr::from_ptr(cvar_name) }.to_string_lossy() == "sv_tags")
+            .withf(|&cvar_name| {
+                !cvar_name.is_null()
+                    && unsafe { CStr::from_ptr(cvar_name) }.to_string_lossy() == "sv_tags"
+            })
             .returning(move |_| {
                 let mut returned = CVarBuilder::default()
                     .string(existing_tags.as_ptr().cast_mut())
@@ -1638,7 +1644,9 @@ mod quake_live_engine_tests {
         cvar_set2_ctx
             .expect()
             .withf(|&cvar_name, &cvar_value, &forced| {
-                unsafe { CStr::from_ptr(cvar_name) }.to_string_lossy() == "sv_tags"
+                !cvar_name.is_null()
+                    && unsafe { CStr::from_ptr(cvar_name) }.to_string_lossy() == "sv_tags"
+                    && !cvar_value.is_null()
                     && unsafe { CStr::from_ptr(cvar_value) }.to_string_lossy() == "shinqlx,ca,elo"
                     && !<qboolean as Into<bool>>::into(forced)
             })
@@ -1673,7 +1681,10 @@ mod quake_live_engine_tests {
         let cvar_find_var_ctx = Cvar_FindVar_context();
         cvar_find_var_ctx
             .expect()
-            .withf(|&cvar_name| unsafe { CStr::from_ptr(cvar_name) }.to_string_lossy() == "sv_tags")
+            .withf(|&cvar_name| {
+                !cvar_name.is_null()
+                    && unsafe { CStr::from_ptr(cvar_name) }.to_string_lossy() == "sv_tags"
+            })
             .returning(move |_| {
                 let mut returned = CVarBuilder::default()
                     .string(existing_tags.as_ptr().cast_mut())
@@ -1687,7 +1698,9 @@ mod quake_live_engine_tests {
         cvar_set2_ctx
             .expect()
             .withf(|&cvar_name, &cvar_value, &forced| {
-                unsafe { CStr::from_ptr(cvar_name) }.to_string_lossy() == "sv_tags"
+                !cvar_name.is_null()
+                    && unsafe { CStr::from_ptr(cvar_name) }.to_string_lossy() == "sv_tags"
+                    && !cvar_value.is_null()
                     && unsafe { CStr::from_ptr(cvar_value) }.to_string_lossy() == "shinqlx"
                     && !<qboolean as Into<bool>>::into(forced)
             })
@@ -1873,7 +1886,8 @@ mod find_cvar_quake_live_engine_tests {
         find_cvar_ctx
             .expect()
             .withf(|&cvar_name| {
-                unsafe { CStr::from_ptr(cvar_name) }.to_string_lossy() == "sv_maxclients"
+                !cvar_name.is_null()
+                    && unsafe { CStr::from_ptr(cvar_name) }.to_string_lossy() == "sv_maxclients"
             })
             .returning(|_| {
                 let mut cvar = CVarBuilder::default()
@@ -1900,7 +1914,8 @@ mod find_cvar_quake_live_engine_tests {
         find_cvar_ctx
             .expect()
             .withf(|&cvar_name| {
-                unsafe { CStr::from_ptr(cvar_name) }.to_string_lossy() == "sv_maxclients"
+                !cvar_name.is_null()
+                    && unsafe { CStr::from_ptr(cvar_name) }.to_string_lossy() == "sv_maxclients"
             })
             .returning(|_| ptr::null_mut())
             .times(1);
@@ -1955,7 +1970,8 @@ mod add_command_quake_live_engine_tests {
         add_command_ctx
             .expect()
             .withf(|&cvar_name, _| {
-                unsafe { CStr::from_ptr(cvar_name) }.to_string_lossy() == "spank"
+                !cvar_name.is_null()
+                    && unsafe { CStr::from_ptr(cvar_name) }.to_string_lossy() == "spank"
             })
             .times(1);
 
@@ -1977,7 +1993,7 @@ impl<T: AsRef<str>> SetModuleOffset<T> for QuakeLiveEngine {
     fn set_module_offset(&self, module_name: T, offset: unsafe extern "C" fn()) {
         if let Ok(detour) = self.sys_setmoduleoffset_detour() {
             if let Ok(c_module_name) = CString::new(module_name.as_ref()) {
-                detour.call(c_module_name.as_ptr() as *mut c_char, offset);
+                detour.call(c_module_name.as_ptr().cast_mut(), offset);
             }
         }
     }
@@ -2009,7 +2025,8 @@ mod set_module_offset_quake_live_engine_tests {
         set_module_offset_ctx
             .expect()
             .withf(|&cvar_name, _| {
-                unsafe { CStr::from_ptr(cvar_name) }.to_string_lossy() == "qagame"
+                !cvar_name.is_null()
+                    && unsafe { CStr::from_ptr(cvar_name) }.to_string_lossy() == "qagame"
             })
             .times(1);
 
@@ -2181,6 +2198,7 @@ mod execute_client_command_quake_live_engine_tests {
             .expect()
             .withf(|&client, &cmd, &client_ok| {
                 client.is_null()
+                    && !cmd.is_null()
                     && unsafe { CStr::from_ptr(cmd) }.to_string_lossy() == "asdf"
                     && client_ok.into()
             })
@@ -2211,6 +2229,7 @@ mod execute_client_command_quake_live_engine_tests {
             .expect()
             .withf(|&client, &cmd, &client_ok| {
                 !client.is_null()
+                    && !cmd.is_null()
                     && unsafe { CStr::from_ptr(cmd) }.to_string_lossy() == "asdf"
                     && client_ok.into()
             })
@@ -2272,7 +2291,9 @@ mod send_server_command_quake_live_engine_tests {
         sv_send_server_command_ctx
             .expect()
             .withf(|&client, &cmd| {
-                client.is_null() && unsafe { CStr::from_ptr(cmd) }.to_string_lossy() == "asdf"
+                client.is_null()
+                    && !cmd.is_null()
+                    && unsafe { CStr::from_ptr(cmd) }.to_string_lossy() == "asdf"
             })
             .times(1);
 
@@ -2300,7 +2321,9 @@ mod send_server_command_quake_live_engine_tests {
         sv_send_server_command_ctx
             .expect()
             .withf(|&client, &cmd| {
-                !client.is_null() && unsafe { CStr::from_ptr(cmd) }.to_string_lossy() == "asdf"
+                !client.is_null()
+                    && !cmd.is_null()
+                    && unsafe { CStr::from_ptr(cmd) }.to_string_lossy() == "asdf"
             })
             .times(1);
 
@@ -2421,7 +2444,9 @@ mod set_confgistring_quake_live_engine_tests {
         sv_set_configstring_ctx
             .expect()
             .withf(|&index, &value| {
-                index == 42 && unsafe { CStr::from_ptr(value) }.to_string_lossy() == "asdf"
+                index == 42
+                    && !value.is_null()
+                    && unsafe { CStr::from_ptr(value) }.to_string_lossy() == "asdf"
             })
             .times(1);
 
@@ -2476,7 +2501,9 @@ mod com_printf_quake_live_engine_tests {
         let com_printf_ctx = Com_Printf_context();
         com_printf_ctx
             .expect()
-            .withf(|&value| unsafe { CStr::from_ptr(value) }.to_string_lossy() == "asdf")
+            .withf(|&value| {
+                !value.is_null() && unsafe { CStr::from_ptr(value) }.to_string_lossy() == "asdf"
+            })
             .times(1);
 
         let quake_engine = QuakeLiveEngine {
@@ -2497,7 +2524,7 @@ impl<T: AsRef<str>, U: Into<qboolean>> SpawnServer<T, U> for QuakeLiveEngine {
     fn spawn_server(&self, server: T, kill_bots: U) {
         if let Ok(detour) = self.sv_spawnserver_detour() {
             if let Ok(c_server) = CString::new(server.as_ref()) {
-                detour.call(c_server.as_ptr() as *mut c_char, kill_bots.into());
+                detour.call(c_server.as_ptr().cast_mut(), kill_bots.into());
             }
         }
     }
@@ -2529,7 +2556,8 @@ mod spawn_server_quake_live_engine_tests {
         sv_spawn_server_ctx
             .expect()
             .withf(|&server_name, &kill_bots| {
-                unsafe { CStr::from_ptr(server_name) }.to_string_lossy() == "asdf"
+                !server_name.is_null()
+                    && unsafe { CStr::from_ptr(server_name) }.to_string_lossy() == "asdf"
                     && kill_bots.into()
             })
             .times(1);
@@ -2673,6 +2701,7 @@ mod client_connect_quake_live_engine_tests {
         ));
 
         let result = quake_engine.client_connect(42, true, false);
+        assert!(!result.is_null());
         assert_eq!(
             unsafe { CStr::from_ptr(result) }.to_string_lossy(),
             "expected connect return"
@@ -3105,7 +3134,9 @@ mod console_command_quake_live_engine_tests {
         let cmd_execute_string_ctx = Cmd_ExecuteString_context();
         cmd_execute_string_ctx
             .expect()
-            .withf(|&cmd| unsafe { CStr::from_ptr(cmd) }.to_string_lossy() == "!slap 0 100")
+            .withf(|&cmd| {
+                !cmd.is_null() && unsafe { CStr::from_ptr(cmd) }.to_string_lossy() == "!slap 0 100"
+            })
             .times(1);
 
         let quake_engine = QuakeLiveEngine {
@@ -3157,7 +3188,7 @@ mod get_cvar_quake_live_engine_tests {
     use crate::prelude::serial;
 
     use alloc::ffi::CString;
-    use core::ffi::{c_char, c_int, CStr};
+    use core::ffi::{c_int, CStr};
 
     #[test]
     fn get_cvar_with_no_original_function_set() {
@@ -3178,14 +3209,16 @@ mod get_cvar_quake_live_engine_tests {
         cvar_get_ctx
             .expect()
             .withf(|&cvar, &value, &flags| {
-                unsafe { CStr::from_ptr(cvar) }.to_string_lossy() == "sv_maxclients"
+                !cvar.is_null()
+                    && unsafe { CStr::from_ptr(cvar) }.to_string_lossy() == "sv_maxclients"
+                    && !value.is_null()
                     && unsafe { CStr::from_ptr(value) }.to_string_lossy() == "16"
                     && flags == CVAR_CHEAT as c_int
             })
             .returning(move |_, _, _| {
                 let mut result = CVarBuilder::default()
-                    .name(cvar_name.as_ptr() as *mut c_char)
-                    .string(cvar_value.as_ptr() as *mut c_char)
+                    .name(cvar_name.as_ptr().cast_mut())
+                    .string(cvar_value.as_ptr().cast_mut())
                     .build()
                     .expect("this should not happen");
                 &mut result
@@ -3217,14 +3250,16 @@ mod get_cvar_quake_live_engine_tests {
         cvar_get_ctx
             .expect()
             .withf(|&cvar, &value, &flags| {
-                unsafe { CStr::from_ptr(cvar) }.to_string_lossy() == "sv_maxclients"
+                !cvar.is_null()
+                    && unsafe { CStr::from_ptr(cvar) }.to_string_lossy() == "sv_maxclients"
+                    && !value.is_null()
                     && unsafe { CStr::from_ptr(value) }.to_string_lossy() == "16"
                     && flags == 0
             })
             .returning(move |_, _, _| {
                 let mut result = CVarBuilder::default()
-                    .name(cvar_name.as_ptr() as *mut c_char)
-                    .string(cvar_value.as_ptr() as *mut c_char)
+                    .name(cvar_name.as_ptr().cast_mut())
+                    .string(cvar_value.as_ptr().cast_mut())
                     .build()
                     .expect("this should not happen");
                 &mut result
@@ -3276,7 +3311,7 @@ mod set_cvar_forced_quake_live_engine_tests {
     use crate::prelude::serial;
 
     use alloc::ffi::CString;
-    use core::ffi::{c_char, CStr};
+    use core::ffi::CStr;
 
     #[test]
     fn set_cvar_forced_with_no_original_function_set() {
@@ -3297,14 +3332,16 @@ mod set_cvar_forced_quake_live_engine_tests {
         cvar_set2_ctx
             .expect()
             .withf(|&cvar, &value, &forced| {
-                unsafe { CStr::from_ptr(cvar) }.to_string_lossy() == "sv_maxclients"
+                !cvar.is_null()
+                    && unsafe { CStr::from_ptr(cvar) }.to_string_lossy() == "sv_maxclients"
+                    && !value.is_null()
                     && unsafe { CStr::from_ptr(value) }.to_string_lossy() == "16"
                     && forced.into()
             })
             .returning(move |_, _, _| {
                 let mut result = CVarBuilder::default()
-                    .name(cvar_name.as_ptr() as *mut c_char)
-                    .string(cvar_value.as_ptr() as *mut c_char)
+                    .name(cvar_name.as_ptr().cast_mut())
+                    .string(cvar_value.as_ptr().cast_mut())
                     .build()
                     .expect("this should not happen");
                 &mut result
@@ -3377,7 +3414,7 @@ mod set_cvar_limit_quake_live_engine_tests {
     use crate::prelude::serial;
 
     use alloc::ffi::CString;
-    use core::ffi::{c_char, c_int, CStr};
+    use core::ffi::{c_int, CStr};
 
     #[test]
     fn set_cvar_limit_with_no_original_function_set() {
@@ -3399,16 +3436,20 @@ mod set_cvar_limit_quake_live_engine_tests {
         cvar_get_limit_ctx
             .expect()
             .withf(|&cvar, &value, &min, &max, &flags| {
-                unsafe { CStr::from_ptr(cvar) }.to_string_lossy() == "sv_maxclients"
+                !cvar.is_null()
+                    && unsafe { CStr::from_ptr(cvar) }.to_string_lossy() == "sv_maxclients"
+                    && !value.is_null()
                     && unsafe { CStr::from_ptr(value) }.to_string_lossy() == "16"
+                    && !min.is_null()
                     && unsafe { CStr::from_ptr(min) }.to_string_lossy() == "2"
+                    && !max.is_null()
                     && unsafe { CStr::from_ptr(max) }.to_string_lossy() == "64"
                     && flags == CVAR_CHEAT as c_int
             })
             .returning(move |_, _, _, _, _| {
                 let mut result = CVarBuilder::default()
-                    .name(cvar_name.as_ptr() as *mut c_char)
-                    .string(cvar_value.as_ptr() as *mut c_char)
+                    .name(cvar_name.as_ptr().cast_mut())
+                    .string(cvar_value.as_ptr().cast_mut())
                     .build()
                     .expect("this should not happen");
                 &mut result
@@ -3447,16 +3488,20 @@ mod set_cvar_limit_quake_live_engine_tests {
         cvar_get_limit_ctx
             .expect()
             .withf(|&cvar, &value, &min, &max, &flags| {
-                unsafe { CStr::from_ptr(cvar) }.to_string_lossy() == "sv_maxclients"
+                !cvar.is_null()
+                    && unsafe { CStr::from_ptr(cvar) }.to_string_lossy() == "sv_maxclients"
+                    && !value.is_null()
                     && unsafe { CStr::from_ptr(value) }.to_string_lossy() == "16"
+                    && !min.is_null()
                     && unsafe { CStr::from_ptr(min) }.to_string_lossy() == "2"
+                    && !max.is_null()
                     && unsafe { CStr::from_ptr(max) }.to_string_lossy() == "64"
                     && flags == 0
             })
             .returning(move |_, _, _, _, _| {
                 let mut result = CVarBuilder::default()
-                    .name(cvar_name.as_ptr() as *mut c_char)
-                    .string(cvar_value.as_ptr() as *mut c_char)
+                    .name(cvar_name.as_ptr().cast_mut())
+                    .string(cvar_value.as_ptr().cast_mut())
                     .build()
                     .expect("this should not happen");
                 &mut result
@@ -3528,9 +3573,9 @@ mod get_configstring_quake_live_engine_tests {
         sv_get_configstring_ctx
             .expect()
             .withf(|&index, &_buffer, &_buffer_len| index == 42)
-            .returning(|_, buffer, _| {
+            .returning(|_, buffer, buffer_len| {
                 let returned = CString::new("asdf").expect("this should not happen");
-                unsafe { buffer.copy_from(returned.as_ptr(), 5usize) };
+                unsafe { returned.as_ptr().copy_to(buffer, buffer_len as usize) };
             })
             .times(1);
 

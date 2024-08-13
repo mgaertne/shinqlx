@@ -162,7 +162,7 @@ mod game_item_tests {
     use crate::prelude::*;
 
     use alloc::ffi::CString;
-    use core::ffi::c_char;
+
     use mockall::predicate;
     use pretty_assertions::assert_eq;
 
@@ -261,7 +261,7 @@ mod game_item_tests {
     fn game_item_get_classname() {
         let classname = CString::new("item classname").expect("this should not happen");
         let mut gitem = GItemBuilder::default()
-            .classname(classname.as_ptr() as *mut c_char)
+            .classname(classname.as_ptr().cast_mut())
             .build()
             .expect("this should not happen");
         let game_item =
