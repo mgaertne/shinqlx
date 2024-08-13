@@ -979,15 +979,7 @@ impl QuakeLiveEngine {
         const SV_TAGS_PREFIX: &str = "shinqlx";
 
         self.find_cvar("sv_tags")
-            .map(|cvar| {
-                let cvar_str = cvar.get_string();
-                eprintln!("asdf debug: {:?}", cvar_str);
-                eprintln!(
-                    "asdf debug: {:?}",
-                    cvar_str.split(',').all(|tag| tag != SV_TAGS_PREFIX)
-                );
-                cvar_str.to_string()
-            })
+            .map(|cvar| cvar.get_string().to_string())
             .filter(|sv_tags_string| sv_tags_string.split(',').all(|tag| tag != SV_TAGS_PREFIX))
             .map(|mut sv_tags_string| {
                 if sv_tags_string.len() > 2 {
@@ -1695,7 +1687,7 @@ mod quake_live_engine_tests {
                     && unsafe { CStr::from_ptr(cvar_value) }.to_string_lossy() == "shinqlx"
                     && !<qboolean as Into<bool>>::into(forced)
             })
-            .returning_st(move |_, _, _| {
+            .returning(|_, _, _| {
                 let mut returned = CVarBuilder::default()
                     .build()
                     .expect("this should not happen");
@@ -1868,6 +1860,10 @@ mod find_cvar_quake_live_engine_tests {
     #[cfg_attr(miri, ignore)]
     #[serial]
     fn find_cvar_when_function_returns_valid_cvar() {
+        let mut cvar = CVarBuilder::default()
+            .build()
+            .expect("this should not happen");
+
         let find_cvar_ctx = Cvar_FindVar_context();
         find_cvar_ctx
             .expect()
@@ -1875,12 +1871,7 @@ mod find_cvar_quake_live_engine_tests {
                 !cvar_name.is_null()
                     && unsafe { CStr::from_ptr(cvar_name) }.to_string_lossy() == "sv_maxclients"
             })
-            .returning(|_| {
-                let mut cvar = CVarBuilder::default()
-                    .build()
-                    .expect("this should not happen");
-                &mut cvar
-            })
+            .returning_st(move |_| &mut cvar)
             .times(1);
 
         let quake_engine = QuakeLiveEngine {
@@ -3163,6 +3154,12 @@ mod get_cvar_quake_live_engine_tests {
         let cvar_name = CString::new("sv_maxclients").expect("this should not happen");
         let cvar_value = CString::new("16").expect("this should not happen");
 
+        let mut result = CVarBuilder::default()
+            .name(cvar_name.as_ptr().cast_mut())
+            .string(cvar_value.as_ptr().cast_mut())
+            .build()
+            .expect("this should not happen");
+
         let cvar_get_ctx = Cvar_Get_context();
         cvar_get_ctx
             .expect()
@@ -3173,14 +3170,7 @@ mod get_cvar_quake_live_engine_tests {
                     && unsafe { CStr::from_ptr(value) }.to_string_lossy() == "16"
                     && flags == CVAR_CHEAT as c_int
             })
-            .returning(move |_, _, _| {
-                let mut result = CVarBuilder::default()
-                    .name(cvar_name.as_ptr().cast_mut())
-                    .string(cvar_value.as_ptr().cast_mut())
-                    .build()
-                    .expect("this should not happen");
-                &mut result
-            })
+            .returning_st(move |_, _, _| &mut result)
             .times(1);
 
         let quake_engine = QuakeLiveEngine {
@@ -3200,6 +3190,12 @@ mod get_cvar_quake_live_engine_tests {
         let cvar_name = CString::new("sv_maxclients").expect("this should not happen");
         let cvar_value = CString::new("16").expect("this should not happen");
 
+        let mut result = CVarBuilder::default()
+            .name(cvar_name.as_ptr().cast_mut())
+            .string(cvar_value.as_ptr().cast_mut())
+            .build()
+            .expect("this should not happen");
+
         let cvar_get_ctx = Cvar_Get_context();
         cvar_get_ctx
             .expect()
@@ -3210,14 +3206,7 @@ mod get_cvar_quake_live_engine_tests {
                     && unsafe { CStr::from_ptr(value) }.to_string_lossy() == "16"
                     && flags == 0
             })
-            .returning(move |_, _, _| {
-                let mut result = CVarBuilder::default()
-                    .name(cvar_name.as_ptr().cast_mut())
-                    .string(cvar_value.as_ptr().cast_mut())
-                    .build()
-                    .expect("this should not happen");
-                &mut result
-            })
+            .returning_st(move |_, _, _| &mut result)
             .times(1);
 
         let quake_engine = QuakeLiveEngine {
@@ -3278,6 +3267,12 @@ mod set_cvar_forced_quake_live_engine_tests {
         let cvar_name = CString::new("sv_maxclients").expect("this should not happen");
         let cvar_value = CString::new("16").expect("this should not happen");
 
+        let mut result = CVarBuilder::default()
+            .name(cvar_name.as_ptr().cast_mut())
+            .string(cvar_value.as_ptr().cast_mut())
+            .build()
+            .expect("this should not happen");
+
         let cvar_set2_ctx = Cvar_Set2_context();
         cvar_set2_ctx
             .expect()
@@ -3288,14 +3283,7 @@ mod set_cvar_forced_quake_live_engine_tests {
                     && unsafe { CStr::from_ptr(value) }.to_string_lossy() == "16"
                     && forced.into()
             })
-            .returning(move |_, _, _| {
-                let mut result = CVarBuilder::default()
-                    .name(cvar_name.as_ptr().cast_mut())
-                    .string(cvar_value.as_ptr().cast_mut())
-                    .build()
-                    .expect("this should not happen");
-                &mut result
-            })
+            .returning_st(move |_, _, _| &mut result)
             .times(1);
 
         let quake_engine = QuakeLiveEngine {
@@ -3372,11 +3360,16 @@ mod set_cvar_limit_quake_live_engine_tests {
 
     #[test]
     #[cfg_attr(miri, ignore)]
-    #[cfg_attr(target_os = "macos", ignore)]
     #[serial]
     fn set_cvar_limit_with_valid_original_function() {
         let cvar_name = CString::new("sv_maxclients").expect("this should not happen");
         let cvar_value = CString::new("16").expect("this should not happen");
+
+        let mut result = CVarBuilder::default()
+            .name(cvar_name.as_ptr().cast_mut())
+            .string(cvar_value.as_ptr().cast_mut())
+            .build()
+            .expect("this should not happen");
 
         let cvar_get_limit_ctx = Cvar_GetLimit_context();
         cvar_get_limit_ctx
@@ -3392,14 +3385,7 @@ mod set_cvar_limit_quake_live_engine_tests {
                     && unsafe { CStr::from_ptr(max) }.to_string_lossy() == "64"
                     && flags == CVAR_CHEAT as c_int
             })
-            .returning(move |_, _, _, _, _| {
-                let mut result = CVarBuilder::default()
-                    .name(cvar_name.as_ptr().cast_mut())
-                    .string(cvar_value.as_ptr().cast_mut())
-                    .build()
-                    .expect("this should not happen");
-                &mut result
-            })
+            .returning_st(move |_, _, _, _, _| &mut result)
             .times(1);
 
         let quake_engine = QuakeLiveEngine {
@@ -3420,11 +3406,16 @@ mod set_cvar_limit_quake_live_engine_tests {
 
     #[test]
     #[cfg_attr(miri, ignore)]
-    #[cfg_attr(target_os = "macos", ignore)]
     #[serial]
     fn set_cvar_limit_with_valid_original_function_and_defaulting_flags() {
         let cvar_name = CString::new("sv_maxclients").expect("this should not happen");
         let cvar_value = CString::new("16").expect("this should not happen");
+
+        let mut result = CVarBuilder::default()
+            .name(cvar_name.as_ptr().cast_mut())
+            .string(cvar_value.as_ptr().cast_mut())
+            .build()
+            .expect("this should not happen");
 
         let cvar_get_limit_ctx = Cvar_GetLimit_context();
         cvar_get_limit_ctx
@@ -3440,14 +3431,7 @@ mod set_cvar_limit_quake_live_engine_tests {
                     && unsafe { CStr::from_ptr(max) }.to_string_lossy() == "64"
                     && flags == 0
             })
-            .returning(move |_, _, _, _, _| {
-                let mut result = CVarBuilder::default()
-                    .name(cvar_name.as_ptr().cast_mut())
-                    .string(cvar_value.as_ptr().cast_mut())
-                    .build()
-                    .expect("this should not happen");
-                &mut result
-            })
+            .returning_st(move |_, _, _, _, _| &mut result)
             .times(1);
 
         let quake_engine = QuakeLiveEngine {
