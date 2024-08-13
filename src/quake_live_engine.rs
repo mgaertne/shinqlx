@@ -986,7 +986,7 @@ impl QuakeLiveEngine {
                     "asdf debug: {:?}",
                     cvar_str.split(',').all(|tag| tag != SV_TAGS_PREFIX)
                 );
-                cvar_str
+                cvar_str.to_string()
             })
             .filter(|sv_tags_string| sv_tags_string.split(',').all(|tag| tag != SV_TAGS_PREFIX))
             .map(|mut sv_tags_string| {
@@ -1589,6 +1589,11 @@ mod quake_live_engine_tests {
     fn set_tag_when_tag_already_inserted() {
         let existing_tags = CString::new("shinqlx,ca,elo").expect("this should not happen");
 
+        let mut returned = CVarBuilder::default()
+            .string(existing_tags.as_ptr().cast_mut())
+            .build()
+            .expect("this should not happen");
+
         let cvar_find_var_ctx = Cvar_FindVar_context();
         cvar_find_var_ctx
             .expect()
@@ -1596,13 +1601,7 @@ mod quake_live_engine_tests {
                 !cvar_name.is_null()
                     && unsafe { CStr::from_ptr(cvar_name) }.to_string_lossy() == "sv_tags"
             })
-            .returning_st(move |_| {
-                let mut returned = CVarBuilder::default()
-                    .string(existing_tags.as_ptr().cast_mut())
-                    .build()
-                    .expect("this should not happen");
-                &mut returned
-            })
+            .returning_st(move |_| &mut returned)
             .times(1);
 
         let cvar_set2_ctx = Cvar_Set2_context();
@@ -1623,6 +1622,11 @@ mod quake_live_engine_tests {
     fn set_tag_when_tag_not_inserted_yet_with_other_values() {
         let existing_tags = CString::new("ca,elo").expect("this should not happen");
 
+        let mut returned = CVarBuilder::default()
+            .string(existing_tags.as_ptr().cast_mut())
+            .build()
+            .expect("this should not happen");
+
         let cvar_find_var_ctx = Cvar_FindVar_context();
         cvar_find_var_ctx
             .expect()
@@ -1630,13 +1634,7 @@ mod quake_live_engine_tests {
                 !cvar_name.is_null()
                     && unsafe { CStr::from_ptr(cvar_name) }.to_string_lossy() == "sv_tags"
             })
-            .returning_st(move |_| {
-                let mut returned = CVarBuilder::default()
-                    .string(existing_tags.as_ptr().cast_mut())
-                    .build()
-                    .expect("this should not happen");
-                &mut returned
-            })
+            .returning_st(move |_| &mut returned)
             .times(1);
 
         let cvar_set2_ctx = Cvar_Set2_context();
@@ -1672,6 +1670,10 @@ mod quake_live_engine_tests {
     fn set_tag_when_tag_not_inserted_yet_with_empty_original_tags() {
         let existing_tags = CString::new("").expect("this should not happen");
 
+        let mut returned = CVarBuilder::default()
+            .build()
+            .expect("this should not happen");
+
         let cvar_find_var_ctx = Cvar_FindVar_context();
         cvar_find_var_ctx
             .expect()
@@ -1698,12 +1700,7 @@ mod quake_live_engine_tests {
                     && unsafe { CStr::from_ptr(cvar_value) }.to_string_lossy() == "shinqlx"
                     && !<qboolean as Into<bool>>::into(forced)
             })
-            .returning(|_, _, _| {
-                let mut returned = CVarBuilder::default()
-                    .build()
-                    .expect("this should not happen");
-                &mut returned
-            })
+            .returning_st(move |_, _, _| &mut returned)
             .times(1);
 
         let quake_engine = QuakeLiveEngine {

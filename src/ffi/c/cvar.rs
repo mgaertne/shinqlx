@@ -1,6 +1,7 @@
 use super::prelude::*;
 use crate::prelude::*;
 
+use alloc::borrow::Cow;
 use core::ffi::CStr;
 
 #[derive(Debug, PartialEq)]
@@ -20,13 +21,11 @@ impl TryFrom<*mut cvar_t> for CVar {
 }
 
 impl CVar {
-    pub(crate) fn get_string(&self) -> String {
+    pub(crate) fn get_string(&self) -> Cow<str> {
         if self.cvar.string.is_null() {
             return "".into();
         }
-        unsafe { CStr::from_ptr(self.cvar.string) }
-            .to_string_lossy()
-            .to_string()
+        unsafe { CStr::from_ptr(self.cvar.string) }.to_string_lossy()
     }
 
     pub(crate) fn get_integer(&self) -> i32 {
