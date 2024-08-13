@@ -1592,11 +1592,11 @@ mod quake_live_engine_tests {
         let cvar_find_var_ctx = Cvar_FindVar_context();
         cvar_find_var_ctx
             .expect()
-            .withf(|&cvar_name| {
+            .withf_st(|&cvar_name| {
                 !cvar_name.is_null()
                     && unsafe { CStr::from_ptr(cvar_name) }.to_string_lossy() == "sv_tags"
             })
-            .returning(move |_| {
+            .returning_st(move |_| {
                 let mut returned = CVarBuilder::default()
                     .string(existing_tags.as_ptr().cast_mut())
                     .build()
@@ -1626,11 +1626,11 @@ mod quake_live_engine_tests {
         let cvar_find_var_ctx = Cvar_FindVar_context();
         cvar_find_var_ctx
             .expect()
-            .withf(|&cvar_name| {
+            .withf_st(|&cvar_name| {
                 !cvar_name.is_null()
                     && unsafe { CStr::from_ptr(cvar_name) }.to_string_lossy() == "sv_tags"
             })
-            .returning(move |_| {
+            .returning_st(move |_| {
                 let mut returned = CVarBuilder::default()
                     .string(existing_tags.as_ptr().cast_mut())
                     .build()
@@ -1675,11 +1675,11 @@ mod quake_live_engine_tests {
         let cvar_find_var_ctx = Cvar_FindVar_context();
         cvar_find_var_ctx
             .expect()
-            .withf(|&cvar_name| {
+            .withf_st(|&cvar_name| {
                 !cvar_name.is_null()
                     && unsafe { CStr::from_ptr(cvar_name) }.to_string_lossy() == "sv_tags"
             })
-            .returning(move |_| {
+            .returning_st(move |_| {
                 let mut returned = CVarBuilder::default()
                     .string(existing_tags.as_ptr().cast_mut())
                     .build()
