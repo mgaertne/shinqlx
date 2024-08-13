@@ -1554,11 +1554,9 @@ impl QuakeLiveEngine {
 
 #[cfg(test)]
 mod quake_live_engine_tests {
-    use super::{QuakeLiveEngine, StaticFunctions};
+    use super::QuakeLiveEngine;
 
-    use super::mock_quake_functions::{
-        Cvar_FindVar, Cvar_FindVar_context, Cvar_Set2, Cvar_Set2_context,
-    };
+    use super::mock_quake_functions::{Cvar_FindVar_context, Cvar_Set2_context};
     use super::quake_live_engine_test_helpers::{
         default_quake_engine, default_static_detours, default_static_functions,
     };
@@ -1603,12 +1601,7 @@ mod quake_live_engine_tests {
         cvar_set2_ctx.expect().times(0);
 
         let quake_engine = QuakeLiveEngine {
-            static_functions: StaticFunctions {
-                cvar_findvar_orig: Cvar_FindVar,
-                cvar_set2_orig: Cvar_Set2,
-                ..default_static_functions()
-            }
-            .into(),
+            static_functions: default_static_functions().into(),
             static_detours: default_static_detours().into(),
             ..default_quake_engine()
         };
@@ -1657,12 +1650,7 @@ mod quake_live_engine_tests {
             .times(1);
 
         let quake_engine = QuakeLiveEngine {
-            static_functions: StaticFunctions {
-                cvar_findvar_orig: Cvar_FindVar,
-                cvar_set2_orig: Cvar_Set2,
-                ..default_static_functions()
-            }
-            .into(),
+            static_functions: default_static_functions().into(),
             static_detours: default_static_detours().into(),
             ..default_quake_engine()
         };
@@ -1711,12 +1699,7 @@ mod quake_live_engine_tests {
             .times(1);
 
         let quake_engine = QuakeLiveEngine {
-            static_functions: StaticFunctions {
-                cvar_findvar_orig: Cvar_FindVar,
-                cvar_set2_orig: Cvar_Set2,
-                ..default_static_functions()
-            }
-            .into(),
+            static_functions: default_static_functions().into(),
             static_detours: default_static_detours().into(),
             ..default_quake_engine()
         };
@@ -2796,9 +2779,9 @@ impl CmdArgs for QuakeLiveEngine {
 
 #[cfg(test)]
 mod cmd_args_quake_live_engine_tests {
-    use super::{CmdArgs, QuakeLiveEngine, StaticFunctions};
+    use super::{CmdArgs, QuakeLiveEngine};
 
-    use super::mock_quake_functions::{Cmd_Args, Cmd_Args_context};
+    use super::mock_quake_functions::Cmd_Args_context;
     use super::quake_live_engine_test_helpers::*;
 
     use crate::prelude::serial;
@@ -2827,11 +2810,7 @@ mod cmd_args_quake_live_engine_tests {
             .times(1);
 
         let quake_engine = QuakeLiveEngine {
-            static_functions: StaticFunctions {
-                cmd_args_orig: Cmd_Args,
-                ..default_static_functions()
-            }
-            .into(),
+            static_functions: default_static_functions().into(),
             static_detours: default_static_detours().into(),
             ..default_quake_engine()
         };
@@ -2848,11 +2827,7 @@ mod cmd_args_quake_live_engine_tests {
         cmd_args_ctx.expect().returning(ptr::null).times(1);
 
         let quake_engine = QuakeLiveEngine {
-            static_functions: StaticFunctions {
-                cmd_args_orig: Cmd_Args,
-                ..default_static_functions()
-            }
-            .into(),
+            static_functions: default_static_functions().into(),
             static_detours: default_static_detours().into(),
             ..default_quake_engine()
         };
@@ -2875,9 +2850,9 @@ impl CmdArgc for QuakeLiveEngine {
 
 #[cfg(test)]
 mod cmd_argc_quake_live_engine_tests {
-    use super::{CmdArgc, QuakeLiveEngine, StaticFunctions};
+    use super::{CmdArgc, QuakeLiveEngine};
 
-    use super::mock_quake_functions::{Cmd_Argc, Cmd_Argc_context};
+    use super::mock_quake_functions::Cmd_Argc_context;
     use super::quake_live_engine_test_helpers::*;
 
     use crate::prelude::serial;
@@ -2899,11 +2874,7 @@ mod cmd_argc_quake_live_engine_tests {
         cmd_argc_ctx.expect().returning(|| 42).times(1);
 
         let quake_engine = QuakeLiveEngine {
-            static_functions: StaticFunctions {
-                cmd_argc_orig: Cmd_Argc,
-                ..default_static_functions()
-            }
-            .into(),
+            static_functions: default_static_functions().into(),
             static_detours: default_static_detours().into(),
             ..default_quake_engine()
         };
@@ -2932,9 +2903,9 @@ impl<T: Into<c_int> + PartialOrd<c_int>> CmdArgv<T> for QuakeLiveEngine {
 
 #[cfg(test)]
 mod cmd_argv_quake_live_engine_tests {
-    use super::{CmdArgv, QuakeLiveEngine, StaticFunctions};
+    use super::{CmdArgv, QuakeLiveEngine};
 
-    use super::mock_quake_functions::{Cmd_Argv, Cmd_Argv_context};
+    use super::mock_quake_functions::Cmd_Argv_context;
     use super::quake_live_engine_test_helpers::*;
 
     use crate::prelude::serial;
@@ -2965,11 +2936,7 @@ mod cmd_argv_quake_live_engine_tests {
             .times(1);
 
         let quake_engine = QuakeLiveEngine {
-            static_functions: StaticFunctions {
-                cmd_argv_orig: Cmd_Argv,
-                ..default_static_functions()
-            }
-            .into(),
+            static_functions: default_static_functions().into(),
             static_detours: default_static_detours().into(),
             ..default_quake_engine()
         };
@@ -2990,11 +2957,7 @@ mod cmd_argv_quake_live_engine_tests {
             .times(1);
 
         let quake_engine = QuakeLiveEngine {
-            static_functions: StaticFunctions {
-                cmd_argv_orig: Cmd_Argv,
-                ..default_static_functions()
-            }
-            .into(),
+            static_functions: default_static_functions().into(),
             static_detours: default_static_detours().into(),
             ..default_quake_engine()
         };
@@ -3011,11 +2974,7 @@ mod cmd_argv_quake_live_engine_tests {
         cmd_argv_ctx.expect().times(0);
 
         let quake_engine = QuakeLiveEngine {
-            static_functions: StaticFunctions {
-                cmd_argv_orig: Cmd_Argv,
-                ..default_static_functions()
-            }
-            .into(),
+            static_functions: default_static_functions().into(),
             static_detours: default_static_detours().into(),
             ..default_quake_engine()
         };
@@ -3109,9 +3068,9 @@ impl<T: AsRef<str>> ConsoleCommand<T> for QuakeLiveEngine {
 
 #[cfg(test)]
 mod console_command_quake_live_engine_tests {
-    use super::{ConsoleCommand, QuakeLiveEngine, StaticFunctions};
+    use super::{ConsoleCommand, QuakeLiveEngine};
 
-    use super::mock_quake_functions::{Cmd_ExecuteString, Cmd_ExecuteString_context};
+    use super::mock_quake_functions::Cmd_ExecuteString_context;
     use super::quake_live_engine_test_helpers::*;
 
     use crate::prelude::serial;
@@ -3138,11 +3097,7 @@ mod console_command_quake_live_engine_tests {
             .times(1);
 
         let quake_engine = QuakeLiveEngine {
-            static_functions: StaticFunctions {
-                cmd_executestring_orig: Cmd_ExecuteString,
-                ..default_static_functions()
-            }
-            .into(),
+            static_functions: default_static_functions().into(),
             static_detours: default_static_detours().into(),
             ..default_quake_engine()
         };
@@ -3176,9 +3131,9 @@ impl<T: AsRef<str>, U: AsRef<str>, V: Into<c_int>> GetCVar<T, U, V> for QuakeLiv
 
 #[cfg(test)]
 mod get_cvar_quake_live_engine_tests {
-    use super::{GetCVar, QuakeLiveEngine, StaticFunctions};
+    use super::{GetCVar, QuakeLiveEngine};
 
-    use super::mock_quake_functions::{Cvar_Get, Cvar_Get_context};
+    use super::mock_quake_functions::Cvar_Get_context;
     use super::quake_live_engine_test_helpers::*;
 
     use crate::ffi::c::prelude::cvar_flags::CVAR_CHEAT;
@@ -3224,11 +3179,7 @@ mod get_cvar_quake_live_engine_tests {
             .times(1);
 
         let quake_engine = QuakeLiveEngine {
-            static_functions: StaticFunctions {
-                cvar_get_orig: Cvar_Get,
-                ..default_static_functions()
-            }
-            .into(),
+            static_functions: default_static_functions().into(),
             static_detours: default_static_detours().into(),
             ..default_quake_engine()
         };
@@ -3265,11 +3216,7 @@ mod get_cvar_quake_live_engine_tests {
             .times(1);
 
         let quake_engine = QuakeLiveEngine {
-            static_functions: StaticFunctions {
-                cvar_get_orig: Cvar_Get,
-                ..default_static_functions()
-            }
-            .into(),
+            static_functions: default_static_functions().into(),
             static_detours: default_static_detours().into(),
             ..default_quake_engine()
         };
@@ -3300,9 +3247,9 @@ impl<T: AsRef<str>, U: AsRef<str>, V: Into<qboolean>> SetCVarForced<T, U, V> for
 
 #[cfg(test)]
 mod set_cvar_forced_quake_live_engine_tests {
-    use super::{QuakeLiveEngine, SetCVarForced, StaticFunctions};
+    use super::{QuakeLiveEngine, SetCVarForced};
 
-    use super::mock_quake_functions::{Cvar_Set2, Cvar_Set2_context};
+    use super::mock_quake_functions::Cvar_Set2_context;
     use super::quake_live_engine_test_helpers::*;
 
     use crate::ffi::c::prelude::CVarBuilder;
@@ -3347,11 +3294,7 @@ mod set_cvar_forced_quake_live_engine_tests {
             .times(1);
 
         let quake_engine = QuakeLiveEngine {
-            static_functions: StaticFunctions {
-                cvar_set2_orig: Cvar_Set2,
-                ..default_static_functions()
-            }
-            .into(),
+            static_functions: default_static_functions().into(),
             static_detours: default_static_detours().into(),
             ..default_quake_engine()
         };
@@ -3401,9 +3344,9 @@ impl<T: AsRef<str>, U: AsRef<str>, V: AsRef<str>, W: AsRef<str>, X: Into<c_int>>
 
 #[cfg(test)]
 mod set_cvar_limit_quake_live_engine_tests {
-    use super::{QuakeLiveEngine, SetCVarLimit, StaticFunctions};
+    use super::{QuakeLiveEngine, SetCVarLimit};
 
-    use super::mock_quake_functions::{Cvar_GetLimit, Cvar_GetLimit_context};
+    use super::mock_quake_functions::Cvar_GetLimit_context;
     use super::quake_live_engine_test_helpers::*;
 
     use crate::ffi::c::prelude::cvar_flags::CVAR_CHEAT;
@@ -3455,11 +3398,7 @@ mod set_cvar_limit_quake_live_engine_tests {
             .times(1);
 
         let quake_engine = QuakeLiveEngine {
-            static_functions: StaticFunctions {
-                cvar_getlimit_orig: Cvar_GetLimit,
-                ..default_static_functions()
-            }
-            .into(),
+            static_functions: default_static_functions().into(),
             static_detours: default_static_detours().into(),
             ..default_quake_engine()
         };
@@ -3507,11 +3446,7 @@ mod set_cvar_limit_quake_live_engine_tests {
             .times(1);
 
         let quake_engine = QuakeLiveEngine {
-            static_functions: StaticFunctions {
-                cvar_getlimit_orig: Cvar_GetLimit,
-                ..default_static_functions()
-            }
-            .into(),
+            static_functions: default_static_functions().into(),
             static_detours: default_static_detours().into(),
             ..default_quake_engine()
         };
@@ -3545,9 +3480,9 @@ impl<T: Into<c_int>> GetConfigstring<T> for QuakeLiveEngine {
 
 #[cfg(test)]
 mod get_configstring_quake_live_engine_tests {
-    use super::{GetConfigstring, QuakeLiveEngine, StaticFunctions};
+    use super::{GetConfigstring, QuakeLiveEngine};
 
-    use super::mock_quake_functions::{SV_GetConfigstring, SV_GetConfigstring_context};
+    use super::mock_quake_functions::SV_GetConfigstring_context;
     use super::quake_live_engine_test_helpers::*;
 
     use crate::prelude::serial;
@@ -3578,11 +3513,7 @@ mod get_configstring_quake_live_engine_tests {
             .times(1);
 
         let quake_engine = QuakeLiveEngine {
-            static_functions: StaticFunctions {
-                sv_getconfigstring_orig: SV_GetConfigstring,
-                ..default_static_functions()
-            }
-            .into(),
+            static_functions: default_static_functions().into(),
             static_detours: default_static_detours().into(),
             ..default_quake_engine()
         };
