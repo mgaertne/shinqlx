@@ -29,9 +29,10 @@ mod get_cvar_tests {
     use crate::prelude::*;
 
     use alloc::ffi::CString;
-    use core::ffi::c_char;
+
     use mockall::predicate;
     use pretty_assertions::assert_eq;
+
     use pyo3::exceptions::PyEnvironmentError;
 
     #[test]
@@ -72,7 +73,7 @@ mod get_cvar_tests {
             .with(predicate::eq("sv_maxclients"))
             .returning(move |_| {
                 let mut raw_cvar = CVarBuilder::default()
-                    .string(cvar_string.as_ptr() as *mut c_char)
+                    .string(cvar_string.as_ptr().cast_mut())
                     .build()
                     .expect("this should not happen");
                 CVar::try_from(&mut raw_cvar as *mut cvar_t).ok()
