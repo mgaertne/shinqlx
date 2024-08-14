@@ -1050,7 +1050,6 @@ impl QuakeLiveEngine {
         Ok(())
     }
 
-    #[cfg_attr(test, allow(dead_code))]
     pub(crate) fn unhook_vm(&self, restart: bool) {
         if !restart {
             self.vm_functions.unhook();
