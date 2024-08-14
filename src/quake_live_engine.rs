@@ -1097,7 +1097,7 @@ impl QuakeLiveEngine {
         )
     }
 
-    #[allow(dead_code)]
+    #[cfg_attr(not(test), allow(dead_code))]
     fn cmd_tokenizestring_orig(
         &self,
     ) -> Result<extern "C" fn(*const c_char) -> *const c_char, QuakeLiveEngineError> {
@@ -1109,7 +1109,7 @@ impl QuakeLiveEngine {
         )
     }
 
-    #[allow(dead_code)]
+    #[cfg_attr(not(test), allow(dead_code))]
     fn cbuf_executetext_orig(
         &self,
     ) -> Result<extern "C" fn(cbufExec_t, *const c_char), QuakeLiveEngineError> {
@@ -1205,7 +1205,6 @@ impl QuakeLiveEngine {
         )
     }
 
-    #[cfg_attr(test, allow(dead_code))]
     pub(crate) fn sv_shutdown_orig(
         &self,
     ) -> Result<extern "C" fn(*const c_char), QuakeLiveEngineError> {
@@ -1217,7 +1216,7 @@ impl QuakeLiveEngine {
         )
     }
 
-    #[allow(dead_code)]
+    #[cfg_attr(not(test), allow(dead_code))]
     fn sv_map_f_orig(&self) -> Result<extern "C" fn(), QuakeLiveEngineError> {
         self.static_functions.get().map_or(
             Err(QuakeLiveEngineError::StaticFunctionNotFound(
@@ -1260,7 +1259,6 @@ impl QuakeLiveEngine {
         )
     }
 
-    #[cfg_attr(test, allow(dead_code))]
     fn sv_dropclient_orig(
         &self,
     ) -> Result<extern "C" fn(*mut client_t, *const c_char), QuakeLiveEngineError> {
@@ -1380,7 +1378,6 @@ impl QuakeLiveEngine {
         )
     }
 
-    #[cfg_attr(test, allow(dead_code))]
     #[allow(clippy::type_complexity)]
     pub(crate) fn sv_dropclient_detour(
         &self,
@@ -1508,7 +1505,7 @@ impl QuakeLiveEngine {
     pub(crate) fn launch_item_orig(
         &self,
     ) -> Result<
-        extern "C" fn(*mut gitem_t, &mut vec3_t, &mut vec3_t) -> *mut gentity_t,
+        extern "C" fn(*mut gitem_t, *mut vec3_t, *mut vec3_t) -> *mut gentity_t,
         QuakeLiveEngineError,
     > {
         match self.vm_functions.launch_item_orig.load(Ordering::SeqCst) {
@@ -1519,7 +1516,7 @@ impl QuakeLiveEngine {
                 let launch_item_func = unsafe {
                     mem::transmute::<
                         usize,
-                        extern "C" fn(*mut gitem_t, &mut vec3_t, &mut vec3_t) -> *mut gentity_t,
+                        extern "C" fn(*mut gitem_t, *mut vec3_t, *mut vec3_t) -> *mut gentity_t,
                     >(launch_item_orig)
                 };
                 Ok(launch_item_func)
@@ -1554,7 +1551,12 @@ mod quake_live_engine_tests {
     use super::QuakeLiveEngine;
 
     use super::mock_quake_functions::{
-        Cmd_AddCommand_context, Cvar_FindVar_context, Cvar_Set2_context,
+        Cbuf_ExecuteText, Cmd_AddCommand, Cmd_AddCommand_context, Cmd_Argc, Cmd_Args, Cmd_Argv,
+        Cmd_ExecuteString, Cmd_Tokenizestring, Com_Printf, Cvar_FindVar, Cvar_FindVar_context,
+        Cvar_Get, Cvar_GetLimit, Cvar_Set2, Cvar_Set2_context, G_AddEvent, G_FreeEntity,
+        G_InitGame, G_RunFrame, G_ShutdownGame, LaunchItem, SV_ClientEnterWorld, SV_DropClient,
+        SV_ExecuteClientCommand, SV_GetConfigstring, SV_Map_f, SV_SendServerCommand,
+        SV_SetConfigstring, SV_Shutdown, SV_SpawnServer, Sys_SetModuleOffset,
     };
     use super::quake_live_engine_test_helpers::{
         default_quake_engine, default_static_detours, default_static_functions,
@@ -1564,14 +1566,15 @@ mod quake_live_engine_tests {
         cmd_center_print, cmd_py_command, cmd_py_rcon, cmd_regular_print, cmd_restart_python,
         cmd_send_server_command, cmd_slap, cmd_slay,
     };
+    use crate::quake_live_functions::QuakeLiveFunction;
 
     use crate::ffi::c::prelude::{qboolean, CVarBuilder};
+    use crate::ffi::python::prelude::pyshinqlx_initialize_context;
+    use crate::ffi::python::PythonInitializationError;
 
     use crate::prelude::{serial, QuakeLiveEngineError};
     use pretty_assertions::assert_eq;
 
-    use crate::ffi::python::prelude::pyshinqlx_initialize_context;
-    use crate::ffi::python::PythonInitializationError;
     use alloc::ffi::CString;
     use core::ffi::CStr;
     use core::ptr;
@@ -1956,6 +1959,920 @@ mod quake_live_engine_tests {
             .expect("this should not happen");
 
         assert!(quake_engine.is_common_initialized());
+    }
+
+    #[test]
+    #[allow(clippy::fn_address_comparisons)]
+    #[cfg_attr(miri, ignore)]
+    fn unhook_vm_when_restarted() {
+        let quake_engine = default_quake_engine();
+        quake_engine
+            .vm_functions
+            .g_init_game_orig
+            .store(G_InitGame as usize, Ordering::SeqCst);
+
+        quake_engine.unhook_vm(true);
+        assert!(quake_engine
+            .g_init_game_orig()
+            .is_ok_and(|func| func == G_InitGame));
+    }
+
+    #[test]
+    fn unhook_vm_when_game_not_restarted() {
+        let quake_engine = default_quake_engine();
+        quake_engine
+            .vm_functions
+            .g_init_game_orig
+            .store(G_InitGame as usize, Ordering::SeqCst);
+
+        quake_engine.unhook_vm(false);
+        assert!(quake_engine
+            .g_init_game_orig()
+            .is_err_and(|err| err
+                == QuakeLiveEngineError::VmFunctionNotFound(QuakeLiveFunction::G_InitGame)));
+    }
+
+    #[test]
+    fn com_printf_orig_when_no_function_set() {
+        let quake_engine = default_quake_engine();
+
+        let result = quake_engine.com_printf_orig();
+        assert!(result.is_err_and(|err| err
+            == QuakeLiveEngineError::StaticFunctionNotFound(QuakeLiveFunction::Com_Printf,)));
+    }
+
+    #[test]
+    #[allow(clippy::fn_address_comparisons)]
+    #[cfg_attr(miri, ignore)]
+    fn com_printf_orig_when_orig_function_set() {
+        let quake_engine = QuakeLiveEngine {
+            static_functions: default_static_functions().into(),
+            static_detours: default_static_detours().into(),
+            ..default_quake_engine()
+        };
+
+        let result = quake_engine.com_printf_orig();
+        assert!(result.is_ok_and(|func| func == Com_Printf));
+    }
+
+    #[test]
+    fn cmd_addcommand_orig_when_no_function_set() {
+        let quake_engine = default_quake_engine();
+
+        let result = quake_engine.cmd_addcommand_orig();
+        assert!(result.is_err_and(|err| err
+            == QuakeLiveEngineError::StaticFunctionNotFound(QuakeLiveFunction::Cmd_AddCommand,)));
+    }
+
+    #[test]
+    #[allow(clippy::fn_address_comparisons)]
+    #[cfg_attr(miri, ignore)]
+    fn cmd_addcommand_orig_when_orig_function_set() {
+        let quake_engine = QuakeLiveEngine {
+            static_functions: default_static_functions().into(),
+            static_detours: default_static_detours().into(),
+            ..default_quake_engine()
+        };
+
+        let result = quake_engine.cmd_addcommand_orig();
+        assert!(result.is_ok_and(|func| func == Cmd_AddCommand));
+    }
+
+    #[test]
+    fn cmd_args_orig_when_no_function_set() {
+        let quake_engine = default_quake_engine();
+
+        let result = quake_engine.cmd_args_orig();
+        assert!(result
+            .is_err_and(|err| err
+                == QuakeLiveEngineError::StaticFunctionNotFound(QuakeLiveFunction::Cmd_Args,)));
+    }
+
+    #[test]
+    #[allow(clippy::fn_address_comparisons)]
+    #[cfg_attr(miri, ignore)]
+    fn cmd_args_orig_when_orig_function_set() {
+        let quake_engine = QuakeLiveEngine {
+            static_functions: default_static_functions().into(),
+            static_detours: default_static_detours().into(),
+            ..default_quake_engine()
+        };
+
+        let result = quake_engine.cmd_args_orig();
+        assert!(result.is_ok_and(|func| func == Cmd_Args));
+    }
+
+    #[test]
+    fn cmd_argv_orig_when_no_function_set() {
+        let quake_engine = default_quake_engine();
+
+        let result = quake_engine.cmd_argv_orig();
+        assert!(result
+            .is_err_and(|err| err
+                == QuakeLiveEngineError::StaticFunctionNotFound(QuakeLiveFunction::Cmd_Argv,)));
+    }
+
+    #[test]
+    #[allow(clippy::fn_address_comparisons)]
+    #[cfg_attr(miri, ignore)]
+    fn cmd_argv_orig_when_orig_function_set() {
+        let quake_engine = QuakeLiveEngine {
+            static_functions: default_static_functions().into(),
+            static_detours: default_static_detours().into(),
+            ..default_quake_engine()
+        };
+
+        let result = quake_engine.cmd_argv_orig();
+        assert!(result.is_ok_and(|func| func == Cmd_Argv));
+    }
+
+    #[test]
+    fn cmd_tokenizestring_orig_when_no_function_set() {
+        let quake_engine = default_quake_engine();
+
+        let result = quake_engine.cmd_tokenizestring_orig();
+        assert!(result.is_err_and(|err| err
+            == QuakeLiveEngineError::StaticFunctionNotFound(
+                QuakeLiveFunction::Cmd_Tokenizestring,
+            )));
+    }
+
+    #[test]
+    #[allow(clippy::fn_address_comparisons)]
+    #[cfg_attr(miri, ignore)]
+    fn cmd_tokenizestring_orig_when_orig_function_set() {
+        let quake_engine = QuakeLiveEngine {
+            static_functions: default_static_functions().into(),
+            static_detours: default_static_detours().into(),
+            ..default_quake_engine()
+        };
+
+        let result = quake_engine.cmd_tokenizestring_orig();
+        assert!(result.is_ok_and(|func| func == Cmd_Tokenizestring));
+    }
+
+    #[test]
+    fn cbuf_exectutetext_orig_when_no_function_set() {
+        let quake_engine = default_quake_engine();
+
+        let result = quake_engine.cbuf_executetext_orig();
+        assert!(result.is_err_and(|err| err
+            == QuakeLiveEngineError::StaticFunctionNotFound(QuakeLiveFunction::Cbuf_ExecuteText,)));
+    }
+
+    #[test]
+    #[allow(clippy::fn_address_comparisons)]
+    #[cfg_attr(miri, ignore)]
+    fn cbuf_executetext_orig_when_orig_function_set() {
+        let quake_engine = QuakeLiveEngine {
+            static_functions: default_static_functions().into(),
+            static_detours: default_static_detours().into(),
+            ..default_quake_engine()
+        };
+
+        let result = quake_engine.cbuf_executetext_orig();
+        assert!(result.is_ok_and(|func| func == Cbuf_ExecuteText));
+    }
+
+    #[test]
+    fn cvar_findvar_orig_when_no_function_set() {
+        let quake_engine = default_quake_engine();
+
+        let result = quake_engine.cvar_findvar_orig();
+        assert!(result.is_err_and(|err| err
+            == QuakeLiveEngineError::StaticFunctionNotFound(QuakeLiveFunction::Cvar_FindVar,)));
+    }
+
+    #[test]
+    #[allow(clippy::fn_address_comparisons)]
+    #[cfg_attr(miri, ignore)]
+    fn cvar_findvar_orig_when_orig_function_set() {
+        let quake_engine = QuakeLiveEngine {
+            static_functions: default_static_functions().into(),
+            static_detours: default_static_detours().into(),
+            ..default_quake_engine()
+        };
+
+        let result = quake_engine.cvar_findvar_orig();
+        assert!(result.is_ok_and(|func| func == Cvar_FindVar));
+    }
+
+    #[test]
+    fn cvar_get_orig_when_no_function_set() {
+        let quake_engine = default_quake_engine();
+
+        let result = quake_engine.cvar_get_orig();
+        assert!(result
+            .is_err_and(|err| err
+                == QuakeLiveEngineError::StaticFunctionNotFound(QuakeLiveFunction::Cvar_Get,)));
+    }
+
+    #[test]
+    #[allow(clippy::fn_address_comparisons)]
+    #[cfg_attr(miri, ignore)]
+    fn cvar_get_orig_when_orig_function_set() {
+        let quake_engine = QuakeLiveEngine {
+            static_functions: default_static_functions().into(),
+            static_detours: default_static_detours().into(),
+            ..default_quake_engine()
+        };
+
+        let result = quake_engine.cvar_get_orig();
+        assert!(result.is_ok_and(|func| func == Cvar_Get));
+    }
+
+    #[test]
+    fn cvar_getlimit_orig_when_no_function_set() {
+        let quake_engine = default_quake_engine();
+
+        let result = quake_engine.cvar_getlimit_orig();
+        assert!(result.is_err_and(|err| err
+            == QuakeLiveEngineError::StaticFunctionNotFound(QuakeLiveFunction::Cvar_GetLimit,)));
+    }
+
+    #[test]
+    #[allow(clippy::fn_address_comparisons)]
+    #[cfg_attr(miri, ignore)]
+    fn cvar_getlimit_orig_when_orig_function_set() {
+        let quake_engine = QuakeLiveEngine {
+            static_functions: default_static_functions().into(),
+            static_detours: default_static_detours().into(),
+            ..default_quake_engine()
+        };
+
+        let result = quake_engine.cvar_getlimit_orig();
+        assert!(result.is_ok_and(|func| func == Cvar_GetLimit));
+    }
+
+    #[test]
+    fn cvar_set2_orig_when_no_function_set() {
+        let quake_engine = default_quake_engine();
+
+        let result = quake_engine.cvar_set2_orig();
+        assert!(result.is_err_and(|err| err
+            == QuakeLiveEngineError::StaticFunctionNotFound(QuakeLiveFunction::Cvar_Set2,)));
+    }
+
+    #[test]
+    #[allow(clippy::fn_address_comparisons)]
+    #[cfg_attr(miri, ignore)]
+    fn cvar_set2_orig_when_orig_function_set() {
+        let quake_engine = QuakeLiveEngine {
+            static_functions: default_static_functions().into(),
+            static_detours: default_static_detours().into(),
+            ..default_quake_engine()
+        };
+
+        let result = quake_engine.cvar_set2_orig();
+        assert!(result.is_ok_and(|func| func == Cvar_Set2));
+    }
+
+    #[test]
+    fn sv_sendservercommand_orig_when_no_function_set() {
+        let quake_engine = default_quake_engine();
+
+        let result = quake_engine.sv_sendservercommand_orig();
+        assert!(result.is_err_and(|err| err
+            == QuakeLiveEngineError::StaticFunctionNotFound(
+                QuakeLiveFunction::SV_SendServerCommand,
+            )));
+    }
+
+    #[test]
+    #[allow(clippy::fn_address_comparisons)]
+    #[cfg_attr(miri, ignore)]
+    fn sv_sendservercommand_orig_when_orig_function_set() {
+        let quake_engine = QuakeLiveEngine {
+            static_functions: default_static_functions().into(),
+            static_detours: default_static_detours().into(),
+            ..default_quake_engine()
+        };
+
+        let result = quake_engine.sv_sendservercommand_orig();
+        assert!(result.is_ok_and(|func| func == SV_SendServerCommand));
+    }
+
+    #[test]
+    fn sv_executeclientcommand_orig_when_no_function_set() {
+        let quake_engine = default_quake_engine();
+
+        let result = quake_engine.sv_executeclientcommand_orig();
+        assert!(result.is_err_and(|err| err
+            == QuakeLiveEngineError::StaticFunctionNotFound(
+                QuakeLiveFunction::SV_ExecuteClientCommand,
+            )));
+    }
+
+    #[test]
+    #[allow(clippy::fn_address_comparisons)]
+    #[cfg_attr(miri, ignore)]
+    fn sv_executeclientcommand_orig_when_orig_function_set() {
+        let quake_engine = QuakeLiveEngine {
+            static_functions: default_static_functions().into(),
+            static_detours: default_static_detours().into(),
+            ..default_quake_engine()
+        };
+
+        let result = quake_engine.sv_executeclientcommand_orig();
+        assert!(result.is_ok_and(|func| func == SV_ExecuteClientCommand));
+    }
+
+    #[test]
+    fn sv_shutdown_orig_when_no_function_set() {
+        let quake_engine = default_quake_engine();
+
+        let result = quake_engine.sv_shutdown_orig();
+        assert!(result.is_err_and(|err| err
+            == QuakeLiveEngineError::StaticFunctionNotFound(QuakeLiveFunction::SV_Shutdown,)));
+    }
+
+    #[test]
+    #[allow(clippy::fn_address_comparisons)]
+    #[cfg_attr(miri, ignore)]
+    fn sv_shutdown_orig_when_orig_function_set() {
+        let quake_engine = QuakeLiveEngine {
+            static_functions: default_static_functions().into(),
+            static_detours: default_static_detours().into(),
+            ..default_quake_engine()
+        };
+
+        let result = quake_engine.sv_shutdown_orig();
+        assert!(result.is_ok_and(|func| func == SV_Shutdown));
+    }
+
+    #[test]
+    fn sv_map_f_orig_when_no_function_set() {
+        let quake_engine = default_quake_engine();
+
+        let result = quake_engine.sv_map_f_orig();
+        assert!(result
+            .is_err_and(|err| err
+                == QuakeLiveEngineError::StaticFunctionNotFound(QuakeLiveFunction::SV_Map_f,)));
+    }
+
+    #[test]
+    #[allow(clippy::fn_address_comparisons)]
+    #[cfg_attr(miri, ignore)]
+    fn sv_map_f_orig_when_orig_function_set() {
+        let quake_engine = QuakeLiveEngine {
+            static_functions: default_static_functions().into(),
+            static_detours: default_static_detours().into(),
+            ..default_quake_engine()
+        };
+
+        let result = quake_engine.sv_map_f_orig();
+        assert!(result.is_ok_and(|func| func == SV_Map_f));
+    }
+
+    #[test]
+    fn sv_cliententerworld_orig_when_no_function_set() {
+        let quake_engine = default_quake_engine();
+
+        let result = quake_engine.sv_cliententerworld_orig();
+        assert!(result.is_err_and(|err| err
+            == QuakeLiveEngineError::StaticFunctionNotFound(
+                QuakeLiveFunction::SV_ClientEnterWorld,
+            )));
+    }
+
+    #[test]
+    #[allow(clippy::fn_address_comparisons)]
+    #[cfg_attr(miri, ignore)]
+    fn sv_cliententerworld_orig_when_orig_function_set() {
+        let quake_engine = QuakeLiveEngine {
+            static_functions: default_static_functions().into(),
+            static_detours: default_static_detours().into(),
+            ..default_quake_engine()
+        };
+
+        let result = quake_engine.sv_cliententerworld_orig();
+        assert!(result.is_ok_and(|func| func == SV_ClientEnterWorld));
+    }
+
+    #[test]
+    fn sv_setconfigstring_orig_when_no_function_set() {
+        let quake_engine = default_quake_engine();
+
+        let result = quake_engine.sv_setconfigstring_orig();
+        assert!(result.is_err_and(|err| err
+            == QuakeLiveEngineError::StaticFunctionNotFound(
+                QuakeLiveFunction::SV_SetConfigstring,
+            )));
+    }
+
+    #[test]
+    #[allow(clippy::fn_address_comparisons)]
+    #[cfg_attr(miri, ignore)]
+    fn sv_setconfigstring_orig_when_orig_function_set() {
+        let quake_engine = QuakeLiveEngine {
+            static_functions: default_static_functions().into(),
+            static_detours: default_static_detours().into(),
+            ..default_quake_engine()
+        };
+
+        let result = quake_engine.sv_setconfigstring_orig();
+        assert!(result.is_ok_and(|func| func == SV_SetConfigstring));
+    }
+
+    #[test]
+    fn sv_getconfigstring_orig_when_no_function_set() {
+        let quake_engine = default_quake_engine();
+
+        let result = quake_engine.sv_getconfigstring_orig();
+        assert!(result.is_err_and(|err| err
+            == QuakeLiveEngineError::StaticFunctionNotFound(
+                QuakeLiveFunction::SV_GetConfigstring,
+            )));
+    }
+
+    #[test]
+    #[allow(clippy::fn_address_comparisons)]
+    #[cfg_attr(miri, ignore)]
+    fn sv_getconfigstring_orig_when_orig_function_set() {
+        let quake_engine = QuakeLiveEngine {
+            static_functions: default_static_functions().into(),
+            static_detours: default_static_detours().into(),
+            ..default_quake_engine()
+        };
+
+        let result = quake_engine.sv_getconfigstring_orig();
+        assert!(result.is_ok_and(|func| func == SV_GetConfigstring));
+    }
+
+    #[test]
+    fn sv_dropclient_orig_when_no_function_set() {
+        let quake_engine = default_quake_engine();
+
+        let result = quake_engine.sv_dropclient_orig();
+        assert!(result.is_err_and(|err| err
+            == QuakeLiveEngineError::StaticFunctionNotFound(QuakeLiveFunction::SV_DropClient,)));
+    }
+
+    #[test]
+    #[allow(clippy::fn_address_comparisons)]
+    #[cfg_attr(miri, ignore)]
+    fn sv_dropclient_orig_when_orig_function_set() {
+        let quake_engine = QuakeLiveEngine {
+            static_functions: default_static_functions().into(),
+            static_detours: default_static_detours().into(),
+            ..default_quake_engine()
+        };
+
+        let result = quake_engine.sv_dropclient_orig();
+        assert!(result.is_ok_and(|func| func == SV_DropClient));
+    }
+
+    #[test]
+    fn sys_setmoduleoffset_orig_when_no_function_set() {
+        let quake_engine = default_quake_engine();
+
+        let result = quake_engine.sys_setmoduleoffset_orig();
+        assert!(result.is_err_and(|err| err
+            == QuakeLiveEngineError::StaticFunctionNotFound(
+                QuakeLiveFunction::Sys_SetModuleOffset,
+            )));
+    }
+
+    #[test]
+    #[allow(clippy::fn_address_comparisons)]
+    #[cfg_attr(miri, ignore)]
+    fn sys_moduleoffset_orig_when_orig_function_set() {
+        let quake_engine = QuakeLiveEngine {
+            static_functions: default_static_functions().into(),
+            static_detours: default_static_detours().into(),
+            ..default_quake_engine()
+        };
+
+        let result = quake_engine.sys_setmoduleoffset_orig();
+        assert!(result.is_ok_and(|func| func == Sys_SetModuleOffset));
+    }
+
+    #[test]
+    fn sv_spawnserver_orig_when_no_function_set() {
+        let quake_engine = default_quake_engine();
+
+        let result = quake_engine.sv_spawnserver_orig();
+        assert!(result.is_err_and(|err| err
+            == QuakeLiveEngineError::StaticFunctionNotFound(QuakeLiveFunction::SV_SpawnServer,)));
+    }
+
+    #[test]
+    #[allow(clippy::fn_address_comparisons)]
+    #[cfg_attr(miri, ignore)]
+    fn sv_spawnserver_orig_when_orig_function_set() {
+        let quake_engine = QuakeLiveEngine {
+            static_functions: default_static_functions().into(),
+            static_detours: default_static_detours().into(),
+            ..default_quake_engine()
+        };
+
+        let result = quake_engine.sv_spawnserver_orig();
+        assert!(result.is_ok_and(|func| func == SV_SpawnServer));
+    }
+
+    #[test]
+    fn cmd_executestring_orig_when_no_function_set() {
+        let quake_engine = default_quake_engine();
+
+        let result = quake_engine.cmd_executestring_orig();
+        assert!(
+            result.is_err_and(|err| err
+                == QuakeLiveEngineError::StaticFunctionNotFound(
+                    QuakeLiveFunction::Cmd_ExecuteString,
+                ))
+        );
+    }
+
+    #[test]
+    #[allow(clippy::fn_address_comparisons)]
+    #[cfg_attr(miri, ignore)]
+    fn cmd_executestring_orig_when_orig_function_set() {
+        let quake_engine = QuakeLiveEngine {
+            static_functions: default_static_functions().into(),
+            static_detours: default_static_detours().into(),
+            ..default_quake_engine()
+        };
+
+        let result = quake_engine.cmd_executestring_orig();
+        assert!(result.is_ok_and(|func| func == Cmd_ExecuteString));
+    }
+
+    #[test]
+    fn cmd_argc_orig_when_no_function_set() {
+        let quake_engine = default_quake_engine();
+
+        let result = quake_engine.cmd_argc_orig();
+        assert!(result
+            .is_err_and(|err| err
+                == QuakeLiveEngineError::StaticFunctionNotFound(QuakeLiveFunction::Cmd_Argc,)));
+    }
+
+    #[test]
+    #[allow(clippy::fn_address_comparisons)]
+    #[cfg_attr(miri, ignore)]
+    fn cmd_argc_orig_when_orig_function_set() {
+        let quake_engine = QuakeLiveEngine {
+            static_functions: default_static_functions().into(),
+            static_detours: default_static_detours().into(),
+            ..default_quake_engine()
+        };
+
+        let result = quake_engine.cmd_argc_orig();
+        assert!(result.is_ok_and(|func| func == Cmd_Argc));
+    }
+
+    #[test]
+    fn cmd_addcommand_detour_when_no_detour_set() {
+        let quake_engine = default_quake_engine();
+
+        let result = quake_engine.cmd_addcommand_detour();
+        assert!(result.is_err_and(|err| err
+            == QuakeLiveEngineError::StaticDetourNotFound(QuakeLiveFunction::Cmd_AddCommand,)));
+    }
+
+    #[test]
+    #[cfg_attr(miri, ignore)]
+    fn cmd_addcommand_detour_when_detour_set() {
+        let quake_engine = QuakeLiveEngine {
+            static_functions: default_static_functions().into(),
+            static_detours: default_static_detours().into(),
+            ..default_quake_engine()
+        };
+
+        let result = quake_engine.cmd_addcommand_detour();
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn sys_setmoduleoffset_detour_when_no_detour_set() {
+        let quake_engine = default_quake_engine();
+
+        let result = quake_engine.sys_setmoduleoffset_detour();
+        assert!(
+            result.is_err_and(|err| err
+                == QuakeLiveEngineError::StaticDetourNotFound(
+                    QuakeLiveFunction::Sys_SetModuleOffset,
+                ))
+        );
+    }
+
+    #[test]
+    #[cfg_attr(miri, ignore)]
+    fn sys_setmoduleoffset_detour_when_detour_set() {
+        let quake_engine = QuakeLiveEngine {
+            static_functions: default_static_functions().into(),
+            static_detours: default_static_detours().into(),
+            ..default_quake_engine()
+        };
+
+        let result = quake_engine.sys_setmoduleoffset_detour();
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn sv_executeclientcommand_detour_when_no_detour_set() {
+        let quake_engine = default_quake_engine();
+
+        let result = quake_engine.sv_executeclientcommand_detour();
+        assert!(result.is_err_and(|err| err
+            == QuakeLiveEngineError::StaticDetourNotFound(
+                QuakeLiveFunction::SV_ExecuteClientCommand,
+            )));
+    }
+
+    #[test]
+    #[cfg_attr(miri, ignore)]
+    fn sv_executeclientcommand_detour_when_detour_set() {
+        let quake_engine = QuakeLiveEngine {
+            static_functions: default_static_functions().into(),
+            static_detours: default_static_detours().into(),
+            ..default_quake_engine()
+        };
+
+        let result = quake_engine.sv_executeclientcommand_detour();
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn sv_cliententerworld_detour_when_no_detour_set() {
+        let quake_engine = default_quake_engine();
+
+        let result = quake_engine.sv_cliententerworld_detour();
+        assert!(
+            result.is_err_and(|err| err
+                == QuakeLiveEngineError::StaticDetourNotFound(
+                    QuakeLiveFunction::SV_ClientEnterWorld,
+                ))
+        );
+    }
+
+    #[test]
+    #[cfg_attr(miri, ignore)]
+    fn sv_cliententerworld_detour_when_detour_set() {
+        let quake_engine = QuakeLiveEngine {
+            static_functions: default_static_functions().into(),
+            static_detours: default_static_detours().into(),
+            ..default_quake_engine()
+        };
+
+        let result = quake_engine.sv_cliententerworld_detour();
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn sv_setconfigstring_detour_when_no_detour_set() {
+        let quake_engine = default_quake_engine();
+
+        let result = quake_engine.sv_setconfgistring_detour();
+        assert!(result.is_err_and(|err| err
+            == QuakeLiveEngineError::StaticDetourNotFound(QuakeLiveFunction::SV_SetConfigstring,)));
+    }
+
+    #[test]
+    #[cfg_attr(miri, ignore)]
+    fn sv_setconfigstring_detour_when_detour_set() {
+        let quake_engine = QuakeLiveEngine {
+            static_functions: default_static_functions().into(),
+            static_detours: default_static_detours().into(),
+            ..default_quake_engine()
+        };
+
+        let result = quake_engine.sv_setconfgistring_detour();
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn sv_dropclient_detour_when_no_detour_set() {
+        let quake_engine = default_quake_engine();
+
+        let result = quake_engine.sv_dropclient_detour();
+        assert!(result.is_err_and(|err| err
+            == QuakeLiveEngineError::StaticDetourNotFound(QuakeLiveFunction::SV_DropClient,)));
+    }
+
+    #[test]
+    #[cfg_attr(miri, ignore)]
+    fn sv_dropclient_detour_when_detour_set() {
+        let quake_engine = QuakeLiveEngine {
+            static_functions: default_static_functions().into(),
+            static_detours: default_static_detours().into(),
+            ..default_quake_engine()
+        };
+
+        let result = quake_engine.sv_dropclient_detour();
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn sv_spawnserver_detour_when_no_detour_set() {
+        let quake_engine = default_quake_engine();
+
+        let result = quake_engine.sv_spawnserver_detour();
+        assert!(result.is_err_and(|err| err
+            == QuakeLiveEngineError::StaticDetourNotFound(QuakeLiveFunction::SV_SpawnServer,)));
+    }
+
+    #[test]
+    #[cfg_attr(miri, ignore)]
+    fn sv_spawnserver_detour_when_detour_set() {
+        let quake_engine = QuakeLiveEngine {
+            static_functions: default_static_functions().into(),
+            static_detours: default_static_detours().into(),
+            ..default_quake_engine()
+        };
+
+        let result = quake_engine.sv_spawnserver_detour();
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn sv_sendservercommand_detour_when_no_detour_set() {
+        let quake_engine = default_quake_engine();
+
+        let result = quake_engine.sv_sendservercommand_detour();
+        assert!(result.is_err_and(|err| err
+            == QuakeLiveEngineError::StaticDetourNotFound(
+                QuakeLiveFunction::SV_SendServerCommand,
+            )));
+    }
+
+    #[test]
+    #[cfg_attr(miri, ignore)]
+    fn sv_sendservercommand_detour_when_detour_set() {
+        let quake_engine = QuakeLiveEngine {
+            static_functions: default_static_functions().into(),
+            static_detours: default_static_detours().into(),
+            ..default_quake_engine()
+        };
+
+        let result = quake_engine.sv_sendservercommand_detour();
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn com_printf_detour_when_no_detour_set() {
+        let quake_engine = default_quake_engine();
+
+        let result = quake_engine.com_printf_detour();
+        assert!(result
+            .is_err_and(|err| err
+                == QuakeLiveEngineError::StaticDetourNotFound(QuakeLiveFunction::Com_Printf,)));
+    }
+
+    #[test]
+    #[cfg_attr(miri, ignore)]
+    fn com_printf_detour_when_detour_set() {
+        let quake_engine = QuakeLiveEngine {
+            static_functions: default_static_functions().into(),
+            static_detours: default_static_detours().into(),
+            ..default_quake_engine()
+        };
+
+        let result = quake_engine.com_printf_detour();
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn g_init_game_orig_when_no_function_pointer_set() {
+        let quake_engine = default_quake_engine();
+
+        let result = quake_engine.g_init_game_orig();
+        assert!(result
+            .is_err_and(|err| err
+                == QuakeLiveEngineError::VmFunctionNotFound(QuakeLiveFunction::G_InitGame,)));
+    }
+
+    #[test]
+    #[allow(clippy::fn_address_comparisons)]
+    #[cfg_attr(miri, ignore)]
+    fn g_init_game_orig_when_function_pointer_set() {
+        let quake_engine = default_quake_engine();
+        quake_engine
+            .vm_functions
+            .g_init_game_orig
+            .store(G_InitGame as usize, Ordering::SeqCst);
+
+        let result = quake_engine.g_init_game_orig();
+        assert!(result.is_ok_and(|func| func == G_InitGame));
+    }
+
+    #[test]
+    fn g_shutdown_game_orig_when_no_function_pointer_set() {
+        let quake_engine = default_quake_engine();
+
+        let result = quake_engine.g_shutdown_game_orig();
+        assert!(result.is_err_and(|err| err
+            == QuakeLiveEngineError::VmFunctionNotFound(QuakeLiveFunction::G_ShutdownGame,)));
+    }
+
+    #[test]
+    #[allow(clippy::fn_address_comparisons)]
+    #[cfg_attr(miri, ignore)]
+    fn g_shutdown_game_orig_when_function_pointer_set() {
+        let quake_engine = default_quake_engine();
+        quake_engine
+            .vm_functions
+            .g_shutdown_game_orig
+            .store(G_ShutdownGame as usize, Ordering::SeqCst);
+
+        let result = quake_engine.g_shutdown_game_orig();
+        assert!(result.is_ok_and(|func| func == G_ShutdownGame));
+    }
+
+    #[test]
+    fn g_run_frame_orig_when_no_function_pointer_set() {
+        let quake_engine = default_quake_engine();
+
+        let result = quake_engine.g_run_frame_orig();
+        assert!(result
+            .is_err_and(|err| err
+                == QuakeLiveEngineError::VmFunctionNotFound(QuakeLiveFunction::G_RunFrame,)));
+    }
+
+    #[test]
+    #[allow(clippy::fn_address_comparisons)]
+    #[cfg_attr(miri, ignore)]
+    fn g_run_frame_orig_when_function_pointer_set() {
+        let quake_engine = default_quake_engine();
+        quake_engine
+            .vm_functions
+            .g_run_frame_orig
+            .store(G_RunFrame as usize, Ordering::SeqCst);
+
+        let result = quake_engine.g_run_frame_orig();
+        assert!(result.is_ok_and(|func| func == G_RunFrame));
+    }
+
+    #[test]
+    fn g_addevent_orig_when_no_function_pointer_set() {
+        let quake_engine = default_quake_engine();
+
+        let result = quake_engine.g_addevent_orig();
+        assert!(result
+            .is_err_and(|err| err
+                == QuakeLiveEngineError::VmFunctionNotFound(QuakeLiveFunction::G_AddEvent,)));
+    }
+
+    #[test]
+    #[allow(clippy::fn_address_comparisons)]
+    #[cfg_attr(miri, ignore)]
+    fn g_addevent_orig_when_function_pointer_set() {
+        let quake_engine = default_quake_engine();
+        quake_engine
+            .vm_functions
+            .g_addevent_orig
+            .store(G_AddEvent as usize, Ordering::SeqCst);
+
+        let result = quake_engine.g_addevent_orig();
+        assert!(result.is_ok_and(|func| func == G_AddEvent));
+    }
+
+    #[test]
+    fn g_free_entity_orig_when_no_function_pointer_set() {
+        let quake_engine = default_quake_engine();
+
+        let result = quake_engine.g_free_entity_orig();
+        assert!(result
+            .is_err_and(|err| err
+                == QuakeLiveEngineError::VmFunctionNotFound(QuakeLiveFunction::G_FreeEntity,)));
+    }
+
+    #[test]
+    #[allow(clippy::fn_address_comparisons)]
+    #[cfg_attr(miri, ignore)]
+    fn g_free_entity_orig_when_function_pointer_set() {
+        let quake_engine = default_quake_engine();
+        quake_engine
+            .vm_functions
+            .g_free_entity_orig
+            .store(G_FreeEntity as usize, Ordering::SeqCst);
+
+        let result = quake_engine.g_free_entity_orig();
+        assert!(result.is_ok_and(|func| func == G_FreeEntity));
+    }
+
+    #[test]
+    fn launch_item_orig_when_no_function_pointer_set() {
+        let quake_engine = default_quake_engine();
+
+        let result = quake_engine.launch_item_orig();
+        assert!(result
+            .is_err_and(|err| err
+                == QuakeLiveEngineError::VmFunctionNotFound(QuakeLiveFunction::LaunchItem,)));
+    }
+
+    #[test]
+    #[allow(clippy::fn_address_comparisons)]
+    #[cfg_attr(miri, ignore)]
+    fn launch_item_orig_when_function_pointer_set() {
+        let quake_engine = default_quake_engine();
+        quake_engine
+            .vm_functions
+            .launch_item_orig
+            .store(LaunchItem as usize, Ordering::SeqCst);
+
+        let result = quake_engine.launch_item_orig();
+        assert!(result.is_ok_and(|func| func == LaunchItem));
     }
 }
 
