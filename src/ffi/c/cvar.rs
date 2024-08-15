@@ -25,7 +25,7 @@ impl CVar {
         if self.cvar.string.is_null() {
             return "".into();
         }
-        unsafe { CStr::from_ptr(self.cvar.string).to_string_lossy() }
+        unsafe { CStr::from_ptr(self.cvar.string) }.to_string_lossy()
     }
 
     pub(crate) fn get_integer(&self) -> i32 {
@@ -39,7 +39,7 @@ mod cvar_tests {
     use crate::prelude::*;
 
     use alloc::ffi::CString;
-    use core::ffi::c_char;
+
     use pretty_assertions::assert_eq;
 
     #[test]
@@ -64,7 +64,7 @@ mod cvar_tests {
     fn cvar_try_get_string() {
         let cvar_string = CString::new("some cvar value").expect("this should not happen");
         let mut cvar = CVarBuilder::default()
-            .string(cvar_string.as_ptr() as *mut c_char)
+            .string(cvar_string.as_ptr().cast_mut())
             .build()
             .expect("this should not happen");
         let cvar_rust = CVar::try_from(&mut cvar as *mut cvar_t).expect("this should not happen");
