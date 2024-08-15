@@ -25,15 +25,16 @@ impl TryFrom<*mut serverStatic_t> for ServerStatic {
 
 impl ServerStatic {
     pub(crate) fn try_get() -> Result<Self, QuakeLiveEngineError> {
-        let Some(ref main_engine) = *MAIN_ENGINE.load() else {
-            return Err(QuakeLiveEngineError::MainEngineNotInitialized);
-        };
+        MAIN_ENGINE.load().as_ref().map_or(
+            Err(QuakeLiveEngineError::MainEngineNotInitialized),
+            |main_engine| {
+                let func_pointer = main_engine.sv_shutdown_orig()?;
 
-        let func_pointer = main_engine.sv_shutdown_orig()?;
-
-        let svs_ptr_ptr = func_pointer as usize + 0xAC;
-        let svs_ptr: u32 = unsafe { ptr::read(svs_ptr_ptr as *const u32) };
-        Self::try_from(svs_ptr as *mut serverStatic_t)
+                let svs_ptr_ptr = func_pointer as usize + 0xAC;
+                let svs_ptr: u32 = unsafe { ptr::read(svs_ptr_ptr as *const u32) };
+                Self::try_from(svs_ptr as *mut serverStatic_t)
+            },
+        )
     }
 
     #[cfg_attr(test, allow(dead_code))]

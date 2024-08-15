@@ -10,15 +10,16 @@ use pyo3::exceptions::PyEnvironmentError;
 #[pyo3(name = "add_console_command")]
 pub(crate) fn pyshinqlx_add_console_command(py: Python<'_>, command: &str) -> PyResult<()> {
     py.allow_threads(|| {
-        let Some(ref main_engine) = *MAIN_ENGINE.load() else {
-            return Err(PyEnvironmentError::new_err(
+        MAIN_ENGINE.load().as_ref().map_or(
+            Err(PyEnvironmentError::new_err(
                 "main quake live engine not set",
-            ));
-        };
+            )),
+            |main_engine| {
+                main_engine.add_command(command, cmd_py_command);
 
-        main_engine.add_command(command, cmd_py_command);
-
-        Ok(())
+                Ok(())
+            },
+        )
     })
 }
 

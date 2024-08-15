@@ -17,15 +17,16 @@ pub(crate) fn pyshinqlx_set_cvar_limit(
     flags: Option<i32>,
 ) -> PyResult<()> {
     py.allow_threads(|| {
-        let Some(ref main_engine) = *MAIN_ENGINE.load() else {
-            return Err(PyEnvironmentError::new_err(
+        MAIN_ENGINE.load().as_ref().map_or(
+            Err(PyEnvironmentError::new_err(
                 "main quake live engine not set",
-            ));
-        };
+            )),
+            |main_engine| {
+                main_engine.set_cvar_limit(cvar, value, min, max, flags);
 
-        main_engine.set_cvar_limit(cvar, value, min, max, flags);
-
-        Ok(())
+                Ok(())
+            },
+        )
     })
 }
 
