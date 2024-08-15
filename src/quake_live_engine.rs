@@ -441,6 +441,251 @@ impl VmFunctions {
     }
 }
 
+#[cfg(test)]
+mod vm_functios_tests {
+    use super::{
+        ClientConnectDetourType, ClientSpawnDetourType, GDamageDetourType,
+        GStartKamikazeDetourType, VmFunctions,
+    };
+
+    use crate::quake_live_engine::mock_quake_functions::{
+        detoured_ClientConnect, detoured_ClientSpawn, detoured_G_Damage, detoured_G_StartKamikaze,
+        CheckPrivileges, ClientConnect, ClientSpawn, Drop_Item, G_AddEvent, G_Damage, G_FreeEntity,
+        G_InitGame, G_RunFrame, G_StartKamikaze, LaunchItem, Touch_Item,
+    };
+
+    use core::sync::atomic::{AtomicUsize, Ordering};
+
+    use pretty_assertions::assert_eq;
+
+    fn default_vm_functions() -> VmFunctions {
+        VmFunctions {
+            vm_call_table: Default::default(),
+            g_addevent_orig: Default::default(),
+            check_privileges_orig: Default::default(),
+            client_connect_orig: Default::default(),
+            client_spawn_orig: Default::default(),
+            g_damage_orig: Default::default(),
+            touch_item_orig: Default::default(),
+            launch_item_orig: Default::default(),
+            drop_item_orig: Default::default(),
+            g_start_kamikaze_orig: Default::default(),
+            g_free_entity_orig: Default::default(),
+            g_init_game_orig: Default::default(),
+            g_shutdown_game_orig: Default::default(),
+            g_run_frame_orig: Default::default(),
+            client_spawn_detour: Default::default(),
+            client_connect_detour: Default::default(),
+            g_start_kamikaze_detour: Default::default(),
+            g_damage_detour: Default::default(),
+        }
+    }
+
+    #[test]
+    fn unhook_with_no_functions_set_before() {
+        let vm_functions = default_vm_functions();
+
+        vm_functions.unhook();
+
+        assert_eq!(vm_functions.vm_call_table.load(Ordering::SeqCst), 0);
+        assert_eq!(vm_functions.g_addevent_orig.load(Ordering::SeqCst), 0);
+        assert_eq!(vm_functions.check_privileges_orig.load(Ordering::SeqCst), 0);
+        assert_eq!(vm_functions.client_connect_orig.load(Ordering::SeqCst), 0);
+        assert_eq!(vm_functions.client_spawn_orig.load(Ordering::SeqCst), 0);
+        assert_eq!(vm_functions.g_damage_orig.load(Ordering::SeqCst), 0);
+        assert_eq!(vm_functions.touch_item_orig.load(Ordering::SeqCst), 0);
+        assert_eq!(vm_functions.launch_item_orig.load(Ordering::SeqCst), 0);
+        assert_eq!(vm_functions.drop_item_orig.load(Ordering::SeqCst), 0);
+        assert_eq!(vm_functions.g_start_kamikaze_orig.load(Ordering::SeqCst), 0);
+        assert_eq!(vm_functions.g_free_entity_orig.load(Ordering::SeqCst), 0);
+        assert_eq!(vm_functions.g_init_game_orig.load(Ordering::SeqCst), 0);
+        assert_eq!(vm_functions.g_run_frame_orig.load(Ordering::SeqCst), 0);
+
+        assert!(vm_functions.client_connect_detour.load().is_none());
+        assert!(vm_functions.g_start_kamikaze_detour.load().is_none());
+        assert!(vm_functions.client_spawn_detour.load().is_none());
+        assert!(vm_functions.g_damage_detour.load().is_none());
+    }
+
+    #[test]
+    fn unhook_with_functions_set_before_but_no_detours() {
+        let vm_functions = VmFunctions {
+            vm_call_table: AtomicUsize::new(42),
+            g_addevent_orig: AtomicUsize::new(G_AddEvent as usize),
+            check_privileges_orig: AtomicUsize::new(CheckPrivileges as usize),
+            client_connect_orig: AtomicUsize::new(ClientConnect as usize),
+            client_spawn_orig: AtomicUsize::new(ClientSpawn as usize),
+            g_damage_orig: AtomicUsize::new(G_Damage as usize),
+            touch_item_orig: AtomicUsize::new(Touch_Item as usize),
+            launch_item_orig: AtomicUsize::new(LaunchItem as usize),
+            drop_item_orig: AtomicUsize::new(Drop_Item as usize),
+            g_start_kamikaze_orig: AtomicUsize::new(G_StartKamikaze as usize),
+            g_free_entity_orig: AtomicUsize::new(G_FreeEntity as usize),
+            g_init_game_orig: AtomicUsize::new(G_InitGame as usize),
+            g_run_frame_orig: AtomicUsize::new(G_RunFrame as usize),
+            ..default_vm_functions()
+        };
+
+        vm_functions.unhook();
+
+        assert_eq!(vm_functions.vm_call_table.load(Ordering::SeqCst), 0);
+        assert_eq!(vm_functions.g_addevent_orig.load(Ordering::SeqCst), 0);
+        assert_eq!(vm_functions.check_privileges_orig.load(Ordering::SeqCst), 0);
+        assert_eq!(vm_functions.client_connect_orig.load(Ordering::SeqCst), 0);
+        assert_eq!(vm_functions.client_spawn_orig.load(Ordering::SeqCst), 0);
+        assert_eq!(vm_functions.g_damage_orig.load(Ordering::SeqCst), 0);
+        assert_eq!(vm_functions.touch_item_orig.load(Ordering::SeqCst), 0);
+        assert_eq!(vm_functions.launch_item_orig.load(Ordering::SeqCst), 0);
+        assert_eq!(vm_functions.drop_item_orig.load(Ordering::SeqCst), 0);
+        assert_eq!(vm_functions.g_start_kamikaze_orig.load(Ordering::SeqCst), 0);
+        assert_eq!(vm_functions.g_free_entity_orig.load(Ordering::SeqCst), 0);
+        assert_eq!(vm_functions.g_init_game_orig.load(Ordering::SeqCst), 0);
+        assert_eq!(vm_functions.g_run_frame_orig.load(Ordering::SeqCst), 0);
+
+        assert!(vm_functions.client_connect_detour.load().is_none());
+        assert!(vm_functions.g_start_kamikaze_detour.load().is_none());
+        assert!(vm_functions.client_spawn_detour.load().is_none());
+        assert!(vm_functions.g_damage_detour.load().is_none());
+    }
+
+    #[test]
+    #[cfg_attr(miri, ignore)]
+    fn unhook_with_functions_and_disabled_detours_set_before() {
+        let vm_functions = VmFunctions {
+            vm_call_table: AtomicUsize::new(42),
+            g_addevent_orig: AtomicUsize::new(G_AddEvent as usize),
+            check_privileges_orig: AtomicUsize::new(CheckPrivileges as usize),
+            client_connect_orig: AtomicUsize::new(ClientConnect as usize),
+            client_spawn_orig: AtomicUsize::new(ClientSpawn as usize),
+            g_damage_orig: AtomicUsize::new(G_Damage as usize),
+            touch_item_orig: AtomicUsize::new(Touch_Item as usize),
+            launch_item_orig: AtomicUsize::new(LaunchItem as usize),
+            drop_item_orig: AtomicUsize::new(Drop_Item as usize),
+            g_start_kamikaze_orig: AtomicUsize::new(G_StartKamikaze as usize),
+            g_free_entity_orig: AtomicUsize::new(G_FreeEntity as usize),
+            g_init_game_orig: AtomicUsize::new(G_InitGame as usize),
+            g_run_frame_orig: AtomicUsize::new(G_RunFrame as usize),
+            ..default_vm_functions()
+        };
+
+        let client_connect_detour =
+            unsafe { ClientConnectDetourType::new(ClientConnect, detoured_ClientConnect) }
+                .expect("this should not happen");
+        vm_functions
+            .client_connect_detour
+            .store(Some(client_connect_detour.into()));
+        let g_start_kamikaze_detour =
+            unsafe { GStartKamikazeDetourType::new(G_StartKamikaze, detoured_G_StartKamikaze) }
+                .expect("this should not happen");
+        vm_functions
+            .g_start_kamikaze_detour
+            .store(Some(g_start_kamikaze_detour.into()));
+        let client_spawn_detour =
+            unsafe { ClientSpawnDetourType::new(ClientSpawn, detoured_ClientSpawn) }
+                .expect("this should not happen");
+        vm_functions
+            .client_spawn_detour
+            .store(Some(client_spawn_detour.into()));
+        let g_damage_detour = unsafe { GDamageDetourType::new(G_Damage, detoured_G_Damage) }
+            .expect("this should not happen");
+        vm_functions
+            .g_damage_detour
+            .store(Some(g_damage_detour.into()));
+
+        vm_functions.unhook();
+
+        assert_eq!(vm_functions.vm_call_table.load(Ordering::SeqCst), 0);
+        assert_eq!(vm_functions.g_addevent_orig.load(Ordering::SeqCst), 0);
+        assert_eq!(vm_functions.check_privileges_orig.load(Ordering::SeqCst), 0);
+        assert_eq!(vm_functions.client_connect_orig.load(Ordering::SeqCst), 0);
+        assert_eq!(vm_functions.client_spawn_orig.load(Ordering::SeqCst), 0);
+        assert_eq!(vm_functions.g_damage_orig.load(Ordering::SeqCst), 0);
+        assert_eq!(vm_functions.touch_item_orig.load(Ordering::SeqCst), 0);
+        assert_eq!(vm_functions.launch_item_orig.load(Ordering::SeqCst), 0);
+        assert_eq!(vm_functions.drop_item_orig.load(Ordering::SeqCst), 0);
+        assert_eq!(vm_functions.g_start_kamikaze_orig.load(Ordering::SeqCst), 0);
+        assert_eq!(vm_functions.g_free_entity_orig.load(Ordering::SeqCst), 0);
+        assert_eq!(vm_functions.g_init_game_orig.load(Ordering::SeqCst), 0);
+        assert_eq!(vm_functions.g_run_frame_orig.load(Ordering::SeqCst), 0);
+
+        assert!(vm_functions.client_connect_detour.load().is_none());
+        assert!(vm_functions.g_start_kamikaze_detour.load().is_none());
+        assert!(vm_functions.client_spawn_detour.load().is_none());
+        assert!(vm_functions.g_damage_detour.load().is_none());
+    }
+
+    #[test]
+    #[cfg_attr(miri, ignore)]
+    #[cfg_attr(target_os = "macos", ignore)]
+    fn unhook_with_functions_and_enabled_detours_set_before() {
+        let vm_functions = VmFunctions {
+            vm_call_table: AtomicUsize::new(42),
+            g_addevent_orig: AtomicUsize::new(G_AddEvent as usize),
+            check_privileges_orig: AtomicUsize::new(CheckPrivileges as usize),
+            client_connect_orig: AtomicUsize::new(ClientConnect as usize),
+            client_spawn_orig: AtomicUsize::new(ClientSpawn as usize),
+            g_damage_orig: AtomicUsize::new(G_Damage as usize),
+            touch_item_orig: AtomicUsize::new(Touch_Item as usize),
+            launch_item_orig: AtomicUsize::new(LaunchItem as usize),
+            drop_item_orig: AtomicUsize::new(Drop_Item as usize),
+            g_start_kamikaze_orig: AtomicUsize::new(G_StartKamikaze as usize),
+            g_free_entity_orig: AtomicUsize::new(G_FreeEntity as usize),
+            g_init_game_orig: AtomicUsize::new(G_InitGame as usize),
+            g_run_frame_orig: AtomicUsize::new(G_RunFrame as usize),
+            ..default_vm_functions()
+        };
+
+        let client_connect_detour =
+            unsafe { ClientConnectDetourType::new(ClientConnect, detoured_ClientConnect) }
+                .expect("this should not happen");
+        unsafe { client_connect_detour.enable() }.expect("this should not happen");
+        vm_functions
+            .client_connect_detour
+            .store(Some(client_connect_detour.into()));
+        let g_start_kamikaze_detour =
+            unsafe { GStartKamikazeDetourType::new(G_StartKamikaze, detoured_G_StartKamikaze) }
+                .expect("this should not happen");
+        unsafe { g_start_kamikaze_detour.enable() }.expect("this should not happen");
+        vm_functions
+            .g_start_kamikaze_detour
+            .store(Some(g_start_kamikaze_detour.into()));
+        let client_spawn_detour =
+            unsafe { ClientSpawnDetourType::new(ClientSpawn, detoured_ClientSpawn) }
+                .expect("this should not happen");
+        unsafe { client_spawn_detour.enable() }.expect("this should not happen");
+        vm_functions
+            .client_spawn_detour
+            .store(Some(client_spawn_detour.into()));
+        let g_damage_detour = unsafe { GDamageDetourType::new(G_Damage, detoured_G_Damage) }
+            .expect("this should not happen");
+        unsafe { g_damage_detour.enable() }.expect("this should not happen");
+        vm_functions
+            .g_damage_detour
+            .store(Some(g_damage_detour.into()));
+
+        vm_functions.unhook();
+
+        assert_eq!(vm_functions.vm_call_table.load(Ordering::SeqCst), 0);
+        assert_eq!(vm_functions.g_addevent_orig.load(Ordering::SeqCst), 0);
+        assert_eq!(vm_functions.check_privileges_orig.load(Ordering::SeqCst), 0);
+        assert_eq!(vm_functions.client_connect_orig.load(Ordering::SeqCst), 0);
+        assert_eq!(vm_functions.client_spawn_orig.load(Ordering::SeqCst), 0);
+        assert_eq!(vm_functions.g_damage_orig.load(Ordering::SeqCst), 0);
+        assert_eq!(vm_functions.touch_item_orig.load(Ordering::SeqCst), 0);
+        assert_eq!(vm_functions.launch_item_orig.load(Ordering::SeqCst), 0);
+        assert_eq!(vm_functions.drop_item_orig.load(Ordering::SeqCst), 0);
+        assert_eq!(vm_functions.g_start_kamikaze_orig.load(Ordering::SeqCst), 0);
+        assert_eq!(vm_functions.g_free_entity_orig.load(Ordering::SeqCst), 0);
+        assert_eq!(vm_functions.g_init_game_orig.load(Ordering::SeqCst), 0);
+        assert_eq!(vm_functions.g_run_frame_orig.load(Ordering::SeqCst), 0);
+
+        assert!(vm_functions.client_connect_detour.load().is_none());
+        assert!(vm_functions.g_start_kamikaze_detour.load().is_none());
+        assert!(vm_functions.client_spawn_detour.load().is_none());
+        assert!(vm_functions.g_damage_detour.load().is_none());
+    }
+}
+
 pub(crate) struct QuakeLiveEngine {
     static_functions: OnceCell<StaticFunctions>,
     static_detours: OnceCell<StaticDetours>,
@@ -5238,11 +5483,11 @@ mockall::mock! {
 #[allow(dead_code)]
 mod quake_functions {
     use crate::ffi::c::prelude::{
-        cbufExec_t, client_t, cvar_t, entity_event_t, gentity_t, gitem_t, qboolean, usercmd_t,
-        vec3_t,
+        cbufExec_t, client_t, cvar_t, entity_event_t, gentity_t, gitem_t, qboolean, trace_t,
+        usercmd_t, vec3_t,
     };
 
-    use core::ffi::{c_char, c_int};
+    use core::ffi::{c_char, c_float, c_int};
     use core::ptr;
 
     #[allow(unused_attributes, clippy::just_underscores_and_digits, non_snake_case)]
@@ -5538,4 +5783,27 @@ mod quake_functions {
     #[allow(unused_attributes, non_snake_case)]
     #[cfg(not(tarpaulin_include))]
     pub(crate) extern "C" fn detoured_G_StartKamikaze(_ent: *mut gentity_t) {}
+
+    #[allow(unused_attributes, non_snake_case)]
+    #[cfg(not(tarpaulin_include))]
+    pub(crate) extern "C" fn CheckPrivileges(_ent: *mut gentity_t, _cmd: *mut c_char) {}
+
+    #[allow(unused_attributes, non_snake_case)]
+    #[cfg(not(tarpaulin_include))]
+    pub(crate) extern "C" fn Touch_Item(
+        _ent: *mut gentity_t,
+        _other: *mut gentity_t,
+        _trace: *mut trace_t,
+    ) {
+    }
+
+    #[allow(unused_attributes, non_snake_case)]
+    #[cfg(not(tarpaulin_include))]
+    pub(crate) extern "C" fn Drop_Item(
+        _ent: *mut gentity_t,
+        _item: *mut gitem_t,
+        _angle: c_float,
+    ) -> *mut gentity_t {
+        ptr::null_mut()
+    }
 }
