@@ -9,15 +9,16 @@ use pyo3::exceptions::PyEnvironmentError;
 #[pyo3(name = "get_cvar")]
 pub(crate) fn pyshinqlx_get_cvar(py: Python<'_>, cvar: &str) -> PyResult<Option<String>> {
     py.allow_threads(|| {
-        let Some(ref main_engine) = *MAIN_ENGINE.load() else {
-            return Err(PyEnvironmentError::new_err(
+        MAIN_ENGINE.load().as_ref().map_or(
+            Err(PyEnvironmentError::new_err(
                 "main quake live engine not set",
-            ));
-        };
-
-        Ok(main_engine
-            .find_cvar(cvar)
-            .map(|cvar_result| cvar_result.get_string().into()))
+            )),
+            |main_engine| {
+                Ok(main_engine
+                    .find_cvar(cvar)
+                    .map(|cvar_result| cvar_result.get_string().into()))
+            },
+        )
     })
 }
 

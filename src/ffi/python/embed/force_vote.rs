@@ -16,26 +16,27 @@ pub(crate) fn pyshinqlx_force_vote(py: Python<'_>, pass: bool) -> PyResult<bool>
             return Ok(false);
         }
 
-        let Some(ref main_engine) = *MAIN_ENGINE.load() else {
-            return Err(PyEnvironmentError::new_err(
+        MAIN_ENGINE.load().as_ref().map_or(
+            Err(PyEnvironmentError::new_err(
                 "main quake live engine not set",
-            ));
-        };
+            )),
+            |main_engine| {
+                let maxclients = main_engine.get_max_clients();
 
-        let maxclients = main_engine.get_max_clients();
-
-        #[cfg_attr(test, allow(clippy::unnecessary_fallible_conversions))]
-        (0..maxclients)
-            .filter(|i| {
-                Client::try_from(*i)
-                    .ok()
-                    .filter(|client| client.get_state() == clientState_t::CS_ACTIVE)
-                    .is_some()
-            })
-            .filter_map(|client_id| GameEntity::try_from(client_id).ok())
-            .filter_map(|game_entity| game_entity.get_game_client().ok())
-            .for_each(|mut game_client| game_client.set_vote_state(pass));
-        Ok(true)
+                #[cfg_attr(test, allow(clippy::unnecessary_fallible_conversions))]
+                (0..maxclients)
+                    .filter(|i| {
+                        Client::try_from(*i)
+                            .ok()
+                            .filter(|client| client.get_state() == clientState_t::CS_ACTIVE)
+                            .is_some()
+                    })
+                    .filter_map(|client_id| GameEntity::try_from(client_id).ok())
+                    .filter_map(|game_entity| game_entity.get_game_client().ok())
+                    .for_each(|mut game_client| game_client.set_vote_state(pass));
+                Ok(true)
+            },
+        )
     })
 }
 

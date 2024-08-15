@@ -80,23 +80,29 @@ impl GameItem {
     }
 
     fn get_item_list_real() -> *mut gitem_t {
-        let Some(ref main_engine) = *MAIN_ENGINE.load() else {
-            return ptr::null_mut();
-        };
+        MAIN_ENGINE
+            .load()
+            .as_ref()
+            .map_or(ptr::null_mut(), |main_engine| {
+                main_engine
+                    .launch_item_orig()
+                    .map_or(ptr::null_mut(), |launch_item_orig| {
+                        let base_address = unsafe {
+                            ptr::read_unaligned(
+                                (launch_item_orig as usize + OFFSET_BG_ITEMLIST) as *const i32,
+                            )
+                        };
 
-        let Ok(launch_item_orig) = main_engine.launch_item_orig() else {
-            return ptr::null_mut();
-        };
+                        let bg_itemlist_ptr_ptr = base_address as usize
+                            + launch_item_orig as usize
+                            + OFFSET_BG_ITEMLIST
+                            + 4;
 
-        let base_address = unsafe {
-            ptr::read_unaligned((launch_item_orig as usize + OFFSET_BG_ITEMLIST) as *const i32)
-        };
-
-        let bg_itemlist_ptr_ptr =
-            base_address as usize + launch_item_orig as usize + OFFSET_BG_ITEMLIST + 4;
-
-        let bg_itemlist_ptr = unsafe { ptr::read(bg_itemlist_ptr_ptr as *const u64) };
-        bg_itemlist_ptr as *mut gitem_t
+                        let bg_itemlist_ptr =
+                            unsafe { ptr::read(bg_itemlist_ptr_ptr as *const u64) };
+                        bg_itemlist_ptr as *mut gitem_t
+                    })
+            })
     }
 
     pub(crate) fn get_classname(&self) -> Cow<str> {

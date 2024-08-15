@@ -139,18 +139,23 @@ impl GameEntity {
     }
 
     fn get_entities_list_real() -> *mut gentity_t {
-        let Some(ref main_engine) = *MAIN_ENGINE.load() else {
-            return ptr::null_mut();
-        };
-
-        let Ok(func_pointer) = main_engine.g_run_frame_orig() else {
-            return ptr::null_mut();
-        };
-        let base_address = unsafe {
-            ptr::read_unaligned((func_pointer as usize + OFFSET_G_ENTITIES) as *const i32)
-        };
-        let gentities_ptr = base_address as usize + func_pointer as usize + OFFSET_G_ENTITIES + 4;
-        gentities_ptr as *mut gentity_t
+        MAIN_ENGINE
+            .load()
+            .as_ref()
+            .map_or(ptr::null_mut(), |main_engine| {
+                main_engine
+                    .g_run_frame_orig()
+                    .map_or(ptr::null_mut(), |func_pointer| {
+                        let base_address = unsafe {
+                            ptr::read_unaligned(
+                                (func_pointer as usize + OFFSET_G_ENTITIES) as *const i32,
+                            )
+                        };
+                        let gentities_ptr =
+                            base_address as usize + func_pointer as usize + OFFSET_G_ENTITIES + 4;
+                        gentities_ptr as *mut gentity_t
+                    })
+            })
     }
 
     pub(crate) fn get_entity_id(&self) -> i32 {
@@ -220,10 +225,6 @@ impl GameEntity {
     }
 
     pub(crate) fn slay_with_mod(&mut self, mean_of_death: meansOfDeath_t) {
-        let Some(ref main_engine) = *MAIN_ENGINE.load() else {
-            return;
-        };
-
         let damage = self.get_health()
             + if mean_of_death == meansOfDeath_t::MOD_KAMIKAZE {
                 100000
@@ -236,16 +237,18 @@ impl GameEntity {
             .for_each(|game_client| game_client.set_armor(0));
 
         // self damage = half damage, so multiplaying by 2
-        main_engine.register_damage(
-            self.gentity_t,
-            self.gentity_t,
-            self.gentity_t,
-            &mut [0.0, 0.0, 0.0],
-            &mut [0.0, 0.0, 0.0],
-            damage * 2,
-            DAMAGE_NO_PROTECTION as c_int,
-            mean_of_death as c_int,
-        );
+        MAIN_ENGINE.load().as_ref().iter().for_each(|main_engine| {
+            main_engine.register_damage(
+                self.gentity_t,
+                self.gentity_t,
+                self.gentity_t,
+                &mut [0.0, 0.0, 0.0],
+                &mut [0.0, 0.0, 0.0],
+                damage * 2,
+                DAMAGE_NO_PROTECTION as c_int,
+                mean_of_death as c_int,
+            );
+        });
     }
 
     pub(crate) fn in_use(&self) -> bool {
@@ -337,31 +340,29 @@ impl GameEntity {
     }
 
     pub(crate) fn replace_item(&mut self, item_id: i32) {
-        let Some(ref main_engine) = *MAIN_ENGINE.load() else {
-            return;
-        };
+        MAIN_ENGINE.load().as_ref().iter().for_each(|main_engine| {
+            let class_name = unsafe { CStr::from_ptr(self.gentity_t.classname) };
+            main_engine.com_printf(&class_name.to_string_lossy());
+            if item_id != 0 {
+                #[cfg_attr(
+                    test,
+                    allow(clippy::unnecessary_fallible_conversions, irrefutable_let_patterns)
+                )]
+                let Ok(gitem) = GameItem::try_from(item_id) else {
+                    return;
+                };
+                self.gentity_t.s.modelindex = item_id;
+                self.gentity_t.classname = gitem.get_classname().as_ptr() as *const c_char;
+                self.gentity_t.item = gitem.as_ref();
 
-        let class_name = unsafe { CStr::from_ptr(self.gentity_t.classname) };
-        main_engine.com_printf(&class_name.to_string_lossy());
-        if item_id != 0 {
-            #[cfg_attr(
-                test,
-                allow(clippy::unnecessary_fallible_conversions, irrefutable_let_patterns)
-            )]
-            let Ok(gitem) = GameItem::try_from(item_id) else {
-                return;
-            };
-            self.gentity_t.s.modelindex = item_id;
-            self.gentity_t.classname = gitem.get_classname().as_ptr() as *const c_char;
-            self.gentity_t.item = gitem.as_ref();
-
-            // this forces client to load new item
-            let mut items = main_engine.get_configstring(CS_ITEMS as u16).to_string();
-            items.replace_range(item_id as usize..=item_id as usize, "1");
-            shinqlx_set_configstring(item_id as u32, &items);
-        } else {
-            self.free_entity();
-        }
+                // this forces client to load new item
+                let mut items = main_engine.get_configstring(CS_ITEMS as u16).to_string();
+                items.replace_range(item_id as usize..=item_id as usize, "1");
+                shinqlx_set_configstring(item_id as u32, &items);
+            } else {
+                self.free_entity();
+            }
+        });
     }
 
     pub(crate) fn get_targetting_entity_ids(&self) -> Vec<u32> {
@@ -1230,7 +1231,7 @@ mod game_entity_tests {
             mock_game_client
                 .expect_set_armor()
                 .with(predicate::eq(0))
-                .times(0);
+                .times(1);
             Ok(mock_game_client)
         });
         let mut gentity = GEntityBuilder::default()

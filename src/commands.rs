@@ -37,183 +37,179 @@ pub extern "C" fn cmd_regular_print() {
 
 #[no_mangle]
 pub extern "C" fn cmd_slap() {
-    let Some(ref main_engine) = *MAIN_ENGINE.load() else {
-        return;
-    };
+    MAIN_ENGINE.load().as_ref().iter().for_each(|main_engine| {
+        let maxclients = main_engine.get_max_clients();
 
-    let maxclients = main_engine.get_max_clients();
+        let argc = main_engine.cmd_argc();
 
-    let argc = main_engine.cmd_argc();
+        if argc < 2 {
+            let Some(command_name) = main_engine.cmd_argv(0) else {
+                return;
+            };
 
-    if argc < 2 {
-        let Some(command_name) = main_engine.cmd_argv(0) else {
+            main_engine.com_printf(&format!("Usage: {} <client_id> [damage]\n", command_name));
+            return;
+        }
+
+        let Some(passed_client_id_str) = main_engine.cmd_argv(1) else {
             return;
         };
 
-        main_engine.com_printf(&format!("Usage: {} <client_id> [damage]\n", command_name));
-        return;
-    }
+        let Ok(client_id) = passed_client_id_str.parse::<i32>() else {
+            main_engine.com_printf(&format!(
+                "client_id must be a number between 0 and {}.\n",
+                maxclients - 1
+            ));
+            return;
+        };
 
-    let Some(passed_client_id_str) = main_engine.cmd_argv(1) else {
-        return;
-    };
-
-    let Ok(client_id) = passed_client_id_str.parse::<i32>() else {
-        main_engine.com_printf(&format!(
-            "client_id must be a number between 0 and {}.\n",
-            maxclients - 1
-        ));
-        return;
-    };
-
-    if client_id < 0 || client_id >= maxclients {
-        main_engine.com_printf(&format!(
-            "client_id must be a number between 0 and {}.\n",
-            maxclients - 1
-        ));
-        return;
-    }
-
-    let dmg = if argc > 2 {
-        main_engine
-            .cmd_argv(2)
-            .and_then(|value| value.parse::<i32>().ok())
-            .unwrap_or(0)
-    } else {
-        0
-    };
-
-    #[cfg_attr(
-        test,
-        allow(clippy::unnecessary_fallible_conversions, irrefutable_let_patterns)
-    )]
-    let Ok(mut client_entity) = GameEntity::try_from(client_id) else {
-        return;
-    };
-    if !client_entity.in_use() || client_entity.get_health() <= 0 {
-        main_engine.com_printf("The player is currently not active.\n");
-        return;
-    }
-
-    main_engine.com_printf("Slapping...\n");
-
-    #[cfg_attr(
-        test,
-        allow(clippy::unnecessary_fallible_conversions, irrefutable_let_patterns)
-    )]
-    let Ok(client) = Client::try_from(client_id) else {
-        return;
-    };
-    let message = if dmg != 0 {
-        format!(
-            "print \"{}^7 was slapped for {} damage!\n\"\n",
-            client.get_name(),
-            dmg
-        )
-    } else {
-        format!("print \"{}^7 was slapped\n\"\n", client.get_name())
-    };
-
-    main_engine.send_server_command(None::<Client>, &message);
-
-    let mut rng = rand::thread_rng();
-    let Ok(mut game_client) = client_entity.get_game_client() else {
-        return;
-    };
-    game_client.set_velocity((
-        rng.gen_range(-1.0..=1.0) * 200.0,
-        rng.gen_range(-1.0..=1.0) * 200.0,
-        300.0,
-    ));
-    if dmg > 0 {
-        let old_health = client_entity.get_health();
-        client_entity.set_health(old_health - dmg);
-        if old_health - dmg <= 0 {
-            let client_number = client_entity.get_client_number();
-            main_engine.game_add_event(
-                &mut client_entity,
-                entity_event_t::EV_DEATH1,
-                client_number,
-            );
+        if client_id < 0 || client_id >= maxclients {
+            main_engine.com_printf(&format!(
+                "client_id must be a number between 0 and {}.\n",
+                maxclients - 1
+            ));
             return;
         }
-    }
-    main_engine.game_add_event(&mut client_entity, entity_event_t::EV_PAIN, 99);
+
+        let dmg = if argc > 2 {
+            main_engine
+                .cmd_argv(2)
+                .and_then(|value| value.parse::<i32>().ok())
+                .unwrap_or(0)
+        } else {
+            0
+        };
+
+        #[cfg_attr(
+            test,
+            allow(clippy::unnecessary_fallible_conversions, irrefutable_let_patterns)
+        )]
+        let Ok(mut client_entity) = GameEntity::try_from(client_id) else {
+            return;
+        };
+        if !client_entity.in_use() || client_entity.get_health() <= 0 {
+            main_engine.com_printf("The player is currently not active.\n");
+            return;
+        }
+
+        main_engine.com_printf("Slapping...\n");
+
+        #[cfg_attr(
+            test,
+            allow(clippy::unnecessary_fallible_conversions, irrefutable_let_patterns)
+        )]
+        let Ok(client) = Client::try_from(client_id) else {
+            return;
+        };
+        let message = if dmg != 0 {
+            format!(
+                "print \"{}^7 was slapped for {} damage!\n\"\n",
+                client.get_name(),
+                dmg
+            )
+        } else {
+            format!("print \"{}^7 was slapped\n\"\n", client.get_name())
+        };
+
+        main_engine.send_server_command(None::<Client>, &message);
+
+        let mut rng = rand::thread_rng();
+        let Ok(mut game_client) = client_entity.get_game_client() else {
+            return;
+        };
+        game_client.set_velocity((
+            rng.gen_range(-1.0..=1.0) * 200.0,
+            rng.gen_range(-1.0..=1.0) * 200.0,
+            300.0,
+        ));
+        if dmg > 0 {
+            let old_health = client_entity.get_health();
+            client_entity.set_health(old_health - dmg);
+            if old_health - dmg <= 0 {
+                let client_number = client_entity.get_client_number();
+                main_engine.game_add_event(
+                    &mut client_entity,
+                    entity_event_t::EV_DEATH1,
+                    client_number,
+                );
+                return;
+            }
+        }
+        main_engine.game_add_event(&mut client_entity, entity_event_t::EV_PAIN, 99);
+    });
 }
 
 #[no_mangle]
 pub extern "C" fn cmd_slay() {
-    let Some(ref main_engine) = *MAIN_ENGINE.load() else {
-        return;
-    };
+    MAIN_ENGINE.load().as_ref().iter().for_each(|main_engine| {
+        let maxclients = main_engine.get_max_clients();
 
-    let maxclients = main_engine.get_max_clients();
+        let argc = main_engine.cmd_argc();
 
-    let argc = main_engine.cmd_argc();
+        if argc < 2 {
+            let Some(command_name) = main_engine.cmd_argv(0) else {
+                return;
+            };
 
-    if argc < 2 {
-        let Some(command_name) = main_engine.cmd_argv(0) else {
+            main_engine.com_printf(&format!("Usage: {} <client_id> [damage]\n", command_name));
+            return;
+        }
+
+        let Some(passed_client_id_str) = main_engine.cmd_argv(1) else {
             return;
         };
 
-        main_engine.com_printf(&format!("Usage: {} <client_id> [damage]\n", command_name));
-        return;
-    }
+        let Ok(client_id) = passed_client_id_str.parse::<i32>() else {
+            main_engine.com_printf(&format!(
+                "client_id must be a number between 0 and {}.\n",
+                maxclients - 1
+            ));
+            return;
+        };
 
-    let Some(passed_client_id_str) = main_engine.cmd_argv(1) else {
-        return;
-    };
+        if client_id < 0 || client_id >= maxclients {
+            main_engine.com_printf(&format!(
+                "client_id must be a number between 0 and {}.\n",
+                maxclients - 1
+            ));
+            return;
+        }
 
-    let Ok(client_id) = passed_client_id_str.parse::<i32>() else {
-        main_engine.com_printf(&format!(
-            "client_id must be a number between 0 and {}.\n",
-            maxclients - 1
-        ));
-        return;
-    };
+        #[cfg_attr(
+            test,
+            allow(clippy::unnecessary_fallible_conversions, irrefutable_let_patterns)
+        )]
+        let Ok(mut client_entity) = GameEntity::try_from(client_id) else {
+            return;
+        };
+        if !client_entity.in_use() || client_entity.get_health() <= 0 {
+            main_engine.com_printf("The player is currently not active.\n");
+            return;
+        }
 
-    if client_id < 0 || client_id >= maxclients {
-        main_engine.com_printf(&format!(
-            "client_id must be a number between 0 and {}.\n",
-            maxclients - 1
-        ));
-        return;
-    }
+        main_engine.com_printf("Slaying player...\n");
 
-    #[cfg_attr(
-        test,
-        allow(clippy::unnecessary_fallible_conversions, irrefutable_let_patterns)
-    )]
-    let Ok(mut client_entity) = GameEntity::try_from(client_id) else {
-        return;
-    };
-    if !client_entity.in_use() || client_entity.get_health() <= 0 {
-        main_engine.com_printf("The player is currently not active.\n");
-        return;
-    }
+        #[cfg_attr(
+            test,
+            allow(clippy::unnecessary_fallible_conversions, irrefutable_let_patterns)
+        )]
+        let Ok(client) = Client::try_from(client_id) else {
+            return;
+        };
 
-    main_engine.com_printf("Slaying player...\n");
+        main_engine.send_server_command(
+            None::<Client>,
+            &format!("print \"{}^7 was slain!\n\"\n", client.get_name()),
+        );
 
-    #[cfg_attr(
-        test,
-        allow(clippy::unnecessary_fallible_conversions, irrefutable_let_patterns)
-    )]
-    let Ok(client) = Client::try_from(client_id) else {
-        return;
-    };
-
-    main_engine.send_server_command(
-        None::<Client>,
-        &format!("print \"{}^7 was slain!\n\"\n", client.get_name()),
-    );
-
-    client_entity.set_health(-40);
-    let client_number = client_entity.get_client_number();
-    main_engine.game_add_event(
-        &mut client_entity,
-        entity_event_t::EV_GIB_PLAYER,
-        client_number,
-    );
+        client_entity.set_health(-40);
+        let client_number = client_entity.get_client_number();
+        main_engine.game_add_event(
+            &mut client_entity,
+            entity_event_t::EV_GIB_PLAYER,
+            client_number,
+        );
+    });
 }
 
 #[no_mangle]
