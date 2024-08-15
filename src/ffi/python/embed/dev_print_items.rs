@@ -34,39 +34,42 @@ pub(crate) fn pyshinqlx_dev_print_items(py: Python<'_>) -> PyResult<()> {
             .map(|item| item.to_string())
             .collect();
 
-        let Some(ref main_engine) = *MAIN_ENGINE.load() else {
-            return Err(PyEnvironmentError::new_err(
+        MAIN_ENGINE.load().as_ref().map_or(
+            Err(PyEnvironmentError::new_err(
                 "main quake live engine not set",
-            ));
-        };
+            )),
+            |main_engine| {
+                if printed_items.is_empty() {
+                    main_engine.send_server_command(
+                        None::<Client>,
+                        "print \"No items found in the map\n\"",
+                    );
+                    return Ok(());
+                }
+                main_engine.send_server_command(
+                    None::<Client>,
+                    &format!("print \"{}\n\"", printed_items.join("\n")),
+                );
 
-        if printed_items.is_empty() {
-            main_engine
-                .send_server_command(None::<Client>, "print \"No items found in the map\n\"");
-            return Ok(());
-        }
-        main_engine.send_server_command(
-            None::<Client>,
-            &format!("print \"{}\n\"", printed_items.join("\n")),
-        );
+                let remaining_items: Vec<String> = formatted_items
+                    .iter()
+                    .skip(printed_items.len())
+                    .map(|item| item.to_string())
+                    .collect();
 
-        let remaining_items: Vec<String> = formatted_items
-            .iter()
-            .skip(printed_items.len())
-            .map(|item| item.to_string())
-            .collect();
+                if !remaining_items.is_empty() {
+                    main_engine.send_server_command(
+                        None::<Client>,
+                        "print \"Check server console for other items\n\"\n",
+                    );
+                    remaining_items
+                        .iter()
+                        .for_each(|item| main_engine.com_printf(item));
+                }
 
-        if !remaining_items.is_empty() {
-            main_engine.send_server_command(
-                None::<Client>,
-                "print \"Check server console for other items\n\"\n",
-            );
-            remaining_items
-                .iter()
-                .for_each(|item| main_engine.com_printf(item));
-        }
-
-        Ok(())
+                Ok(())
+            },
+        )
     })
 }
 

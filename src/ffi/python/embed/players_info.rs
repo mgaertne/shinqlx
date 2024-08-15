@@ -8,13 +8,12 @@ use pyo3::exceptions::PyEnvironmentError;
 #[pyfunction(name = "players_info")]
 pub(crate) fn pyshinqlx_players_info(py: Python<'_>) -> PyResult<Vec<Option<PlayerInfo>>> {
     py.allow_threads(|| {
-        let Some(ref main_engine) = *MAIN_ENGINE.load() else {
-            return Err(PyEnvironmentError::new_err(
+        let maxclients = MAIN_ENGINE.load().as_ref().map_or(
+            Err(PyEnvironmentError::new_err(
                 "main quake live engine not set",
-            ));
-        };
-
-        let maxclients = main_engine.get_max_clients();
+            )),
+            |main_engine| Ok(main_engine.get_max_clients()),
+        )?;
 
         let result: Vec<Option<PlayerInfo>> = (0..maxclients)
             .filter_map(|client_id| {

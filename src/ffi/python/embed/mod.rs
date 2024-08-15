@@ -95,13 +95,12 @@ use pyo3::{PyResult, Python};
 
 fn validate_client_id(py: Python<'_>, client_id: i32) -> PyResult<()> {
     py.allow_threads(|| {
-        let Some(ref main_engine) = *MAIN_ENGINE.load() else {
-            return Err(PyEnvironmentError::new_err(
+        let maxclients = MAIN_ENGINE.load().as_ref().map_or(
+            Err(PyEnvironmentError::new_err(
                 "main quake live engine not set",
-            ));
-        };
-
-        let maxclients = main_engine.get_max_clients();
+            )),
+            |main_engine| Ok(main_engine.get_max_clients()),
+        )?;
         if !(0..maxclients).contains(&client_id) {
             return Err(PyValueError::new_err(format!(
                 "client_id needs to be a number from 0 to {}, or None.",

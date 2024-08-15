@@ -30,15 +30,17 @@ const OFFSET_LEVEL: usize = 0x4A1;
 
 impl CurrentLevel {
     pub(crate) fn try_get() -> Result<Self, QuakeLiveEngineError> {
-        let Some(ref main_engine) = *MAIN_ENGINE.load() else {
-            return Err(QuakeLiveEngineError::MainEngineNotInitialized);
-        };
-
-        let func_pointer = main_engine.g_init_game_orig()?;
-        let base_address =
-            unsafe { ptr::read_unaligned((func_pointer as usize + OFFSET_LEVEL) as *const i32) };
-        let level_ptr = base_address as usize + func_pointer as usize + OFFSET_LEVEL + 4;
-        Self::try_from(level_ptr as *mut level_locals_t)
+        MAIN_ENGINE.load().as_ref().map_or(
+            Err(QuakeLiveEngineError::MainEngineNotInitialized),
+            |main_engine| {
+                let func_pointer = main_engine.g_init_game_orig()?;
+                let base_address = unsafe {
+                    ptr::read_unaligned((func_pointer as usize + OFFSET_LEVEL) as *const i32)
+                };
+                let level_ptr = base_address as usize + func_pointer as usize + OFFSET_LEVEL + 4;
+                Self::try_from(level_ptr as *mut level_locals_t)
+            },
+        )
     }
 
     pub(crate) fn get_vote_time(&self) -> Option<i32> {
