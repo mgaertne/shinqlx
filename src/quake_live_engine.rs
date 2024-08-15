@@ -441,6 +441,251 @@ impl VmFunctions {
     }
 }
 
+#[cfg(test)]
+mod vm_functios_tests {
+    use super::{
+        ClientConnectDetourType, ClientSpawnDetourType, GDamageDetourType,
+        GStartKamikazeDetourType, VmFunctions,
+    };
+
+    use crate::quake_live_engine::mock_quake_functions::{
+        detoured_ClientConnect, detoured_ClientSpawn, detoured_G_Damage, detoured_G_StartKamikaze,
+        CheckPrivileges, ClientConnect, ClientSpawn, Drop_Item, G_AddEvent, G_Damage, G_FreeEntity,
+        G_InitGame, G_RunFrame, G_StartKamikaze, LaunchItem, Touch_Item,
+    };
+
+    use core::sync::atomic::{AtomicUsize, Ordering};
+
+    use pretty_assertions::assert_eq;
+
+    fn default_vm_functions() -> VmFunctions {
+        VmFunctions {
+            vm_call_table: Default::default(),
+            g_addevent_orig: Default::default(),
+            check_privileges_orig: Default::default(),
+            client_connect_orig: Default::default(),
+            client_spawn_orig: Default::default(),
+            g_damage_orig: Default::default(),
+            touch_item_orig: Default::default(),
+            launch_item_orig: Default::default(),
+            drop_item_orig: Default::default(),
+            g_start_kamikaze_orig: Default::default(),
+            g_free_entity_orig: Default::default(),
+            g_init_game_orig: Default::default(),
+            g_shutdown_game_orig: Default::default(),
+            g_run_frame_orig: Default::default(),
+            client_spawn_detour: Default::default(),
+            client_connect_detour: Default::default(),
+            g_start_kamikaze_detour: Default::default(),
+            g_damage_detour: Default::default(),
+        }
+    }
+
+    #[test]
+    fn unhook_with_no_functions_set_before() {
+        let vm_functions = default_vm_functions();
+
+        vm_functions.unhook();
+
+        assert_eq!(vm_functions.vm_call_table.load(Ordering::SeqCst), 0);
+        assert_eq!(vm_functions.g_addevent_orig.load(Ordering::SeqCst), 0);
+        assert_eq!(vm_functions.check_privileges_orig.load(Ordering::SeqCst), 0);
+        assert_eq!(vm_functions.client_connect_orig.load(Ordering::SeqCst), 0);
+        assert_eq!(vm_functions.client_spawn_orig.load(Ordering::SeqCst), 0);
+        assert_eq!(vm_functions.g_damage_orig.load(Ordering::SeqCst), 0);
+        assert_eq!(vm_functions.touch_item_orig.load(Ordering::SeqCst), 0);
+        assert_eq!(vm_functions.launch_item_orig.load(Ordering::SeqCst), 0);
+        assert_eq!(vm_functions.drop_item_orig.load(Ordering::SeqCst), 0);
+        assert_eq!(vm_functions.g_start_kamikaze_orig.load(Ordering::SeqCst), 0);
+        assert_eq!(vm_functions.g_free_entity_orig.load(Ordering::SeqCst), 0);
+        assert_eq!(vm_functions.g_init_game_orig.load(Ordering::SeqCst), 0);
+        assert_eq!(vm_functions.g_run_frame_orig.load(Ordering::SeqCst), 0);
+
+        assert!(vm_functions.client_connect_detour.load().is_none());
+        assert!(vm_functions.g_start_kamikaze_detour.load().is_none());
+        assert!(vm_functions.client_spawn_detour.load().is_none());
+        assert!(vm_functions.g_damage_detour.load().is_none());
+    }
+
+    #[test]
+    fn unhook_with_functions_set_before_but_no_detours() {
+        let vm_functions = VmFunctions {
+            vm_call_table: AtomicUsize::new(42),
+            g_addevent_orig: AtomicUsize::new(G_AddEvent as usize),
+            check_privileges_orig: AtomicUsize::new(CheckPrivileges as usize),
+            client_connect_orig: AtomicUsize::new(ClientConnect as usize),
+            client_spawn_orig: AtomicUsize::new(ClientSpawn as usize),
+            g_damage_orig: AtomicUsize::new(G_Damage as usize),
+            touch_item_orig: AtomicUsize::new(Touch_Item as usize),
+            launch_item_orig: AtomicUsize::new(LaunchItem as usize),
+            drop_item_orig: AtomicUsize::new(Drop_Item as usize),
+            g_start_kamikaze_orig: AtomicUsize::new(G_StartKamikaze as usize),
+            g_free_entity_orig: AtomicUsize::new(G_FreeEntity as usize),
+            g_init_game_orig: AtomicUsize::new(G_InitGame as usize),
+            g_run_frame_orig: AtomicUsize::new(G_RunFrame as usize),
+            ..default_vm_functions()
+        };
+
+        vm_functions.unhook();
+
+        assert_eq!(vm_functions.vm_call_table.load(Ordering::SeqCst), 0);
+        assert_eq!(vm_functions.g_addevent_orig.load(Ordering::SeqCst), 0);
+        assert_eq!(vm_functions.check_privileges_orig.load(Ordering::SeqCst), 0);
+        assert_eq!(vm_functions.client_connect_orig.load(Ordering::SeqCst), 0);
+        assert_eq!(vm_functions.client_spawn_orig.load(Ordering::SeqCst), 0);
+        assert_eq!(vm_functions.g_damage_orig.load(Ordering::SeqCst), 0);
+        assert_eq!(vm_functions.touch_item_orig.load(Ordering::SeqCst), 0);
+        assert_eq!(vm_functions.launch_item_orig.load(Ordering::SeqCst), 0);
+        assert_eq!(vm_functions.drop_item_orig.load(Ordering::SeqCst), 0);
+        assert_eq!(vm_functions.g_start_kamikaze_orig.load(Ordering::SeqCst), 0);
+        assert_eq!(vm_functions.g_free_entity_orig.load(Ordering::SeqCst), 0);
+        assert_eq!(vm_functions.g_init_game_orig.load(Ordering::SeqCst), 0);
+        assert_eq!(vm_functions.g_run_frame_orig.load(Ordering::SeqCst), 0);
+
+        assert!(vm_functions.client_connect_detour.load().is_none());
+        assert!(vm_functions.g_start_kamikaze_detour.load().is_none());
+        assert!(vm_functions.client_spawn_detour.load().is_none());
+        assert!(vm_functions.g_damage_detour.load().is_none());
+    }
+
+    #[test]
+    #[cfg_attr(miri, ignore)]
+    fn unhook_with_functions_and_disabled_detours_set_before() {
+        let vm_functions = VmFunctions {
+            vm_call_table: AtomicUsize::new(42),
+            g_addevent_orig: AtomicUsize::new(G_AddEvent as usize),
+            check_privileges_orig: AtomicUsize::new(CheckPrivileges as usize),
+            client_connect_orig: AtomicUsize::new(ClientConnect as usize),
+            client_spawn_orig: AtomicUsize::new(ClientSpawn as usize),
+            g_damage_orig: AtomicUsize::new(G_Damage as usize),
+            touch_item_orig: AtomicUsize::new(Touch_Item as usize),
+            launch_item_orig: AtomicUsize::new(LaunchItem as usize),
+            drop_item_orig: AtomicUsize::new(Drop_Item as usize),
+            g_start_kamikaze_orig: AtomicUsize::new(G_StartKamikaze as usize),
+            g_free_entity_orig: AtomicUsize::new(G_FreeEntity as usize),
+            g_init_game_orig: AtomicUsize::new(G_InitGame as usize),
+            g_run_frame_orig: AtomicUsize::new(G_RunFrame as usize),
+            ..default_vm_functions()
+        };
+
+        let client_connect_detour =
+            unsafe { ClientConnectDetourType::new(ClientConnect, detoured_ClientConnect) }
+                .expect("this should not happen");
+        vm_functions
+            .client_connect_detour
+            .store(Some(client_connect_detour.into()));
+        let g_start_kamikaze_detour =
+            unsafe { GStartKamikazeDetourType::new(G_StartKamikaze, detoured_G_StartKamikaze) }
+                .expect("this should not happen");
+        vm_functions
+            .g_start_kamikaze_detour
+            .store(Some(g_start_kamikaze_detour.into()));
+        let client_spawn_detour =
+            unsafe { ClientSpawnDetourType::new(ClientSpawn, detoured_ClientSpawn) }
+                .expect("this should not happen");
+        vm_functions
+            .client_spawn_detour
+            .store(Some(client_spawn_detour.into()));
+        let g_damage_detour = unsafe { GDamageDetourType::new(G_Damage, detoured_G_Damage) }
+            .expect("this should not happen");
+        vm_functions
+            .g_damage_detour
+            .store(Some(g_damage_detour.into()));
+
+        vm_functions.unhook();
+
+        assert_eq!(vm_functions.vm_call_table.load(Ordering::SeqCst), 0);
+        assert_eq!(vm_functions.g_addevent_orig.load(Ordering::SeqCst), 0);
+        assert_eq!(vm_functions.check_privileges_orig.load(Ordering::SeqCst), 0);
+        assert_eq!(vm_functions.client_connect_orig.load(Ordering::SeqCst), 0);
+        assert_eq!(vm_functions.client_spawn_orig.load(Ordering::SeqCst), 0);
+        assert_eq!(vm_functions.g_damage_orig.load(Ordering::SeqCst), 0);
+        assert_eq!(vm_functions.touch_item_orig.load(Ordering::SeqCst), 0);
+        assert_eq!(vm_functions.launch_item_orig.load(Ordering::SeqCst), 0);
+        assert_eq!(vm_functions.drop_item_orig.load(Ordering::SeqCst), 0);
+        assert_eq!(vm_functions.g_start_kamikaze_orig.load(Ordering::SeqCst), 0);
+        assert_eq!(vm_functions.g_free_entity_orig.load(Ordering::SeqCst), 0);
+        assert_eq!(vm_functions.g_init_game_orig.load(Ordering::SeqCst), 0);
+        assert_eq!(vm_functions.g_run_frame_orig.load(Ordering::SeqCst), 0);
+
+        assert!(vm_functions.client_connect_detour.load().is_none());
+        assert!(vm_functions.g_start_kamikaze_detour.load().is_none());
+        assert!(vm_functions.client_spawn_detour.load().is_none());
+        assert!(vm_functions.g_damage_detour.load().is_none());
+    }
+
+    #[test]
+    #[cfg_attr(miri, ignore)]
+    #[cfg_attr(target_os = "macos", ignore)]
+    fn unhook_with_functions_and_enabled_detours_set_before() {
+        let vm_functions = VmFunctions {
+            vm_call_table: AtomicUsize::new(42),
+            g_addevent_orig: AtomicUsize::new(G_AddEvent as usize),
+            check_privileges_orig: AtomicUsize::new(CheckPrivileges as usize),
+            client_connect_orig: AtomicUsize::new(ClientConnect as usize),
+            client_spawn_orig: AtomicUsize::new(ClientSpawn as usize),
+            g_damage_orig: AtomicUsize::new(G_Damage as usize),
+            touch_item_orig: AtomicUsize::new(Touch_Item as usize),
+            launch_item_orig: AtomicUsize::new(LaunchItem as usize),
+            drop_item_orig: AtomicUsize::new(Drop_Item as usize),
+            g_start_kamikaze_orig: AtomicUsize::new(G_StartKamikaze as usize),
+            g_free_entity_orig: AtomicUsize::new(G_FreeEntity as usize),
+            g_init_game_orig: AtomicUsize::new(G_InitGame as usize),
+            g_run_frame_orig: AtomicUsize::new(G_RunFrame as usize),
+            ..default_vm_functions()
+        };
+
+        let client_connect_detour =
+            unsafe { ClientConnectDetourType::new(ClientConnect, detoured_ClientConnect) }
+                .expect("this should not happen");
+        unsafe { client_connect_detour.enable() }.expect("this should not happen");
+        vm_functions
+            .client_connect_detour
+            .store(Some(client_connect_detour.into()));
+        let g_start_kamikaze_detour =
+            unsafe { GStartKamikazeDetourType::new(G_StartKamikaze, detoured_G_StartKamikaze) }
+                .expect("this should not happen");
+        unsafe { g_start_kamikaze_detour.enable() }.expect("this should not happen");
+        vm_functions
+            .g_start_kamikaze_detour
+            .store(Some(g_start_kamikaze_detour.into()));
+        let client_spawn_detour =
+            unsafe { ClientSpawnDetourType::new(ClientSpawn, detoured_ClientSpawn) }
+                .expect("this should not happen");
+        unsafe { client_spawn_detour.enable() }.expect("this should not happen");
+        vm_functions
+            .client_spawn_detour
+            .store(Some(client_spawn_detour.into()));
+        let g_damage_detour = unsafe { GDamageDetourType::new(G_Damage, detoured_G_Damage) }
+            .expect("this should not happen");
+        unsafe { g_damage_detour.enable() }.expect("this should not happen");
+        vm_functions
+            .g_damage_detour
+            .store(Some(g_damage_detour.into()));
+
+        vm_functions.unhook();
+
+        assert_eq!(vm_functions.vm_call_table.load(Ordering::SeqCst), 0);
+        assert_eq!(vm_functions.g_addevent_orig.load(Ordering::SeqCst), 0);
+        assert_eq!(vm_functions.check_privileges_orig.load(Ordering::SeqCst), 0);
+        assert_eq!(vm_functions.client_connect_orig.load(Ordering::SeqCst), 0);
+        assert_eq!(vm_functions.client_spawn_orig.load(Ordering::SeqCst), 0);
+        assert_eq!(vm_functions.g_damage_orig.load(Ordering::SeqCst), 0);
+        assert_eq!(vm_functions.touch_item_orig.load(Ordering::SeqCst), 0);
+        assert_eq!(vm_functions.launch_item_orig.load(Ordering::SeqCst), 0);
+        assert_eq!(vm_functions.drop_item_orig.load(Ordering::SeqCst), 0);
+        assert_eq!(vm_functions.g_start_kamikaze_orig.load(Ordering::SeqCst), 0);
+        assert_eq!(vm_functions.g_free_entity_orig.load(Ordering::SeqCst), 0);
+        assert_eq!(vm_functions.g_init_game_orig.load(Ordering::SeqCst), 0);
+        assert_eq!(vm_functions.g_run_frame_orig.load(Ordering::SeqCst), 0);
+
+        assert!(vm_functions.client_connect_detour.load().is_none());
+        assert!(vm_functions.g_start_kamikaze_detour.load().is_none());
+        assert!(vm_functions.client_spawn_detour.load().is_none());
+        assert!(vm_functions.g_damage_detour.load().is_none());
+    }
+}
+
 pub(crate) struct QuakeLiveEngine {
     static_functions: OnceCell<StaticFunctions>,
     static_detours: OnceCell<StaticDetours>,
@@ -456,7 +701,6 @@ pub(crate) struct QuakeLiveEngine {
 const OFFSET_CMD_ARGC: i32 = 0x81;
 
 impl QuakeLiveEngine {
-    #[cfg_attr(test, allow(dead_code))]
     pub(crate) fn new() -> Self {
         Self {
             static_functions: OnceCell::new(),
@@ -976,30 +1220,26 @@ impl QuakeLiveEngine {
         Ok(())
     }
 
-    #[cfg_attr(test, allow(dead_code))]
     pub(crate) fn set_tag(&self) {
         const SV_TAGS_PREFIX: &str = "shinqlx";
 
-        let Some(sv_tags) = self.find_cvar("sv_tags") else {
-            return;
-        };
-
-        let sv_tags_string = sv_tags.get_string();
-
-        if sv_tags_string.split(',').any(|x| x == SV_TAGS_PREFIX) {
-            return;
-        }
-
-        let new_tags = if sv_tags_string.len() > 2 {
-            format!("{},{}", SV_TAGS_PREFIX, sv_tags_string)
-        } else {
-            SV_TAGS_PREFIX.to_string()
-        };
-        self.set_cvar_forced("sv_tags", new_tags, false);
+        self.find_cvar("sv_tags")
+            .map(|cvar| cvar.get_string().to_string())
+            .filter(|sv_tags_string| sv_tags_string.split(',').all(|tag| tag != SV_TAGS_PREFIX))
+            .map(|mut sv_tags_string| {
+                if sv_tags_string.len() > 2 {
+                    sv_tags_string.insert(0, ',');
+                }
+                sv_tags_string.insert_str(0, SV_TAGS_PREFIX);
+                sv_tags_string
+            })
+            .iter()
+            .for_each(|new_tags| {
+                self.set_cvar_forced("sv_tags", new_tags, false);
+            });
     }
 
     // Called after the game is initialized.
-    #[cfg_attr(test, allow(dead_code))]
     pub(crate) fn initialize_cvars(&self) {
         self.find_cvar("sv_maxclients")
             .iter()
@@ -1009,7 +1249,6 @@ impl QuakeLiveEngine {
             })
     }
 
-    #[cfg_attr(test, allow(dead_code))]
     pub(crate) fn get_max_clients(&self) -> i32 {
         self.sv_maxclients.load(Ordering::SeqCst)
     }
@@ -1017,7 +1256,6 @@ impl QuakeLiveEngine {
     // Currently called by My_Cmd_AddCommand(), since it's called at a point where we
     // can safely do whatever we do below. It'll segfault if we do it at the entry
     // point, since functions like Cmd_AddCommand need initialization first.
-    #[cfg_attr(test, allow(dead_code))]
     pub(crate) fn initialize_static(&self) -> Result<(), QuakeLiveEngineError> {
         debug!(target: "shinqlx", "Initializing...");
         self.add_command("cmd", cmd_send_server_command);
@@ -1029,16 +1267,16 @@ impl QuakeLiveEngine {
         self.add_command("pycmd", cmd_py_command);
         self.add_command("pyrestart", cmd_restart_python);
 
-        if let Err(err) = pyshinqlx_initialize() {
+        pyshinqlx_initialize().map_err(|err| {
             error!(target: "shinqlx", "Python initialization failed.");
-            return Err(QuakeLiveEngineError::PythonInitializationFailed(err));
-        };
+            QuakeLiveEngineError::PythonInitializationFailed(err)
+        })?;
 
-        self.common_initialized.set(true).unwrap();
-        Ok(())
+        self.common_initialized
+            .set(true)
+            .map_err(|_| QuakeLiveEngineError::MainEngineNotInitialized)
     }
 
-    #[cfg_attr(test, allow(dead_code))]
     pub(crate) fn is_common_initialized(&self) -> bool {
         self.common_initialized
             .get()
@@ -1057,7 +1295,6 @@ impl QuakeLiveEngine {
         Ok(())
     }
 
-    #[cfg_attr(test, allow(dead_code))]
     pub(crate) fn unhook_vm(&self, restart: bool) {
         if !restart {
             self.vm_functions.unhook();
@@ -1104,7 +1341,7 @@ impl QuakeLiveEngine {
         )
     }
 
-    #[allow(dead_code)]
+    #[cfg_attr(not(test), allow(dead_code))]
     fn cmd_tokenizestring_orig(
         &self,
     ) -> Result<extern "C" fn(*const c_char) -> *const c_char, QuakeLiveEngineError> {
@@ -1116,7 +1353,7 @@ impl QuakeLiveEngine {
         )
     }
 
-    #[allow(dead_code)]
+    #[cfg_attr(not(test), allow(dead_code))]
     fn cbuf_executetext_orig(
         &self,
     ) -> Result<extern "C" fn(cbufExec_t, *const c_char), QuakeLiveEngineError> {
@@ -1212,7 +1449,6 @@ impl QuakeLiveEngine {
         )
     }
 
-    #[cfg_attr(test, allow(dead_code))]
     pub(crate) fn sv_shutdown_orig(
         &self,
     ) -> Result<extern "C" fn(*const c_char), QuakeLiveEngineError> {
@@ -1224,7 +1460,7 @@ impl QuakeLiveEngine {
         )
     }
 
-    #[allow(dead_code)]
+    #[cfg_attr(not(test), allow(dead_code))]
     fn sv_map_f_orig(&self) -> Result<extern "C" fn(), QuakeLiveEngineError> {
         self.static_functions.get().map_or(
             Err(QuakeLiveEngineError::StaticFunctionNotFound(
@@ -1267,7 +1503,6 @@ impl QuakeLiveEngine {
         )
     }
 
-    #[cfg_attr(test, allow(dead_code))]
     fn sv_dropclient_orig(
         &self,
     ) -> Result<extern "C" fn(*mut client_t, *const c_char), QuakeLiveEngineError> {
@@ -1387,7 +1622,6 @@ impl QuakeLiveEngine {
         )
     }
 
-    #[cfg_attr(test, allow(dead_code))]
     #[allow(clippy::type_complexity)]
     pub(crate) fn sv_dropclient_detour(
         &self,
@@ -1515,7 +1749,7 @@ impl QuakeLiveEngine {
     pub(crate) fn launch_item_orig(
         &self,
     ) -> Result<
-        extern "C" fn(*mut gitem_t, &mut vec3_t, &mut vec3_t) -> *mut gentity_t,
+        extern "C" fn(*mut gitem_t, *mut vec3_t, *mut vec3_t) -> *mut gentity_t,
         QuakeLiveEngineError,
     > {
         match self.vm_functions.launch_item_orig.load(Ordering::SeqCst) {
@@ -1526,7 +1760,7 @@ impl QuakeLiveEngine {
                 let launch_item_func = unsafe {
                     mem::transmute::<
                         usize,
-                        extern "C" fn(*mut gitem_t, &mut vec3_t, &mut vec3_t) -> *mut gentity_t,
+                        extern "C" fn(*mut gitem_t, *mut vec3_t, *mut vec3_t) -> *mut gentity_t,
                     >(launch_item_orig)
                 };
                 Ok(launch_item_func)
@@ -1557,9 +1791,1339 @@ impl QuakeLiveEngine {
 }
 
 #[cfg(test)]
+mod quake_live_engine_tests {
+    use super::QuakeLiveEngine;
+
+    use super::mock_quake_functions::{
+        Cbuf_ExecuteText, Cmd_AddCommand, Cmd_AddCommand_context, Cmd_Argc, Cmd_Args, Cmd_Argv,
+        Cmd_ExecuteString, Cmd_Tokenizestring, Com_Printf, Cvar_FindVar, Cvar_FindVar_context,
+        Cvar_Get, Cvar_GetLimit, Cvar_Set2, Cvar_Set2_context, G_AddEvent, G_FreeEntity,
+        G_InitGame, G_RunFrame, G_ShutdownGame, LaunchItem, SV_ClientEnterWorld, SV_DropClient,
+        SV_ExecuteClientCommand, SV_GetConfigstring, SV_Map_f, SV_SendServerCommand,
+        SV_SetConfigstring, SV_Shutdown, SV_SpawnServer, Sys_SetModuleOffset,
+    };
+    use super::quake_live_engine_test_helpers::{
+        default_quake_engine, default_static_detours, default_static_functions,
+    };
+
+    use crate::commands::{
+        cmd_center_print, cmd_py_command, cmd_py_rcon, cmd_regular_print, cmd_restart_python,
+        cmd_send_server_command, cmd_slap, cmd_slay,
+    };
+    use crate::quake_live_functions::QuakeLiveFunction;
+
+    use crate::ffi::c::prelude::{qboolean, CVarBuilder};
+    use crate::ffi::python::prelude::pyshinqlx_initialize_context;
+    use crate::ffi::python::PythonInitializationError;
+
+    use crate::prelude::{serial, QuakeLiveEngineError};
+    use pretty_assertions::assert_eq;
+
+    use alloc::ffi::CString;
+    use core::ffi::CStr;
+    use core::ptr;
+    use core::sync::atomic::Ordering;
+    use mockall::predicate;
+
+    #[test]
+    fn set_tag_with_no_cvar() {
+        let quake_engine = default_quake_engine();
+
+        quake_engine.set_tag();
+    }
+
+    #[test]
+    #[cfg_attr(miri, ignore)]
+    #[serial]
+    fn set_tag_when_tag_already_inserted() {
+        let existing_tags = CString::new("shinqlx,ca,elo").expect("this should not happen");
+
+        let mut returned = CVarBuilder::default()
+            .string(existing_tags.as_ptr().cast_mut())
+            .build()
+            .expect("this should not happen");
+
+        let cvar_find_var_ctx = Cvar_FindVar_context();
+        cvar_find_var_ctx
+            .expect()
+            .withf_st(|&cvar_name| {
+                !cvar_name.is_null()
+                    && unsafe { CStr::from_ptr(cvar_name) }.to_string_lossy() == "sv_tags"
+            })
+            .returning_st(move |_| &mut returned)
+            .times(1);
+
+        let cvar_set2_ctx = Cvar_Set2_context();
+        cvar_set2_ctx.expect().times(0);
+
+        let quake_engine = QuakeLiveEngine {
+            static_functions: default_static_functions().into(),
+            static_detours: default_static_detours().into(),
+            ..default_quake_engine()
+        };
+
+        quake_engine.set_tag();
+    }
+
+    #[test]
+    #[cfg_attr(miri, ignore)]
+    #[serial]
+    fn set_tag_when_tag_not_inserted_yet_with_other_values() {
+        let existing_tags = CString::new("ca,elo").expect("this should not happen");
+
+        let mut returned = CVarBuilder::default()
+            .string(existing_tags.as_ptr().cast_mut())
+            .build()
+            .expect("this should not happen");
+
+        let cvar_find_var_ctx = Cvar_FindVar_context();
+        cvar_find_var_ctx
+            .expect()
+            .withf_st(|&cvar_name| {
+                !cvar_name.is_null()
+                    && unsafe { CStr::from_ptr(cvar_name) }.to_string_lossy() == "sv_tags"
+            })
+            .returning_st(move |_| &mut returned)
+            .times(1);
+
+        let cvar_set2_ctx = Cvar_Set2_context();
+        cvar_set2_ctx
+            .expect()
+            .withf(|&cvar_name, &cvar_value, &forced| {
+                !cvar_name.is_null()
+                    && unsafe { CStr::from_ptr(cvar_name) }.to_string_lossy() == "sv_tags"
+                    && !cvar_value.is_null()
+                    && unsafe { CStr::from_ptr(cvar_value) }.to_string_lossy() == "shinqlx,ca,elo"
+                    && !<qboolean as Into<bool>>::into(forced)
+            })
+            .returning(|_, _, _| {
+                let mut returned = CVarBuilder::default()
+                    .build()
+                    .expect("this should not happen");
+                &mut returned
+            })
+            .times(1);
+
+        let quake_engine = QuakeLiveEngine {
+            static_functions: default_static_functions().into(),
+            static_detours: default_static_detours().into(),
+            ..default_quake_engine()
+        };
+
+        quake_engine.set_tag();
+    }
+
+    #[test]
+    #[cfg_attr(miri, ignore)]
+    #[serial]
+    fn set_tag_when_tag_not_inserted_yet_with_empty_original_tags() {
+        let existing_tags = CString::new("").expect("this should not happen");
+
+        let mut returned = CVarBuilder::default()
+            .string(existing_tags.as_ptr().cast_mut())
+            .build()
+            .expect("this should not happen");
+
+        let cvar_find_var_ctx = Cvar_FindVar_context();
+        cvar_find_var_ctx
+            .expect()
+            .withf_st(|&cvar_name| {
+                !cvar_name.is_null()
+                    && unsafe { CStr::from_ptr(cvar_name) }.to_string_lossy() == "sv_tags"
+            })
+            .returning_st(move |_| &mut returned)
+            .times(1);
+
+        let cvar_set2_ctx = Cvar_Set2_context();
+        cvar_set2_ctx
+            .expect()
+            .withf(|&cvar_name, &cvar_value, &forced| {
+                !cvar_name.is_null()
+                    && unsafe { CStr::from_ptr(cvar_name) }.to_string_lossy() == "sv_tags"
+                    && !cvar_value.is_null()
+                    && unsafe { CStr::from_ptr(cvar_value) }.to_string_lossy() == "shinqlx"
+                    && !<qboolean as Into<bool>>::into(forced)
+            })
+            .returning(|_, _, _| {
+                let mut returned = CVarBuilder::default()
+                    .build()
+                    .expect("this should not happen");
+                &mut returned
+            })
+            .times(1);
+
+        let quake_engine = QuakeLiveEngine {
+            static_functions: default_static_functions().into(),
+            static_detours: default_static_detours().into(),
+            ..default_quake_engine()
+        };
+
+        quake_engine.set_tag();
+    }
+
+    #[test]
+    #[cfg_attr(miri, ignore)]
+    #[serial]
+    fn initialize_cvars_with_no_cvar_returned() {
+        let cvar_find_var_ctx = Cvar_FindVar_context();
+        cvar_find_var_ctx
+            .expect()
+            .withf_st(|&cvar_name| {
+                !cvar_name.is_null()
+                    && unsafe { CStr::from_ptr(cvar_name) }.to_string_lossy() == "sv_maxclients"
+            })
+            .returning_st(move |_| ptr::null_mut())
+            .times(1);
+
+        let quake_engine = QuakeLiveEngine {
+            static_functions: default_static_functions().into(),
+            static_detours: default_static_detours().into(),
+            ..default_quake_engine()
+        };
+
+        quake_engine.initialize_cvars();
+
+        assert_eq!(quake_engine.sv_maxclients.load(Ordering::SeqCst), 0);
+    }
+
+    #[test]
+    #[cfg_attr(miri, ignore)]
+    #[serial]
+    fn initialize_cvars_caches_cvar_value_for_maxclients() {
+        let mut returned = CVarBuilder::default()
+            .integer(16)
+            .build()
+            .expect("this should not happen");
+
+        let cvar_find_var_ctx = Cvar_FindVar_context();
+        cvar_find_var_ctx
+            .expect()
+            .withf_st(|&cvar_name| {
+                !cvar_name.is_null()
+                    && unsafe { CStr::from_ptr(cvar_name) }.to_string_lossy() == "sv_maxclients"
+            })
+            .returning_st(move |_| &mut returned)
+            .times(1);
+
+        let quake_engine = QuakeLiveEngine {
+            static_functions: default_static_functions().into(),
+            static_detours: default_static_detours().into(),
+            ..default_quake_engine()
+        };
+
+        quake_engine.initialize_cvars();
+
+        assert_eq!(quake_engine.sv_maxclients.load(Ordering::SeqCst), 16);
+    }
+
+    #[test]
+    fn get_maxclients_returns_stored_value() {
+        let quake_engine = default_quake_engine();
+
+        quake_engine.sv_maxclients.store(42, Ordering::SeqCst);
+
+        assert_eq!(quake_engine.get_max_clients(), 42);
+    }
+
+    #[test]
+    #[cfg_attr(miri, ignore)]
+    #[serial]
+    fn initialize_static_initializes_everything_successfully() {
+        let add_cmd_ctx = Cmd_AddCommand_context();
+        #[allow(clippy::fn_address_comparisons)]
+        add_cmd_ctx
+            .expect()
+            .withf(|&cmd, &func| {
+                !cmd.is_null()
+                    && unsafe { CStr::from_ptr(cmd) }.to_string_lossy() == "cmd"
+                    && func == cmd_send_server_command
+            })
+            .times(1);
+        #[allow(clippy::fn_address_comparisons)]
+        add_cmd_ctx
+            .expect()
+            .withf(|&cmd, &func| {
+                !cmd.is_null()
+                    && unsafe { CStr::from_ptr(cmd) }.to_string_lossy() == "cp"
+                    && func == cmd_center_print
+            })
+            .times(1);
+        #[allow(clippy::fn_address_comparisons)]
+        add_cmd_ctx
+            .expect()
+            .withf(|&cmd, &func| {
+                !cmd.is_null()
+                    && unsafe { CStr::from_ptr(cmd) }.to_string_lossy() == "print"
+                    && func == cmd_regular_print
+            })
+            .times(1);
+        #[allow(clippy::fn_address_comparisons)]
+        add_cmd_ctx
+            .expect()
+            .withf(|&cmd, &func| {
+                !cmd.is_null()
+                    && unsafe { CStr::from_ptr(cmd) }.to_string_lossy() == "slap"
+                    && func == cmd_slap
+            })
+            .times(1);
+        #[allow(clippy::fn_address_comparisons)]
+        add_cmd_ctx
+            .expect()
+            .withf(|&cmd, &func| {
+                !cmd.is_null()
+                    && unsafe { CStr::from_ptr(cmd) }.to_string_lossy() == "slay"
+                    && func == cmd_slay
+            })
+            .times(1);
+        #[allow(clippy::fn_address_comparisons)]
+        add_cmd_ctx
+            .expect()
+            .withf(|&cmd, &func| {
+                !cmd.is_null()
+                    && unsafe { CStr::from_ptr(cmd) }.to_string_lossy() == "qlx"
+                    && func == cmd_py_rcon
+            })
+            .times(1);
+        #[allow(clippy::fn_address_comparisons)]
+        add_cmd_ctx
+            .expect()
+            .withf(|&cmd, &func| {
+                !cmd.is_null()
+                    && unsafe { CStr::from_ptr(cmd) }.to_string_lossy() == "pycmd"
+                    && func == cmd_py_command
+            })
+            .times(1);
+        #[allow(clippy::fn_address_comparisons)]
+        add_cmd_ctx
+            .expect()
+            .withf(|&cmd, &func| {
+                !cmd.is_null()
+                    && unsafe { CStr::from_ptr(cmd) }.to_string_lossy() == "pyrestart"
+                    && func == cmd_restart_python
+            })
+            .times(1);
+
+        let pyshinqlx_init_ctx = pyshinqlx_initialize_context();
+        pyshinqlx_init_ctx.expect().returning(|| Ok(())).times(1);
+
+        let quake_engine = QuakeLiveEngine {
+            static_functions: default_static_functions().into(),
+            static_detours: default_static_detours().into(),
+            ..default_quake_engine()
+        };
+
+        let result = quake_engine.initialize_static();
+        assert!(result.is_ok());
+
+        assert!(quake_engine.is_common_initialized());
+    }
+
+    #[test]
+    #[cfg_attr(miri, ignore)]
+    #[serial]
+    fn initialize_static_when_python_init_fails() {
+        let add_cmd_ctx = Cmd_AddCommand_context();
+        add_cmd_ctx
+            .expect()
+            .with(predicate::always(), predicate::always());
+
+        let pyshinqlx_init_ctx = pyshinqlx_initialize_context();
+        pyshinqlx_init_ctx
+            .expect()
+            .returning(|| Err(PythonInitializationError::MainScriptError))
+            .times(1);
+
+        let quake_engine = QuakeLiveEngine {
+            static_functions: default_static_functions().into(),
+            static_detours: default_static_detours().into(),
+            ..default_quake_engine()
+        };
+
+        let result = quake_engine.initialize_static();
+        assert!(result.is_err_and(|err| err
+            == QuakeLiveEngineError::PythonInitializationFailed(
+                PythonInitializationError::MainScriptError
+            )));
+
+        assert!(!quake_engine.is_common_initialized());
+    }
+
+    #[test]
+    #[cfg_attr(miri, ignore)]
+    #[serial]
+    fn initialize_static_when_common_already_initiailized() {
+        let add_cmd_ctx = Cmd_AddCommand_context();
+        add_cmd_ctx
+            .expect()
+            .with(predicate::always(), predicate::always());
+
+        let pyshinqlx_init_ctx = pyshinqlx_initialize_context();
+        pyshinqlx_init_ctx.expect().returning(|| Ok(())).times(1);
+
+        let quake_engine = QuakeLiveEngine {
+            static_functions: default_static_functions().into(),
+            static_detours: default_static_detours().into(),
+            ..default_quake_engine()
+        };
+        quake_engine
+            .common_initialized
+            .set(true)
+            .expect("this should not happen");
+
+        let result = quake_engine.initialize_static();
+        assert!(result.is_err_and(|err| err == QuakeLiveEngineError::MainEngineNotInitialized));
+
+        assert!(quake_engine.is_common_initialized());
+    }
+
+    #[test]
+    fn is_common_initialized_when_not_initialized() {
+        let quake_engine = default_quake_engine();
+
+        assert!(!quake_engine.is_common_initialized());
+    }
+
+    #[test]
+    fn is_common_initialized_when_initialized_is_set_to_false() {
+        let quake_engine = default_quake_engine();
+        quake_engine
+            .common_initialized
+            .set(false)
+            .expect("this should not happen");
+
+        assert!(!quake_engine.is_common_initialized());
+    }
+
+    #[test]
+    fn is_common_initialized_when_initialized_is_set_to_true() {
+        let quake_engine = default_quake_engine();
+        quake_engine
+            .common_initialized
+            .set(true)
+            .expect("this should not happen");
+
+        assert!(quake_engine.is_common_initialized());
+    }
+
+    #[test]
+    #[allow(clippy::fn_address_comparisons)]
+    #[cfg_attr(miri, ignore)]
+    fn unhook_vm_when_restarted() {
+        let quake_engine = default_quake_engine();
+        quake_engine
+            .vm_functions
+            .g_init_game_orig
+            .store(G_InitGame as usize, Ordering::SeqCst);
+
+        quake_engine.unhook_vm(true);
+        assert!(quake_engine
+            .g_init_game_orig()
+            .is_ok_and(|func| func == G_InitGame));
+    }
+
+    #[test]
+    fn unhook_vm_when_game_not_restarted() {
+        let quake_engine = default_quake_engine();
+        quake_engine
+            .vm_functions
+            .g_init_game_orig
+            .store(G_InitGame as usize, Ordering::SeqCst);
+
+        quake_engine.unhook_vm(false);
+        assert!(quake_engine
+            .g_init_game_orig()
+            .is_err_and(|err| err
+                == QuakeLiveEngineError::VmFunctionNotFound(QuakeLiveFunction::G_InitGame)));
+    }
+
+    #[test]
+    fn com_printf_orig_when_no_function_set() {
+        let quake_engine = default_quake_engine();
+
+        let result = quake_engine.com_printf_orig();
+        assert!(result.is_err_and(|err| err
+            == QuakeLiveEngineError::StaticFunctionNotFound(QuakeLiveFunction::Com_Printf,)));
+    }
+
+    #[test]
+    #[allow(clippy::fn_address_comparisons)]
+    #[cfg_attr(miri, ignore)]
+    fn com_printf_orig_when_orig_function_set() {
+        let quake_engine = QuakeLiveEngine {
+            static_functions: default_static_functions().into(),
+            static_detours: default_static_detours().into(),
+            ..default_quake_engine()
+        };
+
+        let result = quake_engine.com_printf_orig();
+        assert!(result.is_ok_and(|func| func == Com_Printf));
+    }
+
+    #[test]
+    fn cmd_addcommand_orig_when_no_function_set() {
+        let quake_engine = default_quake_engine();
+
+        let result = quake_engine.cmd_addcommand_orig();
+        assert!(result.is_err_and(|err| err
+            == QuakeLiveEngineError::StaticFunctionNotFound(QuakeLiveFunction::Cmd_AddCommand,)));
+    }
+
+    #[test]
+    #[allow(clippy::fn_address_comparisons)]
+    #[cfg_attr(miri, ignore)]
+    fn cmd_addcommand_orig_when_orig_function_set() {
+        let quake_engine = QuakeLiveEngine {
+            static_functions: default_static_functions().into(),
+            static_detours: default_static_detours().into(),
+            ..default_quake_engine()
+        };
+
+        let result = quake_engine.cmd_addcommand_orig();
+        assert!(result.is_ok_and(|func| func == Cmd_AddCommand));
+    }
+
+    #[test]
+    fn cmd_args_orig_when_no_function_set() {
+        let quake_engine = default_quake_engine();
+
+        let result = quake_engine.cmd_args_orig();
+        assert!(result
+            .is_err_and(|err| err
+                == QuakeLiveEngineError::StaticFunctionNotFound(QuakeLiveFunction::Cmd_Args,)));
+    }
+
+    #[test]
+    #[allow(clippy::fn_address_comparisons)]
+    #[cfg_attr(miri, ignore)]
+    fn cmd_args_orig_when_orig_function_set() {
+        let quake_engine = QuakeLiveEngine {
+            static_functions: default_static_functions().into(),
+            static_detours: default_static_detours().into(),
+            ..default_quake_engine()
+        };
+
+        let result = quake_engine.cmd_args_orig();
+        assert!(result.is_ok_and(|func| func == Cmd_Args));
+    }
+
+    #[test]
+    fn cmd_argv_orig_when_no_function_set() {
+        let quake_engine = default_quake_engine();
+
+        let result = quake_engine.cmd_argv_orig();
+        assert!(result
+            .is_err_and(|err| err
+                == QuakeLiveEngineError::StaticFunctionNotFound(QuakeLiveFunction::Cmd_Argv,)));
+    }
+
+    #[test]
+    #[allow(clippy::fn_address_comparisons)]
+    #[cfg_attr(miri, ignore)]
+    fn cmd_argv_orig_when_orig_function_set() {
+        let quake_engine = QuakeLiveEngine {
+            static_functions: default_static_functions().into(),
+            static_detours: default_static_detours().into(),
+            ..default_quake_engine()
+        };
+
+        let result = quake_engine.cmd_argv_orig();
+        assert!(result.is_ok_and(|func| func == Cmd_Argv));
+    }
+
+    #[test]
+    fn cmd_tokenizestring_orig_when_no_function_set() {
+        let quake_engine = default_quake_engine();
+
+        let result = quake_engine.cmd_tokenizestring_orig();
+        assert!(result.is_err_and(|err| err
+            == QuakeLiveEngineError::StaticFunctionNotFound(
+                QuakeLiveFunction::Cmd_Tokenizestring,
+            )));
+    }
+
+    #[test]
+    #[allow(clippy::fn_address_comparisons)]
+    #[cfg_attr(miri, ignore)]
+    fn cmd_tokenizestring_orig_when_orig_function_set() {
+        let quake_engine = QuakeLiveEngine {
+            static_functions: default_static_functions().into(),
+            static_detours: default_static_detours().into(),
+            ..default_quake_engine()
+        };
+
+        let result = quake_engine.cmd_tokenizestring_orig();
+        assert!(result.is_ok_and(|func| func == Cmd_Tokenizestring));
+    }
+
+    #[test]
+    fn cbuf_exectutetext_orig_when_no_function_set() {
+        let quake_engine = default_quake_engine();
+
+        let result = quake_engine.cbuf_executetext_orig();
+        assert!(result.is_err_and(|err| err
+            == QuakeLiveEngineError::StaticFunctionNotFound(QuakeLiveFunction::Cbuf_ExecuteText,)));
+    }
+
+    #[test]
+    #[allow(clippy::fn_address_comparisons)]
+    #[cfg_attr(miri, ignore)]
+    fn cbuf_executetext_orig_when_orig_function_set() {
+        let quake_engine = QuakeLiveEngine {
+            static_functions: default_static_functions().into(),
+            static_detours: default_static_detours().into(),
+            ..default_quake_engine()
+        };
+
+        let result = quake_engine.cbuf_executetext_orig();
+        assert!(result.is_ok_and(|func| func == Cbuf_ExecuteText));
+    }
+
+    #[test]
+    fn cvar_findvar_orig_when_no_function_set() {
+        let quake_engine = default_quake_engine();
+
+        let result = quake_engine.cvar_findvar_orig();
+        assert!(result.is_err_and(|err| err
+            == QuakeLiveEngineError::StaticFunctionNotFound(QuakeLiveFunction::Cvar_FindVar,)));
+    }
+
+    #[test]
+    #[allow(clippy::fn_address_comparisons)]
+    #[cfg_attr(miri, ignore)]
+    fn cvar_findvar_orig_when_orig_function_set() {
+        let quake_engine = QuakeLiveEngine {
+            static_functions: default_static_functions().into(),
+            static_detours: default_static_detours().into(),
+            ..default_quake_engine()
+        };
+
+        let result = quake_engine.cvar_findvar_orig();
+        assert!(result.is_ok_and(|func| func == Cvar_FindVar));
+    }
+
+    #[test]
+    fn cvar_get_orig_when_no_function_set() {
+        let quake_engine = default_quake_engine();
+
+        let result = quake_engine.cvar_get_orig();
+        assert!(result
+            .is_err_and(|err| err
+                == QuakeLiveEngineError::StaticFunctionNotFound(QuakeLiveFunction::Cvar_Get,)));
+    }
+
+    #[test]
+    #[allow(clippy::fn_address_comparisons)]
+    #[cfg_attr(miri, ignore)]
+    fn cvar_get_orig_when_orig_function_set() {
+        let quake_engine = QuakeLiveEngine {
+            static_functions: default_static_functions().into(),
+            static_detours: default_static_detours().into(),
+            ..default_quake_engine()
+        };
+
+        let result = quake_engine.cvar_get_orig();
+        assert!(result.is_ok_and(|func| func == Cvar_Get));
+    }
+
+    #[test]
+    fn cvar_getlimit_orig_when_no_function_set() {
+        let quake_engine = default_quake_engine();
+
+        let result = quake_engine.cvar_getlimit_orig();
+        assert!(result.is_err_and(|err| err
+            == QuakeLiveEngineError::StaticFunctionNotFound(QuakeLiveFunction::Cvar_GetLimit,)));
+    }
+
+    #[test]
+    #[allow(clippy::fn_address_comparisons)]
+    #[cfg_attr(miri, ignore)]
+    fn cvar_getlimit_orig_when_orig_function_set() {
+        let quake_engine = QuakeLiveEngine {
+            static_functions: default_static_functions().into(),
+            static_detours: default_static_detours().into(),
+            ..default_quake_engine()
+        };
+
+        let result = quake_engine.cvar_getlimit_orig();
+        assert!(result.is_ok_and(|func| func == Cvar_GetLimit));
+    }
+
+    #[test]
+    fn cvar_set2_orig_when_no_function_set() {
+        let quake_engine = default_quake_engine();
+
+        let result = quake_engine.cvar_set2_orig();
+        assert!(result.is_err_and(|err| err
+            == QuakeLiveEngineError::StaticFunctionNotFound(QuakeLiveFunction::Cvar_Set2,)));
+    }
+
+    #[test]
+    #[allow(clippy::fn_address_comparisons)]
+    #[cfg_attr(miri, ignore)]
+    fn cvar_set2_orig_when_orig_function_set() {
+        let quake_engine = QuakeLiveEngine {
+            static_functions: default_static_functions().into(),
+            static_detours: default_static_detours().into(),
+            ..default_quake_engine()
+        };
+
+        let result = quake_engine.cvar_set2_orig();
+        assert!(result.is_ok_and(|func| func == Cvar_Set2));
+    }
+
+    #[test]
+    fn sv_sendservercommand_orig_when_no_function_set() {
+        let quake_engine = default_quake_engine();
+
+        let result = quake_engine.sv_sendservercommand_orig();
+        assert!(result.is_err_and(|err| err
+            == QuakeLiveEngineError::StaticFunctionNotFound(
+                QuakeLiveFunction::SV_SendServerCommand,
+            )));
+    }
+
+    #[test]
+    #[allow(clippy::fn_address_comparisons)]
+    #[cfg_attr(miri, ignore)]
+    fn sv_sendservercommand_orig_when_orig_function_set() {
+        let quake_engine = QuakeLiveEngine {
+            static_functions: default_static_functions().into(),
+            static_detours: default_static_detours().into(),
+            ..default_quake_engine()
+        };
+
+        let result = quake_engine.sv_sendservercommand_orig();
+        assert!(result.is_ok_and(|func| func == SV_SendServerCommand));
+    }
+
+    #[test]
+    fn sv_executeclientcommand_orig_when_no_function_set() {
+        let quake_engine = default_quake_engine();
+
+        let result = quake_engine.sv_executeclientcommand_orig();
+        assert!(result.is_err_and(|err| err
+            == QuakeLiveEngineError::StaticFunctionNotFound(
+                QuakeLiveFunction::SV_ExecuteClientCommand,
+            )));
+    }
+
+    #[test]
+    #[allow(clippy::fn_address_comparisons)]
+    #[cfg_attr(miri, ignore)]
+    fn sv_executeclientcommand_orig_when_orig_function_set() {
+        let quake_engine = QuakeLiveEngine {
+            static_functions: default_static_functions().into(),
+            static_detours: default_static_detours().into(),
+            ..default_quake_engine()
+        };
+
+        let result = quake_engine.sv_executeclientcommand_orig();
+        assert!(result.is_ok_and(|func| func == SV_ExecuteClientCommand));
+    }
+
+    #[test]
+    fn sv_shutdown_orig_when_no_function_set() {
+        let quake_engine = default_quake_engine();
+
+        let result = quake_engine.sv_shutdown_orig();
+        assert!(result.is_err_and(|err| err
+            == QuakeLiveEngineError::StaticFunctionNotFound(QuakeLiveFunction::SV_Shutdown,)));
+    }
+
+    #[test]
+    #[allow(clippy::fn_address_comparisons)]
+    #[cfg_attr(miri, ignore)]
+    fn sv_shutdown_orig_when_orig_function_set() {
+        let quake_engine = QuakeLiveEngine {
+            static_functions: default_static_functions().into(),
+            static_detours: default_static_detours().into(),
+            ..default_quake_engine()
+        };
+
+        let result = quake_engine.sv_shutdown_orig();
+        assert!(result.is_ok_and(|func| func == SV_Shutdown));
+    }
+
+    #[test]
+    fn sv_map_f_orig_when_no_function_set() {
+        let quake_engine = default_quake_engine();
+
+        let result = quake_engine.sv_map_f_orig();
+        assert!(result
+            .is_err_and(|err| err
+                == QuakeLiveEngineError::StaticFunctionNotFound(QuakeLiveFunction::SV_Map_f,)));
+    }
+
+    #[test]
+    #[allow(clippy::fn_address_comparisons)]
+    #[cfg_attr(miri, ignore)]
+    fn sv_map_f_orig_when_orig_function_set() {
+        let quake_engine = QuakeLiveEngine {
+            static_functions: default_static_functions().into(),
+            static_detours: default_static_detours().into(),
+            ..default_quake_engine()
+        };
+
+        let result = quake_engine.sv_map_f_orig();
+        assert!(result.is_ok_and(|func| func == SV_Map_f));
+    }
+
+    #[test]
+    fn sv_cliententerworld_orig_when_no_function_set() {
+        let quake_engine = default_quake_engine();
+
+        let result = quake_engine.sv_cliententerworld_orig();
+        assert!(result.is_err_and(|err| err
+            == QuakeLiveEngineError::StaticFunctionNotFound(
+                QuakeLiveFunction::SV_ClientEnterWorld,
+            )));
+    }
+
+    #[test]
+    #[allow(clippy::fn_address_comparisons)]
+    #[cfg_attr(miri, ignore)]
+    fn sv_cliententerworld_orig_when_orig_function_set() {
+        let quake_engine = QuakeLiveEngine {
+            static_functions: default_static_functions().into(),
+            static_detours: default_static_detours().into(),
+            ..default_quake_engine()
+        };
+
+        let result = quake_engine.sv_cliententerworld_orig();
+        assert!(result.is_ok_and(|func| func == SV_ClientEnterWorld));
+    }
+
+    #[test]
+    fn sv_setconfigstring_orig_when_no_function_set() {
+        let quake_engine = default_quake_engine();
+
+        let result = quake_engine.sv_setconfigstring_orig();
+        assert!(result.is_err_and(|err| err
+            == QuakeLiveEngineError::StaticFunctionNotFound(
+                QuakeLiveFunction::SV_SetConfigstring,
+            )));
+    }
+
+    #[test]
+    #[allow(clippy::fn_address_comparisons)]
+    #[cfg_attr(miri, ignore)]
+    fn sv_setconfigstring_orig_when_orig_function_set() {
+        let quake_engine = QuakeLiveEngine {
+            static_functions: default_static_functions().into(),
+            static_detours: default_static_detours().into(),
+            ..default_quake_engine()
+        };
+
+        let result = quake_engine.sv_setconfigstring_orig();
+        assert!(result.is_ok_and(|func| func == SV_SetConfigstring));
+    }
+
+    #[test]
+    fn sv_getconfigstring_orig_when_no_function_set() {
+        let quake_engine = default_quake_engine();
+
+        let result = quake_engine.sv_getconfigstring_orig();
+        assert!(result.is_err_and(|err| err
+            == QuakeLiveEngineError::StaticFunctionNotFound(
+                QuakeLiveFunction::SV_GetConfigstring,
+            )));
+    }
+
+    #[test]
+    #[allow(clippy::fn_address_comparisons)]
+    #[cfg_attr(miri, ignore)]
+    fn sv_getconfigstring_orig_when_orig_function_set() {
+        let quake_engine = QuakeLiveEngine {
+            static_functions: default_static_functions().into(),
+            static_detours: default_static_detours().into(),
+            ..default_quake_engine()
+        };
+
+        let result = quake_engine.sv_getconfigstring_orig();
+        assert!(result.is_ok_and(|func| func == SV_GetConfigstring));
+    }
+
+    #[test]
+    fn sv_dropclient_orig_when_no_function_set() {
+        let quake_engine = default_quake_engine();
+
+        let result = quake_engine.sv_dropclient_orig();
+        assert!(result.is_err_and(|err| err
+            == QuakeLiveEngineError::StaticFunctionNotFound(QuakeLiveFunction::SV_DropClient,)));
+    }
+
+    #[test]
+    #[allow(clippy::fn_address_comparisons)]
+    #[cfg_attr(miri, ignore)]
+    fn sv_dropclient_orig_when_orig_function_set() {
+        let quake_engine = QuakeLiveEngine {
+            static_functions: default_static_functions().into(),
+            static_detours: default_static_detours().into(),
+            ..default_quake_engine()
+        };
+
+        let result = quake_engine.sv_dropclient_orig();
+        assert!(result.is_ok_and(|func| func == SV_DropClient));
+    }
+
+    #[test]
+    fn sys_setmoduleoffset_orig_when_no_function_set() {
+        let quake_engine = default_quake_engine();
+
+        let result = quake_engine.sys_setmoduleoffset_orig();
+        assert!(result.is_err_and(|err| err
+            == QuakeLiveEngineError::StaticFunctionNotFound(
+                QuakeLiveFunction::Sys_SetModuleOffset,
+            )));
+    }
+
+    #[test]
+    #[allow(clippy::fn_address_comparisons)]
+    #[cfg_attr(miri, ignore)]
+    fn sys_moduleoffset_orig_when_orig_function_set() {
+        let quake_engine = QuakeLiveEngine {
+            static_functions: default_static_functions().into(),
+            static_detours: default_static_detours().into(),
+            ..default_quake_engine()
+        };
+
+        let result = quake_engine.sys_setmoduleoffset_orig();
+        assert!(result.is_ok_and(|func| func == Sys_SetModuleOffset));
+    }
+
+    #[test]
+    fn sv_spawnserver_orig_when_no_function_set() {
+        let quake_engine = default_quake_engine();
+
+        let result = quake_engine.sv_spawnserver_orig();
+        assert!(result.is_err_and(|err| err
+            == QuakeLiveEngineError::StaticFunctionNotFound(QuakeLiveFunction::SV_SpawnServer,)));
+    }
+
+    #[test]
+    #[allow(clippy::fn_address_comparisons)]
+    #[cfg_attr(miri, ignore)]
+    fn sv_spawnserver_orig_when_orig_function_set() {
+        let quake_engine = QuakeLiveEngine {
+            static_functions: default_static_functions().into(),
+            static_detours: default_static_detours().into(),
+            ..default_quake_engine()
+        };
+
+        let result = quake_engine.sv_spawnserver_orig();
+        assert!(result.is_ok_and(|func| func == SV_SpawnServer));
+    }
+
+    #[test]
+    fn cmd_executestring_orig_when_no_function_set() {
+        let quake_engine = default_quake_engine();
+
+        let result = quake_engine.cmd_executestring_orig();
+        assert!(
+            result.is_err_and(|err| err
+                == QuakeLiveEngineError::StaticFunctionNotFound(
+                    QuakeLiveFunction::Cmd_ExecuteString,
+                ))
+        );
+    }
+
+    #[test]
+    #[allow(clippy::fn_address_comparisons)]
+    #[cfg_attr(miri, ignore)]
+    fn cmd_executestring_orig_when_orig_function_set() {
+        let quake_engine = QuakeLiveEngine {
+            static_functions: default_static_functions().into(),
+            static_detours: default_static_detours().into(),
+            ..default_quake_engine()
+        };
+
+        let result = quake_engine.cmd_executestring_orig();
+        assert!(result.is_ok_and(|func| func == Cmd_ExecuteString));
+    }
+
+    #[test]
+    fn cmd_argc_orig_when_no_function_set() {
+        let quake_engine = default_quake_engine();
+
+        let result = quake_engine.cmd_argc_orig();
+        assert!(result
+            .is_err_and(|err| err
+                == QuakeLiveEngineError::StaticFunctionNotFound(QuakeLiveFunction::Cmd_Argc,)));
+    }
+
+    #[test]
+    #[allow(clippy::fn_address_comparisons)]
+    #[cfg_attr(miri, ignore)]
+    fn cmd_argc_orig_when_orig_function_set() {
+        let quake_engine = QuakeLiveEngine {
+            static_functions: default_static_functions().into(),
+            static_detours: default_static_detours().into(),
+            ..default_quake_engine()
+        };
+
+        let result = quake_engine.cmd_argc_orig();
+        assert!(result.is_ok_and(|func| func == Cmd_Argc));
+    }
+
+    #[test]
+    fn cmd_addcommand_detour_when_no_detour_set() {
+        let quake_engine = default_quake_engine();
+
+        let result = quake_engine.cmd_addcommand_detour();
+        assert!(result.is_err_and(|err| err
+            == QuakeLiveEngineError::StaticDetourNotFound(QuakeLiveFunction::Cmd_AddCommand,)));
+    }
+
+    #[test]
+    #[cfg_attr(miri, ignore)]
+    fn cmd_addcommand_detour_when_detour_set() {
+        let quake_engine = QuakeLiveEngine {
+            static_functions: default_static_functions().into(),
+            static_detours: default_static_detours().into(),
+            ..default_quake_engine()
+        };
+
+        let result = quake_engine.cmd_addcommand_detour();
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn sys_setmoduleoffset_detour_when_no_detour_set() {
+        let quake_engine = default_quake_engine();
+
+        let result = quake_engine.sys_setmoduleoffset_detour();
+        assert!(
+            result.is_err_and(|err| err
+                == QuakeLiveEngineError::StaticDetourNotFound(
+                    QuakeLiveFunction::Sys_SetModuleOffset,
+                ))
+        );
+    }
+
+    #[test]
+    #[cfg_attr(miri, ignore)]
+    fn sys_setmoduleoffset_detour_when_detour_set() {
+        let quake_engine = QuakeLiveEngine {
+            static_functions: default_static_functions().into(),
+            static_detours: default_static_detours().into(),
+            ..default_quake_engine()
+        };
+
+        let result = quake_engine.sys_setmoduleoffset_detour();
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn sv_executeclientcommand_detour_when_no_detour_set() {
+        let quake_engine = default_quake_engine();
+
+        let result = quake_engine.sv_executeclientcommand_detour();
+        assert!(result.is_err_and(|err| err
+            == QuakeLiveEngineError::StaticDetourNotFound(
+                QuakeLiveFunction::SV_ExecuteClientCommand,
+            )));
+    }
+
+    #[test]
+    #[cfg_attr(miri, ignore)]
+    fn sv_executeclientcommand_detour_when_detour_set() {
+        let quake_engine = QuakeLiveEngine {
+            static_functions: default_static_functions().into(),
+            static_detours: default_static_detours().into(),
+            ..default_quake_engine()
+        };
+
+        let result = quake_engine.sv_executeclientcommand_detour();
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn sv_cliententerworld_detour_when_no_detour_set() {
+        let quake_engine = default_quake_engine();
+
+        let result = quake_engine.sv_cliententerworld_detour();
+        assert!(
+            result.is_err_and(|err| err
+                == QuakeLiveEngineError::StaticDetourNotFound(
+                    QuakeLiveFunction::SV_ClientEnterWorld,
+                ))
+        );
+    }
+
+    #[test]
+    #[cfg_attr(miri, ignore)]
+    fn sv_cliententerworld_detour_when_detour_set() {
+        let quake_engine = QuakeLiveEngine {
+            static_functions: default_static_functions().into(),
+            static_detours: default_static_detours().into(),
+            ..default_quake_engine()
+        };
+
+        let result = quake_engine.sv_cliententerworld_detour();
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn sv_setconfigstring_detour_when_no_detour_set() {
+        let quake_engine = default_quake_engine();
+
+        let result = quake_engine.sv_setconfgistring_detour();
+        assert!(result.is_err_and(|err| err
+            == QuakeLiveEngineError::StaticDetourNotFound(QuakeLiveFunction::SV_SetConfigstring,)));
+    }
+
+    #[test]
+    #[cfg_attr(miri, ignore)]
+    fn sv_setconfigstring_detour_when_detour_set() {
+        let quake_engine = QuakeLiveEngine {
+            static_functions: default_static_functions().into(),
+            static_detours: default_static_detours().into(),
+            ..default_quake_engine()
+        };
+
+        let result = quake_engine.sv_setconfgistring_detour();
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn sv_dropclient_detour_when_no_detour_set() {
+        let quake_engine = default_quake_engine();
+
+        let result = quake_engine.sv_dropclient_detour();
+        assert!(result.is_err_and(|err| err
+            == QuakeLiveEngineError::StaticDetourNotFound(QuakeLiveFunction::SV_DropClient,)));
+    }
+
+    #[test]
+    #[cfg_attr(miri, ignore)]
+    fn sv_dropclient_detour_when_detour_set() {
+        let quake_engine = QuakeLiveEngine {
+            static_functions: default_static_functions().into(),
+            static_detours: default_static_detours().into(),
+            ..default_quake_engine()
+        };
+
+        let result = quake_engine.sv_dropclient_detour();
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn sv_spawnserver_detour_when_no_detour_set() {
+        let quake_engine = default_quake_engine();
+
+        let result = quake_engine.sv_spawnserver_detour();
+        assert!(result.is_err_and(|err| err
+            == QuakeLiveEngineError::StaticDetourNotFound(QuakeLiveFunction::SV_SpawnServer,)));
+    }
+
+    #[test]
+    #[cfg_attr(miri, ignore)]
+    fn sv_spawnserver_detour_when_detour_set() {
+        let quake_engine = QuakeLiveEngine {
+            static_functions: default_static_functions().into(),
+            static_detours: default_static_detours().into(),
+            ..default_quake_engine()
+        };
+
+        let result = quake_engine.sv_spawnserver_detour();
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn sv_sendservercommand_detour_when_no_detour_set() {
+        let quake_engine = default_quake_engine();
+
+        let result = quake_engine.sv_sendservercommand_detour();
+        assert!(result.is_err_and(|err| err
+            == QuakeLiveEngineError::StaticDetourNotFound(
+                QuakeLiveFunction::SV_SendServerCommand,
+            )));
+    }
+
+    #[test]
+    #[cfg_attr(miri, ignore)]
+    fn sv_sendservercommand_detour_when_detour_set() {
+        let quake_engine = QuakeLiveEngine {
+            static_functions: default_static_functions().into(),
+            static_detours: default_static_detours().into(),
+            ..default_quake_engine()
+        };
+
+        let result = quake_engine.sv_sendservercommand_detour();
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn com_printf_detour_when_no_detour_set() {
+        let quake_engine = default_quake_engine();
+
+        let result = quake_engine.com_printf_detour();
+        assert!(result
+            .is_err_and(|err| err
+                == QuakeLiveEngineError::StaticDetourNotFound(QuakeLiveFunction::Com_Printf,)));
+    }
+
+    #[test]
+    #[cfg_attr(miri, ignore)]
+    fn com_printf_detour_when_detour_set() {
+        let quake_engine = QuakeLiveEngine {
+            static_functions: default_static_functions().into(),
+            static_detours: default_static_detours().into(),
+            ..default_quake_engine()
+        };
+
+        let result = quake_engine.com_printf_detour();
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn g_init_game_orig_when_no_function_pointer_set() {
+        let quake_engine = default_quake_engine();
+
+        let result = quake_engine.g_init_game_orig();
+        assert!(result
+            .is_err_and(|err| err
+                == QuakeLiveEngineError::VmFunctionNotFound(QuakeLiveFunction::G_InitGame,)));
+    }
+
+    #[test]
+    #[allow(clippy::fn_address_comparisons)]
+    #[cfg_attr(miri, ignore)]
+    fn g_init_game_orig_when_function_pointer_set() {
+        let quake_engine = default_quake_engine();
+        quake_engine
+            .vm_functions
+            .g_init_game_orig
+            .store(G_InitGame as usize, Ordering::SeqCst);
+
+        let result = quake_engine.g_init_game_orig();
+        assert!(result.is_ok_and(|func| func == G_InitGame));
+    }
+
+    #[test]
+    fn g_shutdown_game_orig_when_no_function_pointer_set() {
+        let quake_engine = default_quake_engine();
+
+        let result = quake_engine.g_shutdown_game_orig();
+        assert!(result.is_err_and(|err| err
+            == QuakeLiveEngineError::VmFunctionNotFound(QuakeLiveFunction::G_ShutdownGame,)));
+    }
+
+    #[test]
+    #[allow(clippy::fn_address_comparisons)]
+    #[cfg_attr(miri, ignore)]
+    fn g_shutdown_game_orig_when_function_pointer_set() {
+        let quake_engine = default_quake_engine();
+        quake_engine
+            .vm_functions
+            .g_shutdown_game_orig
+            .store(G_ShutdownGame as usize, Ordering::SeqCst);
+
+        let result = quake_engine.g_shutdown_game_orig();
+        assert!(result.is_ok_and(|func| func == G_ShutdownGame));
+    }
+
+    #[test]
+    fn g_run_frame_orig_when_no_function_pointer_set() {
+        let quake_engine = default_quake_engine();
+
+        let result = quake_engine.g_run_frame_orig();
+        assert!(result
+            .is_err_and(|err| err
+                == QuakeLiveEngineError::VmFunctionNotFound(QuakeLiveFunction::G_RunFrame,)));
+    }
+
+    #[test]
+    #[allow(clippy::fn_address_comparisons)]
+    #[cfg_attr(miri, ignore)]
+    fn g_run_frame_orig_when_function_pointer_set() {
+        let quake_engine = default_quake_engine();
+        quake_engine
+            .vm_functions
+            .g_run_frame_orig
+            .store(G_RunFrame as usize, Ordering::SeqCst);
+
+        let result = quake_engine.g_run_frame_orig();
+        assert!(result.is_ok_and(|func| func == G_RunFrame));
+    }
+
+    #[test]
+    fn g_addevent_orig_when_no_function_pointer_set() {
+        let quake_engine = default_quake_engine();
+
+        let result = quake_engine.g_addevent_orig();
+        assert!(result
+            .is_err_and(|err| err
+                == QuakeLiveEngineError::VmFunctionNotFound(QuakeLiveFunction::G_AddEvent,)));
+    }
+
+    #[test]
+    #[allow(clippy::fn_address_comparisons)]
+    #[cfg_attr(miri, ignore)]
+    fn g_addevent_orig_when_function_pointer_set() {
+        let quake_engine = default_quake_engine();
+        quake_engine
+            .vm_functions
+            .g_addevent_orig
+            .store(G_AddEvent as usize, Ordering::SeqCst);
+
+        let result = quake_engine.g_addevent_orig();
+        assert!(result.is_ok_and(|func| func == G_AddEvent));
+    }
+
+    #[test]
+    fn g_free_entity_orig_when_no_function_pointer_set() {
+        let quake_engine = default_quake_engine();
+
+        let result = quake_engine.g_free_entity_orig();
+        assert!(result
+            .is_err_and(|err| err
+                == QuakeLiveEngineError::VmFunctionNotFound(QuakeLiveFunction::G_FreeEntity,)));
+    }
+
+    #[test]
+    #[allow(clippy::fn_address_comparisons)]
+    #[cfg_attr(miri, ignore)]
+    fn g_free_entity_orig_when_function_pointer_set() {
+        let quake_engine = default_quake_engine();
+        quake_engine
+            .vm_functions
+            .g_free_entity_orig
+            .store(G_FreeEntity as usize, Ordering::SeqCst);
+
+        let result = quake_engine.g_free_entity_orig();
+        assert!(result.is_ok_and(|func| func == G_FreeEntity));
+    }
+
+    #[test]
+    fn launch_item_orig_when_no_function_pointer_set() {
+        let quake_engine = default_quake_engine();
+
+        let result = quake_engine.launch_item_orig();
+        assert!(result
+            .is_err_and(|err| err
+                == QuakeLiveEngineError::VmFunctionNotFound(QuakeLiveFunction::LaunchItem,)));
+    }
+
+    #[test]
+    #[allow(clippy::fn_address_comparisons)]
+    #[cfg_attr(miri, ignore)]
+    fn launch_item_orig_when_function_pointer_set() {
+        let quake_engine = default_quake_engine();
+        quake_engine
+            .vm_functions
+            .launch_item_orig
+            .store(LaunchItem as usize, Ordering::SeqCst);
+
+        let result = quake_engine.launch_item_orig();
+        assert!(result.is_ok_and(|func| func == LaunchItem));
+    }
+}
+
+#[cfg(test)]
 mod quake_live_engine_test_helpers {
     use super::mock_quake_functions::*;
-    use super::{QuakeLiveEngine, StaticDetours, StaticFunctions, VmFunctions};
+    use super::{QuakeLiveEngine, StaticDetours, StaticFunctions};
 
     use crate::ffi::c::prelude::{client_t, qboolean, usercmd_t};
 
@@ -1661,33 +3225,7 @@ mod quake_live_engine_test_helpers {
     }
 
     pub(crate) fn default_quake_engine() -> QuakeLiveEngine {
-        QuakeLiveEngine {
-            static_functions: Default::default(),
-            static_detours: Default::default(),
-            sv_maxclients: Default::default(),
-            common_initialized: Default::default(),
-            vm_functions: VmFunctions {
-                vm_call_table: Default::default(),
-                g_addevent_orig: Default::default(),
-                check_privileges_orig: Default::default(),
-                client_connect_orig: Default::default(),
-                client_spawn_orig: Default::default(),
-                g_damage_orig: Default::default(),
-                touch_item_orig: Default::default(),
-                launch_item_orig: Default::default(),
-                drop_item_orig: Default::default(),
-                g_start_kamikaze_orig: Default::default(),
-                g_free_entity_orig: Default::default(),
-                g_init_game_orig: Default::default(),
-                g_shutdown_game_orig: Default::default(),
-                g_run_frame_orig: Default::default(),
-                client_spawn_detour: Default::default(),
-                client_connect_detour: Default::default(),
-                g_start_kamikaze_detour: Default::default(),
-                g_damage_detour: Default::default(),
-            },
-            current_vm: Default::default(),
-        }
+        QuakeLiveEngine::new()
     }
 
     #[cfg(not(tarpaulin_include))]
@@ -1737,18 +3275,18 @@ mod find_cvar_quake_live_engine_tests {
     #[cfg_attr(miri, ignore)]
     #[serial]
     fn find_cvar_when_function_returns_valid_cvar() {
+        let mut cvar = CVarBuilder::default()
+            .build()
+            .expect("this should not happen");
+
         let find_cvar_ctx = Cvar_FindVar_context();
         find_cvar_ctx
             .expect()
             .withf(|&cvar_name| {
-                unsafe { CStr::from_ptr(cvar_name) }.to_string_lossy() == "sv_maxclients"
+                !cvar_name.is_null()
+                    && unsafe { CStr::from_ptr(cvar_name) }.to_string_lossy() == "sv_maxclients"
             })
-            .returning(|_| {
-                let mut cvar = CVarBuilder::default()
-                    .build()
-                    .expect("this should not happen");
-                &mut cvar
-            })
+            .returning_st(move |_| &mut cvar)
             .times(1);
 
         let quake_engine = QuakeLiveEngine {
@@ -1768,7 +3306,8 @@ mod find_cvar_quake_live_engine_tests {
         find_cvar_ctx
             .expect()
             .withf(|&cvar_name| {
-                unsafe { CStr::from_ptr(cvar_name) }.to_string_lossy() == "sv_maxclients"
+                !cvar_name.is_null()
+                    && unsafe { CStr::from_ptr(cvar_name) }.to_string_lossy() == "sv_maxclients"
             })
             .returning(|_| ptr::null_mut())
             .times(1);
@@ -1823,7 +3362,8 @@ mod add_command_quake_live_engine_tests {
         add_command_ctx
             .expect()
             .withf(|&cvar_name, _| {
-                unsafe { CStr::from_ptr(cvar_name) }.to_string_lossy() == "spank"
+                !cvar_name.is_null()
+                    && unsafe { CStr::from_ptr(cvar_name) }.to_string_lossy() == "spank"
             })
             .times(1);
 
@@ -1845,7 +3385,7 @@ impl<T: AsRef<str>> SetModuleOffset<T> for QuakeLiveEngine {
     fn set_module_offset(&self, module_name: T, offset: unsafe extern "C" fn()) {
         if let Ok(detour) = self.sys_setmoduleoffset_detour() {
             if let Ok(c_module_name) = CString::new(module_name.as_ref()) {
-                detour.call(c_module_name.as_ptr() as *mut c_char, offset);
+                detour.call(c_module_name.as_ptr().cast_mut(), offset);
             }
         }
     }
@@ -1877,7 +3417,8 @@ mod set_module_offset_quake_live_engine_tests {
         set_module_offset_ctx
             .expect()
             .withf(|&cvar_name, _| {
-                unsafe { CStr::from_ptr(cvar_name) }.to_string_lossy() == "qagame"
+                !cvar_name.is_null()
+                    && unsafe { CStr::from_ptr(cvar_name) }.to_string_lossy() == "qagame"
             })
             .times(1);
 
@@ -2028,7 +3569,7 @@ mod execute_client_command_quake_live_engine_tests {
     use super::mock_quake_functions::SV_ExecuteClientCommand_context;
     use super::quake_live_engine_test_helpers::*;
 
-    use crate::ffi::c::prelude::{client_t, Client, ClientBuilder, MockClient};
+    use crate::ffi::c::prelude::{Client, ClientBuilder, MockClient};
     use crate::prelude::serial;
 
     use core::ffi::CStr;
@@ -2049,6 +3590,7 @@ mod execute_client_command_quake_live_engine_tests {
             .expect()
             .withf(|&client, &cmd, &client_ok| {
                 client.is_null()
+                    && !cmd.is_null()
                     && unsafe { CStr::from_ptr(cmd) }.to_string_lossy() == "asdf"
                     && client_ok.into()
             })
@@ -2067,19 +3609,11 @@ mod execute_client_command_quake_live_engine_tests {
     #[cfg_attr(miri, ignore)]
     #[serial]
     fn execute_client_command_with_valid_detour_function_and_valid_client() {
-        let mut client = ClientBuilder::default()
-            .build()
-            .expect("this should not happen");
-
-        let client_try_from_ctx = MockClient::try_from_context();
-        client_try_from_ctx.expect().returning(|_| {
-            let mut client_mock = MockClient::default();
-            client_mock.expect_as_mut().returning(|| {
-                ClientBuilder::default()
-                    .build()
-                    .expect("this should not happen")
-            });
-            Ok(client_mock)
+        let mut mock_client = MockClient::default();
+        mock_client.expect_as_mut().returning(|| {
+            ClientBuilder::default()
+                .build()
+                .expect("this should not happen")
         });
 
         let sv_execute_client_command_ctx = SV_ExecuteClientCommand_context();
@@ -2087,6 +3621,7 @@ mod execute_client_command_quake_live_engine_tests {
             .expect()
             .withf(|&client, &cmd, &client_ok| {
                 !client.is_null()
+                    && !cmd.is_null()
                     && unsafe { CStr::from_ptr(cmd) }.to_string_lossy() == "asdf"
                     && client_ok.into()
             })
@@ -2098,11 +3633,7 @@ mod execute_client_command_quake_live_engine_tests {
             ..default_quake_engine()
         };
 
-        quake_engine.execute_client_command(
-            Client::try_from(&mut client as *mut client_t).ok(),
-            "asdf",
-            true,
-        );
+        quake_engine.execute_client_command(Some(mock_client), "asdf", true);
     }
 }
 
@@ -2132,7 +3663,7 @@ mod send_server_command_quake_live_engine_tests {
     use super::mock_quake_functions::SV_SendServerCommand_context;
     use super::quake_live_engine_test_helpers::*;
 
-    use crate::ffi::c::prelude::{client_t, Client, ClientBuilder, MockClient};
+    use crate::ffi::c::prelude::{Client, ClientBuilder, MockClient};
     use crate::prelude::serial;
 
     use core::ffi::CStr;
@@ -2152,7 +3683,9 @@ mod send_server_command_quake_live_engine_tests {
         sv_send_server_command_ctx
             .expect()
             .withf(|&client, &cmd| {
-                client.is_null() && unsafe { CStr::from_ptr(cmd) }.to_string_lossy() == "asdf"
+                client.is_null()
+                    && !cmd.is_null()
+                    && unsafe { CStr::from_ptr(cmd) }.to_string_lossy() == "asdf"
             })
             .times(1);
 
@@ -2169,26 +3702,20 @@ mod send_server_command_quake_live_engine_tests {
     #[cfg_attr(miri, ignore)]
     #[serial]
     fn send_server_command_with_valid_detour_function_and_valid_client() {
-        let mut client = ClientBuilder::default()
-            .build()
-            .expect("this should not happen");
-
-        let client_try_from_ctx = MockClient::try_from_context();
-        client_try_from_ctx.expect().returning(|_| {
-            let mut client_mock = MockClient::default();
-            client_mock.expect_as_ref().return_const(
-                ClientBuilder::default()
-                    .build()
-                    .expect("this should not happen"),
-            );
-            Ok(client_mock)
-        });
+        let mut mock_client = MockClient::default();
+        mock_client.expect_as_ref().return_const(
+            ClientBuilder::default()
+                .build()
+                .expect("this should not happen"),
+        );
 
         let sv_send_server_command_ctx = SV_SendServerCommand_context();
         sv_send_server_command_ctx
             .expect()
             .withf(|&client, &cmd| {
-                !client.is_null() && unsafe { CStr::from_ptr(cmd) }.to_string_lossy() == "asdf"
+                !client.is_null()
+                    && !cmd.is_null()
+                    && unsafe { CStr::from_ptr(cmd) }.to_string_lossy() == "asdf"
             })
             .times(1);
 
@@ -2198,8 +3725,7 @@ mod send_server_command_quake_live_engine_tests {
             ..default_quake_engine()
         };
 
-        quake_engine
-            .send_server_command(Client::try_from(&mut client as *mut client_t).ok(), "asdf");
+        quake_engine.send_server_command(Some(mock_client), "asdf");
     }
 }
 
@@ -2222,54 +3748,34 @@ mod client_enter_world_quake_live_engine_tests {
     use super::mock_quake_functions::SV_ClientEnterWorld_context;
     use super::quake_live_engine_test_helpers::*;
 
-    use crate::ffi::c::prelude::{
-        client_t, usercmd_t, Client, ClientBuilder, MockClient, UserCmdBuilder,
-    };
+    use crate::ffi::c::prelude::{usercmd_t, ClientBuilder, MockClient, UserCmdBuilder};
     use crate::prelude::serial;
 
     #[test]
     #[cfg_attr(miri, ignore)]
     #[serial]
     fn client_enter_world_with_no_detour_set() {
-        let mut client = ClientBuilder::default()
-            .build()
-            .expect("this should not happen");
-
-        let client_try_from_ctx = MockClient::try_from_context();
-        client_try_from_ctx.expect().returning(|_| {
-            let client_mock = MockClient::default();
-            Ok(client_mock)
-        });
+        let mock_client = MockClient::default();
 
         let mut usercmd = UserCmdBuilder::default()
             .build()
             .expect("this should not happen");
         let quake_engine = default_quake_engine();
 
-        quake_engine.client_enter_world(
-            Client::try_from(&mut client as *mut client_t).expect("this should not happen"),
-            &mut usercmd as *mut usercmd_t,
-        );
+        quake_engine.client_enter_world(mock_client, &mut usercmd as *mut usercmd_t);
     }
 
     #[test]
     #[cfg_attr(miri, ignore)]
     #[serial]
     fn client_enter_world_with_valid_detour_function() {
-        let mut client = ClientBuilder::default()
-            .build()
-            .expect("this should not happen");
-
-        let client_try_from_ctx = MockClient::try_from_context();
-        client_try_from_ctx.expect().returning(|_| {
-            let mut client_mock = MockClient::default();
-            client_mock.expect_as_mut().returning(|| {
-                ClientBuilder::default()
-                    .build()
-                    .expect("this should not happen")
-            });
-            Ok(client_mock)
+        let mut mock_client = MockClient::default();
+        mock_client.expect_as_mut().returning(|| {
+            ClientBuilder::default()
+                .build()
+                .expect("this should not happen")
         });
+
         let mut usercmd = UserCmdBuilder::default()
             .build()
             .expect("this should not happen");
@@ -2286,10 +3792,7 @@ mod client_enter_world_quake_live_engine_tests {
             ..default_quake_engine()
         };
 
-        quake_engine.client_enter_world(
-            Client::try_from(&mut client as *mut client_t).expect("this should not happen"),
-            &mut usercmd as *mut usercmd_t,
-        );
+        quake_engine.client_enter_world(mock_client, &mut usercmd as *mut usercmd_t);
     }
 }
 
@@ -2333,7 +3836,9 @@ mod set_confgistring_quake_live_engine_tests {
         sv_set_configstring_ctx
             .expect()
             .withf(|&index, &value| {
-                index == 42 && unsafe { CStr::from_ptr(value) }.to_string_lossy() == "asdf"
+                index == 42
+                    && !value.is_null()
+                    && unsafe { CStr::from_ptr(value) }.to_string_lossy() == "asdf"
             })
             .times(1);
 
@@ -2388,7 +3893,9 @@ mod com_printf_quake_live_engine_tests {
         let com_printf_ctx = Com_Printf_context();
         com_printf_ctx
             .expect()
-            .withf(|&value| unsafe { CStr::from_ptr(value) }.to_string_lossy() == "asdf")
+            .withf(|&value| {
+                !value.is_null() && unsafe { CStr::from_ptr(value) }.to_string_lossy() == "asdf"
+            })
             .times(1);
 
         let quake_engine = QuakeLiveEngine {
@@ -2409,7 +3916,7 @@ impl<T: AsRef<str>, U: Into<qboolean>> SpawnServer<T, U> for QuakeLiveEngine {
     fn spawn_server(&self, server: T, kill_bots: U) {
         if let Ok(detour) = self.sv_spawnserver_detour() {
             if let Ok(c_server) = CString::new(server.as_ref()) {
-                detour.call(c_server.as_ptr() as *mut c_char, kill_bots.into());
+                detour.call(c_server.as_ptr().cast_mut(), kill_bots.into());
             }
         }
     }
@@ -2441,7 +3948,8 @@ mod spawn_server_quake_live_engine_tests {
         sv_spawn_server_ctx
             .expect()
             .withf(|&server_name, &kill_bots| {
-                unsafe { CStr::from_ptr(server_name) }.to_string_lossy() == "asdf"
+                !server_name.is_null()
+                    && unsafe { CStr::from_ptr(server_name) }.to_string_lossy() == "asdf"
                     && kill_bots.into()
             })
             .times(1);
@@ -2472,12 +3980,13 @@ impl<T: Into<c_int>> RunFrame<T> for QuakeLiveEngine {
 #[cfg(test)]
 mod run_frame_quake_live_engine_tests {
     use super::{QuakeLiveEngine, RunFrame};
-    use std::sync::atomic::Ordering;
 
     use super::mock_quake_functions::{G_RunFrame, G_RunFrame_context};
     use super::quake_live_engine_test_helpers::*;
 
     use crate::prelude::serial;
+
+    use core::sync::atomic::Ordering;
 
     #[test]
     fn run_frame_with_no_detour_set() {
@@ -2584,6 +4093,7 @@ mod client_connect_quake_live_engine_tests {
         ));
 
         let result = quake_engine.client_connect(42, true, false);
+        assert!(!result.is_null());
         assert_eq!(
             unsafe { CStr::from_ptr(result) }.to_string_lossy(),
             "expected connect return"
@@ -2612,7 +4122,7 @@ mod client_spawn_quake_live_engine_tests {
     use super::mock_quake_functions::{detoured_ClientSpawn, ClientSpawn, ClientSpawn_context};
     use super::quake_live_engine_test_helpers::*;
 
-    use crate::ffi::c::prelude::{gentity_t, GEntityBuilder, GameEntity, MockGameEntity};
+    use crate::ffi::c::prelude::{gentity_t, GEntityBuilder, MockGameEntity};
 
     use crate::prelude::serial;
 
@@ -2620,42 +4130,23 @@ mod client_spawn_quake_live_engine_tests {
 
     #[test]
     fn client_spawn_with_no_detour_set() {
-        let mut gentity = GEntityBuilder::default()
-            .build()
-            .expect("this should not happen");
-        let gentity_try_from_ctx = MockGameEntity::try_from_context();
-        gentity_try_from_ctx
-            .expect()
-            .returning(|_| Ok(MockGameEntity::default()));
-
-        let mut client_entity =
-            GameEntity::try_from(&mut gentity as *mut gentity_t).expect("this should not happen");
+        let mock_gentity = MockGameEntity::default();
 
         let quake_engine = default_quake_engine();
 
-        quake_engine.client_spawn(&mut client_entity);
+        quake_engine.client_spawn(mock_gentity);
     }
 
     #[test]
     #[cfg_attr(miri, ignore)]
     #[serial]
     fn client_spawn_with_valid_detour_function() {
-        let mut gentity = GEntityBuilder::default()
-            .build()
-            .expect("this should not happen");
-        let gentity_try_from_ctx = MockGameEntity::try_from_context();
-        gentity_try_from_ctx.expect().returning(|_| {
-            let mut mock_game_entity = MockGameEntity::default();
-            mock_game_entity.expect_as_mut().returning(|| {
-                GEntityBuilder::default()
-                    .build()
-                    .expect("this should not happen")
-            });
-            Ok(mock_game_entity)
+        let mut mock_game_entity = MockGameEntity::default();
+        mock_game_entity.expect_as_mut().returning(|| {
+            GEntityBuilder::default()
+                .build()
+                .expect("this should not happen")
         });
-
-        let mut client_entity =
-            GameEntity::try_from(&mut gentity as *mut gentity_t).expect("this should not happen");
 
         let client_spawn_ctx = ClientSpawn_context();
         client_spawn_ctx
@@ -2679,7 +4170,7 @@ mod client_spawn_quake_live_engine_tests {
             .into(),
         ));
 
-        quake_engine.client_spawn(&mut client_entity);
+        quake_engine.client_spawn(mock_game_entity);
     }
 }
 
@@ -2699,9 +4190,9 @@ impl CmdArgs for QuakeLiveEngine {
 
 #[cfg(test)]
 mod cmd_args_quake_live_engine_tests {
-    use super::{CmdArgs, QuakeLiveEngine, StaticFunctions};
+    use super::{CmdArgs, QuakeLiveEngine};
 
-    use super::mock_quake_functions::{Cmd_Args, Cmd_Args_context};
+    use super::mock_quake_functions::Cmd_Args_context;
     use super::quake_live_engine_test_helpers::*;
 
     use crate::prelude::serial;
@@ -2730,11 +4221,7 @@ mod cmd_args_quake_live_engine_tests {
             .times(1);
 
         let quake_engine = QuakeLiveEngine {
-            static_functions: StaticFunctions {
-                cmd_args_orig: Cmd_Args,
-                ..default_static_functions()
-            }
-            .into(),
+            static_functions: default_static_functions().into(),
             static_detours: default_static_detours().into(),
             ..default_quake_engine()
         };
@@ -2751,11 +4238,7 @@ mod cmd_args_quake_live_engine_tests {
         cmd_args_ctx.expect().returning(ptr::null).times(1);
 
         let quake_engine = QuakeLiveEngine {
-            static_functions: StaticFunctions {
-                cmd_args_orig: Cmd_Args,
-                ..default_static_functions()
-            }
-            .into(),
+            static_functions: default_static_functions().into(),
             static_detours: default_static_detours().into(),
             ..default_quake_engine()
         };
@@ -2778,9 +4261,9 @@ impl CmdArgc for QuakeLiveEngine {
 
 #[cfg(test)]
 mod cmd_argc_quake_live_engine_tests {
-    use super::{CmdArgc, QuakeLiveEngine, StaticFunctions};
+    use super::{CmdArgc, QuakeLiveEngine};
 
-    use super::mock_quake_functions::{Cmd_Argc, Cmd_Argc_context};
+    use super::mock_quake_functions::Cmd_Argc_context;
     use super::quake_live_engine_test_helpers::*;
 
     use crate::prelude::serial;
@@ -2802,11 +4285,7 @@ mod cmd_argc_quake_live_engine_tests {
         cmd_argc_ctx.expect().returning(|| 42).times(1);
 
         let quake_engine = QuakeLiveEngine {
-            static_functions: StaticFunctions {
-                cmd_argc_orig: Cmd_Argc,
-                ..default_static_functions()
-            }
-            .into(),
+            static_functions: default_static_functions().into(),
             static_detours: default_static_detours().into(),
             ..default_quake_engine()
         };
@@ -2835,9 +4314,9 @@ impl<T: Into<c_int> + PartialOrd<c_int>> CmdArgv<T> for QuakeLiveEngine {
 
 #[cfg(test)]
 mod cmd_argv_quake_live_engine_tests {
-    use super::{CmdArgv, QuakeLiveEngine, StaticFunctions};
+    use super::{CmdArgv, QuakeLiveEngine};
 
-    use super::mock_quake_functions::{Cmd_Argv, Cmd_Argv_context};
+    use super::mock_quake_functions::Cmd_Argv_context;
     use super::quake_live_engine_test_helpers::*;
 
     use crate::prelude::serial;
@@ -2868,11 +4347,7 @@ mod cmd_argv_quake_live_engine_tests {
             .times(1);
 
         let quake_engine = QuakeLiveEngine {
-            static_functions: StaticFunctions {
-                cmd_argv_orig: Cmd_Argv,
-                ..default_static_functions()
-            }
-            .into(),
+            static_functions: default_static_functions().into(),
             static_detours: default_static_detours().into(),
             ..default_quake_engine()
         };
@@ -2893,11 +4368,7 @@ mod cmd_argv_quake_live_engine_tests {
             .times(1);
 
         let quake_engine = QuakeLiveEngine {
-            static_functions: StaticFunctions {
-                cmd_argv_orig: Cmd_Argv,
-                ..default_static_functions()
-            }
-            .into(),
+            static_functions: default_static_functions().into(),
             static_detours: default_static_detours().into(),
             ..default_quake_engine()
         };
@@ -2914,11 +4385,7 @@ mod cmd_argv_quake_live_engine_tests {
         cmd_argv_ctx.expect().times(0);
 
         let quake_engine = QuakeLiveEngine {
-            static_functions: StaticFunctions {
-                cmd_argv_orig: Cmd_Argv,
-                ..default_static_functions()
-            }
-            .into(),
+            static_functions: default_static_functions().into(),
             static_detours: default_static_detours().into(),
             ..default_quake_engine()
         };
@@ -2948,9 +4415,7 @@ mod game_add_event_quake_live_engine_tests {
     use super::mock_quake_functions::{G_AddEvent, G_AddEvent_context};
     use super::quake_live_engine_test_helpers::*;
 
-    use crate::ffi::c::prelude::{
-        entity_event_t, gentity_t, GEntityBuilder, GameEntity, MockGameEntity,
-    };
+    use crate::ffi::c::prelude::{entity_event_t, GEntityBuilder, MockGameEntity};
 
     use crate::prelude::serial;
 
@@ -2958,46 +4423,23 @@ mod game_add_event_quake_live_engine_tests {
 
     #[test]
     fn game_add_event_with_no_original_function_set() {
-        let mut gentity = GEntityBuilder::default()
-            .build()
-            .expect("this should not happen");
-        let gentity_try_from_ctx = MockGameEntity::try_from_context();
-        gentity_try_from_ctx
-            .expect()
-            .returning(|_| Ok(MockGameEntity::default()));
-
-        let mut client_entity =
-            GameEntity::try_from(&mut gentity as *mut gentity_t).expect("this should not happen");
+        let mock_gentity = MockGameEntity::default();
 
         let quake_engine = default_quake_engine();
 
-        quake_engine.game_add_event(
-            &mut client_entity,
-            entity_event_t::EV_LIGHTNING_DISCHARGE,
-            1,
-        );
+        quake_engine.game_add_event(mock_gentity, entity_event_t::EV_LIGHTNING_DISCHARGE, 1);
     }
 
     #[test]
     #[cfg_attr(miri, ignore)]
     #[serial]
     fn game_add_event_with_valid_original_function() {
-        let mut gentity = GEntityBuilder::default()
-            .build()
-            .expect("this should not happen");
-        let gentity_try_from_ctx = MockGameEntity::try_from_context();
-        gentity_try_from_ctx.expect().returning(|_| {
-            let mut mock_game_entity = MockGameEntity::default();
-            mock_game_entity.expect_as_mut().returning(|| {
-                GEntityBuilder::default()
-                    .build()
-                    .expect("this should not happen")
-            });
-            Ok(mock_game_entity)
+        let mut mock_game_entity = MockGameEntity::default();
+        mock_game_entity.expect_as_mut().returning(|| {
+            GEntityBuilder::default()
+                .build()
+                .expect("this should not happen")
         });
-
-        let mut client_entity =
-            GameEntity::try_from(&mut gentity as *mut gentity_t).expect("this should not happen");
 
         let g_add_event_ctx = G_AddEvent_context();
         g_add_event_ctx
@@ -3017,7 +4459,7 @@ mod game_add_event_quake_live_engine_tests {
             .g_addevent_orig
             .store(G_AddEvent as usize, Ordering::SeqCst);
 
-        quake_engine.game_add_event(&mut client_entity, entity_event_t::EV_KAMIKAZE, 42);
+        quake_engine.game_add_event(mock_game_entity, entity_event_t::EV_KAMIKAZE, 42);
     }
 }
 
@@ -3037,9 +4479,9 @@ impl<T: AsRef<str>> ConsoleCommand<T> for QuakeLiveEngine {
 
 #[cfg(test)]
 mod console_command_quake_live_engine_tests {
-    use super::{ConsoleCommand, QuakeLiveEngine, StaticFunctions};
+    use super::{ConsoleCommand, QuakeLiveEngine};
 
-    use super::mock_quake_functions::{Cmd_ExecuteString, Cmd_ExecuteString_context};
+    use super::mock_quake_functions::Cmd_ExecuteString_context;
     use super::quake_live_engine_test_helpers::*;
 
     use crate::prelude::serial;
@@ -3060,15 +4502,13 @@ mod console_command_quake_live_engine_tests {
         let cmd_execute_string_ctx = Cmd_ExecuteString_context();
         cmd_execute_string_ctx
             .expect()
-            .withf(|&cmd| unsafe { CStr::from_ptr(cmd) }.to_string_lossy() == "!slap 0 100")
+            .withf(|&cmd| {
+                !cmd.is_null() && unsafe { CStr::from_ptr(cmd) }.to_string_lossy() == "!slap 0 100"
+            })
             .times(1);
 
         let quake_engine = QuakeLiveEngine {
-            static_functions: StaticFunctions {
-                cmd_executestring_orig: Cmd_ExecuteString,
-                ..default_static_functions()
-            }
-            .into(),
+            static_functions: default_static_functions().into(),
             static_detours: default_static_detours().into(),
             ..default_quake_engine()
         };
@@ -3081,7 +4521,7 @@ pub(crate) trait GetCVar<T: AsRef<str>, U: AsRef<str>, V: Into<c_int>> {
     fn get_cvar(&self, name: T, value: U, flags: Option<V>) -> Option<CVar>;
 }
 
-impl<T: AsRef<str>, U: AsRef<str>, V: Into<c_int> + Default> GetCVar<T, U, V> for QuakeLiveEngine {
+impl<T: AsRef<str>, U: AsRef<str>, V: Into<c_int>> GetCVar<T, U, V> for QuakeLiveEngine {
     fn get_cvar(&self, name: T, value: U, flags: Option<V>) -> Option<CVar> {
         self.cvar_get_orig()
             .ok()
@@ -3091,7 +4531,7 @@ impl<T: AsRef<str>, U: AsRef<str>, V: Into<c_int> + Default> GetCVar<T, U, V> fo
                         original_func(
                             c_name.as_ptr(),
                             c_value.as_ptr(),
-                            flags.unwrap_or_default().into(),
+                            flags.map_or(0, |real_flags| real_flags.into()),
                         )
                     })
                 })
@@ -3102,9 +4542,9 @@ impl<T: AsRef<str>, U: AsRef<str>, V: Into<c_int> + Default> GetCVar<T, U, V> fo
 
 #[cfg(test)]
 mod get_cvar_quake_live_engine_tests {
-    use super::{GetCVar, QuakeLiveEngine, StaticFunctions};
+    use super::{GetCVar, QuakeLiveEngine};
 
-    use super::mock_quake_functions::{Cvar_Get, Cvar_Get_context};
+    use super::mock_quake_functions::Cvar_Get_context;
     use super::quake_live_engine_test_helpers::*;
 
     use crate::ffi::c::prelude::cvar_flags::CVAR_CHEAT;
@@ -3112,7 +4552,7 @@ mod get_cvar_quake_live_engine_tests {
     use crate::prelude::serial;
 
     use alloc::ffi::CString;
-    use core::ffi::{c_char, c_int, CStr};
+    use core::ffi::{c_int, CStr};
 
     #[test]
     fn get_cvar_with_no_original_function_set() {
@@ -3129,30 +4569,27 @@ mod get_cvar_quake_live_engine_tests {
         let cvar_name = CString::new("sv_maxclients").expect("this should not happen");
         let cvar_value = CString::new("16").expect("this should not happen");
 
+        let mut result = CVarBuilder::default()
+            .name(cvar_name.as_ptr().cast_mut())
+            .string(cvar_value.as_ptr().cast_mut())
+            .build()
+            .expect("this should not happen");
+
         let cvar_get_ctx = Cvar_Get_context();
         cvar_get_ctx
             .expect()
             .withf(|&cvar, &value, &flags| {
-                unsafe { CStr::from_ptr(cvar) }.to_string_lossy() == "sv_maxclients"
+                !cvar.is_null()
+                    && unsafe { CStr::from_ptr(cvar) }.to_string_lossy() == "sv_maxclients"
+                    && !value.is_null()
                     && unsafe { CStr::from_ptr(value) }.to_string_lossy() == "16"
                     && flags == CVAR_CHEAT as c_int
             })
-            .returning(move |_, _, _| {
-                let mut result = CVarBuilder::default()
-                    .name(cvar_name.as_ptr() as *mut c_char)
-                    .string(cvar_value.as_ptr() as *mut c_char)
-                    .build()
-                    .expect("this should not happen");
-                &mut result
-            })
+            .returning_st(move |_, _, _| &mut result)
             .times(1);
 
         let quake_engine = QuakeLiveEngine {
-            static_functions: StaticFunctions {
-                cvar_get_orig: Cvar_Get,
-                ..default_static_functions()
-            }
-            .into(),
+            static_functions: default_static_functions().into(),
             static_detours: default_static_detours().into(),
             ..default_quake_engine()
         };
@@ -3168,30 +4605,27 @@ mod get_cvar_quake_live_engine_tests {
         let cvar_name = CString::new("sv_maxclients").expect("this should not happen");
         let cvar_value = CString::new("16").expect("this should not happen");
 
+        let mut result = CVarBuilder::default()
+            .name(cvar_name.as_ptr().cast_mut())
+            .string(cvar_value.as_ptr().cast_mut())
+            .build()
+            .expect("this should not happen");
+
         let cvar_get_ctx = Cvar_Get_context();
         cvar_get_ctx
             .expect()
             .withf(|&cvar, &value, &flags| {
-                unsafe { CStr::from_ptr(cvar) }.to_string_lossy() == "sv_maxclients"
+                !cvar.is_null()
+                    && unsafe { CStr::from_ptr(cvar) }.to_string_lossy() == "sv_maxclients"
+                    && !value.is_null()
                     && unsafe { CStr::from_ptr(value) }.to_string_lossy() == "16"
                     && flags == 0
             })
-            .returning(move |_, _, _| {
-                let mut result = CVarBuilder::default()
-                    .name(cvar_name.as_ptr() as *mut c_char)
-                    .string(cvar_value.as_ptr() as *mut c_char)
-                    .build()
-                    .expect("this should not happen");
-                &mut result
-            })
+            .returning_st(move |_, _, _| &mut result)
             .times(1);
 
         let quake_engine = QuakeLiveEngine {
-            static_functions: StaticFunctions {
-                cvar_get_orig: Cvar_Get,
-                ..default_static_functions()
-            }
-            .into(),
+            static_functions: default_static_functions().into(),
             static_detours: default_static_detours().into(),
             ..default_quake_engine()
         };
@@ -3222,16 +4656,16 @@ impl<T: AsRef<str>, U: AsRef<str>, V: Into<qboolean>> SetCVarForced<T, U, V> for
 
 #[cfg(test)]
 mod set_cvar_forced_quake_live_engine_tests {
-    use super::{QuakeLiveEngine, SetCVarForced, StaticFunctions};
+    use super::{QuakeLiveEngine, SetCVarForced};
 
-    use super::mock_quake_functions::{Cvar_Set2, Cvar_Set2_context};
+    use super::mock_quake_functions::Cvar_Set2_context;
     use super::quake_live_engine_test_helpers::*;
 
     use crate::ffi::c::prelude::CVarBuilder;
     use crate::prelude::serial;
 
     use alloc::ffi::CString;
-    use core::ffi::{c_char, CStr};
+    use core::ffi::CStr;
 
     #[test]
     fn set_cvar_forced_with_no_original_function_set() {
@@ -3248,30 +4682,27 @@ mod set_cvar_forced_quake_live_engine_tests {
         let cvar_name = CString::new("sv_maxclients").expect("this should not happen");
         let cvar_value = CString::new("16").expect("this should not happen");
 
+        let mut result = CVarBuilder::default()
+            .name(cvar_name.as_ptr().cast_mut())
+            .string(cvar_value.as_ptr().cast_mut())
+            .build()
+            .expect("this should not happen");
+
         let cvar_set2_ctx = Cvar_Set2_context();
         cvar_set2_ctx
             .expect()
             .withf(|&cvar, &value, &forced| {
-                unsafe { CStr::from_ptr(cvar) }.to_string_lossy() == "sv_maxclients"
+                !cvar.is_null()
+                    && unsafe { CStr::from_ptr(cvar) }.to_string_lossy() == "sv_maxclients"
+                    && !value.is_null()
                     && unsafe { CStr::from_ptr(value) }.to_string_lossy() == "16"
                     && forced.into()
             })
-            .returning(move |_, _, _| {
-                let mut result = CVarBuilder::default()
-                    .name(cvar_name.as_ptr() as *mut c_char)
-                    .string(cvar_value.as_ptr() as *mut c_char)
-                    .build()
-                    .expect("this should not happen");
-                &mut result
-            })
+            .returning_st(move |_, _, _| &mut result)
             .times(1);
 
         let quake_engine = QuakeLiveEngine {
-            static_functions: StaticFunctions {
-                cvar_set2_orig: Cvar_Set2,
-                ..default_static_functions()
-            }
-            .into(),
+            static_functions: default_static_functions().into(),
             static_detours: default_static_detours().into(),
             ..default_quake_engine()
         };
@@ -3292,7 +4723,7 @@ pub(crate) trait SetCVarLimit<
     fn set_cvar_limit(&self, name: T, value: U, min: V, max: W, flags: Option<X>) -> Option<CVar>;
 }
 
-impl<T: AsRef<str>, U: AsRef<str>, V: AsRef<str>, W: AsRef<str>, X: Into<c_int> + Default>
+impl<T: AsRef<str>, U: AsRef<str>, V: AsRef<str>, W: AsRef<str>, X: Into<c_int>>
     SetCVarLimit<T, U, V, W, X> for QuakeLiveEngine
 {
     fn set_cvar_limit(&self, name: T, value: U, min: V, max: W, flags: Option<X>) -> Option<CVar> {
@@ -3308,7 +4739,7 @@ impl<T: AsRef<str>, U: AsRef<str>, V: AsRef<str>, W: AsRef<str>, X: Into<c_int> 
                                     c_value.as_ptr(),
                                     c_min.as_ptr(),
                                     c_max.as_ptr(),
-                                    flags.unwrap_or_default().into(),
+                                    flags.map_or(0, |real_flags| real_flags.into()),
                                 )
                             })
                         })
@@ -3321,9 +4752,9 @@ impl<T: AsRef<str>, U: AsRef<str>, V: AsRef<str>, W: AsRef<str>, X: Into<c_int> 
 
 #[cfg(test)]
 mod set_cvar_limit_quake_live_engine_tests {
-    use super::{QuakeLiveEngine, SetCVarLimit, StaticFunctions};
+    use super::{QuakeLiveEngine, SetCVarLimit};
 
-    use super::mock_quake_functions::{Cvar_GetLimit, Cvar_GetLimit_context};
+    use super::mock_quake_functions::Cvar_GetLimit_context;
     use super::quake_live_engine_test_helpers::*;
 
     use crate::ffi::c::prelude::cvar_flags::CVAR_CHEAT;
@@ -3332,7 +4763,7 @@ mod set_cvar_limit_quake_live_engine_tests {
     use crate::prelude::serial;
 
     use alloc::ffi::CString;
-    use core::ffi::{c_char, c_int, CStr};
+    use core::ffi::{c_int, CStr};
 
     #[test]
     fn set_cvar_limit_with_no_original_function_set() {
@@ -3349,38 +4780,42 @@ mod set_cvar_limit_quake_live_engine_tests {
         let cvar_name = CString::new("sv_maxclients").expect("this should not happen");
         let cvar_value = CString::new("16").expect("this should not happen");
 
+        let mut result = CVarBuilder::default()
+            .name(cvar_name.as_ptr().cast_mut())
+            .string(cvar_value.as_ptr().cast_mut())
+            .build()
+            .expect("this should not happen");
+
         let cvar_get_limit_ctx = Cvar_GetLimit_context();
         cvar_get_limit_ctx
             .expect()
             .withf(|&cvar, &value, &min, &max, &flags| {
-                unsafe { CStr::from_ptr(cvar) }.to_string_lossy() == "sv_maxclients"
+                !cvar.is_null()
+                    && unsafe { CStr::from_ptr(cvar) }.to_string_lossy() == "sv_maxclients"
+                    && !value.is_null()
                     && unsafe { CStr::from_ptr(value) }.to_string_lossy() == "16"
+                    && !min.is_null()
                     && unsafe { CStr::from_ptr(min) }.to_string_lossy() == "2"
+                    && !max.is_null()
                     && unsafe { CStr::from_ptr(max) }.to_string_lossy() == "64"
-                    && flags == CVAR_CHEAT as i32
+                    && flags == CVAR_CHEAT as c_int
             })
-            .returning(move |_, _, _, _, _| {
-                let mut result = CVarBuilder::default()
-                    .name(cvar_name.as_ptr() as *mut c_char)
-                    .string(cvar_value.as_ptr() as *mut c_char)
-                    .build()
-                    .expect("this should not happen");
-                &mut result
-            })
+            .returning_st(move |_, _, _, _, _| &mut result)
             .times(1);
 
         let quake_engine = QuakeLiveEngine {
-            static_functions: StaticFunctions {
-                cvar_getlimit_orig: Cvar_GetLimit,
-                ..default_static_functions()
-            }
-            .into(),
+            static_functions: default_static_functions().into(),
             static_detours: default_static_detours().into(),
             ..default_quake_engine()
         };
 
-        let result =
-            quake_engine.set_cvar_limit("sv_maxclients", "16", "2", "64", Some(CVAR_CHEAT as i32));
+        let result = quake_engine.set_cvar_limit(
+            "sv_maxclients",
+            "16",
+            "2",
+            "64",
+            Some(CVAR_CHEAT as c_int),
+        );
         assert!(result.is_some_and(|cvar| cvar.get_string() == "16"));
     }
 
@@ -3391,32 +4826,31 @@ mod set_cvar_limit_quake_live_engine_tests {
         let cvar_name = CString::new("sv_maxclients").expect("this should not happen");
         let cvar_value = CString::new("16").expect("this should not happen");
 
+        let mut result = CVarBuilder::default()
+            .name(cvar_name.as_ptr().cast_mut())
+            .string(cvar_value.as_ptr().cast_mut())
+            .build()
+            .expect("this should not happen");
+
         let cvar_get_limit_ctx = Cvar_GetLimit_context();
         cvar_get_limit_ctx
             .expect()
             .withf(|&cvar, &value, &min, &max, &flags| {
-                unsafe { CStr::from_ptr(cvar) }.to_string_lossy() == "sv_maxclients"
+                !cvar.is_null()
+                    && unsafe { CStr::from_ptr(cvar) }.to_string_lossy() == "sv_maxclients"
+                    && !value.is_null()
                     && unsafe { CStr::from_ptr(value) }.to_string_lossy() == "16"
+                    && !min.is_null()
                     && unsafe { CStr::from_ptr(min) }.to_string_lossy() == "2"
+                    && !max.is_null()
                     && unsafe { CStr::from_ptr(max) }.to_string_lossy() == "64"
                     && flags == 0
             })
-            .returning(move |_, _, _, _, _| {
-                let mut result = CVarBuilder::default()
-                    .name(cvar_name.as_ptr() as *mut c_char)
-                    .string(cvar_value.as_ptr() as *mut c_char)
-                    .build()
-                    .expect("this should not happen");
-                &mut result
-            })
+            .returning_st(move |_, _, _, _, _| &mut result)
             .times(1);
 
         let quake_engine = QuakeLiveEngine {
-            static_functions: StaticFunctions {
-                cvar_getlimit_orig: Cvar_GetLimit,
-                ..default_static_functions()
-            }
-            .into(),
+            static_functions: default_static_functions().into(),
             static_detours: default_static_detours().into(),
             ..default_quake_engine()
         };
@@ -3450,9 +4884,9 @@ impl<T: Into<c_int>> GetConfigstring<T> for QuakeLiveEngine {
 
 #[cfg(test)]
 mod get_configstring_quake_live_engine_tests {
-    use super::{GetConfigstring, QuakeLiveEngine, StaticFunctions};
+    use super::{GetConfigstring, QuakeLiveEngine};
 
-    use super::mock_quake_functions::{SV_GetConfigstring, SV_GetConfigstring_context};
+    use super::mock_quake_functions::SV_GetConfigstring_context;
     use super::quake_live_engine_test_helpers::*;
 
     use crate::prelude::serial;
@@ -3476,18 +4910,14 @@ mod get_configstring_quake_live_engine_tests {
         sv_get_configstring_ctx
             .expect()
             .withf(|&index, &_buffer, &_buffer_len| index == 42)
-            .returning(|_, buffer, _| {
+            .returning(|_, buffer, buffer_len| {
                 let returned = CString::new("asdf").expect("this should not happen");
-                unsafe { buffer.copy_from(returned.as_ptr(), 5usize) };
+                unsafe { returned.as_ptr().copy_to(buffer, buffer_len as usize) };
             })
             .times(1);
 
         let quake_engine = QuakeLiveEngine {
-            static_functions: StaticFunctions {
-                sv_getconfigstring_orig: SV_GetConfigstring,
-                ..default_static_functions()
-            }
-            .into(),
+            static_functions: default_static_functions().into(),
             static_detours: default_static_detours().into(),
             ..default_quake_engine()
         };
@@ -3546,6 +4976,101 @@ impl<T: Into<c_int>, U: Into<c_int>, V: Into<c_int>> RegisterDamage<T, U, V> for
     }
 }
 
+#[cfg(test)]
+mod register_damage_quake_live_engine_tests {
+    use super::{QuakeLiveEngine, RegisterDamage};
+
+    use super::mock_quake_functions::{detoured_G_Damage, G_Damage, G_Damage_context};
+    use super::quake_live_engine_test_helpers::*;
+
+    use crate::ffi::c::prelude::meansOfDeath_t::*;
+    use crate::ffi::c::prelude::{
+        gentity_t, vec3_t, DAMAGE_NO_PROTECTION, DAMAGE_NO_TEAM_PROTECTION,
+    };
+
+    use crate::prelude::serial;
+
+    use core::ffi::c_int;
+    use core::ptr;
+
+    use retour::GenericDetour;
+
+    #[test]
+    fn register_damage_with_no_detour_set() {
+        let quake_engine = default_quake_engine();
+
+        quake_engine.register_damage(
+            ptr::null_mut(),
+            ptr::null_mut(),
+            ptr::null_mut(),
+            ptr::null_mut(),
+            ptr::null_mut(),
+            42,
+            DAMAGE_NO_PROTECTION as c_int,
+            MOD_LIGHTNING_DISCHARGE as c_int,
+        );
+    }
+
+    #[test]
+    #[cfg_attr(miri, ignore)]
+    #[serial]
+    fn register_damage_with_valid_detour_function() {
+        let g_damage_ctx = G_Damage_context();
+        g_damage_ctx
+            .expect()
+            .withf(
+                |&target, &inflictor, &attacker, &dir, &pos, &dmg, &dflags, &means_of_death| {
+                    target.is_null()
+                        && inflictor.is_null()
+                        && attacker.is_null()
+                        && dir.is_null()
+                        && pos.is_null()
+                        && dmg == 42
+                        && dflags == DAMAGE_NO_TEAM_PROTECTION as c_int
+                        && means_of_death == MOD_BFG as c_int
+                },
+            )
+            .times(1);
+
+        let quake_engine = QuakeLiveEngine {
+            static_functions: default_static_functions().into(),
+            static_detours: default_static_detours().into(),
+            ..default_quake_engine()
+        };
+        quake_engine.vm_functions.g_damage_detour.store(Some(
+            unsafe {
+                GenericDetour::new(
+                    G_Damage
+                        as extern "C" fn(
+                            *mut gentity_t,
+                            *mut gentity_t,
+                            *mut gentity_t,
+                            *mut vec3_t,
+                            *mut vec3_t,
+                            c_int,
+                            c_int,
+                            c_int,
+                        ),
+                    detoured_G_Damage,
+                )
+            }
+            .expect("this should not happen")
+            .into(),
+        ));
+
+        quake_engine.register_damage(
+            ptr::null_mut(),
+            ptr::null_mut(),
+            ptr::null_mut(),
+            ptr::null_mut(),
+            ptr::null_mut(),
+            42,
+            DAMAGE_NO_TEAM_PROTECTION as c_int,
+            MOD_BFG as c_int,
+        );
+    }
+}
+
 pub(crate) trait FreeEntity<T: AsMut<gentity_t>> {
     fn free_entity(&self, gentity: T);
 }
@@ -3555,6 +5080,59 @@ impl<T: AsMut<gentity_t>> FreeEntity<T> for QuakeLiveEngine {
         self.g_free_entity_orig()
             .iter()
             .for_each(|original_func| original_func(gentity.as_mut()))
+    }
+}
+
+#[cfg(test)]
+mod free_entity_quake_live_engine_tests {
+    use super::{FreeEntity, QuakeLiveEngine};
+
+    use super::mock_quake_functions::{G_FreeEntity, G_FreeEntity_context};
+    use super::quake_live_engine_test_helpers::*;
+
+    use crate::ffi::c::prelude::{GEntityBuilder, MockGameEntity};
+
+    use crate::prelude::serial;
+
+    use core::sync::atomic::Ordering;
+
+    #[test]
+    fn free_entity_with_no_original_function_set() {
+        let mock_gentity = MockGameEntity::default();
+
+        let quake_engine = default_quake_engine();
+
+        quake_engine.free_entity(mock_gentity);
+    }
+
+    #[test]
+    #[cfg_attr(miri, ignore)]
+    #[serial]
+    fn free_entity_with_valid_original_function() {
+        let mut mock_gentity = MockGameEntity::new();
+        mock_gentity.expect_as_mut().returning(|| {
+            GEntityBuilder::default()
+                .build()
+                .expect("this should not happen")
+        });
+
+        let g_free_entity_ctx = G_FreeEntity_context();
+        g_free_entity_ctx
+            .expect()
+            .withf(|&ent| !ent.is_null())
+            .times(1);
+
+        let quake_engine = QuakeLiveEngine {
+            static_functions: default_static_functions().into(),
+            static_detours: default_static_detours().into(),
+            ..default_quake_engine()
+        };
+        quake_engine
+            .vm_functions
+            .g_free_entity_orig
+            .store(G_FreeEntity as usize, Ordering::SeqCst);
+
+        quake_engine.free_entity(&mut mock_gentity);
     }
 }
 
@@ -3580,6 +5158,133 @@ impl<T: AsMut<gitem_t>> TryLaunchItem<T> for QuakeLiveEngine {
     }
 }
 
+#[cfg(test)]
+mod try_launch_item_quake_live_engine_tests {
+    use super::{QuakeLiveEngine, TryLaunchItem};
+
+    use super::mock_quake_functions::{LaunchItem, LaunchItem_context};
+    use super::quake_live_engine_test_helpers::*;
+
+    use crate::ffi::c::prelude::{
+        vec3_t, GEntityBuilder, GItemBuilder, MockGameEntity, MockGameItem,
+    };
+
+    use crate::prelude::{serial, QuakeLiveEngineError};
+
+    use crate::quake_live_functions::QuakeLiveFunction;
+
+    use core::sync::atomic::Ordering;
+
+    #[test]
+    fn try_launch_item_with_no_original_function_set() {
+        let mock_item = MockGameItem::default();
+        let mut origin = vec3_t::default();
+        let mut velocity = vec3_t::default();
+
+        let quake_engine = default_quake_engine();
+
+        let result = quake_engine.try_launch_item(mock_item, &mut origin, &mut velocity);
+        assert!(result
+            .is_err_and(|err| err
+                == QuakeLiveEngineError::VmFunctionNotFound(QuakeLiveFunction::LaunchItem,)))
+    }
+
+    #[test]
+    #[cfg_attr(miri, ignore)]
+    #[serial]
+    fn try_launch_item_with_valid_original_function() {
+        let mut mock_item = MockGameItem::default();
+        mock_item.expect_as_mut().returning(|| {
+            GItemBuilder::default()
+                .build()
+                .expect("this should not happen")
+        });
+        let mut origin = vec3_t::default();
+        let mut velocity = vec3_t::default();
+
+        let launch_item_ctx = LaunchItem_context();
+        launch_item_ctx
+            .expect()
+            .withf(|&item, &_pos, &_dir| !item.is_null())
+            .returning(|_, _, _| {
+                let mut returned = GEntityBuilder::default()
+                    .build()
+                    .expect("this should not happen");
+                &mut returned
+            })
+            .times(1);
+
+        let gentity_try_from_ctx = MockGameEntity::try_from_context();
+        gentity_try_from_ctx
+            .expect()
+            .returning(|_| Ok(MockGameEntity::default()))
+            .times(1);
+
+        let quake_engine = QuakeLiveEngine {
+            static_functions: default_static_functions().into(),
+            static_detours: default_static_detours().into(),
+            ..default_quake_engine()
+        };
+        quake_engine
+            .vm_functions
+            .launch_item_orig
+            .store(LaunchItem as usize, Ordering::SeqCst);
+
+        let result = quake_engine.try_launch_item(mock_item, &mut origin, &mut velocity);
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    #[cfg_attr(miri, ignore)]
+    #[serial]
+    fn try_launch_item_with_valid_original_function_when_invalid_gentity_returned() {
+        let mut mock_item = MockGameItem::default();
+        mock_item.expect_as_mut().returning(|| {
+            GItemBuilder::default()
+                .build()
+                .expect("this should not happen")
+        });
+        let mut origin = vec3_t::default();
+        let mut velocity = vec3_t::default();
+
+        let launch_item_ctx = LaunchItem_context();
+        launch_item_ctx
+            .expect()
+            .withf(|&item, &_pos, &_dir| !item.is_null())
+            .returning(|_, _, _| {
+                let mut returned = GEntityBuilder::default()
+                    .build()
+                    .expect("this should not happen");
+                &mut returned
+            })
+            .times(1);
+
+        let gentity_try_from_ctx = MockGameEntity::try_from_context();
+        gentity_try_from_ctx
+            .expect()
+            .returning(|_| {
+                Err(QuakeLiveEngineError::NullPointerPassed(
+                    "null pointer passed".to_string(),
+                ))
+            })
+            .times(1);
+
+        let quake_engine = QuakeLiveEngine {
+            static_functions: default_static_functions().into(),
+            static_detours: default_static_detours().into(),
+            ..default_quake_engine()
+        };
+        quake_engine
+            .vm_functions
+            .launch_item_orig
+            .store(LaunchItem as usize, Ordering::SeqCst);
+
+        let result = quake_engine.try_launch_item(mock_item, &mut origin, &mut velocity);
+        assert!(result.is_err_and(|err| err
+            == QuakeLiveEngineError::NullPointerPassed("null pointer passed".to_string(),)));
+    }
+}
+
 pub(crate) trait StartKamikaze<T: AsMut<gentity_t> + ?Sized> {
     fn start_kamikaze(&self, gentity: T);
 }
@@ -3591,6 +5296,69 @@ impl<T: AsMut<gentity_t>> StartKamikaze<T> for QuakeLiveEngine {
             .load()
             .iter()
             .for_each(|detour| detour.call(gentity.as_mut()));
+    }
+}
+
+#[cfg(test)]
+mod start_kamikaze_quake_live_engine_tests {
+    use super::{QuakeLiveEngine, StartKamikaze};
+
+    use super::mock_quake_functions::{
+        detoured_G_StartKamikaze, G_StartKamikaze, G_StartKamikaze_context,
+    };
+    use super::quake_live_engine_test_helpers::*;
+
+    use crate::ffi::c::prelude::{gentity_t, GEntityBuilder, MockGameEntity};
+
+    use crate::prelude::serial;
+
+    use retour::GenericDetour;
+
+    #[test]
+    fn register_damage_with_no_detour_set() {
+        let mock_gentity = MockGameEntity::default();
+        let quake_engine = default_quake_engine();
+
+        quake_engine.start_kamikaze(mock_gentity);
+    }
+
+    #[test]
+    #[cfg_attr(miri, ignore)]
+    #[serial]
+    fn start_kamikaze_with_valid_detour_function() {
+        let mut mock_gentity = MockGameEntity::default();
+        mock_gentity.expect_as_mut().returning(|| {
+            GEntityBuilder::default()
+                .build()
+                .expect("this should not happen")
+        });
+
+        let g_start_kamikaze_ctx = G_StartKamikaze_context();
+        g_start_kamikaze_ctx
+            .expect()
+            .withf(|&ent| !ent.is_null())
+            .times(1);
+
+        let quake_engine = QuakeLiveEngine {
+            static_functions: default_static_functions().into(),
+            static_detours: default_static_detours().into(),
+            ..default_quake_engine()
+        };
+        quake_engine
+            .vm_functions
+            .g_start_kamikaze_detour
+            .store(Some(
+                unsafe {
+                    GenericDetour::new(
+                        G_StartKamikaze as extern "C" fn(*mut gentity_t),
+                        detoured_G_StartKamikaze,
+                    )
+                }
+                .expect("this should not happen")
+                .into(),
+            ));
+
+        quake_engine.start_kamikaze(mock_gentity);
     }
 }
 
@@ -3801,10 +5569,11 @@ mockall::mock! {
 #[allow(dead_code)]
 mod quake_functions {
     use crate::ffi::c::prelude::{
-        cbufExec_t, client_t, cvar_t, entity_event_t, gentity_t, qboolean, usercmd_t,
+        cbufExec_t, client_t, cvar_t, entity_event_t, gentity_t, gitem_t, qboolean, trace_t,
+        usercmd_t, vec3_t,
     };
 
-    use core::ffi::{c_char, c_int};
+    use core::ffi::{c_char, c_float, c_int};
     use core::ptr;
 
     #[allow(unused_attributes, clippy::just_underscores_and_digits, non_snake_case)]
@@ -4049,5 +5818,78 @@ mod quake_functions {
         _event: entity_event_t,
         _eventParm: c_int,
     ) {
+    }
+
+    #[allow(unused_attributes, non_snake_case)]
+    #[cfg(not(tarpaulin_include))]
+    pub(crate) extern "C" fn G_Damage(
+        _target: *mut gentity_t,
+        _inflictor: *mut gentity_t,
+        _attacker: *mut gentity_t,
+        _dir: *mut vec3_t,
+        _pos: *mut vec3_t,
+        _damage: c_int,
+        _dflags: c_int,
+        _means_of_death: c_int,
+    ) {
+    }
+
+    #[allow(unused_attributes, non_snake_case)]
+    #[cfg(not(tarpaulin_include))]
+    pub(crate) extern "C" fn detoured_G_Damage(
+        _target: *mut gentity_t,
+        _inflictor: *mut gentity_t,
+        _attacker: *mut gentity_t,
+        _dir: *mut vec3_t,
+        _pos: *mut vec3_t,
+        _damage: c_int,
+        _dflags: c_int,
+        _means_of_death: c_int,
+    ) {
+    }
+
+    #[allow(unused_attributes, non_snake_case)]
+    #[cfg(not(tarpaulin_include))]
+    pub(crate) extern "C" fn G_FreeEntity(_ent: *mut gentity_t) {}
+
+    #[allow(unused_attributes, non_snake_case)]
+    #[cfg(not(tarpaulin_include))]
+    pub(crate) extern "C" fn LaunchItem(
+        _item: *mut gitem_t,
+        _origin: *mut vec3_t,
+        _velocity: *mut vec3_t,
+    ) -> *mut gentity_t {
+        ptr::null_mut()
+    }
+
+    #[allow(unused_attributes, non_snake_case)]
+    #[cfg(not(tarpaulin_include))]
+    pub(crate) extern "C" fn G_StartKamikaze(_ent: *mut gentity_t) {}
+
+    #[allow(unused_attributes, non_snake_case)]
+    #[cfg(not(tarpaulin_include))]
+    pub(crate) extern "C" fn detoured_G_StartKamikaze(_ent: *mut gentity_t) {}
+
+    #[allow(unused_attributes, non_snake_case)]
+    #[cfg(not(tarpaulin_include))]
+    pub(crate) extern "C" fn CheckPrivileges(_ent: *mut gentity_t, _cmd: *mut c_char) {}
+
+    #[allow(unused_attributes, non_snake_case)]
+    #[cfg(not(tarpaulin_include))]
+    pub(crate) extern "C" fn Touch_Item(
+        _ent: *mut gentity_t,
+        _other: *mut gentity_t,
+        _trace: *mut trace_t,
+    ) {
+    }
+
+    #[allow(unused_attributes, non_snake_case)]
+    #[cfg(not(tarpaulin_include))]
+    pub(crate) extern "C" fn Drop_Item(
+        _ent: *mut gentity_t,
+        _item: *mut gitem_t,
+        _angle: c_float,
+    ) -> *mut gentity_t {
+        ptr::null_mut()
     }
 }

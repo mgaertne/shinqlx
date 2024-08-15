@@ -627,7 +627,7 @@ mod hooks_tests {
     fn sys_setmoduleoffset_no_main_engine() {
         let module_string = CString::new("qagame").expect("this should not happen");
         MAIN_ENGINE.store(None);
-        shinqlx_sys_setmoduleoffset(module_string.as_ptr() as *mut c_char, DUMMY_FN);
+        shinqlx_sys_setmoduleoffset(module_string.as_ptr().cast_mut(), DUMMY_FN);
     }
 
     #[test]
@@ -646,7 +646,7 @@ mod hooks_tests {
             .times(1);
         MAIN_ENGINE.store(Some(mock_engine.into()));
 
-        shinqlx_sys_setmoduleoffset(module_string.as_ptr() as *mut c_char, DUMMY_FN);
+        shinqlx_sys_setmoduleoffset(module_string.as_ptr().cast_mut(), DUMMY_FN);
     }
 
     #[test]
@@ -667,7 +667,7 @@ mod hooks_tests {
             .times(1);
         MAIN_ENGINE.store(Some(mock_engine.into()));
 
-        shinqlx_sys_setmoduleoffset(module_string.as_ptr() as *mut c_char, DUMMY_FN);
+        shinqlx_sys_setmoduleoffset(module_string.as_ptr().cast_mut(), DUMMY_FN);
     }
 
     #[test]
@@ -1295,7 +1295,7 @@ mod hooks_tests {
     fn sv_spawnserver_with_no_main_engine() {
         MAIN_ENGINE.store(None);
         let server_str = CString::new("l33t ql server").expect("this should not happen");
-        shinqlx_sv_spawnserver(server_str.as_ptr() as *mut c_char, qboolean::qtrue);
+        shinqlx_sv_spawnserver(server_str.as_ptr().cast_mut(), qboolean::qtrue);
     }
 
     #[test]
@@ -1316,7 +1316,7 @@ mod hooks_tests {
 
         let server_str = CString::new("l33t ql server").expect("this should not happen");
 
-        shinqlx_sv_spawnserver(server_str.as_ptr() as *mut c_char, qboolean::qtrue);
+        shinqlx_sv_spawnserver(server_str.as_ptr().cast_mut(), qboolean::qtrue);
     }
 
     #[test]
