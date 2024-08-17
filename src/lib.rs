@@ -48,8 +48,8 @@ pub(crate) mod prelude {
 }
 
 use crate::prelude::*;
+use std::path::Path;
 
-use alloc::sync::Arc;
 use arc_swap::ArcSwapOption;
 #[cfg(not(test))]
 use ctor::ctor;
@@ -58,59 +58,60 @@ use log4rs::{
     append::console::ConsoleAppender,
     config::{Appender, Root},
     encode::pattern::PatternEncoder,
-    Config, Handle,
+    Config,
 };
-use once_cell::sync::{Lazy, OnceCell};
+use once_cell::sync::Lazy;
 use signal_hook::consts::SIGSEGV;
 use std::time::Instant;
 
 #[allow(dead_code)]
 pub(crate) const QZERODED: &str = "qzeroded.x64";
 
-pub(crate) static MAIN_LOGGER: OnceCell<Handle> = OnceCell::new();
-pub(crate) static MAIN_ENGINE: Lazy<Arc<ArcSwapOption<QuakeLiveEngine>>> =
-    Lazy::new(|| ArcSwapOption::empty().into());
+pub(crate) static MAIN_ENGINE: Lazy<ArcSwapOption<QuakeLiveEngine>> =
+    Lazy::new(ArcSwapOption::empty);
 
 pub(crate) static _INIT_TIME: Lazy<Instant> = Lazy::new(Instant::now);
 
 fn initialize_logging() {
-    let stdout = ConsoleAppender::builder()
-        .encoder(Box::new(PatternEncoder::new(
-            "{([{t}]):<9.9} {({l}:):<6.6} {m}{n}",
-        )))
-        .build();
+    if Path::new("./shinqlx_log.yml").exists() {
+        log4rs::config::init_file("shinqlx_log.yml", Default::default()).unwrap();
+    } else {
+        let stdout = ConsoleAppender::builder()
+            .encoder(Box::new(PatternEncoder::new(
+                "{([{t}]):<9.9} {({l}:):<6.6} {m}{n}",
+            )))
+            .build();
 
-    #[cfg(debug_assertions)]
-    let level_filter = LevelFilter::Debug;
-    #[cfg(not(debug_assertions))]
-    let level_filter = LevelFilter::Info;
+        let level_filter = LevelFilter::Info;
 
-    let config = Config::builder()
-        .appender(Appender::builder().build("stdout", Box::new(stdout)))
-        .build(Root::builder().appender("stdout").build(level_filter))
-        .unwrap();
+        let config = Config::builder()
+            .appender(Appender::builder().build("stdout", Box::new(stdout)))
+            .build(Root::builder().appender("stdout").build(level_filter))
+            .unwrap();
 
-    MAIN_LOGGER
-        .set(log4rs::init_config(config).unwrap())
-        .unwrap();
+        log4rs::init_config(config).unwrap();
+    }
 }
 
 #[cfg_attr(not(test), ctor)]
 #[cfg_attr(test, allow(dead_code))]
 fn initialize() {
-    let Some(progname) = std::env::args().next() else {
-        return;
-    };
-
-    if !progname.ends_with(QZERODED) {
+    if std::env::args()
+        .next()
+        .filter(|progname| progname.ends_with(QZERODED))
+        .is_none()
+    {
         return;
     }
 
-    unsafe {
+    if let Err(err) = unsafe {
         signal_hook_registry::register_signal_unchecked(SIGSEGV, move || {
             signal_hook::low_level::exit(1);
         })
-        .unwrap()
+    } {
+        error!(target: "shinqlx", "{:?}", err);
+        error!(target: "shinqlx", "Could not register exit handler");
+        panic!("Could not register exit handler");
     };
 
     initialize_logging();
