@@ -69,7 +69,7 @@ mod get_entity_targets_tests {
             .times(1);
 
         let result = Python::with_gil(|py| pyshinqlx_get_entity_targets(py, 2));
-        assert_eq!(result.expect("result was not OK"), vec![]);
+        assert_eq!(result.expect("result was not OK"), Vec::<u32>::new());
     }
 
     #[test]
