@@ -156,20 +156,19 @@ impl VmFunctions {
     ) -> Result<(), QuakeLiveEngineError> {
         #[cfg(not(target_os = "linux"))]
         return Err(QuakeLiveEngineError::ProcessNotFound(
-            "could not find my own process\n".to_string(),
+            "could not find my own process".to_string(),
         ));
         #[cfg(target_os = "linux")]
         {
-            let Ok(myself_process) = Process::myself() else {
-                return Err(QuakeLiveEngineError::ProcessNotFound(
-                    "could not find my own process\n".to_string(),
-                ));
-            };
-            let Ok(myself_maps) = myself_process.maps() else {
-                return Err(QuakeLiveEngineError::NoMemoryMappingInformationFound(
-                    "no memory mapping information found\n".to_string(),
-                ));
-            };
+            let myself_process = Process::myself().map_err(|_| {
+                QuakeLiveEngineError::ProcessNotFound("could not find my own process".to_string())
+            })?;
+            let myself_maps = myself_process.maps().map_err(|_| {
+                QuakeLiveEngineError::NoMemoryMappingInformationFound(
+                    "no memory mapping information found".to_string(),
+                )
+            })?;
+
             let qagame_maps: Vec<&MemoryMap> = myself_maps
                 .iter()
                 .filter(|mmap| {
@@ -686,6 +685,23 @@ mod vm_functios_tests {
     }
 }
 
+#[cfg(target_os = "linux")]
+fn try_find_static_function<FuncType>(
+    maps: &[&MemoryMap],
+    func: QuakeLiveFunction,
+) -> Result<FuncType, QuakeLiveEngineError> {
+    pattern_search_module(maps, func).map_or_else(
+        || {
+            error!(target: "shinqlx", "Function {} not found", &func);
+            Err(QuakeLiveEngineError::StaticFunctionNotFound(func))
+        },
+        |result| {
+            debug!(target: "shinqlx", "{}: {:#X}", &func, result);
+            Ok(unsafe { mem::transmute_copy::<usize, FuncType>(&result) })
+        },
+    )
+}
+
 pub(crate) struct QuakeLiveEngine {
     static_functions: OnceCell<StaticFunctions>,
     static_detours: OnceCell<StaticDetours>,
@@ -739,20 +755,18 @@ impl QuakeLiveEngine {
     pub(crate) fn search_static_functions(&self) -> Result<(), QuakeLiveEngineError> {
         #[cfg(not(target_os = "linux"))]
         return Err(QuakeLiveEngineError::ProcessNotFound(
-            "could not find my own process\n".to_string(),
+            "could not find my own process".to_string(),
         ));
         #[cfg(target_os = "linux")]
         {
-            let Ok(myself_process) = Process::myself() else {
-                return Err(QuakeLiveEngineError::ProcessNotFound(
-                    "could not find my own process\n".to_string(),
-                ));
-            };
-            let Ok(myself_maps) = myself_process.maps() else {
-                return Err(QuakeLiveEngineError::NoMemoryMappingInformationFound(
-                    "no memory mapping information found\n".to_string(),
-                ));
-            };
+            let myself_process = Process::myself().map_err(|_| {
+                QuakeLiveEngineError::ProcessNotFound("could not find my own process".to_string())
+            })?;
+            let myself_maps = myself_process.maps().map_err(|_| {
+                QuakeLiveEngineError::NoMemoryMappingInformationFound(
+                    "no memory mapping information found".to_string(),
+                )
+            })?;
             let qzeroded_maps: Vec<&MemoryMap> = myself_maps
                 .iter()
                 .filter(|mmap| {
@@ -767,131 +781,54 @@ impl QuakeLiveEngine {
             if qzeroded_maps.is_empty() {
                 error!(target: "shinqlx", "no memory mapping information for {} found", QZERODED);
                 return Err(QuakeLiveEngineError::NoMemoryMappingInformationFound(
-                    "no memory mapping information found\n".to_string(),
+                    "no memory mapping information found".to_string(),
                 ));
             }
 
             debug!(target: "shinqlx", "Searching for necessary functions...");
-            let Some(result) = pattern_search_module(&qzeroded_maps, QuakeLiveFunction::Com_Printf)
-            else {
-                error!(target: "shinqlx", "Function {} not found", &QuakeLiveFunction::Com_Printf);
-                return Err(QuakeLiveEngineError::StaticFunctionNotFound(
-                    QuakeLiveFunction::Com_Printf,
-                ));
-            };
-            debug!(target: "shinqlx", "{}: {:#X}", &QuakeLiveFunction::Com_Printf, result);
-            let com_printf_orig =
-                unsafe { mem::transmute::<usize, extern "C" fn(*const c_char, ...)>(result) };
+            let com_printf_orig = try_find_static_function::<extern "C" fn(*const c_char, ...)>(
+                &qzeroded_maps,
+                QuakeLiveFunction::Com_Printf,
+            )?;
 
-            let Some(result) =
-                pattern_search_module(&qzeroded_maps, QuakeLiveFunction::Cmd_AddCommand)
-            else {
-                error!(target: "shinqlx", "Function {} not found", &QuakeLiveFunction::Cmd_AddCommand);
-                return Err(QuakeLiveEngineError::StaticFunctionNotFound(
-                    QuakeLiveFunction::Cmd_AddCommand,
-                ));
-            };
-            debug!(target: "shinqlx", "{}: {:#X}", &QuakeLiveFunction::Cmd_AddCommand, result);
-            let cmd_addcommand_orig = unsafe {
-                mem::transmute::<usize, extern "C" fn(*const c_char, unsafe extern "C" fn())>(
-                    result,
-                )
-            };
+            let cmd_addcommand_orig = try_find_static_function::<
+                extern "C" fn(*const c_char, unsafe extern "C" fn()),
+            >(
+                &qzeroded_maps, QuakeLiveFunction::Cmd_AddCommand
+            )?;
 
-            let Some(result) = pattern_search_module(&qzeroded_maps, QuakeLiveFunction::Cmd_Args)
-            else {
-                error!(target: "shinqlx", "Function {} not found", &QuakeLiveFunction::Cmd_Args);
-                return Err(QuakeLiveEngineError::StaticFunctionNotFound(
-                    QuakeLiveFunction::Cmd_Args,
-                ));
-            };
-            debug!(target: "shinqlx", "{}: {:#X}", &QuakeLiveFunction::Cmd_Args, result);
-            let cmd_args_orig =
-                unsafe { mem::transmute::<usize, extern "C" fn() -> *const c_char>(result) };
+            let cmd_args_orig = try_find_static_function::<extern "C" fn() -> *const c_char>(
+                &qzeroded_maps,
+                QuakeLiveFunction::Cmd_Args,
+            )?;
 
-            let Some(result) = pattern_search_module(&qzeroded_maps, QuakeLiveFunction::Cmd_Argv)
-            else {
-                error!(target: "shinqlx", "Function {} not found", &QuakeLiveFunction::Cmd_Argv);
-                return Err(QuakeLiveEngineError::StaticFunctionNotFound(
-                    QuakeLiveFunction::Cmd_Argv,
-                ));
-            };
-            debug!(target: "shinqlx", "{}: {:#X}", &QuakeLiveFunction::Cmd_Argv, result);
-            let cmd_argv_orig =
-                unsafe { mem::transmute::<usize, extern "C" fn(c_int) -> *const c_char>(result) };
+            let cmd_argv_orig = try_find_static_function::<extern "C" fn(c_int) -> *const c_char>(
+                &qzeroded_maps,
+                QuakeLiveFunction::Cmd_Argv,
+            )?;
 
-            let Some(result) =
-                pattern_search_module(&qzeroded_maps, QuakeLiveFunction::Cmd_Tokenizestring)
-            else {
-                error!(target: "shinqlx",
-                    "Function {} not found",
-                    &QuakeLiveFunction::Cmd_Tokenizestring
-                );
-                return Err(QuakeLiveEngineError::StaticFunctionNotFound(
-                    QuakeLiveFunction::Cmd_Tokenizestring,
-                ));
-            };
-            debug!(target: "shinqlx", "{}: {:#X}", &QuakeLiveFunction::Cmd_Tokenizestring, result);
-            let cmd_tokenizestring_orig = unsafe {
-                mem::transmute::<usize, extern "C" fn(*const c_char) -> *const c_char>(result)
-            };
+            let cmd_tokenizestring_orig = try_find_static_function::<
+                extern "C" fn(*const c_char) -> *const c_char,
+            >(
+                &qzeroded_maps, QuakeLiveFunction::Cmd_Tokenizestring
+            )?;
 
-            let Some(result) =
-                pattern_search_module(&qzeroded_maps, QuakeLiveFunction::Cbuf_ExecuteText)
-            else {
-                error!(target: "shinqlx",
-                    "Function {} not found",
-                    &QuakeLiveFunction::Cbuf_ExecuteText
-                );
-                return Err(QuakeLiveEngineError::StaticFunctionNotFound(
-                    QuakeLiveFunction::Cbuf_ExecuteText,
-                ));
-            };
-            debug!(target: "shinqlx", "{}: {:#X}", &QuakeLiveFunction::Cbuf_ExecuteText, result);
-            let cbuf_executetext_orig = unsafe {
-                mem::transmute::<usize, extern "C" fn(cbufExec_t, *const c_char)>(result)
-            };
+            let cbuf_executetext_orig = try_find_static_function::<
+                extern "C" fn(cbufExec_t, *const c_char),
+            >(
+                &qzeroded_maps, QuakeLiveFunction::Cbuf_ExecuteText
+            )?;
 
-            let Some(result) =
-                pattern_search_module(&qzeroded_maps, QuakeLiveFunction::Cvar_FindVar)
-            else {
-                error!(target: "shinqlx", "Function {} not found", &QuakeLiveFunction::Cvar_FindVar);
-                return Err(QuakeLiveEngineError::StaticFunctionNotFound(
-                    QuakeLiveFunction::Cvar_FindVar,
-                ));
-            };
-            debug!(target: "shinqlx", "{}: {:#X}", &QuakeLiveFunction::Cvar_FindVar, result);
-            let cvar_findvar_orig = unsafe {
-                mem::transmute::<usize, extern "C" fn(*const c_char) -> *mut cvar_t>(result)
-            };
+            let cvar_findvar_orig = try_find_static_function::<
+                extern "C" fn(*const c_char) -> *mut cvar_t,
+            >(&qzeroded_maps, QuakeLiveFunction::Cvar_FindVar)?;
 
-            let Some(result) = pattern_search_module(&qzeroded_maps, QuakeLiveFunction::Cvar_Get)
-            else {
-                error!(target: "shinqlx", "Function {} not found", &QuakeLiveFunction::Cvar_Get);
-                return Err(QuakeLiveEngineError::StaticFunctionNotFound(
-                    QuakeLiveFunction::Cvar_Get,
-                ));
-            };
-            debug!(target: "shinqlx", "{}: {:#X}", &QuakeLiveFunction::Cvar_Get, result);
-            let cvar_get_orig = unsafe {
-                mem::transmute::<
-                    usize,
-                    extern "C" fn(*const c_char, *const c_char, c_int) -> *mut cvar_t,
-                >(result)
-            };
+            let cvar_get_orig = try_find_static_function::<
+                extern "C" fn(*const c_char, *const c_char, c_int) -> *mut cvar_t,
+            >(&qzeroded_maps, QuakeLiveFunction::Cvar_Get)?;
 
-            let Some(result) =
-                pattern_search_module(&qzeroded_maps, QuakeLiveFunction::Cvar_GetLimit)
-            else {
-                error!(target: "shinqlx", "Function {} not found", &QuakeLiveFunction::Cvar_GetLimit);
-                return Err(QuakeLiveEngineError::StaticFunctionNotFound(
-                    QuakeLiveFunction::Cvar_GetLimit,
-                ));
-            };
-            debug!(target: "shinqlx", "{}: {:#X}", &QuakeLiveFunction::Cvar_GetLimit, result);
-            let cvar_getlimit_orig = unsafe {
-                mem::transmute::<
-                    usize,
+            let cvar_getlimit_orig =
+                try_find_static_function::<
                     extern "C" fn(
                         *const c_char,
                         *const c_char,
@@ -899,190 +836,74 @@ impl QuakeLiveEngine {
                         *const c_char,
                         c_int,
                     ) -> *mut cvar_t,
-                >(result)
-            };
+                >(&qzeroded_maps, QuakeLiveFunction::Cvar_GetLimit)?;
 
-            let Some(result) = pattern_search_module(&qzeroded_maps, QuakeLiveFunction::Cvar_Set2)
-            else {
-                error!(target: "shinqlx", "Function {} not found", &QuakeLiveFunction::Cvar_Set2);
-                return Err(QuakeLiveEngineError::StaticFunctionNotFound(
-                    QuakeLiveFunction::Cvar_Set2,
-                ));
-            };
-            debug!(target: "shinqlx", "{}: {:#X}", &QuakeLiveFunction::Cvar_Set2, result);
-            let cvar_set2_orig = unsafe {
-                mem::transmute::<
-                    usize,
-                    extern "C" fn(*const c_char, *const c_char, qboolean) -> *mut cvar_t,
-                >(result)
-            };
+            let cvar_set2_orig = try_find_static_function::<
+                extern "C" fn(*const c_char, *const c_char, qboolean) -> *mut cvar_t,
+            >(&qzeroded_maps, QuakeLiveFunction::Cvar_Set2)?;
 
-            let Some(result) =
-                pattern_search_module(&qzeroded_maps, QuakeLiveFunction::SV_SendServerCommand)
-            else {
-                error!(target: "shinqlx",
-                    "Function {} not found",
-                    &QuakeLiveFunction::SV_SendServerCommand
-                );
-                return Err(QuakeLiveEngineError::StaticFunctionNotFound(
+            let sv_sendservercommand_orig =
+                try_find_static_function::<extern "C" fn(*mut client_t, *const c_char, ...)>(
+                    &qzeroded_maps,
                     QuakeLiveFunction::SV_SendServerCommand,
-                ));
-            };
-            debug!(target: "shinqlx",
-                "{}: {:#X}",
-                &QuakeLiveFunction::SV_SendServerCommand,
-                result
-            );
-            let sv_sendservercommand_orig = unsafe {
-                mem::transmute::<usize, extern "C" fn(*mut client_t, *const c_char, ...)>(result)
-            };
+                )?;
 
-            let Some(result) =
-                pattern_search_module(&qzeroded_maps, QuakeLiveFunction::SV_ExecuteClientCommand)
-            else {
-                error!(target: "shinqlx",
-                    "Function {} not found",
-                    &QuakeLiveFunction::SV_ExecuteClientCommand
-                );
-                return Err(QuakeLiveEngineError::StaticFunctionNotFound(
+            let sv_executeclientcommand_orig =
+                try_find_static_function::<extern "C" fn(*mut client_t, *const c_char, qboolean)>(
+                    &qzeroded_maps,
                     QuakeLiveFunction::SV_ExecuteClientCommand,
-                ));
-            };
-            debug!(target: "shinqlx",
-                "{}: {:#X}",
-                &QuakeLiveFunction::SV_ExecuteClientCommand,
-                result
-            );
-            let sv_executeclientcommand_orig = unsafe {
-                mem::transmute::<usize, extern "C" fn(*mut client_t, *const c_char, qboolean)>(
-                    result,
-                )
-            };
+                )?;
 
-            let Some(result) =
-                pattern_search_module(&qzeroded_maps, QuakeLiveFunction::SV_Shutdown)
-            else {
-                error!(target: "shinqlx", "Function {} not found", &QuakeLiveFunction::SV_Shutdown);
-                return Err(QuakeLiveEngineError::StaticFunctionNotFound(
-                    QuakeLiveFunction::SV_Shutdown,
-                ));
-            };
-            debug!(target: "shinqlx", "{}: {:#X}", &QuakeLiveFunction::SV_Shutdown, result);
-            let sv_shutdown_orig =
-                unsafe { mem::transmute::<usize, extern "C" fn(*const c_char)>(result) };
+            let sv_shutdown_orig = try_find_static_function::<extern "C" fn(*const c_char)>(
+                &qzeroded_maps,
+                QuakeLiveFunction::SV_Shutdown,
+            )?;
 
-            let Some(result) = pattern_search_module(&qzeroded_maps, QuakeLiveFunction::SV_Map_f)
-            else {
-                error!(target: "shinqlx", "Function {} not found", &QuakeLiveFunction::SV_Map_f);
-                return Err(QuakeLiveEngineError::StaticFunctionNotFound(
-                    QuakeLiveFunction::SV_Map_f,
-                ));
-            };
-            debug!(target: "shinqlx", "{}: {:#X}", QuakeLiveFunction::SV_Map_f, result);
-            let sv_map_f_orig = unsafe { mem::transmute::<usize, extern "C" fn()>(result) };
+            let sv_map_f_orig = try_find_static_function::<extern "C" fn()>(
+                &qzeroded_maps,
+                QuakeLiveFunction::SV_Map_f,
+            )?;
 
-            let Some(result) =
-                pattern_search_module(&qzeroded_maps, QuakeLiveFunction::SV_ClientEnterWorld)
-            else {
-                error!(target: "shinqlx",
-                    "Function {} not found",
-                    &QuakeLiveFunction::SV_ClientEnterWorld
-                );
-                return Err(QuakeLiveEngineError::StaticFunctionNotFound(
+            let sv_cliententerworld_orig =
+                try_find_static_function::<extern "C" fn(*mut client_t, *mut usercmd_t)>(
+                    &qzeroded_maps,
                     QuakeLiveFunction::SV_ClientEnterWorld,
-                ));
-            };
-            debug!(target: "shinqlx", "{}: {:#X}", &QuakeLiveFunction::SV_ClientEnterWorld, result);
-            let sv_cliententerworld_orig = unsafe {
-                mem::transmute::<usize, extern "C" fn(*mut client_t, *mut usercmd_t)>(result)
-            };
+                )?;
 
-            let Some(result) =
-                pattern_search_module(&qzeroded_maps, QuakeLiveFunction::SV_SetConfigstring)
-            else {
-                error!(target: "shinqlx",
-                    "Function {} not found",
-                    &QuakeLiveFunction::SV_SetConfigstring
-                );
-                return Err(QuakeLiveEngineError::StaticFunctionNotFound(
-                    QuakeLiveFunction::SV_SetConfigstring,
-                ));
-            };
-            debug!(target: "shinqlx", "{}: {:#X}", &QuakeLiveFunction::SV_SetConfigstring, result);
-            let sv_setconfigstring_orig =
-                unsafe { mem::transmute::<usize, extern "C" fn(c_int, *const c_char)>(result) };
+            let sv_setconfigstring_orig = try_find_static_function::<
+                extern "C" fn(c_int, *const c_char),
+            >(
+                &qzeroded_maps, QuakeLiveFunction::SV_SetConfigstring
+            )?;
 
-            let Some(result) =
-                pattern_search_module(&qzeroded_maps, QuakeLiveFunction::SV_GetConfigstring)
-            else {
-                error!(target: "shinqlx",
-                    "Function {} not found",
-                    &QuakeLiveFunction::SV_GetConfigstring
-                );
-                return Err(QuakeLiveEngineError::StaticFunctionNotFound(
-                    QuakeLiveFunction::SV_GetConfigstring,
-                ));
-            };
-            debug!(target: "shinqlx", "{}: {:#X}", &QuakeLiveFunction::SV_GetConfigstring, result);
-            let sv_getconfigstring_orig = unsafe {
-                mem::transmute::<usize, extern "C" fn(c_int, *mut c_char, c_int)>(result)
-            };
+            let sv_getconfigstring_orig = try_find_static_function::<
+                extern "C" fn(c_int, *mut c_char, c_int),
+            >(
+                &qzeroded_maps, QuakeLiveFunction::SV_GetConfigstring
+            )?;
 
-            let Some(result) =
-                pattern_search_module(&qzeroded_maps, QuakeLiveFunction::SV_DropClient)
-            else {
-                error!(target: "shinqlx", "Function {} not found", &QuakeLiveFunction::SV_DropClient);
-                return Err(QuakeLiveEngineError::StaticFunctionNotFound(
-                    QuakeLiveFunction::SV_DropClient,
-                ));
-            };
-            debug!(target: "shinqlx", "{}: {:#X}", &QuakeLiveFunction::SV_DropClient, result);
-            let sv_dropclient_orig = unsafe {
-                mem::transmute::<usize, extern "C" fn(*mut client_t, *const c_char)>(result)
-            };
+            let sv_dropclient_orig = try_find_static_function::<
+                extern "C" fn(*mut client_t, *const c_char),
+            >(
+                &qzeroded_maps, QuakeLiveFunction::SV_DropClient
+            )?;
 
-            let Some(result) =
-                pattern_search_module(&qzeroded_maps, QuakeLiveFunction::Sys_SetModuleOffset)
-            else {
-                error!(target: "shinqlx",
-                    "Function {} not found",
-                    &QuakeLiveFunction::Sys_SetModuleOffset
-                );
-                return Err(QuakeLiveEngineError::StaticFunctionNotFound(
+            let sys_setmoduleoffset_orig =
+                try_find_static_function::<extern "C" fn(*mut c_char, unsafe extern "C" fn())>(
+                    &qzeroded_maps,
                     QuakeLiveFunction::Sys_SetModuleOffset,
-                ));
-            };
-            debug!(target: "shinqlx", "{}: {:#X}", &QuakeLiveFunction::Sys_SetModuleOffset, result);
-            let sys_setmoduleoffset_orig = unsafe {
-                mem::transmute::<usize, extern "C" fn(*mut c_char, unsafe extern "C" fn())>(result)
-            };
+                )?;
 
-            let Some(result) =
-                pattern_search_module(&qzeroded_maps, QuakeLiveFunction::SV_SpawnServer)
-            else {
-                error!(target: "shinqlx", "Function {} not found", &QuakeLiveFunction::SV_SpawnServer);
-                return Err(QuakeLiveEngineError::StaticFunctionNotFound(
-                    QuakeLiveFunction::SV_SpawnServer,
-                ));
-            };
-            debug!(target: "shinqlx", "{}: {:#X}", &QuakeLiveFunction::SV_SpawnServer, result);
-            let sv_spawnserver_orig =
-                unsafe { mem::transmute::<usize, extern "C" fn(*mut c_char, qboolean)>(result) };
+            let sv_spawnserver_orig = try_find_static_function::<
+                extern "C" fn(*mut c_char, qboolean),
+            >(
+                &qzeroded_maps, QuakeLiveFunction::SV_SpawnServer
+            )?;
 
-            let Some(result) =
-                pattern_search_module(&qzeroded_maps, QuakeLiveFunction::Cmd_ExecuteString)
-            else {
-                error!(target: "shinqlx",
-                    "Function {} not found",
-                    &QuakeLiveFunction::Cmd_ExecuteString
-                );
-                return Err(QuakeLiveEngineError::StaticFunctionNotFound(
-                    QuakeLiveFunction::Cmd_ExecuteString,
-                ));
-            };
-            debug!(target: "shinqlx", "{}: {:#X}", &QuakeLiveFunction::Cmd_ExecuteString, result);
-            let cmd_executestring_orig =
-                unsafe { mem::transmute::<usize, extern "C" fn(*const c_char)>(result) };
+            let cmd_executestring_orig = try_find_static_function::<extern "C" fn(*const c_char)>(
+                &qzeroded_maps,
+                QuakeLiveFunction::Cmd_ExecuteString,
+            )?;
 
             // Cmd_Argc is really small, making it hard to search for, so we use a reference to it instead.
             let base_address = unsafe {
