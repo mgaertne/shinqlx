@@ -9,7 +9,7 @@ readme = "README.md"
 description = "ShiN0's QuakeLive extension in Rust"
 repository = "https://github.com/mgaertne/shinqlx"
 license-file = "LICENSE"
-include = ["run_server_shinqlx.sh"]
+include = ["run_server_shinqlx.sh", "log4rs.yml"]
 publish = false
 
 [lib]
@@ -44,7 +44,7 @@ derive_builder = { version = ">=0.20", default-features = false, features = ["cl
 once_cell = { version = ">=1.19", default-features = false }
 arc-swap = { version = ">=1.7", default-features = false }
 log = { version = ">=0.4", default-features = false }
-log4rs = { version = ">=1.3", default-features = false, features = ["console_appender", "pattern_encoder"] }
+log4rs = { version = ">=1.3"}
 signal-hook = { version = ">=0.3", default-features = false }
 signal-hook-registry = { version = ">=1.4", default-features = false }
 itertools = { version = ">=0.13", default-features = false }
