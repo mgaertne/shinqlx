@@ -715,12 +715,12 @@ mod stats_listener_tests {
 }
 
 fn try_handle_zmq_msg(py: Python<'_>, zmq_msg: &str) -> PyResult<()> {
-    let stats =
-        py.allow_threads(|| from_str::<Value>(zmq_msg))
-            .map_err(|err: serde_json::Error| {
-                let error_msg = format!("error parsing json data: {:?}", err);
-                PyIOError::new_err(error_msg)
-            })?;
+    let stats = py.allow_threads(|| {
+        from_str::<Value>(zmq_msg).map_err(|err: serde_json::Error| {
+            let error_msg = format!("error parsing json data: {:?}", err);
+            PyIOError::new_err(error_msg)
+        })
+    })?;
 
     dispatch_stats_event(py, &stats.to_string())?;
     match stats["TYPE"].as_str() {
