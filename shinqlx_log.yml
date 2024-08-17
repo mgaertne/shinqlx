@@ -1,0 +1,14 @@
+# shinqlx default configuration, put this into the working directory of your server to customize.
+# see https://docs.rs/log4rs/latest/log4rs/config/index.html for more information and examples.
+
+appenders:
+  stdout:
+    kind: console
+    encoder:
+      # see https://docs.rs/log4rs/latest/log4rs/encode/pattern/index.html for patterns you can use.
+      pattern: "{([{t}]):<9.9} {({l}:):<6.6} {m}{n}"
+
+root:
+  level: info
+  appenders:
+    - stdout
