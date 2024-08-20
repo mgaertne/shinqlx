@@ -1,8 +1,12 @@
 """Subscribes to the ZMQ stats protocol and calls the stats event dispatcher when
 we get stats from it."""
 
-import zmq
+import asyncio
 import json
+
+import zmq
+import zmq.asyncio
+from zmq.decorators import context
 
 import shinqlx
 from threading import Thread
@@ -107,34 +111,41 @@ class StatsListener(Thread):
         if self.done:
             return
 
-        with zmq.Context().instance().socket(zmq.SUB) as socket:
+        asyncio.run(self.run_async())
+
+    @context()
+    async def run_async(self, ctx):
+        with zmq.asyncio.Context(ctx).socket(zmq.SUB) as socket:
             socket.setsockopt_string(zmq.PLAIN_USERNAME, "stats")
             socket.setsockopt_string(zmq.PLAIN_PASSWORD, self.password)
             socket.setsockopt_string(zmq.ZAP_DOMAIN, "stats")
             socket.connect(self.address)
             socket.subscribe("")
 
-            poller = zmq.Poller()
+            poller = zmq.asyncio.Poller()
             poller.register(socket, zmq.POLLIN)
 
             while True:  # Will throw an expcetion if no more data to get.
-                pending_events = dict(poller.poll(timeout=250))
-                for receiver in pending_events:
-                    stats = json.loads(receiver.recv().decode(errors="replace"))
+                pending_events = await poller.poll()
+                for receiver, _ in pending_events:
+                    raw_event = await receiver.recv()
+                    stats = json.loads(raw_event.decode(errors="ignore"))
                     dispatch_stats_event(stats)
 
-                    if stats["TYPE"] == "MATCH_STARTED":
+                    event_type = stats["TYPE"]
+
+                    if event_type == "MATCH_STARTED":
                         self._in_progress = True
                         dispatch_game_start_event(stats["DATA"])
-                    elif stats["TYPE"] == "ROUND_OVER":
+                    elif event_type == "ROUND_OVER":
                         dispatch_round_end_event(stats["DATA"])
-                    elif stats["TYPE"] == "MATCH_REPORT":
+                    elif event_type == "MATCH_REPORT":
                         if self._in_progress:
                             dispatch_game_end_event(stats["DATA"])
                         self._in_progress = False
-                    elif stats["TYPE"] == "PLAYER_DEATH":
+                    elif event_type == "PLAYER_DEATH":
                         dispatch_player_death_event(stats["DATA"])
-                    elif stats["TYPE"] == "PLAYER_SWITCHTEAM":
+                    elif event_type == "PLAYER_SWITCHTEAM":
                         dispatch_team_switch_event(stats["DATA"])
 
     def stop(self):

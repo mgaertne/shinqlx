@@ -3,6 +3,7 @@ requires = ["maturin>=1.0,<2.0", "tox>=4.0"]
 build-backend = "maturin"
 
 [project]
+dynamic = ["version"]
 name = "shinqlx"
 requires-python = ">=3.8"
 classifiers = [
@@ -12,7 +13,7 @@ classifiers = [
     "Programming Language :: Rust",
     "Programming Language :: Python :: Implementation :: CPython",
 ]
-dependencies = ["setuptools>=61.2", "redis>=5.0", "hiredis", "pyzmq>=23"]
+dependencies = ["setuptools>=61.2", "redis>=5.0", "hiredis", "pyzmq>=25"]
 
 [project.optional-dependencies]
 dev = ["ruff>=0.2", "mypy>=0.990", "types-redis>=4.3.0"]
