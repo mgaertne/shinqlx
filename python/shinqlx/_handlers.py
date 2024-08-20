@@ -1,6 +1,7 @@
 import queue
 import sched
 import re
+from contextlib import ExitStack, suppress
 
 import shinqlx
 
@@ -31,14 +32,18 @@ def handle_rcon(cmd):
     interact with the Python part of shinqlx without having to connect.
 
     """
-    # noinspection PyBroadException
-    try:
+    with ExitStack() as stack:
+        stack.enter_context(suppress(BaseException))
+        stack.enter_context(shinqlx.ExceptionLogging())
+
         shinqlx.COMMANDS.handle_input(
             shinqlx.RconDummyPlayer(), cmd, shinqlx.CONSOLE_CHANNEL
         )
-    except:  # noqa: E722
-        shinqlx.log_exception()
-        return True
+
+        return
+
+    # noinspection PyUnreachableCode
+    return True
 
 
 def handle_client_command(client_id, cmd):
@@ -52,8 +57,10 @@ def handle_client_command(client_id, cmd):
     :type: cmd: str
 
     """
-    # noinspection PyBroadException
-    try:
+    with ExitStack() as stack:
+        stack.enter_context(suppress(BaseException))
+        stack.enter_context(shinqlx.ExceptionLogging())
+
         # Dispatch the "client_command" event before further processing.
         player = shinqlx.Player(client_id)
         retval = shinqlx.EVENT_DISPATCHERS["client_command"].dispatch(player, cmd)
@@ -174,18 +181,22 @@ def handle_client_command(client_id, cmd):
                     cmd = f'userinfo "{formatted_key_values}"'
 
         return cmd
-    except:  # noqa: E722
-        shinqlx.log_exception()
-        return True
+
+    # noinspection PyUnreachableCode
+    return True
 
 
 def handle_server_command(client_id, cmd):
-    # noinspection PyBroadException
-    try:
+    with ExitStack() as stack:
+        stack.enter_context(suppress(BaseException))
+        stack.enter_context(shinqlx.ExceptionLogging())
+
         # Dispatch the "server_command" event before further processing.
-        try:
-            player = shinqlx.Player(client_id) if client_id >= 0 else None
-        except shinqlx.NonexistentPlayerError:
+        player_info = shinqlx.player_info(client_id) if client_id >= 0 else None
+        player = (
+            shinqlx.Player(client_id, player_info) if player_info is not None else None
+        )
+        if player is None:
             return True
 
         retval = shinqlx.EVENT_DISPATCHERS["server_command"].dispatch(player, cmd)
@@ -202,9 +213,9 @@ def handle_server_command(client_id, cmd):
                 shinqlx.EVENT_DISPATCHERS["vote_ended"].dispatch(False)
 
         return cmd
-    except:  # noqa: E722
-        shinqlx.log_exception()
-        return True
+
+    # noinspection PyUnreachableCode
+    return True
 
 
 # Executing tasks right before a frame, by the main thread, will often be desirable to avoid
@@ -225,23 +236,24 @@ def handle_frame():
         # This will run all tasks that are currently scheduled.
         # If one of the tasks throw an exception, it'll log it
         # and continue execution of the next tasks if any.
-        # noinspection PyBroadException
-        try:
+        with shinqlx.ExceptionLogging():
             frame_tasks.run(blocking=False)
             break
-        except:  # noqa: E722
-            shinqlx.log_exception()
-            continue
-    # noinspection PyBroadException
-    try:
-        shinqlx.EVENT_DISPATCHERS["frame"].dispatch()
-    except:  # noqa: E722
-        shinqlx.log_exception()
-        return True
 
-    while not next_frame_tasks.empty():
-        func, args, kwargs = next_frame_tasks.get(block=False)
-        frame_tasks.enter(0, 1, func, args, kwargs)
+    with ExitStack() as stack:
+        stack.enter_context(suppress(BaseException))
+        stack.enter_context(shinqlx.ExceptionLogging())
+
+        shinqlx.EVENT_DISPATCHERS["frame"].dispatch()
+
+        while not next_frame_tasks.empty():
+            func, args, kwargs = next_frame_tasks.get(block=False)
+            frame_tasks.enter(0, 1, func, args, kwargs)
+
+        return
+
+    # noinspection PyUnreachableCode
+    return True
 
 
 _zmq_warning_issued = False
@@ -273,21 +285,29 @@ def handle_new_game(is_restart):
     shinqlx.set_map_subtitles()
 
     if not is_restart:
-        # noinspection PyBroadException
-        try:
+        catcher = shinqlx.ExceptionCatcher()
+        with ExitStack() as stack:
+            stack.enter_context(suppress(BaseException))
+            stack.enter_context(shinqlx.ExceptionLogging())
+            stack.enter_context(catcher)
+
             shinqlx.EVENT_DISPATCHERS["map"].dispatch(
                 shinqlx.get_cvar("mapname"), shinqlx.get_cvar("g_factory")
             )
-        except:  # noqa: E722
-            shinqlx.log_exception()
+
+        if catcher.is_exception_caught():
             return True
 
-    # noinspection PyBroadException
-    try:
+    with ExitStack() as stack:
+        stack.enter_context(suppress(BaseException))
+        stack.enter_context(shinqlx.ExceptionLogging())
+
         shinqlx.EVENT_DISPATCHERS["new_game"].dispatch()
-    except:  # noqa: E722
-        shinqlx.log_exception()
-        return True
+
+        return
+
+    # noinspection PyUnreachableCode
+    return True
 
 
 def handle_set_configstring(index, value):
@@ -297,8 +317,10 @@ def handle_set_configstring(index, value):
     """
     global _ad_round_number
 
-    # noinspection PyBroadException
-    try:
+    with ExitStack() as stack:
+        stack.enter_context(suppress(BaseException))
+        stack.enter_context(shinqlx.ExceptionLogging())
+
         res = shinqlx.EVENT_DISPATCHERS["set_configstring"].dispatch(index, value)
         if res is False:
             return False
@@ -349,11 +371,12 @@ def handle_set_configstring(index, value):
                         return
                     # round cvar appears only on round countdown
                     # and first round is 0, not 1
-                    try:
-                        round_number = int(cvars["round"]) * 2 + 1 + int(cvars["turn"])
-                        _ad_round_number = round_number
-                    except KeyError:
-                        round_number = _ad_round_number
+                    round_number = (
+                        int(cvars["round"]) * 2 + 1 + int(cvars["turn"])
+                        if "round" in cvars
+                        else _ad_round_number
+                    )
+                    _ad_round_number = round_number
                 else:
                     # it is CA
                     round_number = int(cvars["round"])
@@ -366,9 +389,9 @@ def handle_set_configstring(index, value):
                     return
 
         return res
-    except:  # noqa: E722
-        shinqlx.log_exception()
-        return True
+
+    # noinspection PyUnreachableCode
+    return True
 
 
 def handle_player_connect(client_id, _is_bot):
@@ -383,13 +406,15 @@ def handle_player_connect(client_id, _is_bot):
     :type: _is_bot: bool
 
     """
-    # noinspection PyBroadException
-    try:
+    with ExitStack() as stack:
+        stack.enter_context(suppress(BaseException))
+        stack.enter_context(shinqlx.ExceptionLogging())
+
         player = shinqlx.Player(client_id)
         return shinqlx.EVENT_DISPATCHERS["player_connect"].dispatch(player)
-    except:  # noqa: E722
-        shinqlx.log_exception()
-        return True
+
+    # noinspection PyUnreachableCode
+    return True
 
 
 def handle_player_loaded(client_id):
@@ -401,13 +426,15 @@ def handle_player_loaded(client_id):
     :type: client_id: int
 
     """
-    # noinspection PyBroadException
-    try:
+    with ExitStack() as stack:
+        stack.enter_context(suppress(BaseException))
+        stack.enter_context(shinqlx.ExceptionLogging())
+
         player = shinqlx.Player(client_id)
         return shinqlx.EVENT_DISPATCHERS["player_loaded"].dispatch(player)
-    except:  # noqa: E722
-        shinqlx.log_exception()
-        return True
+
+    # noinspection PyUnreachableCode
+    return True
 
 
 def handle_player_disconnect(client_id, reason):
@@ -419,13 +446,15 @@ def handle_player_disconnect(client_id, reason):
     :type: reason: str
 
     """
-    # noinspection PyBroadException
-    try:
+    with ExitStack() as stack:
+        stack.enter_context(suppress(BaseException))
+        stack.enter_context(shinqlx.ExceptionLogging())
+
         player = shinqlx.Player(client_id)
         return shinqlx.EVENT_DISPATCHERS["player_disconnect"].dispatch(player, reason)
-    except:  # noqa: E722
-        shinqlx.log_exception()
-        return True
+
+    # noinspection PyUnreachableCode
+    return True
 
 
 def handle_player_spawn(client_id):
@@ -434,13 +463,15 @@ def handle_player_spawn(client_id):
     spawns.
 
     """
-    # noinspection PyBroadException
-    try:
+    with ExitStack() as stack:
+        stack.enter_context(suppress(BaseException))
+        stack.enter_context(shinqlx.ExceptionLogging())
+
         player = shinqlx.Player(client_id)
         return shinqlx.EVENT_DISPATCHERS["player_spawn"].dispatch(player)
-    except:  # noqa: E722
-        shinqlx.log_exception()
-        return True
+
+    # noinspection PyUnreachableCode
+    return True
 
 
 def handle_kamikaze_use(client_id):
@@ -450,13 +481,15 @@ def handle_kamikaze_use(client_id):
     :type: client_id: int
 
     """
-    # noinspection PyBroadException
-    try:
+    with ExitStack() as stack:
+        stack.enter_context(suppress(BaseException))
+        stack.enter_context(shinqlx.ExceptionLogging())
+
         player = shinqlx.Player(client_id)
         return shinqlx.EVENT_DISPATCHERS["kamikaze_use"].dispatch(player)
-    except:  # noqa: E722
-        shinqlx.log_exception()
-        return True
+
+    # noinspection PyUnreachableCode
+    return True
 
 
 def handle_kamikaze_explode(client_id, is_used_on_demand):
@@ -469,15 +502,17 @@ def handle_kamikaze_explode(client_id, is_used_on_demand):
 
 
     """
-    # noinspection PyBroadException
-    try:
+    with ExitStack() as stack:
+        stack.enter_context(suppress(BaseException))
+        stack.enter_context(shinqlx.ExceptionLogging())
+
         player = shinqlx.Player(client_id)
         return shinqlx.EVENT_DISPATCHERS["kamikaze_explode"].dispatch(
             player, bool(is_used_on_demand)
         )
-    except:  # noqa: E722
-        shinqlx.log_exception()
-        return True
+
+    # noinspection PyUnreachableCode
+    return True
 
 
 def handle_damage(target_id, attacker_id, damage, dflags, mod):
@@ -487,14 +522,18 @@ def handle_damage(target_id, attacker_id, damage, dflags, mod):
     attacker_player = (
         shinqlx.Player(attacker_id) if attacker_id in range(0, 64) else attacker_id
     )
-    # noinspection PyBroadException
-    try:
+
+    with ExitStack() as stack:
+        stack.enter_context(suppress(BaseException))
+        stack.enter_context(shinqlx.ExceptionLogging())
+
         shinqlx.EVENT_DISPATCHERS["damage"].dispatch(
             target_player, attacker_player, damage, dflags, mod
         )
-    except:  # noqa: E722
-        shinqlx.log_exception()
-        return True
+        return
+
+    # noinspection PyUnreachableCode
+    return True
 
 
 def handle_console_print(text):
@@ -502,8 +541,10 @@ def handle_console_print(text):
     if not text:
         return
 
-    # noinspection PyBroadException
-    try:
+    with ExitStack() as stack:
+        stack.enter_context(suppress(BaseException))
+        stack.enter_context(shinqlx.ExceptionLogging())
+
         # Log console output. Removes the need to have stdout logs in addition to shinqlx.log.
         shinqlx.get_logger().debug(text.rstrip("\n"))
 
@@ -519,9 +560,9 @@ def handle_console_print(text):
             return res
 
         return text
-    except:  # noqa: E722
-        shinqlx.log_exception()
-        return True
+
+    # noinspection PyUnreachableCode
+    return True
 
 
 _print_redirection = None

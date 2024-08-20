@@ -46,7 +46,9 @@ def dispatch_player_death_event(data):
     if not data["KILLER"]:
         killer = None
     else:
+        # noinspection PyTypeChecker
         sid_killer = int(data["KILLER"]["STEAM_ID"])
+        # noinspection PyTypeChecker
         killer = (
             shinqlx.Plugin.player(sid_killer)
             if sid_killer

@@ -173,10 +173,7 @@ class Redis(AbstractDatabase):
             return 5
 
         key = f"minqlx:players:{steam_id}:permission"
-        try:
-            perm = self[key]
-        except KeyError:
-            perm = "0"
+        perm = self.get(key, "0")
 
         return int(perm)
 
@@ -226,10 +223,7 @@ class Redis(AbstractDatabase):
         else:
             key = f"minqlx:players:{player}:flags:{flag}"
 
-        try:
-            return bool(int(self[key]))
-        except KeyError:
-            return default
+        return bool(int(self[key])) if key in self else default
 
     def connect(self, host=None, database=0, unix_socket=False, password=None):
         """Returns a connection to a Redis database. If *host* is None, it will

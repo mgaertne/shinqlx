@@ -3,7 +3,6 @@ from abc import abstractmethod
 
 import shinqlx
 
-
 MAX_MSG_LENGTH = 1000
 re_color_tag = re.compile(r"\^[0-7]")
 
@@ -64,7 +63,7 @@ class AbstractChannel:
             i = msg.find("\n")
             if 0 <= i <= limit:
                 res.append(msg[:i])
-                msg = msg[i + 1:]
+                msg = msg[i + 1 :]
                 continue
 
             if len(msg) < limit:
@@ -79,7 +78,7 @@ class AbstractChannel:
                     if not length:
                         length = limit + 1
                     res.append(msg[: length - 1])
-                    msg = msg[length + len(delimiter) - 1:]
+                    msg = msg[length + len(delimiter) - 1 :]
                     break
                 length += i + 1
 
@@ -264,7 +263,7 @@ class Command:
                 return False
             if not name.startswith(prefix):
                 return False
-            name = name[len(prefix):]
+            name = name[len(prefix) :]
 
         return name.lower() in self.name
 

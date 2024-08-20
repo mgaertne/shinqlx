@@ -11,7 +11,7 @@ import os.path
 import logging
 import shlex
 import sys
-from contextlib import suppress
+from contextlib import suppress, AbstractContextManager
 from functools import wraps
 
 from logging.handlers import RotatingFileHandler
@@ -111,13 +111,15 @@ def parse_variables(varstr, ordered=False):
         return res
 
     _vars = varstr.lstrip("\\").split("\\")
-    try:
-        for i in range(0, len(_vars), 2):
-            res[_vars[i]] = _vars[i + 1]
-    except IndexError:
+
+    if len(_vars) % 2 != 0:
         # Log and return incomplete dict.
         logger = shinqlx.get_logger()
         logger.warning("Uneven number of keys and values: %s", varstr)
+        _vars.pop()
+
+    for i in range(0, len(_vars), 2):
+        res[_vars[i]] = _vars[i + 1]
 
     return res
 
@@ -215,6 +217,28 @@ def threading_excepthook(args):
     handle_exception(args.exc_type, args.exc_value, args.exc_traceback)
 
 
+class ExceptionLogging(AbstractContextManager):
+    def __init__(self, plugin=None):
+        self.plugin = plugin
+
+    def __exit__(self, exc_type, exc_value, exc_traceback):
+        if (exc_type, exc_value, exc_traceback) == (None, None, None):
+            return
+
+        log_exception(self.plugin)
+
+
+class ExceptionCatcher(AbstractContextManager):
+    def __init__(self):
+        self._exception_caught = False
+
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        self._exception_caught = (exc_type, exc_val, exc_tb) != (None, None, None)
+
+    def is_exception_caught(self):
+        return self._exception_caught
+
+
 _init_time: datetime.datetime = datetime.datetime.now()
 
 
@@ -226,20 +250,20 @@ def uptime():
 def owner():
     """Returns the SteamID64 of the owner. This is set in the config."""
     # noinspection PyBroadException
-    try:
-        owner_cvar = shinqlx.get_cvar("qlx_owner")
-        if owner_cvar is None:
-            raise RuntimeError
-        sid = int(owner_cvar)
-        if sid == -1:
-            raise RuntimeError
-        return sid
-    except:  # noqa: E722
-        logger = shinqlx.get_logger()
+    logger = shinqlx.get_logger()
+    owner_cvar = shinqlx.get_cvar("qlx_owner")
+    if owner_cvar is None or not owner_cvar.isdigit():
         logger.error(
             "Failed to parse the Owner Steam ID. Make sure it's in SteamID64 format."
         )
-    return None
+        return None
+    sid = int(owner_cvar)
+    if sid == -1:
+        logger.error(
+            "Failed to parse the Owner Steam ID. Make sure it's in SteamID64 format."
+        )
+        return None
+    return sid
 
 
 _stats = None
@@ -273,7 +297,8 @@ def set_plugins_version(path) -> None:
     # We keep environment variables, but remove LD_PRELOAD to avoid a warning the OS might throw.
     env = dict(os.environ)
     del env["LD_PRELOAD"]
-    try:
+    setattr(shinqlx, "__plugins_version__", "NOT_SET")
+    with suppress(FileNotFoundError, subprocess.TimeoutExpired):
         # Get the version using git describe.
         with subprocess.Popen(
             args_version,
@@ -305,11 +330,8 @@ def set_plugins_version(path) -> None:
 
             if p.stdout:
                 branch = p.stdout.read().decode().strip()
-    except (FileNotFoundError, subprocess.TimeoutExpired):
-        setattr(shinqlx, "__plugins_version__", "NOT_SET")
-        return
 
-    setattr(shinqlx, "__plugins_version__", f"{version}-{branch}")
+        setattr(shinqlx, "__plugins_version__", f"{version}-{branch}")
 
 
 def set_map_subtitles() -> None:
@@ -470,7 +492,7 @@ def load_plugin(plugin):
     if plugin in plugins:
         reload_plugin(plugin)
         return
-    try:
+    with ExceptionLogging(plugin):
         module = importlib.import_module(f"{plugins_dir}.{plugin}")
         # We add the module regardless of whether it fails or not, otherwise we can't reload later.
         _modules[plugin] = module
@@ -486,9 +508,6 @@ def load_plugin(plugin):
                 "Attempted to load a plugin that is not a subclass of 'shinqlx.Plugin'."
             )
         plugins[plugin] = plugin_class()
-    except:
-        log_exception(plugin)
-        raise
 
 
 def unload_plugin(plugin):
@@ -499,7 +518,7 @@ def unload_plugin(plugin):
     if plugin not in plugins:
         raise PluginUnloadError("Attempted to unload a plugin that is not loaded.")
 
-    try:
+    with ExceptionLogging(plugin):
         shinqlx.EVENT_DISPATCHERS["unload"].dispatch(plugin)
 
         # Unhook its hooks.
@@ -511,22 +530,16 @@ def unload_plugin(plugin):
             plugins[plugin].remove_command(cmd.name, cmd.handler)
 
         del plugins[plugin]
-    except:
-        log_exception(plugin)
-        raise
 
 
 def reload_plugin(plugin):
     with suppress(PluginUnloadError):
         unload_plugin(plugin)
 
-    try:
+    with ExceptionLogging(plugin):
         if plugin in _modules:  # Unloaded previously?
             importlib.reload(_modules[plugin])
         load_plugin(plugin)
-    except:
-        log_exception(plugin)
-        raise
 
 
 def initialize_cvars():
