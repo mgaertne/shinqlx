@@ -1,7 +1,7 @@
 from typing import overload, TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from typing import Mapping
+    from typing import Mapping, ClassVar
     from datetime import timedelta
     from logging import Logger
 
@@ -9,10 +9,12 @@ if TYPE_CHECKING:
     from shinqlx import Plugin, Player
 
 class AbstractDatabase:
-    _counter: int
-    plugin: Plugin
+    _counter: ClassVar[int]
 
-    def __init__(self, plugin: Plugin) -> None: ...
+    def __init__(self, plugin: Plugin) -> None:
+        self.plugin: Plugin = ...
+        ...
+
     def __del__(self) -> None: ...
     @property
     def logger(self) -> Logger: ...
@@ -33,6 +35,12 @@ class Redis(AbstractDatabase):
     _conn: redisRedis | None
     _pool: ConnectionPool | None
     _pass: str
+
+    def __init__(self) -> None:
+        self._conn: redisRedis | None = ...
+        self._pool: ConnectionPool | None = ...
+        self._pass: str = ...
+        ...
 
     def __del__(self) -> None: ...
     def __contains__(self, key: str) -> bool: ...
