@@ -3,6 +3,7 @@ we get stats from it."""
 
 import asyncio
 import json
+from contextlib import suppress, ExitStack
 
 import zmq
 import zmq.asyncio
@@ -108,45 +109,48 @@ class StatsListener(Thread):
         self.start()
 
     def run(self):
-        if self.done:
-            return
-
-        asyncio.run(self.run_async())
+        while not self.done:
+            asyncio.run(self.run_async())
 
     @context()
     async def run_async(self, ctx):
-        with zmq.asyncio.Context(ctx).socket(zmq.SUB) as socket:
-            socket.setsockopt_string(zmq.PLAIN_USERNAME, "stats")
-            socket.setsockopt_string(zmq.PLAIN_PASSWORD, self.password)
-            socket.setsockopt_string(zmq.ZAP_DOMAIN, "stats")
-            socket.connect(self.address)
-            socket.subscribe("")
+        with ExitStack() as stack:
+            stack.enter_context(suppress(BaseException))
+            stack.enter_context(shinqlx.ExceptionLogging())
+            stack.enter_context(suppress(zmq.error.Again))
 
-            poller = zmq.asyncio.Poller()
-            poller.register(socket, zmq.POLLIN)
+            with zmq.asyncio.Context(ctx).socket(zmq.SUB) as socket:
+                socket.setsockopt_string(zmq.PLAIN_USERNAME, "stats")
+                socket.setsockopt_string(zmq.PLAIN_PASSWORD, self.password)
+                socket.setsockopt_string(zmq.ZAP_DOMAIN, "stats")
+                socket.connect(self.address)
+                socket.subscribe("")
 
-            while True:  # Will throw an expcetion if no more data to get.
-                pending_events = await poller.poll()
-                for receiver, _ in pending_events:
-                    raw_event = await receiver.recv()
-                    stats = json.loads(raw_event.decode(errors="ignore"))
-                    dispatch_stats_event(stats)
+                poller = zmq.asyncio.Poller()
+                poller.register(socket, zmq.POLLIN)
 
-                    event_type = stats["TYPE"]
+                while True:  # Will throw an expcetion if no more data to get.
+                    pending_events = await poller.poll()
+                    for receiver, _ in pending_events:
+                        raw_event = await receiver.recv(zmq.NOBLOCK)
+                        stats = json.loads(raw_event.decode(errors="replace"))
+                        dispatch_stats_event(stats)
 
-                    if event_type == "MATCH_STARTED":
-                        self._in_progress = True
-                        dispatch_game_start_event(stats["DATA"])
-                    elif event_type == "ROUND_OVER":
-                        dispatch_round_end_event(stats["DATA"])
-                    elif event_type == "MATCH_REPORT":
-                        if self._in_progress:
-                            dispatch_game_end_event(stats["DATA"])
-                        self._in_progress = False
-                    elif event_type == "PLAYER_DEATH":
-                        dispatch_player_death_event(stats["DATA"])
-                    elif event_type == "PLAYER_SWITCHTEAM":
-                        dispatch_team_switch_event(stats["DATA"])
+                        event_type = stats["TYPE"]
+
+                        if event_type == "MATCH_STARTED":
+                            self._in_progress = True
+                            dispatch_game_start_event(stats["DATA"])
+                        elif event_type == "ROUND_OVER":
+                            dispatch_round_end_event(stats["DATA"])
+                        elif event_type == "MATCH_REPORT":
+                            if self._in_progress:
+                                dispatch_game_end_event(stats["DATA"])
+                            self._in_progress = False
+                        elif event_type == "PLAYER_DEATH":
+                            dispatch_player_death_event(stats["DATA"])
+                        elif event_type == "PLAYER_SWITCHTEAM":
+                            dispatch_team_switch_event(stats["DATA"])
 
     def stop(self):
         self.done = True
