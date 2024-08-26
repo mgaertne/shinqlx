@@ -173,9 +173,9 @@ class Redis(AbstractDatabase):
             return 5
 
         key = f"minqlx:players:{steam_id}:permission"
-        perm = self.get(key, "0")
+        perm = self.get(key)
 
-        return int(perm)
+        return int(perm) if perm is not None else 0
 
     def has_permission(self, player, level=5):
         """Checks if the player has higher than or equal to *level*.
