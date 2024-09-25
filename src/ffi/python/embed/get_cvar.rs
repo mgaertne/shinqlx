@@ -32,6 +32,7 @@ mod get_cvar_tests {
     use alloc::ffi::CString;
 
     use mockall::predicate;
+    use once_cell::sync::Lazy;
     use pretty_assertions::assert_eq;
 
     use pyo3::exceptions::PyEnvironmentError;
@@ -63,18 +64,20 @@ mod get_cvar_tests {
         assert_eq!(result.expect("result was not OK"), None);
     }
 
+    static CVAR_STRING: Lazy<CString> =
+        Lazy::new(|| CString::new("16").expect("result was not OK"));
+
     #[test]
     #[cfg_attr(miri, ignore)]
     #[serial]
     fn get_cvar_when_cvar_is_found() {
-        let cvar_string = CString::new("16").expect("result was not OK");
         let mut mock_engine = MockQuakeEngine::new();
         mock_engine
             .expect_find_cvar()
             .with(predicate::eq("sv_maxclients"))
             .returning(move |_| {
                 let mut raw_cvar = CVarBuilder::default()
-                    .string(cvar_string.as_ptr().cast_mut())
+                    .string(CVAR_STRING.as_ptr().cast_mut())
                     .build()
                     .expect("this should not happen");
                 CVar::try_from(&mut raw_cvar as *mut cvar_t).ok()
