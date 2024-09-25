@@ -614,8 +614,7 @@ mod vm_functios_tests {
     }
 
     #[test]
-    #[cfg_attr(miri, ignore)]
-    #[cfg_attr(target_os = "macos", ignore)]
+    #[cfg_attr(any(miri, target_os = "macos"), ignore)]
     fn unhook_with_functions_and_enabled_detours_set_before() {
         let vm_functions = VmFunctions {
             vm_call_table: AtomicUsize::new(42),
