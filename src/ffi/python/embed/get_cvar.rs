@@ -73,7 +73,7 @@ mod get_cvar_tests {
         mock_engine
             .expect_find_cvar()
             .with(predicate::eq("sv_maxclients"))
-            .returning(move |_| {
+            .returning_st(move |_| {
                 let mut raw_cvar = CVarBuilder::default()
                     .string(cvar_string.as_ptr().cast_mut())
                     .build()
@@ -86,5 +86,6 @@ mod get_cvar_tests {
         let result = Python::with_gil(|py| pyshinqlx_get_cvar(py, "sv_maxclients"))
             .expect("result was not OK");
         assert!(result.is_some_and(|cvar| cvar == "16"));
+        MAIN_ENGINE.store(None);
     }
 }
