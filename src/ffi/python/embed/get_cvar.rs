@@ -32,7 +32,6 @@ mod get_cvar_tests {
     use alloc::ffi::CString;
 
     use mockall::predicate;
-    use pretty_assertions::assert_eq;
     use rstest::*;
 
     use pyo3::exceptions::PyEnvironmentError;
@@ -60,8 +59,9 @@ mod get_cvar_tests {
             .times(1);
         MAIN_ENGINE.store(Some(mock_engine.into()));
 
-        let result = Python::with_gil(|py| pyshinqlx_get_cvar(py, "asdf"));
-        assert_eq!(result.expect("result was not OK"), None);
+        let result =
+            Python::with_gil(|py| pyshinqlx_get_cvar(py, "asdf")).expect("result waa not OK");
+        assert!(result.is_none());
     }
 
     #[rstest]
@@ -83,7 +83,8 @@ mod get_cvar_tests {
             .times(1);
         MAIN_ENGINE.store(Some(mock_engine.into()));
 
-        let result = Python::with_gil(|py| pyshinqlx_get_cvar(py, "sv_maxclients"));
-        assert_eq!(result.expect("result was not OK"), Some("16".to_string()));
+        let result = Python::with_gil(|py| pyshinqlx_get_cvar(py, "sv_maxclients"))
+            .expect("result was not OK");
+        assert!(result.is_some_and(|cvar| cvar == "16"));
     }
 }
