@@ -30,6 +30,7 @@ mod get_cvar_tests {
     use crate::prelude::*;
 
     use alloc::ffi::CString;
+    use core::borrow::BorrowMut;
 
     use mockall::predicate;
     use rstest::*;
@@ -69,16 +70,17 @@ mod get_cvar_tests {
     #[serial]
     fn get_cvar_when_cvar_is_found(_pyshinqlx_setup: ()) {
         let cvar_string = CString::new("16").expect("result was not OK");
+
         let mut mock_engine = MockQuakeEngine::new();
         mock_engine
             .expect_find_cvar()
             .with(predicate::eq("sv_maxclients"))
-            .returning_st(move |_| {
+            .returning(move |_| {
                 let mut raw_cvar = CVarBuilder::default()
                     .string(cvar_string.as_ptr().cast_mut())
                     .build()
                     .expect("this should not happen");
-                CVar::try_from(&mut raw_cvar as *mut cvar_t).ok()
+                CVar::try_from(raw_cvar.borrow_mut() as *mut cvar_t).ok()
             })
             .times(1);
         MAIN_ENGINE.store(Some(mock_engine.into()));
@@ -86,6 +88,5 @@ mod get_cvar_tests {
         let result = Python::with_gil(|py| pyshinqlx_get_cvar(py, "sv_maxclients"))
             .expect("result was not OK");
         assert!(result.is_some_and(|cvar| cvar == "16"));
-        MAIN_ENGINE.store(None);
     }
 }
