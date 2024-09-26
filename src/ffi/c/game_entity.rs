@@ -544,7 +544,6 @@ mod game_entity_tests {
     use crate::ffi::c::prelude::*;
     use crate::prelude::*;
 
-    use alloc::ffi::CString;
     use core::ffi::c_int;
     use mockall::predicate;
     use pretty_assertions::assert_eq;
@@ -1323,7 +1322,7 @@ mod game_entity_tests {
 
     #[test]
     fn game_entity_get_classname() {
-        let classname = CString::new("entity classname").expect("this should not happen");
+        let classname = c"entity classname";
         let mut gentity = GEntityBuilder::default()
             .classname(classname.as_ptr())
             .build()
@@ -1558,7 +1557,7 @@ mod game_entity_tests {
 
     #[test]
     fn game_entity_is_kamikaze_timer_for_non_kamikaze_timer() {
-        let classname = CString::new("no kamikaze timer").expect("this should not happen");
+        let classname = c"no kamikaze timer";
         let mut gentity = GEntityBuilder::default()
             .classname(classname.as_ptr())
             .build()
@@ -1570,7 +1569,7 @@ mod game_entity_tests {
 
     #[test]
     fn game_entity_is_kamikaze_timer_for_kamikaze_timer() {
-        let classname = CString::new("kamikaze timer").expect("this should not happen");
+        let classname = c"kamikaze timer";
         let mut gentity = GEntityBuilder::default()
             .classname(classname.as_ptr())
             .build()
@@ -1633,7 +1632,7 @@ mod game_entity_tests {
         mock_engine.expect_free_entity();
         MAIN_ENGINE.store(Some(mock_engine.into()));
 
-        let class_name = CString::new("class_name").expect("this should not happen");
+        let class_name = c"class_name";
         let mut gentity = GEntityBuilder::default()
             .classname(class_name.as_ptr())
             .build()

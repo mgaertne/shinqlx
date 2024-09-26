@@ -74,7 +74,7 @@ impl Client {
     where
         T: AsRef<str>,
     {
-        let c_reason = CString::new(reason.as_ref()).unwrap_or_else(|_| CString::new("").unwrap());
+        let c_reason = CString::new(reason.as_ref()).unwrap_or_else(|_| c"".into());
 
         MAIN_ENGINE.load().iter().for_each(|main_engine| {
             main_engine
@@ -377,9 +377,9 @@ mod client_tests {
             .expect("this should not happen");
 
         let dropclient_original_ctx = MockSV_DropcClient::original_func_context();
-        dropclient_original_ctx.expect().withf(
-            |_client, &reason| unsafe { CStr::from_ptr(reason).to_string_lossy() } == "disconnected",
-        );
+        dropclient_original_ctx
+            .expect()
+            .withf(|_client, &reason| unsafe { CStr::from_ptr(reason) } == c"disconnected");
 
         let mut mock_engine = MockQuakeEngine::new();
         mock_engine.expect_sv_dropclient_detour().returning(|| {
