@@ -86,6 +86,10 @@ mod get_cvar_tests {
 
         let result = Python::with_gil(|py| pyshinqlx_get_cvar(py, "sv_maxclients"))
             .expect("result was not OK");
-        assert!(result.is_some_and(|cvar| cvar == "16"));
+        assert!(
+            result.as_ref().is_some_and(|cvar| cvar == "16"),
+            "{:?}",
+            result.as_ref()
+        );
     }
 }
