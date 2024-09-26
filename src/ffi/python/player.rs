@@ -7606,16 +7606,15 @@ assert(isinstance(shinqlx.RconDummyPlayer(), shinqlx.AbstractDummyPlayer))
     fn steam_id_return_owner_id(_pyshinqlx_setup: ()) {
         let mut mock_engine = MockQuakeEngine::new();
         let owner = c"1234567890";
+        let mut raw_cvar = CVarBuilder::default()
+            .string(owner.as_ptr() as *mut c_char)
+            .build()
+            .expect("this should not happen");
+
         mock_engine
             .expect_find_cvar()
             .with(predicate::eq("qlx_owner"))
-            .returning(move |_| {
-                let mut raw_cvar = CVarBuilder::default()
-                    .string(owner.as_ptr() as *mut c_char)
-                    .build()
-                    .expect("this should not happen");
-                CVar::try_from(&mut raw_cvar as *mut cvar_t).ok()
-            });
+            .returning_st(move |_| CVar::try_from(&mut raw_cvar as *mut cvar_t).ok());
         mock_engine
             .expect_find_cvar()
             .with(predicate::ne("qlx_owner"))
@@ -7629,6 +7628,8 @@ assert(isinstance(shinqlx.RconDummyPlayer(), shinqlx.AbstractDummyPlayer))
             let result = rcon_dummy_player.bind(py).borrow().get_steam_id(py);
             assert!(result.is_ok_and(|value| value == 1234567890));
         });
+
+        MAIN_ENGINE.store(None);
     }
 
     #[rstest]

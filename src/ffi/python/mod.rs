@@ -1114,38 +1114,32 @@ mod pyshinqlx_configure_logger_tests {
         let mut mock_engine = MockQuakeEngine::new();
         let cvar_string = CString::new(TEMP_LOG_DIR.path().to_string_lossy().to_string())
             .expect("this should not happen");
+        let mut raw_homepath_cvar = CVarBuilder::default()
+            .string(cvar_string.as_ptr() as *mut c_char)
+            .build()
+            .expect("this should not happen");
         mock_engine
             .expect_find_cvar()
             .with(predicate::eq("fs_homepath"))
-            .returning(move |_| {
-                let mut raw_cvar = CVarBuilder::default()
-                    .string(cvar_string.as_ptr() as *mut c_char)
-                    .build()
-                    .expect("this should not happen");
-                CVar::try_from(&mut raw_cvar as *mut cvar_t).ok()
-            })
+            .returning_st(move |_| CVar::try_from(&mut raw_homepath_cvar as *mut cvar_t).ok())
             .times(1);
+        let mut raw_logs_cvar = CVarBuilder::default()
+            .integer(10)
+            .build()
+            .expect("this should not happen");
         mock_engine
             .expect_find_cvar()
             .with(predicate::eq("qlx_logs"))
-            .returning(|_| {
-                let mut raw_cvar = CVarBuilder::default()
-                    .integer(10)
-                    .build()
-                    .expect("this should not happen");
-                CVar::try_from(&mut raw_cvar as *mut cvar_t).ok()
-            })
+            .returning_st(move |_| CVar::try_from(&mut raw_logs_cvar as *mut cvar_t).ok())
             .times(1);
+        let mut raw_logssize_cvar = CVarBuilder::default()
+            .integer(1024)
+            .build()
+            .expect("this should not happen");
         mock_engine
             .expect_find_cvar()
             .with(predicate::eq("qlx_logsSize"))
-            .returning(|_| {
-                let mut raw_cvar = CVarBuilder::default()
-                    .integer(1024)
-                    .build()
-                    .expect("this should not happen");
-                CVar::try_from(&mut raw_cvar as *mut cvar_t).ok()
-            })
+            .returning_st(move |_| CVar::try_from(&mut raw_logssize_cvar as *mut cvar_t).ok())
             .times(1);
         MAIN_ENGINE.store(Some(mock_engine.into()));
 
@@ -1204,6 +1198,8 @@ mod pyshinqlx_configure_logger_tests {
 
             clear_logger(py);
         });
+
+        MAIN_ENGINE.store(None);
     }
 
     #[rstest]
@@ -1211,18 +1207,17 @@ mod pyshinqlx_configure_logger_tests {
     #[serial]
     fn configure_logger_with_no_cvars_configured_in_main_engine(_pyshinqlx_setup: ()) {
         let mut mock_engine = MockQuakeEngine::new();
+
         let cvar_string = CString::new(TEMP_LOG_DIR.path().to_string_lossy().to_string())
+            .expect("this should not happen");
+        let mut raw_homepath_cvar = CVarBuilder::default()
+            .string(cvar_string.as_ptr() as *mut c_char)
+            .build()
             .expect("this should not happen");
         mock_engine
             .expect_find_cvar()
             .with(predicate::eq("fs_homepath"))
-            .returning(move |_| {
-                let mut raw_cvar = CVarBuilder::default()
-                    .string(cvar_string.as_ptr() as *mut c_char)
-                    .build()
-                    .expect("this should not happen");
-                CVar::try_from(&mut raw_cvar as *mut cvar_t).ok()
-            })
+            .returning_st(move |_| CVar::try_from(&mut raw_homepath_cvar as *mut cvar_t).ok())
             .times(1);
         mock_engine
             .expect_find_cvar()
@@ -1291,6 +1286,8 @@ mod pyshinqlx_configure_logger_tests {
 
             clear_logger(py);
         });
+
+        MAIN_ENGINE.store(None);
     }
 }
 
@@ -1874,24 +1871,24 @@ mod owner_tests {
     #[serial]
     fn owner_with_unparseable_cvar(_pyshinqlx_setup: ()) {
         let cvar_string = c"asdf";
+        let mut raw_cvar = CVarBuilder::default()
+            .string(cvar_string.as_ptr() as *mut c_char)
+            .build()
+            .expect("this should not happen");
 
         let mut mock_engine = MockQuakeEngine::new();
         mock_engine
             .expect_find_cvar()
             .with(predicate::eq("qlx_owner"))
-            .returning(move |_| {
-                let mut raw_cvar = CVarBuilder::default()
-                    .string(cvar_string.as_ptr() as *mut c_char)
-                    .build()
-                    .expect("this should not happen");
-                CVar::try_from(&mut raw_cvar as *mut cvar_t).ok()
-            });
+            .returning_st(move |_| CVar::try_from(&mut raw_cvar as *mut cvar_t).ok());
         MAIN_ENGINE.store(Some(mock_engine.into()));
 
         Python::with_gil(|py| {
             let result = pyshinqlx_owner(py);
             assert!(result.is_ok_and(|opt_value| opt_value.is_none()));
         });
+
+        MAIN_ENGINE.store(None);
     }
 
     #[rstest]
@@ -1899,24 +1896,24 @@ mod owner_tests {
     #[serial]
     fn owner_with_negative_cvar(_pyshinqlx_setup: ()) {
         let cvar_string = c"-42";
+        let mut raw_cvar = CVarBuilder::default()
+            .string(cvar_string.as_ptr() as *mut c_char)
+            .build()
+            .expect("this should not happen");
 
         let mut mock_engine = MockQuakeEngine::new();
         mock_engine
             .expect_find_cvar()
             .with(predicate::eq("qlx_owner"))
-            .returning(move |_| {
-                let mut raw_cvar = CVarBuilder::default()
-                    .string(cvar_string.as_ptr() as *mut c_char)
-                    .build()
-                    .expect("this should not happen");
-                CVar::try_from(&mut raw_cvar as *mut cvar_t).ok()
-            });
+            .returning_st(move |_| CVar::try_from(&mut raw_cvar as *mut cvar_t).ok());
         MAIN_ENGINE.store(Some(mock_engine.into()));
 
         Python::with_gil(|py| {
             let result = pyshinqlx_owner(py);
             assert!(result.is_ok_and(|opt_value| opt_value.is_none()));
         });
+
+        MAIN_ENGINE.store(None);
     }
 
     #[rstest]
@@ -1924,18 +1921,16 @@ mod owner_tests {
     #[serial]
     fn owner_with_parseable_cvar(_pyshinqlx_setup: ()) {
         let cvar_string = c"1234567890";
+        let mut raw_cvar = CVarBuilder::default()
+            .string(cvar_string.as_ptr() as *mut c_char)
+            .build()
+            .expect("this should not happen");
 
         let mut mock_engine = MockQuakeEngine::new();
         mock_engine
             .expect_find_cvar()
             .with(predicate::eq("qlx_owner"))
-            .returning(move |_| {
-                let mut raw_cvar = CVarBuilder::default()
-                    .string(cvar_string.as_ptr() as *mut c_char)
-                    .build()
-                    .expect("this should not happen");
-                CVar::try_from(&mut raw_cvar as *mut cvar_t).ok()
-            });
+            .returning_st(move |_| CVar::try_from(&mut raw_cvar as *mut cvar_t).ok());
         MAIN_ENGINE.store(Some(mock_engine.into()));
 
         Python::with_gil(|py| {
@@ -1944,6 +1939,8 @@ mod owner_tests {
                 result.is_ok_and(|opt_value| opt_value.is_some_and(|value| value == 1234567890))
             );
         });
+
+        MAIN_ENGINE.store(None);
     }
 }
 

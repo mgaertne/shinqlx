@@ -2343,17 +2343,15 @@ def handler():
     #[serial]
     fn get_cvar_when_cvar_is_found(_pyshinqlx_setup: ()) {
         let cvar_string = c"16";
+        let mut raw_cvar = CVarBuilder::default()
+            .string(cvar_string.as_ptr() as *mut c_char)
+            .build()
+            .expect("this should not happen");
         let mut mock_engine = MockQuakeEngine::new();
         mock_engine
             .expect_find_cvar()
             .with(predicate::eq("sv_maxclients"))
-            .returning(move |_| {
-                let mut raw_cvar = CVarBuilder::default()
-                    .string(cvar_string.as_ptr() as *mut c_char)
-                    .build()
-                    .expect("this should not happen");
-                CVar::try_from(&mut raw_cvar as *mut cvar_t).ok()
-            })
+            .returning_st(move |_| CVar::try_from(&mut raw_cvar as *mut cvar_t).ok())
             .times(1);
         MAIN_ENGINE.store(Some(mock_engine.into()));
 
@@ -2364,6 +2362,8 @@ def handler():
                 .extract::<String>(py)
                 .is_ok_and(|value| value == "16"));
         });
+
+        MAIN_ENGINE.store(None);
     }
 
     #[rstest]
@@ -2371,17 +2371,15 @@ def handler():
     #[serial]
     fn get_cvar_converts_to_str(_pyshinqlx_setup: ()) {
         let cvar_string = c"16";
+        let mut raw_cvar = CVarBuilder::default()
+            .string(cvar_string.as_ptr() as *mut c_char)
+            .build()
+            .expect("this should not happen");
         let mut mock_engine = MockQuakeEngine::new();
         mock_engine
             .expect_find_cvar()
             .with(predicate::eq("sv_maxclients"))
-            .returning(move |_| {
-                let mut raw_cvar = CVarBuilder::default()
-                    .string(cvar_string.as_ptr() as *mut c_char)
-                    .build()
-                    .expect("this should not happen");
-                CVar::try_from(&mut raw_cvar as *mut cvar_t).ok()
-            })
+            .returning_st(move |_| CVar::try_from(&mut raw_cvar as *mut cvar_t).ok())
             .times(1);
         MAIN_ENGINE.store(Some(mock_engine.into()));
 
@@ -2397,6 +2395,8 @@ def handler():
                 .extract::<String>(py)
                 .is_ok_and(|value| value == "16"));
         });
+
+        MAIN_ENGINE.store(None);
     }
 
     #[rstest]
@@ -2427,17 +2427,15 @@ def handler():
     #[serial]
     fn get_cvar_converts_to_int(_pyshinqlx_setup: ()) {
         let cvar_string = c"16";
+        let mut raw_cvar = CVarBuilder::default()
+            .string(cvar_string.as_ptr() as *mut c_char)
+            .build()
+            .expect("this should not happen");
         let mut mock_engine = MockQuakeEngine::new();
         mock_engine
             .expect_find_cvar()
             .with(predicate::eq("sv_maxclients"))
-            .returning(move |_| {
-                let mut raw_cvar = CVarBuilder::default()
-                    .string(cvar_string.as_ptr() as *mut c_char)
-                    .build()
-                    .expect("this should not happen");
-                CVar::try_from(&mut raw_cvar as *mut cvar_t).ok()
-            })
+            .returning_st(move |_| CVar::try_from(&mut raw_cvar as *mut cvar_t).ok())
             .times(1);
         MAIN_ENGINE.store(Some(mock_engine.into()));
 
@@ -2453,6 +2451,8 @@ def handler():
                 .extract::<i32>(py)
                 .is_ok_and(|value| value == 16));
         });
+
+        MAIN_ENGINE.store(None);
     }
 
     #[rstest]
@@ -2460,17 +2460,15 @@ def handler():
     #[serial]
     fn get_cvar_int_when_cvar_cannot_be_converted_to_int(_pyshinqlx_setup: ()) {
         let cvar_string = c"asdf";
+        let mut raw_cvar = CVarBuilder::default()
+            .string(cvar_string.as_ptr() as *mut c_char)
+            .build()
+            .expect("this should not happen");
         let mut mock_engine = MockQuakeEngine::new();
         mock_engine
             .expect_find_cvar()
             .with(predicate::eq("sv_maxclients"))
-            .returning(move |_| {
-                let mut raw_cvar = CVarBuilder::default()
-                    .string(cvar_string.as_ptr() as *mut c_char)
-                    .build()
-                    .expect("this should not happen");
-                CVar::try_from(&mut raw_cvar as *mut cvar_t).ok()
-            })
+            .returning_st(move |_| CVar::try_from(&mut raw_cvar as *mut cvar_t).ok())
             .times(1);
         MAIN_ENGINE.store(Some(mock_engine.into()));
 
@@ -2483,6 +2481,8 @@ def handler():
             );
             assert!(result.is_err_and(|err| err.is_instance_of::<PyValueError>(py)));
         });
+
+        MAIN_ENGINE.store(None);
     }
 
     #[rstest]
@@ -2513,17 +2513,15 @@ def handler():
     #[serial]
     fn get_cvar_converts_to_float(_pyshinqlx_setup: ()) {
         let cvar_string = c"16";
+        let mut raw_cvar = CVarBuilder::default()
+            .string(cvar_string.as_ptr() as *mut c_char)
+            .build()
+            .expect("this should not happen");
         let mut mock_engine = MockQuakeEngine::new();
         mock_engine
             .expect_find_cvar()
             .with(predicate::eq("sv_maxclients"))
-            .returning(move |_| {
-                let mut raw_cvar = CVarBuilder::default()
-                    .string(cvar_string.as_ptr() as *mut c_char)
-                    .build()
-                    .expect("this should not happen");
-                CVar::try_from(&mut raw_cvar as *mut cvar_t).ok()
-            })
+            .returning_st(move |_| CVar::try_from(&mut raw_cvar as *mut cvar_t).ok())
             .times(1);
         MAIN_ENGINE.store(Some(mock_engine.into()));
 
@@ -2539,6 +2537,8 @@ def handler():
                 .extract::<f64>(py)
                 .is_ok_and(|value| value == 16.0));
         });
+
+        MAIN_ENGINE.store(None);
     }
 
     #[rstest]
@@ -2546,17 +2546,15 @@ def handler():
     #[serial]
     fn get_cvar_float_when_cvar_cannot_be_converted_to_float(_pyshinqlx_setup: ()) {
         let cvar_string = c"asdf";
+        let mut raw_cvar = CVarBuilder::default()
+            .string(cvar_string.as_ptr() as *mut c_char)
+            .build()
+            .expect("this should not happen");
         let mut mock_engine = MockQuakeEngine::new();
         mock_engine
             .expect_find_cvar()
             .with(predicate::eq("sv_maxclients"))
-            .returning(move |_| {
-                let mut raw_cvar = CVarBuilder::default()
-                    .string(cvar_string.as_ptr() as *mut c_char)
-                    .build()
-                    .expect("this should not happen");
-                CVar::try_from(&mut raw_cvar as *mut cvar_t).ok()
-            })
+            .returning_st(move |_| CVar::try_from(&mut raw_cvar as *mut cvar_t).ok())
             .times(1);
         MAIN_ENGINE.store(Some(mock_engine.into()));
 
@@ -2569,6 +2567,8 @@ def handler():
             );
             assert!(result.is_err_and(|err| err.is_instance_of::<PyValueError>(py)));
         });
+
+        MAIN_ENGINE.store(None);
     }
 
     #[rstest]
@@ -2599,17 +2599,15 @@ def handler():
     #[serial]
     fn get_cvar_converts_to_bool(_pyshinqlx_setup: ()) {
         let cvar_string = c"16";
+        let mut raw_cvar = CVarBuilder::default()
+            .string(cvar_string.as_ptr() as *mut c_char)
+            .build()
+            .expect("this should not happen");
         let mut mock_engine = MockQuakeEngine::new();
         mock_engine
             .expect_find_cvar()
             .with(predicate::eq("sv_maxclients"))
-            .returning(move |_| {
-                let mut raw_cvar = CVarBuilder::default()
-                    .string(cvar_string.as_ptr() as *mut c_char)
-                    .build()
-                    .expect("this should not happen");
-                CVar::try_from(&mut raw_cvar as *mut cvar_t).ok()
-            })
+            .returning_st(move |_| CVar::try_from(&mut raw_cvar as *mut cvar_t).ok())
             .times(1);
         MAIN_ENGINE.store(Some(mock_engine.into()));
 
@@ -2626,6 +2624,8 @@ def handler():
                     && result.extract::<bool>(py).is_ok_and(|value| value)
             );
         });
+
+        MAIN_ENGINE.store(None);
     }
 
     #[rstest]
@@ -2661,17 +2661,15 @@ def handler():
     #[serial]
     fn get_cvar_bool_when_cvar_cannot_be_converted_to_int(_pyshinqlx_setup: ()) {
         let cvar_string = c"asdf";
+        let mut raw_cvar = CVarBuilder::default()
+            .string(cvar_string.as_ptr() as *mut c_char)
+            .build()
+            .expect("this should not happen");
         let mut mock_engine = MockQuakeEngine::new();
         mock_engine
             .expect_find_cvar()
             .with(predicate::eq("sv_maxclients"))
-            .returning(move |_| {
-                let mut raw_cvar = CVarBuilder::default()
-                    .string(cvar_string.as_ptr() as *mut c_char)
-                    .build()
-                    .expect("this should not happen");
-                CVar::try_from(&mut raw_cvar as *mut cvar_t).ok()
-            })
+            .returning_st(move |_| CVar::try_from(&mut raw_cvar as *mut cvar_t).ok())
             .times(1);
         MAIN_ENGINE.store(Some(mock_engine.into()));
 
@@ -2685,6 +2683,8 @@ def handler():
 
             assert!(result.is_err_and(|err| err.is_instance_of::<PyValueError>(py)));
         });
+
+        MAIN_ENGINE.store(None);
     }
 
     #[rstest]
@@ -2692,17 +2692,15 @@ def handler():
     #[serial]
     fn get_cvar_converts_to_list(_pyshinqlx_setup: ()) {
         let cvar_string = c"2, 4, 6, 8, 10";
+        let mut raw_cvar = CVarBuilder::default()
+            .string(cvar_string.as_ptr() as *mut c_char)
+            .build()
+            .expect("this should not happen");
         let mut mock_engine = MockQuakeEngine::new();
         mock_engine
             .expect_find_cvar()
             .with(predicate::eq("sv_maxclients"))
-            .returning(move |_| {
-                let mut raw_cvar = CVarBuilder::default()
-                    .string(cvar_string.as_ptr() as *mut c_char)
-                    .build()
-                    .expect("this should not happen");
-                CVar::try_from(&mut raw_cvar as *mut cvar_t).ok()
-            })
+            .returning_st(move |_| CVar::try_from(&mut raw_cvar as *mut cvar_t).ok())
             .times(1);
         MAIN_ENGINE.store(Some(mock_engine.into()));
 
@@ -2721,6 +2719,8 @@ def handler():
                         .is_ok_and(|value| value.len() == 5)
             );
         });
+
+        MAIN_ENGINE.store(None);
     }
 
     #[rstest]
@@ -2758,17 +2758,15 @@ def handler():
     #[serial]
     fn get_cvar_converts_to_set(_pyshinqlx_setup: ()) {
         let cvar_string = c"2, 4, 6, 8, 10";
+        let mut raw_cvar = CVarBuilder::default()
+            .string(cvar_string.as_ptr() as *mut c_char)
+            .build()
+            .expect("this should not happen");
         let mut mock_engine = MockQuakeEngine::new();
         mock_engine
             .expect_find_cvar()
             .with(predicate::eq("sv_maxclients"))
-            .returning(move |_| {
-                let mut raw_cvar = CVarBuilder::default()
-                    .string(cvar_string.as_ptr() as *mut c_char)
-                    .build()
-                    .expect("this should not happen");
-                CVar::try_from(&mut raw_cvar as *mut cvar_t).ok()
-            })
+            .returning_st(move |_| CVar::try_from(&mut raw_cvar as *mut cvar_t).ok())
             .times(1);
         MAIN_ENGINE.store(Some(mock_engine.into()));
 
@@ -2787,6 +2785,8 @@ def handler():
                         .is_ok_and(|value| value.len() == 5)
             );
         });
+
+        MAIN_ENGINE.store(None);
     }
 
     #[rstest]
@@ -2824,17 +2824,15 @@ def handler():
     #[serial]
     fn get_cvar_converts_to_tuple(_pyshinqlx_setup: ()) {
         let cvar_string = c"2, 4, 6, 8, 10";
+        let mut raw_cvar = CVarBuilder::default()
+            .string(cvar_string.as_ptr() as *mut c_char)
+            .build()
+            .expect("this should not happen");
         let mut mock_engine = MockQuakeEngine::new();
         mock_engine
             .expect_find_cvar()
             .with(predicate::eq("sv_maxclients"))
-            .returning(move |_| {
-                let mut raw_cvar = CVarBuilder::default()
-                    .string(cvar_string.as_ptr() as *mut c_char)
-                    .build()
-                    .expect("this should not happen");
-                CVar::try_from(&mut raw_cvar as *mut cvar_t).ok()
-            })
+            .returning_st(move |_| CVar::try_from(&mut raw_cvar as *mut cvar_t).ok())
             .times(1);
         MAIN_ENGINE.store(Some(mock_engine.into()));
 
@@ -2853,6 +2851,8 @@ def handler():
                         .is_ok_and(|value| value.len() == 5)
             );
         });
+
+        MAIN_ENGINE.store(None);
     }
 
     #[rstest]
@@ -2890,17 +2890,15 @@ def handler():
     #[serial]
     fn get_cvar_with_invalid_type_conversion(_pyshinqlx_setup: ()) {
         let cvar_string = c"16";
+        let mut raw_cvar = CVarBuilder::default()
+            .string(cvar_string.as_ptr() as *mut c_char)
+            .build()
+            .expect("this should not happen");
         let mut mock_engine = MockQuakeEngine::new();
         mock_engine
             .expect_find_cvar()
             .with(predicate::eq("sv_maxclients"))
-            .returning(move |_| {
-                let mut raw_cvar = CVarBuilder::default()
-                    .string(cvar_string.as_ptr() as *mut c_char)
-                    .build()
-                    .expect("this should not happen");
-                CVar::try_from(&mut raw_cvar as *mut cvar_t).ok()
-            })
+            .returning_st(move |_| CVar::try_from(&mut raw_cvar as *mut cvar_t).ok())
             .times(1);
         MAIN_ENGINE.store(Some(mock_engine.into()));
 
@@ -2914,6 +2912,8 @@ def handler():
 
             assert!(result.is_err_and(|err| err.is_instance_of::<PyValueError>(py)));
         });
+
+        MAIN_ENGINE.store(None);
     }
 
     #[rstest]
