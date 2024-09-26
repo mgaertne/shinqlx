@@ -1362,7 +1362,7 @@ mod hooks_tests {
                 predicate::eq(false),
                 predicate::eq(false),
             )
-            .returning(|_client_num, _first_time, _is_bot| "\0".as_ptr() as *const c_char)
+            .returning(|_client_num, _first_time, _is_bot| c"".as_ptr() as *const c_char)
             .times(1);
         MAIN_ENGINE.store(Some(mock_engine.into()));
 
@@ -1376,7 +1376,7 @@ mod hooks_tests {
         mock_engine
             .expect_client_connect()
             .with(predicate::eq(42), predicate::eq(true), predicate::eq(false))
-            .returning(|_client_num, _first_time, _is_bot| "\0".as_ptr() as *const c_char)
+            .returning(|_client_num, _first_time, _is_bot| c"".as_ptr() as *const c_char)
             .times(1);
         MAIN_ENGINE.store(Some(mock_engine.into()));
 
@@ -1418,7 +1418,7 @@ mod hooks_tests {
         mock_engine
             .expect_client_connect()
             .with(predicate::eq(42), predicate::eq(true), predicate::eq(true))
-            .returning(|_client_num, _first_time, _is_bot| "\0".as_ptr() as *const c_char)
+            .returning(|_client_num, _first_time, _is_bot| c"".as_ptr() as *const c_char)
             .times(1);
         MAIN_ENGINE.store(Some(mock_engine.into()));
 
