@@ -196,7 +196,7 @@ mod server_static_tests {
             .build()
             .expect("this should not happen");
         let mut server_static = ServerStaticBuilder::default()
-            .clients(&mut client as *mut client_t)
+            .clients(client.borrow_mut() as *mut client_t)
             .build()
             .expect("this should not happen");
         let rust_server_static =

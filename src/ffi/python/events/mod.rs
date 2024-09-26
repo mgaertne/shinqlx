@@ -564,6 +564,7 @@ mod event_dispatcher_tests {
     use crate::prelude::*;
     use crate::MAIN_ENGINE;
 
+    use core::borrow::BorrowMut;
     use core::ffi::c_char;
 
     use mockall::predicate;
@@ -640,7 +641,7 @@ def custom_hook(*args, **kwargs):
         mock_engine
             .expect_find_cvar()
             .with(predicate::eq("zmq_stats_enable"))
-            .returning_st(move |_| CVar::try_from(&mut raw_cvar as *mut cvar_t).ok());
+            .returning_st(move |_| CVar::try_from(raw_cvar.borrow_mut() as *mut cvar_t).ok());
         MAIN_ENGINE.store(Some(mock_engine.into()));
 
         Python::with_gil(|py| {
@@ -735,7 +736,7 @@ def custom_hook(*args, **kwargs):
         mock_engine
             .expect_find_cvar()
             .with(predicate::eq("zmq_stats_enable"))
-            .returning_st(move |_| CVar::try_from(&mut raw_cvar as *mut cvar_t).ok());
+            .returning_st(move |_| CVar::try_from(raw_cvar.borrow_mut() as *mut cvar_t).ok());
         MAIN_ENGINE.store(Some(mock_engine.into()));
 
         Python::with_gil(|py| {
@@ -788,7 +789,7 @@ def throws_exception_hook(*args, **kwargs):
         mock_engine
             .expect_find_cvar()
             .with(predicate::eq("zmq_stats_enable"))
-            .returning_st(move |_| CVar::try_from(&mut raw_cvar as *mut cvar_t).ok());
+            .returning_st(move |_| CVar::try_from(raw_cvar.borrow_mut() as *mut cvar_t).ok());
         MAIN_ENGINE.store(Some(mock_engine.into()));
 
         Python::with_gil(|py| {
@@ -841,7 +842,7 @@ def returns_none_hook(*args, **kwargs):
         mock_engine
             .expect_find_cvar()
             .with(predicate::eq("zmq_stats_enable"))
-            .returning_st(move |_| CVar::try_from(&mut raw_cvar as *mut cvar_t).ok());
+            .returning_st(move |_| CVar::try_from(raw_cvar.borrow_mut() as *mut cvar_t).ok());
         MAIN_ENGINE.store(Some(mock_engine.into()));
 
         Python::with_gil(|py| {
@@ -896,7 +897,7 @@ def returns_none_hook(*args, **kwargs):
         mock_engine
             .expect_find_cvar()
             .with(predicate::eq("zmq_stats_enable"))
-            .returning_st(move |_| CVar::try_from(&mut raw_cvar as *mut cvar_t).ok());
+            .returning_st(move |_| CVar::try_from(raw_cvar.borrow_mut() as *mut cvar_t).ok());
         MAIN_ENGINE.store(Some(mock_engine.into()));
 
         Python::with_gil(|py| {
@@ -951,7 +952,7 @@ def returns_stop_hook(*args, **kwargs):
         mock_engine
             .expect_find_cvar()
             .with(predicate::eq("zmq_stats_enable"))
-            .returning_st(move |_| CVar::try_from(&mut raw_cvar as *mut cvar_t).ok());
+            .returning_st(move |_| CVar::try_from(raw_cvar.borrow_mut() as *mut cvar_t).ok());
         MAIN_ENGINE.store(Some(mock_engine.into()));
 
         Python::with_gil(|py| {
@@ -1006,7 +1007,7 @@ def returns_stop_event_hook(*args, **kwargs):
         mock_engine
             .expect_find_cvar()
             .with(predicate::eq("zmq_stats_enable"))
-            .returning_st(move |_| CVar::try_from(&mut raw_cvar as *mut cvar_t).ok());
+            .returning_st(move |_| CVar::try_from(raw_cvar.borrow_mut() as *mut cvar_t).ok());
         MAIN_ENGINE.store(Some(mock_engine.into()));
 
         Python::with_gil(|py| {
@@ -1061,7 +1062,7 @@ def returns_stop_all_hook(*args, **kwargs):
         mock_engine
             .expect_find_cvar()
             .with(predicate::eq("zmq_stats_enable"))
-            .returning_st(move |_| CVar::try_from(&mut raw_cvar as *mut cvar_t).ok());
+            .returning_st(move |_| CVar::try_from(raw_cvar.borrow_mut() as *mut cvar_t).ok());
         MAIN_ENGINE.store(Some(mock_engine.into()));
 
         Python::with_gil(|py| {
@@ -1116,7 +1117,7 @@ def returns_string_hook(*args, **kwargs):
         mock_engine
             .expect_find_cvar()
             .with(predicate::eq("zmq_stats_enable"))
-            .returning_st(move |_| CVar::try_from(&mut raw_cvar as *mut cvar_t).ok());
+            .returning_st(move |_| CVar::try_from(raw_cvar.borrow_mut() as *mut cvar_t).ok());
         MAIN_ENGINE.store(Some(mock_engine.into()));
 
         Python::with_gil(|py| {
@@ -1186,7 +1187,7 @@ def returns_string_hook(*args, **kwargs):
         mock_engine
             .expect_find_cvar()
             .with(predicate::eq("zmq_stats_enable"))
-            .returning_st(move |_| CVar::try_from(&mut raw_cvar as *mut cvar_t).ok());
+            .returning_st(move |_| CVar::try_from(raw_cvar.borrow_mut() as *mut cvar_t).ok());
         MAIN_ENGINE.store(Some(mock_engine.into()));
 
         Python::with_gil(|py| {
@@ -1383,11 +1384,10 @@ def default_hook(*args, **kwargs):
             .string(cvar_string.as_ptr() as *mut c_char)
             .build()
             .expect("this should not happen");
-
         mock_engine
             .expect_find_cvar()
             .with(predicate::eq("zmq_stats_enable"))
-            .returning_st(move |_| CVar::try_from(&mut raw_cvar as *mut cvar_t).ok());
+            .returning_st(move |_| CVar::try_from(raw_cvar.borrow_mut() as *mut cvar_t).ok());
         MAIN_ENGINE.store(Some(mock_engine.into()));
 
         Python::with_gil(|py| {
@@ -1450,11 +1450,10 @@ def default_hook(*args, **kwargs):
             .string(cvar_string.as_ptr() as *mut c_char)
             .build()
             .expect("this should not happen");
-
         mock_engine
             .expect_find_cvar()
             .with(predicate::eq("zmq_stats_enable"))
-            .returning_st(move |_| CVar::try_from(&mut raw_cvar as *mut cvar_t).ok());
+            .returning_st(move |_| CVar::try_from(raw_cvar.borrow_mut() as *mut cvar_t).ok());
         MAIN_ENGINE.store(Some(mock_engine.into()));
 
         Python::with_gil(|py| {
@@ -1597,7 +1596,7 @@ def default_hook(*args, **kwargs):
         mock_engine
             .expect_find_cvar()
             .with(predicate::eq("zmq_stats_enable"))
-            .returning_st(move |_| CVar::try_from(&mut raw_cvar as *mut cvar_t).ok());
+            .returning_st(move |_| CVar::try_from(raw_cvar.borrow_mut() as *mut cvar_t).ok());
         MAIN_ENGINE.store(Some(mock_engine.into()));
 
         Python::with_gil(|py| {

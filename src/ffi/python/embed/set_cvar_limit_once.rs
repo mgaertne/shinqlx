@@ -39,6 +39,8 @@ mod set_cvar_limit_once_tests {
     use crate::ffi::python::prelude::*;
     use crate::prelude::*;
 
+    use core::borrow::BorrowMut;
+
     use mockall::predicate;
     use pretty_assertions::assert_eq;
     use pyo3::exceptions::PyEnvironmentError;
@@ -94,13 +96,11 @@ mod set_cvar_limit_once_tests {
     #[serial]
     fn set_cvar_limit_once_for_already_existing_cvar(_pyshinqlx_setup: ()) {
         let mut mock_engine = MockQuakeEngine::new();
+        let mut raw_cvar = CVarBuilder::default().build().unwrap();
         mock_engine
             .expect_find_cvar()
             .with(predicate::eq("sv_maxclients"))
-            .returning(|_| {
-                let mut raw_cvar = CVarBuilder::default().build().unwrap();
-                CVar::try_from(&mut raw_cvar as *mut cvar_t).ok()
-            })
+            .returning_st(move |_| CVar::try_from(raw_cvar.borrow_mut() as *mut cvar_t).ok())
             .times(1);
         mock_engine.expect_set_cvar_limit().times(0);
         MAIN_ENGINE.store(Some(mock_engine.into()));
@@ -117,5 +117,7 @@ mod set_cvar_limit_once_tests {
         })
         .unwrap();
         assert_eq!(result, false);
+
+        MAIN_ENGINE.store(None);
     }
 }

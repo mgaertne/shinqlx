@@ -4,6 +4,7 @@ use crate::quake_live_engine::{GameAddEvent, TryLaunchItem};
 use crate::MAIN_ENGINE;
 
 use alloc::borrow::Cow;
+use core::borrow::BorrowMut;
 use core::ffi::{c_float, CStr};
 
 #[derive(Debug, PartialEq)]
@@ -122,7 +123,7 @@ impl GameItem {
         let mut velocity = [0.0, 0.0, 0.9];
 
         main_engine
-            .try_launch_item(self, &mut origin_vec, &mut velocity)
+            .try_launch_item(self, origin_vec.borrow_mut(), velocity.borrow_mut())
             .iter_mut()
             .for_each(|gentity| {
                 gentity.set_next_think(0);
