@@ -495,7 +495,7 @@ fn get_cvar(cvar: &str) -> PyResult<Option<String>> {
         |main_engine| {
             Ok(main_engine
                 .find_cvar(cvar)
-                .map(|cvar_result| cvar_result.get_string().into()))
+                .map(|cvar_result| cvar_result.get_string()))
         },
     )
 }
@@ -1832,7 +1832,6 @@ mod owner_tests {
     use crate::prelude::{serial, MockQuakeEngine};
     use crate::MAIN_ENGINE;
 
-    use alloc::ffi::CString;
     use core::ffi::c_char;
 
     use mockall::predicate;
@@ -1874,7 +1873,7 @@ mod owner_tests {
     #[cfg_attr(miri, ignore)]
     #[serial]
     fn owner_with_unparseable_cvar(_pyshinqlx_setup: ()) {
-        let cvar_string = CString::new("asdf").expect("this should not happen");
+        let cvar_string = c"asdf";
 
         let mut mock_engine = MockQuakeEngine::new();
         mock_engine
@@ -1899,7 +1898,7 @@ mod owner_tests {
     #[cfg_attr(miri, ignore)]
     #[serial]
     fn owner_with_negative_cvar(_pyshinqlx_setup: ()) {
-        let cvar_string = CString::new("-42").expect("this should not happen");
+        let cvar_string = c"-42";
 
         let mut mock_engine = MockQuakeEngine::new();
         mock_engine
@@ -1924,7 +1923,7 @@ mod owner_tests {
     #[cfg_attr(miri, ignore)]
     #[serial]
     fn owner_with_parseable_cvar(_pyshinqlx_setup: ()) {
-        let cvar_string = CString::new("1234567890").expect("this should not happen");
+        let cvar_string = c"1234567890";
 
         let mut mock_engine = MockQuakeEngine::new();
         mock_engine
@@ -1966,7 +1965,6 @@ mod stats_listener_tests {
     use crate::prelude::{serial, MockQuakeEngine};
     use crate::MAIN_ENGINE;
 
-    use alloc::ffi::CString;
     use core::ffi::c_char;
 
     use mockall::predicate;
@@ -1997,7 +1995,7 @@ mod stats_listener_tests {
     #[serial]
     fn get_stats_listener_returns_stats_listener(_pyshinqlx_setup: ()) {
         let mut mock_engine = MockQuakeEngine::new();
-        let cvar_string = CString::new("0").expect("this should not happen");
+        let cvar_string = c"0";
         mock_engine
             .expect_find_cvar()
             .with(predicate::eq("zmq_stats_enable"))
@@ -2605,7 +2603,7 @@ class test_cmd_hook_plugin(shinqlx.Plugin):
     #[cfg_attr(miri, ignore)]
     fn load_preset_plugins_loads_valid_test_plugin(_pyshinqlx_setup: (), plugins_dir: String) {
         let cvar_tempdir_str = CString::new(plugins_dir).expect("this should not happen");
-        let plugins_cvar_str = CString::new("test_plugin").expect("this should not happen");
+        let plugins_cvar_str = c"test_plugin";
 
         let mut mock_engine = MockQuakeEngine::new();
         mock_engine
@@ -2658,8 +2656,7 @@ class test_cmd_hook_plugin(shinqlx.Plugin):
     #[cfg_attr(miri, ignore)]
     fn load_preset_plugins_loads_default_plugins(_pyshinqlx_setup: (), plugins_dir: String) {
         let cvar_tempdir_str = CString::new(plugins_dir).expect("this should not happen");
-        let plugins_cvar_str =
-            CString::new("DEFAULT, test_plugin").expect("this should not happen");
+        let plugins_cvar_str = c"DEFAULT, test_plugin";
 
         let mut mock_engine = MockQuakeEngine::new();
         mock_engine
@@ -2712,8 +2709,7 @@ class test_cmd_hook_plugin(shinqlx.Plugin):
     #[cfg_attr(miri, ignore)]
     fn load_preset_plugins_loads_unique_plugins(_pyshinqlx_setup: (), plugins_dir: String) {
         let cvar_tempdir_str = CString::new(plugins_dir).expect("this should not happen");
-        let plugins_cvar_str =
-            CString::new("test_plugin, ban, DEFAULT, test_plugin").expect("this should not happen");
+        let plugins_cvar_str = c"test_plugin, ban, DEFAULT, test_plugin";
 
         let mut mock_engine = MockQuakeEngine::new();
         mock_engine
@@ -3206,7 +3202,7 @@ class test_cmd_hook_plugin(shinqlx.Plugin):
         plugins_dir: String,
     ) {
         let cvar_tempdir_str = CString::new(plugins_dir).expect("this should not happen");
-        let zmq_cvar_str = CString::new("1").expect("this should not happen");
+        let zmq_cvar_str = c"1";
 
         let mut mock_engine = MockQuakeEngine::new();
         mock_engine
@@ -3448,7 +3444,7 @@ fn try_get_plugins_path() -> Result<PathBuf, &'static str> {
                 |plugins_path_cvar| {
                     let plugins_path_str = plugins_path_cvar.get_string();
 
-                    let plugins_path = Path::new(plugins_path_str.as_ref());
+                    let plugins_path = Path::new(&plugins_path_str);
                     if !plugins_path.is_dir() {
                         return Err("qlx_pluginsPath is not pointing to an existing directory");
                     }
@@ -3509,8 +3505,7 @@ mod try_get_plugins_path_tests {
     #[serial]
     #[cfg_attr(miri, ignore)]
     fn try_get_plugins_path_with_cvar_pointing_to_non_existent_directory() {
-        let cvar_tempdir_str =
-            CString::new("non-existing-directory").expect("this should not happen");
+        let cvar_tempdir_str = c"non-existing-directory";
 
         let mut mock_engine = MockQuakeEngine::new();
         mock_engine

@@ -81,7 +81,6 @@ mod chat_event_dispatcher_tests {
     use crate::prelude::{serial, MockQuakeEngine};
     use crate::MAIN_ENGINE;
 
-    use alloc::ffi::CString;
     use core::ffi::c_char;
 
     use mockall::predicate;
@@ -129,7 +128,7 @@ mod chat_event_dispatcher_tests {
     fn dispatch_when_handler_returns_exception(_pyshinqlx_setup: ()) {
         COMMANDS.store(None);
         let mut mock_engine = MockQuakeEngine::new();
-        let cvar_string = CString::new("1").expect("this should not happen");
+        let cvar_string = c"1";
         mock_engine
             .expect_find_cvar()
             .with(predicate::eq("zmq_stats_enable"))
@@ -189,7 +188,7 @@ def throws_exception_hook(*args, **kwargs):
     fn dispatch_when_handler_returns_none(_pyshinqlx_setup: ()) {
         COMMANDS.store(None);
         let mut mock_engine = MockQuakeEngine::new();
-        let cvar_string = CString::new("1").expect("this should not happen");
+        let cvar_string = c"1";
         mock_engine
             .expect_find_cvar()
             .with(predicate::eq("zmq_stats_enable"))
@@ -249,7 +248,7 @@ def returns_none_hook(*args, **kwargs):
     fn dispatch_when_handler_returns_ret_none(_pyshinqlx_setup: ()) {
         COMMANDS.store(None);
         let mut mock_engine = MockQuakeEngine::new();
-        let cvar_string = CString::new("1").expect("this should not happen");
+        let cvar_string = c"1";
         mock_engine
             .expect_find_cvar()
             .with(predicate::eq("zmq_stats_enable"))
@@ -311,7 +310,7 @@ def returns_none_hook(*args, **kwargs):
     fn dispatch_when_handler_returns_ret_stop(_pyshinqlx_setup: ()) {
         COMMANDS.store(None);
         let mut mock_engine = MockQuakeEngine::new();
-        let cvar_string = CString::new("1").expect("this should not happen");
+        let cvar_string = c"1";
         mock_engine
             .expect_find_cvar()
             .with(predicate::eq("zmq_stats_enable"))
@@ -373,7 +372,7 @@ def returns_stop_hook(*args, **kwargs):
     fn dispatch_when_handler_returns_ret_stop_event(_pyshinqlx_setup: ()) {
         COMMANDS.store(None);
         let mut mock_engine = MockQuakeEngine::new();
-        let cvar_string = CString::new("1").expect("this should not happen");
+        let cvar_string = c"1";
         mock_engine
             .expect_find_cvar()
             .with(predicate::eq("zmq_stats_enable"))
@@ -435,7 +434,7 @@ def returns_stop_event_hook(*args, **kwargs):
     fn dispatch_when_handler_returns_ret_stop_all(_pyshinqlx_setup: ()) {
         COMMANDS.store(None);
         let mut mock_engine = MockQuakeEngine::new();
-        let cvar_string = CString::new("1").expect("this should not happen");
+        let cvar_string = c"1";
         mock_engine
             .expect_find_cvar()
             .with(predicate::eq("zmq_stats_enable"))
@@ -497,7 +496,7 @@ def returns_stop_all_hook(*args, **kwargs):
     fn dispatch_when_handler_returns_string(_pyshinqlx_setup: ()) {
         COMMANDS.store(None);
         let mut mock_engine = MockQuakeEngine::new();
-        let cvar_string = CString::new("1").expect("this should not happen");
+        let cvar_string = c"1";
         mock_engine
             .expect_find_cvar()
             .with(predicate::eq("zmq_stats_enable"))
@@ -556,7 +555,7 @@ def returns_string_hook(*args, **kwargs):
     #[serial]
     fn dispatch_when_command_handler_returns_false(_pyshinqlx_setup: ()) {
         let mut mock_engine = MockQuakeEngine::new();
-        let cvar_string = CString::new("1").expect("this should not happen");
+        let cvar_string = c"1";
         mock_engine
             .expect_find_cvar()
             .with(predicate::eq("zmq_stats_enable"))

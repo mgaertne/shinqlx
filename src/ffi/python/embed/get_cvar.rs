@@ -22,7 +22,6 @@ mod get_cvar_tests {
     use rstest::*;
 
     use pyo3::exceptions::PyEnvironmentError;
-    use rstest::*;
 
     #[rstest]
     #[cfg_attr(miri, ignore)]

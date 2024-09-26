@@ -7575,7 +7575,6 @@ mod pyshinqlx_rcon_dummy_player_tests {
     use crate::prelude::{serial, MockQuakeEngine};
     use crate::MAIN_ENGINE;
 
-    use alloc::ffi::CString;
     use core::ffi::c_char;
 
     use mockall::predicate;
@@ -7606,7 +7605,7 @@ assert(isinstance(shinqlx.RconDummyPlayer(), shinqlx.AbstractDummyPlayer))
     #[serial]
     fn steam_id_return_owner_id(_pyshinqlx_setup: ()) {
         let mut mock_engine = MockQuakeEngine::new();
-        let owner = CString::new("1234567890").expect("this should not happen");
+        let owner = c"1234567890";
         mock_engine
             .expect_find_cvar()
             .with(predicate::eq("qlx_owner"))

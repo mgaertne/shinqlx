@@ -199,9 +199,7 @@ impl Command {
                 MAIN_ENGINE.load().as_ref().and_then(|main_engine| {
                     main_engine
                         .find_cvar("qlx_commandPrefix")
-                        .and_then(|cvar_prefix| {
-                            name.strip_prefix(cvar_prefix.get_string().as_ref())
-                        })
+                        .and_then(|cvar_prefix| name.strip_prefix(&cvar_prefix.get_string()))
                 })
             };
 
@@ -294,7 +292,6 @@ mod command_tests {
         MAIN_ENGINE,
     };
 
-    use alloc::ffi::CString;
     use core::ffi::c_char;
 
     use mockall::predicate;
@@ -718,7 +715,7 @@ class mocked_db:
     #[serial]
     fn is_eligible_name_with_prefix(_pyshinqlx_setup: ()) {
         let mut mock_engine = MockQuakeEngine::new();
-        let cvar_string = CString::new("!").expect("this should not happen");
+        let cvar_string = c"!";
         mock_engine
             .expect_find_cvar()
             .with(predicate::eq("qlx_commandPrefix"))
@@ -878,7 +875,7 @@ class mocked_db:
     #[serial]
     fn is_eligilble_player_for_regular_cmd_and_owner(_pyshinqlx_setup: ()) {
         let mut mock_engine = MockQuakeEngine::new();
-        let owner = CString::new("1234567890").expect("this should not happen");
+        let owner = c"1234567890";
         mock_engine
             .expect_find_cvar()
             .with(predicate::eq("qlx_owner"))
@@ -924,7 +921,7 @@ class mocked_db:
     #[serial]
     fn is_eligilble_player_for_client_cmd_and_owner(_pyshinqlx_setup: ()) {
         let mut mock_engine = MockQuakeEngine::new();
-        let owner = CString::new("1234567890").expect("this should not happen");
+        let owner = c"1234567890";
         mock_engine
             .expect_find_cvar()
             .with(predicate::eq("qlx_owner"))
@@ -970,8 +967,8 @@ class mocked_db:
     #[serial]
     fn is_eligilble_player_for_regular_cmd_with_configured_cvar(_pyshinqlx_setup: ()) {
         let mut mock_engine = MockQuakeEngine::new();
-        let cmd_perm = CString::new("0").expect("this should not happen");
-        let owner = CString::new("9876543210").expect("this should not happen");
+        let cmd_perm = c"0";
+        let owner = c"9876543210";
         mock_engine
             .expect_find_cvar()
             .with(predicate::eq("qlx_perm_cmd_name"))
@@ -1023,7 +1020,7 @@ class mocked_db:
     #[serial]
     fn is_eligilble_player_for_regular_cmd_with_no_configured_cvar(_pyshinqlx_setup: ()) {
         let mut mock_engine = MockQuakeEngine::new();
-        let owner = CString::new("9876543210").expect("this should not happen");
+        let owner = c"9876543210";
         mock_engine
             .expect_find_cvar()
             .with(predicate::eq("qlx_owner"))
@@ -1069,8 +1066,8 @@ class mocked_db:
     #[serial]
     fn is_eligilble_player_for_client_cmd_with_configured_cvar(_pyshinqlx_setup: ()) {
         let mut mock_engine = MockQuakeEngine::new();
-        let cmd_perm = CString::new("0").expect("this should not happen");
-        let owner = CString::new("9876543210").expect("this should not happen");
+        let cmd_perm = c"0";
+        let owner = c"9876543210";
         mock_engine
             .expect_find_cvar()
             .with(predicate::eq("qlx_ccmd_perm_cmd_name"))
@@ -1122,7 +1119,7 @@ class mocked_db:
     #[serial]
     fn is_eligilble_player_for_client_cmd_with_no_configured_cvar(_pyshinqlx_setup: ()) {
         let mut mock_engine = MockQuakeEngine::new();
-        let owner = CString::new("9876543210").expect("this should not happen");
+        let owner = c"9876543210";
         mock_engine
             .expect_find_cvar()
             .with(predicate::eq("qlx_owner"))
@@ -1168,7 +1165,7 @@ class mocked_db:
     #[serial]
     fn is_eligilble_player_for_regular_cmd_when_plugin_has_no_db(_pyshinqlx_setup: ()) {
         let mut mock_engine = MockQuakeEngine::new();
-        let owner = CString::new("9876543210").expect("this should not happen");
+        let owner = c"9876543210";
         mock_engine
             .expect_find_cvar()
             .with(predicate::eq("qlx_owner"))
@@ -1218,7 +1215,7 @@ class mocked_db:
     #[serial]
     fn is_eligilble_player_for_client_cmd_when_plugin_has_no_db(_pyshinqlx_setup: ()) {
         let mut mock_engine = MockQuakeEngine::new();
-        let owner = CString::new("9876543210").expect("this should not happen");
+        let owner = c"9876543210";
         mock_engine
             .expect_find_cvar()
             .with(predicate::eq("qlx_owner"))
@@ -1270,7 +1267,7 @@ class mocked_db:
         _pyshinqlx_setup: (),
     ) {
         let mut mock_engine = MockQuakeEngine::new();
-        let owner = CString::new("9876543210").expect("this should not happen");
+        let owner = c"9876543210";
         mock_engine
             .expect_find_cvar()
             .with(predicate::eq("qlx_owner"))
@@ -1319,7 +1316,7 @@ class mocked_db:
         _pyshinqlx_setup: (),
     ) {
         let mut mock_engine = MockQuakeEngine::new();
-        let owner = CString::new("9876543210").expect("this should not happen");
+        let owner = c"9876543210";
         mock_engine
             .expect_find_cvar()
             .with(predicate::eq("qlx_owner"))
@@ -1368,7 +1365,7 @@ class mocked_db:
         _pyshinqlx_setup: (),
     ) {
         let mut mock_engine = MockQuakeEngine::new();
-        let owner = CString::new("9876543210").expect("this should not happen");
+        let owner = c"9876543210";
         mock_engine
             .expect_find_cvar()
             .with(predicate::eq("qlx_owner"))
@@ -1417,7 +1414,7 @@ class mocked_db:
         _pyshinqlx_setup: (),
     ) {
         let mut mock_engine = MockQuakeEngine::new();
-        let owner = CString::new("9876543210").expect("this should not happen");
+        let owner = c"9876543210";
         mock_engine
             .expect_find_cvar()
             .with(predicate::eq("qlx_owner"))
@@ -1824,7 +1821,6 @@ mod command_invoker_tests {
     use crate::ffi::c::prelude::{cvar_t, CVar, CVarBuilder};
     use crate::hooks::mock_hooks::shinqlx_send_server_command_context;
 
-    use alloc::ffi::CString;
     use core::ffi::c_char;
 
     use mockall::predicate;
@@ -2116,8 +2112,8 @@ mod command_invoker_tests {
     #[serial]
     fn handle_input_with_non_eligible_player(_pyshinqlx_setup: ()) {
         let mut mock_engine = MockQuakeEngine::new();
-        let owner = CString::new("9876543210").expect("this should not happen");
-        let prefix = CString::new("!").expect("this should not happen");
+        let owner = c"9876543210";
+        let prefix = c"!";
         mock_engine
             .expect_find_cvar()
             .with(predicate::eq("qlx_owner"))
@@ -2186,7 +2182,7 @@ mod command_invoker_tests {
         _pyshinqlx_setup: (),
     ) {
         let mut mock_engine = MockQuakeEngine::new();
-        let owner = CString::new("9876543210").expect("this should not happen");
+        let owner = c"9876543210";
         mock_engine
             .expect_find_cvar()
             .with(predicate::eq("qlx_owner"))
@@ -2260,7 +2256,7 @@ mod command_invoker_tests {
     #[serial]
     fn handle_input_when_event_dispatcher_returns_false(_pyshinqlx_setup: ()) {
         let mut mock_engine = MockQuakeEngine::new();
-        let owner = CString::new("9876543210").expect("this should not happen");
+        let owner = c"9876543210";
         mock_engine
             .expect_find_cvar()
             .with(predicate::eq("qlx_owner"))
@@ -2339,7 +2335,7 @@ mod command_invoker_tests {
         _pyshinqlx_setup: (),
     ) {
         let mut mock_engine = MockQuakeEngine::new();
-        let owner = CString::new("9876543210").expect("this should not happen");
+        let owner = c"9876543210";
         mock_engine
             .expect_find_cvar()
             .with(predicate::eq("qlx_owner"))
@@ -2412,7 +2408,7 @@ def cmd_handler(*args, **kwargs):
     #[serial]
     fn handle_input_for_non_usage_cmd_when_cmd_returns_usage_return(_pyshinqlx_setup: ()) {
         let mut mock_engine = MockQuakeEngine::new();
-        let owner = CString::new("9876543210").expect("this should not happen");
+        let owner = c"9876543210";
         mock_engine
             .expect_find_cvar()
             .with(predicate::eq("qlx_owner"))
@@ -2489,7 +2485,7 @@ def cmd_handler(*args, **kwargs):
     #[serial]
     fn handle_input_for_cmd_with_usage_when_cmd_returns_usage_return(_pyshinqlx_setup: ()) {
         let mut mock_engine = MockQuakeEngine::new();
-        let owner = CString::new("9876543210").expect("this should not happen");
+        let owner = c"9876543210";
         mock_engine
             .expect_find_cvar()
             .with(predicate::eq("qlx_owner"))
@@ -2573,7 +2569,7 @@ def cmd_handler(*args, **kwargs):
     #[serial]
     fn handle_input_when_handler_returns_unrecognize_return_code(_pyshinqlx_setup: ()) {
         let mut mock_engine = MockQuakeEngine::new();
-        let owner = CString::new("9876543210").expect("this should not happen");
+        let owner = c"9876543210";
         mock_engine
             .expect_find_cvar()
             .with(predicate::eq("qlx_owner"))
