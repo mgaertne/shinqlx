@@ -493,8 +493,7 @@ mod quake_live_function_tests {
     }
 
     #[test]
-    #[cfg_attr(miri, ignore)]
-    #[cfg_attr(target_os = "macos", ignore)]
+    #[cfg_attr(any(miri, target_os = "macos"), ignore)]
     fn sets_up_and_activates_replacement_function() {
         let ql_func = QuakeLiveFunction::Com_Printf;
         let result = ql_func.create_and_enable_generic_detour(

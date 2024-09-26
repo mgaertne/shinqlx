@@ -1,7 +1,6 @@
 use super::prelude::*;
 use crate::prelude::*;
 
-use alloc::borrow::Cow;
 use core::ffi::CStr;
 
 #[derive(Debug, PartialEq)]
@@ -21,11 +20,13 @@ impl TryFrom<*mut cvar_t> for CVar {
 }
 
 impl CVar {
-    pub(crate) fn get_string(&self) -> Cow<str> {
+    pub(crate) fn get_string(&self) -> String {
         if self.cvar.string.is_null() {
             return "".into();
         }
-        unsafe { CStr::from_ptr(self.cvar.string) }.to_string_lossy()
+        unsafe { CStr::from_ptr(self.cvar.string) }
+            .to_string_lossy()
+            .to_string()
     }
 
     pub(crate) fn get_integer(&self) -> i32 {
@@ -37,8 +38,6 @@ impl CVar {
 mod cvar_tests {
     use crate::ffi::c::prelude::*;
     use crate::prelude::*;
-
-    use alloc::ffi::CString;
 
     use pretty_assertions::assert_eq;
 
@@ -62,7 +61,7 @@ mod cvar_tests {
 
     #[test]
     fn cvar_try_get_string() {
-        let cvar_string = CString::new("some cvar value").expect("this should not happen");
+        let cvar_string = c"some cvar value";
         let mut cvar = CVarBuilder::default()
             .string(cvar_string.as_ptr().cast_mut())
             .build()
