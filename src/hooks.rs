@@ -535,7 +535,6 @@ mod hooks_tests {
     use crate::ffi::python::prelude::*;
     use crate::prelude::*;
 
-    use alloc::ffi::CString;
     use core::ffi::{c_char, c_int, CStr};
     use mockall::predicate;
     use pretty_assertions::assert_eq;
@@ -547,7 +546,7 @@ mod hooks_tests {
     #[test]
     #[serial]
     fn add_command_with_no_main_engine() {
-        let cmd_string = CString::new("").expect("this should not happen");
+        let cmd_string = c"";
         MAIN_ENGINE.store(None);
         shinqlx_cmd_addcommand(cmd_string.as_ptr(), DUMMY_FN);
     }
@@ -555,7 +554,7 @@ mod hooks_tests {
     #[test]
     #[serial]
     fn add_command_with_main_engine_already_initiailized_command_empty() {
-        let cmd_string = CString::new("").expect("this should not happen");
+        let cmd_string = c"";
         let mut mock_engine = MockQuakeEngine::new();
         mock_engine
             .expect_is_common_initialized()
@@ -569,7 +568,7 @@ mod hooks_tests {
     #[test]
     #[serial]
     fn add_command_with_main_engine_already_initialized() {
-        let cmd_string = CString::new("slap").expect("this should not happen");
+        let cmd_string = c"slap";
         let mut mock_engine = MockQuakeEngine::new();
         mock_engine
             .expect_is_common_initialized()
@@ -586,7 +585,7 @@ mod hooks_tests {
     #[test]
     #[serial]
     fn add_command_with_main_engine_not_initiailized_command_non_empty() {
-        let cmd_string = CString::new("slap").expect("this should not happen");
+        let cmd_string = c"slap";
         let mut mock_engine = MockQuakeEngine::new();
         mock_engine
             .expect_is_common_initialized()
@@ -609,7 +608,7 @@ mod hooks_tests {
     #[ignore]
     #[serial]
     fn add_command_with_main_engine_already_initiailized_init_returns_err() {
-        let cmd_string = CString::new("slap").expect("this should not happen");
+        let cmd_string = c"slap";
         let mut mock_engine = MockQuakeEngine::new();
         mock_engine
             .expect_is_common_initialized()
@@ -626,7 +625,7 @@ mod hooks_tests {
     #[test]
     #[serial]
     fn sys_setmoduleoffset_no_main_engine() {
-        let module_string = CString::new("qagame").expect("this should not happen");
+        let module_string = c"qagame";
         MAIN_ENGINE.store(None);
         shinqlx_sys_setmoduleoffset(module_string.as_ptr().cast_mut(), DUMMY_FN);
     }
@@ -634,7 +633,7 @@ mod hooks_tests {
     #[test]
     #[serial]
     fn sys_setmoduleoffset_vm_init_ok() {
-        let module_string = CString::new("qagame").expect("this should not happen");
+        let module_string = c"qagame";
         let mut mock_engine = MockQuakeEngine::new();
         mock_engine
             .expect_set_module_offset()
@@ -655,7 +654,7 @@ mod hooks_tests {
     #[should_panic]
     #[serial]
     fn sys_setmoduleoffset_vm_init_returns_err() {
-        let module_string = CString::new("qagame").expect("this should not happen");
+        let module_string = c"qagame";
         let mut mock_engine = MockQuakeEngine::new();
         mock_engine
             .expect_set_module_offset()
@@ -1134,7 +1133,7 @@ mod hooks_tests {
             .return_const(Some(r"\some\value".to_string()))
             .times(1);
 
-        let value = CString::new(r"\some\value").expect("this should not happen");
+        let value = cr"\some\value";
         shinqlx_sv_setconfigstring(42 as c_int, value.as_ptr());
     }
 
@@ -1295,7 +1294,7 @@ mod hooks_tests {
     #[serial]
     fn sv_spawnserver_with_no_main_engine() {
         MAIN_ENGINE.store(None);
-        let server_str = CString::new("l33t ql server").expect("this should not happen");
+        let server_str = c"l33t ql server";
         shinqlx_sv_spawnserver(server_str.as_ptr().cast_mut(), qboolean::qtrue);
     }
 
@@ -1315,7 +1314,7 @@ mod hooks_tests {
             .with(predicate::eq(false))
             .times(1);
 
-        let server_str = CString::new("l33t ql server").expect("this should not happen");
+        let server_str = c"l33t ql server";
 
         shinqlx_sv_spawnserver(server_str.as_ptr().cast_mut(), qboolean::qtrue);
     }

@@ -38,8 +38,6 @@ mod cvar_tests {
     use crate::ffi::c::prelude::*;
     use crate::prelude::*;
 
-    use alloc::ffi::CString;
-
     use pretty_assertions::assert_eq;
 
     #[test]
@@ -62,7 +60,7 @@ mod cvar_tests {
 
     #[test]
     fn cvar_try_get_string() {
-        let cvar_string = CString::new("some cvar value").expect("this should not happen");
+        let cvar_string = c"some cvar value";
         let mut cvar = CVarBuilder::default()
             .string(cvar_string.as_ptr().cast_mut())
             .build()
