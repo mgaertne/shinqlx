@@ -40,6 +40,8 @@ mod drop_holdable_tests {
     use crate::prelude::*;
     use crate::MAIN_ENGINE;
 
+    use core::borrow::BorrowMut;
+
     use mockall::Sequence;
     use pretty_assertions::assert_eq;
     use pyo3::exceptions::{PyEnvironmentError, PyValueError};
@@ -119,7 +121,7 @@ mod drop_holdable_tests {
         game_entity_from_ctx
             .expect()
             .times(1)
-            .in_sequence(&mut seq)
+            .in_sequence(seq.borrow_mut())
             .returning(|_| {
                 let mut mock_game_entity = MockGameEntity::new();
                 mock_game_entity.expect_get_game_client().returning(|| {
@@ -134,7 +136,7 @@ mod drop_holdable_tests {
         game_entity_from_ctx
             .expect()
             .times(1)
-            .in_sequence(&mut seq)
+            .in_sequence(seq.borrow_mut())
             .returning(|_| {
                 let mut mock_game_entity = MockGameEntity::new();
                 mock_game_entity.expect_get_game_client().returning(|| {
@@ -173,7 +175,7 @@ mod drop_holdable_tests {
         game_entity_from_ctx
             .expect()
             .times(1)
-            .in_sequence(&mut seq)
+            .in_sequence(seq.borrow_mut())
             .returning(|_| {
                 let mut mock_game_entity = MockGameEntity::new();
                 mock_game_entity.expect_get_game_client().returning(|| {
@@ -187,7 +189,7 @@ mod drop_holdable_tests {
         game_entity_from_ctx
             .expect()
             .times(1)
-            .in_sequence(&mut seq)
+            .in_sequence(seq.borrow_mut())
             .returning(|_| {
                 let mut mock_game_entity = MockGameEntity::new();
                 mock_game_entity.expect_get_game_client().returning(|| {

@@ -204,7 +204,7 @@ pub(crate) extern "C" fn shinqlx_sv_cliententerworld(client: *mut client_t, cmd:
 
         let state = safe_client.get_state();
 
-        main_engine.client_enter_world(&mut safe_client, cmd);
+        main_engine.client_enter_world(safe_client.borrow_mut(), cmd);
 
         // gentity is NULL if map changed.
         // state is CS_PRIMED only if it's the first time they connect to the server,
@@ -535,7 +535,9 @@ mod hooks_tests {
     use crate::ffi::python::prelude::*;
     use crate::prelude::*;
 
+    use core::borrow::BorrowMut;
     use core::ffi::{c_char, c_int, CStr};
+
     use mockall::predicate;
     use pretty_assertions::assert_eq;
     use rstest::*;
@@ -1014,7 +1016,7 @@ mod hooks_tests {
             .build()
             .expect("this should not happen");
 
-        shinqlx_sv_cliententerworld(&mut client, &mut usercmd as *mut usercmd_t);
+        shinqlx_sv_cliententerworld(client.borrow_mut(), usercmd.borrow_mut() as *mut usercmd_t);
     }
 
     #[test]
@@ -1046,7 +1048,7 @@ mod hooks_tests {
             .build()
             .expect("this should not happen");
 
-        shinqlx_sv_cliententerworld(&mut client, &mut usercmd as *mut usercmd_t);
+        shinqlx_sv_cliententerworld(client.borrow_mut(), usercmd.borrow_mut() as *mut usercmd_t);
     }
 
     #[test]
@@ -1081,7 +1083,7 @@ mod hooks_tests {
             .build()
             .expect("this should not happen");
 
-        shinqlx_sv_cliententerworld(&mut client, &mut usercmd as *mut usercmd_t);
+        shinqlx_sv_cliententerworld(client.borrow_mut(), usercmd.borrow_mut() as *mut usercmd_t);
     }
 
     #[test]
@@ -1113,7 +1115,7 @@ mod hooks_tests {
             .build()
             .expect("this should not happen");
 
-        shinqlx_sv_cliententerworld(&mut client, &mut usercmd as *mut usercmd_t);
+        shinqlx_sv_cliententerworld(client.borrow_mut(), usercmd.borrow_mut() as *mut usercmd_t);
     }
 
     #[test]
@@ -1244,7 +1246,7 @@ mod hooks_tests {
             .with(predicate::eq(42), predicate::eq("disconnected."))
             .times(1);
 
-        shinqlx_drop_client(&mut mock_client, "disconnected.");
+        shinqlx_drop_client(mock_client.borrow_mut(), "disconnected.");
     }
 
     #[test]
@@ -1436,7 +1438,7 @@ mod hooks_tests {
     fn client_spawn_with_no_main_engine() {
         MAIN_ENGINE.store(None);
         let mut mock_entity = MockGameEntity::new();
-        shinqlx_client_spawn(&mut mock_entity);
+        shinqlx_client_spawn(mock_entity.borrow_mut());
     }
 
     #[test]
@@ -1454,7 +1456,7 @@ mod hooks_tests {
             .with(predicate::eq(42))
             .times(1);
 
-        shinqlx_client_spawn(&mut mock_entity);
+        shinqlx_client_spawn(mock_entity.borrow_mut());
     }
 
     #[test]
@@ -1479,7 +1481,7 @@ mod hooks_tests {
         let kamikaze_explode_dispatcher_ctx = kamikaze_explode_dispatcher_context();
         kamikaze_explode_dispatcher_ctx.expect().times(0);
 
-        shinqlx_g_startkamikaze(&mut gentity as *mut gentity_t);
+        shinqlx_g_startkamikaze(gentity.borrow_mut() as *mut gentity_t);
     }
 
     #[test]
@@ -1525,7 +1527,7 @@ mod hooks_tests {
             .with(predicate::eq(42), predicate::eq(true))
             .times(1);
 
-        shinqlx_g_startkamikaze(&mut gentity as *mut gentity_t);
+        shinqlx_g_startkamikaze(gentity.borrow_mut() as *mut gentity_t);
     }
 
     #[test]
@@ -1555,7 +1557,7 @@ mod hooks_tests {
             .with(predicate::eq(42), predicate::eq(false))
             .times(1);
 
-        shinqlx_g_startkamikaze(&mut gentity as *mut gentity_t);
+        shinqlx_g_startkamikaze(gentity.borrow_mut() as *mut gentity_t);
     }
 
     //noinspection DuplicatedCode
@@ -1727,7 +1729,7 @@ mod hooks_tests {
         shinqlx_g_damage(
             ptr::null_mut() as *mut gentity_t,
             ptr::null_mut() as *mut gentity_t,
-            &mut attacker as *mut gentity_t,
+            attacker.borrow_mut() as *mut gentity_t,
             ptr::null_mut() as *mut vec3_t,
             ptr::null_mut() as *mut vec3_t,
             666,
@@ -1794,7 +1796,7 @@ mod hooks_tests {
         shinqlx_g_damage(
             ptr::null_mut() as *mut gentity_t,
             ptr::null_mut() as *mut gentity_t,
-            &mut attacker as *mut gentity_t,
+            attacker.borrow_mut() as *mut gentity_t,
             ptr::null_mut() as *mut vec3_t,
             ptr::null_mut() as *mut vec3_t,
             50,

@@ -1639,6 +1639,7 @@ mod quake_live_engine_tests {
     use crate::prelude::{serial, QuakeLiveEngineError};
     use pretty_assertions::assert_eq;
 
+    use core::borrow::BorrowMut;
     use core::ffi::CStr;
     use core::ptr;
     use core::sync::atomic::Ordering;
@@ -1668,7 +1669,7 @@ mod quake_live_engine_tests {
             .withf_st(|&cvar_name| {
                 !cvar_name.is_null() && unsafe { CStr::from_ptr(cvar_name) } == c"sv_tags"
             })
-            .returning_st(move |_| &mut returned)
+            .returning_st(move |_| returned.borrow_mut())
             .times(1);
 
         let cvar_set2_ctx = Cvar_Set2_context();
@@ -1700,7 +1701,7 @@ mod quake_live_engine_tests {
             .withf_st(|&cvar_name| {
                 !cvar_name.is_null() && unsafe { CStr::from_ptr(cvar_name) } == c"sv_tags"
             })
-            .returning_st(move |_| &mut returned)
+            .returning_st(move |_| returned.borrow_mut())
             .times(1);
 
         let cvar_set2_ctx = Cvar_Set2_context();
@@ -1717,7 +1718,7 @@ mod quake_live_engine_tests {
                 let mut returned = CVarBuilder::default()
                     .build()
                     .expect("this should not happen");
-                &mut returned
+                returned.borrow_mut()
             })
             .times(1);
 
@@ -1747,7 +1748,7 @@ mod quake_live_engine_tests {
             .withf_st(|&cvar_name| {
                 !cvar_name.is_null() && unsafe { CStr::from_ptr(cvar_name) } == c"sv_tags"
             })
-            .returning_st(move |_| &mut returned)
+            .returning_st(move |_| returned.borrow_mut())
             .times(1);
 
         let cvar_set2_ctx = Cvar_Set2_context();
@@ -1764,7 +1765,7 @@ mod quake_live_engine_tests {
                 let mut returned = CVarBuilder::default()
                     .build()
                     .expect("this should not happen");
-                &mut returned
+                returned.borrow_mut()
             })
             .times(1);
 
@@ -1816,7 +1817,7 @@ mod quake_live_engine_tests {
             .withf_st(|&cvar_name| {
                 !cvar_name.is_null() && unsafe { CStr::from_ptr(cvar_name) } == c"sv_maxclients"
             })
-            .returning_st(move |_| &mut returned)
+            .returning_st(move |_| returned.borrow_mut())
             .times(1);
 
         let quake_engine = QuakeLiveEngine {
@@ -3068,6 +3069,7 @@ mod find_cvar_quake_live_engine_tests {
 
     use crate::prelude::serial;
 
+    use core::borrow::BorrowMut;
     use core::ffi::CStr;
     use core::ptr;
 
@@ -3093,7 +3095,7 @@ mod find_cvar_quake_live_engine_tests {
             .withf(|&cvar_name| {
                 !cvar_name.is_null() && unsafe { CStr::from_ptr(cvar_name) } == c"sv_maxclients"
             })
-            .returning_st(move |_| &mut cvar)
+            .returning_st(move |_| cvar.borrow_mut())
             .times(1);
 
         let quake_engine = QuakeLiveEngine {
@@ -3551,6 +3553,8 @@ mod client_enter_world_quake_live_engine_tests {
     use crate::ffi::c::prelude::{usercmd_t, ClientBuilder, MockClient, UserCmdBuilder};
     use crate::prelude::serial;
 
+    use core::borrow::BorrowMut;
+
     #[test]
     #[cfg_attr(miri, ignore)]
     #[serial]
@@ -3562,7 +3566,7 @@ mod client_enter_world_quake_live_engine_tests {
             .expect("this should not happen");
         let quake_engine = default_quake_engine();
 
-        quake_engine.client_enter_world(mock_client, &mut usercmd as *mut usercmd_t);
+        quake_engine.client_enter_world(mock_client, usercmd.borrow_mut() as *mut usercmd_t);
     }
 
     #[test]
@@ -3592,7 +3596,7 @@ mod client_enter_world_quake_live_engine_tests {
             ..default_quake_engine()
         };
 
-        quake_engine.client_enter_world(mock_client, &mut usercmd as *mut usercmd_t);
+        quake_engine.client_enter_world(mock_client, usercmd.borrow_mut() as *mut usercmd_t);
     }
 }
 
@@ -4342,6 +4346,7 @@ mod get_cvar_quake_live_engine_tests {
     use crate::ffi::c::prelude::CVarBuilder;
     use crate::prelude::serial;
 
+    use core::borrow::BorrowMut;
     use core::ffi::{c_int, CStr};
 
     #[test]
@@ -4375,7 +4380,7 @@ mod get_cvar_quake_live_engine_tests {
                     && unsafe { CStr::from_ptr(value) } == c"16"
                     && flags == CVAR_CHEAT as c_int
             })
-            .returning_st(move |_, _, _| &mut result)
+            .returning_st(move |_, _, _| result.borrow_mut())
             .times(1);
 
         let quake_engine = QuakeLiveEngine {
@@ -4411,7 +4416,7 @@ mod get_cvar_quake_live_engine_tests {
                     && unsafe { CStr::from_ptr(value) } == c"16"
                     && flags == 0
             })
-            .returning_st(move |_, _, _| &mut result)
+            .returning_st(move |_, _, _| result.borrow_mut())
             .times(1);
 
         let quake_engine = QuakeLiveEngine {
@@ -4454,6 +4459,7 @@ mod set_cvar_forced_quake_live_engine_tests {
     use crate::ffi::c::prelude::CVarBuilder;
     use crate::prelude::serial;
 
+    use core::borrow::BorrowMut;
     use core::ffi::CStr;
 
     #[test]
@@ -4487,7 +4493,7 @@ mod set_cvar_forced_quake_live_engine_tests {
                     && unsafe { CStr::from_ptr(value) } == c"16"
                     && forced.into()
             })
-            .returning_st(move |_, _, _| &mut result)
+            .returning_st(move |_, _, _| result.borrow_mut())
             .times(1);
 
         let quake_engine = QuakeLiveEngine {
@@ -4551,6 +4557,7 @@ mod set_cvar_limit_quake_live_engine_tests {
 
     use crate::prelude::serial;
 
+    use core::borrow::BorrowMut;
     use core::ffi::{c_int, CStr};
 
     #[test]
@@ -4588,7 +4595,7 @@ mod set_cvar_limit_quake_live_engine_tests {
                     && unsafe { CStr::from_ptr(max) } == c"64"
                     && flags == CVAR_CHEAT as c_int
             })
-            .returning_st(move |_, _, _, _, _| &mut result)
+            .returning_st(move |_, _, _, _, _| result.borrow_mut())
             .times(1);
 
         let quake_engine = QuakeLiveEngine {
@@ -4634,7 +4641,7 @@ mod set_cvar_limit_quake_live_engine_tests {
                     && unsafe { CStr::from_ptr(max) } == c"64"
                     && flags == 0
             })
-            .returning_st(move |_, _, _, _, _| &mut result)
+            .returning_st(move |_, _, _, _, _| result.borrow_mut())
             .times(1);
 
         let quake_engine = QuakeLiveEngine {
@@ -4880,6 +4887,7 @@ mod free_entity_quake_live_engine_tests {
 
     use crate::prelude::serial;
 
+    use core::borrow::BorrowMut;
     use core::sync::atomic::Ordering;
 
     #[test]
@@ -4918,7 +4926,7 @@ mod free_entity_quake_live_engine_tests {
             .g_free_entity_orig
             .store(G_FreeEntity as usize, Ordering::SeqCst);
 
-        quake_engine.free_entity(&mut mock_gentity);
+        quake_engine.free_entity(mock_gentity.borrow_mut());
     }
 }
 
@@ -4959,6 +4967,7 @@ mod try_launch_item_quake_live_engine_tests {
 
     use crate::quake_live_functions::QuakeLiveFunction;
 
+    use core::borrow::BorrowMut;
     use core::sync::atomic::Ordering;
 
     #[test]
@@ -4969,7 +4978,8 @@ mod try_launch_item_quake_live_engine_tests {
 
         let quake_engine = default_quake_engine();
 
-        let result = quake_engine.try_launch_item(mock_item, &mut origin, &mut velocity);
+        let result =
+            quake_engine.try_launch_item(mock_item, origin.borrow_mut(), velocity.borrow_mut());
         assert!(result
             .is_err_and(|err| err
                 == QuakeLiveEngineError::VmFunctionNotFound(QuakeLiveFunction::LaunchItem,)))
@@ -4996,7 +5006,7 @@ mod try_launch_item_quake_live_engine_tests {
                 let mut returned = GEntityBuilder::default()
                     .build()
                     .expect("this should not happen");
-                &mut returned
+                returned.borrow_mut()
             })
             .times(1);
 
@@ -5016,7 +5026,8 @@ mod try_launch_item_quake_live_engine_tests {
             .launch_item_orig
             .store(LaunchItem as usize, Ordering::SeqCst);
 
-        let result = quake_engine.try_launch_item(mock_item, &mut origin, &mut velocity);
+        let result =
+            quake_engine.try_launch_item(mock_item, origin.borrow_mut(), velocity.borrow_mut());
         assert!(result.is_ok());
     }
 
@@ -5041,7 +5052,7 @@ mod try_launch_item_quake_live_engine_tests {
                 let mut returned = GEntityBuilder::default()
                     .build()
                     .expect("this should not happen");
-                &mut returned
+                returned.borrow_mut()
             })
             .times(1);
 
@@ -5065,7 +5076,8 @@ mod try_launch_item_quake_live_engine_tests {
             .launch_item_orig
             .store(LaunchItem as usize, Ordering::SeqCst);
 
-        let result = quake_engine.try_launch_item(mock_item, &mut origin, &mut velocity);
+        let result =
+            quake_engine.try_launch_item(mock_item, origin.borrow_mut(), velocity.borrow_mut());
         assert!(result.is_err_and(|err| err
             == QuakeLiveEngineError::NullPointerPassed("null pointer passed".to_string(),)));
     }
