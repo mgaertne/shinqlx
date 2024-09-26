@@ -5041,7 +5041,7 @@ mod handle_new_game_tests {
             let _ = py
                 .import_bound("shinqlx")
                 .and_then(|module| module.setattr("_stats", py.None()));
-            assert!(result.as_ref().is_ok(), "{:?}", result.as_ref());
+            assert!(result.is_ok());
 
             assert!(!IS_FIRST_GAME.load(Ordering::SeqCst));
             assert!(!ZMQ_WARNING_ISSUED.load(Ordering::SeqCst));
@@ -5232,7 +5232,7 @@ mod handle_new_game_tests {
             let _ = py
                 .import_bound("shinqlx")
                 .and_then(|module| module.setattr("_stats", py.None()));
-            assert!(result.as_ref().is_ok(), "{:?}", result.as_ref());
+            assert!(result.is_ok());
 
             assert!(!IS_FIRST_GAME.load(Ordering::SeqCst));
             assert!(ZMQ_WARNING_ISSUED.load(Ordering::SeqCst));
