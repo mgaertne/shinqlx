@@ -564,7 +564,6 @@ mod event_dispatcher_tests {
     use crate::prelude::*;
     use crate::MAIN_ENGINE;
 
-    use alloc::ffi::CString;
     use core::ffi::c_char;
 
     use mockall::predicate;
@@ -1229,7 +1228,7 @@ def default_hook(*args, **kwargs):
     #[serial]
     fn add_hook_for_zmq_enabled_dispatcher_when_zmq_disabled(_pyshinqlx_setup: ()) {
         let mut mock_engine = MockQuakeEngine::new();
-        let cvar_string = CString::new("0").expect("this should not happen");
+        let cvar_string = c"0";
         mock_engine
             .expect_find_cvar()
             .with(predicate::eq("zmq_stats_enable"))

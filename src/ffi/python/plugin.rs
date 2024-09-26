@@ -721,13 +721,7 @@ impl Plugin {
                         })
                         .map(|global_chat_channel| {
                             let main_channel = global_chat_channel.borrow(cls.py()).into_super();
-                            return ChatChannel::reply(
-                                main_channel,
-                                cls.py(),
-                                msg,
-                                limit,
-                                &delimiter,
-                            );
+                            ChatChannel::reply(main_channel, cls.py(), msg, limit, &delimiter)
                         })
                     {
                         return result;
@@ -1240,7 +1234,6 @@ mod plugin_tests {
         shinqlx_send_server_command_context,
     };
 
-    use alloc::ffi::CString;
     use core::ffi::c_char;
 
     use crate::ffi::python::commands::CommandPriorities;
@@ -1270,7 +1263,7 @@ mod plugin_tests {
     #[serial]
     fn plugin_can_be_traversed_for_garbage_collector(_pyshinqlx_setup: ()) {
         let mut mock_engine = MockQuakeEngine::new();
-        let cvar_string = CString::new("1").expect("this should not happen");
+        let cvar_string = c"1";
         mock_engine
             .expect_find_cvar()
             .with(predicate::eq("zmq_stats_enable"))
@@ -1550,7 +1543,7 @@ mod plugin_tests {
     #[serial]
     fn add_hook_adds_hook_to_plugin_hooks(_pyshinqlx_setup: ()) {
         let mut mock_engine = MockQuakeEngine::new();
-        let cvar_string = CString::new("0").expect("this should not happen");
+        let cvar_string = c"0";
         mock_engine
             .expect_find_cvar()
             .with(predicate::eq("zmq_stats_enable"))
@@ -1605,7 +1598,7 @@ mod plugin_tests {
     #[serial]
     fn add_hook_adds_hook_to_event_dispatchers(_pyshinqlx_setup: ()) {
         let mut mock_engine = MockQuakeEngine::new();
-        let cvar_string = CString::new("0").expect("this should not happen");
+        let cvar_string = c"0";
         mock_engine
             .expect_find_cvar()
             .with(predicate::eq("zmq_stats_enable"))
@@ -1699,7 +1692,7 @@ mod plugin_tests {
     #[serial]
     fn remove_hook_removes_hook_from_event_dispatchers(_pyshinqlx_setup: ()) {
         let mut mock_engine = MockQuakeEngine::new();
-        let cvar_string = CString::new("1").expect("this should not happen");
+        let cvar_string = c"1";
         mock_engine
             .expect_find_cvar()
             .with(predicate::eq("zmq_stats_enable"))
@@ -1778,7 +1771,7 @@ mod plugin_tests {
     #[serial]
     fn remove_hook_removes_hook_from_plugin_instance(_pyshinqlx_setup: ()) {
         let mut mock_engine = MockQuakeEngine::new();
-        let cvar_string = CString::new("0").expect("this should not happen");
+        let cvar_string = c"0";
         mock_engine
             .expect_find_cvar()
             .with(predicate::eq("zmq_stats_enable"))
@@ -1842,7 +1835,7 @@ mod plugin_tests {
         _pyshinqlx_setup: (),
     ) {
         let mut mock_engine = MockQuakeEngine::new();
-        let cvar_string = CString::new("0").expect("this should not happen");
+        let cvar_string = c"0";
         mock_engine
             .expect_find_cvar()
             .with(predicate::eq("zmq_stats_enable"))
@@ -2349,7 +2342,7 @@ def handler():
     #[cfg_attr(miri, ignore)]
     #[serial]
     fn get_cvar_when_cvar_is_found(_pyshinqlx_setup: ()) {
-        let cvar_string = CString::new("16").expect("result was not OK");
+        let cvar_string = c"16";
         let mut mock_engine = MockQuakeEngine::new();
         mock_engine
             .expect_find_cvar()
@@ -2377,7 +2370,7 @@ def handler():
     #[cfg_attr(miri, ignore)]
     #[serial]
     fn get_cvar_converts_to_str(_pyshinqlx_setup: ()) {
-        let cvar_string = CString::new("16").expect("result was not OK");
+        let cvar_string = c"16";
         let mut mock_engine = MockQuakeEngine::new();
         mock_engine
             .expect_find_cvar()
@@ -2433,7 +2426,7 @@ def handler():
     #[cfg_attr(miri, ignore)]
     #[serial]
     fn get_cvar_converts_to_int(_pyshinqlx_setup: ()) {
-        let cvar_string = CString::new("16").expect("result was not OK");
+        let cvar_string = c"16";
         let mut mock_engine = MockQuakeEngine::new();
         mock_engine
             .expect_find_cvar()
@@ -2466,7 +2459,7 @@ def handler():
     #[cfg_attr(miri, ignore)]
     #[serial]
     fn get_cvar_int_when_cvar_cannot_be_converted_to_int(_pyshinqlx_setup: ()) {
-        let cvar_string = CString::new("asdf").expect("result was not OK");
+        let cvar_string = c"asdf";
         let mut mock_engine = MockQuakeEngine::new();
         mock_engine
             .expect_find_cvar()
@@ -2519,7 +2512,7 @@ def handler():
     #[cfg_attr(miri, ignore)]
     #[serial]
     fn get_cvar_converts_to_float(_pyshinqlx_setup: ()) {
-        let cvar_string = CString::new("16").expect("result was not OK");
+        let cvar_string = c"16";
         let mut mock_engine = MockQuakeEngine::new();
         mock_engine
             .expect_find_cvar()
@@ -2552,7 +2545,7 @@ def handler():
     #[cfg_attr(miri, ignore)]
     #[serial]
     fn get_cvar_float_when_cvar_cannot_be_converted_to_float(_pyshinqlx_setup: ()) {
-        let cvar_string = CString::new("asdf").expect("result was not OK");
+        let cvar_string = c"asdf";
         let mut mock_engine = MockQuakeEngine::new();
         mock_engine
             .expect_find_cvar()
@@ -2605,7 +2598,7 @@ def handler():
     #[cfg_attr(miri, ignore)]
     #[serial]
     fn get_cvar_converts_to_bool(_pyshinqlx_setup: ()) {
-        let cvar_string = CString::new("16").expect("result was not OK");
+        let cvar_string = c"16";
         let mut mock_engine = MockQuakeEngine::new();
         mock_engine
             .expect_find_cvar()
@@ -2667,7 +2660,7 @@ def handler():
     #[cfg_attr(miri, ignore)]
     #[serial]
     fn get_cvar_bool_when_cvar_cannot_be_converted_to_int(_pyshinqlx_setup: ()) {
-        let cvar_string = CString::new("asdf").expect("result was not OK");
+        let cvar_string = c"asdf";
         let mut mock_engine = MockQuakeEngine::new();
         mock_engine
             .expect_find_cvar()
@@ -2698,7 +2691,7 @@ def handler():
     #[cfg_attr(miri, ignore)]
     #[serial]
     fn get_cvar_converts_to_list(_pyshinqlx_setup: ()) {
-        let cvar_string = CString::new("2, 4, 6, 8, 10").expect("result was not OK");
+        let cvar_string = c"2, 4, 6, 8, 10";
         let mut mock_engine = MockQuakeEngine::new();
         mock_engine
             .expect_find_cvar()
@@ -2764,7 +2757,7 @@ def handler():
     #[cfg_attr(miri, ignore)]
     #[serial]
     fn get_cvar_converts_to_set(_pyshinqlx_setup: ()) {
-        let cvar_string = CString::new("2, 4, 6, 8, 10").expect("result was not OK");
+        let cvar_string = c"2, 4, 6, 8, 10";
         let mut mock_engine = MockQuakeEngine::new();
         mock_engine
             .expect_find_cvar()
@@ -2830,7 +2823,7 @@ def handler():
     #[cfg_attr(miri, ignore)]
     #[serial]
     fn get_cvar_converts_to_tuple(_pyshinqlx_setup: ()) {
-        let cvar_string = CString::new("2, 4, 6, 8, 10").expect("result was not OK");
+        let cvar_string = c"2, 4, 6, 8, 10";
         let mut mock_engine = MockQuakeEngine::new();
         mock_engine
             .expect_find_cvar()
@@ -2896,7 +2889,7 @@ def handler():
     #[cfg_attr(miri, ignore)]
     #[serial]
     fn get_cvar_with_invalid_type_conversion(_pyshinqlx_setup: ()) {
-        let cvar_string = CString::new("16").expect("result was not OK");
+        let cvar_string = c"16";
         let mut mock_engine = MockQuakeEngine::new();
         mock_engine
             .expect_find_cvar()

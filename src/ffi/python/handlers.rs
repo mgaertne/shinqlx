@@ -628,7 +628,6 @@ mod handle_client_command_tests {
     use crate::prelude::{serial, MockQuakeEngine};
     use crate::MAIN_ENGINE;
 
-    use alloc::ffi::CString;
     use arc_swap::ArcSwapOption;
     use core::ffi::c_char;
     use once_cell::sync::Lazy;
@@ -647,7 +646,7 @@ mod handle_client_command_tests {
     #[serial]
     fn try_handle_client_command_for_client_command_only(_pyshinqlx_setup: ()) {
         let mut mock_engine = MockQuakeEngine::new();
-        let cvar_string = CString::new("1").expect("this should not happen");
+        let cvar_string = c"1";
         mock_engine
             .expect_find_cvar()
             .with(predicate::eq("zmq_stats_enable"))
@@ -787,7 +786,7 @@ mod handle_client_command_tests {
         _pyshinqlx_setup: (),
     ) {
         let mut mock_engine = MockQuakeEngine::new();
-        let cvar_string = CString::new("1").expect("this should not happen");
+        let cvar_string = c"1";
         mock_engine
             .expect_find_cvar()
             .with(predicate::eq("zmq_stats_enable"))
@@ -873,7 +872,7 @@ mod handle_client_command_tests {
         _pyshinqlx_setup: (),
     ) {
         let mut mock_engine = MockQuakeEngine::new();
-        let cvar_string = CString::new("1").expect("this should not happen");
+        let cvar_string = c"1";
         mock_engine
             .expect_find_cvar()
             .with(predicate::eq("zmq_stats_enable"))
@@ -957,7 +956,7 @@ mod handle_client_command_tests {
     #[serial]
     fn try_handle_client_command_for_msg_send(_pyshinqlx_setup: ()) {
         let mut mock_engine = MockQuakeEngine::new();
-        let cvar_string = CString::new("1").expect("this should not happen");
+        let cvar_string = c"1";
         mock_engine
             .expect_find_cvar()
             .with(predicate::eq("zmq_stats_enable"))
@@ -1184,7 +1183,7 @@ mod handle_client_command_tests {
     #[serial]
     fn try_handle_client_command_for_msg_when_dispatcher_returns_false(_pyshinqlx_setup: ()) {
         let mut mock_engine = MockQuakeEngine::new();
-        let cvar_string = CString::new("1").expect("this should not happen");
+        let cvar_string = c"1";
         mock_engine
             .expect_find_cvar()
             .with(predicate::eq("zmq_stats_enable"))
@@ -1290,7 +1289,7 @@ mod handle_client_command_tests {
         #[case] channel: &Lazy<ArcSwapOption<Py<TeamChatChannel>>>,
     ) {
         let mut mock_engine = MockQuakeEngine::new();
-        let cvar_string = CString::new("1").expect("this should not happen");
+        let cvar_string = c"1";
         mock_engine
             .expect_find_cvar()
             .with(predicate::eq("zmq_stats_enable"))
@@ -1543,7 +1542,7 @@ mod handle_client_command_tests {
         #[case] channel: &Lazy<ArcSwapOption<Py<TeamChatChannel>>>,
     ) {
         let mut mock_engine = MockQuakeEngine::new();
-        let cvar_string = CString::new("1").expect("this should not happen");
+        let cvar_string = c"1";
         mock_engine
             .expect_find_cvar()
             .with(predicate::eq("zmq_stats_enable"))
@@ -1637,7 +1636,7 @@ mod handle_client_command_tests {
     #[serial]
     fn try_handle_client_command_for_callvote(_pyshinqlx_setup: ()) {
         let mut mock_engine = MockQuakeEngine::new();
-        let cvar_string = CString::new("1").expect("this should not happen");
+        let cvar_string = c"1";
         mock_engine
             .expect_find_cvar()
             .with(predicate::eq("zmq_stats_enable"))
@@ -1737,7 +1736,7 @@ mod handle_client_command_tests {
     #[serial]
     fn try_handle_client_command_for_callvote_when_vote_is_already_running(_pyshinqlx_setup: ()) {
         let mut mock_engine = MockQuakeEngine::new();
-        let cvar_string = CString::new("1").expect("this should not happen");
+        let cvar_string = c"1";
         mock_engine
             .expect_find_cvar()
             .with(predicate::eq("zmq_stats_enable"))
@@ -1967,7 +1966,7 @@ mod handle_client_command_tests {
     #[serial]
     fn try_handle_client_command_for_callvote_when_dispatcher_returns_false(_pyshinqlx_setup: ()) {
         let mut mock_engine = MockQuakeEngine::new();
-        let cvar_string = CString::new("1").expect("this should not happen");
+        let cvar_string = c"1";
         mock_engine
             .expect_find_cvar()
             .with(predicate::eq("zmq_stats_enable"))
@@ -2071,7 +2070,7 @@ mod handle_client_command_tests {
         #[case] vote: bool,
     ) {
         let mut mock_engine = MockQuakeEngine::new();
-        let cvar_string = CString::new("1").expect("this should not happen");
+        let cvar_string = c"1";
         mock_engine
             .expect_find_cvar()
             .with(predicate::eq("zmq_stats_enable"))
@@ -2169,7 +2168,7 @@ mod handle_client_command_tests {
     #[serial]
     fn try_handle_client_command_for_vote_command_for_unhandled_vote(_pyshinqlx_setup: ()) {
         let mut mock_engine = MockQuakeEngine::new();
-        let cvar_string = CString::new("1").expect("this should not happen");
+        let cvar_string = c"1";
         mock_engine
             .expect_find_cvar()
             .with(predicate::eq("zmq_stats_enable"))
@@ -2275,7 +2274,7 @@ mod handle_client_command_tests {
         #[case] vote_arg: &str,
     ) {
         let mut mock_engine = MockQuakeEngine::new();
-        let cvar_string = CString::new("1").expect("this should not happen");
+        let cvar_string = c"1";
         mock_engine
             .expect_find_cvar()
             .with(predicate::eq("zmq_stats_enable"))
@@ -2443,7 +2442,7 @@ mod handle_client_command_tests {
         #[case] vote_arg: &str,
     ) {
         let mut mock_engine = MockQuakeEngine::new();
-        let cvar_string = CString::new("1").expect("this should not happen");
+        let cvar_string = c"1";
         mock_engine
             .expect_find_cvar()
             .with(predicate::eq("zmq_stats_enable"))
@@ -2545,7 +2544,7 @@ mod handle_client_command_tests {
         #[case] player_team: team_t,
     ) {
         let mut mock_engine = MockQuakeEngine::new();
-        let cvar_string = CString::new("1").expect("this should not happen");
+        let cvar_string = c"1";
         mock_engine
             .expect_find_cvar()
             .with(predicate::eq("zmq_stats_enable"))
@@ -2646,7 +2645,7 @@ mod handle_client_command_tests {
     #[serial]
     fn try_handle_client_command_for_team_switch_for_unhandled_team(_pyshinqlx_setup: ()) {
         let mut mock_engine = MockQuakeEngine::new();
-        let cvar_string = CString::new("1").expect("this should not happen");
+        let cvar_string = c"1";
         mock_engine
             .expect_find_cvar()
             .with(predicate::eq("zmq_stats_enable"))
@@ -2747,7 +2746,7 @@ mod handle_client_command_tests {
         #[case] player_team: team_t,
     ) {
         let mut mock_engine = MockQuakeEngine::new();
-        let cvar_string = CString::new("1").expect("this should not happen");
+        let cvar_string = c"1";
         mock_engine
             .expect_find_cvar()
             .with(predicate::eq("zmq_stats_enable"))
@@ -2906,7 +2905,7 @@ mod handle_client_command_tests {
         #[case] player_team: team_t,
     ) {
         let mut mock_engine = MockQuakeEngine::new();
-        let cvar_string = CString::new("1").expect("this should not happen");
+        let cvar_string = c"1";
         mock_engine
             .expect_find_cvar()
             .with(predicate::eq("zmq_stats_enable"))
@@ -2994,7 +2993,7 @@ mod handle_client_command_tests {
     #[serial]
     fn try_handle_client_command_for_userinfo_change_when_nothing_changed(_pyshinqlx_setup: ()) {
         let mut mock_engine = MockQuakeEngine::new();
-        let cvar_string = CString::new("1").expect("this should not happen");
+        let cvar_string = c"1";
         mock_engine
             .expect_find_cvar()
             .with(predicate::eq("zmq_stats_enable"))
@@ -3088,7 +3087,7 @@ mod handle_client_command_tests {
     #[serial]
     fn try_handle_client_command_for_userinfo_change_with_changes(_pyshinqlx_setup: ()) {
         let mut mock_engine = MockQuakeEngine::new();
-        let cvar_string = CString::new("1").expect("this should not happen");
+        let cvar_string = c"1";
         mock_engine
             .expect_find_cvar()
             .with(predicate::eq("zmq_stats_enable"))
@@ -3246,7 +3245,7 @@ mod handle_client_command_tests {
         _pyshinqlx_setup: (),
     ) {
         let mut mock_engine = MockQuakeEngine::new();
-        let cvar_string = CString::new("1").expect("this should not happen");
+        let cvar_string = c"1";
         mock_engine
             .expect_find_cvar()
             .with(predicate::eq("zmq_stats_enable"))
@@ -3336,7 +3335,7 @@ mod handle_client_command_tests {
         _pyshinqlx_setup: (),
     ) {
         let mut mock_engine = MockQuakeEngine::new();
-        let cvar_string = CString::new("1").expect("this should not happen");
+        let cvar_string = c"1";
         mock_engine
             .expect_find_cvar()
             .with(predicate::eq("zmq_stats_enable"))
@@ -3581,7 +3580,6 @@ mod handle_server_command_tests {
         EVENT_DISPATCHERS,
     };
 
-    use alloc::ffi::CString;
     use core::ffi::c_char;
     use mockall::predicate;
 
@@ -3595,7 +3593,7 @@ mod handle_server_command_tests {
     #[serial]
     fn handle_server_command_for_general_server_command(_pyshinqlx_setup: ()) {
         let mut mock_engine = MockQuakeEngine::new();
-        let cvar_string = CString::new("1").expect("this should not happen");
+        let cvar_string = c"1";
         mock_engine
             .expect_find_cvar()
             .with(predicate::eq("zmq_stats_enable"))
@@ -3651,7 +3649,7 @@ mod handle_server_command_tests {
     #[serial]
     fn handle_server_command_for_dedicated_player_server_command(_pyshinqlx_setup: ()) {
         let mut mock_engine = MockQuakeEngine::new();
-        let cvar_string = CString::new("1").expect("this should not happen");
+        let cvar_string = c"1";
         mock_engine
             .expect_find_cvar()
             .with(predicate::eq("zmq_stats_enable"))
@@ -3752,7 +3750,7 @@ mod handle_server_command_tests {
     #[serial]
     fn handle_server_command_for_server_command_returning_false(_pyshinqlx_setup: ()) {
         let mut mock_engine = MockQuakeEngine::new();
-        let cvar_string = CString::new("1").expect("this should not happen");
+        let cvar_string = c"1";
         mock_engine
             .expect_find_cvar()
             .with(predicate::eq("zmq_stats_enable"))
@@ -3802,7 +3800,7 @@ mod handle_server_command_tests {
     #[serial]
     fn handle_server_command_for_server_command_returning_other_string(_pyshinqlx_setup: ()) {
         let mut mock_engine = MockQuakeEngine::new();
-        let cvar_string = CString::new("1").expect("this should not happen");
+        let cvar_string = c"1";
         mock_engine
             .expect_find_cvar()
             .with(predicate::eq("zmq_stats_enable"))
@@ -3852,7 +3850,7 @@ mod handle_server_command_tests {
     #[serial]
     fn handle_server_command_indicating_vote_passed(_pyshinqlx_setup: ()) {
         let mut mock_engine = MockQuakeEngine::new();
-        let cvar_string = CString::new("1").expect("this should not happen");
+        let cvar_string = c"1";
         mock_engine
             .expect_find_cvar()
             .with(predicate::eq("zmq_stats_enable"))
@@ -3926,7 +3924,7 @@ mod handle_server_command_tests {
     #[serial]
     fn handle_server_command_indicating_vote_failed(_pyshinqlx_setup: ()) {
         let mut mock_engine = MockQuakeEngine::new();
-        let cvar_string = CString::new("1").expect("this should not happen");
+        let cvar_string = c"1";
         mock_engine
             .expect_find_cvar()
             .with(predicate::eq("zmq_stats_enable"))
@@ -4122,7 +4120,6 @@ mod handle_frame_tests {
     use crate::prelude::{serial, MockQuakeEngine};
     use crate::MAIN_ENGINE;
 
-    use alloc::ffi::CString;
     use core::ffi::c_char;
     use mockall::predicate;
 
@@ -4233,7 +4230,7 @@ frame_tasks.enter(0, 1, capturing_hook, ("asdf", 42), {})
     #[serial]
     fn try_handle_frame_with_hook(_pyshinqlx_setup: ()) {
         let mut mock_engine = MockQuakeEngine::new();
-        let cvar_string = CString::new("1").expect("this should not happen");
+        let cvar_string = c"1";
         mock_engine
             .expect_find_cvar()
             .with(predicate::eq("zmq_stats_enable"))
@@ -4400,7 +4397,7 @@ for event in frame_tasks.queue:
     #[serial]
     fn handle_frame_when_frame_tasks_throws_exception(_pyshinqlx_setup: ()) {
         let mut mock_engine = MockQuakeEngine::new();
-        let cvar_string = CString::new("1").expect("this should not happen");
+        let cvar_string = c"1";
         mock_engine
             .expect_find_cvar()
             .with(predicate::eq("zmq_stats_enable"))
@@ -4687,7 +4684,7 @@ mod handle_new_game_tests {
         mock_engine.expect_get_configstring().withf(|index| {
             [CS_MESSAGE as u16, CS_AUTHOR as u16, CS_AUTHOR2 as u16].contains(index)
         });
-        let cvar_string = CString::new("1").expect("this should not happen");
+        let cvar_string = c"1";
         mock_engine
             .expect_find_cvar()
             .with(predicate::eq("zmq_stats_enable"))
@@ -4788,7 +4785,7 @@ mod handle_new_game_tests {
         mock_engine.expect_get_configstring().withf(|index| {
             [CS_MESSAGE as u16, CS_AUTHOR as u16, CS_AUTHOR2 as u16].contains(index)
         });
-        let cvar_string = CString::new("1").expect("this should not happen");
+        let cvar_string = c"1";
         mock_engine
             .expect_find_cvar()
             .with(predicate::eq("zmq_stats_enable"))
@@ -4799,7 +4796,7 @@ mod handle_new_game_tests {
                     .expect("this should not happen");
                 CVar::try_from(&mut raw_cvar as *mut cvar_t).ok()
             });
-        let map_string = CString::new("campgrounds").expect("this should not happen");
+        let map_string = c"campgrounds";
         mock_engine
             .expect_find_cvar()
             .with(predicate::eq("mapname"))
@@ -4810,7 +4807,7 @@ mod handle_new_game_tests {
                     .expect("this should not happen");
                 CVar::try_from(&mut raw_cvar as *mut cvar_t).ok()
             });
-        let factory_string = CString::new("ffa").expect("this should not happen");
+        let factory_string = c"ffa";
         mock_engine
             .expect_find_cvar()
             .with(predicate::eq("g_factory"))
@@ -4899,7 +4896,7 @@ mod handle_new_game_tests {
         mock_engine.expect_get_configstring().withf(|index| {
             [CS_MESSAGE as u16, CS_AUTHOR as u16, CS_AUTHOR2 as u16].contains(index)
         });
-        let map_string = CString::new("campgrounds").expect("this should not happen");
+        let map_string = c"campgrounds";
         mock_engine
             .expect_find_cvar()
             .with(predicate::eq("mapname"))
@@ -4910,7 +4907,7 @@ mod handle_new_game_tests {
                     .expect("this should not happen");
                 CVar::try_from(&mut raw_cvar as *mut cvar_t).ok()
             });
-        let g_factory_string = CString::new("ffa").expect("this should not happen");
+        let g_factory_string = c"ffa";
         mock_engine
             .expect_find_cvar()
             .with(predicate::eq("g_factory"))
@@ -4965,7 +4962,7 @@ mod handle_new_game_tests {
         mock_engine.expect_get_configstring().withf(|index| {
             [CS_MESSAGE as u16, CS_AUTHOR as u16, CS_AUTHOR2 as u16].contains(index)
         });
-        let cvar_string = CString::new("1").expect("this should not happen");
+        let cvar_string = c"1";
         mock_engine
             .expect_find_cvar()
             .with(predicate::eq("zmq_stats_enable"))
@@ -5059,7 +5056,7 @@ mod handle_new_game_tests {
         mock_engine.expect_get_configstring().withf(|index| {
             [CS_MESSAGE as u16, CS_AUTHOR as u16, CS_AUTHOR2 as u16].contains(index)
         });
-        let cvar_string = CString::new("0").expect("this should not happen");
+        let cvar_string = c"0";
         mock_engine
             .expect_find_cvar()
             .with(predicate::eq("zmq_stats_enable"))
@@ -5155,7 +5152,7 @@ mod handle_new_game_tests {
         mock_engine.expect_get_configstring().withf(|index| {
             [CS_MESSAGE as u16, CS_AUTHOR as u16, CS_AUTHOR2 as u16].contains(index)
         });
-        let cvar_string = CString::new("0").expect("this should not happen");
+        let cvar_string = c"0";
         mock_engine
             .expect_find_cvar()
             .with(predicate::eq("zmq_stats_enable"))
@@ -5486,7 +5483,7 @@ fn try_handle_set_configstring(py: Python<'_>, index: u32, value: &str) -> PyRes
                 intern!(py, "round_start")
             };
 
-            return EVENT_DISPATCHERS
+            EVENT_DISPATCHERS
                 .load()
                 .as_ref()
                 .and_then(|event_dispatchers| event_dispatchers.bind(py).get_item(event).ok())
@@ -5499,7 +5496,7 @@ fn try_handle_set_configstring(py: Python<'_>, index: u32, value: &str) -> PyRes
                             .call_method1(intern!(py, "dispatch"), (round_number,))
                             .map(|_| py.None())
                     },
-                );
+                )
         }
         _ => Ok(configstring_value.into_py(py)),
     }
@@ -5538,7 +5535,6 @@ mod handle_set_configstring_tests {
         CS_VOTE_STRING,
     };
 
-    use alloc::ffi::CString;
     use core::ffi::c_char;
     use core::sync::atomic::Ordering;
 
@@ -5557,7 +5553,7 @@ mod handle_set_configstring_tests {
     #[serial]
     fn try_set_configstring_forwards_to_python(_pyshinqlx_setup: ()) {
         let mut mock_engine = MockQuakeEngine::new();
-        let cvar_string = CString::new("1").expect("this should not happen");
+        let cvar_string = c"1";
         mock_engine
             .expect_find_cvar()
             .with(predicate::eq("zmq_stats_enable"))
@@ -5613,7 +5609,7 @@ mod handle_set_configstring_tests {
     #[serial]
     fn try_set_configstring_when_dispatcher_returns_false(_pyshinqlx_setup: ()) {
         let mut mock_engine = MockQuakeEngine::new();
-        let cvar_string = CString::new("1").expect("this should not happen");
+        let cvar_string = c"1";
         mock_engine
             .expect_find_cvar()
             .with(predicate::eq("zmq_stats_enable"))
@@ -5680,7 +5676,7 @@ mod handle_set_configstring_tests {
     #[serial]
     fn try_set_configstring_when_dispatcher_returns_other_value(_pyshinqlx_setup: ()) {
         let mut mock_engine = MockQuakeEngine::new();
-        let cvar_string = CString::new("1").expect("this should not happen");
+        let cvar_string = c"1";
         mock_engine
             .expect_find_cvar()
             .with(predicate::eq("zmq_stats_enable"))
@@ -5730,7 +5726,7 @@ mod handle_set_configstring_tests {
     #[serial]
     fn try_set_configstring_for_vote_string_change_with_one_word_vote(_pyshinqlx_setup: ()) {
         let mut mock_engine = MockQuakeEngine::new();
-        let cvar_string = CString::new("1").expect("this should not happen");
+        let cvar_string = c"1";
         mock_engine
             .expect_find_cvar()
             .with(predicate::eq("zmq_stats_enable"))
@@ -5787,7 +5783,7 @@ mod handle_set_configstring_tests {
     #[serial]
     fn try_set_configstring_for_vote_string_change_with_multiword_vote(_pyshinqlx_setup: ()) {
         let mut mock_engine = MockQuakeEngine::new();
-        let cvar_string = CString::new("1").expect("this should not happen");
+        let cvar_string = c"1";
         mock_engine
             .expect_find_cvar()
             .with(predicate::eq("zmq_stats_enable"))
@@ -5844,7 +5840,7 @@ mod handle_set_configstring_tests {
     #[serial]
     fn try_set_configstring_for_vote_string_change_with_empty_votestring(_pyshinqlx_setup: ()) {
         let mut mock_engine = MockQuakeEngine::new();
-        let cvar_string = CString::new("1").expect("this should not happen");
+        let cvar_string = c"1";
         mock_engine
             .expect_find_cvar()
             .with(predicate::eq("zmq_stats_enable"))
@@ -6009,7 +6005,7 @@ mod handle_set_configstring_tests {
             .expect_get_configstring()
             .with(predicate::eq(CS_SERVERINFO as u16))
             .returning(|_| r"\g_gameState\PRE_GAME".into());
-        let cvar_string = CString::new("1").expect("this should not happen");
+        let cvar_string = c"1";
         mock_engine
             .expect_find_cvar()
             .with(predicate::eq("zmq_stats_enable"))
@@ -6084,7 +6080,7 @@ mod handle_set_configstring_tests {
             .expect_get_configstring()
             .with(predicate::eq(CS_SERVERINFO as u16))
             .returning(move |_| old_configstring.clone());
-        let cvar_string = CString::new("1").expect("this should not happen");
+        let cvar_string = c"1";
         mock_engine
             .expect_find_cvar()
             .with(predicate::eq("zmq_stats_enable"))
@@ -6155,7 +6151,7 @@ mod handle_set_configstring_tests {
             .expect_get_configstring()
             .with(predicate::eq(CS_SERVERINFO as u16))
             .returning(|_| r"\g_gameState\IN_PROGRESS".into());
-        let cvar_string = CString::new("1").expect("this should not happen");
+        let cvar_string = c"1";
         mock_engine
             .expect_find_cvar()
             .with(predicate::eq("zmq_stats_enable"))
@@ -6193,7 +6189,7 @@ mod handle_set_configstring_tests {
         _pyshinqlx_setup: (),
     ) {
         let mut mock_engine = MockQuakeEngine::new();
-        let cvar_string = CString::new("1").expect("this should not happen");
+        let cvar_string = c"1";
         mock_engine
             .expect_find_cvar()
             .with(predicate::eq("zmq_stats_enable"))
@@ -6252,7 +6248,7 @@ mod handle_set_configstring_tests {
         _pyshinqlx_setup: (),
     ) {
         let mut mock_engine = MockQuakeEngine::new();
-        let cvar_string = CString::new("1").expect("this should not happen");
+        let cvar_string = c"1";
         mock_engine
             .expect_find_cvar()
             .with(predicate::eq("zmq_stats_enable"))
@@ -6313,7 +6309,7 @@ mod handle_set_configstring_tests {
         _pyshinqlx_setup: (),
     ) {
         let mut mock_engine = MockQuakeEngine::new();
-        let cvar_string = CString::new("1").expect("this should not happen");
+        let cvar_string = c"1";
         mock_engine
             .expect_find_cvar()
             .with(predicate::eq("zmq_stats_enable"))
@@ -6372,7 +6368,7 @@ mod handle_set_configstring_tests {
         _pyshinqlx_setup: (),
     ) {
         let mut mock_engine = MockQuakeEngine::new();
-        let cvar_string = CString::new("1").expect("this should not happen");
+        let cvar_string = c"1";
         mock_engine
             .expect_find_cvar()
             .with(predicate::eq("zmq_stats_enable"))
@@ -6762,7 +6758,6 @@ mod handle_player_connect_tests {
         MAIN_ENGINE,
     };
 
-    use alloc::ffi::CString;
     use core::ffi::c_char;
 
     use mockall::predicate;
@@ -6776,7 +6771,7 @@ mod handle_player_connect_tests {
     #[serial]
     fn try_handle_player_connect_forwards_to_dispatcher(_pyshinqlx_setup: ()) {
         let mut mock_engine = MockQuakeEngine::new();
-        let cvar_string = CString::new("1").expect("this should not happen");
+        let cvar_string = c"1";
         mock_engine
             .expect_find_cvar()
             .with(predicate::eq("zmq_stats_enable"))
@@ -6917,7 +6912,7 @@ mod handle_player_connect_tests {
     #[serial]
     fn try_handle_player_connect_when_dispatcher_returns_other_string(_pyshinqlx_setup: ()) {
         let mut mock_engine = MockQuakeEngine::new();
-        let cvar_string = CString::new("1").expect("this should not happen");
+        let cvar_string = c"1";
         mock_engine
             .expect_find_cvar()
             .with(predicate::eq("zmq_stats_enable"))
@@ -7001,7 +6996,7 @@ mod handle_player_connect_tests {
     #[serial]
     fn handle_player_connect_when_dispatcher_throws_exception(_pyshinqlx_setup: ()) {
         let mut mock_engine = MockQuakeEngine::new();
-        let cvar_string = CString::new("1").expect("this should not happen");
+        let cvar_string = c"1";
         mock_engine
             .expect_find_cvar()
             .with(predicate::eq("zmq_stats_enable"))
@@ -7119,7 +7114,6 @@ mod handle_player_loaded_tests {
         MAIN_ENGINE,
     };
 
-    use alloc::ffi::CString;
     use core::ffi::c_char;
 
     use mockall::predicate;
@@ -7133,7 +7127,7 @@ mod handle_player_loaded_tests {
     #[serial]
     fn try_handle_player_loaded_forwards_to_dispatcher(_pyshinqlx_setup: ()) {
         let mut mock_engine = MockQuakeEngine::new();
-        let cvar_string = CString::new("1").expect("this should not happen");
+        let cvar_string = c"1";
         mock_engine
             .expect_find_cvar()
             .with(predicate::eq("zmq_stats_enable"))
@@ -7274,7 +7268,7 @@ mod handle_player_loaded_tests {
     #[serial]
     fn handle_player_loaded_when_dispatcher_throws_exception(_pyshinqlx_setup: ()) {
         let mut mock_engine = MockQuakeEngine::new();
-        let cvar_string = CString::new("1").expect("this should not happen");
+        let cvar_string = c"1";
         mock_engine
             .expect_find_cvar()
             .with(predicate::eq("zmq_stats_enable"))
@@ -7399,7 +7393,6 @@ mod handle_player_disconnect_tests {
         MAIN_ENGINE,
     };
 
-    use alloc::ffi::CString;
     use core::ffi::c_char;
 
     use mockall::predicate;
@@ -7413,7 +7406,7 @@ mod handle_player_disconnect_tests {
     #[serial]
     fn try_handle_player_disconnect_forwards_to_dispatcher(_pyshinqlx_setup: ()) {
         let mut mock_engine = MockQuakeEngine::new();
-        let cvar_string = CString::new("1").expect("this should not happen");
+        let cvar_string = c"1";
         mock_engine
             .expect_find_cvar()
             .with(predicate::eq("zmq_stats_enable"))
@@ -7554,7 +7547,7 @@ mod handle_player_disconnect_tests {
     #[serial]
     fn handle_player_disconnect_when_dispatcher_throws_exception(_pyshinqlx_setup: ()) {
         let mut mock_engine = MockQuakeEngine::new();
-        let cvar_string = CString::new("1").expect("this should not happen");
+        let cvar_string = c"1";
         mock_engine
             .expect_find_cvar()
             .with(predicate::eq("zmq_stats_enable"))
@@ -7672,7 +7665,6 @@ mod handle_player_spawn_tests {
         MAIN_ENGINE,
     };
 
-    use alloc::ffi::CString;
     use core::ffi::c_char;
 
     use mockall::predicate;
@@ -7686,7 +7678,7 @@ mod handle_player_spawn_tests {
     #[serial]
     fn try_handle_player_spawn_forwards_to_dispatcher(_pyshinqlx_setup: ()) {
         let mut mock_engine = MockQuakeEngine::new();
-        let cvar_string = CString::new("1").expect("this should not happen");
+        let cvar_string = c"1";
         mock_engine
             .expect_find_cvar()
             .with(predicate::eq("zmq_stats_enable"))
@@ -7827,7 +7819,7 @@ mod handle_player_spawn_tests {
     #[serial]
     fn handle_player_spawn_when_dispatcher_throws_exception(_pyshinqlx_setup: ()) {
         let mut mock_engine = MockQuakeEngine::new();
-        let cvar_string = CString::new("1").expect("this should not happen");
+        let cvar_string = c"1";
         mock_engine
             .expect_find_cvar()
             .with(predicate::eq("zmq_stats_enable"))
@@ -7943,7 +7935,6 @@ mod handle_kamikaze_use_tests {
         MAIN_ENGINE,
     };
 
-    use alloc::ffi::CString;
     use core::ffi::c_char;
 
     use mockall::predicate;
@@ -7957,7 +7948,7 @@ mod handle_kamikaze_use_tests {
     #[serial]
     fn try_handle_kamikaze_use_forwards_to_dispatcher(_pyshinqlx_setup: ()) {
         let mut mock_engine = MockQuakeEngine::new();
-        let cvar_string = CString::new("1").expect("this should not happen");
+        let cvar_string = c"1";
         mock_engine
             .expect_find_cvar()
             .with(predicate::eq("zmq_stats_enable"))
@@ -8098,7 +8089,7 @@ mod handle_kamikaze_use_tests {
     #[serial]
     fn handle_kamikaze_use_when_dispatcher_throws_exception(_pyshinqlx_setup: ()) {
         let mut mock_engine = MockQuakeEngine::new();
-        let cvar_string = CString::new("1").expect("this should not happen");
+        let cvar_string = c"1";
         mock_engine
             .expect_find_cvar()
             .with(predicate::eq("zmq_stats_enable"))
@@ -8221,7 +8212,6 @@ mod handle_kamikaze_explode_tests {
         MAIN_ENGINE,
     };
 
-    use alloc::ffi::CString;
     use core::ffi::c_char;
 
     use mockall::predicate;
@@ -8235,7 +8225,7 @@ mod handle_kamikaze_explode_tests {
     #[serial]
     fn try_handle_kamikaze_explode_forwards_to_dispatcher(_pyshinqlx_setup: ()) {
         let mut mock_engine = MockQuakeEngine::new();
-        let cvar_string = CString::new("1").expect("this should not happen");
+        let cvar_string = c"1";
         mock_engine
             .expect_find_cvar()
             .with(predicate::eq("zmq_stats_enable"))
@@ -8325,7 +8315,7 @@ mod handle_kamikaze_explode_tests {
     #[serial]
     fn try_handle_kamikaze_explode_used_on_demand_forwards_to_dispatcher(_pyshinqlx_setup: ()) {
         let mut mock_engine = MockQuakeEngine::new();
-        let cvar_string = CString::new("1").expect("this should not happen");
+        let cvar_string = c"1";
         mock_engine
             .expect_find_cvar()
             .with(predicate::eq("zmq_stats_enable"))
@@ -8466,7 +8456,7 @@ mod handle_kamikaze_explode_tests {
     #[serial]
     fn handle_kamikaze_explode_when_dispatcher_throws_exception(_pyshinqlx_setup: ()) {
         let mut mock_engine = MockQuakeEngine::new();
-        let cvar_string = CString::new("1").expect("this should not happen");
+        let cvar_string = c"1";
         mock_engine
             .expect_find_cvar()
             .with(predicate::eq("zmq_stats_enable"))
@@ -8624,7 +8614,6 @@ mod handle_damage_tests {
         MAIN_ENGINE,
     };
 
-    use alloc::ffi::CString;
     use core::ffi::c_char;
 
     use mockall::predicate;
@@ -8638,7 +8627,7 @@ mod handle_damage_tests {
     #[serial]
     fn try_handle_damage_forwards_to_dispatcher(_pyshinqlx_setup: ()) {
         let mut mock_engine = MockQuakeEngine::new();
-        let cvar_string = CString::new("1").expect("this should not happen");
+        let cvar_string = c"1";
         mock_engine
             .expect_find_cvar()
             .with(predicate::eq("zmq_stats_enable"))
@@ -8736,7 +8725,7 @@ mod handle_damage_tests {
     #[serial]
     fn try_handle_damage_forwards_to_dispatcher_with_entity_target(_pyshinqlx_setup: ()) {
         let mut mock_engine = MockQuakeEngine::new();
-        let cvar_string = CString::new("1").expect("this should not happen");
+        let cvar_string = c"1";
         mock_engine
             .expect_find_cvar()
             .with(predicate::eq("zmq_stats_enable"))
@@ -8834,7 +8823,7 @@ mod handle_damage_tests {
     #[serial]
     fn try_handle_damage_forwards_to_dispatcher_with_entity_attacking(_pyshinqlx_setup: ()) {
         let mut mock_engine = MockQuakeEngine::new();
-        let cvar_string = CString::new("1").expect("this should not happen");
+        let cvar_string = c"1";
         mock_engine
             .expect_find_cvar()
             .with(predicate::eq("zmq_stats_enable"))
@@ -8990,7 +8979,7 @@ mod handle_damage_tests {
     #[serial]
     fn handle_damage_when_dispatcher_throws_exception(_pyshinqlx_setup: ()) {
         let mut mock_engine = MockQuakeEngine::new();
-        let cvar_string = CString::new("1").expect("this should not happen");
+        let cvar_string = c"1";
         mock_engine
             .expect_find_cvar()
             .with(predicate::eq("zmq_stats_enable"))
@@ -9154,7 +9143,6 @@ mod handle_console_print_tests {
 
     use crate::ffi::c::prelude::{cvar_t, CVar, CVarBuilder};
 
-    use alloc::ffi::CString;
     use core::ffi::c_char;
 
     use mockall::predicate;
@@ -9170,7 +9158,7 @@ mod handle_console_print_tests {
     #[serial]
     fn try_handle_console_print_forwards_to_python(_pyshinqlx_setup: ()) {
         let mut mock_engine = MockQuakeEngine::new();
-        let cvar_string = CString::new("1").expect("this should not happen");
+        let cvar_string = c"1";
         mock_engine
             .expect_find_cvar()
             .with(predicate::eq("zmq_stats_enable"))
@@ -9228,7 +9216,7 @@ mod handle_console_print_tests {
     #[serial]
     fn try_handle_console_print_when_dispatcher_returns_false(_pyshinqlx_setup: ()) {
         let mut mock_engine = MockQuakeEngine::new();
-        let cvar_string = CString::new("1").expect("this should not happen");
+        let cvar_string = c"1";
         mock_engine
             .expect_find_cvar()
             .with(predicate::eq("zmq_stats_enable"))
@@ -9280,7 +9268,7 @@ mod handle_console_print_tests {
     #[serial]
     fn try_handle_console_print_when_dispatcher_returns_other_string(_pyshinqlx_setup: ()) {
         let mut mock_engine = MockQuakeEngine::new();
-        let cvar_string = CString::new("1").expect("this should not happen");
+        let cvar_string = c"1";
         mock_engine
             .expect_find_cvar()
             .with(predicate::eq("zmq_stats_enable"))
@@ -9338,7 +9326,7 @@ mod handle_console_print_tests {
             .times(1);
 
         let mut mock_engine = MockQuakeEngine::new();
-        let cvar_string = CString::new("1").expect("this should not happen");
+        let cvar_string = c"1";
         mock_engine
             .expect_find_cvar()
             .with(predicate::eq("zmq_stats_enable"))
