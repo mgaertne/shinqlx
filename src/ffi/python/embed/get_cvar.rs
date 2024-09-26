@@ -16,7 +16,7 @@ pub(crate) fn pyshinqlx_get_cvar(py: Python<'_>, cvar: &str) -> PyResult<Option<
             |main_engine| {
                 Ok(main_engine
                     .find_cvar(cvar)
-                    .map(|cvar_result| cvar_result.get_string().into()))
+                    .map(|cvar_result| cvar_result.get_string()))
             },
         )
     })
