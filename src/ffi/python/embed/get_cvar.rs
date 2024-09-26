@@ -71,17 +71,16 @@ mod get_cvar_tests {
     #[cfg_attr(miri, ignore)]
     #[serial]
     fn get_cvar_when_cvar_is_found(_pyshinqlx_setup: ()) {
+        let mut raw_cvar = CVarBuilder::default()
+            .string(CVAR_STRING.as_ptr().cast_mut())
+            .build()
+            .expect("this should not happen");
+
         let mut mock_engine = MockQuakeEngine::new();
         mock_engine
             .expect_find_cvar()
             .with(predicate::eq("sv_maxclients"))
-            .returning(move |_| {
-                let mut raw_cvar = CVarBuilder::default()
-                    .string(CVAR_STRING.as_ptr().cast_mut())
-                    .build()
-                    .expect("this should not happen");
-                CVar::try_from(raw_cvar.borrow_mut() as *mut cvar_t).ok()
-            })
+            .returning_st(move |_| CVar::try_from(raw_cvar.borrow_mut() as *mut cvar_t).ok())
             .times(1);
         MAIN_ENGINE.store(Some(mock_engine.into()));
 
@@ -92,5 +91,6 @@ mod get_cvar_tests {
             "{:?}",
             result.as_ref()
         );
+        MAIN_ENGINE.store(None);
     }
 }
