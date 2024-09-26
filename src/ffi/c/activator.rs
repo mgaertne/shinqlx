@@ -43,6 +43,8 @@ mod activator_tests {
     use crate::ffi::c::prelude::*;
     use crate::prelude::*;
 
+    use core::borrow::BorrowMut;
+
     use pretty_assertions::assert_eq;
 
     #[test]
@@ -61,7 +63,7 @@ mod activator_tests {
             .build()
             .expect("this should not happen");
         assert_eq!(
-            Activator::try_from(&mut gentity as *mut gentity_t).is_ok(),
+            Activator::try_from(gentity.borrow_mut() as *mut gentity_t).is_ok(),
             true
         );
     }
@@ -76,8 +78,8 @@ mod activator_tests {
             .r(entity_shared)
             .build()
             .expect("this should not happen");
-        let activator =
-            Activator::try_from(&mut gentity as *mut gentity_t).expect("this should not happen");
+        let activator = Activator::try_from(gentity.borrow_mut() as *mut gentity_t)
+            .expect("this should not happen");
         assert_eq!(activator.get_owner_num(), 42);
     }
 }

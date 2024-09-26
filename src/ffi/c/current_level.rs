@@ -113,6 +113,7 @@ mod current_level_tests {
     use crate::prelude::*;
     use crate::quake_live_functions::QuakeLiveFunction::G_InitGame;
 
+    use core::borrow::BorrowMut;
     use core::ffi::CStr;
     use mockall::predicate;
     use pretty_assertions::assert_eq;
@@ -165,7 +166,7 @@ mod current_level_tests {
         let mut level = LevelLocalsBuilder::default()
             .build()
             .expect("this should not happen");
-        assert!(CurrentLevel::try_from(&mut level as *mut level_locals_t).is_ok())
+        assert!(CurrentLevel::try_from(level.borrow_mut() as *mut level_locals_t).is_ok())
     }
 
     #[test]
@@ -174,7 +175,7 @@ mod current_level_tests {
             .voteTime(0)
             .build()
             .expect("this should not happen");
-        let current_level = CurrentLevel::try_from(&mut level as *mut level_locals_t)
+        let current_level = CurrentLevel::try_from(level.borrow_mut() as *mut level_locals_t)
             .expect("this should not happen");
         assert!(current_level.get_vote_time().is_none());
     }
@@ -185,7 +186,7 @@ mod current_level_tests {
             .voteTime(60)
             .build()
             .expect("this should not happen");
-        let current_level = CurrentLevel::try_from(&mut level as *mut level_locals_t)
+        let current_level = CurrentLevel::try_from(level.borrow_mut() as *mut level_locals_t)
             .expect("this should not happen");
         assert_eq!(current_level.get_vote_time(), Some(60));
     }
@@ -196,7 +197,7 @@ mod current_level_tests {
             .time(1234)
             .build()
             .expect("this should not happen");
-        let current_level = CurrentLevel::try_from(&mut level as *mut level_locals_t)
+        let current_level = CurrentLevel::try_from(level.borrow_mut() as *mut level_locals_t)
             .expect("this should not happen");
         assert_eq!(current_level.get_leveltime(), 1234);
     }
@@ -207,7 +208,7 @@ mod current_level_tests {
             .mapIsTrainingMap(qboolean::qfalse)
             .build()
             .expect("this should not happen");
-        let mut current_level = CurrentLevel::try_from(&mut level as *mut level_locals_t)
+        let mut current_level = CurrentLevel::try_from(level.borrow_mut() as *mut level_locals_t)
             .expect("this should not happen");
         current_level.set_training_map(true);
         assert_eq!(level.mapIsTrainingMap, qboolean::qtrue);
@@ -219,7 +220,7 @@ mod current_level_tests {
             .mapIsTrainingMap(qboolean::qtrue)
             .build()
             .expect("this should not happen");
-        let mut current_level = CurrentLevel::try_from(&mut level as *mut level_locals_t)
+        let mut current_level = CurrentLevel::try_from(level.borrow_mut() as *mut level_locals_t)
             .expect("this should not happen");
         current_level.set_training_map(false);
         assert_eq!(level.mapIsTrainingMap, qboolean::qfalse);
@@ -233,7 +234,7 @@ mod current_level_tests {
         let mut level = LevelLocalsBuilder::default()
             .build()
             .expect("this should not happen");
-        let mut current_level = CurrentLevel::try_from(&mut level as *mut level_locals_t)
+        let mut current_level = CurrentLevel::try_from(level.borrow_mut() as *mut level_locals_t)
             .expect("this should not happen");
         current_level.callvote("map thunderstruck", "map thunderstruck", None);
         assert_eq!(
@@ -299,7 +300,7 @@ mod current_level_tests {
             .time(42)
             .build()
             .expect("this should not happen");
-        let mut current_level = CurrentLevel::try_from(&mut level as *mut level_locals_t)
+        let mut current_level = CurrentLevel::try_from(level.borrow_mut() as *mut level_locals_t)
             .expect("this should not happen");
         current_level.callvote("map thunderstruck", "map thunderstruck", None);
         assert_eq!(
@@ -369,7 +370,7 @@ mod current_level_tests {
             .time(42)
             .build()
             .expect("this should not happen");
-        let mut current_level = CurrentLevel::try_from(&mut level as *mut level_locals_t)
+        let mut current_level = CurrentLevel::try_from(level.borrow_mut() as *mut level_locals_t)
             .expect("this should not happen");
         current_level.callvote("map campgrounds", "map asdf", Some(42));
         assert_eq!(
