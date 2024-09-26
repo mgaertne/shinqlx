@@ -5,6 +5,7 @@ name = "shinqlx"
 version = "0.6.0"
 authors = ["Markus 'ShiN0' Gaertner"]
 edition = "2021"
+rust-version = "1.77"
 readme = "README.md"
 description = "ShiN0's QuakeLive extension in Rust"
 repository = "https://github.com/mgaertne/shinqlx"

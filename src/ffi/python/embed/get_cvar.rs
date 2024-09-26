@@ -16,10 +16,10 @@ mod get_cvar_tests {
     use crate::prelude::*;
     use crate::MAIN_ENGINE;
 
-    use alloc::ffi::CString;
+    use core::borrow::BorrowMut;
 
     use mockall::predicate;
-    use pretty_assertions::assert_eq;
+    use rstest::*;
 
     use pyo3::exceptions::PyEnvironmentError;
     use rstest::*;
@@ -47,30 +47,32 @@ mod get_cvar_tests {
             .times(1);
         MAIN_ENGINE.store(Some(mock_engine.into()));
 
-        let result = Python::with_gil(|py| pyshinqlx_get_cvar(py, "asdf"));
-        assert_eq!(result.expect("result was not OK"), None);
+        let result =
+            Python::with_gil(|py| pyshinqlx_get_cvar(py, "asdf")).expect("result waa not OK");
+        assert!(result.is_none());
     }
 
     #[rstest]
     #[cfg_attr(miri, ignore)]
     #[serial]
     fn get_cvar_when_cvar_is_found(_pyshinqlx_setup: ()) {
-        let cvar_string = CString::new("16").expect("result was not OK");
+        let cvar_string = c"16";
+        let mut raw_cvar = CVarBuilder::default()
+            .string(cvar_string.as_ptr().cast_mut())
+            .build()
+            .expect("this should not happen");
+
         let mut mock_engine = MockQuakeEngine::new();
         mock_engine
             .expect_find_cvar()
             .with(predicate::eq("sv_maxclients"))
-            .returning(move |_| {
-                let mut raw_cvar = CVarBuilder::default()
-                    .string(cvar_string.as_ptr().cast_mut())
-                    .build()
-                    .expect("this should not happen");
-                CVar::try_from(&mut raw_cvar as *mut cvar_t).ok()
-            })
+            .returning_st(move |_| CVar::try_from(raw_cvar.borrow_mut() as *mut cvar_t).ok())
             .times(1);
         MAIN_ENGINE.store(Some(mock_engine.into()));
 
-        let result = Python::with_gil(|py| pyshinqlx_get_cvar(py, "sv_maxclients"));
-        assert_eq!(result.expect("result was not OK"), Some("16".to_string()));
+        let result = Python::with_gil(|py| pyshinqlx_get_cvar(py, "sv_maxclients"))
+            .expect("result was not OK");
+        assert!(result.as_ref().is_some_and(|cvar| cvar == "16"));
+        MAIN_ENGINE.store(None);
     }
 }
