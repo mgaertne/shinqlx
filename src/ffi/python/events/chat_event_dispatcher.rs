@@ -81,6 +81,7 @@ mod chat_event_dispatcher_tests {
     use crate::prelude::{serial, MockQuakeEngine};
     use crate::MAIN_ENGINE;
 
+    use core::borrow::BorrowMut;
     use core::ffi::c_char;
 
     use mockall::predicate;
@@ -129,16 +130,14 @@ mod chat_event_dispatcher_tests {
         COMMANDS.store(None);
         let mut mock_engine = MockQuakeEngine::new();
         let cvar_string = c"1";
+        let mut raw_cvar = CVarBuilder::default()
+            .string(cvar_string.as_ptr() as *mut c_char)
+            .build()
+            .expect("this should not happen");
         mock_engine
             .expect_find_cvar()
             .with(predicate::eq("zmq_stats_enable"))
-            .returning(move |_| {
-                let mut raw_cvar = CVarBuilder::default()
-                    .string(cvar_string.as_ptr() as *mut c_char)
-                    .build()
-                    .expect("this should not happen");
-                CVar::try_from(&mut raw_cvar as *mut cvar_t).ok()
-            });
+            .returning_st(move |_| CVar::try_from(raw_cvar.borrow_mut() as *mut cvar_t).ok());
         MAIN_ENGINE.store(Some(mock_engine.into()));
 
         Python::with_gil(|py| {
@@ -180,6 +179,8 @@ def throws_exception_hook(*args, **kwargs):
                 .extract::<Bound<'_, PyBool>>()
                 .is_ok_and(|bool_value| bool_value.is_true())));
         });
+
+        MAIN_ENGINE.store(None);
     }
 
     #[rstest]
@@ -197,7 +198,7 @@ def throws_exception_hook(*args, **kwargs):
                     .string(cvar_string.as_ptr() as *mut c_char)
                     .build()
                     .expect("this should not happen");
-                CVar::try_from(&mut raw_cvar as *mut cvar_t).ok()
+                CVar::try_from(raw_cvar.borrow_mut() as *mut cvar_t).ok()
             });
         MAIN_ENGINE.store(Some(mock_engine.into()));
 
@@ -249,16 +250,14 @@ def returns_none_hook(*args, **kwargs):
         COMMANDS.store(None);
         let mut mock_engine = MockQuakeEngine::new();
         let cvar_string = c"1";
+        let mut raw_cvar = CVarBuilder::default()
+            .string(cvar_string.as_ptr() as *mut c_char)
+            .build()
+            .expect("this should not happen");
         mock_engine
             .expect_find_cvar()
             .with(predicate::eq("zmq_stats_enable"))
-            .returning(move |_| {
-                let mut raw_cvar = CVarBuilder::default()
-                    .string(cvar_string.as_ptr() as *mut c_char)
-                    .build()
-                    .expect("this should not happen");
-                CVar::try_from(&mut raw_cvar as *mut cvar_t).ok()
-            });
+            .returning_st(move |_| CVar::try_from(raw_cvar.borrow_mut() as *mut cvar_t).ok());
         MAIN_ENGINE.store(Some(mock_engine.into()));
 
         Python::with_gil(|py| {
@@ -302,6 +301,8 @@ def returns_none_hook(*args, **kwargs):
                 .extract::<Bound<'_, PyBool>>()
                 .is_ok_and(|bool_value| bool_value.is_true())));
         });
+
+        MAIN_ENGINE.store(None);
     }
 
     #[rstest]
@@ -311,16 +312,14 @@ def returns_none_hook(*args, **kwargs):
         COMMANDS.store(None);
         let mut mock_engine = MockQuakeEngine::new();
         let cvar_string = c"1";
+        let mut raw_cvar = CVarBuilder::default()
+            .string(cvar_string.as_ptr() as *mut c_char)
+            .build()
+            .expect("this should not happen");
         mock_engine
             .expect_find_cvar()
             .with(predicate::eq("zmq_stats_enable"))
-            .returning(move |_| {
-                let mut raw_cvar = CVarBuilder::default()
-                    .string(cvar_string.as_ptr() as *mut c_char)
-                    .build()
-                    .expect("this should not happen");
-                CVar::try_from(&mut raw_cvar as *mut cvar_t).ok()
-            });
+            .returning_st(move |_| CVar::try_from(raw_cvar.borrow_mut() as *mut cvar_t).ok());
         MAIN_ENGINE.store(Some(mock_engine.into()));
 
         Python::with_gil(|py| {
@@ -364,6 +363,8 @@ def returns_stop_hook(*args, **kwargs):
                 .extract::<Bound<'_, PyBool>>()
                 .is_ok_and(|bool_value| bool_value.is_true())));
         });
+
+        MAIN_ENGINE.store(None);
     }
 
     #[rstest]
@@ -373,16 +374,14 @@ def returns_stop_hook(*args, **kwargs):
         COMMANDS.store(None);
         let mut mock_engine = MockQuakeEngine::new();
         let cvar_string = c"1";
+        let mut raw_cvar = CVarBuilder::default()
+            .string(cvar_string.as_ptr() as *mut c_char)
+            .build()
+            .expect("this should not happen");
         mock_engine
             .expect_find_cvar()
             .with(predicate::eq("zmq_stats_enable"))
-            .returning(move |_| {
-                let mut raw_cvar = CVarBuilder::default()
-                    .string(cvar_string.as_ptr() as *mut c_char)
-                    .build()
-                    .expect("this should not happen");
-                CVar::try_from(&mut raw_cvar as *mut cvar_t).ok()
-            });
+            .returning_st(move |_| CVar::try_from(raw_cvar.borrow_mut() as *mut cvar_t).ok());
         MAIN_ENGINE.store(Some(mock_engine.into()));
 
         Python::with_gil(|py| {
@@ -426,6 +425,8 @@ def returns_stop_event_hook(*args, **kwargs):
                 .extract::<Bound<'_, PyBool>>()
                 .is_ok_and(|bool_value| !bool_value.is_true())));
         });
+
+        MAIN_ENGINE.store(None);
     }
 
     #[rstest]
@@ -435,16 +436,14 @@ def returns_stop_event_hook(*args, **kwargs):
         COMMANDS.store(None);
         let mut mock_engine = MockQuakeEngine::new();
         let cvar_string = c"1";
+        let mut raw_cvar = CVarBuilder::default()
+            .string(cvar_string.as_ptr() as *mut c_char)
+            .build()
+            .expect("this should not happen");
         mock_engine
             .expect_find_cvar()
             .with(predicate::eq("zmq_stats_enable"))
-            .returning(move |_| {
-                let mut raw_cvar = CVarBuilder::default()
-                    .string(cvar_string.as_ptr() as *mut c_char)
-                    .build()
-                    .expect("this should not happen");
-                CVar::try_from(&mut raw_cvar as *mut cvar_t).ok()
-            });
+            .returning_st(move |_| CVar::try_from(raw_cvar.borrow_mut() as *mut cvar_t).ok());
         MAIN_ENGINE.store(Some(mock_engine.into()));
 
         Python::with_gil(|py| {
@@ -488,6 +487,8 @@ def returns_stop_all_hook(*args, **kwargs):
                 .extract::<Bound<'_, PyBool>>()
                 .is_ok_and(|bool_value| !bool_value.is_true())));
         });
+
+        MAIN_ENGINE.store(None);
     }
 
     #[rstest]
@@ -497,16 +498,14 @@ def returns_stop_all_hook(*args, **kwargs):
         COMMANDS.store(None);
         let mut mock_engine = MockQuakeEngine::new();
         let cvar_string = c"1";
+        let mut raw_cvar = CVarBuilder::default()
+            .string(cvar_string.as_ptr() as *mut c_char)
+            .build()
+            .expect("this should not happen");
         mock_engine
             .expect_find_cvar()
             .with(predicate::eq("zmq_stats_enable"))
-            .returning(move |_| {
-                let mut raw_cvar = CVarBuilder::default()
-                    .string(cvar_string.as_ptr() as *mut c_char)
-                    .build()
-                    .expect("this should not happen");
-                CVar::try_from(&mut raw_cvar as *mut cvar_t).ok()
-            });
+            .returning_st(move |_| CVar::try_from(raw_cvar.borrow_mut() as *mut cvar_t).ok());
         MAIN_ENGINE.store(Some(mock_engine.into()));
 
         Python::with_gil(|py| {
@@ -548,6 +547,8 @@ def returns_string_hook(*args, **kwargs):
                 .extract::<Bound<'_, PyBool>>()
                 .is_ok_and(|bool_value| bool_value.is_true())));
         });
+
+        MAIN_ENGINE.store(None);
     }
 
     #[rstest]
@@ -556,16 +557,14 @@ def returns_string_hook(*args, **kwargs):
     fn dispatch_when_command_handler_returns_false(_pyshinqlx_setup: ()) {
         let mut mock_engine = MockQuakeEngine::new();
         let cvar_string = c"1";
+        let mut raw_cvar = CVarBuilder::default()
+            .string(cvar_string.as_ptr() as *mut c_char)
+            .build()
+            .expect("this should not happen");
         mock_engine
             .expect_find_cvar()
             .with(predicate::eq("zmq_stats_enable"))
-            .returning(move |_| {
-                let mut raw_cvar = CVarBuilder::default()
-                    .string(cvar_string.as_ptr() as *mut c_char)
-                    .build()
-                    .expect("this should not happen");
-                CVar::try_from(&mut raw_cvar as *mut cvar_t).ok()
-            });
+            .returning_st(move |_| CVar::try_from(raw_cvar.borrow_mut() as *mut cvar_t).ok());
         mock_engine.expect_find_cvar().returning(|_| None);
         MAIN_ENGINE.store(Some(mock_engine.into()));
 
@@ -652,5 +651,7 @@ def returns_none_hook(*args, **kwargs):
                 .extract::<Bound<'_, PyBool>>()
                 .is_ok_and(|value| !value.is_true())));
         });
+
+        MAIN_ENGINE.store(None);
     }
 }
