@@ -6,6 +6,8 @@ use crate::quake_live_engine::{
 };
 use crate::MAIN_ENGINE;
 
+use core::borrow::BorrowMut;
+
 use rand::Rng;
 
 use pyo3::types::PyBool;
@@ -130,7 +132,7 @@ pub extern "C" fn cmd_slap() {
             if old_health - dmg <= 0 {
                 let client_number = client_entity.get_client_number();
                 main_engine.game_add_event(
-                    &mut client_entity,
+                    client_entity.borrow_mut(),
                     entity_event_t::EV_DEATH1,
                     client_number,
                 );
@@ -207,7 +209,7 @@ pub extern "C" fn cmd_slay() {
         client_entity.set_health(-40);
         let client_number = client_entity.get_client_number();
         main_engine.game_add_event(
-            &mut client_entity,
+            client_entity.borrow_mut(),
             entity_event_t::EV_GIB_PLAYER,
             client_number,
         );

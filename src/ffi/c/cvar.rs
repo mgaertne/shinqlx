@@ -39,6 +39,8 @@ mod cvar_tests {
     use crate::ffi::c::prelude::*;
     use crate::prelude::*;
 
+    use core::borrow::BorrowMut;
+
     use pretty_assertions::assert_eq;
 
     #[test]
@@ -56,7 +58,10 @@ mod cvar_tests {
         let mut cvar = CVarBuilder::default()
             .build()
             .expect("this should not happen");
-        assert_eq!(CVar::try_from(&mut cvar as *mut cvar_t).is_ok(), true);
+        assert_eq!(
+            CVar::try_from(cvar.borrow_mut() as *mut cvar_t).is_ok(),
+            true
+        );
     }
 
     #[test]
@@ -66,7 +71,8 @@ mod cvar_tests {
             .string(cvar_string.as_ptr().cast_mut())
             .build()
             .expect("this should not happen");
-        let cvar_rust = CVar::try_from(&mut cvar as *mut cvar_t).expect("this should not happen");
+        let cvar_rust =
+            CVar::try_from(cvar.borrow_mut() as *mut cvar_t).expect("this should not happen");
         assert_eq!(cvar_rust.get_string(), "some cvar value");
     }
 
@@ -76,7 +82,8 @@ mod cvar_tests {
             .integer(42)
             .build()
             .expect("this should not happen");
-        let cvar_rust = CVar::try_from(&mut cvar as *mut cvar_t).expect("this should not happen");
+        let cvar_rust =
+            CVar::try_from(cvar.borrow_mut() as *mut cvar_t).expect("this should not happen");
         assert_eq!(cvar_rust.get_integer(), 42);
     }
 }
