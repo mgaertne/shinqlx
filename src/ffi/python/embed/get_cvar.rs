@@ -30,7 +30,6 @@ mod get_cvar_tests {
     use crate::prelude::*;
 
     use core::borrow::BorrowMut;
-    use core::ffi::CStr;
 
     use mockall::predicate;
     use rstest::*;
@@ -65,14 +64,13 @@ mod get_cvar_tests {
         assert!(result.is_none());
     }
 
-    static CVAR_STRING: &CStr = c"16";
-
     #[rstest]
     #[cfg_attr(miri, ignore)]
     #[serial]
     fn get_cvar_when_cvar_is_found(_pyshinqlx_setup: ()) {
+        let cvar_string = c"16";
         let mut raw_cvar = CVarBuilder::default()
-            .string(CVAR_STRING.as_ptr().cast_mut())
+            .string(cvar_string.as_ptr().cast_mut())
             .build()
             .expect("this should not happen");
 
@@ -86,11 +84,7 @@ mod get_cvar_tests {
 
         let result = Python::with_gil(|py| pyshinqlx_get_cvar(py, "sv_maxclients"))
             .expect("result was not OK");
-        assert!(
-            result.as_ref().is_some_and(|cvar| cvar == "16"),
-            "{:?}",
-            result.as_ref()
-        );
+        assert!(result.as_ref().is_some_and(|cvar| cvar == "16"));
         MAIN_ENGINE.store(None);
     }
 }
