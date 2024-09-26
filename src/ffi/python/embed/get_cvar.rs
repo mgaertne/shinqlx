@@ -29,7 +29,6 @@ mod get_cvar_tests {
     use crate::ffi::python::prelude::*;
     use crate::prelude::*;
 
-    use alloc::ffi::CString;
     use core::borrow::BorrowMut;
 
     use mockall::predicate;
@@ -69,7 +68,7 @@ mod get_cvar_tests {
     #[cfg_attr(miri, ignore)]
     #[serial]
     fn get_cvar_when_cvar_is_found(_pyshinqlx_setup: ()) {
-        let cvar_string = CString::new("16").expect("result was not OK");
+        let cvar_string = c"16";
 
         let mut mock_engine = MockQuakeEngine::new();
         mock_engine
