@@ -44,8 +44,11 @@ mod set_cvar_tests {
     use crate::ffi::python::prelude::*;
     use crate::prelude::*;
 
+    use core::borrow::BorrowMut;
+
     use mockall::predicate;
     use pretty_assertions::assert_eq;
+
     use pyo3::exceptions::PyEnvironmentError;
 
     #[test]
@@ -90,15 +93,13 @@ mod set_cvar_tests {
     #[serial]
     fn set_cvar_for_already_existing_cvar() {
         let mut mock_engine = MockQuakeEngine::new();
+        let mut raw_cvar = CVarBuilder::default()
+            .build()
+            .expect("this should not happen");
         mock_engine
             .expect_find_cvar()
             .with(predicate::eq("sv_maxclients"))
-            .returning(|_| {
-                let mut raw_cvar = CVarBuilder::default()
-                    .build()
-                    .expect("this should not happen");
-                CVar::try_from(&mut raw_cvar as *mut cvar_t).ok()
-            })
+            .returning_st(move |_| CVar::try_from(raw_cvar.borrow_mut() as *mut cvar_t).ok())
             .times(1);
         mock_engine
             .expect_set_cvar_forced()
@@ -114,5 +115,7 @@ mod set_cvar_tests {
             pyshinqlx_set_cvar(py, "sv_maxclients", "64", Some(cvar_flags::CVAR_ROM as i32))
         });
         assert_eq!(result.expect("result was not OK"), false);
+
+        MAIN_ENGINE.store(None);
     }
 }

@@ -97,6 +97,8 @@ mod server_static_tests {
     use crate::prelude::*;
     use crate::quake_live_functions::QuakeLiveFunction::SV_Shutdown;
 
+    use core::borrow::BorrowMut;
+
     use pretty_assertions::assert_eq;
 
     #[test]
@@ -115,7 +117,7 @@ mod server_static_tests {
             .build()
             .expect("this should not happen");
         assert_eq!(
-            ServerStatic::try_from(&mut server_static as *mut serverStatic_t).is_ok(),
+            ServerStatic::try_from(server_static.borrow_mut() as *mut serverStatic_t).is_ok(),
             true
         );
     }
@@ -157,8 +159,9 @@ mod server_static_tests {
         let mut server_static = ServerStaticBuilder::default()
             .build()
             .expect("this should not happen");
-        let rust_server_static = ServerStatic::try_from(&mut server_static as *mut serverStatic_t)
-            .expect("this should not happen");
+        let rust_server_static =
+            ServerStatic::try_from(server_static.borrow_mut() as *mut serverStatic_t)
+                .expect("this should not happen");
         assert_eq!(
             unsafe { rust_server_static.try_get_client_by_id(-1) },
             Err(QuakeLiveEngineError::InvalidId(-1))
@@ -170,8 +173,9 @@ mod server_static_tests {
         let mut server_static = ServerStaticBuilder::default()
             .build()
             .expect("this should not happen");
-        let rust_server_static = ServerStatic::try_from(&mut server_static as *mut serverStatic_t)
-            .expect("this should not happen");
+        let rust_server_static =
+            ServerStatic::try_from(server_static.borrow_mut() as *mut serverStatic_t)
+                .expect("this should not happen");
         assert_eq!(
             unsafe { rust_server_static.try_get_client_by_id(65536) },
             Err(QuakeLiveEngineError::InvalidId(65536))
@@ -187,12 +191,13 @@ mod server_static_tests {
             .clients(&mut client as *mut client_t)
             .build()
             .expect("this should not happen");
-        let rust_server_static = ServerStatic::try_from(&mut server_static as *mut serverStatic_t)
-            .expect("this should not happen");
+        let rust_server_static =
+            ServerStatic::try_from(server_static.borrow_mut() as *mut serverStatic_t)
+                .expect("this should not happen");
 
         assert_eq!(
             unsafe { rust_server_static.try_get_client_by_id(0) },
-            Ok(&mut client as *mut client_t)
+            Ok(client.borrow_mut() as *mut client_t)
         );
     }
 
@@ -211,14 +216,15 @@ mod server_static_tests {
                 .expect("this should not happen"),
         ];
         let mut server_static = ServerStaticBuilder::default()
-            .clients(&mut clients[0])
+            .clients(clients[0].borrow_mut())
             .build()
             .expect("this should not happen");
-        let rust_server_static = ServerStatic::try_from(&mut server_static as *mut serverStatic_t)
-            .expect("this should not happen");
+        let rust_server_static =
+            ServerStatic::try_from(server_static.borrow_mut() as *mut serverStatic_t)
+                .expect("this should not happen");
         assert_eq!(
             unsafe { rust_server_static.try_get_client_by_id(2) },
-            Ok(&mut clients[2] as *mut client_t)
+            Ok(clients[2].borrow_mut() as *mut client_t)
         );
     }
     #[test]
@@ -230,8 +236,9 @@ mod server_static_tests {
         let mut server_static = ServerStaticBuilder::default()
             .build()
             .expect("this should not happen");
-        let rust_server_static = ServerStatic::try_from(&mut server_static as *mut serverStatic_t)
-            .expect("this should not happen");
+        let rust_server_static =
+            ServerStatic::try_from(server_static.borrow_mut() as *mut serverStatic_t)
+                .expect("this should not happen");
         assert_eq!(
             unsafe { rust_server_static.try_determine_client_id(&client) },
             Err(QuakeLiveEngineError::ClientNotFound(
@@ -246,11 +253,12 @@ mod server_static_tests {
             .build()
             .expect("this should not happen");
         let mut server_static = ServerStaticBuilder::default()
-            .clients(&mut client as *mut client_t)
+            .clients(client.borrow_mut() as *mut client_t)
             .build()
             .expect("this should not happen");
-        let rust_server_static = ServerStatic::try_from(&mut server_static as *mut serverStatic_t)
-            .expect("this should not happen");
+        let rust_server_static =
+            ServerStatic::try_from(server_static.borrow_mut() as *mut serverStatic_t)
+                .expect("this should not happen");
         assert_eq!(
             unsafe { rust_server_static.try_determine_client_id(&client) },
             Ok(0)
@@ -272,11 +280,12 @@ mod server_static_tests {
                 .expect("this should not happen"),
         ];
         let mut server_static = ServerStaticBuilder::default()
-            .clients(&mut clients[0])
+            .clients(clients[0].borrow_mut())
             .build()
             .expect("this should not happen");
-        let rust_server_static = ServerStatic::try_from(&mut server_static as *mut serverStatic_t)
-            .expect("this should not happen");
+        let rust_server_static =
+            ServerStatic::try_from(server_static.borrow_mut() as *mut serverStatic_t)
+                .expect("this should not happen");
         assert_eq!(
             unsafe { rust_server_static.try_determine_client_id(&(clients[2])) },
             Ok(2)

@@ -400,6 +400,7 @@ mod game_client_tests {
     use crate::ffi::c::prelude::*;
     use crate::prelude::*;
 
+    use core::borrow::BorrowMut;
     use core::ffi::c_char;
     use pretty_assertions::assert_eq;
     use rstest::*;
@@ -419,7 +420,7 @@ mod game_client_tests {
         let mut gclient = GClientBuilder::default()
             .build()
             .expect("this should not happen");
-        let game_client = GameClient::try_from(&mut gclient as *mut gclient_t);
+        let game_client = GameClient::try_from(gclient.borrow_mut() as *mut gclient_t);
 
         assert_eq!(game_client.is_ok(), true);
     }
@@ -434,8 +435,8 @@ mod game_client_tests {
             .ps(player_state)
             .build()
             .expect("this should not happen");
-        let game_client =
-            GameClient::try_from(&mut gclient as *mut gclient_t).expect("this should not happen");
+        let game_client = GameClient::try_from(gclient.borrow_mut() as *mut gclient_t)
+            .expect("this should not happen");
         assert_eq!(game_client.get_client_num(), 42);
     }
 
@@ -449,8 +450,8 @@ mod game_client_tests {
             .pers(client_persistant)
             .build()
             .expect("this should not happen");
-        let game_client =
-            GameClient::try_from(&mut gclient as *mut gclient_t).expect("this should not happen");
+        let game_client = GameClient::try_from(gclient.borrow_mut() as *mut gclient_t)
+            .expect("this should not happen");
         assert_eq!(
             game_client.get_connection_state(),
             clientConnected_t::CON_CONNECTING
@@ -472,8 +473,8 @@ mod game_client_tests {
             .pers(client_persistant)
             .build()
             .expect("this should not happen");
-        let game_client =
-            GameClient::try_from(&mut gclient as *mut gclient_t).expect("this should not happen");
+        let game_client = GameClient::try_from(gclient.borrow_mut() as *mut gclient_t)
+            .expect("this should not happen");
         assert_eq!(game_client.get_player_name(), "awesome player");
     }
 
@@ -487,8 +488,8 @@ mod game_client_tests {
             .sess(client_sessions)
             .build()
             .expect("this should not happen");
-        let game_client =
-            GameClient::try_from(&mut gclient as *mut gclient_t).expect("this should not happen");
+        let game_client = GameClient::try_from(gclient.borrow_mut() as *mut gclient_t)
+            .expect("this should not happen");
         assert_eq!(game_client.get_team(), team_t::TEAM_BLUE);
     }
 
@@ -502,8 +503,8 @@ mod game_client_tests {
             .sess(client_sessions)
             .build()
             .expect("this should not happen");
-        let game_client =
-            GameClient::try_from(&mut gclient as *mut gclient_t).expect("this should not happen");
+        let game_client = GameClient::try_from(gclient.borrow_mut() as *mut gclient_t)
+            .expect("this should not happen");
         assert_eq!(game_client.get_privileges(), privileges_t::PRIV_MOD);
     }
 
@@ -517,8 +518,8 @@ mod game_client_tests {
             .ps(player_state)
             .build()
             .expect("this should not happen");
-        let mut game_client =
-            GameClient::try_from(&mut gclient as *mut gclient_t).expect("this should not happen");
+        let mut game_client = GameClient::try_from(gclient.borrow_mut() as *mut gclient_t)
+            .expect("this should not happen");
         game_client.remove_kamikaze_flag();
         assert_eq!(gclient.ps.eFlags, 0);
     }
@@ -533,8 +534,8 @@ mod game_client_tests {
             .ps(player_state)
             .build()
             .expect("this should not happen");
-        let mut game_client =
-            GameClient::try_from(&mut gclient as *mut gclient_t).expect("this should not happen");
+        let mut game_client = GameClient::try_from(gclient.borrow_mut() as *mut gclient_t)
+            .expect("this should not happen");
         game_client.remove_kamikaze_flag();
         assert_eq!(gclient.ps.eFlags, 1);
     }
@@ -549,8 +550,8 @@ mod game_client_tests {
         let mut gclient = GClientBuilder::default()
             .build()
             .expect("this should not happen");
-        let mut game_client =
-            GameClient::try_from(&mut gclient as *mut gclient_t).expect("this should not happen");
+        let mut game_client = GameClient::try_from(gclient.borrow_mut() as *mut gclient_t)
+            .expect("this should not happen");
         game_client.set_privileges(privilege);
         assert_eq!(game_client.get_privileges(), privilege);
     }
@@ -565,8 +566,8 @@ mod game_client_tests {
             .ps(player_state)
             .build()
             .expect("this should not happen");
-        let game_client =
-            GameClient::try_from(&mut gclient as *mut gclient_t).expect("this should not happen");
+        let game_client = GameClient::try_from(gclient.borrow_mut() as *mut gclient_t)
+            .expect("this should not happen");
         assert_eq!(game_client.is_alive(), true);
     }
 
@@ -580,8 +581,8 @@ mod game_client_tests {
             .ps(player_state)
             .build()
             .expect("this should not happen");
-        let game_client =
-            GameClient::try_from(&mut gclient as *mut gclient_t).expect("this should not happen");
+        let game_client = GameClient::try_from(gclient.borrow_mut() as *mut gclient_t)
+            .expect("this should not happen");
         assert_eq!(game_client.is_alive(), false);
     }
 
@@ -595,8 +596,8 @@ mod game_client_tests {
             .ps(player_state)
             .build()
             .expect("this should not happen");
-        let game_client =
-            GameClient::try_from(&mut gclient as *mut gclient_t).expect("this should not happen");
+        let game_client = GameClient::try_from(gclient.borrow_mut() as *mut gclient_t)
+            .expect("this should not happen");
         assert_eq!(game_client.get_position(), (21.0, 42.0, 11.0));
     }
 
@@ -605,8 +606,8 @@ mod game_client_tests {
         let mut gclient = GClientBuilder::default()
             .build()
             .expect("this should not happen");
-        let mut game_client =
-            GameClient::try_from(&mut gclient as *mut gclient_t).expect("this should not happen");
+        let mut game_client = GameClient::try_from(gclient.borrow_mut() as *mut gclient_t)
+            .expect("this should not happen");
         game_client.set_position((21.0, 42.0, 11.0));
         assert_eq!(game_client.get_position(), (21.0, 42.0, 11.0));
     }
@@ -621,8 +622,8 @@ mod game_client_tests {
             .ps(player_state)
             .build()
             .expect("this should not happen");
-        let game_client =
-            GameClient::try_from(&mut gclient as *mut gclient_t).expect("this should not happen");
+        let game_client = GameClient::try_from(gclient.borrow_mut() as *mut gclient_t)
+            .expect("this should not happen");
         assert_eq!(game_client.get_velocity(), (21.0, 42.0, 11.0));
     }
 
@@ -631,8 +632,8 @@ mod game_client_tests {
         let mut gclient = GClientBuilder::default()
             .build()
             .expect("this should not happen");
-        let mut game_client =
-            GameClient::try_from(&mut gclient as *mut gclient_t).expect("this should not happen");
+        let mut game_client = GameClient::try_from(gclient.borrow_mut() as *mut gclient_t)
+            .expect("this should not happen");
         game_client.set_velocity((21.0, 42.0, 11.0));
         assert_eq!(game_client.get_velocity(), (21.0, 42.0, 11.0));
     }
@@ -647,8 +648,8 @@ mod game_client_tests {
             .ps(player_state)
             .build()
             .expect("this should not happen");
-        let game_client =
-            GameClient::try_from(&mut gclient as *mut gclient_t).expect("this should not happen");
+        let game_client = GameClient::try_from(gclient.borrow_mut() as *mut gclient_t)
+            .expect("this should not happen");
         assert_eq!(game_client.get_armor(), 69);
     }
 
@@ -657,8 +658,8 @@ mod game_client_tests {
         let mut gclient = GClientBuilder::default()
             .build()
             .expect("this should not happen");
-        let mut game_client =
-            GameClient::try_from(&mut gclient as *mut gclient_t).expect("this should not happen");
+        let mut game_client = GameClient::try_from(gclient.borrow_mut() as *mut gclient_t)
+            .expect("this should not happen");
         game_client.set_armor(42);
         assert_eq!(game_client.get_armor(), 42);
     }
@@ -669,8 +670,8 @@ mod game_client_tests {
             .noclip(qboolean::qfalse)
             .build()
             .expect("this should not happen");
-        let game_client =
-            GameClient::try_from(&mut gclient as *mut gclient_t).expect("this should not happen");
+        let game_client = GameClient::try_from(gclient.borrow_mut() as *mut gclient_t)
+            .expect("this should not happen");
         assert_eq!(game_client.get_noclip(), false);
     }
 
@@ -679,8 +680,8 @@ mod game_client_tests {
         let mut gclient = GClientBuilder::default()
             .build()
             .expect("this should not happen");
-        let mut game_client =
-            GameClient::try_from(&mut gclient as *mut gclient_t).expect("this should not happen");
+        let mut game_client = GameClient::try_from(gclient.borrow_mut() as *mut gclient_t)
+            .expect("this should not happen");
         game_client.set_noclip(true);
         assert_eq!(game_client.get_noclip(), true);
     }
@@ -691,8 +692,8 @@ mod game_client_tests {
             .noclip(qboolean::qtrue)
             .build()
             .expect("this should not happen");
-        let mut game_client =
-            GameClient::try_from(&mut gclient as *mut gclient_t).expect("this should not happen");
+        let mut game_client = GameClient::try_from(gclient.borrow_mut() as *mut gclient_t)
+            .expect("this should not happen");
         game_client.set_noclip(false);
         assert_eq!(game_client.get_noclip(), false);
     }
@@ -718,8 +719,8 @@ mod game_client_tests {
         let mut gclient = GClientBuilder::default()
             .build()
             .expect("this should not happen");
-        let mut game_client =
-            GameClient::try_from(&mut gclient as *mut gclient_t).expect("this should not happen");
+        let mut game_client = GameClient::try_from(gclient.borrow_mut() as *mut gclient_t)
+            .expect("this should not happen");
         game_client.set_weapon(weapon);
         assert_eq!(game_client.get_weapon(), weapon);
     }
@@ -729,8 +730,8 @@ mod game_client_tests {
         let mut gclient = GClientBuilder::default()
             .build()
             .expect("this should not happen");
-        let mut game_client =
-            GameClient::try_from(&mut gclient as *mut gclient_t).expect("this should not happen");
+        let mut game_client = GameClient::try_from(gclient.borrow_mut() as *mut gclient_t)
+            .expect("this should not happen");
         game_client.set_weapons([0, 0, 1, 0, 1, 1, 0, 0, 0, 0, 1, 0, 1, 1, 0]);
         assert_eq!(
             game_client.get_weapons(),
@@ -743,8 +744,8 @@ mod game_client_tests {
         let mut gclient = GClientBuilder::default()
             .build()
             .expect("this should not happen");
-        let mut game_client =
-            GameClient::try_from(&mut gclient as *mut gclient_t).expect("this should not happen");
+        let mut game_client = GameClient::try_from(gclient.borrow_mut() as *mut gclient_t)
+            .expect("this should not happen");
         game_client.set_ammos([10, 20, 31, 40, 51, 61, 70, 80, 90, 42, 69, -1, 1, 1, -1]);
         assert_eq!(
             game_client.get_ammos(),
@@ -765,8 +766,8 @@ mod game_client_tests {
         let mut gclient = GClientBuilder::default()
             .build()
             .expect("this should not happen");
-        let game_client =
-            GameClient::try_from(&mut gclient as *mut gclient_t).expect("this should not happen");
+        let game_client = GameClient::try_from(gclient.borrow_mut() as *mut gclient_t)
+            .expect("this should not happen");
         assert_eq!(game_client.get_powerups(), [0; 6]);
     }
 
@@ -793,8 +794,8 @@ mod game_client_tests {
             .ps(player_state)
             .build()
             .expect("this should not happen");
-        let game_client =
-            GameClient::try_from(&mut gclient as *mut gclient_t).expect("this should not happen");
+        let game_client = GameClient::try_from(gclient.borrow_mut() as *mut gclient_t)
+            .expect("this should not happen");
         assert_eq!(game_client.get_powerups(), [1, 2, 3, 4, 5, 6]);
     }
 
@@ -811,8 +812,8 @@ mod game_client_tests {
         let mut gclient = GClientBuilder::default()
             .build()
             .expect("this should not happen");
-        let mut game_client =
-            GameClient::try_from(&mut gclient as *mut gclient_t).expect("this should not happen");
+        let mut game_client = GameClient::try_from(gclient.borrow_mut() as *mut gclient_t)
+            .expect("this should not happen");
         game_client.set_powerups([11, 12, 13, 14, 15, 16]);
         assert_eq!(game_client.get_powerups(), [11, 12, 13, 14, 15, 16]);
     }
@@ -840,8 +841,8 @@ mod game_client_tests {
             .ps(player_state)
             .build()
             .expect("this should not happen");
-        let mut game_client =
-            GameClient::try_from(&mut gclient as *mut gclient_t).expect("this should not happen");
+        let mut game_client = GameClient::try_from(gclient.borrow_mut() as *mut gclient_t)
+            .expect("this should not happen");
         game_client.set_powerups([0, 0, 0, 0, 0, 0]);
         assert_eq!(game_client.get_powerups(), [0, 0, 0, 0, 0, 0]);
     }
@@ -856,8 +857,8 @@ mod game_client_tests {
             .ps(player_state)
             .build()
             .expect("this should not happen");
-        let game_client =
-            GameClient::try_from(&mut gclient as *mut gclient_t).expect("this should not happen");
+        let game_client = GameClient::try_from(gclient.borrow_mut() as *mut gclient_t)
+            .expect("this should not happen");
         assert_eq!(game_client.get_holdable(), MODELINDEX_KAMIKAZE as i32);
     }
 
@@ -866,8 +867,8 @@ mod game_client_tests {
         let mut gclient = GClientBuilder::default()
             .build()
             .expect("this should not happen");
-        let mut game_client =
-            GameClient::try_from(&mut gclient as *mut gclient_t).expect("this should not happen");
+        let mut game_client = GameClient::try_from(gclient.borrow_mut() as *mut gclient_t)
+            .expect("this should not happen");
         game_client.set_holdable(MODELINDEX_KAMIKAZE as i32);
         assert_eq!(game_client.get_holdable(), MODELINDEX_KAMIKAZE as i32);
         assert_eq!(gclient.ps.eFlags, EF_KAMIKAZE as i32);
@@ -883,8 +884,8 @@ mod game_client_tests {
             .ps(player_state)
             .build()
             .expect("this should not happen");
-        let mut game_client =
-            GameClient::try_from(&mut gclient as *mut gclient_t).expect("this should not happen");
+        let mut game_client = GameClient::try_from(gclient.borrow_mut() as *mut gclient_t)
+            .expect("this should not happen");
         game_client.set_holdable(MODELINDEX_TELEPORTER as i32);
         assert_eq!(game_client.get_holdable(), MODELINDEX_TELEPORTER as i32);
         assert_eq!(gclient.ps.eFlags, EF_DEAD as i32);
@@ -895,8 +896,8 @@ mod game_client_tests {
         let mut gclient = GClientBuilder::default()
             .build()
             .expect("this should not happen");
-        let mut game_client =
-            GameClient::try_from(&mut gclient as *mut gclient_t).expect("this should not happen");
+        let mut game_client = GameClient::try_from(gclient.borrow_mut() as *mut gclient_t)
+            .expect("this should not happen");
         game_client.set_flight((1, 2, 3, 4));
         assert_eq!(game_client.get_current_flight_fuel(), 1);
         assert_eq!(game_client.get_max_flight_fuel(), 2);
@@ -917,8 +918,8 @@ mod game_client_tests {
         let mut gclient = GClientBuilder::default()
             .build()
             .expect("this should not happen");
-        let mut game_client =
-            GameClient::try_from(&mut gclient as *mut gclient_t).expect("this should not happen");
+        let mut game_client = GameClient::try_from(gclient.borrow_mut() as *mut gclient_t)
+            .expect("this should not happen");
         game_client.set_invulnerability(10);
         assert_eq!(gclient.invulnerabilityTime, 1244);
     }
@@ -933,8 +934,8 @@ mod game_client_tests {
             .ps(player_state)
             .build()
             .expect("this should not happen");
-        let game_client =
-            GameClient::try_from(&mut gclient as *mut gclient_t).expect("this should not happen");
+        let game_client = GameClient::try_from(gclient.borrow_mut() as *mut gclient_t)
+            .expect("this should not happen");
         assert_eq!(game_client.is_chatting(), true);
     }
 
@@ -948,8 +949,8 @@ mod game_client_tests {
             .ps(player_state)
             .build()
             .expect("this should not happen");
-        let game_client =
-            GameClient::try_from(&mut gclient as *mut gclient_t).expect("this should not happen");
+        let game_client = GameClient::try_from(gclient.borrow_mut() as *mut gclient_t)
+            .expect("this should not happen");
         assert_eq!(game_client.is_chatting(), false);
     }
 
@@ -963,8 +964,8 @@ mod game_client_tests {
             .ps(player_state)
             .build()
             .expect("this should not happen");
-        let game_client =
-            GameClient::try_from(&mut gclient as *mut gclient_t).expect("this should not happen");
+        let game_client = GameClient::try_from(gclient.borrow_mut() as *mut gclient_t)
+            .expect("this should not happen");
         assert_eq!(game_client.is_frozen(), true);
     }
 
@@ -978,8 +979,8 @@ mod game_client_tests {
             .ps(player_state)
             .build()
             .expect("this should not happen");
-        let game_client =
-            GameClient::try_from(&mut gclient as *mut gclient_t).expect("this should not happen");
+        let game_client = GameClient::try_from(gclient.borrow_mut() as *mut gclient_t)
+            .expect("this should not happen");
         assert_eq!(game_client.is_frozen(), false);
     }
 
@@ -998,8 +999,8 @@ mod game_client_tests {
             .sess(client_session)
             .build()
             .expect("this should not happen");
-        let game_client =
-            GameClient::try_from(&mut gclient as *mut gclient_t).expect("this should not happen");
+        let game_client = GameClient::try_from(gclient.borrow_mut() as *mut gclient_t)
+            .expect("this should not happen");
         assert_eq!(game_client.get_score(), 42);
     }
 
@@ -1018,8 +1019,8 @@ mod game_client_tests {
             .sess(client_session)
             .build()
             .expect("this should not happen");
-        let game_client =
-            GameClient::try_from(&mut gclient as *mut gclient_t).expect("this should not happen");
+        let game_client = GameClient::try_from(gclient.borrow_mut() as *mut gclient_t)
+            .expect("this should not happen");
         assert_eq!(game_client.get_score(), 0);
     }
 
@@ -1033,8 +1034,8 @@ mod game_client_tests {
             .sess(client_session)
             .build()
             .expect("this should not happen");
-        let mut game_client =
-            GameClient::try_from(&mut gclient as *mut gclient_t).expect("this should not happen");
+        let mut game_client = GameClient::try_from(gclient.borrow_mut() as *mut gclient_t)
+            .expect("this should not happen");
         game_client.set_score(21);
         assert_eq!(game_client.get_score(), 21);
     }
@@ -1049,8 +1050,8 @@ mod game_client_tests {
             .expandedStats(expanded_stats)
             .build()
             .expect("this should not happen");
-        let game_client =
-            GameClient::try_from(&mut gclient as *mut gclient_t).expect("this should not happen");
+        let game_client = GameClient::try_from(gclient.borrow_mut() as *mut gclient_t)
+            .expect("this should not happen");
         assert_eq!(game_client.get_kills(), 5);
     }
 
@@ -1064,8 +1065,8 @@ mod game_client_tests {
             .expandedStats(expanded_stats)
             .build()
             .expect("this should not happen");
-        let game_client =
-            GameClient::try_from(&mut gclient as *mut gclient_t).expect("this should not happen");
+        let game_client = GameClient::try_from(gclient.borrow_mut() as *mut gclient_t)
+            .expect("this should not happen");
         assert_eq!(game_client.get_deaths(), 69);
     }
 
@@ -1079,8 +1080,8 @@ mod game_client_tests {
             .expandedStats(expanded_stats)
             .build()
             .expect("this should not happen");
-        let game_client =
-            GameClient::try_from(&mut gclient as *mut gclient_t).expect("this should not happen");
+        let game_client = GameClient::try_from(gclient.borrow_mut() as *mut gclient_t)
+            .expect("this should not happen");
         assert_eq!(game_client.get_damage_dealt(), 666);
     }
 
@@ -1094,8 +1095,8 @@ mod game_client_tests {
             .expandedStats(expanded_stats)
             .build()
             .expect("this should not happen");
-        let game_client =
-            GameClient::try_from(&mut gclient as *mut gclient_t).expect("this should not happen");
+        let game_client = GameClient::try_from(gclient.borrow_mut() as *mut gclient_t)
+            .expect("this should not happen");
         assert_eq!(game_client.get_damage_taken(), 1234);
     }
 
@@ -1117,8 +1118,8 @@ mod game_client_tests {
             .pers(client_persistant)
             .build()
             .expect("this should not happen");
-        let game_client =
-            GameClient::try_from(&mut gclient as *mut gclient_t).expect("this should not happen");
+        let game_client = GameClient::try_from(gclient.borrow_mut() as *mut gclient_t)
+            .expect("this should not happen");
         assert_eq!(game_client.get_time_on_team(), 42);
     }
 
@@ -1132,8 +1133,8 @@ mod game_client_tests {
             .ps(player_state)
             .build()
             .expect("this should not happen");
-        let game_client =
-            GameClient::try_from(&mut gclient as *mut gclient_t).expect("this should not happen");
+        let game_client = GameClient::try_from(gclient.borrow_mut() as *mut gclient_t)
+            .expect("this should not happen");
         assert_eq!(game_client.get_ping(), 1);
     }
 
@@ -1147,8 +1148,8 @@ mod game_client_tests {
             .pers(client_persistant)
             .build()
             .expect("this should not happen");
-        let mut game_client =
-            GameClient::try_from(&mut gclient as *mut gclient_t).expect("this should not happen");
+        let mut game_client = GameClient::try_from(gclient.borrow_mut() as *mut gclient_t)
+            .expect("this should not happen");
         game_client.set_vote_pending();
         assert_eq!(gclient.pers.voteState, voteState_t::VOTE_PENDING);
     }
@@ -1163,8 +1164,8 @@ mod game_client_tests {
             .pers(client_persistant)
             .build()
             .expect("this should not happen");
-        let mut game_client =
-            GameClient::try_from(&mut gclient as *mut gclient_t).expect("this should not happen");
+        let mut game_client = GameClient::try_from(gclient.borrow_mut() as *mut gclient_t)
+            .expect("this should not happen");
         game_client.set_vote_state(false);
         assert_eq!(gclient.pers.voteState, voteState_t::VOTE_NO);
     }
@@ -1179,8 +1180,8 @@ mod game_client_tests {
             .pers(client_persistant)
             .build()
             .expect("this should not happen");
-        let mut game_client =
-            GameClient::try_from(&mut gclient as *mut gclient_t).expect("this should not happen");
+        let mut game_client = GameClient::try_from(gclient.borrow_mut() as *mut gclient_t)
+            .expect("this should not happen");
         game_client.set_vote_state(true);
         assert_eq!(gclient.pers.voteState, voteState_t::VOTE_YES);
     }
@@ -1196,8 +1197,8 @@ mod game_client_tests {
             .ps(player_state)
             .build()
             .expect("this should not happen");
-        let mut game_client =
-            GameClient::try_from(&mut gclient as *mut gclient_t).expect("this should not happen");
+        let mut game_client = GameClient::try_from(gclient.borrow_mut() as *mut gclient_t)
+            .expect("this should not happen");
         game_client.spawn();
         assert_eq!(gclient.ps.pm_type, pmtype_t::PM_NORMAL);
     }
