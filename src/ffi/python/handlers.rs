@@ -5057,26 +5057,24 @@ mod handle_new_game_tests {
             [CS_MESSAGE as u16, CS_AUTHOR as u16, CS_AUTHOR2 as u16].contains(index)
         });
         let cvar_string = c"0";
+        let mut raw_zmq_cvar = CVarBuilder::default()
+            .string(cvar_string.as_ptr() as *mut c_char)
+            .build()
+            .expect("this should not happen");
+
         mock_engine
             .expect_find_cvar()
             .with(predicate::eq("zmq_stats_enable"))
-            .returning(move |_| {
-                let mut raw_cvar = CVarBuilder::default()
-                    .string(cvar_string.as_ptr() as *mut c_char)
-                    .build()
-                    .expect("this should not happen");
-                CVar::try_from(&mut raw_cvar as *mut cvar_t).ok()
-            });
+            .returning_st(move |_| CVar::try_from(&mut raw_zmq_cvar as *mut cvar_t).ok());
+
+        let mut raw_pluginspath_cvar = CVarBuilder::default()
+            .string(temp_path.as_ptr() as *mut c_char)
+            .build()
+            .expect("this should not happen");
         mock_engine
             .expect_find_cvar()
             .withf(|name| ["qlx_pluginsPath", "fs_homepath"].contains(&name))
-            .returning(move |_| {
-                let mut raw_cvar = CVarBuilder::default()
-                    .string(temp_path.as_ptr() as *mut c_char)
-                    .build()
-                    .expect("this should not happen");
-                CVar::try_from(&mut raw_cvar as *mut cvar_t).ok()
-            });
+            .returning_st(move |_| CVar::try_from(&mut raw_pluginspath_cvar as *mut cvar_t).ok());
         mock_engine.expect_find_cvar().withf(|name| {
             [
                 "qlx_owner",
@@ -5136,6 +5134,8 @@ mod handle_new_game_tests {
 
             assert!(!IS_FIRST_GAME.load(Ordering::SeqCst));
             assert!(ZMQ_WARNING_ISSUED.load(Ordering::SeqCst));
+
+            MAIN_ENGINE.store(None);
         });
     }
 
