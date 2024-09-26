@@ -8,6 +8,7 @@ use crate::MAIN_ENGINE;
 
 use alloc::{borrow::Cow, vec};
 use core::{
+    borrow::BorrowMut,
     f32::consts::PI,
     ffi::{c_char, c_float, c_int, CStr},
 };
@@ -317,7 +318,11 @@ impl GameEntity {
         let angle = self.gentity_t.s.apos.trBase[1] * (PI * 2.0 / 360.0);
         let mut velocity = [150.0 * angle.cos(), 150.0 * angle.sin(), 250.0];
         let mut entity = main_engine
-            .try_launch_item(&mut gitem, &mut self.gentity_t.s.pos.trBase, &mut velocity)
+            .try_launch_item(
+                gitem.borrow_mut(),
+                self.gentity_t.s.pos.trBase.borrow_mut(),
+                velocity.borrow_mut(),
+            )
             .unwrap();
         entity.set_touch(Some(ShiNQlx_Touch_Item));
         entity.set_parent(self.gentity_t);
@@ -544,6 +549,7 @@ mod game_entity_tests {
     use crate::ffi::c::prelude::*;
     use crate::prelude::*;
 
+    use core::borrow::BorrowMut;
     use core::ffi::c_int;
     use mockall::predicate;
     use pretty_assertions::assert_eq;
@@ -562,7 +568,11 @@ mod game_entity_tests {
             .expect("this should not happen");
 
         MAIN_ENGINE.store(None);
-        ShiNQlx_Touch_Item(&mut entity, &mut other_entity, &mut trace);
+        ShiNQlx_Touch_Item(
+            entity.borrow_mut(),
+            other_entity.borrow_mut(),
+            trace.borrow_mut(),
+        );
     }
 
     #[test]
@@ -583,7 +593,11 @@ mod game_entity_tests {
             .expect_touch_item_orig()
             .returning(|| Err(QuakeLiveEngineError::MainEngineNotInitialized));
         MAIN_ENGINE.store(Some(mock_engine.into()));
-        ShiNQlx_Touch_Item(&mut entity, &mut other_entity, &mut trace);
+        ShiNQlx_Touch_Item(
+            entity.borrow_mut(),
+            other_entity.borrow_mut(),
+            trace.borrow_mut(),
+        );
     }
 
     #[test]
@@ -607,8 +621,8 @@ mod game_entity_tests {
 
         ShiNQlx_Touch_Item(
             ptr::null_mut() as *mut gentity_t,
-            &mut other_entity,
-            &mut trace,
+            other_entity.borrow_mut(),
+            trace.borrow_mut(),
         );
     }
 
@@ -619,7 +633,7 @@ mod game_entity_tests {
             .build()
             .expect("this should not happen");
         let mut entity = GEntityBuilder::default()
-            .parent(&mut other_entity)
+            .parent(other_entity.borrow_mut())
             .build()
             .expect("this should not happen");
         let mut trace = TraceBuilder::default()
@@ -635,7 +649,11 @@ mod game_entity_tests {
             .returning(|| Ok(MockStaticFunc::touch_item));
         MAIN_ENGINE.store(Some(mock_engine.into()));
 
-        ShiNQlx_Touch_Item(&mut entity, &mut other_entity, &mut trace);
+        ShiNQlx_Touch_Item(
+            entity.borrow_mut(),
+            other_entity.borrow_mut(),
+            trace.borrow_mut(),
+        );
     }
 
     #[test]
@@ -660,7 +678,11 @@ mod game_entity_tests {
             .returning(|| Ok(MockStaticFunc::touch_item));
         MAIN_ENGINE.store(Some(mock_engine.into()));
 
-        ShiNQlx_Touch_Item(&mut entity, &mut other_entity, &mut trace);
+        ShiNQlx_Touch_Item(
+            entity.borrow_mut(),
+            other_entity.borrow_mut(),
+            trace.borrow_mut(),
+        );
     }
 
     #[test]
@@ -671,7 +693,7 @@ mod game_entity_tests {
             .expect("this should not happen");
 
         MAIN_ENGINE.store(None);
-        ShiNQlx_Switch_Touch_Item(&mut entity);
+        ShiNQlx_Switch_Touch_Item(entity.borrow_mut());
     }
 
     #[test]
@@ -686,7 +708,7 @@ mod game_entity_tests {
             .expect_touch_item_orig()
             .returning(|| Err(QuakeLiveEngineError::MainEngineNotInitialized));
         MAIN_ENGINE.store(Some(mock_engine.into()));
-        ShiNQlx_Switch_Touch_Item(&mut entity);
+        ShiNQlx_Switch_Touch_Item(entity.borrow_mut());
     }
 
     static MOCK_TOUCH_ITEM_FN: extern "C" fn(*mut gentity_t, *mut gentity_t, *mut trace_t) =
@@ -709,7 +731,7 @@ mod game_entity_tests {
             .returning(|| Err(QuakeLiveEngineError::MainEngineNotInitialized));
 
         MAIN_ENGINE.store(Some(mock_engine.into()));
-        ShiNQlx_Switch_Touch_Item(&mut entity);
+        ShiNQlx_Switch_Touch_Item(entity.borrow_mut());
     }
 
     #[test]
@@ -750,7 +772,7 @@ mod game_entity_tests {
         });
 
         MAIN_ENGINE.store(Some(mock_engine.into()));
-        ShiNQlx_Switch_Touch_Item(&mut entity);
+        ShiNQlx_Switch_Touch_Item(entity.borrow_mut());
 
         assert!(entity
             .touch
@@ -777,7 +799,7 @@ mod game_entity_tests {
             .build()
             .expect("this should not happen");
         assert_eq!(
-            GameEntity::try_from(&mut gentity as *mut gentity_t).is_ok(),
+            GameEntity::try_from(gentity.borrow_mut() as *mut gentity_t).is_ok(),
             true
         );
     }
@@ -843,7 +865,7 @@ mod game_entity_tests {
         let get_entities_list_ctx = MockGameEntity::get_entities_list_context();
         get_entities_list_ctx
             .expect()
-            .returning_st(move || &mut gentities[0] as *mut gentity_t);
+            .returning_st(move || gentities[0].borrow_mut() as *mut gentity_t);
 
         assert!(GameEntity::try_from(2i32).is_ok());
     }
@@ -898,7 +920,7 @@ mod game_entity_tests {
         let get_entities_list_ctx = MockGameEntity::get_entities_list_context();
         get_entities_list_ctx
             .expect()
-            .returning_st(move || &mut gentities[0] as *mut gentity_t);
+            .returning_st(move || gentities[0].borrow_mut() as *mut gentity_t);
 
         assert!(GameEntity::try_from(2u32).is_ok());
     }
@@ -932,8 +954,8 @@ mod game_entity_tests {
         let mut gentity = GEntityBuilder::default()
             .build()
             .expect("this should not happen");
-        let game_entity =
-            GameEntity::try_from(&mut gentity as *mut gentity_t).expect("this should not happen");
+        let game_entity = GameEntity::try_from(gentity.borrow_mut() as *mut gentity_t)
+            .expect("this should not happen");
         assert_eq!(game_entity.get_entity_id(), -1);
     }
 
@@ -962,7 +984,7 @@ mod game_entity_tests {
         let get_entities_list_ctx = MockGameEntity::get_entities_list_context();
         get_entities_list_ctx
             .expect()
-            .returning_st(move || &mut gentities[0] as *mut gentity_t);
+            .returning_st(move || gentities[0].borrow_mut() as *mut gentity_t);
 
         let game_entity = GameEntity::try_from(3).expect("this should not happen");
         assert_eq!(game_entity.get_entity_id(), 3);
@@ -976,8 +998,8 @@ mod game_entity_tests {
         let mut gentity = GEntityBuilder::default()
             .build()
             .expect("this should not happen");
-        let mut game_entity =
-            GameEntity::try_from(&mut gentity as *mut gentity_t).expect("this should not happen");
+        let mut game_entity = GameEntity::try_from(gentity.borrow_mut() as *mut gentity_t)
+            .expect("this should not happen");
 
         game_entity.start_kamikaze();
     }
@@ -992,8 +1014,8 @@ mod game_entity_tests {
         let mut gentity = GEntityBuilder::default()
             .build()
             .expect("this should not happen");
-        let mut game_entity =
-            GameEntity::try_from(&mut gentity as *mut gentity_t).expect("this should not happen");
+        let mut game_entity = GameEntity::try_from(gentity.borrow_mut() as *mut gentity_t)
+            .expect("this should not happen");
 
         game_entity.start_kamikaze();
     }
@@ -1008,8 +1030,8 @@ mod game_entity_tests {
         let mut gentity = GEntityBuilder::default()
             .build()
             .expect("this should not happen");
-        let game_entity =
-            GameEntity::try_from(&mut gentity as *mut gentity_t).expect("this should not happen");
+        let game_entity = GameEntity::try_from(gentity.borrow_mut() as *mut gentity_t)
+            .expect("this should not happen");
         assert_eq!(game_entity.get_player_name(), "");
     }
 
@@ -1028,8 +1050,8 @@ mod game_entity_tests {
         let mut gentity = GEntityBuilder::default()
             .build()
             .expect("this should not happen");
-        let game_entity =
-            GameEntity::try_from(&mut gentity as *mut gentity_t).expect("this should not happen");
+        let game_entity = GameEntity::try_from(gentity.borrow_mut() as *mut gentity_t)
+            .expect("this should not happen");
         assert_eq!(game_entity.get_player_name(), "");
     }
 
@@ -1050,8 +1072,8 @@ mod game_entity_tests {
         let mut gentity = GEntityBuilder::default()
             .build()
             .expect("this should not happen");
-        let game_entity =
-            GameEntity::try_from(&mut gentity as *mut gentity_t).expect("this should not happen");
+        let game_entity = GameEntity::try_from(gentity.borrow_mut() as *mut gentity_t)
+            .expect("this should not happen");
         assert_eq!(game_entity.get_player_name(), "UnknownPlayer");
     }
 
@@ -1065,8 +1087,8 @@ mod game_entity_tests {
         let mut gentity = GEntityBuilder::default()
             .build()
             .expect("this should not happen");
-        let game_entity =
-            GameEntity::try_from(&mut gentity as *mut gentity_t).expect("this should not happen");
+        let game_entity = GameEntity::try_from(gentity.borrow_mut() as *mut gentity_t)
+            .expect("this should not happen");
         assert_eq!(game_entity.get_team(), team_t::TEAM_SPECTATOR);
     }
 
@@ -1085,8 +1107,8 @@ mod game_entity_tests {
         let mut gentity = GEntityBuilder::default()
             .build()
             .expect("this should not happen");
-        let game_entity =
-            GameEntity::try_from(&mut gentity as *mut gentity_t).expect("this should not happen");
+        let game_entity = GameEntity::try_from(gentity.borrow_mut() as *mut gentity_t)
+            .expect("this should not happen");
         assert_eq!(game_entity.get_team(), team_t::TEAM_SPECTATOR);
     }
 
@@ -1107,8 +1129,8 @@ mod game_entity_tests {
         let mut gentity = GEntityBuilder::default()
             .build()
             .expect("this should not happen");
-        let game_entity =
-            GameEntity::try_from(&mut gentity as *mut gentity_t).expect("this should not happen");
+        let game_entity = GameEntity::try_from(gentity.borrow_mut() as *mut gentity_t)
+            .expect("this should not happen");
         assert_eq!(game_entity.get_team(), team_t::TEAM_RED);
     }
 
@@ -1122,8 +1144,8 @@ mod game_entity_tests {
         let mut gentity = GEntityBuilder::default()
             .build()
             .expect("this should not happen");
-        let game_entity =
-            GameEntity::try_from(&mut gentity as *mut gentity_t).expect("this should not happen");
+        let game_entity = GameEntity::try_from(gentity.borrow_mut() as *mut gentity_t)
+            .expect("this should not happen");
         assert_eq!(game_entity.get_privileges(), privileges_t::PRIV_BANNED);
     }
 
@@ -1141,8 +1163,8 @@ mod game_entity_tests {
         let mut gentity = GEntityBuilder::default()
             .build()
             .expect("this should not happen");
-        let game_entity =
-            GameEntity::try_from(&mut gentity as *mut gentity_t).expect("this should not happen");
+        let game_entity = GameEntity::try_from(gentity.borrow_mut() as *mut gentity_t)
+            .expect("this should not happen");
         assert_eq!(game_entity.get_privileges(), privileges_t::PRIV_ROOT);
     }
 
@@ -1156,8 +1178,8 @@ mod game_entity_tests {
         let mut gentity = GEntityBuilder::default()
             .build()
             .expect("this should not happen");
-        let game_entity =
-            GameEntity::try_from(&mut gentity as *mut gentity_t).expect("this should not happen");
+        let game_entity = GameEntity::try_from(gentity.borrow_mut() as *mut gentity_t)
+            .expect("this should not happen");
         assert_eq!(game_entity.get_game_client().is_err(), true);
     }
 
@@ -1171,8 +1193,8 @@ mod game_entity_tests {
         let mut gentity = GEntityBuilder::default()
             .build()
             .expect("this should not happen");
-        let game_entity =
-            GameEntity::try_from(&mut gentity as *mut gentity_t).expect("this should not happen");
+        let game_entity = GameEntity::try_from(gentity.borrow_mut() as *mut gentity_t)
+            .expect("this should not happen");
         assert_eq!(game_entity.get_game_client().is_ok(), true);
     }
 
@@ -1186,8 +1208,8 @@ mod game_entity_tests {
         let mut gentity = GEntityBuilder::default()
             .build()
             .expect("this should not happen");
-        let game_entity =
-            GameEntity::try_from(&mut gentity as *mut gentity_t).expect("this should not happen");
+        let game_entity = GameEntity::try_from(gentity.borrow_mut() as *mut gentity_t)
+            .expect("this should not happen");
         assert_eq!(game_entity.get_activator().is_err(), true);
     }
 
@@ -1201,8 +1223,8 @@ mod game_entity_tests {
         let mut gentity = GEntityBuilder::default()
             .build()
             .expect("this should not happen");
-        let game_entity =
-            GameEntity::try_from(&mut gentity as *mut gentity_t).expect("this should not happen");
+        let game_entity = GameEntity::try_from(gentity.borrow_mut() as *mut gentity_t)
+            .expect("this should not happen");
         assert_eq!(game_entity.get_activator().is_ok(), true);
     }
 
@@ -1212,11 +1234,11 @@ mod game_entity_tests {
             .build()
             .expect("this should not happen");
         let mut gentity = GEntityBuilder::default()
-            .client(&mut gclient as *mut gclient_t)
+            .client(gclient.borrow_mut() as *mut gclient_t)
             .build()
             .expect("this should not happen");
-        let mut game_entity =
-            GameEntity::try_from(&mut gentity as *mut gentity_t).expect("this should not happen");
+        let mut game_entity = GameEntity::try_from(gentity.borrow_mut() as *mut gentity_t)
+            .expect("this should not happen");
         game_entity.set_health(666);
         assert_eq!(game_entity.get_health(), 666);
     }
@@ -1237,8 +1259,8 @@ mod game_entity_tests {
             .health(42)
             .build()
             .expect("this should not happen");
-        let mut game_entity =
-            GameEntity::try_from(&mut gentity as *mut gentity_t).expect("this should not happen");
+        let mut game_entity = GameEntity::try_from(gentity.borrow_mut() as *mut gentity_t)
+            .expect("this should not happen");
 
         MAIN_ENGINE.store(None);
 
@@ -1261,8 +1283,8 @@ mod game_entity_tests {
             .health(42)
             .build()
             .expect("this should not happen");
-        let mut game_entity =
-            GameEntity::try_from(&mut gentity as *mut gentity_t).expect("this should not happen");
+        let mut game_entity = GameEntity::try_from(gentity.borrow_mut() as *mut gentity_t)
+            .expect("this should not happen");
 
         let mut mock_engine = MockQuakeEngine::new();
         mock_engine.expect_register_damage().withf(
@@ -1293,8 +1315,8 @@ mod game_entity_tests {
             .health(123)
             .build()
             .expect("this should not happen");
-        let mut game_entity =
-            GameEntity::try_from(&mut gentity as *mut gentity_t).expect("this should not happen");
+        let mut game_entity = GameEntity::try_from(gentity.borrow_mut() as *mut gentity_t)
+            .expect("this should not happen");
 
         let mut mock_engine = MockQuakeEngine::new();
         mock_engine.expect_register_damage().withf(
@@ -1315,8 +1337,8 @@ mod game_entity_tests {
             .inuse(qboolean::qtrue)
             .build()
             .expect("this should not happen");
-        let game_entity =
-            GameEntity::try_from(&mut gentity as *mut gentity_t).expect("this should not happen");
+        let game_entity = GameEntity::try_from(gentity.borrow_mut() as *mut gentity_t)
+            .expect("this should not happen");
         assert_eq!(game_entity.in_use(), true);
     }
 
@@ -1327,8 +1349,8 @@ mod game_entity_tests {
             .classname(classname.as_ptr())
             .build()
             .expect("this should not happen");
-        let game_entity =
-            GameEntity::try_from(&mut gentity as *mut gentity_t).expect("this should not happen");
+        let game_entity = GameEntity::try_from(gentity.borrow_mut() as *mut gentity_t)
+            .expect("this should not happen");
         assert_eq!(game_entity.get_classname(), "entity classname");
     }
 
@@ -1342,8 +1364,8 @@ mod game_entity_tests {
             .s(entity_state)
             .build()
             .expect("this should not happen");
-        let game_entity =
-            GameEntity::try_from(&mut gentity as *mut gentity_t).expect("this should not happen");
+        let game_entity = GameEntity::try_from(gentity.borrow_mut() as *mut gentity_t)
+            .expect("this should not happen");
         assert_eq!(game_entity.is_game_item(entityType_t::ET_ITEM), true);
         assert_eq!(game_entity.is_game_item(entityType_t::ET_PLAYER), false);
     }
@@ -1358,8 +1380,8 @@ mod game_entity_tests {
             .s(entity_state)
             .build()
             .expect("this should not happen");
-        let game_entity =
-            GameEntity::try_from(&mut gentity as *mut gentity_t).expect("this should not happen");
+        let game_entity = GameEntity::try_from(gentity.borrow_mut() as *mut gentity_t)
+            .expect("this should not happen");
         assert_eq!(game_entity.is_respawning_weapon(), false);
     }
 
@@ -1374,8 +1396,8 @@ mod game_entity_tests {
             .item(ptr::null() as *const gitem_t)
             .build()
             .expect("this should not happen");
-        let game_entity =
-            GameEntity::try_from(&mut gentity as *mut gentity_t).expect("this should not happen");
+        let game_entity = GameEntity::try_from(gentity.borrow_mut() as *mut gentity_t)
+            .expect("this should not happen");
         assert_eq!(game_entity.is_respawning_weapon(), false);
     }
 
@@ -1394,8 +1416,8 @@ mod game_entity_tests {
             .item(&gitem as *const gitem_t)
             .build()
             .expect("this should not happen");
-        let game_entity =
-            GameEntity::try_from(&mut gentity as *mut gentity_t).expect("this should not happen");
+        let game_entity = GameEntity::try_from(gentity.borrow_mut() as *mut gentity_t)
+            .expect("this should not happen");
         assert_eq!(game_entity.is_respawning_weapon(), false);
     }
 
@@ -1414,8 +1436,8 @@ mod game_entity_tests {
             .item(&gitem as *const gitem_t)
             .build()
             .expect("this should not happen");
-        let game_entity =
-            GameEntity::try_from(&mut gentity as *mut gentity_t).expect("this should not happen");
+        let game_entity = GameEntity::try_from(gentity.borrow_mut() as *mut gentity_t)
+            .expect("this should not happen");
         assert_eq!(game_entity.is_respawning_weapon(), true);
     }
 
@@ -1424,8 +1446,8 @@ mod game_entity_tests {
         let mut gentity = GEntityBuilder::default()
             .build()
             .expect("this should not happen");
-        let mut game_entity =
-            GameEntity::try_from(&mut gentity as *mut gentity_t).expect("this should not happen");
+        let mut game_entity = GameEntity::try_from(gentity.borrow_mut() as *mut gentity_t)
+            .expect("this should not happen");
         game_entity.set_respawn_time(42);
         assert_eq!(gentity.wait, 42.0);
     }
@@ -1436,8 +1458,8 @@ mod game_entity_tests {
             .flags(0)
             .build()
             .expect("this should not happen");
-        let game_entity =
-            GameEntity::try_from(&mut gentity as *mut gentity_t).expect("this should not happen");
+        let game_entity = GameEntity::try_from(gentity.borrow_mut() as *mut gentity_t)
+            .expect("this should not happen");
         assert_eq!(game_entity.has_flags(), false);
     }
 
@@ -1447,8 +1469,8 @@ mod game_entity_tests {
             .flags(42)
             .build()
             .expect("this should not happen");
-        let game_entity =
-            GameEntity::try_from(&mut gentity as *mut gentity_t).expect("this should not happen");
+        let game_entity = GameEntity::try_from(gentity.borrow_mut() as *mut gentity_t)
+            .expect("this should not happen");
         assert_eq!(game_entity.has_flags(), true);
     }
 
@@ -1458,8 +1480,8 @@ mod game_entity_tests {
             .flags(FL_FORCE_GESTURE as i32)
             .build()
             .expect("this should not happen");
-        let game_entity =
-            GameEntity::try_from(&mut gentity as *mut gentity_t).expect("this should not happen");
+        let game_entity = GameEntity::try_from(gentity.borrow_mut() as *mut gentity_t)
+            .expect("this should not happen");
         assert_eq!(game_entity.is_dropped_item(), false);
     }
 
@@ -1469,8 +1491,8 @@ mod game_entity_tests {
             .flags(FL_DROPPED_ITEM as i32)
             .build()
             .expect("this should not happen");
-        let game_entity =
-            GameEntity::try_from(&mut gentity as *mut gentity_t).expect("this should not happen");
+        let game_entity = GameEntity::try_from(gentity.borrow_mut() as *mut gentity_t)
+            .expect("this should not happen");
         assert_eq!(game_entity.is_dropped_item(), true);
     }
 
@@ -1484,8 +1506,8 @@ mod game_entity_tests {
             .s(entity_state)
             .build()
             .expect("this should not happen");
-        let game_entity =
-            GameEntity::try_from(&mut gentity as *mut gentity_t).expect("this should not happen");
+        let game_entity = GameEntity::try_from(gentity.borrow_mut() as *mut gentity_t)
+            .expect("this should not happen");
         assert_eq!(game_entity.get_client_number(), 42);
     }
 
@@ -1497,8 +1519,8 @@ mod game_entity_tests {
         let mut gentity = GEntityBuilder::default()
             .build()
             .expect("this should not happen");
-        let mut game_entity =
-            GameEntity::try_from(&mut gentity as *mut gentity_t).expect("this should not happen");
+        let mut game_entity = GameEntity::try_from(gentity.borrow_mut() as *mut gentity_t)
+            .expect("this should not happen");
 
         game_entity.drop_holdable()
     }
@@ -1522,8 +1544,8 @@ mod game_entity_tests {
         let mut gentity = GEntityBuilder::default()
             .build()
             .expect("this should not happen");
-        let mut game_entity =
-            GameEntity::try_from(&mut gentity as *mut gentity_t).expect("this should not happen");
+        let mut game_entity = GameEntity::try_from(gentity.borrow_mut() as *mut gentity_t)
+            .expect("this should not happen");
 
         game_entity.drop_holdable()
     }
@@ -1549,8 +1571,8 @@ mod game_entity_tests {
         let mut gentity = GEntityBuilder::default()
             .build()
             .expect("this should not happen");
-        let mut game_entity =
-            GameEntity::try_from(&mut gentity as *mut gentity_t).expect("this should not happen");
+        let mut game_entity = GameEntity::try_from(gentity.borrow_mut() as *mut gentity_t)
+            .expect("this should not happen");
 
         game_entity.drop_holdable()
     }
@@ -1562,8 +1584,8 @@ mod game_entity_tests {
             .classname(classname.as_ptr())
             .build()
             .expect("this should not happen");
-        let game_entity =
-            GameEntity::try_from(&mut gentity as *mut gentity_t).expect("this should not happen");
+        let game_entity = GameEntity::try_from(gentity.borrow_mut() as *mut gentity_t)
+            .expect("this should not happen");
         assert_eq!(game_entity.is_kamikaze_timer(), false);
     }
 
@@ -1574,8 +1596,8 @@ mod game_entity_tests {
             .classname(classname.as_ptr())
             .build()
             .expect("this should not happen");
-        let game_entity =
-            GameEntity::try_from(&mut gentity as *mut gentity_t).expect("this should not happen");
+        let game_entity = GameEntity::try_from(gentity.borrow_mut() as *mut gentity_t)
+            .expect("this should not happen");
         assert_eq!(game_entity.is_kamikaze_timer(), true);
     }
 
@@ -1585,8 +1607,8 @@ mod game_entity_tests {
         let mut gentity = GEntityBuilder::default()
             .build()
             .expect("this should not happen");
-        let mut game_entity =
-            GameEntity::try_from(&mut gentity as *mut gentity_t).expect("this should not happen");
+        let mut game_entity = GameEntity::try_from(gentity.borrow_mut() as *mut gentity_t)
+            .expect("this should not happen");
 
         MAIN_ENGINE.store(None);
 
@@ -1599,8 +1621,8 @@ mod game_entity_tests {
         let mut gentity = GEntityBuilder::default()
             .build()
             .expect("this should not happen");
-        let mut game_entity =
-            GameEntity::try_from(&mut gentity as *mut gentity_t).expect("this should not happen");
+        let mut game_entity = GameEntity::try_from(gentity.borrow_mut() as *mut gentity_t)
+            .expect("this should not happen");
 
         let mut mock_engine = MockQuakeEngine::new();
         mock_engine.expect_free_entity();
@@ -1616,8 +1638,8 @@ mod game_entity_tests {
         let mut gentity = GEntityBuilder::default()
             .build()
             .expect("this should not happen");
-        let mut game_entity =
-            GameEntity::try_from(&mut gentity as *mut gentity_t).expect("this should not happen");
+        let mut game_entity = GameEntity::try_from(gentity.borrow_mut() as *mut gentity_t)
+            .expect("this should not happen");
 
         game_entity.replace_item(42);
     }
@@ -1637,8 +1659,8 @@ mod game_entity_tests {
             .classname(class_name.as_ptr())
             .build()
             .expect("this should not happen");
-        let mut game_entity =
-            GameEntity::try_from(&mut gentity as *mut gentity_t).expect("this should not happen");
+        let mut game_entity = GameEntity::try_from(gentity.borrow_mut() as *mut gentity_t)
+            .expect("this should not happen");
 
         game_entity.replace_item(0);
     }
@@ -1648,8 +1670,8 @@ mod game_entity_tests {
         let mut gentity = GEntityBuilder::default()
             .build()
             .expect("this should not happen");
-        let game_entity =
-            GameEntity::try_from(&mut gentity as *mut gentity_t).expect("this should not happen");
+        let game_entity = GameEntity::try_from(gentity.borrow_mut() as *mut gentity_t)
+            .expect("this should not happen");
 
         assert_eq!(game_entity.get_targetting_entity_ids(), Vec::<u32>::new());
     }
@@ -1659,8 +1681,8 @@ mod game_entity_tests {
         let mut gentity = GEntityBuilder::default()
             .build()
             .expect("this should not happen");
-        let mut game_entity =
-            GameEntity::try_from(&mut gentity as *mut gentity_t).expect("this should not happen");
+        let mut game_entity = GameEntity::try_from(gentity.borrow_mut() as *mut gentity_t)
+            .expect("this should not happen");
         game_entity.set_next_think(1337);
 
         assert_eq!(gentity.nextthink, 1337);
@@ -1674,8 +1696,8 @@ mod game_entity_tests {
             .think(Some(SWITCH_TOUCH_ITEM_FN))
             .build()
             .expect("this should not happen");
-        let mut game_entity =
-            GameEntity::try_from(&mut gentity as *mut gentity_t).expect("this should not happen");
+        let mut game_entity = GameEntity::try_from(gentity.borrow_mut() as *mut gentity_t)
+            .expect("this should not happen");
         game_entity.set_think(None);
 
         assert_eq!(gentity.think, None);
@@ -1687,8 +1709,8 @@ mod game_entity_tests {
             .think(None)
             .build()
             .expect("this should not happen");
-        let mut game_entity =
-            GameEntity::try_from(&mut gentity as *mut gentity_t).expect("this should not happen");
+        let mut game_entity = GameEntity::try_from(gentity.borrow_mut() as *mut gentity_t)
+            .expect("this should not happen");
         game_entity.set_think(Some(SWITCH_TOUCH_ITEM_FN));
 
         assert!(gentity
@@ -1705,8 +1727,8 @@ mod game_entity_tests {
             .touch(Some(TOUCH_ITEM_FN))
             .build()
             .expect("this should not happen");
-        let mut game_entity =
-            GameEntity::try_from(&mut gentity as *mut gentity_t).expect("this should not happen");
+        let mut game_entity = GameEntity::try_from(gentity.borrow_mut() as *mut gentity_t)
+            .expect("this should not happen");
         game_entity.set_touch(None);
 
         assert_eq!(gentity.touch, None);
@@ -1718,8 +1740,8 @@ mod game_entity_tests {
             .touch(None)
             .build()
             .expect("this should not happen");
-        let mut game_entity =
-            GameEntity::try_from(&mut gentity as *mut gentity_t).expect("this should not happen");
+        let mut game_entity = GameEntity::try_from(gentity.borrow_mut() as *mut gentity_t)
+            .expect("this should not happen");
         game_entity.set_touch(Some(TOUCH_ITEM_FN));
 
         assert!(gentity
@@ -1733,15 +1755,15 @@ mod game_entity_tests {
             .parent(ptr::null_mut() as *mut gentity_t)
             .build()
             .expect("this should not happen");
-        let mut game_entity =
-            GameEntity::try_from(&mut gentity as *mut gentity_t).expect("this should not happen");
+        let mut game_entity = GameEntity::try_from(gentity.borrow_mut() as *mut gentity_t)
+            .expect("this should not happen");
 
         let mut parent_entity = GEntityBuilder::default()
             .build()
             .expect("this should not happen");
-        game_entity.set_parent(&mut parent_entity);
+        game_entity.set_parent(parent_entity.borrow_mut());
 
-        assert_eq!(gentity.parent, &mut parent_entity as *mut gentity_t);
+        assert_eq!(gentity.parent, parent_entity.borrow_mut() as *mut gentity_t);
     }
 
     #[test]
@@ -1749,8 +1771,8 @@ mod game_entity_tests {
         let mut gentity = GEntityBuilder::default()
             .build()
             .expect("this should not happen");
-        let mut game_entity =
-            GameEntity::try_from(&mut gentity as *mut gentity_t).expect("this should not happen");
+        let mut game_entity = GameEntity::try_from(gentity.borrow_mut() as *mut gentity_t)
+            .expect("this should not happen");
         game_entity.set_position_trace_time(1337);
 
         assert_eq!(gentity.s.pos.trTime, 1337);

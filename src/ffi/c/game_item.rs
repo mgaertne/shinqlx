@@ -167,6 +167,8 @@ mod game_item_tests {
     use crate::ffi::c::prelude::*;
     use crate::prelude::*;
 
+    use core::borrow::BorrowMut;
+
     use mockall::predicate;
     use pretty_assertions::assert_eq;
 
@@ -185,7 +187,7 @@ mod game_item_tests {
         let mut gitem = GItemBuilder::default()
             .build()
             .expect("this should not happen");
-        let game_item = GameItem::try_from(&mut gitem as *mut gitem_t);
+        let game_item = GameItem::try_from(gitem.borrow_mut() as *mut gitem_t);
         assert!(game_item.is_ok());
     }
 
@@ -269,7 +271,7 @@ mod game_item_tests {
             .build()
             .expect("this should not happen");
         let game_item =
-            GameItem::try_from(&mut gitem as *mut gitem_t).expect("this should not happen");
+            GameItem::try_from(gitem.borrow_mut() as *mut gitem_t).expect("this should not happen");
         assert_eq!(game_item.get_classname(), "item classname")
     }
 
@@ -281,7 +283,7 @@ mod game_item_tests {
             .build()
             .expect("this should not happen");
         let mut game_item =
-            GameItem::try_from(&mut gitem as *mut gitem_t).expect("this should not happen");
+            GameItem::try_from(gitem.borrow_mut() as *mut gitem_t).expect("this should not happen");
         mock_engine
             .expect_try_launch_item()
             .withf(|_item, origin, velocity| {
