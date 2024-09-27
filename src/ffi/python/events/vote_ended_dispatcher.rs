@@ -672,16 +672,14 @@ def returns_none_hook(*args, **kwargs):
     fn dispatch_with_unmatched_configstring(_pyshinqlx_setup: ()) {
         let mut mock_engine = MockQuakeEngine::new();
         let cvar_string = c"1";
+        let mut raw_cvar = CVarBuilder::default()
+            .string(cvar_string.as_ptr() as *mut c_char)
+            .build()
+            .expect("this should not happen");
         mock_engine
             .expect_find_cvar()
             .with(predicate::eq("zmq_stats_enable"))
-            .returning(move |_| {
-                let mut raw_cvar = CVarBuilder::default()
-                    .string(cvar_string.as_ptr() as *mut c_char)
-                    .build()
-                    .expect("this should not happen");
-                CVar::try_from(&mut raw_cvar as *mut cvar_t).ok()
-            });
+            .returning_st(move |_| CVar::try_from(raw_cvar.borrow_mut() as *mut cvar_t).ok());
         mock_engine
             .expect_get_configstring()
             .with(predicate::eq(CS_VOTE_STRING as u16))
@@ -728,5 +726,7 @@ def returns_none_hook(*args, **kwargs):
             let result = dispatcher.call_method1(py, intern!(py, "dispatch"), (true,));
             assert!(result.is_ok_and(|value| value.bind(py).is_none()));
         });
+
+        MAIN_ENGINE.store(None);
     }
 }
