@@ -238,12 +238,11 @@ impl EventDispatcher {
     }
 
     fn __clear__(&mut self) {
-        let events = &mut (*self.plugins.write());
-        for (_, plugins) in events {
-            for prio_plugins in plugins {
+        self.plugins.write().iter_mut().for_each(|(_, plugins)| {
+            plugins.iter_mut().for_each(|prio_plugins| {
                 prio_plugins.clear();
-            }
-        }
+            })
+        });
     }
 
     #[getter(plugins)]
