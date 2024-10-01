@@ -293,7 +293,6 @@ mod command_tests {
     };
 
     use core::borrow::BorrowMut;
-    use core::ffi::c_char;
 
     use mockall::predicate;
     use rstest::*;
@@ -718,7 +717,7 @@ class mocked_db:
         let mut mock_engine = MockQuakeEngine::new();
         let cvar_string = c"!";
         let mut raw_cvar = CVarBuilder::default()
-            .string(cvar_string.as_ptr() as *mut c_char)
+            .string(cvar_string.as_ptr().cast_mut())
             .build()
             .expect("this should not happen");
 
@@ -880,7 +879,7 @@ class mocked_db:
         let mut mock_engine = MockQuakeEngine::new();
         let owner = c"1234567890";
         let mut raw_cvar = CVarBuilder::default()
-            .string(owner.as_ptr() as *mut c_char)
+            .string(owner.as_ptr().cast_mut())
             .build()
             .expect("this should not happen");
 
@@ -927,7 +926,7 @@ class mocked_db:
         let mut mock_engine = MockQuakeEngine::new();
         let owner = c"1234567890";
         let mut raw_cvar = CVarBuilder::default()
-            .string(owner.as_ptr() as *mut c_char)
+            .string(owner.as_ptr().cast_mut())
             .build()
             .expect("this should not happen");
 
@@ -974,13 +973,13 @@ class mocked_db:
         let mut mock_engine = MockQuakeEngine::new();
         let cmd_perm = c"0";
         let mut raw_permission_cvar = CVarBuilder::default()
-            .string(cmd_perm.as_ptr() as *mut c_char)
+            .string(cmd_perm.as_ptr().cast_mut())
             .build()
             .expect("this should not happen");
 
         let owner = c"9876543210";
         let mut raw_owner_cvar = CVarBuilder::default()
-            .string(owner.as_ptr() as *mut c_char)
+            .string(owner.as_ptr().cast_mut())
             .build()
             .expect("this should not happen");
 
@@ -1029,7 +1028,7 @@ class mocked_db:
         let mut mock_engine = MockQuakeEngine::new();
         let owner = c"9876543210";
         let mut raw_cvar = CVarBuilder::default()
-            .string(owner.as_ptr() as *mut c_char)
+            .string(owner.as_ptr().cast_mut())
             .build()
             .expect("this should not happen");
 
@@ -1077,11 +1076,11 @@ class mocked_db:
         let cmd_perm = c"0";
         let owner = c"9876543210";
         let mut raw_permission_cvar = CVarBuilder::default()
-            .string(cmd_perm.as_ptr() as *mut c_char)
+            .string(cmd_perm.as_ptr().cast_mut())
             .build()
             .expect("this should not happen");
         let mut raw_owner_cvar = CVarBuilder::default()
-            .string(owner.as_ptr() as *mut c_char)
+            .string(owner.as_ptr().cast_mut())
             .build()
             .expect("this should not happen");
 
@@ -1130,7 +1129,7 @@ class mocked_db:
         let mut mock_engine = MockQuakeEngine::new();
         let owner = c"9876543210";
         let mut raw_cvar = CVarBuilder::default()
-            .string(owner.as_ptr() as *mut c_char)
+            .string(owner.as_ptr().cast_mut())
             .build()
             .expect("this should not happen");
 
@@ -1177,7 +1176,7 @@ class mocked_db:
         let mut mock_engine = MockQuakeEngine::new();
         let owner = c"9876543210";
         let mut raw_cvar = CVarBuilder::default()
-            .string(owner.as_ptr() as *mut c_char)
+            .string(owner.as_ptr().cast_mut())
             .build()
             .expect("this should not happen");
         mock_engine
@@ -1227,7 +1226,7 @@ class mocked_db:
         let mut mock_engine = MockQuakeEngine::new();
         let owner = c"9876543210";
         let mut raw_cvar = CVarBuilder::default()
-            .string(owner.as_ptr() as *mut c_char)
+            .string(owner.as_ptr().cast_mut())
             .build()
             .expect("this should not happen");
 
@@ -1280,7 +1279,7 @@ class mocked_db:
         let mut mock_engine = MockQuakeEngine::new();
         let owner = c"9876543210";
         let mut raw_cvar = CVarBuilder::default()
-            .string(owner.as_ptr() as *mut c_char)
+            .string(owner.as_ptr().cast_mut())
             .build()
             .expect("this should not happen");
         mock_engine
@@ -1329,7 +1328,7 @@ class mocked_db:
         let mut mock_engine = MockQuakeEngine::new();
         let owner = c"9876543210";
         let mut raw_cvar = CVarBuilder::default()
-            .string(owner.as_ptr() as *mut c_char)
+            .string(owner.as_ptr().cast_mut())
             .build()
             .expect("this should not happen");
 
@@ -1379,7 +1378,7 @@ class mocked_db:
         let mut mock_engine = MockQuakeEngine::new();
         let owner = c"9876543210";
         let mut raw_cvar = CVarBuilder::default()
-            .string(owner.as_ptr() as *mut c_char)
+            .string(owner.as_ptr().cast_mut())
             .build()
             .expect("this should not happen");
         mock_engine
@@ -1428,7 +1427,7 @@ class mocked_db:
         let mut mock_engine = MockQuakeEngine::new();
         let owner = c"9876543210";
         let mut raw_cvar = CVarBuilder::default()
-            .string(owner.as_ptr() as *mut c_char)
+            .string(owner.as_ptr().cast_mut())
             .build()
             .expect("this should not happen");
         mock_engine
@@ -1834,7 +1833,6 @@ mod command_invoker_tests {
     use crate::hooks::mock_hooks::shinqlx_send_server_command_context;
 
     use core::borrow::BorrowMut;
-    use core::ffi::c_char;
 
     use mockall::predicate;
     use rstest::*;
@@ -2127,7 +2125,7 @@ mod command_invoker_tests {
         let mut mock_engine = MockQuakeEngine::new();
         let owner = c"9876543210";
         let mut raw_owner_cvar = CVarBuilder::default()
-            .string(owner.as_ptr() as *mut c_char)
+            .string(owner.as_ptr().cast_mut())
             .build()
             .expect("this should not happen");
         mock_engine
@@ -2136,7 +2134,7 @@ mod command_invoker_tests {
             .returning_st(move |_| CVar::try_from(raw_owner_cvar.borrow_mut() as *mut cvar_t).ok());
         let prefix = c"!";
         let mut raw_cmdprefix_cvar = CVarBuilder::default()
-            .string(prefix.as_ptr() as *mut c_char)
+            .string(prefix.as_ptr().cast_mut())
             .build()
             .expect("this should not happen");
         mock_engine
@@ -2197,7 +2195,7 @@ mod command_invoker_tests {
         let mut mock_engine = MockQuakeEngine::new();
         let owner = c"9876543210";
         let mut raw_cvar = CVarBuilder::default()
-            .string(owner.as_ptr() as *mut c_char)
+            .string(owner.as_ptr().cast_mut())
             .build()
             .expect("this should not happen");
         mock_engine
@@ -2271,7 +2269,7 @@ mod command_invoker_tests {
         let mut mock_engine = MockQuakeEngine::new();
         let owner = c"9876543210";
         let mut raw_cvar = CVarBuilder::default()
-            .string(owner.as_ptr() as *mut c_char)
+            .string(owner.as_ptr().cast_mut())
             .build()
             .expect("this should not happen");
         mock_engine
@@ -2350,7 +2348,7 @@ mod command_invoker_tests {
         let mut mock_engine = MockQuakeEngine::new();
         let owner = c"9876543210";
         let mut raw_cvar = CVarBuilder::default()
-            .string(owner.as_ptr() as *mut c_char)
+            .string(owner.as_ptr().cast_mut())
             .build()
             .expect("this should not happen");
         mock_engine
@@ -2423,7 +2421,7 @@ def cmd_handler(*args, **kwargs):
         let mut mock_engine = MockQuakeEngine::new();
         let owner = c"9876543210";
         let mut raw_cvar = CVarBuilder::default()
-            .string(owner.as_ptr() as *mut c_char)
+            .string(owner.as_ptr().cast_mut())
             .build()
             .expect("this should not happen");
         mock_engine
@@ -2500,7 +2498,7 @@ def cmd_handler(*args, **kwargs):
         let mut mock_engine = MockQuakeEngine::new();
         let owner = c"9876543210";
         let mut raw_cvar = CVarBuilder::default()
-            .string(owner.as_ptr() as *mut c_char)
+            .string(owner.as_ptr().cast_mut())
             .build()
             .expect("this should not happen");
         mock_engine
@@ -2584,7 +2582,7 @@ def cmd_handler(*args, **kwargs):
         let mut mock_engine = MockQuakeEngine::new();
         let owner = c"9876543210";
         let mut raw_cvar = CVarBuilder::default()
-            .string(owner.as_ptr() as *mut c_char)
+            .string(owner.as_ptr().cast_mut())
             .build()
             .expect("this should not happen");
         mock_engine
