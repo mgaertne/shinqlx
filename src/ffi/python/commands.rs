@@ -292,6 +292,7 @@ mod command_tests {
         MAIN_ENGINE,
     };
 
+    use core::borrow::BorrowMut;
     use core::ffi::c_char;
 
     use mockall::predicate;
@@ -724,8 +725,9 @@ class mocked_db:
         mock_engine
             .expect_find_cvar()
             .with(predicate::eq("qlx_commandPrefix"))
-            .returning_st(move |_| CVar::try_from(&mut raw_cvar as *mut cvar_t).ok());
+            .returning_st(move |_| CVar::try_from(raw_cvar.borrow_mut() as *mut cvar_t).ok());
         MAIN_ENGINE.store(Some(mock_engine.into()));
+
         Python::with_gil(|py| {
             let capturing_hook = capturing_hook(py);
             let command = Command {
@@ -747,9 +749,9 @@ class mocked_db:
             assert!(!command.is_eligible_name(py, "cmd_name"));
             assert!(!command.is_eligible_name(py, "!unmatched_cmd_name"));
             assert!(command.is_eligible_name(py, "!cmd_name"));
-
-            MAIN_ENGINE.store(None);
         });
+
+        MAIN_ENGINE.store(None);
     }
 
     #[rstest]
@@ -885,11 +887,11 @@ class mocked_db:
         mock_engine
             .expect_find_cvar()
             .with(predicate::eq("qlx_owner"))
-            .returning_st(move |_| CVar::try_from(&mut raw_cvar as *mut cvar_t).ok());
+            .returning_st(move |_| CVar::try_from(raw_cvar.borrow_mut() as *mut cvar_t).ok());
         mock_engine
             .expect_find_cvar()
             .with(predicate::ne("qlx_owner"))
-            .returning(|_| None);
+            .returning_st(|_| None);
         MAIN_ENGINE.store(Some(mock_engine.into()));
 
         Python::with_gil(|py| {
@@ -913,9 +915,9 @@ class mocked_db:
             let player = default_test_player();
 
             assert!(command.is_eligible_player(py, player, false));
-
-            MAIN_ENGINE.store(None);
         });
+
+        MAIN_ENGINE.store(None);
     }
 
     #[rstest]
@@ -932,11 +934,11 @@ class mocked_db:
         mock_engine
             .expect_find_cvar()
             .with(predicate::eq("qlx_owner"))
-            .returning_st(move |_| CVar::try_from(&mut raw_cvar as *mut cvar_t).ok());
+            .returning_st(move |_| CVar::try_from(raw_cvar.borrow_mut() as *mut cvar_t).ok());
         mock_engine
             .expect_find_cvar()
             .with(predicate::ne("qlx_owner"))
-            .returning(|_| None);
+            .returning_st(|_| None);
         MAIN_ENGINE.store(Some(mock_engine.into()));
 
         Python::with_gil(|py| {
@@ -960,9 +962,9 @@ class mocked_db:
             let player = default_test_player();
 
             assert!(command.is_eligible_player(py, player, true));
-
-            MAIN_ENGINE.store(None);
         });
+
+        MAIN_ENGINE.store(None);
     }
 
     #[rstest]
@@ -985,11 +987,13 @@ class mocked_db:
         mock_engine
             .expect_find_cvar()
             .with(predicate::eq("qlx_perm_cmd_name"))
-            .returning_st(move |_| CVar::try_from(&mut raw_permission_cvar as *mut cvar_t).ok());
+            .returning_st(move |_| {
+                CVar::try_from(raw_permission_cvar.borrow_mut() as *mut cvar_t).ok()
+            });
         mock_engine
             .expect_find_cvar()
             .with(predicate::eq("qlx_owner"))
-            .returning_st(move |_| CVar::try_from(&mut raw_owner_cvar as *mut cvar_t).ok());
+            .returning_st(move |_| CVar::try_from(raw_owner_cvar.borrow_mut() as *mut cvar_t).ok());
         MAIN_ENGINE.store(Some(mock_engine.into()));
 
         Python::with_gil(|py| {
@@ -1013,9 +1017,9 @@ class mocked_db:
             let player = default_test_player();
 
             assert!(command.is_eligible_player(py, player, false));
-
-            MAIN_ENGINE.store(None);
         });
+
+        MAIN_ENGINE.store(None);
     }
 
     #[rstest]
@@ -1024,20 +1028,19 @@ class mocked_db:
     fn is_eligilble_player_for_regular_cmd_with_no_configured_cvar(_pyshinqlx_setup: ()) {
         let mut mock_engine = MockQuakeEngine::new();
         let owner = c"9876543210";
+        let mut raw_cvar = CVarBuilder::default()
+            .string(owner.as_ptr() as *mut c_char)
+            .build()
+            .expect("this should not happen");
+
         mock_engine
             .expect_find_cvar()
             .with(predicate::eq("qlx_owner"))
-            .returning(move |_| {
-                let mut raw_cvar = CVarBuilder::default()
-                    .string(owner.as_ptr() as *mut c_char)
-                    .build()
-                    .expect("this should not happen");
-                CVar::try_from(&mut raw_cvar as *mut cvar_t).ok()
-            });
+            .returning_st(move |_| CVar::try_from(raw_cvar.borrow_mut() as *mut cvar_t).ok());
         mock_engine
             .expect_find_cvar()
             .with(predicate::ne("qlx_owner"))
-            .returning(|_| None);
+            .returning_st(|_| None);
         MAIN_ENGINE.store(Some(mock_engine.into()));
 
         Python::with_gil(|py| {
@@ -1062,6 +1065,8 @@ class mocked_db:
 
             assert!(command.is_eligible_player(py, player, false));
         });
+
+        MAIN_ENGINE.store(None);
     }
 
     #[rstest]
@@ -1083,11 +1088,13 @@ class mocked_db:
         mock_engine
             .expect_find_cvar()
             .with(predicate::eq("qlx_ccmd_perm_cmd_name"))
-            .returning_st(move |_| CVar::try_from(&mut raw_permission_cvar as *mut cvar_t).ok());
+            .returning_st(move |_| {
+                CVar::try_from(raw_permission_cvar.borrow_mut() as *mut cvar_t).ok()
+            });
         mock_engine
             .expect_find_cvar()
             .with(predicate::eq("qlx_owner"))
-            .returning_st(move |_| CVar::try_from(&mut raw_owner_cvar as *mut cvar_t).ok());
+            .returning_st(move |_| CVar::try_from(raw_owner_cvar.borrow_mut() as *mut cvar_t).ok());
         MAIN_ENGINE.store(Some(mock_engine.into()));
 
         Python::with_gil(|py| {
@@ -1111,9 +1118,9 @@ class mocked_db:
             let player = default_test_player();
 
             assert!(command.is_eligible_player(py, player, true));
-
-            MAIN_ENGINE.store(None);
         });
+
+        MAIN_ENGINE.store(None);
     }
 
     #[rstest]
@@ -1122,20 +1129,19 @@ class mocked_db:
     fn is_eligilble_player_for_client_cmd_with_no_configured_cvar(_pyshinqlx_setup: ()) {
         let mut mock_engine = MockQuakeEngine::new();
         let owner = c"9876543210";
+        let mut raw_cvar = CVarBuilder::default()
+            .string(owner.as_ptr() as *mut c_char)
+            .build()
+            .expect("this should not happen");
+
         mock_engine
             .expect_find_cvar()
             .with(predicate::eq("qlx_owner"))
-            .returning(move |_| {
-                let mut raw_cvar = CVarBuilder::default()
-                    .string(owner.as_ptr() as *mut c_char)
-                    .build()
-                    .expect("this should not happen");
-                CVar::try_from(&mut raw_cvar as *mut cvar_t).ok()
-            });
+            .returning_st(move |_| CVar::try_from(raw_cvar.borrow_mut() as *mut cvar_t).ok());
         mock_engine
             .expect_find_cvar()
             .with(predicate::ne("qlx_owner"))
-            .returning(|_| None);
+            .returning_st(|_| None);
         MAIN_ENGINE.store(Some(mock_engine.into()));
 
         Python::with_gil(|py| {
@@ -1160,6 +1166,8 @@ class mocked_db:
 
             assert!(command.is_eligible_player(py, player, true));
         });
+
+        MAIN_ENGINE.store(None);
     }
 
     #[rstest]
@@ -1168,20 +1176,18 @@ class mocked_db:
     fn is_eligilble_player_for_regular_cmd_when_plugin_has_no_db(_pyshinqlx_setup: ()) {
         let mut mock_engine = MockQuakeEngine::new();
         let owner = c"9876543210";
+        let mut raw_cvar = CVarBuilder::default()
+            .string(owner.as_ptr() as *mut c_char)
+            .build()
+            .expect("this should not happen");
         mock_engine
             .expect_find_cvar()
             .with(predicate::eq("qlx_owner"))
-            .returning(move |_| {
-                let mut raw_cvar = CVarBuilder::default()
-                    .string(owner.as_ptr() as *mut c_char)
-                    .build()
-                    .expect("this should not happen");
-                CVar::try_from(&mut raw_cvar as *mut cvar_t).ok()
-            });
+            .returning_st(move |_| CVar::try_from(raw_cvar.borrow_mut() as *mut cvar_t).ok());
         mock_engine
             .expect_find_cvar()
             .with(predicate::ne("qlx_owner"))
-            .returning(|_| None);
+            .returning_st(|_| None);
         MAIN_ENGINE.store(Some(mock_engine.into()));
 
         Python::with_gil(|py| {
@@ -1210,6 +1216,8 @@ class mocked_db:
 
             assert!(!command.is_eligible_player(py, player, false));
         });
+
+        MAIN_ENGINE.store(None);
     }
 
     #[rstest]
@@ -1218,20 +1226,19 @@ class mocked_db:
     fn is_eligilble_player_for_client_cmd_when_plugin_has_no_db(_pyshinqlx_setup: ()) {
         let mut mock_engine = MockQuakeEngine::new();
         let owner = c"9876543210";
+        let mut raw_cvar = CVarBuilder::default()
+            .string(owner.as_ptr() as *mut c_char)
+            .build()
+            .expect("this should not happen");
+
         mock_engine
             .expect_find_cvar()
             .with(predicate::eq("qlx_owner"))
-            .returning(move |_| {
-                let mut raw_cvar = CVarBuilder::default()
-                    .string(owner.as_ptr() as *mut c_char)
-                    .build()
-                    .expect("this should not happen");
-                CVar::try_from(&mut raw_cvar as *mut cvar_t).ok()
-            });
+            .returning_st(move |_| CVar::try_from(raw_cvar.borrow_mut() as *mut cvar_t).ok());
         mock_engine
             .expect_find_cvar()
             .with(predicate::ne("qlx_owner"))
-            .returning(|_| None);
+            .returning_st(|_| None);
         MAIN_ENGINE.store(Some(mock_engine.into()));
 
         Python::with_gil(|py| {
@@ -1260,6 +1267,8 @@ class mocked_db:
 
             assert!(!command.is_eligible_player(py, player, true));
         });
+
+        MAIN_ENGINE.store(None);
     }
 
     #[rstest]
@@ -1270,16 +1279,14 @@ class mocked_db:
     ) {
         let mut mock_engine = MockQuakeEngine::new();
         let owner = c"9876543210";
+        let mut raw_cvar = CVarBuilder::default()
+            .string(owner.as_ptr() as *mut c_char)
+            .build()
+            .expect("this should not happen");
         mock_engine
             .expect_find_cvar()
             .with(predicate::eq("qlx_owner"))
-            .returning(move |_| {
-                let mut raw_cvar = CVarBuilder::default()
-                    .string(owner.as_ptr() as *mut c_char)
-                    .build()
-                    .expect("this should not happen");
-                CVar::try_from(&mut raw_cvar as *mut cvar_t).ok()
-            });
+            .returning_st(move |_| CVar::try_from(raw_cvar.borrow_mut() as *mut cvar_t).ok());
         mock_engine
             .expect_find_cvar()
             .with(predicate::ne("qlx_owner"))
@@ -1309,6 +1316,8 @@ class mocked_db:
 
             assert!(command.is_eligible_player(py, player, false));
         });
+
+        MAIN_ENGINE.store(None);
     }
 
     #[rstest]
@@ -1319,20 +1328,19 @@ class mocked_db:
     ) {
         let mut mock_engine = MockQuakeEngine::new();
         let owner = c"9876543210";
+        let mut raw_cvar = CVarBuilder::default()
+            .string(owner.as_ptr() as *mut c_char)
+            .build()
+            .expect("this should not happen");
+
         mock_engine
             .expect_find_cvar()
             .with(predicate::eq("qlx_owner"))
-            .returning(move |_| {
-                let mut raw_cvar = CVarBuilder::default()
-                    .string(owner.as_ptr() as *mut c_char)
-                    .build()
-                    .expect("this should not happen");
-                CVar::try_from(&mut raw_cvar as *mut cvar_t).ok()
-            });
+            .returning_st(move |_| CVar::try_from(raw_cvar.borrow_mut() as *mut cvar_t).ok());
         mock_engine
             .expect_find_cvar()
             .with(predicate::ne("qlx_owner"))
-            .returning(|_| None);
+            .returning_st(|_| None);
         MAIN_ENGINE.store(Some(mock_engine.into()));
 
         Python::with_gil(|py| {
@@ -1358,6 +1366,8 @@ class mocked_db:
 
             assert!(!command.is_eligible_player(py, player, false));
         });
+
+        MAIN_ENGINE.store(None);
     }
 
     #[rstest]
@@ -1368,20 +1378,18 @@ class mocked_db:
     ) {
         let mut mock_engine = MockQuakeEngine::new();
         let owner = c"9876543210";
+        let mut raw_cvar = CVarBuilder::default()
+            .string(owner.as_ptr() as *mut c_char)
+            .build()
+            .expect("this should not happen");
         mock_engine
             .expect_find_cvar()
             .with(predicate::eq("qlx_owner"))
-            .returning(move |_| {
-                let mut raw_cvar = CVarBuilder::default()
-                    .string(owner.as_ptr() as *mut c_char)
-                    .build()
-                    .expect("this should not happen");
-                CVar::try_from(&mut raw_cvar as *mut cvar_t).ok()
-            });
+            .returning_st(move |_| CVar::try_from(raw_cvar.borrow_mut() as *mut cvar_t).ok());
         mock_engine
             .expect_find_cvar()
             .with(predicate::ne("qlx_owner"))
-            .returning(|_| None);
+            .returning_st(|_| None);
         MAIN_ENGINE.store(Some(mock_engine.into()));
 
         Python::with_gil(|py| {
@@ -1407,6 +1415,8 @@ class mocked_db:
 
             assert!(command.is_eligible_player(py, player, true));
         });
+
+        MAIN_ENGINE.store(None);
     }
 
     #[rstest]
@@ -1417,20 +1427,18 @@ class mocked_db:
     ) {
         let mut mock_engine = MockQuakeEngine::new();
         let owner = c"9876543210";
+        let mut raw_cvar = CVarBuilder::default()
+            .string(owner.as_ptr() as *mut c_char)
+            .build()
+            .expect("this should not happen");
         mock_engine
             .expect_find_cvar()
             .with(predicate::eq("qlx_owner"))
-            .returning(move |_| {
-                let mut raw_cvar = CVarBuilder::default()
-                    .string(owner.as_ptr() as *mut c_char)
-                    .build()
-                    .expect("this should not happen");
-                CVar::try_from(&mut raw_cvar as *mut cvar_t).ok()
-            });
+            .returning_st(move |_| CVar::try_from(raw_cvar.borrow_mut() as *mut cvar_t).ok());
         mock_engine
             .expect_find_cvar()
             .with(predicate::ne("qlx_owner"))
-            .returning(|_| None);
+            .returning_st(|_| None);
         MAIN_ENGINE.store(Some(mock_engine.into()));
 
         Python::with_gil(|py| {
@@ -1456,6 +1464,8 @@ class mocked_db:
 
             assert!(!command.is_eligible_player(py, player, true));
         });
+
+        MAIN_ENGINE.store(None);
     }
 }
 
@@ -1823,6 +1833,7 @@ mod command_invoker_tests {
     use crate::ffi::c::prelude::{cvar_t, CVar, CVarBuilder};
     use crate::hooks::mock_hooks::shinqlx_send_server_command_context;
 
+    use core::borrow::BorrowMut;
     use core::ffi::c_char;
 
     use mockall::predicate;
@@ -2115,26 +2126,24 @@ mod command_invoker_tests {
     fn handle_input_with_non_eligible_player(_pyshinqlx_setup: ()) {
         let mut mock_engine = MockQuakeEngine::new();
         let owner = c"9876543210";
-        let prefix = c"!";
+        let mut raw_owner_cvar = CVarBuilder::default()
+            .string(owner.as_ptr() as *mut c_char)
+            .build()
+            .expect("this should not happen");
         mock_engine
             .expect_find_cvar()
             .with(predicate::eq("qlx_owner"))
-            .returning(move |_| {
-                let mut raw_cvar = CVarBuilder::default()
-                    .string(owner.as_ptr() as *mut c_char)
-                    .build()
-                    .expect("this should not happen");
-                CVar::try_from(&mut raw_cvar as *mut cvar_t).ok()
-            });
+            .returning_st(move |_| CVar::try_from(raw_owner_cvar.borrow_mut() as *mut cvar_t).ok());
+        let prefix = c"!";
+        let mut raw_cmdprefix_cvar = CVarBuilder::default()
+            .string(prefix.as_ptr() as *mut c_char)
+            .build()
+            .expect("this should not happen");
         mock_engine
             .expect_find_cvar()
             .with(predicate::eq("qlx_commandPrefix"))
-            .returning(move |_| {
-                let mut raw_cvar = CVarBuilder::default()
-                    .string(prefix.as_ptr() as *mut c_char)
-                    .build()
-                    .expect("this should not happen");
-                CVar::try_from(&mut raw_cvar as *mut cvar_t).ok()
+            .returning_st(move |_| {
+                CVar::try_from(raw_cmdprefix_cvar.borrow_mut() as *mut cvar_t).ok()
             });
         mock_engine
             .expect_find_cvar()
@@ -2172,6 +2181,8 @@ mod command_invoker_tests {
                 command_invoker.handle_input(py, &player, "cmd_name", chat_channel.into_any());
             assert!(result.is_ok_and(|pass_through| pass_through));
         });
+
+        MAIN_ENGINE.store(None);
     }
 
     #[rstest]
@@ -2185,20 +2196,18 @@ mod command_invoker_tests {
     ) {
         let mut mock_engine = MockQuakeEngine::new();
         let owner = c"9876543210";
+        let mut raw_cvar = CVarBuilder::default()
+            .string(owner.as_ptr() as *mut c_char)
+            .build()
+            .expect("this should not happen");
         mock_engine
             .expect_find_cvar()
             .with(predicate::eq("qlx_owner"))
-            .returning(move |_| {
-                let mut raw_cvar = CVarBuilder::default()
-                    .string(owner.as_ptr() as *mut c_char)
-                    .build()
-                    .expect("this should not happen");
-                CVar::try_from(&mut raw_cvar as *mut cvar_t).ok()
-            });
+            .returning_st(move |_| CVar::try_from(raw_cvar.borrow_mut() as *mut cvar_t).ok());
         mock_engine
             .expect_find_cvar()
             .with(predicate::ne("qlx_owner"))
-            .returning(|_| None);
+            .returning_st(|_| None);
         MAIN_ENGINE.store(Some(mock_engine.into()));
 
         Python::with_gil(|py| {
@@ -2251,6 +2260,8 @@ mod command_invoker_tests {
                 .call_method1("assert_called_with", ("_", ["cmd_name"], "_"))
                 .is_ok());
         });
+
+        MAIN_ENGINE.store(None);
     }
 
     #[rstest]
@@ -2259,20 +2270,18 @@ mod command_invoker_tests {
     fn handle_input_when_event_dispatcher_returns_false(_pyshinqlx_setup: ()) {
         let mut mock_engine = MockQuakeEngine::new();
         let owner = c"9876543210";
+        let mut raw_cvar = CVarBuilder::default()
+            .string(owner.as_ptr() as *mut c_char)
+            .build()
+            .expect("this should not happen");
         mock_engine
             .expect_find_cvar()
             .with(predicate::eq("qlx_owner"))
-            .returning(move |_| {
-                let mut raw_cvar = CVarBuilder::default()
-                    .string(owner.as_ptr() as *mut c_char)
-                    .build()
-                    .expect("this should not happen");
-                CVar::try_from(&mut raw_cvar as *mut cvar_t).ok()
-            });
+            .returning_st(move |_| CVar::try_from(raw_cvar.borrow_mut() as *mut cvar_t).ok());
         mock_engine
             .expect_find_cvar()
             .with(predicate::ne("qlx_owner"))
-            .returning(|_| None);
+            .returning_st(|_| None);
         MAIN_ENGINE.store(Some(mock_engine.into()));
 
         Python::with_gil(|py| {
@@ -2323,6 +2332,8 @@ mod command_invoker_tests {
             );
             assert!(result.is_ok_and(|pass_through| pass_through));
         });
+
+        MAIN_ENGINE.store(None);
     }
 
     #[rstest]
@@ -2338,20 +2349,18 @@ mod command_invoker_tests {
     ) {
         let mut mock_engine = MockQuakeEngine::new();
         let owner = c"9876543210";
+        let mut raw_cvar = CVarBuilder::default()
+            .string(owner.as_ptr() as *mut c_char)
+            .build()
+            .expect("this should not happen");
         mock_engine
             .expect_find_cvar()
             .with(predicate::eq("qlx_owner"))
-            .returning(move |_| {
-                let mut raw_cvar = CVarBuilder::default()
-                    .string(owner.as_ptr() as *mut c_char)
-                    .build()
-                    .expect("this should not happen");
-                CVar::try_from(&mut raw_cvar as *mut cvar_t).ok()
-            });
+            .returning_st(move |_| CVar::try_from(raw_cvar.borrow_mut() as *mut cvar_t).ok());
         mock_engine
             .expect_find_cvar()
             .with(predicate::ne("qlx_owner"))
-            .returning(|_| None);
+            .returning_st(|_| None);
         MAIN_ENGINE.store(Some(mock_engine.into()));
 
         Python::with_gil(|py| {
@@ -2403,6 +2412,8 @@ def cmd_handler(*args, **kwargs):
             );
             assert!(result.is_ok_and(|pass_through| pass_through == expect_ok_value));
         });
+
+        MAIN_ENGINE.store(None);
     }
 
     #[rstest]
@@ -2411,20 +2422,18 @@ def cmd_handler(*args, **kwargs):
     fn handle_input_for_non_usage_cmd_when_cmd_returns_usage_return(_pyshinqlx_setup: ()) {
         let mut mock_engine = MockQuakeEngine::new();
         let owner = c"9876543210";
+        let mut raw_cvar = CVarBuilder::default()
+            .string(owner.as_ptr() as *mut c_char)
+            .build()
+            .expect("this should not happen");
         mock_engine
             .expect_find_cvar()
             .with(predicate::eq("qlx_owner"))
-            .returning(move |_| {
-                let mut raw_cvar = CVarBuilder::default()
-                    .string(owner.as_ptr() as *mut c_char)
-                    .build()
-                    .expect("this should not happen");
-                CVar::try_from(&mut raw_cvar as *mut cvar_t).ok()
-            });
+            .returning_st(move |_| CVar::try_from(raw_cvar.borrow_mut() as *mut cvar_t).ok());
         mock_engine
             .expect_find_cvar()
             .with(predicate::ne("qlx_owner"))
-            .returning(|_| None);
+            .returning_st(|_| None);
         MAIN_ENGINE.store(Some(mock_engine.into()));
 
         let send_server_command_ctx = shinqlx_send_server_command_context();
@@ -2480,6 +2489,8 @@ def cmd_handler(*args, **kwargs):
 
             run_all_frame_tasks(py).expect("this should not happen");
         });
+
+        MAIN_ENGINE.store(None);
     }
 
     #[rstest]
@@ -2488,20 +2499,18 @@ def cmd_handler(*args, **kwargs):
     fn handle_input_for_cmd_with_usage_when_cmd_returns_usage_return(_pyshinqlx_setup: ()) {
         let mut mock_engine = MockQuakeEngine::new();
         let owner = c"9876543210";
+        let mut raw_cvar = CVarBuilder::default()
+            .string(owner.as_ptr() as *mut c_char)
+            .build()
+            .expect("this should not happen");
         mock_engine
             .expect_find_cvar()
             .with(predicate::eq("qlx_owner"))
-            .returning(move |_| {
-                let mut raw_cvar = CVarBuilder::default()
-                    .string(owner.as_ptr() as *mut c_char)
-                    .build()
-                    .expect("this should not happen");
-                CVar::try_from(&mut raw_cvar as *mut cvar_t).ok()
-            });
+            .returning_st(move |_| CVar::try_from(raw_cvar.borrow_mut() as *mut cvar_t).ok());
         mock_engine
             .expect_find_cvar()
             .with(predicate::ne("qlx_owner"))
-            .returning(|_| None);
+            .returning_st(|_| None);
         MAIN_ENGINE.store(Some(mock_engine.into()));
 
         let send_server_command_ctx = shinqlx_send_server_command_context();
@@ -2564,6 +2573,8 @@ def cmd_handler(*args, **kwargs):
 
             run_all_frame_tasks(py).expect("this should not happen");
         });
+
+        MAIN_ENGINE.store(None);
     }
 
     #[rstest]
@@ -2572,20 +2583,18 @@ def cmd_handler(*args, **kwargs):
     fn handle_input_when_handler_returns_unrecognize_return_code(_pyshinqlx_setup: ()) {
         let mut mock_engine = MockQuakeEngine::new();
         let owner = c"9876543210";
+        let mut raw_cvar = CVarBuilder::default()
+            .string(owner.as_ptr() as *mut c_char)
+            .build()
+            .expect("this should not happen");
         mock_engine
             .expect_find_cvar()
             .with(predicate::eq("qlx_owner"))
-            .returning(move |_| {
-                let mut raw_cvar = CVarBuilder::default()
-                    .string(owner.as_ptr() as *mut c_char)
-                    .build()
-                    .expect("this should not happen");
-                CVar::try_from(&mut raw_cvar as *mut cvar_t).ok()
-            });
+            .returning_st(move |_| CVar::try_from(raw_cvar.borrow_mut() as *mut cvar_t).ok());
         mock_engine
             .expect_find_cvar()
             .with(predicate::ne("qlx_owner"))
-            .returning(|_| None);
+            .returning_st(|_| None);
         MAIN_ENGINE.store(Some(mock_engine.into()));
 
         Python::with_gil(|py| {
@@ -2637,5 +2646,7 @@ def cmd_handler(*args, **kwargs):
                 command_invoker.handle_input(py, &player, "cmd_name", chat_channel.into_any());
             assert!(result.is_ok_and(|pass_through| pass_through));
         });
+
+        MAIN_ENGINE.store(None);
     }
 }
