@@ -98,7 +98,6 @@ mod userinfo_dispatcher_tests {
     use crate::MAIN_ENGINE;
 
     use core::borrow::BorrowMut;
-    use core::ffi::c_char;
 
     use mockall::predicate;
     use rstest::rstest;
@@ -136,7 +135,7 @@ mod userinfo_dispatcher_tests {
         let mut mock_engine = MockQuakeEngine::new();
         let cvar_string = c"1";
         let mut raw_cvar = CVarBuilder::default()
-            .string(cvar_string.as_ptr() as *mut c_char)
+            .string(cvar_string.as_ptr().cast_mut())
             .build()
             .expect("this should not happen");
         mock_engine
@@ -198,7 +197,7 @@ def throws_exception_hook(*args, **kwargs):
         let mut mock_engine = MockQuakeEngine::new();
         let cvar_string = c"1";
         let mut raw_cvar = CVarBuilder::default()
-            .string(cvar_string.as_ptr() as *mut c_char)
+            .string(cvar_string.as_ptr().cast_mut())
             .build()
             .expect("this should not happen");
         mock_engine
@@ -260,7 +259,7 @@ def returns_none_hook(*args, **kwargs):
         let mut mock_engine = MockQuakeEngine::new();
         let cvar_string = c"1";
         let mut raw_cvar = CVarBuilder::default()
-            .string(cvar_string.as_ptr() as *mut c_char)
+            .string(cvar_string.as_ptr().cast_mut())
             .build()
             .expect("this should not happen");
         mock_engine
@@ -324,7 +323,7 @@ def returns_none_hook(*args, **kwargs):
         let mut mock_engine = MockQuakeEngine::new();
         let cvar_string = c"1";
         let mut raw_cvar = CVarBuilder::default()
-            .string(cvar_string.as_ptr() as *mut c_char)
+            .string(cvar_string.as_ptr().cast_mut())
             .build()
             .expect("this should not happen");
         mock_engine
@@ -388,7 +387,7 @@ def returns_stop_hook(*args, **kwargs):
         let mut mock_engine = MockQuakeEngine::new();
         let cvar_string = c"1";
         let mut raw_cvar = CVarBuilder::default()
-            .string(cvar_string.as_ptr() as *mut c_char)
+            .string(cvar_string.as_ptr().cast_mut())
             .build()
             .expect("this should not happen");
         mock_engine
@@ -452,7 +451,7 @@ def returns_stop_event_hook(*args, **kwargs):
         let mut mock_engine = MockQuakeEngine::new();
         let cvar_string = c"1";
         let mut raw_cvar = CVarBuilder::default()
-            .string(cvar_string.as_ptr() as *mut c_char)
+            .string(cvar_string.as_ptr().cast_mut())
             .build()
             .expect("this should not happen");
         mock_engine
@@ -516,7 +515,7 @@ def returns_stop_all_hook(*args, **kwargs):
         let mut mock_engine = MockQuakeEngine::new();
         let cvar_string = c"1";
         let mut raw_cvar = CVarBuilder::default()
-            .string(cvar_string.as_ptr() as *mut c_char)
+            .string(cvar_string.as_ptr().cast_mut())
             .build()
             .expect("this should not happen");
         mock_engine
@@ -578,7 +577,7 @@ def returns_string_hook(*args, **kwargs):
         let mut mock_engine = MockQuakeEngine::new();
         let cvar_string = c"1";
         let mut raw_cvar = CVarBuilder::default()
-            .string(cvar_string.as_ptr() as *mut c_char)
+            .string(cvar_string.as_ptr().cast_mut())
             .build()
             .expect("this should not happen");
         mock_engine

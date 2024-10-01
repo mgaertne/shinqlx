@@ -7575,7 +7575,7 @@ mod pyshinqlx_rcon_dummy_player_tests {
     use crate::prelude::{serial, MockQuakeEngine};
     use crate::MAIN_ENGINE;
 
-    use core::ffi::c_char;
+    use core::borrow::BorrowMut;
 
     use mockall::predicate;
     use rstest::*;
@@ -7607,14 +7607,14 @@ assert(isinstance(shinqlx.RconDummyPlayer(), shinqlx.AbstractDummyPlayer))
         let mut mock_engine = MockQuakeEngine::new();
         let owner = c"1234567890";
         let mut raw_cvar = CVarBuilder::default()
-            .string(owner.as_ptr() as *mut c_char)
+            .string(owner.as_ptr().cast_mut())
             .build()
             .expect("this should not happen");
 
         mock_engine
             .expect_find_cvar()
             .with(predicate::eq("qlx_owner"))
-            .returning_st(move |_| CVar::try_from(&mut raw_cvar as *mut cvar_t).ok());
+            .returning_st(move |_| CVar::try_from(raw_cvar.borrow_mut() as *mut cvar_t).ok());
         mock_engine
             .expect_find_cvar()
             .with(predicate::ne("qlx_owner"))
