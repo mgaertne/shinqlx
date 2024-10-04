@@ -4957,8 +4957,7 @@ mod handle_new_game_tests {
     });
 
     #[rstest]
-    #[cfg_attr(miri, ignore)]
-    #[cfg_attr(target_os = "macos", ignore)]
+    #[cfg_attr(any(miri, target_os = "macos"), ignore)]
     #[serial]
     fn try_handle_new_game_when_first_game_with_zmq_enabled(_pyshinqlx_setup: ()) {
         let temp_path = CString::new(TEMP_DIR.path().to_string_lossy().to_string())
@@ -5053,8 +5052,7 @@ mod handle_new_game_tests {
     }
 
     #[rstest]
-    #[cfg_attr(miri, ignore)]
-    #[cfg_attr(target_os = "macos", ignore)]
+    #[cfg_attr(any(miri, target_os = "macos"), ignore)]
     #[serial]
     fn try_handle_new_game_when_first_game_with_zmq_disabled(_pyshinqlx_setup: ()) {
         let temp_path = CString::new(TEMP_DIR.path().to_string_lossy().to_string())
@@ -5149,8 +5147,7 @@ mod handle_new_game_tests {
     }
 
     #[rstest]
-    #[cfg_attr(miri, ignore)]
-    #[cfg_attr(target_os = "macos", ignore)]
+    #[cfg_attr(any(miri, target_os = "macos"), ignore)]
     #[serial]
     fn try_handle_new_game_when_first_game_with_zmq_disabled_when_warning_already_issued(
         _pyshinqlx_setup: (),
