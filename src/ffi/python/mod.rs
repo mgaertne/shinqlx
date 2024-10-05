@@ -2000,17 +2000,15 @@ mod stats_listener_tests {
     fn get_stats_listener_returns_stats_listener(_pyshinqlx_setup: ()) {
         let mut mock_engine = MockQuakeEngine::new();
         let cvar_string = c"0";
+        let mut raw_cvar = CVarBuilder::default()
+            .string(cvar_string.as_ptr().cast_mut())
+            .integer(0)
+            .build()
+            .expect("this should not happen");
         mock_engine
             .expect_find_cvar()
             .with(predicate::eq("zmq_stats_enable"))
-            .returning(move |_| {
-                let mut raw_cvar = CVarBuilder::default()
-                    .string(cvar_string.as_ptr().cast_mut())
-                    .integer(0)
-                    .build()
-                    .expect("this should not happen");
-                CVar::try_from(raw_cvar.borrow_mut() as *mut cvar_t).ok()
-            });
+            .returning_st(move |_| CVar::try_from(raw_cvar.borrow_mut() as *mut cvar_t).ok());
         MAIN_ENGINE.store(Some(mock_engine.into()));
 
         Python::with_gil(|py| {
@@ -2025,6 +2023,8 @@ mod stats_listener_tests {
             let result = get_stats_listener(&shinqlx_module);
             assert!(result.is_ok_and(|value| value.is_instance_of::<StatsListener>()));
         });
+
+        MAIN_ENGINE.store(None);
     }
 }
 
