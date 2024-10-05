@@ -1690,8 +1690,11 @@ mod quake_live_engine_tests {
     fn set_tag_when_tag_not_inserted_yet_with_other_values() {
         let existing_tags = c"ca,elo";
 
-        let mut returned = CVarBuilder::default()
+        let mut returned1 = CVarBuilder::default()
             .string(existing_tags.as_ptr().cast_mut())
+            .build()
+            .expect("this should not happen");
+        let mut returned2 = CVarBuilder::default()
             .build()
             .expect("this should not happen");
 
@@ -1701,7 +1704,7 @@ mod quake_live_engine_tests {
             .withf_st(|&cvar_name| {
                 !cvar_name.is_null() && unsafe { CStr::from_ptr(cvar_name) } == c"sv_tags"
             })
-            .returning_st(move |_| returned.borrow_mut())
+            .returning_st(move |_| returned1.borrow_mut())
             .times(1);
 
         let cvar_set2_ctx = Cvar_Set2_context();
@@ -1714,12 +1717,7 @@ mod quake_live_engine_tests {
                     && unsafe { CStr::from_ptr(cvar_value) } == c"shinqlx,ca,elo"
                     && !<qboolean as Into<bool>>::into(forced)
             })
-            .returning(|_, _, _| {
-                let mut returned = CVarBuilder::default()
-                    .build()
-                    .expect("this should not happen");
-                returned.borrow_mut()
-            })
+            .returning_st(move |_, _, _| returned2.borrow_mut())
             .times(1);
 
         let quake_engine = QuakeLiveEngine {
@@ -1737,8 +1735,11 @@ mod quake_live_engine_tests {
     fn set_tag_when_tag_not_inserted_yet_with_empty_original_tags() {
         let existing_tags = c"";
 
-        let mut returned = CVarBuilder::default()
+        let mut returned1 = CVarBuilder::default()
             .string(existing_tags.as_ptr().cast_mut())
+            .build()
+            .expect("this should not happen");
+        let mut returned2 = CVarBuilder::default()
             .build()
             .expect("this should not happen");
 
@@ -1748,7 +1749,7 @@ mod quake_live_engine_tests {
             .withf_st(|&cvar_name| {
                 !cvar_name.is_null() && unsafe { CStr::from_ptr(cvar_name) } == c"sv_tags"
             })
-            .returning_st(move |_| returned.borrow_mut())
+            .returning_st(move |_| returned1.borrow_mut())
             .times(1);
 
         let cvar_set2_ctx = Cvar_Set2_context();
@@ -1761,12 +1762,7 @@ mod quake_live_engine_tests {
                     && unsafe { CStr::from_ptr(cvar_value) } == c"shinqlx"
                     && !<qboolean as Into<bool>>::into(forced)
             })
-            .returning(|_, _, _| {
-                let mut returned = CVarBuilder::default()
-                    .build()
-                    .expect("this should not happen");
-                returned.borrow_mut()
-            })
+            .returning_st(move |_, _, _| returned2.borrow_mut())
             .times(1);
 
         let quake_engine = QuakeLiveEngine {
