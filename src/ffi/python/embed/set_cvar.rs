@@ -39,7 +39,6 @@ pub(crate) fn pyshinqlx_set_cvar(
 
 #[cfg(test)]
 mod set_cvar_tests {
-    use super::MAIN_ENGINE;
     use crate::ffi::c::prelude::*;
     use crate::ffi::python::prelude::*;
     use crate::prelude::*;
@@ -55,7 +54,6 @@ mod set_cvar_tests {
     #[cfg_attr(miri, ignore)]
     #[serial]
     fn set_cvar_when_main_engine_not_initialized() {
-        MAIN_ENGINE.store(None);
         Python::with_gil(|py| {
             let result = pyshinqlx_set_cvar(py, "sv_maxclients", "64", None);
             assert!(result.is_err_and(|err| err.is_instance_of::<PyEnvironmentError>(py)));
@@ -66,56 +64,57 @@ mod set_cvar_tests {
     #[cfg_attr(miri, ignore)]
     #[serial]
     fn set_cvar_for_not_existing_cvar() {
-        let mut mock_engine = MockQuakeEngine::new();
-        mock_engine
-            .expect_find_cvar()
-            .with(predicate::eq("sv_maxclients"))
-            .returning(|_| None)
-            .times(1);
-        mock_engine
-            .expect_get_cvar()
-            .with(
-                predicate::eq("sv_maxclients"),
-                predicate::eq("64"),
-                predicate::eq(Some(cvar_flags::CVAR_ROM as i32)),
-            )
-            .times(1);
-        MAIN_ENGINE.store(Some(mock_engine.into()));
-
-        let result = Python::with_gil(|py| {
-            pyshinqlx_set_cvar(py, "sv_maxclients", "64", Some(cvar_flags::CVAR_ROM as i32))
+        with_mocked_engine(|mock_engine| {
+            mock_engine
+                .expect_find_cvar()
+                .with(predicate::eq("sv_maxclients"))
+                .returning(|_| None)
+                .times(1);
+            mock_engine
+                .expect_get_cvar()
+                .with(
+                    predicate::eq("sv_maxclients"),
+                    predicate::eq("64"),
+                    predicate::eq(Some(cvar_flags::CVAR_ROM as i32)),
+                )
+                .times(1);
+        })
+        .run(|| {
+            let result = Python::with_gil(|py| {
+                pyshinqlx_set_cvar(py, "sv_maxclients", "64", Some(cvar_flags::CVAR_ROM as i32))
+            });
+            assert_eq!(result.expect("result was not OK"), true);
         });
-        assert_eq!(result.expect("result was not OK"), true);
     }
 
     #[test]
     #[cfg_attr(miri, ignore)]
     #[serial]
     fn set_cvar_for_already_existing_cvar() {
-        let mut mock_engine = MockQuakeEngine::new();
         let mut raw_cvar = CVarBuilder::default()
             .build()
             .expect("this should not happen");
-        mock_engine
-            .expect_find_cvar()
-            .with(predicate::eq("sv_maxclients"))
-            .returning_st(move |_| CVar::try_from(raw_cvar.borrow_mut() as *mut cvar_t).ok())
-            .times(1);
-        mock_engine
-            .expect_set_cvar_forced()
-            .with(
-                predicate::eq("sv_maxclients"),
-                predicate::eq("64"),
-                predicate::eq(false),
-            )
-            .times(1);
-        MAIN_ENGINE.store(Some(mock_engine.into()));
 
-        let result = Python::with_gil(|py| {
-            pyshinqlx_set_cvar(py, "sv_maxclients", "64", Some(cvar_flags::CVAR_ROM as i32))
+        with_mocked_engine(|mock_engine| {
+            mock_engine
+                .expect_find_cvar()
+                .with(predicate::eq("sv_maxclients"))
+                .returning_st(move |_| CVar::try_from(raw_cvar.borrow_mut() as *mut cvar_t).ok())
+                .times(1);
+            mock_engine
+                .expect_set_cvar_forced()
+                .with(
+                    predicate::eq("sv_maxclients"),
+                    predicate::eq("64"),
+                    predicate::eq(false),
+                )
+                .times(1);
+        })
+        .run(|| {
+            let result = Python::with_gil(|py| {
+                pyshinqlx_set_cvar(py, "sv_maxclients", "64", Some(cvar_flags::CVAR_ROM as i32))
+            });
+            assert_eq!(result.expect("result was not OK"), false);
         });
-        assert_eq!(result.expect("result was not OK"), false);
-
-        MAIN_ENGINE.store(None);
     }
 }

@@ -32,9 +32,9 @@ mod quake_live_functions;
 
 pub(crate) mod prelude {
     #[cfg(test)]
-    pub(crate) use crate::quake_live_engine::MockQuakeEngine as QuakeLiveEngine;
+    pub(crate) use crate::quake_live_engine::with_mocked_engine;
     #[cfg(test)]
-    pub(crate) use crate::quake_live_engine::MockQuakeEngine;
+    pub(crate) use crate::quake_live_engine::MockQuakeEngine as QuakeLiveEngine;
     #[cfg(not(test))]
     pub(crate) use crate::quake_live_engine::QuakeLiveEngine;
     pub(crate) use crate::quake_live_engine::QuakeLiveEngineError;
