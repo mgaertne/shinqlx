@@ -28,7 +28,6 @@ pub(crate) fn pyshinqlx_get_configstring(py: Python<'_>, config_id: u32) -> PyRe
 
 #[cfg(test)]
 mod get_configstring_tests {
-    use super::MAIN_ENGINE;
     use crate::ffi::c::prelude::*;
     use crate::ffi::python::prelude::*;
     use crate::prelude::*;
@@ -41,7 +40,6 @@ mod get_configstring_tests {
     #[cfg_attr(miri, ignore)]
     #[serial]
     fn get_configstring_for_too_large_configstring_id() {
-        MAIN_ENGINE.store(None);
         Python::with_gil(|py| {
             let result = pyshinqlx_get_configstring(py, MAX_CONFIGSTRINGS + 1);
             assert!(result.is_err_and(|err| err.is_instance_of::<PyValueError>(py)));
@@ -52,7 +50,6 @@ mod get_configstring_tests {
     #[cfg_attr(miri, ignore)]
     #[serial]
     fn get_configstring_when_main_engine_not_initialized() {
-        MAIN_ENGINE.store(None);
         Python::with_gil(|py| {
             let result = pyshinqlx_get_configstring(py, 666);
             assert!(result.is_err_and(|err| err.is_instance_of::<PyEnvironmentError>(py)));
@@ -63,15 +60,16 @@ mod get_configstring_tests {
     #[cfg_attr(miri, ignore)]
     #[serial]
     fn get_configstring_forwards_call_to_engine() {
-        let mut mock_engine = MockQuakeEngine::new();
-        mock_engine
-            .expect_get_configstring()
-            .with(predicate::eq(666))
-            .returning(|_| "asdf".to_string())
-            .times(1);
-        MAIN_ENGINE.store(Some(mock_engine.into()));
-
-        let result = Python::with_gil(|py| pyshinqlx_get_configstring(py, 666));
-        assert_eq!(result.expect("result was not OK"), "asdf");
+        with_mocked_engine(|mock_engine| {
+            mock_engine
+                .expect_get_configstring()
+                .with(predicate::eq(666))
+                .returning(|_| "asdf".to_string())
+                .times(1);
+        })
+        .run(|| {
+            let result = Python::with_gil(|py| pyshinqlx_get_configstring(py, 666));
+            assert_eq!(result.expect("result was not OK"), "asdf");
+        });
     }
 }
