@@ -42,7 +42,6 @@ pub(crate) fn pyshinqlx_force_vote(py: Python<'_>, pass: bool) -> PyResult<bool>
 
 #[cfg(test)]
 mod force_vote_tests {
-    use super::MAIN_ENGINE;
     use crate::ffi::c::prelude::*;
     use crate::ffi::python::prelude::*;
     use crate::prelude::*;
@@ -62,7 +61,6 @@ mod force_vote_tests {
             mock_level.expect_get_vote_time().return_const(21);
             Ok(mock_level)
         });
-        MAIN_ENGINE.store(None);
 
         Python::with_gil(|py| {
             let result = pyshinqlx_force_vote(py, true);
@@ -78,7 +76,6 @@ mod force_vote_tests {
         current_level_try_get_ctx
             .expect()
             .returning(|| Err(QuakeLiveEngineError::MainEngineNotInitialized));
-        MAIN_ENGINE.store(None);
 
         let result = Python::with_gil(|py| pyshinqlx_force_vote(py, false));
         assert_eq!(result.expect("result was not OK"), false);
@@ -99,10 +96,6 @@ mod force_vote_tests {
             Ok(mock_level)
         });
 
-        let mut mock_engine = MockQuakeEngine::new();
-        mock_engine.expect_get_max_clients().return_const(1);
-        MAIN_ENGINE.store(Some(mock_engine.into()));
-
         let client_from_ctx = MockClient::from_context();
         client_from_ctx
             .expect()
@@ -113,9 +106,14 @@ mod force_vote_tests {
                 mock_client
             });
 
-        let result = Python::with_gil(|py| pyshinqlx_force_vote(py, true));
+        with_mocked_engine(|mock_engine| {
+            mock_engine.expect_get_max_clients().return_const(1);
+        })
+        .run(|| {
+            let result = Python::with_gil(|py| pyshinqlx_force_vote(py, true));
 
-        assert_eq!(result.expect("result was not OK"), true);
+            assert_eq!(result.expect("result was not OK"), true);
+        });
     }
 
     #[test]
@@ -128,10 +126,6 @@ mod force_vote_tests {
             mock_level.expect_get_vote_time().return_const(21);
             Ok(mock_level)
         });
-
-        let mut mock_engine = MockQuakeEngine::new();
-        mock_engine.expect_get_max_clients().return_const(1);
-        MAIN_ENGINE.store(Some(mock_engine.into()));
 
         let client_from_ctx = MockClient::from_context();
         client_from_ctx
@@ -156,9 +150,14 @@ mod force_vote_tests {
                 mock_game_entity
             });
 
-        let result = Python::with_gil(|py| pyshinqlx_force_vote(py, true));
+        with_mocked_engine(|mock_engine| {
+            mock_engine.expect_get_max_clients().return_const(1);
+        })
+        .run(|| {
+            let result = Python::with_gil(|py| pyshinqlx_force_vote(py, true));
 
-        assert_eq!(result.expect("result was not OK"), true);
+            assert_eq!(result.expect("result was not OK"), true);
+        });
     }
 
     #[test]
@@ -171,10 +170,6 @@ mod force_vote_tests {
             mock_level.expect_get_vote_time().return_const(21);
             Ok(mock_level)
         });
-
-        let mut mock_engine = MockQuakeEngine::new();
-        mock_engine.expect_get_max_clients().return_const(1);
-        MAIN_ENGINE.store(Some(mock_engine.into()));
 
         let client_from_ctx = MockClient::from_context();
         client_from_ctx
@@ -204,8 +199,13 @@ mod force_vote_tests {
                 mock_game_entity
             });
 
-        let result = Python::with_gil(|py| pyshinqlx_force_vote(py, true));
+        with_mocked_engine(|mock_engine| {
+            mock_engine.expect_get_max_clients().return_const(1);
+        })
+        .run(|| {
+            let result = Python::with_gil(|py| pyshinqlx_force_vote(py, true));
 
-        assert_eq!(result.expect("result was not OK"), true);
+            assert_eq!(result.expect("result was not OK"), true);
+        });
     }
 }

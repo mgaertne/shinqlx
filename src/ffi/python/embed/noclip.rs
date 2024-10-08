@@ -26,7 +26,6 @@ mod noclip_tests {
     use crate::ffi::c::prelude::*;
     use crate::ffi::python::prelude::*;
     use crate::prelude::*;
-    use crate::MAIN_ENGINE;
 
     use mockall::predicate;
     use pretty_assertions::assert_eq;
@@ -36,7 +35,6 @@ mod noclip_tests {
     #[cfg_attr(miri, ignore)]
     #[serial]
     fn noclip_when_main_engine_not_initialized() {
-        MAIN_ENGINE.store(None);
         Python::with_gil(|py| {
             let result = pyshinqlx_noclip(py, 21, true);
             assert!(result.is_err_and(|err| err.is_instance_of::<PyEnvironmentError>(py)));
@@ -47,13 +45,14 @@ mod noclip_tests {
     #[cfg_attr(miri, ignore)]
     #[serial]
     fn noclip_for_client_id_too_small() {
-        let mut mock_engine = MockQuakeEngine::new();
-        mock_engine.expect_get_max_clients().returning(|| 16);
-        MAIN_ENGINE.store(Some(mock_engine.into()));
-
-        Python::with_gil(|py| {
-            let result = pyshinqlx_noclip(py, -1, false);
-            assert!(result.is_err_and(|err| err.is_instance_of::<PyValueError>(py)));
+        with_mocked_engine(|mock_engine| {
+            mock_engine.expect_get_max_clients().returning(|| 16);
+        })
+        .run(|| {
+            Python::with_gil(|py| {
+                let result = pyshinqlx_noclip(py, -1, false);
+                assert!(result.is_err_and(|err| err.is_instance_of::<PyValueError>(py)));
+            });
         });
     }
 
@@ -61,13 +60,14 @@ mod noclip_tests {
     #[cfg_attr(miri, ignore)]
     #[serial]
     fn noclip_for_client_id_too_large() {
-        let mut mock_engine = MockQuakeEngine::new();
-        mock_engine.expect_get_max_clients().returning(|| 16);
-        MAIN_ENGINE.store(Some(mock_engine.into()));
-
-        Python::with_gil(|py| {
-            let result = pyshinqlx_noclip(py, 666, true);
-            assert!(result.is_err_and(|err| err.is_instance_of::<PyValueError>(py)));
+        with_mocked_engine(|mock_engine| {
+            mock_engine.expect_get_max_clients().returning(|| 16);
+        })
+        .run(|| {
+            Python::with_gil(|py| {
+                let result = pyshinqlx_noclip(py, 666, true);
+                assert!(result.is_err_and(|err| err.is_instance_of::<PyValueError>(py)));
+            });
         });
     }
 
@@ -75,10 +75,6 @@ mod noclip_tests {
     #[cfg_attr(miri, ignore)]
     #[serial]
     fn noclip_for_entity_with_no_game_client() {
-        let mut mock_engine = MockQuakeEngine::new();
-        mock_engine.expect_get_max_clients().returning(|| 16);
-        MAIN_ENGINE.store(Some(mock_engine.into()));
-
         let game_entity_from_ctx = MockGameEntity::from_context();
         game_entity_from_ctx.expect().returning(|_| {
             let mut mock_game_entity = MockGameEntity::new();
@@ -88,18 +84,19 @@ mod noclip_tests {
             mock_game_entity
         });
 
-        let result = Python::with_gil(|py| pyshinqlx_noclip(py, 2, true));
-        assert_eq!(result.expect("result was not OK"), false);
+        with_mocked_engine(|mock_engine| {
+            mock_engine.expect_get_max_clients().returning(|| 16);
+        })
+        .run(|| {
+            let result = Python::with_gil(|py| pyshinqlx_noclip(py, 2, true));
+            assert_eq!(result.expect("result was not OK"), false);
+        });
     }
 
     #[test]
     #[cfg_attr(miri, ignore)]
     #[serial]
     fn noclip_for_entity_with_noclip_already_set_properly() {
-        let mut mock_engine = MockQuakeEngine::new();
-        mock_engine.expect_get_max_clients().returning(|| 16);
-        MAIN_ENGINE.store(Some(mock_engine.into()));
-
         let game_entity_from_ctx = MockGameEntity::from_context();
         game_entity_from_ctx.expect().returning(|_| {
             let mut mock_game_entity = MockGameEntity::new();
@@ -112,18 +109,19 @@ mod noclip_tests {
             mock_game_entity
         });
 
-        let result = Python::with_gil(|py| pyshinqlx_noclip(py, 2, true));
-        assert_eq!(result.expect("result was not OK"), false);
+        with_mocked_engine(|mock_engine| {
+            mock_engine.expect_get_max_clients().returning(|| 16);
+        })
+        .run(|| {
+            let result = Python::with_gil(|py| pyshinqlx_noclip(py, 2, true));
+            assert_eq!(result.expect("result was not OK"), false);
+        });
     }
 
     #[test]
     #[cfg_attr(miri, ignore)]
     #[serial]
     fn noclip_for_entity_with_change_applied() {
-        let mut mock_engine = MockQuakeEngine::new();
-        mock_engine.expect_get_max_clients().returning(|| 16);
-        MAIN_ENGINE.store(Some(mock_engine.into()));
-
         let game_entity_from_ctx = MockGameEntity::from_context();
         game_entity_from_ctx.expect().returning(|_| {
             let mut mock_game_entity = MockGameEntity::new();
@@ -139,7 +137,12 @@ mod noclip_tests {
             mock_game_entity
         });
 
-        let result = Python::with_gil(|py| pyshinqlx_noclip(py, 2, false));
-        assert_eq!(result.expect("result was not OK"), true);
+        with_mocked_engine(|mock_engine| {
+            mock_engine.expect_get_max_clients().returning(|| 16);
+        })
+        .run(|| {
+            let result = Python::with_gil(|py| pyshinqlx_noclip(py, 2, false));
+            assert_eq!(result.expect("result was not OK"), true);
+        });
     }
 }
