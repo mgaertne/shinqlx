@@ -32,29 +32,30 @@ mod get_entity_targets_tests {
     use mockall::predicate;
     use pretty_assertions::assert_eq;
     use pyo3::exceptions::PyValueError;
+    use rstest::rstest;
 
-    #[test]
+    #[rstest]
     #[cfg_attr(miri, ignore)]
-    fn get_entity_targets_for_too_small_entity_id() {
+    fn get_entity_targets_for_too_small_entity_id(_pyshinqlx_setup: ()) {
         Python::with_gil(|py| {
             let result = pyshinqlx_get_entity_targets(py, -1);
             assert!(result.is_err_and(|err| err.is_instance_of::<PyValueError>(py)));
         });
     }
 
-    #[test]
+    #[rstest]
     #[cfg_attr(miri, ignore)]
-    fn get_entity_targets_for_too_large_entity_id() {
+    fn get_entity_targets_for_too_large_entity_id(_pyshinqlx_setup: ()) {
         Python::with_gil(|py| {
             let result = pyshinqlx_get_entity_targets(py, MAX_GENTITIES as i32);
             assert!(result.is_err_and(|err| err.is_instance_of::<PyValueError>(py)));
         });
     }
 
-    #[test]
+    #[rstest]
     #[cfg_attr(miri, ignore)]
     #[serial]
-    fn get_entity_targets_for_valid_entity_id_with_no_targetting_entities() {
+    fn get_entity_targets_for_valid_entity_id_with_no_targetting_entities(_pyshinqlx_setup: ()) {
         let game_entity_from_ctx = MockGameEntity::from_context();
         game_entity_from_ctx
             .expect()
@@ -72,10 +73,10 @@ mod get_entity_targets_tests {
         assert_eq!(result.expect("result was not OK"), Vec::<u32>::new());
     }
 
-    #[test]
+    #[rstest]
     #[cfg_attr(miri, ignore)]
     #[serial]
-    fn get_entity_targets_for_valid_entity_id_with_targetting_entities() {
+    fn get_entity_targets_for_valid_entity_id_with_targetting_entities(_pyshinqlx_setup: ()) {
         let game_entity_from_ctx = MockGameEntity::from_context();
         game_entity_from_ctx
             .expect()

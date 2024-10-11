@@ -49,10 +49,10 @@ mod send_server_command_tests {
     use pyo3::exceptions::{PyEnvironmentError, PyValueError};
     use rstest::rstest;
 
-    #[test]
+    #[rstest]
     #[cfg_attr(miri, ignore)]
     #[serial]
-    fn send_server_command_with_no_client_id() {
+    fn send_server_command_with_no_client_id(_pyshinqlx_setup: ()) {
         let hook_ctx = shinqlx_send_server_command_context();
         hook_ctx
             .expect()
@@ -62,10 +62,10 @@ mod send_server_command_tests {
         assert_eq!(result.expect("result was not OK"), true);
     }
 
-    #[test]
+    #[rstest]
     #[cfg_attr(miri, ignore)]
     #[serial]
-    fn send_server_command_when_main_engine_not_initialized() {
+    fn send_server_command_when_main_engine_not_initialized(_pyshinqlx_setup: ()) {
         let hook_ctx = shinqlx_send_server_command_context();
         hook_ctx.expect().times(0);
 
@@ -75,10 +75,10 @@ mod send_server_command_tests {
         });
     }
 
-    #[test]
+    #[rstest]
     #[cfg_attr(miri, ignore)]
     #[serial]
-    fn get_userinfo_for_client_id_below_zero() {
+    fn get_userinfo_for_client_id_below_zero(_pyshinqlx_setup: ()) {
         let hook_ctx = shinqlx_send_server_command_context();
         hook_ctx.expect().times(0);
 
@@ -93,10 +93,10 @@ mod send_server_command_tests {
         });
     }
 
-    #[test]
+    #[rstest]
     #[cfg_attr(miri, ignore)]
     #[serial]
-    fn send_server_command_for_client_id_above_max_clients() {
+    fn send_server_command_for_client_id_above_max_clients(_pyshinqlx_setup: ()) {
         let hook_ctx = shinqlx_send_server_command_context();
         hook_ctx.expect().times(0);
 
@@ -111,10 +111,10 @@ mod send_server_command_tests {
         });
     }
 
-    #[test]
+    #[rstest]
     #[cfg_attr(miri, ignore)]
     #[serial]
-    fn send_server_command_for_active_client() {
+    fn send_server_command_for_active_client(_pyshinqlx_setup: ()) {
         let client_try_from_ctx = MockClient::from_context();
         client_try_from_ctx.expect().returning(|_client_id| {
             let mut mock_client = MockClient::new();
@@ -146,7 +146,10 @@ mod send_server_command_tests {
     #[case(clientState_t::CS_ZOMBIE)]
     #[cfg_attr(miri, ignore)]
     #[serial]
-    fn send_server_command_for_non_active_free_client(#[case] clientstate: clientState_t) {
+    fn send_server_command_for_non_active_free_client(
+        #[case] clientstate: clientState_t,
+        _pyshinqlx_setup: (),
+    ) {
         let client_try_from_ctx = MockClient::from_context();
         client_try_from_ctx.expect().returning(move |_client_id| {
             let mut mock_client = MockClient::new();

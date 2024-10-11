@@ -47,23 +47,24 @@ mod set_cvar_tests {
 
     use mockall::predicate;
     use pretty_assertions::assert_eq;
+    use rstest::rstest;
 
     use pyo3::exceptions::PyEnvironmentError;
 
-    #[test]
+    #[rstest]
     #[cfg_attr(miri, ignore)]
     #[serial]
-    fn set_cvar_when_main_engine_not_initialized() {
+    fn set_cvar_when_main_engine_not_initialized(_pyshinqlx_setup: ()) {
         Python::with_gil(|py| {
             let result = pyshinqlx_set_cvar(py, "sv_maxclients", "64", None);
             assert!(result.is_err_and(|err| err.is_instance_of::<PyEnvironmentError>(py)));
         });
     }
 
-    #[test]
+    #[rstest]
     #[cfg_attr(miri, ignore)]
     #[serial]
-    fn set_cvar_for_not_existing_cvar() {
+    fn set_cvar_for_not_existing_cvar(_pyshinqlx_setup: ()) {
         with_mocked_engine(|mock_engine| {
             mock_engine
                 .expect_find_cvar()
@@ -87,10 +88,10 @@ mod set_cvar_tests {
         });
     }
 
-    #[test]
+    #[rstest]
     #[cfg_attr(miri, ignore)]
     #[serial]
-    fn set_cvar_for_already_existing_cvar() {
+    fn set_cvar_for_already_existing_cvar(_pyshinqlx_setup: ()) {
         let mut raw_cvar = CVarBuilder::default()
             .build()
             .expect("this should not happen");

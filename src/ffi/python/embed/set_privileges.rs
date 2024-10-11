@@ -35,20 +35,20 @@ mod set_privileges_tests {
     use pyo3::exceptions::{PyEnvironmentError, PyValueError};
     use rstest::rstest;
 
-    #[test]
+    #[rstest]
     #[cfg_attr(miri, ignore)]
     #[serial]
-    fn set_privileges_when_main_engine_not_initialized() {
+    fn set_privileges_when_main_engine_not_initialized(_pyshinqlx_setup: ()) {
         Python::with_gil(|py| {
             let result = pyshinqlx_set_privileges(py, 21, privileges_t::PRIV_MOD as i32);
             assert!(result.is_err_and(|err| err.is_instance_of::<PyEnvironmentError>(py)));
         });
     }
 
-    #[test]
+    #[rstest]
     #[cfg_attr(miri, ignore)]
     #[serial]
-    fn set_privileges_for_client_id_too_small() {
+    fn set_privileges_for_client_id_too_small(_pyshinqlx_setup: ()) {
         with_mocked_engine(|mock_engine| {
             mock_engine.expect_get_max_clients().returning(|| 16);
         })
@@ -60,10 +60,10 @@ mod set_privileges_tests {
         });
     }
 
-    #[test]
+    #[rstest]
     #[cfg_attr(miri, ignore)]
     #[serial]
-    fn set_privileges_for_client_id_too_large() {
+    fn set_privileges_for_client_id_too_large(_pyshinqlx_setup: ()) {
         with_mocked_engine(|mock_engine| {
             mock_engine.expect_get_max_clients().returning(|| 16);
         })
@@ -83,7 +83,10 @@ mod set_privileges_tests {
     #[case(&privileges_t::PRIV_BANNED)]
     #[cfg_attr(miri, ignore)]
     #[serial]
-    fn set_privileges_for_existing_game_client(#[case] privileges: &'static privileges_t) {
+    fn set_privileges_for_existing_game_client(
+        #[case] privileges: &'static privileges_t,
+        _pyshinqlx_setup: (),
+    ) {
         let game_entity_from_ctx = MockGameEntity::from_context();
         game_entity_from_ctx.expect().returning(|_| {
             let mut mock_game_entity = MockGameEntity::new();
@@ -107,10 +110,10 @@ mod set_privileges_tests {
         });
     }
 
-    #[test]
+    #[rstest]
     #[cfg_attr(miri, ignore)]
     #[serial]
-    fn set_privileges_for_entity_with_no_game_client() {
+    fn set_privileges_for_entity_with_no_game_client(_pyshinqlx_setup: ()) {
         let game_entity_from_ctx = MockGameEntity::from_context();
         game_entity_from_ctx.expect().returning(|_| {
             let mut mock_game_entity = MockGameEntity::new();

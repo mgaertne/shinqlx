@@ -40,21 +40,22 @@ mod get_players_info_tests {
 
     use mockall::predicate;
     use pyo3::exceptions::PyEnvironmentError;
+    use rstest::rstest;
 
-    #[test]
+    #[rstest]
     #[cfg_attr(miri, ignore)]
     #[serial]
-    fn get_players_info_when_main_engine_not_initialized() {
+    fn get_players_info_when_main_engine_not_initialized(_pyshinqlx_setup: ()) {
         Python::with_gil(|py| {
             let result = pyshinqlx_players_info(py);
             assert!(result.is_err_and(|err| err.is_instance_of::<PyEnvironmentError>(py)));
         });
     }
 
-    #[test]
+    #[rstest]
     #[cfg_attr(miri, ignore)]
     #[serial]
-    fn get_players_info_for_existing_clients() {
+    fn get_players_info_for_existing_clients(_pyshinqlx_setup: ()) {
         let client_try_from_ctx = MockClient::from_context();
         client_try_from_ctx
             .expect()

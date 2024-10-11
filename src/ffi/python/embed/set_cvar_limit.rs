@@ -38,21 +38,22 @@ mod set_cvar_limit_tests {
 
     use mockall::predicate;
     use pyo3::exceptions::PyEnvironmentError;
+    use rstest::rstest;
 
-    #[test]
+    #[rstest]
     #[cfg_attr(miri, ignore)]
     #[serial]
-    fn set_cvar_limit_when_main_engine_not_initialized() {
+    fn set_cvar_limit_when_main_engine_not_initialized(_pyshinqlx_setup: ()) {
         Python::with_gil(|py| {
             let result = pyshinqlx_set_cvar_limit(py, "sv_maxclients", "64", "1", "64", None);
             assert!(result.is_err_and(|err| err.is_instance_of::<PyEnvironmentError>(py)));
         });
     }
 
-    #[test]
+    #[rstest]
     #[cfg_attr(miri, ignore)]
     #[serial]
-    fn set_cvar_limit_forwards_parameters_to_main_engine_call() {
+    fn set_cvar_limit_forwards_parameters_to_main_engine_call(_pyshinqlx_setup: ()) {
         with_mocked_engine(|mock_engine| {
             mock_engine
                 .expect_set_cvar_limit()

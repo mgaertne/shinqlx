@@ -110,13 +110,15 @@ mod replace_items_tests {
 
     use mockall::predicate;
     use pretty_assertions::assert_eq;
+    use rstest::rstest;
+
     use pyo3::exceptions::PyValueError;
     use pyo3::types::{PyString, PyTuple};
 
-    #[test]
+    #[rstest]
     #[cfg_attr(miri, ignore)]
     #[serial]
-    fn replace_items_for_too_small_item1_id() {
+    fn replace_items_for_too_small_item1_id(_pyshinqlx_setup: ()) {
         let get_num_items_ctx = MockGameItem::get_num_items_context();
         get_num_items_ctx.expect().returning(|| 42);
 
@@ -130,10 +132,10 @@ mod replace_items_tests {
         });
     }
 
-    #[test]
+    #[rstest]
     #[cfg_attr(miri, ignore)]
     #[serial]
-    fn replace_items_for_too_large_item1_id() {
+    fn replace_items_for_too_large_item1_id(_pyshinqlx_setup: ()) {
         let get_num_items_ctx = MockGameItem::get_num_items_context();
         get_num_items_ctx.expect().returning(|| 42);
 
@@ -144,10 +146,10 @@ mod replace_items_tests {
         });
     }
 
-    #[test]
+    #[rstest]
     #[cfg_attr(miri, ignore)]
     #[serial]
-    fn replace_items_for_too_small_item2_id() {
+    fn replace_items_for_too_small_item2_id(_pyshinqlx_setup: ()) {
         let get_num_items_ctx = MockGameItem::get_num_items_context();
         get_num_items_ctx.expect().returning(|| 42);
 
@@ -161,10 +163,10 @@ mod replace_items_tests {
         });
     }
 
-    #[test]
+    #[rstest]
     #[cfg_attr(miri, ignore)]
     #[serial]
-    fn replace_items_for_too_large_item2_id() {
+    fn replace_items_for_too_large_item2_id(_pyshinqlx_setup: ()) {
         let get_num_items_ctx = MockGameItem::get_num_items_context();
         get_num_items_ctx.expect().returning(|| 42);
 
@@ -175,10 +177,10 @@ mod replace_items_tests {
         });
     }
 
-    #[test]
+    #[rstest]
     #[cfg_attr(miri, ignore)]
     #[serial]
-    fn replace_items_for_item1_not_integer_nor_string() {
+    fn replace_items_for_item1_not_integer_nor_string(_pyshinqlx_setup: ()) {
         let get_num_items_ctx = MockGameItem::get_num_items_context();
         get_num_items_ctx.expect().returning(|| 42);
 
@@ -192,10 +194,10 @@ mod replace_items_tests {
         });
     }
 
-    #[test]
+    #[rstest]
     #[cfg_attr(miri, ignore)]
     #[serial]
-    fn replace_items_for_item2_not_integer_nor_string() {
+    fn replace_items_for_item2_not_integer_nor_string(_pyshinqlx_setup: ()) {
         let get_num_items_ctx = MockGameItem::get_num_items_context();
         get_num_items_ctx.expect().returning(|| 42);
 
@@ -209,10 +211,10 @@ mod replace_items_tests {
         });
     }
 
-    #[test]
+    #[rstest]
     #[cfg_attr(miri, ignore)]
     #[serial]
-    fn replace_items_for_item1_string_not_existing_classname() {
+    fn replace_items_for_item1_string_not_existing_classname(_pyshinqlx_setup: ()) {
         let get_num_items_ctx = MockGameItem::get_num_items_context();
         get_num_items_ctx.expect().returning(|| 42);
 
@@ -240,10 +242,10 @@ mod replace_items_tests {
         assert_eq!(result.expect("result was not OK"), false);
     }
 
-    #[test]
+    #[rstest]
     #[cfg_attr(miri, ignore)]
     #[serial]
-    fn replace_items_for_item2_string_not_existing_classname() {
+    fn replace_items_for_item2_string_not_existing_classname(_pyshinqlx_setup: ()) {
         let get_num_items_ctx = MockGameItem::get_num_items_context();
         get_num_items_ctx.expect().returning(|| 42);
 
@@ -266,10 +268,10 @@ mod replace_items_tests {
         });
     }
 
-    #[test]
+    #[rstest]
     #[cfg_attr(miri, ignore)]
     #[serial]
-    fn replace_items_for_not_in_use_item() {
+    fn replace_items_for_not_in_use_item(_pyshinqlx_setup: ()) {
         let get_num_items_ctx = MockGameItem::get_num_items_context();
         get_num_items_ctx.expect().returning(|| 42);
 
@@ -290,10 +292,10 @@ mod replace_items_tests {
         });
     }
 
-    #[test]
+    #[rstest]
     #[cfg_attr(miri, ignore)]
     #[serial]
-    fn replace_items_for_non_game_item() {
+    fn replace_items_for_non_game_item(_pyshinqlx_setup: ()) {
         let get_num_items_ctx = MockGameItem::get_num_items_context();
         get_num_items_ctx.expect().returning(|| 42);
 
@@ -318,10 +320,10 @@ mod replace_items_tests {
         });
     }
 
-    #[test]
+    #[rstest]
     #[cfg_attr(miri, ignore)]
     #[serial]
-    fn replace_items_replaces_item1_by_item2_id() {
+    fn replace_items_replaces_item1_by_item2_id(_pyshinqlx_setup: ()) {
         let get_num_items_ctx = MockGameItem::get_num_items_context();
         get_num_items_ctx.expect().returning(|| 42);
 
@@ -349,10 +351,10 @@ mod replace_items_tests {
         assert_eq!(result.expect("result was not OK"), true);
     }
 
-    #[test]
+    #[rstest]
     #[cfg_attr(miri, ignore)]
     #[serial]
-    fn replace_items_replaces_item1_id_by_item2_clssname() {
+    fn replace_items_replaces_item1_id_by_item2_clssname(_pyshinqlx_setup: ()) {
         let get_num_items_ctx = MockGameItem::get_num_items_context();
         get_num_items_ctx.expect().returning(|| 42);
 
@@ -403,10 +405,10 @@ mod replace_items_tests {
         assert_eq!(result.expect("result was not OK"), true);
     }
 
-    #[test]
+    #[rstest]
     #[cfg_attr(miri, ignore)]
     #[serial]
-    fn replace_items_replaces_item1_string_by_item2_clssname() {
+    fn replace_items_replaces_item1_string_by_item2_clssname(_pyshinqlx_setup: ()) {
         let get_num_items_ctx = MockGameItem::get_num_items_context();
         get_num_items_ctx.expect().returning(|| 42);
 
@@ -521,10 +523,10 @@ mod replace_items_tests {
         assert_eq!(result.expect("result was not OK"), true);
     }
 
-    #[test]
+    #[rstest]
     #[cfg_attr(miri, ignore)]
     #[serial]
-    fn replace_items_replaces_item1_string_items_by_item2_clssname() {
+    fn replace_items_replaces_item1_string_items_by_item2_clssname(_pyshinqlx_setup: ()) {
         let get_num_items_ctx = MockGameItem::get_num_items_context();
         get_num_items_ctx.expect().returning(|| 42);
 
