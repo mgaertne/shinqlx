@@ -72,6 +72,7 @@ mod register_handler_tests {
     fn register_handler_setting_handler_to_none(
         #[case] event: &str,
         #[case] handler: &Lazy<ArcSwapOption<PyObject>>,
+        _pyshinqlx_setup: (),
     ) {
         Python::with_gil(|py| {
             let pymodule = PyModule::from_code_bound(
@@ -116,6 +117,7 @@ def handler():
     fn register_handler_setting_handler_to_some_handler(
         #[case] event: &str,
         #[case] handler: &Lazy<ArcSwapOption<PyObject>>,
+        _pyshinqlx_setup: (),
     ) {
         Python::with_gil(|py| {
             let pymodule = PyModule::from_code_bound(
@@ -139,10 +141,10 @@ def handler():
         });
     }
 
-    #[test]
+    #[rstest]
     #[cfg_attr(miri, ignore)]
     #[serial]
-    fn register_handler_for_some_unknown_event() {
+    fn register_handler_for_some_unknown_event(_pyshinqlx_setup: ()) {
         Python::with_gil(|py| {
             let pymodule = PyModule::from_code_bound(
                 py,
@@ -161,10 +163,10 @@ def handler():
         });
     }
 
-    #[test]
+    #[rstest]
     #[cfg_attr(miri, ignore)]
     #[serial]
-    fn register_handler_for_uncallable_handler() {
+    fn register_handler_for_uncallable_handler(_pyshinqlx_setup: ()) {
         Python::with_gil(|py| {
             let pymodule = PyModule::from_code_bound(
                 py,

@@ -27,21 +27,22 @@ mod set_health_tests {
     use mockall::predicate;
     use pretty_assertions::assert_eq;
     use pyo3::exceptions::{PyEnvironmentError, PyValueError};
+    use rstest::rstest;
 
-    #[test]
+    #[rstest]
     #[cfg_attr(miri, ignore)]
     #[serial]
-    fn set_health_when_main_engine_not_initialized() {
+    fn set_health_when_main_engine_not_initialized(_pyshinqlx_setup: ()) {
         Python::with_gil(|py| {
             let result = pyshinqlx_set_health(py, 21, 666);
             assert!(result.is_err_and(|err| err.is_instance_of::<PyEnvironmentError>(py)));
         });
     }
 
-    #[test]
+    #[rstest]
     #[cfg_attr(miri, ignore)]
     #[serial]
-    fn set_health_for_client_id_too_small() {
+    fn set_health_for_client_id_too_small(_pyshinqlx_setup: ()) {
         with_mocked_engine(|mock_engine| {
             mock_engine.expect_get_max_clients().returning(|| 16);
         })
@@ -53,10 +54,10 @@ mod set_health_tests {
         });
     }
 
-    #[test]
+    #[rstest]
     #[cfg_attr(miri, ignore)]
     #[serial]
-    fn set_health_for_client_id_too_large() {
+    fn set_health_for_client_id_too_large(_pyshinqlx_setup: ()) {
         with_mocked_engine(|mock_engine| {
             mock_engine.expect_get_max_clients().returning(|| 16);
         })
@@ -68,10 +69,10 @@ mod set_health_tests {
         });
     }
 
-    #[test]
+    #[rstest]
     #[cfg_attr(miri, ignore)]
     #[serial]
-    fn set_health_for_existing_game_client() {
+    fn set_health_for_existing_game_client(_pyshinqlx_setup: ()) {
         let game_entity_from_ctx = MockGameEntity::from_context();
         game_entity_from_ctx.expect().returning(|_| {
             let mut mock_game_entity = MockGameEntity::new();
