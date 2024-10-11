@@ -40,20 +40,20 @@ mod client_command_tests {
     use pyo3::exceptions::{PyEnvironmentError, PyValueError};
     use rstest::*;
 
-    #[test]
+    #[rstest]
     #[cfg_attr(miri, ignore)]
     #[serial]
-    fn client_command_when_main_engine_not_initialized() {
+    fn client_command_when_main_engine_not_initialized(_pyshinqlx_setup: ()) {
         Python::with_gil(|py| {
             let result = pyshinqlx_client_command(py, 0, "asdf");
             assert!(result.is_err_and(|err| err.is_instance_of::<PyEnvironmentError>(py)));
         });
     }
 
-    #[test]
+    #[rstest]
     #[cfg_attr(miri, ignore)]
     #[serial]
-    fn client_command_for_client_id_below_zero() {
+    fn client_command_for_client_id_below_zero(_pyshinqlx_setup: ()) {
         let hook_ctx = shinqlx_execute_client_command_context();
         hook_ctx.expect().times(0);
 
@@ -68,10 +68,10 @@ mod client_command_tests {
         });
     }
 
-    #[test]
+    #[rstest]
     #[cfg_attr(miri, ignore)]
     #[serial]
-    fn client_command_for_client_id_above_max_clients() {
+    fn client_command_for_client_id_above_max_clients(_pyshinqlx_setup: ()) {
         let hook_ctx = shinqlx_execute_client_command_context();
         hook_ctx.expect().times(0);
 
@@ -92,7 +92,10 @@ mod client_command_tests {
     #[case(clientState_t::CS_PRIMED)]
     #[cfg_attr(miri, ignore)]
     #[serial]
-    fn send_server_command_for_active_client(#[case] clientstate: clientState_t) {
+    fn send_server_command_for_active_client(
+        #[case] clientstate: clientState_t,
+        _pyshinqlx_setup: (),
+    ) {
         let client_from_ctx = MockClient::from_context();
         client_from_ctx.expect().returning(move |_client_id| {
             let mut mock_client = MockClient::new();
@@ -120,7 +123,10 @@ mod client_command_tests {
     #[case(clientState_t::CS_ZOMBIE)]
     #[cfg_attr(miri, ignore)]
     #[serial]
-    fn send_server_command_for_non_active_free_client(#[case] clientstate: clientState_t) {
+    fn send_server_command_for_non_active_free_client(
+        #[case] clientstate: clientState_t,
+        _pyshinqlx_setup: (),
+    ) {
         let client_try_from_ctx = MockClient::from_context();
         client_try_from_ctx.expect().returning(move |_client_id| {
             let mut mock_client = MockClient::new();

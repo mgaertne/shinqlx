@@ -29,21 +29,22 @@ mod console_command_tests {
 
     use mockall::predicate;
     use pyo3::exceptions::PyEnvironmentError;
+    use rstest::rstest;
 
-    #[test]
+    #[rstest]
     #[cfg_attr(miri, ignore)]
     #[serial]
-    fn console_command_when_main_engine_not_initialized() {
+    fn console_command_when_main_engine_not_initialized(_pyshinqlx_setup: ()) {
         Python::with_gil(|py| {
             let result = pyshinqlx_console_command(py, "asdf");
             assert!(result.is_err_and(|err| err.is_instance_of::<PyEnvironmentError>(py)));
         });
     }
 
-    #[test]
+    #[rstest]
     #[cfg_attr(miri, ignore)]
     #[serial]
-    fn console_command_with_main_engine_set() {
+    fn console_command_with_main_engine_set(_pyshinqlx_setup: ()) {
         with_mocked_engine(|mock_engine| {
             mock_engine
                 .expect_execute_console_command()

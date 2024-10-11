@@ -29,22 +29,24 @@ mod add_console_command_tests {
     use crate::ffi::python::prelude::*;
     use crate::prelude::*;
 
+    use rstest::rstest;
+
     use pyo3::exceptions::PyEnvironmentError;
 
-    #[test]
+    #[rstest]
     #[cfg_attr(miri, ignore)]
     #[serial]
-    fn add_console_command_when_main_engine_not_initialized() {
+    fn add_console_command_when_main_engine_not_initialized(_pyshinqlx_setup: ()) {
         Python::with_gil(|py| {
             let result = pyshinqlx_add_console_command(py, "slap");
             assert!(result.is_err_and(|err| err.is_instance_of::<PyEnvironmentError>(py)));
         });
     }
 
-    #[test]
+    #[rstest]
     #[cfg_attr(miri, ignore)]
     #[serial]
-    fn add_console_command_adds_py_command_to_main_engine() {
+    fn add_console_command_adds_py_command_to_main_engine(_pyshinqlx_setup: ()) {
         with_mocked_engine(|mock_engine| {
             mock_engine
                 .expect_add_command()
