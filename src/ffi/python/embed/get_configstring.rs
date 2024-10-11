@@ -14,7 +14,6 @@ mod get_configstring_tests {
     use crate::ffi::c::prelude::*;
     use crate::ffi::python::prelude::*;
     use crate::prelude::*;
-    use crate::MAIN_ENGINE;
 
     use mockall::predicate;
     use pretty_assertions::assert_eq;

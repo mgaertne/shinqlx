@@ -22,7 +22,6 @@ mod allow_single_player_tests {
     use rstest::rstest;
 
     use mockall::predicate;
-    use rstest::*;
 
     #[rstest]
     #[cfg_attr(miri, ignore)]
