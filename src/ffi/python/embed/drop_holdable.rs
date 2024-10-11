@@ -164,8 +164,8 @@ mod drop_holdable_tests {
     #[cfg_attr(miri, ignore)]
     #[serial]
     fn drop_holdable_for_entity_with_holdable_dropped(
-        _pyshinqlx_setup: (),
         #[case] holdable: &'static Holdable,
+        _pyshinqlx_setup: (),
     ) {
         let mut seq = Sequence::new();
 
