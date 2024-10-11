@@ -23,6 +23,8 @@ mod callvote_tests {
     use crate::ffi::python::prelude::*;
     use crate::prelude::*;
 
+    use rstest::rstest;
+
     use mockall::predicate;
     use rstest::*;
 

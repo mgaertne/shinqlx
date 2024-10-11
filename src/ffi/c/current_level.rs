@@ -117,7 +117,6 @@ mockall::mock! {
 #[cfg(test)]
 mod current_level_tests {
     use super::CurrentLevel;
-    use super::MAIN_ENGINE;
     use crate::ffi::c::prelude::*;
     use crate::hooks::mock_hooks::shinqlx_set_configstring_context;
     use crate::prelude::*;
@@ -131,9 +130,6 @@ mod current_level_tests {
     #[test]
     #[serial]
     fn current_level_default_panics_when_no_main_engine_found() {
-        {
-            MAIN_ENGINE.store(None);
-        }
         let result = CurrentLevel::try_get();
 
         assert!(result.is_err());
@@ -146,19 +142,20 @@ mod current_level_tests {
     #[test]
     #[serial]
     fn current_level_default_panics_when_g_init_game_not_set() {
-        let mut mock_engine = MockQuakeEngine::new();
-        mock_engine
-            .expect_g_init_game_orig()
-            .return_once(|| Err(QuakeLiveEngineError::VmFunctionNotFound(G_InitGame)));
-        MAIN_ENGINE.store(Some(mock_engine.into()));
+        with_mocked_engine(|mock_engine| {
+            mock_engine
+                .expect_g_init_game_orig()
+                .return_once(|| Err(QuakeLiveEngineError::VmFunctionNotFound(G_InitGame)));
+        })
+        .run(|| {
+            let result = CurrentLevel::try_get();
 
-        let result = CurrentLevel::try_get();
-
-        assert!(result.is_err());
-        assert_eq!(
-            result.expect_err("this should not happen"),
-            QuakeLiveEngineError::VmFunctionNotFound(G_InitGame)
-        );
+            assert!(result.is_err());
+            assert_eq!(
+                result.expect_err("this should not happen"),
+                QuakeLiveEngineError::VmFunctionNotFound(G_InitGame)
+            );
+        });
     }
 
     #[test]
@@ -239,8 +236,6 @@ mod current_level_tests {
     #[test]
     #[serial]
     fn current_level_callvote_with_no_main_engine() {
-        MAIN_ENGINE.store(None);
-
         let mut level = LevelLocalsBuilder::default()
             .build()
             .expect("this should not happen");
@@ -256,10 +251,6 @@ mod current_level_tests {
     #[test]
     #[serial]
     fn current_level_callvote_with_main_engine_set() {
-        let mut mock_engine = MockQuakeEngine::new();
-        mock_engine.expect_get_max_clients().return_const(8);
-        MAIN_ENGINE.store(Some(mock_engine.into()));
-
         let set_configstring_ctx = shinqlx_set_configstring_context();
         set_configstring_ctx
             .expect()
@@ -306,33 +297,35 @@ mod current_level_tests {
             mock_entity
         });
 
-        let mut level = LevelLocalsBuilder::default()
-            .time(42)
-            .build()
-            .expect("this should not happen");
-        let mut current_level = CurrentLevel::try_from(level.borrow_mut() as *mut level_locals_t)
-            .expect("this should not happen");
-        current_level.callvote("map thunderstruck", "map thunderstruck", None);
-        assert_eq!(
-            unsafe { CStr::from_ptr(level.voteString.as_ptr()) }.to_string_lossy(),
-            "map thunderstruck"
-        );
-        assert_eq!(
-            unsafe { CStr::from_ptr(level.voteDisplayString.as_ptr()) }.to_string_lossy(),
-            "map thunderstruck"
-        );
-        assert_eq!(level.voteTime, 42);
-        assert_eq!(level.voteYes, 0);
-        assert_eq!(level.voteNo, 0);
+        with_mocked_engine(|mock_engine| {
+            mock_engine.expect_get_max_clients().return_const(8);
+        })
+        .run(|| {
+            let mut level = LevelLocalsBuilder::default()
+                .time(42)
+                .build()
+                .expect("this should not happen");
+            let mut current_level =
+                CurrentLevel::try_from(level.borrow_mut() as *mut level_locals_t)
+                    .expect("this should not happen");
+            current_level.callvote("map thunderstruck", "map thunderstruck", None);
+            assert_eq!(
+                unsafe { CStr::from_ptr(level.voteString.as_ptr()) }.to_string_lossy(),
+                "map thunderstruck"
+            );
+            assert_eq!(
+                unsafe { CStr::from_ptr(level.voteDisplayString.as_ptr()) }.to_string_lossy(),
+                "map thunderstruck"
+            );
+            assert_eq!(level.voteTime, 42);
+            assert_eq!(level.voteYes, 0);
+            assert_eq!(level.voteNo, 0);
+        });
     }
 
     #[test]
     #[serial]
     fn current_level_callvote_with_vote_time_value() {
-        let mut mock_engine = MockQuakeEngine::new();
-        mock_engine.expect_get_max_clients().return_const(8);
-        MAIN_ENGINE.store(Some(mock_engine.into()));
-
         let set_configstring_ctx = shinqlx_set_configstring_context();
         set_configstring_ctx
             .expect()
@@ -376,23 +369,29 @@ mod current_level_tests {
             mock_entity
         });
 
-        let mut level = LevelLocalsBuilder::default()
-            .time(42)
-            .build()
-            .expect("this should not happen");
-        let mut current_level = CurrentLevel::try_from(level.borrow_mut() as *mut level_locals_t)
-            .expect("this should not happen");
-        current_level.callvote("map campgrounds", "map asdf", Some(42));
-        assert_eq!(
-            unsafe { CStr::from_ptr(level.voteString.as_ptr()) }.to_string_lossy(),
-            "map campgrounds"
-        );
-        assert_eq!(
-            unsafe { CStr::from_ptr(level.voteDisplayString.as_ptr()) }.to_string_lossy(),
-            "map asdf"
-        );
-        assert_eq!(level.voteTime, 12042);
-        assert_eq!(level.voteYes, 0);
-        assert_eq!(level.voteNo, 0);
+        with_mocked_engine(|mock_engine| {
+            mock_engine.expect_get_max_clients().return_const(8);
+        })
+        .run(|| {
+            let mut level = LevelLocalsBuilder::default()
+                .time(42)
+                .build()
+                .expect("this should not happen");
+            let mut current_level =
+                CurrentLevel::try_from(level.borrow_mut() as *mut level_locals_t)
+                    .expect("this should not happen");
+            current_level.callvote("map campgrounds", "map asdf", Some(42));
+            assert_eq!(
+                unsafe { CStr::from_ptr(level.voteString.as_ptr()) }.to_string_lossy(),
+                "map campgrounds"
+            );
+            assert_eq!(
+                unsafe { CStr::from_ptr(level.voteDisplayString.as_ptr()) }.to_string_lossy(),
+                "map asdf"
+            );
+            assert_eq!(level.voteTime, 12042);
+            assert_eq!(level.voteYes, 0);
+            assert_eq!(level.voteNo, 0);
+        });
     }
 }

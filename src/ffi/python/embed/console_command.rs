@@ -16,13 +16,12 @@ mod console_command_tests {
 
     use mockall::predicate;
     use pyo3::exceptions::PyEnvironmentError;
-    use rstest::*;
+    use rstest::rstest;
 
     #[rstest]
     #[cfg_attr(miri, ignore)]
     #[serial]
     fn console_command_when_main_engine_not_initialized(_pyshinqlx_setup: ()) {
-        MAIN_ENGINE.store(None);
         Python::with_gil(|py| {
             let result = pyshinqlx_console_command(py, "asdf");
             assert!(result.is_err_and(|err| err.is_instance_of::<PyEnvironmentError>(py)));
@@ -33,14 +32,15 @@ mod console_command_tests {
     #[cfg_attr(miri, ignore)]
     #[serial]
     fn console_command_with_main_engine_set(_pyshinqlx_setup: ()) {
-        let mut mock_engine = MockQuakeEngine::new();
-        mock_engine
-            .expect_execute_console_command()
-            .with(predicate::eq("asdf"))
-            .times(1);
-        MAIN_ENGINE.store(Some(mock_engine.into()));
-
-        let result = Python::with_gil(|py| pyshinqlx_console_command(py, "asdf"));
-        assert!(result.is_ok());
+        with_mocked_engine(|mock_engine| {
+            mock_engine
+                .expect_execute_console_command()
+                .with(predicate::eq("asdf"))
+                .times(1);
+        })
+        .run(|| {
+            let result = Python::with_gil(|py| pyshinqlx_console_command(py, "asdf"));
+            assert!(result.is_ok());
+        });
     }
 }

@@ -42,17 +42,16 @@ mod get_player_info_tests {
     use crate::ffi::c::prelude::*;
     use crate::ffi::python::prelude::*;
     use crate::prelude::*;
-    use crate::MAIN_ENGINE;
+
+    use rstest::rstest;
 
     use core::sync::atomic::Ordering;
     use pyo3::exceptions::{PyEnvironmentError, PyValueError};
-    use rstest::*;
 
     #[rstest]
     #[cfg_attr(miri, ignore)]
     #[serial]
     fn get_player_info_when_main_engine_not_initialized(_pyshinqlx_setup: ()) {
-        MAIN_ENGINE.store(None);
         Python::with_gil(|py| {
             let result = pyshinqlx_player_info(py, 0);
             assert!(result.is_err_and(|err| err.is_instance_of::<PyEnvironmentError>(py)));
@@ -63,12 +62,14 @@ mod get_player_info_tests {
     #[cfg_attr(miri, ignore)]
     #[serial]
     fn get_player_info_for_client_id_below_zero(_pyshinqlx_setup: ()) {
-        let mut mock_engine = MockQuakeEngine::new();
-        mock_engine.expect_get_max_clients().returning(|| 16);
-        MAIN_ENGINE.store(Some(mock_engine.into()));
-        Python::with_gil(|py| {
-            let result = pyshinqlx_player_info(py, -1);
-            assert!(result.is_err_and(|err| err.is_instance_of::<PyValueError>(py)));
+        with_mocked_engine(|mock_engine| {
+            mock_engine.expect_get_max_clients().returning(|| 16);
+        })
+        .run(|| {
+            Python::with_gil(|py| {
+                let result = pyshinqlx_player_info(py, -1);
+                assert!(result.is_err_and(|err| err.is_instance_of::<PyValueError>(py)));
+            });
         });
     }
 
@@ -76,12 +77,14 @@ mod get_player_info_tests {
     #[cfg_attr(miri, ignore)]
     #[serial]
     fn get_player_info_for_client_id_above_max_clients(_pyshinqlx_setup: ()) {
-        let mut mock_engine = MockQuakeEngine::new();
-        mock_engine.expect_get_max_clients().returning(|| 16);
-        MAIN_ENGINE.store(Some(mock_engine.into()));
-        Python::with_gil(|py| {
-            let result = pyshinqlx_player_info(py, 42);
-            assert!(result.is_err_and(|err| err.is_instance_of::<PyValueError>(py)));
+        with_mocked_engine(|mock_engine| {
+            mock_engine.expect_get_max_clients().returning(|| 16);
+        })
+        .run(|| {
+            Python::with_gil(|py| {
+                let result = pyshinqlx_player_info(py, 42);
+                assert!(result.is_err_and(|err| err.is_instance_of::<PyValueError>(py)));
+            });
         });
     }
 
@@ -89,10 +92,6 @@ mod get_player_info_tests {
     #[cfg_attr(miri, ignore)]
     #[serial]
     fn get_player_info_for_existing_client(_pyshinqlx_setup: ()) {
-        let mut mock_engine = MockQuakeEngine::new();
-        mock_engine.expect_get_max_clients().returning(|| 16);
-        MAIN_ENGINE.store(Some(mock_engine.into()));
-
         let client_try_from_ctx = MockClient::from_context();
         client_try_from_ctx.expect().returning(|_client_id| {
             let mut mock_client = MockClient::new();
@@ -121,28 +120,30 @@ mod get_player_info_tests {
             mock_game_entity
         });
 
-        let player_info = Python::with_gil(|py| pyshinqlx_player_info(py, 2));
-        assert_eq!(
-            player_info.expect("result was not OK"),
-            Some(PlayerInfo {
-                client_id: 2,
-                name: "Mocked Player".to_string(),
-                connection_state: clientState_t::CS_ACTIVE as i32,
-                userinfo: "asdf".to_string(),
-                steam_id: 1234,
-                team: team_t::TEAM_RED as i32,
-                privileges: privileges_t::PRIV_NONE as i32
-            })
-        );
+        with_mocked_engine(|mock_engine| {
+            mock_engine.expect_get_max_clients().returning(|| 16);
+        })
+        .run(|| {
+            let player_info = Python::with_gil(|py| pyshinqlx_player_info(py, 2));
+            assert_eq!(
+                player_info.expect("result was not OK"),
+                Some(PlayerInfo {
+                    client_id: 2,
+                    name: "Mocked Player".to_string(),
+                    connection_state: clientState_t::CS_ACTIVE as i32,
+                    userinfo: "asdf".to_string(),
+                    steam_id: 1234,
+                    team: team_t::TEAM_RED as i32,
+                    privileges: privileges_t::PRIV_NONE as i32
+                })
+            );
+        });
     }
 
     #[rstest]
     #[cfg_attr(miri, ignore)]
     #[serial]
     fn get_player_info_for_non_allowed_free_client(_pyshinqlx_setup: ()) {
-        let mut mock_engine = MockQuakeEngine::new();
-        mock_engine.expect_get_max_clients().returning(|| 16);
-        MAIN_ENGINE.store(Some(mock_engine.into()));
         ALLOW_FREE_CLIENT.store(0, Ordering::SeqCst);
 
         let client_try_from_ctx = MockClient::from_context();
@@ -158,17 +159,19 @@ mod get_player_info_tests {
             mock_client
         });
 
-        let player_info = Python::with_gil(|py| pyshinqlx_player_info(py, 2));
-        assert_eq!(player_info.expect("result was not OK"), None);
+        with_mocked_engine(|mock_engine| {
+            mock_engine.expect_get_max_clients().returning(|| 16);
+        })
+        .run(|| {
+            let player_info = Python::with_gil(|py| pyshinqlx_player_info(py, 2));
+            assert_eq!(player_info.expect("result was not OK"), None);
+        });
     }
 
     #[rstest]
     #[cfg_attr(miri, ignore)]
     #[serial]
     fn get_player_info_for_allowed_free_client(_pyshinqlx_setup: ()) {
-        let mut mock_engine = MockQuakeEngine::new();
-        mock_engine.expect_get_max_clients().returning(|| 16);
-        MAIN_ENGINE.store(Some(mock_engine.into()));
         ALLOW_FREE_CLIENT.store(1 << 2, Ordering::SeqCst);
 
         let client_try_from_ctx = MockClient::from_context();
@@ -199,18 +202,23 @@ mod get_player_info_tests {
             mock_game_entity
         });
 
-        let player_info = Python::with_gil(|py| pyshinqlx_player_info(py, 2));
-        assert_eq!(
-            player_info.expect("result was not OK"),
-            Some(PlayerInfo {
-                client_id: 2,
-                name: "Mocked Player".to_string(),
-                connection_state: clientState_t::CS_FREE as i32,
-                userinfo: "asdf".to_string(),
-                steam_id: 1234,
-                team: team_t::TEAM_RED as i32,
-                privileges: privileges_t::PRIV_NONE as i32
-            })
-        );
+        with_mocked_engine(|mock_engine| {
+            mock_engine.expect_get_max_clients().returning(|| 16);
+        })
+        .run(|| {
+            let player_info = Python::with_gil(|py| pyshinqlx_player_info(py, 2));
+            assert_eq!(
+                player_info.expect("result was not OK"),
+                Some(PlayerInfo {
+                    client_id: 2,
+                    name: "Mocked Player".to_string(),
+                    connection_state: clientState_t::CS_FREE as i32,
+                    userinfo: "asdf".to_string(),
+                    steam_id: 1234,
+                    team: team_t::TEAM_RED as i32,
+                    privileges: privileges_t::PRIV_NONE as i32
+                })
+            );
+        });
     }
 }

@@ -25,18 +25,17 @@ mod get_userinfo_tests {
     use crate::ffi::c::prelude::*;
     use crate::ffi::python::prelude::*;
     use crate::prelude::*;
-    use crate::MAIN_ENGINE;
 
     use core::sync::atomic::Ordering;
+
     use pretty_assertions::assert_eq;
     use pyo3::exceptions::{PyEnvironmentError, PyValueError};
-    use rstest::*;
+    use rstest::rstest;
 
     #[rstest]
     #[cfg_attr(miri, ignore)]
     #[serial]
     fn get_userinfo_when_main_engine_not_initialized(_pyshinqlx_setup: ()) {
-        MAIN_ENGINE.store(None);
         Python::with_gil(|py| {
             let result = pyshinqlx_get_userinfo(py, 0);
             assert!(result.is_err_and(|err| err.is_instance_of::<PyEnvironmentError>(py)));
@@ -47,12 +46,14 @@ mod get_userinfo_tests {
     #[cfg_attr(miri, ignore)]
     #[serial]
     fn get_userinfo_for_client_id_below_zero(_pyshinqlx_setup: ()) {
-        let mut mock_engine = MockQuakeEngine::new();
-        mock_engine.expect_get_max_clients().returning(|| 16);
-        MAIN_ENGINE.store(Some(mock_engine.into()));
-        Python::with_gil(|py| {
-            let result = pyshinqlx_get_userinfo(py, -1);
-            assert!(result.is_err_and(|err| err.is_instance_of::<PyValueError>(py)));
+        with_mocked_engine(|mock_engine| {
+            mock_engine.expect_get_max_clients().returning(|| 16);
+        })
+        .run(|| {
+            Python::with_gil(|py| {
+                let result = pyshinqlx_get_userinfo(py, -1);
+                assert!(result.is_err_and(|err| err.is_instance_of::<PyValueError>(py)));
+            });
         });
     }
 
@@ -60,12 +61,14 @@ mod get_userinfo_tests {
     #[cfg_attr(miri, ignore)]
     #[serial]
     fn get_userinfo_for_client_id_above_max_clients(_pyshinqlx_setup: ()) {
-        let mut mock_engine = MockQuakeEngine::new();
-        mock_engine.expect_get_max_clients().returning(|| 16);
-        MAIN_ENGINE.store(Some(mock_engine.into()));
-        Python::with_gil(|py| {
-            let result = pyshinqlx_get_userinfo(py, 42);
-            assert!(result.is_err_and(|err| err.is_instance_of::<PyValueError>(py)));
+        with_mocked_engine(|mock_engine| {
+            mock_engine.expect_get_max_clients().returning(|| 16);
+        })
+        .run(|| {
+            Python::with_gil(|py| {
+                let result = pyshinqlx_get_userinfo(py, 42);
+                assert!(result.is_err_and(|err| err.is_instance_of::<PyValueError>(py)));
+            });
         });
     }
 
@@ -73,10 +76,6 @@ mod get_userinfo_tests {
     #[cfg_attr(miri, ignore)]
     #[serial]
     fn get_userinfo_for_existing_client(_pyshinqlx_setup: ()) {
-        let mut mock_engine = MockQuakeEngine::new();
-        mock_engine.expect_get_max_clients().returning(|| 16);
-        MAIN_ENGINE.store(Some(mock_engine.into()));
-
         let client_try_from_ctx = MockClient::from_context();
         client_try_from_ctx.expect().returning(|_client_id| {
             let mut mock_client = MockClient::new();
@@ -89,20 +88,22 @@ mod get_userinfo_tests {
             mock_client
         });
 
-        let userinfo = Python::with_gil(|py| pyshinqlx_get_userinfo(py, 2));
-        assert_eq!(
-            userinfo.expect("result was not OK"),
-            Some("asdf".to_string())
-        );
+        with_mocked_engine(|mock_engine| {
+            mock_engine.expect_get_max_clients().returning(|| 16);
+        })
+        .run(|| {
+            let userinfo = Python::with_gil(|py| pyshinqlx_get_userinfo(py, 2));
+            assert_eq!(
+                userinfo.expect("result was not OK"),
+                Some("asdf".to_string())
+            );
+        });
     }
 
     #[rstest]
     #[cfg_attr(miri, ignore)]
     #[serial]
     fn get_userinfo_for_non_allowed_free_client(_pyshinqlx_setup: ()) {
-        let mut mock_engine = MockQuakeEngine::new();
-        mock_engine.expect_get_max_clients().returning(|| 16);
-        MAIN_ENGINE.store(Some(mock_engine.into()));
         ALLOW_FREE_CLIENT.store(0, Ordering::SeqCst);
 
         let client_try_from_ctx = MockClient::from_context();
@@ -117,17 +118,19 @@ mod get_userinfo_tests {
             mock_client
         });
 
-        let userinfo = Python::with_gil(|py| pyshinqlx_get_userinfo(py, 2));
-        assert_eq!(userinfo.expect("result was not OK"), None);
+        with_mocked_engine(|mock_engine| {
+            mock_engine.expect_get_max_clients().returning(|| 16);
+        })
+        .run(|| {
+            let userinfo = Python::with_gil(|py| pyshinqlx_get_userinfo(py, 2));
+            assert_eq!(userinfo.expect("result was not OK"), None);
+        });
     }
 
     #[rstest]
     #[cfg_attr(miri, ignore)]
     #[serial]
     fn get_userinfo_for_allowed_free_client(_pyshinqlx_setup: ()) {
-        let mut mock_engine = MockQuakeEngine::new();
-        mock_engine.expect_get_max_clients().returning(|| 16);
-        MAIN_ENGINE.store(Some(mock_engine.into()));
         ALLOW_FREE_CLIENT.store(1 << 2, Ordering::SeqCst);
 
         let client_try_from_ctx = MockClient::from_context();
@@ -142,10 +145,15 @@ mod get_userinfo_tests {
             mock_client
         });
 
-        let userinfo = Python::with_gil(|py| pyshinqlx_get_userinfo(py, 2));
-        assert_eq!(
-            userinfo.expect("result was not OK"),
-            Some("asdf".to_string())
-        );
+        with_mocked_engine(|mock_engine| {
+            mock_engine.expect_get_max_clients().returning(|| 16);
+        })
+        .run(|| {
+            let userinfo = Python::with_gil(|py| pyshinqlx_get_userinfo(py, 2));
+            assert_eq!(
+                userinfo.expect("result was not OK"),
+                Some("asdf".to_string())
+            );
+        });
     }
 }

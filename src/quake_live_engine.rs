@@ -24,6 +24,8 @@ use alloc::ffi::CString;
 use arc_swap::ArcSwapOption;
 #[cfg(target_os = "linux")]
 use arrayvec::ArrayVec;
+#[cfg(test)]
+use core::borrow::BorrowMut;
 use core::{
     ffi::{c_char, c_int, CStr},
     sync::atomic::{AtomicI32, AtomicUsize, Ordering},
@@ -5355,6 +5357,36 @@ mockall::mock! {
         #[allow(unused_attributes)]
         #[cfg(not(tarpaulin_include))]
         fn set_cvar_limit(&self, name: &str, value: &str, min: &str, max: &str, flags: Option<i32>) -> Option<CVar>;
+    }
+}
+
+#[cfg(test)]
+pub(crate) struct MockEngineBuilder {
+    mock_engine: Option<MockQuakeEngine>,
+}
+
+#[cfg(test)]
+impl MockEngineBuilder {
+    pub(crate) fn run<F>(&mut self, execute: F)
+    where
+        F: FnOnce(),
+    {
+        let engine = self.mock_engine.take();
+        crate::MAIN_ENGINE.store(engine.map(|mock_engine| mock_engine.into()));
+        execute();
+        crate::MAIN_ENGINE.store(None);
+    }
+}
+
+#[cfg(test)]
+pub(crate) fn with_mocked_engine<F>(setup: F) -> MockEngineBuilder
+where
+    F: FnOnce(&mut MockQuakeEngine),
+{
+    let mut mock_engine = MockQuakeEngine::new();
+    setup(mock_engine.borrow_mut());
+    MockEngineBuilder {
+        mock_engine: mock_engine.into(),
     }
 }
 

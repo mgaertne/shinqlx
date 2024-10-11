@@ -35,7 +35,7 @@ mod destroy_kamikaze_timers_tests {
 
     use mockall::predicate;
     use pretty_assertions::assert_eq;
-    use rstest::*;
+    use rstest::rstest;
 
     #[rstest]
     #[cfg_attr(miri, ignore)]

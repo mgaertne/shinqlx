@@ -34,7 +34,6 @@ pub(crate) fn pyshinqlx_players_info(py: Python<'_>) -> PyResult<Vec<Option<Play
 
 #[cfg(test)]
 mod get_players_info_tests {
-    use super::MAIN_ENGINE;
     use crate::ffi::c::prelude::*;
     use crate::ffi::python::prelude::*;
     use crate::prelude::*;
@@ -42,13 +41,12 @@ mod get_players_info_tests {
     use mockall::predicate;
     use pretty_assertions::assert_eq;
     use pyo3::exceptions::PyEnvironmentError;
-    use rstest::*;
+    use rstest::rstest;
 
     #[rstest]
     #[cfg_attr(miri, ignore)]
     #[serial]
     fn get_players_info_when_main_engine_not_initialized(_pyshinqlx_setup: ()) {
-        MAIN_ENGINE.store(None);
         Python::with_gil(|py| {
             let result = pyshinqlx_players_info(py);
             assert!(result.is_err_and(|err| err.is_instance_of::<PyEnvironmentError>(py)));
@@ -59,10 +57,6 @@ mod get_players_info_tests {
     #[cfg_attr(miri, ignore)]
     #[serial]
     fn get_players_info_for_existing_clients(_pyshinqlx_setup: ()) {
-        let mut mock_engine = MockQuakeEngine::new();
-        mock_engine.expect_get_max_clients().returning(|| 3);
-        MAIN_ENGINE.store(Some(mock_engine.into()));
-
         let client_try_from_ctx = MockClient::from_context();
         client_try_from_ctx
             .expect()
@@ -125,29 +119,34 @@ mod get_players_info_tests {
             mock_game_entity
         });
 
-        let players_info = Python::with_gil(pyshinqlx_players_info);
-        assert_eq!(
-            players_info.expect("result was not OK"),
-            vec![
-                Some(PlayerInfo {
-                    client_id: 0,
-                    name: "Mocked Player".to_string(),
-                    connection_state: clientState_t::CS_ACTIVE as i32,
-                    userinfo: "asdf".to_string(),
-                    steam_id: 1234,
-                    team: team_t::TEAM_RED as i32,
-                    privileges: privileges_t::PRIV_NONE as i32
-                }),
-                Some(PlayerInfo {
-                    client_id: 2,
-                    name: "Mocked Player".to_string(),
-                    connection_state: clientState_t::CS_ACTIVE as i32,
-                    userinfo: "asdf".to_string(),
-                    steam_id: 1234,
-                    team: team_t::TEAM_RED as i32,
-                    privileges: privileges_t::PRIV_NONE as i32
-                })
-            ]
-        );
+        with_mocked_engine(|mock_engine| {
+            mock_engine.expect_get_max_clients().returning(|| 3);
+        })
+        .run(|| {
+            let players_info = Python::with_gil(pyshinqlx_players_info);
+            assert_eq!(
+                players_info.expect("result was not OK"),
+                vec![
+                    Some(PlayerInfo {
+                        client_id: 0,
+                        name: "Mocked Player".to_string(),
+                        connection_state: clientState_t::CS_ACTIVE as i32,
+                        userinfo: "asdf".to_string(),
+                        steam_id: 1234,
+                        team: team_t::TEAM_RED as i32,
+                        privileges: privileges_t::PRIV_NONE as i32
+                    }),
+                    Some(PlayerInfo {
+                        client_id: 2,
+                        name: "Mocked Player".to_string(),
+                        connection_state: clientState_t::CS_ACTIVE as i32,
+                        userinfo: "asdf".to_string(),
+                        steam_id: 1234,
+                        team: team_t::TEAM_RED as i32,
+                        privileges: privileges_t::PRIV_NONE as i32
+                    })
+                ]
+            );
+        });
     }
 }
