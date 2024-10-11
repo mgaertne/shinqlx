@@ -41,11 +41,12 @@ mod spawn_item_tests {
     use mockall::predicate;
     use pretty_assertions::assert_eq;
     use pyo3::exceptions::PyValueError;
+    use rstest::rstest;
 
-    #[test]
+    #[rstest]
     #[cfg_attr(miri, ignore)]
     #[serial]
-    fn spawn_item_for_too_small_item_id() {
+    fn spawn_item_for_too_small_item_id(_pyshinqlx_setup: ()) {
         let get_num_item_ctx = MockGameItem::get_num_items_context();
         get_num_item_ctx.expect().returning(|| 1);
 
@@ -55,10 +56,10 @@ mod spawn_item_tests {
         });
     }
 
-    #[test]
+    #[rstest]
     #[cfg_attr(miri, ignore)]
     #[serial]
-    fn spawn_item_for_too_large_item_id() {
+    fn spawn_item_for_too_large_item_id(_pyshinqlx_setup: ()) {
         let get_num_item_ctx = MockGameItem::get_num_items_context();
         get_num_item_ctx.expect().returning(|| 64);
 
@@ -68,10 +69,10 @@ mod spawn_item_tests {
         });
     }
 
-    #[test]
+    #[rstest]
     #[cfg_attr(miri, ignore)]
     #[serial]
-    fn spawn_item_spawns_item() {
+    fn spawn_item_spawns_item(_pyshinqlx_setup: ()) {
         let get_num_item_ctx = MockGameItem::get_num_items_context();
         get_num_item_ctx.expect().returning(|| 64);
 

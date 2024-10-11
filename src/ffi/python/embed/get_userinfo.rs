@@ -27,23 +27,25 @@ mod get_userinfo_tests {
     use crate::prelude::*;
 
     use core::sync::atomic::Ordering;
+
     use pretty_assertions::assert_eq;
     use pyo3::exceptions::{PyEnvironmentError, PyValueError};
+    use rstest::rstest;
 
-    #[test]
+    #[rstest]
     #[cfg_attr(miri, ignore)]
     #[serial]
-    fn get_userinfo_when_main_engine_not_initialized() {
+    fn get_userinfo_when_main_engine_not_initialized(_pyshinqlx_setup: ()) {
         Python::with_gil(|py| {
             let result = pyshinqlx_get_userinfo(py, 0);
             assert!(result.is_err_and(|err| err.is_instance_of::<PyEnvironmentError>(py)));
         });
     }
 
-    #[test]
+    #[rstest]
     #[cfg_attr(miri, ignore)]
     #[serial]
-    fn get_userinfo_for_client_id_below_zero() {
+    fn get_userinfo_for_client_id_below_zero(_pyshinqlx_setup: ()) {
         with_mocked_engine(|mock_engine| {
             mock_engine.expect_get_max_clients().returning(|| 16);
         })
@@ -55,10 +57,10 @@ mod get_userinfo_tests {
         });
     }
 
-    #[test]
+    #[rstest]
     #[cfg_attr(miri, ignore)]
     #[serial]
-    fn get_userinfo_for_client_id_above_max_clients() {
+    fn get_userinfo_for_client_id_above_max_clients(_pyshinqlx_setup: ()) {
         with_mocked_engine(|mock_engine| {
             mock_engine.expect_get_max_clients().returning(|| 16);
         })
@@ -70,10 +72,10 @@ mod get_userinfo_tests {
         });
     }
 
-    #[test]
+    #[rstest]
     #[cfg_attr(miri, ignore)]
     #[serial]
-    fn get_userinfo_for_existing_client() {
+    fn get_userinfo_for_existing_client(_pyshinqlx_setup: ()) {
         let client_try_from_ctx = MockClient::from_context();
         client_try_from_ctx.expect().returning(|_client_id| {
             let mut mock_client = MockClient::new();
@@ -98,10 +100,10 @@ mod get_userinfo_tests {
         });
     }
 
-    #[test]
+    #[rstest]
     #[cfg_attr(miri, ignore)]
     #[serial]
-    fn get_userinfo_for_non_allowed_free_client() {
+    fn get_userinfo_for_non_allowed_free_client(_pyshinqlx_setup: ()) {
         ALLOW_FREE_CLIENT.store(0, Ordering::SeqCst);
 
         let client_try_from_ctx = MockClient::from_context();
@@ -125,10 +127,10 @@ mod get_userinfo_tests {
         });
     }
 
-    #[test]
+    #[rstest]
     #[cfg_attr(miri, ignore)]
     #[serial]
-    fn get_userinfo_for_allowed_free_client() {
+    fn get_userinfo_for_allowed_free_client(_pyshinqlx_setup: ()) {
         ALLOW_FREE_CLIENT.store(1 << 2, Ordering::SeqCst);
 
         let client_try_from_ctx = MockClient::from_context();

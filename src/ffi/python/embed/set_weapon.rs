@@ -37,21 +37,22 @@ mod set_weapon_tests {
     use mockall::predicate;
     use pretty_assertions::assert_eq;
     use pyo3::exceptions::{PyEnvironmentError, PyValueError};
+    use rstest::rstest;
 
-    #[test]
+    #[rstest]
     #[cfg_attr(miri, ignore)]
     #[serial]
-    fn set_weapon_when_main_engine_not_initialized() {
+    fn set_weapon_when_main_engine_not_initialized(_pyshinqlx_setup: ()) {
         Python::with_gil(|py| {
             let result = pyshinqlx_set_weapon(py, 21, weapon_t::WP_ROCKET_LAUNCHER.into());
             assert!(result.is_err_and(|err| err.is_instance_of::<PyEnvironmentError>(py)));
         });
     }
 
-    #[test]
+    #[rstest]
     #[cfg_attr(miri, ignore)]
     #[serial]
-    fn set_weapon_for_client_id_too_small() {
+    fn set_weapon_for_client_id_too_small(_pyshinqlx_setup: ()) {
         with_mocked_engine(|mock_engine| {
             mock_engine.expect_get_max_clients().returning(|| 16);
         })
@@ -63,10 +64,10 @@ mod set_weapon_tests {
         });
     }
 
-    #[test]
+    #[rstest]
     #[cfg_attr(miri, ignore)]
     #[serial]
-    fn set_weapon_for_client_id_too_large() {
+    fn set_weapon_for_client_id_too_large(_pyshinqlx_setup: ()) {
         with_mocked_engine(|mock_engine| {
             mock_engine.expect_get_max_clients().returning(|| 16);
         })
@@ -78,10 +79,10 @@ mod set_weapon_tests {
         });
     }
 
-    #[test]
+    #[rstest]
     #[cfg_attr(miri, ignore)]
     #[serial]
-    fn set_weapon_for_weapon_id_too_small() {
+    fn set_weapon_for_weapon_id_too_small(_pyshinqlx_setup: ()) {
         with_mocked_engine(|mock_engine| {
             mock_engine.expect_get_max_clients().returning(|| 16);
         })
@@ -93,10 +94,10 @@ mod set_weapon_tests {
         });
     }
 
-    #[test]
+    #[rstest]
     #[cfg_attr(miri, ignore)]
     #[serial]
-    fn set_weapon_for_weapon_id_too_large() {
+    fn set_weapon_for_weapon_id_too_large(_pyshinqlx_setup: ()) {
         with_mocked_engine(|mock_engine| {
             mock_engine.expect_get_max_clients().returning(|| 16);
         })
@@ -108,10 +109,10 @@ mod set_weapon_tests {
         });
     }
 
-    #[test]
+    #[rstest]
     #[cfg_attr(miri, ignore)]
     #[serial]
-    fn set_weapon_for_existing_game_client() {
+    fn set_weapon_for_existing_game_client(_pyshinqlx_setup: ()) {
         let game_entity_from_ctx = MockGameEntity::from_context();
         game_entity_from_ctx.expect().returning(|_| {
             let mut mock_game_entity = MockGameEntity::new();
@@ -136,10 +137,10 @@ mod set_weapon_tests {
         });
     }
 
-    #[test]
+    #[rstest]
     #[cfg_attr(miri, ignore)]
     #[serial]
-    fn set_weapon_for_entity_with_no_game_client() {
+    fn set_weapon_for_entity_with_no_game_client(_pyshinqlx_setup: ()) {
         let game_entity_from_ctx = MockGameEntity::from_context();
         game_entity_from_ctx.expect().returning(|_| {
             let mut mock_game_entity = MockGameEntity::new();
