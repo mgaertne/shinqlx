@@ -23,12 +23,14 @@ mod callvote_tests {
     use crate::ffi::python::prelude::*;
     use crate::prelude::*;
 
+    use rstest::rstest;
+
     use mockall::predicate;
 
-    #[test]
+    #[rstest]
     #[cfg_attr(miri, ignore)]
     #[serial]
-    fn callvote_with_no_current_level() {
+    fn callvote_with_no_current_level(_pyshinqlx_setup: ()) {
         let level_ctx = MockTestCurrentLevel::try_get_context();
         level_ctx
             .expect()
@@ -39,10 +41,10 @@ mod callvote_tests {
         });
     }
 
-    #[test]
+    #[rstest]
     #[cfg_attr(miri, ignore)]
     #[serial]
-    fn callvote_with_current_level_calls_vote() {
+    fn callvote_with_current_level_calls_vote(_pyshinqlx_setup: ()) {
         let level_ctx = MockTestCurrentLevel::try_get_context();
         level_ctx.expect().returning(|| {
             let mut mock_level = MockTestCurrentLevel::new();

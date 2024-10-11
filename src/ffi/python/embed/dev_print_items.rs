@@ -81,11 +81,12 @@ mod dev_print_items_tests {
 
     use mockall::predicate;
     use pyo3::exceptions::PyEnvironmentError;
+    use rstest::rstest;
 
-    #[test]
+    #[rstest]
     #[cfg_attr(miri, ignore)]
     #[serial]
-    fn dev_print_items_with_no_main_engine() {
+    fn dev_print_items_with_no_main_engine(_pyshinqlx_setup: ()) {
         let game_entity_from_ctx = MockGameEntity::from_context();
         game_entity_from_ctx
             .expect()
@@ -115,10 +116,10 @@ mod dev_print_items_tests {
         });
     }
 
-    #[test]
+    #[rstest]
     #[cfg_attr(miri, ignore)]
     #[serial]
-    fn dev_print_items_for_unused_game_item() {
+    fn dev_print_items_for_unused_game_item(_pyshinqlx_setup: ()) {
         let game_entity_from_ctx = MockGameEntity::from_context();
         game_entity_from_ctx
             .expect()
@@ -156,10 +157,10 @@ mod dev_print_items_tests {
         });
     }
 
-    #[test]
+    #[rstest]
     #[cfg_attr(miri, ignore)]
     #[serial]
-    fn dev_print_items_for_non_et_item() {
+    fn dev_print_items_for_non_et_item(_pyshinqlx_setup: ()) {
         let game_entity_from_ctx = MockGameEntity::from_context();
         game_entity_from_ctx
             .expect()
@@ -197,10 +198,10 @@ mod dev_print_items_tests {
         });
     }
 
-    #[test]
+    #[rstest]
     #[cfg_attr(miri, ignore)]
     #[serial]
-    fn dev_print_items_prints_single_item() {
+    fn dev_print_items_prints_single_item(_pyshinqlx_setup: ()) {
         let game_entity_from_ctx = MockGameEntity::from_context();
         game_entity_from_ctx
             .expect()
@@ -244,10 +245,12 @@ mod dev_print_items_tests {
         });
     }
 
-    #[test]
+    #[rstest]
     #[cfg_attr(miri, ignore)]
     #[serial]
-    fn dev_print_items_with_too_many_items_notifies_players_and_prints_remaining_items() {
+    fn dev_print_items_with_too_many_items_notifies_players_and_prints_remaining_items(
+        _pyshinqlx_setup: (),
+    ) {
         let game_entity_from_ctx = MockGameEntity::from_context();
         game_entity_from_ctx.expect().returning(|entity_id| {
             let mut mock_game_entity = MockGameEntity::new();

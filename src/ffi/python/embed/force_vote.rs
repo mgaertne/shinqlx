@@ -51,10 +51,10 @@ mod force_vote_tests {
     use pyo3::exceptions::PyEnvironmentError;
     use rstest::rstest;
 
-    #[test]
+    #[rstest]
     #[cfg_attr(miri, ignore)]
     #[serial]
-    fn force_vote_when_main_engine_not_initialized() {
+    fn force_vote_when_main_engine_not_initialized(_pyshinqlx_setup: ()) {
         let current_level_try_get_ctx = MockTestCurrentLevel::try_get_context();
         current_level_try_get_ctx.expect().returning(|| {
             let mut mock_level = MockTestCurrentLevel::new();
@@ -68,10 +68,10 @@ mod force_vote_tests {
         });
     }
 
-    #[test]
+    #[rstest]
     #[cfg_attr(miri, ignore)]
     #[serial]
-    fn force_vote_when_no_vote_is_running() {
+    fn force_vote_when_no_vote_is_running(_pyshinqlx_setup: ()) {
         let current_level_try_get_ctx = MockTestCurrentLevel::try_get_context();
         current_level_try_get_ctx
             .expect()
@@ -88,7 +88,7 @@ mod force_vote_tests {
     #[case(clientState_t::CS_PRIMED)]
     #[cfg_attr(miri, ignore)]
     #[serial]
-    fn force_vote_for_non_active_client(#[case] clientstate: clientState_t) {
+    fn force_vote_for_non_active_client(#[case] clientstate: clientState_t, _pyshinqlx_setup: ()) {
         let current_level_try_get_ctx = MockTestCurrentLevel::try_get_context();
         current_level_try_get_ctx.expect().returning(|| {
             let mut mock_level = MockTestCurrentLevel::new();
@@ -116,10 +116,10 @@ mod force_vote_tests {
         });
     }
 
-    #[test]
+    #[rstest]
     #[cfg_attr(miri, ignore)]
     #[serial]
-    fn force_vote_for_active_client_with_no_game_client() {
+    fn force_vote_for_active_client_with_no_game_client(_pyshinqlx_setup: ()) {
         let current_level_try_get_ctx = MockTestCurrentLevel::try_get_context();
         current_level_try_get_ctx.expect().returning(|| {
             let mut mock_level = MockTestCurrentLevel::new();
@@ -160,10 +160,10 @@ mod force_vote_tests {
         });
     }
 
-    #[test]
+    #[rstest]
     #[cfg_attr(miri, ignore)]
     #[serial]
-    fn force_vote_for_active_client_forces_vote() {
+    fn force_vote_for_active_client_forces_vote(_pyshinqlx_setup: ()) {
         let current_level_try_get_ctx = MockTestCurrentLevel::try_get_context();
         current_level_try_get_ctx.expect().returning(|| {
             let mut mock_level = MockTestCurrentLevel::new();
