@@ -12,7 +12,6 @@ pub(crate) fn pyshinqlx_console_command(py: Python<'_>, cmd: &str) -> PyResult<(
 mod console_command_tests {
     use crate::ffi::python::prelude::*;
     use crate::prelude::*;
-    use crate::MAIN_ENGINE;
 
     use mockall::predicate;
     use pyo3::exceptions::PyEnvironmentError;

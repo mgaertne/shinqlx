@@ -19,7 +19,6 @@ mod set_cvar_tests {
     use crate::ffi::c::prelude::*;
     use crate::ffi::python::prelude::*;
     use crate::prelude::*;
-    use crate::MAIN_ENGINE;
 
     use core::borrow::BorrowMut;
 
@@ -28,7 +27,6 @@ mod set_cvar_tests {
     use rstest::rstest;
 
     use pyo3::exceptions::PyEnvironmentError;
-    use rstest::*;
 
     #[rstest]
     #[cfg_attr(miri, ignore)]

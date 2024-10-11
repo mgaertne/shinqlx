@@ -113,7 +113,6 @@ mod replace_items_tests {
 
     use pyo3::exceptions::PyValueError;
     use pyo3::types::{PyString, PyTuple};
-    use rstest::*;
 
     #[rstest]
     #[cfg_attr(miri, ignore)]

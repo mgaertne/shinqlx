@@ -38,11 +38,7 @@ mod register_handler_tests {
     #[rstest]
     #[cfg_attr(miri, ignore)]
     #[serial]
-    fn register_handler_setting_handler_to_none(
-        #[case] event: &str,
-        #[case] handler: &Lazy<ArcSwapOption<PyObject>>,
-        _pyshinqlx_setup: (),
-    ) {
+    fn register_handler_setting_handler_to_none(_pyshinqlx_setup: ()) {
         Python::with_gil(|py| {
             let pymodule = PyModule::from_code_bound(
                 py,
