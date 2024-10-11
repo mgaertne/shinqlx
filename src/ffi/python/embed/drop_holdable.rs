@@ -71,10 +71,10 @@ mod drop_holdable_tests {
         });
     }
 
-    #[test]
+    #[rstest]
     #[cfg_attr(miri, ignore)]
     #[serial]
-    fn drop_holdable_for_client_id_too_large() {
+    fn drop_holdable_for_client_id_too_large(_pyshinqlx_setup: ()) {
         with_mocked_engine(|mock_engine| {
             mock_engine.expect_get_max_clients().returning(|| 16);
         })
@@ -86,10 +86,10 @@ mod drop_holdable_tests {
         });
     }
 
-    #[test]
+    #[rstest]
     #[cfg_attr(miri, ignore)]
     #[serial]
-    fn drop_holdable_for_entity_with_no_game_client() {
+    fn drop_holdable_for_entity_with_no_game_client(_pyshinqlx_setup: ()) {
         let game_entity_from_ctx = MockGameEntity::from_context();
         game_entity_from_ctx.expect().returning(|_| {
             let mut mock_game_entity = MockGameEntity::new();
@@ -108,10 +108,10 @@ mod drop_holdable_tests {
         });
     }
 
-    #[test]
+    #[rstest]
     #[cfg_attr(miri, ignore)]
     #[serial]
-    fn drop_holdable_for_entity_with_no_holdable() {
+    fn drop_holdable_for_entity_with_no_holdable(_pyshinqlx_setup: ()) {
         let mut seq = Sequence::new();
 
         let game_entity_from_ctx = MockGameEntity::from_context();
@@ -163,7 +163,10 @@ mod drop_holdable_tests {
     #[case(&Holdable::Flight)]
     #[cfg_attr(miri, ignore)]
     #[serial]
-    fn drop_holdable_for_entity_with_holdable_dropped(#[case] holdable: &'static Holdable) {
+    fn drop_holdable_for_entity_with_holdable_dropped(
+        #[case] holdable: &'static Holdable,
+        _pyshinqlx_setup: (),
+    ) {
         let mut seq = Sequence::new();
 
         let game_entity_from_ctx = MockGameEntity::from_context();
