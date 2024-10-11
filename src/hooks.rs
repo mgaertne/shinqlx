@@ -523,7 +523,6 @@ pub(crate) mod hooks {
 
 #[cfg(test)]
 mod hooks_tests {
-    use super::MAIN_ENGINE;
     use super::{
         shinqlx_client_connect, shinqlx_client_spawn, shinqlx_cmd_addcommand, shinqlx_com_printf,
         shinqlx_drop_client, shinqlx_execute_client_command, shinqlx_g_damage, shinqlx_g_initgame,
@@ -549,7 +548,6 @@ mod hooks_tests {
     #[serial]
     fn add_command_with_no_main_engine() {
         let cmd_string = c"";
-        MAIN_ENGINE.store(None);
         shinqlx_cmd_addcommand(cmd_string.as_ptr(), DUMMY_FN);
     }
 
@@ -557,52 +555,55 @@ mod hooks_tests {
     #[serial]
     fn add_command_with_main_engine_already_initiailized_command_empty() {
         let cmd_string = c"";
-        let mut mock_engine = MockQuakeEngine::new();
-        mock_engine
-            .expect_is_common_initialized()
-            .return_const(true);
-        mock_engine.expect_add_command().times(0);
-        MAIN_ENGINE.store(Some(mock_engine.into()));
-
-        shinqlx_cmd_addcommand(cmd_string.as_ptr(), DUMMY_FN);
+        with_mocked_engine(|mock_engine| {
+            mock_engine
+                .expect_is_common_initialized()
+                .return_const(true);
+            mock_engine.expect_add_command().times(0);
+        })
+        .run(|| {
+            shinqlx_cmd_addcommand(cmd_string.as_ptr(), DUMMY_FN);
+        });
     }
 
     #[test]
     #[serial]
     fn add_command_with_main_engine_already_initialized() {
         let cmd_string = c"slap";
-        let mut mock_engine = MockQuakeEngine::new();
-        mock_engine
-            .expect_is_common_initialized()
-            .return_const(true);
-        mock_engine
-            .expect_add_command()
-            .withf(|cmd, &func| cmd == "slap" && func == DUMMY_FN)
-            .times(1);
-        MAIN_ENGINE.store(Some(mock_engine.into()));
-
-        shinqlx_cmd_addcommand(cmd_string.as_ptr(), DUMMY_FN);
+        with_mocked_engine(|mock_engine| {
+            mock_engine
+                .expect_is_common_initialized()
+                .return_const(true);
+            mock_engine
+                .expect_add_command()
+                .withf(|cmd, &func| cmd == "slap" && func == DUMMY_FN)
+                .times(1);
+        })
+        .run(|| {
+            shinqlx_cmd_addcommand(cmd_string.as_ptr(), DUMMY_FN);
+        });
     }
 
     #[test]
     #[serial]
     fn add_command_with_main_engine_not_initiailized_command_non_empty() {
         let cmd_string = c"slap";
-        let mut mock_engine = MockQuakeEngine::new();
-        mock_engine
-            .expect_is_common_initialized()
-            .return_const(false);
-        mock_engine
-            .expect_initialize_static()
-            .returning(|| Ok(()))
-            .times(1);
-        mock_engine
-            .expect_add_command()
-            .withf(|cmd, &func| cmd == "slap" && func == DUMMY_FN)
-            .times(1);
-        MAIN_ENGINE.store(Some(mock_engine.into()));
-
-        shinqlx_cmd_addcommand(cmd_string.as_ptr(), DUMMY_FN);
+        with_mocked_engine(|mock_engine| {
+            mock_engine
+                .expect_is_common_initialized()
+                .return_const(false);
+            mock_engine
+                .expect_initialize_static()
+                .returning(|| Ok(()))
+                .times(1);
+            mock_engine
+                .expect_add_command()
+                .withf(|cmd, &func| cmd == "slap" && func == DUMMY_FN)
+                .times(1);
+        })
+        .run(|| {
+            shinqlx_cmd_addcommand(cmd_string.as_ptr(), DUMMY_FN);
+        });
     }
 
     #[test]
@@ -611,24 +612,24 @@ mod hooks_tests {
     #[serial]
     fn add_command_with_main_engine_already_initiailized_init_returns_err() {
         let cmd_string = c"slap";
-        let mut mock_engine = MockQuakeEngine::new();
-        mock_engine
-            .expect_is_common_initialized()
-            .return_const(false);
-        mock_engine
-            .expect_initialize_static()
-            .returning(|| Err(QuakeLiveEngineError::MainEngineNotInitialized))
-            .times(1);
-        MAIN_ENGINE.store(Some(mock_engine.into()));
-
-        shinqlx_cmd_addcommand(cmd_string.as_ptr(), DUMMY_FN);
+        with_mocked_engine(|mock_engine| {
+            mock_engine
+                .expect_is_common_initialized()
+                .return_const(false);
+            mock_engine
+                .expect_initialize_static()
+                .returning(|| Err(QuakeLiveEngineError::MainEngineNotInitialized))
+                .times(1);
+        })
+        .run(|| {
+            shinqlx_cmd_addcommand(cmd_string.as_ptr(), DUMMY_FN);
+        });
     }
 
     #[test]
     #[serial]
     fn sys_setmoduleoffset_no_main_engine() {
         let module_string = c"qagame";
-        MAIN_ENGINE.store(None);
         shinqlx_sys_setmoduleoffset(module_string.as_ptr().cast_mut(), DUMMY_FN);
     }
 
@@ -636,19 +637,20 @@ mod hooks_tests {
     #[serial]
     fn sys_setmoduleoffset_vm_init_ok() {
         let module_string = c"qagame";
-        let mut mock_engine = MockQuakeEngine::new();
-        mock_engine
-            .expect_set_module_offset()
-            .withf(|module_name, &offset| module_name == "qagame" && offset == DUMMY_FN)
-            .times(1);
-        mock_engine
-            .expect_initialize_vm()
-            .withf(|&offset| offset == DUMMY_FN as usize)
-            .returning(|_offset| Ok(()))
-            .times(1);
-        MAIN_ENGINE.store(Some(mock_engine.into()));
-
-        shinqlx_sys_setmoduleoffset(module_string.as_ptr().cast_mut(), DUMMY_FN);
+        with_mocked_engine(|mock_engine| {
+            mock_engine
+                .expect_set_module_offset()
+                .withf(|module_name, &offset| module_name == "qagame" && offset == DUMMY_FN)
+                .times(1);
+            mock_engine
+                .expect_initialize_vm()
+                .withf(|&offset| offset == DUMMY_FN as usize)
+                .returning(|_offset| Ok(()))
+                .times(1);
+        })
+        .run(|| {
+            shinqlx_sys_setmoduleoffset(module_string.as_ptr().cast_mut(), DUMMY_FN);
+        });
     }
 
     #[test]
@@ -657,151 +659,157 @@ mod hooks_tests {
     #[serial]
     fn sys_setmoduleoffset_vm_init_returns_err() {
         let module_string = c"qagame";
-        let mut mock_engine = MockQuakeEngine::new();
-        mock_engine
-            .expect_set_module_offset()
-            .withf(|module_name, &offset| module_name == "qagame" && offset == DUMMY_FN)
-            .times(1);
-        mock_engine
-            .expect_initialize_vm()
-            .with(predicate::eq(DUMMY_FN as usize))
-            .returning(|_offset| Err(QuakeLiveEngineError::MainEngineNotInitialized))
-            .times(1);
-        MAIN_ENGINE.store(Some(mock_engine.into()));
-
-        shinqlx_sys_setmoduleoffset(module_string.as_ptr().cast_mut(), DUMMY_FN);
+        with_mocked_engine(|mock_engine| {
+            mock_engine
+                .expect_set_module_offset()
+                .withf(|module_name, &offset| module_name == "qagame" && offset == DUMMY_FN)
+                .times(1);
+            mock_engine
+                .expect_initialize_vm()
+                .with(predicate::eq(DUMMY_FN as usize))
+                .returning(|_offset| Err(QuakeLiveEngineError::MainEngineNotInitialized))
+                .times(1);
+        })
+        .run(|| {
+            shinqlx_sys_setmoduleoffset(module_string.as_ptr().cast_mut(), DUMMY_FN);
+        });
     }
 
     #[test]
     #[serial]
     fn init_game_with_no_main_engine() {
-        MAIN_ENGINE.store(None);
         shinqlx_g_initgame(42, 21, 0);
     }
 
     #[test]
     #[serial]
     fn init_game_without_restart() {
-        let mut mock_engine = MockQuakeEngine::new();
-        mock_engine
-            .expect_init_game()
-            .with(predicate::eq(42), predicate::eq(21), predicate::eq(0))
-            .times(1);
-        mock_engine.expect_set_tag().times(1);
-        mock_engine.expect_initialize_cvars().times(1);
-        MAIN_ENGINE.store(Some(mock_engine.into()));
         let new_game_dispatcher_ctx = new_game_dispatcher_context();
         new_game_dispatcher_ctx.expect().times(0);
 
-        shinqlx_g_initgame(42, 21, 0);
+        with_mocked_engine(|mock_engine| {
+            mock_engine
+                .expect_init_game()
+                .with(predicate::eq(42), predicate::eq(21), predicate::eq(0))
+                .times(1);
+            mock_engine.expect_set_tag().times(1);
+            mock_engine.expect_initialize_cvars().times(1);
+        })
+        .run(|| {
+            shinqlx_g_initgame(42, 21, 0);
+        });
     }
 
     #[test]
     #[serial]
     fn init_game_with_restart() {
-        let mut mock_engine = MockQuakeEngine::new();
-        mock_engine
-            .expect_init_game()
-            .with(predicate::eq(42), predicate::eq(21), predicate::eq(1))
-            .times(1);
-        mock_engine.expect_set_tag().times(1);
-        mock_engine.expect_initialize_cvars().times(1);
-        MAIN_ENGINE.store(Some(mock_engine.into()));
         let new_game_dispatcher_ctx = new_game_dispatcher_context();
         new_game_dispatcher_ctx
             .expect()
             .with(predicate::eq(true))
             .times(1);
 
-        shinqlx_g_initgame(42, 21, 1);
+        with_mocked_engine(|mock_engine| {
+            mock_engine
+                .expect_init_game()
+                .with(predicate::eq(42), predicate::eq(21), predicate::eq(1))
+                .times(1);
+            mock_engine.expect_set_tag().times(1);
+            mock_engine.expect_initialize_cvars().times(1);
+        })
+        .run(|| {
+            shinqlx_g_initgame(42, 21, 1);
+        });
     }
 
     #[test]
     #[serial]
     fn shut_down_game_with_no_main_engine() {
-        MAIN_ENGINE.store(None);
         shinqlx_g_shutdowngame(42);
     }
 
     #[test]
     #[serial]
     fn shut_down_game_unhooks_vm() {
-        let mut mock_engine = MockQuakeEngine::new();
-        mock_engine.expect_unhook_vm().times(1);
-        mock_engine
-            .expect_shutdown_game()
-            .with(predicate::eq(42))
-            .times(1);
-        MAIN_ENGINE.store(Some(mock_engine.into()));
-
-        shinqlx_g_shutdowngame(42);
+        with_mocked_engine(|mock_engine| {
+            mock_engine.expect_unhook_vm().times(1);
+            mock_engine
+                .expect_shutdown_game()
+                .with(predicate::eq(42))
+                .times(1);
+        })
+        .run(|| {
+            shinqlx_g_shutdowngame(42);
+        });
     }
 
     #[test]
     #[serial]
     fn execute_client_command_with_no_main_engine() {
-        MAIN_ENGINE.store(None);
         shinqlx_execute_client_command(None, "cp asdf", true);
     }
 
     #[test]
     #[serial]
     fn execute_client_command_for_none_client_non_empty_cmd() {
-        let mut mock_engine = MockQuakeEngine::new();
-        mock_engine
-            .expect_execute_client_command()
-            .withf(|client, cmd, &client_ok| {
-                client.is_none() && cmd == "cp asdf" && client_ok.into()
-            })
-            .times(1);
-        MAIN_ENGINE.store(Some(mock_engine.into()));
-
-        shinqlx_execute_client_command(None, "cp asdf", true);
+        with_mocked_engine(|mock_engine| {
+            mock_engine
+                .expect_execute_client_command()
+                .withf(|client, cmd, &client_ok| {
+                    client.is_none() && cmd == "cp asdf" && client_ok.into()
+                })
+                .times(1);
+        })
+        .run(|| {
+            shinqlx_execute_client_command(None, "cp asdf", true);
+        });
     }
 
     #[test]
     #[serial]
     fn execute_client_command_for_not_ok_client_non_empty_cmd() {
-        let mut mock_engine = MockQuakeEngine::new();
-        mock_engine
-            .expect_execute_client_command()
-            .withf(|client, cmd, &client_ok| {
-                client.is_some() && cmd == "cp asdf" && !<qboolean as Into<bool>>::into(client_ok)
-            })
-            .times(1);
-        MAIN_ENGINE.store(Some(mock_engine.into()));
         let mock_client = MockClient::new();
 
-        shinqlx_execute_client_command(Some(mock_client), "cp asdf", false);
+        with_mocked_engine(|mock_engine| {
+            mock_engine
+                .expect_execute_client_command()
+                .withf(|client, cmd, &client_ok| {
+                    client.is_some()
+                        && cmd == "cp asdf"
+                        && !<qboolean as Into<bool>>::into(client_ok)
+                })
+                .times(1);
+        })
+        .run(|| {
+            shinqlx_execute_client_command(Some(mock_client), "cp asdf", false);
+        });
     }
 
     #[test]
     #[serial]
     fn execute_client_command_for_ok_client_without_gentity_non_empty_cmd() {
-        let mut mock_engine = MockQuakeEngine::new();
-        mock_engine
-            .expect_execute_client_command()
-            .withf(|client, cmd, &client_ok| {
-                client.is_some() && cmd == "cp asdf" && client_ok.into()
-            })
-            .times(1);
-        MAIN_ENGINE.store(Some(mock_engine.into()));
         let mut mock_client = MockClient::new();
         mock_client
             .expect_has_gentity()
             .return_const(false)
             .times(1);
 
-        shinqlx_execute_client_command(Some(mock_client), "cp asdf", true);
+        with_mocked_engine(|mock_engine| {
+            mock_engine
+                .expect_execute_client_command()
+                .withf(|client, cmd, &client_ok| {
+                    client.is_some() && cmd == "cp asdf" && client_ok.into()
+                })
+                .times(1);
+        })
+        .run(|| {
+            shinqlx_execute_client_command(Some(mock_client), "cp asdf", true);
+        });
     }
 
     #[test]
     #[serial]
     fn execute_client_command_for_ok_client_with_gentity_non_empty_cmd_dispatcher_returns_none() {
-        let mut mock_engine = MockQuakeEngine::new();
-        mock_engine.expect_execute_client_command().times(0);
-        MAIN_ENGINE.store(Some(mock_engine.into()));
-
         let mut mock_client = MockClient::new();
         mock_client.expect_has_gentity().return_const(true).times(1);
         mock_client.expect_get_client_id().return_const(42).times(1);
@@ -811,22 +819,18 @@ mod hooks_tests {
             .with(predicate::eq(42), predicate::eq("cp asdf".to_string()))
             .times(1);
 
-        shinqlx_execute_client_command(Some(mock_client), "cp asdf", true);
+        with_mocked_engine(|mock_engine| {
+            mock_engine.expect_execute_client_command().times(0);
+        })
+        .run(|| {
+            shinqlx_execute_client_command(Some(mock_client), "cp asdf", true);
+        });
     }
 
     #[test]
     #[serial]
     fn execute_client_command_for_ok_client_with_gentity_non_empty_cmd_dispatcher_returns_modified_string(
     ) {
-        let mut mock_engine = MockQuakeEngine::new();
-        mock_engine
-            .expect_execute_client_command()
-            .withf(|client, cmd, &client_ok| {
-                client.is_some() && cmd == "cp modified" && client_ok.into()
-            })
-            .times(1);
-        MAIN_ENGINE.store(Some(mock_engine.into()));
-
         let mut mock_client = MockClient::new();
         mock_client.expect_has_gentity().return_const(true).times(1);
         mock_client.expect_get_client_id().return_const(42).times(1);
@@ -837,17 +841,23 @@ mod hooks_tests {
             .return_const(Some("cp modified".to_string()))
             .times(1);
 
-        shinqlx_execute_client_command(Some(mock_client), "cp asdf", true);
+        with_mocked_engine(|mock_engine| {
+            mock_engine
+                .expect_execute_client_command()
+                .withf(|client, cmd, &client_ok| {
+                    client.is_some() && cmd == "cp modified" && client_ok.into()
+                })
+                .times(1);
+        })
+        .run(|| {
+            shinqlx_execute_client_command(Some(mock_client), "cp asdf", true);
+        });
     }
 
     #[test]
     #[serial]
     fn execute_client_command_for_ok_client_with_gentity_non_empty_cmd_dispatcher_returns_empty_string(
     ) {
-        let mut mock_engine = MockQuakeEngine::new();
-        mock_engine.expect_execute_client_command().times(0);
-        MAIN_ENGINE.store(Some(mock_engine.into()));
-
         let mut mock_client = MockClient::new();
         mock_client.expect_has_gentity().return_const(true).times(1);
         mock_client.expect_get_client_id().return_const(42).times(1);
@@ -858,23 +868,23 @@ mod hooks_tests {
             .return_const(Some("".to_string()))
             .times(1);
 
-        shinqlx_execute_client_command(Some(mock_client), "cp asdf", true);
+        with_mocked_engine(|mock_engine| {
+            mock_engine.expect_execute_client_command().times(0);
+        })
+        .run(|| {
+            shinqlx_execute_client_command(Some(mock_client), "cp asdf", true);
+        });
     }
 
     #[test]
     #[serial]
     fn send_server_command_with_no_main_engine() {
-        MAIN_ENGINE.store(None);
         shinqlx_send_server_command(None, "cp asdf");
     }
 
     #[test]
     #[serial]
     fn send_server_command_for_none_client_non_empty_cmd_dispatcher_returns_none() {
-        let mut mock_engine = MockQuakeEngine::new();
-        mock_engine.expect_send_server_command().times(0);
-        MAIN_ENGINE.store(Some(mock_engine.into()));
-
         let client_command_ctx = server_command_dispatcher_context();
         client_command_ctx
             .expect()
@@ -882,55 +892,61 @@ mod hooks_tests {
             .return_const(None)
             .times(1);
 
-        shinqlx_send_server_command(None, "cp asdf");
+        with_mocked_engine(|mock_engine| {
+            mock_engine.expect_send_server_command().times(0);
+        })
+        .run(|| {
+            shinqlx_send_server_command(None, "cp asdf");
+        });
     }
 
     #[test]
     #[serial]
     fn send_server_command_for_none_client_non_empty_cmd_dispatcher_returns_modified_cmd() {
-        let mut mock_engine = MockQuakeEngine::new();
-        mock_engine
-            .expect_send_server_command()
-            .withf(|client, cmd| client.is_none() && cmd == "cp modified")
-            .times(1);
         let client_command_ctx = server_command_dispatcher_context();
         client_command_ctx
             .expect()
             .with(predicate::eq(None), predicate::eq("cp asdf".to_string()))
             .return_const(Some("cp modified".to_string()))
             .times(1);
-        MAIN_ENGINE.store(Some(mock_engine.into()));
 
-        shinqlx_send_server_command(None, "cp asdf");
+        with_mocked_engine(|mock_engine| {
+            mock_engine
+                .expect_send_server_command()
+                .withf(|client, cmd| client.is_none() && cmd == "cp modified")
+                .times(1);
+        })
+        .run(|| {
+            shinqlx_send_server_command(None, "cp asdf");
+        });
     }
 
     #[test]
     #[serial]
     fn send_server_command_for_client_without_gentity_non_empty_cmd() {
-        let mut mock_engine = MockQuakeEngine::new();
-        mock_engine
-            .expect_send_server_command()
-            .withf(|client, cmd| client.is_some() && cmd == "cp asdf")
-            .times(1);
         let mut mock_client = MockClient::new();
         mock_client
             .expect_has_gentity()
             .return_const(false)
             .times(1);
-        MAIN_ENGINE.store(Some(mock_engine.into()));
 
-        shinqlx_send_server_command(Some(mock_client), "cp asdf");
+        with_mocked_engine(|mock_engine| {
+            mock_engine
+                .expect_send_server_command()
+                .withf(|client, cmd| client.is_some() && cmd == "cp asdf")
+                .times(1);
+        })
+        .run(|| {
+            shinqlx_send_server_command(Some(mock_client), "cp asdf");
+        });
     }
 
     #[test]
     #[serial]
     fn send_server_command_for_client_with_gentity_non_empty_cmd_dispatcher_returns_none() {
-        let mut mock_engine = MockQuakeEngine::new();
-        mock_engine.expect_send_server_command().times(0);
         let mut mock_client = MockClient::new();
         mock_client.expect_has_gentity().return_const(true).times(1);
         mock_client.expect_get_client_id().return_const(42).times(1);
-        MAIN_ENGINE.store(Some(mock_engine.into()));
 
         let client_command_ctx = server_command_dispatcher_context();
         client_command_ctx
@@ -942,23 +958,21 @@ mod hooks_tests {
             .return_const(None)
             .times(1);
 
-        shinqlx_send_server_command(Some(mock_client), "cp asdf");
+        with_mocked_engine(|mock_engine| {
+            mock_engine.expect_send_server_command().times(0);
+        })
+        .run(|| {
+            shinqlx_send_server_command(Some(mock_client), "cp asdf");
+        });
     }
 
     #[test]
     #[serial]
     fn send_server_command_for_client_with_gentity_non_empty_cmd_dispatcher_returns_modified_string(
     ) {
-        let mut mock_engine = MockQuakeEngine::new();
-        mock_engine
-            .expect_send_server_command()
-            .withf(|client, cmd| client.is_some() && cmd == "cp modified")
-            .times(1);
-
         let mut mock_client = MockClient::new();
         mock_client.expect_has_gentity().return_const(true).times(1);
         mock_client.expect_get_client_id().return_const(42).times(1);
-        MAIN_ENGINE.store(Some(mock_engine.into()));
 
         let client_command_ctx = server_command_dispatcher_context();
         client_command_ctx
@@ -970,16 +984,20 @@ mod hooks_tests {
             .return_const(Some("cp modified".to_string()))
             .times(1);
 
-        shinqlx_send_server_command(Some(mock_client), "cp asdf");
+        with_mocked_engine(|mock_engine| {
+            mock_engine
+                .expect_send_server_command()
+                .withf(|client, cmd| client.is_some() && cmd == "cp modified")
+                .times(1);
+        })
+        .run(|| {
+            shinqlx_send_server_command(Some(mock_client), "cp asdf");
+        });
     }
 
     #[test]
     #[serial]
     fn send_server_command_for_client_with_gentity_non_empty_cmd_dispatcher_returns_empty_string() {
-        let mut mock_engine = MockQuakeEngine::new();
-        mock_engine.expect_send_server_command().times(0);
-        MAIN_ENGINE.store(Some(mock_engine.into()));
-
         let mut mock_client = MockClient::new();
         mock_client.expect_has_gentity().return_const(true).times(1);
         mock_client.expect_get_client_id().return_const(42).times(1);
@@ -993,14 +1011,17 @@ mod hooks_tests {
             .return_const(Some("".to_string()))
             .times(1);
 
-        shinqlx_send_server_command(Some(mock_client), "cp asdf");
+        with_mocked_engine(|mock_engine| {
+            mock_engine.expect_send_server_command().times(0);
+        })
+        .run(|| {
+            shinqlx_send_server_command(Some(mock_client), "cp asdf");
+        });
     }
 
     #[test]
     #[serial]
     fn client_enter_world_with_no_main_engine() {
-        MAIN_ENGINE.store(None);
-
         let mock_client = MockClient::new();
 
         let client_try_from_ctx = MockClient::try_from_context();
@@ -1037,9 +1058,6 @@ mod hooks_tests {
         let mut usercmd = UserCmdBuilder::default()
             .build()
             .expect("this should not happen");
-        let mut mock_engine = MockQuakeEngine::new();
-        mock_engine.expect_client_enter_world().times(1);
-        MAIN_ENGINE.store(Some(mock_engine.into()));
 
         let client_loaded_ctx = client_loaded_dispatcher_context();
         client_loaded_ctx.expect().times(0);
@@ -1048,7 +1066,15 @@ mod hooks_tests {
             .build()
             .expect("this should not happen");
 
-        shinqlx_sv_cliententerworld(client.borrow_mut(), usercmd.borrow_mut() as *mut usercmd_t);
+        with_mocked_engine(|mock_engine| {
+            mock_engine.expect_client_enter_world().times(1);
+        })
+        .run(|| {
+            shinqlx_sv_cliententerworld(
+                client.borrow_mut(),
+                usercmd.borrow_mut() as *mut usercmd_t,
+            );
+        });
     }
 
     #[test]
@@ -1072,10 +1098,6 @@ mod hooks_tests {
         let mut usercmd = UserCmdBuilder::default()
             .build()
             .expect("this should not happen");
-        let mut mock_engine = MockQuakeEngine::new();
-        mock_engine.expect_client_enter_world().times(1);
-        MAIN_ENGINE.store(Some(mock_engine.into()));
-
         let client_loaded_ctx = client_loaded_dispatcher_context();
         client_loaded_ctx.expect().times(0);
 
@@ -1083,7 +1105,15 @@ mod hooks_tests {
             .build()
             .expect("this should not happen");
 
-        shinqlx_sv_cliententerworld(client.borrow_mut(), usercmd.borrow_mut() as *mut usercmd_t);
+        with_mocked_engine(|mock_engine| {
+            mock_engine.expect_client_enter_world().times(1);
+        })
+        .run(|| {
+            shinqlx_sv_cliententerworld(
+                client.borrow_mut(),
+                usercmd.borrow_mut() as *mut usercmd_t,
+            );
+        });
     }
 
     #[test]
@@ -1099,10 +1129,6 @@ mod hooks_tests {
         let mut usercmd = UserCmdBuilder::default()
             .build()
             .expect("this should not happen");
-        let mut mock_engine = MockQuakeEngine::new();
-        mock_engine.expect_client_enter_world().times(1);
-        MAIN_ENGINE.store(Some(mock_engine.into()));
-
         let client_try_from_ctx = MockClient::try_from_context();
         client_try_from_ctx
             .expect()
@@ -1115,19 +1141,20 @@ mod hooks_tests {
             .build()
             .expect("this should not happen");
 
-        shinqlx_sv_cliententerworld(client.borrow_mut(), usercmd.borrow_mut() as *mut usercmd_t);
+        with_mocked_engine(|mock_engine| {
+            mock_engine.expect_client_enter_world().times(1);
+        })
+        .run(|| {
+            shinqlx_sv_cliententerworld(
+                client.borrow_mut(),
+                usercmd.borrow_mut() as *mut usercmd_t,
+            );
+        });
     }
 
     #[test]
     #[serial]
     fn sv_set_configstring_with_parseable_variable() {
-        let mut mock_engine = MockQuakeEngine::new();
-        mock_engine
-            .expect_set_configstring()
-            .with(predicate::eq(42), predicate::eq(r"\some\value"))
-            .times(1);
-        MAIN_ENGINE.store(Some(mock_engine.into()));
-
         let set_configstring_dispatcher_ctx = set_configstring_dispatcher_context();
         set_configstring_dispatcher_ctx
             .expect()
@@ -1136,13 +1163,20 @@ mod hooks_tests {
             .times(1);
 
         let value = cr"\some\value";
-        shinqlx_sv_setconfigstring(42 as c_int, value.as_ptr());
+        with_mocked_engine(|mock_engine| {
+            mock_engine
+                .expect_set_configstring()
+                .with(predicate::eq(42), predicate::eq(r"\some\value"))
+                .times(1);
+        })
+        .run(|| {
+            shinqlx_sv_setconfigstring(42 as c_int, value.as_ptr());
+        });
     }
 
     #[test]
     #[serial]
     fn set_configstring_with_no_main_engine() {
-        MAIN_ENGINE.store(None);
         shinqlx_set_configstring(42u32, "some value");
     }
 
@@ -1158,48 +1192,43 @@ mod hooks_tests {
     #[case(669)]
     #[serial]
     fn set_configstring_for_undispatched_index(#[case] test_index: u32) {
-        let mut mock_engine = MockQuakeEngine::new();
-        mock_engine
-            .expect_set_configstring()
-            .with(
-                predicate::eq::<i32>(test_index.try_into().expect("this should not happen")),
-                predicate::eq("some value"),
-            )
-            .times(1);
-        MAIN_ENGINE.store(Some(mock_engine.into()));
-
         let set_configstring_dispatcher_ctx = set_configstring_dispatcher_context();
         set_configstring_dispatcher_ctx.expect().times(0);
 
-        shinqlx_set_configstring(test_index, "some value");
+        with_mocked_engine(|mock_engine| {
+            mock_engine
+                .expect_set_configstring()
+                .with(
+                    predicate::eq::<i32>(test_index.try_into().expect("this should not happen")),
+                    predicate::eq("some value"),
+                )
+                .times(1);
+        })
+        .run(|| {
+            shinqlx_set_configstring(test_index, "some value");
+        });
     }
 
     #[test]
     #[serial]
     fn set_confgistring_dispatcher_returns_none() {
-        let mut mock_engine = MockQuakeEngine::new();
-        mock_engine.expect_set_configstring().times(0);
-        MAIN_ENGINE.store(Some(mock_engine.into()));
-
         let set_configstring_dispatcher_ctx = set_configstring_dispatcher_context();
         set_configstring_dispatcher_ctx
             .expect()
             .with(predicate::eq(42), predicate::eq("some value"))
             .times(1);
 
-        shinqlx_set_configstring(42u32, "some value");
+        with_mocked_engine(|mock_engine| {
+            mock_engine.expect_set_configstring().times(0);
+        })
+        .run(|| {
+            shinqlx_set_configstring(42u32, "some value");
+        });
     }
 
     #[test]
     #[serial]
     fn set_confgistring_dispatcher_returns_modified_string() {
-        let mut mock_engine = MockQuakeEngine::new();
-        mock_engine
-            .expect_set_configstring()
-            .with(predicate::eq(42), predicate::eq("other value"))
-            .times(1);
-        MAIN_ENGINE.store(Some(mock_engine.into()));
-
         let set_configstring_dispatcher_ctx = set_configstring_dispatcher_context();
         set_configstring_dispatcher_ctx
             .expect()
@@ -1207,19 +1236,20 @@ mod hooks_tests {
             .return_const(Some("other value".to_string()))
             .times(1);
 
-        shinqlx_set_configstring(42u32, "some value");
+        with_mocked_engine(|mock_engine| {
+            mock_engine
+                .expect_set_configstring()
+                .with(predicate::eq(42), predicate::eq("other value"))
+                .times(1);
+        })
+        .run(|| {
+            shinqlx_set_configstring(42u32, "some value");
+        });
     }
 
     #[test]
     #[serial]
     fn set_confgistring_dispatcher_returns_unmodified_string() {
-        let mut mock_engine = MockQuakeEngine::new();
-        mock_engine
-            .expect_set_configstring()
-            .with(predicate::eq(42), predicate::eq("some value"))
-            .times(1);
-        MAIN_ENGINE.store(Some(mock_engine.into()));
-
         let set_configstring_dispatcher_ctx = set_configstring_dispatcher_context();
         set_configstring_dispatcher_ctx
             .expect()
@@ -1227,7 +1257,15 @@ mod hooks_tests {
             .return_const(Some("some value".to_string()))
             .times(1);
 
-        shinqlx_set_configstring(42u32, "some value");
+        with_mocked_engine(|mock_engine| {
+            mock_engine
+                .expect_set_configstring()
+                .with(predicate::eq(42), predicate::eq("some value"))
+                .times(1);
+        })
+        .run(|| {
+            shinqlx_set_configstring(42u32, "some value");
+        });
     }
 
     #[test]
@@ -1252,36 +1290,29 @@ mod hooks_tests {
     #[test]
     #[serial]
     fn com_printf_with_no_main_engine() {
-        MAIN_ENGINE.store(None);
         shinqlx_com_printf("Hello world!");
     }
 
     #[test]
     #[serial]
     fn com_printf_when_dispatcher_returns_none() {
-        let mut mock_engine = MockQuakeEngine::new();
-        mock_engine.expect_com_printf().times(0);
-        MAIN_ENGINE.store(Some(mock_engine.into()));
-
         let mock_console_print_dispatcher_ctx = console_print_dispatcher_context();
         mock_console_print_dispatcher_ctx
             .expect()
             .with(predicate::eq("Hello World!"))
             .times(1);
 
-        shinqlx_com_printf("Hello World!");
+        with_mocked_engine(|mock_engine| {
+            mock_engine.expect_com_printf().times(0);
+        })
+        .run(|| {
+            shinqlx_com_printf("Hello World!");
+        });
     }
 
     #[test]
     #[serial]
     fn com_printf_when_dispatcher_returns_some_value() {
-        let mut mock_engine = MockQuakeEngine::new();
-        mock_engine
-            .expect_com_printf()
-            .with(predicate::eq("Hello World!"))
-            .times(1);
-        MAIN_ENGINE.store(Some(mock_engine.into()));
-
         let mock_console_print_dispatcher_ctx = console_print_dispatcher_context();
         mock_console_print_dispatcher_ctx
             .expect()
@@ -1289,13 +1320,20 @@ mod hooks_tests {
             .return_const(Some("Hello you!".to_string()))
             .times(1);
 
-        shinqlx_com_printf("Hello World!");
+        with_mocked_engine(|mock_engine| {
+            mock_engine
+                .expect_com_printf()
+                .with(predicate::eq("Hello World!"))
+                .times(1);
+        })
+        .run(|| {
+            shinqlx_com_printf("Hello World!");
+        });
     }
 
     #[test]
     #[serial]
     fn sv_spawnserver_with_no_main_engine() {
-        MAIN_ENGINE.store(None);
         let server_str = c"l33t ql server";
         shinqlx_sv_spawnserver(server_str.as_ptr().cast_mut(), qboolean::qtrue);
     }
@@ -1303,13 +1341,6 @@ mod hooks_tests {
     #[test]
     #[serial]
     fn sv_spawnserver_forwards_to_python() {
-        let mut mock_engine = MockQuakeEngine::new();
-        mock_engine
-            .expect_spawn_server()
-            .with(predicate::eq("l33t ql server"), predicate::eq(true))
-            .times(1);
-        MAIN_ENGINE.store(Some(mock_engine.into()));
-
         let mock_new_game_dispatcher_ctx = new_game_dispatcher_context();
         mock_new_game_dispatcher_ctx
             .expect()
@@ -1317,37 +1348,43 @@ mod hooks_tests {
             .times(1);
 
         let server_str = c"l33t ql server";
-
-        shinqlx_sv_spawnserver(server_str.as_ptr().cast_mut(), qboolean::qtrue);
+        with_mocked_engine(|mock_engine| {
+            mock_engine
+                .expect_spawn_server()
+                .with(predicate::eq("l33t ql server"), predicate::eq(true))
+                .times(1);
+        })
+        .run(|| {
+            shinqlx_sv_spawnserver(server_str.as_ptr().cast_mut(), qboolean::qtrue);
+        });
     }
 
     #[test]
     #[serial]
     fn g_runframe_with_no_main_engine() {
-        MAIN_ENGINE.store(None);
         shinqlx_g_runframe(42);
     }
 
     #[test]
     #[serial]
     fn g_runframe_forwards_to_python() {
-        let mut mock_engine = MockQuakeEngine::new();
-        mock_engine
-            .expect_run_frame()
-            .with(predicate::eq(42))
-            .times(1);
-        MAIN_ENGINE.store(Some(mock_engine.into()));
-
         let mock_frame_dispatcher_ctx = frame_dispatcher_context();
         mock_frame_dispatcher_ctx.expect().times(1);
 
-        shinqlx_g_runframe(42);
+        with_mocked_engine(|mock_engine| {
+            mock_engine
+                .expect_run_frame()
+                .with(predicate::eq(42))
+                .times(1);
+        })
+        .run(|| {
+            shinqlx_g_runframe(42);
+        });
     }
 
     #[test]
     #[serial]
     fn client_connect_with_no_main_engine() {
-        MAIN_ENGINE.store(None);
         let result = shinqlx_client_connect(42, qboolean::qfalse, qboolean::qfalse);
         assert!(result.is_null());
     }
@@ -1355,32 +1392,25 @@ mod hooks_tests {
     #[test]
     #[serial]
     fn client_connect_not_first_time_client() {
-        let mut mock_engine = MockQuakeEngine::new();
-        mock_engine
-            .expect_client_connect()
-            .with(
-                predicate::eq(42),
-                predicate::eq(false),
-                predicate::eq(false),
-            )
-            .returning(|_client_num, _first_time, _is_bot| c"".as_ptr() as *const c_char)
-            .times(1);
-        MAIN_ENGINE.store(Some(mock_engine.into()));
-
-        shinqlx_client_connect(42, qboolean::qfalse, qboolean::qfalse);
+        with_mocked_engine(|mock_engine| {
+            mock_engine
+                .expect_client_connect()
+                .with(
+                    predicate::eq(42),
+                    predicate::eq(false),
+                    predicate::eq(false),
+                )
+                .returning(|_client_num, _first_time, _is_bot| c"".as_ptr() as *const c_char)
+                .times(1);
+        })
+        .run(|| {
+            shinqlx_client_connect(42, qboolean::qfalse, qboolean::qfalse);
+        });
     }
 
     #[test]
     #[serial]
     fn client_connect_first_time_client_dispatcher_returns_none() {
-        let mut mock_engine = MockQuakeEngine::new();
-        mock_engine
-            .expect_client_connect()
-            .with(predicate::eq(42), predicate::eq(true), predicate::eq(false))
-            .returning(|_client_num, _first_time, _is_bot| c"".as_ptr() as *const c_char)
-            .times(1);
-        MAIN_ENGINE.store(Some(mock_engine.into()));
-
         let client_connect_dispatcher_ctx = client_connect_dispatcher_context();
         client_connect_dispatcher_ctx
             .expect()
@@ -1388,16 +1418,21 @@ mod hooks_tests {
             .return_const(None)
             .times(1);
 
-        shinqlx_client_connect(42, qboolean::qtrue, qboolean::qfalse);
+        with_mocked_engine(|mock_engine| {
+            mock_engine
+                .expect_client_connect()
+                .with(predicate::eq(42), predicate::eq(true), predicate::eq(false))
+                .returning(|_client_num, _first_time, _is_bot| c"".as_ptr() as *const c_char)
+                .times(1);
+        })
+        .run(|| {
+            shinqlx_client_connect(42, qboolean::qtrue, qboolean::qfalse);
+        });
     }
 
     #[test]
     #[serial]
     fn client_connect_first_time_client_dispatcher_returns_string() {
-        let mut mock_engine = MockQuakeEngine::new();
-        mock_engine.expect_client_connect().times(0);
-        MAIN_ENGINE.store(Some(mock_engine.into()));
-
         let client_connect_dispatcher_ctx = client_connect_dispatcher_context();
         client_connect_dispatcher_ctx
             .expect()
@@ -1405,24 +1440,21 @@ mod hooks_tests {
             .return_const(Some("you are banned from this server".to_string()))
             .times(1);
 
-        let result = shinqlx_client_connect(42, qboolean::qtrue, qboolean::qfalse);
-        assert_eq!(
-            unsafe { CStr::from_ptr(result) }.to_string_lossy(),
-            "you are banned from this server"
-        );
+        with_mocked_engine(|mock_engine| {
+            mock_engine.expect_client_connect().times(0);
+        })
+        .run(|| {
+            let result = shinqlx_client_connect(42, qboolean::qtrue, qboolean::qfalse);
+            assert_eq!(
+                unsafe { CStr::from_ptr(result) }.to_string_lossy(),
+                "you are banned from this server"
+            );
+        });
     }
 
     #[test]
     #[serial]
     fn client_connect_first_time_client_dispatcher_returns_some_for_bot() {
-        let mut mock_engine = MockQuakeEngine::new();
-        mock_engine
-            .expect_client_connect()
-            .with(predicate::eq(42), predicate::eq(true), predicate::eq(true))
-            .returning(|_client_num, _first_time, _is_bot| c"".as_ptr() as *const c_char)
-            .times(1);
-        MAIN_ENGINE.store(Some(mock_engine.into()));
-
         let client_connect_dispatcher_ctx = client_connect_dispatcher_context();
         client_connect_dispatcher_ctx
             .expect()
@@ -1430,13 +1462,21 @@ mod hooks_tests {
             .return_const(Some("we don't like bots here".to_string()))
             .times(1);
 
-        shinqlx_client_connect(42, qboolean::qtrue, qboolean::qtrue);
+        with_mocked_engine(|mock_engine| {
+            mock_engine
+                .expect_client_connect()
+                .with(predicate::eq(42), predicate::eq(true), predicate::eq(true))
+                .returning(|_client_num, _first_time, _is_bot| c"".as_ptr() as *const c_char)
+                .times(1);
+        })
+        .run(|| {
+            shinqlx_client_connect(42, qboolean::qtrue, qboolean::qtrue);
+        });
     }
 
     #[test]
     #[serial]
     fn client_spawn_with_no_main_engine() {
-        MAIN_ENGINE.store(None);
         let mut mock_entity = MockGameEntity::new();
         shinqlx_client_spawn(mock_entity.borrow_mut());
     }
@@ -1446,9 +1486,6 @@ mod hooks_tests {
     fn client_spawn_forwards_to_ql_and_python() {
         let mut mock_entity = MockGameEntity::new();
         mock_entity.expect_get_entity_id().return_const(42).times(1);
-        let mut mock_engine = MockQuakeEngine::new();
-        mock_engine.expect_client_spawn().times(1);
-        MAIN_ENGINE.store(Some(mock_engine.into()));
 
         let client_spawn_dispatcher_ctx = client_spawn_dispatcher_context();
         client_spawn_dispatcher_ctx
@@ -1456,7 +1493,12 @@ mod hooks_tests {
             .with(predicate::eq(42))
             .times(1);
 
-        shinqlx_client_spawn(mock_entity.borrow_mut());
+        with_mocked_engine(|mock_engine| {
+            mock_engine.expect_client_spawn().times(1);
+        })
+        .run(|| {
+            shinqlx_client_spawn(mock_entity.borrow_mut());
+        });
     }
 
     #[test]
@@ -1564,7 +1606,6 @@ mod hooks_tests {
     #[test]
     #[serial]
     fn g_damage_with_no_main_engine() {
-        MAIN_ENGINE.store(None);
         shinqlx_g_damage(
             ptr::null_mut() as *mut gentity_t,
             ptr::null_mut() as *mut gentity_t,
@@ -1581,24 +1622,6 @@ mod hooks_tests {
     #[test]
     #[serial]
     fn g_damage_for_null_target_is_not_forwarded() {
-        let mut mock_engine = MockQuakeEngine::new();
-        mock_engine
-            .expect_register_damage()
-            .withf(
-                |&target, &inflictor, &attacker, &dir, &pos, &damage, &dflags, &means_of_death| {
-                    target.is_null()
-                        && inflictor.is_null()
-                        && attacker.is_null()
-                        && pos.is_null()
-                        && dir.is_null()
-                        && damage == 0
-                        && dflags == 0
-                        && means_of_death == 0
-                },
-            )
-            .times(1);
-        MAIN_ENGINE.store(Some(mock_engine.into()));
-
         let try_from_ctx = MockGameEntity::try_from_context();
         try_from_ctx
             .expect()
@@ -1607,40 +1630,48 @@ mod hooks_tests {
         let damage_dispatcher_ctx = damage_dispatcher_context();
         damage_dispatcher_ctx.expect().times(0);
 
-        shinqlx_g_damage(
-            ptr::null_mut() as *mut gentity_t,
-            ptr::null_mut() as *mut gentity_t,
-            ptr::null_mut() as *mut gentity_t,
-            ptr::null_mut() as *mut vec3_t,
-            ptr::null_mut() as *mut vec3_t,
-            0,
-            0,
-            0,
-        );
+        with_mocked_engine(|mock_engine| {
+            mock_engine
+                .expect_register_damage()
+                .withf(
+                    |&target,
+                     &inflictor,
+                     &attacker,
+                     &dir,
+                     &pos,
+                     &damage,
+                     &dflags,
+                     &means_of_death| {
+                        target.is_null()
+                            && inflictor.is_null()
+                            && attacker.is_null()
+                            && pos.is_null()
+                            && dir.is_null()
+                            && damage == 0
+                            && dflags == 0
+                            && means_of_death == 0
+                    },
+                )
+                .times(1);
+        })
+        .run(|| {
+            shinqlx_g_damage(
+                ptr::null_mut() as *mut gentity_t,
+                ptr::null_mut() as *mut gentity_t,
+                ptr::null_mut() as *mut gentity_t,
+                ptr::null_mut() as *mut vec3_t,
+                ptr::null_mut() as *mut vec3_t,
+                0,
+                0,
+                0,
+            );
+        });
     }
 
     //noinspection DuplicatedCode
     #[test]
     #[serial]
     fn g_damage_for_null_attacker() {
-        let mut mock_engine = MockQuakeEngine::new();
-        mock_engine
-            .expect_register_damage()
-            .withf(
-                |&target, &inflictor, &attacker, &dir, &pos, &damage, &dflags, &means_of_death| {
-                    target.is_null()
-                        && inflictor.is_null()
-                        && attacker.is_null()
-                        && pos.is_null()
-                        && dir.is_null()
-                        && damage == 666
-                        && dflags == 0
-                        && means_of_death == 0
-                },
-            )
-            .times(1);
-        MAIN_ENGINE.store(Some(mock_engine.into()));
-
         let try_from_ctx = MockGameEntity::try_from_context();
         try_from_ctx
             .expect()
@@ -1663,40 +1694,48 @@ mod hooks_tests {
             )
             .times(1);
 
-        shinqlx_g_damage(
-            ptr::null_mut() as *mut gentity_t,
-            ptr::null_mut() as *mut gentity_t,
-            ptr::null_mut() as *mut gentity_t,
-            ptr::null_mut() as *mut vec3_t,
-            ptr::null_mut() as *mut vec3_t,
-            666,
-            0,
-            0,
-        );
+        with_mocked_engine(|mock_engine| {
+            mock_engine
+                .expect_register_damage()
+                .withf(
+                    |&target,
+                     &inflictor,
+                     &attacker,
+                     &dir,
+                     &pos,
+                     &damage,
+                     &dflags,
+                     &means_of_death| {
+                        target.is_null()
+                            && inflictor.is_null()
+                            && attacker.is_null()
+                            && pos.is_null()
+                            && dir.is_null()
+                            && damage == 666
+                            && dflags == 0
+                            && means_of_death == 0
+                    },
+                )
+                .times(1);
+        })
+        .run(|| {
+            shinqlx_g_damage(
+                ptr::null_mut() as *mut gentity_t,
+                ptr::null_mut() as *mut gentity_t,
+                ptr::null_mut() as *mut gentity_t,
+                ptr::null_mut() as *mut vec3_t,
+                ptr::null_mut() as *mut vec3_t,
+                666,
+                0,
+                0,
+            );
+        });
     }
 
     //noinspection DuplicatedCode
     #[test]
     #[serial]
     fn g_damage_for_non_null_attacker_try_from_returns_err() {
-        let mut mock_engine = MockQuakeEngine::new();
-        mock_engine
-            .expect_register_damage()
-            .withf(
-                |&target, &inflictor, &attacker, &dir, &pos, &damage, &dflags, &means_of_death| {
-                    target.is_null()
-                        && inflictor.is_null()
-                        && !attacker.is_null()
-                        && pos.is_null()
-                        && dir.is_null()
-                        && damage == 666
-                        && dflags == 16
-                        && means_of_death == 7
-                },
-            )
-            .times(1);
-        MAIN_ENGINE.store(Some(mock_engine.into()));
-
         let try_from_ctx = MockGameEntity::try_from_context();
         try_from_ctx
             .expect()
@@ -1722,44 +1761,53 @@ mod hooks_tests {
                 predicate::eq(7),
             )
             .times(1);
+
         let mut attacker = GEntityBuilder::default()
             .build()
             .expect("this should not happen");
 
-        shinqlx_g_damage(
-            ptr::null_mut() as *mut gentity_t,
-            ptr::null_mut() as *mut gentity_t,
-            attacker.borrow_mut() as *mut gentity_t,
-            ptr::null_mut() as *mut vec3_t,
-            ptr::null_mut() as *mut vec3_t,
-            666,
-            16,
-            7,
-        );
+        with_mocked_engine(|mock_engine| {
+            mock_engine
+                .expect_register_damage()
+                .withf(
+                    |&target,
+                     &inflictor,
+                     &attacker,
+                     &dir,
+                     &pos,
+                     &damage,
+                     &dflags,
+                     &means_of_death| {
+                        target.is_null()
+                            && inflictor.is_null()
+                            && !attacker.is_null()
+                            && pos.is_null()
+                            && dir.is_null()
+                            && damage == 666
+                            && dflags == 16
+                            && means_of_death == 7
+                    },
+                )
+                .times(1);
+        })
+        .run(|| {
+            shinqlx_g_damage(
+                ptr::null_mut() as *mut gentity_t,
+                ptr::null_mut() as *mut gentity_t,
+                attacker.borrow_mut() as *mut gentity_t,
+                ptr::null_mut() as *mut vec3_t,
+                ptr::null_mut() as *mut vec3_t,
+                666,
+                16,
+                7,
+            );
+        });
     }
 
     //noinspection DuplicatedCode
     #[test]
     #[serial]
     fn g_damage_for_non_null_attacker_try_from_returns_ok() {
-        let mut mock_engine = MockQuakeEngine::new();
-        mock_engine
-            .expect_register_damage()
-            .withf(
-                |&target, &inflictor, &attacker, &dir, &pos, &damage, &dflags, &means_of_death| {
-                    target.is_null()
-                        && inflictor.is_null()
-                        && !attacker.is_null()
-                        && pos.is_null()
-                        && dir.is_null()
-                        && damage == 50
-                        && dflags == 4
-                        && means_of_death == 2
-                },
-            )
-            .times(1);
-        MAIN_ENGINE.store(Some(mock_engine.into()));
-
         let try_from_ctx = MockGameEntity::try_from_context();
         try_from_ctx
             .expect()
@@ -1789,19 +1837,46 @@ mod hooks_tests {
                 predicate::eq(2),
             )
             .times(1);
+
         let mut attacker = GEntityBuilder::default()
             .build()
             .expect("this should not happen");
 
-        shinqlx_g_damage(
-            ptr::null_mut() as *mut gentity_t,
-            ptr::null_mut() as *mut gentity_t,
-            attacker.borrow_mut() as *mut gentity_t,
-            ptr::null_mut() as *mut vec3_t,
-            ptr::null_mut() as *mut vec3_t,
-            50,
-            4,
-            2,
-        );
+        with_mocked_engine(|mock_engine| {
+            mock_engine
+                .expect_register_damage()
+                .withf(
+                    |&target,
+                     &inflictor,
+                     &attacker,
+                     &dir,
+                     &pos,
+                     &damage,
+                     &dflags,
+                     &means_of_death| {
+                        target.is_null()
+                            && inflictor.is_null()
+                            && !attacker.is_null()
+                            && pos.is_null()
+                            && dir.is_null()
+                            && damage == 50
+                            && dflags == 4
+                            && means_of_death == 2
+                    },
+                )
+                .times(1);
+        })
+        .run(|| {
+            shinqlx_g_damage(
+                ptr::null_mut() as *mut gentity_t,
+                ptr::null_mut() as *mut gentity_t,
+                attacker.borrow_mut() as *mut gentity_t,
+                ptr::null_mut() as *mut vec3_t,
+                ptr::null_mut() as *mut vec3_t,
+                50,
+                4,
+                2,
+            );
+        });
     }
 }

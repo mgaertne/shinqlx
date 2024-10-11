@@ -19,6 +19,8 @@ mod allow_single_player_tests {
     use crate::ffi::python::prelude::*;
     use crate::prelude::*;
 
+    use rstest::rstest;
+
     use mockall::predicate;
     use rstest::*;
 

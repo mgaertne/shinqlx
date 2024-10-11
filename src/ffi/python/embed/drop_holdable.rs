@@ -38,7 +38,6 @@ mod drop_holdable_tests {
     use crate::ffi::c::prelude::*;
     use crate::ffi::python::prelude::*;
     use crate::prelude::*;
-    use crate::MAIN_ENGINE;
 
     use core::borrow::BorrowMut;
 
@@ -51,7 +50,6 @@ mod drop_holdable_tests {
     #[cfg_attr(miri, ignore)]
     #[serial]
     fn drop_holdable_when_main_engine_not_initialized(_pyshinqlx_setup: ()) {
-        MAIN_ENGINE.store(None);
         Python::with_gil(|py| {
             let result = pyshinqlx_drop_holdable(py, 21);
             assert!(result.is_err_and(|err| err.is_instance_of::<PyEnvironmentError>(py)));
@@ -62,13 +60,14 @@ mod drop_holdable_tests {
     #[cfg_attr(miri, ignore)]
     #[serial]
     fn drop_holdable_for_client_id_too_small(_pyshinqlx_setup: ()) {
-        let mut mock_engine = MockQuakeEngine::new();
-        mock_engine.expect_get_max_clients().returning(|| 16);
-        MAIN_ENGINE.store(Some(mock_engine.into()));
-
-        Python::with_gil(|py| {
-            let result = pyshinqlx_drop_holdable(py, -1);
-            assert!(result.is_err_and(|err| err.is_instance_of::<PyValueError>(py)));
+        with_mocked_engine(|mock_engine| {
+            mock_engine.expect_get_max_clients().returning(|| 16);
+        })
+        .run(|| {
+            Python::with_gil(|py| {
+                let result = pyshinqlx_drop_holdable(py, -1);
+                assert!(result.is_err_and(|err| err.is_instance_of::<PyValueError>(py)));
+            });
         });
     }
 
@@ -103,8 +102,13 @@ mod drop_holdable_tests {
             mock_game_entity
         });
 
-        let result = Python::with_gil(|py| pyshinqlx_drop_holdable(py, 2));
-        assert_eq!(result.expect("result was not OK"), false);
+        with_mocked_engine(|mock_engine| {
+            mock_engine.expect_get_max_clients().returning(|| 16);
+        })
+        .run(|| {
+            let result = Python::with_gil(|py| pyshinqlx_drop_holdable(py, 2));
+            assert_eq!(result.expect("result was not OK"), false);
+        });
     }
 
     #[rstest]
@@ -148,8 +152,13 @@ mod drop_holdable_tests {
                 mock_game_entity
             });
 
-        let result = Python::with_gil(|py| pyshinqlx_drop_holdable(py, 2));
-        assert_eq!(result.expect("result was not OK"), false);
+        with_mocked_engine(|mock_engine| {
+            mock_engine.expect_get_max_clients().returning(|| 16);
+        })
+        .run(|| {
+            let result = Python::with_gil(|py| pyshinqlx_drop_holdable(py, 2));
+            assert_eq!(result.expect("result was not OK"), false);
+        });
     }
 
     #[rstest]
@@ -203,7 +212,12 @@ mod drop_holdable_tests {
                 mock_game_entity
             });
 
-        let result = Python::with_gil(|py| pyshinqlx_drop_holdable(py, 2));
-        assert_eq!(result.expect("result was not OK"), true);
+        with_mocked_engine(|mock_engine| {
+            mock_engine.expect_get_max_clients().returning(|| 16);
+        })
+        .run(|| {
+            let result = Python::with_gil(|py| pyshinqlx_drop_holdable(py, 2));
+            assert_eq!(result.expect("result was not OK"), true);
+        });
     }
 }

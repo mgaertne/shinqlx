@@ -100,7 +100,6 @@ mockall::mock! {
 #[cfg(test)]
 mod server_static_tests {
     use super::ServerStatic;
-    use super::MAIN_ENGINE;
     use crate::ffi::c::prelude::*;
     use crate::prelude::*;
     use crate::quake_live_functions::QuakeLiveFunction::SV_Shutdown;
@@ -133,8 +132,6 @@ mod server_static_tests {
     #[test]
     #[serial]
     fn server_static_default_panics_when_no_main_engine_found() {
-        MAIN_ENGINE.store(None);
-
         let result = ServerStatic::try_get();
 
         assert!(result.is_err());
@@ -147,19 +144,20 @@ mod server_static_tests {
     #[test]
     #[serial]
     fn server_static_default_panics_when_offset_function_not_initialized() {
-        let mut mock_engine = MockQuakeEngine::new();
-        mock_engine
-            .expect_sv_shutdown_orig()
-            .return_once(|| Err(QuakeLiveEngineError::StaticFunctionNotFound(SV_Shutdown)));
-        MAIN_ENGINE.store(Some(mock_engine.into()));
+        with_mocked_engine(|mock_engine| {
+            mock_engine
+                .expect_sv_shutdown_orig()
+                .return_once(|| Err(QuakeLiveEngineError::StaticFunctionNotFound(SV_Shutdown)));
+        })
+        .run(|| {
+            let result = ServerStatic::try_get();
 
-        let result = ServerStatic::try_get();
-
-        assert!(result.is_err());
-        assert_eq!(
-            result.expect_err("this should not happen"),
-            QuakeLiveEngineError::StaticFunctionNotFound(SV_Shutdown)
-        );
+            assert!(result.is_err());
+            assert_eq!(
+                result.expect_err("this should not happen"),
+                QuakeLiveEngineError::StaticFunctionNotFound(SV_Shutdown)
+            );
+        });
     }
 
     #[test]

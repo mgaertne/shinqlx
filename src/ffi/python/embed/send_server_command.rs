@@ -44,7 +44,6 @@ mod send_server_command_tests {
     use crate::ffi::python::prelude::*;
     use crate::hooks::mock_hooks::shinqlx_send_server_command_context;
     use crate::prelude::*;
-    use crate::MAIN_ENGINE;
 
     use pretty_assertions::assert_eq;
     use pyo3::exceptions::{PyEnvironmentError, PyValueError};
@@ -67,8 +66,6 @@ mod send_server_command_tests {
     #[cfg_attr(miri, ignore)]
     #[serial]
     fn send_server_command_when_main_engine_not_initialized(_pyshinqlx_setup: ()) {
-        MAIN_ENGINE.store(None);
-
         let hook_ctx = shinqlx_send_server_command_context();
         hook_ctx.expect().times(0);
 
@@ -82,16 +79,17 @@ mod send_server_command_tests {
     #[cfg_attr(miri, ignore)]
     #[serial]
     fn get_userinfo_for_client_id_below_zero(_pyshinqlx_setup: ()) {
-        let mut mock_engine = MockQuakeEngine::new();
-        mock_engine.expect_get_max_clients().returning(|| 16);
-        MAIN_ENGINE.store(Some(mock_engine.into()));
-
         let hook_ctx = shinqlx_send_server_command_context();
         hook_ctx.expect().times(0);
 
-        Python::with_gil(|py| {
-            let result = pyshinqlx_send_server_command(py, Some(-1), "asdf");
-            assert!(result.is_err_and(|err| err.is_instance_of::<PyValueError>(py)));
+        with_mocked_engine(|mock_engine| {
+            mock_engine.expect_get_max_clients().returning(|| 16);
+        })
+        .run(|| {
+            Python::with_gil(|py| {
+                let result = pyshinqlx_send_server_command(py, Some(-1), "asdf");
+                assert!(result.is_err_and(|err| err.is_instance_of::<PyValueError>(py)));
+            });
         });
     }
 
@@ -99,16 +97,17 @@ mod send_server_command_tests {
     #[cfg_attr(miri, ignore)]
     #[serial]
     fn send_server_command_for_client_id_above_max_clients(_pyshinqlx_setup: ()) {
-        let mut mock_engine = MockQuakeEngine::new();
-        mock_engine.expect_get_max_clients().returning(|| 16);
-        MAIN_ENGINE.store(Some(mock_engine.into()));
-
         let hook_ctx = shinqlx_send_server_command_context();
         hook_ctx.expect().times(0);
 
-        Python::with_gil(|py| {
-            let result = pyshinqlx_send_server_command(py, Some(42), "asdf");
-            assert!(result.is_err_and(|err| err.is_instance_of::<PyValueError>(py)));
+        with_mocked_engine(|mock_engine| {
+            mock_engine.expect_get_max_clients().returning(|| 16);
+        })
+        .run(|| {
+            Python::with_gil(|py| {
+                let result = pyshinqlx_send_server_command(py, Some(42), "asdf");
+                assert!(result.is_err_and(|err| err.is_instance_of::<PyValueError>(py)));
+            });
         });
     }
 
@@ -116,10 +115,6 @@ mod send_server_command_tests {
     #[cfg_attr(miri, ignore)]
     #[serial]
     fn send_server_command_for_active_client(_pyshinqlx_setup: ()) {
-        let mut mock_engine = MockQuakeEngine::new();
-        mock_engine.expect_get_max_clients().returning(|| 16);
-        MAIN_ENGINE.store(Some(mock_engine.into()));
-
         let client_try_from_ctx = MockClient::from_context();
         client_try_from_ctx.expect().returning(|_client_id| {
             let mut mock_client = MockClient::new();
@@ -135,8 +130,13 @@ mod send_server_command_tests {
             .withf(|client, cmd| client.is_some() && cmd == "asdf")
             .times(1);
 
-        let result = Python::with_gil(|py| pyshinqlx_send_server_command(py, Some(2), "asdf"));
-        assert_eq!(result.expect("result was not OK"), true);
+        with_mocked_engine(|mock_engine| {
+            mock_engine.expect_get_max_clients().returning(|| 16);
+        })
+        .run(|| {
+            let result = Python::with_gil(|py| pyshinqlx_send_server_command(py, Some(2), "asdf"));
+            assert_eq!(result.expect("result was not OK"), true);
+        });
     }
 
     #[rstest]
@@ -147,13 +147,9 @@ mod send_server_command_tests {
     #[cfg_attr(miri, ignore)]
     #[serial]
     fn send_server_command_for_non_active_free_client(
-        _pyshinqlx_setup: (),
         #[case] clientstate: clientState_t,
+        _pyshinqlx_setup: (),
     ) {
-        let mut mock_engine = MockQuakeEngine::new();
-        mock_engine.expect_get_max_clients().returning(|| 16);
-        MAIN_ENGINE.store(Some(mock_engine.into()));
-
         let client_try_from_ctx = MockClient::from_context();
         client_try_from_ctx.expect().returning(move |_client_id| {
             let mut mock_client = MockClient::new();
@@ -164,7 +160,12 @@ mod send_server_command_tests {
         let hook_ctx = shinqlx_send_server_command_context();
         hook_ctx.expect().times(0);
 
-        let result = Python::with_gil(|py| pyshinqlx_send_server_command(py, Some(2), "asdf"));
-        assert_eq!(result.expect("result was not OK"), false);
+        with_mocked_engine(|mock_engine| {
+            mock_engine.expect_get_max_clients().returning(|| 16);
+        })
+        .run(|| {
+            let result = Python::with_gil(|py| pyshinqlx_send_server_command(py, Some(2), "asdf"));
+            assert_eq!(result.expect("result was not OK"), false);
+        });
     }
 }

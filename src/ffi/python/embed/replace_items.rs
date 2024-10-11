@@ -109,6 +109,8 @@ mod replace_items_tests {
 
     use mockall::predicate;
     use pretty_assertions::assert_eq;
+    use rstest::rstest;
+
     use pyo3::exceptions::PyValueError;
     use pyo3::types::{PyString, PyTuple};
     use rstest::*;

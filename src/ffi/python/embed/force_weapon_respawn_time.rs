@@ -36,7 +36,7 @@ mod force_weapon_respawn_time_tests {
     use mockall::predicate;
     use pretty_assertions::assert_eq;
     use pyo3::exceptions::PyValueError;
-    use rstest::*;
+    use rstest::rstest;
 
     #[rstest]
     #[cfg_attr(miri, ignore)]

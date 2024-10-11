@@ -180,7 +180,6 @@ mockall::mock! {
 #[cfg(test)]
 mod game_item_tests {
     use super::GameItem;
-    use super::MAIN_ENGINE;
     use crate::ffi::c::prelude::*;
     use crate::prelude::*;
 
@@ -259,24 +258,22 @@ mod game_item_tests {
     #[test]
     #[serial]
     fn get_item_list_with_no_main_engine() {
-        MAIN_ENGINE.store(None);
-
         assert!(GameItem::get_item_list_real().is_null());
     }
 
     #[test]
     #[serial]
     fn get_item_list_with_offset_function_not_defined_in_main_engine() {
-        let mut mock_engine = MockQuakeEngine::new();
-        mock_engine
-            .expect_launch_item_orig()
-            .return_once(|| Err(QuakeLiveEngineError::MainEngineNotInitialized));
+        with_mocked_engine(|mock_engine| {
+            mock_engine
+                .expect_launch_item_orig()
+                .return_once(|| Err(QuakeLiveEngineError::MainEngineNotInitialized));
+        })
+        .run(|| {
+            let result = GameItem::get_item_list_real();
 
-        MAIN_ENGINE.store(Some(mock_engine.into()));
-
-        let result = GameItem::get_item_list_real();
-
-        assert!(result.is_null());
+            assert!(result.is_null());
+        });
     }
 
     #[test]
@@ -295,30 +292,32 @@ mod game_item_tests {
     #[test]
     #[serial]
     fn game_item_spawn() {
-        let mut mock_engine = MockQuakeEngine::new();
         let mut gitem = GItemBuilder::default()
             .build()
             .expect("this should not happen");
         let mut game_item =
             GameItem::try_from(gitem.borrow_mut() as *mut gitem_t).expect("this should not happen");
-        mock_engine
-            .expect_try_launch_item()
-            .withf(|_item, origin, velocity| {
-                origin == &[1.0, 2.0, 3.0] && velocity == &[0.0, 0.0, 0.9]
-            })
-            .return_once(|_item, _origin, _velocity| {
-                let mut game_entity = MockGameEntity::new();
-                game_entity.expect_set_next_think().with(predicate::eq(0));
-                game_entity.expect_set_think().with(predicate::eq(None));
-                Ok(game_entity)
-            });
-        mock_engine
-            .expect_game_add_event()
-            .withf(|_entity, event, param| {
-                event == &entity_event_t::EV_ITEM_RESPAWN && param == &0
-            });
-        MAIN_ENGINE.store(Some(mock_engine.into()));
 
-        game_item.spawn((1, 2, 3));
+        with_mocked_engine(|mock_engine| {
+            mock_engine
+                .expect_try_launch_item()
+                .withf(|_item, origin, velocity| {
+                    origin == &[1.0, 2.0, 3.0] && velocity == &[0.0, 0.0, 0.9]
+                })
+                .return_once(|_item, _origin, _velocity| {
+                    let mut game_entity = MockGameEntity::new();
+                    game_entity.expect_set_next_think().with(predicate::eq(0));
+                    game_entity.expect_set_think().with(predicate::eq(None));
+                    Ok(game_entity)
+                });
+            mock_engine
+                .expect_game_add_event()
+                .withf(|_entity, event, param| {
+                    event == &entity_event_t::EV_ITEM_RESPAWN && param == &0
+                });
+        })
+        .run(|| {
+            game_item.spawn((1, 2, 3));
+        });
     }
 }

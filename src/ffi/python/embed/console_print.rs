@@ -21,7 +21,7 @@ mod console_print_tests {
     use crate::prelude::*;
 
     use mockall::predicate;
-    use rstest::*;
+    use rstest::rstest;
 
     #[rstest]
     #[cfg_attr(miri, ignore)]

@@ -544,7 +544,6 @@ mockall::mock! {
 #[cfg(test)]
 mod game_entity_tests {
     use super::GameEntity;
-    use super::MAIN_ENGINE;
     use super::{MockStaticFunc, ShiNQlx_Switch_Touch_Item, ShiNQlx_Touch_Item};
     use crate::ffi::c::prelude::*;
     use crate::prelude::*;
@@ -567,7 +566,6 @@ mod game_entity_tests {
             .build()
             .expect("this should not happen");
 
-        MAIN_ENGINE.store(None);
         ShiNQlx_Touch_Item(
             entity.borrow_mut(),
             other_entity.borrow_mut(),
@@ -588,16 +586,18 @@ mod game_entity_tests {
             .build()
             .expect("this should not happen");
 
-        let mut mock_engine = MockQuakeEngine::new();
-        mock_engine
-            .expect_touch_item_orig()
-            .returning(|| Err(QuakeLiveEngineError::MainEngineNotInitialized));
-        MAIN_ENGINE.store(Some(mock_engine.into()));
-        ShiNQlx_Touch_Item(
-            entity.borrow_mut(),
-            other_entity.borrow_mut(),
-            trace.borrow_mut(),
-        );
+        with_mocked_engine(|mock_engine| {
+            mock_engine
+                .expect_touch_item_orig()
+                .returning(|| Err(QuakeLiveEngineError::MainEngineNotInitialized));
+        })
+        .run(|| {
+            ShiNQlx_Touch_Item(
+                entity.borrow_mut(),
+                other_entity.borrow_mut(),
+                trace.borrow_mut(),
+            );
+        });
     }
 
     #[test]
@@ -613,17 +613,18 @@ mod game_entity_tests {
         let touch_item_ctx = MockStaticFunc::touch_item_context();
         touch_item_ctx.expect().times(0);
 
-        let mut mock_engine = MockQuakeEngine::new();
-        mock_engine
-            .expect_touch_item_orig()
-            .returning(|| Ok(MockStaticFunc::touch_item));
-        MAIN_ENGINE.store(Some(mock_engine.into()));
-
-        ShiNQlx_Touch_Item(
-            ptr::null_mut() as *mut gentity_t,
-            other_entity.borrow_mut(),
-            trace.borrow_mut(),
-        );
+        with_mocked_engine(|mock_engine| {
+            mock_engine
+                .expect_touch_item_orig()
+                .returning(|| Ok(MockStaticFunc::touch_item));
+        })
+        .run(|| {
+            ShiNQlx_Touch_Item(
+                ptr::null_mut() as *mut gentity_t,
+                other_entity.borrow_mut(),
+                trace.borrow_mut(),
+            );
+        });
     }
 
     #[test]
@@ -643,17 +644,18 @@ mod game_entity_tests {
         let touch_item_ctx = MockStaticFunc::touch_item_context();
         touch_item_ctx.expect().times(0);
 
-        let mut mock_engine = MockQuakeEngine::new();
-        mock_engine
-            .expect_touch_item_orig()
-            .returning(|| Ok(MockStaticFunc::touch_item));
-        MAIN_ENGINE.store(Some(mock_engine.into()));
-
-        ShiNQlx_Touch_Item(
-            entity.borrow_mut(),
-            other_entity.borrow_mut(),
-            trace.borrow_mut(),
-        );
+        with_mocked_engine(|mock_engine| {
+            mock_engine
+                .expect_touch_item_orig()
+                .returning(|| Ok(MockStaticFunc::touch_item));
+        })
+        .run(|| {
+            ShiNQlx_Touch_Item(
+                entity.borrow_mut(),
+                other_entity.borrow_mut(),
+                trace.borrow_mut(),
+            );
+        });
     }
 
     #[test]
@@ -672,17 +674,18 @@ mod game_entity_tests {
         let touch_item_ctx = MockStaticFunc::touch_item_context();
         touch_item_ctx.expect().times(1);
 
-        let mut mock_engine = MockQuakeEngine::new();
-        mock_engine
-            .expect_touch_item_orig()
-            .returning(|| Ok(MockStaticFunc::touch_item));
-        MAIN_ENGINE.store(Some(mock_engine.into()));
-
-        ShiNQlx_Touch_Item(
-            entity.borrow_mut(),
-            other_entity.borrow_mut(),
-            trace.borrow_mut(),
-        );
+        with_mocked_engine(|mock_engine| {
+            mock_engine
+                .expect_touch_item_orig()
+                .returning(|| Ok(MockStaticFunc::touch_item));
+        })
+        .run(|| {
+            ShiNQlx_Touch_Item(
+                entity.borrow_mut(),
+                other_entity.borrow_mut(),
+                trace.borrow_mut(),
+            );
+        });
     }
 
     #[test]
@@ -692,7 +695,6 @@ mod game_entity_tests {
             .build()
             .expect("this should not happen");
 
-        MAIN_ENGINE.store(None);
         ShiNQlx_Switch_Touch_Item(entity.borrow_mut());
     }
 
@@ -703,12 +705,14 @@ mod game_entity_tests {
             .build()
             .expect("this should not happen");
 
-        let mut mock_engine = MockQuakeEngine::new();
-        mock_engine
-            .expect_touch_item_orig()
-            .returning(|| Err(QuakeLiveEngineError::MainEngineNotInitialized));
-        MAIN_ENGINE.store(Some(mock_engine.into()));
-        ShiNQlx_Switch_Touch_Item(entity.borrow_mut());
+        with_mocked_engine(|mock_engine| {
+            mock_engine
+                .expect_touch_item_orig()
+                .returning(|| Err(QuakeLiveEngineError::MainEngineNotInitialized));
+        })
+        .run(|| {
+            ShiNQlx_Switch_Touch_Item(entity.borrow_mut());
+        });
     }
 
     static MOCK_TOUCH_ITEM_FN: extern "C" fn(*mut gentity_t, *mut gentity_t, *mut trace_t) =
@@ -722,31 +726,33 @@ mod game_entity_tests {
             .build()
             .expect("this should not happen");
 
-        let mut mock_engine = MockQuakeEngine::new();
-        mock_engine
-            .expect_touch_item_orig()
-            .returning(|| Ok(MOCK_TOUCH_ITEM_FN));
-        mock_engine
-            .expect_g_free_entity_orig()
-            .returning(|| Err(QuakeLiveEngineError::MainEngineNotInitialized));
-
-        MAIN_ENGINE.store(Some(mock_engine.into()));
-        ShiNQlx_Switch_Touch_Item(entity.borrow_mut());
+        with_mocked_engine(|mock_engine| {
+            mock_engine
+                .expect_touch_item_orig()
+                .returning(|| Ok(MOCK_TOUCH_ITEM_FN));
+            mock_engine
+                .expect_g_free_entity_orig()
+                .returning(|| Err(QuakeLiveEngineError::MainEngineNotInitialized));
+        })
+        .run(|| {
+            ShiNQlx_Switch_Touch_Item(entity.borrow_mut());
+        });
     }
 
     #[test]
     #[serial]
     fn shinqlx_switch_touch_item_with_null_entity() {
-        let mut mock_engine = MockQuakeEngine::new();
-        mock_engine
-            .expect_touch_item_orig()
-            .returning(|| Ok(MOCK_TOUCH_ITEM_FN));
-        mock_engine
-            .expect_g_free_entity_orig()
-            .returning(|| Ok(MOCK_FREE_ENTITY_FN));
-
-        MAIN_ENGINE.store(Some(mock_engine.into()));
-        ShiNQlx_Switch_Touch_Item(ptr::null_mut() as *mut gentity_t);
+        with_mocked_engine(|mock_engine| {
+            mock_engine
+                .expect_touch_item_orig()
+                .returning(|| Ok(MOCK_TOUCH_ITEM_FN));
+            mock_engine
+                .expect_g_free_entity_orig()
+                .returning(|| Ok(MOCK_FREE_ENTITY_FN));
+        })
+        .run(|| {
+            ShiNQlx_Switch_Touch_Item(ptr::null_mut() as *mut gentity_t);
+        });
     }
 
     #[test]
@@ -756,14 +762,6 @@ mod game_entity_tests {
             .build()
             .expect("this should not happen");
 
-        let mut mock_engine = MockQuakeEngine::new();
-        mock_engine
-            .expect_touch_item_orig()
-            .returning(|| Ok(MOCK_TOUCH_ITEM_FN));
-        mock_engine
-            .expect_g_free_entity_orig()
-            .returning(|| Ok(MOCK_FREE_ENTITY_FN));
-
         let current_level_ctx = MockTestCurrentLevel::try_get_context();
         current_level_ctx.expect().returning(|| {
             let mut current_level = MockTestCurrentLevel::new();
@@ -771,16 +769,25 @@ mod game_entity_tests {
             Ok(current_level)
         });
 
-        MAIN_ENGINE.store(Some(mock_engine.into()));
-        ShiNQlx_Switch_Touch_Item(entity.borrow_mut());
+        with_mocked_engine(|mock_engine| {
+            mock_engine
+                .expect_touch_item_orig()
+                .returning(|| Ok(MOCK_TOUCH_ITEM_FN));
+            mock_engine
+                .expect_g_free_entity_orig()
+                .returning(|| Ok(MOCK_FREE_ENTITY_FN));
+        })
+        .run(|| {
+            ShiNQlx_Switch_Touch_Item(entity.borrow_mut());
 
-        assert!(entity
-            .touch
-            .is_some_and(|func| func as usize == MOCK_TOUCH_ITEM_FN as usize));
-        assert!(entity
-            .think
-            .is_some_and(|func| func as usize == MOCK_FREE_ENTITY_FN as usize));
-        assert_eq!(entity.nextthink, 30234);
+            assert!(entity
+                .touch
+                .is_some_and(|func| func as usize == MOCK_TOUCH_ITEM_FN as usize));
+            assert!(entity
+                .think
+                .is_some_and(|func| func as usize == MOCK_FREE_ENTITY_FN as usize));
+            assert_eq!(entity.nextthink, 30234);
+        });
     }
 
     #[test]
@@ -807,7 +814,6 @@ mod game_entity_tests {
     #[test]
     #[serial]
     fn game_entity_try_from_negative_entity_id() {
-        MAIN_ENGINE.store(None);
         assert_eq!(
             GameEntity::try_from(-1),
             Err(QuakeLiveEngineError::InvalidId(-1))
@@ -817,7 +823,6 @@ mod game_entity_tests {
     #[test]
     #[serial]
     fn game_entity_try_from_too_large_i32_entity_id() {
-        MAIN_ENGINE.store(None);
         assert_eq!(
             GameEntity::try_from(65536i32),
             Err(QuakeLiveEngineError::InvalidId(65536))
@@ -827,7 +832,6 @@ mod game_entity_tests {
     #[test]
     #[serial]
     fn game_entity_try_from_valid_i32_gentities_not_initialized() {
-        MAIN_ENGINE.store(None);
         let get_entities_list_ctx = MockGameEntity::get_entities_list_context();
         get_entities_list_ctx
             .expect()
@@ -846,8 +850,6 @@ mod game_entity_tests {
     #[serial]
     #[cfg_attr(miri, ignore)]
     fn game_entity_try_from_valid_i32_gentities_initialized() {
-        MAIN_ENGINE.store(None);
-
         let mut gentities = vec![
             GEntityBuilder::default()
                 .build()
@@ -873,7 +875,6 @@ mod game_entity_tests {
     #[test]
     #[serial]
     fn game_entity_try_from_too_large_u32_entity_id() {
-        MAIN_ENGINE.store(None);
         assert_eq!(
             GameEntity::try_from(65536u32),
             Err(QuakeLiveEngineError::InvalidId(65536))
@@ -883,7 +884,6 @@ mod game_entity_tests {
     #[test]
     #[serial]
     fn game_entity_try_from_valid_u32_gentities_not_initialized() {
-        MAIN_ENGINE.store(None);
         let get_entities_list_ctx = MockGameEntity::get_entities_list_context();
         get_entities_list_ctx
             .expect()
@@ -901,8 +901,6 @@ mod game_entity_tests {
     #[serial]
     #[cfg_attr(miri, ignore)]
     fn game_entity_try_from_valid_u32_gentities_initialized() {
-        MAIN_ENGINE.store(None);
-
         let mut gentities = vec![
             GEntityBuilder::default()
                 .build()
@@ -928,19 +926,20 @@ mod game_entity_tests {
     #[test]
     #[serial]
     fn game_entity_get_entities_list_with_no_main_engine() {
-        MAIN_ENGINE.store(None);
         assert!(GameEntity::get_entities_list_real().is_null());
     }
 
     #[test]
     #[serial]
     fn game_entity_get_entities_list_with_no_g_run_frame_orig() {
-        let mut mock_engine = MockQuakeEngine::new();
-        mock_engine
-            .expect_g_run_frame_orig()
-            .returning(|| Err(QuakeLiveEngineError::MainEngineNotInitialized));
-        MAIN_ENGINE.store(Some(mock_engine.into()));
-        assert!(GameEntity::get_entities_list_real().is_null());
+        with_mocked_engine(|mock_engine| {
+            mock_engine
+                .expect_g_run_frame_orig()
+                .returning(|| Err(QuakeLiveEngineError::MainEngineNotInitialized));
+        })
+        .run(|| {
+            assert!(GameEntity::get_entities_list_real().is_null());
+        });
     }
 
     #[test]
@@ -993,8 +992,6 @@ mod game_entity_tests {
     #[test]
     #[serial]
     fn game_entity_start_kamikaze_with_no_main_engine() {
-        MAIN_ENGINE.store(None);
-
         let mut gentity = GEntityBuilder::default()
             .build()
             .expect("this should not happen");
@@ -1007,17 +1004,18 @@ mod game_entity_tests {
     #[test]
     #[serial]
     fn game_entity_start_kamikaze() {
-        let mut mock_engine = MockQuakeEngine::new();
-        mock_engine.expect_start_kamikaze().times(1);
-        MAIN_ENGINE.store(Some(mock_engine.into()));
-
         let mut gentity = GEntityBuilder::default()
             .build()
             .expect("this should not happen");
         let mut game_entity = GameEntity::try_from(gentity.borrow_mut() as *mut gentity_t)
             .expect("this should not happen");
 
-        game_entity.start_kamikaze();
+        with_mocked_engine(|mock_engine| {
+            mock_engine.expect_start_kamikaze().times(1);
+        })
+        .run(|| {
+            game_entity.start_kamikaze();
+        });
     }
 
     #[test]
@@ -1262,8 +1260,6 @@ mod game_entity_tests {
         let mut game_entity = GameEntity::try_from(gentity.borrow_mut() as *mut gentity_t)
             .expect("this should not happen");
 
-        MAIN_ENGINE.store(None);
-
         game_entity.slay_with_mod(meansOfDeath_t::MOD_CRUSH);
     }
 
@@ -1286,17 +1282,18 @@ mod game_entity_tests {
         let mut game_entity = GameEntity::try_from(gentity.borrow_mut() as *mut gentity_t)
             .expect("this should not happen");
 
-        let mut mock_engine = MockQuakeEngine::new();
-        mock_engine.expect_register_damage().withf(
-            |_target, _inflictor, _attacker, _dir, _pos, damage, dmg_flags, mean_of_death| {
-                *damage == 84
-                    && *dmg_flags == DAMAGE_NO_PROTECTION as c_int
-                    && *mean_of_death == meansOfDeath_t::MOD_CRUSH as c_int
-            },
-        );
-        MAIN_ENGINE.store(Some(mock_engine.into()));
-
-        game_entity.slay_with_mod(meansOfDeath_t::MOD_CRUSH);
+        with_mocked_engine(|mock_engine| {
+            mock_engine.expect_register_damage().withf(
+                |_target, _inflictor, _attacker, _dir, _pos, damage, dmg_flags, mean_of_death| {
+                    *damage == 84
+                        && *dmg_flags == DAMAGE_NO_PROTECTION as c_int
+                        && *mean_of_death == meansOfDeath_t::MOD_CRUSH as c_int
+                },
+            );
+        })
+        .run(|| {
+            game_entity.slay_with_mod(meansOfDeath_t::MOD_CRUSH);
+        });
     }
 
     #[test]
@@ -1318,17 +1315,18 @@ mod game_entity_tests {
         let mut game_entity = GameEntity::try_from(gentity.borrow_mut() as *mut gentity_t)
             .expect("this should not happen");
 
-        let mut mock_engine = MockQuakeEngine::new();
-        mock_engine.expect_register_damage().withf(
-            |_target, _inflictor, _attacker, _dir, _pos, damage, dmg_flags, mean_of_death| {
-                *damage == 200246
-                    && *dmg_flags == DAMAGE_NO_PROTECTION as c_int
-                    && *mean_of_death == meansOfDeath_t::MOD_KAMIKAZE as c_int
-            },
-        );
-        MAIN_ENGINE.store(Some(mock_engine.into()));
-
-        game_entity.slay_with_mod(meansOfDeath_t::MOD_KAMIKAZE);
+        with_mocked_engine(|mock_engine| {
+            mock_engine.expect_register_damage().withf(
+                |_target, _inflictor, _attacker, _dir, _pos, damage, dmg_flags, mean_of_death| {
+                    *damage == 200246
+                        && *dmg_flags == DAMAGE_NO_PROTECTION as c_int
+                        && *mean_of_death == meansOfDeath_t::MOD_KAMIKAZE as c_int
+                },
+            );
+        })
+        .run(|| {
+            game_entity.slay_with_mod(meansOfDeath_t::MOD_KAMIKAZE);
+        });
     }
 
     #[test]
@@ -1514,8 +1512,6 @@ mod game_entity_tests {
     #[test]
     #[serial]
     fn game_entity_drop_holdable_with_no_main_engine() {
-        MAIN_ENGINE.store(None);
-
         let mut gentity = GEntityBuilder::default()
             .build()
             .expect("this should not happen");
@@ -1528,7 +1524,6 @@ mod game_entity_tests {
     #[test]
     #[serial]
     fn game_entity_drop_holdable_with_no_game_client() {
-        MAIN_ENGINE.store(Some(MockQuakeEngine::new().into()));
         let current_level_ctx = MockTestCurrentLevel::try_get_context();
         current_level_ctx.expect().returning(|| {
             let mut current_level = MockTestCurrentLevel::new();
@@ -1547,13 +1542,12 @@ mod game_entity_tests {
         let mut game_entity = GameEntity::try_from(gentity.borrow_mut() as *mut gentity_t)
             .expect("this should not happen");
 
-        game_entity.drop_holdable()
+        with_mocked_engine(|_mock_engine| {}).run(|| game_entity.drop_holdable());
     }
 
     #[test]
     #[serial]
     fn game_entity_drop_holdable_with_item_on_game_client() {
-        MAIN_ENGINE.store(Some(MockQuakeEngine::new().into()));
         let current_level_ctx = MockTestCurrentLevel::try_get_context();
         current_level_ctx.expect().returning(|| {
             let mut current_level = MockTestCurrentLevel::new();
@@ -1574,7 +1568,7 @@ mod game_entity_tests {
         let mut game_entity = GameEntity::try_from(gentity.borrow_mut() as *mut gentity_t)
             .expect("this should not happen");
 
-        game_entity.drop_holdable()
+        with_mocked_engine(|_mock_engine| {}).run(|| game_entity.drop_holdable());
     }
 
     #[test]
@@ -1610,8 +1604,6 @@ mod game_entity_tests {
         let mut game_entity = GameEntity::try_from(gentity.borrow_mut() as *mut gentity_t)
             .expect("this should not happen");
 
-        MAIN_ENGINE.store(None);
-
         game_entity.free_entity();
     }
 
@@ -1624,17 +1616,17 @@ mod game_entity_tests {
         let mut game_entity = GameEntity::try_from(gentity.borrow_mut() as *mut gentity_t)
             .expect("this should not happen");
 
-        let mut mock_engine = MockQuakeEngine::new();
-        mock_engine.expect_free_entity();
-        MAIN_ENGINE.store(Some(mock_engine.into()));
-
-        game_entity.free_entity();
+        with_mocked_engine(|mock_engine| {
+            mock_engine.expect_free_entity();
+        })
+        .run(|| {
+            game_entity.free_entity();
+        });
     }
 
     #[test]
     #[serial]
     fn game_entity_replace_item_with_no_main_engine() {
-        MAIN_ENGINE.store(None);
         let mut gentity = GEntityBuilder::default()
             .build()
             .expect("this should not happen");
@@ -1647,13 +1639,6 @@ mod game_entity_tests {
     #[test]
     #[serial]
     fn game_entity_replace_item_with_no_replacement() {
-        let mut mock_engine = MockQuakeEngine::new();
-        mock_engine
-            .expect_com_printf()
-            .with(predicate::eq("class_name"));
-        mock_engine.expect_free_entity();
-        MAIN_ENGINE.store(Some(mock_engine.into()));
-
         let class_name = c"class_name";
         let mut gentity = GEntityBuilder::default()
             .classname(class_name.as_ptr())
@@ -1662,7 +1647,15 @@ mod game_entity_tests {
         let mut game_entity = GameEntity::try_from(gentity.borrow_mut() as *mut gentity_t)
             .expect("this should not happen");
 
-        game_entity.replace_item(0);
+        with_mocked_engine(|mock_engine| {
+            mock_engine
+                .expect_com_printf()
+                .with(predicate::eq("class_name"));
+            mock_engine.expect_free_entity();
+        })
+        .run(|| {
+            game_entity.replace_item(0);
+        });
     }
 
     #[test]
