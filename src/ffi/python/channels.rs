@@ -537,8 +537,7 @@ mod chat_channel_tests {
         default_test_player, default_test_player_info, run_all_frame_tasks,
     };
 
-    use crate::prelude::{serial, MockQuakeEngine};
-    use crate::MAIN_ENGINE;
+    use crate::prelude::{serial, with_mocked_engine};
 
     use crate::ffi::c::game_entity::MockGameEntity;
     use crate::ffi::c::prelude::{clientState_t, privileges_t, team_t, MockClient};
@@ -609,10 +608,6 @@ test_channel.reply("asdf")
     #[serial]
     #[cfg_attr(miri, ignore)]
     fn reply_with_default_limit_and_delimiter(_pyshinqlx_setup: ()) {
-        let mut mock_engine = MockQuakeEngine::new();
-        mock_engine.expect_get_max_clients().returning(|| 16);
-        MAIN_ENGINE.store(Some(mock_engine.into()));
-
         let game_entity_from_ctx = MockGameEntity::from_context();
         game_entity_from_ctx
             .expect()
@@ -673,15 +668,20 @@ test_channel.reply("asdf")
             ..default_test_player()
         };
 
-        Python::with_gil(|py| {
-            let tell_channel =
-                Py::new(py, TellChannel::py_new(&player)).expect("this should not happen");
+        with_mocked_engine(|mock_engine| {
+            mock_engine.expect_get_max_clients().returning(|| 16);
+        })
+        .run(|| {
+            Python::with_gil(|py| {
+                let tell_channel =
+                    Py::new(py, TellChannel::py_new(&player)).expect("this should not happen");
 
-            let result =
-                ChatChannel::reply(tell_channel.borrow(py).into_super(), py, "asdf", 100, " ");
-            assert!(result.is_ok());
+                let result =
+                    ChatChannel::reply(tell_channel.borrow(py).into_super(), py, "asdf", 100, " ");
+                assert!(result.is_ok());
 
-            let _ = run_all_frame_tasks(py);
+                let _ = run_all_frame_tasks(py);
+            });
         });
     }
 
@@ -689,10 +689,6 @@ test_channel.reply("asdf")
     #[serial]
     #[cfg_attr(miri, ignore)]
     fn reply_with_custom_limit_param(_pyshinqlx_setup: ()) {
-        let mut mock_engine = MockQuakeEngine::new();
-        mock_engine.expect_get_max_clients().returning(|| 16);
-        MAIN_ENGINE.store(Some(mock_engine.into()));
-
         let game_entity_from_ctx = MockGameEntity::from_context();
         game_entity_from_ctx.expect().returning(|_| {
             let mut mock_entity = MockGameEntity::new();
@@ -735,20 +731,25 @@ test_channel.reply("asdf")
             ..default_test_player()
         };
 
-        Python::with_gil(|py| {
-            let tell_channel =
-                Py::new(py, TellChannel::py_new(&player)).expect("this should not happen");
+        with_mocked_engine(|mock_engine| {
+            mock_engine.expect_get_max_clients().returning(|| 16);
+        })
+        .run(|| {
+            Python::with_gil(|py| {
+                let tell_channel =
+                    Py::new(py, TellChannel::py_new(&player)).expect("this should not happen");
 
-            let result = ChatChannel::reply(
-                tell_channel.borrow(py).into_super(),
-                py,
-                "These are four lines",
-                5,
-                " ",
-            );
-            assert!(result.is_ok());
+                let result = ChatChannel::reply(
+                    tell_channel.borrow(py).into_super(),
+                    py,
+                    "These are four lines",
+                    5,
+                    " ",
+                );
+                assert!(result.is_ok());
 
-            let _ = run_all_frame_tasks(py);
+                let _ = run_all_frame_tasks(py);
+            });
         });
     }
 
@@ -756,10 +757,6 @@ test_channel.reply("asdf")
     #[serial]
     #[cfg_attr(miri, ignore)]
     fn reply_with_custom_delimiter_parameter(_pyshinqlx_setup: ()) {
-        let mut mock_engine = MockQuakeEngine::new();
-        mock_engine.expect_get_max_clients().returning(|| 16);
-        MAIN_ENGINE.store(Some(mock_engine.into()));
-
         let game_entity_from_ctx = MockGameEntity::from_context();
         game_entity_from_ctx.expect().returning(|_| {
             let mut mock_entity = MockGameEntity::new();
@@ -802,20 +799,25 @@ test_channel.reply("asdf")
             ..default_test_player()
         };
 
-        Python::with_gil(|py| {
-            let chat_channel =
-                Py::new(py, TellChannel::py_new(&player)).expect("this should not happen");
+        with_mocked_engine(|mock_engine| {
+            mock_engine.expect_get_max_clients().returning(|| 16);
+        })
+        .run(|| {
+            Python::with_gil(|py| {
+                let chat_channel =
+                    Py::new(py, TellChannel::py_new(&player)).expect("this should not happen");
 
-            let result = ChatChannel::reply(
-                chat_channel.borrow(py).into_super(),
-                py,
-                "These_are_four_lines",
-                5,
-                "_",
-            );
-            assert!(result.is_ok());
+                let result = ChatChannel::reply(
+                    chat_channel.borrow(py).into_super(),
+                    py,
+                    "These_are_four_lines",
+                    5,
+                    "_",
+                );
+                assert!(result.is_ok());
 
-            let _ = run_all_frame_tasks(py);
+                let _ = run_all_frame_tasks(py);
+            });
         });
     }
 
@@ -823,10 +825,6 @@ test_channel.reply("asdf")
     #[serial]
     #[cfg_attr(miri, ignore)]
     fn reply_with_various_color_tags(_pyshinqlx_setup: ()) {
-        let mut mock_engine = MockQuakeEngine::new();
-        mock_engine.expect_get_max_clients().returning(|| 16);
-        MAIN_ENGINE.store(Some(mock_engine.into()));
-
         let game_entity_from_ctx = MockGameEntity::from_context();
         game_entity_from_ctx.expect().returning(|_| {
             let mut mock_entity = MockGameEntity::new();
@@ -909,14 +907,18 @@ test_channel.reply("asdf")
             ..default_test_player()
         };
 
-        Python::with_gil(|py| {
-            let chat_channel =
-                Py::new(py, TellChannel::py_new(&player)).expect("this should not happen");
+        with_mocked_engine(|mock_engine| {
+            mock_engine.expect_get_max_clients().returning(|| 16);
+        })
+        .run(|| {
+            Python::with_gil(|py| {
+                let chat_channel =
+                    Py::new(py, TellChannel::py_new(&player)).expect("this should not happen");
 
-            let result = ChatChannel::reply(
-                chat_channel.borrow(py).into_super(),
-                py,
-                "^0Lorem ipsum dolor sit amet, consectetuer adipiscing elit. \
+                let result = ChatChannel::reply(
+                    chat_channel.borrow(py).into_super(),
+                    py,
+                    "^0Lorem ipsum dolor sit amet, consectetuer adipiscing elit. \
                 ^1Aenean commodo ligula eget dolor. ^2Aenean massa. ^3Cum sociis natoque penatibus \
                 et magnis dis parturient montes, nascetur ridiculus mus. ^4Donec quam felis, \
                 ultricies nec, pellentesque eu, pretium quis, sem. ^5Nulla consequat massa quis \
@@ -944,12 +946,13 @@ test_channel.reply("asdf")
                 posuere ut, mauris. ^6Praesent adipiscing. ^7Phasellus ullamcorper ipsum rutrum \
                 nunc. ^0Nunc nonummy metus. ^1Vestibulum volutpat pretium libero. ^2Cras id dui. \
                 ^3Aenea",
-                100,
-                " ",
-            );
-            assert!(result.is_ok());
+                    100,
+                    " ",
+                );
+                assert!(result.is_ok());
 
-            let _ = run_all_frame_tasks(py);
+                let _ = run_all_frame_tasks(py);
+            });
         });
     }
 }
@@ -1151,7 +1154,6 @@ mod team_chat_channel_tests {
     use crate::ffi::c::prelude::*;
     use crate::ffi::python::prelude::*;
     use crate::prelude::*;
-    use crate::MAIN_ENGINE;
 
     use rstest::*;
 
@@ -1184,10 +1186,6 @@ tell_channel = shinqlx.TeamChatChannel("all")
         #[case] team: &str,
         #[case] expected_ids: Option<Vec<i32>>,
     ) {
-        let mut mock_engine = MockQuakeEngine::new();
-        mock_engine.expect_get_max_clients().returning(|| 8);
-        MAIN_ENGINE.store(Some(mock_engine.into()));
-
         let client_try_from_ctx = MockClient::from_context();
         client_try_from_ctx
             .expect()
@@ -1233,18 +1231,20 @@ tell_channel = shinqlx.TeamChatChannel("all")
         let team_chat_channel = TeamChatChannel {
             team: team.to_string(),
         };
-        let result = Python::with_gil(|py| team_chat_channel.recipients(py));
-        assert!(result.is_ok_and(|ids| ids == expected_ids));
+
+        with_mocked_engine(|mock_engine| {
+            mock_engine.expect_get_max_clients().returning(|| 8);
+        })
+        .run(|| {
+            let result = Python::with_gil(|py| team_chat_channel.recipients(py));
+            assert!(result.is_ok_and(|ids| ids == expected_ids));
+        });
     }
 
     #[rstest]
     #[cfg_attr(miri, ignore)]
     #[serial]
     fn recipients_for_invalid_team_chat_channel_name(_pyshinqlx_setup: ()) {
-        let mut mock_engine = MockQuakeEngine::new();
-        mock_engine.expect_get_max_clients().returning(|| 8);
-        MAIN_ENGINE.store(Some(mock_engine.into()));
-
         let client_try_from_ctx = MockClient::from_context();
         client_try_from_ctx
             .expect()
@@ -1290,8 +1290,14 @@ tell_channel = shinqlx.TeamChatChannel("all")
         let team_chat_channel = TeamChatChannel {
             team: "invalid".to_string(),
         };
-        let result = Python::with_gil(|py| team_chat_channel.recipients(py));
-        assert!(result.is_ok_and(|ids| ids == Some(vec![])));
+
+        with_mocked_engine(|mock_engine| {
+            mock_engine.expect_get_max_clients().returning(|| 8);
+        })
+        .run(|| {
+            let result = Python::with_gil(|py| team_chat_channel.recipients(py));
+            assert!(result.is_ok_and(|ids| ids == Some(vec![])));
+        });
     }
 }
 
@@ -1364,7 +1370,7 @@ mod client_command_channel_tests {
     use crate::prelude::*;
 
     use crate::hooks::mock_hooks::shinqlx_send_server_command_context;
-    use crate::MAIN_ENGINE;
+
     use mockall::predicate;
     use pretty_assertions::assert_eq;
     use pyo3::types::IntoPyDict;
@@ -1482,10 +1488,6 @@ tell_channel = shinqlx.ClientCommandChannel(player)
     #[serial]
     #[cfg_attr(miri, ignore)]
     fn reply_with_default_limit_and_delimiter(_pyshinqlx_setup: ()) {
-        let mut mock_engine = MockQuakeEngine::new();
-        mock_engine.expect_get_max_clients().returning(|| 16);
-        MAIN_ENGINE.store(Some(mock_engine.into()));
-
         let game_entity_from_ctx = MockGameEntity::from_context();
         game_entity_from_ctx
             .expect()
@@ -1546,16 +1548,21 @@ tell_channel = shinqlx.ClientCommandChannel(player)
             ..default_test_player()
         };
 
-        Python::with_gil(|py| {
-            let client_command_channel =
-                Py::new(py, ClientCommandChannel::py_new(&player)).expect("this should not happen");
+        with_mocked_engine(|mock_engine| {
+            mock_engine.expect_get_max_clients().returning(|| 16);
+        })
+        .run(|| {
+            Python::with_gil(|py| {
+                let client_command_channel = Py::new(py, ClientCommandChannel::py_new(&player))
+                    .expect("this should not happen");
 
-            let result = client_command_channel
-                .borrow(py)
-                .reply(py, "asdf", 100, " ");
-            assert!(result.is_ok());
+                let result = client_command_channel
+                    .borrow(py)
+                    .reply(py, "asdf", 100, " ");
+                assert!(result.is_ok());
 
-            let _ = run_all_frame_tasks(py);
+                let _ = run_all_frame_tasks(py);
+            });
         });
     }
 }

@@ -287,10 +287,7 @@ mod command_tests {
         pyshinqlx_setup_fixture::pyshinqlx_setup,
         pyshinqlx_test_support::*,
     };
-    use crate::{
-        prelude::{serial, MockQuakeEngine},
-        MAIN_ENGINE,
-    };
+    use crate::prelude::{serial, with_mocked_engine};
 
     use core::borrow::BorrowMut;
 
@@ -714,43 +711,42 @@ class mocked_db:
     #[cfg_attr(miri, ignore)]
     #[serial]
     fn is_eligible_name_with_prefix(_pyshinqlx_setup: ()) {
-        let mut mock_engine = MockQuakeEngine::new();
         let cvar_string = c"!";
         let mut raw_cvar = CVarBuilder::default()
             .string(cvar_string.as_ptr().cast_mut())
             .build()
             .expect("this should not happen");
 
-        mock_engine
-            .expect_find_cvar()
-            .with(predicate::eq("qlx_commandPrefix"))
-            .returning_st(move |_| CVar::try_from(raw_cvar.borrow_mut() as *mut cvar_t).ok());
-        MAIN_ENGINE.store(Some(mock_engine.into()));
+        with_mocked_engine(|mock_engine| {
+            mock_engine
+                .expect_find_cvar()
+                .with(predicate::eq("qlx_commandPrefix"))
+                .returning_st(move |_| CVar::try_from(raw_cvar.borrow_mut() as *mut cvar_t).ok());
+        })
+        .run(|| {
+            Python::with_gil(|py| {
+                let capturing_hook = capturing_hook(py);
+                let command = Command {
+                    plugin: test_plugin(py).unbind(),
+                    name: vec!["cmd_name".into()],
+                    handler: capturing_hook
+                        .getattr("hook")
+                        .expect("could not get capturing hook")
+                        .unbind(),
+                    permission: 0,
+                    channels: vec![],
+                    exclude_channels: vec![],
+                    client_cmd_pass: false,
+                    client_cmd_perm: 0,
+                    prefix: true,
+                    usage: "".to_string(),
+                };
 
-        Python::with_gil(|py| {
-            let capturing_hook = capturing_hook(py);
-            let command = Command {
-                plugin: test_plugin(py).unbind(),
-                name: vec!["cmd_name".into()],
-                handler: capturing_hook
-                    .getattr("hook")
-                    .expect("could not get capturing hook")
-                    .unbind(),
-                permission: 0,
-                channels: vec![],
-                exclude_channels: vec![],
-                client_cmd_pass: false,
-                client_cmd_perm: 0,
-                prefix: true,
-                usage: "".to_string(),
-            };
-
-            assert!(!command.is_eligible_name(py, "cmd_name"));
-            assert!(!command.is_eligible_name(py, "!unmatched_cmd_name"));
-            assert!(command.is_eligible_name(py, "!cmd_name"));
+                assert!(!command.is_eligible_name(py, "cmd_name"));
+                assert!(!command.is_eligible_name(py, "!unmatched_cmd_name"));
+                assert!(command.is_eligible_name(py, "!cmd_name"));
+            });
         });
-
-        MAIN_ENGINE.store(None);
     }
 
     #[rstest]
@@ -876,101 +872,98 @@ class mocked_db:
     #[cfg_attr(miri, ignore)]
     #[serial]
     fn is_eligilble_player_for_regular_cmd_and_owner(_pyshinqlx_setup: ()) {
-        let mut mock_engine = MockQuakeEngine::new();
         let owner = c"1234567890";
         let mut raw_cvar = CVarBuilder::default()
             .string(owner.as_ptr().cast_mut())
             .build()
             .expect("this should not happen");
 
-        mock_engine
-            .expect_find_cvar()
-            .with(predicate::eq("qlx_owner"))
-            .returning_st(move |_| CVar::try_from(raw_cvar.borrow_mut() as *mut cvar_t).ok());
-        mock_engine
-            .expect_find_cvar()
-            .with(predicate::ne("qlx_owner"))
-            .returning_st(|_| None);
-        MAIN_ENGINE.store(Some(mock_engine.into()));
+        with_mocked_engine(|mock_engine| {
+            mock_engine
+                .expect_find_cvar()
+                .with(predicate::eq("qlx_owner"))
+                .returning_st(move |_| CVar::try_from(raw_cvar.borrow_mut() as *mut cvar_t).ok());
+            mock_engine
+                .expect_find_cvar()
+                .with(predicate::ne("qlx_owner"))
+                .returning_st(|_| None);
+        })
+        .run(|| {
+            Python::with_gil(|py| {
+                let capturing_hook = capturing_hook(py);
+                let command = Command {
+                    plugin: test_plugin(py).unbind(),
+                    name: vec!["cmd_name".into()],
+                    handler: capturing_hook
+                        .getattr("hook")
+                        .expect("could not get capturing hook")
+                        .unbind(),
+                    permission: 5,
+                    channels: vec![],
+                    exclude_channels: vec![],
+                    client_cmd_pass: false,
+                    client_cmd_perm: 5,
+                    prefix: true,
+                    usage: "".to_string(),
+                };
 
-        Python::with_gil(|py| {
-            let capturing_hook = capturing_hook(py);
-            let command = Command {
-                plugin: test_plugin(py).unbind(),
-                name: vec!["cmd_name".into()],
-                handler: capturing_hook
-                    .getattr("hook")
-                    .expect("could not get capturing hook")
-                    .unbind(),
-                permission: 5,
-                channels: vec![],
-                exclude_channels: vec![],
-                client_cmd_pass: false,
-                client_cmd_perm: 5,
-                prefix: true,
-                usage: "".to_string(),
-            };
+                let player = default_test_player();
 
-            let player = default_test_player();
-
-            assert!(command.is_eligible_player(py, player, false));
+                assert!(command.is_eligible_player(py, player, false));
+            });
         });
-
-        MAIN_ENGINE.store(None);
     }
 
     #[rstest]
     #[cfg_attr(miri, ignore)]
     #[serial]
     fn is_eligilble_player_for_client_cmd_and_owner(_pyshinqlx_setup: ()) {
-        let mut mock_engine = MockQuakeEngine::new();
         let owner = c"1234567890";
         let mut raw_cvar = CVarBuilder::default()
             .string(owner.as_ptr().cast_mut())
             .build()
             .expect("this should not happen");
 
-        mock_engine
-            .expect_find_cvar()
-            .with(predicate::eq("qlx_owner"))
-            .returning_st(move |_| CVar::try_from(raw_cvar.borrow_mut() as *mut cvar_t).ok());
-        mock_engine
-            .expect_find_cvar()
-            .with(predicate::ne("qlx_owner"))
-            .returning_st(|_| None);
-        MAIN_ENGINE.store(Some(mock_engine.into()));
+        with_mocked_engine(|mock_engine| {
+            mock_engine
+                .expect_find_cvar()
+                .with(predicate::eq("qlx_owner"))
+                .returning_st(move |_| CVar::try_from(raw_cvar.borrow_mut() as *mut cvar_t).ok());
+            mock_engine
+                .expect_find_cvar()
+                .with(predicate::ne("qlx_owner"))
+                .returning_st(|_| None);
+        })
+        .run(|| {
+            Python::with_gil(|py| {
+                let capturing_hook = capturing_hook(py);
+                let command = Command {
+                    plugin: test_plugin(py).unbind(),
+                    name: vec!["cmd_name".into()],
+                    handler: capturing_hook
+                        .getattr("hook")
+                        .expect("could not get capturing hook")
+                        .unbind(),
+                    permission: 5,
+                    channels: vec![],
+                    exclude_channels: vec![],
+                    client_cmd_pass: false,
+                    client_cmd_perm: 5,
+                    prefix: true,
+                    usage: "".to_string(),
+                };
 
-        Python::with_gil(|py| {
-            let capturing_hook = capturing_hook(py);
-            let command = Command {
-                plugin: test_plugin(py).unbind(),
-                name: vec!["cmd_name".into()],
-                handler: capturing_hook
-                    .getattr("hook")
-                    .expect("could not get capturing hook")
-                    .unbind(),
-                permission: 5,
-                channels: vec![],
-                exclude_channels: vec![],
-                client_cmd_pass: false,
-                client_cmd_perm: 5,
-                prefix: true,
-                usage: "".to_string(),
-            };
+                let player = default_test_player();
 
-            let player = default_test_player();
-
-            assert!(command.is_eligible_player(py, player, true));
+                assert!(command.is_eligible_player(py, player, true));
+            });
         });
-
-        MAIN_ENGINE.store(None);
     }
 
     #[rstest]
     #[cfg_attr(miri, ignore)]
     #[serial]
     fn is_eligilble_player_for_regular_cmd_with_configured_cvar(_pyshinqlx_setup: ()) {
-        let mut mock_engine = MockQuakeEngine::new();
         let cmd_perm = c"0";
         let mut raw_permission_cvar = CVarBuilder::default()
             .string(cmd_perm.as_ptr().cast_mut())
@@ -983,96 +976,96 @@ class mocked_db:
             .build()
             .expect("this should not happen");
 
-        mock_engine
-            .expect_find_cvar()
-            .with(predicate::eq("qlx_perm_cmd_name"))
-            .returning_st(move |_| {
-                CVar::try_from(raw_permission_cvar.borrow_mut() as *mut cvar_t).ok()
+        with_mocked_engine(|mock_engine| {
+            mock_engine
+                .expect_find_cvar()
+                .with(predicate::eq("qlx_perm_cmd_name"))
+                .returning_st(move |_| {
+                    CVar::try_from(raw_permission_cvar.borrow_mut() as *mut cvar_t).ok()
+                });
+            mock_engine
+                .expect_find_cvar()
+                .with(predicate::eq("qlx_owner"))
+                .returning_st(move |_| {
+                    CVar::try_from(raw_owner_cvar.borrow_mut() as *mut cvar_t).ok()
+                });
+        })
+        .run(|| {
+            Python::with_gil(|py| {
+                let capturing_hook = capturing_hook(py);
+                let command = Command {
+                    plugin: test_plugin(py).unbind(),
+                    name: vec!["cmd_name".into()],
+                    handler: capturing_hook
+                        .getattr("hook")
+                        .expect("could not get capturing hook")
+                        .unbind(),
+                    permission: 5,
+                    channels: vec![],
+                    exclude_channels: vec![],
+                    client_cmd_pass: false,
+                    client_cmd_perm: 5,
+                    prefix: true,
+                    usage: "".to_string(),
+                };
+
+                let player = default_test_player();
+
+                assert!(command.is_eligible_player(py, player, false));
             });
-        mock_engine
-            .expect_find_cvar()
-            .with(predicate::eq("qlx_owner"))
-            .returning_st(move |_| CVar::try_from(raw_owner_cvar.borrow_mut() as *mut cvar_t).ok());
-        MAIN_ENGINE.store(Some(mock_engine.into()));
-
-        Python::with_gil(|py| {
-            let capturing_hook = capturing_hook(py);
-            let command = Command {
-                plugin: test_plugin(py).unbind(),
-                name: vec!["cmd_name".into()],
-                handler: capturing_hook
-                    .getattr("hook")
-                    .expect("could not get capturing hook")
-                    .unbind(),
-                permission: 5,
-                channels: vec![],
-                exclude_channels: vec![],
-                client_cmd_pass: false,
-                client_cmd_perm: 5,
-                prefix: true,
-                usage: "".to_string(),
-            };
-
-            let player = default_test_player();
-
-            assert!(command.is_eligible_player(py, player, false));
         });
-
-        MAIN_ENGINE.store(None);
     }
 
     #[rstest]
     #[cfg_attr(miri, ignore)]
     #[serial]
     fn is_eligilble_player_for_regular_cmd_with_no_configured_cvar(_pyshinqlx_setup: ()) {
-        let mut mock_engine = MockQuakeEngine::new();
         let owner = c"9876543210";
         let mut raw_cvar = CVarBuilder::default()
             .string(owner.as_ptr().cast_mut())
             .build()
             .expect("this should not happen");
 
-        mock_engine
-            .expect_find_cvar()
-            .with(predicate::eq("qlx_owner"))
-            .returning_st(move |_| CVar::try_from(raw_cvar.borrow_mut() as *mut cvar_t).ok());
-        mock_engine
-            .expect_find_cvar()
-            .with(predicate::ne("qlx_owner"))
-            .returning_st(|_| None);
-        MAIN_ENGINE.store(Some(mock_engine.into()));
+        with_mocked_engine(|mock_engine| {
+            mock_engine
+                .expect_find_cvar()
+                .with(predicate::eq("qlx_owner"))
+                .returning_st(move |_| CVar::try_from(raw_cvar.borrow_mut() as *mut cvar_t).ok());
+            mock_engine
+                .expect_find_cvar()
+                .with(predicate::ne("qlx_owner"))
+                .returning_st(|_| None);
+        })
+        .run(|| {
+            Python::with_gil(|py| {
+                let capturing_hook = capturing_hook(py);
+                let command = Command {
+                    plugin: test_plugin(py).unbind(),
+                    name: vec!["cmd_name".into()],
+                    handler: capturing_hook
+                        .getattr("hook")
+                        .expect("could not get capturing hook")
+                        .unbind(),
+                    permission: 0,
+                    channels: vec![],
+                    exclude_channels: vec![],
+                    client_cmd_pass: false,
+                    client_cmd_perm: 0,
+                    prefix: true,
+                    usage: "".to_string(),
+                };
 
-        Python::with_gil(|py| {
-            let capturing_hook = capturing_hook(py);
-            let command = Command {
-                plugin: test_plugin(py).unbind(),
-                name: vec!["cmd_name".into()],
-                handler: capturing_hook
-                    .getattr("hook")
-                    .expect("could not get capturing hook")
-                    .unbind(),
-                permission: 0,
-                channels: vec![],
-                exclude_channels: vec![],
-                client_cmd_pass: false,
-                client_cmd_perm: 0,
-                prefix: true,
-                usage: "".to_string(),
-            };
+                let player = default_test_player();
 
-            let player = default_test_player();
-
-            assert!(command.is_eligible_player(py, player, false));
+                assert!(command.is_eligible_player(py, player, false));
+            });
         });
-
-        MAIN_ENGINE.store(None);
     }
 
     #[rstest]
     #[cfg_attr(miri, ignore)]
     #[serial]
     fn is_eligilble_player_for_client_cmd_with_configured_cvar(_pyshinqlx_setup: ()) {
-        let mut mock_engine = MockQuakeEngine::new();
         let cmd_perm = c"0";
         let owner = c"9876543210";
         let mut raw_permission_cvar = CVarBuilder::default()
@@ -1084,190 +1077,190 @@ class mocked_db:
             .build()
             .expect("this should not happen");
 
-        mock_engine
-            .expect_find_cvar()
-            .with(predicate::eq("qlx_ccmd_perm_cmd_name"))
-            .returning_st(move |_| {
-                CVar::try_from(raw_permission_cvar.borrow_mut() as *mut cvar_t).ok()
+        with_mocked_engine(|mock_engine| {
+            mock_engine
+                .expect_find_cvar()
+                .with(predicate::eq("qlx_ccmd_perm_cmd_name"))
+                .returning_st(move |_| {
+                    CVar::try_from(raw_permission_cvar.borrow_mut() as *mut cvar_t).ok()
+                });
+            mock_engine
+                .expect_find_cvar()
+                .with(predicate::eq("qlx_owner"))
+                .returning_st(move |_| {
+                    CVar::try_from(raw_owner_cvar.borrow_mut() as *mut cvar_t).ok()
+                });
+        })
+        .run(|| {
+            Python::with_gil(|py| {
+                let capturing_hook = capturing_hook(py);
+                let command = Command {
+                    plugin: test_plugin(py).unbind(),
+                    name: vec!["cmd_name".into()],
+                    handler: capturing_hook
+                        .getattr("hook")
+                        .expect("could not get capturing hook")
+                        .unbind(),
+                    permission: 5,
+                    channels: vec![],
+                    exclude_channels: vec![],
+                    client_cmd_pass: false,
+                    client_cmd_perm: 5,
+                    prefix: true,
+                    usage: "".to_string(),
+                };
+
+                let player = default_test_player();
+
+                assert!(command.is_eligible_player(py, player, true));
             });
-        mock_engine
-            .expect_find_cvar()
-            .with(predicate::eq("qlx_owner"))
-            .returning_st(move |_| CVar::try_from(raw_owner_cvar.borrow_mut() as *mut cvar_t).ok());
-        MAIN_ENGINE.store(Some(mock_engine.into()));
-
-        Python::with_gil(|py| {
-            let capturing_hook = capturing_hook(py);
-            let command = Command {
-                plugin: test_plugin(py).unbind(),
-                name: vec!["cmd_name".into()],
-                handler: capturing_hook
-                    .getattr("hook")
-                    .expect("could not get capturing hook")
-                    .unbind(),
-                permission: 5,
-                channels: vec![],
-                exclude_channels: vec![],
-                client_cmd_pass: false,
-                client_cmd_perm: 5,
-                prefix: true,
-                usage: "".to_string(),
-            };
-
-            let player = default_test_player();
-
-            assert!(command.is_eligible_player(py, player, true));
         });
-
-        MAIN_ENGINE.store(None);
     }
 
     #[rstest]
     #[cfg_attr(miri, ignore)]
     #[serial]
     fn is_eligilble_player_for_client_cmd_with_no_configured_cvar(_pyshinqlx_setup: ()) {
-        let mut mock_engine = MockQuakeEngine::new();
         let owner = c"9876543210";
         let mut raw_cvar = CVarBuilder::default()
             .string(owner.as_ptr().cast_mut())
             .build()
             .expect("this should not happen");
 
-        mock_engine
-            .expect_find_cvar()
-            .with(predicate::eq("qlx_owner"))
-            .returning_st(move |_| CVar::try_from(raw_cvar.borrow_mut() as *mut cvar_t).ok());
-        mock_engine
-            .expect_find_cvar()
-            .with(predicate::ne("qlx_owner"))
-            .returning_st(|_| None);
-        MAIN_ENGINE.store(Some(mock_engine.into()));
+        with_mocked_engine(|mock_engine| {
+            mock_engine
+                .expect_find_cvar()
+                .with(predicate::eq("qlx_owner"))
+                .returning_st(move |_| CVar::try_from(raw_cvar.borrow_mut() as *mut cvar_t).ok());
+            mock_engine
+                .expect_find_cvar()
+                .with(predicate::ne("qlx_owner"))
+                .returning_st(|_| None);
+        })
+        .run(|| {
+            Python::with_gil(|py| {
+                let capturing_hook = capturing_hook(py);
+                let command = Command {
+                    plugin: test_plugin(py).unbind(),
+                    name: vec!["cmd_name".into()],
+                    handler: capturing_hook
+                        .getattr("hook")
+                        .expect("could not get capturing hook")
+                        .unbind(),
+                    permission: 0,
+                    channels: vec![],
+                    exclude_channels: vec![],
+                    client_cmd_pass: false,
+                    client_cmd_perm: 0,
+                    prefix: true,
+                    usage: "".to_string(),
+                };
 
-        Python::with_gil(|py| {
-            let capturing_hook = capturing_hook(py);
-            let command = Command {
-                plugin: test_plugin(py).unbind(),
-                name: vec!["cmd_name".into()],
-                handler: capturing_hook
-                    .getattr("hook")
-                    .expect("could not get capturing hook")
-                    .unbind(),
-                permission: 0,
-                channels: vec![],
-                exclude_channels: vec![],
-                client_cmd_pass: false,
-                client_cmd_perm: 0,
-                prefix: true,
-                usage: "".to_string(),
-            };
+                let player = default_test_player();
 
-            let player = default_test_player();
-
-            assert!(command.is_eligible_player(py, player, true));
+                assert!(command.is_eligible_player(py, player, true));
+            });
         });
-
-        MAIN_ENGINE.store(None);
     }
 
     #[rstest]
     #[cfg_attr(miri, ignore)]
     #[serial]
     fn is_eligilble_player_for_regular_cmd_when_plugin_has_no_db(_pyshinqlx_setup: ()) {
-        let mut mock_engine = MockQuakeEngine::new();
         let owner = c"9876543210";
         let mut raw_cvar = CVarBuilder::default()
             .string(owner.as_ptr().cast_mut())
             .build()
             .expect("this should not happen");
-        mock_engine
-            .expect_find_cvar()
-            .with(predicate::eq("qlx_owner"))
-            .returning_st(move |_| CVar::try_from(raw_cvar.borrow_mut() as *mut cvar_t).ok());
-        mock_engine
-            .expect_find_cvar()
-            .with(predicate::ne("qlx_owner"))
-            .returning_st(|_| None);
-        MAIN_ENGINE.store(Some(mock_engine.into()));
 
-        Python::with_gil(|py| {
-            let capturing_hook = capturing_hook(py);
-            let test_plugin = test_plugin(py);
-            test_plugin
-                .setattr("db", py.None())
-                .expect("this should not happen");
-            let command = Command {
-                plugin: test_plugin.unbind(),
-                name: vec!["cmd_name".into()],
-                handler: capturing_hook
-                    .getattr("hook")
-                    .expect("could not get capturing hook")
-                    .unbind(),
-                permission: 5,
-                channels: vec![],
-                exclude_channels: vec![],
-                client_cmd_pass: false,
-                client_cmd_perm: 5,
-                prefix: true,
-                usage: "".to_string(),
-            };
+        with_mocked_engine(|mock_engine| {
+            mock_engine
+                .expect_find_cvar()
+                .with(predicate::eq("qlx_owner"))
+                .returning_st(move |_| CVar::try_from(raw_cvar.borrow_mut() as *mut cvar_t).ok());
+            mock_engine
+                .expect_find_cvar()
+                .with(predicate::ne("qlx_owner"))
+                .returning_st(|_| None);
+        })
+        .run(|| {
+            Python::with_gil(|py| {
+                let capturing_hook = capturing_hook(py);
+                let test_plugin = test_plugin(py);
+                test_plugin
+                    .setattr("db", py.None())
+                    .expect("this should not happen");
+                let command = Command {
+                    plugin: test_plugin.unbind(),
+                    name: vec!["cmd_name".into()],
+                    handler: capturing_hook
+                        .getattr("hook")
+                        .expect("could not get capturing hook")
+                        .unbind(),
+                    permission: 5,
+                    channels: vec![],
+                    exclude_channels: vec![],
+                    client_cmd_pass: false,
+                    client_cmd_perm: 5,
+                    prefix: true,
+                    usage: "".to_string(),
+                };
 
-            let player = default_test_player();
+                let player = default_test_player();
 
-            assert!(!command.is_eligible_player(py, player, false));
+                assert!(!command.is_eligible_player(py, player, false));
+            });
         });
-
-        MAIN_ENGINE.store(None);
     }
 
     #[rstest]
     #[cfg_attr(miri, ignore)]
     #[serial]
     fn is_eligilble_player_for_client_cmd_when_plugin_has_no_db(_pyshinqlx_setup: ()) {
-        let mut mock_engine = MockQuakeEngine::new();
         let owner = c"9876543210";
         let mut raw_cvar = CVarBuilder::default()
             .string(owner.as_ptr().cast_mut())
             .build()
             .expect("this should not happen");
 
-        mock_engine
-            .expect_find_cvar()
-            .with(predicate::eq("qlx_owner"))
-            .returning_st(move |_| CVar::try_from(raw_cvar.borrow_mut() as *mut cvar_t).ok());
-        mock_engine
-            .expect_find_cvar()
-            .with(predicate::ne("qlx_owner"))
-            .returning_st(|_| None);
-        MAIN_ENGINE.store(Some(mock_engine.into()));
+        with_mocked_engine(|mock_engine| {
+            mock_engine
+                .expect_find_cvar()
+                .with(predicate::eq("qlx_owner"))
+                .returning_st(move |_| CVar::try_from(raw_cvar.borrow_mut() as *mut cvar_t).ok());
+            mock_engine
+                .expect_find_cvar()
+                .with(predicate::ne("qlx_owner"))
+                .returning_st(|_| None);
+        })
+        .run(|| {
+            Python::with_gil(|py| {
+                let capturing_hook = capturing_hook(py);
+                let test_plugin = test_plugin(py);
+                test_plugin
+                    .setattr("db", py.None())
+                    .expect("this should not happen");
+                let command = Command {
+                    plugin: test_plugin.unbind(),
+                    name: vec!["cmd_name".into()],
+                    handler: capturing_hook
+                        .getattr("hook")
+                        .expect("could not get capturing hook")
+                        .unbind(),
+                    permission: 5,
+                    channels: vec![],
+                    exclude_channels: vec![],
+                    client_cmd_pass: false,
+                    client_cmd_perm: 5,
+                    prefix: true,
+                    usage: "".to_string(),
+                };
 
-        Python::with_gil(|py| {
-            let capturing_hook = capturing_hook(py);
-            let test_plugin = test_plugin(py);
-            test_plugin
-                .setattr("db", py.None())
-                .expect("this should not happen");
-            let command = Command {
-                plugin: test_plugin.unbind(),
-                name: vec!["cmd_name".into()],
-                handler: capturing_hook
-                    .getattr("hook")
-                    .expect("could not get capturing hook")
-                    .unbind(),
-                permission: 5,
-                channels: vec![],
-                exclude_channels: vec![],
-                client_cmd_pass: false,
-                client_cmd_perm: 5,
-                prefix: true,
-                usage: "".to_string(),
-            };
+                let player = default_test_player();
 
-            let player = default_test_player();
-
-            assert!(!command.is_eligible_player(py, player, true));
+                assert!(!command.is_eligible_player(py, player, true));
+            });
         });
-
-        MAIN_ENGINE.store(None);
     }
 
     #[rstest]
@@ -1276,47 +1269,48 @@ class mocked_db:
     fn is_eligilble_player_for_regular_cmd_when_plugin_db_returns_higher_permission(
         _pyshinqlx_setup: (),
     ) {
-        let mut mock_engine = MockQuakeEngine::new();
         let owner = c"9876543210";
         let mut raw_cvar = CVarBuilder::default()
             .string(owner.as_ptr().cast_mut())
             .build()
             .expect("this should not happen");
-        mock_engine
-            .expect_find_cvar()
-            .with(predicate::eq("qlx_owner"))
-            .returning_st(move |_| CVar::try_from(raw_cvar.borrow_mut() as *mut cvar_t).ok());
-        mock_engine
-            .expect_find_cvar()
-            .with(predicate::ne("qlx_owner"))
-            .returning(|_| None);
-        MAIN_ENGINE.store(Some(mock_engine.into()));
 
-        Python::with_gil(|py| {
-            let capturing_hook = capturing_hook(py);
-            let test_plugin = test_plugin_with_permission_db(py).expect("this should not happend");
-            let command = Command {
-                plugin: test_plugin.unbind(),
-                name: vec!["cmd_name".into()],
-                handler: capturing_hook
-                    .getattr("hook")
-                    .expect("could not get capturing hook")
-                    .unbind(),
-                permission: 1,
-                channels: vec![],
-                exclude_channels: vec![],
-                client_cmd_pass: false,
-                client_cmd_perm: 1,
-                prefix: true,
-                usage: "".to_string(),
-            };
+        with_mocked_engine(|mock_engine| {
+            mock_engine
+                .expect_find_cvar()
+                .with(predicate::eq("qlx_owner"))
+                .returning_st(move |_| CVar::try_from(raw_cvar.borrow_mut() as *mut cvar_t).ok());
+            mock_engine
+                .expect_find_cvar()
+                .with(predicate::ne("qlx_owner"))
+                .returning(|_| None);
+        })
+        .run(|| {
+            Python::with_gil(|py| {
+                let capturing_hook = capturing_hook(py);
+                let test_plugin =
+                    test_plugin_with_permission_db(py).expect("this should not happend");
+                let command = Command {
+                    plugin: test_plugin.unbind(),
+                    name: vec!["cmd_name".into()],
+                    handler: capturing_hook
+                        .getattr("hook")
+                        .expect("could not get capturing hook")
+                        .unbind(),
+                    permission: 1,
+                    channels: vec![],
+                    exclude_channels: vec![],
+                    client_cmd_pass: false,
+                    client_cmd_perm: 1,
+                    prefix: true,
+                    usage: "".to_string(),
+                };
 
-            let player = default_test_player();
+                let player = default_test_player();
 
-            assert!(command.is_eligible_player(py, player, false));
+                assert!(command.is_eligible_player(py, player, false));
+            });
         });
-
-        MAIN_ENGINE.store(None);
     }
 
     #[rstest]
@@ -1325,48 +1319,48 @@ class mocked_db:
     fn is_eligilble_player_for_regular_cmd_when_plugin_db_returns_lower_permission(
         _pyshinqlx_setup: (),
     ) {
-        let mut mock_engine = MockQuakeEngine::new();
         let owner = c"9876543210";
         let mut raw_cvar = CVarBuilder::default()
             .string(owner.as_ptr().cast_mut())
             .build()
             .expect("this should not happen");
 
-        mock_engine
-            .expect_find_cvar()
-            .with(predicate::eq("qlx_owner"))
-            .returning_st(move |_| CVar::try_from(raw_cvar.borrow_mut() as *mut cvar_t).ok());
-        mock_engine
-            .expect_find_cvar()
-            .with(predicate::ne("qlx_owner"))
-            .returning_st(|_| None);
-        MAIN_ENGINE.store(Some(mock_engine.into()));
+        with_mocked_engine(|mock_engine| {
+            mock_engine
+                .expect_find_cvar()
+                .with(predicate::eq("qlx_owner"))
+                .returning_st(move |_| CVar::try_from(raw_cvar.borrow_mut() as *mut cvar_t).ok());
+            mock_engine
+                .expect_find_cvar()
+                .with(predicate::ne("qlx_owner"))
+                .returning_st(|_| None);
+        })
+        .run(|| {
+            Python::with_gil(|py| {
+                let capturing_hook = capturing_hook(py);
+                let test_plugin =
+                    test_plugin_with_permission_db(py).expect("this should not happend");
+                let command = Command {
+                    plugin: test_plugin.unbind(),
+                    name: vec!["cmd_name".into()],
+                    handler: capturing_hook
+                        .getattr("hook")
+                        .expect("could not get capturing hook")
+                        .unbind(),
+                    permission: 3,
+                    channels: vec![],
+                    exclude_channels: vec![],
+                    client_cmd_pass: false,
+                    client_cmd_perm: 3,
+                    prefix: true,
+                    usage: "".to_string(),
+                };
 
-        Python::with_gil(|py| {
-            let capturing_hook = capturing_hook(py);
-            let test_plugin = test_plugin_with_permission_db(py).expect("this should not happend");
-            let command = Command {
-                plugin: test_plugin.unbind(),
-                name: vec!["cmd_name".into()],
-                handler: capturing_hook
-                    .getattr("hook")
-                    .expect("could not get capturing hook")
-                    .unbind(),
-                permission: 3,
-                channels: vec![],
-                exclude_channels: vec![],
-                client_cmd_pass: false,
-                client_cmd_perm: 3,
-                prefix: true,
-                usage: "".to_string(),
-            };
+                let player = default_test_player();
 
-            let player = default_test_player();
-
-            assert!(!command.is_eligible_player(py, player, false));
+                assert!(!command.is_eligible_player(py, player, false));
+            });
         });
-
-        MAIN_ENGINE.store(None);
     }
 
     #[rstest]
@@ -1375,47 +1369,48 @@ class mocked_db:
     fn is_eligilble_player_for_client_cmd_when_plugin_db_returns_higher_permission(
         _pyshinqlx_setup: (),
     ) {
-        let mut mock_engine = MockQuakeEngine::new();
         let owner = c"9876543210";
         let mut raw_cvar = CVarBuilder::default()
             .string(owner.as_ptr().cast_mut())
             .build()
             .expect("this should not happen");
-        mock_engine
-            .expect_find_cvar()
-            .with(predicate::eq("qlx_owner"))
-            .returning_st(move |_| CVar::try_from(raw_cvar.borrow_mut() as *mut cvar_t).ok());
-        mock_engine
-            .expect_find_cvar()
-            .with(predicate::ne("qlx_owner"))
-            .returning_st(|_| None);
-        MAIN_ENGINE.store(Some(mock_engine.into()));
 
-        Python::with_gil(|py| {
-            let capturing_hook = capturing_hook(py);
-            let test_plugin = test_plugin_with_permission_db(py).expect("this should not happend");
-            let command = Command {
-                plugin: test_plugin.unbind(),
-                name: vec!["cmd_name".into()],
-                handler: capturing_hook
-                    .getattr("hook")
-                    .expect("could not get capturing hook")
-                    .unbind(),
-                permission: 1,
-                channels: vec![],
-                exclude_channels: vec![],
-                client_cmd_pass: false,
-                client_cmd_perm: 1,
-                prefix: true,
-                usage: "".to_string(),
-            };
+        with_mocked_engine(|mock_engine| {
+            mock_engine
+                .expect_find_cvar()
+                .with(predicate::eq("qlx_owner"))
+                .returning_st(move |_| CVar::try_from(raw_cvar.borrow_mut() as *mut cvar_t).ok());
+            mock_engine
+                .expect_find_cvar()
+                .with(predicate::ne("qlx_owner"))
+                .returning_st(|_| None);
+        })
+        .run(|| {
+            Python::with_gil(|py| {
+                let capturing_hook = capturing_hook(py);
+                let test_plugin =
+                    test_plugin_with_permission_db(py).expect("this should not happend");
+                let command = Command {
+                    plugin: test_plugin.unbind(),
+                    name: vec!["cmd_name".into()],
+                    handler: capturing_hook
+                        .getattr("hook")
+                        .expect("could not get capturing hook")
+                        .unbind(),
+                    permission: 1,
+                    channels: vec![],
+                    exclude_channels: vec![],
+                    client_cmd_pass: false,
+                    client_cmd_perm: 1,
+                    prefix: true,
+                    usage: "".to_string(),
+                };
 
-            let player = default_test_player();
+                let player = default_test_player();
 
-            assert!(command.is_eligible_player(py, player, true));
+                assert!(command.is_eligible_player(py, player, true));
+            });
         });
-
-        MAIN_ENGINE.store(None);
     }
 
     #[rstest]
@@ -1424,47 +1419,48 @@ class mocked_db:
     fn is_eligilble_player_for_client_cmd_when_plugin_db_returns_lower_permission(
         _pyshinqlx_setup: (),
     ) {
-        let mut mock_engine = MockQuakeEngine::new();
         let owner = c"9876543210";
         let mut raw_cvar = CVarBuilder::default()
             .string(owner.as_ptr().cast_mut())
             .build()
             .expect("this should not happen");
-        mock_engine
-            .expect_find_cvar()
-            .with(predicate::eq("qlx_owner"))
-            .returning_st(move |_| CVar::try_from(raw_cvar.borrow_mut() as *mut cvar_t).ok());
-        mock_engine
-            .expect_find_cvar()
-            .with(predicate::ne("qlx_owner"))
-            .returning_st(|_| None);
-        MAIN_ENGINE.store(Some(mock_engine.into()));
 
-        Python::with_gil(|py| {
-            let capturing_hook = capturing_hook(py);
-            let test_plugin = test_plugin_with_permission_db(py).expect("this should not happend");
-            let command = Command {
-                plugin: test_plugin.unbind(),
-                name: vec!["cmd_name".into()],
-                handler: capturing_hook
-                    .getattr("hook")
-                    .expect("could not get capturing hook")
-                    .unbind(),
-                permission: 3,
-                channels: vec![],
-                exclude_channels: vec![],
-                client_cmd_pass: false,
-                client_cmd_perm: 3,
-                prefix: true,
-                usage: "".to_string(),
-            };
+        with_mocked_engine(|mock_engine| {
+            mock_engine
+                .expect_find_cvar()
+                .with(predicate::eq("qlx_owner"))
+                .returning_st(move |_| CVar::try_from(raw_cvar.borrow_mut() as *mut cvar_t).ok());
+            mock_engine
+                .expect_find_cvar()
+                .with(predicate::ne("qlx_owner"))
+                .returning_st(|_| None);
+        })
+        .run(|| {
+            Python::with_gil(|py| {
+                let capturing_hook = capturing_hook(py);
+                let test_plugin =
+                    test_plugin_with_permission_db(py).expect("this should not happend");
+                let command = Command {
+                    plugin: test_plugin.unbind(),
+                    name: vec!["cmd_name".into()],
+                    handler: capturing_hook
+                        .getattr("hook")
+                        .expect("could not get capturing hook")
+                        .unbind(),
+                    permission: 3,
+                    channels: vec![],
+                    exclude_channels: vec![],
+                    client_cmd_pass: false,
+                    client_cmd_perm: 3,
+                    prefix: true,
+                    usage: "".to_string(),
+                };
 
-            let player = default_test_player();
+                let player = default_test_player();
 
-            assert!(!command.is_eligible_player(py, player, true));
+                assert!(!command.is_eligible_player(py, player, true));
+            });
         });
-
-        MAIN_ENGINE.store(None);
     }
 }
 
@@ -1826,8 +1822,7 @@ mod command_invoker_tests {
     };
     use crate::ffi::python::{PythonReturnCodes, EVENT_DISPATCHERS};
 
-    use crate::prelude::{serial, MockQuakeEngine};
-    use crate::MAIN_ENGINE;
+    use crate::prelude::{serial, with_mocked_engine};
 
     use crate::ffi::c::prelude::{cvar_t, CVar, CVarBuilder};
     use crate::hooks::mock_hooks::shinqlx_send_server_command_context;
@@ -2122,65 +2117,67 @@ mod command_invoker_tests {
     #[cfg_attr(miri, ignore)]
     #[serial]
     fn handle_input_with_non_eligible_player(_pyshinqlx_setup: ()) {
-        let mut mock_engine = MockQuakeEngine::new();
         let owner = c"9876543210";
         let mut raw_owner_cvar = CVarBuilder::default()
             .string(owner.as_ptr().cast_mut())
             .build()
             .expect("this should not happen");
-        mock_engine
-            .expect_find_cvar()
-            .with(predicate::eq("qlx_owner"))
-            .returning_st(move |_| CVar::try_from(raw_owner_cvar.borrow_mut() as *mut cvar_t).ok());
         let prefix = c"!";
         let mut raw_cmdprefix_cvar = CVarBuilder::default()
             .string(prefix.as_ptr().cast_mut())
             .build()
             .expect("this should not happen");
-        mock_engine
-            .expect_find_cvar()
-            .with(predicate::eq("qlx_commandPrefix"))
-            .returning_st(move |_| {
-                CVar::try_from(raw_cmdprefix_cvar.borrow_mut() as *mut cvar_t).ok()
+
+        with_mocked_engine(|mock_engine| {
+            mock_engine
+                .expect_find_cvar()
+                .with(predicate::eq("qlx_owner"))
+                .returning_st(move |_| {
+                    CVar::try_from(raw_owner_cvar.borrow_mut() as *mut cvar_t).ok()
+                });
+            mock_engine
+                .expect_find_cvar()
+                .with(predicate::eq("qlx_commandPrefix"))
+                .returning_st(move |_| {
+                    CVar::try_from(raw_cmdprefix_cvar.borrow_mut() as *mut cvar_t).ok()
+                });
+            mock_engine
+                .expect_find_cvar()
+                .with(predicate::ne("qlx_owner"))
+                .returning(|_| None);
+        })
+        .run(|| {
+            Python::with_gil(|py| {
+                let player = default_test_player();
+                let chat_channel = Py::new(py, ChatChannel::py_new("chat", "print \"{}\n\"\n"))
+                    .expect("this should not happen");
+
+                let event_dispatcher = EventDispatcherManager::default();
+                event_dispatcher
+                    .add_dispatcher(py, py.get_type_bound::<CommandDispatcher>())
+                    .expect("could not add command dispatcher");
+                EVENT_DISPATCHERS.store(Some(
+                    Py::new(py, event_dispatcher)
+                        .expect("could not create event dispatcher manager in python")
+                        .into(),
+                ));
+
+                let py_command = Py::new(py, default_command(py)).expect("this should not happen");
+
+                let command_invoker = CommandInvoker::py_new();
+                command_invoker
+                    .add_command(
+                        py,
+                        py_command.into_bound(py),
+                        CommandPriorities::PRI_NORMAL as usize,
+                    )
+                    .expect("this should not happen");
+
+                let result =
+                    command_invoker.handle_input(py, &player, "cmd_name", chat_channel.into_any());
+                assert!(result.is_ok_and(|pass_through| pass_through));
             });
-        mock_engine
-            .expect_find_cvar()
-            .with(predicate::ne("qlx_owner"))
-            .returning(|_| None);
-        MAIN_ENGINE.store(Some(mock_engine.into()));
-
-        Python::with_gil(|py| {
-            let player = default_test_player();
-            let chat_channel = Py::new(py, ChatChannel::py_new("chat", "print \"{}\n\"\n"))
-                .expect("this should not happen");
-
-            let event_dispatcher = EventDispatcherManager::default();
-            event_dispatcher
-                .add_dispatcher(py, py.get_type_bound::<CommandDispatcher>())
-                .expect("could not add command dispatcher");
-            EVENT_DISPATCHERS.store(Some(
-                Py::new(py, event_dispatcher)
-                    .expect("could not create event dispatcher manager in python")
-                    .into(),
-            ));
-
-            let py_command = Py::new(py, default_command(py)).expect("this should not happen");
-
-            let command_invoker = CommandInvoker::py_new();
-            command_invoker
-                .add_command(
-                    py,
-                    py_command.into_bound(py),
-                    CommandPriorities::PRI_NORMAL as usize,
-                )
-                .expect("this should not happen");
-
-            let result =
-                command_invoker.handle_input(py, &player, "cmd_name", chat_channel.into_any());
-            assert!(result.is_ok_and(|pass_through| pass_through));
         });
-
-        MAIN_ENGINE.store(None);
     }
 
     #[rstest]
@@ -2192,146 +2189,144 @@ mod command_invoker_tests {
         #[case] pass_through: bool,
         _pyshinqlx_setup: (),
     ) {
-        let mut mock_engine = MockQuakeEngine::new();
         let owner = c"9876543210";
         let mut raw_cvar = CVarBuilder::default()
             .string(owner.as_ptr().cast_mut())
             .build()
             .expect("this should not happen");
-        mock_engine
-            .expect_find_cvar()
-            .with(predicate::eq("qlx_owner"))
-            .returning_st(move |_| CVar::try_from(raw_cvar.borrow_mut() as *mut cvar_t).ok());
-        mock_engine
-            .expect_find_cvar()
-            .with(predicate::ne("qlx_owner"))
-            .returning_st(|_| None);
-        MAIN_ENGINE.store(Some(mock_engine.into()));
+        with_mocked_engine(|mock_engine| {
+            mock_engine
+                .expect_find_cvar()
+                .with(predicate::eq("qlx_owner"))
+                .returning_st(move |_| CVar::try_from(raw_cvar.borrow_mut() as *mut cvar_t).ok());
+            mock_engine
+                .expect_find_cvar()
+                .with(predicate::ne("qlx_owner"))
+                .returning_st(|_| None);
+        }).run(|| {
+            Python::with_gil(|py| {
+                let player = default_test_player();
+                let client_command_channel =
+                    Py::new(py, ClientCommandChannel::py_new(&player)).expect("this should not happen");
 
-        Python::with_gil(|py| {
-            let player = default_test_player();
-            let client_command_channel =
-                Py::new(py, ClientCommandChannel::py_new(&player)).expect("this should not happen");
+                let event_dispatcher = EventDispatcherManager::default();
+                event_dispatcher
+                    .add_dispatcher(py, py.get_type_bound::<CommandDispatcher>())
+                    .expect("could not add command dispatcher");
+                EVENT_DISPATCHERS.store(Some(
+                    Py::new(py, event_dispatcher)
+                        .expect("could not create event dispatcher manager in python")
+                        .into(),
+                ));
 
-            let event_dispatcher = EventDispatcherManager::default();
-            event_dispatcher
-                .add_dispatcher(py, py.get_type_bound::<CommandDispatcher>())
-                .expect("could not add command dispatcher");
-            EVENT_DISPATCHERS.store(Some(
-                Py::new(py, event_dispatcher)
-                    .expect("could not create event dispatcher manager in python")
-                    .into(),
-            ));
-
-            let capturing_hook = capturing_hook(py);
-            let py_command = Py::new(
-                py,
-                Command {
-                    handler: capturing_hook
-                        .getattr("hook")
-                        .expect("could not get capturing hook")
-                        .unbind(),
-                    client_cmd_pass: pass_through,
-                    prefix: false,
-                    ..default_command(py)
-                },
-            )
-            .expect("this should not happen");
-
-            let command_invoker = CommandInvoker::py_new();
-            command_invoker
-                .add_command(
+                let capturing_hook = capturing_hook(py);
+                let py_command = Py::new(
                     py,
-                    py_command.into_bound(py),
-                    CommandPriorities::PRI_NORMAL as usize,
+                    Command {
+                        handler: capturing_hook
+                            .getattr("hook")
+                            .expect("could not get capturing hook")
+                            .unbind(),
+                        client_cmd_pass: pass_through,
+                        prefix: false,
+                        ..default_command(py)
+                    },
                 )
-                .expect("this should not happen");
+                    .expect("this should not happen");
 
-            let result = command_invoker.handle_input(
-                py,
-                &player,
-                "cmd_name",
-                client_command_channel.into_any(),
-            );
-            assert!(result.is_ok_and(|actual_pass_through| actual_pass_through == pass_through));
-            assert!(capturing_hook
-                .call_method1("assert_called_with", ("_", ["cmd_name"], "_"))
-                .is_ok());
+                let command_invoker = CommandInvoker::py_new();
+                command_invoker
+                    .add_command(
+                        py,
+                        py_command.into_bound(py),
+                        CommandPriorities::PRI_NORMAL as usize,
+                    )
+                    .expect("this should not happen");
+
+                let result = command_invoker.handle_input(
+                    py,
+                    &player,
+                    "cmd_name",
+                    client_command_channel.into_any(),
+                );
+                assert!(result.is_ok_and(|actual_pass_through| actual_pass_through == pass_through));
+                assert!(capturing_hook
+                    .call_method1("assert_called_with", ("_", ["cmd_name"], "_"))
+                    .is_ok());
+            });
         });
-
-        MAIN_ENGINE.store(None);
     }
 
     #[rstest]
     #[cfg_attr(miri, ignore)]
     #[serial]
     fn handle_input_when_event_dispatcher_returns_false(_pyshinqlx_setup: ()) {
-        let mut mock_engine = MockQuakeEngine::new();
         let owner = c"9876543210";
         let mut raw_cvar = CVarBuilder::default()
             .string(owner.as_ptr().cast_mut())
             .build()
             .expect("this should not happen");
-        mock_engine
-            .expect_find_cvar()
-            .with(predicate::eq("qlx_owner"))
-            .returning_st(move |_| CVar::try_from(raw_cvar.borrow_mut() as *mut cvar_t).ok());
-        mock_engine
-            .expect_find_cvar()
-            .with(predicate::ne("qlx_owner"))
-            .returning_st(|_| None);
-        MAIN_ENGINE.store(Some(mock_engine.into()));
 
-        Python::with_gil(|py| {
-            let player = default_test_player();
-            let client_command_channel =
-                Py::new(py, ClientCommandChannel::py_new(&player)).expect("this should not happen");
+        with_mocked_engine(|mock_engine| {
+            mock_engine
+                .expect_find_cvar()
+                .with(predicate::eq("qlx_owner"))
+                .returning_st(move |_| CVar::try_from(raw_cvar.borrow_mut() as *mut cvar_t).ok());
+            mock_engine
+                .expect_find_cvar()
+                .with(predicate::ne("qlx_owner"))
+                .returning_st(|_| None);
+        })
+        .run(|| {
+            Python::with_gil(|py| {
+                let player = default_test_player();
+                let client_command_channel = Py::new(py, ClientCommandChannel::py_new(&player))
+                    .expect("this should not happen");
 
-            let event_dispatcher = EventDispatcherManager::default();
-            event_dispatcher
-                .add_dispatcher(py, py.get_type_bound::<CommandDispatcher>())
-                .expect("could not add command dispatcher");
-            event_dispatcher
-                .__getitem__(py, "command")
-                .and_then(|command_dispatcher| {
-                    command_dispatcher.call_method1(
+                let event_dispatcher = EventDispatcherManager::default();
+                event_dispatcher
+                    .add_dispatcher(py, py.get_type_bound::<CommandDispatcher>())
+                    .expect("could not add command dispatcher");
+                event_dispatcher
+                    .__getitem__(py, "command")
+                    .and_then(|command_dispatcher| {
+                        command_dispatcher.call_method1(
+                            py,
+                            "add_hook",
+                            (
+                                "asdf",
+                                returning_false_hook(py),
+                                CommandPriorities::PRI_NORMAL as i32,
+                            ),
+                        )
+                    })
+                    .expect("could not add hook to vote dispatcher");
+                EVENT_DISPATCHERS.store(Some(
+                    Py::new(py, event_dispatcher)
+                        .expect("could not create event dispatcher manager in python")
+                        .into(),
+                ));
+
+                let py_command = Py::new(py, default_command(py)).expect("this should not happen");
+
+                let command_invoker = CommandInvoker::py_new();
+                command_invoker
+                    .add_command(
                         py,
-                        "add_hook",
-                        (
-                            "asdf",
-                            returning_false_hook(py),
-                            CommandPriorities::PRI_NORMAL as i32,
-                        ),
+                        py_command.into_bound(py),
+                        CommandPriorities::PRI_NORMAL as usize,
                     )
-                })
-                .expect("could not add hook to vote dispatcher");
-            EVENT_DISPATCHERS.store(Some(
-                Py::new(py, event_dispatcher)
-                    .expect("could not create event dispatcher manager in python")
-                    .into(),
-            ));
+                    .expect("this should not happen");
 
-            let py_command = Py::new(py, default_command(py)).expect("this should not happen");
-
-            let command_invoker = CommandInvoker::py_new();
-            command_invoker
-                .add_command(
+                let result = command_invoker.handle_input(
                     py,
-                    py_command.into_bound(py),
-                    CommandPriorities::PRI_NORMAL as usize,
-                )
-                .expect("this should not happen");
-
-            let result = command_invoker.handle_input(
-                py,
-                &player,
-                "cmd_name",
-                client_command_channel.into_any(),
-            );
-            assert!(result.is_ok_and(|pass_through| pass_through));
+                    &player,
+                    "cmd_name",
+                    client_command_channel.into_any(),
+                );
+                assert!(result.is_ok_and(|pass_through| pass_through));
+            });
         });
-
-        MAIN_ENGINE.store(None);
     }
 
     #[rstest]
@@ -2345,172 +2340,156 @@ mod command_invoker_tests {
         #[case] expect_ok_value: bool,
         _pyshinqlx_setup: (),
     ) {
-        let mut mock_engine = MockQuakeEngine::new();
         let owner = c"9876543210";
         let mut raw_cvar = CVarBuilder::default()
             .string(owner.as_ptr().cast_mut())
             .build()
             .expect("this should not happen");
-        mock_engine
-            .expect_find_cvar()
-            .with(predicate::eq("qlx_owner"))
-            .returning_st(move |_| CVar::try_from(raw_cvar.borrow_mut() as *mut cvar_t).ok());
-        mock_engine
-            .expect_find_cvar()
-            .with(predicate::ne("qlx_owner"))
-            .returning_st(|_| None);
-        MAIN_ENGINE.store(Some(mock_engine.into()));
 
-        Python::with_gil(|py| {
-            let player = default_test_player();
-            let client_command_channel =
-                Py::new(py, ClientCommandChannel::py_new(&player)).expect("this should not happen");
+        with_mocked_engine(|mock_engine| {
+            mock_engine
+                .expect_find_cvar()
+                .with(predicate::eq("qlx_owner"))
+                .returning_st(move |_| CVar::try_from(raw_cvar.borrow_mut() as *mut cvar_t).ok());
+            mock_engine
+                .expect_find_cvar()
+                .with(predicate::ne("qlx_owner"))
+                .returning_st(|_| None);
+        })
+        .run(|| {
+            Python::with_gil(|py| {
+                let player = default_test_player();
+                let client_command_channel = Py::new(py, ClientCommandChannel::py_new(&player))
+                    .expect("this should not happen");
 
-            let event_dispatcher = EventDispatcherManager::default();
-            event_dispatcher
-                .add_dispatcher(py, py.get_type_bound::<CommandDispatcher>())
-                .expect("could not add command dispatcher");
-            EVENT_DISPATCHERS.store(Some(
-                Py::new(py, event_dispatcher)
-                    .expect("could not create event dispatcher manager in python")
-                    .into(),
-            ));
+                let event_dispatcher = EventDispatcherManager::default();
+                event_dispatcher
+                    .add_dispatcher(py, py.get_type_bound::<CommandDispatcher>())
+                    .expect("could not add command dispatcher");
+                EVENT_DISPATCHERS.store(Some(
+                    Py::new(py, event_dispatcher)
+                        .expect("could not create event dispatcher manager in python")
+                        .into(),
+                ));
 
-            let module_definition = format!(
-                r#"
+                let module_definition = format!(
+                    r#"
 def cmd_handler(*args, **kwargs):
     return {}
             "#,
-                return_code as i32
-            );
-            let handler = PyModule::from_code_bound(py, &module_definition, "", "")
-                .and_then(|result| result.getattr("cmd_handler"))
-                .expect("this should not happen");
-            let command = Command {
-                handler: handler.unbind(),
-                prefix: false,
-                ..default_command(py)
-            };
-            let py_command = Py::new(py, command).expect("this should not happen");
+                    return_code as i32
+                );
+                let handler = PyModule::from_code_bound(py, &module_definition, "", "")
+                    .and_then(|result| result.getattr("cmd_handler"))
+                    .expect("this should not happen");
+                let command = Command {
+                    handler: handler.unbind(),
+                    prefix: false,
+                    ..default_command(py)
+                };
+                let py_command = Py::new(py, command).expect("this should not happen");
 
-            let command_invoker = CommandInvoker::py_new();
-            command_invoker
-                .add_command(
+                let command_invoker = CommandInvoker::py_new();
+                command_invoker
+                    .add_command(
+                        py,
+                        py_command.into_bound(py),
+                        CommandPriorities::PRI_NORMAL as usize,
+                    )
+                    .expect("this should not happen");
+
+                let result = command_invoker.handle_input(
                     py,
-                    py_command.into_bound(py),
-                    CommandPriorities::PRI_NORMAL as usize,
-                )
-                .expect("this should not happen");
-
-            let result = command_invoker.handle_input(
-                py,
-                &player,
-                "cmd_name",
-                client_command_channel.into_any(),
-            );
-            assert!(result.is_ok_and(|pass_through| pass_through == expect_ok_value));
+                    &player,
+                    "cmd_name",
+                    client_command_channel.into_any(),
+                );
+                assert!(result.is_ok_and(|pass_through| pass_through == expect_ok_value));
+            });
         });
-
-        MAIN_ENGINE.store(None);
     }
 
     #[rstest]
     #[cfg_attr(miri, ignore)]
     #[serial]
     fn handle_input_for_non_usage_cmd_when_cmd_returns_usage_return(_pyshinqlx_setup: ()) {
-        let mut mock_engine = MockQuakeEngine::new();
+        let send_server_command_ctx = shinqlx_send_server_command_context();
+        send_server_command_ctx.expect().times(0);
+
         let owner = c"9876543210";
         let mut raw_cvar = CVarBuilder::default()
             .string(owner.as_ptr().cast_mut())
             .build()
             .expect("this should not happen");
-        mock_engine
-            .expect_find_cvar()
-            .with(predicate::eq("qlx_owner"))
-            .returning_st(move |_| CVar::try_from(raw_cvar.borrow_mut() as *mut cvar_t).ok());
-        mock_engine
-            .expect_find_cvar()
-            .with(predicate::ne("qlx_owner"))
-            .returning_st(|_| None);
-        MAIN_ENGINE.store(Some(mock_engine.into()));
 
-        let send_server_command_ctx = shinqlx_send_server_command_context();
-        send_server_command_ctx.expect().times(0);
-
-        Python::with_gil(|py| {
-            let player = default_test_player();
-            let chat_channel = Py::new(
-                py,
-                TeamChatChannel::py_new("all", "chat", "print \"{}\n\"\n"),
-            )
-            .expect("this should not happen");
-
-            let event_dispatcher = EventDispatcherManager::default();
-            event_dispatcher
-                .add_dispatcher(py, py.get_type_bound::<CommandDispatcher>())
-                .expect("could not add command dispatcher");
-            EVENT_DISPATCHERS.store(Some(
-                Py::new(py, event_dispatcher)
-                    .expect("could not create event dispatcher manager in python")
-                    .into(),
-            ));
-
-            let module_definition = format!(
-                r#"
-def cmd_handler(*args, **kwargs):
-    return {}
-            "#,
-                PythonReturnCodes::RET_USAGE as i32
-            );
-            let handler = PyModule::from_code_bound(py, &module_definition, "", "")
-                .and_then(|result| result.getattr("cmd_handler"))
-                .expect("this should not happen");
-            let command = Command {
-                handler: handler.unbind(),
-                prefix: false,
-                ..default_command(py)
-            };
-            let py_command = Py::new(py, command).expect("this should not happen");
-
-            let command_invoker = CommandInvoker::py_new();
-            command_invoker
-                .add_command(
+        with_mocked_engine(|mock_engine| {
+            mock_engine
+                .expect_find_cvar()
+                .with(predicate::eq("qlx_owner"))
+                .returning_st(move |_| CVar::try_from(raw_cvar.borrow_mut() as *mut cvar_t).ok());
+            mock_engine
+                .expect_find_cvar()
+                .with(predicate::ne("qlx_owner"))
+                .returning_st(|_| None);
+        })
+        .run(|| {
+            Python::with_gil(|py| {
+                let player = default_test_player();
+                let chat_channel = Py::new(
                     py,
-                    py_command.into_bound(py),
-                    CommandPriorities::PRI_NORMAL as usize,
+                    TeamChatChannel::py_new("all", "chat", "print \"{}\n\"\n"),
                 )
                 .expect("this should not happen");
 
-            let result =
-                command_invoker.handle_input(py, &player, "cmd_name", chat_channel.into_any());
-            assert!(result.is_ok_and(|pass_through| pass_through));
+                let event_dispatcher = EventDispatcherManager::default();
+                event_dispatcher
+                    .add_dispatcher(py, py.get_type_bound::<CommandDispatcher>())
+                    .expect("could not add command dispatcher");
+                EVENT_DISPATCHERS.store(Some(
+                    Py::new(py, event_dispatcher)
+                        .expect("could not create event dispatcher manager in python")
+                        .into(),
+                ));
 
-            run_all_frame_tasks(py).expect("this should not happen");
+                let module_definition = format!(
+                    r#"
+def cmd_handler(*args, **kwargs):
+    return {}
+            "#,
+                    PythonReturnCodes::RET_USAGE as i32
+                );
+                let handler = PyModule::from_code_bound(py, &module_definition, "", "")
+                    .and_then(|result| result.getattr("cmd_handler"))
+                    .expect("this should not happen");
+                let command = Command {
+                    handler: handler.unbind(),
+                    prefix: false,
+                    ..default_command(py)
+                };
+                let py_command = Py::new(py, command).expect("this should not happen");
+
+                let command_invoker = CommandInvoker::py_new();
+                command_invoker
+                    .add_command(
+                        py,
+                        py_command.into_bound(py),
+                        CommandPriorities::PRI_NORMAL as usize,
+                    )
+                    .expect("this should not happen");
+
+                let result =
+                    command_invoker.handle_input(py, &player, "cmd_name", chat_channel.into_any());
+                assert!(result.is_ok_and(|pass_through| pass_through));
+
+                run_all_frame_tasks(py).expect("this should not happen");
+            });
         });
-
-        MAIN_ENGINE.store(None);
     }
 
     #[rstest]
     #[cfg_attr(miri, ignore)]
     #[serial]
     fn handle_input_for_cmd_with_usage_when_cmd_returns_usage_return(_pyshinqlx_setup: ()) {
-        let mut mock_engine = MockQuakeEngine::new();
-        let owner = c"9876543210";
-        let mut raw_cvar = CVarBuilder::default()
-            .string(owner.as_ptr().cast_mut())
-            .build()
-            .expect("this should not happen");
-        mock_engine
-            .expect_find_cvar()
-            .with(predicate::eq("qlx_owner"))
-            .returning_st(move |_| CVar::try_from(raw_cvar.borrow_mut() as *mut cvar_t).ok());
-        mock_engine
-            .expect_find_cvar()
-            .with(predicate::ne("qlx_owner"))
-            .returning_st(|_| None);
-        MAIN_ENGINE.store(Some(mock_engine.into()));
-
         let send_server_command_ctx = shinqlx_send_server_command_context();
         send_server_command_ctx
             .expect()
@@ -2520,131 +2499,147 @@ def cmd_handler(*args, **kwargs):
             )
             .times(1);
 
-        Python::with_gil(|py| {
-            let player = default_test_player();
-            let chat_channel = Py::new(
-                py,
-                TeamChatChannel::py_new("all", "chat", "print \"{}\n\"\n"),
-            )
+        let owner = c"9876543210";
+        let mut raw_cvar = CVarBuilder::default()
+            .string(owner.as_ptr().cast_mut())
+            .build()
             .expect("this should not happen");
 
-            let event_dispatcher = EventDispatcherManager::default();
-            event_dispatcher
-                .add_dispatcher(py, py.get_type_bound::<CommandDispatcher>())
-                .expect("could not add command dispatcher");
-            EVENT_DISPATCHERS.store(Some(
-                Py::new(py, event_dispatcher)
-                    .expect("could not create event dispatcher manager in python")
-                    .into(),
-            ));
-
-            let module_definition = format!(
-                r#"
-def cmd_handler(*args, **kwargs):
-    return {}
-            "#,
-                PythonReturnCodes::RET_USAGE as i32
-            );
-            let handler = PyModule::from_code_bound(py, &module_definition, "", "")
-                .and_then(|result| result.getattr("cmd_handler"))
-                .expect("this should not happen");
-            let command = Command {
-                handler: handler.unbind(),
-                prefix: false,
-                usage: "how to use me".to_string(),
-                ..default_command(py)
-            };
-            let py_command = Py::new(py, command).expect("this should not happen");
-
-            let command_invoker = CommandInvoker::py_new();
-            command_invoker
-                .add_command(
+        with_mocked_engine(|mock_engine| {
+            mock_engine
+                .expect_find_cvar()
+                .with(predicate::eq("qlx_owner"))
+                .returning_st(move |_| CVar::try_from(raw_cvar.borrow_mut() as *mut cvar_t).ok());
+            mock_engine
+                .expect_find_cvar()
+                .with(predicate::ne("qlx_owner"))
+                .returning_st(|_| None);
+        })
+        .run(|| {
+            Python::with_gil(|py| {
+                let player = default_test_player();
+                let chat_channel = Py::new(
                     py,
-                    py_command.into_bound(py),
-                    CommandPriorities::PRI_NORMAL as usize,
+                    TeamChatChannel::py_new("all", "chat", "print \"{}\n\"\n"),
                 )
                 .expect("this should not happen");
 
-            let result =
-                command_invoker.handle_input(py, &player, "cmd_name", chat_channel.into_any());
-            assert!(result.is_ok_and(|pass_through| pass_through));
+                let event_dispatcher = EventDispatcherManager::default();
+                event_dispatcher
+                    .add_dispatcher(py, py.get_type_bound::<CommandDispatcher>())
+                    .expect("could not add command dispatcher");
+                EVENT_DISPATCHERS.store(Some(
+                    Py::new(py, event_dispatcher)
+                        .expect("could not create event dispatcher manager in python")
+                        .into(),
+                ));
 
-            run_all_frame_tasks(py).expect("this should not happen");
+                let module_definition = format!(
+                    r#"
+def cmd_handler(*args, **kwargs):
+    return {}
+            "#,
+                    PythonReturnCodes::RET_USAGE as i32
+                );
+                let handler = PyModule::from_code_bound(py, &module_definition, "", "")
+                    .and_then(|result| result.getattr("cmd_handler"))
+                    .expect("this should not happen");
+                let command = Command {
+                    handler: handler.unbind(),
+                    prefix: false,
+                    usage: "how to use me".to_string(),
+                    ..default_command(py)
+                };
+                let py_command = Py::new(py, command).expect("this should not happen");
+
+                let command_invoker = CommandInvoker::py_new();
+                command_invoker
+                    .add_command(
+                        py,
+                        py_command.into_bound(py),
+                        CommandPriorities::PRI_NORMAL as usize,
+                    )
+                    .expect("this should not happen");
+
+                let result =
+                    command_invoker.handle_input(py, &player, "cmd_name", chat_channel.into_any());
+                assert!(result.is_ok_and(|pass_through| pass_through));
+
+                run_all_frame_tasks(py).expect("this should not happen");
+            });
         });
-
-        MAIN_ENGINE.store(None);
     }
 
     #[rstest]
     #[cfg_attr(miri, ignore)]
     #[serial]
     fn handle_input_when_handler_returns_unrecognize_return_code(_pyshinqlx_setup: ()) {
-        let mut mock_engine = MockQuakeEngine::new();
         let owner = c"9876543210";
         let mut raw_cvar = CVarBuilder::default()
             .string(owner.as_ptr().cast_mut())
             .build()
             .expect("this should not happen");
-        mock_engine
-            .expect_find_cvar()
-            .with(predicate::eq("qlx_owner"))
-            .returning_st(move |_| CVar::try_from(raw_cvar.borrow_mut() as *mut cvar_t).ok());
-        mock_engine
-            .expect_find_cvar()
-            .with(predicate::ne("qlx_owner"))
-            .returning_st(|_| None);
-        MAIN_ENGINE.store(Some(mock_engine.into()));
 
-        Python::with_gil(|py| {
-            let player = default_test_player();
-            let chat_channel = Py::new(
-                py,
-                TeamChatChannel::py_new("all", "chat", "print \"{}\n\"\n"),
-            )
-            .expect("this should not happen");
-
-            let event_dispatcher = EventDispatcherManager::default();
-            event_dispatcher
-                .add_dispatcher(py, py.get_type_bound::<CommandDispatcher>())
-                .expect("could not add command dispatcher");
-            EVENT_DISPATCHERS.store(Some(
-                Py::new(py, event_dispatcher)
-                    .expect("could not create event dispatcher manager in python")
-                    .into(),
-            ));
-
-            let handler = PyModule::from_code_bound(
-                py,
-                r#"
-def cmd_handler(*args, **kwargs):
-    return dict()
-            "#,
-                "",
-                "",
-            )
-            .and_then(|result| result.getattr("cmd_handler"))
-            .expect("this should not happen");
-            let command = Command {
-                handler: handler.unbind(),
-                prefix: false,
-                ..default_command(py)
-            };
-            let py_command = Py::new(py, command).expect("this should not happen");
-
-            let command_invoker = CommandInvoker::py_new();
-            command_invoker
-                .add_command(
+        with_mocked_engine(|mock_engine| {
+            mock_engine
+                .expect_find_cvar()
+                .with(predicate::eq("qlx_owner"))
+                .returning_st(move |_| CVar::try_from(raw_cvar.borrow_mut() as *mut cvar_t).ok());
+            mock_engine
+                .expect_find_cvar()
+                .with(predicate::ne("qlx_owner"))
+                .returning_st(|_| None);
+        })
+        .run(|| {
+            Python::with_gil(|py| {
+                let player = default_test_player();
+                let chat_channel = Py::new(
                     py,
-                    py_command.into_bound(py),
-                    CommandPriorities::PRI_NORMAL as usize,
+                    TeamChatChannel::py_new("all", "chat", "print \"{}\n\"\n"),
                 )
                 .expect("this should not happen");
 
-            let result =
-                command_invoker.handle_input(py, &player, "cmd_name", chat_channel.into_any());
-            assert!(result.is_ok_and(|pass_through| pass_through));
-        });
+                let event_dispatcher = EventDispatcherManager::default();
+                event_dispatcher
+                    .add_dispatcher(py, py.get_type_bound::<CommandDispatcher>())
+                    .expect("could not add command dispatcher");
+                EVENT_DISPATCHERS.store(Some(
+                    Py::new(py, event_dispatcher)
+                        .expect("could not create event dispatcher manager in python")
+                        .into(),
+                ));
 
-        MAIN_ENGINE.store(None);
+                let handler = PyModule::from_code_bound(
+                    py,
+                    r#"
+def cmd_handler(*args, **kwargs):
+    return dict()
+            "#,
+                    "",
+                    "",
+                )
+                .and_then(|result| result.getattr("cmd_handler"))
+                .expect("this should not happen");
+                let command = Command {
+                    handler: handler.unbind(),
+                    prefix: false,
+                    ..default_command(py)
+                };
+                let py_command = Py::new(py, command).expect("this should not happen");
+
+                let command_invoker = CommandInvoker::py_new();
+                command_invoker
+                    .add_command(
+                        py,
+                        py_command.into_bound(py),
+                        CommandPriorities::PRI_NORMAL as usize,
+                    )
+                    .expect("this should not happen");
+
+                let result =
+                    command_invoker.handle_input(py, &player, "cmd_name", chat_channel.into_any());
+                assert!(result.is_ok_and(|pass_through| pass_through));
+            });
+        });
     }
 }
