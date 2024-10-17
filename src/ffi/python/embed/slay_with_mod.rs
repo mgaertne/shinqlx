@@ -59,50 +59,38 @@ mod slay_with_mod_tests {
     #[cfg_attr(miri, ignore)]
     #[serial]
     fn slay_with_mod_for_client_id_too_small(_pyshinqlx_setup: ()) {
-        mocked_engine()
-            .configure(|mock_engine| {
-                mock_engine.expect_get_max_clients().returning(|| 16);
-            })
-            .run(|| {
-                Python::with_gil(|py| {
-                    let result =
-                        pyshinqlx_slay_with_mod(py, -1, meansOfDeath_t::MOD_TRIGGER_HURT as i32);
-                    assert!(result.is_err_and(|err| err.is_instance_of::<PyValueError>(py)));
-                });
+        mocked_engine().with_max_clients(16).run(|| {
+            Python::with_gil(|py| {
+                let result =
+                    pyshinqlx_slay_with_mod(py, -1, meansOfDeath_t::MOD_TRIGGER_HURT as i32);
+                assert!(result.is_err_and(|err| err.is_instance_of::<PyValueError>(py)));
             });
+        });
     }
 
     #[rstest]
     #[cfg_attr(miri, ignore)]
     #[serial]
     fn slay_with_mod_for_client_id_too_large(_pyshinqlx_setup: ()) {
-        mocked_engine()
-            .configure(|mock_engine| {
-                mock_engine.expect_get_max_clients().returning(|| 16);
-            })
-            .run(|| {
-                Python::with_gil(|py| {
-                    let result =
-                        pyshinqlx_slay_with_mod(py, 666, meansOfDeath_t::MOD_TRIGGER_HURT as i32);
-                    assert!(result.is_err_and(|err| err.is_instance_of::<PyValueError>(py)));
-                });
+        mocked_engine().with_max_clients(16).run(|| {
+            Python::with_gil(|py| {
+                let result =
+                    pyshinqlx_slay_with_mod(py, 666, meansOfDeath_t::MOD_TRIGGER_HURT as i32);
+                assert!(result.is_err_and(|err| err.is_instance_of::<PyValueError>(py)));
             });
+        });
     }
 
     #[rstest]
     #[cfg_attr(miri, ignore)]
     #[serial]
     fn slay_with_mod_for_invalid_means_of_death(_pyshinqlx_setup: ()) {
-        mocked_engine()
-            .configure(|mock_engine| {
-                mock_engine.expect_get_max_clients().returning(|| 16);
-            })
-            .run(|| {
-                Python::with_gil(|py| {
-                    let result = pyshinqlx_slay_with_mod(py, 2, 12345);
-                    assert!(result.is_err_and(|err| err.is_instance_of::<PyValueError>(py)));
-                });
+        mocked_engine().with_max_clients(16).run(|| {
+            Python::with_gil(|py| {
+                let result = pyshinqlx_slay_with_mod(py, 2, 12345);
+                assert!(result.is_err_and(|err| err.is_instance_of::<PyValueError>(py)));
             });
+        });
     }
 
     #[rstest]
@@ -124,16 +112,12 @@ mod slay_with_mod_tests {
             mock_game_entity
         });
 
-        mocked_engine()
-            .configure(|mock_engine| {
-                mock_engine.expect_get_max_clients().returning(|| 16);
-            })
-            .run(|| {
-                let result = Python::with_gil(|py| {
-                    pyshinqlx_slay_with_mod(py, 2, meansOfDeath_t::MOD_PROXIMITY_MINE as i32)
-                });
-                assert_eq!(result.expect("result was not OK"), true);
+        mocked_engine().with_max_clients(16).run(|| {
+            let result = Python::with_gil(|py| {
+                pyshinqlx_slay_with_mod(py, 2, meansOfDeath_t::MOD_PROXIMITY_MINE as i32)
             });
+            assert_eq!(result.expect("result was not OK"), true);
+        });
     }
 
     #[rstest]
@@ -152,16 +136,12 @@ mod slay_with_mod_tests {
             mock_game_entity
         });
 
-        mocked_engine()
-            .configure(|mock_engine| {
-                mock_engine.expect_get_max_clients().returning(|| 16);
-            })
-            .run(|| {
-                let result = Python::with_gil(|py| {
-                    pyshinqlx_slay_with_mod(py, 2, meansOfDeath_t::MOD_PROXIMITY_MINE as i32)
-                });
-                assert_eq!(result.expect("result was not OK"), true);
+        mocked_engine().with_max_clients(16).run(|| {
+            let result = Python::with_gil(|py| {
+                pyshinqlx_slay_with_mod(py, 2, meansOfDeath_t::MOD_PROXIMITY_MINE as i32)
             });
+            assert_eq!(result.expect("result was not OK"), true);
+        });
     }
 
     #[rstest]
@@ -177,15 +157,11 @@ mod slay_with_mod_tests {
             mock_game_entity
         });
 
-        mocked_engine()
-            .configure(|mock_engine| {
-                mock_engine.expect_get_max_clients().returning(|| 16);
-            })
-            .run(|| {
-                let result = Python::with_gil(|py| {
-                    pyshinqlx_slay_with_mod(py, 2, meansOfDeath_t::MOD_CRUSH as i32)
-                });
-                assert_eq!(result.expect("result was not OK"), false);
+        mocked_engine().with_max_clients(16).run(|| {
+            let result = Python::with_gil(|py| {
+                pyshinqlx_slay_with_mod(py, 2, meansOfDeath_t::MOD_CRUSH as i32)
             });
+            assert_eq!(result.expect("result was not OK"), false);
+        });
     }
 }

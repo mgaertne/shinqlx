@@ -418,6 +418,7 @@ mod commands_tests {
     #[serial]
     fn cmd_slap_with_too_few_args() {
         mocked_engine()
+            .with_max_clients(16)
             .configure(|mock_engine| {
                 mock_engine.expect_cmd_argc().return_const(1).times(1);
                 mock_engine
@@ -429,7 +430,6 @@ mod commands_tests {
                     .expect_com_printf()
                     .with(predicate::eq("Usage: !slap <client_id> [damage]\n"))
                     .times(1);
-                mock_engine.expect_get_max_clients().return_const(16);
             })
             .run(|| {
                 cmd_slap();
@@ -440,6 +440,7 @@ mod commands_tests {
     #[serial]
     fn cmd_slap_with_unparseable_client_id() {
         mocked_engine()
+            .with_max_clients(16)
             .configure(|mock_engine| {
                 mock_engine.expect_cmd_argc().return_const(2).times(1);
                 mock_engine
@@ -453,7 +454,6 @@ mod commands_tests {
                         "client_id must be a number between 0 and 15.\n",
                     ))
                     .times(1);
-                mock_engine.expect_get_max_clients().return_const(16);
             })
             .run(|| {
                 cmd_slap();
@@ -464,6 +464,7 @@ mod commands_tests {
     #[serial]
     fn cmd_slap_with_too_small_client_id() {
         mocked_engine()
+            .with_max_clients(16)
             .configure(|mock_engine| {
                 mock_engine.expect_cmd_argc().return_const(2).times(1);
                 mock_engine
@@ -477,7 +478,6 @@ mod commands_tests {
                         "client_id must be a number between 0 and 15.\n",
                     ))
                     .times(1);
-                mock_engine.expect_get_max_clients().return_const(16);
             })
             .run(|| {
                 cmd_slap();
@@ -488,6 +488,7 @@ mod commands_tests {
     #[serial]
     fn cmd_slap_with_too_large_client_id() {
         mocked_engine()
+            .with_max_clients(16)
             .configure(|mock_engine| {
                 mock_engine.expect_cmd_argc().return_const(2).times(1);
                 mock_engine
@@ -501,7 +502,6 @@ mod commands_tests {
                         "client_id must be a number between 0 and 15.\n",
                     ))
                     .times(1);
-                mock_engine.expect_get_max_clients().return_const(16);
             })
             .run(|| {
                 cmd_slap();
@@ -527,6 +527,7 @@ mod commands_tests {
             .times(1);
 
         mocked_engine()
+            .with_max_clients(16)
             .configure(|mock_engine| {
                 mock_engine.expect_cmd_argc().return_const(2).times(1);
                 mock_engine
@@ -538,7 +539,6 @@ mod commands_tests {
                     .expect_com_printf()
                     .with(predicate::eq("The player is currently not active.\n"))
                     .times(1);
-                mock_engine.expect_get_max_clients().return_const(16);
             })
             .run(|| {
                 cmd_slap();
@@ -565,6 +565,7 @@ mod commands_tests {
             .times(1);
 
         mocked_engine()
+            .with_max_clients(16)
             .configure(|mock_engine| {
                 mock_engine.expect_cmd_argc().return_const(2).times(1);
                 mock_engine
@@ -576,7 +577,6 @@ mod commands_tests {
                     .expect_com_printf()
                     .with(predicate::eq("The player is currently not active.\n"))
                     .times(1);
-                mock_engine.expect_get_max_clients().return_const(16);
             })
             .run(|| {
                 cmd_slap();
@@ -626,6 +626,7 @@ mod commands_tests {
             .times(1);
 
         mocked_engine()
+            .with_max_clients(16)
             .configure(|mock_engine| {
                 mock_engine.expect_cmd_argc().return_const(2).times(1);
                 mock_engine
@@ -649,7 +650,6 @@ mod commands_tests {
                         entity_event == entity_event_t::EV_PAIN && event_param == 99
                     })
                     .times(1);
-                mock_engine.expect_get_max_clients().return_const(16);
             })
             .run(|| {
                 cmd_slap();
@@ -703,6 +703,7 @@ mod commands_tests {
             .times(1);
 
         mocked_engine()
+            .with_max_clients(16)
             .configure(|mock_engine| {
                 mock_engine.expect_cmd_argc().return_const(3).times(1);
                 mock_engine
@@ -732,7 +733,6 @@ mod commands_tests {
                         entity_event == entity_event_t::EV_PAIN && event_param == 99
                     })
                     .times(1);
-                mock_engine.expect_get_max_clients().return_const(16);
             })
             .run(|| {
                 cmd_slap();
@@ -790,6 +790,7 @@ mod commands_tests {
             .times(1);
 
         mocked_engine()
+            .with_max_clients(16)
             .configure(|mock_engine| {
                 mock_engine.expect_cmd_argc().return_const(3).times(1);
                 mock_engine
@@ -819,7 +820,6 @@ mod commands_tests {
                         entity_event == entity_event_t::EV_DEATH1 && event_param == 42
                     })
                     .times(1);
-                mock_engine.expect_get_max_clients().return_const(16);
             })
             .run(|| {
                 cmd_slap();
@@ -869,6 +869,7 @@ mod commands_tests {
             .times(1);
 
         mocked_engine()
+            .with_max_clients(16)
             .configure(|mock_engine| {
                 mock_engine.expect_cmd_argc().return_const(3).times(1);
                 mock_engine
@@ -897,7 +898,6 @@ mod commands_tests {
                         entity_event == entity_event_t::EV_PAIN && event_param == 99
                     })
                     .times(1);
-                mock_engine.expect_get_max_clients().return_const(16);
             })
             .run(|| {
                 cmd_slap();
@@ -914,6 +914,7 @@ mod commands_tests {
     #[serial]
     fn cmd_slay_with_too_few_args() {
         mocked_engine()
+            .with_max_clients(16)
             .configure(|mock_engine| {
                 mock_engine.expect_cmd_argc().return_const(1).times(1);
                 mock_engine
@@ -925,7 +926,6 @@ mod commands_tests {
                     .expect_com_printf()
                     .with(predicate::eq("Usage: !slap <client_id> [damage]\n"))
                     .times(1);
-                mock_engine.expect_get_max_clients().return_const(16);
             })
             .run(|| {
                 cmd_slay();
@@ -936,6 +936,7 @@ mod commands_tests {
     #[serial]
     fn cmd_slay_with_unparseable_client_id() {
         mocked_engine()
+            .with_max_clients(16)
             .configure(|mock_engine| {
                 mock_engine.expect_cmd_argc().return_const(2).times(1);
                 mock_engine
@@ -949,7 +950,6 @@ mod commands_tests {
                         "client_id must be a number between 0 and 15.\n",
                     ))
                     .times(1);
-                mock_engine.expect_get_max_clients().return_const(16);
             })
             .run(|| {
                 cmd_slay();
@@ -960,6 +960,7 @@ mod commands_tests {
     #[serial]
     fn cmd_slay_with_too_small_client_id() {
         mocked_engine()
+            .with_max_clients(16)
             .configure(|mock_engine| {
                 mock_engine.expect_cmd_argc().return_const(2).times(1);
                 mock_engine
@@ -973,7 +974,6 @@ mod commands_tests {
                         "client_id must be a number between 0 and 15.\n",
                     ))
                     .times(1);
-                mock_engine.expect_get_max_clients().return_const(16);
             })
             .run(|| {
                 cmd_slay();
@@ -984,6 +984,7 @@ mod commands_tests {
     #[serial]
     fn cmd_slay_with_too_large_client_id() {
         mocked_engine()
+            .with_max_clients(16)
             .configure(|mock_engine| {
                 mock_engine.expect_cmd_argc().return_const(2).times(1);
                 mock_engine
@@ -997,7 +998,6 @@ mod commands_tests {
                         "client_id must be a number between 0 and 15.\n",
                     ))
                     .times(1);
-                mock_engine.expect_get_max_clients().return_const(16);
             })
             .run(|| {
                 cmd_slay();
@@ -1023,6 +1023,7 @@ mod commands_tests {
             .times(1);
 
         mocked_engine()
+            .with_max_clients(16)
             .configure(|mock_engine| {
                 mock_engine.expect_cmd_argc().return_const(2).times(1);
                 mock_engine
@@ -1034,7 +1035,6 @@ mod commands_tests {
                     .expect_com_printf()
                     .with(predicate::eq("The player is currently not active.\n"))
                     .times(1);
-                mock_engine.expect_get_max_clients().return_const(16);
             })
             .run(|| {
                 cmd_slay();
@@ -1061,6 +1061,7 @@ mod commands_tests {
             .times(1);
 
         mocked_engine()
+            .with_max_clients(16)
             .configure(|mock_engine| {
                 mock_engine.expect_cmd_argc().return_const(2).times(1);
                 mock_engine
@@ -1072,7 +1073,6 @@ mod commands_tests {
                     .expect_com_printf()
                     .with(predicate::eq("The player is currently not active.\n"))
                     .times(1);
-                mock_engine.expect_get_max_clients().return_const(16);
             })
             .run(|| {
                 cmd_slay();
@@ -1119,6 +1119,7 @@ mod commands_tests {
             .times(1);
 
         mocked_engine()
+            .with_max_clients(16)
             .configure(|mock_engine| {
                 mock_engine.expect_cmd_argc().return_const(2).times(1);
                 mock_engine
@@ -1142,7 +1143,6 @@ mod commands_tests {
                         entity_event == entity_event_t::EV_GIB_PLAYER && event_param == 42
                     })
                     .times(1);
-                mock_engine.expect_get_max_clients().return_const(16);
             })
             .run(|| {
                 cmd_slay();

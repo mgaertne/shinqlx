@@ -106,15 +106,11 @@ mod force_vote_tests {
                 mock_client
             });
 
-        mocked_engine()
-            .configure(|mock_engine| {
-                mock_engine.expect_get_max_clients().return_const(1);
-            })
-            .run(|| {
-                let result = Python::with_gil(|py| pyshinqlx_force_vote(py, true));
+        mocked_engine().with_max_clients(1).run(|| {
+            let result = Python::with_gil(|py| pyshinqlx_force_vote(py, true));
 
-                assert_eq!(result.expect("result was not OK"), true);
-            });
+            assert_eq!(result.expect("result was not OK"), true);
+        });
     }
 
     #[rstest]
@@ -151,15 +147,11 @@ mod force_vote_tests {
                 mock_game_entity
             });
 
-        mocked_engine()
-            .configure(|mock_engine| {
-                mock_engine.expect_get_max_clients().return_const(1);
-            })
-            .run(|| {
-                let result = Python::with_gil(|py| pyshinqlx_force_vote(py, true));
+        mocked_engine().with_max_clients(1).run(|| {
+            let result = Python::with_gil(|py| pyshinqlx_force_vote(py, true));
 
-                assert_eq!(result.expect("result was not OK"), true);
-            });
+            assert_eq!(result.expect("result was not OK"), true);
+        });
     }
 
     #[rstest]
@@ -201,14 +193,10 @@ mod force_vote_tests {
                 mock_game_entity
             });
 
-        mocked_engine()
-            .configure(|mock_engine| {
-                mock_engine.expect_get_max_clients().return_const(1);
-            })
-            .run(|| {
-                let result = Python::with_gil(|py| pyshinqlx_force_vote(py, true));
+        mocked_engine().with_max_clients(1).run(|| {
+            let result = Python::with_gil(|py| pyshinqlx_force_vote(py, true));
 
-                assert_eq!(result.expect("result was not OK"), true);
-            });
+            assert_eq!(result.expect("result was not OK"), true);
+        });
     }
 }
