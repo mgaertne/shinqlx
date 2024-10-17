@@ -537,9 +537,49 @@ mod hooks_tests {
     use core::borrow::BorrowMut;
     use core::ffi::{c_char, c_int, CStr};
 
+    use crate::ffi::python::mock_python_tests::{
+        __client_command_dispatcher, __client_connect_dispatcher, __client_loaded_dispatcher,
+        __damage_dispatcher, __new_game_dispatcher, __server_command_dispatcher,
+        __set_configstring_dispatcher,
+    };
     use mockall::predicate;
     use pretty_assertions::assert_eq;
     use rstest::*;
+
+    #[fixture]
+    fn new_game_dispatcher_ctx() -> __new_game_dispatcher::Context {
+        new_game_dispatcher_context()
+    }
+
+    #[fixture]
+    fn client_command_dispatcher_ctx() -> __client_command_dispatcher::Context {
+        client_command_dispatcher_context()
+    }
+
+    #[fixture]
+    fn server_command_dispatcher_ctx() -> __server_command_dispatcher::Context {
+        server_command_dispatcher_context()
+    }
+
+    #[fixture]
+    fn client_loaded_dispatcher_ctx() -> __client_loaded_dispatcher::Context {
+        client_loaded_dispatcher_context()
+    }
+
+    #[fixture]
+    fn set_configstring_dispatcher_ctx() -> __set_configstring_dispatcher::Context {
+        set_configstring_dispatcher_context()
+    }
+
+    #[fixture]
+    fn client_connect_dispatcher_ctx() -> __client_connect_dispatcher::Context {
+        client_connect_dispatcher_context()
+    }
+
+    #[fixture]
+    fn damage_dispatcher_ctx() -> __damage_dispatcher::Context {
+        damage_dispatcher_context()
+    }
 
     unsafe extern "C" fn dummy_function() {}
     static DUMMY_FN: unsafe extern "C" fn() = dummy_function;
@@ -687,10 +727,9 @@ mod hooks_tests {
         shinqlx_g_initgame(42, 21, 0);
     }
 
-    #[test]
+    #[rstest]
     #[serial]
-    fn init_game_without_restart() {
-        let new_game_dispatcher_ctx = new_game_dispatcher_context();
+    fn init_game_without_restart(new_game_dispatcher_ctx: __new_game_dispatcher::Context) {
         new_game_dispatcher_ctx.expect().times(0);
 
         mocked_engine()
@@ -707,10 +746,9 @@ mod hooks_tests {
             });
     }
 
-    #[test]
+    #[rstest]
     #[serial]
-    fn init_game_with_restart() {
-        let new_game_dispatcher_ctx = new_game_dispatcher_context();
+    fn init_game_with_restart(new_game_dispatcher_ctx: __new_game_dispatcher::Context) {
         new_game_dispatcher_ctx
             .expect()
             .with(predicate::eq(true))
@@ -819,14 +857,15 @@ mod hooks_tests {
             });
     }
 
-    #[test]
+    #[rstest]
     #[serial]
-    fn execute_client_command_for_ok_client_with_gentity_non_empty_cmd_dispatcher_returns_none() {
+    fn execute_client_command_for_ok_client_with_gentity_non_empty_cmd_dispatcher_returns_none(
+        client_command_dispatcher_ctx: __client_command_dispatcher::Context,
+    ) {
         let mut mock_client = MockClient::new();
         mock_client.expect_has_gentity().return_const(true).times(1);
         mock_client.expect_get_client_id().return_const(42).times(1);
-        let client_command_ctx = client_command_dispatcher_context();
-        client_command_ctx
+        client_command_dispatcher_ctx
             .expect()
             .with(predicate::eq(42), predicate::eq("cp asdf".to_string()))
             .times(1);
@@ -840,15 +879,16 @@ mod hooks_tests {
             });
     }
 
-    #[test]
+    #[rstest]
     #[serial]
     fn execute_client_command_for_ok_client_with_gentity_non_empty_cmd_dispatcher_returns_modified_string(
+        client_command_dispatcher_ctx: __client_command_dispatcher::Context,
     ) {
         let mut mock_client = MockClient::new();
         mock_client.expect_has_gentity().return_const(true).times(1);
         mock_client.expect_get_client_id().return_const(42).times(1);
-        let client_command_ctx = client_command_dispatcher_context();
-        client_command_ctx
+
+        client_command_dispatcher_ctx
             .expect()
             .with(predicate::eq(42), predicate::eq("cp asdf".to_string()))
             .return_const(Some("cp modified".to_string()))
@@ -868,15 +908,16 @@ mod hooks_tests {
             });
     }
 
-    #[test]
+    #[rstest]
     #[serial]
     fn execute_client_command_for_ok_client_with_gentity_non_empty_cmd_dispatcher_returns_empty_string(
+        client_command_dispatcher_ctx: __client_command_dispatcher::Context,
     ) {
         let mut mock_client = MockClient::new();
         mock_client.expect_has_gentity().return_const(true).times(1);
         mock_client.expect_get_client_id().return_const(42).times(1);
-        let client_command_ctx = client_command_dispatcher_context();
-        client_command_ctx
+
+        client_command_dispatcher_ctx
             .expect()
             .with(predicate::eq(42), predicate::eq("cp asdf".to_string()))
             .return_const(Some("".to_string()))
@@ -897,11 +938,12 @@ mod hooks_tests {
         shinqlx_send_server_command(None, "cp asdf");
     }
 
-    #[test]
+    #[rstest]
     #[serial]
-    fn send_server_command_for_none_client_non_empty_cmd_dispatcher_returns_none() {
-        let client_command_ctx = server_command_dispatcher_context();
-        client_command_ctx
+    fn send_server_command_for_none_client_non_empty_cmd_dispatcher_returns_none(
+        server_command_dispatcher_ctx: __server_command_dispatcher::Context,
+    ) {
+        server_command_dispatcher_ctx
             .expect()
             .with(predicate::eq(None), predicate::eq("cp asdf".to_string()))
             .return_const(None)
@@ -916,11 +958,12 @@ mod hooks_tests {
             });
     }
 
-    #[test]
+    #[rstest]
     #[serial]
-    fn send_server_command_for_none_client_non_empty_cmd_dispatcher_returns_modified_cmd() {
-        let client_command_ctx = server_command_dispatcher_context();
-        client_command_ctx
+    fn send_server_command_for_none_client_non_empty_cmd_dispatcher_returns_modified_cmd(
+        server_command_dispatcher_ctx: __server_command_dispatcher::Context,
+    ) {
+        server_command_dispatcher_ctx
             .expect()
             .with(predicate::eq(None), predicate::eq("cp asdf".to_string()))
             .return_const(Some("cp modified".to_string()))
@@ -959,15 +1002,16 @@ mod hooks_tests {
             });
     }
 
-    #[test]
+    #[rstest]
     #[serial]
-    fn send_server_command_for_client_with_gentity_non_empty_cmd_dispatcher_returns_none() {
+    fn send_server_command_for_client_with_gentity_non_empty_cmd_dispatcher_returns_none(
+        server_command_dispatcher_ctx: __server_command_dispatcher::Context,
+    ) {
         let mut mock_client = MockClient::new();
         mock_client.expect_has_gentity().return_const(true).times(1);
         mock_client.expect_get_client_id().return_const(42).times(1);
 
-        let client_command_ctx = server_command_dispatcher_context();
-        client_command_ctx
+        server_command_dispatcher_ctx
             .expect()
             .with(
                 predicate::eq(Some(42)),
@@ -985,16 +1029,16 @@ mod hooks_tests {
             });
     }
 
-    #[test]
+    #[rstest]
     #[serial]
     fn send_server_command_for_client_with_gentity_non_empty_cmd_dispatcher_returns_modified_string(
+        server_command_dispatcher_ctx: __server_command_dispatcher::Context,
     ) {
         let mut mock_client = MockClient::new();
         mock_client.expect_has_gentity().return_const(true).times(1);
         mock_client.expect_get_client_id().return_const(42).times(1);
 
-        let client_command_ctx = server_command_dispatcher_context();
-        client_command_ctx
+        server_command_dispatcher_ctx
             .expect()
             .with(
                 predicate::eq(Some(42)),
@@ -1015,14 +1059,16 @@ mod hooks_tests {
             });
     }
 
-    #[test]
+    #[rstest]
     #[serial]
-    fn send_server_command_for_client_with_gentity_non_empty_cmd_dispatcher_returns_empty_string() {
+    fn send_server_command_for_client_with_gentity_non_empty_cmd_dispatcher_returns_empty_string(
+        server_command_dispatcher_ctx: __server_command_dispatcher::Context,
+    ) {
         let mut mock_client = MockClient::new();
         mock_client.expect_has_gentity().return_const(true).times(1);
         mock_client.expect_get_client_id().return_const(42).times(1);
-        let client_command_ctx = server_command_dispatcher_context();
-        client_command_ctx
+
+        server_command_dispatcher_ctx
             .expect()
             .with(
                 predicate::eq(Some(42)),
@@ -1061,9 +1107,11 @@ mod hooks_tests {
         shinqlx_sv_cliententerworld(client.borrow_mut(), usercmd.borrow_mut() as *mut usercmd_t);
     }
 
-    #[test]
+    #[rstest]
     #[serial]
-    fn client_enter_world_for_unprimed_client() {
+    fn client_enter_world_for_unprimed_client(
+        client_loaded_dispatcher_ctx: __client_loaded_dispatcher::Context,
+    ) {
         let mut mock_client = MockClient::new();
         mock_client
             .expect_get_state()
@@ -1080,8 +1128,7 @@ mod hooks_tests {
             .build()
             .expect("this should not happen");
 
-        let client_loaded_ctx = client_loaded_dispatcher_context();
-        client_loaded_ctx.expect().times(0);
+        client_loaded_dispatcher_ctx.expect().times(0);
 
         let mut client = ClientBuilder::default()
             .build()
@@ -1099,9 +1146,11 @@ mod hooks_tests {
             });
     }
 
-    #[test]
+    #[rstest]
     #[serial]
-    fn client_enter_world_for_primed_client_without_gentity() {
+    fn client_enter_world_for_primed_client_without_gentity(
+        client_loaded_dispatcher_ctx: __client_loaded_dispatcher::Context,
+    ) {
         let mut mock_client = MockClient::new();
         mock_client
             .expect_get_state()
@@ -1120,8 +1169,7 @@ mod hooks_tests {
         let mut usercmd = UserCmdBuilder::default()
             .build()
             .expect("this should not happen");
-        let client_loaded_ctx = client_loaded_dispatcher_context();
-        client_loaded_ctx.expect().times(0);
+        client_loaded_dispatcher_ctx.expect().times(0);
 
         let mut client = ClientBuilder::default()
             .build()
@@ -1139,9 +1187,11 @@ mod hooks_tests {
             });
     }
 
-    #[test]
+    #[rstest]
     #[serial]
-    fn client_enter_world_for_primed_client_with_gentity_informs_python() {
+    fn client_enter_world_for_primed_client_with_gentity_informs_python(
+        client_loaded_dispatcher_ctx: __client_loaded_dispatcher::Context,
+    ) {
         let mut mock_client = MockClient::new();
         mock_client
             .expect_get_state()
@@ -1157,8 +1207,10 @@ mod hooks_tests {
             .expect()
             .return_once_st(|_| Ok(mock_client));
 
-        let client_loaded_ctx = client_loaded_dispatcher_context();
-        client_loaded_ctx.expect().with(predicate::eq(42)).times(1);
+        client_loaded_dispatcher_ctx
+            .expect()
+            .with(predicate::eq(42))
+            .times(1);
 
         let mut client = ClientBuilder::default()
             .build()
@@ -1176,10 +1228,11 @@ mod hooks_tests {
             });
     }
 
-    #[test]
+    #[rstest]
     #[serial]
-    fn sv_set_configstring_with_parseable_variable() {
-        let set_configstring_dispatcher_ctx = set_configstring_dispatcher_context();
+    fn sv_set_configstring_with_parseable_variable(
+        set_configstring_dispatcher_ctx: __set_configstring_dispatcher::Context,
+    ) {
         set_configstring_dispatcher_ctx
             .expect()
             .with(predicate::eq(42), predicate::eq(r"\some\value"))
@@ -1216,8 +1269,10 @@ mod hooks_tests {
     #[case(668)]
     #[case(669)]
     #[serial]
-    fn set_configstring_for_undispatched_index(#[case] test_index: u32) {
-        let set_configstring_dispatcher_ctx = set_configstring_dispatcher_context();
+    fn set_configstring_for_undispatched_index(
+        #[case] test_index: u16,
+        set_configstring_dispatcher_ctx: __set_configstring_dispatcher::Context,
+    ) {
         set_configstring_dispatcher_ctx.expect().times(0);
 
         mocked_engine()
@@ -1225,9 +1280,7 @@ mod hooks_tests {
                 mock_engine
                     .expect_set_configstring()
                     .with(
-                        predicate::eq::<i32>(
-                            test_index.try_into().expect("this should not happen"),
-                        ),
+                        predicate::eq::<i32>(test_index.into()),
                         predicate::eq("some value"),
                     )
                     .times(1);
@@ -1237,10 +1290,11 @@ mod hooks_tests {
             });
     }
 
-    #[test]
+    #[rstest]
     #[serial]
-    fn set_confgistring_dispatcher_returns_none() {
-        let set_configstring_dispatcher_ctx = set_configstring_dispatcher_context();
+    fn set_confgistring_dispatcher_returns_none(
+        set_configstring_dispatcher_ctx: __set_configstring_dispatcher::Context,
+    ) {
         set_configstring_dispatcher_ctx
             .expect()
             .with(predicate::eq(42), predicate::eq("some value"))
@@ -1255,10 +1309,11 @@ mod hooks_tests {
             });
     }
 
-    #[test]
+    #[rstest]
     #[serial]
-    fn set_confgistring_dispatcher_returns_modified_string() {
-        let set_configstring_dispatcher_ctx = set_configstring_dispatcher_context();
+    fn set_confgistring_dispatcher_returns_modified_string(
+        set_configstring_dispatcher_ctx: __set_configstring_dispatcher::Context,
+    ) {
         set_configstring_dispatcher_ctx
             .expect()
             .with(predicate::eq(42), predicate::eq("some value"))
@@ -1277,10 +1332,11 @@ mod hooks_tests {
             });
     }
 
-    #[test]
+    #[rstest]
     #[serial]
-    fn set_confgistring_dispatcher_returns_unmodified_string() {
-        let set_configstring_dispatcher_ctx = set_configstring_dispatcher_context();
+    fn set_confgistring_dispatcher_returns_unmodified_string(
+        set_configstring_dispatcher_ctx: __set_configstring_dispatcher::Context,
+    ) {
         set_configstring_dispatcher_ctx
             .expect()
             .with(predicate::eq(42), predicate::eq("some value"))
@@ -1327,8 +1383,8 @@ mod hooks_tests {
     #[test]
     #[serial]
     fn com_printf_when_dispatcher_returns_none() {
-        let mock_console_print_dispatcher_ctx = console_print_dispatcher_context();
-        mock_console_print_dispatcher_ctx
+        let console_print_dispatcher_ctx = console_print_dispatcher_context();
+        console_print_dispatcher_ctx
             .expect()
             .with(predicate::eq("Hello World!"))
             .times(1);
@@ -1343,8 +1399,8 @@ mod hooks_tests {
     #[test]
     #[serial]
     fn com_printf_when_dispatcher_returns_some_value() {
-        let mock_console_print_dispatcher_ctx = console_print_dispatcher_context();
-        mock_console_print_dispatcher_ctx
+        let console_print_dispatcher_ctx = console_print_dispatcher_context();
+        console_print_dispatcher_ctx
             .expect()
             .with(predicate::eq("Hello World!"))
             .return_const(Some("Hello you!".to_string()))
@@ -1367,8 +1423,8 @@ mod hooks_tests {
     #[test]
     #[serial]
     fn sv_spawnserver_forwards_to_python() {
-        let mock_new_game_dispatcher_ctx = new_game_dispatcher_context();
-        mock_new_game_dispatcher_ctx
+        let new_game_dispatcher_ctx = new_game_dispatcher_context();
+        new_game_dispatcher_ctx
             .expect()
             .with(predicate::eq(false))
             .times(1);
@@ -1395,8 +1451,8 @@ mod hooks_tests {
     #[test]
     #[serial]
     fn g_runframe_forwards_to_python() {
-        let mock_frame_dispatcher_ctx = frame_dispatcher_context();
-        mock_frame_dispatcher_ctx.expect().times(1);
+        let frame_dispatcher_ctx = frame_dispatcher_context();
+        frame_dispatcher_ctx.expect().times(1);
 
         mocked_engine()
             .configure(|mock_engine| {
@@ -1437,10 +1493,11 @@ mod hooks_tests {
             });
     }
 
-    #[test]
+    #[rstest]
     #[serial]
-    fn client_connect_first_time_client_dispatcher_returns_none() {
-        let client_connect_dispatcher_ctx = client_connect_dispatcher_context();
+    fn client_connect_first_time_client_dispatcher_returns_none(
+        client_connect_dispatcher_ctx: __client_connect_dispatcher::Context,
+    ) {
         client_connect_dispatcher_ctx
             .expect()
             .with(predicate::eq(42), predicate::eq(false))
@@ -1460,10 +1517,11 @@ mod hooks_tests {
             });
     }
 
-    #[test]
+    #[rstest]
     #[serial]
-    fn client_connect_first_time_client_dispatcher_returns_string() {
-        let client_connect_dispatcher_ctx = client_connect_dispatcher_context();
+    fn client_connect_first_time_client_dispatcher_returns_string(
+        client_connect_dispatcher_ctx: __client_connect_dispatcher::Context,
+    ) {
         client_connect_dispatcher_ctx
             .expect()
             .with(predicate::eq(42), predicate::eq(false))
@@ -1483,10 +1541,11 @@ mod hooks_tests {
             });
     }
 
-    #[test]
+    #[rstest]
     #[serial]
-    fn client_connect_first_time_client_dispatcher_returns_some_for_bot() {
-        let client_connect_dispatcher_ctx = client_connect_dispatcher_context();
+    fn client_connect_first_time_client_dispatcher_returns_some_for_bot(
+        client_connect_dispatcher_ctx: __client_connect_dispatcher::Context,
+    ) {
         client_connect_dispatcher_ctx
             .expect()
             .with(predicate::eq(42), predicate::eq(true))
@@ -1652,15 +1711,16 @@ mod hooks_tests {
     }
 
     //noinspection DuplicatedCode
-    #[test]
+    #[rstest]
     #[serial]
-    fn g_damage_for_null_target_is_not_forwarded() {
+    fn g_damage_for_null_target_is_not_forwarded(
+        damage_dispatcher_ctx: __damage_dispatcher::Context,
+    ) {
         let try_from_ctx = MockGameEntity::try_from_context();
         try_from_ctx
             .expect()
             .return_once(|_| Err(QuakeLiveEngineError::MainEngineNotInitialized));
 
-        let damage_dispatcher_ctx = damage_dispatcher_context();
         damage_dispatcher_ctx.expect().times(0);
 
         mocked_engine()
@@ -1703,9 +1763,9 @@ mod hooks_tests {
     }
 
     //noinspection DuplicatedCode
-    #[test]
+    #[rstest]
     #[serial]
-    fn g_damage_for_null_attacker() {
+    fn g_damage_for_null_attacker(damage_dispatcher_ctx: __damage_dispatcher::Context) {
         let try_from_ctx = MockGameEntity::try_from_context();
         try_from_ctx
             .expect()
@@ -1716,7 +1776,6 @@ mod hooks_tests {
             })
             .times(1);
 
-        let damage_dispatcher_ctx = damage_dispatcher_context();
         damage_dispatcher_ctx
             .expect()
             .with(
@@ -1768,9 +1827,11 @@ mod hooks_tests {
     }
 
     //noinspection DuplicatedCode
-    #[test]
+    #[rstest]
     #[serial]
-    fn g_damage_for_non_null_attacker_try_from_returns_err() {
+    fn g_damage_for_non_null_attacker_try_from_returns_err(
+        damage_dispatcher_ctx: __damage_dispatcher::Context,
+    ) {
         let try_from_ctx = MockGameEntity::try_from_context();
         try_from_ctx
             .expect()
@@ -1785,7 +1846,6 @@ mod hooks_tests {
             .return_once(|_| Err(QuakeLiveEngineError::MainEngineNotInitialized))
             .times(1);
 
-        let damage_dispatcher_ctx = damage_dispatcher_context();
         damage_dispatcher_ctx
             .expect()
             .with(
@@ -1841,9 +1901,11 @@ mod hooks_tests {
     }
 
     //noinspection DuplicatedCode
-    #[test]
+    #[rstest]
     #[serial]
-    fn g_damage_for_non_null_attacker_try_from_returns_ok() {
+    fn g_damage_for_non_null_attacker_try_from_returns_ok(
+        damage_dispatcher_ctx: __damage_dispatcher::Context,
+    ) {
         let try_from_ctx = MockGameEntity::try_from_context();
         try_from_ctx
             .expect()
@@ -1862,7 +1924,6 @@ mod hooks_tests {
             })
             .times(1);
 
-        let damage_dispatcher_ctx = damage_dispatcher_context();
         damage_dispatcher_ctx
             .expect()
             .with(
