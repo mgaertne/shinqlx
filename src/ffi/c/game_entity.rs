@@ -1679,10 +1679,8 @@ mod game_entity_tests {
             .expect("this should not happen");
 
         mocked_engine()
+            .with_com_printf(predicate::eq("class_name"), 0..)
             .configure(|mock_engine| {
-                mock_engine
-                    .expect_com_printf()
-                    .with(predicate::eq("class_name"));
                 mock_engine.expect_free_entity();
             })
             .run(|| {
