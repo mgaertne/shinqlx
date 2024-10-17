@@ -505,7 +505,7 @@ mod stats_listener_tests {
 
     use crate::ffi::python::pyshinqlx_setup_fixture::*;
 
-    use crate::prelude::{serial, with_mocked_engine};
+    use crate::prelude::{mocked_engine, serial};
 
     use crate::ffi::c::prelude::{cvar_t, CVar, CVarBuilder};
 
@@ -538,23 +538,26 @@ mod stats_listener_tests {
             .build()
             .expect("this should not happen");
 
-        with_mocked_engine(|mock_engine| {
-            mock_engine
-                .expect_find_cvar()
-                .with(predicate::eq("zmq_stats_enable"))
-                .returning_st(move |_| CVar::try_from(raw_cvar.borrow_mut() as *mut cvar_t).ok());
-        })
-        .run(|| {
-            let result = StatsListener::py_new();
-            assert_eq!(
-                result.expect("this should not happen"),
-                StatsListener {
-                    done: true,
-                    address: "".into(),
-                    password: "".into()
-                }
-            );
-        });
+        mocked_engine()
+            .configure(|mock_engine| {
+                mock_engine
+                    .expect_find_cvar()
+                    .with(predicate::eq("zmq_stats_enable"))
+                    .returning_st(move |_| {
+                        CVar::try_from(raw_cvar.borrow_mut() as *mut cvar_t).ok()
+                    });
+            })
+            .run(|| {
+                let result = StatsListener::py_new();
+                assert_eq!(
+                    result.expect("this should not happen"),
+                    StatsListener {
+                        done: true,
+                        address: "".into(),
+                        password: "".into()
+                    }
+                );
+            });
     }
 
     #[test]
@@ -581,47 +584,48 @@ mod stats_listener_tests {
             .build()
             .expect("this should not happen");
 
-        with_mocked_engine(|mock_engine| {
-            mock_engine
-                .expect_find_cvar()
-                .with(predicate::eq("zmq_stats_enable"))
-                .returning_st(move |_| {
-                    CVar::try_from(raw_zmq_enable_cvar.borrow_mut() as *mut cvar_t).ok()
-                });
-            mock_engine
-                .expect_find_cvar()
-                .with(predicate::eq("zmq_stats_ip"))
-                .returning_st(move |_| {
-                    CVar::try_from(raw_zmq_ip_cvar.borrow_mut() as *mut cvar_t).ok()
-                });
-            mock_engine
-                .expect_find_cvar()
-                .with(predicate::eq("zmq_stats_port"))
-                .returning(|_| None);
-            mock_engine
-                .expect_find_cvar()
-                .with(predicate::eq("zmq_stats_password"))
-                .returning_st(move |_| {
-                    CVar::try_from(raw_zmq_passwd_cvar.borrow_mut() as *mut cvar_t).ok()
-                });
-            mock_engine
-                .expect_find_cvar()
-                .with(predicate::eq("net_port"))
-                .returning_st(move |_| {
-                    CVar::try_from(raw_net_port_cvar.borrow_mut() as *mut cvar_t).ok()
-                });
-        })
-        .run(|| {
-            let result = StatsListener::py_new();
-            assert_eq!(
-                result.expect("this should not happen"),
-                StatsListener {
-                    done: false,
-                    address: "tcp://127.0.0.1:27960".into(),
-                    password: "".into()
-                }
-            );
-        });
+        mocked_engine()
+            .configure(|mock_engine| {
+                mock_engine
+                    .expect_find_cvar()
+                    .with(predicate::eq("zmq_stats_enable"))
+                    .returning_st(move |_| {
+                        CVar::try_from(raw_zmq_enable_cvar.borrow_mut() as *mut cvar_t).ok()
+                    });
+                mock_engine
+                    .expect_find_cvar()
+                    .with(predicate::eq("zmq_stats_ip"))
+                    .returning_st(move |_| {
+                        CVar::try_from(raw_zmq_ip_cvar.borrow_mut() as *mut cvar_t).ok()
+                    });
+                mock_engine
+                    .expect_find_cvar()
+                    .with(predicate::eq("zmq_stats_port"))
+                    .returning(|_| None);
+                mock_engine
+                    .expect_find_cvar()
+                    .with(predicate::eq("zmq_stats_password"))
+                    .returning_st(move |_| {
+                        CVar::try_from(raw_zmq_passwd_cvar.borrow_mut() as *mut cvar_t).ok()
+                    });
+                mock_engine
+                    .expect_find_cvar()
+                    .with(predicate::eq("net_port"))
+                    .returning_st(move |_| {
+                        CVar::try_from(raw_net_port_cvar.borrow_mut() as *mut cvar_t).ok()
+                    });
+            })
+            .run(|| {
+                let result = StatsListener::py_new();
+                assert_eq!(
+                    result.expect("this should not happen"),
+                    StatsListener {
+                        done: false,
+                        address: "tcp://127.0.0.1:27960".into(),
+                        password: "".into()
+                    }
+                );
+            });
     }
 
     #[test]
@@ -653,49 +657,50 @@ mod stats_listener_tests {
             .build()
             .expect("this should not happen");
 
-        with_mocked_engine(|mock_engine| {
-            mock_engine
-                .expect_find_cvar()
-                .with(predicate::eq("zmq_stats_enable"))
-                .returning_st(move |_| {
-                    CVar::try_from(raw_zmq_enable_cvar.borrow_mut() as *mut cvar_t).ok()
-                });
-            mock_engine
-                .expect_find_cvar()
-                .with(predicate::eq("zmq_stats_ip"))
-                .returning_st(move |_| {
-                    CVar::try_from(raw_zmq_ip_cvar.borrow_mut() as *mut cvar_t).ok()
-                });
-            mock_engine
-                .expect_find_cvar()
-                .with(predicate::eq("zmq_stats_port"))
-                .returning_st(move |_| {
-                    CVar::try_from(raw_zmq_port_cvar.borrow_mut() as *mut cvar_t).ok()
-                });
-            mock_engine
-                .expect_find_cvar()
-                .with(predicate::eq("zmq_stats_password"))
-                .returning_st(move |_| {
-                    CVar::try_from(raw_zmq_password_cvar.borrow_mut() as *mut cvar_t).ok()
-                });
-            mock_engine
-                .expect_find_cvar()
-                .with(predicate::eq("net_port"))
-                .returning_st(move |_| {
-                    CVar::try_from(raw_net_port_cvar.borrow_mut() as *mut cvar_t).ok()
-                });
-        })
-        .run(|| {
-            let result = StatsListener::py_new();
-            assert_eq!(
-                result.expect("this should not happen"),
-                StatsListener {
-                    done: false,
-                    address: "tcp://192.168.0.1:28960".into(),
-                    password: "p4ssw0rd".into()
-                }
-            );
-        });
+        mocked_engine()
+            .configure(|mock_engine| {
+                mock_engine
+                    .expect_find_cvar()
+                    .with(predicate::eq("zmq_stats_enable"))
+                    .returning_st(move |_| {
+                        CVar::try_from(raw_zmq_enable_cvar.borrow_mut() as *mut cvar_t).ok()
+                    });
+                mock_engine
+                    .expect_find_cvar()
+                    .with(predicate::eq("zmq_stats_ip"))
+                    .returning_st(move |_| {
+                        CVar::try_from(raw_zmq_ip_cvar.borrow_mut() as *mut cvar_t).ok()
+                    });
+                mock_engine
+                    .expect_find_cvar()
+                    .with(predicate::eq("zmq_stats_port"))
+                    .returning_st(move |_| {
+                        CVar::try_from(raw_zmq_port_cvar.borrow_mut() as *mut cvar_t).ok()
+                    });
+                mock_engine
+                    .expect_find_cvar()
+                    .with(predicate::eq("zmq_stats_password"))
+                    .returning_st(move |_| {
+                        CVar::try_from(raw_zmq_password_cvar.borrow_mut() as *mut cvar_t).ok()
+                    });
+                mock_engine
+                    .expect_find_cvar()
+                    .with(predicate::eq("net_port"))
+                    .returning_st(move |_| {
+                        CVar::try_from(raw_net_port_cvar.borrow_mut() as *mut cvar_t).ok()
+                    });
+            })
+            .run(|| {
+                let result = StatsListener::py_new();
+                assert_eq!(
+                    result.expect("this should not happen"),
+                    StatsListener {
+                        done: false,
+                        address: "tcp://192.168.0.1:28960".into(),
+                        password: "p4ssw0rd".into()
+                    }
+                );
+            });
     }
 
     #[test]
@@ -762,7 +767,7 @@ mod handle_zmq_msg_tests {
         EVENT_DISPATCHERS,
     };
 
-    use crate::prelude::{serial, with_mocked_engine};
+    use crate::prelude::{mocked_engine, serial};
 
     use crate::ffi::c::prelude::{
         clientState_t, cvar_t, privileges_t, team_t, CVar, CVarBuilder, MockClient, MockGameEntity,
@@ -810,52 +815,56 @@ mod handle_zmq_msg_tests {
             .build()
             .expect("this should not happen");
 
-        with_mocked_engine(|mock_engine| {
-            mock_engine
-                .expect_find_cvar()
-                .with(predicate::eq("zmq_stats_enable"))
-                .returning_st(move |_| CVar::try_from(raw_cvar.borrow_mut() as *mut cvar_t).ok());
-        })
-        .run(|| {
-            Python::with_gil(|py| {
-                let event_dispatcher = EventDispatcherManager::default();
-                event_dispatcher
-                    .add_dispatcher(py, py.get_type_bound::<StatsDispatcher>())
-                    .expect("could not add stats dispatcher");
-                let capturing_hook = capturing_hook(py);
-                event_dispatcher
-                    .__getitem__(py, "stats")
-                    .and_then(|stats_dispatcher| {
-                        stats_dispatcher.call_method1(
-                            py,
-                            "add_hook",
-                            (
-                                "asdf",
-                                capturing_hook
-                                    .getattr("hook")
-                                    .expect("could not get capturing hook"),
-                                CommandPriorities::PRI_NORMAL as i32,
-                            ),
-                        )
-                    })
-                    .expect("could not add hook to stats dispatcher");
-                EVENT_DISPATCHERS.store(Some(
-                    Py::new(py, event_dispatcher)
-                        .expect("could not create event dispatcher manager in python")
-                        .into(),
-                ));
+        mocked_engine()
+            .configure(|mock_engine| {
+                mock_engine
+                    .expect_find_cvar()
+                    .with(predicate::eq("zmq_stats_enable"))
+                    .returning_st(move |_| {
+                        CVar::try_from(raw_cvar.borrow_mut() as *mut cvar_t).ok()
+                    });
+            })
+            .run(|| {
+                Python::with_gil(|py| {
+                    let event_dispatcher = EventDispatcherManager::default();
+                    event_dispatcher
+                        .add_dispatcher(py, py.get_type_bound::<StatsDispatcher>())
+                        .expect("could not add stats dispatcher");
+                    let capturing_hook = capturing_hook(py);
+                    event_dispatcher
+                        .__getitem__(py, "stats")
+                        .and_then(|stats_dispatcher| {
+                            stats_dispatcher.call_method1(
+                                py,
+                                "add_hook",
+                                (
+                                    "asdf",
+                                    capturing_hook
+                                        .getattr("hook")
+                                        .expect("could not get capturing hook"),
+                                    CommandPriorities::PRI_NORMAL as i32,
+                                ),
+                            )
+                        })
+                        .expect("could not add hook to stats dispatcher");
+                    EVENT_DISPATCHERS.store(Some(
+                        Py::new(py, event_dispatcher)
+                            .expect("could not create event dispatcher manager in python")
+                            .into(),
+                    ));
 
-                let result = try_handle_zmq_msg(py, stats_msg);
-                assert!(result.is_ok());
+                    let result = try_handle_zmq_msg(py, stats_msg);
+                    assert!(result.is_ok());
 
-                run_all_frame_tasks(py).expect("this should not happen");
+                    run_all_frame_tasks(py).expect("this should not happen");
 
-                let expected_json_data =
-                    to_py_json_data(py, stats_msg).expect("this should not happen");
-                let asdf = capturing_hook.call_method1("assert_called_with", (expected_json_data,));
-                assert!(asdf.as_ref().is_ok());
+                    let expected_json_data =
+                        to_py_json_data(py, stats_msg).expect("this should not happen");
+                    let asdf =
+                        capturing_hook.call_method1("assert_called_with", (expected_json_data,));
+                    assert!(asdf.as_ref().is_ok());
+                });
             });
-        });
     }
 
     #[rstest]
@@ -889,81 +898,84 @@ mod handle_zmq_msg_tests {
             .build()
             .expect("this should not happen");
 
-        with_mocked_engine(|mock_engine| {
-            mock_engine
-                .expect_find_cvar()
-                .with(predicate::eq("zmq_stats_enable"))
-                .returning_st(move |_| CVar::try_from(raw_cvar.borrow_mut() as *mut cvar_t).ok());
-        })
-        .run(|| {
-            Python::with_gil(|py| {
-                let event_dispatcher = EventDispatcherManager::default();
-                event_dispatcher
-                    .add_dispatcher(py, py.get_type_bound::<StatsDispatcher>())
-                    .expect("could not add stats dispatcher");
-                event_dispatcher
-                    .add_dispatcher(py, py.get_type_bound::<GameStartDispatcher>())
-                    .expect("could not add game_start dispatcher");
-                let capturing_hook = capturing_hook(py);
-                event_dispatcher
-                    .__getitem__(py, "stats")
-                    .and_then(|stats_dispatcher| {
-                        stats_dispatcher.call_method1(
-                            py,
-                            "add_hook",
-                            (
-                                "asdf",
-                                capturing_hook
-                                    .getattr("hook")
-                                    .expect("could not get capturing hook"),
-                                CommandPriorities::PRI_NORMAL as i32,
-                            ),
+        mocked_engine()
+            .configure(|mock_engine| {
+                mock_engine
+                    .expect_find_cvar()
+                    .with(predicate::eq("zmq_stats_enable"))
+                    .returning_st(move |_| {
+                        CVar::try_from(raw_cvar.borrow_mut() as *mut cvar_t).ok()
+                    });
+            })
+            .run(|| {
+                Python::with_gil(|py| {
+                    let event_dispatcher = EventDispatcherManager::default();
+                    event_dispatcher
+                        .add_dispatcher(py, py.get_type_bound::<StatsDispatcher>())
+                        .expect("could not add stats dispatcher");
+                    event_dispatcher
+                        .add_dispatcher(py, py.get_type_bound::<GameStartDispatcher>())
+                        .expect("could not add game_start dispatcher");
+                    let capturing_hook = capturing_hook(py);
+                    event_dispatcher
+                        .__getitem__(py, "stats")
+                        .and_then(|stats_dispatcher| {
+                            stats_dispatcher.call_method1(
+                                py,
+                                "add_hook",
+                                (
+                                    "asdf",
+                                    capturing_hook
+                                        .getattr("hook")
+                                        .expect("could not get capturing hook"),
+                                    CommandPriorities::PRI_NORMAL as i32,
+                                ),
+                            )
+                        })
+                        .expect("could not add hook to stats dispatcher");
+                    event_dispatcher
+                        .__getitem__(py, "game_start")
+                        .and_then(|game_start_dispatcher| {
+                            game_start_dispatcher.call_method1(
+                                py,
+                                "add_hook",
+                                (
+                                    "asdf",
+                                    capturing_hook
+                                        .getattr("hook")
+                                        .expect("could not get capturing hook"),
+                                    CommandPriorities::PRI_NORMAL as i32,
+                                ),
+                            )
+                        })
+                        .expect("could not add hook to game_start dispatcher");
+                    EVENT_DISPATCHERS.store(Some(
+                        Py::new(py, event_dispatcher)
+                            .expect("could not create event dispatcher manager in python")
+                            .into(),
+                    ));
+
+                    let result = try_handle_zmq_msg(py, game_start_data);
+                    assert!(result.is_ok());
+                    assert!(IN_PROGRESS.load(Ordering::SeqCst));
+
+                    run_all_frame_tasks(py).expect("this should not happen");
+
+                    let expected_json_data =
+                        to_py_json_data(py, game_start_data).expect("this should not happen");
+                    assert!(capturing_hook
+                        .call_method1("assert_called_with", (expected_json_data.clone(),))
+                        .is_ok());
+                    assert!(capturing_hook
+                        .call_method1(
+                            "assert_called_with",
+                            (expected_json_data
+                                .get_item("DATA")
+                                .expect("this should not happen"),)
                         )
-                    })
-                    .expect("could not add hook to stats dispatcher");
-                event_dispatcher
-                    .__getitem__(py, "game_start")
-                    .and_then(|game_start_dispatcher| {
-                        game_start_dispatcher.call_method1(
-                            py,
-                            "add_hook",
-                            (
-                                "asdf",
-                                capturing_hook
-                                    .getattr("hook")
-                                    .expect("could not get capturing hook"),
-                                CommandPriorities::PRI_NORMAL as i32,
-                            ),
-                        )
-                    })
-                    .expect("could not add hook to game_start dispatcher");
-                EVENT_DISPATCHERS.store(Some(
-                    Py::new(py, event_dispatcher)
-                        .expect("could not create event dispatcher manager in python")
-                        .into(),
-                ));
-
-                let result = try_handle_zmq_msg(py, game_start_data);
-                assert!(result.is_ok());
-                assert!(IN_PROGRESS.load(Ordering::SeqCst));
-
-                run_all_frame_tasks(py).expect("this should not happen");
-
-                let expected_json_data =
-                    to_py_json_data(py, game_start_data).expect("this should not happen");
-                assert!(capturing_hook
-                    .call_method1("assert_called_with", (expected_json_data.clone(),))
-                    .is_ok());
-                assert!(capturing_hook
-                    .call_method1(
-                        "assert_called_with",
-                        (expected_json_data
-                            .get_item("DATA")
-                            .expect("this should not happen"),)
-                    )
-                    .is_ok());
+                        .is_ok());
+                });
             });
-        });
     }
 
     #[rstest]
@@ -1000,80 +1012,83 @@ mod handle_zmq_msg_tests {
             .build()
             .expect("this should not happen");
 
-        with_mocked_engine(|mock_engine| {
-            mock_engine
-                .expect_find_cvar()
-                .with(predicate::eq("zmq_stats_enable"))
-                .returning_st(move |_| CVar::try_from(raw_cvar.borrow_mut() as *mut cvar_t).ok());
-        })
-        .run(|| {
-            Python::with_gil(|py| {
-                let event_dispatcher = EventDispatcherManager::default();
-                event_dispatcher
-                    .add_dispatcher(py, py.get_type_bound::<StatsDispatcher>())
-                    .expect("could not add stats dispatcher");
-                event_dispatcher
-                    .add_dispatcher(py, py.get_type_bound::<RoundEndDispatcher>())
-                    .expect("could not add round_end dispatcher");
-                let capturing_hook = capturing_hook(py);
-                event_dispatcher
-                    .__getitem__(py, "stats")
-                    .and_then(|stats_dispatcher| {
-                        stats_dispatcher.call_method1(
-                            py,
-                            "add_hook",
-                            (
-                                "asdf",
-                                capturing_hook
-                                    .getattr("hook")
-                                    .expect("could not get capturing hook"),
-                                CommandPriorities::PRI_NORMAL as i32,
-                            ),
+        mocked_engine()
+            .configure(|mock_engine| {
+                mock_engine
+                    .expect_find_cvar()
+                    .with(predicate::eq("zmq_stats_enable"))
+                    .returning_st(move |_| {
+                        CVar::try_from(raw_cvar.borrow_mut() as *mut cvar_t).ok()
+                    });
+            })
+            .run(|| {
+                Python::with_gil(|py| {
+                    let event_dispatcher = EventDispatcherManager::default();
+                    event_dispatcher
+                        .add_dispatcher(py, py.get_type_bound::<StatsDispatcher>())
+                        .expect("could not add stats dispatcher");
+                    event_dispatcher
+                        .add_dispatcher(py, py.get_type_bound::<RoundEndDispatcher>())
+                        .expect("could not add round_end dispatcher");
+                    let capturing_hook = capturing_hook(py);
+                    event_dispatcher
+                        .__getitem__(py, "stats")
+                        .and_then(|stats_dispatcher| {
+                            stats_dispatcher.call_method1(
+                                py,
+                                "add_hook",
+                                (
+                                    "asdf",
+                                    capturing_hook
+                                        .getattr("hook")
+                                        .expect("could not get capturing hook"),
+                                    CommandPriorities::PRI_NORMAL as i32,
+                                ),
+                            )
+                        })
+                        .expect("could not add hook to stats dispatcher");
+                    event_dispatcher
+                        .__getitem__(py, "round_end")
+                        .and_then(|round_end_dispatcher| {
+                            round_end_dispatcher.call_method1(
+                                py,
+                                "add_hook",
+                                (
+                                    "asdf",
+                                    capturing_hook
+                                        .getattr("hook")
+                                        .expect("could not get capturing hook"),
+                                    CommandPriorities::PRI_NORMAL as i32,
+                                ),
+                            )
+                        })
+                        .expect("could not add hook to round_end dispatcher");
+                    EVENT_DISPATCHERS.store(Some(
+                        Py::new(py, event_dispatcher)
+                            .expect("could not create event dispatcher manager in python")
+                            .into(),
+                    ));
+
+                    let result = try_handle_zmq_msg(py, round_end_data);
+                    assert!(result.is_ok());
+
+                    run_all_frame_tasks(py).expect("this should not happen");
+
+                    let expected_json_data =
+                        to_py_json_data(py, round_end_data).expect("this should not happen");
+                    assert!(capturing_hook
+                        .call_method1("assert_called_with", (expected_json_data.clone(),))
+                        .is_ok());
+                    assert!(capturing_hook
+                        .call_method1(
+                            "assert_called_with",
+                            (expected_json_data
+                                .get_item("DATA")
+                                .expect("this should not happen"),)
                         )
-                    })
-                    .expect("could not add hook to stats dispatcher");
-                event_dispatcher
-                    .__getitem__(py, "round_end")
-                    .and_then(|round_end_dispatcher| {
-                        round_end_dispatcher.call_method1(
-                            py,
-                            "add_hook",
-                            (
-                                "asdf",
-                                capturing_hook
-                                    .getattr("hook")
-                                    .expect("could not get capturing hook"),
-                                CommandPriorities::PRI_NORMAL as i32,
-                            ),
-                        )
-                    })
-                    .expect("could not add hook to round_end dispatcher");
-                EVENT_DISPATCHERS.store(Some(
-                    Py::new(py, event_dispatcher)
-                        .expect("could not create event dispatcher manager in python")
-                        .into(),
-                ));
-
-                let result = try_handle_zmq_msg(py, round_end_data);
-                assert!(result.is_ok());
-
-                run_all_frame_tasks(py).expect("this should not happen");
-
-                let expected_json_data =
-                    to_py_json_data(py, round_end_data).expect("this should not happen");
-                assert!(capturing_hook
-                    .call_method1("assert_called_with", (expected_json_data.clone(),))
-                    .is_ok());
-                assert!(capturing_hook
-                    .call_method1(
-                        "assert_called_with",
-                        (expected_json_data
-                            .get_item("DATA")
-                            .expect("this should not happen"),)
-                    )
-                    .is_ok());
+                        .is_ok());
+                });
             });
-        });
     }
 
     #[rstest]
@@ -1110,83 +1125,86 @@ mod handle_zmq_msg_tests {
             .build()
             .expect("this should not happen");
 
-        with_mocked_engine(|mock_engine| {
-            mock_engine
-                .expect_find_cvar()
-                .with(predicate::eq("zmq_stats_enable"))
-                .returning_st(move |_| CVar::try_from(raw_cvar.borrow_mut() as *mut cvar_t).ok());
-        })
-        .run(|| {
-            Python::with_gil(|py| {
-                let event_dispatcher = EventDispatcherManager::default();
-                event_dispatcher
-                    .add_dispatcher(py, py.get_type_bound::<StatsDispatcher>())
-                    .expect("could not add stats dispatcher");
-                event_dispatcher
-                    .add_dispatcher(py, py.get_type_bound::<GameEndDispatcher>())
-                    .expect("could not add game_end dispatcher");
-                let capturing_hook = capturing_hook(py);
-                event_dispatcher
-                    .__getitem__(py, "stats")
-                    .and_then(|stats_dispatcher| {
-                        stats_dispatcher.call_method1(
-                            py,
-                            "add_hook",
-                            (
-                                "asdf",
-                                capturing_hook
-                                    .getattr("hook")
-                                    .expect("could not get capturing hook"),
-                                CommandPriorities::PRI_NORMAL as i32,
-                            ),
+        mocked_engine()
+            .configure(|mock_engine| {
+                mock_engine
+                    .expect_find_cvar()
+                    .with(predicate::eq("zmq_stats_enable"))
+                    .returning_st(move |_| {
+                        CVar::try_from(raw_cvar.borrow_mut() as *mut cvar_t).ok()
+                    });
+            })
+            .run(|| {
+                Python::with_gil(|py| {
+                    let event_dispatcher = EventDispatcherManager::default();
+                    event_dispatcher
+                        .add_dispatcher(py, py.get_type_bound::<StatsDispatcher>())
+                        .expect("could not add stats dispatcher");
+                    event_dispatcher
+                        .add_dispatcher(py, py.get_type_bound::<GameEndDispatcher>())
+                        .expect("could not add game_end dispatcher");
+                    let capturing_hook = capturing_hook(py);
+                    event_dispatcher
+                        .__getitem__(py, "stats")
+                        .and_then(|stats_dispatcher| {
+                            stats_dispatcher.call_method1(
+                                py,
+                                "add_hook",
+                                (
+                                    "asdf",
+                                    capturing_hook
+                                        .getattr("hook")
+                                        .expect("could not get capturing hook"),
+                                    CommandPriorities::PRI_NORMAL as i32,
+                                ),
+                            )
+                        })
+                        .expect("could not add hook to stats dispatcher");
+                    event_dispatcher
+                        .__getitem__(py, "game_end")
+                        .and_then(|game_end_dispatcher| {
+                            game_end_dispatcher.call_method1(
+                                py,
+                                "add_hook",
+                                (
+                                    "asdf",
+                                    capturing_hook
+                                        .getattr("hook")
+                                        .expect("could not get capturing hook"),
+                                    CommandPriorities::PRI_NORMAL as i32,
+                                ),
+                            )
+                        })
+                        .expect("could not add hook to game_end dispatcher");
+                    EVENT_DISPATCHERS.store(Some(
+                        Py::new(py, event_dispatcher)
+                            .expect("could not create event dispatcher manager in python")
+                            .into(),
+                    ));
+
+                    IN_PROGRESS.store(true, Ordering::SeqCst);
+
+                    let result = try_handle_zmq_msg(py, game_end_data);
+                    assert!(result.is_ok());
+                    assert!(!IN_PROGRESS.load(Ordering::SeqCst));
+
+                    run_all_frame_tasks(py).expect("this should not happen");
+
+                    let expected_json_data =
+                        to_py_json_data(py, game_end_data).expect("this should not happen");
+                    assert!(capturing_hook
+                        .call_method1("assert_called_with", (expected_json_data.clone(),))
+                        .is_ok());
+                    assert!(capturing_hook
+                        .call_method1(
+                            "assert_called_with",
+                            (expected_json_data
+                                .get_item("DATA")
+                                .expect("this should not happen"),)
                         )
-                    })
-                    .expect("could not add hook to stats dispatcher");
-                event_dispatcher
-                    .__getitem__(py, "game_end")
-                    .and_then(|game_end_dispatcher| {
-                        game_end_dispatcher.call_method1(
-                            py,
-                            "add_hook",
-                            (
-                                "asdf",
-                                capturing_hook
-                                    .getattr("hook")
-                                    .expect("could not get capturing hook"),
-                                CommandPriorities::PRI_NORMAL as i32,
-                            ),
-                        )
-                    })
-                    .expect("could not add hook to game_end dispatcher");
-                EVENT_DISPATCHERS.store(Some(
-                    Py::new(py, event_dispatcher)
-                        .expect("could not create event dispatcher manager in python")
-                        .into(),
-                ));
-
-                IN_PROGRESS.store(true, Ordering::SeqCst);
-
-                let result = try_handle_zmq_msg(py, game_end_data);
-                assert!(result.is_ok());
-                assert!(!IN_PROGRESS.load(Ordering::SeqCst));
-
-                run_all_frame_tasks(py).expect("this should not happen");
-
-                let expected_json_data =
-                    to_py_json_data(py, game_end_data).expect("this should not happen");
-                assert!(capturing_hook
-                    .call_method1("assert_called_with", (expected_json_data.clone(),))
-                    .is_ok());
-                assert!(capturing_hook
-                    .call_method1(
-                        "assert_called_with",
-                        (expected_json_data
-                            .get_item("DATA")
-                            .expect("this should not happen"),)
-                    )
-                    .is_ok());
+                        .is_ok());
+                });
             });
-        });
     }
 
     #[rstest]
@@ -1201,83 +1219,86 @@ mod handle_zmq_msg_tests {
             .build()
             .expect("this should not happen");
 
-        with_mocked_engine(|mock_engine| {
-            mock_engine
-                .expect_find_cvar()
-                .with(predicate::eq("zmq_stats_enable"))
-                .returning_st(move |_| CVar::try_from(raw_cvar.borrow_mut() as *mut cvar_t).ok());
-        })
-        .run(|| {
-            Python::with_gil(|py| {
-                let event_dispatcher = EventDispatcherManager::default();
-                event_dispatcher
-                    .add_dispatcher(py, py.get_type_bound::<StatsDispatcher>())
-                    .expect("could not add stats dispatcher");
-                event_dispatcher
-                    .add_dispatcher(py, py.get_type_bound::<GameEndDispatcher>())
-                    .expect("could not add game_end dispatcher");
-                let capturing_hook = capturing_hook(py);
-                event_dispatcher
-                    .__getitem__(py, "stats")
-                    .and_then(|stats_dispatcher| {
-                        stats_dispatcher.call_method1(
-                            py,
-                            "add_hook",
-                            (
-                                "asdf",
-                                capturing_hook
-                                    .getattr("hook")
-                                    .expect("could not get capturing hook"),
-                                CommandPriorities::PRI_NORMAL as i32,
-                            ),
+        mocked_engine()
+            .configure(|mock_engine| {
+                mock_engine
+                    .expect_find_cvar()
+                    .with(predicate::eq("zmq_stats_enable"))
+                    .returning_st(move |_| {
+                        CVar::try_from(raw_cvar.borrow_mut() as *mut cvar_t).ok()
+                    });
+            })
+            .run(|| {
+                Python::with_gil(|py| {
+                    let event_dispatcher = EventDispatcherManager::default();
+                    event_dispatcher
+                        .add_dispatcher(py, py.get_type_bound::<StatsDispatcher>())
+                        .expect("could not add stats dispatcher");
+                    event_dispatcher
+                        .add_dispatcher(py, py.get_type_bound::<GameEndDispatcher>())
+                        .expect("could not add game_end dispatcher");
+                    let capturing_hook = capturing_hook(py);
+                    event_dispatcher
+                        .__getitem__(py, "stats")
+                        .and_then(|stats_dispatcher| {
+                            stats_dispatcher.call_method1(
+                                py,
+                                "add_hook",
+                                (
+                                    "asdf",
+                                    capturing_hook
+                                        .getattr("hook")
+                                        .expect("could not get capturing hook"),
+                                    CommandPriorities::PRI_NORMAL as i32,
+                                ),
+                            )
+                        })
+                        .expect("could not add hook to stats dispatcher");
+                    event_dispatcher
+                        .__getitem__(py, "game_end")
+                        .and_then(|game_end_dispatcher| {
+                            game_end_dispatcher.call_method1(
+                                py,
+                                "add_hook",
+                                (
+                                    "asdf",
+                                    capturing_hook
+                                        .getattr("hook")
+                                        .expect("could not get capturing hook"),
+                                    CommandPriorities::PRI_NORMAL as i32,
+                                ),
+                            )
+                        })
+                        .expect("could not add hook to game_end dispatcher");
+                    EVENT_DISPATCHERS.store(Some(
+                        Py::new(py, event_dispatcher)
+                            .expect("could not create event dispatcher manager in python")
+                            .into(),
+                    ));
+
+                    IN_PROGRESS.store(false, Ordering::SeqCst);
+
+                    let result = try_handle_zmq_msg(py, game_end_data);
+                    assert!(result.is_ok());
+                    assert!(!IN_PROGRESS.load(Ordering::SeqCst));
+
+                    run_all_frame_tasks(py).expect("this should not happen");
+
+                    let expected_json_data =
+                        to_py_json_data(py, game_end_data).expect("this should not happen");
+                    assert!(capturing_hook
+                        .call_method1("assert_called_with", (expected_json_data.clone(),))
+                        .is_ok());
+                    assert!(capturing_hook
+                        .call_method1(
+                            "assert_called_with",
+                            (expected_json_data
+                                .get_item("DATA")
+                                .expect("this should not happen"),)
                         )
-                    })
-                    .expect("could not add hook to stats dispatcher");
-                event_dispatcher
-                    .__getitem__(py, "game_end")
-                    .and_then(|game_end_dispatcher| {
-                        game_end_dispatcher.call_method1(
-                            py,
-                            "add_hook",
-                            (
-                                "asdf",
-                                capturing_hook
-                                    .getattr("hook")
-                                    .expect("could not get capturing hook"),
-                                CommandPriorities::PRI_NORMAL as i32,
-                            ),
-                        )
-                    })
-                    .expect("could not add hook to game_end dispatcher");
-                EVENT_DISPATCHERS.store(Some(
-                    Py::new(py, event_dispatcher)
-                        .expect("could not create event dispatcher manager in python")
-                        .into(),
-                ));
-
-                IN_PROGRESS.store(false, Ordering::SeqCst);
-
-                let result = try_handle_zmq_msg(py, game_end_data);
-                assert!(result.is_ok());
-                assert!(!IN_PROGRESS.load(Ordering::SeqCst));
-
-                run_all_frame_tasks(py).expect("this should not happen");
-
-                let expected_json_data =
-                    to_py_json_data(py, game_end_data).expect("this should not happen");
-                assert!(capturing_hook
-                    .call_method1("assert_called_with", (expected_json_data.clone(),))
-                    .is_ok());
-                assert!(capturing_hook
-                    .call_method1(
-                        "assert_called_with",
-                        (expected_json_data
-                            .get_item("DATA")
-                            .expect("this should not happen"),)
-                    )
-                    .is_err_and(|err| err.is_instance_of::<PyAssertionError>(py)));
+                        .is_err_and(|err| err.is_instance_of::<PyAssertionError>(py)));
+                });
             });
-        });
     }
 
     #[rstest]
@@ -1316,53 +1337,56 @@ mod handle_zmq_msg_tests {
             .build()
             .expect("this should not happen");
 
-        with_mocked_engine(|mock_engine| {
-            mock_engine
-                .expect_find_cvar()
-                .with(predicate::eq("zmq_stats_enable"))
-                .returning_st(move |_| CVar::try_from(raw_cvar.borrow_mut() as *mut cvar_t).ok());
-        })
-        .run(|| {
-            Python::with_gil(|py| {
-                let event_dispatcher = EventDispatcherManager::default();
-                event_dispatcher
-                    .add_dispatcher(py, py.get_type_bound::<StatsDispatcher>())
-                    .expect("could not add stats dispatcher");
-                let capturing_hook = capturing_hook(py);
-                event_dispatcher
-                    .__getitem__(py, "stats")
-                    .and_then(|stats_dispatcher| {
-                        stats_dispatcher.call_method1(
-                            py,
-                            "add_hook",
-                            (
-                                "asdf",
-                                capturing_hook
-                                    .getattr("hook")
-                                    .expect("could not get capturing hook"),
-                                CommandPriorities::PRI_NORMAL as i32,
-                            ),
-                        )
-                    })
-                    .expect("could not add hook to stats dispatcher");
-                EVENT_DISPATCHERS.store(Some(
-                    Py::new(py, event_dispatcher)
-                        .expect("could not create event dispatcher manager in python")
-                        .into(),
-                ));
+        mocked_engine()
+            .configure(|mock_engine| {
+                mock_engine
+                    .expect_find_cvar()
+                    .with(predicate::eq("zmq_stats_enable"))
+                    .returning_st(move |_| {
+                        CVar::try_from(raw_cvar.borrow_mut() as *mut cvar_t).ok()
+                    });
+            })
+            .run(|| {
+                Python::with_gil(|py| {
+                    let event_dispatcher = EventDispatcherManager::default();
+                    event_dispatcher
+                        .add_dispatcher(py, py.get_type_bound::<StatsDispatcher>())
+                        .expect("could not add stats dispatcher");
+                    let capturing_hook = capturing_hook(py);
+                    event_dispatcher
+                        .__getitem__(py, "stats")
+                        .and_then(|stats_dispatcher| {
+                            stats_dispatcher.call_method1(
+                                py,
+                                "add_hook",
+                                (
+                                    "asdf",
+                                    capturing_hook
+                                        .getattr("hook")
+                                        .expect("could not get capturing hook"),
+                                    CommandPriorities::PRI_NORMAL as i32,
+                                ),
+                            )
+                        })
+                        .expect("could not add hook to stats dispatcher");
+                    EVENT_DISPATCHERS.store(Some(
+                        Py::new(py, event_dispatcher)
+                            .expect("could not create event dispatcher manager in python")
+                            .into(),
+                    ));
 
-                let result = try_handle_zmq_msg(py, player_death_data);
-                assert!(result.is_ok());
+                    let result = try_handle_zmq_msg(py, player_death_data);
+                    assert!(result.is_ok());
 
-                run_all_frame_tasks(py).expect("this should not happen");
+                    run_all_frame_tasks(py).expect("this should not happen");
 
-                let expected_json_data =
-                    to_py_json_data(py, player_death_data).expect("this should not happen");
-                assert!(capturing_hook
-                    .call_method1("assert_called_with", (expected_json_data.clone(),))
-                    .is_ok());
+                    let expected_json_data =
+                        to_py_json_data(py, player_death_data).expect("this should not happen");
+                    assert!(capturing_hook
+                        .call_method1("assert_called_with", (expected_json_data.clone(),))
+                        .is_ok());
+                });
             });
-        });
     }
 
     #[rstest]
@@ -1439,85 +1463,88 @@ mod handle_zmq_msg_tests {
                 mock_game_entity
             });
 
-        with_mocked_engine(|mock_engine| {
-            mock_engine
-                .expect_find_cvar()
-                .with(predicate::eq("zmq_stats_enable"))
-                .returning_st(move |_| CVar::try_from(raw_cvar.borrow_mut() as *mut cvar_t).ok());
-            mock_engine.expect_get_max_clients().returning(|| 16);
-        })
-        .run(|| {
-            Python::with_gil(|py| {
-                let event_dispatcher = EventDispatcherManager::default();
-                event_dispatcher
-                    .add_dispatcher(py, py.get_type_bound::<StatsDispatcher>())
-                    .expect("could not add stats dispatcher");
-                event_dispatcher
-                    .add_dispatcher(py, py.get_type_bound::<DeathDispatcher>())
-                    .expect("could not add death dispatcher");
-                let capturing_hook = capturing_hook(py);
-                event_dispatcher
-                    .__getitem__(py, "stats")
-                    .and_then(|stats_dispatcher| {
-                        stats_dispatcher.call_method1(
-                            py,
-                            "add_hook",
+        mocked_engine()
+            .configure(|mock_engine| {
+                mock_engine
+                    .expect_find_cvar()
+                    .with(predicate::eq("zmq_stats_enable"))
+                    .returning_st(move |_| {
+                        CVar::try_from(raw_cvar.borrow_mut() as *mut cvar_t).ok()
+                    });
+                mock_engine.expect_get_max_clients().returning(|| 16);
+            })
+            .run(|| {
+                Python::with_gil(|py| {
+                    let event_dispatcher = EventDispatcherManager::default();
+                    event_dispatcher
+                        .add_dispatcher(py, py.get_type_bound::<StatsDispatcher>())
+                        .expect("could not add stats dispatcher");
+                    event_dispatcher
+                        .add_dispatcher(py, py.get_type_bound::<DeathDispatcher>())
+                        .expect("could not add death dispatcher");
+                    let capturing_hook = capturing_hook(py);
+                    event_dispatcher
+                        .__getitem__(py, "stats")
+                        .and_then(|stats_dispatcher| {
+                            stats_dispatcher.call_method1(
+                                py,
+                                "add_hook",
+                                (
+                                    "asdf",
+                                    capturing_hook
+                                        .getattr("hook")
+                                        .expect("could not get capturing hook"),
+                                    CommandPriorities::PRI_NORMAL as i32,
+                                ),
+                            )
+                        })
+                        .expect("could not add hook to stats dispatcher");
+                    event_dispatcher
+                        .__getitem__(py, "death")
+                        .and_then(|death_dispatcher| {
+                            death_dispatcher.call_method1(
+                                py,
+                                "add_hook",
+                                (
+                                    "asdf",
+                                    capturing_hook
+                                        .getattr("hook")
+                                        .expect("could not get capturing hook"),
+                                    CommandPriorities::PRI_NORMAL as i32,
+                                ),
+                            )
+                        })
+                        .expect("could not add hook to death dispatcher");
+                    EVENT_DISPATCHERS.store(Some(
+                        Py::new(py, event_dispatcher)
+                            .expect("could not create event dispatcher manager in python")
+                            .into(),
+                    ));
+
+                    let result = try_handle_zmq_msg(py, player_death_data);
+                    assert!(result.is_ok());
+
+                    run_all_frame_tasks(py).expect("this should not happen");
+
+                    let expected_json_data =
+                        to_py_json_data(py, player_death_data).expect("this should not happen");
+                    assert!(capturing_hook
+                        .call_method1("assert_called_with", (expected_json_data.clone(),))
+                        .is_ok());
+                    assert!(capturing_hook
+                        .call_method1(
+                            "assert_called_with",
                             (
-                                "asdf",
-                                capturing_hook
-                                    .getattr("hook")
-                                    .expect("could not get capturing hook"),
-                                CommandPriorities::PRI_NORMAL as i32,
-                            ),
+                                "_",
+                                py.None(),
+                                expected_json_data
+                                    .get_item("DATA")
+                                    .expect("this should not happen"),
+                            )
                         )
-                    })
-                    .expect("could not add hook to stats dispatcher");
-                event_dispatcher
-                    .__getitem__(py, "death")
-                    .and_then(|death_dispatcher| {
-                        death_dispatcher.call_method1(
-                            py,
-                            "add_hook",
-                            (
-                                "asdf",
-                                capturing_hook
-                                    .getattr("hook")
-                                    .expect("could not get capturing hook"),
-                                CommandPriorities::PRI_NORMAL as i32,
-                            ),
-                        )
-                    })
-                    .expect("could not add hook to death dispatcher");
-                EVENT_DISPATCHERS.store(Some(
-                    Py::new(py, event_dispatcher)
-                        .expect("could not create event dispatcher manager in python")
-                        .into(),
-                ));
-
-                let result = try_handle_zmq_msg(py, player_death_data);
-                assert!(result.is_ok());
-
-                run_all_frame_tasks(py).expect("this should not happen");
-
-                let expected_json_data =
-                    to_py_json_data(py, player_death_data).expect("this should not happen");
-                assert!(capturing_hook
-                    .call_method1("assert_called_with", (expected_json_data.clone(),))
-                    .is_ok());
-                assert!(capturing_hook
-                    .call_method1(
-                        "assert_called_with",
-                        (
-                            "_",
-                            py.None(),
-                            expected_json_data
-                                .get_item("DATA")
-                                .expect("this should not happen"),
-                        )
-                    )
-                    .is_ok());
+                        .is_ok());
+                });
             });
-        });
     }
 
     #[rstest]
@@ -1594,85 +1621,88 @@ mod handle_zmq_msg_tests {
                 mock_game_entity
             });
 
-        with_mocked_engine(|mock_engine| {
-            mock_engine
-                .expect_find_cvar()
-                .with(predicate::eq("zmq_stats_enable"))
-                .returning_st(move |_| CVar::try_from(raw_cvar.borrow_mut() as *mut cvar_t).ok());
-            mock_engine.expect_get_max_clients().returning(|| 16);
-        })
-        .run(|| {
-            Python::with_gil(|py| {
-                let event_dispatcher = EventDispatcherManager::default();
-                event_dispatcher
-                    .add_dispatcher(py, py.get_type_bound::<StatsDispatcher>())
-                    .expect("could not add stats dispatcher");
-                event_dispatcher
-                    .add_dispatcher(py, py.get_type_bound::<DeathDispatcher>())
-                    .expect("could not add death dispatcher");
-                let capturing_hook = capturing_hook(py);
-                event_dispatcher
-                    .__getitem__(py, "stats")
-                    .and_then(|stats_dispatcher| {
-                        stats_dispatcher.call_method1(
-                            py,
-                            "add_hook",
+        mocked_engine()
+            .configure(|mock_engine| {
+                mock_engine
+                    .expect_find_cvar()
+                    .with(predicate::eq("zmq_stats_enable"))
+                    .returning_st(move |_| {
+                        CVar::try_from(raw_cvar.borrow_mut() as *mut cvar_t).ok()
+                    });
+                mock_engine.expect_get_max_clients().returning(|| 16);
+            })
+            .run(|| {
+                Python::with_gil(|py| {
+                    let event_dispatcher = EventDispatcherManager::default();
+                    event_dispatcher
+                        .add_dispatcher(py, py.get_type_bound::<StatsDispatcher>())
+                        .expect("could not add stats dispatcher");
+                    event_dispatcher
+                        .add_dispatcher(py, py.get_type_bound::<DeathDispatcher>())
+                        .expect("could not add death dispatcher");
+                    let capturing_hook = capturing_hook(py);
+                    event_dispatcher
+                        .__getitem__(py, "stats")
+                        .and_then(|stats_dispatcher| {
+                            stats_dispatcher.call_method1(
+                                py,
+                                "add_hook",
+                                (
+                                    "asdf",
+                                    capturing_hook
+                                        .getattr("hook")
+                                        .expect("could not get capturing hook"),
+                                    CommandPriorities::PRI_NORMAL as i32,
+                                ),
+                            )
+                        })
+                        .expect("could not add hook to stats dispatcher");
+                    event_dispatcher
+                        .__getitem__(py, "death")
+                        .and_then(|death_dispatcher| {
+                            death_dispatcher.call_method1(
+                                py,
+                                "add_hook",
+                                (
+                                    "asdf",
+                                    capturing_hook
+                                        .getattr("hook")
+                                        .expect("could not get capturing hook"),
+                                    CommandPriorities::PRI_NORMAL as i32,
+                                ),
+                            )
+                        })
+                        .expect("could not add hook to death dispatcher");
+                    EVENT_DISPATCHERS.store(Some(
+                        Py::new(py, event_dispatcher)
+                            .expect("could not create event dispatcher manager in python")
+                            .into(),
+                    ));
+
+                    let result = try_handle_zmq_msg(py, player_death_data);
+                    assert!(result.is_ok());
+
+                    run_all_frame_tasks(py).expect("this should not happen");
+
+                    let expected_json_data =
+                        to_py_json_data(py, player_death_data).expect("this should not happen");
+                    assert!(capturing_hook
+                        .call_method1("assert_called_with", (expected_json_data.clone(),))
+                        .is_ok());
+                    assert!(capturing_hook
+                        .call_method1(
+                            "assert_called_with",
                             (
-                                "asdf",
-                                capturing_hook
-                                    .getattr("hook")
-                                    .expect("could not get capturing hook"),
-                                CommandPriorities::PRI_NORMAL as i32,
-                            ),
+                                "_",
+                                py.None(),
+                                expected_json_data
+                                    .get_item("DATA")
+                                    .expect("this should not happen"),
+                            )
                         )
-                    })
-                    .expect("could not add hook to stats dispatcher");
-                event_dispatcher
-                    .__getitem__(py, "death")
-                    .and_then(|death_dispatcher| {
-                        death_dispatcher.call_method1(
-                            py,
-                            "add_hook",
-                            (
-                                "asdf",
-                                capturing_hook
-                                    .getattr("hook")
-                                    .expect("could not get capturing hook"),
-                                CommandPriorities::PRI_NORMAL as i32,
-                            ),
-                        )
-                    })
-                    .expect("could not add hook to death dispatcher");
-                EVENT_DISPATCHERS.store(Some(
-                    Py::new(py, event_dispatcher)
-                        .expect("could not create event dispatcher manager in python")
-                        .into(),
-                ));
-
-                let result = try_handle_zmq_msg(py, player_death_data);
-                assert!(result.is_ok());
-
-                run_all_frame_tasks(py).expect("this should not happen");
-
-                let expected_json_data =
-                    to_py_json_data(py, player_death_data).expect("this should not happen");
-                assert!(capturing_hook
-                    .call_method1("assert_called_with", (expected_json_data.clone(),))
-                    .is_ok());
-                assert!(capturing_hook
-                    .call_method1(
-                        "assert_called_with",
-                        (
-                            "_",
-                            py.None(),
-                            expected_json_data
-                                .get_item("DATA")
-                                .expect("this should not happen"),
-                        )
-                    )
-                    .is_ok());
+                        .is_ok());
+                });
             });
-        });
     }
 
     #[rstest]
@@ -1721,54 +1751,57 @@ mod handle_zmq_msg_tests {
                 mock_game_entity
             });
 
-        with_mocked_engine(|mock_engine| {
-            mock_engine
-                .expect_find_cvar()
-                .with(predicate::eq("zmq_stats_enable"))
-                .returning_st(move |_| CVar::try_from(raw_cvar.borrow_mut() as *mut cvar_t).ok());
-            mock_engine.expect_get_max_clients().returning(|| 16);
-        })
-        .run(|| {
-            Python::with_gil(|py| {
-                let event_dispatcher = EventDispatcherManager::default();
-                event_dispatcher
-                    .add_dispatcher(py, py.get_type_bound::<StatsDispatcher>())
-                    .expect("could not add stats dispatcher");
-                let capturing_hook = capturing_hook(py);
-                event_dispatcher
-                    .__getitem__(py, "stats")
-                    .and_then(|stats_dispatcher| {
-                        stats_dispatcher.call_method1(
-                            py,
-                            "add_hook",
-                            (
-                                "asdf",
-                                capturing_hook
-                                    .getattr("hook")
-                                    .expect("could not get capturing hook"),
-                                CommandPriorities::PRI_NORMAL as i32,
-                            ),
-                        )
-                    })
-                    .expect("could not add hook to stats dispatcher");
-                EVENT_DISPATCHERS.store(Some(
-                    Py::new(py, event_dispatcher)
-                        .expect("could not create event dispatcher manager in python")
-                        .into(),
-                ));
+        mocked_engine()
+            .configure(|mock_engine| {
+                mock_engine
+                    .expect_find_cvar()
+                    .with(predicate::eq("zmq_stats_enable"))
+                    .returning_st(move |_| {
+                        CVar::try_from(raw_cvar.borrow_mut() as *mut cvar_t).ok()
+                    });
+                mock_engine.expect_get_max_clients().returning(|| 16);
+            })
+            .run(|| {
+                Python::with_gil(|py| {
+                    let event_dispatcher = EventDispatcherManager::default();
+                    event_dispatcher
+                        .add_dispatcher(py, py.get_type_bound::<StatsDispatcher>())
+                        .expect("could not add stats dispatcher");
+                    let capturing_hook = capturing_hook(py);
+                    event_dispatcher
+                        .__getitem__(py, "stats")
+                        .and_then(|stats_dispatcher| {
+                            stats_dispatcher.call_method1(
+                                py,
+                                "add_hook",
+                                (
+                                    "asdf",
+                                    capturing_hook
+                                        .getattr("hook")
+                                        .expect("could not get capturing hook"),
+                                    CommandPriorities::PRI_NORMAL as i32,
+                                ),
+                            )
+                        })
+                        .expect("could not add hook to stats dispatcher");
+                    EVENT_DISPATCHERS.store(Some(
+                        Py::new(py, event_dispatcher)
+                            .expect("could not create event dispatcher manager in python")
+                            .into(),
+                    ));
 
-                let result = try_handle_zmq_msg(py, player_death_data);
-                assert!(result.is_ok());
+                    let result = try_handle_zmq_msg(py, player_death_data);
+                    assert!(result.is_ok());
 
-                run_all_frame_tasks(py).expect("this should not happen");
+                    run_all_frame_tasks(py).expect("this should not happen");
 
-                let expected_json_data =
-                    to_py_json_data(py, player_death_data).expect("this should not happen");
-                assert!(capturing_hook
-                    .call_method1("assert_called_with", (expected_json_data.clone(),))
-                    .is_ok());
+                    let expected_json_data =
+                        to_py_json_data(py, player_death_data).expect("this should not happen");
+                    assert!(capturing_hook
+                        .call_method1("assert_called_with", (expected_json_data.clone(),))
+                        .is_ok());
+                });
             });
-        });
     }
 
     #[rstest]
@@ -1847,31 +1880,34 @@ mod handle_zmq_msg_tests {
                 mock_game_entity
             });
 
-        with_mocked_engine(|mock_engine| {
-            mock_engine
-                .expect_find_cvar()
-                .with(predicate::eq("zmq_stats_enable"))
-                .returning_st(move |_| CVar::try_from(raw_cvar.borrow_mut() as *mut cvar_t).ok());
-            mock_engine.expect_get_max_clients().returning(|| 16);
-        })
-        .run(|| {
-            Python::with_gil(|py| {
-                let event_dispatcher = EventDispatcherManager::default();
-                event_dispatcher
-                    .add_dispatcher(py, py.get_type_bound::<StatsDispatcher>())
-                    .expect("could not add stats dispatcher");
-                EVENT_DISPATCHERS.store(Some(
-                    Py::new(py, event_dispatcher)
-                        .expect("could not create event dispatcher manager in python")
-                        .into(),
-                ));
+        mocked_engine()
+            .configure(|mock_engine| {
+                mock_engine
+                    .expect_find_cvar()
+                    .with(predicate::eq("zmq_stats_enable"))
+                    .returning_st(move |_| {
+                        CVar::try_from(raw_cvar.borrow_mut() as *mut cvar_t).ok()
+                    });
+                mock_engine.expect_get_max_clients().returning(|| 16);
+            })
+            .run(|| {
+                Python::with_gil(|py| {
+                    let event_dispatcher = EventDispatcherManager::default();
+                    event_dispatcher
+                        .add_dispatcher(py, py.get_type_bound::<StatsDispatcher>())
+                        .expect("could not add stats dispatcher");
+                    EVENT_DISPATCHERS.store(Some(
+                        Py::new(py, event_dispatcher)
+                            .expect("could not create event dispatcher manager in python")
+                            .into(),
+                    ));
 
-                let result = try_handle_zmq_msg(py, player_death_data);
-                run_all_frame_tasks(py).expect("this should not happen");
+                    let result = try_handle_zmq_msg(py, player_death_data);
+                    run_all_frame_tasks(py).expect("this should not happen");
 
-                assert!(result.is_err_and(|err| err.is_instance_of::<PyEnvironmentError>(py)));
+                    assert!(result.is_err_and(|err| err.is_instance_of::<PyEnvironmentError>(py)));
+                });
             });
-        });
     }
 
     #[rstest]
@@ -1978,116 +2014,119 @@ mod handle_zmq_msg_tests {
                 mock_game_entity
             });
 
-        with_mocked_engine(|mock_engine| {
-            mock_engine
-                .expect_find_cvar()
-                .with(predicate::eq("zmq_stats_enable"))
-                .returning_st(move |_| CVar::try_from(raw_cvar.borrow_mut() as *mut cvar_t).ok());
-            mock_engine.expect_get_max_clients().returning(|| 16);
-        })
-        .run(|| {
-            Python::with_gil(|py| {
-                let event_dispatcher = EventDispatcherManager::default();
-                event_dispatcher
-                    .add_dispatcher(py, py.get_type_bound::<StatsDispatcher>())
-                    .expect("could not add stats dispatcher");
-                event_dispatcher
-                    .add_dispatcher(py, py.get_type_bound::<DeathDispatcher>())
-                    .expect("could not add death dispatcher");
-                event_dispatcher
-                    .add_dispatcher(py, py.get_type_bound::<KillDispatcher>())
-                    .expect("could not add kill dispatcher");
-                let capturing_hook = capturing_hook(py);
-                event_dispatcher
-                    .__getitem__(py, "stats")
-                    .and_then(|stats_dispatcher| {
-                        stats_dispatcher.call_method1(
-                            py,
-                            "add_hook",
-                            (
-                                "asdf",
-                                capturing_hook
-                                    .getattr("hook")
-                                    .expect("could not get capturing hook"),
-                                CommandPriorities::PRI_NORMAL as i32,
-                            ),
-                        )
-                    })
-                    .expect("could not add hook to stats dispatcher");
-                event_dispatcher
-                    .__getitem__(py, "death")
-                    .and_then(|death_dispatcher| {
-                        death_dispatcher.call_method1(
-                            py,
-                            "add_hook",
-                            (
-                                "asdf",
-                                capturing_hook
-                                    .getattr("hook")
-                                    .expect("could not get capturing hook"),
-                                CommandPriorities::PRI_NORMAL as i32,
-                            ),
-                        )
-                    })
-                    .expect("could not add hook to death dispatcher");
-                event_dispatcher
-                    .__getitem__(py, "kill")
-                    .and_then(|death_dispatcher| {
-                        death_dispatcher.call_method1(
-                            py,
-                            "add_hook",
-                            (
-                                "asdf",
-                                capturing_hook
-                                    .getattr("hook")
-                                    .expect("could not get capturing hook"),
-                                CommandPriorities::PRI_NORMAL as i32,
-                            ),
-                        )
-                    })
-                    .expect("could not add hook to kill dispatcher");
-                EVENT_DISPATCHERS.store(Some(
-                    Py::new(py, event_dispatcher)
-                        .expect("could not create event dispatcher manager in python")
-                        .into(),
-                ));
+        mocked_engine()
+            .configure(|mock_engine| {
+                mock_engine
+                    .expect_find_cvar()
+                    .with(predicate::eq("zmq_stats_enable"))
+                    .returning_st(move |_| {
+                        CVar::try_from(raw_cvar.borrow_mut() as *mut cvar_t).ok()
+                    });
+                mock_engine.expect_get_max_clients().returning(|| 16);
+            })
+            .run(|| {
+                Python::with_gil(|py| {
+                    let event_dispatcher = EventDispatcherManager::default();
+                    event_dispatcher
+                        .add_dispatcher(py, py.get_type_bound::<StatsDispatcher>())
+                        .expect("could not add stats dispatcher");
+                    event_dispatcher
+                        .add_dispatcher(py, py.get_type_bound::<DeathDispatcher>())
+                        .expect("could not add death dispatcher");
+                    event_dispatcher
+                        .add_dispatcher(py, py.get_type_bound::<KillDispatcher>())
+                        .expect("could not add kill dispatcher");
+                    let capturing_hook = capturing_hook(py);
+                    event_dispatcher
+                        .__getitem__(py, "stats")
+                        .and_then(|stats_dispatcher| {
+                            stats_dispatcher.call_method1(
+                                py,
+                                "add_hook",
+                                (
+                                    "asdf",
+                                    capturing_hook
+                                        .getattr("hook")
+                                        .expect("could not get capturing hook"),
+                                    CommandPriorities::PRI_NORMAL as i32,
+                                ),
+                            )
+                        })
+                        .expect("could not add hook to stats dispatcher");
+                    event_dispatcher
+                        .__getitem__(py, "death")
+                        .and_then(|death_dispatcher| {
+                            death_dispatcher.call_method1(
+                                py,
+                                "add_hook",
+                                (
+                                    "asdf",
+                                    capturing_hook
+                                        .getattr("hook")
+                                        .expect("could not get capturing hook"),
+                                    CommandPriorities::PRI_NORMAL as i32,
+                                ),
+                            )
+                        })
+                        .expect("could not add hook to death dispatcher");
+                    event_dispatcher
+                        .__getitem__(py, "kill")
+                        .and_then(|death_dispatcher| {
+                            death_dispatcher.call_method1(
+                                py,
+                                "add_hook",
+                                (
+                                    "asdf",
+                                    capturing_hook
+                                        .getattr("hook")
+                                        .expect("could not get capturing hook"),
+                                    CommandPriorities::PRI_NORMAL as i32,
+                                ),
+                            )
+                        })
+                        .expect("could not add hook to kill dispatcher");
+                    EVENT_DISPATCHERS.store(Some(
+                        Py::new(py, event_dispatcher)
+                            .expect("could not create event dispatcher manager in python")
+                            .into(),
+                    ));
 
-                let result = try_handle_zmq_msg(py, player_death_data);
-                assert!(result.is_ok());
+                    let result = try_handle_zmq_msg(py, player_death_data);
+                    assert!(result.is_ok());
 
-                run_all_frame_tasks(py).expect("this should not happen");
+                    run_all_frame_tasks(py).expect("this should not happen");
 
-                let expected_json_data =
-                    to_py_json_data(py, player_death_data).expect("this should not happen");
-                assert!(capturing_hook
-                    .call_method1("assert_called_with", (expected_json_data.clone(),))
-                    .is_ok());
-                assert!(capturing_hook
-                    .call_method1(
-                        "assert_called_with",
-                        (
-                            "_",
-                            "_",
-                            expected_json_data
-                                .get_item("DATA")
-                                .expect("this should not happen"),
+                    let expected_json_data =
+                        to_py_json_data(py, player_death_data).expect("this should not happen");
+                    assert!(capturing_hook
+                        .call_method1("assert_called_with", (expected_json_data.clone(),))
+                        .is_ok());
+                    assert!(capturing_hook
+                        .call_method1(
+                            "assert_called_with",
+                            (
+                                "_",
+                                "_",
+                                expected_json_data
+                                    .get_item("DATA")
+                                    .expect("this should not happen"),
+                            )
                         )
-                    )
-                    .is_ok());
-                assert!(capturing_hook
-                    .call_method1(
-                        "assert_called_with",
-                        (
-                            "_",
-                            "_",
-                            expected_json_data
-                                .get_item("DATA")
-                                .expect("this should not happen"),
+                        .is_ok());
+                    assert!(capturing_hook
+                        .call_method1(
+                            "assert_called_with",
+                            (
+                                "_",
+                                "_",
+                                expected_json_data
+                                    .get_item("DATA")
+                                    .expect("this should not happen"),
+                            )
                         )
-                    )
-                    .is_ok());
+                        .is_ok());
+                });
             });
-        });
     }
 
     #[rstest]
@@ -2194,116 +2233,119 @@ mod handle_zmq_msg_tests {
                 mock_game_entity
             });
 
-        with_mocked_engine(|mock_engine| {
-            mock_engine
-                .expect_find_cvar()
-                .with(predicate::eq("zmq_stats_enable"))
-                .returning_st(move |_| CVar::try_from(raw_cvar.borrow_mut() as *mut cvar_t).ok());
-            mock_engine.expect_get_max_clients().returning(|| 16);
-        })
-        .run(|| {
-            Python::with_gil(|py| {
-                let event_dispatcher = EventDispatcherManager::default();
-                event_dispatcher
-                    .add_dispatcher(py, py.get_type_bound::<StatsDispatcher>())
-                    .expect("could not add stats dispatcher");
-                event_dispatcher
-                    .add_dispatcher(py, py.get_type_bound::<DeathDispatcher>())
-                    .expect("could not add death dispatcher");
-                event_dispatcher
-                    .add_dispatcher(py, py.get_type_bound::<KillDispatcher>())
-                    .expect("could not add kill dispatcher");
-                let capturing_hook = capturing_hook(py);
-                event_dispatcher
-                    .__getitem__(py, "stats")
-                    .and_then(|stats_dispatcher| {
-                        stats_dispatcher.call_method1(
-                            py,
-                            "add_hook",
-                            (
-                                "asdf",
-                                capturing_hook
-                                    .getattr("hook")
-                                    .expect("could not get capturing hook"),
-                                CommandPriorities::PRI_NORMAL as i32,
-                            ),
-                        )
-                    })
-                    .expect("could not add hook to stats dispatcher");
-                event_dispatcher
-                    .__getitem__(py, "death")
-                    .and_then(|death_dispatcher| {
-                        death_dispatcher.call_method1(
-                            py,
-                            "add_hook",
-                            (
-                                "asdf",
-                                capturing_hook
-                                    .getattr("hook")
-                                    .expect("could not get capturing hook"),
-                                CommandPriorities::PRI_NORMAL as i32,
-                            ),
-                        )
-                    })
-                    .expect("could not add hook to death dispatcher");
-                event_dispatcher
-                    .__getitem__(py, "kill")
-                    .and_then(|death_dispatcher| {
-                        death_dispatcher.call_method1(
-                            py,
-                            "add_hook",
-                            (
-                                "asdf",
-                                capturing_hook
-                                    .getattr("hook")
-                                    .expect("could not get capturing hook"),
-                                CommandPriorities::PRI_NORMAL as i32,
-                            ),
-                        )
-                    })
-                    .expect("could not add hook to kill dispatcher");
-                EVENT_DISPATCHERS.store(Some(
-                    Py::new(py, event_dispatcher)
-                        .expect("could not create event dispatcher manager in python")
-                        .into(),
-                ));
+        mocked_engine()
+            .configure(|mock_engine| {
+                mock_engine
+                    .expect_find_cvar()
+                    .with(predicate::eq("zmq_stats_enable"))
+                    .returning_st(move |_| {
+                        CVar::try_from(raw_cvar.borrow_mut() as *mut cvar_t).ok()
+                    });
+                mock_engine.expect_get_max_clients().returning(|| 16);
+            })
+            .run(|| {
+                Python::with_gil(|py| {
+                    let event_dispatcher = EventDispatcherManager::default();
+                    event_dispatcher
+                        .add_dispatcher(py, py.get_type_bound::<StatsDispatcher>())
+                        .expect("could not add stats dispatcher");
+                    event_dispatcher
+                        .add_dispatcher(py, py.get_type_bound::<DeathDispatcher>())
+                        .expect("could not add death dispatcher");
+                    event_dispatcher
+                        .add_dispatcher(py, py.get_type_bound::<KillDispatcher>())
+                        .expect("could not add kill dispatcher");
+                    let capturing_hook = capturing_hook(py);
+                    event_dispatcher
+                        .__getitem__(py, "stats")
+                        .and_then(|stats_dispatcher| {
+                            stats_dispatcher.call_method1(
+                                py,
+                                "add_hook",
+                                (
+                                    "asdf",
+                                    capturing_hook
+                                        .getattr("hook")
+                                        .expect("could not get capturing hook"),
+                                    CommandPriorities::PRI_NORMAL as i32,
+                                ),
+                            )
+                        })
+                        .expect("could not add hook to stats dispatcher");
+                    event_dispatcher
+                        .__getitem__(py, "death")
+                        .and_then(|death_dispatcher| {
+                            death_dispatcher.call_method1(
+                                py,
+                                "add_hook",
+                                (
+                                    "asdf",
+                                    capturing_hook
+                                        .getattr("hook")
+                                        .expect("could not get capturing hook"),
+                                    CommandPriorities::PRI_NORMAL as i32,
+                                ),
+                            )
+                        })
+                        .expect("could not add hook to death dispatcher");
+                    event_dispatcher
+                        .__getitem__(py, "kill")
+                        .and_then(|death_dispatcher| {
+                            death_dispatcher.call_method1(
+                                py,
+                                "add_hook",
+                                (
+                                    "asdf",
+                                    capturing_hook
+                                        .getattr("hook")
+                                        .expect("could not get capturing hook"),
+                                    CommandPriorities::PRI_NORMAL as i32,
+                                ),
+                            )
+                        })
+                        .expect("could not add hook to kill dispatcher");
+                    EVENT_DISPATCHERS.store(Some(
+                        Py::new(py, event_dispatcher)
+                            .expect("could not create event dispatcher manager in python")
+                            .into(),
+                    ));
 
-                let result = try_handle_zmq_msg(py, player_death_data);
-                assert!(result.is_ok());
+                    let result = try_handle_zmq_msg(py, player_death_data);
+                    assert!(result.is_ok());
 
-                run_all_frame_tasks(py).expect("this should not happen");
+                    run_all_frame_tasks(py).expect("this should not happen");
 
-                let expected_json_data =
-                    to_py_json_data(py, player_death_data).expect("this should not happen");
-                assert!(capturing_hook
-                    .call_method1("assert_called_with", (expected_json_data.clone(),))
-                    .is_ok());
-                assert!(capturing_hook
-                    .call_method1(
-                        "assert_called_with",
-                        (
-                            "_",
-                            "_",
-                            expected_json_data
-                                .get_item("DATA")
-                                .expect("this should not happen"),
+                    let expected_json_data =
+                        to_py_json_data(py, player_death_data).expect("this should not happen");
+                    assert!(capturing_hook
+                        .call_method1("assert_called_with", (expected_json_data.clone(),))
+                        .is_ok());
+                    assert!(capturing_hook
+                        .call_method1(
+                            "assert_called_with",
+                            (
+                                "_",
+                                "_",
+                                expected_json_data
+                                    .get_item("DATA")
+                                    .expect("this should not happen"),
+                            )
                         )
-                    )
-                    .is_ok());
-                assert!(capturing_hook
-                    .call_method1(
-                        "assert_called_with",
-                        (
-                            "_",
-                            "_",
-                            expected_json_data
-                                .get_item("DATA")
-                                .expect("this should not happen"),
+                        .is_ok());
+                    assert!(capturing_hook
+                        .call_method1(
+                            "assert_called_with",
+                            (
+                                "_",
+                                "_",
+                                expected_json_data
+                                    .get_item("DATA")
+                                    .expect("this should not happen"),
+                            )
                         )
-                    )
-                    .is_ok());
+                        .is_ok());
+                });
             });
-        });
     }
 
     #[rstest]
@@ -2410,34 +2452,37 @@ mod handle_zmq_msg_tests {
                 mock_game_entity
             });
 
-        with_mocked_engine(|mock_engine| {
-            mock_engine
-                .expect_find_cvar()
-                .with(predicate::eq("zmq_stats_enable"))
-                .returning_st(move |_| CVar::try_from(raw_cvar.borrow_mut() as *mut cvar_t).ok());
-            mock_engine.expect_get_max_clients().returning(|| 16);
-        })
-        .run(|| {
-            Python::with_gil(|py| {
-                let event_dispatcher = EventDispatcherManager::default();
-                event_dispatcher
-                    .add_dispatcher(py, py.get_type_bound::<StatsDispatcher>())
-                    .expect("could not add stats dispatcher");
-                event_dispatcher
-                    .add_dispatcher(py, py.get_type_bound::<DeathDispatcher>())
-                    .expect("could not add death dispatcher");
-                EVENT_DISPATCHERS.store(Some(
-                    Py::new(py, event_dispatcher)
-                        .expect("could not create event dispatcher manager in python")
-                        .into(),
-                ));
+        mocked_engine()
+            .configure(|mock_engine| {
+                mock_engine
+                    .expect_find_cvar()
+                    .with(predicate::eq("zmq_stats_enable"))
+                    .returning_st(move |_| {
+                        CVar::try_from(raw_cvar.borrow_mut() as *mut cvar_t).ok()
+                    });
+                mock_engine.expect_get_max_clients().returning(|| 16);
+            })
+            .run(|| {
+                Python::with_gil(|py| {
+                    let event_dispatcher = EventDispatcherManager::default();
+                    event_dispatcher
+                        .add_dispatcher(py, py.get_type_bound::<StatsDispatcher>())
+                        .expect("could not add stats dispatcher");
+                    event_dispatcher
+                        .add_dispatcher(py, py.get_type_bound::<DeathDispatcher>())
+                        .expect("could not add death dispatcher");
+                    EVENT_DISPATCHERS.store(Some(
+                        Py::new(py, event_dispatcher)
+                            .expect("could not create event dispatcher manager in python")
+                            .into(),
+                    ));
 
-                let result = try_handle_zmq_msg(py, player_death_data);
-                run_all_frame_tasks(py).expect("this should not happen");
+                    let result = try_handle_zmq_msg(py, player_death_data);
+                    run_all_frame_tasks(py).expect("this should not happen");
 
-                assert!(result.is_err_and(|err| err.is_instance_of::<PyEnvironmentError>(py)));
+                    assert!(result.is_err_and(|err| err.is_instance_of::<PyEnvironmentError>(py)));
+                });
             });
-        });
     }
 
     #[rstest]
@@ -2514,76 +2559,79 @@ mod handle_zmq_msg_tests {
                 mock_game_entity
             });
 
-        with_mocked_engine(|mock_engine| {
-            mock_engine
-                .expect_find_cvar()
-                .with(predicate::eq("zmq_stats_enable"))
-                .returning_st(move |_| CVar::try_from(raw_cvar.borrow_mut() as *mut cvar_t).ok());
-            mock_engine.expect_get_max_clients().returning(|| 16);
-        })
-        .run(|| {
-            Python::with_gil(|py| {
-                let event_dispatcher = EventDispatcherManager::default();
-                event_dispatcher
-                    .add_dispatcher(py, py.get_type_bound::<StatsDispatcher>())
-                    .expect("could not add stats dispatcher");
-                event_dispatcher
-                    .add_dispatcher(py, py.get_type_bound::<TeamSwitchDispatcher>())
-                    .expect("could not add team_switch dispatcher");
-                let capturing_hook = capturing_hook(py);
-                event_dispatcher
-                    .__getitem__(py, "stats")
-                    .and_then(|stats_dispatcher| {
-                        stats_dispatcher.call_method1(
-                            py,
-                            "add_hook",
-                            (
-                                "asdf",
-                                capturing_hook
-                                    .getattr("hook")
-                                    .expect("could not get capturing hook"),
-                                CommandPriorities::PRI_NORMAL as i32,
-                            ),
-                        )
-                    })
-                    .expect("could not add hook to stats dispatcher");
-                event_dispatcher
-                    .__getitem__(py, "team_switch")
-                    .and_then(|team_switch_dispatcher| {
-                        team_switch_dispatcher.call_method1(
-                            py,
-                            "add_hook",
-                            (
-                                "asdf",
-                                capturing_hook
-                                    .getattr("hook")
-                                    .expect("could not get capturing hook"),
-                                CommandPriorities::PRI_NORMAL as i32,
-                            ),
-                        )
-                    })
-                    .expect("could not add hook to team_switch dispatcher");
-                EVENT_DISPATCHERS.store(Some(
-                    Py::new(py, event_dispatcher)
-                        .expect("could not create event dispatcher manager in python")
-                        .into(),
-                ));
+        mocked_engine()
+            .configure(|mock_engine| {
+                mock_engine
+                    .expect_find_cvar()
+                    .with(predicate::eq("zmq_stats_enable"))
+                    .returning_st(move |_| {
+                        CVar::try_from(raw_cvar.borrow_mut() as *mut cvar_t).ok()
+                    });
+                mock_engine.expect_get_max_clients().returning(|| 16);
+            })
+            .run(|| {
+                Python::with_gil(|py| {
+                    let event_dispatcher = EventDispatcherManager::default();
+                    event_dispatcher
+                        .add_dispatcher(py, py.get_type_bound::<StatsDispatcher>())
+                        .expect("could not add stats dispatcher");
+                    event_dispatcher
+                        .add_dispatcher(py, py.get_type_bound::<TeamSwitchDispatcher>())
+                        .expect("could not add team_switch dispatcher");
+                    let capturing_hook = capturing_hook(py);
+                    event_dispatcher
+                        .__getitem__(py, "stats")
+                        .and_then(|stats_dispatcher| {
+                            stats_dispatcher.call_method1(
+                                py,
+                                "add_hook",
+                                (
+                                    "asdf",
+                                    capturing_hook
+                                        .getattr("hook")
+                                        .expect("could not get capturing hook"),
+                                    CommandPriorities::PRI_NORMAL as i32,
+                                ),
+                            )
+                        })
+                        .expect("could not add hook to stats dispatcher");
+                    event_dispatcher
+                        .__getitem__(py, "team_switch")
+                        .and_then(|team_switch_dispatcher| {
+                            team_switch_dispatcher.call_method1(
+                                py,
+                                "add_hook",
+                                (
+                                    "asdf",
+                                    capturing_hook
+                                        .getattr("hook")
+                                        .expect("could not get capturing hook"),
+                                    CommandPriorities::PRI_NORMAL as i32,
+                                ),
+                            )
+                        })
+                        .expect("could not add hook to team_switch dispatcher");
+                    EVENT_DISPATCHERS.store(Some(
+                        Py::new(py, event_dispatcher)
+                            .expect("could not create event dispatcher manager in python")
+                            .into(),
+                    ));
 
-                let result = try_handle_zmq_msg(py, player_teamswitch_data);
-                assert!(result.is_ok());
+                    let result = try_handle_zmq_msg(py, player_teamswitch_data);
+                    assert!(result.is_ok());
 
-                run_all_frame_tasks(py).expect("this should not happen");
+                    run_all_frame_tasks(py).expect("this should not happen");
 
-                let expected_json_data =
-                    to_py_json_data(py, player_teamswitch_data).expect("this should not happen");
-                assert!(capturing_hook
-                    .call_method1("assert_called_with", (expected_json_data.clone(),))
-                    .is_ok());
-                assert!(capturing_hook
-                    .call_method1("assert_called_with", ("_", "spectator", "blue"))
-                    .is_ok());
+                    let expected_json_data = to_py_json_data(py, player_teamswitch_data)
+                        .expect("this should not happen");
+                    assert!(capturing_hook
+                        .call_method1("assert_called_with", (expected_json_data.clone(),))
+                        .is_ok());
+                    assert!(capturing_hook
+                        .call_method1("assert_called_with", ("_", "spectator", "blue"))
+                        .is_ok());
+                });
             });
-        });
     }
 
     #[rstest]
@@ -2660,76 +2708,79 @@ mod handle_zmq_msg_tests {
                 mock_game_entity
             });
 
-        with_mocked_engine(|mock_engine| {
-            mock_engine
-                .expect_find_cvar()
-                .with(predicate::eq("zmq_stats_enable"))
-                .returning_st(move |_| CVar::try_from(raw_cvar.borrow_mut() as *mut cvar_t).ok());
-            mock_engine.expect_get_max_clients().returning(|| 16);
-        })
-        .run(|| {
-            Python::with_gil(|py| {
-                let event_dispatcher = EventDispatcherManager::default();
-                event_dispatcher
-                    .add_dispatcher(py, py.get_type_bound::<StatsDispatcher>())
-                    .expect("could not add stats dispatcher");
-                event_dispatcher
-                    .add_dispatcher(py, py.get_type_bound::<TeamSwitchDispatcher>())
-                    .expect("could not add team_switch dispatcher");
-                let capturing_hook = capturing_hook(py);
-                event_dispatcher
-                    .__getitem__(py, "stats")
-                    .and_then(|stats_dispatcher| {
-                        stats_dispatcher.call_method1(
-                            py,
-                            "add_hook",
-                            (
-                                "asdf",
-                                capturing_hook
-                                    .getattr("hook")
-                                    .expect("could not get capturing hook"),
-                                CommandPriorities::PRI_NORMAL as i32,
-                            ),
-                        )
-                    })
-                    .expect("could not add hook to stats dispatcher");
-                event_dispatcher
-                    .__getitem__(py, "team_switch")
-                    .and_then(|team_switch_dispatcher| {
-                        team_switch_dispatcher.call_method1(
-                            py,
-                            "add_hook",
-                            (
-                                "asdf",
-                                capturing_hook
-                                    .getattr("hook")
-                                    .expect("could not get capturing hook"),
-                                CommandPriorities::PRI_NORMAL as i32,
-                            ),
-                        )
-                    })
-                    .expect("could not add hook to team_switch dispatcher");
-                EVENT_DISPATCHERS.store(Some(
-                    Py::new(py, event_dispatcher)
-                        .expect("could not create event dispatcher manager in python")
-                        .into(),
-                ));
+        mocked_engine()
+            .configure(|mock_engine| {
+                mock_engine
+                    .expect_find_cvar()
+                    .with(predicate::eq("zmq_stats_enable"))
+                    .returning_st(move |_| {
+                        CVar::try_from(raw_cvar.borrow_mut() as *mut cvar_t).ok()
+                    });
+                mock_engine.expect_get_max_clients().returning(|| 16);
+            })
+            .run(|| {
+                Python::with_gil(|py| {
+                    let event_dispatcher = EventDispatcherManager::default();
+                    event_dispatcher
+                        .add_dispatcher(py, py.get_type_bound::<StatsDispatcher>())
+                        .expect("could not add stats dispatcher");
+                    event_dispatcher
+                        .add_dispatcher(py, py.get_type_bound::<TeamSwitchDispatcher>())
+                        .expect("could not add team_switch dispatcher");
+                    let capturing_hook = capturing_hook(py);
+                    event_dispatcher
+                        .__getitem__(py, "stats")
+                        .and_then(|stats_dispatcher| {
+                            stats_dispatcher.call_method1(
+                                py,
+                                "add_hook",
+                                (
+                                    "asdf",
+                                    capturing_hook
+                                        .getattr("hook")
+                                        .expect("could not get capturing hook"),
+                                    CommandPriorities::PRI_NORMAL as i32,
+                                ),
+                            )
+                        })
+                        .expect("could not add hook to stats dispatcher");
+                    event_dispatcher
+                        .__getitem__(py, "team_switch")
+                        .and_then(|team_switch_dispatcher| {
+                            team_switch_dispatcher.call_method1(
+                                py,
+                                "add_hook",
+                                (
+                                    "asdf",
+                                    capturing_hook
+                                        .getattr("hook")
+                                        .expect("could not get capturing hook"),
+                                    CommandPriorities::PRI_NORMAL as i32,
+                                ),
+                            )
+                        })
+                        .expect("could not add hook to team_switch dispatcher");
+                    EVENT_DISPATCHERS.store(Some(
+                        Py::new(py, event_dispatcher)
+                            .expect("could not create event dispatcher manager in python")
+                            .into(),
+                    ));
 
-                let result = try_handle_zmq_msg(py, player_teamswitch_data);
-                assert!(result.is_ok());
+                    let result = try_handle_zmq_msg(py, player_teamswitch_data);
+                    assert!(result.is_ok());
 
-                run_all_frame_tasks(py).expect("this should not happen");
+                    run_all_frame_tasks(py).expect("this should not happen");
 
-                let expected_json_data =
-                    to_py_json_data(py, player_teamswitch_data).expect("this should not happen");
-                assert!(capturing_hook
-                    .call_method1("assert_called_with", (expected_json_data.clone(),))
-                    .is_ok());
-                assert!(capturing_hook
-                    .call_method1("assert_called_with", ("_", "spectator", "blue"))
-                    .is_ok());
+                    let expected_json_data = to_py_json_data(py, player_teamswitch_data)
+                        .expect("this should not happen");
+                    assert!(capturing_hook
+                        .call_method1("assert_called_with", (expected_json_data.clone(),))
+                        .is_ok());
+                    assert!(capturing_hook
+                        .call_method1("assert_called_with", ("_", "spectator", "blue"))
+                        .is_ok());
+                });
             });
-        });
     }
 
     #[rstest]
@@ -2808,54 +2859,57 @@ mod handle_zmq_msg_tests {
                 mock_game_entity
             });
 
-        with_mocked_engine(|mock_engine| {
-            mock_engine
-                .expect_find_cvar()
-                .with(predicate::eq("zmq_stats_enable"))
-                .returning_st(move |_| CVar::try_from(raw_cvar.borrow_mut() as *mut cvar_t).ok());
-            mock_engine.expect_get_max_clients().returning(|| 16);
-        })
-        .run(|| {
-            Python::with_gil(|py| {
-                let event_dispatcher = EventDispatcherManager::default();
-                event_dispatcher
-                    .add_dispatcher(py, py.get_type_bound::<StatsDispatcher>())
-                    .expect("could not add stats dispatcher");
-                let capturing_hook = capturing_hook(py);
-                event_dispatcher
-                    .__getitem__(py, "stats")
-                    .and_then(|stats_dispatcher| {
-                        stats_dispatcher.call_method1(
-                            py,
-                            "add_hook",
-                            (
-                                "asdf",
-                                capturing_hook
-                                    .getattr("hook")
-                                    .expect("could not get capturing hook"),
-                                CommandPriorities::PRI_NORMAL as i32,
-                            ),
-                        )
-                    })
-                    .expect("could not add hook to stats dispatcher");
-                EVENT_DISPATCHERS.store(Some(
-                    Py::new(py, event_dispatcher)
-                        .expect("could not create event dispatcher manager in python")
-                        .into(),
-                ));
+        mocked_engine()
+            .configure(|mock_engine| {
+                mock_engine
+                    .expect_find_cvar()
+                    .with(predicate::eq("zmq_stats_enable"))
+                    .returning_st(move |_| {
+                        CVar::try_from(raw_cvar.borrow_mut() as *mut cvar_t).ok()
+                    });
+                mock_engine.expect_get_max_clients().returning(|| 16);
+            })
+            .run(|| {
+                Python::with_gil(|py| {
+                    let event_dispatcher = EventDispatcherManager::default();
+                    event_dispatcher
+                        .add_dispatcher(py, py.get_type_bound::<StatsDispatcher>())
+                        .expect("could not add stats dispatcher");
+                    let capturing_hook = capturing_hook(py);
+                    event_dispatcher
+                        .__getitem__(py, "stats")
+                        .and_then(|stats_dispatcher| {
+                            stats_dispatcher.call_method1(
+                                py,
+                                "add_hook",
+                                (
+                                    "asdf",
+                                    capturing_hook
+                                        .getattr("hook")
+                                        .expect("could not get capturing hook"),
+                                    CommandPriorities::PRI_NORMAL as i32,
+                                ),
+                            )
+                        })
+                        .expect("could not add hook to stats dispatcher");
+                    EVENT_DISPATCHERS.store(Some(
+                        Py::new(py, event_dispatcher)
+                            .expect("could not create event dispatcher manager in python")
+                            .into(),
+                    ));
 
-                let result = try_handle_zmq_msg(py, player_teamswitch_data);
-                assert!(result.is_ok());
+                    let result = try_handle_zmq_msg(py, player_teamswitch_data);
+                    assert!(result.is_ok());
 
-                run_all_frame_tasks(py).expect("this should not happen");
+                    run_all_frame_tasks(py).expect("this should not happen");
 
-                let expected_json_data =
-                    to_py_json_data(py, player_teamswitch_data).expect("this should not happen");
-                assert!(capturing_hook
-                    .call_method1("assert_called_with", (expected_json_data.clone(),))
-                    .is_ok());
+                    let expected_json_data = to_py_json_data(py, player_teamswitch_data)
+                        .expect("this should not happen");
+                    assert!(capturing_hook
+                        .call_method1("assert_called_with", (expected_json_data.clone(),))
+                        .is_ok());
+                });
             });
-        });
     }
 
     #[rstest]
@@ -2932,54 +2986,57 @@ mod handle_zmq_msg_tests {
                 mock_game_entity
             });
 
-        with_mocked_engine(|mock_engine| {
-            mock_engine
-                .expect_find_cvar()
-                .with(predicate::eq("zmq_stats_enable"))
-                .returning_st(move |_| CVar::try_from(raw_cvar.borrow_mut() as *mut cvar_t).ok());
-            mock_engine.expect_get_max_clients().returning(|| 16);
-        })
-        .run(|| {
-            Python::with_gil(|py| {
-                let event_dispatcher = EventDispatcherManager::default();
-                event_dispatcher
-                    .add_dispatcher(py, py.get_type_bound::<StatsDispatcher>())
-                    .expect("could not add stats dispatcher");
-                let capturing_hook = capturing_hook(py);
-                event_dispatcher
-                    .__getitem__(py, "stats")
-                    .and_then(|stats_dispatcher| {
-                        stats_dispatcher.call_method1(
-                            py,
-                            "add_hook",
-                            (
-                                "asdf",
-                                capturing_hook
-                                    .getattr("hook")
-                                    .expect("could not get capturing hook"),
-                                CommandPriorities::PRI_NORMAL as i32,
-                            ),
-                        )
-                    })
-                    .expect("could not add hook to stats dispatcher");
-                EVENT_DISPATCHERS.store(Some(
-                    Py::new(py, event_dispatcher)
-                        .expect("could not create event dispatcher manager in python")
-                        .into(),
-                ));
+        mocked_engine()
+            .configure(|mock_engine| {
+                mock_engine
+                    .expect_find_cvar()
+                    .with(predicate::eq("zmq_stats_enable"))
+                    .returning_st(move |_| {
+                        CVar::try_from(raw_cvar.borrow_mut() as *mut cvar_t).ok()
+                    });
+                mock_engine.expect_get_max_clients().returning(|| 16);
+            })
+            .run(|| {
+                Python::with_gil(|py| {
+                    let event_dispatcher = EventDispatcherManager::default();
+                    event_dispatcher
+                        .add_dispatcher(py, py.get_type_bound::<StatsDispatcher>())
+                        .expect("could not add stats dispatcher");
+                    let capturing_hook = capturing_hook(py);
+                    event_dispatcher
+                        .__getitem__(py, "stats")
+                        .and_then(|stats_dispatcher| {
+                            stats_dispatcher.call_method1(
+                                py,
+                                "add_hook",
+                                (
+                                    "asdf",
+                                    capturing_hook
+                                        .getattr("hook")
+                                        .expect("could not get capturing hook"),
+                                    CommandPriorities::PRI_NORMAL as i32,
+                                ),
+                            )
+                        })
+                        .expect("could not add hook to stats dispatcher");
+                    EVENT_DISPATCHERS.store(Some(
+                        Py::new(py, event_dispatcher)
+                            .expect("could not create event dispatcher manager in python")
+                            .into(),
+                    ));
 
-                let result = try_handle_zmq_msg(py, player_teamswitch_data);
-                assert!(result.is_ok());
+                    let result = try_handle_zmq_msg(py, player_teamswitch_data);
+                    assert!(result.is_ok());
 
-                run_all_frame_tasks(py).expect("this should not happen");
+                    run_all_frame_tasks(py).expect("this should not happen");
 
-                let expected_json_data =
-                    to_py_json_data(py, player_teamswitch_data).expect("this should not happen");
-                assert!(capturing_hook
-                    .call_method1("assert_called_with", (expected_json_data.clone(),))
-                    .is_ok());
+                    let expected_json_data = to_py_json_data(py, player_teamswitch_data)
+                        .expect("this should not happen");
+                    assert!(capturing_hook
+                        .call_method1("assert_called_with", (expected_json_data.clone(),))
+                        .is_ok());
+                });
             });
-        });
     }
 
     #[rstest]
@@ -3056,54 +3113,57 @@ mod handle_zmq_msg_tests {
                 mock_game_entity
             });
 
-        with_mocked_engine(|mock_engine| {
-            mock_engine
-                .expect_find_cvar()
-                .with(predicate::eq("zmq_stats_enable"))
-                .returning_st(move |_| CVar::try_from(raw_cvar.borrow_mut() as *mut cvar_t).ok());
-            mock_engine.expect_get_max_clients().returning(|| 16);
-        })
-        .run(|| {
-            Python::with_gil(|py| {
-                let event_dispatcher = EventDispatcherManager::default();
-                event_dispatcher
-                    .add_dispatcher(py, py.get_type_bound::<StatsDispatcher>())
-                    .expect("could not add stats dispatcher");
-                let capturing_hook = capturing_hook(py);
-                event_dispatcher
-                    .__getitem__(py, "stats")
-                    .and_then(|stats_dispatcher| {
-                        stats_dispatcher.call_method1(
-                            py,
-                            "add_hook",
-                            (
-                                "asdf",
-                                capturing_hook
-                                    .getattr("hook")
-                                    .expect("could not get capturing hook"),
-                                CommandPriorities::PRI_NORMAL as i32,
-                            ),
-                        )
-                    })
-                    .expect("could not add hook to stats dispatcher");
-                EVENT_DISPATCHERS.store(Some(
-                    Py::new(py, event_dispatcher)
-                        .expect("could not create event dispatcher manager in python")
-                        .into(),
-                ));
+        mocked_engine()
+            .configure(|mock_engine| {
+                mock_engine
+                    .expect_find_cvar()
+                    .with(predicate::eq("zmq_stats_enable"))
+                    .returning_st(move |_| {
+                        CVar::try_from(raw_cvar.borrow_mut() as *mut cvar_t).ok()
+                    });
+                mock_engine.expect_get_max_clients().returning(|| 16);
+            })
+            .run(|| {
+                Python::with_gil(|py| {
+                    let event_dispatcher = EventDispatcherManager::default();
+                    event_dispatcher
+                        .add_dispatcher(py, py.get_type_bound::<StatsDispatcher>())
+                        .expect("could not add stats dispatcher");
+                    let capturing_hook = capturing_hook(py);
+                    event_dispatcher
+                        .__getitem__(py, "stats")
+                        .and_then(|stats_dispatcher| {
+                            stats_dispatcher.call_method1(
+                                py,
+                                "add_hook",
+                                (
+                                    "asdf",
+                                    capturing_hook
+                                        .getattr("hook")
+                                        .expect("could not get capturing hook"),
+                                    CommandPriorities::PRI_NORMAL as i32,
+                                ),
+                            )
+                        })
+                        .expect("could not add hook to stats dispatcher");
+                    EVENT_DISPATCHERS.store(Some(
+                        Py::new(py, event_dispatcher)
+                            .expect("could not create event dispatcher manager in python")
+                            .into(),
+                    ));
 
-                let result = try_handle_zmq_msg(py, player_teamswitch_data);
-                assert!(result.is_ok());
+                    let result = try_handle_zmq_msg(py, player_teamswitch_data);
+                    assert!(result.is_ok());
 
-                run_all_frame_tasks(py).expect("this should not happen");
+                    run_all_frame_tasks(py).expect("this should not happen");
 
-                let expected_json_data =
-                    to_py_json_data(py, player_teamswitch_data).expect("this should not happen");
-                assert!(capturing_hook
-                    .call_method1("assert_called_with", (expected_json_data.clone(),))
-                    .is_ok());
+                    let expected_json_data = to_py_json_data(py, player_teamswitch_data)
+                        .expect("this should not happen");
+                    assert!(capturing_hook
+                        .call_method1("assert_called_with", (expected_json_data.clone(),))
+                        .is_ok());
+                });
             });
-        });
     }
 
     #[rstest]
@@ -3180,54 +3240,57 @@ mod handle_zmq_msg_tests {
                 mock_game_entity
             });
 
-        with_mocked_engine(|mock_engine| {
-            mock_engine
-                .expect_find_cvar()
-                .with(predicate::eq("zmq_stats_enable"))
-                .returning_st(move |_| CVar::try_from(raw_cvar.borrow_mut() as *mut cvar_t).ok());
-            mock_engine.expect_get_max_clients().returning(|| 16);
-        })
-        .run(|| {
-            Python::with_gil(|py| {
-                let event_dispatcher = EventDispatcherManager::default();
-                event_dispatcher
-                    .add_dispatcher(py, py.get_type_bound::<StatsDispatcher>())
-                    .expect("could not add stats dispatcher");
-                let capturing_hook = capturing_hook(py);
-                event_dispatcher
-                    .__getitem__(py, "stats")
-                    .and_then(|stats_dispatcher| {
-                        stats_dispatcher.call_method1(
-                            py,
-                            "add_hook",
-                            (
-                                "asdf",
-                                capturing_hook
-                                    .getattr("hook")
-                                    .expect("could not get capturing hook"),
-                                CommandPriorities::PRI_NORMAL as i32,
-                            ),
-                        )
-                    })
-                    .expect("could not add hook to stats dispatcher");
-                EVENT_DISPATCHERS.store(Some(
-                    Py::new(py, event_dispatcher)
-                        .expect("could not create event dispatcher manager in python")
-                        .into(),
-                ));
+        mocked_engine()
+            .configure(|mock_engine| {
+                mock_engine
+                    .expect_find_cvar()
+                    .with(predicate::eq("zmq_stats_enable"))
+                    .returning_st(move |_| {
+                        CVar::try_from(raw_cvar.borrow_mut() as *mut cvar_t).ok()
+                    });
+                mock_engine.expect_get_max_clients().returning(|| 16);
+            })
+            .run(|| {
+                Python::with_gil(|py| {
+                    let event_dispatcher = EventDispatcherManager::default();
+                    event_dispatcher
+                        .add_dispatcher(py, py.get_type_bound::<StatsDispatcher>())
+                        .expect("could not add stats dispatcher");
+                    let capturing_hook = capturing_hook(py);
+                    event_dispatcher
+                        .__getitem__(py, "stats")
+                        .and_then(|stats_dispatcher| {
+                            stats_dispatcher.call_method1(
+                                py,
+                                "add_hook",
+                                (
+                                    "asdf",
+                                    capturing_hook
+                                        .getattr("hook")
+                                        .expect("could not get capturing hook"),
+                                    CommandPriorities::PRI_NORMAL as i32,
+                                ),
+                            )
+                        })
+                        .expect("could not add hook to stats dispatcher");
+                    EVENT_DISPATCHERS.store(Some(
+                        Py::new(py, event_dispatcher)
+                            .expect("could not create event dispatcher manager in python")
+                            .into(),
+                    ));
 
-                let result = try_handle_zmq_msg(py, player_teamswitch_data);
-                assert!(result.is_ok());
+                    let result = try_handle_zmq_msg(py, player_teamswitch_data);
+                    assert!(result.is_ok());
 
-                run_all_frame_tasks(py).expect("this should not happen");
+                    run_all_frame_tasks(py).expect("this should not happen");
 
-                let expected_json_data =
-                    to_py_json_data(py, player_teamswitch_data).expect("this should not happen");
-                assert!(capturing_hook
-                    .call_method1("assert_called_with", (expected_json_data.clone(),))
-                    .is_ok());
+                    let expected_json_data = to_py_json_data(py, player_teamswitch_data)
+                        .expect("this should not happen");
+                    assert!(capturing_hook
+                        .call_method1("assert_called_with", (expected_json_data.clone(),))
+                        .is_ok());
+                });
             });
-        });
     }
 
     #[rstest]
@@ -3274,54 +3337,57 @@ mod handle_zmq_msg_tests {
                 mock_game_entity
             });
 
-        with_mocked_engine(|mock_engine| {
-            mock_engine
-                .expect_find_cvar()
-                .with(predicate::eq("zmq_stats_enable"))
-                .returning_st(move |_| CVar::try_from(raw_cvar.borrow_mut() as *mut cvar_t).ok());
-            mock_engine.expect_get_max_clients().returning(|| 16);
-        })
-        .run(|| {
-            Python::with_gil(|py| {
-                let event_dispatcher = EventDispatcherManager::default();
-                event_dispatcher
-                    .add_dispatcher(py, py.get_type_bound::<StatsDispatcher>())
-                    .expect("could not add stats dispatcher");
-                let capturing_hook = capturing_hook(py);
-                event_dispatcher
-                    .__getitem__(py, "stats")
-                    .and_then(|stats_dispatcher| {
-                        stats_dispatcher.call_method1(
-                            py,
-                            "add_hook",
-                            (
-                                "asdf",
-                                capturing_hook
-                                    .getattr("hook")
-                                    .expect("could not get capturing hook"),
-                                CommandPriorities::PRI_NORMAL as i32,
-                            ),
-                        )
-                    })
-                    .expect("could not add hook to stats dispatcher");
-                EVENT_DISPATCHERS.store(Some(
-                    Py::new(py, event_dispatcher)
-                        .expect("could not create event dispatcher manager in python")
-                        .into(),
-                ));
+        mocked_engine()
+            .configure(|mock_engine| {
+                mock_engine
+                    .expect_find_cvar()
+                    .with(predicate::eq("zmq_stats_enable"))
+                    .returning_st(move |_| {
+                        CVar::try_from(raw_cvar.borrow_mut() as *mut cvar_t).ok()
+                    });
+                mock_engine.expect_get_max_clients().returning(|| 16);
+            })
+            .run(|| {
+                Python::with_gil(|py| {
+                    let event_dispatcher = EventDispatcherManager::default();
+                    event_dispatcher
+                        .add_dispatcher(py, py.get_type_bound::<StatsDispatcher>())
+                        .expect("could not add stats dispatcher");
+                    let capturing_hook = capturing_hook(py);
+                    event_dispatcher
+                        .__getitem__(py, "stats")
+                        .and_then(|stats_dispatcher| {
+                            stats_dispatcher.call_method1(
+                                py,
+                                "add_hook",
+                                (
+                                    "asdf",
+                                    capturing_hook
+                                        .getattr("hook")
+                                        .expect("could not get capturing hook"),
+                                    CommandPriorities::PRI_NORMAL as i32,
+                                ),
+                            )
+                        })
+                        .expect("could not add hook to stats dispatcher");
+                    EVENT_DISPATCHERS.store(Some(
+                        Py::new(py, event_dispatcher)
+                            .expect("could not create event dispatcher manager in python")
+                            .into(),
+                    ));
 
-                let result = try_handle_zmq_msg(py, player_teamswitch_data);
-                assert!(result.is_ok());
+                    let result = try_handle_zmq_msg(py, player_teamswitch_data);
+                    assert!(result.is_ok());
 
-                run_all_frame_tasks(py).expect("this should not happen");
+                    run_all_frame_tasks(py).expect("this should not happen");
 
-                let expected_json_data =
-                    to_py_json_data(py, player_teamswitch_data).expect("this should not happen");
-                assert!(capturing_hook
-                    .call_method1("assert_called_with", (expected_json_data.clone(),))
-                    .is_ok());
+                    let expected_json_data = to_py_json_data(py, player_teamswitch_data)
+                        .expect("this should not happen");
+                    assert!(capturing_hook
+                        .call_method1("assert_called_with", (expected_json_data.clone(),))
+                        .is_ok());
+                });
             });
-        });
     }
 
     #[rstest]
@@ -3398,31 +3464,34 @@ mod handle_zmq_msg_tests {
                 mock_game_entity
             });
 
-        with_mocked_engine(|mock_engine| {
-            mock_engine
-                .expect_find_cvar()
-                .with(predicate::eq("zmq_stats_enable"))
-                .returning_st(move |_| CVar::try_from(raw_cvar.borrow_mut() as *mut cvar_t).ok());
-            mock_engine.expect_get_max_clients().returning(|| 16);
-        })
-        .run(|| {
-            Python::with_gil(|py| {
-                let event_dispatcher = EventDispatcherManager::default();
-                event_dispatcher
-                    .add_dispatcher(py, py.get_type_bound::<StatsDispatcher>())
-                    .expect("could not add stats dispatcher");
-                EVENT_DISPATCHERS.store(Some(
-                    Py::new(py, event_dispatcher)
-                        .expect("could not create event dispatcher manager in python")
-                        .into(),
-                ));
+        mocked_engine()
+            .configure(|mock_engine| {
+                mock_engine
+                    .expect_find_cvar()
+                    .with(predicate::eq("zmq_stats_enable"))
+                    .returning_st(move |_| {
+                        CVar::try_from(raw_cvar.borrow_mut() as *mut cvar_t).ok()
+                    });
+                mock_engine.expect_get_max_clients().returning(|| 16);
+            })
+            .run(|| {
+                Python::with_gil(|py| {
+                    let event_dispatcher = EventDispatcherManager::default();
+                    event_dispatcher
+                        .add_dispatcher(py, py.get_type_bound::<StatsDispatcher>())
+                        .expect("could not add stats dispatcher");
+                    EVENT_DISPATCHERS.store(Some(
+                        Py::new(py, event_dispatcher)
+                            .expect("could not create event dispatcher manager in python")
+                            .into(),
+                    ));
 
-                let result = try_handle_zmq_msg(py, player_teamswitch_data);
-                run_all_frame_tasks(py).expect("this should not happen");
+                    let result = try_handle_zmq_msg(py, player_teamswitch_data);
+                    run_all_frame_tasks(py).expect("this should not happen");
 
-                assert!(result.is_err_and(|err| err.is_instance_of::<PyEnvironmentError>(py)));
+                    assert!(result.is_err_and(|err| err.is_instance_of::<PyEnvironmentError>(py)));
+                });
             });
-        });
     }
 
     #[rstest]
@@ -3499,51 +3568,54 @@ mod handle_zmq_msg_tests {
                 mock_game_entity
             });
 
-        with_mocked_engine(|mock_engine| {
-            mock_engine
-                .expect_find_cvar()
-                .with(predicate::eq("zmq_stats_enable"))
-                .returning_st(move |_| CVar::try_from(raw_cvar.borrow_mut() as *mut cvar_t).ok());
-            mock_engine.expect_get_max_clients().returning(|| 16);
-            mock_engine
-                .expect_execute_console_command()
-                .with(predicate::eq("put 2 spectator"))
-                .times(1);
-        })
-        .run(|| {
-            Python::with_gil(|py| {
-                let event_dispatcher = EventDispatcherManager::default();
-                event_dispatcher
-                    .add_dispatcher(py, py.get_type_bound::<StatsDispatcher>())
-                    .expect("could not add stats dispatcher");
-                event_dispatcher
-                    .add_dispatcher(py, py.get_type_bound::<TeamSwitchDispatcher>())
-                    .expect("could not add team_switch dispatcher");
-                event_dispatcher
-                    .__getitem__(py, "team_switch")
-                    .and_then(|team_switch_dispatcher| {
-                        team_switch_dispatcher.call_method1(
-                            py,
-                            "add_hook",
-                            (
-                                "asdf",
-                                returning_false_hook(py),
-                                CommandPriorities::PRI_NORMAL as i32,
-                            ),
-                        )
-                    })
-                    .expect("could not add hook to team_switch dispatcher");
-                EVENT_DISPATCHERS.store(Some(
-                    Py::new(py, event_dispatcher)
-                        .expect("could not create event dispatcher manager in python")
-                        .into(),
-                ));
+        mocked_engine()
+            .configure(|mock_engine| {
+                mock_engine
+                    .expect_find_cvar()
+                    .with(predicate::eq("zmq_stats_enable"))
+                    .returning_st(move |_| {
+                        CVar::try_from(raw_cvar.borrow_mut() as *mut cvar_t).ok()
+                    });
+                mock_engine.expect_get_max_clients().returning(|| 16);
+                mock_engine
+                    .expect_execute_console_command()
+                    .with(predicate::eq("put 2 spectator"))
+                    .times(1);
+            })
+            .run(|| {
+                Python::with_gil(|py| {
+                    let event_dispatcher = EventDispatcherManager::default();
+                    event_dispatcher
+                        .add_dispatcher(py, py.get_type_bound::<StatsDispatcher>())
+                        .expect("could not add stats dispatcher");
+                    event_dispatcher
+                        .add_dispatcher(py, py.get_type_bound::<TeamSwitchDispatcher>())
+                        .expect("could not add team_switch dispatcher");
+                    event_dispatcher
+                        .__getitem__(py, "team_switch")
+                        .and_then(|team_switch_dispatcher| {
+                            team_switch_dispatcher.call_method1(
+                                py,
+                                "add_hook",
+                                (
+                                    "asdf",
+                                    returning_false_hook(py),
+                                    CommandPriorities::PRI_NORMAL as i32,
+                                ),
+                            )
+                        })
+                        .expect("could not add hook to team_switch dispatcher");
+                    EVENT_DISPATCHERS.store(Some(
+                        Py::new(py, event_dispatcher)
+                            .expect("could not create event dispatcher manager in python")
+                            .into(),
+                    ));
 
-                let result = try_handle_zmq_msg(py, player_teamswitch_data);
-                assert!(result.is_ok());
+                    let result = try_handle_zmq_msg(py, player_teamswitch_data);
+                    assert!(result.is_ok());
 
-                run_all_frame_tasks(py).expect("this should not happen");
+                    run_all_frame_tasks(py).expect("this should not happen");
+                });
             });
-        });
     }
 }

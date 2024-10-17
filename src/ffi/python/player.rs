@@ -2006,18 +2006,19 @@ assert(player._valid)
 
         let mut player = default_test_player();
 
-        with_mocked_engine(|mock_engine| {
-            mock_engine.expect_get_max_clients().returning(|| 16);
-        })
-        .run(|| {
-            let result = Python::with_gil(|py| {
-                player.set_cvars(
-                    py,
-                    [("asdf", "qwertz"), ("name", "UnnamedPlayer")].into_py_dict_bound(py),
-                )
+        mocked_engine()
+            .configure(|mock_engine| {
+                mock_engine.expect_get_max_clients().returning(|| 16);
+            })
+            .run(|| {
+                let result = Python::with_gil(|py| {
+                    player.set_cvars(
+                        py,
+                        [("asdf", "qwertz"), ("name", "UnnamedPlayer")].into_py_dict_bound(py),
+                    )
+                });
+                assert!(result.is_ok());
             });
-            assert!(result.is_ok());
-        });
     }
 
     #[rstest]
@@ -2079,16 +2080,17 @@ assert(player._valid)
     fn get_clan_with_no_clan_set(_pyshinqlx_setup: ()) {
         let player = default_test_player();
 
-        with_mocked_engine(|mock_engine| {
-            mock_engine
-                .expect_get_configstring()
-                .with(predicate::eq((CS_PLAYERS + 2) as u16))
-                .returning(|_| "".to_string());
-        })
-        .run(|| {
-            let result = Python::with_gil(|py| player.get_clan(py));
-            assert_eq!(result, "");
-        });
+        mocked_engine()
+            .configure(|mock_engine| {
+                mock_engine
+                    .expect_get_configstring()
+                    .with(predicate::eq((CS_PLAYERS + 2) as u16))
+                    .returning(|_| "".to_string());
+            })
+            .run(|| {
+                let result = Python::with_gil(|py| player.get_clan(py));
+                assert_eq!(result, "");
+            });
     }
 
     #[rstest]
@@ -2097,16 +2099,17 @@ assert(player._valid)
     fn get_clan_with_clan_set(_pyshinqlx_setup: ()) {
         let player = default_test_player();
 
-        with_mocked_engine(|mock_engine| {
-            mock_engine
-                .expect_get_configstring()
-                .with(predicate::eq((CS_PLAYERS + 2) as u16))
-                .returning(|_| r"\cn\asdf".to_string());
-        })
-        .run(|| {
-            let result = Python::with_gil(|py| player.get_clan(py));
-            assert_eq!(result, "asdf");
-        });
+        mocked_engine()
+            .configure(|mock_engine| {
+                mock_engine
+                    .expect_get_configstring()
+                    .with(predicate::eq((CS_PLAYERS + 2) as u16))
+                    .returning(|_| r"\cn\asdf".to_string());
+            })
+            .run(|| {
+                let result = Python::with_gil(|py| player.get_clan(py));
+                assert_eq!(result, "asdf");
+            });
     }
 
     #[rstest]
@@ -2123,21 +2126,24 @@ assert(player._valid)
     fn set_clan_with_no_clan_set(_pyshinqlx_setup: ()) {
         let mut player = default_test_player();
 
-        with_mocked_engine(|mock_engine| {
-            mock_engine
-                .expect_get_configstring()
-                .with(predicate::eq((CS_PLAYERS + 2) as u16))
-                .returning(|_| "".to_string());
-            mock_engine
-                .expect_set_configstring()
-                .withf(|index, value| {
-                    *index == 531i32 && value.contains(r"\cn\clan") && value.contains(r"\xcn\clan")
-                })
-                .times(1);
-        })
-        .run(|| {
-            Python::with_gil(|py| player.set_clan(py, "clan".to_string()));
-        });
+        mocked_engine()
+            .configure(|mock_engine| {
+                mock_engine
+                    .expect_get_configstring()
+                    .with(predicate::eq((CS_PLAYERS + 2) as u16))
+                    .returning(|_| "".to_string());
+                mock_engine
+                    .expect_set_configstring()
+                    .withf(|index, value| {
+                        *index == 531i32
+                            && value.contains(r"\cn\clan")
+                            && value.contains(r"\xcn\clan")
+                    })
+                    .times(1);
+            })
+            .run(|| {
+                Python::with_gil(|py| player.set_clan(py, "clan".to_string()));
+            });
     }
 
     #[rstest]
@@ -2146,25 +2152,26 @@ assert(player._valid)
     fn set_clan_with_clan_set(_pyshinqlx_setup: ()) {
         let mut player = default_test_player();
 
-        with_mocked_engine(|mock_engine| {
-            mock_engine
-                .expect_get_configstring()
-                .with(predicate::eq((CS_PLAYERS + 2) as u16))
-                .returning(|_| r"\xcn\asdf\cn\asdf".to_string());
-            mock_engine
-                .expect_set_configstring()
-                .withf(|index, value| {
-                    *index == 531i32
-                        && value.contains(r"\cn\clan")
-                        && value.contains(r"\xcn\clan")
-                        && !value.contains(r"\cn\asdf")
-                        && !value.contains(r"\xcn\asdf")
-                })
-                .times(1);
-        })
-        .run(|| {
-            Python::with_gil(|py| player.set_clan(py, "clan".to_string()));
-        });
+        mocked_engine()
+            .configure(|mock_engine| {
+                mock_engine
+                    .expect_get_configstring()
+                    .with(predicate::eq((CS_PLAYERS + 2) as u16))
+                    .returning(|_| r"\xcn\asdf\cn\asdf".to_string());
+                mock_engine
+                    .expect_set_configstring()
+                    .withf(|index, value| {
+                        *index == 531i32
+                            && value.contains(r"\cn\clan")
+                            && value.contains(r"\xcn\clan")
+                            && !value.contains(r"\cn\asdf")
+                            && !value.contains(r"\xcn\asdf")
+                    })
+                    .times(1);
+            })
+            .run(|| {
+                Python::with_gil(|py| player.set_clan(py, "clan".to_string()));
+            });
     }
 
     #[rstest]
@@ -2235,14 +2242,15 @@ assert(player._valid)
             ..default_test_player()
         };
 
-        with_mocked_engine(|mock_engine| {
-            mock_engine.expect_get_max_clients().returning(|| 16);
-        })
-        .run(|| {
-            let result =
-                Python::with_gil(|py| player.set_name(py, "^1Unnamed^2Player".to_string()));
-            assert!(result.is_ok());
-        });
+        mocked_engine()
+            .configure(|mock_engine| {
+                mock_engine.expect_get_max_clients().returning(|| 16);
+            })
+            .run(|| {
+                let result =
+                    Python::with_gil(|py| player.set_name(py, "^1Unnamed^2Player".to_string()));
+                assert!(result.is_ok());
+            });
     }
 
     #[rstest]
@@ -2374,17 +2382,18 @@ assert(player._valid)
     fn set_team_puts_player_on_a_specific_team(_pyshinqlx_setup: (), #[case] new_team: &str) {
         let put_cmd = format!("put 2 {}", new_team.to_lowercase());
 
-        with_mocked_engine(|mock_engine| {
-            mock_engine
-                .expect_execute_console_command()
-                .withf(move |cmd| cmd == put_cmd)
-                .times(1);
-        })
-        .run(|| {
-            let result =
-                Python::with_gil(|py| default_test_player().set_team(py, new_team.to_string()));
-            assert!(result.is_ok());
-        });
+        mocked_engine()
+            .configure(|mock_engine| {
+                mock_engine
+                    .expect_execute_console_command()
+                    .withf(move |cmd| cmd == put_cmd)
+                    .times(1);
+            })
+            .run(|| {
+                let result =
+                    Python::with_gil(|py| default_test_player().set_team(py, new_team.to_string()));
+                assert!(result.is_ok());
+            });
     }
 
     #[rstest]
@@ -2487,13 +2496,14 @@ assert(player._valid)
             ..default_test_player()
         };
 
-        with_mocked_engine(|mock_engine| {
-            mock_engine.expect_get_max_clients().returning(|| 16);
-        })
-        .run(|| {
-            let result = Python::with_gil(|py| player.set_colors(py, (0, 3)));
-            assert!(result.is_ok());
-        });
+        mocked_engine()
+            .configure(|mock_engine| {
+                mock_engine.expect_get_max_clients().returning(|| 16);
+            })
+            .run(|| {
+                let result = Python::with_gil(|py| player.set_colors(py, (0, 3)));
+                assert!(result.is_ok());
+            });
     }
 
     #[rstest]
@@ -2562,13 +2572,14 @@ assert(player._valid)
             ..default_test_player()
         };
 
-        with_mocked_engine(|mock_engine| {
-            mock_engine.expect_get_max_clients().returning(|| 16);
-        })
-        .run(|| {
-            let result = Python::with_gil(|py| player.set_model(py, "Uriel".to_string()));
-            assert!(result.is_ok());
-        });
+        mocked_engine()
+            .configure(|mock_engine| {
+                mock_engine.expect_get_max_clients().returning(|| 16);
+            })
+            .run(|| {
+                let result = Python::with_gil(|py| player.set_model(py, "Uriel".to_string()));
+                assert!(result.is_ok());
+            });
     }
 
     #[rstest]
@@ -2637,13 +2648,14 @@ assert(player._valid)
             ..default_test_player()
         };
 
-        with_mocked_engine(|mock_engine| {
-            mock_engine.expect_get_max_clients().returning(|| 16);
-        })
-        .run(|| {
-            let result = Python::with_gil(|py| player.set_headmodel(py, "Uriel".to_string()));
-            assert!(result.is_ok());
-        });
+        mocked_engine()
+            .configure(|mock_engine| {
+                mock_engine.expect_get_max_clients().returning(|| 16);
+            })
+            .run(|| {
+                let result = Python::with_gil(|py| player.set_headmodel(py, "Uriel".to_string()));
+                assert!(result.is_ok());
+            });
     }
 
     #[rstest]
@@ -2712,13 +2724,14 @@ assert(player._valid)
             ..default_test_player()
         };
 
-        with_mocked_engine(|mock_engine| {
-            mock_engine.expect_get_max_clients().returning(|| 16);
-        })
-        .run(|| {
-            let result = Python::with_gil(|py| player.set_handicap(py, "50".into_py(py)));
-            assert!(result.is_ok());
-        });
+        mocked_engine()
+            .configure(|mock_engine| {
+                mock_engine.expect_get_max_clients().returning(|| 16);
+            })
+            .run(|| {
+                let result = Python::with_gil(|py| player.set_handicap(py, "50".into_py(py)));
+                assert!(result.is_ok());
+            });
     }
 
     #[rstest]
@@ -2840,13 +2853,14 @@ assert(player._valid)
             ..default_test_player()
         };
 
-        with_mocked_engine(|mock_engine| {
-            mock_engine.expect_get_max_clients().returning(|| 16);
-        })
-        .run(|| {
-            let result = Python::with_gil(|py| player.set_autohop(py, 0.into_py(py)));
-            assert!(result.is_ok());
-        });
+        mocked_engine()
+            .configure(|mock_engine| {
+                mock_engine.expect_get_max_clients().returning(|| 16);
+            })
+            .run(|| {
+                let result = Python::with_gil(|py| player.set_autohop(py, 0.into_py(py)));
+                assert!(result.is_ok());
+            });
     }
 
     #[rstest]
@@ -2968,13 +2982,14 @@ assert(player._valid)
             ..default_test_player()
         };
 
-        with_mocked_engine(|mock_engine| {
-            mock_engine.expect_get_max_clients().returning(|| 16);
-        })
-        .run(|| {
-            let result = Python::with_gil(|py| player.set_autoaction(py, 0.into_py(py)));
-            assert!(result.is_ok());
-        });
+        mocked_engine()
+            .configure(|mock_engine| {
+                mock_engine.expect_get_max_clients().returning(|| 16);
+            })
+            .run(|| {
+                let result = Python::with_gil(|py| player.set_autoaction(py, 0.into_py(py)));
+                assert!(result.is_ok());
+            });
     }
 
     #[rstest]
@@ -3096,13 +3111,14 @@ assert(player._valid)
             ..default_test_player()
         };
 
-        with_mocked_engine(|mock_engine| {
-            mock_engine.expect_get_max_clients().returning(|| 16);
-        })
-        .run(|| {
-            let result = Python::with_gil(|py| player.set_predictitems(py, 0.into_py(py)));
-            assert!(result.is_ok());
-        });
+        mocked_engine()
+            .configure(|mock_engine| {
+                mock_engine.expect_get_max_clients().returning(|| 16);
+            })
+            .run(|| {
+                let result = Python::with_gil(|py| player.set_predictitems(py, 0.into_py(py)));
+                assert!(result.is_ok());
+            });
     }
 
     #[rstest]
@@ -3195,13 +3211,14 @@ assert(player._valid)
 
         let player = default_test_player();
 
-        with_mocked_engine(|mock_engine| {
-            mock_engine.expect_get_max_clients().returning(|| 16);
-        })
-        .run(|| {
-            let result = Python::with_gil(|py| player.get_state(py));
-            assert_eq!(result.expect("result was not OK"), None);
-        });
+        mocked_engine()
+            .configure(|mock_engine| {
+                mock_engine.expect_get_max_clients().returning(|| 16);
+            })
+            .run(|| {
+                let result = Python::with_gil(|py| player.get_state(py));
+                assert_eq!(result.expect("result was not OK"), None);
+            });
     }
 
     #[rstest]
@@ -3258,31 +3275,32 @@ assert(player._valid)
 
         let player = default_test_player();
 
-        with_mocked_engine(|mock_engine| {
-            mock_engine.expect_get_max_clients().returning(|| 16);
-        })
-        .run(|| {
-            let result = Python::with_gil(|py| player.get_state(py));
-            assert_eq!(
-                result.expect("result was not OK"),
-                Some(PlayerState {
-                    is_alive: true,
-                    position: Vector3(1, 2, 3),
-                    velocity: Vector3(4, 5, 6),
-                    health: 123,
-                    armor: 456,
-                    noclip: true,
-                    weapon: weapon_t::WP_NAILGUN.into(),
-                    weapons: Weapons(1, 1, 1, 0, 0, 0, 1, 1, 1, 0, 0, 0, 1, 1, 1),
-                    ammo: Weapons(1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15),
-                    powerups: Powerups(12, 34, 56, 78, 90, 24),
-                    holdable: Some("kamikaze".into()),
-                    flight: Flight(12, 34, 56, 78),
-                    is_chatting: true,
-                    is_frozen: true,
-                })
-            );
-        });
+        mocked_engine()
+            .configure(|mock_engine| {
+                mock_engine.expect_get_max_clients().returning(|| 16);
+            })
+            .run(|| {
+                let result = Python::with_gil(|py| player.get_state(py));
+                assert_eq!(
+                    result.expect("result was not OK"),
+                    Some(PlayerState {
+                        is_alive: true,
+                        position: Vector3(1, 2, 3),
+                        velocity: Vector3(4, 5, 6),
+                        health: 123,
+                        armor: 456,
+                        noclip: true,
+                        weapon: weapon_t::WP_NAILGUN.into(),
+                        weapons: Weapons(1, 1, 1, 0, 0, 0, 1, 1, 1, 0, 0, 0, 1, 1, 1),
+                        ammo: Weapons(1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15),
+                        powerups: Powerups(12, 34, 56, 78, 90, 24),
+                        holdable: Some("kamikaze".into()),
+                        flight: Flight(12, 34, 56, 78),
+                        is_chatting: true,
+                        is_frozen: true,
+                    })
+                );
+            });
     }
 
     #[rstest]
@@ -3338,13 +3356,14 @@ assert(player._valid)
 
         let mut player = default_test_player();
 
-        with_mocked_engine(|mock_engine| {
-            mock_engine.expect_get_max_clients().returning(|| 16);
-        })
-        .run(|| {
-            let result = Python::with_gil(|py| player.set_privileges(py, opt_priv));
-            assert!(result.is_ok());
-        });
+        mocked_engine()
+            .configure(|mock_engine| {
+                mock_engine.expect_get_max_clients().returning(|| 16);
+            })
+            .run(|| {
+                let result = Python::with_gil(|py| player.set_privileges(py, opt_priv));
+                assert!(result.is_ok());
+            });
     }
 
     #[rstest]
@@ -3406,13 +3425,14 @@ assert(player._valid)
             ..default_test_player()
         };
 
-        with_mocked_engine(|mock_engine| {
-            mock_engine.expect_get_max_clients().returning(|| 16);
-        })
-        .run(|| {
-            let result = Python::with_gil(|py| player.set_country(py, "uk".to_string()));
-            assert!(result.is_ok());
-        });
+        mocked_engine()
+            .configure(|mock_engine| {
+                mock_engine.expect_get_max_clients().returning(|| 16);
+            })
+            .run(|| {
+                let result = Python::with_gil(|py| player.set_country(py, "uk".to_string()));
+                assert!(result.is_ok());
+            });
     }
 
     #[rstest]
@@ -3474,27 +3494,28 @@ assert(player._valid)
 
         let player = default_test_player();
 
-        with_mocked_engine(|mock_engine| {
-            mock_engine.expect_get_max_clients().returning(|| 16);
-        })
-        .run(|| {
-            let result = Python::with_gil(|py| player.get_stats(py));
+        mocked_engine()
+            .configure(|mock_engine| {
+                mock_engine.expect_get_max_clients().returning(|| 16);
+            })
+            .run(|| {
+                let result = Python::with_gil(|py| player.get_stats(py));
 
-            assert_eq!(
-                result
-                    .expect("result was not OK")
-                    .expect("result was not Some"),
-                PlayerStats {
-                    score: 42,
-                    kills: 7,
-                    deaths: 9,
-                    damage_dealt: 5000,
-                    damage_taken: 4200,
-                    time: 123,
-                    ping: 9,
-                }
-            );
-        });
+                assert_eq!(
+                    result
+                        .expect("result was not OK")
+                        .expect("result was not Some"),
+                    PlayerStats {
+                        score: 42,
+                        kills: 7,
+                        deaths: 9,
+                        damage_dealt: 5000,
+                        damage_taken: 4200,
+                        time: 123,
+                        ping: 9,
+                    }
+                );
+            });
     }
 
     #[rstest]
@@ -3512,14 +3533,15 @@ assert(player._valid)
 
         let player = default_test_player();
 
-        with_mocked_engine(|mock_engine| {
-            mock_engine.expect_get_max_clients().returning(|| 16);
-        })
-        .run(|| {
-            let result = Python::with_gil(|py| player.get_stats(py));
+        mocked_engine()
+            .configure(|mock_engine| {
+                mock_engine.expect_get_max_clients().returning(|| 16);
+            })
+            .run(|| {
+                let result = Python::with_gil(|py| player.get_stats(py));
 
-            assert_eq!(result.expect("result was not OK"), None);
-        });
+                assert_eq!(result.expect("result was not OK"), None);
+            });
     }
 
     #[rstest]
@@ -3561,14 +3583,15 @@ assert(player._valid)
 
         let player = default_test_player();
 
-        with_mocked_engine(|mock_engine| {
-            mock_engine.expect_get_max_clients().returning(|| 16);
-        })
-        .run(|| {
-            let result = Python::with_gil(|py| player.get_ping(py));
+        mocked_engine()
+            .configure(|mock_engine| {
+                mock_engine.expect_get_max_clients().returning(|| 16);
+            })
+            .run(|| {
+                let result = Python::with_gil(|py| player.get_ping(py));
 
-            assert_eq!(result.expect("result was not OK"), 42);
-        });
+                assert_eq!(result.expect("result was not OK"), 42);
+            });
     }
 
     #[rstest]
@@ -3586,14 +3609,15 @@ assert(player._valid)
 
         let player = default_test_player();
 
-        with_mocked_engine(|mock_engine| {
-            mock_engine.expect_get_max_clients().returning(|| 16);
-        })
-        .run(|| {
-            let result = Python::with_gil(|py| player.get_ping(py));
+        mocked_engine()
+            .configure(|mock_engine| {
+                mock_engine.expect_get_max_clients().returning(|| 16);
+            })
+            .run(|| {
+                let result = Python::with_gil(|py| player.get_ping(py));
 
-            assert_eq!(result.expect("result was not OK"), 999);
-        });
+                assert_eq!(result.expect("result was not OK"), 999);
+            });
     }
 
     #[rstest]
@@ -3633,18 +3657,19 @@ assert(player._valid)
 
         let player = default_test_player();
 
-        with_mocked_engine(|mock_engine| {
-            mock_engine.expect_get_max_clients().returning(|| 16);
-        })
-        .run(|| {
-            Python::with_gil(|py| {
-                let result = player.position(py, false, None);
-                assert!(result.is_ok_and(|value| value
-                    .extract::<Vector3>(py)
-                    .expect("result was not a Vector3")
-                    == Vector3(1, 2, 3)));
+        mocked_engine()
+            .configure(|mock_engine| {
+                mock_engine.expect_get_max_clients().returning(|| 16);
+            })
+            .run(|| {
+                Python::with_gil(|py| {
+                    let result = player.position(py, false, None);
+                    assert!(result.is_ok_and(|value| value
+                        .extract::<Vector3>(py)
+                        .expect("result was not a Vector3")
+                        == Vector3(1, 2, 3)));
+                });
             });
-        });
     }
 
     #[rstest]
@@ -3707,25 +3732,26 @@ assert(player._valid)
 
         let player = default_test_player();
 
-        with_mocked_engine(|mock_engine| {
-            mock_engine.expect_get_max_clients().returning(|| 16);
-        })
-        .run(|| {
-            Python::with_gil(|py| {
-                let result = player.position(
-                    py,
-                    false,
-                    Some(&[("x", 4), ("y", 5), ("z", 6)].into_py_dict_bound(py)),
-                );
-                assert_eq!(
-                    result
-                        .expect("result was not Ok")
-                        .extract::<bool>(py)
-                        .expect("result was not a bool value"),
-                    true
-                );
+        mocked_engine()
+            .configure(|mock_engine| {
+                mock_engine.expect_get_max_clients().returning(|| 16);
+            })
+            .run(|| {
+                Python::with_gil(|py| {
+                    let result = player.position(
+                        py,
+                        false,
+                        Some(&[("x", 4), ("y", 5), ("z", 6)].into_py_dict_bound(py)),
+                    );
+                    assert_eq!(
+                        result
+                            .expect("result was not Ok")
+                            .extract::<bool>(py)
+                            .expect("result was not a bool value"),
+                        true
+                    );
+                });
             });
-        });
     }
 
     #[rstest]
@@ -3757,21 +3783,22 @@ assert(player._valid)
 
         let player = default_test_player();
 
-        with_mocked_engine(|mock_engine| {
-            mock_engine.expect_get_max_clients().returning(|| 16);
-        })
-        .run(|| {
-            Python::with_gil(|py| {
-                let result = player.position(py, true, Some(&position.into_py_dict_bound(py)));
-                assert_eq!(
-                    result
-                        .expect("result was not Ok")
-                        .extract::<bool>(py)
-                        .expect("result was not a bool value"),
-                    true
-                );
+        mocked_engine()
+            .configure(|mock_engine| {
+                mock_engine.expect_get_max_clients().returning(|| 16);
+            })
+            .run(|| {
+                Python::with_gil(|py| {
+                    let result = player.position(py, true, Some(&position.into_py_dict_bound(py)));
+                    assert_eq!(
+                        result
+                            .expect("result was not Ok")
+                            .extract::<bool>(py)
+                            .expect("result was not a bool value"),
+                        true
+                    );
+                });
             });
-        });
     }
 
     #[rstest]
@@ -3789,25 +3816,26 @@ assert(player._valid)
 
         let player = default_test_player();
 
-        with_mocked_engine(|mock_engine| {
-            mock_engine.expect_get_max_clients().returning(|| 16);
-        })
-        .run(|| {
-            Python::with_gil(|py| {
-                let result = player.position(
-                    py,
-                    false,
-                    Some(&[("x", 4), ("y", 5), ("z", 6)].into_py_dict_bound(py)),
-                );
-                assert_eq!(
-                    result
-                        .expect("result was not Ok")
-                        .extract::<bool>(py)
-                        .expect("result was not a bool value"),
-                    false
-                );
+        mocked_engine()
+            .configure(|mock_engine| {
+                mock_engine.expect_get_max_clients().returning(|| 16);
+            })
+            .run(|| {
+                Python::with_gil(|py| {
+                    let result = player.position(
+                        py,
+                        false,
+                        Some(&[("x", 4), ("y", 5), ("z", 6)].into_py_dict_bound(py)),
+                    );
+                    assert_eq!(
+                        result
+                            .expect("result was not Ok")
+                            .extract::<bool>(py)
+                            .expect("result was not a bool value"),
+                        false
+                    );
+                });
             });
-        });
     }
 
     #[rstest]
@@ -3847,18 +3875,19 @@ assert(player._valid)
 
         let player = default_test_player();
 
-        with_mocked_engine(|mock_engine| {
-            mock_engine.expect_get_max_clients().returning(|| 16);
-        })
-        .run(|| {
-            Python::with_gil(|py| {
-                let result = player.velocity(py, false, None);
-                assert!(result.is_ok_and(|value| value
-                    .extract::<Vector3>(py)
-                    .expect("result was not a Vector3")
-                    == Vector3(1, 2, 3)));
+        mocked_engine()
+            .configure(|mock_engine| {
+                mock_engine.expect_get_max_clients().returning(|| 16);
+            })
+            .run(|| {
+                Python::with_gil(|py| {
+                    let result = player.velocity(py, false, None);
+                    assert!(result.is_ok_and(|value| value
+                        .extract::<Vector3>(py)
+                        .expect("result was not a Vector3")
+                        == Vector3(1, 2, 3)));
+                });
             });
-        });
     }
 
     #[rstest]
@@ -3921,25 +3950,26 @@ assert(player._valid)
 
         let player = default_test_player();
 
-        with_mocked_engine(|mock_engine| {
-            mock_engine.expect_get_max_clients().returning(|| 16);
-        })
-        .run(|| {
-            Python::with_gil(|py| {
-                let result = player.velocity(
-                    py,
-                    false,
-                    Some(&[("x", 4), ("y", 5), ("z", 6)].into_py_dict_bound(py)),
-                );
-                assert_eq!(
-                    result
-                        .expect("result was not Ok")
-                        .extract::<bool>(py)
-                        .expect("result was not a bool value"),
-                    true
-                );
+        mocked_engine()
+            .configure(|mock_engine| {
+                mock_engine.expect_get_max_clients().returning(|| 16);
+            })
+            .run(|| {
+                Python::with_gil(|py| {
+                    let result = player.velocity(
+                        py,
+                        false,
+                        Some(&[("x", 4), ("y", 5), ("z", 6)].into_py_dict_bound(py)),
+                    );
+                    assert_eq!(
+                        result
+                            .expect("result was not Ok")
+                            .extract::<bool>(py)
+                            .expect("result was not a bool value"),
+                        true
+                    );
+                });
             });
-        });
     }
 
     #[rstest]
@@ -3971,21 +4001,22 @@ assert(player._valid)
 
         let player = default_test_player();
 
-        with_mocked_engine(|mock_engine| {
-            mock_engine.expect_get_max_clients().returning(|| 16);
-        })
-        .run(|| {
-            Python::with_gil(|py| {
-                let result = player.velocity(py, true, Some(&velocity.into_py_dict_bound(py)));
-                assert_eq!(
-                    result
-                        .expect("result was not Ok")
-                        .extract::<bool>(py)
-                        .expect("result was not a bool value"),
-                    true
-                );
+        mocked_engine()
+            .configure(|mock_engine| {
+                mock_engine.expect_get_max_clients().returning(|| 16);
+            })
+            .run(|| {
+                Python::with_gil(|py| {
+                    let result = player.velocity(py, true, Some(&velocity.into_py_dict_bound(py)));
+                    assert_eq!(
+                        result
+                            .expect("result was not Ok")
+                            .extract::<bool>(py)
+                            .expect("result was not a bool value"),
+                        true
+                    );
+                });
             });
-        });
     }
 
     #[rstest]
@@ -4003,25 +4034,26 @@ assert(player._valid)
 
         let player = default_test_player();
 
-        with_mocked_engine(|mock_engine| {
-            mock_engine.expect_get_max_clients().returning(|| 16);
-        })
-        .run(|| {
-            Python::with_gil(|py| {
-                let result = player.velocity(
-                    py,
-                    false,
-                    Some(&[("x", 4), ("y", 5), ("z", 6)].into_py_dict_bound(py)),
-                );
-                assert_eq!(
-                    result
-                        .expect("result was not Ok")
-                        .extract::<bool>(py)
-                        .expect("result was not a bool value"),
-                    false
-                );
+        mocked_engine()
+            .configure(|mock_engine| {
+                mock_engine.expect_get_max_clients().returning(|| 16);
+            })
+            .run(|| {
+                Python::with_gil(|py| {
+                    let result = player.velocity(
+                        py,
+                        false,
+                        Some(&[("x", 4), ("y", 5), ("z", 6)].into_py_dict_bound(py)),
+                    );
+                    assert_eq!(
+                        result
+                            .expect("result was not Ok")
+                            .extract::<bool>(py)
+                            .expect("result was not a bool value"),
+                        false
+                    );
+                });
             });
-        });
     }
 
     #[rstest]
@@ -4061,18 +4093,19 @@ assert(player._valid)
 
         let player = default_test_player();
 
-        with_mocked_engine(|mock_engine| {
-            mock_engine.expect_get_max_clients().returning(|| 16);
-        })
-        .run(|| {
-            Python::with_gil(|py| {
-                let result = player.weapons(py, false, None);
-                assert!(result.is_ok_and(|value| value
-                    .extract::<Weapons>(py)
-                    .expect("result was not Weapons")
-                    == Weapons(1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1)));
+        mocked_engine()
+            .configure(|mock_engine| {
+                mock_engine.expect_get_max_clients().returning(|| 16);
+            })
+            .run(|| {
+                Python::with_gil(|py| {
+                    let result = player.weapons(py, false, None);
+                    assert!(result.is_ok_and(|value| value
+                        .extract::<Weapons>(py)
+                        .expect("result was not Weapons")
+                        == Weapons(1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1)));
+                });
             });
-        });
     }
 
     #[rstest]
@@ -4135,44 +4168,45 @@ assert(player._valid)
 
         let player = default_test_player();
 
-        with_mocked_engine(|mock_engine| {
-            mock_engine.expect_get_max_clients().returning(|| 16);
-        })
-        .run(|| {
-            Python::with_gil(|py| {
-                let result = player.weapons(
-                    py,
-                    false,
-                    Some(
-                        &[
-                            ("g", true),
-                            ("mg", false),
-                            ("sg", true),
-                            ("gl", false),
-                            ("rl", true),
-                            ("lg", false),
-                            ("rg", true),
-                            ("pg", false),
-                            ("bfg", true),
-                            ("gh", false),
-                            ("ng", true),
-                            ("pl", false),
-                            ("cg", true),
-                            ("hmg", false),
-                            ("hands", true),
-                        ]
-                        .into_py_dict_bound(py),
-                    ),
-                );
-                assert_eq!(
-                    result
-                        .expect("result was not Ok")
-                        .extract::<bool>(py)
-                        .expect("result was not a bool value"),
-                    true
-                );
+        mocked_engine()
+            .configure(|mock_engine| {
+                mock_engine.expect_get_max_clients().returning(|| 16);
+            })
+            .run(|| {
+                Python::with_gil(|py| {
+                    let result = player.weapons(
+                        py,
+                        false,
+                        Some(
+                            &[
+                                ("g", true),
+                                ("mg", false),
+                                ("sg", true),
+                                ("gl", false),
+                                ("rl", true),
+                                ("lg", false),
+                                ("rg", true),
+                                ("pg", false),
+                                ("bfg", true),
+                                ("gh", false),
+                                ("ng", true),
+                                ("pl", false),
+                                ("cg", true),
+                                ("hmg", false),
+                                ("hands", true),
+                            ]
+                            .into_py_dict_bound(py),
+                        ),
+                    );
+                    assert_eq!(
+                        result
+                            .expect("result was not Ok")
+                            .extract::<bool>(py)
+                            .expect("result was not a bool value"),
+                        true
+                    );
+                });
             });
-        });
     }
 
     #[rstest]
@@ -4216,21 +4250,22 @@ assert(player._valid)
 
         let player = default_test_player();
 
-        with_mocked_engine(|mock_engine| {
-            mock_engine.expect_get_max_clients().returning(|| 16);
-        })
-        .run(|| {
-            Python::with_gil(|py| {
-                let result = player.weapons(py, true, Some(&weapons.into_py_dict_bound(py)));
-                assert_eq!(
-                    result
-                        .expect("result was not Ok")
-                        .extract::<bool>(py)
-                        .expect("result was not a bool value"),
-                    true
-                );
+        mocked_engine()
+            .configure(|mock_engine| {
+                mock_engine.expect_get_max_clients().returning(|| 16);
+            })
+            .run(|| {
+                Python::with_gil(|py| {
+                    let result = player.weapons(py, true, Some(&weapons.into_py_dict_bound(py)));
+                    assert_eq!(
+                        result
+                            .expect("result was not Ok")
+                            .extract::<bool>(py)
+                            .expect("result was not a bool value"),
+                        true
+                    );
+                });
             });
-        });
     }
 
     #[rstest]
@@ -4248,44 +4283,45 @@ assert(player._valid)
 
         let player = default_test_player();
 
-        with_mocked_engine(|mock_engine| {
-            mock_engine.expect_get_max_clients().returning(|| 16);
-        })
-        .run(|| {
-            Python::with_gil(|py| {
-                let result = player.weapons(
-                    py,
-                    false,
-                    Some(
-                        &[
-                            ("g", true),
-                            ("mg", false),
-                            ("sg", true),
-                            ("gl", false),
-                            ("rl", true),
-                            ("lg", false),
-                            ("rg", true),
-                            ("pg", false),
-                            ("bfg", true),
-                            ("gh", false),
-                            ("ng", true),
-                            ("pl", false),
-                            ("cg", true),
-                            ("hmg", false),
-                            ("hands", true),
-                        ]
-                        .into_py_dict_bound(py),
-                    ),
-                );
-                assert_eq!(
-                    result
-                        .expect("result was not Ok")
-                        .extract::<bool>(py)
-                        .expect("result was not a bool value"),
-                    false
-                );
+        mocked_engine()
+            .configure(|mock_engine| {
+                mock_engine.expect_get_max_clients().returning(|| 16);
+            })
+            .run(|| {
+                Python::with_gil(|py| {
+                    let result = player.weapons(
+                        py,
+                        false,
+                        Some(
+                            &[
+                                ("g", true),
+                                ("mg", false),
+                                ("sg", true),
+                                ("gl", false),
+                                ("rl", true),
+                                ("lg", false),
+                                ("rg", true),
+                                ("pg", false),
+                                ("bfg", true),
+                                ("gh", false),
+                                ("ng", true),
+                                ("pl", false),
+                                ("cg", true),
+                                ("hmg", false),
+                                ("hands", true),
+                            ]
+                            .into_py_dict_bound(py),
+                        ),
+                    );
+                    assert_eq!(
+                        result
+                            .expect("result was not Ok")
+                            .extract::<bool>(py)
+                            .expect("result was not a bool value"),
+                        false
+                    );
+                });
             });
-        });
     }
 
     #[rstest]
@@ -4340,21 +4376,22 @@ assert(player._valid)
 
         let player = default_test_player();
 
-        with_mocked_engine(|mock_engine| {
-            mock_engine.expect_get_max_clients().returning(|| 16);
-        })
-        .run(|| {
-            Python::with_gil(|py| {
-                let result = player.weapon(py, None);
-                assert_eq!(
-                    result
-                        .expect("result was not Ok")
-                        .extract::<i32>(py)
-                        .expect("result was not an integer"),
-                    weapon as i32
-                )
+        mocked_engine()
+            .configure(|mock_engine| {
+                mock_engine.expect_get_max_clients().returning(|| 16);
+            })
+            .run(|| {
+                Python::with_gil(|py| {
+                    let result = player.weapon(py, None);
+                    assert_eq!(
+                        result
+                            .expect("result was not Ok")
+                            .extract::<i32>(py)
+                            .expect("result was not an integer"),
+                        weapon as i32
+                    )
+                });
             });
-        });
     }
 
     #[rstest]
@@ -4373,21 +4410,22 @@ assert(player._valid)
 
         let player = default_test_player();
 
-        with_mocked_engine(|mock_engine| {
-            mock_engine.expect_get_max_clients().returning(|| 16);
-        })
-        .run(|| {
-            Python::with_gil(|py| {
-                let result = player.weapon(py, None);
-                assert_eq!(
-                    result
-                        .expect("result was not Ok")
-                        .extract::<i32>(py)
-                        .expect("result was not an integer"),
-                    weapon_t::WP_HANDS as i32
-                )
+        mocked_engine()
+            .configure(|mock_engine| {
+                mock_engine.expect_get_max_clients().returning(|| 16);
+            })
+            .run(|| {
+                Python::with_gil(|py| {
+                    let result = player.weapon(py, None);
+                    assert_eq!(
+                        result
+                            .expect("result was not Ok")
+                            .extract::<i32>(py)
+                            .expect("result was not an integer"),
+                        weapon_t::WP_HANDS as i32
+                    )
+                });
             });
-        });
     }
 
     #[rstest]
@@ -4432,21 +4470,22 @@ assert(player._valid)
 
         let player = default_test_player();
 
-        with_mocked_engine(|mock_engine| {
-            mock_engine.expect_get_max_clients().returning(|| 16);
-        })
-        .run(|| {
-            Python::with_gil(|py| {
-                let result = player.weapon(py, Some(weapon_str.into_py(py)));
-                assert_eq!(
-                    result
-                        .expect("result was not Ok")
-                        .extract::<bool>(py)
-                        .expect("result was not a bool value"),
-                    true
-                );
+        mocked_engine()
+            .configure(|mock_engine| {
+                mock_engine.expect_get_max_clients().returning(|| 16);
+            })
+            .run(|| {
+                Python::with_gil(|py| {
+                    let result = player.weapon(py, Some(weapon_str.into_py(py)));
+                    assert_eq!(
+                        result
+                            .expect("result was not Ok")
+                            .extract::<bool>(py)
+                            .expect("result was not a bool value"),
+                        true
+                    );
+                });
             });
-        });
     }
 
     #[rstest]
@@ -4502,21 +4541,22 @@ assert(player._valid)
 
         let player = default_test_player();
 
-        with_mocked_engine(|mock_engine| {
-            mock_engine.expect_get_max_clients().returning(|| 16);
-        })
-        .run(|| {
-            Python::with_gil(|py| {
-                let result = player.weapon(py, Some(weapon_index.into_py(py)));
-                assert_eq!(
-                    result
-                        .expect("result was not Ok")
-                        .extract::<bool>(py)
-                        .expect("result was not a bool value"),
-                    true
-                );
+        mocked_engine()
+            .configure(|mock_engine| {
+                mock_engine.expect_get_max_clients().returning(|| 16);
+            })
+            .run(|| {
+                Python::with_gil(|py| {
+                    let result = player.weapon(py, Some(weapon_index.into_py(py)));
+                    assert_eq!(
+                        result
+                            .expect("result was not Ok")
+                            .extract::<bool>(py)
+                            .expect("result was not a bool value"),
+                        true
+                    );
+                });
             });
-        });
     }
 
     #[rstest]
@@ -4567,18 +4607,19 @@ assert(player._valid)
 
         let player = default_test_player();
 
-        with_mocked_engine(|mock_engine| {
-            mock_engine.expect_get_max_clients().returning(|| 16);
-        })
-        .run(|| {
-            Python::with_gil(|py| {
-                let result = player.ammo(py, false, None);
-                assert!(result.is_ok_and(|value| value
-                    .extract::<Weapons>(py)
-                    .expect("result was not Weapons")
-                    == Weapons(1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15)));
+        mocked_engine()
+            .configure(|mock_engine| {
+                mock_engine.expect_get_max_clients().returning(|| 16);
+            })
+            .run(|| {
+                Python::with_gil(|py| {
+                    let result = player.ammo(py, false, None);
+                    assert!(result.is_ok_and(|value| value
+                        .extract::<Weapons>(py)
+                        .expect("result was not Weapons")
+                        == Weapons(1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15)));
+                });
             });
-        });
     }
 
     #[rstest]
@@ -4641,44 +4682,45 @@ assert(player._valid)
 
         let player = default_test_player();
 
-        with_mocked_engine(|mock_engine| {
-            mock_engine.expect_get_max_clients().returning(|| 16);
-        })
-        .run(|| {
-            Python::with_gil(|py| {
-                let result = player.ammo(
-                    py,
-                    false,
-                    Some(
-                        &[
-                            ("g", 1),
-                            ("mg", 2),
-                            ("sg", 3),
-                            ("gl", 4),
-                            ("rl", 5),
-                            ("lg", 6),
-                            ("rg", 7),
-                            ("pg", 8),
-                            ("bfg", 9),
-                            ("gh", 10),
-                            ("ng", 11),
-                            ("pl", 12),
-                            ("cg", 13),
-                            ("hmg", 14),
-                            ("hands", 15),
-                        ]
-                        .into_py_dict_bound(py),
-                    ),
-                );
-                assert_eq!(
-                    result
-                        .expect("result was not Ok")
-                        .extract::<bool>(py)
-                        .expect("result was not a bool value"),
-                    true
-                );
+        mocked_engine()
+            .configure(|mock_engine| {
+                mock_engine.expect_get_max_clients().returning(|| 16);
+            })
+            .run(|| {
+                Python::with_gil(|py| {
+                    let result = player.ammo(
+                        py,
+                        false,
+                        Some(
+                            &[
+                                ("g", 1),
+                                ("mg", 2),
+                                ("sg", 3),
+                                ("gl", 4),
+                                ("rl", 5),
+                                ("lg", 6),
+                                ("rg", 7),
+                                ("pg", 8),
+                                ("bfg", 9),
+                                ("gh", 10),
+                                ("ng", 11),
+                                ("pl", 12),
+                                ("cg", 13),
+                                ("hmg", 14),
+                                ("hands", 15),
+                            ]
+                            .into_py_dict_bound(py),
+                        ),
+                    );
+                    assert_eq!(
+                        result
+                            .expect("result was not Ok")
+                            .extract::<bool>(py)
+                            .expect("result was not a bool value"),
+                        true
+                    );
+                });
             });
-        });
     }
 
     #[rstest]
@@ -4722,21 +4764,22 @@ assert(player._valid)
 
         let player = default_test_player();
 
-        with_mocked_engine(|mock_engine| {
-            mock_engine.expect_get_max_clients().returning(|| 16);
-        })
-        .run(|| {
-            Python::with_gil(|py| {
-                let result = player.ammo(py, true, Some(&ammos.into_py_dict_bound(py)));
-                assert_eq!(
-                    result
-                        .expect("result was not Ok")
-                        .extract::<bool>(py)
-                        .expect("result was not a bool value"),
-                    true
-                );
+        mocked_engine()
+            .configure(|mock_engine| {
+                mock_engine.expect_get_max_clients().returning(|| 16);
+            })
+            .run(|| {
+                Python::with_gil(|py| {
+                    let result = player.ammo(py, true, Some(&ammos.into_py_dict_bound(py)));
+                    assert_eq!(
+                        result
+                            .expect("result was not Ok")
+                            .extract::<bool>(py)
+                            .expect("result was not a bool value"),
+                        true
+                    );
+                });
             });
-        });
     }
 
     #[rstest]
@@ -4754,44 +4797,45 @@ assert(player._valid)
 
         let player = default_test_player();
 
-        with_mocked_engine(|mock_engine| {
-            mock_engine.expect_get_max_clients().returning(|| 16);
-        })
-        .run(|| {
-            Python::with_gil(|py| {
-                let result = player.ammo(
-                    py,
-                    false,
-                    Some(
-                        &[
-                            ("g", 1),
-                            ("mg", 2),
-                            ("sg", 3),
-                            ("gl", 4),
-                            ("rl", 5),
-                            ("lg", 6),
-                            ("rg", 7),
-                            ("pg", 8),
-                            ("bfg", 9),
-                            ("gh", 10),
-                            ("ng", 11),
-                            ("pl", 12),
-                            ("cg", 13),
-                            ("hmg", 14),
-                            ("hands", 15),
-                        ]
-                        .into_py_dict_bound(py),
-                    ),
-                );
-                assert_eq!(
-                    result
-                        .expect("result was not Ok")
-                        .extract::<bool>(py)
-                        .expect("result was not a bool value"),
-                    false
-                );
+        mocked_engine()
+            .configure(|mock_engine| {
+                mock_engine.expect_get_max_clients().returning(|| 16);
+            })
+            .run(|| {
+                Python::with_gil(|py| {
+                    let result = player.ammo(
+                        py,
+                        false,
+                        Some(
+                            &[
+                                ("g", 1),
+                                ("mg", 2),
+                                ("sg", 3),
+                                ("gl", 4),
+                                ("rl", 5),
+                                ("lg", 6),
+                                ("rg", 7),
+                                ("pg", 8),
+                                ("bfg", 9),
+                                ("gh", 10),
+                                ("ng", 11),
+                                ("pl", 12),
+                                ("cg", 13),
+                                ("hmg", 14),
+                                ("hands", 15),
+                            ]
+                            .into_py_dict_bound(py),
+                        ),
+                    );
+                    assert_eq!(
+                        result
+                            .expect("result was not Ok")
+                            .extract::<bool>(py)
+                            .expect("result was not a bool value"),
+                        false
+                    );
+                });
             });
-        });
     }
 
     #[rstest]
@@ -4831,18 +4875,19 @@ assert(player._valid)
 
         let player = default_test_player();
 
-        with_mocked_engine(|mock_engine| {
-            mock_engine.expect_get_max_clients().returning(|| 16);
-        })
-        .run(|| {
-            Python::with_gil(|py| {
-                let result = player.powerups(py, false, None);
-                assert!(result.is_ok_and(|value| value
-                    .extract::<Powerups>(py)
-                    .expect("result was not a Powerups")
-                    == Powerups(1000, 2000, 3000, 4000, 5000, 6000)));
+        mocked_engine()
+            .configure(|mock_engine| {
+                mock_engine.expect_get_max_clients().returning(|| 16);
+            })
+            .run(|| {
+                Python::with_gil(|py| {
+                    let result = player.powerups(py, false, None);
+                    assert!(result.is_ok_and(|value| value
+                        .extract::<Powerups>(py)
+                        .expect("result was not a Powerups")
+                        == Powerups(1000, 2000, 3000, 4000, 5000, 6000)));
+                });
             });
-        });
     }
 
     #[rstest]
@@ -4905,35 +4950,36 @@ assert(player._valid)
 
         let player = default_test_player();
 
-        with_mocked_engine(|mock_engine| {
-            mock_engine.expect_get_max_clients().returning(|| 16);
-        })
-        .run(|| {
-            Python::with_gil(|py| {
-                let result = player.powerups(
-                    py,
-                    false,
-                    Some(
-                        &[
-                            ("quad", 6.5),
-                            ("battlesuit", 5.0),
-                            ("haste", 4.25),
-                            ("invisibility", 3.0),
-                            ("regeneration", 2.125),
-                            ("invulnerability", 1.0),
-                        ]
-                        .into_py_dict_bound(py),
-                    ),
-                );
-                assert_eq!(
-                    result
-                        .expect("result was not Ok")
-                        .extract::<bool>(py)
-                        .expect("result was not a bool value"),
-                    true
-                );
+        mocked_engine()
+            .configure(|mock_engine| {
+                mock_engine.expect_get_max_clients().returning(|| 16);
+            })
+            .run(|| {
+                Python::with_gil(|py| {
+                    let result = player.powerups(
+                        py,
+                        false,
+                        Some(
+                            &[
+                                ("quad", 6.5),
+                                ("battlesuit", 5.0),
+                                ("haste", 4.25),
+                                ("invisibility", 3.0),
+                                ("regeneration", 2.125),
+                                ("invulnerability", 1.0),
+                            ]
+                            .into_py_dict_bound(py),
+                        ),
+                    );
+                    assert_eq!(
+                        result
+                            .expect("result was not Ok")
+                            .extract::<bool>(py)
+                            .expect("result was not a bool value"),
+                        true
+                    );
+                });
             });
-        });
     }
 
     #[rstest]
@@ -4968,21 +5014,22 @@ assert(player._valid)
 
         let player = default_test_player();
 
-        with_mocked_engine(|mock_engine| {
-            mock_engine.expect_get_max_clients().returning(|| 16);
-        })
-        .run(|| {
-            Python::with_gil(|py| {
-                let result = player.powerups(py, true, Some(&powerups.into_py_dict_bound(py)));
-                assert_eq!(
-                    result
-                        .expect("result was not Ok")
-                        .extract::<bool>(py)
-                        .expect("result was not a bool value"),
-                    true
-                );
+        mocked_engine()
+            .configure(|mock_engine| {
+                mock_engine.expect_get_max_clients().returning(|| 16);
+            })
+            .run(|| {
+                Python::with_gil(|py| {
+                    let result = player.powerups(py, true, Some(&powerups.into_py_dict_bound(py)));
+                    assert_eq!(
+                        result
+                            .expect("result was not Ok")
+                            .extract::<bool>(py)
+                            .expect("result was not a bool value"),
+                        true
+                    );
+                });
             });
-        });
     }
 
     #[rstest]
@@ -5000,35 +5047,36 @@ assert(player._valid)
 
         let player = default_test_player();
 
-        with_mocked_engine(|mock_engine| {
-            mock_engine.expect_get_max_clients().returning(|| 16);
-        })
-        .run(|| {
-            Python::with_gil(|py| {
-                let result = player.powerups(
-                    py,
-                    false,
-                    Some(
-                        &[
-                            ("quad", 6),
-                            ("battlesuit", 5),
-                            ("haste", 4),
-                            ("invisibility", 3),
-                            ("regeneration", 2),
-                            ("invulnerability", 1),
-                        ]
-                        .into_py_dict_bound(py),
-                    ),
-                );
-                assert_eq!(
-                    result
-                        .expect("result was not Ok")
-                        .extract::<bool>(py)
-                        .expect("result was not a bool value"),
-                    false
-                );
+        mocked_engine()
+            .configure(|mock_engine| {
+                mock_engine.expect_get_max_clients().returning(|| 16);
+            })
+            .run(|| {
+                Python::with_gil(|py| {
+                    let result = player.powerups(
+                        py,
+                        false,
+                        Some(
+                            &[
+                                ("quad", 6),
+                                ("battlesuit", 5),
+                                ("haste", 4),
+                                ("invisibility", 3),
+                                ("regeneration", 2),
+                                ("invulnerability", 1),
+                            ]
+                            .into_py_dict_bound(py),
+                        ),
+                    );
+                    assert_eq!(
+                        result
+                            .expect("result was not Ok")
+                            .extract::<bool>(py)
+                            .expect("result was not a bool value"),
+                        false
+                    );
+                });
             });
-        });
     }
 
     #[rstest]
@@ -5093,13 +5141,14 @@ assert(player._valid)
 
         let player = default_test_player();
 
-        with_mocked_engine(|mock_engine| {
-            mock_engine.expect_get_max_clients().returning(|| 16);
-        })
-        .run(|| {
-            let result = Python::with_gil(|py| player.get_holdable(py));
-            assert_eq!(result.expect("result was not Ok"), expected_result);
-        });
+        mocked_engine()
+            .configure(|mock_engine| {
+                mock_engine.expect_get_max_clients().returning(|| 16);
+            })
+            .run(|| {
+                let result = Python::with_gil(|py| player.get_holdable(py));
+                assert_eq!(result.expect("result was not Ok"), expected_result);
+            });
     }
 
     #[rstest]
@@ -5161,13 +5210,14 @@ assert(player._valid)
 
         let mut player = default_test_player();
 
-        with_mocked_engine(|mock_engine| {
-            mock_engine.expect_get_max_clients().returning(|| 16);
-        })
-        .run(|| {
-            let result = Python::with_gil(|py| player.set_holdable(py, new_holdable));
-            assert!(result.is_ok());
-        });
+        mocked_engine()
+            .configure(|mock_engine| {
+                mock_engine.expect_get_max_clients().returning(|| 16);
+            })
+            .run(|| {
+                let result = Python::with_gil(|py| player.set_holdable(py, new_holdable));
+                assert!(result.is_ok());
+            });
     }
 
     #[rstest]
@@ -5213,13 +5263,15 @@ assert(player._valid)
 
         let mut player = default_test_player();
 
-        with_mocked_engine(|mock_engine| {
-            mock_engine.expect_get_max_clients().returning(|| 16);
-        })
-        .run(|| {
-            let result = Python::with_gil(|py| player.set_holdable(py, Some("flight".to_string())));
-            assert!(result.is_ok());
-        });
+        mocked_engine()
+            .configure(|mock_engine| {
+                mock_engine.expect_get_max_clients().returning(|| 16);
+            })
+            .run(|| {
+                let result =
+                    Python::with_gil(|py| player.set_holdable(py, Some("flight".to_string())));
+                assert!(result.is_ok());
+            });
     }
 
     #[rstest]
@@ -5262,13 +5314,14 @@ assert(player._valid)
 
         let mut player = default_test_player();
 
-        with_mocked_engine(|mock_engine| {
-            mock_engine.expect_get_max_clients().returning(|| 16);
-        })
-        .run(|| {
-            let result = Python::with_gil(|py| player.drop_holdable(py));
-            assert!(result.is_ok());
-        });
+        mocked_engine()
+            .configure(|mock_engine| {
+                mock_engine.expect_get_max_clients().returning(|| 16);
+            })
+            .run(|| {
+                let result = Python::with_gil(|py| player.drop_holdable(py));
+                assert!(result.is_ok());
+            });
     }
 
     #[rstest]
@@ -5312,18 +5365,19 @@ assert(player._valid)
 
         let mut player = default_test_player();
 
-        with_mocked_engine(|mock_engine| {
-            mock_engine.expect_get_max_clients().returning(|| 16);
-        })
-        .run(|| {
-            Python::with_gil(|py| {
-                let result = player.flight(py, false, None);
-                assert!(result.is_ok_and(|value| value
-                    .extract::<Flight>(py)
-                    .expect("result was not a Flight")
-                    == Flight(1, 2, 3, 4)));
+        mocked_engine()
+            .configure(|mock_engine| {
+                mock_engine.expect_get_max_clients().returning(|| 16);
+            })
+            .run(|| {
+                Python::with_gil(|py| {
+                    let result = player.flight(py, false, None);
+                    assert!(result.is_ok_and(|value| value
+                        .extract::<Flight>(py)
+                        .expect("result was not a Flight")
+                        == Flight(1, 2, 3, 4)));
+                });
             });
-        });
     }
 
     #[rstest]
@@ -5385,28 +5439,29 @@ assert(player._valid)
             });
         let mut player = default_test_player();
 
-        with_mocked_engine(|mock_engine| {
-            mock_engine.expect_get_max_clients().returning(|| 16);
-        })
-        .run(|| {
-            Python::with_gil(|py| {
-                let result = player.flight(
-                    py,
-                    false,
-                    Some(
-                        &[("fuel", 5), ("max_fuel", 6), ("thrust", 7), ("refuel", 8)]
-                            .into_py_dict_bound(py),
-                    ),
-                );
-                assert_eq!(
-                    result
-                        .expect("result was not Ok")
-                        .extract::<bool>(py)
-                        .expect("result was not a bool value"),
-                    true
-                );
+        mocked_engine()
+            .configure(|mock_engine| {
+                mock_engine.expect_get_max_clients().returning(|| 16);
+            })
+            .run(|| {
+                Python::with_gil(|py| {
+                    let result = player.flight(
+                        py,
+                        false,
+                        Some(
+                            &[("fuel", 5), ("max_fuel", 6), ("thrust", 7), ("refuel", 8)]
+                                .into_py_dict_bound(py),
+                        ),
+                    );
+                    assert_eq!(
+                        result
+                            .expect("result was not Ok")
+                            .extract::<bool>(py)
+                            .expect("result was not a bool value"),
+                        true
+                    );
+                });
             });
-        });
     }
 
     #[rstest]
@@ -5485,21 +5540,22 @@ assert(player._valid)
 
         let mut player = default_test_player();
 
-        with_mocked_engine(|mock_engine| {
-            mock_engine.expect_get_max_clients().returning(|| 16);
-        })
-        .run(|| {
-            Python::with_gil(|py| {
-                let result = player.flight(py, true, Some(&flight_opts.into_py_dict_bound(py)));
-                assert_eq!(
-                    result
-                        .expect("result was not Ok")
-                        .extract::<bool>(py)
-                        .expect("result was not a bool value"),
-                    true
-                );
+        mocked_engine()
+            .configure(|mock_engine| {
+                mock_engine.expect_get_max_clients().returning(|| 16);
+            })
+            .run(|| {
+                Python::with_gil(|py| {
+                    let result = player.flight(py, true, Some(&flight_opts.into_py_dict_bound(py)));
+                    assert_eq!(
+                        result
+                            .expect("result was not Ok")
+                            .extract::<bool>(py)
+                            .expect("result was not a bool value"),
+                        true
+                    );
+                });
             });
-        });
     }
 
     #[rstest]
@@ -5517,28 +5573,29 @@ assert(player._valid)
 
         let mut player = default_test_player();
 
-        with_mocked_engine(|mock_engine| {
-            mock_engine.expect_get_max_clients().returning(|| 16);
-        })
-        .run(|| {
-            Python::with_gil(|py| {
-                let result = player.flight(
-                    py,
-                    false,
-                    Some(
-                        &[("fuel", 5), ("max_fuel", 6), ("refuel", 8), ("thrust", 7)]
-                            .into_py_dict_bound(py),
-                    ),
-                );
-                assert_eq!(
-                    result
-                        .expect("result was not Ok")
-                        .extract::<bool>(py)
-                        .expect("result was not a bool value"),
-                    false
-                );
+        mocked_engine()
+            .configure(|mock_engine| {
+                mock_engine.expect_get_max_clients().returning(|| 16);
+            })
+            .run(|| {
+                Python::with_gil(|py| {
+                    let result = player.flight(
+                        py,
+                        false,
+                        Some(
+                            &[("fuel", 5), ("max_fuel", 6), ("refuel", 8), ("thrust", 7)]
+                                .into_py_dict_bound(py),
+                        ),
+                    );
+                    assert_eq!(
+                        result
+                            .expect("result was not Ok")
+                            .extract::<bool>(py)
+                            .expect("result was not a bool value"),
+                        false
+                    );
+                });
             });
-        });
     }
 
     #[rstest]
@@ -5582,13 +5639,14 @@ assert(player._valid)
 
         let player = default_test_player();
 
-        with_mocked_engine(|mock_engine| {
-            mock_engine.expect_get_max_clients().returning(|| 16);
-        })
-        .run(|| {
-            let result = Python::with_gil(|py| player.get_noclip(py));
-            assert_eq!(result.expect("result was not Ok"), noclip_state.clone());
-        });
+        mocked_engine()
+            .configure(|mock_engine| {
+                mock_engine.expect_get_max_clients().returning(|| 16);
+            })
+            .run(|| {
+                let result = Python::with_gil(|py| player.get_noclip(py));
+                assert_eq!(result.expect("result was not Ok"), noclip_state.clone());
+            });
     }
 
     #[rstest]
@@ -5606,13 +5664,14 @@ assert(player._valid)
 
         let player = default_test_player();
 
-        with_mocked_engine(|mock_engine| {
-            mock_engine.expect_get_max_clients().returning(|| 16);
-        })
-        .run(|| {
-            let result = Python::with_gil(|py| player.get_noclip(py));
-            assert_eq!(result.expect("result was not Ok"), false);
-        });
+        mocked_engine()
+            .configure(|mock_engine| {
+                mock_engine.expect_get_max_clients().returning(|| 16);
+            })
+            .run(|| {
+                let result = Python::with_gil(|py| player.get_noclip(py));
+                assert_eq!(result.expect("result was not Ok"), false);
+            });
     }
 
     #[rstest]
@@ -5675,14 +5734,15 @@ assert(player._valid)
 
         let mut player = default_test_player();
 
-        with_mocked_engine(|mock_engine| {
-            mock_engine.expect_get_max_clients().returning(|| 16);
-        })
-        .run(|| {
-            let result = Python::with_gil(|py| player.set_noclip(py, noclip_value.into_py(py)));
+        mocked_engine()
+            .configure(|mock_engine| {
+                mock_engine.expect_get_max_clients().returning(|| 16);
+            })
+            .run(|| {
+                let result = Python::with_gil(|py| player.set_noclip(py, noclip_value.into_py(py)));
 
-            assert!(result.as_ref().is_ok(), "{:?}", result.err());
-        });
+                assert!(result.as_ref().is_ok(), "{:?}", result.err());
+            });
     }
 
     #[rstest]
@@ -5734,14 +5794,15 @@ assert(player._valid)
 
         let mut player = default_test_player();
 
-        with_mocked_engine(|mock_engine| {
-            mock_engine.expect_get_max_clients().returning(|| 16);
-        })
-        .run(|| {
-            let result = Python::with_gil(|py| player.set_noclip(py, noclip_value.into_py(py)));
+        mocked_engine()
+            .configure(|mock_engine| {
+                mock_engine.expect_get_max_clients().returning(|| 16);
+            })
+            .run(|| {
+                let result = Python::with_gil(|py| player.set_noclip(py, noclip_value.into_py(py)));
 
-            assert!(result.as_ref().is_ok(), "{:?}", result.err());
-        });
+                assert!(result.as_ref().is_ok(), "{:?}", result.err());
+            });
     }
 
     #[rstest]
@@ -5793,14 +5854,15 @@ assert(player._valid)
 
         let mut player = default_test_player();
 
-        with_mocked_engine(|mock_engine| {
-            mock_engine.expect_get_max_clients().returning(|| 16);
-        })
-        .run(|| {
-            let result = Python::with_gil(|py| player.set_noclip(py, noclip_value.into_py(py)));
+        mocked_engine()
+            .configure(|mock_engine| {
+                mock_engine.expect_get_max_clients().returning(|| 16);
+            })
+            .run(|| {
+                let result = Python::with_gil(|py| player.set_noclip(py, noclip_value.into_py(py)));
 
-            assert!(result.as_ref().is_ok(), "{:?}", result.err());
-        });
+                assert!(result.as_ref().is_ok(), "{:?}", result.err());
+            });
     }
 
     #[rstest]
@@ -5844,14 +5906,15 @@ assert(player._valid)
 
         let mut player = default_test_player();
 
-        with_mocked_engine(|mock_engine| {
-            mock_engine.expect_get_max_clients().returning(|| 16);
-        })
-        .run(|| {
-            let result = Python::with_gil(|py| player.set_noclip(py, py.None()));
+        mocked_engine()
+            .configure(|mock_engine| {
+                mock_engine.expect_get_max_clients().returning(|| 16);
+            })
+            .run(|| {
+                let result = Python::with_gil(|py| player.set_noclip(py, py.None()));
 
-            assert!(result.as_ref().is_ok(), "{:?}", result.err());
-        });
+                assert!(result.as_ref().is_ok(), "{:?}", result.err());
+            });
     }
 
     #[rstest]
@@ -5889,13 +5952,14 @@ assert(player._valid)
 
         let player = default_test_player();
 
-        with_mocked_engine(|mock_engine| {
-            mock_engine.expect_get_max_clients().returning(|| 16);
-        })
-        .run(|| {
-            let result = Python::with_gil(|py| player.get_health(py));
-            assert_eq!(result.expect("result was not Ok"), 42);
-        });
+        mocked_engine()
+            .configure(|mock_engine| {
+                mock_engine.expect_get_max_clients().returning(|| 16);
+            })
+            .run(|| {
+                let result = Python::with_gil(|py| player.get_health(py));
+                assert_eq!(result.expect("result was not Ok"), 42);
+            });
     }
 
     #[rstest]
@@ -5913,13 +5977,14 @@ assert(player._valid)
 
         let player = default_test_player();
 
-        with_mocked_engine(|mock_engine| {
-            mock_engine.expect_get_max_clients().returning(|| 16);
-        })
-        .run(|| {
-            let result = Python::with_gil(|py| player.get_health(py));
-            assert_eq!(result.expect("result was not Ok"), 0);
-        });
+        mocked_engine()
+            .configure(|mock_engine| {
+                mock_engine.expect_get_max_clients().returning(|| 16);
+            })
+            .run(|| {
+                let result = Python::with_gil(|py| player.get_health(py));
+                assert_eq!(result.expect("result was not Ok"), 0);
+            });
     }
 
     #[rstest]
@@ -5950,14 +6015,15 @@ assert(player._valid)
 
         let mut player = default_test_player();
 
-        with_mocked_engine(|mock_engine| {
-            mock_engine.expect_get_max_clients().returning(|| 16);
-        })
-        .run(|| {
-            let result = Python::with_gil(|py| player.set_health(py, 666));
+        mocked_engine()
+            .configure(|mock_engine| {
+                mock_engine.expect_get_max_clients().returning(|| 16);
+            })
+            .run(|| {
+                let result = Python::with_gil(|py| player.set_health(py, 666));
 
-            assert!(result.is_ok());
-        });
+                assert!(result.is_ok());
+            });
     }
 
     #[rstest]
@@ -5995,13 +6061,14 @@ assert(player._valid)
 
         let player = default_test_player();
 
-        with_mocked_engine(|mock_engine| {
-            mock_engine.expect_get_max_clients().returning(|| 16);
-        })
-        .run(|| {
-            let result = Python::with_gil(|py| player.get_armor(py));
-            assert_eq!(result.expect("result was not Ok"), 42);
-        });
+        mocked_engine()
+            .configure(|mock_engine| {
+                mock_engine.expect_get_max_clients().returning(|| 16);
+            })
+            .run(|| {
+                let result = Python::with_gil(|py| player.get_armor(py));
+                assert_eq!(result.expect("result was not Ok"), 42);
+            });
     }
 
     #[rstest]
@@ -6019,13 +6086,14 @@ assert(player._valid)
 
         let player = default_test_player();
 
-        with_mocked_engine(|mock_engine| {
-            mock_engine.expect_get_max_clients().returning(|| 16);
-        })
-        .run(|| {
-            let result = Python::with_gil(|py| player.get_health(py));
-            assert_eq!(result.expect("result was not Ok"), 0);
-        });
+        mocked_engine()
+            .configure(|mock_engine| {
+                mock_engine.expect_get_max_clients().returning(|| 16);
+            })
+            .run(|| {
+                let result = Python::with_gil(|py| player.get_health(py));
+                assert_eq!(result.expect("result was not Ok"), 0);
+            });
     }
 
     #[rstest]
@@ -6079,14 +6147,15 @@ assert(player._valid)
 
         let mut player = default_test_player();
 
-        with_mocked_engine(|mock_engine| {
-            mock_engine.expect_get_max_clients().returning(|| 16);
-        })
-        .run(|| {
-            let result = Python::with_gil(|py| player.set_armor(py, 666));
+        mocked_engine()
+            .configure(|mock_engine| {
+                mock_engine.expect_get_max_clients().returning(|| 16);
+            })
+            .run(|| {
+                let result = Python::with_gil(|py| player.set_armor(py, 666));
 
-            assert!(result.is_ok());
-        });
+                assert!(result.is_ok());
+            });
     }
 
     #[rstest]
@@ -6130,13 +6199,14 @@ assert(player._valid)
 
         let player = default_test_player();
 
-        with_mocked_engine(|mock_engine| {
-            mock_engine.expect_get_max_clients().returning(|| 16);
-        })
-        .run(|| {
-            let result = Python::with_gil(|py| player.get_is_alive(py));
-            assert_eq!(result.expect("result was not Ok"), is_alive);
-        });
+        mocked_engine()
+            .configure(|mock_engine| {
+                mock_engine.expect_get_max_clients().returning(|| 16);
+            })
+            .run(|| {
+                let result = Python::with_gil(|py| player.get_is_alive(py));
+                assert_eq!(result.expect("result was not Ok"), is_alive);
+            });
     }
 
     #[rstest]
@@ -6154,13 +6224,14 @@ assert(player._valid)
 
         let player = default_test_player();
 
-        with_mocked_engine(|mock_engine| {
-            mock_engine.expect_get_max_clients().returning(|| 16);
-        })
-        .run(|| {
-            let result = Python::with_gil(|py| player.get_is_alive(py));
-            assert_eq!(result.expect("result was not Ok"), false);
-        });
+        mocked_engine()
+            .configure(|mock_engine| {
+                mock_engine.expect_get_max_clients().returning(|| 16);
+            })
+            .run(|| {
+                let result = Python::with_gil(|py| player.get_is_alive(py));
+                assert_eq!(result.expect("result was not Ok"), false);
+            });
     }
 
     #[rstest]
@@ -6240,13 +6311,14 @@ assert(player._valid)
 
         let mut player = default_test_player();
 
-        with_mocked_engine(|mock_engine| {
-            mock_engine.expect_get_max_clients().returning(|| 16);
-        })
-        .run(|| {
-            let result = Python::with_gil(|py| player.set_is_alive(py, false));
-            assert!(result.is_ok());
-        });
+        mocked_engine()
+            .configure(|mock_engine| {
+                mock_engine.expect_get_max_clients().returning(|| 16);
+            })
+            .run(|| {
+                let result = Python::with_gil(|py| player.set_is_alive(py, false));
+                assert!(result.is_ok());
+            });
     }
 
     #[rstest]
@@ -6283,13 +6355,14 @@ assert(player._valid)
         });
         let mut player = default_test_player();
 
-        with_mocked_engine(|mock_engine| {
-            mock_engine.expect_get_max_clients().returning(|| 16);
-        })
-        .run(|| {
-            let result = Python::with_gil(|py| player.set_is_alive(py, false));
-            assert!(result.is_ok());
-        });
+        mocked_engine()
+            .configure(|mock_engine| {
+                mock_engine.expect_get_max_clients().returning(|| 16);
+            })
+            .run(|| {
+                let result = Python::with_gil(|py| player.set_is_alive(py, false));
+                assert!(result.is_ok());
+            });
     }
 
     #[rstest]
@@ -6327,13 +6400,14 @@ assert(player._valid)
 
         let mut player = default_test_player();
 
-        with_mocked_engine(|mock_engine| {
-            mock_engine.expect_get_max_clients().returning(|| 16);
-        })
-        .run(|| {
-            let result = Python::with_gil(|py| player.set_is_alive(py, true));
-            assert!(result.is_ok());
-        });
+        mocked_engine()
+            .configure(|mock_engine| {
+                mock_engine.expect_get_max_clients().returning(|| 16);
+            })
+            .run(|| {
+                let result = Python::with_gil(|py| player.set_is_alive(py, true));
+                assert!(result.is_ok());
+            });
     }
 
     #[rstest]
@@ -6407,13 +6481,14 @@ assert(player._valid)
 
         let mut player = default_test_player();
 
-        with_mocked_engine(|mock_engine| {
-            mock_engine.expect_get_max_clients().returning(|| 16);
-        })
-        .run(|| {
-            let result = Python::with_gil(|py| player.set_is_alive(py, true));
-            assert!(result.is_ok());
-        });
+        mocked_engine()
+            .configure(|mock_engine| {
+                mock_engine.expect_get_max_clients().returning(|| 16);
+            })
+            .run(|| {
+                let result = Python::with_gil(|py| player.set_is_alive(py, true));
+                assert!(result.is_ok());
+            });
     }
 
     #[rstest]
@@ -6460,13 +6535,14 @@ assert(player._valid)
 
         let player = default_test_player();
 
-        with_mocked_engine(|mock_engine| {
-            mock_engine.expect_get_max_clients().returning(|| 16);
-        })
-        .run(|| {
-            let result = Python::with_gil(|py| player.get_is_frozen(py));
-            assert_eq!(result.expect("result was not Ok"), is_frozen);
-        });
+        mocked_engine()
+            .configure(|mock_engine| {
+                mock_engine.expect_get_max_clients().returning(|| 16);
+            })
+            .run(|| {
+                let result = Python::with_gil(|py| player.get_is_frozen(py));
+                assert_eq!(result.expect("result was not Ok"), is_frozen);
+            });
     }
 
     #[rstest]
@@ -6484,13 +6560,14 @@ assert(player._valid)
 
         let player = default_test_player();
 
-        with_mocked_engine(|mock_engine| {
-            mock_engine.expect_get_max_clients().returning(|| 16);
-        })
-        .run(|| {
-            let result = Python::with_gil(|py| player.get_is_frozen(py));
-            assert_eq!(result.expect("result was not Ok"), false);
-        });
+        mocked_engine()
+            .configure(|mock_engine| {
+                mock_engine.expect_get_max_clients().returning(|| 16);
+            })
+            .run(|| {
+                let result = Python::with_gil(|py| player.get_is_frozen(py));
+                assert_eq!(result.expect("result was not Ok"), false);
+            });
     }
 
     #[rstest]
@@ -6549,13 +6626,14 @@ assert(player._valid)
 
         let player = default_test_player();
 
-        with_mocked_engine(|mock_engine| {
-            mock_engine.expect_get_max_clients().returning(|| 16);
-        })
-        .run(|| {
-            let result = Python::with_gil(|py| player.get_is_chatting(py));
-            assert_eq!(result.expect("result was not Ok"), is_chatting);
-        });
+        mocked_engine()
+            .configure(|mock_engine| {
+                mock_engine.expect_get_max_clients().returning(|| 16);
+            })
+            .run(|| {
+                let result = Python::with_gil(|py| player.get_is_chatting(py));
+                assert_eq!(result.expect("result was not Ok"), is_chatting);
+            });
     }
 
     #[rstest]
@@ -6573,13 +6651,14 @@ assert(player._valid)
 
         let player = default_test_player();
 
-        with_mocked_engine(|mock_engine| {
-            mock_engine.expect_get_max_clients().returning(|| 16);
-        })
-        .run(|| {
-            let result = Python::with_gil(|py| player.get_is_chatting(py));
-            assert_eq!(result.expect("result was not Ok"), false);
-        });
+        mocked_engine()
+            .configure(|mock_engine| {
+                mock_engine.expect_get_max_clients().returning(|| 16);
+            })
+            .run(|| {
+                let result = Python::with_gil(|py| player.get_is_chatting(py));
+                assert_eq!(result.expect("result was not Ok"), false);
+            });
     }
 
     #[rstest]
@@ -6633,13 +6712,14 @@ assert(player._valid)
 
         let player = default_test_player();
 
-        with_mocked_engine(|mock_engine| {
-            mock_engine.expect_get_max_clients().returning(|| 16);
-        })
-        .run(|| {
-            let result = Python::with_gil(|py| player.get_score(py));
-            assert_eq!(result.expect("result was not OK"), 42);
-        });
+        mocked_engine()
+            .configure(|mock_engine| {
+                mock_engine.expect_get_max_clients().returning(|| 16);
+            })
+            .run(|| {
+                let result = Python::with_gil(|py| player.get_score(py));
+                assert_eq!(result.expect("result was not OK"), 42);
+            });
     }
 
     #[rstest]
@@ -6657,13 +6737,14 @@ assert(player._valid)
 
         let player = default_test_player();
 
-        with_mocked_engine(|mock_engine| {
-            mock_engine.expect_get_max_clients().returning(|| 16);
-        })
-        .run(|| {
-            let result = Python::with_gil(|py| player.get_score(py));
-            assert_eq!(result.expect("result was not OK"), 0);
-        });
+        mocked_engine()
+            .configure(|mock_engine| {
+                mock_engine.expect_get_max_clients().returning(|| 16);
+            })
+            .run(|| {
+                let result = Python::with_gil(|py| player.get_score(py));
+                assert_eq!(result.expect("result was not OK"), 0);
+            });
     }
 
     #[rstest]
@@ -6698,13 +6779,14 @@ assert(player._valid)
 
         let player = default_test_player();
 
-        with_mocked_engine(|mock_engine| {
-            mock_engine.expect_get_max_clients().returning(|| 16);
-        })
-        .run(|| {
-            let result = Python::with_gil(|py| player.set_score(py, 42));
-            assert!(result.is_ok());
-        });
+        mocked_engine()
+            .configure(|mock_engine| {
+                mock_engine.expect_get_max_clients().returning(|| 16);
+            })
+            .run(|| {
+                let result = Python::with_gil(|py| player.set_score(py, 42));
+                assert!(result.is_ok());
+            });
     }
 
     #[rstest]
@@ -6722,13 +6804,14 @@ assert(player._valid)
 
         let player = default_test_player();
 
-        with_mocked_engine(|mock_engine| {
-            mock_engine.expect_get_max_clients().returning(|| 16);
-        })
-        .run(|| {
-            let result = Python::with_gil(|py| player.set_score(py, 42));
-            assert!(result.is_ok());
-        });
+        mocked_engine()
+            .configure(|mock_engine| {
+                mock_engine.expect_get_max_clients().returning(|| 16);
+            })
+            .run(|| {
+                let result = Python::with_gil(|py| player.set_score(py, 42));
+                assert!(result.is_ok());
+            });
     }
 
     #[rstest]
@@ -6763,13 +6846,14 @@ assert(player._valid)
 
         let player = default_test_player();
 
-        with_mocked_engine(|mock_engine| {
-            mock_engine.expect_get_max_clients().returning(|| 16);
-        })
-        .run(|| {
-            let result = Python::with_gil(|py| player.center_print(py, "asdf"));
-            assert!(result.is_ok());
-        });
+        mocked_engine()
+            .configure(|mock_engine| {
+                mock_engine.expect_get_max_clients().returning(|| 16);
+            })
+            .run(|| {
+                let result = Python::with_gil(|py| player.center_print(py, "asdf"));
+                assert!(result.is_ok());
+            });
     }
 
     #[rstest]
@@ -6793,17 +6877,18 @@ assert(player._valid)
 
         let player = default_test_player();
 
-        with_mocked_engine(|mock_engine| {
-            mock_engine.expect_get_max_clients().returning(|| 16);
-        })
-        .run(|| {
-            Python::with_gil(|py| {
-                let result = player.tell(py, "asdf", None);
-                assert!(result.is_ok());
+        mocked_engine()
+            .configure(|mock_engine| {
+                mock_engine.expect_get_max_clients().returning(|| 16);
+            })
+            .run(|| {
+                Python::with_gil(|py| {
+                    let result = player.tell(py, "asdf", None);
+                    assert!(result.is_ok());
 
-                let _ = run_all_frame_tasks(py);
+                    let _ = run_all_frame_tasks(py);
+                });
             });
-        });
     }
 
     #[rstest]
@@ -6852,21 +6937,22 @@ assert(player._valid)
             ..default_test_player()
         };
 
-        with_mocked_engine(|mock_engine| {
-            mock_engine.expect_get_max_clients().returning(|| 16);
-        })
-        .run(|| {
-            Python::with_gil(|py| {
-                let result = player.tell(
-                    py,
-                    "These are four lines",
-                    Some(&[("limit", 5)].into_py_dict_bound(py)),
-                );
-                assert!(result.is_ok());
+        mocked_engine()
+            .configure(|mock_engine| {
+                mock_engine.expect_get_max_clients().returning(|| 16);
+            })
+            .run(|| {
+                Python::with_gil(|py| {
+                    let result = player.tell(
+                        py,
+                        "These are four lines",
+                        Some(&[("limit", 5)].into_py_dict_bound(py)),
+                    );
+                    assert!(result.is_ok());
 
-                let _ = run_all_frame_tasks(py);
+                    let _ = run_all_frame_tasks(py);
+                });
             });
-        });
     }
 
     #[rstest]
@@ -6915,24 +7001,25 @@ assert(player._valid)
             ..default_test_player()
         };
 
-        with_mocked_engine(|mock_engine| {
-            mock_engine.expect_get_max_clients().returning(|| 16);
-        })
-        .run(|| {
-            Python::with_gil(|py| {
-                let result = player.tell(
-                    py,
-                    "These_are_four_lines",
-                    Some(
-                        &[("limit", 5.into_py(py)), ("delimiter", "_".into_py(py))]
-                            .into_py_dict_bound(py),
-                    ),
-                );
-                assert!(result.is_ok());
+        mocked_engine()
+            .configure(|mock_engine| {
+                mock_engine.expect_get_max_clients().returning(|| 16);
+            })
+            .run(|| {
+                Python::with_gil(|py| {
+                    let result = player.tell(
+                        py,
+                        "These_are_four_lines",
+                        Some(
+                            &[("limit", 5.into_py(py)), ("delimiter", "_".into_py(py))]
+                                .into_py_dict_bound(py),
+                        ),
+                    );
+                    assert!(result.is_ok());
 
-                let _ = run_all_frame_tasks(py);
+                    let _ = run_all_frame_tasks(py);
+                });
             });
-        });
     }
 
     #[rstest]
@@ -6981,13 +7068,14 @@ assert(player._valid)
             ..default_test_player()
         };
 
-        with_mocked_engine(|mock_engine| {
-            mock_engine.expect_get_max_clients().returning(|| 16);
-        })
-        .run(|| {
-            let result = Python::with_gil(|py| player.kick(py, "you stink, go away!"));
-            assert!(result.is_ok());
-        });
+        mocked_engine()
+            .configure(|mock_engine| {
+                mock_engine.expect_get_max_clients().returning(|| 16);
+            })
+            .run(|| {
+                let result = Python::with_gil(|py| player.kick(py, "you stink, go away!"));
+                assert!(result.is_ok());
+            });
     }
 
     #[rstest]
@@ -6996,16 +7084,17 @@ assert(player._valid)
     fn ban_bans_player(_pyshinqlx_setup: ()) {
         let player = default_test_player();
 
-        with_mocked_engine(|mock_engine| {
-            mock_engine
-                .expect_execute_console_command()
-                .with(predicate::eq("ban 2"))
-                .times(1);
-        })
-        .run(|| {
-            let result = Python::with_gil(|py| player.ban(py));
-            assert!(result.is_ok());
-        });
+        mocked_engine()
+            .configure(|mock_engine| {
+                mock_engine
+                    .expect_execute_console_command()
+                    .with(predicate::eq("ban 2"))
+                    .times(1);
+            })
+            .run(|| {
+                let result = Python::with_gil(|py| player.ban(py));
+                assert!(result.is_ok());
+            });
     }
 
     #[rstest]
@@ -7014,16 +7103,17 @@ assert(player._valid)
     fn tempban_tempbans_player(_pyshinqlx_setup: ()) {
         let player = default_test_player();
 
-        with_mocked_engine(|mock_engine| {
-            mock_engine
-                .expect_execute_console_command()
-                .with(predicate::eq("tempban 2"))
-                .times(1);
-        })
-        .run(|| {
-            let result = Python::with_gil(|py| player.tempban(py));
-            assert!(result.is_ok());
-        });
+        mocked_engine()
+            .configure(|mock_engine| {
+                mock_engine
+                    .expect_execute_console_command()
+                    .with(predicate::eq("tempban 2"))
+                    .times(1);
+            })
+            .run(|| {
+                let result = Python::with_gil(|py| player.tempban(py));
+                assert!(result.is_ok());
+            });
     }
 
     #[rstest]
@@ -7032,16 +7122,17 @@ assert(player._valid)
     fn addadmin_adds_player_to_admins(_pyshinqlx_setup: ()) {
         let player = default_test_player();
 
-        with_mocked_engine(|mock_engine| {
-            mock_engine
-                .expect_execute_console_command()
-                .with(predicate::eq("addadmin 2"))
-                .times(1);
-        })
-        .run(|| {
-            let result = Python::with_gil(|py| player.addadmin(py));
-            assert!(result.is_ok());
-        });
+        mocked_engine()
+            .configure(|mock_engine| {
+                mock_engine
+                    .expect_execute_console_command()
+                    .with(predicate::eq("addadmin 2"))
+                    .times(1);
+            })
+            .run(|| {
+                let result = Python::with_gil(|py| player.addadmin(py));
+                assert!(result.is_ok());
+            });
     }
 
     #[rstest]
@@ -7050,16 +7141,17 @@ assert(player._valid)
     fn addmod_adds_player_to_mods(_pyshinqlx_setup: ()) {
         let player = default_test_player();
 
-        with_mocked_engine(|mock_engine| {
-            mock_engine
-                .expect_execute_console_command()
-                .with(predicate::eq("addmod 2"))
-                .times(1);
-        })
-        .run(|| {
-            let result = Python::with_gil(|py| player.addmod(py));
-            assert!(result.is_ok());
-        });
+        mocked_engine()
+            .configure(|mock_engine| {
+                mock_engine
+                    .expect_execute_console_command()
+                    .with(predicate::eq("addmod 2"))
+                    .times(1);
+            })
+            .run(|| {
+                let result = Python::with_gil(|py| player.addmod(py));
+                assert!(result.is_ok());
+            });
     }
 
     #[rstest]
@@ -7068,16 +7160,17 @@ assert(player._valid)
     fn demote_demotes_player(_pyshinqlx_setup: ()) {
         let player = default_test_player();
 
-        with_mocked_engine(|mock_engine| {
-            mock_engine
-                .expect_execute_console_command()
-                .with(predicate::eq("demote 2"))
-                .times(1);
-        })
-        .run(|| {
-            let result = Python::with_gil(|py| player.demote(py));
-            assert!(result.is_ok());
-        });
+        mocked_engine()
+            .configure(|mock_engine| {
+                mock_engine
+                    .expect_execute_console_command()
+                    .with(predicate::eq("demote 2"))
+                    .times(1);
+            })
+            .run(|| {
+                let result = Python::with_gil(|py| player.demote(py));
+                assert!(result.is_ok());
+            });
     }
 
     #[rstest]
@@ -7086,16 +7179,17 @@ assert(player._valid)
     fn mute_mutes_player(_pyshinqlx_setup: ()) {
         let player = default_test_player();
 
-        with_mocked_engine(|mock_engine| {
-            mock_engine
-                .expect_execute_console_command()
-                .with(predicate::eq("mute 2"))
-                .times(1);
-        })
-        .run(|| {
-            let result = Python::with_gil(|py| player.mute(py));
-            assert!(result.is_ok());
-        });
+        mocked_engine()
+            .configure(|mock_engine| {
+                mock_engine
+                    .expect_execute_console_command()
+                    .with(predicate::eq("mute 2"))
+                    .times(1);
+            })
+            .run(|| {
+                let result = Python::with_gil(|py| player.mute(py));
+                assert!(result.is_ok());
+            });
     }
 
     #[rstest]
@@ -7104,16 +7198,17 @@ assert(player._valid)
     fn unmute_unmutes_player(_pyshinqlx_setup: ()) {
         let player = default_test_player();
 
-        with_mocked_engine(|mock_engine| {
-            mock_engine
-                .expect_execute_console_command()
-                .with(predicate::eq("unmute 2"))
-                .times(1);
-        })
-        .run(|| {
-            let result = Python::with_gil(|py| player.unmute(py));
-            assert!(result.is_ok());
-        });
+        mocked_engine()
+            .configure(|mock_engine| {
+                mock_engine
+                    .expect_execute_console_command()
+                    .with(predicate::eq("unmute 2"))
+                    .times(1);
+            })
+            .run(|| {
+                let result = Python::with_gil(|py| player.unmute(py));
+                assert!(result.is_ok());
+            });
     }
 
     #[rstest]
@@ -7140,16 +7235,17 @@ assert(player._valid)
         let put_cmd = format!("put 2 {}", new_team.to_lowercase());
         let player = default_test_player();
 
-        with_mocked_engine(|mock_engine| {
-            mock_engine
-                .expect_execute_console_command()
-                .withf(move |cmd| cmd == put_cmd)
-                .times(1);
-        })
-        .run(|| {
-            let result = Python::with_gil(|py| player.put(py, new_team));
-            assert!(result.is_ok());
-        });
+        mocked_engine()
+            .configure(|mock_engine| {
+                mock_engine
+                    .expect_execute_console_command()
+                    .withf(move |cmd| cmd == put_cmd)
+                    .times(1);
+            })
+            .run(|| {
+                let result = Python::with_gil(|py| player.put(py, new_team));
+                assert!(result.is_ok());
+            });
     }
 
     #[rstest]
@@ -7158,16 +7254,17 @@ assert(player._valid)
     fn addscore_adds_score_to_player(_pyshinqlx_setup: ()) {
         let player = default_test_player();
 
-        with_mocked_engine(|mock_engine| {
-            mock_engine
-                .expect_execute_console_command()
-                .with(predicate::eq("addscore 2 42"))
-                .times(1);
-        })
-        .run(|| {
-            let result = Python::with_gil(|py| player.addscore(py, 42));
-            assert!(result.is_ok());
-        });
+        mocked_engine()
+            .configure(|mock_engine| {
+                mock_engine
+                    .expect_execute_console_command()
+                    .with(predicate::eq("addscore 2 42"))
+                    .times(1);
+            })
+            .run(|| {
+                let result = Python::with_gil(|py| player.addscore(py, 42));
+                assert!(result.is_ok());
+            });
     }
 
     #[rstest]
@@ -7218,20 +7315,21 @@ assert(player._valid)
             ..default_test_player()
         };
 
-        with_mocked_engine(|mock_engine| {
-            mock_engine
-                .expect_execute_console_command()
-                .withf(move |cmd| cmd == "put 2 blue")
-                .times(1);
-            mock_engine
-                .expect_execute_console_command()
-                .withf(move |cmd| cmd == "put 1 red")
-                .times(1);
-        })
-        .run(|| {
-            let result = Python::with_gil(|py| player.switch(py, other_player));
-            assert!(result.as_ref().is_ok(), "{:?}", result.as_ref().unwrap());
-        });
+        mocked_engine()
+            .configure(|mock_engine| {
+                mock_engine
+                    .expect_execute_console_command()
+                    .withf(move |cmd| cmd == "put 2 blue")
+                    .times(1);
+                mock_engine
+                    .expect_execute_console_command()
+                    .withf(move |cmd| cmd == "put 1 red")
+                    .times(1);
+            })
+            .run(|| {
+                let result = Python::with_gil(|py| player.switch(py, other_player));
+                assert!(result.as_ref().is_ok(), "{:?}", result.as_ref().unwrap());
+            });
     }
 
     #[rstest]
@@ -7240,16 +7338,17 @@ assert(player._valid)
     fn slap_slaps_player(_pyshinqlx_setup: ()) {
         let player = default_test_player();
 
-        with_mocked_engine(|mock_engine| {
-            mock_engine
-                .expect_execute_console_command()
-                .with(predicate::eq("slap 2 42"))
-                .times(1);
-        })
-        .run(|| {
-            let result = Python::with_gil(|py| player.slap(py, 42));
-            assert!(result.is_ok());
-        });
+        mocked_engine()
+            .configure(|mock_engine| {
+                mock_engine
+                    .expect_execute_console_command()
+                    .with(predicate::eq("slap 2 42"))
+                    .times(1);
+            })
+            .run(|| {
+                let result = Python::with_gil(|py| player.slap(py, 42));
+                assert!(result.is_ok());
+            });
     }
 
     #[rstest]
@@ -7258,16 +7357,17 @@ assert(player._valid)
     fn slay_slays_player(_pyshinqlx_setup: ()) {
         let player = default_test_player();
 
-        with_mocked_engine(|mock_engine| {
-            mock_engine
-                .expect_execute_console_command()
-                .with(predicate::eq("slay 2"))
-                .times(1);
-        })
-        .run(|| {
-            let result = Python::with_gil(|py| player.slay(py));
-            assert!(result.is_ok());
-        });
+        mocked_engine()
+            .configure(|mock_engine| {
+                mock_engine
+                    .expect_execute_console_command()
+                    .with(predicate::eq("slay 2"))
+                    .times(1);
+            })
+            .run(|| {
+                let result = Python::with_gil(|py| player.slay(py));
+                assert!(result.is_ok());
+            });
     }
 
     #[rstest]
@@ -7288,15 +7388,16 @@ assert(player._valid)
 
         let player = default_test_player();
 
-        with_mocked_engine(|mock_engine| {
-            mock_engine.expect_get_max_clients().returning(|| 16);
-        })
-        .run(|| {
-            let result = Python::with_gil(|py| {
-                player.slay_with_mod(py, meansOfDeath_t::MOD_PROXIMITY_MINE as i32)
+        mocked_engine()
+            .configure(|mock_engine| {
+                mock_engine.expect_get_max_clients().returning(|| 16);
+            })
+            .run(|| {
+                let result = Python::with_gil(|py| {
+                    player.slay_with_mod(py, meansOfDeath_t::MOD_PROXIMITY_MINE as i32)
+                });
+                assert!(result.is_ok());
             });
-            assert!(result.is_ok());
-        });
     }
 
     #[rstest]
@@ -7365,50 +7466,51 @@ assert(player._valid)
             mock_game_entity
         });
 
-        with_mocked_engine(|mock_engine| {
-            mock_engine.expect_get_max_clients().returning(|| 3);
-        })
-        .run(|| {
-            let all_players =
-                Python::with_gil(|py| Player::all_players(&py.get_type_bound::<Player>(), py));
-            assert_eq!(
-                all_players.expect("result was not ok"),
-                vec![
-                    Player {
-                        valid: true,
-                        id: 0,
-                        player_info: PlayerInfo {
-                            client_id: 0,
+        mocked_engine()
+            .configure(|mock_engine| {
+                mock_engine.expect_get_max_clients().returning(|| 3);
+            })
+            .run(|| {
+                let all_players =
+                    Python::with_gil(|py| Player::all_players(&py.get_type_bound::<Player>(), py));
+                assert_eq!(
+                    all_players.expect("result was not ok"),
+                    vec![
+                        Player {
+                            valid: true,
+                            id: 0,
+                            player_info: PlayerInfo {
+                                client_id: 0,
+                                name: "Mocked Player".to_string(),
+                                connection_state: clientState_t::CS_ACTIVE as i32,
+                                userinfo: "asdf".to_string(),
+                                steam_id: 1234,
+                                team: team_t::TEAM_RED as i32,
+                                privileges: 0,
+                            },
                             name: "Mocked Player".to_string(),
-                            connection_state: clientState_t::CS_ACTIVE as i32,
-                            userinfo: "asdf".to_string(),
                             steam_id: 1234,
-                            team: team_t::TEAM_RED as i32,
-                            privileges: 0,
+                            user_info: "asdf".to_string(),
                         },
-                        name: "Mocked Player".to_string(),
-                        steam_id: 1234,
-                        user_info: "asdf".to_string(),
-                    },
-                    Player {
-                        valid: true,
-                        id: 2,
-                        player_info: PlayerInfo {
-                            client_id: 2,
+                        Player {
+                            valid: true,
+                            id: 2,
+                            player_info: PlayerInfo {
+                                client_id: 2,
+                                name: "Mocked Player".to_string(),
+                                connection_state: clientState_t::CS_ACTIVE as i32,
+                                userinfo: "asdf".to_string(),
+                                steam_id: 1234,
+                                team: team_t::TEAM_RED as i32,
+                                privileges: 0,
+                            },
                             name: "Mocked Player".to_string(),
-                            connection_state: clientState_t::CS_ACTIVE as i32,
-                            userinfo: "asdf".to_string(),
                             steam_id: 1234,
-                            team: team_t::TEAM_RED as i32,
-                            privileges: 0,
+                            user_info: "asdf".to_string(),
                         },
-                        name: "Mocked Player".to_string(),
-                        steam_id: 1234,
-                        user_info: "asdf".to_string(),
-                    },
-                ]
-            );
-        });
+                    ]
+                );
+            });
     }
 }
 
@@ -7644,7 +7746,7 @@ mod pyshinqlx_rcon_dummy_player_tests {
     use crate::ffi::c::prelude::{cvar_t, CVar, CVarBuilder};
 
     use crate::hooks::mock_hooks::shinqlx_com_printf_context;
-    use crate::prelude::{serial, with_mocked_engine};
+    use crate::prelude::{mocked_engine, serial};
 
     use core::borrow::BorrowMut;
 
@@ -7681,25 +7783,28 @@ assert(isinstance(shinqlx.RconDummyPlayer(), shinqlx.AbstractDummyPlayer))
             .build()
             .expect("this should not happen");
 
-        with_mocked_engine(|mock_engine| {
-            mock_engine
-                .expect_find_cvar()
-                .with(predicate::eq("qlx_owner"))
-                .returning_st(move |_| CVar::try_from(raw_cvar.borrow_mut() as *mut cvar_t).ok());
-            mock_engine
-                .expect_find_cvar()
-                .with(predicate::ne("qlx_owner"))
-                .returning(|_| None);
-        })
-        .run(|| {
-            Python::with_gil(|py| {
-                let rcon_dummy_player =
-                    Py::new(py, RconDummyPlayer::py_new()).expect("this should not happen");
+        mocked_engine()
+            .configure(|mock_engine| {
+                mock_engine
+                    .expect_find_cvar()
+                    .with(predicate::eq("qlx_owner"))
+                    .returning_st(move |_| {
+                        CVar::try_from(raw_cvar.borrow_mut() as *mut cvar_t).ok()
+                    });
+                mock_engine
+                    .expect_find_cvar()
+                    .with(predicate::ne("qlx_owner"))
+                    .returning(|_| None);
+            })
+            .run(|| {
+                Python::with_gil(|py| {
+                    let rcon_dummy_player =
+                        Py::new(py, RconDummyPlayer::py_new()).expect("this should not happen");
 
-                let result = rcon_dummy_player.bind(py).borrow().get_steam_id(py);
-                assert!(result.is_ok_and(|value| value == 1234567890));
+                    let result = rcon_dummy_player.bind(py).borrow().get_steam_id(py);
+                    assert!(result.is_ok_and(|value| value == 1234567890));
+                });
             });
-        });
     }
 
     #[rstest]

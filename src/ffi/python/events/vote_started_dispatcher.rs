@@ -49,7 +49,7 @@ mod vote_started_dispatcher_tests {
     use crate::ffi::c::prelude::{cvar_t, CVar, CVarBuilder};
     use crate::ffi::python::pyshinqlx_test_support::default_test_player;
     use crate::ffi::python::{commands::CommandPriorities, pyshinqlx_setup};
-    use crate::prelude::{serial, with_mocked_engine};
+    use crate::prelude::{mocked_engine, serial};
 
     use core::borrow::BorrowMut;
 
@@ -89,54 +89,60 @@ mod vote_started_dispatcher_tests {
             .string(cvar_string.as_ptr().cast_mut())
             .build()
             .expect("this should not happen");
-        with_mocked_engine(|mock_engine| {
-            mock_engine
-                .expect_find_cvar()
-                .with(predicate::eq("zmq_stats_enable"))
-                .returning_st(move |_| CVar::try_from(raw_cvar.borrow_mut() as *mut cvar_t).ok());
-        })
-        .run(|| {
-            Python::with_gil(|py| {
-                let dispatcher =
-                    Py::new(py, VoteStartedDispatcher::py_new(py)).expect("this should not happen");
-                dispatcher
-                    .bind(py)
-                    .borrow_mut()
-                    .caller(py, default_test_player().into_py(py));
+        mocked_engine()
+            .configure(|mock_engine| {
+                mock_engine
+                    .expect_find_cvar()
+                    .with(predicate::eq("zmq_stats_enable"))
+                    .returning_st(move |_| {
+                        CVar::try_from(raw_cvar.borrow_mut() as *mut cvar_t).ok()
+                    });
+            })
+            .run(|| {
+                Python::with_gil(|py| {
+                    let dispatcher = Py::new(py, VoteStartedDispatcher::py_new(py))
+                        .expect("this should not happen");
+                    dispatcher
+                        .bind(py)
+                        .borrow_mut()
+                        .caller(py, default_test_player().into_py(py));
 
-                let throws_exception_hook = PyModule::from_code_bound(
-                    py,
-                    r#"
+                    let throws_exception_hook = PyModule::from_code_bound(
+                        py,
+                        r#"
 def throws_exception_hook(*args, **kwargs):
     raise ValueError("asdf")
             "#,
-                    "",
-                    "",
-                )
-                .expect("this should not happen")
-                .getattr("throws_exception_hook")
-                .expect("this should not happen");
-
-                dispatcher
-                    .call_method1(
-                        py,
-                        intern!(py, "add_hook"),
-                        (
-                            "test_plugin",
-                            throws_exception_hook.unbind(),
-                            CommandPriorities::PRI_NORMAL as i32,
-                        ),
+                        "",
+                        "",
                     )
+                    .expect("this should not happen")
+                    .getattr("throws_exception_hook")
                     .expect("this should not happen");
 
-                let result =
-                    dispatcher.call_method1(py, intern!(py, "dispatch"), ("map", "thunderstruck"));
-                assert!(result.is_ok_and(|value| value
-                    .bind(py)
-                    .extract::<Bound<'_, PyBool>>()
-                    .is_ok_and(|bool_value| bool_value.is_true())));
+                    dispatcher
+                        .call_method1(
+                            py,
+                            intern!(py, "add_hook"),
+                            (
+                                "test_plugin",
+                                throws_exception_hook.unbind(),
+                                CommandPriorities::PRI_NORMAL as i32,
+                            ),
+                        )
+                        .expect("this should not happen");
+
+                    let result = dispatcher.call_method1(
+                        py,
+                        intern!(py, "dispatch"),
+                        ("map", "thunderstruck"),
+                    );
+                    assert!(result.is_ok_and(|value| value
+                        .bind(py)
+                        .extract::<Bound<'_, PyBool>>()
+                        .is_ok_and(|bool_value| bool_value.is_true())));
+                });
             });
-        });
     }
 
     #[rstest]
@@ -148,54 +154,60 @@ def throws_exception_hook(*args, **kwargs):
             .string(cvar_string.as_ptr().cast_mut())
             .build()
             .expect("this should not happen");
-        with_mocked_engine(|mock_engine| {
-            mock_engine
-                .expect_find_cvar()
-                .with(predicate::eq("zmq_stats_enable"))
-                .returning_st(move |_| CVar::try_from(raw_cvar.borrow_mut() as *mut cvar_t).ok());
-        })
-        .run(|| {
-            Python::with_gil(|py| {
-                let dispatcher =
-                    Py::new(py, VoteStartedDispatcher::py_new(py)).expect("this should not happen");
-                dispatcher
-                    .bind(py)
-                    .borrow_mut()
-                    .caller(py, default_test_player().into_py(py));
+        mocked_engine()
+            .configure(|mock_engine| {
+                mock_engine
+                    .expect_find_cvar()
+                    .with(predicate::eq("zmq_stats_enable"))
+                    .returning_st(move |_| {
+                        CVar::try_from(raw_cvar.borrow_mut() as *mut cvar_t).ok()
+                    });
+            })
+            .run(|| {
+                Python::with_gil(|py| {
+                    let dispatcher = Py::new(py, VoteStartedDispatcher::py_new(py))
+                        .expect("this should not happen");
+                    dispatcher
+                        .bind(py)
+                        .borrow_mut()
+                        .caller(py, default_test_player().into_py(py));
 
-                let returns_none_hook = PyModule::from_code_bound(
-                    py,
-                    r#"
+                    let returns_none_hook = PyModule::from_code_bound(
+                        py,
+                        r#"
 def returns_none_hook(*args, **kwargs):
     return None
             "#,
-                    "",
-                    "",
-                )
-                .expect("this should not happen")
-                .getattr("returns_none_hook")
-                .expect("this should not happen");
-
-                dispatcher
-                    .call_method1(
-                        py,
-                        intern!(py, "add_hook"),
-                        (
-                            "test_plugin",
-                            returns_none_hook.unbind(),
-                            CommandPriorities::PRI_NORMAL as i32,
-                        ),
+                        "",
+                        "",
                     )
+                    .expect("this should not happen")
+                    .getattr("returns_none_hook")
                     .expect("this should not happen");
 
-                let result =
-                    dispatcher.call_method1(py, intern!(py, "dispatch"), ("map", "thunderstruck"));
-                assert!(result.is_ok_and(|value| value
-                    .bind(py)
-                    .extract::<Bound<'_, PyBool>>()
-                    .is_ok_and(|bool_value| bool_value.is_true())));
+                    dispatcher
+                        .call_method1(
+                            py,
+                            intern!(py, "add_hook"),
+                            (
+                                "test_plugin",
+                                returns_none_hook.unbind(),
+                                CommandPriorities::PRI_NORMAL as i32,
+                            ),
+                        )
+                        .expect("this should not happen");
+
+                    let result = dispatcher.call_method1(
+                        py,
+                        intern!(py, "dispatch"),
+                        ("map", "thunderstruck"),
+                    );
+                    assert!(result.is_ok_and(|value| value
+                        .bind(py)
+                        .extract::<Bound<'_, PyBool>>()
+                        .is_ok_and(|bool_value| bool_value.is_true())));
+                });
             });
-        });
     }
 
     #[rstest]
@@ -207,56 +219,62 @@ def returns_none_hook(*args, **kwargs):
             .string(cvar_string.as_ptr().cast_mut())
             .build()
             .expect("this should not happen");
-        with_mocked_engine(|mock_engine| {
-            mock_engine
-                .expect_find_cvar()
-                .with(predicate::eq("zmq_stats_enable"))
-                .returning_st(move |_| CVar::try_from(raw_cvar.borrow_mut() as *mut cvar_t).ok());
-        })
-        .run(|| {
-            Python::with_gil(|py| {
-                let dispatcher =
-                    Py::new(py, VoteStartedDispatcher::py_new(py)).expect("this should not happen");
-                dispatcher
-                    .bind(py)
-                    .borrow_mut()
-                    .caller(py, default_test_player().into_py(py));
+        mocked_engine()
+            .configure(|mock_engine| {
+                mock_engine
+                    .expect_find_cvar()
+                    .with(predicate::eq("zmq_stats_enable"))
+                    .returning_st(move |_| {
+                        CVar::try_from(raw_cvar.borrow_mut() as *mut cvar_t).ok()
+                    });
+            })
+            .run(|| {
+                Python::with_gil(|py| {
+                    let dispatcher = Py::new(py, VoteStartedDispatcher::py_new(py))
+                        .expect("this should not happen");
+                    dispatcher
+                        .bind(py)
+                        .borrow_mut()
+                        .caller(py, default_test_player().into_py(py));
 
-                let returns_none_hook = PyModule::from_code_bound(
-                    py,
-                    r#"
+                    let returns_none_hook = PyModule::from_code_bound(
+                        py,
+                        r#"
 import shinqlx
 
 def returns_none_hook(*args, **kwargs):
     return shinqlx.RET_NONE
             "#,
-                    "",
-                    "",
-                )
-                .expect("this should not happen")
-                .getattr("returns_none_hook")
-                .expect("this should not happen");
-
-                dispatcher
-                    .call_method1(
-                        py,
-                        intern!(py, "add_hook"),
-                        (
-                            "test_plugin",
-                            returns_none_hook.unbind(),
-                            CommandPriorities::PRI_NORMAL as i32,
-                        ),
+                        "",
+                        "",
                     )
+                    .expect("this should not happen")
+                    .getattr("returns_none_hook")
                     .expect("this should not happen");
 
-                let result =
-                    dispatcher.call_method1(py, intern!(py, "dispatch"), ("map", "thunderstruck"));
-                assert!(result.is_ok_and(|value| value
-                    .bind(py)
-                    .extract::<Bound<'_, PyBool>>()
-                    .is_ok_and(|bool_value| bool_value.is_true())));
+                    dispatcher
+                        .call_method1(
+                            py,
+                            intern!(py, "add_hook"),
+                            (
+                                "test_plugin",
+                                returns_none_hook.unbind(),
+                                CommandPriorities::PRI_NORMAL as i32,
+                            ),
+                        )
+                        .expect("this should not happen");
+
+                    let result = dispatcher.call_method1(
+                        py,
+                        intern!(py, "dispatch"),
+                        ("map", "thunderstruck"),
+                    );
+                    assert!(result.is_ok_and(|value| value
+                        .bind(py)
+                        .extract::<Bound<'_, PyBool>>()
+                        .is_ok_and(|bool_value| bool_value.is_true())));
+                });
             });
-        });
     }
 
     #[rstest]
@@ -268,56 +286,62 @@ def returns_none_hook(*args, **kwargs):
             .string(cvar_string.as_ptr().cast_mut())
             .build()
             .expect("this should not happen");
-        with_mocked_engine(|mock_engine| {
-            mock_engine
-                .expect_find_cvar()
-                .with(predicate::eq("zmq_stats_enable"))
-                .returning_st(move |_| CVar::try_from(raw_cvar.borrow_mut() as *mut cvar_t).ok());
-        })
-        .run(|| {
-            Python::with_gil(|py| {
-                let dispatcher =
-                    Py::new(py, VoteStartedDispatcher::py_new(py)).expect("this should not happen");
-                dispatcher
-                    .bind(py)
-                    .borrow_mut()
-                    .caller(py, default_test_player().into_py(py));
+        mocked_engine()
+            .configure(|mock_engine| {
+                mock_engine
+                    .expect_find_cvar()
+                    .with(predicate::eq("zmq_stats_enable"))
+                    .returning_st(move |_| {
+                        CVar::try_from(raw_cvar.borrow_mut() as *mut cvar_t).ok()
+                    });
+            })
+            .run(|| {
+                Python::with_gil(|py| {
+                    let dispatcher = Py::new(py, VoteStartedDispatcher::py_new(py))
+                        .expect("this should not happen");
+                    dispatcher
+                        .bind(py)
+                        .borrow_mut()
+                        .caller(py, default_test_player().into_py(py));
 
-                let returns_stop_hook = PyModule::from_code_bound(
-                    py,
-                    r#"
+                    let returns_stop_hook = PyModule::from_code_bound(
+                        py,
+                        r#"
 import shinqlx
 
 def returns_stop_hook(*args, **kwargs):
     return shinqlx.RET_STOP
             "#,
-                    "",
-                    "",
-                )
-                .expect("this should not happen")
-                .getattr("returns_stop_hook")
-                .expect("this should not happen");
-
-                dispatcher
-                    .call_method1(
-                        py,
-                        intern!(py, "add_hook"),
-                        (
-                            "test_plugin",
-                            returns_stop_hook.unbind(),
-                            CommandPriorities::PRI_NORMAL as i32,
-                        ),
+                        "",
+                        "",
                     )
+                    .expect("this should not happen")
+                    .getattr("returns_stop_hook")
                     .expect("this should not happen");
 
-                let result =
-                    dispatcher.call_method1(py, intern!(py, "dispatch"), ("map", "thunderstruck"));
-                assert!(result.is_ok_and(|value| value
-                    .bind(py)
-                    .extract::<Bound<'_, PyBool>>()
-                    .is_ok_and(|bool_value| bool_value.is_true())));
+                    dispatcher
+                        .call_method1(
+                            py,
+                            intern!(py, "add_hook"),
+                            (
+                                "test_plugin",
+                                returns_stop_hook.unbind(),
+                                CommandPriorities::PRI_NORMAL as i32,
+                            ),
+                        )
+                        .expect("this should not happen");
+
+                    let result = dispatcher.call_method1(
+                        py,
+                        intern!(py, "dispatch"),
+                        ("map", "thunderstruck"),
+                    );
+                    assert!(result.is_ok_and(|value| value
+                        .bind(py)
+                        .extract::<Bound<'_, PyBool>>()
+                        .is_ok_and(|bool_value| bool_value.is_true())));
+                });
             });
-        });
     }
 
     #[rstest]
@@ -329,56 +353,62 @@ def returns_stop_hook(*args, **kwargs):
             .string(cvar_string.as_ptr().cast_mut())
             .build()
             .expect("this should not happen");
-        with_mocked_engine(|mock_engine| {
-            mock_engine
-                .expect_find_cvar()
-                .with(predicate::eq("zmq_stats_enable"))
-                .returning_st(move |_| CVar::try_from(raw_cvar.borrow_mut() as *mut cvar_t).ok());
-        })
-        .run(|| {
-            Python::with_gil(|py| {
-                let dispatcher =
-                    Py::new(py, VoteStartedDispatcher::py_new(py)).expect("this should not happen");
-                dispatcher
-                    .bind(py)
-                    .borrow_mut()
-                    .caller(py, default_test_player().into_py(py));
+        mocked_engine()
+            .configure(|mock_engine| {
+                mock_engine
+                    .expect_find_cvar()
+                    .with(predicate::eq("zmq_stats_enable"))
+                    .returning_st(move |_| {
+                        CVar::try_from(raw_cvar.borrow_mut() as *mut cvar_t).ok()
+                    });
+            })
+            .run(|| {
+                Python::with_gil(|py| {
+                    let dispatcher = Py::new(py, VoteStartedDispatcher::py_new(py))
+                        .expect("this should not happen");
+                    dispatcher
+                        .bind(py)
+                        .borrow_mut()
+                        .caller(py, default_test_player().into_py(py));
 
-                let returns_stop_event_hook = PyModule::from_code_bound(
-                    py,
-                    r#"
+                    let returns_stop_event_hook = PyModule::from_code_bound(
+                        py,
+                        r#"
 import shinqlx
 
 def returns_stop_event_hook(*args, **kwargs):
     return shinqlx.RET_STOP_EVENT
             "#,
-                    "",
-                    "",
-                )
-                .expect("this should not happen")
-                .getattr("returns_stop_event_hook")
-                .expect("this should not happen");
-
-                dispatcher
-                    .call_method1(
-                        py,
-                        intern!(py, "add_hook"),
-                        (
-                            "test_plugin",
-                            returns_stop_event_hook.unbind(),
-                            CommandPriorities::PRI_NORMAL as i32,
-                        ),
+                        "",
+                        "",
                     )
+                    .expect("this should not happen")
+                    .getattr("returns_stop_event_hook")
                     .expect("this should not happen");
 
-                let result =
-                    dispatcher.call_method1(py, intern!(py, "dispatch"), ("map", "thunderstruck"));
-                assert!(result.is_ok_and(|value| value
-                    .bind(py)
-                    .extract::<Bound<'_, PyBool>>()
-                    .is_ok_and(|bool_value| !bool_value.is_true())));
+                    dispatcher
+                        .call_method1(
+                            py,
+                            intern!(py, "add_hook"),
+                            (
+                                "test_plugin",
+                                returns_stop_event_hook.unbind(),
+                                CommandPriorities::PRI_NORMAL as i32,
+                            ),
+                        )
+                        .expect("this should not happen");
+
+                    let result = dispatcher.call_method1(
+                        py,
+                        intern!(py, "dispatch"),
+                        ("map", "thunderstruck"),
+                    );
+                    assert!(result.is_ok_and(|value| value
+                        .bind(py)
+                        .extract::<Bound<'_, PyBool>>()
+                        .is_ok_and(|bool_value| !bool_value.is_true())));
+                });
             });
-        });
     }
 
     #[rstest]
@@ -390,56 +420,62 @@ def returns_stop_event_hook(*args, **kwargs):
             .string(cvar_string.as_ptr().cast_mut())
             .build()
             .expect("this should not happen");
-        with_mocked_engine(|mock_engine| {
-            mock_engine
-                .expect_find_cvar()
-                .with(predicate::eq("zmq_stats_enable"))
-                .returning_st(move |_| CVar::try_from(raw_cvar.borrow_mut() as *mut cvar_t).ok());
-        })
-        .run(|| {
-            Python::with_gil(|py| {
-                let dispatcher =
-                    Py::new(py, VoteStartedDispatcher::py_new(py)).expect("this should not happen");
-                dispatcher
-                    .bind(py)
-                    .borrow_mut()
-                    .caller(py, default_test_player().into_py(py));
+        mocked_engine()
+            .configure(|mock_engine| {
+                mock_engine
+                    .expect_find_cvar()
+                    .with(predicate::eq("zmq_stats_enable"))
+                    .returning_st(move |_| {
+                        CVar::try_from(raw_cvar.borrow_mut() as *mut cvar_t).ok()
+                    });
+            })
+            .run(|| {
+                Python::with_gil(|py| {
+                    let dispatcher = Py::new(py, VoteStartedDispatcher::py_new(py))
+                        .expect("this should not happen");
+                    dispatcher
+                        .bind(py)
+                        .borrow_mut()
+                        .caller(py, default_test_player().into_py(py));
 
-                let returns_stop_all_hook = PyModule::from_code_bound(
-                    py,
-                    r#"
+                    let returns_stop_all_hook = PyModule::from_code_bound(
+                        py,
+                        r#"
 import shinqlx
 
 def returns_stop_all_hook(*args, **kwargs):
     return shinqlx.RET_STOP_ALL
             "#,
-                    "",
-                    "",
-                )
-                .expect("this should not happen")
-                .getattr("returns_stop_all_hook")
-                .expect("this should not happen");
-
-                dispatcher
-                    .call_method1(
-                        py,
-                        intern!(py, "add_hook"),
-                        (
-                            "test_plugin",
-                            returns_stop_all_hook.unbind(),
-                            CommandPriorities::PRI_NORMAL as i32,
-                        ),
+                        "",
+                        "",
                     )
+                    .expect("this should not happen")
+                    .getattr("returns_stop_all_hook")
                     .expect("this should not happen");
 
-                let result =
-                    dispatcher.call_method1(py, intern!(py, "dispatch"), ("map", "thunderstruck"));
-                assert!(result.is_ok_and(|value| value
-                    .bind(py)
-                    .extract::<Bound<'_, PyBool>>()
-                    .is_ok_and(|bool_value| !bool_value.is_true())));
+                    dispatcher
+                        .call_method1(
+                            py,
+                            intern!(py, "add_hook"),
+                            (
+                                "test_plugin",
+                                returns_stop_all_hook.unbind(),
+                                CommandPriorities::PRI_NORMAL as i32,
+                            ),
+                        )
+                        .expect("this should not happen");
+
+                    let result = dispatcher.call_method1(
+                        py,
+                        intern!(py, "dispatch"),
+                        ("map", "thunderstruck"),
+                    );
+                    assert!(result.is_ok_and(|value| value
+                        .bind(py)
+                        .extract::<Bound<'_, PyBool>>()
+                        .is_ok_and(|bool_value| !bool_value.is_true())));
+                });
             });
-        });
     }
 
     #[rstest]
@@ -451,53 +487,59 @@ def returns_stop_all_hook(*args, **kwargs):
             .string(cvar_string.as_ptr().cast_mut())
             .build()
             .expect("this should not happen");
-        with_mocked_engine(|mock_engine| {
-            mock_engine
-                .expect_find_cvar()
-                .with(predicate::eq("zmq_stats_enable"))
-                .returning_st(move |_| CVar::try_from(raw_cvar.borrow_mut() as *mut cvar_t).ok());
-        })
-        .run(|| {
-            Python::with_gil(|py| {
-                let dispatcher =
-                    Py::new(py, VoteStartedDispatcher::py_new(py)).expect("this should not happen");
-                dispatcher
-                    .bind(py)
-                    .borrow_mut()
-                    .caller(py, default_test_player().into_py(py));
+        mocked_engine()
+            .configure(|mock_engine| {
+                mock_engine
+                    .expect_find_cvar()
+                    .with(predicate::eq("zmq_stats_enable"))
+                    .returning_st(move |_| {
+                        CVar::try_from(raw_cvar.borrow_mut() as *mut cvar_t).ok()
+                    });
+            })
+            .run(|| {
+                Python::with_gil(|py| {
+                    let dispatcher = Py::new(py, VoteStartedDispatcher::py_new(py))
+                        .expect("this should not happen");
+                    dispatcher
+                        .bind(py)
+                        .borrow_mut()
+                        .caller(py, default_test_player().into_py(py));
 
-                let returns_string_hook = PyModule::from_code_bound(
-                    py,
-                    r#"
+                    let returns_string_hook = PyModule::from_code_bound(
+                        py,
+                        r#"
 def returns_string_hook(*args, **kwargs):
     return "return string"
             "#,
-                    "",
-                    "",
-                )
-                .expect("this should not happen")
-                .getattr("returns_string_hook")
-                .expect("this should not happen");
-
-                dispatcher
-                    .call_method1(
-                        py,
-                        intern!(py, "add_hook"),
-                        (
-                            "test_plugin",
-                            returns_string_hook.unbind(),
-                            CommandPriorities::PRI_NORMAL as i32,
-                        ),
+                        "",
+                        "",
                     )
+                    .expect("this should not happen")
+                    .getattr("returns_string_hook")
                     .expect("this should not happen");
 
-                let result =
-                    dispatcher.call_method1(py, intern!(py, "dispatch"), ("map", "thunderstruck"));
-                assert!(result.is_ok_and(|value| value
-                    .bind(py)
-                    .extract::<Bound<'_, PyBool>>()
-                    .is_ok_and(|bool_value| bool_value.is_true())));
+                    dispatcher
+                        .call_method1(
+                            py,
+                            intern!(py, "add_hook"),
+                            (
+                                "test_plugin",
+                                returns_string_hook.unbind(),
+                                CommandPriorities::PRI_NORMAL as i32,
+                            ),
+                        )
+                        .expect("this should not happen");
+
+                    let result = dispatcher.call_method1(
+                        py,
+                        intern!(py, "dispatch"),
+                        ("map", "thunderstruck"),
+                    );
+                    assert!(result.is_ok_and(|value| value
+                        .bind(py)
+                        .extract::<Bound<'_, PyBool>>()
+                        .is_ok_and(|bool_value| bool_value.is_true())));
+                });
             });
-        });
     }
 }

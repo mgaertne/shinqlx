@@ -59,35 +59,36 @@ mod set_cvar_limit_once_tests {
     #[cfg_attr(miri, ignore)]
     #[serial]
     fn set_cvar_limit_once_when_no_previous_value_is_set(_pyshinqlx_setup: ()) {
-        with_mocked_engine(|mock_engine| {
-            mock_engine
-                .expect_find_cvar()
-                .with(predicate::eq("sv_maxclients"))
-                .returning(|_| None);
-            mock_engine
-                .expect_set_cvar_limit()
-                .with(
-                    predicate::eq("sv_maxclients"),
-                    predicate::eq("64"),
-                    predicate::eq("1"),
-                    predicate::eq("64"),
-                    predicate::eq(Some(cvar_flags::CVAR_CHEAT as i32)),
-                )
-                .times(1);
-        })
-        .run(|| {
-            let result = Python::with_gil(|py| {
-                pyshinqlx_set_cvar_limit_once(
-                    py,
-                    "sv_maxclients",
-                    "64",
-                    "1",
-                    "64",
-                    cvar_flags::CVAR_CHEAT as i32,
-                )
+        mocked_engine()
+            .configure(|mock_engine| {
+                mock_engine
+                    .expect_find_cvar()
+                    .with(predicate::eq("sv_maxclients"))
+                    .returning(|_| None);
+                mock_engine
+                    .expect_set_cvar_limit()
+                    .with(
+                        predicate::eq("sv_maxclients"),
+                        predicate::eq("64"),
+                        predicate::eq("1"),
+                        predicate::eq("64"),
+                        predicate::eq(Some(cvar_flags::CVAR_CHEAT as i32)),
+                    )
+                    .times(1);
+            })
+            .run(|| {
+                let result = Python::with_gil(|py| {
+                    pyshinqlx_set_cvar_limit_once(
+                        py,
+                        "sv_maxclients",
+                        "64",
+                        "1",
+                        "64",
+                        cvar_flags::CVAR_CHEAT as i32,
+                    )
+                });
+                assert!(result.is_ok_and(|value| value));
             });
-            assert!(result.is_ok_and(|value| value));
-        });
     }
 
     #[rstest]
@@ -95,27 +96,30 @@ mod set_cvar_limit_once_tests {
     #[serial]
     fn set_cvar_limit_once_for_already_existing_cvar(_pyshinqlx_setup: ()) {
         let mut raw_cvar = CVarBuilder::default().build().unwrap();
-        with_mocked_engine(|mock_engine| {
-            mock_engine
-                .expect_find_cvar()
-                .with(predicate::eq("sv_maxclients"))
-                .returning_st(move |_| CVar::try_from(raw_cvar.borrow_mut() as *mut cvar_t).ok())
-                .times(1);
-            mock_engine.expect_set_cvar_limit().times(0);
-        })
-        .run(|| {
-            let result = Python::with_gil(|py| {
-                pyshinqlx_set_cvar_limit_once(
-                    py,
-                    "sv_maxclients",
-                    "64",
-                    "1",
-                    "64",
-                    cvar_flags::CVAR_ROM as i32,
-                )
+        mocked_engine()
+            .configure(|mock_engine| {
+                mock_engine
+                    .expect_find_cvar()
+                    .with(predicate::eq("sv_maxclients"))
+                    .returning_st(move |_| {
+                        CVar::try_from(raw_cvar.borrow_mut() as *mut cvar_t).ok()
+                    })
+                    .times(1);
+                mock_engine.expect_set_cvar_limit().times(0);
             })
-            .unwrap();
-            assert_eq!(result, false);
-        });
+            .run(|| {
+                let result = Python::with_gil(|py| {
+                    pyshinqlx_set_cvar_limit_once(
+                        py,
+                        "sv_maxclients",
+                        "64",
+                        "1",
+                        "64",
+                        cvar_flags::CVAR_ROM as i32,
+                    )
+                })
+                .unwrap();
+                assert_eq!(result, false);
+            });
     }
 }
