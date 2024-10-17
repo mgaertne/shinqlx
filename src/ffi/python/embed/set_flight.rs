@@ -49,32 +49,24 @@ mod set_flight_tests {
     #[cfg_attr(miri, ignore)]
     #[serial]
     fn set_flight_for_client_id_too_small(_pyshinqlx_setup: ()) {
-        mocked_engine()
-            .configure(|mock_engine| {
-                mock_engine.expect_get_max_clients().returning(|| 16);
-            })
-            .run(|| {
-                Python::with_gil(|py| {
-                    let result = pyshinqlx_set_flight(py, -1, Flight(0, 0, 0, 0));
-                    assert!(result.is_err_and(|err| err.is_instance_of::<PyValueError>(py)));
-                });
+        mocked_engine().with_max_clients(16).run(|| {
+            Python::with_gil(|py| {
+                let result = pyshinqlx_set_flight(py, -1, Flight(0, 0, 0, 0));
+                assert!(result.is_err_and(|err| err.is_instance_of::<PyValueError>(py)));
             });
+        });
     }
 
     #[rstest]
     #[cfg_attr(miri, ignore)]
     #[serial]
     fn set_flight_for_client_id_too_large(_pyshinqlx_setup: ()) {
-        mocked_engine()
-            .configure(|mock_engine| {
-                mock_engine.expect_get_max_clients().returning(|| 16);
-            })
-            .run(|| {
-                Python::with_gil(|py| {
-                    let result = pyshinqlx_set_flight(py, 666, Flight(0, 0, 0, 0));
-                    assert!(result.is_err_and(|err| err.is_instance_of::<PyValueError>(py)));
-                });
+        mocked_engine().with_max_clients(16).run(|| {
+            Python::with_gil(|py| {
+                let result = pyshinqlx_set_flight(py, 666, Flight(0, 0, 0, 0));
+                assert!(result.is_err_and(|err| err.is_instance_of::<PyValueError>(py)));
             });
+        });
     }
 
     #[rstest]
@@ -95,15 +87,10 @@ mod set_flight_tests {
             mock_game_entity
         });
 
-        mocked_engine()
-            .configure(|mock_engine| {
-                mock_engine.expect_get_max_clients().returning(|| 16);
-            })
-            .run(|| {
-                let result =
-                    Python::with_gil(|py| pyshinqlx_set_flight(py, 2, Flight(12, 34, 56, 78)));
-                assert_eq!(result.expect("result was not OK"), true);
-            });
+        mocked_engine().with_max_clients(16).run(|| {
+            let result = Python::with_gil(|py| pyshinqlx_set_flight(py, 2, Flight(12, 34, 56, 78)));
+            assert_eq!(result.expect("result was not OK"), true);
+        });
     }
 
     #[rstest]
@@ -119,14 +106,9 @@ mod set_flight_tests {
             mock_game_entity
         });
 
-        mocked_engine()
-            .configure(|mock_engine| {
-                mock_engine.expect_get_max_clients().returning(|| 16);
-            })
-            .run(|| {
-                let result =
-                    Python::with_gil(|py| pyshinqlx_set_flight(py, 2, Flight(12, 34, 56, 78)));
-                assert_eq!(result.expect("result was not OK"), false);
-            });
+        mocked_engine().with_max_clients(16).run(|| {
+            let result = Python::with_gil(|py| pyshinqlx_set_flight(py, 2, Flight(12, 34, 56, 78)));
+            assert_eq!(result.expect("result was not OK"), false);
+        });
     }
 }

@@ -45,32 +45,24 @@ mod player_state_tests {
     #[cfg_attr(miri, ignore)]
     #[serial]
     fn player_state_for_client_id_too_small(_pyshinqlx_setup: ()) {
-        mocked_engine()
-            .configure(|mock_engine| {
-                mock_engine.expect_get_max_clients().returning(|| 16);
-            })
-            .run(|| {
-                Python::with_gil(|py| {
-                    let result = pyshinqlx_player_state(py, -1);
-                    assert!(result.is_err_and(|err| err.is_instance_of::<PyValueError>(py)));
-                });
+        mocked_engine().with_max_clients(16).run(|| {
+            Python::with_gil(|py| {
+                let result = pyshinqlx_player_state(py, -1);
+                assert!(result.is_err_and(|err| err.is_instance_of::<PyValueError>(py)));
             });
+        });
     }
 
     #[rstest]
     #[cfg_attr(miri, ignore)]
     #[serial]
     fn player_state_for_client_id_too_large(_pyshinqlx_setup: ()) {
-        mocked_engine()
-            .configure(|mock_engine| {
-                mock_engine.expect_get_max_clients().returning(|| 16);
-            })
-            .run(|| {
-                Python::with_gil(|py| {
-                    let result = pyshinqlx_player_state(py, 666);
-                    assert!(result.is_err_and(|err| err.is_instance_of::<PyValueError>(py)));
-                });
+        mocked_engine().with_max_clients(16).run(|| {
+            Python::with_gil(|py| {
+                let result = pyshinqlx_player_state(py, 666);
+                assert!(result.is_err_and(|err| err.is_instance_of::<PyValueError>(py)));
             });
+        });
     }
 
     #[rstest]
@@ -89,14 +81,10 @@ mod player_state_tests {
                 mock_game_entity
             });
 
-        mocked_engine()
-            .configure(|mock_engine| {
-                mock_engine.expect_get_max_clients().returning(|| 16);
-            })
-            .run(|| {
-                let result = Python::with_gil(|py| pyshinqlx_player_state(py, 2));
-                assert_eq!(result.expect("result was not OK"), None);
-            });
+        mocked_engine().with_max_clients(16).run(|| {
+            let result = Python::with_gil(|py| pyshinqlx_player_state(py, 2));
+            assert_eq!(result.expect("result was not OK"), None);
+        });
     }
 
     #[rstest]
@@ -151,31 +139,27 @@ mod player_state_tests {
                 mock_game_entity
             });
 
-        mocked_engine()
-            .configure(|mock_engine| {
-                mock_engine.expect_get_max_clients().returning(|| 16);
-            })
-            .run(|| {
-                let result = Python::with_gil(|py| pyshinqlx_player_state(py, 2));
-                assert_eq!(
-                    result.expect("result was not OK"),
-                    Some(PlayerState {
-                        is_alive: true,
-                        position: Vector3(1, 2, 3),
-                        velocity: Vector3(4, 5, 6),
-                        health: 123,
-                        armor: 456,
-                        noclip: true,
-                        weapon: weapon_t::WP_NAILGUN.into(),
-                        weapons: Weapons(1, 1, 1, 0, 0, 0, 1, 1, 1, 0, 0, 0, 1, 1, 1),
-                        ammo: Weapons(1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15),
-                        powerups: Powerups(12, 34, 56, 78, 90, 24),
-                        holdable: Some("kamikaze".into()),
-                        flight: Flight(12, 34, 56, 78),
-                        is_chatting: true,
-                        is_frozen: true,
-                    })
-                );
-            });
+        mocked_engine().with_max_clients(16).run(|| {
+            let result = Python::with_gil(|py| pyshinqlx_player_state(py, 2));
+            assert_eq!(
+                result.expect("result was not OK"),
+                Some(PlayerState {
+                    is_alive: true,
+                    position: Vector3(1, 2, 3),
+                    velocity: Vector3(4, 5, 6),
+                    health: 123,
+                    armor: 456,
+                    noclip: true,
+                    weapon: weapon_t::WP_NAILGUN.into(),
+                    weapons: Weapons(1, 1, 1, 0, 0, 0, 1, 1, 1, 0, 0, 0, 1, 1, 1),
+                    ammo: Weapons(1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15),
+                    powerups: Powerups(12, 34, 56, 78, 90, 24),
+                    holdable: Some("kamikaze".into()),
+                    flight: Flight(12, 34, 56, 78),
+                    is_chatting: true,
+                    is_frozen: true,
+                })
+            );
+        });
     }
 }
