@@ -272,6 +272,7 @@ mod dev_print_items_tests {
         });
 
         mocked_engine()
+            .with_com_printf(predicate::always(), 1..)
             .configure(|mock_engine| {
                 mock_engine
                     .expect_send_server_command()
@@ -289,7 +290,6 @@ mod dev_print_items_tests {
                             && cmd == "print \"Check server console for other items\n\"\n"
                     })
                     .times(1);
-                mock_engine.expect_com_printf().times(1..);
             })
             .run(|| {
                 let result = Python::with_gil(pyshinqlx_dev_print_items);
