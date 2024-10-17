@@ -3361,51 +3361,47 @@ def handler():
             mock_game_entity
         });
 
-        mocked_engine()
-            .configure(|mock_engine| {
-                mock_engine.expect_get_max_clients().returning(|| 3);
-            })
-            .run(|| {
-                let all_players =
-                    Python::with_gil(|py| Plugin::players(&py.get_type_bound::<Plugin>()));
-                assert_eq!(
-                    all_players.expect("result was not ok"),
-                    vec![
-                        Player {
-                            id: 0,
-                            player_info: PlayerInfo {
-                                client_id: 0,
-                                name: "Mocked Player".into(),
-                                connection_state: clientState_t::CS_ACTIVE as i32,
-                                userinfo: "asdf".into(),
-                                steam_id: 1234,
-                                team: team_t::TEAM_RED as i32,
-                                ..default_test_player_info()
-                            },
-                            user_info: "asdf".into(),
-                            steam_id: 1234,
+        mocked_engine().with_max_clients(3).run(|| {
+            let all_players =
+                Python::with_gil(|py| Plugin::players(&py.get_type_bound::<Plugin>()));
+            assert_eq!(
+                all_players.expect("result was not ok"),
+                vec![
+                    Player {
+                        id: 0,
+                        player_info: PlayerInfo {
+                            client_id: 0,
                             name: "Mocked Player".into(),
-                            ..default_test_player()
-                        },
-                        Player {
-                            id: 2,
-                            player_info: PlayerInfo {
-                                client_id: 2,
-                                name: "Mocked Player".into(),
-                                connection_state: clientState_t::CS_ACTIVE as i32,
-                                userinfo: "asdf".into(),
-                                steam_id: 1234,
-                                team: team_t::TEAM_RED as i32,
-                                ..default_test_player_info()
-                            },
-                            user_info: "asdf".into(),
+                            connection_state: clientState_t::CS_ACTIVE as i32,
+                            userinfo: "asdf".into(),
                             steam_id: 1234,
-                            name: "Mocked Player".into(),
-                            ..default_test_player()
+                            team: team_t::TEAM_RED as i32,
+                            ..default_test_player_info()
                         },
-                    ]
-                );
-            });
+                        user_info: "asdf".into(),
+                        steam_id: 1234,
+                        name: "Mocked Player".into(),
+                        ..default_test_player()
+                    },
+                    Player {
+                        id: 2,
+                        player_info: PlayerInfo {
+                            client_id: 2,
+                            name: "Mocked Player".into(),
+                            connection_state: clientState_t::CS_ACTIVE as i32,
+                            userinfo: "asdf".into(),
+                            steam_id: 1234,
+                            team: team_t::TEAM_RED as i32,
+                            ..default_test_player_info()
+                        },
+                        user_info: "asdf".into(),
+                        steam_id: 1234,
+                        name: "Mocked Player".into(),
+                        ..default_test_player()
+                    },
+                ]
+            );
+        });
     }
 
     #[rstest]
@@ -3683,31 +3679,27 @@ def handler():
             .withf(|client, cmd| client.is_some() && cmd == "print \"asdf qwertz\n\"\n")
             .times(2);
 
-        mocked_engine()
-            .configure(|mock_engine| {
-                mock_engine.expect_get_max_clients().returning(|| 8);
-            })
-            .run(|| {
-                Python::with_gil(|py| {
-                    RED_TEAM_CHAT_CHANNEL.store(Some(
-                        Py::new(
-                            py,
-                            TeamChatChannel::py_new("red", "red_team_chat", "print \"{}\n\"\n"),
-                        )
-                        .expect("creating new chat channel failed.")
-                        .into(),
-                    ));
+        mocked_engine().with_max_clients(8).run(|| {
+            Python::with_gil(|py| {
+                RED_TEAM_CHAT_CHANNEL.store(Some(
+                    Py::new(
+                        py,
+                        TeamChatChannel::py_new("red", "red_team_chat", "print \"{}\n\"\n"),
+                    )
+                    .expect("creating new chat channel failed.")
+                    .into(),
+                ));
 
-                    let result = Plugin::msg(
-                        &py.get_type_bound::<Plugin>(),
-                        "asdf qwertz",
-                        Some("red_team_chat".into_py(py)),
-                        None,
-                    );
-                    assert!(result.is_ok());
-                    run_all_frame_tasks(py).expect("running frame tasks returned an error");
-                });
+                let result = Plugin::msg(
+                    &py.get_type_bound::<Plugin>(),
+                    "asdf qwertz",
+                    Some("red_team_chat".into_py(py)),
+                    None,
+                );
+                assert!(result.is_ok());
+                run_all_frame_tasks(py).expect("running frame tasks returned an error");
             });
+        });
     }
 
     #[rstest]
@@ -3762,31 +3754,27 @@ def handler():
             .withf(|client, cmd| client.is_some() && cmd == "print \"asdf qwertz\n\"\n")
             .times(2);
 
-        mocked_engine()
-            .configure(|mock_engine| {
-                mock_engine.expect_get_max_clients().returning(|| 8);
-            })
-            .run(|| {
-                Python::with_gil(|py| {
-                    BLUE_TEAM_CHAT_CHANNEL.store(Some(
-                        Py::new(
-                            py,
-                            TeamChatChannel::py_new("blue", "blue_team_chat", "print \"{}\n\"\n"),
-                        )
-                        .expect("creating new chat channel failed.")
-                        .into(),
-                    ));
+        mocked_engine().with_max_clients(8).run(|| {
+            Python::with_gil(|py| {
+                BLUE_TEAM_CHAT_CHANNEL.store(Some(
+                    Py::new(
+                        py,
+                        TeamChatChannel::py_new("blue", "blue_team_chat", "print \"{}\n\"\n"),
+                    )
+                    .expect("creating new chat channel failed.")
+                    .into(),
+                ));
 
-                    let result = Plugin::msg(
-                        &py.get_type_bound::<Plugin>(),
-                        "asdf qwertz",
-                        Some("blue_team_chat".into_py(py)),
-                        None,
-                    );
-                    assert!(result.is_ok());
-                    run_all_frame_tasks(py).expect("running frame tasks returned an error");
-                });
+                let result = Plugin::msg(
+                    &py.get_type_bound::<Plugin>(),
+                    "asdf qwertz",
+                    Some("blue_team_chat".into_py(py)),
+                    None,
+                );
+                assert!(result.is_ok());
+                run_all_frame_tasks(py).expect("running frame tasks returned an error");
             });
+        });
     }
 
     #[rstest]
@@ -3845,26 +3833,22 @@ def handler():
 
         let channel = TellChannel::py_new(&default_test_player());
 
-        mocked_engine()
-            .configure(|mock_engine| {
-                mock_engine.expect_get_max_clients().returning(|| 16);
-            })
-            .run(|| {
-                Python::with_gil(|py| {
-                    let result = Plugin::msg(
-                        &py.get_type_bound::<Plugin>(),
-                        "asdf qwertz",
-                        Some(
-                            Py::new(py, channel)
-                                .expect("could not create tell channel")
-                                .into_py(py),
-                        ),
-                        None,
-                    );
-                    assert!(result.is_ok());
-                    run_all_frame_tasks(py).expect("running frame tasks returned an error");
-                });
+        mocked_engine().with_max_clients(16).run(|| {
+            Python::with_gil(|py| {
+                let result = Plugin::msg(
+                    &py.get_type_bound::<Plugin>(),
+                    "asdf qwertz",
+                    Some(
+                        Py::new(py, channel)
+                            .expect("could not create tell channel")
+                            .into_py(py),
+                    ),
+                    None,
+                );
+                assert!(result.is_ok());
+                run_all_frame_tasks(py).expect("running frame tasks returned an error");
             });
+        });
     }
 
     #[rstest]
@@ -4332,16 +4316,12 @@ def handler():
             .withf(|recipients, cmd| recipients.is_none() && cmd == "cp \"asdf\"")
             .times(1);
 
-        mocked_engine()
-            .configure(|mock_engine| {
-                mock_engine.expect_get_max_clients().returning(|| 16);
-            })
-            .run(|| {
-                let result = Python::with_gil(|py| {
-                    Plugin::center_print(&py.get_type_bound::<Plugin>(), "asdf", None)
-                });
-                assert!(result.is_ok());
+        mocked_engine().with_max_clients(16).run(|| {
+            let result = Python::with_gil(|py| {
+                Plugin::center_print(&py.get_type_bound::<Plugin>(), "asdf", None)
             });
+            assert!(result.is_ok());
+        });
     }
 
     #[rstest]
@@ -4365,20 +4345,16 @@ def handler():
 
         let player = default_test_player();
 
-        mocked_engine()
-            .configure(|mock_engine| {
-                mock_engine.expect_get_max_clients().returning(|| 16);
-            })
-            .run(|| {
-                let result = Python::with_gil(|py| {
-                    Plugin::center_print(
-                        &py.get_type_bound::<Plugin>(),
-                        "asdf",
-                        Some(player.into_py(py)),
-                    )
-                });
-                assert!(result.is_ok());
+        mocked_engine().with_max_clients(16).run(|| {
+            let result = Python::with_gil(|py| {
+                Plugin::center_print(
+                    &py.get_type_bound::<Plugin>(),
+                    "asdf",
+                    Some(player.into_py(py)),
+                )
             });
+            assert!(result.is_ok());
+        });
     }
 
     #[rstest]
@@ -4424,22 +4400,18 @@ def handler():
                 mock_game_entity
             });
 
-        mocked_engine()
-            .configure(|mock_engine| {
-                mock_engine.expect_get_max_clients().returning(|| 16);
-            })
-            .run(|| {
-                Python::with_gil(|py| {
-                    let result = Plugin::tell(
-                        &py.get_type_bound::<Plugin>(),
-                        "asdf",
-                        default_test_player().into_py(py),
-                        None,
-                    );
-                    assert!(result.is_ok());
-                    run_all_frame_tasks(py).expect("running frame tasks returned an error");
-                });
+        mocked_engine().with_max_clients(16).run(|| {
+            Python::with_gil(|py| {
+                let result = Plugin::tell(
+                    &py.get_type_bound::<Plugin>(),
+                    "asdf",
+                    default_test_player().into_py(py),
+                    None,
+                );
+                assert!(result.is_ok());
+                run_all_frame_tasks(py).expect("running frame tasks returned an error");
             });
+        });
     }
 
     #[rstest]
@@ -4770,17 +4742,12 @@ def handler():
                 mock_game_entity
             });
 
-        mocked_engine()
-            .configure(|mock_engine| {
-                mock_engine.expect_get_max_clients().return_const(1);
-            })
-            .run(|| {
-                Python::with_gil(|py| {
-                    let result =
-                        Plugin::force_vote(&py.get_type_bound::<Plugin>(), true.into_py(py));
-                    assert!(result.is_ok_and(|value| value),);
-                });
+        mocked_engine().with_max_clients(1).run(|| {
+            Python::with_gil(|py| {
+                let result = Plugin::force_vote(&py.get_type_bound::<Plugin>(), true.into_py(py));
+                assert!(result.is_ok_and(|value| value),);
             });
+        });
     }
 
     #[rstest]
@@ -4823,17 +4790,12 @@ def handler():
                 mock_game_entity
             });
 
-        mocked_engine()
-            .configure(|mock_engine| {
-                mock_engine.expect_get_max_clients().return_const(1);
-            })
-            .run(|| {
-                Python::with_gil(|py| {
-                    let result =
-                        Plugin::force_vote(&py.get_type_bound::<Plugin>(), false.into_py(py));
-                    assert!(result.is_ok_and(|value| value),);
-                });
+        mocked_engine().with_max_clients(1).run(|| {
+            Python::with_gil(|py| {
+                let result = Plugin::force_vote(&py.get_type_bound::<Plugin>(), false.into_py(py));
+                assert!(result.is_ok_and(|value| value),);
             });
+        });
     }
 
     #[rstest]
@@ -4893,20 +4855,16 @@ def handler():
             .withf(|_client, reason| reason == "was kicked.")
             .times(1);
 
-        mocked_engine()
-            .configure(|mock_engine| {
-                mock_engine.expect_get_max_clients().returning(|| 16);
-            })
-            .run(|| {
-                Python::with_gil(|py| {
-                    let result = Plugin::kick(
-                        &py.get_type_bound::<Plugin>(),
-                        default_test_player().into_py(py),
-                        "",
-                    );
-                    assert!(result.as_ref().is_ok(), "{:?}", result.as_ref());
-                });
+        mocked_engine().with_max_clients(16).run(|| {
+            Python::with_gil(|py| {
+                let result = Plugin::kick(
+                    &py.get_type_bound::<Plugin>(),
+                    default_test_player().into_py(py),
+                    "",
+                );
+                assert!(result.as_ref().is_ok(), "{:?}", result.as_ref());
             });
+        });
     }
 
     #[rstest]
@@ -4931,20 +4889,16 @@ def handler():
             .withf(|_client, reason| reason == "All your base are belong to us!")
             .times(1);
 
-        mocked_engine()
-            .configure(|mock_engine| {
-                mock_engine.expect_get_max_clients().returning(|| 16);
-            })
-            .run(|| {
-                Python::with_gil(|py| {
-                    let result = Plugin::kick(
-                        &py.get_type_bound::<Plugin>(),
-                        default_test_player().into_py(py),
-                        "All your base are belong to us!",
-                    );
-                    assert!(result.is_ok());
-                });
+        mocked_engine().with_max_clients(16).run(|| {
+            Python::with_gil(|py| {
+                let result = Plugin::kick(
+                    &py.get_type_bound::<Plugin>(),
+                    default_test_player().into_py(py),
+                    "All your base are belong to us!",
+                );
+                assert!(result.is_ok());
             });
+        });
     }
 
     #[rstest]
@@ -5174,20 +5128,16 @@ def handler():
             .withf(|client, cmd| client.is_some() && cmd == "playSound sound/vo/midair.ogg")
             .times(1);
 
-        mocked_engine()
-            .configure(|mock_engine| {
-                mock_engine.expect_get_max_clients().return_const(16);
-            })
-            .run(|| {
-                Python::with_gil(|py| {
-                    let result = Plugin::play_sound(
-                        &py.get_type_bound::<Plugin>(),
-                        "sound/vo/midair.ogg",
-                        Some(player),
-                    );
-                    assert!(result.is_ok_and(|value| value),);
-                });
+        mocked_engine().with_max_clients(16).run(|| {
+            Python::with_gil(|py| {
+                let result = Plugin::play_sound(
+                    &py.get_type_bound::<Plugin>(),
+                    "sound/vo/midair.ogg",
+                    Some(player),
+                );
+                assert!(result.is_ok_and(|value| value),);
             });
+        });
     }
 
     #[rstest]
@@ -5252,20 +5202,16 @@ def handler():
             .withf(|client, cmd| client.is_some() && cmd == "playMusic music/sonic1.ogg")
             .times(1);
 
-        mocked_engine()
-            .configure(|mock_engine| {
-                mock_engine.expect_get_max_clients().return_const(16);
-            })
-            .run(|| {
-                Python::with_gil(|py| {
-                    let result = Plugin::play_music(
-                        &py.get_type_bound::<Plugin>(),
-                        "music/sonic1.ogg",
-                        Some(player),
-                    );
-                    assert!(result.is_ok_and(|value| value),);
-                });
+        mocked_engine().with_max_clients(16).run(|| {
+            Python::with_gil(|py| {
+                let result = Plugin::play_music(
+                    &py.get_type_bound::<Plugin>(),
+                    "music/sonic1.ogg",
+                    Some(player),
+                );
+                assert!(result.is_ok_and(|value| value),);
             });
+        });
     }
 
     #[rstest]
@@ -5329,16 +5275,12 @@ def handler():
             .withf(|client, cmd| client.is_some() && cmd == "clearSounds")
             .times(1);
 
-        mocked_engine()
-            .configure(|mock_engine| {
-                mock_engine.expect_get_max_clients().return_const(16);
-            })
-            .run(|| {
-                Python::with_gil(|py| {
-                    let result = Plugin::stop_sound(&py.get_type_bound::<Plugin>(), Some(player));
-                    assert!(result.is_ok());
-                });
+        mocked_engine().with_max_clients(16).run(|| {
+            Python::with_gil(|py| {
+                let result = Plugin::stop_sound(&py.get_type_bound::<Plugin>(), Some(player));
+                assert!(result.is_ok());
             });
+        });
     }
 
     #[rstest]
@@ -5381,16 +5323,12 @@ def handler():
             .withf(|client, cmd| client.is_some() && cmd == "stopMusic")
             .times(1);
 
-        mocked_engine()
-            .configure(|mock_engine| {
-                mock_engine.expect_get_max_clients().return_const(16);
-            })
-            .run(|| {
-                Python::with_gil(|py| {
-                    let result = Plugin::stop_music(&py.get_type_bound::<Plugin>(), Some(player));
-                    assert!(result.is_ok());
-                });
+        mocked_engine().with_max_clients(16).run(|| {
+            Python::with_gil(|py| {
+                let result = Plugin::stop_music(&py.get_type_bound::<Plugin>(), Some(player));
+                assert!(result.is_ok());
             });
+        });
     }
 
     #[rstest]

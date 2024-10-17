@@ -1464,6 +1464,7 @@ mod handle_zmq_msg_tests {
             });
 
         mocked_engine()
+            .with_max_clients(16)
             .configure(|mock_engine| {
                 mock_engine
                     .expect_find_cvar()
@@ -1471,7 +1472,6 @@ mod handle_zmq_msg_tests {
                     .returning_st(move |_| {
                         CVar::try_from(raw_cvar.borrow_mut() as *mut cvar_t).ok()
                     });
-                mock_engine.expect_get_max_clients().returning(|| 16);
             })
             .run(|| {
                 Python::with_gil(|py| {
@@ -1622,6 +1622,7 @@ mod handle_zmq_msg_tests {
             });
 
         mocked_engine()
+            .with_max_clients(16)
             .configure(|mock_engine| {
                 mock_engine
                     .expect_find_cvar()
@@ -1629,7 +1630,6 @@ mod handle_zmq_msg_tests {
                     .returning_st(move |_| {
                         CVar::try_from(raw_cvar.borrow_mut() as *mut cvar_t).ok()
                     });
-                mock_engine.expect_get_max_clients().returning(|| 16);
             })
             .run(|| {
                 Python::with_gil(|py| {
@@ -1752,6 +1752,7 @@ mod handle_zmq_msg_tests {
             });
 
         mocked_engine()
+            .with_max_clients(16)
             .configure(|mock_engine| {
                 mock_engine
                     .expect_find_cvar()
@@ -1759,7 +1760,6 @@ mod handle_zmq_msg_tests {
                     .returning_st(move |_| {
                         CVar::try_from(raw_cvar.borrow_mut() as *mut cvar_t).ok()
                     });
-                mock_engine.expect_get_max_clients().returning(|| 16);
             })
             .run(|| {
                 Python::with_gil(|py| {
@@ -1881,6 +1881,7 @@ mod handle_zmq_msg_tests {
             });
 
         mocked_engine()
+            .with_max_clients(16)
             .configure(|mock_engine| {
                 mock_engine
                     .expect_find_cvar()
@@ -1888,7 +1889,6 @@ mod handle_zmq_msg_tests {
                     .returning_st(move |_| {
                         CVar::try_from(raw_cvar.borrow_mut() as *mut cvar_t).ok()
                     });
-                mock_engine.expect_get_max_clients().returning(|| 16);
             })
             .run(|| {
                 Python::with_gil(|py| {
@@ -2015,6 +2015,7 @@ mod handle_zmq_msg_tests {
             });
 
         mocked_engine()
+            .with_max_clients(16)
             .configure(|mock_engine| {
                 mock_engine
                     .expect_find_cvar()
@@ -2022,7 +2023,6 @@ mod handle_zmq_msg_tests {
                     .returning_st(move |_| {
                         CVar::try_from(raw_cvar.borrow_mut() as *mut cvar_t).ok()
                     });
-                mock_engine.expect_get_max_clients().returning(|| 16);
             })
             .run(|| {
                 Python::with_gil(|py| {
@@ -2234,6 +2234,7 @@ mod handle_zmq_msg_tests {
             });
 
         mocked_engine()
+            .with_max_clients(16)
             .configure(|mock_engine| {
                 mock_engine
                     .expect_find_cvar()
@@ -2241,7 +2242,6 @@ mod handle_zmq_msg_tests {
                     .returning_st(move |_| {
                         CVar::try_from(raw_cvar.borrow_mut() as *mut cvar_t).ok()
                     });
-                mock_engine.expect_get_max_clients().returning(|| 16);
             })
             .run(|| {
                 Python::with_gil(|py| {
@@ -2453,6 +2453,7 @@ mod handle_zmq_msg_tests {
             });
 
         mocked_engine()
+            .with_max_clients(16)
             .configure(|mock_engine| {
                 mock_engine
                     .expect_find_cvar()
@@ -2460,7 +2461,6 @@ mod handle_zmq_msg_tests {
                     .returning_st(move |_| {
                         CVar::try_from(raw_cvar.borrow_mut() as *mut cvar_t).ok()
                     });
-                mock_engine.expect_get_max_clients().returning(|| 16);
             })
             .run(|| {
                 Python::with_gil(|py| {
@@ -2560,6 +2560,7 @@ mod handle_zmq_msg_tests {
             });
 
         mocked_engine()
+            .with_max_clients(16)
             .configure(|mock_engine| {
                 mock_engine
                     .expect_find_cvar()
@@ -2567,7 +2568,6 @@ mod handle_zmq_msg_tests {
                     .returning_st(move |_| {
                         CVar::try_from(raw_cvar.borrow_mut() as *mut cvar_t).ok()
                     });
-                mock_engine.expect_get_max_clients().returning(|| 16);
             })
             .run(|| {
                 Python::with_gil(|py| {
@@ -2709,6 +2709,7 @@ mod handle_zmq_msg_tests {
             });
 
         mocked_engine()
+            .with_max_clients(16)
             .configure(|mock_engine| {
                 mock_engine
                     .expect_find_cvar()
@@ -2716,7 +2717,6 @@ mod handle_zmq_msg_tests {
                     .returning_st(move |_| {
                         CVar::try_from(raw_cvar.borrow_mut() as *mut cvar_t).ok()
                     });
-                mock_engine.expect_get_max_clients().returning(|| 16);
             })
             .run(|| {
                 Python::with_gil(|py| {
@@ -2860,6 +2860,7 @@ mod handle_zmq_msg_tests {
             });
 
         mocked_engine()
+            .with_max_clients(16)
             .configure(|mock_engine| {
                 mock_engine
                     .expect_find_cvar()
@@ -2867,7 +2868,6 @@ mod handle_zmq_msg_tests {
                     .returning_st(move |_| {
                         CVar::try_from(raw_cvar.borrow_mut() as *mut cvar_t).ok()
                     });
-                mock_engine.expect_get_max_clients().returning(|| 16);
             })
             .run(|| {
                 Python::with_gil(|py| {
@@ -2987,6 +2987,7 @@ mod handle_zmq_msg_tests {
             });
 
         mocked_engine()
+            .with_max_clients(16)
             .configure(|mock_engine| {
                 mock_engine
                     .expect_find_cvar()
@@ -2994,7 +2995,6 @@ mod handle_zmq_msg_tests {
                     .returning_st(move |_| {
                         CVar::try_from(raw_cvar.borrow_mut() as *mut cvar_t).ok()
                     });
-                mock_engine.expect_get_max_clients().returning(|| 16);
             })
             .run(|| {
                 Python::with_gil(|py| {
@@ -3114,6 +3114,7 @@ mod handle_zmq_msg_tests {
             });
 
         mocked_engine()
+            .with_max_clients(16)
             .configure(|mock_engine| {
                 mock_engine
                     .expect_find_cvar()
@@ -3121,7 +3122,6 @@ mod handle_zmq_msg_tests {
                     .returning_st(move |_| {
                         CVar::try_from(raw_cvar.borrow_mut() as *mut cvar_t).ok()
                     });
-                mock_engine.expect_get_max_clients().returning(|| 16);
             })
             .run(|| {
                 Python::with_gil(|py| {
@@ -3241,6 +3241,7 @@ mod handle_zmq_msg_tests {
             });
 
         mocked_engine()
+            .with_max_clients(16)
             .configure(|mock_engine| {
                 mock_engine
                     .expect_find_cvar()
@@ -3248,7 +3249,6 @@ mod handle_zmq_msg_tests {
                     .returning_st(move |_| {
                         CVar::try_from(raw_cvar.borrow_mut() as *mut cvar_t).ok()
                     });
-                mock_engine.expect_get_max_clients().returning(|| 16);
             })
             .run(|| {
                 Python::with_gil(|py| {
@@ -3338,6 +3338,7 @@ mod handle_zmq_msg_tests {
             });
 
         mocked_engine()
+            .with_max_clients(16)
             .configure(|mock_engine| {
                 mock_engine
                     .expect_find_cvar()
@@ -3345,7 +3346,6 @@ mod handle_zmq_msg_tests {
                     .returning_st(move |_| {
                         CVar::try_from(raw_cvar.borrow_mut() as *mut cvar_t).ok()
                     });
-                mock_engine.expect_get_max_clients().returning(|| 16);
             })
             .run(|| {
                 Python::with_gil(|py| {
@@ -3465,6 +3465,7 @@ mod handle_zmq_msg_tests {
             });
 
         mocked_engine()
+            .with_max_clients(16)
             .configure(|mock_engine| {
                 mock_engine
                     .expect_find_cvar()
@@ -3472,7 +3473,6 @@ mod handle_zmq_msg_tests {
                     .returning_st(move |_| {
                         CVar::try_from(raw_cvar.borrow_mut() as *mut cvar_t).ok()
                     });
-                mock_engine.expect_get_max_clients().returning(|| 16);
             })
             .run(|| {
                 Python::with_gil(|py| {
@@ -3569,6 +3569,7 @@ mod handle_zmq_msg_tests {
             });
 
         mocked_engine()
+            .with_max_clients(16)
             .configure(|mock_engine| {
                 mock_engine
                     .expect_find_cvar()
@@ -3576,7 +3577,6 @@ mod handle_zmq_msg_tests {
                     .returning_st(move |_| {
                         CVar::try_from(raw_cvar.borrow_mut() as *mut cvar_t).ok()
                     });
-                mock_engine.expect_get_max_clients().returning(|| 16);
                 mock_engine
                     .expect_execute_console_command()
                     .with(predicate::eq("put 2 spectator"))
