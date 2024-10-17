@@ -47,15 +47,16 @@ mod add_console_command_tests {
     #[cfg_attr(miri, ignore)]
     #[serial]
     fn add_console_command_adds_py_command_to_main_engine(_pyshinqlx_setup: ()) {
-        with_mocked_engine(|mock_engine| {
-            mock_engine
-                .expect_add_command()
-                .withf(|cmd, &func| cmd == "asdf" && func as usize == cmd_py_command as usize)
-                .times(1);
-        })
-        .run(|| {
-            let result = Python::with_gil(|py| pyshinqlx_add_console_command(py, "asdf"));
-            assert!(result.is_ok());
-        });
+        mocked_engine()
+            .configure(|mock_engine| {
+                mock_engine
+                    .expect_add_command()
+                    .withf(|cmd, &func| cmd == "asdf" && func as usize == cmd_py_command as usize)
+                    .times(1);
+            })
+            .run(|| {
+                let result = Python::with_gil(|py| pyshinqlx_add_console_command(py, "asdf"));
+                assert!(result.is_ok());
+            });
     }
 }
