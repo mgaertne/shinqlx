@@ -136,20 +136,21 @@ mod server_static_tests {
     #[test]
     #[serial]
     fn server_static_default_panics_when_offset_function_not_initialized() {
-        with_mocked_engine(|mock_engine| {
-            mock_engine
-                .expect_sv_shutdown_orig()
-                .return_once(|| Err(QuakeLiveEngineError::StaticFunctionNotFound(SV_Shutdown)));
-        })
-        .run(|| {
-            let result = ServerStatic::try_get();
+        mocked_engine()
+            .configure(|mock_engine| {
+                mock_engine
+                    .expect_sv_shutdown_orig()
+                    .return_once(|| Err(QuakeLiveEngineError::StaticFunctionNotFound(SV_Shutdown)));
+            })
+            .run(|| {
+                let result = ServerStatic::try_get();
 
-            assert!(result.is_err());
-            assert_eq!(
-                result.expect_err("this should not happen"),
-                QuakeLiveEngineError::StaticFunctionNotFound(SV_Shutdown)
-            );
-        });
+                assert!(result.is_err());
+                assert_eq!(
+                    result.expect_err("this should not happen"),
+                    QuakeLiveEngineError::StaticFunctionNotFound(SV_Shutdown)
+                );
+            });
     }
 
     #[test]
