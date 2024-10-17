@@ -36,18 +36,19 @@ mod get_cvar_tests {
     #[cfg_attr(miri, ignore)]
     #[serial]
     fn get_cvar_when_cvar_not_found(_pyshinqlx_setup: ()) {
-        with_mocked_engine(|mock_engine| {
-            mock_engine
-                .expect_find_cvar()
-                .with(predicate::eq("asdf"))
-                .returning(|_| None)
-                .times(1);
-        })
-        .run(|| {
-            let result =
-                Python::with_gil(|py| pyshinqlx_get_cvar(py, "asdf")).expect("result waa not OK");
-            assert!(result.is_none());
-        });
+        mocked_engine()
+            .configure(|mock_engine| {
+                mock_engine
+                    .expect_find_cvar()
+                    .with(predicate::eq("asdf"))
+                    .returning(|_| None)
+                    .times(1);
+            })
+            .run(|| {
+                let result = Python::with_gil(|py| pyshinqlx_get_cvar(py, "asdf"))
+                    .expect("result waa not OK");
+                assert!(result.is_none());
+            });
     }
 
     #[rstest]
@@ -60,17 +61,20 @@ mod get_cvar_tests {
             .build()
             .expect("this should not happen");
 
-        with_mocked_engine(|mock_engine| {
-            mock_engine
-                .expect_find_cvar()
-                .with(predicate::eq("sv_maxclients"))
-                .returning_st(move |_| CVar::try_from(raw_cvar.borrow_mut() as *mut cvar_t).ok())
-                .times(1);
-        })
-        .run(|| {
-            let result = Python::with_gil(|py| pyshinqlx_get_cvar(py, "sv_maxclients"))
-                .expect("result was not OK");
-            assert!(result.as_ref().is_some_and(|cvar| cvar == "16"));
-        });
+        mocked_engine()
+            .configure(|mock_engine| {
+                mock_engine
+                    .expect_find_cvar()
+                    .with(predicate::eq("sv_maxclients"))
+                    .returning_st(move |_| {
+                        CVar::try_from(raw_cvar.borrow_mut() as *mut cvar_t).ok()
+                    })
+                    .times(1);
+            })
+            .run(|| {
+                let result = Python::with_gil(|py| pyshinqlx_get_cvar(py, "sv_maxclients"))
+                    .expect("result was not OK");
+                assert!(result.as_ref().is_some_and(|cvar| cvar == "16"));
+            });
     }
 }

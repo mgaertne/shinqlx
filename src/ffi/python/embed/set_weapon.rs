@@ -53,60 +53,64 @@ mod set_weapon_tests {
     #[cfg_attr(miri, ignore)]
     #[serial]
     fn set_weapon_for_client_id_too_small(_pyshinqlx_setup: ()) {
-        with_mocked_engine(|mock_engine| {
-            mock_engine.expect_get_max_clients().returning(|| 16);
-        })
-        .run(|| {
-            Python::with_gil(|py| {
-                let result = pyshinqlx_set_weapon(py, -1, weapon_t::WP_GRAPPLING_HOOK.into());
-                assert!(result.is_err_and(|err| err.is_instance_of::<PyValueError>(py)));
+        mocked_engine()
+            .configure(|mock_engine| {
+                mock_engine.expect_get_max_clients().returning(|| 16);
+            })
+            .run(|| {
+                Python::with_gil(|py| {
+                    let result = pyshinqlx_set_weapon(py, -1, weapon_t::WP_GRAPPLING_HOOK.into());
+                    assert!(result.is_err_and(|err| err.is_instance_of::<PyValueError>(py)));
+                });
             });
-        });
     }
 
     #[rstest]
     #[cfg_attr(miri, ignore)]
     #[serial]
     fn set_weapon_for_client_id_too_large(_pyshinqlx_setup: ()) {
-        with_mocked_engine(|mock_engine| {
-            mock_engine.expect_get_max_clients().returning(|| 16);
-        })
-        .run(|| {
-            Python::with_gil(|py| {
-                let result = pyshinqlx_set_weapon(py, 666, weapon_t::WP_PROX_LAUNCHER.into());
-                assert!(result.is_err_and(|err| err.is_instance_of::<PyValueError>(py)));
+        mocked_engine()
+            .configure(|mock_engine| {
+                mock_engine.expect_get_max_clients().returning(|| 16);
+            })
+            .run(|| {
+                Python::with_gil(|py| {
+                    let result = pyshinqlx_set_weapon(py, 666, weapon_t::WP_PROX_LAUNCHER.into());
+                    assert!(result.is_err_and(|err| err.is_instance_of::<PyValueError>(py)));
+                });
             });
-        });
     }
 
     #[rstest]
     #[cfg_attr(miri, ignore)]
     #[serial]
     fn set_weapon_for_weapon_id_too_small(_pyshinqlx_setup: ()) {
-        with_mocked_engine(|mock_engine| {
-            mock_engine.expect_get_max_clients().returning(|| 16);
-        })
-        .run(|| {
-            Python::with_gil(|py| {
-                let result = pyshinqlx_set_weapon(py, 2, -1);
-                assert!(result.is_err_and(|err| err.is_instance_of::<PyValueError>(py)));
+        mocked_engine()
+            .configure(|mock_engine| {
+                mock_engine.expect_get_max_clients().returning(|| 16);
+            })
+            .run(|| {
+                Python::with_gil(|py| {
+                    let result = pyshinqlx_set_weapon(py, 2, -1);
+                    assert!(result.is_err_and(|err| err.is_instance_of::<PyValueError>(py)));
+                });
             });
-        });
     }
 
     #[rstest]
     #[cfg_attr(miri, ignore)]
     #[serial]
     fn set_weapon_for_weapon_id_too_large(_pyshinqlx_setup: ()) {
-        with_mocked_engine(|mock_engine| {
-            mock_engine.expect_get_max_clients().returning(|| 16);
-        })
-        .run(|| {
-            Python::with_gil(|py| {
-                let result = pyshinqlx_set_weapon(py, 2, 42);
-                assert!(result.is_err_and(|err| err.is_instance_of::<PyValueError>(py)));
+        mocked_engine()
+            .configure(|mock_engine| {
+                mock_engine.expect_get_max_clients().returning(|| 16);
+            })
+            .run(|| {
+                Python::with_gil(|py| {
+                    let result = pyshinqlx_set_weapon(py, 2, 42);
+                    assert!(result.is_err_and(|err| err.is_instance_of::<PyValueError>(py)));
+                });
             });
-        });
     }
 
     #[rstest]
@@ -127,14 +131,15 @@ mod set_weapon_tests {
             mock_game_entity
         });
 
-        with_mocked_engine(|mock_engine| {
-            mock_engine.expect_get_max_clients().returning(|| 16);
-        })
-        .run(|| {
-            let result =
-                Python::with_gil(|py| pyshinqlx_set_weapon(py, 2, weapon_t::WP_BFG.into()));
-            assert_eq!(result.expect("result was not OK"), true);
-        });
+        mocked_engine()
+            .configure(|mock_engine| {
+                mock_engine.expect_get_max_clients().returning(|| 16);
+            })
+            .run(|| {
+                let result =
+                    Python::with_gil(|py| pyshinqlx_set_weapon(py, 2, weapon_t::WP_BFG.into()));
+                assert_eq!(result.expect("result was not OK"), true);
+            });
     }
 
     #[rstest]
@@ -150,13 +155,14 @@ mod set_weapon_tests {
             mock_game_entity
         });
 
-        with_mocked_engine(|mock_engine| {
-            mock_engine.expect_get_max_clients().returning(|| 16);
-        })
-        .run(|| {
-            let result =
-                Python::with_gil(|py| pyshinqlx_set_weapon(py, 2, weapon_t::WP_HMG.into()));
-            assert_eq!(result.expect("result was not OK"), false);
-        });
+        mocked_engine()
+            .configure(|mock_engine| {
+                mock_engine.expect_get_max_clients().returning(|| 16);
+            })
+            .run(|| {
+                let result =
+                    Python::with_gil(|py| pyshinqlx_set_weapon(py, 2, weapon_t::WP_HMG.into()));
+                assert_eq!(result.expect("result was not OK"), false);
+            });
     }
 }

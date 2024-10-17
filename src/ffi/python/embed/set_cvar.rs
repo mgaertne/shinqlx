@@ -42,27 +42,28 @@ mod set_cvar_tests {
     #[cfg_attr(miri, ignore)]
     #[serial]
     fn set_cvar_for_not_existing_cvar(_pyshinqlx_setup: ()) {
-        with_mocked_engine(|mock_engine| {
-            mock_engine
-                .expect_find_cvar()
-                .with(predicate::eq("sv_maxclients"))
-                .returning(|_| None)
-                .times(1);
-            mock_engine
-                .expect_get_cvar()
-                .with(
-                    predicate::eq("sv_maxclients"),
-                    predicate::eq("64"),
-                    predicate::eq(Some(cvar_flags::CVAR_ROM as i32)),
-                )
-                .times(1);
-        })
-        .run(|| {
-            let result = Python::with_gil(|py| {
-                pyshinqlx_set_cvar(py, "sv_maxclients", "64", Some(cvar_flags::CVAR_ROM as i32))
+        mocked_engine()
+            .configure(|mock_engine| {
+                mock_engine
+                    .expect_find_cvar()
+                    .with(predicate::eq("sv_maxclients"))
+                    .returning(|_| None)
+                    .times(1);
+                mock_engine
+                    .expect_get_cvar()
+                    .with(
+                        predicate::eq("sv_maxclients"),
+                        predicate::eq("64"),
+                        predicate::eq(Some(cvar_flags::CVAR_ROM as i32)),
+                    )
+                    .times(1);
+            })
+            .run(|| {
+                let result = Python::with_gil(|py| {
+                    pyshinqlx_set_cvar(py, "sv_maxclients", "64", Some(cvar_flags::CVAR_ROM as i32))
+                });
+                assert_eq!(result.expect("result was not OK"), true);
             });
-            assert_eq!(result.expect("result was not OK"), true);
-        });
     }
 
     #[rstest]
@@ -73,26 +74,29 @@ mod set_cvar_tests {
             .build()
             .expect("this should not happen");
 
-        with_mocked_engine(|mock_engine| {
-            mock_engine
-                .expect_find_cvar()
-                .with(predicate::eq("sv_maxclients"))
-                .returning_st(move |_| CVar::try_from(raw_cvar.borrow_mut() as *mut cvar_t).ok())
-                .times(1);
-            mock_engine
-                .expect_set_cvar_forced()
-                .with(
-                    predicate::eq("sv_maxclients"),
-                    predicate::eq("64"),
-                    predicate::eq(false),
-                )
-                .times(1);
-        })
-        .run(|| {
-            let result = Python::with_gil(|py| {
-                pyshinqlx_set_cvar(py, "sv_maxclients", "64", Some(cvar_flags::CVAR_ROM as i32))
+        mocked_engine()
+            .configure(|mock_engine| {
+                mock_engine
+                    .expect_find_cvar()
+                    .with(predicate::eq("sv_maxclients"))
+                    .returning_st(move |_| {
+                        CVar::try_from(raw_cvar.borrow_mut() as *mut cvar_t).ok()
+                    })
+                    .times(1);
+                mock_engine
+                    .expect_set_cvar_forced()
+                    .with(
+                        predicate::eq("sv_maxclients"),
+                        predicate::eq("64"),
+                        predicate::eq(false),
+                    )
+                    .times(1);
+            })
+            .run(|| {
+                let result = Python::with_gil(|py| {
+                    pyshinqlx_set_cvar(py, "sv_maxclients", "64", Some(cvar_flags::CVAR_ROM as i32))
+                });
+                assert_eq!(result.expect("result was not OK"), false);
             });
-            assert_eq!(result.expect("result was not OK"), false);
-        });
     }
 }
