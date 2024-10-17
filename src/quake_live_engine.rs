@@ -5287,6 +5287,14 @@ impl MockEngineBuilder {
         self
     }
 
+    pub(crate) fn with_max_clients(self, max_clients: i32) -> MockEngineBuilder {
+        self.configure(|mock_engine| {
+            mock_engine
+                .expect_get_max_clients()
+                .return_const(max_clients);
+        })
+    }
+
     pub(crate) fn run<F>(&mut self, execute: F)
     where
         F: FnOnce(),
