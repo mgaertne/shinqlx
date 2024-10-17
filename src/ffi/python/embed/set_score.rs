@@ -45,30 +45,32 @@ mod set_score_tests {
     #[cfg_attr(miri, ignore)]
     #[serial]
     fn set_score_for_client_id_too_small(_pyshinqlx_setup: ()) {
-        with_mocked_engine(|mock_engine| {
-            mock_engine.expect_get_max_clients().returning(|| 16);
-        })
-        .run(|| {
-            Python::with_gil(|py| {
-                let result = pyshinqlx_set_score(py, -1, 42);
-                assert!(result.is_err_and(|err| err.is_instance_of::<PyValueError>(py)));
+        mocked_engine()
+            .configure(|mock_engine| {
+                mock_engine.expect_get_max_clients().returning(|| 16);
+            })
+            .run(|| {
+                Python::with_gil(|py| {
+                    let result = pyshinqlx_set_score(py, -1, 42);
+                    assert!(result.is_err_and(|err| err.is_instance_of::<PyValueError>(py)));
+                });
             });
-        });
     }
 
     #[rstest]
     #[cfg_attr(miri, ignore)]
     #[serial]
     fn set_score_for_client_id_too_large(_pyshinqlx_setup: ()) {
-        with_mocked_engine(|mock_engine| {
-            mock_engine.expect_get_max_clients().returning(|| 16);
-        })
-        .run(|| {
-            Python::with_gil(|py| {
-                let result = pyshinqlx_set_score(py, 666, 42);
-                assert!(result.is_err_and(|err| err.is_instance_of::<PyValueError>(py)));
+        mocked_engine()
+            .configure(|mock_engine| {
+                mock_engine.expect_get_max_clients().returning(|| 16);
+            })
+            .run(|| {
+                Python::with_gil(|py| {
+                    let result = pyshinqlx_set_score(py, 666, 42);
+                    assert!(result.is_err_and(|err| err.is_instance_of::<PyValueError>(py)));
+                });
             });
-        });
     }
 
     #[rstest]
@@ -89,13 +91,14 @@ mod set_score_tests {
             mock_game_entity
         });
 
-        with_mocked_engine(|mock_engine| {
-            mock_engine.expect_get_max_clients().returning(|| 16);
-        })
-        .run(|| {
-            let result = Python::with_gil(|py| pyshinqlx_set_score(py, 2, 42));
-            assert_eq!(result.expect("result was not OK"), true);
-        });
+        mocked_engine()
+            .configure(|mock_engine| {
+                mock_engine.expect_get_max_clients().returning(|| 16);
+            })
+            .run(|| {
+                let result = Python::with_gil(|py| pyshinqlx_set_score(py, 2, 42));
+                assert_eq!(result.expect("result was not OK"), true);
+            });
     }
 
     #[rstest]
@@ -111,12 +114,13 @@ mod set_score_tests {
             mock_game_entity
         });
 
-        with_mocked_engine(|mock_engine| {
-            mock_engine.expect_get_max_clients().returning(|| 16);
-        })
-        .run(|| {
-            let result = Python::with_gil(|py| pyshinqlx_set_score(py, 2, 42));
-            assert_eq!(result.expect("result was not OK"), false);
-        });
+        mocked_engine()
+            .configure(|mock_engine| {
+                mock_engine.expect_get_max_clients().returning(|| 16);
+            })
+            .run(|| {
+                let result = Python::with_gil(|py| pyshinqlx_set_score(py, 2, 42));
+                assert_eq!(result.expect("result was not OK"), false);
+            });
     }
 }

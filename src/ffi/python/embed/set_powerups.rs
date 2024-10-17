@@ -49,30 +49,32 @@ mod set_powerups_tests {
     #[cfg_attr(miri, ignore)]
     #[serial]
     fn set_powerups_for_client_id_too_small(_pyshinqlx_setup: ()) {
-        with_mocked_engine(|mock_engine| {
-            mock_engine.expect_get_max_clients().returning(|| 16);
-        })
-        .run(|| {
-            Python::with_gil(|py| {
-                let result = pyshinqlx_set_powerups(py, -1, Powerups(0, 0, 0, 0, 0, 0));
-                assert!(result.is_err_and(|err| err.is_instance_of::<PyValueError>(py)));
+        mocked_engine()
+            .configure(|mock_engine| {
+                mock_engine.expect_get_max_clients().returning(|| 16);
+            })
+            .run(|| {
+                Python::with_gil(|py| {
+                    let result = pyshinqlx_set_powerups(py, -1, Powerups(0, 0, 0, 0, 0, 0));
+                    assert!(result.is_err_and(|err| err.is_instance_of::<PyValueError>(py)));
+                });
             });
-        });
     }
 
     #[rstest]
     #[cfg_attr(miri, ignore)]
     #[serial]
     fn set_powerups_for_client_id_too_large(_pyshinqlx_setup: ()) {
-        with_mocked_engine(|mock_engine| {
-            mock_engine.expect_get_max_clients().returning(|| 16);
-        })
-        .run(|| {
-            Python::with_gil(|py| {
-                let result = pyshinqlx_set_powerups(py, 666, Powerups(0, 0, 0, 0, 0, 0));
-                assert!(result.is_err_and(|err| err.is_instance_of::<PyValueError>(py)));
+        mocked_engine()
+            .configure(|mock_engine| {
+                mock_engine.expect_get_max_clients().returning(|| 16);
+            })
+            .run(|| {
+                Python::with_gil(|py| {
+                    let result = pyshinqlx_set_powerups(py, 666, Powerups(0, 0, 0, 0, 0, 0));
+                    assert!(result.is_err_and(|err| err.is_instance_of::<PyValueError>(py)));
+                });
             });
-        });
     }
 
     #[rstest]
@@ -93,14 +95,16 @@ mod set_powerups_tests {
             mock_game_entity
         });
 
-        with_mocked_engine(|mock_engine| {
-            mock_engine.expect_get_max_clients().returning(|| 16);
-        })
-        .run(|| {
-            let result =
-                Python::with_gil(|py| pyshinqlx_set_powerups(py, 2, Powerups(1, 2, 3, 4, 5, 6)));
-            assert_eq!(result.expect("result was not OK"), true);
-        });
+        mocked_engine()
+            .configure(|mock_engine| {
+                mock_engine.expect_get_max_clients().returning(|| 16);
+            })
+            .run(|| {
+                let result = Python::with_gil(|py| {
+                    pyshinqlx_set_powerups(py, 2, Powerups(1, 2, 3, 4, 5, 6))
+                });
+                assert_eq!(result.expect("result was not OK"), true);
+            });
     }
 
     #[rstest]
@@ -116,13 +120,15 @@ mod set_powerups_tests {
             mock_game_entity
         });
 
-        with_mocked_engine(|mock_engine| {
-            mock_engine.expect_get_max_clients().returning(|| 16);
-        })
-        .run(|| {
-            let result =
-                Python::with_gil(|py| pyshinqlx_set_powerups(py, 2, Powerups(0, 0, 0, 0, 0, 0)));
-            assert_eq!(result.expect("result was not OK"), false);
-        });
+        mocked_engine()
+            .configure(|mock_engine| {
+                mock_engine.expect_get_max_clients().returning(|| 16);
+            })
+            .run(|| {
+                let result = Python::with_gil(|py| {
+                    pyshinqlx_set_powerups(py, 2, Powerups(0, 0, 0, 0, 0, 0))
+                });
+                assert_eq!(result.expect("result was not OK"), false);
+            });
     }
 }
