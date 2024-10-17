@@ -46,32 +46,24 @@ mod get_userinfo_tests {
     #[cfg_attr(miri, ignore)]
     #[serial]
     fn get_userinfo_for_client_id_below_zero(_pyshinqlx_setup: ()) {
-        mocked_engine()
-            .configure(|mock_engine| {
-                mock_engine.expect_get_max_clients().returning(|| 16);
-            })
-            .run(|| {
-                Python::with_gil(|py| {
-                    let result = pyshinqlx_get_userinfo(py, -1);
-                    assert!(result.is_err_and(|err| err.is_instance_of::<PyValueError>(py)));
-                });
+        mocked_engine().with_max_clients(16).run(|| {
+            Python::with_gil(|py| {
+                let result = pyshinqlx_get_userinfo(py, -1);
+                assert!(result.is_err_and(|err| err.is_instance_of::<PyValueError>(py)));
             });
+        });
     }
 
     #[rstest]
     #[cfg_attr(miri, ignore)]
     #[serial]
     fn get_userinfo_for_client_id_above_max_clients(_pyshinqlx_setup: ()) {
-        mocked_engine()
-            .configure(|mock_engine| {
-                mock_engine.expect_get_max_clients().returning(|| 16);
-            })
-            .run(|| {
-                Python::with_gil(|py| {
-                    let result = pyshinqlx_get_userinfo(py, 42);
-                    assert!(result.is_err_and(|err| err.is_instance_of::<PyValueError>(py)));
-                });
+        mocked_engine().with_max_clients(16).run(|| {
+            Python::with_gil(|py| {
+                let result = pyshinqlx_get_userinfo(py, 42);
+                assert!(result.is_err_and(|err| err.is_instance_of::<PyValueError>(py)));
             });
+        });
     }
 
     #[rstest]
@@ -90,17 +82,13 @@ mod get_userinfo_tests {
             mock_client
         });
 
-        mocked_engine()
-            .configure(|mock_engine| {
-                mock_engine.expect_get_max_clients().returning(|| 16);
-            })
-            .run(|| {
-                let userinfo = Python::with_gil(|py| pyshinqlx_get_userinfo(py, 2));
-                assert_eq!(
-                    userinfo.expect("result was not OK"),
-                    Some("asdf".to_string())
-                );
-            });
+        mocked_engine().with_max_clients(16).run(|| {
+            let userinfo = Python::with_gil(|py| pyshinqlx_get_userinfo(py, 2));
+            assert_eq!(
+                userinfo.expect("result was not OK"),
+                Some("asdf".to_string())
+            );
+        });
     }
 
     #[rstest]
@@ -121,14 +109,10 @@ mod get_userinfo_tests {
             mock_client
         });
 
-        mocked_engine()
-            .configure(|mock_engine| {
-                mock_engine.expect_get_max_clients().returning(|| 16);
-            })
-            .run(|| {
-                let userinfo = Python::with_gil(|py| pyshinqlx_get_userinfo(py, 2));
-                assert_eq!(userinfo.expect("result was not OK"), None);
-            });
+        mocked_engine().with_max_clients(16).run(|| {
+            let userinfo = Python::with_gil(|py| pyshinqlx_get_userinfo(py, 2));
+            assert_eq!(userinfo.expect("result was not OK"), None);
+        });
     }
 
     #[rstest]
@@ -149,16 +133,12 @@ mod get_userinfo_tests {
             mock_client
         });
 
-        mocked_engine()
-            .configure(|mock_engine| {
-                mock_engine.expect_get_max_clients().returning(|| 16);
-            })
-            .run(|| {
-                let userinfo = Python::with_gil(|py| pyshinqlx_get_userinfo(py, 2));
-                assert_eq!(
-                    userinfo.expect("result was not OK"),
-                    Some("asdf".to_string())
-                );
-            });
+        mocked_engine().with_max_clients(16).run(|| {
+            let userinfo = Python::with_gil(|py| pyshinqlx_get_userinfo(py, 2));
+            assert_eq!(
+                userinfo.expect("result was not OK"),
+                Some("asdf".to_string())
+            );
+        });
     }
 }
