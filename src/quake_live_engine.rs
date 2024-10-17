@@ -5295,6 +5295,16 @@ impl MockEngineBuilder {
         })
     }
 
+    pub(crate) fn with_com_printf<F, G>(self, predicate: F, times: G) -> MockEngineBuilder
+    where
+        F: mockall::Predicate<str> + Send + 'static,
+        G: Into<mockall::TimesRange>,
+    {
+        self.configure(|mock_engine| {
+            mock_engine.expect_com_printf().with(predicate).times(times);
+        })
+    }
+
     pub(crate) fn run<F>(&mut self, execute: F)
     where
         F: FnOnce(),
