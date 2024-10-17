@@ -672,7 +672,7 @@ mod pyshinqlx_game_tests {
     #[cfg_attr(miri, ignore)]
     #[serial]
     fn pyconstructor_with_empty_configstring(_pyshinqlx_setup: ()) {
-        with_mocked_engine(|mock_engine| {
+        mocked_engine().configure(|mock_engine| {
             mock_engine
                 .expect_get_configstring()
                 .with(predicate::eq(CS_SERVERINFO as u16))
@@ -690,22 +690,23 @@ mod pyshinqlx_game_tests {
     #[cfg_attr(miri, ignore)]
     #[serial]
     fn pyconstructor_with_nonempty_configstring(_pyshinqlx_setup: ()) {
-        with_mocked_engine(|mock_engine| {
-            mock_engine
-                .expect_get_configstring()
-                .with(predicate::eq(CS_SERVERINFO as u16))
-                .returning(|_| "asdf".to_string());
-        })
-        .run(|| {
-            let result = Python::with_gil(|py| Game::py_new(py, true));
-            assert_eq!(
-                result.expect("result was not OK"),
-                Game {
-                    cached: true,
-                    valid: true,
-                }
-            );
-        });
+        mocked_engine()
+            .configure(|mock_engine| {
+                mock_engine
+                    .expect_get_configstring()
+                    .with(predicate::eq(CS_SERVERINFO as u16))
+                    .returning(|_| "asdf".to_string());
+            })
+            .run(|| {
+                let result = Python::with_gil(|py| Game::py_new(py, true));
+                assert_eq!(
+                    result.expect("result was not OK"),
+                    Game {
+                        cached: true,
+                        valid: true,
+                    }
+                );
+            });
     }
 
     #[rstest]
@@ -730,104 +731,108 @@ mod pyshinqlx_game_tests {
     #[cfg_attr(miri, ignore)]
     #[serial]
     fn repr_with_empty_configstring(_pyshinqlx_setup: ()) {
-        with_mocked_engine(|mock_engine| {
-            mock_engine
-                .expect_get_configstring()
-                .with(predicate::eq(CS_SERVERINFO as u16))
-                .returning(|_| "".to_string());
-        })
-        .run(|| {
-            let result = Python::with_gil(|py| {
-                let game = Bound::new(
-                    py,
-                    Game {
-                        cached: true,
-                        valid: true,
-                    },
-                )
-                .expect("this should not happen");
-                Game::__repr__(&game)
+        mocked_engine()
+            .configure(|mock_engine| {
+                mock_engine
+                    .expect_get_configstring()
+                    .with(predicate::eq(CS_SERVERINFO as u16))
+                    .returning(|_| "".to_string());
+            })
+            .run(|| {
+                let result = Python::with_gil(|py| {
+                    let game = Bound::new(
+                        py,
+                        Game {
+                            cached: true,
+                            valid: true,
+                        },
+                    )
+                    .expect("this should not happen");
+                    Game::__repr__(&game)
+                });
+                assert_eq!(result, "Game(N/A@N/A)");
             });
-            assert_eq!(result, "Game(N/A@N/A)");
-        });
     }
 
     #[rstest]
     #[cfg_attr(miri, ignore)]
     #[serial]
     fn repr_with_empty_map_configstring(_pyshinqlx_setup: ()) {
-        with_mocked_engine(|mock_engine| {
-            mock_engine
-                .expect_get_configstring()
-                .with(predicate::eq(CS_SERVERINFO as u16))
-                .returning(|_| r"\g_gametype\4".to_string());
-        })
-        .run(|| {
-            let result = Python::with_gil(|py| {
-                let game = Bound::new(
-                    py,
-                    Game {
-                        cached: true,
-                        valid: true,
-                    },
-                )
-                .expect("this should not happen");
-                Game::__repr__(&game)
+        mocked_engine()
+            .configure(|mock_engine| {
+                mock_engine
+                    .expect_get_configstring()
+                    .with(predicate::eq(CS_SERVERINFO as u16))
+                    .returning(|_| r"\g_gametype\4".to_string());
+            })
+            .run(|| {
+                let result = Python::with_gil(|py| {
+                    let game = Bound::new(
+                        py,
+                        Game {
+                            cached: true,
+                            valid: true,
+                        },
+                    )
+                    .expect("this should not happen");
+                    Game::__repr__(&game)
+                });
+                assert_eq!(result, "Game(N/A@N/A)");
             });
-            assert_eq!(result, "Game(N/A@N/A)");
-        });
     }
 
     #[rstest]
     #[cfg_attr(miri, ignore)]
     #[serial]
     fn repr_with_empty_gametype_configstring(_pyshinqlx_setup: ()) {
-        with_mocked_engine(|mock_engine| {
-            mock_engine
-                .expect_get_configstring()
-                .with(predicate::eq(CS_SERVERINFO as u16))
-                .returning(|_| r"\mapname\thunderstruck".to_string());
-        })
-        .run(|| {
-            let result = Python::with_gil(|py| {
-                let game = Bound::new(
-                    py,
-                    Game {
-                        cached: true,
-                        valid: true,
-                    },
-                )
-                .expect("this should not happen");
-                Game::__repr__(&game)
+        mocked_engine()
+            .configure(|mock_engine| {
+                mock_engine
+                    .expect_get_configstring()
+                    .with(predicate::eq(CS_SERVERINFO as u16))
+                    .returning(|_| r"\mapname\thunderstruck".to_string());
+            })
+            .run(|| {
+                let result = Python::with_gil(|py| {
+                    let game = Bound::new(
+                        py,
+                        Game {
+                            cached: true,
+                            valid: true,
+                        },
+                    )
+                    .expect("this should not happen");
+                    Game::__repr__(&game)
+                });
+                assert_eq!(result, "Game(N/A@N/A)");
             });
-            assert_eq!(result, "Game(N/A@N/A)");
-        });
     }
 
     #[rstest]
     #[cfg_attr(miri, ignore)]
     #[serial]
     fn repr_with_nonempty_configstring(_pyshinqlx_setup: ()) {
-        with_mocked_engine(|mock_engine| {
-            mock_engine
-                .expect_get_configstring()
-                .with(predicate::eq(CS_SERVERINFO as u16))
-                .returning(|_| r"\mapname\thunderstruck\g_gametype\4".to_string());
-        })
-        .run(|| {
-            let result = Python::with_gil(|py| {
-                let game = Bound::new(
-                    py,
-                    Game {
-                        cached: true,
-                        valid: true,
-                    },
-                )
-                .expect("this should not happen");
-                Game::__repr__(&game)
+        mocked_engine()
+            .configure(|mock_engine| {
+                mock_engine
+                    .expect_get_configstring()
+                    .with(predicate::eq(CS_SERVERINFO as u16))
+                    .returning(|_| r"\mapname\thunderstruck\g_gametype\4".to_string());
+            })
+            .run(|| {
+                let result = Python::with_gil(|py| {
+                    let game = Bound::new(
+                        py,
+                        Game {
+                            cached: true,
+                            valid: true,
+                        },
+                    )
+                    .expect("this should not happen");
+                    Game::__repr__(&game)
+                });
+                assert_eq!(result, "Game(Clan Arena@thunderstruck)");
             });
-            assert_eq!(result, "Game(Clan Arena@thunderstruck)");
-        });
     }
 
     #[rstest]
@@ -848,88 +853,92 @@ mod pyshinqlx_game_tests {
     #[cfg_attr(miri, ignore)]
     #[serial]
     fn str_with_empty_configstring(_pyshinqlx_setup: ()) {
-        with_mocked_engine(|mock_engine| {
-            mock_engine
-                .expect_get_configstring()
-                .with(predicate::eq(CS_SERVERINFO as u16))
-                .returning(|_| "".to_string());
-        })
-        .run(|| {
-            let result = Python::with_gil(|py| {
-                let mut game = Game {
-                    cached: true,
-                    valid: true,
-                };
-                game.__str__(py)
+        mocked_engine()
+            .configure(|mock_engine| {
+                mock_engine
+                    .expect_get_configstring()
+                    .with(predicate::eq(CS_SERVERINFO as u16))
+                    .returning(|_| "".to_string());
+            })
+            .run(|| {
+                let result = Python::with_gil(|py| {
+                    let mut game = Game {
+                        cached: true,
+                        valid: true,
+                    };
+                    game.__str__(py)
+                });
+                assert_eq!(result, "Invalid game");
             });
-            assert_eq!(result, "Invalid game");
-        });
     }
 
     #[rstest]
     #[cfg_attr(miri, ignore)]
     #[serial]
     fn str_with_empty_map_configstring(_pyshinqlx_setup: ()) {
-        with_mocked_engine(|mock_engine| {
-            mock_engine
-                .expect_get_configstring()
-                .with(predicate::eq(CS_SERVERINFO as u16))
-                .returning(|_| r"\g_gametype\4".to_string());
-        })
-        .run(|| {
-            let result = Python::with_gil(|py| {
-                let mut game = Game {
-                    cached: true,
-                    valid: true,
-                };
-                game.__str__(py)
+        mocked_engine()
+            .configure(|mock_engine| {
+                mock_engine
+                    .expect_get_configstring()
+                    .with(predicate::eq(CS_SERVERINFO as u16))
+                    .returning(|_| r"\g_gametype\4".to_string());
+            })
+            .run(|| {
+                let result = Python::with_gil(|py| {
+                    let mut game = Game {
+                        cached: true,
+                        valid: true,
+                    };
+                    game.__str__(py)
+                });
+                assert_eq!(result, "Invalid game");
             });
-            assert_eq!(result, "Invalid game");
-        });
     }
 
     #[rstest]
     #[cfg_attr(miri, ignore)]
     #[serial]
     fn str_with_empty_gametype_configstring(_pyshinqlx_setup: ()) {
-        with_mocked_engine(|mock_engine| {
-            mock_engine
-                .expect_get_configstring()
-                .with(predicate::eq(CS_SERVERINFO as u16))
-                .returning(|_| r"\mapname\thunderstruck".to_string());
-        })
-        .run(|| {
-            let result = Python::with_gil(|py| {
-                let mut game = Game {
-                    cached: true,
-                    valid: true,
-                };
-                game.__str__(py)
+        mocked_engine()
+            .configure(|mock_engine| {
+                mock_engine
+                    .expect_get_configstring()
+                    .with(predicate::eq(CS_SERVERINFO as u16))
+                    .returning(|_| r"\mapname\thunderstruck".to_string());
+            })
+            .run(|| {
+                let result = Python::with_gil(|py| {
+                    let mut game = Game {
+                        cached: true,
+                        valid: true,
+                    };
+                    game.__str__(py)
+                });
+                assert_eq!(result, "Invalid game");
             });
-            assert_eq!(result, "Invalid game");
-        });
     }
 
     #[rstest]
     #[cfg_attr(miri, ignore)]
     #[serial]
     fn str_with_nonempty_configstring(_pyshinqlx_setup: ()) {
-        with_mocked_engine(|mock_engine| {
-            mock_engine
-                .expect_get_configstring()
-                .with(predicate::eq(CS_SERVERINFO as u16))
-                .returning(|_| r"\mapname\thunderstruck\g_gametype\4".to_string());
-        })
-        .run(|| {
-            let result = Python::with_gil(|py| {
-                let mut game = Game {
-                    cached: true,
-                    valid: true,
-                };
-                game.__str__(py)
+        mocked_engine()
+            .configure(|mock_engine| {
+                mock_engine
+                    .expect_get_configstring()
+                    .with(predicate::eq(CS_SERVERINFO as u16))
+                    .returning(|_| r"\mapname\thunderstruck\g_gametype\4".to_string());
+            })
+            .run(|| {
+                let result = Python::with_gil(|py| {
+                    let mut game = Game {
+                        cached: true,
+                        valid: true,
+                    };
+                    game.__str__(py)
+                });
+                assert_eq!(result, "Clan Arena on thunderstruck");
             });
-            assert_eq!(result, "Clan Arena on thunderstruck");
-        });
     }
 
     #[rstest]
@@ -951,7 +960,7 @@ mod pyshinqlx_game_tests {
     #[cfg_attr(miri, ignore)]
     #[serial]
     fn contains_when_configstring_variables_are_unparseable(_pyshinqlx_setup: ()) {
-        with_mocked_engine(|mock_engine| {
+        mocked_engine().configure(|mock_engine| {
             mock_engine
                 .expect_get_configstring()
                 .with(predicate::eq(CS_SERVERINFO as u16))
@@ -974,92 +983,96 @@ mod pyshinqlx_game_tests {
     #[cfg_attr(miri, ignore)]
     #[serial]
     fn contains_when_value_is_in_configstring_variables(_pyshinqlx_setup: ()) {
-        with_mocked_engine(|mock_engine| {
-            mock_engine
-                .expect_get_configstring()
-                .with(predicate::eq(CS_SERVERINFO as u16))
-                .returning(|_| r"\asdf\12".to_string());
-        })
-        .run(|| {
-            let result = Python::with_gil(|py| {
-                let mut game = Game {
-                    cached: true,
-                    valid: true,
-                };
+        mocked_engine()
+            .configure(|mock_engine| {
+                mock_engine
+                    .expect_get_configstring()
+                    .with(predicate::eq(CS_SERVERINFO as u16))
+                    .returning(|_| r"\asdf\12".to_string());
+            })
+            .run(|| {
+                let result = Python::with_gil(|py| {
+                    let mut game = Game {
+                        cached: true,
+                        valid: true,
+                    };
 
-                game.__contains__(py, "asdf")
+                    game.__contains__(py, "asdf")
+                });
+                assert_eq!(result.expect("result was not OK"), true);
             });
-            assert_eq!(result.expect("result was not OK"), true);
-        });
     }
 
     #[rstest]
     #[cfg_attr(miri, ignore)]
     #[serial]
     fn contains_when_value_is_not_in_configstring_variables(_pyshinqlx_setup: ()) {
-        with_mocked_engine(|mock_engine| {
-            mock_engine
-                .expect_get_configstring()
-                .with(predicate::eq(CS_SERVERINFO as u16))
-                .returning(|_| r"\asdf\12".to_string());
-        })
-        .run(|| {
-            let result = Python::with_gil(|py| {
-                let mut game = Game {
-                    cached: true,
-                    valid: true,
-                };
+        mocked_engine()
+            .configure(|mock_engine| {
+                mock_engine
+                    .expect_get_configstring()
+                    .with(predicate::eq(CS_SERVERINFO as u16))
+                    .returning(|_| r"\asdf\12".to_string());
+            })
+            .run(|| {
+                let result = Python::with_gil(|py| {
+                    let mut game = Game {
+                        cached: true,
+                        valid: true,
+                    };
 
-                game.__contains__(py, "qwertz")
+                    game.__contains__(py, "qwertz")
+                });
+                assert_eq!(result.expect("result was not OK"), false);
             });
-            assert_eq!(result.expect("result was not OK"), false);
-        });
     }
 
     #[rstest]
     #[cfg_attr(miri, ignore)]
     #[serial]
     fn contains_when_configstring_parses_empty(_pyshinqlx_setup: ()) {
-        with_mocked_engine(|mock_engine| {
-            mock_engine
-                .expect_get_configstring()
-                .with(predicate::eq(CS_SERVERINFO as u16))
-                .returning(|_| r"\".to_string());
-        })
-        .run(|| {
-            let result = Python::with_gil(|py| {
-                let mut game = Game {
-                    cached: true,
-                    valid: true,
-                };
+        mocked_engine()
+            .configure(|mock_engine| {
+                mock_engine
+                    .expect_get_configstring()
+                    .with(predicate::eq(CS_SERVERINFO as u16))
+                    .returning(|_| r"\".to_string());
+            })
+            .run(|| {
+                let result = Python::with_gil(|py| {
+                    let mut game = Game {
+                        cached: true,
+                        valid: true,
+                    };
 
-                game.__contains__(py, "asdf")
+                    game.__contains__(py, "asdf")
+                });
+                assert_eq!(result.expect("result was not OK"), false);
             });
-            assert_eq!(result.expect("result was not OK"), false);
-        });
     }
 
     #[rstest]
     #[cfg_attr(miri, ignore)]
     #[serial]
     fn contains_when_configstring_parses_to_none(_pyshinqlx_setup: ()) {
-        with_mocked_engine(|mock_engine| {
-            mock_engine
-                .expect_get_configstring()
-                .with(predicate::eq(CS_SERVERINFO as u16))
-                .returning(|_| "qwertz".to_string());
-        })
-        .run(|| {
-            let result = Python::with_gil(|py| {
-                let mut game = Game {
-                    cached: true,
-                    valid: true,
-                };
+        mocked_engine()
+            .configure(|mock_engine| {
+                mock_engine
+                    .expect_get_configstring()
+                    .with(predicate::eq(CS_SERVERINFO as u16))
+                    .returning(|_| "qwertz".to_string());
+            })
+            .run(|| {
+                let result = Python::with_gil(|py| {
+                    let mut game = Game {
+                        cached: true,
+                        valid: true,
+                    };
 
-                game.__contains__(py, "asdf")
+                    game.__contains__(py, "asdf")
+                });
+                assert_eq!(result.expect("result was not OK"), false);
             });
-            assert_eq!(result.expect("result was not OK"), false);
-        });
     }
 
     #[rstest]
@@ -1081,7 +1094,7 @@ mod pyshinqlx_game_tests {
     #[cfg_attr(miri, ignore)]
     #[serial]
     fn getitem_when_configstring_variables_are_unparseable(_pyshinqlx_setup: ()) {
-        with_mocked_engine(|mock_engine| {
+        mocked_engine().configure(|mock_engine| {
             mock_engine
                 .expect_get_configstring()
                 .with(predicate::eq(CS_SERVERINFO as u16))
@@ -1104,92 +1117,96 @@ mod pyshinqlx_game_tests {
     #[cfg_attr(miri, ignore)]
     #[serial]
     fn getitem_when_value_is_in_configstring_variables(_pyshinqlx_setup: ()) {
-        with_mocked_engine(|mock_engine| {
-            mock_engine
-                .expect_get_configstring()
-                .with(predicate::eq(CS_SERVERINFO as u16))
-                .returning(|_| r"\asdf\12".to_string());
-        })
-        .run(|| {
-            let result = Python::with_gil(|py| {
-                let mut game = Game {
-                    cached: true,
-                    valid: true,
-                };
+        mocked_engine()
+            .configure(|mock_engine| {
+                mock_engine
+                    .expect_get_configstring()
+                    .with(predicate::eq(CS_SERVERINFO as u16))
+                    .returning(|_| r"\asdf\12".to_string());
+            })
+            .run(|| {
+                let result = Python::with_gil(|py| {
+                    let mut game = Game {
+                        cached: true,
+                        valid: true,
+                    };
 
-                game.__getitem__(py, "asdf")
+                    game.__getitem__(py, "asdf")
+                });
+                assert_eq!(result.expect("result was not OK"), "12");
             });
-            assert_eq!(result.expect("result was not OK"), "12");
-        });
     }
 
     #[rstest]
     #[cfg_attr(miri, ignore)]
     #[serial]
     fn getitem_when_value_is_not_in_configstring_variables(_pyshinqlx_setup: ()) {
-        with_mocked_engine(|mock_engine| {
-            mock_engine
-                .expect_get_configstring()
-                .with(predicate::eq(CS_SERVERINFO as u16))
-                .returning(|_| r"\asdf\12".to_string());
-        })
-        .run(|| {
-            Python::with_gil(|py| {
-                let mut game = Game {
-                    cached: true,
-                    valid: true,
-                };
+        mocked_engine()
+            .configure(|mock_engine| {
+                mock_engine
+                    .expect_get_configstring()
+                    .with(predicate::eq(CS_SERVERINFO as u16))
+                    .returning(|_| r"\asdf\12".to_string());
+            })
+            .run(|| {
+                Python::with_gil(|py| {
+                    let mut game = Game {
+                        cached: true,
+                        valid: true,
+                    };
 
-                let result = game.__getitem__(py, "qwertz");
-                assert!(result.is_err_and(|err| err.is_instance_of::<PyKeyError>(py)));
+                    let result = game.__getitem__(py, "qwertz");
+                    assert!(result.is_err_and(|err| err.is_instance_of::<PyKeyError>(py)));
+                });
             });
-        });
     }
 
     #[rstest]
     #[cfg_attr(miri, ignore)]
     #[serial]
     fn getitem_when_configstring_parses_empty(_pyshinqlx_setup: ()) {
-        with_mocked_engine(|mock_engine| {
-            mock_engine
-                .expect_get_configstring()
-                .with(predicate::eq(CS_SERVERINFO as u16))
-                .returning(|_| r"\".to_string());
-        })
-        .run(|| {
-            Python::with_gil(|py| {
-                let mut game = Game {
-                    cached: true,
-                    valid: true,
-                };
+        mocked_engine()
+            .configure(|mock_engine| {
+                mock_engine
+                    .expect_get_configstring()
+                    .with(predicate::eq(CS_SERVERINFO as u16))
+                    .returning(|_| r"\".to_string());
+            })
+            .run(|| {
+                Python::with_gil(|py| {
+                    let mut game = Game {
+                        cached: true,
+                        valid: true,
+                    };
 
-                let result = game.__getitem__(py, "asdf");
-                assert!(result.is_err_and(|err| err.is_instance_of::<PyKeyError>(py)));
+                    let result = game.__getitem__(py, "asdf");
+                    assert!(result.is_err_and(|err| err.is_instance_of::<PyKeyError>(py)));
+                });
             });
-        });
     }
 
     #[rstest]
     #[cfg_attr(miri, ignore)]
     #[serial]
     fn getitems_when_configstring_parses_to_none(_pyshinqlx_setup: ()) {
-        with_mocked_engine(|mock_engine| {
-            mock_engine
-                .expect_get_configstring()
-                .with(predicate::eq(CS_SERVERINFO as u16))
-                .returning(|_| "qwertz".to_string());
-        })
-        .run(|| {
-            Python::with_gil(|py| {
-                let mut game = Game {
-                    cached: true,
-                    valid: true,
-                };
+        mocked_engine()
+            .configure(|mock_engine| {
+                mock_engine
+                    .expect_get_configstring()
+                    .with(predicate::eq(CS_SERVERINFO as u16))
+                    .returning(|_| "qwertz".to_string());
+            })
+            .run(|| {
+                Python::with_gil(|py| {
+                    let mut game = Game {
+                        cached: true,
+                        valid: true,
+                    };
 
-                let result = game.__getitem__(py, "asdf");
-                assert!(result.is_err_and(|err| err.is_instance_of::<PyKeyError>(py)));
+                    let result = game.__getitem__(py, "asdf");
+                    assert!(result.is_err_and(|err| err.is_instance_of::<PyKeyError>(py)));
+                });
             });
-        });
     }
 
     #[rstest]
@@ -1211,54 +1228,58 @@ mod pyshinqlx_game_tests {
     #[cfg_attr(miri, ignore)]
     #[serial]
     fn cvars_with_empty_configstring(_pyshinqlx_setup: ()) {
-        with_mocked_engine(|mock_engine| {
-            mock_engine
-                .expect_get_configstring()
-                .with(predicate::eq(CS_SERVERINFO as u16))
-                .returning(|_| "".to_string());
-        })
-        .run(|| {
-            Python::with_gil(|py| {
-                let mut game = Game {
-                    cached: true,
-                    valid: true,
-                };
+        mocked_engine()
+            .configure(|mock_engine| {
+                mock_engine
+                    .expect_get_configstring()
+                    .with(predicate::eq(CS_SERVERINFO as u16))
+                    .returning(|_| "".to_string());
+            })
+            .run(|| {
+                Python::with_gil(|py| {
+                    let mut game = Game {
+                        cached: true,
+                        valid: true,
+                    };
 
-                let cvars_result = game.get_cvars(py);
-                assert!(
-                    cvars_result.is_err_and(|err| err.is_instance_of::<NonexistentGameError>(py))
-                );
+                    let cvars_result = game.get_cvars(py);
+                    assert!(cvars_result
+                        .is_err_and(|err| err.is_instance_of::<NonexistentGameError>(py)));
+                });
             });
-        });
     }
 
     #[rstest]
     #[cfg_attr(miri, ignore)]
     #[serial]
     fn cvars_contains_parsed_configstring_zero(_pyshinqlx_setup: ()) {
-        with_mocked_engine(|mock_engine| {
-            mock_engine
-                .expect_get_configstring()
-                .with(predicate::eq(CS_SERVERINFO as u16))
-                .returning(|_| r"\asdf\42".to_string());
-        })
-        .run(|| {
-            Python::with_gil(|py| {
-                let mut game = Game {
-                    cached: true,
-                    valid: true,
-                };
+        mocked_engine()
+            .configure(|mock_engine| {
+                mock_engine
+                    .expect_get_configstring()
+                    .with(predicate::eq(CS_SERVERINFO as u16))
+                    .returning(|_| r"\asdf\42".to_string());
+            })
+            .run(|| {
+                Python::with_gil(|py| {
+                    let mut game = Game {
+                        cached: true,
+                        valid: true,
+                    };
 
-                let cvars_result = game.get_cvars(py);
-                assert!(
-                    cvars_result.is_ok_and(|cvars| cvars.get_item("asdf").is_ok_and(|opt_value| {
-                        opt_value.is_some_and(|value| {
-                            value.extract::<String>().expect("this should not happen") == "42"
-                        })
-                    }))
-                );
+                    let cvars_result = game.get_cvars(py);
+                    assert!(
+                        cvars_result.is_ok_and(|cvars| cvars.get_item("asdf").is_ok_and(
+                            |opt_value| {
+                                opt_value.is_some_and(|value| {
+                                    value.extract::<String>().expect("this should not happen")
+                                        == "42"
+                                })
+                            }
+                        ))
+                    );
+                });
             });
-        });
     }
 
     #[rstest]
@@ -1280,23 +1301,24 @@ mod pyshinqlx_game_tests {
     #[cfg_attr(miri, ignore)]
     #[serial]
     fn get_type_for_unparseable_gametype(_pyshinqlx_setup: ()) {
-        with_mocked_engine(|mock_engine| {
-            mock_engine
-                .expect_get_configstring()
-                .with(predicate::eq(CS_SERVERINFO as u16))
-                .returning(|_| r"\g_gametype\asdf".to_string());
-        })
-        .run(|| {
-            Python::with_gil(|py| {
-                let mut game = Game {
-                    cached: true,
-                    valid: true,
-                };
+        mocked_engine()
+            .configure(|mock_engine| {
+                mock_engine
+                    .expect_get_configstring()
+                    .with(predicate::eq(CS_SERVERINFO as u16))
+                    .returning(|_| r"\g_gametype\asdf".to_string());
+            })
+            .run(|| {
+                Python::with_gil(|py| {
+                    let mut game = Game {
+                        cached: true,
+                        valid: true,
+                    };
 
-                let result = game.get_type(py);
-                assert_eq!(result.expect("result was not OK"), "unknown");
+                    let result = game.get_type(py);
+                    assert_eq!(result.expect("result was not OK"), "unknown");
+                });
             });
-        });
     }
 
     #[rstest]
@@ -1321,23 +1343,24 @@ mod pyshinqlx_game_tests {
         #[case] g_gametype: i32,
         #[case] expected_string: &str,
     ) {
-        with_mocked_engine(|mock_engine| {
-            mock_engine
-                .expect_get_configstring()
-                .with(predicate::eq(CS_SERVERINFO as u16))
-                .returning(move |_| format!(r"\g_gametype\{}", g_gametype));
-        })
-        .run(|| {
-            Python::with_gil(|py| {
-                let mut game = Game {
-                    cached: true,
-                    valid: true,
-                };
+        mocked_engine()
+            .configure(|mock_engine| {
+                mock_engine
+                    .expect_get_configstring()
+                    .with(predicate::eq(CS_SERVERINFO as u16))
+                    .returning(move |_| format!(r"\g_gametype\{}", g_gametype));
+            })
+            .run(|| {
+                Python::with_gil(|py| {
+                    let mut game = Game {
+                        cached: true,
+                        valid: true,
+                    };
 
-                let result = game.get_type(py);
-                assert_eq!(result.expect("result was not OK"), expected_string);
+                    let result = game.get_type(py);
+                    assert_eq!(result.expect("result was not OK"), expected_string);
+                });
             });
-        });
     }
 
     #[rstest]
@@ -1359,23 +1382,24 @@ mod pyshinqlx_game_tests {
     #[cfg_attr(miri, ignore)]
     #[serial]
     fn get_type_short_for_unparseable_gametype(_pyshinqlx_setup: ()) {
-        with_mocked_engine(|mock_engine| {
-            mock_engine
-                .expect_get_configstring()
-                .with(predicate::eq(CS_SERVERINFO as u16))
-                .returning(|_| r"\g_gametype\asdf".to_string());
-        })
-        .run(|| {
-            Python::with_gil(|py| {
-                let mut game = Game {
-                    cached: true,
-                    valid: true,
-                };
+        mocked_engine()
+            .configure(|mock_engine| {
+                mock_engine
+                    .expect_get_configstring()
+                    .with(predicate::eq(CS_SERVERINFO as u16))
+                    .returning(|_| r"\g_gametype\asdf".to_string());
+            })
+            .run(|| {
+                Python::with_gil(|py| {
+                    let mut game = Game {
+                        cached: true,
+                        valid: true,
+                    };
 
-                let result = game.get_type_short(py);
-                assert_eq!(result.expect("result was not OK"), "N/A");
+                    let result = game.get_type_short(py);
+                    assert_eq!(result.expect("result was not OK"), "N/A");
+                });
             });
-        });
     }
 
     #[rstest]
@@ -1400,69 +1424,72 @@ mod pyshinqlx_game_tests {
         #[case] g_gametype: i32,
         #[case] expected_string: &str,
     ) {
-        with_mocked_engine(|mock_engine| {
-            mock_engine
-                .expect_get_configstring()
-                .with(predicate::eq(CS_SERVERINFO as u16))
-                .returning(move |_| format!(r"\g_gametype\{}", g_gametype));
-        })
-        .run(|| {
-            Python::with_gil(|py| {
-                let mut game = Game {
-                    cached: true,
-                    valid: true,
-                };
+        mocked_engine()
+            .configure(|mock_engine| {
+                mock_engine
+                    .expect_get_configstring()
+                    .with(predicate::eq(CS_SERVERINFO as u16))
+                    .returning(move |_| format!(r"\g_gametype\{}", g_gametype));
+            })
+            .run(|| {
+                Python::with_gil(|py| {
+                    let mut game = Game {
+                        cached: true,
+                        valid: true,
+                    };
 
-                let result = game.get_type_short(py);
-                assert_eq!(result.expect("result was not OK"), expected_string);
+                    let result = game.get_type_short(py);
+                    assert_eq!(result.expect("result was not OK"), expected_string);
+                });
             });
-        });
     }
 
     #[rstest]
     #[cfg_attr(miri, ignore)]
     #[serial]
     fn get_map_returns_current_map(_pyshinqlx_setup: ()) {
-        with_mocked_engine(|mock_engine| {
-            mock_engine
-                .expect_get_configstring()
-                .with(predicate::eq(CS_SERVERINFO as u16))
-                .returning(|_| r"\mapname\thunderstruck".to_string());
-        })
-        .run(|| {
-            Python::with_gil(|py| {
-                let mut game = Game {
-                    cached: true,
-                    valid: true,
-                };
+        mocked_engine()
+            .configure(|mock_engine| {
+                mock_engine
+                    .expect_get_configstring()
+                    .with(predicate::eq(CS_SERVERINFO as u16))
+                    .returning(|_| r"\mapname\thunderstruck".to_string());
+            })
+            .run(|| {
+                Python::with_gil(|py| {
+                    let mut game = Game {
+                        cached: true,
+                        valid: true,
+                    };
 
-                let result = game.get_map(py);
-                assert_eq!(result.expect("result was not OK"), "thunderstruck");
+                    let result = game.get_map(py);
+                    assert_eq!(result.expect("result was not OK"), "thunderstruck");
+                });
             });
-        });
     }
 
     #[rstest]
     #[cfg_attr(miri, ignore)]
     #[serial]
     fn set_map_changes_current_map(_pyshinqlx_setup: ()) {
-        with_mocked_engine(|mock_engine| {
-            mock_engine
-                .expect_execute_console_command()
-                .with(predicate::eq("map campgrounds"))
-                .times(1);
-        })
-        .run(|| {
-            Python::with_gil(|py| {
-                let mut game = Game {
-                    cached: true,
-                    valid: true,
-                };
+        mocked_engine()
+            .configure(|mock_engine| {
+                mock_engine
+                    .expect_execute_console_command()
+                    .with(predicate::eq("map campgrounds"))
+                    .times(1);
+            })
+            .run(|| {
+                Python::with_gil(|py| {
+                    let mut game = Game {
+                        cached: true,
+                        valid: true,
+                    };
 
-                game.set_map(py, "campgrounds")
-                    .expect("this should not happen");
+                    game.set_map(py, "campgrounds")
+                        .expect("this should not happen");
+                });
             });
-        });
     }
 
     #[rstest]
@@ -1562,46 +1589,48 @@ shinqlx._map_subtitle2 = "Awesome map!"
     #[cfg_attr(miri, ignore)]
     #[serial]
     fn get_red_score_returns_red_score(_pyshinqlx_setup: ()) {
-        with_mocked_engine(|mock_engine| {
-            mock_engine
-                .expect_get_configstring()
-                .with(predicate::eq(CS_SCORES1 as u16))
-                .returning(|_| "7".to_string());
-        })
-        .run(|| {
-            Python::with_gil(|py| {
-                let game = Game {
-                    cached: true,
-                    valid: true,
-                };
+        mocked_engine()
+            .configure(|mock_engine| {
+                mock_engine
+                    .expect_get_configstring()
+                    .with(predicate::eq(CS_SCORES1 as u16))
+                    .returning(|_| "7".to_string());
+            })
+            .run(|| {
+                Python::with_gil(|py| {
+                    let game = Game {
+                        cached: true,
+                        valid: true,
+                    };
 
-                let result = game.get_red_score(py);
-                assert_eq!(result.expect("result was not OK"), 7);
+                    let result = game.get_red_score(py);
+                    assert_eq!(result.expect("result was not OK"), 7);
+                });
             });
-        });
     }
 
     #[rstest]
     #[cfg_attr(miri, ignore)]
     #[serial]
     fn get_red_score_defaults_when_unpareable(_pyshinqlx_setup: ()) {
-        with_mocked_engine(|mock_engine| {
-            mock_engine
-                .expect_get_configstring()
-                .with(predicate::eq(CS_SCORES1 as u16))
-                .returning(|_| "asdf".to_string());
-        })
-        .run(|| {
-            Python::with_gil(|py| {
-                let game = Game {
-                    cached: true,
-                    valid: true,
-                };
+        mocked_engine()
+            .configure(|mock_engine| {
+                mock_engine
+                    .expect_get_configstring()
+                    .with(predicate::eq(CS_SCORES1 as u16))
+                    .returning(|_| "asdf".to_string());
+            })
+            .run(|| {
+                Python::with_gil(|py| {
+                    let game = Game {
+                        cached: true,
+                        valid: true,
+                    };
 
-                let result = game.get_red_score(py);
-                assert_eq!(result.expect("result was not OK"), 0);
+                    let result = game.get_red_score(py);
+                    assert_eq!(result.expect("result was not OK"), 0);
+                });
             });
-        });
     }
 
     #[rstest]
@@ -1623,46 +1652,48 @@ shinqlx._map_subtitle2 = "Awesome map!"
     #[cfg_attr(miri, ignore)]
     #[serial]
     fn get_blue_score_returns_blue_score(_pyshinqlx_setup: ()) {
-        with_mocked_engine(|mock_engine| {
-            mock_engine
-                .expect_get_configstring()
-                .with(predicate::eq(CS_SCORES2 as u16))
-                .returning(|_| "5".to_string());
-        })
-        .run(|| {
-            Python::with_gil(|py| {
-                let game = Game {
-                    cached: true,
-                    valid: true,
-                };
+        mocked_engine()
+            .configure(|mock_engine| {
+                mock_engine
+                    .expect_get_configstring()
+                    .with(predicate::eq(CS_SCORES2 as u16))
+                    .returning(|_| "5".to_string());
+            })
+            .run(|| {
+                Python::with_gil(|py| {
+                    let game = Game {
+                        cached: true,
+                        valid: true,
+                    };
 
-                let result = game.get_blue_score(py);
-                assert_eq!(result.expect("result was not OK"), 5);
+                    let result = game.get_blue_score(py);
+                    assert_eq!(result.expect("result was not OK"), 5);
+                });
             });
-        });
     }
 
     #[rstest]
     #[cfg_attr(miri, ignore)]
     #[serial]
     fn get_blue_score_defaults_when_unparsable(_pyshinqlx_setup: ()) {
-        with_mocked_engine(|mock_engine| {
-            mock_engine
-                .expect_get_configstring()
-                .with(predicate::eq(CS_SCORES2 as u16))
-                .returning(|_| "asdf".to_string());
-        })
-        .run(|| {
-            Python::with_gil(|py| {
-                let game = Game {
-                    cached: true,
-                    valid: true,
-                };
+        mocked_engine()
+            .configure(|mock_engine| {
+                mock_engine
+                    .expect_get_configstring()
+                    .with(predicate::eq(CS_SCORES2 as u16))
+                    .returning(|_| "asdf".to_string());
+            })
+            .run(|| {
+                Python::with_gil(|py| {
+                    let game = Game {
+                        cached: true,
+                        valid: true,
+                    };
 
-                let result = game.get_blue_score(py);
-                assert_eq!(result.expect("result was not OK"), 0);
+                    let result = game.get_blue_score(py);
+                    assert_eq!(result.expect("result was not OK"), 0);
+                });
             });
-        });
     }
 
     #[rstest]
@@ -1692,23 +1723,24 @@ shinqlx._map_subtitle2 = "Awesome map!"
         #[case] cvar_value: String,
         #[case] expected_return: &str,
     ) {
-        with_mocked_engine(|mock_engine| {
-            mock_engine
-                .expect_get_configstring()
-                .with(predicate::eq(CS_SERVERINFO as u16))
-                .returning(move |_| format!(r"\g_gameState\{}", cvar_value));
-        })
-        .run(|| {
-            let result = Python::with_gil(|py| {
-                let mut game = Game {
-                    cached: true,
-                    valid: true,
-                };
+        mocked_engine()
+            .configure(|mock_engine| {
+                mock_engine
+                    .expect_get_configstring()
+                    .with(predicate::eq(CS_SERVERINFO as u16))
+                    .returning(move |_| format!(r"\g_gameState\{}", cvar_value));
+            })
+            .run(|| {
+                let result = Python::with_gil(|py| {
+                    let mut game = Game {
+                        cached: true,
+                        valid: true,
+                    };
 
-                game.get_state(py)
+                    game.get_state(py)
+                });
+                assert_eq!(result.expect("result was not OK"), expected_return);
             });
-            assert_eq!(result.expect("result was not OK"), expected_return);
-        });
     }
 
     #[rstest]
@@ -1730,50 +1762,52 @@ shinqlx._map_subtitle2 = "Awesome map!"
     #[cfg_attr(miri, ignore)]
     #[serial]
     fn get_factory_returns_factory(_pyshinqlx_setup: ()) {
-        with_mocked_engine(|mock_engine| {
-            mock_engine
-                .expect_get_configstring()
-                .with(predicate::eq(CS_SERVERINFO as u16))
-                .returning(|_| r"\g_factory\ca".to_string());
-        })
-        .run(|| {
-            let result = Python::with_gil(|py| {
-                let mut game = Game {
-                    cached: true,
-                    valid: true,
-                };
+        mocked_engine()
+            .configure(|mock_engine| {
+                mock_engine
+                    .expect_get_configstring()
+                    .with(predicate::eq(CS_SERVERINFO as u16))
+                    .returning(|_| r"\g_factory\ca".to_string());
+            })
+            .run(|| {
+                let result = Python::with_gil(|py| {
+                    let mut game = Game {
+                        cached: true,
+                        valid: true,
+                    };
 
-                game.get_factory(py)
+                    game.get_factory(py)
+                });
+                assert_eq!(result.expect("result was not OK"), "ca");
             });
-            assert_eq!(result.expect("result was not OK"), "ca");
-        });
     }
 
     #[rstest]
     #[cfg_attr(miri, ignore)]
     #[serial]
     fn set_factory_sets_factory_and_reloads(_pyshinqlx_setup: ()) {
-        with_mocked_engine(|mock_engine| {
-            mock_engine
-                .expect_get_configstring()
-                .with(predicate::eq(CS_SERVERINFO as u16))
-                .returning(|_| r"\mapname\theatreofpain".to_string());
-            mock_engine
-                .expect_execute_console_command()
-                .with(predicate::eq("map theatreofpain ffa"))
-                .times(1);
-        })
-        .run(|| {
-            Python::with_gil(|py| {
-                let mut game = Game {
-                    cached: true,
-                    valid: true,
-                };
+        mocked_engine()
+            .configure(|mock_engine| {
+                mock_engine
+                    .expect_get_configstring()
+                    .with(predicate::eq(CS_SERVERINFO as u16))
+                    .returning(|_| r"\mapname\theatreofpain".to_string());
+                mock_engine
+                    .expect_execute_console_command()
+                    .with(predicate::eq("map theatreofpain ffa"))
+                    .times(1);
+            })
+            .run(|| {
+                Python::with_gil(|py| {
+                    let mut game = Game {
+                        cached: true,
+                        valid: true,
+                    };
 
-                game.set_factory(py, "ffa".to_string())
-                    .expect("this should not happen");
+                    game.set_factory(py, "ffa".to_string())
+                        .expect("this should not happen");
+                });
             });
-        });
     }
 
     #[rstest]
@@ -1795,75 +1829,78 @@ shinqlx._map_subtitle2 = "Awesome map!"
     #[cfg_attr(miri, ignore)]
     #[serial]
     fn get_factory_title_returns_factory_title(_pyshinqlx_setup: ()) {
-        with_mocked_engine(|mock_engine| {
-            mock_engine
-                .expect_get_configstring()
-                .with(predicate::eq(CS_SERVERINFO as u16))
-                .returning(|_| r"\g_factoryTitle\Clan Arena".to_string());
-        })
-        .run(|| {
-            let result = Python::with_gil(|py| {
-                let mut game = Game {
-                    cached: true,
-                    valid: true,
-                };
+        mocked_engine()
+            .configure(|mock_engine| {
+                mock_engine
+                    .expect_get_configstring()
+                    .with(predicate::eq(CS_SERVERINFO as u16))
+                    .returning(|_| r"\g_factoryTitle\Clan Arena".to_string());
+            })
+            .run(|| {
+                let result = Python::with_gil(|py| {
+                    let mut game = Game {
+                        cached: true,
+                        valid: true,
+                    };
 
-                game.get_factory_title(py)
+                    game.get_factory_title(py)
+                });
+                assert_eq!(result.expect("result was not OK"), "Clan Arena");
             });
-            assert_eq!(result.expect("result was not OK"), "Clan Arena");
-        });
     }
 
     #[rstest]
     #[cfg_attr(miri, ignore)]
     #[serial]
     fn get_hostname_returns_hostname(_pyshinqlx_setup: ()) {
-        with_mocked_engine(|mock_engine| {
-            mock_engine
-                .expect_get_configstring()
-                .with(predicate::eq(CS_SERVERINFO as u16))
-                .returning(|_| r"\sv_hostname\Awesome server!".to_string());
-        })
-        .run(|| {
-            let result = Python::with_gil(|py| {
-                let mut game = Game {
-                    cached: true,
-                    valid: true,
-                };
+        mocked_engine()
+            .configure(|mock_engine| {
+                mock_engine
+                    .expect_get_configstring()
+                    .with(predicate::eq(CS_SERVERINFO as u16))
+                    .returning(|_| r"\sv_hostname\Awesome server!".to_string());
+            })
+            .run(|| {
+                let result = Python::with_gil(|py| {
+                    let mut game = Game {
+                        cached: true,
+                        valid: true,
+                    };
 
-                game.get_hostname(py)
+                    game.get_hostname(py)
+                });
+                assert_eq!(result.expect("result was not OK"), "Awesome server!");
             });
-            assert_eq!(result.expect("result was not OK"), "Awesome server!");
-        });
     }
 
     #[rstest]
     #[cfg_attr(miri, ignore)]
     #[serial]
     fn set_hostname_sets_new_hostname(_pyshinqlx_setup: ()) {
-        with_mocked_engine(|mock_engine| {
-            mock_engine
-                .expect_find_cvar()
-                .with(predicate::eq("sv_hostname"))
-                .times(1);
-            mock_engine
-                .expect_get_cvar()
-                .withf(|cvar, value, flags| {
-                    cvar == "sv_hostname" && value == "More awesome server!" && flags.is_none()
-                })
-                .times(1);
-        })
-        .run(|| {
-            Python::with_gil(|py| {
-                let mut game = Game {
-                    cached: true,
-                    valid: true,
-                };
+        mocked_engine()
+            .configure(|mock_engine| {
+                mock_engine
+                    .expect_find_cvar()
+                    .with(predicate::eq("sv_hostname"))
+                    .times(1);
+                mock_engine
+                    .expect_get_cvar()
+                    .withf(|cvar, value, flags| {
+                        cvar == "sv_hostname" && value == "More awesome server!" && flags.is_none()
+                    })
+                    .times(1);
+            })
+            .run(|| {
+                Python::with_gil(|py| {
+                    let mut game = Game {
+                        cached: true,
+                        valid: true,
+                    };
 
-                game.set_hostname(py, "More awesome server!".to_string())
-                    .expect("this should not happen");
+                    game.set_hostname(py, "More awesome server!".to_string())
+                        .expect("this should not happen");
+                });
             });
-        });
     }
 
     #[rstest]
@@ -1876,23 +1913,24 @@ shinqlx._map_subtitle2 = "Awesome map!"
         #[case] mode: i32,
         #[case] expected: bool,
     ) {
-        with_mocked_engine(|mock_engine| {
-            mock_engine
-                .expect_get_configstring()
-                .with(predicate::eq(CS_SERVERINFO as u16))
-                .returning(move |_| format!(r"\g_instagib\{}", mode));
-        })
-        .run(|| {
-            let result = Python::with_gil(|py| {
-                let mut game = Game {
-                    cached: true,
-                    valid: true,
-                };
+        mocked_engine()
+            .configure(|mock_engine| {
+                mock_engine
+                    .expect_get_configstring()
+                    .with(predicate::eq(CS_SERVERINFO as u16))
+                    .returning(move |_| format!(r"\g_instagib\{}", mode));
+            })
+            .run(|| {
+                let result = Python::with_gil(|py| {
+                    let mut game = Game {
+                        cached: true,
+                        valid: true,
+                    };
 
-                game.get_instagib(py)
+                    game.get_instagib(py)
+                });
+                assert_eq!(result.expect("result was not OK"), expected);
             });
-            assert_eq!(result.expect("result was not OK"), expected);
-        });
     }
 
     #[rstest]
@@ -1905,29 +1943,30 @@ shinqlx._map_subtitle2 = "Awesome map!"
         #[case] instagib: &'static str,
         #[case] value_set: bool,
     ) {
-        with_mocked_engine(|mock_engine| {
-            mock_engine
-                .expect_find_cvar()
-                .with(predicate::eq("g_instagib"))
-                .times(1);
-            mock_engine
-                .expect_get_cvar()
-                .withf(move |cvar, value, flags| {
-                    cvar == "g_instagib" && value == instagib && flags.is_none()
-                })
-                .times(1);
-        })
-        .run(|| {
-            Python::with_gil(|py| {
-                let mut game = Game {
-                    cached: true,
-                    valid: true,
-                };
+        mocked_engine()
+            .configure(|mock_engine| {
+                mock_engine
+                    .expect_find_cvar()
+                    .with(predicate::eq("g_instagib"))
+                    .times(1);
+                mock_engine
+                    .expect_get_cvar()
+                    .withf(move |cvar, value, flags| {
+                        cvar == "g_instagib" && value == instagib && flags.is_none()
+                    })
+                    .times(1);
+            })
+            .run(|| {
+                Python::with_gil(|py| {
+                    let mut game = Game {
+                        cached: true,
+                        valid: true,
+                    };
 
-                game.set_instagib(py, value_set.into_py(py))
-                    .expect("this should not happen");
+                    game.set_instagib(py, value_set.into_py(py))
+                        .expect("this should not happen");
+                });
             });
-        });
     }
 
     #[rstest]
@@ -1940,56 +1979,58 @@ shinqlx._map_subtitle2 = "Awesome map!"
         #[case] instagib: &'static str,
         #[case] value_set: i32,
     ) {
-        with_mocked_engine(|mock_engine| {
-            mock_engine
-                .expect_find_cvar()
-                .with(predicate::eq("g_instagib"))
-                .times(1);
-            mock_engine
-                .expect_get_cvar()
-                .withf(move |cvar, value, flags| {
-                    cvar == "g_instagib" && value == instagib && flags.is_none()
-                })
-                .times(1);
-        })
-        .run(|| {
-            Python::with_gil(|py| {
-                let mut game = Game {
-                    cached: true,
-                    valid: true,
-                };
+        mocked_engine()
+            .configure(|mock_engine| {
+                mock_engine
+                    .expect_find_cvar()
+                    .with(predicate::eq("g_instagib"))
+                    .times(1);
+                mock_engine
+                    .expect_get_cvar()
+                    .withf(move |cvar, value, flags| {
+                        cvar == "g_instagib" && value == instagib && flags.is_none()
+                    })
+                    .times(1);
+            })
+            .run(|| {
+                Python::with_gil(|py| {
+                    let mut game = Game {
+                        cached: true,
+                        valid: true,
+                    };
 
-                game.set_instagib(py, value_set.into_py(py))
-                    .expect("this should not happen");
+                    game.set_instagib(py, value_set.into_py(py))
+                        .expect("this should not happen");
+                });
             });
-        });
     }
 
     #[rstest]
     #[cfg_attr(miri, ignore)]
     #[serial]
     fn set_instagib_with_invalid_value(_pyshinqlx_setup: ()) {
-        with_mocked_engine(|mock_engine| {
-            mock_engine
-                .expect_find_cvar()
-                .with(predicate::eq("g_instagib"))
-                .times(0);
-            mock_engine
-                .expect_get_cvar()
-                .withf(|cvar, _value, _flags| cvar == "g_instagib")
-                .times(0);
-        })
-        .run(|| {
-            Python::with_gil(|py| {
-                let mut game = Game {
-                    cached: true,
-                    valid: true,
-                };
+        mocked_engine()
+            .configure(|mock_engine| {
+                mock_engine
+                    .expect_find_cvar()
+                    .with(predicate::eq("g_instagib"))
+                    .times(0);
+                mock_engine
+                    .expect_get_cvar()
+                    .withf(|cvar, _value, _flags| cvar == "g_instagib")
+                    .times(0);
+            })
+            .run(|| {
+                Python::with_gil(|py| {
+                    let mut game = Game {
+                        cached: true,
+                        valid: true,
+                    };
 
-                let result = game.set_instagib(py, "asdf".into_py(py));
-                assert!(result.is_err_and(|err| err.is_instance_of::<PyValueError>(py)));
+                    let result = game.set_instagib(py, "asdf".into_py(py));
+                    assert!(result.is_err_and(|err| err.is_instance_of::<PyValueError>(py)));
+                });
             });
-        });
     }
 
     #[rstest]
@@ -2002,23 +2043,24 @@ shinqlx._map_subtitle2 = "Awesome map!"
         #[case] mode: i32,
         #[case] expected: bool,
     ) {
-        with_mocked_engine(|mock_engine| {
-            mock_engine
-                .expect_get_configstring()
-                .with(predicate::eq(CS_SERVERINFO as u16))
-                .returning(move |_| format!(r"\g_loadout\{}", mode));
-        })
-        .run(|| {
-            let result = Python::with_gil(|py| {
-                let mut game = Game {
-                    cached: true,
-                    valid: true,
-                };
+        mocked_engine()
+            .configure(|mock_engine| {
+                mock_engine
+                    .expect_get_configstring()
+                    .with(predicate::eq(CS_SERVERINFO as u16))
+                    .returning(move |_| format!(r"\g_loadout\{}", mode));
+            })
+            .run(|| {
+                let result = Python::with_gil(|py| {
+                    let mut game = Game {
+                        cached: true,
+                        valid: true,
+                    };
 
-                game.get_loadout(py)
+                    game.get_loadout(py)
+                });
+                assert_eq!(result.expect("result was not OK"), expected);
             });
-            assert_eq!(result.expect("result was not OK"), expected);
-        });
     }
 
     #[rstest]
@@ -2031,29 +2073,30 @@ shinqlx._map_subtitle2 = "Awesome map!"
         #[case] loadout: &'static str,
         #[case] value_set: bool,
     ) {
-        with_mocked_engine(|mock_engine| {
-            mock_engine
-                .expect_find_cvar()
-                .with(predicate::eq("g_loadout"))
-                .times(1);
-            mock_engine
-                .expect_get_cvar()
-                .withf(move |cvar, value, flags| {
-                    cvar == "g_loadout" && value == loadout && flags.is_none()
-                })
-                .times(1);
-        })
-        .run(|| {
-            Python::with_gil(|py| {
-                let mut game = Game {
-                    cached: true,
-                    valid: true,
-                };
+        mocked_engine()
+            .configure(|mock_engine| {
+                mock_engine
+                    .expect_find_cvar()
+                    .with(predicate::eq("g_loadout"))
+                    .times(1);
+                mock_engine
+                    .expect_get_cvar()
+                    .withf(move |cvar, value, flags| {
+                        cvar == "g_loadout" && value == loadout && flags.is_none()
+                    })
+                    .times(1);
+            })
+            .run(|| {
+                Python::with_gil(|py| {
+                    let mut game = Game {
+                        cached: true,
+                        valid: true,
+                    };
 
-                game.set_loadout(py, value_set.into_py(py))
-                    .expect("this should not happen");
+                    game.set_loadout(py, value_set.into_py(py))
+                        .expect("this should not happen");
+                });
             });
-        });
     }
 
     #[rstest]
@@ -2066,747 +2109,786 @@ shinqlx._map_subtitle2 = "Awesome map!"
         #[case] loadout: &'static str,
         #[case] value_set: i32,
     ) {
-        with_mocked_engine(|mock_engine| {
-            mock_engine
-                .expect_find_cvar()
-                .with(predicate::eq("g_loadout"))
-                .times(1);
-            mock_engine
-                .expect_get_cvar()
-                .withf(move |cvar, value, flags| {
-                    cvar == "g_loadout" && value == loadout && flags.is_none()
-                })
-                .times(1);
-        })
-        .run(|| {
-            Python::with_gil(|py| {
-                let mut game = Game {
-                    cached: true,
-                    valid: true,
-                };
+        mocked_engine()
+            .configure(|mock_engine| {
+                mock_engine
+                    .expect_find_cvar()
+                    .with(predicate::eq("g_loadout"))
+                    .times(1);
+                mock_engine
+                    .expect_get_cvar()
+                    .withf(move |cvar, value, flags| {
+                        cvar == "g_loadout" && value == loadout && flags.is_none()
+                    })
+                    .times(1);
+            })
+            .run(|| {
+                Python::with_gil(|py| {
+                    let mut game = Game {
+                        cached: true,
+                        valid: true,
+                    };
 
-                game.set_loadout(py, value_set.into_py(py))
-                    .expect("this should not happen");
+                    game.set_loadout(py, value_set.into_py(py))
+                        .expect("this should not happen");
+                });
             });
-        });
     }
 
     #[rstest]
     #[cfg_attr(miri, ignore)]
     #[serial]
     fn set_loadout_with_invalid_value(_pyshinqlx_setup: ()) {
-        with_mocked_engine(|mock_engine| {
-            mock_engine
-                .expect_find_cvar()
-                .with(predicate::eq("g_loadout"))
-                .times(0);
-            mock_engine
-                .expect_get_cvar()
-                .withf(|cvar, _value, _flags| cvar == "g_loadout")
-                .times(0);
-        })
-        .run(|| {
-            Python::with_gil(|py| {
-                let mut game = Game {
-                    cached: true,
-                    valid: true,
-                };
+        mocked_engine()
+            .configure(|mock_engine| {
+                mock_engine
+                    .expect_find_cvar()
+                    .with(predicate::eq("g_loadout"))
+                    .times(0);
+                mock_engine
+                    .expect_get_cvar()
+                    .withf(|cvar, _value, _flags| cvar == "g_loadout")
+                    .times(0);
+            })
+            .run(|| {
+                Python::with_gil(|py| {
+                    let mut game = Game {
+                        cached: true,
+                        valid: true,
+                    };
 
-                let result = game.set_loadout(py, "asdf".into_py(py));
-                assert!(result.is_err_and(|err| err.is_instance_of::<PyValueError>(py)));
+                    let result = game.set_loadout(py, "asdf".into_py(py));
+                    assert!(result.is_err_and(|err| err.is_instance_of::<PyValueError>(py)));
+                });
             });
-        });
     }
 
     #[rstest]
     #[cfg_attr(miri, ignore)]
     #[serial]
     fn get_maxclients_returns_maxclients(_pyshinqlx_setup: ()) {
-        with_mocked_engine(|mock_engine| {
-            mock_engine
-                .expect_get_configstring()
-                .with(predicate::eq(CS_SERVERINFO as u16))
-                .returning(|_| r"\sv_maxclients\8".to_string());
-        })
-        .run(|| {
-            let result = Python::with_gil(|py| {
-                let mut game = Game {
-                    cached: true,
-                    valid: true,
-                };
+        mocked_engine()
+            .configure(|mock_engine| {
+                mock_engine
+                    .expect_get_configstring()
+                    .with(predicate::eq(CS_SERVERINFO as u16))
+                    .returning(|_| r"\sv_maxclients\8".to_string());
+            })
+            .run(|| {
+                let result = Python::with_gil(|py| {
+                    let mut game = Game {
+                        cached: true,
+                        valid: true,
+                    };
 
-                game.get_maxclients(py)
+                    game.get_maxclients(py)
+                });
+                assert_eq!(result.expect("result was not OK"), 8);
             });
-            assert_eq!(result.expect("result was not OK"), 8);
-        });
     }
 
     #[rstest]
     #[cfg_attr(miri, ignore)]
     #[serial]
     fn set_maxclients_sets_new_maxclients_value(_pyshinqlx_setup: ()) {
-        with_mocked_engine(|mock_engine| {
-            mock_engine
-                .expect_find_cvar()
-                .with(predicate::eq("sv_maxclients"))
-                .times(1);
-            mock_engine
-                .expect_get_cvar()
-                .withf(|cvar, value, flags| {
-                    cvar == "sv_maxclients" && value == "32" && flags.is_none()
-                })
-                .times(1);
-        })
-        .run(|| {
-            Python::with_gil(|py| {
-                let mut game = Game {
-                    cached: true,
-                    valid: true,
-                };
+        mocked_engine()
+            .configure(|mock_engine| {
+                mock_engine
+                    .expect_find_cvar()
+                    .with(predicate::eq("sv_maxclients"))
+                    .times(1);
+                mock_engine
+                    .expect_get_cvar()
+                    .withf(|cvar, value, flags| {
+                        cvar == "sv_maxclients" && value == "32" && flags.is_none()
+                    })
+                    .times(1);
+            })
+            .run(|| {
+                Python::with_gil(|py| {
+                    let mut game = Game {
+                        cached: true,
+                        valid: true,
+                    };
 
-                game.set_maxclients(py, 32).expect("this should not happen");
+                    game.set_maxclients(py, 32).expect("this should not happen");
+                });
             });
-        });
     }
 
     #[rstest]
     #[cfg_attr(miri, ignore)]
     #[serial]
     fn get_timelimit_returns_timelimit(_pyshinqlx_setup: ()) {
-        with_mocked_engine(|mock_engine| {
-            mock_engine
-                .expect_get_configstring()
-                .with(predicate::eq(CS_SERVERINFO as u16))
-                .returning(|_| r"\timelimit\20".to_string());
-        })
-        .run(|| {
-            let result = Python::with_gil(|py| {
-                let mut game = Game {
-                    cached: true,
-                    valid: true,
-                };
+        mocked_engine()
+            .configure(|mock_engine| {
+                mock_engine
+                    .expect_get_configstring()
+                    .with(predicate::eq(CS_SERVERINFO as u16))
+                    .returning(|_| r"\timelimit\20".to_string());
+            })
+            .run(|| {
+                let result = Python::with_gil(|py| {
+                    let mut game = Game {
+                        cached: true,
+                        valid: true,
+                    };
 
-                game.get_timelimit(py)
+                    game.get_timelimit(py)
+                });
+                assert_eq!(result.expect("result was not OK"), 20);
             });
-            assert_eq!(result.expect("result was not OK"), 20);
-        });
     }
 
     #[rstest]
     #[cfg_attr(miri, ignore)]
     #[serial]
     fn set_timelimit_sets_new_timelimit_value(_pyshinqlx_setup: ()) {
-        with_mocked_engine(|mock_engine| {
-            mock_engine
-                .expect_find_cvar()
-                .with(predicate::eq("timelimit"))
-                .times(1);
-            mock_engine
-                .expect_get_cvar()
-                .withf(|cvar, value, flags| cvar == "timelimit" && value == "30" && flags.is_none())
-                .times(1);
-        })
-        .run(|| {
-            Python::with_gil(|py| {
-                let mut game = Game {
-                    cached: true,
-                    valid: true,
-                };
+        mocked_engine()
+            .configure(|mock_engine| {
+                mock_engine
+                    .expect_find_cvar()
+                    .with(predicate::eq("timelimit"))
+                    .times(1);
+                mock_engine
+                    .expect_get_cvar()
+                    .withf(|cvar, value, flags| {
+                        cvar == "timelimit" && value == "30" && flags.is_none()
+                    })
+                    .times(1);
+            })
+            .run(|| {
+                Python::with_gil(|py| {
+                    let mut game = Game {
+                        cached: true,
+                        valid: true,
+                    };
 
-                game.set_timelimit(py, 30).expect("this should not happen");
+                    game.set_timelimit(py, 30).expect("this should not happen");
+                });
             });
-        });
     }
 
     #[rstest]
     #[cfg_attr(miri, ignore)]
     #[serial]
     fn get_fraglimit_returns_fraglimit(_pyshinqlx_setup: ()) {
-        with_mocked_engine(|mock_engine| {
-            mock_engine
-                .expect_get_configstring()
-                .with(predicate::eq(CS_SERVERINFO as u16))
-                .returning(|_| r"\fraglimit\10".to_string());
-        })
-        .run(|| {
-            let result = Python::with_gil(|py| {
-                let mut game = Game {
-                    cached: true,
-                    valid: true,
-                };
+        mocked_engine()
+            .configure(|mock_engine| {
+                mock_engine
+                    .expect_get_configstring()
+                    .with(predicate::eq(CS_SERVERINFO as u16))
+                    .returning(|_| r"\fraglimit\10".to_string());
+            })
+            .run(|| {
+                let result = Python::with_gil(|py| {
+                    let mut game = Game {
+                        cached: true,
+                        valid: true,
+                    };
 
-                game.get_fraglimit(py)
+                    game.get_fraglimit(py)
+                });
+                assert_eq!(result.expect("result was not OK"), 10);
             });
-            assert_eq!(result.expect("result was not OK"), 10);
-        });
     }
 
     #[rstest]
     #[cfg_attr(miri, ignore)]
     #[serial]
     fn set_fraglimit_sets_new_fraglimit(_pyshinqlx_setup: ()) {
-        with_mocked_engine(|mock_engine| {
-            mock_engine
-                .expect_find_cvar()
-                .with(predicate::eq("fraglimit"))
-                .times(1);
-            mock_engine
-                .expect_get_cvar()
-                .withf(|cvar, value, flags| cvar == "fraglimit" && value == "20" && flags.is_none())
-                .times(1);
-        })
-        .run(|| {
-            Python::with_gil(|py| {
-                let mut game = Game {
-                    cached: true,
-                    valid: true,
-                };
+        mocked_engine()
+            .configure(|mock_engine| {
+                mock_engine
+                    .expect_find_cvar()
+                    .with(predicate::eq("fraglimit"))
+                    .times(1);
+                mock_engine
+                    .expect_get_cvar()
+                    .withf(|cvar, value, flags| {
+                        cvar == "fraglimit" && value == "20" && flags.is_none()
+                    })
+                    .times(1);
+            })
+            .run(|| {
+                Python::with_gil(|py| {
+                    let mut game = Game {
+                        cached: true,
+                        valid: true,
+                    };
 
-                game.set_fraglimit(py, 20).expect("this should not happen");
+                    game.set_fraglimit(py, 20).expect("this should not happen");
+                });
             });
-        });
     }
 
     #[rstest]
     #[cfg_attr(miri, ignore)]
     #[serial]
     fn get_roundlimit_returns_roundlimit(_pyshinqlx_setup: ()) {
-        with_mocked_engine(|mock_engine| {
-            mock_engine
-                .expect_get_configstring()
-                .with(predicate::eq(CS_SERVERINFO as u16))
-                .returning(|_| r"\roundlimit\11".to_string());
-        })
-        .run(|| {
-            let result = Python::with_gil(|py| {
-                let mut game = Game {
-                    cached: true,
-                    valid: true,
-                };
+        mocked_engine()
+            .configure(|mock_engine| {
+                mock_engine
+                    .expect_get_configstring()
+                    .with(predicate::eq(CS_SERVERINFO as u16))
+                    .returning(|_| r"\roundlimit\11".to_string());
+            })
+            .run(|| {
+                let result = Python::with_gil(|py| {
+                    let mut game = Game {
+                        cached: true,
+                        valid: true,
+                    };
 
-                game.get_roundlimit(py)
+                    game.get_roundlimit(py)
+                });
+                assert_eq!(result.expect("result was not OK"), 11);
             });
-            assert_eq!(result.expect("result was not OK"), 11);
-        });
     }
 
     #[rstest]
     #[cfg_attr(miri, ignore)]
     #[serial]
     fn set_roundlimit_sets_new_roundlimit(_pyshinqlx_setup: ()) {
-        with_mocked_engine(|mock_engine| {
-            mock_engine
-                .expect_find_cvar()
-                .with(predicate::eq("roundlimit"))
-                .times(1);
-            mock_engine
-                .expect_get_cvar()
-                .withf(|cvar, value, flags| {
-                    cvar == "roundlimit" && value == "13" && flags.is_none()
-                })
-                .times(1);
-        })
-        .run(|| {
-            Python::with_gil(|py| {
-                let mut game = Game {
-                    cached: true,
-                    valid: true,
-                };
+        mocked_engine()
+            .configure(|mock_engine| {
+                mock_engine
+                    .expect_find_cvar()
+                    .with(predicate::eq("roundlimit"))
+                    .times(1);
+                mock_engine
+                    .expect_get_cvar()
+                    .withf(|cvar, value, flags| {
+                        cvar == "roundlimit" && value == "13" && flags.is_none()
+                    })
+                    .times(1);
+            })
+            .run(|| {
+                Python::with_gil(|py| {
+                    let mut game = Game {
+                        cached: true,
+                        valid: true,
+                    };
 
-                game.set_roundlimit(py, 13).expect("this should not happen");
+                    game.set_roundlimit(py, 13).expect("this should not happen");
+                });
             });
-        });
     }
 
     #[rstest]
     #[cfg_attr(miri, ignore)]
     #[serial]
     fn get_roundtimelimit_returns_roundtimelimit(_pyshinqlx_setup: ()) {
-        with_mocked_engine(|mock_engine| {
-            mock_engine
-                .expect_get_configstring()
-                .with(predicate::eq(CS_SERVERINFO as u16))
-                .returning(|_| r"\roundtimelimit\240".to_string());
-        })
-        .run(|| {
-            let result = Python::with_gil(|py| {
-                let mut game = Game {
-                    cached: true,
-                    valid: true,
-                };
+        mocked_engine()
+            .configure(|mock_engine| {
+                mock_engine
+                    .expect_get_configstring()
+                    .with(predicate::eq(CS_SERVERINFO as u16))
+                    .returning(|_| r"\roundtimelimit\240".to_string());
+            })
+            .run(|| {
+                let result = Python::with_gil(|py| {
+                    let mut game = Game {
+                        cached: true,
+                        valid: true,
+                    };
 
-                game.get_roundtimelimit(py)
+                    game.get_roundtimelimit(py)
+                });
+                assert_eq!(result.expect("result was not OK"), 240);
             });
-            assert_eq!(result.expect("result was not OK"), 240);
-        });
     }
 
     #[rstest]
     #[cfg_attr(miri, ignore)]
     #[serial]
     fn set_roundtimelimit_sets_new_roundtimelimit(_pyshinqlx_setup: ()) {
-        with_mocked_engine(|mock_engine| {
-            mock_engine
-                .expect_find_cvar()
-                .with(predicate::eq("roundtimelimit"))
-                .times(1);
-            mock_engine
-                .expect_get_cvar()
-                .withf(|cvar, value, flags| {
-                    cvar == "roundtimelimit" && value == "150" && flags.is_none()
-                })
-                .times(1);
-        })
-        .run(|| {
-            Python::with_gil(|py| {
-                let mut game = Game {
-                    cached: true,
-                    valid: true,
-                };
+        mocked_engine()
+            .configure(|mock_engine| {
+                mock_engine
+                    .expect_find_cvar()
+                    .with(predicate::eq("roundtimelimit"))
+                    .times(1);
+                mock_engine
+                    .expect_get_cvar()
+                    .withf(|cvar, value, flags| {
+                        cvar == "roundtimelimit" && value == "150" && flags.is_none()
+                    })
+                    .times(1);
+            })
+            .run(|| {
+                Python::with_gil(|py| {
+                    let mut game = Game {
+                        cached: true,
+                        valid: true,
+                    };
 
-                game.set_roundtimelimit(py, 150)
-                    .expect("this should not happen");
+                    game.set_roundtimelimit(py, 150)
+                        .expect("this should not happen");
+                });
             });
-        });
     }
 
     #[rstest]
     #[cfg_attr(miri, ignore)]
     #[serial]
     fn get_scorelimit_returns_scorelimit(_pyshinqlx_setup: ()) {
-        with_mocked_engine(|mock_engine| {
-            mock_engine
-                .expect_get_configstring()
-                .with(predicate::eq(CS_SERVERINFO as u16))
-                .returning(|_| r"\scorelimit\10".to_string());
-        })
-        .run(|| {
-            let result = Python::with_gil(|py| {
-                let mut game = Game {
-                    cached: true,
-                    valid: true,
-                };
+        mocked_engine()
+            .configure(|mock_engine| {
+                mock_engine
+                    .expect_get_configstring()
+                    .with(predicate::eq(CS_SERVERINFO as u16))
+                    .returning(|_| r"\scorelimit\10".to_string());
+            })
+            .run(|| {
+                let result = Python::with_gil(|py| {
+                    let mut game = Game {
+                        cached: true,
+                        valid: true,
+                    };
 
-                game.get_scorelimit(py)
+                    game.get_scorelimit(py)
+                });
+                assert_eq!(result.expect("result was not OK"), 10);
             });
-            assert_eq!(result.expect("result was not OK"), 10);
-        });
     }
 
     #[rstest]
     #[cfg_attr(miri, ignore)]
     #[serial]
     fn set_scorelimit_sets_new_scorelimit(_pyshinqlx_setup: ()) {
-        with_mocked_engine(|mock_engine| {
-            mock_engine
-                .expect_find_cvar()
-                .with(predicate::eq("scorelimit"))
-                .times(1);
-            mock_engine
-                .expect_get_cvar()
-                .withf(|cvar, value, flags| cvar == "scorelimit" && value == "8" && flags.is_none())
-                .times(1);
-        })
-        .run(|| {
-            Python::with_gil(|py| {
-                let mut game = Game {
-                    cached: true,
-                    valid: true,
-                };
+        mocked_engine()
+            .configure(|mock_engine| {
+                mock_engine
+                    .expect_find_cvar()
+                    .with(predicate::eq("scorelimit"))
+                    .times(1);
+                mock_engine
+                    .expect_get_cvar()
+                    .withf(|cvar, value, flags| {
+                        cvar == "scorelimit" && value == "8" && flags.is_none()
+                    })
+                    .times(1);
+            })
+            .run(|| {
+                Python::with_gil(|py| {
+                    let mut game = Game {
+                        cached: true,
+                        valid: true,
+                    };
 
-                game.set_scorelimit(py, 8).expect("this should not happen");
+                    game.set_scorelimit(py, 8).expect("this should not happen");
+                });
             });
-        });
     }
 
     #[rstest]
     #[cfg_attr(miri, ignore)]
     #[serial]
     fn get_capturelimit_returns_capturelimit(_pyshinqlx_setup: ()) {
-        with_mocked_engine(|mock_engine| {
-            mock_engine
-                .expect_get_configstring()
-                .with(predicate::eq(CS_SERVERINFO as u16))
-                .returning(|_| r"\capturelimit\10".to_string());
-        })
-        .run(|| {
-            let result = Python::with_gil(|py| {
-                let mut game = Game {
-                    cached: true,
-                    valid: true,
-                };
+        mocked_engine()
+            .configure(|mock_engine| {
+                mock_engine
+                    .expect_get_configstring()
+                    .with(predicate::eq(CS_SERVERINFO as u16))
+                    .returning(|_| r"\capturelimit\10".to_string());
+            })
+            .run(|| {
+                let result = Python::with_gil(|py| {
+                    let mut game = Game {
+                        cached: true,
+                        valid: true,
+                    };
 
-                game.get_capturelimit(py)
+                    game.get_capturelimit(py)
+                });
+                assert_eq!(result.expect("result was not OK"), 10);
             });
-            assert_eq!(result.expect("result was not OK"), 10);
-        });
     }
 
     #[rstest]
     #[cfg_attr(miri, ignore)]
     #[serial]
     fn set_capturelimit_sets_new_capturelimit(_pyshinqlx_setup: ()) {
-        with_mocked_engine(|mock_engine| {
-            mock_engine
-                .expect_find_cvar()
-                .with(predicate::eq("capturelimit"))
-                .times(1);
-            mock_engine
-                .expect_get_cvar()
-                .withf(|cvar, value, flags| {
-                    cvar == "capturelimit" && value == "20" && flags.is_none()
-                })
-                .times(1);
-        })
-        .run(|| {
-            Python::with_gil(|py| {
-                let mut game = Game {
-                    cached: true,
-                    valid: true,
-                };
+        mocked_engine()
+            .configure(|mock_engine| {
+                mock_engine
+                    .expect_find_cvar()
+                    .with(predicate::eq("capturelimit"))
+                    .times(1);
+                mock_engine
+                    .expect_get_cvar()
+                    .withf(|cvar, value, flags| {
+                        cvar == "capturelimit" && value == "20" && flags.is_none()
+                    })
+                    .times(1);
+            })
+            .run(|| {
+                Python::with_gil(|py| {
+                    let mut game = Game {
+                        cached: true,
+                        valid: true,
+                    };
 
-                game.set_capturelimit(py, 20)
-                    .expect("this should not happen");
+                    game.set_capturelimit(py, 20)
+                        .expect("this should not happen");
+                });
             });
-        });
     }
 
     #[rstest]
     #[cfg_attr(miri, ignore)]
     #[serial]
     fn get_teamsize_returns_teamsize(_pyshinqlx_setup: ()) {
-        with_mocked_engine(|mock_engine| {
-            mock_engine
-                .expect_get_configstring()
-                .with(predicate::eq(CS_SERVERINFO as u16))
-                .returning(|_| r"\teamsize\4".to_string());
-        })
-        .run(|| {
-            let result = Python::with_gil(|py| {
-                let mut game = Game {
-                    cached: true,
-                    valid: true,
-                };
+        mocked_engine()
+            .configure(|mock_engine| {
+                mock_engine
+                    .expect_get_configstring()
+                    .with(predicate::eq(CS_SERVERINFO as u16))
+                    .returning(|_| r"\teamsize\4".to_string());
+            })
+            .run(|| {
+                let result = Python::with_gil(|py| {
+                    let mut game = Game {
+                        cached: true,
+                        valid: true,
+                    };
 
-                game.get_teamsize(py)
+                    game.get_teamsize(py)
+                });
+                assert_eq!(result.expect("result was not OK"), 4);
             });
-            assert_eq!(result.expect("result was not OK"), 4);
-        });
     }
 
     #[rstest]
     #[cfg_attr(miri, ignore)]
     #[serial]
     fn set_teamsize_sets_new_teamsize(_pyshinqlx_setup: ()) {
-        with_mocked_engine(|mock_engine| {
-            mock_engine
-                .expect_find_cvar()
-                .with(predicate::eq("teamsize"))
-                .times(1);
-            mock_engine
-                .expect_get_cvar()
-                .withf(|cvar, value, flags| cvar == "teamsize" && value == "8" && flags.is_none())
-                .times(1);
-        })
-        .run(|| {
-            Python::with_gil(|py| {
-                let mut game = Game {
-                    cached: true,
-                    valid: true,
-                };
+        mocked_engine()
+            .configure(|mock_engine| {
+                mock_engine
+                    .expect_find_cvar()
+                    .with(predicate::eq("teamsize"))
+                    .times(1);
+                mock_engine
+                    .expect_get_cvar()
+                    .withf(|cvar, value, flags| {
+                        cvar == "teamsize" && value == "8" && flags.is_none()
+                    })
+                    .times(1);
+            })
+            .run(|| {
+                Python::with_gil(|py| {
+                    let mut game = Game {
+                        cached: true,
+                        valid: true,
+                    };
 
-                game.set_teamsize(py, 8).expect("this should not happen");
+                    game.set_teamsize(py, 8).expect("this should not happen");
+                });
             });
-        });
     }
 
     #[rstest]
     #[cfg_attr(miri, ignore)]
     #[serial]
     fn get_tags_returns_tags(_pyshinqlx_setup: ()) {
-        with_mocked_engine(|mock_engine| {
-            mock_engine
-                .expect_get_configstring()
-                .with(predicate::eq(CS_SERVERINFO as u16))
-                .returning(|_| r"\sv_tags\tag1,tag2,tag3".to_string());
-        })
-        .run(|| {
-            let result = Python::with_gil(|py| {
-                let mut game = Game {
-                    cached: true,
-                    valid: true,
-                };
+        mocked_engine()
+            .configure(|mock_engine| {
+                mock_engine
+                    .expect_get_configstring()
+                    .with(predicate::eq(CS_SERVERINFO as u16))
+                    .returning(|_| r"\sv_tags\tag1,tag2,tag3".to_string());
+            })
+            .run(|| {
+                let result = Python::with_gil(|py| {
+                    let mut game = Game {
+                        cached: true,
+                        valid: true,
+                    };
 
-                game.get_tags(py)
+                    game.get_tags(py)
+                });
+                assert_eq!(
+                    result.expect("result was not OK"),
+                    vec!["tag1", "tag2", "tag3"]
+                );
             });
-            assert_eq!(
-                result.expect("result was not OK"),
-                vec!["tag1", "tag2", "tag3"]
-            );
-        });
     }
 
     #[rstest]
     #[cfg_attr(miri, ignore)]
     #[serial]
     fn set_tags_with_string_tags(_pyshinqlx_setup: ()) {
-        with_mocked_engine(|mock_engine| {
-            mock_engine
-                .expect_find_cvar()
-                .with(predicate::eq("sv_tags"))
-                .times(1);
-            mock_engine
-                .expect_get_cvar()
-                .withf(|cvar, value, flags| {
-                    cvar == "sv_tags" && value == "tag1,tag2,tag3" && flags.is_none()
-                })
-                .times(1);
-        })
-        .run(|| {
-            Python::with_gil(|py| {
-                let mut game = Game {
-                    cached: true,
-                    valid: true,
-                };
+        mocked_engine()
+            .configure(|mock_engine| {
+                mock_engine
+                    .expect_find_cvar()
+                    .with(predicate::eq("sv_tags"))
+                    .times(1);
+                mock_engine
+                    .expect_get_cvar()
+                    .withf(|cvar, value, flags| {
+                        cvar == "sv_tags" && value == "tag1,tag2,tag3" && flags.is_none()
+                    })
+                    .times(1);
+            })
+            .run(|| {
+                Python::with_gil(|py| {
+                    let mut game = Game {
+                        cached: true,
+                        valid: true,
+                    };
 
-                game.set_tags(py, "tag1,tag2,tag3".into_py(py))
-                    .expect("this should not happen");
+                    game.set_tags(py, "tag1,tag2,tag3".into_py(py))
+                        .expect("this should not happen");
+                });
             });
-        });
     }
 
     #[rstest]
     #[cfg_attr(miri, ignore)]
     #[serial]
     fn set_tags_with_iterable_tags(_pyshinqlx_setup: ()) {
-        with_mocked_engine(|mock_engine| {
-            mock_engine
-                .expect_find_cvar()
-                .with(predicate::eq("sv_tags"))
-                .times(1);
-            mock_engine
-                .expect_get_cvar()
-                .withf(|cvar, value, flags| {
-                    cvar == "sv_tags" && value == "tag1,tag2,tag3" && flags.is_none()
-                })
-                .times(1);
-        })
-        .run(|| {
-            Python::with_gil(|py| {
-                let mut game = Game {
-                    cached: true,
-                    valid: true,
-                };
+        mocked_engine()
+            .configure(|mock_engine| {
+                mock_engine
+                    .expect_find_cvar()
+                    .with(predicate::eq("sv_tags"))
+                    .times(1);
+                mock_engine
+                    .expect_get_cvar()
+                    .withf(|cvar, value, flags| {
+                        cvar == "sv_tags" && value == "tag1,tag2,tag3" && flags.is_none()
+                    })
+                    .times(1);
+            })
+            .run(|| {
+                Python::with_gil(|py| {
+                    let mut game = Game {
+                        cached: true,
+                        valid: true,
+                    };
 
-                game.set_tags(py, ["tag1", "tag2", "tag3"].into_py(py))
-                    .expect("this should not happen");
+                    game.set_tags(py, ["tag1", "tag2", "tag3"].into_py(py))
+                        .expect("this should not happen");
+                });
             });
-        });
     }
 
     #[rstest]
     #[cfg_attr(miri, ignore)]
     #[serial]
     fn set_tags_with_invalid_value(_pyshinqlx_setup: ()) {
-        with_mocked_engine(|mock_engine| {
-            mock_engine
-                .expect_find_cvar()
-                .with(predicate::eq("sv_tags"))
-                .times(0);
-            mock_engine
-                .expect_get_cvar()
-                .withf(|cvar, _value, _flags| cvar == "sv_tags")
-                .times(0);
-        })
-        .run(|| {
-            Python::with_gil(|py| {
-                let mut game = Game {
-                    cached: true,
-                    valid: true,
-                };
+        mocked_engine()
+            .configure(|mock_engine| {
+                mock_engine
+                    .expect_find_cvar()
+                    .with(predicate::eq("sv_tags"))
+                    .times(0);
+                mock_engine
+                    .expect_get_cvar()
+                    .withf(|cvar, _value, _flags| cvar == "sv_tags")
+                    .times(0);
+            })
+            .run(|| {
+                Python::with_gil(|py| {
+                    let mut game = Game {
+                        cached: true,
+                        valid: true,
+                    };
 
-                let result = game.set_tags(py, 42.into_py(py));
-                assert!(result.is_err_and(|err| err.is_instance_of::<PyValueError>(py)));
+                    let result = game.set_tags(py, 42.into_py(py));
+                    assert!(result.is_err_and(|err| err.is_instance_of::<PyValueError>(py)));
+                });
             });
-        });
     }
 
     #[rstest]
     #[cfg_attr(miri, ignore)]
     #[serial]
     fn get_workshop_items_returns_workshop_items(_pyshinqlx_setup: ()) {
-        with_mocked_engine(|mock_engine| {
-            mock_engine
-                .expect_get_configstring()
-                .with(predicate::eq(CS_STEAM_WORKSHOP_IDS as u16))
-                .returning(|_| "1234 5678 9101".to_string());
-        })
-        .run(|| {
-            let result = Python::with_gil(|py| {
-                let game = Game {
-                    cached: true,
-                    valid: true,
-                };
+        mocked_engine()
+            .configure(|mock_engine| {
+                mock_engine
+                    .expect_get_configstring()
+                    .with(predicate::eq(CS_STEAM_WORKSHOP_IDS as u16))
+                    .returning(|_| "1234 5678 9101".to_string());
+            })
+            .run(|| {
+                let result = Python::with_gil(|py| {
+                    let game = Game {
+                        cached: true,
+                        valid: true,
+                    };
 
-                game.get_workshop_items(py)
+                    game.get_workshop_items(py)
+                });
+                assert_eq!(result.expect("result was not OK"), vec![1234, 5678, 9101]);
             });
-            assert_eq!(result.expect("result was not OK"), vec![1234, 5678, 9101]);
-        });
     }
 
     #[rstest]
     #[cfg_attr(miri, ignore)]
     #[serial]
     fn set_workshop_items_with_iterable_items(_pyshinqlx_setup: ()) {
-        with_mocked_engine(|mock_engine| {
-            mock_engine
-                .expect_set_configstring()
-                .with(
-                    predicate::eq(CS_STEAM_WORKSHOP_IDS as i32),
-                    predicate::eq("1234 5678 9101"),
-                )
-                .times(1);
-        })
-        .run(|| {
-            Python::with_gil(|py| {
-                let mut game = Game {
-                    cached: true,
-                    valid: true,
-                };
+        mocked_engine()
+            .configure(|mock_engine| {
+                mock_engine
+                    .expect_set_configstring()
+                    .with(
+                        predicate::eq(CS_STEAM_WORKSHOP_IDS as i32),
+                        predicate::eq("1234 5678 9101"),
+                    )
+                    .times(1);
+            })
+            .run(|| {
+                Python::with_gil(|py| {
+                    let mut game = Game {
+                        cached: true,
+                        valid: true,
+                    };
 
-                game.set_workshop_items(py, [1234, 5678, 9101].into_py(py))
-                    .expect("this should not happen");
+                    game.set_workshop_items(py, [1234, 5678, 9101].into_py(py))
+                        .expect("this should not happen");
+                });
             });
-        });
     }
 
     #[rstest]
     #[cfg_attr(miri, ignore)]
     #[serial]
     fn set_workshop_items_with_invalid_value(_pyshinqlx_setup: ()) {
-        with_mocked_engine(|mock_engine| {
-            mock_engine
-                .expect_set_configstring()
-                .with(
-                    predicate::eq(CS_STEAM_WORKSHOP_IDS as i32),
-                    predicate::always(),
-                )
-                .times(0);
-        })
-        .run(|| {
-            Python::with_gil(|py| {
-                let mut game = Game {
-                    cached: true,
-                    valid: true,
-                };
+        mocked_engine()
+            .configure(|mock_engine| {
+                mock_engine
+                    .expect_set_configstring()
+                    .with(
+                        predicate::eq(CS_STEAM_WORKSHOP_IDS as i32),
+                        predicate::always(),
+                    )
+                    .times(0);
+            })
+            .run(|| {
+                Python::with_gil(|py| {
+                    let mut game = Game {
+                        cached: true,
+                        valid: true,
+                    };
 
-                let result = game.set_workshop_items(py, 42.into_py(py));
-                assert!(result.is_err_and(|err| err.is_instance_of::<PyValueError>(py)));
+                    let result = game.set_workshop_items(py, 42.into_py(py));
+                    assert!(result.is_err_and(|err| err.is_instance_of::<PyValueError>(py)));
+                });
             });
-        });
     }
 
     #[rstest]
     #[cfg_attr(miri, ignore)]
     #[serial]
     fn shuffle_forces_shuffle(_pyshinqlx_setup: ()) {
-        with_mocked_engine(|mock_engine| {
-            mock_engine
-                .expect_execute_console_command()
-                .with(predicate::eq("forceshuffle"))
-                .times(1);
-        })
-        .run(|| {
-            let result = Python::with_gil(|py| Game::shuffle(&py.get_type_bound::<Game>()));
-            assert!(result.is_ok());
-        });
+        mocked_engine()
+            .configure(|mock_engine| {
+                mock_engine
+                    .expect_execute_console_command()
+                    .with(predicate::eq("forceshuffle"))
+                    .times(1);
+            })
+            .run(|| {
+                let result = Python::with_gil(|py| Game::shuffle(&py.get_type_bound::<Game>()));
+                assert!(result.is_ok());
+            });
     }
 
     #[rstest]
     #[cfg_attr(miri, ignore)]
     #[serial]
     fn timeout_pauses_game(_pyshinqlx_setup: ()) {
-        with_mocked_engine(|mock_engine| {
-            mock_engine
-                .expect_execute_console_command()
-                .with(predicate::eq("timeout"))
-                .times(1);
-        })
-        .run(|| {
-            let result = Python::with_gil(|py| Game::timeout(&py.get_type_bound::<Game>()));
-            assert!(result.is_ok());
-        });
+        mocked_engine()
+            .configure(|mock_engine| {
+                mock_engine
+                    .expect_execute_console_command()
+                    .with(predicate::eq("timeout"))
+                    .times(1);
+            })
+            .run(|| {
+                let result = Python::with_gil(|py| Game::timeout(&py.get_type_bound::<Game>()));
+                assert!(result.is_ok());
+            });
     }
 
     #[rstest]
     #[cfg_attr(miri, ignore)]
     #[serial]
     fn timein_unpauses_game(_pyshinqlx_setup: ()) {
-        with_mocked_engine(|mock_engine| {
-            mock_engine
-                .expect_execute_console_command()
-                .with(predicate::eq("timein"))
-                .times(1);
-        })
-        .run(|| {
-            let result = Python::with_gil(|py| Game::timein(&py.get_type_bound::<Game>()));
-            assert!(result.is_ok());
-        });
+        mocked_engine()
+            .configure(|mock_engine| {
+                mock_engine
+                    .expect_execute_console_command()
+                    .with(predicate::eq("timein"))
+                    .times(1);
+            })
+            .run(|| {
+                let result = Python::with_gil(|py| Game::timein(&py.get_type_bound::<Game>()));
+                assert!(result.is_ok());
+            });
     }
 
     #[rstest]
     #[cfg_attr(miri, ignore)]
     #[serial]
     fn allready_readies_all_players(_pyshinqlx_setup: ()) {
-        with_mocked_engine(|mock_engine| {
-            mock_engine
-                .expect_execute_console_command()
-                .with(predicate::eq("allready"))
-                .times(1);
-        })
-        .run(|| {
-            let result = Python::with_gil(|py| Game::allready(&py.get_type_bound::<Game>()));
-            assert!(result.is_ok());
-        });
+        mocked_engine()
+            .configure(|mock_engine| {
+                mock_engine
+                    .expect_execute_console_command()
+                    .with(predicate::eq("allready"))
+                    .times(1);
+            })
+            .run(|| {
+                let result = Python::with_gil(|py| Game::allready(&py.get_type_bound::<Game>()));
+                assert!(result.is_ok());
+            });
     }
 
     #[rstest]
     #[cfg_attr(miri, ignore)]
     #[serial]
     fn pause_pauses_game(_pyshinqlx_setup: ()) {
-        with_mocked_engine(|mock_engine| {
-            mock_engine
-                .expect_execute_console_command()
-                .with(predicate::eq("pause"))
-                .times(1);
-        })
-        .run(|| {
-            let result = Python::with_gil(|py| Game::pause(&py.get_type_bound::<Game>()));
-            assert!(result.is_ok());
-        });
+        mocked_engine()
+            .configure(|mock_engine| {
+                mock_engine
+                    .expect_execute_console_command()
+                    .with(predicate::eq("pause"))
+                    .times(1);
+            })
+            .run(|| {
+                let result = Python::with_gil(|py| Game::pause(&py.get_type_bound::<Game>()));
+                assert!(result.is_ok());
+            });
     }
 
     #[rstest]
     #[cfg_attr(miri, ignore)]
     #[serial]
     fn unpause_unpauses_game(_pyshinqlx_setup: ()) {
-        with_mocked_engine(|mock_engine| {
-            mock_engine
-                .expect_execute_console_command()
-                .with(predicate::eq("unpause"))
-                .times(1);
-        })
-        .run(|| {
-            let result = Python::with_gil(|py| Game::unpause(&py.get_type_bound::<Game>()));
-            assert!(result.is_ok());
-        });
+        mocked_engine()
+            .configure(|mock_engine| {
+                mock_engine
+                    .expect_execute_console_command()
+                    .with(predicate::eq("unpause"))
+                    .times(1);
+            })
+            .run(|| {
+                let result = Python::with_gil(|py| Game::unpause(&py.get_type_bound::<Game>()));
+                assert!(result.is_ok());
+            });
     }
 
     #[rstest]
     #[cfg_attr(miri, ignore)]
     #[serial]
     fn lock_with_invalid_team(_pyshinqlx_setup: ()) {
-        with_mocked_engine(|_mock_engine| {}).run(|| {
+        mocked_engine().configure(|_mock_engine| {}).run(|| {
             Python::with_gil(|py| {
                 let result = Game::lock(&py.get_type_bound::<Game>(), Some("invalid_team"));
                 assert!(result.is_err_and(|err| err.is_instance_of::<PyValueError>(py)));
@@ -2818,16 +2900,17 @@ shinqlx._map_subtitle2 = "Awesome map!"
     #[cfg_attr(miri, ignore)]
     #[serial]
     fn lock_with_no_team(_pyshinqlx_setup: ()) {
-        with_mocked_engine(|mock_engine| {
-            mock_engine
-                .expect_execute_console_command()
-                .with(predicate::eq("lock"))
-                .times(1);
-        })
-        .run(|| {
-            let result = Python::with_gil(|py| Game::lock(&py.get_type_bound::<Game>(), None));
-            assert!(result.is_ok());
-        });
+        mocked_engine()
+            .configure(|mock_engine| {
+                mock_engine
+                    .expect_execute_console_command()
+                    .with(predicate::eq("lock"))
+                    .times(1);
+            })
+            .run(|| {
+                let result = Python::with_gil(|py| Game::lock(&py.get_type_bound::<Game>(), None));
+                assert!(result.is_ok());
+            });
     }
 
     #[rstest]
@@ -2840,24 +2923,26 @@ shinqlx._map_subtitle2 = "Awesome map!"
     #[serial]
     fn lock_a_specific_team(_pyshinqlx_setup: (), #[case] locked_team: &str) {
         let lock_cmd = format!("lock {}", locked_team.to_lowercase());
-        with_mocked_engine(|mock_engine| {
-            mock_engine
-                .expect_execute_console_command()
-                .withf(move |cmd| cmd == lock_cmd)
-                .times(1);
-        })
-        .run(|| {
-            let result =
-                Python::with_gil(|py| Game::lock(&py.get_type_bound::<Game>(), Some(locked_team)));
-            assert!(result.is_ok());
-        });
+        mocked_engine()
+            .configure(|mock_engine| {
+                mock_engine
+                    .expect_execute_console_command()
+                    .withf(move |cmd| cmd == lock_cmd)
+                    .times(1);
+            })
+            .run(|| {
+                let result = Python::with_gil(|py| {
+                    Game::lock(&py.get_type_bound::<Game>(), Some(locked_team))
+                });
+                assert!(result.is_ok());
+            });
     }
 
     #[rstest]
     #[cfg_attr(miri, ignore)]
     #[serial]
     fn unlock_with_invalid_team(_pyshinqlx_setup: ()) {
-        with_mocked_engine(|_mock_engine| {}).run(|| {
+        mocked_engine().configure(|_mock_engine| {}).run(|| {
             Python::with_gil(|py| {
                 let result = Game::unlock(&py.get_type_bound::<Game>(), Some("invalid_team"));
                 assert!(result.is_err_and(|err| err.is_instance_of::<PyValueError>(py)));
@@ -2869,16 +2954,18 @@ shinqlx._map_subtitle2 = "Awesome map!"
     #[cfg_attr(miri, ignore)]
     #[serial]
     fn unlock_with_no_team(_pyshinqlx_setup: ()) {
-        with_mocked_engine(|mock_engine| {
-            mock_engine
-                .expect_execute_console_command()
-                .with(predicate::eq("unlock"))
-                .times(1);
-        })
-        .run(|| {
-            let result = Python::with_gil(|py| Game::unlock(&py.get_type_bound::<Game>(), None));
-            assert!(result.is_ok());
-        });
+        mocked_engine()
+            .configure(|mock_engine| {
+                mock_engine
+                    .expect_execute_console_command()
+                    .with(predicate::eq("unlock"))
+                    .times(1);
+            })
+            .run(|| {
+                let result =
+                    Python::with_gil(|py| Game::unlock(&py.get_type_bound::<Game>(), None));
+                assert!(result.is_ok());
+            });
     }
 
     #[rstest]
@@ -2892,18 +2979,19 @@ shinqlx._map_subtitle2 = "Awesome map!"
     fn unlock_a_specific_team(_pyshinqlx_setup: (), #[case] locked_team: &str) {
         let unlock_cmd = format!("unlock {}", locked_team.to_lowercase());
 
-        with_mocked_engine(|mock_engine| {
-            mock_engine
-                .expect_execute_console_command()
-                .withf(move |cmd| cmd == unlock_cmd)
-                .times(1);
-        })
-        .run(|| {
-            let result = Python::with_gil(|py| {
-                Game::unlock(&py.get_type_bound::<Game>(), Some(locked_team))
+        mocked_engine()
+            .configure(|mock_engine| {
+                mock_engine
+                    .expect_execute_console_command()
+                    .withf(move |cmd| cmd == unlock_cmd)
+                    .times(1);
+            })
+            .run(|| {
+                let result = Python::with_gil(|py| {
+                    Game::unlock(&py.get_type_bound::<Game>(), Some(locked_team))
+                });
+                assert!(result.is_ok());
             });
-            assert!(result.is_ok());
-        });
     }
 
     #[rstest]
@@ -2937,18 +3025,19 @@ shinqlx._map_subtitle2 = "Awesome map!"
     fn put_put_player_on_a_specific_team(_pyshinqlx_setup: (), #[case] new_team: &str) {
         let put_cmd = format!("put 2 {}", new_team.to_lowercase());
 
-        with_mocked_engine(|mock_engine| {
-            mock_engine
-                .expect_execute_console_command()
-                .withf(move |cmd| cmd == put_cmd)
-                .times(1);
-        })
-        .run(|| {
-            let result = Python::with_gil(|py| {
-                Game::put(&py.get_type_bound::<Game>(), 2.into_py(py), new_team)
+        mocked_engine()
+            .configure(|mock_engine| {
+                mock_engine
+                    .expect_execute_console_command()
+                    .withf(move |cmd| cmd == put_cmd)
+                    .times(1);
+            })
+            .run(|| {
+                let result = Python::with_gil(|py| {
+                    Game::put(&py.get_type_bound::<Game>(), 2.into_py(py), new_team)
+                });
+                assert!(result.is_ok());
             });
-            assert!(result.is_ok());
-        });
     }
 
     #[rstest]
@@ -2965,17 +3054,18 @@ shinqlx._map_subtitle2 = "Awesome map!"
     #[cfg_attr(miri, ignore)]
     #[serial]
     fn mute_mutes_player(_pyshinqlx_setup: ()) {
-        with_mocked_engine(|mock_engine| {
-            mock_engine
-                .expect_execute_console_command()
-                .with(predicate::eq("mute 2"))
-                .times(1);
-        })
-        .run(|| {
-            let result =
-                Python::with_gil(|py| Game::mute(&py.get_type_bound::<Game>(), 2.into_py(py)));
-            assert!(result.is_ok());
-        });
+        mocked_engine()
+            .configure(|mock_engine| {
+                mock_engine
+                    .expect_execute_console_command()
+                    .with(predicate::eq("mute 2"))
+                    .times(1);
+            })
+            .run(|| {
+                let result =
+                    Python::with_gil(|py| Game::mute(&py.get_type_bound::<Game>(), 2.into_py(py)));
+                assert!(result.is_ok());
+            });
     }
 
     #[rstest]
@@ -2992,17 +3082,19 @@ shinqlx._map_subtitle2 = "Awesome map!"
     #[cfg_attr(miri, ignore)]
     #[serial]
     fn unmute_unmutes_player(_pyshinqlx_setup: ()) {
-        with_mocked_engine(|mock_engine| {
-            mock_engine
-                .expect_execute_console_command()
-                .with(predicate::eq("unmute 2"))
-                .times(1);
-        })
-        .run(|| {
-            let result =
-                Python::with_gil(|py| Game::unmute(&py.get_type_bound::<Game>(), 2.into_py(py)));
-            assert!(result.is_ok());
-        });
+        mocked_engine()
+            .configure(|mock_engine| {
+                mock_engine
+                    .expect_execute_console_command()
+                    .with(predicate::eq("unmute 2"))
+                    .times(1);
+            })
+            .run(|| {
+                let result = Python::with_gil(|py| {
+                    Game::unmute(&py.get_type_bound::<Game>(), 2.into_py(py))
+                });
+                assert!(result.is_ok());
+            });
     }
 
     #[rstest]
@@ -3019,17 +3111,19 @@ shinqlx._map_subtitle2 = "Awesome map!"
     #[cfg_attr(miri, ignore)]
     #[serial]
     fn tempban_tempbans_player(_pyshinqlx_setup: ()) {
-        with_mocked_engine(|mock_engine| {
-            mock_engine
-                .expect_execute_console_command()
-                .with(predicate::eq("tempban 2"))
-                .times(1);
-        })
-        .run(|| {
-            let result =
-                Python::with_gil(|py| Game::tempban(&py.get_type_bound::<Game>(), 2.into_py(py)));
-            assert!(result.is_ok());
-        });
+        mocked_engine()
+            .configure(|mock_engine| {
+                mock_engine
+                    .expect_execute_console_command()
+                    .with(predicate::eq("tempban 2"))
+                    .times(1);
+            })
+            .run(|| {
+                let result = Python::with_gil(|py| {
+                    Game::tempban(&py.get_type_bound::<Game>(), 2.into_py(py))
+                });
+                assert!(result.is_ok());
+            });
     }
 
     #[rstest]
@@ -3046,17 +3140,18 @@ shinqlx._map_subtitle2 = "Awesome map!"
     #[cfg_attr(miri, ignore)]
     #[serial]
     fn ban_bans_player(_pyshinqlx_setup: ()) {
-        with_mocked_engine(|mock_engine| {
-            mock_engine
-                .expect_execute_console_command()
-                .with(predicate::eq("ban 2"))
-                .times(1);
-        })
-        .run(|| {
-            let result =
-                Python::with_gil(|py| Game::ban(&py.get_type_bound::<Game>(), 2.into_py(py)));
-            assert!(result.is_ok());
-        });
+        mocked_engine()
+            .configure(|mock_engine| {
+                mock_engine
+                    .expect_execute_console_command()
+                    .with(predicate::eq("ban 2"))
+                    .times(1);
+            })
+            .run(|| {
+                let result =
+                    Python::with_gil(|py| Game::ban(&py.get_type_bound::<Game>(), 2.into_py(py)));
+                assert!(result.is_ok());
+            });
     }
 
     #[rstest]
@@ -3073,33 +3168,36 @@ shinqlx._map_subtitle2 = "Awesome map!"
     #[cfg_attr(miri, ignore)]
     #[serial]
     fn unban_unbans_player(_pyshinqlx_setup: ()) {
-        with_mocked_engine(|mock_engine| {
-            mock_engine
-                .expect_execute_console_command()
-                .with(predicate::eq("unban 2"))
-                .times(1);
-        })
-        .run(|| {
-            let result =
-                Python::with_gil(|py| Game::unban(&py.get_type_bound::<Game>(), 2.into_py(py)));
-            assert!(result.is_ok());
-        });
+        mocked_engine()
+            .configure(|mock_engine| {
+                mock_engine
+                    .expect_execute_console_command()
+                    .with(predicate::eq("unban 2"))
+                    .times(1);
+            })
+            .run(|| {
+                let result =
+                    Python::with_gil(|py| Game::unban(&py.get_type_bound::<Game>(), 2.into_py(py)));
+                assert!(result.is_ok());
+            });
     }
 
     #[rstest]
     #[cfg_attr(miri, ignore)]
     #[serial]
     fn opsay_sends_op_message(_pyshinqlx_setup: ()) {
-        with_mocked_engine(|mock_engine| {
-            mock_engine
-                .expect_execute_console_command()
-                .with(predicate::eq("opsay asdf"))
-                .times(1);
-        })
-        .run(|| {
-            let result = Python::with_gil(|py| Game::opsay(&py.get_type_bound::<Game>(), "asdf"));
-            assert!(result.is_ok());
-        });
+        mocked_engine()
+            .configure(|mock_engine| {
+                mock_engine
+                    .expect_execute_console_command()
+                    .with(predicate::eq("opsay asdf"))
+                    .times(1);
+            })
+            .run(|| {
+                let result =
+                    Python::with_gil(|py| Game::opsay(&py.get_type_bound::<Game>(), "asdf"));
+                assert!(result.is_ok());
+            });
     }
 
     #[rstest]
@@ -3116,17 +3214,19 @@ shinqlx._map_subtitle2 = "Awesome map!"
     #[cfg_attr(miri, ignore)]
     #[serial]
     fn addadmin_adds_player_to_admins(_pyshinqlx_setup: ()) {
-        with_mocked_engine(|mock_engine| {
-            mock_engine
-                .expect_execute_console_command()
-                .with(predicate::eq("addadmin 2"))
-                .times(1);
-        })
-        .run(|| {
-            let result =
-                Python::with_gil(|py| Game::addadmin(&py.get_type_bound::<Game>(), 2.into_py(py)));
-            assert!(result.is_ok());
-        });
+        mocked_engine()
+            .configure(|mock_engine| {
+                mock_engine
+                    .expect_execute_console_command()
+                    .with(predicate::eq("addadmin 2"))
+                    .times(1);
+            })
+            .run(|| {
+                let result = Python::with_gil(|py| {
+                    Game::addadmin(&py.get_type_bound::<Game>(), 2.into_py(py))
+                });
+                assert!(result.is_ok());
+            });
     }
 
     #[rstest]
@@ -3143,17 +3243,19 @@ shinqlx._map_subtitle2 = "Awesome map!"
     #[cfg_attr(miri, ignore)]
     #[serial]
     fn addmod_adds_player_to_moderators(_pyshinqlx_setup: ()) {
-        with_mocked_engine(|mock_engine| {
-            mock_engine
-                .expect_execute_console_command()
-                .with(predicate::eq("addmod 2"))
-                .times(1);
-        })
-        .run(|| {
-            let result =
-                Python::with_gil(|py| Game::addmod(&py.get_type_bound::<Game>(), 2.into_py(py)));
-            assert!(result.is_ok());
-        });
+        mocked_engine()
+            .configure(|mock_engine| {
+                mock_engine
+                    .expect_execute_console_command()
+                    .with(predicate::eq("addmod 2"))
+                    .times(1);
+            })
+            .run(|| {
+                let result = Python::with_gil(|py| {
+                    Game::addmod(&py.get_type_bound::<Game>(), 2.into_py(py))
+                });
+                assert!(result.is_ok());
+            });
     }
 
     #[rstest]
@@ -3170,33 +3272,36 @@ shinqlx._map_subtitle2 = "Awesome map!"
     #[cfg_attr(miri, ignore)]
     #[serial]
     fn demote_demotes_player(_pyshinqlx_setup: ()) {
-        with_mocked_engine(|mock_engine| {
-            mock_engine
-                .expect_execute_console_command()
-                .with(predicate::eq("demote 2"))
-                .times(1);
-        })
-        .run(|| {
-            let result =
-                Python::with_gil(|py| Game::demote(&py.get_type_bound::<Game>(), 2.into_py(py)));
-            assert!(result.is_ok());
-        });
+        mocked_engine()
+            .configure(|mock_engine| {
+                mock_engine
+                    .expect_execute_console_command()
+                    .with(predicate::eq("demote 2"))
+                    .times(1);
+            })
+            .run(|| {
+                let result = Python::with_gil(|py| {
+                    Game::demote(&py.get_type_bound::<Game>(), 2.into_py(py))
+                });
+                assert!(result.is_ok());
+            });
     }
 
     #[rstest]
     #[cfg_attr(miri, ignore)]
     #[serial]
     fn abort_aborts_game(_pyshinqlx_setup: ()) {
-        with_mocked_engine(|mock_engine| {
-            mock_engine
-                .expect_execute_console_command()
-                .with(predicate::eq("map_restart"))
-                .times(1);
-        })
-        .run(|| {
-            let result = Python::with_gil(|py| Game::abort(&py.get_type_bound::<Game>()));
-            assert!(result.is_ok());
-        });
+        mocked_engine()
+            .configure(|mock_engine| {
+                mock_engine
+                    .expect_execute_console_command()
+                    .with(predicate::eq("map_restart"))
+                    .times(1);
+            })
+            .run(|| {
+                let result = Python::with_gil(|py| Game::abort(&py.get_type_bound::<Game>()));
+                assert!(result.is_ok());
+            });
     }
 
     #[rstest]
@@ -3213,18 +3318,19 @@ shinqlx._map_subtitle2 = "Awesome map!"
     #[cfg_attr(miri, ignore)]
     #[serial]
     fn addscore_adds_score_to_player(_pyshinqlx_setup: ()) {
-        with_mocked_engine(|mock_engine| {
-            mock_engine
-                .expect_execute_console_command()
-                .with(predicate::eq("addscore 2 42"))
-                .times(1);
-        })
-        .run(|| {
-            let result = Python::with_gil(|py| {
-                Game::addscore(&py.get_type_bound::<Game>(), 2.into_py(py), 42)
+        mocked_engine()
+            .configure(|mock_engine| {
+                mock_engine
+                    .expect_execute_console_command()
+                    .with(predicate::eq("addscore 2 42"))
+                    .times(1);
+            })
+            .run(|| {
+                let result = Python::with_gil(|py| {
+                    Game::addscore(&py.get_type_bound::<Game>(), 2.into_py(py), 42)
+                });
+                assert!(result.is_ok());
             });
-            assert!(result.is_ok());
-        });
     }
 
     #[rstest]
@@ -3248,34 +3354,36 @@ shinqlx._map_subtitle2 = "Awesome map!"
     fn addteamscore_adds_score_to_team(_pyshinqlx_setup: (), #[case] locked_team: &str) {
         let unlock_cmd = format!("addteamscore {} 42", locked_team.to_lowercase());
 
-        with_mocked_engine(|mock_engine| {
-            mock_engine
-                .expect_execute_console_command()
-                .withf(move |cmd| cmd == unlock_cmd)
-                .times(1);
-        })
-        .run(|| {
-            let result = Python::with_gil(|py| {
-                Game::addteamscore(&py.get_type_bound::<Game>(), locked_team, 42)
+        mocked_engine()
+            .configure(|mock_engine| {
+                mock_engine
+                    .expect_execute_console_command()
+                    .withf(move |cmd| cmd == unlock_cmd)
+                    .times(1);
+            })
+            .run(|| {
+                let result = Python::with_gil(|py| {
+                    Game::addteamscore(&py.get_type_bound::<Game>(), locked_team, 42)
+                });
+                assert!(result.is_ok());
             });
-            assert!(result.is_ok());
-        });
     }
 
     #[rstest]
     #[cfg_attr(miri, ignore)]
     #[serial]
     fn setmatchtime_sets_match_time(_pyshinqlx_setup: ()) {
-        with_mocked_engine(|mock_engine| {
-            mock_engine
-                .expect_execute_console_command()
-                .with(predicate::eq("setmatchtime 42"))
-                .times(1);
-        })
-        .run(|| {
-            let result =
-                Python::with_gil(|py| Game::setmatchtime(&py.get_type_bound::<Game>(), 42));
-            assert!(result.is_ok());
-        });
+        mocked_engine()
+            .configure(|mock_engine| {
+                mock_engine
+                    .expect_execute_console_command()
+                    .with(predicate::eq("setmatchtime 42"))
+                    .times(1);
+            })
+            .run(|| {
+                let result =
+                    Python::with_gil(|py| Game::setmatchtime(&py.get_type_bound::<Game>(), 42));
+                assert!(result.is_ok());
+            });
     }
 }

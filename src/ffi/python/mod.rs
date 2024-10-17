@@ -760,7 +760,7 @@ mod set_map_subtitles_tests {
 
     use crate::ffi::c::prelude::{CS_AUTHOR, CS_AUTHOR2, CS_MESSAGE};
     use crate::hooks::mock_hooks::shinqlx_set_configstring_context;
-    use crate::prelude::{serial, with_mocked_engine};
+    use crate::prelude::{mocked_engine, serial};
 
     use mockall::predicate;
     use rstest::rstest;
@@ -788,41 +788,42 @@ mod set_map_subtitles_tests {
             .with(predicate::eq(CS_AUTHOR2), predicate::eq(map_subtitle2))
             .times(1);
 
-        with_mocked_engine(|mock_engine| {
-            mock_engine
-                .expect_get_configstring()
-                .with(predicate::eq(CS_MESSAGE as u16))
-                .returning(|_| "thunderstruck".into());
-            mock_engine
-                .expect_get_configstring()
-                .with(predicate::eq(CS_AUTHOR as u16))
-                .returning(|_| "Till 'Firestarter' Merker".into());
-            mock_engine
-                .expect_get_configstring()
-                .with(predicate::eq(CS_AUTHOR2 as u16))
-                .returning(|_| "Second author would go here".into());
-        })
-        .run(|| {
-            Python::with_gil(|py| {
-                let shinqlx_module = py
-                    .import_bound(intern!(py, "shinqlx"))
-                    .expect("this should not happen");
-                shinqlx_module
-                    .setattr(intern!(py, "__plugins_version__"), "1.3.3.7")
-                    .expect("this should not happen");
-                let result = set_map_subtitles(&shinqlx_module);
-                assert!(result.is_ok());
-                assert!(shinqlx_module
-                    .getattr(intern!(py, "_map_title"))
-                    .is_ok_and(|value| value.to_string() == "thunderstruck"));
-                assert!(shinqlx_module
-                    .getattr(intern!(py, "_map_subtitle1"))
-                    .is_ok_and(|value| value.to_string() == "Till 'Firestarter' Merker"));
-                assert!(shinqlx_module
-                    .getattr(intern!(py, "_map_subtitle2"))
-                    .is_ok_and(|value| value.to_string() == "Second author would go here"));
+        mocked_engine()
+            .configure(|mock_engine| {
+                mock_engine
+                    .expect_get_configstring()
+                    .with(predicate::eq(CS_MESSAGE as u16))
+                    .returning(|_| "thunderstruck".into());
+                mock_engine
+                    .expect_get_configstring()
+                    .with(predicate::eq(CS_AUTHOR as u16))
+                    .returning(|_| "Till 'Firestarter' Merker".into());
+                mock_engine
+                    .expect_get_configstring()
+                    .with(predicate::eq(CS_AUTHOR2 as u16))
+                    .returning(|_| "Second author would go here".into());
+            })
+            .run(|| {
+                Python::with_gil(|py| {
+                    let shinqlx_module = py
+                        .import_bound(intern!(py, "shinqlx"))
+                        .expect("this should not happen");
+                    shinqlx_module
+                        .setattr(intern!(py, "__plugins_version__"), "1.3.3.7")
+                        .expect("this should not happen");
+                    let result = set_map_subtitles(&shinqlx_module);
+                    assert!(result.is_ok());
+                    assert!(shinqlx_module
+                        .getattr(intern!(py, "_map_title"))
+                        .is_ok_and(|value| value.to_string() == "thunderstruck"));
+                    assert!(shinqlx_module
+                        .getattr(intern!(py, "_map_subtitle1"))
+                        .is_ok_and(|value| value.to_string() == "Till 'Firestarter' Merker"));
+                    assert!(shinqlx_module
+                        .getattr(intern!(py, "_map_subtitle2"))
+                        .is_ok_and(|value| value.to_string() == "Second author would go here"));
+                });
             });
-        });
     }
 
     #[rstest]
@@ -844,41 +845,42 @@ mod set_map_subtitles_tests {
             .with(predicate::eq(CS_AUTHOR2), predicate::eq(map_subtitle2))
             .times(1);
 
-        with_mocked_engine(|mock_engine| {
-            mock_engine
-                .expect_get_configstring()
-                .with(predicate::eq(CS_MESSAGE as u16))
-                .returning(|_| "thunderstruck".into());
-            mock_engine
-                .expect_get_configstring()
-                .with(predicate::eq(CS_AUTHOR as u16))
-                .returning(|_| "".into());
-            mock_engine
-                .expect_get_configstring()
-                .with(predicate::eq(CS_AUTHOR2 as u16))
-                .returning(|_| "".into());
-        })
-        .run(|| {
-            Python::with_gil(|py| {
-                let shinqlx_module = py
-                    .import_bound(intern!(py, "shinqlx"))
-                    .expect("this should not happen");
-                shinqlx_module
-                    .delattr(intern!(py, "__plugins_version__"))
-                    .expect("this should not happen");
-                let result = set_map_subtitles(&shinqlx_module);
-                assert!(result.is_ok());
-                assert!(shinqlx_module
-                    .getattr(intern!(py, "_map_title"))
-                    .is_ok_and(|value| value.to_string() == "thunderstruck"));
-                assert!(shinqlx_module
-                    .getattr(intern!(py, "_map_subtitle1"))
-                    .is_ok_and(|value| value.to_string() == ""));
-                assert!(shinqlx_module
-                    .getattr(intern!(py, "_map_subtitle2"))
-                    .is_ok_and(|value| value.to_string() == ""));
+        mocked_engine()
+            .configure(|mock_engine| {
+                mock_engine
+                    .expect_get_configstring()
+                    .with(predicate::eq(CS_MESSAGE as u16))
+                    .returning(|_| "thunderstruck".into());
+                mock_engine
+                    .expect_get_configstring()
+                    .with(predicate::eq(CS_AUTHOR as u16))
+                    .returning(|_| "".into());
+                mock_engine
+                    .expect_get_configstring()
+                    .with(predicate::eq(CS_AUTHOR2 as u16))
+                    .returning(|_| "".into());
+            })
+            .run(|| {
+                Python::with_gil(|py| {
+                    let shinqlx_module = py
+                        .import_bound(intern!(py, "shinqlx"))
+                        .expect("this should not happen");
+                    shinqlx_module
+                        .delattr(intern!(py, "__plugins_version__"))
+                        .expect("this should not happen");
+                    let result = set_map_subtitles(&shinqlx_module);
+                    assert!(result.is_ok());
+                    assert!(shinqlx_module
+                        .getattr(intern!(py, "_map_title"))
+                        .is_ok_and(|value| value.to_string() == "thunderstruck"));
+                    assert!(shinqlx_module
+                        .getattr(intern!(py, "_map_subtitle1"))
+                        .is_ok_and(|value| value.to_string() == ""));
+                    assert!(shinqlx_module
+                        .getattr(intern!(py, "_map_subtitle2"))
+                        .is_ok_and(|value| value.to_string() == ""));
+                });
             });
-        });
     }
 }
 
@@ -1049,7 +1051,7 @@ mod pyshinqlx_configure_logger_tests {
     use super::pyshinqlx_setup_fixture::*;
 
     use crate::ffi::c::prelude::{cvar_t, CVar, CVarBuilder};
-    use crate::prelude::{serial, with_mocked_engine};
+    use crate::prelude::{mocked_engine, serial};
 
     use alloc::ffi::CString;
     use core::borrow::BorrowMut;
@@ -1125,86 +1127,88 @@ mod pyshinqlx_configure_logger_tests {
             .build()
             .expect("this should not happen");
 
-        with_mocked_engine(|mock_engine| {
-            mock_engine
-                .expect_find_cvar()
-                .with(predicate::eq("fs_homepath"))
-                .returning_st(move |_| {
-                    CVar::try_from(raw_homepath_cvar.borrow_mut() as *mut cvar_t).ok()
-                })
-                .times(1);
-            mock_engine
-                .expect_find_cvar()
-                .with(predicate::eq("qlx_logs"))
-                .returning_st(move |_| {
-                    CVar::try_from(raw_logs_cvar.borrow_mut() as *mut cvar_t).ok()
-                })
-                .times(1);
-            mock_engine
-                .expect_find_cvar()
-                .with(predicate::eq("qlx_logsSize"))
-                .returning_st(move |_| {
-                    CVar::try_from(raw_logssize_cvar.borrow_mut() as *mut cvar_t).ok()
-                })
-                .times(1);
-        })
-        .run(|| {
-            Python::with_gil(|py| {
-                let result = pyshinqlx_configure_logger(py);
-                assert!(result.is_ok());
-
-                let logging_module = py
-                    .import_bound(intern!(py, "logging"))
-                    .expect("this should not happen");
-                let debug_level = logging_module
-                    .getattr(intern!(py, "DEBUG"))
-                    .expect("this should not happen");
-                let shinqlx_logger = logging_module
-                    .call_method1(intern!(py, "getLogger"), ("shinqlx",))
-                    .expect("this should not happen");
-                let log_level = shinqlx_logger.getattr(intern!(py, "level"));
-                assert!(log_level
-                    .is_ok_and(|value| value.eq(&debug_level).expect("this should not happen")),);
-
-                let info_level = logging_module
-                    .getattr(intern!(py, "INFO"))
-                    .expect("this should not happen");
-                let shinqlx_handlers = shinqlx_logger
-                    .getattr(intern!(py, "handlers"))
-                    .expect("this should not happen");
-                let logging_stream_handler = logging_module
-                    .getattr(intern!(py, "StreamHandler"))
-                    .expect("this should not happen");
-                assert!(shinqlx_handlers
-                    .get_item(0)
-                    .is_ok_and(|first_handler| first_handler
-                        .is_instance(&logging_stream_handler)
-                        .expect("this should not happen")
-                        && first_handler
-                            .getattr(intern!(py, "level"))
-                            .is_ok_and(|log_level| log_level
-                                .eq(&info_level)
-                                .expect("this should not happen"))));
-                let rotating_file_handler = logging_module
-                    .getattr(intern!(py, "handlers"))
-                    .and_then(|handlers_submodule| {
-                        handlers_submodule.getattr(intern!(py, "RotatingFileHandler"))
+        mocked_engine()
+            .configure(|mock_engine| {
+                mock_engine
+                    .expect_find_cvar()
+                    .with(predicate::eq("fs_homepath"))
+                    .returning_st(move |_| {
+                        CVar::try_from(raw_homepath_cvar.borrow_mut() as *mut cvar_t).ok()
                     })
-                    .expect("this should not happen");
-                assert!(shinqlx_handlers
-                    .get_item(1)
-                    .is_ok_and(|second_handler| second_handler
-                        .is_instance(&rotating_file_handler)
-                        .expect("this should not happen")
-                        && second_handler
-                            .getattr(intern!(py, "level"))
-                            .is_ok_and(|log_level| log_level
-                                .eq(&debug_level)
-                                .expect("this should not happen"))));
+                    .times(1);
+                mock_engine
+                    .expect_find_cvar()
+                    .with(predicate::eq("qlx_logs"))
+                    .returning_st(move |_| {
+                        CVar::try_from(raw_logs_cvar.borrow_mut() as *mut cvar_t).ok()
+                    })
+                    .times(1);
+                mock_engine
+                    .expect_find_cvar()
+                    .with(predicate::eq("qlx_logsSize"))
+                    .returning_st(move |_| {
+                        CVar::try_from(raw_logssize_cvar.borrow_mut() as *mut cvar_t).ok()
+                    })
+                    .times(1);
+            })
+            .run(|| {
+                Python::with_gil(|py| {
+                    let result = pyshinqlx_configure_logger(py);
+                    assert!(result.is_ok());
 
-                clear_logger(py);
+                    let logging_module = py
+                        .import_bound(intern!(py, "logging"))
+                        .expect("this should not happen");
+                    let debug_level = logging_module
+                        .getattr(intern!(py, "DEBUG"))
+                        .expect("this should not happen");
+                    let shinqlx_logger = logging_module
+                        .call_method1(intern!(py, "getLogger"), ("shinqlx",))
+                        .expect("this should not happen");
+                    let log_level = shinqlx_logger.getattr(intern!(py, "level"));
+                    assert!(log_level.is_ok_and(|value| value
+                        .eq(&debug_level)
+                        .expect("this should not happen")),);
+
+                    let info_level = logging_module
+                        .getattr(intern!(py, "INFO"))
+                        .expect("this should not happen");
+                    let shinqlx_handlers = shinqlx_logger
+                        .getattr(intern!(py, "handlers"))
+                        .expect("this should not happen");
+                    let logging_stream_handler = logging_module
+                        .getattr(intern!(py, "StreamHandler"))
+                        .expect("this should not happen");
+                    assert!(shinqlx_handlers
+                        .get_item(0)
+                        .is_ok_and(|first_handler| first_handler
+                            .is_instance(&logging_stream_handler)
+                            .expect("this should not happen")
+                            && first_handler.getattr(intern!(py, "level")).is_ok_and(
+                                |log_level| log_level
+                                    .eq(&info_level)
+                                    .expect("this should not happen")
+                            )));
+                    let rotating_file_handler = logging_module
+                        .getattr(intern!(py, "handlers"))
+                        .and_then(|handlers_submodule| {
+                            handlers_submodule.getattr(intern!(py, "RotatingFileHandler"))
+                        })
+                        .expect("this should not happen");
+                    assert!(shinqlx_handlers.get_item(1).is_ok_and(
+                        |second_handler| second_handler
+                            .is_instance(&rotating_file_handler)
+                            .expect("this should not happen")
+                            && second_handler.getattr(intern!(py, "level")).is_ok_and(
+                                |log_level| log_level
+                                    .eq(&debug_level)
+                                    .expect("this should not happen")
+                            )
+                    ));
+
+                    clear_logger(py);
+                });
             });
-        });
     }
 
     #[rstest]
@@ -1218,82 +1222,84 @@ mod pyshinqlx_configure_logger_tests {
             .build()
             .expect("this should not happen");
 
-        with_mocked_engine(|mock_engine| {
-            mock_engine
-                .expect_find_cvar()
-                .with(predicate::eq("fs_homepath"))
-                .returning_st(move |_| {
-                    CVar::try_from(raw_homepath_cvar.borrow_mut() as *mut cvar_t).ok()
-                })
-                .times(1);
-            mock_engine
-                .expect_find_cvar()
-                .with(predicate::eq("qlx_logs"))
-                .returning(|_| None)
-                .times(1);
-            mock_engine
-                .expect_find_cvar()
-                .with(predicate::eq("qlx_logsSize"))
-                .returning(|_| None)
-                .times(1);
-        })
-        .run(|| {
-            Python::with_gil(|py| {
-                let result = pyshinqlx_configure_logger(py);
-                assert!(result.is_ok());
-
-                let logging_module = py
-                    .import_bound(intern!(py, "logging"))
-                    .expect("this should not happen");
-                let debug_level = logging_module
-                    .getattr(intern!(py, "DEBUG"))
-                    .expect("this should not happen");
-                let shinqlx_logger = logging_module
-                    .call_method1(intern!(py, "getLogger"), ("shinqlx",))
-                    .expect("this should not happen");
-                let log_level = shinqlx_logger.getattr(intern!(py, "level"));
-                assert!(log_level
-                    .is_ok_and(|value| value.eq(&debug_level).expect("this should not happen")),);
-
-                let info_level = logging_module
-                    .getattr(intern!(py, "INFO"))
-                    .expect("this should not happen");
-                let shinqlx_handlers = shinqlx_logger
-                    .getattr(intern!(py, "handlers"))
-                    .expect("this should not happen");
-                let logging_stream_handler = logging_module
-                    .getattr(intern!(py, "StreamHandler"))
-                    .expect("this should not happen");
-                assert!(shinqlx_handlers
-                    .get_item(0)
-                    .is_ok_and(|first_handler| first_handler
-                        .is_instance(&logging_stream_handler)
-                        .expect("this should not happen")
-                        && first_handler
-                            .getattr(intern!(py, "level"))
-                            .is_ok_and(|log_level| log_level
-                                .eq(&info_level)
-                                .expect("this should not happen"))));
-                let rotating_file_handler = logging_module
-                    .getattr(intern!(py, "handlers"))
-                    .and_then(|handlers_submodule| {
-                        handlers_submodule.getattr(intern!(py, "RotatingFileHandler"))
+        mocked_engine()
+            .configure(|mock_engine| {
+                mock_engine
+                    .expect_find_cvar()
+                    .with(predicate::eq("fs_homepath"))
+                    .returning_st(move |_| {
+                        CVar::try_from(raw_homepath_cvar.borrow_mut() as *mut cvar_t).ok()
                     })
-                    .expect("this should not happen");
-                assert!(shinqlx_handlers
-                    .get_item(1)
-                    .is_ok_and(|second_handler| second_handler
-                        .is_instance(&rotating_file_handler)
-                        .expect("this should not happen")
-                        && second_handler
-                            .getattr(intern!(py, "level"))
-                            .is_ok_and(|log_level| log_level
-                                .eq(&debug_level)
-                                .expect("this should not happen"))));
+                    .times(1);
+                mock_engine
+                    .expect_find_cvar()
+                    .with(predicate::eq("qlx_logs"))
+                    .returning(|_| None)
+                    .times(1);
+                mock_engine
+                    .expect_find_cvar()
+                    .with(predicate::eq("qlx_logsSize"))
+                    .returning(|_| None)
+                    .times(1);
+            })
+            .run(|| {
+                Python::with_gil(|py| {
+                    let result = pyshinqlx_configure_logger(py);
+                    assert!(result.is_ok());
 
-                clear_logger(py);
+                    let logging_module = py
+                        .import_bound(intern!(py, "logging"))
+                        .expect("this should not happen");
+                    let debug_level = logging_module
+                        .getattr(intern!(py, "DEBUG"))
+                        .expect("this should not happen");
+                    let shinqlx_logger = logging_module
+                        .call_method1(intern!(py, "getLogger"), ("shinqlx",))
+                        .expect("this should not happen");
+                    let log_level = shinqlx_logger.getattr(intern!(py, "level"));
+                    assert!(log_level.is_ok_and(|value| value
+                        .eq(&debug_level)
+                        .expect("this should not happen")),);
+
+                    let info_level = logging_module
+                        .getattr(intern!(py, "INFO"))
+                        .expect("this should not happen");
+                    let shinqlx_handlers = shinqlx_logger
+                        .getattr(intern!(py, "handlers"))
+                        .expect("this should not happen");
+                    let logging_stream_handler = logging_module
+                        .getattr(intern!(py, "StreamHandler"))
+                        .expect("this should not happen");
+                    assert!(shinqlx_handlers
+                        .get_item(0)
+                        .is_ok_and(|first_handler| first_handler
+                            .is_instance(&logging_stream_handler)
+                            .expect("this should not happen")
+                            && first_handler.getattr(intern!(py, "level")).is_ok_and(
+                                |log_level| log_level
+                                    .eq(&info_level)
+                                    .expect("this should not happen")
+                            )));
+                    let rotating_file_handler = logging_module
+                        .getattr(intern!(py, "handlers"))
+                        .and_then(|handlers_submodule| {
+                            handlers_submodule.getattr(intern!(py, "RotatingFileHandler"))
+                        })
+                        .expect("this should not happen");
+                    assert!(shinqlx_handlers.get_item(1).is_ok_and(
+                        |second_handler| second_handler
+                            .is_instance(&rotating_file_handler)
+                            .expect("this should not happen")
+                            && second_handler.getattr(intern!(py, "level")).is_ok_and(
+                                |log_level| log_level
+                                    .eq(&debug_level)
+                                    .expect("this should not happen")
+                            )
+                    ));
+
+                    clear_logger(py);
+                });
             });
-        });
     }
 }
 
@@ -1832,7 +1838,7 @@ mod owner_tests {
     use super::pyshinqlx_setup_fixture::*;
 
     use crate::ffi::c::prelude::{cvar_t, CVar, CVarBuilder};
-    use crate::prelude::{serial, with_mocked_engine};
+    use crate::prelude::{mocked_engine, serial};
 
     use core::borrow::BorrowMut;
 
@@ -1856,18 +1862,19 @@ mod owner_tests {
     #[cfg_attr(miri, ignore)]
     #[serial]
     fn owner_with_no_cvar(_pyshinqlx_setup: ()) {
-        with_mocked_engine(|mock_engine| {
-            mock_engine
-                .expect_find_cvar()
-                .with(predicate::eq("qlx_owner"))
-                .returning(|_| None);
-        })
-        .run(|| {
-            Python::with_gil(|py| {
-                let result = pyshinqlx_owner(py);
-                assert!(result.is_ok_and(|opt_value| opt_value.is_none()));
+        mocked_engine()
+            .configure(|mock_engine| {
+                mock_engine
+                    .expect_find_cvar()
+                    .with(predicate::eq("qlx_owner"))
+                    .returning(|_| None);
+            })
+            .run(|| {
+                Python::with_gil(|py| {
+                    let result = pyshinqlx_owner(py);
+                    assert!(result.is_ok_and(|opt_value| opt_value.is_none()));
+                });
             });
-        });
     }
 
     #[rstest]
@@ -1880,18 +1887,21 @@ mod owner_tests {
             .build()
             .expect("this should not happen");
 
-        with_mocked_engine(|mock_engine| {
-            mock_engine
-                .expect_find_cvar()
-                .with(predicate::eq("qlx_owner"))
-                .returning_st(move |_| CVar::try_from(raw_cvar.borrow_mut() as *mut cvar_t).ok());
-        })
-        .run(|| {
-            Python::with_gil(|py| {
-                let result = pyshinqlx_owner(py);
-                assert!(result.is_ok_and(|opt_value| opt_value.is_none()));
+        mocked_engine()
+            .configure(|mock_engine| {
+                mock_engine
+                    .expect_find_cvar()
+                    .with(predicate::eq("qlx_owner"))
+                    .returning_st(move |_| {
+                        CVar::try_from(raw_cvar.borrow_mut() as *mut cvar_t).ok()
+                    });
+            })
+            .run(|| {
+                Python::with_gil(|py| {
+                    let result = pyshinqlx_owner(py);
+                    assert!(result.is_ok_and(|opt_value| opt_value.is_none()));
+                });
             });
-        });
     }
 
     #[rstest]
@@ -1904,18 +1914,21 @@ mod owner_tests {
             .build()
             .expect("this should not happen");
 
-        with_mocked_engine(|mock_engine| {
-            mock_engine
-                .expect_find_cvar()
-                .with(predicate::eq("qlx_owner"))
-                .returning_st(move |_| CVar::try_from(raw_cvar.borrow_mut() as *mut cvar_t).ok());
-        })
-        .run(|| {
-            Python::with_gil(|py| {
-                let result = pyshinqlx_owner(py);
-                assert!(result.is_ok_and(|opt_value| opt_value.is_none()));
+        mocked_engine()
+            .configure(|mock_engine| {
+                mock_engine
+                    .expect_find_cvar()
+                    .with(predicate::eq("qlx_owner"))
+                    .returning_st(move |_| {
+                        CVar::try_from(raw_cvar.borrow_mut() as *mut cvar_t).ok()
+                    });
+            })
+            .run(|| {
+                Python::with_gil(|py| {
+                    let result = pyshinqlx_owner(py);
+                    assert!(result.is_ok_and(|opt_value| opt_value.is_none()));
+                });
             });
-        });
     }
 
     #[rstest]
@@ -1928,19 +1941,22 @@ mod owner_tests {
             .build()
             .expect("this should not happen");
 
-        with_mocked_engine(|mock_engine| {
-            mock_engine
-                .expect_find_cvar()
-                .with(predicate::eq("qlx_owner"))
-                .returning_st(move |_| CVar::try_from(raw_cvar.borrow_mut() as *mut cvar_t).ok());
-        })
-        .run(|| {
-            Python::with_gil(|py| {
-                let result = pyshinqlx_owner(py);
-                assert!(result
-                    .is_ok_and(|opt_value| opt_value.is_some_and(|value| value == 1234567890)));
+        mocked_engine()
+            .configure(|mock_engine| {
+                mock_engine
+                    .expect_find_cvar()
+                    .with(predicate::eq("qlx_owner"))
+                    .returning_st(move |_| {
+                        CVar::try_from(raw_cvar.borrow_mut() as *mut cvar_t).ok()
+                    });
+            })
+            .run(|| {
+                Python::with_gil(|py| {
+                    let result = pyshinqlx_owner(py);
+                    assert!(result
+                        .is_ok_and(|opt_value| opt_value.is_some_and(|value| value == 1234567890)));
+                });
             });
-        });
     }
 }
 
@@ -1959,7 +1975,7 @@ mod stats_listener_tests {
     use super::stats_listener::StatsListener;
 
     use crate::ffi::c::prelude::{cvar_t, CVar, CVarBuilder};
-    use crate::prelude::{serial, with_mocked_engine};
+    use crate::prelude::{mocked_engine, serial};
 
     use core::borrow::BorrowMut;
 
@@ -1997,26 +2013,29 @@ mod stats_listener_tests {
             .build()
             .expect("this should not happen");
 
-        with_mocked_engine(|mock_engine| {
-            mock_engine
-                .expect_find_cvar()
-                .with(predicate::eq("zmq_stats_enable"))
-                .returning_st(move |_| CVar::try_from(raw_cvar.borrow_mut() as *mut cvar_t).ok());
-        })
-        .run(|| {
-            Python::with_gil(|py| {
-                let shinqlx_module = py
-                    .import_bound(intern!(py, "shinqlx"))
-                    .expect("this should not happen");
-                let stats_listener = StatsListener::py_new().expect("this should not happen");
-                shinqlx_module
-                    .setattr(intern!(py, "_stats"), stats_listener.into_py(py))
-                    .expect("this should not happen");
+        mocked_engine()
+            .configure(|mock_engine| {
+                mock_engine
+                    .expect_find_cvar()
+                    .with(predicate::eq("zmq_stats_enable"))
+                    .returning_st(move |_| {
+                        CVar::try_from(raw_cvar.borrow_mut() as *mut cvar_t).ok()
+                    });
+            })
+            .run(|| {
+                Python::with_gil(|py| {
+                    let shinqlx_module = py
+                        .import_bound(intern!(py, "shinqlx"))
+                        .expect("this should not happen");
+                    let stats_listener = StatsListener::py_new().expect("this should not happen");
+                    shinqlx_module
+                        .setattr(intern!(py, "_stats"), stats_listener.into_py(py))
+                        .expect("this should not happen");
 
-                let result = get_stats_listener(&shinqlx_module);
-                assert!(result.is_ok_and(|value| value.is_instance_of::<StatsListener>()));
+                    let result = get_stats_listener(&shinqlx_module);
+                    assert!(result.is_ok_and(|value| value.is_instance_of::<StatsListener>()));
+                });
             });
-        });
     }
 }
 
@@ -2434,7 +2453,7 @@ mod pyshinqlx_plugins_tests {
     use super::{EventDispatcherManager, GameEndDispatcher, Plugin, UnloadDispatcher};
 
     use crate::ffi::c::prelude::{cvar_t, CVar, CVarBuilder};
-    use crate::prelude::{serial, with_mocked_engine};
+    use crate::prelude::{mocked_engine, serial};
 
     use alloc::ffi::CString;
     use core::borrow::BorrowMut;
@@ -2578,18 +2597,19 @@ class test_cmd_hook_plugin(shinqlx.Plugin):
     #[serial]
     #[cfg_attr(miri, ignore)]
     fn load_preset_plugin_with_misconfigured_plugin_path_cvar(_pyshinqlx_setup: ()) {
-        with_mocked_engine(|mock_engine| {
-            mock_engine
-                .expect_find_cvar()
-                .with(predicate::eq("qlx_pluginsPath"))
-                .returning(|_| None);
-        })
-        .run(|| {
-            Python::with_gil(|py| {
-                let result = load_preset_plugins(py);
-                assert!(result.is_err_and(|err| err.is_instance_of::<PluginLoadError>(py)));
+        mocked_engine()
+            .configure(|mock_engine| {
+                mock_engine
+                    .expect_find_cvar()
+                    .with(predicate::eq("qlx_pluginsPath"))
+                    .returning(|_| None);
+            })
+            .run(|| {
+                Python::with_gil(|py| {
+                    let result = load_preset_plugins(py);
+                    assert!(result.is_err_and(|err| err.is_instance_of::<PluginLoadError>(py)));
+                });
             });
-        });
     }
 
     #[rstest]
@@ -2607,43 +2627,44 @@ class test_cmd_hook_plugin(shinqlx.Plugin):
             .build()
             .expect("this should not happen");
 
-        with_mocked_engine(|mock_engine| {
-            mock_engine
-                .expect_find_cvar()
-                .with(predicate::eq("qlx_pluginsPath"))
-                .returning_st(move |_| {
-                    CVar::try_from(raw_pluginspath_cvar.borrow_mut() as *mut cvar_t).ok()
-                });
-            mock_engine
-                .expect_find_cvar()
-                .with(predicate::eq("qlx_plugins"))
-                .returning_st(move |_| {
-                    CVar::try_from(raw_plugins_cvar.borrow_mut() as *mut cvar_t).ok()
-                });
-        })
-        .run(|| {
-            Python::with_gil(|py| {
-                py.import_bound(intern!(py, "sys"))
-                    .and_then(|sys_module| {
-                        let full_temp_dir = TEMP_DIR
-                            .path()
-                            .canonicalize()
-                            .expect("this should not happen");
-                        sys_module
-                            .getattr(intern!(py, "path"))
-                            .and_then(|sys_path_module| {
-                                sys_path_module.call_method1(
-                                    intern!(py, "append"),
-                                    (full_temp_dir.to_string_lossy(),),
-                                )
-                            })
-                    })
-                    .expect("this should not happen");
+        mocked_engine()
+            .configure(|mock_engine| {
+                mock_engine
+                    .expect_find_cvar()
+                    .with(predicate::eq("qlx_pluginsPath"))
+                    .returning_st(move |_| {
+                        CVar::try_from(raw_pluginspath_cvar.borrow_mut() as *mut cvar_t).ok()
+                    });
+                mock_engine
+                    .expect_find_cvar()
+                    .with(predicate::eq("qlx_plugins"))
+                    .returning_st(move |_| {
+                        CVar::try_from(raw_plugins_cvar.borrow_mut() as *mut cvar_t).ok()
+                    });
+            })
+            .run(|| {
+                Python::with_gil(|py| {
+                    py.import_bound(intern!(py, "sys"))
+                        .and_then(|sys_module| {
+                            let full_temp_dir = TEMP_DIR
+                                .path()
+                                .canonicalize()
+                                .expect("this should not happen");
+                            sys_module
+                                .getattr(intern!(py, "path"))
+                                .and_then(|sys_path_module| {
+                                    sys_path_module.call_method1(
+                                        intern!(py, "append"),
+                                        (full_temp_dir.to_string_lossy(),),
+                                    )
+                                })
+                        })
+                        .expect("this should not happen");
 
-                let result = load_preset_plugins(py);
-                assert!(result.is_ok());
+                    let result = load_preset_plugins(py);
+                    assert!(result.is_ok());
+                });
             });
-        });
     }
 
     #[rstest]
@@ -2661,43 +2682,44 @@ class test_cmd_hook_plugin(shinqlx.Plugin):
             .build()
             .expect("this should not happen");
 
-        with_mocked_engine(|mock_engine| {
-            mock_engine
-                .expect_find_cvar()
-                .with(predicate::eq("qlx_pluginsPath"))
-                .returning_st(move |_| {
-                    CVar::try_from(raw_pluginspath_cvar.borrow_mut() as *mut cvar_t).ok()
-                });
-            mock_engine
-                .expect_find_cvar()
-                .with(predicate::eq("qlx_plugins"))
-                .returning_st(move |_| {
-                    CVar::try_from(raw_plugins_cvar.borrow_mut() as *mut cvar_t).ok()
-                });
-        })
-        .run(|| {
-            Python::with_gil(|py| {
-                py.import_bound(intern!(py, "sys"))
-                    .and_then(|sys_module| {
-                        let full_temp_dir = TEMP_DIR
-                            .path()
-                            .canonicalize()
-                            .expect("this should not happen");
-                        sys_module
-                            .getattr(intern!(py, "path"))
-                            .and_then(|sys_path_module| {
-                                sys_path_module.call_method1(
-                                    intern!(py, "append"),
-                                    (full_temp_dir.to_string_lossy(),),
-                                )
-                            })
-                    })
-                    .expect("this should not happen");
+        mocked_engine()
+            .configure(|mock_engine| {
+                mock_engine
+                    .expect_find_cvar()
+                    .with(predicate::eq("qlx_pluginsPath"))
+                    .returning_st(move |_| {
+                        CVar::try_from(raw_pluginspath_cvar.borrow_mut() as *mut cvar_t).ok()
+                    });
+                mock_engine
+                    .expect_find_cvar()
+                    .with(predicate::eq("qlx_plugins"))
+                    .returning_st(move |_| {
+                        CVar::try_from(raw_plugins_cvar.borrow_mut() as *mut cvar_t).ok()
+                    });
+            })
+            .run(|| {
+                Python::with_gil(|py| {
+                    py.import_bound(intern!(py, "sys"))
+                        .and_then(|sys_module| {
+                            let full_temp_dir = TEMP_DIR
+                                .path()
+                                .canonicalize()
+                                .expect("this should not happen");
+                            sys_module
+                                .getattr(intern!(py, "path"))
+                                .and_then(|sys_path_module| {
+                                    sys_path_module.call_method1(
+                                        intern!(py, "append"),
+                                        (full_temp_dir.to_string_lossy(),),
+                                    )
+                                })
+                        })
+                        .expect("this should not happen");
 
-                let result = load_preset_plugins(py);
-                assert!(result.is_ok());
+                    let result = load_preset_plugins(py);
+                    assert!(result.is_ok());
+                });
             });
-        });
     }
 
     #[rstest]
@@ -2715,43 +2737,44 @@ class test_cmd_hook_plugin(shinqlx.Plugin):
             .build()
             .expect("this should not happen");
 
-        with_mocked_engine(|mock_engine| {
-            mock_engine
-                .expect_find_cvar()
-                .with(predicate::eq("qlx_pluginsPath"))
-                .returning_st(move |_| {
-                    CVar::try_from(raw_pluginspath_cvar.borrow_mut() as *mut cvar_t).ok()
-                });
-            mock_engine
-                .expect_find_cvar()
-                .with(predicate::eq("qlx_plugins"))
-                .returning_st(move |_| {
-                    CVar::try_from(raw_plugins_cvar.borrow_mut() as *mut cvar_t).ok()
-                });
-        })
-        .run(|| {
-            Python::with_gil(|py| {
-                py.import_bound(intern!(py, "sys"))
-                    .and_then(|sys_module| {
-                        let full_temp_dir = TEMP_DIR
-                            .path()
-                            .canonicalize()
-                            .expect("this should not happen");
-                        sys_module
-                            .getattr(intern!(py, "path"))
-                            .and_then(|sys_path_module| {
-                                sys_path_module.call_method1(
-                                    intern!(py, "append"),
-                                    (full_temp_dir.to_string_lossy(),),
-                                )
-                            })
-                    })
-                    .expect("this should not happen");
+        mocked_engine()
+            .configure(|mock_engine| {
+                mock_engine
+                    .expect_find_cvar()
+                    .with(predicate::eq("qlx_pluginsPath"))
+                    .returning_st(move |_| {
+                        CVar::try_from(raw_pluginspath_cvar.borrow_mut() as *mut cvar_t).ok()
+                    });
+                mock_engine
+                    .expect_find_cvar()
+                    .with(predicate::eq("qlx_plugins"))
+                    .returning_st(move |_| {
+                        CVar::try_from(raw_plugins_cvar.borrow_mut() as *mut cvar_t).ok()
+                    });
+            })
+            .run(|| {
+                Python::with_gil(|py| {
+                    py.import_bound(intern!(py, "sys"))
+                        .and_then(|sys_module| {
+                            let full_temp_dir = TEMP_DIR
+                                .path()
+                                .canonicalize()
+                                .expect("this should not happen");
+                            sys_module
+                                .getattr(intern!(py, "path"))
+                                .and_then(|sys_path_module| {
+                                    sys_path_module.call_method1(
+                                        intern!(py, "append"),
+                                        (full_temp_dir.to_string_lossy(),),
+                                    )
+                                })
+                        })
+                        .expect("this should not happen");
 
-                let result = load_preset_plugins(py);
-                assert!(result.is_ok());
+                    let result = load_preset_plugins(py);
+                    assert!(result.is_ok());
+                });
             });
-        });
     }
 
     #[rstest]
@@ -2768,18 +2791,19 @@ class test_cmd_hook_plugin(shinqlx.Plugin):
     #[serial]
     #[cfg_attr(miri, ignore)]
     fn load_plugin_with_misconfigured_plugin_path_cvar(_pyshinqlx_setup: ()) {
-        with_mocked_engine(|mock_engine| {
-            mock_engine
-                .expect_find_cvar()
-                .with(predicate::eq("qlx_pluginsPath"))
-                .returning(|_| None);
-        })
-        .run(|| {
-            Python::with_gil(|py| {
-                let result = load_plugin(py, "not_existing_plugin");
-                assert!(result.is_err_and(|err| err.is_instance_of::<PluginLoadError>(py)));
-            });
-        })
+        mocked_engine()
+            .configure(|mock_engine| {
+                mock_engine
+                    .expect_find_cvar()
+                    .with(predicate::eq("qlx_pluginsPath"))
+                    .returning(|_| None);
+            })
+            .run(|| {
+                Python::with_gil(|py| {
+                    let result = load_plugin(py, "not_existing_plugin");
+                    assert!(result.is_err_and(|err| err.is_instance_of::<PluginLoadError>(py)));
+                });
+            })
     }
 
     #[rstest]
@@ -2792,37 +2816,38 @@ class test_cmd_hook_plugin(shinqlx.Plugin):
             .build()
             .expect("this should not happen");
 
-        with_mocked_engine(|mock_engine| {
-            mock_engine
-                .expect_find_cvar()
-                .with(predicate::eq("qlx_pluginsPath"))
-                .returning_st(move |_| {
-                    CVar::try_from(raw_pluginspath_cvar.borrow_mut() as *mut cvar_t).ok()
-                });
-        })
-        .run(|| {
-            Python::with_gil(|py| {
-                py.import_bound(intern!(py, "sys"))
-                    .and_then(|sys_module| {
-                        let full_temp_dir = TEMP_DIR
-                            .path()
-                            .canonicalize()
-                            .expect("this should not happen");
-                        sys_module
-                            .getattr(intern!(py, "path"))
-                            .and_then(|sys_path_module| {
-                                sys_path_module.call_method1(
-                                    intern!(py, "append"),
-                                    (full_temp_dir.to_string_lossy(),),
-                                )
-                            })
-                    })
-                    .expect("this should not happen");
+        mocked_engine()
+            .configure(|mock_engine| {
+                mock_engine
+                    .expect_find_cvar()
+                    .with(predicate::eq("qlx_pluginsPath"))
+                    .returning_st(move |_| {
+                        CVar::try_from(raw_pluginspath_cvar.borrow_mut() as *mut cvar_t).ok()
+                    });
+            })
+            .run(|| {
+                Python::with_gil(|py| {
+                    py.import_bound(intern!(py, "sys"))
+                        .and_then(|sys_module| {
+                            let full_temp_dir = TEMP_DIR
+                                .path()
+                                .canonicalize()
+                                .expect("this should not happen");
+                            sys_module
+                                .getattr(intern!(py, "path"))
+                                .and_then(|sys_path_module| {
+                                    sys_path_module.call_method1(
+                                        intern!(py, "append"),
+                                        (full_temp_dir.to_string_lossy(),),
+                                    )
+                                })
+                        })
+                        .expect("this should not happen");
 
-                let result = load_plugin(py, "not_existing_plugin");
-                assert!(result.is_err_and(|err| err.is_instance_of::<PluginLoadError>(py)));
+                    let result = load_plugin(py, "not_existing_plugin");
+                    assert!(result.is_err_and(|err| err.is_instance_of::<PluginLoadError>(py)));
+                });
             });
-        });
     }
 
     #[rstest]
@@ -2835,37 +2860,38 @@ class test_cmd_hook_plugin(shinqlx.Plugin):
             .build()
             .expect("this should not happen");
 
-        with_mocked_engine(|mock_engine| {
-            mock_engine
-                .expect_find_cvar()
-                .with(predicate::eq("qlx_pluginsPath"))
-                .returning_st(move |_| {
-                    CVar::try_from(raw_pluginspath_cvar.borrow_mut() as *mut cvar_t).ok()
-                });
-        })
-        .run(|| {
-            Python::with_gil(|py| {
-                py.import_bound(intern!(py, "sys"))
-                    .and_then(|sys_module| {
-                        let full_temp_dir = TEMP_DIR
-                            .path()
-                            .canonicalize()
-                            .expect("this should not happen");
-                        sys_module
-                            .getattr(intern!(py, "path"))
-                            .and_then(|sys_path_module| {
-                                sys_path_module.call_method1(
-                                    intern!(py, "append"),
-                                    (full_temp_dir.to_string_lossy(),),
-                                )
-                            })
-                    })
-                    .expect("this should not happen");
+        mocked_engine()
+            .configure(|mock_engine| {
+                mock_engine
+                    .expect_find_cvar()
+                    .with(predicate::eq("qlx_pluginsPath"))
+                    .returning_st(move |_| {
+                        CVar::try_from(raw_pluginspath_cvar.borrow_mut() as *mut cvar_t).ok()
+                    });
+            })
+            .run(|| {
+                Python::with_gil(|py| {
+                    py.import_bound(intern!(py, "sys"))
+                        .and_then(|sys_module| {
+                            let full_temp_dir = TEMP_DIR
+                                .path()
+                                .canonicalize()
+                                .expect("this should not happen");
+                            sys_module
+                                .getattr(intern!(py, "path"))
+                                .and_then(|sys_path_module| {
+                                    sys_path_module.call_method1(
+                                        intern!(py, "append"),
+                                        (full_temp_dir.to_string_lossy(),),
+                                    )
+                                })
+                        })
+                        .expect("this should not happen");
 
-                let result = load_plugin(py, "noclass_plugin");
-                assert!(result.is_err_and(|err| err.is_instance_of::<PluginLoadError>(py)));
+                    let result = load_plugin(py, "noclass_plugin");
+                    assert!(result.is_err_and(|err| err.is_instance_of::<PluginLoadError>(py)));
+                });
             });
-        });
     }
 
     #[rstest]
@@ -2881,37 +2907,38 @@ class test_cmd_hook_plugin(shinqlx.Plugin):
             .build()
             .expect("this should not happen");
 
-        with_mocked_engine(|mock_engine| {
-            mock_engine
-                .expect_find_cvar()
-                .with(predicate::eq("qlx_pluginsPath"))
-                .returning_st(move |_| {
-                    CVar::try_from(raw_pluginspath_cvar.borrow_mut() as *mut cvar_t).ok()
-                });
-        })
-        .run(|| {
-            Python::with_gil(|py| {
-                py.import_bound(intern!(py, "sys"))
-                    .and_then(|sys_module| {
-                        let full_temp_dir = TEMP_DIR
-                            .path()
-                            .canonicalize()
-                            .expect("this should not happen");
-                        sys_module
-                            .getattr(intern!(py, "path"))
-                            .and_then(|sys_path_module| {
-                                sys_path_module.call_method1(
-                                    intern!(py, "append"),
-                                    (full_temp_dir.to_string_lossy(),),
-                                )
-                            })
-                    })
-                    .expect("this should not happen");
+        mocked_engine()
+            .configure(|mock_engine| {
+                mock_engine
+                    .expect_find_cvar()
+                    .with(predicate::eq("qlx_pluginsPath"))
+                    .returning_st(move |_| {
+                        CVar::try_from(raw_pluginspath_cvar.borrow_mut() as *mut cvar_t).ok()
+                    });
+            })
+            .run(|| {
+                Python::with_gil(|py| {
+                    py.import_bound(intern!(py, "sys"))
+                        .and_then(|sys_module| {
+                            let full_temp_dir = TEMP_DIR
+                                .path()
+                                .canonicalize()
+                                .expect("this should not happen");
+                            sys_module
+                                .getattr(intern!(py, "path"))
+                                .and_then(|sys_path_module| {
+                                    sys_path_module.call_method1(
+                                        intern!(py, "append"),
+                                        (full_temp_dir.to_string_lossy(),),
+                                    )
+                                })
+                        })
+                        .expect("this should not happen");
 
-                let result = load_plugin(py, "nosubclass_plugin");
-                assert!(result.is_err_and(|err| err.is_instance_of::<PluginLoadError>(py)));
+                    let result = load_plugin(py, "nosubclass_plugin");
+                    assert!(result.is_err_and(|err| err.is_instance_of::<PluginLoadError>(py)));
+                });
             });
-        });
     }
 
     #[rstest]
@@ -2924,37 +2951,38 @@ class test_cmd_hook_plugin(shinqlx.Plugin):
             .build()
             .expect("this should not happen");
 
-        with_mocked_engine(|mock_engine| {
-            mock_engine
-                .expect_find_cvar()
-                .with(predicate::eq("qlx_pluginsPath"))
-                .returning_st(move |_| {
-                    CVar::try_from(raw_pluginspath_cvar.borrow_mut() as *mut cvar_t).ok()
-                });
-        })
-        .run(|| {
-            Python::with_gil(|py| {
-                py.import_bound(intern!(py, "sys"))
-                    .and_then(|sys_module| {
-                        let full_temp_dir = TEMP_DIR
-                            .path()
-                            .canonicalize()
-                            .expect("this should not happen");
-                        sys_module
-                            .getattr(intern!(py, "path"))
-                            .and_then(|sys_path_module| {
-                                sys_path_module.call_method1(
-                                    intern!(py, "append"),
-                                    (full_temp_dir.to_string_lossy(),),
-                                )
-                            })
-                    })
-                    .expect("this should not happen");
+        mocked_engine()
+            .configure(|mock_engine| {
+                mock_engine
+                    .expect_find_cvar()
+                    .with(predicate::eq("qlx_pluginsPath"))
+                    .returning_st(move |_| {
+                        CVar::try_from(raw_pluginspath_cvar.borrow_mut() as *mut cvar_t).ok()
+                    });
+            })
+            .run(|| {
+                Python::with_gil(|py| {
+                    py.import_bound(intern!(py, "sys"))
+                        .and_then(|sys_module| {
+                            let full_temp_dir = TEMP_DIR
+                                .path()
+                                .canonicalize()
+                                .expect("this should not happen");
+                            sys_module
+                                .getattr(intern!(py, "path"))
+                                .and_then(|sys_path_module| {
+                                    sys_path_module.call_method1(
+                                        intern!(py, "append"),
+                                        (full_temp_dir.to_string_lossy(),),
+                                    )
+                                })
+                        })
+                        .expect("this should not happen");
 
-                let result = load_plugin(py, "test_plugin");
-                assert!(result.is_ok());
+                    let result = load_plugin(py, "test_plugin");
+                    assert!(result.is_ok());
+                });
             });
-        });
     }
 
     #[rstest]
@@ -2967,49 +2995,50 @@ class test_cmd_hook_plugin(shinqlx.Plugin):
             .build()
             .expect("this should not happen");
 
-        with_mocked_engine(|mock_engine| {
-            mock_engine
-                .expect_find_cvar()
-                .with(predicate::eq("qlx_pluginsPath"))
-                .returning_st(move |_| {
-                    CVar::try_from(raw_pluginspath_cvar.borrow_mut() as *mut cvar_t).ok()
+        mocked_engine()
+            .configure(|mock_engine| {
+                mock_engine
+                    .expect_find_cvar()
+                    .with(predicate::eq("qlx_pluginsPath"))
+                    .returning_st(move |_| {
+                        CVar::try_from(raw_pluginspath_cvar.borrow_mut() as *mut cvar_t).ok()
+                    });
+            })
+            .run(|| {
+                Python::with_gil(|py| {
+                    let event_dispatcher = EventDispatcherManager::default();
+                    event_dispatcher
+                        .add_dispatcher(py, py.get_type_bound::<UnloadDispatcher>())
+                        .expect("could not add unload dispatcher");
+                    EVENT_DISPATCHERS.store(Some(
+                        Py::new(py, event_dispatcher)
+                            .expect("could not create event dispatcher manager in python")
+                            .into(),
+                    ));
+
+                    py.import_bound(intern!(py, "sys"))
+                        .and_then(|sys_module| {
+                            let full_temp_dir = TEMP_DIR
+                                .path()
+                                .canonicalize()
+                                .expect("this should not happen");
+                            sys_module
+                                .getattr(intern!(py, "path"))
+                                .and_then(|sys_path_module| {
+                                    sys_path_module.call_method1(
+                                        intern!(py, "append"),
+                                        (full_temp_dir.to_string_lossy(),),
+                                    )
+                                })
+                        })
+                        .expect("this should not happen");
+
+                    load_plugin(py, "test_plugin").expect("this should not happen");
+
+                    let result = load_plugin(py, "test_plugin");
+                    assert!(result.is_ok());
                 });
-        })
-        .run(|| {
-            Python::with_gil(|py| {
-                let event_dispatcher = EventDispatcherManager::default();
-                event_dispatcher
-                    .add_dispatcher(py, py.get_type_bound::<UnloadDispatcher>())
-                    .expect("could not add unload dispatcher");
-                EVENT_DISPATCHERS.store(Some(
-                    Py::new(py, event_dispatcher)
-                        .expect("could not create event dispatcher manager in python")
-                        .into(),
-                ));
-
-                py.import_bound(intern!(py, "sys"))
-                    .and_then(|sys_module| {
-                        let full_temp_dir = TEMP_DIR
-                            .path()
-                            .canonicalize()
-                            .expect("this should not happen");
-                        sys_module
-                            .getattr(intern!(py, "path"))
-                            .and_then(|sys_path_module| {
-                                sys_path_module.call_method1(
-                                    intern!(py, "append"),
-                                    (full_temp_dir.to_string_lossy(),),
-                                )
-                            })
-                    })
-                    .expect("this should not happen");
-
-                load_plugin(py, "test_plugin").expect("this should not happen");
-
-                let result = load_plugin(py, "test_plugin");
-                assert!(result.is_ok());
             });
-        });
     }
 
     #[rstest]
@@ -3035,51 +3064,52 @@ class test_cmd_hook_plugin(shinqlx.Plugin):
             .build()
             .expect("this should not happen");
 
-        with_mocked_engine(|mock_engine| {
-            mock_engine
-                .expect_find_cvar()
-                .with(predicate::eq("qlx_pluginsPath"))
-                .returning_st(move |_| {
-                    CVar::try_from(raw_pluginspath_cvar.borrow_mut() as *mut cvar_t).ok()
+        mocked_engine()
+            .configure(|mock_engine| {
+                mock_engine
+                    .expect_find_cvar()
+                    .with(predicate::eq("qlx_pluginsPath"))
+                    .returning_st(move |_| {
+                        CVar::try_from(raw_pluginspath_cvar.borrow_mut() as *mut cvar_t).ok()
+                    });
+            })
+            .run(|| {
+                Python::with_gil(|py| {
+                    let event_dispatcher = EventDispatcherManager::default();
+                    event_dispatcher
+                        .add_dispatcher(py, py.get_type_bound::<UnloadDispatcher>())
+                        .expect("could not add unload dispatcher");
+                    EVENT_DISPATCHERS.store(Some(
+                        Py::new(py, event_dispatcher)
+                            .expect("could not create event dispatcher manager in python")
+                            .into(),
+                    ));
+
+                    py.import_bound(intern!(py, "sys"))
+                        .and_then(|sys_module| {
+                            let full_temp_dir = TEMP_DIR
+                                .path()
+                                .canonicalize()
+                                .expect("this should not happen");
+                            sys_module
+                                .getattr(intern!(py, "path"))
+                                .and_then(|sys_path_module| {
+                                    sys_path_module.call_method1(
+                                        intern!(py, "append"),
+                                        (full_temp_dir.to_string_lossy(),),
+                                    )
+                                })
+                        })
+                        .expect("this should not happen");
+
+                    load_plugin(py, "test_plugin").expect("this should not happen");
+
+                    EVENT_DISPATCHERS.store(None);
+
+                    let result = unload_plugin(py, "test_plugin");
+                    assert!(result.is_err_and(|err| err.is_instance_of::<PyEnvironmentError>(py)));
                 });
-        })
-        .run(|| {
-            Python::with_gil(|py| {
-                let event_dispatcher = EventDispatcherManager::default();
-                event_dispatcher
-                    .add_dispatcher(py, py.get_type_bound::<UnloadDispatcher>())
-                    .expect("could not add unload dispatcher");
-                EVENT_DISPATCHERS.store(Some(
-                    Py::new(py, event_dispatcher)
-                        .expect("could not create event dispatcher manager in python")
-                        .into(),
-                ));
-
-                py.import_bound(intern!(py, "sys"))
-                    .and_then(|sys_module| {
-                        let full_temp_dir = TEMP_DIR
-                            .path()
-                            .canonicalize()
-                            .expect("this should not happen");
-                        sys_module
-                            .getattr(intern!(py, "path"))
-                            .and_then(|sys_path_module| {
-                                sys_path_module.call_method1(
-                                    intern!(py, "append"),
-                                    (full_temp_dir.to_string_lossy(),),
-                                )
-                            })
-                    })
-                    .expect("this should not happen");
-
-                load_plugin(py, "test_plugin").expect("this should not happen");
-
-                EVENT_DISPATCHERS.store(None);
-
-                let result = unload_plugin(py, "test_plugin");
-                assert!(result.is_err_and(|err| err.is_instance_of::<PyEnvironmentError>(py)));
             });
-        });
     }
 
     #[rstest]
@@ -3095,53 +3125,54 @@ class test_cmd_hook_plugin(shinqlx.Plugin):
             .build()
             .expect("this should not happen");
 
-        with_mocked_engine(|mock_engine| {
-            mock_engine
-                .expect_find_cvar()
-                .with(predicate::eq("qlx_pluginsPath"))
-                .returning_st(move |_| {
-                    CVar::try_from(raw_pluginspath_cvar.borrow_mut() as *mut cvar_t).ok()
+        mocked_engine()
+            .configure(|mock_engine| {
+                mock_engine
+                    .expect_find_cvar()
+                    .with(predicate::eq("qlx_pluginsPath"))
+                    .returning_st(move |_| {
+                        CVar::try_from(raw_pluginspath_cvar.borrow_mut() as *mut cvar_t).ok()
+                    });
+            })
+            .run(|| {
+                Python::with_gil(|py| {
+                    let event_dispatcher = EventDispatcherManager::default();
+                    event_dispatcher
+                        .add_dispatcher(py, py.get_type_bound::<UnloadDispatcher>())
+                        .expect("could not add unload dispatcher");
+                    EVENT_DISPATCHERS.store(Some(
+                        Py::new(py, event_dispatcher)
+                            .expect("could not create event dispatcher manager in python")
+                            .into(),
+                    ));
+
+                    py.import_bound(intern!(py, "sys"))
+                        .and_then(|sys_module| {
+                            let full_temp_dir = TEMP_DIR
+                                .path()
+                                .canonicalize()
+                                .expect("this should not happen");
+                            sys_module
+                                .getattr(intern!(py, "path"))
+                                .and_then(|sys_path_module| {
+                                    sys_path_module.call_method1(
+                                        intern!(py, "append"),
+                                        (full_temp_dir.to_string_lossy(),),
+                                    )
+                                })
+                        })
+                        .expect("this should not happen");
+
+                    load_plugin(py, "test_plugin").expect("this should not happen");
+
+                    py.get_type_bound::<Plugin>()
+                        .setattr(intern!(py, "_loaded_plugins"), PyDict::new_bound(py))
+                        .expect("this should not happen");
+
+                    let result = unload_plugin(py, "test_plugin");
+                    assert!(result.is_err_and(|err| err.is_instance_of::<PluginUnloadError>(py)));
                 });
-        })
-        .run(|| {
-            Python::with_gil(|py| {
-                let event_dispatcher = EventDispatcherManager::default();
-                event_dispatcher
-                    .add_dispatcher(py, py.get_type_bound::<UnloadDispatcher>())
-                    .expect("could not add unload dispatcher");
-                EVENT_DISPATCHERS.store(Some(
-                    Py::new(py, event_dispatcher)
-                        .expect("could not create event dispatcher manager in python")
-                        .into(),
-                ));
-
-                py.import_bound(intern!(py, "sys"))
-                    .and_then(|sys_module| {
-                        let full_temp_dir = TEMP_DIR
-                            .path()
-                            .canonicalize()
-                            .expect("this should not happen");
-                        sys_module
-                            .getattr(intern!(py, "path"))
-                            .and_then(|sys_path_module| {
-                                sys_path_module.call_method1(
-                                    intern!(py, "append"),
-                                    (full_temp_dir.to_string_lossy(),),
-                                )
-                            })
-                    })
-                    .expect("this should not happen");
-
-                load_plugin(py, "test_plugin").expect("this should not happen");
-
-                py.get_type_bound::<Plugin>()
-                    .setattr(intern!(py, "_loaded_plugins"), PyDict::new_bound(py))
-                    .expect("this should not happen");
-
-                let result = unload_plugin(py, "test_plugin");
-                assert!(result.is_err_and(|err| err.is_instance_of::<PluginUnloadError>(py)));
             });
-        });
     }
 
     #[rstest]
@@ -3154,49 +3185,50 @@ class test_cmd_hook_plugin(shinqlx.Plugin):
             .build()
             .expect("this should not happen");
 
-        with_mocked_engine(|mock_engine| {
-            mock_engine
-                .expect_find_cvar()
-                .with(predicate::eq("qlx_pluginsPath"))
-                .returning_st(move |_| {
-                    CVar::try_from(raw_pluginspath_cvar.borrow_mut() as *mut cvar_t).ok()
+        mocked_engine()
+            .configure(|mock_engine| {
+                mock_engine
+                    .expect_find_cvar()
+                    .with(predicate::eq("qlx_pluginsPath"))
+                    .returning_st(move |_| {
+                        CVar::try_from(raw_pluginspath_cvar.borrow_mut() as *mut cvar_t).ok()
+                    });
+            })
+            .run(|| {
+                Python::with_gil(|py| {
+                    let event_dispatcher = EventDispatcherManager::default();
+                    event_dispatcher
+                        .add_dispatcher(py, py.get_type_bound::<UnloadDispatcher>())
+                        .expect("could not add unload dispatcher");
+                    EVENT_DISPATCHERS.store(Some(
+                        Py::new(py, event_dispatcher)
+                            .expect("could not create event dispatcher manager in python")
+                            .into(),
+                    ));
+
+                    py.import_bound(intern!(py, "sys"))
+                        .and_then(|sys_module| {
+                            let full_temp_dir = TEMP_DIR
+                                .path()
+                                .canonicalize()
+                                .expect("this should not happen");
+                            sys_module
+                                .getattr(intern!(py, "path"))
+                                .and_then(|sys_path_module| {
+                                    sys_path_module.call_method1(
+                                        intern!(py, "append"),
+                                        (full_temp_dir.to_string_lossy(),),
+                                    )
+                                })
+                        })
+                        .expect("this should not happen");
+
+                    load_plugin(py, "test_plugin").expect("this should not happen");
+
+                    let result = unload_plugin(py, "test_plugin");
+                    assert!(result.is_ok());
                 });
-        })
-        .run(|| {
-            Python::with_gil(|py| {
-                let event_dispatcher = EventDispatcherManager::default();
-                event_dispatcher
-                    .add_dispatcher(py, py.get_type_bound::<UnloadDispatcher>())
-                    .expect("could not add unload dispatcher");
-                EVENT_DISPATCHERS.store(Some(
-                    Py::new(py, event_dispatcher)
-                        .expect("could not create event dispatcher manager in python")
-                        .into(),
-                ));
-
-                py.import_bound(intern!(py, "sys"))
-                    .and_then(|sys_module| {
-                        let full_temp_dir = TEMP_DIR
-                            .path()
-                            .canonicalize()
-                            .expect("this should not happen");
-                        sys_module
-                            .getattr(intern!(py, "path"))
-                            .and_then(|sys_path_module| {
-                                sys_path_module.call_method1(
-                                    intern!(py, "append"),
-                                    (full_temp_dir.to_string_lossy(),),
-                                )
-                            })
-                    })
-                    .expect("this should not happen");
-
-                load_plugin(py, "test_plugin").expect("this should not happen");
-
-                let result = unload_plugin(py, "test_plugin");
-                assert!(result.is_ok());
             });
-        });
     }
 
     #[rstest]
@@ -3217,58 +3249,59 @@ class test_cmd_hook_plugin(shinqlx.Plugin):
             .build()
             .expect("this should not happen");
 
-        with_mocked_engine(|mock_engine| {
-            mock_engine
-                .expect_find_cvar()
-                .with(predicate::eq("qlx_pluginsPath"))
-                .returning_st(move |_| {
-                    CVar::try_from(raw_pluginspath_cvar.borrow_mut() as *mut cvar_t).ok()
+        mocked_engine()
+            .configure(|mock_engine| {
+                mock_engine
+                    .expect_find_cvar()
+                    .with(predicate::eq("qlx_pluginsPath"))
+                    .returning_st(move |_| {
+                        CVar::try_from(raw_pluginspath_cvar.borrow_mut() as *mut cvar_t).ok()
+                    });
+                mock_engine
+                    .expect_find_cvar()
+                    .with(predicate::eq("zmq_stats_enable"))
+                    .returning_st(move |_| {
+                        CVar::try_from(raw_zmq_cvar.borrow_mut() as *mut cvar_t).ok()
+                    });
+            })
+            .run(|| {
+                Python::with_gil(|py| {
+                    let event_dispatcher = EventDispatcherManager::default();
+                    event_dispatcher
+                        .add_dispatcher(py, py.get_type_bound::<UnloadDispatcher>())
+                        .expect("could not add unload dispatcher");
+                    event_dispatcher
+                        .add_dispatcher(py, py.get_type_bound::<GameEndDispatcher>())
+                        .expect("could not add unload dispatcher");
+                    EVENT_DISPATCHERS.store(Some(
+                        Py::new(py, event_dispatcher)
+                            .expect("could not create event dispatcher manager in python")
+                            .into(),
+                    ));
+
+                    py.import_bound(intern!(py, "sys"))
+                        .and_then(|sys_module| {
+                            let full_temp_dir = TEMP_DIR
+                                .path()
+                                .canonicalize()
+                                .expect("this should not happen");
+                            sys_module
+                                .getattr(intern!(py, "path"))
+                                .and_then(|sys_path_module| {
+                                    sys_path_module.call_method1(
+                                        intern!(py, "append"),
+                                        (full_temp_dir.to_string_lossy(),),
+                                    )
+                                })
+                        })
+                        .expect("this should not happen");
+
+                    load_plugin(py, "test_cmd_hook_plugin").expect("this should not happen");
+
+                    let result = unload_plugin(py, "test_cmd_hook_plugin");
+                    assert!(result.is_ok());
                 });
-            mock_engine
-                .expect_find_cvar()
-                .with(predicate::eq("zmq_stats_enable"))
-                .returning_st(move |_| {
-                    CVar::try_from(raw_zmq_cvar.borrow_mut() as *mut cvar_t).ok()
-                });
-        })
-        .run(|| {
-            Python::with_gil(|py| {
-                let event_dispatcher = EventDispatcherManager::default();
-                event_dispatcher
-                    .add_dispatcher(py, py.get_type_bound::<UnloadDispatcher>())
-                    .expect("could not add unload dispatcher");
-                event_dispatcher
-                    .add_dispatcher(py, py.get_type_bound::<GameEndDispatcher>())
-                    .expect("could not add unload dispatcher");
-                EVENT_DISPATCHERS.store(Some(
-                    Py::new(py, event_dispatcher)
-                        .expect("could not create event dispatcher manager in python")
-                        .into(),
-                ));
-
-                py.import_bound(intern!(py, "sys"))
-                    .and_then(|sys_module| {
-                        let full_temp_dir = TEMP_DIR
-                            .path()
-                            .canonicalize()
-                            .expect("this should not happen");
-                        sys_module
-                            .getattr(intern!(py, "path"))
-                            .and_then(|sys_path_module| {
-                                sys_path_module.call_method1(
-                                    intern!(py, "append"),
-                                    (full_temp_dir.to_string_lossy(),),
-                                )
-                            })
-                    })
-                    .expect("this should not happen");
-
-                load_plugin(py, "test_cmd_hook_plugin").expect("this should not happen");
-
-                let result = unload_plugin(py, "test_cmd_hook_plugin");
-                assert!(result.is_ok());
             });
-        });
     }
 
     #[rstest]
@@ -3281,49 +3314,50 @@ class test_cmd_hook_plugin(shinqlx.Plugin):
             .build()
             .expect("this should not happen");
 
-        with_mocked_engine(|mock_engine| {
-            mock_engine
-                .expect_find_cvar()
-                .with(predicate::eq("qlx_pluginsPath"))
-                .returning_st(move |_| {
-                    CVar::try_from(raw_pluginspath_cvar.borrow_mut() as *mut cvar_t).ok()
+        mocked_engine()
+            .configure(|mock_engine| {
+                mock_engine
+                    .expect_find_cvar()
+                    .with(predicate::eq("qlx_pluginsPath"))
+                    .returning_st(move |_| {
+                        CVar::try_from(raw_pluginspath_cvar.borrow_mut() as *mut cvar_t).ok()
+                    });
+            })
+            .run(|| {
+                Python::with_gil(|py| {
+                    let event_dispatcher = EventDispatcherManager::default();
+                    event_dispatcher
+                        .add_dispatcher(py, py.get_type_bound::<UnloadDispatcher>())
+                        .expect("could not add unload dispatcher");
+                    EVENT_DISPATCHERS.store(Some(
+                        Py::new(py, event_dispatcher)
+                            .expect("could not create event dispatcher manager in python")
+                            .into(),
+                    ));
+
+                    py.import_bound(intern!(py, "sys"))
+                        .and_then(|sys_module| {
+                            let full_temp_dir = TEMP_DIR
+                                .path()
+                                .canonicalize()
+                                .expect("this should not happen");
+                            sys_module
+                                .getattr(intern!(py, "path"))
+                                .and_then(|sys_path_module| {
+                                    sys_path_module.call_method1(
+                                        intern!(py, "append"),
+                                        (full_temp_dir.to_string_lossy(),),
+                                    )
+                                })
+                        })
+                        .expect("this should not happen");
+
+                    load_plugin(py, "test_plugin").expect("this should not happen");
+
+                    let result = reload_plugin(py, "test_plugin");
+                    assert!(result.is_ok());
                 });
-        })
-        .run(|| {
-            Python::with_gil(|py| {
-                let event_dispatcher = EventDispatcherManager::default();
-                event_dispatcher
-                    .add_dispatcher(py, py.get_type_bound::<UnloadDispatcher>())
-                    .expect("could not add unload dispatcher");
-                EVENT_DISPATCHERS.store(Some(
-                    Py::new(py, event_dispatcher)
-                        .expect("could not create event dispatcher manager in python")
-                        .into(),
-                ));
-
-                py.import_bound(intern!(py, "sys"))
-                    .and_then(|sys_module| {
-                        let full_temp_dir = TEMP_DIR
-                            .path()
-                            .canonicalize()
-                            .expect("this should not happen");
-                        sys_module
-                            .getattr(intern!(py, "path"))
-                            .and_then(|sys_path_module| {
-                                sys_path_module.call_method1(
-                                    intern!(py, "append"),
-                                    (full_temp_dir.to_string_lossy(),),
-                                )
-                            })
-                    })
-                    .expect("this should not happen");
-
-                load_plugin(py, "test_plugin").expect("this should not happen");
-
-                let result = reload_plugin(py, "test_plugin");
-                assert!(result.is_ok());
             });
-        });
     }
 }
 
@@ -3379,7 +3413,7 @@ mod initialize_cvars_tests {
 
     use super::pyshinqlx_setup_fixture::*;
 
-    use crate::prelude::{serial, with_mocked_engine};
+    use crate::prelude::{mocked_engine, serial};
 
     use mockall::predicate;
     use rstest::rstest;
@@ -3408,31 +3442,32 @@ mod initialize_cvars_tests {
         #[case] cvar_value: &'static str,
         _pyshinqlx_setup: (),
     ) {
-        with_mocked_engine(|mock_engine| {
-            mock_engine
-                .expect_find_cvar()
-                .with(predicate::always())
-                .returning(|_| None);
-            mock_engine
-                .expect_get_cvar()
-                .with(
-                    predicate::eq(cvar_name),
-                    predicate::eq(cvar_value),
-                    predicate::eq(Some(0)),
-                )
-                .times(1);
-            mock_engine.expect_get_cvar().with(
-                predicate::ne(cvar_name),
-                predicate::always(),
-                predicate::always(),
-            );
-        })
-        .run(|| {
-            Python::with_gil(|py| {
-                let result = initialize_cvars(py);
-                assert!(result.is_ok());
+        mocked_engine()
+            .configure(|mock_engine| {
+                mock_engine
+                    .expect_find_cvar()
+                    .with(predicate::always())
+                    .returning(|_| None);
+                mock_engine
+                    .expect_get_cvar()
+                    .with(
+                        predicate::eq(cvar_name),
+                        predicate::eq(cvar_value),
+                        predicate::eq(Some(0)),
+                    )
+                    .times(1);
+                mock_engine.expect_get_cvar().with(
+                    predicate::ne(cvar_name),
+                    predicate::always(),
+                    predicate::always(),
+                );
+            })
+            .run(|| {
+                Python::with_gil(|py| {
+                    let result = initialize_cvars(py);
+                    assert!(result.is_ok());
+                });
             });
-        });
     }
 }
 
@@ -3469,7 +3504,7 @@ mod try_get_plugins_path_tests {
     use super::try_get_plugins_path;
 
     use crate::ffi::c::prelude::{cvar_t, CVar, CVarBuilder};
-    use crate::prelude::{serial, with_mocked_engine};
+    use crate::prelude::{mocked_engine, serial};
 
     use alloc::ffi::CString;
     use core::borrow::BorrowMut;
@@ -3494,16 +3529,17 @@ mod try_get_plugins_path_tests {
     #[serial]
     #[cfg_attr(miri, ignore)]
     fn try_get_plugins_path_with_no_cvar_set() {
-        with_mocked_engine(|mock_engine| {
-            mock_engine
-                .expect_find_cvar()
-                .with(predicate::eq("qlx_pluginsPath"))
-                .returning(|_| None);
-        })
-        .run(|| {
-            let result = try_get_plugins_path();
-            assert!(result.is_err_and(|err| err == "qlx_pluginsPath cvar not found"));
-        });
+        mocked_engine()
+            .configure(|mock_engine| {
+                mock_engine
+                    .expect_find_cvar()
+                    .with(predicate::eq("qlx_pluginsPath"))
+                    .returning(|_| None);
+            })
+            .run(|| {
+                let result = try_get_plugins_path();
+                assert!(result.is_err_and(|err| err == "qlx_pluginsPath cvar not found"));
+            });
     }
 
     #[test]
@@ -3516,18 +3552,21 @@ mod try_get_plugins_path_tests {
             .build()
             .expect("this should not happen");
 
-        with_mocked_engine(|mock_engine| {
-            mock_engine
-                .expect_find_cvar()
-                .with(predicate::eq("qlx_pluginsPath"))
-                .returning_st(move |_| CVar::try_from(raw_cvar.borrow_mut() as *mut cvar_t).ok());
-        })
-        .run(|| {
-            let result = try_get_plugins_path();
-            assert!(result.is_err_and(
-                |err| err == "qlx_pluginsPath is not pointing to an existing directory"
-            ));
-        });
+        mocked_engine()
+            .configure(|mock_engine| {
+                mock_engine
+                    .expect_find_cvar()
+                    .with(predicate::eq("qlx_pluginsPath"))
+                    .returning_st(move |_| {
+                        CVar::try_from(raw_cvar.borrow_mut() as *mut cvar_t).ok()
+                    });
+            })
+            .run(|| {
+                let result = try_get_plugins_path();
+                assert!(result.is_err_and(
+                    |err| err == "qlx_pluginsPath is not pointing to an existing directory"
+                ));
+            });
     }
 
     #[test]
@@ -3541,20 +3580,23 @@ mod try_get_plugins_path_tests {
             .build()
             .expect("this should not happen");
 
-        with_mocked_engine(|mock_engine| {
-            mock_engine
-                .expect_find_cvar()
-                .with(predicate::eq("qlx_pluginsPath"))
-                .returning_st(move |_| CVar::try_from(raw_cvar.borrow_mut() as *mut cvar_t).ok());
-        })
-        .run(|| {
-            let result = try_get_plugins_path();
-            assert!(result.is_ok_and(|path| path
-                == TEMP_DIR
-                    .as_ref()
-                    .canonicalize()
-                    .expect("this should not happen")));
-        });
+        mocked_engine()
+            .configure(|mock_engine| {
+                mock_engine
+                    .expect_find_cvar()
+                    .with(predicate::eq("qlx_pluginsPath"))
+                    .returning_st(move |_| {
+                        CVar::try_from(raw_cvar.borrow_mut() as *mut cvar_t).ok()
+                    });
+            })
+            .run(|| {
+                let result = try_get_plugins_path();
+                assert!(result.is_ok_and(|path| path
+                    == TEMP_DIR
+                        .as_ref()
+                        .canonicalize()
+                        .expect("this should not happen")));
+            });
     }
 }
 
