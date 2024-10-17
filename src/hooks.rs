@@ -1334,9 +1334,7 @@ mod hooks_tests {
             .times(1);
 
         mocked_engine()
-            .configure(|mock_engine| {
-                mock_engine.expect_com_printf().times(0);
-            })
+            .with_com_printf(predicate::always(), 0)
             .run(|| {
                 shinqlx_com_printf("Hello World!");
             });
@@ -1353,12 +1351,7 @@ mod hooks_tests {
             .times(1);
 
         mocked_engine()
-            .configure(|mock_engine| {
-                mock_engine
-                    .expect_com_printf()
-                    .with(predicate::eq("Hello World!"))
-                    .times(1);
-            })
+            .with_com_printf(predicate::eq("Hello World!"), 1)
             .run(|| {
                 shinqlx_com_printf("Hello World!");
             });
