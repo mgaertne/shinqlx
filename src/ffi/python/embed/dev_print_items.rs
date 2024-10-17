@@ -143,18 +143,19 @@ mod dev_print_items_tests {
             mock_game_entity
         });
 
-        with_mocked_engine(|mock_engine| {
-            mock_engine
-                .expect_send_server_command()
-                .withf(|opt_client, cmd| {
-                    opt_client.is_none() && cmd == "print \"No items found in the map\n\""
-                })
-                .times(1);
-        })
-        .run(|| {
-            let result = Python::with_gil(pyshinqlx_dev_print_items);
-            assert!(result.is_ok());
-        });
+        mocked_engine()
+            .configure(|mock_engine| {
+                mock_engine
+                    .expect_send_server_command()
+                    .withf(|opt_client, cmd| {
+                        opt_client.is_none() && cmd == "print \"No items found in the map\n\""
+                    })
+                    .times(1);
+            })
+            .run(|| {
+                let result = Python::with_gil(pyshinqlx_dev_print_items);
+                assert!(result.is_ok());
+            });
     }
 
     #[rstest]
@@ -184,18 +185,19 @@ mod dev_print_items_tests {
             mock_game_entity
         });
 
-        with_mocked_engine(|mock_engine| {
-            mock_engine
-                .expect_send_server_command()
-                .withf(|opt_client, cmd| {
-                    opt_client.is_none() && cmd == "print \"No items found in the map\n\""
-                })
-                .times(1);
-        })
-        .run(|| {
-            let result = Python::with_gil(pyshinqlx_dev_print_items);
-            assert!(result.is_ok());
-        });
+        mocked_engine()
+            .configure(|mock_engine| {
+                mock_engine
+                    .expect_send_server_command()
+                    .withf(|opt_client, cmd| {
+                        opt_client.is_none() && cmd == "print \"No items found in the map\n\""
+                    })
+                    .times(1);
+            })
+            .run(|| {
+                let result = Python::with_gil(pyshinqlx_dev_print_items);
+                assert!(result.is_ok());
+            });
     }
 
     #[rstest]
@@ -231,18 +233,19 @@ mod dev_print_items_tests {
             mock_game_entity
         });
 
-        with_mocked_engine(|mock_engine| {
-            mock_engine
-                .expect_send_server_command()
-                .withf(|opt_client, cmd| {
-                    opt_client.is_none() && cmd == "print \"2 super important entity\n\""
-                })
-                .times(1);
-        })
-        .run(|| {
-            let result = Python::with_gil(pyshinqlx_dev_print_items);
-            assert!(result.is_ok());
-        });
+        mocked_engine()
+            .configure(|mock_engine| {
+                mock_engine
+                    .expect_send_server_command()
+                    .withf(|opt_client, cmd| {
+                        opt_client.is_none() && cmd == "print \"2 super important entity\n\""
+                    })
+                    .times(1);
+            })
+            .run(|| {
+                let result = Python::with_gil(pyshinqlx_dev_print_items);
+                assert!(result.is_ok());
+            });
     }
 
     #[rstest]
@@ -268,28 +271,29 @@ mod dev_print_items_tests {
             mock_game_entity
         });
 
-        with_mocked_engine(|mock_engine| {
-            mock_engine
-                .expect_send_server_command()
-                .withf(|opt_client, cmd| {
-                    opt_client.is_none()
-                        && cmd.starts_with(
-                            "print \"0 super important entity 0\n1 super important entity 1\n",
-                        )
-                })
-                .times(1);
-            mock_engine
-                .expect_send_server_command()
-                .withf(|opt_client, cmd| {
-                    opt_client.is_none()
-                        && cmd == "print \"Check server console for other items\n\"\n"
-                })
-                .times(1);
-            mock_engine.expect_com_printf().times(1..);
-        })
-        .run(|| {
-            let result = Python::with_gil(pyshinqlx_dev_print_items);
-            assert!(result.is_ok());
-        });
+        mocked_engine()
+            .configure(|mock_engine| {
+                mock_engine
+                    .expect_send_server_command()
+                    .withf(|opt_client, cmd| {
+                        opt_client.is_none()
+                            && cmd.starts_with(
+                                "print \"0 super important entity 0\n1 super important entity 1\n",
+                            )
+                    })
+                    .times(1);
+                mock_engine
+                    .expect_send_server_command()
+                    .withf(|opt_client, cmd| {
+                        opt_client.is_none()
+                            && cmd == "print \"Check server console for other items\n\"\n"
+                    })
+                    .times(1);
+                mock_engine.expect_com_printf().times(1..);
+            })
+            .run(|| {
+                let result = Python::with_gil(pyshinqlx_dev_print_items);
+                assert!(result.is_ok());
+            });
     }
 }

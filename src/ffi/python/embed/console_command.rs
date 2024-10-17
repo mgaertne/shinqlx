@@ -31,15 +31,16 @@ mod console_command_tests {
     #[cfg_attr(miri, ignore)]
     #[serial]
     fn console_command_with_main_engine_set(_pyshinqlx_setup: ()) {
-        with_mocked_engine(|mock_engine| {
-            mock_engine
-                .expect_execute_console_command()
-                .with(predicate::eq("asdf"))
-                .times(1);
-        })
-        .run(|| {
-            let result = Python::with_gil(|py| pyshinqlx_console_command(py, "asdf"));
-            assert!(result.is_ok());
-        });
+        mocked_engine()
+            .configure(|mock_engine| {
+                mock_engine
+                    .expect_execute_console_command()
+                    .with(predicate::eq("asdf"))
+                    .times(1);
+            })
+            .run(|| {
+                let result = Python::with_gil(|py| pyshinqlx_console_command(py, "asdf"));
+                assert!(result.is_ok());
+            });
     }
 }

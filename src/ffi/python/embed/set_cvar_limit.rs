@@ -54,30 +54,31 @@ mod set_cvar_limit_tests {
     #[cfg_attr(miri, ignore)]
     #[serial]
     fn set_cvar_limit_forwards_parameters_to_main_engine_call(_pyshinqlx_setup: ()) {
-        with_mocked_engine(|mock_engine| {
-            mock_engine
-                .expect_set_cvar_limit()
-                .with(
-                    predicate::eq("sv_maxclients"),
-                    predicate::eq("64"),
-                    predicate::eq("1"),
-                    predicate::eq("64"),
-                    predicate::eq(Some(cvar_flags::CVAR_CHEAT as i32)),
-                )
-                .times(1);
-        })
-        .run(|| {
-            let result = Python::with_gil(|py| {
-                pyshinqlx_set_cvar_limit(
-                    py,
-                    "sv_maxclients",
-                    "64",
-                    "1",
-                    "64",
-                    Some(cvar_flags::CVAR_CHEAT as i32),
-                )
+        mocked_engine()
+            .configure(|mock_engine| {
+                mock_engine
+                    .expect_set_cvar_limit()
+                    .with(
+                        predicate::eq("sv_maxclients"),
+                        predicate::eq("64"),
+                        predicate::eq("1"),
+                        predicate::eq("64"),
+                        predicate::eq(Some(cvar_flags::CVAR_CHEAT as i32)),
+                    )
+                    .times(1);
+            })
+            .run(|| {
+                let result = Python::with_gil(|py| {
+                    pyshinqlx_set_cvar_limit(
+                        py,
+                        "sv_maxclients",
+                        "64",
+                        "1",
+                        "64",
+                        Some(cvar_flags::CVAR_CHEAT as i32),
+                    )
+                });
+                assert!(result.is_ok());
             });
-            assert!(result.is_ok());
-        });
     }
 }
