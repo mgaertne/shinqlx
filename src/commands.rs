@@ -419,16 +419,13 @@ mod commands_tests {
     fn cmd_slap_with_too_few_args() {
         mocked_engine()
             .with_max_clients(16)
+            .with_com_printf(predicate::eq("Usage: !slap <client_id> [damage]\n"), 1)
             .configure(|mock_engine| {
                 mock_engine.expect_cmd_argc().return_const(1).times(1);
                 mock_engine
                     .expect_cmd_argv()
                     .with(predicate::eq(0))
                     .return_const(Some("!slap".to_string()))
-                    .times(1);
-                mock_engine
-                    .expect_com_printf()
-                    .with(predicate::eq("Usage: !slap <client_id> [damage]\n"))
                     .times(1);
             })
             .run(|| {
@@ -441,18 +438,16 @@ mod commands_tests {
     fn cmd_slap_with_unparseable_client_id() {
         mocked_engine()
             .with_max_clients(16)
+            .with_com_printf(
+                predicate::eq("client_id must be a number between 0 and 15.\n"),
+                1,
+            )
             .configure(|mock_engine| {
                 mock_engine.expect_cmd_argc().return_const(2).times(1);
                 mock_engine
                     .expect_cmd_argv()
                     .with(predicate::eq(1))
                     .return_const(Some("2147483648".to_string()))
-                    .times(1);
-                mock_engine
-                    .expect_com_printf()
-                    .with(predicate::eq(
-                        "client_id must be a number between 0 and 15.\n",
-                    ))
                     .times(1);
             })
             .run(|| {
@@ -465,18 +460,16 @@ mod commands_tests {
     fn cmd_slap_with_too_small_client_id() {
         mocked_engine()
             .with_max_clients(16)
+            .with_com_printf(
+                predicate::eq("client_id must be a number between 0 and 15.\n"),
+                1,
+            )
             .configure(|mock_engine| {
                 mock_engine.expect_cmd_argc().return_const(2).times(1);
                 mock_engine
                     .expect_cmd_argv()
                     .with(predicate::eq(1))
                     .return_const(Some("-1".to_string()))
-                    .times(1);
-                mock_engine
-                    .expect_com_printf()
-                    .with(predicate::eq(
-                        "client_id must be a number between 0 and 15.\n",
-                    ))
                     .times(1);
             })
             .run(|| {
@@ -489,18 +482,16 @@ mod commands_tests {
     fn cmd_slap_with_too_large_client_id() {
         mocked_engine()
             .with_max_clients(16)
+            .with_com_printf(
+                predicate::eq("client_id must be a number between 0 and 15.\n"),
+                1,
+            )
             .configure(|mock_engine| {
                 mock_engine.expect_cmd_argc().return_const(2).times(1);
                 mock_engine
                     .expect_cmd_argv()
                     .with(predicate::eq(1))
                     .return_const(Some("42".to_string()))
-                    .times(1);
-                mock_engine
-                    .expect_com_printf()
-                    .with(predicate::eq(
-                        "client_id must be a number between 0 and 15.\n",
-                    ))
                     .times(1);
             })
             .run(|| {
@@ -528,16 +519,13 @@ mod commands_tests {
 
         mocked_engine()
             .with_max_clients(16)
+            .with_com_printf(predicate::eq("The player is currently not active.\n"), 1)
             .configure(|mock_engine| {
                 mock_engine.expect_cmd_argc().return_const(2).times(1);
                 mock_engine
                     .expect_cmd_argv()
                     .with(predicate::eq(1))
                     .return_const(Some("2".to_string()))
-                    .times(1);
-                mock_engine
-                    .expect_com_printf()
-                    .with(predicate::eq("The player is currently not active.\n"))
                     .times(1);
             })
             .run(|| {
@@ -566,16 +554,13 @@ mod commands_tests {
 
         mocked_engine()
             .with_max_clients(16)
+            .with_com_printf(predicate::eq("The player is currently not active.\n"), 1)
             .configure(|mock_engine| {
                 mock_engine.expect_cmd_argc().return_const(2).times(1);
                 mock_engine
                     .expect_cmd_argv()
                     .with(predicate::eq(1))
                     .return_const(Some("2".to_string()))
-                    .times(1);
-                mock_engine
-                    .expect_com_printf()
-                    .with(predicate::eq("The player is currently not active.\n"))
                     .times(1);
             })
             .run(|| {
@@ -627,16 +612,13 @@ mod commands_tests {
 
         mocked_engine()
             .with_max_clients(16)
+            .with_com_printf(predicate::eq("Slapping...\n"), 1)
             .configure(|mock_engine| {
                 mock_engine.expect_cmd_argc().return_const(2).times(1);
                 mock_engine
                     .expect_cmd_argv()
                     .with(predicate::eq(1))
                     .return_const(Some("2".to_string()))
-                    .times(1);
-                mock_engine
-                    .expect_com_printf()
-                    .with(predicate::eq("Slapping...\n"))
                     .times(1);
                 mock_engine
                     .expect_send_server_command()
@@ -704,6 +686,7 @@ mod commands_tests {
 
         mocked_engine()
             .with_max_clients(16)
+            .with_com_printf(predicate::eq("Slapping...\n"), 1)
             .configure(|mock_engine| {
                 mock_engine.expect_cmd_argc().return_const(3).times(1);
                 mock_engine
@@ -715,10 +698,6 @@ mod commands_tests {
                     .expect_cmd_argv()
                     .with(predicate::eq(2))
                     .return_const(Some("1".to_string()))
-                    .times(1);
-                mock_engine
-                    .expect_com_printf()
-                    .with(predicate::eq("Slapping...\n"))
                     .times(1);
                 mock_engine
                     .expect_send_server_command()
@@ -791,6 +770,7 @@ mod commands_tests {
 
         mocked_engine()
             .with_max_clients(16)
+            .with_com_printf(predicate::eq("Slapping...\n"), 1)
             .configure(|mock_engine| {
                 mock_engine.expect_cmd_argc().return_const(3).times(1);
                 mock_engine
@@ -802,10 +782,6 @@ mod commands_tests {
                     .expect_cmd_argv()
                     .with(predicate::eq(2))
                     .return_const(Some("666".to_string()))
-                    .times(1);
-                mock_engine
-                    .expect_com_printf()
-                    .with(predicate::eq("Slapping...\n"))
                     .times(1);
                 mock_engine
                     .expect_send_server_command()
@@ -870,6 +846,7 @@ mod commands_tests {
 
         mocked_engine()
             .with_max_clients(16)
+            .with_com_printf(predicate::eq("Slapping...\n"), 1)
             .configure(|mock_engine| {
                 mock_engine.expect_cmd_argc().return_const(3).times(1);
                 mock_engine
@@ -881,10 +858,6 @@ mod commands_tests {
                     .expect_cmd_argv()
                     .with(predicate::eq(2))
                     .return_const(Some("2147483648".to_string()))
-                    .times(1);
-                mock_engine
-                    .expect_com_printf()
-                    .with(predicate::eq("Slapping...\n"))
                     .times(1);
                 mock_engine
                     .expect_send_server_command()
@@ -915,16 +888,13 @@ mod commands_tests {
     fn cmd_slay_with_too_few_args() {
         mocked_engine()
             .with_max_clients(16)
+            .with_com_printf(predicate::eq("Usage: !slap <client_id> [damage]\n"), 1)
             .configure(|mock_engine| {
                 mock_engine.expect_cmd_argc().return_const(1).times(1);
                 mock_engine
                     .expect_cmd_argv()
                     .with(predicate::eq(0))
                     .return_const(Some("!slap".to_string()))
-                    .times(1);
-                mock_engine
-                    .expect_com_printf()
-                    .with(predicate::eq("Usage: !slap <client_id> [damage]\n"))
                     .times(1);
             })
             .run(|| {
@@ -937,18 +907,16 @@ mod commands_tests {
     fn cmd_slay_with_unparseable_client_id() {
         mocked_engine()
             .with_max_clients(16)
+            .with_com_printf(
+                predicate::eq("client_id must be a number between 0 and 15.\n"),
+                1,
+            )
             .configure(|mock_engine| {
                 mock_engine.expect_cmd_argc().return_const(2).times(1);
                 mock_engine
                     .expect_cmd_argv()
                     .with(predicate::eq(1))
                     .return_const(Some("2147483648".to_string()))
-                    .times(1);
-                mock_engine
-                    .expect_com_printf()
-                    .with(predicate::eq(
-                        "client_id must be a number between 0 and 15.\n",
-                    ))
                     .times(1);
             })
             .run(|| {
@@ -961,18 +929,16 @@ mod commands_tests {
     fn cmd_slay_with_too_small_client_id() {
         mocked_engine()
             .with_max_clients(16)
+            .with_com_printf(
+                predicate::eq("client_id must be a number between 0 and 15.\n"),
+                1,
+            )
             .configure(|mock_engine| {
                 mock_engine.expect_cmd_argc().return_const(2).times(1);
                 mock_engine
                     .expect_cmd_argv()
                     .with(predicate::eq(1))
                     .return_const(Some("-1".to_string()))
-                    .times(1);
-                mock_engine
-                    .expect_com_printf()
-                    .with(predicate::eq(
-                        "client_id must be a number between 0 and 15.\n",
-                    ))
                     .times(1);
             })
             .run(|| {
@@ -985,18 +951,16 @@ mod commands_tests {
     fn cmd_slay_with_too_large_client_id() {
         mocked_engine()
             .with_max_clients(16)
+            .with_com_printf(
+                predicate::eq("client_id must be a number between 0 and 15.\n"),
+                1,
+            )
             .configure(|mock_engine| {
                 mock_engine.expect_cmd_argc().return_const(2).times(1);
                 mock_engine
                     .expect_cmd_argv()
                     .with(predicate::eq(1))
                     .return_const(Some("42".to_string()))
-                    .times(1);
-                mock_engine
-                    .expect_com_printf()
-                    .with(predicate::eq(
-                        "client_id must be a number between 0 and 15.\n",
-                    ))
                     .times(1);
             })
             .run(|| {
@@ -1024,16 +988,13 @@ mod commands_tests {
 
         mocked_engine()
             .with_max_clients(16)
+            .with_com_printf(predicate::eq("The player is currently not active.\n"), 1)
             .configure(|mock_engine| {
                 mock_engine.expect_cmd_argc().return_const(2).times(1);
                 mock_engine
                     .expect_cmd_argv()
                     .with(predicate::eq(1))
                     .return_const(Some("2".to_string()))
-                    .times(1);
-                mock_engine
-                    .expect_com_printf()
-                    .with(predicate::eq("The player is currently not active.\n"))
                     .times(1);
             })
             .run(|| {
@@ -1062,16 +1023,13 @@ mod commands_tests {
 
         mocked_engine()
             .with_max_clients(16)
+            .with_com_printf(predicate::eq("The player is currently not active.\n"), 1)
             .configure(|mock_engine| {
                 mock_engine.expect_cmd_argc().return_const(2).times(1);
                 mock_engine
                     .expect_cmd_argv()
                     .with(predicate::eq(1))
                     .return_const(Some("2".to_string()))
-                    .times(1);
-                mock_engine
-                    .expect_com_printf()
-                    .with(predicate::eq("The player is currently not active.\n"))
                     .times(1);
             })
             .run(|| {
@@ -1120,16 +1078,13 @@ mod commands_tests {
 
         mocked_engine()
             .with_max_clients(16)
+            .with_com_printf(predicate::eq("Slaying player...\n"), 1)
             .configure(|mock_engine| {
                 mock_engine.expect_cmd_argc().return_const(2).times(1);
                 mock_engine
                     .expect_cmd_argv()
                     .with(predicate::eq(1))
                     .return_const(Some("2".to_string()))
-                    .times(1);
-                mock_engine
-                    .expect_com_printf()
-                    .with(predicate::eq("Slaying player...\n"))
                     .times(1);
                 mock_engine
                     .expect_send_server_command()
@@ -1202,12 +1157,12 @@ mod commands_tests {
     #[serial]
     fn cmd_py_command_with_arguments(_pyshinqlx_setup: ()) {
         mocked_engine()
+            .with_com_printf(predicate::always(), 0)
             .configure(|mock_engine| {
                 mock_engine
                     .expect_cmd_args()
                     .return_const(Some("custom parameter".to_string()))
                     .times(1);
-                mock_engine.expect_com_printf().times(0);
             })
             .run(|| {
                 Python::with_gil(|py| {
@@ -1235,9 +1190,9 @@ def handler(params):
     #[serial]
     fn cmd_py_command_with_no_args(_pyshinqlx_setup: ()) {
         mocked_engine()
+            .with_com_printf(predicate::always(), 0)
             .configure(|mock_engine| {
                 mock_engine.expect_cmd_args().return_const(None).times(1);
-                mock_engine.expect_com_printf().times(0);
             })
             .run(|| {
                 Python::with_gil(|py| {
@@ -1265,14 +1220,12 @@ def handler():
     #[serial]
     fn cmd_py_command_returns_error(_pyshinqlx_setup: ()) {
         mocked_engine()
+            .with_com_printf(
+                predicate::eq("The command failed to be executed. pyshinqlx found no handler.\n"),
+                1,
+            )
             .configure(|mock_engine| {
                 mock_engine.expect_cmd_args().return_const(None).times(1);
-                mock_engine
-                    .expect_com_printf()
-                    .with(predicate::eq(
-                        "The command failed to be executed. pyshinqlx found no handler.\n",
-                    ))
-                    .times(1);
             })
             .run(|| {
                 Python::with_gil(|py| {
@@ -1300,14 +1253,12 @@ def handler():
     #[serial]
     fn cmd_py_command_returns_false(_pyshinqlx_setup: ()) {
         mocked_engine()
+            .with_com_printf(
+                predicate::eq("The command failed to be executed. pyshinqlx found no handler.\n"),
+                1,
+            )
             .configure(|mock_engine| {
                 mock_engine.expect_cmd_args().return_const(None).times(1);
-                mock_engine
-                    .expect_com_printf()
-                    .with(predicate::eq(
-                        "The command failed to be executed. pyshinqlx found no handler.\n",
-                    ))
-                    .times(1);
             })
             .run(|| {
                 Python::with_gil(|py| {
@@ -1353,12 +1304,7 @@ def handler():
             .times(1);
 
         mocked_engine()
-            .configure(|mock_engine| {
-                mock_engine
-                    .expect_com_printf()
-                    .with(predicate::eq("Restarting Python...\n"))
-                    .times(1);
-            })
+            .with_com_printf(predicate::eq("Restarting Python...\n"), 1)
             .run(|| {
                 cmd_restart_python();
             });
@@ -1381,12 +1327,7 @@ def handler():
         new_game_dispatcher_ctx.expect().times(0);
 
         mocked_engine()
-            .configure(|mock_engine| {
-                mock_engine
-                    .expect_com_printf()
-                    .with(predicate::eq("Restarting Python...\n"))
-                    .times(1);
-            })
+            .with_com_printf(predicate::eq("Restarting Python...\n"), 1)
             .run(|| {
                 cmd_restart_python();
             });
@@ -1412,12 +1353,7 @@ def handler():
             .times(1);
 
         mocked_engine()
-            .configure(|mock_engine| {
-                mock_engine
-                    .expect_com_printf()
-                    .with(predicate::eq("Restarting Python...\n"))
-                    .times(1);
-            })
+            .with_com_printf(predicate::eq("Restarting Python...\n"), 1)
             .run(|| {
                 cmd_restart_python();
             });
@@ -1440,12 +1376,7 @@ def handler():
         new_game_dispatcher_ctx.expect().times(0);
 
         mocked_engine()
-            .configure(|mock_engine| {
-                mock_engine
-                    .expect_com_printf()
-                    .with(predicate::eq("Restarting Python...\n"))
-                    .times(1);
-            })
+            .with_com_printf(predicate::eq("Restarting Python...\n"), 1)
             .run(|| {
                 cmd_restart_python();
             });
