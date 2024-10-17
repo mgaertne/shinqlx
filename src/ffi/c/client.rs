@@ -331,21 +331,22 @@ mod client_tests {
     #[test]
     #[serial]
     fn client_disconnect_with_no_detour_setup() {
-        with_mocked_engine(|mock_engine| {
-            mock_engine.expect_sv_dropclient_detour().return_once(|| {
-                Err(QuakeLiveEngineError::StaticDetourNotFound(
-                    QuakeLiveFunction::SV_DropClient,
-                ))
+        mocked_engine()
+            .configure(|mock_engine| {
+                mock_engine.expect_sv_dropclient_detour().return_once(|| {
+                    Err(QuakeLiveEngineError::StaticDetourNotFound(
+                        QuakeLiveFunction::SV_DropClient,
+                    ))
+                });
+            })
+            .run(|| {
+                let mut client = ClientBuilder::default()
+                    .build()
+                    .expect("this should not happen");
+                let mut rust_client = Client::try_from(client.borrow_mut() as *mut client_t)
+                    .expect("this should not happen");
+                rust_client.disconnect("disconnected");
             });
-        })
-        .run(|| {
-            let mut client = ClientBuilder::default()
-                .build()
-                .expect("this should not happen");
-            let mut rust_client = Client::try_from(client.borrow_mut() as *mut client_t)
-                .expect("this should not happen");
-            rust_client.disconnect("disconnected");
-        });
     }
 
     mockall::mock! {
@@ -383,20 +384,21 @@ mod client_tests {
             .expect()
             .withf(|_client, &reason| unsafe { CStr::from_ptr(reason) } == c"disconnected");
 
-        with_mocked_engine(|mock_engine| {
-            mock_engine.expect_sv_dropclient_detour().returning(|| {
-                let Some(detour) = SV_DROPCLIENT_DETOUR.get() else {
-                    return Err(QuakeLiveEngineError::MainEngineNotInitialized);
-                };
+        mocked_engine()
+            .configure(|mock_engine| {
+                mock_engine.expect_sv_dropclient_detour().returning(|| {
+                    let Some(detour) = SV_DROPCLIENT_DETOUR.get() else {
+                        return Err(QuakeLiveEngineError::MainEngineNotInitialized);
+                    };
 
-                Ok(detour)
+                    Ok(detour)
+                });
+            })
+            .run(|| {
+                let mut rust_client = Client::try_from(client.borrow_mut() as *mut client_t)
+                    .expect("this should not happen");
+                rust_client.disconnect("disconnected");
             });
-        })
-        .run(|| {
-            let mut rust_client = Client::try_from(client.borrow_mut() as *mut client_t)
-                .expect("this should not happen");
-            rust_client.disconnect("disconnected");
-        });
     }
 
     #[test]

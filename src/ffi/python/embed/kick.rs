@@ -62,30 +62,32 @@ mod kick_tests {
     #[cfg_attr(miri, ignore)]
     #[serial]
     fn kick_with_client_id_below_zero(_pyshinqlx_setup: ()) {
-        with_mocked_engine(|mock_engine| {
-            mock_engine.expect_get_max_clients().returning(|| 16);
-        })
-        .run(|| {
-            Python::with_gil(|py| {
-                let result = pyshinqlx_kick(py, -1, None);
-                assert!(result.is_err_and(|err| err.is_instance_of::<PyValueError>(py)));
+        mocked_engine()
+            .configure(|mock_engine| {
+                mock_engine.expect_get_max_clients().returning(|| 16);
+            })
+            .run(|| {
+                Python::with_gil(|py| {
+                    let result = pyshinqlx_kick(py, -1, None);
+                    assert!(result.is_err_and(|err| err.is_instance_of::<PyValueError>(py)));
+                });
             });
-        });
     }
 
     #[rstest]
     #[cfg_attr(miri, ignore)]
     #[serial]
     fn kick_with_client_id_too_large(_pyshinqlx_setup: ()) {
-        with_mocked_engine(|mock_engine| {
-            mock_engine.expect_get_max_clients().returning(|| 16);
-        })
-        .run(|| {
-            Python::with_gil(|py| {
-                let result = pyshinqlx_kick(py, 42, None);
-                assert!(result.is_err_and(|err| err.is_instance_of::<PyValueError>(py)));
+        mocked_engine()
+            .configure(|mock_engine| {
+                mock_engine.expect_get_max_clients().returning(|| 16);
+            })
+            .run(|| {
+                Python::with_gil(|py| {
+                    let result = pyshinqlx_kick(py, 42, None);
+                    assert!(result.is_err_and(|err| err.is_instance_of::<PyValueError>(py)));
+                });
             });
-        });
     }
 
     #[rstest]
@@ -109,15 +111,16 @@ mod kick_tests {
                 mock_client
             });
 
-        with_mocked_engine(|mock_engine| {
-            mock_engine.expect_get_max_clients().returning(|| 16);
-        })
-        .run(|| {
-            Python::with_gil(|py| {
-                let result = pyshinqlx_kick(py, 2, None);
-                assert!(result.is_err_and(|err| err.is_instance_of::<PyValueError>(py)));
+        mocked_engine()
+            .configure(|mock_engine| {
+                mock_engine.expect_get_max_clients().returning(|| 16);
+            })
+            .run(|| {
+                Python::with_gil(|py| {
+                    let result = pyshinqlx_kick(py, 2, None);
+                    assert!(result.is_err_and(|err| err.is_instance_of::<PyValueError>(py)));
+                });
             });
-        });
     }
 
     #[rstest]
@@ -142,13 +145,14 @@ mod kick_tests {
             .withf(|_client, reason| reason == "was kicked.")
             .times(1);
 
-        with_mocked_engine(|mock_engine| {
-            mock_engine.expect_get_max_clients().returning(|| 16);
-        })
-        .run(|| {
-            let result = Python::with_gil(|py| pyshinqlx_kick(py, 2, None));
-            assert!(result.is_ok());
-        });
+        mocked_engine()
+            .configure(|mock_engine| {
+                mock_engine.expect_get_max_clients().returning(|| 16);
+            })
+            .run(|| {
+                let result = Python::with_gil(|py| pyshinqlx_kick(py, 2, None));
+                assert!(result.is_ok());
+            });
     }
 
     #[rstest]
@@ -173,13 +177,14 @@ mod kick_tests {
             .withf(|_client, reason| reason == "please go away!")
             .times(1);
 
-        with_mocked_engine(|mock_engine| {
-            mock_engine.expect_get_max_clients().returning(|| 16);
-        })
-        .run(|| {
-            let result = Python::with_gil(|py| pyshinqlx_kick(py, 2, Some("please go away!")));
-            assert!(result.is_ok());
-        });
+        mocked_engine()
+            .configure(|mock_engine| {
+                mock_engine.expect_get_max_clients().returning(|| 16);
+            })
+            .run(|| {
+                let result = Python::with_gil(|py| pyshinqlx_kick(py, 2, Some("please go away!")));
+                assert!(result.is_ok());
+            });
     }
 
     #[rstest]
@@ -204,12 +209,13 @@ mod kick_tests {
             .withf(|_client, reason| reason == "was kicked.")
             .times(1);
 
-        with_mocked_engine(|mock_engine| {
-            mock_engine.expect_get_max_clients().returning(|| 16);
-        })
-        .run(|| {
-            let result = Python::with_gil(|py| pyshinqlx_kick(py, 2, Some("")));
-            assert!(result.is_ok());
-        });
+        mocked_engine()
+            .configure(|mock_engine| {
+                mock_engine.expect_get_max_clients().returning(|| 16);
+            })
+            .run(|| {
+                let result = Python::with_gil(|py| pyshinqlx_kick(py, 2, Some("")));
+                assert!(result.is_ok());
+            });
     }
 }
