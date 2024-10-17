@@ -82,16 +82,12 @@ mod send_server_command_tests {
         let hook_ctx = shinqlx_send_server_command_context();
         hook_ctx.expect().times(0);
 
-        mocked_engine()
-            .configure(|mock_engine| {
-                mock_engine.expect_get_max_clients().returning(|| 16);
-            })
-            .run(|| {
-                Python::with_gil(|py| {
-                    let result = pyshinqlx_send_server_command(py, Some(-1), "asdf");
-                    assert!(result.is_err_and(|err| err.is_instance_of::<PyValueError>(py)));
-                });
+        mocked_engine().with_max_clients(16).run(|| {
+            Python::with_gil(|py| {
+                let result = pyshinqlx_send_server_command(py, Some(-1), "asdf");
+                assert!(result.is_err_and(|err| err.is_instance_of::<PyValueError>(py)));
             });
+        });
     }
 
     #[rstest]
@@ -101,16 +97,12 @@ mod send_server_command_tests {
         let hook_ctx = shinqlx_send_server_command_context();
         hook_ctx.expect().times(0);
 
-        mocked_engine()
-            .configure(|mock_engine| {
-                mock_engine.expect_get_max_clients().returning(|| 16);
-            })
-            .run(|| {
-                Python::with_gil(|py| {
-                    let result = pyshinqlx_send_server_command(py, Some(42), "asdf");
-                    assert!(result.is_err_and(|err| err.is_instance_of::<PyValueError>(py)));
-                });
+        mocked_engine().with_max_clients(16).run(|| {
+            Python::with_gil(|py| {
+                let result = pyshinqlx_send_server_command(py, Some(42), "asdf");
+                assert!(result.is_err_and(|err| err.is_instance_of::<PyValueError>(py)));
             });
+        });
     }
 
     #[rstest]
@@ -132,15 +124,10 @@ mod send_server_command_tests {
             .withf(|client, cmd| client.is_some() && cmd == "asdf")
             .times(1);
 
-        mocked_engine()
-            .configure(|mock_engine| {
-                mock_engine.expect_get_max_clients().returning(|| 16);
-            })
-            .run(|| {
-                let result =
-                    Python::with_gil(|py| pyshinqlx_send_server_command(py, Some(2), "asdf"));
-                assert_eq!(result.expect("result was not OK"), true);
-            });
+        mocked_engine().with_max_clients(16).run(|| {
+            let result = Python::with_gil(|py| pyshinqlx_send_server_command(py, Some(2), "asdf"));
+            assert_eq!(result.expect("result was not OK"), true);
+        });
     }
 
     #[rstest]
@@ -164,14 +151,9 @@ mod send_server_command_tests {
         let hook_ctx = shinqlx_send_server_command_context();
         hook_ctx.expect().times(0);
 
-        mocked_engine()
-            .configure(|mock_engine| {
-                mock_engine.expect_get_max_clients().returning(|| 16);
-            })
-            .run(|| {
-                let result =
-                    Python::with_gil(|py| pyshinqlx_send_server_command(py, Some(2), "asdf"));
-                assert_eq!(result.expect("result was not OK"), false);
-            });
+        mocked_engine().with_max_clients(16).run(|| {
+            let result = Python::with_gil(|py| pyshinqlx_send_server_command(py, Some(2), "asdf"));
+            assert_eq!(result.expect("result was not OK"), false);
+        });
     }
 }
