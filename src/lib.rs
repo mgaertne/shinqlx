@@ -13,7 +13,7 @@ extern crate alloc;
 
 #[cfg(all(feature = "alloc", not(miri)))]
 cfg_if::cfg_if! {
-    if #[cfg(target_os = "windows")] {
+    if #[cfg(target = "msvc")] {
         #[global_allocator]
         static GLOBAL: mimalloc::MiMalloc = mimalloc::MiMalloc;
     } else {
