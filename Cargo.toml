@@ -65,10 +65,10 @@ region = { version = ">=3.0", default-features = false, optional = true }
 procfs = { version = ">=0.16", default-features = false }
 procfs-core = { version = ">=0.16", default-features = false }
 
-[target."cfg(not(target_os=\"windows\"))".dependencies]
-tikv-jemallocator = { version = ">=0.6", default-features = false, optional = true }
+[target."cfg(not(target=\"msvc\"))".dependencies]
+tikv-jemallocator = { version = ">=0.6", default-features = false, features = ["background_threads_runtime_support"], optional = true }
 
-[target."cfg(target_os=\"windows\")".dependencies]
+[target."cfg(target=\"msvc\")".dependencies]
 mimalloc = { version = ">=0.1.34", default-features = false, optional = true }
 
 [build-dependencies]
