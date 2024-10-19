@@ -5412,12 +5412,6 @@ impl Default for MockEngineBuilder {
 }
 
 #[cfg(test)]
-#[allow(dead_code)]
-pub(crate) fn mocked_engine() -> MockEngineBuilder {
-    MockEngineBuilder::default()
-}
-
-#[cfg(test)]
 #[cfg_attr(test, mockall::automock)]
 #[allow(dead_code)]
 mod quake_functions {
