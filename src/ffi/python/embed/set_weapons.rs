@@ -50,7 +50,7 @@ mod set_weapons_tests {
     #[cfg_attr(miri, ignore)]
     #[serial]
     fn set_weapons_for_client_id_too_small(_pyshinqlx_setup: ()) {
-        mocked_engine().with_max_clients(16).run(|| {
+        MockEngineBuilder::default().with_max_clients(16).run(|| {
             Python::with_gil(|py| {
                 let result = pyshinqlx_set_weapons(
                     py,
@@ -66,7 +66,7 @@ mod set_weapons_tests {
     #[cfg_attr(miri, ignore)]
     #[serial]
     fn set_weapons_for_client_id_too_large(_pyshinqlx_setup: ()) {
-        mocked_engine().with_max_clients(16).run(|| {
+        MockEngineBuilder::default().with_max_clients(16).run(|| {
             Python::with_gil(|py| {
                 let result = pyshinqlx_set_weapons(
                     py,
@@ -96,7 +96,7 @@ mod set_weapons_tests {
             mock_game_entity
         });
 
-        mocked_engine().with_max_clients(16).run(|| {
+        MockEngineBuilder::default().with_max_clients(16).run(|| {
             let result = Python::with_gil(|py| {
                 pyshinqlx_set_weapons(py, 2, Weapons(1, 1, 1, 0, 0, 0, 1, 1, 1, 0, 0, 0, 1, 1, 1))
             });
@@ -117,7 +117,7 @@ mod set_weapons_tests {
             mock_game_entity
         });
 
-        mocked_engine().with_max_clients(16).run(|| {
+        MockEngineBuilder::default().with_max_clients(16).run(|| {
             let result = Python::with_gil(|py| {
                 pyshinqlx_set_weapons(py, 2, Weapons(0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0))
             });

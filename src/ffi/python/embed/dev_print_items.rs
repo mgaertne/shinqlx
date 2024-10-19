@@ -143,7 +143,7 @@ mod dev_print_items_tests {
             mock_game_entity
         });
 
-        mocked_engine()
+        MockEngineBuilder::default()
             .configure(|mock_engine| {
                 mock_engine
                     .expect_send_server_command()
@@ -185,7 +185,7 @@ mod dev_print_items_tests {
             mock_game_entity
         });
 
-        mocked_engine()
+        MockEngineBuilder::default()
             .configure(|mock_engine| {
                 mock_engine
                     .expect_send_server_command()
@@ -233,7 +233,7 @@ mod dev_print_items_tests {
             mock_game_entity
         });
 
-        mocked_engine()
+        MockEngineBuilder::default()
             .configure(|mock_engine| {
                 mock_engine
                     .expect_send_server_command()
@@ -271,7 +271,7 @@ mod dev_print_items_tests {
             mock_game_entity
         });
 
-        mocked_engine()
+        MockEngineBuilder::default()
             .with_com_printf(predicate::always(), 1..)
             .configure(|mock_engine| {
                 mock_engine

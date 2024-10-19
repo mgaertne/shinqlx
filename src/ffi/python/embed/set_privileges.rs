@@ -49,7 +49,7 @@ mod set_privileges_tests {
     #[cfg_attr(miri, ignore)]
     #[serial]
     fn set_privileges_for_client_id_too_small(_pyshinqlx_setup: ()) {
-        mocked_engine().with_max_clients(16).run(|| {
+        MockEngineBuilder::default().with_max_clients(16).run(|| {
             Python::with_gil(|py| {
                 let result = pyshinqlx_set_privileges(py, -1, privileges_t::PRIV_MOD as i32);
                 assert!(result.is_err_and(|err| err.is_instance_of::<PyValueError>(py)));
@@ -61,7 +61,7 @@ mod set_privileges_tests {
     #[cfg_attr(miri, ignore)]
     #[serial]
     fn set_privileges_for_client_id_too_large(_pyshinqlx_setup: ()) {
-        mocked_engine().with_max_clients(16).run(|| {
+        MockEngineBuilder::default().with_max_clients(16).run(|| {
             Python::with_gil(|py| {
                 let result = pyshinqlx_set_privileges(py, 666, privileges_t::PRIV_MOD as i32);
                 assert!(result.is_err_and(|err| err.is_instance_of::<PyValueError>(py)));
@@ -95,7 +95,7 @@ mod set_privileges_tests {
             mock_game_entity
         });
 
-        mocked_engine().with_max_clients(16).run(|| {
+        MockEngineBuilder::default().with_max_clients(16).run(|| {
             let result = Python::with_gil(|py| pyshinqlx_set_privileges(py, 2, *privileges as i32));
             assert_eq!(result.expect("result was not OK"), true);
         });
@@ -114,7 +114,7 @@ mod set_privileges_tests {
             mock_game_entity
         });
 
-        mocked_engine().with_max_clients(16).run(|| {
+        MockEngineBuilder::default().with_max_clients(16).run(|| {
             let result = Python::with_gil(|py| {
                 pyshinqlx_set_privileges(py, 2, privileges_t::PRIV_NONE as i32)
             });
