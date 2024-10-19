@@ -287,7 +287,7 @@ mod command_tests {
         pyshinqlx_setup_fixture::pyshinqlx_setup,
         pyshinqlx_test_support::*,
     };
-    use crate::prelude::{mocked_engine, serial};
+    use crate::prelude::*;
 
     use core::borrow::BorrowMut;
 
@@ -717,7 +717,7 @@ class mocked_db:
             .build()
             .expect("this should not happen");
 
-        mocked_engine()
+        MockEngineBuilder::default()
             .configure(|mock_engine| {
                 mock_engine
                     .expect_find_cvar()
@@ -881,7 +881,7 @@ class mocked_db:
             .build()
             .expect("this should not happen");
 
-        mocked_engine()
+        MockEngineBuilder::default()
             .configure(|mock_engine| {
                 mock_engine
                     .expect_find_cvar()
@@ -930,7 +930,7 @@ class mocked_db:
             .build()
             .expect("this should not happen");
 
-        mocked_engine()
+        MockEngineBuilder::default()
             .configure(|mock_engine| {
                 mock_engine
                     .expect_find_cvar()
@@ -985,7 +985,7 @@ class mocked_db:
             .build()
             .expect("this should not happen");
 
-        mocked_engine()
+        MockEngineBuilder::default()
             .configure(|mock_engine| {
                 mock_engine
                     .expect_find_cvar()
@@ -1036,7 +1036,7 @@ class mocked_db:
             .build()
             .expect("this should not happen");
 
-        mocked_engine()
+        MockEngineBuilder::default()
             .configure(|mock_engine| {
                 mock_engine
                     .expect_find_cvar()
@@ -1090,7 +1090,7 @@ class mocked_db:
             .build()
             .expect("this should not happen");
 
-        mocked_engine()
+        MockEngineBuilder::default()
             .configure(|mock_engine| {
                 mock_engine
                     .expect_find_cvar()
@@ -1141,7 +1141,7 @@ class mocked_db:
             .build()
             .expect("this should not happen");
 
-        mocked_engine()
+        MockEngineBuilder::default()
             .configure(|mock_engine| {
                 mock_engine
                     .expect_find_cvar()
@@ -1190,7 +1190,7 @@ class mocked_db:
             .build()
             .expect("this should not happen");
 
-        mocked_engine()
+        MockEngineBuilder::default()
             .configure(|mock_engine| {
                 mock_engine
                     .expect_find_cvar()
@@ -1243,7 +1243,7 @@ class mocked_db:
             .build()
             .expect("this should not happen");
 
-        mocked_engine()
+        MockEngineBuilder::default()
             .configure(|mock_engine| {
                 mock_engine
                     .expect_find_cvar()
@@ -1298,7 +1298,7 @@ class mocked_db:
             .build()
             .expect("this should not happen");
 
-        mocked_engine()
+        MockEngineBuilder::default()
             .configure(|mock_engine| {
                 mock_engine
                     .expect_find_cvar()
@@ -1351,7 +1351,7 @@ class mocked_db:
             .build()
             .expect("this should not happen");
 
-        mocked_engine()
+        MockEngineBuilder::default()
             .configure(|mock_engine| {
                 mock_engine
                     .expect_find_cvar()
@@ -1404,7 +1404,7 @@ class mocked_db:
             .build()
             .expect("this should not happen");
 
-        mocked_engine()
+        MockEngineBuilder::default()
             .configure(|mock_engine| {
                 mock_engine
                     .expect_find_cvar()
@@ -1457,7 +1457,7 @@ class mocked_db:
             .build()
             .expect("this should not happen");
 
-        mocked_engine()
+        MockEngineBuilder::default()
             .configure(|mock_engine| {
                 mock_engine
                     .expect_find_cvar()
@@ -1857,7 +1857,7 @@ mod command_invoker_tests {
     };
     use crate::ffi::python::{PythonReturnCodes, EVENT_DISPATCHERS};
 
-    use crate::prelude::{mocked_engine, serial};
+    use crate::prelude::*;
 
     use crate::ffi::c::prelude::{cvar_t, CVar, CVarBuilder};
     use crate::hooks::mock_hooks::shinqlx_send_server_command_context;
@@ -2163,7 +2163,7 @@ mod command_invoker_tests {
             .build()
             .expect("this should not happen");
 
-        mocked_engine()
+        MockEngineBuilder::default()
             .configure(|mock_engine| {
                 mock_engine
                     .expect_find_cvar()
@@ -2235,7 +2235,7 @@ mod command_invoker_tests {
             .string(owner.as_ptr().cast_mut())
             .build()
             .expect("this should not happen");
-        mocked_engine()
+        MockEngineBuilder::default()
             .configure(|mock_engine| {
                 mock_engine
                     .expect_find_cvar()
@@ -2314,7 +2314,7 @@ mod command_invoker_tests {
             .build()
             .expect("this should not happen");
 
-        mocked_engine()
+        MockEngineBuilder::default()
             .configure(|mock_engine| {
                 mock_engine
                     .expect_find_cvar()
@@ -2397,7 +2397,7 @@ mod command_invoker_tests {
             .build()
             .expect("this should not happen");
 
-        mocked_engine()
+        MockEngineBuilder::default()
             .configure(|mock_engine| {
                 mock_engine
                     .expect_find_cvar()
@@ -2476,7 +2476,7 @@ def cmd_handler(*args, **kwargs):
             .build()
             .expect("this should not happen");
 
-        mocked_engine()
+        MockEngineBuilder::default()
             .configure(|mock_engine| {
                 mock_engine
                     .expect_find_cvar()
@@ -2566,7 +2566,7 @@ def cmd_handler(*args, **kwargs):
             .build()
             .expect("this should not happen");
 
-        mocked_engine()
+        MockEngineBuilder::default()
             .configure(|mock_engine| {
                 mock_engine
                     .expect_find_cvar()
@@ -2648,7 +2648,7 @@ def cmd_handler(*args, **kwargs):
             .build()
             .expect("this should not happen");
 
-        mocked_engine()
+        MockEngineBuilder::default()
             .configure(|mock_engine| {
                 mock_engine
                     .expect_find_cvar()

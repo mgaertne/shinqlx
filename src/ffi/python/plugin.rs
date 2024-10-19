@@ -1267,7 +1267,7 @@ mod plugin_tests {
             .build()
             .expect("this should not happen");
 
-        mocked_engine()
+        MockEngineBuilder::default()
             .configure(|mock_engine| {
                 mock_engine
                     .expect_find_cvar()
@@ -1470,7 +1470,7 @@ mod plugin_tests {
     #[cfg_attr(miri, ignore)]
     #[serial]
     fn game_property_when_a_game_exists(_pyshinqlx_setup: ()) {
-        mocked_engine()
+        MockEngineBuilder::default()
             .configure(|mock_engine| {
                 mock_engine
                     .expect_get_configstring()
@@ -1550,7 +1550,7 @@ mod plugin_tests {
             .build()
             .expect("this should not happen");
 
-        mocked_engine()
+        MockEngineBuilder::default()
             .configure(|mock_engine| {
                 mock_engine
                     .expect_find_cvar()
@@ -1608,7 +1608,7 @@ mod plugin_tests {
             .build()
             .expect("this should not happen");
 
-        mocked_engine()
+        MockEngineBuilder::default()
             .configure(|mock_engine| {
                 mock_engine
                     .expect_find_cvar()
@@ -1709,7 +1709,7 @@ mod plugin_tests {
             .build()
             .expect("this should not happen");
 
-        mocked_engine()
+        MockEngineBuilder::default()
             .configure(|mock_engine| {
                 mock_engine
                     .expect_find_cvar()
@@ -1795,7 +1795,7 @@ mod plugin_tests {
             .build()
             .expect("this should not happen");
 
-        mocked_engine()
+        MockEngineBuilder::default()
             .configure(|mock_engine| {
                 mock_engine
                     .expect_find_cvar()
@@ -1862,7 +1862,7 @@ mod plugin_tests {
             .build()
             .expect("this should not happen");
 
-        mocked_engine()
+        MockEngineBuilder::default()
             .configure(|mock_engine| {
                 mock_engine
                     .expect_find_cvar()
@@ -2348,7 +2348,7 @@ def handler():
     #[cfg_attr(miri, ignore)]
     #[serial]
     fn get_cvar_when_cvar_not_found(_pyshinqlx_setup: ()) {
-        mocked_engine()
+        MockEngineBuilder::default()
             .configure(|mock_engine| {
                 mock_engine
                     .expect_find_cvar()
@@ -2374,7 +2374,7 @@ def handler():
             .build()
             .expect("this should not happen");
 
-        mocked_engine()
+        MockEngineBuilder::default()
             .configure(|mock_engine| {
                 mock_engine
                     .expect_find_cvar()
@@ -2406,7 +2406,7 @@ def handler():
             .build()
             .expect("this should not happen");
 
-        mocked_engine()
+        MockEngineBuilder::default()
             .configure(|mock_engine| {
                 mock_engine
                     .expect_find_cvar()
@@ -2436,7 +2436,7 @@ def handler():
     #[cfg_attr(miri, ignore)]
     #[serial]
     fn get_cvar_str_when_no_cvar_found(_pyshinqlx_setup: ()) {
-        mocked_engine()
+        MockEngineBuilder::default()
             .configure(|mock_engine| {
                 mock_engine
                     .expect_find_cvar()
@@ -2467,7 +2467,7 @@ def handler():
             .build()
             .expect("this should not happen");
 
-        mocked_engine()
+        MockEngineBuilder::default()
             .configure(|mock_engine| {
                 mock_engine
                     .expect_find_cvar()
@@ -2503,7 +2503,7 @@ def handler():
             .build()
             .expect("this should not happen");
 
-        mocked_engine()
+        MockEngineBuilder::default()
             .configure(|mock_engine| {
                 mock_engine
                     .expect_find_cvar()
@@ -2530,7 +2530,7 @@ def handler():
     #[cfg_attr(miri, ignore)]
     #[serial]
     fn get_cvar_int_when_no_cvar_found(_pyshinqlx_setup: ()) {
-        mocked_engine()
+        MockEngineBuilder::default()
             .configure(|mock_engine| {
                 mock_engine
                     .expect_find_cvar()
@@ -2561,7 +2561,7 @@ def handler():
             .build()
             .expect("this should not happen");
 
-        mocked_engine()
+        MockEngineBuilder::default()
             .configure(|mock_engine| {
                 mock_engine
                     .expect_find_cvar()
@@ -2597,7 +2597,7 @@ def handler():
             .build()
             .expect("this should not happen");
 
-        mocked_engine()
+        MockEngineBuilder::default()
             .configure(|mock_engine| {
                 mock_engine
                     .expect_find_cvar()
@@ -2624,7 +2624,7 @@ def handler():
     #[cfg_attr(miri, ignore)]
     #[serial]
     fn get_cvar_float_when_no_cvar_found(_pyshinqlx_setup: ()) {
-        mocked_engine()
+        MockEngineBuilder::default()
             .configure(|mock_engine| {
                 mock_engine
                     .expect_find_cvar()
@@ -2655,7 +2655,7 @@ def handler():
             .build()
             .expect("this should not happen");
 
-        mocked_engine()
+        MockEngineBuilder::default()
             .configure(|mock_engine| {
                 mock_engine
                     .expect_find_cvar()
@@ -2686,7 +2686,7 @@ def handler():
     #[cfg_attr(miri, ignore)]
     #[serial]
     fn get_cvar_bool_when_no_cvar_found(_pyshinqlx_setup: ()) {
-        mocked_engine()
+        MockEngineBuilder::default()
             .configure(|mock_engine| {
                 mock_engine
                     .expect_find_cvar()
@@ -2722,7 +2722,7 @@ def handler():
             .build()
             .expect("this should not happen");
 
-        mocked_engine()
+        MockEngineBuilder::default()
             .configure(|mock_engine| {
                 mock_engine
                     .expect_find_cvar()
@@ -2756,7 +2756,7 @@ def handler():
             .build()
             .expect("this should not happen");
 
-        mocked_engine()
+        MockEngineBuilder::default()
             .configure(|mock_engine| {
                 mock_engine
                     .expect_find_cvar()
@@ -2789,7 +2789,7 @@ def handler():
     #[cfg_attr(miri, ignore)]
     #[serial]
     fn get_cvar_list_when_no_cvar_found(_pyshinqlx_setup: ()) {
-        mocked_engine()
+        MockEngineBuilder::default()
             .configure(|mock_engine| {
                 mock_engine
                     .expect_find_cvar()
@@ -2827,7 +2827,7 @@ def handler():
             .build()
             .expect("this should not happen");
 
-        mocked_engine()
+        MockEngineBuilder::default()
             .configure(|mock_engine| {
                 mock_engine
                     .expect_find_cvar()
@@ -2860,7 +2860,7 @@ def handler():
     #[cfg_attr(miri, ignore)]
     #[serial]
     fn get_cvar_set_when_no_cvar_found(_pyshinqlx_setup: ()) {
-        mocked_engine()
+        MockEngineBuilder::default()
             .configure(|mock_engine| {
                 mock_engine
                     .expect_find_cvar()
@@ -2898,7 +2898,7 @@ def handler():
             .build()
             .expect("this should not happen");
 
-        mocked_engine()
+        MockEngineBuilder::default()
             .configure(|mock_engine| {
                 mock_engine
                     .expect_find_cvar()
@@ -2931,7 +2931,7 @@ def handler():
     #[cfg_attr(miri, ignore)]
     #[serial]
     fn get_cvar_tuple_when_no_cvar_found(_pyshinqlx_setup: ()) {
-        mocked_engine()
+        MockEngineBuilder::default()
             .configure(|mock_engine| {
                 mock_engine
                     .expect_find_cvar()
@@ -2969,7 +2969,7 @@ def handler():
             .build()
             .expect("this should not happen");
 
-        mocked_engine()
+        MockEngineBuilder::default()
             .configure(|mock_engine| {
                 mock_engine
                     .expect_find_cvar()
@@ -3012,7 +3012,7 @@ def handler():
     #[cfg_attr(miri, ignore)]
     #[serial]
     fn set_cvar_for_not_existing_cvar(_pyshinqlx_setup: ()) {
-        mocked_engine()
+        MockEngineBuilder::default()
             .configure(|mock_engine| {
                 mock_engine
                     .expect_find_cvar()
@@ -3049,7 +3049,7 @@ def handler():
             .build()
             .expect("this should not happen");
 
-        mocked_engine()
+        MockEngineBuilder::default()
             .configure(|mock_engine| {
                 mock_engine
                     .expect_find_cvar()
@@ -3097,7 +3097,7 @@ def handler():
     #[cfg_attr(miri, ignore)]
     #[serial]
     fn set_cvar_limit_forwards_parameters_to_main_engine_call(_pyshinqlx_setup: ()) {
-        mocked_engine()
+        MockEngineBuilder::default()
             .configure(|mock_engine| {
                 mock_engine
                     .expect_find_cvar()
@@ -3148,7 +3148,7 @@ def handler():
     #[cfg_attr(miri, ignore)]
     #[serial]
     fn set_cvar_once_for_not_existing_cvar(_pyshinqlx_setup: ()) {
-        mocked_engine()
+        MockEngineBuilder::default()
             .configure(|mock_engine| {
                 mock_engine
                     .expect_find_cvar()
@@ -3184,7 +3184,7 @@ def handler():
     fn set_cvar_once_for_already_existing_cvar(_pyshinqlx_setup: ()) {
         let mut raw_cvar = CVarBuilder::default().build().unwrap();
 
-        mocked_engine()
+        MockEngineBuilder::default()
             .configure(|mock_engine| {
                 mock_engine
                     .expect_find_cvar()
@@ -3230,7 +3230,7 @@ def handler():
     #[cfg_attr(miri, ignore)]
     #[serial]
     fn set_cvar_limit_once_when_no_previous_value_is_set(_pyshinqlx_setup: ()) {
-        mocked_engine()
+        MockEngineBuilder::default()
             .configure(|mock_engine| {
                 mock_engine
                     .expect_find_cvar()
@@ -3268,7 +3268,7 @@ def handler():
     fn set_cvar_limit_once_for_already_existing_cvar(_pyshinqlx_setup: ()) {
         let mut raw_cvar = CVarBuilder::default().build().unwrap();
 
-        mocked_engine()
+        MockEngineBuilder::default()
             .configure(|mock_engine| {
                 mock_engine
                     .expect_find_cvar()
@@ -3361,7 +3361,7 @@ def handler():
             mock_game_entity
         });
 
-        mocked_engine().with_max_clients(3).run(|| {
+        MockEngineBuilder::default().with_max_clients(3).run(|| {
             let all_players =
                 Python::with_gil(|py| Plugin::players(&py.get_type_bound::<Plugin>()));
             assert_eq!(
@@ -3679,7 +3679,7 @@ def handler():
             .withf(|client, cmd| client.is_some() && cmd == "print \"asdf qwertz\n\"\n")
             .times(2);
 
-        mocked_engine().with_max_clients(8).run(|| {
+        MockEngineBuilder::default().with_max_clients(8).run(|| {
             Python::with_gil(|py| {
                 RED_TEAM_CHAT_CHANNEL.store(Some(
                     Py::new(
@@ -3754,7 +3754,7 @@ def handler():
             .withf(|client, cmd| client.is_some() && cmd == "print \"asdf qwertz\n\"\n")
             .times(2);
 
-        mocked_engine().with_max_clients(8).run(|| {
+        MockEngineBuilder::default().with_max_clients(8).run(|| {
             Python::with_gil(|py| {
                 BLUE_TEAM_CHAT_CHANNEL.store(Some(
                     Py::new(
@@ -3833,7 +3833,7 @@ def handler():
 
         let channel = TellChannel::py_new(&default_test_player());
 
-        mocked_engine().with_max_clients(16).run(|| {
+        MockEngineBuilder::default().with_max_clients(16).run(|| {
             Python::with_gil(|py| {
                 let result = Plugin::msg(
                     &py.get_type_bound::<Plugin>(),
@@ -4316,7 +4316,7 @@ def handler():
             .withf(|recipients, cmd| recipients.is_none() && cmd == "cp \"asdf\"")
             .times(1);
 
-        mocked_engine().with_max_clients(16).run(|| {
+        MockEngineBuilder::default().with_max_clients(16).run(|| {
             let result = Python::with_gil(|py| {
                 Plugin::center_print(&py.get_type_bound::<Plugin>(), "asdf", None)
             });
@@ -4345,7 +4345,7 @@ def handler():
 
         let player = default_test_player();
 
-        mocked_engine().with_max_clients(16).run(|| {
+        MockEngineBuilder::default().with_max_clients(16).run(|| {
             let result = Python::with_gil(|py| {
                 Plugin::center_print(
                     &py.get_type_bound::<Plugin>(),
@@ -4400,7 +4400,7 @@ def handler():
                 mock_game_entity
             });
 
-        mocked_engine().with_max_clients(16).run(|| {
+        MockEngineBuilder::default().with_max_clients(16).run(|| {
             Python::with_gil(|py| {
                 let result = Plugin::tell(
                     &py.get_type_bound::<Plugin>(),
@@ -4418,7 +4418,7 @@ def handler():
     #[cfg_attr(miri, ignore)]
     #[serial]
     fn is_vote_active_when_configstring_set(_pyshinqlx_setup: ()) {
-        mocked_engine()
+        MockEngineBuilder::default()
             .configure(|mock_engine| {
                 mock_engine
                     .expect_get_configstring()
@@ -4436,7 +4436,7 @@ def handler():
     #[cfg_attr(miri, ignore)]
     #[serial]
     fn is_vote_active_when_configstring_empty(_pyshinqlx_setup: ()) {
-        mocked_engine()
+        MockEngineBuilder::default()
             .configure(|mock_engine| {
                 mock_engine
                     .expect_get_configstring()
@@ -4479,7 +4479,7 @@ def handler():
     #[cfg_attr(miri, ignore)]
     #[serial]
     fn current_vote_count_when_yes_votes_are_empty(_pyshinqlx_setup: ()) {
-        mocked_engine()
+        MockEngineBuilder::default()
             .configure(|mock_engine| {
                 mock_engine
                     .expect_get_configstring()
@@ -4502,7 +4502,7 @@ def handler():
     #[cfg_attr(miri, ignore)]
     #[serial]
     fn current_vote_count_when_no_votes_are_empty(_pyshinqlx_setup: ()) {
-        mocked_engine()
+        MockEngineBuilder::default()
             .configure(|mock_engine| {
                 mock_engine
                     .expect_get_configstring()
@@ -4525,7 +4525,7 @@ def handler():
     #[cfg_attr(miri, ignore)]
     #[serial]
     fn current_vote_count_with_proper_vote_counts(_pyshinqlx_setup: ()) {
-        mocked_engine()
+        MockEngineBuilder::default()
             .configure(|mock_engine| {
                 mock_engine
                     .expect_get_configstring()
@@ -4552,7 +4552,7 @@ def handler():
     #[cfg_attr(miri, ignore)]
     #[serial]
     fn current_vote_count_with_unparseable_yes_vote_counts(_pyshinqlx_setup: ()) {
-        mocked_engine()
+        MockEngineBuilder::default()
             .configure(|mock_engine| {
                 mock_engine
                     .expect_get_configstring()
@@ -4575,7 +4575,7 @@ def handler():
     #[cfg_attr(miri, ignore)]
     #[serial]
     fn current_vote_count_with_unparseable_no_vote_counts(_pyshinqlx_setup: ()) {
-        mocked_engine()
+        MockEngineBuilder::default()
             .configure(|mock_engine| {
                 mock_engine
                     .expect_get_configstring()
@@ -4598,7 +4598,7 @@ def handler():
     #[cfg_attr(miri, ignore)]
     #[serial]
     fn callvote_when_vote_is_active(_pyshinqlx_setup: ()) {
-        mocked_engine()
+        MockEngineBuilder::default()
             .configure(|mock_engine| {
                 mock_engine
                     .expect_get_configstring()
@@ -4636,7 +4636,7 @@ def handler():
             Ok(mock_level)
         });
 
-        mocked_engine()
+        MockEngineBuilder::default()
             .configure(|mock_engine| {
                 mock_engine
                     .expect_get_configstring()
@@ -4672,7 +4672,7 @@ def handler():
     fn callvote_when_event_dispatcher_not_available(_pyshinqlx_setup: ()) {
         EVENT_DISPATCHERS.store(None);
 
-        mocked_engine()
+        MockEngineBuilder::default()
             .configure(|mock_engine| {
                 mock_engine
                     .expect_get_configstring()
@@ -4742,7 +4742,7 @@ def handler():
                 mock_game_entity
             });
 
-        mocked_engine().with_max_clients(1).run(|| {
+        MockEngineBuilder::default().with_max_clients(1).run(|| {
             Python::with_gil(|py| {
                 let result = Plugin::force_vote(&py.get_type_bound::<Plugin>(), true.into_py(py));
                 assert!(result.is_ok_and(|value| value),);
@@ -4790,7 +4790,7 @@ def handler():
                 mock_game_entity
             });
 
-        mocked_engine().with_max_clients(1).run(|| {
+        MockEngineBuilder::default().with_max_clients(1).run(|| {
             Python::with_gil(|py| {
                 let result = Plugin::force_vote(&py.get_type_bound::<Plugin>(), false.into_py(py));
                 assert!(result.is_ok_and(|value| value),);
@@ -4802,7 +4802,7 @@ def handler():
     #[cfg_attr(miri, ignore)]
     #[serial]
     fn teamsize_sets_teamsize(_pyshinqlx_setup: ()) {
-        mocked_engine()
+        MockEngineBuilder::default()
             .configure(|mock_engine| {
                 mock_engine
                     .expect_find_cvar()
@@ -4855,7 +4855,7 @@ def handler():
             .withf(|_client, reason| reason == "was kicked.")
             .times(1);
 
-        mocked_engine().with_max_clients(16).run(|| {
+        MockEngineBuilder::default().with_max_clients(16).run(|| {
             Python::with_gil(|py| {
                 let result = Plugin::kick(
                     &py.get_type_bound::<Plugin>(),
@@ -4889,7 +4889,7 @@ def handler():
             .withf(|_client, reason| reason == "All your base are belong to us!")
             .times(1);
 
-        mocked_engine().with_max_clients(16).run(|| {
+        MockEngineBuilder::default().with_max_clients(16).run(|| {
             Python::with_gil(|py| {
                 let result = Plugin::kick(
                     &py.get_type_bound::<Plugin>(),
@@ -4905,7 +4905,7 @@ def handler():
     #[cfg_attr(miri, ignore)]
     #[serial]
     fn shuffle_forces_shuffle(_pyshinqlx_setup: ()) {
-        mocked_engine()
+        MockEngineBuilder::default()
             .configure(|mock_engine| {
                 mock_engine
                     .expect_execute_console_command()
@@ -4930,7 +4930,7 @@ def handler():
     #[cfg_attr(miri, ignore)]
     #[serial]
     fn change_map_with_no_factory(_pyshinqlx_setup: ()) {
-        mocked_engine()
+        MockEngineBuilder::default()
             .configure(|mock_engine| {
                 mock_engine
                     .expect_execute_console_command()
@@ -4950,7 +4950,7 @@ def handler():
     #[cfg_attr(miri, ignore)]
     #[serial]
     fn change_map_with_factory(_pyshinqlx_setup: ()) {
-        mocked_engine()
+        MockEngineBuilder::default()
             .configure(|mock_engine| {
                 mock_engine
                     .expect_execute_console_command()
@@ -5064,7 +5064,7 @@ def handler():
             ..default_test_player()
         };
 
-        mocked_engine()
+        MockEngineBuilder::default()
             .configure(|mock_engine| {
                 mock_engine
                     .expect_execute_console_command()
@@ -5128,7 +5128,7 @@ def handler():
             .withf(|client, cmd| client.is_some() && cmd == "playSound sound/vo/midair.ogg")
             .times(1);
 
-        mocked_engine().with_max_clients(16).run(|| {
+        MockEngineBuilder::default().with_max_clients(16).run(|| {
             Python::with_gil(|py| {
                 let result = Plugin::play_sound(
                     &py.get_type_bound::<Plugin>(),
@@ -5202,7 +5202,7 @@ def handler():
             .withf(|client, cmd| client.is_some() && cmd == "playMusic music/sonic1.ogg")
             .times(1);
 
-        mocked_engine().with_max_clients(16).run(|| {
+        MockEngineBuilder::default().with_max_clients(16).run(|| {
             Python::with_gil(|py| {
                 let result = Plugin::play_music(
                     &py.get_type_bound::<Plugin>(),
@@ -5275,7 +5275,7 @@ def handler():
             .withf(|client, cmd| client.is_some() && cmd == "clearSounds")
             .times(1);
 
-        mocked_engine().with_max_clients(16).run(|| {
+        MockEngineBuilder::default().with_max_clients(16).run(|| {
             Python::with_gil(|py| {
                 let result = Plugin::stop_sound(&py.get_type_bound::<Plugin>(), Some(player));
                 assert!(result.is_ok());
@@ -5323,7 +5323,7 @@ def handler():
             .withf(|client, cmd| client.is_some() && cmd == "stopMusic")
             .times(1);
 
-        mocked_engine().with_max_clients(16).run(|| {
+        MockEngineBuilder::default().with_max_clients(16).run(|| {
             Python::with_gil(|py| {
                 let result = Plugin::stop_music(&py.get_type_bound::<Plugin>(), Some(player));
                 assert!(result.is_ok());
@@ -5345,7 +5345,7 @@ def handler():
     #[cfg_attr(miri, ignore)]
     #[serial]
     fn slap_for_player(_pyshinqlx_setup: ()) {
-        mocked_engine()
+        MockEngineBuilder::default()
             .configure(|mock_engine| {
                 mock_engine
                     .expect_execute_console_command()
@@ -5374,7 +5374,7 @@ def handler():
     #[cfg_attr(miri, ignore)]
     #[serial]
     fn slay_for_player(_pyshinqlx_setup: ()) {
-        mocked_engine()
+        MockEngineBuilder::default()
             .configure(|mock_engine| {
                 mock_engine
                     .expect_execute_console_command()
@@ -5393,7 +5393,7 @@ def handler():
     #[cfg_attr(miri, ignore)]
     #[serial]
     fn timeout_pauses_game(_pyshinqlx_setup: ()) {
-        mocked_engine()
+        MockEngineBuilder::default()
             .configure(|mock_engine| {
                 mock_engine
                     .expect_execute_console_command()
@@ -5410,7 +5410,7 @@ def handler():
     #[cfg_attr(miri, ignore)]
     #[serial]
     fn timein_unpauses_game(_pyshinqlx_setup: ()) {
-        mocked_engine()
+        MockEngineBuilder::default()
             .configure(|mock_engine| {
                 mock_engine
                     .expect_execute_console_command()
@@ -5427,7 +5427,7 @@ def handler():
     #[cfg_attr(miri, ignore)]
     #[serial]
     fn allready_readies_all_players(_pyshinqlx_setup: ()) {
-        mocked_engine()
+        MockEngineBuilder::default()
             .configure(|mock_engine| {
                 mock_engine
                     .expect_execute_console_command()
@@ -5445,7 +5445,7 @@ def handler():
     #[cfg_attr(miri, ignore)]
     #[serial]
     fn pause_pauses_game(_pyshinqlx_setup: ()) {
-        mocked_engine()
+        MockEngineBuilder::default()
             .configure(|mock_engine| {
                 mock_engine
                     .expect_execute_console_command()
@@ -5462,7 +5462,7 @@ def handler():
     #[cfg_attr(miri, ignore)]
     #[serial]
     fn unpause_unpauses_game(_pyshinqlx_setup: ()) {
-        mocked_engine()
+        MockEngineBuilder::default()
             .configure(|mock_engine| {
                 mock_engine
                     .expect_execute_console_command()
@@ -5479,19 +5479,21 @@ def handler():
     #[cfg_attr(miri, ignore)]
     #[serial]
     fn lock_with_invalid_team(_pyshinqlx_setup: ()) {
-        mocked_engine().configure(|_mock_engine| {}).run(|| {
-            Python::with_gil(|py| {
-                let result = Plugin::lock(&py.get_type_bound::<Plugin>(), Some("invalid_team"));
-                assert!(result.is_err_and(|err| err.is_instance_of::<PyValueError>(py)));
+        MockEngineBuilder::default()
+            .configure(|_mock_engine| {})
+            .run(|| {
+                Python::with_gil(|py| {
+                    let result = Plugin::lock(&py.get_type_bound::<Plugin>(), Some("invalid_team"));
+                    assert!(result.is_err_and(|err| err.is_instance_of::<PyValueError>(py)));
+                });
             });
-        });
     }
 
     #[rstest]
     #[cfg_attr(miri, ignore)]
     #[serial]
     fn lock_with_no_team(_pyshinqlx_setup: ()) {
-        mocked_engine()
+        MockEngineBuilder::default()
             .configure(|mock_engine| {
                 mock_engine
                     .expect_execute_console_command()
@@ -5516,7 +5518,7 @@ def handler():
     fn lock_a_specific_team(_pyshinqlx_setup: (), #[case] locked_team: &str) {
         let lock_cmd = format!("lock {}", locked_team.to_lowercase());
 
-        mocked_engine()
+        MockEngineBuilder::default()
             .configure(|mock_engine| {
                 mock_engine
                     .expect_execute_console_command()
@@ -5535,19 +5537,22 @@ def handler():
     #[cfg_attr(miri, ignore)]
     #[serial]
     fn unlock_with_invalid_team(_pyshinqlx_setup: ()) {
-        mocked_engine().configure(|_mock_engine| {}).run(|| {
-            Python::with_gil(|py| {
-                let result = Plugin::unlock(&py.get_type_bound::<Plugin>(), Some("invalid_team"));
-                assert!(result.is_err_and(|err| err.is_instance_of::<PyValueError>(py)));
+        MockEngineBuilder::default()
+            .configure(|_mock_engine| {})
+            .run(|| {
+                Python::with_gil(|py| {
+                    let result =
+                        Plugin::unlock(&py.get_type_bound::<Plugin>(), Some("invalid_team"));
+                    assert!(result.is_err_and(|err| err.is_instance_of::<PyValueError>(py)));
+                });
             });
-        });
     }
 
     #[rstest]
     #[cfg_attr(miri, ignore)]
     #[serial]
     fn unlock_with_no_team(_pyshinqlx_setup: ()) {
-        mocked_engine()
+        MockEngineBuilder::default()
             .configure(|mock_engine| {
                 mock_engine
                     .expect_execute_console_command()
@@ -5572,7 +5577,7 @@ def handler():
     fn unlock_a_specific_team(_pyshinqlx_setup: (), #[case] locked_team: &str) {
         let unlock_cmd = format!("unlock {}", locked_team.to_lowercase());
 
-        mocked_engine()
+        MockEngineBuilder::default()
             .configure(|mock_engine| {
                 mock_engine
                     .expect_execute_console_command()
@@ -5622,7 +5627,7 @@ def handler():
     fn put_put_player_on_a_specific_team(_pyshinqlx_setup: (), #[case] new_team: &str) {
         let put_cmd = format!("put 2 {}", new_team.to_lowercase());
 
-        mocked_engine()
+        MockEngineBuilder::default()
             .configure(|mock_engine| {
                 mock_engine
                     .expect_execute_console_command()
@@ -5651,7 +5656,7 @@ def handler():
     #[cfg_attr(miri, ignore)]
     #[serial]
     fn mute_mutes_player(_pyshinqlx_setup: ()) {
-        mocked_engine()
+        MockEngineBuilder::default()
             .configure(|mock_engine| {
                 mock_engine
                     .expect_execute_console_command()
@@ -5680,7 +5685,7 @@ def handler():
     #[cfg_attr(miri, ignore)]
     #[serial]
     fn unmute_unmutes_player(_pyshinqlx_setup: ()) {
-        mocked_engine()
+        MockEngineBuilder::default()
             .configure(|mock_engine| {
                 mock_engine
                     .expect_execute_console_command()
@@ -5709,7 +5714,7 @@ def handler():
     #[cfg_attr(miri, ignore)]
     #[serial]
     fn tempban_tempbans_player(_pyshinqlx_setup: ()) {
-        mocked_engine()
+        MockEngineBuilder::default()
             .configure(|mock_engine| {
                 mock_engine
                     .expect_execute_console_command()
@@ -5738,7 +5743,7 @@ def handler():
     #[cfg_attr(miri, ignore)]
     #[serial]
     fn ban_bans_player(_pyshinqlx_setup: ()) {
-        mocked_engine()
+        MockEngineBuilder::default()
             .configure(|mock_engine| {
                 mock_engine
                     .expect_execute_console_command()
@@ -5767,7 +5772,7 @@ def handler():
     #[cfg_attr(miri, ignore)]
     #[serial]
     fn unban_unbans_player(_pyshinqlx_setup: ()) {
-        mocked_engine()
+        MockEngineBuilder::default()
             .configure(|mock_engine| {
                 mock_engine
                     .expect_execute_console_command()
@@ -5786,7 +5791,7 @@ def handler():
     #[cfg_attr(miri, ignore)]
     #[serial]
     fn opsay_sends_op_message(_pyshinqlx_setup: ()) {
-        mocked_engine()
+        MockEngineBuilder::default()
             .configure(|mock_engine| {
                 mock_engine
                     .expect_execute_console_command()
@@ -5814,7 +5819,7 @@ def handler():
     #[cfg_attr(miri, ignore)]
     #[serial]
     fn addadmin_adds_player_to_admins(_pyshinqlx_setup: ()) {
-        mocked_engine()
+        MockEngineBuilder::default()
             .configure(|mock_engine| {
                 mock_engine
                     .expect_execute_console_command()
@@ -5843,7 +5848,7 @@ def handler():
     #[cfg_attr(miri, ignore)]
     #[serial]
     fn addmod_adds_player_to_moderators(_pyshinqlx_setup: ()) {
-        mocked_engine()
+        MockEngineBuilder::default()
             .configure(|mock_engine| {
                 mock_engine
                     .expect_execute_console_command()
@@ -5872,7 +5877,7 @@ def handler():
     #[cfg_attr(miri, ignore)]
     #[serial]
     fn demote_demotes_player(_pyshinqlx_setup: ()) {
-        mocked_engine()
+        MockEngineBuilder::default()
             .configure(|mock_engine| {
                 mock_engine
                     .expect_execute_console_command()
@@ -5891,7 +5896,7 @@ def handler():
     #[cfg_attr(miri, ignore)]
     #[serial]
     fn abort_aborts_game(_pyshinqlx_setup: ()) {
-        mocked_engine()
+        MockEngineBuilder::default()
             .configure(|mock_engine| {
                 mock_engine
                     .expect_execute_console_command()
@@ -5918,7 +5923,7 @@ def handler():
     #[cfg_attr(miri, ignore)]
     #[serial]
     fn addscore_adds_score_to_player(_pyshinqlx_setup: ()) {
-        mocked_engine()
+        MockEngineBuilder::default()
             .configure(|mock_engine| {
                 mock_engine
                     .expect_execute_console_command()
@@ -5954,7 +5959,7 @@ def handler():
     fn addteamscore_adds_score_to_team(_pyshinqlx_setup: (), #[case] team: &str) {
         let addteamscore_cmd = format!("addteamscore {} 42", team.to_lowercase());
 
-        mocked_engine()
+        MockEngineBuilder::default()
             .configure(|mock_engine| {
                 mock_engine
                     .expect_execute_console_command()
@@ -5973,7 +5978,7 @@ def handler():
     #[cfg_attr(miri, ignore)]
     #[serial]
     fn setmatchtime_sets_match_time(_pyshinqlx_setup: ()) {
-        mocked_engine()
+        MockEngineBuilder::default()
             .configure(|mock_engine| {
                 mock_engine
                     .expect_execute_console_command()

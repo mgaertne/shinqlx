@@ -2006,7 +2006,7 @@ assert(player._valid)
 
         let mut player = default_test_player();
 
-        mocked_engine().with_max_clients(16).run(|| {
+        MockEngineBuilder::default().with_max_clients(16).run(|| {
             let result = Python::with_gil(|py| {
                 player.set_cvars(
                     py,
@@ -2076,7 +2076,7 @@ assert(player._valid)
     fn get_clan_with_no_clan_set(_pyshinqlx_setup: ()) {
         let player = default_test_player();
 
-        mocked_engine()
+        MockEngineBuilder::default()
             .configure(|mock_engine| {
                 mock_engine
                     .expect_get_configstring()
@@ -2095,7 +2095,7 @@ assert(player._valid)
     fn get_clan_with_clan_set(_pyshinqlx_setup: ()) {
         let player = default_test_player();
 
-        mocked_engine()
+        MockEngineBuilder::default()
             .configure(|mock_engine| {
                 mock_engine
                     .expect_get_configstring()
@@ -2122,7 +2122,7 @@ assert(player._valid)
     fn set_clan_with_no_clan_set(_pyshinqlx_setup: ()) {
         let mut player = default_test_player();
 
-        mocked_engine()
+        MockEngineBuilder::default()
             .configure(|mock_engine| {
                 mock_engine
                     .expect_get_configstring()
@@ -2148,7 +2148,7 @@ assert(player._valid)
     fn set_clan_with_clan_set(_pyshinqlx_setup: ()) {
         let mut player = default_test_player();
 
-        mocked_engine()
+        MockEngineBuilder::default()
             .configure(|mock_engine| {
                 mock_engine
                     .expect_get_configstring()
@@ -2238,7 +2238,7 @@ assert(player._valid)
             ..default_test_player()
         };
 
-        mocked_engine().with_max_clients(16).run(|| {
+        MockEngineBuilder::default().with_max_clients(16).run(|| {
             let result =
                 Python::with_gil(|py| player.set_name(py, "^1Unnamed^2Player".to_string()));
             assert!(result.is_ok());
@@ -2374,7 +2374,7 @@ assert(player._valid)
     fn set_team_puts_player_on_a_specific_team(_pyshinqlx_setup: (), #[case] new_team: &str) {
         let put_cmd = format!("put 2 {}", new_team.to_lowercase());
 
-        mocked_engine()
+        MockEngineBuilder::default()
             .configure(|mock_engine| {
                 mock_engine
                     .expect_execute_console_command()
@@ -2488,7 +2488,7 @@ assert(player._valid)
             ..default_test_player()
         };
 
-        mocked_engine().with_max_clients(16).run(|| {
+        MockEngineBuilder::default().with_max_clients(16).run(|| {
             let result = Python::with_gil(|py| player.set_colors(py, (0, 3)));
             assert!(result.is_ok());
         });
@@ -2560,7 +2560,7 @@ assert(player._valid)
             ..default_test_player()
         };
 
-        mocked_engine().with_max_clients(16).run(|| {
+        MockEngineBuilder::default().with_max_clients(16).run(|| {
             let result = Python::with_gil(|py| player.set_model(py, "Uriel".to_string()));
             assert!(result.is_ok());
         });
@@ -2632,7 +2632,7 @@ assert(player._valid)
             ..default_test_player()
         };
 
-        mocked_engine().with_max_clients(16).run(|| {
+        MockEngineBuilder::default().with_max_clients(16).run(|| {
             let result = Python::with_gil(|py| player.set_headmodel(py, "Uriel".to_string()));
             assert!(result.is_ok());
         });
@@ -2704,7 +2704,7 @@ assert(player._valid)
             ..default_test_player()
         };
 
-        mocked_engine().with_max_clients(16).run(|| {
+        MockEngineBuilder::default().with_max_clients(16).run(|| {
             let result = Python::with_gil(|py| player.set_handicap(py, "50".into_py(py)));
             assert!(result.is_ok());
         });
@@ -2829,7 +2829,7 @@ assert(player._valid)
             ..default_test_player()
         };
 
-        mocked_engine().with_max_clients(16).run(|| {
+        MockEngineBuilder::default().with_max_clients(16).run(|| {
             let result = Python::with_gil(|py| player.set_autohop(py, 0.into_py(py)));
             assert!(result.is_ok());
         });
@@ -2954,7 +2954,7 @@ assert(player._valid)
             ..default_test_player()
         };
 
-        mocked_engine().with_max_clients(16).run(|| {
+        MockEngineBuilder::default().with_max_clients(16).run(|| {
             let result = Python::with_gil(|py| player.set_autoaction(py, 0.into_py(py)));
             assert!(result.is_ok());
         });
@@ -3079,7 +3079,7 @@ assert(player._valid)
             ..default_test_player()
         };
 
-        mocked_engine().with_max_clients(16).run(|| {
+        MockEngineBuilder::default().with_max_clients(16).run(|| {
             let result = Python::with_gil(|py| player.set_predictitems(py, 0.into_py(py)));
             assert!(result.is_ok());
         });
@@ -3175,7 +3175,7 @@ assert(player._valid)
 
         let player = default_test_player();
 
-        mocked_engine().with_max_clients(16).run(|| {
+        MockEngineBuilder::default().with_max_clients(16).run(|| {
             let result = Python::with_gil(|py| player.get_state(py));
             assert_eq!(result.expect("result was not OK"), None);
         });
@@ -3235,7 +3235,7 @@ assert(player._valid)
 
         let player = default_test_player();
 
-        mocked_engine().with_max_clients(16).run(|| {
+        MockEngineBuilder::default().with_max_clients(16).run(|| {
             let result = Python::with_gil(|py| player.get_state(py));
             assert_eq!(
                 result.expect("result was not OK"),
@@ -3312,7 +3312,7 @@ assert(player._valid)
 
         let mut player = default_test_player();
 
-        mocked_engine().with_max_clients(16).run(|| {
+        MockEngineBuilder::default().with_max_clients(16).run(|| {
             let result = Python::with_gil(|py| player.set_privileges(py, opt_priv));
             assert!(result.is_ok());
         });
@@ -3377,7 +3377,7 @@ assert(player._valid)
             ..default_test_player()
         };
 
-        mocked_engine().with_max_clients(16).run(|| {
+        MockEngineBuilder::default().with_max_clients(16).run(|| {
             let result = Python::with_gil(|py| player.set_country(py, "uk".to_string()));
             assert!(result.is_ok());
         });
@@ -3442,7 +3442,7 @@ assert(player._valid)
 
         let player = default_test_player();
 
-        mocked_engine().with_max_clients(16).run(|| {
+        MockEngineBuilder::default().with_max_clients(16).run(|| {
             let result = Python::with_gil(|py| player.get_stats(py));
 
             assert_eq!(
@@ -3477,7 +3477,7 @@ assert(player._valid)
 
         let player = default_test_player();
 
-        mocked_engine().with_max_clients(16).run(|| {
+        MockEngineBuilder::default().with_max_clients(16).run(|| {
             let result = Python::with_gil(|py| player.get_stats(py));
 
             assert_eq!(result.expect("result was not OK"), None);
@@ -3523,7 +3523,7 @@ assert(player._valid)
 
         let player = default_test_player();
 
-        mocked_engine().with_max_clients(16).run(|| {
+        MockEngineBuilder::default().with_max_clients(16).run(|| {
             let result = Python::with_gil(|py| player.get_ping(py));
 
             assert_eq!(result.expect("result was not OK"), 42);
@@ -3545,7 +3545,7 @@ assert(player._valid)
 
         let player = default_test_player();
 
-        mocked_engine().with_max_clients(16).run(|| {
+        MockEngineBuilder::default().with_max_clients(16).run(|| {
             let result = Python::with_gil(|py| player.get_ping(py));
 
             assert_eq!(result.expect("result was not OK"), 999);
@@ -3589,7 +3589,7 @@ assert(player._valid)
 
         let player = default_test_player();
 
-        mocked_engine().with_max_clients(16).run(|| {
+        MockEngineBuilder::default().with_max_clients(16).run(|| {
             Python::with_gil(|py| {
                 let result = player.position(py, false, None);
                 assert!(result.is_ok_and(|value| value
@@ -3660,7 +3660,7 @@ assert(player._valid)
 
         let player = default_test_player();
 
-        mocked_engine().with_max_clients(16).run(|| {
+        MockEngineBuilder::default().with_max_clients(16).run(|| {
             Python::with_gil(|py| {
                 let result = player.position(
                     py,
@@ -3707,7 +3707,7 @@ assert(player._valid)
 
         let player = default_test_player();
 
-        mocked_engine().with_max_clients(16).run(|| {
+        MockEngineBuilder::default().with_max_clients(16).run(|| {
             Python::with_gil(|py| {
                 let result = player.position(py, true, Some(&position.into_py_dict_bound(py)));
                 assert_eq!(
@@ -3736,7 +3736,7 @@ assert(player._valid)
 
         let player = default_test_player();
 
-        mocked_engine().with_max_clients(16).run(|| {
+        MockEngineBuilder::default().with_max_clients(16).run(|| {
             Python::with_gil(|py| {
                 let result = player.position(
                     py,
@@ -3791,7 +3791,7 @@ assert(player._valid)
 
         let player = default_test_player();
 
-        mocked_engine().with_max_clients(16).run(|| {
+        MockEngineBuilder::default().with_max_clients(16).run(|| {
             Python::with_gil(|py| {
                 let result = player.velocity(py, false, None);
                 assert!(result.is_ok_and(|value| value
@@ -3862,7 +3862,7 @@ assert(player._valid)
 
         let player = default_test_player();
 
-        mocked_engine().with_max_clients(16).run(|| {
+        MockEngineBuilder::default().with_max_clients(16).run(|| {
             Python::with_gil(|py| {
                 let result = player.velocity(
                     py,
@@ -3909,7 +3909,7 @@ assert(player._valid)
 
         let player = default_test_player();
 
-        mocked_engine().with_max_clients(16).run(|| {
+        MockEngineBuilder::default().with_max_clients(16).run(|| {
             Python::with_gil(|py| {
                 let result = player.velocity(py, true, Some(&velocity.into_py_dict_bound(py)));
                 assert_eq!(
@@ -3938,7 +3938,7 @@ assert(player._valid)
 
         let player = default_test_player();
 
-        mocked_engine().with_max_clients(16).run(|| {
+        MockEngineBuilder::default().with_max_clients(16).run(|| {
             Python::with_gil(|py| {
                 let result = player.velocity(
                     py,
@@ -3993,7 +3993,7 @@ assert(player._valid)
 
         let player = default_test_player();
 
-        mocked_engine().with_max_clients(16).run(|| {
+        MockEngineBuilder::default().with_max_clients(16).run(|| {
             Python::with_gil(|py| {
                 let result = player.weapons(py, false, None);
                 assert!(result.is_ok_and(|value| value
@@ -4064,7 +4064,7 @@ assert(player._valid)
 
         let player = default_test_player();
 
-        mocked_engine().with_max_clients(16).run(|| {
+        MockEngineBuilder::default().with_max_clients(16).run(|| {
             Python::with_gil(|py| {
                 let result = player.weapons(
                     py,
@@ -4142,7 +4142,7 @@ assert(player._valid)
 
         let player = default_test_player();
 
-        mocked_engine().with_max_clients(16).run(|| {
+        MockEngineBuilder::default().with_max_clients(16).run(|| {
             Python::with_gil(|py| {
                 let result = player.weapons(py, true, Some(&weapons.into_py_dict_bound(py)));
                 assert_eq!(
@@ -4171,7 +4171,7 @@ assert(player._valid)
 
         let player = default_test_player();
 
-        mocked_engine().with_max_clients(16).run(|| {
+        MockEngineBuilder::default().with_max_clients(16).run(|| {
             Python::with_gil(|py| {
                 let result = player.weapons(
                     py,
@@ -4260,7 +4260,7 @@ assert(player._valid)
 
         let player = default_test_player();
 
-        mocked_engine().with_max_clients(16).run(|| {
+        MockEngineBuilder::default().with_max_clients(16).run(|| {
             Python::with_gil(|py| {
                 let result = player.weapon(py, None);
                 assert_eq!(
@@ -4290,7 +4290,7 @@ assert(player._valid)
 
         let player = default_test_player();
 
-        mocked_engine().with_max_clients(16).run(|| {
+        MockEngineBuilder::default().with_max_clients(16).run(|| {
             Python::with_gil(|py| {
                 let result = player.weapon(py, None);
                 assert_eq!(
@@ -4346,7 +4346,7 @@ assert(player._valid)
 
         let player = default_test_player();
 
-        mocked_engine().with_max_clients(16).run(|| {
+        MockEngineBuilder::default().with_max_clients(16).run(|| {
             Python::with_gil(|py| {
                 let result = player.weapon(py, Some(weapon_str.into_py(py)));
                 assert_eq!(
@@ -4413,7 +4413,7 @@ assert(player._valid)
 
         let player = default_test_player();
 
-        mocked_engine().with_max_clients(16).run(|| {
+        MockEngineBuilder::default().with_max_clients(16).run(|| {
             Python::with_gil(|py| {
                 let result = player.weapon(py, Some(weapon_index.into_py(py)));
                 assert_eq!(
@@ -4475,7 +4475,7 @@ assert(player._valid)
 
         let player = default_test_player();
 
-        mocked_engine().with_max_clients(16).run(|| {
+        MockEngineBuilder::default().with_max_clients(16).run(|| {
             Python::with_gil(|py| {
                 let result = player.ammo(py, false, None);
                 assert!(result.is_ok_and(|value| value
@@ -4546,7 +4546,7 @@ assert(player._valid)
 
         let player = default_test_player();
 
-        mocked_engine().with_max_clients(16).run(|| {
+        MockEngineBuilder::default().with_max_clients(16).run(|| {
             Python::with_gil(|py| {
                 let result = player.ammo(
                     py,
@@ -4624,7 +4624,7 @@ assert(player._valid)
 
         let player = default_test_player();
 
-        mocked_engine().with_max_clients(16).run(|| {
+        MockEngineBuilder::default().with_max_clients(16).run(|| {
             Python::with_gil(|py| {
                 let result = player.ammo(py, true, Some(&ammos.into_py_dict_bound(py)));
                 assert_eq!(
@@ -4653,7 +4653,7 @@ assert(player._valid)
 
         let player = default_test_player();
 
-        mocked_engine().with_max_clients(16).run(|| {
+        MockEngineBuilder::default().with_max_clients(16).run(|| {
             Python::with_gil(|py| {
                 let result = player.ammo(
                     py,
@@ -4727,7 +4727,7 @@ assert(player._valid)
 
         let player = default_test_player();
 
-        mocked_engine().with_max_clients(16).run(|| {
+        MockEngineBuilder::default().with_max_clients(16).run(|| {
             Python::with_gil(|py| {
                 let result = player.powerups(py, false, None);
                 assert!(result.is_ok_and(|value| value
@@ -4798,7 +4798,7 @@ assert(player._valid)
 
         let player = default_test_player();
 
-        mocked_engine().with_max_clients(16).run(|| {
+        MockEngineBuilder::default().with_max_clients(16).run(|| {
             Python::with_gil(|py| {
                 let result = player.powerups(
                     py,
@@ -4858,7 +4858,7 @@ assert(player._valid)
 
         let player = default_test_player();
 
-        mocked_engine().with_max_clients(16).run(|| {
+        MockEngineBuilder::default().with_max_clients(16).run(|| {
             Python::with_gil(|py| {
                 let result = player.powerups(py, true, Some(&powerups.into_py_dict_bound(py)));
                 assert_eq!(
@@ -4887,7 +4887,7 @@ assert(player._valid)
 
         let player = default_test_player();
 
-        mocked_engine().with_max_clients(16).run(|| {
+        MockEngineBuilder::default().with_max_clients(16).run(|| {
             Python::with_gil(|py| {
                 let result = player.powerups(
                     py,
@@ -4977,7 +4977,7 @@ assert(player._valid)
 
         let player = default_test_player();
 
-        mocked_engine().with_max_clients(16).run(|| {
+        MockEngineBuilder::default().with_max_clients(16).run(|| {
             let result = Python::with_gil(|py| player.get_holdable(py));
             assert_eq!(result.expect("result was not Ok"), expected_result);
         });
@@ -5042,7 +5042,7 @@ assert(player._valid)
 
         let mut player = default_test_player();
 
-        mocked_engine().with_max_clients(16).run(|| {
+        MockEngineBuilder::default().with_max_clients(16).run(|| {
             let result = Python::with_gil(|py| player.set_holdable(py, new_holdable));
             assert!(result.is_ok());
         });
@@ -5091,7 +5091,7 @@ assert(player._valid)
 
         let mut player = default_test_player();
 
-        mocked_engine().with_max_clients(16).run(|| {
+        MockEngineBuilder::default().with_max_clients(16).run(|| {
             let result = Python::with_gil(|py| player.set_holdable(py, Some("flight".to_string())));
             assert!(result.is_ok());
         });
@@ -5137,7 +5137,7 @@ assert(player._valid)
 
         let mut player = default_test_player();
 
-        mocked_engine().with_max_clients(16).run(|| {
+        MockEngineBuilder::default().with_max_clients(16).run(|| {
             let result = Python::with_gil(|py| player.drop_holdable(py));
             assert!(result.is_ok());
         });
@@ -5184,7 +5184,7 @@ assert(player._valid)
 
         let mut player = default_test_player();
 
-        mocked_engine().with_max_clients(16).run(|| {
+        MockEngineBuilder::default().with_max_clients(16).run(|| {
             Python::with_gil(|py| {
                 let result = player.flight(py, false, None);
                 assert!(result.is_ok_and(|value| value
@@ -5254,7 +5254,7 @@ assert(player._valid)
             });
         let mut player = default_test_player();
 
-        mocked_engine().with_max_clients(16).run(|| {
+        MockEngineBuilder::default().with_max_clients(16).run(|| {
             Python::with_gil(|py| {
                 let result = player.flight(
                     py,
@@ -5351,7 +5351,7 @@ assert(player._valid)
 
         let mut player = default_test_player();
 
-        mocked_engine().with_max_clients(16).run(|| {
+        MockEngineBuilder::default().with_max_clients(16).run(|| {
             Python::with_gil(|py| {
                 let result = player.flight(py, true, Some(&flight_opts.into_py_dict_bound(py)));
                 assert_eq!(
@@ -5380,7 +5380,7 @@ assert(player._valid)
 
         let mut player = default_test_player();
 
-        mocked_engine().with_max_clients(16).run(|| {
+        MockEngineBuilder::default().with_max_clients(16).run(|| {
             Python::with_gil(|py| {
                 let result = player.flight(
                     py,
@@ -5442,7 +5442,7 @@ assert(player._valid)
 
         let player = default_test_player();
 
-        mocked_engine().with_max_clients(16).run(|| {
+        MockEngineBuilder::default().with_max_clients(16).run(|| {
             let result = Python::with_gil(|py| player.get_noclip(py));
             assert_eq!(result.expect("result was not Ok"), noclip_state.clone());
         });
@@ -5463,7 +5463,7 @@ assert(player._valid)
 
         let player = default_test_player();
 
-        mocked_engine().with_max_clients(16).run(|| {
+        MockEngineBuilder::default().with_max_clients(16).run(|| {
             let result = Python::with_gil(|py| player.get_noclip(py));
             assert_eq!(result.expect("result was not Ok"), false);
         });
@@ -5529,7 +5529,7 @@ assert(player._valid)
 
         let mut player = default_test_player();
 
-        mocked_engine().with_max_clients(16).run(|| {
+        MockEngineBuilder::default().with_max_clients(16).run(|| {
             let result = Python::with_gil(|py| player.set_noclip(py, noclip_value.into_py(py)));
 
             assert!(result.as_ref().is_ok(), "{:?}", result.err());
@@ -5585,7 +5585,7 @@ assert(player._valid)
 
         let mut player = default_test_player();
 
-        mocked_engine().with_max_clients(16).run(|| {
+        MockEngineBuilder::default().with_max_clients(16).run(|| {
             let result = Python::with_gil(|py| player.set_noclip(py, noclip_value.into_py(py)));
 
             assert!(result.as_ref().is_ok(), "{:?}", result.err());
@@ -5641,7 +5641,7 @@ assert(player._valid)
 
         let mut player = default_test_player();
 
-        mocked_engine().with_max_clients(16).run(|| {
+        MockEngineBuilder::default().with_max_clients(16).run(|| {
             let result = Python::with_gil(|py| player.set_noclip(py, noclip_value.into_py(py)));
 
             assert!(result.as_ref().is_ok(), "{:?}", result.err());
@@ -5689,7 +5689,7 @@ assert(player._valid)
 
         let mut player = default_test_player();
 
-        mocked_engine().with_max_clients(16).run(|| {
+        MockEngineBuilder::default().with_max_clients(16).run(|| {
             let result = Python::with_gil(|py| player.set_noclip(py, py.None()));
 
             assert!(result.as_ref().is_ok(), "{:?}", result.err());
@@ -5731,7 +5731,7 @@ assert(player._valid)
 
         let player = default_test_player();
 
-        mocked_engine().with_max_clients(16).run(|| {
+        MockEngineBuilder::default().with_max_clients(16).run(|| {
             let result = Python::with_gil(|py| player.get_health(py));
             assert_eq!(result.expect("result was not Ok"), 42);
         });
@@ -5752,7 +5752,7 @@ assert(player._valid)
 
         let player = default_test_player();
 
-        mocked_engine().with_max_clients(16).run(|| {
+        MockEngineBuilder::default().with_max_clients(16).run(|| {
             let result = Python::with_gil(|py| player.get_health(py));
             assert_eq!(result.expect("result was not Ok"), 0);
         });
@@ -5786,7 +5786,7 @@ assert(player._valid)
 
         let mut player = default_test_player();
 
-        mocked_engine().with_max_clients(16).run(|| {
+        MockEngineBuilder::default().with_max_clients(16).run(|| {
             let result = Python::with_gil(|py| player.set_health(py, 666));
 
             assert!(result.is_ok());
@@ -5828,7 +5828,7 @@ assert(player._valid)
 
         let player = default_test_player();
 
-        mocked_engine().with_max_clients(16).run(|| {
+        MockEngineBuilder::default().with_max_clients(16).run(|| {
             let result = Python::with_gil(|py| player.get_armor(py));
             assert_eq!(result.expect("result was not Ok"), 42);
         });
@@ -5849,7 +5849,7 @@ assert(player._valid)
 
         let player = default_test_player();
 
-        mocked_engine().with_max_clients(16).run(|| {
+        MockEngineBuilder::default().with_max_clients(16).run(|| {
             let result = Python::with_gil(|py| player.get_health(py));
             assert_eq!(result.expect("result was not Ok"), 0);
         });
@@ -5906,7 +5906,7 @@ assert(player._valid)
 
         let mut player = default_test_player();
 
-        mocked_engine().with_max_clients(16).run(|| {
+        MockEngineBuilder::default().with_max_clients(16).run(|| {
             let result = Python::with_gil(|py| player.set_armor(py, 666));
 
             assert!(result.is_ok());
@@ -5954,7 +5954,7 @@ assert(player._valid)
 
         let player = default_test_player();
 
-        mocked_engine().with_max_clients(16).run(|| {
+        MockEngineBuilder::default().with_max_clients(16).run(|| {
             let result = Python::with_gil(|py| player.get_is_alive(py));
             assert_eq!(result.expect("result was not Ok"), is_alive);
         });
@@ -5975,7 +5975,7 @@ assert(player._valid)
 
         let player = default_test_player();
 
-        mocked_engine().with_max_clients(16).run(|| {
+        MockEngineBuilder::default().with_max_clients(16).run(|| {
             let result = Python::with_gil(|py| player.get_is_alive(py));
             assert_eq!(result.expect("result was not Ok"), false);
         });
@@ -6058,7 +6058,7 @@ assert(player._valid)
 
         let mut player = default_test_player();
 
-        mocked_engine().with_max_clients(16).run(|| {
+        MockEngineBuilder::default().with_max_clients(16).run(|| {
             let result = Python::with_gil(|py| player.set_is_alive(py, false));
             assert!(result.is_ok());
         });
@@ -6098,7 +6098,7 @@ assert(player._valid)
         });
         let mut player = default_test_player();
 
-        mocked_engine().with_max_clients(16).run(|| {
+        MockEngineBuilder::default().with_max_clients(16).run(|| {
             let result = Python::with_gil(|py| player.set_is_alive(py, false));
             assert!(result.is_ok());
         });
@@ -6139,7 +6139,7 @@ assert(player._valid)
 
         let mut player = default_test_player();
 
-        mocked_engine().with_max_clients(16).run(|| {
+        MockEngineBuilder::default().with_max_clients(16).run(|| {
             let result = Python::with_gil(|py| player.set_is_alive(py, true));
             assert!(result.is_ok());
         });
@@ -6216,7 +6216,7 @@ assert(player._valid)
 
         let mut player = default_test_player();
 
-        mocked_engine().with_max_clients(16).run(|| {
+        MockEngineBuilder::default().with_max_clients(16).run(|| {
             let result = Python::with_gil(|py| player.set_is_alive(py, true));
             assert!(result.is_ok());
         });
@@ -6266,7 +6266,7 @@ assert(player._valid)
 
         let player = default_test_player();
 
-        mocked_engine().with_max_clients(16).run(|| {
+        MockEngineBuilder::default().with_max_clients(16).run(|| {
             let result = Python::with_gil(|py| player.get_is_frozen(py));
             assert_eq!(result.expect("result was not Ok"), is_frozen);
         });
@@ -6287,7 +6287,7 @@ assert(player._valid)
 
         let player = default_test_player();
 
-        mocked_engine().with_max_clients(16).run(|| {
+        MockEngineBuilder::default().with_max_clients(16).run(|| {
             let result = Python::with_gil(|py| player.get_is_frozen(py));
             assert_eq!(result.expect("result was not Ok"), false);
         });
@@ -6349,7 +6349,7 @@ assert(player._valid)
 
         let player = default_test_player();
 
-        mocked_engine().with_max_clients(16).run(|| {
+        MockEngineBuilder::default().with_max_clients(16).run(|| {
             let result = Python::with_gil(|py| player.get_is_chatting(py));
             assert_eq!(result.expect("result was not Ok"), is_chatting);
         });
@@ -6370,7 +6370,7 @@ assert(player._valid)
 
         let player = default_test_player();
 
-        mocked_engine().with_max_clients(16).run(|| {
+        MockEngineBuilder::default().with_max_clients(16).run(|| {
             let result = Python::with_gil(|py| player.get_is_chatting(py));
             assert_eq!(result.expect("result was not Ok"), false);
         });
@@ -6427,7 +6427,7 @@ assert(player._valid)
 
         let player = default_test_player();
 
-        mocked_engine().with_max_clients(16).run(|| {
+        MockEngineBuilder::default().with_max_clients(16).run(|| {
             let result = Python::with_gil(|py| player.get_score(py));
             assert_eq!(result.expect("result was not OK"), 42);
         });
@@ -6448,7 +6448,7 @@ assert(player._valid)
 
         let player = default_test_player();
 
-        mocked_engine().with_max_clients(16).run(|| {
+        MockEngineBuilder::default().with_max_clients(16).run(|| {
             let result = Python::with_gil(|py| player.get_score(py));
             assert_eq!(result.expect("result was not OK"), 0);
         });
@@ -6486,7 +6486,7 @@ assert(player._valid)
 
         let player = default_test_player();
 
-        mocked_engine().with_max_clients(16).run(|| {
+        MockEngineBuilder::default().with_max_clients(16).run(|| {
             let result = Python::with_gil(|py| player.set_score(py, 42));
             assert!(result.is_ok());
         });
@@ -6507,7 +6507,7 @@ assert(player._valid)
 
         let player = default_test_player();
 
-        mocked_engine().with_max_clients(16).run(|| {
+        MockEngineBuilder::default().with_max_clients(16).run(|| {
             let result = Python::with_gil(|py| player.set_score(py, 42));
             assert!(result.is_ok());
         });
@@ -6545,7 +6545,7 @@ assert(player._valid)
 
         let player = default_test_player();
 
-        mocked_engine().with_max_clients(16).run(|| {
+        MockEngineBuilder::default().with_max_clients(16).run(|| {
             let result = Python::with_gil(|py| player.center_print(py, "asdf"));
             assert!(result.is_ok());
         });
@@ -6572,7 +6572,7 @@ assert(player._valid)
 
         let player = default_test_player();
 
-        mocked_engine().with_max_clients(16).run(|| {
+        MockEngineBuilder::default().with_max_clients(16).run(|| {
             Python::with_gil(|py| {
                 let result = player.tell(py, "asdf", None);
                 assert!(result.is_ok());
@@ -6628,7 +6628,7 @@ assert(player._valid)
             ..default_test_player()
         };
 
-        mocked_engine().with_max_clients(16).run(|| {
+        MockEngineBuilder::default().with_max_clients(16).run(|| {
             Python::with_gil(|py| {
                 let result = player.tell(
                     py,
@@ -6688,7 +6688,7 @@ assert(player._valid)
             ..default_test_player()
         };
 
-        mocked_engine().with_max_clients(16).run(|| {
+        MockEngineBuilder::default().with_max_clients(16).run(|| {
             Python::with_gil(|py| {
                 let result = player.tell(
                     py,
@@ -6751,7 +6751,7 @@ assert(player._valid)
             ..default_test_player()
         };
 
-        mocked_engine().with_max_clients(16).run(|| {
+        MockEngineBuilder::default().with_max_clients(16).run(|| {
             let result = Python::with_gil(|py| player.kick(py, "you stink, go away!"));
             assert!(result.is_ok());
         });
@@ -6763,7 +6763,7 @@ assert(player._valid)
     fn ban_bans_player(_pyshinqlx_setup: ()) {
         let player = default_test_player();
 
-        mocked_engine()
+        MockEngineBuilder::default()
             .configure(|mock_engine| {
                 mock_engine
                     .expect_execute_console_command()
@@ -6782,7 +6782,7 @@ assert(player._valid)
     fn tempban_tempbans_player(_pyshinqlx_setup: ()) {
         let player = default_test_player();
 
-        mocked_engine()
+        MockEngineBuilder::default()
             .configure(|mock_engine| {
                 mock_engine
                     .expect_execute_console_command()
@@ -6801,7 +6801,7 @@ assert(player._valid)
     fn addadmin_adds_player_to_admins(_pyshinqlx_setup: ()) {
         let player = default_test_player();
 
-        mocked_engine()
+        MockEngineBuilder::default()
             .configure(|mock_engine| {
                 mock_engine
                     .expect_execute_console_command()
@@ -6820,7 +6820,7 @@ assert(player._valid)
     fn addmod_adds_player_to_mods(_pyshinqlx_setup: ()) {
         let player = default_test_player();
 
-        mocked_engine()
+        MockEngineBuilder::default()
             .configure(|mock_engine| {
                 mock_engine
                     .expect_execute_console_command()
@@ -6839,7 +6839,7 @@ assert(player._valid)
     fn demote_demotes_player(_pyshinqlx_setup: ()) {
         let player = default_test_player();
 
-        mocked_engine()
+        MockEngineBuilder::default()
             .configure(|mock_engine| {
                 mock_engine
                     .expect_execute_console_command()
@@ -6858,7 +6858,7 @@ assert(player._valid)
     fn mute_mutes_player(_pyshinqlx_setup: ()) {
         let player = default_test_player();
 
-        mocked_engine()
+        MockEngineBuilder::default()
             .configure(|mock_engine| {
                 mock_engine
                     .expect_execute_console_command()
@@ -6877,7 +6877,7 @@ assert(player._valid)
     fn unmute_unmutes_player(_pyshinqlx_setup: ()) {
         let player = default_test_player();
 
-        mocked_engine()
+        MockEngineBuilder::default()
             .configure(|mock_engine| {
                 mock_engine
                     .expect_execute_console_command()
@@ -6914,7 +6914,7 @@ assert(player._valid)
         let put_cmd = format!("put 2 {}", new_team.to_lowercase());
         let player = default_test_player();
 
-        mocked_engine()
+        MockEngineBuilder::default()
             .configure(|mock_engine| {
                 mock_engine
                     .expect_execute_console_command()
@@ -6933,7 +6933,7 @@ assert(player._valid)
     fn addscore_adds_score_to_player(_pyshinqlx_setup: ()) {
         let player = default_test_player();
 
-        mocked_engine()
+        MockEngineBuilder::default()
             .configure(|mock_engine| {
                 mock_engine
                     .expect_execute_console_command()
@@ -6994,7 +6994,7 @@ assert(player._valid)
             ..default_test_player()
         };
 
-        mocked_engine()
+        MockEngineBuilder::default()
             .configure(|mock_engine| {
                 mock_engine
                     .expect_execute_console_command()
@@ -7017,7 +7017,7 @@ assert(player._valid)
     fn slap_slaps_player(_pyshinqlx_setup: ()) {
         let player = default_test_player();
 
-        mocked_engine()
+        MockEngineBuilder::default()
             .configure(|mock_engine| {
                 mock_engine
                     .expect_execute_console_command()
@@ -7036,7 +7036,7 @@ assert(player._valid)
     fn slay_slays_player(_pyshinqlx_setup: ()) {
         let player = default_test_player();
 
-        mocked_engine()
+        MockEngineBuilder::default()
             .configure(|mock_engine| {
                 mock_engine
                     .expect_execute_console_command()
@@ -7067,7 +7067,7 @@ assert(player._valid)
 
         let player = default_test_player();
 
-        mocked_engine().with_max_clients(16).run(|| {
+        MockEngineBuilder::default().with_max_clients(16).run(|| {
             let result = Python::with_gil(|py| {
                 player.slay_with_mod(py, meansOfDeath_t::MOD_PROXIMITY_MINE as i32)
             });
@@ -7141,7 +7141,7 @@ assert(player._valid)
             mock_game_entity
         });
 
-        mocked_engine().with_max_clients(3).run(|| {
+        MockEngineBuilder::default().with_max_clients(3).run(|| {
             let all_players =
                 Python::with_gil(|py| Player::all_players(&py.get_type_bound::<Player>(), py));
             assert_eq!(
@@ -7417,7 +7417,7 @@ mod pyshinqlx_rcon_dummy_player_tests {
     use crate::ffi::c::prelude::{cvar_t, CVar, CVarBuilder};
 
     use crate::hooks::mock_hooks::shinqlx_com_printf_context;
-    use crate::prelude::{mocked_engine, serial};
+    use crate::prelude::*;
 
     use core::borrow::BorrowMut;
 
@@ -7454,7 +7454,7 @@ assert(isinstance(shinqlx.RconDummyPlayer(), shinqlx.AbstractDummyPlayer))
             .build()
             .expect("this should not happen");
 
-        mocked_engine()
+        MockEngineBuilder::default()
             .configure(|mock_engine| {
                 mock_engine
                     .expect_find_cvar()
