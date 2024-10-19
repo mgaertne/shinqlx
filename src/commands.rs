@@ -417,14 +417,8 @@ mod commands_tests {
         MockEngineBuilder::default()
             .with_max_clients(16)
             .with_com_printf(predicate::eq("Usage: !slap <client_id> [damage]\n"), 1)
-            .configure(|mock_engine| {
-                mock_engine.expect_cmd_argc().return_const(1).times(1);
-                mock_engine
-                    .expect_cmd_argv()
-                    .with(predicate::eq(0))
-                    .return_const(Some("!slap".to_string()))
-                    .times(1);
-            })
+            .with_argc(1)
+            .with_argv(predicate::eq(0), Some("!slap"), 1)
             .run(|| {
                 cmd_slap();
             });
@@ -439,14 +433,8 @@ mod commands_tests {
                 predicate::eq("client_id must be a number between 0 and 15.\n"),
                 1,
             )
-            .configure(|mock_engine| {
-                mock_engine.expect_cmd_argc().return_const(2).times(1);
-                mock_engine
-                    .expect_cmd_argv()
-                    .with(predicate::eq(1))
-                    .return_const(Some("2147483648".to_string()))
-                    .times(1);
-            })
+            .with_argc(2)
+            .with_argv(predicate::eq(1), Some("2147483648"), 1)
             .run(|| {
                 cmd_slap();
             });
@@ -461,14 +449,8 @@ mod commands_tests {
                 predicate::eq("client_id must be a number between 0 and 15.\n"),
                 1,
             )
-            .configure(|mock_engine| {
-                mock_engine.expect_cmd_argc().return_const(2).times(1);
-                mock_engine
-                    .expect_cmd_argv()
-                    .with(predicate::eq(1))
-                    .return_const(Some("-1".to_string()))
-                    .times(1);
-            })
+            .with_argc(2)
+            .with_argv(predicate::eq(1), Some("-1"), 1)
             .run(|| {
                 cmd_slap();
             });
@@ -483,14 +465,8 @@ mod commands_tests {
                 predicate::eq("client_id must be a number between 0 and 15.\n"),
                 1,
             )
-            .configure(|mock_engine| {
-                mock_engine.expect_cmd_argc().return_const(2).times(1);
-                mock_engine
-                    .expect_cmd_argv()
-                    .with(predicate::eq(1))
-                    .return_const(Some("42".to_string()))
-                    .times(1);
-            })
+            .with_argc(2)
+            .with_argv(predicate::eq(1), Some("42"), 1)
             .run(|| {
                 cmd_slap();
             });
@@ -517,14 +493,8 @@ mod commands_tests {
         MockEngineBuilder::default()
             .with_max_clients(16)
             .with_com_printf(predicate::eq("The player is currently not active.\n"), 1)
-            .configure(|mock_engine| {
-                mock_engine.expect_cmd_argc().return_const(2).times(1);
-                mock_engine
-                    .expect_cmd_argv()
-                    .with(predicate::eq(1))
-                    .return_const(Some("2".to_string()))
-                    .times(1);
-            })
+            .with_argc(2)
+            .with_argv(predicate::eq(1), Some("2"), 1)
             .run(|| {
                 cmd_slap();
             });
@@ -552,14 +522,8 @@ mod commands_tests {
         MockEngineBuilder::default()
             .with_max_clients(16)
             .with_com_printf(predicate::eq("The player is currently not active.\n"), 1)
-            .configure(|mock_engine| {
-                mock_engine.expect_cmd_argc().return_const(2).times(1);
-                mock_engine
-                    .expect_cmd_argv()
-                    .with(predicate::eq(1))
-                    .return_const(Some("2".to_string()))
-                    .times(1);
-            })
+            .with_argc(2)
+            .with_argv(predicate::eq(1), Some("2"), 1)
             .run(|| {
                 cmd_slap();
             });
@@ -616,13 +580,9 @@ mod commands_tests {
                 },
                 1,
             )
+            .with_argc(2)
+            .with_argv(predicate::eq(1), Some("2"), 1)
             .configure(|mock_engine| {
-                mock_engine.expect_cmd_argc().return_const(2).times(1);
-                mock_engine
-                    .expect_cmd_argv()
-                    .with(predicate::eq(1))
-                    .return_const(Some("2".to_string()))
-                    .times(1);
                 mock_engine
                     .expect_game_add_event()
                     .withf(|_entity, &entity_event, &event_param| {
@@ -691,18 +651,10 @@ mod commands_tests {
                 },
                 1,
             )
+            .with_argc(3)
+            .with_argv(predicate::eq(1), Some("2"), 1)
+            .with_argv(predicate::eq(2), Some("1"), 1)
             .configure(|mock_engine| {
-                mock_engine.expect_cmd_argc().return_const(3).times(1);
-                mock_engine
-                    .expect_cmd_argv()
-                    .with(predicate::eq(1))
-                    .return_const(Some("2".to_string()))
-                    .times(1);
-                mock_engine
-                    .expect_cmd_argv()
-                    .with(predicate::eq(2))
-                    .return_const(Some("1".to_string()))
-                    .times(1);
                 mock_engine
                     .expect_game_add_event()
                     .withf(|_entity, &entity_event, &event_param| {
@@ -775,18 +727,10 @@ mod commands_tests {
                 },
                 1,
             )
+            .with_argc(3)
+            .with_argv(predicate::eq(1), Some("2"), 1)
+            .with_argv(predicate::eq(2), Some("666"), 1)
             .configure(|mock_engine| {
-                mock_engine.expect_cmd_argc().return_const(3).times(1);
-                mock_engine
-                    .expect_cmd_argv()
-                    .with(predicate::eq(1))
-                    .return_const(Some("2".to_string()))
-                    .times(1);
-                mock_engine
-                    .expect_cmd_argv()
-                    .with(predicate::eq(2))
-                    .return_const(Some("666".to_string()))
-                    .times(1);
                 mock_engine
                     .expect_game_add_event()
                     .withf(|_entity, &entity_event, &event_param| {
@@ -850,18 +794,10 @@ mod commands_tests {
                 },
                 1,
             )
+            .with_argc(3)
+            .with_argv(predicate::eq(1), Some("2"), 1)
+            .with_argv(predicate::eq(2), Some("2147483648"), 1)
             .configure(|mock_engine| {
-                mock_engine.expect_cmd_argc().return_const(3).times(1);
-                mock_engine
-                    .expect_cmd_argv()
-                    .with(predicate::eq(1))
-                    .return_const(Some("2".to_string()))
-                    .times(1);
-                mock_engine
-                    .expect_cmd_argv()
-                    .with(predicate::eq(2))
-                    .return_const(Some("2147483648".to_string()))
-                    .times(1);
                 mock_engine
                     .expect_game_add_event()
                     .withf(|_entity, &entity_event, &event_param| {
@@ -886,14 +822,8 @@ mod commands_tests {
         MockEngineBuilder::default()
             .with_max_clients(16)
             .with_com_printf(predicate::eq("Usage: !slap <client_id> [damage]\n"), 1)
-            .configure(|mock_engine| {
-                mock_engine.expect_cmd_argc().return_const(1).times(1);
-                mock_engine
-                    .expect_cmd_argv()
-                    .with(predicate::eq(0))
-                    .return_const(Some("!slap".to_string()))
-                    .times(1);
-            })
+            .with_argc(1)
+            .with_argv(predicate::eq(0), Some("!slap"), 1)
             .run(|| {
                 cmd_slay();
             });
@@ -908,14 +838,8 @@ mod commands_tests {
                 predicate::eq("client_id must be a number between 0 and 15.\n"),
                 1,
             )
-            .configure(|mock_engine| {
-                mock_engine.expect_cmd_argc().return_const(2).times(1);
-                mock_engine
-                    .expect_cmd_argv()
-                    .with(predicate::eq(1))
-                    .return_const(Some("2147483648".to_string()))
-                    .times(1);
-            })
+            .with_argc(2)
+            .with_argv(predicate::eq(1), Some("2147483648"), 1)
             .run(|| {
                 cmd_slay();
             });
@@ -930,14 +854,8 @@ mod commands_tests {
                 predicate::eq("client_id must be a number between 0 and 15.\n"),
                 1,
             )
-            .configure(|mock_engine| {
-                mock_engine.expect_cmd_argc().return_const(2).times(1);
-                mock_engine
-                    .expect_cmd_argv()
-                    .with(predicate::eq(1))
-                    .return_const(Some("-1".to_string()))
-                    .times(1);
-            })
+            .with_argc(2)
+            .with_argv(predicate::eq(1), Some("-1"), 1)
             .run(|| {
                 cmd_slay();
             });
@@ -952,14 +870,8 @@ mod commands_tests {
                 predicate::eq("client_id must be a number between 0 and 15.\n"),
                 1,
             )
-            .configure(|mock_engine| {
-                mock_engine.expect_cmd_argc().return_const(2).times(1);
-                mock_engine
-                    .expect_cmd_argv()
-                    .with(predicate::eq(1))
-                    .return_const(Some("42".to_string()))
-                    .times(1);
-            })
+            .with_argc(2)
+            .with_argv(predicate::eq(1), Some("42"), 1)
             .run(|| {
                 cmd_slay();
             });
@@ -986,14 +898,8 @@ mod commands_tests {
         MockEngineBuilder::default()
             .with_max_clients(16)
             .with_com_printf(predicate::eq("The player is currently not active.\n"), 1)
-            .configure(|mock_engine| {
-                mock_engine.expect_cmd_argc().return_const(2).times(1);
-                mock_engine
-                    .expect_cmd_argv()
-                    .with(predicate::eq(1))
-                    .return_const(Some("2".to_string()))
-                    .times(1);
-            })
+            .with_argc(2)
+            .with_argv(predicate::eq(1), Some("2"), 1)
             .run(|| {
                 cmd_slay();
             });
@@ -1021,14 +927,8 @@ mod commands_tests {
         MockEngineBuilder::default()
             .with_max_clients(16)
             .with_com_printf(predicate::eq("The player is currently not active.\n"), 1)
-            .configure(|mock_engine| {
-                mock_engine.expect_cmd_argc().return_const(2).times(1);
-                mock_engine
-                    .expect_cmd_argv()
-                    .with(predicate::eq(1))
-                    .return_const(Some("2".to_string()))
-                    .times(1);
-            })
+            .with_argc(2)
+            .with_argv(predicate::eq(1), Some("2"), 1)
             .run(|| {
                 cmd_slay();
             });
@@ -1080,13 +980,9 @@ mod commands_tests {
                 |client, cmd| client.is_none() && cmd == "print \"Slain Player^7 was slain!\n\"\n",
                 1,
             )
+            .with_argc(2)
+            .with_argv(predicate::eq(1), Some("2"), 1)
             .configure(|mock_engine| {
-                mock_engine.expect_cmd_argc().return_const(2).times(1);
-                mock_engine
-                    .expect_cmd_argv()
-                    .with(predicate::eq(1))
-                    .return_const(Some("2".to_string()))
-                    .times(1);
                 mock_engine
                     .expect_game_add_event()
                     .withf(|_entity, &entity_event, &event_param| {
