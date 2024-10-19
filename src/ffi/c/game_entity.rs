@@ -586,7 +586,7 @@ mod game_entity_tests {
             .build()
             .expect("this should not happen");
 
-        mocked_engine()
+        MockEngineBuilder::default()
             .configure(|mock_engine| {
                 mock_engine
                     .expect_touch_item_orig()
@@ -614,7 +614,7 @@ mod game_entity_tests {
         let touch_item_ctx = MockStaticFunc::touch_item_context();
         touch_item_ctx.expect().times(0);
 
-        mocked_engine()
+        MockEngineBuilder::default()
             .configure(|mock_engine| {
                 mock_engine
                     .expect_touch_item_orig()
@@ -646,7 +646,7 @@ mod game_entity_tests {
         let touch_item_ctx = MockStaticFunc::touch_item_context();
         touch_item_ctx.expect().times(0);
 
-        mocked_engine()
+        MockEngineBuilder::default()
             .configure(|mock_engine| {
                 mock_engine
                     .expect_touch_item_orig()
@@ -677,7 +677,7 @@ mod game_entity_tests {
         let touch_item_ctx = MockStaticFunc::touch_item_context();
         touch_item_ctx.expect().times(1);
 
-        mocked_engine()
+        MockEngineBuilder::default()
             .configure(|mock_engine| {
                 mock_engine
                     .expect_touch_item_orig()
@@ -709,7 +709,7 @@ mod game_entity_tests {
             .build()
             .expect("this should not happen");
 
-        mocked_engine()
+        MockEngineBuilder::default()
             .configure(|mock_engine| {
                 mock_engine
                     .expect_touch_item_orig()
@@ -731,7 +731,7 @@ mod game_entity_tests {
             .build()
             .expect("this should not happen");
 
-        mocked_engine()
+        MockEngineBuilder::default()
             .configure(|mock_engine| {
                 mock_engine
                     .expect_touch_item_orig()
@@ -748,7 +748,7 @@ mod game_entity_tests {
     #[test]
     #[serial]
     fn shinqlx_switch_touch_item_with_null_entity() {
-        mocked_engine()
+        MockEngineBuilder::default()
             .configure(|mock_engine| {
                 mock_engine
                     .expect_touch_item_orig()
@@ -776,7 +776,7 @@ mod game_entity_tests {
             Ok(current_level)
         });
 
-        mocked_engine()
+        MockEngineBuilder::default()
             .configure(|mock_engine| {
                 mock_engine
                     .expect_touch_item_orig()
@@ -940,7 +940,7 @@ mod game_entity_tests {
     #[test]
     #[serial]
     fn game_entity_get_entities_list_with_no_g_run_frame_orig() {
-        mocked_engine()
+        MockEngineBuilder::default()
             .configure(|mock_engine| {
                 mock_engine
                     .expect_g_run_frame_orig()
@@ -1019,7 +1019,7 @@ mod game_entity_tests {
         let mut game_entity = GameEntity::try_from(gentity.borrow_mut() as *mut gentity_t)
             .expect("this should not happen");
 
-        mocked_engine()
+        MockEngineBuilder::default()
             .configure(|mock_engine| {
                 mock_engine.expect_start_kamikaze().times(1);
             })
@@ -1292,7 +1292,7 @@ mod game_entity_tests {
         let mut game_entity = GameEntity::try_from(gentity.borrow_mut() as *mut gentity_t)
             .expect("this should not happen");
 
-        mocked_engine()
+        MockEngineBuilder::default()
             .configure(|mock_engine| {
                 mock_engine.expect_register_damage().withf(
                     |_target,
@@ -1333,7 +1333,7 @@ mod game_entity_tests {
         let mut game_entity = GameEntity::try_from(gentity.borrow_mut() as *mut gentity_t)
             .expect("this should not happen");
 
-        mocked_engine()
+        MockEngineBuilder::default()
             .configure(|mock_engine| {
                 mock_engine.expect_register_damage().withf(
                     |_target,
@@ -1568,7 +1568,7 @@ mod game_entity_tests {
         let mut game_entity = GameEntity::try_from(gentity.borrow_mut() as *mut gentity_t)
             .expect("this should not happen");
 
-        mocked_engine()
+        MockEngineBuilder::default()
             .configure(|_mock_engine| {})
             .run(|| game_entity.drop_holdable());
     }
@@ -1596,7 +1596,7 @@ mod game_entity_tests {
         let mut game_entity = GameEntity::try_from(gentity.borrow_mut() as *mut gentity_t)
             .expect("this should not happen");
 
-        mocked_engine()
+        MockEngineBuilder::default()
             .configure(|_mock_engine| {})
             .run(|| game_entity.drop_holdable());
     }
@@ -1646,7 +1646,7 @@ mod game_entity_tests {
         let mut game_entity = GameEntity::try_from(gentity.borrow_mut() as *mut gentity_t)
             .expect("this should not happen");
 
-        mocked_engine()
+        MockEngineBuilder::default()
             .configure(|mock_engine| {
                 mock_engine.expect_free_entity();
             })
@@ -1678,7 +1678,7 @@ mod game_entity_tests {
         let mut game_entity = GameEntity::try_from(gentity.borrow_mut() as *mut gentity_t)
             .expect("this should not happen");
 
-        mocked_engine()
+        MockEngineBuilder::default()
             .with_com_printf(predicate::eq("class_name"), 0..)
             .configure(|mock_engine| {
                 mock_engine.expect_free_entity();

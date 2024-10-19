@@ -136,7 +136,7 @@ mod server_static_tests {
     #[test]
     #[serial]
     fn server_static_default_panics_when_offset_function_not_initialized() {
-        mocked_engine()
+        MockEngineBuilder::default()
             .configure(|mock_engine| {
                 mock_engine
                     .expect_sv_shutdown_orig()

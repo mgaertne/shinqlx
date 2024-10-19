@@ -106,7 +106,7 @@ mod force_vote_tests {
                 mock_client
             });
 
-        mocked_engine().with_max_clients(1).run(|| {
+        MockEngineBuilder::default().with_max_clients(1).run(|| {
             let result = Python::with_gil(|py| pyshinqlx_force_vote(py, true));
 
             assert_eq!(result.expect("result was not OK"), true);
@@ -147,7 +147,7 @@ mod force_vote_tests {
                 mock_game_entity
             });
 
-        mocked_engine().with_max_clients(1).run(|| {
+        MockEngineBuilder::default().with_max_clients(1).run(|| {
             let result = Python::with_gil(|py| pyshinqlx_force_vote(py, true));
 
             assert_eq!(result.expect("result was not OK"), true);
@@ -193,7 +193,7 @@ mod force_vote_tests {
                 mock_game_entity
             });
 
-        mocked_engine().with_max_clients(1).run(|| {
+        MockEngineBuilder::default().with_max_clients(1).run(|| {
             let result = Python::with_gil(|py| pyshinqlx_force_vote(py, true));
 
             assert_eq!(result.expect("result was not OK"), true);

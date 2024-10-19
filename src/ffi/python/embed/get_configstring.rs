@@ -61,7 +61,7 @@ mod get_configstring_tests {
     #[cfg_attr(miri, ignore)]
     #[serial]
     fn get_configstring_forwards_call_to_engine(_pyshinqlx_setup: ()) {
-        mocked_engine()
+        MockEngineBuilder::default()
             .configure(|mock_engine| {
                 mock_engine
                     .expect_get_configstring()
