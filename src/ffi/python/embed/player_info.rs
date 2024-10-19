@@ -62,7 +62,7 @@ mod get_player_info_tests {
     #[cfg_attr(miri, ignore)]
     #[serial]
     fn get_player_info_for_client_id_below_zero(_pyshinqlx_setup: ()) {
-        mocked_engine().with_max_clients(16).run(|| {
+        MockEngineBuilder::default().with_max_clients(16).run(|| {
             Python::with_gil(|py| {
                 let result = pyshinqlx_player_info(py, -1);
                 assert!(result.is_err_and(|err| err.is_instance_of::<PyValueError>(py)));
@@ -74,7 +74,7 @@ mod get_player_info_tests {
     #[cfg_attr(miri, ignore)]
     #[serial]
     fn get_player_info_for_client_id_above_max_clients(_pyshinqlx_setup: ()) {
-        mocked_engine().with_max_clients(16).run(|| {
+        MockEngineBuilder::default().with_max_clients(16).run(|| {
             Python::with_gil(|py| {
                 let result = pyshinqlx_player_info(py, 42);
                 assert!(result.is_err_and(|err| err.is_instance_of::<PyValueError>(py)));
@@ -114,7 +114,7 @@ mod get_player_info_tests {
             mock_game_entity
         });
 
-        mocked_engine().with_max_clients(16).run(|| {
+        MockEngineBuilder::default().with_max_clients(16).run(|| {
             let player_info = Python::with_gil(|py| pyshinqlx_player_info(py, 2));
             assert_eq!(
                 player_info.expect("result was not OK"),
@@ -150,7 +150,7 @@ mod get_player_info_tests {
             mock_client
         });
 
-        mocked_engine().with_max_clients(16).run(|| {
+        MockEngineBuilder::default().with_max_clients(16).run(|| {
             let player_info = Python::with_gil(|py| pyshinqlx_player_info(py, 2));
             assert_eq!(player_info.expect("result was not OK"), None);
         });
@@ -190,7 +190,7 @@ mod get_player_info_tests {
             mock_game_entity
         });
 
-        mocked_engine().with_max_clients(16).run(|| {
+        MockEngineBuilder::default().with_max_clients(16).run(|| {
             let player_info = Python::with_gil(|py| pyshinqlx_player_info(py, 2));
             assert_eq!(
                 player_info.expect("result was not OK"),

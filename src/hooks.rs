@@ -595,7 +595,7 @@ mod hooks_tests {
     #[serial]
     fn add_command_with_main_engine_already_initiailized_command_empty() {
         let cmd_string = c"";
-        mocked_engine()
+        MockEngineBuilder::default()
             .configure(|mock_engine| {
                 mock_engine
                     .expect_is_common_initialized()
@@ -611,7 +611,7 @@ mod hooks_tests {
     #[serial]
     fn add_command_with_main_engine_already_initialized() {
         let cmd_string = c"slap";
-        mocked_engine()
+        MockEngineBuilder::default()
             .configure(|mock_engine| {
                 mock_engine
                     .expect_is_common_initialized()
@@ -630,7 +630,7 @@ mod hooks_tests {
     #[serial]
     fn add_command_with_main_engine_not_initiailized_command_non_empty() {
         let cmd_string = c"slap";
-        mocked_engine()
+        MockEngineBuilder::default()
             .configure(|mock_engine| {
                 mock_engine
                     .expect_is_common_initialized()
@@ -655,7 +655,7 @@ mod hooks_tests {
     #[serial]
     fn add_command_with_main_engine_already_initiailized_init_returns_err() {
         let cmd_string = c"slap";
-        mocked_engine()
+        MockEngineBuilder::default()
             .configure(|mock_engine| {
                 mock_engine
                     .expect_is_common_initialized()
@@ -681,7 +681,7 @@ mod hooks_tests {
     #[serial]
     fn sys_setmoduleoffset_vm_init_ok() {
         let module_string = c"qagame";
-        mocked_engine()
+        MockEngineBuilder::default()
             .configure(|mock_engine| {
                 mock_engine
                     .expect_set_module_offset()
@@ -704,7 +704,7 @@ mod hooks_tests {
     #[serial]
     fn sys_setmoduleoffset_vm_init_returns_err() {
         let module_string = c"qagame";
-        mocked_engine()
+        MockEngineBuilder::default()
             .configure(|mock_engine| {
                 mock_engine
                     .expect_set_module_offset()
@@ -732,7 +732,7 @@ mod hooks_tests {
     fn init_game_without_restart(new_game_dispatcher_ctx: __new_game_dispatcher::Context) {
         new_game_dispatcher_ctx.expect().times(0);
 
-        mocked_engine()
+        MockEngineBuilder::default()
             .configure(|mock_engine| {
                 mock_engine
                     .expect_init_game()
@@ -754,7 +754,7 @@ mod hooks_tests {
             .with(predicate::eq(true))
             .times(1);
 
-        mocked_engine()
+        MockEngineBuilder::default()
             .configure(|mock_engine| {
                 mock_engine
                     .expect_init_game()
@@ -777,7 +777,7 @@ mod hooks_tests {
     #[test]
     #[serial]
     fn shut_down_game_unhooks_vm() {
-        mocked_engine()
+        MockEngineBuilder::default()
             .configure(|mock_engine| {
                 mock_engine.expect_unhook_vm().times(1);
                 mock_engine
@@ -799,7 +799,7 @@ mod hooks_tests {
     #[test]
     #[serial]
     fn execute_client_command_for_none_client_non_empty_cmd() {
-        mocked_engine()
+        MockEngineBuilder::default()
             .configure(|mock_engine| {
                 mock_engine
                     .expect_execute_client_command()
@@ -818,7 +818,7 @@ mod hooks_tests {
     fn execute_client_command_for_not_ok_client_non_empty_cmd() {
         let mock_client = MockClient::new();
 
-        mocked_engine()
+        MockEngineBuilder::default()
             .configure(|mock_engine| {
                 mock_engine
                     .expect_execute_client_command()
@@ -843,7 +843,7 @@ mod hooks_tests {
             .return_const(false)
             .times(1);
 
-        mocked_engine()
+        MockEngineBuilder::default()
             .configure(|mock_engine| {
                 mock_engine
                     .expect_execute_client_command()
@@ -870,7 +870,7 @@ mod hooks_tests {
             .with(predicate::eq(42), predicate::eq("cp asdf".to_string()))
             .times(1);
 
-        mocked_engine()
+        MockEngineBuilder::default()
             .configure(|mock_engine| {
                 mock_engine.expect_execute_client_command().times(0);
             })
@@ -894,7 +894,7 @@ mod hooks_tests {
             .return_const(Some("cp modified".to_string()))
             .times(1);
 
-        mocked_engine()
+        MockEngineBuilder::default()
             .configure(|mock_engine| {
                 mock_engine
                     .expect_execute_client_command()
@@ -923,7 +923,7 @@ mod hooks_tests {
             .return_const(Some("".to_string()))
             .times(1);
 
-        mocked_engine()
+        MockEngineBuilder::default()
             .configure(|mock_engine| {
                 mock_engine.expect_execute_client_command().times(0);
             })
@@ -949,7 +949,7 @@ mod hooks_tests {
             .return_const(None)
             .times(1);
 
-        mocked_engine()
+        MockEngineBuilder::default()
             .configure(|mock_engine| {
                 mock_engine.expect_send_server_command().times(0);
             })
@@ -969,7 +969,7 @@ mod hooks_tests {
             .return_const(Some("cp modified".to_string()))
             .times(1);
 
-        mocked_engine()
+        MockEngineBuilder::default()
             .configure(|mock_engine| {
                 mock_engine
                     .expect_send_server_command()
@@ -990,7 +990,7 @@ mod hooks_tests {
             .return_const(false)
             .times(1);
 
-        mocked_engine()
+        MockEngineBuilder::default()
             .configure(|mock_engine| {
                 mock_engine
                     .expect_send_server_command()
@@ -1020,7 +1020,7 @@ mod hooks_tests {
             .return_const(None)
             .times(1);
 
-        mocked_engine()
+        MockEngineBuilder::default()
             .configure(|mock_engine| {
                 mock_engine.expect_send_server_command().times(0);
             })
@@ -1047,7 +1047,7 @@ mod hooks_tests {
             .return_const(Some("cp modified".to_string()))
             .times(1);
 
-        mocked_engine()
+        MockEngineBuilder::default()
             .configure(|mock_engine| {
                 mock_engine
                     .expect_send_server_command()
@@ -1077,7 +1077,7 @@ mod hooks_tests {
             .return_const(Some("".to_string()))
             .times(1);
 
-        mocked_engine()
+        MockEngineBuilder::default()
             .configure(|mock_engine| {
                 mock_engine.expect_send_server_command().times(0);
             })
@@ -1134,7 +1134,7 @@ mod hooks_tests {
             .build()
             .expect("this should not happen");
 
-        mocked_engine()
+        MockEngineBuilder::default()
             .configure(|mock_engine| {
                 mock_engine.expect_client_enter_world().times(1);
             })
@@ -1175,7 +1175,7 @@ mod hooks_tests {
             .build()
             .expect("this should not happen");
 
-        mocked_engine()
+        MockEngineBuilder::default()
             .configure(|mock_engine| {
                 mock_engine.expect_client_enter_world().times(1);
             })
@@ -1216,7 +1216,7 @@ mod hooks_tests {
             .build()
             .expect("this should not happen");
 
-        mocked_engine()
+        MockEngineBuilder::default()
             .configure(|mock_engine| {
                 mock_engine.expect_client_enter_world().times(1);
             })
@@ -1240,7 +1240,7 @@ mod hooks_tests {
             .times(1);
 
         let value = cr"\some\value";
-        mocked_engine()
+        MockEngineBuilder::default()
             .configure(|mock_engine| {
                 mock_engine
                     .expect_set_configstring()
@@ -1275,7 +1275,7 @@ mod hooks_tests {
     ) {
         set_configstring_dispatcher_ctx.expect().times(0);
 
-        mocked_engine()
+        MockEngineBuilder::default()
             .configure(|mock_engine| {
                 mock_engine
                     .expect_set_configstring()
@@ -1300,7 +1300,7 @@ mod hooks_tests {
             .with(predicate::eq(42), predicate::eq("some value"))
             .times(1);
 
-        mocked_engine()
+        MockEngineBuilder::default()
             .configure(|mock_engine| {
                 mock_engine.expect_set_configstring().times(0);
             })
@@ -1320,7 +1320,7 @@ mod hooks_tests {
             .return_const(Some("other value".to_string()))
             .times(1);
 
-        mocked_engine()
+        MockEngineBuilder::default()
             .configure(|mock_engine| {
                 mock_engine
                     .expect_set_configstring()
@@ -1343,7 +1343,7 @@ mod hooks_tests {
             .return_const(Some("some value".to_string()))
             .times(1);
 
-        mocked_engine()
+        MockEngineBuilder::default()
             .configure(|mock_engine| {
                 mock_engine
                     .expect_set_configstring()
@@ -1389,7 +1389,7 @@ mod hooks_tests {
             .with(predicate::eq("Hello World!"))
             .times(1);
 
-        mocked_engine()
+        MockEngineBuilder::default()
             .with_com_printf(predicate::always(), 0)
             .run(|| {
                 shinqlx_com_printf("Hello World!");
@@ -1406,7 +1406,7 @@ mod hooks_tests {
             .return_const(Some("Hello you!".to_string()))
             .times(1);
 
-        mocked_engine()
+        MockEngineBuilder::default()
             .with_com_printf(predicate::eq("Hello World!"), 1)
             .run(|| {
                 shinqlx_com_printf("Hello World!");
@@ -1430,7 +1430,7 @@ mod hooks_tests {
             .times(1);
 
         let server_str = c"l33t ql server";
-        mocked_engine()
+        MockEngineBuilder::default()
             .configure(|mock_engine| {
                 mock_engine
                     .expect_spawn_server()
@@ -1454,7 +1454,7 @@ mod hooks_tests {
         let frame_dispatcher_ctx = frame_dispatcher_context();
         frame_dispatcher_ctx.expect().times(1);
 
-        mocked_engine()
+        MockEngineBuilder::default()
             .configure(|mock_engine| {
                 mock_engine
                     .expect_run_frame()
@@ -1476,7 +1476,7 @@ mod hooks_tests {
     #[test]
     #[serial]
     fn client_connect_not_first_time_client() {
-        mocked_engine()
+        MockEngineBuilder::default()
             .configure(|mock_engine| {
                 mock_engine
                     .expect_client_connect()
@@ -1504,7 +1504,7 @@ mod hooks_tests {
             .return_const(None)
             .times(1);
 
-        mocked_engine()
+        MockEngineBuilder::default()
             .configure(|mock_engine| {
                 mock_engine
                     .expect_client_connect()
@@ -1528,7 +1528,7 @@ mod hooks_tests {
             .return_const(Some("you are banned from this server".to_string()))
             .times(1);
 
-        mocked_engine()
+        MockEngineBuilder::default()
             .configure(|mock_engine| {
                 mock_engine.expect_client_connect().times(0);
             })
@@ -1552,7 +1552,7 @@ mod hooks_tests {
             .return_const(Some("we don't like bots here".to_string()))
             .times(1);
 
-        mocked_engine()
+        MockEngineBuilder::default()
             .configure(|mock_engine| {
                 mock_engine
                     .expect_client_connect()
@@ -1584,7 +1584,7 @@ mod hooks_tests {
             .with(predicate::eq(42))
             .times(1);
 
-        mocked_engine()
+        MockEngineBuilder::default()
             .configure(|mock_engine| {
                 mock_engine.expect_client_spawn().times(1);
             })
@@ -1723,7 +1723,7 @@ mod hooks_tests {
 
         damage_dispatcher_ctx.expect().times(0);
 
-        mocked_engine()
+        MockEngineBuilder::default()
             .configure(|mock_engine| {
                 mock_engine
                     .expect_register_damage()
@@ -1787,7 +1787,7 @@ mod hooks_tests {
             )
             .times(1);
 
-        mocked_engine()
+        MockEngineBuilder::default()
             .configure(|mock_engine| {
                 mock_engine
                     .expect_register_damage()
@@ -1861,7 +1861,7 @@ mod hooks_tests {
             .build()
             .expect("this should not happen");
 
-        mocked_engine()
+        MockEngineBuilder::default()
             .configure(|mock_engine| {
                 mock_engine
                     .expect_register_damage()
@@ -1939,7 +1939,7 @@ mod hooks_tests {
             .build()
             .expect("this should not happen");
 
-        mocked_engine()
+        MockEngineBuilder::default()
             .configure(|mock_engine| {
                 mock_engine
                     .expect_register_damage()

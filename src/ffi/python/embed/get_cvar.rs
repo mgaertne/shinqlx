@@ -49,7 +49,7 @@ mod get_cvar_tests {
     #[cfg_attr(miri, ignore)]
     #[serial]
     fn get_cvar_when_cvar_not_found(_pyshinqlx_setup: ()) {
-        mocked_engine()
+        MockEngineBuilder::default()
             .configure(|mock_engine| {
                 mock_engine
                     .expect_find_cvar()
@@ -74,7 +74,7 @@ mod get_cvar_tests {
             .build()
             .expect("this should not happen");
 
-        mocked_engine()
+        MockEngineBuilder::default()
             .configure(|mock_engine| {
                 mock_engine
                     .expect_find_cvar()

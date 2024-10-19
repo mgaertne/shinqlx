@@ -47,7 +47,7 @@ mod add_console_command_tests {
     #[cfg_attr(miri, ignore)]
     #[serial]
     fn add_console_command_adds_py_command_to_main_engine(_pyshinqlx_setup: ()) {
-        mocked_engine()
+        MockEngineBuilder::default()
             .configure(|mock_engine| {
                 mock_engine
                     .expect_add_command()
