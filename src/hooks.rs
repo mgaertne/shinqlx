@@ -800,14 +800,10 @@ mod hooks_tests {
     #[serial]
     fn execute_client_command_for_none_client_non_empty_cmd() {
         MockEngineBuilder::default()
-            .configure(|mock_engine| {
-                mock_engine
-                    .expect_execute_client_command()
-                    .withf(|client, cmd, &client_ok| {
-                        client.is_none() && cmd == "cp asdf" && client_ok.into()
-                    })
-                    .times(1);
-            })
+            .with_execute_client_command(
+                |client, cmd, &client_ok| client.is_none() && cmd == "cp asdf" && client_ok.into(),
+                1,
+            )
             .run(|| {
                 shinqlx_execute_client_command(None, "cp asdf", true);
             });
@@ -819,16 +815,14 @@ mod hooks_tests {
         let mock_client = MockClient::new();
 
         MockEngineBuilder::default()
-            .configure(|mock_engine| {
-                mock_engine
-                    .expect_execute_client_command()
-                    .withf(|client, cmd, &client_ok| {
-                        client.is_some()
-                            && cmd == "cp asdf"
-                            && !<qboolean as Into<bool>>::into(client_ok)
-                    })
-                    .times(1);
-            })
+            .with_execute_client_command(
+                |client, cmd, &client_ok| {
+                    client.is_some()
+                        && cmd == "cp asdf"
+                        && !<qboolean as Into<bool>>::into(client_ok)
+                },
+                1,
+            )
             .run(|| {
                 shinqlx_execute_client_command(Some(mock_client), "cp asdf", false);
             });
@@ -844,14 +838,10 @@ mod hooks_tests {
             .times(1);
 
         MockEngineBuilder::default()
-            .configure(|mock_engine| {
-                mock_engine
-                    .expect_execute_client_command()
-                    .withf(|client, cmd, &client_ok| {
-                        client.is_some() && cmd == "cp asdf" && client_ok.into()
-                    })
-                    .times(1);
-            })
+            .with_execute_client_command(
+                |client, cmd, &client_ok| client.is_some() && cmd == "cp asdf" && client_ok.into(),
+                1,
+            )
             .run(|| {
                 shinqlx_execute_client_command(Some(mock_client), "cp asdf", true);
             });
@@ -871,9 +861,7 @@ mod hooks_tests {
             .times(1);
 
         MockEngineBuilder::default()
-            .configure(|mock_engine| {
-                mock_engine.expect_execute_client_command().times(0);
-            })
+            .with_execute_client_command(|_client, _cmd, _client_ok| true, 0)
             .run(|| {
                 shinqlx_execute_client_command(Some(mock_client), "cp asdf", true);
             });
@@ -895,14 +883,12 @@ mod hooks_tests {
             .times(1);
 
         MockEngineBuilder::default()
-            .configure(|mock_engine| {
-                mock_engine
-                    .expect_execute_client_command()
-                    .withf(|client, cmd, &client_ok| {
-                        client.is_some() && cmd == "cp modified" && client_ok.into()
-                    })
-                    .times(1);
-            })
+            .with_execute_client_command(
+                |client, cmd, &client_ok| {
+                    client.is_some() && cmd == "cp modified" && client_ok.into()
+                },
+                1,
+            )
             .run(|| {
                 shinqlx_execute_client_command(Some(mock_client), "cp asdf", true);
             });
@@ -924,9 +910,7 @@ mod hooks_tests {
             .times(1);
 
         MockEngineBuilder::default()
-            .configure(|mock_engine| {
-                mock_engine.expect_execute_client_command().times(0);
-            })
+            .with_execute_client_command(|_client, _cmd, _client_ok| true, 0)
             .run(|| {
                 shinqlx_execute_client_command(Some(mock_client), "cp asdf", true);
             });
