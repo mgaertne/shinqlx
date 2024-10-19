@@ -5403,6 +5403,30 @@ impl MockEngineBuilder {
         })
     }
 
+    pub(crate) fn with_argc(self, argc: i32) -> MockEngineBuilder {
+        self.configure(|mock_engine| {
+            mock_engine.expect_cmd_argc().return_const(argc);
+        })
+    }
+
+    pub(crate) fn with_argv<F>(
+        self,
+        argv: F,
+        opt_return: Option<&'static str>,
+        times: usize,
+    ) -> MockEngineBuilder
+    where
+        F: mockall::Predicate<i32> + Send + 'static,
+    {
+        self.configure(|mock_engine| {
+            mock_engine
+                .expect_cmd_argv()
+                .with(argv)
+                .return_const(opt_return.map(|return_str| return_str.to_string()))
+                .times(times);
+        })
+    }
+
     pub(crate) fn run<F>(&mut self, execute: F)
     where
         F: FnOnce(),
