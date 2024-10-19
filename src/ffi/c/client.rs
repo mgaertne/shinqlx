@@ -331,7 +331,7 @@ mod client_tests {
     #[test]
     #[serial]
     fn client_disconnect_with_no_detour_setup() {
-        mocked_engine()
+        MockEngineBuilder::default()
             .configure(|mock_engine| {
                 mock_engine.expect_sv_dropclient_detour().return_once(|| {
                     Err(QuakeLiveEngineError::StaticDetourNotFound(
@@ -384,7 +384,7 @@ mod client_tests {
             .expect()
             .withf(|_client, &reason| unsafe { CStr::from_ptr(reason) } == c"disconnected");
 
-        mocked_engine()
+        MockEngineBuilder::default()
             .configure(|mock_engine| {
                 mock_engine.expect_sv_dropclient_detour().returning(|| {
                     let Some(detour) = SV_DROPCLIENT_DETOUR.get() else {

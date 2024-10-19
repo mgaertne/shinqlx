@@ -48,7 +48,7 @@ mod set_velocity_tests {
     #[cfg_attr(miri, ignore)]
     #[serial]
     fn set_velocity_for_client_id_too_small(_pyshinqlx_setup: ()) {
-        mocked_engine().with_max_clients(16).run(|| {
+        MockEngineBuilder::default().with_max_clients(16).run(|| {
             Python::with_gil(|py| {
                 let result = pyshinqlx_set_velocity(py, -1, Vector3(1, 2, 3));
                 assert!(result.is_err_and(|err| err.is_instance_of::<PyValueError>(py)));
@@ -60,7 +60,7 @@ mod set_velocity_tests {
     #[cfg_attr(miri, ignore)]
     #[serial]
     fn set_velocity_for_client_id_too_large(_pyshinqlx_setup: ()) {
-        mocked_engine().with_max_clients(16).run(|| {
+        MockEngineBuilder::default().with_max_clients(16).run(|| {
             Python::with_gil(|py| {
                 let result = pyshinqlx_set_velocity(py, 666, Vector3(1, 2, 3));
                 assert!(result.is_err_and(|err| err.is_instance_of::<PyValueError>(py)));
@@ -86,7 +86,7 @@ mod set_velocity_tests {
             mock_game_entity
         });
 
-        mocked_engine().with_max_clients(16).run(|| {
+        MockEngineBuilder::default().with_max_clients(16).run(|| {
             let result = Python::with_gil(|py| pyshinqlx_set_velocity(py, 2, Vector3(1, 2, 3)));
             assert_eq!(result.expect("result was not OK"), true);
         });
@@ -105,7 +105,7 @@ mod set_velocity_tests {
             mock_game_entity
         });
 
-        mocked_engine().with_max_clients(16).run(|| {
+        MockEngineBuilder::default().with_max_clients(16).run(|| {
             let result = Python::with_gil(|py| pyshinqlx_set_velocity(py, 2, Vector3(1, 2, 3)));
             assert_eq!(result.expect("result was not OK"), false);
         });
