@@ -5403,6 +5403,22 @@ impl MockEngineBuilder {
         })
     }
 
+    pub(crate) fn with_execute_client_command<F>(
+        self,
+        matcher: F,
+        times: usize,
+    ) -> MockEngineBuilder
+    where
+        F: Fn(&Option<MockClient>, &String, &qboolean) -> bool + Send + 'static,
+    {
+        self.configure(|mock_engine| {
+            mock_engine
+                .expect_execute_client_command()
+                .withf(matcher)
+                .times(times);
+        })
+    }
+
     pub(crate) fn with_argc(self, argc: i32) -> MockEngineBuilder {
         self.configure(|mock_engine| {
             mock_engine.expect_cmd_argc().return_const(argc);
