@@ -304,9 +304,9 @@ mod commands_tests {
     #[serial]
     fn cmd_send_server_command_with_no_args() {
         MockEngineBuilder::default()
+            .with_send_server_command(|_client, _cmd| true, 0)
             .configure(|mock_engine| {
                 mock_engine.expect_cmd_args().times(1);
-                mock_engine.expect_send_server_command().times(0);
             })
             .run(|| {
                 cmd_send_server_command();
@@ -317,14 +317,11 @@ mod commands_tests {
     #[serial]
     fn cmd_send_server_command_with_server_command() {
         MockEngineBuilder::default()
+            .with_send_server_command(|client, command| client.is_none() && command == "asdf\n", 1)
             .configure(|mock_engine| {
                 mock_engine
                     .expect_cmd_args()
                     .return_const(Some("asdf".to_string()))
-                    .times(1);
-                mock_engine
-                    .expect_send_server_command()
-                    .withf(|client, command| client.is_none() && command == "asdf\n")
                     .times(1);
             })
             .run(|| {
@@ -342,9 +339,9 @@ mod commands_tests {
     #[serial]
     fn cmd_center_print_with_no_args() {
         MockEngineBuilder::default()
+            .with_send_server_command(|_client, _cmd| true, 0)
             .configure(|mock_engine| {
                 mock_engine.expect_cmd_args().times(1);
-                mock_engine.expect_send_server_command().times(0);
             })
             .run(|| {
                 cmd_center_print();
@@ -355,14 +352,14 @@ mod commands_tests {
     #[serial]
     fn cmd_center_print_with_server_command() {
         MockEngineBuilder::default()
+            .with_send_server_command(
+                |client, command| client.is_none() && command == "cp \"asdf\"\n",
+                1,
+            )
             .configure(|mock_engine| {
                 mock_engine
                     .expect_cmd_args()
                     .return_const(Some("asdf".to_string()))
-                    .times(1);
-                mock_engine
-                    .expect_send_server_command()
-                    .withf(|client, command| client.is_none() && command == "cp \"asdf\"\n")
                     .times(1);
             })
             .run(|| {
@@ -380,9 +377,9 @@ mod commands_tests {
     #[serial]
     fn cmd_regular_print_with_no_args() {
         MockEngineBuilder::default()
+            .with_send_server_command(|_client, _cmd| true, 0)
             .configure(|mock_engine| {
                 mock_engine.expect_cmd_args().times(1);
-                mock_engine.expect_send_server_command().times(0);
             })
             .run(|| {
                 cmd_regular_print();
@@ -393,14 +390,14 @@ mod commands_tests {
     #[serial]
     fn cmd_regular_print_with_server_command() {
         MockEngineBuilder::default()
+            .with_send_server_command(
+                |client, command| client.is_none() && command == "print \"asdf\n\"\n",
+                1,
+            )
             .configure(|mock_engine| {
                 mock_engine
                     .expect_cmd_args()
                     .return_const(Some("asdf".to_string()))
-                    .times(1);
-                mock_engine
-                    .expect_send_server_command()
-                    .withf(|client, command| client.is_none() && command == "print \"asdf\n\"\n")
                     .times(1);
             })
             .run(|| {
@@ -613,18 +610,18 @@ mod commands_tests {
         MockEngineBuilder::default()
             .with_max_clients(16)
             .with_com_printf(predicate::eq("Slapping...\n"), 1)
+            .with_send_server_command(
+                |client, cmd| {
+                    client.is_none() && cmd == "print \"Slapped Player^7 was slapped\n\"\n"
+                },
+                1,
+            )
             .configure(|mock_engine| {
                 mock_engine.expect_cmd_argc().return_const(2).times(1);
                 mock_engine
                     .expect_cmd_argv()
                     .with(predicate::eq(1))
                     .return_const(Some("2".to_string()))
-                    .times(1);
-                mock_engine
-                    .expect_send_server_command()
-                    .withf(|client, cmd| {
-                        client.is_none() && cmd == "print \"Slapped Player^7 was slapped\n\"\n"
-                    })
                     .times(1);
                 mock_engine
                     .expect_game_add_event()
@@ -687,6 +684,13 @@ mod commands_tests {
         MockEngineBuilder::default()
             .with_max_clients(16)
             .with_com_printf(predicate::eq("Slapping...\n"), 1)
+            .with_send_server_command(
+                |client, cmd| {
+                    client.is_none()
+                        && cmd == "print \"Slapped Player^7 was slapped for 1 damage!\n\"\n"
+                },
+                1,
+            )
             .configure(|mock_engine| {
                 mock_engine.expect_cmd_argc().return_const(3).times(1);
                 mock_engine
@@ -698,13 +702,6 @@ mod commands_tests {
                     .expect_cmd_argv()
                     .with(predicate::eq(2))
                     .return_const(Some("1".to_string()))
-                    .times(1);
-                mock_engine
-                    .expect_send_server_command()
-                    .withf(|client, cmd| {
-                        client.is_none()
-                            && cmd == "print \"Slapped Player^7 was slapped for 1 damage!\n\"\n"
-                    })
                     .times(1);
                 mock_engine
                     .expect_game_add_event()
@@ -771,6 +768,13 @@ mod commands_tests {
         MockEngineBuilder::default()
             .with_max_clients(16)
             .with_com_printf(predicate::eq("Slapping...\n"), 1)
+            .with_send_server_command(
+                |client, cmd| {
+                    client.is_none()
+                        && cmd == "print \"Slapped Player^7 was slapped for 666 damage!\n\"\n"
+                },
+                1,
+            )
             .configure(|mock_engine| {
                 mock_engine.expect_cmd_argc().return_const(3).times(1);
                 mock_engine
@@ -782,13 +786,6 @@ mod commands_tests {
                     .expect_cmd_argv()
                     .with(predicate::eq(2))
                     .return_const(Some("666".to_string()))
-                    .times(1);
-                mock_engine
-                    .expect_send_server_command()
-                    .withf(|client, cmd| {
-                        client.is_none()
-                            && cmd == "print \"Slapped Player^7 was slapped for 666 damage!\n\"\n"
-                    })
                     .times(1);
                 mock_engine
                     .expect_game_add_event()
@@ -847,6 +844,12 @@ mod commands_tests {
         MockEngineBuilder::default()
             .with_max_clients(16)
             .with_com_printf(predicate::eq("Slapping...\n"), 1)
+            .with_send_server_command(
+                |client, cmd| {
+                    client.is_none() && cmd == "print \"Slapped Player^7 was slapped\n\"\n"
+                },
+                1,
+            )
             .configure(|mock_engine| {
                 mock_engine.expect_cmd_argc().return_const(3).times(1);
                 mock_engine
@@ -858,12 +861,6 @@ mod commands_tests {
                     .expect_cmd_argv()
                     .with(predicate::eq(2))
                     .return_const(Some("2147483648".to_string()))
-                    .times(1);
-                mock_engine
-                    .expect_send_server_command()
-                    .withf(|client, cmd| {
-                        client.is_none() && cmd == "print \"Slapped Player^7 was slapped\n\"\n"
-                    })
                     .times(1);
                 mock_engine
                     .expect_game_add_event()
@@ -1079,18 +1076,16 @@ mod commands_tests {
         MockEngineBuilder::default()
             .with_max_clients(16)
             .with_com_printf(predicate::eq("Slaying player...\n"), 1)
+            .with_send_server_command(
+                |client, cmd| client.is_none() && cmd == "print \"Slain Player^7 was slain!\n\"\n",
+                1,
+            )
             .configure(|mock_engine| {
                 mock_engine.expect_cmd_argc().return_const(2).times(1);
                 mock_engine
                     .expect_cmd_argv()
                     .with(predicate::eq(1))
                     .return_const(Some("2".to_string()))
-                    .times(1);
-                mock_engine
-                    .expect_send_server_command()
-                    .withf(|client, cmd| {
-                        client.is_none() && cmd == "print \"Slain Player^7 was slain!\n\"\n"
-                    })
                     .times(1);
                 mock_engine
                     .expect_game_add_event()
