@@ -950,9 +950,7 @@ mod hooks_tests {
             .times(1);
 
         MockEngineBuilder::default()
-            .configure(|mock_engine| {
-                mock_engine.expect_send_server_command().times(0);
-            })
+            .with_send_server_command(|_client, _cmd| true, 0)
             .run(|| {
                 shinqlx_send_server_command(None, "cp asdf");
             });
@@ -970,12 +968,7 @@ mod hooks_tests {
             .times(1);
 
         MockEngineBuilder::default()
-            .configure(|mock_engine| {
-                mock_engine
-                    .expect_send_server_command()
-                    .withf(|client, cmd| client.is_none() && cmd == "cp modified")
-                    .times(1);
-            })
+            .with_send_server_command(|client, cmd| client.is_none() && cmd == "cp modified", 1)
             .run(|| {
                 shinqlx_send_server_command(None, "cp asdf");
             });
@@ -991,12 +984,7 @@ mod hooks_tests {
             .times(1);
 
         MockEngineBuilder::default()
-            .configure(|mock_engine| {
-                mock_engine
-                    .expect_send_server_command()
-                    .withf(|client, cmd| client.is_some() && cmd == "cp asdf")
-                    .times(1);
-            })
+            .with_send_server_command(|client, cmd| client.is_some() && cmd == "cp asdf", 1)
             .run(|| {
                 shinqlx_send_server_command(Some(mock_client), "cp asdf");
             });
@@ -1021,9 +1009,7 @@ mod hooks_tests {
             .times(1);
 
         MockEngineBuilder::default()
-            .configure(|mock_engine| {
-                mock_engine.expect_send_server_command().times(0);
-            })
+            .with_send_server_command(|_client, _cmd| true, 0)
             .run(|| {
                 shinqlx_send_server_command(Some(mock_client), "cp asdf");
             });
@@ -1048,12 +1034,7 @@ mod hooks_tests {
             .times(1);
 
         MockEngineBuilder::default()
-            .configure(|mock_engine| {
-                mock_engine
-                    .expect_send_server_command()
-                    .withf(|client, cmd| client.is_some() && cmd == "cp modified")
-                    .times(1);
-            })
+            .with_send_server_command(|client, cmd| client.is_some() && cmd == "cp modified", 1)
             .run(|| {
                 shinqlx_send_server_command(Some(mock_client), "cp asdf");
             });
@@ -1078,9 +1059,7 @@ mod hooks_tests {
             .times(1);
 
         MockEngineBuilder::default()
-            .configure(|mock_engine| {
-                mock_engine.expect_send_server_command().times(0);
-            })
+            .with_send_server_command(|_client, _cmd| true, 0)
             .run(|| {
                 shinqlx_send_server_command(Some(mock_client), "cp asdf");
             });

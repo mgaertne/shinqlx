@@ -5391,6 +5391,18 @@ impl MockEngineBuilder {
         })
     }
 
+    pub(crate) fn with_send_server_command<F>(self, matcher: F, times: usize) -> MockEngineBuilder
+    where
+        F: Fn(&Option<MockClient>, &str) -> bool + Send + 'static,
+    {
+        self.configure(|mock_engine| {
+            mock_engine
+                .expect_send_server_command()
+                .withf(matcher)
+                .times(times);
+        })
+    }
+
     pub(crate) fn run<F>(&mut self, execute: F)
     where
         F: FnOnce(),
