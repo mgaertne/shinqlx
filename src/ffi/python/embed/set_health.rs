@@ -43,7 +43,7 @@ mod set_health_tests {
     #[cfg_attr(miri, ignore)]
     #[serial]
     fn set_health_for_client_id_too_small(_pyshinqlx_setup: ()) {
-        mocked_engine().with_max_clients(16).run(|| {
+        MockEngineBuilder::default().with_max_clients(16).run(|| {
             Python::with_gil(|py| {
                 let result = pyshinqlx_set_health(py, -1, 666);
                 assert!(result.is_err_and(|err| err.is_instance_of::<PyValueError>(py)));
@@ -55,7 +55,7 @@ mod set_health_tests {
     #[cfg_attr(miri, ignore)]
     #[serial]
     fn set_health_for_client_id_too_large(_pyshinqlx_setup: ()) {
-        mocked_engine().with_max_clients(16).run(|| {
+        MockEngineBuilder::default().with_max_clients(16).run(|| {
             Python::with_gil(|py| {
                 let result = pyshinqlx_set_health(py, 666, 42);
                 assert!(result.is_err_and(|err| err.is_instance_of::<PyValueError>(py)));
@@ -77,7 +77,7 @@ mod set_health_tests {
             mock_game_entity
         });
 
-        mocked_engine().with_max_clients(16).run(|| {
+        MockEngineBuilder::default().with_max_clients(16).run(|| {
             let result = Python::with_gil(|py| pyshinqlx_set_health(py, 2, 666));
             assert_eq!(result.expect("result was not OK"), true);
         });

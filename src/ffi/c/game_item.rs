@@ -264,7 +264,7 @@ mod game_item_tests {
     #[test]
     #[serial]
     fn get_item_list_with_offset_function_not_defined_in_main_engine() {
-        mocked_engine()
+        MockEngineBuilder::default()
             .configure(|mock_engine| {
                 mock_engine
                     .expect_launch_item_orig()
@@ -299,7 +299,7 @@ mod game_item_tests {
         let mut game_item =
             GameItem::try_from(gitem.borrow_mut() as *mut gitem_t).expect("this should not happen");
 
-        mocked_engine()
+        MockEngineBuilder::default()
             .configure(|mock_engine| {
                 mock_engine
                     .expect_try_launch_item()

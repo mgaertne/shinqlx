@@ -119,7 +119,7 @@ mod get_players_info_tests {
             mock_game_entity
         });
 
-        mocked_engine().with_max_clients(3).run(|| {
+        MockEngineBuilder::default().with_max_clients(3).run(|| {
             let players_info = Python::with_gil(pyshinqlx_players_info);
             assert_eq!(
                 players_info.expect("result was not OK"),

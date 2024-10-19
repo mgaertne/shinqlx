@@ -54,7 +54,7 @@ mod set_cvar_limit_tests {
     #[cfg_attr(miri, ignore)]
     #[serial]
     fn set_cvar_limit_forwards_parameters_to_main_engine_call(_pyshinqlx_setup: ()) {
-        mocked_engine()
+        MockEngineBuilder::default()
             .configure(|mock_engine| {
                 mock_engine
                     .expect_set_cvar_limit()

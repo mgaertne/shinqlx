@@ -142,7 +142,7 @@ mod current_level_tests {
     #[test]
     #[serial]
     fn current_level_default_panics_when_g_init_game_not_set() {
-        mocked_engine()
+        MockEngineBuilder::default()
             .configure(|mock_engine| {
                 mock_engine
                     .expect_g_init_game_orig()
@@ -298,7 +298,7 @@ mod current_level_tests {
             mock_entity
         });
 
-        mocked_engine().with_max_clients(8).run(|| {
+        MockEngineBuilder::default().with_max_clients(8).run(|| {
             let mut level = LevelLocalsBuilder::default()
                 .time(42)
                 .build()
@@ -367,7 +367,7 @@ mod current_level_tests {
             mock_entity
         });
 
-        mocked_engine().with_max_clients(8).run(|| {
+        MockEngineBuilder::default().with_max_clients(8).run(|| {
             let mut level = LevelLocalsBuilder::default()
                 .time(42)
                 .build()

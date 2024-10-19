@@ -5403,11 +5403,18 @@ impl MockEngineBuilder {
 }
 
 #[cfg(test)]
-pub(crate) fn mocked_engine() -> MockEngineBuilder {
-    let mock_engine = MockQuakeEngine::new();
-    MockEngineBuilder {
-        mock_engine: mock_engine.into(),
+impl Default for MockEngineBuilder {
+    fn default() -> Self {
+        MockEngineBuilder {
+            mock_engine: Some(MockQuakeEngine::default()),
+        }
     }
+}
+
+#[cfg(test)]
+#[allow(dead_code)]
+pub(crate) fn mocked_engine() -> MockEngineBuilder {
+    MockEngineBuilder::default()
 }
 
 #[cfg(test)]

@@ -307,7 +307,7 @@ mod commands_tests {
     #[test]
     #[serial]
     fn cmd_send_server_command_with_no_args() {
-        mocked_engine()
+        MockEngineBuilder::default()
             .configure(|mock_engine| {
                 mock_engine.expect_cmd_args().times(1);
                 mock_engine.expect_send_server_command().times(0);
@@ -320,7 +320,7 @@ mod commands_tests {
     #[test]
     #[serial]
     fn cmd_send_server_command_with_server_command() {
-        mocked_engine()
+        MockEngineBuilder::default()
             .configure(|mock_engine| {
                 mock_engine
                     .expect_cmd_args()
@@ -345,7 +345,7 @@ mod commands_tests {
     #[test]
     #[serial]
     fn cmd_center_print_with_no_args() {
-        mocked_engine()
+        MockEngineBuilder::default()
             .configure(|mock_engine| {
                 mock_engine.expect_cmd_args().times(1);
                 mock_engine.expect_send_server_command().times(0);
@@ -358,7 +358,7 @@ mod commands_tests {
     #[test]
     #[serial]
     fn cmd_center_print_with_server_command() {
-        mocked_engine()
+        MockEngineBuilder::default()
             .configure(|mock_engine| {
                 mock_engine
                     .expect_cmd_args()
@@ -383,7 +383,7 @@ mod commands_tests {
     #[test]
     #[serial]
     fn cmd_regular_print_with_no_args() {
-        mocked_engine()
+        MockEngineBuilder::default()
             .configure(|mock_engine| {
                 mock_engine.expect_cmd_args().times(1);
                 mock_engine.expect_send_server_command().times(0);
@@ -396,7 +396,7 @@ mod commands_tests {
     #[test]
     #[serial]
     fn cmd_regular_print_with_server_command() {
-        mocked_engine()
+        MockEngineBuilder::default()
             .configure(|mock_engine| {
                 mock_engine
                     .expect_cmd_args()
@@ -421,7 +421,7 @@ mod commands_tests {
     #[test]
     #[serial]
     fn cmd_slap_with_too_few_args() {
-        mocked_engine()
+        MockEngineBuilder::default()
             .with_max_clients(16)
             .with_com_printf(predicate::eq("Usage: !slap <client_id> [damage]\n"), 1)
             .configure(|mock_engine| {
@@ -440,7 +440,7 @@ mod commands_tests {
     #[test]
     #[serial]
     fn cmd_slap_with_unparseable_client_id() {
-        mocked_engine()
+        MockEngineBuilder::default()
             .with_max_clients(16)
             .with_com_printf(
                 predicate::eq("client_id must be a number between 0 and 15.\n"),
@@ -462,7 +462,7 @@ mod commands_tests {
     #[test]
     #[serial]
     fn cmd_slap_with_too_small_client_id() {
-        mocked_engine()
+        MockEngineBuilder::default()
             .with_max_clients(16)
             .with_com_printf(
                 predicate::eq("client_id must be a number between 0 and 15.\n"),
@@ -484,7 +484,7 @@ mod commands_tests {
     #[test]
     #[serial]
     fn cmd_slap_with_too_large_client_id() {
-        mocked_engine()
+        MockEngineBuilder::default()
             .with_max_clients(16)
             .with_com_printf(
                 predicate::eq("client_id must be a number between 0 and 15.\n"),
@@ -521,7 +521,7 @@ mod commands_tests {
             })
             .times(1);
 
-        mocked_engine()
+        MockEngineBuilder::default()
             .with_max_clients(16)
             .with_com_printf(predicate::eq("The player is currently not active.\n"), 1)
             .configure(|mock_engine| {
@@ -556,7 +556,7 @@ mod commands_tests {
             })
             .times(1);
 
-        mocked_engine()
+        MockEngineBuilder::default()
             .with_max_clients(16)
             .with_com_printf(predicate::eq("The player is currently not active.\n"), 1)
             .configure(|mock_engine| {
@@ -614,7 +614,7 @@ mod commands_tests {
             })
             .times(1);
 
-        mocked_engine()
+        MockEngineBuilder::default()
             .with_max_clients(16)
             .with_com_printf(predicate::eq("Slapping...\n"), 1)
             .configure(|mock_engine| {
@@ -688,7 +688,7 @@ mod commands_tests {
             })
             .times(1);
 
-        mocked_engine()
+        MockEngineBuilder::default()
             .with_max_clients(16)
             .with_com_printf(predicate::eq("Slapping...\n"), 1)
             .configure(|mock_engine| {
@@ -772,7 +772,7 @@ mod commands_tests {
             })
             .times(1);
 
-        mocked_engine()
+        MockEngineBuilder::default()
             .with_max_clients(16)
             .with_com_printf(predicate::eq("Slapping...\n"), 1)
             .configure(|mock_engine| {
@@ -848,7 +848,7 @@ mod commands_tests {
             })
             .times(1);
 
-        mocked_engine()
+        MockEngineBuilder::default()
             .with_max_clients(16)
             .with_com_printf(predicate::eq("Slapping...\n"), 1)
             .configure(|mock_engine| {
@@ -890,7 +890,7 @@ mod commands_tests {
     #[test]
     #[serial]
     fn cmd_slay_with_too_few_args() {
-        mocked_engine()
+        MockEngineBuilder::default()
             .with_max_clients(16)
             .with_com_printf(predicate::eq("Usage: !slap <client_id> [damage]\n"), 1)
             .configure(|mock_engine| {
@@ -909,7 +909,7 @@ mod commands_tests {
     #[test]
     #[serial]
     fn cmd_slay_with_unparseable_client_id() {
-        mocked_engine()
+        MockEngineBuilder::default()
             .with_max_clients(16)
             .with_com_printf(
                 predicate::eq("client_id must be a number between 0 and 15.\n"),
@@ -931,7 +931,7 @@ mod commands_tests {
     #[test]
     #[serial]
     fn cmd_slay_with_too_small_client_id() {
-        mocked_engine()
+        MockEngineBuilder::default()
             .with_max_clients(16)
             .with_com_printf(
                 predicate::eq("client_id must be a number between 0 and 15.\n"),
@@ -953,7 +953,7 @@ mod commands_tests {
     #[test]
     #[serial]
     fn cmd_slay_with_too_large_client_id() {
-        mocked_engine()
+        MockEngineBuilder::default()
             .with_max_clients(16)
             .with_com_printf(
                 predicate::eq("client_id must be a number between 0 and 15.\n"),
@@ -990,7 +990,7 @@ mod commands_tests {
             })
             .times(1);
 
-        mocked_engine()
+        MockEngineBuilder::default()
             .with_max_clients(16)
             .with_com_printf(predicate::eq("The player is currently not active.\n"), 1)
             .configure(|mock_engine| {
@@ -1025,7 +1025,7 @@ mod commands_tests {
             })
             .times(1);
 
-        mocked_engine()
+        MockEngineBuilder::default()
             .with_max_clients(16)
             .with_com_printf(predicate::eq("The player is currently not active.\n"), 1)
             .configure(|mock_engine| {
@@ -1080,7 +1080,7 @@ mod commands_tests {
             })
             .times(1);
 
-        mocked_engine()
+        MockEngineBuilder::default()
             .with_max_clients(16)
             .with_com_printf(predicate::eq("Slaying player...\n"), 1)
             .configure(|mock_engine| {
@@ -1120,7 +1120,7 @@ mod commands_tests {
         let rcon_dispatcher_ctx = rcon_dispatcher_context();
         rcon_dispatcher_ctx.expect::<&str>().times(0);
 
-        mocked_engine()
+        MockEngineBuilder::default()
             .configure(|mock_engine| {
                 mock_engine.expect_cmd_args().return_const(None).times(1);
             })
@@ -1138,7 +1138,7 @@ mod commands_tests {
             .with(predicate::eq("!version".to_string()))
             .times(1);
 
-        mocked_engine()
+        MockEngineBuilder::default()
             .configure(|mock_engine| {
                 mock_engine
                     .expect_cmd_args()
@@ -1160,7 +1160,7 @@ mod commands_tests {
     #[cfg_attr(miri, ignore)]
     #[serial]
     fn cmd_py_command_with_arguments(_pyshinqlx_setup: ()) {
-        mocked_engine()
+        MockEngineBuilder::default()
             .with_com_printf(predicate::always(), 0)
             .configure(|mock_engine| {
                 mock_engine
@@ -1193,7 +1193,7 @@ def handler(params):
     #[cfg_attr(miri, ignore)]
     #[serial]
     fn cmd_py_command_with_no_args(_pyshinqlx_setup: ()) {
-        mocked_engine()
+        MockEngineBuilder::default()
             .with_com_printf(predicate::always(), 0)
             .configure(|mock_engine| {
                 mock_engine.expect_cmd_args().return_const(None).times(1);
@@ -1223,7 +1223,7 @@ def handler():
     #[cfg_attr(miri, ignore)]
     #[serial]
     fn cmd_py_command_returns_error(_pyshinqlx_setup: ()) {
-        mocked_engine()
+        MockEngineBuilder::default()
             .with_com_printf(
                 predicate::eq("The command failed to be executed. pyshinqlx found no handler.\n"),
                 1,
@@ -1256,7 +1256,7 @@ def handler():
     #[cfg_attr(miri, ignore)]
     #[serial]
     fn cmd_py_command_returns_false(_pyshinqlx_setup: ()) {
-        mocked_engine()
+        MockEngineBuilder::default()
             .with_com_printf(
                 predicate::eq("The command failed to be executed. pyshinqlx found no handler.\n"),
                 1,
@@ -1307,7 +1307,7 @@ def handler():
             .with(predicate::eq(false))
             .times(1);
 
-        mocked_engine()
+        MockEngineBuilder::default()
             .with_com_printf(predicate::eq("Restarting Python...\n"), 1)
             .run(|| {
                 cmd_restart_python();
@@ -1330,7 +1330,7 @@ def handler():
         let new_game_dispatcher_ctx = new_game_dispatcher_context();
         new_game_dispatcher_ctx.expect().times(0);
 
-        mocked_engine()
+        MockEngineBuilder::default()
             .with_com_printf(predicate::eq("Restarting Python...\n"), 1)
             .run(|| {
                 cmd_restart_python();
@@ -1356,7 +1356,7 @@ def handler():
             .with(predicate::eq(false))
             .times(1);
 
-        mocked_engine()
+        MockEngineBuilder::default()
             .with_com_printf(predicate::eq("Restarting Python...\n"), 1)
             .run(|| {
                 cmd_restart_python();
@@ -1379,7 +1379,7 @@ def handler():
         let new_game_dispatcher_ctx = new_game_dispatcher_context();
         new_game_dispatcher_ctx.expect().times(0);
 
-        mocked_engine()
+        MockEngineBuilder::default()
             .with_com_printf(predicate::eq("Restarting Python...\n"), 1)
             .run(|| {
                 cmd_restart_python();
