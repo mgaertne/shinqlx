@@ -760,7 +760,7 @@ mod set_map_subtitles_tests {
 
     use crate::ffi::c::prelude::{CS_AUTHOR, CS_AUTHOR2, CS_MESSAGE};
     use crate::hooks::mock_hooks::shinqlx_set_configstring_context;
-    use crate::prelude::{mocked_engine, serial};
+    use crate::prelude::*;
 
     use mockall::predicate;
     use rstest::rstest;
@@ -788,7 +788,7 @@ mod set_map_subtitles_tests {
             .with(predicate::eq(CS_AUTHOR2), predicate::eq(map_subtitle2))
             .times(1);
 
-        mocked_engine()
+        MockEngineBuilder::default()
             .configure(|mock_engine| {
                 mock_engine
                     .expect_get_configstring()
@@ -845,7 +845,7 @@ mod set_map_subtitles_tests {
             .with(predicate::eq(CS_AUTHOR2), predicate::eq(map_subtitle2))
             .times(1);
 
-        mocked_engine()
+        MockEngineBuilder::default()
             .configure(|mock_engine| {
                 mock_engine
                     .expect_get_configstring()
@@ -1051,7 +1051,7 @@ mod pyshinqlx_configure_logger_tests {
     use super::pyshinqlx_setup_fixture::*;
 
     use crate::ffi::c::prelude::{cvar_t, CVar, CVarBuilder};
-    use crate::prelude::{mocked_engine, serial};
+    use crate::prelude::*;
 
     use alloc::ffi::CString;
     use core::borrow::BorrowMut;
@@ -1127,7 +1127,7 @@ mod pyshinqlx_configure_logger_tests {
             .build()
             .expect("this should not happen");
 
-        mocked_engine()
+        MockEngineBuilder::default()
             .configure(|mock_engine| {
                 mock_engine
                     .expect_find_cvar()
@@ -1222,7 +1222,7 @@ mod pyshinqlx_configure_logger_tests {
             .build()
             .expect("this should not happen");
 
-        mocked_engine()
+        MockEngineBuilder::default()
             .configure(|mock_engine| {
                 mock_engine
                     .expect_find_cvar()
@@ -1579,7 +1579,7 @@ def next_frame(func):
 mod next_frame_tests {
     use super::pyshinqlx_setup_fixture::*;
 
-    use crate::prelude::serial;
+    use crate::prelude::*;
 
     use rstest::rstest;
 
@@ -1667,7 +1667,7 @@ def delay(time):
 mod delay_tests {
     use super::pyshinqlx_setup_fixture::*;
 
-    use crate::prelude::serial;
+    use crate::prelude::*;
 
     use pretty_assertions::assert_eq;
     use rstest::rstest;
@@ -1790,7 +1790,7 @@ mod uptime_tests {
 
     use super::pyshinqlx_setup_fixture::*;
 
-    use crate::prelude::serial;
+    use crate::prelude::*;
     use rstest::rstest;
 
     use crate::_INIT_TIME;
@@ -1838,7 +1838,7 @@ mod owner_tests {
     use super::pyshinqlx_setup_fixture::*;
 
     use crate::ffi::c::prelude::{cvar_t, CVar, CVarBuilder};
-    use crate::prelude::{mocked_engine, serial};
+    use crate::prelude::*;
 
     use core::borrow::BorrowMut;
 
@@ -1862,7 +1862,7 @@ mod owner_tests {
     #[cfg_attr(miri, ignore)]
     #[serial]
     fn owner_with_no_cvar(_pyshinqlx_setup: ()) {
-        mocked_engine()
+        MockEngineBuilder::default()
             .configure(|mock_engine| {
                 mock_engine
                     .expect_find_cvar()
@@ -1887,7 +1887,7 @@ mod owner_tests {
             .build()
             .expect("this should not happen");
 
-        mocked_engine()
+        MockEngineBuilder::default()
             .configure(|mock_engine| {
                 mock_engine
                     .expect_find_cvar()
@@ -1914,7 +1914,7 @@ mod owner_tests {
             .build()
             .expect("this should not happen");
 
-        mocked_engine()
+        MockEngineBuilder::default()
             .configure(|mock_engine| {
                 mock_engine
                     .expect_find_cvar()
@@ -1941,7 +1941,7 @@ mod owner_tests {
             .build()
             .expect("this should not happen");
 
-        mocked_engine()
+        MockEngineBuilder::default()
             .configure(|mock_engine| {
                 mock_engine
                     .expect_find_cvar()
@@ -1975,7 +1975,7 @@ mod stats_listener_tests {
     use super::stats_listener::StatsListener;
 
     use crate::ffi::c::prelude::{cvar_t, CVar, CVarBuilder};
-    use crate::prelude::{mocked_engine, serial};
+    use crate::prelude::*;
 
     use core::borrow::BorrowMut;
 
@@ -2013,7 +2013,7 @@ mod stats_listener_tests {
             .build()
             .expect("this should not happen");
 
-        mocked_engine()
+        MockEngineBuilder::default()
             .configure(|mock_engine| {
                 mock_engine
                     .expect_find_cvar()
@@ -2453,7 +2453,7 @@ mod pyshinqlx_plugins_tests {
     use super::{EventDispatcherManager, GameEndDispatcher, Plugin, UnloadDispatcher};
 
     use crate::ffi::c::prelude::{cvar_t, CVar, CVarBuilder};
-    use crate::prelude::{mocked_engine, serial};
+    use crate::prelude::*;
 
     use alloc::ffi::CString;
     use core::borrow::BorrowMut;
@@ -2597,7 +2597,7 @@ class test_cmd_hook_plugin(shinqlx.Plugin):
     #[serial]
     #[cfg_attr(miri, ignore)]
     fn load_preset_plugin_with_misconfigured_plugin_path_cvar(_pyshinqlx_setup: ()) {
-        mocked_engine()
+        MockEngineBuilder::default()
             .configure(|mock_engine| {
                 mock_engine
                     .expect_find_cvar()
@@ -2627,7 +2627,7 @@ class test_cmd_hook_plugin(shinqlx.Plugin):
             .build()
             .expect("this should not happen");
 
-        mocked_engine()
+        MockEngineBuilder::default()
             .configure(|mock_engine| {
                 mock_engine
                     .expect_find_cvar()
@@ -2682,7 +2682,7 @@ class test_cmd_hook_plugin(shinqlx.Plugin):
             .build()
             .expect("this should not happen");
 
-        mocked_engine()
+        MockEngineBuilder::default()
             .configure(|mock_engine| {
                 mock_engine
                     .expect_find_cvar()
@@ -2737,7 +2737,7 @@ class test_cmd_hook_plugin(shinqlx.Plugin):
             .build()
             .expect("this should not happen");
 
-        mocked_engine()
+        MockEngineBuilder::default()
             .configure(|mock_engine| {
                 mock_engine
                     .expect_find_cvar()
@@ -2791,7 +2791,7 @@ class test_cmd_hook_plugin(shinqlx.Plugin):
     #[serial]
     #[cfg_attr(miri, ignore)]
     fn load_plugin_with_misconfigured_plugin_path_cvar(_pyshinqlx_setup: ()) {
-        mocked_engine()
+        MockEngineBuilder::default()
             .configure(|mock_engine| {
                 mock_engine
                     .expect_find_cvar()
@@ -2816,7 +2816,7 @@ class test_cmd_hook_plugin(shinqlx.Plugin):
             .build()
             .expect("this should not happen");
 
-        mocked_engine()
+        MockEngineBuilder::default()
             .configure(|mock_engine| {
                 mock_engine
                     .expect_find_cvar()
@@ -2860,7 +2860,7 @@ class test_cmd_hook_plugin(shinqlx.Plugin):
             .build()
             .expect("this should not happen");
 
-        mocked_engine()
+        MockEngineBuilder::default()
             .configure(|mock_engine| {
                 mock_engine
                     .expect_find_cvar()
@@ -2907,7 +2907,7 @@ class test_cmd_hook_plugin(shinqlx.Plugin):
             .build()
             .expect("this should not happen");
 
-        mocked_engine()
+        MockEngineBuilder::default()
             .configure(|mock_engine| {
                 mock_engine
                     .expect_find_cvar()
@@ -2951,7 +2951,7 @@ class test_cmd_hook_plugin(shinqlx.Plugin):
             .build()
             .expect("this should not happen");
 
-        mocked_engine()
+        MockEngineBuilder::default()
             .configure(|mock_engine| {
                 mock_engine
                     .expect_find_cvar()
@@ -2995,7 +2995,7 @@ class test_cmd_hook_plugin(shinqlx.Plugin):
             .build()
             .expect("this should not happen");
 
-        mocked_engine()
+        MockEngineBuilder::default()
             .configure(|mock_engine| {
                 mock_engine
                     .expect_find_cvar()
@@ -3064,7 +3064,7 @@ class test_cmd_hook_plugin(shinqlx.Plugin):
             .build()
             .expect("this should not happen");
 
-        mocked_engine()
+        MockEngineBuilder::default()
             .configure(|mock_engine| {
                 mock_engine
                     .expect_find_cvar()
@@ -3125,7 +3125,7 @@ class test_cmd_hook_plugin(shinqlx.Plugin):
             .build()
             .expect("this should not happen");
 
-        mocked_engine()
+        MockEngineBuilder::default()
             .configure(|mock_engine| {
                 mock_engine
                     .expect_find_cvar()
@@ -3185,7 +3185,7 @@ class test_cmd_hook_plugin(shinqlx.Plugin):
             .build()
             .expect("this should not happen");
 
-        mocked_engine()
+        MockEngineBuilder::default()
             .configure(|mock_engine| {
                 mock_engine
                     .expect_find_cvar()
@@ -3249,7 +3249,7 @@ class test_cmd_hook_plugin(shinqlx.Plugin):
             .build()
             .expect("this should not happen");
 
-        mocked_engine()
+        MockEngineBuilder::default()
             .configure(|mock_engine| {
                 mock_engine
                     .expect_find_cvar()
@@ -3314,7 +3314,7 @@ class test_cmd_hook_plugin(shinqlx.Plugin):
             .build()
             .expect("this should not happen");
 
-        mocked_engine()
+        MockEngineBuilder::default()
             .configure(|mock_engine| {
                 mock_engine
                     .expect_find_cvar()
@@ -3413,7 +3413,7 @@ mod initialize_cvars_tests {
 
     use super::pyshinqlx_setup_fixture::*;
 
-    use crate::prelude::{mocked_engine, serial};
+    use crate::prelude::*;
 
     use mockall::predicate;
     use rstest::rstest;
@@ -3442,7 +3442,7 @@ mod initialize_cvars_tests {
         #[case] cvar_value: &'static str,
         _pyshinqlx_setup: (),
     ) {
-        mocked_engine()
+        MockEngineBuilder::default()
             .configure(|mock_engine| {
                 mock_engine
                     .expect_find_cvar()
@@ -3504,7 +3504,7 @@ mod try_get_plugins_path_tests {
     use super::try_get_plugins_path;
 
     use crate::ffi::c::prelude::{cvar_t, CVar, CVarBuilder};
-    use crate::prelude::{mocked_engine, serial};
+    use crate::prelude::*;
 
     use alloc::ffi::CString;
     use core::borrow::BorrowMut;
@@ -3529,7 +3529,7 @@ mod try_get_plugins_path_tests {
     #[serial]
     #[cfg_attr(miri, ignore)]
     fn try_get_plugins_path_with_no_cvar_set() {
-        mocked_engine()
+        MockEngineBuilder::default()
             .configure(|mock_engine| {
                 mock_engine
                     .expect_find_cvar()
@@ -3552,7 +3552,7 @@ mod try_get_plugins_path_tests {
             .build()
             .expect("this should not happen");
 
-        mocked_engine()
+        MockEngineBuilder::default()
             .configure(|mock_engine| {
                 mock_engine
                     .expect_find_cvar()
@@ -3580,7 +3580,7 @@ mod try_get_plugins_path_tests {
             .build()
             .expect("this should not happen");
 
-        mocked_engine()
+        MockEngineBuilder::default()
             .configure(|mock_engine| {
                 mock_engine
                     .expect_find_cvar()

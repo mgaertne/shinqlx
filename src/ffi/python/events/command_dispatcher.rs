@@ -28,7 +28,7 @@ mod command_dispatcher_tests {
 
     use crate::ffi::c::prelude::{cvar_t, CVar, CVarBuilder};
     use crate::ffi::python::{commands::CommandPriorities, pyshinqlx_setup};
-    use crate::prelude::{mocked_engine, serial};
+    use crate::prelude::*;
 
     use core::borrow::BorrowMut;
 
@@ -64,7 +64,7 @@ mod command_dispatcher_tests {
             .string(cvar_string.as_ptr().cast_mut())
             .build()
             .expect("this should not happen");
-        mocked_engine()
+        MockEngineBuilder::default()
             .configure(|mock_engine| {
                 mock_engine
                     .expect_find_cvar()
@@ -125,7 +125,7 @@ def throws_exception_hook(*args, **kwargs):
             .string(cvar_string.as_ptr().cast_mut())
             .build()
             .expect("this should not happen");
-        mocked_engine()
+        MockEngineBuilder::default()
             .configure(|mock_engine| {
                 mock_engine
                     .expect_find_cvar()
@@ -186,7 +186,7 @@ def returns_none_hook(*args, **kwargs):
             .string(cvar_string.as_ptr().cast_mut())
             .build()
             .expect("this should not happen");
-        mocked_engine()
+        MockEngineBuilder::default()
             .configure(|mock_engine| {
                 mock_engine
                     .expect_find_cvar()
@@ -249,7 +249,7 @@ def returns_none_hook(*args, **kwargs):
             .string(cvar_string.as_ptr().cast_mut())
             .build()
             .expect("this should not happen");
-        mocked_engine()
+        MockEngineBuilder::default()
             .configure(|mock_engine| {
                 mock_engine
                     .expect_find_cvar()
@@ -312,7 +312,7 @@ def returns_stop_hook(*args, **kwargs):
             .string(cvar_string.as_ptr().cast_mut())
             .build()
             .expect("this should not happen");
-        mocked_engine()
+        MockEngineBuilder::default()
             .configure(|mock_engine| {
                 mock_engine
                     .expect_find_cvar()
@@ -375,7 +375,7 @@ def returns_stop_event_hook(*args, **kwargs):
             .string(cvar_string.as_ptr().cast_mut())
             .build()
             .expect("this should not happen");
-        mocked_engine()
+        MockEngineBuilder::default()
             .configure(|mock_engine| {
                 mock_engine
                     .expect_find_cvar()
@@ -438,7 +438,7 @@ def returns_stop_all_hook(*args, **kwargs):
             .string(cvar_string.as_ptr().cast_mut())
             .build()
             .expect("this should not happen");
-        mocked_engine()
+        MockEngineBuilder::default()
             .configure(|mock_engine| {
                 mock_engine
                     .expect_find_cvar()

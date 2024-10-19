@@ -672,7 +672,7 @@ mod pyshinqlx_game_tests {
     #[cfg_attr(miri, ignore)]
     #[serial]
     fn pyconstructor_with_empty_configstring(_pyshinqlx_setup: ()) {
-        mocked_engine().configure(|mock_engine| {
+        MockEngineBuilder::default().configure(|mock_engine| {
             mock_engine
                 .expect_get_configstring()
                 .with(predicate::eq(CS_SERVERINFO as u16))
@@ -690,7 +690,7 @@ mod pyshinqlx_game_tests {
     #[cfg_attr(miri, ignore)]
     #[serial]
     fn pyconstructor_with_nonempty_configstring(_pyshinqlx_setup: ()) {
-        mocked_engine()
+        MockEngineBuilder::default()
             .configure(|mock_engine| {
                 mock_engine
                     .expect_get_configstring()
@@ -731,7 +731,7 @@ mod pyshinqlx_game_tests {
     #[cfg_attr(miri, ignore)]
     #[serial]
     fn repr_with_empty_configstring(_pyshinqlx_setup: ()) {
-        mocked_engine()
+        MockEngineBuilder::default()
             .configure(|mock_engine| {
                 mock_engine
                     .expect_get_configstring()
@@ -758,7 +758,7 @@ mod pyshinqlx_game_tests {
     #[cfg_attr(miri, ignore)]
     #[serial]
     fn repr_with_empty_map_configstring(_pyshinqlx_setup: ()) {
-        mocked_engine()
+        MockEngineBuilder::default()
             .configure(|mock_engine| {
                 mock_engine
                     .expect_get_configstring()
@@ -785,7 +785,7 @@ mod pyshinqlx_game_tests {
     #[cfg_attr(miri, ignore)]
     #[serial]
     fn repr_with_empty_gametype_configstring(_pyshinqlx_setup: ()) {
-        mocked_engine()
+        MockEngineBuilder::default()
             .configure(|mock_engine| {
                 mock_engine
                     .expect_get_configstring()
@@ -812,7 +812,7 @@ mod pyshinqlx_game_tests {
     #[cfg_attr(miri, ignore)]
     #[serial]
     fn repr_with_nonempty_configstring(_pyshinqlx_setup: ()) {
-        mocked_engine()
+        MockEngineBuilder::default()
             .configure(|mock_engine| {
                 mock_engine
                     .expect_get_configstring()
@@ -853,7 +853,7 @@ mod pyshinqlx_game_tests {
     #[cfg_attr(miri, ignore)]
     #[serial]
     fn str_with_empty_configstring(_pyshinqlx_setup: ()) {
-        mocked_engine()
+        MockEngineBuilder::default()
             .configure(|mock_engine| {
                 mock_engine
                     .expect_get_configstring()
@@ -876,7 +876,7 @@ mod pyshinqlx_game_tests {
     #[cfg_attr(miri, ignore)]
     #[serial]
     fn str_with_empty_map_configstring(_pyshinqlx_setup: ()) {
-        mocked_engine()
+        MockEngineBuilder::default()
             .configure(|mock_engine| {
                 mock_engine
                     .expect_get_configstring()
@@ -899,7 +899,7 @@ mod pyshinqlx_game_tests {
     #[cfg_attr(miri, ignore)]
     #[serial]
     fn str_with_empty_gametype_configstring(_pyshinqlx_setup: ()) {
-        mocked_engine()
+        MockEngineBuilder::default()
             .configure(|mock_engine| {
                 mock_engine
                     .expect_get_configstring()
@@ -922,7 +922,7 @@ mod pyshinqlx_game_tests {
     #[cfg_attr(miri, ignore)]
     #[serial]
     fn str_with_nonempty_configstring(_pyshinqlx_setup: ()) {
-        mocked_engine()
+        MockEngineBuilder::default()
             .configure(|mock_engine| {
                 mock_engine
                     .expect_get_configstring()
@@ -960,7 +960,7 @@ mod pyshinqlx_game_tests {
     #[cfg_attr(miri, ignore)]
     #[serial]
     fn contains_when_configstring_variables_are_unparseable(_pyshinqlx_setup: ()) {
-        mocked_engine().configure(|mock_engine| {
+        MockEngineBuilder::default().configure(|mock_engine| {
             mock_engine
                 .expect_get_configstring()
                 .with(predicate::eq(CS_SERVERINFO as u16))
@@ -983,7 +983,7 @@ mod pyshinqlx_game_tests {
     #[cfg_attr(miri, ignore)]
     #[serial]
     fn contains_when_value_is_in_configstring_variables(_pyshinqlx_setup: ()) {
-        mocked_engine()
+        MockEngineBuilder::default()
             .configure(|mock_engine| {
                 mock_engine
                     .expect_get_configstring()
@@ -1007,7 +1007,7 @@ mod pyshinqlx_game_tests {
     #[cfg_attr(miri, ignore)]
     #[serial]
     fn contains_when_value_is_not_in_configstring_variables(_pyshinqlx_setup: ()) {
-        mocked_engine()
+        MockEngineBuilder::default()
             .configure(|mock_engine| {
                 mock_engine
                     .expect_get_configstring()
@@ -1031,7 +1031,7 @@ mod pyshinqlx_game_tests {
     #[cfg_attr(miri, ignore)]
     #[serial]
     fn contains_when_configstring_parses_empty(_pyshinqlx_setup: ()) {
-        mocked_engine()
+        MockEngineBuilder::default()
             .configure(|mock_engine| {
                 mock_engine
                     .expect_get_configstring()
@@ -1055,7 +1055,7 @@ mod pyshinqlx_game_tests {
     #[cfg_attr(miri, ignore)]
     #[serial]
     fn contains_when_configstring_parses_to_none(_pyshinqlx_setup: ()) {
-        mocked_engine()
+        MockEngineBuilder::default()
             .configure(|mock_engine| {
                 mock_engine
                     .expect_get_configstring()
@@ -1094,7 +1094,7 @@ mod pyshinqlx_game_tests {
     #[cfg_attr(miri, ignore)]
     #[serial]
     fn getitem_when_configstring_variables_are_unparseable(_pyshinqlx_setup: ()) {
-        mocked_engine().configure(|mock_engine| {
+        MockEngineBuilder::default().configure(|mock_engine| {
             mock_engine
                 .expect_get_configstring()
                 .with(predicate::eq(CS_SERVERINFO as u16))
@@ -1117,7 +1117,7 @@ mod pyshinqlx_game_tests {
     #[cfg_attr(miri, ignore)]
     #[serial]
     fn getitem_when_value_is_in_configstring_variables(_pyshinqlx_setup: ()) {
-        mocked_engine()
+        MockEngineBuilder::default()
             .configure(|mock_engine| {
                 mock_engine
                     .expect_get_configstring()
@@ -1141,7 +1141,7 @@ mod pyshinqlx_game_tests {
     #[cfg_attr(miri, ignore)]
     #[serial]
     fn getitem_when_value_is_not_in_configstring_variables(_pyshinqlx_setup: ()) {
-        mocked_engine()
+        MockEngineBuilder::default()
             .configure(|mock_engine| {
                 mock_engine
                     .expect_get_configstring()
@@ -1165,7 +1165,7 @@ mod pyshinqlx_game_tests {
     #[cfg_attr(miri, ignore)]
     #[serial]
     fn getitem_when_configstring_parses_empty(_pyshinqlx_setup: ()) {
-        mocked_engine()
+        MockEngineBuilder::default()
             .configure(|mock_engine| {
                 mock_engine
                     .expect_get_configstring()
@@ -1189,7 +1189,7 @@ mod pyshinqlx_game_tests {
     #[cfg_attr(miri, ignore)]
     #[serial]
     fn getitems_when_configstring_parses_to_none(_pyshinqlx_setup: ()) {
-        mocked_engine()
+        MockEngineBuilder::default()
             .configure(|mock_engine| {
                 mock_engine
                     .expect_get_configstring()
@@ -1228,7 +1228,7 @@ mod pyshinqlx_game_tests {
     #[cfg_attr(miri, ignore)]
     #[serial]
     fn cvars_with_empty_configstring(_pyshinqlx_setup: ()) {
-        mocked_engine()
+        MockEngineBuilder::default()
             .configure(|mock_engine| {
                 mock_engine
                     .expect_get_configstring()
@@ -1253,7 +1253,7 @@ mod pyshinqlx_game_tests {
     #[cfg_attr(miri, ignore)]
     #[serial]
     fn cvars_contains_parsed_configstring_zero(_pyshinqlx_setup: ()) {
-        mocked_engine()
+        MockEngineBuilder::default()
             .configure(|mock_engine| {
                 mock_engine
                     .expect_get_configstring()
@@ -1301,7 +1301,7 @@ mod pyshinqlx_game_tests {
     #[cfg_attr(miri, ignore)]
     #[serial]
     fn get_type_for_unparseable_gametype(_pyshinqlx_setup: ()) {
-        mocked_engine()
+        MockEngineBuilder::default()
             .configure(|mock_engine| {
                 mock_engine
                     .expect_get_configstring()
@@ -1343,7 +1343,7 @@ mod pyshinqlx_game_tests {
         #[case] g_gametype: i32,
         #[case] expected_string: &str,
     ) {
-        mocked_engine()
+        MockEngineBuilder::default()
             .configure(|mock_engine| {
                 mock_engine
                     .expect_get_configstring()
@@ -1382,7 +1382,7 @@ mod pyshinqlx_game_tests {
     #[cfg_attr(miri, ignore)]
     #[serial]
     fn get_type_short_for_unparseable_gametype(_pyshinqlx_setup: ()) {
-        mocked_engine()
+        MockEngineBuilder::default()
             .configure(|mock_engine| {
                 mock_engine
                     .expect_get_configstring()
@@ -1424,7 +1424,7 @@ mod pyshinqlx_game_tests {
         #[case] g_gametype: i32,
         #[case] expected_string: &str,
     ) {
-        mocked_engine()
+        MockEngineBuilder::default()
             .configure(|mock_engine| {
                 mock_engine
                     .expect_get_configstring()
@@ -1448,7 +1448,7 @@ mod pyshinqlx_game_tests {
     #[cfg_attr(miri, ignore)]
     #[serial]
     fn get_map_returns_current_map(_pyshinqlx_setup: ()) {
-        mocked_engine()
+        MockEngineBuilder::default()
             .configure(|mock_engine| {
                 mock_engine
                     .expect_get_configstring()
@@ -1472,7 +1472,7 @@ mod pyshinqlx_game_tests {
     #[cfg_attr(miri, ignore)]
     #[serial]
     fn set_map_changes_current_map(_pyshinqlx_setup: ()) {
-        mocked_engine()
+        MockEngineBuilder::default()
             .configure(|mock_engine| {
                 mock_engine
                     .expect_execute_console_command()
@@ -1589,7 +1589,7 @@ shinqlx._map_subtitle2 = "Awesome map!"
     #[cfg_attr(miri, ignore)]
     #[serial]
     fn get_red_score_returns_red_score(_pyshinqlx_setup: ()) {
-        mocked_engine()
+        MockEngineBuilder::default()
             .configure(|mock_engine| {
                 mock_engine
                     .expect_get_configstring()
@@ -1613,7 +1613,7 @@ shinqlx._map_subtitle2 = "Awesome map!"
     #[cfg_attr(miri, ignore)]
     #[serial]
     fn get_red_score_defaults_when_unpareable(_pyshinqlx_setup: ()) {
-        mocked_engine()
+        MockEngineBuilder::default()
             .configure(|mock_engine| {
                 mock_engine
                     .expect_get_configstring()
@@ -1652,7 +1652,7 @@ shinqlx._map_subtitle2 = "Awesome map!"
     #[cfg_attr(miri, ignore)]
     #[serial]
     fn get_blue_score_returns_blue_score(_pyshinqlx_setup: ()) {
-        mocked_engine()
+        MockEngineBuilder::default()
             .configure(|mock_engine| {
                 mock_engine
                     .expect_get_configstring()
@@ -1676,7 +1676,7 @@ shinqlx._map_subtitle2 = "Awesome map!"
     #[cfg_attr(miri, ignore)]
     #[serial]
     fn get_blue_score_defaults_when_unparsable(_pyshinqlx_setup: ()) {
-        mocked_engine()
+        MockEngineBuilder::default()
             .configure(|mock_engine| {
                 mock_engine
                     .expect_get_configstring()
@@ -1723,7 +1723,7 @@ shinqlx._map_subtitle2 = "Awesome map!"
         #[case] cvar_value: String,
         #[case] expected_return: &str,
     ) {
-        mocked_engine()
+        MockEngineBuilder::default()
             .configure(|mock_engine| {
                 mock_engine
                     .expect_get_configstring()
@@ -1762,7 +1762,7 @@ shinqlx._map_subtitle2 = "Awesome map!"
     #[cfg_attr(miri, ignore)]
     #[serial]
     fn get_factory_returns_factory(_pyshinqlx_setup: ()) {
-        mocked_engine()
+        MockEngineBuilder::default()
             .configure(|mock_engine| {
                 mock_engine
                     .expect_get_configstring()
@@ -1786,7 +1786,7 @@ shinqlx._map_subtitle2 = "Awesome map!"
     #[cfg_attr(miri, ignore)]
     #[serial]
     fn set_factory_sets_factory_and_reloads(_pyshinqlx_setup: ()) {
-        mocked_engine()
+        MockEngineBuilder::default()
             .configure(|mock_engine| {
                 mock_engine
                     .expect_get_configstring()
@@ -1829,7 +1829,7 @@ shinqlx._map_subtitle2 = "Awesome map!"
     #[cfg_attr(miri, ignore)]
     #[serial]
     fn get_factory_title_returns_factory_title(_pyshinqlx_setup: ()) {
-        mocked_engine()
+        MockEngineBuilder::default()
             .configure(|mock_engine| {
                 mock_engine
                     .expect_get_configstring()
@@ -1853,7 +1853,7 @@ shinqlx._map_subtitle2 = "Awesome map!"
     #[cfg_attr(miri, ignore)]
     #[serial]
     fn get_hostname_returns_hostname(_pyshinqlx_setup: ()) {
-        mocked_engine()
+        MockEngineBuilder::default()
             .configure(|mock_engine| {
                 mock_engine
                     .expect_get_configstring()
@@ -1877,7 +1877,7 @@ shinqlx._map_subtitle2 = "Awesome map!"
     #[cfg_attr(miri, ignore)]
     #[serial]
     fn set_hostname_sets_new_hostname(_pyshinqlx_setup: ()) {
-        mocked_engine()
+        MockEngineBuilder::default()
             .configure(|mock_engine| {
                 mock_engine
                     .expect_find_cvar()
@@ -1913,7 +1913,7 @@ shinqlx._map_subtitle2 = "Awesome map!"
         #[case] mode: i32,
         #[case] expected: bool,
     ) {
-        mocked_engine()
+        MockEngineBuilder::default()
             .configure(|mock_engine| {
                 mock_engine
                     .expect_get_configstring()
@@ -1943,7 +1943,7 @@ shinqlx._map_subtitle2 = "Awesome map!"
         #[case] instagib: &'static str,
         #[case] value_set: bool,
     ) {
-        mocked_engine()
+        MockEngineBuilder::default()
             .configure(|mock_engine| {
                 mock_engine
                     .expect_find_cvar()
@@ -1979,7 +1979,7 @@ shinqlx._map_subtitle2 = "Awesome map!"
         #[case] instagib: &'static str,
         #[case] value_set: i32,
     ) {
-        mocked_engine()
+        MockEngineBuilder::default()
             .configure(|mock_engine| {
                 mock_engine
                     .expect_find_cvar()
@@ -2009,7 +2009,7 @@ shinqlx._map_subtitle2 = "Awesome map!"
     #[cfg_attr(miri, ignore)]
     #[serial]
     fn set_instagib_with_invalid_value(_pyshinqlx_setup: ()) {
-        mocked_engine()
+        MockEngineBuilder::default()
             .configure(|mock_engine| {
                 mock_engine
                     .expect_find_cvar()
@@ -2043,7 +2043,7 @@ shinqlx._map_subtitle2 = "Awesome map!"
         #[case] mode: i32,
         #[case] expected: bool,
     ) {
-        mocked_engine()
+        MockEngineBuilder::default()
             .configure(|mock_engine| {
                 mock_engine
                     .expect_get_configstring()
@@ -2073,7 +2073,7 @@ shinqlx._map_subtitle2 = "Awesome map!"
         #[case] loadout: &'static str,
         #[case] value_set: bool,
     ) {
-        mocked_engine()
+        MockEngineBuilder::default()
             .configure(|mock_engine| {
                 mock_engine
                     .expect_find_cvar()
@@ -2109,7 +2109,7 @@ shinqlx._map_subtitle2 = "Awesome map!"
         #[case] loadout: &'static str,
         #[case] value_set: i32,
     ) {
-        mocked_engine()
+        MockEngineBuilder::default()
             .configure(|mock_engine| {
                 mock_engine
                     .expect_find_cvar()
@@ -2139,7 +2139,7 @@ shinqlx._map_subtitle2 = "Awesome map!"
     #[cfg_attr(miri, ignore)]
     #[serial]
     fn set_loadout_with_invalid_value(_pyshinqlx_setup: ()) {
-        mocked_engine()
+        MockEngineBuilder::default()
             .configure(|mock_engine| {
                 mock_engine
                     .expect_find_cvar()
@@ -2167,7 +2167,7 @@ shinqlx._map_subtitle2 = "Awesome map!"
     #[cfg_attr(miri, ignore)]
     #[serial]
     fn get_maxclients_returns_maxclients(_pyshinqlx_setup: ()) {
-        mocked_engine()
+        MockEngineBuilder::default()
             .configure(|mock_engine| {
                 mock_engine
                     .expect_get_configstring()
@@ -2191,7 +2191,7 @@ shinqlx._map_subtitle2 = "Awesome map!"
     #[cfg_attr(miri, ignore)]
     #[serial]
     fn set_maxclients_sets_new_maxclients_value(_pyshinqlx_setup: ()) {
-        mocked_engine()
+        MockEngineBuilder::default()
             .configure(|mock_engine| {
                 mock_engine
                     .expect_find_cvar()
@@ -2220,7 +2220,7 @@ shinqlx._map_subtitle2 = "Awesome map!"
     #[cfg_attr(miri, ignore)]
     #[serial]
     fn get_timelimit_returns_timelimit(_pyshinqlx_setup: ()) {
-        mocked_engine()
+        MockEngineBuilder::default()
             .configure(|mock_engine| {
                 mock_engine
                     .expect_get_configstring()
@@ -2244,7 +2244,7 @@ shinqlx._map_subtitle2 = "Awesome map!"
     #[cfg_attr(miri, ignore)]
     #[serial]
     fn set_timelimit_sets_new_timelimit_value(_pyshinqlx_setup: ()) {
-        mocked_engine()
+        MockEngineBuilder::default()
             .configure(|mock_engine| {
                 mock_engine
                     .expect_find_cvar()
@@ -2273,7 +2273,7 @@ shinqlx._map_subtitle2 = "Awesome map!"
     #[cfg_attr(miri, ignore)]
     #[serial]
     fn get_fraglimit_returns_fraglimit(_pyshinqlx_setup: ()) {
-        mocked_engine()
+        MockEngineBuilder::default()
             .configure(|mock_engine| {
                 mock_engine
                     .expect_get_configstring()
@@ -2297,7 +2297,7 @@ shinqlx._map_subtitle2 = "Awesome map!"
     #[cfg_attr(miri, ignore)]
     #[serial]
     fn set_fraglimit_sets_new_fraglimit(_pyshinqlx_setup: ()) {
-        mocked_engine()
+        MockEngineBuilder::default()
             .configure(|mock_engine| {
                 mock_engine
                     .expect_find_cvar()
@@ -2326,7 +2326,7 @@ shinqlx._map_subtitle2 = "Awesome map!"
     #[cfg_attr(miri, ignore)]
     #[serial]
     fn get_roundlimit_returns_roundlimit(_pyshinqlx_setup: ()) {
-        mocked_engine()
+        MockEngineBuilder::default()
             .configure(|mock_engine| {
                 mock_engine
                     .expect_get_configstring()
@@ -2350,7 +2350,7 @@ shinqlx._map_subtitle2 = "Awesome map!"
     #[cfg_attr(miri, ignore)]
     #[serial]
     fn set_roundlimit_sets_new_roundlimit(_pyshinqlx_setup: ()) {
-        mocked_engine()
+        MockEngineBuilder::default()
             .configure(|mock_engine| {
                 mock_engine
                     .expect_find_cvar()
@@ -2379,7 +2379,7 @@ shinqlx._map_subtitle2 = "Awesome map!"
     #[cfg_attr(miri, ignore)]
     #[serial]
     fn get_roundtimelimit_returns_roundtimelimit(_pyshinqlx_setup: ()) {
-        mocked_engine()
+        MockEngineBuilder::default()
             .configure(|mock_engine| {
                 mock_engine
                     .expect_get_configstring()
@@ -2403,7 +2403,7 @@ shinqlx._map_subtitle2 = "Awesome map!"
     #[cfg_attr(miri, ignore)]
     #[serial]
     fn set_roundtimelimit_sets_new_roundtimelimit(_pyshinqlx_setup: ()) {
-        mocked_engine()
+        MockEngineBuilder::default()
             .configure(|mock_engine| {
                 mock_engine
                     .expect_find_cvar()
@@ -2433,7 +2433,7 @@ shinqlx._map_subtitle2 = "Awesome map!"
     #[cfg_attr(miri, ignore)]
     #[serial]
     fn get_scorelimit_returns_scorelimit(_pyshinqlx_setup: ()) {
-        mocked_engine()
+        MockEngineBuilder::default()
             .configure(|mock_engine| {
                 mock_engine
                     .expect_get_configstring()
@@ -2457,7 +2457,7 @@ shinqlx._map_subtitle2 = "Awesome map!"
     #[cfg_attr(miri, ignore)]
     #[serial]
     fn set_scorelimit_sets_new_scorelimit(_pyshinqlx_setup: ()) {
-        mocked_engine()
+        MockEngineBuilder::default()
             .configure(|mock_engine| {
                 mock_engine
                     .expect_find_cvar()
@@ -2486,7 +2486,7 @@ shinqlx._map_subtitle2 = "Awesome map!"
     #[cfg_attr(miri, ignore)]
     #[serial]
     fn get_capturelimit_returns_capturelimit(_pyshinqlx_setup: ()) {
-        mocked_engine()
+        MockEngineBuilder::default()
             .configure(|mock_engine| {
                 mock_engine
                     .expect_get_configstring()
@@ -2510,7 +2510,7 @@ shinqlx._map_subtitle2 = "Awesome map!"
     #[cfg_attr(miri, ignore)]
     #[serial]
     fn set_capturelimit_sets_new_capturelimit(_pyshinqlx_setup: ()) {
-        mocked_engine()
+        MockEngineBuilder::default()
             .configure(|mock_engine| {
                 mock_engine
                     .expect_find_cvar()
@@ -2540,7 +2540,7 @@ shinqlx._map_subtitle2 = "Awesome map!"
     #[cfg_attr(miri, ignore)]
     #[serial]
     fn get_teamsize_returns_teamsize(_pyshinqlx_setup: ()) {
-        mocked_engine()
+        MockEngineBuilder::default()
             .configure(|mock_engine| {
                 mock_engine
                     .expect_get_configstring()
@@ -2564,7 +2564,7 @@ shinqlx._map_subtitle2 = "Awesome map!"
     #[cfg_attr(miri, ignore)]
     #[serial]
     fn set_teamsize_sets_new_teamsize(_pyshinqlx_setup: ()) {
-        mocked_engine()
+        MockEngineBuilder::default()
             .configure(|mock_engine| {
                 mock_engine
                     .expect_find_cvar()
@@ -2593,7 +2593,7 @@ shinqlx._map_subtitle2 = "Awesome map!"
     #[cfg_attr(miri, ignore)]
     #[serial]
     fn get_tags_returns_tags(_pyshinqlx_setup: ()) {
-        mocked_engine()
+        MockEngineBuilder::default()
             .configure(|mock_engine| {
                 mock_engine
                     .expect_get_configstring()
@@ -2620,7 +2620,7 @@ shinqlx._map_subtitle2 = "Awesome map!"
     #[cfg_attr(miri, ignore)]
     #[serial]
     fn set_tags_with_string_tags(_pyshinqlx_setup: ()) {
-        mocked_engine()
+        MockEngineBuilder::default()
             .configure(|mock_engine| {
                 mock_engine
                     .expect_find_cvar()
@@ -2650,7 +2650,7 @@ shinqlx._map_subtitle2 = "Awesome map!"
     #[cfg_attr(miri, ignore)]
     #[serial]
     fn set_tags_with_iterable_tags(_pyshinqlx_setup: ()) {
-        mocked_engine()
+        MockEngineBuilder::default()
             .configure(|mock_engine| {
                 mock_engine
                     .expect_find_cvar()
@@ -2680,7 +2680,7 @@ shinqlx._map_subtitle2 = "Awesome map!"
     #[cfg_attr(miri, ignore)]
     #[serial]
     fn set_tags_with_invalid_value(_pyshinqlx_setup: ()) {
-        mocked_engine()
+        MockEngineBuilder::default()
             .configure(|mock_engine| {
                 mock_engine
                     .expect_find_cvar()
@@ -2708,7 +2708,7 @@ shinqlx._map_subtitle2 = "Awesome map!"
     #[cfg_attr(miri, ignore)]
     #[serial]
     fn get_workshop_items_returns_workshop_items(_pyshinqlx_setup: ()) {
-        mocked_engine()
+        MockEngineBuilder::default()
             .configure(|mock_engine| {
                 mock_engine
                     .expect_get_configstring()
@@ -2732,7 +2732,7 @@ shinqlx._map_subtitle2 = "Awesome map!"
     #[cfg_attr(miri, ignore)]
     #[serial]
     fn set_workshop_items_with_iterable_items(_pyshinqlx_setup: ()) {
-        mocked_engine()
+        MockEngineBuilder::default()
             .configure(|mock_engine| {
                 mock_engine
                     .expect_set_configstring()
@@ -2759,7 +2759,7 @@ shinqlx._map_subtitle2 = "Awesome map!"
     #[cfg_attr(miri, ignore)]
     #[serial]
     fn set_workshop_items_with_invalid_value(_pyshinqlx_setup: ()) {
-        mocked_engine()
+        MockEngineBuilder::default()
             .configure(|mock_engine| {
                 mock_engine
                     .expect_set_configstring()
@@ -2786,7 +2786,7 @@ shinqlx._map_subtitle2 = "Awesome map!"
     #[cfg_attr(miri, ignore)]
     #[serial]
     fn shuffle_forces_shuffle(_pyshinqlx_setup: ()) {
-        mocked_engine()
+        MockEngineBuilder::default()
             .configure(|mock_engine| {
                 mock_engine
                     .expect_execute_console_command()
@@ -2803,7 +2803,7 @@ shinqlx._map_subtitle2 = "Awesome map!"
     #[cfg_attr(miri, ignore)]
     #[serial]
     fn timeout_pauses_game(_pyshinqlx_setup: ()) {
-        mocked_engine()
+        MockEngineBuilder::default()
             .configure(|mock_engine| {
                 mock_engine
                     .expect_execute_console_command()
@@ -2820,7 +2820,7 @@ shinqlx._map_subtitle2 = "Awesome map!"
     #[cfg_attr(miri, ignore)]
     #[serial]
     fn timein_unpauses_game(_pyshinqlx_setup: ()) {
-        mocked_engine()
+        MockEngineBuilder::default()
             .configure(|mock_engine| {
                 mock_engine
                     .expect_execute_console_command()
@@ -2837,7 +2837,7 @@ shinqlx._map_subtitle2 = "Awesome map!"
     #[cfg_attr(miri, ignore)]
     #[serial]
     fn allready_readies_all_players(_pyshinqlx_setup: ()) {
-        mocked_engine()
+        MockEngineBuilder::default()
             .configure(|mock_engine| {
                 mock_engine
                     .expect_execute_console_command()
@@ -2854,7 +2854,7 @@ shinqlx._map_subtitle2 = "Awesome map!"
     #[cfg_attr(miri, ignore)]
     #[serial]
     fn pause_pauses_game(_pyshinqlx_setup: ()) {
-        mocked_engine()
+        MockEngineBuilder::default()
             .configure(|mock_engine| {
                 mock_engine
                     .expect_execute_console_command()
@@ -2871,7 +2871,7 @@ shinqlx._map_subtitle2 = "Awesome map!"
     #[cfg_attr(miri, ignore)]
     #[serial]
     fn unpause_unpauses_game(_pyshinqlx_setup: ()) {
-        mocked_engine()
+        MockEngineBuilder::default()
             .configure(|mock_engine| {
                 mock_engine
                     .expect_execute_console_command()
@@ -2888,19 +2888,21 @@ shinqlx._map_subtitle2 = "Awesome map!"
     #[cfg_attr(miri, ignore)]
     #[serial]
     fn lock_with_invalid_team(_pyshinqlx_setup: ()) {
-        mocked_engine().configure(|_mock_engine| {}).run(|| {
-            Python::with_gil(|py| {
-                let result = Game::lock(&py.get_type_bound::<Game>(), Some("invalid_team"));
-                assert!(result.is_err_and(|err| err.is_instance_of::<PyValueError>(py)));
+        MockEngineBuilder::default()
+            .configure(|_mock_engine| {})
+            .run(|| {
+                Python::with_gil(|py| {
+                    let result = Game::lock(&py.get_type_bound::<Game>(), Some("invalid_team"));
+                    assert!(result.is_err_and(|err| err.is_instance_of::<PyValueError>(py)));
+                });
             });
-        });
     }
 
     #[rstest]
     #[cfg_attr(miri, ignore)]
     #[serial]
     fn lock_with_no_team(_pyshinqlx_setup: ()) {
-        mocked_engine()
+        MockEngineBuilder::default()
             .configure(|mock_engine| {
                 mock_engine
                     .expect_execute_console_command()
@@ -2923,7 +2925,7 @@ shinqlx._map_subtitle2 = "Awesome map!"
     #[serial]
     fn lock_a_specific_team(_pyshinqlx_setup: (), #[case] locked_team: &str) {
         let lock_cmd = format!("lock {}", locked_team.to_lowercase());
-        mocked_engine()
+        MockEngineBuilder::default()
             .configure(|mock_engine| {
                 mock_engine
                     .expect_execute_console_command()
@@ -2942,19 +2944,21 @@ shinqlx._map_subtitle2 = "Awesome map!"
     #[cfg_attr(miri, ignore)]
     #[serial]
     fn unlock_with_invalid_team(_pyshinqlx_setup: ()) {
-        mocked_engine().configure(|_mock_engine| {}).run(|| {
-            Python::with_gil(|py| {
-                let result = Game::unlock(&py.get_type_bound::<Game>(), Some("invalid_team"));
-                assert!(result.is_err_and(|err| err.is_instance_of::<PyValueError>(py)));
+        MockEngineBuilder::default()
+            .configure(|_mock_engine| {})
+            .run(|| {
+                Python::with_gil(|py| {
+                    let result = Game::unlock(&py.get_type_bound::<Game>(), Some("invalid_team"));
+                    assert!(result.is_err_and(|err| err.is_instance_of::<PyValueError>(py)));
+                });
             });
-        });
     }
 
     #[rstest]
     #[cfg_attr(miri, ignore)]
     #[serial]
     fn unlock_with_no_team(_pyshinqlx_setup: ()) {
-        mocked_engine()
+        MockEngineBuilder::default()
             .configure(|mock_engine| {
                 mock_engine
                     .expect_execute_console_command()
@@ -2979,7 +2983,7 @@ shinqlx._map_subtitle2 = "Awesome map!"
     fn unlock_a_specific_team(_pyshinqlx_setup: (), #[case] locked_team: &str) {
         let unlock_cmd = format!("unlock {}", locked_team.to_lowercase());
 
-        mocked_engine()
+        MockEngineBuilder::default()
             .configure(|mock_engine| {
                 mock_engine
                     .expect_execute_console_command()
@@ -3025,7 +3029,7 @@ shinqlx._map_subtitle2 = "Awesome map!"
     fn put_put_player_on_a_specific_team(_pyshinqlx_setup: (), #[case] new_team: &str) {
         let put_cmd = format!("put 2 {}", new_team.to_lowercase());
 
-        mocked_engine()
+        MockEngineBuilder::default()
             .configure(|mock_engine| {
                 mock_engine
                     .expect_execute_console_command()
@@ -3054,7 +3058,7 @@ shinqlx._map_subtitle2 = "Awesome map!"
     #[cfg_attr(miri, ignore)]
     #[serial]
     fn mute_mutes_player(_pyshinqlx_setup: ()) {
-        mocked_engine()
+        MockEngineBuilder::default()
             .configure(|mock_engine| {
                 mock_engine
                     .expect_execute_console_command()
@@ -3082,7 +3086,7 @@ shinqlx._map_subtitle2 = "Awesome map!"
     #[cfg_attr(miri, ignore)]
     #[serial]
     fn unmute_unmutes_player(_pyshinqlx_setup: ()) {
-        mocked_engine()
+        MockEngineBuilder::default()
             .configure(|mock_engine| {
                 mock_engine
                     .expect_execute_console_command()
@@ -3111,7 +3115,7 @@ shinqlx._map_subtitle2 = "Awesome map!"
     #[cfg_attr(miri, ignore)]
     #[serial]
     fn tempban_tempbans_player(_pyshinqlx_setup: ()) {
-        mocked_engine()
+        MockEngineBuilder::default()
             .configure(|mock_engine| {
                 mock_engine
                     .expect_execute_console_command()
@@ -3140,7 +3144,7 @@ shinqlx._map_subtitle2 = "Awesome map!"
     #[cfg_attr(miri, ignore)]
     #[serial]
     fn ban_bans_player(_pyshinqlx_setup: ()) {
-        mocked_engine()
+        MockEngineBuilder::default()
             .configure(|mock_engine| {
                 mock_engine
                     .expect_execute_console_command()
@@ -3168,7 +3172,7 @@ shinqlx._map_subtitle2 = "Awesome map!"
     #[cfg_attr(miri, ignore)]
     #[serial]
     fn unban_unbans_player(_pyshinqlx_setup: ()) {
-        mocked_engine()
+        MockEngineBuilder::default()
             .configure(|mock_engine| {
                 mock_engine
                     .expect_execute_console_command()
@@ -3186,7 +3190,7 @@ shinqlx._map_subtitle2 = "Awesome map!"
     #[cfg_attr(miri, ignore)]
     #[serial]
     fn opsay_sends_op_message(_pyshinqlx_setup: ()) {
-        mocked_engine()
+        MockEngineBuilder::default()
             .configure(|mock_engine| {
                 mock_engine
                     .expect_execute_console_command()
@@ -3214,7 +3218,7 @@ shinqlx._map_subtitle2 = "Awesome map!"
     #[cfg_attr(miri, ignore)]
     #[serial]
     fn addadmin_adds_player_to_admins(_pyshinqlx_setup: ()) {
-        mocked_engine()
+        MockEngineBuilder::default()
             .configure(|mock_engine| {
                 mock_engine
                     .expect_execute_console_command()
@@ -3243,7 +3247,7 @@ shinqlx._map_subtitle2 = "Awesome map!"
     #[cfg_attr(miri, ignore)]
     #[serial]
     fn addmod_adds_player_to_moderators(_pyshinqlx_setup: ()) {
-        mocked_engine()
+        MockEngineBuilder::default()
             .configure(|mock_engine| {
                 mock_engine
                     .expect_execute_console_command()
@@ -3272,7 +3276,7 @@ shinqlx._map_subtitle2 = "Awesome map!"
     #[cfg_attr(miri, ignore)]
     #[serial]
     fn demote_demotes_player(_pyshinqlx_setup: ()) {
-        mocked_engine()
+        MockEngineBuilder::default()
             .configure(|mock_engine| {
                 mock_engine
                     .expect_execute_console_command()
@@ -3291,7 +3295,7 @@ shinqlx._map_subtitle2 = "Awesome map!"
     #[cfg_attr(miri, ignore)]
     #[serial]
     fn abort_aborts_game(_pyshinqlx_setup: ()) {
-        mocked_engine()
+        MockEngineBuilder::default()
             .configure(|mock_engine| {
                 mock_engine
                     .expect_execute_console_command()
@@ -3318,7 +3322,7 @@ shinqlx._map_subtitle2 = "Awesome map!"
     #[cfg_attr(miri, ignore)]
     #[serial]
     fn addscore_adds_score_to_player(_pyshinqlx_setup: ()) {
-        mocked_engine()
+        MockEngineBuilder::default()
             .configure(|mock_engine| {
                 mock_engine
                     .expect_execute_console_command()
@@ -3354,7 +3358,7 @@ shinqlx._map_subtitle2 = "Awesome map!"
     fn addteamscore_adds_score_to_team(_pyshinqlx_setup: (), #[case] locked_team: &str) {
         let unlock_cmd = format!("addteamscore {} 42", locked_team.to_lowercase());
 
-        mocked_engine()
+        MockEngineBuilder::default()
             .configure(|mock_engine| {
                 mock_engine
                     .expect_execute_console_command()
@@ -3373,7 +3377,7 @@ shinqlx._map_subtitle2 = "Awesome map!"
     #[cfg_attr(miri, ignore)]
     #[serial]
     fn setmatchtime_sets_match_time(_pyshinqlx_setup: ()) {
-        mocked_engine()
+        MockEngineBuilder::default()
             .configure(|mock_engine| {
                 mock_engine
                     .expect_execute_console_command()

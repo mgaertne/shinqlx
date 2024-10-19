@@ -505,7 +505,7 @@ mod stats_listener_tests {
 
     use crate::ffi::python::pyshinqlx_setup_fixture::*;
 
-    use crate::prelude::{mocked_engine, serial};
+    use crate::prelude::*;
 
     use crate::ffi::c::prelude::{cvar_t, CVar, CVarBuilder};
 
@@ -538,7 +538,7 @@ mod stats_listener_tests {
             .build()
             .expect("this should not happen");
 
-        mocked_engine()
+        MockEngineBuilder::default()
             .configure(|mock_engine| {
                 mock_engine
                     .expect_find_cvar()
@@ -584,7 +584,7 @@ mod stats_listener_tests {
             .build()
             .expect("this should not happen");
 
-        mocked_engine()
+        MockEngineBuilder::default()
             .configure(|mock_engine| {
                 mock_engine
                     .expect_find_cvar()
@@ -657,7 +657,7 @@ mod stats_listener_tests {
             .build()
             .expect("this should not happen");
 
-        mocked_engine()
+        MockEngineBuilder::default()
             .configure(|mock_engine| {
                 mock_engine
                     .expect_find_cvar()
@@ -767,7 +767,7 @@ mod handle_zmq_msg_tests {
         EVENT_DISPATCHERS,
     };
 
-    use crate::prelude::{mocked_engine, serial};
+    use crate::prelude::*;
 
     use crate::ffi::c::prelude::{
         clientState_t, cvar_t, privileges_t, team_t, CVar, CVarBuilder, MockClient, MockGameEntity,
@@ -815,7 +815,7 @@ mod handle_zmq_msg_tests {
             .build()
             .expect("this should not happen");
 
-        mocked_engine()
+        MockEngineBuilder::default()
             .configure(|mock_engine| {
                 mock_engine
                     .expect_find_cvar()
@@ -898,7 +898,7 @@ mod handle_zmq_msg_tests {
             .build()
             .expect("this should not happen");
 
-        mocked_engine()
+        MockEngineBuilder::default()
             .configure(|mock_engine| {
                 mock_engine
                     .expect_find_cvar()
@@ -1012,7 +1012,7 @@ mod handle_zmq_msg_tests {
             .build()
             .expect("this should not happen");
 
-        mocked_engine()
+        MockEngineBuilder::default()
             .configure(|mock_engine| {
                 mock_engine
                     .expect_find_cvar()
@@ -1125,7 +1125,7 @@ mod handle_zmq_msg_tests {
             .build()
             .expect("this should not happen");
 
-        mocked_engine()
+        MockEngineBuilder::default()
             .configure(|mock_engine| {
                 mock_engine
                     .expect_find_cvar()
@@ -1219,7 +1219,7 @@ mod handle_zmq_msg_tests {
             .build()
             .expect("this should not happen");
 
-        mocked_engine()
+        MockEngineBuilder::default()
             .configure(|mock_engine| {
                 mock_engine
                     .expect_find_cvar()
@@ -1337,7 +1337,7 @@ mod handle_zmq_msg_tests {
             .build()
             .expect("this should not happen");
 
-        mocked_engine()
+        MockEngineBuilder::default()
             .configure(|mock_engine| {
                 mock_engine
                     .expect_find_cvar()
@@ -1463,7 +1463,7 @@ mod handle_zmq_msg_tests {
                 mock_game_entity
             });
 
-        mocked_engine()
+        MockEngineBuilder::default()
             .with_max_clients(16)
             .configure(|mock_engine| {
                 mock_engine
@@ -1621,7 +1621,7 @@ mod handle_zmq_msg_tests {
                 mock_game_entity
             });
 
-        mocked_engine()
+        MockEngineBuilder::default()
             .with_max_clients(16)
             .configure(|mock_engine| {
                 mock_engine
@@ -1751,7 +1751,7 @@ mod handle_zmq_msg_tests {
                 mock_game_entity
             });
 
-        mocked_engine()
+        MockEngineBuilder::default()
             .with_max_clients(16)
             .configure(|mock_engine| {
                 mock_engine
@@ -1880,7 +1880,7 @@ mod handle_zmq_msg_tests {
                 mock_game_entity
             });
 
-        mocked_engine()
+        MockEngineBuilder::default()
             .with_max_clients(16)
             .configure(|mock_engine| {
                 mock_engine
@@ -2014,7 +2014,7 @@ mod handle_zmq_msg_tests {
                 mock_game_entity
             });
 
-        mocked_engine()
+        MockEngineBuilder::default()
             .with_max_clients(16)
             .configure(|mock_engine| {
                 mock_engine
@@ -2233,7 +2233,7 @@ mod handle_zmq_msg_tests {
                 mock_game_entity
             });
 
-        mocked_engine()
+        MockEngineBuilder::default()
             .with_max_clients(16)
             .configure(|mock_engine| {
                 mock_engine
@@ -2452,7 +2452,7 @@ mod handle_zmq_msg_tests {
                 mock_game_entity
             });
 
-        mocked_engine()
+        MockEngineBuilder::default()
             .with_max_clients(16)
             .configure(|mock_engine| {
                 mock_engine
@@ -2559,7 +2559,7 @@ mod handle_zmq_msg_tests {
                 mock_game_entity
             });
 
-        mocked_engine()
+        MockEngineBuilder::default()
             .with_max_clients(16)
             .configure(|mock_engine| {
                 mock_engine
@@ -2708,7 +2708,7 @@ mod handle_zmq_msg_tests {
                 mock_game_entity
             });
 
-        mocked_engine()
+        MockEngineBuilder::default()
             .with_max_clients(16)
             .configure(|mock_engine| {
                 mock_engine
@@ -2859,7 +2859,7 @@ mod handle_zmq_msg_tests {
                 mock_game_entity
             });
 
-        mocked_engine()
+        MockEngineBuilder::default()
             .with_max_clients(16)
             .configure(|mock_engine| {
                 mock_engine
@@ -2986,7 +2986,7 @@ mod handle_zmq_msg_tests {
                 mock_game_entity
             });
 
-        mocked_engine()
+        MockEngineBuilder::default()
             .with_max_clients(16)
             .configure(|mock_engine| {
                 mock_engine
@@ -3113,7 +3113,7 @@ mod handle_zmq_msg_tests {
                 mock_game_entity
             });
 
-        mocked_engine()
+        MockEngineBuilder::default()
             .with_max_clients(16)
             .configure(|mock_engine| {
                 mock_engine
@@ -3240,7 +3240,7 @@ mod handle_zmq_msg_tests {
                 mock_game_entity
             });
 
-        mocked_engine()
+        MockEngineBuilder::default()
             .with_max_clients(16)
             .configure(|mock_engine| {
                 mock_engine
@@ -3337,7 +3337,7 @@ mod handle_zmq_msg_tests {
                 mock_game_entity
             });
 
-        mocked_engine()
+        MockEngineBuilder::default()
             .with_max_clients(16)
             .configure(|mock_engine| {
                 mock_engine
@@ -3464,7 +3464,7 @@ mod handle_zmq_msg_tests {
                 mock_game_entity
             });
 
-        mocked_engine()
+        MockEngineBuilder::default()
             .with_max_clients(16)
             .configure(|mock_engine| {
                 mock_engine
@@ -3568,7 +3568,7 @@ mod handle_zmq_msg_tests {
                 mock_game_entity
             });
 
-        mocked_engine()
+        MockEngineBuilder::default()
             .with_max_clients(16)
             .configure(|mock_engine| {
                 mock_engine

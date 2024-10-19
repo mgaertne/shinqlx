@@ -537,7 +537,7 @@ mod chat_channel_tests {
         default_test_player, default_test_player_info, run_all_frame_tasks,
     };
 
-    use crate::prelude::{mocked_engine, serial};
+    use crate::prelude::*;
 
     use crate::ffi::c::game_entity::MockGameEntity;
     use crate::ffi::c::prelude::{clientState_t, privileges_t, team_t, MockClient};
@@ -668,7 +668,7 @@ test_channel.reply("asdf")
             ..default_test_player()
         };
 
-        mocked_engine().with_max_clients(16).run(|| {
+        MockEngineBuilder::default().with_max_clients(16).run(|| {
             Python::with_gil(|py| {
                 let tell_channel =
                     Py::new(py, TellChannel::py_new(&player)).expect("this should not happen");
@@ -728,7 +728,7 @@ test_channel.reply("asdf")
             ..default_test_player()
         };
 
-        mocked_engine().with_max_clients(16).run(|| {
+        MockEngineBuilder::default().with_max_clients(16).run(|| {
             Python::with_gil(|py| {
                 let tell_channel =
                     Py::new(py, TellChannel::py_new(&player)).expect("this should not happen");
@@ -793,7 +793,7 @@ test_channel.reply("asdf")
             ..default_test_player()
         };
 
-        mocked_engine().with_max_clients(16).run(|| {
+        MockEngineBuilder::default().with_max_clients(16).run(|| {
             Python::with_gil(|py| {
                 let chat_channel =
                     Py::new(py, TellChannel::py_new(&player)).expect("this should not happen");
@@ -898,7 +898,7 @@ test_channel.reply("asdf")
             ..default_test_player()
         };
 
-        mocked_engine().with_max_clients(16).run(|| {
+        MockEngineBuilder::default().with_max_clients(16).run(|| {
             Python::with_gil(|py| {
                 let chat_channel =
                     Py::new(py, TellChannel::py_new(&player)).expect("this should not happen");
@@ -1220,7 +1220,7 @@ tell_channel = shinqlx.TeamChatChannel("all")
             team: team.to_string(),
         };
 
-        mocked_engine().with_max_clients(8).run(|| {
+        MockEngineBuilder::default().with_max_clients(8).run(|| {
             let result = Python::with_gil(|py| team_chat_channel.recipients(py));
             assert!(result.is_ok_and(|ids| ids == expected_ids));
         });
@@ -1276,7 +1276,7 @@ tell_channel = shinqlx.TeamChatChannel("all")
             team: "invalid".to_string(),
         };
 
-        mocked_engine().with_max_clients(8).run(|| {
+        MockEngineBuilder::default().with_max_clients(8).run(|| {
             let result = Python::with_gil(|py| team_chat_channel.recipients(py));
             assert!(result.is_ok_and(|ids| ids == Some(vec![])));
         });
@@ -1530,7 +1530,7 @@ tell_channel = shinqlx.ClientCommandChannel(player)
             ..default_test_player()
         };
 
-        mocked_engine().with_max_clients(16).run(|| {
+        MockEngineBuilder::default().with_max_clients(16).run(|| {
             Python::with_gil(|py| {
                 let client_command_channel = Py::new(py, ClientCommandChannel::py_new(&player))
                     .expect("this should not happen");
