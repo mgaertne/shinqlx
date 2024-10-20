@@ -50,13 +50,7 @@ mod get_cvar_tests {
     #[serial]
     fn get_cvar_when_cvar_not_found(_pyshinqlx_setup: ()) {
         MockEngineBuilder::default()
-            .configure(|mock_engine| {
-                mock_engine
-                    .expect_find_cvar()
-                    .with(predicate::eq("asdf"))
-                    .returning(|_| None)
-                    .times(1);
-            })
+            .with_find_cvar(predicate::eq("asdf"), |_| None, 1)
             .run(|| {
                 let result = Python::with_gil(|py| pyshinqlx_get_cvar(py, "asdf"))
                     .expect("result waa not OK");
@@ -75,15 +69,11 @@ mod get_cvar_tests {
             .expect("this should not happen");
 
         MockEngineBuilder::default()
-            .configure(|mock_engine| {
-                mock_engine
-                    .expect_find_cvar()
-                    .with(predicate::eq("sv_maxclients"))
-                    .returning_st(move |_| {
-                        CVar::try_from(raw_cvar.borrow_mut() as *mut cvar_t).ok()
-                    })
-                    .times(1);
-            })
+            .with_find_cvar(
+                predicate::eq("sv_maxclients"),
+                move |_| CVar::try_from(raw_cvar.borrow_mut() as *mut cvar_t).ok(),
+                1,
+            )
             .run(|| {
                 let result = Python::with_gil(|py| pyshinqlx_get_cvar(py, "sv_maxclients"))
                     .expect("result was not OK");
