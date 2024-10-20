@@ -5333,6 +5333,22 @@ impl MockEngineBuilder {
         })
     }
 
+    pub(crate) fn with_execute_console_command<F>(
+        self,
+        matcher: F,
+        times: usize,
+    ) -> MockEngineBuilder
+    where
+        F: mockall::Predicate<str> + Send + 'static,
+    {
+        self.configure(|mock_engine| {
+            mock_engine
+                .expect_execute_console_command()
+                .with(matcher)
+                .times(times);
+        })
+    }
+
     pub(crate) fn with_argc(self, argc: i32) -> MockEngineBuilder {
         self.configure(|mock_engine| {
             mock_engine.expect_cmd_argc().return_const(argc);
@@ -5353,6 +5369,25 @@ impl MockEngineBuilder {
                 .expect_cmd_argv()
                 .with(argv)
                 .return_const(opt_return.map(|return_str| return_str.to_string()))
+                .times(times);
+        })
+    }
+
+    pub(crate) fn with_find_cvar<F, G>(
+        self,
+        expect: F,
+        returned: G,
+        times: usize,
+    ) -> MockEngineBuilder
+    where
+        F: mockall::Predicate<str> + Send + 'static,
+        G: FnMut(&str) -> Option<CVar> + 'static,
+    {
+        self.configure(|mock_engine| {
+            mock_engine
+                .expect_find_cvar()
+                .with(expect)
+                .returning_st(returned)
                 .times(times);
         })
     }
