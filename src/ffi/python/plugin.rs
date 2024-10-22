@@ -3050,6 +3050,7 @@ def handler():
             .expect("this should not happen");
 
         MockEngineBuilder::default()
+            .with_execute_console_command(predicate::eq(r#"sv_maxclients "64""#), 1)
             .configure(|mock_engine| {
                 mock_engine
                     .expect_find_cvar()
@@ -3057,10 +3058,6 @@ def handler():
                     .returning_st(move |_| {
                         CVar::try_from(raw_cvar.borrow_mut() as *mut cvar_t).ok()
                     })
-                    .times(1);
-                mock_engine
-                    .expect_execute_console_command()
-                    .with(predicate::eq(r#"sv_maxclients "64""#))
                     .times(1);
             })
             .run(|| {
@@ -4906,12 +4903,7 @@ def handler():
     #[serial]
     fn shuffle_forces_shuffle(_pyshinqlx_setup: ()) {
         MockEngineBuilder::default()
-            .configure(|mock_engine| {
-                mock_engine
-                    .expect_execute_console_command()
-                    .with(predicate::eq("forceshuffle"))
-                    .times(1);
-            })
+            .with_execute_console_command(predicate::eq("forceshuffle"), 1)
             .run(|| {
                 let result = Python::with_gil(|py| Plugin::shuffle(&py.get_type_bound::<Plugin>()));
                 assert!(result.is_ok());
@@ -4931,12 +4923,7 @@ def handler():
     #[serial]
     fn change_map_with_no_factory(_pyshinqlx_setup: ()) {
         MockEngineBuilder::default()
-            .configure(|mock_engine| {
-                mock_engine
-                    .expect_execute_console_command()
-                    .with(predicate::eq("map thunderstruck"))
-                    .times(1);
-            })
+            .with_execute_console_command(predicate::eq("map thunderstruck"), 1)
             .run(|| {
                 Python::with_gil(|py| {
                     let result =
@@ -4951,12 +4938,7 @@ def handler():
     #[serial]
     fn change_map_with_factory(_pyshinqlx_setup: ()) {
         MockEngineBuilder::default()
-            .configure(|mock_engine| {
-                mock_engine
-                    .expect_execute_console_command()
-                    .with(predicate::eq("map thunderstruck ffa"))
-                    .times(1);
-            })
+            .with_execute_console_command(predicate::eq("map thunderstruck ffa"), 1)
             .run(|| {
                 Python::with_gil(|py| {
                     let result = Plugin::change_map(
@@ -5065,16 +5047,8 @@ def handler():
         };
 
         MockEngineBuilder::default()
-            .configure(|mock_engine| {
-                mock_engine
-                    .expect_execute_console_command()
-                    .with(predicate::eq("put 0 blue"))
-                    .times(1);
-                mock_engine
-                    .expect_execute_console_command()
-                    .with(predicate::eq("put 1 red"))
-                    .times(1);
-            })
+            .with_execute_console_command(predicate::eq("put 0 blue"), 1)
+            .with_execute_console_command(predicate::eq("put 1 red"), 1)
             .run(|| {
                 Python::with_gil(|py| {
                     let result = Plugin::switch(
@@ -5346,12 +5320,7 @@ def handler():
     #[serial]
     fn slap_for_player(_pyshinqlx_setup: ()) {
         MockEngineBuilder::default()
-            .configure(|mock_engine| {
-                mock_engine
-                    .expect_execute_console_command()
-                    .with(predicate::eq("slap 21 42"))
-                    .times(1);
-            })
+            .with_execute_console_command(predicate::eq("slap 21 42"), 1)
             .run(|| {
                 Python::with_gil(|py| {
                     let result = Plugin::slap(&py.get_type_bound::<Plugin>(), 21.into_py(py), 42);
@@ -5375,12 +5344,7 @@ def handler():
     #[serial]
     fn slay_for_player(_pyshinqlx_setup: ()) {
         MockEngineBuilder::default()
-            .configure(|mock_engine| {
-                mock_engine
-                    .expect_execute_console_command()
-                    .with(predicate::eq("slay 21"))
-                    .times(1);
-            })
+            .with_execute_console_command(predicate::eq("slay 21"), 1)
             .run(|| {
                 Python::with_gil(|py| {
                     let result = Plugin::slay(&py.get_type_bound::<Plugin>(), 21.into_py(py));
@@ -5394,12 +5358,7 @@ def handler():
     #[serial]
     fn timeout_pauses_game(_pyshinqlx_setup: ()) {
         MockEngineBuilder::default()
-            .configure(|mock_engine| {
-                mock_engine
-                    .expect_execute_console_command()
-                    .with(predicate::eq("timeout"))
-                    .times(1);
-            })
+            .with_execute_console_command(predicate::eq("timeout"), 1)
             .run(|| {
                 let result = Python::with_gil(|py| Plugin::timeout(&py.get_type_bound::<Plugin>()));
                 assert!(result.is_ok());
@@ -5411,12 +5370,7 @@ def handler():
     #[serial]
     fn timein_unpauses_game(_pyshinqlx_setup: ()) {
         MockEngineBuilder::default()
-            .configure(|mock_engine| {
-                mock_engine
-                    .expect_execute_console_command()
-                    .with(predicate::eq("timein"))
-                    .times(1);
-            })
+            .with_execute_console_command(predicate::eq("timein"), 1)
             .run(|| {
                 let result = Python::with_gil(|py| Plugin::timein(&py.get_type_bound::<Plugin>()));
                 assert!(result.is_ok());
@@ -5428,12 +5382,7 @@ def handler():
     #[serial]
     fn allready_readies_all_players(_pyshinqlx_setup: ()) {
         MockEngineBuilder::default()
-            .configure(|mock_engine| {
-                mock_engine
-                    .expect_execute_console_command()
-                    .with(predicate::eq("allready"))
-                    .times(1);
-            })
+            .with_execute_console_command(predicate::eq("allready"), 1)
             .run(|| {
                 let result =
                     Python::with_gil(|py| Plugin::allready(&py.get_type_bound::<Plugin>()));
@@ -5446,12 +5395,7 @@ def handler():
     #[serial]
     fn pause_pauses_game(_pyshinqlx_setup: ()) {
         MockEngineBuilder::default()
-            .configure(|mock_engine| {
-                mock_engine
-                    .expect_execute_console_command()
-                    .with(predicate::eq("pause"))
-                    .times(1);
-            })
+            .with_execute_console_command(predicate::eq("pause"), 1)
             .run(|| {
                 let result = Python::with_gil(|py| Plugin::pause(&py.get_type_bound::<Plugin>()));
                 assert!(result.is_ok());
@@ -5463,12 +5407,7 @@ def handler():
     #[serial]
     fn unpause_unpauses_game(_pyshinqlx_setup: ()) {
         MockEngineBuilder::default()
-            .configure(|mock_engine| {
-                mock_engine
-                    .expect_execute_console_command()
-                    .with(predicate::eq("unpause"))
-                    .times(1);
-            })
+            .with_execute_console_command(predicate::eq("unpause"), 1)
             .run(|| {
                 let result = Python::with_gil(|py| Plugin::unpause(&py.get_type_bound::<Plugin>()));
                 assert!(result.is_ok());
@@ -5494,12 +5433,7 @@ def handler():
     #[serial]
     fn lock_with_no_team(_pyshinqlx_setup: ()) {
         MockEngineBuilder::default()
-            .configure(|mock_engine| {
-                mock_engine
-                    .expect_execute_console_command()
-                    .with(predicate::eq("lock"))
-                    .times(1);
-            })
+            .with_execute_console_command(predicate::eq("lock"), 1)
             .run(|| {
                 let result =
                     Python::with_gil(|py| Plugin::lock(&py.get_type_bound::<Plugin>(), None));
@@ -5553,12 +5487,7 @@ def handler():
     #[serial]
     fn unlock_with_no_team(_pyshinqlx_setup: ()) {
         MockEngineBuilder::default()
-            .configure(|mock_engine| {
-                mock_engine
-                    .expect_execute_console_command()
-                    .with(predicate::eq("unlock"))
-                    .times(1);
-            })
+            .with_execute_console_command(predicate::eq("unlock"), 1)
             .run(|| {
                 let result =
                     Python::with_gil(|py| Plugin::unlock(&py.get_type_bound::<Plugin>(), None));
@@ -5657,12 +5586,7 @@ def handler():
     #[serial]
     fn mute_mutes_player(_pyshinqlx_setup: ()) {
         MockEngineBuilder::default()
-            .configure(|mock_engine| {
-                mock_engine
-                    .expect_execute_console_command()
-                    .with(predicate::eq("mute 2"))
-                    .times(1);
-            })
+            .with_execute_console_command(predicate::eq("mute 2"), 1)
             .run(|| {
                 let result = Python::with_gil(|py| {
                     Plugin::mute(&py.get_type_bound::<Plugin>(), 2.into_py(py))
@@ -5686,12 +5610,7 @@ def handler():
     #[serial]
     fn unmute_unmutes_player(_pyshinqlx_setup: ()) {
         MockEngineBuilder::default()
-            .configure(|mock_engine| {
-                mock_engine
-                    .expect_execute_console_command()
-                    .with(predicate::eq("unmute 2"))
-                    .times(1);
-            })
+            .with_execute_console_command(predicate::eq("unmute 2"), 1)
             .run(|| {
                 let result = Python::with_gil(|py| {
                     Plugin::unmute(&py.get_type_bound::<Plugin>(), 2.into_py(py))
@@ -5715,12 +5634,7 @@ def handler():
     #[serial]
     fn tempban_tempbans_player(_pyshinqlx_setup: ()) {
         MockEngineBuilder::default()
-            .configure(|mock_engine| {
-                mock_engine
-                    .expect_execute_console_command()
-                    .with(predicate::eq("tempban 2"))
-                    .times(1);
-            })
+            .with_execute_console_command(predicate::eq("tempban 2"), 1)
             .run(|| {
                 let result = Python::with_gil(|py| {
                     Plugin::tempban(&py.get_type_bound::<Plugin>(), 2.into_py(py))
@@ -5744,12 +5658,7 @@ def handler():
     #[serial]
     fn ban_bans_player(_pyshinqlx_setup: ()) {
         MockEngineBuilder::default()
-            .configure(|mock_engine| {
-                mock_engine
-                    .expect_execute_console_command()
-                    .with(predicate::eq("ban 2"))
-                    .times(1);
-            })
+            .with_execute_console_command(predicate::eq("ban 2"), 1)
             .run(|| {
                 let result = Python::with_gil(|py| {
                     Plugin::ban(&py.get_type_bound::<Plugin>(), 2.into_py(py))
@@ -5773,12 +5682,7 @@ def handler():
     #[serial]
     fn unban_unbans_player(_pyshinqlx_setup: ()) {
         MockEngineBuilder::default()
-            .configure(|mock_engine| {
-                mock_engine
-                    .expect_execute_console_command()
-                    .with(predicate::eq("unban 2"))
-                    .times(1);
-            })
+            .with_execute_console_command(predicate::eq("unban 2"), 1)
             .run(|| {
                 let result = Python::with_gil(|py| {
                     Plugin::unban(&py.get_type_bound::<Plugin>(), 2.into_py(py))
@@ -5792,12 +5696,7 @@ def handler():
     #[serial]
     fn opsay_sends_op_message(_pyshinqlx_setup: ()) {
         MockEngineBuilder::default()
-            .configure(|mock_engine| {
-                mock_engine
-                    .expect_execute_console_command()
-                    .with(predicate::eq("opsay asdf"))
-                    .times(1);
-            })
+            .with_execute_console_command(predicate::eq("opsay asdf"), 1)
             .run(|| {
                 let result =
                     Python::with_gil(|py| Plugin::opsay(&py.get_type_bound::<Plugin>(), "asdf"));
@@ -5820,12 +5719,7 @@ def handler():
     #[serial]
     fn addadmin_adds_player_to_admins(_pyshinqlx_setup: ()) {
         MockEngineBuilder::default()
-            .configure(|mock_engine| {
-                mock_engine
-                    .expect_execute_console_command()
-                    .with(predicate::eq("addadmin 2"))
-                    .times(1);
-            })
+            .with_execute_console_command(predicate::eq("addadmin 2"), 1)
             .run(|| {
                 let result = Python::with_gil(|py| {
                     Plugin::addadmin(&py.get_type_bound::<Plugin>(), 2.into_py(py))
@@ -5849,12 +5743,7 @@ def handler():
     #[serial]
     fn addmod_adds_player_to_moderators(_pyshinqlx_setup: ()) {
         MockEngineBuilder::default()
-            .configure(|mock_engine| {
-                mock_engine
-                    .expect_execute_console_command()
-                    .with(predicate::eq("addmod 2"))
-                    .times(1);
-            })
+            .with_execute_console_command(predicate::eq("addmod 2"), 1)
             .run(|| {
                 let result = Python::with_gil(|py| {
                     Plugin::addmod(&py.get_type_bound::<Plugin>(), 2.into_py(py))
@@ -5878,12 +5767,7 @@ def handler():
     #[serial]
     fn demote_demotes_player(_pyshinqlx_setup: ()) {
         MockEngineBuilder::default()
-            .configure(|mock_engine| {
-                mock_engine
-                    .expect_execute_console_command()
-                    .with(predicate::eq("demote 2"))
-                    .times(1);
-            })
+            .with_execute_console_command(predicate::eq("demote 2"), 1)
             .run(|| {
                 let result = Python::with_gil(|py| {
                     Plugin::demote(&py.get_type_bound::<Plugin>(), 2.into_py(py))
@@ -5897,12 +5781,7 @@ def handler():
     #[serial]
     fn abort_aborts_game(_pyshinqlx_setup: ()) {
         MockEngineBuilder::default()
-            .configure(|mock_engine| {
-                mock_engine
-                    .expect_execute_console_command()
-                    .with(predicate::eq("map_restart"))
-                    .times(1);
-            })
+            .with_execute_console_command(predicate::eq("map_restart"), 1)
             .run(|| {
                 let result = Python::with_gil(|py| Plugin::abort(&py.get_type_bound::<Plugin>()));
                 assert!(result.is_ok());
@@ -5924,12 +5803,7 @@ def handler():
     #[serial]
     fn addscore_adds_score_to_player(_pyshinqlx_setup: ()) {
         MockEngineBuilder::default()
-            .configure(|mock_engine| {
-                mock_engine
-                    .expect_execute_console_command()
-                    .with(predicate::eq("addscore 2 42"))
-                    .times(1);
-            })
+            .with_execute_console_command(predicate::eq("addscore 2 42"), 1)
             .run(|| {
                 let result = Python::with_gil(|py| {
                     Plugin::addscore(&py.get_type_bound::<Plugin>(), 2.into_py(py), 42)
@@ -5979,12 +5853,7 @@ def handler():
     #[serial]
     fn setmatchtime_sets_match_time(_pyshinqlx_setup: ()) {
         MockEngineBuilder::default()
-            .configure(|mock_engine| {
-                mock_engine
-                    .expect_execute_console_command()
-                    .with(predicate::eq("setmatchtime 42"))
-                    .times(1);
-            })
+            .with_execute_console_command(predicate::eq("setmatchtime 42"), 1)
             .run(|| {
                 let result =
                     Python::with_gil(|py| Plugin::setmatchtime(&py.get_type_bound::<Plugin>(), 42));

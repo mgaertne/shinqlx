@@ -1473,12 +1473,7 @@ mod pyshinqlx_game_tests {
     #[serial]
     fn set_map_changes_current_map(_pyshinqlx_setup: ()) {
         MockEngineBuilder::default()
-            .configure(|mock_engine| {
-                mock_engine
-                    .expect_execute_console_command()
-                    .with(predicate::eq("map campgrounds"))
-                    .times(1);
-            })
+            .with_execute_console_command(predicate::eq("map campgrounds"), 1)
             .run(|| {
                 Python::with_gil(|py| {
                     let mut game = Game {
@@ -1787,15 +1782,12 @@ shinqlx._map_subtitle2 = "Awesome map!"
     #[serial]
     fn set_factory_sets_factory_and_reloads(_pyshinqlx_setup: ()) {
         MockEngineBuilder::default()
+            .with_execute_console_command(predicate::eq("map theatreofpain ffa"), 1)
             .configure(|mock_engine| {
                 mock_engine
                     .expect_get_configstring()
                     .with(predicate::eq(CS_SERVERINFO as u16))
                     .returning(|_| r"\mapname\theatreofpain".to_string());
-                mock_engine
-                    .expect_execute_console_command()
-                    .with(predicate::eq("map theatreofpain ffa"))
-                    .times(1);
             })
             .run(|| {
                 Python::with_gil(|py| {
@@ -2787,12 +2779,7 @@ shinqlx._map_subtitle2 = "Awesome map!"
     #[serial]
     fn shuffle_forces_shuffle(_pyshinqlx_setup: ()) {
         MockEngineBuilder::default()
-            .configure(|mock_engine| {
-                mock_engine
-                    .expect_execute_console_command()
-                    .with(predicate::eq("forceshuffle"))
-                    .times(1);
-            })
+            .with_execute_console_command(predicate::eq("forceshuffle"), 1)
             .run(|| {
                 let result = Python::with_gil(|py| Game::shuffle(&py.get_type_bound::<Game>()));
                 assert!(result.is_ok());
@@ -2804,12 +2791,7 @@ shinqlx._map_subtitle2 = "Awesome map!"
     #[serial]
     fn timeout_pauses_game(_pyshinqlx_setup: ()) {
         MockEngineBuilder::default()
-            .configure(|mock_engine| {
-                mock_engine
-                    .expect_execute_console_command()
-                    .with(predicate::eq("timeout"))
-                    .times(1);
-            })
+            .with_execute_console_command(predicate::eq("timeout"), 1)
             .run(|| {
                 let result = Python::with_gil(|py| Game::timeout(&py.get_type_bound::<Game>()));
                 assert!(result.is_ok());
@@ -2821,12 +2803,7 @@ shinqlx._map_subtitle2 = "Awesome map!"
     #[serial]
     fn timein_unpauses_game(_pyshinqlx_setup: ()) {
         MockEngineBuilder::default()
-            .configure(|mock_engine| {
-                mock_engine
-                    .expect_execute_console_command()
-                    .with(predicate::eq("timein"))
-                    .times(1);
-            })
+            .with_execute_console_command(predicate::eq("timein"), 1)
             .run(|| {
                 let result = Python::with_gil(|py| Game::timein(&py.get_type_bound::<Game>()));
                 assert!(result.is_ok());
@@ -2838,12 +2815,7 @@ shinqlx._map_subtitle2 = "Awesome map!"
     #[serial]
     fn allready_readies_all_players(_pyshinqlx_setup: ()) {
         MockEngineBuilder::default()
-            .configure(|mock_engine| {
-                mock_engine
-                    .expect_execute_console_command()
-                    .with(predicate::eq("allready"))
-                    .times(1);
-            })
+            .with_execute_console_command(predicate::eq("allready"), 1)
             .run(|| {
                 let result = Python::with_gil(|py| Game::allready(&py.get_type_bound::<Game>()));
                 assert!(result.is_ok());
@@ -2855,12 +2827,7 @@ shinqlx._map_subtitle2 = "Awesome map!"
     #[serial]
     fn pause_pauses_game(_pyshinqlx_setup: ()) {
         MockEngineBuilder::default()
-            .configure(|mock_engine| {
-                mock_engine
-                    .expect_execute_console_command()
-                    .with(predicate::eq("pause"))
-                    .times(1);
-            })
+            .with_execute_console_command(predicate::eq("pause"), 1)
             .run(|| {
                 let result = Python::with_gil(|py| Game::pause(&py.get_type_bound::<Game>()));
                 assert!(result.is_ok());
@@ -2872,12 +2839,7 @@ shinqlx._map_subtitle2 = "Awesome map!"
     #[serial]
     fn unpause_unpauses_game(_pyshinqlx_setup: ()) {
         MockEngineBuilder::default()
-            .configure(|mock_engine| {
-                mock_engine
-                    .expect_execute_console_command()
-                    .with(predicate::eq("unpause"))
-                    .times(1);
-            })
+            .with_execute_console_command(predicate::eq("unpause"), 1)
             .run(|| {
                 let result = Python::with_gil(|py| Game::unpause(&py.get_type_bound::<Game>()));
                 assert!(result.is_ok());
@@ -2903,12 +2865,7 @@ shinqlx._map_subtitle2 = "Awesome map!"
     #[serial]
     fn lock_with_no_team(_pyshinqlx_setup: ()) {
         MockEngineBuilder::default()
-            .configure(|mock_engine| {
-                mock_engine
-                    .expect_execute_console_command()
-                    .with(predicate::eq("lock"))
-                    .times(1);
-            })
+            .with_execute_console_command(predicate::eq("lock"), 1)
             .run(|| {
                 let result = Python::with_gil(|py| Game::lock(&py.get_type_bound::<Game>(), None));
                 assert!(result.is_ok());
@@ -2959,12 +2916,7 @@ shinqlx._map_subtitle2 = "Awesome map!"
     #[serial]
     fn unlock_with_no_team(_pyshinqlx_setup: ()) {
         MockEngineBuilder::default()
-            .configure(|mock_engine| {
-                mock_engine
-                    .expect_execute_console_command()
-                    .with(predicate::eq("unlock"))
-                    .times(1);
-            })
+            .with_execute_console_command(predicate::eq("unlock"), 1)
             .run(|| {
                 let result =
                     Python::with_gil(|py| Game::unlock(&py.get_type_bound::<Game>(), None));
@@ -3059,12 +3011,7 @@ shinqlx._map_subtitle2 = "Awesome map!"
     #[serial]
     fn mute_mutes_player(_pyshinqlx_setup: ()) {
         MockEngineBuilder::default()
-            .configure(|mock_engine| {
-                mock_engine
-                    .expect_execute_console_command()
-                    .with(predicate::eq("mute 2"))
-                    .times(1);
-            })
+            .with_execute_console_command(predicate::eq("mute 2"), 1)
             .run(|| {
                 let result =
                     Python::with_gil(|py| Game::mute(&py.get_type_bound::<Game>(), 2.into_py(py)));
@@ -3087,12 +3034,7 @@ shinqlx._map_subtitle2 = "Awesome map!"
     #[serial]
     fn unmute_unmutes_player(_pyshinqlx_setup: ()) {
         MockEngineBuilder::default()
-            .configure(|mock_engine| {
-                mock_engine
-                    .expect_execute_console_command()
-                    .with(predicate::eq("unmute 2"))
-                    .times(1);
-            })
+            .with_execute_console_command(predicate::eq("unmute 2"), 1)
             .run(|| {
                 let result = Python::with_gil(|py| {
                     Game::unmute(&py.get_type_bound::<Game>(), 2.into_py(py))
@@ -3116,12 +3058,7 @@ shinqlx._map_subtitle2 = "Awesome map!"
     #[serial]
     fn tempban_tempbans_player(_pyshinqlx_setup: ()) {
         MockEngineBuilder::default()
-            .configure(|mock_engine| {
-                mock_engine
-                    .expect_execute_console_command()
-                    .with(predicate::eq("tempban 2"))
-                    .times(1);
-            })
+            .with_execute_console_command(predicate::eq("tempban 2"), 1)
             .run(|| {
                 let result = Python::with_gil(|py| {
                     Game::tempban(&py.get_type_bound::<Game>(), 2.into_py(py))
@@ -3145,12 +3082,7 @@ shinqlx._map_subtitle2 = "Awesome map!"
     #[serial]
     fn ban_bans_player(_pyshinqlx_setup: ()) {
         MockEngineBuilder::default()
-            .configure(|mock_engine| {
-                mock_engine
-                    .expect_execute_console_command()
-                    .with(predicate::eq("ban 2"))
-                    .times(1);
-            })
+            .with_execute_console_command(predicate::eq("ban 2"), 1)
             .run(|| {
                 let result =
                     Python::with_gil(|py| Game::ban(&py.get_type_bound::<Game>(), 2.into_py(py)));
@@ -3173,12 +3105,7 @@ shinqlx._map_subtitle2 = "Awesome map!"
     #[serial]
     fn unban_unbans_player(_pyshinqlx_setup: ()) {
         MockEngineBuilder::default()
-            .configure(|mock_engine| {
-                mock_engine
-                    .expect_execute_console_command()
-                    .with(predicate::eq("unban 2"))
-                    .times(1);
-            })
+            .with_execute_console_command(predicate::eq("unban 2"), 1)
             .run(|| {
                 let result =
                     Python::with_gil(|py| Game::unban(&py.get_type_bound::<Game>(), 2.into_py(py)));
@@ -3191,12 +3118,7 @@ shinqlx._map_subtitle2 = "Awesome map!"
     #[serial]
     fn opsay_sends_op_message(_pyshinqlx_setup: ()) {
         MockEngineBuilder::default()
-            .configure(|mock_engine| {
-                mock_engine
-                    .expect_execute_console_command()
-                    .with(predicate::eq("opsay asdf"))
-                    .times(1);
-            })
+            .with_execute_console_command(predicate::eq("opsay asdf"), 1)
             .run(|| {
                 let result =
                     Python::with_gil(|py| Game::opsay(&py.get_type_bound::<Game>(), "asdf"));
@@ -3219,12 +3141,7 @@ shinqlx._map_subtitle2 = "Awesome map!"
     #[serial]
     fn addadmin_adds_player_to_admins(_pyshinqlx_setup: ()) {
         MockEngineBuilder::default()
-            .configure(|mock_engine| {
-                mock_engine
-                    .expect_execute_console_command()
-                    .with(predicate::eq("addadmin 2"))
-                    .times(1);
-            })
+            .with_execute_console_command(predicate::eq("addadmin 2"), 1)
             .run(|| {
                 let result = Python::with_gil(|py| {
                     Game::addadmin(&py.get_type_bound::<Game>(), 2.into_py(py))
@@ -3248,12 +3165,7 @@ shinqlx._map_subtitle2 = "Awesome map!"
     #[serial]
     fn addmod_adds_player_to_moderators(_pyshinqlx_setup: ()) {
         MockEngineBuilder::default()
-            .configure(|mock_engine| {
-                mock_engine
-                    .expect_execute_console_command()
-                    .with(predicate::eq("addmod 2"))
-                    .times(1);
-            })
+            .with_execute_console_command(predicate::eq("addmod 2"), 1)
             .run(|| {
                 let result = Python::with_gil(|py| {
                     Game::addmod(&py.get_type_bound::<Game>(), 2.into_py(py))
@@ -3277,12 +3189,7 @@ shinqlx._map_subtitle2 = "Awesome map!"
     #[serial]
     fn demote_demotes_player(_pyshinqlx_setup: ()) {
         MockEngineBuilder::default()
-            .configure(|mock_engine| {
-                mock_engine
-                    .expect_execute_console_command()
-                    .with(predicate::eq("demote 2"))
-                    .times(1);
-            })
+            .with_execute_console_command(predicate::eq("demote 2"), 1)
             .run(|| {
                 let result = Python::with_gil(|py| {
                     Game::demote(&py.get_type_bound::<Game>(), 2.into_py(py))
@@ -3296,12 +3203,7 @@ shinqlx._map_subtitle2 = "Awesome map!"
     #[serial]
     fn abort_aborts_game(_pyshinqlx_setup: ()) {
         MockEngineBuilder::default()
-            .configure(|mock_engine| {
-                mock_engine
-                    .expect_execute_console_command()
-                    .with(predicate::eq("map_restart"))
-                    .times(1);
-            })
+            .with_execute_console_command(predicate::eq("map_restart"), 1)
             .run(|| {
                 let result = Python::with_gil(|py| Game::abort(&py.get_type_bound::<Game>()));
                 assert!(result.is_ok());
@@ -3323,12 +3225,7 @@ shinqlx._map_subtitle2 = "Awesome map!"
     #[serial]
     fn addscore_adds_score_to_player(_pyshinqlx_setup: ()) {
         MockEngineBuilder::default()
-            .configure(|mock_engine| {
-                mock_engine
-                    .expect_execute_console_command()
-                    .with(predicate::eq("addscore 2 42"))
-                    .times(1);
-            })
+            .with_execute_console_command(predicate::eq("addscore 2 42"), 1)
             .run(|| {
                 let result = Python::with_gil(|py| {
                     Game::addscore(&py.get_type_bound::<Game>(), 2.into_py(py), 42)
@@ -3378,12 +3275,7 @@ shinqlx._map_subtitle2 = "Awesome map!"
     #[serial]
     fn setmatchtime_sets_match_time(_pyshinqlx_setup: ()) {
         MockEngineBuilder::default()
-            .configure(|mock_engine| {
-                mock_engine
-                    .expect_execute_console_command()
-                    .with(predicate::eq("setmatchtime 42"))
-                    .times(1);
-            })
+            .with_execute_console_command(predicate::eq("setmatchtime 42"), 1)
             .run(|| {
                 let result =
                     Python::with_gil(|py| Game::setmatchtime(&py.get_type_bound::<Game>(), 42));
