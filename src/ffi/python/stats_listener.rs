@@ -3570,7 +3570,7 @@ mod handle_zmq_msg_tests {
 
         MockEngineBuilder::default()
             .with_max_clients(16)
-            .with_execute_console_command(predicate::eq("put 2 spectator"), 1)
+            .with_execute_console_command(|cmd| cmd == "put 2 spectator", 1)
             .configure(|mock_engine| {
                 mock_engine
                     .expect_find_cvar()
