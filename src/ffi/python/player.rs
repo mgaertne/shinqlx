@@ -6764,12 +6764,7 @@ assert(player._valid)
         let player = default_test_player();
 
         MockEngineBuilder::default()
-            .configure(|mock_engine| {
-                mock_engine
-                    .expect_execute_console_command()
-                    .with(predicate::eq("ban 2"))
-                    .times(1);
-            })
+            .with_execute_console_command(predicate::eq("ban 2"), 1)
             .run(|| {
                 let result = Python::with_gil(|py| player.ban(py));
                 assert!(result.is_ok());
@@ -6783,12 +6778,7 @@ assert(player._valid)
         let player = default_test_player();
 
         MockEngineBuilder::default()
-            .configure(|mock_engine| {
-                mock_engine
-                    .expect_execute_console_command()
-                    .with(predicate::eq("tempban 2"))
-                    .times(1);
-            })
+            .with_execute_console_command(predicate::eq("tempban 2"), 1)
             .run(|| {
                 let result = Python::with_gil(|py| player.tempban(py));
                 assert!(result.is_ok());
@@ -6802,12 +6792,7 @@ assert(player._valid)
         let player = default_test_player();
 
         MockEngineBuilder::default()
-            .configure(|mock_engine| {
-                mock_engine
-                    .expect_execute_console_command()
-                    .with(predicate::eq("addadmin 2"))
-                    .times(1);
-            })
+            .with_execute_console_command(predicate::eq("addadmin 2"), 1)
             .run(|| {
                 let result = Python::with_gil(|py| player.addadmin(py));
                 assert!(result.is_ok());
@@ -6821,12 +6806,7 @@ assert(player._valid)
         let player = default_test_player();
 
         MockEngineBuilder::default()
-            .configure(|mock_engine| {
-                mock_engine
-                    .expect_execute_console_command()
-                    .with(predicate::eq("addmod 2"))
-                    .times(1);
-            })
+            .with_execute_console_command(predicate::eq("addmod 2"), 1)
             .run(|| {
                 let result = Python::with_gil(|py| player.addmod(py));
                 assert!(result.is_ok());
@@ -6840,12 +6820,7 @@ assert(player._valid)
         let player = default_test_player();
 
         MockEngineBuilder::default()
-            .configure(|mock_engine| {
-                mock_engine
-                    .expect_execute_console_command()
-                    .with(predicate::eq("demote 2"))
-                    .times(1);
-            })
+            .with_execute_console_command(predicate::eq("demote 2"), 1)
             .run(|| {
                 let result = Python::with_gil(|py| player.demote(py));
                 assert!(result.is_ok());
@@ -6859,12 +6834,7 @@ assert(player._valid)
         let player = default_test_player();
 
         MockEngineBuilder::default()
-            .configure(|mock_engine| {
-                mock_engine
-                    .expect_execute_console_command()
-                    .with(predicate::eq("mute 2"))
-                    .times(1);
-            })
+            .with_execute_console_command(predicate::eq("mute 2"), 1)
             .run(|| {
                 let result = Python::with_gil(|py| player.mute(py));
                 assert!(result.is_ok());
@@ -6878,12 +6848,7 @@ assert(player._valid)
         let player = default_test_player();
 
         MockEngineBuilder::default()
-            .configure(|mock_engine| {
-                mock_engine
-                    .expect_execute_console_command()
-                    .with(predicate::eq("unmute 2"))
-                    .times(1);
-            })
+            .with_execute_console_command(predicate::eq("unmute 2"), 1)
             .run(|| {
                 let result = Python::with_gil(|py| player.unmute(py));
                 assert!(result.is_ok());
@@ -6934,12 +6899,7 @@ assert(player._valid)
         let player = default_test_player();
 
         MockEngineBuilder::default()
-            .configure(|mock_engine| {
-                mock_engine
-                    .expect_execute_console_command()
-                    .with(predicate::eq("addscore 2 42"))
-                    .times(1);
-            })
+            .with_execute_console_command(predicate::eq("addscore 2 42"), 1)
             .run(|| {
                 let result = Python::with_gil(|py| player.addscore(py, 42));
                 assert!(result.is_ok());
@@ -6995,16 +6955,8 @@ assert(player._valid)
         };
 
         MockEngineBuilder::default()
-            .configure(|mock_engine| {
-                mock_engine
-                    .expect_execute_console_command()
-                    .withf(move |cmd| cmd == "put 2 blue")
-                    .times(1);
-                mock_engine
-                    .expect_execute_console_command()
-                    .withf(move |cmd| cmd == "put 1 red")
-                    .times(1);
-            })
+            .with_execute_console_command(predicate::eq("put 2 blue"), 1)
+            .with_execute_console_command(predicate::eq("put 1 red"), 1)
             .run(|| {
                 let result = Python::with_gil(|py| player.switch(py, other_player));
                 assert!(result.as_ref().is_ok(), "{:?}", result.as_ref().unwrap());
@@ -7018,12 +6970,7 @@ assert(player._valid)
         let player = default_test_player();
 
         MockEngineBuilder::default()
-            .configure(|mock_engine| {
-                mock_engine
-                    .expect_execute_console_command()
-                    .with(predicate::eq("slap 2 42"))
-                    .times(1);
-            })
+            .with_execute_console_command(predicate::eq("slap 2 42"), 1)
             .run(|| {
                 let result = Python::with_gil(|py| player.slap(py, 42));
                 assert!(result.is_ok());
@@ -7037,12 +6984,7 @@ assert(player._valid)
         let player = default_test_player();
 
         MockEngineBuilder::default()
-            .configure(|mock_engine| {
-                mock_engine
-                    .expect_execute_console_command()
-                    .with(predicate::eq("slay 2"))
-                    .times(1);
-            })
+            .with_execute_console_command(predicate::eq("slay 2"), 1)
             .run(|| {
                 let result = Python::with_gil(|py| player.slay(py));
                 assert!(result.is_ok());
