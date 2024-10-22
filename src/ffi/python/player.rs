@@ -2375,12 +2375,7 @@ assert(player._valid)
         let put_cmd = format!("put 2 {}", new_team.to_lowercase());
 
         MockEngineBuilder::default()
-            .configure(|mock_engine| {
-                mock_engine
-                    .expect_execute_console_command()
-                    .withf(move |cmd| cmd == put_cmd)
-                    .times(1);
-            })
+            .withf_execute_console_command(move |cmd| cmd == put_cmd, 1)
             .run(|| {
                 let result =
                     Python::with_gil(|py| default_test_player().set_team(py, new_team.to_string()));
@@ -6880,12 +6875,7 @@ assert(player._valid)
         let player = default_test_player();
 
         MockEngineBuilder::default()
-            .configure(|mock_engine| {
-                mock_engine
-                    .expect_execute_console_command()
-                    .withf(move |cmd| cmd == put_cmd)
-                    .times(1);
-            })
+            .withf_execute_console_command(move |cmd| cmd == put_cmd, 1)
             .run(|| {
                 let result = Python::with_gil(|py| player.put(py, new_team));
                 assert!(result.is_ok());

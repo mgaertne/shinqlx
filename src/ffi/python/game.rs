@@ -2883,12 +2883,7 @@ shinqlx._map_subtitle2 = "Awesome map!"
     fn lock_a_specific_team(_pyshinqlx_setup: (), #[case] locked_team: &str) {
         let lock_cmd = format!("lock {}", locked_team.to_lowercase());
         MockEngineBuilder::default()
-            .configure(|mock_engine| {
-                mock_engine
-                    .expect_execute_console_command()
-                    .withf(move |cmd| cmd == lock_cmd)
-                    .times(1);
-            })
+            .withf_execute_console_command(move |cmd| cmd == lock_cmd, 1)
             .run(|| {
                 let result = Python::with_gil(|py| {
                     Game::lock(&py.get_type_bound::<Game>(), Some(locked_team))
@@ -2936,12 +2931,7 @@ shinqlx._map_subtitle2 = "Awesome map!"
         let unlock_cmd = format!("unlock {}", locked_team.to_lowercase());
 
         MockEngineBuilder::default()
-            .configure(|mock_engine| {
-                mock_engine
-                    .expect_execute_console_command()
-                    .withf(move |cmd| cmd == unlock_cmd)
-                    .times(1);
-            })
+            .withf_execute_console_command(move |cmd| cmd == unlock_cmd, 1)
             .run(|| {
                 let result = Python::with_gil(|py| {
                     Game::unlock(&py.get_type_bound::<Game>(), Some(locked_team))
@@ -2982,12 +2972,7 @@ shinqlx._map_subtitle2 = "Awesome map!"
         let put_cmd = format!("put 2 {}", new_team.to_lowercase());
 
         MockEngineBuilder::default()
-            .configure(|mock_engine| {
-                mock_engine
-                    .expect_execute_console_command()
-                    .withf(move |cmd| cmd == put_cmd)
-                    .times(1);
-            })
+            .withf_execute_console_command(move |cmd| cmd == put_cmd, 1)
             .run(|| {
                 let result = Python::with_gil(|py| {
                     Game::put(&py.get_type_bound::<Game>(), 2.into_py(py), new_team)
@@ -3256,12 +3241,7 @@ shinqlx._map_subtitle2 = "Awesome map!"
         let unlock_cmd = format!("addteamscore {} 42", locked_team.to_lowercase());
 
         MockEngineBuilder::default()
-            .configure(|mock_engine| {
-                mock_engine
-                    .expect_execute_console_command()
-                    .withf(move |cmd| cmd == unlock_cmd)
-                    .times(1);
-            })
+            .withf_execute_console_command(move |cmd| cmd == unlock_cmd, 1)
             .run(|| {
                 let result = Python::with_gil(|py| {
                     Game::addteamscore(&py.get_type_bound::<Game>(), locked_team, 42)

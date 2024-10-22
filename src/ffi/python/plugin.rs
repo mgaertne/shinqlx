@@ -5453,12 +5453,7 @@ def handler():
         let lock_cmd = format!("lock {}", locked_team.to_lowercase());
 
         MockEngineBuilder::default()
-            .configure(|mock_engine| {
-                mock_engine
-                    .expect_execute_console_command()
-                    .withf(move |cmd| cmd == lock_cmd)
-                    .times(1);
-            })
+            .withf_execute_console_command(move |cmd| cmd == lock_cmd, 1)
             .run(|| {
                 let result = Python::with_gil(|py| {
                     Plugin::lock(&py.get_type_bound::<Plugin>(), Some(locked_team))
@@ -5507,12 +5502,7 @@ def handler():
         let unlock_cmd = format!("unlock {}", locked_team.to_lowercase());
 
         MockEngineBuilder::default()
-            .configure(|mock_engine| {
-                mock_engine
-                    .expect_execute_console_command()
-                    .withf(move |cmd| cmd == unlock_cmd)
-                    .times(1);
-            })
+            .withf_execute_console_command(move |cmd| cmd == unlock_cmd, 1)
             .run(|| {
                 let result = Python::with_gil(|py| {
                     Plugin::unlock(&py.get_type_bound::<Plugin>(), Some(locked_team))
@@ -5557,12 +5547,7 @@ def handler():
         let put_cmd = format!("put 2 {}", new_team.to_lowercase());
 
         MockEngineBuilder::default()
-            .configure(|mock_engine| {
-                mock_engine
-                    .expect_execute_console_command()
-                    .withf(move |cmd| cmd == put_cmd)
-                    .times(1);
-            })
+            .withf_execute_console_command(move |cmd| cmd == put_cmd, 1)
             .run(|| {
                 let result = Python::with_gil(|py| {
                     Plugin::put(&py.get_type_bound::<Plugin>(), 2.into_py(py), new_team)
@@ -5834,12 +5819,7 @@ def handler():
         let addteamscore_cmd = format!("addteamscore {} 42", team.to_lowercase());
 
         MockEngineBuilder::default()
-            .configure(|mock_engine| {
-                mock_engine
-                    .expect_execute_console_command()
-                    .withf(move |cmd| cmd == addteamscore_cmd)
-                    .times(1);
-            })
+            .withf_execute_console_command(move |cmd| cmd == addteamscore_cmd, 1)
             .run(|| {
                 let result = Python::with_gil(|py| {
                     Plugin::addteamscore(&py.get_type_bound::<Plugin>(), team, 42)
