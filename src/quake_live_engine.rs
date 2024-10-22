@@ -5425,12 +5425,12 @@ impl MockEngineBuilder {
         times: usize,
     ) -> MockEngineBuilder
     where
-        F: mockall::Predicate<str> + Send + 'static,
+        F: Fn(&str) -> bool + Send + 'static,
     {
         self.configure(|mock_engine| {
             mock_engine
                 .expect_execute_console_command()
-                .with(matcher)
+                .withf(matcher)
                 .times(times);
         })
     }

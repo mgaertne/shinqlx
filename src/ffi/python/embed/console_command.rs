@@ -13,7 +13,6 @@ mod console_command_tests {
     use crate::ffi::python::prelude::*;
     use crate::prelude::*;
 
-    use mockall::predicate;
     use pyo3::exceptions::PyEnvironmentError;
     use rstest::rstest;
 
@@ -32,7 +31,7 @@ mod console_command_tests {
     #[serial]
     fn console_command_with_main_engine_set(_pyshinqlx_setup: ()) {
         MockEngineBuilder::default()
-            .with_execute_console_command(predicate::eq("asdf"), 1)
+            .with_execute_console_command(|cmd| cmd == "asdf", 1)
             .run(|| {
                 let result = Python::with_gil(|py| pyshinqlx_console_command(py, "asdf"));
                 assert!(result.is_ok());
