@@ -17,7 +17,6 @@ mod get_cvar_tests {
 
     use core::borrow::BorrowMut;
 
-    use mockall::predicate;
     use rstest::*;
 
     use pyo3::exceptions::PyEnvironmentError;
@@ -37,7 +36,7 @@ mod get_cvar_tests {
     #[serial]
     fn get_cvar_when_cvar_not_found(_pyshinqlx_setup: ()) {
         MockEngineBuilder::default()
-            .with_find_cvar(predicate::eq("asdf"), |_| None, 1)
+            .with_find_cvar(|cmd| cmd == "asdf", |_| None, 1)
             .run(|| {
                 let result = Python::with_gil(|py| pyshinqlx_get_cvar(py, "asdf"))
                     .expect("result waa not OK");
@@ -57,7 +56,7 @@ mod get_cvar_tests {
 
         MockEngineBuilder::default()
             .with_find_cvar(
-                predicate::eq("sv_maxclients"),
+                |cmd| cmd == "sv_maxclients",
                 move |_| CVar::try_from(raw_cvar.borrow_mut() as *mut cvar_t).ok(),
                 1,
             )
