@@ -5459,15 +5459,16 @@ impl MockEngineBuilder {
         })
     }
 
-    pub(crate) fn with_find_cvar<F, G>(
+    pub(crate) fn with_find_cvar<F, G, H>(
         self,
         expect: F,
         returned: G,
-        times: usize,
+        times: H,
     ) -> MockEngineBuilder
     where
         F: mockall::Predicate<str> + Send + 'static,
         G: FnMut(&str) -> Option<CVar> + 'static,
+        H: Into<mockall::TimesRange>,
     {
         self.configure(|mock_engine| {
             mock_engine

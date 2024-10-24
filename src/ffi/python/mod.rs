@@ -1128,29 +1128,21 @@ mod pyshinqlx_configure_logger_tests {
             .expect("this should not happen");
 
         MockEngineBuilder::default()
-            .configure(|mock_engine| {
-                mock_engine
-                    .expect_find_cvar()
-                    .with(predicate::eq("fs_homepath"))
-                    .returning_st(move |_| {
-                        CVar::try_from(raw_homepath_cvar.borrow_mut() as *mut cvar_t).ok()
-                    })
-                    .times(1);
-                mock_engine
-                    .expect_find_cvar()
-                    .with(predicate::eq("qlx_logs"))
-                    .returning_st(move |_| {
-                        CVar::try_from(raw_logs_cvar.borrow_mut() as *mut cvar_t).ok()
-                    })
-                    .times(1);
-                mock_engine
-                    .expect_find_cvar()
-                    .with(predicate::eq("qlx_logsSize"))
-                    .returning_st(move |_| {
-                        CVar::try_from(raw_logssize_cvar.borrow_mut() as *mut cvar_t).ok()
-                    })
-                    .times(1);
-            })
+            .with_find_cvar(
+                predicate::eq("fs_homepath"),
+                move |_| CVar::try_from(raw_homepath_cvar.borrow_mut() as *mut cvar_t).ok(),
+                1,
+            )
+            .with_find_cvar(
+                predicate::eq("qlx_logs"),
+                move |_| CVar::try_from(raw_logs_cvar.borrow_mut() as *mut cvar_t).ok(),
+                1,
+            )
+            .with_find_cvar(
+                predicate::eq("qlx_logsSize"),
+                move |_| CVar::try_from(raw_logssize_cvar.borrow_mut() as *mut cvar_t).ok(),
+                1,
+            )
             .run(|| {
                 Python::with_gil(|py| {
                     let result = pyshinqlx_configure_logger(py);
@@ -1223,25 +1215,13 @@ mod pyshinqlx_configure_logger_tests {
             .expect("this should not happen");
 
         MockEngineBuilder::default()
-            .configure(|mock_engine| {
-                mock_engine
-                    .expect_find_cvar()
-                    .with(predicate::eq("fs_homepath"))
-                    .returning_st(move |_| {
-                        CVar::try_from(raw_homepath_cvar.borrow_mut() as *mut cvar_t).ok()
-                    })
-                    .times(1);
-                mock_engine
-                    .expect_find_cvar()
-                    .with(predicate::eq("qlx_logs"))
-                    .returning(|_| None)
-                    .times(1);
-                mock_engine
-                    .expect_find_cvar()
-                    .with(predicate::eq("qlx_logsSize"))
-                    .returning(|_| None)
-                    .times(1);
-            })
+            .with_find_cvar(
+                predicate::eq("fs_homepath"),
+                move |_| CVar::try_from(raw_homepath_cvar.borrow_mut() as *mut cvar_t).ok(),
+                1,
+            )
+            .with_find_cvar(predicate::eq("qlx_logs"), |_| None, 1)
+            .with_find_cvar(predicate::eq("qlx_logsSize"), |_| None, 1)
             .run(|| {
                 Python::with_gil(|py| {
                     let result = pyshinqlx_configure_logger(py);
@@ -1863,12 +1843,7 @@ mod owner_tests {
     #[serial]
     fn owner_with_no_cvar(_pyshinqlx_setup: ()) {
         MockEngineBuilder::default()
-            .configure(|mock_engine| {
-                mock_engine
-                    .expect_find_cvar()
-                    .with(predicate::eq("qlx_owner"))
-                    .returning(|_| None);
-            })
+            .with_find_cvar(predicate::eq("qlx_owner"), |_| None, 1..)
             .run(|| {
                 Python::with_gil(|py| {
                     let result = pyshinqlx_owner(py);
@@ -1888,14 +1863,11 @@ mod owner_tests {
             .expect("this should not happen");
 
         MockEngineBuilder::default()
-            .configure(|mock_engine| {
-                mock_engine
-                    .expect_find_cvar()
-                    .with(predicate::eq("qlx_owner"))
-                    .returning_st(move |_| {
-                        CVar::try_from(raw_cvar.borrow_mut() as *mut cvar_t).ok()
-                    });
-            })
+            .with_find_cvar(
+                predicate::eq("qlx_owner"),
+                move |_| CVar::try_from(raw_cvar.borrow_mut() as *mut cvar_t).ok(),
+                1..,
+            )
             .run(|| {
                 Python::with_gil(|py| {
                     let result = pyshinqlx_owner(py);
@@ -1915,14 +1887,11 @@ mod owner_tests {
             .expect("this should not happen");
 
         MockEngineBuilder::default()
-            .configure(|mock_engine| {
-                mock_engine
-                    .expect_find_cvar()
-                    .with(predicate::eq("qlx_owner"))
-                    .returning_st(move |_| {
-                        CVar::try_from(raw_cvar.borrow_mut() as *mut cvar_t).ok()
-                    });
-            })
+            .with_find_cvar(
+                predicate::eq("qlx_owner"),
+                move |_| CVar::try_from(raw_cvar.borrow_mut() as *mut cvar_t).ok(),
+                1..,
+            )
             .run(|| {
                 Python::with_gil(|py| {
                     let result = pyshinqlx_owner(py);
@@ -1942,14 +1911,11 @@ mod owner_tests {
             .expect("this should not happen");
 
         MockEngineBuilder::default()
-            .configure(|mock_engine| {
-                mock_engine
-                    .expect_find_cvar()
-                    .with(predicate::eq("qlx_owner"))
-                    .returning_st(move |_| {
-                        CVar::try_from(raw_cvar.borrow_mut() as *mut cvar_t).ok()
-                    });
-            })
+            .with_find_cvar(
+                predicate::eq("qlx_owner"),
+                move |_| CVar::try_from(raw_cvar.borrow_mut() as *mut cvar_t).ok(),
+                1..,
+            )
             .run(|| {
                 Python::with_gil(|py| {
                     let result = pyshinqlx_owner(py);
@@ -2014,14 +1980,11 @@ mod stats_listener_tests {
             .expect("this should not happen");
 
         MockEngineBuilder::default()
-            .configure(|mock_engine| {
-                mock_engine
-                    .expect_find_cvar()
-                    .with(predicate::eq("zmq_stats_enable"))
-                    .returning_st(move |_| {
-                        CVar::try_from(raw_cvar.borrow_mut() as *mut cvar_t).ok()
-                    });
-            })
+            .with_find_cvar(
+                predicate::eq("zmq_stats_enable"),
+                move |_| CVar::try_from(raw_cvar.borrow_mut() as *mut cvar_t).ok(),
+                1..,
+            )
             .run(|| {
                 Python::with_gil(|py| {
                     let shinqlx_module = py
@@ -2598,12 +2561,7 @@ class test_cmd_hook_plugin(shinqlx.Plugin):
     #[cfg_attr(miri, ignore)]
     fn load_preset_plugin_with_misconfigured_plugin_path_cvar(_pyshinqlx_setup: ()) {
         MockEngineBuilder::default()
-            .configure(|mock_engine| {
-                mock_engine
-                    .expect_find_cvar()
-                    .with(predicate::eq("qlx_pluginsPath"))
-                    .returning(|_| None);
-            })
+            .with_find_cvar(predicate::eq("qlx_pluginsPath"), |_| None, 1..)
             .run(|| {
                 Python::with_gil(|py| {
                     let result = load_preset_plugins(py);
@@ -2628,20 +2586,16 @@ class test_cmd_hook_plugin(shinqlx.Plugin):
             .expect("this should not happen");
 
         MockEngineBuilder::default()
-            .configure(|mock_engine| {
-                mock_engine
-                    .expect_find_cvar()
-                    .with(predicate::eq("qlx_pluginsPath"))
-                    .returning_st(move |_| {
-                        CVar::try_from(raw_pluginspath_cvar.borrow_mut() as *mut cvar_t).ok()
-                    });
-                mock_engine
-                    .expect_find_cvar()
-                    .with(predicate::eq("qlx_plugins"))
-                    .returning_st(move |_| {
-                        CVar::try_from(raw_plugins_cvar.borrow_mut() as *mut cvar_t).ok()
-                    });
-            })
+            .with_find_cvar(
+                predicate::eq("qlx_pluginsPath"),
+                move |_| CVar::try_from(raw_pluginspath_cvar.borrow_mut() as *mut cvar_t).ok(),
+                1..,
+            )
+            .with_find_cvar(
+                predicate::eq("qlx_plugins"),
+                move |_| CVar::try_from(raw_plugins_cvar.borrow_mut() as *mut cvar_t).ok(),
+                1..,
+            )
             .run(|| {
                 Python::with_gil(|py| {
                     py.import_bound(intern!(py, "sys"))
@@ -2683,20 +2637,16 @@ class test_cmd_hook_plugin(shinqlx.Plugin):
             .expect("this should not happen");
 
         MockEngineBuilder::default()
-            .configure(|mock_engine| {
-                mock_engine
-                    .expect_find_cvar()
-                    .with(predicate::eq("qlx_pluginsPath"))
-                    .returning_st(move |_| {
-                        CVar::try_from(raw_pluginspath_cvar.borrow_mut() as *mut cvar_t).ok()
-                    });
-                mock_engine
-                    .expect_find_cvar()
-                    .with(predicate::eq("qlx_plugins"))
-                    .returning_st(move |_| {
-                        CVar::try_from(raw_plugins_cvar.borrow_mut() as *mut cvar_t).ok()
-                    });
-            })
+            .with_find_cvar(
+                predicate::eq("qlx_pluginsPath"),
+                move |_| CVar::try_from(raw_pluginspath_cvar.borrow_mut() as *mut cvar_t).ok(),
+                1..,
+            )
+            .with_find_cvar(
+                predicate::eq("qlx_plugins"),
+                move |_| CVar::try_from(raw_plugins_cvar.borrow_mut() as *mut cvar_t).ok(),
+                1..,
+            )
             .run(|| {
                 Python::with_gil(|py| {
                     py.import_bound(intern!(py, "sys"))
@@ -2738,20 +2688,16 @@ class test_cmd_hook_plugin(shinqlx.Plugin):
             .expect("this should not happen");
 
         MockEngineBuilder::default()
-            .configure(|mock_engine| {
-                mock_engine
-                    .expect_find_cvar()
-                    .with(predicate::eq("qlx_pluginsPath"))
-                    .returning_st(move |_| {
-                        CVar::try_from(raw_pluginspath_cvar.borrow_mut() as *mut cvar_t).ok()
-                    });
-                mock_engine
-                    .expect_find_cvar()
-                    .with(predicate::eq("qlx_plugins"))
-                    .returning_st(move |_| {
-                        CVar::try_from(raw_plugins_cvar.borrow_mut() as *mut cvar_t).ok()
-                    });
-            })
+            .with_find_cvar(
+                predicate::eq("qlx_pluginsPath"),
+                move |_| CVar::try_from(raw_pluginspath_cvar.borrow_mut() as *mut cvar_t).ok(),
+                1..,
+            )
+            .with_find_cvar(
+                predicate::eq("qlx_plugins"),
+                move |_| CVar::try_from(raw_plugins_cvar.borrow_mut() as *mut cvar_t).ok(),
+                1..,
+            )
             .run(|| {
                 Python::with_gil(|py| {
                     py.import_bound(intern!(py, "sys"))
@@ -2792,12 +2738,7 @@ class test_cmd_hook_plugin(shinqlx.Plugin):
     #[cfg_attr(miri, ignore)]
     fn load_plugin_with_misconfigured_plugin_path_cvar(_pyshinqlx_setup: ()) {
         MockEngineBuilder::default()
-            .configure(|mock_engine| {
-                mock_engine
-                    .expect_find_cvar()
-                    .with(predicate::eq("qlx_pluginsPath"))
-                    .returning(|_| None);
-            })
+            .with_find_cvar(predicate::eq("qlx_pluginsPath"), |_| None, 0..)
             .run(|| {
                 Python::with_gil(|py| {
                     let result = load_plugin(py, "not_existing_plugin");
@@ -2817,14 +2758,11 @@ class test_cmd_hook_plugin(shinqlx.Plugin):
             .expect("this should not happen");
 
         MockEngineBuilder::default()
-            .configure(|mock_engine| {
-                mock_engine
-                    .expect_find_cvar()
-                    .with(predicate::eq("qlx_pluginsPath"))
-                    .returning_st(move |_| {
-                        CVar::try_from(raw_pluginspath_cvar.borrow_mut() as *mut cvar_t).ok()
-                    });
-            })
+            .with_find_cvar(
+                predicate::eq("qlx_pluginsPath"),
+                move |_| CVar::try_from(raw_pluginspath_cvar.borrow_mut() as *mut cvar_t).ok(),
+                1..,
+            )
             .run(|| {
                 Python::with_gil(|py| {
                     py.import_bound(intern!(py, "sys"))
@@ -2861,14 +2799,11 @@ class test_cmd_hook_plugin(shinqlx.Plugin):
             .expect("this should not happen");
 
         MockEngineBuilder::default()
-            .configure(|mock_engine| {
-                mock_engine
-                    .expect_find_cvar()
-                    .with(predicate::eq("qlx_pluginsPath"))
-                    .returning_st(move |_| {
-                        CVar::try_from(raw_pluginspath_cvar.borrow_mut() as *mut cvar_t).ok()
-                    });
-            })
+            .with_find_cvar(
+                predicate::eq("qlx_pluginsPath"),
+                move |_| CVar::try_from(raw_pluginspath_cvar.borrow_mut() as *mut cvar_t).ok(),
+                1..,
+            )
             .run(|| {
                 Python::with_gil(|py| {
                     py.import_bound(intern!(py, "sys"))
@@ -2908,14 +2843,11 @@ class test_cmd_hook_plugin(shinqlx.Plugin):
             .expect("this should not happen");
 
         MockEngineBuilder::default()
-            .configure(|mock_engine| {
-                mock_engine
-                    .expect_find_cvar()
-                    .with(predicate::eq("qlx_pluginsPath"))
-                    .returning_st(move |_| {
-                        CVar::try_from(raw_pluginspath_cvar.borrow_mut() as *mut cvar_t).ok()
-                    });
-            })
+            .with_find_cvar(
+                predicate::eq("qlx_pluginsPath"),
+                move |_| CVar::try_from(raw_pluginspath_cvar.borrow_mut() as *mut cvar_t).ok(),
+                1..,
+            )
             .run(|| {
                 Python::with_gil(|py| {
                     py.import_bound(intern!(py, "sys"))
@@ -2952,14 +2884,11 @@ class test_cmd_hook_plugin(shinqlx.Plugin):
             .expect("this should not happen");
 
         MockEngineBuilder::default()
-            .configure(|mock_engine| {
-                mock_engine
-                    .expect_find_cvar()
-                    .with(predicate::eq("qlx_pluginsPath"))
-                    .returning_st(move |_| {
-                        CVar::try_from(raw_pluginspath_cvar.borrow_mut() as *mut cvar_t).ok()
-                    });
-            })
+            .with_find_cvar(
+                predicate::eq("qlx_pluginsPath"),
+                move |_| CVar::try_from(raw_pluginspath_cvar.borrow_mut() as *mut cvar_t).ok(),
+                1..,
+            )
             .run(|| {
                 Python::with_gil(|py| {
                     py.import_bound(intern!(py, "sys"))
@@ -2996,14 +2925,11 @@ class test_cmd_hook_plugin(shinqlx.Plugin):
             .expect("this should not happen");
 
         MockEngineBuilder::default()
-            .configure(|mock_engine| {
-                mock_engine
-                    .expect_find_cvar()
-                    .with(predicate::eq("qlx_pluginsPath"))
-                    .returning_st(move |_| {
-                        CVar::try_from(raw_pluginspath_cvar.borrow_mut() as *mut cvar_t).ok()
-                    });
-            })
+            .with_find_cvar(
+                predicate::eq("qlx_pluginsPath"),
+                move |_| CVar::try_from(raw_pluginspath_cvar.borrow_mut() as *mut cvar_t).ok(),
+                1..,
+            )
             .run(|| {
                 Python::with_gil(|py| {
                     let event_dispatcher = EventDispatcherManager::default();
@@ -3065,14 +2991,11 @@ class test_cmd_hook_plugin(shinqlx.Plugin):
             .expect("this should not happen");
 
         MockEngineBuilder::default()
-            .configure(|mock_engine| {
-                mock_engine
-                    .expect_find_cvar()
-                    .with(predicate::eq("qlx_pluginsPath"))
-                    .returning_st(move |_| {
-                        CVar::try_from(raw_pluginspath_cvar.borrow_mut() as *mut cvar_t).ok()
-                    });
-            })
+            .with_find_cvar(
+                predicate::eq("qlx_pluginsPath"),
+                move |_| CVar::try_from(raw_pluginspath_cvar.borrow_mut() as *mut cvar_t).ok(),
+                1..,
+            )
             .run(|| {
                 Python::with_gil(|py| {
                     let event_dispatcher = EventDispatcherManager::default();
@@ -3126,14 +3049,11 @@ class test_cmd_hook_plugin(shinqlx.Plugin):
             .expect("this should not happen");
 
         MockEngineBuilder::default()
-            .configure(|mock_engine| {
-                mock_engine
-                    .expect_find_cvar()
-                    .with(predicate::eq("qlx_pluginsPath"))
-                    .returning_st(move |_| {
-                        CVar::try_from(raw_pluginspath_cvar.borrow_mut() as *mut cvar_t).ok()
-                    });
-            })
+            .with_find_cvar(
+                predicate::eq("qlx_pluginsPath"),
+                move |_| CVar::try_from(raw_pluginspath_cvar.borrow_mut() as *mut cvar_t).ok(),
+                1..,
+            )
             .run(|| {
                 Python::with_gil(|py| {
                     let event_dispatcher = EventDispatcherManager::default();
@@ -3186,14 +3106,11 @@ class test_cmd_hook_plugin(shinqlx.Plugin):
             .expect("this should not happen");
 
         MockEngineBuilder::default()
-            .configure(|mock_engine| {
-                mock_engine
-                    .expect_find_cvar()
-                    .with(predicate::eq("qlx_pluginsPath"))
-                    .returning_st(move |_| {
-                        CVar::try_from(raw_pluginspath_cvar.borrow_mut() as *mut cvar_t).ok()
-                    });
-            })
+            .with_find_cvar(
+                predicate::eq("qlx_pluginsPath"),
+                move |_| CVar::try_from(raw_pluginspath_cvar.borrow_mut() as *mut cvar_t).ok(),
+                1..,
+            )
             .run(|| {
                 Python::with_gil(|py| {
                     let event_dispatcher = EventDispatcherManager::default();
@@ -3250,20 +3167,16 @@ class test_cmd_hook_plugin(shinqlx.Plugin):
             .expect("this should not happen");
 
         MockEngineBuilder::default()
-            .configure(|mock_engine| {
-                mock_engine
-                    .expect_find_cvar()
-                    .with(predicate::eq("qlx_pluginsPath"))
-                    .returning_st(move |_| {
-                        CVar::try_from(raw_pluginspath_cvar.borrow_mut() as *mut cvar_t).ok()
-                    });
-                mock_engine
-                    .expect_find_cvar()
-                    .with(predicate::eq("zmq_stats_enable"))
-                    .returning_st(move |_| {
-                        CVar::try_from(raw_zmq_cvar.borrow_mut() as *mut cvar_t).ok()
-                    });
-            })
+            .with_find_cvar(
+                predicate::eq("qlx_pluginsPath"),
+                move |_| CVar::try_from(raw_pluginspath_cvar.borrow_mut() as *mut cvar_t).ok(),
+                1..,
+            )
+            .with_find_cvar(
+                predicate::eq("zmq_stats_enable"),
+                move |_| CVar::try_from(raw_zmq_cvar.borrow_mut() as *mut cvar_t).ok(),
+                1..,
+            )
             .run(|| {
                 Python::with_gil(|py| {
                     let event_dispatcher = EventDispatcherManager::default();
@@ -3315,14 +3228,11 @@ class test_cmd_hook_plugin(shinqlx.Plugin):
             .expect("this should not happen");
 
         MockEngineBuilder::default()
-            .configure(|mock_engine| {
-                mock_engine
-                    .expect_find_cvar()
-                    .with(predicate::eq("qlx_pluginsPath"))
-                    .returning_st(move |_| {
-                        CVar::try_from(raw_pluginspath_cvar.borrow_mut() as *mut cvar_t).ok()
-                    });
-            })
+            .with_find_cvar(
+                predicate::eq("qlx_pluginsPath"),
+                move |_| CVar::try_from(raw_pluginspath_cvar.borrow_mut() as *mut cvar_t).ok(),
+                1..,
+            )
             .run(|| {
                 Python::with_gil(|py| {
                     let event_dispatcher = EventDispatcherManager::default();
@@ -3443,11 +3353,8 @@ mod initialize_cvars_tests {
         _pyshinqlx_setup: (),
     ) {
         MockEngineBuilder::default()
+            .with_find_cvar(predicate::always(), |_| None, 0..)
             .configure(|mock_engine| {
-                mock_engine
-                    .expect_find_cvar()
-                    .with(predicate::always())
-                    .returning(|_| None);
                 mock_engine
                     .expect_get_cvar()
                     .with(
@@ -3530,12 +3437,7 @@ mod try_get_plugins_path_tests {
     #[cfg_attr(miri, ignore)]
     fn try_get_plugins_path_with_no_cvar_set() {
         MockEngineBuilder::default()
-            .configure(|mock_engine| {
-                mock_engine
-                    .expect_find_cvar()
-                    .with(predicate::eq("qlx_pluginsPath"))
-                    .returning(|_| None);
-            })
+            .with_find_cvar(predicate::eq("qlx_pluginsPath"), |_| None, 1..)
             .run(|| {
                 let result = try_get_plugins_path();
                 assert!(result.is_err_and(|err| err == "qlx_pluginsPath cvar not found"));
@@ -3553,14 +3455,11 @@ mod try_get_plugins_path_tests {
             .expect("this should not happen");
 
         MockEngineBuilder::default()
-            .configure(|mock_engine| {
-                mock_engine
-                    .expect_find_cvar()
-                    .with(predicate::eq("qlx_pluginsPath"))
-                    .returning_st(move |_| {
-                        CVar::try_from(raw_cvar.borrow_mut() as *mut cvar_t).ok()
-                    });
-            })
+            .with_find_cvar(
+                predicate::eq("qlx_pluginsPath"),
+                move |_| CVar::try_from(raw_cvar.borrow_mut() as *mut cvar_t).ok(),
+                1..,
+            )
             .run(|| {
                 let result = try_get_plugins_path();
                 assert!(result.is_err_and(
@@ -3581,14 +3480,11 @@ mod try_get_plugins_path_tests {
             .expect("this should not happen");
 
         MockEngineBuilder::default()
-            .configure(|mock_engine| {
-                mock_engine
-                    .expect_find_cvar()
-                    .with(predicate::eq("qlx_pluginsPath"))
-                    .returning_st(move |_| {
-                        CVar::try_from(raw_cvar.borrow_mut() as *mut cvar_t).ok()
-                    });
-            })
+            .with_find_cvar(
+                predicate::eq("qlx_pluginsPath"),
+                move |_| CVar::try_from(raw_cvar.borrow_mut() as *mut cvar_t).ok(),
+                1..,
+            )
             .run(|| {
                 let result = try_get_plugins_path();
                 assert!(result.is_ok_and(|path| path

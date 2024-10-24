@@ -7387,18 +7387,11 @@ assert(isinstance(shinqlx.RconDummyPlayer(), shinqlx.AbstractDummyPlayer))
             .expect("this should not happen");
 
         MockEngineBuilder::default()
-            .configure(|mock_engine| {
-                mock_engine
-                    .expect_find_cvar()
-                    .with(predicate::eq("qlx_owner"))
-                    .returning_st(move |_| {
-                        CVar::try_from(raw_cvar.borrow_mut() as *mut cvar_t).ok()
-                    });
-                mock_engine
-                    .expect_find_cvar()
-                    .with(predicate::ne("qlx_owner"))
-                    .returning(|_| None);
-            })
+            .with_find_cvar(
+                predicate::eq("qlx_owner"),
+                move |_| CVar::try_from(raw_cvar.borrow_mut() as *mut cvar_t).ok(),
+                1..,
+            )
             .run(|| {
                 Python::with_gil(|py| {
                     let rcon_dummy_player =

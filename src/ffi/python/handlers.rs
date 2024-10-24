@@ -680,14 +680,11 @@ mod handle_client_command_tests {
             .build()
             .expect("this should not happen");
         MockEngineBuilder::default()
-            .configure(|mock_engine| {
-                mock_engine
-                    .expect_find_cvar()
-                    .with(predicate::eq("zmq_stats_enable"))
-                    .returning_st(move |_| {
-                        CVar::try_from(raw_cvar.borrow_mut() as *mut cvar_t).ok()
-                    });
-            })
+            .with_find_cvar(
+                predicate::eq("zmq_stats_enable"),
+                move |_| CVar::try_from(raw_cvar.borrow_mut() as *mut cvar_t).ok(),
+                1..,
+            )
             .run(|| {
                 Python::with_gil(|py| {
                     let event_dispatcher = EventDispatcherManager::default();
@@ -822,14 +819,11 @@ mod handle_client_command_tests {
             .build()
             .expect("this should not happen");
         MockEngineBuilder::default()
-            .configure(|mock_engine| {
-                mock_engine
-                    .expect_find_cvar()
-                    .with(predicate::eq("zmq_stats_enable"))
-                    .returning_st(move |_| {
-                        CVar::try_from(raw_cvar.borrow_mut() as *mut cvar_t).ok()
-                    });
-            })
+            .with_find_cvar(
+                predicate::eq("zmq_stats_enable"),
+                move |_| CVar::try_from(raw_cvar.borrow_mut() as *mut cvar_t).ok(),
+                1..,
+            )
             .run(|| {
                 Python::with_gil(|py| {
                     let event_dispatcher = EventDispatcherManager::default();
@@ -911,14 +905,11 @@ mod handle_client_command_tests {
             .expect("this should not happen");
 
         MockEngineBuilder::default()
-            .configure(|mock_engine| {
-                mock_engine
-                    .expect_find_cvar()
-                    .with(predicate::eq("zmq_stats_enable"))
-                    .returning_st(move |_| {
-                        CVar::try_from(raw_cvar.borrow_mut() as *mut cvar_t).ok()
-                    });
-            })
+            .with_find_cvar(
+                predicate::eq("zmq_stats_enable"),
+                move |_| CVar::try_from(raw_cvar.borrow_mut() as *mut cvar_t).ok(),
+                1..,
+            )
             .run(|| {
                 Python::with_gil(|py| {
                     let event_dispatcher = EventDispatcherManager::default();
@@ -998,14 +989,11 @@ mod handle_client_command_tests {
             .expect("this should not happen");
 
         MockEngineBuilder::default()
-            .configure(|mock_engine| {
-                mock_engine
-                    .expect_find_cvar()
-                    .with(predicate::eq("zmq_stats_enable"))
-                    .returning_st(move |_| {
-                        CVar::try_from(raw_cvar.borrow_mut() as *mut cvar_t).ok()
-                    });
-            })
+            .with_find_cvar(
+                predicate::eq("zmq_stats_enable"),
+                move |_| CVar::try_from(raw_cvar.borrow_mut() as *mut cvar_t).ok(),
+                1..,
+            )
             .run(|| {
                 Python::with_gil(|py| {
                     CHAT_CHANNEL.store(Some(
@@ -1230,14 +1218,11 @@ mod handle_client_command_tests {
             .build()
             .expect("this should not happen");
         MockEngineBuilder::default()
-            .configure(|mock_engine| {
-                mock_engine
-                    .expect_find_cvar()
-                    .with(predicate::eq("zmq_stats_enable"))
-                    .returning_st(move |_| {
-                        CVar::try_from(raw_cvar.borrow_mut() as *mut cvar_t).ok()
-                    });
-            })
+            .with_find_cvar(
+                predicate::eq("zmq_stats_enable"),
+                move |_| CVar::try_from(raw_cvar.borrow_mut() as *mut cvar_t).ok(),
+                1..,
+            )
             .run(|| {
                 Python::with_gil(|py| {
                     CHAT_CHANNEL.store(Some(
@@ -1337,14 +1322,11 @@ mod handle_client_command_tests {
             .expect("this should not happen");
 
         MockEngineBuilder::default()
-            .configure(|mock_engine| {
-                mock_engine
-                    .expect_find_cvar()
-                    .with(predicate::eq("zmq_stats_enable"))
-                    .returning_st(move |_| {
-                        CVar::try_from(raw_cvar.borrow_mut() as *mut cvar_t).ok()
-                    });
-            })
+            .with_find_cvar(
+                predicate::eq("zmq_stats_enable"),
+                move |_| CVar::try_from(raw_cvar.borrow_mut() as *mut cvar_t).ok(),
+                1..,
+            )
             .run(|| {
                 Python::with_gil(|py| {
                     channel.store(Some(
@@ -1595,14 +1577,11 @@ mod handle_client_command_tests {
             .build()
             .expect("this should not happen");
         MockEngineBuilder::default()
-            .configure(|mock_engine| {
-                mock_engine
-                    .expect_find_cvar()
-                    .with(predicate::eq("zmq_stats_enable"))
-                    .returning_st(move |_| {
-                        CVar::try_from(raw_cvar.borrow_mut() as *mut cvar_t).ok()
-                    });
-            })
+            .with_find_cvar(
+                predicate::eq("zmq_stats_enable"),
+                move |_| CVar::try_from(raw_cvar.borrow_mut() as *mut cvar_t).ok(),
+                1..,
+            )
             .run(|| {
                 Python::with_gil(|py| {
                     channel.store(Some(
@@ -1694,13 +1673,12 @@ mod handle_client_command_tests {
             .expect("this should not happen");
 
         MockEngineBuilder::default()
+            .with_find_cvar(
+                predicate::eq("zmq_stats_enable"),
+                move |_| CVar::try_from(raw_cvar.borrow_mut() as *mut cvar_t).ok(),
+                1..,
+            )
             .configure(|mock_engine| {
-                mock_engine
-                    .expect_find_cvar()
-                    .with(predicate::eq("zmq_stats_enable"))
-                    .returning_st(move |_| {
-                        CVar::try_from(raw_cvar.borrow_mut() as *mut cvar_t).ok()
-                    });
                 mock_engine
                     .expect_get_configstring()
                     .with(predicate::eq(CS_VOTE_STRING as u16))
@@ -1798,13 +1776,12 @@ mod handle_client_command_tests {
             .expect("this should not happen");
 
         MockEngineBuilder::default()
+            .with_find_cvar(
+                predicate::eq("zmq_stats_enable"),
+                move |_| CVar::try_from(raw_cvar.borrow_mut() as *mut cvar_t).ok(),
+                1..,
+            )
             .configure(|mock_engine| {
-                mock_engine
-                    .expect_find_cvar()
-                    .with(predicate::eq("zmq_stats_enable"))
-                    .returning_st(move |_| {
-                        CVar::try_from(raw_cvar.borrow_mut() as *mut cvar_t).ok()
-                    });
                 mock_engine
                     .expect_get_configstring()
                     .with(predicate::eq(CS_VOTE_STRING as u16))
@@ -2036,13 +2013,12 @@ mod handle_client_command_tests {
             .expect("this should not happen");
 
         MockEngineBuilder::default()
+            .with_find_cvar(
+                predicate::eq("zmq_stats_enable"),
+                move |_| CVar::try_from(raw_cvar.borrow_mut() as *mut cvar_t).ok(),
+                1..,
+            )
             .configure(|mock_engine| {
-                mock_engine
-                    .expect_find_cvar()
-                    .with(predicate::eq("zmq_stats_enable"))
-                    .returning_st(move |_| {
-                        CVar::try_from(raw_cvar.borrow_mut() as *mut cvar_t).ok()
-                    });
                 mock_engine
                     .expect_get_configstring()
                     .with(predicate::eq(CS_VOTE_STRING as u16))
@@ -2144,13 +2120,12 @@ mod handle_client_command_tests {
             .expect("this should not happen");
 
         MockEngineBuilder::default()
+            .with_find_cvar(
+                predicate::eq("zmq_stats_enable"),
+                move |_| CVar::try_from(raw_cvar.borrow_mut() as *mut cvar_t).ok(),
+                1..,
+            )
             .configure(|mock_engine| {
-                mock_engine
-                    .expect_find_cvar()
-                    .with(predicate::eq("zmq_stats_enable"))
-                    .returning_st(move |_| {
-                        CVar::try_from(raw_cvar.borrow_mut() as *mut cvar_t).ok()
-                    });
                 mock_engine
                     .expect_get_configstring()
                     .with(predicate::eq(CS_VOTE_STRING as u16))
@@ -2245,13 +2220,12 @@ mod handle_client_command_tests {
             .expect("this should not happen");
 
         MockEngineBuilder::default()
+            .with_find_cvar(
+                predicate::eq("zmq_stats_enable"),
+                move |_| CVar::try_from(raw_cvar.borrow_mut() as *mut cvar_t).ok(),
+                1..,
+            )
             .configure(|mock_engine| {
-                mock_engine
-                    .expect_find_cvar()
-                    .with(predicate::eq("zmq_stats_enable"))
-                    .returning_st(move |_| {
-                        CVar::try_from(raw_cvar.borrow_mut() as *mut cvar_t).ok()
-                    });
                 mock_engine
                     .expect_get_configstring()
                     .with(predicate::eq(CS_VOTE_STRING as u16))
@@ -2354,13 +2328,12 @@ mod handle_client_command_tests {
             .expect("this should not happen");
 
         MockEngineBuilder::default()
+            .with_find_cvar(
+                predicate::eq("zmq_stats_enable"),
+                move |_| CVar::try_from(raw_cvar.borrow_mut() as *mut cvar_t).ok(),
+                1..,
+            )
             .configure(|mock_engine| {
-                mock_engine
-                    .expect_find_cvar()
-                    .with(predicate::eq("zmq_stats_enable"))
-                    .returning_st(move |_| {
-                        CVar::try_from(raw_cvar.borrow_mut() as *mut cvar_t).ok()
-                    });
                 mock_engine
                     .expect_get_configstring()
                     .with(predicate::eq(CS_VOTE_STRING as u16))
@@ -2527,13 +2500,12 @@ mod handle_client_command_tests {
             .expect("this should not happen");
 
         MockEngineBuilder::default()
+            .with_find_cvar(
+                predicate::eq("zmq_stats_enable"),
+                move |_| CVar::try_from(raw_cvar.borrow_mut() as *mut cvar_t).ok(),
+                1..,
+            )
             .configure(|mock_engine| {
-                mock_engine
-                    .expect_find_cvar()
-                    .with(predicate::eq("zmq_stats_enable"))
-                    .returning_st(move |_| {
-                        CVar::try_from(raw_cvar.borrow_mut() as *mut cvar_t).ok()
-                    });
                 mock_engine
                     .expect_get_configstring()
                     .with(predicate::eq(CS_VOTE_STRING as u16))
@@ -2632,14 +2604,11 @@ mod handle_client_command_tests {
             .expect("this should not happen");
 
         MockEngineBuilder::default()
-            .configure(|mock_engine| {
-                mock_engine
-                    .expect_find_cvar()
-                    .with(predicate::eq("zmq_stats_enable"))
-                    .returning_st(move |_| {
-                        CVar::try_from(raw_cvar.borrow_mut() as *mut cvar_t).ok()
-                    });
-            })
+            .with_find_cvar(
+                predicate::eq("zmq_stats_enable"),
+                move |_| CVar::try_from(raw_cvar.borrow_mut() as *mut cvar_t).ok(),
+                1..,
+            )
             .run(|| {
                 Python::with_gil(|py| {
                     let event_dispatcher = EventDispatcherManager::default();
@@ -2736,14 +2705,11 @@ mod handle_client_command_tests {
             .expect("this should not happen");
 
         MockEngineBuilder::default()
-            .configure(|mock_engine| {
-                mock_engine
-                    .expect_find_cvar()
-                    .with(predicate::eq("zmq_stats_enable"))
-                    .returning_st(move |_| {
-                        CVar::try_from(raw_cvar.borrow_mut() as *mut cvar_t).ok()
-                    });
-            })
+            .with_find_cvar(
+                predicate::eq("zmq_stats_enable"),
+                move |_| CVar::try_from(raw_cvar.borrow_mut() as *mut cvar_t).ok(),
+                1..,
+            )
             .run(|| {
                 Python::with_gil(|py| {
                     let event_dispatcher = EventDispatcherManager::default();
@@ -2840,14 +2806,11 @@ mod handle_client_command_tests {
             .expect("this should not happen");
 
         MockEngineBuilder::default()
-            .configure(|mock_engine| {
-                mock_engine
-                    .expect_find_cvar()
-                    .with(predicate::eq("zmq_stats_enable"))
-                    .returning_st(move |_| {
-                        CVar::try_from(raw_cvar.borrow_mut() as *mut cvar_t).ok()
-                    });
-            })
+            .with_find_cvar(
+                predicate::eq("zmq_stats_enable"),
+                move |_| CVar::try_from(raw_cvar.borrow_mut() as *mut cvar_t).ok(),
+                1..,
+            )
             .run(|| {
                 Python::with_gil(|py| {
                     let event_dispatcher = EventDispatcherManager::default();
@@ -3002,14 +2965,11 @@ mod handle_client_command_tests {
             .expect("this should not happen");
 
         MockEngineBuilder::default()
-            .configure(|mock_engine| {
-                mock_engine
-                    .expect_find_cvar()
-                    .with(predicate::eq("zmq_stats_enable"))
-                    .returning_st(move |_| {
-                        CVar::try_from(raw_cvar.borrow_mut() as *mut cvar_t).ok()
-                    });
-            })
+            .with_find_cvar(
+                predicate::eq("zmq_stats_enable"),
+                move |_| CVar::try_from(raw_cvar.borrow_mut() as *mut cvar_t).ok(),
+                1..,
+            )
             .run(|| {
                 Python::with_gil(|py| {
                     let event_dispatcher = EventDispatcherManager::default();
@@ -3093,14 +3053,11 @@ mod handle_client_command_tests {
             .expect("this should not happen");
 
         MockEngineBuilder::default()
-            .configure(|mock_engine| {
-                mock_engine
-                    .expect_find_cvar()
-                    .with(predicate::eq("zmq_stats_enable"))
-                    .returning_st(move |_| {
-                        CVar::try_from(raw_cvar.borrow_mut() as *mut cvar_t).ok()
-                    });
-            })
+            .with_find_cvar(
+                predicate::eq("zmq_stats_enable"),
+                move |_| CVar::try_from(raw_cvar.borrow_mut() as *mut cvar_t).ok(),
+                1..,
+            )
             .run(|| {
                 Python::with_gil(|py| {
                     let event_dispatcher = EventDispatcherManager::default();
@@ -3197,14 +3154,11 @@ mod handle_client_command_tests {
             .expect("this should not happen");
 
         MockEngineBuilder::default()
-            .configure(|mock_engine| {
-                mock_engine
-                    .expect_find_cvar()
-                    .with(predicate::eq("zmq_stats_enable"))
-                    .returning_st(move |_| {
-                        CVar::try_from(raw_cvar.borrow_mut() as *mut cvar_t).ok()
-                    });
-            })
+            .with_find_cvar(
+                predicate::eq("zmq_stats_enable"),
+                move |_| CVar::try_from(raw_cvar.borrow_mut() as *mut cvar_t).ok(),
+                1..,
+            )
             .run(|| {
                 Python::with_gil(|py| {
                     let event_dispatcher = EventDispatcherManager::default();
@@ -3363,14 +3317,11 @@ mod handle_client_command_tests {
             .expect("this should not happen");
 
         MockEngineBuilder::default()
-            .configure(|mock_engine| {
-                mock_engine
-                    .expect_find_cvar()
-                    .with(predicate::eq("zmq_stats_enable"))
-                    .returning_st(move |_| {
-                        CVar::try_from(raw_cvar.borrow_mut() as *mut cvar_t).ok()
-                    });
-            })
+            .with_find_cvar(
+                predicate::eq("zmq_stats_enable"),
+                move |_| CVar::try_from(raw_cvar.borrow_mut() as *mut cvar_t).ok(),
+                1..,
+            )
             .run(|| {
                 Python::with_gil(|py| {
                     let event_dispatcher = EventDispatcherManager::default();
@@ -3459,14 +3410,11 @@ mod handle_client_command_tests {
             .expect("this should not happen");
 
         MockEngineBuilder::default()
-            .configure(|mock_engine| {
-                mock_engine
-                    .expect_find_cvar()
-                    .with(predicate::eq("zmq_stats_enable"))
-                    .returning_st(move |_| {
-                        CVar::try_from(raw_cvar.borrow_mut() as *mut cvar_t).ok()
-                    });
-            })
+            .with_find_cvar(
+                predicate::eq("zmq_stats_enable"),
+                move |_| CVar::try_from(raw_cvar.borrow_mut() as *mut cvar_t).ok(),
+                1..,
+            )
             .run(|| {
                 Python::with_gil(|py| {
                     let event_dispatcher = EventDispatcherManager::default();
@@ -3688,14 +3636,11 @@ mod handle_server_command_tests {
             .expect("this should not happen");
 
         MockEngineBuilder::default()
-            .configure(|mock_engine| {
-                mock_engine
-                    .expect_find_cvar()
-                    .with(predicate::eq("zmq_stats_enable"))
-                    .returning_st(move |_| {
-                        CVar::try_from(raw_cvar.borrow_mut() as *mut cvar_t).ok()
-                    });
-            })
+            .with_find_cvar(
+                predicate::eq("zmq_stats_enable"),
+                move |_| CVar::try_from(raw_cvar.borrow_mut() as *mut cvar_t).ok(),
+                1..,
+            )
             .run(|| {
                 Python::with_gil(|py| {
                     let event_dispatcher = EventDispatcherManager::default();
@@ -3780,14 +3725,11 @@ mod handle_server_command_tests {
             .expect("this should not happen");
 
         MockEngineBuilder::default()
-            .configure(|mock_engine| {
-                mock_engine
-                    .expect_find_cvar()
-                    .with(predicate::eq("zmq_stats_enable"))
-                    .returning_st(move |_| {
-                        CVar::try_from(raw_cvar.borrow_mut() as *mut cvar_t).ok()
-                    });
-            })
+            .with_find_cvar(
+                predicate::eq("zmq_stats_enable"),
+                move |_| CVar::try_from(raw_cvar.borrow_mut() as *mut cvar_t).ok(),
+                1..,
+            )
             .run(|| {
                 Python::with_gil(|py| {
                     let event_dispatcher = EventDispatcherManager::default();
@@ -3851,14 +3793,11 @@ mod handle_server_command_tests {
             .expect("this should not happen");
 
         MockEngineBuilder::default()
-            .configure(|mock_engine| {
-                mock_engine
-                    .expect_find_cvar()
-                    .with(predicate::eq("zmq_stats_enable"))
-                    .returning_st(move |_| {
-                        CVar::try_from(raw_cvar.borrow_mut() as *mut cvar_t).ok()
-                    });
-            })
+            .with_find_cvar(
+                predicate::eq("zmq_stats_enable"),
+                move |_| CVar::try_from(raw_cvar.borrow_mut() as *mut cvar_t).ok(),
+                1..,
+            )
             .run(|| {
                 Python::with_gil(|py| {
                     let event_dispatcher = EventDispatcherManager::default();
@@ -3904,14 +3843,11 @@ mod handle_server_command_tests {
             .expect("this should not happen");
 
         MockEngineBuilder::default()
-            .configure(|mock_engine| {
-                mock_engine
-                    .expect_find_cvar()
-                    .with(predicate::eq("zmq_stats_enable"))
-                    .returning_st(move |_| {
-                        CVar::try_from(raw_cvar.borrow_mut() as *mut cvar_t).ok()
-                    });
-            })
+            .with_find_cvar(
+                predicate::eq("zmq_stats_enable"),
+                move |_| CVar::try_from(raw_cvar.borrow_mut() as *mut cvar_t).ok(),
+                1..,
+            )
             .run(|| {
                 Python::with_gil(|py| {
                     let event_dispatcher = EventDispatcherManager::default();
@@ -3957,13 +3893,12 @@ mod handle_server_command_tests {
             .expect("this should not happen");
 
         MockEngineBuilder::default()
+            .with_find_cvar(
+                predicate::eq("zmq_stats_enable"),
+                move |_| CVar::try_from(raw_cvar.borrow_mut() as *mut cvar_t).ok(),
+                1..,
+            )
             .configure(|mock_engine| {
-                mock_engine
-                    .expect_find_cvar()
-                    .with(predicate::eq("zmq_stats_enable"))
-                    .returning_st(move |_| {
-                        CVar::try_from(raw_cvar.borrow_mut() as *mut cvar_t).ok()
-                    });
                 mock_engine
                     .expect_get_configstring()
                     .with(predicate::eq(CS_VOTE_STRING as u16))
@@ -4034,13 +3969,12 @@ mod handle_server_command_tests {
             .expect("this should not happen");
 
         MockEngineBuilder::default()
+            .with_find_cvar(
+                predicate::eq("zmq_stats_enable"),
+                move |_| CVar::try_from(raw_cvar.borrow_mut() as *mut cvar_t).ok(),
+                1..,
+            )
             .configure(|mock_engine| {
-                mock_engine
-                    .expect_find_cvar()
-                    .with(predicate::eq("zmq_stats_enable"))
-                    .returning_st(move |_| {
-                        CVar::try_from(raw_cvar.borrow_mut() as *mut cvar_t).ok()
-                    });
                 mock_engine
                     .expect_get_configstring()
                     .with(predicate::eq(CS_VOTE_STRING as u16))
@@ -4342,14 +4276,11 @@ frame_tasks.enter(0, 1, capturing_hook, ("asdf", 42), {})
             .expect("this should not happen");
 
         MockEngineBuilder::default()
-            .configure(|mock_engine| {
-                mock_engine
-                    .expect_find_cvar()
-                    .with(predicate::eq("zmq_stats_enable"))
-                    .returning_st(move |_| {
-                        CVar::try_from(raw_cvar.borrow_mut() as *mut cvar_t).ok()
-                    });
-            })
+            .with_find_cvar(
+                predicate::eq("zmq_stats_enable"),
+                move |_| CVar::try_from(raw_cvar.borrow_mut() as *mut cvar_t).ok(),
+                1..,
+            )
             .run(|| {
                 Python::with_gil(|py| {
                     let event_dispatcher = EventDispatcherManager::default();
@@ -4512,14 +4443,11 @@ for event in frame_tasks.queue:
             .expect("this should not happen");
 
         MockEngineBuilder::default()
-            .configure(|mock_engine| {
-                mock_engine
-                    .expect_find_cvar()
-                    .with(predicate::eq("zmq_stats_enable"))
-                    .returning_st(move |_| {
-                        CVar::try_from(raw_cvar.borrow_mut() as *mut cvar_t).ok()
-                    });
-            })
+            .with_find_cvar(
+                predicate::eq("zmq_stats_enable"),
+                move |_| CVar::try_from(raw_cvar.borrow_mut() as *mut cvar_t).ok(),
+                1..,
+            )
             .run(|| {
                 Python::with_gil(|py| {
                     let shinqlx_module =
@@ -4810,13 +4738,12 @@ mod handle_new_game_tests {
             .expect("this should not happen");
 
         MockEngineBuilder::default()
+            .with_find_cvar(
+                predicate::eq("zmq_stats_enable"),
+                move |_| CVar::try_from(raw_cvar.borrow_mut() as *mut cvar_t).ok(),
+                1..,
+            )
             .configure(|mock_engine| {
-                mock_engine
-                    .expect_find_cvar()
-                    .with(predicate::eq("zmq_stats_enable"))
-                    .returning_st(move |_| {
-                        CVar::try_from(raw_cvar.borrow_mut() as *mut cvar_t).ok()
-                    });
                 mock_engine.expect_get_configstring().withf(|index| {
                     [CS_MESSAGE as u16, CS_AUTHOR as u16, CS_AUTHOR2 as u16].contains(index)
                 });
@@ -4926,25 +4853,22 @@ mod handle_new_game_tests {
             .expect("this should not happen");
 
         MockEngineBuilder::default()
+            .with_find_cvar(
+                predicate::eq("zmq_stats_enable"),
+                move |_| CVar::try_from(raw_zmq_cvar.borrow_mut() as *mut cvar_t).ok(),
+                1..,
+            )
+            .with_find_cvar(
+                predicate::eq("mapname"),
+                move |_| CVar::try_from(raw_mapname_cvar.borrow_mut() as *mut cvar_t).ok(),
+                1..,
+            )
+            .with_find_cvar(
+                predicate::eq("g_factory"),
+                move |_| CVar::try_from(raw_factory_cvar.borrow_mut() as *mut cvar_t).ok(),
+                1..,
+            )
             .configure(|mock_engine| {
-                mock_engine
-                    .expect_find_cvar()
-                    .with(predicate::eq("zmq_stats_enable"))
-                    .returning_st(move |_| {
-                        CVar::try_from(raw_zmq_cvar.borrow_mut() as *mut cvar_t).ok()
-                    });
-                mock_engine
-                    .expect_find_cvar()
-                    .with(predicate::eq("mapname"))
-                    .returning_st(move |_| {
-                        CVar::try_from(raw_mapname_cvar.borrow_mut() as *mut cvar_t).ok()
-                    });
-                mock_engine
-                    .expect_find_cvar()
-                    .with(predicate::eq("g_factory"))
-                    .returning_st(move |_| {
-                        CVar::try_from(raw_factory_cvar.borrow_mut() as *mut cvar_t).ok()
-                    });
                 mock_engine.expect_get_configstring().withf(|index| {
                     [CS_MESSAGE as u16, CS_AUTHOR as u16, CS_AUTHOR2 as u16].contains(index)
                 });
@@ -5034,19 +4958,17 @@ mod handle_new_game_tests {
             .build()
             .expect("this should not happen");
         MockEngineBuilder::default()
+            .with_find_cvar(
+                predicate::eq("mapname"),
+                move |_| CVar::try_from(raw_mapname_cvar.borrow_mut() as *mut cvar_t).ok(),
+                1..,
+            )
+            .with_find_cvar(
+                predicate::eq("g_factory"),
+                move |_| CVar::try_from(raw_factory_cvar.borrow_mut() as *mut cvar_t).ok(),
+                1..,
+            )
             .configure(|mock_engine| {
-                mock_engine
-                    .expect_find_cvar()
-                    .with(predicate::eq("mapname"))
-                    .returning_st(move |_| {
-                        CVar::try_from(raw_mapname_cvar.borrow_mut() as *mut cvar_t).ok()
-                    });
-                mock_engine
-                    .expect_find_cvar()
-                    .with(predicate::eq("g_factory"))
-                    .returning_st(move |_| {
-                        CVar::try_from(raw_factory_cvar.borrow_mut() as *mut cvar_t).ok()
-                    });
                 mock_engine.expect_get_configstring().withf(|index| {
                     [CS_MESSAGE as u16, CS_AUTHOR as u16, CS_AUTHOR2 as u16].contains(index)
                 });
@@ -5101,13 +5023,12 @@ mod handle_new_game_tests {
             .expect("this should not happen");
 
         MockEngineBuilder::default()
+            .with_find_cvar(
+                predicate::eq("zmq_stats_enable"),
+                move |_| CVar::try_from(raw_zmq_cvar.borrow_mut() as *mut cvar_t).ok(),
+                1..,
+            )
             .configure(|mock_engine| {
-                mock_engine
-                    .expect_find_cvar()
-                    .with(predicate::eq("zmq_stats_enable"))
-                    .returning_st(move |_| {
-                        CVar::try_from(raw_zmq_cvar.borrow_mut() as *mut cvar_t).ok()
-                    });
                 mock_engine.expect_get_configstring().withf(|index| {
                     [CS_MESSAGE as u16, CS_AUTHOR as u16, CS_AUTHOR2 as u16].contains(index)
                 });
@@ -5197,13 +5118,12 @@ mod handle_new_game_tests {
             .expect("this should not happen");
 
         MockEngineBuilder::default()
+            .with_find_cvar(
+                predicate::eq("zmq_stats_enable"),
+                move |_| CVar::try_from(raw_zmq_cvar.borrow_mut() as *mut cvar_t).ok(),
+                1..,
+            )
             .configure(|mock_engine| {
-                mock_engine
-                    .expect_find_cvar()
-                    .with(predicate::eq("zmq_stats_enable"))
-                    .returning_st(move |_| {
-                        CVar::try_from(raw_zmq_cvar.borrow_mut() as *mut cvar_t).ok()
-                    });
                 mock_engine
                     .expect_find_cvar()
                     .withf(|name| ["qlx_pluginsPath", "fs_homepath"].contains(&name))
@@ -5296,13 +5216,12 @@ mod handle_new_game_tests {
             .expect("this should not happen");
 
         MockEngineBuilder::default()
+            .with_find_cvar(
+                predicate::eq("zmq_stats_enable"),
+                move |_| CVar::try_from(raw_zmq_cvar.borrow_mut() as *mut cvar_t).ok(),
+                1..,
+            )
             .configure(|mock_engine| {
-                mock_engine
-                    .expect_find_cvar()
-                    .with(predicate::eq("zmq_stats_enable"))
-                    .returning_st(move |_| {
-                        CVar::try_from(raw_zmq_cvar.borrow_mut() as *mut cvar_t).ok()
-                    });
                 mock_engine
                     .expect_find_cvar()
                     .withf(|name| ["qlx_pluginsPath", "fs_homepath"].contains(&name))
@@ -5691,14 +5610,11 @@ mod handle_set_configstring_tests {
             .expect("this should not happen");
 
         MockEngineBuilder::default()
-            .configure(|mock_engine| {
-                mock_engine
-                    .expect_find_cvar()
-                    .with(predicate::eq("zmq_stats_enable"))
-                    .returning_st(move |_| {
-                        CVar::try_from(raw_cvar.borrow_mut() as *mut cvar_t).ok()
-                    });
-            })
+            .with_find_cvar(
+                predicate::eq("zmq_stats_enable"),
+                move |_| CVar::try_from(raw_cvar.borrow_mut() as *mut cvar_t).ok(),
+                1..,
+            )
             .run(|| {
                 Python::with_gil(|py| {
                     let event_dispatcher = EventDispatcherManager::default();
@@ -5750,14 +5666,11 @@ mod handle_set_configstring_tests {
             .expect("this should not happen");
 
         MockEngineBuilder::default()
-            .configure(|mock_engine| {
-                mock_engine
-                    .expect_find_cvar()
-                    .with(predicate::eq("zmq_stats_enable"))
-                    .returning_st(move |_| {
-                        CVar::try_from(raw_cvar.borrow_mut() as *mut cvar_t).ok()
-                    });
-            })
+            .with_find_cvar(
+                predicate::eq("zmq_stats_enable"),
+                move |_| CVar::try_from(raw_cvar.borrow_mut() as *mut cvar_t).ok(),
+                1..,
+            )
             .run(|| {
                 Python::with_gil(|py| {
                     let event_dispatcher = EventDispatcherManager::default();
@@ -5820,14 +5733,11 @@ mod handle_set_configstring_tests {
             .expect("this should not happen");
 
         MockEngineBuilder::default()
-            .configure(|mock_engine| {
-                mock_engine
-                    .expect_find_cvar()
-                    .with(predicate::eq("zmq_stats_enable"))
-                    .returning_st(move |_| {
-                        CVar::try_from(raw_cvar.borrow_mut() as *mut cvar_t).ok()
-                    });
-            })
+            .with_find_cvar(
+                predicate::eq("zmq_stats_enable"),
+                move |_| CVar::try_from(raw_cvar.borrow_mut() as *mut cvar_t).ok(),
+                1..,
+            )
             .run(|| {
                 Python::with_gil(|py| {
                     let event_dispatcher = EventDispatcherManager::default();
@@ -5873,14 +5783,11 @@ mod handle_set_configstring_tests {
             .expect("this should not happen");
 
         MockEngineBuilder::default()
-            .configure(|mock_engine| {
-                mock_engine
-                    .expect_find_cvar()
-                    .with(predicate::eq("zmq_stats_enable"))
-                    .returning_st(move |_| {
-                        CVar::try_from(raw_cvar.borrow_mut() as *mut cvar_t).ok()
-                    });
-            })
+            .with_find_cvar(
+                predicate::eq("zmq_stats_enable"),
+                move |_| CVar::try_from(raw_cvar.borrow_mut() as *mut cvar_t).ok(),
+                1..,
+            )
             .run(|| {
                 Python::with_gil(|py| {
                     let event_dispatcher = EventDispatcherManager::default();
@@ -5933,14 +5840,11 @@ mod handle_set_configstring_tests {
             .expect("this should not happen");
 
         MockEngineBuilder::default()
-            .configure(|mock_engine| {
-                mock_engine
-                    .expect_find_cvar()
-                    .with(predicate::eq("zmq_stats_enable"))
-                    .returning_st(move |_| {
-                        CVar::try_from(raw_cvar.borrow_mut() as *mut cvar_t).ok()
-                    });
-            })
+            .with_find_cvar(
+                predicate::eq("zmq_stats_enable"),
+                move |_| CVar::try_from(raw_cvar.borrow_mut() as *mut cvar_t).ok(),
+                1..,
+            )
             .run(|| {
                 Python::with_gil(|py| {
                     let event_dispatcher = EventDispatcherManager::default();
@@ -5994,14 +5898,11 @@ mod handle_set_configstring_tests {
             .expect("this should not happen");
 
         MockEngineBuilder::default()
-            .configure(|mock_engine| {
-                mock_engine
-                    .expect_find_cvar()
-                    .with(predicate::eq("zmq_stats_enable"))
-                    .returning_st(move |_| {
-                        CVar::try_from(raw_cvar.borrow_mut() as *mut cvar_t).ok()
-                    });
-            })
+            .with_find_cvar(
+                predicate::eq("zmq_stats_enable"),
+                move |_| CVar::try_from(raw_cvar.borrow_mut() as *mut cvar_t).ok(),
+                1..,
+            )
             .run(|| {
                 Python::with_gil(|py| {
                     let event_dispatcher = EventDispatcherManager::default();
@@ -6161,17 +6062,16 @@ mod handle_set_configstring_tests {
             .build()
             .expect("this should not happen");
         MockEngineBuilder::default()
+            .with_find_cvar(
+                predicate::eq("zmq_stats_enable"),
+                move |_| CVar::try_from(raw_cvar.borrow_mut() as *mut cvar_t).ok(),
+                1..,
+            )
             .configure(|mock_engine| {
                 mock_engine
                     .expect_get_configstring()
                     .with(predicate::eq(CS_SERVERINFO as u16))
                     .returning(|_| r"\g_gameState\PRE_GAME".into());
-                mock_engine
-                    .expect_find_cvar()
-                    .with(predicate::eq("zmq_stats_enable"))
-                    .returning_st(move |_| {
-                        CVar::try_from(raw_cvar.borrow_mut() as *mut cvar_t).ok()
-                    });
             })
             .run(|| {
                 Python::with_gil(|py| {
@@ -6233,11 +6133,6 @@ mod handle_set_configstring_tests {
     ) {
         let old_configstring = format!(r"\g_gameState\{old_state}");
         let new_configstring = format!(r"\g_gameState\{new_state}");
-        let cvar_string = c"1";
-        let mut raw_cvar = CVarBuilder::default()
-            .string(cvar_string.as_ptr().cast_mut())
-            .build()
-            .expect("this should not happen");
 
         MockEngineBuilder::default()
             .configure(|mock_engine| {
@@ -6245,12 +6140,6 @@ mod handle_set_configstring_tests {
                     .expect_get_configstring()
                     .with(predicate::eq(CS_SERVERINFO as u16))
                     .returning(move |_| old_configstring.clone());
-                mock_engine
-                    .expect_find_cvar()
-                    .with(predicate::eq("zmq_stats_enable"))
-                    .returning_st(move |_| {
-                        CVar::try_from(raw_cvar.borrow_mut() as *mut cvar_t).ok()
-                    });
             })
             .run(|| {
                 Python::with_gil(|py| {
@@ -6310,24 +6199,12 @@ mod handle_set_configstring_tests {
     #[cfg_attr(miri, ignore)]
     #[serial]
     fn try_set_configstring_for_invalid_state_change(_pyshinqlx_setup: ()) {
-        let cvar_string = c"1";
-        let mut raw_cvar = CVarBuilder::default()
-            .string(cvar_string.as_ptr().cast_mut())
-            .build()
-            .expect("this should not happen");
-
         MockEngineBuilder::default()
             .configure(|mock_engine| {
                 mock_engine
                     .expect_get_configstring()
                     .with(predicate::eq(CS_SERVERINFO as u16))
                     .returning(|_| r"\g_gameState\IN_PROGRESS".into());
-                mock_engine
-                    .expect_find_cvar()
-                    .with(predicate::eq("zmq_stats_enable"))
-                    .returning_st(move |_| {
-                        CVar::try_from(raw_cvar.borrow_mut() as *mut cvar_t).ok()
-                    });
             })
             .run(|| {
                 Python::with_gil(|py| {
@@ -6363,14 +6240,11 @@ mod handle_set_configstring_tests {
             .expect("this should not happen");
 
         MockEngineBuilder::default()
-            .configure(|mock_engine| {
-                mock_engine
-                    .expect_find_cvar()
-                    .with(predicate::eq("zmq_stats_enable"))
-                    .returning_st(move |_| {
-                        CVar::try_from(raw_cvar.borrow_mut() as *mut cvar_t).ok()
-                    });
-            })
+            .with_find_cvar(
+                predicate::eq("zmq_stats_enable"),
+                move |_| CVar::try_from(raw_cvar.borrow_mut() as *mut cvar_t).ok(),
+                1..,
+            )
             .run(|| {
                 Python::with_gil(|py| {
                     let event_dispatcher = EventDispatcherManager::default();
@@ -6425,14 +6299,11 @@ mod handle_set_configstring_tests {
             .expect("this should not happen");
 
         MockEngineBuilder::default()
-            .configure(|mock_engine| {
-                mock_engine
-                    .expect_find_cvar()
-                    .with(predicate::eq("zmq_stats_enable"))
-                    .returning_st(move |_| {
-                        CVar::try_from(raw_cvar.borrow_mut() as *mut cvar_t).ok()
-                    });
-            })
+            .with_find_cvar(
+                predicate::eq("zmq_stats_enable"),
+                move |_| CVar::try_from(raw_cvar.borrow_mut() as *mut cvar_t).ok(),
+                1..,
+            )
             .run(|| {
                 Python::with_gil(|py| {
                     let event_dispatcher = EventDispatcherManager::default();
@@ -6492,14 +6363,11 @@ mod handle_set_configstring_tests {
             .expect("this should not happen");
 
         MockEngineBuilder::default()
-            .configure(|mock_engine| {
-                mock_engine
-                    .expect_find_cvar()
-                    .with(predicate::eq("zmq_stats_enable"))
-                    .returning_st(move |_| {
-                        CVar::try_from(raw_cvar.borrow_mut() as *mut cvar_t).ok()
-                    });
-            })
+            .with_find_cvar(
+                predicate::eq("zmq_stats_enable"),
+                move |_| CVar::try_from(raw_cvar.borrow_mut() as *mut cvar_t).ok(),
+                1..,
+            )
             .run(|| {
                 Python::with_gil(|py| {
                     let event_dispatcher = EventDispatcherManager::default();
@@ -6555,14 +6423,11 @@ mod handle_set_configstring_tests {
             .expect("this should not happen");
 
         MockEngineBuilder::default()
-            .configure(|mock_engine| {
-                mock_engine
-                    .expect_find_cvar()
-                    .with(predicate::eq("zmq_stats_enable"))
-                    .returning_st(move |_| {
-                        CVar::try_from(raw_cvar.borrow_mut() as *mut cvar_t).ok()
-                    });
-            })
+            .with_find_cvar(
+                predicate::eq("zmq_stats_enable"),
+                move |_| CVar::try_from(raw_cvar.borrow_mut() as *mut cvar_t).ok(),
+                1..,
+            )
             .run(|| {
                 Python::with_gil(|py| {
                     let event_dispatcher = EventDispatcherManager::default();
@@ -6992,14 +6857,11 @@ mod handle_player_connect_tests {
             .expect("this should not happen");
 
         MockEngineBuilder::default()
-            .configure(|mock_engine| {
-                mock_engine
-                    .expect_find_cvar()
-                    .with(predicate::eq("zmq_stats_enable"))
-                    .returning_st(move |_| {
-                        CVar::try_from(raw_cvar.borrow_mut() as *mut cvar_t).ok()
-                    });
-            })
+            .with_find_cvar(
+                predicate::eq("zmq_stats_enable"),
+                move |_| CVar::try_from(raw_cvar.borrow_mut() as *mut cvar_t).ok(),
+                1..,
+            )
             .run(|| {
                 Python::with_gil(|py| {
                     let event_dispatcher = EventDispatcherManager::default();
@@ -7136,14 +6998,11 @@ mod handle_player_connect_tests {
             .expect("this should not happen");
 
         MockEngineBuilder::default()
-            .configure(|mock_engine| {
-                mock_engine
-                    .expect_find_cvar()
-                    .with(predicate::eq("zmq_stats_enable"))
-                    .returning_st(move |_| {
-                        CVar::try_from(raw_cvar.borrow_mut() as *mut cvar_t).ok()
-                    });
-            })
+            .with_find_cvar(
+                predicate::eq("zmq_stats_enable"),
+                move |_| CVar::try_from(raw_cvar.borrow_mut() as *mut cvar_t).ok(),
+                1..,
+            )
             .run(|| {
                 Python::with_gil(|py| {
                     let event_dispatcher = EventDispatcherManager::default();
@@ -7216,36 +7075,21 @@ mod handle_player_connect_tests {
                 mock_game_entity
             });
 
-        let cvar_string = c"1";
-        let mut raw_cvar = CVarBuilder::default()
-            .string(cvar_string.as_ptr().cast_mut())
-            .build()
-            .expect("this should not happen");
+        MockEngineBuilder::default().run(|| {
+            Python::with_gil(|py| {
+                let event_dispatcher = EventDispatcherManager::default();
+                EVENT_DISPATCHERS.store(Some(
+                    Py::new(py, event_dispatcher)
+                        .expect("could not create event dispatcher manager in python")
+                        .into(),
+                ));
 
-        MockEngineBuilder::default()
-            .configure(|mock_engine| {
-                mock_engine
-                    .expect_find_cvar()
-                    .with(predicate::eq("zmq_stats_enable"))
-                    .returning_st(move |_| {
-                        CVar::try_from(raw_cvar.borrow_mut() as *mut cvar_t).ok()
-                    });
-            })
-            .run(|| {
-                Python::with_gil(|py| {
-                    let event_dispatcher = EventDispatcherManager::default();
-                    EVENT_DISPATCHERS.store(Some(
-                        Py::new(py, event_dispatcher)
-                            .expect("could not create event dispatcher manager in python")
-                            .into(),
-                    ));
-
-                    let result = handle_player_connect(py, 42, false);
-                    assert!(result
-                        .extract::<Bound<'_, PyBool>>(py)
-                        .is_ok_and(|bool_value| bool_value.is_true()));
-                });
+                let result = handle_player_connect(py, 42, false);
+                assert!(result
+                    .extract::<Bound<'_, PyBool>>(py)
+                    .is_ok_and(|bool_value| bool_value.is_true()));
             });
+        });
     }
 }
 
@@ -7354,14 +7198,11 @@ mod handle_player_loaded_tests {
             .expect("this should not happen");
 
         MockEngineBuilder::default()
-            .configure(|mock_engine| {
-                mock_engine
-                    .expect_find_cvar()
-                    .with(predicate::eq("zmq_stats_enable"))
-                    .returning_st(move |_| {
-                        CVar::try_from(raw_cvar.borrow_mut() as *mut cvar_t).ok()
-                    });
-            })
+            .with_find_cvar(
+                predicate::eq("zmq_stats_enable"),
+                move |_| CVar::try_from(raw_cvar.borrow_mut() as *mut cvar_t).ok(),
+                1..,
+            )
             .run(|| {
                 Python::with_gil(|py| {
                     let event_dispatcher = EventDispatcherManager::default();
@@ -7491,36 +7332,21 @@ mod handle_player_loaded_tests {
                 mock_game_entity
             });
 
-        let cvar_string = c"1";
-        let mut raw_cvar = CVarBuilder::default()
-            .string(cvar_string.as_ptr().cast_mut())
-            .build()
-            .expect("this should not happen");
+        MockEngineBuilder::default().run(|| {
+            Python::with_gil(|py| {
+                let event_dispatcher = EventDispatcherManager::default();
+                EVENT_DISPATCHERS.store(Some(
+                    Py::new(py, event_dispatcher)
+                        .expect("could not create event dispatcher manager in python")
+                        .into(),
+                ));
 
-        MockEngineBuilder::default()
-            .configure(|mock_engine| {
-                mock_engine
-                    .expect_find_cvar()
-                    .with(predicate::eq("zmq_stats_enable"))
-                    .returning_st(move |_| {
-                        CVar::try_from(raw_cvar.borrow_mut() as *mut cvar_t).ok()
-                    });
-            })
-            .run(|| {
-                Python::with_gil(|py| {
-                    let event_dispatcher = EventDispatcherManager::default();
-                    EVENT_DISPATCHERS.store(Some(
-                        Py::new(py, event_dispatcher)
-                            .expect("could not create event dispatcher manager in python")
-                            .into(),
-                    ));
-
-                    let result = handle_player_loaded(py, 42);
-                    assert!(result
-                        .extract::<Bound<'_, PyBool>>(py)
-                        .is_ok_and(|bool_value| bool_value.is_true()));
-                });
+                let result = handle_player_loaded(py, 42);
+                assert!(result
+                    .extract::<Bound<'_, PyBool>>(py)
+                    .is_ok_and(|bool_value| bool_value.is_true()));
             });
+        });
     }
 }
 
@@ -7636,14 +7462,11 @@ mod handle_player_disconnect_tests {
             .expect("this should not happen");
 
         MockEngineBuilder::default()
-            .configure(|mock_engine| {
-                mock_engine
-                    .expect_find_cvar()
-                    .with(predicate::eq("zmq_stats_enable"))
-                    .returning_st(move |_| {
-                        CVar::try_from(raw_cvar.borrow_mut() as *mut cvar_t).ok()
-                    });
-            })
+            .with_find_cvar(
+                predicate::eq("zmq_stats_enable"),
+                move |_| CVar::try_from(raw_cvar.borrow_mut() as *mut cvar_t).ok(),
+                1..,
+            )
             .run(|| {
                 Python::with_gil(|py| {
                     let event_dispatcher = EventDispatcherManager::default();
@@ -7773,36 +7596,21 @@ mod handle_player_disconnect_tests {
                 mock_game_entity
             });
 
-        let cvar_string = c"1";
-        let mut raw_cvar = CVarBuilder::default()
-            .string(cvar_string.as_ptr().cast_mut())
-            .build()
-            .expect("this should not happen");
+        MockEngineBuilder::default().run(|| {
+            Python::with_gil(|py| {
+                let event_dispatcher = EventDispatcherManager::default();
+                EVENT_DISPATCHERS.store(Some(
+                    Py::new(py, event_dispatcher)
+                        .expect("could not create event dispatcher manager in python")
+                        .into(),
+                ));
 
-        MockEngineBuilder::default()
-            .configure(|mock_engine| {
-                mock_engine
-                    .expect_find_cvar()
-                    .with(predicate::eq("zmq_stats_enable"))
-                    .returning_st(move |_| {
-                        CVar::try_from(raw_cvar.borrow_mut() as *mut cvar_t).ok()
-                    });
-            })
-            .run(|| {
-                Python::with_gil(|py| {
-                    let event_dispatcher = EventDispatcherManager::default();
-                    EVENT_DISPATCHERS.store(Some(
-                        Py::new(py, event_dispatcher)
-                            .expect("could not create event dispatcher manager in python")
-                            .into(),
-                    ));
-
-                    let result = handle_player_disconnect(py, 42, None);
-                    assert!(result
-                        .extract::<Bound<'_, PyBool>>(py)
-                        .is_ok_and(|bool_value| bool_value.is_true()));
-                });
+                let result = handle_player_disconnect(py, 42, None);
+                assert!(result
+                    .extract::<Bound<'_, PyBool>>(py)
+                    .is_ok_and(|bool_value| bool_value.is_true()));
             });
+        });
     }
 }
 
@@ -7911,14 +7719,11 @@ mod handle_player_spawn_tests {
             .expect("this should not happen");
 
         MockEngineBuilder::default()
-            .configure(|mock_engine| {
-                mock_engine
-                    .expect_find_cvar()
-                    .with(predicate::eq("zmq_stats_enable"))
-                    .returning_st(move |_| {
-                        CVar::try_from(raw_cvar.borrow_mut() as *mut cvar_t).ok()
-                    });
-            })
+            .with_find_cvar(
+                predicate::eq("zmq_stats_enable"),
+                move |_| CVar::try_from(raw_cvar.borrow_mut() as *mut cvar_t).ok(),
+                1..,
+            )
             .run(|| {
                 Python::with_gil(|py| {
                     let event_dispatcher = EventDispatcherManager::default();
@@ -8048,36 +7853,21 @@ mod handle_player_spawn_tests {
                 mock_game_entity
             });
 
-        let cvar_string = c"1";
-        let mut raw_cvar = CVarBuilder::default()
-            .string(cvar_string.as_ptr().cast_mut())
-            .build()
-            .expect("this should not happen");
+        MockEngineBuilder::default().run(|| {
+            Python::with_gil(|py| {
+                let event_dispatcher = EventDispatcherManager::default();
+                EVENT_DISPATCHERS.store(Some(
+                    Py::new(py, event_dispatcher)
+                        .expect("could not create event dispatcher manager in python")
+                        .into(),
+                ));
 
-        MockEngineBuilder::default()
-            .configure(|mock_engine| {
-                mock_engine
-                    .expect_find_cvar()
-                    .with(predicate::eq("zmq_stats_enable"))
-                    .returning_st(move |_| {
-                        CVar::try_from(raw_cvar.borrow_mut() as *mut cvar_t).ok()
-                    });
-            })
-            .run(|| {
-                Python::with_gil(|py| {
-                    let event_dispatcher = EventDispatcherManager::default();
-                    EVENT_DISPATCHERS.store(Some(
-                        Py::new(py, event_dispatcher)
-                            .expect("could not create event dispatcher manager in python")
-                            .into(),
-                    ));
-
-                    let result = handle_player_spawn(py, 42);
-                    assert!(result
-                        .extract::<Bound<'_, PyBool>>(py)
-                        .is_ok_and(|bool_value| bool_value.is_true()));
-                });
+                let result = handle_player_spawn(py, 42);
+                assert!(result
+                    .extract::<Bound<'_, PyBool>>(py)
+                    .is_ok_and(|bool_value| bool_value.is_true()));
             });
+        });
     }
 }
 
@@ -8184,14 +7974,11 @@ mod handle_kamikaze_use_tests {
             .expect("this should not happen");
 
         MockEngineBuilder::default()
-            .configure(|mock_engine| {
-                mock_engine
-                    .expect_find_cvar()
-                    .with(predicate::eq("zmq_stats_enable"))
-                    .returning_st(move |_| {
-                        CVar::try_from(raw_cvar.borrow_mut() as *mut cvar_t).ok()
-                    });
-            })
+            .with_find_cvar(
+                predicate::eq("zmq_stats_enable"),
+                move |_| CVar::try_from(raw_cvar.borrow_mut() as *mut cvar_t).ok(),
+                1..,
+            )
             .run(|| {
                 Python::with_gil(|py| {
                     let event_dispatcher = EventDispatcherManager::default();
@@ -8321,36 +8108,21 @@ mod handle_kamikaze_use_tests {
                 mock_game_entity
             });
 
-        let cvar_string = c"1";
-        let mut raw_cvar = CVarBuilder::default()
-            .string(cvar_string.as_ptr().cast_mut())
-            .build()
-            .expect("this should not happen");
+        MockEngineBuilder::default().run(|| {
+            Python::with_gil(|py| {
+                let event_dispatcher = EventDispatcherManager::default();
+                EVENT_DISPATCHERS.store(Some(
+                    Py::new(py, event_dispatcher)
+                        .expect("could not create event dispatcher manager in python")
+                        .into(),
+                ));
 
-        MockEngineBuilder::default()
-            .configure(|mock_engine| {
-                mock_engine
-                    .expect_find_cvar()
-                    .with(predicate::eq("zmq_stats_enable"))
-                    .returning_st(move |_| {
-                        CVar::try_from(raw_cvar.borrow_mut() as *mut cvar_t).ok()
-                    });
-            })
-            .run(|| {
-                Python::with_gil(|py| {
-                    let event_dispatcher = EventDispatcherManager::default();
-                    EVENT_DISPATCHERS.store(Some(
-                        Py::new(py, event_dispatcher)
-                            .expect("could not create event dispatcher manager in python")
-                            .into(),
-                    ));
-
-                    let result = handle_kamikaze_use(py, 42);
-                    assert!(result
-                        .extract::<Bound<'_, PyBool>>(py)
-                        .is_ok_and(|bool_value| bool_value.is_true()));
-                });
+                let result = handle_kamikaze_use(py, 42);
+                assert!(result
+                    .extract::<Bound<'_, PyBool>>(py)
+                    .is_ok_and(|bool_value| bool_value.is_true()));
             });
+        });
     }
 }
 
@@ -8464,14 +8236,11 @@ mod handle_kamikaze_explode_tests {
             .expect("this should not happen");
 
         MockEngineBuilder::default()
-            .configure(|mock_engine| {
-                mock_engine
-                    .expect_find_cvar()
-                    .with(predicate::eq("zmq_stats_enable"))
-                    .returning_st(move |_| {
-                        CVar::try_from(raw_cvar.borrow_mut() as *mut cvar_t).ok()
-                    });
-            })
+            .with_find_cvar(
+                predicate::eq("zmq_stats_enable"),
+                move |_| CVar::try_from(raw_cvar.borrow_mut() as *mut cvar_t).ok(),
+                1..,
+            )
             .run(|| {
                 Python::with_gil(|py| {
                     let event_dispatcher = EventDispatcherManager::default();
@@ -8557,14 +8326,11 @@ mod handle_kamikaze_explode_tests {
             .expect("this should not happen");
 
         MockEngineBuilder::default()
-            .configure(|mock_engine| {
-                mock_engine
-                    .expect_find_cvar()
-                    .with(predicate::eq("zmq_stats_enable"))
-                    .returning_st(move |_| {
-                        CVar::try_from(raw_cvar.borrow_mut() as *mut cvar_t).ok()
-                    });
-            })
+            .with_find_cvar(
+                predicate::eq("zmq_stats_enable"),
+                move |_| CVar::try_from(raw_cvar.borrow_mut() as *mut cvar_t).ok(),
+                1..,
+            )
             .run(|| {
                 Python::with_gil(|py| {
                     let event_dispatcher = EventDispatcherManager::default();
@@ -8694,36 +8460,21 @@ mod handle_kamikaze_explode_tests {
                 mock_game_entity
             });
 
-        let cvar_string = c"1";
-        let mut raw_cvar = CVarBuilder::default()
-            .string(cvar_string.as_ptr().cast_mut())
-            .build()
-            .expect("this should not happen");
+        MockEngineBuilder::default().run(|| {
+            Python::with_gil(|py| {
+                let event_dispatcher = EventDispatcherManager::default();
+                EVENT_DISPATCHERS.store(Some(
+                    Py::new(py, event_dispatcher)
+                        .expect("could not create event dispatcher manager in python")
+                        .into(),
+                ));
 
-        MockEngineBuilder::default()
-            .configure(|mock_engine| {
-                mock_engine
-                    .expect_find_cvar()
-                    .with(predicate::eq("zmq_stats_enable"))
-                    .returning_st(move |_| {
-                        CVar::try_from(raw_cvar.borrow_mut() as *mut cvar_t).ok()
-                    });
-            })
-            .run(|| {
-                Python::with_gil(|py| {
-                    let event_dispatcher = EventDispatcherManager::default();
-                    EVENT_DISPATCHERS.store(Some(
-                        Py::new(py, event_dispatcher)
-                            .expect("could not create event dispatcher manager in python")
-                            .into(),
-                    ));
-
-                    let result = handle_kamikaze_explode(py, 42, false);
-                    assert!(result
-                        .extract::<Bound<'_, PyBool>>(py)
-                        .is_ok_and(|bool_value| bool_value.is_true()));
-                });
+                let result = handle_kamikaze_explode(py, 42, false);
+                assert!(result
+                    .extract::<Bound<'_, PyBool>>(py)
+                    .is_ok_and(|bool_value| bool_value.is_true()));
             });
+        });
     }
 }
 
@@ -8872,14 +8623,11 @@ mod handle_damage_tests {
             .expect("this should not happen");
 
         MockEngineBuilder::default()
-            .configure(|mock_engine| {
-                mock_engine
-                    .expect_find_cvar()
-                    .with(predicate::eq("zmq_stats_enable"))
-                    .returning_st(move |_| {
-                        CVar::try_from(raw_cvar.borrow_mut() as *mut cvar_t).ok()
-                    });
-            })
+            .with_find_cvar(
+                predicate::eq("zmq_stats_enable"),
+                move |_| CVar::try_from(raw_cvar.borrow_mut() as *mut cvar_t).ok(),
+                1..,
+            )
             .run(|| {
                 Python::with_gil(|py| {
                     let event_dispatcher = EventDispatcherManager::default();
@@ -8973,14 +8721,11 @@ mod handle_damage_tests {
             .expect("this should not happen");
 
         MockEngineBuilder::default()
-            .configure(|mock_engine| {
-                mock_engine
-                    .expect_find_cvar()
-                    .with(predicate::eq("zmq_stats_enable"))
-                    .returning_st(move |_| {
-                        CVar::try_from(raw_cvar.borrow_mut() as *mut cvar_t).ok()
-                    });
-            })
+            .with_find_cvar(
+                predicate::eq("zmq_stats_enable"),
+                move |_| CVar::try_from(raw_cvar.borrow_mut() as *mut cvar_t).ok(),
+                1..,
+            )
             .run(|| {
                 Python::with_gil(|py| {
                     let event_dispatcher = EventDispatcherManager::default();
@@ -9074,14 +8819,11 @@ mod handle_damage_tests {
             .expect("this should not happen");
 
         MockEngineBuilder::default()
-            .configure(|mock_engine| {
-                mock_engine
-                    .expect_find_cvar()
-                    .with(predicate::eq("zmq_stats_enable"))
-                    .returning_st(move |_| {
-                        CVar::try_from(raw_cvar.borrow_mut() as *mut cvar_t).ok()
-                    });
-            })
+            .with_find_cvar(
+                predicate::eq("zmq_stats_enable"),
+                move |_| CVar::try_from(raw_cvar.borrow_mut() as *mut cvar_t).ok(),
+                1..,
+            )
             .run(|| {
                 Python::with_gil(|py| {
                     let event_dispatcher = EventDispatcherManager::default();
@@ -9226,41 +8968,26 @@ mod handle_damage_tests {
                 mock_game_entity
             });
 
-        let cvar_string = c"1";
-        let mut raw_cvar = CVarBuilder::default()
-            .string(cvar_string.as_ptr().cast_mut())
-            .build()
-            .expect("this should not happen");
+        MockEngineBuilder::default().run(|| {
+            Python::with_gil(|py| {
+                let event_dispatcher = EventDispatcherManager::default();
+                EVENT_DISPATCHERS.store(Some(
+                    Py::new(py, event_dispatcher)
+                        .expect("could not create event dispatcher manager in python")
+                        .into(),
+                ));
 
-        MockEngineBuilder::default()
-            .configure(|mock_engine| {
-                mock_engine
-                    .expect_find_cvar()
-                    .with(predicate::eq("zmq_stats_enable"))
-                    .returning_st(move |_| {
-                        CVar::try_from(raw_cvar.borrow_mut() as *mut cvar_t).ok()
-                    });
-            })
-            .run(|| {
-                Python::with_gil(|py| {
-                    let event_dispatcher = EventDispatcherManager::default();
-                    EVENT_DISPATCHERS.store(Some(
-                        Py::new(py, event_dispatcher)
-                            .expect("could not create event dispatcher manager in python")
-                            .into(),
-                    ));
-
-                    let result = handle_damage(
-                        py,
-                        42,
-                        None,
-                        100,
-                        DAMAGE_RADIUS as i32,
-                        MOD_ROCKET_SPLASH as i32,
-                    );
-                    assert!(result.is_some_and(|value| value));
-                });
+                let result = handle_damage(
+                    py,
+                    42,
+                    None,
+                    100,
+                    DAMAGE_RADIUS as i32,
+                    MOD_ROCKET_SPLASH as i32,
+                );
+                assert!(result.is_some_and(|value| value));
             });
+        });
     }
 }
 
@@ -9382,14 +9109,11 @@ mod handle_console_print_tests {
             .expect("this should not happen");
 
         MockEngineBuilder::default()
-            .configure(|mock_engine| {
-                mock_engine
-                    .expect_find_cvar()
-                    .with(predicate::eq("zmq_stats_enable"))
-                    .returning_st(move |_| {
-                        CVar::try_from(raw_cvar.borrow_mut() as *mut cvar_t).ok()
-                    });
-            })
+            .with_find_cvar(
+                predicate::eq("zmq_stats_enable"),
+                move |_| CVar::try_from(raw_cvar.borrow_mut() as *mut cvar_t).ok(),
+                1..,
+            )
             .run(|| {
                 Python::with_gil(|py| {
                     let event_dispatcher = EventDispatcherManager::default();
@@ -9443,14 +9167,11 @@ mod handle_console_print_tests {
             .expect("this should not happen");
 
         MockEngineBuilder::default()
-            .configure(|mock_engine| {
-                mock_engine
-                    .expect_find_cvar()
-                    .with(predicate::eq("zmq_stats_enable"))
-                    .returning_st(move |_| {
-                        CVar::try_from(raw_cvar.borrow_mut() as *mut cvar_t).ok()
-                    });
-            })
+            .with_find_cvar(
+                predicate::eq("zmq_stats_enable"),
+                move |_| CVar::try_from(raw_cvar.borrow_mut() as *mut cvar_t).ok(),
+                1..,
+            )
             .run(|| {
                 Python::with_gil(|py| {
                     let event_dispatcher = EventDispatcherManager::default();
@@ -9498,14 +9219,11 @@ mod handle_console_print_tests {
             .expect("this should not happen");
 
         MockEngineBuilder::default()
-            .configure(|mock_engine| {
-                mock_engine
-                    .expect_find_cvar()
-                    .with(predicate::eq("zmq_stats_enable"))
-                    .returning_st(move |_| {
-                        CVar::try_from(raw_cvar.borrow_mut() as *mut cvar_t).ok()
-                    });
-            })
+            .with_find_cvar(
+                predicate::eq("zmq_stats_enable"),
+                move |_| CVar::try_from(raw_cvar.borrow_mut() as *mut cvar_t).ok(),
+                1..,
+            )
             .run(|| {
                 Python::with_gil(|py| {
                     let event_dispatcher = EventDispatcherManager::default();
@@ -9550,51 +9268,36 @@ mod handle_console_print_tests {
             .with(predicate::eq("asdf\n"))
             .times(1);
 
-        let cvar_string = c"1";
-        let mut raw_cvar = CVarBuilder::default()
-            .string(cvar_string.as_ptr().cast_mut())
-            .build()
-            .expect("this should not happen");
+        MockEngineBuilder::default().run(|| {
+            Python::with_gil(|py| {
+                let console_channel =
+                    Py::new(py, ConsoleChannel::py_new()).expect("this should not happen");
+                let print_redirector = PrintRedirector::py_new(py, console_channel.into_py(py))
+                    .expect("this should not happen");
+                PRINT_REDIRECTION.store(Some(print_redirector.into_py(py).into()));
 
-        MockEngineBuilder::default()
-            .configure(|mock_engine| {
-                mock_engine
-                    .expect_find_cvar()
-                    .with(predicate::eq("zmq_stats_enable"))
-                    .returning_st(move |_| {
-                        CVar::try_from(raw_cvar.borrow_mut() as *mut cvar_t).ok()
-                    });
-            })
-            .run(|| {
-                Python::with_gil(|py| {
-                    let console_channel =
-                        Py::new(py, ConsoleChannel::py_new()).expect("this should not happen");
-                    let print_redirector = PrintRedirector::py_new(py, console_channel.into_py(py))
-                        .expect("this should not happen");
-                    PRINT_REDIRECTION.store(Some(print_redirector.into_py(py).into()));
+                let event_dispatcher = EventDispatcherManager::default();
+                event_dispatcher
+                    .add_dispatcher(py, py.get_type_bound::<ConsolePrintDispatcher>())
+                    .expect("could not add console_print dispatcher");
+                EVENT_DISPATCHERS.store(Some(
+                    Py::new(py, event_dispatcher)
+                        .expect("could not create event dispatcher manager in python")
+                        .into(),
+                ));
 
-                    let event_dispatcher = EventDispatcherManager::default();
-                    event_dispatcher
-                        .add_dispatcher(py, py.get_type_bound::<ConsolePrintDispatcher>())
-                        .expect("could not add console_print dispatcher");
-                    EVENT_DISPATCHERS.store(Some(
-                        Py::new(py, event_dispatcher)
-                            .expect("could not create event dispatcher manager in python")
-                            .into(),
-                    ));
+                let result = try_handle_console_print(py, "asdf");
+                assert!(result.is_ok_and(|value| value
+                    .extract::<String>(py)
+                    .is_ok_and(|str_value| str_value == "asdf")));
 
-                    let result = try_handle_console_print(py, "asdf");
-                    assert!(result.is_ok_and(|value| value
-                        .extract::<String>(py)
-                        .is_ok_and(|str_value| str_value == "asdf")));
-
-                    PRINT_REDIRECTION.load().as_ref().map(|redirector| {
-                        redirector
-                            .call_method0(py, "flush")
-                            .expect("this should not happen")
-                    });
+                PRINT_REDIRECTION.load().as_ref().map(|redirector| {
+                    redirector
+                        .call_method0(py, "flush")
+                        .expect("this should not happen")
                 });
             });
+        });
     }
 
     #[rstest]

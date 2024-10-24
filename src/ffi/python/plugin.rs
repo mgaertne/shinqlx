@@ -1268,14 +1268,11 @@ mod plugin_tests {
             .expect("this should not happen");
 
         MockEngineBuilder::default()
-            .configure(|mock_engine| {
-                mock_engine
-                    .expect_find_cvar()
-                    .with(predicate::eq("zmq_stats_enable"))
-                    .returning_st(move |_| {
-                        CVar::try_from(raw_cvar.borrow_mut() as *mut cvar_t).ok()
-                    });
-            })
+            .with_find_cvar(
+                predicate::eq("zmq_stats_enable"),
+                move |_| CVar::try_from(raw_cvar.borrow_mut() as *mut cvar_t).ok(),
+                1..,
+            )
             .run(|| {
                 Python::with_gil(|py| {
                     let event_dispatcher = EventDispatcherManager::default();
@@ -1551,14 +1548,11 @@ mod plugin_tests {
             .expect("this should not happen");
 
         MockEngineBuilder::default()
-            .configure(|mock_engine| {
-                mock_engine
-                    .expect_find_cvar()
-                    .with(predicate::eq("zmq_stats_enable"))
-                    .returning_st(move |_| {
-                        CVar::try_from(raw_cvar.borrow_mut() as *mut cvar_t).ok()
-                    });
-            })
+            .with_find_cvar(
+                predicate::eq("zmq_stats_enable"),
+                move |_| CVar::try_from(raw_cvar.borrow_mut() as *mut cvar_t).ok(),
+                1..,
+            )
             .run(|| {
                 Python::with_gil(|py| {
                     let event_dispatcher = EventDispatcherManager::default();
@@ -1609,14 +1603,11 @@ mod plugin_tests {
             .expect("this should not happen");
 
         MockEngineBuilder::default()
-            .configure(|mock_engine| {
-                mock_engine
-                    .expect_find_cvar()
-                    .with(predicate::eq("zmq_stats_enable"))
-                    .returning_st(move |_| {
-                        CVar::try_from(raw_cvar.borrow_mut() as *mut cvar_t).ok()
-                    });
-            })
+            .with_find_cvar(
+                predicate::eq("zmq_stats_enable"),
+                move |_| CVar::try_from(raw_cvar.borrow_mut() as *mut cvar_t).ok(),
+                1..,
+            )
             .run(|| {
                 Python::with_gil(|py| {
                     let event_dispatcher = EventDispatcherManager::default();
@@ -1710,14 +1701,11 @@ mod plugin_tests {
             .expect("this should not happen");
 
         MockEngineBuilder::default()
-            .configure(|mock_engine| {
-                mock_engine
-                    .expect_find_cvar()
-                    .with(predicate::eq("zmq_stats_enable"))
-                    .returning_st(move |_| {
-                        CVar::try_from(raw_cvar.borrow_mut() as *mut cvar_t).ok()
-                    });
-            })
+            .with_find_cvar(
+                predicate::eq("zmq_stats_enable"),
+                move |_| CVar::try_from(raw_cvar.borrow_mut() as *mut cvar_t).ok(),
+                1..,
+            )
             .run(|| {
                 Python::with_gil(|py| {
                     let event_dispatcher = EventDispatcherManager::default();
@@ -1796,14 +1784,11 @@ mod plugin_tests {
             .expect("this should not happen");
 
         MockEngineBuilder::default()
-            .configure(|mock_engine| {
-                mock_engine
-                    .expect_find_cvar()
-                    .with(predicate::eq("zmq_stats_enable"))
-                    .returning_st(move |_| {
-                        CVar::try_from(raw_cvar.borrow_mut() as *mut cvar_t).ok()
-                    });
-            })
+            .with_find_cvar(
+                predicate::eq("zmq_stats_enable"),
+                move |_| CVar::try_from(raw_cvar.borrow_mut() as *mut cvar_t).ok(),
+                1..,
+            )
             .run(|| {
                 Python::with_gil(|py| {
                     let event_dispatcher = EventDispatcherManager::default();
@@ -1863,14 +1848,11 @@ mod plugin_tests {
             .expect("this should not happen");
 
         MockEngineBuilder::default()
-            .configure(|mock_engine| {
-                mock_engine
-                    .expect_find_cvar()
-                    .with(predicate::eq("zmq_stats_enable"))
-                    .returning_st(move |_| {
-                        CVar::try_from(raw_cvar.borrow_mut() as *mut cvar_t).ok()
-                    });
-            })
+            .with_find_cvar(
+                predicate::eq("zmq_stats_enable"),
+                move |_| CVar::try_from(raw_cvar.borrow_mut() as *mut cvar_t).ok(),
+                1..,
+            )
             .run(|| {
                 Python::with_gil(|py| {
                     let event_dispatcher = EventDispatcherManager::default();
@@ -2349,13 +2331,7 @@ def handler():
     #[serial]
     fn get_cvar_when_cvar_not_found(_pyshinqlx_setup: ()) {
         MockEngineBuilder::default()
-            .configure(|mock_engine| {
-                mock_engine
-                    .expect_find_cvar()
-                    .with(predicate::eq("asdf"))
-                    .returning(|_| None)
-                    .times(1);
-            })
+            .with_find_cvar(predicate::eq("asdf"), |_| None, 1)
             .run(|| {
                 Python::with_gil(|py| {
                     let result = Plugin::get_cvar(&py.get_type_bound::<Plugin>(), "asdf", None);
@@ -2375,15 +2351,11 @@ def handler():
             .expect("this should not happen");
 
         MockEngineBuilder::default()
-            .configure(|mock_engine| {
-                mock_engine
-                    .expect_find_cvar()
-                    .with(predicate::eq("sv_maxclients"))
-                    .returning_st(move |_| {
-                        CVar::try_from(raw_cvar.borrow_mut() as *mut cvar_t).ok()
-                    })
-                    .times(1);
-            })
+            .with_find_cvar(
+                predicate::eq("sv_maxclients"),
+                move |_| CVar::try_from(raw_cvar.borrow_mut() as *mut cvar_t).ok(),
+                1,
+            )
             .run(|| {
                 Python::with_gil(|py| {
                     let result =
@@ -2407,15 +2379,11 @@ def handler():
             .expect("this should not happen");
 
         MockEngineBuilder::default()
-            .configure(|mock_engine| {
-                mock_engine
-                    .expect_find_cvar()
-                    .with(predicate::eq("sv_maxclients"))
-                    .returning_st(move |_| {
-                        CVar::try_from(raw_cvar.borrow_mut() as *mut cvar_t).ok()
-                    })
-                    .times(1);
-            })
+            .with_find_cvar(
+                predicate::eq("sv_maxclients"),
+                move |_| CVar::try_from(raw_cvar.borrow_mut() as *mut cvar_t).ok(),
+                1,
+            )
             .run(|| {
                 Python::with_gil(|py| {
                     let py_str_type = py.get_type_bound::<PyString>();
@@ -2437,13 +2405,7 @@ def handler():
     #[serial]
     fn get_cvar_str_when_no_cvar_found(_pyshinqlx_setup: ()) {
         MockEngineBuilder::default()
-            .configure(|mock_engine| {
-                mock_engine
-                    .expect_find_cvar()
-                    .with(predicate::eq("sv_maxclients"))
-                    .returning(|_| None)
-                    .times(1);
-            })
+            .with_find_cvar(predicate::eq("sv_maxclients"), |_| None, 1)
             .run(|| {
                 Python::with_gil(|py| {
                     let py_str_type = py.get_type_bound::<PyString>();
@@ -2468,15 +2430,11 @@ def handler():
             .expect("this should not happen");
 
         MockEngineBuilder::default()
-            .configure(|mock_engine| {
-                mock_engine
-                    .expect_find_cvar()
-                    .with(predicate::eq("sv_maxclients"))
-                    .returning_st(move |_| {
-                        CVar::try_from(raw_cvar.borrow_mut() as *mut cvar_t).ok()
-                    })
-                    .times(1);
-            })
+            .with_find_cvar(
+                predicate::eq("sv_maxclients"),
+                move |_| CVar::try_from(raw_cvar.borrow_mut() as *mut cvar_t).ok(),
+                1,
+            )
             .run(|| {
                 Python::with_gil(|py| {
                     let py_str_type = py.get_type_bound::<PyInt>();
@@ -2504,15 +2462,11 @@ def handler():
             .expect("this should not happen");
 
         MockEngineBuilder::default()
-            .configure(|mock_engine| {
-                mock_engine
-                    .expect_find_cvar()
-                    .with(predicate::eq("sv_maxclients"))
-                    .returning_st(move |_| {
-                        CVar::try_from(raw_cvar.borrow_mut() as *mut cvar_t).ok()
-                    })
-                    .times(1);
-            })
+            .with_find_cvar(
+                predicate::eq("sv_maxclients"),
+                move |_| CVar::try_from(raw_cvar.borrow_mut() as *mut cvar_t).ok(),
+                1,
+            )
             .run(|| {
                 Python::with_gil(|py| {
                     let py_str_type = py.get_type_bound::<PyInt>();
@@ -2531,13 +2485,7 @@ def handler():
     #[serial]
     fn get_cvar_int_when_no_cvar_found(_pyshinqlx_setup: ()) {
         MockEngineBuilder::default()
-            .configure(|mock_engine| {
-                mock_engine
-                    .expect_find_cvar()
-                    .with(predicate::eq("sv_maxclients"))
-                    .returning(|_| None)
-                    .times(1);
-            })
+            .with_find_cvar(predicate::eq("sv_maxclients"), |_| None, 1)
             .run(|| {
                 Python::with_gil(|py| {
                     let py_str_type = py.get_type_bound::<PyInt>();
@@ -2562,15 +2510,11 @@ def handler():
             .expect("this should not happen");
 
         MockEngineBuilder::default()
-            .configure(|mock_engine| {
-                mock_engine
-                    .expect_find_cvar()
-                    .with(predicate::eq("sv_maxclients"))
-                    .returning_st(move |_| {
-                        CVar::try_from(raw_cvar.borrow_mut() as *mut cvar_t).ok()
-                    })
-                    .times(1);
-            })
+            .with_find_cvar(
+                predicate::eq("sv_maxclients"),
+                move |_| CVar::try_from(raw_cvar.borrow_mut() as *mut cvar_t).ok(),
+                1,
+            )
             .run(|| {
                 Python::with_gil(|py| {
                     let py_str_type = py.get_type_bound::<PyFloat>();
@@ -2598,15 +2542,11 @@ def handler():
             .expect("this should not happen");
 
         MockEngineBuilder::default()
-            .configure(|mock_engine| {
-                mock_engine
-                    .expect_find_cvar()
-                    .with(predicate::eq("sv_maxclients"))
-                    .returning_st(move |_| {
-                        CVar::try_from(raw_cvar.borrow_mut() as *mut cvar_t).ok()
-                    })
-                    .times(1);
-            })
+            .with_find_cvar(
+                predicate::eq("sv_maxclients"),
+                move |_| CVar::try_from(raw_cvar.borrow_mut() as *mut cvar_t).ok(),
+                1,
+            )
             .run(|| {
                 Python::with_gil(|py| {
                     let py_str_type = py.get_type_bound::<PyFloat>();
@@ -2625,13 +2565,7 @@ def handler():
     #[serial]
     fn get_cvar_float_when_no_cvar_found(_pyshinqlx_setup: ()) {
         MockEngineBuilder::default()
-            .configure(|mock_engine| {
-                mock_engine
-                    .expect_find_cvar()
-                    .with(predicate::eq("sv_maxclients"))
-                    .returning(|_| None)
-                    .times(1);
-            })
+            .with_find_cvar(predicate::eq("sv_maxclients"), |_| None, 1)
             .run(|| {
                 Python::with_gil(|py| {
                     let py_str_type = py.get_type_bound::<PyFloat>();
@@ -2656,15 +2590,11 @@ def handler():
             .expect("this should not happen");
 
         MockEngineBuilder::default()
-            .configure(|mock_engine| {
-                mock_engine
-                    .expect_find_cvar()
-                    .with(predicate::eq("sv_maxclients"))
-                    .returning_st(move |_| {
-                        CVar::try_from(raw_cvar.borrow_mut() as *mut cvar_t).ok()
-                    })
-                    .times(1);
-            })
+            .with_find_cvar(
+                predicate::eq("sv_maxclients"),
+                move |_| CVar::try_from(raw_cvar.borrow_mut() as *mut cvar_t).ok(),
+                1,
+            )
             .run(|| {
                 Python::with_gil(|py| {
                     let py_str_type = py.get_type_bound::<PyBool>();
@@ -2687,13 +2617,7 @@ def handler():
     #[serial]
     fn get_cvar_bool_when_no_cvar_found(_pyshinqlx_setup: ()) {
         MockEngineBuilder::default()
-            .configure(|mock_engine| {
-                mock_engine
-                    .expect_find_cvar()
-                    .with(predicate::eq("sv_maxclients"))
-                    .returning(|_| None)
-                    .times(1);
-            })
+            .with_find_cvar(predicate::eq("sv_maxclients"), |_| None, 1)
             .run(|| {
                 Python::with_gil(|py| {
                     let py_str_type = py.get_type_bound::<PyBool>();
@@ -2723,15 +2647,11 @@ def handler():
             .expect("this should not happen");
 
         MockEngineBuilder::default()
-            .configure(|mock_engine| {
-                mock_engine
-                    .expect_find_cvar()
-                    .with(predicate::eq("sv_maxclients"))
-                    .returning_st(move |_| {
-                        CVar::try_from(raw_cvar.borrow_mut() as *mut cvar_t).ok()
-                    })
-                    .times(1);
-            })
+            .with_find_cvar(
+                predicate::eq("sv_maxclients"),
+                move |_| CVar::try_from(raw_cvar.borrow_mut() as *mut cvar_t).ok(),
+                1,
+            )
             .run(|| {
                 Python::with_gil(|py| {
                     let py_str_type = py.get_type_bound::<PyBool>();
@@ -2757,15 +2677,11 @@ def handler():
             .expect("this should not happen");
 
         MockEngineBuilder::default()
-            .configure(|mock_engine| {
-                mock_engine
-                    .expect_find_cvar()
-                    .with(predicate::eq("sv_maxclients"))
-                    .returning_st(move |_| {
-                        CVar::try_from(raw_cvar.borrow_mut() as *mut cvar_t).ok()
-                    })
-                    .times(1);
-            })
+            .with_find_cvar(
+                predicate::eq("sv_maxclients"),
+                move |_| CVar::try_from(raw_cvar.borrow_mut() as *mut cvar_t).ok(),
+                1,
+            )
             .run(|| {
                 Python::with_gil(|py| {
                     let py_str_type = py.get_type_bound::<PyList>();
@@ -2790,13 +2706,7 @@ def handler():
     #[serial]
     fn get_cvar_list_when_no_cvar_found(_pyshinqlx_setup: ()) {
         MockEngineBuilder::default()
-            .configure(|mock_engine| {
-                mock_engine
-                    .expect_find_cvar()
-                    .with(predicate::eq("sv_maxclients"))
-                    .returning(|_| None)
-                    .times(1);
-            })
+            .with_find_cvar(predicate::eq("sv_maxclients"), |_| None, 1)
             .run(|| {
                 Python::with_gil(|py| {
                     let py_str_type = py.get_type_bound::<PyList>();
@@ -2828,15 +2738,11 @@ def handler():
             .expect("this should not happen");
 
         MockEngineBuilder::default()
-            .configure(|mock_engine| {
-                mock_engine
-                    .expect_find_cvar()
-                    .with(predicate::eq("sv_maxclients"))
-                    .returning_st(move |_| {
-                        CVar::try_from(raw_cvar.borrow_mut() as *mut cvar_t).ok()
-                    })
-                    .times(1);
-            })
+            .with_find_cvar(
+                predicate::eq("sv_maxclients"),
+                move |_| CVar::try_from(raw_cvar.borrow_mut() as *mut cvar_t).ok(),
+                1,
+            )
             .run(|| {
                 Python::with_gil(|py| {
                     let py_str_type = py.get_type_bound::<PySet>();
@@ -2861,13 +2767,7 @@ def handler():
     #[serial]
     fn get_cvar_set_when_no_cvar_found(_pyshinqlx_setup: ()) {
         MockEngineBuilder::default()
-            .configure(|mock_engine| {
-                mock_engine
-                    .expect_find_cvar()
-                    .with(predicate::eq("sv_maxclients"))
-                    .returning(|_| None)
-                    .times(1);
-            })
+            .with_find_cvar(predicate::eq("sv_maxclients"), |_| None, 1)
             .run(|| {
                 Python::with_gil(|py| {
                     let py_str_type = py.get_type_bound::<PySet>();
@@ -2899,15 +2799,11 @@ def handler():
             .expect("this should not happen");
 
         MockEngineBuilder::default()
-            .configure(|mock_engine| {
-                mock_engine
-                    .expect_find_cvar()
-                    .with(predicate::eq("sv_maxclients"))
-                    .returning_st(move |_| {
-                        CVar::try_from(raw_cvar.borrow_mut() as *mut cvar_t).ok()
-                    })
-                    .times(1);
-            })
+            .with_find_cvar(
+                predicate::eq("sv_maxclients"),
+                move |_| CVar::try_from(raw_cvar.borrow_mut() as *mut cvar_t).ok(),
+                1,
+            )
             .run(|| {
                 Python::with_gil(|py| {
                     let py_str_type = py.get_type_bound::<PyTuple>();
@@ -2932,13 +2828,7 @@ def handler():
     #[serial]
     fn get_cvar_tuple_when_no_cvar_found(_pyshinqlx_setup: ()) {
         MockEngineBuilder::default()
-            .configure(|mock_engine| {
-                mock_engine
-                    .expect_find_cvar()
-                    .with(predicate::eq("sv_maxclients"))
-                    .returning(|_| None)
-                    .times(1);
-            })
+            .with_find_cvar(predicate::eq("sv_maxclients"), |_| None, 1)
             .run(|| {
                 Python::with_gil(|py| {
                     let py_str_type = py.get_type_bound::<PyTuple>();
@@ -2970,15 +2860,11 @@ def handler():
             .expect("this should not happen");
 
         MockEngineBuilder::default()
-            .configure(|mock_engine| {
-                mock_engine
-                    .expect_find_cvar()
-                    .with(predicate::eq("sv_maxclients"))
-                    .returning_st(move |_| {
-                        CVar::try_from(raw_cvar.borrow_mut() as *mut cvar_t).ok()
-                    })
-                    .times(1);
-            })
+            .with_find_cvar(
+                predicate::eq("sv_maxclients"),
+                move |_| CVar::try_from(raw_cvar.borrow_mut() as *mut cvar_t).ok(),
+                1,
+            )
             .run(|| {
                 Python::with_gil(|py| {
                     let py_str_type = py.get_type_bound::<PyDate>();
@@ -3013,12 +2899,8 @@ def handler():
     #[serial]
     fn set_cvar_for_not_existing_cvar(_pyshinqlx_setup: ()) {
         MockEngineBuilder::default()
+            .with_find_cvar(predicate::eq("sv_maxclients"), |_| None, 1)
             .configure(|mock_engine| {
-                mock_engine
-                    .expect_find_cvar()
-                    .with(predicate::eq("sv_maxclients"))
-                    .returning(|_| None)
-                    .times(1);
                 mock_engine
                     .expect_get_cvar()
                     .with(
@@ -3051,15 +2933,11 @@ def handler():
 
         MockEngineBuilder::default()
             .with_execute_console_command(|cmd| cmd == r#"sv_maxclients "64""#, 1)
-            .configure(|mock_engine| {
-                mock_engine
-                    .expect_find_cvar()
-                    .with(predicate::eq("sv_maxclients"))
-                    .returning_st(move |_| {
-                        CVar::try_from(raw_cvar.borrow_mut() as *mut cvar_t).ok()
-                    })
-                    .times(1);
-            })
+            .with_find_cvar(
+                predicate::eq("sv_maxclients"),
+                move |_| CVar::try_from(raw_cvar.borrow_mut() as *mut cvar_t).ok(),
+                1,
+            )
             .run(|| {
                 let result = Python::with_gil(|py| {
                     Plugin::set_cvar(
@@ -3095,11 +2973,8 @@ def handler():
     #[serial]
     fn set_cvar_limit_forwards_parameters_to_main_engine_call(_pyshinqlx_setup: ()) {
         MockEngineBuilder::default()
+            .with_find_cvar(predicate::eq("sv_maxclients"), |_| None, 1)
             .configure(|mock_engine| {
-                mock_engine
-                    .expect_find_cvar()
-                    .with(predicate::eq("sv_maxclients"))
-                    .times(1);
                 mock_engine
                     .expect_set_cvar_limit()
                     .with(
@@ -3146,12 +3021,8 @@ def handler():
     #[serial]
     fn set_cvar_once_for_not_existing_cvar(_pyshinqlx_setup: ()) {
         MockEngineBuilder::default()
+            .with_find_cvar(predicate::eq("sv_maxclients"), |_| None, 1)
             .configure(|mock_engine| {
-                mock_engine
-                    .expect_find_cvar()
-                    .with(predicate::eq("sv_maxclients"))
-                    .returning(|_| None)
-                    .times(1);
                 mock_engine
                     .expect_get_cvar()
                     .with(
@@ -3182,14 +3053,12 @@ def handler():
         let mut raw_cvar = CVarBuilder::default().build().unwrap();
 
         MockEngineBuilder::default()
+            .with_find_cvar(
+                predicate::eq("sv_maxclients"),
+                move |_| CVar::try_from(raw_cvar.borrow_mut() as *mut cvar_t).ok(),
+                1,
+            )
             .configure(|mock_engine| {
-                mock_engine
-                    .expect_find_cvar()
-                    .with(predicate::eq("sv_maxclients"))
-                    .returning_st(move |_| {
-                        CVar::try_from(raw_cvar.borrow_mut() as *mut cvar_t).ok()
-                    })
-                    .times(1);
                 mock_engine.expect_get_cvar().times(0);
             })
             .run(|| {
@@ -3228,11 +3097,8 @@ def handler():
     #[serial]
     fn set_cvar_limit_once_when_no_previous_value_is_set(_pyshinqlx_setup: ()) {
         MockEngineBuilder::default()
+            .with_find_cvar(predicate::eq("sv_maxclients"), |_| None, 1..9)
             .configure(|mock_engine| {
-                mock_engine
-                    .expect_find_cvar()
-                    .with(predicate::eq("sv_maxclients"))
-                    .returning(|_| None);
                 mock_engine
                     .expect_set_cvar_limit()
                     .with(
@@ -3266,14 +3132,12 @@ def handler():
         let mut raw_cvar = CVarBuilder::default().build().unwrap();
 
         MockEngineBuilder::default()
+            .with_find_cvar(
+                predicate::eq("sv_maxclients"),
+                move |_| CVar::try_from(raw_cvar.borrow_mut() as *mut cvar_t).ok(),
+                1,
+            )
             .configure(|mock_engine| {
-                mock_engine
-                    .expect_find_cvar()
-                    .with(predicate::eq("sv_maxclients"))
-                    .returning_st(move |_| {
-                        CVar::try_from(raw_cvar.borrow_mut() as *mut cvar_t).ok()
-                    })
-                    .times(1);
                 mock_engine.expect_set_cvar_limit().times(0);
             })
             .run(|| {
@@ -4800,11 +4664,8 @@ def handler():
     #[serial]
     fn teamsize_sets_teamsize(_pyshinqlx_setup: ()) {
         MockEngineBuilder::default()
+            .with_find_cvar(predicate::eq("teamsize"), |_| None, 1)
             .configure(|mock_engine| {
-                mock_engine
-                    .expect_find_cvar()
-                    .with(predicate::eq("teamsize"))
-                    .times(1);
                 mock_engine
                     .expect_get_cvar()
                     .withf(|cvar, value, flags| {
