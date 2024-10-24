@@ -66,7 +66,7 @@ mod set_cvar_tests {
     #[serial]
     fn set_cvar_for_not_existing_cvar(_pyshinqlx_setup: ()) {
         MockEngineBuilder::default()
-            .with_find_cvar(predicate::eq("sv_maxclients"), |_| None, 1)
+            .with_find_cvar(|cmd| cmd == "sv_maxclients", |_| None, 1)
             .configure(|mock_engine| {
                 mock_engine
                     .expect_get_cvar()
@@ -95,7 +95,7 @@ mod set_cvar_tests {
 
         MockEngineBuilder::default()
             .with_find_cvar(
-                predicate::eq("sv_maxclients"),
+                |cmd| cmd == "sv_maxclients",
                 move |_| CVar::try_from(raw_cvar.borrow_mut() as *mut cvar_t).ok(),
                 1,
             )
