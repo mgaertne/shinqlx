@@ -1870,11 +1870,8 @@ shinqlx._map_subtitle2 = "Awesome map!"
     #[serial]
     fn set_hostname_sets_new_hostname(_pyshinqlx_setup: ()) {
         MockEngineBuilder::default()
+            .with_find_cvar(predicate::eq("sv_hostname"), |_| None, 1)
             .configure(|mock_engine| {
-                mock_engine
-                    .expect_find_cvar()
-                    .with(predicate::eq("sv_hostname"))
-                    .times(1);
                 mock_engine
                     .expect_get_cvar()
                     .withf(|cvar, value, flags| {
@@ -1936,11 +1933,8 @@ shinqlx._map_subtitle2 = "Awesome map!"
         #[case] value_set: bool,
     ) {
         MockEngineBuilder::default()
+            .with_find_cvar(predicate::eq("g_instagib"), |_| None, 1)
             .configure(|mock_engine| {
-                mock_engine
-                    .expect_find_cvar()
-                    .with(predicate::eq("g_instagib"))
-                    .times(1);
                 mock_engine
                     .expect_get_cvar()
                     .withf(move |cvar, value, flags| {
@@ -1972,11 +1966,8 @@ shinqlx._map_subtitle2 = "Awesome map!"
         #[case] value_set: i32,
     ) {
         MockEngineBuilder::default()
+            .with_find_cvar(predicate::eq("g_instagib"), |_| None, 1)
             .configure(|mock_engine| {
-                mock_engine
-                    .expect_find_cvar()
-                    .with(predicate::eq("g_instagib"))
-                    .times(1);
                 mock_engine
                     .expect_get_cvar()
                     .withf(move |cvar, value, flags| {
@@ -2002,11 +1993,8 @@ shinqlx._map_subtitle2 = "Awesome map!"
     #[serial]
     fn set_instagib_with_invalid_value(_pyshinqlx_setup: ()) {
         MockEngineBuilder::default()
+            .with_find_cvar(predicate::eq("g_instagib"), |_| None, 0)
             .configure(|mock_engine| {
-                mock_engine
-                    .expect_find_cvar()
-                    .with(predicate::eq("g_instagib"))
-                    .times(0);
                 mock_engine
                     .expect_get_cvar()
                     .withf(|cvar, _value, _flags| cvar == "g_instagib")
@@ -2066,11 +2054,8 @@ shinqlx._map_subtitle2 = "Awesome map!"
         #[case] value_set: bool,
     ) {
         MockEngineBuilder::default()
+            .with_find_cvar(predicate::eq("g_loadout"), |_| None, 1)
             .configure(|mock_engine| {
-                mock_engine
-                    .expect_find_cvar()
-                    .with(predicate::eq("g_loadout"))
-                    .times(1);
                 mock_engine
                     .expect_get_cvar()
                     .withf(move |cvar, value, flags| {
@@ -2102,11 +2087,8 @@ shinqlx._map_subtitle2 = "Awesome map!"
         #[case] value_set: i32,
     ) {
         MockEngineBuilder::default()
+            .with_find_cvar(predicate::eq("g_loadout"), |_| None, 1)
             .configure(|mock_engine| {
-                mock_engine
-                    .expect_find_cvar()
-                    .with(predicate::eq("g_loadout"))
-                    .times(1);
                 mock_engine
                     .expect_get_cvar()
                     .withf(move |cvar, value, flags| {
@@ -2132,11 +2114,8 @@ shinqlx._map_subtitle2 = "Awesome map!"
     #[serial]
     fn set_loadout_with_invalid_value(_pyshinqlx_setup: ()) {
         MockEngineBuilder::default()
+            .with_find_cvar(predicate::eq("g_loadout"), |_| None, 0)
             .configure(|mock_engine| {
-                mock_engine
-                    .expect_find_cvar()
-                    .with(predicate::eq("g_loadout"))
-                    .times(0);
                 mock_engine
                     .expect_get_cvar()
                     .withf(|cvar, _value, _flags| cvar == "g_loadout")
@@ -2184,11 +2163,8 @@ shinqlx._map_subtitle2 = "Awesome map!"
     #[serial]
     fn set_maxclients_sets_new_maxclients_value(_pyshinqlx_setup: ()) {
         MockEngineBuilder::default()
+            .with_find_cvar(predicate::eq("sv_maxclients"), |_| None, 1)
             .configure(|mock_engine| {
-                mock_engine
-                    .expect_find_cvar()
-                    .with(predicate::eq("sv_maxclients"))
-                    .times(1);
                 mock_engine
                     .expect_get_cvar()
                     .withf(|cvar, value, flags| {
@@ -2237,11 +2213,8 @@ shinqlx._map_subtitle2 = "Awesome map!"
     #[serial]
     fn set_timelimit_sets_new_timelimit_value(_pyshinqlx_setup: ()) {
         MockEngineBuilder::default()
+            .with_find_cvar(predicate::eq("timelimit"), |_| None, 1)
             .configure(|mock_engine| {
-                mock_engine
-                    .expect_find_cvar()
-                    .with(predicate::eq("timelimit"))
-                    .times(1);
                 mock_engine
                     .expect_get_cvar()
                     .withf(|cvar, value, flags| {
@@ -2290,11 +2263,8 @@ shinqlx._map_subtitle2 = "Awesome map!"
     #[serial]
     fn set_fraglimit_sets_new_fraglimit(_pyshinqlx_setup: ()) {
         MockEngineBuilder::default()
+            .with_find_cvar(predicate::eq("fraglimit"), |_| None, 1)
             .configure(|mock_engine| {
-                mock_engine
-                    .expect_find_cvar()
-                    .with(predicate::eq("fraglimit"))
-                    .times(1);
                 mock_engine
                     .expect_get_cvar()
                     .withf(|cvar, value, flags| {
@@ -2343,11 +2313,8 @@ shinqlx._map_subtitle2 = "Awesome map!"
     #[serial]
     fn set_roundlimit_sets_new_roundlimit(_pyshinqlx_setup: ()) {
         MockEngineBuilder::default()
+            .with_find_cvar(predicate::eq("roundlimit"), |_| None, 1)
             .configure(|mock_engine| {
-                mock_engine
-                    .expect_find_cvar()
-                    .with(predicate::eq("roundlimit"))
-                    .times(1);
                 mock_engine
                     .expect_get_cvar()
                     .withf(|cvar, value, flags| {
@@ -2396,11 +2363,8 @@ shinqlx._map_subtitle2 = "Awesome map!"
     #[serial]
     fn set_roundtimelimit_sets_new_roundtimelimit(_pyshinqlx_setup: ()) {
         MockEngineBuilder::default()
+            .with_find_cvar(predicate::eq("roundtimelimit"), |_| None, 1)
             .configure(|mock_engine| {
-                mock_engine
-                    .expect_find_cvar()
-                    .with(predicate::eq("roundtimelimit"))
-                    .times(1);
                 mock_engine
                     .expect_get_cvar()
                     .withf(|cvar, value, flags| {
@@ -2450,11 +2414,8 @@ shinqlx._map_subtitle2 = "Awesome map!"
     #[serial]
     fn set_scorelimit_sets_new_scorelimit(_pyshinqlx_setup: ()) {
         MockEngineBuilder::default()
+            .with_find_cvar(predicate::eq("scorelimit"), |_| None, 1)
             .configure(|mock_engine| {
-                mock_engine
-                    .expect_find_cvar()
-                    .with(predicate::eq("scorelimit"))
-                    .times(1);
                 mock_engine
                     .expect_get_cvar()
                     .withf(|cvar, value, flags| {
@@ -2503,11 +2464,8 @@ shinqlx._map_subtitle2 = "Awesome map!"
     #[serial]
     fn set_capturelimit_sets_new_capturelimit(_pyshinqlx_setup: ()) {
         MockEngineBuilder::default()
+            .with_find_cvar(predicate::eq("capturelimit"), |_| None, 1)
             .configure(|mock_engine| {
-                mock_engine
-                    .expect_find_cvar()
-                    .with(predicate::eq("capturelimit"))
-                    .times(1);
                 mock_engine
                     .expect_get_cvar()
                     .withf(|cvar, value, flags| {
@@ -2557,11 +2515,8 @@ shinqlx._map_subtitle2 = "Awesome map!"
     #[serial]
     fn set_teamsize_sets_new_teamsize(_pyshinqlx_setup: ()) {
         MockEngineBuilder::default()
+            .with_find_cvar(predicate::eq("teamsize"), |_| None, 1)
             .configure(|mock_engine| {
-                mock_engine
-                    .expect_find_cvar()
-                    .with(predicate::eq("teamsize"))
-                    .times(1);
                 mock_engine
                     .expect_get_cvar()
                     .withf(|cvar, value, flags| {
@@ -2613,11 +2568,8 @@ shinqlx._map_subtitle2 = "Awesome map!"
     #[serial]
     fn set_tags_with_string_tags(_pyshinqlx_setup: ()) {
         MockEngineBuilder::default()
+            .with_find_cvar(predicate::eq("sv_tags"), |_| None, 1)
             .configure(|mock_engine| {
-                mock_engine
-                    .expect_find_cvar()
-                    .with(predicate::eq("sv_tags"))
-                    .times(1);
                 mock_engine
                     .expect_get_cvar()
                     .withf(|cvar, value, flags| {
@@ -2643,11 +2595,8 @@ shinqlx._map_subtitle2 = "Awesome map!"
     #[serial]
     fn set_tags_with_iterable_tags(_pyshinqlx_setup: ()) {
         MockEngineBuilder::default()
+            .with_find_cvar(predicate::eq("sv_tags"), |_| None, 1)
             .configure(|mock_engine| {
-                mock_engine
-                    .expect_find_cvar()
-                    .with(predicate::eq("sv_tags"))
-                    .times(1);
                 mock_engine
                     .expect_get_cvar()
                     .withf(|cvar, value, flags| {
@@ -2673,11 +2622,8 @@ shinqlx._map_subtitle2 = "Awesome map!"
     #[serial]
     fn set_tags_with_invalid_value(_pyshinqlx_setup: ()) {
         MockEngineBuilder::default()
+            .with_find_cvar(predicate::eq("sv_tags"), |_| None, 0)
             .configure(|mock_engine| {
-                mock_engine
-                    .expect_find_cvar()
-                    .with(predicate::eq("sv_tags"))
-                    .times(0);
                 mock_engine
                     .expect_get_cvar()
                     .withf(|cvar, _value, _flags| cvar == "sv_tags")
