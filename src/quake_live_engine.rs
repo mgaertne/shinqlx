@@ -5305,9 +5305,10 @@ impl MockEngineBuilder {
         })
     }
 
-    pub(crate) fn with_send_server_command<F>(self, matcher: F, times: usize) -> MockEngineBuilder
+    pub(crate) fn with_send_server_command<F, G>(self, matcher: F, times: G) -> MockEngineBuilder
     where
         F: Fn(&Option<MockClient>, &str) -> bool + Send + 'static,
+        G: Into<mockall::TimesRange>,
     {
         self.configure(|mock_engine| {
             mock_engine
@@ -5317,13 +5318,10 @@ impl MockEngineBuilder {
         })
     }
 
-    pub(crate) fn with_execute_client_command<F>(
-        self,
-        matcher: F,
-        times: usize,
-    ) -> MockEngineBuilder
+    pub(crate) fn with_execute_client_command<F, G>(self, matcher: F, times: G) -> MockEngineBuilder
     where
         F: Fn(&Option<MockClient>, &String, &qboolean) -> bool + Send + 'static,
+        G: Into<mockall::TimesRange>,
     {
         self.configure(|mock_engine| {
             mock_engine
@@ -5333,13 +5331,14 @@ impl MockEngineBuilder {
         })
     }
 
-    pub(crate) fn with_execute_console_command<F>(
+    pub(crate) fn with_execute_console_command<F, G>(
         self,
         matcher: F,
-        times: usize,
+        times: G,
     ) -> MockEngineBuilder
     where
         F: Fn(&str) -> bool + Send + 'static,
+        G: Into<mockall::TimesRange>,
     {
         self.configure(|mock_engine| {
             mock_engine
@@ -5355,14 +5354,15 @@ impl MockEngineBuilder {
         })
     }
 
-    pub(crate) fn with_argv<F>(
+    pub(crate) fn with_argv<F, G>(
         self,
         argv: F,
         opt_return: Option<&'static str>,
-        times: usize,
+        times: G,
     ) -> MockEngineBuilder
     where
         F: mockall::Predicate<i32> + Send + 'static,
+        G: Into<mockall::TimesRange>,
     {
         self.configure(|mock_engine| {
             mock_engine
@@ -5373,20 +5373,21 @@ impl MockEngineBuilder {
         })
     }
 
-    pub(crate) fn with_find_cvar<F, G>(
+    pub(crate) fn with_find_cvar<F, G, H>(
         self,
         expect: F,
         returned: G,
-        times: usize,
+        times: H,
     ) -> MockEngineBuilder
     where
-        F: mockall::Predicate<str> + Send + 'static,
+        F: Fn(&str) -> bool + Send + 'static,
         G: FnMut(&str) -> Option<CVar> + 'static,
+        H: Into<mockall::TimesRange>,
     {
         self.configure(|mock_engine| {
             mock_engine
                 .expect_find_cvar()
-                .with(expect)
+                .withf(expect)
                 .returning_st(returned)
                 .times(times);
         })
