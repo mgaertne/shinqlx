@@ -30,7 +30,6 @@ mod frame_event_dispatcher_tests {
 
     use core::borrow::BorrowMut;
 
-    use mockall::predicate;
     use rstest::rstest;
 
     use pyo3::intern;
@@ -64,7 +63,7 @@ mod frame_event_dispatcher_tests {
             .expect("this should not happen");
         MockEngineBuilder::default()
             .with_find_cvar(
-                predicate::eq("zmq_stats_enable"),
+                |cmd| cmd == "zmq_stats_enable",
                 move |_| CVar::try_from(raw_cvar.borrow_mut() as *mut cvar_t).ok(),
                 1..,
             )
@@ -122,7 +121,7 @@ def throws_exception_hook(*args, **kwargs):
             .expect("this should not happen");
         MockEngineBuilder::default()
             .with_find_cvar(
-                predicate::eq("zmq_stats_enable"),
+                |cmd| cmd == "zmq_stats_enable",
                 move |_| CVar::try_from(raw_cvar.borrow_mut() as *mut cvar_t).ok(),
                 1..,
             )
@@ -180,7 +179,7 @@ def returns_none_hook(*args, **kwargs):
             .expect("this should not happen");
         MockEngineBuilder::default()
             .with_find_cvar(
-                predicate::eq("zmq_stats_enable"),
+                |cmd| cmd == "zmq_stats_enable",
                 move |_| CVar::try_from(raw_cvar.borrow_mut() as *mut cvar_t).ok(),
                 1..,
             )
@@ -240,7 +239,7 @@ def returns_none_hook(*args, **kwargs):
             .expect("this should not happen");
         MockEngineBuilder::default()
             .with_find_cvar(
-                predicate::eq("zmq_stats_enable"),
+                |cmd| cmd == "zmq_stats_enable",
                 move |_| CVar::try_from(raw_cvar.borrow_mut() as *mut cvar_t).ok(),
                 1..,
             )
@@ -300,7 +299,7 @@ def returns_stop_hook(*args, **kwargs):
             .expect("this should not happen");
         MockEngineBuilder::default()
             .with_find_cvar(
-                predicate::eq("zmq_stats_enable"),
+                |cmd| cmd == "zmq_stats_enable",
                 move |_| CVar::try_from(raw_cvar.borrow_mut() as *mut cvar_t).ok(),
                 1..,
             )
@@ -360,7 +359,7 @@ def returns_stop_event_hook(*args, **kwargs):
             .expect("this should not happen");
         MockEngineBuilder::default()
             .with_find_cvar(
-                predicate::eq("zmq_stats_enable"),
+                |cmd| cmd == "zmq_stats_enable",
                 move |_| CVar::try_from(raw_cvar.borrow_mut() as *mut cvar_t).ok(),
                 1..,
             )
@@ -420,7 +419,7 @@ def returns_stop_all_hook(*args, **kwargs):
             .expect("this should not happen");
         MockEngineBuilder::default()
             .with_find_cvar(
-                predicate::eq("zmq_stats_enable"),
+                |cmd| cmd == "zmq_stats_enable",
                 move |_| CVar::try_from(raw_cvar.borrow_mut() as *mut cvar_t).ok(),
                 1..,
             )

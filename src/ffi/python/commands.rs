@@ -291,7 +291,6 @@ mod command_tests {
 
     use core::borrow::BorrowMut;
 
-    use mockall::predicate;
     use rstest::*;
 
     use pyo3::prelude::*;
@@ -719,7 +718,7 @@ class mocked_db:
 
         MockEngineBuilder::default()
             .with_find_cvar(
-                predicate::eq("qlx_commandPrefix"),
+                |cmd| cmd == "qlx_commandPrefix",
                 move |_| CVar::try_from(raw_cvar.borrow_mut() as *mut cvar_t).ok(),
                 1..,
             )
@@ -880,7 +879,7 @@ class mocked_db:
 
         MockEngineBuilder::default()
             .with_find_cvar(
-                predicate::eq("qlx_owner"),
+                |cmd| cmd == "qlx_owner",
                 move |_| CVar::try_from(raw_cvar.borrow_mut() as *mut cvar_t).ok(),
                 1..,
             )
@@ -922,7 +921,7 @@ class mocked_db:
 
         MockEngineBuilder::default()
             .with_find_cvar(
-                predicate::eq("qlx_owner"),
+                |cmd| cmd == "qlx_owner",
                 move |_| CVar::try_from(raw_cvar.borrow_mut() as *mut cvar_t).ok(),
                 1..,
             )
@@ -970,12 +969,12 @@ class mocked_db:
 
         MockEngineBuilder::default()
             .with_find_cvar(
-                predicate::eq("qlx_perm_cmd_name"),
+                |cmd| cmd == "qlx_perm_cmd_name",
                 move |_| CVar::try_from(raw_permission_cvar.borrow_mut() as *mut cvar_t).ok(),
                 1..,
             )
             .with_find_cvar(
-                predicate::eq("qlx_owner"),
+                |cmd| cmd == "qlx_owner",
                 move |_| CVar::try_from(raw_owner_cvar.borrow_mut() as *mut cvar_t).ok(),
                 1..,
             )
@@ -1017,11 +1016,11 @@ class mocked_db:
 
         MockEngineBuilder::default()
             .with_find_cvar(
-                predicate::eq("qlx_owner"),
+                |cmd| cmd == "qlx_owner",
                 move |_| CVar::try_from(raw_cvar.borrow_mut() as *mut cvar_t).ok(),
                 1..,
             )
-            .with_find_cvar(predicate::ne("qlx_owner"), |_| None, 1..)
+            .with_find_cvar(|cmd| cmd != "qlx_owner", |_| None, 1..)
             .run(|| {
                 Python::with_gil(|py| {
                     let capturing_hook = capturing_hook(py);
@@ -1065,12 +1064,12 @@ class mocked_db:
 
         MockEngineBuilder::default()
             .with_find_cvar(
-                predicate::eq("qlx_ccmd_perm_cmd_name"),
+                |cmd| cmd == "qlx_ccmd_perm_cmd_name",
                 move |_| CVar::try_from(raw_permission_cvar.borrow_mut() as *mut cvar_t).ok(),
                 1..,
             )
             .with_find_cvar(
-                predicate::eq("qlx_owner"),
+                |cmd| cmd == "qlx_owner",
                 move |_| CVar::try_from(raw_owner_cvar.borrow_mut() as *mut cvar_t).ok(),
                 1..,
             )
@@ -1112,11 +1111,11 @@ class mocked_db:
 
         MockEngineBuilder::default()
             .with_find_cvar(
-                predicate::eq("qlx_owner"),
+                |cmd| cmd == "qlx_owner",
                 move |_| CVar::try_from(raw_cvar.borrow_mut() as *mut cvar_t).ok(),
                 1..,
             )
-            .with_find_cvar(predicate::ne("qlx_owner"), |_| None, 1..)
+            .with_find_cvar(|cmd| cmd != "qlx_owner", |_| None, 1..)
             .run(|| {
                 Python::with_gil(|py| {
                     let capturing_hook = capturing_hook(py);
@@ -1155,11 +1154,11 @@ class mocked_db:
 
         MockEngineBuilder::default()
             .with_find_cvar(
-                predicate::eq("qlx_owner"),
+                |cmd| cmd == "qlx_owner",
                 move |_| CVar::try_from(raw_cvar.borrow_mut() as *mut cvar_t).ok(),
                 1..,
             )
-            .with_find_cvar(predicate::ne("qlx_owner"), |_| None, 1..)
+            .with_find_cvar(|cmd| cmd != "qlx_owner", |_| None, 1..)
             .run(|| {
                 Python::with_gil(|py| {
                     let capturing_hook = capturing_hook(py);
@@ -1202,11 +1201,11 @@ class mocked_db:
 
         MockEngineBuilder::default()
             .with_find_cvar(
-                predicate::eq("qlx_owner"),
+                |cmd| cmd == "qlx_owner",
                 move |_| CVar::try_from(raw_cvar.borrow_mut() as *mut cvar_t).ok(),
                 1..,
             )
-            .with_find_cvar(predicate::ne("qlx_owner"), |_| None, 1..)
+            .with_find_cvar(|cmd| cmd != "qlx_owner", |_| None, 1..)
             .run(|| {
                 Python::with_gil(|py| {
                     let capturing_hook = capturing_hook(py);
@@ -1251,11 +1250,11 @@ class mocked_db:
 
         MockEngineBuilder::default()
             .with_find_cvar(
-                predicate::eq("qlx_owner"),
+                |cmd| cmd == "qlx_owner",
                 move |_| CVar::try_from(raw_cvar.borrow_mut() as *mut cvar_t).ok(),
                 1..,
             )
-            .with_find_cvar(predicate::ne("qlx_owner"), |_| None, 1..)
+            .with_find_cvar(|cmd| cmd != "qlx_owner", |_| None, 1..)
             .run(|| {
                 Python::with_gil(|py| {
                     let capturing_hook = capturing_hook(py);
@@ -1298,11 +1297,11 @@ class mocked_db:
 
         MockEngineBuilder::default()
             .with_find_cvar(
-                predicate::eq("qlx_owner"),
+                |cmd| cmd == "qlx_owner",
                 move |_| CVar::try_from(raw_cvar.borrow_mut() as *mut cvar_t).ok(),
                 1..,
             )
-            .with_find_cvar(predicate::ne("qlx_owner"), |_| None, 1..)
+            .with_find_cvar(|cmd| cmd != "qlx_owner", |_| None, 1..)
             .run(|| {
                 Python::with_gil(|py| {
                     let capturing_hook = capturing_hook(py);
@@ -1345,11 +1344,11 @@ class mocked_db:
 
         MockEngineBuilder::default()
             .with_find_cvar(
-                predicate::eq("qlx_owner"),
+                |cmd| cmd == "qlx_owner",
                 move |_| CVar::try_from(raw_cvar.borrow_mut() as *mut cvar_t).ok(),
                 1..,
             )
-            .with_find_cvar(predicate::ne("qlx_owner"), |_| None, 1..)
+            .with_find_cvar(|cmd| cmd != "qlx_owner", |_| None, 1..)
             .run(|| {
                 Python::with_gil(|py| {
                     let capturing_hook = capturing_hook(py);
@@ -1392,11 +1391,11 @@ class mocked_db:
 
         MockEngineBuilder::default()
             .with_find_cvar(
-                predicate::eq("qlx_owner"),
+                |cmd| cmd == "qlx_owner",
                 move |_| CVar::try_from(raw_cvar.borrow_mut() as *mut cvar_t).ok(),
                 1..,
             )
-            .with_find_cvar(predicate::ne("qlx_owner"), |_| None, 1..)
+            .with_find_cvar(|cmd| cmd != "qlx_owner", |_| None, 1..)
             .run(|| {
                 Python::with_gil(|py| {
                     let capturing_hook = capturing_hook(py);
@@ -2087,7 +2086,7 @@ mod command_invoker_tests {
 
         MockEngineBuilder::default()
             .with_find_cvar(
-                predicate::eq("qlx_commandPrefix"),
+                |cmd| cmd == "qlx_commandPrefix",
                 move |_| CVar::try_from(raw_cmdprefix_cvar.borrow_mut() as *mut cvar_t).ok(),
                 1..,
             )
@@ -2146,11 +2145,11 @@ mod command_invoker_tests {
             .expect("this should not happen");
         MockEngineBuilder::default()
             .with_find_cvar(
-                predicate::eq("qlx_owner"),
+                |cmd| cmd == "qlx_owner",
                 move |_| CVar::try_from(raw_cvar.borrow_mut() as *mut cvar_t).ok(),
                 1..,
             )
-            .with_find_cvar(predicate::ne("qlx_owner"), |_| None, 1..)
+            .with_find_cvar(|cmd| cmd != "qlx_owner", |_| None, 1..)
             .run(|| {
                 Python::with_gil(|py| {
                     let player = default_test_player();
@@ -2223,7 +2222,7 @@ mod command_invoker_tests {
             //     move |_| CVar::try_from(raw_cvar.borrow_mut() as *mut cvar_t).ok(),
             //     1..,
             // )
-            .with_find_cvar(predicate::ne("qlx_owner"), |_| None, 1..)
+            .with_find_cvar(|cmd| cmd != "qlx_owner", |_| None, 1..)
             .run(|| {
                 Python::with_gil(|py| {
                     let player = default_test_player();
@@ -2296,11 +2295,11 @@ mod command_invoker_tests {
 
         MockEngineBuilder::default()
             .with_find_cvar(
-                predicate::eq("qlx_owner"),
+                |cmd| cmd == "qlx_owner",
                 move |_| CVar::try_from(raw_cvar.borrow_mut() as *mut cvar_t).ok(),
                 1..,
             )
-            .with_find_cvar(predicate::ne("qlx_owner"), |_| None, 1..)
+            .with_find_cvar(|cmd| cmd != "qlx_owner", |_| None, 1..)
             .run(|| {
                 Python::with_gil(|py| {
                     let player = default_test_player();
@@ -2369,11 +2368,11 @@ def cmd_handler(*args, **kwargs):
 
         MockEngineBuilder::default()
             .with_find_cvar(
-                predicate::eq("qlx_owner"),
+                |cmd| cmd == "qlx_owner",
                 move |_| CVar::try_from(raw_cvar.borrow_mut() as *mut cvar_t).ok(),
                 1..,
             )
-            .with_find_cvar(predicate::ne("qlx_owner"), |_| None, 1..)
+            .with_find_cvar(|cmd| cmd != "qlx_owner", |_| None, 1..)
             .run(|| {
                 Python::with_gil(|py| {
                     let player = default_test_player();
@@ -2453,11 +2452,11 @@ def cmd_handler(*args, **kwargs):
 
         MockEngineBuilder::default()
             .with_find_cvar(
-                predicate::eq("qlx_owner"),
+                |cmd| cmd == "qlx_owner",
                 move |_| CVar::try_from(raw_cvar.borrow_mut() as *mut cvar_t).ok(),
                 1..,
             )
-            .with_find_cvar(predicate::ne("qlx_owner"), |_| None, 1..)
+            .with_find_cvar(|cmd| cmd != "qlx_owner", |_| None, 1..)
             .run(|| {
                 Python::with_gil(|py| {
                     let player = default_test_player();
@@ -2529,11 +2528,11 @@ def cmd_handler(*args, **kwargs):
 
         MockEngineBuilder::default()
             .with_find_cvar(
-                predicate::eq("qlx_owner"),
+                |cmd| cmd == "qlx_owner",
                 move |_| CVar::try_from(raw_cvar.borrow_mut() as *mut cvar_t).ok(),
                 1..,
             )
-            .with_find_cvar(predicate::ne("qlx_owner"), |_| None, 1..)
+            .with_find_cvar(|cmd| cmd != "qlx_owner", |_| None, 1..)
             .run(|| {
                 Python::with_gil(|py| {
                     let player = default_test_player();

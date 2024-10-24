@@ -681,7 +681,7 @@ mod handle_client_command_tests {
             .expect("this should not happen");
         MockEngineBuilder::default()
             .with_find_cvar(
-                predicate::eq("zmq_stats_enable"),
+                |cmd| cmd == "zmq_stats_enable",
                 move |_| CVar::try_from(raw_cvar.borrow_mut() as *mut cvar_t).ok(),
                 1..,
             )
@@ -820,7 +820,7 @@ mod handle_client_command_tests {
             .expect("this should not happen");
         MockEngineBuilder::default()
             .with_find_cvar(
-                predicate::eq("zmq_stats_enable"),
+                |cmd| cmd == "zmq_stats_enable",
                 move |_| CVar::try_from(raw_cvar.borrow_mut() as *mut cvar_t).ok(),
                 1..,
             )
@@ -906,7 +906,7 @@ mod handle_client_command_tests {
 
         MockEngineBuilder::default()
             .with_find_cvar(
-                predicate::eq("zmq_stats_enable"),
+                |cmd| cmd == "zmq_stats_enable",
                 move |_| CVar::try_from(raw_cvar.borrow_mut() as *mut cvar_t).ok(),
                 1..,
             )
@@ -990,7 +990,7 @@ mod handle_client_command_tests {
 
         MockEngineBuilder::default()
             .with_find_cvar(
-                predicate::eq("zmq_stats_enable"),
+                |cmd| cmd == "zmq_stats_enable",
                 move |_| CVar::try_from(raw_cvar.borrow_mut() as *mut cvar_t).ok(),
                 1..,
             )
@@ -1219,7 +1219,7 @@ mod handle_client_command_tests {
             .expect("this should not happen");
         MockEngineBuilder::default()
             .with_find_cvar(
-                predicate::eq("zmq_stats_enable"),
+                |cmd| cmd == "zmq_stats_enable",
                 move |_| CVar::try_from(raw_cvar.borrow_mut() as *mut cvar_t).ok(),
                 1..,
             )
@@ -1323,7 +1323,7 @@ mod handle_client_command_tests {
 
         MockEngineBuilder::default()
             .with_find_cvar(
-                predicate::eq("zmq_stats_enable"),
+                |cmd| cmd == "zmq_stats_enable",
                 move |_| CVar::try_from(raw_cvar.borrow_mut() as *mut cvar_t).ok(),
                 1..,
             )
@@ -1578,7 +1578,7 @@ mod handle_client_command_tests {
             .expect("this should not happen");
         MockEngineBuilder::default()
             .with_find_cvar(
-                predicate::eq("zmq_stats_enable"),
+                |cmd| cmd == "zmq_stats_enable",
                 move |_| CVar::try_from(raw_cvar.borrow_mut() as *mut cvar_t).ok(),
                 1..,
             )
@@ -1674,7 +1674,7 @@ mod handle_client_command_tests {
 
         MockEngineBuilder::default()
             .with_find_cvar(
-                predicate::eq("zmq_stats_enable"),
+                |cmd| cmd == "zmq_stats_enable",
                 move |_| CVar::try_from(raw_cvar.borrow_mut() as *mut cvar_t).ok(),
                 1..,
             )
@@ -1777,7 +1777,7 @@ mod handle_client_command_tests {
 
         MockEngineBuilder::default()
             .with_find_cvar(
-                predicate::eq("zmq_stats_enable"),
+                |cmd| cmd == "zmq_stats_enable",
                 move |_| CVar::try_from(raw_cvar.borrow_mut() as *mut cvar_t).ok(),
                 1..,
             )
@@ -2014,7 +2014,7 @@ mod handle_client_command_tests {
 
         MockEngineBuilder::default()
             .with_find_cvar(
-                predicate::eq("zmq_stats_enable"),
+                |cmd| cmd == "zmq_stats_enable",
                 move |_| CVar::try_from(raw_cvar.borrow_mut() as *mut cvar_t).ok(),
                 1..,
             )
@@ -2121,7 +2121,7 @@ mod handle_client_command_tests {
 
         MockEngineBuilder::default()
             .with_find_cvar(
-                predicate::eq("zmq_stats_enable"),
+                |cmd| cmd == "zmq_stats_enable",
                 move |_| CVar::try_from(raw_cvar.borrow_mut() as *mut cvar_t).ok(),
                 1..,
             )
@@ -2221,7 +2221,7 @@ mod handle_client_command_tests {
 
         MockEngineBuilder::default()
             .with_find_cvar(
-                predicate::eq("zmq_stats_enable"),
+                |cmd| cmd == "zmq_stats_enable",
                 move |_| CVar::try_from(raw_cvar.borrow_mut() as *mut cvar_t).ok(),
                 1..,
             )
@@ -2329,7 +2329,7 @@ mod handle_client_command_tests {
 
         MockEngineBuilder::default()
             .with_find_cvar(
-                predicate::eq("zmq_stats_enable"),
+                |cmd| cmd == "zmq_stats_enable",
                 move |_| CVar::try_from(raw_cvar.borrow_mut() as *mut cvar_t).ok(),
                 1..,
             )
@@ -2501,7 +2501,7 @@ mod handle_client_command_tests {
 
         MockEngineBuilder::default()
             .with_find_cvar(
-                predicate::eq("zmq_stats_enable"),
+                |cmd| cmd == "zmq_stats_enable",
                 move |_| CVar::try_from(raw_cvar.borrow_mut() as *mut cvar_t).ok(),
                 1..,
             )
@@ -2605,7 +2605,7 @@ mod handle_client_command_tests {
 
         MockEngineBuilder::default()
             .with_find_cvar(
-                predicate::eq("zmq_stats_enable"),
+                |cmd| cmd == "zmq_stats_enable",
                 move |_| CVar::try_from(raw_cvar.borrow_mut() as *mut cvar_t).ok(),
                 1..,
             )
@@ -2706,7 +2706,7 @@ mod handle_client_command_tests {
 
         MockEngineBuilder::default()
             .with_find_cvar(
-                predicate::eq("zmq_stats_enable"),
+                |cmd| cmd == "zmq_stats_enable",
                 move |_| CVar::try_from(raw_cvar.borrow_mut() as *mut cvar_t).ok(),
                 1..,
             )
@@ -2807,7 +2807,7 @@ mod handle_client_command_tests {
 
         MockEngineBuilder::default()
             .with_find_cvar(
-                predicate::eq("zmq_stats_enable"),
+                |cmd| cmd == "zmq_stats_enable",
                 move |_| CVar::try_from(raw_cvar.borrow_mut() as *mut cvar_t).ok(),
                 1..,
             )
@@ -2966,7 +2966,7 @@ mod handle_client_command_tests {
 
         MockEngineBuilder::default()
             .with_find_cvar(
-                predicate::eq("zmq_stats_enable"),
+                |cmd| cmd == "zmq_stats_enable",
                 move |_| CVar::try_from(raw_cvar.borrow_mut() as *mut cvar_t).ok(),
                 1..,
             )
@@ -3054,7 +3054,7 @@ mod handle_client_command_tests {
 
         MockEngineBuilder::default()
             .with_find_cvar(
-                predicate::eq("zmq_stats_enable"),
+                |cmd| cmd == "zmq_stats_enable",
                 move |_| CVar::try_from(raw_cvar.borrow_mut() as *mut cvar_t).ok(),
                 1..,
             )
@@ -3155,7 +3155,7 @@ mod handle_client_command_tests {
 
         MockEngineBuilder::default()
             .with_find_cvar(
-                predicate::eq("zmq_stats_enable"),
+                |cmd| cmd == "zmq_stats_enable",
                 move |_| CVar::try_from(raw_cvar.borrow_mut() as *mut cvar_t).ok(),
                 1..,
             )
@@ -3318,7 +3318,7 @@ mod handle_client_command_tests {
 
         MockEngineBuilder::default()
             .with_find_cvar(
-                predicate::eq("zmq_stats_enable"),
+                |cmd| cmd == "zmq_stats_enable",
                 move |_| CVar::try_from(raw_cvar.borrow_mut() as *mut cvar_t).ok(),
                 1..,
             )
@@ -3411,7 +3411,7 @@ mod handle_client_command_tests {
 
         MockEngineBuilder::default()
             .with_find_cvar(
-                predicate::eq("zmq_stats_enable"),
+                |cmd| cmd == "zmq_stats_enable",
                 move |_| CVar::try_from(raw_cvar.borrow_mut() as *mut cvar_t).ok(),
                 1..,
             )
@@ -3637,7 +3637,7 @@ mod handle_server_command_tests {
 
         MockEngineBuilder::default()
             .with_find_cvar(
-                predicate::eq("zmq_stats_enable"),
+                |cmd| cmd == "zmq_stats_enable",
                 move |_| CVar::try_from(raw_cvar.borrow_mut() as *mut cvar_t).ok(),
                 1..,
             )
@@ -3726,7 +3726,7 @@ mod handle_server_command_tests {
 
         MockEngineBuilder::default()
             .with_find_cvar(
-                predicate::eq("zmq_stats_enable"),
+                |cmd| cmd == "zmq_stats_enable",
                 move |_| CVar::try_from(raw_cvar.borrow_mut() as *mut cvar_t).ok(),
                 1..,
             )
@@ -3794,7 +3794,7 @@ mod handle_server_command_tests {
 
         MockEngineBuilder::default()
             .with_find_cvar(
-                predicate::eq("zmq_stats_enable"),
+                |cmd| cmd == "zmq_stats_enable",
                 move |_| CVar::try_from(raw_cvar.borrow_mut() as *mut cvar_t).ok(),
                 1..,
             )
@@ -3844,7 +3844,7 @@ mod handle_server_command_tests {
 
         MockEngineBuilder::default()
             .with_find_cvar(
-                predicate::eq("zmq_stats_enable"),
+                |cmd| cmd == "zmq_stats_enable",
                 move |_| CVar::try_from(raw_cvar.borrow_mut() as *mut cvar_t).ok(),
                 1..,
             )
@@ -3894,7 +3894,7 @@ mod handle_server_command_tests {
 
         MockEngineBuilder::default()
             .with_find_cvar(
-                predicate::eq("zmq_stats_enable"),
+                |cmd| cmd == "zmq_stats_enable",
                 move |_| CVar::try_from(raw_cvar.borrow_mut() as *mut cvar_t).ok(),
                 1..,
             )
@@ -3970,7 +3970,7 @@ mod handle_server_command_tests {
 
         MockEngineBuilder::default()
             .with_find_cvar(
-                predicate::eq("zmq_stats_enable"),
+                |cmd| cmd == "zmq_stats_enable",
                 move |_| CVar::try_from(raw_cvar.borrow_mut() as *mut cvar_t).ok(),
                 1..,
             )
@@ -4161,7 +4161,6 @@ mod handle_frame_tests {
     use crate::prelude::*;
 
     use core::borrow::BorrowMut;
-    use mockall::predicate;
 
     use rstest::rstest;
 
@@ -4277,7 +4276,7 @@ frame_tasks.enter(0, 1, capturing_hook, ("asdf", 42), {})
 
         MockEngineBuilder::default()
             .with_find_cvar(
-                predicate::eq("zmq_stats_enable"),
+                |cmd| cmd == "zmq_stats_enable",
                 move |_| CVar::try_from(raw_cvar.borrow_mut() as *mut cvar_t).ok(),
                 1..,
             )
@@ -4444,7 +4443,7 @@ for event in frame_tasks.queue:
 
         MockEngineBuilder::default()
             .with_find_cvar(
-                predicate::eq("zmq_stats_enable"),
+                |cmd| cmd == "zmq_stats_enable",
                 move |_| CVar::try_from(raw_cvar.borrow_mut() as *mut cvar_t).ok(),
                 1..,
             )
@@ -4739,7 +4738,7 @@ mod handle_new_game_tests {
 
         MockEngineBuilder::default()
             .with_find_cvar(
-                predicate::eq("zmq_stats_enable"),
+                |cmd| cmd == "zmq_stats_enable",
                 move |_| CVar::try_from(raw_cvar.borrow_mut() as *mut cvar_t).ok(),
                 1..,
             )
@@ -4854,17 +4853,17 @@ mod handle_new_game_tests {
 
         MockEngineBuilder::default()
             .with_find_cvar(
-                predicate::eq("zmq_stats_enable"),
+                |cmd| cmd == "zmq_stats_enable",
                 move |_| CVar::try_from(raw_zmq_cvar.borrow_mut() as *mut cvar_t).ok(),
                 1..,
             )
             .with_find_cvar(
-                predicate::eq("mapname"),
+                |cmd| cmd == "mapname",
                 move |_| CVar::try_from(raw_mapname_cvar.borrow_mut() as *mut cvar_t).ok(),
                 1..,
             )
             .with_find_cvar(
-                predicate::eq("g_factory"),
+                |cmd| cmd == "g_factory",
                 move |_| CVar::try_from(raw_factory_cvar.borrow_mut() as *mut cvar_t).ok(),
                 1..,
             )
@@ -4959,12 +4958,12 @@ mod handle_new_game_tests {
             .expect("this should not happen");
         MockEngineBuilder::default()
             .with_find_cvar(
-                predicate::eq("mapname"),
+                |cmd| cmd == "mapname",
                 move |_| CVar::try_from(raw_mapname_cvar.borrow_mut() as *mut cvar_t).ok(),
                 1..,
             )
             .with_find_cvar(
-                predicate::eq("g_factory"),
+                |cmd| cmd == "g_factory",
                 move |_| CVar::try_from(raw_factory_cvar.borrow_mut() as *mut cvar_t).ok(),
                 1..,
             )
@@ -5024,7 +5023,7 @@ mod handle_new_game_tests {
 
         MockEngineBuilder::default()
             .with_find_cvar(
-                predicate::eq("zmq_stats_enable"),
+                |cmd| cmd == "zmq_stats_enable",
                 move |_| CVar::try_from(raw_zmq_cvar.borrow_mut() as *mut cvar_t).ok(),
                 1..,
             )
@@ -5119,7 +5118,7 @@ mod handle_new_game_tests {
 
         MockEngineBuilder::default()
             .with_find_cvar(
-                predicate::eq("zmq_stats_enable"),
+                |cmd| cmd == "zmq_stats_enable",
                 move |_| CVar::try_from(raw_zmq_cvar.borrow_mut() as *mut cvar_t).ok(),
                 1..,
             )
@@ -5217,7 +5216,7 @@ mod handle_new_game_tests {
 
         MockEngineBuilder::default()
             .with_find_cvar(
-                predicate::eq("zmq_stats_enable"),
+                |cmd| cmd == "zmq_stats_enable",
                 move |_| CVar::try_from(raw_zmq_cvar.borrow_mut() as *mut cvar_t).ok(),
                 1..,
             )
@@ -5611,7 +5610,7 @@ mod handle_set_configstring_tests {
 
         MockEngineBuilder::default()
             .with_find_cvar(
-                predicate::eq("zmq_stats_enable"),
+                |cmd| cmd == "zmq_stats_enable",
                 move |_| CVar::try_from(raw_cvar.borrow_mut() as *mut cvar_t).ok(),
                 1..,
             )
@@ -5667,7 +5666,7 @@ mod handle_set_configstring_tests {
 
         MockEngineBuilder::default()
             .with_find_cvar(
-                predicate::eq("zmq_stats_enable"),
+                |cmd| cmd == "zmq_stats_enable",
                 move |_| CVar::try_from(raw_cvar.borrow_mut() as *mut cvar_t).ok(),
                 1..,
             )
@@ -5734,7 +5733,7 @@ mod handle_set_configstring_tests {
 
         MockEngineBuilder::default()
             .with_find_cvar(
-                predicate::eq("zmq_stats_enable"),
+                |cmd| cmd == "zmq_stats_enable",
                 move |_| CVar::try_from(raw_cvar.borrow_mut() as *mut cvar_t).ok(),
                 1..,
             )
@@ -5784,7 +5783,7 @@ mod handle_set_configstring_tests {
 
         MockEngineBuilder::default()
             .with_find_cvar(
-                predicate::eq("zmq_stats_enable"),
+                |cmd| cmd == "zmq_stats_enable",
                 move |_| CVar::try_from(raw_cvar.borrow_mut() as *mut cvar_t).ok(),
                 1..,
             )
@@ -5841,7 +5840,7 @@ mod handle_set_configstring_tests {
 
         MockEngineBuilder::default()
             .with_find_cvar(
-                predicate::eq("zmq_stats_enable"),
+                |cmd| cmd == "zmq_stats_enable",
                 move |_| CVar::try_from(raw_cvar.borrow_mut() as *mut cvar_t).ok(),
                 1..,
             )
@@ -5899,7 +5898,7 @@ mod handle_set_configstring_tests {
 
         MockEngineBuilder::default()
             .with_find_cvar(
-                predicate::eq("zmq_stats_enable"),
+                |cmd| cmd == "zmq_stats_enable",
                 move |_| CVar::try_from(raw_cvar.borrow_mut() as *mut cvar_t).ok(),
                 1..,
             )
@@ -6063,7 +6062,7 @@ mod handle_set_configstring_tests {
             .expect("this should not happen");
         MockEngineBuilder::default()
             .with_find_cvar(
-                predicate::eq("zmq_stats_enable"),
+                |cmd| cmd == "zmq_stats_enable",
                 move |_| CVar::try_from(raw_cvar.borrow_mut() as *mut cvar_t).ok(),
                 1..,
             )
@@ -6241,7 +6240,7 @@ mod handle_set_configstring_tests {
 
         MockEngineBuilder::default()
             .with_find_cvar(
-                predicate::eq("zmq_stats_enable"),
+                |cmd| cmd == "zmq_stats_enable",
                 move |_| CVar::try_from(raw_cvar.borrow_mut() as *mut cvar_t).ok(),
                 1..,
             )
@@ -6300,7 +6299,7 @@ mod handle_set_configstring_tests {
 
         MockEngineBuilder::default()
             .with_find_cvar(
-                predicate::eq("zmq_stats_enable"),
+                |cmd| cmd == "zmq_stats_enable",
                 move |_| CVar::try_from(raw_cvar.borrow_mut() as *mut cvar_t).ok(),
                 1..,
             )
@@ -6364,7 +6363,7 @@ mod handle_set_configstring_tests {
 
         MockEngineBuilder::default()
             .with_find_cvar(
-                predicate::eq("zmq_stats_enable"),
+                |cmd| cmd == "zmq_stats_enable",
                 move |_| CVar::try_from(raw_cvar.borrow_mut() as *mut cvar_t).ok(),
                 1..,
             )
@@ -6424,7 +6423,7 @@ mod handle_set_configstring_tests {
 
         MockEngineBuilder::default()
             .with_find_cvar(
-                predicate::eq("zmq_stats_enable"),
+                |cmd| cmd == "zmq_stats_enable",
                 move |_| CVar::try_from(raw_cvar.borrow_mut() as *mut cvar_t).ok(),
                 1..,
             )
@@ -6858,7 +6857,7 @@ mod handle_player_connect_tests {
 
         MockEngineBuilder::default()
             .with_find_cvar(
-                predicate::eq("zmq_stats_enable"),
+                |cmd| cmd == "zmq_stats_enable",
                 move |_| CVar::try_from(raw_cvar.borrow_mut() as *mut cvar_t).ok(),
                 1..,
             )
@@ -6999,7 +6998,7 @@ mod handle_player_connect_tests {
 
         MockEngineBuilder::default()
             .with_find_cvar(
-                predicate::eq("zmq_stats_enable"),
+                |cmd| cmd == "zmq_stats_enable",
                 move |_| CVar::try_from(raw_cvar.borrow_mut() as *mut cvar_t).ok(),
                 1..,
             )
@@ -7199,7 +7198,7 @@ mod handle_player_loaded_tests {
 
         MockEngineBuilder::default()
             .with_find_cvar(
-                predicate::eq("zmq_stats_enable"),
+                |cmd| cmd == "zmq_stats_enable",
                 move |_| CVar::try_from(raw_cvar.borrow_mut() as *mut cvar_t).ok(),
                 1..,
             )
@@ -7463,7 +7462,7 @@ mod handle_player_disconnect_tests {
 
         MockEngineBuilder::default()
             .with_find_cvar(
-                predicate::eq("zmq_stats_enable"),
+                |cmd| cmd == "zmq_stats_enable",
                 move |_| CVar::try_from(raw_cvar.borrow_mut() as *mut cvar_t).ok(),
                 1..,
             )
@@ -7720,7 +7719,7 @@ mod handle_player_spawn_tests {
 
         MockEngineBuilder::default()
             .with_find_cvar(
-                predicate::eq("zmq_stats_enable"),
+                |cmd| cmd == "zmq_stats_enable",
                 move |_| CVar::try_from(raw_cvar.borrow_mut() as *mut cvar_t).ok(),
                 1..,
             )
@@ -7975,7 +7974,7 @@ mod handle_kamikaze_use_tests {
 
         MockEngineBuilder::default()
             .with_find_cvar(
-                predicate::eq("zmq_stats_enable"),
+                |cmd| cmd == "zmq_stats_enable",
                 move |_| CVar::try_from(raw_cvar.borrow_mut() as *mut cvar_t).ok(),
                 1..,
             )
@@ -8237,7 +8236,7 @@ mod handle_kamikaze_explode_tests {
 
         MockEngineBuilder::default()
             .with_find_cvar(
-                predicate::eq("zmq_stats_enable"),
+                |cmd| cmd == "zmq_stats_enable",
                 move |_| CVar::try_from(raw_cvar.borrow_mut() as *mut cvar_t).ok(),
                 1..,
             )
@@ -8327,7 +8326,7 @@ mod handle_kamikaze_explode_tests {
 
         MockEngineBuilder::default()
             .with_find_cvar(
-                predicate::eq("zmq_stats_enable"),
+                |cmd| cmd == "zmq_stats_enable",
                 move |_| CVar::try_from(raw_cvar.borrow_mut() as *mut cvar_t).ok(),
                 1..,
             )
@@ -8624,7 +8623,7 @@ mod handle_damage_tests {
 
         MockEngineBuilder::default()
             .with_find_cvar(
-                predicate::eq("zmq_stats_enable"),
+                |cmd| cmd == "zmq_stats_enable",
                 move |_| CVar::try_from(raw_cvar.borrow_mut() as *mut cvar_t).ok(),
                 1..,
             )
@@ -8722,7 +8721,7 @@ mod handle_damage_tests {
 
         MockEngineBuilder::default()
             .with_find_cvar(
-                predicate::eq("zmq_stats_enable"),
+                |cmd| cmd == "zmq_stats_enable",
                 move |_| CVar::try_from(raw_cvar.borrow_mut() as *mut cvar_t).ok(),
                 1..,
             )
@@ -8820,7 +8819,7 @@ mod handle_damage_tests {
 
         MockEngineBuilder::default()
             .with_find_cvar(
-                predicate::eq("zmq_stats_enable"),
+                |cmd| cmd == "zmq_stats_enable",
                 move |_| CVar::try_from(raw_cvar.borrow_mut() as *mut cvar_t).ok(),
                 1..,
             )
@@ -9110,7 +9109,7 @@ mod handle_console_print_tests {
 
         MockEngineBuilder::default()
             .with_find_cvar(
-                predicate::eq("zmq_stats_enable"),
+                |cmd| cmd == "zmq_stats_enable",
                 move |_| CVar::try_from(raw_cvar.borrow_mut() as *mut cvar_t).ok(),
                 1..,
             )
@@ -9168,7 +9167,7 @@ mod handle_console_print_tests {
 
         MockEngineBuilder::default()
             .with_find_cvar(
-                predicate::eq("zmq_stats_enable"),
+                |cmd| cmd == "zmq_stats_enable",
                 move |_| CVar::try_from(raw_cvar.borrow_mut() as *mut cvar_t).ok(),
                 1..,
             )
@@ -9220,7 +9219,7 @@ mod handle_console_print_tests {
 
         MockEngineBuilder::default()
             .with_find_cvar(
-                predicate::eq("zmq_stats_enable"),
+                |cmd| cmd == "zmq_stats_enable",
                 move |_| CVar::try_from(raw_cvar.borrow_mut() as *mut cvar_t).ok(),
                 1..,
             )

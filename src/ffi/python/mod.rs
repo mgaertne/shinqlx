@@ -1056,7 +1056,6 @@ mod pyshinqlx_configure_logger_tests {
     use alloc::ffi::CString;
     use core::borrow::BorrowMut;
 
-    use mockall::predicate;
     use rstest::rstest;
 
     use pyo3::exceptions::PyEnvironmentError;
@@ -1129,17 +1128,17 @@ mod pyshinqlx_configure_logger_tests {
 
         MockEngineBuilder::default()
             .with_find_cvar(
-                predicate::eq("fs_homepath"),
+                |cmd| cmd == "fs_homepath",
                 move |_| CVar::try_from(raw_homepath_cvar.borrow_mut() as *mut cvar_t).ok(),
                 1,
             )
             .with_find_cvar(
-                predicate::eq("qlx_logs"),
+                |cmd| cmd == "qlx_logs",
                 move |_| CVar::try_from(raw_logs_cvar.borrow_mut() as *mut cvar_t).ok(),
                 1,
             )
             .with_find_cvar(
-                predicate::eq("qlx_logsSize"),
+                |cmd| cmd == "qlx_logsSize",
                 move |_| CVar::try_from(raw_logssize_cvar.borrow_mut() as *mut cvar_t).ok(),
                 1,
             )
@@ -1216,12 +1215,12 @@ mod pyshinqlx_configure_logger_tests {
 
         MockEngineBuilder::default()
             .with_find_cvar(
-                predicate::eq("fs_homepath"),
+                |cmd| cmd == "fs_homepath",
                 move |_| CVar::try_from(raw_homepath_cvar.borrow_mut() as *mut cvar_t).ok(),
                 1,
             )
-            .with_find_cvar(predicate::eq("qlx_logs"), |_| None, 1)
-            .with_find_cvar(predicate::eq("qlx_logsSize"), |_| None, 1)
+            .with_find_cvar(|cmd| cmd == "qlx_logs", |_| None, 1)
+            .with_find_cvar(|cmd| cmd == "qlx_logsSize", |_| None, 1)
             .run(|| {
                 Python::with_gil(|py| {
                     let result = pyshinqlx_configure_logger(py);
@@ -1822,7 +1821,6 @@ mod owner_tests {
 
     use core::borrow::BorrowMut;
 
-    use mockall::predicate;
     use rstest::rstest;
 
     use pyo3::exceptions::PyEnvironmentError;
@@ -1843,7 +1841,7 @@ mod owner_tests {
     #[serial]
     fn owner_with_no_cvar(_pyshinqlx_setup: ()) {
         MockEngineBuilder::default()
-            .with_find_cvar(predicate::eq("qlx_owner"), |_| None, 1..)
+            .with_find_cvar(|cmd| cmd == "qlx_owner", |_| None, 1..)
             .run(|| {
                 Python::with_gil(|py| {
                     let result = pyshinqlx_owner(py);
@@ -1864,7 +1862,7 @@ mod owner_tests {
 
         MockEngineBuilder::default()
             .with_find_cvar(
-                predicate::eq("qlx_owner"),
+                |cmd| cmd == "qlx_owner",
                 move |_| CVar::try_from(raw_cvar.borrow_mut() as *mut cvar_t).ok(),
                 1..,
             )
@@ -1888,7 +1886,7 @@ mod owner_tests {
 
         MockEngineBuilder::default()
             .with_find_cvar(
-                predicate::eq("qlx_owner"),
+                |cmd| cmd == "qlx_owner",
                 move |_| CVar::try_from(raw_cvar.borrow_mut() as *mut cvar_t).ok(),
                 1..,
             )
@@ -1912,7 +1910,7 @@ mod owner_tests {
 
         MockEngineBuilder::default()
             .with_find_cvar(
-                predicate::eq("qlx_owner"),
+                |cmd| cmd == "qlx_owner",
                 move |_| CVar::try_from(raw_cvar.borrow_mut() as *mut cvar_t).ok(),
                 1..,
             )
@@ -1945,7 +1943,6 @@ mod stats_listener_tests {
 
     use core::borrow::BorrowMut;
 
-    use mockall::predicate;
     use rstest::rstest;
 
     use pyo3::intern;
@@ -1981,7 +1978,7 @@ mod stats_listener_tests {
 
         MockEngineBuilder::default()
             .with_find_cvar(
-                predicate::eq("zmq_stats_enable"),
+                |cmd| cmd == "zmq_stats_enable",
                 move |_| CVar::try_from(raw_cvar.borrow_mut() as *mut cvar_t).ok(),
                 1..,
             )
@@ -2424,7 +2421,6 @@ mod pyshinqlx_plugins_tests {
     use std::io::Write;
     use std::path::PathBuf;
 
-    use mockall::predicate;
     use rstest::*;
 
     use pyo3::exceptions::PyEnvironmentError;
@@ -2561,7 +2557,7 @@ class test_cmd_hook_plugin(shinqlx.Plugin):
     #[cfg_attr(miri, ignore)]
     fn load_preset_plugin_with_misconfigured_plugin_path_cvar(_pyshinqlx_setup: ()) {
         MockEngineBuilder::default()
-            .with_find_cvar(predicate::eq("qlx_pluginsPath"), |_| None, 1..)
+            .with_find_cvar(|cmd| cmd == "qlx_pluginsPath", |_| None, 1..)
             .run(|| {
                 Python::with_gil(|py| {
                     let result = load_preset_plugins(py);
@@ -2587,12 +2583,12 @@ class test_cmd_hook_plugin(shinqlx.Plugin):
 
         MockEngineBuilder::default()
             .with_find_cvar(
-                predicate::eq("qlx_pluginsPath"),
+                |cmd| cmd == "qlx_pluginsPath",
                 move |_| CVar::try_from(raw_pluginspath_cvar.borrow_mut() as *mut cvar_t).ok(),
                 1..,
             )
             .with_find_cvar(
-                predicate::eq("qlx_plugins"),
+                |cmd| cmd == "qlx_plugins",
                 move |_| CVar::try_from(raw_plugins_cvar.borrow_mut() as *mut cvar_t).ok(),
                 1..,
             )
@@ -2638,12 +2634,12 @@ class test_cmd_hook_plugin(shinqlx.Plugin):
 
         MockEngineBuilder::default()
             .with_find_cvar(
-                predicate::eq("qlx_pluginsPath"),
+                |cmd| cmd == "qlx_pluginsPath",
                 move |_| CVar::try_from(raw_pluginspath_cvar.borrow_mut() as *mut cvar_t).ok(),
                 1..,
             )
             .with_find_cvar(
-                predicate::eq("qlx_plugins"),
+                |cmd| cmd == "qlx_plugins",
                 move |_| CVar::try_from(raw_plugins_cvar.borrow_mut() as *mut cvar_t).ok(),
                 1..,
             )
@@ -2689,12 +2685,12 @@ class test_cmd_hook_plugin(shinqlx.Plugin):
 
         MockEngineBuilder::default()
             .with_find_cvar(
-                predicate::eq("qlx_pluginsPath"),
+                |cmd| cmd == "qlx_pluginsPath",
                 move |_| CVar::try_from(raw_pluginspath_cvar.borrow_mut() as *mut cvar_t).ok(),
                 1..,
             )
             .with_find_cvar(
-                predicate::eq("qlx_plugins"),
+                |cmd| cmd == "qlx_plugins",
                 move |_| CVar::try_from(raw_plugins_cvar.borrow_mut() as *mut cvar_t).ok(),
                 1..,
             )
@@ -2738,7 +2734,7 @@ class test_cmd_hook_plugin(shinqlx.Plugin):
     #[cfg_attr(miri, ignore)]
     fn load_plugin_with_misconfigured_plugin_path_cvar(_pyshinqlx_setup: ()) {
         MockEngineBuilder::default()
-            .with_find_cvar(predicate::eq("qlx_pluginsPath"), |_| None, 0..)
+            .with_find_cvar(|cmd| cmd == "qlx_pluginsPath", |_| None, 0..)
             .run(|| {
                 Python::with_gil(|py| {
                     let result = load_plugin(py, "not_existing_plugin");
@@ -2759,7 +2755,7 @@ class test_cmd_hook_plugin(shinqlx.Plugin):
 
         MockEngineBuilder::default()
             .with_find_cvar(
-                predicate::eq("qlx_pluginsPath"),
+                |cmd| cmd == "qlx_pluginsPath",
                 move |_| CVar::try_from(raw_pluginspath_cvar.borrow_mut() as *mut cvar_t).ok(),
                 1..,
             )
@@ -2800,7 +2796,7 @@ class test_cmd_hook_plugin(shinqlx.Plugin):
 
         MockEngineBuilder::default()
             .with_find_cvar(
-                predicate::eq("qlx_pluginsPath"),
+                |cmd| cmd == "qlx_pluginsPath",
                 move |_| CVar::try_from(raw_pluginspath_cvar.borrow_mut() as *mut cvar_t).ok(),
                 1..,
             )
@@ -2844,7 +2840,7 @@ class test_cmd_hook_plugin(shinqlx.Plugin):
 
         MockEngineBuilder::default()
             .with_find_cvar(
-                predicate::eq("qlx_pluginsPath"),
+                |cmd| cmd == "qlx_pluginsPath",
                 move |_| CVar::try_from(raw_pluginspath_cvar.borrow_mut() as *mut cvar_t).ok(),
                 1..,
             )
@@ -2885,7 +2881,7 @@ class test_cmd_hook_plugin(shinqlx.Plugin):
 
         MockEngineBuilder::default()
             .with_find_cvar(
-                predicate::eq("qlx_pluginsPath"),
+                |cmd| cmd == "qlx_pluginsPath",
                 move |_| CVar::try_from(raw_pluginspath_cvar.borrow_mut() as *mut cvar_t).ok(),
                 1..,
             )
@@ -2926,7 +2922,7 @@ class test_cmd_hook_plugin(shinqlx.Plugin):
 
         MockEngineBuilder::default()
             .with_find_cvar(
-                predicate::eq("qlx_pluginsPath"),
+                |cmd| cmd == "qlx_pluginsPath",
                 move |_| CVar::try_from(raw_pluginspath_cvar.borrow_mut() as *mut cvar_t).ok(),
                 1..,
             )
@@ -2992,7 +2988,7 @@ class test_cmd_hook_plugin(shinqlx.Plugin):
 
         MockEngineBuilder::default()
             .with_find_cvar(
-                predicate::eq("qlx_pluginsPath"),
+                |cmd| cmd == "qlx_pluginsPath",
                 move |_| CVar::try_from(raw_pluginspath_cvar.borrow_mut() as *mut cvar_t).ok(),
                 1..,
             )
@@ -3050,7 +3046,7 @@ class test_cmd_hook_plugin(shinqlx.Plugin):
 
         MockEngineBuilder::default()
             .with_find_cvar(
-                predicate::eq("qlx_pluginsPath"),
+                |cmd| cmd == "qlx_pluginsPath",
                 move |_| CVar::try_from(raw_pluginspath_cvar.borrow_mut() as *mut cvar_t).ok(),
                 1..,
             )
@@ -3107,7 +3103,7 @@ class test_cmd_hook_plugin(shinqlx.Plugin):
 
         MockEngineBuilder::default()
             .with_find_cvar(
-                predicate::eq("qlx_pluginsPath"),
+                |cmd| cmd == "qlx_pluginsPath",
                 move |_| CVar::try_from(raw_pluginspath_cvar.borrow_mut() as *mut cvar_t).ok(),
                 1..,
             )
@@ -3168,12 +3164,12 @@ class test_cmd_hook_plugin(shinqlx.Plugin):
 
         MockEngineBuilder::default()
             .with_find_cvar(
-                predicate::eq("qlx_pluginsPath"),
+                |cmd| cmd == "qlx_pluginsPath",
                 move |_| CVar::try_from(raw_pluginspath_cvar.borrow_mut() as *mut cvar_t).ok(),
                 1..,
             )
             .with_find_cvar(
-                predicate::eq("zmq_stats_enable"),
+                |cmd| cmd == "zmq_stats_enable",
                 move |_| CVar::try_from(raw_zmq_cvar.borrow_mut() as *mut cvar_t).ok(),
                 1..,
             )
@@ -3229,7 +3225,7 @@ class test_cmd_hook_plugin(shinqlx.Plugin):
 
         MockEngineBuilder::default()
             .with_find_cvar(
-                predicate::eq("qlx_pluginsPath"),
+                |cmd| cmd == "qlx_pluginsPath",
                 move |_| CVar::try_from(raw_pluginspath_cvar.borrow_mut() as *mut cvar_t).ok(),
                 1..,
             )
@@ -3353,7 +3349,7 @@ mod initialize_cvars_tests {
         _pyshinqlx_setup: (),
     ) {
         MockEngineBuilder::default()
-            .with_find_cvar(predicate::always(), |_| None, 0..)
+            .with_find_cvar(|_| true, |_| None, 1..)
             .configure(|mock_engine| {
                 mock_engine
                     .expect_get_cvar()
@@ -3416,8 +3412,6 @@ mod try_get_plugins_path_tests {
     use alloc::ffi::CString;
     use core::borrow::BorrowMut;
 
-    use mockall::predicate;
-
     static TEMP_DIR: once_cell::sync::Lazy<tempfile::TempDir> = once_cell::sync::Lazy::new(|| {
         tempfile::Builder::new()
             .tempdir()
@@ -3437,7 +3431,7 @@ mod try_get_plugins_path_tests {
     #[cfg_attr(miri, ignore)]
     fn try_get_plugins_path_with_no_cvar_set() {
         MockEngineBuilder::default()
-            .with_find_cvar(predicate::eq("qlx_pluginsPath"), |_| None, 1..)
+            .with_find_cvar(|cmd| cmd == "qlx_pluginsPath", |_| None, 1..)
             .run(|| {
                 let result = try_get_plugins_path();
                 assert!(result.is_err_and(|err| err == "qlx_pluginsPath cvar not found"));
@@ -3456,7 +3450,7 @@ mod try_get_plugins_path_tests {
 
         MockEngineBuilder::default()
             .with_find_cvar(
-                predicate::eq("qlx_pluginsPath"),
+                |cmd| cmd == "qlx_pluginsPath",
                 move |_| CVar::try_from(raw_cvar.borrow_mut() as *mut cvar_t).ok(),
                 1..,
             )
@@ -3481,7 +3475,7 @@ mod try_get_plugins_path_tests {
 
         MockEngineBuilder::default()
             .with_find_cvar(
-                predicate::eq("qlx_pluginsPath"),
+                |cmd| cmd == "qlx_pluginsPath",
                 move |_| CVar::try_from(raw_cvar.borrow_mut() as *mut cvar_t).ok(),
                 1..,
             )
