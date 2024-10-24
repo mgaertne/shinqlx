@@ -7388,7 +7388,7 @@ assert(isinstance(shinqlx.RconDummyPlayer(), shinqlx.AbstractDummyPlayer))
 
         MockEngineBuilder::default()
             .with_find_cvar(
-                predicate::eq("qlx_owner"),
+                |cmd| cmd == "qlx_owner",
                 move |_| CVar::try_from(raw_cvar.borrow_mut() as *mut cvar_t).ok(),
                 1..,
             )
