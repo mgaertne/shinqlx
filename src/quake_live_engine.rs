@@ -5479,6 +5479,26 @@ impl MockEngineBuilder {
         })
     }
 
+    pub(crate) fn with_get_configstring<F, G, H>(
+        self,
+        matcher: F,
+        returned: G,
+        times: H,
+    ) -> MockEngineBuilder
+    where
+        F: mockall::Predicate<u16> + Send + 'static,
+        G: FnMut(u16) -> String + Send + 'static,
+        H: Into<mockall::TimesRange>,
+    {
+        self.configure(|mock_engine| {
+            mock_engine
+                .expect_get_configstring()
+                .with(matcher)
+                .returning(returned)
+                .times(times);
+        })
+    }
+
     pub(crate) fn run<F>(&mut self, execute: F)
     where
         F: FnOnce(),

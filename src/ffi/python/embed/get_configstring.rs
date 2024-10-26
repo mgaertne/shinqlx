@@ -45,13 +45,7 @@ mod get_configstring_tests {
     #[serial]
     fn get_configstring_forwards_call_to_engine(_pyshinqlx_setup: ()) {
         MockEngineBuilder::default()
-            .configure(|mock_engine| {
-                mock_engine
-                    .expect_get_configstring()
-                    .with(predicate::eq(666))
-                    .returning(|_| "asdf".to_string())
-                    .times(1);
-            })
+            .with_get_configstring(predicate::eq(666), |_| "asdf".to_string(), 1)
             .run(|| {
                 let result = Python::with_gil(|py| pyshinqlx_get_configstring(py, 666));
                 assert_eq!(result.expect("result was not OK"), "asdf");
