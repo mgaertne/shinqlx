@@ -110,20 +110,13 @@ mod vote_ended_dispatcher_tests {
     #[serial]
     fn dispatch_with_no_handlers_registered(_pyshinqlx_setup: ()) {
         MockEngineBuilder::default()
-            .configure(|mock_engine| {
-                mock_engine
-                    .expect_get_configstring()
-                    .with(predicate::eq(CS_VOTE_STRING as u16))
-                    .returning(|_| "map thunderstruck ca".into());
-                mock_engine
-                    .expect_get_configstring()
-                    .with(predicate::eq(CS_VOTE_YES as u16))
-                    .returning(|_| "0".into());
-                mock_engine
-                    .expect_get_configstring()
-                    .with(predicate::eq(CS_VOTE_NO as u16))
-                    .returning(|_| "8".into());
-            })
+            .with_get_configstring(
+                predicate::eq(CS_VOTE_STRING as u16),
+                |_| "map thunderstruck ca".to_string(),
+                1,
+            )
+            .with_get_configstring(predicate::eq(CS_VOTE_YES as u16), |_| "0".to_string(), 1)
+            .with_get_configstring(predicate::eq(CS_VOTE_NO as u16), |_| "8".to_string(), 1)
             .run(|| {
                 Python::with_gil(|py| {
                     let dispatcher = Py::new(py, VoteEndedDispatcher::py_new(py))
@@ -148,22 +141,15 @@ mod vote_ended_dispatcher_tests {
             .with_find_cvar(
                 |cmd| cmd == "zmq_stats_enable",
                 move |_| CVar::try_from(raw_cvar.borrow_mut() as *mut cvar_t).ok(),
-                1..,
+                1,
             )
-            .configure(|mock_engine| {
-                mock_engine
-                    .expect_get_configstring()
-                    .with(predicate::eq(CS_VOTE_STRING as u16))
-                    .returning(|_| "map thunderstruck ca".into());
-                mock_engine
-                    .expect_get_configstring()
-                    .with(predicate::eq(CS_VOTE_YES as u16))
-                    .returning(|_| "0".into());
-                mock_engine
-                    .expect_get_configstring()
-                    .with(predicate::eq(CS_VOTE_NO as u16))
-                    .returning(|_| "8".into());
-            })
+            .with_get_configstring(
+                predicate::eq(CS_VOTE_STRING as u16),
+                |_| "map thunderstruck ca".to_string(),
+                1,
+            )
+            .with_get_configstring(predicate::eq(CS_VOTE_YES as u16), |_| "0".to_string(), 1)
+            .with_get_configstring(predicate::eq(CS_VOTE_NO as u16), |_| "0".to_string(), 1)
             .run(|| {
                 Python::with_gil(|py| {
                     let dispatcher = Py::new(py, VoteEndedDispatcher::py_new(py))
@@ -213,22 +199,15 @@ def throws_exception_hook(*args, **kwargs):
             .with_find_cvar(
                 |cmd| cmd == "zmq_stats_enable",
                 move |_| CVar::try_from(raw_cvar.borrow_mut() as *mut cvar_t).ok(),
-                1..,
+                1,
             )
-            .configure(|mock_engine| {
-                mock_engine
-                    .expect_get_configstring()
-                    .with(predicate::eq(CS_VOTE_STRING as u16))
-                    .returning(|_| "map thunderstruck ca".into());
-                mock_engine
-                    .expect_get_configstring()
-                    .with(predicate::eq(CS_VOTE_YES as u16))
-                    .returning(|_| "0".into());
-                mock_engine
-                    .expect_get_configstring()
-                    .with(predicate::eq(CS_VOTE_NO as u16))
-                    .returning(|_| "8".into());
-            })
+            .with_get_configstring(
+                predicate::eq(CS_VOTE_STRING as u16),
+                |_| "map thunderstruck ca".to_string(),
+                1,
+            )
+            .with_get_configstring(predicate::eq(CS_VOTE_YES as u16), |_| "0".to_string(), 1)
+            .with_get_configstring(predicate::eq(CS_VOTE_NO as u16), |_| "8".to_string(), 1)
             .run(|| {
                 Python::with_gil(|py| {
                     let dispatcher = Py::new(py, VoteEndedDispatcher::py_new(py))
@@ -278,22 +257,15 @@ def returns_none_hook(*args, **kwargs):
             .with_find_cvar(
                 |cmd| cmd == "zmq_stats_enable",
                 move |_| CVar::try_from(raw_cvar.borrow_mut() as *mut cvar_t).ok(),
-                1..,
+                1,
             )
-            .configure(|mock_engine| {
-                mock_engine
-                    .expect_get_configstring()
-                    .with(predicate::eq(CS_VOTE_STRING as u16))
-                    .returning(|_| "map thunderstruck ca".into());
-                mock_engine
-                    .expect_get_configstring()
-                    .with(predicate::eq(CS_VOTE_YES as u16))
-                    .returning(|_| "0".into());
-                mock_engine
-                    .expect_get_configstring()
-                    .with(predicate::eq(CS_VOTE_NO as u16))
-                    .returning(|_| "8".into());
-            })
+            .with_get_configstring(
+                predicate::eq(CS_VOTE_STRING as u16),
+                |_| "map thunderstruck ca".to_string(),
+                1,
+            )
+            .with_get_configstring(predicate::eq(CS_VOTE_YES as u16), |_| "0".to_string(), 1)
+            .with_get_configstring(predicate::eq(CS_VOTE_NO as u16), |_| "8".to_string(), 1)
             .run(|| {
                 Python::with_gil(|py| {
                     let dispatcher = Py::new(py, VoteEndedDispatcher::py_new(py))
@@ -345,22 +317,15 @@ def returns_none_hook(*args, **kwargs):
             .with_find_cvar(
                 |cmd| cmd == "zmq_stats_enable",
                 move |_| CVar::try_from(raw_cvar.borrow_mut() as *mut cvar_t).ok(),
-                1..,
+                1,
             )
-            .configure(|mock_engine| {
-                mock_engine
-                    .expect_get_configstring()
-                    .with(predicate::eq(CS_VOTE_STRING as u16))
-                    .returning(|_| "map thunderstruck ca".into());
-                mock_engine
-                    .expect_get_configstring()
-                    .with(predicate::eq(CS_VOTE_YES as u16))
-                    .returning(|_| "0".into());
-                mock_engine
-                    .expect_get_configstring()
-                    .with(predicate::eq(CS_VOTE_NO as u16))
-                    .returning(|_| "8".into());
-            })
+            .with_get_configstring(
+                predicate::eq(CS_VOTE_STRING as u16),
+                |_| "map thunderstruck ca".to_string(),
+                1,
+            )
+            .with_get_configstring(predicate::eq(CS_VOTE_YES as u16), |_| "0".to_string(), 1)
+            .with_get_configstring(predicate::eq(CS_VOTE_NO as u16), |_| "8".to_string(), 1)
             .run(|| {
                 Python::with_gil(|py| {
                     let dispatcher = Py::new(py, VoteEndedDispatcher::py_new(py))
@@ -412,22 +377,15 @@ def returns_stop_hook(*args, **kwargs):
             .with_find_cvar(
                 |cmd| cmd == "zmq_stats_enable",
                 move |_| CVar::try_from(raw_cvar.borrow_mut() as *mut cvar_t).ok(),
-                1..,
+                1,
             )
-            .configure(|mock_engine| {
-                mock_engine
-                    .expect_get_configstring()
-                    .with(predicate::eq(CS_VOTE_STRING as u16))
-                    .returning(|_| "map thunderstruck ca".into());
-                mock_engine
-                    .expect_get_configstring()
-                    .with(predicate::eq(CS_VOTE_YES as u16))
-                    .returning(|_| "0".into());
-                mock_engine
-                    .expect_get_configstring()
-                    .with(predicate::eq(CS_VOTE_NO as u16))
-                    .returning(|_| "8".into());
-            })
+            .with_get_configstring(
+                predicate::eq(CS_VOTE_STRING as u16),
+                |_| "map thunderstruck ca".to_string(),
+                1,
+            )
+            .with_get_configstring(predicate::eq(CS_VOTE_YES as u16), |_| "0".to_string(), 1)
+            .with_get_configstring(predicate::eq(CS_VOTE_NO as u16), |_| "8".to_string(), 1)
             .run(|| {
                 Python::with_gil(|py| {
                     let dispatcher = Py::new(py, VoteEndedDispatcher::py_new(py))
@@ -479,22 +437,15 @@ def returns_stop_event_hook(*args, **kwargs):
             .with_find_cvar(
                 |cmd| cmd == "zmq_stats_enable",
                 move |_| CVar::try_from(raw_cvar.borrow_mut() as *mut cvar_t).ok(),
-                1..,
+                1,
             )
-            .configure(|mock_engine| {
-                mock_engine
-                    .expect_get_configstring()
-                    .with(predicate::eq(CS_VOTE_STRING as u16))
-                    .returning(|_| "map thunderstruck ca".into());
-                mock_engine
-                    .expect_get_configstring()
-                    .with(predicate::eq(CS_VOTE_YES as u16))
-                    .returning(|_| "0".into());
-                mock_engine
-                    .expect_get_configstring()
-                    .with(predicate::eq(CS_VOTE_NO as u16))
-                    .returning(|_| "8".into());
-            })
+            .with_get_configstring(
+                predicate::eq(CS_VOTE_STRING as u16),
+                |_| "map thunderstruck ca".to_string(),
+                1,
+            )
+            .with_get_configstring(predicate::eq(CS_VOTE_YES as u16), |_| "0".to_string(), 1)
+            .with_get_configstring(predicate::eq(CS_VOTE_NO as u16), |_| "8".to_string(), 1)
             .run(|| {
                 Python::with_gil(|py| {
                     let dispatcher = Py::new(py, VoteEndedDispatcher::py_new(py))
@@ -546,22 +497,15 @@ def returns_stop_all_hook(*args, **kwargs):
             .with_find_cvar(
                 |cmd| cmd == "zmq_stats_enable",
                 move |_| CVar::try_from(raw_cvar.borrow_mut() as *mut cvar_t).ok(),
-                1..,
+                1,
             )
-            .configure(|mock_engine| {
-                mock_engine
-                    .expect_get_configstring()
-                    .with(predicate::eq(CS_VOTE_STRING as u16))
-                    .returning(|_| "map thunderstruck ca".into());
-                mock_engine
-                    .expect_get_configstring()
-                    .with(predicate::eq(CS_VOTE_YES as u16))
-                    .returning(|_| "0".into());
-                mock_engine
-                    .expect_get_configstring()
-                    .with(predicate::eq(CS_VOTE_NO as u16))
-                    .returning(|_| "8".into());
-            })
+            .with_get_configstring(
+                predicate::eq(CS_VOTE_STRING as u16),
+                |_| "map thunderstruck ca".to_string(),
+                1,
+            )
+            .with_get_configstring(predicate::eq(CS_VOTE_YES as u16), |_| "0".to_string(), 1)
+            .with_get_configstring(predicate::eq(CS_VOTE_NO as u16), |_| "8".to_string(), 1)
             .run(|| {
                 Python::with_gil(|py| {
                     let dispatcher = Py::new(py, VoteEndedDispatcher::py_new(py))
@@ -613,20 +557,7 @@ def returns_string_hook(*args, **kwargs):
                 move |_| CVar::try_from(raw_cvar.borrow_mut() as *mut cvar_t).ok(),
                 1..,
             )
-            .configure(|mock_engine| {
-                mock_engine
-                    .expect_get_configstring()
-                    .with(predicate::eq(CS_VOTE_STRING as u16))
-                    .returning(|_| "".into());
-                mock_engine
-                    .expect_get_configstring()
-                    .with(predicate::eq(CS_VOTE_YES as u16))
-                    .returning(|_| "0".into());
-                mock_engine
-                    .expect_get_configstring()
-                    .with(predicate::eq(CS_VOTE_NO as u16))
-                    .returning(|_| "8".into());
-            })
+            .with_get_configstring(predicate::eq(CS_VOTE_STRING as u16), |_| "".to_string(), 1)
             .run(|| {
                 Python::with_gil(|py| {
                     let dispatcher = Py::new(py, VoteEndedDispatcher::py_new(py))
@@ -678,20 +609,7 @@ def returns_none_hook(*args, **kwargs):
                 move |_| CVar::try_from(raw_cvar.borrow_mut() as *mut cvar_t).ok(),
                 1..,
             )
-            .configure(|mock_engine| {
-                mock_engine
-                    .expect_get_configstring()
-                    .with(predicate::eq(CS_VOTE_STRING as u16))
-                    .returning(|_| " ".into());
-                mock_engine
-                    .expect_get_configstring()
-                    .with(predicate::eq(CS_VOTE_YES as u16))
-                    .returning(|_| "0".into());
-                mock_engine
-                    .expect_get_configstring()
-                    .with(predicate::eq(CS_VOTE_NO as u16))
-                    .returning(|_| "8".into());
-            })
+            .with_get_configstring(predicate::eq(CS_VOTE_STRING as u16), |_| "".to_string(), 1)
             .run(|| {
                 Python::with_gil(|py| {
                     let dispatcher = Py::new(py, VoteEndedDispatcher::py_new(py))

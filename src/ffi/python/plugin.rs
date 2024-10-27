@@ -1468,12 +1468,11 @@ mod plugin_tests {
     #[serial]
     fn game_property_when_a_game_exists(_pyshinqlx_setup: ()) {
         MockEngineBuilder::default()
-            .configure(|mock_engine| {
-                mock_engine
-                    .expect_get_configstring()
-                    .with(predicate::eq(CS_SERVERINFO as u16))
-                    .returning(|_| "asdf".to_string());
-            })
+            .with_get_configstring(
+                predicate::eq(CS_SERVERINFO as u16),
+                |_| "asdf".to_string(),
+                1,
+            )
             .run(|| {
                 Python::with_gil(|py| {
                     let plugin = Plugin {
@@ -4280,12 +4279,11 @@ def handler():
     #[serial]
     fn is_vote_active_when_configstring_set(_pyshinqlx_setup: ()) {
         MockEngineBuilder::default()
-            .configure(|mock_engine| {
-                mock_engine
-                    .expect_get_configstring()
-                    .with(predicate::eq(CS_VOTE_STRING as u16))
-                    .return_const("vote is active");
-            })
+            .with_get_configstring(
+                predicate::eq(CS_VOTE_STRING as u16),
+                |_| "vote is active".to_string(),
+                1,
+            )
             .run(|| {
                 Python::with_gil(|py| {
                     assert_eq!(Plugin::is_vote_active(&py.get_type_bound::<Plugin>()), true);
@@ -4298,12 +4296,7 @@ def handler():
     #[serial]
     fn is_vote_active_when_configstring_empty(_pyshinqlx_setup: ()) {
         MockEngineBuilder::default()
-            .configure(|mock_engine| {
-                mock_engine
-                    .expect_get_configstring()
-                    .with(predicate::eq(CS_VOTE_STRING as u16))
-                    .return_const("");
-            })
+            .with_get_configstring(predicate::eq(CS_VOTE_STRING as u16), |_| "".to_string(), 1)
             .run(|| {
                 Python::with_gil(|py| {
                     assert_eq!(
@@ -4341,16 +4334,8 @@ def handler():
     #[serial]
     fn current_vote_count_when_yes_votes_are_empty(_pyshinqlx_setup: ()) {
         MockEngineBuilder::default()
-            .configure(|mock_engine| {
-                mock_engine
-                    .expect_get_configstring()
-                    .with(predicate::eq(CS_VOTE_YES as u16))
-                    .return_const("");
-                mock_engine
-                    .expect_get_configstring()
-                    .with(predicate::eq(CS_VOTE_NO as u16))
-                    .return_const("42");
-            })
+            .with_get_configstring(predicate::eq(CS_VOTE_YES as u16), |_| "".to_string(), 1)
+            .with_get_configstring(predicate::eq(CS_VOTE_NO as u16), |_| "42".to_string(), 1)
             .run(|| {
                 Python::with_gil(|py| {
                     let result = Plugin::current_vote_count(&py.get_type_bound::<Plugin>());
@@ -4364,16 +4349,8 @@ def handler():
     #[serial]
     fn current_vote_count_when_no_votes_are_empty(_pyshinqlx_setup: ()) {
         MockEngineBuilder::default()
-            .configure(|mock_engine| {
-                mock_engine
-                    .expect_get_configstring()
-                    .with(predicate::eq(CS_VOTE_YES as u16))
-                    .return_const("42");
-                mock_engine
-                    .expect_get_configstring()
-                    .with(predicate::eq(CS_VOTE_NO as u16))
-                    .return_const("");
-            })
+            .with_get_configstring(predicate::eq(CS_VOTE_YES as u16), |_| "42".to_string(), 1)
+            .with_get_configstring(predicate::eq(CS_VOTE_NO as u16), |_| "".to_string(), 1)
             .run(|| {
                 Python::with_gil(|py| {
                     let result = Plugin::current_vote_count(&py.get_type_bound::<Plugin>());
@@ -4387,16 +4364,8 @@ def handler():
     #[serial]
     fn current_vote_count_with_proper_vote_counts(_pyshinqlx_setup: ()) {
         MockEngineBuilder::default()
-            .configure(|mock_engine| {
-                mock_engine
-                    .expect_get_configstring()
-                    .with(predicate::eq(CS_VOTE_YES as u16))
-                    .return_const("42");
-                mock_engine
-                    .expect_get_configstring()
-                    .with(predicate::eq(CS_VOTE_NO as u16))
-                    .return_const("21");
-            })
+            .with_get_configstring(predicate::eq(CS_VOTE_YES as u16), |_| "42".to_string(), 1)
+            .with_get_configstring(predicate::eq(CS_VOTE_NO as u16), |_| "21".to_string(), 1)
             .run(|| {
                 Python::with_gil(|py| {
                     let result = Plugin::current_vote_count(&py.get_type_bound::<Plugin>());
@@ -4414,16 +4383,8 @@ def handler():
     #[serial]
     fn current_vote_count_with_unparseable_yes_vote_counts(_pyshinqlx_setup: ()) {
         MockEngineBuilder::default()
-            .configure(|mock_engine| {
-                mock_engine
-                    .expect_get_configstring()
-                    .with(predicate::eq(CS_VOTE_YES as u16))
-                    .return_const("asdf");
-                mock_engine
-                    .expect_get_configstring()
-                    .with(predicate::eq(CS_VOTE_NO as u16))
-                    .return_const("21");
-            })
+            .with_get_configstring(predicate::eq(CS_VOTE_YES as u16), |_| "asdf".to_string(), 1)
+            .with_get_configstring(predicate::eq(CS_VOTE_NO as u16), |_| "21".to_string(), 1)
             .run(|| {
                 Python::with_gil(|py| {
                     let result = Plugin::current_vote_count(&py.get_type_bound::<Plugin>());
@@ -4437,16 +4398,8 @@ def handler():
     #[serial]
     fn current_vote_count_with_unparseable_no_vote_counts(_pyshinqlx_setup: ()) {
         MockEngineBuilder::default()
-            .configure(|mock_engine| {
-                mock_engine
-                    .expect_get_configstring()
-                    .with(predicate::eq(CS_VOTE_YES as u16))
-                    .return_const("42");
-                mock_engine
-                    .expect_get_configstring()
-                    .with(predicate::eq(CS_VOTE_NO as u16))
-                    .return_const("asdf");
-            })
+            .with_get_configstring(predicate::eq(CS_VOTE_YES as u16), |_| "42".to_string(), 1)
+            .with_get_configstring(predicate::eq(CS_VOTE_NO as u16), |_| "asdf".to_string(), 1)
             .run(|| {
                 Python::with_gil(|py| {
                     let result = Plugin::current_vote_count(&py.get_type_bound::<Plugin>());
@@ -4460,12 +4413,11 @@ def handler():
     #[serial]
     fn callvote_when_vote_is_active(_pyshinqlx_setup: ()) {
         MockEngineBuilder::default()
-            .configure(|mock_engine| {
-                mock_engine
-                    .expect_get_configstring()
-                    .with(predicate::eq(CS_VOTE_STRING as u16))
-                    .return_const("map overkill ca");
-            })
+            .with_get_configstring(
+                predicate::eq(CS_VOTE_STRING as u16),
+                |_| "map overkill ca".to_string(),
+                1,
+            )
             .run(|| {
                 Python::with_gil(|py| {
                     let result = Plugin::callvote(
@@ -4498,12 +4450,7 @@ def handler():
         });
 
         MockEngineBuilder::default()
-            .configure(|mock_engine| {
-                mock_engine
-                    .expect_get_configstring()
-                    .with(predicate::eq(CS_VOTE_STRING as u16))
-                    .return_const("");
-            })
+            .with_get_configstring(predicate::eq(CS_VOTE_STRING as u16), |_| "".to_string(), 1)
             .run(|| {
                 Python::with_gil(|py| {
                     let event_dispatcher = EventDispatcherManager::default();
@@ -4534,12 +4481,7 @@ def handler():
         EVENT_DISPATCHERS.store(None);
 
         MockEngineBuilder::default()
-            .configure(|mock_engine| {
-                mock_engine
-                    .expect_get_configstring()
-                    .with(predicate::eq(CS_VOTE_STRING as u16))
-                    .return_const("");
-            })
+            .with_get_configstring(predicate::eq(CS_VOTE_STRING as u16), |_| "".to_string(), 1)
             .run(|| {
                 Python::with_gil(|py| {
                     let result = Plugin::callvote(
