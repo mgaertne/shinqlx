@@ -1678,12 +1678,7 @@ mod handle_client_command_tests {
                 move |_| CVar::try_from(raw_cvar.borrow_mut() as *mut cvar_t).ok(),
                 1..,
             )
-            .configure(|mock_engine| {
-                mock_engine
-                    .expect_get_configstring()
-                    .with(predicate::eq(CS_VOTE_STRING as u16))
-                    .returning(|_| "".into());
-            })
+            .with_get_configstring(predicate::eq(CS_VOTE_STRING as u16), |_| "".to_string(), 1)
             .run(|| {
                 Python::with_gil(|py| {
                     let event_dispatcher = EventDispatcherManager::default();
@@ -1781,12 +1776,11 @@ mod handle_client_command_tests {
                 move |_| CVar::try_from(raw_cvar.borrow_mut() as *mut cvar_t).ok(),
                 1..,
             )
-            .configure(|mock_engine| {
-                mock_engine
-                    .expect_get_configstring()
-                    .with(predicate::eq(CS_VOTE_STRING as u16))
-                    .returning(|_| "allready".into());
-            })
+            .with_get_configstring(
+                predicate::eq(CS_VOTE_STRING as u16),
+                |_| "allready".to_string(),
+                1,
+            )
             .run(|| {
                 Python::with_gil(|py| {
                     let event_dispatcher = EventDispatcherManager::default();
@@ -1873,12 +1867,7 @@ mod handle_client_command_tests {
             });
 
         MockEngineBuilder::default()
-            .configure(|mock_engine| {
-                mock_engine
-                    .expect_get_configstring()
-                    .with(predicate::eq(CS_VOTE_STRING as u16))
-                    .returning(|_| "".into());
-            })
+            .with_get_configstring(predicate::eq(CS_VOTE_STRING as u16), |_| "".to_string(), 1)
             .run(|| {
                 Python::with_gil(|py| {
                     let event_dispatcher = EventDispatcherManager::default();
@@ -1941,12 +1930,7 @@ mod handle_client_command_tests {
             });
 
         MockEngineBuilder::default()
-            .configure(|mock_engine| {
-                mock_engine
-                    .expect_get_configstring()
-                    .with(predicate::eq(CS_VOTE_STRING as u16))
-                    .returning(|_| "".into());
-            })
+            .with_get_configstring(predicate::eq(CS_VOTE_STRING as u16), |_| "".to_string(), 1)
             .run(|| {
                 Python::with_gil(|py| {
                     let event_dispatcher = EventDispatcherManager::default();
@@ -2018,12 +2002,7 @@ mod handle_client_command_tests {
                 move |_| CVar::try_from(raw_cvar.borrow_mut() as *mut cvar_t).ok(),
                 1..,
             )
-            .configure(|mock_engine| {
-                mock_engine
-                    .expect_get_configstring()
-                    .with(predicate::eq(CS_VOTE_STRING as u16))
-                    .returning(|_| "".into());
-            })
+            .with_get_configstring(predicate::eq(CS_VOTE_STRING as u16), |_| "".to_string(), 1)
             .run(|| {
                 Python::with_gil(|py| {
                     let event_dispatcher = EventDispatcherManager::default();
@@ -2125,12 +2104,11 @@ mod handle_client_command_tests {
                 move |_| CVar::try_from(raw_cvar.borrow_mut() as *mut cvar_t).ok(),
                 1..,
             )
-            .configure(|mock_engine| {
-                mock_engine
-                    .expect_get_configstring()
-                    .with(predicate::eq(CS_VOTE_STRING as u16))
-                    .returning(|_| "map thunderstruck".into());
-            })
+            .with_get_configstring(
+                predicate::eq(CS_VOTE_STRING as u16),
+                |_| "map thunderstruck".to_string(),
+                1,
+            )
             .run(|| {
                 Python::with_gil(|py| {
                     let event_dispatcher = EventDispatcherManager::default();
@@ -2225,12 +2203,11 @@ mod handle_client_command_tests {
                 move |_| CVar::try_from(raw_cvar.borrow_mut() as *mut cvar_t).ok(),
                 1..,
             )
-            .configure(|mock_engine| {
-                mock_engine
-                    .expect_get_configstring()
-                    .with(predicate::eq(CS_VOTE_STRING as u16))
-                    .returning(|_| "map thunderstruck".into());
-            })
+            .with_get_configstring(
+                predicate::eq(CS_VOTE_STRING as u16),
+                |_| "map thunderstruck".to_string(),
+                1,
+            )
             .run(|| {
                 Python::with_gil(|py| {
                     let event_dispatcher = EventDispatcherManager::default();
@@ -2333,12 +2310,7 @@ mod handle_client_command_tests {
                 move |_| CVar::try_from(raw_cvar.borrow_mut() as *mut cvar_t).ok(),
                 1..,
             )
-            .configure(|mock_engine| {
-                mock_engine
-                    .expect_get_configstring()
-                    .with(predicate::eq(CS_VOTE_STRING as u16))
-                    .returning(|_| "".into());
-            })
+            .with_get_configstring(predicate::eq(CS_VOTE_STRING as u16), |_| "".to_string(), 1)
             .run(|| {
                 Python::with_gil(|py| {
                     let event_dispatcher = EventDispatcherManager::default();
@@ -2422,12 +2394,11 @@ mod handle_client_command_tests {
             });
 
         MockEngineBuilder::default()
-            .configure(|mock_engine| {
-                mock_engine
-                    .expect_get_configstring()
-                    .with(predicate::eq(CS_VOTE_STRING as u16))
-                    .returning(|_| "map thunderstruck".into());
-            })
+            .with_get_configstring(
+                predicate::eq(CS_VOTE_STRING as u16),
+                |_| "map thunderstruck".to_string(),
+                1,
+            )
             .run(|| {
                 Python::with_gil(|py| {
                     let event_dispatcher = EventDispatcherManager::default();
@@ -2505,12 +2476,11 @@ mod handle_client_command_tests {
                 move |_| CVar::try_from(raw_cvar.borrow_mut() as *mut cvar_t).ok(),
                 1..,
             )
-            .configure(|mock_engine| {
-                mock_engine
-                    .expect_get_configstring()
-                    .with(predicate::eq(CS_VOTE_STRING as u16))
-                    .returning(|_| "map thunderstruck".into());
-            })
+            .with_get_configstring(
+                predicate::eq(CS_VOTE_STRING as u16),
+                |_| "map thunderstruck".to_string(),
+                1,
+            )
             .run(|| {
                 Python::with_gil(|py| {
                     let event_dispatcher = EventDispatcherManager::default();
@@ -3898,20 +3868,13 @@ mod handle_server_command_tests {
                 move |_| CVar::try_from(raw_cvar.borrow_mut() as *mut cvar_t).ok(),
                 1..,
             )
-            .configure(|mock_engine| {
-                mock_engine
-                    .expect_get_configstring()
-                    .with(predicate::eq(CS_VOTE_STRING as u16))
-                    .returning(|_| "map thunderstruck".into());
-                mock_engine
-                    .expect_get_configstring()
-                    .with(predicate::eq(CS_VOTE_YES as u16))
-                    .returning(|_| "42".into());
-                mock_engine
-                    .expect_get_configstring()
-                    .with(predicate::eq(CS_VOTE_NO as u16))
-                    .returning(|_| "1".into());
-            })
+            .with_get_configstring(
+                predicate::eq(CS_VOTE_STRING as u16),
+                |_| "map thunderstruck".to_string(),
+                1,
+            )
+            .with_get_configstring(predicate::eq(CS_VOTE_YES as u16), |_| "42".to_string(), 1)
+            .with_get_configstring(predicate::eq(CS_VOTE_NO as u16), |_| "1".to_string(), 1)
             .run(|| {
                 Python::with_gil(|py| {
                     let event_dispatcher = EventDispatcherManager::default();
@@ -3974,20 +3937,13 @@ mod handle_server_command_tests {
                 move |_| CVar::try_from(raw_cvar.borrow_mut() as *mut cvar_t).ok(),
                 1..,
             )
-            .configure(|mock_engine| {
-                mock_engine
-                    .expect_get_configstring()
-                    .with(predicate::eq(CS_VOTE_STRING as u16))
-                    .returning(|_| "map thunderstruck".into());
-                mock_engine
-                    .expect_get_configstring()
-                    .with(predicate::eq(CS_VOTE_YES as u16))
-                    .returning(|_| "1".into());
-                mock_engine
-                    .expect_get_configstring()
-                    .with(predicate::eq(CS_VOTE_NO as u16))
-                    .returning(|_| "42".into());
-            })
+            .with_get_configstring(
+                predicate::eq(CS_VOTE_STRING as u16),
+                |_| "map thunderstruck".to_string(),
+                1,
+            )
+            .with_get_configstring(predicate::eq(CS_VOTE_YES as u16), |_| "1".to_string(), 1)
+            .with_get_configstring(predicate::eq(CS_VOTE_NO as u16), |_| "42".to_string(), 1)
             .run(|| {
                 Python::with_gil(|py| {
                     let event_dispatcher = EventDispatcherManager::default();
@@ -4679,20 +4635,17 @@ mod handle_new_game_tests {
         ZMQ_WARNING_ISSUED.store(true, Ordering::SeqCst);
 
         MockEngineBuilder::default()
-            .configure(|mock_engine| {
-                mock_engine
-                    .expect_get_configstring()
-                    .with(predicate::eq(CS_MESSAGE as u16))
-                    .returning(|_| "thunderstruck".into());
-                mock_engine
-                    .expect_get_configstring()
-                    .with(predicate::eq(CS_AUTHOR as u16))
-                    .returning(|_| "Till 'Firestarter' Merker".into());
-                mock_engine
-                    .expect_get_configstring()
-                    .with(predicate::eq(CS_AUTHOR2 as u16))
-                    .returning(|_| "None".into());
-            })
+            .with_get_configstring(
+                predicate::eq(CS_MESSAGE as u16),
+                |_| "thunderstruck".to_string(),
+                1,
+            )
+            .with_get_configstring(
+                predicate::eq(CS_AUTHOR as u16),
+                |_| "Till 'Firestarter' Merker".to_string(),
+                1,
+            )
+            .with_get_configstring(predicate::eq(CS_AUTHOR2 as u16), |_| "None".to_string(), 1)
             .run(|| {
                 Python::with_gil(|py| {
                     let event_dispatcher = EventDispatcherManager::default();
@@ -4742,11 +4695,9 @@ mod handle_new_game_tests {
                 move |_| CVar::try_from(raw_cvar.borrow_mut() as *mut cvar_t).ok(),
                 1..,
             )
-            .configure(|mock_engine| {
-                mock_engine.expect_get_configstring().withf(|index| {
-                    [CS_MESSAGE as u16, CS_AUTHOR as u16, CS_AUTHOR2 as u16].contains(index)
-                });
-            })
+            .with_get_configstring(predicate::eq(CS_MESSAGE as u16), |_| "".to_string(), 1)
+            .with_get_configstring(predicate::eq(CS_AUTHOR as u16), |_| "".to_string(), 1)
+            .with_get_configstring(predicate::eq(CS_AUTHOR2 as u16), |_| "".to_string(), 1)
             .run(|| {
                 Python::with_gil(|py| {
                     let event_dispatcher = EventDispatcherManager::default();
@@ -4802,11 +4753,9 @@ mod handle_new_game_tests {
         ZMQ_WARNING_ISSUED.store(true, Ordering::SeqCst);
 
         MockEngineBuilder::default()
-            .configure(|mock_engine| {
-                mock_engine.expect_get_configstring().withf(|index| {
-                    [CS_MESSAGE as u16, CS_AUTHOR as u16, CS_AUTHOR2 as u16].contains(index)
-                });
-            })
+            .with_get_configstring(predicate::eq(CS_MESSAGE as u16), |_| "".to_string(), 1)
+            .with_get_configstring(predicate::eq(CS_AUTHOR as u16), |_| "".to_string(), 1)
+            .with_get_configstring(predicate::eq(CS_AUTHOR2 as u16), |_| "".to_string(), 1)
             .run(|| {
                 Python::with_gil(|py| {
                     let event_dispatcher = EventDispatcherManager::default();
@@ -4867,11 +4816,9 @@ mod handle_new_game_tests {
                 move |_| CVar::try_from(raw_factory_cvar.borrow_mut() as *mut cvar_t).ok(),
                 1..,
             )
-            .configure(|mock_engine| {
-                mock_engine.expect_get_configstring().withf(|index| {
-                    [CS_MESSAGE as u16, CS_AUTHOR as u16, CS_AUTHOR2 as u16].contains(index)
-                });
-            })
+            .with_get_configstring(predicate::eq(CS_MESSAGE as u16), |_| "".to_string(), 1)
+            .with_get_configstring(predicate::eq(CS_AUTHOR as u16), |_| "".to_string(), 1)
+            .with_get_configstring(predicate::eq(CS_AUTHOR2 as u16), |_| "".to_string(), 1)
             .run(|| {
                 Python::with_gil(|py| {
                     let event_dispatcher = EventDispatcherManager::default();
@@ -4967,11 +4914,9 @@ mod handle_new_game_tests {
                 move |_| CVar::try_from(raw_factory_cvar.borrow_mut() as *mut cvar_t).ok(),
                 1..,
             )
-            .configure(|mock_engine| {
-                mock_engine.expect_get_configstring().withf(|index| {
-                    [CS_MESSAGE as u16, CS_AUTHOR as u16, CS_AUTHOR2 as u16].contains(index)
-                });
-            })
+            .with_get_configstring(predicate::eq(CS_MESSAGE as u16), |_| "".to_string(), 1)
+            .with_get_configstring(predicate::eq(CS_AUTHOR as u16), |_| "".to_string(), 1)
+            .with_get_configstring(predicate::eq(CS_AUTHOR2 as u16), |_| "".to_string(), 1)
             .run(|| {
                 Python::with_gil(|py| {
                     let event_dispatcher = EventDispatcherManager::default();
@@ -5027,17 +4972,13 @@ mod handle_new_game_tests {
                 move |_| CVar::try_from(raw_zmq_cvar.borrow_mut() as *mut cvar_t).ok(),
                 1..,
             )
-            .configure(|mock_engine| {
-                mock_engine.expect_get_configstring().withf(|index| {
-                    [CS_MESSAGE as u16, CS_AUTHOR as u16, CS_AUTHOR2 as u16].contains(index)
-                });
-                mock_engine
-                    .expect_find_cvar()
-                    .withf(|name| ["qlx_pluginsPath", "fs_homepath"].contains(&name))
-                    .returning_st(move |_| {
-                        CVar::try_from(raw_pluginspath_cvar.borrow_mut() as *mut cvar_t).ok()
-                    });
-                mock_engine.expect_find_cvar().withf(|name| {
+            .with_find_cvar(
+                |name| ["qlx_pluginsPath", "fs_homepath"].contains(&name),
+                move |_| CVar::try_from(raw_pluginspath_cvar.borrow_mut() as *mut cvar_t).ok(),
+                1..,
+            )
+            .with_find_cvar(
+                |name| {
                     [
                         "qlx_owner",
                         "qlx_plugins",
@@ -5051,7 +4992,14 @@ mod handle_new_game_tests {
                         "qlx_redisPassword",
                     ]
                     .contains(&name)
-                });
+                },
+                |_| None,
+                1..,
+            )
+            .with_get_configstring(predicate::eq(CS_MESSAGE as u16), |_| "".to_string(), 1)
+            .with_get_configstring(predicate::eq(CS_AUTHOR as u16), |_| "".to_string(), 1)
+            .with_get_configstring(predicate::eq(CS_AUTHOR2 as u16), |_| "".to_string(), 1)
+            .configure(|mock_engine| {
                 mock_engine.expect_get_cvar().withf(|name, _, _| {
                     [
                         "qlx_owner",
@@ -5122,14 +5070,13 @@ mod handle_new_game_tests {
                 move |_| CVar::try_from(raw_zmq_cvar.borrow_mut() as *mut cvar_t).ok(),
                 1..,
             )
-            .configure(|mock_engine| {
-                mock_engine
-                    .expect_find_cvar()
-                    .withf(|name| ["qlx_pluginsPath", "fs_homepath"].contains(&name))
-                    .returning_st(move |_| {
-                        CVar::try_from(raw_pluginspath_cvar.borrow_mut() as *mut cvar_t).ok()
-                    });
-                mock_engine.expect_find_cvar().withf(|name| {
+            .with_find_cvar(
+                |name| ["qlx_pluginsPath", "fs_homepath"].contains(&name),
+                move |_| CVar::try_from(raw_pluginspath_cvar.borrow_mut() as *mut cvar_t).ok(),
+                1..,
+            )
+            .with_find_cvar(
+                |name| {
                     [
                         "qlx_owner",
                         "qlx_plugins",
@@ -5143,7 +5090,14 @@ mod handle_new_game_tests {
                         "qlx_redisPassword",
                     ]
                     .contains(&name)
-                });
+                },
+                |_| None,
+                1..,
+            )
+            .with_get_configstring(predicate::eq(CS_MESSAGE as u16), |_| "".to_string(), 1)
+            .with_get_configstring(predicate::eq(CS_AUTHOR as u16), |_| "".to_string(), 1)
+            .with_get_configstring(predicate::eq(CS_AUTHOR2 as u16), |_| "".to_string(), 1)
+            .configure(|mock_engine| {
                 mock_engine.expect_get_cvar().withf(|name, _, _| {
                     [
                         "qlx_owner",
@@ -5158,9 +5112,6 @@ mod handle_new_game_tests {
                         "qlx_redisPassword",
                     ]
                     .contains(&name)
-                });
-                mock_engine.expect_get_configstring().withf(|index| {
-                    [CS_MESSAGE as u16, CS_AUTHOR as u16, CS_AUTHOR2 as u16].contains(index)
                 });
             })
             .run(|| {
@@ -5220,14 +5171,13 @@ mod handle_new_game_tests {
                 move |_| CVar::try_from(raw_zmq_cvar.borrow_mut() as *mut cvar_t).ok(),
                 1..,
             )
-            .configure(|mock_engine| {
-                mock_engine
-                    .expect_find_cvar()
-                    .withf(|name| ["qlx_pluginsPath", "fs_homepath"].contains(&name))
-                    .returning_st(move |_| {
-                        CVar::try_from(raw_pluginspath_cvar.borrow_mut() as *mut cvar_t).ok()
-                    });
-                mock_engine.expect_find_cvar().withf(|name| {
+            .with_find_cvar(
+                |name| ["qlx_pluginsPath", "fs_homepath"].contains(&name),
+                move |_| CVar::try_from(raw_pluginspath_cvar.borrow_mut() as *mut cvar_t).ok(),
+                1..,
+            )
+            .with_find_cvar(
+                |name| {
                     [
                         "qlx_owner",
                         "qlx_plugins",
@@ -5241,7 +5191,14 @@ mod handle_new_game_tests {
                         "qlx_redisPassword",
                     ]
                     .contains(&name)
-                });
+                },
+                |_| None,
+                1..,
+            )
+            .with_get_configstring(predicate::eq(CS_MESSAGE as u16), |_| "".to_string(), 1)
+            .with_get_configstring(predicate::eq(CS_AUTHOR as u16), |_| "".to_string(), 1)
+            .with_get_configstring(predicate::eq(CS_AUTHOR2 as u16), |_| "".to_string(), 1)
+            .configure(|mock_engine| {
                 mock_engine.expect_get_cvar().withf(|name, _, _| {
                     [
                         "qlx_owner",
@@ -5256,9 +5213,6 @@ mod handle_new_game_tests {
                         "qlx_redisPassword",
                     ]
                     .contains(&name)
-                });
-                mock_engine.expect_get_configstring().withf(|index| {
-                    [CS_MESSAGE as u16, CS_AUTHOR as u16, CS_AUTHOR2 as u16].contains(index)
                 });
             })
             .run(|| {
@@ -5313,11 +5267,9 @@ mod handle_new_game_tests {
         ZMQ_WARNING_ISSUED.store(true, Ordering::SeqCst);
 
         MockEngineBuilder::default()
-            .configure(|mock_engine| {
-                mock_engine.expect_get_configstring().withf(|index| {
-                    [CS_MESSAGE as u16, CS_AUTHOR as u16, CS_AUTHOR2 as u16].contains(index)
-                });
-            })
+            .with_get_configstring(predicate::eq(CS_MESSAGE as u16), |_| "".to_string(), 1)
+            .with_get_configstring(predicate::eq(CS_AUTHOR as u16), |_| "".to_string(), 1)
+            .with_get_configstring(predicate::eq(CS_AUTHOR2 as u16), |_| "".to_string(), 1)
             .run(|| {
                 Python::with_gil(|py| {
                     let event_dispatcher = EventDispatcherManager::default();
@@ -5992,12 +5944,7 @@ mod handle_set_configstring_tests {
     #[serial]
     fn try_set_configstring_for_server_info_change_with_no_prior_info_set(_pyshinqlx_setup: ()) {
         MockEngineBuilder::default()
-            .configure(|mock_engine| {
-                mock_engine
-                    .expect_get_configstring()
-                    .with(predicate::eq(CS_SERVERINFO as u16))
-                    .returning(|_| "".into());
-            })
+            .with_get_configstring(predicate::eq(CS_SERVERINFO as u16), |_| "".to_string(), 1)
             .run(|| {
                 Python::with_gil(|py| {
                     let event_dispatcher = EventDispatcherManager::default();
@@ -6024,12 +5971,11 @@ mod handle_set_configstring_tests {
         _pyshinqlx_setup: (),
     ) {
         MockEngineBuilder::default()
-            .configure(|mock_engine| {
-                mock_engine
-                    .expect_get_configstring()
-                    .with(predicate::eq(CS_SERVERINFO as u16))
-                    .returning(|_| r"\g_gameState\PRE_GAME".into());
-            })
+            .with_get_configstring(
+                predicate::eq(CS_SERVERINFO as u16),
+                |_| r"\g_gameState\PRE_GAME".to_string(),
+                1,
+            )
             .run(|| {
                 Python::with_gil(|py| {
                     let event_dispatcher = EventDispatcherManager::default();
@@ -6066,12 +6012,11 @@ mod handle_set_configstring_tests {
                 move |_| CVar::try_from(raw_cvar.borrow_mut() as *mut cvar_t).ok(),
                 1..,
             )
-            .configure(|mock_engine| {
-                mock_engine
-                    .expect_get_configstring()
-                    .with(predicate::eq(CS_SERVERINFO as u16))
-                    .returning(|_| r"\g_gameState\PRE_GAME".into());
-            })
+            .with_get_configstring(
+                predicate::eq(CS_SERVERINFO as u16),
+                |_| r"\g_gameState\PRE_GAME".to_string(),
+                1,
+            )
             .run(|| {
                 Python::with_gil(|py| {
                     let event_dispatcher = EventDispatcherManager::default();
@@ -6127,19 +6072,17 @@ mod handle_set_configstring_tests {
     #[serial]
     fn try_set_configstring_for_valid_changes(
         _pyshinqlx_setup: (),
-        #[case] old_state: &str,
+        #[case] old_state: &'static str,
         #[case] new_state: &str,
     ) {
-        let old_configstring = format!(r"\g_gameState\{old_state}");
         let new_configstring = format!(r"\g_gameState\{new_state}");
 
         MockEngineBuilder::default()
-            .configure(|mock_engine| {
-                mock_engine
-                    .expect_get_configstring()
-                    .with(predicate::eq(CS_SERVERINFO as u16))
-                    .returning(move |_| old_configstring.clone());
-            })
+            .with_get_configstring(
+                predicate::eq(CS_SERVERINFO as u16),
+                move |_| format!(r"\g_gameState\{old_state}"),
+                1,
+            )
             .run(|| {
                 Python::with_gil(|py| {
                     let event_dispatcher = EventDispatcherManager::default();
@@ -6167,12 +6110,11 @@ mod handle_set_configstring_tests {
         _pyshinqlx_setup: (),
     ) {
         MockEngineBuilder::default()
-            .configure(|mock_engine| {
-                mock_engine
-                    .expect_get_configstring()
-                    .with(predicate::eq(CS_SERVERINFO as u16))
-                    .returning(|_| r"\g_gameState\PRE_GAME".into());
-            })
+            .with_get_configstring(
+                predicate::eq(CS_SERVERINFO as u16),
+                |_| r"\g_gameState\PRE_GAME".to_string(),
+                1,
+            )
             .run(|| {
                 Python::with_gil(|py| {
                     let event_dispatcher = EventDispatcherManager::default();
@@ -6199,12 +6141,11 @@ mod handle_set_configstring_tests {
     #[serial]
     fn try_set_configstring_for_invalid_state_change(_pyshinqlx_setup: ()) {
         MockEngineBuilder::default()
-            .configure(|mock_engine| {
-                mock_engine
-                    .expect_get_configstring()
-                    .with(predicate::eq(CS_SERVERINFO as u16))
-                    .returning(|_| r"\g_gameState\IN_PROGRESS".into());
-            })
+            .with_get_configstring(
+                predicate::eq(CS_SERVERINFO as u16),
+                |_| r"\g_gameState\IN_PROGRESS".to_string(),
+                1,
+            )
             .run(|| {
                 Python::with_gil(|py| {
                     let event_dispatcher = EventDispatcherManager::default();
