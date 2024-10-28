@@ -28,6 +28,8 @@ use core::{
     ffi::{c_char, c_int, CStr},
     sync::atomic::{AtomicI32, AtomicUsize, Ordering},
 };
+#[cfg(test)]
+use mockall::predicate;
 use once_cell::{race::OnceBool, sync::OnceCell};
 #[cfg(target_os = "linux")]
 use procfs::process::{MMapPath, MemoryMap, Process};
@@ -5393,22 +5395,21 @@ impl MockEngineBuilder {
         })
     }
 
-    pub(crate) fn with_get_configstring<F, G, H>(
+    pub(crate) fn with_get_configstring<F, G>(
         self,
-        matcher: F,
-        returned: G,
-        times: H,
+        matcher: u16,
+        returned: F,
+        times: G,
     ) -> MockEngineBuilder
     where
-        F: mockall::Predicate<u16> + Send + 'static,
-        G: FnMut(u16) -> String + Send + 'static,
-        H: Into<mockall::TimesRange>,
+        F: ToString + Send + Sync + 'static,
+        G: Into<mockall::TimesRange>,
     {
         self.configure(|mock_engine| {
             mock_engine
                 .expect_get_configstring()
-                .with(matcher)
-                .returning(returned)
+                .with(predicate::eq(matcher))
+                .returning(move |_| returned.to_string())
                 .times(times);
         })
     }
