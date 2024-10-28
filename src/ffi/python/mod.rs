@@ -789,21 +789,9 @@ mod set_map_subtitles_tests {
             .times(1);
 
         MockEngineBuilder::default()
-            .with_get_configstring(
-                predicate::eq(CS_MESSAGE as u16),
-                |_| "thunderstruck".to_string(),
-                1,
-            )
-            .with_get_configstring(
-                predicate::eq(CS_AUTHOR as u16),
-                |_| "Till 'Firestarter' Merker".to_string(),
-                1,
-            )
-            .with_get_configstring(
-                predicate::eq(CS_AUTHOR2 as u16),
-                |_| "Second author would go here".to_string(),
-                1,
-            )
+            .with_get_configstring(CS_MESSAGE as u16, "thunderstruck", 1)
+            .with_get_configstring(CS_AUTHOR as u16, "Till 'Firestarter' Merker", 1)
+            .with_get_configstring(CS_AUTHOR2 as u16, "Second author would go here", 1)
             .run(|| {
                 Python::with_gil(|py| {
                     let shinqlx_module = py
@@ -847,13 +835,9 @@ mod set_map_subtitles_tests {
             .times(1);
 
         MockEngineBuilder::default()
-            .with_get_configstring(
-                predicate::eq(CS_MESSAGE as u16),
-                |_| "thunderstruck".to_string(),
-                1,
-            )
-            .with_get_configstring(predicate::eq(CS_AUTHOR as u16), |_| "".to_string(), 1)
-            .with_get_configstring(predicate::eq(CS_AUTHOR2 as u16), |_| "".to_string(), 1)
+            .with_get_configstring(CS_MESSAGE as u16, "thunderstruck", 1)
+            .with_get_configstring(CS_AUTHOR as u16, "", 1)
+            .with_get_configstring(CS_AUTHOR2 as u16, "", 1)
             .run(|| {
                 Python::with_gil(|py| {
                     let shinqlx_module = py

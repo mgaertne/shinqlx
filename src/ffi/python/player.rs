@@ -2077,11 +2077,7 @@ assert(player._valid)
         let player = default_test_player();
 
         MockEngineBuilder::default()
-            .with_get_configstring(
-                predicate::eq((CS_PLAYERS + 2) as u16),
-                |_| "".to_string(),
-                1,
-            )
+            .with_get_configstring((CS_PLAYERS + 2) as u16, "", 1)
             .run(|| {
                 let result = Python::with_gil(|py| player.get_clan(py));
                 assert_eq!(result, "");
@@ -2095,11 +2091,7 @@ assert(player._valid)
         let player = default_test_player();
 
         MockEngineBuilder::default()
-            .with_get_configstring(
-                predicate::eq((CS_PLAYERS + 2) as u16),
-                |_| r"\cn\asdf".to_string(),
-                1,
-            )
+            .with_get_configstring((CS_PLAYERS + 2) as u16, r"\cn\asdf", 1)
             .run(|| {
                 let result = Python::with_gil(|py| player.get_clan(py));
                 assert_eq!(result, "asdf");
@@ -2121,11 +2113,7 @@ assert(player._valid)
         let mut player = default_test_player();
 
         MockEngineBuilder::default()
-            .with_get_configstring(
-                predicate::eq((CS_PLAYERS + 2) as u16),
-                |_| "".to_string(),
-                1,
-            )
+            .with_get_configstring((CS_PLAYERS + 2) as u16, "", 1)
             .configure(|mock_engine| {
                 mock_engine
                     .expect_set_configstring()
@@ -2148,11 +2136,7 @@ assert(player._valid)
         let mut player = default_test_player();
 
         MockEngineBuilder::default()
-            .with_get_configstring(
-                predicate::eq((CS_PLAYERS + 2) as u16),
-                |_| r"\xcn\asdf\cn\asdf".to_string(),
-                1,
-            )
+            .with_get_configstring((CS_PLAYERS + 2) as u16, r"\xcn\asdf\cn\asdf", 1)
             .configure(|mock_engine| {
                 mock_engine
                     .expect_set_configstring()

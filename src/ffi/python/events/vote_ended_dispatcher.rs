@@ -99,7 +99,6 @@ mod vote_ended_dispatcher_tests {
 
     use core::borrow::BorrowMut;
 
-    use mockall::predicate;
     use rstest::rstest;
 
     use pyo3::intern;
@@ -110,13 +109,9 @@ mod vote_ended_dispatcher_tests {
     #[serial]
     fn dispatch_with_no_handlers_registered(_pyshinqlx_setup: ()) {
         MockEngineBuilder::default()
-            .with_get_configstring(
-                predicate::eq(CS_VOTE_STRING as u16),
-                |_| "map thunderstruck ca".to_string(),
-                1,
-            )
-            .with_get_configstring(predicate::eq(CS_VOTE_YES as u16), |_| "0".to_string(), 1)
-            .with_get_configstring(predicate::eq(CS_VOTE_NO as u16), |_| "8".to_string(), 1)
+            .with_get_configstring(CS_VOTE_STRING as u16, "map thunderstruck ca", 1)
+            .with_get_configstring(CS_VOTE_YES as u16, "0", 1)
+            .with_get_configstring(CS_VOTE_NO as u16, "8", 1)
             .run(|| {
                 Python::with_gil(|py| {
                     let dispatcher = Py::new(py, VoteEndedDispatcher::py_new(py))
@@ -143,13 +138,9 @@ mod vote_ended_dispatcher_tests {
                 move |_| CVar::try_from(raw_cvar.borrow_mut() as *mut cvar_t).ok(),
                 1,
             )
-            .with_get_configstring(
-                predicate::eq(CS_VOTE_STRING as u16),
-                |_| "map thunderstruck ca".to_string(),
-                1,
-            )
-            .with_get_configstring(predicate::eq(CS_VOTE_YES as u16), |_| "0".to_string(), 1)
-            .with_get_configstring(predicate::eq(CS_VOTE_NO as u16), |_| "0".to_string(), 1)
+            .with_get_configstring(CS_VOTE_STRING as u16, "map thunderstruck ca", 1)
+            .with_get_configstring(CS_VOTE_YES as u16, "0", 1)
+            .with_get_configstring(CS_VOTE_NO as u16, "0", 1)
             .run(|| {
                 Python::with_gil(|py| {
                     let dispatcher = Py::new(py, VoteEndedDispatcher::py_new(py))
@@ -201,13 +192,9 @@ def throws_exception_hook(*args, **kwargs):
                 move |_| CVar::try_from(raw_cvar.borrow_mut() as *mut cvar_t).ok(),
                 1,
             )
-            .with_get_configstring(
-                predicate::eq(CS_VOTE_STRING as u16),
-                |_| "map thunderstruck ca".to_string(),
-                1,
-            )
-            .with_get_configstring(predicate::eq(CS_VOTE_YES as u16), |_| "0".to_string(), 1)
-            .with_get_configstring(predicate::eq(CS_VOTE_NO as u16), |_| "8".to_string(), 1)
+            .with_get_configstring(CS_VOTE_STRING as u16, "map thunderstruck ca", 1)
+            .with_get_configstring(CS_VOTE_YES as u16, "0", 1)
+            .with_get_configstring(CS_VOTE_NO as u16, "8", 1)
             .run(|| {
                 Python::with_gil(|py| {
                     let dispatcher = Py::new(py, VoteEndedDispatcher::py_new(py))
@@ -259,13 +246,9 @@ def returns_none_hook(*args, **kwargs):
                 move |_| CVar::try_from(raw_cvar.borrow_mut() as *mut cvar_t).ok(),
                 1,
             )
-            .with_get_configstring(
-                predicate::eq(CS_VOTE_STRING as u16),
-                |_| "map thunderstruck ca".to_string(),
-                1,
-            )
-            .with_get_configstring(predicate::eq(CS_VOTE_YES as u16), |_| "0".to_string(), 1)
-            .with_get_configstring(predicate::eq(CS_VOTE_NO as u16), |_| "8".to_string(), 1)
+            .with_get_configstring(CS_VOTE_STRING as u16, "map thunderstruck ca", 1)
+            .with_get_configstring(CS_VOTE_YES as u16, "0", 1)
+            .with_get_configstring(CS_VOTE_NO as u16, "8", 1)
             .run(|| {
                 Python::with_gil(|py| {
                     let dispatcher = Py::new(py, VoteEndedDispatcher::py_new(py))
@@ -319,13 +302,9 @@ def returns_none_hook(*args, **kwargs):
                 move |_| CVar::try_from(raw_cvar.borrow_mut() as *mut cvar_t).ok(),
                 1,
             )
-            .with_get_configstring(
-                predicate::eq(CS_VOTE_STRING as u16),
-                |_| "map thunderstruck ca".to_string(),
-                1,
-            )
-            .with_get_configstring(predicate::eq(CS_VOTE_YES as u16), |_| "0".to_string(), 1)
-            .with_get_configstring(predicate::eq(CS_VOTE_NO as u16), |_| "8".to_string(), 1)
+            .with_get_configstring(CS_VOTE_STRING as u16, "map thunderstruck ca", 1)
+            .with_get_configstring(CS_VOTE_YES as u16, "0", 1)
+            .with_get_configstring(CS_VOTE_NO as u16, "8", 1)
             .run(|| {
                 Python::with_gil(|py| {
                     let dispatcher = Py::new(py, VoteEndedDispatcher::py_new(py))
@@ -379,13 +358,9 @@ def returns_stop_hook(*args, **kwargs):
                 move |_| CVar::try_from(raw_cvar.borrow_mut() as *mut cvar_t).ok(),
                 1,
             )
-            .with_get_configstring(
-                predicate::eq(CS_VOTE_STRING as u16),
-                |_| "map thunderstruck ca".to_string(),
-                1,
-            )
-            .with_get_configstring(predicate::eq(CS_VOTE_YES as u16), |_| "0".to_string(), 1)
-            .with_get_configstring(predicate::eq(CS_VOTE_NO as u16), |_| "8".to_string(), 1)
+            .with_get_configstring(CS_VOTE_STRING as u16, "map thunderstruck ca", 1)
+            .with_get_configstring(CS_VOTE_YES as u16, "0", 1)
+            .with_get_configstring(CS_VOTE_NO as u16, "8", 1)
             .run(|| {
                 Python::with_gil(|py| {
                     let dispatcher = Py::new(py, VoteEndedDispatcher::py_new(py))
@@ -439,13 +414,9 @@ def returns_stop_event_hook(*args, **kwargs):
                 move |_| CVar::try_from(raw_cvar.borrow_mut() as *mut cvar_t).ok(),
                 1,
             )
-            .with_get_configstring(
-                predicate::eq(CS_VOTE_STRING as u16),
-                |_| "map thunderstruck ca".to_string(),
-                1,
-            )
-            .with_get_configstring(predicate::eq(CS_VOTE_YES as u16), |_| "0".to_string(), 1)
-            .with_get_configstring(predicate::eq(CS_VOTE_NO as u16), |_| "8".to_string(), 1)
+            .with_get_configstring(CS_VOTE_STRING as u16, "map thunderstruck ca", 1)
+            .with_get_configstring(CS_VOTE_YES as u16, "0", 1)
+            .with_get_configstring(CS_VOTE_NO as u16, "8", 1)
             .run(|| {
                 Python::with_gil(|py| {
                     let dispatcher = Py::new(py, VoteEndedDispatcher::py_new(py))
@@ -499,13 +470,9 @@ def returns_stop_all_hook(*args, **kwargs):
                 move |_| CVar::try_from(raw_cvar.borrow_mut() as *mut cvar_t).ok(),
                 1,
             )
-            .with_get_configstring(
-                predicate::eq(CS_VOTE_STRING as u16),
-                |_| "map thunderstruck ca".to_string(),
-                1,
-            )
-            .with_get_configstring(predicate::eq(CS_VOTE_YES as u16), |_| "0".to_string(), 1)
-            .with_get_configstring(predicate::eq(CS_VOTE_NO as u16), |_| "8".to_string(), 1)
+            .with_get_configstring(CS_VOTE_STRING as u16, "map thunderstruck ca", 1)
+            .with_get_configstring(CS_VOTE_YES as u16, "0", 1)
+            .with_get_configstring(CS_VOTE_NO as u16, "8", 1)
             .run(|| {
                 Python::with_gil(|py| {
                     let dispatcher = Py::new(py, VoteEndedDispatcher::py_new(py))
@@ -557,7 +524,7 @@ def returns_string_hook(*args, **kwargs):
                 move |_| CVar::try_from(raw_cvar.borrow_mut() as *mut cvar_t).ok(),
                 1..,
             )
-            .with_get_configstring(predicate::eq(CS_VOTE_STRING as u16), |_| "".to_string(), 1)
+            .with_get_configstring(CS_VOTE_STRING as u16, "", 1)
             .run(|| {
                 Python::with_gil(|py| {
                     let dispatcher = Py::new(py, VoteEndedDispatcher::py_new(py))
@@ -609,7 +576,7 @@ def returns_none_hook(*args, **kwargs):
                 move |_| CVar::try_from(raw_cvar.borrow_mut() as *mut cvar_t).ok(),
                 1..,
             )
-            .with_get_configstring(predicate::eq(CS_VOTE_STRING as u16), |_| "".to_string(), 1)
+            .with_get_configstring(CS_VOTE_STRING as u16, "", 1)
             .run(|| {
                 Python::with_gil(|py| {
                     let dispatcher = Py::new(py, VoteEndedDispatcher::py_new(py))
