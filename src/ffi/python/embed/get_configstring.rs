@@ -32,7 +32,6 @@ mod get_configstring_tests {
     use crate::ffi::python::prelude::*;
     use crate::prelude::*;
 
-    use mockall::predicate;
     use pretty_assertions::assert_eq;
     use pyo3::exceptions::{PyEnvironmentError, PyValueError};
     use rstest::rstest;
@@ -62,7 +61,7 @@ mod get_configstring_tests {
     #[serial]
     fn get_configstring_forwards_call_to_engine(_pyshinqlx_setup: ()) {
         MockEngineBuilder::default()
-            .with_get_configstring(predicate::eq(666), |_| "asdf".to_string(), 1)
+            .with_get_configstring(666, "asdf".to_string(), 1)
             .run(|| {
                 let result = Python::with_gil(|py| pyshinqlx_get_configstring(py, 666));
                 assert_eq!(result.expect("result was not OK"), "asdf");
