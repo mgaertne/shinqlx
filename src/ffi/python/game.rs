@@ -673,7 +673,7 @@ mod pyshinqlx_game_tests {
     #[serial]
     fn pyconstructor_with_empty_configstring(_pyshinqlx_setup: ()) {
         MockEngineBuilder::default()
-            .with_get_configstring(predicate::eq(CS_SERVERINFO as u16), |_| "".to_string(), 1)
+            .with_get_configstring(CS_SERVERINFO as u16, "", 1)
         .run(|| {
             Python::with_gil(|py| {
                 let result = Game::py_new(py, true);
@@ -687,11 +687,7 @@ mod pyshinqlx_game_tests {
     #[serial]
     fn pyconstructor_with_nonempty_configstring(_pyshinqlx_setup: ()) {
         MockEngineBuilder::default()
-            .with_get_configstring(
-                predicate::eq(CS_SERVERINFO as u16),
-                |_| "asdf".to_string(),
-                1,
-            )
+            .with_get_configstring(CS_SERVERINFO as u16, "asdf", 1)
             .run(|| {
                 let result = Python::with_gil(|py| Game::py_new(py, true));
                 assert_eq!(
@@ -727,7 +723,7 @@ mod pyshinqlx_game_tests {
     #[serial]
     fn repr_with_empty_configstring(_pyshinqlx_setup: ()) {
         MockEngineBuilder::default()
-            .with_get_configstring(predicate::eq(CS_SERVERINFO as u16), |_| "".to_string(), 1..)
+            .with_get_configstring(CS_SERVERINFO as u16, "", 1..)
             .run(|| {
                 let result = Python::with_gil(|py| {
                     let game = Bound::new(
@@ -749,11 +745,7 @@ mod pyshinqlx_game_tests {
     #[serial]
     fn repr_with_empty_map_configstring(_pyshinqlx_setup: ()) {
         MockEngineBuilder::default()
-            .with_get_configstring(
-                predicate::eq(CS_SERVERINFO as u16),
-                |_| r"\g_gametype\4".to_string(),
-                1..,
-            )
+            .with_get_configstring(CS_SERVERINFO as u16, r"\g_gametype\4", 1..)
             .run(|| {
                 let result = Python::with_gil(|py| {
                     let game = Bound::new(
@@ -775,11 +767,7 @@ mod pyshinqlx_game_tests {
     #[serial]
     fn repr_with_empty_gametype_configstring(_pyshinqlx_setup: ()) {
         MockEngineBuilder::default()
-            .with_get_configstring(
-                predicate::eq(CS_SERVERINFO as u16),
-                |_| r"\mapname\thunderstruck".to_string(),
-                1..,
-            )
+            .with_get_configstring(CS_SERVERINFO as u16, r"\mapname\thunderstruck", 1..)
             .run(|| {
                 let result = Python::with_gil(|py| {
                     let game = Bound::new(
@@ -802,8 +790,8 @@ mod pyshinqlx_game_tests {
     fn repr_with_nonempty_configstring(_pyshinqlx_setup: ()) {
         MockEngineBuilder::default()
             .with_get_configstring(
-                predicate::eq(CS_SERVERINFO as u16),
-                |_| r"\mapname\thunderstruck\g_gametype\4".to_string(),
+                CS_SERVERINFO as u16,
+                r"\mapname\thunderstruck\g_gametype\4",
                 1..,
             )
             .run(|| {
@@ -841,7 +829,7 @@ mod pyshinqlx_game_tests {
     #[serial]
     fn str_with_empty_configstring(_pyshinqlx_setup: ()) {
         MockEngineBuilder::default()
-            .with_get_configstring(predicate::eq(CS_SERVERINFO as u16), |_| "".to_string(), 1)
+            .with_get_configstring(CS_SERVERINFO as u16, "", 1)
             .run(|| {
                 let result = Python::with_gil(|py| {
                     let mut game = Game {
@@ -859,11 +847,7 @@ mod pyshinqlx_game_tests {
     #[serial]
     fn str_with_empty_map_configstring(_pyshinqlx_setup: ()) {
         MockEngineBuilder::default()
-            .with_get_configstring(
-                predicate::eq(CS_SERVERINFO as u16),
-                |_| r"\g_gametype\4".to_string(),
-                1..,
-            )
+            .with_get_configstring(CS_SERVERINFO as u16, r"\g_gametype\4", 1..)
             .run(|| {
                 let result = Python::with_gil(|py| {
                     let mut game = Game {
@@ -881,11 +865,7 @@ mod pyshinqlx_game_tests {
     #[serial]
     fn str_with_empty_gametype_configstring(_pyshinqlx_setup: ()) {
         MockEngineBuilder::default()
-            .with_get_configstring(
-                predicate::eq(CS_SERVERINFO as u16),
-                |_| r"\mapname\thunderstruck".to_string(),
-                1,
-            )
+            .with_get_configstring(CS_SERVERINFO as u16, r"\mapname\thunderstruck", 1)
             .run(|| {
                 let result = Python::with_gil(|py| {
                     let mut game = Game {
@@ -904,8 +884,8 @@ mod pyshinqlx_game_tests {
     fn str_with_nonempty_configstring(_pyshinqlx_setup: ()) {
         MockEngineBuilder::default()
             .with_get_configstring(
-                predicate::eq(CS_SERVERINFO as u16),
-                |_| r"\mapname\thunderstruck\g_gametype\4".to_string(),
+                CS_SERVERINFO as u16,
+                r"\mapname\thunderstruck\g_gametype\4",
                 1..,
             )
             .run(|| {
@@ -940,7 +920,7 @@ mod pyshinqlx_game_tests {
     #[serial]
     fn contains_when_configstring_variables_are_unparseable(_pyshinqlx_setup: ()) {
         MockEngineBuilder::default()
-            .with_get_configstring(predicate::eq(CS_SERVERINFO as u16), |_| "".to_string(), 1)
+            .with_get_configstring(CS_SERVERINFO as u16, "", 1)
         .run(|| {
             Python::with_gil(|py| {
                 let mut game = Game {
@@ -959,11 +939,7 @@ mod pyshinqlx_game_tests {
     #[serial]
     fn contains_when_value_is_in_configstring_variables(_pyshinqlx_setup: ()) {
         MockEngineBuilder::default()
-            .with_get_configstring(
-                predicate::eq(CS_SERVERINFO as u16),
-                |_| r"\asdf\12".to_string(),
-                1,
-            )
+            .with_get_configstring(CS_SERVERINFO as u16, r"\asdf\12", 1)
             .run(|| {
                 let result = Python::with_gil(|py| {
                     let mut game = Game {
@@ -982,11 +958,7 @@ mod pyshinqlx_game_tests {
     #[serial]
     fn contains_when_value_is_not_in_configstring_variables(_pyshinqlx_setup: ()) {
         MockEngineBuilder::default()
-            .with_get_configstring(
-                predicate::eq(CS_SERVERINFO as u16),
-                |_| r"\asdf\12".to_string(),
-                1,
-            )
+            .with_get_configstring(CS_SERVERINFO as u16, r"\asdf\12", 1)
             .run(|| {
                 let result = Python::with_gil(|py| {
                     let mut game = Game {
@@ -1005,7 +977,7 @@ mod pyshinqlx_game_tests {
     #[serial]
     fn contains_when_configstring_parses_empty(_pyshinqlx_setup: ()) {
         MockEngineBuilder::default()
-            .with_get_configstring(predicate::eq(CS_SERVERINFO as u16), |_| r"\".to_string(), 1)
+            .with_get_configstring(CS_SERVERINFO as u16, r"\", 1)
             .run(|| {
                 let result = Python::with_gil(|py| {
                     let mut game = Game {
@@ -1024,11 +996,7 @@ mod pyshinqlx_game_tests {
     #[serial]
     fn contains_when_configstring_parses_to_none(_pyshinqlx_setup: ()) {
         MockEngineBuilder::default()
-            .with_get_configstring(
-                predicate::eq(CS_SERVERINFO as u16),
-                |_| "qwertz".to_string(),
-                1,
-            )
+            .with_get_configstring(CS_SERVERINFO as u16, "qwertz", 1)
             .run(|| {
                 let result = Python::with_gil(|py| {
                     let mut game = Game {
@@ -1062,7 +1030,7 @@ mod pyshinqlx_game_tests {
     #[serial]
     fn getitem_when_configstring_variables_are_unparseable(_pyshinqlx_setup: ()) {
         MockEngineBuilder::default()
-            .with_get_configstring(predicate::eq(CS_SERVERINFO as u16), |_| "".to_string(), 1)
+            .with_get_configstring(CS_SERVERINFO as u16, "", 1)
         .run(|| {
             Python::with_gil(|py| {
                 let mut game = Game {
@@ -1081,11 +1049,7 @@ mod pyshinqlx_game_tests {
     #[serial]
     fn getitem_when_value_is_in_configstring_variables(_pyshinqlx_setup: ()) {
         MockEngineBuilder::default()
-            .with_get_configstring(
-                predicate::eq(CS_SERVERINFO as u16),
-                |_| r"\asdf\12".to_string(),
-                1,
-            )
+            .with_get_configstring(CS_SERVERINFO as u16, r"\asdf\12", 1)
             .run(|| {
                 let result = Python::with_gil(|py| {
                     let mut game = Game {
@@ -1104,11 +1068,7 @@ mod pyshinqlx_game_tests {
     #[serial]
     fn getitem_when_value_is_not_in_configstring_variables(_pyshinqlx_setup: ()) {
         MockEngineBuilder::default()
-            .with_get_configstring(
-                predicate::eq(CS_SERVERINFO as u16),
-                |_| r"\asdf\12".to_string(),
-                1,
-            )
+            .with_get_configstring(CS_SERVERINFO as u16, r"\asdf\12", 1)
             .run(|| {
                 Python::with_gil(|py| {
                     let mut game = Game {
@@ -1127,7 +1087,7 @@ mod pyshinqlx_game_tests {
     #[serial]
     fn getitem_when_configstring_parses_empty(_pyshinqlx_setup: ()) {
         MockEngineBuilder::default()
-            .with_get_configstring(predicate::eq(CS_SERVERINFO as u16), |_| r"\".to_string(), 1)
+            .with_get_configstring(CS_SERVERINFO as u16, r"\", 1)
             .run(|| {
                 Python::with_gil(|py| {
                     let mut game = Game {
@@ -1146,11 +1106,7 @@ mod pyshinqlx_game_tests {
     #[serial]
     fn getitems_when_configstring_parses_to_none(_pyshinqlx_setup: ()) {
         MockEngineBuilder::default()
-            .with_get_configstring(
-                predicate::eq(CS_SERVERINFO as u16),
-                |_| "qwertz".to_string(),
-                1,
-            )
+            .with_get_configstring(CS_SERVERINFO as u16, "qwertz", 1)
             .run(|| {
                 Python::with_gil(|py| {
                     let mut game = Game {
@@ -1184,7 +1140,7 @@ mod pyshinqlx_game_tests {
     #[serial]
     fn cvars_with_empty_configstring(_pyshinqlx_setup: ()) {
         MockEngineBuilder::default()
-            .with_get_configstring(predicate::eq(CS_SERVERINFO as u16), |_| "".to_string(), 1)
+            .with_get_configstring(CS_SERVERINFO as u16, "", 1)
             .run(|| {
                 Python::with_gil(|py| {
                     let mut game = Game {
@@ -1204,11 +1160,7 @@ mod pyshinqlx_game_tests {
     #[serial]
     fn cvars_contains_parsed_configstring_zero(_pyshinqlx_setup: ()) {
         MockEngineBuilder::default()
-            .with_get_configstring(
-                predicate::eq(CS_SERVERINFO as u16),
-                |_| r"\asdf\42".to_string(),
-                1,
-            )
+            .with_get_configstring(CS_SERVERINFO as u16, r"\asdf\42", 1)
             .run(|| {
                 Python::with_gil(|py| {
                     let mut game = Game {
@@ -1251,11 +1203,7 @@ mod pyshinqlx_game_tests {
     #[serial]
     fn get_type_for_unparseable_gametype(_pyshinqlx_setup: ()) {
         MockEngineBuilder::default()
-            .with_get_configstring(
-                predicate::eq(CS_SERVERINFO as u16),
-                |_| r"\g_gametype\asdf".to_string(),
-                1,
-            )
+            .with_get_configstring(CS_SERVERINFO as u16, r"\g_gametype\asdf", 1)
             .run(|| {
                 Python::with_gil(|py| {
                     let mut game = Game {
@@ -1293,8 +1241,8 @@ mod pyshinqlx_game_tests {
     ) {
         MockEngineBuilder::default()
             .with_get_configstring(
-                predicate::eq(CS_SERVERINFO as u16),
-                move |_| format!(r"\g_gametype\{g_gametype}"),
+                CS_SERVERINFO as u16,
+                format!(r"\g_gametype\{g_gametype}"),
                 1,
             )
             .run(|| {
@@ -1330,11 +1278,7 @@ mod pyshinqlx_game_tests {
     #[serial]
     fn get_type_short_for_unparseable_gametype(_pyshinqlx_setup: ()) {
         MockEngineBuilder::default()
-            .with_get_configstring(
-                predicate::eq(CS_SERVERINFO as u16),
-                |_| r"\g_gametype\asdf".to_string(),
-                1,
-            )
+            .with_get_configstring(CS_SERVERINFO as u16, r"\g_gametype\asdf", 1)
             .run(|| {
                 Python::with_gil(|py| {
                     let mut game = Game {
@@ -1372,8 +1316,8 @@ mod pyshinqlx_game_tests {
     ) {
         MockEngineBuilder::default()
             .with_get_configstring(
-                predicate::eq(CS_SERVERINFO as u16),
-                move |_| format!(r"\g_gametype\{g_gametype}"),
+                CS_SERVERINFO as u16,
+                format!(r"\g_gametype\{g_gametype}"),
                 1,
             )
             .run(|| {
@@ -1394,11 +1338,7 @@ mod pyshinqlx_game_tests {
     #[serial]
     fn get_map_returns_current_map(_pyshinqlx_setup: ()) {
         MockEngineBuilder::default()
-            .with_get_configstring(
-                predicate::eq(CS_SERVERINFO as u16),
-                |_| r"\mapname\thunderstruck".to_string(),
-                1,
-            )
+            .with_get_configstring(CS_SERVERINFO as u16, r"\mapname\thunderstruck", 1)
             .run(|| {
                 Python::with_gil(|py| {
                     let mut game = Game {
@@ -1529,7 +1469,7 @@ shinqlx._map_subtitle2 = "Awesome map!"
     #[serial]
     fn get_red_score_returns_red_score(_pyshinqlx_setup: ()) {
         MockEngineBuilder::default()
-            .with_get_configstring(predicate::eq(CS_SCORES1 as u16), |_| "7".to_string(), 1)
+            .with_get_configstring(CS_SCORES1 as u16, "7", 1)
             .run(|| {
                 Python::with_gil(|py| {
                     let game = Game {
@@ -1548,7 +1488,7 @@ shinqlx._map_subtitle2 = "Awesome map!"
     #[serial]
     fn get_red_score_defaults_when_unpareable(_pyshinqlx_setup: ()) {
         MockEngineBuilder::default()
-            .with_get_configstring(predicate::eq(CS_SCORES1 as u16), |_| "asdf".to_string(), 1)
+            .with_get_configstring(CS_SCORES1 as u16, "asdf", 1)
             .run(|| {
                 Python::with_gil(|py| {
                     let game = Game {
@@ -1582,7 +1522,7 @@ shinqlx._map_subtitle2 = "Awesome map!"
     #[serial]
     fn get_blue_score_returns_blue_score(_pyshinqlx_setup: ()) {
         MockEngineBuilder::default()
-            .with_get_configstring(predicate::eq(CS_SCORES2 as u16), |_| "5".to_string(), 1)
+            .with_get_configstring(CS_SCORES2 as u16, "5", 1)
             .run(|| {
                 Python::with_gil(|py| {
                     let game = Game {
@@ -1601,7 +1541,7 @@ shinqlx._map_subtitle2 = "Awesome map!"
     #[serial]
     fn get_blue_score_defaults_when_unparsable(_pyshinqlx_setup: ()) {
         MockEngineBuilder::default()
-            .with_get_configstring(predicate::eq(CS_SCORES2 as u16), |_| "asdf".to_string(), 1)
+            .with_get_configstring(CS_SCORES2 as u16, "asdf", 1)
             .run(|| {
                 Python::with_gil(|py| {
                     let game = Game {
@@ -1644,8 +1584,8 @@ shinqlx._map_subtitle2 = "Awesome map!"
     ) {
         MockEngineBuilder::default()
             .with_get_configstring(
-                predicate::eq(CS_SERVERINFO as u16),
-                move |_| format!(r"\g_gameState\{cvar_value}"),
+                CS_SERVERINFO as u16,
+                format!(r"\g_gameState\{cvar_value}"),
                 1,
             )
             .run(|| {
@@ -1681,11 +1621,7 @@ shinqlx._map_subtitle2 = "Awesome map!"
     #[serial]
     fn get_factory_returns_factory(_pyshinqlx_setup: ()) {
         MockEngineBuilder::default()
-            .with_get_configstring(
-                predicate::eq(CS_SERVERINFO as u16),
-                |_| r"\g_factory\ca".to_string(),
-                1,
-            )
+            .with_get_configstring(CS_SERVERINFO as u16, r"\g_factory\ca", 1)
             .run(|| {
                 let result = Python::with_gil(|py| {
                     let mut game = Game {
@@ -1705,11 +1641,7 @@ shinqlx._map_subtitle2 = "Awesome map!"
     fn set_factory_sets_factory_and_reloads(_pyshinqlx_setup: ()) {
         MockEngineBuilder::default()
             .with_execute_console_command(|cmd| cmd == "map theatreofpain ffa", 1)
-            .with_get_configstring(
-                predicate::eq(CS_SERVERINFO as u16),
-                |_| r"\mapname\theatreofpain".to_string(),
-                1,
-            )
+            .with_get_configstring(CS_SERVERINFO as u16, r"\mapname\theatreofpain", 1)
             .run(|| {
                 Python::with_gil(|py| {
                     let mut game = Game {
@@ -1743,11 +1675,7 @@ shinqlx._map_subtitle2 = "Awesome map!"
     #[serial]
     fn get_factory_title_returns_factory_title(_pyshinqlx_setup: ()) {
         MockEngineBuilder::default()
-            .with_get_configstring(
-                predicate::eq(CS_SERVERINFO as u16),
-                |_| r"\g_factoryTitle\Clan Arena".to_string(),
-                1,
-            )
+            .with_get_configstring(CS_SERVERINFO as u16, r"\g_factoryTitle\Clan Arena", 1)
             .run(|| {
                 let result = Python::with_gil(|py| {
                     let mut game = Game {
@@ -1766,11 +1694,7 @@ shinqlx._map_subtitle2 = "Awesome map!"
     #[serial]
     fn get_hostname_returns_hostname(_pyshinqlx_setup: ()) {
         MockEngineBuilder::default()
-            .with_get_configstring(
-                predicate::eq(CS_SERVERINFO as u16),
-                |_| r"\sv_hostname\Awesome server!".to_string(),
-                1,
-            )
+            .with_get_configstring(CS_SERVERINFO as u16, r"\sv_hostname\Awesome server!", 1)
             .run(|| {
                 let result = Python::with_gil(|py| {
                     let mut game = Game {
@@ -1822,11 +1746,7 @@ shinqlx._map_subtitle2 = "Awesome map!"
         #[case] expected: bool,
     ) {
         MockEngineBuilder::default()
-            .with_get_configstring(
-                predicate::eq(CS_SERVERINFO as u16),
-                move |_| format!(r"\g_instagib\{mode}"),
-                1,
-            )
+            .with_get_configstring(CS_SERVERINFO as u16, format!(r"\g_instagib\{mode}"), 1)
             .run(|| {
                 let result = Python::with_gil(|py| {
                     let mut game = Game {
@@ -1942,11 +1862,7 @@ shinqlx._map_subtitle2 = "Awesome map!"
         #[case] expected: bool,
     ) {
         MockEngineBuilder::default()
-            .with_get_configstring(
-                predicate::eq(CS_SERVERINFO as u16),
-                move |_| format!(r"\g_loadout\{mode}"),
-                1,
-            )
+            .with_get_configstring(CS_SERVERINFO as u16, format!(r"\g_loadout\{mode}"), 1)
             .run(|| {
                 let result = Python::with_gil(|py| {
                     let mut game = Game {
@@ -2056,11 +1972,7 @@ shinqlx._map_subtitle2 = "Awesome map!"
     #[serial]
     fn get_maxclients_returns_maxclients(_pyshinqlx_setup: ()) {
         MockEngineBuilder::default()
-            .with_get_configstring(
-                predicate::eq(CS_SERVERINFO as u16),
-                |_| r"\sv_maxclients\8".to_string(),
-                1,
-            )
+            .with_get_configstring(CS_SERVERINFO as u16, r"\sv_maxclients\8", 1)
             .run(|| {
                 let result = Python::with_gil(|py| {
                     let mut game = Game {
@@ -2105,11 +2017,7 @@ shinqlx._map_subtitle2 = "Awesome map!"
     #[serial]
     fn get_timelimit_returns_timelimit(_pyshinqlx_setup: ()) {
         MockEngineBuilder::default()
-            .with_get_configstring(
-                predicate::eq(CS_SERVERINFO as u16),
-                |_| r"\timelimit\20".to_string(),
-                1,
-            )
+            .with_get_configstring(CS_SERVERINFO as u16, r"\timelimit\20", 1)
             .run(|| {
                 let result = Python::with_gil(|py| {
                     let mut game = Game {
@@ -2154,11 +2062,7 @@ shinqlx._map_subtitle2 = "Awesome map!"
     #[serial]
     fn get_fraglimit_returns_fraglimit(_pyshinqlx_setup: ()) {
         MockEngineBuilder::default()
-            .with_get_configstring(
-                predicate::eq(CS_SERVERINFO as u16),
-                |_| r"\fraglimit\10".to_string(),
-                1,
-            )
+            .with_get_configstring(CS_SERVERINFO as u16, r"\fraglimit\10", 1)
             .run(|| {
                 let result = Python::with_gil(|py| {
                     let mut game = Game {
@@ -2203,11 +2107,7 @@ shinqlx._map_subtitle2 = "Awesome map!"
     #[serial]
     fn get_roundlimit_returns_roundlimit(_pyshinqlx_setup: ()) {
         MockEngineBuilder::default()
-            .with_get_configstring(
-                predicate::eq(CS_SERVERINFO as u16),
-                |_| r"\roundlimit\11".to_string(),
-                1,
-            )
+            .with_get_configstring(CS_SERVERINFO as u16, r"\roundlimit\11", 1)
             .run(|| {
                 let result = Python::with_gil(|py| {
                     let mut game = Game {
@@ -2252,11 +2152,7 @@ shinqlx._map_subtitle2 = "Awesome map!"
     #[serial]
     fn get_roundtimelimit_returns_roundtimelimit(_pyshinqlx_setup: ()) {
         MockEngineBuilder::default()
-            .with_get_configstring(
-                predicate::eq(CS_SERVERINFO as u16),
-                |_| r"\roundtimelimit\240".to_string(),
-                1,
-            )
+            .with_get_configstring(CS_SERVERINFO as u16, r"\roundtimelimit\240", 1)
             .run(|| {
                 let result = Python::with_gil(|py| {
                     let mut game = Game {
@@ -2302,11 +2198,7 @@ shinqlx._map_subtitle2 = "Awesome map!"
     #[serial]
     fn get_scorelimit_returns_scorelimit(_pyshinqlx_setup: ()) {
         MockEngineBuilder::default()
-            .with_get_configstring(
-                predicate::eq(CS_SERVERINFO as u16),
-                |_| r"\scorelimit\10".to_string(),
-                1,
-            )
+            .with_get_configstring(CS_SERVERINFO as u16, r"\scorelimit\10", 1)
             .run(|| {
                 let result = Python::with_gil(|py| {
                     let mut game = Game {
@@ -2351,11 +2243,7 @@ shinqlx._map_subtitle2 = "Awesome map!"
     #[serial]
     fn get_capturelimit_returns_capturelimit(_pyshinqlx_setup: ()) {
         MockEngineBuilder::default()
-            .with_get_configstring(
-                predicate::eq(CS_SERVERINFO as u16),
-                |_| r"\capturelimit\10".to_string(),
-                1,
-            )
+            .with_get_configstring(CS_SERVERINFO as u16, r"\capturelimit\10", 1)
             .run(|| {
                 let result = Python::with_gil(|py| {
                     let mut game = Game {
@@ -2401,11 +2289,7 @@ shinqlx._map_subtitle2 = "Awesome map!"
     #[serial]
     fn get_teamsize_returns_teamsize(_pyshinqlx_setup: ()) {
         MockEngineBuilder::default()
-            .with_get_configstring(
-                predicate::eq(CS_SERVERINFO as u16),
-                |_| r"\teamsize\4".to_string(),
-                1,
-            )
+            .with_get_configstring(CS_SERVERINFO as u16, r"\teamsize\4", 1)
             .run(|| {
                 let result = Python::with_gil(|py| {
                     let mut game = Game {
@@ -2450,11 +2334,7 @@ shinqlx._map_subtitle2 = "Awesome map!"
     #[serial]
     fn get_tags_returns_tags(_pyshinqlx_setup: ()) {
         MockEngineBuilder::default()
-            .with_get_configstring(
-                predicate::eq(CS_SERVERINFO as u16),
-                |_| r"\sv_tags\tag1,tag2,tag3".to_string(),
-                1,
-            )
+            .with_get_configstring(CS_SERVERINFO as u16, r"\sv_tags\tag1,tag2,tag3", 1)
             .run(|| {
                 let result = Python::with_gil(|py| {
                     let mut game = Game {
@@ -2555,11 +2435,7 @@ shinqlx._map_subtitle2 = "Awesome map!"
     #[serial]
     fn get_workshop_items_returns_workshop_items(_pyshinqlx_setup: ()) {
         MockEngineBuilder::default()
-            .with_get_configstring(
-                predicate::eq(CS_STEAM_WORKSHOP_IDS as u16),
-                |_| "1234 5678 9101".to_string(),
-                1,
-            )
+            .with_get_configstring(CS_STEAM_WORKSHOP_IDS as u16, "1234 5678 9101", 1)
             .run(|| {
                 let result = Python::with_gil(|py| {
                     let game = Game {
