@@ -31,7 +31,7 @@ mod console_command_tests {
     #[serial]
     fn console_command_with_main_engine_set(_pyshinqlx_setup: ()) {
         MockEngineBuilder::default()
-            .with_execute_console_command(|cmd| cmd == "asdf", 1)
+            .with_execute_console_command("asdf", 1)
             .run(|| {
                 let result = Python::with_gil(|py| pyshinqlx_console_command(py, "asdf"));
                 assert!(result.is_ok());

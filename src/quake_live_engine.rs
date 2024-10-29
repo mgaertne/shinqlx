@@ -5421,17 +5421,17 @@ impl MockEngineBuilder {
 
     pub(crate) fn with_execute_console_command<F, G>(
         self,
-        matcher: F,
+        expected_cmd: F,
         times: G,
     ) -> MockEngineBuilder
     where
-        F: Fn(&str) -> bool + Send + 'static,
+        F: ToString + Send + Sync + 'static,
         G: Into<mockall::TimesRange>,
     {
         self.configure(|mock_engine| {
             mock_engine
                 .expect_execute_console_command()
-                .withf(matcher)
+                .withf(move |cmd| cmd == expected_cmd.to_string())
                 .times(times);
         })
     }
