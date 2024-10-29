@@ -3441,7 +3441,7 @@ mod handle_zmq_msg_tests {
 
         MockEngineBuilder::default()
             .with_max_clients(16)
-            .with_execute_console_command(|cmd| cmd == "put 2 spectator", 1)
+            .with_execute_console_command("put 2 spectator", 1)
             .with_find_cvar(
                 |cmd| cmd == "zmq_stats_enable",
                 move |_| CVar::try_from(raw_cvar.borrow_mut() as *mut cvar_t).ok(),

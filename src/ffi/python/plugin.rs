@@ -2927,7 +2927,7 @@ def handler():
             .expect("this should not happen");
 
         MockEngineBuilder::default()
-            .with_execute_console_command(|cmd| cmd == r#"sv_maxclients "64""#, 1)
+            .with_execute_console_command(r#"sv_maxclients "64""#, 1)
             .with_find_cvar(
                 |cmd| cmd == "sv_maxclients",
                 move |_| CVar::try_from(raw_cvar.borrow_mut() as *mut cvar_t).ok(),
@@ -4694,7 +4694,7 @@ def handler():
     #[serial]
     fn shuffle_forces_shuffle(_pyshinqlx_setup: ()) {
         MockEngineBuilder::default()
-            .with_execute_console_command(|cmd| cmd == "forceshuffle", 1)
+            .with_execute_console_command("forceshuffle", 1)
             .run(|| {
                 let result = Python::with_gil(|py| Plugin::shuffle(&py.get_type_bound::<Plugin>()));
                 assert!(result.is_ok());
@@ -4714,7 +4714,7 @@ def handler():
     #[serial]
     fn change_map_with_no_factory(_pyshinqlx_setup: ()) {
         MockEngineBuilder::default()
-            .with_execute_console_command(|cmd| cmd == "map thunderstruck", 1)
+            .with_execute_console_command("map thunderstruck", 1)
             .run(|| {
                 Python::with_gil(|py| {
                     let result =
@@ -4729,7 +4729,7 @@ def handler():
     #[serial]
     fn change_map_with_factory(_pyshinqlx_setup: ()) {
         MockEngineBuilder::default()
-            .with_execute_console_command(|cmd| cmd == "map thunderstruck ffa", 1)
+            .with_execute_console_command("map thunderstruck ffa", 1)
             .run(|| {
                 Python::with_gil(|py| {
                     let result = Plugin::change_map(
@@ -4838,8 +4838,8 @@ def handler():
         };
 
         MockEngineBuilder::default()
-            .with_execute_console_command(|cmd| cmd == "put 0 blue", 1)
-            .with_execute_console_command(|cmd| cmd == "put 1 red", 1)
+            .with_execute_console_command("put 0 blue", 1)
+            .with_execute_console_command("put 1 red", 1)
             .run(|| {
                 Python::with_gil(|py| {
                     let result = Plugin::switch(
@@ -5111,7 +5111,7 @@ def handler():
     #[serial]
     fn slap_for_player(_pyshinqlx_setup: ()) {
         MockEngineBuilder::default()
-            .with_execute_console_command(|cmd| cmd == "slap 21 42", 1)
+            .with_execute_console_command("slap 21 42", 1)
             .run(|| {
                 Python::with_gil(|py| {
                     let result = Plugin::slap(&py.get_type_bound::<Plugin>(), 21.into_py(py), 42);
@@ -5135,7 +5135,7 @@ def handler():
     #[serial]
     fn slay_for_player(_pyshinqlx_setup: ()) {
         MockEngineBuilder::default()
-            .with_execute_console_command(|cmd| cmd == "slay 21", 1)
+            .with_execute_console_command("slay 21", 1)
             .run(|| {
                 Python::with_gil(|py| {
                     let result = Plugin::slay(&py.get_type_bound::<Plugin>(), 21.into_py(py));
@@ -5149,7 +5149,7 @@ def handler():
     #[serial]
     fn timeout_pauses_game(_pyshinqlx_setup: ()) {
         MockEngineBuilder::default()
-            .with_execute_console_command(|cmd| cmd == "timeout", 1)
+            .with_execute_console_command("timeout", 1)
             .run(|| {
                 let result = Python::with_gil(|py| Plugin::timeout(&py.get_type_bound::<Plugin>()));
                 assert!(result.is_ok());
@@ -5161,7 +5161,7 @@ def handler():
     #[serial]
     fn timein_unpauses_game(_pyshinqlx_setup: ()) {
         MockEngineBuilder::default()
-            .with_execute_console_command(|cmd| cmd == "timein", 1)
+            .with_execute_console_command("timein", 1)
             .run(|| {
                 let result = Python::with_gil(|py| Plugin::timein(&py.get_type_bound::<Plugin>()));
                 assert!(result.is_ok());
@@ -5173,7 +5173,7 @@ def handler():
     #[serial]
     fn allready_readies_all_players(_pyshinqlx_setup: ()) {
         MockEngineBuilder::default()
-            .with_execute_console_command(|cmd| cmd == "allready", 1)
+            .with_execute_console_command("allready", 1)
             .run(|| {
                 let result =
                     Python::with_gil(|py| Plugin::allready(&py.get_type_bound::<Plugin>()));
@@ -5186,7 +5186,7 @@ def handler():
     #[serial]
     fn pause_pauses_game(_pyshinqlx_setup: ()) {
         MockEngineBuilder::default()
-            .with_execute_console_command(|cmd| cmd == "pause", 1)
+            .with_execute_console_command("pause", 1)
             .run(|| {
                 let result = Python::with_gil(|py| Plugin::pause(&py.get_type_bound::<Plugin>()));
                 assert!(result.is_ok());
@@ -5198,7 +5198,7 @@ def handler():
     #[serial]
     fn unpause_unpauses_game(_pyshinqlx_setup: ()) {
         MockEngineBuilder::default()
-            .with_execute_console_command(|cmd| cmd == "unpause", 1)
+            .with_execute_console_command("unpause", 1)
             .run(|| {
                 let result = Python::with_gil(|py| Plugin::unpause(&py.get_type_bound::<Plugin>()));
                 assert!(result.is_ok());
@@ -5224,7 +5224,7 @@ def handler():
     #[serial]
     fn lock_with_no_team(_pyshinqlx_setup: ()) {
         MockEngineBuilder::default()
-            .with_execute_console_command(|cmd| cmd == "lock", 1)
+            .with_execute_console_command("lock", 1)
             .run(|| {
                 let result =
                     Python::with_gil(|py| Plugin::lock(&py.get_type_bound::<Plugin>(), None));
@@ -5241,10 +5241,8 @@ def handler():
     #[cfg_attr(miri, ignore)]
     #[serial]
     fn lock_a_specific_team(_pyshinqlx_setup: (), #[case] locked_team: &str) {
-        let lock_cmd = format!("lock {}", locked_team.to_lowercase());
-
         MockEngineBuilder::default()
-            .with_execute_console_command(move |cmd| cmd == lock_cmd, 1)
+            .with_execute_console_command(format!("lock {}", locked_team.to_lowercase()), 1)
             .run(|| {
                 let result = Python::with_gil(|py| {
                     Plugin::lock(&py.get_type_bound::<Plugin>(), Some(locked_team))
@@ -5273,7 +5271,7 @@ def handler():
     #[serial]
     fn unlock_with_no_team(_pyshinqlx_setup: ()) {
         MockEngineBuilder::default()
-            .with_execute_console_command(|cmd| cmd == "unlock", 1)
+            .with_execute_console_command("unlock", 1)
             .run(|| {
                 let result =
                     Python::with_gil(|py| Plugin::unlock(&py.get_type_bound::<Plugin>(), None));
@@ -5290,10 +5288,8 @@ def handler():
     #[cfg_attr(miri, ignore)]
     #[serial]
     fn unlock_a_specific_team(_pyshinqlx_setup: (), #[case] locked_team: &str) {
-        let unlock_cmd = format!("unlock {}", locked_team.to_lowercase());
-
         MockEngineBuilder::default()
-            .with_execute_console_command(move |cmd| cmd == unlock_cmd, 1)
+            .with_execute_console_command(format!("unlock {}", locked_team.to_lowercase()), 1)
             .run(|| {
                 let result = Python::with_gil(|py| {
                     Plugin::unlock(&py.get_type_bound::<Plugin>(), Some(locked_team))
@@ -5335,10 +5331,8 @@ def handler():
     #[cfg_attr(miri, ignore)]
     #[serial]
     fn put_put_player_on_a_specific_team(_pyshinqlx_setup: (), #[case] new_team: &str) {
-        let put_cmd = format!("put 2 {}", new_team.to_lowercase());
-
         MockEngineBuilder::default()
-            .with_execute_console_command(move |cmd| cmd == put_cmd, 1)
+            .with_execute_console_command(format!("put 2 {}", new_team.to_lowercase()), 1)
             .run(|| {
                 let result = Python::with_gil(|py| {
                     Plugin::put(&py.get_type_bound::<Plugin>(), 2.into_py(py), new_team)
@@ -5362,7 +5356,7 @@ def handler():
     #[serial]
     fn mute_mutes_player(_pyshinqlx_setup: ()) {
         MockEngineBuilder::default()
-            .with_execute_console_command(|cmd| cmd == "mute 2", 1)
+            .with_execute_console_command("mute 2", 1)
             .run(|| {
                 let result = Python::with_gil(|py| {
                     Plugin::mute(&py.get_type_bound::<Plugin>(), 2.into_py(py))
@@ -5386,7 +5380,7 @@ def handler():
     #[serial]
     fn unmute_unmutes_player(_pyshinqlx_setup: ()) {
         MockEngineBuilder::default()
-            .with_execute_console_command(|cmd| cmd == "unmute 2", 1)
+            .with_execute_console_command("unmute 2", 1)
             .run(|| {
                 let result = Python::with_gil(|py| {
                     Plugin::unmute(&py.get_type_bound::<Plugin>(), 2.into_py(py))
@@ -5410,7 +5404,7 @@ def handler():
     #[serial]
     fn tempban_tempbans_player(_pyshinqlx_setup: ()) {
         MockEngineBuilder::default()
-            .with_execute_console_command(|cmd| cmd == "tempban 2", 1)
+            .with_execute_console_command("tempban 2", 1)
             .run(|| {
                 let result = Python::with_gil(|py| {
                     Plugin::tempban(&py.get_type_bound::<Plugin>(), 2.into_py(py))
@@ -5434,7 +5428,7 @@ def handler():
     #[serial]
     fn ban_bans_player(_pyshinqlx_setup: ()) {
         MockEngineBuilder::default()
-            .with_execute_console_command(|cmd| cmd == "ban 2", 1)
+            .with_execute_console_command("ban 2", 1)
             .run(|| {
                 let result = Python::with_gil(|py| {
                     Plugin::ban(&py.get_type_bound::<Plugin>(), 2.into_py(py))
@@ -5458,7 +5452,7 @@ def handler():
     #[serial]
     fn unban_unbans_player(_pyshinqlx_setup: ()) {
         MockEngineBuilder::default()
-            .with_execute_console_command(|cmd| cmd == "unban 2", 1)
+            .with_execute_console_command("unban 2", 1)
             .run(|| {
                 let result = Python::with_gil(|py| {
                     Plugin::unban(&py.get_type_bound::<Plugin>(), 2.into_py(py))
@@ -5472,7 +5466,7 @@ def handler():
     #[serial]
     fn opsay_sends_op_message(_pyshinqlx_setup: ()) {
         MockEngineBuilder::default()
-            .with_execute_console_command(|cmd| cmd == "opsay asdf", 1)
+            .with_execute_console_command("opsay asdf", 1)
             .run(|| {
                 let result =
                     Python::with_gil(|py| Plugin::opsay(&py.get_type_bound::<Plugin>(), "asdf"));
@@ -5495,7 +5489,7 @@ def handler():
     #[serial]
     fn addadmin_adds_player_to_admins(_pyshinqlx_setup: ()) {
         MockEngineBuilder::default()
-            .with_execute_console_command(|cmd| cmd == "addadmin 2", 1)
+            .with_execute_console_command("addadmin 2", 1)
             .run(|| {
                 let result = Python::with_gil(|py| {
                     Plugin::addadmin(&py.get_type_bound::<Plugin>(), 2.into_py(py))
@@ -5519,7 +5513,7 @@ def handler():
     #[serial]
     fn addmod_adds_player_to_moderators(_pyshinqlx_setup: ()) {
         MockEngineBuilder::default()
-            .with_execute_console_command(|cmd| cmd == "addmod 2", 1)
+            .with_execute_console_command("addmod 2", 1)
             .run(|| {
                 let result = Python::with_gil(|py| {
                     Plugin::addmod(&py.get_type_bound::<Plugin>(), 2.into_py(py))
@@ -5543,7 +5537,7 @@ def handler():
     #[serial]
     fn demote_demotes_player(_pyshinqlx_setup: ()) {
         MockEngineBuilder::default()
-            .with_execute_console_command(|cmd| cmd == "demote 2", 1)
+            .with_execute_console_command("demote 2", 1)
             .run(|| {
                 let result = Python::with_gil(|py| {
                     Plugin::demote(&py.get_type_bound::<Plugin>(), 2.into_py(py))
@@ -5557,7 +5551,7 @@ def handler():
     #[serial]
     fn abort_aborts_game(_pyshinqlx_setup: ()) {
         MockEngineBuilder::default()
-            .with_execute_console_command(|cmd| cmd == "map_restart", 1)
+            .with_execute_console_command("map_restart", 1)
             .run(|| {
                 let result = Python::with_gil(|py| Plugin::abort(&py.get_type_bound::<Plugin>()));
                 assert!(result.is_ok());
@@ -5579,7 +5573,7 @@ def handler():
     #[serial]
     fn addscore_adds_score_to_player(_pyshinqlx_setup: ()) {
         MockEngineBuilder::default()
-            .with_execute_console_command(|cmd| cmd == "addscore 2 42", 1)
+            .with_execute_console_command("addscore 2 42", 1)
             .run(|| {
                 let result = Python::with_gil(|py| {
                     Plugin::addscore(&py.get_type_bound::<Plugin>(), 2.into_py(py), 42)
@@ -5607,10 +5601,8 @@ def handler():
     #[cfg_attr(miri, ignore)]
     #[serial]
     fn addteamscore_adds_score_to_team(_pyshinqlx_setup: (), #[case] team: &str) {
-        let addteamscore_cmd = format!("addteamscore {} 42", team.to_lowercase());
-
         MockEngineBuilder::default()
-            .with_execute_console_command(move |cmd| cmd == addteamscore_cmd, 1)
+            .with_execute_console_command(format!("addteamscore {} 42", team.to_lowercase()), 1)
             .run(|| {
                 let result = Python::with_gil(|py| {
                     Plugin::addteamscore(&py.get_type_bound::<Plugin>(), team, 42)
@@ -5624,7 +5616,7 @@ def handler():
     #[serial]
     fn setmatchtime_sets_match_time(_pyshinqlx_setup: ()) {
         MockEngineBuilder::default()
-            .with_execute_console_command(|cmd| cmd == "setmatchtime 42", 1)
+            .with_execute_console_command("setmatchtime 42", 1)
             .run(|| {
                 let result =
                     Python::with_gil(|py| Plugin::setmatchtime(&py.get_type_bound::<Plugin>(), 42));
