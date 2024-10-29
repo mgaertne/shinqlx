@@ -1568,9 +1568,7 @@ mod game_entity_tests {
         let mut game_entity = GameEntity::try_from(gentity.borrow_mut() as *mut gentity_t)
             .expect("this should not happen");
 
-        MockEngineBuilder::default()
-            .configure(|_mock_engine| {})
-            .run(|| game_entity.drop_holdable());
+        MockEngineBuilder::default().run(|| game_entity.drop_holdable());
     }
 
     #[test]
@@ -1596,9 +1594,7 @@ mod game_entity_tests {
         let mut game_entity = GameEntity::try_from(gentity.borrow_mut() as *mut gentity_t)
             .expect("this should not happen");
 
-        MockEngineBuilder::default()
-            .configure(|_mock_engine| {})
-            .run(|| game_entity.drop_holdable());
+        MockEngineBuilder::default().run(|| game_entity.drop_holdable());
     }
 
     #[test]
