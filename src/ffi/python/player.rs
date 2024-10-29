@@ -2356,10 +2356,8 @@ assert(player._valid)
     #[cfg_attr(miri, ignore)]
     #[serial]
     fn set_team_puts_player_on_a_specific_team(_pyshinqlx_setup: (), #[case] new_team: &str) {
-        let put_cmd = format!("put 2 {}", new_team.to_lowercase());
-
         MockEngineBuilder::default()
-            .with_execute_console_command(move |cmd| cmd == put_cmd, 1)
+            .with_execute_console_command(format!("put 2 {}", new_team.to_lowercase()), 1)
             .run(|| {
                 let result =
                     Python::with_gil(|py| default_test_player().set_team(py, new_team.to_string()));
@@ -6743,7 +6741,7 @@ assert(player._valid)
         let player = default_test_player();
 
         MockEngineBuilder::default()
-            .with_execute_console_command(|cmd| cmd == "ban 2", 1)
+            .with_execute_console_command("ban 2", 1)
             .run(|| {
                 let result = Python::with_gil(|py| player.ban(py));
                 assert!(result.is_ok());
@@ -6757,7 +6755,7 @@ assert(player._valid)
         let player = default_test_player();
 
         MockEngineBuilder::default()
-            .with_execute_console_command(|cmd| cmd == "tempban 2", 1)
+            .with_execute_console_command("tempban 2", 1)
             .run(|| {
                 let result = Python::with_gil(|py| player.tempban(py));
                 assert!(result.is_ok());
@@ -6771,7 +6769,7 @@ assert(player._valid)
         let player = default_test_player();
 
         MockEngineBuilder::default()
-            .with_execute_console_command(|cmd| cmd == "addadmin 2", 1)
+            .with_execute_console_command("addadmin 2", 1)
             .run(|| {
                 let result = Python::with_gil(|py| player.addadmin(py));
                 assert!(result.is_ok());
@@ -6785,7 +6783,7 @@ assert(player._valid)
         let player = default_test_player();
 
         MockEngineBuilder::default()
-            .with_execute_console_command(|cmd| cmd == "addmod 2", 1)
+            .with_execute_console_command("addmod 2", 1)
             .run(|| {
                 let result = Python::with_gil(|py| player.addmod(py));
                 assert!(result.is_ok());
@@ -6799,7 +6797,7 @@ assert(player._valid)
         let player = default_test_player();
 
         MockEngineBuilder::default()
-            .with_execute_console_command(|cmd| cmd == "demote 2", 1)
+            .with_execute_console_command("demote 2", 1)
             .run(|| {
                 let result = Python::with_gil(|py| player.demote(py));
                 assert!(result.is_ok());
@@ -6813,7 +6811,7 @@ assert(player._valid)
         let player = default_test_player();
 
         MockEngineBuilder::default()
-            .with_execute_console_command(|cmd| cmd == "mute 2", 1)
+            .with_execute_console_command("mute 2", 1)
             .run(|| {
                 let result = Python::with_gil(|py| player.mute(py));
                 assert!(result.is_ok());
@@ -6827,7 +6825,7 @@ assert(player._valid)
         let player = default_test_player();
 
         MockEngineBuilder::default()
-            .with_execute_console_command(|cmd| cmd == "unmute 2", 1)
+            .with_execute_console_command("unmute 2", 1)
             .run(|| {
                 let result = Python::with_gil(|py| player.unmute(py));
                 assert!(result.is_ok());
@@ -6855,11 +6853,10 @@ assert(player._valid)
     #[serial]
     #[cfg_attr(miri, ignore)]
     fn put_put_player_on_a_specific_team(_pyshinqlx_setup: (), #[case] new_team: &str) {
-        let put_cmd = format!("put 2 {}", new_team.to_lowercase());
         let player = default_test_player();
 
         MockEngineBuilder::default()
-            .with_execute_console_command(move |cmd| cmd == put_cmd, 1)
+            .with_execute_console_command(format!("put 2 {}", new_team.to_lowercase()), 1)
             .run(|| {
                 let result = Python::with_gil(|py| player.put(py, new_team));
                 assert!(result.is_ok());
@@ -6873,7 +6870,7 @@ assert(player._valid)
         let player = default_test_player();
 
         MockEngineBuilder::default()
-            .with_execute_console_command(|cmd| cmd == "addscore 2 42", 1)
+            .with_execute_console_command("addscore 2 42", 1)
             .run(|| {
                 let result = Python::with_gil(|py| player.addscore(py, 42));
                 assert!(result.is_ok());
@@ -6929,8 +6926,8 @@ assert(player._valid)
         };
 
         MockEngineBuilder::default()
-            .with_execute_console_command(|cmd| cmd == "put 2 blue", 1)
-            .with_execute_console_command(|cmd| cmd == "put 1 red", 1)
+            .with_execute_console_command("put 2 blue", 1)
+            .with_execute_console_command("put 1 red", 1)
             .run(|| {
                 let result = Python::with_gil(|py| player.switch(py, other_player));
                 assert!(result.as_ref().is_ok(), "{:?}", result.as_ref().unwrap());
@@ -6944,7 +6941,7 @@ assert(player._valid)
         let player = default_test_player();
 
         MockEngineBuilder::default()
-            .with_execute_console_command(|cmd| cmd == "slap 2 42", 1)
+            .with_execute_console_command("slap 2 42", 1)
             .run(|| {
                 let result = Python::with_gil(|py| player.slap(py, 42));
                 assert!(result.is_ok());
@@ -6958,7 +6955,7 @@ assert(player._valid)
         let player = default_test_player();
 
         MockEngineBuilder::default()
-            .with_execute_console_command(|cmd| cmd == "slay 2", 1)
+            .with_execute_console_command("slay 2", 1)
             .run(|| {
                 let result = Python::with_gil(|py| player.slay(py));
                 assert!(result.is_ok());
