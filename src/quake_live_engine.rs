@@ -5356,21 +5356,22 @@ impl MockEngineBuilder {
         })
     }
 
-    pub(crate) fn with_argv<F, G>(
+    pub(crate) fn with_argv<F, G, H>(
         self,
         argv: F,
-        opt_return: Option<&'static str>,
-        times: G,
+        opt_return: Option<G>,
+        times: H,
     ) -> MockEngineBuilder
     where
         F: mockall::Predicate<i32> + Send + 'static,
-        G: Into<mockall::TimesRange>,
+        G: ToString + Sync + Send + 'static,
+        H: Into<mockall::TimesRange>,
     {
         self.configure(|mock_engine| {
             mock_engine
                 .expect_cmd_argv()
                 .with(argv)
-                .return_const_st(opt_return.map(|return_str| return_str.to_string()))
+                .return_const_st(opt_return.map(move |return_str| return_str.to_string()))
                 .times(times);
         })
     }
@@ -5386,7 +5387,7 @@ impl MockEngineBuilder {
         self.configure(|mock_engine| {
             mock_engine
                 .expect_cmd_args()
-                .return_const_st(opt_return.map(|return_str| return_str.to_string()))
+                .return_const_st(opt_return.map(move |return_str| return_str.to_string()))
                 .times(times);
         })
     }
