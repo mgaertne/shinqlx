@@ -309,9 +309,7 @@ mod commands_tests {
     fn cmd_send_server_command_with_no_args() {
         MockEngineBuilder::default()
             .with_send_server_command(|_client, _cmd| true, 0)
-            .configure(|mock_engine| {
-                mock_engine.expect_cmd_args().times(1);
-            })
+            .with_args(None, 1)
             .run(|| {
                 cmd_send_server_command();
             });
@@ -322,12 +320,7 @@ mod commands_tests {
     fn cmd_send_server_command_with_server_command() {
         MockEngineBuilder::default()
             .with_send_server_command(|client, command| client.is_none() && command == "asdf\n", 1)
-            .configure(|mock_engine| {
-                mock_engine
-                    .expect_cmd_args()
-                    .return_const(Some("asdf".to_string()))
-                    .times(1);
-            })
+            .with_args(Some("asdf"), 1)
             .run(|| {
                 cmd_send_server_command();
             });
@@ -344,9 +337,7 @@ mod commands_tests {
     fn cmd_center_print_with_no_args() {
         MockEngineBuilder::default()
             .with_send_server_command(|_client, _cmd| true, 0)
-            .configure(|mock_engine| {
-                mock_engine.expect_cmd_args().times(1);
-            })
+            .with_args(None, 1)
             .run(|| {
                 cmd_center_print();
             });
@@ -360,12 +351,7 @@ mod commands_tests {
                 |client, command| client.is_none() && command == "cp \"asdf\"\n",
                 1,
             )
-            .configure(|mock_engine| {
-                mock_engine
-                    .expect_cmd_args()
-                    .return_const(Some("asdf".to_string()))
-                    .times(1);
-            })
+            .with_args(Some("asdf"), 1)
             .run(|| {
                 cmd_center_print();
             });
@@ -382,9 +368,7 @@ mod commands_tests {
     fn cmd_regular_print_with_no_args() {
         MockEngineBuilder::default()
             .with_send_server_command(|_client, _cmd| true, 0)
-            .configure(|mock_engine| {
-                mock_engine.expect_cmd_args().times(1);
-            })
+            .with_args(None, 1)
             .run(|| {
                 cmd_regular_print();
             });
@@ -398,12 +382,7 @@ mod commands_tests {
                 |client, command| client.is_none() && command == "print \"asdf\n\"\n",
                 1,
             )
-            .configure(|mock_engine| {
-                mock_engine
-                    .expect_cmd_args()
-                    .return_const(Some("asdf".to_string()))
-                    .times(1);
-            })
+            .with_args(Some("asdf"), 1)
             .run(|| {
                 cmd_regular_print();
             });
@@ -1011,13 +990,9 @@ mod commands_tests {
         let rcon_dispatcher_ctx = rcon_dispatcher_context();
         rcon_dispatcher_ctx.expect::<&str>().times(0);
 
-        MockEngineBuilder::default()
-            .configure(|mock_engine| {
-                mock_engine.expect_cmd_args().return_const(None).times(1);
-            })
-            .run(|| {
-                cmd_py_rcon();
-            });
+        MockEngineBuilder::default().with_args(None, 1).run(|| {
+            cmd_py_rcon();
+        });
     }
 
     #[test]
@@ -1030,12 +1005,7 @@ mod commands_tests {
             .times(1);
 
         MockEngineBuilder::default()
-            .configure(|mock_engine| {
-                mock_engine
-                    .expect_cmd_args()
-                    .return_const(Some("!version".to_string()))
-                    .times(1);
-            })
+            .with_args(Some("!version"), 1)
             .run(|| {
                 cmd_py_rcon();
             });
@@ -1053,12 +1023,7 @@ mod commands_tests {
     fn cmd_py_command_with_arguments(_pyshinqlx_setup: ()) {
         MockEngineBuilder::default()
             .with_com_printf(predicate::always(), 0)
-            .configure(|mock_engine| {
-                mock_engine
-                    .expect_cmd_args()
-                    .return_const(Some("custom parameter".to_string()))
-                    .times(1);
-            })
+            .with_args(Some("custom parameter"), 1)
             .run(|| {
                 Python::with_gil(|py| {
                     let pymodule = PyModule::from_code_bound(
@@ -1086,9 +1051,7 @@ def handler(params):
     fn cmd_py_command_with_no_args(_pyshinqlx_setup: ()) {
         MockEngineBuilder::default()
             .with_com_printf(predicate::always(), 0)
-            .configure(|mock_engine| {
-                mock_engine.expect_cmd_args().return_const(None).times(1);
-            })
+            .with_args(None, 1)
             .run(|| {
                 Python::with_gil(|py| {
                     let pymodule = PyModule::from_code_bound(
@@ -1119,9 +1082,7 @@ def handler():
                 predicate::eq("The command failed to be executed. pyshinqlx found no handler.\n"),
                 1,
             )
-            .configure(|mock_engine| {
-                mock_engine.expect_cmd_args().return_const(None).times(1);
-            })
+            .with_args(None, 1)
             .run(|| {
                 Python::with_gil(|py| {
                     let pymodule = PyModule::from_code_bound(
@@ -1152,9 +1113,7 @@ def handler():
                 predicate::eq("The command failed to be executed. pyshinqlx found no handler.\n"),
                 1,
             )
-            .configure(|mock_engine| {
-                mock_engine.expect_cmd_args().return_const(None).times(1);
-            })
+            .with_args(None, 1)
             .run(|| {
                 Python::with_gil(|py| {
                     let pymodule = PyModule::from_code_bound(

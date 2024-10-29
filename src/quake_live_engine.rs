@@ -5438,7 +5438,7 @@ impl MockEngineBuilder {
 
     pub(crate) fn with_argc(self, argc: i32) -> MockEngineBuilder {
         self.configure(|mock_engine| {
-            mock_engine.expect_cmd_argc().return_const(argc);
+            mock_engine.expect_cmd_argc().return_const_st(argc);
         })
     }
 
@@ -5456,7 +5456,23 @@ impl MockEngineBuilder {
             mock_engine
                 .expect_cmd_argv()
                 .with(argv)
-                .return_const(opt_return.map(|return_str| return_str.to_string()))
+                .return_const_st(opt_return.map(|return_str| return_str.to_string()))
+                .times(times);
+        })
+    }
+
+    pub(crate) fn with_args<F>(
+        self,
+        opt_return: Option<&'static str>,
+        times: F,
+    ) -> MockEngineBuilder
+    where
+        F: Into<mockall::TimesRange>,
+    {
+        self.configure(|mock_engine| {
+            mock_engine
+                .expect_cmd_args()
+                .return_const_st(opt_return.map(|return_str| return_str.to_string()))
                 .times(times);
         })
     }
