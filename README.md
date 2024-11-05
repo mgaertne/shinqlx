@@ -25,7 +25,7 @@ Some limitations apply for certain minqlx functions maybe used in plugins.
 ```shell
 curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh
 rustup install nightly --profile default
-rustup component add rust-src
+rustup +nightly component add rust-src
 rustup default nightly
 ```
 
@@ -33,7 +33,7 @@ rustup default nightly
 
 ```shell
 sudo apt-get update
-sudo apt-get -y install python3 python3-dev python3-pip
+sudo apt-get -y install python3 python3-dev python3-venv python3-pip
 ```
 
 - Make sure, that you have installed Python 3.9 or later:
