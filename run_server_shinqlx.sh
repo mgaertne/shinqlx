@@ -18,6 +18,9 @@ if [ -z "${pip_location}" ]; then
     return 1
 fi
 
+basepath="$(dirname "$0")"
+cd "$basepath" || exit 1
+
 export LD_PRELOAD=$LD_PRELOAD:${shinqlx_lib}
 
-LD_LIBRARY_PATH="./linux64:$LD_LIBRARY_PATH" ./$qlds_executable "$@"
+LD_LIBRARY_PATH="$basepath/linux64:$LD_LIBRARY_PATH" exec $basepath/$qlds_executable "$@"

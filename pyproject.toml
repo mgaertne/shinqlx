@@ -37,7 +37,9 @@ locked = false
 include = [
     { path = "src/**/*", format = "sdist" },
     { path = "build.rs", format = "sdist" },
-    { path = ".cargo/**/*", format = "sdist" }
+    { path = ".cargo/**/*", format = "sdist" },
+    { path = "run_server_shinqlx.sh", format = "sdist" },
+    { path = "shinqlx_log.yml", format = "sdist" },
 ]
 bindings = "pyo3"
 compatibility = "linux"
