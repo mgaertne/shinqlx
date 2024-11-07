@@ -77,17 +77,9 @@ pip install shinqlx
 pip install -v shinqlx
 ```
 
-- Copy the convenience script `run_server_shinqlx.sh` into `~/qlds`, or whatever other directory you might have
-  installed the quake live dedicated server files in. (Note: The remaining sections assume you installed the dedicated
-  server into ~/qlds)
-
-```shell
-cp run_server_shinqlx.sh ~/qlds/
-```
-
 Note: In your server startup script, you will have to also activate the the python virtual environment where the
 different python libraries are installed. I recommend writing a custom script that can be started with `supervisord`
-later on, that calls run_server_shinqlx.sh, i.e.:
+later on, that calls run_server_shinqlx, i.e.:
 
 ```shell
 #!/bin/bash
@@ -96,17 +88,14 @@ gameport=`expr $1 + 27960`
 rconport=`expr $1 + 28960`
 servernum=`expr $1 + 1`
 
-source $basepath/.venv/bin/activate
+source ~/.quakelive/$gameport/.venv/bin/activate
 
-exec $basepath/run_server_shinqlx.sh \
+run_server_shinqlx \
 +set fs_basepath $basepath \
-+set net_strict 1 \
 +set net_port $gameport \
-+set fs_homepath /home/steam/.quakelive/$gameport \
-+set zmq_rcon_enable 0 \
++set fs_homepath ~/.quakelive/$gameport \
 +set zmq_rcon_password "<a super secret rcon password that no one will ever guess>" \
 +set rmq_rcon_port $rconport \
-+set zmq_stats_enable 1 \
 +set zmq_stats_password "<a super secret stats password that sites like qlstats.net will need to know to gather stats from your server>" \
 +set zmq_stats_port $gameport
 ```
@@ -135,6 +124,7 @@ stopped responding to TCP connection attempts on the server port:
 
 ```ini
 [program:quakelive]
+directory = /home/steam/qlds
 command = /home/steam/bin/run_server.sh %(process_num)s
 user = steam
 process_name = qzeroded_%(process_num)s
