@@ -30,14 +30,19 @@ include-package-data = false
 
 [tool.maturin]
 unstable-flags = ["build-std=std,core,alloc,panic_abort", "build-std-features=panic_immediate_abort"]
+frozen = false
+locked = false
+
 include = [
     { path = "src/**/*", format = "sdist" },
     { path = "build.rs", format = "sdist" },
-    { path = ".cargo/**/*", format = "sdist" }
+    { path = ".cargo/**/*", format = "sdist" },
+    { path = "run_server_shinqlx.sh", format = "sdist" },
+    { path = "shinqlx_log.yml", format = "sdist" },
 ]
 bindings = "pyo3"
 compatibility = "linux"
-skip-auditwheel = true
+auditwheel = "skip"
 python-source = "python"
 python-packages = ["shinqlx", "minqlx"]
 
