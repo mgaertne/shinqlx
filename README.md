@@ -94,19 +94,15 @@ later on, that calls run_server_shinqlx.sh, i.e.:
 basepath="$(dirname $0)"
 gameport=`expr $1 + 27960`
 rconport=`expr $1 + 28960`
-servernum=`expr $1 + 1`
 
-source $basepath/.venv/bin/activate
+source ~/.quakelive/$gameport/.venv/bin/activate
 
 exec $basepath/run_server_shinqlx.sh \
 +set fs_basepath $basepath \
-+set net_strict 1 \
 +set net_port $gameport \
-+set fs_homepath /home/steam/.quakelive/$gameport \
-+set zmq_rcon_enable 0 \
++set fs_homepath ~/.quakelive/$gameport \
 +set zmq_rcon_password "<a super secret rcon password that no one will ever guess>" \
 +set rmq_rcon_port $rconport \
-+set zmq_stats_enable 1 \
 +set zmq_stats_password "<a super secret stats password that sites like qlstats.net will need to know to gather stats from your server>" \
 +set zmq_stats_port $gameport
 ```
