@@ -26,7 +26,7 @@ Homepage = "https://github.com/mgaertne/shinqlx"
 
 [tool.setuptools]
 license-files = ["LICENSE"]
-include-package-data = false
+include-package-data = true
 
 [tool.maturin]
 unstable-flags = ["build-std=std,core,alloc,panic_abort", "build-std-features=panic_immediate_abort"]
@@ -36,7 +36,9 @@ locked = false
 include = [
     { path = "src/**/*", format = "sdist" },
     { path = "build.rs", format = "sdist" },
-    { path = ".cargo/**/*", format = "sdist" }
+    { path = ".cargo/**/*", format = "sdist" },
+    { path = "bin/*", format = ["sdist", "wheel"] },
+    { path = "include/*/*", format = ["sdist", "wheel"] },
 ]
 bindings = "pyo3"
 compatibility = "linux"
