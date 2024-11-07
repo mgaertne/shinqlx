@@ -228,11 +228,6 @@ jobs:
         with:
           command: sdist
           args: --out dist
-      - name: Upload sdist
-        uses: actions/upload-artifact@v4
-        with:
-          name: sdist
-          path: dist
       - name: Publish to PyPI
         env:
           MATURIN_PYPI_TOKEN: ${{ secrets.PYPI_PASSWORD }}
@@ -240,3 +235,18 @@ jobs:
         with:
           command: upload
           args: --skip-existing dist/*
+      - name: Upload sdist
+        uses: actions/upload-artifact@v4
+        with:
+          name: sdist
+          path: dist
+      - name: Upload run_server_shinqlx.sh
+        uses: actions/upload-artifact@v4
+        with:
+          name: run_server_shinqlx.sh
+          path: run_server_shinqlx.sh
+      - name: Upload shinqlx_log.yml
+        uses: actions/upload-artifact@v4
+        with:
+          name: shinqlx_log.yml
+          path: shinqlx_log.yml
