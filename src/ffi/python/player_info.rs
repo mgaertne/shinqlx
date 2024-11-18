@@ -108,8 +108,8 @@ mod player_info_tests {
     #[cfg_attr(miri, ignore)]
     fn player_info_can_be_constructed_from_python(_pyshinqlx_setup: ()) {
         Python::with_gil(|py| {
-            let player_info_constructor = py.run_bound(
-                r#"
+            let player_info_constructor = py.run(
+                cr#"
 import _shinqlx
 _DUMMY_USERINFO = (
     "ui_singlePlayerActive\\0\\cg_autoAction\\1\\cg_autoHop\\0"

@@ -415,14 +415,14 @@ mod pyshinqlx_dispatcher_tests {
         is_initialized_context.expect().returning(|| true);
 
         Python::with_gil(|py| {
-            let pymodule = PyModule::from_code_bound(
+            let pymodule = PyModule::from_code(
                 py,
-                r#"
+                cr#"
 def handler(client_id, cmd):
     return cmd
 "#,
-                "",
-                "",
+                c"",
+                c"",
             )
             .expect("this should not happen");
             let client_command_handler =
@@ -442,14 +442,14 @@ def handler(client_id, cmd):
         is_initialized_context.expect().returning(|| true);
 
         Python::with_gil(|py| {
-            let pymodule = PyModule::from_code_bound(
+            let pymodule = PyModule::from_code(
                 py,
-                r#"
+                cr#"
 def handler(client_id, cmd):
     return "qwertz"
 "#,
-                "",
-                "",
+                c"",
+                c"",
             )
             .expect("this should not happen");
             let client_command_handler =
@@ -469,14 +469,14 @@ def handler(client_id, cmd):
         is_initialized_context.expect().returning(|| true);
 
         Python::with_gil(|py| {
-            let pymodule = PyModule::from_code_bound(
+            let pymodule = PyModule::from_code(
                 py,
-                r#"
+                cr#"
 def handler(client_id, cmd):
     return True
 "#,
-                "",
-                "",
+                c"",
+                c"",
             )
             .expect("this should not happen");
             let client_command_handler =
@@ -496,14 +496,14 @@ def handler(client_id, cmd):
         is_initialized_context.expect().returning(|| true);
 
         Python::with_gil(|py| {
-            let pymodule = PyModule::from_code_bound(
+            let pymodule = PyModule::from_code(
                 py,
-                r#"
+                cr#"
 def handler(client_id, cmd):
     return False
 "#,
-                "",
-                "",
+                c"",
+                c"",
             )
             .expect("this should not happen");
             let client_command_handler =
@@ -523,14 +523,14 @@ def handler(client_id, cmd):
         is_initialized_context.expect().returning(|| true);
 
         Python::with_gil(|py| {
-            let pymodule = PyModule::from_code_bound(
+            let pymodule = PyModule::from_code(
                 py,
-                r#"
+                cr#"
 def handler(client_id, cmd):
     raise Exception
 "#,
-                "",
-                "",
+                c"",
+                c"",
             )
             .expect("this should not happen");
             let client_command_handler =
@@ -550,14 +550,14 @@ def handler(client_id, cmd):
         is_initialized_context.expect().returning(|| true);
 
         Python::with_gil(|py| {
-            let pymodule = PyModule::from_code_bound(
+            let pymodule = PyModule::from_code(
                 py,
-                r#"
+                cr#"
 def handler(client_id, cmd):
     return (1, 2, 3)
 "#,
-                "",
-                "",
+                c"",
+                c"",
             )
             .expect("this should not happen");
             let client_command_handler =
@@ -598,14 +598,14 @@ def handler(client_id, cmd):
         is_initialized_context.expect().returning(|| true);
 
         Python::with_gil(|py| {
-            let pymodule = PyModule::from_code_bound(
+            let pymodule = PyModule::from_code(
                 py,
-                r#"
+                cr#"
 def handler(client_id, cmd):
     return cmd
 "#,
-                "",
-                "",
+                c"",
+                c"",
             )
             .expect("this should not happen");
             let server_command_handler =
@@ -625,14 +625,14 @@ def handler(client_id, cmd):
         is_initialized_context.expect().returning(|| true);
 
         Python::with_gil(|py| {
-            let pymodule = PyModule::from_code_bound(
+            let pymodule = PyModule::from_code(
                 py,
-                r#"
+                cr#"
 def handler(client_id, cmd):
     return "qwertz"
 "#,
-                "",
-                "",
+                c"",
+                c"",
             )
             .expect("this should not happen");
             let server_command_handler =
@@ -652,14 +652,14 @@ def handler(client_id, cmd):
         is_initialized_context.expect().returning(|| true);
 
         Python::with_gil(|py| {
-            let pymodule = PyModule::from_code_bound(
+            let pymodule = PyModule::from_code(
                 py,
-                r#"
+                cr#"
 def handler(client_id, cmd):
     return True
 "#,
-                "",
-                "",
+                c"",
+                c"",
             )
             .expect("this should not happen");
             let server_command_handler =
@@ -679,14 +679,14 @@ def handler(client_id, cmd):
         is_initialized_context.expect().returning(|| true);
 
         Python::with_gil(|py| {
-            let pymodule = PyModule::from_code_bound(
+            let pymodule = PyModule::from_code(
                 py,
-                r#"
+                cr#"
 def handler(client_id, cmd):
     return False
 "#,
-                "",
-                "",
+                c"",
+                c"",
             )
             .expect("this should not happen");
             let server_command_handler =
@@ -706,14 +706,14 @@ def handler(client_id, cmd):
         is_initialized_context.expect().returning(|| true);
 
         Python::with_gil(|py| {
-            let pymodule = PyModule::from_code_bound(
+            let pymodule = PyModule::from_code(
                 py,
-                r#"
+                cr#"
 def handler(client_id, cmd):
     raise Exception
 "#,
-                "",
-                "",
+                c"",
+                c"",
             )
             .expect("this should not happen");
             let server_command_handler =
@@ -733,14 +733,14 @@ def handler(client_id, cmd):
         is_initialized_context.expect().returning(|| true);
 
         Python::with_gil(|py| {
-            let pymodule = PyModule::from_code_bound(
+            let pymodule = PyModule::from_code(
                 py,
-                r#"
+                cr#"
 def handler(client_id, cmd):
     return (1, 2, 3)
 "#,
-                "",
-                "",
+                c"",
+                c"",
             )
             .expect("this should not happen");
             let server_command_handler =
@@ -779,14 +779,14 @@ def handler(client_id, cmd):
         is_initialized_context.expect().returning(|| true);
 
         Python::with_gil(|py| {
-            let pymodule = PyModule::from_code_bound(
+            let pymodule = PyModule::from_code(
                 py,
-                r#"
+                cr#"
 def handler():
     pass
 "#,
-                "",
-                "",
+                c"",
+                c"",
             )
             .expect("this should not happen");
             let frame_handler = pymodule.getattr("handler").expect("this should not happen");
@@ -804,14 +804,14 @@ def handler():
         is_initialized_context.expect().returning(|| true);
 
         Python::with_gil(|py| {
-            let pymodule = PyModule::from_code_bound(
+            let pymodule = PyModule::from_code(
                 py,
-                r#"
+                cr#"
 def handler():
     raise Exception
 "#,
-                "",
-                "",
+                c"",
+                c"",
             )
             .expect("this should not happen");
             let frame_handler = pymodule.getattr("handler").expect("this should not happen");
@@ -850,14 +850,14 @@ def handler():
         is_initialized_context.expect().returning(|| true);
 
         Python::with_gil(|py| {
-            let pymodule = PyModule::from_code_bound(
+            let pymodule = PyModule::from_code(
                 py,
-                r#"
+                cr#"
 def handler(client_id, is_bot):
     return "qwertz"
 "#,
-                "",
-                "",
+                c"",
+                c"",
             )
             .expect("this should not happen");
             let client_connect_handler =
@@ -877,14 +877,14 @@ def handler(client_id, is_bot):
         is_initialized_context.expect().returning(|| true);
 
         Python::with_gil(|py| {
-            let pymodule = PyModule::from_code_bound(
+            let pymodule = PyModule::from_code(
                 py,
-                r#"
+                cr#"
 def handler(client_id, is_bot):
     return True
 "#,
-                "",
-                "",
+                c"",
+                c"",
             )
             .expect("this should not happen");
             let client_connect_handler =
@@ -904,14 +904,14 @@ def handler(client_id, is_bot):
         is_initialized_context.expect().returning(|| true);
 
         Python::with_gil(|py| {
-            let pymodule = PyModule::from_code_bound(
+            let pymodule = PyModule::from_code(
                 py,
-                r#"
+                cr#"
 def handler(client_id, is_bot):
     return False
 "#,
-                "",
-                "",
+                c"",
+                c"",
             )
             .expect("this should not happen");
             let client_connect_handler =
@@ -931,14 +931,14 @@ def handler(client_id, is_bot):
         is_initialized_context.expect().returning(|| true);
 
         Python::with_gil(|py| {
-            let pymodule = PyModule::from_code_bound(
+            let pymodule = PyModule::from_code(
                 py,
-                r#"
+                cr#"
 def handler(client_id, is_bot):
     raise Exception
 "#,
-                "",
-                "",
+                c"",
+                c"",
             )
             .expect("this should not happen");
             let client_connect_handler =
@@ -958,14 +958,14 @@ def handler(client_id, is_bot):
         is_initialized_context.expect().returning(|| true);
 
         Python::with_gil(|py| {
-            let pymodule = PyModule::from_code_bound(
+            let pymodule = PyModule::from_code(
                 py,
-                r#"
+                cr#"
 def handler(client_id, is_bot):
     return (1, 2, 3)
 "#,
-                "",
-                "",
+                c"",
+                c"",
             )
             .expect("this should not happen");
             let player_connect_handler =
@@ -1004,14 +1004,14 @@ def handler(client_id, is_bot):
         is_initialized_context.expect().returning(|| true);
 
         Python::with_gil(|py| {
-            let pymodule = PyModule::from_code_bound(
+            let pymodule = PyModule::from_code(
                 py,
-                r#"
+                cr#"
 def handler(client_id, reason):
     pass
 "#,
-                "",
-                "",
+                c"",
+                c"",
             )
             .expect("this should not happen");
             let client_disconnect_handler =
@@ -1030,14 +1030,14 @@ def handler(client_id, reason):
         is_initialized_context.expect().returning(|| true);
 
         Python::with_gil(|py| {
-            let pymodule = PyModule::from_code_bound(
+            let pymodule = PyModule::from_code(
                 py,
-                r#"
+                cr#"
 def handler(client_id, reason):
     raise Exception
 "#,
-                "",
-                "",
+                c"",
+                c"",
             )
             .expect("this should not happen");
             let client_disconnect_handler =
@@ -1075,14 +1075,14 @@ def handler(client_id, reason):
         is_initialized_context.expect().returning(|| true);
 
         Python::with_gil(|py| {
-            let pymodule = PyModule::from_code_bound(
+            let pymodule = PyModule::from_code(
                 py,
-                r#"
+                cr#"
 def handler(client_id):
     pass
 "#,
-                "",
-                "",
+                c"",
+                c"",
             )
             .expect("this should not happen");
             let client_loaded_handler =
@@ -1101,14 +1101,14 @@ def handler(client_id):
         is_initialized_context.expect().returning(|| true);
 
         Python::with_gil(|py| {
-            let pymodule = PyModule::from_code_bound(
+            let pymodule = PyModule::from_code(
                 py,
-                r#"
+                cr#"
 def handler(client_id):
     raise Exception
 "#,
-                "",
-                "",
+                c"",
+                c"",
             )
             .expect("this should not happen");
             let client_loaded_handler =
@@ -1146,14 +1146,14 @@ def handler(client_id):
         is_initialized_context.expect().returning(|| true);
 
         Python::with_gil(|py| {
-            let pymodule = PyModule::from_code_bound(
+            let pymodule = PyModule::from_code(
                 py,
-                r#"
+                cr#"
 def handler(restart):
     pass
 "#,
-                "",
-                "",
+                c"",
+                c"",
             )
             .expect("this should not happen");
             let new_game_handler = pymodule.getattr("handler").expect("this should not happen");
@@ -1171,14 +1171,14 @@ def handler(restart):
         is_initialized_context.expect().returning(|| true);
 
         Python::with_gil(|py| {
-            let pymodule = PyModule::from_code_bound(
+            let pymodule = PyModule::from_code(
                 py,
-                r#"
+                cr#"
 def handler(restart):
     raise Exception
 "#,
-                "",
-                "",
+                c"",
+                c"",
             )
             .expect("this should not happen");
             let new_game_handler = pymodule.getattr("handler").expect("this should not happen");
@@ -1217,14 +1217,14 @@ def handler(restart):
         is_initialized_context.expect().returning(|| true);
 
         Python::with_gil(|py| {
-            let pymodule = PyModule::from_code_bound(
+            let pymodule = PyModule::from_code(
                 py,
-                r#"
+                cr#"
 def handler(index, value):
     return cmd
 "#,
-                "",
-                "",
+                c"",
+                c"",
             )
             .expect("this should not happen");
             let set_configstring_handler =
@@ -1244,14 +1244,14 @@ def handler(index, value):
         is_initialized_context.expect().returning(|| true);
 
         Python::with_gil(|py| {
-            let pymodule = PyModule::from_code_bound(
+            let pymodule = PyModule::from_code(
                 py,
-                r#"
+                cr#"
 def handler(index, value):
     return "qwertz"
 "#,
-                "",
-                "",
+                c"",
+                c"",
             )
             .expect("this should not happen");
             let set_configstring_handler =
@@ -1271,14 +1271,14 @@ def handler(index, value):
         is_initialized_context.expect().returning(|| true);
 
         Python::with_gil(|py| {
-            let pymodule = PyModule::from_code_bound(
+            let pymodule = PyModule::from_code(
                 py,
-                r#"
+                cr#"
 def handler(index, value):
     return True
 "#,
-                "",
-                "",
+                c"",
+                c"",
             )
             .expect("this should not happen");
             let set_configstring_handler =
@@ -1298,14 +1298,14 @@ def handler(index, value):
         is_initialized_context.expect().returning(|| true);
 
         Python::with_gil(|py| {
-            let pymodule = PyModule::from_code_bound(
+            let pymodule = PyModule::from_code(
                 py,
-                r#"
+                cr#"
 def handler(index, value):
     return False
 "#,
-                "",
-                "",
+                c"",
+                c"",
             )
             .expect("this should not happen");
             let set_configstring_handler =
@@ -1325,14 +1325,14 @@ def handler(index, value):
         is_initialized_context.expect().returning(|| true);
 
         Python::with_gil(|py| {
-            let pymodule = PyModule::from_code_bound(
+            let pymodule = PyModule::from_code(
                 py,
-                r#"
+                cr#"
 def handler(index, value):
     raise Exception
 "#,
-                "",
-                "",
+                c"",
+                c"",
             )
             .expect("this should not happen");
             let set_configstring_handler =
@@ -1352,14 +1352,14 @@ def handler(index, value):
         is_initialized_context.expect().returning(|| true);
 
         Python::with_gil(|py| {
-            let pymodule = PyModule::from_code_bound(
+            let pymodule = PyModule::from_code(
                 py,
-                r#"
+                cr#"
 def handler(index, value):
     return (1, 2, 3)
 "#,
-                "",
-                "",
+                c"",
+                c"",
             )
             .expect("this should not happen");
             let set_configstring_handler =
@@ -1398,14 +1398,14 @@ def handler(index, value):
         is_initialized_context.expect().returning(|| true);
 
         Python::with_gil(|py| {
-            let pymodule = PyModule::from_code_bound(
+            let pymodule = PyModule::from_code(
                 py,
-                r#"
+                cr#"
 def handler(cmd):
     pass
 "#,
-                "",
-                "",
+                c"",
+                c"",
             )
             .expect("this should not happen");
             let rcon_handler = pymodule.getattr("handler").expect("this should not happen");
@@ -1423,14 +1423,14 @@ def handler(cmd):
         is_initialized_context.expect().returning(|| true);
 
         Python::with_gil(|py| {
-            let pymodule = PyModule::from_code_bound(
+            let pymodule = PyModule::from_code(
                 py,
-                r#"
+                cr#"
 def handler(cmd):
     raise Exception
 "#,
-                "",
-                "",
+                c"",
+                c"",
             )
             .expect("this should not happen");
             let rcon_handler = pymodule.getattr("handler").expect("this should not happen");
@@ -1469,14 +1469,14 @@ def handler(cmd):
         is_initialized_context.expect().returning(|| true);
 
         Python::with_gil(|py| {
-            let pymodule = PyModule::from_code_bound(
+            let pymodule = PyModule::from_code(
                 py,
-                r#"
+                cr#"
 def handler(text):
     return cmd
 "#,
-                "",
-                "",
+                c"",
+                c"",
             )
             .expect("this should not happen");
             let console_print_handler =
@@ -1496,14 +1496,14 @@ def handler(text):
         is_initialized_context.expect().returning(|| true);
 
         Python::with_gil(|py| {
-            let pymodule = PyModule::from_code_bound(
+            let pymodule = PyModule::from_code(
                 py,
-                r#"
+                cr#"
 def handler(text):
     return "qwertz"
 "#,
-                "",
-                "",
+                c"",
+                c"",
             )
             .expect("this should not happen");
             let console_print_handler =
@@ -1523,14 +1523,14 @@ def handler(text):
         is_initialized_context.expect().returning(|| true);
 
         Python::with_gil(|py| {
-            let pymodule = PyModule::from_code_bound(
+            let pymodule = PyModule::from_code(
                 py,
-                r#"
+                cr#"
 def handler(text):
     return True
 "#,
-                "",
-                "",
+                c"",
+                c"",
             )
             .expect("this should not happen");
             let console_print_handler =
@@ -1550,14 +1550,14 @@ def handler(text):
         is_initialized_context.expect().returning(|| true);
 
         Python::with_gil(|py| {
-            let pymodule = PyModule::from_code_bound(
+            let pymodule = PyModule::from_code(
                 py,
-                r#"
+                cr#"
 def handler(text):
     return False
 "#,
-                "",
-                "",
+                c"",
+                c"",
             )
             .expect("this should not happen");
             let console_print_handler =
@@ -1577,14 +1577,14 @@ def handler(text):
         is_initialized_context.expect().returning(|| true);
 
         Python::with_gil(|py| {
-            let pymodule = PyModule::from_code_bound(
+            let pymodule = PyModule::from_code(
                 py,
-                r#"
+                cr#"
 def handler(text):
     raise Exception
 "#,
-                "",
-                "",
+                c"",
+                c"",
             )
             .expect("this should not happen");
             let console_print_handler =
@@ -1604,14 +1604,14 @@ def handler(text):
         is_initialized_context.expect().returning(|| true);
 
         Python::with_gil(|py| {
-            let pymodule = PyModule::from_code_bound(
+            let pymodule = PyModule::from_code(
                 py,
-                r#"
+                cr#"
 def handler(text):
     return (1, 2, 3)
 "#,
-                "",
-                "",
+                c"",
+                c"",
             )
             .expect("this should not happen");
             let console_print_handler =
@@ -1650,14 +1650,14 @@ def handler(text):
         is_initialized_context.expect().returning(|| true);
 
         Python::with_gil(|py| {
-            let pymodule = PyModule::from_code_bound(
+            let pymodule = PyModule::from_code(
                 py,
-                r#"
+                cr#"
 def handler(client_id):
     pass
 "#,
-                "",
-                "",
+                c"",
+                c"",
             )
             .expect("this should not happen");
             let client_spawn_handler = pymodule.getattr("handler").expect("this should not happen");
@@ -1675,14 +1675,14 @@ def handler(client_id):
         is_initialized_context.expect().returning(|| true);
 
         Python::with_gil(|py| {
-            let pymodule = PyModule::from_code_bound(
+            let pymodule = PyModule::from_code(
                 py,
-                r#"
+                cr#"
 def handler(client_id):
     raise Exception
 "#,
-                "",
-                "",
+                c"",
+                c"",
             )
             .expect("this should not happen");
             let client_spawn_handler = pymodule.getattr("handler").expect("this should not happen");
@@ -1719,14 +1719,14 @@ def handler(client_id):
         is_initialized_context.expect().returning(|| true);
 
         Python::with_gil(|py| {
-            let pymodule = PyModule::from_code_bound(
+            let pymodule = PyModule::from_code(
                 py,
-                r#"
+                cr#"
 def handler(client_id):
     pass
 "#,
-                "",
-                "",
+                c"",
+                c"",
             )
             .expect("this should not happen");
             let kamikaze_use_handler = pymodule.getattr("handler").expect("this should not happen");
@@ -1744,14 +1744,14 @@ def handler(client_id):
         is_initialized_context.expect().returning(|| true);
 
         Python::with_gil(|py| {
-            let pymodule = PyModule::from_code_bound(
+            let pymodule = PyModule::from_code(
                 py,
-                r#"
+                cr#"
 def handler(client_id):
     raise Exception
 "#,
-                "",
-                "",
+                c"",
+                c"",
             )
             .expect("this should not happen");
             let kamikaze_use_handler = pymodule.getattr("handler").expect("this should not happen");
@@ -1788,14 +1788,14 @@ def handler(client_id):
         is_initialized_context.expect().returning(|| true);
 
         Python::with_gil(|py| {
-            let pymodule = PyModule::from_code_bound(
+            let pymodule = PyModule::from_code(
                 py,
-                r#"
+                cr#"
 def handler(client_id, is_used_on_demand):
     pass
 "#,
-                "",
-                "",
+                c"",
+                c"",
             )
             .expect("this should not happen");
             let kamikaze_explode_handler =
@@ -1814,14 +1814,14 @@ def handler(client_id, is_used_on_demand):
         is_initialized_context.expect().returning(|| true);
 
         Python::with_gil(|py| {
-            let pymodule = PyModule::from_code_bound(
+            let pymodule = PyModule::from_code(
                 py,
-                r#"
+                cr#"
 def handler(client_id, is_used_on_demand):
     raise Exception
 "#,
-                "",
-                "",
+                c"",
+                c"",
             )
             .expect("this should not happen");
             let kamikaze_explode_handler =
@@ -1871,14 +1871,14 @@ def handler(client_id, is_used_on_demand):
         is_initialized_context.expect().returning(|| true);
 
         Python::with_gil(|py| {
-            let pymodule = PyModule::from_code_bound(
+            let pymodule = PyModule::from_code(
                 py,
-                r#"
+                cr#"
 def handler(client_id, attacker_id, damage, dflags, means_of_death):
     pass
 "#,
-                "",
-                "",
+                c"",
+                c"",
             )
             .expect("this should not happen");
             let damage_handler = pymodule.getattr("handler").expect("this should not happen");
@@ -1902,14 +1902,14 @@ def handler(client_id, attacker_id, damage, dflags, means_of_death):
         is_initialized_context.expect().returning(|| true);
 
         Python::with_gil(|py| {
-            let pymodule = PyModule::from_code_bound(
+            let pymodule = PyModule::from_code(
                 py,
-                r#"
+                cr#"
 def handler(client_id, attacker_id, damage, dflags, means_of_death):
     raise Exception
 "#,
-                "",
-                "",
+                c"",
+                c"",
             )
             .expect("this should not happen");
             let damage_handler = pymodule.getattr("handler").expect("this should not happen");

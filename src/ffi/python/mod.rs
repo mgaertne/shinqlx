@@ -330,7 +330,7 @@ pub(crate) fn pyshinqlx_initialize() -> Result<(), PythonInitializationError> {
     append_to_inittab!(pyshinqlx_module);
     prepare_freethreaded_python();
     let init_result = Python::with_gil(|py| {
-        let shinqlx_module = py.import_bound(intern!(py, "shinqlx"))?;
+        let shinqlx_module = py.import(intern!(py, "shinqlx"))?;
         shinqlx_module.call_method0("initialize")?;
         Ok::<(), PyErr>(())
     });
@@ -376,8 +376,8 @@ pub(crate) fn pyshinqlx_reload() -> Result<(), PythonInitializationError> {
     .for_each(|&handler_lock| handler_lock.store(None));
 
     let reinit_result = Python::with_gil(|py| {
-        let importlib_module = py.import_bound("importlib")?;
-        let shinqlx_module = py.import_bound(intern!(py, "shinqlx"))?;
+        let importlib_module = py.import("importlib")?;
+        let shinqlx_module = py.import(intern!(py, "shinqlx"))?;
         let new_shinqlx_module = importlib_module.call_method1("reload", (shinqlx_module,))?;
         new_shinqlx_module.call_method0("initialize")?;
         Ok::<(), PyErr>(())
