@@ -2,7 +2,12 @@ use super::prelude::*;
 
 use alloc::borrow::Cow;
 
-use pyo3::{basic::CompareOp, exceptions::PyValueError, types::PyTuple};
+use pyo3::{
+    basic::CompareOp,
+    exceptions::PyValueError,
+    types::{PyNotImplemented, PyTuple},
+    BoundObject, IntoPyObject,
+};
 
 /// A struct sequence containing all the powerups in the game.
 #[pyclass(module = "_shinqlx", name = "Powerups", frozen, get_all, sequence)]
@@ -64,11 +69,16 @@ impl Powerups {
         ))
     }
 
-    fn __richcmp__(&self, other: &Self, op: CompareOp, py: Python<'_>) -> PyObject {
+    fn __richcmp__<'py>(
+        &self,
+        other: &Self,
+        op: CompareOp,
+        py: Python<'py>,
+    ) -> PyResult<Borrowed<'py, 'py, PyAny>> {
         match op {
-            CompareOp::Eq => (self == other).into_py(py),
-            CompareOp::Ne => (self != other).into_py(py),
-            _ => py.NotImplemented(),
+            CompareOp::Eq => Ok((self == other).into_pyobject(py)?.into_any()),
+            CompareOp::Ne => Ok((self != other).into_pyobject(py)?.into_any()),
+            _ => Ok(PyNotImplemented::get(py).into_any()),
         }
     }
 
@@ -111,8 +121,8 @@ mod powerups_tests {
     #[cfg_attr(miri, ignore)]
     fn powerups_can_be_created_from_python(_pyshinqlx_setup: ()) {
         Python::with_gil(|py| {
-            let powerups_constructor = py.run_bound(
-                r#"
+            let powerups_constructor = py.run(
+                cr#"
 import _shinqlx
 powerups = _shinqlx.Powerups((0, 1, 2, 3, 4, 5))
             "#,
@@ -131,8 +141,8 @@ powerups = _shinqlx.Powerups((0, 1, 2, 3, 4, 5))
     #[cfg_attr(miri, ignore)]
     fn powerups_py_constructor_with_too_few_values(_pyshinqlx_setup: ()) {
         Python::with_gil(|py| {
-            let powerups_constructor = py.run_bound(
-                r#"
+            let powerups_constructor = py.run(
+                cr#"
 import _shinqlx
 powerups = _shinqlx.Powerups((0, 1, 2, 3, 4))
             "#,
@@ -147,8 +157,8 @@ powerups = _shinqlx.Powerups((0, 1, 2, 3, 4))
     #[cfg_attr(miri, ignore)]
     fn powerups_py_constructor_with_too_many_values(_pyshinqlx_setup: ()) {
         Python::with_gil(|py| {
-            let powerups_constructor = py.run_bound(
-                r#"
+            let powerups_constructor = py.run(
+                cr#"
 import _shinqlx
 powerups = _shinqlx.Powerups((0, 1, 2, 3, 4, 5, 6))
             "#,
@@ -163,8 +173,8 @@ powerups = _shinqlx.Powerups((0, 1, 2, 3, 4, 5, 6))
     #[cfg_attr(miri, ignore)]
     fn powerups_py_constructor_with_non_numeric_values(_pyshinqlx_setup: ()) {
         Python::with_gil(|py| {
-            let powerups_constructor = py.run_bound(
-                r#"
+            let powerups_constructor = py.run(
+                cr#"
 import _shinqlx
 powerups = _shinqlx.Powerups(("asdf", True, (1, 2, 3), [], {}, set()))
             "#,
@@ -179,8 +189,8 @@ powerups = _shinqlx.Powerups(("asdf", True, (1, 2, 3), [], {}, set()))
     #[cfg_attr(miri, ignore)]
     fn powerups_can_be_compared_for_equality_in_python(_pyshinqlx_setup: ()) {
         let result = Python::with_gil(|py| {
-            py.run_bound(
-                r#"
+            py.run(
+                cr#"
 import _shinqlx
 assert(_shinqlx.Powerups((0, 1, 2, 3, 4, 5)) == _shinqlx.Powerups((0, 1, 2, 3, 4, 5)))
             "#,
@@ -195,8 +205,8 @@ assert(_shinqlx.Powerups((0, 1, 2, 3, 4, 5)) == _shinqlx.Powerups((0, 1, 2, 3, 4
     #[cfg_attr(miri, ignore)]
     fn powerups_can_be_compared_for_non_equality_in_python(_pyshinqlx_setup: ()) {
         let result = Python::with_gil(|py| {
-            py.run_bound(
-                r#"
+            py.run(
+                cr#"
 import _shinqlx
 assert(_shinqlx.Powerups((0, 1, 2, 3, 4, 5)) != _shinqlx.Powerups((5, 4, 3, 2, 1, 0)))
             "#,
@@ -211,8 +221,8 @@ assert(_shinqlx.Powerups((0, 1, 2, 3, 4, 5)) != _shinqlx.Powerups((5, 4, 3, 2, 1
     #[cfg_attr(miri, ignore)]
     fn powerups_can_not_be_compared_for_lower_in_python(_pyshinqlx_setup: ()) {
         Python::with_gil(|py| {
-            let result = py.run_bound(
-                r#"
+            let result = py.run(
+                cr#"
 import _shinqlx
 assert(_shinqlx.Powerups((0, 1, 2, 3, 4, 5)) < _shinqlx.Powerups((5, 4, 3, 2, 1, 0)))
             "#,
