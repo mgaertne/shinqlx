@@ -1022,14 +1022,14 @@ mod commands_tests {
             .with_args(Some("custom parameter"), 1)
             .run(|| {
                 Python::with_gil(|py| {
-                    let pymodule = PyModule::from_code_bound(
+                    let pymodule = PyModule::from_code(
                         py,
-                        r#"
+                        cr#"
 def handler(params):
     return (params == "custom parameter")
 "#,
-                        "",
-                        "",
+                        c"",
+                        c"",
                     )
                     .expect("this should not happen");
                     let custom_command_handler =
@@ -1050,14 +1050,14 @@ def handler(params):
             .with_args(None, 1)
             .run(|| {
                 Python::with_gil(|py| {
-                    let pymodule = PyModule::from_code_bound(
+                    let pymodule = PyModule::from_code(
                         py,
-                        r#"
+                        cr#"
 def handler():
     return True
 "#,
-                        "",
-                        "",
+                        c"",
+                        c"",
                     )
                     .expect("this should not happen");
                     let custom_command_handler =
@@ -1081,14 +1081,14 @@ def handler():
             .with_args(None, 1)
             .run(|| {
                 Python::with_gil(|py| {
-                    let pymodule = PyModule::from_code_bound(
+                    let pymodule = PyModule::from_code(
                         py,
-                        r#"
+                        cr#"
 def handler():
     raise Exception
 "#,
-                        "",
-                        "",
+                        c"",
+                        c"",
                     )
                     .expect("this should not happen");
                     let custom_command_handler =
@@ -1112,14 +1112,14 @@ def handler():
             .with_args(None, 1)
             .run(|| {
                 Python::with_gil(|py| {
-                    let pymodule = PyModule::from_code_bound(
+                    let pymodule = PyModule::from_code(
                         py,
-                        r#"
+                        cr#"
 def handler():
     return False
 "#,
-                        "",
-                        "",
+                        c"",
+                        c"",
                     )
                     .expect("this should not happen");
                     let custom_command_handler =
