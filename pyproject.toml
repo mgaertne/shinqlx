@@ -99,4 +99,4 @@ commands = [[ "mypy", { replace = "posargs", default = [], extend = true } ]]
 
 [tool.tox.env.docs]
 deps = [ "sphinx>=8.0" ]
-commands = [["sphinx-build", "-d", "{envtmpdir}{/}doctree", "docs", "{toxworkdir}{/}docs_out", "--color", "-b", "html"]]
+commands = [["sphinx-build", "-d", "{envtmpdir}{/}doctree", "docs", "_docs_out", "--color", "-b", "html"]]
