@@ -59,7 +59,7 @@ class AbstractDatabase:
         raise NotImplementedError("The base plugin can't do database actions.")
 
     def clear_flag(self, player, flag):
-        """Should clear specified player flag."""
+        """Clears the specified player flag."""
         return self.set_flag(player, flag, False)
 
     def get_flag(self, player, flag, default=False):
@@ -98,7 +98,7 @@ class AbstractDatabase:
 # ====================================================================
 # noinspection PyProtectedMember
 class Redis(AbstractDatabase):
-    """A subclass of :class:`shinqlx.AbstractDatabase` providing support for Redis."""
+    """A subclass of :class:`shinqlx.database.AbstractDatabase` providing support for Redis."""
 
     # We only use the instance-level ones if we override the URI from the config.
     _conn = None
@@ -208,7 +208,7 @@ class Redis(AbstractDatabase):
         self[key] = 1 if value else 0
 
     def get_flag(self, player, flag, default=False):
-        """Clears the specified player flag
+        """Gets the specified player flag, or the default value.
 
         :param: player: The player in question.
         :type: player: shinqlx.Player

@@ -3,7 +3,8 @@ use crate::ffi::python::prelude::*;
 
 use pyo3::exceptions::PyValueError;
 
-/// Slay player with mean of death.
+/// Force all weapons to have a specified respawn time,
+/// overriding custom map respawn times set for them.
 #[pyfunction]
 #[pyo3(name = "force_weapon_respawn_time")]
 pub(crate) fn pyshinqlx_force_weapon_respawn_time(

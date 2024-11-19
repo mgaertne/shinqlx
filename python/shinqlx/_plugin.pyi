@@ -6,7 +6,6 @@ if TYPE_CHECKING:
         Iterable,
         Type,
         ClassVar,
-        Mapping,
         Literal,
         TypedDict,
     )
@@ -468,7 +467,7 @@ class Plugin:
         minimum: int | float,
         maximum: int | float,
         flags: int = ...,
-    ) -> bool: ...
+    ) -> None: ...
     @classmethod
     def set_cvar_once(
         cls,
@@ -512,7 +511,7 @@ class Plugin:
     @classmethod
     def teams(
         cls, player_list: Iterable[Player] | None = ...
-    ) -> Mapping[str, list[Player]]: ...
+    ) -> dict[str, list[Player]]: ...
     @classmethod
     def center_print(
         cls, msg: str, recipient: str | int | Player | None = ...
@@ -533,8 +532,6 @@ class Plugin:
     def kick(cls, player: str | int | Player, reason: str = ...) -> None: ...
     @classmethod
     def shuffle(cls) -> None: ...
-    @classmethod
-    def cointoss(cls) -> None: ...
     @classmethod
     def change_map(cls, new_map: str, factory: str | None = ...) -> None: ...
     @classmethod
@@ -605,11 +602,11 @@ class Plugin:
     @property
     def name(self) -> str: ...
     @property
-    def plugins(self) -> Mapping[str, Plugin]: ...
+    def plugins(self) -> dict[str, Plugin]: ...
     @property
-    def hooks(self) -> Iterable[tuple[str, Callable, int]]: ...
+    def hooks(self) -> list[tuple[str, Callable, int]]: ...
     @property
-    def commands(self) -> Iterable[Command]: ...
+    def commands(self) -> list[Command]: ...
     @property
     def game(self) -> Game | None: ...
     @property
@@ -846,13 +843,6 @@ class Plugin:
         self,
         event: Literal["kamikaze_explde"],
         handler: Callable[[Player, bool], CancellableEventReturn],
-        priority: int = ...,
-    ) -> None: ...
-    @overload
-    def add_hook(
-        self,
-        event: Literal["player_items_toss"],
-        handler: Callable[[Player], CancellableEventReturn],
         priority: int = ...,
     ) -> None: ...
     @overload
@@ -1097,13 +1087,6 @@ class Plugin:
         self,
         event: Literal["kamikaze_explde"],
         handler: Callable[[Player, bool], CancellableEventReturn],
-        priority: int = ...,
-    ) -> None: ...
-    @overload
-    def remove_hook(
-        self,
-        event: Literal["player_items_toss"],
-        handler: Callable[[Player], CancellableEventReturn],
         priority: int = ...,
     ) -> None: ...
     @overload

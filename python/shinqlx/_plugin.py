@@ -405,7 +405,6 @@ class Plugin:
         :type: msg: str
         :param: recipient: The player that should receive the message.
         :type: recipient: str/int/shinqlx.Player
-        :returns: bool -- True if succeeded, False otherwise.
         :raises: ValueError
         """
         shinqlx.TellChannel(recipient).reply(msg, **kwargs)
@@ -459,11 +458,6 @@ class Plugin:
     @classmethod
     def shuffle(cls):
         shinqlx.Game().shuffle()
-
-    @classmethod
-    def cointoss(cls):
-        # TODO: Call cointoss directly and implement cointoss().
-        pass
 
     @classmethod
     def change_map(cls, new_map, factory=None):
