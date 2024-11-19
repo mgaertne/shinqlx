@@ -196,10 +196,9 @@ def handle_server_command(client_id, cmd):
 
         res = _re_vote_ended.match(cmd)
         if res:
-            if res.group("result") == "passed":
-                shinqlx.EVENT_DISPATCHERS["vote_ended"].dispatch(True)
-            else:
-                shinqlx.EVENT_DISPATCHERS["vote_ended"].dispatch(False)
+            shinqlx.EVENT_DISPATCHERS["vote_ended"].dispatch(
+                res.group("result") == "passed"
+            )
 
         return cmd
     except:  # noqa: E722

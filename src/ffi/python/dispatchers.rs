@@ -2,6 +2,7 @@ use super::prelude::*;
 
 use core::sync::atomic::Ordering;
 use log::error;
+use pyo3::types::PyBool;
 
 pub(crate) fn client_command_dispatcher<T>(client_id: i32, cmd: T) -> Option<String>
 where
@@ -21,9 +22,9 @@ where
             .call1((client_id, cmd.as_ref()))
             .map(|returned| {
                 returned
-                    .extract::<bool>()
+                    .extract::<Bound<PyBool>>()
                     .map(|bool_value| {
-                        if bool_value {
+                        if bool_value.is_true() {
                             Some(cmd.as_ref().to_string())
                         } else {
                             None
@@ -60,9 +61,9 @@ where
                 .call1((client_id.unwrap_or(-1), cmd.as_ref()))
                 .map(|returned| {
                     returned
-                        .extract::<bool>()
+                        .extract::<Bound<PyBool>>()
                         .map(|bool_value| {
-                            if bool_value {
+                            if bool_value.is_true() {
                                 Some(cmd.as_ref().to_string())
                             } else {
                                 None
@@ -118,9 +119,9 @@ pub(crate) fn client_connect_dispatcher(client_id: i32, is_bot: bool) -> Option<
                     .ok()
                     .and_then(|returned| {
                         returned
-                            .extract::<bool>()
+                            .extract::<Bound<PyBool>>()
                             .map(|bool_value| {
-                                if !bool_value {
+                                if !bool_value.is_true() {
                                     Some("You are banned from this server.".to_string())
                                 } else {
                                     None
@@ -223,9 +224,9 @@ where
                     .call1((index.into(), value.as_ref()))
                     .map(|returned| {
                         returned
-                            .extract::<bool>()
+                            .extract::<Bound<PyBool>>()
                             .map(|bool_value| {
-                                if bool_value {
+                                if bool_value.is_true() {
                                     Some(value.as_ref().to_string())
                                 } else {
                                     None
@@ -277,8 +278,8 @@ where
             Python::with_gil(
                 |py| {
                     console_print_handler.bind(py).call1((text.as_ref(),)).map(|returned| {
-                        returned.extract::<bool>().map(|bool_value| {
-                            if bool_value {
+                        returned.extract::<Bound<PyBool>>().map(|bool_value| {
+                            if bool_value.is_true() {
                                 Some(text.as_ref().to_string())
                             } else {
                                 None
