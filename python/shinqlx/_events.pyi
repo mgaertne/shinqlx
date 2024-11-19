@@ -142,7 +142,7 @@ class DeathDispatcher(EventDispatcher):
 
 class UserinfoDispatcher(EventDispatcher):
     def dispatch(
-        self, playe: Player, changed: UserinfoEventInput
+        self, player: Player, changed: UserinfoEventInput
     ) -> bool | UserinfoEventInput: ...
 
 class KamikazeUseDispatcher(EventDispatcher):
