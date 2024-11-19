@@ -103,6 +103,7 @@ jobs:
           python-version: '3.12'
       - uses: ammaraskar/sphinx-action@master
         with:
+          docs-folder: "docs"
           build-command: "sphinx-build -b html docs _build"
       - name: Upload run_server_shinqlx.sh
         uses: actions/upload-artifact@v4
