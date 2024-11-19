@@ -336,7 +336,6 @@ from ._events import (
     UserinfoDispatcher,
     KamikazeUseDispatcher,
     KamikazeExplodeDispatcher,
-    PlayerItemsTossDispatcher,
     DamageDispatcher,
     EVENT_DISPATCHERS,
 )
@@ -626,7 +625,6 @@ __all__ = [
     "UserinfoDispatcher",
     "KamikazeUseDispatcher",
     "KamikazeExplodeDispatcher",
-    "PlayerItemsTossDispatcher",
     "DamageDispatcher",
     "EVENT_DISPATCHERS",
     # _handlers

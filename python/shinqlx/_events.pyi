@@ -284,14 +284,6 @@ class KamikazeExplodeDispatcher(EventDispatcher):
         self, player: Player, is_used_on_demand: bool
     ) -> str | bool | Iterable | None: ...
 
-class PlayerItemsTossDispatcher(EventDispatcher):
-    name: str
-
-    def dispatch(self, player: Player) -> str | bool | Iterable | None: ...
-    def handle_return(
-        self, handler: Callable, value: int | str | None
-    ) -> str | None: ...
-
 class DamageDispatcher(EventDispatcher):
     name: str
 
